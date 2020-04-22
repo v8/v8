@@ -2871,58 +2871,25 @@ void Assembler::subu(Register rd, Register rs, Register rt) {
   RV_subw(rd, rs, rt);
 }
 
-void Assembler::mul(Register rd, Register rs, Register rt) {
-  if (kArchVariant == kMips64r6) {
-    GenInstrRegister(SPECIAL, rs, rt, rd, MUL_OP, MUL_MUH);
-  } else {
-    GenInstrRegister(SPECIAL2, rs, rt, rd, 0, MUL);
-  }
-}
+void Assembler::mul(Register rd, Register rs, Register rt) { UNREACHABLE(); }
 
-void Assembler::muh(Register rd, Register rs, Register rt) {
-  DCHECK_EQ(kArchVariant, kMips64r6);
-  GenInstrRegister(SPECIAL, rs, rt, rd, MUH_OP, MUL_MUH);
-}
+void Assembler::muh(Register rd, Register rs, Register rt) { UNREACHABLE(); }
 
-void Assembler::mulu(Register rd, Register rs, Register rt) {
-  DCHECK_EQ(kArchVariant, kMips64r6);
-  GenInstrRegister(SPECIAL, rs, rt, rd, MUL_OP, MUL_MUH_U);
-}
+void Assembler::mulu(Register rd, Register rs, Register rt) { UNREACHABLE(); }
 
-void Assembler::muhu(Register rd, Register rs, Register rt) {
-  DCHECK_EQ(kArchVariant, kMips64r6);
-  GenInstrRegister(SPECIAL, rs, rt, rd, MUH_OP, MUL_MUH_U);
-}
+void Assembler::muhu(Register rd, Register rs, Register rt) { UNREACHABLE(); }
 
-void Assembler::dmul(Register rd, Register rs, Register rt) {
-  DCHECK_EQ(kArchVariant, kMips64r6);
-  GenInstrRegister(SPECIAL, rs, rt, rd, MUL_OP, D_MUL_MUH);
-}
+void Assembler::dmul(Register rd, Register rs, Register rt) { UNREACHABLE(); }
 
-void Assembler::dmuh(Register rd, Register rs, Register rt) {
-  DCHECK_EQ(kArchVariant, kMips64r6);
-  GenInstrRegister(SPECIAL, rs, rt, rd, MUH_OP, D_MUL_MUH);
-}
+void Assembler::dmuh(Register rd, Register rs, Register rt) { UNREACHABLE(); }
 
-void Assembler::dmulu(Register rd, Register rs, Register rt) {
-  DCHECK_EQ(kArchVariant, kMips64r6);
-  GenInstrRegister(SPECIAL, rs, rt, rd, MUL_OP, D_MUL_MUH_U);
-}
+void Assembler::dmulu(Register rd, Register rs, Register rt) { UNREACHABLE(); }
 
-void Assembler::dmuhu(Register rd, Register rs, Register rt) {
-  DCHECK_EQ(kArchVariant, kMips64r6);
-  GenInstrRegister(SPECIAL, rs, rt, rd, MUH_OP, D_MUL_MUH_U);
-}
+void Assembler::dmuhu(Register rd, Register rs, Register rt) { UNREACHABLE(); }
 
-void Assembler::mult(Register rs, Register rt) {
-  DCHECK_NE(kArchVariant, kMips64r6);
-  GenInstrRegister(SPECIAL, rs, rt, zero_reg, 0, MULT);
-}
+void Assembler::mult(Register rs, Register rt) { UNREACHABLE(); }
 
-void Assembler::multu(Register rs, Register rt) {
-  DCHECK_NE(kArchVariant, kMips64r6);
-  GenInstrRegister(SPECIAL, rs, rt, zero_reg, 0, MULTU);
-}
+void Assembler::multu(Register rs, Register rt) { UNREACHABLE(); }
 
 void Assembler::daddiu(Register rd, Register rs, int32_t j) {
   if (is_int12(j))
@@ -2936,33 +2903,17 @@ void Assembler::daddiu(Register rd, Register rs, int32_t j) {
   }
 }
 
-void Assembler::div(Register rs, Register rt) {
-  GenInstrRegister(SPECIAL, rs, rt, zero_reg, 0, DIV);
-}
+void Assembler::div(Register rs, Register rt) { UNREACHABLE(); }
 
-void Assembler::div(Register rd, Register rs, Register rt) {
-  DCHECK_EQ(kArchVariant, kMips64r6);
-  GenInstrRegister(SPECIAL, rs, rt, rd, DIV_OP, DIV_MOD);
-}
+void Assembler::div(Register rd, Register rs, Register rt) { UNREACHABLE(); }
 
-void Assembler::mod(Register rd, Register rs, Register rt) {
-  DCHECK_EQ(kArchVariant, kMips64r6);
-  GenInstrRegister(SPECIAL, rs, rt, rd, MOD_OP, DIV_MOD);
-}
+void Assembler::mod(Register rd, Register rs, Register rt) { UNREACHABLE(); }
 
-void Assembler::divu(Register rs, Register rt) {
-  GenInstrRegister(SPECIAL, rs, rt, zero_reg, 0, DIVU);
-}
+void Assembler::divu(Register rs, Register rt) { UNREACHABLE(); }
 
-void Assembler::divu(Register rd, Register rs, Register rt) {
-  DCHECK_EQ(kArchVariant, kMips64r6);
-  GenInstrRegister(SPECIAL, rs, rt, rd, DIV_OP, DIV_MOD_U);
-}
+void Assembler::divu(Register rd, Register rs, Register rt) { UNREACHABLE(); }
 
-void Assembler::modu(Register rd, Register rs, Register rt) {
-  DCHECK_EQ(kArchVariant, kMips64r6);
-  GenInstrRegister(SPECIAL, rs, rt, rd, MOD_OP, DIV_MOD_U);
-}
+void Assembler::modu(Register rd, Register rs, Register rt) { UNREACHABLE(); }
 
 void Assembler::daddu(Register rd, Register rs, Register rt) {
   RV_add(rd, rs, rt);
@@ -2972,41 +2923,21 @@ void Assembler::dsubu(Register rd, Register rs, Register rt) {
   RV_sub(rd, rs, rt);
 }
 
-void Assembler::dmult(Register rs, Register rt) {
-  GenInstrRegister(SPECIAL, rs, rt, zero_reg, 0, DMULT);
-}
+void Assembler::dmult(Register rs, Register rt) { UNREACHABLE(); }
 
-void Assembler::dmultu(Register rs, Register rt) {
-  GenInstrRegister(SPECIAL, rs, rt, zero_reg, 0, DMULTU);
-}
+void Assembler::dmultu(Register rs, Register rt) { UNREACHABLE(); }
 
-void Assembler::ddiv(Register rs, Register rt) {
-  GenInstrRegister(SPECIAL, rs, rt, zero_reg, 0, DDIV);
-}
+void Assembler::ddiv(Register rs, Register rt) { UNREACHABLE(); }
 
-void Assembler::ddiv(Register rd, Register rs, Register rt) {
-  DCHECK_EQ(kArchVariant, kMips64r6);
-  GenInstrRegister(SPECIAL, rs, rt, rd, DIV_OP, D_DIV_MOD);
-}
+void Assembler::ddiv(Register rd, Register rs, Register rt) { UNREACHABLE(); }
 
-void Assembler::dmod(Register rd, Register rs, Register rt) {
-  DCHECK_EQ(kArchVariant, kMips64r6);
-  GenInstrRegister(SPECIAL, rs, rt, rd, MOD_OP, D_DIV_MOD);
-}
+void Assembler::dmod(Register rd, Register rs, Register rt) { UNREACHABLE(); }
 
-void Assembler::ddivu(Register rs, Register rt) {
-  GenInstrRegister(SPECIAL, rs, rt, zero_reg, 0, DDIVU);
-}
+void Assembler::ddivu(Register rs, Register rt) { UNREACHABLE(); }
 
-void Assembler::ddivu(Register rd, Register rs, Register rt) {
-  DCHECK_EQ(kArchVariant, kMips64r6);
-  GenInstrRegister(SPECIAL, rs, rt, rd, DIV_OP, D_DIV_MOD_U);
-}
+void Assembler::ddivu(Register rd, Register rs, Register rt) { UNREACHABLE(); }
 
-void Assembler::dmodu(Register rd, Register rs, Register rt) {
-  DCHECK_EQ(kArchVariant, kMips64r6);
-  GenInstrRegister(SPECIAL, rs, rt, rd, MOD_OP, D_DIV_MOD_U);
-}
+void Assembler::dmodu(Register rd, Register rs, Register rt) { UNREACHABLE(); }
 
 // Logical.
 
@@ -3026,16 +2957,11 @@ void Assembler::andi(Register rt, Register rs, int32_t j) {
   }
 }
 
-// FIXME (RISCV): emulation of or_ will trigger DCHECK failure in
-// Assembler::target_at
 void Assembler::or_(Register rd, Register rs, Register rt) {
   RV_or_(rd, rs, rt);
 }
 
-void Assembler::ori(Register rt, Register rs, int32_t j) {
-  DCHECK(is_uint16(j));
-  GenInstrImmediate(ORI, rs, rt, j);
-}
+void Assembler::ori(Register rt, Register rs, int32_t j) { UNREACHABLE(); }
 
 void Assembler::xor_(Register rd, Register rs, Register rt) {
   RV_xor_(rd, rs, rt);
@@ -3084,23 +3010,9 @@ void Assembler::srav(Register rd, Register rt, Register rs) {
   RV_sraw(rd, rt, rs);
 }
 
-void Assembler::rotr(Register rd, Register rt, uint16_t sa) {
-  // Should be called via MacroAssembler::Ror.
-  DCHECK(rd.is_valid() && rt.is_valid() && is_uint5(sa));
-  DCHECK(kArchVariant == kMips64r2 || kArchVariant == kMips64r6);
-  Instr instr = SPECIAL | (1 << kRsShift) | (rt.code() << kRtShift) |
-                (rd.code() << kRdShift) | (sa << kSaShift) | SRL;
-  emit(instr);
-}
+void Assembler::rotr(Register rd, Register rt, uint16_t sa) { UNREACHABLE(); }
 
-void Assembler::rotrv(Register rd, Register rt, Register rs) {
-  // Should be called via MacroAssembler::Ror.
-  DCHECK(rd.is_valid() && rt.is_valid() && rs.is_valid());
-  DCHECK(kArchVariant == kMips64r2 || kArchVariant == kMips64r6);
-  Instr instr = SPECIAL | (rs.code() << kRsShift) | (rt.code() << kRtShift) |
-                (rd.code() << kRdShift) | (1 << kSaShift) | SRLV;
-  emit(instr);
-}
+void Assembler::rotrv(Register rd, Register rt, Register rs) { UNREACHABLE(); }
 
 void Assembler::dsll(Register rd, Register rt, uint16_t sa) {
   RV_slli(rd, rt, sa & 0x1F);
@@ -3114,38 +3026,21 @@ void Assembler::dsrl(Register rd, Register rt, uint16_t sa) {
   RV_srli(rd, rt, sa & 0x1F);
 }
 
-void Assembler::dsrlv(Register rd, Register rt, Register rs) {
-  GenInstrRegister(SPECIAL, rs, rt, rd, 0, DSRLV);
-}
+void Assembler::dsrlv(Register rd, Register rt, Register rs) { UNREACHABLE(); }
 
-void Assembler::drotr(Register rd, Register rt, uint16_t sa) {
-  DCHECK(rd.is_valid() && rt.is_valid() && is_uint5(sa));
-  Instr instr = SPECIAL | (1 << kRsShift) | (rt.code() << kRtShift) |
-                (rd.code() << kRdShift) | (sa << kSaShift) | DSRL;
-  emit(instr);
-}
+void Assembler::drotr(Register rd, Register rt, uint16_t sa) { UNREACHABLE(); }
 
 void Assembler::drotr32(Register rd, Register rt, uint16_t sa) {
-  DCHECK(rd.is_valid() && rt.is_valid() && is_uint5(sa));
-  Instr instr = SPECIAL | (1 << kRsShift) | (rt.code() << kRtShift) |
-                (rd.code() << kRdShift) | (sa << kSaShift) | DSRL32;
-  emit(instr);
+  UNREACHABLE();
 }
 
-void Assembler::drotrv(Register rd, Register rt, Register rs) {
-  DCHECK(rd.is_valid() && rt.is_valid() && rs.is_valid());
-  Instr instr = SPECIAL | (rs.code() << kRsShift) | (rt.code() << kRtShift) |
-                (rd.code() << kRdShift) | (1 << kSaShift) | DSRLV;
-  emit(instr);
-}
+void Assembler::drotrv(Register rd, Register rt, Register rs) { UNREACHABLE(); }
 
 void Assembler::dsra(Register rd, Register rt, uint16_t sa) {
   RV_srai(rd, rt, sa & 0x1F);
 }
 
-void Assembler::dsrav(Register rd, Register rt, Register rs) {
-  GenInstrRegister(SPECIAL, rs, rt, rd, 0, DSRAV);
-}
+void Assembler::dsrav(Register rd, Register rt, Register rs) { UNREACHABLE(); }
 
 void Assembler::dsll32(Register rd, Register rt, uint16_t sa) {
   RV_slli(rd, rt, 32 + (sa & 0x1F));
@@ -3160,21 +3055,11 @@ void Assembler::dsra32(Register rd, Register rt, uint16_t sa) {
 }
 
 void Assembler::lsa(Register rd, Register rt, Register rs, uint8_t sa) {
-  DCHECK(rd.is_valid() && rt.is_valid() && rs.is_valid());
-  DCHECK_LE(sa, 3);
-  DCHECK_EQ(kArchVariant, kMips64r6);
-  Instr instr = SPECIAL | rs.code() << kRsShift | rt.code() << kRtShift |
-                rd.code() << kRdShift | sa << kSaShift | LSA;
-  emit(instr);
+  UNREACHABLE();
 }
 
 void Assembler::dlsa(Register rd, Register rt, Register rs, uint8_t sa) {
-  DCHECK(rd.is_valid() && rt.is_valid() && rs.is_valid());
-  DCHECK_LE(sa, 3);
-  DCHECK_EQ(kArchVariant, kMips64r6);
-  Instr instr = SPECIAL | rs.code() << kRsShift | rt.code() << kRtShift |
-                rd.code() << kRdShift | sa << kSaShift | DLSA;
-  emit(instr);
+  UNREACHABLE();
 }
 
 // ------------Memory-instructions-------------
@@ -3235,13 +3120,9 @@ void Assembler::lbu(Register rd, const MemOperand& rs) {
   }
 }
 
-void Assembler::lh(Register rd, const MemOperand& rs) {
-  GenInstrImmediate(LH, rs.rm(), rd, rs.offset_);
-}
+void Assembler::lh(Register rd, const MemOperand& rs) { UNREACHABLE(); }
 
-void Assembler::lhu(Register rd, const MemOperand& rs) {
-  GenInstrImmediate(LHU, rs.rm(), rd, rs.offset_);
-}
+void Assembler::lhu(Register rd, const MemOperand& rs) { UNREACHABLE(); }
 
 void Assembler::lw(Register rd, const MemOperand& rs) {
   if (is_int12(rs.offset()))
@@ -3343,16 +3224,7 @@ void Assembler::ll(Register rd, const MemOperand& rs) {
   }
 }
 
-void Assembler::lld(Register rd, const MemOperand& rs) {
-  if (kArchVariant == kMips64r6) {
-    DCHECK(is_int9(rs.offset_));
-    GenInstrImmediate(SPECIAL3, rs.rm(), rd, rs.offset_, 0, LLD_R6);
-  } else {
-    DCHECK_EQ(kArchVariant, kMips64r2);
-    DCHECK(is_int16(rs.offset_));
-    GenInstrImmediate(LLD, rs.rm(), rd, rs.offset_);
-  }
-}
+void Assembler::lld(Register rd, const MemOperand& rs) { UNREACHABLE(); }
 
 void Assembler::sc(Register rd, const MemOperand& rs) {
   if (kArchVariant == kMips64r6) {
@@ -3374,33 +3246,15 @@ void Assembler::scd(Register rd, const MemOperand& rs) {
   }
 }
 
-void Assembler::lui(Register rd, int32_t j) {
-  DCHECK(is_uint16(j) || is_int16(j));
-  GenInstrImmediate(LUI, zero_reg, rd, j);
-}
+void Assembler::lui(Register rd, int32_t j) { UNREACHABLE(); }
 
-void Assembler::aui(Register rt, Register rs, int32_t j) {
-  // This instruction uses same opcode as 'lui'. The difference in encoding is
-  // 'lui' has zero reg. for rs field.
-  DCHECK(is_uint16(j));
-  GenInstrImmediate(LUI, rs, rt, j);
-}
+void Assembler::aui(Register rt, Register rs, int32_t j) { UNREACHABLE(); }
 
-void Assembler::daui(Register rt, Register rs, int32_t j) {
-  DCHECK(is_uint16(j));
-  DCHECK(rs != zero_reg);
-  GenInstrImmediate(DAUI, rs, rt, j);
-}
+void Assembler::daui(Register rt, Register rs, int32_t j) { UNREACHABLE(); }
 
-void Assembler::dahi(Register rs, int32_t j) {
-  DCHECK(is_uint16(j));
-  GenInstrImmediate(REGIMM, rs, DAHI, j);
-}
+void Assembler::dahi(Register rs, int32_t j) { UNREACHABLE(); }
 
-void Assembler::dati(Register rs, int32_t j) {
-  DCHECK(is_uint16(j));
-  GenInstrImmediate(REGIMM, rs, DATI, j);
-}
+void Assembler::dati(Register rs, int32_t j) { UNREACHABLE(); }
 
 void Assembler::ldl(Register rd, const MemOperand& rs) {
   DCHECK(is_int16(rs.offset_));
@@ -3454,47 +3308,17 @@ void Assembler::sd(Register rd, const MemOperand& rs) {
 
 // ---------PC-Relative instructions-----------
 
-void Assembler::addiupc(Register rs, int32_t imm19) {
-  DCHECK_EQ(kArchVariant, kMips64r6);
-  DCHECK(rs.is_valid() && is_int19(imm19));
-  uint32_t imm21 = ADDIUPC << kImm19Bits | (imm19 & kImm19Mask);
-  GenInstrImmediate(PCREL, rs, imm21);
-}
+void Assembler::addiupc(Register rs, int32_t imm19) { UNREACHABLE(); }
 
-void Assembler::lwpc(Register rs, int32_t offset19) {
-  DCHECK_EQ(kArchVariant, kMips64r6);
-  DCHECK(rs.is_valid() && is_int19(offset19));
-  uint32_t imm21 = LWPC << kImm19Bits | (offset19 & kImm19Mask);
-  GenInstrImmediate(PCREL, rs, imm21);
-}
+void Assembler::lwpc(Register rs, int32_t offset19) { UNREACHABLE(); }
 
-void Assembler::lwupc(Register rs, int32_t offset19) {
-  DCHECK_EQ(kArchVariant, kMips64r6);
-  DCHECK(rs.is_valid() && is_int19(offset19));
-  uint32_t imm21 = LWUPC << kImm19Bits | (offset19 & kImm19Mask);
-  GenInstrImmediate(PCREL, rs, imm21);
-}
+void Assembler::lwupc(Register rs, int32_t offset19) { UNREACHABLE(); }
 
-void Assembler::ldpc(Register rs, int32_t offset18) {
-  DCHECK_EQ(kArchVariant, kMips64r6);
-  DCHECK(rs.is_valid() && is_int18(offset18));
-  uint32_t imm21 = LDPC << kImm18Bits | (offset18 & kImm18Mask);
-  GenInstrImmediate(PCREL, rs, imm21);
-}
+void Assembler::ldpc(Register rs, int32_t offset18) { UNREACHABLE(); }
 
-void Assembler::auipc(Register rs, int16_t imm16) {
-  DCHECK_EQ(kArchVariant, kMips64r6);
-  DCHECK(rs.is_valid());
-  uint32_t imm21 = AUIPC << kImm16Bits | (imm16 & kImm16Mask);
-  GenInstrImmediate(PCREL, rs, imm21);
-}
+void Assembler::auipc(Register rs, int16_t imm16) { UNREACHABLE(); }
 
-void Assembler::aluipc(Register rs, int16_t imm16) {
-  DCHECK_EQ(kArchVariant, kMips64r6);
-  DCHECK(rs.is_valid());
-  uint32_t imm21 = ALUIPC << kImm16Bits | (imm16 & kImm16Mask);
-  GenInstrImmediate(PCREL, rs, imm21);
-}
+void Assembler::aluipc(Register rs, int16_t imm16) { UNREACHABLE(); }
 
 // -------------Misc-instructions--------------
 
@@ -3515,59 +3339,25 @@ void Assembler::stop(uint32_t code) {
 #endif
 }
 
-void Assembler::tge(Register rs, Register rt, uint16_t code) {
-  DCHECK(is_uint10(code));
-  Instr instr =
-      SPECIAL | TGE | rs.code() << kRsShift | rt.code() << kRtShift | code << 6;
-  emit(instr);
-}
+void Assembler::tge(Register rs, Register rt, uint16_t code) { UNREACHABLE(); }
 
-void Assembler::tgeu(Register rs, Register rt, uint16_t code) {
-  DCHECK(is_uint10(code));
-  Instr instr = SPECIAL | TGEU | rs.code() << kRsShift | rt.code() << kRtShift |
-                code << 6;
-  emit(instr);
-}
+void Assembler::tgeu(Register rs, Register rt, uint16_t code) { UNREACHABLE(); }
 
-void Assembler::tlt(Register rs, Register rt, uint16_t code) {
-  DCHECK(is_uint10(code));
-  Instr instr =
-      SPECIAL | TLT | rs.code() << kRsShift | rt.code() << kRtShift | code << 6;
-  emit(instr);
-}
+void Assembler::tlt(Register rs, Register rt, uint16_t code) { UNREACHABLE(); }
 
-void Assembler::tltu(Register rs, Register rt, uint16_t code) {
-  DCHECK(is_uint10(code));
-  Instr instr = SPECIAL | TLTU | rs.code() << kRsShift | rt.code() << kRtShift |
-                code << 6;
-  emit(instr);
-}
+void Assembler::tltu(Register rs, Register rt, uint16_t code) { UNREACHABLE(); }
 
-void Assembler::teq(Register rs, Register rt, uint16_t code) {
-  DCHECK(is_uint10(code));
-  Instr instr =
-      SPECIAL | TEQ | rs.code() << kRsShift | rt.code() << kRtShift | code << 6;
-  emit(instr);
-}
+void Assembler::teq(Register rs, Register rt, uint16_t code) { UNREACHABLE(); }
 
-void Assembler::tne(Register rs, Register rt, uint16_t code) {
-  DCHECK(is_uint10(code));
-  Instr instr =
-      SPECIAL | TNE | rs.code() << kRsShift | rt.code() << kRtShift | code << 6;
-  emit(instr);
-}
+void Assembler::tne(Register rs, Register rt, uint16_t code) { UNREACHABLE(); }
 
 void Assembler::sync() { RV_fence(0b1111, 0b1111); }
 
 // Move from HI/LO register.
 
-void Assembler::mfhi(Register rd) {
-  GenInstrRegister(SPECIAL, zero_reg, zero_reg, rd, 0, MFHI);
-}
+void Assembler::mfhi(Register rd) { UNREACHABLE(); }
 
-void Assembler::mflo(Register rd) {
-  GenInstrRegister(SPECIAL, zero_reg, zero_reg, rd, 0, MFLO);
-}
+void Assembler::mflo(Register rd) { UNREACHABLE(); }
 
 // Set on less than instructions.
 void Assembler::slt(Register rd, Register rs, Register rt) {
@@ -3588,9 +3378,7 @@ void Assembler::sltu(Register rd, Register rs, Register rt) {
   RV_sltu(rd, rd, scratch);
 }
 
-void Assembler::slti(Register rt, Register rs, int32_t j) {
-  GenInstrImmediate(SLTI, rs, rt, j);
-}
+void Assembler::slti(Register rt, Register rs, int32_t j) { UNREACHABLE(); }
 
 void Assembler::sltiu(Register rd, Register rs, int32_t j) {
   RV_sext_w(rd, rs);
@@ -3605,19 +3393,13 @@ void Assembler::sltiu(Register rd, Register rs, int32_t j) {
 }
 
 // Conditional move.
-void Assembler::movz(Register rd, Register rs, Register rt) {
-  GenInstrRegister(SPECIAL, rs, rt, rd, 0, MOVZ);
-}
+void Assembler::movz(Register rd, Register rs, Register rt) { UNREACHABLE(); }
 
-void Assembler::movn(Register rd, Register rs, Register rt) {
-  GenInstrRegister(SPECIAL, rs, rt, rd, 0, MOVN);
-}
+void Assembler::movn(Register rd, Register rs, Register rt) { UNREACHABLE(); }
 
-void Assembler::movt(Register rd, Register rs, uint16_t cc) {
-  Register rt = Register::from_code((cc & 0x0007) << 2 | 1);
-  GenInstrRegister(SPECIAL, rs, rt, rd, 0, MOVCI);
-}
+void Assembler::movt(Register rd, Register rs, uint16_t cc) { UNREACHABLE(); }
 
+// FIXME (RISCV): to be ported
 void Assembler::movf(Register rd, Register rs, uint16_t cc) {
   Register rt = Register::from_code((cc & 0x0007) << 2 | 0);
   GenInstrRegister(SPECIAL, rs, rt, rd, 0, MOVCI);
@@ -3656,10 +3438,7 @@ void Assembler::maxa_d(FPURegister fd, FPURegister fs, FPURegister ft) {
 }
 
 // GPR.
-void Assembler::seleqz(Register rd, Register rs, Register rt) {
-  DCHECK_EQ(kArchVariant, kMips64r6);
-  GenInstrRegister(SPECIAL, rs, rt, rd, 0, SELEQZ_S);
-}
+void Assembler::seleqz(Register rd, Register rs, Register rt) { UNREACHABLE(); }
 
 // GPR.
 void Assembler::selnez(Register rd, Register rs, Register rt) {
@@ -3672,125 +3451,61 @@ void Assembler::selnez(Register rd, Register rs, Register rt) {
 }
 
 // Bit twiddling.
-void Assembler::clz(Register rd, Register rs) {
-  if (kArchVariant != kMips64r6) {
-    // clz instr requires same GPR number in 'rd' and 'rt' fields.
-    GenInstrRegister(SPECIAL2, rs, rd, rd, 0, CLZ);
-  } else {
-    GenInstrRegister(SPECIAL, rs, zero_reg, rd, 1, CLZ_R6);
-  }
-}
+void Assembler::clz(Register rd, Register rs) { UNREACHABLE(); }
 
-void Assembler::dclz(Register rd, Register rs) {
-  if (kArchVariant != kMips64r6) {
-    // dclz instr requires same GPR number in 'rd' and 'rt' fields.
-    GenInstrRegister(SPECIAL2, rs, rd, rd, 0, DCLZ);
-  } else {
-    GenInstrRegister(SPECIAL, rs, zero_reg, rd, 1, DCLZ_R6);
-  }
-}
+void Assembler::dclz(Register rd, Register rs) { UNREACHABLE(); }
 
 void Assembler::ins_(Register rt, Register rs, uint16_t pos, uint16_t size) {
-  // Should be called via MacroAssembler::Ins.
-  // ins instr has 'rt' field as dest, and two uint5: msb, lsb.
-  DCHECK((kArchVariant == kMips64r2) || (kArchVariant == kMips64r6));
-  GenInstrRegister(SPECIAL3, rs, rt, pos + size - 1, pos, INS);
+  UNREACHABLE();
 }
 
 void Assembler::dins_(Register rt, Register rs, uint16_t pos, uint16_t size) {
-  // Should be called via MacroAssembler::Dins.
-  // dins instr has 'rt' field as dest, and two uint5: msb, lsb.
-  DCHECK(kArchVariant == kMips64r2 || kArchVariant == kMips64r6);
-  GenInstrRegister(SPECIAL3, rs, rt, pos + size - 1, pos, DINS);
+  UNREACHABLE();
 }
 
 void Assembler::dinsm_(Register rt, Register rs, uint16_t pos, uint16_t size) {
-  // Should be called via MacroAssembler::Dins.
-  // dinsm instr has 'rt' field as dest, and two uint5: msbminus32, lsb.
-  DCHECK(kArchVariant == kMips64r2 || kArchVariant == kMips64r6);
-  GenInstrRegister(SPECIAL3, rs, rt, pos + size - 1 - 32, pos, DINSM);
+  UNREACHABLE();
 }
 
 void Assembler::dinsu_(Register rt, Register rs, uint16_t pos, uint16_t size) {
-  // Should be called via MacroAssembler::Dins.
-  // dinsu instr has 'rt' field as dest, and two uint5: msbminus32, lsbminus32.
-  DCHECK(kArchVariant == kMips64r2 || kArchVariant == kMips64r6);
-  GenInstrRegister(SPECIAL3, rs, rt, pos + size - 1 - 32, pos - 32, DINSU);
+  UNREACHABLE();
 }
 
 void Assembler::ext_(Register rt, Register rs, uint16_t pos, uint16_t size) {
-  // Should be called via MacroAssembler::Ext.
-  // ext instr has 'rt' field as dest, and two uint5: msbd, lsb.
-  DCHECK(kArchVariant == kMips64r2 || kArchVariant == kMips64r6);
-  GenInstrRegister(SPECIAL3, rs, rt, size - 1, pos, EXT);
+  UNREACHABLE();
 }
 
 void Assembler::dext_(Register rt, Register rs, uint16_t pos, uint16_t size) {
-  // Should be called via MacroAssembler::Dext.
-  // dext instr has 'rt' field as dest, and two uint5: msbd, lsb.
-  DCHECK(kArchVariant == kMips64r2 || kArchVariant == kMips64r6);
-  GenInstrRegister(SPECIAL3, rs, rt, size - 1, pos, DEXT);
+  UNREACHABLE();
 }
 
 void Assembler::dextm_(Register rt, Register rs, uint16_t pos, uint16_t size) {
-  // Should be called via MacroAssembler::Dextm.
-  // dextm instr has 'rt' field as dest, and two uint5: msbdminus32, lsb.
-  DCHECK(kArchVariant == kMips64r2 || kArchVariant == kMips64r6);
-  GenInstrRegister(SPECIAL3, rs, rt, size - 1 - 32, pos, DEXTM);
+  UNREACHABLE();
 }
 
 void Assembler::dextu_(Register rt, Register rs, uint16_t pos, uint16_t size) {
-  // Should be called via MacroAssembler::Dextu.
-  // dextu instr has 'rt' field as dest, and two uint5: msbd, lsbminus32.
-  DCHECK(kArchVariant == kMips64r2 || kArchVariant == kMips64r6);
-  GenInstrRegister(SPECIAL3, rs, rt, size - 1, pos - 32, DEXTU);
+  UNREACHABLE();
 }
 
-void Assembler::bitswap(Register rd, Register rt) {
-  DCHECK_EQ(kArchVariant, kMips64r6);
-  GenInstrRegister(SPECIAL3, zero_reg, rt, rd, 0, BSHFL);
-}
+void Assembler::bitswap(Register rd, Register rt) { UNREACHABLE(); }
 
-void Assembler::dbitswap(Register rd, Register rt) {
-  DCHECK_EQ(kArchVariant, kMips64r6);
-  GenInstrRegister(SPECIAL3, zero_reg, rt, rd, 0, DBSHFL);
-}
+void Assembler::dbitswap(Register rd, Register rt) { UNREACHABLE(); }
 
-void Assembler::pref(int32_t hint, const MemOperand& rs) {
-  DCHECK(is_uint5(hint) && is_uint16(rs.offset_));
-  Instr instr =
-      PREF | (rs.rm().code() << kRsShift) | (hint << kRtShift) | (rs.offset_);
-  emit(instr);
-}
+void Assembler::pref(int32_t hint, const MemOperand& rs) { UNREACHABLE(); }
 
 void Assembler::align(Register rd, Register rs, Register rt, uint8_t bp) {
-  DCHECK_EQ(kArchVariant, kMips64r6);
-  DCHECK(is_uint3(bp));
-  uint16_t sa = (ALIGN << kBp2Bits) | bp;
-  GenInstrRegister(SPECIAL3, rs, rt, rd, sa, BSHFL);
+  UNREACHABLE();
 }
 
 void Assembler::dalign(Register rd, Register rs, Register rt, uint8_t bp) {
-  DCHECK_EQ(kArchVariant, kMips64r6);
-  DCHECK(is_uint3(bp));
-  uint16_t sa = (DALIGN << kBp3Bits) | bp;
-  GenInstrRegister(SPECIAL3, rs, rt, rd, sa, DBSHFL);
+  UNREACHABLE();
 }
 
-void Assembler::wsbh(Register rd, Register rt) {
-  DCHECK(kArchVariant == kMips64r2 || kArchVariant == kMips64r6);
-  GenInstrRegister(SPECIAL3, zero_reg, rt, rd, WSBH, BSHFL);
-}
+void Assembler::wsbh(Register rd, Register rt) { UNREACHABLE(); }
 
-void Assembler::dsbh(Register rd, Register rt) {
-  DCHECK(kArchVariant == kMips64r2 || kArchVariant == kMips64r6);
-  GenInstrRegister(SPECIAL3, zero_reg, rt, rd, DSBH, DBSHFL);
-}
+void Assembler::dsbh(Register rd, Register rt) { UNREACHABLE(); }
 
-void Assembler::dshd(Register rd, Register rt) {
-  DCHECK(kArchVariant == kMips64r2 || kArchVariant == kMips64r6);
-  GenInstrRegister(SPECIAL3, zero_reg, rt, rd, DSHD, DBSHFL);
-}
+void Assembler::dshd(Register rd, Register rt) { UNREACHABLE(); }
 
 void Assembler::seh(Register rd, Register rt) {
   RV_slli(rd, rt, 64 - 16);
@@ -3818,9 +3533,7 @@ void Assembler::lwc1(FPURegister fd, const MemOperand& src) {
   }
 }
 
-void Assembler::ldc1(FPURegister fd, const MemOperand& src) {
-  GenInstrImmediate(LDC1, src.rm(), fd, src.offset_);
-}
+void Assembler::ldc1(FPURegister fd, const MemOperand& src) { UNREACHABLE(); }
 
 void Assembler::swc1(FPURegister fs, const MemOperand& src) {
   if (is_int12(src.offset()))
@@ -3835,40 +3548,41 @@ void Assembler::swc1(FPURegister fs, const MemOperand& src) {
   }
 }
 
-void Assembler::sdc1(FPURegister fs, const MemOperand& src) {
-  GenInstrImmediate(SDC1, src.rm(), fs, src.offset_);
-}
+void Assembler::sdc1(FPURegister fs, const MemOperand& src) { UNREACHABLE(); }
 
 void Assembler::mtc1(Register rt, FPURegister fs) { RV_fmv_w_x(fs, rt); }
 
+// FIXME (RISCV): need to be ported
 void Assembler::mthc1(Register rt, FPURegister fs) {
   GenInstrRegister(COP1, MTHC1, rt, fs, fa0);
+  /* UNREACHABLE(); */
 }
 
 void Assembler::dmtc1(Register rt, FPURegister fs) { RV_fmv_d_x(fs, rt); }
 
 void Assembler::mfc1(Register rt, FPURegister fs) { RV_fmv_x_w(rt, fs); }
 
+// FIXME (RISCV):
 void Assembler::mfhc1(Register rt, FPURegister fs) {
   GenInstrRegister(COP1, MFHC1, rt, fs, fa0);
+  /* UNREACHABLE(); */
 }
 
 void Assembler::dmfc1(Register rt, FPURegister fs) { RV_fmv_x_d(rt, fs); }
 
+// FIXME (RISCV): to be ported
 void Assembler::ctc1(Register rt, FPUControlRegister fs) {
-  GenInstrRegister(COP1, CTC1, rt, fs);
+  GenInstrRegister(COP1, CTC1, rt, fs); /* UNREACHABLE(); */
 }
 
+// FIXME (RISCV): to be ported
 void Assembler::cfc1(Register rt, FPUControlRegister fs) {
-  GenInstrRegister(COP1, CFC1, rt, fs);
+  GenInstrRegister(COP1, CFC1, rt, fs); /* UNREACHABLE(); */
 }
 
 void Assembler::sel(SecondaryField fmt, FPURegister fd, FPURegister fs,
                     FPURegister ft) {
-  DCHECK_EQ(kArchVariant, kMips64r6);
-  DCHECK((fmt == D) || (fmt == S));
-
-  GenInstrRegister(COP1, fmt, ft, fs, fd, SEL);
+  UNREACHABLE();
 }
 
 void Assembler::sel_s(FPURegister fd, FPURegister fs, FPURegister ft) {
@@ -3882,8 +3596,7 @@ void Assembler::sel_d(FPURegister fd, FPURegister fs, FPURegister ft) {
 // FPR.
 void Assembler::seleqz(SecondaryField fmt, FPURegister fd, FPURegister fs,
                        FPURegister ft) {
-  DCHECK((fmt == D) || (fmt == S));
-  GenInstrRegister(COP1, fmt, ft, fs, fd, SELEQZ_C);
+  UNREACHABLE();
 }
 
 void Assembler::seleqz_d(FPURegister fd, FPURegister fs, FPURegister ft) {
@@ -3903,55 +3616,41 @@ void Assembler::selnez_s(FPURegister fd, FPURegister fs, FPURegister ft) {
 }
 
 void Assembler::movz_s(FPURegister fd, FPURegister fs, Register rt) {
-  DCHECK_EQ(kArchVariant, kMips64r2);
-  GenInstrRegister(COP1, S, rt, fs, fd, MOVZ_C);
+  UNREACHABLE();
 }
 
 void Assembler::movz_d(FPURegister fd, FPURegister fs, Register rt) {
-  DCHECK_EQ(kArchVariant, kMips64r2);
-  GenInstrRegister(COP1, D, rt, fs, fd, MOVZ_C);
+  UNREACHABLE();
 }
 
 void Assembler::movt_s(FPURegister fd, FPURegister fs, uint16_t cc) {
-  DCHECK_EQ(kArchVariant, kMips64r2);
-  FPURegister ft = FPURegister::from_code((cc & 0x0007) << 2 | 1);
-  GenInstrRegister(COP1, S, ft, fs, fd, MOVF);
+  UNREACHABLE();
 }
 
 void Assembler::movt_d(FPURegister fd, FPURegister fs, uint16_t cc) {
-  DCHECK_EQ(kArchVariant, kMips64r2);
-  FPURegister ft = FPURegister::from_code((cc & 0x0007) << 2 | 1);
-  GenInstrRegister(COP1, D, ft, fs, fd, MOVF);
+  UNREACHABLE();
 }
 
 void Assembler::movf_s(FPURegister fd, FPURegister fs, uint16_t cc) {
-  DCHECK_EQ(kArchVariant, kMips64r2);
-  FPURegister ft = FPURegister::from_code((cc & 0x0007) << 2 | 0);
-  GenInstrRegister(COP1, S, ft, fs, fd, MOVF);
+  UNREACHABLE();
 }
 
 void Assembler::movf_d(FPURegister fd, FPURegister fs, uint16_t cc) {
-  DCHECK_EQ(kArchVariant, kMips64r2);
-  FPURegister ft = FPURegister::from_code((cc & 0x0007) << 2 | 0);
-  GenInstrRegister(COP1, D, ft, fs, fd, MOVF);
+  UNREACHABLE();
 }
 
 void Assembler::movn_s(FPURegister fd, FPURegister fs, Register rt) {
-  DCHECK_EQ(kArchVariant, kMips64r2);
-  GenInstrRegister(COP1, S, rt, fs, fd, MOVN_C);
+  UNREACHABLE();
 }
 
 void Assembler::movn_d(FPURegister fd, FPURegister fs, Register rt) {
-  DCHECK_EQ(kArchVariant, kMips64r2);
-  GenInstrRegister(COP1, D, rt, fs, fd, MOVN_C);
+  UNREACHABLE();
 }
 
 // FPR.
 void Assembler::selnez(SecondaryField fmt, FPURegister fd, FPURegister fs,
                        FPURegister ft) {
-  DCHECK_EQ(kArchVariant, kMips64r6);
-  DCHECK((fmt == D) || (fmt == S));
-  GenInstrRegister(COP1, fmt, ft, fs, fd, SELNEZ_C);
+  UNREACHABLE();
 }
 
 // Arithmetic.
@@ -4009,23 +3708,19 @@ void Assembler::msub_d(FPURegister fd, FPURegister fr, FPURegister fs,
 }
 
 void Assembler::maddf_s(FPURegister fd, FPURegister fs, FPURegister ft) {
-  DCHECK_EQ(kArchVariant, kMips64r6);
-  GenInstrRegister(COP1, S, ft, fs, fd, MADDF_S);
+  UNREACHABLE();
 }
 
 void Assembler::maddf_d(FPURegister fd, FPURegister fs, FPURegister ft) {
-  DCHECK_EQ(kArchVariant, kMips64r6);
-  GenInstrRegister(COP1, D, ft, fs, fd, MADDF_D);
+  UNREACHABLE();
 }
 
 void Assembler::msubf_s(FPURegister fd, FPURegister fs, FPURegister ft) {
-  DCHECK_EQ(kArchVariant, kMips64r6);
-  GenInstrRegister(COP1, S, ft, fs, fd, MSUBF_S);
+  UNREACHABLE();
 }
 
 void Assembler::msubf_d(FPURegister fd, FPURegister fs, FPURegister ft) {
-  DCHECK_EQ(kArchVariant, kMips64r6);
-  GenInstrRegister(COP1, D, ft, fs, fd, MSUBF_D);
+  UNREACHABLE();
 }
 
 void Assembler::div_s(FPURegister fd, FPURegister fs, FPURegister ft) {
@@ -4040,190 +3735,111 @@ void Assembler::abs_s(FPURegister fd, FPURegister fs) { RV_fabs_s(fd, fs); }
 
 void Assembler::abs_d(FPURegister fd, FPURegister fs) { RV_fabs_d(fd, fs); }
 
+// FIXME (RISCV): need to port
 void Assembler::mov_d(FPURegister fd, FPURegister fs) {
-  GenInstrRegister(COP1, D, fa0, fs, fd, MOV_D);
+  GenInstrRegister(COP1, D, fa0, fs, fd, MOV_D); /* UNREACHABLE(); */
 }
 
-void Assembler::mov_s(FPURegister fd, FPURegister fs) {
-  GenInstrRegister(COP1, S, fa0, fs, fd, MOV_S);
-}
+void Assembler::mov_s(FPURegister fd, FPURegister fs) { UNREACHABLE(); }
 
-void Assembler::neg_s(FPURegister fd, FPURegister fs) {
-  GenInstrRegister(COP1, S, fa0, fs, fd, NEG_D);
-}
+void Assembler::neg_s(FPURegister fd, FPURegister fs) { UNREACHABLE(); }
 
-void Assembler::neg_d(FPURegister fd, FPURegister fs) {
-  GenInstrRegister(COP1, D, fa0, fs, fd, NEG_D);
-}
+void Assembler::neg_d(FPURegister fd, FPURegister fs) { UNREACHABLE(); }
 
 void Assembler::sqrt_s(FPURegister fd, FPURegister fs) { RV_fsqrt_s(fd, fs); }
 
 void Assembler::sqrt_d(FPURegister fd, FPURegister fs) { RV_fsqrt_d(fd, fs); }
 
-void Assembler::rsqrt_s(FPURegister fd, FPURegister fs) {
-  GenInstrRegister(COP1, S, fa0, fs, fd, RSQRT_S);
-}
+void Assembler::rsqrt_s(FPURegister fd, FPURegister fs) { UNREACHABLE(); }
 
-void Assembler::rsqrt_d(FPURegister fd, FPURegister fs) {
-  GenInstrRegister(COP1, D, fa0, fs, fd, RSQRT_D);
-}
+void Assembler::rsqrt_d(FPURegister fd, FPURegister fs) { UNREACHABLE(); }
 
-void Assembler::recip_d(FPURegister fd, FPURegister fs) {
-  GenInstrRegister(COP1, D, fa0, fs, fd, RECIP_D);
-}
+void Assembler::recip_d(FPURegister fd, FPURegister fs) { UNREACHABLE(); }
 
-void Assembler::recip_s(FPURegister fd, FPURegister fs) {
-  GenInstrRegister(COP1, S, fa0, fs, fd, RECIP_S);
-}
+void Assembler::recip_s(FPURegister fd, FPURegister fs) { UNREACHABLE(); }
 
 // Conversions.
-void Assembler::cvt_w_s(FPURegister fd, FPURegister fs) {
-  GenInstrRegister(COP1, S, fa0, fs, fd, CVT_W_S);
-}
+void Assembler::cvt_w_s(FPURegister fd, FPURegister fs) { UNREACHABLE(); }
 
-void Assembler::cvt_w_d(FPURegister fd, FPURegister fs) {
-  GenInstrRegister(COP1, D, fa0, fs, fd, CVT_W_D);
-}
+void Assembler::cvt_w_d(FPURegister fd, FPURegister fs) { UNREACHABLE(); }
 
-void Assembler::trunc_w_s(FPURegister fd, FPURegister fs) {
-  GenInstrRegister(COP1, S, fa0, fs, fd, TRUNC_W_S);
-}
+void Assembler::trunc_w_s(FPURegister fd, FPURegister fs) { UNREACHABLE(); }
 
+// FIXME (RISCV): to be ported
 void Assembler::trunc_w_d(FPURegister fd, FPURegister fs) {
   GenInstrRegister(COP1, D, fa0, fs, fd, TRUNC_W_D);
 }
 
-void Assembler::round_w_s(FPURegister fd, FPURegister fs) {
-  GenInstrRegister(COP1, S, fa0, fs, fd, ROUND_W_S);
-}
+void Assembler::round_w_s(FPURegister fd, FPURegister fs) { UNREACHABLE(); }
 
-void Assembler::round_w_d(FPURegister fd, FPURegister fs) {
-  GenInstrRegister(COP1, D, fa0, fs, fd, ROUND_W_D);
-}
+void Assembler::round_w_d(FPURegister fd, FPURegister fs) { UNREACHABLE(); }
 
-void Assembler::floor_w_s(FPURegister fd, FPURegister fs) {
-  GenInstrRegister(COP1, S, fa0, fs, fd, FLOOR_W_S);
-}
+void Assembler::floor_w_s(FPURegister fd, FPURegister fs) { UNREACHABLE(); }
 
-void Assembler::floor_w_d(FPURegister fd, FPURegister fs) {
-  GenInstrRegister(COP1, D, fa0, fs, fd, FLOOR_W_D);
-}
+void Assembler::floor_w_d(FPURegister fd, FPURegister fs) { UNREACHABLE(); }
 
-void Assembler::ceil_w_s(FPURegister fd, FPURegister fs) {
-  GenInstrRegister(COP1, S, fa0, fs, fd, CEIL_W_S);
-}
+void Assembler::ceil_w_s(FPURegister fd, FPURegister fs) { UNREACHABLE(); }
 
-void Assembler::ceil_w_d(FPURegister fd, FPURegister fs) {
-  GenInstrRegister(COP1, D, fa0, fs, fd, CEIL_W_D);
-}
+void Assembler::ceil_w_d(FPURegister fd, FPURegister fs) { UNREACHABLE(); }
 
 void Assembler::rint_s(FPURegister fd, FPURegister fs) { rint(S, fd, fs); }
 
 void Assembler::rint_d(FPURegister fd, FPURegister fs) { rint(D, fd, fs); }
 
 void Assembler::rint(SecondaryField fmt, FPURegister fd, FPURegister fs) {
-  DCHECK_EQ(kArchVariant, kMips64r6);
-  GenInstrRegister(COP1, fmt, fa0, fs, fd, RINT);
+  UNREACHABLE();
 }
 
-void Assembler::cvt_l_s(FPURegister fd, FPURegister fs) {
-  DCHECK(kArchVariant == kMips64r2 || kArchVariant == kMips64r6);
-  GenInstrRegister(COP1, S, fa0, fs, fd, CVT_L_S);
-}
+void Assembler::cvt_l_s(FPURegister fd, FPURegister fs) { UNREACHABLE(); }
 
-void Assembler::cvt_l_d(FPURegister fd, FPURegister fs) {
-  DCHECK(kArchVariant == kMips64r2 || kArchVariant == kMips64r6);
-  GenInstrRegister(COP1, D, fa0, fs, fd, CVT_L_D);
-}
+void Assembler::cvt_l_d(FPURegister fd, FPURegister fs) { UNREACHABLE(); }
 
-void Assembler::trunc_l_s(FPURegister fd, FPURegister fs) {
-  DCHECK(kArchVariant == kMips64r2 || kArchVariant == kMips64r6);
-  GenInstrRegister(COP1, S, fa0, fs, fd, TRUNC_L_S);
-}
+void Assembler::trunc_l_s(FPURegister fd, FPURegister fs) { UNREACHABLE(); }
 
-void Assembler::trunc_l_d(FPURegister fd, FPURegister fs) {
-  DCHECK(kArchVariant == kMips64r2 || kArchVariant == kMips64r6);
-  GenInstrRegister(COP1, D, fa0, fs, fd, TRUNC_L_D);
-}
+void Assembler::trunc_l_d(FPURegister fd, FPURegister fs) { UNREACHABLE(); }
 
-void Assembler::round_l_s(FPURegister fd, FPURegister fs) {
-  GenInstrRegister(COP1, S, fa0, fs, fd, ROUND_L_S);
-}
+void Assembler::round_l_s(FPURegister fd, FPURegister fs) { UNREACHABLE(); }
 
-void Assembler::round_l_d(FPURegister fd, FPURegister fs) {
-  GenInstrRegister(COP1, D, fa0, fs, fd, ROUND_L_D);
-}
+void Assembler::round_l_d(FPURegister fd, FPURegister fs) { UNREACHABLE(); }
 
-void Assembler::floor_l_s(FPURegister fd, FPURegister fs) {
-  GenInstrRegister(COP1, S, fa0, fs, fd, FLOOR_L_S);
-}
+void Assembler::floor_l_s(FPURegister fd, FPURegister fs) { UNREACHABLE(); }
 
-void Assembler::floor_l_d(FPURegister fd, FPURegister fs) {
-  GenInstrRegister(COP1, D, fa0, fs, fd, FLOOR_L_D);
-}
+void Assembler::floor_l_d(FPURegister fd, FPURegister fs) { UNREACHABLE(); }
 
-void Assembler::ceil_l_s(FPURegister fd, FPURegister fs) {
-  GenInstrRegister(COP1, S, fa0, fs, fd, CEIL_L_S);
-}
+void Assembler::ceil_l_s(FPURegister fd, FPURegister fs) { UNREACHABLE(); }
 
-void Assembler::ceil_l_d(FPURegister fd, FPURegister fs) {
-  GenInstrRegister(COP1, D, fa0, fs, fd, CEIL_L_D);
-}
+void Assembler::ceil_l_d(FPURegister fd, FPURegister fs) { UNREACHABLE(); }
 
-void Assembler::class_s(FPURegister fd, FPURegister fs) {
-  DCHECK_EQ(kArchVariant, kMips64r6);
-  GenInstrRegister(COP1, S, fa0, fs, fd, CLASS_S);
-}
+void Assembler::class_s(FPURegister fd, FPURegister fs) { UNREACHABLE(); }
 
-void Assembler::class_d(FPURegister fd, FPURegister fs) {
-  DCHECK_EQ(kArchVariant, kMips64r6);
-  GenInstrRegister(COP1, D, fa0, fs, fd, CLASS_D);
-}
+void Assembler::class_d(FPURegister fd, FPURegister fs) { UNREACHABLE(); }
 
 void Assembler::mina(SecondaryField fmt, FPURegister fd, FPURegister fs,
                      FPURegister ft) {
-  DCHECK_EQ(kArchVariant, kMips64r6);
-  DCHECK((fmt == D) || (fmt == S));
-  GenInstrRegister(COP1, fmt, ft, fs, fd, MINA);
+  UNREACHABLE();
 }
 
 void Assembler::maxa(SecondaryField fmt, FPURegister fd, FPURegister fs,
                      FPURegister ft) {
-  DCHECK_EQ(kArchVariant, kMips64r6);
-  DCHECK((fmt == D) || (fmt == S));
-  GenInstrRegister(COP1, fmt, ft, fs, fd, MAXA);
+  UNREACHABLE();
 }
 
-void Assembler::cvt_s_w(FPURegister fd, FPURegister fs) {
-  GenInstrRegister(COP1, W, fa0, fs, fd, CVT_S_W);
-}
+void Assembler::cvt_s_w(FPURegister fd, FPURegister fs) { UNREACHABLE(); }
 
-void Assembler::cvt_s_l(FPURegister fd, FPURegister fs) {
-  DCHECK(kArchVariant == kMips64r2 || kArchVariant == kMips64r6);
-  GenInstrRegister(COP1, L, fa0, fs, fd, CVT_S_L);
-}
+void Assembler::cvt_s_l(FPURegister fd, FPURegister fs) { UNREACHABLE(); }
 
 void Assembler::cvt_s_d(FPURegister fd, FPURegister fs) { RV_fcvt_s_d(fd, fs); }
 
-void Assembler::cvt_d_w(FPURegister fd, FPURegister fs) {
-  GenInstrRegister(COP1, W, fa0, fs, fd, CVT_D_W);
-}
+void Assembler::cvt_d_w(FPURegister fd, FPURegister fs) { UNREACHABLE(); }
 
-void Assembler::cvt_d_l(FPURegister fd, FPURegister fs) {
-  DCHECK(kArchVariant == kMips64r2 || kArchVariant == kMips64r6);
-  GenInstrRegister(COP1, L, fa0, fs, fd, CVT_D_L);
-}
+void Assembler::cvt_d_l(FPURegister fd, FPURegister fs) { UNREACHABLE(); }
 
 void Assembler::cvt_d_s(FPURegister fd, FPURegister fs) { RV_fcvt_d_s(fd, fs); }
 
 // Conditions for >= MIPSr6.
 void Assembler::cmp(FPUCondition cond, SecondaryField fmt, FPURegister fd,
                     FPURegister fs, FPURegister ft) {
-  DCHECK_EQ(kArchVariant, kMips64r6);
-  DCHECK_EQ(fmt & ~(31 << kRsShift), 0);
-  Instr instr = COP1 | fmt | ft.code() << kFtShift | fs.code() << kFsShift |
-                fd.code() << kFdShift | (0 << 5) | cond;
-  emit(instr);
+  UNREACHABLE();
 }
 
 void Assembler::cmp_s(FPUCondition cond, FPURegister fd, FPURegister fs,
@@ -4236,23 +3852,13 @@ void Assembler::cmp_d(FPUCondition cond, FPURegister fd, FPURegister fs,
   cmp(cond, L, fd, fs, ft);
 }
 
-void Assembler::bc1eqz(int16_t offset, FPURegister ft) {
-  DCHECK_EQ(kArchVariant, kMips64r6);
-  BlockTrampolinePoolScope block_trampoline_pool(this);
-  Instr instr = COP1 | BC1EQZ | ft.code() << kFtShift | (offset & kImm16Mask);
-  emit(instr);
-  BlockTrampolinePoolFor(1);  // For associated delay slot.
-}
+void Assembler::bc1eqz(int16_t offset, FPURegister ft) { UNREACHABLE(); }
 
-void Assembler::bc1nez(int16_t offset, FPURegister ft) {
-  DCHECK_EQ(kArchVariant, kMips64r6);
-  BlockTrampolinePoolScope block_trampoline_pool(this);
-  Instr instr = COP1 | BC1NEZ | ft.code() << kFtShift | (offset & kImm16Mask);
-  emit(instr);
-  BlockTrampolinePoolFor(1);  // For associated delay slot.
-}
+void Assembler::bc1nez(int16_t offset, FPURegister ft) { UNREACHABLE(); }
 
 // Conditions for < MIPSr6.
+
+// FIXME (RISCV): to be ported
 void Assembler::c(FPUCondition cond, SecondaryField fmt, FPURegister fs,
                   FPURegister ft, uint16_t cc) {
   DCHECK_NE(kArchVariant, kMips64r6);
@@ -4262,6 +3868,8 @@ void Assembler::c(FPUCondition cond, SecondaryField fmt, FPURegister fs,
   Instr instr = COP1 | fmt | ft.code() << kFtShift | fs.code() << kFsShift |
                 cc << 8 | 3 << 4 | cond;
   emit(instr);
+
+  // UNREACHABLE();
 }
 
 void Assembler::c_s(FPUCondition cond, FPURegister fs, FPURegister ft,
@@ -4275,27 +3883,12 @@ void Assembler::c_d(FPUCondition cond, FPURegister fs, FPURegister ft,
 }
 
 void Assembler::fcmp(FPURegister src1, const double src2, FPUCondition cond) {
-  DCHECK_EQ(src2, 0.0);
-  mtc1(zero_reg, fa1);
-  cvt_d_w(fa1, fa1);
-  c(cond, D, src1, fa1, 0);
+  UNREACHABLE();
 }
 
-void Assembler::bc1f(int16_t offset, uint16_t cc) {
-  BlockTrampolinePoolScope block_trampoline_pool(this);
-  DCHECK(is_uint3(cc));
-  Instr instr = COP1 | BC1 | cc << 18 | 0 << 16 | (offset & kImm16Mask);
-  emit(instr);
-  BlockTrampolinePoolFor(1);  // For associated delay slot.
-}
+void Assembler::bc1f(int16_t offset, uint16_t cc) { UNREACHABLE(); }
 
-void Assembler::bc1t(int16_t offset, uint16_t cc) {
-  BlockTrampolinePoolScope block_trampoline_pool(this);
-  DCHECK(is_uint3(cc));
-  Instr instr = COP1 | BC1 | cc << 18 | 1 << 16 | (offset & kImm16Mask);
-  emit(instr);
-  BlockTrampolinePoolFor(1);  // For associated delay slot.
-}
+void Assembler::bc1t(int16_t offset, uint16_t cc) { UNREACHABLE(); }
 
 // ---------- MSA instructions ------------
 #define MSA_BRANCH_LIST(V) \
@@ -4310,10 +3903,8 @@ void Assembler::bc1t(int16_t offset, uint16_t cc) {
   V(bnz_w, BNZ_W)          \
   V(bnz_d, BNZ_D)
 
-#define MSA_BRANCH(name, opcode)                         \
-  void Assembler::name(MSARegister wt, int16_t offset) { \
-    GenInstrMsaBranch(opcode, wt, offset);               \
-  }
+#define MSA_BRANCH(name, opcode) \
+  void Assembler::name(MSARegister wt, int16_t offset) { UNREACHABLE(); }
 
 MSA_BRANCH_LIST(MSA_BRANCH)
 #undef MSA_BRANCH
@@ -4329,20 +3920,8 @@ MSA_BRANCH_LIST(MSA_BRANCH)
   V(st_w, ST_W)           \
   V(st_d, ST_D)
 
-#define MSA_LD_ST(name, opcode)                                  \
-  void Assembler::name(MSARegister wd, const MemOperand& rs) {   \
-    MemOperand source = rs;                                      \
-    AdjustBaseAndOffset(&source);                                \
-    if (is_int10(source.offset())) {                             \
-      GenInstrMsaMI10(opcode, source.offset(), source.rm(), wd); \
-    } else {                                                     \
-      UseScratchRegisterScope temps(this);                       \
-      Register scratch = temps.Acquire();                        \
-      DCHECK(rs.rm() != scratch);                                \
-      daddiu(scratch, source.rm(), source.offset());             \
-      GenInstrMsaMI10(opcode, 0, scratch, wd);                   \
-    }                                                            \
-  }
+#define MSA_LD_ST(name, opcode) \
+  void Assembler::name(MSARegister wd, const MemOperand& rs) { UNREACHABLE(); }
 
 MSA_LD_ST_LIST(MSA_LD_ST)
 #undef MSA_LD_ST
@@ -4354,10 +3933,8 @@ MSA_LD_ST_LIST(MSA_LD_ST)
   V(ldi_w, I5_DF_w)     \
   V(ldi_d, I5_DF_d)
 
-#define MSA_I10(name, format)                           \
-  void Assembler::name(MSARegister wd, int32_t imm10) { \
-    GenInstrMsaI10(LDI, format, imm10, wd);             \
-  }
+#define MSA_I10(name, format) \
+  void Assembler::name(MSARegister wd, int32_t imm10) { UNREACHABLE(); }
 MSA_I10_LIST(MSA_I10)
 #undef MSA_I10
 #undef MSA_I10_LIST
@@ -4378,7 +3955,7 @@ MSA_I10_LIST(MSA_I10)
 #define MSA_I5_FORMAT(name, opcode, format)                       \
   void Assembler::name##_##format(MSARegister wd, MSARegister ws, \
                                   uint32_t imm5) {                \
-    GenInstrMsaI5(opcode, I5_DF_##format, imm5, ws, wd);          \
+    UNREACHABLE();                                                \
   }
 
 #define MSA_I5(name, opcode)     \
@@ -4406,7 +3983,7 @@ MSA_I5_LIST(MSA_I5)
 
 #define MSA_I8(name, opcode)                                            \
   void Assembler::name(MSARegister wd, MSARegister ws, uint32_t imm8) { \
-    GenInstrMsaI8(opcode, imm8, ws, wd);                                \
+    UNREACHABLE();                                                      \
   }
 
 MSA_I8_LIST(MSA_I8)
@@ -4424,7 +4001,7 @@ MSA_I8_LIST(MSA_I8)
 
 #define MSA_VEC(name, opcode)                                            \
   void Assembler::name(MSARegister wd, MSARegister ws, MSARegister wt) { \
-    GenInstrMsaVec(opcode, wt, ws, wd);                                  \
+    UNREACHABLE();                                                       \
   }
 
 MSA_VEC_LIST(MSA_VEC)
@@ -4438,7 +4015,7 @@ MSA_VEC_LIST(MSA_VEC)
 
 #define MSA_2R_FORMAT(name, opcode, format)                         \
   void Assembler::name##_##format(MSARegister wd, MSARegister ws) { \
-    GenInstrMsa2R(opcode, MSA_2R_DF_##format, ws, wd);              \
+    UNREACHABLE();                                                  \
   }
 
 #define MSA_2R(name, opcode)     \
@@ -4452,15 +4029,8 @@ MSA_2R_LIST(MSA_2R)
 #undef MSA_2R_FORMAT
 #undef MSA_2R_LIST
 
-#define MSA_FILL(format)                                              \
-  void Assembler::fill_##format(MSARegister wd, Register rs) {        \
-    DCHECK((kArchVariant == kMips64r6) && IsEnabled(MIPS_SIMD));      \
-    DCHECK(rs.is_valid() && wd.is_valid());                           \
-    Instr instr = MSA | MSA_2R_FORMAT | FILL | MSA_2R_DF_##format |   \
-                  (rs.code() << kWsShift) | (wd.code() << kWdShift) | \
-                  MSA_VEC_2R_2RF_MINOR;                               \
-    emit(instr);                                                      \
-  }
+#define MSA_FILL(format) \
+  void Assembler::fill_##format(MSARegister wd, Register rs) { UNREACHABLE(); }
 
 MSA_FILL(b)
 MSA_FILL(h)
@@ -4488,7 +4058,7 @@ MSA_FILL(d)
 
 #define MSA_2RF_FORMAT(name, opcode, format)                        \
   void Assembler::name##_##format(MSARegister wd, MSARegister ws) { \
-    GenInstrMsa2RF(opcode, MSA_2RF_DF_##format, ws, wd);            \
+    UNREACHABLE();                                                  \
   }
 
 #define MSA_2RF(name, opcode)     \
@@ -4563,16 +4133,16 @@ MSA_2RF_LIST(MSA_2RF)
   V(hsub_s, HSUB_S)     \
   V(hsub_u, HSUB_U)
 
-#define MSA_3R_FORMAT(name, opcode, format)                             \
-  void Assembler::name##_##format(MSARegister wd, MSARegister ws,       \
-                                  MSARegister wt) {                     \
-    GenInstrMsa3R<MSARegister>(opcode, MSA_3R_DF_##format, wt, ws, wd); \
+#define MSA_3R_FORMAT(name, opcode, format)                       \
+  void Assembler::name##_##format(MSARegister wd, MSARegister ws, \
+                                  MSARegister wt) {               \
+    UNREACHABLE();                                                \
   }
 
-#define MSA_3R_FORMAT_SLD_SPLAT(name, opcode, format)                \
-  void Assembler::name##_##format(MSARegister wd, MSARegister ws,    \
-                                  Register rt) {                     \
-    GenInstrMsa3R<Register>(opcode, MSA_3R_DF_##format, rt, ws, wd); \
+#define MSA_3R_FORMAT_SLD_SPLAT(name, opcode, format)             \
+  void Assembler::name##_##format(MSARegister wd, MSARegister ws, \
+                                  Register rt) {                  \
+    UNREACHABLE();                                                \
   }
 
 #define MSA_3R(name, opcode)     \
@@ -4645,7 +4215,7 @@ MSA_3R_SLD_SPLAT(splat, SPLAT)
 #define MSA_3RF_FORMAT(name, opcode, df, df_c)                \
   void Assembler::name##_##df(MSARegister wd, MSARegister ws, \
                               MSARegister wt) {               \
-    GenInstrMsa3RF(opcode, df_c, wt, ws, wd);                 \
+    UNREACHABLE();                                            \
   }
 
 #define MSA_3RF_1(name, opcode)      \
@@ -4665,120 +4235,102 @@ MSA_3RF_LIST2(MSA_3RF_2)
 #undef MSA_3RF_LIST2
 
 void Assembler::sldi_b(MSARegister wd, MSARegister ws, uint32_t n) {
-  GenInstrMsaElm<MSARegister, MSARegister>(SLDI, ELM_DF_B, n, ws, wd);
+  UNREACHABLE();
 }
 
 void Assembler::sldi_h(MSARegister wd, MSARegister ws, uint32_t n) {
-  GenInstrMsaElm<MSARegister, MSARegister>(SLDI, ELM_DF_H, n, ws, wd);
+  UNREACHABLE();
 }
 
 void Assembler::sldi_w(MSARegister wd, MSARegister ws, uint32_t n) {
-  GenInstrMsaElm<MSARegister, MSARegister>(SLDI, ELM_DF_W, n, ws, wd);
+  UNREACHABLE();
 }
 
 void Assembler::sldi_d(MSARegister wd, MSARegister ws, uint32_t n) {
-  GenInstrMsaElm<MSARegister, MSARegister>(SLDI, ELM_DF_D, n, ws, wd);
+  UNREACHABLE();
 }
 
 void Assembler::splati_b(MSARegister wd, MSARegister ws, uint32_t n) {
-  GenInstrMsaElm<MSARegister, MSARegister>(SPLATI, ELM_DF_B, n, ws, wd);
+  UNREACHABLE();
 }
 
 void Assembler::splati_h(MSARegister wd, MSARegister ws, uint32_t n) {
-  GenInstrMsaElm<MSARegister, MSARegister>(SPLATI, ELM_DF_H, n, ws, wd);
+  UNREACHABLE();
 }
 
 void Assembler::splati_w(MSARegister wd, MSARegister ws, uint32_t n) {
-  GenInstrMsaElm<MSARegister, MSARegister>(SPLATI, ELM_DF_W, n, ws, wd);
+  UNREACHABLE();
 }
 
 void Assembler::splati_d(MSARegister wd, MSARegister ws, uint32_t n) {
-  GenInstrMsaElm<MSARegister, MSARegister>(SPLATI, ELM_DF_D, n, ws, wd);
+  UNREACHABLE();
 }
 
 void Assembler::copy_s_b(Register rd, MSARegister ws, uint32_t n) {
-  GenInstrMsaElm<Register, MSARegister>(COPY_S, ELM_DF_B, n, ws, rd);
+  UNREACHABLE();
 }
 
 void Assembler::copy_s_h(Register rd, MSARegister ws, uint32_t n) {
-  GenInstrMsaElm<Register, MSARegister>(COPY_S, ELM_DF_H, n, ws, rd);
+  UNREACHABLE();
 }
 
 void Assembler::copy_s_w(Register rd, MSARegister ws, uint32_t n) {
-  GenInstrMsaElm<Register, MSARegister>(COPY_S, ELM_DF_W, n, ws, rd);
+  UNREACHABLE();
 }
 
 void Assembler::copy_s_d(Register rd, MSARegister ws, uint32_t n) {
-  GenInstrMsaElm<Register, MSARegister>(COPY_S, ELM_DF_D, n, ws, rd);
+  UNREACHABLE();
 }
 
 void Assembler::copy_u_b(Register rd, MSARegister ws, uint32_t n) {
-  GenInstrMsaElm<Register, MSARegister>(COPY_U, ELM_DF_B, n, ws, rd);
+  UNREACHABLE();
 }
 
 void Assembler::copy_u_h(Register rd, MSARegister ws, uint32_t n) {
-  GenInstrMsaElm<Register, MSARegister>(COPY_U, ELM_DF_H, n, ws, rd);
+  UNREACHABLE();
 }
 
 void Assembler::copy_u_w(Register rd, MSARegister ws, uint32_t n) {
-  GenInstrMsaElm<Register, MSARegister>(COPY_U, ELM_DF_W, n, ws, rd);
+  UNREACHABLE();
 }
 
 void Assembler::insert_b(MSARegister wd, uint32_t n, Register rs) {
-  GenInstrMsaElm<MSARegister, Register>(INSERT, ELM_DF_B, n, rs, wd);
+  UNREACHABLE();
 }
 
 void Assembler::insert_h(MSARegister wd, uint32_t n, Register rs) {
-  GenInstrMsaElm<MSARegister, Register>(INSERT, ELM_DF_H, n, rs, wd);
+  UNREACHABLE();
 }
 
 void Assembler::insert_w(MSARegister wd, uint32_t n, Register rs) {
-  GenInstrMsaElm<MSARegister, Register>(INSERT, ELM_DF_W, n, rs, wd);
+  UNREACHABLE();
 }
 
 void Assembler::insert_d(MSARegister wd, uint32_t n, Register rs) {
-  GenInstrMsaElm<MSARegister, Register>(INSERT, ELM_DF_D, n, rs, wd);
+  UNREACHABLE();
 }
 
 void Assembler::insve_b(MSARegister wd, uint32_t n, MSARegister ws) {
-  GenInstrMsaElm<MSARegister, MSARegister>(INSVE, ELM_DF_B, n, ws, wd);
+  UNREACHABLE();
 }
 
 void Assembler::insve_h(MSARegister wd, uint32_t n, MSARegister ws) {
-  GenInstrMsaElm<MSARegister, MSARegister>(INSVE, ELM_DF_H, n, ws, wd);
+  UNREACHABLE();
 }
 
 void Assembler::insve_w(MSARegister wd, uint32_t n, MSARegister ws) {
-  GenInstrMsaElm<MSARegister, MSARegister>(INSVE, ELM_DF_W, n, ws, wd);
+  UNREACHABLE();
 }
 
 void Assembler::insve_d(MSARegister wd, uint32_t n, MSARegister ws) {
-  GenInstrMsaElm<MSARegister, MSARegister>(INSVE, ELM_DF_D, n, ws, wd);
+  UNREACHABLE();
 }
 
-void Assembler::move_v(MSARegister wd, MSARegister ws) {
-  DCHECK((kArchVariant == kMips64r6) && IsEnabled(MIPS_SIMD));
-  DCHECK(ws.is_valid() && wd.is_valid());
-  Instr instr = MSA | MOVE_V | (ws.code() << kWsShift) |
-                (wd.code() << kWdShift) | MSA_ELM_MINOR;
-  emit(instr);
-}
+void Assembler::move_v(MSARegister wd, MSARegister ws) { UNREACHABLE(); }
 
-void Assembler::ctcmsa(MSAControlRegister cd, Register rs) {
-  DCHECK((kArchVariant == kMips64r6) && IsEnabled(MIPS_SIMD));
-  DCHECK(cd.is_valid() && rs.is_valid());
-  Instr instr = MSA | CTCMSA | (rs.code() << kWsShift) |
-                (cd.code() << kWdShift) | MSA_ELM_MINOR;
-  emit(instr);
-}
+void Assembler::ctcmsa(MSAControlRegister cd, Register rs) { UNREACHABLE(); }
 
-void Assembler::cfcmsa(Register rd, MSAControlRegister cs) {
-  DCHECK((kArchVariant == kMips64r6) && IsEnabled(MIPS_SIMD));
-  DCHECK(rd.is_valid() && cs.is_valid());
-  Instr instr = MSA | CFCMSA | (cs.code() << kWsShift) |
-                (rd.code() << kWdShift) | MSA_ELM_MINOR;
-  emit(instr);
-}
+void Assembler::cfcmsa(Register rd, MSAControlRegister cs) { UNREACHABLE(); }
 
 #define MSA_BIT_LIST(V) \
   V(slli, SLLI)         \
@@ -4797,7 +4349,7 @@ void Assembler::cfcmsa(Register rd, MSAControlRegister cs) {
 #define MSA_BIT_FORMAT(name, opcode, format)                      \
   void Assembler::name##_##format(MSARegister wd, MSARegister ws, \
                                   uint32_t m) {                   \
-    GenInstrMsaBit(opcode, BIT_DF_##format, m, ws, wd);           \
+    UNREACHABLE();                                                \
   }
 
 #define MSA_BIT(name, opcode)     \
