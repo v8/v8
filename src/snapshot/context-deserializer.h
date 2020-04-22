@@ -2,8 +2,8 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#ifndef V8_SNAPSHOT_PARTIAL_DESERIALIZER_H_
-#define V8_SNAPSHOT_PARTIAL_DESERIALIZER_H_
+#ifndef V8_SNAPSHOT_CONTEXT_DESERIALIZER_H_
+#define V8_SNAPSHOT_CONTEXT_DESERIALIZER_H_
 
 #include "src/snapshot/deserializer.h"
 #include "src/snapshot/snapshot.h"
@@ -40,4 +40,4 @@ class V8_EXPORT_PRIVATE ContextDeserializer final : public Deserializer {
 }  // namespace internal
 }  // namespace v8
 
-#endif  // V8_SNAPSHOT_PARTIAL_DESERIALIZER_H_
+#endif  // V8_SNAPSHOT_CONTEXT_DESERIALIZER_H_

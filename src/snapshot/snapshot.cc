@@ -8,7 +8,7 @@
 
 #include "src/base/platform/platform.h"
 #include "src/logging/counters.h"
-#include "src/snapshot/partial-deserializer.h"
+#include "src/snapshot/context-deserializer.h"
 #include "src/snapshot/read-only-deserializer.h"
 #include "src/snapshot/snapshot-utils.h"
 #include "src/snapshot/startup-deserializer.h"

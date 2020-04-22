@@ -2,8 +2,8 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#ifndef V8_SNAPSHOT_PARTIAL_SERIALIZER_H_
-#define V8_SNAPSHOT_PARTIAL_SERIALIZER_H_
+#ifndef V8_SNAPSHOT_CONTEXT_SERIALIZER_H_
+#define V8_SNAPSHOT_CONTEXT_SERIALIZER_H_
 
 #include "src/objects/contexts.h"
 #include "src/snapshot/serializer.h"
@@ -50,4 +50,4 @@ class V8_EXPORT_PRIVATE ContextSerializer : public Serializer {
 }  // namespace internal
 }  // namespace v8
 
-#endif  // V8_SNAPSHOT_PARTIAL_SERIALIZER_H_
+#endif  // V8_SNAPSHOT_CONTEXT_SERIALIZER_H_
