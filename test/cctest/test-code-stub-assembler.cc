@@ -3855,21 +3855,24 @@ TEST(WasmTaggedToFloat64) {
   HandleScope scope(isolate);
 
   Handle<Object> test_values[] = {
-      // Smi values.
-      handle(Smi::FromInt(1), isolate),
-      handle(Smi::FromInt(0), isolate),
-      handle(Smi::FromInt(-1), isolate),
-      handle(Smi::FromInt(kSmiMaxValue), isolate),
-      handle(Smi::FromInt(kSmiMinValue), isolate),
-      // Test some non-Smis.
-      factory->NewNumber(-0.0),
-      factory->NewNumber(1.5),
-      factory->NewNumber(-1.5),
-      factory->NewNumber(2 * kSmiMaxValue),
-      factory->NewNumber(2 * kSmiMinValue),
-      factory->NewNumber(std::numeric_limits<double>::infinity()),
-      factory->NewNumber(-std::numeric_limits<double>::infinity()),
-      factory->NewNumber(-std::numeric_limits<double>::quiet_NaN()),
+    // Smi values.
+    handle(Smi::FromInt(1), isolate),
+    handle(Smi::FromInt(0), isolate),
+    handle(Smi::FromInt(-1), isolate),
+    handle(Smi::FromInt(kSmiMaxValue), isolate),
+    handle(Smi::FromInt(kSmiMinValue), isolate),
+    // Test some non-Smis.
+    factory->NewNumber(-0.0),
+    factory->NewNumber(1.5),
+    factory->NewNumber(-1.5),
+// Integer Overflows on platforms with 32 bit Smis.
+#if defined(V8_HOST_ARCH_32_BIT) || defined(V8_31BIT_SMIS_ON_64BIT_ARCH)
+    factory->NewNumber(2 * kSmiMaxValue),
+    factory->NewNumber(2 * kSmiMinValue),
+#endif
+    factory->NewNumber(std::numeric_limits<double>::infinity()),
+    factory->NewNumber(-std::numeric_limits<double>::infinity()),
+    factory->NewNumber(-std::numeric_limits<double>::quiet_NaN()),
   };
 
   const int kNumParams = 1;
