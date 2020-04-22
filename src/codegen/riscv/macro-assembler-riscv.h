@@ -487,8 +487,7 @@ class V8_EXPORT_PRIVATE TurboAssembler : public TurboAssemblerBase {
                           Register caller_args_count, Register scratch0,
                           Register scratch1);
 
-  int CalculateStackPassedWords(int num_reg_arguments,
-                                int num_double_arguments);
+  int CalculateStackPassedDWords(int num_gp_arguments, int num_fp_arguments);
 
   // Before calling a C-function from generated code, align arguments on stack
   // and add space for the four mips argument slots.
@@ -992,14 +991,10 @@ class V8_EXPORT_PRIVATE MacroAssembler : public TurboAssembler {
   void Floor_w_d(FPURegister fd, FPURegister fs);
   void Ceil_w_d(FPURegister fd, FPURegister fs);
 
-  void Madd_s(FPURegister fd, FPURegister fr, FPURegister fs, FPURegister ft,
-              FPURegister scratch);
-  void Madd_d(FPURegister fd, FPURegister fr, FPURegister fs, FPURegister ft,
-              FPURegister scratch);
-  void Msub_s(FPURegister fd, FPURegister fr, FPURegister fs, FPURegister ft,
-              FPURegister scratch);
-  void Msub_d(FPURegister fd, FPURegister fr, FPURegister fs, FPURegister ft,
-              FPURegister scratch);
+  void Madd_s(FPURegister fd, FPURegister fr, FPURegister fs, FPURegister ft);
+  void Madd_d(FPURegister fd, FPURegister fr, FPURegister fs, FPURegister ft);
+  void Msub_s(FPURegister fd, FPURegister fr, FPURegister fs, FPURegister ft);
+  void Msub_d(FPURegister fd, FPURegister fr, FPURegister fs, FPURegister ft);
 
   void BranchShortMSA(MSABranchDF df, Label* target, MSABranchCondition cond,
                       MSARegister wt, BranchDelaySlot bd = PROTECT);

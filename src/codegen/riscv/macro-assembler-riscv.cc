@@ -1757,31 +1757,23 @@ void TurboAssembler::Round_s_s(FPURegister dst, FPURegister src) {
 }
 
 void MacroAssembler::Madd_s(FPURegister fd, FPURegister fr, FPURegister fs,
-                            FPURegister ft, FPURegister scratch) {
-  DCHECK(fr != scratch && fs != scratch && ft != scratch);
-  mul_s(scratch, fs, ft);
-  add_s(fd, fr, scratch);
+                            FPURegister ft) {
+  RV_fmadd_s(fd, fs, ft, fr);
 }
 
 void MacroAssembler::Madd_d(FPURegister fd, FPURegister fr, FPURegister fs,
-                            FPURegister ft, FPURegister scratch) {
-  DCHECK(fr != scratch && fs != scratch && ft != scratch);
-  mul_d(scratch, fs, ft);
-  add_d(fd, fr, scratch);
+                            FPURegister ft) {
+  RV_fmadd_d(fd, fs, ft, fr);
 }
 
 void MacroAssembler::Msub_s(FPURegister fd, FPURegister fr, FPURegister fs,
-                            FPURegister ft, FPURegister scratch) {
-  DCHECK(fr != scratch && fs != scratch && ft != scratch);
-  mul_s(scratch, fs, ft);
-  sub_s(fd, scratch, fr);
+                            FPURegister ft) {
+  RV_fmsub_s(fd, fs, ft, fr);
 }
 
 void MacroAssembler::Msub_d(FPURegister fd, FPURegister fr, FPURegister fs,
-                            FPURegister ft, FPURegister scratch) {
-  DCHECK(fr != scratch && fs != scratch && ft != scratch);
-  mul_d(scratch, fs, ft);
-  sub_d(fd, scratch, fr);
+                            FPURegister ft) {
+  RV_fmsub_d(fd, fs, ft, fr);
 }
 
 void TurboAssembler::CompareF(SecondaryField sizeField, FPUCondition cc,
@@ -1927,10 +1919,16 @@ void TurboAssembler::BranchShortMSA(MSABranchDF df, Label* target,
 void TurboAssembler::FmoveLow(FPURegister dst, Register src_low) {
   UseScratchRegisterScope temps(this);
   Register scratch = temps.Acquire();
-  DCHECK(src_low != scratch);
-  mfhc1(scratch, dst);
-  RV_fmv_w_x(dst, src_low);
-  mthc1(scratch, dst);
+  UseScratchRegisterScope block_trampoline_pool(this);
+
+  DCHECK(src_low != scratch && src_low != t5);
+  RV_fmv_x_d(scratch, dst);
+  RV_slli(t5, src_low, 32);
+  RV_srli(t5, t5, 32);
+  RV_srli(scratch, scratch, 32);
+  RV_slli(scratch, scratch, 32);
+  RV_or_(scratch, scratch, t5);
+  RV_fmv_d_x(dst, scratch);
 }
 
 void TurboAssembler::Move(FPURegister dst, uint32_t src) {
@@ -1941,49 +1939,23 @@ void TurboAssembler::Move(FPURegister dst, uint32_t src) {
 }
 
 void TurboAssembler::Move(FPURegister dst, uint64_t src) {
-  // Handle special values first.
-  if (src == bit_cast<uint64_t>(0.0) && has_double_zero_reg_set_) {
-    mov_d(dst, kDoubleRegZero);
-  } else if (src == bit_cast<uint64_t>(-0.0) && has_double_zero_reg_set_) {
-    Neg_d(dst, kDoubleRegZero);
-  } else {
-    uint32_t lo = src & 0xFFFFFFFF;
-    uint32_t hi = src >> 32;
-    // Move the low part of the double into the lower of the corresponding FPU
-    // register of FPU register pair.
-    if (lo != 0) {
-      UseScratchRegisterScope temps(this);
-      Register scratch = temps.Acquire();
-      li(scratch, Operand(lo));
-      RV_fmv_w_x(dst, scratch);
-    } else {
-      RV_fmv_w_x(dst, zero_reg);
-    }
-    // Move the high part of the double into the higher of the corresponding FPU
-    // register of FPU register pair.
-    if (hi != 0) {
-      UseScratchRegisterScope temps(this);
-      Register scratch = temps.Acquire();
-      li(scratch, Operand(hi));
-      mthc1(scratch, dst);
-    } else {
-      mthc1(zero_reg, dst);
-    }
-    if (dst == kDoubleRegZero) has_double_zero_reg_set_ = true;
-  }
+  UseScratchRegisterScope temps(this);
+  Register scratch = temps.Acquire();
+  li(scratch, Operand(src));
+  RV_fmv_d_x(dst, scratch);
 }
 
 void TurboAssembler::Movz(Register rd, Register rs, Register rt) {
   Label done;
   Branch(&done, ne, rt, Operand(zero_reg));
-  mov(rd, rs);
+  RV_mv(rd, rs);
   bind(&done);
 }
 
 void TurboAssembler::Movn(Register rd, Register rs, Register rt) {
   Label done;
   Branch(&done, eq, rt, Operand(zero_reg));
-  mov(rd, rs);
+  RV_mv(rd, rs);
   bind(&done);
 }
 
@@ -2081,11 +2053,7 @@ void TurboAssembler::LoadZeroOnCondition(Register rd, Register rs,
 
 void TurboAssembler::LoadZeroIfConditionNotZero(Register dest,
                                                 Register condition) {
-  if (kArchVariant == kMips64r6) {
-    seleqz(dest, dest, condition);
-  } else {
-    Movn(dest, zero_reg, condition);
-  }
+  Movn(dest, zero_reg, condition);
 }
 
 void TurboAssembler::LoadZeroIfConditionZero(Register dest,
@@ -3222,7 +3190,16 @@ void MacroAssembler::PopStackHandler() {
 
 void TurboAssembler::FPUCanonicalizeNaN(const DoubleRegister dst,
                                         const DoubleRegister src) {
-  sub_d(dst, src, kDoubleRegZero);
+  UseScratchRegisterScope temps(this);
+  Register scratch = temps.Acquire();
+  Label NotNaN;
+
+  RV_fmv_d(dst, src);
+  RV_feq_d(scratch, src, src);
+  RV_bne(scratch, zero_reg, &NotNaN);
+  RV_li(scratch, std::numeric_limits<double>::quiet_NaN());
+  RV_fmv_d_x(dst, scratch);
+  bind(&NotNaN);
 }
 
 void TurboAssembler::MovFromFloatResult(const DoubleRegister dst) {
@@ -3523,15 +3500,15 @@ void TurboAssembler::DaddOverflow(Register dst, Register left,
   DCHECK(overflow != left && overflow != right_reg);
   if (dst == left || dst == right_reg) {
     RV_add(scratch, left, right_reg);
-    xor_(overflow, scratch, left);
-    xor_(t3, scratch, right_reg);
-    and_(overflow, overflow, t3);
+    RV_xor_(overflow, scratch, left);
+    RV_xor_(t3, scratch, right_reg);
+    RV_and_(overflow, overflow, t3);
     RV_mv(dst, scratch);
   } else {
     RV_add(dst, left, right_reg);
-    xor_(overflow, dst, left);
-    xor_(t3, dst, right_reg);
-    and_(overflow, overflow, t3);
+    RV_xor_(overflow, dst, left);
+    RV_xor_(t3, dst, right_reg);
+    RV_and_(overflow, overflow, t3);
   }
 }
 
@@ -3552,16 +3529,16 @@ void TurboAssembler::DsubOverflow(Register dst, Register left,
   DCHECK(overflow != left && overflow != right_reg);
 
   if (dst == left || dst == right_reg) {
-    dsubu(scratch, left, right_reg);
-    xor_(overflow, left, scratch);
-    xor_(t3, left, right_reg);
-    and_(overflow, overflow, t3);
+    RV_sub(scratch, left, right_reg);
+    RV_xor_(overflow, left, scratch);
+    RV_xor_(t3, left, right_reg);
+    RV_and_(overflow, overflow, t3);
     RV_mv(dst, scratch);
   } else {
-    dsubu(dst, left, right_reg);
-    xor_(overflow, left, dst);
-    xor_(t3, left, right_reg);
-    and_(overflow, overflow, t3);
+    RV_sub(dst, left, right_reg);
+    RV_xor_(overflow, left, dst);
+    RV_xor_(t3, left, right_reg);
+    RV_and_(overflow, overflow, t3);
   }
 }
 
@@ -3590,8 +3567,8 @@ void TurboAssembler::MulOverflow(Register dst, Register left,
     Mulh(overflow, left, right_reg);
   }
 
-  dsra32(scratch, dst, 0);
-  xor_(overflow, overflow, scratch);
+  RV_srai(scratch, dst, 32);
+  RV_xor_(overflow, overflow, scratch);
 }
 
 void MacroAssembler::CallRuntime(const Runtime::Function* f, int num_arguments,
@@ -3702,7 +3679,7 @@ void TurboAssembler::Abort(AbortReason reason) {
 
   // Avoid emitting call to builtin if requested.
   if (trap_on_abort()) {
-    stop();
+    RV_ebreak();
     return;
   }
 
@@ -3948,7 +3925,7 @@ void MacroAssembler::AssertStackIsAligned() {
         Branch(&alignment_as_expected, eq, scratch, Operand(zero_reg));
       }
       // Don't use Check here, as it will call Runtime_Abort re-entering here.
-      stop();
+      RV_ebreak();
       bind(&alignment_as_expected);
     }
   }
@@ -3983,7 +3960,7 @@ void MacroAssembler::AssertNotSmi(Register object) {
     STATIC_ASSERT(kSmiTag == 0);
     UseScratchRegisterScope temps(this);
     Register scratch = temps.Acquire();
-    andi(scratch, object, kSmiTagMask);
+    RV_andi(scratch, object, kSmiTagMask);
     Check(ne, AbortReason::kOperandIsASmi, scratch, Operand(zero_reg));
   }
 }
@@ -3993,7 +3970,7 @@ void MacroAssembler::AssertSmi(Register object) {
     STATIC_ASSERT(kSmiTag == 0);
     UseScratchRegisterScope temps(this);
     Register scratch = temps.Acquire();
-    andi(scratch, object, kSmiTagMask);
+    RV_andi(scratch, object, kSmiTagMask);
     Check(eq, AbortReason::kOperandIsASmi, scratch, Operand(zero_reg));
   }
 }
@@ -4081,216 +4058,60 @@ void MacroAssembler::AssertUndefinedOrAllocationSite(Register object,
 
 void TurboAssembler::Float32Max(FPURegister dst, FPURegister src1,
                                 FPURegister src2, Label* out_of_line) {
-  if (src1 == src2) {
-    Move_s(dst, src1);
-    return;
-  }
-
-  // Check if one of operands is NaN.
-  CompareIsNanF32(src1, src2);
-  BranchTrueF(out_of_line);
-
-  if (kArchVariant >= kMips64r6) {
-    max_s(dst, src1, src2);
-  } else {
-    Label return_left, return_right, done;
-
-    CompareF32(OLT, src1, src2);
-    BranchTrueShortF(&return_right);
-    CompareF32(OLT, src2, src1);
-    BranchTrueShortF(&return_left);
-
-    // Operands are equal, but check for +/-0.
-    {
-      BlockTrampolinePoolScope block_trampoline_pool(this);
-      RV_fmv_x_w(t5, src1);
-      dsll32(t5, t5, 0);
-      Branch(&return_left, eq, t5, Operand(zero_reg));
-      Branch(&return_right);
-    }
-
-    bind(&return_right);
-    if (src2 != dst) {
-      Move_s(dst, src2);
-    }
-    Branch(&done);
-
-    bind(&return_left);
-    if (src1 != dst) {
-      Move_s(dst, src1);
-    }
-
-    bind(&done);
-  }
+  RV_fmax_s(dst, src1, src2);
 }
 
 void TurboAssembler::Float32MaxOutOfLine(FPURegister dst, FPURegister src1,
                                          FPURegister src2) {
-  add_s(dst, src1, src2);
+  RV_fmax_s(dst, src1, src2);
 }
 
 void TurboAssembler::Float32Min(FPURegister dst, FPURegister src1,
                                 FPURegister src2, Label* out_of_line) {
-  if (src1 == src2) {
-    Move_s(dst, src1);
-    return;
-  }
-
-  // Check if one of operands is NaN.
-  CompareIsNanF32(src1, src2);
-  BranchTrueF(out_of_line);
-
-  if (kArchVariant >= kMips64r6) {
-    min_s(dst, src1, src2);
-  } else {
-    Label return_left, return_right, done;
-
-    CompareF32(OLT, src1, src2);
-    BranchTrueShortF(&return_left);
-    CompareF32(OLT, src2, src1);
-    BranchTrueShortF(&return_right);
-
-    // Left equals right => check for -0.
-    {
-      BlockTrampolinePoolScope block_trampoline_pool(this);
-      RV_fmv_x_w(t5, src1);
-      dsll32(t5, t5, 0);
-      Branch(&return_right, eq, t5, Operand(zero_reg));
-      Branch(&return_left);
-    }
-
-    bind(&return_right);
-    if (src2 != dst) {
-      Move_s(dst, src2);
-    }
-    Branch(&done);
-
-    bind(&return_left);
-    if (src1 != dst) {
-      Move_s(dst, src1);
-    }
-
-    bind(&done);
-  }
+  RV_fmin_s(dst, src1, src2);
 }
 
 void TurboAssembler::Float32MinOutOfLine(FPURegister dst, FPURegister src1,
                                          FPURegister src2) {
-  add_s(dst, src1, src2);
+  RV_fmin_s(dst, src1, src2);
 }
 
 void TurboAssembler::Float64Max(FPURegister dst, FPURegister src1,
                                 FPURegister src2, Label* out_of_line) {
-  if (src1 == src2) {
-    Move_d(dst, src1);
-    return;
-  }
-
-  // Check if one of operands is NaN.
-  CompareIsNanF64(src1, src2);
-  BranchTrueF(out_of_line);
-
-  if (kArchVariant >= kMips64r6) {
-    max_d(dst, src1, src2);
-  } else {
-    Label return_left, return_right, done;
-
-    CompareF64(OLT, src1, src2);
-    BranchTrueShortF(&return_right);
-    CompareF64(OLT, src2, src1);
-    BranchTrueShortF(&return_left);
-
-    // Left equals right => check for -0.
-    {
-      BlockTrampolinePoolScope block_trampoline_pool(this);
-      RV_fmv_x_d(t5, src1);
-      Branch(&return_left, eq, t5, Operand(zero_reg));
-      Branch(&return_right);
-    }
-
-    bind(&return_right);
-    if (src2 != dst) {
-      Move_d(dst, src2);
-    }
-    Branch(&done);
-
-    bind(&return_left);
-    if (src1 != dst) {
-      Move_d(dst, src1);
-    }
-
-    bind(&done);
-  }
+  RV_fmax_d(dst, src1, src2);
 }
 
 void TurboAssembler::Float64MaxOutOfLine(FPURegister dst, FPURegister src1,
                                          FPURegister src2) {
-  add_d(dst, src1, src2);
+  RV_fmax_d(dst, src1, src2);
 }
 
 void TurboAssembler::Float64Min(FPURegister dst, FPURegister src1,
                                 FPURegister src2, Label* out_of_line) {
-  if (src1 == src2) {
-    Move_d(dst, src1);
-    return;
-  }
-
-  // Check if one of operands is NaN.
-  CompareIsNanF64(src1, src2);
-  BranchTrueF(out_of_line);
-
-  if (kArchVariant >= kMips64r6) {
-    min_d(dst, src1, src2);
-  } else {
-    Label return_left, return_right, done;
-
-    CompareF64(OLT, src1, src2);
-    BranchTrueShortF(&return_left);
-    CompareF64(OLT, src2, src1);
-    BranchTrueShortF(&return_right);
-
-    // Left equals right => check for -0.
-    {
-      BlockTrampolinePoolScope block_trampoline_pool(this);
-      RV_fmv_x_d(t5, src1);
-      Branch(&return_right, eq, t5, Operand(zero_reg));
-      Branch(&return_left);
-    }
-
-    bind(&return_right);
-    if (src2 != dst) {
-      Move_d(dst, src2);
-    }
-    Branch(&done);
-
-    bind(&return_left);
-    if (src1 != dst) {
-      Move_d(dst, src1);
-    }
-
-    bind(&done);
-  }
+  RV_fmin_d(dst, src1, src2);
 }
 
 void TurboAssembler::Float64MinOutOfLine(FPURegister dst, FPURegister src1,
                                          FPURegister src2) {
-  add_d(dst, src1, src2);
+  RV_fmin_d(dst, src1, src2);
 }
 
 static const int kRegisterPassedArguments = 8;
 
-int TurboAssembler::CalculateStackPassedWords(int num_reg_arguments,
-                                              int num_double_arguments) {
-  int stack_passed_words = 0;
-  num_reg_arguments += 2 * num_double_arguments;
+int TurboAssembler::CalculateStackPassedDWords(int num_gp_arguments,
+                                               int num_fp_arguments) {
+  int stack_passed_dwords = 0;
 
-  // O32: Up to four simple arguments are passed in registers a0..a3.
-  // N64: Up to eight simple arguments are passed in registers a0..a7.
-  if (num_reg_arguments > kRegisterPassedArguments) {
-    stack_passed_words += num_reg_arguments - kRegisterPassedArguments;
+  // Up to eight integer arguments are passed in registers a0..a7 and
+  // up to eight floating point arguments are passed in registers fa0..fa7
+  if (num_gp_arguments > kRegisterPassedArguments) {
+    stack_passed_dwords += num_gp_arguments - kRegisterPassedArguments;
   }
-  stack_passed_words += kCArgSlotCount;
-  return stack_passed_words;
+  if (num_fp_arguments > kRegisterPassedArguments) {
+    stack_passed_dwords += num_fp_arguments - kRegisterPassedArguments;
+  }
+  stack_passed_dwords += kCArgSlotCount;
+  return stack_passed_dwords;
 }
 
 void TurboAssembler::PrepareCallCFunction(int num_reg_arguments,
@@ -4298,18 +4119,14 @@ void TurboAssembler::PrepareCallCFunction(int num_reg_arguments,
                                           Register scratch) {
   int frame_alignment = ActivationFrameAlignment();
 
-  // n64: Up to eight simple arguments in a0..a3, a4..a7, No argument slots.
-  // O32: Up to four simple arguments are passed in registers a0..a3.
-  // Those four arguments must have reserved argument slots on the stack for
-  // mips, even though those argument slots are not normally used.
-  // Both ABIs: Remaining arguments are pushed on the stack, above (higher
-  // address than) the (O32) argument slots. (arg slot calculation handled by
-  // CalculateStackPassedWords()).
+  // Up to eight simple arguments in a0..a7, fa0..fa7.
+  // Remaining arguments are pushed on the stack (arg slot calculation handled
+  // by CalculateStackPassedDWords()).
   int stack_passed_arguments =
-      CalculateStackPassedWords(num_reg_arguments, num_double_arguments);
+      CalculateStackPassedDWords(num_reg_arguments, num_double_arguments);
   if (frame_alignment > kPointerSize) {
-    // Make stack end at alignment and make room for num_arguments - 4 words
-    // and the original value of sp.
+    // Make stack end at alignment and make room for stack arguments and the
+    // original value of sp.
     RV_mv(scratch, sp);
     Dsubu(sp, sp, Operand((stack_passed_arguments + 1) * kPointerSize));
     DCHECK(base::bits::IsPowerOfTwo(frame_alignment));
@@ -4373,7 +4190,7 @@ void TurboAssembler::CallCFunctionHelper(Register function,
       }
       // Don't use Check here, as it will call Runtime_Abort possibly
       // re-entering here.
-      stop();
+      RV_ebreak();
       bind(&alignment_as_expected);
     }
   }
@@ -4422,7 +4239,7 @@ void TurboAssembler::CallCFunctionHelper(Register function,
   }
 
   int stack_passed_arguments =
-      CalculateStackPassedWords(num_reg_arguments, num_double_arguments);
+      CalculateStackPassedDWords(num_reg_arguments, num_double_arguments);
 
   if (base::OS::ActivationFrameAlignment() > kPointerSize) {
     Ld(sp, MemOperand(sp, stack_passed_arguments * kPointerSize));
