@@ -2173,7 +2173,7 @@ void TurboAssembler::Dclz(Register rd, Register xx) {
      y = x >> 1; if (y != 0) {rd = n - 2; return;}
      rd = n - x;
   */
-  Label L0, L1, L2, L3, L4;
+  Label L0, L1, L2, L3, L4, L5;
   UseScratchRegisterScope temps(this);
   UseScratchRegisterScope block_trampoline_pool(this);
   Register x = temps.Acquire();
@@ -2208,9 +2208,9 @@ void TurboAssembler::Dclz(Register rd, Register xx) {
   bind(&L4);
   RV_srli(y, x, 1);
   RV_subw(rd, n, x);
-  Branch(&L4, eq, y, Operand(zero_reg));
+  Branch(&L5, eq, y, Operand(zero_reg));
   RV_addiw(rd, n, -2);
-  bind(&L4);
+  bind(&L5);
 }
 
 void TurboAssembler::Ctz(Register rd, Register rs) {
