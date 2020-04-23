@@ -732,12 +732,8 @@ class V8_EXPORT_PRIVATE TurboAssembler : public TurboAssemblerBase {
   void MulOverflow(Register dst, Register left, const Operand& right,
                    Register overflow);
 
-// Number of instructions needed for calculation of switch table entry address
-#ifdef _MIPS_ARCH_MIPS64R6
+  // Number of instructions needed for calculation of switch table entry address
   static const int kSwitchTablePrologueSize = 6;
-#else
-  static const int kSwitchTablePrologueSize = 11;
-#endif
 
   // GetLabelFunction must be lambda '[](size_t index) -> Label*' or a
   // functor/function with 'Label *func(size_t index)' declaration.
@@ -1226,27 +1222,17 @@ void TurboAssembler::GenerateSwitchTable(Register index, size_t case_count,
                          kSwitchTablePrologueSize);
   UseScratchRegisterScope temps(this);
   Register scratch = temps.Acquire();
-  if (kArchVariant >= kMips64r6) {
-    // Opposite of Align(8) as we have odd number of instructions in this case.
-    if ((pc_offset() & 7) == 0) {
-      nop();
-    }
-    addiupc(scratch, 5);
-    Dlsa(scratch, scratch, index, kPointerSizeLog2);
-    Ld(scratch, MemOperand(scratch));
-  } else {
-    Label here;
-    Align(8);
-    push(ra);
-    bal(&here);
-    dsll(scratch, index, kPointerSizeLog2);  // Branch delay slot.
-    bind(&here);
-    daddu(scratch, scratch, ra);
-    pop(ra);
-    Ld(scratch, MemOperand(scratch, 6 * v8::internal::kInstrSize));
-  }
-  jr(scratch);
-  nop();  // Branch delay slot nop.
+
+  Label here;
+  Align(8);
+  // Load the address from the jump table at index and jump to it
+  RV_auipc(scratch, 0);                  // Load the current PC into scratch
+  RV_slli(t5, index, kPointerSizeLog2);  // t5 = offset of indexth entry
+  RV_add(t5, t5, scratch);        // t5 = (saved PC) + (offset of indexth entry)
+  RV_ld(t5, t5, 6 * kInstrSize);  // Add the size of these 6 instructions to the
+                                  // offset, then load
+  RV_jr(t5);                      // Jump to the address loaded from the table
+  RV_nop();                       // For 16-byte alignment
   for (size_t index = 0; index < case_count; ++index) {
     dd(GetLabelFunction(index));
   }
