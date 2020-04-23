@@ -8,6 +8,7 @@
 #include "src/base/logging.h"
 #include "src/execution/thread-id.h"
 #include "src/handles/handles.h"
+#include "src/handles/maybe-handles.h"
 #include "src/heap/off-thread-factory.h"
 #include "src/heap/off-thread-heap.h"
 
@@ -16,6 +17,45 @@ namespace internal {
 
 class Isolate;
 class OffThreadLogger;
+class OffThreadTransferHandleStorage;
+
+class OffThreadTransferHandleBase {
+ protected:
+  explicit OffThreadTransferHandleBase(OffThreadTransferHandleStorage* storage)
+      : storage_(storage) {}
+
+  V8_EXPORT_PRIVATE Address* ToHandleLocation() const;
+
+ private:
+  OffThreadTransferHandleStorage* storage_;
+};
+
+// Helper class for transferring ownership of an off-thread allocated object's
+// handler to the main thread. OffThreadTransferHandles should be created before
+// the OffThreadIsolate is finished, and can be accessed as a Handle after the
+// OffThreadIsolate is published.
+template <typename T>
+class OffThreadTransferHandle : public OffThreadTransferHandleBase {
+ public:
+  OffThreadTransferHandle() : OffThreadTransferHandleBase(nullptr) {}
+  explicit OffThreadTransferHandle(OffThreadTransferHandleStorage* storage)
+      : OffThreadTransferHandleBase(storage) {}
+
+  Handle<T> ToHandle() const { return Handle<T>(ToHandleLocation()); }
+};
+
+template <typename T>
+class OffThreadTransferMaybeHandle : public OffThreadTransferHandleBase {
+ public:
+  OffThreadTransferMaybeHandle() : OffThreadTransferHandleBase(nullptr) {}
+  explicit OffThreadTransferMaybeHandle(OffThreadTransferHandleStorage* storage)
+      : OffThreadTransferHandleBase(storage) {}
+
+  MaybeHandle<T> ToHandle() const {
+    Address* location = ToHandleLocation();
+    return location ? Handle<T>(location) : MaybeHandle<T>();
+  }
+};
 
 // HiddenOffThreadFactory parallels Isolate's HiddenFactory
 class V8_EXPORT_PRIVATE HiddenOffThreadFactory : private OffThreadFactory {
@@ -74,6 +114,25 @@ class V8_EXPORT_PRIVATE OffThreadIsolate final
     return location;
   }
 
+  template <typename T>
+  OffThreadTransferHandle<T> TransferHandle(Handle<T> handle) {
+    DCHECK_NOT_NULL(handle_zone_);
+    if (handle.is_null()) {
+      return OffThreadTransferHandle<T>();
+    }
+    return OffThreadTransferHandle<T>(AddTransferHandleStorage(handle));
+  }
+
+  template <typename T>
+  OffThreadTransferMaybeHandle<T> TransferHandle(MaybeHandle<T> maybe_handle) {
+    DCHECK_NOT_NULL(handle_zone_);
+    Handle<T> handle;
+    if (!maybe_handle.ToHandle(&handle)) {
+      return OffThreadTransferMaybeHandle<T>();
+    }
+    return OffThreadTransferMaybeHandle<T>(AddTransferHandleStorage(handle));
+  }
+
   int GetNextScriptId();
 #if V8_SFI_HAS_UNIQUE_ID
   int GetNextUniqueSharedFunctionInfoId();
@@ -82,7 +141,7 @@ class V8_EXPORT_PRIVATE OffThreadIsolate final
   bool NeedsSourcePositionsForProfiling();
   bool is_collecting_type_profile();
 
-  OffThreadLogger* logger() { return logger_; }
+  OffThreadLogger* logger() { return logger_.get(); }
 
   void PinToCurrentThread();
   ThreadId thread_id() { return thread_id_; }
@@ -90,15 +149,19 @@ class V8_EXPORT_PRIVATE OffThreadIsolate final
  private:
   friend class v8::internal::OffThreadFactory;
 
+  OffThreadTransferHandleStorage* AddTransferHandleStorage(HandleBase handle);
+
   OffThreadHeap heap_;
 
   // TODO(leszeks): Extract out the fields of the Isolate we want and store
   // those instead of the whole thing.
   Isolate* isolate_;
 
-  OffThreadLogger* logger_;
+  std::unique_ptr<OffThreadLogger> logger_;
   ThreadId thread_id_;
   Zone* handle_zone_;
+  std::unique_ptr<OffThreadTransferHandleStorage>
+      off_thread_transfer_handles_head_;
 };
 
 }  // namespace internal

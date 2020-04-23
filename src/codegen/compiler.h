@@ -12,6 +12,7 @@
 #include "src/codegen/bailout-reason.h"
 #include "src/common/globals.h"
 #include "src/execution/isolate.h"
+#include "src/execution/off-thread-isolate.h"
 #include "src/logging/code-events.h"
 #include "src/objects/contexts.h"
 #include "src/parsing/parse-info.h"
@@ -389,11 +390,9 @@ class V8_EXPORT_PRIVATE BackgroundCompileTask {
     return finalize_on_background_thread_;
   }
   OffThreadIsolate* off_thread_isolate() { return off_thread_isolate_.get(); }
-  SharedFunctionInfo outer_function_sfi() {
-    // Make sure that this is an off-thread object, so that it won't have been
-    // moved by the GC.
-    DCHECK(Heap::InOffThreadSpace(outer_function_sfi_));
-    return outer_function_sfi_;
+  Handle<SharedFunctionInfo> outer_function_sfi() {
+    DCHECK_NOT_NULL(off_thread_isolate_);
+    return outer_function_sfi_.ToHandle();
   }
 
  private:
@@ -414,8 +413,7 @@ class V8_EXPORT_PRIVATE BackgroundCompileTask {
   // should add some stricter type-safety or DCHECKs to ensure that the user of
   // the task knows this.
   std::unique_ptr<OffThreadIsolate> off_thread_isolate_;
-  // This is a raw pointer to the off-thread allocated SharedFunctionInfo.
-  SharedFunctionInfo outer_function_sfi_;
+  OffThreadTransferHandle<SharedFunctionInfo> outer_function_sfi_;
 
   // Single function data for top-level function compilation.
   int start_position_;

@@ -1320,13 +1320,12 @@ void BackgroundCompileTask::Run() {
 
       parser_->HandleSourceURLComments(off_thread_isolate_.get(), script);
 
+      outer_function_sfi_ =
+          off_thread_isolate_->TransferHandle(outer_function_sfi);
+
       TRACE_EVENT0(TRACE_DISABLED_BY_DEFAULT("v8.compile"),
                    "V8.FinalizeCodeBackground.Finish");
       off_thread_isolate_->FinishOffThread();
-
-      // Off-thread handles will become invalid after the handle scope closes,
-      // so save the raw object here.
-      outer_function_sfi_ = *outer_function_sfi;
 
       TRACE_EVENT0(TRACE_DISABLED_BY_DEFAULT("v8.compile"),
                    "V8.FinalizeCodeBackground.ReleaseParser");
@@ -2564,9 +2563,10 @@ Compiler::GetSharedFunctionInfoForStreamedScript(
       TRACE_EVENT0(TRACE_DISABLED_BY_DEFAULT("v8.compile"),
                    "V8.OffThreadFinalization.Publish");
 
-      Handle<SharedFunctionInfo> sfi(task->outer_function_sfi(), isolate);
-      Handle<Script> script(Script::cast(sfi->script()), isolate);
       task->off_thread_isolate()->Publish(isolate);
+
+      Handle<SharedFunctionInfo> sfi = task->outer_function_sfi();
+      Handle<Script> script(Script::cast(sfi->script()), isolate);
 
       FixUpOffThreadAllocatedScript(isolate, script, source, script_details,
                                     origin_options, NOT_NATIVES_CODE);
