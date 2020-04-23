@@ -7275,6 +7275,7 @@ void Simulator::DecodeRVRFPType() {
           break;
         }
         case 0b001: {  // RO_FCLASS_S
+          printf("Sim: fclass.s yet to be supported\n");
           UNSUPPORTED();
           break;
         }
@@ -7447,6 +7448,7 @@ void Simulator::DecodeRVRFPType() {
       }
       switch (instr_.Funct3Value()) {
         case 0b001: {  // RO_FCLASS_D
+          printf("Sim: fclass.d not yet supported\n");
           UNSUPPORTED();
           break;
         }
