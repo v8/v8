@@ -1514,6 +1514,9 @@ base::Optional<ParseResult> MakeTryLabelExpression(
   Statement* result = try_block;
   auto label_blocks = child_results->NextAs<std::vector<LabelBlock*>>();
   auto catch_block = child_results->NextAs<base::Optional<LabelBlock*>>();
+  if (label_blocks.empty() && !catch_block.has_value()) {
+    Error("Try blocks without catch or label don't make sense.");
+  }
   for (auto block : label_blocks) {
     result = MakeNode<ExpressionStatement>(MakeNode<TryLabelExpression>(
         false, MakeNode<StatementExpression>(result), block));
