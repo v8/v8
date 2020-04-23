@@ -27,29 +27,9 @@ Serializer::Serializer(Isolate* isolate)
 #ifdef OBJECT_PRINT
   if (FLAG_serialization_statistics) {
     for (int space = 0; space < kNumberOfSpaces; ++space) {
-      instance_type_count_[space] = NewArray<int>(kInstanceTypes);
-      instance_type_size_[space] = NewArray<size_t>(kInstanceTypes);
-      for (int i = 0; i < kInstanceTypes; i++) {
-        instance_type_count_[space][i] = 0;
-        instance_type_size_[space][i] = 0;
-      }
-    }
-  } else {
-    for (int space = 0; space < kNumberOfSpaces; ++space) {
-      instance_type_count_[space] = nullptr;
-      instance_type_size_[space] = nullptr;
-    }
-  }
-#endif  // OBJECT_PRINT
-}
-
-Serializer::~Serializer() {
-  if (code_address_map_ != nullptr) delete code_address_map_;
-#ifdef OBJECT_PRINT
-  for (int space = 0; space < kNumberOfSpaces; ++space) {
-    if (instance_type_count_[space] != nullptr) {
-      DeleteArray(instance_type_count_[space]);
-      DeleteArray(instance_type_size_[space]);
+      // Value-initialized to 0.
+      instance_type_count_[space] = std::make_unique<int[]>(kInstanceTypes);
+      instance_type_size_[space] = std::make_unique<size_t[]>(kInstanceTypes);
     }
   }
 #endif  // OBJECT_PRINT
@@ -293,7 +273,7 @@ void Serializer::Pad(int padding_offset) {
 
 void Serializer::InitializeCodeAddressMap() {
   isolate_->InitializeLoggingAndCounters();
-  code_address_map_ = new CodeAddressMap(isolate_);
+  code_address_map_ = std::make_unique<CodeAddressMap>(isolate_);
 }
 
 Code Serializer::CopyCode(Code code) {

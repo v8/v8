@@ -159,7 +159,6 @@ class ObjectCacheIndexMap {
 class Serializer : public SerializerDeserializer {
  public:
   explicit Serializer(Isolate* isolate);
-  ~Serializer() override;
 
   std::vector<SerializedData::Reservation> EncodeReservations() const {
     return allocator_.EncodeReservations();
@@ -266,16 +265,16 @@ class Serializer : public SerializerDeserializer {
   SerializerReferenceMap reference_map_;
   ExternalReferenceEncoder external_reference_encoder_;
   RootIndexMap root_index_map_;
-  CodeAddressMap* code_address_map_ = nullptr;
+  std::unique_ptr<CodeAddressMap> code_address_map_;
   std::vector<byte> code_buffer_;
   std::vector<HeapObject> deferred_objects_;  // To handle stack overflow.
   int recursion_depth_ = 0;
   SerializerAllocator allocator_;
 
 #ifdef OBJECT_PRINT
-  static const int kInstanceTypes = LAST_TYPE + 1;
-  int* instance_type_count_[kNumberOfSpaces];
-  size_t* instance_type_size_[kNumberOfSpaces];
+  static constexpr int kInstanceTypes = LAST_TYPE + 1;
+  std::unique_ptr<int[]> instance_type_count_[kNumberOfSpaces];
+  std::unique_ptr<size_t[]> instance_type_size_[kNumberOfSpaces];
 #endif  // OBJECT_PRINT
 
 #ifdef DEBUG
