@@ -58,7 +58,6 @@ namespace {
       (1 << d11.code()) | (1 << d12.code()) | (1 << d13.code()) | \
       (1 << d14.code()) | (1 << d15.code())
 
-
 #elif V8_TARGET_ARCH_ARM64
 // ===========================================================================
 // == arm64 ====================================================================
@@ -69,7 +68,6 @@ namespace {
       (1 << x22.code()) | (1 << x23.code()) | (1 << x24.code()) | \
       (1 << x25.code()) | (1 << x26.code()) | (1 << x27.code()) | \
       (1 << x28.code()) | (1 << x29.code()) | (1 << x30.code())
-
 
 #define CALLEE_SAVE_FP_REGISTERS                                  \
   (1 << d8.code()) | (1 << d9.code()) | (1 << d10.code()) |       \
@@ -131,17 +129,19 @@ namespace {
       d14.bit() | d15.bit()
 
 #elif V8_TARGET_ARCH_RISCV
-//FIXME: RISCV porting: define calling convention
+// FIXME: RISCV porting: define calling convention
 // ===========================================================================
 // == RISC5 =================================================================
 // ===========================================================================
 #define PARAM_REGISTERS a0, a1, a2, a3, a4, a5, a6, a7
+// fp is not part of CALLEE_SAVE_REGISTERS (similar to how MIPS64 or PPC defines
+// it)
 #define CALLEE_SAVE_REGISTERS                                                  \
-	fp.bit() | s1.bit() | s2.bit() | s3.bit() | s4.bit() | s5.bit() | s6.bit() | \
-	s7.bit() | s8.bit() | s9.bit() | s10.bit() | s11.bit()
-#define CALLEE_SAVE_FP_REGISTERS \
-	fs0.bit() | fs1.bit() | fs2.bit() | fs3.bit() | fs4.bit() | fs5.bit() | \
-	fs6.bit() | fs7.bit() | fs8.bit() | fs9.bit() | fs10.bit() | fs11.bit()
+  s1.bit() | s2.bit() | s3.bit() | s4.bit() | s5.bit() | s6.bit() | s7.bit() | \
+      s8.bit() | s9.bit() | s10.bit() | s11.bit()
+#define CALLEE_SAVE_FP_REGISTERS                                          \
+  fs0.bit() | fs1.bit() | fs2.bit() | fs3.bit() | fs4.bit() | fs5.bit() | \
+      fs6.bit() | fs7.bit() | fs8.bit() | fs9.bit() | fs10.bit() | fs11.bit()
 #else
 // ===========================================================================
 // == unknown ================================================================
@@ -149,7 +149,6 @@ namespace {
 #define UNSUPPORTED_C_LINKAGE 1
 #endif
 }  // namespace
-
 
 // General code uses the above configuration data.
 CallDescriptor* Linkage::GetSimplifiedCDescriptor(Zone* zone,
