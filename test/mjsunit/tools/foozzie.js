@@ -8,9 +8,9 @@
 // Test foozzie mocks for differential fuzzing.
 
 // Deterministic Math.random.
-assertEquals(0.1, Math.random());
-assertEquals(0.2, Math.random());
-assertEquals(0.3, Math.random());
+assertEquals(0.7098480789645691, Math.random());
+assertEquals(0.9742682568175951, Math.random());
+assertEquals(0.20008059867222983, Math.random());
 
 // Deterministic date.
 assertEquals(1477662728698, Date.now());

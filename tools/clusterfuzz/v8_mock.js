@@ -14,10 +14,10 @@ var prettyPrinted = function prettyPrinted(msg) { return msg; };
 
 // Mock Math.random.
 (function() {
-  let index = 0
+  let index = 1;
   Math.random = function() {
-    index = (index + 1) % 10;
-    return index / 10.0;
+      const x = Math.sin(index++) * 10000;
+      return x - Math.floor(x);
   }
 })();
 
