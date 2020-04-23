@@ -487,8 +487,7 @@ class V8_EXPORT_PRIVATE TurboAssembler : public TurboAssemblerBase {
                           Register caller_args_count, Register scratch0,
                           Register scratch1);
 
-  int CalculateStackPassedWords(int num_reg_arguments,
-                                int num_double_arguments);
+  int CalculateStackPassedDWords(int num_gp_arguments, int num_fp_arguments);
 
   // Before calling a C-function from generated code, align arguments on stack
   // and add space for the four mips argument slots.
@@ -631,20 +630,10 @@ class V8_EXPORT_PRIVATE TurboAssembler : public TurboAssemblerBase {
   //
   // These functions assume (and assert) that src1!=src2. It is permitted
   // for the result to alias either input register.
-  void Float32Max(FPURegister dst, FPURegister src1, FPURegister src2,
-                  Label* out_of_line);
-  void Float32Min(FPURegister dst, FPURegister src1, FPURegister src2,
-                  Label* out_of_line);
-  void Float64Max(FPURegister dst, FPURegister src1, FPURegister src2,
-                  Label* out_of_line);
-  void Float64Min(FPURegister dst, FPURegister src1, FPURegister src2,
-                  Label* out_of_line);
-
-  // Generate out-of-line cases for the macros above.
-  void Float32MaxOutOfLine(FPURegister dst, FPURegister src1, FPURegister src2);
-  void Float32MinOutOfLine(FPURegister dst, FPURegister src1, FPURegister src2);
-  void Float64MaxOutOfLine(FPURegister dst, FPURegister src1, FPURegister src2);
-  void Float64MinOutOfLine(FPURegister dst, FPURegister src1, FPURegister src2);
+  void Float32Max(FPURegister dst, FPURegister src1, FPURegister src2);
+  void Float32Min(FPURegister dst, FPURegister src1, FPURegister src2);
+  void Float64Max(FPURegister dst, FPURegister src1, FPURegister src2);
+  void Float64Min(FPURegister dst, FPURegister src1, FPURegister src2);
 
   bool IsDoubleZeroRegSet() { return has_double_zero_reg_set_; }
 
@@ -992,14 +981,10 @@ class V8_EXPORT_PRIVATE MacroAssembler : public TurboAssembler {
   void Floor_w_d(FPURegister fd, FPURegister fs);
   void Ceil_w_d(FPURegister fd, FPURegister fs);
 
-  void Madd_s(FPURegister fd, FPURegister fr, FPURegister fs, FPURegister ft,
-              FPURegister scratch);
-  void Madd_d(FPURegister fd, FPURegister fr, FPURegister fs, FPURegister ft,
-              FPURegister scratch);
-  void Msub_s(FPURegister fd, FPURegister fr, FPURegister fs, FPURegister ft,
-              FPURegister scratch);
-  void Msub_d(FPURegister fd, FPURegister fr, FPURegister fs, FPURegister ft,
-              FPURegister scratch);
+  void Madd_s(FPURegister fd, FPURegister fr, FPURegister fs, FPURegister ft);
+  void Madd_d(FPURegister fd, FPURegister fr, FPURegister fs, FPURegister ft);
+  void Msub_s(FPURegister fd, FPURegister fr, FPURegister fs, FPURegister ft);
+  void Msub_d(FPURegister fd, FPURegister fr, FPURegister fs, FPURegister ft);
 
   void BranchShortMSA(MSABranchDF df, Label* target, MSABranchCondition cond,
                       MSARegister wt, BranchDelaySlot bd = PROTECT);

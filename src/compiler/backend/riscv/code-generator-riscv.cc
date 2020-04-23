@@ -202,27 +202,6 @@ class OutOfLineRecordWrite final : public OutOfLineCode {
   Zone* zone_;
 };
 
-#define CREATE_OOL_CLASS(ool_name, tasm_ool_name, T)                 \
-  class ool_name final : public OutOfLineCode {                      \
-   public:                                                           \
-    ool_name(CodeGenerator* gen, T dst, T src1, T src2)              \
-        : OutOfLineCode(gen), dst_(dst), src1_(src1), src2_(src2) {} \
-                                                                     \
-    void Generate() final { __ tasm_ool_name(dst_, src1_, src2_); }  \
-                                                                     \
-   private:                                                          \
-    T const dst_;                                                    \
-    T const src1_;                                                   \
-    T const src2_;                                                   \
-  }
-
-CREATE_OOL_CLASS(OutOfLineFloat32Max, Float32MaxOutOfLine, FPURegister);
-CREATE_OOL_CLASS(OutOfLineFloat32Min, Float32MinOutOfLine, FPURegister);
-CREATE_OOL_CLASS(OutOfLineFloat64Max, Float64MaxOutOfLine, FPURegister);
-CREATE_OOL_CLASS(OutOfLineFloat64Min, Float64MinOutOfLine, FPURegister);
-
-#undef CREATE_OOL_CLASS
-
 Condition FlagsConditionToConditionCmp(FlagsCondition condition) {
   switch (condition) {
     case kEqual:
@@ -1414,39 +1393,23 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       break;
     }
     case kMips64Float32Max: {
-      FPURegister dst = i.OutputSingleRegister();
-      FPURegister src1 = i.InputSingleRegister(0);
-      FPURegister src2 = i.InputSingleRegister(1);
-      auto ool = new (zone()) OutOfLineFloat32Max(this, dst, src1, src2);
-      __ Float32Max(dst, src1, src2, ool->entry());
-      __ bind(ool->exit());
+      __ Float32Max(i.OutputSingleRegister(), i.InputSingleRegister(0),
+                    i.InputSingleRegister(1));
       break;
     }
     case kMips64Float64Max: {
-      FPURegister dst = i.OutputDoubleRegister();
-      FPURegister src1 = i.InputDoubleRegister(0);
-      FPURegister src2 = i.InputDoubleRegister(1);
-      auto ool = new (zone()) OutOfLineFloat64Max(this, dst, src1, src2);
-      __ Float64Max(dst, src1, src2, ool->entry());
-      __ bind(ool->exit());
+      __ Float64Max(i.OutputSingleRegister(), i.InputSingleRegister(0),
+                    i.InputSingleRegister(1));
       break;
     }
     case kMips64Float32Min: {
-      FPURegister dst = i.OutputSingleRegister();
-      FPURegister src1 = i.InputSingleRegister(0);
-      FPURegister src2 = i.InputSingleRegister(1);
-      auto ool = new (zone()) OutOfLineFloat32Min(this, dst, src1, src2);
-      __ Float32Min(dst, src1, src2, ool->entry());
-      __ bind(ool->exit());
+      __ Float32Min(i.OutputSingleRegister(), i.InputSingleRegister(0),
+                    i.InputSingleRegister(1));
       break;
     }
     case kMips64Float64Min: {
-      FPURegister dst = i.OutputDoubleRegister();
-      FPURegister src1 = i.InputDoubleRegister(0);
-      FPURegister src2 = i.InputDoubleRegister(1);
-      auto ool = new (zone()) OutOfLineFloat64Min(this, dst, src1, src2);
-      __ Float64Min(dst, src1, src2, ool->entry());
-      __ bind(ool->exit());
+      __ Float64Min(i.OutputSingleRegister(), i.InputSingleRegister(0),
+                    i.InputSingleRegister(1));
       break;
     }
     case kMips64Float64SilenceNaN:
