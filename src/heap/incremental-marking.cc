@@ -658,6 +658,27 @@ void IncrementalMarking::UpdateWeakReferencesAfterScavenge() {
         DCHECK(!Heap::InYoungGeneration(candidate));
       });
 #endif
+
+  if (FLAG_harmony_weak_refs) {
+    weak_objects_->js_weak_refs.Update(
+        [](JSWeakRef js_weak_ref_in, JSWeakRef* js_weak_ref_out) -> bool {
+          JSWeakRef forwarded = ForwardingAddress(js_weak_ref_in);
+
+          if (!forwarded.is_null()) {
+            *js_weak_ref_out = forwarded;
+            return true;
+          }
+
+          return false;
+        });
+
+#ifdef DEBUG
+    // TODO(syg, marja): Support WeakCells in the young generation.
+    weak_objects_->weak_cells.Iterate([](WeakCell weak_cell) {
+      DCHECK(!Heap::InYoungGeneration(weak_cell));
+    });
+#endif
+  }
 }
 
 void IncrementalMarking::UpdateMarkedBytesAfterScavenge(
