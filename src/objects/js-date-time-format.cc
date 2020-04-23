@@ -545,6 +545,7 @@ MaybeHandle<JSObject> JSDateTimeFormat::ResolvedOptions(
   //    [[Minute]]           "minute"
   //    [[Second]]           "second"
   //    [[TimeZoneName]]     "timeZoneName"
+  //    [[FractionalSecondDigits]]     "fractionalSecondDigits"
   CHECK(JSReceiver::CreateDataProperty(isolate, options,
                                        factory->locale_string(), locale,
                                        Just(kDontThrow))
@@ -615,6 +616,13 @@ MaybeHandle<JSObject> JSDateTimeFormat::ResolvedOptions(
         }
       }
     }
+    if (FLAG_harmony_intl_dateformat_fractional_second_digits) {
+      int fsd = FractionalSecondDigitsFromPattern(pattern);
+      CHECK(JSReceiver::CreateDataProperty(
+                isolate, options, factory->fractionalSecondDigits_string(),
+                factory->NewNumberFromInt(fsd), Just(kDontThrow))
+                .FromJust());
+    }
   }
 
   // dateStyle
@@ -634,14 +642,6 @@ MaybeHandle<JSObject> JSDateTimeFormat::ResolvedOptions(
               Just(kDontThrow))
               .FromJust());
   }
-  if (FLAG_harmony_intl_dateformat_fractional_second_digits) {
-    int fsd = FractionalSecondDigitsFromPattern(pattern);
-    CHECK(JSReceiver::CreateDataProperty(
-              isolate, options, factory->fractionalSecondDigits_string(),
-              factory->NewNumberFromInt(fsd), Just(kDontThrow))
-              .FromJust());
-  }
-
   return options;
 }
 
