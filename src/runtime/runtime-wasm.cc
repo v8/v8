@@ -447,12 +447,9 @@ Object ThrowTableOutOfBounds(Isolate* isolate,
 RUNTIME_FUNCTION(Runtime_WasmRefFunc) {
   ClearThreadInWasmScope flag_scope;
   HandleScope scope(isolate);
-  DCHECK_EQ(1, args.length());
-  auto instance =
-      Handle<WasmInstanceObject>(GetWasmInstanceOnStackTop(isolate), isolate);
-  DCHECK(isolate->context().is_null());
-  isolate->set_context(instance->native_context());
-  CONVERT_UINT32_ARG_CHECKED(function_index, 0);
+  DCHECK_EQ(2, args.length());
+  CONVERT_ARG_HANDLE_CHECKED(WasmInstanceObject, instance, 0);
+  CONVERT_UINT32_ARG_CHECKED(function_index, 1);
 
   Handle<WasmExternalFunction> function =
       WasmInstanceObject::GetOrCreateWasmExternalFunction(isolate, instance,

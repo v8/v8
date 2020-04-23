@@ -256,6 +256,32 @@ TF_BUILTIN(WasmMemoryGrow, WasmBuiltinsAssembler) {
   Return(Int32Constant(-1));
 }
 
+TF_BUILTIN(WasmRefFunc, WasmBuiltinsAssembler) {
+  TNode<WasmInstanceObject> instance = LoadInstanceFromFrame();
+
+  Label call_runtime(this, Label::kDeferred);
+
+  TNode<Uint32T> raw_index =
+      UncheckedCast<Uint32T>(Parameter(Descriptor::kFunctionIndex));
+  TNode<FixedArray> table = LoadObjectField<FixedArray>(
+      instance, WasmInstanceObject::kWasmExternalFunctionsOffset);
+  GotoIf(IsUndefined(table), &call_runtime);
+
+  TNode<IntPtrT> function_index =
+      UncheckedCast<IntPtrT>(ChangeUint32ToWord(raw_index));
+  // Function index should be in range.
+  TNode<Object> result = LoadFixedArrayElement(table, function_index);
+  GotoIf(IsUndefined(result), &call_runtime);
+
+  Return(result);
+
+  BIND(&call_runtime);
+  // Fall back to the runtime call for more complex cases.
+  // function_index is known to be in Smi range.
+  TailCallRuntime(Runtime::kWasmRefFunc, LoadContextFromInstance(instance),
+                  instance, SmiFromUint32(raw_index));
+}
+
 TF_BUILTIN(WasmTableInit, WasmBuiltinsAssembler) {
   TNode<Uint32T> dst_raw =
       UncheckedCast<Uint32T>(Parameter(Descriptor::kDestination));

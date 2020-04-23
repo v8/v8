@@ -101,6 +101,7 @@ namespace internal {
   V(WasmI64AtomicWait32)              \
   V(WasmI64AtomicWait64)              \
   V(WasmMemoryGrow)                   \
+  V(WasmRefFunc)                      \
   V(WasmTableInit)                    \
   V(WasmTableCopy)                    \
   V(WasmTableGet)                     \
@@ -1361,6 +1362,14 @@ class WasmMemoryGrowDescriptor final : public CallInterfaceDescriptor {
   DEFINE_RESULT_AND_PARAMETER_TYPES(MachineType::Int32(),  // result 1
                                     MachineType::Int32())  // kNumPages
   DECLARE_DESCRIPTOR(WasmMemoryGrowDescriptor, CallInterfaceDescriptor)
+};
+
+class WasmRefFuncDescriptor final : public CallInterfaceDescriptor {
+ public:
+  DEFINE_PARAMETERS_NO_CONTEXT(kFunctionIndex)
+  DEFINE_RESULT_AND_PARAMETER_TYPES(MachineType::AnyTagged(),  // result
+                                    MachineType::Uint32())     // kFunctionIndex
+  DECLARE_DESCRIPTOR(WasmRefFuncDescriptor, CallInterfaceDescriptor)
 };
 
 class WasmTableInitDescriptor final : public CallInterfaceDescriptor {

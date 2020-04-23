@@ -850,6 +850,7 @@ namespace internal {
   TFC(WasmI64AtomicWait32, WasmI64AtomicWait32)                                \
   TFC(WasmI64AtomicWait64, WasmI64AtomicWait64)                                \
   TFC(WasmMemoryGrow, WasmMemoryGrow)                                          \
+  TFC(WasmRefFunc, WasmRefFunc)                                                \
   TFC(WasmTableInit, WasmTableInit)                                            \
   TFC(WasmTableCopy, WasmTableCopy)                                            \
   TFC(WasmTableGet, WasmTableGet)                                              \

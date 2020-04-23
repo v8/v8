@@ -144,6 +144,19 @@ bool ContainsInt64(const wasm::FunctionSig* sig) {
   }
   return false;
 }
+
+template <typename BuiltinDescriptor>
+CallDescriptor* GetBuiltinCallDescriptor(WasmGraphBuilder* builder,
+                                         StubCallMode stub_mode) {
+  BuiltinDescriptor interface_descriptor;
+  return Linkage::GetStubCallDescriptor(
+      builder->mcgraph()->zone(),                     // zone
+      interface_descriptor,                           // descriptor
+      interface_descriptor.GetStackParameterCount(),  // stack parameter count
+      CallDescriptor::kNoFlags,                       // flags
+      Operator::kNoProperties,                        // properties
+      stub_mode);                                     // stub call mode
+}
 }  // namespace
 
 class WasmGraphAssembler : public GraphAssembler {
@@ -262,11 +275,16 @@ Node* WasmGraphBuilder::RefNull() {
 }
 
 Node* WasmGraphBuilder::RefFunc(uint32_t function_index) {
-  Node* args[] = {
-      graph()->NewNode(mcgraph()->common()->NumberConstant(function_index))};
-  Node* result =
-      BuildCallToRuntime(Runtime::kWasmRefFunc, args, arraysize(args));
-  return result;
+  auto call_descriptor = GetBuiltinCallDescriptor<WasmRefFuncDescriptor>(
+      this, StubCallMode::kCallWasmRuntimeStub);
+  // A direct call to a wasm runtime stub defined in this module.
+  // Just encode the stub index. This will be patched at relocation.
+  Node* call_target = mcgraph()->RelocatableIntPtrConstant(
+      wasm::WasmCode::kWasmRefFunc, RelocInfo::WASM_STUB_CALL);
+
+  return SetEffectControl(
+      graph()->NewNode(mcgraph()->common()->Call(call_descriptor), call_target,
+                       Uint32Constant(function_index), effect(), control()));
 }
 
 Node* WasmGraphBuilder::NoContextConstant() {
@@ -1936,19 +1954,6 @@ ExternalReference convert_ccall_ref(WasmGraphBuilder* builder,
     default:
       UNREACHABLE();
   }
-}
-
-template <typename BuiltinDescriptor>
-CallDescriptor* GetBuiltinCallDescriptor(WasmGraphBuilder* builder,
-                                         StubCallMode stub_mode) {
-  BuiltinDescriptor interface_descriptor;
-  return Linkage::GetStubCallDescriptor(
-      builder->mcgraph()->zone(),                     // zone
-      interface_descriptor,                           // descriptor
-      interface_descriptor.GetStackParameterCount(),  // stack parameter count
-      CallDescriptor::kNoFlags,                       // flags
-      Operator::kNoProperties,                        // properties
-      stub_mode);                                     // stub call mode
 }
 
 }  // namespace
