@@ -237,8 +237,6 @@ namespace internal {
 #define STATS_COUNTER_LIST_1(SC)                                   \
   /* Global Handle Count*/                                         \
   SC(global_handles, V8.GlobalHandles)                             \
-  /* OS Memory allocated */                                        \
-  SC(memory_allocated, V8.OsMemoryAllocated)                       \
   SC(maps_normalized, V8.MapsNormalized)                           \
   SC(maps_created, V8.MapsCreated)                                 \
   SC(elements_transitions, V8.ObjectElementsTransitions)           \

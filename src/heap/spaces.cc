@@ -416,7 +416,6 @@ bool MemoryAllocator::CommitMemory(VirtualMemory* reservation) {
     return false;
   }
   UpdateAllocatedSpaceLimits(base, base + size);
-  isolate_->counters()->memory_allocated()->Increment(static_cast<int>(size));
   return true;
 }
 
@@ -426,7 +425,6 @@ bool MemoryAllocator::UncommitMemory(VirtualMemory* reservation) {
                                    PageAllocator::kNoAccess)) {
     return false;
   }
-  isolate_->counters()->memory_allocated()->Decrement(static_cast<int>(size));
   return true;
 }
 
@@ -981,11 +979,8 @@ MemoryChunk* MemoryAllocator::AllocateChunk(size_t reserve_area_size,
     area_end = area_start + commit_area_size;
   }
 
-  // Use chunk_size for statistics and callbacks because we assume that they
-  // treat reserved but not-yet committed memory regions of chunks as allocated.
-  isolate_->counters()->memory_allocated()->Increment(
-      static_cast<int>(chunk_size));
-
+  // Use chunk_size for statistics because we assume that  treat reserved but
+  // not-yet committed memory regions of chunks as allocated.
   LOG(isolate_,
       NewEvent("MemoryChunk", reinterpret_cast<void*>(base), chunk_size));
 
@@ -1166,8 +1161,6 @@ void MemoryAllocator::PartialFreeMemory(MemoryChunk* chunk, Address start_free,
   const size_t released_bytes = reservation->Release(start_free);
   DCHECK_GE(size_, released_bytes);
   size_ -= released_bytes;
-  isolate_->counters()->memory_allocated()->Decrement(
-      static_cast<int>(released_bytes));
 }
 
 void MemoryAllocator::UnregisterMemory(MemoryChunk* chunk) {
@@ -1177,7 +1170,6 @@ void MemoryAllocator::UnregisterMemory(MemoryChunk* chunk) {
       reservation->IsReserved() ? reservation->size() : chunk->size();
   DCHECK_GE(size_, static_cast<size_t>(size));
   size_ -= size;
-  isolate_->counters()->memory_allocated()->Decrement(static_cast<int>(size));
   if (chunk->executable() == EXECUTABLE) {
     DCHECK_GE(size_executable_, size);
     size_executable_ -= size;
