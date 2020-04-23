@@ -545,7 +545,7 @@ class V8_EXPORT_PRIVATE FrameSummary {
     uint32_t function_index() const;
     wasm::WasmCode* code() const { return code_; }
     int code_offset() const { return code_offset_; }
-    int byte_offset() const;
+    V8_EXPORT_PRIVATE int byte_offset() const;
 
    private:
     wasm::WasmCode* const code_;
@@ -956,7 +956,7 @@ class WasmCompiledFrame : public StandardFrame {
 
   // Accessors.
   WasmInstanceObject wasm_instance() const;
-  wasm::NativeModule* native_module() const;
+  V8_EXPORT_PRIVATE wasm::NativeModule* native_module() const;
   wasm::WasmCode* wasm_code() const;
   uint32_t function_index() const;
   Script script() const override;

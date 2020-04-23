@@ -137,14 +137,19 @@ Handle<JSObject> GetModuleScopeObject(Handle<WasmInstanceObject>);
 
 // Debug info per NativeModule, created lazily on demand.
 // Implementation in {wasm-debug.cc} using PIMPL.
-class DebugInfo {
+class V8_EXPORT_PRIVATE DebugInfo {
  public:
   explicit DebugInfo(NativeModule*);
   ~DebugInfo();
 
+  // For the frame inspection methods below:
   // {fp} is the frame pointer of the Liftoff frame, {debug_break_fp} that of
   // the {WasmDebugBreak} frame (if any).
+  int GetNumLocals(Isolate*, Address pc);
   WasmValue GetLocalValue(int local, Isolate*, Address pc, Address fp,
+                          Address debug_break_fp);
+  int GetStackDepth(Isolate*, Address pc);
+  WasmValue GetStackValue(int index, Isolate*, Address pc, Address fp,
                           Address debug_break_fp);
 
   Handle<JSObject> GetLocalScopeObject(Isolate*, Address pc, Address fp,

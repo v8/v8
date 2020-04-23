@@ -260,7 +260,10 @@ class TestingModuleBuilder {
 
   void SetExecutable() { native_module_->SetExecutable(true); }
 
-  void TierDown() { native_module_->TierDown(isolate_); }
+  void TierDown() {
+    native_module_->TierDown(isolate_);
+    execution_tier_ = ExecutionTier::kLiftoff;
+  }
 
   CompilationEnv CreateCompilationEnv();
 

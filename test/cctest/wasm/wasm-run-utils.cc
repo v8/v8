@@ -579,8 +579,10 @@ void WasmFunctionCompiler::Build(const byte* start, const byte* end) {
                          func_wire_bytes.begin(), func_wire_bytes.end()};
   NativeModule* native_module =
       builder_->instance_object()->module_object().native_module();
+  ForDebugging for_debugging =
+      native_module->IsTieredDown() ? kForDebugging : kNoDebugging;
   WasmCompilationUnit unit(function_->func_index, builder_->execution_tier(),
-                           kNoDebugging);
+                           for_debugging);
   WasmFeatures unused_detected_features;
   WasmCompilationResult result = unit.ExecuteCompilation(
       isolate()->wasm_engine(), &env,
