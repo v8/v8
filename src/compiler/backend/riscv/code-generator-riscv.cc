@@ -1580,7 +1580,7 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       __ Sh(i.InputOrZeroRegister(2), i.MemoryOperand());
       break;
     case kMips64Ush:
-      __ Ush(i.InputOrZeroRegister(2), i.MemoryOperand(), kScratchReg);
+      __ Ush(i.InputOrZeroRegister(2), i.MemoryOperand());
       break;
     case kMips64Lw:
       __ Lw(i.OutputRegister(), i.MemoryOperand());

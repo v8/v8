@@ -1947,9 +1947,14 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase {
     TWO_ACCESSES = true
   };
 
+  // Determine whether need to adjust base and offset of memroy load/store
+  bool NeedAdjustBaseAndOffset(
+      const MemOperand& src, OffsetAccessType = OffsetAccessType::SINGLE_ACCESS,
+      int second_Access_add_to_offset = 4);
+
   // Helper function for memory load/store using base register and offset.
   void AdjustBaseAndOffset(
-      MemOperand* src,
+      MemOperand* src, Register scratch,
       OffsetAccessType access_type = OffsetAccessType::SINGLE_ACCESS,
       int second_access_add_to_offset = 4);
 

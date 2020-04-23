@@ -930,164 +930,215 @@ void TurboAssembler::Dlsa(Register rd, Register rt, Register rs, uint8_t sa,
 }
 
 // ------------Pseudo-instructions-------------
+template <int NBYTES, bool LOAD_SIGNED>
+void TurboAssembler::LoadNBytes(Register rd, const MemOperand& rs,
+                                Register scratch) {
+  DCHECK(rd != rs.rm() && rd != scratch);
+  DCHECK(NBYTES <= 8);
 
-void TurboAssembler::Ulw(Register rd, const MemOperand& rs) {
-  DCHECK(rd != t3);
-  DCHECK(rs.rm() != t3);
+  // load the most significant byte
+  if (LOAD_SIGNED) {
+    RV_lb(rd, rs.rm(), rs.offset() + (NBYTES - 1));
+  } else {
+    RV_lbu(rd, rs.rm(), rs.offset() + (NBYTES - 1));
+  }
+
+  // load remaining (nbytes-1) bytes from higher to lower
+  RV_slli(rd, rd, 8 * (NBYTES - 1));
+  for (int i = (NBYTES - 2); i >= 0; i--) {
+    RV_lbu(scratch, rs.rm(), rs.offset() + i);
+    if (i) RV_slli(scratch, scratch, i * 8);
+    RV_or_(rd, rd, scratch);
+  }
+}
+
+template <int NBYTES, bool LOAD_SIGNED>
+void TurboAssembler::LoadNBytesOverwritingBaseReg(const MemOperand& rs,
+                                                  Register scratch0,
+                                                  Register scratch1) {
+  // This function loads nbytes from memory specified by rs and into rs.rm()
+  DCHECK(rs.rm() != scratch0 && rs.rm() != scratch1 && scratch0 != scratch1);
+  DCHECK(NBYTES <= 8);
+
+  // load the most significant byte
+  if (LOAD_SIGNED) {
+    RV_lb(scratch0, rs.rm(), rs.offset() + (NBYTES - 1));
+  } else {
+    RV_lbu(scratch0, rs.rm(), rs.offset() + (NBYTES - 1));
+  }
+
+  // load remaining (nbytes-1) bytes from higher to lower
+  RV_slli(scratch0, scratch0, 8 * (NBYTES - 1));
+  for (int i = (NBYTES - 2); i >= 0; i--) {
+    RV_lbu(scratch1, rs.rm(), rs.offset() + i);
+    if (i) {
+      RV_slli(scratch1, scratch1, i * 8);
+      RV_or_(scratch0, scratch0, scratch1);
+    } else {
+      // write to rs.rm() when processing the last byte
+      RV_or_(rs.rm(), scratch0, scratch1);
+    }
+  }
+}
+
+template <int NBYTES, bool IS_SIGNED>
+void TurboAssembler::UnalignedLoadHelper(Register rd, const MemOperand& rs) {
+  BlockTrampolinePoolScope block_trampoline_pool(this);
+  UseScratchRegisterScope temps(this);
+
+  if (NeedAdjustBaseAndOffset(rs, OffsetAccessType::TWO_ACCESSES, NBYTES - 1)) {
+    // Adjust offset for two accesses and check if offset + 3 fits into int12.
+    MemOperand source = rs;
+    Register scratch_base = temps.Acquire();
+    DCHECK(scratch_base != rs.rm());
+    AdjustBaseAndOffset(&source, scratch_base, OffsetAccessType::TWO_ACCESSES,
+                        NBYTES - 1);
+
+    // Since source.rm() is scratch_base, assume rd != source.rm()
+    DCHECK(rd != source.rm());
+    Register scratch_other = t5;
+    LoadNBytes<NBYTES, IS_SIGNED>(rd, source, scratch_other);
+  } else {
+    // no need to adjust base-and-offset
+    if (rd != rs.rm()) {
+      Register scratch = temps.Acquire();
+      LoadNBytes<NBYTES, IS_SIGNED>(rd, rs, scratch);
+    } else {  // rd == rs.rm()
+      Register scratch0 = temps.Acquire();
+      Register scratch1 = t5;
+      LoadNBytesOverwritingBaseReg<NBYTES, IS_SIGNED>(rs, scratch0, scratch1);
+    }
+  }
+}
+
+template <int NBYTES>
+void TurboAssembler::UnalignedFLoadHelper(FPURegister frd, const MemOperand& rs,
+                                          Register scratch) {
+  DCHECK(scratch != rs.rm());
+  DCHECK(NBYTES == 4 || NBYTES == 8);
+
+  BlockTrampolinePoolScope block_trampoline_pool(this);
+  UseScratchRegisterScope temps(this);
+  MemOperand source = rs;
+  if (NeedAdjustBaseAndOffset(rs, OffsetAccessType::TWO_ACCESSES, NBYTES - 1)) {
+    // Adjust offset for two accesses and check if offset + 3 fits into int12.
+    Register scratch_base = temps.Acquire();
+    DCHECK(scratch_base != scratch && scratch_base != rs.rm());
+    AdjustBaseAndOffset(&source, scratch_base, OffsetAccessType::TWO_ACCESSES,
+                        NBYTES - 1);
+  }
+
+  Register scratch_other = temps.hasAvailable() ? temps.Acquire() : t5;
+  DCHECK(scratch_other != scratch && scratch_other != rs.rm());
+  LoadNBytes<NBYTES, true>(scratch, source, scratch_other);
+  if (NBYTES == 4)
+    RV_fmv_w_x(frd, scratch);
+  else
+    RV_fmv_d_x(frd, scratch);
+}
+
+template <int NBYTES>
+void TurboAssembler::UnalignedStoreHelper(Register rd, const MemOperand& rs,
+                                          Register scratch_other) {
+  DCHECK(scratch_other != rs.rm());
+  DCHECK(NBYTES <= 8);
+
+  UseScratchRegisterScope temps(this);
   MemOperand source = rs;
   // Adjust offset for two accesses and check if offset + 3 fits into int12.
-  AdjustBaseAndOffset(&source, OffsetAccessType::TWO_ACCESSES, 3);
-  if (rd != source.rm()) {
-    UseScratchRegisterScope temps(this);
-    Register scratch = temps.Acquire();
-    RV_lb(rd, source.rm(), source.offset() + 3);
-    RV_slli(rd, rd, 24);
-    for (int i = 2; i >= 0; i--) {
-      RV_lbu(scratch, source.rm(), source.offset() + i);
-      if (i) RV_slli(scratch, scratch, i * 8);
-      RV_or_(rd, rd, scratch);
-    }
-  } else {
-    UseScratchRegisterScope temps(this);
-    Register scratch = temps.Acquire();
-    RV_lbu(scratch, source.rm(), source.offset());
-    for (size_t i = 1; i <= 3; i++) {
-      RV_lbu(t5, source.rm(), source.offset() + i);
-      RV_slli(t5, t5, i * 8);
-      RV_or_(scratch, scratch, t5);
-    }
-    RV_sext_w(rd, scratch);
+  if (NeedAdjustBaseAndOffset(rs, OffsetAccessType::TWO_ACCESSES, NBYTES - 1)) {
+    Register scratch_base = temps.Acquire();
+    DCHECK(scratch_base != rd && scratch_base != rs.rm());
+    AdjustBaseAndOffset(&source, scratch_base, OffsetAccessType::TWO_ACCESSES,
+                        NBYTES - 1);
   }
+
+  BlockTrampolinePoolScope block_trampoline_pool(this);
+  if (scratch_other == no_reg)
+    scratch_other = temps.hasAvailable() ? temps.Acquire() : t5;
+
+  DCHECK(scratch_other != rd && scratch_other != rs.rm() &&
+         scratch_other != source.rm());
+
+  RV_sb(rd, source.rm(), source.offset());
+  for (size_t i = 0; i <= (NBYTES - 1); i++) {
+    RV_srli(scratch_other, rd, i * 8);
+    RV_sb(scratch_other, source.rm(), source.offset() + i);
+  }
+}
+
+template <int NBYTES>
+void TurboAssembler::UnalignedFStoreHelper(FPURegister frd,
+                                           const MemOperand& rs,
+                                           Register scratch) {
+  DCHECK(scratch != rs.rm());
+  DCHECK(NBYTES == 8 || NBYTES == 4);
+
+  if (NBYTES == 4) {
+    RV_fmv_x_w(scratch, frd);
+  } else {
+    RV_fmv_x_d(scratch, frd);
+  }
+  UnalignedStoreHelper<NBYTES>(scratch, rs);
+}
+
+template <typename Reg_T, typename Func>
+void TurboAssembler::AlignedLoadHelper(Reg_T target, const MemOperand& rs,
+                                       Func generator) {
+  MemOperand source = rs;
+  UseScratchRegisterScope temps(this);
+  BlockTrampolinePoolScope block_trampoline_pool(this);
+  if (NeedAdjustBaseAndOffset(source)) {
+    Register scratch = temps.hasAvailable() ? temps.Acquire() : t5;
+    DCHECK(scratch != rs.rm());
+    AdjustBaseAndOffset(&source, scratch);
+  }
+  generator(target, source);
+}
+
+template <typename Reg_T, typename Func>
+void TurboAssembler::AlignedStoreHelper(Reg_T value, const MemOperand& rs,
+                                        Func generator) {
+  MemOperand source = rs;
+  UseScratchRegisterScope temps(this);
+  BlockTrampolinePoolScope block_trampoline_pool(this);
+  if (NeedAdjustBaseAndOffset(source)) {
+    Register scratch = temps.hasAvailable() ? temps.Acquire() : t5;
+    // make sure scratch does not overwrite value
+    if (std::is_same<Reg_T, Register>::value)
+      DCHECK(scratch.code() != value.code());
+    DCHECK(scratch != rs.rm());
+    AdjustBaseAndOffset(&source, scratch);
+  }
+  generator(value, source);
+}
+
+void TurboAssembler::Ulw(Register rd, const MemOperand& rs) {
+  UnalignedLoadHelper<4, true>(rd, rs);
 }
 
 void TurboAssembler::Ulwu(Register rd, const MemOperand& rs) {
-  DCHECK(rd != t3);
-  DCHECK(rs.rm() != t3);
-  MemOperand source = rs;
-  // Adjust offset for two accesses and check if offset + 3 fits into int12.
-  AdjustBaseAndOffset(&source, OffsetAccessType::TWO_ACCESSES, 3);
-  if (rd != source.rm()) {
-    UseScratchRegisterScope temps(this);
-    Register scratch = temps.Acquire();
-    RV_lbu(rd, source.rm(), source.offset());
-    for (size_t i = 1; i <= 3; i++) {
-      RV_lbu(scratch, source.rm(), source.offset() + i);
-      RV_slli(scratch, scratch, i * 8);
-      RV_or_(rd, rd, scratch);
-    }
-  } else {
-    UseScratchRegisterScope temps(this);
-    Register scratch = temps.Acquire();
-    RV_lbu(scratch, source.rm(), source.offset());
-    for (size_t i = 1; i <= 3; i++) {
-      RV_lbu(t5, source.rm(), source.offset() + i);
-      RV_slli(t5, t5, i * 8);
-      RV_or_(scratch, scratch, t5);
-    }
-    RV_mv(rd, scratch);
-  }
+  UnalignedLoadHelper<4, false>(rd, rs);
 }
 
 void TurboAssembler::Usw(Register rd, const MemOperand& rs) {
-  DCHECK(rd != t3);
-  DCHECK(rs.rm() != t3);
-  UseScratchRegisterScope temps(this);
-  Register scratch = temps.Acquire();
-  MemOperand source = rs;
-  // Adjust offset for two accesses and check if offset + 3 fits into int12.
-  AdjustBaseAndOffset(&source, OffsetAccessType::TWO_ACCESSES, 3);
-  RV_sb(rd, source.rm(), source.offset());
-  for (size_t i = 0; i <= 3; i++) {
-    RV_srliw(scratch, rd, i * 8);
-    RV_sb(scratch, source.rm(), source.offset() + i);
-  }
+  UnalignedStoreHelper<4>(rd, rs);
 }
 
 void TurboAssembler::Ulh(Register rd, const MemOperand& rs) {
-  DCHECK(rd != t3);
-  DCHECK(rs.rm() != t3);
-  MemOperand source = rs;
-  // Adjust offset for two accesses and check if offset + 1 fits into int12.
-  AdjustBaseAndOffset(&source, OffsetAccessType::TWO_ACCESSES, 1);
-  if (rd != source.rm()) {
-    UseScratchRegisterScope temps(this);
-    Register scratch = temps.Acquire();
-    RV_lb(rd, source.rm(), source.offset() + 1);
-    RV_slli(rd, rd, 8);
-    RV_lbu(scratch, source.rm(), source.offset());
-    RV_or_(rd, rd, scratch);
-  } else {
-    UseScratchRegisterScope temps(this);
-    Register scratch = temps.Acquire();
-    RV_lb(t5, source.rm(), source.offset() + 1);
-    RV_slli(t5, t5, 8);
-    RV_lbu(scratch, source.rm(), source.offset());
-    RV_or_(rd, scratch, t5);
-  }
+  UnalignedLoadHelper<2, true>(rd, rs);
 }
 
 void TurboAssembler::Ulhu(Register rd, const MemOperand& rs) {
-  DCHECK(rd != t3);
-  DCHECK(rs.rm() != t3);
-  MemOperand source = rs;
-  // Adjust offset for two accesses and check if offset + 1 fits into int12.
-  AdjustBaseAndOffset(&source, OffsetAccessType::TWO_ACCESSES, 1);
-  if (rd != source.rm()) {
-    UseScratchRegisterScope temps(this);
-    Register scratch = temps.Acquire();
-    RV_lbu(rd, source.rm(), source.offset());
-    RV_lbu(scratch, source.rm(), source.offset() + 1);
-    RV_slli(scratch, scratch, 8);
-    RV_or_(rd, rd, scratch);
-  } else {
-    UseScratchRegisterScope temps(this);
-    Register scratch = temps.Acquire();
-    RV_lbu(scratch, source.rm(), source.offset());
-    RV_lbu(t5, source.rm(), source.offset() + 1);
-    RV_slli(t5, t5, 8);
-    RV_or_(rd, scratch, t5);
-  }
+  UnalignedLoadHelper<2, false>(rd, rs);
 }
 
-void TurboAssembler::Ush(Register rd, const MemOperand& rs, Register scratch) {
-  DCHECK(rd != t3);
-  DCHECK(rs.rm() != t3);
-  DCHECK(scratch != rs.rm());
-  MemOperand source = rs;
-  // Adjust offset for two accesses and check if offset + 1 fits into int12.
-  AdjustBaseAndOffset(&source, OffsetAccessType::TWO_ACCESSES, 1);
-  RV_sb(rd, source.rm(), source.offset());
-  RV_srliw(scratch, rd, 8);
-  RV_sb(scratch, source.rm(), source.offset() + 1);
+void TurboAssembler::Ush(Register rd, const MemOperand& rs) {
+  UnalignedStoreHelper<2>(rd, rs);
 }
 
 void TurboAssembler::Uld(Register rd, const MemOperand& rs) {
-  DCHECK(rd != t3);
-  DCHECK(rs.rm() != t3);
-  MemOperand source = rs;
-  // Adjust offset for two accesses and check if offset + 7 fits into int12.
-  AdjustBaseAndOffset(&source, OffsetAccessType::TWO_ACCESSES, 7);
-  if (rd != source.rm()) {
-    UseScratchRegisterScope temps(this);
-    Register scratch = temps.Acquire();
-    RV_lb(rd, source.rm(), source.offset() + 7);
-    RV_slli(rd, rd, 56);
-    for (int i = 6; i >= 0; i--) {
-      RV_lbu(scratch, source.rm(), source.offset() + i);
-      if (i) RV_slli(scratch, scratch, i * 8);
-      RV_or_(rd, rd, scratch);
-    }
-  } else {
-    UseScratchRegisterScope temps(this);
-    Register scratch = temps.Acquire();
-    RV_lbu(scratch, source.rm(), source.offset());
-    for (size_t i = 1; i <= 7; i++) {
-      RV_lbu(t5, source.rm(), source.offset() + i);
-      RV_slli(t5, t5, i * 8);
-      RV_or_(scratch, scratch, t5);
-    }
-    RV_mv(rd, scratch);
-  }
+  UnalignedLoadHelper<8, true>(rd, rs);
 }
 
 // Load consequent 32-bit word pair in 64-bit reg. and put first word in low
@@ -1102,18 +1153,7 @@ void MacroAssembler::LoadWordPair(Register rd, const MemOperand& rs,
 }
 
 void TurboAssembler::Usd(Register rd, const MemOperand& rs) {
-  DCHECK(rd != t3);
-  DCHECK(rs.rm() != t3);
-  UseScratchRegisterScope temps(this);
-  Register scratch = temps.Acquire();
-  MemOperand source = rs;
-  // Adjust offset for two accesses and check if offset + 7 fits into int12.
-  AdjustBaseAndOffset(&source, OffsetAccessType::TWO_ACCESSES, 7);
-  RV_sb(rd, source.rm(), source.offset());
-  for (size_t i = 0; i <= 7; i++) {
-    RV_srliw(scratch, rd, i * 8);
-    RV_sb(scratch, source.rm(), source.offset() + i);
-  }
+  UnalignedStoreHelper<8>(rd, rs);
 }
 
 // Do 64-bit store as two consequent 32-bit stores to unaligned address.
@@ -1126,114 +1166,127 @@ void MacroAssembler::StoreWordPair(Register rd, const MemOperand& rs,
 
 void TurboAssembler::Ulwc1(FPURegister fd, const MemOperand& rs,
                            Register scratch) {
-  Lwc1(fd, rs);
+  UnalignedFLoadHelper<4>(fd, rs, scratch);
 }
 
 void TurboAssembler::Uswc1(FPURegister fd, const MemOperand& rs,
                            Register scratch) {
-  Swc1(fd, rs);
+  UnalignedFStoreHelper<8>(fd, rs, scratch);
 }
 
 void TurboAssembler::Uldc1(FPURegister fd, const MemOperand& rs,
                            Register scratch) {
-  DCHECK(scratch != t3);
-  Ldc1(fd, rs);
+  UnalignedFLoadHelper<8>(fd, rs, scratch);
 }
 
 void TurboAssembler::Usdc1(FPURegister fd, const MemOperand& rs,
                            Register scratch) {
-  DCHECK(scratch != t3);
-  Sdc1(fd, rs);
+  UnalignedFStoreHelper<8>(fd, rs, scratch);
 }
 
 void TurboAssembler::Lb(Register rd, const MemOperand& rs) {
-  MemOperand source = rs;
-  AdjustBaseAndOffset(&source);
-  RV_lb(rd, source.rm(), source.offset());
+  auto fn = [this](Register target, const MemOperand& source) {
+    this->RV_lb(target, source.rm(), source.offset());
+  };
+  AlignedLoadHelper(rd, rs, fn);
 }
 
 void TurboAssembler::Lbu(Register rd, const MemOperand& rs) {
-  MemOperand source = rs;
-  AdjustBaseAndOffset(&source);
-  RV_lbu(rd, source.rm(), source.offset());
+  auto fn = [this](Register target, const MemOperand& source) {
+    this->RV_lbu(target, source.rm(), source.offset());
+  };
+  AlignedLoadHelper(rd, rs, fn);
 }
 
 void TurboAssembler::Sb(Register rd, const MemOperand& rs) {
-  MemOperand source = rs;
-  AdjustBaseAndOffset(&source);
-  RV_sb(rd, source.rm(), source.offset());
+  auto fn = [this](Register value, const MemOperand& source) {
+    this->RV_sb(value, source.rm(), source.offset());
+  };
+  AlignedStoreHelper(rd, rs, fn);
 }
 
 void TurboAssembler::Lh(Register rd, const MemOperand& rs) {
-  MemOperand source = rs;
-  AdjustBaseAndOffset(&source);
-  RV_lh(rd, source.rm(), source.offset());
+  auto fn = [this](Register target, const MemOperand& source) {
+    this->RV_lh(target, source.rm(), source.offset());
+  };
+  AlignedLoadHelper(rd, rs, fn);
 }
 
 void TurboAssembler::Lhu(Register rd, const MemOperand& rs) {
-  MemOperand source = rs;
-  AdjustBaseAndOffset(&source);
-  RV_lhu(rd, source.rm(), source.offset());
+  auto fn = [this](Register target, const MemOperand& source) {
+    this->RV_lhu(target, source.rm(), source.offset());
+  };
+  AlignedLoadHelper(rd, rs, fn);
 }
 
 void TurboAssembler::Sh(Register rd, const MemOperand& rs) {
-  MemOperand source = rs;
-  AdjustBaseAndOffset(&source);
-  RV_sh(rd, source.rm(), source.offset());
+  auto fn = [this](Register value, const MemOperand& source) {
+    this->RV_sh(value, source.rm(), source.offset());
+  };
+  AlignedStoreHelper(rd, rs, fn);
 }
 
 void TurboAssembler::Lw(Register rd, const MemOperand& rs) {
-  MemOperand source = rs;
-  AdjustBaseAndOffset(&source);
-  RV_lw(rd, source.rm(), source.offset());
+  auto fn = [this](Register target, const MemOperand& source) {
+    this->RV_lw(target, source.rm(), source.offset());
+  };
+  AlignedLoadHelper(rd, rs, fn);
 }
 
 void TurboAssembler::Lwu(Register rd, const MemOperand& rs) {
-  MemOperand source = rs;
-  AdjustBaseAndOffset(&source);
-  RV_lwu(rd, source.rm(), source.offset());
+  auto fn = [this](Register target, const MemOperand& source) {
+    this->RV_lwu(target, source.rm(), source.offset());
+  };
+  AlignedLoadHelper(rd, rs, fn);
 }
 
 void TurboAssembler::Sw(Register rd, const MemOperand& rs) {
-  MemOperand source = rs;
-  AdjustBaseAndOffset(&source);
-  RV_sw(rd, source.rm(), source.offset());
+  auto fn = [this](Register value, const MemOperand& source) {
+    this->RV_sw(value, source.rm(), source.offset());
+  };
+  AlignedStoreHelper(rd, rs, fn);
 }
 
 void TurboAssembler::Ld(Register rd, const MemOperand& rs) {
-  MemOperand source = rs;
-  AdjustBaseAndOffset(&source);
-  RV_ld(rd, source.rm(), source.offset());
+  auto fn = [this](Register target, const MemOperand& source) {
+    this->RV_ld(target, source.rm(), source.offset());
+  };
+  AlignedLoadHelper(rd, rs, fn);
 }
 
 void TurboAssembler::Sd(Register rd, const MemOperand& rs) {
-  MemOperand source = rs;
-  AdjustBaseAndOffset(&source);
-  RV_sd(rd, source.rm(), source.offset());
+  auto fn = [this](Register value, const MemOperand& source) {
+    this->RV_sd(value, source.rm(), source.offset());
+  };
+  AlignedStoreHelper(rd, rs, fn);
 }
 
 void TurboAssembler::Lwc1(FPURegister fd, const MemOperand& src) {
-  MemOperand tmp = src;
-  AdjustBaseAndOffset(&tmp);
-  RV_flw(fd, tmp.rm(), tmp.offset());
+  auto fn = [this](FPURegister target, const MemOperand& source) {
+    this->RV_flw(target, source.rm(), source.offset());
+  };
+  AlignedLoadHelper(fd, src, fn);
 }
 
 void TurboAssembler::Swc1(FPURegister fs, const MemOperand& src) {
-  MemOperand tmp = src;
-  AdjustBaseAndOffset(&tmp);
-  RV_fsw(fs, tmp.rm(), tmp.offset());
+  auto fn = [this](FPURegister value, const MemOperand& source) {
+    this->RV_fsw(value, source.rm(), source.offset());
+  };
+  AlignedStoreHelper(fs, src, fn);
 }
 
 void TurboAssembler::Ldc1(FPURegister fd, const MemOperand& src) {
-  MemOperand tmp = src;
-  AdjustBaseAndOffset(&tmp);
-  RV_fld(fd, tmp.rm(), tmp.offset());
+  auto fn = [this](FPURegister target, const MemOperand& source) {
+    this->RV_fld(target, source.rm(), source.offset());
+  };
+  AlignedLoadHelper(fd, src, fn);
 }
 
 void TurboAssembler::Sdc1(FPURegister fs, const MemOperand& src) {
-  MemOperand tmp = src;
-  AdjustBaseAndOffset(&tmp);
-  RV_fsd(fs, tmp.rm(), tmp.offset());
+  auto fn = [this](FPURegister value, const MemOperand& source) {
+    this->RV_fsd(value, source.rm(), source.offset());
+  };
+  AlignedStoreHelper(fs, src, fn);
 }
 
 void TurboAssembler::Ll(Register rd, const MemOperand& rs) {
@@ -2293,69 +2346,6 @@ void TurboAssembler::Dpopcnt(Register rd, Register rs) {
   dsrl32(rd, rd, shift);
 }
 
-/*
-void MacroAssembler::EmitFPUTruncate(
-    FPURoundingMode rounding_mode, Register result, DoubleRegister double_input,
-    Register scratch, DoubleRegister double_scratch, Register except_flag,
-    CheckForInexactConversion check_inexact) {
-  DCHECK(result != scratch);
-  DCHECK(double_input != double_scratch);
-  DCHECK(except_flag != scratch);
-
-  Label done;
-
-  // Clear the except flag (0 = no exception)
-  RV_mv(except_flag, zero_reg);
-
-  // Test for values that can be exactly represented as a signed 32-bit integer.
-  cvt_w_d(double_scratch, double_input);
-  RV_fmv_x_w(result, double_scratch);
-  cvt_d_w(double_scratch, double_scratch);
-  CompareF64(EQ, double_input, double_scratch);
-  BranchTrueShortF(&done);
-
-  int32_t except_mask = kFCSRFlagMask;  // Assume interested in all exceptions.
-
-  if (check_inexact == kDontCheckForInexactConversion) {
-    // Ignore inexact exceptions.
-    except_mask &= ~kFCSRInexactFlagMask;
-  }
-
-  // Save FCSR.
-  cfc1(scratch, FCSR);
-  // Disable FPU exceptions.
-  ctc1(zero_reg, FCSR);
-
-  // Do operation based on rounding mode.
-  switch (rounding_mode) {
-    case kRoundToNearest:
-      Round_w_d(double_scratch, double_input);
-      break;
-    case kRoundToZero:
-      Trunc_w_d(double_scratch, double_input);
-      break;
-    case kRoundToPlusInf:
-      Ceil_w_d(double_scratch, double_input);
-      break;
-    case kRoundToMinusInf:
-      Floor_w_d(double_scratch, double_input);
-      break;
-  }  // End of switch-statement.
-
-  // Retrieve FCSR.
-  cfc1(except_flag, FCSR);
-  // Restore FCSR.
-  ctc1(scratch, FCSR);
-  // Move the converted value into the result register.
-  RV_fmv_x_w(result, double_scratch);
-
-  // Check for fpu exceptions.
-  And(except_flag, except_flag, Operand(except_mask));
-
-  bind(&done);
-}
-*/
-
 void TurboAssembler::TryInlineTruncateDoubleToI(Register result,
                                                 DoubleRegister double_input,
                                                 Label* done) {
@@ -3007,9 +2997,9 @@ void TurboAssembler::StoreReturnAddressAndCall(Register target) {
   // being generated) is immovable or that the callee function cannot trigger
   // GC, since the callee function will return to it.
 
-  // Compute the return address in lr to return to after the jump below. The pc
-  // is already at '+ 8' from the current instruction; but return is after three
-  // instructions, so add another 4 to pc to get the return address.
+  // Compute the return address in lr to return to after the jump below. The
+  // pc is already at '+ 8' from the current instruction; but return is after
+  // three instructions, so add another 4 to pc to get the return address.
 
   Assembler::BlockTrampolinePoolScope block_trampoline_pool(this);
   static constexpr int kNumInstructionsToJump = 5;
@@ -3327,8 +3317,9 @@ void MacroAssembler::InvokePrologue(Register expected_parameter_count,
                                     Label* done, InvokeFlag flag) {
   Label regular_invoke;
 
-  // Check whether the expected and actual arguments count match. The registers
-  // are set up according to contract with ArgumentsAdaptorTrampoline:
+  // Check whether the expected and actual arguments count match. The
+  // registers are set up according to contract with
+  // ArgumentsAdaptorTrampoline:
   //  a0: actual arguments count
   //  a1: function (passed through to callee)
   //  a2: expected arguments count
@@ -3626,8 +3617,8 @@ void MacroAssembler::IncrementCounter(StatsCounter* counter, int value,
   DCHECK_GT(value, 0);
   if (FLAG_native_code_counters && counter->Enabled()) {
     // This operation has to be exactly 32-bit wide in case the external
-    // reference table redirects the counter to a uint32_t dummy_stats_counter_
-    // field.
+    // reference table redirects the counter to a uint32_t
+    // dummy_stats_counter_ field.
     li(scratch2, ExternalReference::Create(counter));
     Lw(scratch1, MemOperand(scratch2));
     Addu(scratch1, scratch1, Operand(value));
@@ -3640,8 +3631,8 @@ void MacroAssembler::DecrementCounter(StatsCounter* counter, int value,
   DCHECK_GT(value, 0);
   if (FLAG_native_code_counters && counter->Enabled()) {
     // This operation has to be exactly 32-bit wide in case the external
-    // reference table redirects the counter to a uint32_t dummy_stats_counter_
-    // field.
+    // reference table redirects the counter to a uint32_t
+    // dummy_stats_counter_ field.
     li(scratch2, ExternalReference::Create(counter));
     Lw(scratch1, MemOperand(scratch2));
     Subu(scratch1, scratch1, Operand(value));
@@ -3889,7 +3880,8 @@ void MacroAssembler::LeaveExitFrame(bool save_doubles, Register argument_count,
 
   if (do_return) {
     Ret(USE_DELAY_SLOT);
-    // If returning, the instruction in the delay slot will be the addiu below.
+    // If returning, the instruction in the delay slot will be the addiu
+    // below.
   }
   RV_addi(sp, sp, 2 * kPointerSize);
 }
@@ -4186,8 +4178,9 @@ void TurboAssembler::CallCFunctionHelper(Register function,
       function = t6;
     }
 
-    // Save the frame pointer and PC so that the stack layout remains iterable,
-    // even without an ExitFrame which normally exists between JS and C frames.
+    // Save the frame pointer and PC so that the stack layout remains
+    // iterable, even without an ExitFrame which normally exists between JS
+    // and C frames.
     if (isolate() != nullptr) {
       // 't' registers are caller-saved so this is safe as a scratch register.
       Register scratch1 = t1;
@@ -4280,8 +4273,8 @@ void TurboAssembler::ResetSpeculationPoisonRegister() {
 void TurboAssembler::CallForDeoptimization(Address target, int deopt_id) {
   NoRootArrayScope no_root_array(this);
 
-  // Save the deopt id in kRootRegister (we don't need the roots array from now
-  // on).
+  // Save the deopt id in kRootRegister (we don't need the roots array from
+  // now on).
   DCHECK_LE(deopt_id, 0xFFFF);
   li(kRootRegister, deopt_id);
   Call(target, RelocInfo::RUNTIME_ENTRY);

@@ -3064,30 +3064,33 @@ void Assembler::dlsa(Register rd, Register rt, Register rs, uint8_t sa) {
 
 // ------------Memory-instructions-------------
 
-void Assembler::AdjustBaseAndOffset(MemOperand* src,
-                                    OffsetAccessType access_type,
-                                    int second_access_add_to_offset) {
-  // This method is used to adjust the base register and offset pair
-  // for a load/store when the offset doesn't fit into int12.
+bool Assembler::NeedAdjustBaseAndOffset(const MemOperand& src,
+                                        OffsetAccessType access_type,
+                                        int second_access_add_to_offset) {
   bool two_accesses = static_cast<bool>(access_type);
   DCHECK_LE(second_access_add_to_offset, 7);  // Must be <= 7.
 
   // is_int12 must be passed a signed value, hence the static cast below.
-  if (is_int12(src->offset()) &&
+  if (is_int12(src.offset()) &&
       (!two_accesses || is_int12(static_cast<int32_t>(
-                            src->offset() + second_access_add_to_offset)))) {
+                            src.offset() + second_access_add_to_offset)))) {
     // Nothing to do: 'offset' (and, if needed, 'offset + 4', or other specified
     // value) fits into int12.
-    return;
+    return false;
   }
+  return true;
+}
 
-  DCHECK(src->rm() !=
-         t3);  // Must not overwrite the register 'base' while loading 'offset'.
+void Assembler::AdjustBaseAndOffset(MemOperand* src, Register scratch,
+                                    OffsetAccessType access_type,
+                                    int second_Access_add_to_offset) {
+  // This method is used to adjust the base register and offset pair
+  // for a load/store when the offset doesn't fit into int12.
+
+  // Must not overwrite the register 'base' while loading 'offset'.
+  DCHECK(src->rm() != scratch);
 
   // FIXME(RISC-V): There may be a more optimal way to do this
-  UseScratchRegisterScope temps(this);
-  BlockTrampolinePoolScope block_trampoline_pool(this);
-  Register scratch = temps.hasAvailable() ? temps.Acquire() : t5;
   RV_li(scratch, src->offset());
   RV_add(scratch, scratch, src->rm());
   src->offset_ = 0;

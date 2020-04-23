@@ -417,6 +417,8 @@ void LiftoffAssembler::Store(Register dst_addr, Register offset_reg,
 #endif
 
   if (protected_store_pc) *protected_store_pc = pc_offset();
+
+  // FIXME (RISCV): current implementation treats all stores as unaligned
   switch (type.value()) {
     case StoreType::kI32Store8:
     case StoreType::kI64Store8:
@@ -424,7 +426,7 @@ void LiftoffAssembler::Store(Register dst_addr, Register offset_reg,
       break;
     case StoreType::kI32Store16:
     case StoreType::kI64Store16:
-      TurboAssembler::Ush(src.gp(), dst_op, t5);
+      TurboAssembler::Ush(src.gp(), dst_op);
       break;
     case StoreType::kI32Store:
     case StoreType::kI64Store32:
