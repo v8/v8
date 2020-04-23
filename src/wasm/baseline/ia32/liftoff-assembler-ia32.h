@@ -2073,6 +2073,20 @@ void LiftoffAssembler::emit_f32x4_ne(LiftoffRegister dst, LiftoffRegister lhs,
                                     &Assembler::cmpneqps>(this, dst, lhs, rhs);
 }
 
+void LiftoffAssembler::emit_f32x4_lt(LiftoffRegister dst, LiftoffRegister lhs,
+                                     LiftoffRegister rhs) {
+  liftoff::EmitSimdNonCommutativeBinOp<&Assembler::vcmpltps,
+                                       &Assembler::cmpltps>(this, dst, lhs,
+                                                            rhs);
+}
+
+void LiftoffAssembler::emit_f32x4_le(LiftoffRegister dst, LiftoffRegister lhs,
+                                     LiftoffRegister rhs) {
+  liftoff::EmitSimdNonCommutativeBinOp<&Assembler::vcmpleps,
+                                       &Assembler::cmpleps>(this, dst, lhs,
+                                                            rhs);
+}
+
 void LiftoffAssembler::emit_f64x2_eq(LiftoffRegister dst, LiftoffRegister lhs,
                                      LiftoffRegister rhs) {
   liftoff::EmitSimdCommutativeBinOp<&Assembler::vcmpeqpd, &Assembler::cmpeqpd>(
@@ -2083,6 +2097,20 @@ void LiftoffAssembler::emit_f64x2_ne(LiftoffRegister dst, LiftoffRegister lhs,
                                      LiftoffRegister rhs) {
   liftoff::EmitSimdCommutativeBinOp<&Assembler::vcmpneqpd,
                                     &Assembler::cmpneqpd>(this, dst, lhs, rhs);
+}
+
+void LiftoffAssembler::emit_f64x2_lt(LiftoffRegister dst, LiftoffRegister lhs,
+                                     LiftoffRegister rhs) {
+  liftoff::EmitSimdNonCommutativeBinOp<&Assembler::vcmpltpd,
+                                       &Assembler::cmpltpd>(this, dst, lhs,
+                                                            rhs);
+}
+
+void LiftoffAssembler::emit_f64x2_le(LiftoffRegister dst, LiftoffRegister lhs,
+                                     LiftoffRegister rhs) {
+  liftoff::EmitSimdNonCommutativeBinOp<&Assembler::vcmplepd,
+                                       &Assembler::cmplepd>(this, dst, lhs,
+                                                            rhs);
 }
 
 void LiftoffAssembler::emit_s128_not(LiftoffRegister dst, LiftoffRegister src) {

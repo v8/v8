@@ -1146,7 +1146,7 @@ class LiftoffCompiler {
   }
 
   template <ValueType::Kind src_type, ValueType::Kind result_type,
-            typename EmitFn>
+            bool swap_lhs_rhs = false, typename EmitFn>
   void EmitBinOp(EmitFn fn) {
     static constexpr RegClass src_rc = reg_class_for(src_type);
     static constexpr RegClass result_rc = reg_class_for(result_type);
@@ -1155,6 +1155,9 @@ class LiftoffCompiler {
     LiftoffRegister dst = src_rc == result_rc
                               ? __ GetUnusedRegister(result_rc, {lhs, rhs})
                               : __ GetUnusedRegister(result_rc);
+
+    if (swap_lhs_rhs) std::swap(lhs, rhs);
+
     CallEmitFn(fn, dst, lhs, rhs);
     __ PushRegister(ValueType(result_type), dst);
   }
@@ -2358,10 +2361,26 @@ class LiftoffCompiler {
         return EmitBinOp<kS128, kS128>(&LiftoffAssembler::emit_f32x4_eq);
       case wasm::kExprF32x4Ne:
         return EmitBinOp<kS128, kS128>(&LiftoffAssembler::emit_f32x4_ne);
+      case wasm::kExprF32x4Lt:
+        return EmitBinOp<kS128, kS128>(&LiftoffAssembler::emit_f32x4_lt);
+      case wasm::kExprF32x4Gt:
+        return EmitBinOp<kS128, kS128, true>(&LiftoffAssembler::emit_f32x4_lt);
+      case wasm::kExprF32x4Le:
+        return EmitBinOp<kS128, kS128>(&LiftoffAssembler::emit_f32x4_le);
+      case wasm::kExprF32x4Ge:
+        return EmitBinOp<kS128, kS128, true>(&LiftoffAssembler::emit_f32x4_le);
       case wasm::kExprF64x2Eq:
         return EmitBinOp<kS128, kS128>(&LiftoffAssembler::emit_f64x2_eq);
       case wasm::kExprF64x2Ne:
         return EmitBinOp<kS128, kS128>(&LiftoffAssembler::emit_f64x2_ne);
+      case wasm::kExprF64x2Lt:
+        return EmitBinOp<kS128, kS128>(&LiftoffAssembler::emit_f64x2_lt);
+      case wasm::kExprF64x2Gt:
+        return EmitBinOp<kS128, kS128, true>(&LiftoffAssembler::emit_f64x2_lt);
+      case wasm::kExprF64x2Le:
+        return EmitBinOp<kS128, kS128>(&LiftoffAssembler::emit_f64x2_le);
+      case wasm::kExprF64x2Ge:
+        return EmitBinOp<kS128, kS128, true>(&LiftoffAssembler::emit_f64x2_le);
       case wasm::kExprS128Not:
         return EmitUnOp<kS128, kS128>(&LiftoffAssembler::emit_s128_not);
       case wasm::kExprS128And:
