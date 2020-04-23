@@ -797,8 +797,21 @@ void Map::GeneralizeField(Isolate* isolate, Handle<Map> map,
   MaybeObjectHandle wrapped_type(WrapFieldType(isolate, new_field_type));
   field_owner->UpdateFieldType(isolate, modify_index, name, new_constness,
                                new_representation, wrapped_type);
-  field_owner->dependent_code().DeoptimizeDependentCodeGroup(
-      DependentCode::kFieldOwnerGroup);
+
+  if (new_constness != old_constness) {
+    field_owner->dependent_code().DeoptimizeDependentCodeGroup(
+        DependentCode::kFieldConstGroup);
+  }
+
+  if (!new_field_type->Equals(*old_field_type)) {
+    field_owner->dependent_code().DeoptimizeDependentCodeGroup(
+        DependentCode::kFieldTypeGroup);
+  }
+
+  if (!new_representation.Equals(old_representation)) {
+    field_owner->dependent_code().DeoptimizeDependentCodeGroup(
+        DependentCode::kFieldRepresentationGroup);
+  }
 
   if (FLAG_trace_generalization) {
     map->PrintGeneralization(

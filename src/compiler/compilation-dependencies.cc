@@ -176,7 +176,7 @@ class FieldRepresentationDependency final : public CompilationDependency {
   void Install(const MaybeObjectHandle& code) const override {
     SLOW_DCHECK(IsValid());
     DependentCode::InstallDependency(owner_.isolate(), code, owner_.object(),
-                                     DependentCode::kFieldOwnerGroup);
+                                     DependentCode::kFieldRepresentationGroup);
   }
 
  private:
@@ -206,7 +206,7 @@ class FieldTypeDependency final : public CompilationDependency {
   void Install(const MaybeObjectHandle& code) const override {
     SLOW_DCHECK(IsValid());
     DependentCode::InstallDependency(owner_.isolate(), code, owner_.object(),
-                                     DependentCode::kFieldOwnerGroup);
+                                     DependentCode::kFieldTypeGroup);
   }
 
  private:
@@ -234,7 +234,7 @@ class FieldConstnessDependency final : public CompilationDependency {
   void Install(const MaybeObjectHandle& code) const override {
     SLOW_DCHECK(IsValid());
     DependentCode::InstallDependency(owner_.isolate(), code, owner_.object(),
-                                     DependentCode::kFieldOwnerGroup);
+                                     DependentCode::kFieldConstGroup);
   }
 
  private:

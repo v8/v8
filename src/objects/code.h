@@ -651,7 +651,9 @@ class DependentCode : public WeakFixedArray {
     kPropertyCellChangedGroup,
     // Group of code that omit run-time checks for field(s) introduced by
     // this map, i.e. for the field type.
-    kFieldOwnerGroup,
+    kFieldTypeGroup,
+    kFieldConstGroup,
+    kFieldRepresentationGroup,
     // Group of code that omit run-time type checks for initial maps of
     // constructors.
     kInitialMapChangedGroup,
@@ -719,8 +721,8 @@ class DependentCode : public WeakFixedArray {
 
   inline int flags();
   inline void set_flags(int flags);
-  using GroupField = base::BitField<int, 0, 3>;
-  using CountField = base::BitField<int, 3, 27>;
+  using GroupField = base::BitField<int, 0, 5>;
+  using CountField = base::BitField<int, 5, 27>;
   STATIC_ASSERT(kGroupCount <= GroupField::kMax + 1);
 
   OBJECT_CONSTRUCTORS(DependentCode, WeakFixedArray);
