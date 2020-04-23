@@ -19,6 +19,7 @@
 #include "src/execution/runtime-profiler.h"
 #include "src/execution/vm-state-inl.h"
 #include "src/handles/global-handles.h"
+#include "src/heap/combined-heap.h"
 #include "src/init/bootstrapper.h"
 #include "src/interpreter/bytecodes.h"
 #include "src/interpreter/interpreter.h"
@@ -1838,7 +1839,7 @@ void Logger::LogAccessorCallbacks() {
 void Logger::LogAllMaps() {
   DisallowHeapAllocation no_gc;
   Heap* heap = isolate_->heap();
-  HeapObjectIterator iterator(heap);
+  CombinedHeapObjectIterator iterator(heap);
   for (HeapObject obj = iterator.Next(); !obj.is_null();
        obj = iterator.Next()) {
     if (!obj.IsMap()) continue;
