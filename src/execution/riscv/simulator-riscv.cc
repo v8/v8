@@ -100,7 +100,10 @@ class RiscvDebugger {
   void RedoBreakpoints();
 };
 
-inline void UNSUPPORTED() { printf("Sim: Unsupported instruction.\n"); }
+inline void UNSUPPORTED() {
+  printf("Sim: Unsupported instruction.\n");
+  base::OS::Abort();
+}
 
 void RiscvDebugger::Stop(Instruction* instr) {
   // Get the stop code.
