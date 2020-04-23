@@ -100,7 +100,10 @@ class RiscvDebugger {
   void RedoBreakpoints();
 };
 
-inline void UNSUPPORTED() { printf("Sim: Unsupported instruction.\n"); }
+inline void UNSUPPORTED() {
+  printf("Sim: Unsupported instruction.\n");
+  base::OS::Abort();
+}
 
 void RiscvDebugger::Stop(Instruction* instr) {
   // Get the stop code.
@@ -7272,6 +7275,7 @@ void Simulator::DecodeRVRFPType() {
           break;
         }
         case 0b001: {  // RO_FCLASS_S
+          printf("Sim: fclass.s yet to be supported\n");
           UNSUPPORTED();
           break;
         }
@@ -7444,6 +7448,7 @@ void Simulator::DecodeRVRFPType() {
       }
       switch (instr_.Funct3Value()) {
         case 0b001: {  // RO_FCLASS_D
+          printf("Sim: fclass.d not yet supported\n");
           UNSUPPORTED();
           break;
         }

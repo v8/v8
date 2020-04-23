@@ -3348,6 +3348,7 @@ void Assembler::movt(Register rd, Register rs, uint16_t cc) { UNREACHABLE(); }
 
 // FIXME (RISCV): to be ported
 void Assembler::movf(Register rd, Register rs, uint16_t cc) {
+  printf("ERROR: movf generated\n");
   Register rt = Register::from_code((cc & 0x0007) << 2 | 0);
   GenInstrRegister(SPECIAL, rs, rt, rd, 0, MOVCI);
 }
@@ -3501,6 +3502,7 @@ void Assembler::mtc1(Register rt, FPURegister fs) { RV_fmv_w_x(fs, rt); }
 
 // FIXME (RISCV): need to be ported
 void Assembler::mthc1(Register rt, FPURegister fs) {
+  printf("ERROR: mthc1 generated\n");
   GenInstrRegister(COP1, MTHC1, rt, fs, fa0);
 }
 
@@ -3510,6 +3512,7 @@ void Assembler::mfc1(Register rt, FPURegister fs) { RV_fmv_x_w(rt, fs); }
 
 // FIXME (RISCV): need to be ported
 void Assembler::mfhc1(Register rt, FPURegister fs) {
+  printf("ERROR: mfhc1 generated\n");
   GenInstrRegister(COP1, MFHC1, rt, fs, fa0);
 }
 
@@ -3517,11 +3520,13 @@ void Assembler::dmfc1(Register rt, FPURegister fs) { RV_fmv_x_d(rt, fs); }
 
 // FIXME (RISCV): to be ported
 void Assembler::ctc1(Register rt, FPUControlRegister fs) {
+  printf("ERROR: ctc1 generated\n");
   GenInstrRegister(COP1, CTC1, rt, fs);
 }
 
 // FIXME (RISCV): to be ported
 void Assembler::cfc1(Register rt, FPUControlRegister fs) {
+  printf("ERROR: cfc1 generated\n");
   GenInstrRegister(COP1, CFC1, rt, fs);
 }
 
@@ -3709,6 +3714,7 @@ void Assembler::trunc_w_s(FPURegister fd, FPURegister fs) { UNREACHABLE(); }
 
 // FIXME (RISCV): to be ported
 void Assembler::trunc_w_d(FPURegister fd, FPURegister fs) {
+  printf("ERROR: trunc_w_d generated\n");
   GenInstrRegister(COP1, D, fa0, fs, fd, TRUNC_W_D);
 }
 
@@ -3803,6 +3809,8 @@ void Assembler::bc1nez(int16_t offset, FPURegister ft) { UNREACHABLE(); }
 // FIXME (RISCV): to be ported
 void Assembler::c(FPUCondition cond, SecondaryField fmt, FPURegister fs,
                   FPURegister ft, uint16_t cc) {
+  printf("ERROR: c generated\n");
+
   DCHECK_NE(kArchVariant, kMips64r6);
   DCHECK(is_uint3(cc));
   DCHECK(fmt == S || fmt == D);
