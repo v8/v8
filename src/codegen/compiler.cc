@@ -45,6 +45,7 @@
 #include "src/parsing/parse-info.h"
 #include "src/parsing/parser.h"
 #include "src/parsing/parsing.h"
+#include "src/parsing/pending-compilation-error-handler.h"
 #include "src/parsing/rewriter.h"
 #include "src/parsing/scanner-character-streams.h"
 #include "src/snapshot/code-serializer.h"
@@ -1014,8 +1015,29 @@ bool FailWithPendingException(Isolate* isolate, Handle<Script> script,
 bool FailWithPendingException(OffThreadIsolate* isolate, Handle<Script> script,
                               ParseInfo* parse_info,
                               Compiler::ClearExceptionFlag flag) {
-  // TODO(leszeks): Implement.
-  UNREACHABLE();
+  // Off-thread compilation is a "standard compilation path", on which we don't
+  // want to override existing Isolate errors (after merging with the main
+  // thread), so we should expect to always keep the exception.
+  DCHECK_EQ(flag, Compiler::KEEP_EXCEPTION);
+  if (parse_info->pending_error_handler()->has_pending_error()) {
+    parse_info->pending_error_handler()->PrepareErrorsOffThread(
+        isolate, script, parse_info->ast_value_factory());
+  }
+  return false;
+}
+
+bool FailWithPendingExceptionAfterOffThreadFinalization(
+    Isolate* isolate, Handle<Script> script,
+    PendingCompilationErrorHandler* pending_error_handler) {
+  if (!isolate->has_pending_exception()) {
+    if (pending_error_handler->has_pending_error()) {
+      pending_error_handler->ReportErrorsAfterOffThreadFinalization(isolate,
+                                                                    script);
+    } else {
+      isolate->StackOverflow();
+    }
+  }
+  return false;
 }
 
 void FinalizeScriptCompilation(Isolate* isolate, Handle<Script> script,
@@ -1290,52 +1312,67 @@ void BackgroundCompileTask::Run() {
     // Parsing has succeeded, compile.
     outer_function_job_ = CompileOnBackgroundThread(
         info_.get(), compile_state_.allocator(), &inner_function_jobs_);
-    // Save the language mode and record whether we collected source positions.
-    language_mode_ = info_->language_mode();
-    collected_source_positions_ = info_->flags().collect_source_positions();
-
-    if (finalize_on_background_thread_) {
-      DCHECK(info_->flags().is_toplevel());
-
-      TRACE_EVENT0(TRACE_DISABLED_BY_DEFAULT("v8.compile"),
-                   "V8.FinalizeCodeBackground");
-
-      off_thread_isolate_->PinToCurrentThread();
-
-      OffThreadHandleScope handle_scope(off_thread_isolate_.get());
-
-      // We don't have the script source or the script origin yet, so use a few
-      // default values for them. These will be fixed up during the main-thread
-      // merge.
-      Handle<Script> script = info_->CreateScript(
-          off_thread_isolate_.get(),
-          off_thread_isolate_->factory()->empty_string(), kNullMaybeHandle,
-          ScriptOriginOptions(), NOT_NATIVES_CODE);
-
-      Handle<SharedFunctionInfo> outer_function_sfi =
-          FinalizeTopLevel(info_.get(), script, off_thread_isolate_.get(),
-                           outer_function_job_.get(), &inner_function_jobs_)
-              .ToHandleChecked();
-
-      parser_->HandleSourceURLComments(off_thread_isolate_.get(), script);
-
-      outer_function_sfi_ =
-          off_thread_isolate_->TransferHandle(outer_function_sfi);
-
-      TRACE_EVENT0(TRACE_DISABLED_BY_DEFAULT("v8.compile"),
-                   "V8.FinalizeCodeBackground.Finish");
-      off_thread_isolate_->FinishOffThread();
-
-      TRACE_EVENT0(TRACE_DISABLED_BY_DEFAULT("v8.compile"),
-                   "V8.FinalizeCodeBackground.ReleaseParser");
-      DCHECK_EQ(language_mode_, info_->language_mode());
-      off_thread_scope.reset();
-      parser_.reset();
-      info_.reset();
-      outer_function_job_.reset();
-      inner_function_jobs_.clear();
-    }
   }
+  // Save the language mode and record whether we collected source positions.
+  language_mode_ = info_->language_mode();
+  collected_source_positions_ = info_->flags().collect_source_positions();
+
+  if (!finalize_on_background_thread_) return;
+
+  // ---
+  // At this point, off-thread compilation has completed and we are off-thread
+  // finalizing.
+  // ---
+
+  DCHECK(info_->flags().is_toplevel());
+
+  TRACE_EVENT0(TRACE_DISABLED_BY_DEFAULT("v8.compile"),
+               "V8.FinalizeCodeBackground");
+
+  OffThreadIsolate* isolate = off_thread_isolate();
+  isolate->PinToCurrentThread();
+
+  OffThreadHandleScope handle_scope(isolate);
+
+  // We don't have the script source or the script origin yet, so use a few
+  // default values for them. These will be fixed up during the main-thread
+  // merge.
+  Handle<Script> script = info_->CreateScript(
+      isolate, isolate->factory()->empty_string(), kNullMaybeHandle,
+      ScriptOriginOptions(), NOT_NATIVES_CODE);
+
+  MaybeHandle<SharedFunctionInfo> maybe_result;
+  if (info_->literal() != nullptr) {
+    maybe_result =
+        FinalizeTopLevel(info_.get(), script, isolate,
+                         outer_function_job_.get(), &inner_function_jobs_);
+
+    parser_->HandleSourceURLComments(isolate, script);
+  } else {
+    DCHECK(!outer_function_job_);
+  }
+
+  Handle<SharedFunctionInfo> result;
+  if (!maybe_result.ToHandle(&result)) {
+    compile_state_.pending_error_handler()->PrepareErrorsOffThread(
+        isolate, script, info_->ast_value_factory());
+  }
+
+  outer_function_sfi_ = isolate->TransferHandle(maybe_result);
+  script_ = isolate->TransferHandle(script);
+
+  TRACE_EVENT0(TRACE_DISABLED_BY_DEFAULT("v8.compile"),
+               "V8.FinalizeCodeBackground.Finish");
+  isolate->FinishOffThread();
+
+  TRACE_EVENT0(TRACE_DISABLED_BY_DEFAULT("v8.compile"),
+               "V8.FinalizeCodeBackground.ReleaseParser");
+  DCHECK_EQ(language_mode_, info_->language_mode());
+  off_thread_scope.reset();
+  parser_.reset();
+  info_.reset();
+  outer_function_job_.reset();
+  inner_function_jobs_.clear();
 }
 
 // ----------------------------------------------------------------------------
@@ -2441,33 +2478,42 @@ Compiler::GetSharedFunctionInfoForStreamedScript(
 
       task->off_thread_isolate()->Publish(isolate);
 
-      Handle<SharedFunctionInfo> sfi = task->outer_function_sfi();
-      Handle<Script> script(Script::cast(sfi->script()), isolate);
+      maybe_result = task->outer_function_sfi();
+      Handle<Script> script = task->script();
 
       FixUpOffThreadAllocatedScript(isolate, script, source, script_details,
                                     origin_options, NOT_NATIVES_CODE);
 
-      // It's possible that source position collection was enabled after the
-      // background compile was started (for instance by enabling the cpu
-      // profiler), and the compiled bytecode is missing source positions. So,
-      // walk all the SharedFunctionInfos in the script and force source
-      // position collection.
-      if (!task->collected_source_positions() &&
-          isolate->NeedsDetailedOptimizedCodeLineInfo()) {
-        Handle<WeakFixedArray> shared_function_infos(
-            script->shared_function_infos(isolate), isolate);
-        int length = shared_function_infos->length();
-        FOR_WITH_HANDLE_SCOPE(isolate, int, i = 0, i, i < length, i++, {
-          Object entry = shared_function_infos->Get(isolate, i)
-                             .GetHeapObjectOrSmi(isolate);
-          if (entry.IsSharedFunctionInfo(isolate)) {
-            SharedFunctionInfo::EnsureSourcePositionsAvailable(
-                isolate, handle(SharedFunctionInfo::cast(entry), isolate));
-          }
-        });
-      }
+      if (maybe_result.is_null()) {
+        // Parsing has failed - report error messages.
+        FailWithPendingExceptionAfterOffThreadFinalization(
+            isolate, script, task->pending_error_handler());
+      } else {
+        // Report any warnings generated during compilation.
+        if (task->pending_error_handler()->has_pending_warnings()) {
+          task->pending_error_handler()->ReportWarnings(isolate, script);
+        }
 
-      maybe_result = sfi;
+        // It's possible that source position collection was enabled after the
+        // background compile was started (for instance by enabling the cpu
+        // profiler), and the compiled bytecode is missing source positions. So,
+        // walk all the SharedFunctionInfos in the script and force source
+        // position collection.
+        if (!task->collected_source_positions() &&
+            isolate->NeedsDetailedOptimizedCodeLineInfo()) {
+          Handle<WeakFixedArray> shared_function_infos(
+              script->shared_function_infos(isolate), isolate);
+          int length = shared_function_infos->length();
+          FOR_WITH_HANDLE_SCOPE(isolate, int, i = 0, i, i < length, i++, {
+            Object entry = shared_function_infos->Get(isolate, i)
+                               .GetHeapObjectOrSmi(isolate);
+            if (entry.IsSharedFunctionInfo(isolate)) {
+              SharedFunctionInfo::EnsureSourcePositionsAvailable(
+                  isolate, handle(SharedFunctionInfo::cast(entry), isolate));
+            }
+          });
+        }
+      }
     } else {
       ParseInfo* parse_info = task->info();
       DCHECK(parse_info->flags().is_toplevel());

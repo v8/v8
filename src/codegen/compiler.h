@@ -16,6 +16,7 @@
 #include "src/logging/code-events.h"
 #include "src/objects/contexts.h"
 #include "src/parsing/parse-info.h"
+#include "src/parsing/pending-compilation-error-handler.h"
 #include "src/utils/allocation.h"
 #include "src/zone/zone.h"
 
@@ -389,9 +390,16 @@ class V8_EXPORT_PRIVATE BackgroundCompileTask {
     return finalize_on_background_thread_;
   }
   OffThreadIsolate* off_thread_isolate() { return off_thread_isolate_.get(); }
-  Handle<SharedFunctionInfo> outer_function_sfi() {
+  PendingCompilationErrorHandler* pending_error_handler() {
+    return compile_state_.pending_error_handler();
+  }
+  MaybeHandle<SharedFunctionInfo> outer_function_sfi() {
     DCHECK_NOT_NULL(off_thread_isolate_);
     return outer_function_sfi_.ToHandle();
+  }
+  Handle<Script> script() {
+    DCHECK_NOT_NULL(off_thread_isolate_);
+    return script_.ToHandle();
   }
 
  private:
@@ -412,7 +420,8 @@ class V8_EXPORT_PRIVATE BackgroundCompileTask {
   // should add some stricter type-safety or DCHECKs to ensure that the user of
   // the task knows this.
   std::unique_ptr<OffThreadIsolate> off_thread_isolate_;
-  OffThreadTransferHandle<SharedFunctionInfo> outer_function_sfi_;
+  OffThreadTransferMaybeHandle<SharedFunctionInfo> outer_function_sfi_;
+  OffThreadTransferHandle<Script> script_;
 
   // Single function data for top-level function compilation.
   int start_position_;
