@@ -851,8 +851,6 @@ TEST(min_max_nan) {
 template <typename IN_TYPE, typename Func>
 bool run_Unaligned(char* memory_buffer, int32_t in_offset, int32_t out_offset,
                    IN_TYPE value, Func GenerateUnalignedInstructionFunc) {
-  using F_CVT = int32_t(char* x0);
-
   Isolate* isolate = CcTest::i_isolate();
   HandleScope scope(isolate);
   MacroAssembler assm(isolate, v8::internal::CodeObjectRequired::kYes);
@@ -861,13 +859,11 @@ bool run_Unaligned(char* memory_buffer, int32_t in_offset, int32_t out_offset,
 
   GenerateUnalignedInstructionFunc(masm, in_offset, out_offset);
   __ RV_jr(ra);
-  __ nop();
 
   CodeDesc desc;
   assm.GetCode(isolate, &desc);
   Handle<Code> code = Factory::CodeBuilder(isolate, desc, Code::STUB).Build();
-
-  auto f = GeneratedCode<F_CVT>::FromCode(*code);
+  auto f = GeneratedCode<int32_t(char*)>::FromCode(*code);
 
   MemCopy(memory_buffer + in_offset, &value, sizeof(IN_TYPE));
   f.Call(memory_buffer);
@@ -891,7 +887,8 @@ static const std::vector<int32_t> unsigned_test_offset() {
 }
 
 static const std::vector<int32_t> unsigned_test_offset_increment() {
-  static const int32_t kValues[] = {-5, -4, -3, -2, -1, 0, 1, 2, 3, 4, 5};
+  static const int32_t kValues[] = {-7, -6, -5, -4, -3, -2, -1, 0,
+                                    1,  2,  3,  4,  5,  6,  7};
   return std::vector<int32_t>(&kValues[0], &kValues[arraysize(kValues)]);
 }
 
@@ -912,32 +909,27 @@ TEST(Ulh) {
         auto fn_1 = [](MacroAssembler* masm, int32_t in_offset,
                        int32_t out_offset) {
           __ Ulh(t0, MemOperand(a0, in_offset));
-          __ Ush(t0, MemOperand(a0, out_offset), t1);
+          __ Ush(t0, MemOperand(a0, out_offset));
         };
         CHECK_EQ(true, run_Unaligned<uint16_t>(buffer_middle, in_offset,
                                                out_offset, value, fn_1));
 
-        /*
-                auto fn_2 = [](MacroAssembler* masm, int32_t in_offset,
-                               int32_t out_offset) {
-                  __ mov(t0, a0);
-                  __ Ulh(a0, MemOperand(a0, in_offset));
-                  __ Ush(a0, MemOperand(t0, out_offset), t0);
-                };
-                std::cout << "in_offset = " << in_offset
-                          << " out_offset = " << out_offset << " value = " <<
-           value
-                          << std::endl;
-                CHECK_EQ(true, run_Unaligned<uint16_t>(buffer_middle, in_offset,
-                                                       out_offset, value,
-           fn_2));
-                                                       */
+        // test when loaded value overwrites base-register of load address
+        auto fn_2 = [](MacroAssembler* masm, int32_t in_offset,
+                       int32_t out_offset) {
+          __ mov(t0, a0);
+          __ Ulh(a0, MemOperand(a0, in_offset));
+          __ Ush(a0, MemOperand(t0, out_offset));
+        };
+        CHECK_EQ(true, run_Unaligned<uint16_t>(buffer_middle, in_offset,
+                                               out_offset, value, fn_2));
 
+        // test when loaded value overwrites base-register of load address
         auto fn_3 = [](MacroAssembler* masm, int32_t in_offset,
                        int32_t out_offset) {
           __ mov(t0, a0);
           __ Ulhu(a0, MemOperand(a0, in_offset));
-          __ Ush(a0, MemOperand(t0, out_offset), t1);
+          __ Ush(a0, MemOperand(t0, out_offset));
         };
         CHECK_EQ(true, run_Unaligned<uint16_t>(buffer_middle, in_offset,
                                                out_offset, value, fn_3));
@@ -945,7 +937,7 @@ TEST(Ulh) {
         auto fn_4 = [](MacroAssembler* masm, int32_t in_offset,
                        int32_t out_offset) {
           __ Ulhu(t0, MemOperand(a0, in_offset));
-          __ Ush(t0, MemOperand(a0, out_offset), t1);
+          __ Ush(t0, MemOperand(a0, out_offset));
         };
         CHECK_EQ(true, run_Unaligned<uint16_t>(buffer_middle, in_offset,
                                                out_offset, value, fn_4));
@@ -993,10 +985,10 @@ TEST(Ulh_bitextension) {
 
           __ bind(&success);
           __ Ulh(t0, MemOperand(a0, in_offset));
-          __ Ush(t0, MemOperand(a0, out_offset), t1);
+          __ Ush(t0, MemOperand(a0, out_offset));
           __ Branch(&end);
           __ bind(&fail);
-          __ Ush(zero_reg, MemOperand(a0, out_offset), t1);
+          __ Ush(zero_reg, MemOperand(a0, out_offset));
           __ bind(&end);
         };
         CHECK_EQ(true, run_Unaligned<uint16_t>(buffer_middle, in_offset,
@@ -1025,12 +1017,10 @@ TEST(Ulw) {
           __ Ulw(t0, MemOperand(a0, in_offset));
           __ Usw(t0, MemOperand(a0, out_offset));
         };
-        /*std::cout << " in_offset = " << in_offset
-                  << " out_offset = " << out_offset << " value =" << value
-                  << std::endl;*/
         CHECK_EQ(true, run_Unaligned<uint32_t>(buffer_middle, in_offset,
                                                out_offset, value, fn_1));
 
+        // test when loaded value overwrites base-register of load address
         auto fn_2 = [](MacroAssembler* masm, int32_t in_offset,
                        int32_t out_offset) {
           __ mov(t0, a0);
@@ -1049,6 +1039,7 @@ TEST(Ulw) {
         CHECK_EQ(true, run_Unaligned<uint32_t>(buffer_middle, in_offset,
                                                out_offset, value, fn_3));
 
+        // test when loaded value overwrites base-register of load address
         auto fn_4 = [](MacroAssembler* masm, int32_t in_offset,
                        int32_t out_offset) {
           __ mov(t0, a0);
@@ -1137,6 +1128,7 @@ TEST(Uld) {
         CHECK_EQ(true, run_Unaligned<uint64_t>(buffer_middle, in_offset,
                                                out_offset, value, fn_1));
 
+        // test when loaded value overwrites base-register of load address
         auto fn_2 = [](MacroAssembler* masm, int32_t in_offset,
                        int32_t out_offset) {
           __ mov(t0, a0);

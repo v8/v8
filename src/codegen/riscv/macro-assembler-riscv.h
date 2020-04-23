@@ -581,9 +581,34 @@ class V8_EXPORT_PRIVATE TurboAssembler : public TurboAssemblerBase {
   // Convert single to unsigned word.
   void Trunc_uw_s(Register rd, FPURegister fs, Register result = no_reg);
 
+  // helper functions for unaligned load/store
+  template <int NBYTES, bool IS_SIGNED>
+  void UnalignedLoadHelper(Register rd, const MemOperand& rs);
+  template <int NBYTES>
+  void UnalignedStoreHelper(Register rd, const MemOperand& rs,
+                            Register scratch_other = no_reg);
+
+  template <int NBYTES>
+  void UnalignedFLoadHelper(FPURegister frd, const MemOperand& rs,
+                            Register scratch);
+  template <int NBYTES>
+  void UnalignedFStoreHelper(FPURegister frd, const MemOperand& rs,
+                             Register scratch);
+
+  template <typename Reg_T, typename Func>
+  void AlignedLoadHelper(Reg_T target, const MemOperand& rs, Func generator);
+  template <typename Reg_T, typename Func>
+  void AlignedStoreHelper(Reg_T value, const MemOperand& rs, Func generator);
+
+  template <int NBYTES, bool LOAD_SIGNED>
+  void LoadNBytes(Register rd, const MemOperand& rs, Register scratch);
+  template <int NBYTES, bool LOAD_SIGNED>
+  void LoadNBytesOverwritingBaseReg(const MemOperand& rs, Register scratch0,
+                                    Register scratch1);
+  // load/store macros
   void Ulh(Register rd, const MemOperand& rs);
   void Ulhu(Register rd, const MemOperand& rs);
-  void Ush(Register rd, const MemOperand& rs, Register scratch);
+  void Ush(Register rd, const MemOperand& rs);
 
   void Ulw(Register rd, const MemOperand& rs);
   void Ulwu(Register rd, const MemOperand& rs);
