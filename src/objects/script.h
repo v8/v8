@@ -22,10 +22,6 @@ namespace internal {
 // Script describes a script which has been added to the VM.
 class Script : public Struct {
  public:
-  // Script ID used for temporary scripts, which shouldn't be added to the
-  // script list.
-  static constexpr int kTemporaryScriptId = -2;
-
   NEVER_READ_ONLY_SPACE
   // Script types.
   enum Type {

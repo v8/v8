@@ -116,7 +116,7 @@ UnoptimizedCompileFlags UnoptimizedCompileFlags::ForToplevelFunction(
 
 // static
 UnoptimizedCompileFlags UnoptimizedCompileFlags::ForTest(Isolate* isolate) {
-  return UnoptimizedCompileFlags(isolate, Script::kTemporaryScriptId);
+  return UnoptimizedCompileFlags(isolate, -1);
 }
 
 template <typename T>
@@ -235,8 +235,7 @@ Handle<Script> ParseInfo::CreateScript(
     MaybeHandle<FixedArray> maybe_wrapped_arguments,
     ScriptOriginOptions origin_options, NativesFlag natives) {
   // Create a script object describing the script to be compiled.
-  DCHECK(flags().script_id() >= 0 ||
-         flags().script_id() == Script::kTemporaryScriptId);
+  DCHECK_GE(flags().script_id(), 0);
   Handle<Script> script =
       isolate->factory()->NewScriptWithId(source, flags().script_id());
   if (isolate->NeedsSourcePositionsForProfiling()) {

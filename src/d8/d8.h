@@ -278,6 +278,7 @@ class ShellOptions {
   int num_isolates = 1;
   v8::ScriptCompiler::CompileOptions compile_options =
       v8::ScriptCompiler::kNoCompileOptions;
+  bool stress_background_compile = false;
   CodeCacheOptions code_cache_options = CodeCacheOptions::kNoProduceCache;
   SourceGroup* isolate_sources = nullptr;
   const char* icu_data_file = nullptr;
