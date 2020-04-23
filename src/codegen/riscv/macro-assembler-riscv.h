@@ -630,20 +630,10 @@ class V8_EXPORT_PRIVATE TurboAssembler : public TurboAssemblerBase {
   //
   // These functions assume (and assert) that src1!=src2. It is permitted
   // for the result to alias either input register.
-  void Float32Max(FPURegister dst, FPURegister src1, FPURegister src2,
-                  Label* out_of_line);
-  void Float32Min(FPURegister dst, FPURegister src1, FPURegister src2,
-                  Label* out_of_line);
-  void Float64Max(FPURegister dst, FPURegister src1, FPURegister src2,
-                  Label* out_of_line);
-  void Float64Min(FPURegister dst, FPURegister src1, FPURegister src2,
-                  Label* out_of_line);
-
-  // Generate out-of-line cases for the macros above.
-  void Float32MaxOutOfLine(FPURegister dst, FPURegister src1, FPURegister src2);
-  void Float32MinOutOfLine(FPURegister dst, FPURegister src1, FPURegister src2);
-  void Float64MaxOutOfLine(FPURegister dst, FPURegister src1, FPURegister src2);
-  void Float64MinOutOfLine(FPURegister dst, FPURegister src1, FPURegister src2);
+  void Float32Max(FPURegister dst, FPURegister src1, FPURegister src2);
+  void Float32Min(FPURegister dst, FPURegister src1, FPURegister src2);
+  void Float64Max(FPURegister dst, FPURegister src1, FPURegister src2);
+  void Float64Min(FPURegister dst, FPURegister src1, FPURegister src2);
 
   bool IsDoubleZeroRegSet() { return has_double_zero_reg_set_; }
 

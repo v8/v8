@@ -826,24 +826,12 @@ void LiftoffAssembler::emit_f64_neg(DoubleRegister dst, DoubleRegister src) {
 
 void LiftoffAssembler::emit_f32_min(DoubleRegister dst, DoubleRegister lhs,
                                     DoubleRegister rhs) {
-  Label ool, done;
-  TurboAssembler::Float32Min(dst, lhs, rhs, &ool);
-  Branch(&done);
-
-  bind(&ool);
-  TurboAssembler::Float32MinOutOfLine(dst, lhs, rhs);
-  bind(&done);
+  TurboAssembler::Float32Min(dst, lhs, rhs);
 }
 
 void LiftoffAssembler::emit_f32_max(DoubleRegister dst, DoubleRegister lhs,
                                     DoubleRegister rhs) {
-  Label ool, done;
-  TurboAssembler::Float32Max(dst, lhs, rhs, &ool);
-  Branch(&done);
-
-  bind(&ool);
-  TurboAssembler::Float32MaxOutOfLine(dst, lhs, rhs);
-  bind(&done);
+  TurboAssembler::Float32Max(dst, lhs, rhs);
 }
 
 void LiftoffAssembler::emit_f32_copysign(DoubleRegister dst, DoubleRegister lhs,
@@ -853,24 +841,12 @@ void LiftoffAssembler::emit_f32_copysign(DoubleRegister dst, DoubleRegister lhs,
 
 void LiftoffAssembler::emit_f64_min(DoubleRegister dst, DoubleRegister lhs,
                                     DoubleRegister rhs) {
-  Label ool, done;
-  TurboAssembler::Float64Min(dst, lhs, rhs, &ool);
-  Branch(&done);
-
-  bind(&ool);
-  TurboAssembler::Float64MinOutOfLine(dst, lhs, rhs);
-  bind(&done);
+  TurboAssembler::Float64Min(dst, lhs, rhs);
 }
 
 void LiftoffAssembler::emit_f64_max(DoubleRegister dst, DoubleRegister lhs,
                                     DoubleRegister rhs) {
-  Label ool, done;
-  TurboAssembler::Float64Max(dst, lhs, rhs, &ool);
-  Branch(&done);
-
-  bind(&ool);
-  TurboAssembler::Float64MaxOutOfLine(dst, lhs, rhs);
-  bind(&done);
+  TurboAssembler::Float64Max(dst, lhs, rhs);
 }
 
 void LiftoffAssembler::emit_f64_copysign(DoubleRegister dst, DoubleRegister lhs,

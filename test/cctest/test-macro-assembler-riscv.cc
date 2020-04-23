@@ -811,36 +811,16 @@ TEST(min_max_nan) {
   float outputsfmax[kTableLength] = {3.0,  3.0,  0.0,  0.0,  finf, finf, finf,
                                      finf, fnan, fnan, fnan, fnan, fnan};
 
-  auto handle_dnan = [masm](FPURegister dst, Label* nan, Label* back) {
-    __ bind(nan);
-    __ LoadRoot(t5, RootIndex::kNanValue);
-    __ Ldc1(dst, FieldMemOperand(t5, HeapNumber::kValueOffset));
-    __ Branch(back);
-  };
-
-  auto handle_snan = [masm, fnan](FPURegister dst, Label* nan, Label* back) {
-    __ bind(nan);
-    __ Move(dst, fnan);
-    __ Branch(back);
-  };
-
-  Label handle_mind_nan, handle_maxd_nan, handle_mins_nan, handle_maxs_nan;
-  Label back_mind_nan, back_maxd_nan, back_mins_nan, back_maxs_nan;
-
   __ push(s6);
   __ InitializeRootRegister();
   __ Ldc1(fa3, MemOperand(a0, offsetof(TestFloat, a)));
   __ Ldc1(fa4, MemOperand(a0, offsetof(TestFloat, b)));
   __ Lwc1(fa1, MemOperand(a0, offsetof(TestFloat, e)));
   __ Lwc1(fa2, MemOperand(a0, offsetof(TestFloat, f)));
-  __ Float64Min(fa6, fa3, fa4, &handle_mind_nan);
-  __ bind(&back_mind_nan);
-  __ Float64Max(fa0, fa3, fa4, &handle_maxd_nan);
-  __ bind(&back_maxd_nan);
-  __ Float32Min(fa2, fa1, fa2, &handle_mins_nan);
-  __ bind(&back_mins_nan);
-  __ Float32Max(fa3, fa1, fa2, &handle_maxs_nan);
-  __ bind(&back_maxs_nan);
+  __ Float64Min(fa6, fa3, fa4);
+  __ Float64Max(fa0, fa3, fa4);
+  __ Float32Min(fa2, fa1, fa2);
+  __ Float32Max(fa3, fa1, fa2);
   __ Sdc1(fa6, MemOperand(a0, offsetof(TestFloat, c)));
   __ Sdc1(fa0, MemOperand(a0, offsetof(TestFloat, d)));
   __ Swc1(fa2, MemOperand(a0, offsetof(TestFloat, g)));
@@ -848,11 +828,6 @@ TEST(min_max_nan) {
   __ pop(s6);
   __ RV_jr(ra);
   __ nop();
-
-  handle_dnan(fa6, &handle_mind_nan, &back_mind_nan);
-  handle_dnan(fa0, &handle_maxd_nan, &back_maxd_nan);
-  handle_snan(fa2, &handle_mins_nan, &back_mins_nan);
-  handle_snan(fa3, &handle_maxs_nan, &back_maxs_nan);
 
   CodeDesc desc;
   masm->GetCode(isolate, &desc);
@@ -1296,62 +1271,30 @@ static GeneratedCode<F4> GenerateMacroFloat32MinMax(MacroAssembler* masm) {
   T b = T::from_code(6);  // f6
   T c = T::from_code(8);  // f8
 
-  Label ool_min_abc, ool_min_aab, ool_min_aba;
-  Label ool_max_abc, ool_max_aab, ool_max_aba;
-
-  Label done_min_abc, done_min_aab, done_min_aba;
-  Label done_max_abc, done_max_aab, done_max_aba;
-
-#define FLOAT_MIN_MAX(fminmax, res, x, y, done, ool, res_field) \
-  __ Lwc1(x, MemOperand(a0, offsetof(Inputs, src1_)));          \
-  __ Lwc1(y, MemOperand(a0, offsetof(Inputs, src2_)));          \
-  __ fminmax(res, x, y, &ool);                                  \
-  __ bind(&done);                                               \
+#define FLOAT_MIN_MAX(fminmax, res, x, y, res_field)   \
+  __ Lwc1(x, MemOperand(a0, offsetof(Inputs, src1_))); \
+  __ Lwc1(y, MemOperand(a0, offsetof(Inputs, src2_))); \
+  __ fminmax(res, x, y);                               \
   __ Swc1(a, MemOperand(a1, offsetof(Results, res_field)))
 
   // a = min(b, c);
-  FLOAT_MIN_MAX(Float32Min, a, b, c, done_min_abc, ool_min_abc, min_abc_);
+  FLOAT_MIN_MAX(Float32Min, a, b, c, min_abc_);
   // a = min(a, b);
-  FLOAT_MIN_MAX(Float32Min, a, a, b, done_min_aab, ool_min_aab, min_aab_);
+  FLOAT_MIN_MAX(Float32Min, a, a, b, min_aab_);
   // a = min(b, a);
-  FLOAT_MIN_MAX(Float32Min, a, b, a, done_min_aba, ool_min_aba, min_aba_);
+  FLOAT_MIN_MAX(Float32Min, a, b, a, min_aba_);
 
   // a = max(b, c);
-  FLOAT_MIN_MAX(Float32Max, a, b, c, done_max_abc, ool_max_abc, max_abc_);
+  FLOAT_MIN_MAX(Float32Max, a, b, c, max_abc_);
   // a = max(a, b);
-  FLOAT_MIN_MAX(Float32Max, a, a, b, done_max_aab, ool_max_aab, max_aab_);
+  FLOAT_MIN_MAX(Float32Max, a, a, b, max_aab_);
   // a = max(b, a);
-  FLOAT_MIN_MAX(Float32Max, a, b, a, done_max_aba, ool_max_aba, max_aba_);
+  FLOAT_MIN_MAX(Float32Max, a, b, a, max_aba_);
 
 #undef FLOAT_MIN_MAX
 
   __ RV_jr(ra);
   __ nop();
-
-  // Generate out-of-line cases.
-  __ bind(&ool_min_abc);
-  __ Float32MinOutOfLine(a, b, c);
-  __ Branch(&done_min_abc);
-
-  __ bind(&ool_min_aab);
-  __ Float32MinOutOfLine(a, a, b);
-  __ Branch(&done_min_aab);
-
-  __ bind(&ool_min_aba);
-  __ Float32MinOutOfLine(a, b, a);
-  __ Branch(&done_min_aba);
-
-  __ bind(&ool_max_abc);
-  __ Float32MaxOutOfLine(a, b, c);
-  __ Branch(&done_max_abc);
-
-  __ bind(&ool_max_aab);
-  __ Float32MaxOutOfLine(a, a, b);
-  __ Branch(&done_max_aab);
-
-  __ bind(&ool_max_aba);
-  __ Float32MaxOutOfLine(a, b, a);
-  __ Branch(&done_max_aba);
 
   CodeDesc desc;
   masm->GetCode(masm->isolate(), &desc);
@@ -1437,62 +1380,30 @@ static GeneratedCode<F4> GenerateMacroFloat64MinMax(MacroAssembler* masm) {
   T b = T::from_code(6);  // f6
   T c = T::from_code(8);  // f8
 
-  Label ool_min_abc, ool_min_aab, ool_min_aba;
-  Label ool_max_abc, ool_max_aab, ool_max_aba;
-
-  Label done_min_abc, done_min_aab, done_min_aba;
-  Label done_max_abc, done_max_aab, done_max_aba;
-
-#define FLOAT_MIN_MAX(fminmax, res, x, y, done, ool, res_field) \
-  __ Ldc1(x, MemOperand(a0, offsetof(Inputs, src1_)));          \
-  __ Ldc1(y, MemOperand(a0, offsetof(Inputs, src2_)));          \
-  __ fminmax(res, x, y, &ool);                                  \
-  __ bind(&done);                                               \
+#define FLOAT_MIN_MAX(fminmax, res, x, y, res_field)   \
+  __ Ldc1(x, MemOperand(a0, offsetof(Inputs, src1_))); \
+  __ Ldc1(y, MemOperand(a0, offsetof(Inputs, src2_))); \
+  __ fminmax(res, x, y);                               \
   __ Sdc1(a, MemOperand(a1, offsetof(Results, res_field)))
 
   // a = min(b, c);
-  FLOAT_MIN_MAX(Float64Min, a, b, c, done_min_abc, ool_min_abc, min_abc_);
+  FLOAT_MIN_MAX(Float64Min, a, b, c, min_abc_);
   // a = min(a, b);
-  FLOAT_MIN_MAX(Float64Min, a, a, b, done_min_aab, ool_min_aab, min_aab_);
+  FLOAT_MIN_MAX(Float64Min, a, a, b, min_aab_);
   // a = min(b, a);
-  FLOAT_MIN_MAX(Float64Min, a, b, a, done_min_aba, ool_min_aba, min_aba_);
+  FLOAT_MIN_MAX(Float64Min, a, b, a, min_aba_);
 
   // a = max(b, c);
-  FLOAT_MIN_MAX(Float64Max, a, b, c, done_max_abc, ool_max_abc, max_abc_);
+  FLOAT_MIN_MAX(Float64Max, a, b, c, max_abc_);
   // a = max(a, b);
-  FLOAT_MIN_MAX(Float64Max, a, a, b, done_max_aab, ool_max_aab, max_aab_);
+  FLOAT_MIN_MAX(Float64Max, a, a, b, max_aab_);
   // a = max(b, a);
-  FLOAT_MIN_MAX(Float64Max, a, b, a, done_max_aba, ool_max_aba, max_aba_);
+  FLOAT_MIN_MAX(Float64Max, a, b, a, max_aba_);
 
 #undef FLOAT_MIN_MAX
 
   __ RV_jr(ra);
   __ nop();
-
-  // Generate out-of-line cases.
-  __ bind(&ool_min_abc);
-  __ Float64MinOutOfLine(a, b, c);
-  __ Branch(&done_min_abc);
-
-  __ bind(&ool_min_aab);
-  __ Float64MinOutOfLine(a, a, b);
-  __ Branch(&done_min_aab);
-
-  __ bind(&ool_min_aba);
-  __ Float64MinOutOfLine(a, b, a);
-  __ Branch(&done_min_aba);
-
-  __ bind(&ool_max_abc);
-  __ Float64MaxOutOfLine(a, b, c);
-  __ Branch(&done_max_abc);
-
-  __ bind(&ool_max_aab);
-  __ Float64MaxOutOfLine(a, a, b);
-  __ Branch(&done_max_aab);
-
-  __ bind(&ool_max_aba);
-  __ Float64MaxOutOfLine(a, b, a);
-  __ Branch(&done_max_aba);
 
   CodeDesc desc;
   masm->GetCode(masm->isolate(), &desc);

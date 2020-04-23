@@ -4057,42 +4057,22 @@ void MacroAssembler::AssertUndefinedOrAllocationSite(Register object,
 }
 
 void TurboAssembler::Float32Max(FPURegister dst, FPURegister src1,
-                                FPURegister src2, Label* out_of_line) {
-  RV_fmax_s(dst, src1, src2);
-}
-
-void TurboAssembler::Float32MaxOutOfLine(FPURegister dst, FPURegister src1,
-                                         FPURegister src2) {
+                                FPURegister src2) {
   RV_fmax_s(dst, src1, src2);
 }
 
 void TurboAssembler::Float32Min(FPURegister dst, FPURegister src1,
-                                FPURegister src2, Label* out_of_line) {
-  RV_fmin_s(dst, src1, src2);
-}
-
-void TurboAssembler::Float32MinOutOfLine(FPURegister dst, FPURegister src1,
-                                         FPURegister src2) {
+                                FPURegister src2) {
   RV_fmin_s(dst, src1, src2);
 }
 
 void TurboAssembler::Float64Max(FPURegister dst, FPURegister src1,
-                                FPURegister src2, Label* out_of_line) {
-  RV_fmax_d(dst, src1, src2);
-}
-
-void TurboAssembler::Float64MaxOutOfLine(FPURegister dst, FPURegister src1,
-                                         FPURegister src2) {
+                                FPURegister src2) {
   RV_fmax_d(dst, src1, src2);
 }
 
 void TurboAssembler::Float64Min(FPURegister dst, FPURegister src1,
-                                FPURegister src2, Label* out_of_line) {
-  RV_fmin_d(dst, src1, src2);
-}
-
-void TurboAssembler::Float64MinOutOfLine(FPURegister dst, FPURegister src1,
-                                         FPURegister src2) {
+                                FPURegister src2) {
   RV_fmin_d(dst, src1, src2);
 }
 
