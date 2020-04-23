@@ -1597,23 +1597,30 @@ void TurboAssembler::Cvt_s_ul(FPURegister fd, Register rs) {
 template <typename CvtFunc>
 void TurboAssembler::RoundFloatingPointToInteger(Register rd, FPURegister fs,
                                                  Register result,
-                                                 CvtFunc fcvt) {
+                                                 CvtFunc fcvt_generator) {
   if (result.is_valid()) {
+    BlockTrampolinePoolScope block_trampoline_pool(this);
     UseScratchRegisterScope temps(this);
-    Register scratch = temps.Acquire();
-    // Save csr_fflags to scratch & clear NV
-    RV_csrrci(scratch, csr_fflags, NV);
+    Register scratch = temps.hasAvailable() ? temps.Acquire() : t5;
+
+    // Save csr_fflags to scratch & clear exception flags
+    int exception_flags = NV | OF | UF;
+    RV_csrrci(scratch, csr_fflags, exception_flags);
+
     // actual conversion instruction
-    fcvt(this, rd, fs);
-    // check fflags and set result for abnormal status
+    fcvt_generator(this, rd, fs);
+
+    // check exception flags (overflow, NaN, underflow), set result to 1 for
+    // abnormal status, otherwise 0
     RV_frflags(result);
-    RV_andi(result, result, NV);
+    RV_andi(result, result, exception_flags);
     RV_snez(result, result);
+
     // restore csr_fflags
     RV_csrw(csr_fflags, scratch);
   } else {
     // actual conversion instruction
-    fcvt(this, rd, fs);
+    fcvt_generator(this, rd, fs);
   }
 }
 
@@ -1757,56 +1764,56 @@ void TurboAssembler::Floor_w_d(Register rd, FPURegister fs, Register result) {
       });
 }
 
-template <typename RoundFunc>
-void TurboAssembler::RoundDouble(FPURegister dst, FPURegister src,
-                                 RoundingMode frm, RoundFunc round) {
+template <typename F_TYPE>
+void TurboAssembler::RoundHelper(FPURegister dst, FPURegister src,
+                                 RoundingMode frm) {
   BlockTrampolinePoolScope block_trampoline_pool(this);
-  Register scratch = t5;
-  // Round into integer register, then convert back to double
-  RV_fcvt_l_d(scratch, src, frm);
-  RV_fcvt_d_l(dst, scratch);
+  UseScratchRegisterScope temps(this);
+  Register scratch = temps.hasAvailable() ? temps.Acquire() : t5;
+
+  if (std::is_same<F_TYPE, double>::value) {
+    // Round into integer register, then convert back to double
+    RV_fcvt_l_d(scratch, src, frm);
+    RV_fcvt_d_l(dst, scratch);
+  } else if (std::is_same<F_TYPE, float>::value) {
+    // Round into integer register, then convert back to float
+    RV_fcvt_w_s(scratch, src, frm);
+    RV_fcvt_s_w(dst, scratch);
+  } else {
+    UNREACHABLE();
+  }
 }
 
 void TurboAssembler::Floor_d_d(FPURegister dst, FPURegister src) {
-  RoundDouble(dst, src, RDN, NULL);
+  RoundHelper<double>(dst, src, RDN);
 }
 
 void TurboAssembler::Ceil_d_d(FPURegister dst, FPURegister src) {
-  RoundDouble(dst, src, RUP, NULL);
+  RoundHelper<double>(dst, src, RUP);
 }
 
 void TurboAssembler::Trunc_d_d(FPURegister dst, FPURegister src) {
-  RoundDouble(dst, src, RTZ, NULL);
+  RoundHelper<double>(dst, src, RTZ);
 }
 
 void TurboAssembler::Round_d_d(FPURegister dst, FPURegister src) {
-  RoundDouble(dst, src, RNE, NULL);
-}
-
-template <typename RoundFunc>
-void TurboAssembler::RoundFloat(FPURegister dst, FPURegister src,
-                                RoundingMode frm, RoundFunc round) {
-  BlockTrampolinePoolScope block_trampoline_pool(this);
-  Register scratch = t5;
-  // Round into integer register, then convert back to double
-  RV_fcvt_w_s(scratch, src, frm);
-  RV_fcvt_s_w(dst, scratch);
+  RoundHelper<double>(dst, src, RNE);
 }
 
 void TurboAssembler::Floor_s_s(FPURegister dst, FPURegister src) {
-  RoundFloat(dst, src, RDN, NULL);
+  RoundHelper<float>(dst, src, RDN);
 }
 
 void TurboAssembler::Ceil_s_s(FPURegister dst, FPURegister src) {
-  RoundFloat(dst, src, RUP, NULL);
+  RoundHelper<float>(dst, src, RUP);
 }
 
 void TurboAssembler::Trunc_s_s(FPURegister dst, FPURegister src) {
-  RoundFloat(dst, src, RTZ, NULL);
+  RoundHelper<float>(dst, src, RTZ);
 }
 
 void TurboAssembler::Round_s_s(FPURegister dst, FPURegister src) {
-  RoundFloat(dst, src, RNE, NULL);
+  RoundHelper<float>(dst, src, RNE);
 }
 
 void MacroAssembler::Madd_s(FPURegister fd, FPURegister fr, FPURegister fs,
@@ -2349,24 +2356,10 @@ void TurboAssembler::Dpopcnt(Register rd, Register rs) {
 void TurboAssembler::TryInlineTruncateDoubleToI(Register result,
                                                 DoubleRegister double_input,
                                                 Label* done) {
-  DoubleRegister single_scratch = kScratchDoubleReg.low();
   UseScratchRegisterScope temps(this);
-  BlockTrampolinePoolScope block_trampoline_pool(this);
   Register scratch = temps.Acquire();
-  Register scratch2 = t6;
-
-  // Clear cumulative exception flags and save the FCSR.
-  cfc1(scratch2, FCSR);
-  ctc1(zero_reg, FCSR);
-  // Try a conversion to a signed integer.
-  trunc_w_d(single_scratch, double_input);
-  RV_fmv_x_w(result, single_scratch);
-  // Retrieve and restore the FCSR.
-  cfc1(scratch, FCSR);
-  ctc1(scratch2, FCSR);
-  // Check for overflow and NaNs.
-  And(scratch, scratch,
-      kFCSROverflowFlagMask | kFCSRUnderflowFlagMask | kFCSRInvalidOpFlagMask);
+  // if scratch == 1, exception happens during truncation
+  Trunc_w_d(result, double_input, scratch);
   // If we had no exceptions we are done.
   Branch(done, eq, scratch, Operand(zero_reg));
 }
@@ -2382,14 +2375,14 @@ void TurboAssembler::TruncateDoubleToI(Isolate* isolate, Zone* zone,
   // If we fell through then inline version didn't succeed - call stub instead.
   push(ra);
   Dsubu(sp, sp, Operand(kDoubleSize));  // Put input on stack.
-  Sdc1(double_input, MemOperand(sp, 0));
+  RV_fsd(double_input, sp, 0);
 
   if (stub_mode == StubCallMode::kCallWasmRuntimeStub) {
     Call(wasm::WasmCode::kDoubleToI, RelocInfo::WASM_STUB_CALL);
   } else {
     Call(BUILTIN_CODE(isolate, DoubleToI), RelocInfo::CODE_TARGET);
   }
-  Ld(result, MemOperand(sp, 0));
+  RV_ld(result, sp, 0);
 
   Daddu(sp, sp, Operand(kDoubleSize));
   pop(ra);
