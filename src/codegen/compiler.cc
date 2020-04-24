@@ -1274,6 +1274,20 @@ class OffThreadParseInfoScope {
   DISALLOW_COPY_AND_ASSIGN(OffThreadParseInfoScope);
 };
 
+bool CanOffThreadFinalizeAllJobs(
+    UnoptimizedCompilationJob* outer_job,
+    const UnoptimizedCompilationJobList& inner_function_jobs) {
+  if (!outer_job->can_off_thread_finalize()) return false;
+
+  for (auto& job : inner_function_jobs) {
+    if (!job->can_off_thread_finalize()) {
+      return false;
+    }
+  }
+
+  return true;
+}
+
 }  // namespace
 
 void BackgroundCompileTask::Run() {
@@ -1311,7 +1325,19 @@ void BackgroundCompileTask::Run() {
   language_mode_ = info_->language_mode();
   collected_source_positions_ = info_->flags().collect_source_positions();
 
-  if (!finalize_on_background_thread_) return;
+  // We don't currently support off-thread finalization for some jobs (namely,
+  // asm.js), so release the off-thread isolate and fall back to main-thread
+  // finalization.
+  // TODO(leszeks): Still finalize Ignition tasks on the background thread,
+  // and fallback to main-thread finalization for asm.js jobs only.
+  finalize_on_background_thread_ =
+      finalize_on_background_thread_ &&
+      CanOffThreadFinalizeAllJobs(outer_function_job(), *inner_function_jobs());
+
+  if (!finalize_on_background_thread_) {
+    off_thread_isolate_.reset();
+    return;
+  }
 
   // ---
   // At this point, off-thread compilation has completed and we are off-thread

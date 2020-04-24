@@ -248,12 +248,17 @@ class V8_EXPORT_PRIVATE CompilationJob {
 // Either of phases can either fail or succeed.
 class UnoptimizedCompilationJob : public CompilationJob {
  public:
+  enum class CanOffThreadFinalize : bool { kYes = true, kNo = false };
+
   UnoptimizedCompilationJob(uintptr_t stack_limit, ParseInfo* parse_info,
-                            UnoptimizedCompilationInfo* compilation_info)
+                            UnoptimizedCompilationInfo* compilation_info,
+                            CanOffThreadFinalize can_off_thread_finalize)
       : CompilationJob(State::kReadyToExecute),
         stack_limit_(stack_limit),
         parse_info_(parse_info),
-        compilation_info_(compilation_info) {}
+        compilation_info_(compilation_info),
+        can_off_thread_finalize_(can_off_thread_finalize ==
+                                 CanOffThreadFinalize::kYes) {}
 
   // Executes the compile job. Can be called on a background thread.
   V8_WARN_UNUSED_RESULT Status ExecuteJob();
@@ -278,6 +283,8 @@ class UnoptimizedCompilationJob : public CompilationJob {
 
   uintptr_t stack_limit() const { return stack_limit_; }
 
+  bool can_off_thread_finalize() const { return can_off_thread_finalize_; }
+
  protected:
   // Overridden by the actual implementation.
   virtual Status ExecuteJobImpl() = 0;
@@ -292,6 +299,7 @@ class UnoptimizedCompilationJob : public CompilationJob {
   UnoptimizedCompilationInfo* compilation_info_;
   base::TimeDelta time_taken_to_execute_;
   base::TimeDelta time_taken_to_finalize_;
+  bool can_off_thread_finalize_;
 };
 
 // A base class for optimized compilation jobs.
