@@ -817,6 +817,9 @@
   # Unicode regexp case mapping is not available with i18n turned off.
   'language/literals/regexp/u-case-mapping': [SKIP],
 
+  # Unicode in capture group
+  'built-ins/RegExp/prototype/Symbol.replace/named-groups': [FAIL],
+
   # BUG(v8:4437).
   'built-ins/String/prototype/normalize/return-normalized-string': [SKIP],
   'built-ins/String/prototype/normalize/return-normalized-string-from-coerced-form': [SKIP],
