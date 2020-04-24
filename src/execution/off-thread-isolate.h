@@ -138,7 +138,6 @@ class V8_EXPORT_PRIVATE OffThreadIsolate final
   int GetNextUniqueSharedFunctionInfoId();
 #endif  // V8_SFI_HAS_UNIQUE_ID
 
-  bool NeedsSourcePositionsForProfiling();
   bool is_collecting_type_profile();
 
   OffThreadLogger* logger() { return logger_.get(); }

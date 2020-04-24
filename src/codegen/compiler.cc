@@ -1060,6 +1060,9 @@ void FinalizeScriptCompilation(
       }
     }
   }
+  if (isolate->NeedsSourcePositionsForProfiling()) {
+    Script::InitLineEnds(isolate, script);
+  }
 }
 
 template <typename LocalIsolate>

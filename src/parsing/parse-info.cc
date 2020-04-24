@@ -239,9 +239,6 @@ Handle<Script> ParseInfo::CreateScript(
          flags().script_id() == Script::kTemporaryScriptId);
   Handle<Script> script =
       isolate->factory()->NewScriptWithId(source, flags().script_id());
-  if (isolate->NeedsSourcePositionsForProfiling()) {
-    Script::InitLineEnds(isolate, script);
-  }
   switch (natives) {
     case EXTENSION_CODE:
       script->set_type(Script::TYPE_EXTENSION);
