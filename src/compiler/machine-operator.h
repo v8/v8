@@ -180,6 +180,16 @@ V8_EXPORT_PRIVATE S8x16ShuffleParameter const& S8x16ShuffleParameterOf(
 
 StackCheckKind StackCheckKindOf(Operator const* op) V8_WARN_UNUSED_RESULT;
 
+// ShiftKind::kShiftOutZeros means that it is guaranteed that the bits shifted
+// out of the left operand are all zeros. If this is not the case, undefined
+// behavior (i.e., incorrect optimizations) will happen.
+// This is mostly useful for Smi untagging.
+enum class ShiftKind { kNormal, kShiftOutZeros };
+
+size_t hash_value(ShiftKind);
+V8_EXPORT_PRIVATE std::ostream& operator<<(std::ostream&, ShiftKind);
+ShiftKind ShiftKindOf(Operator const*) V8_WARN_UNUSED_RESULT;
+
 // Interface for building machine-level operators. These operators are
 // machine-level but machine-independent and thus define a language suitable
 // for generating code to run on architectures such as ia32, x64, arm, etc.
@@ -293,7 +303,11 @@ class V8_EXPORT_PRIVATE MachineOperatorBuilder final
   const Operator* Word32Xor();
   const Operator* Word32Shl();
   const Operator* Word32Shr();
-  const Operator* Word32Sar();
+  const Operator* Word32Sar(ShiftKind kind);
+  const Operator* Word32Sar() { return Word32Sar(ShiftKind::kNormal); }
+  const Operator* Word32SarShiftOutZeros() {
+    return Word32Sar(ShiftKind::kShiftOutZeros);
+  }
   const Operator* Word32Ror();
   const Operator* Word32Equal();
   const Operator* Word32Clz();
@@ -318,7 +332,11 @@ class V8_EXPORT_PRIVATE MachineOperatorBuilder final
   const Operator* Word64Xor();
   const Operator* Word64Shl();
   const Operator* Word64Shr();
-  const Operator* Word64Sar();
+  const Operator* Word64Sar(ShiftKind kind);
+  const Operator* Word64Sar() { return Word64Sar(ShiftKind::kNormal); }
+  const Operator* Word64SarShiftOutZeros() {
+    return Word64Sar(ShiftKind::kShiftOutZeros);
+  }
   const Operator* Word64Ror();
   const Operator* Word64Clz();
   const OptionalOperator Word64Ctz();
@@ -841,7 +859,6 @@ class V8_EXPORT_PRIVATE MachineOperatorBuilder final
   V(Word, Xor)                 \
   V(Word, Shl)                 \
   V(Word, Shr)                 \
-  V(Word, Sar)                 \
   V(Word, Ror)                 \
   V(Word, Clz)                 \
   V(Word, Equal)               \
@@ -863,6 +880,13 @@ class V8_EXPORT_PRIVATE MachineOperatorBuilder final
   PSEUDO_OP_LIST(PSEUDO_OP)
 #undef PSEUDO_OP
 #undef PSEUDO_OP_LIST
+
+  const Operator* WordSar(ShiftKind kind = ShiftKind::kNormal) {
+    return Is32() ? Word32Sar(kind) : Word64Sar(kind);
+  }
+  const Operator* WordSarShiftOutZeros() {
+    return WordSar(ShiftKind::kShiftOutZeros);
+  }
 
  private:
   Zone* zone_;
