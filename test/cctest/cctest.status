@@ -412,9 +412,12 @@
 }],  # variant == stress_incremental_marking
 
 ##############################################################################
-# The test relies on deterministic compilation.
 ['variant == stress_js_bg_compile_wasm_code_gc', {
+  # The test relies on deterministic compilation.
   'test-compiler/DecideToPretenureDuringCompilation': [SKIP],
+
+  # The test relies on deterministic allocation during compilation.
+  'test-compiler/DeepEagerCompilationPeakMemory': [SKIP],
 }],  # variant == stress_js_bg_compile_wasm_code_gc
 
 ##############################################################################
