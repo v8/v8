@@ -763,8 +763,8 @@ TNode<BoolT> CodeStubAssembler::IsValidSmiIndex(TNode<Smi> smi) {
 
 TNode<IntPtrT> CodeStubAssembler::TaggedIndexToIntPtr(
     TNode<TaggedIndex> value) {
-  return Signed(WordSarShiftOutZeros(BitcastTaggedToWordForTagAndSmiBits(value),
-                                     IntPtrConstant(kSmiTagSize)));
+  return Signed(WordSar(BitcastTaggedToWordForTagAndSmiBits(value),
+                        IntPtrConstant(kSmiTagSize)));
 }
 
 TNode<TaggedIndex> CodeStubAssembler::IntPtrToTaggedIndex(
@@ -859,17 +859,16 @@ TNode<IntPtrT> CodeStubAssembler::SmiUntag(SloppyTNode<Smi> value) {
   if (ToIntPtrConstant(value, &constant_value)) {
     return IntPtrConstant(constant_value >> (kSmiShiftSize + kSmiTagSize));
   }
-  TNode<IntPtrT> raw_bits = BitcastTaggedToWordForTagAndSmiBits(value);
   if (COMPRESS_POINTERS_BOOL) {
-    // Clear the upper half using sign-extension.
-    raw_bits = ChangeInt32ToIntPtr(TruncateIntPtrToInt32(raw_bits));
+    return ChangeInt32ToIntPtr(SmiToInt32(value));
   }
-  return Signed(WordSarShiftOutZeros(raw_bits, SmiShiftBitsConstant()));
+  return Signed(WordSar(BitcastTaggedToWordForTagAndSmiBits(value),
+                        SmiShiftBitsConstant()));
 }
 
 TNode<Int32T> CodeStubAssembler::SmiToInt32(SloppyTNode<Smi> value) {
   if (COMPRESS_POINTERS_BOOL) {
-    return Signed(Word32SarShiftOutZeros(
+    return Signed(Word32Sar(
         TruncateIntPtrToInt32(BitcastTaggedToWordForTagAndSmiBits(value)),
         SmiShiftBitsConstant32()));
   }

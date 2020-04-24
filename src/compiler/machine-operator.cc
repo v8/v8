@@ -106,6 +106,7 @@ LoadRepresentation LoadRepresentationOf(Operator const* op) {
   return OpParameter<LoadRepresentation>(op);
 }
 
+
 StoreRepresentation const& StoreRepresentationOf(Operator const* op) {
   DCHECK(IrOpcode::kStore == op->opcode() ||
          IrOpcode::kProtectedStore == op->opcode());
@@ -149,22 +150,6 @@ MachineType AtomicOpType(Operator const* op) {
   return OpParameter<MachineType>(op);
 }
 
-size_t hash_value(ShiftKind kind) { return static_cast<size_t>(kind); }
-V8_EXPORT_PRIVATE std::ostream& operator<<(std::ostream& os, ShiftKind kind) {
-  switch (kind) {
-    case ShiftKind::kNormal:
-      return os << "Normal";
-    case ShiftKind::kShiftOutZeros:
-      return os << "ShiftOutZeros";
-  }
-}
-
-ShiftKind ShiftKindOf(Operator const* op) {
-  DCHECK(IrOpcode::kWord32Sar == op->opcode() ||
-         IrOpcode::kWord64Sar == op->opcode());
-  return OpParameter<ShiftKind>(op);
-}
-
 // The format is:
 // V(Name, properties, value_input_count, control_input_count, output_count)
 #define PURE_BINARY_OP_LIST_32(V)                                           \
@@ -173,6 +158,7 @@ ShiftKind ShiftKindOf(Operator const* op) {
   V(Word32Xor, Operator::kAssociative | Operator::kCommutative, 2, 0, 1)    \
   V(Word32Shl, Operator::kNoProperties, 2, 0, 1)                            \
   V(Word32Shr, Operator::kNoProperties, 2, 0, 1)                            \
+  V(Word32Sar, Operator::kNoProperties, 2, 0, 1)                            \
   V(Word32Ror, Operator::kNoProperties, 2, 0, 1)                            \
   V(Word32Equal, Operator::kCommutative, 2, 0, 1)                           \
   V(Int32Add, Operator::kAssociative | Operator::kCommutative, 2, 0, 1)     \
@@ -197,6 +183,7 @@ ShiftKind ShiftKindOf(Operator const* op) {
   V(Word64Xor, Operator::kAssociative | Operator::kCommutative, 2, 0, 1) \
   V(Word64Shl, Operator::kNoProperties, 2, 0, 1)                         \
   V(Word64Shr, Operator::kNoProperties, 2, 0, 1)                         \
+  V(Word64Sar, Operator::kNoProperties, 2, 0, 1)                         \
   V(Word64Ror, Operator::kNoProperties, 2, 0, 1)                         \
   V(Word64Equal, Operator::kCommutative, 2, 0, 1)                        \
   V(Int64Add, Operator::kAssociative | Operator::kCommutative, 2, 0, 1)  \
@@ -664,38 +651,6 @@ PURE_OPTIONAL_OP_LIST(PURE)
   }
 OVERFLOW_OP_LIST(OVERFLOW_OP)
 #undef OVERFLOW_OP
-
-template <ShiftKind kind>
-struct Word32SarOperator : Operator1<ShiftKind> {
-  Word32SarOperator()
-      : Operator1(IrOpcode::kWord32Sar, Operator::kPure, "Word32Sar", 2, 0, 0,
-                  1, 0, 0, kind) {}
-};
-
-const Operator* MachineOperatorBuilder::Word32Sar(ShiftKind kind) {
-  switch (kind) {
-    case ShiftKind::kNormal:
-      return GetCachedOperator<Word32SarOperator<ShiftKind::kNormal>>();
-    case ShiftKind::kShiftOutZeros:
-      return GetCachedOperator<Word32SarOperator<ShiftKind::kShiftOutZeros>>();
-  }
-}
-
-template <ShiftKind kind>
-struct Word64SarOperator : Operator1<ShiftKind> {
-  Word64SarOperator()
-      : Operator1(IrOpcode::kWord64Sar, Operator::kPure, "Word64Sar", 2, 0, 0,
-                  1, 0, 0, kind) {}
-};
-
-const Operator* MachineOperatorBuilder::Word64Sar(ShiftKind kind) {
-  switch (kind) {
-    case ShiftKind::kNormal:
-      return GetCachedOperator<Word64SarOperator<ShiftKind::kNormal>>();
-    case ShiftKind::kShiftOutZeros:
-      return GetCachedOperator<Word64SarOperator<ShiftKind::kShiftOutZeros>>();
-  }
-}
 
 template <MachineRepresentation rep, MachineSemantic sem>
 struct LoadOperator : public Operator1<LoadRepresentation> {

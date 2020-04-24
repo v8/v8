@@ -4552,20 +4552,18 @@ Node* EffectControlLinearizer::ChangeUint32ToSmi(Node* value) {
 }
 
 Node* EffectControlLinearizer::ChangeSmiToIntPtr(Node* value) {
+  // Do shift on 32bit values if Smis are stored in the lower word.
   if (machine()->Is64() && SmiValuesAre31Bits()) {
-    // First sign-extend the upper half, then shift away the Smi tag.
-    return __ WordSarShiftOutZeros(
-        __ ChangeInt32ToInt64(__ TruncateInt64ToInt32(value)),
-        SmiShiftBitsConstant());
+    return __ ChangeInt32ToInt64(
+        __ Word32Sar(__ TruncateInt64ToInt32(value), SmiShiftBitsConstant()));
   }
-  return __ WordSarShiftOutZeros(value, SmiShiftBitsConstant());
+  return __ WordSar(value, SmiShiftBitsConstant());
 }
 
 Node* EffectControlLinearizer::ChangeSmiToInt32(Node* value) {
   // Do shift on 32bit values if Smis are stored in the lower word.
   if (machine()->Is64() && SmiValuesAre31Bits()) {
-    return __ Word32SarShiftOutZeros(__ TruncateInt64ToInt32(value),
-                                     SmiShiftBitsConstant());
+    return __ Word32Sar(__ TruncateInt64ToInt32(value), SmiShiftBitsConstant());
   }
   if (machine()->Is64()) {
     return __ TruncateInt64ToInt32(ChangeSmiToIntPtr(value));
