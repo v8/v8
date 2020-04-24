@@ -72,14 +72,6 @@ class TestCode {
             break_index++, runner->main_isolate()->factory()->empty_string());
     CHECK(WasmScript::SetBreakPoint(script, &return_offset_in_module,
                                     break_point));
-    int set_breakpoint_offset = return_offset_in_module - function_offset;
-    // Also set breakpoint on the debug info of the instance directly, since
-    // the instance chain is not set up properly in tests.
-    Handle<WasmDebugInfo> debug_info =
-        WasmInstanceObject::GetOrCreateDebugInfo(instance);
-    WasmDebugInfo::SetBreakpoint(debug_info, function_index,
-                                 set_breakpoint_offset);
-
     return break_point;
   }
 
@@ -212,9 +204,8 @@ class WasmBreakHandler : public debug::DebugDelegate {
     // Check the current position.
     StackTraceFrameIterator frame_it(isolate_);
 
-    FrameSummary::WasmInterpretedFrameSummary summary =
-        FrameSummary::GetTop(frame_it.frame()).AsWasmInterpreted();
-    Handle<WasmInstanceObject> instance = summary.wasm_instance();
+    WasmCompiledFrame* frame = WasmCompiledFrame::cast(frame_it.frame());
+    Handle<WasmInstanceObject> instance{frame->wasm_instance(), isolate_};
 
     MaybeHandle<String> result_handle = v8::internal::wasm::DebugEvaluate(
         {evaluator_bytes_.begin(), evaluator_bytes_.size()}, instance,

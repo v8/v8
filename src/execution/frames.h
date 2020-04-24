@@ -955,7 +955,7 @@ class WasmCompiledFrame : public StandardFrame {
   Code unchecked_code() const override;
 
   // Accessors.
-  WasmInstanceObject wasm_instance() const;
+  V8_EXPORT_PRIVATE WasmInstanceObject wasm_instance() const;
   V8_EXPORT_PRIVATE wasm::NativeModule* native_module() const;
   wasm::WasmCode* wasm_code() const;
   uint32_t function_index() const;
