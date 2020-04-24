@@ -907,13 +907,8 @@ class V8_EXPORT_PRIVATE TurboAssembler : public TurboAssemblerBase {
   void BranchLong(Label* L, BranchDelaySlot bdslot);
   void BranchAndLinkLong(Label* L, BranchDelaySlot bdslot);
 
-  template <typename RoundFunc>
-  void RoundDouble(FPURegister dst, FPURegister src, RoundingMode mode,
-                   RoundFunc round);
-
-  template <typename RoundFunc>
-  void RoundFloat(FPURegister dst, FPURegister src, RoundingMode mode,
-                  RoundFunc round);
+  template <typename F_TYPE>
+  void RoundHelper(FPURegister dst, FPURegister src, RoundingMode mode);
 
   template <typename TruncFunc>
   void RoundFloatingPointToInteger(Register rd, FPURegister fs, Register result,
