@@ -223,8 +223,6 @@ namespace internal {
   T(ProxyGetPrototypeOfNonExtensible,                                          \
     "'getPrototypeOf' on proxy: proxy target is non-extensible but the "       \
     "trap did not return its actual prototype")                                \
-  T(ProxyHandlerOrTargetRevoked,                                               \
-    "Cannot create proxy with a revoked proxy as target or handler")           \
   T(ProxyHasNonConfigurable,                                                   \
     "'has' on proxy: trap returned falsish for property '%' which exists in "  \
     "the proxy target as non-configurable")                                    \

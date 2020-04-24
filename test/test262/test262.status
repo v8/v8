@@ -675,14 +675,6 @@
   # https://bugs.chromium.org/p/v8/issues/detail?id=10381
   'built-ins/Array/prototype/concat/arg-length-near-integer-limit': [FAIL],
 
-  # https://bugs.chromium.org/p/v8/issues/detail?id=10382
-  'built-ins/Proxy/create-handler-is-revoked-proxy': [FAIL],
-  'built-ins/Proxy/create-target-is-revoked-function-proxy': [FAIL],
-  'built-ins/Proxy/create-target-is-revoked-proxy': [FAIL],
-  'built-ins/Proxy/revocable/handler-is-revoked-proxy': [FAIL],
-  'built-ins/Proxy/revocable/target-is-revoked-function-proxy': [FAIL],
-  'built-ins/Proxy/revocable/target-is-revoked-proxy': [FAIL],
-
   # https://bugs.chromium.org/p/v8/issues/detail?id=10383
   'built-ins/RegExp/prototype/Symbol.replace/fn-invoke-args-empty-result': [FAIL],
 

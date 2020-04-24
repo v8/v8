@@ -293,7 +293,6 @@ extern enum MessageTemplate {
   kCalledOnNonObject,
   kRegExpGlobalInvokedOnNonGlobal,
   kProxyNonObject,
-  kProxyHandlerOrTargetRevoked,
   kProxyRevoked,
   kProxyTrapReturnedFalsishFor,
   kProxyPrivate,

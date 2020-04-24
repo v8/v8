@@ -21,22 +21,11 @@ namespace proxy {
       // 2. Return ? ProxyCreate(target, handler).
       // https://tc39.github.io/ecma262/#sec-proxycreate
       // 1. If Type(target) is not Object, throw a TypeError exception.
-      // 2. If target is a Proxy exotic object and target.[[ProxyHandler]] is
-      //    null, throw a TypeError exception.
-      // 3. If Type(handler) is not Object, throw a TypeError exception.
-      // 4. If handler is a Proxy exotic object and handler.[[ProxyHandler]]
-      //    is null, throw a TypeError exception.
+      // 2. If Type(handler) is not Object, throw a TypeError exception.
       const targetJSReceiver =
           Cast<JSReceiver>(target) otherwise ThrowProxyNonObject;
-      if (IsRevokedProxy(targetJSReceiver)) {
-        goto ThrowProxyHandlerOrTargetRevoked;
-      }
-
       const handlerJSReceiver =
           Cast<JSReceiver>(handler) otherwise ThrowProxyNonObject;
-      if (IsRevokedProxy(handlerJSReceiver)) {
-        goto ThrowProxyHandlerOrTargetRevoked;
-      }
 
       // 5. Let P be a newly created object.
       // 6. Set P's essential internal methods (except for [[Call]] and
@@ -52,9 +41,6 @@ namespace proxy {
     }
     label ThrowProxyNonObject deferred {
       ThrowTypeError(MessageTemplate::kProxyNonObject);
-    }
-    label ThrowProxyHandlerOrTargetRevoked deferred {
-      ThrowTypeError(MessageTemplate::kProxyHandlerOrTargetRevoked);
     }
   }
 }

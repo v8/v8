@@ -9,12 +9,6 @@ namespace proxy {
   extern macro ProxiesCodeStubAssembler::AllocateProxy(
       implicit context: Context)(JSReceiver, JSReceiver): JSProxy;
 
-  macro IsRevokedProxy(implicit context: Context)(o: JSReceiver): bool {
-    const proxy: JSProxy = Cast<JSProxy>(o) otherwise return false;
-    Cast<JSReceiver>(proxy.handler) otherwise return true;
-    return false;
-  }
-
   extern transitioning macro ProxiesCodeStubAssembler::CheckGetSetTrapResult(
       implicit context:
           Context)(JSReceiver, JSProxy, Name, Object, constexpr int31);
