@@ -123,8 +123,39 @@ void OffThreadHeap::Publish(Heap* heap) {
     TRACE_EVENT0(TRACE_DISABLED_BY_DEFAULT("v8.compile"),
                  "V8.OffThreadFinalization.Publish.Merge");
     Heap* heap = isolate->heap();
+
+    // Ensure that the old-space can expand do the size needed for the
+    // off-thread objects. Use capacity rather than size since we're adding
+    // entire pages.
+    size_t off_thread_size = space_.Capacity() + lo_space_.Size();
+    if (!heap->CanExpandOldGeneration(off_thread_size)) {
+      heap->InvokeNearHeapLimitCallback();
+      if (!heap->CanExpandOldGeneration(off_thread_size)) {
+        heap->CollectAllAvailableGarbage(GarbageCollectionReason::kLastResort);
+        if (!heap->CanExpandOldGeneration(off_thread_size)) {
+          heap->FatalProcessOutOfMemory(
+              "Can't expand old-space enough to merge off-thread pages.");
+        }
+      }
+    }
+
     heap->old_space()->MergeLocalSpace(&space_);
     heap->lo_space()->MergeOffThreadSpace(&lo_space_);
+
+    DCHECK(heap->CanExpandOldGeneration(0));
+    heap->NotifyOldGenerationExpansion();
+
+    // Possibly trigger a GC if we're close to exhausting the old generation.
+    // TODO(leszeks): Adjust the heuristics here.
+    heap->StartIncrementalMarkingIfAllocationLimitIsReached(
+        heap->GCFlagsForIncrementalMarking(),
+        kGCCallbackScheduleIdleGarbageCollection);
+
+    if (!heap->ShouldExpandOldGenerationOnSlowAllocation() ||
+        !heap->CanExpandOldGeneration(1 * MB)) {
+      heap->CollectGarbage(OLD_SPACE,
+                           GarbageCollectionReason::kAllocationFailure);
+    }
   }
 
   // Iterate the string slots, as an offset from the holders we have handles to.

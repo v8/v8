@@ -1765,10 +1765,6 @@ void PagedSpace::MergeLocalSpace(LocalSpace* other) {
     // before shipping, which will likely be using LocalHeap.
   }
 
-  if (merging_from_off_thread) {
-    heap()->NotifyOffThreadSpaceMerged();
-  }
-
   DCHECK_EQ(0u, other->Size());
   DCHECK_EQ(0u, other->Capacity());
 }
@@ -4495,8 +4491,6 @@ void OldLargeObjectSpace::MergeOffThreadSpace(
         heap()->incremental_marking()->black_allocation(),
         heap()->incremental_marking()->marking_state()->IsBlack(object));
   }
-
-  heap()->NotifyOffThreadSpaceMerged();
 }
 
 NewLargeObjectSpace::NewLargeObjectSpace(Heap* heap, size_t capacity)
