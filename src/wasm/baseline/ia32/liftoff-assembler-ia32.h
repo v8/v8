@@ -2033,6 +2033,30 @@ void LiftoffAssembler::emit_i8x16_ne(LiftoffRegister dst, LiftoffRegister lhs,
   Pxor(dst.fp(), liftoff::kScratchDoubleReg);
 }
 
+void LiftoffAssembler::emit_i8x16_ge_s(LiftoffRegister dst, LiftoffRegister lhs,
+                                       LiftoffRegister rhs) {
+  DoubleRegister ref = rhs.fp();
+  if (dst == rhs) {
+    Movaps(liftoff::kScratchDoubleReg, rhs.fp());
+    ref = liftoff::kScratchDoubleReg;
+  }
+  liftoff::EmitSimdCommutativeBinOp<&Assembler::vpminsb, &Assembler::pminsb>(
+      this, dst, lhs, rhs, SSE4_1);
+  Pcmpeqb(dst.fp(), ref);
+}
+
+void LiftoffAssembler::emit_i8x16_ge_u(LiftoffRegister dst, LiftoffRegister lhs,
+                                       LiftoffRegister rhs) {
+  DoubleRegister ref = rhs.fp();
+  if (dst == rhs) {
+    Movaps(liftoff::kScratchDoubleReg, rhs.fp());
+    ref = liftoff::kScratchDoubleReg;
+  }
+  liftoff::EmitSimdCommutativeBinOp<&Assembler::vpminub, &Assembler::pminub>(
+      this, dst, lhs, rhs);
+  Pcmpeqb(dst.fp(), ref);
+}
+
 void LiftoffAssembler::emit_i16x8_eq(LiftoffRegister dst, LiftoffRegister lhs,
                                      LiftoffRegister rhs) {
   liftoff::EmitSimdCommutativeBinOp<&Assembler::vpcmpeqw, &Assembler::pcmpeqw>(
@@ -2047,6 +2071,30 @@ void LiftoffAssembler::emit_i16x8_ne(LiftoffRegister dst, LiftoffRegister lhs,
   Pxor(dst.fp(), liftoff::kScratchDoubleReg);
 }
 
+void LiftoffAssembler::emit_i16x8_ge_s(LiftoffRegister dst, LiftoffRegister lhs,
+                                       LiftoffRegister rhs) {
+  DoubleRegister ref = rhs.fp();
+  if (dst == rhs) {
+    Movaps(liftoff::kScratchDoubleReg, rhs.fp());
+    ref = liftoff::kScratchDoubleReg;
+  }
+  liftoff::EmitSimdCommutativeBinOp<&Assembler::vpminsw, &Assembler::pminsw>(
+      this, dst, lhs, rhs);
+  Pcmpeqw(dst.fp(), ref);
+}
+
+void LiftoffAssembler::emit_i16x8_ge_u(LiftoffRegister dst, LiftoffRegister lhs,
+                                       LiftoffRegister rhs) {
+  DoubleRegister ref = rhs.fp();
+  if (dst == rhs) {
+    Movaps(liftoff::kScratchDoubleReg, rhs.fp());
+    ref = liftoff::kScratchDoubleReg;
+  }
+  liftoff::EmitSimdCommutativeBinOp<&Assembler::vpminuw, &Assembler::pminuw>(
+      this, dst, lhs, rhs, SSE4_1);
+  Pcmpeqw(dst.fp(), ref);
+}
+
 void LiftoffAssembler::emit_i32x4_eq(LiftoffRegister dst, LiftoffRegister lhs,
                                      LiftoffRegister rhs) {
   liftoff::EmitSimdCommutativeBinOp<&Assembler::vpcmpeqd, &Assembler::pcmpeqd>(
@@ -2059,6 +2107,30 @@ void LiftoffAssembler::emit_i32x4_ne(LiftoffRegister dst, LiftoffRegister lhs,
       this, dst, lhs, rhs);
   Pcmpeqd(liftoff::kScratchDoubleReg, liftoff::kScratchDoubleReg);
   Pxor(dst.fp(), liftoff::kScratchDoubleReg);
+}
+
+void LiftoffAssembler::emit_i32x4_ge_s(LiftoffRegister dst, LiftoffRegister lhs,
+                                       LiftoffRegister rhs) {
+  DoubleRegister ref = rhs.fp();
+  if (dst == rhs) {
+    Movaps(liftoff::kScratchDoubleReg, rhs.fp());
+    ref = liftoff::kScratchDoubleReg;
+  }
+  liftoff::EmitSimdCommutativeBinOp<&Assembler::vpminsd, &Assembler::pminsd>(
+      this, dst, lhs, rhs, SSE4_1);
+  Pcmpeqd(dst.fp(), ref);
+}
+
+void LiftoffAssembler::emit_i32x4_ge_u(LiftoffRegister dst, LiftoffRegister lhs,
+                                       LiftoffRegister rhs) {
+  DoubleRegister ref = rhs.fp();
+  if (dst == rhs) {
+    Movaps(liftoff::kScratchDoubleReg, rhs.fp());
+    ref = liftoff::kScratchDoubleReg;
+  }
+  liftoff::EmitSimdCommutativeBinOp<&Assembler::vpminud, &Assembler::pminud>(
+      this, dst, lhs, rhs, SSE4_1);
+  Pcmpeqd(dst.fp(), ref);
 }
 
 void LiftoffAssembler::emit_f32x4_eq(LiftoffRegister dst, LiftoffRegister lhs,
