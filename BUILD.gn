@@ -3902,6 +3902,8 @@ v8_component("v8_libplatform") {
     "include/libplatform/v8-tracing.h",
     "src/libplatform/default-foreground-task-runner.cc",
     "src/libplatform/default-foreground-task-runner.h",
+    "src/libplatform/default-job.cc",
+    "src/libplatform/default-job.h",
     "src/libplatform/default-platform.cc",
     "src/libplatform/default-platform.h",
     "src/libplatform/default-worker-threads-task-runner.cc",

@@ -140,6 +140,11 @@ class MockPlatform : public v8::Platform {
 
   bool IdleTasksEnabled(v8::Isolate* isolate) override { return true; }
 
+  std::unique_ptr<JobHandle> PostJob(
+      TaskPriority priority, std::unique_ptr<JobTask> job_state) override {
+    UNREACHABLE();
+  }
+
   double MonotonicallyIncreasingTime() override {
     time_ += time_step_;
     return time_;
