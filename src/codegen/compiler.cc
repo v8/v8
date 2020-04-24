@@ -1898,7 +1898,6 @@ bool CodeGenerationFromStringsAllowed(Isolate* isolate, Handle<Context> context,
 // (via v8::Isolate::SetModifyCodeGenerationFromStringsCallback)
 bool ModifyCodeGenerationFromStrings(Isolate* isolate, Handle<Context> context,
                                      Handle<i::Object>* source) {
-  DCHECK(context->allow_code_gen_from_strings().IsFalse(isolate));
   DCHECK(isolate->modify_code_gen_callback());
   DCHECK(source);
 
@@ -1939,10 +1938,8 @@ std::pair<MaybeHandle<String>, bool> Compiler::ValidateDynamicCompilationSource(
   // allow_code_gen_from_strings can be many things, so we'll always check
   // against the 'false' literal, so that e.g. undefined and 'true' are treated
   // the same.
-  if (!context->allow_code_gen_from_strings().IsFalse(isolate)) {
-    if (!original_source->IsString()) {
-      return {MaybeHandle<String>(), true};
-    }
+  if (!context->allow_code_gen_from_strings().IsFalse(isolate) &&
+      original_source->IsString()) {
     return {Handle<String>::cast(original_source), false};
   }
 

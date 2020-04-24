@@ -19351,6 +19351,52 @@ TEST(ModifyCodeGenFromStrings) {
   try_catch.Reset();
 }
 
+v8::ModifyCodeGenerationFromStringsResult RejectStringsIncrementNumbers(
+    Local<Context> context, Local<Value> source) {
+  if (source->IsString()) {
+    return {false, v8::MaybeLocal<String>()};
+  }
+
+  Local<v8::Number> number;
+  if (!source->ToNumber(context).ToLocal(&number)) {
+    return {true, v8::MaybeLocal<String>()};
+  }
+
+  Local<v8::String> incremented =
+      String::NewFromUtf8(context->GetIsolate(),
+                          std::to_string(number->Value() + 1).c_str(),
+                          v8::NewStringType::kNormal)
+          .ToLocalChecked();
+
+  return {true, incremented};
+}
+
+TEST(AllowFromStringsOrModifyCodegen) {
+  LocalContext context;
+  v8::HandleScope scope(context->GetIsolate());
+  context->GetIsolate()->SetModifyCodeGenerationFromStringsCallback(
+      &RejectStringsIncrementNumbers);
+
+  context->AllowCodeGenerationFromStrings(false);
+
+  TryCatch try_catch(CcTest::isolate());
+  Local<Value> result = CompileRun("eval('40+2')");
+  CHECK(result.IsEmpty());
+  CHECK(try_catch.HasCaught());
+  try_catch.Reset();
+
+  result = CompileRun("eval(42)");
+  CHECK_EQ(43, result->Int32Value(context.local()).FromJust());
+
+  context->AllowCodeGenerationFromStrings(true);
+
+  result = CompileRun("eval('40+2')");
+  CHECK_EQ(42, result->Int32Value(context.local()).FromJust());
+
+  result = CompileRun("eval(42)");
+  CHECK_EQ(43, result->Int32Value(context.local()).FromJust());
+}
+
 TEST(SetErrorMessageForCodeGenFromStrings) {
   LocalContext context;
   v8::HandleScope scope(context->GetIsolate());
