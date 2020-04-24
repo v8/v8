@@ -709,12 +709,12 @@ TF_BUILTIN(ObjectPrototypeIsPrototypeOf, ObjectBuiltinsAssembler) {
 }
 
 TF_BUILTIN(ObjectToString, ObjectBuiltinsAssembler) {
-  Label checkstringtag(this), if_arguments(this), if_array(this),
-      if_boolean(this), if_date(this), if_error(this), if_function(this),
-      if_number(this, Label::kDeferred), if_object(this), if_primitive(this),
-      if_proxy(this, Label::kDeferred), if_regexp(this), if_string(this),
-      if_symbol(this, Label::kDeferred), if_value(this),
-      if_bigint(this, Label::kDeferred);
+  Label checkstringtag(this), if_apiobject(this, Label::kDeferred),
+      if_arguments(this), if_array(this), if_boolean(this), if_date(this),
+      if_error(this), if_function(this), if_number(this, Label::kDeferred),
+      if_object(this), if_primitive(this), if_proxy(this, Label::kDeferred),
+      if_regexp(this), if_string(this), if_symbol(this, Label::kDeferred),
+      if_value(this), if_bigint(this, Label::kDeferred);
 
   TNode<Object> receiver = CAST(Parameter(Descriptor::kReceiver));
   TNode<Context> context = CAST(Parameter(Descriptor::kContext));
@@ -740,8 +740,8 @@ TF_BUILTIN(ObjectToString, ObjectBuiltinsAssembler) {
                     {JS_ARGUMENTS_OBJECT_TYPE, &if_arguments},
                     {JS_DATE_TYPE, &if_date},
                     {JS_BOUND_FUNCTION_TYPE, &if_function},
-                    {JS_API_OBJECT_TYPE, &if_object},
-                    {JS_SPECIAL_API_OBJECT_TYPE, &if_object},
+                    {JS_API_OBJECT_TYPE, &if_apiobject},
+                    {JS_SPECIAL_API_OBJECT_TYPE, &if_apiobject},
                     {JS_PROXY_TYPE, &if_proxy},
                     {JS_ERROR_TYPE, &if_error},
                     {JS_PRIMITIVE_WRAPPER_TYPE, &if_value}};
@@ -754,6 +754,25 @@ TF_BUILTIN(ObjectToString, ObjectBuiltinsAssembler) {
   }
   Switch(receiver_instance_type, &if_object, case_values, case_labels,
          arraysize(case_values));
+
+  BIND(&if_apiobject);
+  {
+    // Lookup the @@toStringTag property on the {receiver}.
+    TVARIABLE(Object, var_tag,
+              GetProperty(context, receiver,
+                          isolate()->factory()->to_string_tag_symbol()));
+    Label if_tagisnotstring(this), if_tagisstring(this);
+    GotoIf(TaggedIsSmi(var_tag.value()), &if_tagisnotstring);
+    Branch(IsString(CAST(var_tag.value())), &if_tagisstring,
+           &if_tagisnotstring);
+    BIND(&if_tagisnotstring);
+    {
+      var_tag = CallRuntime(Runtime::kClassOf, context, receiver);
+      Goto(&if_tagisstring);
+    }
+    BIND(&if_tagisstring);
+    ReturnToStringFormat(context, CAST(var_tag.value()));
+  }
 
   BIND(&if_arguments);
   {

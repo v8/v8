@@ -25,8 +25,8 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-// Object.prototype.toString should return the correct values for instances of
-// various built-in classes.
+// The [[Class]] property of (instances of) builtin functions must be
+// correctly set.
 var funs = {
   Object:   [ Object ],
   Function: [ Function ],

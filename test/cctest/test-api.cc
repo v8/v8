@@ -1075,23 +1075,20 @@ template<typename Constructor, typename Accessor>
 static void TestFunctionTemplateAccessor(Constructor constructor,
                                          Accessor accessor) {
   LocalContext env;
-  v8::Isolate* isolate = env->GetIsolate();
-  v8::HandleScope scope(isolate);
+  v8::HandleScope scope(env->GetIsolate());
 
   Local<v8::FunctionTemplate> fun_templ =
-      v8::FunctionTemplate::New(isolate, constructor);
-  fun_templ->PrototypeTemplate()->Set(
-      v8::Symbol::GetToStringTag(isolate), v8_str("funky"),
-      static_cast<v8::PropertyAttribute>(v8::ReadOnly | v8::DontEnum));
+      v8::FunctionTemplate::New(env->GetIsolate(), constructor);
+  fun_templ->SetClassName(v8_str("funky"));
   fun_templ->InstanceTemplate()->SetAccessor(v8_str("m"), accessor);
-
   Local<Function> fun = fun_templ->GetFunction(env.local()).ToLocalChecked();
   CHECK(env->Global()->Set(env.local(), v8_str("obj"), fun).FromJust());
-  Local<Value> result = CompileRun("(new obj()).toString()");
+  Local<Value> result =
+      v8_compile("(new obj()).toString()")->Run(env.local()).ToLocalChecked();
   CHECK(v8_str("[object funky]")->Equals(env.local(), result).FromJust());
   CompileRun("var obj_instance = new obj();");
-
-  Local<Script> script = v8_compile("obj_instance.x");
+  Local<Script> script;
+  script = v8_compile("obj_instance.x");
   for (int i = 0; i < 30; i++) {
     CHECK_EQ(1, v8_run_int32value(script));
   }
@@ -12636,20 +12633,22 @@ THREADED_TEST(NewTargetHandler) {
 }
 
 THREADED_TEST(ObjectProtoToString) {
-  LocalContext context;
   v8::Isolate* isolate = CcTest::isolate();
   v8::HandleScope scope(isolate);
   Local<v8::FunctionTemplate> templ = v8::FunctionTemplate::New(isolate);
   templ->SetClassName(v8_str("MyClass"));
 
+  LocalContext context;
 
   Local<String> customized_tostring = v8_str("customized toString");
 
   // Replace Object.prototype.toString
-  CompileRun(R"(
-      Object.prototype.toString = function() {
-        return 'customized toString';
-      })");
+  v8_compile(
+      "Object.prototype.toString = function() {"
+      "  return 'customized toString';"
+      "}")
+      ->Run(context.local())
+      .ToLocalChecked();
 
   // Normal ToString call should call replaced Object.prototype.toString
   Local<v8::Object> instance = templ->GetFunction(context.local())
@@ -12660,11 +12659,56 @@ THREADED_TEST(ObjectProtoToString) {
   CHECK(value->IsString() &&
         value->Equals(context.local(), customized_tostring).FromJust());
 
-  // ObjectProtoToString should not call replace toString function. It should
-  // not look at the class name either.
+  // ObjectProtoToString should not call replace toString function.
   value = instance->ObjectProtoToString(context.local()).ToLocalChecked();
   CHECK(value->IsString() &&
+        value->Equals(context.local(), v8_str("[object MyClass]")).FromJust());
+
+  // Check global
+  value =
+      context->Global()->ObjectProtoToString(context.local()).ToLocalChecked();
+  CHECK(value->IsString() &&
         value->Equals(context.local(), v8_str("[object Object]")).FromJust());
+
+  // Check ordinary object
+  Local<Value> object =
+      v8_compile("new Object()")->Run(context.local()).ToLocalChecked();
+  value = object.As<v8::Object>()
+              ->ObjectProtoToString(context.local())
+              .ToLocalChecked();
+  CHECK(value->IsString() &&
+        value->Equals(context.local(), v8_str("[object Object]")).FromJust());
+}
+
+
+TEST(ObjectProtoToStringES6) {
+  LocalContext context;
+  v8::Isolate* isolate = CcTest::isolate();
+  v8::HandleScope scope(isolate);
+  Local<v8::FunctionTemplate> templ = v8::FunctionTemplate::New(isolate);
+  templ->SetClassName(v8_str("MyClass"));
+
+  Local<String> customized_tostring = v8_str("customized toString");
+
+  // Replace Object.prototype.toString
+  CompileRun(
+      "Object.prototype.toString = function() {"
+      "  return 'customized toString';"
+      "}");
+
+  // Normal ToString call should call replaced Object.prototype.toString
+  Local<v8::Object> instance = templ->GetFunction(context.local())
+                                   .ToLocalChecked()
+                                   ->NewInstance(context.local())
+                                   .ToLocalChecked();
+  Local<String> value = instance->ToString(context.local()).ToLocalChecked();
+  CHECK(value->IsString() &&
+        value->Equals(context.local(), customized_tostring).FromJust());
+
+  // ObjectProtoToString should not call replace toString function.
+  value = instance->ObjectProtoToString(context.local()).ToLocalChecked();
+  CHECK(value->IsString() &&
+        value->Equals(context.local(), v8_str("[object MyClass]")).FromJust());
 
   // Check global
   value =
@@ -12679,48 +12723,9 @@ THREADED_TEST(ObjectProtoToString) {
               .ToLocalChecked();
   CHECK(value->IsString() &&
         value->Equals(context.local(), v8_str("[object Object]")).FromJust());
-}
 
-
-TEST(ObjectProtoToStringES6) {
-  LocalContext context;
-  v8::Isolate* isolate = CcTest::isolate();
-  v8::HandleScope scope(isolate);
-
-  // Check that ES6 semantics using @@toStringTag work.
+  // Check that ES6 semantics using @@toStringTag work
   Local<v8::Symbol> toStringTag = v8::Symbol::GetToStringTag(isolate);
-
-  Local<v8::FunctionTemplate> templ = v8::FunctionTemplate::New(isolate);
-  templ->SetClassName(v8_str("MyClass"));
-  templ->PrototypeTemplate()->Set(
-      toStringTag, v8_str("MyClassToStringTag"),
-      static_cast<v8::PropertyAttribute>(v8::ReadOnly | v8::DontEnum));
-
-  Local<String> customized_tostring = v8_str("customized toString");
-
-  // Replace Object.prototype.toString
-  CompileRun(R"(
-      Object.prototype.toString = function() {
-        return 'customized toString';
-      })");
-
-  // Normal ToString call should call replaced Object.prototype.toString
-  Local<v8::Object> instance = templ->GetFunction(context.local())
-                                   .ToLocalChecked()
-                                   ->NewInstance(context.local())
-                                   .ToLocalChecked();
-  Local<String> value = instance->ToString(context.local()).ToLocalChecked();
-  CHECK(value->IsString() &&
-        value->Equals(context.local(), customized_tostring).FromJust());
-
-  // ObjectProtoToString should not call replace toString function. Instead it
-  // should look at the @@toStringTag property.
-  value = instance->ObjectProtoToString(context.local()).ToLocalChecked();
-  CHECK(value->IsString() &&
-        value->Equals(context.local(), v8_str("[object MyClassToStringTag]"))
-            .FromJust());
-
-  Local<Value> object;
 
 #define TEST_TOSTRINGTAG(type, tag, expected)                              \
   do {                                                                     \

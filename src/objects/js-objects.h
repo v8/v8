@@ -206,17 +206,15 @@ class JSReceiver : public HeapObject {
   V8_WARN_UNUSED_RESULT static Maybe<bool> IsExtensible(
       Handle<JSReceiver> object);
 
-  // Returns the class name.
+  // Returns the class name ([[Class]] property in the specification).
   V8_EXPORT_PRIVATE String class_name();
 
   // Returns the constructor (the function that was used to instantiate the
   // object).
   static MaybeHandle<JSFunction> GetConstructor(Handle<JSReceiver> receiver);
 
-  // Returns the constructor name (the (possibly inferred) name of the function
-  // that was used to instantiate the object), if any. If a FunctionTemplate is
-  // used to instantiate the object, the class_name of the FunctionTemplate is
-  // returned instead.
+  // Returns the constructor name (the name (possibly, inferred name) of the
+  // function that was used to instantiate the object).
   static Handle<String> GetConstructorName(Handle<JSReceiver> receiver);
 
   V8_EXPORT_PRIVATE Handle<NativeContext> GetCreationContext();

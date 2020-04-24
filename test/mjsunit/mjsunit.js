@@ -295,7 +295,7 @@ var prettyPrinted;
           default:
             return objectClass + "(" + String(value) + ")";
         }
-        // classOf() returned "Object".
+        // [[Class]] is "Object".
         var name = value.constructor.name;
         if (name) return name + "()";
         return "Object()";
