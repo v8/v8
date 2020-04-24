@@ -1327,17 +1327,15 @@ class DateTimePatternGeneratorCache {
  public:
   // Return a clone copy that the caller have to free.
   icu::DateTimePatternGenerator* CreateGenerator(const icu::Locale& locale) {
-    std::string key(FLAG_harmony_intl_other_calendars ? locale.getName()
-                                                      : locale.getBaseName());
+    std::string key(locale.getName());
     base::MutexGuard guard(&mutex_);
     auto it = map_.find(key);
     if (it != map_.end()) {
       return it->second->clone();
     }
     UErrorCode status = U_ZERO_ERROR;
-    map_[key].reset(icu::DateTimePatternGenerator::createInstance(
-        FLAG_harmony_intl_other_calendars ? locale : icu::Locale(key.c_str()),
-        status));
+    map_[key].reset(
+        icu::DateTimePatternGenerator::createInstance(locale, status));
     // Fallback to use "root".
     if (U_FAILURE(status)) {
       status = U_ZERO_ERROR;
@@ -1386,31 +1384,28 @@ MaybeHandle<JSDateTimeFormat> JSDateTimeFormat::New(
 
   std::unique_ptr<char[]> calendar_str = nullptr;
   std::unique_ptr<char[]> numbering_system_str = nullptr;
-  if (FLAG_harmony_intl_add_calendar_numbering_system) {
-    const std::vector<const char*> empty_values = {};
-    // 6. Let calendar be ? GetOption(options, "calendar",
-    //    "string", undefined, undefined).
-    Maybe<bool> maybe_calendar = Intl::GetStringOption(
-        isolate, options, "calendar", empty_values, service, &calendar_str);
-    MAYBE_RETURN(maybe_calendar, MaybeHandle<JSDateTimeFormat>());
-    if (maybe_calendar.FromJust() && calendar_str != nullptr) {
-      icu::Locale default_locale;
-      if (!Intl::IsWellFormedCalendar(calendar_str.get())) {
-        THROW_NEW_ERROR(
-            isolate,
-            NewRangeError(
-                MessageTemplate::kInvalid, factory->calendar_string(),
-                factory->NewStringFromAsciiChecked(calendar_str.get())),
-            JSDateTimeFormat);
-      }
+  const std::vector<const char*> empty_values = {};
+  // 6. Let calendar be ? GetOption(options, "calendar",
+  //    "string", undefined, undefined).
+  Maybe<bool> maybe_calendar = Intl::GetStringOption(
+      isolate, options, "calendar", empty_values, service, &calendar_str);
+  MAYBE_RETURN(maybe_calendar, MaybeHandle<JSDateTimeFormat>());
+  if (maybe_calendar.FromJust() && calendar_str != nullptr) {
+    icu::Locale default_locale;
+    if (!Intl::IsWellFormedCalendar(calendar_str.get())) {
+      THROW_NEW_ERROR(
+          isolate,
+          NewRangeError(MessageTemplate::kInvalid, factory->calendar_string(),
+                        factory->NewStringFromAsciiChecked(calendar_str.get())),
+          JSDateTimeFormat);
     }
-
-    // 8. Let numberingSystem be ? GetOption(options, "numberingSystem",
-    //    "string", undefined, undefined).
-    Maybe<bool> maybe_numberingSystem = Intl::GetNumberingSystem(
-        isolate, options, service, &numbering_system_str);
-    MAYBE_RETURN(maybe_numberingSystem, MaybeHandle<JSDateTimeFormat>());
   }
+
+  // 8. Let numberingSystem be ? GetOption(options, "numberingSystem",
+  //    "string", undefined, undefined).
+  Maybe<bool> maybe_numberingSystem = Intl::GetNumberingSystem(
+      isolate, options, service, &numbering_system_str);
+  MAYBE_RETURN(maybe_numberingSystem, MaybeHandle<JSDateTimeFormat>());
 
   // 6. Let hour12 be ? GetOption(options, "hour12", "boolean", undefined,
   // undefined).
@@ -1489,7 +1484,6 @@ MaybeHandle<JSDateTimeFormat> JSDateTimeFormat::New(
   }
 
   // 17. Let timeZone be ? Get(options, "timeZone").
-  const std::vector<const char*> empty_values;
   std::unique_ptr<char[]> timezone = nullptr;
   Maybe<bool> maybe_timezone = Intl::GetStringOption(
       isolate, options, "timeZone", empty_values, service, &timezone);

@@ -874,17 +874,15 @@ MaybeHandle<JSNumberFormat> JSNumberFormat::New(Isolate* isolate,
   Intl::MatcherOption matcher = maybe_locale_matcher.FromJust();
 
   std::unique_ptr<char[]> numbering_system_str = nullptr;
-  if (FLAG_harmony_intl_add_calendar_numbering_system) {
-    // 7. Let _numberingSystem_ be ? GetOption(_options_, `"numberingSystem"`,
-    //    `"string"`, *undefined*, *undefined*).
-    Maybe<bool> maybe_numberingSystem = Intl::GetNumberingSystem(
-        isolate, options, service, &numbering_system_str);
-    // 8. If _numberingSystem_ is not *undefined*, then
-    // a. If _numberingSystem_ does not match the
-    //    `(3*8alphanum) *("-" (3*8alphanum))` sequence, throw a *RangeError*
-    //     exception.
-    MAYBE_RETURN(maybe_numberingSystem, MaybeHandle<JSNumberFormat>());
-  }
+  // 7. Let _numberingSystem_ be ? GetOption(_options_, `"numberingSystem"`,
+  //    `"string"`, *undefined*, *undefined*).
+  Maybe<bool> maybe_numberingSystem = Intl::GetNumberingSystem(
+      isolate, options, service, &numbering_system_str);
+  // 8. If _numberingSystem_ is not *undefined*, then
+  // a. If _numberingSystem_ does not match the
+  //    `(3*8alphanum) *("-" (3*8alphanum))` sequence, throw a *RangeError*
+  //     exception.
+  MAYBE_RETURN(maybe_numberingSystem, MaybeHandle<JSNumberFormat>());
 
   // 7. Let localeData be %NumberFormat%.[[LocaleData]].
   // 8. Let r be ResolveLocale(%NumberFormat%.[[AvailableLocales]],
