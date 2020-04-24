@@ -868,9 +868,20 @@ void WasmEngine::AddIsolate(Isolate* isolate) {
   };
   isolate->heap()->AddGCEpilogueCallback(callback, v8::kGCTypeMarkSweepCompact,
                                          nullptr);
+#ifdef V8_ENABLE_WASM_GDB_REMOTE_DEBUGGING
+  if (gdb_server_) {
+    gdb_server_->AddIsolate(isolate);
+  }
+#endif  // V8_ENABLE_WASM_GDB_REMOTE_DEBUGGING
 }
 
 void WasmEngine::RemoveIsolate(Isolate* isolate) {
+#ifdef V8_ENABLE_WASM_GDB_REMOTE_DEBUGGING
+  if (gdb_server_) {
+    gdb_server_->RemoveIsolate(isolate);
+  }
+#endif  // V8_ENABLE_WASM_GDB_REMOTE_DEBUGGING
+
   base::MutexGuard guard(&mutex_);
   auto it = isolates_.find(isolate);
   DCHECK_NE(isolates_.end(), it);
@@ -956,6 +967,7 @@ std::shared_ptr<NativeModule> WasmEngine::NewNativeModule(
 #ifdef V8_ENABLE_WASM_GDB_REMOTE_DEBUGGING
   if (FLAG_wasm_gdb_remote && !gdb_server_) {
     gdb_server_ = gdb_server::GdbServer::Create();
+    gdb_server_->AddIsolate(isolate);
   }
 #endif  // V8_ENABLE_WASM_GDB_REMOTE_DEBUGGING
 

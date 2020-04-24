@@ -21,7 +21,7 @@ class V8_EXPORT_PRIVATE Session {
   explicit Session(TransportBase* transport);
 
   // Attempt to send a packet and optionally wait for an ACK from the receiver.
-  bool SendPacket(Packet* packet);
+  bool SendPacket(Packet* packet, bool expect_ack = true);
 
   // Attempt to receive a packet.
   bool GetPacket(Packet* packet);

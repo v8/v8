@@ -73,7 +73,7 @@ std::vector<std::string> StringSplit(const string& instr, const char* delim) {
     // If we still have something to process
     if (*in) {
       const char* start = in;
-      int len = 0;
+      size_t len = 0;
       // Keep moving forward for all valid chars
       while (*in && (strchr(delim, *in) == nullptr)) {
         len++;

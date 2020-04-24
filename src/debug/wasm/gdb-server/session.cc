@@ -36,18 +36,20 @@ bool Session::GetChar(char* ch) {
   return true;
 }
 
-bool Session::SendPacket(Packet* pkt) {
+bool Session::SendPacket(Packet* pkt, bool expect_ack) {
   char ch;
   do {
     std::string data = pkt->GetPacketData();
 
-    TRACE_GDB_REMOTE("TX %s\n", data.c_str());
+    TRACE_GDB_REMOTE("TX %s\n", data.size() < 160
+                                    ? data.c_str()
+                                    : (data.substr(0, 160) + "...").c_str());
     if (!io_->Write(data.data(), static_cast<int32_t>(data.length()))) {
       return false;
     }
 
     // If ACKs are off, we are done.
-    if (!ack_enabled_) {
+    if (!expect_ack || !ack_enabled_) {
       break;
     }
 

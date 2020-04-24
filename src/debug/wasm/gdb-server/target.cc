@@ -19,16 +19,25 @@ namespace gdb_server {
 
 static const int kThreadId = 1;
 
+// Signals.
+static const int kSigTrace = 5;
+static const int kSigSegv = 11;
+
 Target::Target(GdbServer* gdb_server)
     : gdb_server_(gdb_server),
       status_(Status::Running),
       cur_signal_(0),
-      session_(nullptr) {}
+      session_(nullptr),
+      debugger_initial_suspension_(true),
+      semaphore_(0),
+      current_isolate_(nullptr) {
+  InitQueryPropertyMap();
+}
 
 void Target::InitQueryPropertyMap() {
   // Request LLDB to send packets up to 4000 bytes for bulk transfers.
   query_properties_["Supported"] =
-      "PacketSize=4000;vContSupported-;qXfer:libraries:read+;";
+      "PacketSize=1000;vContSupported-;qXfer:libraries:read+;";
 
   query_properties_["Attached"] = "1";
 
@@ -51,8 +60,32 @@ void Target::InitQueryPropertyMap() {
 }
 
 void Target::Terminate() {
-  // Executed in the Isolate thread.
-  status_ = Status::Terminated;
+  // Executed in the Isolate thread, when the process shuts down.
+  SetStatus(Status::Terminated);
+}
+
+void Target::OnProgramBreak(Isolate* isolate,
+                            const std::vector<wasm_addr_t>& call_frames) {
+  OnSuspended(isolate, kSigTrace, call_frames);
+}
+void Target::OnException(Isolate* isolate,
+                         const std::vector<wasm_addr_t>& call_frames) {
+  OnSuspended(isolate, kSigSegv, call_frames);
+}
+void Target::OnSuspended(Isolate* isolate, int signal,
+                         const std::vector<wasm_addr_t>& call_frames) {
+  // This function will be called in the isolate thread, when the wasm
+  // interpreter gets suspended.
+
+  bool isWaitingForSuspension = (status_ == Status::WaitingForSuspension);
+  SetStatus(Status::Suspended, signal, call_frames, isolate);
+  if (isWaitingForSuspension) {
+    // Wake the GdbServer thread that was blocked waiting for the Target
+    // to suspend.
+    semaphore_.Signal();
+  } else if (session_) {
+    session_->SignalThreadEvent();
+  }
 }
 
 void Target::Run(Session* session) {
@@ -60,6 +93,7 @@ void Target::Run(Session* session) {
   session_ = session;
   do {
     WaitForDebugEvent();
+    ProcessDebugEvent();
     ProcessCommands();
   } while (!IsTerminated() && session_->IsConnected());
   session_ = nullptr;
@@ -68,7 +102,7 @@ void Target::Run(Session* session) {
 void Target::WaitForDebugEvent() {
   // Executed in the GdbServer thread.
 
-  if (status_ != Status::Terminated) {
+  if (status_ == Status::Running) {
     // Wait for either:
     //   * the thread to fault (or single-step)
     //   * an interrupt from LLDB
@@ -76,10 +110,52 @@ void Target::WaitForDebugEvent() {
   }
 }
 
+void Target::ProcessDebugEvent() {
+  // Executed in the GdbServer thread
+
+  if (status_ == Status::Running) {
+    // Blocks, waiting for the engine to suspend.
+    Suspend();
+  }
+
+  // Here, the wasm interpreter has suspended and we have updated the current
+  // thread info.
+
+  if (debugger_initial_suspension_) {
+    // First time on a connection, we don't send the signal.
+    // All other times, send the signal that triggered us.
+    debugger_initial_suspension_ = false;
+  } else {
+    Packet pktOut;
+    SetStopReply(&pktOut);
+    session_->SendPacket(&pktOut, false);
+  }
+}
+
+void Target::Suspend() {
+  // Executed in the GdbServer thread
+  if (status_ == Status::Running) {
+    // TODO(paolosev) - this only suspends the wasm interpreter.
+    gdb_server_->Suspend();
+
+    status_ = Status::WaitingForSuspension;
+  }
+
+  while (status_ == Status::WaitingForSuspension) {
+    if (semaphore_.WaitFor(base::TimeDelta::FromMilliseconds(500))) {
+      // Here the wasm interpreter is suspended.
+      return;
+    }
+  }
+}
+
 void Target::ProcessCommands() {
   // GDB-remote messages are processed in the GDBServer thread.
 
   if (IsTerminated()) {
+    return;
+  } else if (status_ != Status::Suspended) {
+    // Don't process commands if we haven't stopped.
     return;
   }
 
@@ -99,13 +175,16 @@ void Target::ProcessCommands() {
         break;
 
       case ProcessPacketResult::Continue:
+        DCHECK_EQ(status_, Status::Running);
         // If this is a continue type command, break out of this loop.
+        gdb_server_->QuitMessageLoopOnPause();
         return;
 
       case ProcessPacketResult::Detach:
+        SetStatus(Status::Running);
         session_->SendPacket(&reply);
         session_->Disconnect();
-        cur_signal_ = 0;  // // Reset the signal value
+        gdb_server_->QuitMessageLoopOnPause();
         return;
 
       case ProcessPacketResult::Kill:
@@ -115,6 +194,10 @@ void Target::ProcessCommands() {
       default:
         UNREACHABLE();
     }
+  }
+
+  if (!session_->IsConnected()) {
+    debugger_initial_suspension_ = true;
   }
 }
 
@@ -152,9 +235,8 @@ Target::ProcessPacketResult Target::ProcessPacket(Packet* pkt_in,
     // IN : $c
     // OUT: A Stop-reply packet is sent later, when the execution halts.
     case 'c':
-      // TODO(paolosev) - Not implemented yet
-      err = ErrorCode::Failed;
-      break;
+      SetStatus(Status::Running);
+      return ProcessPacketResult::Continue;
 
     // Detaches the debugger from this target
     // IN : $D
@@ -276,9 +358,11 @@ Target::ProcessPacketResult Target::ProcessPacket(Packet* pkt_in,
     // IN : $s
     // OUT: A Stop-reply packet is sent later, when the execution halts.
     case 's': {
-      // TODO(paolosev) - Not implemented yet
-      err = ErrorCode::Failed;
-      break;
+      if (status_ == Status::Suspended) {
+        gdb_server_->PrepareStep();
+        SetStatus(Status::Running);
+      }
+      return ProcessPacketResult::Continue;
     }
 
     // Find out if the thread 'id' is alive.
@@ -299,15 +383,14 @@ Target::ProcessPacketResult Target::ProcessPacket(Packet* pkt_in,
     }
 
     // Z: Adds a breakpoint
-    // IN : $Ztype,addr,kind
+    // IN : $Z<type>,<addr>,<kind>
+    //      <type>: 0: sw breakpoint, 1: hw breakpoint, 2: watchpoint
     // OUT: $OK (success) or $Enn (error)
     case 'Z': {
-      // Only software breakpoints are supported.
-      uint64_t breakpoint_type;  // 0: sw breakpoint,
-                                 // 1: hw breakpoint,
-                                 // 2: watchpoint
+      uint64_t breakpoint_type;
       uint64_t breakpoint_address;
-      uint64_t breakpoint_kind;  // Ignored for Wasm.
+      uint64_t breakpoint_kind;
+      // Only software breakpoints are supported.
       if (!pkt_in->GetNumberSep(&breakpoint_type, 0) || breakpoint_type != 0 ||
           !pkt_in->GetNumberSep(&breakpoint_address, 0) ||
           !pkt_in->GetNumberSep(&breakpoint_kind, 0)) {
@@ -327,7 +410,8 @@ Target::ProcessPacketResult Target::ProcessPacket(Packet* pkt_in,
     }
 
     // z: Removes a breakpoint
-    // IN : $ztype,addr,kind
+    // IN : $z<type>,<addr>,<kind>
+    //      <type>: 0: sw breakpoint, 1: hw breakpoint, 2: watchpoint
     // OUT: $OK (success) or $Enn (error)
     case 'z': {
       uint64_t breakpoint_type;
@@ -353,8 +437,6 @@ Target::ProcessPacketResult Target::ProcessPacket(Packet* pkt_in,
 
     // If the command is not recognized, ignore it by sending an empty reply.
     default: {
-      std::string str;
-      pkt_in->GetString(&str);
       TRACE_GDB_REMOTE("Unknown command: %s\n", pkt_in->GetPayload());
     }
   }
@@ -428,25 +510,29 @@ Target::ErrorCode Target::ProcessQueryPacket(const Packet* pkt_in,
   //                           consecutive 8-bytes blocks).
   std::vector<std::string> toks = StringSplit(str, ":;");
   if (toks[0] == "WasmCallStack") {
-    std::vector<wasm_addr_t> callStackPCs = gdb_server_->GetWasmCallStack();
-    pkt_out->AddBlock(
-        callStackPCs.data(),
-        static_cast<uint32_t>(sizeof(wasm_addr_t) * callStackPCs.size()));
+    std::vector<wasm_addr_t> call_stack_pcs = gdb_server_->GetWasmCallStack();
+    std::vector<uint64_t> buffer;
+    for (wasm_addr_t pc : call_stack_pcs) {
+      buffer.push_back(pc);
+    }
+    pkt_out->AddBlock(buffer.data(),
+                      static_cast<uint32_t>(sizeof(uint64_t) * buffer.size()));
     return ErrorCode::None;
   }
 
   // Get a Wasm global value in the Wasm module specified.
-  // IN : $qWasmGlobal:moduleId;index
+  // IN : $qWasmGlobal:frame_index;index
   // OUT: $xx..xx
   if (toks[0] == "WasmGlobal") {
     if (toks.size() == 3) {
-      uint32_t module_id =
+      uint32_t frame_index =
           static_cast<uint32_t>(strtol(toks[1].data(), nullptr, 10));
       uint32_t index =
           static_cast<uint32_t>(strtol(toks[2].data(), nullptr, 10));
-      uint64_t value = 0;
-      if (gdb_server_->GetWasmGlobal(module_id, index, &value)) {
-        pkt_out->AddBlock(&value, sizeof(value));
+      uint8_t buff[16];
+      uint32_t size = 0;
+      if (gdb_server_->GetWasmGlobal(frame_index, index, buff, 16, &size)) {
+        pkt_out->AddBlock(buff, size);
         return ErrorCode::None;
       } else {
         return ErrorCode::Failed;
@@ -456,19 +542,39 @@ Target::ErrorCode Target::ProcessQueryPacket(const Packet* pkt_in,
   }
 
   // Get a Wasm local value in the stack frame specified.
-  // IN : $qWasmLocal:moduleId;frameIndex;index
+  // IN : $qWasmLocal:frame_index;index
   // OUT: $xx..xx
   if (toks[0] == "WasmLocal") {
-    if (toks.size() == 4) {
-      uint32_t module_id =
-          static_cast<uint32_t>(strtol(toks[1].data(), nullptr, 10));
+    if (toks.size() == 3) {
       uint32_t frame_index =
-          static_cast<uint32_t>(strtol(toks[2].data(), nullptr, 10));
+          static_cast<uint32_t>(strtol(toks[1].data(), nullptr, 10));
       uint32_t index =
-          static_cast<uint32_t>(strtol(toks[3].data(), nullptr, 10));
-      uint64_t value = 0;
-      if (gdb_server_->GetWasmLocal(module_id, frame_index, index, &value)) {
-        pkt_out->AddBlock(&value, sizeof(value));
+          static_cast<uint32_t>(strtol(toks[2].data(), nullptr, 10));
+      uint8_t buff[16];
+      uint32_t size = 0;
+      if (gdb_server_->GetWasmLocal(frame_index, index, buff, 16, &size)) {
+        pkt_out->AddBlock(buff, size);
+        return ErrorCode::None;
+      } else {
+        return ErrorCode::Failed;
+      }
+    }
+    return ErrorCode::BadFormat;
+  }
+
+  // Get a Wasm local from the operand stack at the index specified.
+  // IN : qWasmStackValue:frame_index;index
+  // OUT: $xx..xx
+  if (toks[0] == "WasmStackValue") {
+    if (toks.size() == 3) {
+      uint32_t frame_index =
+          static_cast<uint32_t>(strtol(toks[1].data(), nullptr, 10));
+      uint32_t index =
+          static_cast<uint32_t>(strtol(toks[2].data(), nullptr, 10));
+      uint8_t buff[16];
+      uint32_t size = 0;
+      if (gdb_server_->GetWasmStackValue(frame_index, index, buff, 16, &size)) {
+        pkt_out->AddBlock(buff, size);
         return ErrorCode::None;
       } else {
         return ErrorCode::Failed;
@@ -478,11 +584,11 @@ Target::ErrorCode Target::ProcessQueryPacket(const Packet* pkt_in,
   }
 
   // Read Wasm memory.
-  // IN : $qWasmMem:memId;addr;len
+  // IN : $qWasmMem:frame_index;addr;len
   // OUT: $xx..xx
   if (toks[0] == "WasmMem") {
     if (toks.size() == 4) {
-      uint32_t module_id =
+      uint32_t frame_index =
           static_cast<uint32_t>(strtol(toks[1].data(), nullptr, 10));
       uint32_t address =
           static_cast<uint32_t>(strtol(toks[2].data(), nullptr, 16));
@@ -493,7 +599,7 @@ Target::ErrorCode Target::ProcessQueryPacket(const Packet* pkt_in,
       }
       uint8_t buff[Transport::kBufSize];
       uint32_t read =
-          gdb_server_->GetWasmMemory(module_id, address, buff, length);
+          gdb_server_->GetWasmMemory(frame_index, address, buff, length);
       if (read > 0) {
         pkt_out->AddBlock(buff, read);
         return ErrorCode::None;
@@ -536,7 +642,36 @@ void Target::SetStopReply(Packet* pkt_out) const {
   pkt_out->AddNumberSep(kThreadId, ';');
 }
 
-wasm_addr_t Target::GetCurrentPc() const { return wasm_addr_t(0); }
+void Target::SetStatus(Status status, int8_t signal,
+                       std::vector<wasm_addr_t> call_frames, Isolate* isolate) {
+  v8::base::MutexGuard guard(&mutex_);
+
+  DCHECK((status == Status::Suspended && signal != 0 &&
+          call_frames.size() > 0 && isolate != nullptr) ||
+         (status != Status::Suspended && signal == 0 &&
+          call_frames.size() == 0 && isolate == nullptr));
+
+  current_isolate_ = isolate;
+  status_ = status;
+  cur_signal_ = signal;
+  call_frames_ = call_frames;
+}
+
+const std::vector<wasm_addr_t> Target::GetCallStack() const {
+  v8::base::MutexGuard guard(&mutex_);
+
+  return call_frames_;
+}
+
+wasm_addr_t Target::GetCurrentPc() const {
+  v8::base::MutexGuard guard(&mutex_);
+
+  wasm_addr_t pc{0};
+  if (call_frames_.size() > 0) {
+    pc = call_frames_[0];
+  }
+  return pc;
+}
 
 }  // namespace gdb_server
 }  // namespace wasm

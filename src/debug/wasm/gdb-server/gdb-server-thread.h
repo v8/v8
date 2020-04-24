@@ -34,6 +34,8 @@ class GdbServerThread : public v8::base::Thread {
   // closes any active debugging session.
   void Stop();
 
+  Target& GetTarget() { return *target_; }
+
  private:
   void CleanupThread();
 

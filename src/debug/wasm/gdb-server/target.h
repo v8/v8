@@ -33,7 +33,23 @@ class Target {
   void Terminate();
   bool IsTerminated() const { return status_ == Status::Terminated; }
 
+  // Notifies that the debuggee thread suspended at a breakpoint.
+  void OnProgramBreak(Isolate* isolate,
+                      const std::vector<wasm_addr_t>& call_frames);
+  // Notifies that the debuggee thread suspended because of an unhandled
+  // exception.
+  void OnException(Isolate* isolate,
+                   const std::vector<wasm_addr_t>& call_frames);
+
+  // Returns the state at the moment of the thread suspension.
+  const std::vector<wasm_addr_t> GetCallStack() const;
+  wasm_addr_t GetCurrentPc() const;
+  Isolate* GetCurrentIsolate() const { return current_isolate_; }
+
  private:
+  void OnSuspended(Isolate* isolate, int signal,
+                   const std::vector<wasm_addr_t>& call_frames);
+
   // Initializes a map used to make fast lookups when handling query packets
   // that have a constant response.
   void InitQueryPropertyMap();
@@ -43,10 +59,14 @@ class Target {
   //   closed;
   // - The debuggee suspends execution because of a trap or breakpoint.
   void WaitForDebugEvent();
+  void ProcessDebugEvent();
 
   // Processes GDB-remote packets that arrive from the debugger.
   // This method should be called when the debuggee has suspended its execution.
   void ProcessCommands();
+
+  // Requests that the thread suspends execution at the next Wasm instruction.
+  void Suspend();
 
   enum class ErrorCode { None = 0, BadFormat = 1, BadArgs = 2, Failed = 3 };
 
@@ -69,21 +89,45 @@ class Target {
   // (continue), 's' (step) and '?' (query halt reason) commands.
   void SetStopReply(Packet* pkt_out) const;
 
-  wasm_addr_t GetCurrentPc() const;
+  enum class Status { Running, WaitingForSuspension, Suspended, Terminated };
+
+  void SetStatus(Status status, int8_t signal = 0,
+                 std::vector<wasm_addr_t> call_frames_ = {},
+                 Isolate* isolate = nullptr);
 
   GdbServer* gdb_server_;
 
-  enum class Status { Running, Terminated };
   std::atomic<Status> status_;
 
   // Signal being processed.
-  int8_t cur_signal_;
+  std::atomic<int8_t> cur_signal_;
 
-  Session* session_;  // Session object not owned by the Target.
+  // Session object not owned by the Target.
+  Session* session_;
 
   // Map used to make fast lookups when handling query packets.
   typedef std::map<std::string, std::string> QueryPropertyMap;
   QueryPropertyMap query_properties_;
+
+  bool debugger_initial_suspension_;
+
+  // Used to block waiting for suspension
+  v8::base::Semaphore semaphore_;
+
+  mutable v8::base::Mutex mutex_;
+  //////////////////////////////////////////////////////////////////////////////
+  // Protected by {mutex_}:
+
+  // Current isolate. This is not null only when the target is in a Suspended
+  // state and it is the isolate associated to the current call stack and used
+  // for all debugging activities.
+  Isolate* current_isolate_;
+
+  // Call stack when the execution is suspended.
+  std::vector<wasm_addr_t> call_frames_;
+
+  // End of fields protected by {mutex_}.
+  //////////////////////////////////////////////////////////////////////////////
 
   DISALLOW_COPY_AND_ASSIGN(Target);
 };

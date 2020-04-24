@@ -1435,6 +1435,7 @@ DEFINE_BOOL(multi_mapped_mock_allocator, false,
 #define DEFAULT_WASM_GDB_REMOTE_PORT 8765
 DEFINE_BOOL(wasm_gdb_remote, false,
             "enable GDB-remote for WebAssembly debugging")
+DEFINE_NEG_IMPLICATION(wasm_gdb_remote, wasm_tier_up)
 DEFINE_INT(wasm_gdb_remote_port, DEFAULT_WASM_GDB_REMOTE_PORT,
            "default port for WebAssembly debugging with LLDB.")
 DEFINE_BOOL(wasm_pause_waiting_for_debugger, false,
