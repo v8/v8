@@ -175,3 +175,11 @@ Object.defineProperty(
 
 // Mock Realm.
 Realm.eval = function(realm, code) { return eval(code) };
+
+// Mock the nondeterministic parts of WeakRef and FinalizationRegistry.
+WeakRef.prototype.deref = function() { };
+FinalizationRegistry = function(callback) { };
+FinalizationRegistry.prototype.register = function(target, holdings) { };
+FinalizationRegistry.prototype.unregister = function(unregisterToken) { };
+FinalizationRegistry.prototype.cleanupSome = function() { };
+FinalizationRegistry.prototype[Symbol.toStringTag] = "FinalizationRegistry";
