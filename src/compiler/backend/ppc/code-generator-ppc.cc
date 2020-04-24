@@ -2146,6 +2146,24 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       break;
     }
 #endif  // V8_TARGET_ARCH_PPC64
+    case kPPC_I32x4Splat: {
+      Simd128Register dst = i.OutputSimd128Register();
+      __ mtvsrd(dst, i.InputRegister(0));
+      __ vspltw(dst, dst, Operand(1));
+      break;
+    }
+    case kPPC_I16x8Splat: {
+      Simd128Register dst = i.OutputSimd128Register();
+      __ mtvsrd(dst, i.InputRegister(0));
+      __ vsplth(dst, dst, Operand(3));
+      break;
+    }
+    case kPPC_I8x16Splat: {
+      Simd128Register dst = i.OutputSimd128Register();
+      __ mtvsrd(dst, i.InputRegister(0));
+      __ vspltb(dst, dst, Operand(7));
+      break;
+    }
     default:
       UNREACHABLE();
   }

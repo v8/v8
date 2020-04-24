@@ -2096,6 +2096,21 @@ void InstructionSelector::VisitInt64AbsWithOverflow(Node* node) {
   UNREACHABLE();
 }
 
+#define SIMD_TYPES(V) \
+  V(I32x4)            \
+  V(I16x8)            \
+  V(I8x16)
+
+#define SIMD_VISIT_SPLAT(Type)                               \
+  void InstructionSelector::Visit##Type##Splat(Node* node) { \
+    PPCOperandGenerator g(this);                             \
+    Emit(kPPC_##Type##Splat, g.DefineAsRegister(node),       \
+         g.UseRegister(node->InputAt(0)));                   \
+  }
+SIMD_TYPES(SIMD_VISIT_SPLAT)
+#undef SIMD_VISIT_SPLAT
+#undef SIMD_TYPES
+
 #define SIMD_VISIT_EXTRACT_LANE(Type, Sign)                              \
   void InstructionSelector::Visit##Type##ExtractLane##Sign(Node* node) { \
     UNIMPLEMENTED();                                                     \
@@ -2108,8 +2123,6 @@ SIMD_VISIT_EXTRACT_LANE(I16x8, S)
 SIMD_VISIT_EXTRACT_LANE(I8x16, U)
 SIMD_VISIT_EXTRACT_LANE(I8x16, S)
 #undef SIMD_VISIT_EXTRACT_LANE
-
-void InstructionSelector::VisitI32x4Splat(Node* node) { UNIMPLEMENTED(); }
 
 void InstructionSelector::VisitI32x4ReplaceLane(Node* node) { UNIMPLEMENTED(); }
 
@@ -2146,8 +2159,6 @@ void InstructionSelector::VisitI32x4GeS(Node* node) { UNIMPLEMENTED(); }
 void InstructionSelector::VisitI32x4GtU(Node* node) { UNIMPLEMENTED(); }
 
 void InstructionSelector::VisitI32x4GeU(Node* node) { UNIMPLEMENTED(); }
-
-void InstructionSelector::VisitI16x8Splat(Node* node) { UNIMPLEMENTED(); }
 
 void InstructionSelector::VisitI16x8ReplaceLane(Node* node) { UNIMPLEMENTED(); }
 
@@ -2210,8 +2221,6 @@ void InstructionSelector::VisitI8x16RoundingAverageU(Node* node) {
 }
 
 void InstructionSelector::VisitI8x16Neg(Node* node) { UNIMPLEMENTED(); }
-
-void InstructionSelector::VisitI8x16Splat(Node* node) { UNIMPLEMENTED(); }
 
 void InstructionSelector::VisitI8x16ReplaceLane(Node* node) { UNIMPLEMENTED(); }
 

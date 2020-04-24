@@ -113,6 +113,9 @@ int InstructionScheduler::GetTargetInstructionFlags(
     case kPPC_CompressSigned:
     case kPPC_CompressPointer:
     case kPPC_CompressAny:
+    case kPPC_I32x4Splat:
+    case kPPC_I16x8Splat:
+    case kPPC_I8x16Splat:
       return kNoOpcodeFlags;
 
     case kPPC_LoadWordS8:

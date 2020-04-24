@@ -1757,6 +1757,12 @@ void Assembler::fmsub(const DoubleRegister frt, const DoubleRegister fra,
        frc.code() * B6 | rc);
 }
 
+// Vector instructions
+void Assembler::mtvsrd(const DoubleRegister rt, const Register ra) {
+  int TX = 1;
+  emit(MTVSRD | rt.code() * B21 | ra.code() * B16 | TX);
+}
+
 // Pseudo instructions.
 void Assembler::nop(int type) {
   Register reg = r0;

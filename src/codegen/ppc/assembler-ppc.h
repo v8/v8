@@ -434,6 +434,20 @@ class Assembler : public AssemblerBase {
   PPC_XX3_OPCODE_LIST(DECLARE_PPC_XX3_INSTRUCTIONS)
 #undef DECLARE_PPC_XX3_INSTRUCTIONS
 
+#define DECLARE_PPC_VX_INSTRUCTIONS_A_FORM(name, instr_name, instr_value) \
+  inline void name(const DoubleRegister rt, const DoubleRegister rb,      \
+                   const Operand& imm) {                                  \
+    vx_form(instr_name, rt, rb, imm);                                     \
+  }
+
+  inline void vx_form(Instr instr, DoubleRegister rt, DoubleRegister rb,
+                      const Operand& imm) {
+    emit(instr | rt.code() * B21 | imm.immediate() * B16 | rb.code() * B11);
+  }
+
+  PPC_VX_OPCODE_A_FORM_LIST(DECLARE_PPC_VX_INSTRUCTIONS_A_FORM)
+#undef DECLARE_PPC_VX_INSTRUCTIONS_A_FORM
+
   RegList* GetScratchRegisterList() { return &scratch_register_list_; }
   // ---------------------------------------------------------------------------
   // Code generation
@@ -919,6 +933,9 @@ class Assembler : public AssemblerBase {
   void fmsub(const DoubleRegister frt, const DoubleRegister fra,
              const DoubleRegister frc, const DoubleRegister frb,
              RCBit rc = LeaveRC);
+
+  // Vector instructions
+  void mtvsrd(const DoubleRegister rt, const Register ra);
 
   // Pseudo instructions
 
