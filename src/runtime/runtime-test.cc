@@ -1340,18 +1340,6 @@ RUNTIME_FUNCTION(Runtime_WasmNumCodeSpaces) {
   return *isolate->factory()->NewNumberFromSize(num_spaces);
 }
 
-RUNTIME_FUNCTION(Runtime_RedirectToWasmInterpreter) {
-  DCHECK_EQ(2, args.length());
-  HandleScope scope(isolate);
-  CONVERT_ARG_HANDLE_CHECKED(WasmInstanceObject, instance, 0);
-  CONVERT_SMI_ARG_CHECKED(function_index, 1);
-  Handle<WasmDebugInfo> debug_info =
-      WasmInstanceObject::GetOrCreateDebugInfo(instance);
-  WasmDebugInfo::RedirectToInterpreter(debug_info,
-                                       Vector<int>(&function_index, 1));
-  return ReadOnlyRoots(isolate).undefined_value();
-}
-
 RUNTIME_FUNCTION(Runtime_WasmTraceMemory) {
   HandleScope scope(isolate);
   DCHECK_EQ(1, args.length());

@@ -964,42 +964,6 @@ wasm::WasmInterpreter* WasmDebugInfo::SetupForTesting(
 }
 
 // static
-void WasmDebugInfo::RedirectToInterpreter(Handle<WasmDebugInfo> debug_info,
-                                          Vector<int> func_indexes) {
-  Isolate* isolate = debug_info->GetIsolate();
-  // Ensure that the interpreter is instantiated.
-  GetOrCreateInterpreterHandle(isolate, debug_info);
-  Handle<WasmInstanceObject> instance(debug_info->wasm_instance(), isolate);
-  wasm::NativeModule* native_module = instance->module_object().native_module();
-  const wasm::WasmModule* module = instance->module();
-
-  // We may modify the wasm jump table.
-  wasm::NativeModuleModificationScope native_module_modification_scope(
-      native_module);
-
-  for (int func_index : func_indexes) {
-    DCHECK_LE(0, func_index);
-    DCHECK_GT(module->functions.size(), func_index);
-    // Note that this is just a best effort check. Multiple threads can still
-    // race at redirecting the same function to the interpreter, which is OK.
-    if (native_module->IsRedirectedToInterpreter(func_index)) continue;
-
-    wasm::WasmCodeRefScope code_ref_scope;
-    wasm::WasmCompilationResult result = compiler::CompileWasmInterpreterEntry(
-        isolate->wasm_engine(), native_module->enabled_features(), func_index,
-        module->functions[func_index].sig);
-    std::unique_ptr<wasm::WasmCode> wasm_code = native_module->AddCode(
-        func_index, result.code_desc, result.frame_slot_count,
-        result.tagged_parameter_slots,
-        result.protected_instructions_data.as_vector(),
-        result.source_positions.as_vector(), wasm::WasmCode::kInterpreterEntry,
-        wasm::ExecutionTier::kInterpreter, wasm::kNoDebugging);
-    native_module->PublishCode(std::move(wasm_code));
-    DCHECK(native_module->IsRedirectedToInterpreter(func_index));
-  }
-}
-
-// static
 bool WasmDebugInfo::RunInterpreter(Isolate* isolate,
                                    Handle<WasmDebugInfo> debug_info,
                                    Address frame_pointer, int func_index,

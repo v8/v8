@@ -843,11 +843,6 @@ class WasmDebugInfo : public Struct {
   V8_EXPORT_PRIVATE static wasm::WasmInterpreter* SetupForTesting(
       Handle<WasmInstanceObject>);
 
-  // Make a set of functions always execute in the interpreter without setting
-  // breakpoints.
-  V8_EXPORT_PRIVATE static void RedirectToInterpreter(Handle<WasmDebugInfo>,
-                                                      Vector<int> func_indexes);
-
   // Execute the specified function in the interpreter. Read arguments from the
   // {argument_values} vector and write to {return_values} on regular exit.
   // The frame_pointer will be used to identify the new activation of the

@@ -519,7 +519,6 @@ namespace internal {
   F(NewRegExpWithBacktrackLimit, 3, 1)        \
   F(PrepareFunctionForOptimization, -1, 1)    \
   F(PrintWithNameForAssert, 2, 1)             \
-  F(RedirectToWasmInterpreter, 2, 1)          \
   F(RunningInSimulator, 0, 1)                 \
   F(RuntimeEvaluateREPL, 1, 1)                \
   F(SerializeDeserializeNow, 0, 1)            \
