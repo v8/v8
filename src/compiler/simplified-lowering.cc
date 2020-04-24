@@ -337,7 +337,7 @@ class RepresentationSelector {
       info->set_visited();
       bool updated = UpdateFeedbackType(node);
       TRACE(" visit #%d: %s\n", node->id(), node->op()->mnemonic());
-      VisitNode(node, info->truncation(), nullptr);
+      VisitNode<RETYPE>(node, info->truncation(), nullptr);
       TRACE("  ==> output ");
       PrintOutputInfo(info);
       TRACE("\n");
@@ -359,7 +359,7 @@ class RepresentationSelector {
       info->set_visited();
       bool updated = UpdateFeedbackType(node);
       TRACE(" visit #%d: %s\n", node->id(), node->op()->mnemonic());
-      VisitNode(node, info->truncation(), nullptr);
+      VisitNode<RETYPE>(node, info->truncation(), nullptr);
       TRACE("  ==> output ");
       PrintOutputInfo(info);
       TRACE("\n");
@@ -605,7 +605,7 @@ class RepresentationSelector {
       info->set_visited();
       TRACE(" visit #%d: %s (trunc: %s)\n", node->id(), node->op()->mnemonic(),
             info->truncation().description());
-      VisitNode(node, info->truncation(), nullptr);
+      VisitNode<PROPAGATE>(node, info->truncation(), nullptr);
     }
   }
 
@@ -627,7 +627,7 @@ class RepresentationSelector {
           source_positions_, source_positions_->GetSourcePosition(node));
       NodeOriginTable::Scope origin_scope(node_origins_, "simplified lowering",
                                           node);
-      VisitNode(node, info->truncation(), lowering);
+      VisitNode<LOWER>(node, info->truncation(), lowering);
     }
 
     // Perform the final replacements.
@@ -690,10 +690,17 @@ class RepresentationSelector {
     }
   }
 
+  // TODO(solanes): These could later be replaced with "return std::is_same<T,
+  // LOWER>::value;" or similar.
   bool lower() const { return phase_ == LOWER; }
   bool retype() const { return phase_ == RETYPE; }
   bool propagate() const { return phase_ == PROPAGATE; }
 
+  template <Phase T>
+  void SetOutput(Node* node, MachineRepresentation representation,
+                 Type restriction_type = Type::Any());
+
+  // TODO(solanes): Remove when all uses are templated.
   void SetOutput(Node* node, MachineRepresentation representation,
                  Type restriction_type = Type::Any()) {
     NodeInfo* const info = GetInfo(node);
@@ -842,6 +849,10 @@ class RepresentationSelector {
     }
   }
 
+  template <Phase T>
+  void ProcessInput(Node* node, int index, UseInfo use);
+
+  // TODO(solanes): Remove when all uses are templated.
   void ProcessInput(Node* node, int index, UseInfo use) {
     DCHECK_IMPLIES(use.type_check() != TypeCheckKind::kNone,
                    !node->op()->HasProperty(Operator::kNoDeopt) &&
@@ -857,6 +868,17 @@ class RepresentationSelector {
         ConvertInput(node, index, use);
         break;
     }
+  }
+
+  template <Phase T>
+  void ProcessRemainingInputs(Node* node, int index) {
+    // TODO(solanes): replace the equalities below with methods once retype()
+    // and lower() have been templated.
+    static_assert(T == RETYPE || T == LOWER,
+                  "This version of ProcessRemainingInputs has to be called in "
+                  "the Retype or Lower phase.");
+    DCHECK_GE(index, NodeProperties::PastValueIndex(node));
+    DCHECK_GE(index, NodeProperties::PastContextIndex(node));
   }
 
   void ProcessRemainingInputs(Node* node, int index) {
@@ -1794,6 +1816,7 @@ class RepresentationSelector {
 
   // Dispatching routine for visiting the node {node} with the usage {use}.
   // Depending on the operator, propagate new usage info to the inputs.
+  template <Phase T>
   void VisitNode(Node* node, Truncation truncation,
                  SimplifiedLowering* lowering) {
     tick_counter_->DoTick();
@@ -1860,12 +1883,12 @@ class RepresentationSelector {
 
       case IrOpcode::kBranch: {
         DCHECK(TypeOf(node->InputAt(0)).Is(Type::Boolean()));
-        ProcessInput(node, 0, UseInfo::Bool());
+        ProcessInput<T>(node, 0, UseInfo::Bool());
         EnqueueInput(node, NodeProperties::FirstControlIndex(node));
         return;
       }
       case IrOpcode::kSwitch:
-        ProcessInput(node, 0, UseInfo::TruncatingWord32());
+        ProcessInput<T>(node, 0, UseInfo::TruncatingWord32());
         EnqueueInput(node, NodeProperties::FirstControlIndex(node));
         return;
       case IrOpcode::kSelect:
@@ -1880,12 +1903,12 @@ class RepresentationSelector {
       //------------------------------------------------------------------
       case IrOpcode::kToBoolean: {
         if (truncation.IsUsedAsBool()) {
-          ProcessInput(node, 0, UseInfo::Bool());
-          SetOutput(node, MachineRepresentation::kBit);
+          ProcessInput<T>(node, 0, UseInfo::Bool());
+          SetOutput<T>(node, MachineRepresentation::kBit);
           if (lower()) DeferReplacement(node, node->InputAt(0));
         } else {
           VisitInputs(node);
-          SetOutput(node, MachineRepresentation::kTaggedPointer);
+          SetOutput<T>(node, MachineRepresentation::kTaggedPointer);
         }
         return;
       }
@@ -1897,15 +1920,15 @@ class RepresentationSelector {
         VisitInputs(node);
         // TODO(bmeurer): Optimize somewhat based on input type?
         if (truncation.IsUsedAsWord32()) {
-          SetOutput(node, MachineRepresentation::kWord32);
+          SetOutput<T>(node, MachineRepresentation::kWord32);
           if (lower())
             lowering->DoJSToNumberOrNumericTruncatesToWord32(node, this);
         } else if (truncation.TruncatesOddballAndBigIntToNumber()) {
-          SetOutput(node, MachineRepresentation::kFloat64);
+          SetOutput<T>(node, MachineRepresentation::kFloat64);
           if (lower())
             lowering->DoJSToNumberOrNumericTruncatesToFloat64(node, this);
         } else {
-          SetOutput(node, MachineRepresentation::kTagged);
+          SetOutput<T>(node, MachineRepresentation::kTagged);
         }
         return;
       }
@@ -1930,8 +1953,8 @@ class RepresentationSelector {
           }
         } else {
           // No input representation requirement; adapt during lowering.
-          ProcessInput(node, 0, UseInfo::AnyTruncatingToBool());
-          SetOutput(node, MachineRepresentation::kBit);
+          ProcessInput<T>(node, 0, UseInfo::AnyTruncatingToBool());
+          SetOutput<T>(node, MachineRepresentation::kBit);
         }
         return;
       }
@@ -2041,7 +2064,7 @@ class RepresentationSelector {
                                                         kIdentifyZeros),
                          MachineRepresentation::kBit);
             } else if (retype()) {
-              SetOutput(node, MachineRepresentation::kBit, Type::Any());
+              SetOutput<T>(node, MachineRepresentation::kBit, Type::Any());
             } else {
               DCHECK(lower());
               Node* lhs = node->InputAt(0);
@@ -2646,8 +2669,8 @@ class RepresentationSelector {
         return;
       }
       case IrOpcode::kBigIntAsUintN: {
-        ProcessInput(node, 0, UseInfo::TruncatingWord64());
-        SetOutput(node, MachineRepresentation::kWord64, Type::BigInt());
+        ProcessInput<T>(node, 0, UseInfo::TruncatingWord64());
+        SetOutput<T>(node, MachineRepresentation::kWord64, Type::BigInt());
         return;
       }
       case IrOpcode::kNumberAcos:
@@ -2808,10 +2831,10 @@ class RepresentationSelector {
                          MachineRepresentation::kTaggedPointer);
       }
       case IrOpcode::kNewConsString: {
-        ProcessInput(node, 0, UseInfo::TruncatingWord32());  // length
-        ProcessInput(node, 1, UseInfo::AnyTagged());         // first
-        ProcessInput(node, 2, UseInfo::AnyTagged());         // second
-        SetOutput(node, MachineRepresentation::kTaggedPointer);
+        ProcessInput<T>(node, 0, UseInfo::TruncatingWord32());  // length
+        ProcessInput<T>(node, 1, UseInfo::AnyTagged());         // first
+        ProcessInput<T>(node, 2, UseInfo::AnyTagged());         // second
+        SetOutput<T>(node, MachineRepresentation::kTaggedPointer);
         return;
       }
       case IrOpcode::kSpeculativeBigIntAdd: {
@@ -2876,10 +2899,10 @@ class RepresentationSelector {
         // actual string concatenation. We should also use the length to pass it
         // to the builtin or decide in optimized code how to construct the
         // resulting string (i.e. cons string or sequential string).
-        ProcessInput(node, 0, UseInfo::TaggedSigned());  // length
-        ProcessInput(node, 1, UseInfo::AnyTagged());     // first
-        ProcessInput(node, 2, UseInfo::AnyTagged());     // second
-        SetOutput(node, MachineRepresentation::kTaggedPointer);
+        ProcessInput<T>(node, 0, UseInfo::TaggedSigned());  // length
+        ProcessInput<T>(node, 1, UseInfo::AnyTagged());     // first
+        ProcessInput<T>(node, 2, UseInfo::AnyTagged());     // second
+        SetOutput<T>(node, MachineRepresentation::kTaggedPointer);
         return;
       }
       case IrOpcode::kStringEqual:
@@ -2911,10 +2934,10 @@ class RepresentationSelector {
                           MachineRepresentation::kTaggedPointer);
       }
       case IrOpcode::kStringIndexOf: {
-        ProcessInput(node, 0, UseInfo::AnyTagged());
-        ProcessInput(node, 1, UseInfo::AnyTagged());
-        ProcessInput(node, 2, UseInfo::TaggedSigned());
-        SetOutput(node, MachineRepresentation::kTaggedSigned);
+        ProcessInput<T>(node, 0, UseInfo::AnyTagged());
+        ProcessInput<T>(node, 1, UseInfo::AnyTagged());
+        ProcessInput<T>(node, 2, UseInfo::TaggedSigned());
+        SetOutput<T>(node, MachineRepresentation::kTaggedSigned);
         return;
       }
       case IrOpcode::kStringLength: {
@@ -2925,11 +2948,11 @@ class RepresentationSelector {
         return;
       }
       case IrOpcode::kStringSubstring: {
-        ProcessInput(node, 0, UseInfo::AnyTagged());
-        ProcessInput(node, 1, UseInfo::TruncatingWord32());
-        ProcessInput(node, 2, UseInfo::TruncatingWord32());
-        ProcessRemainingInputs(node, 3);
-        SetOutput(node, MachineRepresentation::kTaggedPointer);
+        ProcessInput<T>(node, 0, UseInfo::AnyTagged());
+        ProcessInput<T>(node, 1, UseInfo::TruncatingWord32());
+        ProcessInput<T>(node, 2, UseInfo::TruncatingWord32());
+        ProcessRemainingInputs<T>(node, 3);
+        SetOutput<T>(node, MachineRepresentation::kTaggedPointer);
         return;
       }
       case IrOpcode::kStringToLowerCaseIntl:
@@ -2958,9 +2981,9 @@ class RepresentationSelector {
         return;
       }
       case IrOpcode::kCheckIf: {
-        ProcessInput(node, 0, UseInfo::Bool());
-        ProcessRemainingInputs(node, 1);
-        SetOutput(node, MachineRepresentation::kNone);
+        ProcessInput<T>(node, 0, UseInfo::Bool());
+        ProcessRemainingInputs<T>(node, 1);
+        SetOutput<T>(node, MachineRepresentation::kNone);
         return;
       }
       case IrOpcode::kCheckInternalizedString: {
@@ -3020,9 +3043,9 @@ class RepresentationSelector {
       }
 
       case IrOpcode::kAllocate: {
-        ProcessInput(node, 0, UseInfo::Word());
-        ProcessRemainingInputs(node, 1);
-        SetOutput(node, MachineRepresentation::kTaggedPointer);
+        ProcessInput<T>(node, 0, UseInfo::Word());
+        ProcessRemainingInputs<T>(node, 1);
+        SetOutput<T>(node, MachineRepresentation::kTaggedPointer);
         return;
       }
       case IrOpcode::kLoadMessage: {
@@ -3031,10 +3054,10 @@ class RepresentationSelector {
         return;
       }
       case IrOpcode::kStoreMessage: {
-        ProcessInput(node, 0, UseInfo::Word());
-        ProcessInput(node, 1, UseInfo::AnyTagged());
-        ProcessRemainingInputs(node, 2);
-        SetOutput(node, MachineRepresentation::kNone);
+        ProcessInput<T>(node, 0, UseInfo::Word());
+        ProcessInput<T>(node, 1, UseInfo::AnyTagged());
+        ProcessRemainingInputs<T>(node, 2);
+        SetOutput<T>(node, MachineRepresentation::kNone);
         return;
       }
       case IrOpcode::kLoadFieldByIndex: {
@@ -3067,11 +3090,11 @@ class RepresentationSelector {
             access.base_is_tagged, field_representation, access.offset,
             access.type, input_info->representation(), value_node);
 
-        ProcessInput(node, 0, UseInfoForBasePointer(access));
-        ProcessInput(node, 1,
-                     TruncatingUseInfoFromRepresentation(field_representation));
-        ProcessRemainingInputs(node, 2);
-        SetOutput(node, MachineRepresentation::kNone);
+        ProcessInput<T>(node, 0, UseInfoForBasePointer(access));
+        ProcessInput<T>(
+            node, 1, TruncatingUseInfoFromRepresentation(field_representation));
+        ProcessRemainingInputs<T>(node, 2);
+        SetOutput<T>(node, MachineRepresentation::kNone);
         if (lower()) {
           if (write_barrier_kind < access.write_barrier_kind) {
             access.write_barrier_kind = write_barrier_kind;
@@ -3108,13 +3131,13 @@ class RepresentationSelector {
         WriteBarrierKind write_barrier_kind = WriteBarrierKindFor(
             access.base_is_tagged, element_representation, access.type,
             input_info->representation(), value_node);
-        ProcessInput(node, 0, UseInfoForBasePointer(access));  // base
-        ProcessInput(node, 1, UseInfo::Word());                // index
-        ProcessInput(node, 2,
-                     TruncatingUseInfoFromRepresentation(
-                         element_representation));  // value
-        ProcessRemainingInputs(node, 3);
-        SetOutput(node, MachineRepresentation::kNone);
+        ProcessInput<T>(node, 0, UseInfoForBasePointer(access));  // base
+        ProcessInput<T>(node, 1, UseInfo::Word());                // index
+        ProcessInput<T>(node, 2,
+                        TruncatingUseInfoFromRepresentation(
+                            element_representation));  // value
+        ProcessRemainingInputs<T>(node, 3);
+        SetOutput<T>(node, MachineRepresentation::kNone);
         if (lower()) {
           if (write_barrier_kind < access.write_barrier_kind) {
             access.write_barrier_kind = write_barrier_kind;
@@ -3132,17 +3155,17 @@ class RepresentationSelector {
       case IrOpcode::kTransitionAndStoreElement: {
         Type value_type = TypeOf(node->InputAt(2));
 
-        ProcessInput(node, 0, UseInfo::AnyTagged());  // array
-        ProcessInput(node, 1, UseInfo::Word());       // index
+        ProcessInput<T>(node, 0, UseInfo::AnyTagged());  // array
+        ProcessInput<T>(node, 1, UseInfo::Word());       // index
 
         if (value_type.Is(Type::SignedSmall())) {
-          ProcessInput(node, 2, UseInfo::TruncatingWord32());  // value
+          ProcessInput<T>(node, 2, UseInfo::TruncatingWord32());  // value
           if (lower()) {
             NodeProperties::ChangeOp(node,
                                      simplified()->StoreSignedSmallElement());
           }
         } else if (value_type.Is(Type::Number())) {
-          ProcessInput(node, 2, UseInfo::TruncatingFloat64());  // value
+          ProcessInput<T>(node, 2, UseInfo::TruncatingFloat64());  // value
           if (lower()) {
             Handle<Map> double_map = DoubleMapParameterOf(node->op());
             NodeProperties::ChangeOp(
@@ -3150,7 +3173,7 @@ class RepresentationSelector {
                 simplified()->TransitionAndStoreNumberElement(double_map));
           }
         } else if (value_type.Is(Type::NonNumber())) {
-          ProcessInput(node, 2, UseInfo::AnyTagged());  // value
+          ProcessInput<T>(node, 2, UseInfo::AnyTagged());  // value
           if (lower()) {
             Handle<Map> fast_map = FastMapParameterOf(node->op());
             NodeProperties::ChangeOp(
@@ -3158,59 +3181,59 @@ class RepresentationSelector {
                           fast_map, value_type));
           }
         } else {
-          ProcessInput(node, 2, UseInfo::AnyTagged());  // value
+          ProcessInput<T>(node, 2, UseInfo::AnyTagged());  // value
         }
 
-        ProcessRemainingInputs(node, 3);
-        SetOutput(node, MachineRepresentation::kNone);
+        ProcessRemainingInputs<T>(node, 3);
+        SetOutput<T>(node, MachineRepresentation::kNone);
         return;
       }
       case IrOpcode::kLoadTypedElement: {
         MachineRepresentation const rep =
             MachineRepresentationFromArrayType(ExternalArrayTypeOf(node->op()));
-        ProcessInput(node, 0, UseInfo::AnyTagged());  // buffer
-        ProcessInput(node, 1, UseInfo::AnyTagged());  // base pointer
-        ProcessInput(node, 2, UseInfo::Word());       // external pointer
-        ProcessInput(node, 3, UseInfo::Word());       // index
-        ProcessRemainingInputs(node, 4);
-        SetOutput(node, rep);
+        ProcessInput<T>(node, 0, UseInfo::AnyTagged());  // buffer
+        ProcessInput<T>(node, 1, UseInfo::AnyTagged());  // base pointer
+        ProcessInput<T>(node, 2, UseInfo::Word());       // external pointer
+        ProcessInput<T>(node, 3, UseInfo::Word());       // index
+        ProcessRemainingInputs<T>(node, 4);
+        SetOutput<T>(node, rep);
         return;
       }
       case IrOpcode::kLoadDataViewElement: {
         MachineRepresentation const rep =
             MachineRepresentationFromArrayType(ExternalArrayTypeOf(node->op()));
-        ProcessInput(node, 0, UseInfo::AnyTagged());  // object
-        ProcessInput(node, 1, UseInfo::Word());       // base
-        ProcessInput(node, 2, UseInfo::Word());       // index
-        ProcessInput(node, 3, UseInfo::Bool());       // little-endian
-        ProcessRemainingInputs(node, 4);
-        SetOutput(node, rep);
+        ProcessInput<T>(node, 0, UseInfo::AnyTagged());  // object
+        ProcessInput<T>(node, 1, UseInfo::Word());       // base
+        ProcessInput<T>(node, 2, UseInfo::Word());       // index
+        ProcessInput<T>(node, 3, UseInfo::Bool());       // little-endian
+        ProcessRemainingInputs<T>(node, 4);
+        SetOutput<T>(node, rep);
         return;
       }
       case IrOpcode::kStoreTypedElement: {
         MachineRepresentation const rep =
             MachineRepresentationFromArrayType(ExternalArrayTypeOf(node->op()));
-        ProcessInput(node, 0, UseInfo::AnyTagged());  // buffer
-        ProcessInput(node, 1, UseInfo::AnyTagged());  // base pointer
-        ProcessInput(node, 2, UseInfo::Word());       // external pointer
-        ProcessInput(node, 3, UseInfo::Word());       // index
-        ProcessInput(node, 4,
-                     TruncatingUseInfoFromRepresentation(rep));  // value
-        ProcessRemainingInputs(node, 5);
-        SetOutput(node, MachineRepresentation::kNone);
+        ProcessInput<T>(node, 0, UseInfo::AnyTagged());  // buffer
+        ProcessInput<T>(node, 1, UseInfo::AnyTagged());  // base pointer
+        ProcessInput<T>(node, 2, UseInfo::Word());       // external pointer
+        ProcessInput<T>(node, 3, UseInfo::Word());       // index
+        ProcessInput<T>(node, 4,
+                        TruncatingUseInfoFromRepresentation(rep));  // value
+        ProcessRemainingInputs<T>(node, 5);
+        SetOutput<T>(node, MachineRepresentation::kNone);
         return;
       }
       case IrOpcode::kStoreDataViewElement: {
         MachineRepresentation const rep =
             MachineRepresentationFromArrayType(ExternalArrayTypeOf(node->op()));
-        ProcessInput(node, 0, UseInfo::AnyTagged());  // object
-        ProcessInput(node, 1, UseInfo::Word());       // base
-        ProcessInput(node, 2, UseInfo::Word());       // index
-        ProcessInput(node, 3,
-                     TruncatingUseInfoFromRepresentation(rep));  // value
-        ProcessInput(node, 4, UseInfo::Bool());  // little-endian
-        ProcessRemainingInputs(node, 5);
-        SetOutput(node, MachineRepresentation::kNone);
+        ProcessInput<T>(node, 0, UseInfo::AnyTagged());  // object
+        ProcessInput<T>(node, 1, UseInfo::Word());       // base
+        ProcessInput<T>(node, 2, UseInfo::Word());       // index
+        ProcessInput<T>(node, 3,
+                        TruncatingUseInfoFromRepresentation(rep));  // value
+        ProcessInput<T>(node, 4, UseInfo::Bool());  // little-endian
+        ProcessRemainingInputs<T>(node, 5);
+        SetOutput<T>(node, MachineRepresentation::kNone);
         return;
       }
       case IrOpcode::kConvertReceiver: {
@@ -3480,7 +3503,7 @@ class RepresentationSelector {
         return;
       }
       case IrOpcode::kArgumentsFrame: {
-        SetOutput(node, MachineType::PointerRepresentation());
+        SetOutput<T>(node, MachineType::PointerRepresentation());
         return;
       }
       case IrOpcode::kArgumentsLength: {
@@ -3580,18 +3603,18 @@ class RepresentationSelector {
         return VisitBinop(node, UseInfo::AnyTagged(),
                           MachineRepresentation::kTaggedPointer);
       case IrOpcode::kMaybeGrowFastElements: {
-        ProcessInput(node, 0, UseInfo::AnyTagged());         // object
-        ProcessInput(node, 1, UseInfo::AnyTagged());         // elements
-        ProcessInput(node, 2, UseInfo::TruncatingWord32());  // index
-        ProcessInput(node, 3, UseInfo::TruncatingWord32());  // length
-        ProcessRemainingInputs(node, 4);
-        SetOutput(node, MachineRepresentation::kTaggedPointer);
+        ProcessInput<T>(node, 0, UseInfo::AnyTagged());         // object
+        ProcessInput<T>(node, 1, UseInfo::AnyTagged());         // elements
+        ProcessInput<T>(node, 2, UseInfo::TruncatingWord32());  // index
+        ProcessInput<T>(node, 3, UseInfo::TruncatingWord32());  // length
+        ProcessRemainingInputs<T>(node, 4);
+        SetOutput<T>(node, MachineRepresentation::kTaggedPointer);
         return;
       }
 
       case IrOpcode::kDateNow:
         VisitInputs(node);
-        return SetOutput(node, MachineRepresentation::kTaggedPointer);
+        return SetOutput<T>(node, MachineRepresentation::kTaggedPointer);
       case IrOpcode::kFrameState:
         return VisitFrameState(node);
       case IrOpcode::kStateValues:
@@ -3599,7 +3622,7 @@ class RepresentationSelector {
       case IrOpcode::kObjectState:
         return VisitObjectState(node);
       case IrOpcode::kObjectId:
-        return SetOutput(node, MachineRepresentation::kTaggedPointer);
+        return SetOutput<T>(node, MachineRepresentation::kTaggedPointer);
 
       case IrOpcode::kTypeGuard: {
         // We just get rid of the sigma here, choosing the best representation
@@ -3616,24 +3639,24 @@ class RepresentationSelector {
         } else if (lower()) {
           ConvertInput(node, 0, use, type);
         }
-        ProcessRemainingInputs(node, 1);
-        SetOutput(node, representation);
+        ProcessRemainingInputs<T>(node, 1);
+        SetOutput<T>(node, representation);
         return;
       }
 
       case IrOpcode::kFoldConstant:
         VisitInputs(node);
-        return SetOutput(node, MachineRepresentation::kTaggedPointer);
+        return SetOutput<T>(node, MachineRepresentation::kTaggedPointer);
 
       case IrOpcode::kFinishRegion:
         VisitInputs(node);
         // Assume the output is tagged pointer.
-        return SetOutput(node, MachineRepresentation::kTaggedPointer);
+        return SetOutput<T>(node, MachineRepresentation::kTaggedPointer);
 
       case IrOpcode::kReturn:
         VisitReturn(node);
         // Assume the output is tagged.
-        return SetOutput(node, MachineRepresentation::kTagged);
+        return SetOutput<T>(node, MachineRepresentation::kTagged);
 
       case IrOpcode::kFindOrderedHashMapEntry: {
         Type const key_type = TypeOf(node->InputAt(1));
@@ -3698,10 +3721,10 @@ class RepresentationSelector {
       case IrOpcode::kJSParseInt:
         VisitInputs(node);
         // Assume the output is tagged.
-        return SetOutput(node, MachineRepresentation::kTagged);
+        return SetOutput<T>(node, MachineRepresentation::kTagged);
       case IrOpcode::kDeadValue:
-        ProcessInput(node, 0, UseInfo::Any());
-        return SetOutput(node, MachineRepresentation::kNone);
+        ProcessInput<T>(node, 0, UseInfo::Any());
+        return SetOutput<T>(node, MachineRepresentation::kNone);
       case IrOpcode::kStaticAssert:
         return VisitUnop(node, UseInfo::Any(), MachineRepresentation::kTagged);
       case IrOpcode::kAssertType:
@@ -3819,6 +3842,74 @@ class RepresentationSelector {
   Zone* zone() { return zone_; }
   Zone* graph_zone() { return jsgraph_->zone(); }
 };
+
+// Template specializations
+template <>
+void RepresentationSelector::SetOutput<PROPAGATE>(
+    Node* node, MachineRepresentation representation, Type restriction_type) {
+  NodeInfo* const info = GetInfo(node);
+  info->set_restriction_type(restriction_type);
+}
+
+template <>
+void RepresentationSelector::SetOutput<RETYPE>(
+    Node* node, MachineRepresentation representation, Type restriction_type) {
+  NodeInfo* const info = GetInfo(node);
+  DCHECK(info->restriction_type().Is(restriction_type));
+  DCHECK(restriction_type.Is(info->restriction_type()));
+  info->set_output(representation);
+}
+
+template <>
+void RepresentationSelector::SetOutput<LOWER>(
+    Node* node, MachineRepresentation representation, Type restriction_type) {
+  NodeInfo* const info = GetInfo(node);
+  DCHECK_EQ(info->representation(), representation);
+  DCHECK(info->restriction_type().Is(restriction_type));
+  DCHECK(restriction_type.Is(info->restriction_type()));
+  USE(info);
+}
+
+template <>
+void RepresentationSelector::ProcessInput<PROPAGATE>(Node* node, int index,
+                                                     UseInfo use) {
+  DCHECK_IMPLIES(use.type_check() != TypeCheckKind::kNone,
+                 !node->op()->HasProperty(Operator::kNoDeopt) &&
+                     node->op()->EffectInputCount() > 0);
+  EnqueueInput(node, index, use);
+}
+
+template <>
+void RepresentationSelector::ProcessInput<RETYPE>(Node* node, int index,
+                                                  UseInfo use) {
+  DCHECK_IMPLIES(use.type_check() != TypeCheckKind::kNone,
+                 !node->op()->HasProperty(Operator::kNoDeopt) &&
+                     node->op()->EffectInputCount() > 0);
+}
+
+template <>
+void RepresentationSelector::ProcessInput<LOWER>(Node* node, int index,
+                                                 UseInfo use) {
+  DCHECK_IMPLIES(use.type_check() != TypeCheckKind::kNone,
+                 !node->op()->HasProperty(Operator::kNoDeopt) &&
+                     node->op()->EffectInputCount() > 0);
+  ConvertInput(node, index, use);
+}
+
+template <>
+void RepresentationSelector::ProcessRemainingInputs<PROPAGATE>(Node* node,
+                                                               int index) {
+  DCHECK_GE(index, NodeProperties::PastValueIndex(node));
+  DCHECK_GE(index, NodeProperties::PastContextIndex(node));
+  for (int i = std::max(index, NodeProperties::FirstEffectIndex(node));
+       i < NodeProperties::PastEffectIndex(node); ++i) {
+    EnqueueInput(node, i);  // Effect inputs: just visit
+  }
+  for (int i = std::max(index, NodeProperties::FirstControlIndex(node));
+       i < NodeProperties::PastControlIndex(node); ++i) {
+    EnqueueInput(node, i);  // Control inputs: just visit
+  }
+}
 
 SimplifiedLowering::SimplifiedLowering(JSGraph* jsgraph, JSHeapBroker* broker,
                                        Zone* zone,
