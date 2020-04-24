@@ -1041,14 +1041,13 @@ bool FailWithPendingExceptionAfterOffThreadFinalization(
   return false;
 }
 
-void FinalizeScriptCompilation(Isolate* isolate, Handle<Script> script,
-                               ParseInfo* parse_info) {
+void FinalizeScriptCompilation(
+    Isolate* isolate, Handle<Script> script,
+    UnoptimizedCompileState::ParallelTasks* parallel_tasks) {
   script->set_compilation_state(Script::COMPILATION_STATE_COMPILED);
-
-  // Register any pending parallel tasks with the associated SFI.
-  if (parse_info->parallel_tasks()) {
-    CompilerDispatcher* dispatcher = parse_info->parallel_tasks()->dispatcher();
-    for (auto& it : *parse_info->parallel_tasks()) {
+  if (parallel_tasks) {
+    CompilerDispatcher* dispatcher = parallel_tasks->dispatcher();
+    for (auto& it : *parallel_tasks) {
       FunctionLiteral* literal = it.first;
       CompilerDispatcher::JobId job_id = it.second;
       MaybeHandle<SharedFunctionInfo> maybe_shared_for_task =
@@ -1061,12 +1060,6 @@ void FinalizeScriptCompilation(Isolate* isolate, Handle<Script> script,
       }
     }
   }
-}
-
-void FinalizeScriptCompilation(OffThreadIsolate* isolate, Handle<Script> script,
-                               ParseInfo* parse_info) {
-  script->set_compilation_state(Script::COMPILATION_STATE_COMPILED);
-  DCHECK(!parse_info->parallel_tasks());
 }
 
 template <typename LocalIsolate>
@@ -1089,13 +1082,8 @@ MaybeHandle<SharedFunctionInfo> FinalizeTopLevel(
   // Finalize compilation of the unoptimized bytecode or asm-js data.
   if (!FinalizeUnoptimizedCode(parse_info, isolate, shared_info,
                                outer_function_job, inner_function_jobs)) {
-    FailWithPendingException(isolate, script, parse_info,
-                             Compiler::ClearExceptionFlag::KEEP_EXCEPTION);
     return MaybeHandle<SharedFunctionInfo>();
   }
-
-  FinalizeScriptCompilation(isolate, script, parse_info);
-
   return shared_info;
 }
 
@@ -1139,7 +1127,7 @@ MaybeHandle<SharedFunctionInfo> CompileToplevel(
     return MaybeHandle<SharedFunctionInfo>();
   }
 
-  FinalizeScriptCompilation(isolate, script, parse_info);
+  FinalizeScriptCompilation(isolate, script, parse_info->parallel_tasks());
   return shared_info;
 }
 
@@ -1357,8 +1345,9 @@ void BackgroundCompileTask::Run() {
 
   Handle<SharedFunctionInfo> result;
   if (!maybe_result.ToHandle(&result)) {
-    compile_state_.pending_error_handler()->PrepareErrorsOffThread(
-        isolate, script, info_->ast_value_factory());
+    DCHECK(compile_state_.pending_error_handler()->has_pending_error());
+    FailWithPendingException(isolate, script, info_.get(),
+                             Compiler::ClearExceptionFlag::KEEP_EXCEPTION);
   }
 
   outer_function_sfi_ = isolate->TransferHandle(maybe_result);
@@ -2611,7 +2600,8 @@ Compiler::GetSharedFunctionInfoForStreamedScript(
                                     origin_options, NOT_NATIVES_CODE);
 
       if (maybe_result.is_null()) {
-        // Parsing has failed - report error messages.
+        // Off-thread parse, compile or finalization has failed - report error
+        // messages.
         FailWithPendingExceptionAfterOffThreadFinalization(
             isolate, script, task->pending_error_handler());
       } else {
@@ -2639,6 +2629,8 @@ Compiler::GetSharedFunctionInfoForStreamedScript(
             }
           });
         }
+
+        FinalizeScriptCompilation(isolate, script, task->parallel_tasks());
       }
     } else {
       ParseInfo* parse_info = task->info();
@@ -2652,21 +2644,20 @@ Compiler::GetSharedFunctionInfoForStreamedScript(
       task->parser()->UpdateStatistics(isolate, script);
       task->parser()->HandleSourceURLComments(isolate, script);
 
-      if (parse_info->literal() == nullptr || !task->outer_function_job()) {
-        // Parsing has failed - report error messages.
-        FailWithPendingException(isolate, script, parse_info,
-                                 Compiler::ClearExceptionFlag::KEEP_EXCEPTION);
-      } else {
-        // Parsing has succeeded - finalize compilation.
+      if (parse_info->literal() != nullptr && task->outer_function_job()) {
+        // Off-thread parse & compile has succeeded - finalize compilation.
         maybe_result = FinalizeTopLevel(parse_info, script, isolate,
                                         task->outer_function_job(),
                                         task->inner_function_jobs());
-        if (maybe_result.is_null()) {
-          // Finalization failed - throw an exception.
-          FailWithPendingException(
-              isolate, script, parse_info,
-              Compiler::ClearExceptionFlag::KEEP_EXCEPTION);
-        }
+      }
+
+      if (maybe_result.is_null()) {
+        // Compilation failed - throw an exception.
+        FailWithPendingException(isolate, script, parse_info,
+                                 Compiler::ClearExceptionFlag::KEEP_EXCEPTION);
+      } else {
+        FinalizeScriptCompilation(isolate, script,
+                                  parse_info->parallel_tasks());
       }
     }
 

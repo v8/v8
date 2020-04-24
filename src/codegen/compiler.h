@@ -394,6 +394,9 @@ class V8_EXPORT_PRIVATE BackgroundCompileTask {
   PendingCompilationErrorHandler* pending_error_handler() {
     return compile_state_.pending_error_handler();
   }
+  UnoptimizedCompileState::ParallelTasks* parallel_tasks() {
+    return compile_state_.parallel_tasks();
+  }
   MaybeHandle<SharedFunctionInfo> outer_function_sfi() {
     DCHECK_NOT_NULL(off_thread_isolate_);
     return outer_function_sfi_.ToHandle();
