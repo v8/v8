@@ -427,11 +427,13 @@ RUNTIME_FUNCTION(Runtime_ThrowIteratorError) {
   return isolate->Throw(*ErrorUtils::NewIteratorError(isolate, object));
 }
 
-RUNTIME_FUNCTION(Runtime_ThrowSpreadArgIsNullOrUndefined) {
+RUNTIME_FUNCTION(Runtime_ThrowSpreadArgError) {
   HandleScope scope(isolate);
-  DCHECK_EQ(1, args.length());
-  CONVERT_ARG_HANDLE_CHECKED(Object, object, 0);
-  return ErrorUtils::ThrowSpreadArgIsNullOrUndefinedError(isolate, object);
+  DCHECK_EQ(2, args.length());
+  CONVERT_SMI_ARG_CHECKED(message_id_smi, 0);
+  MessageTemplate message_id = MessageTemplateFromInt(message_id_smi);
+  CONVERT_ARG_HANDLE_CHECKED(Object, object, 1);
+  return ErrorUtils::ThrowSpreadArgError(isolate, message_id, object);
 }
 
 RUNTIME_FUNCTION(Runtime_ThrowCalledNonCallable) {

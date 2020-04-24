@@ -239,7 +239,7 @@ namespace internal {
   F(ThrowInvalidStringLength, 0, 1)                  \
   F(ThrowInvalidTypedArrayAlignment, 2, 1)           \
   F(ThrowIteratorError, 1, 1)                        \
-  F(ThrowSpreadArgIsNullOrUndefined, 1, 1)           \
+  F(ThrowSpreadArgError, 2, 1)                       \
   F(ThrowIteratorResultNotAnObject, 1, 1)            \
   F(ThrowNotConstructor, 1, 1)                       \
   F(ThrowPatternAssignmentNonCoercible, 1, 1)        \

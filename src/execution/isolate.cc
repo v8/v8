@@ -622,8 +622,9 @@ class FrameArrayBuilder {
     if (is_constructor) flags |= FrameArray::kIsConstructor;
 
     Handle<FixedArray> parameters = isolate_->factory()->empty_fixed_array();
-    if (V8_UNLIKELY(FLAG_detailed_error_stack_trace))
+    if (V8_UNLIKELY(FLAG_detailed_error_stack_trace)) {
       parameters = summary.parameters();
+    }
 
     elements_ = FrameArray::AppendJSFrame(
         elements_, TheHoleToUndefined(isolate_, summary.receiver()), function,

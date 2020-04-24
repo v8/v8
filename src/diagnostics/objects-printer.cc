@@ -2241,12 +2241,14 @@ void DebugInfo::DebugInfoPrint(std::ostream& os) {  // NOLINT
   os << "\n - break_points: ";
   break_points().FixedArrayPrint(os);
   os << "\n - coverage_info: " << Brief(coverage_info());
+  os << "\n";
 }
 
 void WasmValue::WasmValuePrint(std::ostream& os) {  // NOLINT
   PrintHeader(os, "WasmValue");
   os << "\n - value_type: " << value_type();
   os << "\n - bytes: " << Brief(bytes());
+  os << "\n";
 }
 
 void StackTraceFrame::StackTraceFramePrint(std::ostream& os) {  // NOLINT
@@ -2254,6 +2256,7 @@ void StackTraceFrame::StackTraceFramePrint(std::ostream& os) {  // NOLINT
   os << "\n - frame_index: " << frame_index();
   os << "\n - id: " << id();
   os << "\n - frame_info: " << Brief(frame_info());
+  os << "\n";
 }
 
 void StackFrameInfo::StackFrameInfoPrint(std::ostream& os) {  // NOLINT

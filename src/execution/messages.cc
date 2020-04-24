@@ -1308,8 +1308,8 @@ Handle<Object> ErrorUtils::NewIteratorError(Isolate* isolate,
   return isolate->factory()->NewTypeError(id, callsite);
 }
 
-Object ErrorUtils::ThrowSpreadArgIsNullOrUndefinedError(Isolate* isolate,
-                                                        Handle<Object> object) {
+Object ErrorUtils::ThrowSpreadArgError(Isolate* isolate, MessageTemplate id,
+                                       Handle<Object> object) {
   MessageLocation location;
   Handle<String> callsite;
   if (ComputeLocation(isolate, &location)) {
@@ -1337,7 +1337,6 @@ Object ErrorUtils::ThrowSpreadArgIsNullOrUndefinedError(Isolate* isolate,
     }
   }
 
-  MessageTemplate id = MessageTemplate::kNotIterableNoSymbolLoad;
   Handle<Object> exception =
       isolate->factory()->NewTypeError(id, callsite, object);
   return isolate->Throw(*exception, &location);

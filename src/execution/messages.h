@@ -297,8 +297,8 @@ class ErrorUtils : public AllStatic {
                                                   Handle<Object> source);
   static Handle<Object> NewConstructedNonConstructable(Isolate* isolate,
                                                        Handle<Object> source);
-  static Object ThrowSpreadArgIsNullOrUndefinedError(Isolate* isolate,
-                                                     Handle<Object> object);
+  static Object ThrowSpreadArgError(Isolate* isolate, MessageTemplate id,
+                                    Handle<Object> object);
   static Object ThrowLoadFromNullOrUndefined(Isolate* isolate,
                                              Handle<Object> object);
   static Object ThrowLoadFromNullOrUndefined(Isolate* isolate,
