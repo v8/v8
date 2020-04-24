@@ -1199,7 +1199,9 @@ BackgroundCompileTask::BackgroundCompileTask(ScriptStreamingData* streamed_data,
       streamed_data->source_stream.get(), streamed_data->encoding));
   info_->set_character_stream(std::move(stream));
 
-  finalize_on_background_thread_ = FLAG_finalize_streaming_on_background;
+  // TODO(leszeks): Add block coverage support to off-thread finalization.
+  finalize_on_background_thread_ =
+      FLAG_finalize_streaming_on_background && !flags_.block_coverage_enabled();
   if (finalize_on_background_thread()) {
     off_thread_isolate_ =
         std::make_unique<OffThreadIsolate>(isolate, info_->zone());
