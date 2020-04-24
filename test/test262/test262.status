@@ -364,8 +364,6 @@
   'language/literals/regexp/named-groups/invalid-punctuator-starting-groupspecifier-u': [FAIL_PHASE_ONLY],
   'language/literals/regexp/named-groups/invalid-punctuator-within-groupspecifier': [FAIL_PHASE_ONLY],
   'language/literals/regexp/named-groups/invalid-punctuator-within-groupspecifier-u': [FAIL_PHASE_ONLY],
-  'language/literals/regexp/named-groups/invalid-u-escape-in-groupspecifier': [FAIL_PHASE_ONLY],
-  'language/literals/regexp/named-groups/invalid-u-escape-in-groupspecifier-2': [FAIL_PHASE_ONLY],
   'language/literals/regexp/named-groups/invalid-unterminated-groupspecifier': [FAIL_PHASE_ONLY],
   'language/literals/regexp/named-groups/invalid-unterminated-groupspecifier-u': [FAIL_PHASE_ONLY],
   'language/literals/regexp/u-invalid-class-escape': [FAIL_PHASE_ONLY],
@@ -390,6 +388,7 @@
   'language/literals/regexp/unicode-escape-nls-err': [FAIL_PHASE_ONLY],
 
   # https://bugs.chromium.org/p/v8/issues/detail?id=10379
+  'built-ins/RegExp/named-groups/non-unicode-property-names-valid': [FAIL],
   'built-ins/RegExp/property-escapes/generated/Alphabetic': [FAIL],
   'built-ins/RegExp/property-escapes/generated/Assigned': [FAIL],
   'built-ins/RegExp/property-escapes/generated/Case_Ignorable': [FAIL],
@@ -554,6 +553,14 @@
   'annexB/language/statements/for-await-of/iterator-close-return-emulates-undefined-throws-when-called': [FAIL],
   'annexB/language/statements/for-of/iterator-close-return-emulates-undefined-throws-when-called': [FAIL],
 
+  # http://crbug/v8/10451
+  'annexB/language/expressions/assignment/dstr/array-pattern-emulates-undefined': [FAIL],
+  'annexB/language/expressions/assignment/dstr/object-pattern-emulates-undefined': [FAIL],
+  'annexB/language/expressions/yield/star-iterable-throw-emulates-undefined-throws-when-called': [FAIL],
+  'annexB/language/statements/const/dstr/array-pattern-emulates-undefined': [FAIL],
+  'annexB/language/statements/const/dstr/object-pattern-emulates-undefined': [FAIL],
+  'annexB/language/statements/function/default-parameters-emulates-undefined': [FAIL],
+
   # https://bugs.chromium.org/p/v8/issues/detail?id=5690
   'language/expressions/call/eval-spread': [FAIL],
   'language/expressions/call/eval-spread-empty-leading': [FAIL],
@@ -602,11 +609,23 @@
   # https://bugs.chromium.org/p/v8/issues/detail?id=9613
   'intl402/Intl/getCanonicalLocales/canonicalized-tags': [FAIL],
   'intl402/Intl/getCanonicalLocales/grandfathered': [FAIL],
-  'intl402/Intl/getCanonicalLocales/non-iana-canon': [FAIL],
   'intl402/Intl/getCanonicalLocales/preferred-grandfathered': [FAIL],
   'intl402/Intl/getCanonicalLocales/preferred-variant': [FAIL],
-  'intl402/Locale/constructor-non-iana-canon': [FAIL],
+  'intl402/Locale/constructor-apply-options-canonicalizes-twice': [FAIL],
   'intl402/Locale/likely-subtags-grandfathered': [FAIL],
+
+  # http://crbug/v8/10447
+  'intl402/Intl/getCanonicalLocales/complex-language-subtag-replacement': [FAIL],
+  'intl402/Intl/getCanonicalLocales/complex-region-subtag-replacement': [FAIL],
+  'intl402/Intl/getCanonicalLocales/transformed-ext-canonical': [FAIL],
+  'intl402/Intl/getCanonicalLocales/transformed-ext-invalid': [FAIL],
+  'intl402/Intl/getCanonicalLocales/unicode-ext-canonicalize-region': [FAIL],
+  'intl402/Intl/getCanonicalLocales/unicode-ext-canonicalize-subdivision': [FAIL],
+  'intl402/Intl/getCanonicalLocales/unicode-ext-canonicalize-yes-to-true': [FAIL],
+  'intl402/Intl/getCanonicalLocales/unicode-ext-key-with-digit': [FAIL],
+
+  # http://crbug/v8/10448
+  'intl402/Locale/prototype/minimize/removing-likely-subtags-first-adds-likely-subtags': [FAIL],
 
   # https://bugs.chromium.org/p/v8/issues/detail?id=9646
   'built-ins/ThrowTypeError/name': [FAIL],
@@ -637,11 +656,21 @@
   'intl402/NumberFormat/prototype/format/signDisplay-ko-KR': [FAIL],
   'intl402/NumberFormat/prototype/format/signDisplay-zh-TW': [FAIL],
   'intl402/NumberFormat/prototype/format/signDisplay-rounding': [FAIL],
+  'intl402/NumberFormat/prototype/format/signDisplay-currency-de-DE': [FAIL],
+  'intl402/NumberFormat/prototype/format/signDisplay-currency-en-US': [FAIL],
+  'intl402/NumberFormat/prototype/format/signDisplay-currency-ja-JP': [FAIL],
+  'intl402/NumberFormat/prototype/format/signDisplay-currency-ko-KR': [FAIL],
+  'intl402/NumberFormat/prototype/format/signDisplay-currency-zh-TW': [FAIL],
   'intl402/NumberFormat/prototype/formatToParts/signDisplay-en-US': [FAIL],
   'intl402/NumberFormat/prototype/formatToParts/signDisplay-de-DE': [FAIL],
   'intl402/NumberFormat/prototype/formatToParts/signDisplay-ja-JP': [FAIL],
   'intl402/NumberFormat/prototype/formatToParts/signDisplay-ko-KR': [FAIL],
   'intl402/NumberFormat/prototype/formatToParts/signDisplay-zh-TW': [FAIL],
+  'intl402/NumberFormat/prototype/formatToParts/signDisplay-currency-de-DE': [FAIL],
+  'intl402/NumberFormat/prototype/formatToParts/signDisplay-currency-en-US': [FAIL],
+  'intl402/NumberFormat/prototype/formatToParts/signDisplay-currency-ja-JP': [FAIL],
+  'intl402/NumberFormat/prototype/formatToParts/signDisplay-currency-ko-KR': [FAIL],
+  'intl402/NumberFormat/prototype/formatToParts/signDisplay-currency-zh-TW': [FAIL],
 
   # https://bugs.chromium.org/p/v8/issues/detail?id=10381
   'built-ins/Array/prototype/concat/arg-length-near-integer-limit': [FAIL],
@@ -650,6 +679,9 @@
   'built-ins/Proxy/create-handler-is-revoked-proxy': [FAIL],
   'built-ins/Proxy/create-target-is-revoked-function-proxy': [FAIL],
   'built-ins/Proxy/create-target-is-revoked-proxy': [FAIL],
+  'built-ins/Proxy/revocable/handler-is-revoked-proxy': [FAIL],
+  'built-ins/Proxy/revocable/target-is-revoked-function-proxy': [FAIL],
+  'built-ins/Proxy/revocable/target-is-revoked-proxy': [FAIL],
 
   # https://bugs.chromium.org/p/v8/issues/detail?id=10383
   'built-ins/RegExp/prototype/Symbol.replace/fn-invoke-args-empty-result': [FAIL],
@@ -657,11 +689,57 @@
   # https://bugs.chromium.org/p/v8/issues/detail?id=10395
   'built-ins/AsyncFromSyncIteratorPrototype/next/absent-value-not-passed': [FAIL],
   'built-ins/AsyncFromSyncIteratorPrototype/return/absent-value-not-passed': [FAIL],
-  'built-ins/AsyncFromSyncIteratorPrototype/throw/absent-value-not-passed': [FAIL],
 
   # https://bugs.chromium.org/p/v8/issues/detail?id=10397
   'language/statements/for-await-of/iterator-close-throw-get-method-abrupt': [FAIL],
   'language/statements/for-of/iterator-close-throw-get-method-abrupt': [FAIL],
+
+  # http://crbug/v8/10449
+  'built-ins/Atomics/waitAsync/bad-range': [FAIL],
+  'built-ins/Atomics/waitAsync/descriptor': [FAIL],
+  'built-ins/Atomics/waitAsync/false-for-timeout': [FAIL],
+  'built-ins/Atomics/waitAsync/is-function': [FAIL],
+  'built-ins/Atomics/waitAsync/length': [FAIL],
+  'built-ins/Atomics/waitAsync/name': [FAIL],
+  'built-ins/Atomics/waitAsync/nan-for-timeout-agent': [FAIL],
+  'built-ins/Atomics/waitAsync/negative-index-throws': [FAIL],
+  'built-ins/Atomics/waitAsync/negative-timeout': [FAIL],
+  'built-ins/Atomics/waitAsync/null-for-timeout': [FAIL],
+  'built-ins/Atomics/waitAsync/object-for-timeout': [FAIL],
+  'built-ins/Atomics/waitAsync/returns-result-object-value-is-promise-resolves-to-ok': [FAIL],
+  'built-ins/Atomics/waitAsync/returns-result-object-value-is-promise-resolves-to-timed-out': [FAIL],
+  'built-ins/Atomics/waitAsync/returns-result-object-value-is-string-not-equal': [FAIL],
+  'built-ins/Atomics/waitAsync/returns-result-object-value-is-string-timed-out': [FAIL],
+  'built-ins/Atomics/waitAsync/symbol-for-index-throws': [FAIL],
+  'built-ins/Atomics/waitAsync/symbol-for-timeout-throws': [FAIL],
+  'built-ins/Atomics/waitAsync/symbol-for-value-throws': [FAIL],
+  'built-ins/Atomics/waitAsync/true-for-timeout': [FAIL],
+  'built-ins/Atomics/waitAsync/undefined-for-timeout-agent': [FAIL],
+  'built-ins/Atomics/waitAsync/undefined-for-timeout': [FAIL],
+  'built-ins/Atomics/waitAsync/undefined-index-defaults-to-zero-agent': [FAIL],
+  'built-ins/Atomics/waitAsync/value-not-equal': [FAIL],
+  'built-ins/Atomics/waitAsync/waiterlist-block-indexedposition-wake': [FAIL],
+  'built-ins/Atomics/waitAsync/was-woken-before-timeout': [FAIL],
+  # SKIP the following TIMEOUT tests instead of FAIL
+  'built-ins/Atomics/waitAsync/false-for-timeout-agent': [SKIP],
+  'built-ins/Atomics/waitAsync/good-views': [SKIP],
+  'built-ins/Atomics/waitAsync/negative-timeout-agent': [SKIP],
+  'built-ins/Atomics/waitAsync/no-spurious-wakeup-no-operation': [SKIP],
+  'built-ins/Atomics/waitAsync/no-spurious-wakeup-on-add': [SKIP],
+  'built-ins/Atomics/waitAsync/no-spurious-wakeup-on-and': [SKIP],
+  'built-ins/Atomics/waitAsync/no-spurious-wakeup-on-compareExchange': [SKIP],
+  'built-ins/Atomics/waitAsync/no-spurious-wakeup-on-exchange': [SKIP],
+  'built-ins/Atomics/waitAsync/no-spurious-wakeup-on-or': [SKIP],
+  'built-ins/Atomics/waitAsync/no-spurious-wakeup-on-store': [SKIP],
+  'built-ins/Atomics/waitAsync/no-spurious-wakeup-on-sub': [SKIP],
+  'built-ins/Atomics/waitAsync/no-spurious-wakeup-on-xor': [SKIP],
+  'built-ins/Atomics/waitAsync/null-for-timeout-agent': [SKIP],
+  'built-ins/Atomics/waitAsync/object-for-timeout-agent': [SKIP],
+  'built-ins/Atomics/waitAsync/true-for-timeout-agent': [SKIP],
+  'built-ins/Atomics/waitAsync/value-not-equal-agent': [SKIP],
+
+  # http://crbug/v8/10450
+  'built-ins/NativeErrors/AggregateError/proto-from-ctor-realm': [FAIL],
 
   ######################## NEEDS INVESTIGATION ###########################
 
@@ -765,6 +843,7 @@
   # Unicode features unavaible without i18n, ie property escapes.
   'built-ins/RegExp/property-escapes/*': [SKIP],
   'built-ins/RegExp/named-groups/unicode-property-names': [SKIP],
+  'built-ins/RegExp/named-groups/unicode-property-names-valid': [SKIP],
   'built-ins/RegExp/match-indices/indices-array-unicode-property-names': [SKIP],
 
   # Unicode in identifiers
