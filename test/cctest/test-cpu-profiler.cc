@@ -39,6 +39,7 @@
 #include "src/deoptimizer/deoptimizer.h"
 #include "src/heap/spaces.h"
 #include "src/libplatform/default-platform.h"
+#include "src/libsampler/sampler.h"
 #include "src/logging/log.h"
 #include "src/objects/objects-inl.h"
 #include "src/profiler/cpu-profiler-inl.h"

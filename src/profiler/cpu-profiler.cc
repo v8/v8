@@ -12,6 +12,7 @@
 #include "src/debug/debug.h"
 #include "src/execution/frames-inl.h"
 #include "src/execution/vm-state-inl.h"
+#include "src/libsampler/sampler.h"
 #include "src/logging/counters.h"
 #include "src/logging/log.h"
 #include "src/profiler/cpu-profiler-inl.h"

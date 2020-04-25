@@ -12,23 +12,22 @@
 #include "src/base/platform/condition-variable.h"
 #include "src/base/platform/mutex.h"
 #include "src/base/platform/time.h"
-#include "src/execution/isolate.h"
-#include "src/handles/maybe-handles.h"
-#include "src/libsampler/sampler.h"
 #include "src/profiler/circular-queue.h"
 #include "src/profiler/profiler-listener.h"
 #include "src/profiler/tick-sample.h"
-#include "src/utils/allocation.h"
 #include "src/utils/locked-queue.h"
 
 namespace v8 {
+namespace sampler {
+class Sampler;
+}
 namespace internal {
 
 // Forward declarations.
 class CodeEntry;
 class CodeMap;
-class CpuProfile;
 class CpuProfilesCollection;
+class Isolate;
 class ProfileGenerator;
 
 #define CODE_EVENTS_TYPE_LIST(V)                 \
@@ -192,6 +191,7 @@ class V8_EXPORT_PRIVATE ProfilerEventsProcessor : public base::Thread,
 
   ProfileGenerator* generator_;
   ProfilerCodeObserver* code_observer_;
+  // TODO(petermarshall): Use std::atomic and remove imports.
   base::Atomic32 running_;
   base::ConditionVariable running_cond_;
   base::Mutex running_mutex_;
@@ -337,7 +337,7 @@ class V8_EXPORT_PRIVATE CpuProfiler {
   ProfilerEventsProcessor* processor() const { return processor_.get(); }
   Isolate* isolate() const { return isolate_; }
 
-  ProfilerListener* profiler_listener_for_test() {
+  ProfilerListener* profiler_listener_for_test() const {
     return profiler_listener_.get();
   }
 
