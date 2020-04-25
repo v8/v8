@@ -6126,10 +6126,9 @@ void Heap::EnqueueDirtyJSFinalizationRegistry(
     JSFinalizationRegistry tail = JSFinalizationRegistry::cast(
         dirty_js_finalization_registries_list_tail());
     tail.set_next_dirty(finalization_registry);
-    gc_notify_updated_slot(tail,
-                           finalization_registry.RawField(
-                               JSFinalizationRegistry::kNextDirtyOffset),
-                           finalization_registry);
+    gc_notify_updated_slot(
+        tail, tail.RawField(JSFinalizationRegistry::kNextDirtyOffset),
+        finalization_registry);
   }
   set_dirty_js_finalization_registries_list_tail(finalization_registry);
   // dirty_js_finalization_registries_list_tail_ is rescanned by
