@@ -110,6 +110,8 @@ class NativeContextMoveEventRecord : public CodeEventRecord {
   Address to_address;
 };
 
+// A record type for sending samples from the main thread/signal handler to the
+// profiling thread.
 class TickSampleEventRecord {
  public:
   // The parameterless constructor is used when we dequeue data from
@@ -121,7 +123,8 @@ class TickSampleEventRecord {
   TickSample sample;
 };
 
-
+// A record type for sending code events (e.g. create, move, delete) to the
+// profiling thread.
 class CodeEventsContainer {
  public:
   explicit CodeEventsContainer(
@@ -276,6 +279,26 @@ class V8_EXPORT_PRIVATE ProfilerCodeObserver : public CodeEventObserver {
   ProfilerEventsProcessor* processor_;
 };
 
+// The CpuProfiler is a sampling CPU profiler for JS frames. It corresponds to
+// v8::CpuProfiler at the API level. It spawns an additional thread which is
+// responsible for triggering samples and then symbolizing the samples with
+// function names. To symbolize on a background thread, the profiler copies
+// metadata about generated code off-heap.
+//
+// Sampling is done using posix signals (except on Windows). The profiling
+// thread sends a signal to the main thread, based on a timer. The signal
+// handler can interrupt the main thread between any abitrary instructions.
+// This means we are very careful about reading stack values during the signal
+// handler as we could be in the middle of an operation that is modifying the
+// stack.
+//
+// The story on Windows is similar except we use thread suspend and resume.
+//
+// Samples are passed to the profiling thread via a circular buffer. The
+// profiling thread symbolizes the samples by looking up the code pointers
+// against its own list of code objects. The profiling thread also listens for
+// code creation/move/deletion events (from the GC), to maintain its list of
+// code objects accurately.
 class V8_EXPORT_PRIVATE CpuProfiler {
  public:
   explicit CpuProfiler(Isolate* isolate, CpuProfilingNamingMode = kDebugNaming,
