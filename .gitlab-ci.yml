@@ -21,4 +21,4 @@ build:
 cctests:
   stage: test
   script:
-    - tools/run-tests.py --outdir=out.gn/riscv64_debug cctest/test-simple-riscv/* cctest/test-assembler-riscv/* cctest/test-disasm-riscv/* cctest/test-macro-assembler-riscv/*
+    - tools/run-tests.py --outdir=out.gn/riscv64_debug cctest/test-simple-riscv/* cctest/test-assembler-riscv/* cctest/test-disasm-riscv/* cctest/test-macro-assembler-riscv/* cctest/test-run-machops/*
