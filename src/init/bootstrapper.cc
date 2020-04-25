@@ -3172,6 +3172,37 @@ void Genesis::InitializeGlobal(Handle<JSGlobalObject> global_object,
                           factory->numberingSystem_string(),
                           Builtins::kLocalePrototypeNumberingSystem, true);
     }
+
+    {  // -- D i s p l a y N a m e s
+      Handle<JSFunction> display_names_fun = InstallFunction(
+          isolate(), intl, "DisplayNames", JS_DISPLAY_NAMES_TYPE,
+          JSDisplayNames::kHeaderSize, 0, factory->the_hole_value(),
+          Builtins::kDisplayNamesConstructor);
+      display_names_fun->shared().set_length(0);
+      display_names_fun->shared().DontAdaptArguments();
+      InstallWithIntrinsicDefaultProto(
+          isolate(), display_names_fun,
+          Context::INTL_DISPLAY_NAMES_FUNCTION_INDEX);
+
+      SimpleInstallFunction(isolate(), display_names_fun, "supportedLocalesOf",
+                            Builtins::kDisplayNamesSupportedLocalesOf, 1,
+                            false);
+
+      {
+        // Setup %DisplayNamesPrototype%.
+        Handle<JSObject> prototype(
+            JSObject::cast(display_names_fun->instance_prototype()), isolate());
+
+        InstallToStringTag(isolate(), prototype, "Intl.DisplayNames");
+
+        SimpleInstallFunction(isolate(), prototype, "resolvedOptions",
+                              Builtins::kDisplayNamesPrototypeResolvedOptions,
+                              0, false);
+
+        SimpleInstallFunction(isolate(), prototype, "of",
+                              Builtins::kDisplayNamesPrototypeOf, 1, false);
+      }
+    }
   }
 #endif  // V8_INTL_SUPPORT
 
@@ -4507,43 +4538,6 @@ void Genesis::InitializeGlobal_harmony_intl_segmenter() {
     Handle<Map> segment_iterator_map(segment_iterator_fun->initial_map(),
                                      isolate());
     native_context()->set_intl_segment_iterator_map(*segment_iterator_map);
-  }
-}
-
-void Genesis::InitializeGlobal_harmony_intl_displaynames() {
-  if (!FLAG_harmony_intl_displaynames) return;
-  Handle<JSObject> intl = Handle<JSObject>::cast(
-      JSReceiver::GetProperty(
-          isolate(),
-          Handle<JSReceiver>(native_context()->global_object(), isolate()),
-          factory()->InternalizeUtf8String("Intl"))
-          .ToHandleChecked());
-
-  Handle<JSFunction> display_names_fun = InstallFunction(
-      isolate(), intl, "DisplayNames", JS_DISPLAY_NAMES_TYPE,
-      JSDisplayNames::kHeaderSize, 0, factory()->the_hole_value(),
-      Builtins::kDisplayNamesConstructor);
-  display_names_fun->shared().set_length(0);
-  display_names_fun->shared().DontAdaptArguments();
-  InstallWithIntrinsicDefaultProto(isolate_, display_names_fun,
-                                   Context::INTL_DISPLAY_NAMES_FUNCTION_INDEX);
-
-  SimpleInstallFunction(isolate(), display_names_fun, "supportedLocalesOf",
-                        Builtins::kDisplayNamesSupportedLocalesOf, 1, false);
-
-  {
-    // Setup %DisplayNamesPrototype%.
-    Handle<JSObject> prototype(
-        JSObject::cast(display_names_fun->instance_prototype()), isolate());
-
-    InstallToStringTag(isolate(), prototype, "Intl.DisplayNames");
-
-    SimpleInstallFunction(isolate(), prototype, "resolvedOptions",
-                          Builtins::kDisplayNamesPrototypeResolvedOptions, 0,
-                          false);
-
-    SimpleInstallFunction(isolate(), prototype, "of",
-                          Builtins::kDisplayNamesPrototypeOf, 1, false);
   }
 }
 

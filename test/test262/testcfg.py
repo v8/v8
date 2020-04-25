@@ -48,7 +48,6 @@ FEATURE_FLAGS = {
   'Intl.DateTimeFormat-dayPeriod': '--harmony-intl-dateformat-day-period',
   'Intl.DateTimeFormat-quarter': '--harmony-intl-dateformat-quarter',
   'Intl.DateTimeFormat-fractionalSecondDigits': '--harmony-intl-dateformat-fractional-second-digits',
-  'Intl.DisplayNames': '--harmony-intl-displaynames',
   'String.prototype.replaceAll': '--harmony_string_replaceall',
   'Symbol.prototype.description': '--harmony-symbol-description',
   'export-star-as-namespace-from-module': '--harmony-namespace-exports',
