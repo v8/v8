@@ -1563,12 +1563,12 @@ void LiftoffAssembler::emit_i16x8_ne(LiftoffRegister dst, LiftoffRegister lhs,
 
 void LiftoffAssembler::emit_i16x8_ge_s(LiftoffRegister dst, LiftoffRegister lhs,
                                        LiftoffRegister rhs) {
-  bailout(kSimd, "i16x8ge_s");
+  Cmge(dst.fp().V8H(), lhs.fp().V8H(), rhs.fp().V8H());
 }
 
 void LiftoffAssembler::emit_i16x8_ge_u(LiftoffRegister dst, LiftoffRegister lhs,
                                        LiftoffRegister rhs) {
-  bailout(kSimd, "i16x8ge_u");
+  Cmhs(dst.fp().V8H(), lhs.fp().V8H(), rhs.fp().V8H());
 }
 
 void LiftoffAssembler::emit_i32x4_eq(LiftoffRegister dst, LiftoffRegister lhs,
@@ -1584,12 +1584,12 @@ void LiftoffAssembler::emit_i32x4_ne(LiftoffRegister dst, LiftoffRegister lhs,
 
 void LiftoffAssembler::emit_i32x4_ge_s(LiftoffRegister dst, LiftoffRegister lhs,
                                        LiftoffRegister rhs) {
-  bailout(kSimd, "i32x4ge_s");
+  Cmge(dst.fp().V4S(), lhs.fp().V4S(), rhs.fp().V4S());
 }
 
 void LiftoffAssembler::emit_i32x4_ge_u(LiftoffRegister dst, LiftoffRegister lhs,
                                        LiftoffRegister rhs) {
-  bailout(kSimd, "i32x4ge_u");
+  Cmhs(dst.fp().V4S(), lhs.fp().V4S(), rhs.fp().V4S());
 }
 
 void LiftoffAssembler::emit_f32x4_eq(LiftoffRegister dst, LiftoffRegister lhs,
