@@ -799,7 +799,7 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase {
     bltc(rs, rt, shifted_branch_offset(L));
   }
   void bltzal(Register rs, int16_t offset);
-  void nal() { bltzal(zero_reg, 0); }
+  void nal() { UNREACHABLE(); }
   void blezalc(Register rt, int16_t offset);
   inline void blezalc(Register rt, Label* L) {
     blezalc(rt, shifted_branch_offset(L));
