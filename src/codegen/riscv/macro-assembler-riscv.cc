@@ -437,7 +437,7 @@ void TurboAssembler::Subu(Register rd, Register rs, const Operand& rt) {
 void TurboAssembler::Dsubu(Register rd, Register rs, const Operand& rt) {
   if (rt.is_reg()) {
     RV_sub(rd, rs, rt.rm());
-  } else if (is_int16(-rt.immediate()) && !MustUseReg(rt.rmode())) {
+  } else if (is_int12(-rt.immediate()) && !MustUseReg(rt.rmode())) {
     RV_addi(rd, rs,
             static_cast<int32_t>(
                 -rt.immediate()));  // No subi instr, use addi(x, y, -imm).
