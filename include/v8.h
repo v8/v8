@@ -24,9 +24,9 @@
 #include <utility>
 #include <vector>
 
-#include "v8-internal.h"  // NOLINT(build/include_directory)
-#include "v8-version.h"   // NOLINT(build/include_directory)
-#include "v8config.h"     // NOLINT(build/include_directory)
+#include "v8-internal.h"  // NOLINT(build/include)
+#include "v8-version.h"   // NOLINT(build/include)
+#include "v8config.h"     // NOLINT(build/include)
 
 // We reserve the V8_* prefix for macros defined in V8 public API and
 // assume there are no name conflicts with the embedder's code.
@@ -9530,6 +9530,7 @@ class V8_EXPORT Isolate {
 
   internal::Address* GetDataFromSnapshotOnce(size_t index);
   void ReportExternalAllocationLimitReached();
+  void CheckMemoryPressure();
 };
 
 class V8_EXPORT StartupData {
@@ -11967,6 +11968,7 @@ MaybeLocal<T> Isolate::GetDataFromSnapshotOnce(size_t index) {
 int64_t Isolate::AdjustAmountOfExternalAllocatedMemory(
     int64_t change_in_bytes) {
   typedef internal::Internals I;
+  constexpr int64_t kMemoryReducerActivationLimit = 32 * 1024 * 1024;
   int64_t* external_memory = reinterpret_cast<int64_t*>(
       reinterpret_cast<uint8_t*>(this) + I::kExternalMemoryOffset);
   int64_t* external_memory_limit = reinterpret_cast<int64_t*>(
@@ -11989,6 +11991,14 @@ int64_t Isolate::AdjustAmountOfExternalAllocatedMemory(
 
   if (change_in_bytes <= 0) return *external_memory;
 
+  int64_t allocation_diff_since_last_mc = static_cast<int64_t>(
+      static_cast<uint64_t>(*external_memory) -
+      static_cast<uint64_t>(*external_memory_low_since_mc));
+  // Only check memory pressure and potentially trigger GC if the amount of
+  // external memory increased.
+  if (allocation_diff_since_last_mc > kMemoryReducerActivationLimit) {
+    CheckMemoryPressure();
+  }
   if (amount > *external_memory_limit) {
     ReportExternalAllocationLimitReached();
   }
