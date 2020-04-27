@@ -318,7 +318,7 @@ void Assembler::Align(int m) {
   DCHECK(m >= 4 && base::bits::IsPowerOfTwo(m));
   EmitForbiddenSlotInstruction();
   while ((pc_offset() & (m - 1)) != 0) {
-    nop();
+    RV_nop();
   }
 }
 

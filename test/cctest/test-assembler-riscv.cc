@@ -1575,6 +1575,196 @@ TEST(OUT_OF_RANGE_CVT) {
   }
 }
 
+TEST(jump_tables1) {
+  // Test jump tables with forward jumps.
+  CcTest::InitializeVM();
+  Isolate* isolate = CcTest::i_isolate();
+  HandleScope scope(isolate);
+  MacroAssembler assm(isolate, v8::internal::CodeObjectRequired::kYes);
+
+  const int kNumCases = 128;
+  int values[kNumCases];
+  isolate->random_number_generator()->NextBytes(values, sizeof(values));
+  Label labels[kNumCases];
+
+  __ RV_addi(sp, sp, -8);
+  __ Sd(ra, MemOperand(sp));
+  __ Align(8);
+
+  Label done;
+  {
+    __ BlockTrampolinePoolFor(kNumCases * 2 + 6);
+
+    __ RV_auipc(ra, 0);
+    __ RV_slli(t3, a0, 3);
+    __ RV_add(t3, t3, ra);
+    __ Ld(t3, MemOperand(t3, 6 * kInstrSize));
+    __ RV_jr(t3);
+    __ RV_nop();  // For 16-byte alignment
+    for (int i = 0; i < kNumCases; ++i) {
+      __ dd(&labels[i]);
+    }
+  }
+
+  for (int i = 0; i < kNumCases; ++i) {
+    __ bind(&labels[i]);
+    __ RV_lui(a0, (values[i] + 0x800) >> 12);
+    __ RV_addi(a0, a0, (values[i] << 20 >> 20));
+    __ RV_j(&done);
+  }
+
+  __ bind(&done);
+  __ Ld(ra, MemOperand(sp));
+  __ RV_addi(sp, sp, 8);
+  __ RV_jr(ra);
+
+  CHECK_EQ(0, assm.UnboundLabelsCount());
+
+  CodeDesc desc;
+  assm.GetCode(isolate, &desc);
+  Handle<Code> code = Factory::CodeBuilder(isolate, desc, Code::STUB).Build();
+#ifdef OBJECT_PRINT
+  code->Print(std::cout);
+#endif
+  auto f = GeneratedCode<F1>::FromCode(*code);
+  for (int i = 0; i < kNumCases; ++i) {
+    int64_t res = reinterpret_cast<int64_t>(f.Call(i, 0, 0, 0, 0));
+    ::printf("f(%d) = %" PRId64 "\n", i, res);
+    CHECK_EQ(values[i], static_cast<int>(res));
+  }
+}
+
+TEST(jump_tables2) {
+  // Test jump tables with backward jumps.
+  CcTest::InitializeVM();
+  Isolate* isolate = CcTest::i_isolate();
+  HandleScope scope(isolate);
+  MacroAssembler assm(isolate, v8::internal::CodeObjectRequired::kYes);
+
+  const int kNumCases = 128;
+  int values[kNumCases];
+  isolate->random_number_generator()->NextBytes(values, sizeof(values));
+  Label labels[kNumCases];
+
+  __ RV_addi(sp, sp, -8);
+  __ Sd(ra, MemOperand(sp));
+
+  Label done, dispatch;
+  __ RV_j(&dispatch);
+
+  for (int i = 0; i < kNumCases; ++i) {
+    __ bind(&labels[i]);
+    __ RV_lui(a0, (values[i] + 0x800) >> 12);
+    __ RV_addi(a0, a0, (values[i] << 20 >> 20));
+    __ RV_j(&done);
+  }
+
+  __ Align(8);
+  __ bind(&dispatch);
+  {
+    __ BlockTrampolinePoolFor(kNumCases * 2 + 6);
+
+    __ RV_auipc(ra, 0);
+    __ RV_slli(t3, a0, 3);
+    __ RV_add(t3, t3, ra);
+    __ Ld(t3, MemOperand(t3, 6 * kInstrSize));
+    __ RV_jr(t3);
+    __ RV_nop();  // For 16-byte alignment
+    for (int i = 0; i < kNumCases; ++i) {
+      __ dd(&labels[i]);
+    }
+  }
+
+  __ bind(&done);
+  __ Ld(ra, MemOperand(sp));
+  __ RV_addi(sp, sp, 8);
+  __ RV_jr(ra);
+
+  CodeDesc desc;
+  assm.GetCode(isolate, &desc);
+  Handle<Code> code = Factory::CodeBuilder(isolate, desc, Code::STUB).Build();
+#ifdef OBJECT_PRINT
+  code->Print(std::cout);
+#endif
+  auto f = GeneratedCode<F1>::FromCode(*code);
+  for (int i = 0; i < kNumCases; ++i) {
+    int64_t res = reinterpret_cast<int64_t>(f.Call(i, 0, 0, 0, 0));
+    ::printf("f(%d) = %" PRId64 "\n", i, res);
+    CHECK_EQ(values[i], res);
+  }
+}
+
+TEST(jump_tables3) {
+  // Test jump tables with backward jumps and embedded heap objects.
+  CcTest::InitializeVM();
+  Isolate* isolate = CcTest::i_isolate();
+  HandleScope scope(isolate);
+  MacroAssembler assm(isolate, v8::internal::CodeObjectRequired::kYes);
+
+  const int kNumCases = 128;
+  Handle<Object> values[kNumCases];
+  for (int i = 0; i < kNumCases; ++i) {
+    double value = isolate->random_number_generator()->NextDouble();
+    values[i] = isolate->factory()->NewHeapNumber<AllocationType::kOld>(value);
+  }
+  Label labels[kNumCases];
+  Object obj;
+  int64_t imm64;
+
+  __ RV_addi(sp, sp, -8);
+  __ Sd(ra, MemOperand(sp));
+
+  Label done, dispatch;
+  __ RV_j(&dispatch);
+
+  for (int i = 0; i < kNumCases; ++i) {
+    __ bind(&labels[i]);
+    obj = *values[i];
+    imm64 = obj.ptr();
+    __ RV_li(a0, imm64);
+    __ RV_j(&done);
+  }
+
+  __ Align(8);
+  __ bind(&dispatch);
+  {
+    __ BlockTrampolinePoolFor(kNumCases * 2 + 6);
+
+    __ RV_auipc(ra, 0);
+    __ RV_slli(t3, a0, 3);
+    __ RV_add(t3, t3, ra);
+    __ Ld(t3, MemOperand(t3, 6 * kInstrSize));
+    __ RV_jr(t3);
+    __ RV_nop();  // For 16-byte alignment
+    for (int i = 0; i < kNumCases; ++i) {
+      __ dd(&labels[i]);
+    }
+  }
+
+  __ bind(&done);
+  __ Ld(ra, MemOperand(sp));
+  __ RV_addi(sp, sp, 8);
+  __ RV_jr(ra);
+
+  CodeDesc desc;
+  assm.GetCode(isolate, &desc);
+  Handle<Code> code = Factory::CodeBuilder(isolate, desc, Code::STUB).Build();
+#ifdef OBJECT_PRINT
+  code->Print(std::cout);
+#endif
+  auto f = GeneratedCode<F1>::FromCode(*code);
+  for (int i = 0; i < kNumCases; ++i) {
+    Handle<Object> result(
+        Object(reinterpret_cast<Address>(f.Call(i, 0, 0, 0, 0))), isolate);
+#ifdef OBJECT_PRINT
+    ::printf("f(%d) = ", i);
+    result->Print(std::cout);
+    ::printf("\n");
+#endif
+    CHECK(values[i].is_identical_to(result));
+  }
+}
+
 #undef __
 
 }  // namespace internal
