@@ -2219,16 +2219,22 @@ struct ScriptCompileTimerScope {
   }
 };
 
-void SetScriptFieldsFromDetails(Script script,
-                                Compiler::ScriptDetails script_details) {
+void SetScriptFieldsFromDetails(Isolate* isolate, Script script,
+                                Compiler::ScriptDetails script_details,
+                                DisallowHeapAllocation* no_gc) {
   Handle<Object> script_name;
   if (script_details.name_obj.ToHandle(&script_name)) {
     script.set_name(*script_name);
     script.set_line_offset(script_details.line_offset);
     script.set_column_offset(script_details.column_offset);
   }
+  // The API can provide a source map URL, but a source map URL could also have
+  // been inferred by the parser from a magic comment. The latter takes
+  // preference over the former, so we don't want to override the source mapping
+  // URL if it already exists.
   Handle<Object> source_map_url;
-  if (script_details.source_map_url.ToHandle(&source_map_url)) {
+  if (script_details.source_map_url.ToHandle(&source_map_url) &&
+      script.source_mapping_url(isolate).IsUndefined(isolate)) {
     script.set_source_mapping_url(*source_map_url);
   }
   Handle<FixedArray> host_defined_options;
@@ -2245,7 +2251,8 @@ Handle<Script> NewScript(
   // Create a script object describing the script to be compiled.
   Handle<Script> script = parse_info->CreateScript(
       isolate, source, maybe_wrapped_arguments, origin_options, natives);
-  SetScriptFieldsFromDetails(*script, script_details);
+  DisallowHeapAllocation no_gc;
+  SetScriptFieldsFromDetails(isolate, *script, script_details, &no_gc);
   LOG(isolate, ScriptDetails(*script));
   return script;
 }
@@ -2260,7 +2267,7 @@ void FixUpOffThreadAllocatedScript(Isolate* isolate, Handle<Script> script,
   DCHECK_EQ(script_details.repl_mode, REPLMode::kNo);
   script->set_origin_options(origin_options);
   script->set_source(*source);
-  SetScriptFieldsFromDetails(*script, script_details);
+  SetScriptFieldsFromDetails(isolate, *script, script_details, &no_gc);
   LOG(isolate, ScriptDetails(*script));
 }
 
