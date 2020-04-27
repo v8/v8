@@ -41,6 +41,21 @@
 namespace v8 {
 namespace internal {
 
+const float qnan_f = std::numeric_limits<float>::quiet_NaN();
+const float snan_f = std::numeric_limits<float>::signaling_NaN();
+const double qnan_d = std::numeric_limits<double>::quiet_NaN();
+const double snan_d = std::numeric_limits<double>::signaling_NaN();
+
+const float min_f = std::numeric_limits<float>::min();
+const float max_f = std::numeric_limits<float>::max();
+const double min_d = std::numeric_limits<double>::min();
+const double max_d = std::numeric_limits<double>::max();
+
+const float inf_f = std::numeric_limits<float>::infinity();
+const double inf_d = std::numeric_limits<double>::infinity();
+const float minf_f = -inf_f;
+const double minf_d = -inf_d;
+
 // TODO(mips64): Refine these signatures per test case.
 using FV = void*(int64_t x, int64_t y, int p2, int p3, int p4);
 using F1 = void*(int x, int p1, int p2, int p3, int p4);
@@ -718,32 +733,34 @@ TEST(min_max_nan) {
   };
 
   TestFloat test;
-  const double dnan = std::numeric_limits<double>::quiet_NaN();
-  const double dinf = std::numeric_limits<double>::infinity();
-  const double dminf = -std::numeric_limits<double>::infinity();
-  const float fnan = std::numeric_limits<float>::quiet_NaN();
-  const float finf = std::numeric_limits<float>::infinity();
-  const float fminf = std::numeric_limits<float>::infinity();
+
   const int kTableLength = 13;
 
-  double inputsa[kTableLength] = {2.0,  3.0,  -0.0, 0.0,  42.0, dinf, dminf,
-                                  dinf, dnan, 3.0,  dinf, dnan, dnan};
-  double inputsb[kTableLength] = {3.0,   2.0, 0.0,  -0.0, dinf, 42.0, dinf,
-                                  dminf, 3.0, dnan, dnan, dinf, dnan};
-  double outputsdmin[kTableLength] = {2.0,  2.0,   -0.0,  -0.0, 42.0,
-                                      42.0, dminf, dminf, dnan, dnan,
-                                      dnan, dnan,  dnan};
-  double outputsdmax[kTableLength] = {3.0,  3.0,  0.0,  0.0,  dinf, dinf, dinf,
-                                      dinf, dnan, dnan, dnan, dnan, dnan};
+  double inputsa[kTableLength] = {2.0,   3.0,    -0.0,  0.0,    42.0,
+                                  inf_d, minf_d, inf_d, qnan_d, 3.0,
+                                  inf_d, qnan_d, qnan_d};
+  double inputsb[kTableLength] = {3.0,    2.0,   0.0,    -0.0, inf_d,
+                                  42.0,   inf_d, minf_d, 3.0,  qnan_d,
+                                  qnan_d, inf_d, qnan_d};
+  double outputsdmin[kTableLength] = {2.0,    2.0,    -0.0,   -0.0,   42.0,
+                                      42.0,   minf_d, minf_d, qnan_d, qnan_d,
+                                      qnan_d, qnan_d, qnan_d};
+  double outputsdmax[kTableLength] = {3.0,    3.0,    0.0,   0.0,    inf_d,
+                                      inf_d,  inf_d,  inf_d, qnan_d, qnan_d,
+                                      qnan_d, qnan_d, qnan_d};
 
-  float inputse[kTableLength] = {2.0,  3.0,  -0.0, 0.0,  42.0, finf, fminf,
-                                 finf, fnan, 3.0,  finf, fnan, fnan};
-  float inputsf[kTableLength] = {3.0,   2.0, 0.0,  -0.0, finf, 42.0, finf,
-                                 fminf, 3.0, fnan, fnan, finf, fnan};
-  float outputsfmin[kTableLength] = {2.0,   2.0,  -0.0, -0.0, 42.0, 42.0, fminf,
-                                     fminf, fnan, fnan, fnan, fnan, fnan};
-  float outputsfmax[kTableLength] = {3.0,  3.0,  0.0,  0.0,  finf, finf, finf,
-                                     finf, fnan, fnan, fnan, fnan, fnan};
+  float inputse[kTableLength] = {2.0,   3.0,    -0.0,  0.0,    42.0,
+                                 inf_f, minf_f, inf_f, qnan_f, 3.0,
+                                 inf_f, qnan_f, qnan_f};
+  float inputsf[kTableLength] = {3.0,    2.0,   0.0,    -0.0, inf_f,
+                                 42.0,   inf_f, minf_f, 3.0,  qnan_f,
+                                 qnan_f, inf_f, qnan_f};
+  float outputsfmin[kTableLength] = {2.0,    2.0,    -0.0,   -0.0,   42.0,
+                                     42.0,   minf_f, minf_f, qnan_f, qnan_f,
+                                     qnan_f, qnan_f, qnan_f};
+  float outputsfmax[kTableLength] = {3.0,    3.0,    0.0,   0.0,    inf_f,
+                                     inf_f,  inf_f,  inf_f, qnan_f, qnan_f,
+                                     qnan_f, qnan_f, qnan_f};
 
   __ push(s6);
   __ InitializeRootRegister();
@@ -773,13 +790,7 @@ TEST(min_max_nan) {
     test.e = inputse[i];
     test.f = inputsf[i];
 
-    std::cout << "i = " << i << " a = " << test.a << " b = " << test.b
-              << " e = " << test.e << " f = " << test.f << std::endl;
-
     f.Call(&test, 0, 0, 0, 0);
-
-    std::cout << "test.h = " << test.h << " outputsfmax = " << outputsfmax[i]
-              << std::endl;
 
     CHECK_EQ(0, memcmp(&test.c, &outputsdmin[i], sizeof(test.c)));
     CHECK_EQ(0, memcmp(&test.d, &outputsdmax[i], sizeof(test.d)));
@@ -1267,18 +1278,32 @@ TEST(macro_float_minmax_f32) {
   GeneratedCode<F4> f =
       GenerateMacroFloat32MinMax<FPURegister, Inputs, Results>(masm);
 
-#define CHECK_MINMAX(src1, src2, min, max)                                   \
-  do {                                                                       \
-    Inputs inputs = {src1, src2};                                            \
-    Results results;                                                         \
-    f.Call(&inputs, &results, 0, 0, 0);                                      \
-    CHECK_EQ(bit_cast<uint32_t>(min), bit_cast<uint32_t>(results.min_abc_)); \
-    CHECK_EQ(bit_cast<uint32_t>(min), bit_cast<uint32_t>(results.min_aab_)); \
-    CHECK_EQ(bit_cast<uint32_t>(min), bit_cast<uint32_t>(results.min_aba_)); \
-    CHECK_EQ(bit_cast<uint32_t>(max), bit_cast<uint32_t>(results.max_abc_)); \
-    CHECK_EQ(bit_cast<uint32_t>(max), bit_cast<uint32_t>(results.max_aab_)); \
-    CHECK_EQ(bit_cast<uint32_t>(max), bit_cast<uint32_t>(results.max_aba_)); \
-    /* Use a bit_cast to correctly identify -0.0 and NaNs. */                \
+#define CHECK_MINMAX(src1, src2, min, max)                                    \
+  do {                                                                        \
+    Inputs inputs = {src1, src2};                                             \
+    Results results;                                                          \
+    f.Call(&inputs, &results, 0, 0, 0);                                       \
+    std::cout << "min = " << min << " min_abc=" << results.min_abc_           \
+              << std::endl;                                                   \
+    CHECK_EQ(bit_cast<uint32_t>(min), bit_cast<uint32_t>(results.min_abc_));  \
+    std::cout << "min = " << min << " min_aab=" << results.min_aab_           \
+              << std::endl;                                                   \
+    CHECK_EQ(bit_cast<uint32_t>(min), bit_cast<uint32_t>(results.min_aab_));  \
+    std::cout << "min = " << min << " min_aba=" << results.min_aba_           \
+              << std::endl;                                                   \
+    CHECK_EQ(bit_cast<uint32_t>(min), bit_cast<uint32_t>(results.min_aba_));  \
+    std::cout << "max = " << max << " max_abc=" << results.max_abc_           \
+              << std::endl;                                                   \
+    CHECK_EQ(bit_cast<uint32_t>(max), bit_cast<uint32_t>(results.max_abc_));  \
+    std::cout << "max = " << max << " max_aab=" << results.max_aab_           \
+              << std::endl;                                                   \
+    CHECK_EQ(bit_cast<uint32_t>(max), bit_cast<uint32_t>(results.max_aab_));  \
+    std::cout << "max = " << max << " max_aba=" << results.max_aba_           \
+              << std::endl;                                                   \
+    CHECK_EQ(                                                                 \
+        bit_cast<uint32_t>(max),                                              \
+        bit_cast<uint32_t>(results.max_aba_)); /* Use a bit_cast to correctly \
+                                                  identify -0.0 and NaNs. */  \
   } while (0)
 
   float nan_a = std::numeric_limits<float>::quiet_NaN();
@@ -1390,8 +1415,8 @@ TEST(macro_float_minmax_f64) {
     /* Use a bit_cast to correctly identify -0.0 and NaNs. */                \
   } while (0)
 
-  double nan_a = std::numeric_limits<double>::quiet_NaN();
-  double nan_b = std::numeric_limits<double>::quiet_NaN();
+  double nan_a = qnan_d;
+  double nan_b = qnan_d;
 
   CHECK_MINMAX(1.0, -1.0, -1.0, 1.0);
   CHECK_MINMAX(-1.0, 1.0, -1.0, 1.0);
@@ -1493,11 +1518,11 @@ static const std::vector<float> compare_float_test_values() {
                                   -0.0f,
                                   100.23f,
                                   -1034.78f,
-                                  std::numeric_limits<float>::max(),
-                                  std::numeric_limits<float>::min(),
-                                  /*std::numeric_limits<float>::quiet_NaN(),
-                                  std::numeric_limits<float>::infinity(),
-                                  -std::numeric_limits<float>::infinity()*/};
+                                  max_f,
+                                  min_f,
+                                  /*qnan_f,
+                                  inf_f,
+                                  -inf_f*/};
   return std::vector<float>(&kValues[0], &kValues[arraysize(kValues)]);
 }
 
@@ -1506,11 +1531,11 @@ static const std::vector<double> compare_double_test_values() {
                                   -0.0,
                                   100.23,
                                   -1034.78,
-                                  std::numeric_limits<double>::max(),
-                                  std::numeric_limits<double>::min(),
-                                  /*std::numeric_limits<double>::quiet_NaN(),
-                                  std::numeric_limits<double>::infinity(),
-                                  -std::numeric_limits<double>::infinity()*/};
+                                  max_d,
+                                  min_d,
+                                  /*qnan_d,
+                                  inf_d,
+                                  -inf_d*/};
   return std::vector<double>(&kValues[0], &kValues[arraysize(kValues)]);
 }
 
@@ -1567,9 +1592,17 @@ static void FCompare64Helper(FPUCondition cond) {
 
 TEST(FCompare32_Branch) {
   CcTest::InitializeVM();
+
   FCompare32Helper(EQ);
   FCompare32Helper(LT);
   FCompare32Helper(LE);
+
+  // test CompareIsNanF32: return true if any operand isnan
+  auto fn = [](MacroAssembler* masm) { __ CompareIsNanF32(a1, fa0, fa1); };
+  CHECK_EQ(SUCCESS_CODE, run_CompareF(1023.01f, -100.23f, false, fn));
+  CHECK_EQ(SUCCESS_CODE, run_CompareF(1023.01f, snan_f, true, fn));
+  CHECK_EQ(SUCCESS_CODE, run_CompareF(snan_f, -100.23f, true, fn));
+  CHECK_EQ(SUCCESS_CODE, run_CompareF(snan_f, qnan_f, true, fn));
 }
 
 TEST(FCompare64_Branch) {
@@ -1577,6 +1610,13 @@ TEST(FCompare64_Branch) {
   FCompare64Helper(EQ);
   FCompare64Helper(LT);
   FCompare64Helper(LE);
+
+  // test CompareIsNanF64: return true if any operand isnan
+  auto fn = [](MacroAssembler* masm) { __ CompareIsNanF64(a1, fa0, fa1); };
+  CHECK_EQ(SUCCESS_CODE, run_CompareF(1023.01, -100.23, false, fn));
+  CHECK_EQ(SUCCESS_CODE, run_CompareF(1023.01, snan_d, true, fn));
+  CHECK_EQ(SUCCESS_CODE, run_CompareF(snan_d, -100.23, true, fn));
+  CHECK_EQ(SUCCESS_CODE, run_CompareF(snan_d, qnan_d, true, fn));
 }
 
 static const std::vector<uint32_t> cltz_uint32_test_values() {

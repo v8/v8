@@ -627,6 +627,9 @@ class V8_EXPORT_PRIVATE TurboAssembler : public TurboAssemblerBase {
   void Float32Min(FPURegister dst, FPURegister src1, FPURegister src2);
   void Float64Max(FPURegister dst, FPURegister src1, FPURegister src2);
   void Float64Min(FPURegister dst, FPURegister src1, FPURegister src2);
+  template <typename F>
+  void FloatMinMaxHelper(FPURegister dst, FPURegister src1, FPURegister src2,
+                         MaxMinKind kind);
 
   bool IsDoubleZeroRegSet() { return has_double_zero_reg_set_; }
 
