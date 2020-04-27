@@ -1087,6 +1087,38 @@ bool Simulator::test_fflags_bits(uint32_t mask) {
   return (FCSR_ & kFcsrFlagsMask & mask) != 0;
 }
 
+template <typename T>
+T Simulator::FMaxMinHelper(T a, T b, MaxMinKind kind) {
+  // set invalid bit for signaling nan
+  if ((a == std::numeric_limits<T>::signaling_NaN()) ||
+      (b == std::numeric_limits<T>::signaling_NaN())) {
+    // FIXME: NV -> kInvalidOperation
+    set_csr_bits(csr_fflags, NV);
+  }
+
+  T result = 0;
+  if (std::isnan(a) && std::isnan(b)) {
+    result = a;
+  } else if (std::isnan(a)) {
+    result = b;
+  } else if (std::isnan(b)) {
+    result = a;
+  } else if (b == a) {  // Handle -0.0 == 0.0 case.
+    if (kind == MaxMinKind::kMax) {
+      result = std::signbit(b) ? a : b;
+    } else {
+      result = std::signbit(b) ? b : a;
+    }
+  } else {
+    result = (kind == MaxMinKind::kMax) ? fmax(a, b) : fmin(a, b);
+  }
+
+  std::cout << "a = " << a << " b = " << b << " minmax(a,b) = " << result
+            << std::endl;
+
+  return result;
+}
+
 // Raw access to the PC register.
 void Simulator::set_pc(int64_t value) {
   pc_modified_ = true;
@@ -2348,11 +2380,14 @@ void Simulator::DecodeRVRFPType() {
     case RO_FMIN_S: {  // RO_FMAX_S
       switch (instr_.Funct3Value()) {
         case 0b000: {  // RO_FMIN_S
-          set_frd(std::min(frs1(), frs2()));
+          set_frd(FMaxMinHelper(frs1(), frs2(), MaxMinKind::kMin));
           break;
         }
         case 0b001: {  // RO_FMAX_S
-          set_frd(std::max(frs1(), frs2()));
+          std::cout << "src1 = " << frs1() << " src2 = " << frs2()
+                    << " fmax(src1, src2) = " << std::fmax(frs1(), frs2())
+                    << std::endl;
+          set_frd(FMaxMinHelper(frs1(), frs2(), MaxMinKind::kMax));
           break;
         }
         default: {
@@ -2533,11 +2568,11 @@ void Simulator::DecodeRVRFPType() {
     case RO_FMIN_D: {  // RO_FMAX_D
       switch (instr_.Funct3Value()) {
         case 0b000: {  // RO_FMIN_D
-          set_drd(std::min(drs1(), drs2()));
+          set_drd(FMaxMinHelper(drs1(), drs2(), MaxMinKind::kMin));
           break;
         }
         case 0b001: {  // RO_FMAX_D
-          set_drd(std::max(drs1(), drs2()));
+          set_drd(FMaxMinHelper(drs1(), drs2(), MaxMinKind::kMax));
           break;
         }
         default: {
