@@ -160,8 +160,8 @@ DebugStackTraceIterator::GetScopeIterator() const {
   DCHECK(!Done());
   StandardFrame* frame = iterator_.frame();
   if (frame->is_wasm()) {
-    return std::make_unique<DebugWasmScopeIterator>(isolate_, iterator_.frame(),
-                                                    inlined_frame_index_);
+    return std::make_unique<DebugWasmScopeIterator>(isolate_,
+                                                    iterator_.frame());
   }
   return std::make_unique<DebugScopeIterator>(isolate_, frame_inspector_.get());
 }

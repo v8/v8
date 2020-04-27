@@ -129,11 +129,9 @@ bool DebugScopeIterator::SetVariableValue(v8::Local<v8::String> name,
 }
 
 DebugWasmScopeIterator::DebugWasmScopeIterator(Isolate* isolate,
-                                               StandardFrame* frame,
-                                               int inlined_frame_index)
+                                               StandardFrame* frame)
     : isolate_(isolate),
       frame_(frame),
-      inlined_frame_index_(inlined_frame_index),
       type_(debug::ScopeIterator::ScopeTypeModule) {}
 
 bool DebugWasmScopeIterator::Done() {
@@ -172,13 +170,6 @@ v8::Local<v8::Object> DebugWasmScopeIterator::GetObject() {
       return Utils::ToLocal(wasm::GetModuleScopeObject(instance));
     }
     case debug::ScopeIterator::ScopeTypeLocal: {
-      if (frame_->is_wasm_interpreter_entry()) {
-        Handle<WasmDebugInfo> debug_info(
-            WasmInterpreterEntryFrame::cast(frame_)->debug_info(), isolate_);
-        return Utils::ToLocal(WasmDebugInfo::GetLocalScopeObject(
-            debug_info, frame_->fp(), inlined_frame_index_));
-      }
-      // Compiled code.
       DCHECK(frame_->is_wasm_compiled());
       wasm::DebugInfo* debug_info =
           WasmCompiledFrame::cast(frame_)->native_module()->GetDebugInfo();
@@ -186,13 +177,6 @@ v8::Local<v8::Object> DebugWasmScopeIterator::GetObject() {
           isolate_, frame_->pc(), frame_->fp(), frame_->callee_fp()));
     }
     case debug::ScopeIterator::ScopeTypeWasmExpressionStack: {
-      if (frame_->is_wasm_interpreter_entry()) {
-        Handle<WasmDebugInfo> debug_info(
-            WasmInterpreterEntryFrame::cast(frame_)->debug_info(), isolate_);
-        return Utils::ToLocal(WasmDebugInfo::GetStackScopeObject(
-            debug_info, frame_->fp(), inlined_frame_index_));
-      }
-      // Compiled code.
       DCHECK(frame_->is_wasm_compiled());
       wasm::DebugInfo* debug_info =
           WasmCompiledFrame::cast(frame_)->native_module()->GetDebugInfo();

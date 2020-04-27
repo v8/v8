@@ -843,27 +843,10 @@ class WasmDebugInfo : public Struct {
   V8_EXPORT_PRIVATE static wasm::WasmInterpreter* SetupForTesting(
       Handle<WasmInstanceObject>);
 
-  // Prepare WasmDebugInfo for stepping in the given function.
-  V8_EXPORT_PRIVATE static void PrepareStepIn(Handle<WasmDebugInfo>,
-                                              int func_index);
-
-  // Set a breakpoint in the given function at the given byte offset within that
-  // function. This will redirect all future calls to this function to the
-  // interpreter and will always pause at the given offset.
-  V8_EXPORT_PRIVATE static void SetBreakpoint(Handle<WasmDebugInfo>,
-                                              int func_index, int offset);
-
-  // Clear a previously set breakpoint in the given function at the given byte
-  // offset within that function.
-  V8_EXPORT_PRIVATE static void ClearBreakpoint(Handle<WasmDebugInfo>,
-                                                int func_index, int offset);
-
   // Make a set of functions always execute in the interpreter without setting
   // breakpoints.
   V8_EXPORT_PRIVATE static void RedirectToInterpreter(Handle<WasmDebugInfo>,
                                                       Vector<int> func_indexes);
-
-  void PrepareStep(StepAction);
 
   // Execute the specified function in the interpreter. Read arguments from the
   // {argument_values} vector and write to {return_values} on regular exit.
@@ -889,18 +872,6 @@ class WasmDebugInfo : public Struct {
 
   // Returns the number of calls / function frames executed in the interpreter.
   V8_EXPORT_PRIVATE uint64_t NumInterpretedCalls();
-
-  // Get local scope details for a specific interpreted frame. It contains
-  // information about parameters, locals, and stack values.
-  static Handle<JSObject> GetLocalScopeObject(Handle<WasmDebugInfo>,
-                                              Address frame_pointer,
-                                              int frame_index);
-
-  // Get stack scope details for a specific interpreted frame. It contains
-  // information about stack values.
-  static Handle<JSObject> GetStackScopeObject(Handle<WasmDebugInfo>,
-                                              Address frame_pointer,
-                                              int frame_index);
 
   V8_EXPORT_PRIVATE static Handle<Code> GetCWasmEntry(Handle<WasmDebugInfo>,
                                                       const wasm::FunctionSig*);
@@ -941,9 +912,6 @@ class WasmScript : public AllStatic {
   // returns false.
   V8_EXPORT_PRIVATE static bool ClearBreakPointById(Handle<Script>,
                                                     int breakpoint_id);
-
-  static void SetBreakpointsOnNewInstance(Handle<Script>,
-                                          Handle<WasmInstanceObject>);
 
   // Get a list of all possible breakpoints within a given range of this module.
   V8_EXPORT_PRIVATE static bool GetPossibleBreakpoints(

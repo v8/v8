@@ -91,8 +91,6 @@ class InterpreterHandle {
   Isolate* isolate_;
   const WasmModule* module_;
   WasmInterpreter interpreter_;
-  StepAction next_step_action_ = StepNone;
-  int last_step_stack_depth_ = 0;
   std::unordered_map<Address, uint32_t> activations_;
 
   uint32_t StartActivation(Address frame_pointer) {
@@ -146,18 +144,6 @@ class InterpreterHandle {
   WasmInterpreter* interpreter() { return &interpreter_; }
   const WasmModule* module() const { return module_; }
 
-  void PrepareStep(StepAction step_action) {
-    next_step_action_ = step_action;
-    last_step_stack_depth_ = CurrentStackDepth();
-  }
-
-  void ClearStepping() { next_step_action_ = StepNone; }
-
-  int CurrentStackDepth() {
-    DCHECK_EQ(1, interpreter()->GetThreadCount());
-    return interpreter()->GetThread(0)->GetFrameCount();
-  }
-
   // Returns true if exited regularly, false if a trap/exception occurred and
   // was not handled inside this activation. In the latter case, a pending
   // exception will have been set on the isolate.
@@ -179,11 +165,10 @@ class InterpreterHandle {
     bool finished = false;
     while (!finished) {
       // TODO(clemensb): Add occasional StackChecks.
-      WasmInterpreter::State state = ContinueExecution(thread);
+      WasmInterpreter::State state = thread->Run();
       switch (state) {
         case WasmInterpreter::State::PAUSED:
-          NotifyDebugEventListeners(thread);
-          break;
+          UNREACHABLE();
         case WasmInterpreter::State::FINISHED:
           // Perfect, just break the switch and exit the loop.
           finished = true;
@@ -231,107 +216,7 @@ class InterpreterHandle {
 
     FinishActivation(frame_pointer, activation_id);
 
-    // If we do stepping and it exits wasm interpreter then debugger need to
-    // prepare for it.
-    if (next_step_action_ != StepNone) {
-      // Enter the debugger.
-      DebugScope debug_scope(isolate_->debug());
-
-      isolate_->debug()->PrepareStep(StepOut);
-    }
-    ClearStepping();
-
     return true;
-  }
-
-  WasmInterpreter::State ContinueExecution(WasmInterpreter::Thread* thread) {
-    switch (next_step_action_) {
-      case StepNone:
-        return thread->Run();
-      case StepIn:
-        return thread->Step();
-      case StepOut:
-        thread->AddBreakFlags(WasmInterpreter::BreakFlag::AfterReturn);
-        return thread->Run();
-      case StepNext: {
-        int stack_depth = thread->GetFrameCount();
-        if (stack_depth == last_step_stack_depth_) return thread->Step();
-        thread->AddBreakFlags(stack_depth > last_step_stack_depth_
-                                  ? WasmInterpreter::BreakFlag::AfterReturn
-                                  : WasmInterpreter::BreakFlag::AfterCall);
-        return thread->Run();
-      }
-      default:
-        UNREACHABLE();
-    }
-  }
-
-  Handle<WasmInstanceObject> GetInstanceObject() {
-    StackTraceFrameIterator it(isolate_);
-    WasmInterpreterEntryFrame* frame =
-        WasmInterpreterEntryFrame::cast(it.frame());
-    Handle<WasmInstanceObject> instance_obj(frame->wasm_instance(), isolate_);
-    // Check that this is indeed the instance which is connected to this
-    // interpreter.
-    DCHECK_EQ(this, Managed<InterpreterHandle>::cast(
-                        instance_obj->debug_info().interpreter_handle())
-                        .raw());
-    return instance_obj;
-  }
-
-  void NotifyDebugEventListeners(WasmInterpreter::Thread* thread) {
-    // Enter the debugger.
-    DebugScope debug_scope(isolate_->debug());
-
-    // Check whether we hit a breakpoint.
-    if (isolate_->debug()->break_points_active()) {
-      Handle<WasmModuleObject> module_object(
-          GetInstanceObject()->module_object(), isolate_);
-      Handle<Script> script(module_object->script(), isolate_);
-      int position = GetTopPosition(module_object);
-      Handle<FixedArray> breakpoints;
-      if (WasmScript::CheckBreakPoints(isolate_, script, position)
-              .ToHandle(&breakpoints)) {
-        // We hit one or several breakpoints. Clear stepping, notify the
-        // listeners and return.
-        ClearStepping();
-        isolate_->debug()->OnDebugBreak(breakpoints);
-        return;
-      }
-    }
-
-    // We did not hit a breakpoint, so maybe this pause is related to stepping.
-    bool hit_step = false;
-    switch (next_step_action_) {
-      case StepNone:
-        break;
-      case StepIn:
-        hit_step = true;
-        break;
-      case StepOut:
-        hit_step = thread->GetFrameCount() < last_step_stack_depth_;
-        break;
-      case StepNext: {
-        hit_step = thread->GetFrameCount() == last_step_stack_depth_;
-        break;
-      }
-      default:
-        UNREACHABLE();
-    }
-    if (!hit_step) return;
-    ClearStepping();
-    isolate_->debug()->OnDebugBreak(isolate_->factory()->empty_fixed_array());
-  }
-
-  int GetTopPosition(Handle<WasmModuleObject> module_object) {
-    DCHECK_EQ(1, interpreter()->GetThreadCount());
-    WasmInterpreter::Thread* thread = interpreter()->GetThread(0);
-    DCHECK_LT(0, thread->GetFrameCount());
-
-    auto frame = thread->GetFrame(thread->GetFrameCount() - 1);
-    return GetWasmFunctionOffset(module_object->module(),
-                                 frame->function()->func_index) +
-           frame->pc();
   }
 
   std::vector<std::pair<uint32_t, int>> GetInterpretedStack(
@@ -379,65 +264,6 @@ class InterpreterHandle {
   uint64_t NumInterpretedCalls() {
     DCHECK_EQ(1, interpreter()->GetThreadCount());
     return interpreter()->GetThread(0)->NumInterpretedCalls();
-  }
-
-  Handle<JSObject> GetLocalScopeObject(InterpretedFrame* frame,
-                                       Handle<WasmDebugInfo> debug_info) {
-    Isolate* isolate = isolate_;
-
-    Handle<JSObject> local_scope_object =
-        isolate_->factory()->NewJSObjectWithNullProto();
-    // Fill parameters and locals.
-    int num_locals = frame->GetLocalCount();
-    DCHECK_LE(frame->GetParameterCount(), num_locals);
-    if (num_locals > 0) {
-      Handle<JSObject> locals_obj =
-          isolate_->factory()->NewJSObjectWithNullProto();
-      Handle<String> locals_name =
-          isolate_->factory()->InternalizeString(StaticCharVector("locals"));
-      JSObject::AddProperty(isolate, local_scope_object, locals_name,
-                            locals_obj, NONE);
-      NativeModule* native_module =
-          debug_info->wasm_instance().module_object().native_module();
-      for (int i = 0; i < num_locals; ++i) {
-        Handle<Name> name;
-        if (!GetLocalNameString(isolate, native_module,
-                                frame->function()->func_index, i)
-                 .ToHandle(&name)) {
-          name = PrintFToOneByteString<true>(isolate_, "var%d", i);
-        }
-        WasmValue value = frame->GetLocalValue(i);
-        Handle<Object> value_obj = WasmValueToValueObject(isolate_, value);
-        // {name} can be a string representation of an element index.
-        LookupIterator::Key lookup_key{isolate, name};
-        LookupIterator it(isolate, locals_obj, lookup_key, locals_obj,
-                          LookupIterator::OWN_SKIP_INTERCEPTOR);
-        if (it.IsFound()) continue;
-        Object::AddDataProperty(&it, value_obj, NONE,
-                                Just(ShouldThrow::kThrowOnError),
-                                StoreOrigin::kNamed)
-            .Check();
-      }
-    }
-    return local_scope_object;
-  }
-
-  Handle<JSObject> GetStackScopeObject(InterpretedFrame* frame,
-                                       Handle<WasmDebugInfo> debug_info) {
-    // Fill stack values.
-    int stack_count = frame->GetStackHeight();
-    // Use an object without prototype instead of an Array, for nicer displaying
-    // in DevTools. For Arrays, the length field and prototype is displayed,
-    // which does not make too much sense here.
-    Handle<JSObject> stack_scope_obj =
-        isolate_->factory()->NewJSObjectWithNullProto();
-    for (int i = 0; i < stack_count; ++i) {
-      WasmValue value = frame->GetStackValue(i);
-      Handle<Object> value_obj = WasmValueToValueObject(isolate_, value);
-      JSObject::AddDataElement(stack_scope_obj, static_cast<uint32_t>(i),
-                               value_obj, NONE);
-    }
-    return stack_scope_obj;
   }
 
  private:
@@ -1138,39 +964,6 @@ wasm::WasmInterpreter* WasmDebugInfo::SetupForTesting(
 }
 
 // static
-void WasmDebugInfo::PrepareStepIn(Handle<WasmDebugInfo> debug_info,
-                                  int func_index) {
-  Isolate* isolate = debug_info->GetIsolate();
-  auto* handle = GetOrCreateInterpreterHandle(isolate, debug_info);
-  RedirectToInterpreter(debug_info, Vector<int>(&func_index, 1));
-  const wasm::WasmFunction* func = &handle->module()->functions[func_index];
-  handle->interpreter()->PrepareStepIn(func);
-  // Debug break would be considered as a step-in inside wasm.
-  handle->PrepareStep(StepAction::StepIn);
-}
-
-// static
-void WasmDebugInfo::SetBreakpoint(Handle<WasmDebugInfo> debug_info,
-                                  int func_index, int offset) {
-  Isolate* isolate = debug_info->GetIsolate();
-  auto* handle = GetOrCreateInterpreterHandle(isolate, debug_info);
-  RedirectToInterpreter(debug_info, Vector<int>(&func_index, 1));
-  const wasm::WasmFunction* func = &handle->module()->functions[func_index];
-  handle->interpreter()->SetBreakpoint(func, offset, true);
-}
-
-// static
-void WasmDebugInfo::ClearBreakpoint(Handle<WasmDebugInfo> debug_info,
-                                    int func_index, int offset) {
-  Isolate* isolate = debug_info->GetIsolate();
-  auto* handle = GetOrCreateInterpreterHandle(isolate, debug_info);
-  // TODO(leese): If there are no more breakpoints left it would be good to
-  // undo redirecting to the interpreter.
-  const wasm::WasmFunction* func = &handle->module()->functions[func_index];
-  handle->interpreter()->SetBreakpoint(func, offset, false);
-}
-
-// static
 void WasmDebugInfo::RedirectToInterpreter(Handle<WasmDebugInfo> debug_info,
                                           Vector<int> func_indexes) {
   Isolate* isolate = debug_info->GetIsolate();
@@ -1206,10 +999,6 @@ void WasmDebugInfo::RedirectToInterpreter(Handle<WasmDebugInfo> debug_info,
   }
 }
 
-void WasmDebugInfo::PrepareStep(StepAction step_action) {
-  GetInterpreterHandle(*this)->PrepareStep(step_action);
-}
-
 // static
 bool WasmDebugInfo::RunInterpreter(Isolate* isolate,
                                    Handle<WasmDebugInfo> debug_info,
@@ -1241,22 +1030,6 @@ wasm::WasmInterpreter::FramePtr WasmDebugInfo::GetInterpretedFrame(
 uint64_t WasmDebugInfo::NumInterpretedCalls() {
   auto* handle = GetInterpreterHandleOrNull(*this);
   return handle ? handle->NumInterpretedCalls() : 0;
-}
-
-// static
-Handle<JSObject> WasmDebugInfo::GetLocalScopeObject(
-    Handle<WasmDebugInfo> debug_info, Address frame_pointer, int frame_index) {
-  auto* interp_handle = GetInterpreterHandle(*debug_info);
-  auto frame = interp_handle->GetInterpretedFrame(frame_pointer, frame_index);
-  return interp_handle->GetLocalScopeObject(frame.get(), debug_info);
-}
-
-// static
-Handle<JSObject> WasmDebugInfo::GetStackScopeObject(
-    Handle<WasmDebugInfo> debug_info, Address frame_pointer, int frame_index) {
-  auto* interp_handle = GetInterpreterHandle(*debug_info);
-  auto frame = interp_handle->GetInterpretedFrame(frame_pointer, frame_index);
-  return interp_handle->GetStackScopeObject(frame.get(), debug_info);
 }
 
 // static
@@ -1519,38 +1292,6 @@ void WasmScript::AddBreakpointToInfo(Handle<Script> script, int position,
 
   // Now insert new position at insert_pos.
   new_breakpoint_infos->set(insert_pos, *breakpoint_info);
-}
-
-void WasmScript::SetBreakpointsOnNewInstance(
-    Handle<Script> script, Handle<WasmInstanceObject> instance) {
-  if (!script->has_wasm_breakpoint_infos()) return;
-  Isolate* isolate = script->GetIsolate();
-  Handle<WasmDebugInfo> debug_info =
-      WasmInstanceObject::GetOrCreateDebugInfo(instance);
-
-  Handle<FixedArray> breakpoint_infos(script->wasm_breakpoint_infos(), isolate);
-  // If the array exists, it should not be empty.
-  DCHECK_LT(0, breakpoint_infos->length());
-
-  for (int i = 0, e = breakpoint_infos->length(); i < e; ++i) {
-    Handle<Object> obj(breakpoint_infos->get(i), isolate);
-    if (obj->IsUndefined(isolate)) {
-      for (; i < e; ++i) {
-        DCHECK(breakpoint_infos->get(i).IsUndefined(isolate));
-      }
-      break;
-    }
-    Handle<BreakPointInfo> breakpoint_info = Handle<BreakPointInfo>::cast(obj);
-    int position = breakpoint_info->source_position();
-
-    // Find the function for this breakpoint, and set the breakpoint.
-    const wasm::WasmModule* module = script->wasm_native_module()->module();
-    int func_index = GetContainingWasmFunction(module, position);
-    DCHECK_LE(0, func_index);
-    const wasm::WasmFunction& func = module->functions[func_index];
-    int offset_in_func = position - func.code.offset();
-    WasmDebugInfo::SetBreakpoint(debug_info, func_index, offset_in_func);
-  }
 }
 
 // static
