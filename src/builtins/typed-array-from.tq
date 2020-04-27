@@ -21,23 +21,21 @@ namespace typed_array {
       ...arguments): JSTypedArray {
     try {
       const source: JSAny = arguments[0];
+      const mapfnObj: JSAny = arguments[1];
+      const thisArg = arguments[2];
 
       // 1. Let C be the this value.
       // 2. If IsConstructor(C) is false, throw a TypeError exception.
       const constructor = Cast<Constructor>(receiver) otherwise NotConstructor;
 
-      // 3. If mapfn is present and mapfn is not undefined, then
+      // 3. If mapfn is undefined, then let mapping be false.
+      // 4. Else,
       //   a. If IsCallable(mapfn) is false, throw a TypeError exception.
       //   b. Let mapping be true.
-      // 4. Else, let mapping be false.
-      const mapping: bool = arguments.length > 1;
-      const mapfnObj: JSAny = mapping ? arguments[1] : Undefined;
+      const mapping: bool = mapfnObj != Undefined;
       if (mapping && !Is<Callable>(mapfnObj)) deferred {
           ThrowTypeError(MessageTemplate::kCalledNonCallable, mapfnObj);
         }
-
-      // 5. If thisArg is present, let T be thisArg; else let T be undefined.
-      const thisArg = arguments.length > 2 ? arguments[2] : Undefined;
 
       // We split up this builtin differently to the way it is written in the
       // spec. We already have great code in the elements accessor for copying
@@ -52,7 +50,7 @@ namespace typed_array {
       let finalSource: JSAny;
 
       try {
-        // 6. Let usingIterator be ? GetMethod(source, @@iterator).
+        // 5. Let usingIterator be ? GetMethod(source, @@iterator).
         // TODO(v8:8906): Use iterator::GetIteratorMethod() once it supports
         // labels.
         const usingIterator = GetMethod(source, IteratorSymbolConstant())
@@ -102,7 +100,7 @@ namespace typed_array {
           finalSource = source;
         }
         label UseUserProvidedIterator {
-          // 7. If usingIterator is not undefined, then
+          // 6. If usingIterator is not undefined, then
           //  a. Let values be ? IterableToList(source, usingIterator).
           //  b. Let len be the number of elements in values.
           const values: JSArray = IterableToList(source, usingIterator);
@@ -112,13 +110,13 @@ namespace typed_array {
         }
       }
       label IteratorIsUndefined {
-        // 8. NOTE: source is not an Iterable so assume it is already an
+        // 7. NOTE: source is not an Iterable so assume it is already an
         // array-like object.
 
-        // 9. Let arrayLike be ! ToObject(source).
+        // 8. Let arrayLike be ! ToObject(source).
         const arrayLike: JSReceiver = ToObject_Inline(context, source);
 
-        // 10. Let len be ? ToLength(? Get(arrayLike, "length")).
+        // 9. Let len be ? LengthOfArrayLike(arrayLike).
         const length = GetLengthProperty(arrayLike);
 
         try {
@@ -136,7 +134,7 @@ namespace typed_array {
 
       const finalLengthNum = Convert<Number>(finalLength);
 
-      // 7c/11. Let targetObj be ? TypedArrayCreate(C, «len»).
+      // 6c/10. Let targetObj be ? TypedArrayCreate(C, «len»).
       const targetObj = TypedArrayCreateByLength(
           constructor, finalLengthNum, kBuiltinNameFrom);
 
@@ -155,32 +153,32 @@ namespace typed_array {
       const accessor: TypedArrayAccessor =
           GetTypedArrayAccessor(targetObj.elements_kind);
 
-      // 7d-7e and 12-13.
-      // 12. Let k be 0.
-      // 13. Repeat, while k < len
+      // 6d-6e and 11-12.
+      // 11. Let k be 0.
+      // 12. Repeat, while k < len
       for (let k: uintptr = 0; k < finalLength; k++) {
-        // 13a. Let Pk be ! ToString(k).
+        // 12a. Let Pk be ! ToString(k).
         const kNum = Convert<Number>(k);
 
-        // 13b. Let kValue be ? Get(arrayLike, Pk).
+        // 12b. Let kValue be ? Get(arrayLike, Pk).
         const kValue: JSAny = GetProperty(finalSource, kNum);
 
         let mappedValue: JSAny;
-        // 13c. If mapping is true, then
+        // 12c. If mapping is true, then
         if (mapping) {
           // i. Let mappedValue be ? Call(mapfn, T, « kValue, k »).
           mappedValue = Call(context, mapfn, thisArg, kValue, kNum);
         } else {
-          // 13d. Else, let mappedValue be kValue.
+          // 12d. Else, let mappedValue be kValue.
           mappedValue = kValue;
         }
 
-        // 13e. Perform ? Set(targetObj, Pk, mappedValue, true).
+        // 12e. Perform ? Set(targetObj, Pk, mappedValue, true).
         // Buffer may be detached during executing ToNumber/ToBigInt.
         accessor.StoreJSAny(context, targetObj, k, mappedValue)
             otherwise IfDetached;
 
-        // 13f. Set k to k + 1. (done by the loop).
+        // 12f. Set k to k + 1. (done by the loop).
       }
       return targetObj;
     }
