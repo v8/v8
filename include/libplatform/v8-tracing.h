@@ -12,7 +12,7 @@
 #include <vector>
 
 #include "libplatform/libplatform-export.h"
-#include "v8-platform.h"  // NOLINT(build/include)
+#include "v8-platform.h"  // NOLINT(build/include_directory)
 
 namespace perfetto {
 namespace trace_processor {

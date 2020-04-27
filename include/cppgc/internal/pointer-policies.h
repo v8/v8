@@ -9,7 +9,7 @@
 #include <type_traits>
 
 #include "cppgc/source-location.h"
-#include "v8config.h"  // NOLINT(build/include)
+#include "v8config.h"  // NOLINT(build/include_directory)
 
 namespace cppgc {
 namespace internal {

@@ -7,7 +7,7 @@
 
 #include <string>
 
-#include "v8config.h"  // NOLINT(build/include)
+#include "v8config.h"  // NOLINT(build/include_directory)
 
 #if defined(__has_builtin)
 #define CPPGC_SUPPORTS_SOURCE_LOCATION                                   \

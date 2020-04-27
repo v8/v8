@@ -11,7 +11,7 @@
 
 #include "cppgc/internal/pointer-policies.h"
 #include "cppgc/type-traits.h"
-#include "v8config.h"  // NOLINT(build/include)
+#include "v8config.h"  // NOLINT(build/include_directory)
 
 namespace cppgc {
 

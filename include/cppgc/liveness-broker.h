@@ -8,7 +8,7 @@
 #include "cppgc/heap.h"
 #include "cppgc/member.h"
 #include "cppgc/trace-trait.h"
-#include "v8config.h"  // NOLINT(build/include)
+#include "v8config.h"  // NOLINT(build/include_directory)
 
 namespace cppgc {
 
