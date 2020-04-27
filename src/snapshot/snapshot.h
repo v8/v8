@@ -6,11 +6,13 @@
 #define V8_SNAPSHOT_SNAPSHOT_H_
 
 #include "include/v8.h"  // For StartupData.
+#include "src/common/assert-scope.h"
 #include "src/common/globals.h"
 
 namespace v8 {
 namespace internal {
 
+class Context;
 class Isolate;
 class SnapshotData;
 class JSGlobalProxy;
@@ -19,11 +21,18 @@ class Snapshot : public AllStatic {
  public:
   // ---------------- Serialization -------------------------------------------
 
-  static v8::StartupData CreateSnapshotBlob(
-      const SnapshotData* startup_snapshot_in,
-      const SnapshotData* read_only_snapshot_in,
-      const std::vector<SnapshotData*>& context_snapshots_in,
-      bool can_be_rehashed);
+  // Serializes the given isolate and contexts. Each context may have an
+  // associated callback to serialize internal fields. The default context must
+  // be passed at index 0.
+  static v8::StartupData Create(
+      Isolate* isolate, std::vector<Context>* contexts,
+      const std::vector<SerializeInternalFieldsCallback>&
+          embedder_fields_serializers,
+      const DisallowHeapAllocation* no_gc);
+
+  // Convenience helper for the above when only serializing a single context.
+  static v8::StartupData Create(Isolate* isolate, Context default_context,
+                                const DisallowHeapAllocation* no_gc);
 
   // ---------------- Deserialization -----------------------------------------
 

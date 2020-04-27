@@ -96,10 +96,8 @@
 #include "src/regexp/regexp-utils.h"
 #include "src/runtime/runtime.h"
 #include "src/snapshot/code-serializer.h"
-#include "src/snapshot/context-serializer.h"
-#include "src/snapshot/read-only-serializer.h"
 #include "src/snapshot/snapshot.h"
-#include "src/snapshot/startup-serializer.h"
+#include "src/snapshot/startup-serializer.h"  // For SerializedHandleChecker.
 #include "src/strings/char-predicates-inl.h"
 #include "src/strings/string-hasher.h"
 #include "src/strings/unicode-inl.h"
@@ -599,7 +597,6 @@ SnapshotCreator::SnapshotCreator(Isolate* isolate,
                                  const intptr_t* external_references,
                                  StartupData* existing_snapshot) {
   SnapshotCreatorData* data = new SnapshotCreatorData(isolate);
-  data->isolate_ = isolate;
   i::Isolate* internal_isolate = reinterpret_cast<i::Isolate*>(isolate);
   internal_isolate->set_array_buffer_allocator(&data->allocator_);
   internal_isolate->set_api_external_references(external_references);
@@ -734,8 +731,11 @@ StartupData SnapshotCreator::CreateBlob(
   DCHECK(!data->created_);
   DCHECK(!data->default_context_.IsEmpty());
 
-  int num_additional_contexts = static_cast<int>(data->contexts_.Size());
+  const int num_additional_contexts = static_cast<int>(data->contexts_.Size());
+  const int num_contexts = num_additional_contexts + 1;  // The default context.
 
+  // Create and store lists of embedder-provided data needed during
+  // serialization.
   {
     i::HandleScope scope(isolate);
     // Convert list of context-independent data to FixedArray.
@@ -815,26 +815,6 @@ StartupData SnapshotCreator::CreateBlob(
 
   i::DisallowHeapAllocation no_gc_from_here_on;
 
-  int num_contexts = num_additional_contexts + 1;
-  std::vector<i::Context> contexts;
-  contexts.reserve(num_contexts);
-  {
-    i::HandleScope scope(isolate);
-    contexts.push_back(
-        *v8::Utils::OpenHandle(*data->default_context_.Get(data->isolate_)));
-    data->default_context_.Reset();
-    for (int i = 0; i < num_additional_contexts; i++) {
-      i::Handle<i::Context> context =
-          v8::Utils::OpenHandle(*data->contexts_.Get(i));
-      contexts.push_back(*context);
-    }
-    data->contexts_.Clear();
-  }
-
-  // Check that values referenced by global/eternal handles are accounted for.
-  i::SerializedHandleChecker handle_checker(isolate, &contexts);
-  CHECK(handle_checker.CheckGlobalAndEternalHandles());
-
   i::HeapObjectIterator heap_iterator(isolate->heap());
   for (i::HeapObject current_obj = heap_iterator.Next(); !current_obj.is_null();
        current_obj = heap_iterator.Next()) {
@@ -857,60 +837,52 @@ StartupData SnapshotCreator::CreateBlob(
             i::ReadOnlyRoots(isolate).undefined_value());
         fun.set_code(isolate->builtins()->builtin(i::Builtins::kCompileLazy));
       }
+#ifdef DEBUG
       if (function_code_handling == FunctionCodeHandling::kClear) {
         DCHECK(fun.shared().HasWasmExportedFunctionData() ||
                fun.shared().HasBuiltinId() || fun.shared().IsApiFunction() ||
                fun.shared().HasUncompiledDataWithoutPreparseData());
       }
+#endif  // DEBUG
     }
   }
 
-  i::ReadOnlySerializer read_only_serializer(isolate);
-  read_only_serializer.SerializeReadOnlyRoots();
-
-  i::StartupSerializer startup_serializer(isolate, &read_only_serializer);
-  startup_serializer.SerializeStrongReferences();
-
-  // Serialize each context with a new context serializer.
-  std::vector<i::SnapshotData*> context_snapshots;
-  context_snapshots.reserve(num_contexts);
-
-  // TODO(6593): generalize rehashing, and remove this flag.
-  bool can_be_rehashed = true;
-
-  for (int i = 0; i < num_contexts; i++) {
-    bool is_default_context = i == 0;
-    i::ContextSerializer context_serializer(
-        isolate, &startup_serializer,
-        is_default_context ? data->default_embedder_fields_serializer_
-                           : data->embedder_fields_serializers_[i - 1]);
-    context_serializer.Serialize(&contexts[i], !is_default_context);
-    can_be_rehashed = can_be_rehashed && context_serializer.can_be_rehashed();
-    context_snapshots.push_back(new i::SnapshotData(&context_serializer));
+  // Create a vector with all contexts and clear associated Persistent fields.
+  // Note these contexts may be dead after calling Clear(), but will not be
+  // collected until serialization completes and the DisallowHeapAllocation
+  // scope above goes out of scope.
+  std::vector<i::Context> contexts;
+  contexts.reserve(num_contexts);
+  {
+    i::HandleScope scope(isolate);
+    contexts.push_back(
+        *v8::Utils::OpenHandle(*data->default_context_.Get(data->isolate_)));
+    data->default_context_.Reset();
+    for (int i = 0; i < num_additional_contexts; i++) {
+      i::Handle<i::Context> context =
+          v8::Utils::OpenHandle(*data->contexts_.Get(i));
+      contexts.push_back(*context);
+    }
+    data->contexts_.Clear();
   }
 
-  startup_serializer.SerializeWeakReferencesAndDeferred();
-  can_be_rehashed = can_be_rehashed && startup_serializer.can_be_rehashed();
+  // Check that values referenced by global/eternal handles are accounted for.
+  i::SerializedHandleChecker handle_checker(isolate, &contexts);
+  CHECK(handle_checker.CheckGlobalAndEternalHandles());
 
-  startup_serializer.CheckNoDirtyFinalizationRegistries();
-
-  read_only_serializer.FinalizeSerialization();
-  can_be_rehashed = can_be_rehashed && read_only_serializer.can_be_rehashed();
-
-  i::SnapshotData read_only_snapshot(&read_only_serializer);
-  i::SnapshotData startup_snapshot(&startup_serializer);
-  StartupData result =
-      i::Snapshot::CreateSnapshotBlob(&startup_snapshot, &read_only_snapshot,
-                                      context_snapshots, can_be_rehashed);
-
-  // Delete heap-allocated context snapshot instances.
-  for (const auto context_snapshot : context_snapshots) {
-    delete context_snapshot;
+  // Create a vector with all embedder fields serializers.
+  std::vector<SerializeInternalFieldsCallback> embedder_fields_serializers;
+  embedder_fields_serializers.reserve(num_contexts);
+  embedder_fields_serializers.push_back(
+      data->default_embedder_fields_serializer_);
+  for (int i = 0; i < num_additional_contexts; i++) {
+    embedder_fields_serializers.push_back(
+        data->embedder_fields_serializers_[i]);
   }
+
   data->created_ = true;
-
-  DCHECK(i::Snapshot::VerifyChecksum(&result));
-  return result;
+  return i::Snapshot::Create(isolate, &contexts, embedder_fields_serializers,
+                             &no_gc_from_here_on);
 }
 
 bool StartupData::CanBeRehashed() const {

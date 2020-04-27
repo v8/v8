@@ -9,9 +9,12 @@
 #include "src/base/platform/platform.h"
 #include "src/logging/counters.h"
 #include "src/snapshot/context-deserializer.h"
+#include "src/snapshot/context-serializer.h"
 #include "src/snapshot/read-only-deserializer.h"
+#include "src/snapshot/read-only-serializer.h"
 #include "src/snapshot/snapshot-utils.h"
 #include "src/snapshot/startup-deserializer.h"
+#include "src/snapshot/startup-serializer.h"
 #include "src/utils/memcopy.h"
 #include "src/utils/version.h"
 
@@ -26,6 +29,12 @@ namespace {
 
 class SnapshotImpl : public AllStatic {
  public:
+  static v8::StartupData CreateSnapshotBlob(
+      const SnapshotData* startup_snapshot_in,
+      const SnapshotData* read_only_snapshot_in,
+      const std::vector<SnapshotData*>& context_snapshots_in,
+      bool can_be_rehashed);
+
   static uint32_t ExtractNumContexts(const v8::StartupData* data);
   static uint32_t ExtractContextOffset(const v8::StartupData* data,
                                        uint32_t index);
@@ -201,7 +210,68 @@ void ProfileDeserialization(
   }
 }
 
-v8::StartupData Snapshot::CreateSnapshotBlob(
+// static
+v8::StartupData Snapshot::Create(
+    Isolate* isolate, std::vector<Context>* contexts,
+    const std::vector<SerializeInternalFieldsCallback>&
+        embedder_fields_serializers,
+    const DisallowHeapAllocation* no_gc) {
+  DCHECK_EQ(contexts->size(), embedder_fields_serializers.size());
+  DCHECK_GT(contexts->size(), 0);
+
+  ReadOnlySerializer read_only_serializer(isolate);
+  read_only_serializer.SerializeReadOnlyRoots();
+
+  StartupSerializer startup_serializer(isolate, &read_only_serializer);
+  startup_serializer.SerializeStrongReferences();
+
+  // Serialize each context with a new serializer.
+  const int num_contexts = static_cast<int>(contexts->size());
+  std::vector<SnapshotData*> context_snapshots;
+  context_snapshots.reserve(num_contexts);
+
+  // TODO(v8:6593): generalize rehashing, and remove this flag.
+  bool can_be_rehashed = true;
+
+  for (int i = 0; i < num_contexts; i++) {
+    const bool is_default_context = (i == 0);
+    const bool include_global_proxy = !is_default_context;
+    ContextSerializer context_serializer(isolate, &startup_serializer,
+                                         embedder_fields_serializers[i]);
+    context_serializer.Serialize(&contexts->at(i), include_global_proxy);
+    can_be_rehashed = can_be_rehashed && context_serializer.can_be_rehashed();
+    context_snapshots.push_back(new SnapshotData(&context_serializer));
+  }
+
+  startup_serializer.SerializeWeakReferencesAndDeferred();
+  can_be_rehashed = can_be_rehashed && startup_serializer.can_be_rehashed();
+
+  startup_serializer.CheckNoDirtyFinalizationRegistries();
+
+  read_only_serializer.FinalizeSerialization();
+  can_be_rehashed = can_be_rehashed && read_only_serializer.can_be_rehashed();
+
+  SnapshotData read_only_snapshot(&read_only_serializer);
+  SnapshotData startup_snapshot(&startup_serializer);
+  v8::StartupData result =
+      SnapshotImpl::CreateSnapshotBlob(&startup_snapshot, &read_only_snapshot,
+                                       context_snapshots, can_be_rehashed);
+
+  for (const SnapshotData* ptr : context_snapshots) delete ptr;
+
+  CHECK(Snapshot::VerifyChecksum(&result));
+  return result;
+}
+
+// static
+v8::StartupData Snapshot::Create(Isolate* isolate, Context default_context,
+                                 const DisallowHeapAllocation* no_gc) {
+  std::vector<Context> contexts{default_context};
+  std::vector<SerializeInternalFieldsCallback> callbacks{{}};
+  return Snapshot::Create(isolate, &contexts, callbacks, no_gc);
+}
+
+v8::StartupData SnapshotImpl::CreateSnapshotBlob(
     const SnapshotData* startup_snapshot_in,
     const SnapshotData* read_only_snapshot_in,
     const std::vector<SnapshotData*>& context_snapshots_in,
