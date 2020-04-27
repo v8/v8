@@ -12,7 +12,7 @@
 #include "cppgc/source-location.h"
 #include "cppgc/type-traits.h"
 #include "cppgc/visitor.h"
-#include "v8config.h"  // NOLINT(build/include_directory)
+#include "v8config.h"  // NOLINT(build/include)
 
 namespace cppgc {
 namespace internal {

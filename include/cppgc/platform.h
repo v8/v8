@@ -5,8 +5,8 @@
 #ifndef INCLUDE_CPPGC_PLATFORM_H_
 #define INCLUDE_CPPGC_PLATFORM_H_
 
-#include "v8-platform.h"  // NOLINT(build/include_directory)
-#include "v8config.h"     // NOLINT(build/include_directory)
+#include "v8-platform.h"  // NOLINT(build/include)
+#include "v8config.h"     // NOLINT(build/include)
 
 namespace cppgc {
 
