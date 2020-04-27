@@ -2617,9 +2617,10 @@ JSNativeContextSpecialization::BuildElementAccess(
       situation = kHandleOOB_SmiCheckDone;
     } else {
       // Check that the {index} is in the valid range for the {receiver}.
-      index = effect =
-          graph()->NewNode(simplified()->CheckBounds(FeedbackSource()), index,
-                           length, effect, control);
+      index = effect = graph()->NewNode(
+          simplified()->CheckBounds(
+              FeedbackSource(), CheckBoundsFlag::kConvertStringAndMinusZero),
+          index, length, effect, control);
       situation = kBoundsCheckDone;
     }
 
@@ -2647,7 +2648,8 @@ JSNativeContextSpecialization::BuildElementAccess(
             index = etrue = graph()->NewNode(
                 simplified()->CheckBounds(
                     FeedbackSource(),
-                    CheckBoundsParameters::kAbortOnOutOfBounds),
+                    CheckBoundsFlag::kConvertStringAndMinusZero |
+                        CheckBoundsFlag::kAbortOnOutOfBounds),
                 index, length, etrue, if_true);
 
             // Perform the actual load
@@ -2717,7 +2719,8 @@ JSNativeContextSpecialization::BuildElementAccess(
             index = etrue = graph()->NewNode(
                 simplified()->CheckBounds(
                     FeedbackSource(),
-                    CheckBoundsParameters::kAbortOnOutOfBounds),
+                    CheckBoundsFlag::kConvertStringAndMinusZero |
+                        CheckBoundsFlag::kAbortOnOutOfBounds),
                 index, length, etrue, if_true);
 
             // Perform the actual store.
@@ -2801,13 +2804,15 @@ JSNativeContextSpecialization::BuildElementAccess(
       // bounds check below and just skip the store below if it's out of
       // bounds for the {receiver}.
       index = effect = graph()->NewNode(
-          simplified()->CheckBounds(FeedbackSource()), index,
-          jsgraph()->Constant(Smi::kMaxValue), effect, control);
+          simplified()->CheckBounds(
+              FeedbackSource(), CheckBoundsFlag::kConvertStringAndMinusZero),
+          index, jsgraph()->Constant(Smi::kMaxValue), effect, control);
     } else {
       // Check that the {index} is in the valid range for the {receiver}.
-      index = effect =
-          graph()->NewNode(simplified()->CheckBounds(FeedbackSource()), index,
-                           length, effect, control);
+      index = effect = graph()->NewNode(
+          simplified()->CheckBounds(
+              FeedbackSource(), CheckBoundsFlag::kConvertStringAndMinusZero),
+          index, length, effect, control);
     }
 
     // Compute the element access.
@@ -2855,10 +2860,12 @@ JSNativeContextSpecialization::BuildElementAccess(
           // Do a real bounds check against {length}. This is in order to
           // protect against a potential typer bug leading to the elimination of
           // the NumberLessThan above.
-          index = etrue = graph()->NewNode(
-              simplified()->CheckBounds(
-                  FeedbackSource(), CheckBoundsParameters::kAbortOnOutOfBounds),
-              index, length, etrue, if_true);
+          index = etrue =
+              graph()->NewNode(simplified()->CheckBounds(
+                                   FeedbackSource(),
+                                   CheckBoundsFlag::kConvertStringAndMinusZero |
+                                       CheckBoundsFlag::kAbortOnOutOfBounds),
+                               index, length, etrue, if_true);
 
           // Perform the actual load
           vtrue = etrue =
@@ -2957,9 +2964,10 @@ JSNativeContextSpecialization::BuildElementAccess(
         Node* if_true = graph()->NewNode(common()->IfTrue(), branch);
         Node* etrue = effect;
 
-        Node* checked = etrue =
-            graph()->NewNode(simplified()->CheckBounds(FeedbackSource()), index,
-                             length, etrue, if_true);
+        Node* checked = etrue = graph()->NewNode(
+            simplified()->CheckBounds(
+                FeedbackSource(), CheckBoundsFlag::kConvertStringAndMinusZero),
+            index, length, etrue, if_true);
 
         Node* element = etrue =
             graph()->NewNode(simplified()->LoadElement(element_access),
@@ -3046,9 +3054,10 @@ JSNativeContextSpecialization::BuildElementAccess(
                                    jsgraph()->Constant(JSObject::kMaxGap))
                 : graph()->NewNode(simplified()->NumberAdd(), length,
                                    jsgraph()->OneConstant());
-        index = effect =
-            graph()->NewNode(simplified()->CheckBounds(FeedbackSource()), index,
-                             limit, effect, control);
+        index = effect = graph()->NewNode(
+            simplified()->CheckBounds(
+                FeedbackSource(), CheckBoundsFlag::kConvertStringAndMinusZero),
+            index, limit, effect, control);
 
         // Grow {elements} backing store if necessary.
         GrowFastElementsMode mode =
@@ -3116,8 +3125,9 @@ Node* JSNativeContextSpecialization::BuildIndexedStringLoad(
       dependencies()->DependOnNoElementsProtector()) {
     // Ensure that the {index} is a valid String length.
     index = *effect = graph()->NewNode(
-        simplified()->CheckBounds(FeedbackSource()), index,
-        jsgraph()->Constant(String::kMaxLength), *effect, *control);
+        simplified()->CheckBounds(FeedbackSource(),
+                                  CheckBoundsFlag::kConvertStringAndMinusZero),
+        index, jsgraph()->Constant(String::kMaxLength), *effect, *control);
 
     // Load the single character string from {receiver} or yield
     // undefined if the {index} is not within the valid bounds.
@@ -3134,7 +3144,8 @@ Node* JSNativeContextSpecialization::BuildIndexedStringLoad(
     // NumberLessThan above.
     Node* etrue = index = graph()->NewNode(
         simplified()->CheckBounds(FeedbackSource(),
-                                  CheckBoundsParameters::kAbortOnOutOfBounds),
+                                  CheckBoundsFlag::kConvertStringAndMinusZero |
+                                      CheckBoundsFlag::kAbortOnOutOfBounds),
         index, length, *effect, if_true);
     Node* masked_index = graph()->NewNode(simplified()->PoisonIndex(), index);
     Node* vtrue = etrue =
@@ -3152,9 +3163,10 @@ Node* JSNativeContextSpecialization::BuildIndexedStringLoad(
                             vtrue, vfalse, *control);
   } else {
     // Ensure that {index} is less than {receiver} length.
-    index = *effect =
-        graph()->NewNode(simplified()->CheckBounds(FeedbackSource()), index,
-                         length, *effect, *control);
+    index = *effect = graph()->NewNode(
+        simplified()->CheckBounds(FeedbackSource(),
+                                  CheckBoundsFlag::kConvertStringAndMinusZero),
+        index, length, *effect, *control);
 
     Node* masked_index = graph()->NewNode(simplified()->PoisonIndex(), index);
 

@@ -1585,15 +1585,22 @@ class RepresentationSelector {
     FeedbackSource const& feedback = p.check_parameters().feedback();
     Type const index_type = TypeOf(node->InputAt(0));
     Type const length_type = TypeOf(node->InputAt(1));
+
+    // Conversions, if requested and needed, will be handled by the
+    // representation changer, not by the lower-level Checked*Bounds operators.
+    CheckBoundsFlags new_flags =
+        p.flags().without(CheckBoundsFlag::kConvertStringAndMinusZero);
+
     if (length_type.Is(Type::Unsigned31())) {
-      if (index_type.Is(Type::Integral32OrMinusZero())) {
-        // Map -0 to 0, and the values in the [-2^31,-1] range to the
-        // [2^31,2^32-1] range, which will be considered out-of-bounds
-        // as well, because the {length_type} is limited to Unsigned31.
+      if (index_type.Is(Type::Integral32()) ||
+          (index_type.Is(Type::Integral32OrMinusZero()) &&
+           p.flags() & CheckBoundsFlag::kConvertStringAndMinusZero)) {
+        // Map the values in the [-2^31,-1] range to the [2^31,2^32-1] range,
+        // which will be considered out-of-bounds because the {length_type} is
+        // limited to Unsigned31. This also converts -0 to 0.
         VisitBinop<T>(node, UseInfo::TruncatingWord32(),
                       MachineRepresentation::kWord32);
         if (lower<T>()) {
-          CheckBoundsParameters::Mode mode = p.mode();
           if (lowering->poisoning_level_ ==
                   PoisoningMitigationLevel::kDontPoison &&
               (index_type.IsNone() || length_type.IsNone() ||
@@ -1601,32 +1608,45 @@ class RepresentationSelector {
                 index_type.Max() < length_type.Min()))) {
             // The bounds check is redundant if we already know that
             // the index is within the bounds of [0.0, length[.
-            mode = CheckBoundsParameters::kAbortOnOutOfBounds;
+            // TODO(neis): Move this into TypedOptimization?
+            new_flags |= CheckBoundsFlag::kAbortOnOutOfBounds;
           }
           NodeProperties::ChangeOp(
-              node, simplified()->CheckedUint32Bounds(feedback, mode));
+              node, simplified()->CheckedUint32Bounds(feedback, new_flags));
         }
-      } else {
+      } else if (p.flags() & CheckBoundsFlag::kConvertStringAndMinusZero) {
         VisitBinop<T>(node, UseInfo::CheckedTaggedAsArrayIndex(feedback),
                       UseInfo::Word(), MachineType::PointerRepresentation());
         if (lower<T>()) {
           if (jsgraph_->machine()->Is64()) {
             NodeProperties::ChangeOp(
-                node, simplified()->CheckedUint64Bounds(feedback, p.mode()));
+                node, simplified()->CheckedUint64Bounds(feedback, new_flags));
           } else {
             NodeProperties::ChangeOp(
-                node, simplified()->CheckedUint32Bounds(feedback, p.mode()));
+                node, simplified()->CheckedUint32Bounds(feedback, new_flags));
           }
+        }
+      } else {
+        VisitBinop<T>(
+            node, UseInfo::CheckedSigned32AsWord32(kDistinguishZeros, feedback),
+            UseInfo::TruncatingWord32(), MachineRepresentation::kWord32);
+        if (lower<T>()) {
+          NodeProperties::ChangeOp(
+              node, simplified()->CheckedUint32Bounds(feedback, new_flags));
         }
       }
     } else {
       CHECK(length_type.Is(type_cache_->kPositiveSafeInteger));
+      IdentifyZeros zero_handling =
+          (p.flags() & CheckBoundsFlag::kConvertStringAndMinusZero)
+              ? kIdentifyZeros
+              : kDistinguishZeros;
       VisitBinop<T>(node,
-                    UseInfo::CheckedSigned64AsWord64(kIdentifyZeros, feedback),
+                    UseInfo::CheckedSigned64AsWord64(zero_handling, feedback),
                     UseInfo::Word64(), MachineRepresentation::kWord64);
       if (lower<T>()) {
         NodeProperties::ChangeOp(
-            node, simplified()->CheckedUint64Bounds(feedback, p.mode()));
+            node, simplified()->CheckedUint64Bounds(feedback, new_flags));
       }
     }
   }

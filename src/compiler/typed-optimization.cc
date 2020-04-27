@@ -42,6 +42,8 @@ Reduction TypedOptimization::Reduce(Node* node) {
       return ReduceMaybeGrowFastElements(node);
     case IrOpcode::kCheckHeapObject:
       return ReduceCheckHeapObject(node);
+    case IrOpcode::kCheckBounds:
+      return ReduceCheckBounds(node);
     case IrOpcode::kCheckNotTaggedHole:
       return ReduceCheckNotTaggedHole(node);
     case IrOpcode::kCheckMaps:
@@ -177,12 +179,29 @@ Reduction TypedOptimization::ReduceMaybeGrowFastElements(Node* node) {
       index_type.Max() < length_type.Min()) {
     Node* check_bounds = graph()->NewNode(
         simplified()->CheckBounds(FeedbackSource{},
-                                  CheckBoundsParameters::kAbortOnOutOfBounds),
+                                  CheckBoundsFlag::kAbortOnOutOfBounds),
         index, length, effect, control);
     ReplaceWithValue(node, elements);
     return Replace(check_bounds);
   }
 
+  return NoChange();
+}
+
+Reduction TypedOptimization::ReduceCheckBounds(Node* node) {
+  CheckBoundsParameters const& p = CheckBoundsParametersOf(node->op());
+  Node* const input = NodeProperties::GetValueInput(node, 0);
+  Type const input_type = NodeProperties::GetType(input);
+  if (p.flags() & CheckBoundsFlag::kConvertStringAndMinusZero &&
+      !input_type.Maybe(Type::String()) &&
+      !input_type.Maybe(Type::MinusZero())) {
+    NodeProperties::ChangeOp(
+        node,
+        simplified()->CheckBounds(
+            p.check_parameters().feedback(),
+            p.flags().without(CheckBoundsFlag::kConvertStringAndMinusZero)));
+    return Changed(node);
+  }
   return NoChange();
 }
 

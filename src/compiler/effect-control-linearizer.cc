@@ -2370,25 +2370,21 @@ Node* EffectControlLinearizer::LowerCheckedUint32Bounds(Node* node,
   const CheckBoundsParameters& params = CheckBoundsParametersOf(node->op());
 
   Node* check = __ Uint32LessThan(index, limit);
-  switch (params.mode()) {
-    case CheckBoundsParameters::kDeoptOnOutOfBounds:
-      __ DeoptimizeIfNot(DeoptimizeReason::kOutOfBounds,
-                         params.check_parameters().feedback(), check,
-                         frame_state, IsSafetyCheck::kCriticalSafetyCheck);
-      break;
-    case CheckBoundsParameters::kAbortOnOutOfBounds: {
-      auto if_abort = __ MakeDeferredLabel();
-      auto done = __ MakeLabel();
+  if (!(params.flags() & CheckBoundsFlag::kAbortOnOutOfBounds)) {
+    __ DeoptimizeIfNot(DeoptimizeReason::kOutOfBounds,
+                       params.check_parameters().feedback(), check, frame_state,
+                       IsSafetyCheck::kCriticalSafetyCheck);
+  } else {
+    auto if_abort = __ MakeDeferredLabel();
+    auto done = __ MakeLabel();
 
-      __ Branch(check, &done, &if_abort);
+    __ Branch(check, &done, &if_abort);
 
-      __ Bind(&if_abort);
-      __ Unreachable();
-      __ Goto(&done);
+    __ Bind(&if_abort);
+    __ Unreachable();
+    __ Goto(&done);
 
-      __ Bind(&done);
-      break;
-    }
+    __ Bind(&done);
   }
 
   return index;
@@ -2421,25 +2417,21 @@ Node* EffectControlLinearizer::LowerCheckedUint64Bounds(Node* node,
   const CheckBoundsParameters& params = CheckBoundsParametersOf(node->op());
 
   Node* check = __ Uint64LessThan(index, limit);
-  switch (params.mode()) {
-    case CheckBoundsParameters::kDeoptOnOutOfBounds:
-      __ DeoptimizeIfNot(DeoptimizeReason::kOutOfBounds,
-                         params.check_parameters().feedback(), check,
-                         frame_state, IsSafetyCheck::kCriticalSafetyCheck);
-      break;
-    case CheckBoundsParameters::kAbortOnOutOfBounds: {
-      auto if_abort = __ MakeDeferredLabel();
-      auto done = __ MakeLabel();
+  if (!(params.flags() & CheckBoundsFlag::kAbortOnOutOfBounds)) {
+    __ DeoptimizeIfNot(DeoptimizeReason::kOutOfBounds,
+                       params.check_parameters().feedback(), check, frame_state,
+                       IsSafetyCheck::kCriticalSafetyCheck);
+  } else {
+    auto if_abort = __ MakeDeferredLabel();
+    auto done = __ MakeLabel();
 
-      __ Branch(check, &done, &if_abort);
+    __ Branch(check, &done, &if_abort);
 
-      __ Bind(&if_abort);
-      __ Unreachable();
-      __ Goto(&done);
+    __ Bind(&if_abort);
+    __ Unreachable();
+    __ Goto(&done);
 
-      __ Bind(&done);
-      break;
-    }
+    __ Bind(&done);
   }
   return index;
 }
