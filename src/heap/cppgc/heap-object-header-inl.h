@@ -117,6 +117,11 @@ bool HeapObjectHeader::IsFree() const {
   return GetGCInfoIndex() == kFreeListGCInfoIndex;
 }
 
+bool HeapObjectHeader::IsFinalizable() const {
+  const GCInfo& gc_info = GlobalGCInfoTable::GCInfoFromIndex(GetGCInfoIndex());
+  return gc_info.finalize;
+}
+
 template <HeapObjectHeader::AccessMode mode, HeapObjectHeader::EncodedHalf part,
           std::memory_order memory_order>
 uint16_t HeapObjectHeader::LoadEncoded() const {

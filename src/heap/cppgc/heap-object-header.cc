@@ -12,6 +12,8 @@
 namespace cppgc {
 namespace internal {
 
+STATIC_ASSERT((kAllocationGranularity % sizeof(HeapObjectHeader)) == 0);
+
 void HeapObjectHeader::CheckApiConstants() {
   STATIC_ASSERT(api_constants::kFullyConstructedBitMask ==
                 FullyConstructedField::kMask);

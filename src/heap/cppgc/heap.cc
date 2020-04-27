@@ -53,8 +53,10 @@ class StackMarker final : public StackVisitor {
 };
 
 Heap::Heap()
-    : stack_(std::make_unique<Stack>(v8::base::Stack::GetStackStart())),
-      allocator_(std::make_unique<BasicAllocator>(this)),
+    : raw_heap_(this),
+      page_backend_(std::make_unique<PageBackend>(&system_allocator_)),
+      object_allocator_(&raw_heap_),
+      stack_(std::make_unique<Stack>(v8::base::Stack::GetStackStart())),
       prefinalizer_handler_(std::make_unique<PreFinalizerHandler>()) {}
 
 Heap::~Heap() {
@@ -99,22 +101,6 @@ Heap::NoAllocationScope::NoAllocationScope(Heap* heap) : heap_(heap) {
   heap_->no_allocation_scope_++;
 }
 Heap::NoAllocationScope::~NoAllocationScope() { heap_->no_allocation_scope_--; }
-
-Heap::BasicAllocator::BasicAllocator(Heap* heap) : heap_(heap) {}
-
-Heap::BasicAllocator::~BasicAllocator() {
-  for (auto* page : used_pages_) {
-    NormalPage::Destroy(page);
-  }
-}
-
-void Heap::BasicAllocator::GetNewPage() {
-  auto* page = NormalPage::Create(heap_);
-  CHECK(page);
-  used_pages_.push_back(page);
-  current_ = page->PayloadStart();
-  limit_ = page->PayloadEnd();
-}
 
 }  // namespace internal
 }  // namespace cppgc

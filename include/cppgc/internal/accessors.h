@@ -15,7 +15,8 @@ namespace internal {
 
 inline cppgc::Heap* GetHeapFromPayload(const void* payload) {
   return *reinterpret_cast<cppgc::Heap**>(
-      (reinterpret_cast<uintptr_t>(payload) & api_constants::kPageBaseMask) +
+      ((reinterpret_cast<uintptr_t>(payload) & api_constants::kPageBaseMask) +
+       api_constants::kGuardPageSize) +
       api_constants::kHeapOffset);
 }
 

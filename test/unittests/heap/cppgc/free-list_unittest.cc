@@ -137,6 +137,15 @@ TEST(FreeListTest, Append) {
   EXPECT_TRUE(list1.IsEmpty());
 }
 
+TEST(FreeListTest, Contains) {
+  auto blocks = CreateEntries();
+  FreeList list = CreatePopulatedFreeList(blocks);
+
+  for (const auto& block : blocks) {
+    EXPECT_TRUE(list.Contains({block.Address(), block.Size()}));
+  }
+}
+
 TEST(FreeListTest, Allocate) {
   static constexpr size_t kFreeListEntrySizeLog2 =
       v8::base::bits::WhichPowerOfTwo(kFreeListEntrySize);

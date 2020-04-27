@@ -29,6 +29,7 @@ static constexpr size_t kFullyConstructedBitMask = size_t{1};
 static constexpr size_t kPageSize = size_t{1} << 17;
 static constexpr size_t kPageAlignment = kPageSize;
 static constexpr size_t kPageBaseMask = ~(kPageAlignment - 1);
+static constexpr size_t kGuardPageSize = 4096;
 
 // Offset of the Heap backref.
 static constexpr size_t kHeapOffset = 0;

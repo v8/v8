@@ -12,13 +12,16 @@
 #include "include/cppgc/internal/gc-info.h"
 #include "include/cppgc/internal/persistent-node.h"
 #include "include/cppgc/liveness-broker.h"
+#include "src/base/page-allocator.h"
 #include "src/heap/cppgc/heap-object-header.h"
+#include "src/heap/cppgc/object-allocator.h"
+#include "src/heap/cppgc/page-memory.h"
 #include "src/heap/cppgc/prefinalizer-handler.h"
+#include "src/heap/cppgc/raw-heap.h"
 
 namespace cppgc {
 namespace internal {
 
-class NormalPage;
 class Stack;
 
 class V8_EXPORT_PRIVATE LivenessBrokerFactory {
@@ -89,36 +92,25 @@ class V8_EXPORT_PRIVATE Heap final : public cppgc::Heap {
     return weak_persistent_region_;
   }
 
+  RawHeap& raw_heap() { return raw_heap_; }
+  const RawHeap& raw_heap() const { return raw_heap_; }
+
+  PageBackend* page_backend() { return page_backend_.get(); }
+  const PageBackend* page_backend() const { return page_backend_.get(); }
+
  private:
-  // TODO(chromium:1056170): Remove as soon as arenas are available for
-  // allocation.
-  //
-  // This basic allocator just gets a page from the backend and uses bump
-  // pointer allocation in the payload to allocate objects. No memory is
-  // reused across GC calls.
-  class BasicAllocator final {
-   public:
-    explicit BasicAllocator(Heap* heap);
-    ~BasicAllocator();
-    inline void* Allocate(size_t);
+  bool in_no_gc_scope() const { return no_gc_scope_ > 0; }
+  bool is_allocation_allowed() const { return no_allocation_scope_ == 0; }
 
-   private:
-    void GetNewPage();
+  RawHeap raw_heap_;
 
-    Heap* heap_;
-    Address current_ = nullptr;
-    Address limit_ = nullptr;
-    std::vector<NormalPage*> used_pages_;
-  };
-
-  bool in_no_gc_scope() { return no_gc_scope_ > 0; }
-
-  bool is_allocation_allowed() { return no_allocation_scope_ == 0; }
+  v8::base::PageAllocator system_allocator_;
+  std::unique_ptr<PageBackend> page_backend_;
+  ObjectAllocator object_allocator_;
 
   std::unique_ptr<Stack> stack_;
-  std::unique_ptr<BasicAllocator> allocator_;
-  std::vector<HeapObjectHeader*> objects_;
   std::unique_ptr<PreFinalizerHandler> prefinalizer_handler_;
+  std::vector<HeapObjectHeader*> objects_;
 
   PersistentRegion strong_persistent_region_;
   PersistentRegion weak_persistent_region_;

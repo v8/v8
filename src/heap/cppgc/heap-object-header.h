@@ -47,6 +47,7 @@ class HeapObjectHeader {
 
   static constexpr size_t kSizeLog2 = 17;
   static constexpr size_t kMaxSize = (size_t{1} << kSizeLog2) - 1;
+  static constexpr uint16_t kLargeObjectSizeInHeader = 0;
 
   inline static HeapObjectHeader& FromPayload(void* address);
   inline static const HeapObjectHeader& FromPayload(const void* address);
@@ -80,12 +81,11 @@ class HeapObjectHeader {
   template <AccessMode = AccessMode::kNonAtomic>
   bool IsFree() const;
 
+  inline bool IsFinalizable() const;
   void Finalize();
 
  private:
   enum class EncodedHalf : uint8_t { kLow, kHigh };
-
-  static constexpr uint16_t kLargeObjectSizeInHeader = 0;
 
   // Used in |encoded_high_|.
   using FullyConstructedField = v8::base::BitField16<bool, 0, 1>;

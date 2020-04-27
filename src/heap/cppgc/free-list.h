@@ -43,6 +43,8 @@ class V8_EXPORT_PRIVATE FreeList {
   size_t Size() const;
   bool IsEmpty() const;
 
+  bool Contains(Block) const;
+
  private:
   class Entry;
 

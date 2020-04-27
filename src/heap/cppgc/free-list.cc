@@ -155,6 +155,18 @@ bool FreeList::IsEmpty() const {
                      [](const auto* entry) { return !entry; });
 }
 
+bool FreeList::Contains(Block block) const {
+  for (Entry* list : free_list_heads_) {
+    for (Entry* entry = list; entry; entry = entry->Next()) {
+      if (entry <= block.address &&
+          (reinterpret_cast<Address>(block.address) + block.size <=
+           reinterpret_cast<Address>(entry) + entry->GetSize()))
+        return true;
+    }
+  }
+  return false;
+}
+
 bool FreeList::IsConsistent(size_t index) const {
   // Check that freelist head and tail pointers are consistent, i.e.
   // - either both are nulls (no entries in the bucket);

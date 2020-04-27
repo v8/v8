@@ -5,8 +5,8 @@
 #include "include/cppgc/internal/pointer-policies.h"
 #include "include/cppgc/internal/persistent-node.h"
 
-#include "include/cppgc/internal/accessors.h"
 #include "src/base/macros.h"
+#include "src/heap/cppgc/heap-page.h"
 #include "src/heap/cppgc/heap.h"
 
 namespace cppgc {
@@ -22,12 +22,12 @@ void EnabledCheckingPolicy::CheckPointer(const void* ptr) {
 }
 
 PersistentRegion& StrongPersistentPolicy::GetPersistentRegion(void* object) {
-  auto* heap = Heap::From(GetHeapFromPayload(object));
+  auto* heap = BasePage::FromPayload(object)->heap();
   return heap->GetStrongPersistentRegion();
 }
 
 PersistentRegion& WeakPersistentPolicy::GetPersistentRegion(void* object) {
-  auto* heap = Heap::From(GetHeapFromPayload(object));
+  auto* heap = BasePage::FromPayload(object)->heap();
   return heap->GetWeakPersistentRegion();
 }
 
