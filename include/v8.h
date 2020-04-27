@@ -8447,7 +8447,7 @@ class V8_EXPORT Isolate {
     kOptimizedFunctionWithOneShotBytecode = 71,
     kRegExpMatchIsTrueishOnNonJSRegExp = 72,
     kRegExpMatchIsFalseishOnJSRegExp = 73,
-    kDateGetTimezoneOffset = 74,
+    kDateGetTimezoneOffset = 74,  // Unused.
     kStringNormalize = 75,
     kCallSiteAPIGetFunctionSloppyCall = 76,
     kCallSiteAPIGetThisSloppyCall = 77,

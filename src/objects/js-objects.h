@@ -1280,7 +1280,8 @@ class JSDate : public TorqueGeneratedJSDate<JSDate, JSObject> {
   // {raw_date} is a tagged Object pointer.
   // {smi_index} is a tagged Smi.
   // The return value is a tagged Object pointer.
-  static Address GetField(Address raw_date, Address smi_index);
+  static Address GetField(Isolate* isolate, Address raw_date,
+                          Address smi_index);
 
   static Handle<Object> SetValue(Handle<JSDate> date, double v);
 
@@ -1320,8 +1321,7 @@ class JSDate : public TorqueGeneratedJSDate<JSDate, JSObject> {
   };
 
  private:
-  inline Object DoGetField(FieldIndex index);
-
+  Object DoGetField(Isolate* isolate, FieldIndex index);
   Object GetUTCField(FieldIndex index, double value, DateCache* date_cache);
 
   // Computes and caches the cacheable fields of the date.

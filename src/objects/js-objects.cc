@@ -5714,18 +5714,24 @@ double JSDate::CurrentTimeValue(Isolate* isolate) {
 }
 
 // static
-Address JSDate::GetField(Address raw_object, Address smi_index) {
+Address JSDate::GetField(Isolate* isolate, Address raw_object,
+                         Address smi_index) {
+  // Called through CallCFunction.
+  DisallowHeapAllocation no_gc;
+  DisallowHandleAllocation no_handles;
+  DisallowJavascriptExecution no_js(isolate);
+
   Object object(raw_object);
   Smi index(smi_index);
   return JSDate::cast(object)
-      .DoGetField(static_cast<FieldIndex>(index.value()))
+      .DoGetField(isolate, static_cast<FieldIndex>(index.value()))
       .ptr();
 }
 
-Object JSDate::DoGetField(FieldIndex index) {
+Object JSDate::DoGetField(Isolate* isolate, FieldIndex index) {
   DCHECK_NE(index, kDateValue);
 
-  DateCache* date_cache = GetIsolate()->date_cache();
+  DateCache* date_cache = isolate->date_cache();
 
   if (index < kFirstUncachedField) {
     Object stamp = cache_stamp();
@@ -5782,7 +5788,6 @@ Object JSDate::GetUTCField(FieldIndex index, double value,
   int64_t time_ms = static_cast<int64_t>(value);
 
   if (index == kTimezoneOffset) {
-    GetIsolate()->CountUsage(v8::Isolate::kDateGetTimezoneOffset);
     return Smi::FromInt(date_cache->TimezoneOffset(time_ms));
   }
 
