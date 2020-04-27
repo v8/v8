@@ -3057,9 +3057,9 @@ void TurboAssembler::BranchAndLinkLong(Label* L, BranchDelaySlot bdslot) {
 }
 
 void TurboAssembler::DropAndRet(int drop) {
-  DCHECK(is_int16(drop * kPointerSize));
-  Ret(USE_DELAY_SLOT);
+  DCHECK(is_int12(drop * kPointerSize));
   RV_addi(sp, sp, drop * kPointerSize);
+  Ret(USE_DELAY_SLOT);
 }
 
 void TurboAssembler::DropAndRet(int drop, Condition cond, Register r1,
