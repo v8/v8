@@ -115,7 +115,6 @@ ExecutionTier WasmCompilationUnit::GetBaselineExecutionTier(
   // Liftoff does not support the special asm.js opcodes, thus always compile
   // asm.js modules with TurboFan.
   if (is_asmjs_module(module)) return ExecutionTier::kTurbofan;
-  if (FLAG_wasm_interpret_all) return ExecutionTier::kInterpreter;
   return FLAG_liftoff ? ExecutionTier::kLiftoff : ExecutionTier::kTurbofan;
 }
 

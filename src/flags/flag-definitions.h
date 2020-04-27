@@ -433,11 +433,6 @@ DEFINE_NEG_IMPLICATION(jitless, track_heap_object_fields)
 DEFINE_IMPLICATION(jitless, regexp_interpret_all)
 // asm.js validation is disabled since it triggers wasm code generation.
 DEFINE_NEG_IMPLICATION(jitless, validate_asm)
-// Wasm is put into interpreter-only mode. We repeat flag implications down
-// here to ensure they're applied correctly by setting the --jitless flag.
-DEFINE_IMPLICATION(jitless, wasm_interpret_all)
-DEFINE_NEG_IMPLICATION(jitless, asm_wasm_lazy_compilation)
-DEFINE_NEG_IMPLICATION(jitless, wasm_lazy_compilation)
 // --jitless also implies --no-expose-wasm, see InitializeOncePerProcessImpl.
 
 // Flags for inline caching and feedback vectors.
@@ -769,8 +764,6 @@ DEFINE_BOOL(wasm_fuzzer_gen_test, false,
 DEFINE_IMPLICATION(wasm_fuzzer_gen_test, single_threaded)
 DEFINE_BOOL(print_wasm_code, false, "Print WebAssembly code")
 DEFINE_BOOL(print_wasm_stub_code, false, "Print WebAssembly stub code")
-DEFINE_BOOL(wasm_interpret_all, false,
-            "execute all wasm code in the wasm interpreter")
 DEFINE_BOOL(asm_wasm_lazy_compilation, false,
             "enable lazy compilation for asm-wasm modules")
 DEFINE_IMPLICATION(validate_asm, asm_wasm_lazy_compilation)
@@ -792,10 +785,6 @@ DEFINE_BOOL(wasm_simd_post_mvp, false,
             "included in the current proposal")
 DEFINE_IMPLICATION(wasm_simd_post_mvp, experimental_wasm_simd)
 
-// wasm-interpret-all resets {asm-,}wasm-lazy-compilation.
-DEFINE_NEG_IMPLICATION(wasm_interpret_all, asm_wasm_lazy_compilation)
-DEFINE_NEG_IMPLICATION(wasm_interpret_all, wasm_lazy_compilation)
-DEFINE_NEG_IMPLICATION(wasm_interpret_all, wasm_tier_up)
 DEFINE_BOOL(wasm_code_gc, true, "enable garbage collection of wasm code")
 DEFINE_BOOL(trace_wasm_code_gc, false, "trace garbage collection of wasm code")
 DEFINE_BOOL(stress_wasm_code_gc, false,

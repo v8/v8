@@ -1328,6 +1328,7 @@ class CompilationTimeCallback {
 void CompileNativeModule(Isolate* isolate, ErrorThrower* thrower,
                          const WasmModule* wasm_module,
                          NativeModule* native_module) {
+  CHECK(!FLAG_jitless);
   ModuleWireBytes wire_bytes(native_module->wire_bytes());
   const bool lazy_module = IsLazyModule(wasm_module);
   if (!FLAG_wasm_lazy_validation && wasm_module->origin == kWasmOrigin &&
