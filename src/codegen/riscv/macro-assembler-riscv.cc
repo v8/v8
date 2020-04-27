@@ -1604,7 +1604,7 @@ void TurboAssembler::RoundFloatingPointToInteger(Register rd, FPURegister fs,
     Register scratch = temps.hasAvailable() ? temps.Acquire() : t5;
 
     // Save csr_fflags to scratch & clear exception flags
-    int exception_flags = NV | OF | UF;
+    int exception_flags = kInvalidOperation | kOverflow | kUnderflow;
     RV_csrrci(scratch, csr_fflags, exception_flags);
 
     // actual conversion instruction

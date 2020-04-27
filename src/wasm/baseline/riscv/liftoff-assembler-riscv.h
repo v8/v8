@@ -912,9 +912,8 @@ bool LiftoffAssembler::emit_type_conversion(WasmOpcode opcode,
     case kExprI64SConvertF64:
     case kExprI64UConvertF64:
     case kExprF32ConvertF64: {
-      // clear the Invalid Operation flag before conversion so that we can check
-      // if it is set afterwards
-      RV_csrci(csr_fflags, NV);
+      // Save csr_fflags to scratch & clear kInvalidOperation
+      RV_csrrci(kScratchReg2, csr_fflags, kInvalidOperation);
       // real conversion
       switch (opcode) {
         case kExprI32SConvertF32:
@@ -949,8 +948,12 @@ bool LiftoffAssembler::emit_type_conversion(WasmOpcode opcode,
       }
       // trap if the Invalid Operation flag was set
       RV_frflags(kScratchReg);
-      RV_andi(kScratchReg, kScratchReg, NV);
-      JumpIfEqual(kScratchReg, NV, trap);
+      RV_andi(kScratchReg, kScratchReg, kInvalidOperation);
+      JumpIfEqual(kScratchReg, kInvalidOperation, trap);
+
+      // restore csr_fflags
+      RV_csrw(csr_fflags, kScratchReg2);
+
       return true;
     }
     case kExprI32ReinterpretF32:

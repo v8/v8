@@ -93,7 +93,19 @@ static T GetParam(Param_T* params) {
 }
 
 template <typename T, typename std::enable_if<
+                          std::is_same<uint32_t, T>::value>::type* = nullptr>
+static T GetParam(Param_T* params) {
+  return params->i32val;
+}
+
+template <typename T, typename std::enable_if<
                           std::is_same<int64_t, T>::value>::type* = nullptr>
+static T GetParam(Param_T* params) {
+  return params->i64val;
+}
+
+template <typename T, typename std::enable_if<
+                          std::is_same<uint64_t, T>::value>::type* = nullptr>
 static T GetParam(Param_T* params) {
   return params->i64val;
 }
@@ -116,7 +128,6 @@ static void ValidateResult(RETURN_T generated_res, OUTPUT_T expected_res) {
   memset(&t, 0, sizeof(t));
   SetParam(&t, generated_res);
   OUTPUT_T converted_res = GetParam<OUTPUT_T>(&t);
-  PRINT_RES(converted_res, expected_res, std::is_integral<OUTPUT_T>::value);
   CHECK_EQ(converted_res, expected_res);
 }
 
@@ -641,12 +652,12 @@ UTEST_R2_FORM_WITH_OP(sra, int64_t, -0x1234'5678'0000'0000LL, 33, >>)
 
 // -- CSR --
 UTEST_CSRI(csr_frm, DYN, RUP)
-UTEST_CSRI(csr_fflags, NX | NV, NV)
-UTEST_CSRI(csr_fcsr, DZ | OF, UF)
+UTEST_CSRI(csr_fflags, kInexact | kInvalidOperation, kInvalidOperation)
+UTEST_CSRI(csr_fcsr, kDivideByZero | kOverflow, kUnderflow)
 UTEST_CSR(csr_frm, DYN, RUP)
-UTEST_CSR(csr_fflags, NX | NV, NV)
-UTEST_CSR(csr_fcsr, DZ | OF | (RDN << kFcsrFrmShift),
-          UF | (RNE << kFcsrFrmShift))
+UTEST_CSR(csr_fflags, kInexact | kInvalidOperation, kInvalidOperation)
+UTEST_CSR(csr_fcsr, kDivideByZero | kOverflow | (RDN << kFcsrFrmShift),
+          kUnderflow | (RNE << kFcsrFrmShift))
 
 // -- RV64I --
 UTEST_I_FORM_WITH_OP(addiw, int32_t, LARGE_INT_UNDER_32_BIT, MIN_VAL_IMM12, +)
@@ -792,7 +803,7 @@ UTEST_R2_FORM_WITH_RES_F(fsgnjx_d, double, -100.0, 200.0, -100.0)
 
 // -- RV64D Standard Extension (in addition to RV32D) --
 UTEST_CONV_I_FROM_F(fcvt_l_d, double, int64_t, RNE, -100.5, -100)
-UTEST_CONV_I_FROM_F(fcvt_lu_d, double, int64_t, RTZ, -2456.5, -2456)
+UTEST_CONV_I_FROM_F(fcvt_lu_d, double, int64_t, RTZ, 2456.5, 2456)
 UTEST_CONV_F_FROM_I(fcvt_d_l, int64_t, double, (-0x1234'5678'0000'0001LL),
                     (double)(-0x1234'5678'0000'0001LL))
 UTEST_CONV_F_FROM_I(fcvt_d_lu, int64_t, double,
@@ -820,13 +831,12 @@ UTEST_R1_FORM_WITH_RES_F(fabs_d, double, -23.5, 23.5)
 UTEST_R1_FORM_WITH_RES_F(fneg_d, double, 23.5, -23.5)
 
 // Helper macros that can be used in FOR_INT32_INPUTS(i) { ... *i ... }
-#define FOR_INPUTS(ctype, itype, var, test_vector)           \
+#define FOR_INPUTS(ctype, var, test_vector)                  \
   std::vector<ctype> var##_vec = test_vector();              \
   for (std::vector<ctype>::iterator var = var##_vec.begin(); \
        var != var##_vec.end(); ++var)
 
-#define FOR_INT64_INPUTS(var, test_vector) \
-  FOR_INPUTS(int64_t, int64, var, test_vector)
+#define FOR_INT64_INPUTS(var, test_vector) FOR_INPUTS(int64_t, var, test_vector)
 
 static const std::vector<int64_t> li_test_values() {
   static const int64_t kValues[] = {static_cast<int64_t>(0x0000000000000000),
@@ -850,7 +860,6 @@ TEST(RISCV0) {
     int64_t input = *i;
     auto fn = [input](MacroAssembler& assm) { __ RV_li(a0, input); };
     GenAndRunTest(input, fn);
-    // std::cout << "input = " << input << std::endl;
   }
 }
 
@@ -1439,6 +1448,131 @@ TEST(SET_TARGET_ADDR) {
   Address res = __ target_address_at(static_cast<Address>(addr));
 
   CHECK_EQ(0xfedcba9876543210, res);
+}
+
+// pair.first is the F_TYPE input to test, pair.second is I_TYPE expected result
+template <typename F_TYPE, typename I_TYPE>
+static const std::vector<std::pair<F_TYPE, I_TYPE>> out_of_range_test_values() {
+  static const std::pair<F_TYPE, I_TYPE> kValues[] = {
+      std::make_pair(std::numeric_limits<F_TYPE>::quiet_NaN(),
+                     std::numeric_limits<I_TYPE>::max()),
+      std::make_pair(std::numeric_limits<F_TYPE>::signaling_NaN(),
+                     std::numeric_limits<I_TYPE>::max()),
+      std::make_pair(std::numeric_limits<F_TYPE>::infinity(),
+                     std::numeric_limits<I_TYPE>::max()),
+      std::make_pair(-std::numeric_limits<F_TYPE>::infinity(),
+                     std::numeric_limits<I_TYPE>::min()),
+      std::make_pair(
+          static_cast<F_TYPE>(std::numeric_limits<I_TYPE>::max()) + 1024,
+          std::numeric_limits<I_TYPE>::max()),
+      std::make_pair(
+          static_cast<F_TYPE>(std::numeric_limits<I_TYPE>::min()) - 1024,
+          std::numeric_limits<I_TYPE>::min()),
+  };
+  return std::vector<std::pair<F_TYPE, I_TYPE>>(&kValues[0],
+                                                &kValues[arraysize(kValues)]);
+}
+
+// Test conversion from wider to narrower types w/ out-of-range values or from
+// nan, inf, -inf
+TEST(OUT_OF_RANGE_CVT) {
+  CcTest::InitializeVM();
+
+  {  // test fvt_w_d
+    auto i_vec = out_of_range_test_values<double, int32_t>();
+    for (auto i = i_vec.begin(); i != i_vec.end(); ++i) {
+      auto input = *i;
+      auto fn = [](MacroAssembler& assm) {
+        __ RV_fmv_d_x(fa0, a0);
+        __ RV_fcvt_w_d(a0, fa0);
+      };
+      GenAndRunTest(input.first, input.second, fn);
+    }
+  }
+
+  {  // test fvt_w_s
+    auto i_vec = out_of_range_test_values<float, int32_t>();
+    for (auto i = i_vec.begin(); i != i_vec.end(); ++i) {
+      auto input = *i;
+      auto fn = [](MacroAssembler& assm) {
+        __ RV_fmv_w_x(fa0, a0);
+        __ RV_fcvt_w_s(a0, fa0);
+      };
+      GenAndRunTest(input.first, input.second, fn);
+    }
+  }
+
+  {  // test fvt_wu_d
+    auto i_vec = out_of_range_test_values<double, uint32_t>();
+    for (auto i = i_vec.begin(); i != i_vec.end(); ++i) {
+      auto input = *i;
+      auto fn = [](MacroAssembler& assm) {
+        __ RV_fmv_d_x(fa0, a0);
+        __ RV_fcvt_wu_d(a0, fa0);
+      };
+      GenAndRunTest(input.first, input.second, fn);
+    }
+  }
+
+  {  // test fvt_wu_s
+    auto i_vec = out_of_range_test_values<float, uint32_t>();
+    for (auto i = i_vec.begin(); i != i_vec.end(); ++i) {
+      auto input = *i;
+      auto fn = [](MacroAssembler& assm) {
+        __ RV_fmv_w_x(fa0, a0);
+        __ RV_fcvt_wu_s(a0, fa0);
+      };
+      GenAndRunTest(input.first, input.second, fn);
+    }
+  }
+
+  {  // test fvt_l_d
+    auto i_vec = out_of_range_test_values<double, int64_t>();
+    for (auto i = i_vec.begin(); i != i_vec.end(); ++i) {
+      auto input = *i;
+      auto fn = [](MacroAssembler& assm) {
+        __ RV_fmv_d_x(fa0, a0);
+        __ RV_fcvt_l_d(a0, fa0);
+      };
+      GenAndRunTest(input.first, input.second, fn);
+    }
+  }
+
+  {  // test fvt_l_s
+    auto i_vec = out_of_range_test_values<float, int64_t>();
+    for (auto i = i_vec.begin(); i != i_vec.end(); ++i) {
+      auto input = *i;
+      auto fn = [](MacroAssembler& assm) {
+        __ RV_fmv_w_x(fa0, a0);
+        __ RV_fcvt_l_s(a0, fa0);
+      };
+      GenAndRunTest(input.first, input.second, fn);
+    }
+  }
+
+  {  // test fvt_lu_d
+    auto i_vec = out_of_range_test_values<double, uint64_t>();
+    for (auto i = i_vec.begin(); i != i_vec.end(); ++i) {
+      auto input = *i;
+      auto fn = [](MacroAssembler& assm) {
+        __ RV_fmv_d_x(fa0, a0);
+        __ RV_fcvt_lu_d(a0, fa0);
+      };
+      GenAndRunTest(input.first, input.second, fn);
+    }
+  }
+
+  {  // test fvt_lu_s
+    auto i_vec = out_of_range_test_values<float, uint64_t>();
+    for (auto i = i_vec.begin(); i != i_vec.end(); ++i) {
+      auto input = *i;
+      auto fn = [](MacroAssembler& assm) {
+        __ RV_fmv_w_x(fa0, a0);
+        __ RV_fcvt_lu_s(a0, fa0);
+      };
+      GenAndRunTest(input.first, input.second, fn);
+    }
+  }
 }
 
 #undef __
