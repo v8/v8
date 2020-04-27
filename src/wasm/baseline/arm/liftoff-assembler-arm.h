@@ -219,9 +219,11 @@ inline void S128NarrowOp(LiftoffAssembler* assm, NeonDataType dt,
   }
 }
 
-inline void F64x2CompareEquality(LiftoffAssembler* assm, LiftoffRegister dst,
-                                 LiftoffRegister lhs, LiftoffRegister rhs,
-                                 Condition cond) {
+inline void F64x2Compare(LiftoffAssembler* assm, LiftoffRegister dst,
+                         LiftoffRegister lhs, LiftoffRegister rhs,
+                         Condition cond) {
+  DCHECK(cond == eq || cond == ne || cond == lt || cond == le);
+
   QwNeonRegister dest = liftoff::GetSimd128Register(dst);
   QwNeonRegister left = liftoff::GetSimd128Register(lhs);
   QwNeonRegister right = liftoff::GetSimd128Register(rhs);
@@ -230,13 +232,20 @@ inline void F64x2CompareEquality(LiftoffAssembler* assm, LiftoffRegister dst,
 
   assm->mov(scratch, Operand(0));
   assm->VFPCompareAndSetFlags(left.low(), right.low());
-
   assm->mov(scratch, Operand(-1), LeaveCC, cond);
+  if (cond == lt || cond == le) {
+    // Check for NaN.
+    assm->mov(scratch, Operand(0), LeaveCC, vs);
+  }
   assm->vmov(dest.low(), scratch, scratch);
 
   assm->mov(scratch, Operand(0));
   assm->VFPCompareAndSetFlags(left.high(), right.high());
   assm->mov(scratch, Operand(-1), LeaveCC, cond);
+  if (cond == lt || cond == le) {
+    // Check for NaN.
+    assm->mov(scratch, Operand(0), LeaveCC, vs);
+  }
   assm->vmov(dest.high(), scratch, scratch);
 }
 
@@ -2464,32 +2473,34 @@ void LiftoffAssembler::emit_f32x4_ne(LiftoffRegister dst, LiftoffRegister lhs,
 
 void LiftoffAssembler::emit_f32x4_lt(LiftoffRegister dst, LiftoffRegister lhs,
                                      LiftoffRegister rhs) {
-  bailout(kSimd, "f32x4_lt");
+  vcgt(liftoff::GetSimd128Register(dst), liftoff::GetSimd128Register(rhs),
+       liftoff::GetSimd128Register(lhs));
 }
 
 void LiftoffAssembler::emit_f32x4_le(LiftoffRegister dst, LiftoffRegister lhs,
                                      LiftoffRegister rhs) {
-  bailout(kSimd, "f32x4_le");
+  vcge(liftoff::GetSimd128Register(dst), liftoff::GetSimd128Register(rhs),
+       liftoff::GetSimd128Register(lhs));
 }
 
 void LiftoffAssembler::emit_f64x2_eq(LiftoffRegister dst, LiftoffRegister lhs,
                                      LiftoffRegister rhs) {
-  liftoff::F64x2CompareEquality(this, dst, lhs, rhs, eq);
+  liftoff::F64x2Compare(this, dst, lhs, rhs, eq);
 }
 
 void LiftoffAssembler::emit_f64x2_ne(LiftoffRegister dst, LiftoffRegister lhs,
                                      LiftoffRegister rhs) {
-  liftoff::F64x2CompareEquality(this, dst, lhs, rhs, ne);
+  liftoff::F64x2Compare(this, dst, lhs, rhs, ne);
 }
 
 void LiftoffAssembler::emit_f64x2_lt(LiftoffRegister dst, LiftoffRegister lhs,
                                      LiftoffRegister rhs) {
-  bailout(kSimd, "f64x2_lt");
+  liftoff::F64x2Compare(this, dst, lhs, rhs, lt);
 }
 
 void LiftoffAssembler::emit_f64x2_le(LiftoffRegister dst, LiftoffRegister lhs,
                                      LiftoffRegister rhs) {
-  bailout(kSimd, "f64x2_le");
+  liftoff::F64x2Compare(this, dst, lhs, rhs, le);
 }
 
 void LiftoffAssembler::emit_s128_not(LiftoffRegister dst, LiftoffRegister src) {
