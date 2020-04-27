@@ -144,6 +144,7 @@ const uint64_t kFPU64InvalidResult =
 const int64_t kFPU64InvalidResultNegative =
     static_cast<int64_t>(static_cast<uint64_t>(1) << 63);
 
+// FIXME (RISCV): cleanup later
 // FCSR constants.
 const uint32_t kFCSRInexactFlagBit = 2;
 const uint32_t kFCSRUnderflowFlagBit = 3;
@@ -164,6 +165,7 @@ const uint32_t kFCSRFlagMask =
     kFCSRDivideByZeroFlagMask | kFCSRInvalidOpFlagMask;
 
 const uint32_t kFCSRExceptionFlagMask = kFCSRFlagMask ^ kFCSRInexactFlagMask;
+// end clearnup later
 
 // 'pref' instruction hints
 const int32_t kPrefHintLoad = 0;
@@ -1468,11 +1470,11 @@ enum ControlStatusReg {
 };
 
 enum FFlagsMask {
-  NV = 0b10000,  // Invalid
-  DZ = 0b1000,   // Divide by Zero
-  OF = 0b100,    // Overflow
-  UF = 0b10,     // Underflow
-  NX = 0b1       // Inexact
+  kInvalidOperation = 0b10000,  // NV: Invalid
+  kDivideByZero = 0b1000,       // DZ:  Divide by Zero
+  kOverflow = 0b100,            // OF: Overflow
+  kUnderflow = 0b10,            // UF: Underflow
+  kInexact = 0b1                // NX:  Inexact
 };
 
 enum RoundingMode {

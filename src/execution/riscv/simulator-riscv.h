@@ -324,12 +324,7 @@ class Simulator : public SimulatorBase {
   void set_fpu_register_hi_word(int fpureg, int32_t value);
   void set_fpu_register_float(int fpureg, float value);
   void set_fpu_register_double(int fpureg, double value);
-  void set_fpu_register_invalid_result64(float original, float rounded);
-  void set_fpu_register_invalid_result(float original, float rounded);
-  void set_fpu_register_word_invalid_result(float original, float rounded);
-  void set_fpu_register_invalid_result64(double original, double rounded);
-  void set_fpu_register_invalid_result(double original, double rounded);
-  void set_fpu_register_word_invalid_result(double original, double rounded);
+
   int64_t get_fpu_register(int fpureg) const;
   int32_t get_fpu_register_word(int fpureg) const;
   int32_t get_fpu_register_signed_word(int fpureg) const;
@@ -347,27 +342,17 @@ class Simulator : public SimulatorBase {
   void set_csr_bits(uint32_t csr, uint64_t flags);
   void clear_csr_bits(uint32_t csr, uint64_t flags);
 
+  void set_fflags(uint32_t flags) { set_csr_bits(csr_fflags, flags); }
+  void clear_fflags(int32_t flags) { clear_csr_bits(csr_fflags, flags); }
+
   inline uint32_t get_dynamic_rounding_mode();
   inline bool test_fflags_bits(uint32_t mask);
 
-  // FIXME: MIPS ones to be cleaned up
-  bool set_fcsr_round_error(double original, double rounded);
-  bool set_fcsr_round64_error(double original, double rounded);
-  bool set_fcsr_round_error(float original, float rounded);
-  bool set_fcsr_round64_error(float original, float rounded);
+  float RoundF2FHelper(float input_val, int rmode);
+  double RoundF2FHelper(double input_val, int rmode);
+  template <typename I_TYPE, typename F_TYPE>
+  I_TYPE RoundF2IHelper(F_TYPE original, int rmode);
 
-  void round_according_to_fcsr(double toRound, double* rounded,
-                               int32_t* rounded_int, double fs);
-  void round64_according_to_fcsr(double toRound, double* rounded,
-                                 int64_t* rounded_int, double fs);
-  void round_according_to_fcsr(float toRound, float* rounded,
-                               int32_t* rounded_int, float fs);
-  void round64_according_to_fcsr(float toRound, float* rounded,
-                                 int64_t* rounded_int, float fs);
-  template <typename T_fp, typename T_int>
-  void round_according_to_msacsr(T_fp toRound, T_fp* rounded,
-                                 T_int* rounded_int);
- 
   // Special case of set_register and get_register to access the raw PC value.
   void set_pc(int64_t value);
   int64_t get_pc() const;
@@ -442,49 +427,6 @@ class Simulator : public SimulatorBase {
     WORD_DWORD
   };
 
-  // MSA Data Format
-  enum MSADataFormat { MSA_VECT = 0, MSA_BYTE, MSA_HALF, MSA_WORD, MSA_DWORD };
-  union msa_reg_t {
-    int8_t b[kMSALanesByte];
-    uint8_t ub[kMSALanesByte];
-    int16_t h[kMSALanesHalf];
-    uint16_t uh[kMSALanesHalf];
-    int32_t w[kMSALanesWord];
-    uint32_t uw[kMSALanesWord];
-    int64_t d[kMSALanesDword];
-    uint64_t ud[kMSALanesDword];
-  };
-
-  // Read and write memory.
-  inline uint32_t ReadBU(int64_t addr);
-  inline int32_t ReadB(int64_t addr);
-  inline void WriteB(int64_t addr, uint8_t value);
-  inline void WriteB(int64_t addr, int8_t value);
-
-  inline uint16_t ReadHU(int64_t addr, Instruction* instr);
-  inline int16_t ReadH(int64_t addr, Instruction* instr);
-  // Note: Overloaded on the sign of the value.
-  inline void WriteH(int64_t addr, uint16_t value, Instruction* instr);
-  inline void WriteH(int64_t addr, int16_t value, Instruction* instr);
-
-  inline uint32_t ReadWU(int64_t addr, Instruction* instr);
-  inline int32_t ReadW(int64_t addr, Instruction* instr, TraceType t = WORD);
-  inline void WriteW(int64_t addr, int32_t value, Instruction* instr);
-  void WriteConditionalW(int64_t addr, int32_t value, Instruction* instr,
-                         int32_t rt_reg);
-  inline int64_t Read2W(int64_t addr, Instruction* instr);
-  inline void Write2W(int64_t addr, int64_t value, Instruction* instr);
-  inline void WriteConditional2W(int64_t addr, int64_t value,
-                                 Instruction* instr, int32_t rt_reg);
-
-  inline double ReadD(int64_t addr, Instruction* instr);
-  inline void WriteD(int64_t addr, double value, Instruction* instr);
-
-  template <typename T>
-  T ReadMem(int64_t addr, Instruction* instr);
-  template <typename T>
-  void WriteMem(int64_t addr, T value, Instruction* instr);
-
   // RISCV Memory read/write methods
   template <typename T>
   T RV_ReadMem(int64_t addr, Instruction* instr);
@@ -512,79 +454,7 @@ class Simulator : public SimulatorBase {
   template <typename T>
   void TraceMemWr(int64_t addr, T value);
 
-  // Operations depending on endianness.
-  // Get Double Higher / Lower word.
-  inline int32_t GetDoubleHIW(double* addr);
-  inline int32_t GetDoubleLOW(double* addr);
-  // Set Double Higher / Lower word.
-  inline int32_t SetDoubleHIW(double* addr);
-  inline int32_t SetDoubleLOW(double* addr);
-
   SimInstruction instr_;
-
-  // functions called from DecodeTypeRegister.
-  void DecodeTypeRegisterCOP1();
-
-  void DecodeTypeRegisterCOP1X();
-
-  void DecodeTypeRegisterSPECIAL();
-
-  void DecodeTypeRegisterSPECIAL2();
-
-  void DecodeTypeRegisterSPECIAL3();
-
-  void DecodeTypeRegisterSRsType();
-
-  void DecodeTypeRegisterDRsType();
-
-  void DecodeTypeRegisterWRsType();
-
-  void DecodeTypeRegisterLRsType();
-
-  int DecodeMsaDataFormat();
-  void DecodeTypeMsaI8();
-  void DecodeTypeMsaI5();
-  void DecodeTypeMsaI10();
-  void DecodeTypeMsaELM();
-  void DecodeTypeMsaBIT();
-  void DecodeTypeMsaMI10();
-  void DecodeTypeMsa3R();
-  void DecodeTypeMsa3RF();
-  void DecodeTypeMsaVec();
-  void DecodeTypeMsa2R();
-  void DecodeTypeMsa2RF();
-  template <typename T>
-  T MsaI5InstrHelper(uint32_t opcode, T ws, int32_t i5);
-  template <typename T>
-  T MsaBitInstrHelper(uint32_t opcode, T wd, T ws, int32_t m);
-  template <typename T>
-  T Msa3RInstrHelper(uint32_t opcode, T wd, T ws, T wt);
-
-  // Executing is handled based on the instruction type.
-  void DecodeTypeRegister();
-
-  /*
-    inline int32_t rs_reg() const { return instr_.RsValue(); }
-    inline int64_t rs() const { return get_register(rs_reg()); }
-    inline uint64_t rs_u() const {
-      return static_cast<uint64_t>(get_register(rs_reg()));
-    }
-    inline int32_t rt_reg() const { return instr_.RtValue(); }
-    inline int64_t rt() const { return get_register(rt_reg()); }
-    inline uint64_t rt_u() const {
-      return static_cast<uint64_t>(get_register(rt_reg()));
-    }
-    inline int32_t rd_reg() const { return instr_.RdValue(); }
-    inline int32_t fr_reg() const { return instr_.FrValue(); }
-    inline int32_t fs_reg() const { return instr_.FsValue(); }
-    inline int32_t ft_reg() const { return instr_.FtValue(); }
-    inline int32_t fd_reg() const { return instr_.FdValue(); }
-    inline int32_t sa() const { return instr_.SaValue(); }
-    inline int32_t lsa_sa() const { return instr_.LsaSaValue(); }
-    inline int32_t ws_reg() const { return instr_.WsValue(); }
-    inline int32_t wt_reg() const { return instr_.WtValue(); }
-    inline int32_t wd_reg() const { return instr_.WdValue(); }
-  */
 
   // RISCV utlity API to access register value
   inline int32_t rs1_reg() const { return instr_.Rs1Value(); }
