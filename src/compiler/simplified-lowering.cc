@@ -251,6 +251,7 @@ class RepresentationSelector {
     void reset_state() { state_ = kUnvisited; }
     bool visited() const { return state_ == kVisited; }
     bool queued() const { return state_ == kQueued; }
+    bool pushed() const { return state_ == kPushed; }
     bool unvisited() const { return state_ == kUnvisited; }
     Truncation truncation() const { return truncation_; }
     void set_output(MachineRepresentation output) { representation_ = output; }
@@ -284,6 +285,7 @@ class RepresentationSelector {
                          TickCounter* tick_counter)
       : jsgraph_(jsgraph),
         zone_(zone),
+        might_need_revisit_(zone),
         count_(jsgraph->graph()->NodeCount()),
         info_(count_, zone),
 #ifdef DEBUG
@@ -324,6 +326,11 @@ class RepresentationSelector {
           typing_stack_.push({input, 0});
           pushed_unvisited = true;
           break;
+        } else if (input_info->pushed()) {
+          // If we had already pushed (and not visited) an input, it means that
+          // the current node will be visited before one of its inputs. If this
+          // happens, the current node might need to be revisited.
+          MarkAsPossibleRevisit(current.node, input);
         }
       }
       if (pushed_unvisited) continue;
@@ -340,8 +347,12 @@ class RepresentationSelector {
       PrintOutputInfo(info);
       TRACE("\n");
       if (updated) {
-        for (Node* const user : node->uses()) {
+        auto it = might_need_revisit_.find(node);
+        if (it == might_need_revisit_.end()) continue;
+
+        for (Node* const user : it->second) {
           if (GetInfo(user)->visited()) {
+            TRACE(" QUEUEING #%d: %s\n", user->id(), user->op()->mnemonic());
             GetInfo(user)->set_queued();
             queue_.push(user);
           }
@@ -356,14 +367,18 @@ class RepresentationSelector {
       NodeInfo* info = GetInfo(node);
       info->set_visited();
       bool updated = UpdateFeedbackType(node);
-      TRACE(" visit #%d: %s\n", node->id(), node->op()->mnemonic());
+      TRACE(" revisit #%d: %s\n", node->id(), node->op()->mnemonic());
       VisitNode<RETYPE>(node, info->truncation(), nullptr);
       TRACE("  ==> output ");
       PrintOutputInfo(info);
       TRACE("\n");
       if (updated) {
+        // Here we need to check all uses since we can't easily know which nodes
+        // will need to be revisited due to having an input which was a
+        // revisited node.
         for (Node* const user : node->uses()) {
           if (GetInfo(user)->visited()) {
+            TRACE(" QUEUEING #%d: %s\n", user->id(), user->op()->mnemonic());
             GetInfo(user)->set_queued();
             queue_.push(user);
           }
@@ -815,6 +830,18 @@ class RepresentationSelector {
                   "the Retype or Lower phase.");
     DCHECK_GE(index, NodeProperties::PastValueIndex(node));
     DCHECK_GE(index, NodeProperties::PastContextIndex(node));
+  }
+
+  // Marks node as a possible revisit since it is a use of input that will be
+  // visited before input is visited.
+  void MarkAsPossibleRevisit(Node* node, Node* input) {
+    auto it = might_need_revisit_.find(input);
+    if (it == might_need_revisit_.end()) {
+      it = might_need_revisit_.insert({input, ZoneVector<Node*>(zone())}).first;
+    }
+    it->second.push_back(node);
+    TRACE(" Marking #%d: %s as needing revisit due to #%d: %s\n", node->id(),
+          node->op()->mnemonic(), input->id(), input->op()->mnemonic());
   }
 
   // Just assert for Retype. Propagate and Lower specialized below.
@@ -3758,6 +3785,8 @@ class RepresentationSelector {
  private:
   JSGraph* jsgraph_;
   Zone* zone_;                      // Temporary zone.
+  // Map from node to its uses that might need to be revisited.
+  ZoneMap<Node*, ZoneVector<Node*>> might_need_revisit_;
   size_t const count_;              // number of nodes in the graph
   ZoneVector<NodeInfo> info_;       // node id -> usage information
 #ifdef DEBUG
