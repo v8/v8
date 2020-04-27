@@ -1040,32 +1040,26 @@ Type OperationTyper::NumberMax(Type lhs, Type rhs) {
   if (lhs.Maybe(Type::NaN()) || rhs.Maybe(Type::NaN())) {
     type = Type::Union(type, Type::NaN(), zone());
   }
+  if (lhs.Maybe(Type::MinusZero()) || rhs.Maybe(Type::MinusZero())) {
+    type = Type::Union(type, Type::MinusZero(), zone());
+  }
 
   if (!lhs.Is(cache_->kIntegerOrMinusZeroOrNaN) ||
       !rhs.Is(cache_->kIntegerOrMinusZeroOrNaN)) {
     return Type::Union(type, Type::Union(lhs, rhs, zone()), zone());
   }
 
-  bool const lhs_maybe_minus_zero = lhs.Maybe(Type::MinusZero());
-  bool const rhs_maybe_minus_zero = rhs.Maybe(Type::MinusZero());
   lhs = Type::Intersect(lhs, cache_->kInteger, zone());
   rhs = Type::Intersect(rhs, cache_->kInteger, zone());
 
-  bool maybe_minus_zero = lhs_maybe_minus_zero || rhs_maybe_minus_zero;
   if (!lhs.IsNone() || !rhs.IsNone()) {
     double min = std::max(lhs.IsNone() ? -V8_INFINITY : lhs.Min(),
                           rhs.IsNone() ? -V8_INFINITY : rhs.Min());
     double max = std::max(lhs.IsNone() ? -V8_INFINITY : lhs.Max(),
                           rhs.IsNone() ? -V8_INFINITY : rhs.Max());
     type = Type::Union(type, Type::Range(min, max, zone()), zone());
-    maybe_minus_zero =
-        maybe_minus_zero && (min < 0.0 || (min == 0.0 && lhs_maybe_minus_zero &&
-                                           rhs_maybe_minus_zero));
   }
 
-  if (maybe_minus_zero) {
-    type = Type::Union(type, Type::MinusZero(), zone());
-  }
   return type;
 }
 
@@ -1080,14 +1074,15 @@ Type OperationTyper::NumberMin(Type lhs, Type rhs) {
   if (lhs.Maybe(Type::NaN()) || rhs.Maybe(Type::NaN())) {
     type = Type::Union(type, Type::NaN(), zone());
   }
+  if (lhs.Maybe(Type::MinusZero()) || rhs.Maybe(Type::MinusZero())) {
+    type = Type::Union(type, Type::MinusZero(), zone());
+  }
 
   if (!lhs.Is(cache_->kIntegerOrMinusZeroOrNaN) ||
       !rhs.Is(cache_->kIntegerOrMinusZeroOrNaN)) {
     return Type::Union(type, Type::Union(lhs, rhs, zone()), zone());
   }
 
-  bool maybe_minus_zero =
-      lhs.Maybe(Type::MinusZero()) || rhs.Maybe(Type::MinusZero());
   lhs = Type::Intersect(lhs, cache_->kInteger, zone());
   rhs = Type::Intersect(rhs, cache_->kInteger, zone());
 
@@ -1097,12 +1092,8 @@ Type OperationTyper::NumberMin(Type lhs, Type rhs) {
     double max = std::min(lhs.IsNone() ? +V8_INFINITY : lhs.Max(),
                           rhs.IsNone() ? +V8_INFINITY : rhs.Max());
     type = Type::Union(type, Type::Range(min, max, zone()), zone());
-    maybe_minus_zero = maybe_minus_zero && max >= 0.0;
   }
 
-  if (maybe_minus_zero) {
-    type = Type::Union(type, Type::MinusZero(), zone());
-  }
   return type;
 }
 
