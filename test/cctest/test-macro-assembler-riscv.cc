@@ -751,14 +751,14 @@ TEST(min_max_nan) {
   __ Ldc1(fa4, MemOperand(a0, offsetof(TestFloat, b)));
   __ Lwc1(fa1, MemOperand(a0, offsetof(TestFloat, e)));
   __ Lwc1(fa2, MemOperand(a0, offsetof(TestFloat, f)));
-  __ Float64Min(fa6, fa3, fa4);
-  __ Float64Max(fa0, fa3, fa4);
-  __ Float32Min(fa2, fa1, fa2);
-  __ Float32Max(fa3, fa1, fa2);
-  __ Sdc1(fa6, MemOperand(a0, offsetof(TestFloat, c)));
-  __ Sdc1(fa0, MemOperand(a0, offsetof(TestFloat, d)));
-  __ Swc1(fa2, MemOperand(a0, offsetof(TestFloat, g)));
-  __ Swc1(fa3, MemOperand(a0, offsetof(TestFloat, h)));
+  __ Float64Min(fa5, fa3, fa4);
+  __ Float64Max(fa6, fa3, fa4);
+  __ Float32Min(fa7, fa1, fa2);
+  __ Float32Max(fa0, fa1, fa2);
+  __ Sdc1(fa5, MemOperand(a0, offsetof(TestFloat, c)));
+  __ Sdc1(fa6, MemOperand(a0, offsetof(TestFloat, d)));
+  __ Swc1(fa7, MemOperand(a0, offsetof(TestFloat, g)));
+  __ Swc1(fa0, MemOperand(a0, offsetof(TestFloat, h)));
   __ pop(s6);
   __ RV_jr(ra);
   __ nop();
@@ -773,7 +773,13 @@ TEST(min_max_nan) {
     test.e = inputse[i];
     test.f = inputsf[i];
 
+    std::cout << "i = " << i << " a = " << test.a << " b = " << test.b
+              << " e = " << test.e << " f = " << test.f << std::endl;
+
     f.Call(&test, 0, 0, 0, 0);
+
+    std::cout << "test.h = " << test.h << " outputsfmax = " << outputsfmax[i]
+              << std::endl;
 
     CHECK_EQ(0, memcmp(&test.c, &outputsdmin[i], sizeof(test.c)));
     CHECK_EQ(0, memcmp(&test.d, &outputsdmax[i], sizeof(test.d)));
