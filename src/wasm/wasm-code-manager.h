@@ -55,6 +55,7 @@ struct WasmModule;
   V(WasmFloat32ToNumber)                 \
   V(WasmFloat64ToNumber)                 \
   V(WasmTaggedToFloat64)                 \
+  V(WasmAllocateJSArray)                 \
   V(WasmAtomicNotify)                    \
   V(WasmI32AtomicWait32)                 \
   V(WasmI32AtomicWait64)                 \

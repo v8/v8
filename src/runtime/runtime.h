@@ -573,8 +573,6 @@ namespace internal {
   F(WasmTableFill, 4, 1)                \
   F(WasmIsValidFuncRefValue, 1, 1)      \
   F(WasmCompileLazy, 2, 1)              \
-  F(WasmNewMultiReturnFixedArray, 1, 1) \
-  F(WasmNewMultiReturnJSArray, 1, 1)    \
   F(WasmDebugBreak, 0, 1)               \
   F(WasmStructNew, 1, 1)
 

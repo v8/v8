@@ -607,29 +607,6 @@ RUNTIME_FUNCTION(Runtime_WasmTableFill) {
   return ReadOnlyRoots(isolate).undefined_value();
 }
 
-RUNTIME_FUNCTION(Runtime_WasmNewMultiReturnFixedArray) {
-  // This code is called from wrappers, so the "thread is wasm" flag is not set.
-  DCHECK(!trap_handler::IsThreadInWasm());
-  DCHECK_EQ(1, args.length());
-  HandleScope scope(isolate);
-  CONVERT_INT32_ARG_CHECKED(size, 0);
-  Handle<FixedArray> fixed_array = isolate->factory()->NewFixedArray(size);
-  return *fixed_array;
-}
-
-RUNTIME_FUNCTION(Runtime_WasmNewMultiReturnJSArray) {
-  // This code is called from wrappers, so the "thread is wasm" flag is not set.
-  DCHECK(!trap_handler::IsThreadInWasm());
-  HandleScope scope(isolate);
-  DCHECK_EQ(1, args.length());
-  DCHECK(!isolate->context().is_null());
-  CONVERT_ARG_CHECKED(FixedArray, fixed_array, 0);
-  Handle<FixedArray> fixed_array_handle(fixed_array, isolate);
-  Handle<JSArray> array = isolate->factory()->NewJSArrayWithElements(
-      fixed_array_handle, PACKED_ELEMENTS);
-  return *array;
-}
-
 RUNTIME_FUNCTION(Runtime_WasmDebugBreak) {
   ClearThreadInWasmScope flag_scope;
   HandleScope scope(isolate);

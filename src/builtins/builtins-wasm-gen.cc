@@ -105,6 +105,17 @@ TF_BUILTIN(WasmTraceMemory, WasmBuiltinsAssembler) {
   TailCallRuntime(Runtime::kWasmTraceMemory, context, info);
 }
 
+TF_BUILTIN(WasmAllocateJSArray, WasmBuiltinsAssembler) {
+  TNode<Context> context = CAST(Parameter(Descriptor::kContext));
+  TNode<Smi> array_size = CAST(Parameter(Descriptor::kArraySize));
+
+  TNode<Map> array_map = CAST(
+      LoadContextElement(context, Context::JS_ARRAY_PACKED_ELEMENTS_MAP_INDEX));
+
+  Return(CodeStubAssembler::AllocateJSArray(PACKED_ELEMENTS, array_map,
+                                            array_size, array_size));
+}
+
 TF_BUILTIN(WasmAtomicNotify, WasmBuiltinsAssembler) {
   TNode<Uint32T> address =
       UncheckedCast<Uint32T>(Parameter(Descriptor::kAddress));
