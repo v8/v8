@@ -11,7 +11,7 @@
 
 #include "cppgc/internal/logging.h"
 #include "cppgc/trace-trait.h"
-#include "v8config.h"  // NOLINT(build/include)
+#include "v8config.h"  // NOLINT(build/include_directory)
 
 namespace cppgc {
 
