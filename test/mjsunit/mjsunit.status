@@ -1157,6 +1157,9 @@
   'deopt-recursive-soft-once': [SKIP],
   'regress/regress-3709': [SKIP],
   'regress/regress-5790': [SKIP],
+
+  # const field tracking is disabled in turboprop
+  'const-field-tracking': [SKIP],
 }],  # variant == turboprop
 
 ##############################################################################

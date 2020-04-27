@@ -390,6 +390,10 @@ PropertyAccessInfo AccessInfoFactory::ComputeDataFieldAccessInfo(
   PropertyConstness constness;
   if (details.IsReadOnly() && !details.IsConfigurable()) {
     constness = PropertyConstness::kConst;
+  } else if (FLAG_turboprop && !map->is_prototype_map()) {
+    // The constness feedback is too unstable for the aggresive compilation
+    // of turboprop.
+    constness = PropertyConstness::kMutable;
   } else {
     map_ref.SerializeOwnDescriptor(descriptor);
     constness = dependencies()->DependOnFieldConstness(map_ref, descriptor);
