@@ -62,7 +62,7 @@ inline void Load(LiftoffAssembler* assm, LiftoffRegister dst, MemOperand src,
       assm->Ldc1(dst.fp(), src);
       break;
     case ValueType::kS128:
-      assm->ld_d(dst.fp().toW(), src);
+      assm->ld_b(dst.fp().toW(), src);
       break;
     default:
       UNREACHABLE();
@@ -109,7 +109,7 @@ inline void push(LiftoffAssembler* assm, LiftoffRegister reg, ValueType type) {
       break;
     case ValueType::kS128:
       assm->daddiu(sp, sp, -kSystemPointerSize * 2);
-      assm->st_d(reg.fp().toW(), MemOperand(sp, 0));
+      assm->st_b(reg.fp().toW(), MemOperand(sp, 0));
       break;
     default:
       UNREACHABLE();
@@ -382,7 +382,7 @@ void LiftoffAssembler::Load(LiftoffRegister dst, Register src_addr,
       TurboAssembler::Uldc1(dst.fp(), src_op, t8);
       break;
     case LoadType::kS128Load:
-      TurboAssembler::ld_d(dst.fp().toW(), src_op);
+      TurboAssembler::ld_b(dst.fp().toW(), src_op);
       break;
     default:
       UNREACHABLE();
@@ -448,7 +448,7 @@ void LiftoffAssembler::Store(Register dst_addr, Register offset_reg,
       TurboAssembler::Usdc1(src.fp(), dst_op, t8);
       break;
     case StoreType::kS128Store:
-      TurboAssembler::st_d(src.fp().toW(), dst_op);
+      TurboAssembler::st_b(src.fp().toW(), dst_op);
       break;
     default:
       UNREACHABLE();
@@ -561,7 +561,7 @@ void LiftoffAssembler::Spill(int offset, LiftoffRegister reg, ValueType type) {
       TurboAssembler::Sdc1(reg.fp(), dst);
       break;
     case ValueType::kS128:
-      TurboAssembler::st_d(reg.fp().toW(), dst);
+      TurboAssembler::st_b(reg.fp().toW(), dst);
       break;
     default:
       UNREACHABLE();
@@ -607,7 +607,7 @@ void LiftoffAssembler::Fill(LiftoffRegister reg, int offset, ValueType type) {
       TurboAssembler::Ldc1(reg.fp(), src);
       break;
     case ValueType::kS128:
-      TurboAssembler::ld_d(reg.fp().toW(), src);
+      TurboAssembler::ld_b(reg.fp().toW(), src);
       break;
     default:
       UNREACHABLE();

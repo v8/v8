@@ -296,11 +296,13 @@ constexpr Register cp = s7;
 constexpr Register kScratchReg = s3;
 constexpr Register kScratchReg2 = s4;
 constexpr DoubleRegister kScratchDoubleReg = f30;
+// FPU zero reg is often used to hold 0.0, but it's not hardwired to 0.0.
 constexpr DoubleRegister kDoubleRegZero = f28;
 // Used on mips64r6 for compare operations.
 // We use the last non-callee saved odd register for N64 ABI
 constexpr DoubleRegister kDoubleCompareReg = f23;
 // MSA zero and scratch regs must have the same numbers as FPU zero and scratch
+// MSA zero reg is often used to hold 0, but it's not hardwired to 0.
 constexpr Simd128Register kSimd128RegZero = w28;
 constexpr Simd128Register kSimd128ScratchReg = w30;
 

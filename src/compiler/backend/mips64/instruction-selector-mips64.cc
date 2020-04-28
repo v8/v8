@@ -132,6 +132,20 @@ static void VisitRRI(InstructionSelector* selector, ArchOpcode opcode,
                  g.UseRegister(node->InputAt(0)), g.UseImmediate(imm));
 }
 
+static void VisitSimdShift(InstructionSelector* selector, ArchOpcode opcode,
+                           Node* node) {
+  Mips64OperandGenerator g(selector);
+  if (g.IsIntegerConstant(node->InputAt(1))) {
+    selector->Emit(opcode, g.DefineAsRegister(node),
+                   g.UseRegister(node->InputAt(0)),
+                   g.UseImmediate(node->InputAt(1)));
+  } else {
+    selector->Emit(opcode, g.DefineAsRegister(node),
+                   g.UseRegister(node->InputAt(0)),
+                   g.UseRegister(node->InputAt(1)));
+  }
+}
+
 static void VisitRRIR(InstructionSelector* selector, ArchOpcode opcode,
                       Node* node) {
   Mips64OperandGenerator g(selector);
@@ -2877,7 +2891,7 @@ void InstructionSelector::VisitInt64AbsWithOverflow(Node* node) {
 
 void InstructionSelector::VisitS128Zero(Node* node) {
   Mips64OperandGenerator g(this);
-  Emit(kMips64S128Zero, g.DefineSameAsFirst(node));
+  Emit(kMips64S128Zero, g.DefineAsRegister(node));
 }
 
 #define SIMD_VISIT_SPLAT(Type)                               \
@@ -2917,7 +2931,7 @@ SIMD_UNOP_LIST(SIMD_VISIT_UNOP)
 
 #define SIMD_VISIT_SHIFT_OP(Name)                     \
   void InstructionSelector::Visit##Name(Node* node) { \
-    VisitRRI(this, kMips64##Name, node);              \
+    VisitSimdShift(this, kMips64##Name, node);        \
   }
 SIMD_SHIFT_OP_LIST(SIMD_VISIT_SHIFT_OP)
 #undef SIMD_VISIT_SHIFT_OP
