@@ -2161,9 +2161,10 @@ void TurboAssembler::Clz(Register rd, Register xx) {
      rd = n - x;
   */
   Label L0, L1, L2, L3, L4;
+  DCHECK(xx != t5 && xx != t6);
   UseScratchRegisterScope temps(this);
   UseScratchRegisterScope block_trampoline_pool(this);
-  Register x = temps.Acquire();
+  Register x = rd;
   Register y = t5;
   Register n = t6;
   Move(x, xx);
@@ -2209,10 +2210,11 @@ void TurboAssembler::Dclz(Register rd, Register xx) {
      y = x >> 1; if (y != 0) {rd = n - 2; return;}
      rd = n - x;
   */
+  DCHECK(xx != t5 && xx != t6);
   Label L0, L1, L2, L3, L4, L5;
   UseScratchRegisterScope temps(this);
   UseScratchRegisterScope block_trampoline_pool(this);
-  Register x = temps.Acquire();
+  Register x = rd;
   Register y = t5;
   Register n = t6;
   Move(x, xx);
@@ -2253,12 +2255,13 @@ void TurboAssembler::Ctz(Register rd, Register rs) {
   // Convert trailing zeroes to trailing ones, and bits to their left
   // to zeroes.
   UseScratchRegisterScope temps(this);
-  Register scratch = temps.Acquire();
+  UseScratchRegisterScope block_trampoline_pool(this);
+  Register scratch = temps.hasAvailable() ? temps.Acquire() : t5;
   Daddu(scratch, rs, -1);
   Xor(rd, scratch, rs);
-  And(scratch, rd, scratch);
+  And(rd, rd, scratch);
   // Count number of leading zeroes.
-  Clz(rd, scratch);
+  Clz(rd, rd);
   // Subtract number of leading zeroes from 32 to get number of trailing
   // ones. Remember that the trailing ones were formerly trailing zeroes.
   li(scratch, 32);
@@ -2269,12 +2272,13 @@ void TurboAssembler::Dctz(Register rd, Register rs) {
   // Convert trailing zeroes to trailing ones, and bits to their left
   // to zeroes.
   UseScratchRegisterScope temps(this);
-  Register scratch = temps.Acquire();
+  UseScratchRegisterScope block_trampoline_pool(this);
+  Register scratch = temps.hasAvailable() ? temps.Acquire() : t5;
   Daddu(scratch, rs, -1);
   Xor(rd, scratch, rs);
-  And(scratch, rd, scratch);
+  And(rd, rd, scratch);
   // Count number of leading zeroes.
-  Dclz(rd, scratch);
+  Dclz(rd, rd);
   // Subtract number of leading zeroes from 64 to get number of trailing
   // ones. Remember that the trailing ones were formerly trailing zeroes.
   li(scratch, 64);
@@ -2292,72 +2296,78 @@ void TurboAssembler::Popcnt(Register rd, Register rs) {
   // v = (v + (v >> 4)) & (T)~(T)0/255*15;                      // temp
   // c = (T)(v * ((T)~(T)0/255)) >> (sizeof(T) - 1) * BITS_PER_BYTE; //count
   //
-  // For comparison, for 32-bit quantities, this algorithm can be executed
-  // using 20 MIPS instructions (the calls to LoadConst32() generate two
-  // machine instructions each for the values being used in this algorithm).
-  // A(n unrolled) loop-based algorithm requires 25 instructions.
-  //
-  // For a 64-bit operand this can be performed in 24 instructions compared
-  // to a(n unrolled) loop based algorithm which requires 38 instructions.
-  //
   // There are algorithms which are faster in the cases where very few
   // bits are set but the algorithm here attempts to minimize the total
   // number of instructions executed even when a large number of bits
   // are set.
-  uint32_t B0 = 0x55555555;     // (T)~(T)0/3
-  uint32_t B1 = 0x33333333;     // (T)~(T)0/15*3
-  uint32_t B2 = 0x0F0F0F0F;     // (T)~(T)0/255*15
-  uint32_t value = 0x01010101;  // (T)~(T)0/255
-  uint32_t shift = 24;          // (sizeof(T) - 1) * BITS_PER_BYTE
+  // The number of instruction is 20.
+  // uint32_t B0 = 0x55555555;     // (T)~(T)0/3
+  // uint32_t B1 = 0x33333333;     // (T)~(T)0/15*3
+  // uint32_t B2 = 0x0F0F0F0F;     // (T)~(T)0/255*15
+  // uint32_t value = 0x01010101;  // (T)~(T)0/255
 
+  DCHECK(rd != t5 && rd != t6 && rs != t5 && rs != t6);
+  uint32_t shift = 24;
   UseScratchRegisterScope temps(this);
   BlockTrampolinePoolScope block_trampoline_pool(this);
   Register scratch = temps.Acquire();
   Register scratch2 = t5;
-  srl(scratch, rs, 1);
-  li(scratch2, B0);
+  Register value = t6;
+  li(value, 0x01010101);     // value = 0x01010101;
+  li(scratch2, 0x55555555);  // B0 = 0x55555555;
+  Srl(scratch, rs, 1);
   And(scratch, scratch, scratch2);
   Subu(scratch, rs, scratch);
-  li(scratch2, B1);
+  li(scratch2, 0x33333333);  // B1 = 0x33333333;
+  RV_slli(rd, scratch2, 4);
+  RV_or_(scratch2, scratch2, rd);
   And(rd, scratch, scratch2);
-  srl(scratch, scratch, 2);
+  Srl(scratch, scratch, 2);
   And(scratch, scratch, scratch2);
   Addu(scratch, rd, scratch);
   srl(rd, scratch, 4);
   Addu(rd, rd, scratch);
-  li(scratch2, B2);
+  li(scratch2, 0xF);
+  Mul(scratch2, value, scratch2);  // B2 = 0x0F0F0F0F;
   And(rd, rd, scratch2);
-  li(scratch, value);
-  Mul(rd, rd, scratch);
-  srl(rd, rd, shift);
+  Mul(rd, rd, value);
+  Srl(rd, rd, shift);
 }
 
 void TurboAssembler::Dpopcnt(Register rd, Register rs) {
+  /*
   uint64_t B0 = 0x5555555555555555l;     // (T)~(T)0/3
   uint64_t B1 = 0x3333333333333333l;     // (T)~(T)0/15*3
   uint64_t B2 = 0x0F0F0F0F0F0F0F0Fl;     // (T)~(T)0/255*15
   uint64_t value = 0x0101010101010101l;  // (T)~(T)0/255
   uint64_t shift = 24;                   // (sizeof(T) - 1) * BITS_PER_BYTE
-
+  */
+  DCHECK(rd != t5 && rd != t6 && rs != t5 && rs != t6);
+  uint64_t shift = 24;
   UseScratchRegisterScope temps(this);
   BlockTrampolinePoolScope block_trampoline_pool(this);
   Register scratch = temps.Acquire();
   Register scratch2 = t5;
-  dsrl(scratch, rs, 1);
-  li(scratch2, B0);
+  Register value = t6;
+  li(value, 0x1111111111111111l);  // value = 0x1111111111111111l;
+  li(scratch2, 5);
+  Dmul(scratch2, value, scratch2);  // B0 = 0x5555555555555555l;
+  Dsrl(scratch, rs, 1);
   And(scratch, scratch, scratch2);
   Dsubu(scratch, rs, scratch);
-  li(scratch2, B1);
+  li(scratch2, 3);
+  Dmul(scratch2, value, scratch2);  // B1 = 0x3333333333333333l;
   And(rd, scratch, scratch2);
-  dsrl(scratch, scratch, 2);
+  Dsrl(scratch, scratch, 2);
   And(scratch, scratch, scratch2);
   Daddu(scratch, rd, scratch);
-  dsrl(rd, scratch, 4);
+  Dsrl(rd, scratch, 4);
   Daddu(rd, rd, scratch);
-  li(scratch2, B2);
+  li(scratch2, 0xF);
+  li(value, 0x0101010101010101l);   // value = 0x0101010101010101l;
+  Dmul(scratch2, value, scratch2);  // B2 = 0x0F0F0F0F0F0F0F0Fl;
   And(rd, rd, scratch2);
-  li(scratch, value);
-  Dmul(rd, rd, scratch);
+  Dmul(rd, rd, value);
   dsrl32(rd, rd, shift);
 }
 

@@ -26,17 +26,17 @@
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 #include <stdlib.h>
-#include <iostream>  // NOLINT(readability/streams)
 
-#include "src/init/v8.h"
-#include "test/cctest/cctest.h"
+#include <iostream>  // NOLINT(readability/streams)
 
 #include "src/base/utils/random-number-generator.h"
 #include "src/codegen/macro-assembler.h"
 #include "src/execution/simulator.h"
+#include "src/init/v8.h"
 #include "src/objects/heap-number.h"
 #include "src/objects/objects-inl.h"
 #include "src/utils/ostreams.h"
+#include "test/cctest/cctest.h"
 
 namespace v8 {
 namespace internal {
@@ -1456,6 +1456,120 @@ TEST(Dctz) {
   }
 }
 
+TEST(Dpopcnt) {
+  CcTest::InitializeVM();
+  Isolate* isolate = CcTest::i_isolate();
+  HandleScope handles(isolate);
+
+  uint64_t in[9];
+  uint64_t out[9];
+  uint64_t result[9];
+  uint64_t val = 0xffffffffffffffffl;
+  uint64_t cnt = 64;
+
+  for (int i = 0; i < 7; i++) {
+    in[i] = val;
+    out[i] = cnt;
+    cnt >>= 1;
+    val >>= cnt;
+  }
+
+  in[7] = 0xaf1000000000000bl;
+  out[7] = 10;
+  in[8] = 0xe030000f00003000l;
+  out[8] = 11;
+  MacroAssembler assembler(isolate, v8::internal::CodeObjectRequired::kYes);
+  MacroAssembler* masm = &assembler;
+
+  __ RV_mv(a4, a0);
+  for (int i = 0; i < 7; i++) {
+    // Load constant.
+    __ li(a3, Operand(in[i]));
+    __ Dpopcnt(a5, a3);
+    __ Sd(a5, MemOperand(a4));
+    __ Daddu(a4, a4, Operand(kPointerSize));
+  }
+  __ li(a3, Operand(in[7]));
+  __ Dpopcnt(a5, a3);
+  __ Sd(a5, MemOperand(a4));
+  __ Daddu(a4, a4, Operand(kPointerSize));
+
+  __ li(a3, Operand(in[8]));
+  __ Dpopcnt(a5, a3);
+  __ Sd(a5, MemOperand(a4));
+  __ Daddu(a4, a4, Operand(kPointerSize));
+
+  __ RV_jr(ra);
+
+  CodeDesc desc;
+  masm->GetCode(isolate, &desc);
+  Handle<Code> code = Factory::CodeBuilder(isolate, desc, Code::STUB).Build();
+
+  auto f = GeneratedCode<FV>::FromCode(*code);
+  (void)f.Call(reinterpret_cast<int64_t>(result), 0, 0, 0, 0);
+  // Check results.
+  for (int i = 0; i < 9; i++) {
+    CHECK(out[i] == result[i]);
+  }
+}
+
+TEST(Popcnt) {
+  CcTest::InitializeVM();
+  Isolate* isolate = CcTest::i_isolate();
+  HandleScope handles(isolate);
+
+  uint64_t in[8];
+  uint64_t out[8];
+  uint64_t result[8];
+  uint64_t val = 0xffffffff;
+  uint64_t cnt = 32;
+
+  for (int i = 0; i < 6; i++) {
+    in[i] = val;
+    out[i] = cnt;
+    cnt >>= 1;
+    val >>= cnt;
+  }
+
+  in[6] = 0xaf10000b;
+  out[6] = 10;
+  in[7] = 0xe03f3000;
+  out[7] = 11;
+  MacroAssembler assembler(isolate, v8::internal::CodeObjectRequired::kYes);
+  MacroAssembler* masm = &assembler;
+
+  __ RV_mv(a4, a0);
+  for (int i = 0; i < 6; i++) {
+    // Load constant.
+    __ li(a3, Operand(in[i]));
+    __ Popcnt(a5, a3);
+    __ Sd(a5, MemOperand(a4));
+    __ Daddu(a4, a4, Operand(kPointerSize));
+  }
+
+  __ li(a3, Operand(in[6]));
+  __ Dpopcnt(a5, a3);
+  __ Sd(a5, MemOperand(a4));
+  __ Daddu(a4, a4, Operand(kPointerSize));
+
+  __ li(a3, Operand(in[7]));
+  __ Dpopcnt(a5, a3);
+  __ Sd(a5, MemOperand(a4));
+  __ Daddu(a4, a4, Operand(kPointerSize));
+
+  __ RV_jr(ra);
+
+  CodeDesc desc;
+  masm->GetCode(isolate, &desc);
+  Handle<Code> code = Factory::CodeBuilder(isolate, desc, Code::STUB).Build();
+
+  auto f = GeneratedCode<FV>::FromCode(*code);
+  (void)f.Call(reinterpret_cast<int64_t>(result), 0, 0, 0, 0);
+  // Check results.
+  for (int i = 0; i < 8; i++) {
+    CHECK(out[i] == result[i]);
+  }
+}
 #undef __
 
 }  // namespace internal
