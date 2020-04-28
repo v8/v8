@@ -3845,6 +3845,19 @@ bool ShouldUseCallICFeedback(Node* node) {
 
 }  // namespace
 
+bool JSCallReducer::IsBuiltinOrApiFunction(JSFunctionRef function) const {
+  if (should_disallow_heap_access() && !function.serialized()) {
+    TRACE_BROKER_MISSING(broker(), "data for function " << function);
+    return false;
+  }
+
+  // TODO(neis): Add a way to check if function template info isn't serialized
+  // and add a warning in such cases. Currently we can't tell if function
+  // template info doesn't exist or wasn't serialized.
+  return function.shared().HasBuiltinId() ||
+         function.shared().function_template_info().has_value();
+}
+
 Reduction JSCallReducer::ReduceJSCall(Node* node) {
   DCHECK_EQ(IrOpcode::kJSCall, node->opcode());
   CallParameters const& p = CallParametersOf(node->op());
@@ -3969,13 +3982,20 @@ Reduction JSCallReducer::ReduceJSCall(Node* node) {
   ProcessedFeedback const& feedback =
       broker()->GetFeedbackForCall(p.feedback());
   if (feedback.IsInsufficient()) {
-    return ReduceSoftDeoptimize(
+    return ReduceForInsufficientFeedback(
         node, DeoptimizeReason::kInsufficientTypeFeedbackForCall);
   }
 
   base::Optional<HeapObjectRef> feedback_target = feedback.AsCall().target();
   if (feedback_target.has_value() && feedback_target->map().is_callable()) {
     Node* target_function = jsgraph()->Constant(*feedback_target);
+
+    if (FLAG_turboprop) {
+      if (!feedback_target->IsJSFunction()) return NoChange();
+      if (!IsBuiltinOrApiFunction(feedback_target->AsJSFunction())) {
+        return NoChange();
+      }
+    }
 
     // Check that the {target} is still the {target_function}.
     Node* check = graph()->NewNode(simplified()->ReferenceEqual(), target,
@@ -4003,6 +4023,12 @@ Reduction JSCallReducer::ReduceJSCall(Node* node) {
             broker(), "feedback vector, not serialized: " << feedback_vector);
         return NoChange();
       }
+
+      if (FLAG_turboprop &&
+          !feedback_vector.shared_function_info().HasBuiltinId()) {
+        return NoChange();
+      }
+
       Node* target_closure = effect =
           graph()->NewNode(simplified()->CheckClosure(feedback_cell.object()),
                            target, effect, control);
@@ -4412,7 +4438,7 @@ Reduction JSCallReducer::ReduceJSConstruct(Node* node) {
     ProcessedFeedback const& feedback =
         broker()->GetFeedbackForCall(p.feedback());
     if (feedback.IsInsufficient()) {
-      return ReduceSoftDeoptimize(
+      return ReduceForInsufficientFeedback(
           node, DeoptimizeReason::kInsufficientTypeFeedbackForConstruct);
     }
 
@@ -4823,9 +4849,15 @@ Reduction JSCallReducer::ReduceReturnReceiver(Node* node) {
   return Replace(receiver);
 }
 
-Reduction JSCallReducer::ReduceSoftDeoptimize(Node* node,
-                                              DeoptimizeReason reason) {
+Reduction JSCallReducer::ReduceForInsufficientFeedback(
+    Node* node, DeoptimizeReason reason) {
+  DCHECK(node->opcode() == IrOpcode::kJSCall ||
+         node->opcode() == IrOpcode::kJSConstruct);
   if (!(flags() & kBailoutOnUninitialized)) return NoChange();
+  // TODO(mythria): May be add additional flags to specify if we need to deopt
+  // on calls / construct rather than checking for TurboProp here. We may need
+  // it for NativeContextIndependent code too.
+  if (FLAG_turboprop) return NoChange();
 
   Node* effect = NodeProperties::GetEffectInput(node);
   Node* control = NodeProperties::GetControlInput(node);

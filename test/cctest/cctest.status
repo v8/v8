@@ -619,6 +619,11 @@
   'test-cpu-profiler/DeoptAtFirstLevelInlinedSource': [SKIP],
   'test-cpu-profiler/DeoptAtSecondLevelInlinedSource': [SKIP],
   'test-cpu-profiler/DeoptUntrackedFunction': [SKIP],
+  # Turboprop doesn't use call feedback and hence doesn't inline even if
+  # the inlining flag is explicitly set.
+  'test-cpu-profiler/DetailedSourcePositionAPI_Inlining': [SKIP],
+  'serializer-tester/BoundFunctionArguments': [SKIP],
+  'serializer-tester/BoundFunctionTarget': [SKIP],
 }],  # variant == turboprop
 
 ##############################################################################
