@@ -5506,6 +5506,32 @@ Reduction JSCallReducer::ReduceArrayIterator(Node* node,
     return NoChange();
   }
 
+  if (array_kind == ArrayIteratorKind::kTypedArray) {
+    // Make sure we deopt when the JSArrayBuffer is detached.
+    if (!dependencies()->DependOnArrayBufferDetachingProtector()) {
+      CallParameters const& p = CallParametersOf(node->op());
+      if (p.speculation_mode() == SpeculationMode::kDisallowSpeculation) {
+        return NoChange();
+      }
+      Node* buffer = effect = graph()->NewNode(
+          simplified()->LoadField(AccessBuilder::ForJSArrayBufferViewBuffer()),
+          receiver, effect, control);
+      Node* buffer_bit_field = effect = graph()->NewNode(
+          simplified()->LoadField(AccessBuilder::ForJSArrayBufferBitField()),
+          buffer, effect, control);
+      Node* check = graph()->NewNode(
+          simplified()->NumberEqual(),
+          graph()->NewNode(
+              simplified()->NumberBitwiseAnd(), buffer_bit_field,
+              jsgraph()->Constant(JSArrayBuffer::WasDetachedBit::kMask)),
+          jsgraph()->ZeroConstant());
+      effect = graph()->NewNode(
+          simplified()->CheckIf(DeoptimizeReason::kArrayBufferWasDetached,
+                                p.feedback()),
+          check, effect, control);
+    }
+  }
+
   // Morph the {node} into a JSCreateArrayIterator with the given {kind}.
   RelaxControls(node);
   node->ReplaceInput(0, receiver);
