@@ -7,6 +7,7 @@
 
 #include <vector>
 #include "src/common/globals.h"
+#include "src/heap/large-spaces.h"
 #include "src/heap/spaces.h"
 
 namespace v8 {

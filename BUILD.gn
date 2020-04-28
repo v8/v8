@@ -2411,6 +2411,8 @@ v8_source_set("v8_base_without_compiler") {
     "src/heap/invalidated-slots.h",
     "src/heap/item-parallel-job.cc",
     "src/heap/item-parallel-job.h",
+    "src/heap/large-spaces.cc",
+    "src/heap/large-spaces.h",
     "src/heap/list.h",
     "src/heap/local-allocator-inl.h",
     "src/heap/local-allocator.h",

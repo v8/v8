@@ -265,10 +265,6 @@ void Page::ClearEvacuationCandidate() {
   InitializeFreeListCategories();
 }
 
-HeapObject LargePage::GetObject() {
-  return HeapObject::FromAddress(area_start());
-}
-
 OldGenerationMemoryChunkIterator::OldGenerationMemoryChunkIterator(Heap* heap)
     : heap_(heap),
       state_(kOldSpaceState),
