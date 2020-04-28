@@ -123,6 +123,12 @@ bool Map::CanHaveFastTransitionableElementsKind() const {
   return CanHaveFastTransitionableElementsKind(instance_type());
 }
 
+bool Map::IsDetached(Isolate* isolate) const {
+  if (is_prototype_map()) return true;
+  return instance_type() == JS_OBJECT_TYPE && NumberOfOwnDescriptors() > 0 &&
+         GetBackPointer().IsUndefined(isolate);
+}
+
 // static
 void Map::GeneralizeIfCanHaveTransitionableFastElementsKind(
     Isolate* isolate, InstanceType instance_type,
