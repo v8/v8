@@ -34,9 +34,6 @@ enum class AbortReason : uint8_t;
 // Flags used for LeaveExitFrame function.
 enum LeaveExitFrameMode { EMIT_RETURN = true, NO_EMIT_RETURN = false };
 
-// Allow programmer to use Branch Delay Slot of Branches, Jumps, Calls.
-enum BranchDelaySlot { USE_DELAY_SLOT, PROTECT };
-
 // Flags used for the li macro-assembler function.
 enum LiFlags {
   // If the constant value can be represented in just 16 bits, then
@@ -112,10 +109,6 @@ class V8_EXPORT_PRIVATE TurboAssembler : public TurboAssemblerBase {
   }
 
   // Jump unconditionally to given label.
-  // We NEED a nop in the branch delay slot, as it used by v8, for example in
-  // CodeGenerator::ProcessDeferred().
-  // Currently the branch delay slot is filled by the MacroAssembler.
-  // Use rather b(Label) for code generation.
   void jmp(Label* L) { Branch(L); }
 
   // -------------------------------------------------------------------------
@@ -139,15 +132,8 @@ class V8_EXPORT_PRIVATE TurboAssembler : public TurboAssemblerBase {
 
   // Cases when relocation is not needed.
 #define DECLARE_NORELOC_PROTOTYPE(Name, target_type)                          \
-  void Name(target_type target, BranchDelaySlot bd = PROTECT);                \
-  inline void Name(BranchDelaySlot bd, target_type target) {                  \
-    Name(target, bd);                                                         \
-  }                                                                           \
-  void Name(target_type target, COND_TYPED_ARGS,                              \
-            BranchDelaySlot bd = PROTECT);                                    \
-  inline void Name(BranchDelaySlot bd, target_type target, COND_TYPED_ARGS) { \
-    Name(target, COND_ARGS, bd);                                              \
-  }
+  void Name(target_type target);                \
+  void Name(target_type target, COND_TYPED_ARGS);                                    \
 
 #define DECLARE_BRANCH_PROTOTYPES(Name)   \
   DECLARE_NORELOC_PROTOTYPE(Name, Label*) \
@@ -172,20 +158,17 @@ class V8_EXPORT_PRIVATE TurboAssembler : public TurboAssemblerBase {
 
   void CompareIsNanF64(Register rd, FPURegister cmp1, FPURegister cmp2);
 
-  void BranchTrueShortF(Register rs, Label* target,
-                        BranchDelaySlot bd = PROTECT);
-  void BranchFalseShortF(Register rs, Label* target,
-                         BranchDelaySlot bd = PROTECT);
+  void BranchTrueShortF(Register rs, Label* target);
+  void BranchFalseShortF(Register rs, Label* target);
 
-  void BranchTrueF(Register rs, Label* target, BranchDelaySlot bd = PROTECT);
-  void BranchFalseF(Register rs, Label* target, BranchDelaySlot bd = PROTECT);
+  void BranchTrueF(Register rs, Label* target);
+  void BranchFalseF(Register rs, Label* target);
 
   // MSA branches
   void BranchMSA(Label* target, MSABranchDF df, MSABranchCondition cond,
-                 MSARegister wt, BranchDelaySlot bd = PROTECT);
+                 MSARegister wt);
 
-  void Branch(Label* L, Condition cond, Register rs, RootIndex index,
-              BranchDelaySlot bdslot = PROTECT);
+  void Branch(Label* L, Condition cond, Register rs, RootIndex index);
 
   static int InstrCountForLi64Bit(int64_t value);
   inline void LiLower32BitHelper(Register rd, Operand j);
@@ -211,8 +194,7 @@ class V8_EXPORT_PRIVATE TurboAssembler : public TurboAssemblerBase {
 // Jump, Call, and Ret pseudo instructions implementing inter-working.
 #define COND_ARGS                                  \
   Condition cond = al, Register rs = zero_reg,     \
-            const Operand &rt = Operand(zero_reg), \
-            BranchDelaySlot bd = PROTECT
+            const Operand &rt = Operand(zero_reg)
 
   void Jump(Register target, COND_ARGS);
   void Jump(intptr_t target, RelocInfo::Mode rmode, COND_ARGS);
@@ -257,19 +239,13 @@ class V8_EXPORT_PRIVATE TurboAssembler : public TurboAssemblerBase {
   void CallForDeoptimization(Address target, int deopt_id);
 
   void Ret(COND_ARGS);
-  inline void Ret(BranchDelaySlot bd, Condition cond = al,
-                  Register rs = zero_reg,
-                  const Operand& rt = Operand(zero_reg)) {
-    Ret(cond, rs, rt, bd);
-  }
 
   // Emit code to discard a non-negative number of pointer-sized elements
   // from the stack, clobbering only the sp register.
   void Drop(int count, Condition cond = cc_always, Register reg = no_reg,
             const Operand& op = Operand(no_reg));
 
-  // Trivial case of DropAndRet that utilizes the delay slot and only emits
-  // 2 instructions.
+  // Trivial case of DropAndRet that only emits 2 instructions.
   void DropAndRet(int drop);
 
   void DropAndRet(int drop, Condition cond, Register reg, const Operand& op);
@@ -814,8 +790,7 @@ class V8_EXPORT_PRIVATE TurboAssembler : public TurboAssemblerBase {
   void Ceil_s_s(FPURegister fd, FPURegister fs);
 
   // Jump the register contains a smi.
-  void JumpIfSmi(Register value, Label* smi_label, Register scratch = t3,
-                 BranchDelaySlot bd = PROTECT);
+  void JumpIfSmi(Register value, Label* smi_label, Register scratch = t3);
 
   void JumpIfEqual(Register a, int32_t b, Label* dest) {
     li(kScratchReg, Operand(b));
@@ -873,18 +848,17 @@ class V8_EXPORT_PRIVATE TurboAssembler : public TurboAssemblerBase {
   bool BranchShortHelper(int32_t offset, Label* L, Condition cond, Register rs,
                          const Operand& rt);
   bool BranchShortCheck(int32_t offset, Label* L, Condition cond, Register rs,
-                        const Operand& rt, BranchDelaySlot bdslot);
+                        const Operand& rt);
 
   void BranchAndLinkShortHelper(int32_t offset, Label* L);
-  void BranchAndLinkShort(int32_t offset, BranchDelaySlot bdslot = PROTECT);
-  void BranchAndLinkShort(Label* L, BranchDelaySlot bdslot = PROTECT);
+  void BranchAndLinkShort(int32_t offset);
+  void BranchAndLinkShort(Label* L);
   bool BranchAndLinkShortHelper(int32_t offset, Label* L, Condition cond,
                                 Register rs, const Operand& rt);
   bool BranchAndLinkShortCheck(int32_t offset, Label* L, Condition cond,
-                               Register rs, const Operand& rt,
-                               BranchDelaySlot bdslot);
-  void BranchLong(Label* L, BranchDelaySlot bdslot);
-  void BranchAndLinkLong(Label* L, BranchDelaySlot bdslot);
+                               Register rs, const Operand& rt);
+  void BranchLong(Label* L);
+  void BranchAndLinkLong(Label* L);
 
   template <typename F_TYPE>
   void RoundHelper(FPURegister dst, FPURegister src, RoundingMode mode);
@@ -986,7 +960,7 @@ class V8_EXPORT_PRIVATE MacroAssembler : public TurboAssembler {
   void Msub_d(FPURegister fd, FPURegister fr, FPURegister fs, FPURegister ft);
 
   void BranchShortMSA(MSABranchDF df, Label* target, MSABranchCondition cond,
-                      MSARegister wt, BranchDelaySlot bd = PROTECT);
+                      MSARegister wt);
 
   /*
     // Truncates a double using a specific rounding mode, and writes the value
@@ -1094,7 +1068,6 @@ class V8_EXPORT_PRIVATE MacroAssembler : public TurboAssembler {
 
   // Jump to the builtin routine.
   void JumpToExternalReference(const ExternalReference& builtin,
-                               BranchDelaySlot bd = PROTECT,
                                bool builtin_exit_frame = false);
 
   // Generates a trampoline to jump to the off-heap instruction stream.
@@ -1145,8 +1118,7 @@ class V8_EXPORT_PRIVATE MacroAssembler : public TurboAssembler {
   }
 
   // Jump if the register contains a non-smi.
-  void JumpIfNotSmi(Register value, Label* not_smi_label, Register scratch = t3,
-                    BranchDelaySlot bd = PROTECT);
+  void JumpIfNotSmi(Register value, Label* not_smi_label, Register scratch = t3);
 
   // Abort execution if argument is a smi, enabled via --debug-code.
   void AssertNotSmi(Register object);

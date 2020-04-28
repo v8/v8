@@ -1002,20 +1002,12 @@ int SltuLatency(bool is_operand_register = true) {
   }
 }
 
-int BranchShortHelperR6Latency() {
-  return 2;  // Estimated max.
-}
-
 int BranchShortHelperLatency() {
   return SltuLatency() + 2;  // Estimated max.
 }
 
-int BranchShortLatency(BranchDelaySlot bdslot = PROTECT) {
-  if (kArchVariant >= kMips64r6 && bdslot == PROTECT) {
-    return BranchShortHelperR6Latency();
-  } else {
-    return BranchShortHelperLatency();
-  }
+int BranchShortLatency() {
+  return BranchShortHelperLatency();
 }
 
 int MoveLatency() { return 1; }

@@ -1936,47 +1936,42 @@ void TurboAssembler::CompareIsNanF64(Register rd, FPURegister cmp1,
   UNIMPLEMENTED();
 }
 
-void TurboAssembler::BranchTrueShortF(Register rs, Label* target,
-                                      BranchDelaySlot bd) {
+void TurboAssembler::BranchTrueShortF(Register rs, Label* target) {
   Branch(target, not_equal, rs, Operand(zero_reg));
 }
 
-void TurboAssembler::BranchFalseShortF(Register rs, Label* target,
-                                       BranchDelaySlot bd) {
+void TurboAssembler::BranchFalseShortF(Register rs, Label* target) {
   Branch(target, equal, rs, Operand(zero_reg));
 }
 
-void TurboAssembler::BranchTrueF(Register rs, Label* target,
-                                 BranchDelaySlot bd) {
+void TurboAssembler::BranchTrueF(Register rs, Label* target) {
   bool long_branch =
       target->is_bound() ? !is_near(target) : is_trampoline_emitted();
   if (long_branch) {
     Label skip;
     BranchFalseShortF(rs, &skip);
-    BranchLong(target, bd);
+    BranchLong(target);
     bind(&skip);
   } else {
-    BranchTrueShortF(rs, target, bd);
+    BranchTrueShortF(rs, target);
   }
 }
 
-void TurboAssembler::BranchFalseF(Register rs, Label* target,
-                                  BranchDelaySlot bd) {
+void TurboAssembler::BranchFalseF(Register rs, Label* target) {
   bool long_branch =
       target->is_bound() ? !is_near(target) : is_trampoline_emitted();
   if (long_branch) {
     Label skip;
     BranchTrueShortF(rs, &skip);
-    BranchLong(target, bd);
+    BranchLong(target);
     bind(&skip);
   } else {
-    BranchFalseShortF(rs, target, bd);
+    BranchFalseShortF(rs, target);
   }
 }
 
 void TurboAssembler::BranchMSA(Label* target, MSABranchDF df,
-                               MSABranchCondition cond, MSARegister wt,
-                               BranchDelaySlot bd) {
+                               MSABranchCondition cond, MSARegister wt) {
   UNREACHABLE();
 }
 
@@ -2390,53 +2385,51 @@ void TurboAssembler::TruncateDoubleToI(Isolate* isolate, Zone* zone,
   bind(&done);
 }
 
-// Emulated condtional branches do not emit a nop in the branch delay slot.
-//
 // BRANCH_ARGS_CHECK checks that conditional jump arguments are correct.
 #define BRANCH_ARGS_CHECK(cond, rs, rt)                                  \
   DCHECK((cond == cc_always && rs == zero_reg && rt.rm() == zero_reg) || \
          (cond != cc_always && (rs != zero_reg || rt.rm() != zero_reg)))
 
-void TurboAssembler::Branch(int32_t offset, BranchDelaySlot bdslot) {
+void TurboAssembler::Branch(int32_t offset) {
   DCHECK(is_int21(offset));
-  BranchShort(offset, bdslot);
+  BranchShort(offset);
 }
 
 void TurboAssembler::Branch(int32_t offset, Condition cond, Register rs,
-                            const Operand& rt, BranchDelaySlot bdslot) {
-  bool is_near = BranchShortCheck(offset, nullptr, cond, rs, rt, bdslot);
+                            const Operand& rt) {
+  bool is_near = BranchShortCheck(offset, nullptr, cond, rs, rt);
   DCHECK(is_near);
   USE(is_near);
 }
 
-void TurboAssembler::Branch(Label* L, BranchDelaySlot bdslot) {
+void TurboAssembler::Branch(Label* L) {
   if (L->is_bound()) {
     if (is_near_branch(L)) {
-      BranchShort(L, bdslot);
+      BranchShort(L);
     } else {
-      BranchLong(L, bdslot);
+      BranchLong(L);
     }
   } else {
     if (is_trampoline_emitted()) {
-      BranchLong(L, bdslot);
+      BranchLong(L);
     } else {
-      BranchShort(L, bdslot);
+      BranchShort(L);
     }
   }
 }
 
 void TurboAssembler::Branch(Label* L, Condition cond, Register rs,
-                            const Operand& rt, BranchDelaySlot bdslot) {
+                            const Operand& rt) {
   if (L->is_bound()) {
-    if (!BranchShortCheck(0, L, cond, rs, rt, bdslot)) {
+    if (!BranchShortCheck(0, L, cond, rs, rt)) {
       if (cond != cc_always) {
         Label skip;
         Condition neg_cond = NegateCondition(cond);
         BranchShort(&skip, neg_cond, rs, rt);
-        BranchLong(L, bdslot);
+        BranchLong(L);
         bind(&skip);
       } else {
-        BranchLong(L, bdslot);
+        BranchLong(L);
       }
     }
   } else {
@@ -2445,23 +2438,23 @@ void TurboAssembler::Branch(Label* L, Condition cond, Register rs,
         Label skip;
         Condition neg_cond = NegateCondition(cond);
         BranchShort(&skip, neg_cond, rs, rt);
-        BranchLong(L, bdslot);
+        BranchLong(L);
         bind(&skip);
       } else {
-        BranchLong(L, bdslot);
+        BranchLong(L);
       }
     } else {
-      BranchShort(L, cond, rs, rt, bdslot);
+      BranchShort(L, cond, rs, rt);
     }
   }
 }
 
 void TurboAssembler::Branch(Label* L, Condition cond, Register rs,
-                            RootIndex index, BranchDelaySlot bdslot) {
+                            RootIndex index) {
   UseScratchRegisterScope temps(this);
   Register scratch = temps.Acquire();
   LoadRoot(scratch, index);
-  Branch(L, cond, rs, Operand(scratch), bdslot);
+  Branch(L, cond, rs, Operand(scratch));
 }
 
 void TurboAssembler::BranchShortHelper(int32_t offset, Label* L) {
@@ -2470,14 +2463,12 @@ void TurboAssembler::BranchShortHelper(int32_t offset, Label* L) {
   RV_j(offset);
 }
 
-void TurboAssembler::BranchShort(int32_t offset, BranchDelaySlot bdslot) {
+void TurboAssembler::BranchShort(int32_t offset) {
   DCHECK(is_int21(offset));
   BranchShortHelper(offset, nullptr);
 }
 
-void TurboAssembler::BranchShort(Label* L, BranchDelaySlot bdslot) {
-  BranchShortHelper(0, L);
-}
+void TurboAssembler::BranchShort(Label* L) { BranchShortHelper(0, L); }
 
 int32_t TurboAssembler::GetOffset(int32_t offset, Label* L, OffsetSize bits) {
   if (L) {
@@ -2659,8 +2650,7 @@ bool TurboAssembler::BranchShortHelper(int32_t offset, Label* L, Condition cond,
 }
 
 bool TurboAssembler::BranchShortCheck(int32_t offset, Label* L, Condition cond,
-                                      Register rs, const Operand& rt,
-                                      BranchDelaySlot bdslot) {
+                                      Register rs, const Operand& rt) {
   BRANCH_ARGS_CHECK(cond, rs, rt);
 
   if (!L) {
@@ -2674,50 +2664,50 @@ bool TurboAssembler::BranchShortCheck(int32_t offset, Label* L, Condition cond,
 }
 
 void TurboAssembler::BranchShort(int32_t offset, Condition cond, Register rs,
-                                 const Operand& rt, BranchDelaySlot bdslot) {
-  BranchShortCheck(offset, nullptr, cond, rs, rt, bdslot);
+                                 const Operand& rt) {
+  BranchShortCheck(offset, nullptr, cond, rs, rt);
 }
 
 void TurboAssembler::BranchShort(Label* L, Condition cond, Register rs,
-                                 const Operand& rt, BranchDelaySlot bdslot) {
-  BranchShortCheck(0, L, cond, rs, rt, bdslot);
+                                 const Operand& rt) {
+  BranchShortCheck(0, L, cond, rs, rt);
 }
 
-void TurboAssembler::BranchAndLink(int32_t offset, BranchDelaySlot bdslot) {
-  BranchAndLinkShort(offset, bdslot);
+void TurboAssembler::BranchAndLink(int32_t offset) {
+  BranchAndLinkShort(offset);
 }
 
 void TurboAssembler::BranchAndLink(int32_t offset, Condition cond, Register rs,
-                                   const Operand& rt, BranchDelaySlot bdslot) {
-  bool is_near = BranchAndLinkShortCheck(offset, nullptr, cond, rs, rt, bdslot);
+                                   const Operand& rt) {
+  bool is_near = BranchAndLinkShortCheck(offset, nullptr, cond, rs, rt);
   DCHECK(is_near);
   USE(is_near);
 }
 
-void TurboAssembler::BranchAndLink(Label* L, BranchDelaySlot bdslot) {
+void TurboAssembler::BranchAndLink(Label* L) {
   if (L->is_bound()) {
     if (is_near_branch(L)) {
-      BranchAndLinkShort(L, bdslot);
+      BranchAndLinkShort(L);
     } else {
-      BranchAndLinkLong(L, bdslot);
+      BranchAndLinkLong(L);
     }
   } else {
     if (is_trampoline_emitted()) {
-      BranchAndLinkLong(L, bdslot);
+      BranchAndLinkLong(L);
     } else {
-      BranchAndLinkShort(L, bdslot);
+      BranchAndLinkShort(L);
     }
   }
 }
 
 void TurboAssembler::BranchAndLink(Label* L, Condition cond, Register rs,
-                                   const Operand& rt, BranchDelaySlot bdslot) {
+                                   const Operand& rt) {
   if (L->is_bound()) {
-    if (!BranchAndLinkShortCheck(0, L, cond, rs, rt, bdslot)) {
+    if (!BranchAndLinkShortCheck(0, L, cond, rs, rt)) {
       Label skip;
       Condition neg_cond = NegateCondition(cond);
       BranchShort(&skip, neg_cond, rs, rt);
-      BranchAndLinkLong(L, bdslot);
+      BranchAndLinkLong(L);
       bind(&skip);
     }
   } else {
@@ -2725,10 +2715,10 @@ void TurboAssembler::BranchAndLink(Label* L, Condition cond, Register rs,
       Label skip;
       Condition neg_cond = NegateCondition(cond);
       BranchShort(&skip, neg_cond, rs, rt);
-      BranchAndLinkLong(L, bdslot);
+      BranchAndLinkLong(L);
       bind(&skip);
     } else {
-      BranchAndLinkShortCheck(0, L, cond, rs, rt, bdslot);
+      BranchAndLinkShortCheck(0, L, cond, rs, rt);
     }
   }
 }
@@ -2739,13 +2729,12 @@ void TurboAssembler::BranchAndLinkShortHelper(int32_t offset, Label* L) {
   RV_jal(offset);
 }
 
-void TurboAssembler::BranchAndLinkShort(int32_t offset,
-                                        BranchDelaySlot bdslot) {
+void TurboAssembler::BranchAndLinkShort(int32_t offset) {
   DCHECK(is_int21(offset));
   BranchAndLinkShortHelper(offset, nullptr);
 }
 
-void TurboAssembler::BranchAndLinkShort(Label* L, BranchDelaySlot bdslot) {
+void TurboAssembler::BranchAndLinkShort(Label* L) {
   BranchAndLinkShortHelper(0, L);
 }
 
@@ -2776,8 +2765,7 @@ bool TurboAssembler::BranchAndLinkShortHelper(int32_t offset, Label* L,
 
 bool TurboAssembler::BranchAndLinkShortCheck(int32_t offset, Label* L,
                                              Condition cond, Register rs,
-                                             const Operand& rt,
-                                             BranchDelaySlot bdslot) {
+                                             const Operand& rt) {
   BRANCH_ARGS_CHECK(cond, rs, rt);
 
   if (!L) {
@@ -2813,7 +2801,7 @@ void TurboAssembler::LoadRootRegisterOffset(Register destination,
 }
 
 void TurboAssembler::Jump(Register target, Condition cond, Register rs,
-                          const Operand& rt, BranchDelaySlot bd) {
+                          const Operand& rt) {
   BlockTrampolinePoolScope block_trampoline_pool(this);
   if (cond == cc_always) {
     RV_jr(target);
@@ -2825,38 +2813,34 @@ void TurboAssembler::Jump(Register target, Condition cond, Register rs,
 }
 
 void TurboAssembler::Jump(intptr_t target, RelocInfo::Mode rmode,
-                          Condition cond, Register rs, const Operand& rt,
-                          BranchDelaySlot bd) {
+                          Condition cond, Register rs, const Operand& rt) {
   Label skip;
   if (cond != cc_always) {
-    Branch(USE_DELAY_SLOT, &skip, NegateCondition(cond), rs, rt);
+    Branch(&skip, NegateCondition(cond), rs, rt);
   }
-  // The first instruction of 'li' may be placed in the delay slot.
-  // This is not an issue, t6 is expected to be clobbered anyway.
   {
     BlockTrampolinePoolScope block_trampoline_pool(this);
     li(t6, Operand(target, rmode));
-    Jump(t6, al, zero_reg, Operand(zero_reg), bd);
+    Jump(t6, al, zero_reg, Operand(zero_reg));
     bind(&skip);
   }
 }
 
 void TurboAssembler::Jump(Address target, RelocInfo::Mode rmode, Condition cond,
-                          Register rs, const Operand& rt, BranchDelaySlot bd) {
+                          Register rs, const Operand& rt) {
   DCHECK(!RelocInfo::IsCodeTarget(rmode));
-  Jump(static_cast<intptr_t>(target), rmode, cond, rs, rt, bd);
+  Jump(static_cast<intptr_t>(target), rmode, cond, rs, rt);
 }
 
 void TurboAssembler::Jump(Handle<Code> code, RelocInfo::Mode rmode,
-                          Condition cond, Register rs, const Operand& rt,
-                          BranchDelaySlot bd) {
+                          Condition cond, Register rs, const Operand& rt) {
   DCHECK(RelocInfo::IsCodeTarget(rmode));
 
   BlockTrampolinePoolScope block_trampoline_pool(this);
   if (root_array_available_ && options().isolate_independent_code) {
     IndirectLoadConstant(t6, code);
     Daddu(t6, t6, Operand(Code::kHeaderSize - kHeapObjectTag));
-    Jump(t6, cond, rs, rt, bd);
+    Jump(t6, cond, rs, rt);
     return;
   } else if (options().inline_offheap_trampolines) {
     int builtin_index = Builtins::kNoBuiltinId;
@@ -2868,12 +2852,12 @@ void TurboAssembler::Jump(Handle<Code> code, RelocInfo::Mode rmode,
       EmbeddedData d = EmbeddedData::FromBlob();
       Address entry = d.InstructionStartOfBuiltin(builtin_index);
       li(t6, Operand(entry, RelocInfo::OFF_HEAP_TARGET));
-      Jump(t6, cond, rs, rt, bd);
+      Jump(t6, cond, rs, rt);
       return;
     }
   }
 
-  Jump(static_cast<intptr_t>(code.address()), rmode, cond, rs, rt, bd);
+  Jump(static_cast<intptr_t>(code.address()), rmode, cond, rs, rt);
 }
 
 void TurboAssembler::Jump(const ExternalReference& reference) {
@@ -2883,24 +2867,14 @@ void TurboAssembler::Jump(const ExternalReference& reference) {
 
 // Note: To call gcc-compiled C code on mips, you must call through t6.
 void TurboAssembler::Call(Register target, Condition cond, Register rs,
-                          const Operand& rt, BranchDelaySlot bd) {
+                          const Operand& rt) {
   BlockTrampolinePoolScope block_trampoline_pool(this);
-  if (kArchVariant == kMips64r6 && bd == PROTECT) {
-    if (cond == cc_always) {
-      RV_jalr(ra, target, 0);
-    } else {
-      BRANCH_ARGS_CHECK(cond, rs, rt);
-      Branch(kInstrSize, NegateCondition(cond), rs, rt);
-      RV_jalr(ra, target, 0);
-    }
+  if (cond == cc_always) {
+    RV_jalr(ra, target, 0);
   } else {
-    if (cond == cc_always) {
-      RV_jalr(ra, target, 0);
-    } else {
-      BRANCH_ARGS_CHECK(cond, rs, rt);
-      Branch(kInstrSize, NegateCondition(cond), rs, rt);
-      RV_jalr(ra, target, 0);
-    }
+    BRANCH_ARGS_CHECK(cond, rs, rt);
+    Branch(kInstrSize, NegateCondition(cond), rs, rt);
+    RV_jalr(ra, target, 0);
   }
 }
 
@@ -2918,21 +2892,20 @@ void MacroAssembler::JumpIfIsInRange(Register value, unsigned lower_limit,
 }
 
 void TurboAssembler::Call(Address target, RelocInfo::Mode rmode, Condition cond,
-                          Register rs, const Operand& rt, BranchDelaySlot bd) {
+                          Register rs, const Operand& rt) {
   BlockTrampolinePoolScope block_trampoline_pool(this);
   li(t6, Operand(static_cast<int64_t>(target), rmode), ADDRESS_LOAD);
-  Call(t6, cond, rs, rt, bd);
+  Call(t6, cond, rs, rt);
 }
 
 void TurboAssembler::Call(Handle<Code> code, RelocInfo::Mode rmode,
-                          Condition cond, Register rs, const Operand& rt,
-                          BranchDelaySlot bd) {
+                          Condition cond, Register rs, const Operand& rt) {
   BlockTrampolinePoolScope block_trampoline_pool(this);
 
   if (root_array_available_ && options().isolate_independent_code) {
     IndirectLoadConstant(t6, code);
     Daddu(t6, t6, Operand(Code::kHeaderSize - kHeapObjectTag));
-    Call(t6, cond, rs, rt, bd);
+    Call(t6, cond, rs, rt);
     return;
   } else if (options().inline_offheap_trampolines) {
     int builtin_index = Builtins::kNoBuiltinId;
@@ -2944,14 +2917,14 @@ void TurboAssembler::Call(Handle<Code> code, RelocInfo::Mode rmode,
       EmbeddedData d = EmbeddedData::FromBlob();
       Address entry = d.InstructionStartOfBuiltin(builtin_index);
       li(t6, Operand(entry, RelocInfo::OFF_HEAP_TARGET));
-      Call(t6, cond, rs, rt, bd);
+      Call(t6, cond, rs, rt);
       return;
     }
   }
 
   DCHECK(RelocInfo::IsCodeTarget(rmode));
   DCHECK(code->IsExecutable());
-  Call(code.address(), rmode, cond, rs, rt, bd);
+  Call(code.address(), rmode, cond, rs, rt);
 }
 
 void TurboAssembler::LoadEntryFromBuiltinIndex(Register builtin_index) {
@@ -3008,23 +2981,21 @@ void TurboAssembler::StoreReturnAddressAndCall(Register target) {
 
   // This spot was reserved in EnterExitFrame.
   Sd(ra, MemOperand(sp));
-  // Stack space reservation moved to the branch delay slot below.
+  RV_addi(sp, sp, -kCArgsSlotsSize);
   // Stack is still aligned.
 
   // Call the C routine.
   RV_mv(t6, target);  // Function pointer to t6 to conform to ABI for PIC.
-  RV_addi(sp, sp, -kCArgsSlotsSize);
   RV_jalr(t6);
   // Make sure the stored 'ra' points to this position.
   DCHECK_EQ(kNumInstructionsToJump, InstructionsGeneratedSince(&find_ra));
 }
 
-void TurboAssembler::Ret(Condition cond, Register rs, const Operand& rt,
-                         BranchDelaySlot bd) {
-  Jump(ra, cond, rs, rt, bd);
+void TurboAssembler::Ret(Condition cond, Register rs, const Operand& rt) {
+  Jump(ra, cond, rs, rt);
 }
 
-void TurboAssembler::BranchLong(Label* L, BranchDelaySlot bdslot) {
+void TurboAssembler::BranchLong(Label* L) {
   if (!L->is_bound() || is_near(L)) {
     BranchShortHelper(0, L);
   } else {
@@ -3040,7 +3011,7 @@ void TurboAssembler::BranchLong(Label* L, BranchDelaySlot bdslot) {
   }
 }
 
-void TurboAssembler::BranchAndLinkLong(Label* L, BranchDelaySlot bdslot) {
+void TurboAssembler::BranchAndLinkLong(Label* L) {
   if (!L->is_bound() || is_near(L)) {
     BranchAndLinkShortHelper(0, L);
   } else {
@@ -3059,7 +3030,7 @@ void TurboAssembler::BranchAndLinkLong(Label* L, BranchDelaySlot bdslot) {
 void TurboAssembler::DropAndRet(int drop) {
   DCHECK(is_int12(drop * kPointerSize));
   RV_addi(sp, sp, drop * kPointerSize);
-  Ret(USE_DELAY_SLOT);
+  Ret();
 }
 
 void TurboAssembler::DropAndRet(int drop, Condition cond, Register r1,
@@ -3585,12 +3556,11 @@ void MacroAssembler::TailCallRuntime(Runtime::FunctionId fid) {
 }
 
 void MacroAssembler::JumpToExternalReference(const ExternalReference& builtin,
-                                             BranchDelaySlot bd,
                                              bool builtin_exit_frame) {
   PrepareCEntryFunction(builtin);
   Handle<Code> code = CodeFactory::CEntry(isolate(), 1, kDontSaveFPRegs,
                                           kArgvOnStack, builtin_exit_frame);
-  Jump(code, RelocInfo::CODE_TARGET, al, zero_reg, Operand(zero_reg), bd);
+  Jump(code, RelocInfo::CODE_TARGET, al, zero_reg, Operand(zero_reg));
 }
 
 void MacroAssembler::JumpToInstructionStream(Address entry) {
@@ -3871,12 +3841,11 @@ void MacroAssembler::LeaveExitFrame(bool save_doubles, Register argument_count,
     }
   }
 
-  if (do_return) {
-    Ret(USE_DELAY_SLOT);
-    // If returning, the instruction in the delay slot will be the addiu
-    // below.
-  }
   RV_addi(sp, sp, 2 * kPointerSize);
+
+  if (do_return) {
+    Ret();
+  }
 }
 
 int TurboAssembler::ActivationFrameAlignment() {
@@ -3927,17 +3896,17 @@ void TurboAssembler::SmiUntag(Register dst, const MemOperand& src) {
 }
 
 void TurboAssembler::JumpIfSmi(Register value, Label* smi_label,
-                               Register scratch, BranchDelaySlot bd) {
+                               Register scratch) {
   DCHECK_EQ(0, kSmiTag);
   RV_andi(scratch, value, kSmiTagMask);
-  Branch(bd, smi_label, eq, scratch, Operand(zero_reg));
+  Branch(smi_label, eq, scratch, Operand(zero_reg));
 }
 
 void MacroAssembler::JumpIfNotSmi(Register value, Label* not_smi_label,
-                                  Register scratch, BranchDelaySlot bd) {
+                                  Register scratch) {
   DCHECK_EQ(0, kSmiTag);
   RV_andi(scratch, value, kSmiTagMask);
-  Branch(bd, not_smi_label, ne, scratch, Operand(zero_reg));
+  Branch(not_smi_label, ne, scratch, Operand(zero_reg));
 }
 
 void MacroAssembler::AssertNotSmi(Register object) {
