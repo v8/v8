@@ -1198,16 +1198,6 @@ void Heap::GarbageCollectionEpilogue() {
     TRACE_GC(tracer(), GCTracer::Scope::HEAP_EPILOGUE_REDUCE_NEW_SPACE);
     ReduceNewSpaceSize();
   }
-
-  if (FLAG_harmony_weak_refs &&
-      isolate()->host_cleanup_finalization_group_callback()) {
-    HandleScope handle_scope(isolate());
-    Handle<JSFinalizationRegistry> finalization_registry;
-    while (
-        DequeueDirtyJSFinalizationRegistry().ToHandle(&finalization_registry)) {
-      isolate()->RunHostCleanupFinalizationGroupCallback(finalization_registry);
-    }
-  }
 }
 
 class GCCallbacksScope {
@@ -6141,7 +6131,6 @@ void Heap::SetInterpreterEntryTrampolineForProfiling(Code code) {
 }
 
 void Heap::PostFinalizationRegistryCleanupTaskIfNeeded() {
-  DCHECK(!isolate()->host_cleanup_finalization_group_callback());
   // Only one cleanup task is posted at a time.
   if (!HasDirtyJSFinalizationRegistries() ||
       is_finalization_registry_cleanup_task_posted_) {
@@ -6201,7 +6190,6 @@ MaybeHandle<JSFinalizationRegistry> Heap::DequeueDirtyJSFinalizationRegistry() {
 
 void Heap::RemoveDirtyFinalizationRegistriesOnContext(NativeContext context) {
   if (!FLAG_harmony_weak_refs) return;
-  if (isolate()->host_cleanup_finalization_group_callback()) return;
 
   DisallowHeapAllocation no_gc;
 

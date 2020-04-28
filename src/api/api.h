@@ -94,7 +94,6 @@ class RegisteredExtension {
   V(Data, Object)                              \
   V(RegExp, JSRegExp)                          \
   V(Object, JSReceiver)                        \
-  V(FinalizationGroup, JSFinalizationRegistry) \
   V(Array, JSArray)                            \
   V(Map, JSMap)                                \
   V(Set, JSSet)                                \
@@ -207,8 +206,6 @@ class Utils {
       v8::internal::Handle<v8::internal::JSTypedArray> obj);
   static inline Local<BigUint64Array> ToLocalBigUint64Array(
       v8::internal::Handle<v8::internal::JSTypedArray> obj);
-  static inline Local<FinalizationGroup> ToLocal(
-      v8::internal::Handle<v8::internal::JSFinalizationRegistry> obj);
 
   static inline Local<SharedArrayBuffer> ToLocalShared(
       v8::internal::Handle<v8::internal::JSArrayBuffer> obj);
