@@ -2,15 +2,16 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#ifndef V8_BASE_LIST_H_
-#define V8_BASE_LIST_H_
+#ifndef V8_HEAP_LIST_H_
+#define V8_HEAP_LIST_H_
 
 #include <atomic>
 
 #include "src/base/logging.h"
 
 namespace v8 {
-namespace base {
+namespace internal {
+namespace heap {
 
 template <class T>
 class List {
@@ -142,7 +143,8 @@ class ListNode {
 
   friend class List<T>;
 };
-}  // namespace base
+}  // namespace heap
+}  // namespace internal
 }  // namespace v8
 
-#endif  // V8_BASE_LIST_H_
+#endif  // V8_HEAP_LIST_H_

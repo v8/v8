@@ -17,7 +17,6 @@
 #include "src/base/bounded-page-allocator.h"
 #include "src/base/export-template.h"
 #include "src/base/iterator.h"
-#include "src/base/list.h"
 #include "src/base/macros.h"
 #include "src/base/optional.h"
 #include "src/base/platform/mutex.h"
@@ -26,6 +25,7 @@
 #include "src/heap/basic-memory-chunk.h"
 #include "src/heap/heap.h"
 #include "src/heap/invalidated-slots.h"
+#include "src/heap/list.h"
 #include "src/heap/marking.h"
 #include "src/heap/slot-set.h"
 #include "src/objects/free-space.h"
@@ -497,7 +497,7 @@ class V8_EXPORT_PRIVATE Space : public Malloced {
   MemoryChunk* first_page() { return memory_chunk_list_.front(); }
   MemoryChunk* last_page() { return memory_chunk_list_.back(); }
 
-  base::List<MemoryChunk>& memory_chunk_list() { return memory_chunk_list_; }
+  heap::List<MemoryChunk>& memory_chunk_list() { return memory_chunk_list_; }
 
   FreeList* free_list() { return free_list_.get(); }
 
@@ -516,7 +516,7 @@ class V8_EXPORT_PRIVATE Space : public Malloced {
   std::vector<AllocationObserver*> allocation_observers_;
 
   // The List manages the pages that belong to the given space.
-  base::List<MemoryChunk> memory_chunk_list_;
+  heap::List<MemoryChunk> memory_chunk_list_;
 
   // Tracks off-heap memory used by this space.
   std::atomic<size_t>* external_backing_store_bytes_;
@@ -627,7 +627,7 @@ class MemoryChunk : public BasicMemoryChunk {
       // std::atomic<size_t> external_backing_store_bytes_
       + kSizetSize              // size_t allocated_bytes_
       + kSizetSize              // size_t wasted_memory_
-      + kSystemPointerSize * 2  // base::ListNode
+      + kSystemPointerSize * 2  // heap::ListNode
       + kSystemPointerSize      // FreeListCategory** categories__
       + kSystemPointerSize      // LocalArrayBufferTracker* local_tracker_
       + kIntptrSize  // std::atomic<intptr_t> young_generation_live_byte_count_
@@ -877,7 +877,7 @@ class MemoryChunk : public BasicMemoryChunk {
     }
   }
 
-  base::ListNode<MemoryChunk>& list_node() { return list_node_; }
+  heap::ListNode<MemoryChunk>& list_node() { return list_node_; }
 
   CodeObjectRegistry* GetCodeObjectRegistry() { return code_object_registry_; }
 
@@ -971,7 +971,7 @@ class MemoryChunk : public BasicMemoryChunk {
   // Freed memory that was not added to the free list.
   size_t wasted_memory_;
 
-  base::ListNode<MemoryChunk> list_node_;
+  heap::ListNode<MemoryChunk> list_node_;
 
   FreeListCategory** categories_;
 
@@ -3251,8 +3251,8 @@ class ReadOnlyArtifacts {
     return shared_read_only_space_.get();
   }
 
-  base::List<MemoryChunk>& pages() { return pages_; }
-  void TransferPages(base::List<MemoryChunk>&& pages) {
+  heap::List<MemoryChunk>& pages() { return pages_; }
+  void TransferPages(heap::List<MemoryChunk>&& pages) {
     pages_ = std::move(pages);
   }
 
@@ -3262,7 +3262,7 @@ class ReadOnlyArtifacts {
   ReadOnlyHeap* read_only_heap() { return read_only_heap_.get(); }
 
  private:
-  base::List<MemoryChunk> pages_;
+  heap::List<MemoryChunk> pages_;
   AllocationStats stats_;
   std::unique_ptr<SharedReadOnlySpace> shared_read_only_space_;
   std::unique_ptr<ReadOnlyHeap> read_only_heap_;

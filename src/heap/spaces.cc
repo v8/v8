@@ -4048,7 +4048,7 @@ void ReadOnlyArtifacts::set_read_only_heap(
 SharedReadOnlySpace::~SharedReadOnlySpace() {
   // Clear the memory chunk list before the space is deleted, so that the
   // inherited destructors don't try to destroy the MemoryChunks themselves.
-  memory_chunk_list_ = base::List<MemoryChunk>();
+  memory_chunk_list_ = heap::List<MemoryChunk>();
 }
 
 SharedReadOnlySpace::SharedReadOnlySpace(

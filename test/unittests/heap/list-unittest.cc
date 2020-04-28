@@ -2,16 +2,17 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#include "src/base/list.h"
+#include "src/heap/list.h"
 #include "testing/gtest-support.h"
 
 namespace v8 {
-namespace base {
+namespace internal {
+namespace heap {
 
 class TestChunk {
  public:
-  base::ListNode<TestChunk>& list_node() { return list_node_; }
-  base::ListNode<TestChunk> list_node_;
+  heap::ListNode<TestChunk>& list_node() { return list_node_; }
+  heap::ListNode<TestChunk> list_node_;
 };
 
 TEST(List, InsertAtTailAndRemove) {
@@ -88,5 +89,6 @@ TEST(List, InsertMultipleAtTailAndRemoveFromMiddle) {
   EXPECT_TRUE(list.Empty());
 }
 
-}  // namespace base
+}  // namespace heap
+}  // namespace internal
 }  // namespace v8
