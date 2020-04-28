@@ -391,8 +391,6 @@
   'test-run-machops/RunUint32MulHighP': [SKIP],
   'test-run-machops/RunWord32Ctz': [SKIP],
   'test-run-machops/RunWord32ReverseBytes': [SKIP],
-  'test-run-machops/RunWord32RorP': [SKIP],
-  'test-run-machops/RunWord32RorInComparison': [SKIP],
   'test-run-machops/RunWord64Ctz': [SKIP],
   'test-run-machops/RunWord64ReverseBytes': [SKIP],
 }],

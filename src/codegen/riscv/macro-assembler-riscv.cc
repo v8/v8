@@ -871,7 +871,10 @@ void TurboAssembler::Ror(Register rd, Register rs, const Operand& rt) {
     RV_sext_w(rd, rd);
   } else {
     int64_t ror_value = rt.immediate() % 32;
-    if (ror_value < 0) {
+    if (ror_value == 0) {
+      RV_mv(rd, rs);
+      return;
+    } else if (ror_value < 0) {
       ror_value += 32;
     }
     RV_srliw(scratch, rs, ror_value);
@@ -892,7 +895,12 @@ void TurboAssembler::Dror(Register rd, Register rs, const Operand& rt) {
     RV_or_(rd, scratch, rd);
   } else {
     int64_t dror_value = rt.immediate() % 64;
-    if (dror_value < 0) dror_value += 64;
+    if (dror_value == 0) {
+      RV_mv(rd, rs);
+      return;
+    } else if (dror_value < 0) {
+      dror_value += 64;
+    }
     RV_srli(scratch, rs, dror_value);
     RV_slli(rd, rs, 64 - dror_value);
     RV_or_(rd, scratch, rd);
