@@ -4284,7 +4284,6 @@ void OldLargeObjectSpace::PromoteNewLargeObject(LargePage* page) {
   size_t object_size = static_cast<size_t>(page->GetObject().Size());
   static_cast<LargeObjectSpace*>(page->owner())->RemovePage(page, object_size);
   page->ClearFlag(MemoryChunk::FROM_PAGE);
-  page->SetOldGenerationPageFlags(heap()->incremental_marking()->IsMarking());
   AddPage(page, object_size);
 }
 
@@ -4295,6 +4294,7 @@ void LargeObjectSpace::AddPage(LargePage* page, size_t object_size) {
   page_count_++;
   memory_chunk_list_.PushBack(page);
   page->set_owner(this);
+  page->SetOldGenerationPageFlags(heap()->incremental_marking()->IsMarking());
 }
 
 void LargeObjectSpace::RemovePage(LargePage* page, size_t object_size) {
