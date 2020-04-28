@@ -543,11 +543,6 @@ class V8_EXPORT_PRIVATE TurboAssembler : public TurboAssemblerBase {
   // Conditional move.
   void Movz(Register rd, Register rs, Register rt);
   void Movn(Register rd, Register rs, Register rt);
-  void Movt(Register rd, Register rs, uint16_t cc = 0);
-  void Movf(Register rd, Register rs, uint16_t cc = 0);
-
-  // void LoadZeroIfFPUCondition(Register dest, Register cond);
-  // void LoadZeroIfNotFPUCondition(Register dest, Register cond);
 
   void LoadZeroIfConditionNotZero(Register dest, Register condition);
   void LoadZeroIfConditionZero(Register dest, Register condition);

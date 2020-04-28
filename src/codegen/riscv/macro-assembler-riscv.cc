@@ -2121,29 +2121,6 @@ void TurboAssembler::LoadZeroIfConditionZero(Register dest,
   Movz(dest, zero_reg, condition);
 }
 
-/*
-// FIXME (RISCV): remove this interface, use LoadZeroIfConditionZero directly
-void TurboAssembler::LoadZeroIfFPUCondition(Register dest, Register condition) {
-  LoadZeroIfConditionNotZero(dest, condition);
-}
-
-// FIXME (RISCV): remove this interface, use LoadZeroIfConditionZero directly
-void TurboAssembler::LoadZeroIfNotFPUCondition(Register dest,
-                                               Register condition) {
-  LoadZeroIfConditionZero(dest, condition);
-}
-*/
-
-// FIXME(RISCV): remove
-void TurboAssembler::Movt(Register rd, Register rs, uint16_t cc) {
-  movt(rd, rs, cc);
-}
-
-// FIXME(RISCV): remove
-void TurboAssembler::Movf(Register rd, Register rs, uint16_t cc) {
-  movf(rd, rs, cc);
-}
-
 void TurboAssembler::Clz(Register rd, Register xx) {
   // 32 bit unsigned in lower word: count number of leading zeros.
   /*
