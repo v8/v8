@@ -773,7 +773,9 @@ bool ScopeIterator::VisitLocals(const Visitor& visitor, Mode mode) const {
     Variable* function_var =
         current_scope_->AsDeclarationScope()->function_var();
     if (function_var != nullptr) {
-      Handle<JSFunction> function = frame_inspector_->GetFunction();
+      Handle<JSFunction> function = frame_inspector_ == nullptr
+                                        ? function_
+                                        : frame_inspector_->GetFunction();
       Handle<String> name = function_var->name();
       if (visitor(name, function)) return true;
     }
