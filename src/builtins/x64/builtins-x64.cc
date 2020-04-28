@@ -2217,10 +2217,8 @@ void Builtins::Generate_CallOrConstructVarargs(MacroAssembler* masm,
     Label copy, check;
     Register src = r8, dest = rsp, num = r9, current = r11;
     __ movq(src, rsp);
-    __ movq(kScratchRegister, rcx);
-    __ negq(kScratchRegister);
-    __ leaq(rsp, Operand(rsp, kScratchRegister, times_system_pointer_size,
-                         0));       // Update stack pointer.
+    __ leaq(kScratchRegister, Operand(rcx, times_system_pointer_size, 0));
+    __ AllocateStackSpace(kScratchRegister);
     __ leaq(num, Operand(rax, 2));  // Number of words to copy.
                                     // +2 for receiver and return address.
     __ Set(current, 0);
