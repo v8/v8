@@ -487,6 +487,10 @@ static const std::vector<int64_t> cvt_trunc_int64_test_values() {
   FOR_INPUTS(uint32_t, uint32, var, test_vector)
 #define FOR_UINT64_INPUTS(var, test_vector) \
   FOR_INPUTS(uint64_t, uint64, var, test_vector)
+#define FOR_FLOAT_INPUTS(var, test_vector) \
+  FOR_INPUTS(float, float, var, test_vector)
+#define FOR_DOUBLE_INPUTS(var, test_vector) \
+  FOR_INPUTS(double, double, var, test_vector)
 
 template <typename RET_TYPE, typename IN_TYPE, typename Func>
 RET_TYPE run_Cvt(IN_TYPE x, Func GenerateConvertInstructionFunc) {
@@ -1403,6 +1407,170 @@ TEST(macro_float_minmax_f64) {
   CHECK_MINMAX(nan_b, nan_a, nan_b, nan_b);
 
 #undef CHECK_MINMAX
+}
+
+#define ERROR_CODE 111
+#define SUCCESS_CODE 666
+
+typedef union {
+  int32_t i32val;
+  int64_t i64val;
+  float fval;
+  double dval;
+} Param_T;
+
+template <typename IN_TYPE, typename Func>
+int32_t run_CompareF(IN_TYPE x1, IN_TYPE x2, bool expected_res,
+                     Func CompareGenerator) {
+  DCHECK(std::is_floating_point<IN_TYPE>::value);
+
+  Isolate* isolate = CcTest::i_isolate();
+  HandleScope scope(isolate);
+  MacroAssembler assm(isolate, v8::internal::CodeObjectRequired::kYes);
+  MacroAssembler* masm = &assm;
+
+  Label error, done;
+
+  // Vararg f.Call() passes floating-point params via GPRs, so move arguments to
+  // FPRs first
+  if (std::is_same<IN_TYPE, float>::value) {
+    __ RV_fmv_w_x(fa0, a0);
+    __ RV_fmv_w_x(fa1, a1);
+  } else {
+    __ RV_fmv_d_x(fa0, a0);
+    __ RV_fmv_d_x(fa1, a1);
+  }
+
+  // Generate actual compare instruction, compare result in a1
+  CompareGenerator(masm);
+
+  __ RV_li(a0, SUCCESS_CODE);
+
+  if (expected_res) {
+    // jump to done
+    __ BranchTrueF(a1, &done);
+  } else {
+    // jump to done
+    __ BranchFalseF(a1, &done);
+  }
+  // error path
+  __ RV_li(a0, ERROR_CODE);
+
+  __ bind(&done);
+  __ RV_jr(ra);
+
+  CodeDesc desc;
+  assm.GetCode(isolate, &desc);
+  Handle<Code> code = Factory::CodeBuilder(isolate, desc, Code::STUB).Build();
+
+  // deal w/ passing floating-point parameters to f.Call
+  using IIN_TYPE =
+      typename std::conditional<sizeof(IN_TYPE) == 4, int32_t, int64_t>::type;
+  auto f = GeneratedCode<int32_t(IIN_TYPE, IIN_TYPE)>::FromCode(*code);
+
+  Param_T t[2];
+  memset(&t, 0, sizeof(t));
+  if (std::is_same<IN_TYPE, float>::value) {
+    t[0].fval = x1;
+    t[1].fval = x2;
+    return f.Call(t[0].i32val, t[1].i32val);
+  } else {
+    t[0].dval = x1;
+    t[1].dval = x2;
+    return f.Call(t[0].i64val, t[1].i64val);
+  }
+}
+
+// FIXME (RISCV): add tests for NaN, infinity, etc
+static const std::vector<float> compare_float_test_values() {
+  static const float kValues[] = {0.0f,
+                                  -0.0f,
+                                  100.23f,
+                                  -1034.78f,
+                                  std::numeric_limits<float>::max(),
+                                  std::numeric_limits<float>::min(),
+                                  /*std::numeric_limits<float>::quiet_NaN(),
+                                  std::numeric_limits<float>::infinity(),
+                                  -std::numeric_limits<float>::infinity()*/};
+  return std::vector<float>(&kValues[0], &kValues[arraysize(kValues)]);
+}
+
+static const std::vector<double> compare_double_test_values() {
+  static const float kValues[] = {0.0,
+                                  -0.0,
+                                  100.23,
+                                  -1034.78,
+                                  std::numeric_limits<double>::max(),
+                                  std::numeric_limits<double>::min(),
+                                  /*std::numeric_limits<double>::quiet_NaN(),
+                                  std::numeric_limits<double>::infinity(),
+                                  -std::numeric_limits<double>::infinity()*/};
+  return std::vector<double>(&kValues[0], &kValues[arraysize(kValues)]);
+}
+
+template <typename T>
+static bool Compare(T input1, T input2, FPUCondition cond) {
+  switch (cond) {
+    case EQ:  // Equal.
+      return (input1 == input2);
+    case LT:  // Ordered or Less Than, on Mips release >= 6.
+      return (input1 < input2);
+    case LE:  // Ordered or Less Than or Equal, on Mips release >= 6.
+      return (input1 <= input2);
+
+    case UEQ:  // Unordered or Equal.
+    case ULT:  // Unordered or Less Than.
+    case ULE:  // Unordered or Less Than or Equal.
+    case F:    // False.
+    case UN:   // Unordered.
+    case ORD:  // Ordered, on Mips release >= 6.
+    case UNE:  // Not equal, on Mips release >= 6.
+    case NE:   // Ordered Greater Than or Less Than. on Mips >= 6 only.
+    default:
+      UNREACHABLE();
+  }
+}
+
+static void FCompare32Helper(FPUCondition cond) {
+  FOR_FLOAT_INPUTS(i, compare_float_test_values) {
+    FOR_FLOAT_INPUTS(j, compare_float_test_values) {
+      auto input1 = *i;
+      auto input2 = *j;
+      bool comp_res = Compare(input1, input2, cond);
+      auto fn = [cond](MacroAssembler* masm) {
+        __ CompareF32(a1, cond, fa0, fa1);
+      };
+      CHECK_EQ(SUCCESS_CODE, run_CompareF(input1, input2, comp_res, fn));
+    }
+  }
+}
+
+static void FCompare64Helper(FPUCondition cond) {
+  FOR_DOUBLE_INPUTS(i, compare_double_test_values) {
+    FOR_DOUBLE_INPUTS(j, compare_double_test_values) {
+      auto input1 = *i;
+      auto input2 = *j;
+      bool comp_res = Compare(input1, input2, cond);
+      auto fn = [cond](MacroAssembler* masm) {
+        __ CompareF64(a1, cond, fa0, fa1);
+      };
+      CHECK_EQ(SUCCESS_CODE, run_CompareF(input1, input2, comp_res, fn));
+    }
+  }
+}
+
+TEST(FCompare32_Branch) {
+  CcTest::InitializeVM();
+  FCompare32Helper(EQ);
+  FCompare32Helper(LT);
+  FCompare32Helper(LE);
+}
+
+TEST(FCompare64_Branch) {
+  CcTest::InitializeVM();
+  FCompare64Helper(EQ);
+  FCompare64Helper(LT);
+  FCompare64Helper(LE);
 }
 
 static const std::vector<uint32_t> cltz_uint32_test_values() {

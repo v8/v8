@@ -2375,6 +2375,7 @@ void Simulator::DecodeRVRFPType() {
       }
       break;
     }
+    // FIXME (RISCV): implement handling of NaN (quiet and signalling)
     case RO_FLE_S: {  // RO_FEQ_S RO_FLT_S RO_FLE_S
       switch (instr_.Funct3Value()) {
         case 0b010: {  // RO_FEQ_S
@@ -2511,6 +2512,7 @@ void Simulator::DecodeRVRFPType() {
       }
       break;
     }
+    // FIXME (RISCV): implement handling of NaN (quiet and signalling)
     case RO_FLE_D: {  // RO_FEQ_D RO_FLT_D RO_FLE_D
       switch (instr_.Funct3Value()) {
         case 0b010: {  // RO_FEQ_S
