@@ -7146,6 +7146,7 @@ uint32_t ExternalArrayElementSize(const ExternalArrayType element_type) {
 
 Reduction JSCallReducer::ReduceDataViewAccess(Node* node, DataViewAccess access,
                                               ExternalArrayType element_type) {
+  DCHECK_EQ(node->opcode(), IrOpcode::kJSCall);
   size_t const element_size = ExternalArrayElementSize(element_type);
   CallParameters const& p = CallParametersOf(node->op());
   Node* effect = NodeProperties::GetEffectInput(node);
@@ -7154,18 +7155,17 @@ Reduction JSCallReducer::ReduceDataViewAccess(Node* node, DataViewAccess access,
   Node* offset = node->op()->ValueInputCount() > 2
                      ? NodeProperties::GetValueInput(node, 2)
                      : jsgraph()->ZeroConstant();
-  Node* value = (access == DataViewAccess::kGet)
-                    ? nullptr
-                    : (node->op()->ValueInputCount() > 3
-                           ? NodeProperties::GetValueInput(node, 3)
-                           : jsgraph()->ZeroConstant());
-  Node* is_little_endian = (access == DataViewAccess::kGet)
-                               ? (node->op()->ValueInputCount() > 3
-                                      ? NodeProperties::GetValueInput(node, 3)
-                                      : jsgraph()->FalseConstant())
-                               : (node->op()->ValueInputCount() > 4
-                                      ? NodeProperties::GetValueInput(node, 4)
-                                      : jsgraph()->FalseConstant());
+  Node* value = nullptr;
+  if (access == DataViewAccess::kSet) {
+    value = node->op()->ValueInputCount() > 3
+                ? NodeProperties::GetValueInput(node, 3)
+                : jsgraph()->UndefinedConstant();
+  }
+  const int endian_index = (access == DataViewAccess::kGet ? 3 : 4);
+  Node* is_little_endian =
+      (node->op()->ValueInputCount() > endian_index
+           ? NodeProperties::GetValueInput(node, endian_index)
+           : jsgraph()->FalseConstant());
 
   if (p.speculation_mode() == SpeculationMode::kDisallowSpeculation) {
     return NoChange();
