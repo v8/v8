@@ -537,7 +537,6 @@ namespace internal {
   F(TurbofanStaticAssert, 1, 1)               \
   F(UnblockConcurrentRecompilation, 0, 1)     \
   F(WasmGetNumberOfInstances, 1, 1)           \
-  F(WasmNumInterpretedCalls, 1, 1)            \
   F(WasmNumCodeSpaces, 1, 1)                  \
   F(WasmTierDownModule, 1, 1)                 \
   F(WasmTierUpFunction, 2, 1)                 \

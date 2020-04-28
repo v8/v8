@@ -865,9 +865,6 @@ class WasmDebugInfo : public Struct {
   std::unique_ptr<wasm::InterpretedFrame, wasm::InterpretedFrameDeleter>
   GetInterpretedFrame(Address frame_pointer, int frame_index);
 
-  // Returns the number of calls / function frames executed in the interpreter.
-  V8_EXPORT_PRIVATE uint64_t NumInterpretedCalls();
-
   V8_EXPORT_PRIVATE static Handle<Code> GetCWasmEntry(Handle<WasmDebugInfo>,
                                                       const wasm::FunctionSig*);
 

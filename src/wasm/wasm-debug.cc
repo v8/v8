@@ -261,11 +261,6 @@ class InterpreterHandle {
     return thread->GetFrame(frame_range.first + idx);
   }
 
-  uint64_t NumInterpretedCalls() {
-    DCHECK_EQ(1, interpreter()->GetThreadCount());
-    return interpreter()->GetThread(0)->NumInterpretedCalls();
-  }
-
  private:
   DISALLOW_COPY_AND_ASSIGN(InterpreterHandle);
 };
@@ -928,12 +923,6 @@ wasm::InterpreterHandle* GetInterpreterHandle(WasmDebugInfo debug_info) {
   return Managed<wasm::InterpreterHandle>::cast(handle_obj).raw();
 }
 
-wasm::InterpreterHandle* GetInterpreterHandleOrNull(WasmDebugInfo debug_info) {
-  Object handle_obj = debug_info.interpreter_handle();
-  if (handle_obj.IsUndefined()) return nullptr;
-  return Managed<wasm::InterpreterHandle>::cast(handle_obj).raw();
-}
-
 }  // namespace
 
 Handle<WasmDebugInfo> WasmDebugInfo::New(Handle<WasmInstanceObject> instance) {
@@ -989,11 +978,6 @@ int WasmDebugInfo::NumberOfActiveFrames(Address frame_pointer) {
 wasm::WasmInterpreter::FramePtr WasmDebugInfo::GetInterpretedFrame(
     Address frame_pointer, int idx) {
   return GetInterpreterHandle(*this)->GetInterpretedFrame(frame_pointer, idx);
-}
-
-uint64_t WasmDebugInfo::NumInterpretedCalls() {
-  auto* handle = GetInterpreterHandleOrNull(*this);
-  return handle ? handle->NumInterpretedCalls() : 0;
 }
 
 // static
