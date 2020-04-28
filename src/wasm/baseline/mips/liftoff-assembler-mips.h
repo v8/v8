@@ -1594,6 +1594,16 @@ void LiftoffAssembler::emit_i8x16_ne(LiftoffRegister dst, LiftoffRegister lhs,
   bailout(kSimd, "emit_i8x16_ne");
 }
 
+void LiftoffAssembler::emit_i8x16_ge_s(LiftoffRegister dst, LiftoffRegister lhs,
+                                       LiftoffRegister rhs) {
+  bailout(kSimd, "emit_i8x16_ge_s");
+}
+
+void LiftoffAssembler::emit_i8x16_ge_u(LiftoffRegister dst, LiftoffRegister lhs,
+                                       LiftoffRegister rhs) {
+  bailout(kSimd, "emit_i8x16_ge_u");
+}
+
 void LiftoffAssembler::emit_i16x8_eq(LiftoffRegister dst, LiftoffRegister lhs,
                                      LiftoffRegister rhs) {
   // TODO(mips): Support this on loongson 3a4000. Currently, the main MIPS
@@ -1607,6 +1617,16 @@ void LiftoffAssembler::emit_i16x8_ne(LiftoffRegister dst, LiftoffRegister lhs,
   bailout(kSimd, "emit_i16x8_ne");
 }
 
+void LiftoffAssembler::emit_i16x8_ge_s(LiftoffRegister dst, LiftoffRegister lhs,
+                                       LiftoffRegister rhs) {
+  bailout(kSimd, "emit_i16x8_ge_s");
+}
+
+void LiftoffAssembler::emit_i16x8_ge_u(LiftoffRegister dst, LiftoffRegister lhs,
+                                       LiftoffRegister rhs) {
+  bailout(kSimd, "emit_i16x8_ge_u");
+}
+
 void LiftoffAssembler::emit_i32x4_eq(LiftoffRegister dst, LiftoffRegister lhs,
                                      LiftoffRegister rhs) {
   // TODO(mips): Support this on loongson 3a4000. Currently, the main MIPS
@@ -1618,6 +1638,16 @@ void LiftoffAssembler::emit_i32x4_eq(LiftoffRegister dst, LiftoffRegister lhs,
 void LiftoffAssembler::emit_i32x4_ne(LiftoffRegister dst, LiftoffRegister lhs,
                                      LiftoffRegister rhs) {
   bailout(kSimd, "emit_i32x4_ne");
+}
+
+void LiftoffAssembler::emit_i32x4_ge_s(LiftoffRegister dst, LiftoffRegister lhs,
+                                       LiftoffRegister rhs) {
+  bailout(kSimd, "emit_i32x4_ge_s");
+}
+
+void LiftoffAssembler::emit_i32x4_ge_u(LiftoffRegister dst, LiftoffRegister lhs,
+                                       LiftoffRegister rhs) {
+  bailout(kSimd, "emit_i32x4_ge_u");
 }
 
 void LiftoffAssembler::emit_f32x4_eq(LiftoffRegister dst, LiftoffRegister lhs,
@@ -1704,6 +1734,13 @@ void LiftoffAssembler::emit_s128_and_not(LiftoffRegister dst,
   // CPU, Loongson 3a3000 does not support MSA(simd128), but the upcoming
   // 3a4000 support MSA.
   bailout(kSimd, "emit_s128_and_not");
+}
+
+void LiftoffAssembler::emit_s128_select(LiftoffRegister dst,
+                                        LiftoffRegister src1,
+                                        LiftoffRegister src2,
+                                        LiftoffRegister src3) {
+  bailout(kSimd, "emit_s128_select");
 }
 
 void LiftoffAssembler::emit_i8x16_neg(LiftoffRegister dst,
