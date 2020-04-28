@@ -61,14 +61,14 @@ namespace reflect {
   // ES6 section 26.1.6 Reflect.get
   transitioning javascript builtin
   ReflectGet(js-implicit context: NativeContext)(...arguments): JSAny {
-    const length = arguments.length;
-    const object: JSAny = length > 0 ? arguments[0] : Undefined;
+    const object: JSAny = arguments[0];
     const objectJSReceiver = Cast<JSReceiver>(object)
         otherwise ThrowTypeError(
         MessageTemplate::kCalledOnNonObject, 'Reflect.get');
-    const propertyKey: JSAny = length > 1 ? arguments[1] : Undefined;
+    const propertyKey: JSAny = arguments[1];
     const name: AnyName = ToName(propertyKey);
-    const receiver: JSAny = length > 2 ? arguments[2] : objectJSReceiver;
+    const receiver: JSAny =
+        arguments.length > 2 ? arguments[2] : objectJSReceiver;
     return GetPropertyWithReceiver(
         objectJSReceiver, name, receiver, SmiConstant(kReturnUndefined));
   }

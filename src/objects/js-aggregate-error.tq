@@ -30,12 +30,12 @@ namespace error {
     //   b. Let msgDesc be the PropertyDescriptor { [[Value]]: _msg_,
     //   [[Writable]]: *true*, [[Enumerable]]: *false*, [[Configurable]]: *true*
     //   c. Perform ! DefinePropertyOrThrow(_O_, *"message"*, _msgDesc_).
-    const message: JSAny = arguments.length > 0 ? arguments[1] : Undefined;
+    const message: JSAny = arguments[1];
     const obj: JSAggregateError =
         ConstructAggregateErrorHelper(context, target, newTarget, message);
 
     // 4. Let errorsList be ? IterableToList(errors).
-    const errors: JSAny = arguments.length > 0 ? arguments[0] : Undefined;
+    const errors: JSAny = arguments[0];
     const errorsArray =
         iterator::IterableToFixedArrayWithSymbolLookupSlow(errors);
     MakeFixedArrayCOW(errorsArray);
