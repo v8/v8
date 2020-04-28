@@ -7,8 +7,10 @@
 
 #include <memory>
 
+#include "src/base/bounds.h"
 #include "src/base/memory.h"
 #include "src/codegen/reloc-info.h"
+#include "src/common/globals.h"
 #include "src/heap/heap.h"
 #include "src/heap/slot-set.h"
 #include "src/heap/spaces.h"
@@ -35,8 +37,8 @@ class RememberedSetOperations {
                      SlotSet::EmptyBucketMode mode) {
     int slots = 0;
     if (slot_set != nullptr) {
-      slots +=
-          slot_set->Iterate(chunk->address(), chunk->buckets(), callback, mode);
+      slots += slot_set->Iterate(chunk->address(), 0, chunk->buckets(),
+                                 callback, mode);
     }
     return slots;
   }
@@ -57,6 +59,25 @@ class RememberedSetOperations {
       slot_set->RemoveRange(static_cast<int>(start_offset),
                             static_cast<int>(end_offset), chunk->buckets(),
                             mode);
+    }
+  }
+
+  static void CheckNoneInRange(SlotSet* slot_set, MemoryChunk* chunk,
+                               Address start, Address end) {
+    if (slot_set != nullptr) {
+      size_t start_bucket = SlotSet::BucketForSlot(start - chunk->address());
+      // Both 'end' and 'end_bucket' are exclusive limits, so do some index
+      // juggling to make sure we get the right bucket even if the end address
+      // is at the start of a bucket.
+      size_t end_bucket =
+          SlotSet::BucketForSlot(end - chunk->address() - kTaggedSize) + 1;
+      slot_set->Iterate(
+          chunk->address(), start_bucket, end_bucket,
+          [start, end](MaybeObjectSlot slot) {
+            CHECK(!base::IsInRange(slot.address(), start, end + 1));
+            return KEEP_SLOT;
+          },
+          SlotSet::KEEP_EMPTY_BUCKETS);
     }
   }
 };
@@ -87,6 +108,11 @@ class RememberedSet : public AllStatic {
     }
     uintptr_t offset = slot_addr - chunk->address();
     return slot_set->Contains(offset);
+  }
+
+  static void CheckNoneInRange(MemoryChunk* chunk, Address start, Address end) {
+    SlotSet* slot_set = chunk->slot_set<type>();
+    RememberedSetOperations::CheckNoneInRange(slot_set, chunk, start, end);
   }
 
   // Given a page and a slot in that page, this function removes the slot from
@@ -159,8 +185,9 @@ class RememberedSet : public AllStatic {
     if (slot_set != nullptr) {
       PossiblyEmptyBuckets* possibly_empty_buckets =
           chunk->possibly_empty_buckets();
-      slots += slot_set->IterateAndTrackEmptyBuckets(
-          chunk->address(), chunk->buckets(), callback, possibly_empty_buckets);
+      slots += slot_set->IterateAndTrackEmptyBuckets(chunk->address(), 0,
+                                                     chunk->buckets(), callback,
+                                                     possibly_empty_buckets);
       if (!possibly_empty_buckets->IsEmpty()) empty_chunks.Push(chunk);
     }
     return slots;

@@ -2935,6 +2935,23 @@ void Heap::FlushNumberStringCache() {
   }
 }
 
+namespace {
+
+#ifdef DEBUG
+void VerifyNoNeedToClearSlots(Address start, Address end) {
+  MemoryChunk* chunk = MemoryChunk::FromAddress(start);
+  // TODO(ulan): Support verification of large pages.
+  if (chunk->InYoungGeneration() || chunk->IsLargePage()) return;
+  Space* space = chunk->owner();
+  if (static_cast<PagedSpace*>(space)->is_off_thread_space()) return;
+  space->heap()->VerifySlotRangeHasNoRecordedSlots(start, end);
+}
+#else
+void VerifyNoNeedToClearSlots(Address start, Address end) {}
+#endif  // DEBUG
+
+}  // namespace
+
 HeapObject Heap::CreateFillerObjectAt(Address addr, int size,
                                       ClearRecordedSlots clear_slots_mode,
                                       ClearFreedMemoryMode clear_memory_mode) {
@@ -2966,9 +2983,12 @@ HeapObject Heap::CreateFillerObjectAt(Address addr, int size,
                    (size / kTaggedSize) - 2);
     }
   }
-  if (clear_slots_mode == ClearRecordedSlots::kYes &&
-      !V8_ENABLE_THIRD_PARTY_HEAP_BOOL) {
-    ClearRecordedSlotRange(addr, addr + size);
+  if (!V8_ENABLE_THIRD_PARTY_HEAP_BOOL) {
+    if (clear_slots_mode == ClearRecordedSlots::kYes) {
+      ClearRecordedSlotRange(addr, addr + size);
+    } else {
+      VerifyNoNeedToClearSlots(addr, addr + size);
+    }
   }
 
   // At this point, we may be deserializing the heap from a snapshot, and
@@ -5754,6 +5774,15 @@ void Heap::VerifyClearedSlot(HeapObject object, ObjectSlot slot) {
                 page->RegisteredObjectWithInvalidatedSlots<OLD_TO_NEW>(object));
   CHECK_IMPLIES(RememberedSet<OLD_TO_OLD>::Contains(page, slot.address()),
                 page->RegisteredObjectWithInvalidatedSlots<OLD_TO_OLD>(object));
+#endif
+}
+
+void Heap::VerifySlotRangeHasNoRecordedSlots(Address start, Address end) {
+#ifndef V8_DISABLE_WRITE_BARRIERS
+  Page* page = Page::FromAddress(start);
+  DCHECK(!page->IsLargePage());
+  DCHECK(!page->InYoungGeneration());
+  RememberedSet<OLD_TO_NEW>::CheckNoneInRange(page, start, end);
 #endif
 }
 #endif

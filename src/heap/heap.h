@@ -951,6 +951,7 @@ class Heap {
 
 #ifdef DEBUG
   void VerifyClearedSlot(HeapObject object, ObjectSlot slot);
+  void VerifySlotRangeHasNoRecordedSlots(Address start, Address end);
 #endif
 
   // ===========================================================================
