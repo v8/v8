@@ -50,7 +50,6 @@
 #include "src/utils/ostreams.h"
 #include "src/zone/zone-list-inl.h"
 #include "test/cctest/cctest.h"
-#include "test/common/wasm/flag-utils.h"
 
 namespace v8 {
 namespace internal {
@@ -2339,31 +2338,6 @@ TEST(PeepholeLabelFixupsComplex) {
           labels[label_idx]->pos() + target_fixups[label_idx];
       CHECK_EQ(expected_jump_address, jump_address);
     }
-  }
-}
-
-TEST(UnicodePropertyEscapeCodeSize) {
-  i::FlagScope<bool> f(&v8::internal::FLAG_regexp_tier_up, false);
-
-  LocalContext env;
-  v8::HandleScope scope(CcTest::isolate());
-  i::Handle<i::JSRegExp> re = Utils::OpenHandle(
-      *CompileRun("const r = /\\p{L}\\p{L}\\p{L}/u; r.exec('\\u200b'); r;")
-           .As<v8::RegExp>());
-
-  static constexpr int kMaxSize = 150 * KB;
-  static constexpr bool kIsNotLatin1 = false;
-  Object maybe_code = re->Code(kIsNotLatin1);
-  Object maybe_bytecode = re->Bytecode(kIsNotLatin1);
-  if (maybe_bytecode.IsByteArray()) {
-    // On x64, excessive inlining produced >250KB.
-    CHECK_LT(ByteArray::cast(maybe_bytecode).Size(), kMaxSize);
-  } else if (maybe_code.IsCode()) {
-    // On x64, excessive inlining produced >360KB.
-    CHECK_LT(Code::cast(maybe_code).Size(), kMaxSize);
-    CHECK_EQ(Code::cast(maybe_code).kind(), Code::REGEXP);
-  } else {
-    UNREACHABLE();
   }
 }
 
