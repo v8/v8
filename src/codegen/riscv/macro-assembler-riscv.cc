@@ -806,7 +806,7 @@ void TurboAssembler::Sll(Register rd, Register rs, const Operand& rt) {
   if (rt.is_reg())
     RV_sllw(rd, rs, rt.rm());
   else {
-    int64_t shamt = rt.immediate();
+    uint8_t shamt = static_cast<uint8_t>(rt.immediate());
     RV_slliw(rd, rs, shamt);
   }
 }
@@ -827,7 +827,7 @@ void TurboAssembler::Srl(Register rd, Register rs, const Operand& rt) {
   if (rt.is_reg())
     RV_srlw(rd, rs, rt.rm());
   else {
-    int64_t shamt = rt.immediate();
+    uint8_t shamt = static_cast<uint8_t>(rt.immediate());
     RV_srliw(rd, rs, shamt);
   }
 }
@@ -836,7 +836,7 @@ void TurboAssembler::Dsra(Register rd, Register rs, const Operand& rt) {
   if (rt.is_reg())
     RV_sra(rd, rs, rt.rm());
   else {
-    int64_t shamt = rt.immediate();
+    uint8_t shamt = static_cast<uint8_t>(rt.immediate());
     RV_srai(rd, rs, shamt);
   }
 }
@@ -845,7 +845,7 @@ void TurboAssembler::Dsrl(Register rd, Register rs, const Operand& rt) {
   if (rt.is_reg())
     RV_srl(rd, rs, rt.rm());
   else {
-    int64_t shamt = rt.immediate();
+    uint8_t shamt = static_cast<uint8_t>(rt.immediate());
     RV_srli(rd, rs, shamt);
   }
 }
@@ -854,7 +854,7 @@ void TurboAssembler::Dsll(Register rd, Register rs, const Operand& rt) {
   if (rt.is_reg())
     RV_sll(rd, rs, rt.rm());
   else {
-    int64_t shamt = rt.immediate();
+    uint8_t shamt = static_cast<uint8_t>(rt.immediate());
     RV_slli(rd, rs, shamt);
   }
 }
