@@ -581,13 +581,7 @@ inline void AtomicOp32(
     void (Assembler::*load)(Register, Register, Condition),
     void (Assembler::*store)(Register, Register, Register, Condition),
     void (*op)(LiftoffAssembler*, Register, Register, Register)) {
-  UseScratchRegisterScope temps(lasm);
-  Register actual_addr = liftoff::CalculateActualAddress(
-      lasm, &temps, dst_addr, offset_reg, offset_imm);
-  Register store_result =
-      temps.CanAcquire()
-          ? temps.Acquire()
-          : pinned.set(__ GetUnusedRegister(kGpReg, pinned)).gp();
+  Register store_result = pinned.set(__ GetUnusedRegister(kGpReg, pinned)).gp();
 
   // Allocate an additional {temp} register to hold the result that should be
   // stored to memory. Note that {temp} and {store_result} are not allowed to be
@@ -596,9 +590,13 @@ inline void AtomicOp32(
 
   // Make sure that {result} is unique.
   Register result_reg = result.gp();
-  if (result_reg == value.gp() || result_reg == actual_addr) {
+  if (result_reg == value.gp() || result_reg == dst_addr ||
+      result_reg == offset_reg) {
     result_reg = __ GetUnusedRegister(kGpReg, pinned).gp();
   }
+  UseScratchRegisterScope temps(lasm);
+  Register actual_addr = liftoff::CalculateActualAddress(
+      lasm, &temps, dst_addr, offset_reg, offset_imm);
   __ dmb(ISH);
   Label retry;
   __ bind(&retry);
@@ -731,10 +729,10 @@ inline void AtomicOp64(LiftoffAssembler* lasm, Register dst_addr,
     pinned.set(result_high);
   }
 
+  Register store_result = __ GetUnusedRegister(kGpReg, pinned).gp();
   UseScratchRegisterScope temps(lasm);
   Register actual_addr = liftoff::CalculateActualAddress(
       lasm, &temps, dst_addr, offset_reg, offset_imm);
-  Register store_result = __ GetUnusedRegister(kGpReg, pinned).gp();
 
   __ dmb(ISH);
   Label retry;

@@ -981,12 +981,15 @@ void LiftoffAssembler::SpillRegister(LiftoffRegister reg) {
       // {clear_used} call below only clears one of them.
       cache_state_.dec_used(slot->reg().low());
       cache_state_.dec_used(slot->reg().high());
+      cache_state_.last_spilled_regs.set(slot->reg().low());
+      cache_state_.last_spilled_regs.set(slot->reg().high());
     }
     Spill(slot->offset(), slot->reg(), slot->type());
     slot->MakeStack();
     if (--remaining_uses == 0) break;
   }
   cache_state_.clear_used(reg);
+  cache_state_.last_spilled_regs.set(reg);
 }
 
 void LiftoffAssembler::set_num_locals(uint32_t num_locals) {
