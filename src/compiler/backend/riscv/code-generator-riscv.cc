@@ -1173,46 +1173,13 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       }
       break;
     case kMips64Dshl:
-      if (instr->InputAt(1)->IsRegister()) {
-        __ Dsll(i.OutputRegister(), i.InputRegister(0), i.InputRegister(1));
-      } else {
-        int64_t imm = i.InputOperand(1).immediate();
-        if (imm < 32) {
-          __ Dsll(i.OutputRegister(), i.InputRegister(0),
-                  static_cast<uint16_t>(imm));
-        } else {
-          __ Dsll(i.OutputRegister(), i.InputRegister(0),
-                  static_cast<uint16_t>(imm));
-        }
-      }
+      __ Dsll(i.OutputRegister(), i.InputRegister(0), i.InputOperand(1));
       break;
     case kMips64Dshr:
-      if (instr->InputAt(1)->IsRegister()) {
-        __ Dsrl(i.OutputRegister(), i.InputRegister(0), i.InputRegister(1));
-      } else {
-        int64_t imm = i.InputOperand(1).immediate();
-        if (imm < 32) {
-          __ Dsrl(i.OutputRegister(), i.InputRegister(0),
-                  static_cast<uint16_t>(imm));
-        } else {
-          __ Dsrl(i.OutputRegister(), i.InputRegister(0),
-                  static_cast<uint16_t>(imm));
-        }
-      }
+      __ Dsrl(i.OutputRegister(), i.InputRegister(0), i.InputOperand(1));
       break;
     case kMips64Dsar:
-      if (instr->InputAt(1)->IsRegister()) {
-        __ Dsra(i.OutputRegister(), i.InputRegister(0), i.InputRegister(1));
-      } else {
-        int64_t imm = i.InputOperand(1).immediate();
-        if (imm < 32) {
-          __ Dsra(i.OutputRegister(), i.InputRegister(0),
-                  static_cast<uint16_t>(imm));
-        } else {
-          __ Dsra(i.OutputRegister(), i.InputRegister(0),
-                  static_cast<uint16_t>(imm));
-        }
-      }
+      __ Dsra(i.OutputRegister(), i.InputRegister(0), i.InputOperand(1));
       break;
     case kMips64Ror:
       __ Ror(i.OutputRegister(), i.InputRegister(0), i.InputOperand(1));
@@ -3335,7 +3302,7 @@ void CodeGenerator::AssembleBranchPoisoning(FlagsCondition condition,
     case kMips64Dadd:
     case kMips64Dsub: {
       // Check for overflow creates 1 or 0 for result.
-      __ Dsrl(kScratchReg, i.OutputRegister(), -1);
+      __ Dsrl(kScratchReg, i.OutputRegister(), 63);
       __ Srl(kScratchReg2, i.OutputRegister(), 31);
       __ Xor(kScratchReg2, kScratchReg, kScratchReg2);
       switch (condition) {
@@ -3488,7 +3455,7 @@ void CodeGenerator::AssembleArchBoolean(Instruction* instr,
              instr->arch_opcode() == kMips64Dsub) {
     cc = FlagsConditionToConditionOvf(condition);
     // Check for overflow creates 1 or 0 for result.
-    __ Dsrl(kScratchReg, i.OutputRegister(), -1);
+    __ Dsrl(kScratchReg, i.OutputRegister(), 63);
     __ Srl(kScratchReg2, i.OutputRegister(), 31);
     __ Xor(result, kScratchReg, kScratchReg2);
     if (cc == eq)  // Toggle result for not overflow.
