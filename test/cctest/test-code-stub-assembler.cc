@@ -3940,54 +3940,6 @@ TEST(WasmTaggedToFloat64) {
   }
 }
 
-TEST(SmiUntagLeftShiftOptimization) {
-  Isolate* isolate(CcTest::InitIsolateOnce());
-  const int kNumParams = 1;
-  CodeAssemblerTester asm_tester(isolate, kNumParams);
-  CodeStubAssembler m(asm_tester.state());
-
-  {
-    TNode<TaggedIndex> param =
-        TNode<TaggedIndex>::UncheckedCast(m.Parameter(0));
-    TNode<WordT> unoptimized =
-        m.IntPtrMul(m.TaggedIndexToIntPtr(param), m.IntPtrConstant(8));
-    TNode<WordT> optimized = m.WordShl(
-        m.BitcastTaggedToWordForTagAndSmiBits(param), 3 - kSmiTagSize);
-    m.StaticAssert(m.WordEqual(unoptimized, optimized));
-    m.Return(m.UndefinedConstant());
-  }
-
-  AssemblerOptions options = AssemblerOptions::Default(isolate);
-  FunctionTester ft(asm_tester.GenerateCode(options), kNumParams);
-}
-
-TEST(SmiUntagComparisonOptimization) {
-  Isolate* isolate(CcTest::InitIsolateOnce());
-  const int kNumParams = 2;
-  CodeAssemblerTester asm_tester(isolate, kNumParams);
-  CodeStubAssembler m(asm_tester.state());
-
-  {
-    TNode<Smi> a = TNode<Smi>::UncheckedCast(m.Parameter(0));
-    TNode<Smi> b = TNode<Smi>::UncheckedCast(m.Parameter(1));
-    TNode<BoolT> unoptimized = m.UintPtrLessThan(m.SmiUntag(a), m.SmiUntag(b));
-#ifdef V8_COMPRESS_POINTERS
-    TNode<BoolT> optimized = m.Uint32LessThan(
-        m.TruncateIntPtrToInt32(m.BitcastTaggedToWordForTagAndSmiBits(a)),
-        m.TruncateIntPtrToInt32(m.BitcastTaggedToWordForTagAndSmiBits(b)));
-#else
-    TNode<BoolT> optimized =
-        m.UintPtrLessThan(m.BitcastTaggedToWordForTagAndSmiBits(a),
-                          m.BitcastTaggedToWordForTagAndSmiBits(b));
-#endif
-    m.StaticAssert(m.Word32Equal(unoptimized, optimized));
-    m.Return(m.UndefinedConstant());
-  }
-
-  AssemblerOptions options = AssemblerOptions::Default(isolate);
-  FunctionTester ft(asm_tester.GenerateCode(options), kNumParams);
-}
-
 }  // namespace compiler
 }  // namespace internal
 }  // namespace v8

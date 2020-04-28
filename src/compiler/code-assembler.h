@@ -273,7 +273,6 @@ class CodeAssemblerParameterizedLabel;
   V(WordShl, WordT, WordT, IntegralT)                                   \
   V(WordShr, WordT, WordT, IntegralT)                                   \
   V(WordSar, WordT, WordT, IntegralT)                                   \
-  V(WordSarShiftOutZeros, WordT, WordT, IntegralT)                      \
   V(Word32Or, Word32T, Word32T, Word32T)                                \
   V(Word32And, Word32T, Word32T, Word32T)                               \
   V(Word32Xor, Word32T, Word32T, Word32T)                               \
@@ -281,7 +280,6 @@ class CodeAssemblerParameterizedLabel;
   V(Word32Shl, Word32T, Word32T, Word32T)                               \
   V(Word32Shr, Word32T, Word32T, Word32T)                               \
   V(Word32Sar, Word32T, Word32T, Word32T)                               \
-  V(Word32SarShiftOutZeros, Word32T, Word32T, Word32T)                  \
   V(Word64And, Word64T, Word64T, Word64T)                               \
   V(Word64Or, Word64T, Word64T, Word64T)                                \
   V(Word64Xor, Word64T, Word64T, Word64T)                               \

@@ -12,7 +12,6 @@
 #include "src/compiler/backend/instruction-selector-impl.h"
 #include "src/compiler/compiler-source-position-table.h"
 #include "src/compiler/node-matchers.h"
-#include "src/compiler/node-properties.h"
 #include "src/compiler/pipeline.h"
 #include "src/compiler/schedule.h"
 #include "src/compiler/state-values-utils.h"
@@ -3015,8 +3014,7 @@ void InstructionSelector::VisitUnreachable(Node* node) {
 }
 
 void InstructionSelector::VisitStaticAssert(Node* node) {
-  Node* asserted = node->InputAt(0);
-  asserted->Print(2);
+  node->InputAt(0)->Print();
   FATAL("Expected turbofan static assert to hold, but got non-true input!\n");
 }
 

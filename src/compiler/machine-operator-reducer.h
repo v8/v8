@@ -92,9 +92,6 @@ class V8_EXPORT_PRIVATE MachineOperatorReducer final
   Reduction ReduceUint32Mod(Node* node);
   Reduction ReduceStore(Node* node);
   Reduction ReduceProjection(size_t index, Node* node);
-  const Operator* Map64To32Comparison(const Operator* op, bool sign_extended);
-  Reduction ReduceWord32Comparisons(Node* node);
-  Reduction ReduceWord64Comparisons(Node* node);
   Reduction ReduceWord32Shifts(Node* node);
   Reduction ReduceWord32Shl(Node* node);
   Reduction ReduceWord64Shl(Node* node);
