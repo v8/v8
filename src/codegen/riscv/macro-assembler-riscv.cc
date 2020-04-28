@@ -437,7 +437,7 @@ void TurboAssembler::Subu(Register rd, Register rs, const Operand& rt) {
 void TurboAssembler::Dsubu(Register rd, Register rs, const Operand& rt) {
   if (rt.is_reg()) {
     RV_sub(rd, rs, rt.rm());
-  } else if (is_int16(-rt.immediate()) && !MustUseReg(rt.rmode())) {
+  } else if (is_int12(-rt.immediate()) && !MustUseReg(rt.rmode())) {
     RV_addi(rd, rs,
             static_cast<int32_t>(
                 -rt.immediate()));  // No subi instr, use addi(x, y, -imm).
@@ -3057,9 +3057,9 @@ void TurboAssembler::BranchAndLinkLong(Label* L, BranchDelaySlot bdslot) {
 }
 
 void TurboAssembler::DropAndRet(int drop) {
-  DCHECK(is_int16(drop * kPointerSize));
-  Ret(USE_DELAY_SLOT);
+  DCHECK(is_int12(drop * kPointerSize));
   RV_addi(sp, sp, drop * kPointerSize);
+  Ret(USE_DELAY_SLOT);
 }
 
 void TurboAssembler::DropAndRet(int drop, Condition cond, Register r1,

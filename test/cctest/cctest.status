@@ -385,7 +385,6 @@
   'test-run-machops/RunInt64SubWithOverflow*': [SKIP],
   'test-run-machops/RunLoopIncrementFloat*': [SKIP],
   'test-run-machops/RunSpillConstantsAndParameters': [SKIP],
-  'test-run-machops/RunSpillLotsOfThings': [SKIP],
   'test-run-machops/RunTryTruncateFloat*': [SKIP],
   'test-run-machops/RunTruncateFloat64ToWord32P': [SKIP],
   'test-run-machops/RunUint32DivP': [SKIP],
@@ -396,7 +395,7 @@
   'test-run-machops/RunWord32RorInComparison': [SKIP],
   'test-run-machops/RunWord64Ctz': [SKIP],
   'test-run-machops/RunWord64ReverseBytes': [SKIP],
-}],  
+}],
 
 ##############################################################################
 ['system == android', {
