@@ -28,7 +28,6 @@
 #include "src/objects/js-array-inl.h"
 #include "src/objects/js-regexp-inl.h"
 #include "src/objects/smi.h"
-#include "src/snapshot/snapshot.h"
 #include "src/trap-handler/trap-handler.h"
 #include "src/utils/ostreams.h"
 #include "src/wasm/memory-tracing.h"
@@ -1186,22 +1185,6 @@ RUNTIME_FUNCTION(Runtime_StringIteratorProtector) {
   DCHECK_EQ(0, args.length());
   return isolate->heap()->ToBoolean(
       Protectors::IsStringIteratorLookupChainIntact(isolate));
-}
-
-// For use by tests and fuzzers. It
-//
-// 1. serializes a snapshot of the current isolate,
-// 2. deserializes the snapshot,
-// 3. and runs VerifyHeap on the resulting isolate.
-//
-// The current isolate should not be modified by this call and can keep running
-// once it completes.
-RUNTIME_FUNCTION(Runtime_SerializeDeserializeNow) {
-  HandleScope scope(isolate);
-  DCHECK_EQ(0, args.length());
-  Snapshot::SerializeDeserializeAndVerifyForTesting(isolate,
-                                                    isolate->native_context());
-  return ReadOnlyRoots(isolate).undefined_value();
 }
 
 // Take a compiled wasm module and serialize it into an array buffer, which is

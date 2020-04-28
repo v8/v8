@@ -16,10 +16,9 @@ namespace v8 {
 namespace internal {
 
 ContextSerializer::ContextSerializer(
-    Isolate* isolate, Snapshot::SerializerFlags flags,
-    StartupSerializer* startup_serializer,
+    Isolate* isolate, StartupSerializer* startup_serializer,
     v8::SerializeEmbedderFieldsCallback callback)
-    : Serializer(isolate, flags),
+    : Serializer(isolate),
       startup_serializer_(startup_serializer),
       serialize_embedder_fields_(callback),
       can_be_rehashed_(true) {
@@ -47,14 +46,12 @@ void ContextSerializer::Serialize(Context* o, bool include_global_proxy) {
   // Reset math random cache to get fresh random numbers.
   MathRandom::ResetContext(context_);
 
-  MicrotaskQueue* microtask_queue = context_.native_context().microtask_queue();
 #ifdef DEBUG
-  if (!allow_microtasks_for_testing()) {
-    DCHECK_EQ(0, microtask_queue->size());
-    DCHECK(!microtask_queue->HasMicrotasksSuppressions());
-    DCHECK_EQ(0, microtask_queue->GetMicrotasksScopeDepth());
-    DCHECK(microtask_queue->DebugMicrotasksScopeDepthIsZero());
-  }
+  MicrotaskQueue* microtask_queue = context_.native_context().microtask_queue();
+  DCHECK_EQ(0, microtask_queue->size());
+  DCHECK(!microtask_queue->HasMicrotasksSuppressions());
+  DCHECK_EQ(0, microtask_queue->GetMicrotasksScopeDepth());
+  DCHECK(microtask_queue->DebugMicrotasksScopeDepthIsZero());
 #endif
   context_.native_context().set_microtask_queue(nullptr);
 
@@ -69,9 +66,6 @@ void ContextSerializer::Serialize(Context* o, bool include_global_proxy) {
   }
 
   Pad();
-
-  // Restore the microtask queue.
-  context_.native_context().set_microtask_queue(microtask_queue);
 }
 
 void ContextSerializer::SerializeObject(HeapObject obj) {

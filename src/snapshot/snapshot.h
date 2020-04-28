@@ -21,24 +21,6 @@ class Snapshot : public AllStatic {
  public:
   // ---------------- Serialization -------------------------------------------
 
-  enum SerializerFlag {
-    // If set, serializes unknown external references as verbatim data. This
-    // usually leads to invalid state if the snapshot is deserialized in a
-    // different isolate or a different process.
-    // If unset, all external references must be known to the encoder.
-    kAllowUnknownExternalReferencesForTesting = 1 << 0,
-    // If set, serialization can succeed even with open handles. The
-    // contents of open handle scopes are *not* serialized.
-    // If unset, no open handles are allowed to ensure the snapshot
-    // contains no unexpected objects.
-    kAllowOpenHandlesForTesting = 1 << 1,
-    // As above, if set we allow but do *not* serialize existing microtasks.
-    // If unset, the microtask queue must be empty.
-    kAllowMicrotasksForTesting = 1 << 2,
-  };
-  using SerializerFlags = base::Flags<SerializerFlag>;
-  static constexpr SerializerFlags kDefaultSerializerFlags = {};
-
   // Serializes the given isolate and contexts. Each context may have an
   // associated callback to serialize internal fields. The default context must
   // be passed at index 0.
@@ -46,14 +28,11 @@ class Snapshot : public AllStatic {
       Isolate* isolate, std::vector<Context>* contexts,
       const std::vector<SerializeInternalFieldsCallback>&
           embedder_fields_serializers,
-      const DisallowHeapAllocation* no_gc,
-      SerializerFlags flags = kDefaultSerializerFlags);
+      const DisallowHeapAllocation* no_gc);
 
   // Convenience helper for the above when only serializing a single context.
-  static v8::StartupData Create(
-      Isolate* isolate, Context default_context,
-      const DisallowHeapAllocation* no_gc,
-      SerializerFlags flags = kDefaultSerializerFlags);
+  static v8::StartupData Create(Isolate* isolate, Context default_context,
+                                const DisallowHeapAllocation* no_gc);
 
   // ---------------- Deserialization -----------------------------------------
 
@@ -66,15 +45,6 @@ class Snapshot : public AllStatic {
       Isolate* isolate, Handle<JSGlobalProxy> global_proxy,
       size_t context_index,
       v8::DeserializeEmbedderFieldsCallback embedder_fields_deserializer);
-
-  // ---------------- Testing -------------------------------------------------
-
-  // This function is used to stress the snapshot component. It serializes the
-  // current isolate and context into a snapshot, deserializes the snapshot into
-  // a new isolate and context, and finally runs VerifyHeap on the fresh
-  // isolate.
-  static void SerializeDeserializeAndVerifyForTesting(
-      Isolate* isolate, Handle<Context> default_context);
 
   // ---------------- Helper methods ------------------------------------------
 

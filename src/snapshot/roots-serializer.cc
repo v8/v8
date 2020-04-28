@@ -13,9 +13,8 @@ namespace v8 {
 namespace internal {
 
 RootsSerializer::RootsSerializer(Isolate* isolate,
-                                 Snapshot::SerializerFlags flags,
                                  RootIndex first_root_to_be_serialized)
-    : Serializer(isolate, flags),
+    : Serializer(isolate),
       first_root_to_be_serialized_(first_root_to_be_serialized),
       can_be_rehashed_(true) {
   for (size_t i = 0; i < static_cast<size_t>(first_root_to_be_serialized);

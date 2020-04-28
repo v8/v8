@@ -172,12 +172,10 @@ static StartupBlobs Serialize(v8::Isolate* isolate) {
   internal_isolate->heap()->CollectAllAvailableGarbage(
       i::GarbageCollectionReason::kTesting);
 
-  ReadOnlySerializer read_only_serializer(internal_isolate,
-                                          Snapshot::kDefaultSerializerFlags);
+  ReadOnlySerializer read_only_serializer(internal_isolate);
   read_only_serializer.SerializeReadOnlyRoots();
 
-  StartupSerializer ser(internal_isolate, Snapshot::kDefaultSerializerFlags,
-                        &read_only_serializer);
+  StartupSerializer ser(internal_isolate, &read_only_serializer);
   ser.SerializeStrongReferences();
 
   ser.SerializeWeakReferencesAndDeferred();
@@ -387,19 +385,16 @@ static void SerializeContext(Vector<const byte>* startup_blob_out,
     env.Reset();
 
     SnapshotByteSink read_only_sink;
-    ReadOnlySerializer read_only_serializer(isolate,
-                                            Snapshot::kDefaultSerializerFlags);
+    ReadOnlySerializer read_only_serializer(isolate);
     read_only_serializer.SerializeReadOnlyRoots();
 
     SnapshotByteSink startup_sink;
-    StartupSerializer startup_serializer(
-        isolate, Snapshot::kDefaultSerializerFlags, &read_only_serializer);
+    StartupSerializer startup_serializer(isolate, &read_only_serializer);
     startup_serializer.SerializeStrongReferences();
 
     SnapshotByteSink context_sink;
-    ContextSerializer context_serializer(
-        isolate, Snapshot::kDefaultSerializerFlags, &startup_serializer,
-        v8::SerializeInternalFieldsCallback());
+    ContextSerializer context_serializer(isolate, &startup_serializer,
+                                         v8::SerializeInternalFieldsCallback());
     context_serializer.Serialize(&raw_context, false);
 
     startup_serializer.SerializeWeakReferencesAndDeferred();
@@ -537,19 +532,16 @@ static void SerializeCustomContext(Vector<const byte>* startup_blob_out,
     env.Reset();
 
     SnapshotByteSink read_only_sink;
-    ReadOnlySerializer read_only_serializer(isolate,
-                                            Snapshot::kDefaultSerializerFlags);
+    ReadOnlySerializer read_only_serializer(isolate);
     read_only_serializer.SerializeReadOnlyRoots();
 
     SnapshotByteSink startup_sink;
-    StartupSerializer startup_serializer(
-        isolate, Snapshot::kDefaultSerializerFlags, &read_only_serializer);
+    StartupSerializer startup_serializer(isolate, &read_only_serializer);
     startup_serializer.SerializeStrongReferences();
 
     SnapshotByteSink context_sink;
-    ContextSerializer context_serializer(
-        isolate, Snapshot::kDefaultSerializerFlags, &startup_serializer,
-        v8::SerializeInternalFieldsCallback());
+    ContextSerializer context_serializer(isolate, &startup_serializer,
+                                         v8::SerializeInternalFieldsCallback());
     context_serializer.Serialize(&raw_context, false);
 
     startup_serializer.SerializeWeakReferencesAndDeferred();

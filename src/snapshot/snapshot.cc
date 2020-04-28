@@ -7,8 +7,6 @@
 #include "src/snapshot/snapshot.h"
 
 #include "src/base/platform/platform.h"
-#include "src/execution/isolate-inl.h"
-#include "src/init/bootstrapper.h"
 #include "src/logging/counters.h"
 #include "src/snapshot/context-deserializer.h"
 #include "src/snapshot/context-serializer.h"
@@ -188,52 +186,6 @@ MaybeHandle<Context> Snapshot::NewContextFromSnapshot(
   return result;
 }
 
-// static
-void Snapshot::SerializeDeserializeAndVerifyForTesting(
-    Isolate* isolate, Handle<Context> default_context) {
-  StartupData serialized_data;
-  std::unique_ptr<const char[]> auto_delete_serialized_data;
-
-  isolate->heap()->CollectAllAvailableGarbage(
-      i::GarbageCollectionReason::kSnapshotCreator);
-
-  // Test serialization.
-  {
-    DisallowHeapAllocation no_gc;
-
-    Snapshot::SerializerFlags flags(
-        Snapshot::kAllowUnknownExternalReferencesForTesting |
-        Snapshot::kAllowOpenHandlesForTesting |
-        Snapshot::kAllowMicrotasksForTesting);
-    serialized_data =
-        Snapshot::Create(isolate, *default_context, &no_gc, flags);
-    auto_delete_serialized_data.reset(serialized_data.data);
-  }
-
-  // Test deserialization.
-  Isolate* new_isolate = Isolate::New();
-  {
-    // Set serializer_enabled() to not install extensions and experimental
-    // natives on the new isolate.
-    // TODO(v8:10416): This should be a separate setting on the isolate.
-    new_isolate->enable_serializer();
-    new_isolate->Enter();
-    new_isolate->set_snapshot_blob(&serialized_data);
-    CHECK(Snapshot::Initialize(new_isolate));
-
-    HandleScope scope(new_isolate);
-    Handle<Context> new_native_context =
-        new_isolate->bootstrapper()->CreateEnvironmentForTesting();
-    CHECK(new_native_context->IsNativeContext());
-
-#ifdef VERIFY_HEAP
-    new_isolate->heap()->Verify();
-#endif  // VERIFY_HEAP
-  }
-  new_isolate->Exit();
-  Isolate::Delete(new_isolate);
-}
-
 void ProfileDeserialization(
     const SnapshotData* read_only_snapshot,
     const SnapshotData* startup_snapshot,
@@ -259,21 +211,18 @@ void ProfileDeserialization(
 }
 
 // static
-constexpr Snapshot::SerializerFlags Snapshot::kDefaultSerializerFlags;
-
-// static
 v8::StartupData Snapshot::Create(
     Isolate* isolate, std::vector<Context>* contexts,
     const std::vector<SerializeInternalFieldsCallback>&
         embedder_fields_serializers,
-    const DisallowHeapAllocation* no_gc, SerializerFlags flags) {
+    const DisallowHeapAllocation* no_gc) {
   DCHECK_EQ(contexts->size(), embedder_fields_serializers.size());
   DCHECK_GT(contexts->size(), 0);
 
-  ReadOnlySerializer read_only_serializer(isolate, flags);
+  ReadOnlySerializer read_only_serializer(isolate);
   read_only_serializer.SerializeReadOnlyRoots();
 
-  StartupSerializer startup_serializer(isolate, flags, &read_only_serializer);
+  StartupSerializer startup_serializer(isolate, &read_only_serializer);
   startup_serializer.SerializeStrongReferences();
 
   // Serialize each context with a new serializer.
@@ -287,7 +236,7 @@ v8::StartupData Snapshot::Create(
   for (int i = 0; i < num_contexts; i++) {
     const bool is_default_context = (i == 0);
     const bool include_global_proxy = !is_default_context;
-    ContextSerializer context_serializer(isolate, flags, &startup_serializer,
+    ContextSerializer context_serializer(isolate, &startup_serializer,
                                          embedder_fields_serializers[i]);
     context_serializer.Serialize(&contexts->at(i), include_global_proxy);
     can_be_rehashed = can_be_rehashed && context_serializer.can_be_rehashed();
@@ -316,11 +265,10 @@ v8::StartupData Snapshot::Create(
 
 // static
 v8::StartupData Snapshot::Create(Isolate* isolate, Context default_context,
-                                 const DisallowHeapAllocation* no_gc,
-                                 SerializerFlags flags) {
+                                 const DisallowHeapAllocation* no_gc) {
   std::vector<Context> contexts{default_context};
   std::vector<SerializeInternalFieldsCallback> callbacks{{}};
-  return Snapshot::Create(isolate, &contexts, callbacks, no_gc, flags);
+  return Snapshot::Create(isolate, &contexts, callbacks, no_gc);
 }
 
 v8::StartupData SnapshotImpl::CreateSnapshotBlob(

@@ -18,8 +18,7 @@ class ReadOnlySerializer;
 
 class V8_EXPORT_PRIVATE StartupSerializer : public RootsSerializer {
  public:
-  StartupSerializer(Isolate* isolate, Snapshot::SerializerFlags flags,
-                    ReadOnlySerializer* read_only_serializer);
+  StartupSerializer(Isolate* isolate, ReadOnlySerializer* read_only_serializer);
   ~StartupSerializer() override;
 
   // Serialize the current state of the heap.  The order is:

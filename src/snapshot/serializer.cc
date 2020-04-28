@@ -14,15 +14,15 @@
 #include "src/objects/map.h"
 #include "src/objects/slots-inl.h"
 #include "src/objects/smi.h"
+#include "src/snapshot/snapshot.h"
 
 namespace v8 {
 namespace internal {
 
-Serializer::Serializer(Isolate* isolate, Snapshot::SerializerFlags flags)
+Serializer::Serializer(Isolate* isolate)
     : isolate_(isolate),
       external_reference_encoder_(isolate),
       root_index_map_(isolate),
-      flags_(flags),
       allocator_(this) {
 #ifdef OBJECT_PRINT
   if (FLAG_serialization_statistics) {
@@ -718,53 +718,32 @@ void Serializer::ObjectSerializer::VisitEmbeddedPointer(Code host,
   bytes_processed_so_far_ += rinfo->target_address_size();
 }
 
-void Serializer::ObjectSerializer::OutputExternalReference(Address target,
-                                                           int target_size) {
-  DCHECK_LE(target_size, sizeof(target));  // Must fit in Address.
-  ExternalReferenceEncoder::Value encoded_reference;
-  bool encoded_successfully;
-
-  if (serializer_->allow_unknown_external_references_for_testing()) {
-    encoded_successfully =
-        serializer_->TryEncodeExternalReference(target).To(&encoded_reference);
-  } else {
-    encoded_reference = serializer_->EncodeExternalReference(target);
-    encoded_successfully = true;
-  }
-
-  if (!encoded_successfully) {
-    // In this case the serialized snapshot will not be used in a different
-    // Isolate and thus the target address will not change between
-    // serialization and deserialization. We can serialize seen external
-    // references verbatim.
-    CHECK(serializer_->allow_unknown_external_references_for_testing());
-    CHECK(IsAligned(target_size, kObjectAlignment));
-    CHECK_LE(target_size, kNumberOfFixedRawData * kTaggedSize);
-    int size_in_tagged = target_size >> kTaggedSizeLog2;
-    sink_->PutSection(kFixedRawDataStart + size_in_tagged, "FixedRawData");
-    sink_->PutRaw(reinterpret_cast<byte*>(&target), target_size, "Bytes");
-  } else if (encoded_reference.is_from_api()) {
-    sink_->Put(kApiReference, "ApiRef");
-    sink_->PutInt(encoded_reference.index(), "reference index");
-  } else {
-    sink_->Put(kExternalReference, "ExternalRef");
-    sink_->PutInt(encoded_reference.index(), "reference index");
-  }
-  bytes_processed_so_far_ += target_size;
-}
-
 void Serializer::ObjectSerializer::VisitExternalReference(Foreign host,
                                                           Address* p) {
-  OutputExternalReference(host.foreign_address(), kSystemPointerSize);
+  auto encoded_reference =
+      serializer_->EncodeExternalReference(host.foreign_address());
+  if (encoded_reference.is_from_api()) {
+    sink_->Put(kApiReference, "ApiRef");
+  } else {
+    sink_->Put(kExternalReference, "ExternalRef");
+  }
+  sink_->PutInt(encoded_reference.index(), "reference index");
+  bytes_processed_so_far_ += kSystemPointerSize;
 }
 
 void Serializer::ObjectSerializer::VisitExternalReference(Code host,
                                                           RelocInfo* rinfo) {
   Address target = rinfo->target_external_reference();
+  auto encoded_reference = serializer_->EncodeExternalReference(target);
+  if (encoded_reference.is_from_api()) {
+    DCHECK(!rinfo->IsCodedSpecially());
+    sink_->Put(kApiReference, "ApiRef");
+  } else {
+    sink_->Put(kExternalReference, "ExternalRef");
+  }
   DCHECK_NE(target, kNullAddress);  // Code does not reference null.
-  DCHECK_IMPLIES(serializer_->EncodeExternalReference(target).is_from_api(),
-                 !rinfo->IsCodedSpecially());
-  OutputExternalReference(target, rinfo->target_address_size());
+  sink_->PutInt(encoded_reference.index(), "reference index");
+  bytes_processed_so_far_ += rinfo->target_address_size();
 }
 
 void Serializer::ObjectSerializer::VisitInternalReference(Code host,
