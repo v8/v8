@@ -135,6 +135,31 @@ void MacroAssembler::JumpIfIsInRange(Register value, unsigned lower_limit,
   j(below_equal, on_in_range, near_jump);
 }
 
+void TurboAssembler::PushArray(Register array, Register size, Register scratch,
+                               PushArrayOrder order) {
+  DCHECK(!AreAliased(array, size, scratch));
+  Register counter = scratch;
+  Label loop, entry;
+  if (order == PushArrayOrder::kReverse) {
+    mov(counter, 0);
+    jmp(&entry);
+    bind(&loop);
+    Push(Operand(array, counter, times_system_pointer_size, 0));
+    inc(counter);
+    bind(&entry);
+    cmp(counter, size);
+    j(less, &loop, Label::kNear);
+  } else {
+    mov(counter, size);
+    jmp(&entry);
+    bind(&loop);
+    Push(Operand(array, counter, times_system_pointer_size, 0));
+    bind(&entry);
+    dec(counter);
+    j(greater_equal, &loop, Label::kNear);
+  }
+}
+
 Operand TurboAssembler::ExternalReferenceAsOperand(ExternalReference reference,
                                                    Register scratch) {
   // TODO(jgruber): Add support for enable_root_array_delta_access.
