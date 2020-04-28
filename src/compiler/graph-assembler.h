@@ -82,6 +82,7 @@ class BasicBlock;
   V(Word32Equal)                          \
   V(Word32Or)                             \
   V(Word32Sar)                            \
+  V(Word32SarShiftOutZeros)               \
   V(Word32Shl)                            \
   V(Word32Shr)                            \
   V(Word32Xor)                            \
@@ -91,6 +92,7 @@ class BasicBlock;
   V(WordAnd)                              \
   V(WordEqual)                            \
   V(WordSar)                              \
+  V(WordSarShiftOutZeros)                 \
   V(WordShl)
 
 #define CHECKED_ASSEMBLER_MACH_BINOP_LIST(V) \
