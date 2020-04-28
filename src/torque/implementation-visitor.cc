@@ -530,17 +530,8 @@ void ImplementationVisitor::Visit(Builtin* builtin) {
   } else {
     DCHECK(builtin->IsStub());
 
-    // Context
-    const bool context_is_implicit = signature.implicit_count > 0;
-    std::string parameter0 =
-        AddParameter(0, builtin, &parameters, &parameter_types,
-                     &parameter_bindings, context_is_implicit);
-    source_out() << "  TNode<Context> " << parameter0
-                 << " = UncheckedCast<Context>(Parameter("
-                 << "Descriptor::kContext));\n";
-    source_out() << "  USE(" << parameter0 << ");\n";
-
-    for (size_t i = 1; i < signature.parameter_names.size(); ++i) {
+    bool has_context_parameter = signature.HasContextParameter();
+    for (size_t i = 0; i < signature.parameter_names.size(); ++i) {
       const Type* type = signature.types()[i];
       const bool mark_as_used = signature.implicit_count > i;
       std::string var = AddParameter(i, builtin, &parameters, &parameter_types,
@@ -548,8 +539,14 @@ void ImplementationVisitor::Visit(Builtin* builtin) {
       source_out() << "  " << type->GetGeneratedTypeName() << " " << var
                    << " = "
                    << "UncheckedCast<" << type->GetGeneratedTNodeTypeName()
-                   << ">(Parameter(Descriptor::ParameterIndex<" << (i - 1)
-                   << ">()));\n";
+                   << ">(Parameter(";
+      if (i == 0 && has_context_parameter) {
+        source_out() << "Descriptor::kContext";
+      } else {
+        source_out() << "Descriptor::ParameterIndex<"
+                     << (has_context_parameter ? i - 1 : i) << ">()";
+      }
+      source_out() << "));\n";
       source_out() << "  USE(" << var << ");\n";
     }
   }
@@ -2980,13 +2977,15 @@ void ImplementationVisitor::GenerateBuiltinDefinitionsAndInterfaceDescriptors(
         builtin_definitions << "TFC(" << builtin->ExternalName() << ", "
                             << builtin->ExternalName();
         std::string descriptor_name = builtin->ExternalName() + "Descriptor";
-        constexpr size_t kFirstNonContextParameter = 1;
+        bool has_context_parameter = builtin->signature().HasContextParameter();
+        size_t kFirstNonContextParameter = has_context_parameter ? 1 : 0;
         size_t parameter_count =
             builtin->parameter_names().size() - kFirstNonContextParameter;
 
-        interface_descriptors << "class " << descriptor_name
-                              << " : public TorqueInterfaceDescriptor<"
-                              << parameter_count << "> {\n";
+        interface_descriptors
+            << "class " << descriptor_name
+            << " : public TorqueInterfaceDescriptor<" << parameter_count << ", "
+            << (has_context_parameter ? "true" : "false") << "> {\n";
         interface_descriptors << "  DECLARE_DESCRIPTOR_WITH_BASE("
                               << descriptor_name
                               << ", TorqueInterfaceDescriptor)\n";

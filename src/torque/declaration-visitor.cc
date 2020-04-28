@@ -103,6 +103,10 @@ Builtin* DeclarationVisitor::CreateBuiltin(BuiltinDeclaration* decl,
           *signature.return_type, ".");
   }
 
+  if (signature.return_type == TypeOracle::GetVoidType()) {
+    Error("Builtins cannot have return type void.");
+  }
+
   return Declarations::CreateBuiltin(std::move(external_name),
                                      std::move(readable_name), kind,
                                      std::move(signature), body);

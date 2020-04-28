@@ -512,8 +512,14 @@ void CSAGenerator::EmitInstruction(const CallBuiltinInstruction& instruction,
       LowerType(instruction.builtin->signature().return_type);
   if (instruction.is_tailcall) {
     out() << "   CodeStubAssembler(state_).TailCallBuiltin(Builtins::k"
-          << instruction.builtin->ExternalName() << ", ";
-    PrintCommaSeparatedList(out(), arguments);
+          << instruction.builtin->ExternalName();
+    if (!instruction.builtin->signature().HasContextParameter()) {
+      // Add dummy context parameter to satisfy the TailCallBuiltin signature.
+      out() << ", TNode<Object>()";
+    }
+    for (const std::string& argument : arguments) {
+      out() << ", " << argument;
+    }
     out() << ");\n";
   } else {
     std::string result_name;
@@ -525,25 +531,24 @@ void CSAGenerator::EmitInstruction(const CallBuiltinInstruction& instruction,
     std::string catch_name =
         PreCallableExceptionPreparation(instruction.catch_block);
     Stack<std::string> pre_call_stack = *stack;
-    if (result_types.size() == 1) {
-      std::string generated_type = result_types[0]->GetGeneratedTNodeTypeName();
-      stack->Push(result_name);
-      out() << "    " << result_name << " = ";
-      if (generated_type != "Object") out() << "TORQUE_CAST(";
-      out() << "CodeStubAssembler(state_).CallBuiltin(Builtins::k"
-            << instruction.builtin->ExternalName() << ", ";
-      PrintCommaSeparatedList(out(), arguments);
-      if (generated_type != "Object") out() << ")";
-      out() << ");\n";
-    } else {
-      DCHECK_EQ(0, result_types.size());
-      // TODO(tebbi): Actually, builtins have to return a value, so we should
-      // not have to handle this case.
-      out() << "    CodeStubAssembler(state_).CallBuiltin(Builtins::k"
-            << instruction.builtin->ExternalName() << ", ";
-      PrintCommaSeparatedList(out(), arguments);
-      out() << ");\n";
+
+    DCHECK_EQ(1, result_types.size());
+    std::string generated_type = result_types[0]->GetGeneratedTNodeTypeName();
+    stack->Push(result_name);
+    out() << "    " << result_name << " = ";
+    if (generated_type != "Object") out() << "TORQUE_CAST(";
+    out() << "CodeStubAssembler(state_).CallBuiltin(Builtins::k"
+          << instruction.builtin->ExternalName();
+    if (!instruction.builtin->signature().HasContextParameter()) {
+      // Add dummy context parameter to satisfy the CallBuiltin signature.
+      out() << ", TNode<Object>()";
     }
+    for (const std::string& argument : arguments) {
+      out() << ", " << argument;
+    }
+    if (generated_type != "Object") out() << ")";
+    out() << ");\n";
+
     PostCallableExceptionPreparation(
         catch_name,
         result_types.size() == 0 ? TypeOracle::GetVoidType() : result_types[0],
@@ -555,8 +560,8 @@ void CSAGenerator::EmitInstruction(const CallBuiltinInstruction& instruction,
 void CSAGenerator::EmitInstruction(
     const CallBuiltinPointerInstruction& instruction,
     Stack<std::string>* stack) {
-  std::vector<std::string> function_and_arguments =
-      stack->PopMany(1 + instruction.argc);
+  std::vector<std::string> arguments = stack->PopMany(instruction.argc);
+  std::string function = stack->Pop();
   std::vector<const Type*> result_types =
       LowerType(instruction.type->return_type());
   if (result_types.size() != 1) {
@@ -576,8 +581,15 @@ void CSAGenerator::EmitInstruction(
            "CallableFor(ca_."
            "isolate(),"
            "ExampleBuiltinForTorqueFunctionPointerType("
-        << instruction.type->function_pointer_type_id() << ")).descriptor(), ";
-  PrintCommaSeparatedList(out(), function_and_arguments);
+        << instruction.type->function_pointer_type_id() << ")).descriptor(), "
+        << function;
+  if (!instruction.type->HasContextParameter()) {
+    // Add dummy context parameter to satisfy the CallBuiltinPointer signature.
+    out() << ", TNode<Object>()";
+  }
+  for (const std::string& argument : arguments) {
+    out() << ", " << argument;
+  }
   out() << ")";
   if (generated_type != "Object") out() << ")";
   out() << ";\n";

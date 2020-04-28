@@ -97,20 +97,20 @@ namespace test {
     }
   }
 
-  builtin GenericBuiltinTest<T: type>(_c: Context, _param: T): JSAny {
+  builtin GenericBuiltinTest<T: type>(_param: T): JSAny {
     return Null;
   }
 
-  GenericBuiltinTest<JSAny>(_c: Context, param: JSAny): JSAny {
+  GenericBuiltinTest<JSAny>(param: JSAny): JSAny {
     return param;
   }
 
   @export
-  macro TestBuiltinSpecialization(c: Context) {
-    check(GenericBuiltinTest<Smi>(c, 0) == Null);
-    check(GenericBuiltinTest<Smi>(c, 1) == Null);
-    check(GenericBuiltinTest<JSAny>(c, Undefined) == Undefined);
-    check(GenericBuiltinTest<JSAny>(c, Undefined) == Undefined);
+  macro TestBuiltinSpecialization() {
+    check(GenericBuiltinTest<Smi>(0) == Null);
+    check(GenericBuiltinTest<Smi>(1) == Null);
+    check(GenericBuiltinTest<JSAny>(Undefined) == Undefined);
+    check(GenericBuiltinTest<JSAny>(Undefined) == Undefined);
   }
 
   macro LabelTestHelper4(flag: constexpr bool): never
@@ -185,19 +185,19 @@ namespace test {
     }
   }
 
-  builtin TestHelperPlus1(_context: Context, x: Smi): Smi {
+  builtin TestHelperPlus1(x: Smi): Smi {
     return x + 1;
   }
-  builtin TestHelperPlus2(_context: Context, x: Smi): Smi {
+  builtin TestHelperPlus2(x: Smi): Smi {
     return x + 2;
   }
 
   @export
   macro TestFunctionPointers(implicit context: Context)(): Boolean {
-    let fptr: builtin(Context, Smi) => Smi = TestHelperPlus1;
-    check(fptr(context, 42) == 43);
+    let fptr: builtin(Smi) => Smi = TestHelperPlus1;
+    check(fptr(42) == 43);
     fptr = TestHelperPlus2;
-    check(fptr(context, 42) == 44);
+    check(fptr(42) == 44);
     return True;
   }
 
@@ -215,14 +215,14 @@ namespace test {
   }
 
   @export
-  macro TestFunctionPointerToGeneric(c: Context) {
-    const fptr1: builtin(Context, Smi) => JSAny = GenericBuiltinTest<Smi>;
-    const fptr2: builtin(Context, JSAny) => JSAny = GenericBuiltinTest<JSAny>;
+  macro TestFunctionPointerToGeneric() {
+    const fptr1: builtin(Smi) => JSAny = GenericBuiltinTest<Smi>;
+    const fptr2: builtin(JSAny) => JSAny = GenericBuiltinTest<JSAny>;
 
-    check(fptr1(c, 0) == Null);
-    check(fptr1(c, 1) == Null);
-    check(fptr2(c, Undefined) == Undefined);
-    check(fptr2(c, Undefined) == Undefined);
+    check(fptr1(0) == Null);
+    check(fptr1(1) == Null);
+    check(fptr2(Undefined) == Undefined);
+    check(fptr2(Undefined) == Undefined);
   }
 
   type ObjectToObject = builtin(Context, JSAny) => JSAny;
@@ -236,7 +236,7 @@ namespace test {
     if (TaggedIsSmi(n)) {
       const m: Smi = UnsafeCast<Smi>(n);
 
-      check(TestHelperPlus1(context, m) == 11);
+      check(TestHelperPlus1(m) == 11);
       return True;
     }
     return False;

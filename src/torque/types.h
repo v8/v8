@@ -347,6 +347,8 @@ class V8_EXPORT_PRIVATE BuiltinPointerType final : public Type {
     return {{"Smi", ""}};
   }
 
+  bool HasContextParameter() const;
+
  private:
   friend class TypeOracle;
   BuiltinPointerType(const Type* parent, TypeVector parameter_types,
@@ -800,6 +802,7 @@ struct Signature {
     return TypeVector(parameter_types.types.begin() + implicit_count,
                       parameter_types.types.end());
   }
+  bool HasContextParameter() const;
 };
 
 void PrintSignature(std::ostream& os, const Signature& sig, bool with_names);

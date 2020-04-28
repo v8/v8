@@ -127,7 +127,7 @@ namespace typed_array {
     const work2: FixedArray = AllocateZeroedFixedArray(Convert<intptr>(len));
 
     for (let i: uintptr = 0; i < len; ++i) {
-      const element: Numeric = accessor.LoadNumeric(context, array, i);
+      const element: Numeric = accessor.LoadNumeric(array, i);
       work1.objects[i] = element;
       work2.objects[i] = element;
     }

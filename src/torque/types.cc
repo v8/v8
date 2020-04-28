@@ -705,6 +705,21 @@ bool Signature::HasSameTypesAs(const Signature& other,
   return true;
 }
 
+namespace {
+bool FirstTypeIsContext(const std::vector<const Type*> parameter_types) {
+  return !parameter_types.empty() &&
+         parameter_types[0] == TypeOracle::GetContextType();
+}
+}  // namespace
+
+bool Signature::HasContextParameter() const {
+  return FirstTypeIsContext(types());
+}
+
+bool BuiltinPointerType::HasContextParameter() const {
+  return FirstTypeIsContext(parameter_types());
+}
+
 bool IsAssignableFrom(const Type* to, const Type* from) {
   if (to == from) return true;
   if (from->IsSubtypeOf(to)) return true;

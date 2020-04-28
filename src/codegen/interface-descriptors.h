@@ -520,10 +520,12 @@ class V8_EXPORT_PRIVATE VoidDescriptor : public CallInterfaceDescriptor {
 };
 
 // This class is subclassed by Torque-generated call interface descriptors.
-template <int parameter_count>
+template <int parameter_count, bool has_context_parameter>
 class TorqueInterfaceDescriptor : public CallInterfaceDescriptor {
  public:
-  static constexpr int kDescriptorFlags = CallInterfaceDescriptorData::kNoFlags;
+  static constexpr int kDescriptorFlags =
+      has_context_parameter ? CallInterfaceDescriptorData::kNoFlags
+                            : CallInterfaceDescriptorData::kNoContext;
   static constexpr int kParameterCount = parameter_count;
   enum ParameterIndices { kContext = kParameterCount };
   template <int i>

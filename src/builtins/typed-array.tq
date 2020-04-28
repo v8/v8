@@ -81,7 +81,7 @@ namespace typed_array {
       Context, JSTypedArray, uintptr, JSAny,
       constexpr ElementsKind) labels IfDetached;
 
-  type LoadNumericFn = builtin(Context, JSTypedArray, uintptr) => Numeric;
+  type LoadNumericFn = builtin(JSTypedArray, uintptr) => Numeric;
   type StoreNumericFn = builtin(Context, JSTypedArray, uintptr, Numeric) => Smi;
   type StoreJSAnyFn = builtin(Context, JSTypedArray, uintptr, JSAny) => Smi;
 
@@ -90,10 +90,9 @@ namespace typed_array {
   const kStoreFailureArrayDetached: Smi = 1;
 
   struct TypedArrayAccessor {
-    macro LoadNumeric(
-        context: Context, array: JSTypedArray, index: uintptr): Numeric {
+    macro LoadNumeric(array: JSTypedArray, index: uintptr): Numeric {
       const loadfn: LoadNumericFn = this.loadNumericFn;
-      return loadfn(context, array, index);
+      return loadfn(array, index);
     }
 
     macro StoreNumeric(
@@ -189,7 +188,7 @@ namespace typed_array {
 
     macro Load(implicit context: Context)(k: uintptr): JSAny {
       const lf: LoadNumericFn = this.loadfn;
-      return lf(context, this.unstable, k);
+      return lf(this.unstable, k);
     }
 
     stable: JSTypedArray;
@@ -245,7 +244,7 @@ namespace typed_array {
   }
 
   builtin LoadTypedElement<T : type extends ElementsKind>(
-      _context: Context, array: JSTypedArray, index: uintptr): Numeric {
+      array: JSTypedArray, index: uintptr): Numeric {
     return LoadFixedTypedArrayElementAsTagged(
         array.data_ptr, index, KindForArrayType<T>());
   }

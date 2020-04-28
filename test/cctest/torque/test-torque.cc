@@ -113,8 +113,7 @@ TEST(TestBuiltinSpecialization) {
   CodeAssemblerTester asm_tester(isolate, 0);
   TestTorqueAssembler m(asm_tester.state());
   {
-    TNode<Object> temp = m.SmiConstant(0);
-    m.TestBuiltinSpecialization(m.UncheckedCast<Context>(temp));
+    m.TestBuiltinSpecialization();
     m.Return(m.UndefinedConstant());
   }
   FunctionTester ft(asm_tester.GenerateCode(), 0);
@@ -170,8 +169,7 @@ TEST(TestFunctionPointerToGeneric) {
   CodeAssemblerTester asm_tester(isolate, 0);
   TestTorqueAssembler m(asm_tester.state());
   {
-    TNode<Object> temp = m.SmiConstant(0);
-    m.TestFunctionPointerToGeneric(m.UncheckedCast<Context>(temp));
+    m.TestFunctionPointerToGeneric();
     m.Return(m.UndefinedConstant());
   }
   FunctionTester ft(asm_tester.GenerateCode(), 0);

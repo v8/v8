@@ -46,8 +46,6 @@ namespace iterator {
   extern macro IteratorBuiltinsAssembler::StringListFromIterable(
       implicit context: Context)(JSAny): JSArray;
 
-  extern builtin IterableToListMayPreserveHoles(implicit context:
-                                                    Context)(JSAny, JSAny);
   extern builtin IterableToListWithSymbolLookup(implicit context:
                                                     Context)(JSAny): JSArray;
   extern builtin IterableToFixedArrayWithSymbolLookupSlow(
