@@ -90,7 +90,7 @@ const RegList kCalleeSavedFPU = 1 << 8 |   // fs0
                                 1 << 26 |  // fs10
                                 1 << 27;   // fs11
 
-const int kNumCalleeSavedFPU = 12;
+const int kNumCalleeSavedFPU = 11;
 
 const RegList kCallerSavedFPU = 1 << 0 |   // ft0
                                 1 << 1 |   // ft1
