@@ -705,6 +705,8 @@ inline void AtomicOp64(LiftoffAssembler* lasm, Register dst_addr,
       dst_addr, offset_reg, value_low, value_high, dst_low, dst_high);
   __ ClearRegister(dst_low, {&dst_addr, &offset_reg, &value_low, &value_high},
                    pinned);
+  pinned = pinned |
+           LiftoffRegList::ForRegs(dst_addr, offset_reg, value_low, value_high);
   __ ClearRegister(dst_high, {&dst_addr, &offset_reg, &value_low, &value_high},
                    pinned);
   pinned = pinned |
