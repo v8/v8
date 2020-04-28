@@ -2510,7 +2510,7 @@ bool SemiSpace::EnsureCurrentCapacity() {
   return true;
 }
 
-LinearAllocationArea LocalAllocationBuffer::Close() {
+LinearAllocationArea LocalAllocationBuffer::CloseWithFiller() {
   if (IsValid()) {
     heap_->CreateFillerObjectAt(
         allocation_info_.top(),
@@ -2535,22 +2535,17 @@ LocalAllocationBuffer::LocalAllocationBuffer(
   }
 }
 
-LocalAllocationBuffer::LocalAllocationBuffer(const LocalAllocationBuffer& other)
+LocalAllocationBuffer::LocalAllocationBuffer(LocalAllocationBuffer&& other)
     V8_NOEXCEPT {
-  *this = other;
+  *this = std::move(other);
 }
 
 LocalAllocationBuffer& LocalAllocationBuffer::operator=(
-    const LocalAllocationBuffer& other) V8_NOEXCEPT {
-  Close();
+    LocalAllocationBuffer&& other) V8_NOEXCEPT {
   heap_ = other.heap_;
   allocation_info_ = other.allocation_info_;
 
-  // This is needed since we (a) cannot yet use move-semantics, and (b) want
-  // to make the use of the class easy by it as value and (c) implicitly call
-  // {Close} upon copy.
-  const_cast<LocalAllocationBuffer&>(other).allocation_info_.Reset(
-      kNullAddress, kNullAddress);
+  other.allocation_info_.Reset(kNullAddress, kNullAddress);
   return *this;
 }
 

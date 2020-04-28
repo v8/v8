@@ -2186,13 +2186,15 @@ class LocalAllocationBuffer {
                                                  AllocationResult result,
                                                  intptr_t size);
 
-  ~LocalAllocationBuffer() { Close(); }
+  ~LocalAllocationBuffer() { CloseWithFiller(); }
 
-  // Convert to C++11 move-semantics once allowed by the style guide.
-  V8_EXPORT_PRIVATE LocalAllocationBuffer(const LocalAllocationBuffer& other)
+  LocalAllocationBuffer(const LocalAllocationBuffer& other) = delete;
+  V8_EXPORT_PRIVATE LocalAllocationBuffer(LocalAllocationBuffer&& other)
       V8_NOEXCEPT;
+
+  LocalAllocationBuffer& operator=(const LocalAllocationBuffer& other) = delete;
   V8_EXPORT_PRIVATE LocalAllocationBuffer& operator=(
-      const LocalAllocationBuffer& other) V8_NOEXCEPT;
+      LocalAllocationBuffer&& other) V8_NOEXCEPT;
 
   V8_WARN_UNUSED_RESULT inline AllocationResult AllocateRawAligned(
       int size_in_bytes, AllocationAlignment alignment);
@@ -2206,7 +2208,7 @@ class LocalAllocationBuffer {
   inline bool TryFreeLast(HeapObject object, int object_size);
 
   // Close a LAB, effectively invalidating it. Returns the unused area.
-  V8_EXPORT_PRIVATE LinearAllocationArea Close();
+  V8_EXPORT_PRIVATE LinearAllocationArea CloseWithFiller();
 
  private:
   V8_EXPORT_PRIVATE LocalAllocationBuffer(

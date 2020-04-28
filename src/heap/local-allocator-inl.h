@@ -83,17 +83,19 @@ AllocationResult EvacuationAllocator::AllocateInLAB(
 
 bool EvacuationAllocator::NewLocalAllocationBuffer() {
   if (lab_allocation_will_fail_) return false;
-  LocalAllocationBuffer saved_lab_ = new_space_lab_;
   AllocationResult result =
       new_space_->AllocateRawSynchronized(kLabSize, kWordAligned);
-  new_space_lab_ = LocalAllocationBuffer::FromResult(heap_, result, kLabSize);
-  if (new_space_lab_.IsValid()) {
-    new_space_lab_.TryMerge(&saved_lab_);
-    return true;
+  if (result.IsRetry()) {
+    lab_allocation_will_fail_ = true;
+    return false;
   }
-  new_space_lab_ = saved_lab_;
-  lab_allocation_will_fail_ = true;
-  return false;
+  LocalAllocationBuffer saved_lab = std::move(new_space_lab_);
+  new_space_lab_ = LocalAllocationBuffer::FromResult(heap_, result, kLabSize);
+  DCHECK(new_space_lab_.IsValid());
+  if (!new_space_lab_.TryMerge(&saved_lab)) {
+    saved_lab.CloseWithFiller();
+  }
+  return true;
 }
 
 AllocationResult EvacuationAllocator::AllocateInNewSpace(

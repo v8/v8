@@ -10,6 +10,7 @@
 
 #include "src/heap/heap.h"
 #include "src/heap/spaces-inl.h"
+#include "src/heap/spaces.h"
 #include "src/objects/heap-object.h"
 
 namespace v8 {
@@ -54,21 +55,20 @@ AllocationResult ConcurrentAllocator::AllocateInLab(
 }
 
 bool ConcurrentAllocator::EnsureLab(AllocationOrigin origin) {
-  LocalAllocationBuffer saved_lab = lab_;
   auto result = space_->SlowGetLinearAllocationAreaBackground(
       kLabSize, kMaxLabSize, kWordAligned, origin);
 
   if (!result) return false;
 
   HeapObject object = HeapObject::FromAddress(result->first);
+  LocalAllocationBuffer saved_lab = std::move(lab_);
   lab_ = LocalAllocationBuffer::FromResult(
       local_heap_->heap(), AllocationResult(object), result->second);
-  if (lab_.IsValid()) {
-    lab_.TryMerge(&saved_lab);
-    return true;
+  DCHECK(lab_.IsValid());
+  if (!lab_.TryMerge(&saved_lab)) {
+    saved_lab.CloseWithFiller();
   }
-  lab_ = saved_lab;
-  return false;
+  return true;
 }
 
 }  // namespace internal
