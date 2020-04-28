@@ -32,7 +32,8 @@ ScriptData::ScriptData(const byte* data, int length)
 }
 
 CodeSerializer::CodeSerializer(Isolate* isolate, uint32_t source_hash)
-    : Serializer(isolate), source_hash_(source_hash) {
+    : Serializer(isolate, Snapshot::kDefaultSerializerFlags),
+      source_hash_(source_hash) {
   allocator()->UseCustomChunkSize(FLAG_serialization_chunk_size);
 }
 

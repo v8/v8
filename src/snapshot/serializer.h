@@ -15,6 +15,7 @@
 #include "src/snapshot/serializer-allocator.h"
 #include "src/snapshot/serializer-deserializer.h"
 #include "src/snapshot/snapshot-source-sink.h"
+#include "src/snapshot/snapshot.h"
 
 namespace v8 {
 namespace internal {
@@ -158,7 +159,7 @@ class ObjectCacheIndexMap {
 
 class Serializer : public SerializerDeserializer {
  public:
-  explicit Serializer(Isolate* isolate);
+  Serializer(Isolate* isolate, Snapshot::SerializerFlags flags);
 
   std::vector<SerializedData::Reservation> EncodeReservations() const {
     return allocator_.EncodeReservations();
@@ -224,6 +225,10 @@ class Serializer : public SerializerDeserializer {
   ExternalReferenceEncoder::Value EncodeExternalReference(Address addr) {
     return external_reference_encoder_.Encode(addr);
   }
+  Maybe<ExternalReferenceEncoder::Value> TryEncodeExternalReference(
+      Address addr) {
+    return external_reference_encoder_.TryEncode(addr);
+  }
 
   // GetInt reads 4 bytes at once, requiring padding at the end.
   // Use padding_offset to specify the space you want to use after padding.
@@ -260,6 +265,16 @@ class Serializer : public SerializerDeserializer {
 
   SnapshotByteSink sink_;  // Used directly by subclasses.
 
+  bool allow_unknown_external_references_for_testing() const {
+    return (flags_ & Snapshot::kAllowUnknownExternalReferencesForTesting) != 0;
+  }
+  bool allow_open_handles_for_testing() const {
+    return (flags_ & Snapshot::kAllowOpenHandlesForTesting) != 0;
+  }
+  bool allow_microtasks_for_testing() const {
+    return (flags_ & Snapshot::kAllowMicrotasksForTesting) != 0;
+  }
+
  private:
   Isolate* isolate_;
   SerializerReferenceMap reference_map_;
@@ -269,6 +284,7 @@ class Serializer : public SerializerDeserializer {
   std::vector<byte> code_buffer_;
   std::vector<HeapObject> deferred_objects_;  // To handle stack overflow.
   int recursion_depth_ = 0;
+  const Snapshot::SerializerFlags flags_;
   SerializerAllocator allocator_;
 
 #ifdef OBJECT_PRINT
@@ -327,6 +343,7 @@ class Serializer::ObjectSerializer : public ObjectVisitor {
   // This function outputs or skips the raw data between the last pointer and
   // up to the current position.
   void SerializeContent(Map map, int size);
+  void OutputExternalReference(Address target, int target_size);
   void OutputRawData(Address up_to);
   void OutputCode(int size);
   uint32_t SerializeBackingStore(void* backing_store, int32_t byte_length);

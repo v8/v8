@@ -4456,11 +4456,6 @@ void Heap::IterateStrongRoots(RootVisitor* v, VisitMode mode) {
 
   isolate_->bootstrapper()->Iterate(v);
   v->Synchronize(VisitorSynchronization::kBootstrapper);
-  if (mode != VISIT_ONLY_STRONG_IGNORE_STACK) {
-    isolate_->Iterate(v);
-    isolate_->global_handles()->IterateStrongStackRoots(v);
-    v->Synchronize(VisitorSynchronization::kTop);
-  }
   Relocatable::Iterate(isolate_, v);
   v->Synchronize(VisitorSynchronization::kRelocatable);
   isolate_->debug()->Iterate(v);
@@ -4468,22 +4463,6 @@ void Heap::IterateStrongRoots(RootVisitor* v, VisitMode mode) {
 
   isolate_->compilation_cache()->Iterate(v);
   v->Synchronize(VisitorSynchronization::kCompilationCache);
-
-  // Iterate over local handles in handle scopes.
-  FixStaleLeftTrimmedHandlesVisitor left_trim_visitor(this);
-  isolate_->handle_scope_implementer()->Iterate(&left_trim_visitor);
-  isolate_->handle_scope_implementer()->Iterate(v);
-
-  if (FLAG_local_heaps) {
-    safepoint_->Iterate(&left_trim_visitor);
-    safepoint_->Iterate(v);
-    isolate_->persistent_handles_list()->Iterate(&left_trim_visitor);
-    isolate_->persistent_handles_list()->Iterate(v);
-  }
-
-  isolate_->IterateDeferredHandles(&left_trim_visitor);
-  isolate_->IterateDeferredHandles(v);
-  v->Synchronize(VisitorSynchronization::kHandleScope);
 
   // Iterate over the builtin code objects in the heap. Note that it is not
   // necessary to iterate over code objects on scavenge collections.
@@ -4516,17 +4495,6 @@ void Heap::IterateStrongRoots(RootVisitor* v, VisitMode mode) {
   }
   v->Synchronize(VisitorSynchronization::kGlobalHandles);
 
-  // Iterate over eternal handles. Eternal handles are not iterated by the
-  // serializer. Values referenced by eternal handles need to be added manually.
-  if (mode != VISIT_FOR_SERIALIZATION) {
-    if (isMinorGC) {
-      isolate_->eternal_handles()->IterateYoungRoots(v);
-    } else {
-      isolate_->eternal_handles()->IterateAllRoots(v);
-    }
-  }
-  v->Synchronize(VisitorSynchronization::kEternalHandles);
-
   // Iterate over pointers being held by inactive threads.
   isolate_->thread_manager()->Iterate(v);
   v->Synchronize(VisitorSynchronization::kThreadManager);
@@ -4537,18 +4505,67 @@ void Heap::IterateStrongRoots(RootVisitor* v, VisitMode mode) {
   }
   v->Synchronize(VisitorSynchronization::kStrongRoots);
 
-  // Iterate over pending Microtasks stored in MicrotaskQueues.
-  MicrotaskQueue* default_microtask_queue = isolate_->default_microtask_queue();
-  if (default_microtask_queue) {
-    MicrotaskQueue* microtask_queue = default_microtask_queue;
-    do {
-      microtask_queue->IterateMicrotasks(v);
-      microtask_queue = microtask_queue->next();
-    } while (microtask_queue != default_microtask_queue);
-  }
-
-  // Iterate over the startup object cache unless serializing or deserializing.
+  // Visitors in this block only run when not serializing. These include:
+  //
+  // - Thread-local and stack.
+  // - Handles.
+  // - Microtasks.
+  // - The startup object cache.
+  //
+  // When creating real startup snapshot, these areas are expected to be empty.
+  // It is also possible to create a snapshot of a *running* isolate for testing
+  // purposes. In this case, these areas are likely not empty and will simply be
+  // skipped.
+  //
+  // The general guideline for adding visitors to this section vs. adding them
+  // above is that non-transient heap state is always visited, transient heap
+  // state is visited only when not serializing.
   if (mode != VISIT_FOR_SERIALIZATION) {
+    if (mode != VISIT_ONLY_STRONG_IGNORE_STACK) {
+      isolate_->Iterate(v);
+      isolate_->global_handles()->IterateStrongStackRoots(v);
+      v->Synchronize(VisitorSynchronization::kTop);
+    }
+
+    // Iterate over local handles in handle scopes.
+    FixStaleLeftTrimmedHandlesVisitor left_trim_visitor(this);
+    isolate_->handle_scope_implementer()->Iterate(&left_trim_visitor);
+    isolate_->handle_scope_implementer()->Iterate(v);
+
+    if (FLAG_local_heaps) {
+      safepoint_->Iterate(&left_trim_visitor);
+      safepoint_->Iterate(v);
+      isolate_->persistent_handles_list()->Iterate(&left_trim_visitor);
+      isolate_->persistent_handles_list()->Iterate(v);
+    }
+
+    isolate_->IterateDeferredHandles(&left_trim_visitor);
+    isolate_->IterateDeferredHandles(v);
+    v->Synchronize(VisitorSynchronization::kHandleScope);
+
+    // Iterate over eternal handles. Eternal handles are not iterated by the
+    // serializer. Values referenced by eternal handles need to be added
+    // manually.
+    if (isMinorGC) {
+      isolate_->eternal_handles()->IterateYoungRoots(v);
+    } else {
+      isolate_->eternal_handles()->IterateAllRoots(v);
+    }
+    v->Synchronize(VisitorSynchronization::kEternalHandles);
+
+    // Iterate over pending Microtasks stored in MicrotaskQueues.
+    MicrotaskQueue* default_microtask_queue =
+        isolate_->default_microtask_queue();
+    if (default_microtask_queue) {
+      MicrotaskQueue* microtask_queue = default_microtask_queue;
+      do {
+        microtask_queue->IterateMicrotasks(v);
+        microtask_queue = microtask_queue->next();
+      } while (microtask_queue != default_microtask_queue);
+    }
+
+    // Iterate over the startup object cache unless serializing or
+    // deserializing.
     SerializerDeserializer::Iterate(isolate_, v);
     v->Synchronize(VisitorSynchronization::kStartupObjectCache);
   }

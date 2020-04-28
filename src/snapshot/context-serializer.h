@@ -16,7 +16,8 @@ class StartupSerializer;
 
 class V8_EXPORT_PRIVATE ContextSerializer : public Serializer {
  public:
-  ContextSerializer(Isolate* isolate, StartupSerializer* startup_serializer,
+  ContextSerializer(Isolate* isolate, Snapshot::SerializerFlags flags,
+                    StartupSerializer* startup_serializer,
                     v8::SerializeEmbedderFieldsCallback callback);
 
   ~ContextSerializer() override;
