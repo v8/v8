@@ -511,7 +511,7 @@ void Assembler::target_at_put(int pos, int target_pos, bool* is_branch) {
     case kUnboundJumpTableEntryOpcode: {
       PatchingAssembler patcher(options(),
                                 reinterpret_cast<byte*>(buffer_start_ + pos),
-                                kPointerSize / kInstrSize);
+                                kSystemPointerSize / kInstrSize);
       // Keep internal references relative until EmitRelocations.
       patcher.dp(target_pos);
       break;

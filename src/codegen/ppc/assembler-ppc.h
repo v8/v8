@@ -958,9 +958,9 @@ class Assembler : public AssemblerBase {
 
   void push(Register src) {
 #if V8_TARGET_ARCH_PPC64
-    stdu(src, MemOperand(sp, -kPointerSize));
+    stdu(src, MemOperand(sp, -kSystemPointerSize));
 #else
-    stwu(src, MemOperand(sp, -kPointerSize));
+    stwu(src, MemOperand(sp, -kSystemPointerSize));
 #endif
   }
 
@@ -970,10 +970,10 @@ class Assembler : public AssemblerBase {
 #else
     lwz(dst, MemOperand(sp));
 #endif
-    addi(sp, sp, Operand(kPointerSize));
+    addi(sp, sp, Operand(kSystemPointerSize));
   }
 
-  void pop() { addi(sp, sp, Operand(kPointerSize)); }
+  void pop() { addi(sp, sp, Operand(kSystemPointerSize)); }
 
   // Jump unconditionally to given label.
   void jmp(Label* L) { b(L); }
