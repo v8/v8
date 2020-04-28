@@ -20,8 +20,9 @@ namespace v8 {
 namespace internal {
 
 StartupSerializer::StartupSerializer(Isolate* isolate,
+                                     Snapshot::SerializerFlags flags,
                                      ReadOnlySerializer* read_only_serializer)
-    : RootsSerializer(isolate, RootIndex::kFirstStrongRoot),
+    : RootsSerializer(isolate, flags, RootIndex::kFirstStrongRoot),
       read_only_serializer_(read_only_serializer) {
   allocator()->UseCustomChunkSize(FLAG_serialization_chunk_size);
   InitializeCodeAddressMap();
@@ -141,7 +142,8 @@ void StartupSerializer::SerializeStrongReferences() {
   // No active threads.
   CHECK_NULL(isolate->thread_manager()->FirstThreadStateInUse());
   // No active or weak handles.
-  CHECK(isolate->handle_scope_implementer()->blocks()->empty());
+  CHECK_IMPLIES(!allow_open_handles_for_testing(),
+                isolate->handle_scope_implementer()->blocks()->empty());
 
   // Visit smi roots and immortal immovables first to make sure they end up in
   // the first page.
