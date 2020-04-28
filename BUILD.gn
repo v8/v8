@@ -4055,6 +4055,7 @@ v8_source_set("cppgc_base") {
     "src/heap/cppgc/source-location.cc",
     "src/heap/cppgc/stack.cc",
     "src/heap/cppgc/stack.h",
+    "src/heap/cppgc/worklist.h",
   ]
 
   if (is_clang || !is_win) {
