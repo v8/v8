@@ -278,6 +278,17 @@ class LiftoffCompiler {
 
   using FullDecoder = WasmFullDecoder<validate, LiftoffCompiler>;
 
+  // For debugging, we need to spill registers before a trap, to be able to
+  // inspect them.
+  struct SpilledRegistersBeforeTrap {
+    struct Entry {
+      int offset;
+      LiftoffRegister reg;
+      ValueType type;
+    };
+    std::vector<Entry> entries;
+  };
+
   struct OutOfLineCode {
     MovableLabel label;
     MovableLabel continuation;
@@ -285,20 +296,30 @@ class LiftoffCompiler {
     WasmCodePosition position;
     LiftoffRegList regs_to_save;
     uint32_t pc;  // for trap handler.
+    // These two pointers will only be used for debug code:
     DebugSideTableBuilder::EntryBuilder* debug_sidetable_entry_builder;
+    std::unique_ptr<SpilledRegistersBeforeTrap> spilled_registers;
 
     // Named constructors:
     static OutOfLineCode Trap(
         WasmCode::RuntimeStubId s, WasmCodePosition pos, uint32_t pc,
-        DebugSideTableBuilder::EntryBuilder* debug_sidetable_entry_builder) {
+        DebugSideTableBuilder::EntryBuilder* debug_sidetable_entry_builder,
+        std::unique_ptr<SpilledRegistersBeforeTrap> spilled_registers) {
       DCHECK_LT(0, pos);
-      return {{}, {}, s, pos, {}, pc, debug_sidetable_entry_builder};
+      return {{},
+              {},
+              s,
+              pos,
+              {},
+              pc,
+              debug_sidetable_entry_builder,
+              std::move(spilled_registers)};
     }
     static OutOfLineCode StackCheck(
         WasmCodePosition pos, LiftoffRegList regs,
         DebugSideTableBuilder::EntryBuilder* debug_sidetable_entry_builder) {
-      return {{},   {}, WasmCode::kWasmStackGuard,    pos,
-              regs, 0,  debug_sidetable_entry_builder};
+      return {{},   {}, WasmCode::kWasmStackGuard,     pos,
+              regs, 0,  debug_sidetable_entry_builder, {}};
     }
   };
 
@@ -662,7 +683,15 @@ class LiftoffCompiler {
       return;
     }
 
-    if (!ool->regs_to_save.is_empty()) __ PushRegisters(ool->regs_to_save);
+    // We cannot both push and spill registers.
+    DCHECK(ool->regs_to_save.is_empty() || ool->spilled_registers == nullptr);
+    if (!ool->regs_to_save.is_empty()) {
+      __ PushRegisters(ool->regs_to_save);
+    } else if (V8_UNLIKELY(ool->spilled_registers != nullptr)) {
+      for (auto& entry : ool->spilled_registers->entries) {
+        __ Spill(entry.offset, entry.reg, entry.type);
+      }
+    }
 
     source_position_table_builder_.AddPosition(
         __ pc_offset(), SourcePosition(ool->position), true);
@@ -1830,13 +1859,28 @@ class LiftoffCompiler {
     __ cache_state()->Steal(c->else_state->state);
   }
 
+  std::unique_ptr<SpilledRegistersBeforeTrap> GetSpilledRegistersBeforeTrap() {
+    if (V8_LIKELY(!for_debugging_)) return nullptr;
+    // If we are generating debugging code, we really need to spill all
+    // registers to make them inspectable when stopping at the trap.
+    auto spilled = std::make_unique<SpilledRegistersBeforeTrap>();
+    for (uint32_t i = 0, e = __ cache_state()->stack_height(); i < e; ++i) {
+      auto& slot = __ cache_state()->stack_state[i];
+      if (!slot.is_reg()) continue;
+      spilled->entries.push_back(SpilledRegistersBeforeTrap::Entry{
+          slot.offset(), slot.reg(), slot.type()});
+    }
+    return spilled;
+  }
+
   Label* AddOutOfLineTrap(WasmCodePosition position,
                           WasmCode::RuntimeStubId stub, uint32_t pc = 0) {
     DCHECK(FLAG_wasm_bounds_checks);
 
     out_of_line_code_.push_back(OutOfLineCode::Trap(
         stub, position, pc,
-        RegisterDebugSideTableEntry(DebugSideTableBuilder::kAssumeSpilling)));
+        RegisterDebugSideTableEntry(DebugSideTableBuilder::kAssumeSpilling),
+        GetSpilledRegistersBeforeTrap()));
     return out_of_line_code_.back().label.get();
   }
 
