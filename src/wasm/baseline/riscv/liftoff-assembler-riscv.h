@@ -1122,8 +1122,8 @@ void LiftoffAssembler::emit_f32_set_cond(Condition cond, Register dst,
                                          DoubleRegister lhs,
                                          DoubleRegister rhs) {
   Label not_nan, cont;
-  TurboAssembler::CompareIsNanF32(lhs, rhs);
-  TurboAssembler::BranchFalseF(&not_nan);
+  TurboAssembler::CompareIsNanF32(kScratchReg, lhs, rhs);
+  TurboAssembler::BranchFalseF(kScratchReg, &not_nan);
   // If one of the operands is NaN, return 1 for f32.ne, else 0.
   if (cond == ne) {
     TurboAssembler::li(dst, 1);
@@ -1137,11 +1137,14 @@ void LiftoffAssembler::emit_f32_set_cond(Condition cond, Register dst,
   TurboAssembler::li(dst, 1);
   bool predicate;
   FPUCondition fcond = liftoff::ConditionToConditionCmpFPU(cond, &predicate);
-  TurboAssembler::CompareF32(fcond, lhs, rhs);
+  TurboAssembler::CompareF32(kScratchReg, fcond, lhs, rhs);
+  // FIXME (RISCV): LoadZeroIfConditionXXX generates branch (unlike MIPS that
+  // has a single instruction to support), there may be better sequence to
+  // convert result of compare to boolean values (e.g., by AND 0 or ADD 1)
   if (predicate) {
-    TurboAssembler::LoadZeroIfNotFPUCondition(dst);
+    TurboAssembler::LoadZeroIfConditionZero(dst, kScratchReg);
   } else {
-    TurboAssembler::LoadZeroIfFPUCondition(dst);
+    TurboAssembler::LoadZeroIfConditionNotZero(dst, kScratchReg);
   }
 
   bind(&cont);
@@ -1151,8 +1154,8 @@ void LiftoffAssembler::emit_f64_set_cond(Condition cond, Register dst,
                                          DoubleRegister lhs,
                                          DoubleRegister rhs) {
   Label not_nan, cont;
-  TurboAssembler::CompareIsNanF64(lhs, rhs);
-  TurboAssembler::BranchFalseF(&not_nan);
+  TurboAssembler::CompareIsNanF64(kScratchReg, lhs, rhs);
+  TurboAssembler::BranchFalseF(kScratchReg, &not_nan);
   // If one of the operands is NaN, return 1 for f64.ne, else 0.
   if (cond == ne) {
     TurboAssembler::li(dst, 1);
@@ -1166,11 +1169,11 @@ void LiftoffAssembler::emit_f64_set_cond(Condition cond, Register dst,
   TurboAssembler::li(dst, 1);
   bool predicate;
   FPUCondition fcond = liftoff::ConditionToConditionCmpFPU(cond, &predicate);
-  TurboAssembler::CompareF64(fcond, lhs, rhs);
+  TurboAssembler::CompareF64(kScratchReg, fcond, lhs, rhs);
   if (predicate) {
-    TurboAssembler::LoadZeroIfNotFPUCondition(dst);
+    TurboAssembler::LoadZeroIfConditionZero(dst, kScratchReg);
   } else {
-    TurboAssembler::LoadZeroIfFPUCondition(dst);
+    TurboAssembler::LoadZeroIfConditionNotZero(dst, kScratchReg);
   }
 
   bind(&cont);

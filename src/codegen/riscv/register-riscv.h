@@ -300,11 +300,18 @@ constexpr Register kRootRegister = s6;
 constexpr Register cp = s7;
 constexpr Register kScratchReg = s3;
 constexpr Register kScratchReg2 = s4;
+
 constexpr DoubleRegister kScratchDoubleReg = fs11;
+
+// RISCV (FIXME): RISCV does not have dedicated DoubleReg Zero (as MIPS does),
+// may not be worth dedicate one register for 0.0
 constexpr DoubleRegister kDoubleRegZero = fs9;
+
+// RISCV (FIXME): cleanup usage of kDoubleCompareReg
 // Used on mips64r6 for compare operations.
 // We use the last non-callee saved odd register for N64 ABI
 constexpr DoubleRegister kDoubleCompareReg = fs4;
+
 // MSA zero and scratch regs must have the same numbers as FPU zero and scratch
 constexpr Simd128Register kSimd128RegZero = w28;
 constexpr Simd128Register kSimd128ScratchReg = w30;

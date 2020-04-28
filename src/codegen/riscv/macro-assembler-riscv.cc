@@ -1844,144 +1844,130 @@ void MacroAssembler::Msub_d(FPURegister fd, FPURegister fr, FPURegister fs,
   RV_fmsub_d(fd, fs, ft, fr);
 }
 
-void TurboAssembler::CompareF(SecondaryField sizeField, FPUCondition cc,
-                              FPURegister cmp1, FPURegister cmp2) {
-  if (kArchVariant == kMips64r6) {
-    sizeField = sizeField == D ? L : W;
-    DCHECK(cmp1 != kDoubleCompareReg && cmp2 != kDoubleCompareReg);
-    cmp(cc, sizeField, kDoubleCompareReg, cmp1, cmp2);
-  } else {
-    c(cc, sizeField, cmp1, cmp2);
+void TurboAssembler::CompareF32(Register rd, FPUCondition cc, FPURegister cmp1,
+                                FPURegister cmp2) {
+  switch (cc) {
+    case EQ:  // Equal.
+      RV_feq_s(rd, cmp1, cmp2);
+      break;
+    case LT:  // Ordered or Less Than, on Mips release >= 6.
+      RV_flt_s(rd, cmp1, cmp2);
+      break;
+    case LE:  // Ordered or Less Than or Equal, on Mips release >= 6.
+      RV_fle_s(rd, cmp1, cmp2);
+      break;
+
+      // MIPS FPUCondition codes not supported, RISCV (FIXME): cleanup
+    case UEQ:  // Unordered or Equal.
+      UNREACHABLE();
+      break;
+    case ULT:  // Unordered or Less Than.
+    case ULE:  // Unordered or Less Than or Equal.
+      UNREACHABLE();
+      break;
+    case F:  // False.
+      UNREACHABLE();
+      break;
+    case UN:  // Unordered.
+      UNREACHABLE();
+      break;
+    // Following constants are available on Mips release >= 6 only.
+    case ORD:  // Ordered, on Mips release >= 6.
+    case UNE:  // Not equal, on Mips release >= 6.
+    case NE:   // Ordered Greater Than or Less Than. on Mips >= 6 only.
+    default:
+      UNREACHABLE();
   }
 }
 
-void TurboAssembler::CompareIsNanF(SecondaryField sizeField, FPURegister cmp1,
-                                   FPURegister cmp2) {
-  CompareF(sizeField, UN, cmp1, cmp2);
+void TurboAssembler::CompareF64(Register rd, FPUCondition cc, FPURegister cmp1,
+                                FPURegister cmp2) {
+  switch (cc) {
+    case EQ:  // Equal.
+      RV_feq_d(rd, cmp1, cmp2);
+      break;
+    case LT:  // Ordered or Less Than, on Mips release >= 6.
+      RV_flt_d(rd, cmp1, cmp2);
+      break;
+    case LE:  // Ordered or Less Than or Equal, on Mips release >= 6.
+      RV_fle_d(rd, cmp1, cmp2);
+      break;
+
+      // MIPS FPUCondition codes not supported, RISCV (FIXME): cleanup
+    case UEQ:  // Unordered or Equal.
+      UNREACHABLE();
+      break;
+    case ULT:  // Unordered or Less Than.
+    case ULE:  // Unordered or Less Than or Equal.
+      UNREACHABLE();
+      break;
+    case F:  // False.
+      UNREACHABLE();
+      break;
+    case UN:  // Unordered.
+      UNREACHABLE();
+      break;
+    // Following constants are available on Mips release >= 6 only.
+    case ORD:  // Ordered, on Mips release >= 6.
+    case UNE:  // Not equal, on Mips release >= 6.
+    case NE:   // Ordered Greater Than or Less Than. on Mips >= 6 only.
+    default:
+      UNREACHABLE();
+  }
 }
 
-void TurboAssembler::BranchTrueShortF(Label* target, BranchDelaySlot bd) {
-  // FIXME(RISCV): This is a temporary fix to avoid errors, but needs to be
-  // changed to actually perform the appropriate branch
-  Branch(target, cc_always, zero_reg, Operand(zero_reg));
-
-  // if (kArchVariant == kMips64r6) {
-  //   bc1nez(target, kDoubleCompareReg);
-  // } else {
-  //   bc1t(target);
-  // }
+void TurboAssembler::CompareIsNanF32(Register rd, FPURegister cmp1,
+                                     FPURegister cmp2) {
+  UNIMPLEMENTED();
 }
 
-void TurboAssembler::BranchFalseShortF(Label* target, BranchDelaySlot bd) {
-  // FIXME(RISCV): This is a temporary fix to avoid errors, but needs to be
-  // changed to actually perform the appropriate branch
-  Branch(target, cc_always, zero_reg, Operand(zero_reg));
-
-  // if (kArchVariant == kMips64r6) {
-  //   bc1eqz(target, kDoubleCompareReg);
-  // } else {
-  //   bc1f(target);
-  // }
+void TurboAssembler::CompareIsNanF64(Register rd, FPURegister cmp1,
+                                     FPURegister cmp2) {
+  UNIMPLEMENTED();
 }
 
-void TurboAssembler::BranchTrueF(Label* target, BranchDelaySlot bd) {
+void TurboAssembler::BranchTrueShortF(Register rs, Label* target,
+                                      BranchDelaySlot bd) {
+  Branch(target, not_equal, rs, Operand(zero_reg));
+}
+
+void TurboAssembler::BranchFalseShortF(Register rs, Label* target,
+                                       BranchDelaySlot bd) {
+  Branch(target, equal, rs, Operand(zero_reg));
+}
+
+void TurboAssembler::BranchTrueF(Register rs, Label* target,
+                                 BranchDelaySlot bd) {
   bool long_branch =
       target->is_bound() ? !is_near(target) : is_trampoline_emitted();
   if (long_branch) {
     Label skip;
-    BranchFalseShortF(&skip);
+    BranchFalseShortF(rs, &skip);
     BranchLong(target, bd);
     bind(&skip);
   } else {
-    BranchTrueShortF(target, bd);
+    BranchTrueShortF(rs, target, bd);
   }
 }
 
-void TurboAssembler::BranchFalseF(Label* target, BranchDelaySlot bd) {
+void TurboAssembler::BranchFalseF(Register rs, Label* target,
+                                  BranchDelaySlot bd) {
   bool long_branch =
       target->is_bound() ? !is_near(target) : is_trampoline_emitted();
   if (long_branch) {
     Label skip;
-    BranchTrueShortF(&skip);
+    BranchTrueShortF(rs, &skip);
     BranchLong(target, bd);
     bind(&skip);
   } else {
-    BranchFalseShortF(target, bd);
+    BranchFalseShortF(rs, target, bd);
   }
 }
 
 void TurboAssembler::BranchMSA(Label* target, MSABranchDF df,
                                MSABranchCondition cond, MSARegister wt,
                                BranchDelaySlot bd) {
-  {
-    BlockTrampolinePoolScope block_trampoline_pool(this);
-
-    if (target) {
-      bool long_branch =
-          target->is_bound() ? !is_near(target) : is_trampoline_emitted();
-      if (long_branch) {
-        Label skip;
-        MSABranchCondition neg_cond = NegateMSABranchCondition(cond);
-        BranchShortMSA(df, &skip, neg_cond, wt, bd);
-        BranchLong(target, bd);
-        bind(&skip);
-      } else {
-        BranchShortMSA(df, target, cond, wt, bd);
-      }
-    }
-  }
-}
-
-void TurboAssembler::BranchShortMSA(MSABranchDF df, Label* target,
-                                    MSABranchCondition cond, MSARegister wt,
-                                    BranchDelaySlot bd) {
-  if (kArchVariant == kMips64r6) {
-    BlockTrampolinePoolScope block_trampoline_pool(this);
-    if (target) {
-      switch (cond) {
-        case all_not_zero:
-          switch (df) {
-            case MSA_BRANCH_D:
-              bnz_d(wt, target);
-              break;
-            case MSA_BRANCH_W:
-              bnz_w(wt, target);
-              break;
-            case MSA_BRANCH_H:
-              bnz_h(wt, target);
-              break;
-            case MSA_BRANCH_B:
-            default:
-              bnz_b(wt, target);
-          }
-          break;
-        case one_elem_not_zero:
-          bnz_v(wt, target);
-          break;
-        case one_elem_zero:
-          switch (df) {
-            case MSA_BRANCH_D:
-              bz_d(wt, target);
-              break;
-            case MSA_BRANCH_W:
-              bz_w(wt, target);
-              break;
-            case MSA_BRANCH_H:
-              bz_h(wt, target);
-              break;
-            case MSA_BRANCH_B:
-            default:
-              bz_b(wt, target);
-          }
-          break;
-        case all_zero:
-          bz_v(wt, target);
-          break;
-        default:
-          UNREACHABLE();
-      }
-    }
-  }
+  UNREACHABLE();
 }
 
 void TurboAssembler::FmoveLow(FPURegister dst, Register src_low) {
@@ -2119,30 +2105,41 @@ void TurboAssembler::LoadZeroOnCondition(Register rd, Register rs,
   }
 }
 
+// FIXME (RISCV): LoadZeroIfConditionXXX generates branch (unlike MIPS that has
+// a single instruction to support), there may be better sequence to convert
+// result of compare to boolean values (e.g., by AND 0 or ADD 1)
 void TurboAssembler::LoadZeroIfConditionNotZero(Register dest,
                                                 Register condition) {
   Movn(dest, zero_reg, condition);
 }
 
+// FIXME (RISCV): LoadZeroIfConditionXXX generates branch (unlike MIPS that has
+// a single instruction to support), there may be better sequence to convert
+// result of compare to boolean values (e.g., by AND 0 or ADD 1)
 void TurboAssembler::LoadZeroIfConditionZero(Register dest,
                                              Register condition) {
   Movz(dest, zero_reg, condition);
 }
 
-void TurboAssembler::LoadZeroIfFPUCondition(Register dest) {
-  RV_fmv_x_d(kScratchReg, kDoubleCompareReg);
-  LoadZeroIfConditionNotZero(dest, kScratchReg);
+/*
+// FIXME (RISCV): remove this interface, use LoadZeroIfConditionZero directly
+void TurboAssembler::LoadZeroIfFPUCondition(Register dest, Register condition) {
+  LoadZeroIfConditionNotZero(dest, condition);
 }
 
-void TurboAssembler::LoadZeroIfNotFPUCondition(Register dest) {
-  RV_fmv_x_d(kScratchReg, kDoubleCompareReg);
-  LoadZeroIfConditionZero(dest, kScratchReg);
+// FIXME (RISCV): remove this interface, use LoadZeroIfConditionZero directly
+void TurboAssembler::LoadZeroIfNotFPUCondition(Register dest,
+                                               Register condition) {
+  LoadZeroIfConditionZero(dest, condition);
 }
+*/
 
+// FIXME(RISCV): remove
 void TurboAssembler::Movt(Register rd, Register rs, uint16_t cc) {
   movt(rd, rs, cc);
 }
 
+// FIXME(RISCV): remove
 void TurboAssembler::Movf(Register rd, Register rs, uint16_t cc) {
   movf(rd, rs, cc);
 }

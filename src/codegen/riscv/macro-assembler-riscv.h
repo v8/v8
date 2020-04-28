@@ -162,27 +162,23 @@ class V8_EXPORT_PRIVATE TurboAssembler : public TurboAssemblerBase {
 #undef COND_ARGS
 
   // Floating point branches
-  void CompareF32(FPUCondition cc, FPURegister cmp1, FPURegister cmp2) {
-    CompareF(S, cc, cmp1, cmp2);
-  }
+  void CompareF32(Register rd, FPUCondition cc, FPURegister cmp1,
+                  FPURegister cmp2);
 
-  void CompareIsNanF32(FPURegister cmp1, FPURegister cmp2) {
-    CompareIsNanF(S, cmp1, cmp2);
-  }
+  void CompareIsNanF32(Register rd, FPURegister cmp1, FPURegister cmp2);
 
-  void CompareF64(FPUCondition cc, FPURegister cmp1, FPURegister cmp2) {
-    CompareF(D, cc, cmp1, cmp2);
-  }
+  void CompareF64(Register rd, FPUCondition cc, FPURegister cmp1,
+                  FPURegister cmp2);
 
-  void CompareIsNanF64(FPURegister cmp1, FPURegister cmp2) {
-    CompareIsNanF(D, cmp1, cmp2);
-  }
+  void CompareIsNanF64(Register rd, FPURegister cmp1, FPURegister cmp2);
 
-  void BranchTrueShortF(Label* target, BranchDelaySlot bd = PROTECT);
-  void BranchFalseShortF(Label* target, BranchDelaySlot bd = PROTECT);
+  void BranchTrueShortF(Register rs, Label* target,
+                        BranchDelaySlot bd = PROTECT);
+  void BranchFalseShortF(Register rs, Label* target,
+                         BranchDelaySlot bd = PROTECT);
 
-  void BranchTrueF(Label* target, BranchDelaySlot bd = PROTECT);
-  void BranchFalseF(Label* target, BranchDelaySlot bd = PROTECT);
+  void BranchTrueF(Register rs, Label* target, BranchDelaySlot bd = PROTECT);
+  void BranchFalseF(Register rs, Label* target, BranchDelaySlot bd = PROTECT);
 
   // MSA branches
   void BranchMSA(Label* target, MSABranchDF df, MSABranchCondition cond,
@@ -550,8 +546,8 @@ class V8_EXPORT_PRIVATE TurboAssembler : public TurboAssemblerBase {
   void Movt(Register rd, Register rs, uint16_t cc = 0);
   void Movf(Register rd, Register rs, uint16_t cc = 0);
 
-  void LoadZeroIfFPUCondition(Register dest);
-  void LoadZeroIfNotFPUCondition(Register dest);
+  // void LoadZeroIfFPUCondition(Register dest, Register cond);
+  // void LoadZeroIfNotFPUCondition(Register dest, Register cond);
 
   void LoadZeroIfConditionNotZero(Register dest, Register condition);
   void LoadZeroIfConditionZero(Register dest, Register condition);
@@ -868,15 +864,6 @@ class V8_EXPORT_PRIVATE TurboAssembler : public TurboAssemblerBase {
   // 'result' either holds answer, or is clobbered on fall through.
   void TryInlineTruncateDoubleToI(Register result, DoubleRegister input,
                                   Label* done);
-
-  void CompareF(SecondaryField sizeField, FPUCondition cc, FPURegister cmp1,
-                FPURegister cmp2);
-
-  void CompareIsNanF(SecondaryField sizeField, FPURegister cmp1,
-                     FPURegister cmp2);
-
-  void BranchShortMSA(MSABranchDF df, Label* target, MSABranchCondition cond,
-                      MSARegister wt, BranchDelaySlot bd = PROTECT);
 
   void CallCFunctionHelper(Register function, int num_reg_arguments,
                            int num_double_arguments);
