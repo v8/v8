@@ -20,9 +20,8 @@ void* ObjectAllocator::AllocateObject(size_t size, GCInfoIndex gcinfo) {
   const size_t allocation_size =
       RoundUp(size + sizeof(HeapObjectHeader), kAllocationGranularity);
   const RawHeap::SpaceType type = GetSpaceIndexForSize(allocation_size);
-  return AllocateObjectOnSpace(
-      static_cast<NormalPageSpace*>(raw_heap_->Space(type)), allocation_size,
-      gcinfo);
+  return AllocateObjectOnSpace(NormalPageSpace::From(raw_heap_->Space(type)),
+                               allocation_size, gcinfo);
 }
 
 // static

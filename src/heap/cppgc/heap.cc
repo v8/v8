@@ -8,7 +8,9 @@
 
 #include "src/base/platform/platform.h"
 #include "src/heap/cppgc/heap-object-header-inl.h"
+#include "src/heap/cppgc/heap-object-header.h"
 #include "src/heap/cppgc/heap-page.h"
+#include "src/heap/cppgc/heap-visitor.h"
 #include "src/heap/cppgc/stack.h"
 
 namespace cppgc {
@@ -24,6 +26,35 @@ namespace {
 constexpr bool NeedsConservativeStackScan(Heap::GCConfig config) {
   return config.stack_state == Heap::GCConfig::StackState::kNonEmpty;
 }
+
+class ObjectSizeCounter : public HeapVisitor<ObjectSizeCounter> {
+  friend class HeapVisitor<ObjectSizeCounter>;
+
+ public:
+  size_t GetSize(RawHeap* heap) {
+    Traverse(heap);
+    return accumulated_size_;
+  }
+
+ private:
+  static size_t ObjectSize(const HeapObjectHeader* header) {
+    const size_t size =
+        header->IsLargeObject()
+            ? static_cast<const LargePage*>(BasePage::FromPayload(header))
+                  ->PayloadSize()
+            : header->GetSize();
+    DCHECK_GE(size, sizeof(HeapObjectHeader));
+    return size - sizeof(HeapObjectHeader);
+  }
+
+  bool VisitHeapObjectHeader(HeapObjectHeader* header) {
+    if (header->IsFree()) return true;
+    accumulated_size_ += ObjectSize(header);
+    return true;
+  }
+
+  size_t accumulated_size_ = 0;
+};
 
 }  // namespace
 
@@ -91,6 +122,10 @@ void Heap::CollectGarbage(GCConfig config) {
       it = objects_.erase(it);
     }
   }
+}
+
+size_t Heap::ObjectPayloadSize() const {
+  return ObjectSizeCounter().GetSize(const_cast<RawHeap*>(&raw_heap()));
 }
 
 Heap::NoGCScope::NoGCScope(Heap* heap) : heap_(heap) { heap_->no_gc_scope_++; }

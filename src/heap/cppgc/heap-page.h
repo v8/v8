@@ -7,6 +7,7 @@
 
 #include "src/base/iterator.h"
 #include "src/base/macros.h"
+#include "src/heap/cppgc/globals.h"
 #include "src/heap/cppgc/heap-object-header.h"
 
 namespace cppgc {
@@ -49,7 +50,15 @@ class V8_EXPORT_PRIVATE NormalPage final : public BasePage {
   template <typename T>
   class IteratorImpl : v8::base::iterator<std::forward_iterator_tag, T> {
    public:
-    explicit IteratorImpl(T* p) : p_(p) {}
+    explicit IteratorImpl(T* p, ConstAddress lab_start = nullptr,
+                          size_t lab_size = 0)
+        : p_(p), lab_start_(lab_start), lab_size_(lab_size) {
+      DCHECK(p);
+      DCHECK_EQ(0, (lab_size & (sizeof(T) - 1)));
+      if (reinterpret_cast<ConstAddress>(p_) == lab_start_) {
+        p_ += (lab_size_ / sizeof(T));
+      }
+    }
 
     T& operator*() { return *p_; }
     const T& operator*() const { return *p_; }
@@ -58,19 +67,26 @@ class V8_EXPORT_PRIVATE NormalPage final : public BasePage {
     bool operator!=(IteratorImpl other) const { return !(*this == other); }
 
     IteratorImpl& operator++() {
-      p_ += (p_->GetSize() / sizeof(T));
+      const size_t size = p_->GetSize();
+      DCHECK_EQ(0, (size & (sizeof(T) - 1)));
+      p_ += (size / sizeof(T));
+      if (reinterpret_cast<ConstAddress>(p_) == lab_start_) {
+        p_ += (lab_size_ / sizeof(T));
+      }
       return *this;
     }
     IteratorImpl operator++(int) {
       IteratorImpl temp(*this);
-      p_ += (p_->GetSize() / sizeof(T));
+      ++(*this);
       return temp;
     }
 
-    T* base() { return p_; }
+    T* base() const { return p_; }
 
    private:
     T* p_;
+    ConstAddress lab_start_;
+    size_t lab_size_;
   };
 
  public:
@@ -83,13 +99,17 @@ class V8_EXPORT_PRIVATE NormalPage final : public BasePage {
   // corresponding space (i.e. be swept when called).
   static void Destroy(NormalPage*);
 
-  iterator begin() {
-    return iterator(reinterpret_cast<HeapObjectHeader*>(PayloadStart()));
+  static NormalPage* From(BasePage* page) {
+    DCHECK(!page->is_large());
+    return static_cast<NormalPage*>(page);
   }
-  const_iterator begin() const {
-    return const_iterator(
-        reinterpret_cast<const HeapObjectHeader*>(PayloadStart()));
+  static const NormalPage* From(const BasePage* page) {
+    return From(const_cast<BasePage*>(page));
   }
+
+  iterator begin();
+  const_iterator begin() const;
+
   iterator end() {
     return iterator(reinterpret_cast<HeapObjectHeader*>(PayloadEnd()));
   }
@@ -117,6 +137,14 @@ class V8_EXPORT_PRIVATE LargePage final : public BasePage {
   // Destroys and frees the page. The page must be detached from the
   // corresponding space (i.e. be swept when called).
   static void Destroy(LargePage*);
+
+  static LargePage* From(BasePage* page) {
+    DCHECK(page->is_large());
+    return static_cast<LargePage*>(page);
+  }
+  static const LargePage* From(const BasePage* page) {
+    return From(const_cast<BasePage*>(page));
+  }
 
   HeapObjectHeader* ObjectHeader();
   const HeapObjectHeader* ObjectHeader() const;

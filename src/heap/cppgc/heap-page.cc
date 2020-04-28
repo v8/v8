@@ -80,6 +80,19 @@ NormalPage::NormalPage(Heap* heap, BaseSpace* space)
 
 NormalPage::~NormalPage() = default;
 
+NormalPage::iterator NormalPage::begin() {
+  const auto& lab = NormalPageSpace::From(space())->linear_allocation_buffer();
+  return iterator(reinterpret_cast<HeapObjectHeader*>(PayloadStart()),
+                  lab.start(), lab.size());
+}
+
+NormalPage::const_iterator NormalPage::begin() const {
+  const auto& lab = NormalPageSpace::From(space())->linear_allocation_buffer();
+  return const_iterator(
+      reinterpret_cast<const HeapObjectHeader*>(PayloadStart()), lab.start(),
+      lab.size());
+}
+
 Address NormalPage::PayloadStart() {
   return AlignAddress((reinterpret_cast<Address>(this + 1)),
                       kAllocationGranularity);

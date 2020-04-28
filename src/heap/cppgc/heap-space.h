@@ -60,26 +60,34 @@ class V8_EXPORT_PRIVATE NormalPageSpace final : public BaseSpace {
  public:
   class LinearAllocationBuffer {
    public:
-    void* Allocate(size_t alloc_size) {
+    Address Allocate(size_t alloc_size) {
       DCHECK_GE(size_, alloc_size);
-      void* result = start_;
+      Address result = start_;
       start_ += alloc_size;
       size_ -= alloc_size;
       return result;
     }
 
-    void Set(void* ptr, size_t size) {
-      start_ = static_cast<uint8_t*>(ptr);
+    void Set(Address ptr, size_t size) {
+      start_ = ptr;
       size_ = size;
     }
 
-    void* start() const { return start_; }
+    Address start() const { return start_; }
     size_t size() const { return size_; }
 
    private:
-    uint8_t* start_ = nullptr;
+    Address start_ = nullptr;
     size_t size_ = 0;
   };
+
+  static NormalPageSpace* From(BaseSpace* space) {
+    DCHECK(!space->is_large());
+    return static_cast<NormalPageSpace*>(space);
+  }
+  static const NormalPageSpace* From(const BaseSpace* space) {
+    return From(const_cast<BaseSpace*>(space));
+  }
 
   NormalPageSpace(RawHeap* heap, size_t index);
 
@@ -98,6 +106,14 @@ class V8_EXPORT_PRIVATE NormalPageSpace final : public BaseSpace {
 
 class V8_EXPORT_PRIVATE LargePageSpace final : public BaseSpace {
  public:
+  static LargePageSpace* From(BaseSpace* space) {
+    DCHECK(space->is_large());
+    return static_cast<LargePageSpace*>(space);
+  }
+  static const LargePageSpace* From(const BaseSpace* space) {
+    return From(const_cast<BaseSpace*>(space));
+  }
+
   LargePageSpace(RawHeap* heap, size_t index);
 };
 

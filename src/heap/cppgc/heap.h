@@ -98,6 +98,8 @@ class V8_EXPORT_PRIVATE Heap final : public cppgc::Heap {
   PageBackend* page_backend() { return page_backend_.get(); }
   const PageBackend* page_backend() const { return page_backend_.get(); }
 
+  size_t ObjectPayloadSize() const;
+
  private:
   bool in_no_gc_scope() const { return no_gc_scope_ > 0; }
   bool is_allocation_allowed() const { return no_allocation_scope_ == 0; }
