@@ -477,7 +477,12 @@ RUNTIME_FUNCTION(Runtime_NeverOptimizeFunction) {
   CONVERT_ARG_HANDLE_CHECKED(Object, function_object, 0);
   if (!function_object->IsJSFunction()) return CrashUnlessFuzzing(isolate);
   Handle<JSFunction> function = Handle<JSFunction>::cast(function_object);
-  function->shared().DisableOptimization(BailoutReason::kNeverOptimize);
+  SharedFunctionInfo sfi = function->shared();
+  if (sfi.abstract_code().kind() != AbstractCode::INTERPRETED_FUNCTION &&
+      sfi.abstract_code().kind() != AbstractCode::BUILTIN) {
+    return CrashUnlessFuzzing(isolate);
+  }
+  sfi.DisableOptimization(BailoutReason::kNeverOptimize);
   return ReadOnlyRoots(isolate).undefined_value();
 }
 
