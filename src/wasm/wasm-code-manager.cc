@@ -1103,21 +1103,7 @@ WasmCode* NativeModule::PublishCodeLocked(std::unique_ptr<WasmCode> code) {
         // count cannot drop to zero here.
         CHECK(!prior_code->DecRef());
       }
-    }
 
-    // Populate optimized code to the jump table unless there is an active
-    // redirection to the interpreter that should be preserved.
-    DCHECK_NOT_NULL(main_jump_table_);
-    bool update_jump_table =
-        update_code_table && !has_interpreter_redirection(code->index());
-
-    // Ensure that interpreter entries always populate to the jump table.
-    if (code->kind() == WasmCode::Kind::kInterpreterEntry) {
-      SetInterpreterRedirection(code->index());
-      update_jump_table = true;
-    }
-
-    if (update_jump_table) {
       PatchJumpTablesLocked(slot_idx, code->instruction_start());
     }
   }
@@ -1849,11 +1835,6 @@ std::vector<std::unique_ptr<WasmCode>> NativeModule::AddCompiledCode(
   DCHECK_EQ(0, code_space.size());
 
   return generated_code;
-}
-
-bool NativeModule::IsRedirectedToInterpreter(uint32_t func_index) {
-  base::MutexGuard lock(&allocation_mutex_);
-  return has_interpreter_redirection(func_index);
 }
 
 bool NativeModule::SetTieredDown() {

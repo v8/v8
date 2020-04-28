@@ -595,10 +595,6 @@ class V8_EXPORT_PRIVATE NativeModule final {
   V8_WARN_UNUSED_RESULT std::vector<std::unique_ptr<WasmCode>> AddCompiledCode(
       Vector<WasmCompilationResult>);
 
-  // Allows to check whether a function has been redirected to the interpreter
-  // by publishing an entry stub with the {Kind::kInterpreterEntry} code kind.
-  bool IsRedirectedToInterpreter(uint32_t func_index);
-
   // Set to tiered down state. Returns {true} if this caused a change, {false}
   // otherwise.
   bool SetTieredDown();
@@ -667,30 +663,6 @@ class V8_EXPORT_PRIVATE NativeModule final {
   // Hold the {allocation_mutex_} when calling {PublishCodeLocked}.
   WasmCode* PublishCodeLocked(std::unique_ptr<WasmCode>);
 
-  // Hold the {allocation_mutex_} when calling this method.
-  bool has_interpreter_redirection(uint32_t func_index) {
-    DCHECK_LT(func_index, num_functions());
-    DCHECK_LE(module_->num_imported_functions, func_index);
-    if (!interpreter_redirections_) return false;
-    uint32_t bitset_idx = declared_function_index(module(), func_index);
-    uint8_t byte = interpreter_redirections_[bitset_idx / kBitsPerByte];
-    return byte & (1 << (bitset_idx % kBitsPerByte));
-  }
-
-  // Hold the {allocation_mutex_} when calling this method.
-  void SetInterpreterRedirection(uint32_t func_index) {
-    DCHECK_LT(func_index, num_functions());
-    DCHECK_LE(module_->num_imported_functions, func_index);
-    if (!interpreter_redirections_) {
-      interpreter_redirections_.reset(
-          new uint8_t[RoundUp<kBitsPerByte>(module_->num_declared_functions) /
-                      kBitsPerByte]{});
-    }
-    uint32_t bitset_idx = declared_function_index(module(), func_index);
-    uint8_t& byte = interpreter_redirections_[bitset_idx / kBitsPerByte];
-    byte |= 1 << (bitset_idx % kBitsPerByte);
-  }
-
   // {WasmCodeAllocator} manages all code reservations and allocations for this
   // {NativeModule}.
   WasmCodeAllocator code_allocator_;
@@ -745,10 +717,6 @@ class V8_EXPORT_PRIVATE NativeModule final {
   // {WasmModule::num_declared_functions}, i.e. there are no entries for
   // imported functions.
   std::unique_ptr<WasmCode*[]> code_table_;
-
-  // Null if no redirections exist, otherwise a bitset over all functions in
-  // this module marking those functions that have been redirected.
-  std::unique_ptr<uint8_t[]> interpreter_redirections_;
 
   // Data (especially jump table) per code space.
   std::vector<CodeSpaceData> code_space_data_;
