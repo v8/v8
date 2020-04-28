@@ -87,6 +87,7 @@ class MicrotaskQueue;
 class OptimizingCompileDispatcher;
 class PersistentHandles;
 class PersistentHandlesList;
+class ReadOnlyArtifacts;
 class ReadOnlyDeserializer;
 class RegExpStack;
 class RootVisitor;
@@ -524,7 +525,7 @@ class V8_EXPORT_PRIVATE Isolate final : private HiddenFactory {
   // for legacy API reasons.
   static void Delete(Isolate* isolate);
 
-  void SetUpFromReadOnlyHeap(ReadOnlyHeap* ro_heap);
+  void SetUpFromReadOnlyArtifacts(std::shared_ptr<ReadOnlyArtifacts> artifacts);
 
   // Returns allocation mode of this isolate.
   V8_INLINE IsolateAllocationMode isolate_allocation_mode();
@@ -1630,6 +1631,7 @@ class V8_EXPORT_PRIVATE Isolate final : private HiddenFactory {
   std::unique_ptr<IsolateAllocator> isolate_allocator_;
   Heap heap_;
   ReadOnlyHeap* read_only_heap_ = nullptr;
+  std::shared_ptr<ReadOnlyArtifacts> artifacts_;
 
   const int id_;
   EntryStackItem* entry_stack_ = nullptr;

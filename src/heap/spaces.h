@@ -1705,6 +1705,16 @@ class AllocationStats {
  public:
   AllocationStats() { Clear(); }
 
+  AllocationStats& operator=(const AllocationStats& stats) V8_NOEXCEPT {
+    capacity_ = stats.capacity_.load();
+    max_capacity_ = stats.max_capacity_;
+    size_ = stats.size_;
+#ifdef DEBUG
+    allocated_on_page_ = stats.allocated_on_page_;
+#endif
+    return *this;
+  }
+
   // Zero out all the allocation statistics (i.e., no capacity).
   void Clear() {
     capacity_ = 0;
@@ -3226,14 +3236,50 @@ class V8_EXPORT_PRIVATE OffThreadSpace : public LocalSpace {
 };
 
 // -----------------------------------------------------------------------------
+// Artifacts used to construct a new SharedReadOnlySpace
+class ReadOnlyArtifacts {
+ public:
+  ~ReadOnlyArtifacts();
+
+  void set_accounting_stats(const AllocationStats& stats) { stats_ = stats; }
+
+  void set_shared_read_only_space(
+      std::unique_ptr<SharedReadOnlySpace> shared_space) {
+    shared_read_only_space_ = std::move(shared_space);
+  }
+  SharedReadOnlySpace* shared_read_only_space() {
+    return shared_read_only_space_.get();
+  }
+
+  base::List<MemoryChunk>& pages() { return pages_; }
+  void TransferPages(base::List<MemoryChunk>&& pages) {
+    pages_ = std::move(pages);
+  }
+
+  const AllocationStats& accounting_stats() const { return stats_; }
+
+  void set_read_only_heap(std::unique_ptr<ReadOnlyHeap> read_only_heap);
+  ReadOnlyHeap* read_only_heap() { return read_only_heap_.get(); }
+
+ private:
+  base::List<MemoryChunk> pages_;
+  AllocationStats stats_;
+  std::unique_ptr<SharedReadOnlySpace> shared_read_only_space_;
+  std::unique_ptr<ReadOnlyHeap> read_only_heap_;
+};
+
+// -----------------------------------------------------------------------------
 // Read Only space for all Immortal Immovable and Immutable objects
 
 class ReadOnlySpace : public PagedSpace {
  public:
   explicit ReadOnlySpace(Heap* heap);
 
-  // TODO(v8:7464): Remove this once PagedSpace::Unseal no longer writes to
-  // memory_chunk_list_.
+  // Detach the pages and them to artifacts for using in creating a
+  // SharedReadOnlySpace.
+  void DetachPagesAndAddToArtifacts(
+      std::shared_ptr<ReadOnlyArtifacts> artifacts);
+
   ~ReadOnlySpace() override { Unseal(); }
 
   bool writable() const { return !is_marked_read_only_; }
@@ -3256,20 +3302,28 @@ class ReadOnlySpace : public PagedSpace {
 
   size_t Available() override { return 0; }
 
- private:
-  // Unseal the space after is has been sealed, by making it writable.
-  // TODO(v8:7464): Only possible if the space hasn't been detached.
-  void Unseal();
+ protected:
   void SetPermissionsForPages(MemoryAllocator* memory_allocator,
                               PageAllocator::Permission access);
 
   bool is_marked_read_only_ = false;
+
+ private:
+  // Unseal the space after is has been sealed, by making it writable.
+  // TODO(v8:7464): Only possible if the space hasn't been detached.
+  void Unseal();
 
   //
   // String padding must be cleared just before serialization and therefore the
   // string padding in the space will already have been cleared if the space was
   // deserialized.
   bool is_string_padding_cleared_;
+};
+
+class SharedReadOnlySpace : public ReadOnlySpace {
+ public:
+  SharedReadOnlySpace(Heap* heap, std::shared_ptr<ReadOnlyArtifacts> artifacts);
+  ~SharedReadOnlySpace() override;
 };
 
 // -----------------------------------------------------------------------------

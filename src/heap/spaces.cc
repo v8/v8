@@ -4025,6 +4025,51 @@ ReadOnlySpace::ReadOnlySpace(Heap* heap)
       is_string_padding_cleared_(heap->isolate()->initialized_from_snapshot()) {
 }
 
+ReadOnlyArtifacts::~ReadOnlyArtifacts() {
+  v8::PageAllocator* page_allocator = GetPlatformPageAllocator();
+
+  MemoryChunk* next_chunk;
+  for (MemoryChunk* chunk = pages_.front(); chunk != nullptr;
+       chunk = next_chunk) {
+    void* chunk_address = reinterpret_cast<void*>(chunk->address());
+    page_allocator->SetPermissions(chunk_address, chunk->size(),
+                                   PageAllocator::kReadWrite);
+    next_chunk = chunk->list_node().next();
+    size_t size = RoundUp(chunk->size(), page_allocator->AllocatePageSize());
+    CHECK(page_allocator->FreePages(chunk_address, size));
+  }
+}
+
+void ReadOnlyArtifacts::set_read_only_heap(
+    std::unique_ptr<ReadOnlyHeap> read_only_heap) {
+  read_only_heap_ = std::move(read_only_heap);
+}
+
+SharedReadOnlySpace::~SharedReadOnlySpace() {
+  // Clear the memory chunk list before the space is deleted, so that the
+  // inherited destructors don't try to destroy the MemoryChunks themselves.
+  memory_chunk_list_ = base::List<MemoryChunk>();
+}
+
+SharedReadOnlySpace::SharedReadOnlySpace(
+    Heap* heap, std::shared_ptr<ReadOnlyArtifacts> artifacts)
+    : ReadOnlySpace(heap) {
+  artifacts->pages().ShallowCopyTo(&memory_chunk_list_);
+  is_marked_read_only_ = true;
+  accounting_stats_ = artifacts->accounting_stats();
+}
+
+void ReadOnlySpace::DetachPagesAndAddToArtifacts(
+    std::shared_ptr<ReadOnlyArtifacts> artifacts) {
+  Heap* heap = ReadOnlySpace::heap();
+  Seal(SealMode::kDetachFromHeapAndForget);
+  artifacts->set_accounting_stats(accounting_stats_);
+  artifacts->TransferPages(std::move(memory_chunk_list_));
+  artifacts->set_shared_read_only_space(
+      std::make_unique<SharedReadOnlySpace>(heap, artifacts));
+  heap->ReplaceReadOnlySpace(artifacts->shared_read_only_space());
+}
+
 void ReadOnlyPage::MakeHeaderRelocatable() {
   ReleaseAllocatedMemoryNeededForWritableChunk();
   // Detached read-only space needs to have a valid marking bitmap and free list
@@ -4115,7 +4160,10 @@ void ReadOnlySpace::Seal(SealMode ro_mode) {
 
 void ReadOnlySpace::Unseal() {
   DCHECK(is_marked_read_only_);
-  SetPermissionsForPages(heap()->memory_allocator(), PageAllocator::kReadWrite);
+  if (HasPages()) {
+    SetPermissionsForPages(heap()->memory_allocator(),
+                           PageAllocator::kReadWrite);
+  }
   is_marked_read_only_ = false;
 }
 

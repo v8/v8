@@ -2838,7 +2838,11 @@ void Isolate::Delete(Isolate* isolate) {
   SetIsolateThreadLocals(saved_isolate, saved_data);
 }
 
-void Isolate::SetUpFromReadOnlyHeap(ReadOnlyHeap* ro_heap) {
+void Isolate::SetUpFromReadOnlyArtifacts(
+    std::shared_ptr<ReadOnlyArtifacts> artifacts) {
+  artifacts_ = artifacts;
+  DCHECK_NOT_NULL(artifacts);
+  ReadOnlyHeap* ro_heap = artifacts->read_only_heap();
   DCHECK_NOT_NULL(ro_heap);
   DCHECK_IMPLIES(read_only_heap_ != nullptr, read_only_heap_ == ro_heap);
   read_only_heap_ = ro_heap;

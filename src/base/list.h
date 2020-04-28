@@ -16,6 +16,18 @@ template <class T>
 class List {
  public:
   List() : front_(nullptr), back_(nullptr) {}
+  List(List&& other) V8_NOEXCEPT : front_(std::exchange(other.front_, nullptr)),
+                                   back_(std::exchange(other.back_, nullptr)) {}
+  List& operator=(List&& other) V8_NOEXCEPT {
+    front_ = std::exchange(other.front_, nullptr);
+    back_ = std::exchange(other.back_, nullptr);
+    return *this;
+  }
+
+  void ShallowCopyTo(List* other) const {
+    other->front_ = front_;
+    other->back_ = back_;
+  }
 
   void PushBack(T* element) {
     DCHECK(!element->list_node().next());
