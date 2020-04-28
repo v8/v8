@@ -427,6 +427,35 @@ void TurboAssembler::Push(Smi smi) {
   push(scratch);
 }
 
+void TurboAssembler::PushArray(Register array, Register size, Register scratch,
+                               PushArrayOrder order) {
+  UseScratchRegisterScope temps(this);
+  Register counter = scratch;
+  Register tmp = temps.Acquire();
+  DCHECK(!AreAliased(array, size, counter, tmp));
+  Label loop, entry;
+  if (order == PushArrayOrder::kReverse) {
+    mov(counter, Operand(0));
+    b(&entry);
+    bind(&loop);
+    ldr(tmp, MemOperand(array, counter, LSL, kSystemPointerSizeLog2));
+    push(tmp);
+    add(counter, counter, Operand(1));
+    bind(&entry);
+    cmp(counter, size);
+    b(lt, &loop);
+  } else {
+    mov(counter, size);
+    b(&entry);
+    bind(&loop);
+    ldr(tmp, MemOperand(array, counter, LSL, kSystemPointerSizeLog2));
+    push(tmp);
+    bind(&entry);
+    sub(counter, counter, Operand(1), SetCC);
+    b(ge, &loop);
+  }
+}
+
 void TurboAssembler::Move(Register dst, Smi smi) { mov(dst, Operand(smi)); }
 
 void TurboAssembler::Move(Register dst, Handle<HeapObject> value) {
@@ -1556,7 +1585,7 @@ void MacroAssembler::CallDebugOnFunctionCall(Register fun, Register new_target,
                                              Register expected_parameter_count,
                                              Register actual_parameter_count) {
   // Load receiver to pass it later to DebugOnFunctionCall hook.
-  ldr(r4, MemOperand(sp, actual_parameter_count, LSL, kPointerSizeLog2));
+  ldr(r4, ReceiverOperand(actual_parameter_count));
   FrameScope frame(this, has_frame() ? StackFrame::NONE : StackFrame::INTERNAL);
 
   SmiTag(expected_parameter_count);
