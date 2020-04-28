@@ -3566,10 +3566,11 @@ void CodeGenerator::AssembleArchBoolean(Instruction* instr,
     }
     bool predicate;
     FlagsConditionToConditionCmpFPU(&predicate, condition);
-    if (predicate) {
-      __ And(result, kScratchReg, 1);  // cmp returns all 1's/0's, use only LSB.
-    } else {
-      __ Addu(result, kScratchReg, 1);  // Toggle result for not equal.
+    // RISCV compare returns 0 or 1
+    if (!predicate) {
+      // toggle result: 0 -> 0, 1 -> 0
+      __ Addu(result, kScratchReg, 1);
+      __ And(result, result, 1);  // use only LSB
     }
     return;
   } else {
