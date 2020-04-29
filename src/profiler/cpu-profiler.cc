@@ -85,7 +85,6 @@ ProfilerEventsProcessor::ProfilerEventsProcessor(
     : Thread(Thread::Options("v8:ProfEvntProc", kProfilerStackSize)),
       generator_(generator),
       code_observer_(code_observer),
-      running_(1),
       last_code_event_id_(0),
       last_processed_code_event_id_(0),
       isolate_(isolate) {
@@ -150,7 +149,10 @@ void ProfilerEventsProcessor::AddSample(TickSample sample) {
 }
 
 void ProfilerEventsProcessor::StopSynchronously() {
-  if (!base::Relaxed_AtomicExchange(&running_, 0)) return;
+  bool expected = true;
+  if (!running_.compare_exchange_strong(expected, false,
+                                        std::memory_order_relaxed))
+    return;
   {
     base::MutexGuard guard(&running_mutex_);
     running_cond_.NotifyOne();
@@ -225,7 +227,7 @@ SamplingEventsProcessor::ProcessOneSample() {
 
 void SamplingEventsProcessor::Run() {
   base::MutexGuard guard(&running_mutex_);
-  while (!!base::Relaxed_Load(&running_)) {
+  while (running_.load(std::memory_order_relaxed)) {
     base::TimeTicks nextSampleTime =
         base::TimeTicks::HighResolutionNow() + period_;
     base::TimeTicks now;
@@ -262,7 +264,7 @@ void SamplingEventsProcessor::Run() {
           // If true was returned, we got interrupted before the timeout
           // elapsed. If this was not due to a change in running state, a
           // spurious wakeup occurred (thus we should continue to wait).
-          if (!base::Relaxed_Load(&running_)) {
+          if (!running_.load(std::memory_order_relaxed)) {
             break;
           }
           now = base::TimeTicks::HighResolutionNow();
@@ -288,7 +290,7 @@ void SamplingEventsProcessor::SetSamplingInterval(base::TimeDelta period) {
   StopSynchronously();
 
   period_ = period;
-  base::Relaxed_Store(&running_, 1);
+  running_.store(true, std::memory_order_relaxed);
 
   StartSynchronously();
 }

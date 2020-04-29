@@ -5,10 +5,9 @@
 #ifndef V8_PROFILER_CPU_PROFILER_H_
 #define V8_PROFILER_CPU_PROFILER_H_
 
+#include <atomic>
 #include <memory>
 
-#include "src/base/atomic-utils.h"
-#include "src/base/atomicops.h"
 #include "src/base/platform/condition-variable.h"
 #include "src/base/platform/mutex.h"
 #include "src/base/platform/time.h"
@@ -164,7 +163,7 @@ class V8_EXPORT_PRIVATE ProfilerEventsProcessor : public base::Thread,
   // Thread control.
   void Run() override = 0;
   void StopSynchronously();
-  V8_INLINE bool running() { return !!base::Relaxed_Load(&running_); }
+  bool running() { return running_.load(std::memory_order_relaxed); }
   void Enqueue(const CodeEventsContainer& event);
 
   // Puts current stack into the tick sample events buffer.
@@ -191,8 +190,7 @@ class V8_EXPORT_PRIVATE ProfilerEventsProcessor : public base::Thread,
 
   ProfileGenerator* generator_;
   ProfilerCodeObserver* code_observer_;
-  // TODO(petermarshall): Use std::atomic and remove imports.
-  base::Atomic32 running_;
+  std::atomic_bool running_{true};
   base::ConditionVariable running_cond_;
   base::Mutex running_mutex_;
   LockedQueue<CodeEventsContainer> events_buffer_;
