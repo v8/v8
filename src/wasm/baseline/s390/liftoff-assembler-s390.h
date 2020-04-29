@@ -957,6 +957,16 @@ void LiftoffAssembler::emit_i8x16_ne(LiftoffRegister dst, LiftoffRegister lhs,
   bailout(kUnsupportedArchitecture, "emit_i8x16_ne");
 }
 
+void LiftoffAssembler::emit_i8x16_gt_s(LiftoffRegister dst, LiftoffRegister lhs,
+                                       LiftoffRegister rhs) {
+  bailout(kUnsupportedArchitecture, "emit_i8x16gt_s");
+}
+
+void LiftoffAssembler::emit_i8x16_gt_u(LiftoffRegister dst, LiftoffRegister lhs,
+                                       LiftoffRegister rhs) {
+  bailout(kUnsupportedArchitecture, "emit_i8x16gt_u");
+}
+
 void LiftoffAssembler::emit_i8x16_ge_s(LiftoffRegister dst, LiftoffRegister lhs,
                                        LiftoffRegister rhs) {
   bailout(kUnsupportedArchitecture, "emit_i8x16ge_s");
@@ -977,6 +987,16 @@ void LiftoffAssembler::emit_i16x8_ne(LiftoffRegister dst, LiftoffRegister lhs,
   bailout(kUnsupportedArchitecture, "emit_i16x8_ne");
 }
 
+void LiftoffAssembler::emit_i16x8_gt_s(LiftoffRegister dst, LiftoffRegister lhs,
+                                       LiftoffRegister rhs) {
+  bailout(kUnsupportedArchitecture, "emit_i16x8gt_s");
+}
+
+void LiftoffAssembler::emit_i16x8_gt_u(LiftoffRegister dst, LiftoffRegister lhs,
+                                       LiftoffRegister rhs) {
+  bailout(kUnsupportedArchitecture, "emit_i16x8gt_u");
+}
+
 void LiftoffAssembler::emit_i16x8_ge_s(LiftoffRegister dst, LiftoffRegister lhs,
                                        LiftoffRegister rhs) {
   bailout(kUnsupportedArchitecture, "emit_i16x8ge_s");
@@ -995,6 +1015,16 @@ void LiftoffAssembler::emit_i32x4_eq(LiftoffRegister dst, LiftoffRegister lhs,
 void LiftoffAssembler::emit_i32x4_ne(LiftoffRegister dst, LiftoffRegister lhs,
                                      LiftoffRegister rhs) {
   bailout(kUnsupportedArchitecture, "emit_i32x4_ne");
+}
+
+void LiftoffAssembler::emit_i32x4_gt_s(LiftoffRegister dst, LiftoffRegister lhs,
+                                       LiftoffRegister rhs) {
+  bailout(kUnsupportedArchitecture, "emit_i32x4gt_s");
+}
+
+void LiftoffAssembler::emit_i32x4_gt_u(LiftoffRegister dst, LiftoffRegister lhs,
+                                       LiftoffRegister rhs) {
+  bailout(kUnsupportedArchitecture, "emit_i32x4gt_u");
 }
 
 void LiftoffAssembler::emit_i32x4_ge_s(LiftoffRegister dst, LiftoffRegister lhs,
