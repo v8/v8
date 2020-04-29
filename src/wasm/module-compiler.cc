@@ -696,8 +696,6 @@ ExecutionTier ApplyHintToExecutionTier(WasmCompilationHintTier hint,
   switch (hint) {
     case WasmCompilationHintTier::kDefault:
       return default_tier;
-    case WasmCompilationHintTier::kInterpreter:
-      return ExecutionTier::kInterpreter;
     case WasmCompilationHintTier::kBaseline:
       return ExecutionTier::kLiftoff;
     case WasmCompilationHintTier::kOptimized:

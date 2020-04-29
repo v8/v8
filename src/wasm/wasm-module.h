@@ -168,9 +168,8 @@ enum class WasmCompilationHintStrategy : uint8_t {
 
 enum class WasmCompilationHintTier : uint8_t {
   kDefault = 0,
-  kInterpreter = 1,
-  kBaseline = 2,
-  kOptimized = 3,
+  kBaseline = 1,
+  kOptimized = 2,
 };
 
 // Static representation of a wasm compilation hint
