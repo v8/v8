@@ -132,6 +132,9 @@ class V8_EXPORT_PRIVATE Deserializer : public SerializerDeserializer {
   template <typename TSlot>
   inline TSlot WriteAddress(TSlot dest, Address value);
 
+  template <typename TSlot>
+  inline TSlot WriteExternalPointer(TSlot dest, Address value);
+
   // Fills in some heap data in an area from start to end (non-inclusive).  The
   // space id is used for the write barrier.  The object_address is the address
   // of the object we are writing into, or nullptr if we are not writing into an

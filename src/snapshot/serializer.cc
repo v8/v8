@@ -719,7 +719,8 @@ void Serializer::ObjectSerializer::VisitEmbeddedPointer(Code host,
 }
 
 void Serializer::ObjectSerializer::OutputExternalReference(Address target,
-                                                           int target_size) {
+                                                           int target_size,
+                                                           bool sandboxify) {
   DCHECK_LE(target_size, sizeof(target));  // Must fit in Address.
   ExternalReferenceEncoder::Value encoded_reference;
   bool encoded_successfully;
@@ -744,10 +745,18 @@ void Serializer::ObjectSerializer::OutputExternalReference(Address target,
     sink_->PutSection(kFixedRawDataStart + size_in_tagged, "FixedRawData");
     sink_->PutRaw(reinterpret_cast<byte*>(&target), target_size, "Bytes");
   } else if (encoded_reference.is_from_api()) {
-    sink_->Put(kApiReference, "ApiRef");
+    if (V8_HEAP_SANDBOX_BOOL && sandboxify) {
+      sink_->Put(kSandboxedApiReference, "SandboxedApiRef");
+    } else {
+      sink_->Put(kApiReference, "ApiRef");
+    }
     sink_->PutInt(encoded_reference.index(), "reference index");
   } else {
-    sink_->Put(kExternalReference, "ExternalRef");
+    if (V8_HEAP_SANDBOX_BOOL && sandboxify) {
+      sink_->Put(kSandboxedExternalReference, "SandboxedExternalRef");
+    } else {
+      sink_->Put(kExternalReference, "ExternalRef");
+    }
     sink_->PutInt(encoded_reference.index(), "reference index");
   }
   bytes_processed_so_far_ += target_size;
@@ -755,7 +764,8 @@ void Serializer::ObjectSerializer::OutputExternalReference(Address target,
 
 void Serializer::ObjectSerializer::VisitExternalReference(Foreign host,
                                                           Address* p) {
-  OutputExternalReference(host.foreign_address(), kSystemPointerSize);
+  // "Sandboxify" external reference.
+  OutputExternalReference(host.foreign_address(), kExternalPointerSize, true);
 }
 
 void Serializer::ObjectSerializer::VisitExternalReference(Code host,
@@ -764,7 +774,8 @@ void Serializer::ObjectSerializer::VisitExternalReference(Code host,
   DCHECK_NE(target, kNullAddress);  // Code does not reference null.
   DCHECK_IMPLIES(serializer_->EncodeExternalReference(target).is_from_api(),
                  !rinfo->IsCodedSpecially());
-  OutputExternalReference(target, rinfo->target_address_size());
+  // Don't "sandboxify" external references embedded in the code.
+  OutputExternalReference(target, rinfo->target_address_size(), false);
 }
 
 void Serializer::ObjectSerializer::VisitInternalReference(Code host,

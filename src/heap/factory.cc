@@ -1294,7 +1294,7 @@ Handle<Foreign> Factory::NewForeign(Address addr) {
   HeapObject result = AllocateRawWithImmortalMap(map.instance_size(),
                                                  AllocationType::kYoung, map);
   Handle<Foreign> foreign(Foreign::cast(result), isolate());
-  foreign->set_foreign_address(addr);
+  foreign->set_foreign_address(isolate(), addr);
   return foreign;
 }
 

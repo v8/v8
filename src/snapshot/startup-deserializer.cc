@@ -37,8 +37,8 @@ void StartupDeserializer::DeserializeInto(Isolate* isolate) {
     Iterate(isolate, this);
     isolate->heap()->IterateWeakRoots(this, VISIT_FOR_SERIALIZATION);
     DeserializeDeferredObjects();
-    RestoreExternalReferenceRedirectors(accessor_infos());
-    RestoreExternalReferenceRedirectors(call_handler_infos());
+    RestoreExternalReferenceRedirectors(isolate, accessor_infos());
+    RestoreExternalReferenceRedirectors(isolate, call_handler_infos());
 
     // Flush the instruction cache for the entire code-space. Must happen after
     // builtins deserialization.

@@ -343,7 +343,8 @@ class Serializer::ObjectSerializer : public ObjectVisitor {
   // This function outputs or skips the raw data between the last pointer and
   // up to the current position.
   void SerializeContent(Map map, int size);
-  void OutputExternalReference(Address target, int target_size);
+  void OutputExternalReference(Address target, int target_size,
+                               bool sandboxify);
   void OutputRawData(Address up_to);
   void OutputCode(int size);
   uint32_t SerializeBackingStore(void* backing_store, int32_t byte_length);

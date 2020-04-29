@@ -4,7 +4,9 @@
 
 #include "src/snapshot/deserializer.h"
 
+#include "src/base/logging.h"
 #include "src/codegen/assembler-inl.h"
+#include "src/common/external-pointer.h"
 #include "src/execution/isolate.h"
 #include "src/heap/heap-inl.h"
 #include "src/heap/heap-write-barrier-inl.h"
@@ -43,6 +45,15 @@ TSlot Deserializer::WriteAddress(TSlot dest, Address value) {
   memcpy(dest.ToVoidPtr(), &value, kSystemPointerSize);
   STATIC_ASSERT(IsAligned(kSystemPointerSize, TSlot::kSlotDataSize));
   return dest + (kSystemPointerSize / TSlot::kSlotDataSize);
+}
+
+template <typename TSlot>
+TSlot Deserializer::WriteExternalPointer(TSlot dest, Address value) {
+  value = EncodeExternalPointer(isolate(), value);
+  DCHECK(!allocator()->next_reference_is_weak());
+  memcpy(dest.ToVoidPtr(), &value, kExternalPointerSize);
+  STATIC_ASSERT(IsAligned(kExternalPointerSize, TSlot::kSlotDataSize));
+  return dest + (kExternalPointerSize / TSlot::kSlotDataSize);
 }
 
 void Deserializer::Initialize(Isolate* isolate) {
@@ -596,9 +607,15 @@ bool Deserializer::ReadData(TSlot current, TSlot limit,
 
       // Find an external reference and write a pointer to it to the current
       // object.
+      case kSandboxedExternalReference:
       case kExternalReference: {
         Address address = ReadExternalReferenceCase();
-        current = WriteAddress(current, address);
+        if (V8_HEAP_SANDBOX_BOOL && data == kSandboxedExternalReference) {
+          current = WriteExternalPointer(current, address);
+        } else {
+          DCHECK(!V8_HEAP_SANDBOX_BOOL);
+          current = WriteAddress(current, address);
+        }
         break;
       }
 
@@ -679,6 +696,7 @@ bool Deserializer::ReadData(TSlot current, TSlot limit,
         break;
       }
 
+      case kSandboxedApiReference:
       case kApiReference: {
         uint32_t reference_id = static_cast<uint32_t>(source_.GetInt());
         Address address;
@@ -691,7 +709,12 @@ bool Deserializer::ReadData(TSlot current, TSlot limit,
         } else {
           address = reinterpret_cast<Address>(NoExternalReferencesCallback);
         }
-        current = WriteAddress(current, address);
+        if (V8_HEAP_SANDBOX_BOOL && data == kSandboxedApiReference) {
+          current = WriteExternalPointer(current, address);
+        } else {
+          DCHECK(!V8_HEAP_SANDBOX_BOOL);
+          current = WriteAddress(current, address);
+        }
         break;
       }
 

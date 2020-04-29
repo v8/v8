@@ -29,8 +29,8 @@ StartupSerializer::StartupSerializer(Isolate* isolate,
 }
 
 StartupSerializer::~StartupSerializer() {
-  RestoreExternalReferenceRedirectors(accessor_infos_);
-  RestoreExternalReferenceRedirectors(call_handler_infos_);
+  RestoreExternalReferenceRedirectors(isolate(), accessor_infos_);
+  RestoreExternalReferenceRedirectors(isolate(), call_handler_infos_);
   OutputStatistics("StartupSerializer");
 }
 
@@ -97,13 +97,17 @@ void StartupSerializer::SerializeObject(HeapObject obj) {
   if (use_simulator && obj.IsAccessorInfo()) {
     // Wipe external reference redirects in the accessor info.
     AccessorInfo info = AccessorInfo::cast(obj);
-    Address original_address = Foreign::cast(info.getter()).foreign_address();
-    Foreign::cast(info.js_getter()).set_foreign_address(original_address);
+    Address original_address =
+        Foreign::cast(info.getter()).foreign_address(isolate());
+    Foreign::cast(info.js_getter())
+        .set_foreign_address(isolate(), original_address);
     accessor_infos_.push_back(info);
   } else if (use_simulator && obj.IsCallHandlerInfo()) {
     CallHandlerInfo info = CallHandlerInfo::cast(obj);
-    Address original_address = Foreign::cast(info.callback()).foreign_address();
-    Foreign::cast(info.js_callback()).set_foreign_address(original_address);
+    Address original_address =
+        Foreign::cast(info.callback()).foreign_address(isolate());
+    Foreign::cast(info.js_callback())
+        .set_foreign_address(isolate(), original_address);
     call_handler_infos_.push_back(info);
   } else if (obj.IsScript() && Script::cast(obj).IsUserJavaScript()) {
     Script::cast(obj).set_context_data(

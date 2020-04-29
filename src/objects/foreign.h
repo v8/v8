@@ -18,7 +18,7 @@ namespace internal {
 class Foreign : public HeapObject {
  public:
   // [address]: field containing the address.
-  inline Address foreign_address();
+  DECL_GETTER(foreign_address, Address)
 
   static inline bool IsNormalized(Object object);
 
@@ -38,10 +38,8 @@ class Foreign : public HeapObject {
   // compression is supported) allow unaligned access to full words.
   STATIC_ASSERT(IsAligned(kForeignAddressOffset, kTaggedSize));
 #else
-  STATIC_ASSERT(IsAligned(kForeignAddressOffset, kSystemPointerSize));
+  STATIC_ASSERT(IsAligned(kForeignAddressOffset, kExternalPointerSize));
 #endif
-
-  STATIC_ASSERT(kForeignAddressOffset == Internals::kForeignAddressOffset);
 
   class BodyDescriptor;
 
@@ -50,7 +48,7 @@ class Foreign : public HeapObject {
   friend class SerializerDeserializer;
   friend class StartupSerializer;
 
-  inline void set_foreign_address(Address value);
+  inline void set_foreign_address(Isolate* isolate, Address value);
 
   OBJECT_CONSTRUCTORS(Foreign, HeapObject);
 };

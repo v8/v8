@@ -575,7 +575,7 @@ void CallOrConstructBuiltinsAssembler::CallFunctionTemplate(
   TNode<Foreign> foreign = LoadObjectField<Foreign>(
       call_handler_info, CallHandlerInfo::kJsCallbackOffset);
   TNode<RawPtrT> callback =
-      LoadObjectField<RawPtrT>(foreign, Foreign::kForeignAddressOffset);
+      DecodeExternalPointer(LoadForeignForeignAddress(foreign));
   TNode<Object> call_data =
       LoadObjectField<Object>(call_handler_info, CallHandlerInfo::kDataOffset);
   TailCallStub(CodeFactory::CallApiCallback(isolate()), context, callback, argc,

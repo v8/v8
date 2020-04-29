@@ -62,9 +62,9 @@ class SerializerDeserializer : public RootVisitor {
   static bool CanBeDeferred(HeapObject o);
 
   void RestoreExternalReferenceRedirectors(
-      const std::vector<AccessorInfo>& accessor_infos);
+      Isolate* isolate, const std::vector<AccessorInfo>& accessor_infos);
   void RestoreExternalReferenceRedirectors(
-      const std::vector<CallHandlerInfo>& call_handler_infos);
+      Isolate* isolate, const std::vector<CallHandlerInfo>& call_handler_infos);
 
   static const int kNumberOfPreallocatedSpaces =
       static_cast<int>(SnapshotSpace::kNumberOfPreallocatedSpaces);
@@ -75,8 +75,7 @@ class SerializerDeserializer : public RootVisitor {
 // clang-format off
 #define UNUSED_SERIALIZER_BYTE_CODES(V)                           \
   V(0x06) V(0x07) V(0x0e) V(0x0f)                                 \
-  /* Free range 0x26..0x2f */                                     \
-  V(0x26) V(0x27)                                                 \
+  /* Free range 0x28..0x2f */                                     \
   V(0x28) V(0x29) V(0x2a) V(0x2b) V(0x2c) V(0x2d) V(0x2e) V(0x2f) \
   /* Free range 0x30..0x3f */                                     \
   V(0x30) V(0x31) V(0x32) V(0x33) V(0x34) V(0x35) V(0x36) V(0x37) \
@@ -136,7 +135,7 @@ class SerializerDeserializer : public RootVisitor {
     kBackref = 0x08,
 
     //
-    // ---------- byte code range 0x10..0x25 ----------
+    // ---------- byte code range 0x10..0x27 ----------
     //
 
     // Object in the startup object cache.
@@ -174,6 +173,12 @@ class SerializerDeserializer : public RootVisitor {
     kApiReference,
     // External reference referenced by id.
     kExternalReference,
+    // Same as two bytecodes above but for serializing sandboxed external
+    // pointer values.
+    // TODO(v8:10391): Remove them once all ExternalPointer usages are
+    // sandbox-ready.
+    kSandboxedApiReference,
+    kSandboxedExternalReference,
     // Internal reference of a code objects in code stream.
     kInternalReference,
     // In-place weak references.

@@ -4,5 +4,5 @@
 
 @apiExposedInstanceTypeValue(0x46)
 extern class Foreign extends HeapObject {
-  foreign_address: RawPtr;
+  foreign_address: ExternalPointer;
 }

@@ -8707,11 +8707,7 @@ void Isolate::EnqueueMicrotask(Local<Function> v8_function) {
 
 void Isolate::EnqueueMicrotask(MicrotaskCallback callback, void* data) {
   i::Isolate* isolate = reinterpret_cast<i::Isolate*>(this);
-  i::HandleScope scope(isolate);
-  i::Handle<i::CallbackTask> microtask = isolate->factory()->NewCallbackTask(
-      isolate->factory()->NewForeign(reinterpret_cast<i::Address>(callback)),
-      isolate->factory()->NewForeign(reinterpret_cast<i::Address>(data)));
-  isolate->default_microtask_queue()->EnqueueMicrotask(*microtask);
+  isolate->default_microtask_queue()->EnqueueMicrotask(this, callback, data);
 }
 
 void Isolate::SetMicrotasksPolicy(MicrotasksPolicy policy) {
