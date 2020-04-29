@@ -2413,6 +2413,12 @@ class LiftoffCompiler {
         return EmitBinOp<kS128, kS128>(&LiftoffAssembler::emit_i8x16_eq);
       case wasm::kExprI8x16Ne:
         return EmitBinOp<kS128, kS128>(&LiftoffAssembler::emit_i8x16_ne);
+      case wasm::kExprI8x16LtS:
+        return EmitBinOp<kS128, kS128, true>(
+            &LiftoffAssembler::emit_i8x16_gt_s);
+      case wasm::kExprI8x16LtU:
+        return EmitBinOp<kS128, kS128, true>(
+            &LiftoffAssembler::emit_i8x16_gt_u);
       case wasm::kExprI8x16GtS:
         return EmitBinOp<kS128, kS128>(&LiftoffAssembler::emit_i8x16_gt_s);
       case wasm::kExprI8x16GtU:
@@ -2431,6 +2437,12 @@ class LiftoffCompiler {
         return EmitBinOp<kS128, kS128>(&LiftoffAssembler::emit_i16x8_eq);
       case wasm::kExprI16x8Ne:
         return EmitBinOp<kS128, kS128>(&LiftoffAssembler::emit_i16x8_ne);
+      case wasm::kExprI16x8LtS:
+        return EmitBinOp<kS128, kS128, true>(
+            &LiftoffAssembler::emit_i16x8_gt_s);
+      case wasm::kExprI16x8LtU:
+        return EmitBinOp<kS128, kS128, true>(
+            &LiftoffAssembler::emit_i16x8_gt_u);
       case wasm::kExprI16x8GtS:
         return EmitBinOp<kS128, kS128>(&LiftoffAssembler::emit_i16x8_gt_s);
       case wasm::kExprI16x8GtU:
@@ -2449,6 +2461,12 @@ class LiftoffCompiler {
         return EmitBinOp<kS128, kS128>(&LiftoffAssembler::emit_i32x4_eq);
       case wasm::kExprI32x4Ne:
         return EmitBinOp<kS128, kS128>(&LiftoffAssembler::emit_i32x4_ne);
+      case wasm::kExprI32x4LtS:
+        return EmitBinOp<kS128, kS128, true>(
+            &LiftoffAssembler::emit_i32x4_gt_s);
+      case wasm::kExprI32x4LtU:
+        return EmitBinOp<kS128, kS128, true>(
+            &LiftoffAssembler::emit_i32x4_gt_u);
       case wasm::kExprI32x4GtS:
         return EmitBinOp<kS128, kS128>(&LiftoffAssembler::emit_i32x4_gt_s);
       case wasm::kExprI32x4GtU:
