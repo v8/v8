@@ -1535,57 +1535,36 @@ void LiftoffAssembler::emit_f64_set_cond(Condition cond, Register dst,
 
 void LiftoffAssembler::emit_i8x16_splat(LiftoffRegister dst,
                                         LiftoffRegister src) {
-  // TODO(mips): Support this on loongson 3a4000. Currently, the main MIPS
-  // CPU, Loongson 3a3000 does not support MSA(simd128), but the upcoming
-  // 3a4000 support MSA.
   bailout(kSimd, "emit_i8x16_splat");
 }
 
 void LiftoffAssembler::emit_i16x8_splat(LiftoffRegister dst,
                                         LiftoffRegister src) {
-  // TODO(mips): Support this on loongson 3a4000. Currently, the main MIPS
-  // CPU, Loongson 3a3000 does not support MSA(simd128), but the upcoming
-  // 3a4000 support MSA.
   bailout(kSimd, "emit_i16x8_splat");
 }
 
 void LiftoffAssembler::emit_i32x4_splat(LiftoffRegister dst,
                                         LiftoffRegister src) {
-  // TODO(mips): Support this on loongson 3a4000. Currently, the main MIPS
-  // CPU, Loongson 3a3000 does not support MSA(simd128), but the upcoming
-  // 3a4000 support MSA.
   bailout(kSimd, "emit_i32x4_splat");
 }
 
 void LiftoffAssembler::emit_i64x2_splat(LiftoffRegister dst,
                                         LiftoffRegister src) {
-  // TODO(mips): Support this on loongson 3a4000. Currently, the main MIPS
-  // CPU, Loongson 3a3000 does not support MSA(simd128), but the upcoming
-  // 3a4000 support MSA.
   bailout(kSimd, "emit_i64x2_splat");
 }
 
 void LiftoffAssembler::emit_f32x4_splat(LiftoffRegister dst,
                                         LiftoffRegister src) {
-  // TODO(mips): Support this on loongson 3a4000. Currently, the main MIPS
-  // CPU, Loongson 3a3000 does not support MSA(simd128), but the upcoming
-  // 3a4000 support MSA.
   bailout(kSimd, "emit_f32x4_splat");
 }
 
 void LiftoffAssembler::emit_f64x2_splat(LiftoffRegister dst,
                                         LiftoffRegister src) {
-  // TODO(mips): Support this on loongson 3a4000. Currently, the main MIPS
-  // CPU, Loongson 3a3000 does not support MSA(simd128), but the upcoming
-  // 3a4000 support MSA.
   bailout(kSimd, "emit_f64x2_splat");
 }
 
 void LiftoffAssembler::emit_i8x16_eq(LiftoffRegister dst, LiftoffRegister lhs,
                                      LiftoffRegister rhs) {
-  // TODO(mips): Support this on loongson 3a4000. Currently, the main MIPS
-  // CPU, Loongson 3a3000 does not support MSA(simd128), but the upcoming
-  // 3a4000 support MSA.
   bailout(kSimd, "emit_i8x16_eq");
 }
 
@@ -1606,9 +1585,6 @@ void LiftoffAssembler::emit_i8x16_ge_u(LiftoffRegister dst, LiftoffRegister lhs,
 
 void LiftoffAssembler::emit_i16x8_eq(LiftoffRegister dst, LiftoffRegister lhs,
                                      LiftoffRegister rhs) {
-  // TODO(mips): Support this on loongson 3a4000. Currently, the main MIPS
-  // CPU, Loongson 3a3000 does not support MSA(simd128), but the upcoming
-  // 3a4000 support MSA.
   bailout(kSimd, "emit_i16x8_eq");
 }
 
@@ -1629,9 +1605,6 @@ void LiftoffAssembler::emit_i16x8_ge_u(LiftoffRegister dst, LiftoffRegister lhs,
 
 void LiftoffAssembler::emit_i32x4_eq(LiftoffRegister dst, LiftoffRegister lhs,
                                      LiftoffRegister rhs) {
-  // TODO(mips): Support this on loongson 3a4000. Currently, the main MIPS
-  // CPU, Loongson 3a3000 does not support MSA(simd128), but the upcoming
-  // 3a4000 support MSA.
   bailout(kSimd, "emit_i32x4_eq");
 }
 
@@ -1652,9 +1625,6 @@ void LiftoffAssembler::emit_i32x4_ge_u(LiftoffRegister dst, LiftoffRegister lhs,
 
 void LiftoffAssembler::emit_f32x4_eq(LiftoffRegister dst, LiftoffRegister lhs,
                                      LiftoffRegister rhs) {
-  // TODO(mips): Support this on loongson 3a4000. Currently, the main MIPS
-  // CPU, Loongson 3a3000 does not support MSA(simd128), but the upcoming
-  // 3a4000 support MSA.
   bailout(kSimd, "emit_f32x4_eq");
 }
 
@@ -1675,9 +1645,6 @@ void LiftoffAssembler::emit_f32x4_le(LiftoffRegister dst, LiftoffRegister lhs,
 
 void LiftoffAssembler::emit_f64x2_eq(LiftoffRegister dst, LiftoffRegister lhs,
                                      LiftoffRegister rhs) {
-  // TODO(mips): Support this on loongson 3a4000. Currently, the main MIPS
-  // CPU, Loongson 3a3000 does not support MSA(simd128), but the upcoming
-  // 3a4000 support MSA.
   bailout(kSimd, "emit_f64x2_eq");
 }
 
@@ -1697,42 +1664,27 @@ void LiftoffAssembler::emit_f64x2_le(LiftoffRegister dst, LiftoffRegister lhs,
 }
 
 void LiftoffAssembler::emit_s128_not(LiftoffRegister dst, LiftoffRegister src) {
-  // TODO(mips): Support this on loongson 3a4000. Currently, the main MIPS
-  // CPU, Loongson 3a3000 does not support MSA(simd128), but the upcoming
-  // 3a4000 support MSA.
   bailout(kSimd, "emit_s128_not");
 }
 
 void LiftoffAssembler::emit_s128_and(LiftoffRegister dst, LiftoffRegister lhs,
                                      LiftoffRegister rhs) {
-  // TODO(mips): Support this on loongson 3a4000. Currently, the main MIPS
-  // CPU, Loongson 3a3000 does not support MSA(simd128), but the upcoming
-  // 3a4000 support MSA.
   bailout(kSimd, "emit_s128_and");
 }
 
 void LiftoffAssembler::emit_s128_or(LiftoffRegister dst, LiftoffRegister lhs,
                                     LiftoffRegister rhs) {
-  // TODO(mips): Support this on loongson 3a4000. Currently, the main MIPS
-  // CPU, Loongson 3a3000 does not support MSA(simd128), but the upcoming
-  // 3a4000 support MSA.
   bailout(kSimd, "emit_s128_or");
 }
 
 void LiftoffAssembler::emit_s128_xor(LiftoffRegister dst, LiftoffRegister lhs,
                                      LiftoffRegister rhs) {
-  // TODO(mips): Support this on loongson 3a4000. Currently, the main MIPS
-  // CPU, Loongson 3a3000 does not support MSA(simd128), but the upcoming
-  // 3a4000 support MSA.
   bailout(kSimd, "emit_s128_xor");
 }
 
 void LiftoffAssembler::emit_s128_and_not(LiftoffRegister dst,
                                          LiftoffRegister lhs,
                                          LiftoffRegister rhs) {
-  // TODO(mips): Support this on loongson 3a4000. Currently, the main MIPS
-  // CPU, Loongson 3a3000 does not support MSA(simd128), but the upcoming
-  // 3a4000 support MSA.
   bailout(kSimd, "emit_s128_and_not");
 }
 
@@ -1745,365 +1697,236 @@ void LiftoffAssembler::emit_s128_select(LiftoffRegister dst,
 
 void LiftoffAssembler::emit_i8x16_neg(LiftoffRegister dst,
                                       LiftoffRegister src) {
-  // TODO(mips): Support this on loongson 3a4000. Currently, the main MIPS
-  // CPU, Loongson 3a3000 does not support MSA(simd128), but the upcoming
-  // 3a4000 support MSA.
   bailout(kSimd, "emit_i8x16_neg");
 }
 
 void LiftoffAssembler::emit_i8x16_add(LiftoffRegister dst, LiftoffRegister lhs,
                                       LiftoffRegister rhs) {
-  // TODO(mips): Support this on loongson 3a4000. Currently, the main MIPS
-  // CPU, Loongson 3a3000 does not support MSA(simd128), but the upcoming
-  // 3a4000 support MSA.
   bailout(kSimd, "emit_i8x16_add");
 }
 
 void LiftoffAssembler::emit_i8x16_add_saturate_s(LiftoffRegister dst,
                                                  LiftoffRegister lhs,
                                                  LiftoffRegister rhs) {
-  // TODO(mips): Support this on loongson 3a4000. Currently, the main MIPS
-  // CPU, Loongson 3a3000 does not support MSA(simd128), but the upcoming
-  // 3a4000 support MSA.
   bailout(kSimd, "emit_i8x16_add_saturate_s");
 }
 
 void LiftoffAssembler::emit_i8x16_add_saturate_u(LiftoffRegister dst,
                                                  LiftoffRegister lhs,
                                                  LiftoffRegister rhs) {
-  // TODO(mips): Support this on loongson 3a4000. Currently, the main MIPS
-  // CPU, Loongson 3a3000 does not support MSA(simd128), but the upcoming
-  // 3a4000 support MSA.
   bailout(kSimd, "emit_i8x16_add_saturate_u");
 }
 
 void LiftoffAssembler::emit_i8x16_sub(LiftoffRegister dst, LiftoffRegister lhs,
                                       LiftoffRegister rhs) {
-  // TODO(mips): Support this on loongson 3a4000. Currently, the main MIPS
-  // CPU, Loongson 3a3000 does not support MSA(simd128), but the upcoming
-  // 3a4000 support MSA.
   bailout(kSimd, "emit_i8x16_sub");
 }
 
 void LiftoffAssembler::emit_i8x16_sub_saturate_s(LiftoffRegister dst,
                                                  LiftoffRegister lhs,
                                                  LiftoffRegister rhs) {
-  // TODO(mips): Support this on loongson 3a4000. Currently, the main MIPS
-  // CPU, Loongson 3a3000 does not support MSA(simd128), but the upcoming
-  // 3a4000 support MSA.
   bailout(kSimd, "emit_i8x16_sub_saturate_s");
 }
 
 void LiftoffAssembler::emit_i8x16_sub_saturate_u(LiftoffRegister dst,
                                                  LiftoffRegister lhs,
                                                  LiftoffRegister rhs) {
-  // TODO(mips): Support this on loongson 3a4000. Currently, the main MIPS
-  // CPU, Loongson 3a3000 does not support MSA(simd128), but the upcoming
-  // 3a4000 support MSA.
   bailout(kSimd, "emit_i8x16_sub_saturate_u");
 }
 
 void LiftoffAssembler::emit_i8x16_mul(LiftoffRegister dst, LiftoffRegister lhs,
                                       LiftoffRegister rhs) {
-  // TODO(mips): Support this on loongson 3a4000. Currently, the main MIPS
-  // CPU, Loongson 3a3000 does not support MSA(simd128), but the upcoming
-  // 3a4000 support MSA.
   bailout(kSimd, "emit_i8x16_mul");
 }
 
 void LiftoffAssembler::emit_i8x16_min_s(LiftoffRegister dst,
                                         LiftoffRegister lhs,
                                         LiftoffRegister rhs) {
-  // TODO(mips): Support this on loongson 3a4000. Currently, the main MIPS
-  // CPU, Loongson 3a3000 does not support MSA(simd128), but the upcoming
-  // 3a4000 support MSA.
   bailout(kSimd, "emit_i8x16_min_s");
 }
 
 void LiftoffAssembler::emit_i8x16_min_u(LiftoffRegister dst,
                                         LiftoffRegister lhs,
                                         LiftoffRegister rhs) {
-  // TODO(mips): Support this on loongson 3a4000. Currently, the main MIPS
-  // CPU, Loongson 3a3000 does not support MSA(simd128), but the upcoming
-  // 3a4000 support MSA.
   bailout(kSimd, "emit_i8x16_min_u");
 }
 
 void LiftoffAssembler::emit_i8x16_max_s(LiftoffRegister dst,
                                         LiftoffRegister lhs,
                                         LiftoffRegister rhs) {
-  // TODO(mips): Support this on loongson 3a4000. Currently, the main MIPS
-  // CPU, Loongson 3a3000 does not support MSA(simd128), but the upcoming
-  // 3a4000 support MSA.
   bailout(kSimd, "emit_i8x16_max_s");
 }
 
 void LiftoffAssembler::emit_i8x16_max_u(LiftoffRegister dst,
                                         LiftoffRegister lhs,
                                         LiftoffRegister rhs) {
-  // TODO(mips): Support this on loongson 3a4000. Currently, the main MIPS
-  // CPU, Loongson 3a3000 does not support MSA(simd128), but the upcoming
-  // 3a4000 support MSA.
   bailout(kSimd, "emit_i8x16_max_u");
 }
 
 void LiftoffAssembler::emit_i16x8_neg(LiftoffRegister dst,
                                       LiftoffRegister src) {
-  // TODO(mips): Support this on loongson 3a4000. Currently, the main MIPS
-  // CPU, Loongson 3a3000 does not support MSA(simd128), but the upcoming
-  // 3a4000 support MSA.
   bailout(kSimd, "emit_i16x8_neg");
 }
 
 void LiftoffAssembler::emit_i16x8_add(LiftoffRegister dst, LiftoffRegister lhs,
                                       LiftoffRegister rhs) {
-  // TODO(mips): Support this on loongson 3a4000. Currently, the main MIPS
-  // CPU, Loongson 3a3000 does not support MSA(simd128), but the upcoming
-  // 3a4000 support MSA.
   bailout(kSimd, "emit_i16x8_add");
 }
 
 void LiftoffAssembler::emit_i16x8_add_saturate_s(LiftoffRegister dst,
                                                  LiftoffRegister lhs,
                                                  LiftoffRegister rhs) {
-  // TODO(mips): Support this on loongson 3a4000. Currently, the main MIPS
-  // CPU, Loongson 3a3000 does not support MSA(simd128), but the upcoming
-  // 3a4000 support MSA.
   bailout(kSimd, "emit_i16x8_add_saturate_s");
 }
 
 void LiftoffAssembler::emit_i16x8_add_saturate_u(LiftoffRegister dst,
                                                  LiftoffRegister lhs,
                                                  LiftoffRegister rhs) {
-  // TODO(mips): Support this on loongson 3a4000. Currently, the main MIPS
-  // CPU, Loongson 3a3000 does not support MSA(simd128), but the upcoming
-  // 3a4000 support MSA.
   bailout(kSimd, "emit_i16x8_add_saturate_u");
 }
 
 void LiftoffAssembler::emit_i16x8_sub(LiftoffRegister dst, LiftoffRegister lhs,
                                       LiftoffRegister rhs) {
-  // TODO(mips): Support this on loongson 3a4000. Currently, the main MIPS
-  // CPU, Loongson 3a3000 does not support MSA(simd128), but the upcoming
-  // 3a4000 support MSA.
   bailout(kSimd, "emit_i16x8_sub");
 }
 
 void LiftoffAssembler::emit_i16x8_sub_saturate_s(LiftoffRegister dst,
                                                  LiftoffRegister lhs,
                                                  LiftoffRegister rhs) {
-  // TODO(mips): Support this on loongson 3a4000. Currently, the main MIPS
-  // CPU, Loongson 3a3000 does not support MSA(simd128), but the upcoming
-  // 3a4000 support MSA.
   bailout(kSimd, "emit_i16x8_sub_saturate_s");
 }
 
 void LiftoffAssembler::emit_i16x8_sub_saturate_u(LiftoffRegister dst,
                                                  LiftoffRegister lhs,
                                                  LiftoffRegister rhs) {
-  // TODO(mips): Support this on loongson 3a4000. Currently, the main MIPS
-  // CPU, Loongson 3a3000 does not support MSA(simd128), but the upcoming
-  // 3a4000 support MSA.
   bailout(kSimd, "emit_i16x8_sub_saturate_u");
 }
 
 void LiftoffAssembler::emit_i16x8_mul(LiftoffRegister dst, LiftoffRegister lhs,
                                       LiftoffRegister rhs) {
-  // TODO(mips): Support this on loongson 3a4000. Currently, the main MIPS
-  // CPU, Loongson 3a3000 does not support MSA(simd128), but the upcoming
-  // 3a4000 support MSA.
   bailout(kSimd, "emit_i16x8_mul");
 }
 
 void LiftoffAssembler::emit_i16x8_min_s(LiftoffRegister dst,
                                         LiftoffRegister lhs,
                                         LiftoffRegister rhs) {
-  // TODO(mips): Support this on loongson 3a4000. Currently, the main MIPS
-  // CPU, Loongson 3a3000 does not support MSA(simd128), but the upcoming
-  // 3a4000 support MSA.
   bailout(kSimd, "emit_i16x8_min_s");
 }
 
 void LiftoffAssembler::emit_i16x8_min_u(LiftoffRegister dst,
                                         LiftoffRegister lhs,
                                         LiftoffRegister rhs) {
-  // TODO(mips): Support this on loongson 3a4000. Currently, the main MIPS
-  // CPU, Loongson 3a3000 does not support MSA(simd128), but the upcoming
-  // 3a4000 support MSA.
   bailout(kSimd, "emit_i16x8_min_u");
 }
 
 void LiftoffAssembler::emit_i16x8_max_s(LiftoffRegister dst,
                                         LiftoffRegister lhs,
                                         LiftoffRegister rhs) {
-  // TODO(mips): Support this on loongson 3a4000. Currently, the main MIPS
-  // CPU, Loongson 3a3000 does not support MSA(simd128), but the upcoming
-  // 3a4000 support MSA.
   bailout(kSimd, "emit_i16x8_max_s");
 }
 
 void LiftoffAssembler::emit_i16x8_max_u(LiftoffRegister dst,
                                         LiftoffRegister lhs,
                                         LiftoffRegister rhs) {
-  // TODO(mips): Support this on loongson 3a4000. Currently, the main MIPS
-  // CPU, Loongson 3a3000 does not support MSA(simd128), but the upcoming
-  // 3a4000 support MSA.
   bailout(kSimd, "emit_i16x8_max_u");
 }
 
 void LiftoffAssembler::emit_i32x4_neg(LiftoffRegister dst,
                                       LiftoffRegister src) {
-  // TODO(mips): Support this on loongson 3a4000. Currently, the main MIPS
-  // CPU, Loongson 3a3000 does not support MSA(simd128), but the upcoming
-  // 3a4000 support MSA.
   bailout(kSimd, "emit_i32x4_neg");
 }
 
 void LiftoffAssembler::emit_i32x4_add(LiftoffRegister dst, LiftoffRegister lhs,
                                       LiftoffRegister rhs) {
-  // TODO(mips): Support this on loongson 3a4000. Currently, the main MIPS
-  // CPU, Loongson 3a3000 does not support MSA(simd128), but the upcoming
-  // 3a4000 support MSA.
   bailout(kSimd, "emit_i32x4_add");
 }
 
 void LiftoffAssembler::emit_i32x4_sub(LiftoffRegister dst, LiftoffRegister lhs,
                                       LiftoffRegister rhs) {
-  // TODO(mips): Support this on loongson 3a4000. Currently, the main MIPS
-  // CPU, Loongson 3a3000 does not support MSA(simd128), but the upcoming
-  // 3a4000 support MSA.
   bailout(kSimd, "emit_i32x4_sub");
 }
 
 void LiftoffAssembler::emit_i32x4_mul(LiftoffRegister dst, LiftoffRegister lhs,
                                       LiftoffRegister rhs) {
-  // TODO(mips): Support this on loongson 3a4000. Currently, the main MIPS
-  // CPU, Loongson 3a3000 does not support MSA(simd128), but the upcoming
-  // 3a4000 support MSA.
   bailout(kSimd, "emit_i32x4_mul");
 }
 
 void LiftoffAssembler::emit_i32x4_min_s(LiftoffRegister dst,
                                         LiftoffRegister lhs,
                                         LiftoffRegister rhs) {
-  // TODO(mips): Support this on loongson 3a4000. Currently, the main MIPS
-  // CPU, Loongson 3a3000 does not support MSA(simd128), but the upcoming
-  // 3a4000 support MSA.
   bailout(kSimd, "emit_i32x4_min_s");
 }
 
 void LiftoffAssembler::emit_i32x4_min_u(LiftoffRegister dst,
                                         LiftoffRegister lhs,
                                         LiftoffRegister rhs) {
-  // TODO(mips): Support this on loongson 3a4000. Currently, the main MIPS
-  // CPU, Loongson 3a3000 does not support MSA(simd128), but the upcoming
-  // 3a4000 support MSA.
   bailout(kSimd, "emit_i32x4_min_u");
 }
 
 void LiftoffAssembler::emit_i32x4_max_s(LiftoffRegister dst,
                                         LiftoffRegister lhs,
                                         LiftoffRegister rhs) {
-  // TODO(mips): Support this on loongson 3a4000. Currently, the main MIPS
-  // CPU, Loongson 3a3000 does not support MSA(simd128), but the upcoming
-  // 3a4000 support MSA.
   bailout(kSimd, "emit_i32x4_max_s");
 }
 
 void LiftoffAssembler::emit_i32x4_max_u(LiftoffRegister dst,
                                         LiftoffRegister lhs,
                                         LiftoffRegister rhs) {
-  // TODO(mips): Support this on loongson 3a4000. Currently, the main MIPS
-  // CPU, Loongson 3a3000 does not support MSA(simd128), but the upcoming
-  // 3a4000 support MSA.
   bailout(kSimd, "emit_i32x4_max_u");
 }
 
 void LiftoffAssembler::emit_i64x2_neg(LiftoffRegister dst,
                                       LiftoffRegister src) {
-  // TODO(mips): Support this on loongson 3a4000. Currently, the main MIPS
-  // CPU, Loongson 3a3000 does not support MSA(simd128), but the upcoming
-  // 3a4000 support MSA.
   bailout(kSimd, "emit_i64x2_neg");
 }
 
 void LiftoffAssembler::emit_i64x2_add(LiftoffRegister dst, LiftoffRegister lhs,
                                       LiftoffRegister rhs) {
-  // TODO(mips): Support this on loongson 3a4000. Currently, the main MIPS
-  // CPU, Loongson 3a3000 does not support MSA(simd128), but the upcoming
-  // 3a4000 support MSA.
   bailout(kSimd, "emit_i64x2_add");
 }
 
 void LiftoffAssembler::emit_i64x2_sub(LiftoffRegister dst, LiftoffRegister lhs,
                                       LiftoffRegister rhs) {
-  // TODO(mips): Support this on loongson 3a4000. Currently, the main MIPS
-  // CPU, Loongson 3a3000 does not support MSA(simd128), but the upcoming
-  // 3a4000 support MSA.
   bailout(kSimd, "emit_i64x2_sub");
 }
 
 void LiftoffAssembler::emit_i64x2_mul(LiftoffRegister dst, LiftoffRegister lhs,
                                       LiftoffRegister rhs) {
-  // TODO(mips): Support this on loongson 3a4000. Currently, the main MIPS
-  // CPU, Loongson 3a3000 does not support MSA(simd128), but the upcoming
-  // 3a4000 support MSA.
   bailout(kSimd, "emit_i64x2_mul");
 }
 
 void LiftoffAssembler::emit_f32x4_abs(LiftoffRegister dst,
                                       LiftoffRegister src) {
-  // TODO(mips): Support this on loongson 3a4000. Currently, the main MIPS
-  // CPU, Loongson 3a3000 does not support MSA(simd128), but the upcoming
-  // 3a4000 support MSA.
   bailout(kSimd, "emit_f32x4_abs");
 }
 
 void LiftoffAssembler::emit_f32x4_neg(LiftoffRegister dst,
                                       LiftoffRegister src) {
-  // TODO(mips): Support this on loongson 3a4000. Currently, the main MIPS
-  // CPU, Loongson 3a3000 does not support MSA(simd128), but the upcoming
-  // 3a4000 support MSA.
   bailout(kSimd, "emit_f32x4_neg");
 }
 
 void LiftoffAssembler::emit_f32x4_sqrt(LiftoffRegister dst,
                                        LiftoffRegister src) {
-  // TODO(mips): Support this on loongson 3a4000. Currently, the main MIPS
-  // CPU, Loongson 3a3000 does not support MSA(simd128), but the upcoming
-  // 3a4000 support MSA.
   bailout(kSimd, "emit_f32x4_sqrt");
 }
 
 void LiftoffAssembler::emit_f32x4_add(LiftoffRegister dst, LiftoffRegister lhs,
                                       LiftoffRegister rhs) {
-  // TODO(mips): Support this on loongson 3a4000. Currently, the main MIPS
-  // CPU, Loongson 3a3000 does not support MSA(simd128), but the upcoming
-  // 3a4000 support MSA.
   bailout(kSimd, "emit_f32x4_add");
 }
 
 void LiftoffAssembler::emit_f32x4_sub(LiftoffRegister dst, LiftoffRegister lhs,
                                       LiftoffRegister rhs) {
-  // TODO(mips): Support this on loongson 3a4000. Currently, the main MIPS
-  // CPU, Loongson 3a3000 does not support MSA(simd128), but the upcoming
-  // 3a4000 support MSA.
   bailout(kSimd, "emit_f32x4_sub");
 }
 
 void LiftoffAssembler::emit_f32x4_mul(LiftoffRegister dst, LiftoffRegister lhs,
                                       LiftoffRegister rhs) {
-  // TODO(mips): Support this on loongson 3a4000. Currently, the main MIPS
-  // CPU, Loongson 3a3000 does not support MSA(simd128), but the upcoming
-  // 3a4000 support MSA.
   bailout(kSimd, "emit_f32x4_mul");
 }
 
 void LiftoffAssembler::emit_f32x4_div(LiftoffRegister dst, LiftoffRegister lhs,
                                       LiftoffRegister rhs) {
-  // TODO(mips): Support this on loongson 3a4000. Currently, the main MIPS
-  // CPU, Loongson 3a3000 does not support MSA(simd128), but the upcoming
-  // 3a4000 support MSA.
   bailout(kSimd, "emit_f32x4_div");
 }
 
@@ -2119,57 +1942,36 @@ void LiftoffAssembler::emit_f32x4_max(LiftoffRegister dst, LiftoffRegister lhs,
 
 void LiftoffAssembler::emit_f64x2_abs(LiftoffRegister dst,
                                       LiftoffRegister src) {
-  // TODO(mips): Support this on loongson 3a4000. Currently, the main MIPS
-  // CPU, Loongson 3a3000 does not support MSA(simd128), but the upcoming
-  // 3a4000 support MSA.
   bailout(kSimd, "emit_f64x2_abs");
 }
 
 void LiftoffAssembler::emit_f64x2_neg(LiftoffRegister dst,
                                       LiftoffRegister src) {
-  // TODO(mips): Support this on loongson 3a4000. Currently, the main MIPS
-  // CPU, Loongson 3a3000 does not support MSA(simd128), but the upcoming
-  // 3a4000 support MSA.
   bailout(kSimd, "emit_f64x2_neg");
 }
 
 void LiftoffAssembler::emit_f64x2_sqrt(LiftoffRegister dst,
                                        LiftoffRegister src) {
-  // TODO(mips): Support this on loongson 3a4000. Currently, the main MIPS
-  // CPU, Loongson 3a3000 does not support MSA(simd128), but the upcoming
-  // 3a4000 support MSA.
   bailout(kSimd, "emit_f64x2_sqrt");
 }
 
 void LiftoffAssembler::emit_f64x2_add(LiftoffRegister dst, LiftoffRegister lhs,
                                       LiftoffRegister rhs) {
-  // TODO(mips): Support this on loongson 3a4000. Currently, the main MIPS
-  // CPU, Loongson 3a3000 does not support MSA(simd128), but the upcoming
-  // 3a4000 support MSA.
   bailout(kSimd, "emit_f64x2_add");
 }
 
 void LiftoffAssembler::emit_f64x2_sub(LiftoffRegister dst, LiftoffRegister lhs,
                                       LiftoffRegister rhs) {
-  // TODO(mips): Support this on loongson 3a4000. Currently, the main MIPS
-  // CPU, Loongson 3a3000 does not support MSA(simd128), but the upcoming
-  // 3a4000 support MSA.
   bailout(kSimd, "emit_f64x2_sub");
 }
 
 void LiftoffAssembler::emit_f64x2_mul(LiftoffRegister dst, LiftoffRegister lhs,
                                       LiftoffRegister rhs) {
-  // TODO(mips): Support this on loongson 3a4000. Currently, the main MIPS
-  // CPU, Loongson 3a3000 does not support MSA(simd128), but the upcoming
-  // 3a4000 support MSA.
   bailout(kSimd, "emit_f64x2_mul");
 }
 
 void LiftoffAssembler::emit_f64x2_div(LiftoffRegister dst, LiftoffRegister lhs,
                                       LiftoffRegister rhs) {
-  // TODO(mips): Support this on loongson 3a4000. Currently, the main MIPS
-  // CPU, Loongson 3a3000 does not support MSA(simd128), but the upcoming
-  // 3a4000 support MSA.
   bailout(kSimd, "emit_f64x2_div");
 }
 
@@ -2186,214 +1988,139 @@ void LiftoffAssembler::emit_f64x2_max(LiftoffRegister dst, LiftoffRegister lhs,
 void LiftoffAssembler::emit_i8x16_sconvert_i16x8(LiftoffRegister dst,
                                                  LiftoffRegister lhs,
                                                  LiftoffRegister rhs) {
-  // TODO(mips): Support this on loongson 3a4000. Currently, the main MIPS
-  // CPU, Loongson 3a3000 does not support MSA(simd128), but the upcoming
-  // 3a4000 support MSA.
   bailout(kSimd, "emit_i8x16_sconvert_i16x8");
 }
 
 void LiftoffAssembler::emit_i8x16_uconvert_i16x8(LiftoffRegister dst,
                                                  LiftoffRegister lhs,
                                                  LiftoffRegister rhs) {
-  // TODO(mips): Support this on loongson 3a4000. Currently, the main MIPS
-  // CPU, Loongson 3a3000 does not support MSA(simd128), but the upcoming
-  // 3a4000 support MSA.
   bailout(kSimd, "emit_i8x16_uconvert_i16x8");
 }
 
 void LiftoffAssembler::emit_i16x8_sconvert_i32x4(LiftoffRegister dst,
                                                  LiftoffRegister lhs,
                                                  LiftoffRegister rhs) {
-  // TODO(mips): Support this on loongson 3a4000. Currently, the main MIPS
-  // CPU, Loongson 3a3000 does not support MSA(simd128), but the upcoming
-  // 3a4000 support MSA.
   bailout(kSimd, "emit_i16x8_sconvert_i32x4");
 }
 
 void LiftoffAssembler::emit_i16x8_uconvert_i32x4(LiftoffRegister dst,
                                                  LiftoffRegister lhs,
                                                  LiftoffRegister rhs) {
-  // TODO(mips): Support this on loongson 3a4000. Currently, the main MIPS
-  // CPU, Loongson 3a3000 does not support MSA(simd128), but the upcoming
-  // 3a4000 support MSA.
   bailout(kSimd, "emit_i16x8_uconvert_i32x4");
 }
 
 void LiftoffAssembler::emit_i16x8_sconvert_i8x16_low(LiftoffRegister dst,
                                                      LiftoffRegister src) {
-  // TODO(mips): Support this on loongson 3a4000. Currently, the main MIPS
-  // CPU, Loongson 3a3000 does not support MSA(simd128), but the upcoming
-  // 3a4000 support MSA.
   bailout(kSimd, "emit_i16x8_sconvert_i8x16_low");
 }
 
 void LiftoffAssembler::emit_i16x8_sconvert_i8x16_high(LiftoffRegister dst,
                                                       LiftoffRegister src) {
-  // TODO(mips): Support this on loongson 3a4000. Currently, the main MIPS
-  // CPU, Loongson 3a3000 does not support MSA(simd128), but the upcoming
-  // 3a4000 support MSA.
   bailout(kSimd, "emit_i16x8_sconvert_i8x16_high");
 }
 
 void LiftoffAssembler::emit_i16x8_uconvert_i8x16_low(LiftoffRegister dst,
                                                      LiftoffRegister src) {
-  // TODO(mips): Support this on loongson 3a4000. Currently, the main MIPS
-  // CPU, Loongson 3a3000 does not support MSA(simd128), but the upcoming
-  // 3a4000 support MSA.
   bailout(kSimd, "emit_i16x8_uconvert_i8x16_low");
 }
 
 void LiftoffAssembler::emit_i16x8_uconvert_i8x16_high(LiftoffRegister dst,
                                                       LiftoffRegister src) {
-  // TODO(mips): Support this on loongson 3a4000. Currently, the main MIPS
-  // CPU, Loongson 3a3000 does not support MSA(simd128), but the upcoming
-  // 3a4000 support MSA.
   bailout(kSimd, "emit_i16x8_uconvert_i8x16_high");
 }
 
 void LiftoffAssembler::emit_i32x4_sconvert_i16x8_low(LiftoffRegister dst,
                                                      LiftoffRegister src) {
-  // TODO(mips): Support this on loongson 3a4000. Currently, the main MIPS
-  // CPU, Loongson 3a3000 does not support MSA(simd128), but the upcoming
-  // 3a4000 support MSA.
   bailout(kSimd, "emit_i32x4_sconvert_i16x8_low");
 }
 
 void LiftoffAssembler::emit_i32x4_sconvert_i16x8_high(LiftoffRegister dst,
                                                       LiftoffRegister src) {
-  // TODO(mips): Support this on loongson 3a4000. Currently, the main MIPS
-  // CPU, Loongson 3a3000 does not support MSA(simd128), but the upcoming
-  // 3a4000 support MSA.
   bailout(kSimd, "emit_i32x4_sconvert_i16x8_high");
 }
 
 void LiftoffAssembler::emit_i32x4_uconvert_i16x8_low(LiftoffRegister dst,
                                                      LiftoffRegister src) {
-  // TODO(mips): Support this on loongson 3a4000. Currently, the main MIPS
-  // CPU, Loongson 3a3000 does not support MSA(simd128), but the upcoming
-  // 3a4000 support MSA.
   bailout(kSimd, "emit_i32x4_uconvert_i16x8_low");
 }
 
 void LiftoffAssembler::emit_i32x4_uconvert_i16x8_high(LiftoffRegister dst,
                                                       LiftoffRegister src) {
-  // TODO(mips): Support this on loongson 3a4000. Currently, the main MIPS
-  // CPU, Loongson 3a3000 does not support MSA(simd128), but the upcoming
-  // 3a4000 support MSA.
   bailout(kSimd, "emit_i32x4_uconvert_i16x8_high");
 }
 
 void LiftoffAssembler::emit_i8x16_rounding_average_u(LiftoffRegister dst,
                                                      LiftoffRegister lhs,
                                                      LiftoffRegister rhs) {
-  // TODO(mips): Support this on loongson 3a4000. Currently, the main MIPS
-  // CPU, Loongson 3a3000 does not support MSA(simd128), but the upcoming
-  // 3a4000 support MSA.
   bailout(kSimd, "emit_i8x16_rounding_average_u");
 }
 
 void LiftoffAssembler::emit_i16x8_rounding_average_u(LiftoffRegister dst,
                                                      LiftoffRegister lhs,
                                                      LiftoffRegister rhs) {
-  // TODO(mips): Support this on loongson 3a4000. Currently, the main MIPS
-  // CPU, Loongson 3a3000 does not support MSA(simd128), but the upcoming
-  // 3a4000 support MSA.
   bailout(kSimd, "emit_i16x8_rounding_average_u");
 }
 
 void LiftoffAssembler::emit_i8x16_abs(LiftoffRegister dst,
                                       LiftoffRegister src) {
-  // TODO(mips): Support this on loongson 3a4000. Currently, the main MIPS
-  // CPU, Loongson 3a3000 does not support MSA(simd128), but the upcoming
-  // 3a4000 support MSA.
   bailout(kSimd, "emit_i8x16_abs");
 }
 
 void LiftoffAssembler::emit_i16x8_abs(LiftoffRegister dst,
                                       LiftoffRegister src) {
-  // TODO(mips): Support this on loongson 3a4000. Currently, the main MIPS
-  // CPU, Loongson 3a3000 does not support MSA(simd128), but the upcoming
-  // 3a4000 support MSA.
   bailout(kSimd, "emit_i16x8_abs");
 }
 
 void LiftoffAssembler::emit_i32x4_abs(LiftoffRegister dst,
                                       LiftoffRegister src) {
-  // TODO(mips): Support this on loongson 3a4000. Currently, the main MIPS
-  // CPU, Loongson 3a3000 does not support MSA(simd128), but the upcoming
-  // 3a4000 support MSA.
   bailout(kSimd, "emit_i32x4_abs");
 }
 
 void LiftoffAssembler::emit_i8x16_extract_lane_s(LiftoffRegister dst,
                                                  LiftoffRegister lhs,
                                                  uint8_t imm_lane_idx) {
-  // TODO(mips): Support this on loongson 3a4000. Currently, the main MIPS
-  // CPU, Loongson 3a3000 does not support MSA(simd128), but the upcoming
-  // 3a4000 support MSA.
   bailout(kSimd, "emit_i8x16_extract_lane_s");
 }
 
 void LiftoffAssembler::emit_i8x16_extract_lane_u(LiftoffRegister dst,
                                                  LiftoffRegister lhs,
                                                  uint8_t imm_lane_idx) {
-  // TODO(mips): Support this on loongson 3a4000. Currently, the main MIPS
-  // CPU, Loongson 3a3000 does not support MSA(simd128), but the upcoming
-  // 3a4000 support MSA.
   bailout(kSimd, "emit_i8x16_extract_lane_u");
 }
 
 void LiftoffAssembler::emit_i16x8_extract_lane_s(LiftoffRegister dst,
                                                  LiftoffRegister lhs,
                                                  uint8_t imm_lane_idx) {
-  // TODO(mips): Support this on loongson 3a4000. Currently, the main MIPS
-  // CPU, Loongson 3a3000 does not support MSA(simd128), but the upcoming
-  // 3a4000 support MSA.
   bailout(kSimd, "emit_i16x8_extract_lane_s");
 }
 
 void LiftoffAssembler::emit_i16x8_extract_lane_u(LiftoffRegister dst,
                                                  LiftoffRegister lhs,
                                                  uint8_t imm_lane_idx) {
-  // TODO(mips): Support this on loongson 3a4000. Currently, the main MIPS
-  // CPU, Loongson 3a3000 does not support MSA(simd128), but the upcoming
-  // 3a4000 support MSA.
   bailout(kSimd, "emit_i16x8_extract_lane_u");
 }
 
 void LiftoffAssembler::emit_i32x4_extract_lane(LiftoffRegister dst,
                                                LiftoffRegister lhs,
                                                uint8_t imm_lane_idx) {
-  // TODO(mips): Support this on loongson 3a4000. Currently, the main MIPS
-  // CPU, Loongson 3a3000 does not support MSA(simd128), but the upcoming
-  // 3a4000 support MSA.
   bailout(kSimd, "emit_i32x4_extract_lane");
 }
 
 void LiftoffAssembler::emit_i64x2_extract_lane(LiftoffRegister dst,
                                                LiftoffRegister lhs,
                                                uint8_t imm_lane_idx) {
-  // TODO(mips): Support this on loongson 3a4000. Currently, the main MIPS
-  // CPU, Loongson 3a3000 does not support MSA(simd128), but the upcoming
-  // 3a4000 support MSA.
   bailout(kSimd, "emit_i64x2_extract_lane");
 }
 
 void LiftoffAssembler::emit_f32x4_extract_lane(LiftoffRegister dst,
                                                LiftoffRegister lhs,
                                                uint8_t imm_lane_idx) {
-  // TODO(mips): Support this on loongson 3a4000. Currently, the main MIPS
-  // CPU, Loongson 3a3000 does not support MSA(simd128), but the upcoming
-  // 3a4000 support MSA.
   bailout(kSimd, "emit_f32x4_extract_lane");
 }
 
 void LiftoffAssembler::emit_f64x2_extract_lane(LiftoffRegister dst,
                                                LiftoffRegister lhs,
                                                uint8_t imm_lane_idx) {
-  // TODO(mips): Support this on loongson 3a4000. Currently, the main MIPS
-  // CPU, Loongson 3a3000 does not support MSA(simd128), but the upcoming
-  // 3a4000 support MSA.
   bailout(kSimd, "emit_f64x2_extract_lane");
 }
 
@@ -2401,9 +2128,6 @@ void LiftoffAssembler::emit_i8x16_replace_lane(LiftoffRegister dst,
                                                LiftoffRegister src1,
                                                LiftoffRegister src2,
                                                uint8_t imm_lane_idx) {
-  // TODO(mips): Support this on loongson 3a4000. Currently, the main MIPS
-  // CPU, Loongson 3a3000 does not support MSA(simd128), but the upcoming
-  // 3a4000 support MSA.
   bailout(kSimd, "emit_i8x16_replace_lane");
 }
 
@@ -2411,9 +2135,6 @@ void LiftoffAssembler::emit_i16x8_replace_lane(LiftoffRegister dst,
                                                LiftoffRegister src1,
                                                LiftoffRegister src2,
                                                uint8_t imm_lane_idx) {
-  // TODO(mips): Support this on loongson 3a4000. Currently, the main MIPS
-  // CPU, Loongson 3a3000 does not support MSA(simd128), but the upcoming
-  // 3a4000 support MSA.
   bailout(kSimd, "emit_i16x8_replace_lane");
 }
 
@@ -2421,9 +2142,6 @@ void LiftoffAssembler::emit_i32x4_replace_lane(LiftoffRegister dst,
                                                LiftoffRegister src1,
                                                LiftoffRegister src2,
                                                uint8_t imm_lane_idx) {
-  // TODO(mips): Support this on loongson 3a4000. Currently, the main MIPS
-  // CPU, Loongson 3a3000 does not support MSA(simd128), but the upcoming
-  // 3a4000 support MSA.
   bailout(kSimd, "emit_i32x4_replace_lane");
 }
 
@@ -2431,9 +2149,6 @@ void LiftoffAssembler::emit_i64x2_replace_lane(LiftoffRegister dst,
                                                LiftoffRegister src1,
                                                LiftoffRegister src2,
                                                uint8_t imm_lane_idx) {
-  // TODO(mips): Support this on loongson 3a4000. Currently, the main MIPS
-  // CPU, Loongson 3a3000 does not support MSA(simd128), but the upcoming
-  // 3a4000 support MSA.
   bailout(kSimd, "emit_i64x2_replace_lane");
 }
 
@@ -2441,9 +2156,6 @@ void LiftoffAssembler::emit_f32x4_replace_lane(LiftoffRegister dst,
                                                LiftoffRegister src1,
                                                LiftoffRegister src2,
                                                uint8_t imm_lane_idx) {
-  // TODO(mips): Support this on loongson 3a4000. Currently, the main MIPS
-  // CPU, Loongson 3a3000 does not support MSA(simd128), but the upcoming
-  // 3a4000 support MSA.
   bailout(kSimd, "emit_f32x4_replace_lane");
 }
 
@@ -2451,9 +2163,6 @@ void LiftoffAssembler::emit_f64x2_replace_lane(LiftoffRegister dst,
                                                LiftoffRegister src1,
                                                LiftoffRegister src2,
                                                uint8_t imm_lane_idx) {
-  // TODO(mips): Support this on loongson 3a4000. Currently, the main MIPS
-  // CPU, Loongson 3a3000 does not support MSA(simd128), but the upcoming
-  // 3a4000 support MSA.
   bailout(kSimd, "emit_f64x2_replace_lane");
 }
 
