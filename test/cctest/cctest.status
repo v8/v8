@@ -621,4 +621,9 @@
   'test-cpu-profiler/DeoptUntrackedFunction': [SKIP],
 }],  # variant == turboprop
 
+##############################################################################
+['no_i18n == True', {
+  'test-regexp/UnicodePropertyEscapeCodeSize': [SKIP],
+}],  # no_i18n == True
+
 ]
