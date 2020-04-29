@@ -144,7 +144,22 @@ static void GenAndRunTest(INPUT_T input0, OUTPUT_T expected_res,
   HandleScope scope(isolate);
 
   MacroAssembler assm(isolate, v8::internal::CodeObjectRequired::kYes);
+
+  // handle floating-point parameters
+  if (std::is_same<float, INPUT_T>::value) {
+    __ RV_fmv_w_x(fa0, a0);
+  } else if (std::is_same<double, INPUT_T>::value) {
+    __ RV_fmv_d_x(fa0, a0);
+  }
+
   test_generator(assm);
+
+  // handle floating-point result
+  if (std::is_same<float, OUTPUT_T>::value) {
+    __ RV_fmv_x_w(a0, fa0);
+  } else if (std::is_same<double, OUTPUT_T>::value) {
+    __ RV_fmv_x_d(a0, fa0);
+  }
   __ RV_jr(ra);
 
   CodeDesc desc;
@@ -175,7 +190,24 @@ static void GenAndRunTest(INPUT_T input0, INPUT_T input1, OUTPUT_T expected_res,
   HandleScope scope(isolate);
 
   MacroAssembler assm(isolate, v8::internal::CodeObjectRequired::kYes);
+
+  // handle floating-point parameters
+  if (std::is_same<float, INPUT_T>::value) {
+    __ RV_fmv_w_x(fa0, a0);
+    __ RV_fmv_w_x(fa1, a1);
+  } else if (std::is_same<double, INPUT_T>::value) {
+    __ RV_fmv_d_x(fa0, a0);
+    __ RV_fmv_d_x(fa1, a1);
+  }
+
   test_generator(assm);
+
+  // handle floating-point result
+  if (std::is_same<float, OUTPUT_T>::value) {
+    __ RV_fmv_x_w(a0, fa0);
+  } else if (std::is_same<double, OUTPUT_T>::value) {
+    __ RV_fmv_x_d(a0, fa0);
+  }
   __ RV_jr(ra);
 
   CodeDesc desc;
@@ -206,7 +238,26 @@ static void GenAndRunTest(INPUT_T input0, INPUT_T input1, INPUT_T input2,
   HandleScope scope(isolate);
 
   MacroAssembler assm(isolate, v8::internal::CodeObjectRequired::kYes);
+
+  // handle floating-point parameters
+  if (std::is_same<float, INPUT_T>::value) {
+    __ RV_fmv_w_x(fa0, a0);
+    __ RV_fmv_w_x(fa1, a1);
+    __ RV_fmv_w_x(fa2, a2);
+  } else if (std::is_same<double, INPUT_T>::value) {
+    __ RV_fmv_d_x(fa0, a0);
+    __ RV_fmv_d_x(fa1, a1);
+    __ RV_fmv_d_x(fa2, a2);
+  }
+
   test_generator(assm);
+
+  // handle floating-point result
+  if (std::is_same<float, OUTPUT_T>::value) {
+    __ RV_fmv_x_w(a0, fa0);
+  } else if (std::is_same<double, OUTPUT_T>::value) {
+    __ RV_fmv_x_d(a0, fa0);
+  }
   __ RV_jr(ra);
 
   CodeDesc desc;
@@ -236,7 +287,20 @@ static void GenAndRunTestForLoadStore(T value, Func test_generator) {
   HandleScope scope(isolate);
 
   MacroAssembler assm(isolate, v8::internal::CodeObjectRequired::kYes);
+
+  if (std::is_same<float, T>::value) {
+    __ RV_fmv_w_x(fa0, a1);
+  } else if (std::is_same<double, T>::value) {
+    __ RV_fmv_d_x(fa0, a1);
+  }
+
   test_generator(assm);
+
+  if (std::is_same<float, T>::value) {
+    __ RV_fmv_x_w(a0, fa0);
+  } else if (std::is_same<double, T>::value) {
+    __ RV_fmv_x_d(a0, fa0);
+  }
   __ RV_jr(ra);
 
   CodeDesc desc;
@@ -318,65 +382,29 @@ static void GenAndRunTest(int64_t expected_res, Func test_generator) {
                                                                     \
     CcTest::InitializeVM();                                         \
     auto fn = [](MacroAssembler& assm) {                            \
-      if (std::is_same<float, value_type>::value) {                 \
-        __ RV_fmv_w_x(fa0, a1);                                     \
-      } else {                                                      \
-        __ RV_fmv_d_x(fa0, a1);                                     \
-      }                                                             \
       __ RV_##stname(fa0, a0, 0);                                   \
       __ RV_##ldname(fa0, a0, 0);                                   \
-      if (std::is_same<float, value_type>::value) {                 \
-        __ RV_fmv_x_w(a0, fa0);                                     \
-      } else {                                                      \
-        __ RV_fmv_x_d(a0, fa0);                                     \
-      }                                                             \
     };                                                              \
     GenAndRunTestForLoadStore<value_type>(store_value, fn);         \
   }
 
-#define UTEST_R1_FORM_WITH_RES_F(instr_name, inout_type, rs1_fval,      \
-                                 expected_fres)                         \
-  TEST(RISCV_UTEST_##instr_name) {                                      \
-    assert(std::is_floating_point<inout_type>::value);                  \
-    CcTest::InitializeVM();                                             \
-    auto fn = [](MacroAssembler& assm) {                                \
-      if (std::is_same<float, inout_type>::value) {                     \
-        __ RV_fmv_w_x(fa0, a0);                                         \
-      } else {                                                          \
-        __ RV_fmv_d_x(fa0, a0);                                         \
-      }                                                                 \
-      __ RV_##instr_name(fa0, fa0);                                     \
-      if (std::is_same<float, inout_type>::value) {                     \
-        __ RV_fmv_x_w(a0, fa0);                                         \
-      } else {                                                          \
-        __ RV_fmv_x_d(a0, fa0);                                         \
-      }                                                                 \
-    };                                                                  \
-    GenAndRunTest<inout_type, inout_type>(rs1_fval, expected_fres, fn); \
+#define UTEST_R1_FORM_WITH_RES_F(instr_name, inout_type, rs1_fval,        \
+                                 expected_fres)                           \
+  TEST(RISCV_UTEST_##instr_name) {                                        \
+    assert(std::is_floating_point<inout_type>::value);                    \
+    CcTest::InitializeVM();                                               \
+    auto fn = [](MacroAssembler& assm) { __ RV_##instr_name(fa0, fa0); }; \
+    GenAndRunTest<inout_type, inout_type>(rs1_fval, expected_fres, fn);   \
   }
 
-#define UTEST_R2_FORM_WITH_RES_F(instr_name, inout_type, rs1_fval, rs2_fval, \
-                                 expected_fres)                              \
-  TEST(RISCV_UTEST_##instr_name) {                                           \
-    assert(std::is_floating_point<inout_type>::value);                       \
-    CcTest::InitializeVM();                                                  \
-    auto fn = [](MacroAssembler& assm) {                                     \
-      if (std::is_same<inout_type, float>::value) {                          \
-        __ RV_fmv_w_x(fa0, a0);                                              \
-        __ RV_fmv_w_x(fa1, a1);                                              \
-      } else {                                                               \
-        __ RV_fmv_d_x(fa0, a0);                                              \
-        __ RV_fmv_d_x(fa1, a1);                                              \
-      }                                                                      \
-      __ RV_##instr_name(fa0, fa0, fa1);                                     \
-      if (std::is_same<inout_type, float>::value) {                          \
-        __ RV_fmv_x_w(a0, fa0);                                              \
-      } else {                                                               \
-        __ RV_fmv_x_d(a0, fa0);                                              \
-      }                                                                      \
-    };                                                                       \
-    GenAndRunTest<inout_type, inout_type>(rs1_fval, rs2_fval, expected_fres, \
-                                          fn);                               \
+#define UTEST_R2_FORM_WITH_RES_F(instr_name, inout_type, rs1_fval, rs2_fval,   \
+                                 expected_fres)                                \
+  TEST(RISCV_UTEST_##instr_name) {                                             \
+    assert(std::is_floating_point<inout_type>::value);                         \
+    CcTest::InitializeVM();                                                    \
+    auto fn = [](MacroAssembler& assm) { __ RV_##instr_name(fa0, fa0, fa1); }; \
+    GenAndRunTest<inout_type, inout_type>(rs1_fval, rs2_fval, expected_fres,   \
+                                          fn);                                 \
   }
 
 #define UTEST_R3_FORM_WITH_RES_F(instr_name, inout_type, rs1_fval, rs2_fval, \
@@ -385,40 +413,19 @@ static void GenAndRunTest(int64_t expected_res, Func test_generator) {
     assert(std::is_floating_point<inout_type>::value);                       \
     CcTest::InitializeVM();                                                  \
     auto fn = [](MacroAssembler& assm) {                                     \
-      if (std::is_same<inout_type, float>::value) {                          \
-        __ RV_fmv_w_x(fa0, a0);                                              \
-        __ RV_fmv_w_x(fa1, a1);                                              \
-        __ RV_fmv_w_x(fa2, a2);                                              \
-      } else {                                                               \
-        __ RV_fmv_d_x(fa0, a0);                                              \
-        __ RV_fmv_d_x(fa1, a1);                                              \
-        __ RV_fmv_d_x(fa2, a2);                                              \
-      }                                                                      \
       __ RV_##instr_name(fa0, fa0, fa1, fa2);                                \
-      if (std::is_same<inout_type, float>::value) {                          \
-        __ RV_fmv_x_w(a0, fa0);                                              \
-      } else {                                                               \
-        __ RV_fmv_x_d(a0, fa0);                                              \
-      }                                                                      \
     };                                                                       \
     GenAndRunTest<inout_type, inout_type>(rs1_fval, rs2_fval, rs3_fval,      \
                                           expected_fres, fn);                \
   }
 
-#define UTEST_COMPARE_WITH_RES_F(instr_name, input_type, output_type,        \
-                                 rs1_fval, rs2_fval, expected_res)           \
-  TEST(RISCV_UTEST_##instr_name) {                                           \
-    assert(std::is_floating_point<input_type>::value&&                       \
-               std::is_integral<output_type>::value);                        \
-                                                                             \
-    CcTest::InitializeVM();                                                  \
-    auto fn = [](MacroAssembler& assm) {                                     \
-      __ RV_fmv_w_x(fa0, a0);                                                \
-      __ RV_fmv_w_x(fa1, a1);                                                \
-      __ RV_##instr_name(a0, fa0, fa1);                                      \
-    };                                                                       \
-    GenAndRunTest<input_type, output_type>(rs1_fval, rs2_fval, expected_res, \
-                                           fn);                              \
+#define UTEST_COMPARE_WITH_RES_F(instr_name, input_type, output_type,         \
+                                 rs1_fval, rs2_fval, expected_res)            \
+  TEST(RISCV_UTEST_##instr_name) {                                            \
+    CcTest::InitializeVM();                                                   \
+    auto fn = [](MacroAssembler& assm) { __ RV_##instr_name(a0, fa0, fa1); }; \
+    GenAndRunTest<input_type, output_type>(rs1_fval, rs2_fval, expected_res,  \
+                                           fn);                               \
   }
 
 #define UTEST_CONV_F_FROM_I(instr_name, input_type, output_type, rs1_val, \
@@ -428,14 +435,7 @@ static void GenAndRunTest(int64_t expected_res, Func test_generator) {
                std::is_floating_point<output_type>::value);               \
                                                                           \
     CcTest::InitializeVM();                                               \
-    auto fn = [](MacroAssembler& assm) {                                  \
-      __ RV_##instr_name(fa0, a0);                                        \
-      if (std::is_same<output_type, float>::value) {                      \
-        __ RV_fmv_x_w(a0, fa0);                                           \
-      } else {                                                            \
-        __ RV_fmv_x_d(a0, fa0);                                           \
-      }                                                                   \
-    };                                                                    \
+    auto fn = [](MacroAssembler& assm) { __ RV_##instr_name(fa0, a0); };  \
     GenAndRunTest<input_type, output_type>(rs1_val, expected_fres, fn);   \
   }
 
@@ -447,11 +447,6 @@ static void GenAndRunTest(int64_t expected_res, Func test_generator) {
                                                                         \
     CcTest::InitializeVM();                                             \
     auto fn = [](MacroAssembler& assm) {                                \
-      if (std::is_same<input_type, float>::value) {                     \
-        __ RV_fmv_w_x(fa0, a0);                                         \
-      } else {                                                          \
-        __ RV_fmv_d_x(fa0, a0);                                         \
-      }                                                                 \
       __ RV_##instr_name(a0, fa0, rounding_mode);                       \
     };                                                                  \
     GenAndRunTest<input_type, output_type>(rs1_fval, expected_res, fn); \
@@ -463,11 +458,6 @@ static void GenAndRunTest(int64_t expected_res, Func test_generator) {
                                                                         \
     CcTest::InitializeVM();                                             \
     auto fn = [](MacroAssembler& assm) {                                \
-      if (std::is_same<input_type, float>::value) {                     \
-        __ RV_fmv_w_x(fa0, a0);                                         \
-      } else {                                                          \
-        __ RV_fmv_d_x(fa0, a0);                                         \
-      }                                                                 \
       __ RV_csrwi(csr_frm, rounding_mode);                              \
       __ RV_##instr_name(a0, fa0, DYN);                                 \
     };                                                                  \
@@ -477,23 +467,8 @@ static void GenAndRunTest(int64_t expected_res, Func test_generator) {
 #define UTEST_CONV_F_FROM_F(instr_name, input_type, output_type, rs1_val, \
                             expected_fres)                                \
   TEST(RISCV_UTEST_##instr_name) {                                        \
-    assert(std::is_floating_point<input_type>::value&&                    \
-               std::is_floating_point<output_type>::value);               \
-                                                                          \
     CcTest::InitializeVM();                                               \
-    auto fn = [](MacroAssembler& assm) {                                  \
-      if (std::is_same<input_type, float>::value) {                       \
-        __ RV_fmv_w_x(fa0, a0);                                           \
-      } else {                                                            \
-        __ RV_fmv_d_x(fa0, a0);                                           \
-      }                                                                   \
-      __ RV_##instr_name(fa0, fa0);                                       \
-      if (std::is_same<output_type, float>::value) {                      \
-        __ RV_fmv_x_w(a0, fa0);                                           \
-      } else {                                                            \
-        __ RV_fmv_x_d(a0, fa0);                                           \
-      }                                                                   \
-    };                                                                    \
+    auto fn = [](MacroAssembler& assm) { __ RV_##instr_name(fa0, fa0); }; \
     GenAndRunTest<input_type, output_type>(rs1_val, expected_fres, fn);   \
   }
 
@@ -1482,10 +1457,7 @@ TEST(OUT_OF_RANGE_CVT) {
     auto i_vec = out_of_range_test_values<double, int32_t>();
     for (auto i = i_vec.begin(); i != i_vec.end(); ++i) {
       auto input = *i;
-      auto fn = [](MacroAssembler& assm) {
-        __ RV_fmv_d_x(fa0, a0);
-        __ RV_fcvt_w_d(a0, fa0);
-      };
+      auto fn = [](MacroAssembler& assm) { __ RV_fcvt_w_d(a0, fa0); };
       GenAndRunTest(input.first, input.second, fn);
     }
   }
@@ -1494,10 +1466,7 @@ TEST(OUT_OF_RANGE_CVT) {
     auto i_vec = out_of_range_test_values<float, int32_t>();
     for (auto i = i_vec.begin(); i != i_vec.end(); ++i) {
       auto input = *i;
-      auto fn = [](MacroAssembler& assm) {
-        __ RV_fmv_w_x(fa0, a0);
-        __ RV_fcvt_w_s(a0, fa0);
-      };
+      auto fn = [](MacroAssembler& assm) { __ RV_fcvt_w_s(a0, fa0); };
       GenAndRunTest(input.first, input.second, fn);
     }
   }
@@ -1506,10 +1475,7 @@ TEST(OUT_OF_RANGE_CVT) {
     auto i_vec = out_of_range_test_values<double, uint32_t>();
     for (auto i = i_vec.begin(); i != i_vec.end(); ++i) {
       auto input = *i;
-      auto fn = [](MacroAssembler& assm) {
-        __ RV_fmv_d_x(fa0, a0);
-        __ RV_fcvt_wu_d(a0, fa0);
-      };
+      auto fn = [](MacroAssembler& assm) { __ RV_fcvt_wu_d(a0, fa0); };
       GenAndRunTest(input.first, input.second, fn);
     }
   }
@@ -1518,10 +1484,7 @@ TEST(OUT_OF_RANGE_CVT) {
     auto i_vec = out_of_range_test_values<float, uint32_t>();
     for (auto i = i_vec.begin(); i != i_vec.end(); ++i) {
       auto input = *i;
-      auto fn = [](MacroAssembler& assm) {
-        __ RV_fmv_w_x(fa0, a0);
-        __ RV_fcvt_wu_s(a0, fa0);
-      };
+      auto fn = [](MacroAssembler& assm) { __ RV_fcvt_wu_s(a0, fa0); };
       GenAndRunTest(input.first, input.second, fn);
     }
   }
@@ -1530,10 +1493,7 @@ TEST(OUT_OF_RANGE_CVT) {
     auto i_vec = out_of_range_test_values<double, int64_t>();
     for (auto i = i_vec.begin(); i != i_vec.end(); ++i) {
       auto input = *i;
-      auto fn = [](MacroAssembler& assm) {
-        __ RV_fmv_d_x(fa0, a0);
-        __ RV_fcvt_l_d(a0, fa0);
-      };
+      auto fn = [](MacroAssembler& assm) { __ RV_fcvt_l_d(a0, fa0); };
       GenAndRunTest(input.first, input.second, fn);
     }
   }
@@ -1542,10 +1502,7 @@ TEST(OUT_OF_RANGE_CVT) {
     auto i_vec = out_of_range_test_values<float, int64_t>();
     for (auto i = i_vec.begin(); i != i_vec.end(); ++i) {
       auto input = *i;
-      auto fn = [](MacroAssembler& assm) {
-        __ RV_fmv_w_x(fa0, a0);
-        __ RV_fcvt_l_s(a0, fa0);
-      };
+      auto fn = [](MacroAssembler& assm) { __ RV_fcvt_l_s(a0, fa0); };
       GenAndRunTest(input.first, input.second, fn);
     }
   }
@@ -1554,10 +1511,7 @@ TEST(OUT_OF_RANGE_CVT) {
     auto i_vec = out_of_range_test_values<double, uint64_t>();
     for (auto i = i_vec.begin(); i != i_vec.end(); ++i) {
       auto input = *i;
-      auto fn = [](MacroAssembler& assm) {
-        __ RV_fmv_d_x(fa0, a0);
-        __ RV_fcvt_lu_d(a0, fa0);
-      };
+      auto fn = [](MacroAssembler& assm) { __ RV_fcvt_lu_d(a0, fa0); };
       GenAndRunTest(input.first, input.second, fn);
     }
   }
@@ -1566,10 +1520,7 @@ TEST(OUT_OF_RANGE_CVT) {
     auto i_vec = out_of_range_test_values<float, uint64_t>();
     for (auto i = i_vec.begin(); i != i_vec.end(); ++i) {
       auto input = *i;
-      auto fn = [](MacroAssembler& assm) {
-        __ RV_fmv_w_x(fa0, a0);
-        __ RV_fcvt_lu_s(a0, fa0);
-      };
+      auto fn = [](MacroAssembler& assm) { __ RV_fcvt_lu_s(a0, fa0); };
       GenAndRunTest(input.first, input.second, fn);
     }
   }
@@ -1600,11 +1551,7 @@ TEST(FCMP_NAN) {
   CcTest::InitializeVM();
 
   {
-    auto fn = [](MacroAssembler& assm) {
-      __ RV_fmv_w_x(fa0, a0);
-      __ RV_fmv_w_x(fa1, a1);
-      __ RV_feq_s(a0, fa0, fa1);
-    };
+    auto fn = [](MacroAssembler& assm) { __ RV_feq_s(a0, fa0, fa1); };
     FCMP_TEST_HELPER(float, ==);
   }
 }
