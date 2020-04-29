@@ -154,7 +154,7 @@ bool PrintRawWasmCode(AccountingAllocator* allocator, const FunctionBody& body,
     ++line_nr;
   }
 
-  os << "// body: " << std::endl;
+  os << "// body:" << std::endl;
   if (line_numbers) line_numbers->push_back(kNoByteCode);
   ++line_nr;
   unsigned control_depth = 0;
