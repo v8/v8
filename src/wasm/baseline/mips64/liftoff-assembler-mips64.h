@@ -1391,6 +1391,16 @@ void LiftoffAssembler::emit_i8x16_ne(LiftoffRegister dst, LiftoffRegister lhs,
   nor_v(dst.fp().toW(), dst.fp().toW(), dst.fp().toW());
 }
 
+void LiftoffAssembler::emit_i8x16_gt_s(LiftoffRegister dst, LiftoffRegister lhs,
+                                       LiftoffRegister rhs) {
+  clt_s_b(dst.fp().toW(), rhs.fp().toW(), lhs.fp().toW());
+}
+
+void LiftoffAssembler::emit_i8x16_gt_u(LiftoffRegister dst, LiftoffRegister lhs,
+                                       LiftoffRegister rhs) {
+  clt_u_b(dst.fp().toW(), rhs.fp().toW(), lhs.fp().toW());
+}
+
 void LiftoffAssembler::emit_i8x16_ge_s(LiftoffRegister dst, LiftoffRegister lhs,
                                        LiftoffRegister rhs) {
   cle_s_b(dst.fp().toW(), rhs.fp().toW(), lhs.fp().toW());
@@ -1412,6 +1422,16 @@ void LiftoffAssembler::emit_i16x8_ne(LiftoffRegister dst, LiftoffRegister lhs,
   nor_v(dst.fp().toW(), dst.fp().toW(), dst.fp().toW());
 }
 
+void LiftoffAssembler::emit_i16x8_gt_s(LiftoffRegister dst, LiftoffRegister lhs,
+                                       LiftoffRegister rhs) {
+  clt_s_h(dst.fp().toW(), rhs.fp().toW(), lhs.fp().toW());
+}
+
+void LiftoffAssembler::emit_i16x8_gt_u(LiftoffRegister dst, LiftoffRegister lhs,
+                                       LiftoffRegister rhs) {
+  clt_u_h(dst.fp().toW(), rhs.fp().toW(), lhs.fp().toW());
+}
+
 void LiftoffAssembler::emit_i16x8_ge_s(LiftoffRegister dst, LiftoffRegister lhs,
                                        LiftoffRegister rhs) {
   cle_s_h(dst.fp().toW(), rhs.fp().toW(), lhs.fp().toW());
@@ -1431,6 +1451,16 @@ void LiftoffAssembler::emit_i32x4_ne(LiftoffRegister dst, LiftoffRegister lhs,
                                      LiftoffRegister rhs) {
   ceq_w(dst.fp().toW(), lhs.fp().toW(), rhs.fp().toW());
   nor_v(dst.fp().toW(), dst.fp().toW(), dst.fp().toW());
+}
+
+void LiftoffAssembler::emit_i32x4_gt_s(LiftoffRegister dst, LiftoffRegister lhs,
+                                       LiftoffRegister rhs) {
+  clt_s_w(dst.fp().toW(), rhs.fp().toW(), lhs.fp().toW());
+}
+
+void LiftoffAssembler::emit_i32x4_gt_u(LiftoffRegister dst, LiftoffRegister lhs,
+                                       LiftoffRegister rhs) {
+  clt_u_w(dst.fp().toW(), rhs.fp().toW(), lhs.fp().toW());
 }
 
 void LiftoffAssembler::emit_i32x4_ge_s(LiftoffRegister dst, LiftoffRegister lhs,
