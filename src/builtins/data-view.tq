@@ -122,16 +122,16 @@ namespace data_view {
   macro LoadDataView8(
       buffer: JSArrayBuffer, offset: uintptr, signed: constexpr bool): Smi {
     if constexpr (signed) {
-      return Convert<Smi>(LoadInt8(buffer.backing_store, offset));
+      return Convert<Smi>(LoadInt8(buffer.backing_store_ptr, offset));
     } else {
-      return Convert<Smi>(LoadUint8(buffer.backing_store, offset));
+      return Convert<Smi>(LoadUint8(buffer.backing_store_ptr, offset));
     }
   }
 
   macro LoadDataView16(
       buffer: JSArrayBuffer, offset: uintptr, requestedLittleEndian: bool,
       signed: constexpr bool): Number {
-    const dataPointer: RawPtr = buffer.backing_store;
+    const dataPointer: RawPtr = buffer.backing_store_ptr;
 
     let b0: int32;
     let b1: int32;
@@ -158,7 +158,7 @@ namespace data_view {
   macro LoadDataView32(
       buffer: JSArrayBuffer, offset: uintptr, requestedLittleEndian: bool,
       kind: constexpr ElementsKind): Number {
-    const dataPointer: RawPtr = buffer.backing_store;
+    const dataPointer: RawPtr = buffer.backing_store_ptr;
 
     const b0: uint32 = LoadUint8(dataPointer, offset);
     const b1: uint32 = LoadUint8(dataPointer, offset + 1);
@@ -187,7 +187,7 @@ namespace data_view {
   macro LoadDataViewFloat64(
       buffer: JSArrayBuffer, offset: uintptr,
       requestedLittleEndian: bool): Number {
-    const dataPointer: RawPtr = buffer.backing_store;
+    const dataPointer: RawPtr = buffer.backing_store_ptr;
 
     const b0: uint32 = LoadUint8(dataPointer, offset);
     const b1: uint32 = LoadUint8(dataPointer, offset + 1);
@@ -329,7 +329,7 @@ namespace data_view {
   macro LoadDataViewBigInt(implicit context: Context)(
       buffer: JSArrayBuffer, offset: uintptr, requestedLittleEndian: bool,
       signed: constexpr bool): BigInt {
-    const dataPointer: RawPtr = buffer.backing_store;
+    const dataPointer: RawPtr = buffer.backing_store_ptr;
 
     const b0: uint32 = LoadUint8(dataPointer, offset);
     const b1: uint32 = LoadUint8(dataPointer, offset + 1);
@@ -533,13 +533,13 @@ namespace data_view {
       void;
 
   macro StoreDataView8(buffer: JSArrayBuffer, offset: uintptr, value: uint32) {
-    StoreWord8(buffer.backing_store, offset, value & 0xFF);
+    StoreWord8(buffer.backing_store_ptr, offset, value & 0xFF);
   }
 
   macro StoreDataView16(
       buffer: JSArrayBuffer, offset: uintptr, value: uint32,
       requestedLittleEndian: bool) {
-    const dataPointer: RawPtr = buffer.backing_store;
+    const dataPointer: RawPtr = buffer.backing_store_ptr;
 
     const b0: uint32 = value & 0xFF;
     const b1: uint32 = (value >>> 8) & 0xFF;
@@ -556,7 +556,7 @@ namespace data_view {
   macro StoreDataView32(
       buffer: JSArrayBuffer, offset: uintptr, value: uint32,
       requestedLittleEndian: bool) {
-    const dataPointer: RawPtr = buffer.backing_store;
+    const dataPointer: RawPtr = buffer.backing_store_ptr;
 
     const b0: uint32 = value & 0xFF;
     const b1: uint32 = (value >>> 8) & 0xFF;
@@ -579,7 +579,7 @@ namespace data_view {
   macro StoreDataView64(
       buffer: JSArrayBuffer, offset: uintptr, lowWord: uint32, highWord: uint32,
       requestedLittleEndian: bool) {
-    const dataPointer: RawPtr = buffer.backing_store;
+    const dataPointer: RawPtr = buffer.backing_store_ptr;
 
     const b0: uint32 = lowWord & 0xFF;
     const b1: uint32 = (lowWord >>> 8) & 0xFF;

@@ -5,6 +5,7 @@
 #ifndef V8_OBJECTS_JS_ARRAY_BUFFER_INL_H_
 #define V8_OBJECTS_JS_ARRAY_BUFFER_INL_H_
 
+#include "src/common/external-pointer.h"
 #include "src/objects/js-array-buffer.h"
 
 #include "src/common/external-pointer-inl.h"
@@ -37,12 +38,27 @@ void JSArrayBuffer::set_byte_length(size_t value) {
   WriteField<size_t>(kByteLengthOffset, value);
 }
 
-void* JSArrayBuffer::backing_store() const {
-  return reinterpret_cast<void*>(ReadField<Address>(kBackingStoreOffset));
+DEF_GETTER(JSArrayBuffer, backing_store, void*) {
+  ExternalPointer_t encoded_value =
+      ReadField<ExternalPointer_t>(kBackingStoreOffset);
+  return reinterpret_cast<void*>(DecodeExternalPointer(isolate, encoded_value));
 }
 
-void JSArrayBuffer::set_backing_store(void* value) {
-  WriteField<Address>(kBackingStoreOffset, reinterpret_cast<Address>(value));
+void JSArrayBuffer::set_backing_store(Isolate* isolate, void* value) {
+  ExternalPointer_t encoded_value =
+      EncodeExternalPointer(isolate, reinterpret_cast<Address>(value));
+  WriteField<ExternalPointer_t>(kBackingStoreOffset, encoded_value);
+}
+
+uint32_t JSArrayBuffer::GetBackingStoreRefForDeserialization() const {
+  ExternalPointer_t encoded_value =
+      ReadField<ExternalPointer_t>(kBackingStoreOffset);
+  return static_cast<uint32_t>(encoded_value);
+}
+
+void JSArrayBuffer::SetBackingStoreRefForSerialization(uint32_t ref) {
+  ExternalPointer_t encoded_value = ref;
+  WriteField<ExternalPointer_t>(kBackingStoreOffset, encoded_value);
 }
 
 ArrayBufferExtension* JSArrayBuffer::extension() const {

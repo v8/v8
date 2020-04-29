@@ -32,7 +32,7 @@ namespace typed_array {
       // platforms are self-limiting, because we can't allocate an array bigger
       // than our 32-bit arithmetic range anyway. 64 bit platforms could
       // theoretically have an offset up to 2^35 - 1.
-      const backingStore: uintptr = Convert<uintptr>(buffer.backing_store);
+      const backingStore: uintptr = Convert<uintptr>(buffer.backing_store_ptr);
 
       // Assert no overflow has occurred. Only assert if the mock array buffer
       // allocator is NOT used. When the mock array buffer is used, impossibly
@@ -58,10 +58,10 @@ namespace typed_array {
           typedArray, elements, byteOffset);
     } else {
       typed_array::SetJSTypedArrayOffHeapDataPtr(
-          typedArray, buffer.backing_store, byteOffset);
+          typedArray, buffer.backing_store_ptr, byteOffset);
       assert(
           typedArray.data_ptr ==
-          (buffer.backing_store + Convert<intptr>(byteOffset)));
+          (buffer.backing_store_ptr + Convert<intptr>(byteOffset)));
     }
     SetupTypedArrayEmbedderFields(typedArray);
     return typedArray;

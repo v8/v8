@@ -3642,8 +3642,7 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
   TNode<BoolT> IsDebugActive();
 
   // JSArrayBuffer helpers
-  TNode<Uint32T> LoadJSArrayBufferBitField(TNode<JSArrayBuffer> array_buffer);
-  TNode<RawPtrT> LoadJSArrayBufferBackingStore(
+  TNode<RawPtrT> LoadJSArrayBufferBackingStorePtr(
       TNode<JSArrayBuffer> array_buffer);
   void ThrowIfArrayBufferIsDetached(SloppyTNode<Context> context,
                                     TNode<JSArrayBuffer> array_buffer,

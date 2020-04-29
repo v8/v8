@@ -33,7 +33,8 @@ class JSArrayBuffer : public JSObject {
   DECL_PRIMITIVE_ACCESSORS(byte_length, size_t)
 
   // [backing_store]: backing memory for this array
-  DECL_PRIMITIVE_ACCESSORS(backing_store, void*)
+  DECL_GETTER(backing_store, void*)
+  inline void set_backing_store(Isolate* isolate, void* value);
 
   // [extension]: extension object used for GC
   DECL_PRIMITIVE_ACCESSORS(extension, ArrayBufferExtension*)
@@ -50,7 +51,7 @@ class JSArrayBuffer : public JSObject {
   // is deterministic. Depending on the V8 build mode there could be no padding.
   V8_INLINE void clear_padding();
 
-// Bit positions for [bit_field].
+  // Bit positions for [bit_field].
   DEFINE_TORQUE_GENERATED_JS_ARRAY_BUFFER_FLAGS()
 
   // [is_external]: true indicates that the embedder is in charge of freeing the
@@ -109,6 +110,17 @@ class JSArrayBuffer : public JSObject {
   void MarkExtension();
   void YoungMarkExtension();
   void YoungMarkExtensionPromoted();
+
+  //
+  // Serializer/deserializer support.
+  //
+
+  // Backing stores are serialized/deserialized separately. During serialization
+  // the backing store reference is stored in the backing store field and upon
+  // deserialization it is converted back to actual external (off-heap) pointer
+  // value.
+  inline uint32_t GetBackingStoreRefForDeserialization() const;
+  inline void SetBackingStoreRefForSerialization(uint32_t ref);
 
   // Dispatched behavior.
   DECL_PRINTER(JSArrayBuffer)

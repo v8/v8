@@ -12635,15 +12635,9 @@ void CodeStubAssembler::ThrowIfArrayBufferViewBufferIsDetached(
   ThrowIfArrayBufferIsDetached(context, buffer, method_name);
 }
 
-TNode<Uint32T> CodeStubAssembler::LoadJSArrayBufferBitField(
+TNode<RawPtrT> CodeStubAssembler::LoadJSArrayBufferBackingStorePtr(
     TNode<JSArrayBuffer> array_buffer) {
-  return LoadObjectField<Uint32T>(array_buffer, JSArrayBuffer::kBitFieldOffset);
-}
-
-TNode<RawPtrT> CodeStubAssembler::LoadJSArrayBufferBackingStore(
-    TNode<JSArrayBuffer> array_buffer) {
-  return LoadObjectField<RawPtrT>(array_buffer,
-                                  JSArrayBuffer::kBackingStoreOffset);
+  return DecodeExternalPointer(LoadJSArrayBufferBackingStore(array_buffer));
 }
 
 TNode<JSArrayBuffer> CodeStubAssembler::LoadJSArrayBufferViewBuffer(

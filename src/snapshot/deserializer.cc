@@ -291,7 +291,7 @@ HeapObject Deserializer::PostProcessNewObject(HeapObject obj,
       // The backing store of the JSArrayBuffer has not been correctly restored
       // yet, as that may trigger GC. The backing_store field currently contains
       // a numbered reference to an already deserialized backing store.
-      size_t store_index = reinterpret_cast<size_t>(buffer.backing_store());
+      uint32_t store_index = buffer.GetBackingStoreRefForDeserialization();
       backing_store = backing_stores_[store_index]->buffer_start();
     }
     data_view.set_data_pointer(reinterpret_cast<uint8_t*>(backing_store) +

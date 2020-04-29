@@ -389,10 +389,7 @@ void Serializer::ObjectSerializer::SerializeJSArrayBuffer() {
   // The embedder-allocated backing store only exists for the off-heap case.
   if (backing_store != nullptr) {
     uint32_t ref = SerializeBackingStore(backing_store, byte_length);
-    // To properly share the buffer, we set the backing store ref as an
-    // a backing store address. On deserialization we re-set data pointer
-    // to proper value.
-    buffer.set_backing_store(reinterpret_cast<void*>(static_cast<size_t>(ref)));
+    buffer.SetBackingStoreRefForSerialization(ref);
 
     // Ensure deterministic output by setting extension to null during
     // serialization.
@@ -401,7 +398,7 @@ void Serializer::ObjectSerializer::SerializeJSArrayBuffer() {
 
   SerializeObject();
 
-  buffer.set_backing_store(backing_store);
+  buffer.set_backing_store(serializer_->isolate(), backing_store);
   buffer.set_extension(extension);
 }
 
