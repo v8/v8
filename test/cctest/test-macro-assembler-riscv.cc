@@ -1409,8 +1409,8 @@ TEST(macro_float_minmax_f64) {
 #undef CHECK_MINMAX
 }
 
-#define ERROR_CODE 111
-#define SUCCESS_CODE 666
+#define ERROR_CODE 1
+#define SUCCESS_CODE 0
 
 typedef union {
   int32_t i32val;

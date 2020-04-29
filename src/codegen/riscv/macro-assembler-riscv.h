@@ -452,6 +452,7 @@ class V8_EXPORT_PRIVATE TurboAssembler : public TurboAssemblerBase {
   DEFINE_INSTRUCTION(Srl)
 
   DEFINE_INSTRUCTION(Selnez)
+  DEFINE_INSTRUCTION(Seleqz)
   // MIPS32 R2 instruction macro.
   DEFINE_INSTRUCTION(Ror)
   DEFINE_INSTRUCTION(Dror)

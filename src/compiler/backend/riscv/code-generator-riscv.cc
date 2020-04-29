@@ -3559,19 +3559,15 @@ void CodeGenerator::AssembleArchBoolean(Instruction* instr,
              instr->arch_opcode() == kMips64CmpS) {
     FPURegister left = i.InputOrZeroDoubleRegister(0);
     FPURegister right = i.InputOrZeroDoubleRegister(1);
-    // FIXME (RISCV): do we need this?
     if ((left == kDoubleRegZero || right == kDoubleRegZero) &&
         !__ IsDoubleZeroRegSet()) {
       __ Move(kDoubleRegZero, 0.0);
     }
     bool predicate;
     FlagsConditionToConditionCmpFPU(&predicate, condition);
-    // RISCV compare returns 0 or 1
-    if (!predicate) {
-      // toggle result: 0 -> 0, 1 -> 0
-      __ Addu(result, kScratchReg, 1);
-      __ And(result, result, 1);  // use only LSB
-    }
+    // RISCV compare returns 0 or 1, do nothing when predicate; otherwise
+    // toggle kScratchReg (i.e., 0 -> 1, 1 -> 0)
+    if (!predicate) __ Xor(result, kScratchReg, 1);
     return;
   } else {
     PrintF("AssembleArchBranch Unimplemented arch_opcode is : %d\n",

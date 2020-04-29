@@ -1134,18 +1134,10 @@ void LiftoffAssembler::emit_f32_set_cond(Condition cond, Register dst,
 
   bind(&not_nan);
 
-  TurboAssembler::li(dst, 1);
   bool predicate;
   FPUCondition fcond = liftoff::ConditionToConditionCmpFPU(cond, &predicate);
-  TurboAssembler::CompareF32(kScratchReg, fcond, lhs, rhs);
-  // FIXME (RISCV): LoadZeroIfConditionXXX generates branch (unlike MIPS that
-  // has a single instruction to support), there may be better sequence to
-  // convert result of compare to boolean values (e.g., by AND 0 or ADD 1)
-  if (predicate) {
-    TurboAssembler::LoadZeroIfConditionZero(dst, kScratchReg);
-  } else {
-    TurboAssembler::LoadZeroIfConditionNotZero(dst, kScratchReg);
-  }
+  TurboAssembler::CompareF32(dst, fcond, lhs, rhs);
+  if (!predicate) TurboAssembler::Xor(dst, dst, 1);
 
   bind(&cont);
 }

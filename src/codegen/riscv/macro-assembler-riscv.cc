@@ -907,11 +907,21 @@ void TurboAssembler::Dror(Register rd, Register rs, const Operand& rt) {
   }
 }
 
+// rd <- rt != 0 ? rs : 0
 void TurboAssembler::Selnez(Register rd, Register rs, const Operand& rt) {
   DCHECK(rt.is_reg());
   UseScratchRegisterScope temps(this);
   Register scratch = temps.Acquire();
   RV_snez(scratch, rt.rm());  // scratch = 0 if rt is zero, 1 otherwise.
+  RV_mul(rd, rs, scratch);    // scratch * rs = rs or zero
+}
+
+// rd <- rt == 0 ? rs : 0
+void TurboAssembler::Seleqz(Register rd, Register rs, const Operand& rt) {
+  DCHECK(rt.is_reg());
+  UseScratchRegisterScope temps(this);
+  Register scratch = temps.Acquire();
+  RV_seqz(scratch, rt.rm());  // scratch = 0 if rt is non-zero, 1 otherwise.
   RV_mul(rd, rs, scratch);    // scratch * rs = rs or zero
 }
 
@@ -2105,20 +2115,18 @@ void TurboAssembler::LoadZeroOnCondition(Register rd, Register rs,
   }
 }
 
-// FIXME (RISCV): LoadZeroIfConditionXXX generates branch (unlike MIPS that has
-// a single instruction to support), there may be better sequence to convert
-// result of compare to boolean values (e.g., by AND 0 or ADD 1)
+// dest <- (condition != 0 ? zero : dest), which is eqvuivalent to dest <-
+// condition == 0 ? dest : zero
 void TurboAssembler::LoadZeroIfConditionNotZero(Register dest,
                                                 Register condition) {
-  Movn(dest, zero_reg, condition);
+  Seleqz(dest, dest, condition);
 }
 
-// FIXME (RISCV): LoadZeroIfConditionXXX generates branch (unlike MIPS that has
-// a single instruction to support), there may be better sequence to convert
-// result of compare to boolean values (e.g., by AND 0 or ADD 1)
+// dest <- (condition == 0 ? 0 : dest), which is equivalent to dest <-
+// (condition != 0 ? dest, 0)
 void TurboAssembler::LoadZeroIfConditionZero(Register dest,
                                              Register condition) {
-  Movz(dest, zero_reg, condition);
+  Selnez(dest, dest, condition);
 }
 
 void TurboAssembler::Clz(Register rd, Register xx) {
