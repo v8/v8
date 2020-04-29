@@ -1083,6 +1083,7 @@ Type Typer::Visitor::JSEqualTyper(Type lhs, Type rhs, Typer* t) {
     // Types are equal and are inhabited only by a single semantic value,
     // which is not nan due to the earlier check.
     DCHECK(lhs.Is(rhs));
+    DCHECK(lhs.Is(Type::NonInternal()));
     return t->singleton_true_;
   }
   return Type::Boolean();
