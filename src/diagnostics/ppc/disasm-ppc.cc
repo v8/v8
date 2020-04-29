@@ -74,6 +74,7 @@ class Decoder {
   void Unknown(Instruction* instr);
   void UnknownFormat(Instruction* instr, const char* opcname);
 
+  void DecodeExt0(Instruction* instr);
   void DecodeExt1(Instruction* instr);
   void DecodeExt2(Instruction* instr);
   void DecodeExt3(Instruction* instr);
@@ -219,6 +220,11 @@ int Decoder::FormatOption(Instruction* instr, const char* format) {
       out_buffer_pos_ += SNPrintF(out_buffer_ + out_buffer_pos_, "%d", value);
       return 6;
     }
+    case 'U': {  // UIM
+      int32_t value = instr->Bits(20, 16);
+      out_buffer_pos_ += SNPrintF(out_buffer_ + out_buffer_pos_, "%d", value);
+      return 3;
+    }
     case 'l': {
       // Link (LK) Bit 0
       if (instr->Bit(0) == 1) {
@@ -349,6 +355,23 @@ void Decoder::UnknownFormat(Instruction* instr, const char* name) {
   char buffer[100];
   snprintf(buffer, sizeof(buffer), "%s (unknown-format)", name);
   Format(instr, buffer);
+}
+
+void Decoder::DecodeExt0(Instruction* instr) {
+  switch (EXT0 | (instr->BitField(10, 0))) {
+    case VSPLTB: {
+      Format(instr, "vspltb   'Dt, 'Db, 'UIM");
+      break;
+    }
+    case VSPLTW: {
+      Format(instr, "vspltw   'Dt, 'Db, 'UIM");
+      break;
+    }
+    case VSPLTH: {
+      Format(instr, "vsplth   'Dt, 'Db, 'UIM");
+      break;
+    }
+  }
 }
 
 void Decoder::DecodeExt1(Instruction* instr) {
@@ -1274,6 +1297,10 @@ int Decoder::InstructionDecode(byte* instr_ptr) {
     }
     case BX: {
       Format(instr, "b'l'a 'target26");
+      break;
+    }
+    case EXT0: {
+      DecodeExt0(instr);
       break;
     }
     case EXT1: {

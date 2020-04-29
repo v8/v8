@@ -2593,7 +2593,8 @@ enum Opcode : uint32_t {
   opcode_name = opcode_value,
   PPC_OPCODE_LIST(DECLARE_INSTRUCTION)
 #undef DECLARE_INSTRUCTION
-      EXT1 = 0x4C000000,  // Extended code set 1
+      EXT0 = 0x10000000,  // Extended code set 0
+  EXT1 = 0x4C000000,      // Extended code set 1
   EXT2 = 0x7C000000,      // Extended code set 2
   EXT3 = 0xEC000000,      // Extended code set 3
   EXT4 = 0xFC000000,      // Extended code set 4
