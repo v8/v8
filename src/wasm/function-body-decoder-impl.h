@@ -508,8 +508,12 @@ struct SimdLaneImmediate {
   uint8_t lane;
   uint32_t length = 1;
 
-  inline SimdLaneImmediate(Decoder* decoder, const byte* pc) {
-    lane = decoder->read_u8<validate>(pc + 2, "lane");
+  inline SimdLaneImmediate(Decoder* decoder, const byte* pc,
+                           uint32_t opcode_length) {
+    // Callers should pass in pc unchanged from where the decoding happens. 1 is
+    // added to account for the SIMD prefix byte, and opcode_length is the
+    // number of bytes the LEB encoding of the SIMD opcode takes.
+    lane = decoder->read_u8<validate>(pc + 1 + opcode_length, "lane");
   }
 };
 
@@ -518,9 +522,14 @@ template <Decoder::ValidateFlag validate>
 struct Simd8x16ShuffleImmediate {
   uint8_t shuffle[kSimd128Size] = {0};
 
-  inline Simd8x16ShuffleImmediate(Decoder* decoder, const byte* pc) {
+  inline Simd8x16ShuffleImmediate(Decoder* decoder, const byte* pc,
+                                  uint32_t opcode_length) {
+    // Callers should pass in pc unchanged from where the decoding happens. 1 is
+    // added to account for the SIMD prefix byte, and opcode_length is the
+    // number of bytes the LEB encoding of the SIMD opcode takes.
     for (uint32_t i = 0; i < kSimd128Size; ++i) {
-      shuffle[i] = decoder->read_u8<validate>(pc + 2 + i, "shuffle");
+      shuffle[i] =
+          decoder->read_u8<validate>(pc + 1 + opcode_length + i, "shuffle");
     }
   }
 };
@@ -2717,8 +2726,9 @@ class WasmFullDecoder : public WasmDecoder<validate> {
     return this->ok();
   }
 
-  uint32_t SimdExtractLane(WasmOpcode opcode, ValueType type) {
-    SimdLaneImmediate<validate> imm(this, this->pc_);
+  uint32_t SimdExtractLane(WasmOpcode opcode, ValueType type,
+                           uint32_t opcode_length) {
+    SimdLaneImmediate<validate> imm(this, this->pc_, opcode_length);
     if (this->Validate(this->pc_, opcode, imm)) {
       Value inputs[] = {Pop(0, kWasmS128)};
       auto* result = Push(type);
@@ -2728,8 +2738,9 @@ class WasmFullDecoder : public WasmDecoder<validate> {
     return imm.length;
   }
 
-  uint32_t SimdReplaceLane(WasmOpcode opcode, ValueType type) {
-    SimdLaneImmediate<validate> imm(this, this->pc_);
+  uint32_t SimdReplaceLane(WasmOpcode opcode, ValueType type,
+                           uint32_t opcode_length) {
+    SimdLaneImmediate<validate> imm(this, this->pc_, opcode_length);
     if (this->Validate(this->pc_, opcode, imm)) {
       Value inputs[2] = {UnreachableValue(this->pc_),
                          UnreachableValue(this->pc_)};
@@ -2742,8 +2753,8 @@ class WasmFullDecoder : public WasmDecoder<validate> {
     return imm.length;
   }
 
-  uint32_t Simd8x16ShuffleOp() {
-    Simd8x16ShuffleImmediate<validate> imm(this, this->pc_);
+  uint32_t Simd8x16ShuffleOp(uint32_t opcode_length) {
+    Simd8x16ShuffleImmediate<validate> imm(this, this->pc_, opcode_length);
     if (this->Validate(this->pc_, imm)) {
       auto input1 = Pop(1, kWasmS128);
       auto input0 = Pop(0, kWasmS128);
@@ -2758,22 +2769,17 @@ class WasmFullDecoder : public WasmDecoder<validate> {
     // opcode_length is the number of bytes that this SIMD-specific opcode takes
     // up in the LEB128 encoded form.
     uint32_t len = 0;
-    // TODO(v8:10258): Most of the decodings below (like SimdExtractLane) should
-    // take opcode_length as a parameter, since that will determine where the
-    // immediate is located. However, for most of these instructions, their
-    // encoded opcodes take up 2 bytes, so they will not be affected by the
-    // variable-length encoding, and will still work correctly.
     switch (opcode) {
       case kExprF64x2ExtractLane: {
-        len = SimdExtractLane(opcode, kWasmF64);
+        len = SimdExtractLane(opcode, kWasmF64, opcode_length);
         break;
       }
       case kExprF32x4ExtractLane: {
-        len = SimdExtractLane(opcode, kWasmF32);
+        len = SimdExtractLane(opcode, kWasmF32, opcode_length);
         break;
       }
       case kExprI64x2ExtractLane: {
-        len = SimdExtractLane(opcode, kWasmI64);
+        len = SimdExtractLane(opcode, kWasmI64, opcode_length);
         break;
       }
       case kExprI32x4ExtractLane:
@@ -2781,36 +2787,36 @@ class WasmFullDecoder : public WasmDecoder<validate> {
       case kExprI16x8ExtractLaneU:
       case kExprI8x16ExtractLaneS:
       case kExprI8x16ExtractLaneU: {
-        len = SimdExtractLane(opcode, kWasmI32);
+        len = SimdExtractLane(opcode, kWasmI32, opcode_length);
         break;
       }
       case kExprF64x2ReplaceLane: {
-        len = SimdReplaceLane(opcode, kWasmF64);
+        len = SimdReplaceLane(opcode, kWasmF64, opcode_length);
         break;
       }
       case kExprF32x4ReplaceLane: {
-        len = SimdReplaceLane(opcode, kWasmF32);
+        len = SimdReplaceLane(opcode, kWasmF32, opcode_length);
         break;
       }
       case kExprI64x2ReplaceLane: {
-        len = SimdReplaceLane(opcode, kWasmI64);
+        len = SimdReplaceLane(opcode, kWasmI64, opcode_length);
         break;
       }
       case kExprI32x4ReplaceLane:
       case kExprI16x8ReplaceLane:
       case kExprI8x16ReplaceLane: {
-        len = SimdReplaceLane(opcode, kWasmI32);
+        len = SimdReplaceLane(opcode, kWasmI32, opcode_length);
         break;
       }
       case kExprS8x16Shuffle: {
-        len = Simd8x16ShuffleOp();
+        len = Simd8x16ShuffleOp(opcode_length);
         break;
       }
       case kExprS128LoadMem:
-        len = DecodeLoadMem(LoadType::kS128Load, 1);
+        len = DecodeLoadMem(LoadType::kS128Load, opcode_length);
         break;
       case kExprS128StoreMem:
-        len = DecodeStoreMem(StoreType::kS128Store, 1);
+        len = DecodeStoreMem(StoreType::kS128Store, opcode_length);
         break;
       case kExprS8x16LoadSplat:
         len = DecodeLoadTransformMem(LoadType::kI32Load8S,

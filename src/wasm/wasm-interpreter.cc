@@ -2226,7 +2226,7 @@ class ThreadImpl {
   }
 
   bool ExecuteSimdOp(WasmOpcode opcode, Decoder* decoder, InterpreterCode* code,
-                     pc_t pc, int* const len) {
+                     pc_t pc, int* const len, uint32_t opcode_length) {
     switch (opcode) {
 #define SPLAT_CASE(format, sType, valType, num) \
   case kExpr##format##Splat: {                  \
@@ -2244,30 +2244,32 @@ class ThreadImpl {
       SPLAT_CASE(I16x8, int8, int32_t, 8)
       SPLAT_CASE(I8x16, int16, int32_t, 16)
 #undef SPLAT_CASE
-#define EXTRACT_LANE_CASE(format, name)                                 \
-  case kExpr##format##ExtractLane: {                                    \
-    SimdLaneImmediate<Decoder::kNoValidate> imm(decoder, code->at(pc)); \
-    *len += 1;                                                          \
-    WasmValue val = Pop();                                              \
-    Simd128 s = val.to_s128();                                          \
-    auto ss = s.to_##name();                                            \
-    Push(WasmValue(ss.val[LANE(imm.lane, ss)]));                        \
-    return true;                                                        \
+#define EXTRACT_LANE_CASE(format, name)                                \
+  case kExpr##format##ExtractLane: {                                   \
+    SimdLaneImmediate<Decoder::kNoValidate> imm(decoder, code->at(pc), \
+                                                opcode_length);        \
+    *len += 1;                                                         \
+    WasmValue val = Pop();                                             \
+    Simd128 s = val.to_s128();                                         \
+    auto ss = s.to_##name();                                           \
+    Push(WasmValue(ss.val[LANE(imm.lane, ss)]));                       \
+    return true;                                                       \
   }
       EXTRACT_LANE_CASE(F64x2, f64x2)
       EXTRACT_LANE_CASE(F32x4, f32x4)
       EXTRACT_LANE_CASE(I64x2, i64x2)
       EXTRACT_LANE_CASE(I32x4, i32x4)
 #undef EXTRACT_LANE_CASE
-#define EXTRACT_LANE_EXTEND_CASE(format, name, sign, type)              \
-  case kExpr##format##ExtractLane##sign: {                              \
-    SimdLaneImmediate<Decoder::kNoValidate> imm(decoder, code->at(pc)); \
-    *len += 1;                                                          \
-    WasmValue val = Pop();                                              \
-    Simd128 s = val.to_s128();                                          \
-    auto ss = s.to_##name();                                            \
-    Push(WasmValue(static_cast<type>(ss.val[LANE(imm.lane, ss)])));     \
-    return true;                                                        \
+#define EXTRACT_LANE_EXTEND_CASE(format, name, sign, type)             \
+  case kExpr##format##ExtractLane##sign: {                             \
+    SimdLaneImmediate<Decoder::kNoValidate> imm(decoder, code->at(pc), \
+                                                opcode_length);        \
+    *len += 1;                                                         \
+    WasmValue val = Pop();                                             \
+    Simd128 s = val.to_s128();                                         \
+    auto ss = s.to_##name();                                           \
+    Push(WasmValue(static_cast<type>(ss.val[LANE(imm.lane, ss)])));    \
+    return true;                                                       \
   }
       EXTRACT_LANE_EXTEND_CASE(I16x8, i16x8, S, int32_t)
       EXTRACT_LANE_EXTEND_CASE(I16x8, i16x8, U, uint32_t)
@@ -2489,16 +2491,17 @@ class ThreadImpl {
       CMPOP_CASE(I8x16LeU, i8x16, int16, int16, 16,
                  static_cast<uint8_t>(a) <= static_cast<uint8_t>(b))
 #undef CMPOP_CASE
-#define REPLACE_LANE_CASE(format, name, stype, ctype)                   \
-  case kExpr##format##ReplaceLane: {                                    \
-    SimdLaneImmediate<Decoder::kNoValidate> imm(decoder, code->at(pc)); \
-    *len += 1;                                                          \
-    WasmValue new_val = Pop();                                          \
-    WasmValue simd_val = Pop();                                         \
-    stype s = simd_val.to_s128().to_##name();                           \
-    s.val[LANE(imm.lane, s)] = new_val.to<ctype>();                     \
-    Push(WasmValue(Simd128(s)));                                        \
-    return true;                                                        \
+#define REPLACE_LANE_CASE(format, name, stype, ctype)                  \
+  case kExpr##format##ReplaceLane: {                                   \
+    SimdLaneImmediate<Decoder::kNoValidate> imm(decoder, code->at(pc), \
+                                                opcode_length);        \
+    *len += 1;                                                         \
+    WasmValue new_val = Pop();                                         \
+    WasmValue simd_val = Pop();                                        \
+    stype s = simd_val.to_s128().to_##name();                          \
+    s.val[LANE(imm.lane, s)] = new_val.to<ctype>();                    \
+    Push(WasmValue(Simd128(s)));                                       \
+    return true;                                                       \
   }
       REPLACE_LANE_CASE(F64x2, f64x2, float2, double)
       REPLACE_LANE_CASE(F32x4, f32x4, float4, float)
@@ -2658,8 +2661,8 @@ class ThreadImpl {
         return true;
       }
       case kExprS8x16Shuffle: {
-        Simd8x16ShuffleImmediate<Decoder::kNoValidate> imm(decoder,
-                                                           code->at(pc));
+        Simd8x16ShuffleImmediate<Decoder::kNoValidate> imm(
+            decoder, code->at(pc), opcode_length);
         *len += 16;
         int16 v2 = Pop().to_s128().to_i8x16();
         int16 v1 = Pop().to_s128().to_i8x16();
@@ -3051,13 +3054,15 @@ class ThreadImpl {
       // Do first check for a breakpoint, in order to set hit_break correctly.
       const char* skip = "        ";
       int len = 1;
+      // We need to store this, because SIMD opcodes are LEB encoded, and later
+      // on when executing, we need to know where to read immediates from.
+      uint32_t simd_opcode_length = 0;
       byte orig = code->start[pc];
       WasmOpcode opcode = static_cast<WasmOpcode>(orig);
       if (WasmOpcodes::IsPrefixOpcode(opcode)) {
-        uint32_t length;
         opcode = decoder.read_prefixed_opcode<Decoder::kNoValidate>(
-            &code->start[pc], &length);
-        len += length;
+            &code->start[pc], &simd_opcode_length);
+        len += simd_opcode_length;
       }
       if (V8_UNLIKELY(orig == kInternalBreakpoint)) {
         orig = code->orig_start[pc];
@@ -3678,7 +3683,9 @@ class ThreadImpl {
           break;
         }
         case kSimdPrefix: {
-          if (!ExecuteSimdOp(opcode, &decoder, code, pc, &len)) return;
+          if (!ExecuteSimdOp(opcode, &decoder, code, pc, &len,
+                             simd_opcode_length))
+            return;
           break;
         }
 
