@@ -534,8 +534,7 @@ bool CompilationDependencies::Commit(Handle<Code> code) {
   // that triggers its deoptimization.
   if (FLAG_stress_gc_during_compilation) {
     broker_->isolate()->heap()->PreciseCollectAllGarbage(
-        Heap::kNoGCFlags, GarbageCollectionReason::kTesting,
-        kGCCallbackFlagForced);
+        Heap::kForcedGC, GarbageCollectionReason::kTesting, kNoGCCallbackFlags);
   }
 #ifdef DEBUG
   for (auto dep : dependencies_) {

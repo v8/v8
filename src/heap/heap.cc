@@ -1380,16 +1380,15 @@ void Heap::CollectAllAvailableGarbage(GarbageCollectionReason gc_reason) {
   // The optimizing compiler may be unnecessarily holding on to memory.
   isolate()->AbortConcurrentOptimization(BlockingBehavior::kDontBlock);
   isolate()->ClearSerializerData();
-  set_current_gc_flags(kReduceMemoryFootprintMask);
+  set_current_gc_flags(
+      kReduceMemoryFootprintMask |
+      (gc_reason == GarbageCollectionReason::kLowMemoryNotification ? kForcedGC
+                                                                    : 0));
   isolate_->compilation_cache()->Clear();
   const int kMaxNumberOfAttempts = 7;
   const int kMinNumberOfAttempts = 2;
-  const v8::GCCallbackFlags callback_flags =
-      gc_reason == GarbageCollectionReason::kLowMemoryNotification
-          ? v8::kGCCallbackFlagForced
-          : v8::kGCCallbackFlagCollectAllAvailableGarbage;
   for (int attempt = 0; attempt < kMaxNumberOfAttempts; attempt++) {
-    if (!CollectGarbage(OLD_SPACE, gc_reason, callback_flags) &&
+    if (!CollectGarbage(OLD_SPACE, gc_reason, kNoGCCallbackFlags) &&
         attempt + 1 >= kMinNumberOfAttempts) {
       break;
     }
@@ -1512,7 +1511,8 @@ bool Heap::CollectGarbage(AllocationSpace space,
                           const v8::GCCallbackFlags gc_callback_flags) {
   const char* collector_reason = nullptr;
   GarbageCollector collector = SelectGarbageCollector(space, &collector_reason);
-  is_current_gc_forced_ = gc_callback_flags & v8::kGCCallbackFlagForced;
+  is_current_gc_forced_ = gc_callback_flags & v8::kGCCallbackFlagForced ||
+                          current_gc_flags_ & kForcedGC;
 
   DevToolsTraceEventScope devtools_trace_event_scope(
       this, IsYoungGenerationCollector(collector) ? "MinorGC" : "MajorGC",
