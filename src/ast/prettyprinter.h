@@ -53,10 +53,11 @@ class CallPrinter final : public AstVisitor<CallPrinter> {
 
  private:
   void Print(const char* str);
-  void Print(const AstRawString* str);
+  void Print(Handle<String> str);
 
   void Find(AstNode* node, bool print = false);
 
+  Isolate* isolate_;
   int num_prints_;
   // Allocate the builder on the heap simply because it's forward declared.
   std::unique_ptr<IncrementalStringBuilder> builder_;
@@ -75,7 +76,7 @@ class CallPrinter final : public AstVisitor<CallPrinter> {
   DEFINE_AST_VISITOR_SUBCLASS_MEMBERS();
 
  protected:
-  void PrintLiteral(Literal* literal, bool quote);
+  void PrintLiteral(Handle<Object> value, bool quote);
   void PrintLiteral(const AstRawString* value, bool quote);
   void FindStatements(const ZonePtrList<Statement>* statements);
   void FindArguments(const ZonePtrList<Expression>* arguments);
