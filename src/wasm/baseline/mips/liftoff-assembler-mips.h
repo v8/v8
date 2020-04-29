@@ -1721,7 +1721,7 @@ void LiftoffAssembler::emit_s128_and_not(LiftoffRegister dst,
 void LiftoffAssembler::emit_s128_select(LiftoffRegister dst,
                                         LiftoffRegister src1,
                                         LiftoffRegister src2,
-                                        LiftoffRegister src3) {
+                                        LiftoffRegister mask) {
   bailout(kSimd, "emit_s128_select");
 }
 

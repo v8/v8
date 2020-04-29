@@ -1686,8 +1686,11 @@ void LiftoffAssembler::emit_s128_xor(LiftoffRegister dst, LiftoffRegister lhs,
 void LiftoffAssembler::emit_s128_select(LiftoffRegister dst,
                                         LiftoffRegister src1,
                                         LiftoffRegister src2,
-                                        LiftoffRegister src3) {
-  bailout(kSimd, "s128select");
+                                        LiftoffRegister mask) {
+  if (dst != mask) {
+    Mov(dst.fp().V16B(), mask.fp().V16B());
+  }
+  Bsl(dst.fp().V16B(), src1.fp().V16B(), src2.fp().V16B());
 }
 
 void LiftoffAssembler::emit_i8x16_sconvert_i16x8(LiftoffRegister dst,

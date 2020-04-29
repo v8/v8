@@ -1542,12 +1542,12 @@ void LiftoffAssembler::emit_s128_and_not(LiftoffRegister dst,
 void LiftoffAssembler::emit_s128_select(LiftoffRegister dst,
                                         LiftoffRegister src1,
                                         LiftoffRegister src2,
-                                        LiftoffRegister src3) {
-  if (dst == src3) {
+                                        LiftoffRegister mask) {
+  if (dst == mask) {
     bsel_v(dst.fp().toW(), src2.fp().toW(), src1.fp().toW());
   } else {
     xor_v(kSimd128ScratchReg, src1.fp().toW(), src2.fp().toW());
-    and_v(kSimd128ScratchReg, kSimd128ScratchReg, src3.fp().toW());
+    and_v(kSimd128ScratchReg, kSimd128ScratchReg, mask.fp().toW());
     xor_v(dst.fp().toW(), kSimd128ScratchReg, src2.fp().toW());
   }
 }

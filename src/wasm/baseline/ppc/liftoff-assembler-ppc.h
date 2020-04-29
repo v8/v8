@@ -1067,7 +1067,7 @@ void LiftoffAssembler::emit_s128_xor(LiftoffRegister dst, LiftoffRegister lhs,
 void LiftoffAssembler::emit_s128_select(LiftoffRegister dst,
                                         LiftoffRegister src1,
                                         LiftoffRegister src2,
-                                        LiftoffRegister src3) {
+                                        LiftoffRegister mask) {
   bailout(kUnsupportedArchitecture, "emit_s128select");
 }
 

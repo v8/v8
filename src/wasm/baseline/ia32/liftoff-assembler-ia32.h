@@ -2279,16 +2279,16 @@ void LiftoffAssembler::emit_s128_xor(LiftoffRegister dst, LiftoffRegister lhs,
 void LiftoffAssembler::emit_s128_select(LiftoffRegister dst,
                                         LiftoffRegister src1,
                                         LiftoffRegister src2,
-                                        LiftoffRegister src3) {
+                                        LiftoffRegister mask) {
   if (CpuFeatures::IsSupported(AVX)) {
     CpuFeatureScope scope(this, AVX);
     vxorps(liftoff::kScratchDoubleReg, src1.fp(), src2.fp());
-    vandps(liftoff::kScratchDoubleReg, liftoff::kScratchDoubleReg, src3.fp());
+    vandps(liftoff::kScratchDoubleReg, liftoff::kScratchDoubleReg, mask.fp());
     vxorps(dst.fp(), liftoff::kScratchDoubleReg, src2.fp());
   } else {
     movaps(liftoff::kScratchDoubleReg, src1.fp());
     xorps(liftoff::kScratchDoubleReg, src2.fp());
-    andps(liftoff::kScratchDoubleReg, src3.fp());
+    andps(liftoff::kScratchDoubleReg, mask.fp());
     if (dst.fp() != src2.fp()) movaps(dst.fp(), src2.fp());
     xorps(dst.fp(), liftoff::kScratchDoubleReg);
   }

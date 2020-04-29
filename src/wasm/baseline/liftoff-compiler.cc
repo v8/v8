@@ -2380,9 +2380,12 @@ class LiftoffCompiler {
     LiftoffRegister src2 = __ PopToRegister(LiftoffRegList::ForRegs(src3));
     LiftoffRegister src1 =
         __ PopToRegister(LiftoffRegList::ForRegs(src3, src2));
+    // Reusing src1 and src2 will complicate codegen for select for some
+    // backend, so we allow only reusing src3 (the mask), and pin src1 and src2.
     LiftoffRegister dst =
         src_rc == result_rc
-            ? __ GetUnusedRegister(result_rc, {src1, src2, src3})
+            ? __ GetUnusedRegister(result_rc, {src3},
+                                   LiftoffRegList::ForRegs(src1, src2))
             : __ GetUnusedRegister(result_rc);
     CallEmitFn(fn, dst, src1, src2, src3);
     __ PushRegister(ValueType(result_type), dst);
