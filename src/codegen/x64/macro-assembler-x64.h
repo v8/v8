@@ -677,6 +677,13 @@ class V8_EXPORT_PRIVATE TurboAssembler : public TurboAssemblerBase {
   void DecompressTaggedPointer(Register destination, Register source);
   void DecompressAnyTagged(Register destination, Operand field_operand);
 
+  // ---------------------------------------------------------------------------
+  // V8 Heap sandbox support
+
+  // Loads a field containing off-heap pointer and does necessary decoding
+  // if V8 heap sandbox is enabled.
+  void LoadExternalPointerField(Register destination, Operand field_operand);
+
  protected:
   static const int kSmiShift = kSmiTagSize + kSmiShiftSize;
 

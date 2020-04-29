@@ -9,6 +9,7 @@
 
 #include "src/base/macros.h"
 #include "src/codegen/bailout-reason.h"
+#include "src/common/external-pointer.h"
 #include "src/common/globals.h"
 #include "src/common/message-template.h"
 #include "src/compiler/code-assembler.h"
@@ -1064,6 +1065,19 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
   //
   // Works only with V8_ENABLE_FORCE_SLOW_PATH compile time flag. Nop otherwise.
   void GotoIfForceSlowPath(Label* if_true);
+
+  // Convert external pointer from on-V8-heap representation to an actual
+  // external pointer value.
+  TNode<RawPtrT> DecodeExternalPointer(
+      TNode<ExternalPointerT> encoded_pointer) {
+    STATIC_ASSERT(kExternalPointerSize == kSystemPointerSize);
+    TNode<RawPtrT> value = ReinterpretCast<RawPtrT>(encoded_pointer);
+    if (V8_HEAP_SANDBOX_BOOL) {
+      value = UncheckedCast<RawPtrT>(
+          WordXor(value, UintPtrConstant(kExternalPointerSalt)));
+    }
+    return value;
+  }
 
   // Load value from current parent frame by given offset in bytes.
   TNode<Object> LoadFromParentFrame(int offset);

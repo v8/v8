@@ -134,6 +134,12 @@ struct MaybeBoolFlag {
 #define COMPRESS_POINTERS_BOOL false
 #endif
 
+#ifdef V8_HEAP_SANDBOX
+#define V8_HEAP_SANDBOX_BOOL true
+#else
+#define V8_HEAP_SANDBOX_BOOL false
+#endif
+
 #ifdef V8_ENABLE_CONTROL_FLOW_INTEGRITY
 #define ENABLE_CONTROL_FLOW_INTEGRITY_BOOL true
 #else

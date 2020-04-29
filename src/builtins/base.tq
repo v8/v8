@@ -147,6 +147,8 @@ type ObjectHashTable extends HashTable
 extern class NumberDictionary extends HashTable;
 
 type RawPtr generates 'TNode<RawPtrT>' constexpr 'void*';
+type ExternalPointer
+    generates 'TNode<ExternalPointerT>' constexpr 'ExternalPointer_t';
 extern class Code extends HeapObject;
 type BuiltinPtr extends Smi generates 'TNode<BuiltinPtr>';
 

@@ -815,6 +815,8 @@ size_t AbstractType::AlignmentLog2() const {
     alignment = TargetArchitecture::TaggedSize();
   } else if (this == TypeOracle::GetRawPtrType()) {
     alignment = TargetArchitecture::RawPtrSize();
+  } else if (this == TypeOracle::GetExternalPointerType()) {
+    alignment = TargetArchitecture::ExternalPointerSize();
   } else if (this == TypeOracle::GetVoidType()) {
     alignment = 1;
   } else if (this == TypeOracle::GetInt8Type()) {
@@ -882,6 +884,9 @@ base::Optional<std::tuple<size_t, std::string>> SizeOf(const Type* type) {
   } else if (type->IsSubtypeOf(TypeOracle::GetRawPtrType())) {
     size = TargetArchitecture::RawPtrSize();
     size_string = "kSystemPointerSize";
+  } else if (type->IsSubtypeOf(TypeOracle::GetExternalPointerType())) {
+    size = TargetArchitecture::ExternalPointerSize();
+    size_string = "kExternalPointerSize";
   } else if (type->IsSubtypeOf(TypeOracle::GetVoidType())) {
     size = 0;
     size_string = "0";

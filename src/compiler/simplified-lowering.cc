@@ -963,7 +963,8 @@ class RepresentationSelector {
       return MachineRepresentation::kFloat64;
     } else if (type.Is(Type::BigInt()) && use.IsUsedAsWord64()) {
       return MachineRepresentation::kWord64;
-    } else if (type.Is(Type::ExternalPointer())) {
+    } else if (type.Is(Type::ExternalPointer()) ||
+               type.Is(Type::SandboxedExternalPointer())) {
       return MachineType::PointerRepresentation();
     }
     return MachineRepresentation::kTagged;
