@@ -1575,6 +1575,40 @@ TEST(OUT_OF_RANGE_CVT) {
   }
 }
 
+#define FCMP_TEST_HELPER(F, op)                                              \
+  GenAndRunTest<F, int32_t>(std::numeric_limits<F>::quiet_NaN(),             \
+                            static_cast<F>(1.0), false, fn);                 \
+  GenAndRunTest<F, int32_t>(std::numeric_limits<F>::quiet_NaN(),             \
+                            std::numeric_limits<F>::quiet_NaN(), false, fn); \
+  GenAndRunTest<F, int32_t>(std::numeric_limits<F>::signaling_NaN(),         \
+                            std::numeric_limits<F>::quiet_NaN(), false, fn); \
+  GenAndRunTest<F, int32_t>(std::numeric_limits<F>::quiet_NaN(),             \
+                            std::numeric_limits<F>::infinity(), false, fn);  \
+  GenAndRunTest<F, int32_t>(std::numeric_limits<F>::infinity(),              \
+                            std::numeric_limits<F>::infinity(),              \
+                            (std::numeric_limits<F>::infinity()              \
+                                 op std::numeric_limits<F>::infinity()),     \
+                            fn);                                             \
+  GenAndRunTest<F, int32_t>(-std::numeric_limits<F>::infinity(),             \
+                            std::numeric_limits<F>::infinity(),              \
+                            (-std::numeric_limits<F>::infinity()             \
+                                 op std::numeric_limits<F>::infinity()),     \
+                            fn);
+
+TEST(FCMP_NAN) {
+  // test floating-point compare w/ NaN, +/-Inf
+  CcTest::InitializeVM();
+
+  {
+    auto fn = [](MacroAssembler& assm) {
+      __ RV_fmv_w_x(fa0, a0);
+      __ RV_fmv_w_x(fa1, a1);
+      __ RV_feq_s(a0, fa0, fa1);
+    };
+    FCMP_TEST_HELPER(float, ==);
+  }
+}
+
 TEST(jump_tables1) {
   // Test jump tables with forward jumps.
   CcTest::InitializeVM();
