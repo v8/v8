@@ -122,7 +122,7 @@ static int64_t GetGPRParam(Param_T* params) {
 
 template <typename RETURN_T, typename OUTPUT_T>
 static void ValidateResult(RETURN_T generated_res, OUTPUT_T expected_res) {
-  assert(sizeof(RETURN_T) == sizeof(OUTPUT_T));
+  DCHECK(sizeof(RETURN_T) == sizeof(OUTPUT_T));
 
   Param_T t;
   memset(&t, 0, sizeof(t));
@@ -138,7 +138,7 @@ static void ValidateResult(RETURN_T generated_res, OUTPUT_T expected_res) {
 template <typename INPUT_T, typename OUTPUT_T, typename Func>
 static void GenAndRunTest(INPUT_T input0, OUTPUT_T expected_res,
                           Func test_generator) {
-  assert((sizeof(INPUT_T) == 4 || sizeof(INPUT_T) == 8));
+  DCHECK((sizeof(INPUT_T) == 4 || sizeof(INPUT_T) == 8));
 
   Isolate* isolate = CcTest::i_isolate();
   HandleScope scope(isolate);
@@ -183,8 +183,7 @@ static void GenAndRunTest(INPUT_T input0, OUTPUT_T expected_res,
 template <typename INPUT_T, typename OUTPUT_T, typename Func>
 static void GenAndRunTest(INPUT_T input0, INPUT_T input1, OUTPUT_T expected_res,
                           Func test_generator) {
-  assert((sizeof(INPUT_T) == 4 || sizeof(INPUT_T) == 8) &&
-         sizeof(OUTPUT_T) == sizeof(INPUT_T));
+  DCHECK((sizeof(INPUT_T) == 4 || sizeof(INPUT_T) == 8));
 
   Isolate* isolate = CcTest::i_isolate();
   HandleScope scope(isolate);
@@ -220,10 +219,12 @@ static void GenAndRunTest(INPUT_T input0, INPUT_T input1, OUTPUT_T expected_res,
   SetParam(&t[0], input0);
   SetParam(&t[1], input1);
 
-  using INT_T =
+  using IINT_T =
+      typename std::conditional<sizeof(INPUT_T) == 4, int32_t, int64_t>::type;
+  using OINT_T =
       typename std::conditional<sizeof(OUTPUT_T) == 4, int32_t, int64_t>::type;
 
-  auto f = GeneratedCode<INT_T(INT_T, INT_T)>::FromCode(*code);
+  auto f = GeneratedCode<OINT_T(IINT_T, IINT_T)>::FromCode(*code);
   auto res = f.Call(GetGPRParam<INPUT_T>(&t[0]), GetGPRParam<INPUT_T>(&t[1]));
   ValidateResult(res, expected_res);
 }
@@ -231,8 +232,8 @@ static void GenAndRunTest(INPUT_T input0, INPUT_T input1, OUTPUT_T expected_res,
 template <typename INPUT_T, typename OUTPUT_T, typename Func>
 static void GenAndRunTest(INPUT_T input0, INPUT_T input1, INPUT_T input2,
                           OUTPUT_T expected_res, Func test_generator) {
-  assert((sizeof(INPUT_T) == 4 || sizeof(INPUT_T) == 8));
-  assert(sizeof(OUTPUT_T) == sizeof(INPUT_T));
+  DCHECK((sizeof(INPUT_T) == 4 || sizeof(INPUT_T) == 8));
+  DCHECK(sizeof(OUTPUT_T) == sizeof(INPUT_T));
 
   Isolate* isolate = CcTest::i_isolate();
   HandleScope scope(isolate);
@@ -281,7 +282,7 @@ static void GenAndRunTest(INPUT_T input0, INPUT_T input1, INPUT_T input2,
 
 template <typename T, typename Func>
 static void GenAndRunTestForLoadStore(T value, Func test_generator) {
-  assert(sizeof(T) == 4 || sizeof(T) == 8);
+  DCHECK(sizeof(T) == 4 || sizeof(T) == 8);
 
   Isolate* isolate = CcTest::i_isolate();
   HandleScope scope(isolate);
@@ -378,7 +379,7 @@ static void GenAndRunTest(int64_t expected_res, Func test_generator) {
 // to move from GPR to FPR and back in all floating point tests
 #define UTEST_LOAD_STORE_F(ldname, stname, value_type, store_value) \
   TEST(RISCV_UTEST_##stname##ldname) {                              \
-    assert(std::is_floating_point<value_type>::value);              \
+    DCHECK(std::is_floating_point<value_type>::value);              \
                                                                     \
     CcTest::InitializeVM();                                         \
     auto fn = [](MacroAssembler& assm) {                            \
@@ -391,7 +392,7 @@ static void GenAndRunTest(int64_t expected_res, Func test_generator) {
 #define UTEST_R1_FORM_WITH_RES_F(instr_name, inout_type, rs1_fval,        \
                                  expected_fres)                           \
   TEST(RISCV_UTEST_##instr_name) {                                        \
-    assert(std::is_floating_point<inout_type>::value);                    \
+    DCHECK(std::is_floating_point<inout_type>::value);                    \
     CcTest::InitializeVM();                                               \
     auto fn = [](MacroAssembler& assm) { __ RV_##instr_name(fa0, fa0); }; \
     GenAndRunTest<inout_type, inout_type>(rs1_fval, expected_fres, fn);   \
@@ -400,7 +401,7 @@ static void GenAndRunTest(int64_t expected_res, Func test_generator) {
 #define UTEST_R2_FORM_WITH_RES_F(instr_name, inout_type, rs1_fval, rs2_fval,   \
                                  expected_fres)                                \
   TEST(RISCV_UTEST_##instr_name) {                                             \
-    assert(std::is_floating_point<inout_type>::value);                         \
+    DCHECK(std::is_floating_point<inout_type>::value);                         \
     CcTest::InitializeVM();                                                    \
     auto fn = [](MacroAssembler& assm) { __ RV_##instr_name(fa0, fa0, fa1); }; \
     GenAndRunTest<inout_type, inout_type>(rs1_fval, rs2_fval, expected_fres,   \
@@ -410,7 +411,7 @@ static void GenAndRunTest(int64_t expected_res, Func test_generator) {
 #define UTEST_R3_FORM_WITH_RES_F(instr_name, inout_type, rs1_fval, rs2_fval, \
                                  rs3_fval, expected_fres)                    \
   TEST(RISCV_UTEST_##instr_name) {                                           \
-    assert(std::is_floating_point<inout_type>::value);                       \
+    DCHECK(std::is_floating_point<inout_type>::value);                       \
     CcTest::InitializeVM();                                                  \
     auto fn = [](MacroAssembler& assm) {                                     \
       __ RV_##instr_name(fa0, fa0, fa1, fa2);                                \
@@ -419,19 +420,18 @@ static void GenAndRunTest(int64_t expected_res, Func test_generator) {
                                           expected_fres, fn);                \
   }
 
-#define UTEST_COMPARE_WITH_RES_F(instr_name, input_type, output_type,         \
-                                 rs1_fval, rs2_fval, expected_res)            \
+#define UTEST_COMPARE_WITH_RES_F(instr_name, input_type, rs1_fval, rs2_fval,  \
+                                 expected_res)                                \
   TEST(RISCV_UTEST_##instr_name) {                                            \
     CcTest::InitializeVM();                                                   \
     auto fn = [](MacroAssembler& assm) { __ RV_##instr_name(a0, fa0, fa1); }; \
-    GenAndRunTest<input_type, output_type>(rs1_fval, rs2_fval, expected_res,  \
-                                           fn);                               \
+    GenAndRunTest<input_type, int32_t>(rs1_fval, rs2_fval, expected_res, fn); \
   }
 
 #define UTEST_CONV_F_FROM_I(instr_name, input_type, output_type, rs1_val, \
                             expected_fres)                                \
   TEST(RISCV_UTEST_##instr_name) {                                        \
-    assert(std::is_integral<input_type>::value&&                          \
+    DCHECK(std::is_integral<input_type>::value&&                          \
                std::is_floating_point<output_type>::value);               \
                                                                           \
     CcTest::InitializeVM();                                               \
@@ -442,7 +442,7 @@ static void GenAndRunTest(int64_t expected_res, Func test_generator) {
 #define UTEST_CONV_I_FROM_F(instr_name, input_type, output_type,        \
                             rounding_mode, rs1_fval, expected_res)      \
   TEST(RISCV_UTEST_##instr_name) {                                      \
-    assert(std::is_floating_point<input_type>::value&&                  \
+    DCHECK(std::is_floating_point<input_type>::value&&                  \
                std::is_integral<output_type>::value);                   \
                                                                         \
     CcTest::InitializeVM();                                             \
@@ -453,7 +453,7 @@ static void GenAndRunTest(int64_t expected_res, Func test_generator) {
   }                                                                     \
                                                                         \
   TEST(RISCV_UTEST_dyn_##instr_name) {                                  \
-    assert(std::is_floating_point<input_type>::value&&                  \
+    DCHECK(std::is_floating_point<input_type>::value&&                  \
                std::is_integral<output_type>::value);                   \
                                                                         \
     CcTest::InitializeVM();                                             \
@@ -560,10 +560,10 @@ static void GenAndRunTest(int64_t expected_res, Func test_generator) {
   UTEST_R2_FORM_WITH_RES_F(instr_name, inout_type, rs1_fval, rs2_fval,      \
                            ((rs1_fval)tested_op(rs2_fval)))
 
-#define UTEST_COMPARE_WITH_OP_F(instr_name, input_type, output_type, rs1_fval, \
-                                rs2_fval, tested_op)                           \
-  UTEST_COMPARE_WITH_RES_F(instr_name, input_type, output_type, rs1_fval,      \
-                           rs2_fval, ((rs1_fval)tested_op(rs2_fval)))
+#define UTEST_COMPARE_WITH_OP_F(instr_name, input_type, rs1_fval, rs2_fval, \
+                                tested_op)                                  \
+  UTEST_COMPARE_WITH_RES_F(instr_name, input_type, rs1_fval, rs2_fval,      \
+                           ((rs1_fval)tested_op(rs2_fval)))
 
 // -- test load-store --
 UTEST_LOAD_STORE(ld, sd, int64_t, 0xFBB10A9C12345678)
@@ -713,9 +713,9 @@ UTEST_R3_FORM_WITH_RES_F(fnmsub_s, float, 67.56f, -1012.01f, 3456.13f,
                          (-(67.56f * (-1012.01f)) + 3456.13f))
 UTEST_R3_FORM_WITH_RES_F(fnmadd_s, float, 67.56f, -1012.01f, 3456.13f,
                          (-(67.56f * (-1012.01f)) - 3456.13f))
-UTEST_COMPARE_WITH_OP_F(feq_s, float, int32_t, -3456.56, -3456.56, ==)
-UTEST_COMPARE_WITH_OP_F(flt_s, float, int32_t, -3456.56, -3456.56, <)
-UTEST_COMPARE_WITH_OP_F(fle_s, float, int32_t, -3456.56, -3456.56, <=)
+UTEST_COMPARE_WITH_OP_F(feq_s, float, -3456.56, -3456.56, ==)
+UTEST_COMPARE_WITH_OP_F(flt_s, float, -3456.56, -3456.56, <)
+UTEST_COMPARE_WITH_OP_F(fle_s, float, -3456.56, -3456.56, <=)
 UTEST_CONV_F_FROM_I(fcvt_s_w, int32_t, float, -100, (float)(-100))
 UTEST_CONV_F_FROM_I(fcvt_s_wu, int32_t, float,
                     std::numeric_limits<uint32_t>::max(),
@@ -745,9 +745,10 @@ UTEST_R3_FORM_WITH_RES_F(fnmsub_d, double, 67.56, -1012.01, 3456.13,
                          (-(67.56 * (-1012.01)) + 3456.13))
 UTEST_R3_FORM_WITH_RES_F(fnmadd_d, double, 67.56, -1012.01, 3456.13,
                          (-(67.56 * (-1012.01)) - 3456.13))
-UTEST_COMPARE_WITH_OP_F(feq_d, double, int64_t, -3456.56, -3456.56, ==)
-UTEST_COMPARE_WITH_OP_F(flt_d, double, int64_t, -3456.56, -3456.56, <)
-UTEST_COMPARE_WITH_OP_F(fle_d, double, int64_t, -3456.56, -3456.56, <=)
+
+UTEST_COMPARE_WITH_OP_F(feq_d, double, -3456.56, -3456.56, ==)
+UTEST_COMPARE_WITH_OP_F(flt_d, double, -3456.56, -3456.56, <)
+UTEST_COMPARE_WITH_OP_F(fle_d, double, -3456.56, -3456.56, <=)
 
 UTEST_CONV_F_FROM_I(fcvt_d_w, int32_t, double, -100, -100.0)
 UTEST_CONV_F_FROM_I(fcvt_d_wu, int32_t, double,
@@ -1526,7 +1527,7 @@ TEST(OUT_OF_RANGE_CVT) {
   }
 }
 
-#define FCMP_TEST_HELPER(F, op)                                              \
+#define FCMP_TEST_HELPER(F, fn, op)                                          \
   GenAndRunTest<F, int32_t>(std::numeric_limits<F>::quiet_NaN(),             \
                             static_cast<F>(1.0), false, fn);                 \
   GenAndRunTest<F, int32_t>(std::numeric_limits<F>::quiet_NaN(),             \
@@ -1546,14 +1547,25 @@ TEST(OUT_OF_RANGE_CVT) {
                                  op std::numeric_limits<F>::infinity()),     \
                             fn);
 
-TEST(FCMP_NAN) {
+TEST(F_NAN) {
   // test floating-point compare w/ NaN, +/-Inf
   CcTest::InitializeVM();
 
-  {
-    auto fn = [](MacroAssembler& assm) { __ RV_feq_s(a0, fa0, fa1); };
-    FCMP_TEST_HELPER(float, ==);
-  }
+  // floating compare
+  auto fn1 = [](MacroAssembler& assm) { __ RV_feq_s(a0, fa0, fa1); };
+  FCMP_TEST_HELPER(float, fn1, ==);
+  auto fn2 = [](MacroAssembler& assm) { __ RV_flt_s(a0, fa0, fa1); };
+  FCMP_TEST_HELPER(float, fn2, <);
+  auto fn3 = [](MacroAssembler& assm) { __ RV_fle_s(a0, fa0, fa1); };
+  FCMP_TEST_HELPER(float, fn3, <=);
+
+  // double compare
+  auto fn4 = [](MacroAssembler& assm) { __ RV_feq_d(a0, fa0, fa1); };
+  FCMP_TEST_HELPER(double, fn4, ==);
+  auto fn5 = [](MacroAssembler& assm) { __ RV_flt_d(a0, fa0, fa1); };
+  FCMP_TEST_HELPER(double, fn5, <);
+  auto fn6 = [](MacroAssembler& assm) { __ RV_fle_d(a0, fa0, fa1); };
+  FCMP_TEST_HELPER(double, fn6, <=);
 }
 
 TEST(jump_tables1) {
