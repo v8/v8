@@ -193,7 +193,7 @@ Handle<JSArrayBuffer> JSTypedArray::GetBuffer() {
 
   // Clear the elements of the typed array.
   self->set_elements(ReadOnlyRoots(isolate).empty_byte_array());
-  self->SetOffHeapDataPtr(array_buffer->backing_store(), 0);
+  self->SetOffHeapDataPtr(isolate, array_buffer->backing_store(), 0);
   DCHECK(!self->is_on_heap());
 
   return array_buffer;

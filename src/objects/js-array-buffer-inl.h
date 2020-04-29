@@ -7,6 +7,7 @@
 
 #include "src/objects/js-array-buffer.h"
 
+#include "src/common/external-pointer-inl.h"
 #include "src/heap/heap-write-barrier-inl.h"
 #include "src/objects/js-objects-inl.h"
 #include "src/objects/objects-inl.h"
@@ -185,12 +186,15 @@ void JSTypedArray::set_length(size_t value) {
   WriteField<size_t>(kLengthOffset, value);
 }
 
-Address JSTypedArray::external_pointer() const {
-  return ReadField<Address>(kExternalPointerOffset);
+DEF_GETTER(JSTypedArray, external_pointer, Address) {
+  ExternalPointer_t encoded_value =
+      ReadField<ExternalPointer_t>(kExternalPointerOffset);
+  return DecodeExternalPointer(isolate, encoded_value);
 }
 
-void JSTypedArray::set_external_pointer(Address value) {
-  WriteField<Address>(kExternalPointerOffset, value);
+void JSTypedArray::set_external_pointer(Isolate* isolate, Address value) {
+  ExternalPointer_t encoded_value = EncodeExternalPointer(isolate, value);
+  WriteField<ExternalPointer_t>(kExternalPointerOffset, encoded_value);
 }
 
 Address JSTypedArray::ExternalPointerCompensationForOnHeapArray(
@@ -202,11 +206,29 @@ Address JSTypedArray::ExternalPointerCompensationForOnHeapArray(
 #endif
 }
 
-void JSTypedArray::RemoveExternalPointerCompensationForSerialization() {
+uint32_t JSTypedArray::GetExternalBackingStoreRefForDeserialization() const {
+  DCHECK(!is_on_heap());
+  ExternalPointer_t encoded_value =
+      ReadField<ExternalPointer_t>(kExternalPointerOffset);
+  return static_cast<uint32_t>(encoded_value);
+}
+
+void JSTypedArray::SetExternalBackingStoreRefForSerialization(uint32_t ref) {
+  DCHECK(!is_on_heap());
+  ExternalPointer_t encoded_value = ref;
+  WriteField<ExternalPointer_t>(kExternalPointerOffset, encoded_value);
+}
+
+void JSTypedArray::RemoveExternalPointerCompensationForSerialization(
+    Isolate* isolate) {
   DCHECK(is_on_heap());
-  const Isolate* isolate = GetIsolateForPtrCompr(*this);
-  set_external_pointer(external_pointer() -
-                       ExternalPointerCompensationForOnHeapArray(isolate));
+  // TODO(v8:10391): once we have an external table, avoid the need for
+  // compensation by replacing external_pointer and base_pointer fields
+  // with one data_pointer field which can point to either external data
+  // backing store or into on-heap backing store.
+  set_external_pointer(
+      isolate,
+      external_pointer() - ExternalPointerCompensationForOnHeapArray(isolate));
 }
 
 ACCESSORS(JSTypedArray, base_pointer, Object, kBasePointerOffset)
@@ -220,18 +242,19 @@ void* JSTypedArray::DataPtr() {
                                  static_cast<Tagged_t>(base_pointer().ptr()));
 }
 
-void JSTypedArray::SetOffHeapDataPtr(void* base, Address offset) {
+void JSTypedArray::SetOffHeapDataPtr(Isolate* isolate, void* base,
+                                     Address offset) {
   set_base_pointer(Smi::zero(), SKIP_WRITE_BARRIER);
   Address address = reinterpret_cast<Address>(base) + offset;
-  set_external_pointer(address);
+  set_external_pointer(isolate, address);
   DCHECK_EQ(address, reinterpret_cast<Address>(DataPtr()));
 }
 
-void JSTypedArray::SetOnHeapDataPtr(HeapObject base, Address offset) {
+void JSTypedArray::SetOnHeapDataPtr(Isolate* isolate, HeapObject base,
+                                    Address offset) {
   set_base_pointer(base);
-  const Isolate* isolate = GetIsolateForPtrCompr(*this);
-  set_external_pointer(offset +
-                       ExternalPointerCompensationForOnHeapArray(isolate));
+  set_external_pointer(
+      isolate, offset + ExternalPointerCompensationForOnHeapArray(isolate));
   DCHECK_EQ(base.ptr() + offset, reinterpret_cast<Address>(DataPtr()));
 }
 

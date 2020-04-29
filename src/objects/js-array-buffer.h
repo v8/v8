@@ -270,8 +270,9 @@ class JSTypedArray : public JSArrayBufferView {
   // Use with care: returns raw pointer into heap.
   inline void* DataPtr();
 
-  inline void SetOffHeapDataPtr(void* base, Address offset);
-  inline void SetOnHeapDataPtr(HeapObject base, Address offset);
+  inline void SetOffHeapDataPtr(Isolate* isolate, void* base, Address offset);
+  inline void SetOnHeapDataPtr(Isolate* isolate, HeapObject base,
+                               Address offset);
 
   // Whether the buffer's backing store is on-heap or off-heap.
   inline bool is_on_heap() const;
@@ -288,8 +289,21 @@ class JSTypedArray : public JSArrayBufferView {
   static inline Address ExternalPointerCompensationForOnHeapArray(
       const Isolate* isolate);
 
+  //
+  // Serializer/deserializer support.
+  //
+
+  // External backing stores are serialized/deserialized separately.
+  // During serialization the backing store reference is stored in the typed
+  // array object and upon deserialization it is converted back to actual
+  // external (off-heap) pointer value.
+  // The backing store reference is stored in the external_pointer field.
+  inline uint32_t GetExternalBackingStoreRefForDeserialization() const;
+  inline void SetExternalBackingStoreRefForSerialization(uint32_t ref);
+
   // Subtracts external pointer compensation from the external pointer value.
-  inline void RemoveExternalPointerCompensationForSerialization();
+  inline void RemoveExternalPointerCompensationForSerialization(
+      Isolate* isolate);
 
   static inline MaybeHandle<JSTypedArray> Validate(Isolate* isolate,
                                                    Handle<Object> receiver,
@@ -300,12 +314,12 @@ class JSTypedArray : public JSArrayBufferView {
   DECL_VERIFIER(JSTypedArray)
 
 // Layout description.
-#define JS_TYPED_ARRAY_FIELDS(V)                \
-  /* Raw data fields. */                        \
-  V(kLengthOffset, kUIntptrSize)                \
-  V(kExternalPointerOffset, kSystemPointerSize) \
-  V(kBasePointerOffset, kTaggedSize)            \
-  /* Header size. */                            \
+#define JS_TYPED_ARRAY_FIELDS(V)                  \
+  /* Raw data fields. */                          \
+  V(kLengthOffset, kUIntptrSize)                  \
+  V(kExternalPointerOffset, kExternalPointerSize) \
+  V(kBasePointerOffset, kTaggedSize)              \
+  /* Header size. */                              \
   V(kHeaderSize, 0)
 
   DEFINE_FIELD_OFFSET_CONSTANTS(JSArrayBufferView::kHeaderSize,
@@ -334,7 +348,8 @@ class JSTypedArray : public JSArrayBufferView {
   DECL_ACCESSORS(base_pointer, Object)
 
   // [external_pointer]: TODO(v8:4153)
-  DECL_PRIMITIVE_ACCESSORS(external_pointer, Address)
+  DECL_GETTER(external_pointer, Address)
+  inline void set_external_pointer(Isolate* isolate, Address value);
 
   OBJECT_CONSTRUCTORS(JSTypedArray, JSArrayBufferView);
 };

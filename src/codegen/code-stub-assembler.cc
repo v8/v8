@@ -2228,9 +2228,10 @@ TNode<IntPtrT> CodeStubAssembler::LoadPropertyArrayLength(
 
 TNode<RawPtrT> CodeStubAssembler::LoadJSTypedArrayDataPtr(
     TNode<JSTypedArray> typed_array) {
-  // Data pointer = external_pointer + static_cast<Tagged_t>(base_pointer).
-  TNode<RawPtrT> external_pointer = LoadObjectField<RawPtrT>(
-      typed_array, JSTypedArray::kExternalPointerOffset);
+  // Data pointer = DecodeExternalPointer(external_pointer) +
+  //                static_cast<Tagged_t>(base_pointer).
+  TNode<RawPtrT> external_pointer =
+      DecodeExternalPointer(LoadJSTypedArrayExternalPointer(typed_array));
 
   TNode<IntPtrT> base_pointer;
   if (COMPRESS_POINTERS_BOOL) {

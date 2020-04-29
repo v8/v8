@@ -1079,6 +1079,18 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
     return value;
   }
 
+  // Convert external pointer value to on-V8-heap representation.
+  // This should eventually become a call to a non-allocating runtime function.
+  TNode<ExternalPointerT> EncodeExternalPointer(TNode<RawPtrT> pointer) {
+    STATIC_ASSERT(kExternalPointerSize == kSystemPointerSize);
+    TNode<RawPtrT> encoded_pointer = pointer;
+    if (V8_HEAP_SANDBOX_BOOL) {
+      encoded_pointer = UncheckedCast<RawPtrT>(
+          WordXor(encoded_pointer, UintPtrConstant(kExternalPointerSalt)));
+    }
+    return ReinterpretCast<ExternalPointerT>(encoded_pointer);
+  }
+
   // Load value from current parent frame by given offset in bytes.
   TNode<Object> LoadFromParentFrame(int offset);
 

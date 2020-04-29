@@ -39,7 +39,7 @@ extern class JSArrayBufferView extends JSObject {
 
 extern class JSTypedArray extends JSArrayBufferView {
   length: uintptr;
-  external_pointer: RawPtr;
+  external_pointer: ExternalPointer;
   base_pointer: ByteArray|Smi;
 }
 
