@@ -593,7 +593,11 @@ class V8_EXPORT_PRIVATE WasmValue : public v8::Value {
   static bool IsWasmValue(v8::Local<v8::Value> obj);
   V8_INLINE static WasmValue* Cast(v8::Value* obj);
   int value_type();
-  v8::Local<v8::Value> bytes();
+  // Get the underlying values as a byte array, this is only valid if value_type
+  // is i32, i64, f32, f64, or s128.
+  v8::Local<v8::Array> bytes();
+  // Get the underlying anyref, only valid if value_type is anyref.
+  v8::Local<v8::Value> ref();
 
  private:
   WasmValue();

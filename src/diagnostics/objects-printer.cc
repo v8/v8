@@ -2247,7 +2247,7 @@ void DebugInfo::DebugInfoPrint(std::ostream& os) {  // NOLINT
 void WasmValue::WasmValuePrint(std::ostream& os) {  // NOLINT
   PrintHeader(os, "WasmValue");
   os << "\n - value_type: " << value_type();
-  os << "\n - bytes: " << Brief(bytes());
+  os << "\n - bytes_or_ref: " << Brief(bytes_or_ref());
   os << "\n";
 }
 

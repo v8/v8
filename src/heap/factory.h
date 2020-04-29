@@ -740,7 +740,7 @@ class V8_EXPORT_PRIVATE Factory : public FactoryBase<Factory> {
 
   Handle<DebugInfo> NewDebugInfo(Handle<SharedFunctionInfo> shared);
 
-  Handle<WasmValue> NewWasmValue(int32_t value_type, Handle<ByteArray> bytes);
+  Handle<WasmValue> NewWasmValue(int32_t value_type, Handle<Object> ref);
 
   // Return a map for given number of properties using the map cache in the
   // native context.

@@ -3029,12 +3029,12 @@ Handle<DebugInfo> Factory::NewDebugInfo(Handle<SharedFunctionInfo> shared) {
   return debug_info;
 }
 
-Handle<WasmValue> Factory::NewWasmValue(int value_type,
-                                        Handle<ByteArray> bytes) {
+Handle<WasmValue> Factory::NewWasmValue(int value_type, Handle<Object> ref) {
+  DCHECK(value_type == 6 || ref->IsByteArray());
   Handle<WasmValue> wasm_value =
       Handle<WasmValue>::cast(NewStruct(WASM_VALUE_TYPE, AllocationType::kOld));
   wasm_value->set_value_type(value_type);
-  wasm_value->set_bytes(*bytes);
+  wasm_value->set_bytes_or_ref(*ref);
   return wasm_value;
 }
 

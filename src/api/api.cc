@@ -10319,10 +10319,16 @@ int debug::WasmValue::value_type() {
   return obj->value_type();
 }
 
-v8::Local<v8::Value> debug::WasmValue::bytes() {
+v8::Local<v8::Array> debug::WasmValue::bytes() {
   i::Handle<i::WasmValue> obj = Utils::OpenHandle(this);
+  // Should only be called on i32, i64, f32, f64, s128.
+  DCHECK_GE(1, obj->value_type());
+  DCHECK_LE(5, obj->value_type());
+
   i::Isolate* isolate = obj->GetIsolate();
-  i::Handle<i::ByteArray> bytes(obj->bytes(), isolate);
+  i::Handle<i::Object> bytes_or_ref(obj->bytes_or_ref(), isolate);
+  i::Handle<i::ByteArray> bytes(i::Handle<i::ByteArray>::cast(bytes_or_ref));
+
   int length = bytes->length();
 
   i::Handle<i::FixedArray> fa = isolate->factory()->NewFixedArray(length);
@@ -10335,6 +10341,17 @@ v8::Local<v8::Value> debug::WasmValue::bytes() {
   }
 
   return Utils::ToLocal(arr);
+}
+
+v8::Local<v8::Value> debug::WasmValue::ref() {
+  i::Handle<i::WasmValue> obj = Utils::OpenHandle(this);
+  // Should only be called on anyref.
+  DCHECK_EQ(6, obj->value_type());
+
+  i::Isolate* isolate = obj->GetIsolate();
+  i::Handle<i::Object> bytes_or_ref(obj->bytes_or_ref(), isolate);
+
+  return Utils::ToLocal(bytes_or_ref);
 }
 
 bool debug::WasmValue::IsWasmValue(Local<Value> that) {
