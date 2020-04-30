@@ -5,6 +5,7 @@
 #ifndef V8_HEAP_CONCURRENT_ALLOCATOR_INL_H_
 #define V8_HEAP_CONCURRENT_ALLOCATOR_INL_H_
 
+#include "include/v8-internal.h"
 #include "src/common/globals.h"
 #include "src/heap/concurrent-allocator.h"
 
@@ -23,7 +24,7 @@ AllocationResult ConcurrentAllocator::Allocate(int object_size,
   CHECK(FLAG_concurrent_allocation);
   if (object_size > kMaxLabObjectSize) {
     auto result = space_->SlowGetLinearAllocationAreaBackground(
-        object_size, object_size, alignment, origin);
+        local_heap_, object_size, object_size, alignment, origin);
 
     if (result) {
       HeapObject object = HeapObject::FromAddress(result->first);
@@ -34,6 +35,14 @@ AllocationResult ConcurrentAllocator::Allocate(int object_size,
   }
 
   return AllocateInLab(object_size, alignment, origin);
+}
+
+Address ConcurrentAllocator::AllocateOrFail(int object_size,
+                                            AllocationAlignment alignment,
+                                            AllocationOrigin origin) {
+  AllocationResult result = Allocate(object_size, alignment, origin);
+  if (!result.IsRetry()) return result.ToObjectChecked().address();
+  return PerformCollectionAndAllocateAgain(object_size, alignment, origin);
 }
 
 AllocationResult ConcurrentAllocator::AllocateInLab(
@@ -56,7 +65,7 @@ AllocationResult ConcurrentAllocator::AllocateInLab(
 
 bool ConcurrentAllocator::EnsureLab(AllocationOrigin origin) {
   auto result = space_->SlowGetLinearAllocationAreaBackground(
-      kLabSize, kMaxLabSize, kWordAligned, origin);
+      local_heap_, kLabSize, kMaxLabSize, kWordAligned, origin);
 
   if (!result) return false;
 

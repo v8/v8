@@ -1876,7 +1876,6 @@ bool PagedSpace::Expand() {
   return true;
 }
 
-
 int PagedSpace::CountTotalPages() {
   int count = 0;
   for (Page* page : *this) {
@@ -2107,7 +2106,8 @@ bool PagedSpace::RefillLinearAllocationAreaFromFreeList(
 }
 
 base::Optional<std::pair<Address, size_t>>
-PagedSpace::SlowGetLinearAllocationAreaBackground(size_t min_size_in_bytes,
+PagedSpace::SlowGetLinearAllocationAreaBackground(LocalHeap* local_heap,
+                                                  size_t min_size_in_bytes,
                                                   size_t max_size_in_bytes,
                                                   AllocationAlignment alignment,
                                                   AllocationOrigin origin) {
@@ -2145,7 +2145,8 @@ PagedSpace::SlowGetLinearAllocationAreaBackground(size_t min_size_in_bytes,
           min_size_in_bytes, max_size_in_bytes, alignment, origin);
   }
 
-  if (heap()->ShouldExpandOldGenerationOnSlowAllocation() && Expand()) {
+  if (heap()->ShouldExpandOldGenerationOnSlowAllocation(local_heap) &&
+      Expand()) {
     DCHECK((CountTotalPages() > 1) ||
            (min_size_in_bytes <= free_list_->Available()));
     return TryAllocationFromFreeListBackground(

@@ -13,6 +13,7 @@
 #include "src/base/bits.h"
 #include "src/base/flags.h"
 #include "src/base/once.h"
+#include "src/base/platform/mutex.h"
 #include "src/base/utils/random-number-generator.h"
 #include "src/builtins/accessors.h"
 #include "src/codegen/assembler-inl.h"
@@ -204,7 +205,8 @@ Heap::Heap()
       memory_pressure_level_(MemoryPressureLevel::kNone),
       global_pretenuring_feedback_(kInitialFeedbackCapacity),
       safepoint_(new GlobalSafepoint(this)),
-      external_string_table_(this) {
+      external_string_table_(this),
+      collection_barrier_(this) {
   // Ensure old_generation_size_ is a multiple of kPageSize.
   DCHECK_EQ(0, max_old_generation_size_ & (Page::kPageSize - 1));
 
@@ -1109,6 +1111,33 @@ void Heap::DeoptMarkedAllocationSites() {
   Deoptimizer::DeoptimizeMarkedCode(isolate_);
 }
 
+void Heap::GarbageCollectionEpilogueInSafepoint() {
+#define UPDATE_COUNTERS_FOR_SPACE(space)                \
+  isolate_->counters()->space##_bytes_available()->Set( \
+      static_cast<int>(space()->Available()));          \
+  isolate_->counters()->space##_bytes_committed()->Set( \
+      static_cast<int>(space()->CommittedMemory()));    \
+  isolate_->counters()->space##_bytes_used()->Set(      \
+      static_cast<int>(space()->SizeOfObjects()));
+#define UPDATE_FRAGMENTATION_FOR_SPACE(space)                          \
+  if (space()->CommittedMemory() > 0) {                                \
+    isolate_->counters()->external_fragmentation_##space()->AddSample( \
+        static_cast<int>(100 - (space()->SizeOfObjects() * 100.0) /    \
+                                   space()->CommittedMemory()));       \
+  }
+#define UPDATE_COUNTERS_AND_FRAGMENTATION_FOR_SPACE(space) \
+  UPDATE_COUNTERS_FOR_SPACE(space)                         \
+  UPDATE_FRAGMENTATION_FOR_SPACE(space)
+
+  UPDATE_COUNTERS_FOR_SPACE(new_space)
+  UPDATE_COUNTERS_AND_FRAGMENTATION_FOR_SPACE(old_space)
+  UPDATE_COUNTERS_AND_FRAGMENTATION_FOR_SPACE(code_space)
+  UPDATE_COUNTERS_AND_FRAGMENTATION_FOR_SPACE(map_space)
+  UPDATE_COUNTERS_AND_FRAGMENTATION_FOR_SPACE(lo_space)
+#undef UPDATE_COUNTERS_FOR_SPACE
+#undef UPDATE_FRAGMENTATION_FOR_SPACE
+#undef UPDATE_COUNTERS_AND_FRAGMENTATION_FOR_SPACE
+}
 
 void Heap::GarbageCollectionEpilogue() {
   TRACE_GC(tracer(), GCTracer::Scope::HEAP_EPILOGUE);
@@ -1160,33 +1189,6 @@ void Heap::GarbageCollectionEpilogue() {
     isolate_->counters()->heap_sample_maximum_committed()->AddSample(
         static_cast<int>(MaximumCommittedMemory() / KB));
   }
-
-#define UPDATE_COUNTERS_FOR_SPACE(space)                \
-  isolate_->counters()->space##_bytes_available()->Set( \
-      static_cast<int>(space()->Available()));          \
-  isolate_->counters()->space##_bytes_committed()->Set( \
-      static_cast<int>(space()->CommittedMemory()));    \
-  isolate_->counters()->space##_bytes_used()->Set(      \
-      static_cast<int>(space()->SizeOfObjects()));
-#define UPDATE_FRAGMENTATION_FOR_SPACE(space)                          \
-  if (space()->CommittedMemory() > 0) {                                \
-    isolate_->counters()->external_fragmentation_##space()->AddSample( \
-        static_cast<int>(100 -                                         \
-                         (space()->SizeOfObjects() * 100.0) /          \
-                             space()->CommittedMemory()));             \
-  }
-#define UPDATE_COUNTERS_AND_FRAGMENTATION_FOR_SPACE(space) \
-  UPDATE_COUNTERS_FOR_SPACE(space)                         \
-  UPDATE_FRAGMENTATION_FOR_SPACE(space)
-
-  UPDATE_COUNTERS_FOR_SPACE(new_space)
-  UPDATE_COUNTERS_AND_FRAGMENTATION_FOR_SPACE(old_space)
-  UPDATE_COUNTERS_AND_FRAGMENTATION_FOR_SPACE(code_space)
-  UPDATE_COUNTERS_AND_FRAGMENTATION_FOR_SPACE(map_space)
-  UPDATE_COUNTERS_AND_FRAGMENTATION_FOR_SPACE(lo_space)
-#undef UPDATE_COUNTERS_FOR_SPACE
-#undef UPDATE_FRAGMENTATION_FOR_SPACE
-#undef UPDATE_COUNTERS_AND_FRAGMENTATION_FOR_SPACE
 
 #ifdef DEBUG
   ReportStatisticsAfterGC();
@@ -1628,6 +1630,8 @@ bool Heap::CollectGarbage(AllocationSpace space,
     isolate()->CountUsage(v8::Isolate::kForcedGC);
   }
 
+  collection_barrier_.Increment();
+
   // Start incremental marking for the next cycle. We do this only for scavenger
   // to avoid a loop where mark-compact causes another mark-compact.
   if (IsYoungGenerationCollector(collector)) {
@@ -1942,6 +1946,26 @@ void Heap::EnsureFromSpaceIsCommitted() {
   FatalProcessOutOfMemory("Committing semi space failed.");
 }
 
+void Heap::CollectionBarrier::Increment() {
+  base::MutexGuard guard(&mutex_);
+  requested_ = false;
+  cond_.NotifyAll();
+}
+
+void Heap::CollectionBarrier::Wait() {
+  base::MutexGuard guard(&mutex_);
+
+  if (!requested_) {
+    heap_->MemoryPressureNotification(MemoryPressureLevel::kCritical, false);
+    requested_ = true;
+  }
+
+  while (requested_) {
+    cond_.Wait(&mutex_);
+  }
+}
+
+void Heap::RequestAndWaitForCollection() { collection_barrier_.Wait(); }
 
 void Heap::UpdateSurvivalStatistics(int start_new_space_size) {
   if (start_new_space_size == 0) return;
@@ -2005,7 +2029,16 @@ bool Heap::PerformGarbageCollection(
     }
   }
 
-  if (FLAG_local_heaps) safepoint()->Start();
+  if (FLAG_local_heaps) {
+    safepoint()->Start();
+
+    // Fill and reset all LABs
+    safepoint()->IterateLocalHeaps(
+        [](LocalHeap* local_heap) { local_heap->FreeLinearAllocationArea(); });
+  }
+
+  tracer()->StartInSafepoint();
+
 #ifdef VERIFY_HEAP
   if (FLAG_verify_heap) {
     Verify();
@@ -2093,6 +2126,10 @@ bool Heap::PerformGarbageCollection(
 #endif
 
   RecomputeLimits(collector);
+
+  GarbageCollectionEpilogueInSafepoint();
+
+  tracer()->StopInSafepoint();
 
   if (FLAG_local_heaps) safepoint()->End();
 
@@ -3845,12 +3882,17 @@ void Heap::MemoryPressureNotification(MemoryPressureLevel level,
 }
 
 void Heap::EagerlyFreeExternalMemory() {
-  for (Page* page : *old_space()) {
-    if (!page->SweepingDone()) {
-      base::MutexGuard guard(page->mutex());
+  if (FLAG_array_buffer_extension) {
+    array_buffer_sweeper()->EnsureFinished();
+  } else {
+    CHECK(!FLAG_local_heaps);
+    for (Page* page : *old_space()) {
       if (!page->SweepingDone()) {
-        ArrayBufferTracker::FreeDead(
-            page, mark_compact_collector()->non_atomic_marking_state());
+        base::MutexGuard guard(page->mutex());
+        if (!page->SweepingDone()) {
+          ArrayBufferTracker::FreeDead(
+              page, mark_compact_collector()->non_atomic_marking_state());
+        }
       }
     }
   }
@@ -4899,9 +4941,12 @@ bool Heap::ShouldOptimizeForLoadTime() {
 // major GC. It happens when the old generation allocation limit is reached and
 // - either we need to optimize for memory usage,
 // - or the incremental marking is not in progress and we cannot start it.
-bool Heap::ShouldExpandOldGenerationOnSlowAllocation() {
+bool Heap::ShouldExpandOldGenerationOnSlowAllocation(LocalHeap* local_heap) {
   if (always_allocate() || OldGenerationSpaceAvailable() > 0) return true;
   // We reached the old generation allocation limit.
+
+  // Ensure that retry of allocation on background thread succeeds
+  if (IsRetryOfFailedAllocation(local_heap)) return true;
 
   if (ShouldOptimizeForMemoryUsage()) return false;
 
@@ -4917,6 +4962,11 @@ bool Heap::ShouldExpandOldGenerationOnSlowAllocation() {
     return false;
   }
   return true;
+}
+
+bool Heap::IsRetryOfFailedAllocation(LocalHeap* local_heap) {
+  if (!local_heap) return false;
+  return local_heap->allocation_failed_;
 }
 
 Heap::HeapGrowingMode Heap::CurrentHeapGrowingMode() {

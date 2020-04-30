@@ -8,6 +8,7 @@
 #include "src/base/platform/condition-variable.h"
 #include "src/base/platform/mutex.h"
 #include "src/handles/persistent-handles.h"
+#include "src/heap/local-heap.h"
 #include "src/objects/visitors.h"
 
 namespace v8 {
@@ -31,6 +32,16 @@ class GlobalSafepoint {
 
   // Iterate handles in local heaps
   void Iterate(RootVisitor* visitor);
+
+  // Iterate local heaps
+  template <typename Callback>
+  void IterateLocalHeaps(Callback callback) {
+    DCHECK(IsActive());
+    for (LocalHeap* current = local_heaps_head_; current;
+         current = current->next_) {
+      callback(current);
+    }
+  }
 
   // Use these methods now instead of the more intrusive SafepointScope
   void Start();

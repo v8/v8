@@ -12,7 +12,6 @@
 #include "src/base/platform/mutex.h"
 #include "src/execution/isolate.h"
 #include "src/heap/concurrent-allocator.h"
-#include "src/heap/safepoint.h"
 
 namespace v8 {
 namespace internal {
@@ -69,6 +68,8 @@ class LocalHeap {
 
   void EnterSafepoint();
 
+  void FreeLinearAllocationArea();
+
   Heap* heap_;
 
   base::Mutex state_mutex_;
@@ -76,6 +77,8 @@ class LocalHeap {
   ThreadState state_;
 
   std::atomic<bool> safepoint_requested_;
+
+  bool allocation_failed_;
 
   LocalHeap* prev_;
   LocalHeap* next_;
@@ -88,6 +91,7 @@ class LocalHeap {
   friend class Heap;
   friend class GlobalSafepoint;
   friend class ParkedScope;
+  friend class ConcurrentAllocator;
 };
 
 class ParkedScope {

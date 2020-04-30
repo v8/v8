@@ -19,6 +19,7 @@ LocalHeap::LocalHeap(Heap* heap,
     : heap_(heap),
       state_(ThreadState::Running),
       safepoint_requested_(false),
+      allocation_failed_(false),
       prev_(nullptr),
       next_(nullptr),
       handles_(new LocalHandles),
@@ -31,6 +32,9 @@ LocalHeap::LocalHeap(Heap* heap,
 }
 
 LocalHeap::~LocalHeap() {
+  // Give up LAB before parking thread
+  old_space_allocator_.FreeLinearAllocationArea();
+
   // Park thread since removing the local heap could block.
   EnsureParkedBeforeDestruction();
 
@@ -94,6 +98,10 @@ void LocalHeap::ClearSafepointRequested() {
 }
 
 void LocalHeap::EnterSafepoint() { heap_->safepoint()->EnterFromThread(this); }
+
+void LocalHeap::FreeLinearAllocationArea() {
+  old_space_allocator_.FreeLinearAllocationArea();
+}
 
 }  // namespace internal
 }  // namespace v8

@@ -31,11 +31,19 @@ class ConcurrentAllocator {
                                    AllocationAlignment alignment,
                                    AllocationOrigin origin);
 
+  inline Address AllocateOrFail(int object_size, AllocationAlignment alignment,
+                                AllocationOrigin origin);
+
+  void FreeLinearAllocationArea();
+
  private:
   inline bool EnsureLab(AllocationOrigin origin);
   inline AllocationResult AllocateInLab(int object_size,
                                         AllocationAlignment alignment,
                                         AllocationOrigin origin);
+
+  V8_EXPORT_PRIVATE Address PerformCollectionAndAllocateAgain(
+      int object_size, AllocationAlignment alignment, AllocationOrigin origin);
 
   LocalHeap* const local_heap_;
   PagedSpace* const space_;

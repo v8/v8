@@ -219,9 +219,11 @@ class V8_EXPORT_PRIVATE GCTracer {
   // Start collecting data.
   void Start(GarbageCollector collector, GarbageCollectionReason gc_reason,
              const char* collector_reason);
+  void StartInSafepoint();
 
   // Stop collecting data and print results.
   void Stop(GarbageCollector collector);
+  void StopInSafepoint();
 
   void NotifySweepingCompleted();
 

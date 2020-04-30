@@ -17,6 +17,7 @@
 #include "include/v8-internal.h"
 #include "include/v8.h"
 #include "src/base/atomic-utils.h"
+#include "src/base/platform/condition-variable.h"
 #include "src/builtins/accessors.h"
 #include "src/common/assert-scope.h"
 #include "src/common/globals.h"
@@ -593,6 +594,8 @@ class Heap {
 
   // Returns false if not able to reserve.
   bool ReserveSpace(Reservation* reservations, std::vector<Address>* maps);
+
+  void RequestAndWaitForCollection();
 
   //
   // Support for the API.
@@ -1522,6 +1525,19 @@ class Heap {
     DISALLOW_COPY_AND_ASSIGN(ExternalStringTable);
   };
 
+  class CollectionBarrier {
+    Heap* heap_;
+    base::Mutex mutex_;
+    base::ConditionVariable cond_;
+    bool requested_;
+
+   public:
+    explicit CollectionBarrier(Heap* heap) : heap_(heap), requested_(false) {}
+
+    void Increment();
+    void Wait();
+  };
+
   struct StrongRootsList;
 
   struct StringTypeTable {
@@ -1735,6 +1751,7 @@ class Heap {
   // reporting/verification activities when compiled with DEBUG set.
   void GarbageCollectionPrologue();
   void GarbageCollectionEpilogue();
+  void GarbageCollectionEpilogueInSafepoint();
 
   // Performs a major collection in the whole heap.
   void MarkCompact();
@@ -1814,7 +1831,9 @@ class Heap {
 
   V8_EXPORT_PRIVATE bool CanExpandOldGeneration(size_t size);
 
-  bool ShouldExpandOldGenerationOnSlowAllocation();
+  bool ShouldExpandOldGenerationOnSlowAllocation(
+      LocalHeap* local_heap = nullptr);
+  bool IsRetryOfFailedAllocation(LocalHeap* local_heap);
 
   HeapGrowingMode CurrentHeapGrowingMode();
 
@@ -2176,6 +2195,8 @@ class Heap {
   ExternalStringTable external_string_table_;
 
   base::Mutex relocation_mutex_;
+
+  CollectionBarrier collection_barrier_;
 
   int gc_callbacks_depth_ = 0;
 

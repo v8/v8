@@ -527,7 +527,7 @@ class V8_EXPORT_PRIVATE Space : public Malloced {
   AllocationSpace id_;
 
   // Keeps track of committed memory in a space.
-  size_t committed_;
+  std::atomic<size_t> committed_;
   size_t max_committed_;
 
   std::unique_ptr<FreeList> free_list_;
@@ -1677,7 +1677,7 @@ class AllocationStats {
   AllocationStats& operator=(const AllocationStats& stats) V8_NOEXCEPT {
     capacity_ = stats.capacity_.load();
     max_capacity_ = stats.max_capacity_;
-    size_ = stats.size_;
+    size_.store(stats.size_);
 #ifdef DEBUG
     allocated_on_page_ = stats.allocated_on_page_;
 #endif
@@ -1707,8 +1707,11 @@ class AllocationStats {
 #endif
 
   void IncreaseAllocatedBytes(size_t bytes, Page* page) {
-    DCHECK_GE(size_ + bytes, size_);
-    size_ += bytes;
+#ifdef DEBUG
+    size_t size = size_;
+    DCHECK_GE(size + bytes, size);
+#endif
+    size_.fetch_add(bytes);
 #ifdef DEBUG
     allocated_on_page_[page] += bytes;
 #endif
@@ -1716,7 +1719,7 @@ class AllocationStats {
 
   void DecreaseAllocatedBytes(size_t bytes, Page* page) {
     DCHECK_GE(size_, bytes);
-    size_ -= bytes;
+    size_.fetch_sub(bytes);
 #ifdef DEBUG
     DCHECK_GE(allocated_on_page_[page], bytes);
     allocated_on_page_[page] -= bytes;
@@ -1748,7 +1751,7 @@ class AllocationStats {
   size_t max_capacity_;
 
   // |size_|: The number of allocated bytes.
-  size_t size_;
+  std::atomic<size_t> size_;
 
 #ifdef DEBUG
   std::unordered_map<Page*, size_t, Page::Hasher> allocated_on_page_;
@@ -2341,7 +2344,8 @@ class V8_EXPORT_PRIVATE PagedSpace
   // Allocate the requested number of bytes in the space from a background
   // thread.
   V8_WARN_UNUSED_RESULT base::Optional<std::pair<Address, size_t>>
-  SlowGetLinearAllocationAreaBackground(size_t min_size_in_bytes,
+  SlowGetLinearAllocationAreaBackground(LocalHeap* local_heap,
+                                        size_t min_size_in_bytes,
                                         size_t max_size_in_bytes,
                                         AllocationAlignment alignment,
                                         AllocationOrigin origin);
