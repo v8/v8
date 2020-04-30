@@ -2428,26 +2428,40 @@ TEST_F(WasmModuleCustomSectionTest, TwoKnownTwoUnknownSections) {
 
 TEST_F(WasmModuleVerifyTest, SourceMappingURLSection) {
   static const byte data[] = {
+      WASM_MODULE_HEADER,
       SECTION_SRC_MAP('s', 'r', 'c', '/', 'x', 'y', 'z', '.', 'c')};
-  ModuleResult result = DecodeModule(data, data + sizeof(data));
+  ModuleResult result = DecodeModuleNoHeader(data, data + sizeof(data));
   EXPECT_TRUE(result.ok());
-  EXPECT_EQ("src/xyz.c", result.value()->source_map_url);
+  EXPECT_EQ(WasmDebugSymbols::Type::SourceMap,
+            result.value()->debug_symbols.type);
+  ModuleWireBytes wire_bytes(data, data + sizeof(data));
+  WasmName external_url =
+      wire_bytes.GetNameOrNull(result.value()->debug_symbols.external_url);
+  EXPECT_EQ("src/xyz.c", std::string(external_url.data(), external_url.size()));
 }
 
 TEST_F(WasmModuleVerifyTest, BadSourceMappingURLSection) {
   static const byte data[] = {
+      WASM_MODULE_HEADER,
       SECTION_SRC_MAP('s', 'r', 'c', '/', 'x', 0xff, 'z', '.', 'c')};
-  ModuleResult result = DecodeModule(data, data + sizeof(data));
+  ModuleResult result = DecodeModuleNoHeader(data, data + sizeof(data));
   EXPECT_TRUE(result.ok());
-  EXPECT_EQ(0u, result.value()->source_map_url.size());
+  EXPECT_EQ(WasmDebugSymbols::Type::None, result.value()->debug_symbols.type);
+  EXPECT_EQ(0u, result.value()->debug_symbols.external_url.length());
 }
 
 TEST_F(WasmModuleVerifyTest, MultipleSourceMappingURLSections) {
-  static const byte data[] = {SECTION_SRC_MAP('a', 'b', 'c'),
+  static const byte data[] = {WASM_MODULE_HEADER,
+                              SECTION_SRC_MAP('a', 'b', 'c'),
                               SECTION_SRC_MAP('p', 'q', 'r')};
-  ModuleResult result = DecodeModule(data, data + sizeof(data));
+  ModuleResult result = DecodeModuleNoHeader(data, data + sizeof(data));
   EXPECT_TRUE(result.ok());
-  EXPECT_EQ("abc", result.value()->source_map_url);
+  EXPECT_EQ(WasmDebugSymbols::Type::SourceMap,
+            result.value()->debug_symbols.type);
+  ModuleWireBytes wire_bytes(data, data + sizeof(data));
+  WasmName external_url =
+      wire_bytes.GetNameOrNull(result.value()->debug_symbols.external_url);
+  EXPECT_EQ("abc", std::string(external_url.data(), external_url.size()));
 }
 
 TEST_F(WasmModuleVerifyTest, MultipleNameSections) {

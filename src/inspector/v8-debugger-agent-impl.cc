@@ -1471,6 +1471,39 @@ static String16 getScriptLanguage(const V8DebuggerScript& script) {
   }
 }
 
+static const char* getDebugSymbolTypeName(
+    v8::debug::WasmScript::DebugSymbolsType type) {
+  switch (type) {
+    case v8::debug::WasmScript::DebugSymbolsType::None:
+      return v8_inspector::protocol::Debugger::DebugSymbols::TypeEnum::None;
+    case v8::debug::WasmScript::DebugSymbolsType::SourceMap:
+      return v8_inspector::protocol::Debugger::DebugSymbols::TypeEnum::
+          SourceMap;
+    case v8::debug::WasmScript::DebugSymbolsType::EmbeddedDWARF:
+      return v8_inspector::protocol::Debugger::DebugSymbols::TypeEnum::
+          EmbeddedDWARF;
+    case v8::debug::WasmScript::DebugSymbolsType::ExternalDWARF:
+      return v8_inspector::protocol::Debugger::DebugSymbols::TypeEnum::
+          ExternalDWARF;
+  }
+}
+
+static std::unique_ptr<protocol::Debugger::DebugSymbols> getDebugSymbols(
+    const V8DebuggerScript& script) {
+  v8::debug::WasmScript::DebugSymbolsType type;
+  if (!script.getDebugSymbolsType().To(&type)) return {};
+
+  std::unique_ptr<protocol::Debugger::DebugSymbols> debugSymbols =
+      v8_inspector::protocol::Debugger::DebugSymbols::create()
+          .setType(getDebugSymbolTypeName(type))
+          .build();
+  String16 externalUrl;
+  if (script.getExternalDebugSymbolsURL().To(&externalUrl)) {
+    debugSymbols->setExternalURL(externalUrl);
+  }
+  return debugSymbols;
+}
+
 void V8DebuggerAgentImpl::didParseSource(
     std::unique_ptr<V8DebuggerScript> script, bool success) {
   v8::HandleScope handles(m_isolate);
@@ -1506,6 +1539,8 @@ void V8DebuggerAgentImpl::didParseSource(
       script->getLanguage() == V8DebuggerScript::Language::JavaScript
           ? Maybe<int>()
           : script->codeOffset();
+  std::unique_ptr<protocol::Debugger::DebugSymbols> debugSymbols =
+      getDebugSymbols(*script);
 
   m_scripts[scriptId] = std::move(script);
   // Release the strong reference to get notified when debugger is the only
@@ -1553,8 +1588,8 @@ void V8DebuggerAgentImpl::didParseSource(
         scriptId, scriptURL, 0, 0, 0, 0, contextId, scriptRef->hash(),
         std::move(executionContextAuxDataParam), isLiveEditParam,
         std::move(sourceMapURLParam), hasSourceURLParam, isModuleParam, 0,
-        std::move(stackTrace), std::move(codeOffset),
-        std::move(scriptLanguage));
+        std::move(stackTrace), std::move(codeOffset), std::move(scriptLanguage),
+        std::move(debugSymbols));
   } else {
     m_frontend.scriptParsed(
         scriptId, scriptURL, scriptRef->startLine(), scriptRef->startColumn(),
@@ -1562,7 +1597,8 @@ void V8DebuggerAgentImpl::didParseSource(
         scriptRef->hash(), std::move(executionContextAuxDataParam),
         isLiveEditParam, std::move(sourceMapURLParam), hasSourceURLParam,
         isModuleParam, scriptRef->length(), std::move(stackTrace),
-        std::move(codeOffset), std::move(scriptLanguage));
+        std::move(codeOffset), std::move(scriptLanguage),
+        std::move(debugSymbols));
   }
 
   std::vector<protocol::DictionaryValue*> potentialBreakpoints;

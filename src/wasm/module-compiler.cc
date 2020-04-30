@@ -1684,10 +1684,13 @@ void AsyncCompileJob::FinishCompile(bool is_after_cache_hit) {
   DCHECK(!isolate_->context().is_null());
   // Finish the wasm script now and make it public to the debugger.
   Handle<Script> script(module_object_->script(), isolate_);
+  const WasmModule* module = module_object_->module();
   if (script->type() == Script::TYPE_WASM &&
-      module_object_->module()->source_map_url.size() != 0) {
+      module->debug_symbols.type == WasmDebugSymbols::Type::SourceMap &&
+      !module->debug_symbols.external_url.is_empty()) {
+    ModuleWireBytes wire_bytes(module_object_->native_module()->wire_bytes());
     MaybeHandle<String> src_map_str = isolate_->factory()->NewStringFromUtf8(
-        CStrVector(module_object_->module()->source_map_url.c_str()),
+        wire_bytes.GetNameOrNull(module->debug_symbols.external_url),
         AllocationType::kOld);
     script->set_source_mapping_url(*src_map_str.ToHandleChecked());
   }
@@ -1702,11 +1705,10 @@ void AsyncCompileJob::FinishCompile(bool is_after_cache_hit) {
     Handle<FixedArray> export_wrappers;
     if (is_after_cache_hit) {
       // TODO(thibaudm): Look into sharing wrappers.
-      CompileJsToWasmWrappers(isolate_, module_object_->module(),
-                              &export_wrappers);
+      CompileJsToWasmWrappers(isolate_, module, &export_wrappers);
     } else {
-      compilation_state->FinalizeJSToWasmWrappers(
-          isolate_, module_object_->module(), &export_wrappers);
+      compilation_state->FinalizeJSToWasmWrappers(isolate_, module,
+                                                  &export_wrappers);
     }
     module_object_->set_export_wrappers(*export_wrappers);
   }

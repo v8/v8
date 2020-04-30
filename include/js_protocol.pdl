@@ -525,6 +525,18 @@ domain Debugger
       JavaScript
       WebAssembly
 
+  # Debug symbols available for a wasm script.
+  type DebugSymbols extends object
+    properties
+      # Type of the debug symbols.
+      enum type
+        None
+        SourceMap
+        EmbeddedDWARF
+        ExternalDWARF
+      # URL of the external symbol source.
+      optional string externalURL
+
   # Fired when virtual machine fails to parse the script.
   event scriptFailedToParse
     parameters
@@ -599,6 +611,8 @@ domain Debugger
       experimental optional integer codeOffset
       # The language of the script.
       experimental optional Debugger.ScriptLanguage scriptLanguage
+      # If the scriptLanguage is WebASsembly, the source of debug symbols for the module.
+      experimental optional Debugger.DebugSymbols debugSymbols
 
 experimental domain HeapProfiler
   depends on Runtime

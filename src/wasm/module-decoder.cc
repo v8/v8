@@ -33,6 +33,7 @@ constexpr char kNameString[] = "name";
 constexpr char kSourceMappingURLString[] = "sourceMappingURL";
 constexpr char kCompilationHintsString[] = "compilationHints";
 constexpr char kDebugInfoString[] = ".debug_info";
+constexpr char kExternalDebugInfoString[] = ".external_debug_info";
 
 template <size_t N>
 constexpr size_t num_chars(const char (&)[N]) {
@@ -93,6 +94,8 @@ const char* SectionName(SectionCode code) {
       return kSourceMappingURLString;
     case kDebugInfoSectionCode:
       return kDebugInfoString;
+    case kExternalDebugInfoSectionCode:
+      return kExternalDebugInfoString;
     case kCompilationHintsSectionCode:
       return kCompilationHintsString;
     default:
@@ -182,6 +185,11 @@ SectionCode IdentifyUnknownSectionInternal(Decoder* decoder) {
              strncmp(reinterpret_cast<const char*>(section_name_start),
                      kDebugInfoString, num_chars(kDebugInfoString)) == 0) {
     return kDebugInfoSectionCode;
+  } else if (string.length() == num_chars(kExternalDebugInfoString) &&
+             strncmp(reinterpret_cast<const char*>(section_name_start),
+                     kExternalDebugInfoString,
+                     num_chars(kExternalDebugInfoString)) == 0) {
+    return kExternalDebugInfoSectionCode;
   }
   return kUnknownSectionCode;
 }
@@ -452,6 +460,9 @@ class ModuleDecoderImpl : public Decoder {
         // .debug_info is a custom section containing core DWARF information
         // if produced by compiler. Its presence likely means that Wasm was
         // built in a debug mode.
+      case kExternalDebugInfoSectionCode:
+        // .external_debug_info is a custom section containing a reference to an
+        // external symbol file.
       case kCompilationHintsSectionCode:
         // TODO(frgossen): report out of place compilation hints section as a
         // warning.
@@ -508,10 +519,13 @@ class ModuleDecoderImpl : public Decoder {
         break;
       case kDebugInfoSectionCode:
         // If there is an explicit source map, prefer it over DWARF info.
-        if (!has_seen_unordered_section(kSourceMappingURLSectionCode)) {
-          module_->source_map_url.assign("wasm://dwarf");
+        if (module_->debug_symbols.type == WasmDebugSymbols::Type::None) {
+          module_->debug_symbols = {WasmDebugSymbols::Type::EmbeddedDWARF, {}};
         }
         consume_bytes(static_cast<uint32_t>(end_ - start_), ".debug_info");
+        break;
+      case kExternalDebugInfoSectionCode:
+        DecodeExternalDebugInfoSection();
         break;
       case kCompilationHintsSectionCode:
         if (enabled_features_.has_compilation_hints()) {
@@ -1063,12 +1077,22 @@ class ModuleDecoderImpl : public Decoder {
     Decoder inner(start_, pc_, end_, buffer_offset_);
     WireBytesRef url = wasm::consume_string(&inner, true, "module name");
     if (inner.ok() &&
-        !has_seen_unordered_section(kSourceMappingURLSectionCode)) {
-      const byte* url_start =
-          inner.start() + inner.GetBufferRelativeOffset(url.offset());
-      module_->source_map_url.assign(reinterpret_cast<const char*>(url_start),
-                                     url.length());
-      set_seen_unordered_section(kSourceMappingURLSectionCode);
+        module_->debug_symbols.type != WasmDebugSymbols::Type::SourceMap) {
+      module_->debug_symbols = {WasmDebugSymbols::Type::SourceMap, url};
+    }
+    set_seen_unordered_section(kSourceMappingURLSectionCode);
+    consume_bytes(static_cast<uint32_t>(end_ - start_), nullptr);
+  }
+
+  void DecodeExternalDebugInfoSection() {
+    Decoder inner(start_, pc_, end_, buffer_offset_);
+    WireBytesRef url =
+        wasm::consume_string(&inner, true, "external symbol file");
+    // If there is an explicit source map, prefer it over DWARF info.
+    if (inner.ok() &&
+        module_->debug_symbols.type != WasmDebugSymbols::Type::SourceMap) {
+      module_->debug_symbols = {WasmDebugSymbols::Type::ExternalDWARF, url};
+      set_seen_unordered_section(kExternalDebugInfoSectionCode);
     }
     consume_bytes(static_cast<uint32_t>(end_ - start_), nullptr);
   }
@@ -2157,8 +2181,8 @@ FunctionResult DecodeWasmFunctionForTesting(
     const byte* function_end, Counters* counters) {
   size_t size = function_end - function_start;
   CHECK_LE(function_start, function_end);
-  auto size_histogram = SELECT_WASM_COUNTER(counters, module->origin, wasm,
-                                            function_size_bytes);
+  auto size_histogram =
+      SELECT_WASM_COUNTER(counters, module->origin, wasm, function_size_bytes);
   // TODO(bradnelson): Improve histogram handling of ptrdiff_t.
   size_histogram->AddSample(static_cast<int>(size));
   if (size > kV8MaxWasmFunctionSize) {

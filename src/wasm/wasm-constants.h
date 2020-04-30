@@ -87,10 +87,11 @@ enum SectionCode : int8_t {
   // The following sections are custom sections, and are identified using a
   // string rather than an integer. Their enumeration values are not guaranteed
   // to be consistent.
-  kNameSectionCode,              // Name section (encoded as a string)
-  kSourceMappingURLSectionCode,  // Source Map URL section
-  kDebugInfoSectionCode,         // DWARF section .debug_info
-  kCompilationHintsSectionCode,  // Compilation hints section
+  kNameSectionCode,               // Name section (encoded as a string)
+  kSourceMappingURLSectionCode,   // Source Map URL section
+  kDebugInfoSectionCode,          // DWARF section .debug_info
+  kExternalDebugInfoSectionCode,  // Section encoding the external symbol path
+  kCompilationHintsSectionCode,   // Compilation hints section
 
   // Helper values
   kFirstSectionInModule = kTypeSectionCode,

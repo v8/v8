@@ -9729,6 +9729,37 @@ debug::WasmScript* debug::WasmScript::Cast(debug::Script* script) {
   return static_cast<WasmScript*>(script);
 }
 
+debug::WasmScript::DebugSymbolsType debug::WasmScript::GetDebugSymbolType()
+    const {
+  i::Handle<i::Script> script = Utils::OpenHandle(this);
+  DCHECK_EQ(i::Script::TYPE_WASM, script->type());
+  switch (script->wasm_native_module()->module()->debug_symbols.type) {
+    case i::wasm::WasmDebugSymbols::Type::None:
+      return debug::WasmScript::DebugSymbolsType::None;
+    case i::wasm::WasmDebugSymbols::Type::EmbeddedDWARF:
+      return debug::WasmScript::DebugSymbolsType::EmbeddedDWARF;
+    case i::wasm::WasmDebugSymbols::Type::ExternalDWARF:
+      return debug::WasmScript::DebugSymbolsType::ExternalDWARF;
+    case i::wasm::WasmDebugSymbols::Type::SourceMap:
+      return debug::WasmScript::DebugSymbolsType::SourceMap;
+  }
+}
+
+MemorySpan<const char> debug::WasmScript::ExternalSymbolsURL() const {
+  i::Handle<i::Script> script = Utils::OpenHandle(this);
+  DCHECK_EQ(i::Script::TYPE_WASM, script->type());
+
+  const i::wasm::WasmDebugSymbols& symbols =
+      script->wasm_native_module()->module()->debug_symbols;
+  if (symbols.external_url.is_empty()) return {};
+
+  internal::wasm::ModuleWireBytes wire_bytes(
+      script->wasm_native_module()->wire_bytes());
+  i::wasm::WasmName external_url =
+      wire_bytes.GetNameOrNull(symbols.external_url);
+  return {external_url.data(), external_url.size()};
+}
+
 int debug::WasmScript::NumFunctions() const {
   i::DisallowHeapAllocation no_gc;
   i::Handle<i::Script> script = Utils::OpenHandle(this);

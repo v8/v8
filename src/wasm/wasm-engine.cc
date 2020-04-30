@@ -707,10 +707,14 @@ Handle<Script> CreateWasmScript(Isolate* isolate,
   }
   script->set_source_url(*url_str.ToHandleChecked());
 
-  auto source_map_url = VectorOf(module->source_map_url);
-  if (!source_map_url.empty()) {
+  const WasmDebugSymbols& debug_symbols =
+      native_module->module()->debug_symbols;
+  if (debug_symbols.type == WasmDebugSymbols::Type::SourceMap &&
+      !debug_symbols.external_url.is_empty()) {
+    Vector<const char> external_url =
+        ModuleWireBytes(wire_bytes).GetNameOrNull(debug_symbols.external_url);
     MaybeHandle<String> src_map_str = isolate->factory()->NewStringFromUtf8(
-        source_map_url, AllocationType::kOld);
+        external_url, AllocationType::kOld);
     script->set_source_mapping_url(*src_map_str.ToHandleChecked());
   }
 
