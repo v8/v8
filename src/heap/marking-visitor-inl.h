@@ -407,7 +407,14 @@ int MarkingVisitorBase<ConcreteVisitor, MarkingState>::VisitMap(Map meta_map,
     DescriptorArray descriptors = map.synchronized_instance_descriptors();
     size += MarkDescriptorArrayBlack(map, descriptors);
     int number_of_own_descriptors = map.NumberOfOwnDescriptors();
-    if (number_of_own_descriptors) {
+    if (map.IsDetached(heap_->isolate())) {
+      // Mark all descriptors in detached maps. Descriptor arrays are reused as
+      // objects transition between maps, and its possible that a newer map dies
+      // before an older map. Marking all descriptors through each map
+      // guarantees that we don't end up with dangling references that we don't
+      // clear since there are no explicit transitions.
+      VisitDescriptors(descriptors, descriptors.number_of_descriptors());
+    } else if (number_of_own_descriptors) {
       // It is possible that the concurrent marker observes the
       // number_of_own_descriptors out of sync with the descriptors. In that
       // case the marking write barrier for the descriptor array will ensure
