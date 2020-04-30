@@ -594,9 +594,11 @@ inline void AtomicOp32(
       result_reg == offset_reg) {
     result_reg = __ GetUnusedRegister(kGpReg, pinned).gp();
   }
+
   UseScratchRegisterScope temps(lasm);
   Register actual_addr = liftoff::CalculateActualAddress(
       lasm, &temps, dst_addr, offset_reg, offset_imm);
+
   __ dmb(ISH);
   Label retry;
   __ bind(&retry);
@@ -730,6 +732,7 @@ inline void AtomicOp64(LiftoffAssembler* lasm, Register dst_addr,
   }
 
   Register store_result = __ GetUnusedRegister(kGpReg, pinned).gp();
+
   UseScratchRegisterScope temps(lasm);
   Register actual_addr = liftoff::CalculateActualAddress(
       lasm, &temps, dst_addr, offset_reg, offset_imm);
@@ -961,6 +964,12 @@ void LiftoffAssembler::Move(DoubleRegister dst, DoubleRegister src,
 }
 
 void LiftoffAssembler::Spill(int offset, LiftoffRegister reg, ValueType type) {
+#ifdef DEBUG
+  // The {str} instruction needs a temp register when the immediate in the
+  // provided MemOperand does not fit into 12 bits. This happens for large stack
+  // frames. This DCHECK checks that the temp register is available when needed.
+  DCHECK(UseScratchRegisterScope{this}.CanAcquire());
+#endif
   RecordUsedSpillOffset(offset);
   MemOperand dst = liftoff::GetStackSlot(offset);
   switch (type.kind()) {
