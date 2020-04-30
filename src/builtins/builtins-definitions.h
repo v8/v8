@@ -839,11 +839,8 @@ namespace internal {
   /* Wasm */                                                                   \
   ASM(WasmCompileLazy, Dummy)                                                  \
   ASM(WasmDebugBreak, Dummy)                                                   \
-  TFC(WasmInt32ToHeapNumber, WasmInt32ToHeapNumber)                            \
-  TFC(WasmTaggedNonSmiToInt32, WasmTaggedNonSmiToInt32)                        \
   TFC(WasmFloat32ToNumber, WasmFloat32ToNumber)                                \
   TFC(WasmFloat64ToNumber, WasmFloat64ToNumber)                                \
-  TFC(WasmTaggedToFloat64, WasmTaggedToFloat64)                                \
   TFS(WasmAllocateJSArray, kArraySize)                                         \
   TFC(WasmAtomicNotify, WasmAtomicNotify)                                      \
   TFS(WasmGetOwnProperty, kObject, kUniqueName)                                \

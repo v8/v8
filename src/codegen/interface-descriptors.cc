@@ -85,7 +85,7 @@ void CallDescriptors::InitializeOncePerProcess() {
   DCHECK(!AllocateDescriptor{}.HasContextParameter());
   DCHECK(!AllocateHeapNumberDescriptor{}.HasContextParameter());
   DCHECK(!AbortDescriptor{}.HasContextParameter());
-  DCHECK(!WasmInt32ToHeapNumberDescriptor{}.HasContextParameter());
+  DCHECK(!WasmFloat32ToNumberDescriptor{}.HasContextParameter());
   DCHECK(!WasmFloat64ToNumberDescriptor{}.HasContextParameter());
 }
 
@@ -377,16 +377,6 @@ void ArrayNArgumentsConstructorDescriptor::InitializePlatformSpecific(
   data->InitializePlatformSpecific(arraysize(registers), registers);
 }
 
-void WasmInt32ToHeapNumberDescriptor::InitializePlatformSpecific(
-    CallInterfaceDescriptorData* data) {
-  DefaultInitializePlatformSpecific(data, kParameterCount);
-}
-
-void WasmTaggedNonSmiToInt32Descriptor::InitializePlatformSpecific(
-    CallInterfaceDescriptorData* data) {
-  DefaultInitializePlatformSpecific(data, kParameterCount);
-}
-
 #if !V8_TARGET_ARCH_IA32
 // We need a custom descriptor on ia32 to avoid using xmm0.
 void WasmFloat32ToNumberDescriptor::InitializePlatformSpecific(
@@ -400,11 +390,6 @@ void WasmFloat64ToNumberDescriptor::InitializePlatformSpecific(
   DefaultInitializePlatformSpecific(data, kParameterCount);
 }
 #endif  // !V8_TARGET_ARCH_IA32
-
-void WasmTaggedToFloat64Descriptor::InitializePlatformSpecific(
-    CallInterfaceDescriptorData* data) {
-  DefaultInitializePlatformSpecific(data, kParameterCount);
-}
 
 void WasmMemoryGrowDescriptor::InitializePlatformSpecific(
     CallInterfaceDescriptorData* data) {
