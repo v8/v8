@@ -1215,8 +1215,8 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
           !__ IsDoubleZeroRegSet()) {
         __ Move(kDoubleRegZero, 0.0);
       }
-
-      __ CompareF32(cc, left, right);
+      // compare result set to kScratchReg
+      __ CompareF32(kScratchReg, cc, left, right);
     } break;
     case kMips64AddS:
       // TODO(plind): add special case: combine mult & add.
@@ -1277,7 +1277,8 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
           !__ IsDoubleZeroRegSet()) {
         __ Move(kDoubleRegZero, 0.0);
       }
-      __ CompareF64(cc, left, right);
+      // compare result set to kScratchReg
+      __ CompareF64(kScratchReg, cc, left, right);
     } break;
     case kMips64AddD:
       // TODO(plind): add special case: combine mult & add.
@@ -3244,10 +3245,11 @@ void AssembleBranchToLabels(CodeGenerator* gen, TurboAssembler* tasm,
              instr->arch_opcode() == kMips64CmpD) {
     bool predicate;
     FlagsConditionToConditionCmpFPU(&predicate, condition);
+    // floating-point compare result is set in kScratchReg
     if (predicate) {
-      __ BranchTrueF(tlabel);
+      __ BranchTrueF(kScratchReg, tlabel);
     } else {
-      __ BranchFalseF(tlabel);
+      __ BranchFalseF(kScratchReg, tlabel);
     }
   } else {
     PrintF("AssembleArchBranch Unimplemented arch_opcode: %d\n",
@@ -3355,9 +3357,9 @@ void CodeGenerator::AssembleBranchPoisoning(FlagsCondition condition,
       bool predicate;
       FlagsConditionToConditionCmpFPU(&predicate, condition);
       if (predicate) {
-        __ LoadZeroIfFPUCondition(kSpeculationPoisonRegister);
+        __ LoadZeroIfConditionNotZero(kSpeculationPoisonRegister, kScratchReg);
       } else {
-        __ LoadZeroIfNotFPUCondition(kSpeculationPoisonRegister);
+        __ LoadZeroIfConditionZero(kSpeculationPoisonRegister, kScratchReg);
       }
     }
       return;
@@ -3563,26 +3565,9 @@ void CodeGenerator::AssembleArchBoolean(Instruction* instr,
     }
     bool predicate;
     FlagsConditionToConditionCmpFPU(&predicate, condition);
-    if (kArchVariant != kMips64r6) {
-      __ li(result, Operand(1));
-      if (predicate) {
-        __ Movf(result, zero_reg);
-      } else {
-        __ Movt(result, zero_reg);
-      }
-    } else {
-      if (instr->arch_opcode() == kMips64CmpD) {
-        __ dmfc1(result, kDoubleCompareReg);
-      } else {
-        DCHECK_EQ(kMips64CmpS, instr->arch_opcode());
-        __ mfc1(result, kDoubleCompareReg);
-      }
-      if (predicate) {
-        __ And(result, result, 1);  // cmp returns all 1's/0's, use only LSB.
-      } else {
-        __ Addu(result, result, 1);  // Toggle result for not equal.
-      }
-    }
+    // RISCV compare returns 0 or 1, do nothing when predicate; otherwise
+    // toggle kScratchReg (i.e., 0 -> 1, 1 -> 0)
+    if (!predicate) __ Xor(result, kScratchReg, 1);
     return;
   } else {
     PrintF("AssembleArchBranch Unimplemented arch_opcode is : %d\n",

@@ -3345,12 +3345,7 @@ void Assembler::movn(Register rd, Register rs, Register rt) { UNREACHABLE(); }
 
 void Assembler::movt(Register rd, Register rs, uint16_t cc) { UNREACHABLE(); }
 
-// FIXME (RISCV): to be ported
-void Assembler::movf(Register rd, Register rs, uint16_t cc) {
-  printf("ERROR: movf generated\n");
-  Register rt = Register::from_code((cc & 0x0007) << 2 | 0);
-  GenInstrRegister(SPECIAL, rs, rt, rd, 0, MOVCI);
-}
+void Assembler::movf(Register rd, Register rs, uint16_t cc) { UNREACHABLE(); }
 
 void Assembler::min_s(FPURegister fd, FPURegister fs, FPURegister ft) {
   RV_fmin_s(fd, fs, ft);
@@ -3711,11 +3706,7 @@ void Assembler::cvt_w_d(FPURegister fd, FPURegister fs) { UNREACHABLE(); }
 
 void Assembler::trunc_w_s(FPURegister fd, FPURegister fs) { UNREACHABLE(); }
 
-// FIXME (RISCV): to be ported
-void Assembler::trunc_w_d(FPURegister fd, FPURegister fs) {
-  printf("ERROR: trunc_w_d generated\n");
-  GenInstrRegister(COP1, D, fa0, fs, fd, TRUNC_W_D);
-}
+void Assembler::trunc_w_d(FPURegister fd, FPURegister fs) { UNREACHABLE(); }
 
 void Assembler::round_w_s(FPURegister fd, FPURegister fs) { UNREACHABLE(); }
 
@@ -3805,18 +3796,9 @@ void Assembler::bc1nez(int16_t offset, FPURegister ft) { UNREACHABLE(); }
 
 // Conditions for < MIPSr6.
 
-// FIXME (RISCV): to be ported
 void Assembler::c(FPUCondition cond, SecondaryField fmt, FPURegister fs,
                   FPURegister ft, uint16_t cc) {
-  printf("ERROR: c generated\n");
-
-  DCHECK_NE(kArchVariant, kMips64r6);
-  DCHECK(is_uint3(cc));
-  DCHECK(fmt == S || fmt == D);
-  DCHECK_EQ(fmt & ~(31 << kRsShift), 0);
-  Instr instr = COP1 | fmt | ft.code() << kFtShift | fs.code() << kFsShift |
-                cc << 8 | 3 << 4 | cond;
-  emit(instr);
+  UNREACHABLE();
 }
 
 void Assembler::c_s(FPUCondition cond, FPURegister fs, FPURegister ft,
