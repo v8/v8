@@ -2351,7 +2351,7 @@ TEST(UnicodePropertyEscapeCodeSize) {
       *CompileRun("const r = /\\p{L}\\p{L}\\p{L}/u; r.exec('\\u200b'); r;")
            .As<v8::RegExp>());
 
-  static constexpr int kMaxSize = 150 * KB;
+  static constexpr int kMaxSize = 200 * KB;
   static constexpr bool kIsNotLatin1 = false;
   Object maybe_code = re->Code(kIsNotLatin1);
   Object maybe_bytecode = re->Bytecode(kIsNotLatin1);
