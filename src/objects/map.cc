@@ -658,7 +658,7 @@ Map Map::FindRootMap(Isolate* isolate) const {
     if (back.IsUndefined(isolate)) {
       // Initial map must not contain descriptors in the descriptors array
       // that do not belong to the map.
-      DCHECK_LE(result.NumberOfOwnDescriptors(),
+      DCHECK_EQ(result.NumberOfOwnDescriptors(),
                 result.instance_descriptors().number_of_descriptors());
       return result;
     }
@@ -1221,7 +1221,7 @@ Map Map::FindElementsKindTransitionedMap(Isolate* isolate,
   DisallowHeapAllocation no_allocation;
   DisallowDeoptimization no_deoptimization(isolate);
 
-  if (IsDetached(isolate)) return Map();
+  if (is_prototype_map()) return Map();
 
   ElementsKind kind = elements_kind();
   bool packed = IsFastPackedElementsKind(kind);
@@ -1354,7 +1354,7 @@ static Handle<Map> AddMissingElementsTransitions(Isolate* isolate,
 
   ElementsKind kind = map->elements_kind();
   TransitionFlag flag;
-  if (map->IsDetached(isolate)) {
+  if (map->is_prototype_map()) {
     flag = OMIT_TRANSITION;
   } else {
     flag = INSERT_TRANSITION;
@@ -1721,14 +1721,14 @@ void Map::ConnectTransition(Isolate* isolate, Handle<Map> parent,
                  child->may_have_interesting_symbols());
   if (!parent->GetBackPointer().IsUndefined(isolate)) {
     parent->set_owns_descriptors(false);
-  } else if (!parent->IsDetached(isolate)) {
+  } else {
     // |parent| is initial map and it must not contain descriptors in the
     // descriptors array that do not belong to the map.
     DCHECK_EQ(parent->NumberOfOwnDescriptors(),
               parent->instance_descriptors().number_of_descriptors());
   }
-  if (parent->IsDetached(isolate)) {
-    DCHECK(child->IsDetached(isolate));
+  if (parent->is_prototype_map()) {
+    DCHECK(child->is_prototype_map());
     if (FLAG_trace_maps) {
       LOG(isolate, MapEvent("Transition", parent, child, "prototype", name));
     }
@@ -1755,9 +1755,7 @@ Handle<Map> Map::CopyReplaceDescriptors(
     result->set_may_have_interesting_symbols(true);
   }
 
-  if (map->is_prototype_map()) {
-    result->InitializeDescriptors(isolate, *descriptors, *layout_descriptor);
-  } else {
+  if (!map->is_prototype_map()) {
     if (flag == INSERT_TRANSITION &&
         TransitionsAccessor(isolate, map).CanHaveMoreTransitions()) {
       result->InitializeDescriptors(isolate, *descriptors, *layout_descriptor);
@@ -1768,11 +1766,19 @@ Handle<Map> Map::CopyReplaceDescriptors(
       descriptors->GeneralizeAllFields();
       result->InitializeDescriptors(isolate, *descriptors,
                                     LayoutDescriptor::FastPointerLayout());
+      // If we were trying to insert a transition but failed because there are
+      // too many transitions already, mark the object as a prototype to avoid
+      // tracking transitions from the detached map.
+      if (flag == INSERT_TRANSITION) {
+        result->set_is_prototype_map(true);
+      }
     }
+  } else {
+    result->InitializeDescriptors(isolate, *descriptors, *layout_descriptor);
   }
   if (FLAG_trace_maps &&
       // Mirror conditions above that did not call ConnectTransition().
-      (map->IsDetached(isolate) ||
+      (map->is_prototype_map() ||
        !(flag == INSERT_TRANSITION &&
          TransitionsAccessor(isolate, map).CanHaveMoreTransitions()))) {
     LOG(isolate, MapEvent("ReplaceDescriptors", map, result, reason,
@@ -1954,7 +1960,7 @@ Handle<Map> Map::AsLanguageMode(Isolate* isolate, Handle<Map> initial_map,
 }
 
 Handle<Map> Map::CopyForElementsTransition(Isolate* isolate, Handle<Map> map) {
-  DCHECK(!map->IsDetached(isolate));
+  DCHECK(!map->is_prototype_map());
   Handle<Map> new_map = CopyDropDescriptors(isolate, map);
 
   if (map->owns_descriptors()) {
@@ -2155,7 +2161,7 @@ Handle<Map> Map::TransitionToDataProperty(Isolate* isolate, Handle<Map> map,
                                           StoreOrigin store_origin) {
   RuntimeCallTimerScope stats_scope(
       isolate,
-      map->IsDetached(isolate)
+      map->is_prototype_map()
           ? RuntimeCallCounterId::kPrototypeMap_TransitionToDataProperty
           : RuntimeCallCounterId::kMap_TransitionToDataProperty);
 
@@ -2269,7 +2275,7 @@ Handle<Map> Map::TransitionToAccessorProperty(Isolate* isolate, Handle<Map> map,
                                               PropertyAttributes attributes) {
   RuntimeCallTimerScope stats_scope(
       isolate,
-      map->IsDetached(isolate)
+      map->is_prototype_map()
           ? RuntimeCallCounterId::kPrototypeMap_TransitionToAccessorProperty
           : RuntimeCallCounterId::kMap_TransitionToAccessorProperty);
 
@@ -2384,64 +2390,19 @@ Handle<Map> Map::CopyAddDescriptor(Isolate* isolate, Handle<Map> map,
     return ShareDescriptor(isolate, map, descriptors, descriptor);
   }
 
-  Handle<DescriptorArray> new_descriptors;
-  Handle<LayoutDescriptor> new_layout_descriptor;
-  if (map->IsDetached(isolate)) {
-    if (descriptors->number_of_slack_descriptors() == 0) {
-      int old_size = descriptors->number_of_descriptors();
-      if (old_size == 0) {
-        new_descriptors = DescriptorArray::Allocate(isolate, 0, 1);
-      } else {
-        int slack = SlackForArraySize(old_size, kMaxNumberOfDescriptors);
-        EnsureDescriptorSlack(isolate, map, slack);
-        new_descriptors = handle(map->instance_descriptors(), isolate);
-      }
-    } else {
-      new_descriptors = descriptors;
-    }
-    new_layout_descriptor =
-        FLAG_unbox_double_fields
-            ? LayoutDescriptor::ShareAppend(isolate, map,
-                                            descriptor->GetDetails())
-            : handle(LayoutDescriptor::FastPointerLayout(), isolate);
-  } else {
-    int nof = map->NumberOfOwnDescriptors();
-    new_descriptors = DescriptorArray::CopyUpTo(isolate, descriptors, nof, 1);
-    new_layout_descriptor =
-        FLAG_unbox_double_fields
-            ? LayoutDescriptor::New(isolate, map, new_descriptors, nof + 1)
-            : handle(LayoutDescriptor::FastPointerLayout(), isolate);
-  }
+  int nof = map->NumberOfOwnDescriptors();
+  Handle<DescriptorArray> new_descriptors =
+      DescriptorArray::CopyUpTo(isolate, descriptors, nof, 1);
+  new_descriptors->Append(descriptor);
 
-  Handle<Map> result = CopyDropDescriptors(isolate, map);
+  Handle<LayoutDescriptor> new_layout_descriptor =
+      FLAG_unbox_double_fields
+          ? LayoutDescriptor::New(isolate, map, new_descriptors, nof + 1)
+          : handle(LayoutDescriptor::FastPointerLayout(), isolate);
 
-  if (descriptor->GetKey()->IsInterestingSymbol()) {
-    result->set_may_have_interesting_symbols(true);
-  }
-
-  {
-    DisallowHeapAllocation no_gc;
-    new_descriptors->Append(descriptor);
-    result->InitializeDescriptors(isolate, *new_descriptors,
-                                  *new_layout_descriptor);
-  }
-
-  if (flag == INSERT_TRANSITION &&
-      TransitionsAccessor(isolate, map).CanHaveMoreTransitions()) {
-    ConnectTransition(isolate, map, result, descriptor->GetKey(),
-                      SIMPLE_PROPERTY_TRANSITION);
-  }
-
-  if (FLAG_trace_maps &&
-      // Mirror conditions above that did not call ConnectTransition().
-      (map->IsDetached(isolate) ||
-       !(flag == INSERT_TRANSITION &&
-         TransitionsAccessor(isolate, map).CanHaveMoreTransitions()))) {
-    LOG(isolate, MapEvent("ReplaceDescriptors", map, result,
-                          "CopyAddDescriptor", descriptor->GetKey()));
-  }
-
-  return result;
+  return CopyReplaceDescriptors(
+      isolate, map, new_descriptors, new_layout_descriptor, flag,
+      descriptor->GetKey(), "CopyAddDescriptor", SIMPLE_PROPERTY_TRANSITION);
 }
 
 Handle<Map> Map::CopyInsertDescriptor(Isolate* isolate, Handle<Map> map,
