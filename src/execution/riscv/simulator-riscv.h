@@ -483,9 +483,11 @@ class Simulator : public SimulatorBase {
   inline void set_rd(int64_t value) { set_register(RV_rd_reg(), value); }
   inline void set_frd(float value) {
     set_fpu_register_float(RV_rd_reg(), value);
+    TraceRegWr(get_fpu_register_word(RV_rd_reg()), FLOAT);
   }
   inline void set_drd(double value) {
     set_fpu_register_double(RV_rd_reg(), value);
+    TraceRegWr(get_fpu_register(RV_rd_reg()), DOUBLE);
   }
   inline int16_t shamt() const { return (imm12() & 0x3F); }
   inline int32_t s_imm12() const { return instr_.StoreOffset(); }
@@ -496,43 +498,71 @@ class Simulator : public SimulatorBase {
     }
   }
 
-  inline void SetResult(const int32_t rd_reg, const int64_t alu_out) {
-    set_register(rd_reg, alu_out);
-    TraceRegWr(alu_out);
+  template <typename Func>
+  inline float CanonalizeFloat3Operation(Func fn) {
+    float alu_out = fn(frs1(), frs2(), frs3());
+    if (std::isnan(alu_out) || std::isnan(frs1()) || std::isnan(frs2()) ||
+        std::isnan(frs3()))
+      alu_out = std::numeric_limits<float>::quiet_NaN();
+    return alu_out;
   }
 
-  inline void SetFPUWordResult(int32_t fd_reg, int32_t alu_out) {
-    set_fpu_register_word(fd_reg, alu_out);
-    TraceRegWr(get_fpu_register(fd_reg), WORD);
+  template <typename Func>
+  inline float CanonalizeFloat2Operation(Func fn) {
+    float alu_out = fn(frs1(), frs2());
+    if (std::isnan(alu_out) || std::isnan(frs1()) || std::isnan(frs2()))
+      std::numeric_limits<float>::quiet_NaN();
+    return alu_out;
   }
 
-  inline void SetFPUWordResult2(int32_t fd_reg, int32_t alu_out) {
-    set_fpu_register_word(fd_reg, alu_out);
-    TraceRegWr(get_fpu_register(fd_reg));
+  template <typename Func>
+  inline float CanonalizeFloat1Operation(Func fn) {
+    float alu_out = fn(frs1());
+    if (std::isnan(alu_out) || std::isnan(frs1()))
+      alu_out = std::numeric_limits<float>::quiet_NaN();
+    return alu_out;
   }
 
-  inline void SetFPUResult(int32_t fd_reg, int64_t alu_out) {
-    set_fpu_register(fd_reg, alu_out);
-    TraceRegWr(get_fpu_register(fd_reg));
+  template <typename Func>
+  inline float CanonalizeDoubleToFloatOperation(Func fn) {
+    float alu_out = fn(drs1());
+    if (std::isnan(alu_out) || std::isnan(drs1()))
+      alu_out = std::numeric_limits<float>::quiet_NaN();
+    return alu_out;
   }
 
-  inline void SetFPUResult2(int32_t fd_reg, int64_t alu_out) {
-    set_fpu_register(fd_reg, alu_out);
-    TraceRegWr(get_fpu_register(fd_reg), DOUBLE);
+  template <typename Func>
+  inline double CanonalizeDouble3Operation(Func fn) {
+    double alu_out = fn(drs1(), drs2(), drs3());
+    if (std::isnan(alu_out) || std::isnan(drs1()) || std::isnan(drs2()) ||
+        std::isnan(drs3()))
+      alu_out = std::numeric_limits<double>::quiet_NaN();
+    return alu_out;
   }
 
-  inline void SetFPUFloatResult(int32_t fd_reg, float alu_out) {
-    set_fpu_register_float(fd_reg, alu_out);
-    TraceRegWr(get_fpu_register(fd_reg), FLOAT);
+  template <typename Func>
+  inline double CanonalizeDouble2Operation(Func fn) {
+    double alu_out = fn(drs1(), drs2());
+    if (std::isnan(alu_out) || std::isnan(drs1()) || std::isnan(drs2()))
+      std::numeric_limits<double>::quiet_NaN();
+    return alu_out;
   }
 
-  inline void SetFPUDoubleResult(int32_t fd_reg, double alu_out) {
-    set_fpu_register_double(fd_reg, alu_out);
-    TraceRegWr(get_fpu_register(fd_reg), DOUBLE);
+  template <typename Func>
+  inline double CanonalizeDouble1Operation(Func fn) {
+    double alu_out = fn(drs1());
+    if (std::isnan(alu_out) || std::isnan(drs1()))
+      alu_out = std::numeric_limits<double>::quiet_NaN();
+    return alu_out;
   }
 
-  void DecodeTypeImmediate();
-  void DecodeTypeJump();
+  template <typename Func>
+  inline float CanonalizeFloatToDoubleOperation(Func fn) {
+    double alu_out = fn(frs1());
+    if (std::isnan(alu_out) || std::isnan(frs1()))
+      alu_out = std::numeric_limits<double>::quiet_NaN();
+    return alu_out;
+  }
 
   // RISCV decoding routine
   void DecodeRVRType();
