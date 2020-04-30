@@ -243,6 +243,7 @@
   'es6/block-let-crankshaft': [SKIP],
   'opt-elements-kind': [SKIP],
   'osr-elements-kind': [SKIP],
+  'compiler/number-divide': [SKIP],
   'regress/regress-crbug-137689': [SKIP],
   'regress/regress-trap-allocation-memento': [SKIP],
   'regress/regress-2249': [SKIP],
