@@ -533,6 +533,14 @@
   # https://github.com/tc39/test262/pull/2349
   'intl402/Locale/constructor-options-region-valid': [FAIL],
 
+  # http://crbug/v8/10443
+  'intl402/RelativeTimeFormat/prototype/format/pl-pl-style-long': [FAIL],
+  'intl402/RelativeTimeFormat/prototype/format/pl-pl-style-narrow': [FAIL],
+  'intl402/RelativeTimeFormat/prototype/format/pl-pl-style-short': [FAIL],
+  'intl402/RelativeTimeFormat/prototype/formatToParts/pl-pl-style-long': [FAIL],
+  'intl402/RelativeTimeFormat/prototype/formatToParts/pl-pl-style-narrow': [FAIL],
+  'intl402/RelativeTimeFormat/prototype/formatToParts/pl-pl-style-short': [FAIL],
+
   # https://bugs.chromium.org/p/v8/issues/detail?id=9818
   'built-ins/AsyncFunction/proto-from-ctor-realm': [FAIL],
 
@@ -597,9 +605,6 @@
   'built-ins/Atomics/waitAsync/object-for-timeout-agent': [SKIP],
   'built-ins/Atomics/waitAsync/true-for-timeout-agent': [SKIP],
   'built-ins/Atomics/waitAsync/value-not-equal-agent': [SKIP],
-
-  # http://crbug/v8/10450
-  'built-ins/NativeErrors/AggregateError/proto-from-ctor-realm': [FAIL],
 
   ######################## NEEDS INVESTIGATION ###########################
 
