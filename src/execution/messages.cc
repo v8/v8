@@ -925,12 +925,25 @@ MaybeHandle<Object> ErrorUtils::FormatStackTrace(Isolate* isolate,
 }
 
 Handle<String> MessageFormatter::Format(Isolate* isolate, MessageTemplate index,
-                                        Handle<Object> arg) {
+                                        Handle<Object> arg0,
+                                        Handle<Object> arg1,
+                                        Handle<Object> arg2) {
   Factory* factory = isolate->factory();
-  Handle<String> result_string = Object::NoSideEffectsToString(isolate, arg);
+  Handle<String> arg0_string = factory->empty_string();
+  if (!arg0.is_null()) {
+    arg0_string = Object::NoSideEffectsToString(isolate, arg0);
+  }
+  Handle<String> arg1_string = factory->empty_string();
+  if (!arg1.is_null()) {
+    arg1_string = Object::NoSideEffectsToString(isolate, arg1);
+  }
+  Handle<String> arg2_string = factory->empty_string();
+  if (!arg2.is_null()) {
+    arg2_string = Object::NoSideEffectsToString(isolate, arg2);
+  }
   MaybeHandle<String> maybe_result_string = MessageFormatter::Format(
-      isolate, index, result_string, factory->empty_string(),
-      factory->empty_string());
+      isolate, index, arg0_string, arg1_string, arg2_string);
+  Handle<String> result_string;
   if (!maybe_result_string.ToHandle(&result_string)) {
     DCHECK(isolate->has_pending_exception());
     isolate->clear_pending_exception();

@@ -38,6 +38,8 @@ namespace error {
     const errors: JSAny = arguments[0];
     const errorsArray =
         iterator::IterableToFixedArrayWithSymbolLookupSlow(errors);
+    // errorsArray must be marked copy-on-write, since the "errors" getter
+    // creates a thin JSArray wrapper around it.
     MakeFixedArrayCOW(errorsArray);
 
     // 5. Set O.[[AggregateErrors]] to errorsList.
@@ -70,7 +72,10 @@ namespace error {
   }
 
   extern runtime ConstructAggregateErrorHelper(
-      Context, JSFunction, JSAny, JSAny): JSAggregateError;
+      Context, JSFunction, JSAny, Object): JSAggregateError;
+
+  extern runtime ConstructInternalAggregateErrorHelper(Context, Object):
+      JSAggregateError;
 
   extern macro MakeFixedArrayCOW(FixedArray);
 

@@ -498,7 +498,8 @@ namespace internal {
   T(TooManySpreads,                                                            \
     "Literal containing too many nested spreads (up to 65534 allowed)")        \
   T(TooManyVariables, "Too many variables declared (only 4194303 allowed)")    \
-  T(TooManyElementsInPromiseAll, "Too many elements passed to Promise.all")    \
+  T(TooManyElementsInPromiseCombinator,                                        \
+    "Too many elements passed to Promise.%")                                   \
   T(TypedArrayTooShort,                                                        \
     "Derived TypedArray constructor created an array which was too small")     \
   T(UnexpectedEOS, "Unexpected end of input")                                  \
@@ -591,7 +592,9 @@ namespace internal {
     "WeakRef: target must be an object")                                       \
   T(OptionalChainingNoNew, "Invalid optional chain from new expression")       \
   T(OptionalChainingNoSuper, "Invalid optional chain from super property")     \
-  T(OptionalChainingNoTemplate, "Invalid tagged template on optional chain")
+  T(OptionalChainingNoTemplate, "Invalid tagged template on optional chain")   \
+  /* AggregateError */                                                         \
+  T(AllPromisesRejected, "All promises were rejected")
 
 enum class MessageTemplate {
 #define TEMPLATE(NAME, STRING) k##NAME,

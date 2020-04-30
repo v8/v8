@@ -255,6 +255,7 @@ constexpr 'CodeStubAssembler::ExtractFixedArrayFlag' {
 const kBigIntMaxLength: constexpr intptr generates 'BigInt::kMaxLength';
 
 extern enum MessageTemplate {
+  kAllPromisesRejected,
   kInvalidArrayBufferLength,
   kInvalidArrayLength,
   kInvalidIndex,
@@ -290,7 +291,7 @@ extern enum MessageTemplate {
   kPromiseNonCallable,
   kNotAPromise,
   kResolverNotAFunction,
-  kTooManyElementsInPromiseAll,
+  kTooManyElementsInPromiseCombinator,
   kToRadixFormatRange,
   kCalledOnNonObject,
   kRegExpGlobalInvokedOnNonGlobal,

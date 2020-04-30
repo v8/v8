@@ -69,6 +69,11 @@
     assertEquals('hello', error.message);
 })();
 
+(function TestTwoParametersMessageIsSMI() {
+    let error = new AggregateError([], 44);
+    assertEquals('44', error.message);
+})();
+
 (function TestTwoParametersMessageUndefined() {
     let error = new AggregateError([], undefined);
     assertFalse(Object.prototype.hasOwnProperty.call(error, 'message'));

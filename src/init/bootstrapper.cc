@@ -4414,6 +4414,22 @@ void Genesis::InitializeGlobal_harmony_promise_any() {
 
   JSObject::DefineAccessor(prototype, factory->errors_string(), getter,
                            factory->undefined_value(), DONT_ENUM);
+
+  {
+    Handle<SharedFunctionInfo> info = SimpleCreateSharedFunctionInfo(
+        isolate_, Builtins::kPromiseAnyRejectElementClosure,
+        factory->empty_string(), 1);
+    native_context()->set_promise_any_reject_element_shared_fun(*info);
+  }
+
+  Handle<JSFunction> promise_fun(
+      JSFunction::cast(
+          isolate()->native_context()->get(Context::PROMISE_FUNCTION_INDEX)),
+      isolate());
+  InstallFunctionWithBuiltinId(isolate_, promise_fun, "any",
+                               Builtins::kPromiseAny, 1, true);
+
+  DCHECK(promise_fun->HasFastProperties());
 }
 
 void Genesis::InitializeGlobal_harmony_promise_all_settled() {

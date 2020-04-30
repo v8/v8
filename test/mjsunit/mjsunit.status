@@ -90,6 +90,7 @@
   # Long-running tests.
   # We really should find better solutions for these.
   'es6/promise-all-overflow-1': [SKIP],
+  'harmony/promise-any-overflow-1': [SKIP],
   'migrations': [SKIP],
   'regress/regress-2073': [SKIP],
 
@@ -117,6 +118,7 @@
   'asm/sqlite3/*': [PASS, SLOW, NO_VARIANTS],
   'compiler/regress-9017': [PASS, SLOW],
   'es6/promise-all-overflow-2': [PASS, SLOW, ['arch != x64', SKIP]],
+  'harmony/promise-any-overflow-2': [PASS, SLOW, ['arch != x64', SKIP]],
   'copy-on-write-assert': [PASS, SLOW],
   'es6/typedarray-construct-offset-not-smi': [PASS, SLOW],
   'harmony/futex': [PASS, SLOW],

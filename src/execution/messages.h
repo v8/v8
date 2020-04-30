@@ -317,7 +317,9 @@ class MessageFormatter {
                                                       Handle<String> arg2);
 
   static Handle<String> Format(Isolate* isolate, MessageTemplate index,
-                               Handle<Object> arg);
+                               Handle<Object> arg0,
+                               Handle<Object> arg1 = Handle<Object>(),
+                               Handle<Object> arg2 = Handle<Object>());
 };
 
 // A message handler is a convenience interface for accessing the list

@@ -1157,6 +1157,7 @@ namespace internal {
   V(AsyncGeneratorAwaitCaught)                       \
   V(AsyncGeneratorAwaitUncaught)                     \
   V(PromiseAll)                                      \
+  V(PromiseAny)                                      \
   V(PromiseConstructor)                              \
   V(PromiseConstructorLazyDeoptContinuation)         \
   V(PromiseFulfillReactionJob)                       \

@@ -187,7 +187,8 @@ namespace promise {
             // separate context, but it doesn't seem likely that we need this,
             // and it's unclear how the rest of the system deals with 2**21 live
             // Promises anyway.
-            ThrowRangeError(MessageTemplate::kTooManyElementsInPromiseAll);
+            ThrowRangeError(
+                MessageTemplate::kTooManyElementsInPromiseCombinator, 'all');
           }
 
           // Set remainingElementsCount.[[Value]] to
