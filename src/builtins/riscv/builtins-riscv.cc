@@ -467,8 +467,8 @@ void Builtins::Generate_ResumeGeneratorTrampoline(MacroAssembler* masm) {
     __ CallRuntime(Runtime::kDebugOnFunctionCall);
     __ Pop(a1);
   }
-  __ Branch(USE_DELAY_SLOT, &stepping_prepared);
   __ Ld(a4, FieldMemOperand(a1, JSGeneratorObject::kFunctionOffset));
+  __ Branch(&stepping_prepared);
 
   __ bind(&prepare_step_in_suspended_generator);
   {
@@ -477,8 +477,8 @@ void Builtins::Generate_ResumeGeneratorTrampoline(MacroAssembler* masm) {
     __ CallRuntime(Runtime::kDebugPrepareStepInSuspendedGenerator);
     __ Pop(a1);
   }
-  __ Branch(USE_DELAY_SLOT, &stepping_prepared);
   __ Ld(a4, FieldMemOperand(a1, JSGeneratorObject::kFunctionOffset));
+  __ Branch(&stepping_prepared);
 
   __ bind(&stack_overflow);
   {
@@ -1454,9 +1454,8 @@ void Builtins::Generate_NotifyDeoptimized(MacroAssembler* masm) {
 
   DCHECK_EQ(kInterpreterAccumulatorRegister.code(), t0.code());
   __ Ld(t0, MemOperand(sp, 0 * kPointerSize));
-  __ Ret(USE_DELAY_SLOT);
-  // Safe to fill delay slot Addu will emit one instruction.
   __ Daddu(sp, sp, Operand(1 * kPointerSize));  // Remove state.
+  __ Ret();
 }
 
 void Builtins::Generate_InterpreterOnStackReplacement(MacroAssembler* masm) {
@@ -1779,8 +1778,8 @@ void Builtins::Generate_CallOrConstructVarargs(MacroAssembler* masm,
     Register src = a6;
     Register scratch = len;
     __ Daddu(src, args, FixedArray::kHeaderSize - kHeapObjectTag);
-    __ Branch(&done, eq, len, Operand(zero_reg), i::USE_DELAY_SLOT);
     __ Daddu(a0, a0, len);  // The 'len' argument for Call() or Construct().
+    __ Branch(&done, eq, len, Operand(zero_reg));
     __ Dsll(scratch, len, kPointerSizeLog2);
     __ Dsubu(scratch, sp, Operand(scratch));
     __ LoadRoot(t1, RootIndex::kTheHoleValue);
@@ -2330,8 +2329,8 @@ void Builtins::Generate_ArgumentsAdaptorTrampoline(MacroAssembler* masm) {
     __ bind(&copy);
     __ Ld(a5, MemOperand(a0));
     __ push(a5);
-    __ Branch(USE_DELAY_SLOT, &copy, ne, a0, Operand(a4));
-    __ Daddu(a0, a0, -kPointerSize);  // In delay slot.
+    __ Daddu(a0, a0, -kPointerSize);
+    __ Branch(&copy, ne, a0, Operand(a4));
 
     __ Branch(&invoke);
   }
@@ -2364,8 +2363,8 @@ void Builtins::Generate_ArgumentsAdaptorTrampoline(MacroAssembler* masm) {
     __ Ld(a4, MemOperand(a0));  // Adjusted above for return addr and receiver.
     __ Dsubu(sp, sp, kPointerSize);
     __ Dsubu(a0, a0, kPointerSize);
-    __ Branch(USE_DELAY_SLOT, &copy, ne, a0, Operand(a7));
-    __ Sd(a4, MemOperand(sp));  // In the delay slot.
+    __ Sd(a4, MemOperand(sp));
+    __ Branch(&copy, ne, a0, Operand(a7));
 
     // Fill the remaining expected arguments with undefined.
     // a1: function
@@ -2382,8 +2381,8 @@ void Builtins::Generate_ArgumentsAdaptorTrampoline(MacroAssembler* masm) {
     Label fill;
     __ bind(&fill);
     __ Dsubu(sp, sp, kPointerSize);
-    __ Branch(USE_DELAY_SLOT, &fill, ne, sp, Operand(a4));
     __ Sd(a5, MemOperand(sp));
+    __ Branch(&fill, ne, sp, Operand(a4));
   }
 
   // Call the entry point.

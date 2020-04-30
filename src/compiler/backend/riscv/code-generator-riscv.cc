@@ -2668,9 +2668,9 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       CpuFeatureScope msa_scope(tasm(), MIPS_SIMD);
       Register dst = i.OutputRegister();
       Label all_false;
+      __ li(dst, 0l);
       __ BranchMSA(&all_false, MSA_BRANCH_V, all_zero,
-                   i.InputSimd128Register(0), USE_DELAY_SLOT);
-      __ li(dst, 0l);  // branch delay slot
+                   i.InputSimd128Register(0));
       __ li(dst, -1);
       __ bind(&all_false);
       break;
@@ -2679,9 +2679,9 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       CpuFeatureScope msa_scope(tasm(), MIPS_SIMD);
       Register dst = i.OutputRegister();
       Label all_true;
+      __ li(dst, -1);
       __ BranchMSA(&all_true, MSA_BRANCH_W, all_not_zero,
-                   i.InputSimd128Register(0), USE_DELAY_SLOT);
-      __ li(dst, -1);  // branch delay slot
+                   i.InputSimd128Register(0));
       __ li(dst, 0l);
       __ bind(&all_true);
       break;
@@ -2690,9 +2690,9 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       CpuFeatureScope msa_scope(tasm(), MIPS_SIMD);
       Register dst = i.OutputRegister();
       Label all_true;
+      __ li(dst, -1);
       __ BranchMSA(&all_true, MSA_BRANCH_H, all_not_zero,
-                   i.InputSimd128Register(0), USE_DELAY_SLOT);
-      __ li(dst, -1);  // branch delay slot
+                   i.InputSimd128Register(0));
       __ li(dst, 0l);
       __ bind(&all_true);
       break;
@@ -2701,9 +2701,9 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       CpuFeatureScope msa_scope(tasm(), MIPS_SIMD);
       Register dst = i.OutputRegister();
       Label all_true;
+      __ li(dst, -1);
       __ BranchMSA(&all_true, MSA_BRANCH_B, all_not_zero,
-                   i.InputSimd128Register(0), USE_DELAY_SLOT);
-      __ li(dst, -1);  // branch delay slot
+                   i.InputSimd128Register(0));
       __ li(dst, 0l);
       __ bind(&all_true);
       break;
