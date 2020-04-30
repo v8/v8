@@ -353,7 +353,11 @@ class Simulator : public SimulatorBase {
   template <typename I_TYPE, typename F_TYPE>
   I_TYPE RoundF2IHelper(F_TYPE original, int rmode);
 
-  // Special case of set_register and get_register to access the raw PC value.
+  template <typename T>
+  bool CompareFHelper(T input1, T input2, FPUCondition cc);
+
+  // Special case of set_register and get_register to access the raw PC
+  // value.
   void set_pc(int64_t value);
   int64_t get_pc() const;
 

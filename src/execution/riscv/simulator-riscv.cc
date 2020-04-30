@@ -2119,6 +2119,39 @@ I_TYPE Simulator::RoundF2IHelper(F_TYPE original, int rmode) {
   return static_cast<I_TYPE>(rounded);
 }
 
+template <typename T>
+bool Simulator::CompareFHelper(T input1, T input2, FPUCondition cc) {
+  DCHECK(std::is_floating_point<T>::value);
+  bool result = false;
+  switch (cc) {
+    case LT:
+    case LE:
+      if (std::isnan(input1) || std::isnan(input2)) {
+        set_fflags(kInvalidOperation);
+        result = false;
+      } else {
+        result = (cc == LT) ? (input1 < input2) : (input1 <= input2);
+      }
+      break;
+
+    case EQ:
+      if (std::numeric_limits<T>::signaling_NaN() == input1 ||
+          std::numeric_limits<T>::signaling_NaN() == input2) {
+        set_fflags(kInvalidOperation);
+      }
+      if (std::isnan(input1) || std::isnan(input2)) {
+        result = false;
+      } else {
+        result = (input1 == input2);
+      }
+      break;
+
+    default:
+      UNREACHABLE();
+  }
+  return result;
+}
+
 void Simulator::DecodeRVRAType() {
   // TODO: Add macro for RISCV A extension
   // Special handling for A extension instructions because it uses func5
@@ -2379,15 +2412,15 @@ void Simulator::DecodeRVRFPType() {
     case RO_FLE_S: {  // RO_FEQ_S RO_FLT_S RO_FLE_S
       switch (instr_.Funct3Value()) {
         case 0b010: {  // RO_FEQ_S
-          set_rd(frs1() == frs2() ? 1 : 0);
+          set_rd(CompareFHelper(frs1(), frs2(), EQ));
           break;
         }
         case 0b001: {  // RO_FLT_S
-          set_rd(frs1() < frs2() ? 1 : 0);
+          set_rd(CompareFHelper(frs1(), frs2(), LT));
           break;
         }
         case 0b000: {  // RO_FLE_S
-          set_rd(frs1() <= frs2() ? 1 : 0);
+          set_rd(CompareFHelper(frs1(), frs2(), LE));
           break;
         }
         default: {
@@ -2516,15 +2549,15 @@ void Simulator::DecodeRVRFPType() {
     case RO_FLE_D: {  // RO_FEQ_D RO_FLT_D RO_FLE_D
       switch (instr_.Funct3Value()) {
         case 0b010: {  // RO_FEQ_S
-          set_rd(drs1() == drs2() ? 1 : 0);
+          set_rd(CompareFHelper(drs1(), drs2(), EQ));
           break;
         }
         case 0b001: {  // RO_FLT_D
-          set_rd(drs1() < drs2() ? 1 : 0);
+          set_rd(CompareFHelper(drs1(), drs2(), LT));
           break;
         }
         case 0b000: {  // RO_FLE_D
-          set_rd(drs1() <= drs2() ? 1 : 0);
+          set_rd(CompareFHelper(drs1(), drs2(), LE));
           break;
         }
         default: {
