@@ -959,18 +959,6 @@ double Simulator::get_fpu_register_double(int fpureg) const {
   return *bit_cast<double*>(&FPUregisters_[fpureg * 2]);
 }
 
-template <typename T>
-void Simulator::get_msa_register(int wreg, T* value) {
-  DCHECK((wreg >= 0) && (wreg < kNumMSARegisters));
-  memcpy(value, FPUregisters_ + wreg * 2, kSimd128Size);
-}
-
-template <typename T>
-void Simulator::set_msa_register(int wreg, const T* value) {
-  DCHECK((wreg >= 0) && (wreg < kNumMSARegisters));
-  memcpy(FPUregisters_ + wreg * 2, value, kSimd128Size);
-}
-
 // Runtime FP routines take up to two double arguments and zero
 // or one integer arguments. All are constructed here,
 // from a0-a3 or fa0 and fa1 (n64), or fa2 (O32).
@@ -1797,16 +1785,6 @@ void Simulator::SignalException(Exception e) {
   FATAL("Error: Exception %i raised.", static_cast<int>(e));
 }
 
-// FIXME (RISCV): add support for signaling NaN to set invalid bit
-template <typename Func, typename T, typename... Args>
-T FPUCanonalizeOperation(Func f, T first, Args... args) {
-  T result = f(first, args...);
-  if (std::isnan(result)) {
-    result = std::numeric_limits<T>::quiet_NaN();
-  }
-  return result;
-}
-
 // RISCV Instruction Decode Routine
 void Simulator::DecodeRVRType() {
   switch (instr_.InstructionBits() & kRTypeMask) {
@@ -2307,32 +2285,32 @@ void Simulator::DecodeRVRFPType() {
     case RO_FADD_S: {
       // TODO: use rm value (round mode)
       auto fn = [](float frs1, float frs2) { return frs1 + frs2; };
-      set_frd(CanonalizeFloat2Operation(fn));
+      set_frd(CanonicalizeFloat2Operation(fn));
       break;
     }
     case RO_FSUB_S: {
       // TODO: use rm value (round mode)
       auto fn = [](float frs1, float frs2) { return frs1 - frs2; };
-      set_frd(CanonalizeFloat2Operation(fn));
+      set_frd(CanonicalizeFloat2Operation(fn));
       break;
     }
     case RO_FMUL_S: {
       // TODO: use rm value (round mode)
       auto fn = [](float frs1, float frs2) { return frs1 * frs2; };
-      set_frd(CanonalizeFloat2Operation(fn));
+      set_frd(CanonicalizeFloat2Operation(fn));
       break;
     }
     case RO_FDIV_S: {
       // TODO: use rm value (round mode)
       auto fn = [](float frs1, float frs2) { return frs1 / frs2; };
-      set_frd(CanonalizeFloat2Operation(fn));
+      set_frd(CanonicalizeFloat2Operation(fn));
       break;
     }
     case RO_FSQRT_S: {
       if (instr_.Rs2Value() == 0b00000) {
         // TODO: use rm value (round mode)
         auto fn = [](float frs) { return std::sqrt(frs); };
-        set_frd(CanonalizeFloat1Operation(fn));
+        set_frd(CanonicalizeFloat1Operation(fn));
       } else {
         UNSUPPORTED();
       }
@@ -2344,21 +2322,21 @@ void Simulator::DecodeRVRFPType() {
           auto fn = [](float frs1, float frs2) {
             return fsgnj32(frs1, frs2, false, false);
           };
-          set_frd(CanonalizeFloat2Operation(fn));
+          set_frd(CanonicalizeFloat2Operation(fn));
           break;
         }
         case 0b001: {  // RO_FSGNJN_S
           auto fn = [](float frs1, float frs2) {
             return fsgnj32(frs1, frs2, true, false);
           };
-          set_frd(CanonalizeFloat2Operation(fn));
+          set_frd(CanonicalizeFloat2Operation(fn));
           break;
         }
         case 0b010: {  // RO_FSQNJX_S
           auto fn = [](float frs1, float frs2) {
             return fsgnj32(frs1, frs2, false, true);
           };
-          set_frd(CanonalizeFloat2Operation(fn));
+          set_frd(CanonicalizeFloat2Operation(fn));
           break;
         }
         default: {
@@ -2492,32 +2470,32 @@ void Simulator::DecodeRVRFPType() {
     case RO_FADD_D: {
       // TODO: use rm value (round mode)
       auto fn = [](double drs1, double drs2) { return drs1 + drs2; };
-      set_drd(CanonalizeDouble2Operation(fn));
+      set_drd(CanonicalizeDouble2Operation(fn));
       break;
     }
     case RO_FSUB_D: {
       // TODO: use rm value (round mode)
       auto fn = [](double drs1, double drs2) { return drs1 - drs2; };
-      set_drd(CanonalizeDouble2Operation(fn));
+      set_drd(CanonicalizeDouble2Operation(fn));
       break;
     }
     case RO_FMUL_D: {
       // TODO: use rm value (round mode)
       auto fn = [](double drs1, double drs2) { return drs1 * drs2; };
-      set_drd(CanonalizeDouble2Operation(fn));
+      set_drd(CanonicalizeDouble2Operation(fn));
       break;
     }
     case RO_FDIV_D: {
       // TODO: use rm value (round mode)
       auto fn = [](double drs1, double drs2) { return drs1 / drs2; };
-      set_drd(CanonalizeDouble2Operation(fn));
+      set_drd(CanonicalizeDouble2Operation(fn));
       break;
     }
     case RO_FSQRT_D: {
       if (instr_.Rs2Value() == 0b00000) {
         // TODO: use rm value (round mode)
         auto fn = [](double drs) { return std::sqrt(drs); };
-        set_drd(CanonalizeDouble1Operation(fn));
+        set_drd(CanonicalizeDouble1Operation(fn));
       } else {
         UNSUPPORTED();
       }
@@ -2529,21 +2507,21 @@ void Simulator::DecodeRVRFPType() {
           auto fn = [](double drs1, double drs2) {
             return fsgnj64(drs1, drs2, false, false);
           };
-          set_drd(CanonalizeDouble2Operation(fn));
+          set_drd(CanonicalizeDouble2Operation(fn));
           break;
         }
         case 0b001: {  // RO_FSGNJN_D
           auto fn = [](double drs1, double drs2) {
             return fsgnj64(drs1, drs2, true, false);
           };
-          set_drd(CanonalizeDouble2Operation(fn));
+          set_drd(CanonicalizeDouble2Operation(fn));
           break;
         }
         case 0b010: {  // RO_FSQNJX_D
           auto fn = [](double drs1, double drs2) {
             return fsgnj64(drs1, drs2, false, true);
           };
-          set_drd(CanonalizeDouble2Operation(fn));
+          set_drd(CanonicalizeDouble2Operation(fn));
           break;
         }
         default: {
@@ -2571,7 +2549,7 @@ void Simulator::DecodeRVRFPType() {
     case (RO_FCVT_S_D & kRFPTypeMask): {
       if (instr_.Rs2Value() == 0b00001) {
         auto fn = [](double drs) { return (float)drs; };
-        set_frd(CanonalizeDoubleToFloatOperation(fn));
+        set_frd(CanonicalizeDoubleToFloatOperation(fn));
       } else {
         UNSUPPORTED();
       }
@@ -2580,7 +2558,7 @@ void Simulator::DecodeRVRFPType() {
     case RO_FCVT_D_S: {
       if (instr_.Rs2Value() == 0b00000) {
         auto fn = [](float frs) { return (double)frs; };
-        set_drd(CanonalizeFloatToDoubleOperation(fn));
+        set_drd(CanonicalizeFloatToDoubleOperation(fn));
       } else {
         UNSUPPORTED();
       }
@@ -2708,7 +2686,7 @@ void Simulator::DecodeRVR4Type() {
       auto fn = [](float frs1, float frs2, float frs3) {
         return frs1 * frs2 + frs3;
       };
-      set_frd(CanonalizeFloat3Operation(fn));
+      set_frd(CanonicalizeFloat3Operation(fn));
       break;
     }
     case RO_FMSUB_S: {
@@ -2716,7 +2694,7 @@ void Simulator::DecodeRVR4Type() {
       auto fn = [](float frs1, float frs2, float frs3) {
         return frs1 * frs2 - frs3;
       };
-      set_frd(CanonalizeFloat3Operation(fn));
+      set_frd(CanonicalizeFloat3Operation(fn));
       break;
     }
     case RO_FNMSUB_S: {
@@ -2724,7 +2702,7 @@ void Simulator::DecodeRVR4Type() {
       auto fn = [](float frs1, float frs2, float frs3) {
         return -(frs1 * frs2) + frs3;
       };
-      set_frd(CanonalizeFloat3Operation(fn));
+      set_frd(CanonicalizeFloat3Operation(fn));
       break;
     }
     case RO_FNMADD_S: {
@@ -2732,7 +2710,7 @@ void Simulator::DecodeRVR4Type() {
       auto fn = [](float frs1, float frs2, float frs3) {
         return -(frs1 * frs2) - frs3;
       };
-      set_frd(CanonalizeFloat3Operation(fn));
+      set_frd(CanonicalizeFloat3Operation(fn));
       break;
     }
     // TODO: use F Extension macro block
@@ -2741,7 +2719,7 @@ void Simulator::DecodeRVR4Type() {
       auto fn = [](double drs1, double drs2, double drs3) {
         return drs1 * drs2 + drs3;
       };
-      set_drd(CanonalizeDouble3Operation(fn));
+      set_drd(CanonicalizeDouble3Operation(fn));
       break;
     }
     case RO_FMSUB_D: {
@@ -2749,7 +2727,7 @@ void Simulator::DecodeRVR4Type() {
       auto fn = [](double drs1, double drs2, double drs3) {
         return drs1 * drs2 - drs3;
       };
-      set_drd(CanonalizeDouble3Operation(fn));
+      set_drd(CanonicalizeDouble3Operation(fn));
       break;
     }
     case RO_FNMSUB_D: {
@@ -2757,7 +2735,7 @@ void Simulator::DecodeRVR4Type() {
       auto fn = [](double drs1, double drs2, double drs3) {
         return -(drs1 * drs2) + drs3;
       };
-      set_drd(CanonalizeDouble3Operation(fn));
+      set_drd(CanonicalizeDouble3Operation(fn));
       break;
     }
     case RO_FNMADD_D: {
@@ -2765,7 +2743,7 @@ void Simulator::DecodeRVR4Type() {
       auto fn = [](double drs1, double drs2, double drs3) {
         return -(drs1 * drs2) - drs3;
       };
-      set_drd(CanonalizeDouble3Operation(fn));
+      set_drd(CanonicalizeDouble3Operation(fn));
       break;
     }
     default:

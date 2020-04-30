@@ -318,6 +318,7 @@ class Simulator : public SimulatorBase {
   void set_dw_register(int dreg, const int* dbl);
   int64_t get_register(int reg) const;
   double get_double_from_register_pair(int reg);
+
   // Same for FPURegisters.
   void set_fpu_register(int fpureg, int64_t value);
   void set_fpu_register_word(int fpureg, int32_t value);
@@ -331,10 +332,6 @@ class Simulator : public SimulatorBase {
   int32_t get_fpu_register_hi_word(int fpureg) const;
   float get_fpu_register_float(int fpureg) const;
   double get_fpu_register_double(int fpureg) const;
-  template <typename T>
-  void get_msa_register(int wreg, T* value);
-  template <typename T>
-  void set_msa_register(int wreg, const T* value);
 
   // RV CSR manipulation
   uint32_t read_csr_value(uint32_t csr);
@@ -480,7 +477,11 @@ class Simulator : public SimulatorBase {
   inline int32_t imm20J() const { return instr_.Imm20JValue(); }
   inline int32_t imm5CSR() const { return instr_.Rs1Value(); }
   inline int16_t csr_reg() const { return instr_.CsrValue(); }
-  inline void set_rd(int64_t value) { set_register(RV_rd_reg(), value); }
+
+  inline void set_rd(int64_t value) {
+    set_register(RV_rd_reg(), value);
+    TraceRegWr(get_register(RV_rd_reg()), DWORD);
+  }
   inline void set_frd(float value) {
     set_fpu_register_float(RV_rd_reg(), value);
     TraceRegWr(get_fpu_register_word(RV_rd_reg()), FLOAT);
@@ -499,7 +500,7 @@ class Simulator : public SimulatorBase {
   }
 
   template <typename Func>
-  inline float CanonalizeFloat3Operation(Func fn) {
+  inline float CanonicalizeFloat3Operation(Func fn) {
     float alu_out = fn(frs1(), frs2(), frs3());
     if (std::isnan(alu_out) || std::isnan(frs1()) || std::isnan(frs2()) ||
         std::isnan(frs3()))
@@ -508,7 +509,7 @@ class Simulator : public SimulatorBase {
   }
 
   template <typename Func>
-  inline float CanonalizeFloat2Operation(Func fn) {
+  inline float CanonicalizeFloat2Operation(Func fn) {
     float alu_out = fn(frs1(), frs2());
     if (std::isnan(alu_out) || std::isnan(frs1()) || std::isnan(frs2()))
       std::numeric_limits<float>::quiet_NaN();
@@ -516,7 +517,7 @@ class Simulator : public SimulatorBase {
   }
 
   template <typename Func>
-  inline float CanonalizeFloat1Operation(Func fn) {
+  inline float CanonicalizeFloat1Operation(Func fn) {
     float alu_out = fn(frs1());
     if (std::isnan(alu_out) || std::isnan(frs1()))
       alu_out = std::numeric_limits<float>::quiet_NaN();
@@ -524,7 +525,7 @@ class Simulator : public SimulatorBase {
   }
 
   template <typename Func>
-  inline float CanonalizeDoubleToFloatOperation(Func fn) {
+  inline float CanonicalizeDoubleToFloatOperation(Func fn) {
     float alu_out = fn(drs1());
     if (std::isnan(alu_out) || std::isnan(drs1()))
       alu_out = std::numeric_limits<float>::quiet_NaN();
@@ -532,7 +533,7 @@ class Simulator : public SimulatorBase {
   }
 
   template <typename Func>
-  inline double CanonalizeDouble3Operation(Func fn) {
+  inline double CanonicalizeDouble3Operation(Func fn) {
     double alu_out = fn(drs1(), drs2(), drs3());
     if (std::isnan(alu_out) || std::isnan(drs1()) || std::isnan(drs2()) ||
         std::isnan(drs3()))
@@ -541,7 +542,7 @@ class Simulator : public SimulatorBase {
   }
 
   template <typename Func>
-  inline double CanonalizeDouble2Operation(Func fn) {
+  inline double CanonicalizeDouble2Operation(Func fn) {
     double alu_out = fn(drs1(), drs2());
     if (std::isnan(alu_out) || std::isnan(drs1()) || std::isnan(drs2()))
       std::numeric_limits<double>::quiet_NaN();
@@ -549,7 +550,7 @@ class Simulator : public SimulatorBase {
   }
 
   template <typename Func>
-  inline double CanonalizeDouble1Operation(Func fn) {
+  inline double CanonicalizeDouble1Operation(Func fn) {
     double alu_out = fn(drs1());
     if (std::isnan(alu_out) || std::isnan(drs1()))
       alu_out = std::numeric_limits<double>::quiet_NaN();
@@ -557,7 +558,7 @@ class Simulator : public SimulatorBase {
   }
 
   template <typename Func>
-  inline float CanonalizeFloatToDoubleOperation(Func fn) {
+  inline float CanonicalizeFloatToDoubleOperation(Func fn) {
     double alu_out = fn(frs1());
     if (std::isnan(alu_out) || std::isnan(frs1()))
       alu_out = std::numeric_limits<double>::quiet_NaN();
