@@ -36,9 +36,6 @@
 
   # http://crbug/v8/9930
   'date-format/format_range_hour_cycle': [FAIL],
-
-  # http://crbug/v8/10437
-  'regress-10437': [FAIL],
 }],  # ALWAYS
 
 ['variant == no_wasm_traps', {
