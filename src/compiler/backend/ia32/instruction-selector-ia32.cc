@@ -895,6 +895,10 @@ void InstructionSelector::VisitWord32PairSar(Node* node) {
   VisitWord32PairShift(this, kIA32SarPair, node);
 }
 
+void InstructionSelector::VisitWord32Rol(Node* node) {
+  VisitShift(this, node, kIA32Rol);
+}
+
 void InstructionSelector::VisitWord32Ror(Node* node) {
   VisitShift(this, node, kIA32Ror);
 }
@@ -2811,7 +2815,7 @@ MachineOperatorBuilder::Flags
 InstructionSelector::SupportedMachineOperatorFlags() {
   MachineOperatorBuilder::Flags flags =
       MachineOperatorBuilder::kWord32ShiftIsSafe |
-      MachineOperatorBuilder::kWord32Ctz;
+      MachineOperatorBuilder::kWord32Ctz | MachineOperatorBuilder::kWord32Rol;
   if (CpuFeatures::IsSupported(POPCNT)) {
     flags |= MachineOperatorBuilder::kWord32Popcnt;
   }

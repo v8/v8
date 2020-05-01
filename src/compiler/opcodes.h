@@ -532,6 +532,7 @@
   V(Word32Shl)                   \
   V(Word32Shr)                   \
   V(Word32Sar)                   \
+  V(Word32Rol)                   \
   V(Word32Ror)                   \
   V(Int32Add)                    \
   V(Int32AddWithOverflow)        \
@@ -553,6 +554,7 @@
   V(Word64Shl)                   \
   V(Word64Shr)                   \
   V(Word64Sar)                   \
+  V(Word64Rol)                   \
   V(Word64Ror)                   \
   V(Int64Add)                    \
   V(Int64AddWithOverflow)        \

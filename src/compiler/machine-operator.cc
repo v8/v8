@@ -487,6 +487,8 @@ ShiftKind ShiftKindOf(Operator const* op) {
 #define PURE_OPTIONAL_OP_LIST(V)                            \
   V(Word32Ctz, Operator::kNoProperties, 1, 0, 1)            \
   V(Word64Ctz, Operator::kNoProperties, 1, 0, 1)            \
+  V(Word32Rol, Operator::kNoProperties, 2, 0, 1)            \
+  V(Word64Rol, Operator::kNoProperties, 2, 0, 1)            \
   V(Word32ReverseBits, Operator::kNoProperties, 1, 0, 1)    \
   V(Word64ReverseBits, Operator::kNoProperties, 1, 0, 1)    \
   V(Int32AbsWithOverflow, Operator::kNoProperties, 1, 0, 2) \

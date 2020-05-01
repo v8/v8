@@ -45,6 +45,8 @@ int InstructionScheduler::GetTargetInstructionFlags(
     case kX64Shr32:
     case kX64Sar:
     case kX64Sar32:
+    case kX64Rol:
+    case kX64Rol32:
     case kX64Ror:
     case kX64Ror32:
     case kX64Lzcnt:

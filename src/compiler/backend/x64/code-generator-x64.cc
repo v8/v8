@@ -1292,6 +1292,12 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
     case kX64Sar:
       ASSEMBLE_SHIFT(sarq, 6);
       break;
+    case kX64Rol32:
+      ASSEMBLE_SHIFT(roll, 5);
+      break;
+    case kX64Rol:
+      ASSEMBLE_SHIFT(rolq, 6);
+      break;
     case kX64Ror32:
       ASSEMBLE_SHIFT(rorl, 5);
       break;

@@ -635,6 +635,11 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase {
   void rcl(Register dst, uint8_t imm8);
   void rcr(Register dst, uint8_t imm8);
 
+  void rol(Register dst, uint8_t imm8) { rol(Operand(dst), imm8); }
+  void rol(Operand dst, uint8_t imm8);
+  void rol_cl(Register dst) { rol_cl(Operand(dst)); }
+  void rol_cl(Operand dst);
+
   void ror(Register dst, uint8_t imm8) { ror(Operand(dst), imm8); }
   void ror(Operand dst, uint8_t imm8);
   void ror_cl(Register dst) { ror_cl(Operand(dst)); }

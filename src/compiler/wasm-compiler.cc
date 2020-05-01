@@ -432,7 +432,11 @@ Node* WasmGraphBuilder::Binop(wasm::WasmOpcode opcode, Node* left, Node* right,
       right = MaskShiftCount32(right);
       break;
     case wasm::kExprI32Rol:
-      right = MaskShiftCount32(right);
+      if (m->Word32Rol().IsSupported()) {
+        op = m->Word32Rol().op();
+        right = MaskShiftCount32(right);
+        break;
+      }
       return BuildI32Rol(left, right);
     case wasm::kExprI32Eq:
       op = m->Word32Equal();
@@ -543,6 +547,14 @@ Node* WasmGraphBuilder::Binop(wasm::WasmOpcode opcode, Node* left, Node* right,
       right = MaskShiftCount64(right);
       break;
     case wasm::kExprI64Rol:
+      if (m->Word64Rol().IsSupported()) {
+        op = m->Word64Rol().op();
+        right = MaskShiftCount64(right);
+        break;
+      } else if (m->Word32Rol().IsSupported()) {
+        op = m->Word64Rol().placeholder();
+        break;
+      }
       return BuildI64Rol(left, right);
     case wasm::kExprF32CopySign:
       return BuildF32CopySign(left, right);

@@ -1417,6 +1417,8 @@ void InstructionSelector::VisitNode(Node* node) {
       return MarkAsWord32(node), VisitWord32Shr(node);
     case IrOpcode::kWord32Sar:
       return MarkAsWord32(node), VisitWord32Sar(node);
+    case IrOpcode::kWord32Rol:
+      return MarkAsWord32(node), VisitWord32Rol(node);
     case IrOpcode::kWord32Ror:
       return MarkAsWord32(node), VisitWord32Ror(node);
     case IrOpcode::kWord32Equal:
@@ -1447,6 +1449,8 @@ void InstructionSelector::VisitNode(Node* node) {
       return MarkAsWord64(node), VisitWord64Shr(node);
     case IrOpcode::kWord64Sar:
       return MarkAsWord64(node), VisitWord64Sar(node);
+    case IrOpcode::kWord64Rol:
+      return MarkAsWord64(node), VisitWord64Rol(node);
     case IrOpcode::kWord64Ror:
       return MarkAsWord64(node), VisitWord64Ror(node);
     case IrOpcode::kWord64Clz:
@@ -2386,6 +2390,8 @@ void InstructionSelector::VisitWord64Shl(Node* node) { UNIMPLEMENTED(); }
 void InstructionSelector::VisitWord64Shr(Node* node) { UNIMPLEMENTED(); }
 
 void InstructionSelector::VisitWord64Sar(Node* node) { UNIMPLEMENTED(); }
+
+void InstructionSelector::VisitWord64Rol(Node* node) { UNIMPLEMENTED(); }
 
 void InstructionSelector::VisitWord64Ror(Node* node) { UNIMPLEMENTED(); }
 

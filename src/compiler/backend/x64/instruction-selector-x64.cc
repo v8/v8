@@ -911,6 +911,14 @@ void InstructionSelector::VisitWord64Sar(Node* node) {
   VisitWord64Shift(this, node, kX64Sar);
 }
 
+void InstructionSelector::VisitWord32Rol(Node* node) {
+  VisitWord32Shift(this, node, kX64Rol32);
+}
+
+void InstructionSelector::VisitWord64Rol(Node* node) {
+  VisitWord64Shift(this, node, kX64Rol);
+}
+
 void InstructionSelector::VisitWord32Ror(Node* node) {
   VisitWord32Shift(this, node, kX64Ror32);
 }
@@ -1290,6 +1298,7 @@ bool ZeroExtendsWord32ToWord64(Node* node) {
     case IrOpcode::kWord32Shl:
     case IrOpcode::kWord32Shr:
     case IrOpcode::kWord32Sar:
+    case IrOpcode::kWord32Rol:
     case IrOpcode::kWord32Ror:
     case IrOpcode::kWord32Equal:
     case IrOpcode::kInt32Add:
@@ -3376,7 +3385,8 @@ MachineOperatorBuilder::Flags
 InstructionSelector::SupportedMachineOperatorFlags() {
   MachineOperatorBuilder::Flags flags =
       MachineOperatorBuilder::kWord32ShiftIsSafe |
-      MachineOperatorBuilder::kWord32Ctz | MachineOperatorBuilder::kWord64Ctz;
+      MachineOperatorBuilder::kWord32Ctz | MachineOperatorBuilder::kWord64Ctz |
+      MachineOperatorBuilder::kWord32Rol | MachineOperatorBuilder::kWord64Rol;
   if (CpuFeatures::IsSupported(POPCNT)) {
     flags |= MachineOperatorBuilder::kWord32Popcnt |
              MachineOperatorBuilder::kWord64Popcnt;

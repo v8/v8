@@ -1301,6 +1301,10 @@ void InstructionSelector::VisitWord64Sar(Node* node) {
   VisitRRO(this, kArm64Asr, node, kShift64Imm);
 }
 
+void InstructionSelector::VisitWord32Rol(Node* node) { UNREACHABLE(); }
+
+void InstructionSelector::VisitWord64Rol(Node* node) { UNREACHABLE(); }
+
 void InstructionSelector::VisitWord32Ror(Node* node) {
   VisitRRO(this, kArm64Ror32, node, kShift32Imm);
 }

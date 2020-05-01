@@ -1235,6 +1235,13 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
         __ SarPair_cl(i.InputRegister(1), i.InputRegister(0));
       }
       break;
+    case kIA32Rol:
+      if (HasImmediateInput(instr, 1)) {
+        __ rol(i.OutputOperand(), i.InputInt5(1));
+      } else {
+        __ rol_cl(i.OutputOperand());
+      }
+      break;
     case kIA32Ror:
       if (HasImmediateInput(instr, 1)) {
         __ ror(i.OutputOperand(), i.InputInt5(1));

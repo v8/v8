@@ -220,13 +220,15 @@ class V8_EXPORT_PRIVATE MachineOperatorBuilder final
     kWord64ReverseBits = 1u << 17,
     kInt32AbsWithOverflow = 1u << 20,
     kInt64AbsWithOverflow = 1u << 21,
-    kAllOptionalOps = kFloat32RoundDown | kFloat64RoundDown | kFloat32RoundUp |
-                      kFloat64RoundUp | kFloat32RoundTruncate |
-                      kFloat64RoundTruncate | kFloat64RoundTiesAway |
-                      kFloat32RoundTiesEven | kFloat64RoundTiesEven |
-                      kWord32Ctz | kWord64Ctz | kWord32Popcnt | kWord64Popcnt |
-                      kWord32ReverseBits | kWord64ReverseBits |
-                      kInt32AbsWithOverflow | kInt64AbsWithOverflow
+    kWord32Rol = 1u << 22,
+    kWord64Rol = 1u << 23,
+    kAllOptionalOps =
+        kFloat32RoundDown | kFloat64RoundDown | kFloat32RoundUp |
+        kFloat64RoundUp | kFloat32RoundTruncate | kFloat64RoundTruncate |
+        kFloat64RoundTiesAway | kFloat32RoundTiesEven | kFloat64RoundTiesEven |
+        kWord32Ctz | kWord64Ctz | kWord32Popcnt | kWord64Popcnt |
+        kWord32ReverseBits | kWord64ReverseBits | kInt32AbsWithOverflow |
+        kInt64AbsWithOverflow | kWord32Rol | kWord64Rol
   };
   using Flags = base::Flags<Flag, unsigned>;
 
@@ -308,6 +310,7 @@ class V8_EXPORT_PRIVATE MachineOperatorBuilder final
   const Operator* Word32SarShiftOutZeros() {
     return Word32Sar(ShiftKind::kShiftOutZeros);
   }
+  const OptionalOperator Word32Rol();
   const Operator* Word32Ror();
   const Operator* Word32Equal();
   const Operator* Word32Clz();
@@ -337,6 +340,7 @@ class V8_EXPORT_PRIVATE MachineOperatorBuilder final
   const Operator* Word64SarShiftOutZeros() {
     return Word64Sar(ShiftKind::kShiftOutZeros);
   }
+  const OptionalOperator Word64Rol();
   const Operator* Word64Ror();
   const Operator* Word64Clz();
   const OptionalOperator Word64Ctz();

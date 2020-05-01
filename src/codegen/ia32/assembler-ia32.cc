@@ -1091,6 +1091,25 @@ void Assembler::rcr(Register dst, uint8_t imm8) {
   }
 }
 
+void Assembler::rol(Operand dst, uint8_t imm8) {
+  EnsureSpace ensure_space(this);
+  DCHECK(is_uint5(imm8));  // illegal shift count
+  if (imm8 == 1) {
+    EMIT(0xD1);
+    emit_operand(eax, dst);
+  } else {
+    EMIT(0xC1);
+    emit_operand(eax, dst);
+    EMIT(imm8);
+  }
+}
+
+void Assembler::rol_cl(Operand dst) {
+  EnsureSpace ensure_space(this);
+  EMIT(0xD3);
+  emit_operand(eax, dst);
+}
+
 void Assembler::ror(Operand dst, uint8_t imm8) {
   EnsureSpace ensure_space(this);
   DCHECK(is_uint5(imm8));  // illegal shift count
