@@ -1283,23 +1283,11 @@ TEST(macro_float_minmax_f32) {
     Inputs inputs = {src1, src2};                                             \
     Results results;                                                          \
     f.Call(&inputs, &results, 0, 0, 0);                                       \
-    std::cout << "min = " << min << " min_abc=" << results.min_abc_           \
-              << std::endl;                                                   \
     CHECK_EQ(bit_cast<uint32_t>(min), bit_cast<uint32_t>(results.min_abc_));  \
-    std::cout << "min = " << min << " min_aab=" << results.min_aab_           \
-              << std::endl;                                                   \
     CHECK_EQ(bit_cast<uint32_t>(min), bit_cast<uint32_t>(results.min_aab_));  \
-    std::cout << "min = " << min << " min_aba=" << results.min_aba_           \
-              << std::endl;                                                   \
     CHECK_EQ(bit_cast<uint32_t>(min), bit_cast<uint32_t>(results.min_aba_));  \
-    std::cout << "max = " << max << " max_abc=" << results.max_abc_           \
-              << std::endl;                                                   \
     CHECK_EQ(bit_cast<uint32_t>(max), bit_cast<uint32_t>(results.max_abc_));  \
-    std::cout << "max = " << max << " max_aab=" << results.max_aab_           \
-              << std::endl;                                                   \
     CHECK_EQ(bit_cast<uint32_t>(max), bit_cast<uint32_t>(results.max_aab_));  \
-    std::cout << "max = " << max << " max_aba=" << results.max_aba_           \
-              << std::endl;                                                   \
     CHECK_EQ(                                                                 \
         bit_cast<uint32_t>(max),                                              \
         bit_cast<uint32_t>(results.max_aba_)); /* Use a bit_cast to correctly \
@@ -1514,33 +1502,21 @@ int32_t run_CompareF(IN_TYPE x1, IN_TYPE x2, bool expected_res,
 
 // FIXME (RISCV): add tests for NaN, infinity, etc
 static const std::vector<float> compare_float_test_values() {
-  static const float kValues[] = {0.0f,
-                                  -0.0f,
-                                  100.23f,
-                                  -1034.78f,
-                                  max_f,
-                                  min_f,
-                                  /*qnan_f,
-                                  inf_f,
-                                  -inf_f*/};
+  static const float kValues[] = {0.0f,  -0.0f,  100.23f, -1034.78f, max_f,
+                                  min_f, qnan_f, inf_f,   -inf_f};
   return std::vector<float>(&kValues[0], &kValues[arraysize(kValues)]);
 }
 
 static const std::vector<double> compare_double_test_values() {
-  static const float kValues[] = {0.0,
-                                  -0.0,
-                                  100.23,
-                                  -1034.78,
-                                  max_d,
-                                  min_d,
-                                  /*qnan_d,
-                                  inf_d,
-                                  -inf_d*/};
+  static const float kValues[] = {0.0,   -0.0,   100.23, -1034.78, max_d,
+                                  min_d, qnan_d, inf_d,  -inf_d};
   return std::vector<double>(&kValues[0], &kValues[arraysize(kValues)]);
 }
 
 template <typename T>
 static bool Compare(T input1, T input2, FPUCondition cond) {
+  if (std::isnan(input1) || std::isnan(input2)) return false;
+
   switch (cond) {
     case EQ:  // Equal.
       return (input1 == input2);
@@ -1548,15 +1524,6 @@ static bool Compare(T input1, T input2, FPUCondition cond) {
       return (input1 < input2);
     case LE:  // Ordered or Less Than or Equal, on Mips release >= 6.
       return (input1 <= input2);
-
-    case UEQ:  // Unordered or Equal.
-    case ULT:  // Unordered or Less Than.
-    case ULE:  // Unordered or Less Than or Equal.
-    case F:    // False.
-    case UN:   // Unordered.
-    case ORD:  // Ordered, on Mips release >= 6.
-    case UNE:  // Not equal, on Mips release >= 6.
-    case NE:   // Ordered Greater Than or Less Than. on Mips >= 6 only.
     default:
       UNREACHABLE();
   }

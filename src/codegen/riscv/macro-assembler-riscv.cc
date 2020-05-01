@@ -4032,7 +4032,20 @@ void TurboAssembler::FloatMinMaxHelper(FPURegister dst, FPURegister src1,
     return;
   }
 
-  Label done;
+  Label done, nan;
+
+  // For RISCV, fmin_s returns the other non-NaN operand as result if only one
+  // operand is NaN; but for JS, if any operand is NaN, result is Nan. The
+  // following handles the discrepency between handling of NaN between ISA and
+  // JS semantics
+  UseScratchRegisterScope temps(this);
+  Register scratch = temps.Acquire();
+  if (std::is_same<float, F_TYPE>::value) {
+    CompareIsNanF32(scratch, src1, src2);
+  } else {
+    CompareIsNanF64(scratch, src1, src2);
+  }
+  BranchTrueF(scratch, &nan);
 
   if (kind == MaxMinKind::kMax) {
     if (std::is_same<float, F_TYPE>::value) {
@@ -4047,20 +4060,9 @@ void TurboAssembler::FloatMinMaxHelper(FPURegister dst, FPURegister src1,
       RV_fmin_d(dst, src1, src2);
     }
   }
+  RV_j(&done);
 
-  // For RISCV, fmin_s returns the other non-NaN operand as result if only one
-  // operand is NaN; but for JS, if any operand is NaN, result is Nan. The
-  // following handles the discrepency between handling of NaN between ISA and
-  // JS semantics
-  UseScratchRegisterScope temps(this);
-  Register scratch = temps.Acquire();
-  if (std::is_same<float, F_TYPE>::value) {
-    CompareIsNanF32(scratch, src1, src2);
-  } else {
-    CompareIsNanF64(scratch, src1, src2);
-  }
-  BranchFalseF(scratch, &done);
-
+  bind(&nan);
   // if any operand is NaN, return NaN (fadd returns NaN if any operand is NaN)
   if (std::is_same<float, F_TYPE>::value) {
     RV_fadd_s(dst, src1, src2);
