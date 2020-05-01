@@ -723,19 +723,13 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase {
   // Write FP exception flags
   void RV_fsflags(Register rs);
 
-  // RISC-V Instructions
-  // Instr addi(Register rd, Register rs1, int16_t imm12);
-  Instr addi(Register rd, Register rs1, int16_t imm12);
   // MIPS Instructions
 
-  // Type == 0 is the default non-marking nop. For mips this is a
-  // sll(zero_reg, zero_reg, 0). We use rt_reg == at for non-zero
-
-  // marking, to avoid conflict with ssnop and ehb instructions.
+  // Type == 0 is the default non-marking nop. For RISC-V this is a
+  // addi(zero_reg, zero_reg, 0).
   void nop(unsigned int type = 0) {
     DCHECK_LT(type, 32);
-    Register nop_rt_reg = (type == 0) ? zero_reg : t3;
-    sll(zero_reg, nop_rt_reg, type, true);
+    RV_addi(zero_reg, zero_reg, type);
   }
 
   // --------Branch-and-jump-instructions----------
