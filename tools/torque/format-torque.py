@@ -41,6 +41,11 @@ def preprocess(input):
   # intrinsic's name if it's already adjacent to it.
   input = re.sub(r'%([A-Za-z])', kPercentEscape + r'\1', input)
 
+  # includes are not recognized, change them into comments so that the
+  # formatter ignores them first, until we can figure out a way to format cpp
+  # includes within a JS file.
+  input = re.sub(r'^#include', r'// InClUdE', input, flags=re.MULTILINE)
+
   return input
 
 def postprocess(output):
@@ -70,6 +75,8 @@ def postprocess(output):
       r"js-implicit ", output)
 
   output = re.sub(kPercentEscape, r'%', output)
+
+  output = re.sub( r'^// InClUdE',r'#include', output, flags=re.MULTILINE)
 
   return output
 
