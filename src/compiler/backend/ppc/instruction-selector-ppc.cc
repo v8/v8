@@ -889,6 +889,10 @@ void InstructionSelector::VisitWord64Sar(Node* node) {
 }
 #endif
 
+void InstructionSelector::VisitWord32Rol(Node* node) { UNREACHABLE(); }
+
+void InstructionSelector::VisitWord64Rol(Node* node) { UNREACHABLE(); }
+
 // TODO(mbrandy): Absorb logical-and into rlwinm?
 void InstructionSelector::VisitWord32Ror(Node* node) {
   VisitRRO(this, kPPC_RotRight32, node, kShift32Imm);
