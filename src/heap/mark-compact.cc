@@ -30,6 +30,7 @@
 #include "src/heap/object-stats.h"
 #include "src/heap/objects-visiting-inl.h"
 #include "src/heap/read-only-heap.h"
+#include "src/heap/read-only-spaces.h"
 #include "src/heap/spaces-inl.h"
 #include "src/heap/sweeper.h"
 #include "src/heap/worklist.h"

@@ -11,7 +11,7 @@
 #include "src/base/platform/mutex.h"
 #include "src/heap/heap-inl.h"
 #include "src/heap/heap-write-barrier-inl.h"
-#include "src/heap/spaces.h"
+#include "src/heap/read-only-spaces.h"
 #include "src/objects/heap-object-inl.h"
 #include "src/objects/objects-inl.h"
 #include "src/objects/smi.h"
