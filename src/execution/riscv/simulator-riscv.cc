@@ -959,18 +959,6 @@ double Simulator::get_fpu_register_double(int fpureg) const {
   return *bit_cast<double*>(&FPUregisters_[fpureg * 2]);
 }
 
-template <typename T>
-void Simulator::get_msa_register(int wreg, T* value) {
-  DCHECK((wreg >= 0) && (wreg < kNumMSARegisters));
-  memcpy(value, FPUregisters_ + wreg * 2, kSimd128Size);
-}
-
-template <typename T>
-void Simulator::set_msa_register(int wreg, const T* value) {
-  DCHECK((wreg >= 0) && (wreg < kNumMSARegisters));
-  memcpy(FPUregisters_ + wreg * 2, value, kSimd128Size);
-}
-
 // Runtime FP routines take up to two double arguments and zero
 // or one integer arguments. All are constructed here,
 // from a0-a3 or fa0 and fa1 (n64), or fa2 (O32).
@@ -2296,28 +2284,33 @@ void Simulator::DecodeRVRFPType() {
     // TODO: Add macro for RISCV F extension
     case RO_FADD_S: {
       // TODO: use rm value (round mode)
-      set_frd(frs1() + frs2());
+      auto fn = [](float frs1, float frs2) { return frs1 + frs2; };
+      set_frd(CanonicalizeFloat2Operation(fn));
       break;
     }
     case RO_FSUB_S: {
       // TODO: use rm value (round mode)
-      set_frd(frs1() - frs2());
+      auto fn = [](float frs1, float frs2) { return frs1 - frs2; };
+      set_frd(CanonicalizeFloat2Operation(fn));
       break;
     }
     case RO_FMUL_S: {
       // TODO: use rm value (round mode)
-      set_frd(frs1() * frs2());
+      auto fn = [](float frs1, float frs2) { return frs1 * frs2; };
+      set_frd(CanonicalizeFloat2Operation(fn));
       break;
     }
     case RO_FDIV_S: {
       // TODO: use rm value (round mode)
-      set_frd(frs1() / frs2());
+      auto fn = [](float frs1, float frs2) { return frs1 / frs2; };
+      set_frd(CanonicalizeFloat2Operation(fn));
       break;
     }
     case RO_FSQRT_S: {
       if (instr_.Rs2Value() == 0b00000) {
         // TODO: use rm value (round mode)
-        set_frd(std::sqrt(frs1()));
+        auto fn = [](float frs) { return std::sqrt(frs); };
+        set_frd(CanonicalizeFloat1Operation(fn));
       } else {
         UNSUPPORTED();
       }
@@ -2326,15 +2319,24 @@ void Simulator::DecodeRVRFPType() {
     case RO_FSGNJ_S: {  // RO_FSGNJN_S  RO_FSQNJX_S
       switch (instr_.Funct3Value()) {
         case 0b000: {  // RO_FSGNJ_S
-          set_frd(fsgnj32(frs1(), frs2(), false, false));
+          auto fn = [](float frs1, float frs2) {
+            return fsgnj32(frs1, frs2, false, false);
+          };
+          set_frd(CanonicalizeFloat2Operation(fn));
           break;
         }
         case 0b001: {  // RO_FSGNJN_S
-          set_frd(fsgnj32(frs1(), frs2(), true, false));
+          auto fn = [](float frs1, float frs2) {
+            return fsgnj32(frs1, frs2, true, false);
+          };
+          set_frd(CanonicalizeFloat2Operation(fn));
           break;
         }
         case 0b010: {  // RO_FSQNJX_S
-          set_frd(fsgnj32(frs1(), frs2(), false, true));
+          auto fn = [](float frs1, float frs2) {
+            return fsgnj32(frs1, frs2, false, true);
+          };
+          set_frd(CanonicalizeFloat2Operation(fn));
           break;
         }
         default: {
@@ -2457,6 +2459,7 @@ void Simulator::DecodeRVRFPType() {
     }
     case RO_FMV_W_X: {
       if (instr_.Funct3Value() == 0b000) {
+        // since FMV preserves source bit-pattern, no need to canonize
         set_frd(bit_cast<float>((uint32_t)rs1()));
       } else {
         UNSUPPORTED();
@@ -2466,28 +2469,33 @@ void Simulator::DecodeRVRFPType() {
       // TODO: Add macro for RISCV D extension
     case RO_FADD_D: {
       // TODO: use rm value (round mode)
-      set_drd(drs1() + drs2());
+      auto fn = [](double drs1, double drs2) { return drs1 + drs2; };
+      set_drd(CanonicalizeDouble2Operation(fn));
       break;
     }
     case RO_FSUB_D: {
       // TODO: use rm value (round mode)
-      set_drd(drs1() - drs2());
+      auto fn = [](double drs1, double drs2) { return drs1 - drs2; };
+      set_drd(CanonicalizeDouble2Operation(fn));
       break;
     }
     case RO_FMUL_D: {
       // TODO: use rm value (round mode)
-      set_drd(drs1() * drs2());
+      auto fn = [](double drs1, double drs2) { return drs1 * drs2; };
+      set_drd(CanonicalizeDouble2Operation(fn));
       break;
     }
     case RO_FDIV_D: {
       // TODO: use rm value (round mode)
-      set_drd(drs1() / drs2());
+      auto fn = [](double drs1, double drs2) { return drs1 / drs2; };
+      set_drd(CanonicalizeDouble2Operation(fn));
       break;
     }
     case RO_FSQRT_D: {
       if (instr_.Rs2Value() == 0b00000) {
         // TODO: use rm value (round mode)
-        set_drd(std::sqrt(drs1()));
+        auto fn = [](double drs) { return std::sqrt(drs); };
+        set_drd(CanonicalizeDouble1Operation(fn));
       } else {
         UNSUPPORTED();
       }
@@ -2496,15 +2504,24 @@ void Simulator::DecodeRVRFPType() {
     case RO_FSGNJ_D: {  // RO_FSGNJN_D RO_FSQNJX_D
       switch (instr_.Funct3Value()) {
         case 0b000: {  // RO_FSGNJ_D
-          set_drd(fsgnj64(drs1(), drs2(), false, false));
+          auto fn = [](double drs1, double drs2) {
+            return fsgnj64(drs1, drs2, false, false);
+          };
+          set_drd(CanonicalizeDouble2Operation(fn));
           break;
         }
         case 0b001: {  // RO_FSGNJN_D
-          set_drd(fsgnj64(drs1(), drs2(), true, false));
+          auto fn = [](double drs1, double drs2) {
+            return fsgnj64(drs1, drs2, true, false);
+          };
+          set_drd(CanonicalizeDouble2Operation(fn));
           break;
         }
         case 0b010: {  // RO_FSQNJX_D
-          set_drd(fsgnj64(drs1(), drs2(), false, true));
+          auto fn = [](double drs1, double drs2) {
+            return fsgnj64(drs1, drs2, false, true);
+          };
+          set_drd(CanonicalizeDouble2Operation(fn));
           break;
         }
         default: {
@@ -2531,7 +2548,8 @@ void Simulator::DecodeRVRFPType() {
     }
     case (RO_FCVT_S_D & kRFPTypeMask): {
       if (instr_.Rs2Value() == 0b00001) {
-        set_frd((float)drs1());
+        auto fn = [](double drs) { return (float)drs; };
+        set_frd(CanonicalizeDoubleToFloatOperation(fn));
       } else {
         UNSUPPORTED();
       }
@@ -2539,7 +2557,8 @@ void Simulator::DecodeRVRFPType() {
     }
     case RO_FCVT_D_S: {
       if (instr_.Rs2Value() == 0b00000) {
-        set_drd((double)frs1());
+        auto fn = [](float frs) { return (double)frs; };
+        set_drd(CanonicalizeFloatToDoubleOperation(fn));
       } else {
         UNSUPPORTED();
       }
@@ -2645,6 +2664,7 @@ void Simulator::DecodeRVRFPType() {
 #ifdef V8_TARGET_ARCH_64_BIT
     case RO_FMV_D_X: {
       if (instr_.Funct3Value() == 0b000 && instr_.Rs2Value() == 0b00000) {
+        // Since FMV preserves source bit-pattern, no need to canonize
         set_drd(bit_cast<double>(rs1()));
       } else {
         UNSUPPORTED();
@@ -2663,43 +2683,67 @@ void Simulator::DecodeRVR4Type() {
     // TODO: use F Extension macro block
     case RO_FMADD_S: {
       // TODO: use rm value (round mode)
-      set_frd(frs1() * frs2() + frs3());
+      auto fn = [](float frs1, float frs2, float frs3) {
+        return frs1 * frs2 + frs3;
+      };
+      set_frd(CanonicalizeFloat3Operation(fn));
       break;
     }
     case RO_FMSUB_S: {
       // TODO: use rm value (round mode)
-      set_frd(frs1() * frs2() - frs3());
+      auto fn = [](float frs1, float frs2, float frs3) {
+        return frs1 * frs2 - frs3;
+      };
+      set_frd(CanonicalizeFloat3Operation(fn));
       break;
     }
     case RO_FNMSUB_S: {
       // TODO: use rm value (round mode)
-      set_frd(-(frs1() * frs2()) + frs3());
+      auto fn = [](float frs1, float frs2, float frs3) {
+        return -(frs1 * frs2) + frs3;
+      };
+      set_frd(CanonicalizeFloat3Operation(fn));
       break;
     }
     case RO_FNMADD_S: {
       // TODO: use rm value (round mode)
-      set_frd(-(frs1() * frs2()) - frs3());
+      auto fn = [](float frs1, float frs2, float frs3) {
+        return -(frs1 * frs2) - frs3;
+      };
+      set_frd(CanonicalizeFloat3Operation(fn));
       break;
     }
     // TODO: use F Extension macro block
     case RO_FMADD_D: {
       // TODO: use rm value (round mode)
-      set_drd(drs1() * drs2() + drs3());
+      auto fn = [](double drs1, double drs2, double drs3) {
+        return drs1 * drs2 + drs3;
+      };
+      set_drd(CanonicalizeDouble3Operation(fn));
       break;
     }
     case RO_FMSUB_D: {
       // TODO: use rm value (round mode)
-      set_drd(drs1() * drs2() - drs3());
+      auto fn = [](double drs1, double drs2, double drs3) {
+        return drs1 * drs2 - drs3;
+      };
+      set_drd(CanonicalizeDouble3Operation(fn));
       break;
     }
     case RO_FNMSUB_D: {
       // TODO: use rm value (round mode)
-      set_drd(-(drs1() * drs2()) + drs3());
+      auto fn = [](double drs1, double drs2, double drs3) {
+        return -(drs1 * drs2) + drs3;
+      };
+      set_drd(CanonicalizeDouble3Operation(fn));
       break;
     }
     case RO_FNMADD_D: {
       // TODO: use rm value (round mode)
-      set_drd(-(drs1() * drs2()) - drs3());
+      auto fn = [](double drs1, double drs2, double drs3) {
+        return -(drs1 * drs2) - drs3;
+      };
+      set_drd(CanonicalizeDouble3Operation(fn));
       break;
     }
     default:
