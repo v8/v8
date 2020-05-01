@@ -2549,6 +2549,7 @@ WASM_SIMD_TEST(I8x16LeU) {
 }
 
 WASM_SIMD_TEST(I8x16Mul) {
+  FLAG_SCOPE(wasm_simd_post_mvp);
   RunI8x16BinOpTest(execution_tier, lower_simd, kExprI8x16Mul,
                     base::MulWithWraparound);
 }

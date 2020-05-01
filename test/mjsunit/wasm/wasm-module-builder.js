@@ -468,23 +468,20 @@ let kExprI64AtomicCompareExchange32U = 0x4e;
 
 // Simd opcodes.
 let kExprS128LoadMem = 0x00;
-let kExprS128StoreMem = 0x01;
-let kExprS8x16Shuffle = 0x03;
-let kExprI8x16Splat = 0x04;
-let kExprI16x8Splat = 0x08;
-let kExprI32x4Splat = 0x0c;
-let kExprF32x4Splat = 0x12;
-let kExprI8x16LtU = 0x1b;
-let kExprI8x16LeU = 0x1f;
-let kExprI32x4Eq = 0x2c;
-let kExprS1x16AnyTrue = 0x52;
-let kExprS1x8AnyTrue = 0x63;
-let kExprI16x8ShrS = 0x66;
-let kExprS1x4AllTrue = 0x75;
-let kExprS1x4AnyTrue = 0x74;
-let kExprI32x4Add = 0x79;
-let kExprF32x4Min = 0x9e;
-let kExprS8x16LoadSplat = [0xc2, 0x1];
+let kExprS128StoreMem = 0x0b;
+let kExprS8x16Shuffle = 0x0d;
+let kExprI8x16Splat = 0x0f;
+let kExprI16x8Splat = 0x10;
+let kExprI32x4Splat = 0x11;
+let kExprF32x4Splat = 0x13;
+let kExprI8x16LtU = 0x26;
+let kExprI8x16LeU = 0x2a;
+let kExprI32x4Eq = 0x37;
+let kExprS1x16AnyTrue = 0x62;
+let kExprS1x16AllTrue = 0x63;
+let kExprI8x16Add = 0x6e;
+let kExprI16x8ShrS = [0x8c, 01];
+let kExprF32x4Min = [0xe8, 01];
 
 // Compilation hint constants.
 let kCompilationHintStrategyDefault = 0x00;
