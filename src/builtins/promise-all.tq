@@ -334,22 +334,20 @@ namespace promise {
     const capability = NewPromiseCapability(receiver, False);
 
     try {
-      try {
-        // Let iterator be GetIterator(iterable).
-        // IfAbruptRejectPromise(iterator, promiseCapability).
-        let i = iterator::GetIterator(iterable);
+      // Let iterator be GetIterator(iterable).
+      // IfAbruptRejectPromise(iterator, promiseCapability).
+      let i = iterator::GetIterator(iterable);
 
-        // Let result be PerformPromiseAll(iteratorRecord, C,
-        // promiseCapability). If result is an abrupt completion, then
-        //   If iteratorRecord.[[Done]] is false, let result be
-        //       IteratorClose(iterator, result).
-        //    IfAbruptRejectPromise(result, promiseCapability).
-        return PerformPromiseAll(
-            receiver, capability, i, createResolveElementFunctor,
-            createRejectElementFunctor) otherwise Reject;
-      } catch (e) deferred {
-        goto Reject(e);
-      }
+      // Let result be PerformPromiseAll(iteratorRecord, C,
+      // promiseCapability). If result is an abrupt completion, then
+      //   If iteratorRecord.[[Done]] is false, let result be
+      //       IteratorClose(iterator, result).
+      //    IfAbruptRejectPromise(result, promiseCapability).
+      return PerformPromiseAll(
+          receiver, capability, i, createResolveElementFunctor,
+          createRejectElementFunctor) otherwise Reject;
+    } catch (e) deferred {
+      goto Reject(e);
     }
     label Reject(e: Object) deferred {
       // Exception must be bound to a JS value.

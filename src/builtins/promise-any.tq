@@ -270,12 +270,11 @@ namespace promise {
                 context, rejectElement, kPromiseForwardingHandlerSymbol, True);
           }
       }
-    }
-    label Done {}
-    catch (e) deferred {
+    } catch (e) deferred {
       iterator::IteratorCloseOnException(iteratorRecord, e)
           otherwise Reject;
     }
+    label Done {}
 
     // (8.d)
     //   i. Set iteratorRecord.[[Done]] to true.

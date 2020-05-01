@@ -681,13 +681,12 @@ namespace test {
     let r: Smi = 0;
     try {
       TestCatch3WrapperWithLabel() otherwise Abort;
+    } catch (_e) {
+      r = 2;
+      return r;
     }
     label Abort {
       return -1;
-    }
-    catch (_e) {
-      r = 2;
-      return r;
     }
   }
 

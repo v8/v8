@@ -757,6 +757,20 @@ TEST(Torque, References) {
                            HasSubstr("cannot assign to const value"));
 }
 
+TEST(Torque, CatchFirstHandler) {
+  ExpectFailingCompilation(
+      R"(
+    @export
+    macro Test() {
+      try {
+      } label Foo {
+      } catch (e) {}
+    }
+  )",
+      HasSubstr(
+          "catch handler always has to be first, before any label handler"));
+}
+
 }  // namespace torque
 }  // namespace internal
 }  // namespace v8

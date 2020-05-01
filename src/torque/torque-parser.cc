@@ -86,12 +86,8 @@ V8_EXPORT_PRIVATE const ParseResultTypeId
     ParseResultHolder<base::Optional<TypeExpression*>>::id =
         ParseResultTypeId::kOptionalTypeExpressionPtr;
 template <>
-V8_EXPORT_PRIVATE const ParseResultTypeId ParseResultHolder<LabelBlock*>::id =
-    ParseResultTypeId::kLabelBlockPtr;
-template <>
-V8_EXPORT_PRIVATE const ParseResultTypeId
-    ParseResultHolder<base::Optional<LabelBlock*>>::id =
-        ParseResultTypeId::kOptionalLabelBlockPtr;
+V8_EXPORT_PRIVATE const ParseResultTypeId ParseResultHolder<TryHandler*>::id =
+    ParseResultTypeId::kTryHandlerPtr;
 template <>
 V8_EXPORT_PRIVATE const ParseResultTypeId ParseResultHolder<Expression*>::id =
     ParseResultTypeId::kExpressionPtr;
@@ -215,8 +211,8 @@ V8_EXPORT_PRIVATE const ParseResultTypeId
         ParseResultTypeId::kStdVectorOfLabelAndTypes;
 template <>
 V8_EXPORT_PRIVATE const ParseResultTypeId
-    ParseResultHolder<std::vector<LabelBlock*>>::id =
-        ParseResultTypeId::kStdVectorOfLabelBlockPtr;
+    ParseResultHolder<std::vector<TryHandler*>>::id =
+        ParseResultTypeId::kStdVectorOfTryHandlerPtr;
 template <>
 V8_EXPORT_PRIVATE const ParseResultTypeId
     ParseResultHolder<base::Optional<Statement*>>::id =
@@ -321,7 +317,7 @@ Expression* MakeCall(IdentifierExpression* callee,
   // used as labels identifiers. All other statements in a call's otherwise
   // must create intermediate Labels for the otherwise's statement code.
   size_t label_id = 0;
-  std::vector<LabelBlock*> temp_labels;
+  std::vector<TryHandler*> temp_labels;
   for (auto* statement : otherwise) {
     if (auto* e = ExpressionStatement::DynamicCast(statement)) {
       if (auto* id = IdentifierExpression::DynamicCast(e->expression)) {
@@ -336,9 +332,10 @@ Expression* MakeCall(IdentifierExpression* callee,
     auto label_id = MakeNode<Identifier>(label_name);
     label_id->pos = SourcePosition::Invalid();
     labels.push_back(label_id);
-    auto* label_block =
-        MakeNode<LabelBlock>(label_id, ParameterList::Empty(), statement);
-    temp_labels.push_back(label_block);
+    auto* handler =
+        MakeNode<TryHandler>(TryHandler::HandlerKind::kLabel, label_id,
+                             ParameterList::Empty(), statement);
+    temp_labels.push_back(handler);
   }
 
   // Create nested try-label expression for all of the temporary Labels that
@@ -351,7 +348,7 @@ Expression* MakeCall(IdentifierExpression* callee,
   }
 
   for (auto* label : temp_labels) {
-    result = MakeNode<TryLabelExpression>(false, result, label);
+    result = MakeNode<TryLabelExpression>(result, label);
   }
   return result;
 }
@@ -1410,8 +1407,9 @@ base::Optional<ParseResult> MakeTypeswitchStatement(
       BlockStatement* next_block = MakeNode<BlockStatement>();
       current_block->statements.push_back(
           MakeNode<ExpressionStatement>(MakeNode<TryLabelExpression>(
-              false, MakeNode<StatementExpression>(case_block),
-              MakeNode<LabelBlock>(MakeNode<Identifier>(kNextCaseLabelName),
+              MakeNode<StatementExpression>(case_block),
+              MakeNode<TryHandler>(TryHandler::HandlerKind::kLabel,
+                                   MakeNode<Identifier>(kNextCaseLabelName),
                                    ParameterList::Empty(), next_block))));
       current_block = next_block;
     }
@@ -1512,18 +1510,21 @@ base::Optional<ParseResult> MakeTryLabelExpression(
   auto try_block = child_results->NextAs<Statement*>();
   CheckNotDeferredStatement(try_block);
   Statement* result = try_block;
-  auto label_blocks = child_results->NextAs<std::vector<LabelBlock*>>();
-  auto catch_block = child_results->NextAs<base::Optional<LabelBlock*>>();
-  if (label_blocks.empty() && !catch_block.has_value()) {
+  auto handlers = child_results->NextAs<std::vector<TryHandler*>>();
+  if (handlers.empty()) {
     Error("Try blocks without catch or label don't make sense.");
   }
-  for (auto block : label_blocks) {
+  for (size_t i = 0; i < handlers.size(); ++i) {
+    if (i != 0 &&
+        handlers[i]->handler_kind == TryHandler::HandlerKind::kCatch) {
+      Error(
+          "A catch handler always has to be first, before any label handler, "
+          "to avoid ambiguity about whether it catches exceptions from "
+          "preceding handlers or not.")
+          .Position(handlers[i]->pos);
+    }
     result = MakeNode<ExpressionStatement>(MakeNode<TryLabelExpression>(
-        false, MakeNode<StatementExpression>(result), block));
-  }
-  if (catch_block) {
-    result = MakeNode<ExpressionStatement>(MakeNode<TryLabelExpression>(
-        true, MakeNode<StatementExpression>(result), *catch_block));
+        MakeNode<StatementExpression>(result), handlers[i]));
   }
   return ParseResult{result};
 }
@@ -1549,7 +1550,8 @@ base::Optional<ParseResult> MakeLabelBlock(ParseResultIterator* child_results) {
   }
   auto parameters = child_results->NextAs<ParameterList>();
   auto body = child_results->NextAs<Statement*>();
-  LabelBlock* result = MakeNode<LabelBlock>(label, std::move(parameters), body);
+  TryHandler* result = MakeNode<TryHandler>(TryHandler::HandlerKind::kLabel,
+                                            label, std::move(parameters), body);
   return ParseResult{result};
 }
 
@@ -1564,8 +1566,9 @@ base::Optional<ParseResult> MakeCatchBlock(ParseResultIterator* child_results) {
   parameters.types.push_back(MakeNode<BasicTypeExpression>(
       std::vector<std::string>{}, "JSAny", std::vector<TypeExpression*>{}));
   parameters.has_varargs = false;
-  LabelBlock* result = MakeNode<LabelBlock>(
-      MakeNode<Identifier>(kCatchLabelName), std::move(parameters), body);
+  TryHandler* result = MakeNode<TryHandler>(
+      TryHandler::HandlerKind::kCatch, MakeNode<Identifier>(kCatchLabelName),
+      std::move(parameters), body);
   return ParseResult{result};
 }
 
@@ -2254,13 +2257,11 @@ struct TorqueGrammar : Grammar {
                         List<Statement*>(&statement), Token("}")},
                        MakeBlockStatement)};
 
-  // Result: LabelBlock*
-  Symbol labelBlock = {
+  // Result: TryHandler*
+  Symbol tryHandler = {
       Rule({Token("label"), &name,
             TryOrDefault<ParameterList>(&parameterListNoVararg), &block},
-           MakeLabelBlock)};
-
-  Symbol catchBlock = {
+           MakeLabelBlock),
       Rule({Token("catch"), Token("("), &identifier, Token(")"), &block},
            MakeCatchBlock)};
 
@@ -2306,13 +2307,16 @@ struct TorqueGrammar : Grammar {
            MakeIfStatement),
       Rule(
           {
-              Token("typeswitch"), Token("("), expression, Token(")"),
-              Token("{"), NonemptyList<TypeswitchCase>(&typeswitchCase),
+              Token("typeswitch"),
+              Token("("),
+              expression,
+              Token(")"),
+              Token("{"),
+              NonemptyList<TypeswitchCase>(&typeswitchCase),
               Token("}"),
           },
           MakeTypeswitchStatement),
-      Rule({Token("try"), &block, List<LabelBlock*>(&labelBlock),
-            Optional<LabelBlock*>(&catchBlock)},
+      Rule({Token("try"), &block, List<TryHandler*>(&tryHandler)},
            MakeTryLabelExpression),
       Rule({OneOf({"assert", "check"}), Token("("), &expressionWithSource,
             Token(")"), Token(";")},

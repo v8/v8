@@ -93,7 +93,7 @@ namespace torque {
   AST_STATEMENT_NODE_KIND_LIST(V)       \
   AST_DECLARATION_NODE_KIND_LIST(V)     \
   V(Identifier)                         \
-  V(LabelBlock)                         \
+  V(TryHandler)                         \
   V(ClassBody)
 
 struct AstNode {
@@ -780,14 +780,17 @@ struct ForLoopStatement : Statement {
   Statement* body;
 };
 
-struct LabelBlock : AstNode {
-  DEFINE_AST_NODE_LEAF_BOILERPLATE(LabelBlock)
-  LabelBlock(SourcePosition pos, Identifier* label,
+struct TryHandler : AstNode {
+  DEFINE_AST_NODE_LEAF_BOILERPLATE(TryHandler)
+  enum class HandlerKind { kCatch, kLabel };
+  TryHandler(SourcePosition pos, HandlerKind handler_kind, Identifier* label,
              const ParameterList& parameters, Statement* body)
       : AstNode(kKind, pos),
+        handler_kind(handler_kind),
         label(label),
         parameters(parameters),
         body(std::move(body)) {}
+  HandlerKind handler_kind;
   Identifier* label;
   ParameterList parameters;
   Statement* body;
@@ -802,15 +805,13 @@ struct StatementExpression : Expression {
 
 struct TryLabelExpression : Expression {
   DEFINE_AST_NODE_LEAF_BOILERPLATE(TryLabelExpression)
-  TryLabelExpression(SourcePosition pos, bool catch_exceptions,
-                     Expression* try_expression, LabelBlock* label_block)
+  TryLabelExpression(SourcePosition pos, Expression* try_expression,
+                     TryHandler* label_block)
       : Expression(kKind, pos),
-        catch_exceptions(catch_exceptions),
         try_expression(try_expression),
         label_block(label_block) {}
-  bool catch_exceptions;
   Expression* try_expression;
-  LabelBlock* label_block;
+  TryHandler* label_block;
 };
 
 struct BlockStatement : Statement {
