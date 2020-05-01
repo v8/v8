@@ -222,19 +222,17 @@ inline void ChangeEndiannessStore(LiftoffAssembler* assm, LiftoffRegister src,
 
 }  // namespace liftoff
 
-// FIXME (RISCV): how many instructions do RISCV require to patch this?
 int LiftoffAssembler::PrepareStackFrame() {
   int offset = pc_offset();
   // When constant that represents size of stack frame can't be represented
   // as 16bit we need three instructions to add it to sp, so we reserve space
   // for this case.
-  daddiu(sp, sp, 0);
+  Daddu(sp, sp, Operand(0L));
   nop();
   nop();
   return offset;
 }
 
-// FIXME (RISCV): need to match w/ PrepareStackFrame
 void LiftoffAssembler::PatchPrepareStackFrame(int offset, int frame_size) {
   // We can't run out of space, just pass anything big enough to not cause the
   // assembler to try to grow the buffer.

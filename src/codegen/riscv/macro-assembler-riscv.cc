@@ -2950,6 +2950,7 @@ void TurboAssembler::PatchAndJump(Address target) {
   RV_auipc(scratch, 0);  // Load PC into scratch
   Ld(t6, MemOperand(scratch, kInstrSize * 3));
   RV_jr(t6);
+  RV_nop(); // For alignment
   DCHECK_EQ(reinterpret_cast<uint64_t>(pc_) % 8, 0);
   *reinterpret_cast<uint64_t*>(pc_) = target;  // pc_ should be align.
   pc_ += sizeof(uint64_t);

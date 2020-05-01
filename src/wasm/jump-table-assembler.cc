@@ -296,13 +296,11 @@ void JumpTableAssembler::NopBytes(int bytes) {
 }
 
 #elif V8_TARGET_ARCH_RISCV
-//FIXME: RISCV porting generate the right jump table
 void JumpTableAssembler::EmitLazyCompileJumpSlot(uint32_t func_index,
                                                  Address lazy_compile_target) {
   int start = pc_offset();
   li(kWasmCompileLazyFuncIndexRegister, func_index);  // max. 2 instr
-  // Jump produces max. 4 instructions for 32-bit platform
-  // and max. 6 instructions for 64-bit platform.
+  // Jump produces max. 9 instructions (8 for li + 1 for jr)
   Jump(lazy_compile_target, RelocInfo::NONE);
   int nop_bytes = start + kLazyCompileTableSlotSize - pc_offset();
   DCHECK_EQ(nop_bytes % kInstrSize, 0);
