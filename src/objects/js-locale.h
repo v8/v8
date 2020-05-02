@@ -32,8 +32,11 @@ class JSLocale : public JSObject {
   static MaybeHandle<JSLocale> New(Isolate* isolate, Handle<Map> map,
                                    Handle<String> locale,
                                    Handle<JSReceiver> options);
-  static Handle<String> Maximize(Isolate* isolate, String locale);
-  static Handle<String> Minimize(Isolate* isolate, String locale);
+
+  static MaybeHandle<JSLocale> Maximize(Isolate* isolate,
+                                        Handle<JSLocale> locale);
+  static MaybeHandle<JSLocale> Minimize(Isolate* isolate,
+                                        Handle<JSLocale> locale);
 
   static Handle<Object> Language(Isolate* isolate, Handle<JSLocale> locale);
   static Handle<Object> Script(Isolate* isolate, Handle<JSLocale> locale);
