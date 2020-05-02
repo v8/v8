@@ -2276,20 +2276,22 @@ class ThreadImpl {
       EXTRACT_LANE_EXTEND_CASE(I8x16, i8x16, S, int32_t)
       EXTRACT_LANE_EXTEND_CASE(I8x16, i8x16, U, uint32_t)
 #undef EXTRACT_LANE_EXTEND_CASE
-#define BINOP_CASE(op, name, stype, count, expr) \
-  case kExpr##op: {                              \
-    WasmValue v2 = Pop();                        \
-    WasmValue v1 = Pop();                        \
-    stype s1 = v1.to_s128().to_##name();         \
-    stype s2 = v2.to_s128().to_##name();         \
-    stype res;                                   \
-    for (size_t i = 0; i < count; ++i) {         \
-      auto a = s1.val[LANE(i, s1)];              \
-      auto b = s2.val[LANE(i, s1)];              \
-      res.val[LANE(i, s1)] = expr;               \
-    }                                            \
-    Push(WasmValue(Simd128(res)));               \
-    return true;                                 \
+#define BINOP_CASE(op, name, stype, count, expr)              \
+  case kExpr##op: {                                           \
+    WasmValue v2 = Pop();                                     \
+    WasmValue v1 = Pop();                                     \
+    stype s1 = v1.to_s128().to_##name();                      \
+    stype s2 = v2.to_s128().to_##name();                      \
+    stype res;                                                \
+    for (size_t i = 0; i < count; ++i) {                      \
+      auto a = s1.val[LANE(i, s1)];                           \
+      auto b = s2.val[LANE(i, s1)];                           \
+      auto result = expr;                                     \
+      possible_nondeterminism_ |= has_nondeterminism(result); \
+      res.val[LANE(i, s1)] = expr;                            \
+    }                                                         \
+    Push(WasmValue(Simd128(res)));                            \
+    return true;                                              \
   }
       BINOP_CASE(F64x2Add, f64x2, float2, 2, a + b)
       BINOP_CASE(F64x2Sub, f64x2, float2, 2, a - b)
@@ -2358,17 +2360,19 @@ class ThreadImpl {
       BINOP_CASE(I8x16RoundingAverageU, i8x16, int16, 16,
                  base::RoundingAverageUnsigned<uint8_t>(a, b))
 #undef BINOP_CASE
-#define UNOP_CASE(op, name, stype, count, expr) \
-  case kExpr##op: {                             \
-    WasmValue v = Pop();                        \
-    stype s = v.to_s128().to_##name();          \
-    stype res;                                  \
-    for (size_t i = 0; i < count; ++i) {        \
-      auto a = s.val[i];                        \
-      res.val[i] = expr;                        \
-    }                                           \
-    Push(WasmValue(Simd128(res)));              \
-    return true;                                \
+#define UNOP_CASE(op, name, stype, count, expr)               \
+  case kExpr##op: {                                           \
+    WasmValue v = Pop();                                      \
+    stype s = v.to_s128().to_##name();                        \
+    stype res;                                                \
+    for (size_t i = 0; i < count; ++i) {                      \
+      auto a = s.val[i];                                      \
+      auto result = expr;                                     \
+      possible_nondeterminism_ |= has_nondeterminism(result); \
+      res.val[i] = result;                                    \
+    }                                                         \
+    Push(WasmValue(Simd128(res)));                            \
+    return true;                                              \
   }
       UNOP_CASE(F64x2Abs, f64x2, float2, 2, std::abs(a))
       UNOP_CASE(F64x2Neg, f64x2, float2, 2, -a)
@@ -2407,20 +2411,22 @@ class ThreadImpl {
       BITMASK_CASE(I32x4BitMask, i32x4, int4, 4)
 #undef BITMASK_CASE
 
-#define CMPOP_CASE(op, name, stype, out_stype, count, expr) \
-  case kExpr##op: {                                         \
-    WasmValue v2 = Pop();                                   \
-    WasmValue v1 = Pop();                                   \
-    stype s1 = v1.to_s128().to_##name();                    \
-    stype s2 = v2.to_s128().to_##name();                    \
-    out_stype res;                                          \
-    for (size_t i = 0; i < count; ++i) {                    \
-      auto a = s1.val[i];                                   \
-      auto b = s2.val[i];                                   \
-      res.val[i] = expr ? -1 : 0;                           \
-    }                                                       \
-    Push(WasmValue(Simd128(res)));                          \
-    return true;                                            \
+#define CMPOP_CASE(op, name, stype, out_stype, count, expr)   \
+  case kExpr##op: {                                           \
+    WasmValue v2 = Pop();                                     \
+    WasmValue v1 = Pop();                                     \
+    stype s1 = v1.to_s128().to_##name();                      \
+    stype s2 = v2.to_s128().to_##name();                      \
+    out_stype res;                                            \
+    for (size_t i = 0; i < count; ++i) {                      \
+      auto a = s1.val[i];                                     \
+      auto b = s2.val[i];                                     \
+      auto result = expr;                                     \
+      possible_nondeterminism_ |= has_nondeterminism(result); \
+      res.val[i] = result ? -1 : 0;                           \
+    }                                                         \
+    Push(WasmValue(Simd128(res)));                            \
+    return true;                                              \
   }
       CMPOP_CASE(F64x2Eq, f64x2, float2, int2, 2, a == b)
       CMPOP_CASE(F64x2Ne, f64x2, float2, int2, 2, a != b)
@@ -2560,6 +2566,8 @@ class ThreadImpl {
     dst_type res;                                                             \
     for (size_t i = 0; i < count; ++i) {                                      \
       ctype a = s.val[LANE(start_index + i, s)];                              \
+      auto result = expr;                                                     \
+      possible_nondeterminism_ |= has_nondeterminism(result);                 \
       res.val[LANE(i, res)] = expr;                                           \
     }                                                                         \
     Push(WasmValue(Simd128(res)));                                            \
@@ -2628,21 +2636,23 @@ class ThreadImpl {
         Push(WasmValue(Simd128(res)));
         return true;
       }
-#define ADD_HORIZ_CASE(op, name, stype, count)                   \
-  case kExpr##op: {                                              \
-    WasmValue v2 = Pop();                                        \
-    WasmValue v1 = Pop();                                        \
-    stype s1 = v1.to_s128().to_##name();                         \
-    stype s2 = v2.to_s128().to_##name();                         \
-    stype res;                                                   \
-    for (size_t i = 0; i < count / 2; ++i) {                     \
-      res.val[LANE(i, s1)] =                                     \
-          s1.val[LANE(i * 2, s1)] + s1.val[LANE(i * 2 + 1, s1)]; \
-      res.val[LANE(i + count / 2, s1)] =                         \
-          s2.val[LANE(i * 2, s1)] + s2.val[LANE(i * 2 + 1, s1)]; \
-    }                                                            \
-    Push(WasmValue(Simd128(res)));                               \
-    return true;                                                 \
+#define ADD_HORIZ_CASE(op, name, stype, count)                              \
+  case kExpr##op: {                                                         \
+    WasmValue v2 = Pop();                                                   \
+    WasmValue v1 = Pop();                                                   \
+    stype s1 = v1.to_s128().to_##name();                                    \
+    stype s2 = v2.to_s128().to_##name();                                    \
+    stype res;                                                              \
+    for (size_t i = 0; i < count / 2; ++i) {                                \
+      auto result1 = s1.val[LANE(i * 2, s1)] + s1.val[LANE(i * 2 + 1, s1)]; \
+      possible_nondeterminism_ |= has_nondeterminism(result1);              \
+      res.val[LANE(i, s1)] = result1;                                       \
+      auto result2 = s2.val[LANE(i * 2, s1)] + s2.val[LANE(i * 2 + 1, s1)]; \
+      possible_nondeterminism_ |= has_nondeterminism(result2);              \
+      res.val[LANE(i + count / 2, s1)] = result2;                           \
+    }                                                                       \
+    Push(WasmValue(Simd128(res)));                                          \
+    return true;                                                            \
   }
         ADD_HORIZ_CASE(I32x4AddHoriz, i32x4, int4, 4)
         ADD_HORIZ_CASE(F32x4AddHoriz, f32x4, float4, 4)
