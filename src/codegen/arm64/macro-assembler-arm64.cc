@@ -1306,7 +1306,14 @@ void TurboAssembler::CopyDoubleWords(Register dst, Register src, Register count,
   static_assert(kSystemPointerSize == kDRegSize,
                 "pointers must be the same size as doubles");
 
-  int direction = (mode == kDstLessThanSrc) ? 1 : -1;
+  if (mode == kDstLessThanSrcAndReverse) {
+    Add(src, src, Operand(count, LSL, kSystemPointerSizeLog2));
+    Sub(src, src, kSystemPointerSize);
+  }
+
+  int src_direction = (mode == kDstLessThanSrc) ? 1 : -1;
+  int dst_direction = (mode == kSrcLessThanDst) ? -1 : 1;
+
   UseScratchRegisterScope scope(this);
   VRegister temp0 = scope.AcquireD();
   VRegister temp1 = scope.AcquireD();
@@ -1314,23 +1321,30 @@ void TurboAssembler::CopyDoubleWords(Register dst, Register src, Register count,
   Label pairs, loop, done;
 
   Tbz(count, 0, &pairs);
-  Ldr(temp0, MemOperand(src, direction * kSystemPointerSize, PostIndex));
+  Ldr(temp0, MemOperand(src, src_direction * kSystemPointerSize, PostIndex));
   Sub(count, count, 1);
-  Str(temp0, MemOperand(dst, direction * kSystemPointerSize, PostIndex));
+  Str(temp0, MemOperand(dst, dst_direction * kSystemPointerSize, PostIndex));
 
   Bind(&pairs);
   if (mode == kSrcLessThanDst) {
     // Adjust pointers for post-index ldp/stp with negative offset:
     Sub(dst, dst, kSystemPointerSize);
     Sub(src, src, kSystemPointerSize);
+  } else if (mode == kDstLessThanSrcAndReverse) {
+    Sub(src, src, kSystemPointerSize);
   }
   Bind(&loop);
   Cbz(count, &done);
   Ldp(temp0, temp1,
-      MemOperand(src, 2 * direction * kSystemPointerSize, PostIndex));
+      MemOperand(src, 2 * src_direction * kSystemPointerSize, PostIndex));
   Sub(count, count, 2);
-  Stp(temp0, temp1,
-      MemOperand(dst, 2 * direction * kSystemPointerSize, PostIndex));
+  if (mode == kDstLessThanSrcAndReverse) {
+    Stp(temp1, temp0,
+        MemOperand(dst, 2 * dst_direction * kSystemPointerSize, PostIndex));
+  } else {
+    Stp(temp0, temp1,
+        MemOperand(dst, 2 * dst_direction * kSystemPointerSize, PostIndex));
+  }
   B(&loop);
 
   // TODO(all): large copies may benefit from using temporary Q registers
@@ -2093,7 +2107,7 @@ void MacroAssembler::CallDebugOnFunctionCall(Register fun, Register new_target,
                                              Register expected_parameter_count,
                                              Register actual_parameter_count) {
   // Load receiver to pass it later to DebugOnFunctionCall hook.
-  Ldr(x4, MemOperand(sp, actual_parameter_count, LSL, kSystemPointerSizeLog2));
+  Peek(x4, ReceiverOperand(actual_parameter_count));
   FrameScope frame(this, has_frame() ? StackFrame::NONE : StackFrame::INTERNAL);
 
   if (!new_target.is_valid()) new_target = padreg;
@@ -2163,6 +2177,14 @@ void MacroAssembler::InvokeFunctionCode(Register function, Register new_target,
   // Continue here if InvokePrologue does handle the invocation due to
   // mismatched parameter counts.
   Bind(&done);
+}
+
+Operand MacroAssembler::ReceiverOperand(Register arg_count) {
+#ifdef V8_REVERSE_JSARGS
+  return Operand(0);
+#else
+  return Operand(arg_count, LSL, kXRegSizeLog2);
+#endif
 }
 
 void MacroAssembler::InvokeFunctionWithNewTarget(
