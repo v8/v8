@@ -4572,12 +4572,6 @@ void Heap::IterateStrongRoots(RootVisitor* v, VisitMode mode) {
   isolate_->thread_manager()->Iterate(v);
   v->Synchronize(VisitorSynchronization::kThreadManager);
 
-  // Iterate over other strong roots (currently only identity maps).
-  for (StrongRootsList* list = strong_roots_list_; list; list = list->next) {
-    v->VisitRootPointers(Root::kStrongRoots, nullptr, list->start, list->end);
-  }
-  v->Synchronize(VisitorSynchronization::kStrongRoots);
-
   // Visitors in this block only run when not serializing. These include:
   //
   // - Thread-local and stack.
@@ -4636,6 +4630,13 @@ void Heap::IterateStrongRoots(RootVisitor* v, VisitMode mode) {
         microtask_queue = microtask_queue->next();
       } while (microtask_queue != default_microtask_queue);
     }
+
+    // Iterate over other strong roots (currently only identity maps and
+    // deoptimization entries).
+    for (StrongRootsList* list = strong_roots_list_; list; list = list->next) {
+      v->VisitRootPointers(Root::kStrongRoots, nullptr, list->start, list->end);
+    }
+    v->Synchronize(VisitorSynchronization::kStrongRoots);
 
     // Iterate over the startup object cache unless serializing or
     // deserializing.

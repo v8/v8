@@ -381,6 +381,7 @@ static void SerializeContext(Vector<const byte>* startup_blob_out,
 
     env.Reset();
 
+    DisallowHeapAllocation no_gc;
     SnapshotByteSink read_only_sink;
     ReadOnlySerializer read_only_serializer(isolate,
                                             Snapshot::kDefaultSerializerFlags);
@@ -395,7 +396,7 @@ static void SerializeContext(Vector<const byte>* startup_blob_out,
     ContextSerializer context_serializer(
         isolate, Snapshot::kDefaultSerializerFlags, &startup_serializer,
         v8::SerializeInternalFieldsCallback());
-    context_serializer.Serialize(&raw_context, false);
+    context_serializer.Serialize(&raw_context, no_gc);
 
     startup_serializer.SerializeWeakReferencesAndDeferred();
 
@@ -530,6 +531,7 @@ static void SerializeCustomContext(Vector<const byte>* startup_blob_out,
 
     env.Reset();
 
+    DisallowHeapAllocation no_gc;
     SnapshotByteSink read_only_sink;
     ReadOnlySerializer read_only_serializer(isolate,
                                             Snapshot::kDefaultSerializerFlags);
@@ -544,7 +546,7 @@ static void SerializeCustomContext(Vector<const byte>* startup_blob_out,
     ContextSerializer context_serializer(
         isolate, Snapshot::kDefaultSerializerFlags, &startup_serializer,
         v8::SerializeInternalFieldsCallback());
-    context_serializer.Serialize(&raw_context, false);
+    context_serializer.Serialize(&raw_context, no_gc);
 
     startup_serializer.SerializeWeakReferencesAndDeferred();
 

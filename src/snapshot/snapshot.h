@@ -27,14 +27,15 @@ class Snapshot : public AllStatic {
     // different isolate or a different process.
     // If unset, all external references must be known to the encoder.
     kAllowUnknownExternalReferencesForTesting = 1 << 0,
-    // If set, serialization can succeed even with open handles. The
-    // contents of open handle scopes are *not* serialized.
-    // If unset, no open handles are allowed to ensure the snapshot
-    // contains no unexpected objects.
-    kAllowOpenHandlesForTesting = 1 << 1,
-    // As above, if set we allow but do *not* serialize existing microtasks.
-    // If unset, the microtask queue must be empty.
-    kAllowMicrotasksForTesting = 1 << 2,
+    // If set, the serializer enters a more permissive mode which allows
+    // serialization of a currently active, running isolate. This has multiple
+    // effects; for example, open handles are allowed, microtasks may exist,
+    // etc. Note that in this mode, the serializer is allowed to skip
+    // visitation of certain problematic areas even if they are non-empty. The
+    // resulting snapshot is not guaranteed to result in a runnable context
+    // after deserialization.
+    // If unset, we assert that these previously mentioned areas are empty.
+    kAllowActiveIsolateForTesting = 1 << 1,
   };
   using SerializerFlags = base::Flags<SerializerFlag>;
   V8_EXPORT_PRIVATE static constexpr SerializerFlags kDefaultSerializerFlags =
@@ -47,13 +48,13 @@ class Snapshot : public AllStatic {
       Isolate* isolate, std::vector<Context>* contexts,
       const std::vector<SerializeInternalFieldsCallback>&
           embedder_fields_serializers,
-      const DisallowHeapAllocation* no_gc,
+      const DisallowHeapAllocation& no_gc,
       SerializerFlags flags = kDefaultSerializerFlags);
 
   // Convenience helper for the above when only serializing a single context.
   static v8::StartupData Create(
       Isolate* isolate, Context default_context,
-      const DisallowHeapAllocation* no_gc,
+      const DisallowHeapAllocation& no_gc,
       SerializerFlags flags = kDefaultSerializerFlags);
 
   // ---------------- Deserialization -----------------------------------------

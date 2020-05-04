@@ -268,11 +268,8 @@ class Serializer : public SerializerDeserializer {
   bool allow_unknown_external_references_for_testing() const {
     return (flags_ & Snapshot::kAllowUnknownExternalReferencesForTesting) != 0;
   }
-  bool allow_open_handles_for_testing() const {
-    return (flags_ & Snapshot::kAllowOpenHandlesForTesting) != 0;
-  }
-  bool allow_microtasks_for_testing() const {
-    return (flags_ & Snapshot::kAllowMicrotasksForTesting) != 0;
+  bool allow_active_isolate_for_testing() const {
+    return (flags_ & Snapshot::kAllowActiveIsolateForTesting) != 0;
   }
 
  private:

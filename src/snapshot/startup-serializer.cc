@@ -146,7 +146,7 @@ void StartupSerializer::SerializeStrongReferences() {
   // No active threads.
   CHECK_NULL(isolate->thread_manager()->FirstThreadStateInUse());
   // No active or weak handles.
-  CHECK_IMPLIES(!allow_open_handles_for_testing(),
+  CHECK_IMPLIES(!allow_active_isolate_for_testing(),
                 isolate->handle_scope_implementer()->blocks()->empty());
 
   // Visit smi roots and immortal immovables first to make sure they end up in

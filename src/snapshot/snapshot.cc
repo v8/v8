@@ -203,10 +203,8 @@ void Snapshot::SerializeDeserializeAndVerifyForTesting(
 
     Snapshot::SerializerFlags flags(
         Snapshot::kAllowUnknownExternalReferencesForTesting |
-        Snapshot::kAllowOpenHandlesForTesting |
-        Snapshot::kAllowMicrotasksForTesting);
-    serialized_data =
-        Snapshot::Create(isolate, *default_context, &no_gc, flags);
+        Snapshot::kAllowActiveIsolateForTesting);
+    serialized_data = Snapshot::Create(isolate, *default_context, no_gc, flags);
     auto_delete_serialized_data.reset(serialized_data.data);
   }
 
@@ -266,7 +264,7 @@ v8::StartupData Snapshot::Create(
     Isolate* isolate, std::vector<Context>* contexts,
     const std::vector<SerializeInternalFieldsCallback>&
         embedder_fields_serializers,
-    const DisallowHeapAllocation* no_gc, SerializerFlags flags) {
+    const DisallowHeapAllocation& no_gc, SerializerFlags flags) {
   DCHECK_EQ(contexts->size(), embedder_fields_serializers.size());
   DCHECK_GT(contexts->size(), 0);
 
@@ -285,11 +283,9 @@ v8::StartupData Snapshot::Create(
   bool can_be_rehashed = true;
 
   for (int i = 0; i < num_contexts; i++) {
-    const bool is_default_context = (i == 0);
-    const bool include_global_proxy = !is_default_context;
     ContextSerializer context_serializer(isolate, flags, &startup_serializer,
                                          embedder_fields_serializers[i]);
-    context_serializer.Serialize(&contexts->at(i), include_global_proxy);
+    context_serializer.Serialize(&contexts->at(i), no_gc);
     can_be_rehashed = can_be_rehashed && context_serializer.can_be_rehashed();
     context_snapshots.push_back(new SnapshotData(&context_serializer));
   }
@@ -316,7 +312,7 @@ v8::StartupData Snapshot::Create(
 
 // static
 v8::StartupData Snapshot::Create(Isolate* isolate, Context default_context,
-                                 const DisallowHeapAllocation* no_gc,
+                                 const DisallowHeapAllocation& no_gc,
                                  SerializerFlags flags) {
   std::vector<Context> contexts{default_context};
   std::vector<SerializeInternalFieldsCallback> callbacks{{}};

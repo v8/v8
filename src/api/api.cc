@@ -882,7 +882,7 @@ StartupData SnapshotCreator::CreateBlob(
 
   data->created_ = true;
   return i::Snapshot::Create(isolate, &contexts, embedder_fields_serializers,
-                             &no_gc_from_here_on);
+                             no_gc_from_here_on);
 }
 
 bool StartupData::CanBeRehashed() const {
