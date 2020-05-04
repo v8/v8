@@ -10,9 +10,9 @@
 #include "include/v8-inspector.h"
 #include "include/v8-util.h"
 #include "include/v8.h"
-
 #include "src/common/globals.h"
 #include "src/debug/interface-types.h"
+#include "src/utils/vector.h"
 
 namespace v8 {
 
@@ -446,6 +446,7 @@ class V8_EXPORT_PRIVATE ScopeIterator {
 
 class V8_EXPORT_PRIVATE StackTraceIterator {
  public:
+  static bool SupportsWasmDebugEvaluate();
   static std::unique_ptr<StackTraceIterator> Create(Isolate* isolate,
                                                     int index = 0);
   StackTraceIterator() = default;
@@ -466,6 +467,8 @@ class V8_EXPORT_PRIVATE StackTraceIterator {
   virtual bool Restart() = 0;
   virtual v8::MaybeLocal<v8::Value> Evaluate(v8::Local<v8::String> source,
                                              bool throw_on_side_effect) = 0;
+  virtual v8::MaybeLocal<v8::String> EvaluateWasm(
+      internal::Vector<const internal::byte> source, int frame_index) = 0;
 
  private:
   DISALLOW_COPY_AND_ASSIGN(StackTraceIterator);

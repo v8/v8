@@ -204,6 +204,21 @@ domain Debugger
       # Exception details.
       optional Runtime.ExceptionDetails exceptionDetails
 
+  # Execute a Wasm Evaluator module on a given call frame.
+  experimental command executeWasmEvaluator
+    parameters
+      # WebAssembly call frame identifier to evaluate on.
+      CallFrameId callFrameId
+      # Code of the evaluator module.
+      binary evaluator
+      # Terminate execution after timing out (number of milliseconds).
+      experimental optional Runtime.TimeDelta timeout
+    returns
+      # Object wrapper for the evaluation result.
+      Runtime.RemoteObject result
+      # Exception details.
+      optional Runtime.ExceptionDetails exceptionDetails
+
   # Returns possible locations for breakpoint. scriptId in start and end range locations should be
   # the same.
   command getPossibleBreakpoints

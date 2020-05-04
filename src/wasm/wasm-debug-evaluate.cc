@@ -94,6 +94,7 @@ class DebugEvaluatorProxy {
     proxy.GetMemory(offset, size, result);
   }
 
+  // void __getMemory(uint32_t offset, uint32_t size, void* result);
   void GetMemory(uint32_t offset, uint32_t size, uint32_t result) {
     wasm::ScheduledErrorThrower thrower(isolate_, "debug evaluate proxy");
     // Check all overflows.
