@@ -123,19 +123,21 @@ namespace internal {
 enum class ArgumentsType;
 template <ArgumentsType>
 class Arguments;
+template <typename T>
+class CustomArguments;
 class DeferredHandles;
+class FunctionCallbackArguments;
+class GlobalHandles;
 class Heap;
 class HeapObject;
 class ExternalString;
 class Isolate;
 class LocalEmbedderHeapTracer;
 class MicrotaskQueue;
-struct ScriptStreamingData;
-template<typename T> class CustomArguments;
 class PropertyCallbackArguments;
-class FunctionCallbackArguments;
-class GlobalHandles;
+class ReadOnlyHeap;
 class ScopedExternalStringLock;
+struct ScriptStreamingData;
 class ThreadLocalTop;
 
 namespace wasm {
@@ -7557,6 +7559,7 @@ class V8_EXPORT SharedMemoryStatistics {
   size_t read_only_space_physical_size_;
 
   friend class V8;
+  friend class internal::ReadOnlyHeap;
 };
 
 /**

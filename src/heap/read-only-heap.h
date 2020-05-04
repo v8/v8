@@ -15,6 +15,9 @@
 #include "src/roots/roots.h"
 
 namespace v8 {
+
+class SharedMemoryStatistics;
+
 namespace internal {
 
 class Isolate;
@@ -47,10 +50,10 @@ class ReadOnlyHeap final {
   // Indicates that the current isolate no longer requires the read-only heap
   // and it may be safely disposed of.
   void OnHeapTearDown();
-
-#ifdef V8_SHARED_RO_HEAP
-  static const ReadOnlyHeap* Instance();
-#endif
+  // If the read-only heap is shared, then populate |statistics| with its stats,
+  // otherwise the read-only heap stats are set to 0.
+  static void PopulateReadOnlySpaceStatistics(
+      SharedMemoryStatistics* statistics);
 
   // Returns whether the address is within the read-only space.
   V8_EXPORT_PRIVATE static bool Contains(Address address);

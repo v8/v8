@@ -5803,17 +5803,7 @@ void v8::V8::InitializeExternalStartupDataFromFile(const char* snapshot_blob) {
 const char* v8::V8::GetVersion() { return i::Version::GetVersion(); }
 
 void V8::GetSharedMemoryStatistics(SharedMemoryStatistics* statistics) {
-#ifdef V8_SHARED_RO_HEAP
-  i::ReadOnlySpace* ro_space = i::ReadOnlyHeap::Instance()->read_only_space();
-  statistics->read_only_space_size_ = ro_space->CommittedMemory();
-  statistics->read_only_space_used_size_ = ro_space->SizeOfObjects();
-  statistics->read_only_space_physical_size_ =
-      ro_space->CommittedPhysicalMemory();
-#else
-  statistics->read_only_space_size_ = 0;
-  statistics->read_only_space_used_size_ = 0;
-  statistics->read_only_space_physical_size_ = 0;
-#endif  // V8_SHARED_RO_HEAP
+  i::ReadOnlyHeap::PopulateReadOnlySpaceStatistics(statistics);
 }
 
 template <typename ObjectType>
