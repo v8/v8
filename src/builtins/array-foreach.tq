@@ -7,7 +7,7 @@ namespace array {
   ArrayForEachLoopEagerDeoptContinuation(
       js-implicit context: NativeContext, receiver: JSAny)(
       callback: JSAny, thisArg: JSAny, initialK: JSAny, length: JSAny): JSAny {
-    // All continuation points in the optimized forEach implemntation are
+    // All continuation points in the optimized forEach implementation are
     // after the ToObject(O) call that ensures we are dealing with a
     // JSReceiver.
     const jsreceiver = Cast<JSReceiver>(receiver) otherwise unreachable;
@@ -25,7 +25,7 @@ namespace array {
       js-implicit context: NativeContext, receiver: JSAny)(
       callback: JSAny, thisArg: JSAny, initialK: JSAny, length: JSAny,
       _result: JSAny): JSAny {
-    // All continuation points in the optimized forEach implemntation are
+    // All continuation points in the optimized forEach implementation are
     // after the ToObject(O) call that ensures we are dealing with a
     // JSReceiver.
     const jsreceiver = Cast<JSReceiver>(receiver) otherwise unreachable;
