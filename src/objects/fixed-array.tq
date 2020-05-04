@@ -9,6 +9,7 @@ extern class FixedArrayBase extends HeapObject {
   const length: Smi;
 }
 
+@generateBodyDescriptor
 @generateCppClass
 extern class FixedArray extends FixedArrayBase {
   objects[length]: Object;
@@ -21,6 +22,7 @@ extern class FixedDoubleArray extends FixedArrayBase {
   floats[length]: float64_or_hole;
 }
 
+@generateBodyDescriptor
 @generateCppClass
 extern class WeakFixedArray extends HeapObject {
   const length: Smi;
@@ -41,6 +43,7 @@ extern class ArrayList extends FixedArray {
 extern class TemplateList extends FixedArray {
 }
 
+@generateBodyDescriptor
 @generateCppClass
 extern class WeakArrayList extends HeapObject {
   const capacity: Smi;

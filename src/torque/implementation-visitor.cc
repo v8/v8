@@ -3268,12 +3268,28 @@ void ImplementationVisitor::GenerateClassFieldOffsets(
       }
     }
 
-    header << "#define TORQUE_BODY_DESCRIPTOR_LIST_GENERATOR(V, _)\\\n";
+    header << "#define TORQUE_INSTANCE_TYPE_TO_BODY_DESCRIPTOR_LIST(V)\\\n";
     for (const ClassType* type : TypeOracle::GetClasses()) {
-      if (type->ShouldGenerateBodyDescriptor()) {
+      if (type->ShouldGenerateBodyDescriptor() && type->OwnInstanceType()) {
         std::string type_name =
             CapifyStringWithUnderscores(type->name()) + "_TYPE";
-        header << "V(_, " << type_name << ", " << type->name() << ")\\\n";
+        header << "V(" << type_name << "," << type->name() << ")\\\n";
+      }
+    }
+    header << "\n";
+
+    header << "#define TORQUE_DATA_ONLY_VISITOR_ID_LIST(V)\\\n";
+    for (const ClassType* type : TypeOracle::GetClasses()) {
+      if (type->ShouldGenerateBodyDescriptor() && type->HasNoPointerSlots()) {
+        header << "V(" << type->name() << ")\\\n";
+      }
+    }
+    header << "\n";
+
+    header << "#define TORQUE_POINTER_VISITOR_ID_LIST(V)\\\n";
+    for (const ClassType* type : TypeOracle::GetClasses()) {
+      if (type->ShouldGenerateBodyDescriptor() && !type->HasNoPointerSlots()) {
+        header << "V(" << type->name() << ")\\\n";
       }
     }
     header << "\n";
@@ -3494,26 +3510,18 @@ void CppClassGenerator::GenerateClass() {
         hdr_ << "    size += " << index_name_and_type.name << " * "
              << field_size << ";\n";
       }
+      if (type_->size().Alignment() < TargetArchitecture::TaggedSize()) {
+        hdr_ << "    size = OBJECT_POINTER_ALIGN(size);\n";
+      }
     }
     hdr_ << "    return size;\n";
     hdr_ << "  }\n\n";
-    hdr_ << "  V8_INLINE static constexpr int32_t SizeFor(D o) {\n";
+    hdr_ << "  V8_INLINE int32_t AllocatedSize() {\n";
     hdr_ << "    return SizeFor(";
     first = true;
     for (auto field : *index_fields) {
       if (!first) hdr_ << ", ";
-      // Subclasses of FixedArrayBase need to use the synchronized length
-      // accessor to be consistent (theoretically, FixedArrayBase classes
-      // can concurrently change size e.g. through left-trimming, although
-      // in practice this won't happen for Torque-generated classes) as well as
-      // explicitly convert to a Smi, since the C++-side accessors are
-      // int-based.
-      if (field.aggregate == TypeOracle::GetFixedArrayBaseType() &&
-          field.name_and_type.name == "length") {
-        hdr_ << "o.synchronized_length()";
-      } else {
-        hdr_ << "o." << field.name_and_type.name << "()";
-      }
+      hdr_ << "this->" << field.name_and_type.name << "()";
       first = false;
     }
     hdr_ << ");\n  }\n";
@@ -3854,8 +3862,6 @@ void EmitClassDefinitionHeadersIncludes(const std::string& basename,
   header << "#include <type_traits>\n\n";
 
   inline_header << "#include \"torque-generated/class-definitions-tq.h\"\n";
-  inline_header << "#include "
-                   "\"torque-generated/objects-body-descriptors-tq-inl.h\"\n\n";
   inline_header << "#include \"src/objects/js-promise.h\"\n";
   inline_header << "#include \"src/objects/js-weak-refs.h\"\n";
   inline_header << "#include \"src/objects/module.h\"\n";
@@ -4168,140 +4174,174 @@ void ImplementationVisitor::GeneratePrintDefinitions(
   WriteFile(output_directory + "/" + file_name, new_contents);
 }
 
+base::Optional<std::string> MatchSimpleBodyDescriptor(const ClassType* type) {
+  std::vector<ObjectSlotKind> slots = type->ComputeHeaderSlotKinds();
+  if (!type->HasStaticSize()) {
+    slots.push_back(*type->ComputeArraySlotKind());
+  }
+
+  // Skip the map slot.
+  size_t i = 1;
+  while (i < slots.size() && slots[i] == ObjectSlotKind::kNoPointer) ++i;
+  if (i == slots.size()) return "DataOnlyBodyDescriptor";
+  bool has_weak_pointers = false;
+  size_t start_index = i;
+  for (; i < slots.size(); ++i) {
+    if (slots[i] == ObjectSlotKind::kStrongPointer) {
+      continue;
+    } else if (slots[i] == ObjectSlotKind::kMaybeObjectPointer) {
+      has_weak_pointers = true;
+    } else if (slots[i] == ObjectSlotKind::kNoPointer) {
+      break;
+    } else {
+      return base::nullopt;
+    }
+  }
+  size_t end_index = i;
+  for (; i < slots.size(); ++i) {
+    if (slots[i] != ObjectSlotKind::kNoPointer) return base::nullopt;
+  }
+  size_t start_offset = start_index * TargetArchitecture::TaggedSize();
+  size_t end_offset = end_index * TargetArchitecture::TaggedSize();
+  // We pick a suffix-range body descriptor even in cases where the object size
+  // is fixed, to reduce the amount of code executed for object visitation.
+  if (end_index == slots.size()) {
+    return ToString("SuffixRange", has_weak_pointers ? "Weak" : "",
+                    "BodyDescriptor<", start_offset, ">");
+  }
+  if (!has_weak_pointers) {
+    return ToString("FixedRangeDescriptor<", start_offset, ", ", end_offset,
+                    ", ", *type->size().SingleValue(), ">");
+  }
+  return base::nullopt;
+}
+
 void ImplementationVisitor::GenerateBodyDescriptors(
     const std::string& output_directory) {
-  std::string file_name = "objects-body-descriptors-tq-inl";
+  std::string file_name = "objects-body-descriptors-tq-inl.inc";
   std::stringstream h_contents;
-  {
-    IncludeGuardScope include_guard(h_contents, file_name + ".h");
-
-    h_contents << "\n#include \"src/objects/objects-body-descriptors.h\"\n";
-    h_contents << "\n#include \"torque-generated/class-definitions-tq.h\"\n";
-    h_contents
-        << "\n#include \"torque-generated/internal-class-definitions-tq.h\"\n";
-    h_contents << "\n#include "
-                  "\"torque-generated/internal-class-definitions-tq-inl.h\"\n";
-
-    NamespaceScope h_namespaces(h_contents, {"v8", "internal"});
 
     for (const ClassType* type : TypeOracle::GetClasses()) {
       std::string name = type->name();
       if (!type->ShouldGenerateBodyDescriptor()) continue;
 
-      const ClassType* super_class = type->GetSuperClass();
-      std::string super_name = super_class->name();
-      h_contents << "class " << name
-                 << "::BodyDescriptor final : public BodyDescriptorBase {\n";
+      bool has_array_fields = !type->HasStaticSize();
+      std::vector<ObjectSlotKind> header_slot_kinds =
+          type->ComputeHeaderSlotKinds();
+      base::Optional<ObjectSlotKind> array_slot_kind =
+          type->ComputeArraySlotKind();
+      DCHECK_EQ(has_array_fields, array_slot_kind.has_value());
 
-      h_contents << " public:\n";
-
-      h_contents << "  static bool IsValidSlot(Map map, HeapObject obj, int "
-                    "offset) {\n";
-
-      if (super_class == TypeOracle::GetHeapObjectType() ||
-          super_class == TypeOracle::GetFixedArrayBaseType()) {
-        h_contents << "    if (offset < " << super_name
-                   << "::kHeaderSize) return true;\n";
+      h_contents << "class " << name << "::BodyDescriptor final : public ";
+      if (auto descriptor_name = MatchSimpleBodyDescriptor(type)) {
+        h_contents << *descriptor_name << " {\n";
+        h_contents << " public:\n";
       } else {
-        h_contents << "    if (" << super_name
-                   << "::BodyDescriptor::IsValidSlot(map, obj, offset)) return "
-                      "true;\n";
-      }
+        h_contents << "BodyDescriptorBase {\n";
+        h_contents << " public:\n";
 
-      h_contents << "    return offset >= " << name
-                 << "::kStartOfStrongFieldsOffset"
-                 << " && offset < " << name << ""
-                 << "::kEndOfStrongFieldsOffset;\n";
-      h_contents << "  }\n\n";
-
-      h_contents << "  template <typename ObjectVisitor>\n";
-      h_contents << "  static inline void IterateBody(Map map, HeapObject obj, "
-                    "int object_size, ObjectVisitor* v) {\n";
-
-      // There may be MaybeObjects embedded in the strong pointer section, which
-      // are not suppored.
-      for (auto& f : type->fields()) {
-        for (const Type* t : LowerType(f.name_and_type.type)) {
-          if (t->IsSubtypeOf(TypeOracle::GetTaggedType()) &&
-              !t->IsSubtypeOf(TypeOracle::GetObjectType())) {
-            Error("Cannot generate body descriptor for field ",
-                  f.name_and_type.name, " of class ", name, " because ", *t,
-                  " can contain tagged weak pointers.");
-          }
+        h_contents << "  static bool IsValidSlot(Map map, HeapObject obj, int "
+                      "offset) {\n";
+        if (has_array_fields) {
+          h_contents << "    if (offset < kHeaderSize) {\n";
         }
-      }
+        h_contents << "      bool valid_slots[] = {";
+        for (ObjectSlotKind slot : header_slot_kinds) {
+          h_contents << (slot != ObjectSlotKind::kNoPointer ? "1" : "0") << ",";
+        }
+        h_contents << "};\n"
+                   << "      return valid_slots[static_cast<unsigned "
+                      "int>(offset)/kTaggedSize];\n";
+        if (has_array_fields) {
+          h_contents << "    }\n";
+          bool array_is_tagged = *array_slot_kind != ObjectSlotKind::kNoPointer;
+          h_contents << "    return " << (array_is_tagged ? "true" : "false")
+                     << ";\n";
+        }
+        h_contents << "  }\n\n";
 
-      if (super_class != TypeOracle::GetHeapObjectType() &&
-          super_class != TypeOracle::GetFixedArrayBaseType()) {
+        h_contents << "  template <typename ObjectVisitor>\n";
         h_contents
-            << "    " << super_name
-            << "::BodyDescriptor::IterateBody(map, obj, object_size, v);\n";
-      }
+            << "  static inline void IterateBody(Map map, HeapObject obj, "
+               "int object_size, ObjectVisitor* v) {\n";
 
-      h_contents << "    if (" << name
-                 << "::kStartOfStrongFieldsOffset != " << name
-                 << "::kEndOfStrongFieldsOffset) {\n";
-      h_contents << "      IteratePointers(obj, " << name
-                 << "::kStartOfStrongFieldsOffset, " << name
-                 << "::kEndOfStrongFieldsOffset, v);\n";
-      h_contents << "    }\n";
+        std::vector<ObjectSlotKind> slots = std::move(header_slot_kinds);
+        if (has_array_fields) slots.push_back(*array_slot_kind);
 
-      h_contents << "    if (" << name
-                 << "::kStartOfWeakFieldsOffset != " << name
-                 << "::kEndOfWeakFieldsOffset) {\n";
-      h_contents << "      IterateCustomWeakPointers(obj, " << name
-                 << "::kStartOfWeakFieldsOffset, " << name
-                 << "::kEndOfWeakFieldsOffset, v);\n";
-      h_contents << "    }\n";
+        // Skip the map slot.
+        slots.erase(slots.begin());
+        size_t start_offset = TargetArchitecture::TaggedSize();
 
-      // Since all of the index fields are at the end of the object and must
-      // only be Tagged values, emit only a single IteratePointers from the
-      // beginning of the first indexed field to the end of the object.
-      bool first_index_seen = false;
-      for (const Field& field : type->ComputeAllFields()) {
-        if (field.index && !first_index_seen) {
-          std::string indexed_field_name =
-              CamelifyString(field.name_and_type.name);
-          if (field.name_and_type.type->IsSubtypeOf(
-                  TypeOracle::GetObjectType())) {
-            h_contents << "    BodyDescriptorBase::IteratePointers(obj, "
-                       << name << "::k" << indexed_field_name << "Offset, "
-                       << name << "::SizeFor(" << name << "::cast(obj)), v);\n";
-          } else {
-            Error(
-                "generating body descriptors for indexed fields not subtype of "
-                "Object isn't (yet) supported");
-          }
-          first_index_seen = true;
-        }
-        if (first_index_seen) {
-          for (const Type* t : LowerType(field.name_and_type.type)) {
-            if (!t->IsSubtypeOf(TypeOracle::GetObjectType())) {
-              Error("cannot generate class body descriptor for \"",
-                    type->name(),
-                    "\", all fields of including and after the first indexed "
-                    "member must no comprised only of subtypes of Object "
-                    "(field \"",
-                    field.name_and_type.name, "\" is not)");
+        size_t end_offset = start_offset;
+        ObjectSlotKind section_kind;
+        for (size_t i = 0; i <= slots.size(); ++i) {
+          base::Optional<ObjectSlotKind> next_section_kind;
+          bool finished_section = false;
+          if (i == 0) {
+            next_section_kind = slots[i];
+          } else if (i < slots.size()) {
+            if (auto combined = Combine(section_kind, slots[i])) {
+              next_section_kind = *combined;
+            } else {
+              next_section_kind = slots[i];
+              finished_section = true;
             }
+          } else {
+            finished_section = true;
           }
+          if (finished_section) {
+            bool is_array_slot = i == slots.size() && has_array_fields;
+            bool multiple_slots =
+                is_array_slot ||
+                (end_offset - start_offset > TargetArchitecture::TaggedSize());
+            base::Optional<std::string> iterate_command;
+            switch (section_kind) {
+              case ObjectSlotKind::kStrongPointer:
+                iterate_command = "IteratePointer";
+                break;
+              case ObjectSlotKind::kMaybeObjectPointer:
+                iterate_command = "IterateMaybeWeakPointer";
+                break;
+              case ObjectSlotKind::kCustomWeakPointer:
+                iterate_command = "IterateCustomWeakPointer";
+                break;
+              case ObjectSlotKind::kNoPointer:
+                break;
+            }
+            if (iterate_command) {
+              if (multiple_slots) *iterate_command += "s";
+              h_contents << "    " << *iterate_command << "(obj, "
+                         << start_offset;
+              if (multiple_slots) {
+                h_contents << ", "
+                           << (i == slots.size() ? "object_size"
+                                                 : std::to_string(end_offset));
+              }
+              h_contents << ", v);\n";
+            }
+            start_offset = end_offset;
+          }
+          if (i < slots.size()) section_kind = *next_section_kind;
+          end_offset += TargetArchitecture::TaggedSize();
         }
-      }
 
-      h_contents << "  }\n\n";
+        h_contents << "  }\n\n";
+      }
 
       h_contents
           << "  static inline int SizeOf(Map map, HeapObject raw_object) {\n";
-      h_contents << "    " << name << " object = " << name
-                 << "::cast(raw_object);\n";
-      h_contents << "    return " << name << "::SizeFor(object);\n";
+      if (type->size().SingleValue()) {
+        h_contents << "    return " << *type->size().SingleValue() << ";\n";
+      } else {
+        h_contents << "    return " << name
+                   << "::cast(raw_object).AllocatedSize();\n";
+      }
       h_contents << "  }\n\n";
 
       h_contents << "};\n";
     }
-  }
 
-  WriteFile(output_directory + "/" + file_name + ".h", h_contents.str());
+    WriteFile(output_directory + "/" + file_name, h_contents.str());
 }
 
 namespace {
@@ -4330,9 +4370,8 @@ void GenerateFieldValueVerifier(const std::string& class_name,
 
   // Read the field.
   cc_contents << "    " << object_type << " " << value << " = TaggedField<"
-              << object_type << ", " << class_name << "::k"
-              << CamelifyString(class_field.name_and_type.name)
-              << "Offset>::load(o, " << index_offset << ");\n";
+              << object_type << ", " << *class_field.offset << ">::load(o, "
+              << index_offset << ");\n";
 
   // Call VerifyPointer or VerifyMaybeObjectPointer on it.
   cc_contents << "    " << object_type << "::" << verify_fn << "(isolate, "

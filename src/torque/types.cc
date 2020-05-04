@@ -4,6 +4,7 @@
 
 #include <iostream>
 
+#include "src/base/optional.h"
 #include "src/torque/types.h"
 
 #include "src/base/bits.h"
@@ -526,6 +527,121 @@ std::vector<Field> ClassType::ComputeAllFields() const {
   const std::vector<Field>& fields = this->fields();
   all_fields.insert(all_fields.end(), fields.begin(), fields.end());
   return all_fields;
+}
+
+std::vector<Field> ClassType::ComputeHeaderFields() const {
+  std::vector<Field> result;
+  for (Field& field : ComputeAllFields()) {
+    if (field.index) break;
+    DCHECK(*field.offset < header_size());
+    result.push_back(std::move(field));
+  }
+  return result;
+}
+
+std::vector<Field> ClassType::ComputeArrayFields() const {
+  std::vector<Field> result;
+  for (Field& field : ComputeAllFields()) {
+    if (!field.index) {
+      DCHECK(*field.offset < header_size());
+      continue;
+    }
+    result.push_back(std::move(field));
+  }
+  return result;
+}
+
+void ClassType::InitializeInstanceTypes(
+    base::Optional<int> own, base::Optional<std::pair<int, int>> range) const {
+  DCHECK(!own_instance_type_.has_value());
+  DCHECK(!instance_type_range_.has_value());
+  own_instance_type_ = own;
+  instance_type_range_ = range;
+}
+
+base::Optional<int> ClassType::OwnInstanceType() const {
+  DCHECK(GlobalContext::IsInstanceTypesInitialized());
+  return own_instance_type_;
+}
+
+base::Optional<std::pair<int, int>> ClassType::InstanceTypeRange() const {
+  DCHECK(GlobalContext::IsInstanceTypesInitialized());
+  return instance_type_range_;
+}
+
+namespace {
+void ComputeSlotKindsHelper(std::vector<ObjectSlotKind>* slots,
+                            size_t start_offset,
+                            const std::vector<Field>& fields) {
+  size_t offset = start_offset;
+  for (const Field& field : fields) {
+    size_t field_size = std::get<0>(field.GetFieldSizeInformation());
+    size_t slot_index = offset / TargetArchitecture::TaggedSize();
+    // Rounding-up division to find the number of slots occupied by all the
+    // fields up to and including the current one.
+    size_t used_slots =
+        (offset + field_size + TargetArchitecture::TaggedSize() - 1) /
+        TargetArchitecture::TaggedSize();
+    while (used_slots > slots->size()) {
+      slots->push_back(ObjectSlotKind::kNoPointer);
+    }
+    const Type* type = field.name_and_type.type;
+    if (auto struct_type = type->StructSupertype()) {
+      ComputeSlotKindsHelper(slots, offset, (*struct_type)->fields());
+    } else {
+      ObjectSlotKind kind;
+      if (type->IsSubtypeOf(TypeOracle::GetObjectType())) {
+        if (field.is_weak) {
+          kind = ObjectSlotKind::kCustomWeakPointer;
+        } else {
+          kind = ObjectSlotKind::kStrongPointer;
+        }
+      } else if (type->IsSubtypeOf(TypeOracle::GetTaggedType())) {
+        DCHECK(!field.is_weak);
+        kind = ObjectSlotKind::kMaybeObjectPointer;
+      } else {
+        kind = ObjectSlotKind::kNoPointer;
+      }
+      DCHECK(slots->at(slot_index) == ObjectSlotKind::kNoPointer);
+      slots->at(slot_index) = kind;
+    }
+
+    offset += field_size;
+  }
+}
+}  // namespace
+
+std::vector<ObjectSlotKind> ClassType::ComputeHeaderSlotKinds() const {
+  std::vector<ObjectSlotKind> result;
+  std::vector<Field> header_fields = ComputeHeaderFields();
+  ComputeSlotKindsHelper(&result, 0, header_fields);
+  DCHECK_EQ(std::ceil(double{header_size()} / TargetArchitecture::TaggedSize()),
+            result.size());
+  return result;
+}
+
+base::Optional<ObjectSlotKind> ClassType::ComputeArraySlotKind() const {
+  std::vector<ObjectSlotKind> kinds;
+  ComputeSlotKindsHelper(&kinds, 0, ComputeArrayFields());
+  if (kinds.empty()) return base::nullopt;
+  std::sort(kinds.begin(), kinds.end());
+  if (kinds.front() == kinds.back()) return {kinds.front()};
+  if (kinds.front() == ObjectSlotKind::kStrongPointer &&
+      kinds.back() == ObjectSlotKind::kMaybeObjectPointer) {
+    return ObjectSlotKind::kMaybeObjectPointer;
+  }
+  Error("Array fields mix types with different GC visitation requirements.")
+      .Throw();
+}
+
+bool ClassType::HasNoPointerSlots() const {
+  for (ObjectSlotKind slot : ComputeHeaderSlotKinds()) {
+    if (slot != ObjectSlotKind::kNoPointer) return false;
+  }
+  if (auto slot = ComputeArraySlotKind()) {
+    if (*slot != ObjectSlotKind::kNoPointer) return false;
+  }
+  return true;
 }
 
 void ClassType::GenerateAccessors() {

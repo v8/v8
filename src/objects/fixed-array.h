@@ -7,6 +7,7 @@
 
 #include "src/handles/maybe-handles.h"
 #include "src/objects/instance-type.h"
+#include "src/objects/objects.h"
 #include "src/objects/smi.h"
 #include "torque-generated/class-definitions-tq.h"
 
@@ -15,8 +16,6 @@
 
 namespace v8 {
 namespace internal {
-using WeakArrayBodyDescriptor =
-    FlexibleWeakBodyDescriptor<HeapObject::kHeaderSize>;
 
 #define FIXED_ARRAY_SUB_INSTANCE_TYPE_LIST(V)    \
   V(BYTECODE_ARRAY_CONSTANT_POOL_SUB_TYPE)       \
@@ -182,7 +181,9 @@ class FixedArray
   // Dispatched behavior.
   DECL_PRINTER(FixedArray)
 
-  using BodyDescriptor = FlexibleBodyDescriptor<kHeaderSize>;
+  int AllocatedSize();
+
+  class BodyDescriptor;
 
   static constexpr int kObjectsOffset = kHeaderSize;
 
@@ -280,16 +281,19 @@ class WeakFixedArray
   DECL_PRINTER(WeakFixedArray)
   DECL_VERIFIER(WeakFixedArray)
 
-  using BodyDescriptor = WeakArrayBodyDescriptor;
+  class BodyDescriptor;
 
   static const int kMaxLength =
       (FixedArray::kMaxSize - kHeaderSize) / kTaggedSize;
   static_assert(Internals::IsValidSmi(kMaxLength),
                 "WeakFixedArray maxLength not a Smi");
 
+  int AllocatedSize();
+
  protected:
   static int OffsetOfElementAt(int index) {
-    return kHeaderSize + index * kTaggedSize;
+    STATIC_ASSERT(kObjectsOffset == SizeFor(0));
+    return SizeFor(index);
   }
 
  private:
@@ -360,8 +364,9 @@ class WeakArrayList
   // Get and set the capacity using acquire loads and release stores.
   DECL_SYNCHRONIZED_INT_ACCESSORS(capacity)
 
+  int AllocatedSize();
 
-  using BodyDescriptor = WeakArrayBodyDescriptor;
+  class BodyDescriptor;
 
   static const int kMaxCapacity =
       (FixedArray::kMaxSize - kHeaderSize) / kTaggedSize;

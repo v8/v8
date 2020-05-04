@@ -67,6 +67,14 @@ class GlobalContext : public ContextualClass<GlobalContext> {
     return Get().generated_per_file_[file];
   }
 
+  static void SetInstanceTypesInitialized() {
+    DCHECK(!Get().instance_types_initialized_);
+    Get().instance_types_initialized_ = true;
+  }
+  static bool IsInstanceTypesInitialized() {
+    return Get().instance_types_initialized_;
+  }
+
  private:
   bool collect_language_server_data_;
   bool force_assert_statements_;
@@ -76,6 +84,7 @@ class GlobalContext : public ContextualClass<GlobalContext> {
   std::set<std::string> cpp_includes_;
   std::map<SourceId, PerFileStreams> generated_per_file_;
   std::map<std::string, size_t> fresh_ids_;
+  bool instance_types_initialized_ = false;
 
   friend class LanguageServerData;
 };

@@ -569,12 +569,13 @@ void SeqTwoByteString::SeqTwoByteStringSet(int index, uint16_t value) {
   WriteField<uint16_t>(kHeaderSize + index * kShortSize, value);
 }
 
-int SeqTwoByteString::SeqTwoByteStringSize(InstanceType instance_type) {
-  return SizeFor(length());
+// Due to ThinString rewriting, concurrent visitors need to read the length with
+// acquire semantics.
+inline int SeqOneByteString::AllocatedSize() {
+  return SizeFor(synchronized_length());
 }
-
-int SeqOneByteString::SeqOneByteStringSize(InstanceType instance_type) {
-  return SizeFor(length());
+inline int SeqTwoByteString::AllocatedSize() {
+  return SizeFor(synchronized_length());
 }
 
 void SlicedString::set_parent(String parent, WriteBarrierMode mode) {

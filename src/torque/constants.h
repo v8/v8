@@ -127,7 +127,6 @@ enum class ClassFlag {
   kIsShape = 1 << 5,
   kHasSameInstanceTypeAsParent = 1 << 6,
   kGenerateCppClassDefinitions = 1 << 7,
-  kHasIndexedField = 1 << 8,
   kHighestInstanceTypeWithinParent = 1 << 9,
   kLowestInstanceTypeWithinParent = 1 << 10,
   kUndefinedLayout = 1 << 11,

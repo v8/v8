@@ -195,6 +195,19 @@ void FixedArray::CopyElements(Isolate* isolate, int dst_index, FixedArray src,
   isolate->heap()->CopyRange(*this, dst_slot, src_slot, len, mode);
 }
 
+// Due to left- and right-trimming, concurrent visitors need to read the length
+// with acquire semantics.
+// TODO(ulan): Acquire should not be needed anymore.
+inline int FixedArray::AllocatedSize() {
+  return SizeFor(synchronized_length());
+}
+inline int WeakFixedArray::AllocatedSize() {
+  return SizeFor(synchronized_length());
+}
+inline int WeakArrayList::AllocatedSize() {
+  return SizeFor(synchronized_capacity());
+}
+
 // Perform a binary search in a fixed array.
 template <SearchMode search_mode, typename T>
 int BinarySearch(T* array, Name name, int valid_entries,

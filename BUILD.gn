@@ -1211,7 +1211,7 @@ template("run_torque") {
       "class-verifiers-tq.h",
       "enum-verifiers-tq.cc",
       "objects-printer-tq.cc",
-      "objects-body-descriptors-tq-inl.h",
+      "objects-body-descriptors-tq-inl.inc",
       "class-definitions-tq.cc",
       "class-definitions-tq-inl.h",
       "class-definitions-tq.h",

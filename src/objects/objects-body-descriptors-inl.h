@@ -24,6 +24,9 @@
 #include "src/objects/transitions.h"
 #include "src/wasm/wasm-objects-inl.h"
 
+#include "torque-generated/class-definitions-tq-inl.h"
+#include "torque-generated/internal-class-definitions-tq-inl.h"
+
 namespace v8 {
 namespace internal {
 
@@ -681,34 +684,6 @@ class Code::BodyDescriptor final : public BodyDescriptorBase {
   }
 };
 
-class SeqOneByteString::BodyDescriptor final : public BodyDescriptorBase {
- public:
-  static bool IsValidSlot(Map map, HeapObject obj, int offset) { return false; }
-
-  template <typename ObjectVisitor>
-  static inline void IterateBody(Map map, HeapObject obj, int object_size,
-                                 ObjectVisitor* v) {}
-
-  static inline int SizeOf(Map map, HeapObject obj) {
-    SeqOneByteString string = SeqOneByteString::cast(obj);
-    return SeqOneByteString::SizeFor(string.synchronized_length());
-  }
-};
-
-class SeqTwoByteString::BodyDescriptor final : public BodyDescriptorBase {
- public:
-  static bool IsValidSlot(Map map, HeapObject obj, int offset) { return false; }
-
-  template <typename ObjectVisitor>
-  static inline void IterateBody(Map map, HeapObject obj, int object_size,
-                                 ObjectVisitor* v) {}
-
-  static inline int SizeOf(Map map, HeapObject obj) {
-    SeqTwoByteString string = SeqTwoByteString::cast(obj);
-    return SeqTwoByteString::SizeFor(string.synchronized_length());
-  }
-};
-
 class WasmInstanceObject::BodyDescriptor final : public BodyDescriptorBase {
  public:
   static bool IsValidSlot(Map map, HeapObject obj, int offset) {
@@ -923,7 +898,6 @@ ReturnType BodyDescriptorApply(InstanceType type, T1 p1, T2 p2, T3 p3, T4 p4) {
     case EMBEDDER_DATA_ARRAY_TYPE:
       return Op::template apply<EmbedderDataArray::BodyDescriptor>(p1, p2, p3,
                                                                    p4);
-    case FIXED_ARRAY_TYPE:
     case OBJECT_BOILERPLATE_DESCRIPTION_TYPE:
     case CLOSURE_FEEDBACK_CELL_ARRAY_TYPE:
     case HASH_TABLE_TYPE:
@@ -953,10 +927,6 @@ ReturnType BodyDescriptorApply(InstanceType type, T1 p1, T2 p2, T3 p3, T4 p4) {
       return Op::template apply<Context::BodyDescriptor>(p1, p2, p3, p4);
     case NATIVE_CONTEXT_TYPE:
       return Op::template apply<NativeContext::BodyDescriptor>(p1, p2, p3, p4);
-    case WEAK_FIXED_ARRAY_TYPE:
-      return Op::template apply<WeakFixedArray::BodyDescriptor>(p1, p2, p3, p4);
-    case WEAK_ARRAY_LIST_TYPE:
-      return Op::template apply<WeakArrayList::BodyDescriptor>(p1, p2, p3, p4);
     case FIXED_DOUBLE_ARRAY_TYPE:
       return ReturnType();
     case FEEDBACK_METADATA_TYPE:
@@ -1129,10 +1099,12 @@ ReturnType BodyDescriptorApply(InstanceType type, T1 p1, T2 p2, T3 p3, T4 p4) {
     case SYNTHETIC_MODULE_TYPE:
       return Op::template apply<SyntheticModule::BodyDescriptor>(p1, p2, p3,
                                                                  p4);
+// TODO(tebbi): Avoid duplicated cases when the body descriptors are identical.
 #define MAKE_TORQUE_BODY_DESCRIPTOR_APPLY(TYPE, TypeName) \
   case TYPE:                                              \
     return Op::template apply<TypeName::BodyDescriptor>(p1, p2, p3, p4);
-      TORQUE_BODY_DESCRIPTOR_LIST(MAKE_TORQUE_BODY_DESCRIPTOR_APPLY)
+      TORQUE_INSTANCE_TYPE_TO_BODY_DESCRIPTOR_LIST(
+          MAKE_TORQUE_BODY_DESCRIPTOR_APPLY)
 #undef MAKE_TORQUE_BODY_DESCRIPTOR_APPLY
 
     default:
@@ -1192,6 +1164,8 @@ class EphemeronHashTable::BodyDescriptor final : public BodyDescriptorBase {
     return object.SizeFromMap(map);
   }
 };
+
+#include "torque-generated/objects-body-descriptors-tq-inl.inc"
 
 }  // namespace internal
 }  // namespace v8

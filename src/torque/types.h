@@ -611,6 +611,23 @@ class StructType final : public AggregateType {
 
 class TypeAlias;
 
+enum class ObjectSlotKind : uint8_t {
+  kNoPointer,
+  kStrongPointer,
+  kMaybeObjectPointer,
+  kCustomWeakPointer
+};
+
+inline base::Optional<ObjectSlotKind> Combine(ObjectSlotKind a,
+                                              ObjectSlotKind b) {
+  if (a == b) return {a};
+  if (std::min(a, b) == ObjectSlotKind::kStrongPointer &&
+      std::max(a, b) == ObjectSlotKind::kMaybeObjectPointer) {
+    return {ObjectSlotKind::kMaybeObjectPointer};
+  }
+  return base::nullopt;
+}
+
 class ClassType final : public AggregateType {
  public:
   DECLARE_TYPE_BOILERPLATE(ClassType)
@@ -627,6 +644,7 @@ class ClassType final : public AggregateType {
                            (!HasUndefinedLayout() && !IsShape()));
   }
   bool ShouldGenerateBodyDescriptor() const {
+    if (IsAbstract()) return false;
     return flags_ & ClassFlag::kGenerateBodyDescriptor || !IsExtern();
   }
   bool IsTransient() const override { return flags_ & ClassFlag::kTransient; }
@@ -661,6 +679,14 @@ class ClassType final : public AggregateType {
   void Finalize() const override;
 
   std::vector<Field> ComputeAllFields() const;
+  std::vector<Field> ComputeHeaderFields() const;
+  std::vector<Field> ComputeArrayFields() const;
+  // The slots of an object are the tagged pointer sized offsets in an object
+  // that may or may not require GC visiting. These helper functions determine
+  // what kind of GC visiting the individual slots require.
+  std::vector<ObjectSlotKind> ComputeHeaderSlotKinds() const;
+  base::Optional<ObjectSlotKind> ComputeArraySlotKind() const;
+  bool HasNoPointerSlots() const;
 
   const InstanceTypeConstraints& GetInstanceTypeConstraints() const {
     return decl_->instance_type_constraints;
@@ -676,6 +702,14 @@ class ClassType final : public AggregateType {
   }
   SourcePosition GetPosition() const { return decl_->pos; }
 
+  // TODO(tebbi): We should no longer pass around types as const pointers, so
+  // that we can avoid mutable fields and const initializers for
+  // late-initialized portions of types like this one.
+  void InitializeInstanceTypes(base::Optional<int> own,
+                               base::Optional<std::pair<int, int>> range) const;
+  base::Optional<int> OwnInstanceType() const;
+  base::Optional<std::pair<int, int>> InstanceTypeRange() const;
+
  private:
   friend class TypeOracle;
   friend class TypeVisitor;
@@ -689,6 +723,8 @@ class ClassType final : public AggregateType {
   const std::string generates_;
   const ClassDeclaration* decl_;
   const TypeAlias* alias_;
+  mutable base::Optional<int> own_instance_type_;
+  mutable base::Optional<std::pair<int, int>> instance_type_range_;
 };
 
 inline std::ostream& operator<<(std::ostream& os, const Type& t) {

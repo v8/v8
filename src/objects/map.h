@@ -28,9 +28,7 @@ enum InstanceType : uint16_t;
   V(CoverageInfo)                    \
   V(DataObject)                      \
   V(FeedbackMetadata)                \
-  V(FixedDoubleArray)                \
-  V(SeqOneByteString)                \
-  V(SeqTwoByteString)
+  V(FixedDoubleArray)
 
 #define POINTER_VISITOR_ID_LIST(V)     \
   V(AllocationSite)                    \
@@ -38,7 +36,6 @@ enum InstanceType : uint16_t;
   V(Cell)                              \
   V(Code)                              \
   V(CodeDataContainer)                 \
-  V(ConsString)                        \
   V(Context)                           \
   V(DataHandler)                       \
   V(DescriptorArray)                   \
@@ -46,7 +43,6 @@ enum InstanceType : uint16_t;
   V(EphemeronHashTable)                \
   V(FeedbackCell)                      \
   V(FeedbackVector)                    \
-  V(FixedArray)                        \
   V(FreeSpace)                         \
   V(JSApiObject)                       \
   V(JSArrayBuffer)                     \
@@ -66,7 +62,6 @@ enum InstanceType : uint16_t;
   V(PrototypeInfo)                     \
   V(SharedFunctionInfo)                \
   V(ShortcutCandidate)                 \
-  V(SlicedString)                      \
   V(SmallOrderedHashMap)               \
   V(SmallOrderedHashSet)               \
   V(SmallOrderedNameDictionary)        \
@@ -74,7 +69,6 @@ enum InstanceType : uint16_t;
   V(Struct)                            \
   V(Symbol)                            \
   V(SyntheticModule)                   \
-  V(ThinString)                        \
   V(TransitionArray)                   \
   V(UncompiledDataWithoutPreparseData) \
   V(UncompiledDataWithPreparseData)    \
@@ -82,15 +76,11 @@ enum InstanceType : uint16_t;
   V(WasmIndirectFunctionTable)         \
   V(WasmInstanceObject)                \
   V(WasmStruct)                        \
-  V(WeakArray)                         \
   V(WeakCell)
 
-#define TORQUE_OBJECT_BODY_TO_VISITOR_ID_LIST_ADAPTER(V, TYPE, TypeName) \
-  V(TypeName)
-
-#define TORQUE_VISITOR_ID_LIST(V)        \
-  TORQUE_BODY_DESCRIPTOR_LIST_GENERATOR( \
-      TORQUE_OBJECT_BODY_TO_VISITOR_ID_LIST_ADAPTER, V)
+#define TORQUE_VISITOR_ID_LIST(V)     \
+  TORQUE_DATA_ONLY_VISITOR_ID_LIST(V) \
+  TORQUE_POINTER_VISITOR_ID_LIST(V)
 
 // Objects with the same visitor id are processed in the same way by
 // the heap visitors. The visitor ids for data only objects must precede
@@ -98,9 +88,11 @@ enum InstanceType : uint16_t;
 // of whether an object contains only data or may contain pointers.
 enum VisitorId {
 #define VISITOR_ID_ENUM_DECL(id) kVisit##id,
-  DATA_ONLY_VISITOR_ID_LIST(VISITOR_ID_ENUM_DECL) kDataOnlyVisitorIdCount,
+  DATA_ONLY_VISITOR_ID_LIST(VISITOR_ID_ENUM_DECL)
+      TORQUE_DATA_ONLY_VISITOR_ID_LIST(VISITOR_ID_ENUM_DECL)
+          kDataOnlyVisitorIdCount,
   POINTER_VISITOR_ID_LIST(VISITOR_ID_ENUM_DECL)
-      TORQUE_VISITOR_ID_LIST(VISITOR_ID_ENUM_DECL)
+      TORQUE_POINTER_VISITOR_ID_LIST(VISITOR_ID_ENUM_DECL)
 #undef VISITOR_ID_ENUM_DECL
           kVisitorIdCount
 };

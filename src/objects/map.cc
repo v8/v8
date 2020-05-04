@@ -142,7 +142,6 @@ VisitorId Map::GetVisitorId(Map map) {
     case EMBEDDER_DATA_ARRAY_TYPE:
       return kVisitEmbedderDataArray;
 
-    case FIXED_ARRAY_TYPE:
     case OBJECT_BOILERPLATE_DESCRIPTION_TYPE:
     case CLOSURE_FEEDBACK_CELL_ARRAY_TYPE:
     case HASH_TABLE_TYPE:
@@ -174,10 +173,6 @@ VisitorId Map::GetVisitorId(Map map) {
 
     case EPHEMERON_HASH_TABLE_TYPE:
       return kVisitEphemeronHashTable;
-
-    case WEAK_FIXED_ARRAY_TYPE:
-    case WEAK_ARRAY_LIST_TYPE:
-      return kVisitWeakArray;
 
     case FIXED_DOUBLE_ARRAY_TYPE:
       return kVisitFixedDoubleArray;
@@ -373,7 +368,7 @@ VisitorId Map::GetVisitorId(Map map) {
 #define MAKE_TQ_CASE(TYPE, Name) \
   case TYPE:                     \
     return kVisit##Name;
-      TORQUE_BODY_DESCRIPTOR_LIST(MAKE_TQ_CASE)
+      TORQUE_INSTANCE_TYPE_TO_BODY_DESCRIPTOR_LIST(MAKE_TQ_CASE)
 #undef MAKE_TQ_CASE
 
     default:

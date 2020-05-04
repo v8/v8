@@ -256,6 +256,9 @@ int SolveInstanceTypeConstraints(
     root->start = root->value;
   }
   root->num_values = root->end - root->start + 1;
+  root->type->InitializeInstanceTypes(
+      root->value == -1 ? base::Optional<int>{} : root->value,
+      std::make_pair(root->start, root->end));
 
   if (root->num_values > 0) {
     destination->push_back(std::move(root));
@@ -485,6 +488,8 @@ void ImplementationVisitor::GenerateInstanceTypes(
   }
   std::string output_header_path = output_directory + "/" + file_name;
   WriteFile(output_header_path, header.str());
+
+  GlobalContext::SetInstanceTypesInitialized();
 }
 
 }  // namespace torque

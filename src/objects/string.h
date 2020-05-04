@@ -558,15 +558,12 @@ class SeqOneByteString
   // instance.
   inline int SeqOneByteStringSize(InstanceType instance_type);
 
-  // Computes the size for an OneByteString instance of a given length.
-  static int SizeFor(int length) {
-    return OBJECT_POINTER_ALIGN(kHeaderSize + length * kCharSize);
-  }
-
   // Maximal memory usage for a single sequential one-byte string.
   static const int kMaxCharsSize = kMaxLength;
   static const int kMaxSize = OBJECT_POINTER_ALIGN(kMaxCharsSize + kHeaderSize);
   STATIC_ASSERT((kMaxSize - kHeaderSize) >= String::kMaxLength);
+
+  int AllocatedSize();
 
   class BodyDescriptor;
 
@@ -599,16 +596,13 @@ class SeqTwoByteString
   // instance.
   inline int SeqTwoByteStringSize(InstanceType instance_type);
 
-  // Computes the size for a TwoByteString instance of a given length.
-  static int SizeFor(int length) {
-    return OBJECT_POINTER_ALIGN(kHeaderSize + length * kShortSize);
-  }
-
   // Maximal memory usage for a single sequential two-byte string.
   static const int kMaxCharsSize = kMaxLength * 2;
   static const int kMaxSize = OBJECT_POINTER_ALIGN(kMaxCharsSize + kHeaderSize);
   STATIC_ASSERT(static_cast<int>((kMaxSize - kHeaderSize) / sizeof(uint16_t)) >=
                 String::kMaxLength);
+
+  int AllocatedSize();
 
   class BodyDescriptor;
 
@@ -639,7 +633,7 @@ class ConsString : public TorqueGeneratedConsString<ConsString, String> {
   // Minimum length for a cons string.
   static const int kMinLength = 13;
 
-  using BodyDescriptor = FixedBodyDescriptor<kFirstOffset, kSize, kSize>;
+  class BodyDescriptor;
 
   DECL_VERIFIER(ConsString)
 
@@ -661,7 +655,7 @@ class ThinString : public TorqueGeneratedThinString<ThinString, String> {
 
   DECL_VERIFIER(ThinString)
 
-  using BodyDescriptor = FixedBodyDescriptor<kActualOffset, kSize, kSize>;
+  class BodyDescriptor;
 
   TQ_OBJECT_CONSTRUCTORS(ThinString)
 };
@@ -688,7 +682,7 @@ class SlicedString : public TorqueGeneratedSlicedString<SlicedString, String> {
   // Minimum length for a sliced string.
   static const int kMinLength = 13;
 
-  using BodyDescriptor = FixedBodyDescriptor<kParentOffset, kSize, kSize>;
+  class BodyDescriptor;
 
   DECL_VERIFIER(SlicedString)
 
