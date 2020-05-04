@@ -2965,6 +2965,40 @@ void Heap::FlushNumberStringCache() {
 
 namespace {
 
+HeapObject CreateFillerObjectAtImpl(ReadOnlyRoots roots, Address addr, int size,
+                                    ClearFreedMemoryMode clear_memory_mode) {
+  if (size == 0) return HeapObject();
+  HeapObject filler = HeapObject::FromAddress(addr);
+  if (size == kTaggedSize) {
+    filler.set_map_after_allocation(roots.unchecked_one_pointer_filler_map(),
+                                    SKIP_WRITE_BARRIER);
+  } else if (size == 2 * kTaggedSize) {
+    filler.set_map_after_allocation(roots.unchecked_two_pointer_filler_map(),
+                                    SKIP_WRITE_BARRIER);
+    if (clear_memory_mode == ClearFreedMemoryMode::kClearFreedMemory) {
+      AtomicSlot slot(ObjectSlot(addr) + 1);
+      *slot = static_cast<Tagged_t>(kClearedFreeMemoryValue);
+    }
+  } else {
+    DCHECK_GT(size, 2 * kTaggedSize);
+    filler.set_map_after_allocation(roots.unchecked_free_space_map(),
+                                    SKIP_WRITE_BARRIER);
+    FreeSpace::cast(filler).relaxed_write_size(size);
+    if (clear_memory_mode == ClearFreedMemoryMode::kClearFreedMemory) {
+      MemsetTagged(ObjectSlot(addr) + 2, Object(kClearedFreeMemoryValue),
+                   (size / kTaggedSize) - 2);
+    }
+  }
+
+  // At this point, we may be deserializing the heap from a snapshot, and
+  // none of the maps have been created yet and are nullptr.
+  DCHECK((filler.map_slot().contains_value(kNullAddress) &&
+          !Heap::FromWritableHeapObject(filler)->deserialization_complete()) ||
+         filler.map().IsMap());
+
+  return filler;
+}
+
 #ifdef DEBUG
 void VerifyNoNeedToClearSlots(Address start, Address end) {
   MemoryChunk* chunk = MemoryChunk::FromAddress(start);
@@ -2980,37 +3014,25 @@ void VerifyNoNeedToClearSlots(Address start, Address end) {}
 
 }  // namespace
 
-HeapObject Heap::CreateFillerObjectAt(Address addr, int size,
-                                      ClearRecordedSlots clear_slots_mode,
+// static
+HeapObject Heap::CreateFillerObjectAt(ReadOnlyRoots roots, Address addr,
+                                      int size,
                                       ClearFreedMemoryMode clear_memory_mode) {
+  // TODO(leszeks): Verify that no slots need to be recorded.
+  HeapObject filler =
+      CreateFillerObjectAtImpl(roots, addr, size, clear_memory_mode);
+  VerifyNoNeedToClearSlots(addr, addr + size);
+  return filler;
+}
+
+HeapObject Heap::CreateFillerObjectAt(Address addr, int size,
+                                      ClearRecordedSlots clear_slots_mode) {
   if (size == 0) return HeapObject();
-  HeapObject filler = HeapObject::FromAddress(addr);
-  bool clear_memory =
-      (clear_memory_mode == ClearFreedMemoryMode::kClearFreedMemory ||
-       clear_slots_mode == ClearRecordedSlots::kYes);
-  if (size == kTaggedSize) {
-    filler.set_map_after_allocation(
-        Map::unchecked_cast(isolate()->root(RootIndex::kOnePointerFillerMap)),
-        SKIP_WRITE_BARRIER);
-  } else if (size == 2 * kTaggedSize) {
-    filler.set_map_after_allocation(
-        Map::unchecked_cast(isolate()->root(RootIndex::kTwoPointerFillerMap)),
-        SKIP_WRITE_BARRIER);
-    if (clear_memory) {
-      AtomicSlot slot(ObjectSlot(addr) + 1);
-      *slot = static_cast<Tagged_t>(kClearedFreeMemoryValue);
-    }
-  } else {
-    DCHECK_GT(size, 2 * kTaggedSize);
-    filler.set_map_after_allocation(
-        Map::unchecked_cast(isolate()->root(RootIndex::kFreeSpaceMap)),
-        SKIP_WRITE_BARRIER);
-    FreeSpace::cast(filler).relaxed_write_size(size);
-    if (clear_memory) {
-      MemsetTagged(ObjectSlot(addr) + 2, Object(kClearedFreeMemoryValue),
-                   (size / kTaggedSize) - 2);
-    }
-  }
+  HeapObject filler = CreateFillerObjectAtImpl(
+      ReadOnlyRoots(this), addr, size,
+      clear_slots_mode == ClearRecordedSlots::kYes
+          ? ClearFreedMemoryMode::kClearFreedMemory
+          : ClearFreedMemoryMode::kDontClearFreedMemory);
   if (!V8_ENABLE_THIRD_PARTY_HEAP_BOOL) {
     if (clear_slots_mode == ClearRecordedSlots::kYes) {
       ClearRecordedSlotRange(addr, addr + size);
@@ -3018,12 +3040,6 @@ HeapObject Heap::CreateFillerObjectAt(Address addr, int size,
       VerifyNoNeedToClearSlots(addr, addr + size);
     }
   }
-
-  // At this point, we may be deserializing the heap from a snapshot, and
-  // none of the maps have been created yet and are nullptr.
-  DCHECK((filler.map_slot().contains_value(kNullAddress) &&
-          !deserialization_complete_) ||
-         filler.map().IsMap());
   return filler;
 }
 

@@ -13,8 +13,6 @@
 namespace v8 {
 namespace internal {
 
-class Heap;
-
 class V8_EXPORT_PRIVATE OffThreadHeap {
  public:
   explicit OffThreadHeap(Heap* heap);
@@ -22,6 +20,9 @@ class V8_EXPORT_PRIVATE OffThreadHeap {
   HeapObject AllocateRaw(int size, AllocationType allocation,
                          AllocationAlignment alignment = kWordAligned);
   void AddToScriptList(Handle<Script> shared);
+
+  HeapObject CreateFillerObjectAt(Address addr, int size,
+                                  ClearFreedMemoryMode clear_memory_mode);
 
   void FinishOffThread();
   void Publish(Heap* heap);

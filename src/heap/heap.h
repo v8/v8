@@ -81,6 +81,7 @@ class MemoryReducer;
 class MinorMarkCompactCollector;
 class ObjectIterator;
 class ObjectStats;
+class OffThreadHeap;
 class Page;
 class PagedSpace;
 class ReadOnlyHeap;
@@ -458,13 +459,9 @@ class Heap {
   // Initialize a filler object to keep the ability to iterate over the heap
   // when introducing gaps within pages. If slots could have been recorded in
   // the freed area, then pass ClearRecordedSlots::kYes as the mode. Otherwise,
-  // pass ClearRecordedSlots::kNo. If the memory after the object header of
-  // the filler should be cleared, pass in kClearFreedMemory. The default is
-  // kDontClearFreedMemory.
+  // pass ClearRecordedSlots::kNo. Clears memory if clearing slots.
   V8_EXPORT_PRIVATE HeapObject CreateFillerObjectAt(
-      Address addr, int size, ClearRecordedSlots clear_slots_mode,
-      ClearFreedMemoryMode clear_memory_mode =
-          ClearFreedMemoryMode::kDontClearFreedMemory);
+      Address addr, int size, ClearRecordedSlots clear_slots_mode);
 
   template <typename T>
   void CreateFillerForArray(T object, int elements_to_trim, int bytes_to_trim);
@@ -1653,6 +1650,15 @@ class Heap {
   // Zaps the memory of a code object.
   V8_EXPORT_PRIVATE void ZapCodeObject(Address start_address,
                                        int size_in_bytes);
+
+  // Initialize a filler object to keep the ability to iterate over the heap
+  // when introducing gaps within pages. If the memory after the object header
+  // of the filler should be cleared, pass in kClearFreedMemory. The default is
+  // kDontClearFreedMemory.
+  V8_EXPORT_PRIVATE static HeapObject CreateFillerObjectAt(
+      ReadOnlyRoots roots, Address addr, int size,
+      ClearFreedMemoryMode clear_memory_mode =
+          ClearFreedMemoryMode::kDontClearFreedMemory);
 
   // Range write barrier implementation.
   template <int kModeMask, typename TSlot>

@@ -313,9 +313,9 @@ int Sweeper::RawSweep(
             free_start, size, SpaceAccountingMode::kSpaceUnaccounted);
         max_freed_bytes = Max(freed_bytes, max_freed_bytes);
       } else {
-        p->heap()->CreateFillerObjectAt(
-            free_start, static_cast<int>(size), ClearRecordedSlots::kNo,
-            ClearFreedMemoryMode::kClearFreedMemory);
+        Heap::CreateFillerObjectAt(ReadOnlyRoots(p->heap()), free_start,
+                                   static_cast<int>(size),
+                                   ClearFreedMemoryMode::kClearFreedMemory);
       }
       if (should_reduce_memory_) p->DiscardUnusedMemory(free_start, size);
       RememberedSetSweeping::RemoveRange(p, free_start, free_end,
@@ -347,9 +347,9 @@ int Sweeper::RawSweep(
           free_start, size, SpaceAccountingMode::kSpaceUnaccounted);
       max_freed_bytes = Max(freed_bytes, max_freed_bytes);
     } else {
-      p->heap()->CreateFillerObjectAt(free_start, static_cast<int>(size),
-                                      ClearRecordedSlots::kNo,
-                                      ClearFreedMemoryMode::kClearFreedMemory);
+      Heap::CreateFillerObjectAt(ReadOnlyRoots(p->heap()), free_start,
+                                 static_cast<int>(size),
+                                 ClearFreedMemoryMode::kClearFreedMemory);
     }
     if (should_reduce_memory_) p->DiscardUnusedMemory(free_start, size);
     RememberedSetSweeping::RemoveRange(p, free_start, p->area_end(),

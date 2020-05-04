@@ -5,6 +5,7 @@
 #ifndef V8_ROOTS_ROOTS_H_
 #define V8_ROOTS_ROOTS_H_
 
+#include "src/base/macros.h"
 #include "src/builtins/accessors.h"
 #include "src/common/globals.h"
 #include "src/handles/handles.h"
@@ -483,26 +484,34 @@ class ReadOnlyRoots {
   V8_INLINE explicit ReadOnlyRoots(Isolate* isolate);
   V8_INLINE explicit ReadOnlyRoots(OffThreadIsolate* isolate);
 
-#define ROOT_ACCESSOR(Type, name, CamelName) \
-  V8_INLINE class Type name() const;         \
+#define ROOT_ACCESSOR(Type, name, CamelName)     \
+  V8_INLINE class Type name() const;             \
+  V8_INLINE class Type unchecked_##name() const; \
   V8_INLINE Handle<Type> name##_handle() const;
 
   READ_ONLY_ROOT_LIST(ROOT_ACCESSOR)
 #undef ROOT_ACCESSOR
+
+  // Get the address of a given read-only root index, without type checks.
+  V8_INLINE Address at(RootIndex root_index) const;
 
   // Iterate over all the read-only roots. This is not necessary for garbage
   // collection and is usually only performed as part of (de)serialization or
   // heap verification.
   void Iterate(RootVisitor* visitor);
 
+ private:
 #ifdef DEBUG
-  V8_EXPORT_PRIVATE bool CheckType(RootIndex index) const;
+#define ROOT_TYPE_CHECK(Type, name, CamelName) \
+  V8_EXPORT_PRIVATE bool CheckType_##name() const;
+
+  READ_ONLY_ROOT_LIST(ROOT_TYPE_CHECK)
+#undef ROOT_TYPE_CHECK
 #endif
 
- private:
   V8_INLINE explicit ReadOnlyRoots(Address* ro_roots);
 
-  V8_INLINE Address& at(RootIndex root_index) const;
+  V8_INLINE Address* GetLocation(RootIndex root_index) const;
 
   Address* read_only_roots_;
 

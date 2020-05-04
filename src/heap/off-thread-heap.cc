@@ -226,6 +226,14 @@ HeapObject OffThreadHeap::AllocateRaw(int size, AllocationType allocation,
   return result.ToObjectChecked();
 }
 
+HeapObject OffThreadHeap::CreateFillerObjectAt(
+    Address addr, int size, ClearFreedMemoryMode clear_memory_mode) {
+  ReadOnlyRoots roots(lo_space_.heap());
+  HeapObject filler =
+      Heap::CreateFillerObjectAt(roots, addr, size, clear_memory_mode);
+  return filler;
+}
+
 }  // namespace internal
 }  // namespace v8
 
