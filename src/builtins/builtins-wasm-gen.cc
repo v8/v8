@@ -116,6 +116,37 @@ TF_BUILTIN(WasmAllocateJSArray, WasmBuiltinsAssembler) {
                                             array_size, array_size));
 }
 
+TF_BUILTIN(WasmGetOwnProperty, CodeStubAssembler) {
+  TNode<Object> object = CAST(Parameter(Descriptor::kObject));
+  TNode<Name> unique_name = CAST(Parameter(Descriptor::kUniqueName));
+  TNode<Context> context = CAST(Parameter(Descriptor::kContext));
+  TVariable<Object> var_value(this);
+
+  Label if_found(this), if_not_found(this), if_bailout(this);
+
+  GotoIf(TaggedIsSmi(object), &if_not_found);
+
+  GotoIf(IsUndefined(object), &if_not_found);
+
+  TNode<Map> map = LoadMap(CAST(object));
+  TNode<Uint16T> instance_type = LoadMapInstanceType(map);
+
+  GotoIfNot(IsJSReceiverInstanceType(instance_type), &if_not_found);
+
+  TryGetOwnProperty(context, CAST(object), CAST(object), map, instance_type,
+                    unique_name, &if_found, &var_value, &if_not_found,
+                    &if_bailout);
+
+  BIND(&if_found);
+  Return(var_value.value());
+
+  BIND(&if_not_found);
+  Return(UndefinedConstant());
+
+  BIND(&if_bailout);  // This shouldn't happen when called from wasm compiler
+  Unreachable();
+}
+
 TF_BUILTIN(WasmAtomicNotify, WasmBuiltinsAssembler) {
   TNode<Uint32T> address =
       UncheckedCast<Uint32T>(Parameter(Descriptor::kAddress));

@@ -170,42 +170,6 @@ RUNTIME_FUNCTION(Runtime_WasmThrowCreate) {
   return *exception;
 }
 
-RUNTIME_FUNCTION(Runtime_WasmExceptionGetTag) {
-  ClearThreadInWasmScope clear_wasm_flag;
-  // TODO(kschimpf): Can this be replaced with equivalent TurboFan code/calls.
-  HandleScope scope(isolate);
-  DCHECK_EQ(1, args.length());
-  DCHECK(isolate->context().is_null());
-  isolate->set_context(GetNativeContextFromWasmInstanceOnStackTop(isolate));
-  CONVERT_ARG_CHECKED(Object, except_obj_raw, 0);
-  // TODO(wasm): Manually box because parameters are not visited yet.
-  Handle<Object> except_obj(except_obj_raw, isolate);
-  if (!except_obj->IsWasmExceptionPackage(isolate)) {
-    return ReadOnlyRoots(isolate).undefined_value();
-  }
-  Handle<WasmExceptionPackage> exception =
-      Handle<WasmExceptionPackage>::cast(except_obj);
-  return *WasmExceptionPackage::GetExceptionTag(isolate, exception);
-}
-
-RUNTIME_FUNCTION(Runtime_WasmExceptionGetValues) {
-  ClearThreadInWasmScope clear_wasm_flag;
-  // TODO(kschimpf): Can this be replaced with equivalent TurboFan code/calls.
-  HandleScope scope(isolate);
-  DCHECK_EQ(1, args.length());
-  DCHECK(isolate->context().is_null());
-  isolate->set_context(GetNativeContextFromWasmInstanceOnStackTop(isolate));
-  CONVERT_ARG_CHECKED(Object, except_obj_raw, 0);
-  // TODO(wasm): Manually box because parameters are not visited yet.
-  Handle<Object> except_obj(except_obj_raw, isolate);
-  if (!except_obj->IsWasmExceptionPackage(isolate)) {
-    return ReadOnlyRoots(isolate).undefined_value();
-  }
-  Handle<WasmExceptionPackage> exception =
-      Handle<WasmExceptionPackage>::cast(except_obj);
-  return *WasmExceptionPackage::GetExceptionValues(isolate, exception);
-}
-
 RUNTIME_FUNCTION(Runtime_WasmRunInterpreter) {
   ClearThreadInWasmScope wasm_flag;
   HandleScope scope(isolate);
