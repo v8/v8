@@ -73,8 +73,12 @@ class WasmStreaming::WasmStreamingImpl {
 
   void SetClient(std::shared_ptr<Client> client) {
     streaming_decoder_->SetModuleCompiledCallback(
-        [client](const std::shared_ptr<i::wasm::NativeModule>& native_module) {
-          client->OnModuleCompiled(Utils::Convert(native_module));
+        [client, streaming_decoder = streaming_decoder_](
+            const std::shared_ptr<i::wasm::NativeModule>& native_module) {
+          i::Vector<const char> url = streaming_decoder->url();
+          auto compiled_wasm_module =
+              CompiledWasmModule(native_module, url.begin(), url.size());
+          client->OnModuleCompiled(compiled_wasm_module);
         });
   }
 

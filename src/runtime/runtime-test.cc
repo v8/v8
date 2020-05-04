@@ -1273,7 +1273,7 @@ RUNTIME_FUNCTION(Runtime_CloneWasmModule) {
 
   Handle<WasmModuleObject> new_module_object =
       isolate->wasm_engine()->ImportNativeModule(
-          isolate, module_object->shared_native_module());
+          isolate, module_object->shared_native_module(), {});
 
   return *new_module_object;
 }

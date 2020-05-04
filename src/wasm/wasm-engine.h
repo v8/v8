@@ -206,7 +206,8 @@ class V8_EXPORT_PRIVATE WasmEngine {
   // Imports the shared part of a module from a different Context/Isolate using
   // the the same engine, recreating a full module object in the given Isolate.
   Handle<WasmModuleObject> ImportNativeModule(
-      Isolate* isolate, std::shared_ptr<NativeModule> shared_module);
+      Isolate* isolate, std::shared_ptr<NativeModule> shared_module,
+      Vector<const char> source_url);
 
   WasmCodeManager* code_manager() { return &code_manager_; }
 

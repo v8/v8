@@ -732,10 +732,12 @@ Handle<Script> CreateWasmScript(Isolate* isolate,
 }  // namespace
 
 Handle<WasmModuleObject> WasmEngine::ImportNativeModule(
-    Isolate* isolate, std::shared_ptr<NativeModule> shared_native_module) {
+    Isolate* isolate, std::shared_ptr<NativeModule> shared_native_module,
+    Vector<const char> source_url) {
   NativeModule* native_module = shared_native_module.get();
   ModuleWireBytes wire_bytes(native_module->wire_bytes());
-  Handle<Script> script = GetOrCreateScript(isolate, shared_native_module);
+  Handle<Script> script =
+      GetOrCreateScript(isolate, shared_native_module, source_url);
   Handle<FixedArray> export_wrappers;
   CompileJsToWasmWrappers(isolate, native_module->module(), &export_wrappers);
   Handle<WasmModuleObject> module_object = WasmModuleObject::New(

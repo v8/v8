@@ -4762,11 +4762,17 @@ class V8_EXPORT CompiledWasmModule {
    */
   MemorySpan<const uint8_t> GetWireBytesRef();
 
+  const std::string& source_url() const { return source_url_; }
+
  private:
-  explicit CompiledWasmModule(std::shared_ptr<internal::wasm::NativeModule>);
-  friend class Utils;
+  friend class WasmModuleObject;
+  friend class WasmStreaming;
+
+  explicit CompiledWasmModule(std::shared_ptr<internal::wasm::NativeModule>,
+                              const char* source_url, size_t url_length);
 
   const std::shared_ptr<internal::wasm::NativeModule> native_module_;
+  const std::string source_url_;
 };
 
 // An instance of WebAssembly.Module.

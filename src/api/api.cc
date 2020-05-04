@@ -7226,8 +7226,10 @@ MaybeLocal<Proxy> Proxy::New(Local<Context> context, Local<Object> local_target,
 }
 
 CompiledWasmModule::CompiledWasmModule(
-    std::shared_ptr<internal::wasm::NativeModule> native_module)
-    : native_module_(std::move(native_module)) {
+    std::shared_ptr<internal::wasm::NativeModule> native_module,
+    const char* source_url, size_t url_length)
+    : native_module_(std::move(native_module)),
+      source_url_(source_url, url_length) {
   CHECK_NOT_NULL(native_module_);
 }
 
@@ -7248,7 +7250,13 @@ MemorySpan<const uint8_t> CompiledWasmModule::GetWireBytesRef() {
 CompiledWasmModule WasmModuleObject::GetCompiledModule() {
   i::Handle<i::WasmModuleObject> obj =
       i::Handle<i::WasmModuleObject>::cast(Utils::OpenHandle(this));
-  return Utils::Convert(obj->shared_native_module());
+  auto source_url = i::String::cast(obj->script().source_url());
+  int length;
+  std::unique_ptr<char[]> cstring = source_url.ToCString(
+      i::DISALLOW_NULLS, i::FAST_STRING_TRAVERSAL, &length);
+  i::Handle<i::String> url(source_url, obj->GetIsolate());
+  return CompiledWasmModule(std::move(obj->shared_native_module()),
+                            cstring.get(), length);
 }
 
 MaybeLocal<WasmModuleObject> WasmModuleObject::FromCompiledModule(
@@ -7256,7 +7264,8 @@ MaybeLocal<WasmModuleObject> WasmModuleObject::FromCompiledModule(
   i::Isolate* i_isolate = reinterpret_cast<i::Isolate*>(isolate);
   i::Handle<i::WasmModuleObject> module_object =
       i_isolate->wasm_engine()->ImportNativeModule(
-          i_isolate, Utils::Open(compiled_module));
+          i_isolate, compiled_module.native_module_,
+          i::VectorOf(compiled_module.source_url()));
   return Local<WasmModuleObject>::Cast(
       Utils::ToLocal(i::Handle<i::JSObject>::cast(module_object)));
 }
