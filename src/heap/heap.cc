@@ -6200,6 +6200,10 @@ void Heap::SetBuiltinsConstantsTable(FixedArray cache) {
   set_builtins_constants_table(cache);
 }
 
+void Heap::SetDetachedContexts(WeakArrayList detached_contexts) {
+  set_detached_contexts(detached_contexts);
+}
+
 void Heap::SetInterpreterEntryTrampolineForProfiling(Code code) {
   DCHECK_EQ(Builtins::kInterpreterEntryTrampoline, code.builtin_index());
   set_interpreter_entry_trampoline_for_profiling(code);

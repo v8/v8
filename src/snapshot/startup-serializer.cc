@@ -19,6 +19,49 @@
 namespace v8 {
 namespace internal {
 
+namespace {
+
+// The isolate roots may not point at context-specific objects during
+// serialization.
+class SanitizeIsolateScope final {
+ public:
+  SanitizeIsolateScope(Isolate* isolate, bool allow_active_isolate_for_testing,
+                       const DisallowHeapAllocation& no_gc)
+      : isolate_(isolate),
+        feedback_vectors_for_profiling_tools_(
+            isolate->heap()->feedback_vectors_for_profiling_tools()),
+        detached_contexts_(isolate->heap()->detached_contexts()) {
+#ifdef DEBUG
+    if (!allow_active_isolate_for_testing) {
+      // These should already be empty when creating a real snapshot.
+      DCHECK_EQ(feedback_vectors_for_profiling_tools_,
+                ReadOnlyRoots(isolate).undefined_value());
+      DCHECK_EQ(detached_contexts_,
+                ReadOnlyRoots(isolate).empty_weak_array_list());
+    }
+#endif
+
+    isolate->SetFeedbackVectorsForProfilingTools(
+        ReadOnlyRoots(isolate).undefined_value());
+    isolate->heap()->SetDetachedContexts(
+        ReadOnlyRoots(isolate).empty_weak_array_list());
+  }
+
+  ~SanitizeIsolateScope() {
+    // Restore saved fields.
+    isolate_->SetFeedbackVectorsForProfilingTools(
+        feedback_vectors_for_profiling_tools_);
+    isolate_->heap()->SetDetachedContexts(detached_contexts_);
+  }
+
+ private:
+  Isolate* isolate_;
+  const Object feedback_vectors_for_profiling_tools_;
+  const WeakArrayList detached_contexts_;
+};
+
+}  // namespace
+
 StartupSerializer::StartupSerializer(Isolate* isolate,
                                      Snapshot::SerializerFlags flags,
                                      ReadOnlySerializer* read_only_serializer)
@@ -141,13 +184,17 @@ void StartupSerializer::SerializeWeakReferencesAndDeferred() {
   Pad();
 }
 
-void StartupSerializer::SerializeStrongReferences() {
+void StartupSerializer::SerializeStrongReferences(
+    const DisallowHeapAllocation& no_gc) {
   Isolate* isolate = this->isolate();
   // No active threads.
   CHECK_NULL(isolate->thread_manager()->FirstThreadStateInUse());
   // No active or weak handles.
   CHECK_IMPLIES(!allow_active_isolate_for_testing(),
                 isolate->handle_scope_implementer()->blocks()->empty());
+
+  SanitizeIsolateScope sanitize_isolate(
+      isolate, allow_active_isolate_for_testing(), no_gc);
 
   // Visit smi roots and immortal immovables first to make sure they end up in
   // the first page.

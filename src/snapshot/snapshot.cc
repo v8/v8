@@ -217,6 +217,8 @@ void Snapshot::SerializeDeserializeAndVerifyForTesting(
     new_isolate->enable_serializer();
     new_isolate->Enter();
     new_isolate->set_snapshot_blob(&serialized_data);
+    new_isolate->set_array_buffer_allocator(
+        v8::ArrayBuffer::Allocator::NewDefaultAllocator());
     CHECK(Snapshot::Initialize(new_isolate));
 
     HandleScope scope(new_isolate);
@@ -272,7 +274,7 @@ v8::StartupData Snapshot::Create(
   read_only_serializer.SerializeReadOnlyRoots();
 
   StartupSerializer startup_serializer(isolate, flags, &read_only_serializer);
-  startup_serializer.SerializeStrongReferences();
+  startup_serializer.SerializeStrongReferences(no_gc);
 
   // Serialize each context with a new serializer.
   const int num_contexts = static_cast<int>(contexts->size());

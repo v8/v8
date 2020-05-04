@@ -813,6 +813,7 @@ class Heap {
   void UnregisterStrongRoots(FullObjectSlot start);
 
   void SetBuiltinsConstantsTable(FixedArray cache);
+  void SetDetachedContexts(WeakArrayList detached_contexts);
 
   // A full copy of the interpreter entry trampoline, used as a template to
   // create copies of the builtin at runtime. The copies are used to create

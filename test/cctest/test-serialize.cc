@@ -171,13 +171,14 @@ static StartupBlobs Serialize(v8::Isolate* isolate) {
   internal_isolate->heap()->CollectAllAvailableGarbage(
       i::GarbageCollectionReason::kTesting);
 
+  DisallowHeapAllocation no_gc;
   ReadOnlySerializer read_only_serializer(internal_isolate,
                                           Snapshot::kDefaultSerializerFlags);
   read_only_serializer.SerializeReadOnlyRoots();
 
   StartupSerializer ser(internal_isolate, Snapshot::kDefaultSerializerFlags,
                         &read_only_serializer);
-  ser.SerializeStrongReferences();
+  ser.SerializeStrongReferences(no_gc);
 
   ser.SerializeWeakReferencesAndDeferred();
   read_only_serializer.FinalizeSerialization();
@@ -390,7 +391,7 @@ static void SerializeContext(Vector<const byte>* startup_blob_out,
     SnapshotByteSink startup_sink;
     StartupSerializer startup_serializer(
         isolate, Snapshot::kDefaultSerializerFlags, &read_only_serializer);
-    startup_serializer.SerializeStrongReferences();
+    startup_serializer.SerializeStrongReferences(no_gc);
 
     SnapshotByteSink context_sink;
     ContextSerializer context_serializer(
@@ -540,7 +541,7 @@ static void SerializeCustomContext(Vector<const byte>* startup_blob_out,
     SnapshotByteSink startup_sink;
     StartupSerializer startup_serializer(
         isolate, Snapshot::kDefaultSerializerFlags, &read_only_serializer);
-    startup_serializer.SerializeStrongReferences();
+    startup_serializer.SerializeStrongReferences(no_gc);
 
     SnapshotByteSink context_sink;
     ContextSerializer context_serializer(

@@ -120,6 +120,15 @@ void ContextSerializer::Serialize(Context* o,
 void ContextSerializer::SerializeObject(HeapObject obj) {
   DCHECK(!ObjectIsBytecodeHandler(obj));  // Only referenced in dispatch table.
 
+  if (!allow_active_isolate_for_testing()) {
+    // When serializing a snapshot intended for real use, we should not end up
+    // at another native context.
+    // But in test scenarios there is no way to avoid this. Since we only
+    // serialize a single context in these cases, and this context does not
+    // have to be executable, we can simply ignore this.
+    DCHECK_IMPLIES(obj.IsNativeContext(), obj == context_);
+  }
+
   if (SerializeHotObject(obj)) return;
 
   if (SerializeRoot(obj)) return;
@@ -144,8 +153,6 @@ void ContextSerializer::SerializeObject(HeapObject obj) {
   DCHECK(!obj.IsInternalizedString());
   // Function and object templates are not context specific.
   DCHECK(!obj.IsTemplateInfo());
-  // We should not end up at another native context.
-  DCHECK_IMPLIES(obj != context_, !obj.IsNativeContext());
 
   // Clear literal boilerplates and feedback.
   if (obj.IsFeedbackVector()) FeedbackVector::cast(obj).ClearSlots(isolate());
