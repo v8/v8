@@ -74,7 +74,7 @@ class Snapshot : public AllStatic {
   // current isolate and context into a snapshot, deserializes the snapshot into
   // a new isolate and context, and finally runs VerifyHeap on the fresh
   // isolate.
-  static void SerializeDeserializeAndVerifyForTesting(
+  V8_EXPORT_PRIVATE static void SerializeDeserializeAndVerifyForTesting(
       Isolate* isolate, Handle<Context> default_context);
 
   // ---------------- Helper methods ------------------------------------------

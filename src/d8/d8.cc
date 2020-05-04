@@ -49,6 +49,7 @@
 #include "src/parsing/scanner-character-streams.h"
 #include "src/profiler/profile-generator.h"
 #include "src/sanitizer/msan.h"
+#include "src/snapshot/snapshot.h"
 #include "src/trap-handler/trap-handler.h"
 #include "src/utils/ostreams.h"
 #include "src/utils/utils.h"
@@ -2846,6 +2847,13 @@ bool Shell::SetOptions(int argc, char* argv[]) {
                strcmp(argv[i], "--no-stress-opt") == 0) {
       options.stress_opt = false;
       argv[i] = nullptr;
+    } else if (strcmp(argv[i], "--stress-snapshot") == 0) {
+      options.stress_snapshot = true;
+      argv[i] = nullptr;
+    } else if (strcmp(argv[i], "--nostress-snapshot") == 0 ||
+               strcmp(argv[i], "--no-stress-snapshot") == 0) {
+      options.stress_snapshot = false;
+      argv[i] = nullptr;
     } else if (strcmp(argv[i], "--noalways-opt") == 0 ||
                strcmp(argv[i], "--no-always-opt") == 0) {
       // No support for stressing if we can't use --always-opt.
@@ -3038,6 +3046,12 @@ int Shell::RunMain(Isolate* isolate, bool last_run) {
       DisposeModuleEmbedderData(context);
     }
     WriteLcovData(isolate, options.lcov_file);
+    if (options.stress_snapshot) {
+      i::Isolate* i_isolate = reinterpret_cast<i::Isolate*>(isolate);
+      i::Handle<i::Context> i_context = Utils::OpenHandle(*context);
+      i::Snapshot::SerializeDeserializeAndVerifyForTesting(i_isolate,
+                                                           i_context);
+    }
   }
   CollectGarbage(isolate);
   for (int i = 1; i < options.num_isolates; ++i) {
