@@ -1191,4 +1191,78 @@
   'compiler/number-toboolean': [SKIP],
 }],  # variant == assert_types
 
+##############################################################################
+['variant == stress_snapshot', {
+  # TODO(jgruber): Remove this wildcard line ASAP.
+  '*': [SKIP],
+
+  # Crashes the serializer due to recursion.
+  'deep-recursion': [SKIP],
+  # Check failed: !field_type.NowStable() || field_type.NowContains(value).
+  'eval': [SKIP],
+  'regress/regress-737588': [SKIP],
+  'regress/regress-crbug-716520': [SKIP],
+  # Debug check failed:
+  # map == GetReadOnlyRoots(isolate).fixed_array_map() || map == GetReadOnlyRoots(isolate).fixed_cow_array_map().
+  # This means a mismatch of elements kinds / elements on the global object.
+  'es6/block-sloppy-function': [SKIP],
+  'es6/reflect-get-own-property-descriptor': [SKIP],
+  'es6/reflect': [SKIP],
+  'get-own-property-descriptor': [SKIP],
+  'global-properties': [SKIP],
+  'indexed-accessors': [SKIP],
+  'object-freeze-global': [SKIP],
+  'object-seal-global': [SKIP],
+  'regress/regress-1103': [SKIP],
+  'regress/regress-1112': [SKIP],
+  'regress/regress-1120': [SKIP],
+  'regress/regress-2346': [SKIP],
+  'regress/regress-489151': [SKIP],
+  'regress/regress-crbug-1002628': [SKIP],
+  'regress/regress-crbug-454091': [SKIP],
+  'regress/regress-crbug-663750': [SKIP],
+  'regress/regress-freeze-setter': [SKIP],
+  # TODO(v8:10495): Serialization now clears feedback vectors of the host
+  # isolate, but then execution cannot continue.
+  'compiler/regress-1028208': [SKIP],
+  'compiler/regress-1037771': [SKIP],
+  'es6/promises': [SKIP],
+  'serialize-deserialize-now': [SKIP],
+  'string-case': [SKIP],
+  # TODO(v8:10494): asm Code objects can't be flushed and end up in the isolate
+  # serializer.
+  'asm/*': [SKIP],
+  'compiler/regress-439743': [SKIP],
+  'regress/regress-441099': [SKIP],
+  'regress/regress-617526': [SKIP],
+  'regress/regress-6196': [SKIP],
+  'regress/regress-677685': [SKIP],
+  'regress/regress-7893': [SKIP],
+  'regress/regress-799690': [SKIP],
+  'regress/regress-8377': [SKIP],
+  'regress/regress-crbug-898974': [SKIP],
+  'regress/regress-crbug-935800': [SKIP],
+  'regress/regress-crbug-976934': [SKIP],
+  'regress/wasm/*': [SKIP],
+  'wasm/*': [SKIP],
+  # Investigate (IsScript).
+  'harmony/import-from-compilation-errored': [SKIP],
+  'harmony/private-fields-special-object': [SKIP],
+  # Investigate (JSFunction in startup serializer).
+  'regress/regress-1034394': [SKIP],
+  'regress/regress-863810': [SKIP],
+  'regress/regress-crbug-772056': [SKIP],
+  # Investigate (Check failed: buffer.byte_length() <= Smi::kMaxValue)
+  'regress/regress-319722-ArrayBuffer': [SKIP],
+  'regress/regress-599717': [SKIP],
+  'regress/regress-667603': [SKIP],
+  # Investigate (IsFixedArrayBase).
+  'regress/regress-786784': [SKIP],
+  'regress/regress-v8-9656': [SKIP],
+  # Investigate (startup_serializer_->ReferenceMapContains(obj)).
+  'regress/regress-813440': [SKIP],
+  # Investigate (segfault).
+  'regress/regress-crbug-397662': [SKIP],
+}],  # variant == stress_snapshot
+
 ]
