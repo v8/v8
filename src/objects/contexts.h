@@ -692,7 +692,8 @@ class NativeContext : public Context {
   // TODO(neis): Move some stuff from Context here.
 
   // [microtask_queue]: pointer to the MicrotaskQueue object.
-  DECL_PRIMITIVE_ACCESSORS(microtask_queue, MicrotaskQueue*)
+  DECL_GETTER(microtask_queue, MicrotaskQueue*)
+  inline void set_microtask_queue(Isolate* isolate, MicrotaskQueue* queue);
 
   // Dispatched behavior.
   DECL_PRINTER(NativeContext)

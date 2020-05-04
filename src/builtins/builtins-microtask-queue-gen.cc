@@ -53,8 +53,8 @@ class MicrotaskQueueBuiltinsAssembler : public CodeStubAssembler {
 TNode<RawPtrT> MicrotaskQueueBuiltinsAssembler::GetMicrotaskQueue(
     TNode<Context> native_context) {
   CSA_ASSERT(this, IsNativeContext(native_context));
-  return LoadObjectField<RawPtrT>(native_context,
-                                  NativeContext::kMicrotaskQueueOffset);
+  return DecodeExternalPointer(LoadObjectField<ExternalPointerT>(
+      native_context, NativeContext::kMicrotaskQueueOffset));
 }
 
 TNode<RawPtrT> MicrotaskQueueBuiltinsAssembler::GetMicrotaskRingBuffer(

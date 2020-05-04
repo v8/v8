@@ -25,7 +25,8 @@ class SanitizeNativeContextScope final {
   SanitizeNativeContextScope(Isolate* isolate, NativeContext native_context,
                              bool allow_active_isolate_for_testing,
                              const DisallowHeapAllocation& no_gc)
-      : native_context_(native_context),
+      : isolate_(isolate),
+        native_context_(native_context),
         microtask_queue_(native_context.microtask_queue()),
         optimized_code_list_(native_context.OptimizedCodeListHead()),
         deoptimized_code_list_(native_context.DeoptimizedCodeListHead()) {
@@ -42,7 +43,7 @@ class SanitizeNativeContextScope final {
     }
 #endif
     Object undefined = ReadOnlyRoots(isolate).undefined_value();
-    native_context.set_microtask_queue(nullptr);
+    native_context.set_microtask_queue(isolate, nullptr);
     native_context.SetOptimizedCodeListHead(undefined);
     native_context.SetDeoptimizedCodeListHead(undefined);
   }
@@ -51,10 +52,11 @@ class SanitizeNativeContextScope final {
     // Restore saved fields.
     native_context_.SetDeoptimizedCodeListHead(optimized_code_list_);
     native_context_.SetOptimizedCodeListHead(deoptimized_code_list_);
-    native_context_.set_microtask_queue(microtask_queue_);
+    native_context_.set_microtask_queue(isolate_, microtask_queue_);
   }
 
  private:
+  Isolate* isolate_;
   NativeContext native_context_;
   MicrotaskQueue* const microtask_queue_;
   const Object optimized_code_list_;
