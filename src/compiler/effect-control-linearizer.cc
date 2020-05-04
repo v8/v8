@@ -564,6 +564,12 @@ void EffectControlLinearizer::Run() {
   // TODO(rmcilroy) We should not depend on having rpo_order on schedule, and
   // instead just do our own RPO walk here.
   for (BasicBlock* block : *(schedule()->rpo_order())) {
+    if (block != schedule()->start() && block->PredecessorCount() == 0) {
+      // Block has been removed from the schedule by a preceeding unreachable
+      // node, just skip it.
+      continue;
+    }
+
     gasm()->Reset(block);
 
     BasicBlock::iterator instr = block->begin();

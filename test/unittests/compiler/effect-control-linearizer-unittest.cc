@@ -469,6 +469,64 @@ TEST_F(EffectControlLinearizerTest, UnreachableThenLoop) {
   ASSERT_THAT(schedule.end()->PredecessorAt(0), start);
 }
 
+TEST_F(EffectControlLinearizerTest, UnreachableInChangedBlockThenBranch) {
+  Schedule schedule(zone());
+
+  // Create the graph.
+  Node* truncate = graph()->NewNode(simplified()->TruncateTaggedToWord32(),
+                                    NumberConstant(1.1));
+  Node* unreachable = graph()->NewNode(common()->Unreachable(),
+                                       graph()->start(), graph()->start());
+  Node* branch =
+      graph()->NewNode(common()->Branch(), Int32Constant(0), graph()->start());
+
+  Node* if_true = graph()->NewNode(common()->IfTrue(), branch);
+  Node* true_throw = graph()->NewNode(common()->Throw(), unreachable, if_true);
+
+  Node* if_false = graph()->NewNode(common()->IfFalse(), branch);
+  Node* false_throw =
+      graph()->NewNode(common()->Throw(), unreachable, if_false);
+
+  graph()->SetEnd(graph()->NewNode(common()->End(0)));
+
+  // Build the basic block structure.
+  BasicBlock* start = schedule.start();
+  schedule.rpo_order()->push_back(start);
+  start->set_rpo_number(0);
+
+  BasicBlock* tblock = AddBlockToSchedule(&schedule);
+  BasicBlock* fblock = AddBlockToSchedule(&schedule);
+
+  // Populate the basic blocks with nodes.
+  schedule.AddNode(start, graph()->start());
+  schedule.AddNode(start, truncate);
+  schedule.AddNode(start, unreachable);
+  schedule.AddBranch(start, branch, tblock, fblock);
+
+  schedule.AddNode(tblock, if_true);
+  schedule.AddThrow(tblock, true_throw);
+  NodeProperties::MergeControlToEnd(graph(), common(), true_throw);
+
+  schedule.AddNode(fblock, if_false);
+  schedule.AddThrow(fblock, false_throw);
+  NodeProperties::MergeControlToEnd(graph(), common(), false_throw);
+
+  ASSERT_THAT(end(), IsEnd(IsThrow(), IsThrow()));
+  ASSERT_THAT(end()->op()->ControlInputCount(), 2);
+
+  // Run the state effect linearizer, maintaining the schedule.
+  LinearizeEffectControl(
+      jsgraph(), &schedule, zone(), source_positions(), node_origins(),
+      MaskArrayIndexEnable::kDoNotMaskArrayIndex, MaintainSchedule::kMaintain);
+
+  // Start block now branches due to the lowering of TruncateTaggedToWord32, but
+  // then re-merges and the unreachable should be connected directly to end
+  // without any of the subsiquent blocks.
+  ASSERT_THAT(end(), IsEnd(IsThrow()));
+  ASSERT_THAT(end()->op()->ControlInputCount(), 1);
+  ASSERT_THAT(schedule.end()->PredecessorCount(), 1);
+}
+
 }  // namespace compiler
 }  // namespace internal
 }  // namespace v8

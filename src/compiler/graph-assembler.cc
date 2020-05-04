@@ -274,13 +274,14 @@ void GraphAssembler::BasicBlockUpdater::RemoveSuccessorsFromSchedule() {
 
   for (SuccessorInfo succ : saved_successors_) {
     BasicBlock* block = succ.block;
+    block->predecessors().erase(block->predecessors().begin() + succ.index);
     blocks.insert(block);
     worklist.push(block);
   }
+  saved_successors_.clear();
 
   // Walk through blocks until we get to the end node, then remove the path from
-  // end. Don't update successors / predecessors for intermediate nodes to keep
-  // them self-consistent, even though they are no longer part of the scheudule.
+  // end, clearing their successors / predecessors.
   // This works because the unreachable paths form self-contained control flow
   // that doesn't re-merge with reachable control flow (checked below) and
   // DeadCodeElimination::ReduceEffectPhi preventing Unreachable from going into
@@ -291,37 +292,34 @@ void GraphAssembler::BasicBlockUpdater::RemoveSuccessorsFromSchedule() {
     worklist.pop();
 
     for (BasicBlock* successor : current->successors()) {
+      // Remove the block from sucessors predecessors.
+      ZoneVector<BasicBlock*>& predecessors = successor->predecessors();
+      auto it = std::find(predecessors.begin(), predecessors.end(), current);
+      DCHECK_EQ(*it, current);
+      predecessors.erase(it);
+
       if (successor == schedule_->end()) {
-        // Remove the block from end node's predecessors.
-        ZoneVector<BasicBlock*>& predecessors = successor->predecessors();
-        auto it = std::find(predecessors.begin(), predecessors.end(), current);
-        CHECK_EQ(*it, current);
-        predecessors.erase(it);
-
+        // If we have reached the end block, remove this block's control input
+        // from the end node's control inputs.
         DCHECK_EQ(current->SuccessorCount(), 1);
-        current->ClearSuccessors();
-
-        // Remove this block's control input from the end node's control inputs.
         NodeProperties::RemoveControlFromEnd(graph_, common_,
                                              current->control_input());
       } else {
-        // Add successor to worklist if it's not already been seen.
+        // Otherwise, add successor to worklist if it's not already been seen.
         if (blocks.insert(successor).second) {
           worklist.push(successor);
         }
       }
     }
+    current->ClearSuccessors();
   }
 
 #ifdef DEBUG
   // Ensure that the set of blocks being removed from the schedule are self
-  // contained.
+  // contained, i.e., all predecessors have been removed from these blocks.
   for (BasicBlock* block : blocks) {
-    for (BasicBlock* predecessor : block->predecessors()) {
-      if (blocks.count(predecessor) == 0) {
-        CHECK_EQ(predecessor, current_block_);
-      }
-    }
+    CHECK_EQ(block->PredecessorCount(), 0);
+    CHECK_EQ(block->SuccessorCount(), 0);
   }
 #endif
 }
@@ -348,8 +346,8 @@ void GraphAssembler::BasicBlockUpdater::AddThrow(Node* node) {
     // Remove all successor blocks from the schedule.
     RemoveSuccessorsFromSchedule();
 
-    // Clear saved successors and replace with end.
-    saved_successors_.clear();
+    // Update current block's successor withend.
+    DCHECK(saved_successors_.empty());
     size_t index = schedule_->end()->predecessors().size();
     schedule_->end()->AddPredecessor(current_block_);
     saved_successors_.push_back({schedule_->end(), index});
