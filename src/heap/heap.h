@@ -1731,6 +1731,9 @@ class Heap {
   void FinalizeIncrementalMarkingIncrementally(
       GarbageCollectionReason gc_reason);
 
+  void InvokeIncrementalMarkingPrologueCallbacks();
+  void InvokeIncrementalMarkingEpilogueCallbacks();
+
   // Returns the timer used for a given GC type.
   // - GCScavenger: young generation GC
   // - GCCompactor: full GC

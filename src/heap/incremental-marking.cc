@@ -322,6 +322,9 @@ void IncrementalMarking::StartMarking() {
     heap()->isolate()->PrintWithTimestamp(
         "[IncrementalMarking] Start marking\n");
   }
+
+  heap_->InvokeIncrementalMarkingPrologueCallbacks();
+
   is_compacting_ = !FLAG_never_compact && collector_->StartCompaction();
   collector_->StartMarking();
 
@@ -352,6 +355,8 @@ void IncrementalMarking::StartMarking() {
     heap_->local_embedder_heap_tracer()->TracePrologue(
         heap_->flags_for_embedder_tracer());
   }
+
+  heap_->InvokeIncrementalMarkingEpilogueCallbacks();
 }
 
 void IncrementalMarking::StartBlackAllocation() {

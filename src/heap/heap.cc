@@ -3510,6 +3510,28 @@ void Heap::FinalizeIncrementalMarkingAtomically(
   CollectAllGarbage(current_gc_flags_, gc_reason, current_gc_callback_flags_);
 }
 
+void Heap::InvokeIncrementalMarkingPrologueCallbacks() {
+  GCCallbacksScope scope(this);
+  if (scope.CheckReenter()) {
+    AllowHeapAllocation allow_allocation;
+    TRACE_GC(tracer(), GCTracer::Scope::MC_INCREMENTAL_EXTERNAL_PROLOGUE);
+    VMState<EXTERNAL> state(isolate_);
+    HandleScope handle_scope(isolate_);
+    CallGCPrologueCallbacks(kGCTypeIncrementalMarking, kNoGCCallbackFlags);
+  }
+}
+
+void Heap::InvokeIncrementalMarkingEpilogueCallbacks() {
+  GCCallbacksScope scope(this);
+  if (scope.CheckReenter()) {
+    AllowHeapAllocation allow_allocation;
+    TRACE_GC(tracer(), GCTracer::Scope::MC_INCREMENTAL_EXTERNAL_EPILOGUE);
+    VMState<EXTERNAL> state(isolate_);
+    HandleScope handle_scope(isolate_);
+    CallGCEpilogueCallbacks(kGCTypeIncrementalMarking, kNoGCCallbackFlags);
+  }
+}
+
 void Heap::FinalizeIncrementalMarkingIncrementally(
     GarbageCollectionReason gc_reason) {
   if (FLAG_trace_incremental_marking) {
@@ -3526,27 +3548,9 @@ void Heap::FinalizeIncrementalMarkingIncrementally(
   TRACE_EVENT0("v8", "V8.GCIncrementalMarkingFinalize");
   TRACE_GC(tracer(), GCTracer::Scope::MC_INCREMENTAL_FINALIZE);
 
-  {
-    GCCallbacksScope scope(this);
-    if (scope.CheckReenter()) {
-      AllowHeapAllocation allow_allocation;
-      TRACE_GC(tracer(), GCTracer::Scope::MC_INCREMENTAL_EXTERNAL_PROLOGUE);
-      VMState<EXTERNAL> state(isolate_);
-      HandleScope handle_scope(isolate_);
-      CallGCPrologueCallbacks(kGCTypeIncrementalMarking, kNoGCCallbackFlags);
-    }
-  }
+  InvokeIncrementalMarkingPrologueCallbacks();
   incremental_marking()->FinalizeIncrementally();
-  {
-    GCCallbacksScope scope(this);
-    if (scope.CheckReenter()) {
-      AllowHeapAllocation allow_allocation;
-      TRACE_GC(tracer(), GCTracer::Scope::MC_INCREMENTAL_EXTERNAL_EPILOGUE);
-      VMState<EXTERNAL> state(isolate_);
-      HandleScope handle_scope(isolate_);
-      CallGCEpilogueCallbacks(kGCTypeIncrementalMarking, kNoGCCallbackFlags);
-    }
-  }
+  InvokeIncrementalMarkingEpilogueCallbacks();
 }
 
 void Heap::RegisterDeserializedObjectsForBlackAllocation(
