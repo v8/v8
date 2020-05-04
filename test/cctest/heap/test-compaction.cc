@@ -6,6 +6,7 @@
 #include "src/heap/factory.h"
 #include "src/heap/heap-inl.h"
 #include "src/heap/mark-compact.h"
+#include "src/heap/memory-chunk.h"
 #include "src/heap/remembered-set.h"
 #include "src/objects/objects-inl.h"
 #include "test/cctest/cctest.h"

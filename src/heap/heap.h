@@ -76,6 +76,7 @@ class JSFinalizationRegistry;
 class LocalEmbedderHeapTracer;
 class LocalHeap;
 class MemoryAllocator;
+class MemoryChunk;
 class MemoryMeasurement;
 class MemoryReducer;
 class MinorMarkCompactCollector;

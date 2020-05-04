@@ -20,6 +20,7 @@
 #include "src/heap/heap-inl.h"
 #include "src/heap/incremental-marking.h"
 #include "src/heap/mark-compact-inl.h"
+#include "src/heap/memory-chunk.h"
 #include "src/heap/read-only-heap.h"
 #include "src/ic/handler-configuration-inl.h"
 #include "src/init/bootstrapper.h"

@@ -13,6 +13,7 @@
 #include "src/base/macros.h"
 #include "src/common/globals.h"
 #include "src/heap/heap.h"
+#include "src/heap/memory-chunk.h"
 #include "src/heap/spaces.h"
 #include "src/objects/heap-object.h"
 

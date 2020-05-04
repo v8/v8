@@ -12,7 +12,8 @@
 #include "src/execution/frames-inl.h"
 #include "src/execution/frames.h"
 #include "src/execution/protectors.h"
-#include "src/heap/heap-inl.h"  // For Page/MemoryChunk. TODO(jkummerow): Drop.
+#include "src/heap/heap-inl.h"  // For MemoryChunk. TODO(jkummerow): Drop.
+#include "src/heap/memory-chunk.h"
 #include "src/logging/counters.h"
 #include "src/objects/api-callbacks.h"
 #include "src/objects/cell.h"

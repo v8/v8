@@ -6,6 +6,7 @@
 
 #include "src/codegen/assembler-inl.h"
 #include "src/heap/heap-inl.h"  // For Space::identity().
+#include "src/heap/memory-chunk-inl.h"
 #include "src/heap/read-only-heap.h"
 #include "src/interpreter/interpreter.h"
 #include "src/objects/code.h"

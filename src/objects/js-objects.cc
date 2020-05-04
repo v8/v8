@@ -14,6 +14,7 @@
 #include "src/handles/maybe-handles.h"
 #include "src/heap/factory-inl.h"
 #include "src/heap/heap-inl.h"
+#include "src/heap/memory-chunk.h"
 #include "src/ic/ic.h"
 #include "src/init/bootstrapper.h"
 #include "src/logging/counters.h"

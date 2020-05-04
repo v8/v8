@@ -10,6 +10,7 @@
 #include "src/execution/messages.h"
 #include "src/handles/maybe-handles.h"
 #include "src/heap/heap-inl.h"  // For ToBoolean. TODO(jkummerow): Drop.
+#include "src/heap/memory-chunk.h"
 #include "src/init/bootstrapper.h"
 #include "src/logging/counters.h"
 #include "src/objects/hash-table-inl.h"

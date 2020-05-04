@@ -5,6 +5,7 @@
 #include "src/snapshot/deserializer-allocator.h"
 
 #include "src/heap/heap-inl.h"  // crbug.com/v8/8499
+#include "src/heap/memory-chunk.h"
 
 namespace v8 {
 namespace internal {

@@ -2,17 +2,16 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#include "src/compiler/backend/code-generator.h"
-
 #include "src/codegen/assembler-inl.h"
 #include "src/codegen/macro-assembler.h"
 #include "src/codegen/optimized-compilation-info.h"
 #include "src/compiler/backend/code-generator-impl.h"
+#include "src/compiler/backend/code-generator.h"
 #include "src/compiler/backend/gap-resolver.h"
 #include "src/compiler/backend/instruction-codes.h"
 #include "src/compiler/node-matchers.h"
 #include "src/compiler/osr.h"
-#include "src/heap/heap-inl.h"  // crbug.com/v8/8499
+#include "src/heap/memory-chunk.h"
 #include "src/numbers/double.h"
 #include "src/utils/boxed-float.h"
 #include "src/wasm/wasm-code-manager.h"

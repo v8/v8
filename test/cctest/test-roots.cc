@@ -3,6 +3,7 @@
 // found in the LICENSE file.
 
 #include "src/heap/heap-inl.h"
+#include "src/heap/memory-chunk-inl.h"
 #include "src/objects/cell.h"
 #include "src/objects/feedback-cell.h"
 #include "src/objects/script.h"

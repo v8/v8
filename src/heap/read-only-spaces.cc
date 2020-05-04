@@ -8,6 +8,7 @@
 #include "src/execution/isolate.h"
 #include "src/heap/combined-heap.h"
 #include "src/heap/heap-inl.h"
+#include "src/heap/memory-chunk.h"
 #include "src/heap/read-only-heap.h"
 #include "src/objects/objects-inl.h"
 #include "src/objects/string.h"
@@ -73,7 +74,8 @@ void ReadOnlyPage::MakeHeaderRelocatable() {
   // Detached read-only space needs to have a valid marking bitmap and free list
   // categories. Instruct Lsan to ignore them if required.
   LSAN_IGNORE_OBJECT(categories_);
-  for (int i = kFirstCategory; i < free_list()->number_of_categories(); i++) {
+  for (int i = kFirstCategory; i < owner()->free_list()->number_of_categories();
+       i++) {
     LSAN_IGNORE_OBJECT(categories_[i]);
   }
   LSAN_IGNORE_OBJECT(marking_bitmap_);

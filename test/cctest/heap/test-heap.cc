@@ -26,6 +26,7 @@
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 #include <stdlib.h>
+
 #include <utility>
 
 #include "src/api/api-inl.h"
@@ -42,6 +43,7 @@
 #include "src/heap/heap-inl.h"
 #include "src/heap/incremental-marking.h"
 #include "src/heap/mark-compact.h"
+#include "src/heap/memory-chunk.h"
 #include "src/heap/memory-reducer.h"
 #include "src/heap/remembered-set.h"
 #include "src/ic/ic.h"

@@ -394,7 +394,7 @@ int Sweeper::RawSweep(
   if (free_list_mode == IGNORE_FREE_LIST) return 0;
 
   return static_cast<int>(
-      p->free_list()->GuaranteedAllocatable(max_freed_bytes));
+      p->owner()->free_list()->GuaranteedAllocatable(max_freed_bytes));
 }
 
 void Sweeper::SweepSpaceFromTask(AllocationSpace identity) {

@@ -3,13 +3,16 @@
 // found in the LICENSE file.
 
 #include "src/heap/spaces.h"
+
 #include <memory>
+
 #include "src/common/globals.h"
 #include "src/execution/isolate.h"
 #include "src/heap/heap-inl.h"
 #include "src/heap/heap-write-barrier-inl.h"
 #include "src/heap/heap.h"
 #include "src/heap/large-spaces.h"
+#include "src/heap/memory-chunk.h"
 #include "src/heap/spaces-inl.h"
 #include "test/unittests/test-utils.h"
 

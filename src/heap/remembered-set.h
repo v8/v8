@@ -12,6 +12,7 @@
 #include "src/codegen/reloc-info.h"
 #include "src/common/globals.h"
 #include "src/heap/heap.h"
+#include "src/heap/memory-chunk.h"
 #include "src/heap/slot-set.h"
 #include "src/heap/spaces.h"
 #include "src/heap/worklist.h"

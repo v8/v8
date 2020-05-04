@@ -5,14 +5,14 @@
 #ifndef V8_HEAP_SPACES_INL_H_
 #define V8_HEAP_SPACES_INL_H_
 
-#include "src/common/globals.h"
-#include "src/heap/spaces.h"
-
 #include "src/base/atomic-utils.h"
 #include "src/base/bounded-page-allocator.h"
 #include "src/base/v8-fallthrough.h"
+#include "src/common/globals.h"
 #include "src/heap/heap-inl.h"
 #include "src/heap/incremental-marking.h"
+#include "src/heap/memory-chunk-inl.h"
+#include "src/heap/spaces.h"
 #include "src/objects/code-inl.h"
 #include "src/sanitizer/msan.h"
 
@@ -205,39 +205,6 @@ bool PagedSpace::TryFreeLast(HeapObject object, int object_size) {
     }
   }
   return false;
-}
-
-void MemoryChunk::IncrementExternalBackingStoreBytes(
-    ExternalBackingStoreType type, size_t amount) {
-#ifndef V8_ENABLE_THIRD_PARTY_HEAP
-  base::CheckedIncrement(&external_backing_store_bytes_[type], amount);
-  owner()->IncrementExternalBackingStoreBytes(type, amount);
-#endif
-}
-
-void MemoryChunk::DecrementExternalBackingStoreBytes(
-    ExternalBackingStoreType type, size_t amount) {
-#ifndef V8_ENABLE_THIRD_PARTY_HEAP
-  base::CheckedDecrement(&external_backing_store_bytes_[type], amount);
-  owner()->DecrementExternalBackingStoreBytes(type, amount);
-#endif
-}
-
-void MemoryChunk::MoveExternalBackingStoreBytes(ExternalBackingStoreType type,
-                                                MemoryChunk* from,
-                                                MemoryChunk* to,
-                                                size_t amount) {
-  DCHECK_NOT_NULL(from->owner());
-  DCHECK_NOT_NULL(to->owner());
-  base::CheckedDecrement(&(from->external_backing_store_bytes_[type]), amount);
-  base::CheckedIncrement(&(to->external_backing_store_bytes_[type]), amount);
-  Space::MoveExternalBackingStoreBytes(type, from->owner(), to->owner(),
-                                       amount);
-}
-
-AllocationSpace MemoryChunk::owner_identity() const {
-  if (InReadOnlySpace()) return RO_SPACE;
-  return owner()->identity();
 }
 
 void Page::MarkNeverAllocateForTesting() {

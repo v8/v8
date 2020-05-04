@@ -6,7 +6,8 @@
 
 #include "src/common/globals.h"
 #include "src/handles/handles-inl.h"
-#include "src/heap/heap-inl.h"  // For LooksValid implementation.
+#include "src/heap/heap-inl.h"
+#include "src/heap/memory-chunk.h"
 #include "src/heap/read-only-heap.h"
 #include "src/numbers/conversions.h"
 #include "src/objects/map.h"

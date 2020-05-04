@@ -10,6 +10,7 @@
 #include "src/handles/handles-inl.h"
 #include "src/heap/factory.h"
 #include "src/heap/heap-inl.h"
+#include "src/heap/memory-chunk.h"
 #include "src/heap/off-thread-factory-inl.h"
 #include "src/heap/read-only-heap.h"
 #include "src/logging/log.h"
