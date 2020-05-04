@@ -2419,15 +2419,7 @@ void Genesis::InitializeGlobal(Handle<JSGlobalObject> global_object,
       native_context()->set_promise_thrower_finally_shared_fun(*info);
     }
 
-    // Force the Promise constructor to fast properties, so that we can use the
-    // fast paths for various things like
-    //
-    //   x instanceof Promise
-    //
-    // etc. We should probably come up with a more principled approach once
-    // the JavaScript builtins are gone.
-    JSObject::MigrateSlowToFast(Handle<JSObject>::cast(promise_fun), 0,
-                                "Bootstrapping");
+    DCHECK(promise_fun->HasFastProperties());
 
     Handle<Map> prototype_map(prototype->map(), isolate());
     Map::SetShouldBeFastPrototypeMap(prototype_map, true, isolate_);
@@ -2458,14 +2450,7 @@ void Genesis::InitializeGlobal(Handle<JSGlobalObject> global_object,
       native_context()->set_promise_all_resolve_element_shared_fun(*info);
     }
 
-    // Force the Promise constructor to fast properties, so that we can use the
-    // fast paths for various things like
-    //
-    //   x instanceof Promise
-    //
-    // etc. We should probably come up with a more principled approach once
-    // the JavaScript builtins are gone.
-    JSObject::MigrateSlowToFast(promise_fun, 0, "Bootstrapping");
+    DCHECK(promise_fun->HasFastProperties());
   }
 
   {  // -- R e g E x p
@@ -2659,14 +2644,7 @@ void Genesis::InitializeGlobal(Handle<JSGlobalObject> global_object,
       native_context()->set_regexp_species_protector(*cell);
     }
 
-    // Force the RegExp constructor to fast properties, so that we can use the
-    // fast paths for various things like
-    //
-    //   x instanceof RegExp
-    //
-    // etc. We should probably come up with a more principled approach once
-    // the JavaScript builtins are gone.
-    JSObject::MigrateSlowToFast(regexp_fun, 0, "Bootstrapping");
+    DCHECK(regexp_fun->HasFastProperties());
   }
 
   {  // --- R e g E x p S t r i n g  I t e r a t o r ---
@@ -3494,6 +3472,10 @@ void Genesis::InitializeGlobal(Handle<JSGlobalObject> global_object,
     native_context()->set_initial_map_prototype_map(prototype->map());
 
     InstallSpeciesGetter(isolate_, js_map_fun);
+
+    DCHECK(js_map_fun->HasFastProperties());
+
+    native_context()->set_js_map_map(js_map_fun->initial_map());
   }
 
   {  // -- B i g I n t
@@ -3586,6 +3568,10 @@ void Genesis::InitializeGlobal(Handle<JSGlobalObject> global_object,
     native_context()->set_initial_set_prototype(*prototype);
 
     InstallSpeciesGetter(isolate_, js_set_fun);
+
+    DCHECK(js_set_fun->HasFastProperties());
+
+    native_context()->set_js_set_map(js_set_fun->initial_map());
   }
 
   {  // -- J S M o d u l e N a m e s p a c e
@@ -5136,22 +5122,6 @@ bool Genesis::ConfigureGlobalObjects(
 
   native_context()->set_array_buffer_map(
       native_context()->array_buffer_fun().initial_map());
-
-  Handle<JSFunction> js_map_fun(native_context()->js_map_fun(), isolate());
-  Handle<JSFunction> js_set_fun(native_context()->js_set_fun(), isolate());
-  // Force the Map/Set constructor to fast properties, so that we can use the
-  // fast paths for various things like
-  //
-  //   x instanceof Map
-  //   x instanceof Set
-  //
-  // etc. We should probably come up with a more principled approach once
-  // the JavaScript builtins are gone.
-  JSObject::MigrateSlowToFast(js_map_fun, 0, "Bootstrapping");
-  JSObject::MigrateSlowToFast(js_set_fun, 0, "Bootstrapping");
-
-  native_context()->set_js_map_map(js_map_fun->initial_map());
-  native_context()->set_js_set_map(js_set_fun->initial_map());
 
   return true;
 }
