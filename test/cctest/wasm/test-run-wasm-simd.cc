@@ -52,6 +52,10 @@ using Int8ShiftOp = int8_t (*)(int8_t, int);
     EXPERIMENTAL_FLAG_SCOPE(simd);                                    \
     RunWasm_##name##_Impl(kNoLowerSimd, ExecutionTier::kLiftoff);     \
   }                                                                   \
+  TEST(RunWasm_##name##_interpreter) {                                \
+    EXPERIMENTAL_FLAG_SCOPE(simd);                                    \
+    RunWasm_##name##_Impl(kNoLowerSimd, ExecutionTier::kInterpreter); \
+  }                                                                   \
   TEST(RunWasm_##name##_simd_lowered) {                               \
     EXPERIMENTAL_FLAG_SCOPE(simd);                                    \
     RunWasm_##name##_Impl(kLowerSimd, ExecutionTier::kTurbofan);      \
@@ -513,6 +517,10 @@ bool ExpectFused(ExecutionTier tier) {
     if (!CpuFeatures::SupportsWasmSimd128()) return;                  \
     EXPERIMENTAL_FLAG_SCOPE(simd);                                    \
     RunWasm_##name##_Impl(kNoLowerSimd, ExecutionTier::kLiftoff);     \
+  }                                                                   \
+  TEST(RunWasm_##name##_interpreter) {                                \
+    EXPERIMENTAL_FLAG_SCOPE(simd);                                    \
+    RunWasm_##name##_Impl(kNoLowerSimd, ExecutionTier::kInterpreter); \
   }                                                                   \
   void RunWasm_##name##_Impl(LowerSimd lower_simd, ExecutionTier execution_tier)
 
