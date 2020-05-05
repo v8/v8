@@ -84,8 +84,6 @@ class OffThreadFactoryTest : public TestWithIsolateAndZone {
       Parser parser(parse_info());
       parser.InitializeEmptyScopeChain(parse_info());
       parser.ParseOnBackground(parse_info(), 0, 0, kFunctionLiteralIdTopLevel);
-
-      CHECK(DeclarationScope::Analyze(parse_info()));
     }
 
     parse_info()->ast_value_factory()->Internalize(off_thread_isolate());
@@ -310,10 +308,13 @@ TEST_F(OffThreadFactoryTest, LazyFunction) {
 
 TEST_F(OffThreadFactoryTest, EagerFunction) {
   FunctionLiteral* program = ParseProgram("(function eager() {})");
+  // Rewritten to `.result = (function eager() {}); return .result`
   FunctionLiteral* eager = program->body()
                                ->at(0)
                                ->AsExpressionStatement()
                                ->expression()
+                               ->AsAssignment()
+                               ->value()
                                ->AsFunctionLiteral();
 
   OffThreadTransferHandle<SharedFunctionInfo> shared;

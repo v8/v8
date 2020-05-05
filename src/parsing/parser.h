@@ -135,6 +135,7 @@ class V8_EXPORT_PRIVATE Parser : public NON_EXPORTED_BASE(ParserBase<Parser>) {
 
   static bool IsPreParser() { return false; }
 
+  // Sets the literal on |info| if parsing succeeded.
   void ParseOnBackground(ParseInfo* info, int start_position, int end_position,
                          int function_literal_id);
 
@@ -209,13 +210,17 @@ class V8_EXPORT_PRIVATE Parser : public NON_EXPORTED_BASE(ParserBase<Parser>) {
 
   void PrepareGeneratorVariables();
 
-  // Returns nullptr if parsing failed.
-  FunctionLiteral* ParseProgram(Isolate* isolate, Handle<Script> script,
-                                ParseInfo* info,
-                                MaybeHandle<ScopeInfo> maybe_outer_scope_info);
+  // Sets the literal on |info| if parsing succeeded.
+  void ParseProgram(Isolate* isolate, Handle<Script> script, ParseInfo* info,
+                    MaybeHandle<ScopeInfo> maybe_outer_scope_info);
 
-  FunctionLiteral* ParseFunction(Isolate* isolate, ParseInfo* info,
-                                 Handle<SharedFunctionInfo> shared_info);
+  // Sets the literal on |info| if parsing succeeded.
+  void ParseFunction(Isolate* isolate, ParseInfo* info,
+                     Handle<SharedFunctionInfo> shared_info);
+
+  void PostProcessParseResult(Isolate* isolate, ParseInfo* info,
+                              FunctionLiteral* literal);
+
   FunctionLiteral* DoParseFunction(Isolate* isolate, ParseInfo* info,
                                    int start_position, int end_position,
                                    int function_literal_id,

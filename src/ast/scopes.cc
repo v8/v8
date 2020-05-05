@@ -598,7 +598,7 @@ bool DeclarationScope::Analyze(ParseInfo* info) {
     DCHECK_EQ(scope->scope_type_, ScopeType::FUNCTION_SCOPE);
     allow_deref.emplace();
     info->consumed_preparse_data()->RestoreScopeAllocationData(
-        scope, info->ast_value_factory());
+        scope, info->ast_value_factory(), info->zone());
   }
 
   if (!scope->AllocateVariables(info)) return false;

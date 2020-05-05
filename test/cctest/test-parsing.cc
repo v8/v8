@@ -1082,9 +1082,6 @@ TEST(ScopeUsesArgumentsSuperThis) {
       flags.set_allow_lazy_parsing(false);
       i::ParseInfo info(isolate, flags, &compile_state);
       CHECK(i::parsing::ParseProgram(&info, script, isolate));
-      CHECK(i::Rewriter::Rewrite(&info));
-      info.ast_value_factory()->Internalize(isolate);
-      CHECK(i::DeclarationScope::Analyze(&info));
       i::DeclarationScope::AllocateScopeInfos(&info, isolate);
       CHECK_NOT_NULL(info.literal());
 
@@ -1513,10 +1510,20 @@ TEST(DiscardFunctionBody) {
     i::parsing::ParseProgram(&info, script, isolate);
     function = info.literal();
     CHECK_NOT_NULL(function);
-    CHECK_EQ(1, function->body()->length());
-    i::FunctionLiteral* inner =
-        function->body()->first()->AsExpressionStatement()->expression()->
-        AsCall()->expression()->AsFunctionLiteral();
+    // The rewriter will rewrite this to
+    //     .result = (function f(){...})();
+    //     return .result;
+    // so extract the function from there.
+    CHECK_EQ(2, function->body()->length());
+    i::FunctionLiteral* inner = function->body()
+                                    ->first()
+                                    ->AsExpressionStatement()
+                                    ->expression()
+                                    ->AsAssignment()
+                                    ->value()
+                                    ->AsCall()
+                                    ->expression()
+                                    ->AsFunctionLiteral();
     i::Scope* inner_scope = inner->scope();
     i::FunctionLiteral* fun = nullptr;
     if (!inner_scope->declarations()->is_empty()) {
@@ -3526,7 +3533,6 @@ TEST(InnerAssignment) {
           info = std::make_unique<i::ParseInfo>(isolate, flags, &compile_state);
           CHECK(i::parsing::ParseProgram(info.get(), script, isolate));
         }
-        CHECK(i::Compiler::Analyze(info.get()));
         CHECK_NOT_NULL(info->literal());
 
         i::Scope* scope = info->literal()->scope();
@@ -3636,7 +3642,6 @@ TEST(MaybeAssignedParameters) {
       flags.set_allow_lazy_parsing(allow_lazy);
       info = std::make_unique<i::ParseInfo>(isolate, flags, &state);
       CHECK(i::parsing::ParseFunction(info.get(), shared, isolate));
-      CHECK(i::Compiler::Analyze(info.get()));
       CHECK_NOT_NULL(info->literal());
 
       i::Scope* scope = info->literal()->scope();
@@ -3678,7 +3683,6 @@ static void TestMaybeAssigned(Input input, const char* variable, bool module,
       std::make_unique<i::ParseInfo>(isolate, flags, &state);
 
   CHECK(i::parsing::ParseProgram(info.get(), script, isolate));
-  CHECK(i::Compiler::Analyze(info.get()));
 
   CHECK_NOT_NULL(info->literal());
   i::Scope* scope = info->literal()->scope();
@@ -7837,7 +7841,6 @@ TEST(ModuleParsingInternals) {
   flags.set_is_module(true);
   i::ParseInfo info(isolate, flags, &compile_state);
   CHECK(i::parsing::ParseProgram(&info, script, isolate));
-  CHECK(i::Compiler::Analyze(&info));
   i::FunctionLiteral* func = info.literal();
   i::ModuleScope* module_scope = func->scope()->AsModuleScope();
   i::Scope* outer_scope = module_scope->outer_scope();
@@ -10867,7 +10870,6 @@ TEST(NoPessimisticContextAllocation) {
       i::ParseInfo info(isolate, flags, &compile_state);
 
       CHECK(i::parsing::ParseProgram(&info, script, isolate));
-      CHECK(i::Compiler::Analyze(&info));
       CHECK_NOT_NULL(info.literal());
 
       i::Scope* scope = info.literal()->scope()->inner_scope();
@@ -11430,8 +11432,6 @@ TEST(LexicalLoopVariable) {
     flags.set_allow_lazy_parsing(false);
     i::ParseInfo info(isolate, flags, &compile_state);
     CHECK(i::parsing::ParseProgram(&info, script, isolate));
-    CHECK(i::Rewriter::Rewrite(&info));
-    CHECK(i::DeclarationScope::Analyze(&info));
     i::DeclarationScope::AllocateScopeInfos(&info, isolate);
     CHECK_NOT_NULL(info.literal());
 

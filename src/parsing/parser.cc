@@ -508,9 +508,9 @@ void MaybeProcessSourceRanges(ParseInfo* parse_info, Expression* root,
 
 }  // namespace
 
-FunctionLiteral* Parser::ParseProgram(
-    Isolate* isolate, Handle<Script> script, ParseInfo* info,
-    MaybeHandle<ScopeInfo> maybe_outer_scope_info) {
+void Parser::ParseProgram(Isolate* isolate, Handle<Script> script,
+                          ParseInfo* info,
+                          MaybeHandle<ScopeInfo> maybe_outer_scope_info) {
   // TODO(bmeurer): We temporarily need to pass allow_nesting = true here,
   // see comment for HistogramTimerScope class.
   DCHECK_EQ(script->id(), flags().script_id());
@@ -539,6 +539,7 @@ FunctionLiteral* Parser::ParseProgram(
   FunctionLiteral* result = DoParseProgram(isolate, info);
   MaybeResetCharacterStream(info, result);
   MaybeProcessSourceRanges(info, result, stack_limit_);
+  PostProcessParseResult(isolate, info, result);
 
   HandleSourceURLComments(isolate, script);
 
@@ -555,7 +556,6 @@ FunctionLiteral* Parser::ParseProgram(
     LOG(isolate,
         FunctionEvent(event_name, flags().script_id(), ms, start, end, "", 0));
   }
-  return result;
 }
 
 FunctionLiteral* Parser::DoParseProgram(Isolate* isolate, ParseInfo* info) {
@@ -684,6 +684,33 @@ FunctionLiteral* Parser::DoParseProgram(Isolate* isolate, ParseInfo* info) {
   return result;
 }
 
+void Parser::PostProcessParseResult(Isolate* isolate, ParseInfo* info,
+                                    FunctionLiteral* literal) {
+  if (literal == nullptr) return;
+
+  info->set_literal(literal);
+  info->set_language_mode(literal->language_mode());
+  if (info->flags().is_eval()) {
+    info->set_allow_eval_cache(allow_eval_cache());
+  }
+
+  // We cannot internalize on a background thread; a foreground task will take
+  // care of calling AstValueFactory::Internalize just before compilation.
+  DCHECK_EQ(isolate != nullptr, parsing_on_main_thread_);
+  if (isolate) info->ast_value_factory()->Internalize(isolate);
+
+  {
+    RuntimeCallTimerScope runtimeTimer(info->runtime_call_stats(),
+                                       RuntimeCallCounterId::kCompileAnalyse,
+                                       RuntimeCallStats::kThreadSpecific);
+    if (!Rewriter::Rewrite(info) || !DeclarationScope::Analyze(info)) {
+      // Null out the literal to indicate that something failed.
+      info->set_literal(nullptr);
+      return;
+    }
+  }
+}
+
 ZonePtrList<const AstRawString>* Parser::PrepareWrappedArguments(
     Isolate* isolate, ParseInfo* info, Zone* zone) {
   DCHECK(parsing_on_main_thread_);
@@ -783,8 +810,8 @@ Expression* Parser::WrapREPLResult(Expression* value) {
                                      false);
 }
 
-FunctionLiteral* Parser::ParseFunction(Isolate* isolate, ParseInfo* info,
-                                       Handle<SharedFunctionInfo> shared_info) {
+void Parser::ParseFunction(Isolate* isolate, ParseInfo* info,
+                           Handle<SharedFunctionInfo> shared_info) {
   // It's OK to use the Isolate & counters here, since this function is only
   // called in the main thread.
   DCHECK(parsing_on_main_thread_);
@@ -835,11 +862,12 @@ FunctionLiteral* Parser::ParseFunction(Isolate* isolate, ParseInfo* info,
     Handle<String> inferred_name(shared_info->inferred_name(), isolate);
     result->set_inferred_name(inferred_name);
   }
+  PostProcessParseResult(isolate, info, result);
 
   if (V8_UNLIKELY(FLAG_log_function_events) && result != nullptr) {
     double ms = timer.Elapsed().InMillisecondsF();
-    // We need to make sure that the debug-name is available.
-    ast_value_factory()->Internalize(isolate);
+    // We should already be internalized by now, so the debug name will be
+    // available.
     DeclarationScope* function_scope = result->scope();
     std::unique_ptr<char[]> function_name = result->GetDebugName();
     LOG(isolate,
@@ -848,7 +876,6 @@ FunctionLiteral* Parser::ParseFunction(Isolate* isolate, ParseInfo* info,
                       function_scope->end_position(), function_name.get(),
                       strlen(function_name.get())));
   }
-  return result;
 }
 
 FunctionLiteral* Parser::DoParseFunction(Isolate* isolate, ParseInfo* info,
@@ -3117,11 +3144,7 @@ void Parser::ParseOnBackground(ParseInfo* info, int start_position,
   }
   MaybeResetCharacterStream(info, result);
   MaybeProcessSourceRanges(info, result, stack_limit_);
-
-  info->set_literal(result);
-
-  // We cannot internalize on a background thread; a foreground task will take
-  // care of calling AstValueFactory::Internalize just before compilation.
+  PostProcessParseResult(/* isolate = */ nullptr, info, result);
 }
 
 Parser::TemplateLiteralState Parser::OpenTemplateLiteral(int pos) {

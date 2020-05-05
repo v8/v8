@@ -47,7 +47,6 @@
 #include "src/parsing/parser.h"
 #include "src/parsing/parsing.h"
 #include "src/parsing/pending-compilation-error-handler.h"
-#include "src/parsing/rewriter.h"
 #include "src/parsing/scanner-character-streams.h"
 #include "src/snapshot/code-serializer.h"
 #include "src/utils/ostreams.h"
@@ -624,11 +623,9 @@ std::unique_ptr<UnoptimizedCompilationJob> GenerateUnoptimizedCode(
   DisallowHeapAccess no_heap_access;
   DCHECK(inner_function_jobs->empty());
 
-  std::unique_ptr<UnoptimizedCompilationJob> job;
-  if (Compiler::Analyze(parse_info)) {
-    job = ExecuteUnoptimizedCompileJobs(parse_info, parse_info->literal(),
-                                        allocator, inner_function_jobs);
-  }
+  std::unique_ptr<UnoptimizedCompilationJob> job =
+      ExecuteUnoptimizedCompileJobs(parse_info, parse_info->literal(),
+                                    allocator, inner_function_jobs);
 
   // Character stream shouldn't be used again.
   parse_info->ResetCharacterStream();
@@ -640,9 +637,6 @@ MaybeHandle<SharedFunctionInfo> GenerateUnoptimizedCodeForToplevel(
     Isolate* isolate, Handle<Script> script, ParseInfo* parse_info,
     AccountingAllocator* allocator, IsCompiledScope* is_compiled_scope) {
   EnsureSharedFunctionInfosArrayOnScript(script, parse_info, isolate);
-  parse_info->ast_value_factory()->Internalize(isolate);
-
-  if (!Compiler::Analyze(parse_info)) return MaybeHandle<SharedFunctionInfo>();
   DeclarationScope::AllocateScopeInfos(parse_info, isolate);
 
   // Prepare and execute compilation of the outer-most function.
@@ -1399,25 +1393,6 @@ void BackgroundCompileTask::Run() {
 // ----------------------------------------------------------------------------
 // Implementation of Compiler
 
-bool Compiler::Analyze(ParseInfo* parse_info) {
-  DCHECK_NOT_NULL(parse_info->literal());
-  RuntimeCallTimerScope runtimeTimer(parse_info->runtime_call_stats(),
-                                     RuntimeCallCounterId::kCompileAnalyse,
-                                     RuntimeCallStats::kThreadSpecific);
-  if (!Rewriter::Rewrite(parse_info)) return false;
-  if (!DeclarationScope::Analyze(parse_info)) return false;
-  return true;
-}
-
-bool Compiler::ParseAndAnalyze(ParseInfo* parse_info,
-                               Handle<SharedFunctionInfo> shared_info,
-                               Isolate* isolate) {
-  if (!parsing::ParseAny(parse_info, shared_info, isolate)) {
-    return false;
-  }
-  return Compiler::Analyze(parse_info);
-}
-
 // static
 bool Compiler::CollectSourcePositions(Isolate* isolate,
                                       Handle<SharedFunctionInfo> shared_info) {
@@ -1485,14 +1460,6 @@ bool Compiler::CollectSourcePositions(Isolate* isolate,
   // wasting time fully parsing them when they won't ever be used.
   std::unique_ptr<UnoptimizedCompilationJob> job;
   {
-    if (!Compiler::Analyze(&parse_info)) {
-      // Recompiling failed probably as a result of stack exhaustion.
-      bytecode->SetSourcePositionsFailedToCollect();
-      return FailWithPendingException(
-          isolate, handle(Script::cast(shared_info->script()), isolate),
-          &parse_info, Compiler::ClearExceptionFlag::CLEAR_EXCEPTION);
-    }
-
     job = interpreter::Interpreter::NewSourcePositionCollectionJob(
         &parse_info, parse_info.literal(), bytecode, isolate->allocator());
 
@@ -1589,9 +1556,6 @@ bool Compiler::Compile(Handle<SharedFunctionInfo> shared_info,
         isolate, handle(Script::cast(shared_info->script()), isolate),
         &parse_info, flag);
   }
-
-  // Internalize ast values onto the heap.
-  parse_info.ast_value_factory()->Internalize(isolate);
 
   // Finalize compilation of the unoptimized bytecode or asm-js data.
   if (!FinalizeUnoptimizedCode(&parse_info, isolate, shared_info,

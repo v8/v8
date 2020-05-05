@@ -332,20 +332,22 @@ const AstRawString* AstValueFactory::CloneFromOtherFactory(
 }
 
 AstConsString* AstValueFactory::NewConsString() {
-  return new (zone_) AstConsString;
+  return new (zone()) AstConsString;
 }
 
 AstConsString* AstValueFactory::NewConsString(const AstRawString* str) {
-  return NewConsString()->AddString(zone_, str);
+  return NewConsString()->AddString(zone(), str);
 }
 
 AstConsString* AstValueFactory::NewConsString(const AstRawString* str1,
                                               const AstRawString* str2) {
-  return NewConsString()->AddString(zone_, str1)->AddString(zone_, str2);
+  return NewConsString()->AddString(zone(), str1)->AddString(zone(), str2);
 }
 
 template <typename LocalIsolate>
 void AstValueFactory::Internalize(LocalIsolate* isolate) {
+  if (!zone_) return;
+
   // Strings need to be internalized before values, because values refer to
   // strings.
   for (AstRawString* current = strings_; current != nullptr;) {
@@ -355,6 +357,7 @@ void AstValueFactory::Internalize(LocalIsolate* isolate) {
   }
 
   ResetStrings();
+  zone_ = nullptr;
 }
 template EXPORT_TEMPLATE_DEFINE(
     V8_EXPORT_PRIVATE) void AstValueFactory::Internalize<Isolate>(Isolate*
@@ -373,9 +376,9 @@ AstRawString* AstValueFactory::GetString(uint32_t hash_field, bool is_one_byte,
   if (entry->value == nullptr) {
     // Copy literal contents for later comparison.
     int length = literal_bytes.length();
-    byte* new_literal_bytes = zone_->NewArray<byte>(length);
+    byte* new_literal_bytes = zone()->NewArray<byte>(length);
     memcpy(new_literal_bytes, literal_bytes.begin(), length);
-    AstRawString* new_string = new (zone_) AstRawString(
+    AstRawString* new_string = new (zone()) AstRawString(
         is_one_byte, Vector<const byte>(new_literal_bytes, length), hash_field);
     CHECK_NOT_NULL(new_string);
     AddString(new_string);

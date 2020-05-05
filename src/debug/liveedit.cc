@@ -758,10 +758,6 @@ bool ParseScript(Isolate* isolate, Handle<Script> script, ParseInfo* parse_info,
                   .ToHandle(&shared);
   } else {
     success = parsing::ParseProgram(parse_info, script, isolate);
-    if (success) {
-      success = Compiler::Analyze(parse_info);
-      parse_info->ast_value_factory()->Internalize(isolate);
-    }
   }
   if (!success) {
     isolate->OptionalRescheduleException(false);

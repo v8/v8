@@ -94,13 +94,6 @@ class V8_EXPORT_PRIVATE Compiler : public AllStatic {
   // offer this chance, optimized closure instantiation will not call this.
   static void PostInstantiation(Handle<JSFunction> function);
 
-  // Parser::Parse, then Compiler::Analyze.
-  static bool ParseAndAnalyze(ParseInfo* parse_info,
-                              Handle<SharedFunctionInfo> shared_info,
-                              Isolate* isolate);
-  // Rewrite and analyze scopes.
-  static bool Analyze(ParseInfo* parse_info);
-
   // ===========================================================================
   // The following family of methods instantiates new functions for scripts or
   // function literals. The decision whether those functions will be compiled,

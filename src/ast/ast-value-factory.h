@@ -288,6 +288,7 @@ class AstValueFactory {
         empty_cons_string_(nullptr),
         zone_(zone),
         hash_seed_(hash_seed) {
+    DCHECK_NOT_NULL(zone_);
     DCHECK_EQ(hash_seed, string_constants->hash_seed());
     std::fill(one_character_strings_,
               one_character_strings_ + arraysize(one_character_strings_),
@@ -295,7 +296,10 @@ class AstValueFactory {
     empty_cons_string_ = NewConsString();
   }
 
-  Zone* zone() const { return zone_; }
+  Zone* zone() const {
+    DCHECK_NOT_NULL(zone_);
+    return zone_;
+  }
 
   const AstRawString* GetOneByteString(Vector<const uint8_t> literal) {
     return GetOneByteStringInternal(literal);
@@ -317,6 +321,9 @@ class AstValueFactory {
   V8_EXPORT_PRIVATE AstConsString* NewConsString(const AstRawString* str1,
                                                  const AstRawString* str2);
 
+  // Internalize all the strings in the factory, and prevent any more from being
+  // allocated. Multiple calls to Internalize are allowed, for simplicity, where
+  // subsequent calls are a no-op.
   template <typename LocalIsolate>
   void Internalize(LocalIsolate* isolate);
 

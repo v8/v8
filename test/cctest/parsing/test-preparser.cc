@@ -724,9 +724,6 @@ TEST(PreParserScopeAnalysis) {
       CHECK(i::ScopeTestHelper::HasSkippedFunctionInside(
           scope_with_skipped_functions));
 
-      // Do scope allocation (based on the preparsed scope data).
-      CHECK(i::DeclarationScope::Analyze(&using_scope_data));
-
       // Parse the lazy function again eagerly to produce baseline data.
       i::UnoptimizedCompileState not_using_scope_state(isolate);
       i::ParseInfo not_using_scope_data(isolate, flags, &not_using_scope_state);
@@ -738,9 +735,6 @@ TEST(PreParserScopeAnalysis) {
           not_using_scope_data.literal()->scope();
       CHECK(!i::ScopeTestHelper::HasSkippedFunctionInside(
           scope_without_skipped_functions));
-
-      // Do normal scope allocation.
-      CHECK(i::DeclarationScope::Analyze(&not_using_scope_data));
 
       // Verify that scope allocation gave the same results when parsing w/ the
       // scope data (and skipping functions), and when parsing without.

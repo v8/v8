@@ -297,8 +297,9 @@ class ConsumedPreparseData {
 
   // Restores the information needed for allocating the Scope's (and its
   // subscopes') variables.
-  virtual void RestoreScopeAllocationData(
-      DeclarationScope* scope, AstValueFactory* ast_value_factory) = 0;
+  virtual void RestoreScopeAllocationData(DeclarationScope* scope,
+                                          AstValueFactory* ast_value_factory,
+                                          Zone* zone) = 0;
 
  protected:
   ConsumedPreparseData() = default;
