@@ -4907,14 +4907,14 @@ Object Script::GetNameOrSourceURL() {
 
 template <typename LocalIsolate>
 MaybeHandle<SharedFunctionInfo> Script::FindSharedFunctionInfo(
-    LocalIsolate* isolate, const FunctionLiteral* fun) {
-  CHECK_NE(fun->function_literal_id(), kFunctionLiteralIdInvalid);
+    LocalIsolate* isolate, int function_literal_id) {
+  CHECK_NE(function_literal_id, kFunctionLiteralIdInvalid);
   // If this check fails, the problem is most probably the function id
   // renumbering done by AstFunctionLiteralIdReindexer; in particular, that
   // AstTraversalVisitor doesn't recurse properly in the construct which
   // triggers the mismatch.
-  CHECK_LT(fun->function_literal_id(), shared_function_infos().length());
-  MaybeObject shared = shared_function_infos().Get(fun->function_literal_id());
+  CHECK_LT(function_literal_id, shared_function_infos().length());
+  MaybeObject shared = shared_function_infos().Get(function_literal_id);
   HeapObject heap_object;
   if (!shared->GetHeapObject(&heap_object) ||
       heap_object.IsUndefined(isolate)) {
@@ -4923,9 +4923,9 @@ MaybeHandle<SharedFunctionInfo> Script::FindSharedFunctionInfo(
   return handle(SharedFunctionInfo::cast(heap_object), isolate);
 }
 template MaybeHandle<SharedFunctionInfo> Script::FindSharedFunctionInfo(
-    Isolate* isolate, const FunctionLiteral* fun);
+    Isolate* isolate, int function_literal_id);
 template MaybeHandle<SharedFunctionInfo> Script::FindSharedFunctionInfo(
-    OffThreadIsolate* isolate, const FunctionLiteral* fun);
+    OffThreadIsolate* isolate, int function_literal_id);
 
 Script::Iterator::Iterator(Isolate* isolate)
     : iterator_(isolate->heap()->script_list()) {}

@@ -504,10 +504,14 @@ bool Shell::ExecuteString(Isolate* isolate, Local<String> source,
             i_isolate, true, i::construct_language_mode(i::FLAG_use_strict),
             i::REPLMode::kNo);
 
+    if (options.compile_options == v8::ScriptCompiler::kEagerCompile) {
+      flags.set_is_eager(true);
+    }
+
     i::ParseInfo parse_info(i_isolate, flags, &compile_state);
 
     i::Handle<i::Script> script = parse_info.CreateScript(
-        i_isolate, str, i::kNullMaybeHandle, options.compile_options);
+        i_isolate, str, i::kNullMaybeHandle, ScriptOriginOptions());
     if (!i::parsing::ParseProgram(&parse_info, script, i_isolate)) {
       fprintf(stderr, "Failed parsing\n");
       return false;

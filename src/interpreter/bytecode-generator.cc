@@ -1040,10 +1040,10 @@ static bool IsInEagerLiterals(
 #endif  // DEBUG
 
 BytecodeGenerator::BytecodeGenerator(
-    UnoptimizedCompilationInfo* info,
+    Zone* compile_zone, UnoptimizedCompilationInfo* info,
     const AstStringConstants* ast_string_constants,
     std::vector<FunctionLiteral*>* eager_inner_literals)
-    : zone_(info->zone()),
+    : zone_(compile_zone),
       builder_(zone(), info->num_parameters_including_this(),
                info->scope()->num_stack_slots(), info->feedback_vector_spec(),
                info->SourcePositionRecordingMode()),

@@ -224,7 +224,7 @@ class AsmJsCompilationJob final : public UnoptimizedCompilationJob {
 
 UnoptimizedCompilationJob::Status AsmJsCompilationJob::ExecuteJobImpl() {
   // Step 1: Translate asm.js module to WebAssembly module.
-  Zone* compile_zone = compilation_info()->zone();
+  Zone* compile_zone = &zone_;
   Zone translate_zone(allocator_, ZONE_NAME);
 
   Utf16CharacterStream* stream = parse_info()->character_stream();

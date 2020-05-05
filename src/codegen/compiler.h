@@ -276,6 +276,13 @@ class UnoptimizedCompilationJob : public CompilationJob {
 
   uintptr_t stack_limit() const { return stack_limit_; }
 
+  base::TimeDelta time_taken_to_execute() const {
+    return time_taken_to_execute_;
+  }
+  base::TimeDelta time_taken_to_finalize() const {
+    return time_taken_to_finalize_;
+  }
+
   bool can_off_thread_finalize() const { return can_off_thread_finalize_; }
 
  protected:
@@ -354,6 +361,15 @@ class OptimizedCompilationJob : public CompilationJob {
   const char* compiler_name_;
 };
 
+struct FinalizeUnoptimizedCompilationData {
+  int function_literal_id;
+  base::TimeDelta time_taken_to_execute;
+  base::TimeDelta time_taken_to_finalize;
+};
+
+using FinalizeUnoptimizedCompilationDataList =
+    std::vector<FinalizeUnoptimizedCompilationData>;
+
 class V8_EXPORT_PRIVATE BackgroundCompileTask {
  public:
   // Creates a new task that when run will parse and compile the streamed
@@ -386,18 +402,14 @@ class V8_EXPORT_PRIVATE BackgroundCompileTask {
     return &inner_function_jobs_;
   }
   UnoptimizedCompileFlags flags() const { return flags_; }
+  const UnoptimizedCompileState* compile_state() const {
+    return &compile_state_;
+  }
   LanguageMode language_mode() { return language_mode_; }
-  bool collected_source_positions() { return collected_source_positions_; }
   bool finalize_on_background_thread() {
     return finalize_on_background_thread_;
   }
   OffThreadIsolate* off_thread_isolate() { return off_thread_isolate_.get(); }
-  PendingCompilationErrorHandler* pending_error_handler() {
-    return compile_state_.pending_error_handler();
-  }
-  UnoptimizedCompileState::ParallelTasks* parallel_tasks() {
-    return compile_state_.parallel_tasks();
-  }
   MaybeHandle<SharedFunctionInfo> outer_function_sfi() {
     DCHECK_NOT_NULL(off_thread_isolate_);
     return outer_function_sfi_.ToHandle();
@@ -405,6 +417,10 @@ class V8_EXPORT_PRIVATE BackgroundCompileTask {
   Handle<Script> script() {
     DCHECK_NOT_NULL(off_thread_isolate_);
     return script_.ToHandle();
+  }
+  FinalizeUnoptimizedCompilationDataList*
+  finalize_unoptimized_compilation_data() {
+    return &finalize_unoptimized_compilation_data_;
   }
 
  private:
@@ -427,6 +443,7 @@ class V8_EXPORT_PRIVATE BackgroundCompileTask {
   std::unique_ptr<OffThreadIsolate> off_thread_isolate_;
   OffThreadTransferMaybeHandle<SharedFunctionInfo> outer_function_sfi_;
   OffThreadTransferHandle<Script> script_;
+  FinalizeUnoptimizedCompilationDataList finalize_unoptimized_compilation_data_;
 
   // Single function data for top-level function compilation.
   int start_position_;
@@ -437,7 +454,6 @@ class V8_EXPORT_PRIVATE BackgroundCompileTask {
   WorkerThreadRuntimeCallStats* worker_thread_runtime_call_stats_;
   TimedHistogram* timer_;
   LanguageMode language_mode_;
-  bool collected_source_positions_;
 
   // True if the background compilation should be finalized on the background
   // thread. When this is true, the ParseInfo, Parser and compilation jobs are

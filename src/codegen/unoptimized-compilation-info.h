@@ -34,8 +34,6 @@ class V8_EXPORT_PRIVATE UnoptimizedCompilationInfo final {
   UnoptimizedCompilationInfo(Zone* zone, ParseInfo* parse_info,
                              FunctionLiteral* literal);
 
-  Zone* zone() { return zone_; }
-
   const UnoptimizedCompileFlags& flags() const { return flags_; }
 
   // Accessors for the input data of the function being compiled.
@@ -86,10 +84,6 @@ class V8_EXPORT_PRIVATE UnoptimizedCompilationInfo final {
  private:
   // Compilation flags.
   const UnoptimizedCompileFlags flags_;
-
-  // The zone from which the compilation pipeline working on this
-  // OptimizedCompilationInfo allocates.
-  Zone* zone_;
 
   // The root AST node of the function literal being compiled.
   FunctionLiteral* literal_;

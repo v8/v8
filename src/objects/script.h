@@ -201,7 +201,7 @@ class Script : public Struct {
   // that matches the function literal.  Return empty handle if not found.
   template <typename LocalIsolate>
   MaybeHandle<SharedFunctionInfo> FindSharedFunctionInfo(
-      LocalIsolate* isolate, const FunctionLiteral* fun);
+      LocalIsolate* isolate, int function_literal_id);
 
   // Iterate over all script objects on the heap.
   class V8_EXPORT_PRIVATE Iterator {

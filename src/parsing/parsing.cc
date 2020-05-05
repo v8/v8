@@ -27,8 +27,9 @@ void MaybeReportErrorsAndStatistics(ParseInfo* info, Handle<Script> script,
                                     ReportErrorsAndStatisticsMode mode) {
   if (mode == ReportErrorsAndStatisticsMode::kYes) {
     if (info->literal() == nullptr) {
-      info->pending_error_handler()->ReportErrors(isolate, script,
-                                                  info->ast_value_factory());
+      info->pending_error_handler()->PrepareErrors(isolate,
+                                                   info->ast_value_factory());
+      info->pending_error_handler()->ReportErrors(isolate, script);
     }
     parser->UpdateStatistics(isolate, script);
   }

@@ -27,6 +27,7 @@
 
 #include "src/ast/ast-value-factory.h"
 
+#include "src/base/logging.h"
 #include "src/common/globals.h"
 #include "src/execution/off-thread-isolate.h"
 #include "src/heap/factory-inl.h"

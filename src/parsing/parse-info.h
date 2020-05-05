@@ -188,6 +188,9 @@ class V8_EXPORT_PRIVATE UnoptimizedCompileState {
   PendingCompilationErrorHandler* pending_error_handler() {
     return &pending_error_handler_;
   }
+  const PendingCompilationErrorHandler* pending_error_handler() const {
+    return &pending_error_handler_;
+  }
   ParallelTasks* parallel_tasks() const { return parallel_tasks_.get(); }
 
  private:

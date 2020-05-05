@@ -152,7 +152,7 @@ InterpreterCompilationJob::InterpreterCompilationJob(
                                 &compilation_info_, CanOffThreadFinalize::kYes),
       zone_(allocator, ZONE_NAME),
       compilation_info_(&zone_, parse_info, literal),
-      generator_(&compilation_info_, parse_info->ast_string_constants(),
+      generator_(&zone_, &compilation_info_, parse_info->ast_string_constants(),
                  eager_inner_literals) {}
 
 InterpreterCompilationJob::Status InterpreterCompilationJob::ExecuteJobImpl() {

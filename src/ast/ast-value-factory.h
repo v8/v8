@@ -31,6 +31,7 @@
 #include <forward_list>
 
 #include "src/base/hashmap.h"
+#include "src/base/logging.h"
 #include "src/common/globals.h"
 #include "src/heap/factory.h"
 #include "src/numbers/conversions.h"

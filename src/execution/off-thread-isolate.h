@@ -105,6 +105,8 @@ class V8_EXPORT_PRIVATE OffThreadIsolate final
   // on the main thread.
   void Publish(Isolate* isolate);
 
+  bool has_pending_exception() const { return false; }
+
   template <typename T>
   Handle<T> Throw(Handle<Object> exception) {
     UNREACHABLE();
