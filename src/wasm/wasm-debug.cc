@@ -899,24 +899,8 @@ void DebugInfo::RemoveDebugSideTables(Vector<WasmCode* const> code) {
 
 namespace {
 
-wasm::InterpreterHandle* GetOrCreateInterpreterHandle(
-    Isolate* isolate, Handle<WasmDebugInfo> debug_info) {
-  Handle<Object> handle(debug_info->interpreter_handle(), isolate);
-  if (handle->IsUndefined(isolate)) {
-    // Use the maximum stack size to estimate the maximum size of the
-    // interpreter. The interpreter keeps its own stack internally, and the size
-    // of the stack should dominate the overall size of the interpreter. We
-    // multiply by '2' to account for the growing strategy for the backing store
-    // of the stack.
-    size_t interpreter_size = FLAG_stack_size * KB * 2;
-    handle = Managed<wasm::InterpreterHandle>::Allocate(
-        isolate, interpreter_size, isolate, debug_info);
-    debug_info->set_interpreter_handle(*handle);
-  }
-
-  return Handle<Managed<wasm::InterpreterHandle>>::cast(handle)->raw();
-}
-
+// TODO(clemensb): This method is indirectly dead. It can be removed once the
+// WasmInterpreterEntryFrame is deleted.
 wasm::InterpreterHandle* GetInterpreterHandle(WasmDebugInfo debug_info) {
   Object handle_obj = debug_info.interpreter_handle();
   DCHECK(!handle_obj.IsUndefined());
@@ -950,20 +934,6 @@ wasm::WasmInterpreter* WasmDebugInfo::SetupForTesting(
       isolate, interpreter_size, isolate, debug_info);
   debug_info->set_interpreter_handle(*interp_handle);
   return interp_handle->raw()->interpreter();
-}
-
-// static
-bool WasmDebugInfo::RunInterpreter(Isolate* isolate,
-                                   Handle<WasmDebugInfo> debug_info,
-                                   Address frame_pointer, int func_index,
-                                   Vector<wasm::WasmValue> argument_values,
-                                   Vector<wasm::WasmValue> return_values) {
-  DCHECK_LE(0, func_index);
-  auto* handle = GetOrCreateInterpreterHandle(isolate, debug_info);
-  Handle<WasmInstanceObject> instance(debug_info->wasm_instance(), isolate);
-  return handle->Execute(instance, frame_pointer,
-                         static_cast<uint32_t>(func_index), argument_values,
-                         return_values);
 }
 
 std::vector<std::pair<uint32_t, int>> WasmDebugInfo::GetInterpretedStack(

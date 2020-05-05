@@ -205,9 +205,7 @@ WasmCompilationResult WasmCompilationUnit::ExecuteFunctionCompilation(
       break;
 
     case ExecutionTier::kInterpreter:
-      result = compiler::ExecuteInterpreterEntryCompilation(
-          wasm_engine, env, func_body, func_index_, counters, detected);
-      break;
+      UNREACHABLE();
   }
 
   return result;

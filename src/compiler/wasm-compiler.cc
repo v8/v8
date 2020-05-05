@@ -5917,78 +5917,6 @@ class WasmWrapperGraphBuilder : public WasmGraphBuilder {
     if (ContainsInt64(sig_)) LowerInt64(kCalledFromWasm);
   }
 
-  void BuildWasmInterpreterEntry(int func_index) {
-    int param_count = static_cast<int>(sig_->parameter_count());
-
-    // Build the start and the parameter nodes.
-    SetEffectControl(Start(param_count + 3));
-
-    // Create the instance_node from the passed parameter.
-    instance_node_.set(Param(wasm::kWasmInstanceParameterIndex));
-
-    // Compute size for the argument buffer.
-    int args_size_bytes = 0;
-    for (wasm::ValueType type : sig_->parameters()) {
-      args_size_bytes += type.element_size_bytes();
-    }
-
-    // The return value is also passed via this buffer:
-    int return_size_bytes = 0;
-    for (wasm::ValueType type : sig_->returns()) {
-      return_size_bytes += type.element_size_bytes();
-    }
-
-    // Get a stack slot for the arguments.
-    Node* arg_buffer =
-        args_size_bytes == 0 && return_size_bytes == 0
-            ? mcgraph()->IntPtrConstant(0)
-            : graph()->NewNode(mcgraph()->machine()->StackSlot(
-                  std::max(args_size_bytes, return_size_bytes), 8));
-
-    // Now store all our arguments to the buffer.
-    int offset = 0;
-
-    for (int i = 0; i < param_count; ++i) {
-      wasm::ValueType type = sig_->GetParam(i);
-      // Start from the parameter with index 1 to drop the instance_node.
-      SetEffect(graph()->NewNode(GetSafeStoreOperator(offset, type), arg_buffer,
-                                 Int32Constant(offset), Param(i + 1), effect(),
-                                 control()));
-      offset += type.element_size_bytes();
-    }
-    DCHECK_EQ(args_size_bytes, offset);
-
-    // We are passing the raw arg_buffer here. To the GC and other parts, it
-    // looks like a Smi (lowest bit not set). In the runtime function however,
-    // don't call Smi::value on it, but just cast it to a byte pointer.
-    Node* parameters[] = {
-        graph()->NewNode(mcgraph()->common()->NumberConstant(func_index)),
-        arg_buffer};
-    BuildCallToRuntime(Runtime::kWasmRunInterpreter, parameters,
-                       arraysize(parameters));
-
-    // Read back the return value.
-    DCHECK_LT(sig_->return_count(), wasm::kV8MaxWasmFunctionMultiReturns);
-    size_t return_count = sig_->return_count();
-    if (return_count == 0) {
-      Return(Int32Constant(0));
-    } else {
-      base::SmallVector<Node*, 8> returns(return_count);
-      offset = 0;
-      for (size_t i = 0; i < return_count; ++i) {
-        wasm::ValueType type = sig_->GetReturn(i);
-        Node* val = SetEffect(
-            graph()->NewNode(GetSafeLoadOperator(offset, type), arg_buffer,
-                             Int32Constant(offset), effect(), control()));
-        returns[i] = val;
-        offset += type.element_size_bytes();
-      }
-      Return(VectorOf(returns));
-    }
-
-    if (ContainsInt64(sig_)) LowerInt64(kCalledFromWasm);
-  }
-
   void BuildJSToJSWrapper(Isolate* isolate) {
     int wasm_count = static_cast<int>(sig_->parameter_count());
 
@@ -6535,46 +6463,6 @@ wasm::WasmCode* CompileWasmCapiCallWrapper(wasm::WasmEngine* wasm_engine,
   return native_module->PublishCode(std::move(wasm_code));
 }
 
-wasm::WasmCompilationResult CompileWasmInterpreterEntry(
-    wasm::WasmEngine* wasm_engine, const wasm::WasmFeatures& enabled_features,
-    uint32_t func_index, const wasm::FunctionSig* sig) {
-  //----------------------------------------------------------------------------
-  // Create the Graph
-  //----------------------------------------------------------------------------
-  Zone zone(wasm_engine->allocator(), ZONE_NAME);
-  Graph* graph = new (&zone) Graph(&zone);
-  CommonOperatorBuilder* common = new (&zone) CommonOperatorBuilder(&zone);
-  MachineOperatorBuilder* machine = new (&zone) MachineOperatorBuilder(
-      &zone, MachineType::PointerRepresentation(),
-      InstructionSelector::SupportedMachineOperatorFlags(),
-      InstructionSelector::AlignmentRequirements());
-  MachineGraph* mcgraph = new (&zone) MachineGraph(graph, common, machine);
-
-  WasmWrapperGraphBuilder builder(&zone, mcgraph, sig, nullptr,
-                                  StubCallMode::kCallWasmRuntimeStub,
-                                  enabled_features);
-  builder.BuildWasmInterpreterEntry(func_index);
-
-  // Schedule and compile to machine code.
-  CallDescriptor* incoming = GetWasmCallDescriptor(&zone, sig);
-  if (machine->Is32()) {
-    incoming = GetI32WasmCallDescriptor(&zone, incoming);
-  }
-
-  EmbeddedVector<char, 32> func_name;
-  func_name.Truncate(
-      SNPrintF(func_name, "wasm-interpreter-entry#%d", func_index));
-
-  wasm::WasmCompilationResult result = Pipeline::GenerateCodeForWasmNativeStub(
-      wasm_engine, incoming, mcgraph, Code::WASM_INTERPRETER_ENTRY,
-      wasm::WasmCode::kInterpreterEntry, func_name.begin(),
-      WasmStubAssemblerOptions());
-  result.result_tier = wasm::ExecutionTier::kInterpreter;
-  result.kind = wasm::WasmCompilationResult::kInterpreterEntry;
-
-  return result;
-}
-
 MaybeHandle<Code> CompileJSToJSWrapper(Isolate* isolate,
                                        const wasm::FunctionSig* sig) {
   std::unique_ptr<Zone> zone =
@@ -6798,25 +6686,6 @@ wasm::WasmCompilationResult ExecuteTurbofanWasmCompilation(
   CHECK_NOT_NULL(result);  // Compilation expected to succeed.
   DCHECK_EQ(wasm::ExecutionTier::kTurbofan, result->result_tier);
   return std::move(*result);
-}
-
-wasm::WasmCompilationResult ExecuteInterpreterEntryCompilation(
-    wasm::WasmEngine* wasm_engine, wasm::CompilationEnv* env,
-    const wasm::FunctionBody& func_body, int func_index, Counters* counters,
-    wasm::WasmFeatures* detected) {
-  Zone zone(wasm_engine->allocator(), ZONE_NAME);
-  const wasm::WasmModule* module = env ? env->module : nullptr;
-  wasm::WasmFullDecoder<wasm::Decoder::kValidate, wasm::EmptyInterface> decoder(
-      &zone, module, env->enabled_features, detected, func_body);
-  decoder.Decode();
-  if (decoder.failed()) return wasm::WasmCompilationResult{};
-
-  wasm::WasmCompilationResult result = CompileWasmInterpreterEntry(
-      wasm_engine, env->enabled_features, func_index, func_body.sig);
-  DCHECK(result.succeeded());
-  DCHECK_EQ(wasm::ExecutionTier::kInterpreter, result.result_tier);
-
-  return result;
 }
 
 namespace {

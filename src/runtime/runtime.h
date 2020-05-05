@@ -559,7 +559,6 @@ namespace internal {
   F(WasmI64AtomicWait, 5, 1)            \
   F(WasmAtomicNotify, 3, 1)             \
   F(WasmMemoryGrow, 2, 1)               \
-  F(WasmRunInterpreter, 2, 1)           \
   F(WasmStackGuard, 0, 1)               \
   F(WasmThrowCreate, 2, 1)              \
   F(WasmThrowTypeError, 0, 1)           \

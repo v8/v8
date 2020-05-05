@@ -174,17 +174,6 @@ uint32_t TestingModuleBuilder::AddFunction(const FunctionSig* sig,
   }
   if (interpreter_) {
     interpreter_->AddFunctionForTesting(&test_module_->functions.back());
-    // Patch the jump table to call the interpreter for this function.
-    wasm::WasmCompilationResult result = compiler::CompileWasmInterpreterEntry(
-        isolate_->wasm_engine(), native_module_->enabled_features(), index,
-        sig);
-    std::unique_ptr<wasm::WasmCode> code = native_module_->AddCode(
-        index, result.code_desc, result.frame_slot_count,
-        result.tagged_parameter_slots,
-        result.protected_instructions_data.as_vector(),
-        result.source_positions.as_vector(), wasm::WasmCode::kInterpreterEntry,
-        wasm::ExecutionTier::kInterpreter, wasm::kNoDebugging);
-    native_module_->PublishCode(std::move(code));
   }
   DCHECK_LT(index, kMaxFunctions);  // limited for testing.
   return index;
@@ -200,6 +189,7 @@ void TestingModuleBuilder::FreezeSignatureMapAndInitializeWrapperCache() {
 }
 
 Handle<JSFunction> TestingModuleBuilder::WrapCode(uint32_t index) {
+  CHECK(!interpreter_);
   FreezeSignatureMapAndInitializeWrapperCache();
   SetExecutable();
   return WasmInstanceObject::GetOrCreateWasmExternalFunction(

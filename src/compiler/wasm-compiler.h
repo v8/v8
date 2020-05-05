@@ -54,10 +54,6 @@ wasm::WasmCompilationResult ExecuteTurbofanWasmCompilation(
     wasm::WasmEngine*, wasm::CompilationEnv*, const wasm::FunctionBody&,
     int func_index, Counters*, wasm::WasmFeatures* detected);
 
-wasm::WasmCompilationResult ExecuteInterpreterEntryCompilation(
-    wasm::WasmEngine*, wasm::CompilationEnv*, const wasm::FunctionBody&,
-    int func_index, Counters*, wasm::WasmFeatures* detected);
-
 // Calls to Wasm imports are handled in several different ways, depending on the
 // type of the target function/callable and whether the signature matches the
 // argument arity.
@@ -125,12 +121,6 @@ std::unique_ptr<OptimizedCompilationJob> NewJSToWasmCompilationJob(
     Isolate* isolate, wasm::WasmEngine* wasm_engine,
     const wasm::FunctionSig* sig, bool is_import,
     const wasm::WasmFeatures& enabled_features);
-
-// Compiles a stub that redirects a call to a wasm function to the wasm
-// interpreter. It's ABI compatible with the compiled wasm function.
-V8_EXPORT_PRIVATE wasm::WasmCompilationResult CompileWasmInterpreterEntry(
-    wasm::WasmEngine*, const wasm::WasmFeatures& enabled_features,
-    uint32_t func_index, const wasm::FunctionSig*);
 
 // Compiles a stub with JS linkage that serves as an adapter for function
 // objects constructed via {WebAssembly.Function}. It performs a round-trip
