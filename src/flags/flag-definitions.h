@@ -220,7 +220,6 @@ DEFINE_IMPLICATION(harmony_weak_refs_with_cleanup_some, harmony_weak_refs)
 
 // Features that are still work in progress (behind individual flags).
 #define HARMONY_INPROGRESS_BASE(V)                                             \
-  V(harmony_promise_any, "harmony Promise.any")                                \
   V(harmony_regexp_sequence, "RegExp Unicode sequence properties")             \
   V(harmony_weak_refs_with_cleanup_some,                                       \
     "harmony weak references with FinalizationRegistry.prototype.cleanupSome") \
@@ -238,7 +237,8 @@ DEFINE_IMPLICATION(harmony_weak_refs_with_cleanup_some, harmony_weak_refs)
 // Features that are complete (but still behind --harmony/es-staging flag).
 #define HARMONY_STAGED_BASE(V)                                        \
   V(harmony_string_replaceall, "harmony String.prototype.replaceAll") \
-  V(harmony_logical_assignment, "harmony logical assignment")
+  V(harmony_logical_assignment, "harmony logical assignment")         \
+  V(harmony_promise_any, "harmony Promise.any")
 
 #ifdef V8_INTL_SUPPORT
 #define HARMONY_STAGED(V)                                  \
