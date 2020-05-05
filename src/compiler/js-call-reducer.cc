@@ -921,9 +921,10 @@ class FastApiCallReducerAssembler : public JSCallReducerAssembler {
         Internals::kJSObjectHeaderSize +
         (Internals::kEmbedderDataSlotSize * wrapper_object_index);
 
-    FieldAccess access(kTaggedBase, offset, MaybeHandle<Name>(),
-                       MaybeHandle<Map>(), Type::Any(), MachineType::Pointer(),
-                       WriteBarrierKind::kNoWriteBarrier);
+    FieldAccess access(
+        kTaggedBase, offset, MaybeHandle<Name>(), MaybeHandle<Map>(),
+        V8_HEAP_SANDBOX_BOOL ? Type::SandboxedExternalPointer() : Type::Any(),
+        MachineType::Pointer(), WriteBarrierKind::kNoWriteBarrier);
     TNode<RawPtrT> load = AddNode<RawPtrT>(graph()->NewNode(
         simplified()->LoadField(access), node, effect(), control()));
     return load;

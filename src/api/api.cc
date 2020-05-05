@@ -1314,21 +1314,25 @@ void Context::SetEmbedderData(int index, v8::Local<Value> value) {
 
 void* Context::SlowGetAlignedPointerFromEmbedderData(int index) {
   const char* location = "v8::Context::GetAlignedPointerFromEmbedderData()";
-  HandleScope handle_scope(GetIsolate());
+  i::Isolate* isolate = Utils::OpenHandle(this)->GetIsolate();
+  i::HandleScope handle_scope(isolate);
   i::Handle<i::EmbedderDataArray> data =
       EmbedderDataFor(this, index, false, location);
   if (data.is_null()) return nullptr;
   void* result;
-  Utils::ApiCheck(i::EmbedderDataSlot(*data, index).ToAlignedPointer(&result),
-                  location, "Pointer is not aligned");
+  Utils::ApiCheck(
+      i::EmbedderDataSlot(*data, index).ToAlignedPointer(isolate, &result),
+      location, "Pointer is not aligned");
   return result;
 }
 
 void Context::SetAlignedPointerInEmbedderData(int index, void* value) {
   const char* location = "v8::Context::SetAlignedPointerInEmbedderData()";
+  i::Isolate* isolate = Utils::OpenHandle(this)->GetIsolate();
   i::Handle<i::EmbedderDataArray> data =
       EmbedderDataFor(this, index, true, location);
-  bool ok = i::EmbedderDataSlot(*data, index).store_aligned_pointer(value);
+  bool ok =
+      i::EmbedderDataSlot(*data, index).store_aligned_pointer(isolate, value);
   Utils::ApiCheck(ok, location, "Pointer is not aligned");
   DCHECK_EQ(value, GetAlignedPointerFromEmbedderData(index));
 }
@@ -5614,7 +5618,7 @@ void* v8::Object::SlowGetAlignedPointerFromInternalField(int index) {
   if (!InternalFieldOK(obj, index, location)) return nullptr;
   void* result;
   Utils::ApiCheck(i::EmbedderDataSlot(i::JSObject::cast(*obj), index)
-                      .ToAlignedPointer(&result),
+                      .ToAlignedPointer(obj->GetIsolate(), &result),
                   location, "Unaligned pointer");
   return result;
 }
@@ -5624,7 +5628,7 @@ void v8::Object::SetAlignedPointerInInternalField(int index, void* value) {
   const char* location = "v8::Object::SetAlignedPointerInInternalField()";
   if (!InternalFieldOK(obj, index, location)) return;
   Utils::ApiCheck(i::EmbedderDataSlot(i::JSObject::cast(*obj), index)
-                      .store_aligned_pointer(value),
+                      .store_aligned_pointer(obj->GetIsolate(), value),
                   location, "Unaligned pointer");
   DCHECK_EQ(value, GetAlignedPointerFromInternalField(index));
 }
@@ -5643,9 +5647,9 @@ void v8::Object::SetAlignedPointerInInternalFields(int argc, int indices[],
       return;
     }
     void* value = values[i];
-    Utils::ApiCheck(
-        i::EmbedderDataSlot(js_obj, index).store_aligned_pointer(value),
-        location, "Unaligned pointer");
+    Utils::ApiCheck(i::EmbedderDataSlot(js_obj, index)
+                        .store_aligned_pointer(obj->GetIsolate(), value),
+                    location, "Unaligned pointer");
     DCHECK_EQ(value, GetAlignedPointerFromInternalField(index));
   }
 }
@@ -5684,6 +5688,15 @@ bool v8::V8::Initialize(const int build_config) {
         "Embedder-vs-V8 build configuration mismatch. On embedder side "
         "Smi value size is %d while on V8 side it's %d.",
         kEmbedderSmiValueSize, internal::kSmiValueSize);
+  }
+
+  const bool kEmbedderHeapSandbox = (build_config & kHeapSandbox) != 0;
+  if (kEmbedderHeapSandbox != V8_HEAP_SANDBOX_BOOL) {
+    FATAL(
+        "Embedder-vs-V8 build configuration mismatch. On embedder side "
+        "heap sandbox is %s while on V8 side it's %s.",
+        kEmbedderHeapSandbox ? "ENABLED" : "DISABLED",
+        V8_HEAP_SANDBOX_BOOL ? "ENABLED" : "DISABLED");
   }
 
   i::V8::Initialize();

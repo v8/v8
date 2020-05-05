@@ -216,7 +216,8 @@ bool ContextSerializer::SerializeJSObjectWithEmbedderFields(Object obj) {
   //    onto the result.
   for (int i = 0; i < embedder_fields_count; i++) {
     EmbedderDataSlot embedder_data_slot(js_obj, i);
-    original_embedder_values.emplace_back(embedder_data_slot.load_raw(no_gc));
+    original_embedder_values.emplace_back(
+        embedder_data_slot.load_raw(isolate(), no_gc));
     Object object = embedder_data_slot.load_tagged();
     if (object.IsHeapObject()) {
       DCHECK(IsValidHeapObject(isolate()->heap(), HeapObject::cast(object)));
@@ -243,7 +244,7 @@ bool ContextSerializer::SerializeJSObjectWithEmbedderFields(Object obj) {
   //    with embedder callbacks.
   for (int i = 0; i < embedder_fields_count; i++) {
     if (!DataIsEmpty(serialized_data[i])) {
-      EmbedderDataSlot(js_obj, i).store_raw(kNullAddress, no_gc);
+      EmbedderDataSlot(js_obj, i).store_raw(isolate(), kNullAddress, no_gc);
     }
   }
 
@@ -262,7 +263,8 @@ bool ContextSerializer::SerializeJSObjectWithEmbedderFields(Object obj) {
     StartupData data = serialized_data[i];
     if (DataIsEmpty(data)) continue;
     // Restore original values from cleared fields.
-    EmbedderDataSlot(js_obj, i).store_raw(original_embedder_values[i], no_gc);
+    EmbedderDataSlot(js_obj, i).store_raw(isolate(),
+                                          original_embedder_values[i], no_gc);
     embedder_fields_sink_.Put(kNewObject + static_cast<int>(reference.space()),
                               "embedder field holder");
     embedder_fields_sink_.PutInt(reference.chunk_index(), "BackRefChunkIndex");
