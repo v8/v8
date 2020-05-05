@@ -310,12 +310,13 @@
       'os': 'Ubuntu-16.04',
     },
     'tests': [
+      # Infra staging.
+      {'name': 'v8testing', 'variant': 'infra_staging', 'shards': 2},
       # Stress sampling.
       {'name': 'mjsunit', 'variant': 'stress_sampling'},
       {'name': 'webkit', 'variant': 'stress_sampling'},
-      # Infra staging.
-      {'name': 'test262', 'variant': 'infra_staging', 'shards': 2},
-      {'name': 'v8testing', 'variant': 'infra_staging', 'shards': 2},
+      # Stress snapshot.
+      {'name': 'mjsunit', 'variant': 'stress_snapshot'},
     ],
   },
   'v8_linux64_msan_rel': {
@@ -960,8 +961,10 @@
       # Infra staging.
       {'name': 'v8testing', 'variant': 'infra_staging', 'shards': 2},
       # Stress sampling.
-      {'name': 'mjsunit', 'variant': 'stress_sampling', 'shards': 1},
-      {'name': 'webkit', 'variant': 'stress_sampling', 'shards': 1},
+      {'name': 'mjsunit', 'variant': 'stress_sampling'},
+      {'name': 'webkit', 'variant': 'stress_sampling'},
+      # Stress snapshot.
+      {'name': 'mjsunit', 'variant': 'stress_snapshot'},
     ],
   },
   'V8 Linux64 - debug - perfetto': {
@@ -983,10 +986,12 @@
     },
     'tests': [
       # Infra staging.
-      {'name': 'v8testing', 'variant': 'infra_staging', 'shards': 1},
+      {'name': 'v8testing', 'variant': 'infra_staging'},
       # Stress sampling.
-      {'name': 'mjsunit', 'variant': 'stress_sampling', 'shards': 1},
-      {'name': 'webkit', 'variant': 'stress_sampling', 'shards': 1},
+      {'name': 'mjsunit', 'variant': 'stress_sampling'},
+      {'name': 'webkit', 'variant': 'stress_sampling'},
+      # Stress snapshot.
+      {'name': 'mjsunit', 'variant': 'stress_snapshot'},
     ],
   },
   'V8 Linux64 - gcov coverage': {
