@@ -5346,8 +5346,15 @@ bool FastInitializeDerivedMap(Isolate* isolate, Handle<JSFunction> new_target,
   int in_object_properties;
   int embedder_fields =
       JSObject::GetEmbedderFieldCount(*constructor_initial_map);
+  // Constructor expects certain number of in-object properties to be in the
+  // object. However, CalculateExpectedNofProperties() may return smaller value
+  // if 1) the constructor is not in the prototype chain of new_target, or
+  // 2) the prototype chain is modified during iteration, or 3) compilation
+  // failure occur during prototype chain iteration.
+  // So we take the maximum of two values.
   int expected_nof_properties =
-      JSFunction::CalculateExpectedNofProperties(isolate, new_target);
+      Max(static_cast<int>(constructor->shared().expected_nof_properties()),
+          JSFunction::CalculateExpectedNofProperties(isolate, new_target));
   JSFunction::CalculateInstanceSizeHelper(
       instance_type, true, embedder_fields, expected_nof_properties,
       &instance_size, &in_object_properties);
@@ -5595,9 +5602,10 @@ int JSFunction::CalculateExpectedNofProperties(Isolate* isolate,
         return JSObject::kMaxInObjectProperties;
       }
     } else {
-      // In case there was a compilation error for the constructor we will
-      // throw an error during instantiation.
-      break;
+      // In case there was a compilation error proceed iterating in case there
+      // will be a builtin function in the prototype chain that requires
+      // certain number of in-object properties.
+      continue;
     }
   }
   // Inobject slack tracking will reclaim redundant inobject space
