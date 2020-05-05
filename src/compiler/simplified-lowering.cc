@@ -309,35 +309,12 @@ class RepresentationSelector {
     TRACE("--{Type propagation phase}--\n");
     ResetNodeInfoState();
 
-    DCHECK(typing_stack_.empty());
-    typing_stack_.push({graph()->end(), 0});
-    GetInfo(graph()->end())->set_pushed();
     while (!typing_stack_.empty()) {
-      NodeState& current = typing_stack_.top();
-
-      // If there is an unvisited input, push it and continue.
-      bool pushed_unvisited = false;
-      while (current.input_index < current.node->InputCount()) {
-        Node* input = current.node->InputAt(current.input_index);
-        NodeInfo* input_info = GetInfo(input);
-        current.input_index++;
-        if (input_info->unvisited()) {
-          input_info->set_pushed();
-          typing_stack_.push({input, 0});
-          pushed_unvisited = true;
-          break;
-        } else if (input_info->pushed()) {
-          // If we had already pushed (and not visited) an input, it means that
-          // the current node will be visited before one of its inputs. If this
-          // happens, the current node might need to be revisited.
-          MarkAsPossibleRevisit(current.node, input);
-        }
-      }
-      if (pushed_unvisited) continue;
+      NodeState& current = typing_stack_.front();
 
       // Process the top of the stack.
       Node* node = current.node;
-      typing_stack_.pop();
+      typing_stack_.pop_front();
       NodeInfo* info = GetInfo(node);
       info->set_visited();
       bool updated = UpdateFeedbackType(node);
@@ -354,7 +331,7 @@ class RepresentationSelector {
           if (GetInfo(user)->visited()) {
             TRACE(" QUEUEING #%d: %s\n", user->id(), user->op()->mnemonic());
             GetInfo(user)->set_queued();
-            queue_.push(user);
+            queue_.push_back(user);
           }
         }
       }
@@ -363,7 +340,7 @@ class RepresentationSelector {
     // Process the revisit queue.
     while (!queue_.empty()) {
       Node* node = queue_.front();
-      queue_.pop();
+      queue_.pop_front();
       NodeInfo* info = GetInfo(node);
       info->set_visited();
       bool updated = UpdateFeedbackType(node);
@@ -380,7 +357,7 @@ class RepresentationSelector {
           if (GetInfo(user)->visited()) {
             TRACE(" QUEUEING #%d: %s\n", user->id(), user->op()->mnemonic());
             GetInfo(user)->set_queued();
-            queue_.push(user);
+            queue_.push_back(user);
           }
         }
       }
@@ -608,12 +585,12 @@ class RepresentationSelector {
   void RunTruncationPropagationPhase() {
     // Run propagation phase to a fixpoint.
     TRACE("--{Propagation phase}--\n");
-    EnqueueInitial(jsgraph_->graph()->end());
+    ResetNodeInfoState();
     // Process nodes from the queue until it is empty.
     while (!queue_.empty()) {
       Node* node = queue_.front();
       NodeInfo* info = GetInfo(node);
-      queue_.pop();
+      queue_.pop_front();
       info->set_visited();
       TRACE(" visit #%d: %s (trunc: %s)\n", node->id(), node->op()->mnemonic(),
             info->truncation().description());
@@ -621,7 +598,51 @@ class RepresentationSelector {
     }
   }
 
+  void GenerateTraversal() {
+    // Temporary stack
+    ZoneStack<NodeState> stack(zone_);
+
+    stack.push({graph()->end(), 0});
+    GetInfo(graph()->end())->set_pushed();
+    while (!stack.empty()) {
+      NodeState& current = stack.top();
+
+      // If there is an unvisited input, push it and continue.
+      bool pushed_unvisited = false;
+      while (current.input_index < current.node->InputCount()) {
+        Node* input = current.node->InputAt(current.input_index);
+        NodeInfo* input_info = GetInfo(input);
+        current.input_index++;
+        if (input_info->unvisited()) {
+          input_info->set_pushed();
+          stack.push({input, 0});
+          pushed_unvisited = true;
+          break;
+        } else if (input_info->pushed()) {
+          // If we had already pushed (and not visited) an input, it means that
+          // the current node will be visited before one of its inputs. If this
+          // happens, the current node might need to be revisited.
+          MarkAsPossibleRevisit(current.node, input);
+        }
+      }
+
+      if (pushed_unvisited) continue;
+
+      Node* node = current.node;
+      stack.pop();
+      NodeInfo* info = GetInfo(node);
+      info->set_visited();
+
+      // Generate the traversal
+      typing_stack_.push_back({node, 0});
+      queue_.push_front(node);
+      nodes_.push_back(node);
+    }
+  }
+
   void Run(SimplifiedLowering* lowering) {
+    GenerateTraversal();
+
     RunTruncationPropagationPhase();
 
     RunTypePropagationPhase();
@@ -654,13 +675,6 @@ class RepresentationSelector {
         if (*j == node) *j = replacement;
       }
     }
-  }
-
-  void EnqueueInitial(Node* node) {
-    NodeInfo* info = GetInfo(node);
-    info->set_queued();
-    nodes_.push_back(node);
-    queue_.push(node);
   }
 
   // Just assert for Retype and Lower. Propagate specialized below.
@@ -3796,13 +3810,13 @@ class RepresentationSelector {
   NodeVector nodes_;                // collected nodes
   NodeVector replacements_;         // replacements to be done after lowering
   RepresentationChanger* changer_;  // for inserting representation changes
-  ZoneQueue<Node*> queue_;          // queue for traversing the graph
+  ZoneDeque<Node*> queue_;          // Deque for revisiting nodes.
 
   struct NodeState {
     Node* node;
     int input_index;
   };
-  ZoneStack<NodeState> typing_stack_;  // stack for graph typing.
+  ZoneDeque<NodeState> typing_stack_;  // Deque for graph typing.
   // TODO(danno): RepresentationSelector shouldn't know anything about the
   // source positions table, but must for now since there currently is no other
   // way to pass down source position information to nodes created during
@@ -3840,8 +3854,6 @@ void RepresentationSelector::EnqueueInput<PROPAGATE>(Node* use_node, int index,
   if (info->unvisited()) {
     // First visit of this node.
     info->set_queued();
-    nodes_.push_back(node);
-    queue_.push(node);
     TRACE("  initial #%i: ", node->id());
     info->AddUse(use_info);
     PrintTruncation(info->truncation());
@@ -3853,7 +3865,7 @@ void RepresentationSelector::EnqueueInput<PROPAGATE>(Node* use_node, int index,
     // New usage information for the node is available.
     if (!info->queued()) {
       DCHECK(info->visited());
-      queue_.push(node);
+      queue_.push_back(node);
       info->set_queued();
       TRACE("   added: ");
     } else {
