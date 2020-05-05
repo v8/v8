@@ -3575,7 +3575,11 @@ void CodeGenerator::AssembleArchBoolean(Instruction* instr,
     FlagsConditionToConditionCmpFPU(&predicate, condition);
     // RISCV compare returns 0 or 1, do nothing when predicate; otherwise
     // toggle kScratchReg (i.e., 0 -> 1, 1 -> 0)
-    if (!predicate) __ Xor(result, kScratchReg, 1);
+    if (predicate) {
+      __ Move(result, kScratchReg);
+    } else {
+      __ Xor(result, kScratchReg, 1);
+    }
     return;
   } else {
     PrintF("AssembleArchBranch Unimplemented arch_opcode is : %d\n",
