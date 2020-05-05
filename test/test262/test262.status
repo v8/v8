@@ -445,7 +445,7 @@
   'built-ins/Object/internals/DefineOwnProperty/consistent-value-function-arguments': [FAIL_SLOPPY],
 
   # https://bugs.chromium.org/p/v8/issues/detail?id=7184
-  'annexB/language/expressions/yield/star-iterable-return-emulates-undefined-throws-when-called': [FAIL],
+  'annexB/language/expressions/yield/star-iterable-throw-emulates-undefined-throws-when-called': [FAIL],
 
   # https://bugs.chromium.org/p/v8/issues/detail?id=5690
   'language/expressions/call/eval-spread': [FAIL],

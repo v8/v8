@@ -588,8 +588,8 @@ RUNTIME_FUNCTION(Runtime_UnblockConcurrentRecompilation) {
   return ReadOnlyRoots(isolate).undefined_value();
 }
 
-static void ReturnThis(const v8::FunctionCallbackInfo<v8::Value>& args) {
-  args.GetReturnValue().Set(args.This());
+static void ReturnNull(const v8::FunctionCallbackInfo<v8::Value>& args) {
+  args.GetReturnValue().SetNull();
 }
 
 RUNTIME_FUNCTION(Runtime_GetUndetectable) {
@@ -598,7 +598,7 @@ RUNTIME_FUNCTION(Runtime_GetUndetectable) {
   v8::Isolate* v8_isolate = reinterpret_cast<v8::Isolate*>(isolate);
   Local<v8::ObjectTemplate> desc = v8::ObjectTemplate::New(v8_isolate);
   desc->MarkAsUndetectable();
-  desc->SetCallAsFunctionHandler(ReturnThis);
+  desc->SetCallAsFunctionHandler(ReturnNull);
   Local<v8::Object> obj =
       desc->NewInstance(v8_isolate->GetCurrentContext()).ToLocalChecked();
   return *Utils::OpenHandle(*obj);
