@@ -65,7 +65,7 @@ void SetTracingController(
 }
 
 namespace {
-constexpr int kMaxThreadPoolSize = 8;
+constexpr int kMaxThreadPoolSize = 16;
 
 int GetActualThreadPoolSize(int thread_pool_size) {
   DCHECK_GE(thread_pool_size, 0);
