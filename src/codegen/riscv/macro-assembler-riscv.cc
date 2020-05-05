@@ -1984,12 +1984,26 @@ void TurboAssembler::CompareF64(Register rd, FPUCondition cc, FPURegister cmp1,
 
 void TurboAssembler::CompareIsNanF32(Register rd, FPURegister cmp1,
                                      FPURegister cmp2) {
-  UNIMPLEMENTED();
+  UseScratchRegisterScope temps(this);
+  BlockTrampolinePoolScope block_trampoline_pool(this);
+  Register scratch = temps.hasAvailable() ? temps.Acquire() : t5;
+
+  RV_feq_s(rd, cmp1, cmp1);       // rd <- !isNan(cmp1)
+  RV_feq_s(scratch, cmp2, cmp2);  // scratch <- !isNaN(cmp2)
+  And(rd, rd, scratch);           // rd <- !isNan(cmp1) && !isNan(cmp2)
+  Xor(rd, rd, 1);                 // rd <- isNan(cmp1) || isNan(cmp2)
 }
 
 void TurboAssembler::CompareIsNanF64(Register rd, FPURegister cmp1,
                                      FPURegister cmp2) {
-  UNIMPLEMENTED();
+  UseScratchRegisterScope temps(this);
+  BlockTrampolinePoolScope block_trampoline_pool(this);
+  Register scratch = temps.hasAvailable() ? temps.Acquire() : t5;
+
+  RV_feq_d(rd, cmp1, cmp1);       // rd <- !isNan(cmp1)
+  RV_feq_d(scratch, cmp2, cmp2);  // scratch <- !isNaN(cmp2)
+  And(rd, rd, scratch);           // rd <- !isNan(cmp1) && !isNan(cmp2)
+  Xor(rd, rd, 1);                 // rd <- isNan(cmp1) || isNan(cmp2)
 }
 
 void TurboAssembler::BranchTrueShortF(Register rs, Label* target) {
@@ -4067,24 +4081,73 @@ void MacroAssembler::AssertUndefinedOrAllocationSite(Register object,
   }
 }
 
+template <typename F_TYPE>
+void TurboAssembler::FloatMinMaxHelper(FPURegister dst, FPURegister src1,
+                                       FPURegister src2, MaxMinKind kind) {
+  if (src1 == src2) {
+    Move_s(dst, src1);
+    return;
+  }
+
+  Label done, nan;
+
+  // For RISCV, fmin_s returns the other non-NaN operand as result if only one
+  // operand is NaN; but for JS, if any operand is NaN, result is Nan. The
+  // following handles the discrepency between handling of NaN between ISA and
+  // JS semantics
+  UseScratchRegisterScope temps(this);
+  Register scratch = temps.Acquire();
+  if (std::is_same<float, F_TYPE>::value) {
+    CompareIsNanF32(scratch, src1, src2);
+  } else {
+    CompareIsNanF64(scratch, src1, src2);
+  }
+  BranchTrueF(scratch, &nan);
+
+  if (kind == MaxMinKind::kMax) {
+    if (std::is_same<float, F_TYPE>::value) {
+      RV_fmax_s(dst, src1, src2);
+    } else {
+      RV_fmax_d(dst, src1, src2);
+    }
+  } else {
+    if (std::is_same<float, F_TYPE>::value) {
+      RV_fmin_s(dst, src1, src2);
+    } else {
+      RV_fmin_d(dst, src1, src2);
+    }
+  }
+  RV_j(&done);
+
+  bind(&nan);
+  // if any operand is NaN, return NaN (fadd returns NaN if any operand is NaN)
+  if (std::is_same<float, F_TYPE>::value) {
+    RV_fadd_s(dst, src1, src2);
+  } else {
+    RV_fadd_d(dst, src1, src2);
+  }
+
+  bind(&done);
+}
+
 void TurboAssembler::Float32Max(FPURegister dst, FPURegister src1,
                                 FPURegister src2) {
-  RV_fmax_s(dst, src1, src2);
+  FloatMinMaxHelper<float>(dst, src1, src2, MaxMinKind::kMax);
 }
 
 void TurboAssembler::Float32Min(FPURegister dst, FPURegister src1,
                                 FPURegister src2) {
-  RV_fmin_s(dst, src1, src2);
+  FloatMinMaxHelper<float>(dst, src1, src2, MaxMinKind::kMin);
 }
 
 void TurboAssembler::Float64Max(FPURegister dst, FPURegister src1,
                                 FPURegister src2) {
-  RV_fmax_d(dst, src1, src2);
+  FloatMinMaxHelper<double>(dst, src1, src2, MaxMinKind::kMax);
 }
 
 void TurboAssembler::Float64Min(FPURegister dst, FPURegister src1,
                                 FPURegister src2) {
-  RV_fmin_d(dst, src1, src2);
+  FloatMinMaxHelper<double>(dst, src1, src2, MaxMinKind::kMin);
 }
 
 static const int kRegisterPassedArguments = 8;

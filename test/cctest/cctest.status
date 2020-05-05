@@ -364,10 +364,8 @@
 ##############################################################################
 ['arch == riscv32  or arch == riscv64', {
   # skip some macro-assembler failures while still debugging
-  'test-assembler-riscv/RISCV7': [PASS, FAIL],
-  'test-macro-assembler-riscv/OverflowInstructions': [FAIL],
-  'test-macro-assembler-riscv/min_max_nan': [FAIL],
-  'test-macro-assembler-riscv/macro_float_minmax*': [FAIL],
+  'test-assembler-riscv/RISCV7': [SKIP],
+  'test-macro-assembler-riscv/OverflowInstructions': [SKIP],
 
   'test-run-machops/RunFloat64MulAndFloat64Add2': [SKIP],
   'test-run-machops/RunFloat64MulAndFloat64Sub1': [SKIP],
@@ -376,11 +374,9 @@
   'test-run-machops/RunFloat32RoundDown': [SKIP],
   'test-run-machops/RunFloat32RoundTiesEven': [SKIP],
   'test-run-machops/RunFloat64Acosh': [SKIP],
-  'test-run-machops/RunFloat32Min': [SKIP],
   'test-run-machops/RunFloat32RoundTruncate': [SKIP],
   'test-run-machops/RunFloat32RoundUp': [SKIP],
   'test-run-machops/RunFloat64Atan': [SKIP],
-  'test-run-machops/RunFloat32Max': [SKIP],
   'test-run-machops/RunFloat64Asin': [SKIP],
   'test-run-machops/RunFloat64Asinh': [SKIP],
   'test-run-machops/RunFloat64Atan2': [SKIP],
@@ -399,14 +395,12 @@
   'test-run-machops/RunFloat64LessThan': [SKIP],
   'test-run-machops/RunFloat64Cosh': [SKIP],
   'test-run-machops/RunFloat64MinP': [SKIP],
-  'test-run-machops/RunFloat64Min': [SKIP],
   'test-run-machops/RunFloat64Mod': [SKIP],
 
  'test-run-machops/RunFloat64MaxP': [SKIP],
   'test-run-machops/RunFloat64Log': [SKIP],
   'test-run-machops/RunFloat64ModP': [SKIP],
   'test-run-machops/RunFloat64Log2': [SKIP],
-  'test-run-machops/RunFloat64Max': [SKIP],
   'test-run-machops/RunFloat64Log1p': [SKIP],
   'test-run-machops/RunFloat64RoundDown2': [SKIP],
   'test-run-machops/RunFloat64RoundDown1': [SKIP],

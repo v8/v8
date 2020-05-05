@@ -351,10 +351,12 @@ class Simulator : public SimulatorBase {
   I_TYPE RoundF2IHelper(F_TYPE original, int rmode);
 
   template <typename T>
+  T FMaxMinHelper(T a, T b, MaxMinKind kind);
+
+  template <typename T>
   bool CompareFHelper(T input1, T input2, FPUCondition cc);
 
-  // Special case of set_register and get_register to access the raw PC
-  // value.
+  // Special case of set_register and get_register to access the raw PC value.
   void set_pc(int64_t value);
   int64_t get_pc() const;
 
@@ -499,12 +501,37 @@ class Simulator : public SimulatorBase {
     }
   }
 
-  template <typename Func>
-  inline float CanonicalizeFloat3Operation(Func fn) {
-    float alu_out = fn(frs1(), frs2(), frs3());
-    if (std::isnan(alu_out) || std::isnan(frs1()) || std::isnan(frs2()) ||
-        std::isnan(frs3()))
-      alu_out = std::numeric_limits<float>::quiet_NaN();
+  template <typename T, typename Func>
+  inline T CanonicalizeFPUOp3(Func fn) {
+    DCHECK(std::is_floating_point<T>::value);
+    T src1 = std::is_same<float, T>::value ? frs1() : drs1();
+    T src2 = std::is_same<float, T>::value ? frs2() : drs2();
+    T src3 = std::is_same<float, T>::value ? frs3() : drs3();
+    auto alu_out = fn(src1, src2, src3);
+    if (std::isnan(alu_out) || std::isnan(src1) || std::isnan(src2) ||
+        std::isnan(src3))
+      alu_out = std::numeric_limits<T>::quiet_NaN();
+    return alu_out;
+  }
+
+  template <typename T, typename Func>
+  inline T CanonicalizeFPUOp2(Func fn) {
+    DCHECK(std::is_floating_point<T>::value);
+    T src1 = std::is_same<float, T>::value ? frs1() : drs1();
+    T src2 = std::is_same<float, T>::value ? frs2() : drs2();
+    auto alu_out = fn(src1, src2);
+    if (std::isnan(alu_out) || std::isnan(src1) || std::isnan(src2))
+      alu_out = std::numeric_limits<T>::quiet_NaN();
+    return alu_out;
+  }
+
+  template <typename T, typename Func>
+  inline T CanonicalizeFPUOp1(Func fn) {
+    DCHECK(std::is_floating_point<T>::value);
+    T src1 = std::is_same<float, T>::value ? frs1() : drs1();
+    auto alu_out = fn(src1);
+    if (std::isnan(alu_out) || std::isnan(src1))
+      alu_out = std::numeric_limits<T>::quiet_NaN();
     return alu_out;
   }
 
