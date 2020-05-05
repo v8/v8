@@ -98,11 +98,8 @@ namespace internal {
   V(WasmI64AtomicWait32)              \
   V(WasmI64AtomicWait64)              \
   V(WasmMemoryGrow)                   \
-  V(WasmRefFunc)                      \
   V(WasmTableInit)                    \
   V(WasmTableCopy)                    \
-  V(WasmTableGet)                     \
-  V(WasmTableSet)                     \
   V(WasmThrow)                        \
   BUILTIN_LIST_TFS(V)                 \
   TORQUE_BUILTIN_LIST_TFC(V)
@@ -1339,14 +1336,6 @@ class WasmMemoryGrowDescriptor final : public CallInterfaceDescriptor {
   DECLARE_DESCRIPTOR(WasmMemoryGrowDescriptor, CallInterfaceDescriptor)
 };
 
-class WasmRefFuncDescriptor final : public CallInterfaceDescriptor {
- public:
-  DEFINE_PARAMETERS_NO_CONTEXT(kFunctionIndex)
-  DEFINE_RESULT_AND_PARAMETER_TYPES(MachineType::AnyTagged(),  // result
-                                    MachineType::Uint32())     // kFunctionIndex
-  DECLARE_DESCRIPTOR(WasmRefFuncDescriptor, CallInterfaceDescriptor)
-};
-
 class WasmTableInitDescriptor final : public CallInterfaceDescriptor {
  public:
   DEFINE_PARAMETERS_NO_CONTEXT(kDestination, kSource, kSize, kTableIndex,
@@ -1391,24 +1380,6 @@ class WasmTableCopyDescriptor final : public CallInterfaceDescriptor {
   static constexpr int kStackArgumentsCount = kPassLastArgOnStack ? 1 : 0;
 
   DECLARE_DESCRIPTOR(WasmTableCopyDescriptor, CallInterfaceDescriptor)
-};
-
-class WasmTableGetDescriptor final : public CallInterfaceDescriptor {
- public:
-  DEFINE_PARAMETERS_NO_CONTEXT(kTableIndex, kEntryIndex)
-  DEFINE_RESULT_AND_PARAMETER_TYPES(MachineType::AnyTagged(),  // result
-                                    MachineType::IntPtr(),     // kTableIndex
-                                    MachineType::Int32())      // kEntryIndex
-  DECLARE_DESCRIPTOR(WasmTableGetDescriptor, CallInterfaceDescriptor)
-};
-
-class WasmTableSetDescriptor final : public CallInterfaceDescriptor {
- public:
-  DEFINE_PARAMETERS_NO_CONTEXT(kTableIndex, kEntryIndex, kValue)
-  DEFINE_PARAMETER_TYPES(MachineType::IntPtr(),     // kTableIndex
-                         MachineType::Int32(),      // kEntryIndex
-                         MachineType::AnyTagged())  // kValue
-  DECLARE_DESCRIPTOR(WasmTableSetDescriptor, CallInterfaceDescriptor)
 };
 
 class WasmThrowDescriptor final : public CallInterfaceDescriptor {

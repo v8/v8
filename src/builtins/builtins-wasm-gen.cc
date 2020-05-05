@@ -2,6 +2,8 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#include "src/builtins/builtins-wasm-gen.h"
+
 #include "src/builtins/builtins-utils-gen.h"
 #include "src/codegen/code-stub-assembler.h"
 #include "src/codegen/interface-descriptors.h"
@@ -12,30 +14,37 @@
 namespace v8 {
 namespace internal {
 
-class WasmBuiltinsAssembler : public CodeStubAssembler {
- public:
-  explicit WasmBuiltinsAssembler(compiler::CodeAssemblerState* state)
-      : CodeStubAssembler(state) {}
+TNode<WasmInstanceObject> WasmBuiltinsAssembler::LoadInstanceFromFrame() {
+  return CAST(
+      LoadFromParentFrame(WasmCompiledFrameConstants::kWasmInstanceOffset));
+}
 
- protected:
-  TNode<WasmInstanceObject> LoadInstanceFromFrame() {
-    return CAST(
-        LoadFromParentFrame(WasmCompiledFrameConstants::kWasmInstanceOffset));
-  }
+TNode<Context> WasmBuiltinsAssembler::LoadContextFromInstance(
+    TNode<WasmInstanceObject> instance) {
+  return CAST(Load(MachineType::AnyTagged(), instance,
+                   IntPtrConstant(WasmInstanceObject::kNativeContextOffset -
+                                  kHeapObjectTag)));
+}
 
-  TNode<Context> LoadContextFromInstance(TNode<WasmInstanceObject> instance) {
-    return CAST(Load(MachineType::AnyTagged(), instance,
-                     IntPtrConstant(WasmInstanceObject::kNativeContextOffset -
-                                    kHeapObjectTag)));
-  }
+TNode<FixedArray> WasmBuiltinsAssembler::LoadTablesFromInstance(
+    TNode<WasmInstanceObject> instance) {
+  return LoadObjectField<FixedArray>(instance,
+                                     WasmInstanceObject::kTablesOffset);
+}
 
-  TNode<Smi> SmiFromUint32WithSaturation(TNode<Uint32T> value, uint32_t max) {
-    DCHECK_LE(max, static_cast<uint32_t>(Smi::kMaxValue));
-    TNode<Uint32T> capped_value = SelectConstant(
-        Uint32LessThan(value, Uint32Constant(max)), value, Uint32Constant(max));
-    return SmiFromUint32(capped_value);
-  }
-};
+TNode<FixedArray> WasmBuiltinsAssembler::LoadExternalFunctionsFromInstance(
+    TNode<WasmInstanceObject> instance) {
+  return LoadObjectField<FixedArray>(
+      instance, WasmInstanceObject::kWasmExternalFunctionsOffset);
+}
+
+TNode<Smi> WasmBuiltinsAssembler::SmiFromUint32WithSaturation(
+    TNode<Uint32T> value, uint32_t max) {
+  DCHECK_LE(max, static_cast<uint32_t>(Smi::kMaxValue));
+  TNode<Uint32T> capped_value = SelectConstant(
+      Uint32LessThan(value, Uint32Constant(max)), value, Uint32Constant(max));
+  return SmiFromUint32(capped_value);
+}
 
 TF_BUILTIN(WasmFloat32ToNumber, WasmBuiltinsAssembler) {
   TNode<Float32T> val = UncheckedCast<Float32T>(Parameter(Descriptor::kValue));
@@ -282,32 +291,6 @@ TF_BUILTIN(WasmMemoryGrow, WasmBuiltinsAssembler) {
   Return(Int32Constant(-1));
 }
 
-TF_BUILTIN(WasmRefFunc, WasmBuiltinsAssembler) {
-  TNode<WasmInstanceObject> instance = LoadInstanceFromFrame();
-
-  Label call_runtime(this, Label::kDeferred);
-
-  TNode<Uint32T> raw_index =
-      UncheckedCast<Uint32T>(Parameter(Descriptor::kFunctionIndex));
-  TNode<FixedArray> table = LoadObjectField<FixedArray>(
-      instance, WasmInstanceObject::kWasmExternalFunctionsOffset);
-  GotoIf(IsUndefined(table), &call_runtime);
-
-  TNode<IntPtrT> function_index =
-      UncheckedCast<IntPtrT>(ChangeUint32ToWord(raw_index));
-  // Function index should be in range.
-  TNode<Object> result = LoadFixedArrayElement(table, function_index);
-  GotoIf(IsUndefined(result), &call_runtime);
-
-  Return(result);
-
-  BIND(&call_runtime);
-  // Fall back to the runtime call for more complex cases.
-  // function_index is known to be in Smi range.
-  TailCallRuntime(Runtime::kWasmRefFunc, LoadContextFromInstance(instance),
-                  instance, SmiFromUint32(raw_index));
-}
-
 TF_BUILTIN(WasmTableInit, WasmBuiltinsAssembler) {
   TNode<Uint32T> dst_raw =
       UncheckedCast<Uint32T>(Parameter(Descriptor::kDestination));
@@ -366,103 +349,6 @@ TF_BUILTIN(WasmTableCopy, WasmBuiltinsAssembler) {
 
   TailCallRuntime(Runtime::kWasmTableCopy, context, instance, dst_table,
                   src_table, dst, src, size);
-}
-
-TF_BUILTIN(WasmTableGet, WasmBuiltinsAssembler) {
-  TNode<WasmInstanceObject> instance = LoadInstanceFromFrame();
-
-  Label call_runtime(this, Label::kDeferred),
-      index_out_of_range(this, Label::kDeferred);
-
-  TNode<IntPtrT> table_index =
-      UncheckedCast<IntPtrT>(Parameter(Descriptor::kTableIndex));
-  GotoIfNot(IsValidPositiveSmi(table_index), &index_out_of_range);
-  TNode<IntPtrT> entry_index = ChangeInt32ToIntPtr(
-      UncheckedCast<Int32T>(Parameter(Descriptor::kEntryIndex)));
-  GotoIfNot(IsValidPositiveSmi(entry_index), &index_out_of_range);
-
-  TNode<FixedArray> tables_array =
-      LoadObjectField<FixedArray>(instance, WasmInstanceObject::kTablesOffset);
-  TNode<WasmTableObject> table =
-      CAST(LoadFixedArrayElement(tables_array, table_index));
-  TNode<IntPtrT> entries_length =
-      LoadAndUntagObjectField(table, WasmTableObject::kCurrentLengthOffset);
-  GotoIfNot(IntPtrLessThan(entry_index, entries_length), &index_out_of_range);
-
-  TNode<FixedArray> entries_array =
-      LoadObjectField<FixedArray>(table, WasmTableObject::kEntriesOffset);
-
-  TNode<Object> entry = LoadFixedArrayElement(entries_array, entry_index);
-
-  // If the entry is our placeholder for lazy function initialization, then we
-  // fall back to the runtime call.
-  TNode<Map> map = LoadReceiverMap(entry);
-  GotoIf(IsTuple2Map(map), &call_runtime);
-
-  Return(entry);
-
-  BIND(&call_runtime);
-  // Fall back to the runtime call for more complex cases.
-  // table_index and entry_index must be in Smi range, due to checks above.
-  TailCallRuntime(Runtime::kWasmFunctionTableGet,
-                  LoadContextFromInstance(instance), instance,
-                  SmiFromIntPtr(table_index), SmiFromIntPtr(entry_index));
-
-  BIND(&index_out_of_range);
-  MessageTemplate message_id =
-      wasm::WasmOpcodes::TrapReasonToMessageId(wasm::kTrapTableOutOfBounds);
-  TailCallRuntime(Runtime::kThrowWasmError, LoadContextFromInstance(instance),
-                  SmiConstant(static_cast<int>(message_id)));
-}
-
-TF_BUILTIN(WasmTableSet, WasmBuiltinsAssembler) {
-  TNode<WasmInstanceObject> instance = LoadInstanceFromFrame();
-
-  Label call_runtime(this, Label::kDeferred),
-      index_out_of_range(this, Label::kDeferred);
-
-  TNode<IntPtrT> table_index =
-      UncheckedCast<IntPtrT>(Parameter(Descriptor::kTableIndex));
-  GotoIfNot(IsValidPositiveSmi(table_index), &index_out_of_range);
-  TNode<IntPtrT> entry_index = ChangeInt32ToIntPtr(
-      UncheckedCast<Int32T>(Parameter(Descriptor::kEntryIndex)));
-  GotoIfNot(IsValidPositiveSmi(entry_index), &index_out_of_range);
-
-  TNode<Object> value = CAST(Parameter(Descriptor::kValue));
-
-  TNode<FixedArray> tables_array =
-      LoadObjectField<FixedArray>(instance, WasmInstanceObject::kTablesOffset);
-  TNode<WasmTableObject> table =
-      CAST(LoadFixedArrayElement(tables_array, table_index));
-  // Fall back to the runtime to set funcrefs, since we have to update function
-  // dispatch tables.
-  TNode<Smi> table_type =
-      LoadObjectField<Smi>(table, WasmTableObject::kRawTypeOffset);
-  GotoIf(SmiEqual(table_type, SmiConstant(wasm::ValueType::Kind::kFuncRef)),
-         &call_runtime);
-
-  TNode<IntPtrT> entries_length =
-      LoadAndUntagObjectField(table, WasmTableObject::kCurrentLengthOffset);
-  GotoIfNot(IntPtrLessThan(entry_index, entries_length), &index_out_of_range);
-
-  TNode<FixedArray> entries_array =
-      LoadObjectField<FixedArray>(table, WasmTableObject::kEntriesOffset);
-
-  StoreFixedArrayElement(entries_array, entry_index, value);
-  Return(UndefinedConstant());
-
-  BIND(&call_runtime);
-  // Fall back to the runtime call for more complex cases.
-  // table_index and entry_index must be in Smi range, due to checks above.
-  TailCallRuntime(
-      Runtime::kWasmFunctionTableSet, LoadContextFromInstance(instance),
-      instance, SmiFromIntPtr(table_index), SmiFromIntPtr(entry_index), value);
-
-  BIND(&index_out_of_range);
-  MessageTemplate message_id =
-      wasm::WasmOpcodes::TrapReasonToMessageId(wasm::kTrapTableOutOfBounds);
-  TailCallRuntime(Runtime::kThrowWasmError, LoadContextFromInstance(instance),
-                  SmiConstant(static_cast<int>(message_id)));
 }
 
 #define DECLARE_THROW_RUNTIME_FN(name)                            \

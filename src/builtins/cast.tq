@@ -30,6 +30,7 @@ extern macro IsNumberNormalized(Number): bool;
 extern macro IsSafeInteger(Object): bool;
 extern macro IsOddball(HeapObject): bool;
 extern macro IsSymbol(HeapObject): bool;
+extern macro IsTuple2(HeapObject): bool;
 extern macro IsJSArrayMap(Map): bool;
 extern macro IsExtensibleMap(Map): bool;
 extern macro IsJSPrimitiveWrapper(HeapObject): bool;

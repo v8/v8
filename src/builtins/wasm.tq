@@ -2,7 +2,33 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#include 'src/builtins/builtins-wasm-gen.h'
+
+namespace runtime {
+  extern runtime WasmRefFunc(Context, WasmInstanceObject, Smi): JSAny;
+  extern runtime WasmFunctionTableGet(Context, WasmInstanceObject, Smi, Smi):
+      JSAny;
+  extern runtime WasmFunctionTableSet(
+      Context, WasmInstanceObject, Smi, Smi, Object): JSAny;
+  extern runtime ThrowWasmError(Context, Smi): JSAny;
+}
+
 namespace wasm {
+  const kFuncTableType: constexpr int31
+  generates 'wasm::ValueType::Kind::kFuncRef';
+
+  extern macro WasmBuiltinsAssembler::LoadInstanceFromFrame():
+      WasmInstanceObject;
+
+  // WasmInstanceObject has a field layout that Torque can't handle yet.
+  // TODO(bbudge) Eliminate these functions when Torque is ready.
+  extern macro WasmBuiltinsAssembler::LoadContextFromInstance(
+      WasmInstanceObject): Context;
+  extern macro WasmBuiltinsAssembler::LoadTablesFromInstance(
+      WasmInstanceObject): FixedArray;
+  extern macro WasmBuiltinsAssembler::LoadExternalFunctionsFromInstance(
+      WasmInstanceObject): FixedArray;
+
   builtin WasmInt32ToHeapNumber(val: int32): HeapNumber {
     return AllocateHeapNumberWithValue(Convert<float64>(val));
   }
@@ -14,5 +40,95 @@ namespace wasm {
 
   builtin WasmTaggedToFloat64(implicit context: Context)(val: JSAny): float64 {
     return ChangeTaggedToFloat64(val);
+  }
+
+  builtin WasmTableGet(tableIndex: intptr, index: int32): Object {
+    const instance: WasmInstanceObject = LoadInstanceFromFrame();
+    const entryIndex: intptr = ChangeInt32ToIntPtr(index);
+    try {
+      assert(IsValidPositiveSmi(tableIndex));
+      if (!IsValidPositiveSmi(entryIndex)) goto IndexOutOfRange;
+
+      const tables: FixedArray = LoadTablesFromInstance(instance);
+      const table: WasmTableObject = %RawDownCast<WasmTableObject>(
+          LoadFixedArrayElement(tables, tableIndex));
+      const entriesCount: intptr = Convert<intptr, Smi>(table.current_length);
+      if (entryIndex >= entriesCount) goto IndexOutOfRange;
+
+      const entries: FixedArray = table.entries;
+      const entry: Object = LoadFixedArrayElement(entries, entryIndex);
+
+      try {
+        const entryObject: HeapObject =
+            TaggedToHeapObject<HeapObject>(entry) otherwise ReturnEntry;
+        if (IsTuple2Map(entryObject.map)) goto CallRuntime;
+        goto ReturnEntry;
+      }
+      label ReturnEntry {
+        return entry;
+      }
+    }
+    label CallRuntime deferred {
+      tail runtime::WasmFunctionTableGet(
+          LoadContextFromInstance(instance), instance,
+          SmiFromIntPtr(tableIndex), SmiFromIntPtr(entryIndex));
+    }
+    label IndexOutOfRange deferred {
+      tail runtime::ThrowWasmError(
+          LoadContextFromInstance(instance),
+          SmiConstant(MessageTemplate::kWasmTrapTableOutOfBounds));
+    }
+  }
+
+  builtin WasmTableSet(tableIndex: intptr, index: int32, value: Object):
+      Object {
+    const instance: WasmInstanceObject = LoadInstanceFromFrame();
+    const entryIndex: intptr = ChangeInt32ToIntPtr(index);
+    try {
+      assert(IsValidPositiveSmi(tableIndex));
+      if (!IsValidPositiveSmi(entryIndex)) goto IndexOutOfRange;
+
+      const tables: FixedArray = LoadTablesFromInstance(instance);
+      const table: WasmTableObject = %RawDownCast<WasmTableObject>(
+          LoadFixedArrayElement(tables, tableIndex));
+
+      // Fall back to the runtime to set funcrefs, since we have to update
+      // function dispatch tables.
+      const tableType: Smi = table.raw_type;
+      if (tableType == SmiConstant(kFuncTableType)) goto CallRuntime;
+
+      const entriesCount: intptr = Convert<intptr, Smi>(table.current_length);
+      if (entryIndex >= entriesCount) goto IndexOutOfRange;
+
+      const entries: FixedArray = table.entries;
+      StoreFixedArrayElement(entries, entryIndex, value);
+      return Undefined;
+    }
+    label CallRuntime deferred {
+      tail runtime::WasmFunctionTableSet(
+          LoadContextFromInstance(instance), instance,
+          SmiFromIntPtr(tableIndex), SmiFromIntPtr(entryIndex), value);
+    }
+    label IndexOutOfRange deferred {
+      tail runtime::ThrowWasmError(
+          LoadContextFromInstance(instance),
+          SmiConstant(MessageTemplate::kWasmTrapTableOutOfBounds));
+    }
+  }
+
+  builtin WasmRefFunc(index: uint32): Object {
+    const instance: WasmInstanceObject = LoadInstanceFromFrame();
+    try {
+      const table: FixedArray = LoadExternalFunctionsFromInstance(instance);
+      if (table == Undefined) goto CallRuntime;
+      const functionIndex: intptr = Signed(ChangeUint32ToWord(index));
+      const result: Object = LoadFixedArrayElement(table, functionIndex);
+      if (result == Undefined) goto CallRuntime;
+      return result;
+    }
+    label CallRuntime deferred {
+      tail runtime::WasmRefFunc(
+          LoadContextFromInstance(instance), instance, SmiFromUint32(index));
+    }
   }
 }

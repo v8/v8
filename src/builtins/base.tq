@@ -307,6 +307,7 @@ extern enum MessageTemplate {
   kProxySetPrototypeOfNonExtensible,
   kProxyDeletePropertyNonExtensible,
   kWeakRefsCleanupMustBeCallable,
+  kWasmTrapTableOutOfBounds,
   ...
 }
 
@@ -646,6 +647,7 @@ extern macro IsFastAliasedArgumentsMap(implicit context: Context)(Map): bool;
 extern macro IsSlowAliasedArgumentsMap(implicit context: Context)(Map): bool;
 extern macro IsSloppyArgumentsMap(implicit context: Context)(Map): bool;
 extern macro IsStrictArgumentsMap(implicit context: Context)(Map): bool;
+extern macro IsTuple2Map(Map): bool;
 
 extern macro SmiAbove(Smi, Smi): bool;
 
@@ -884,6 +886,7 @@ extern macro TruncateIntPtrToInt32(intptr): int32;
 extern macro SmiTag(intptr): Smi;
 extern macro SmiFromInt32(int32): Smi;
 extern macro SmiFromUint32(uint32): Smi;
+extern macro SmiFromIntPtr(intptr): Smi;
 extern macro SmiUntag(Smi): intptr;
 macro SmiUntag<T: type>(value: SmiTagged<T>): T {
   return %RawDownCast<T>(Unsigned(SmiToInt32(Convert<Smi>(value))));
