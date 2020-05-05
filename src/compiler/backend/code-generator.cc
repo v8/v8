@@ -997,8 +997,10 @@ void CodeGenerator::RecordCallPosition(Instruction* instr) {
 }
 
 int CodeGenerator::DefineDeoptimizationLiteral(DeoptimizationLiteral literal) {
+  literal.Validate();
   int result = static_cast<int>(deoptimization_literals_.size());
   for (unsigned i = 0; i < deoptimization_literals_.size(); ++i) {
+    deoptimization_literals_[i].Validate();
     if (deoptimization_literals_[i] == literal) return i;
   }
   deoptimization_literals_.push_back(literal);
@@ -1350,6 +1352,7 @@ OutOfLineCode::OutOfLineCode(CodeGenerator* gen)
 OutOfLineCode::~OutOfLineCode() = default;
 
 Handle<Object> DeoptimizationLiteral::Reify(Isolate* isolate) const {
+  Validate();
   switch (kind_) {
     case DeoptimizationLiteralKind::kObject: {
       return object_;
@@ -1359,6 +1362,9 @@ Handle<Object> DeoptimizationLiteral::Reify(Isolate* isolate) const {
     }
     case DeoptimizationLiteralKind::kString: {
       return string_->AllocateStringConstant(isolate);
+    }
+    case DeoptimizationLiteralKind::kInvalid: {
+      UNREACHABLE();
     }
   }
   UNREACHABLE();
