@@ -370,7 +370,10 @@ class WasmGraphBuilder {
   Node* StructNew(uint32_t struct_index, const wasm::StructType* type,
                   Vector<Node*> fields);
   Node* StructGet(Node* struct_object, const wasm::StructType* type,
-                  uint32_t field_index);
+                  uint32_t field_index, wasm::WasmCodePosition position);
+  Node* StructSet(Node* struct_object, const wasm::StructType* type,
+                  uint32_t field_index, Node* value,
+                  wasm::WasmCodePosition position);
 
   bool has_simd() const { return has_simd_; }
 

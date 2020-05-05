@@ -210,6 +210,7 @@ struct GlobalIndexImmediate {
 namespace function_body_decoder {
 // Decode a byte representing a local type. Return {false} if the encoded
 // byte was invalid or the start of a type index.
+// TODO(7748): Refactor this to handle (opt)ref types
 inline bool decode_local_type(uint8_t val, ValueType* result) {
   switch (static_cast<ValueTypeCode>(val)) {
     case kLocalVoid:
@@ -810,7 +811,9 @@ enum class LoadTransformationKind : uint8_t {
   F(StructNew, const StructIndexImmediate<validate>& imm, const Value args[], \
     Value* result)                                                            \
   F(StructGet, const Value& struct_object,                                    \
-    const FieldIndexImmediate<validate>& field, Value* result)
+    const FieldIndexImmediate<validate>& field, Value* result)                \
+  F(StructSet, const Value& struct_object,                                    \
+    const FieldIndexImmediate<validate>& field, const Value& field_value)
 
 // Generic Wasm bytecode decoder with utilities for decoding immediates,
 // lengths, etc.
@@ -914,6 +917,26 @@ class WasmDecoder : public Decoder {
           decoder->error(decoder->pc() - 1,
                          "invalid local type 'exception ref', enable with "
                          "--experimental-wasm-eh");
+          return false;
+        case kLocalRef:
+          if (enabled.has_gc()) {
+            uint32_t type_index = decoder->consume_u32v("type index");
+            type = ValueType(ValueType::kRef, type_index);
+            break;
+          }
+          decoder->error(decoder->pc() - 1,
+                         "invalid local type 'ref', enable with "
+                         "--experimental-wasm-gc");
+          return false;
+        case kLocalOptRef:
+          if (enabled.has_gc()) {
+            uint32_t type_index = decoder->consume_u32v("type index");
+            type = ValueType(ValueType::kOptRef, type_index);
+            break;
+          }
+          decoder->error(decoder->pc() - 1,
+                         "invalid local type 'optref', enable with "
+                         "--experimental-wasm-gc");
           return false;
         case kLocalS128:
           if (enabled.has_simd()) {
@@ -2903,16 +2926,25 @@ class WasmFullDecoder : public WasmDecoder<validate> {
         FieldIndexImmediate<validate> field(this, this->pc_ + len);
         if (!this->Validate(this->pc_ + len, field)) break;
         len += field.length;
-        // TODO(7748): This should take an optref, and perform a null-check.
         auto struct_obj =
-            Pop(0, ValueType(ValueType::kRef, field.struct_index.index));
+            Pop(0, ValueType(ValueType::kOptRef, field.struct_index.index));
         auto* value = Push(field.struct_index.struct_type->field(field.index));
+        // TODO(7748): Optimize this when struct type is null/ref
         CALL_INTERFACE_IF_REACHABLE(StructGet, struct_obj, field, value);
         break;
       }
-      case kExprStructSet:
-        UNIMPLEMENTED();  // TODO(7748): Implement.
+      case kExprStructSet: {
+        FieldIndexImmediate<validate> field(this, this->pc_ + len);
+        if (!this->Validate(this->pc_ + len, field)) break;
+        len += field.length;
+        auto field_value = Pop(
+            0, ValueType(field.struct_index.struct_type->field(field.index)));
+        auto struct_obj =
+            Pop(0, ValueType(ValueType::kOptRef, field.struct_index.index));
+        // TODO(7748): Optimize this when struct type is null/ref
+        CALL_INTERFACE_IF_REACHABLE(StructSet, struct_obj, field, field_value);
         break;
+      }
       case kExprArrayNew:
         UNIMPLEMENTED();  // TODO(7748): Implement.
         break;

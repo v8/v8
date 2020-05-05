@@ -50,6 +50,7 @@
 #include "src/wasm/memory-tracing.h"
 #include "src/wasm/object-access.h"
 #include "src/wasm/wasm-code-manager.h"
+#include "src/wasm/wasm-constants.h"
 #include "src/wasm/wasm-limits.h"
 #include "src/wasm/wasm-linkage.h"
 #include "src/wasm/wasm-module.h"
@@ -5030,6 +5031,21 @@ Node* FieldOffset(MachineGraph* graph, const wasm::StructType* type,
   return graph->IntPtrConstant(offset);
 }
 
+// Set a field of a struct, without checking if the struct is null.
+// Helper method for StructNew and StructSet.
+Node* StoreStructFieldUnchecked(MachineGraph* graph, WasmGraphAssembler* gasm,
+                                Node* struct_object,
+                                const wasm::StructType* type,
+                                uint32_t field_index, Node* value) {
+  WriteBarrierKind write_barrier = type->field(field_index).IsReferenceType()
+                                       ? kPointerWriteBarrier
+                                       : kNoWriteBarrier;
+  StoreRepresentation rep(type->field(field_index).machine_representation(),
+                          write_barrier);
+  Node* offset = FieldOffset(graph, type, field_index);
+  return gasm->Store(rep, struct_object, offset, value);
+}
+
 Node* WasmGraphBuilder::StructNew(uint32_t struct_index,
                                   const wasm::StructType* type,
                                   Vector<Node*> fields) {
@@ -5040,23 +5056,30 @@ Node* WasmGraphBuilder::StructNew(uint32_t struct_index,
   Node* s = BuildCallToRuntime(Runtime::kWasmStructNew, runtime_args,
                                arraysize(runtime_args));
   for (uint32_t i = 0; i < type->field_count(); i++) {
-    wasm::ValueType field_type = type->field(i);
-    WriteBarrierKind write_barrier = type->field(i).IsReferenceType()
-                                         ? kPointerWriteBarrier
-                                         : kNoWriteBarrier;
-    StoreRepresentation rep(field_type.machine_representation(), write_barrier);
-    Node* offset = FieldOffset(mcgraph(), type, i);
-    gasm_->Store(rep, s, offset, fields[i]);
+    StoreStructFieldUnchecked(mcgraph(), gasm_.get(), s, type, i, fields[i]);
   }
   return s;
 }
 
 Node* WasmGraphBuilder::StructGet(Node* struct_object,
                                   const wasm::StructType* type,
-                                  uint32_t field_index) {
+                                  uint32_t field_index,
+                                  wasm::WasmCodePosition position) {
   MachineType machine_type = FieldType(type, field_index);
   Node* offset = FieldOffset(mcgraph(), type, field_index);
+  TrapIfTrue(wasm::kTrapNullDereference,
+             gasm_->WordEqual(struct_object, RefNull()), position);
   return gasm_->Load(machine_type, struct_object, offset);
+}
+
+Node* WasmGraphBuilder::StructSet(Node* struct_object,
+                                  const wasm::StructType* type,
+                                  uint32_t field_index, Node* field_value,
+                                  wasm::WasmCodePosition position) {
+  TrapIfTrue(wasm::kTrapNullDereference,
+             gasm_->WordEqual(struct_object, RefNull()), position);
+  return StoreStructFieldUnchecked(mcgraph(), gasm_.get(), struct_object, type,
+                                   field_index, field_value);
 }
 
 class WasmDecorator final : public GraphDecorator {

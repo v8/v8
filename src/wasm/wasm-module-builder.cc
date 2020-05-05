@@ -408,7 +408,7 @@ void WasmModuleBuilder::SetHasSharedMemory() { has_shared_memory_ = true; }
 namespace {
 void WriteValueType(ZoneBuffer* buffer, const ValueType& type) {
   buffer->write_u8(type.value_type_code());
-  if (type.kind() == ValueType::kRef || type.kind() == ValueType::kOptRef) {
+  if (type.has_immediate()) {
     buffer->write_u32v(type.ref_index());
   }
 }

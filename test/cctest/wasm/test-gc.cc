@@ -41,6 +41,7 @@ WASM_EXEC_TEST(BasicStruct) {
   type_builder.AddField(kWasmI32);
   int32_t type_index = builder->AddStructType(type_builder.Build());
   ValueType kRefTypes[] = {ValueType(ValueType::kRef, type_index)};
+  ValueType kOptRefType = ValueType(ValueType::kOptRef, type_index);
   FunctionSig sig_q_v(1, 0, kRefTypes);
 
   WasmFunctionBuilder* f = builder->AddFunction(sigs.i_v());
@@ -64,6 +65,19 @@ WASM_EXEC_TEST(BasicStruct) {
   byte h_code[] = {WASM_STRUCT_NEW(type_index, WASM_I32V(42), WASM_I32V(64)),
                    kExprEnd};
   h->EmitCode(h_code, sizeof(h_code));
+
+  WasmFunctionBuilder* j = builder->AddFunction(sigs.i_v());
+  uint32_t local_index = j->AddLocal(kOptRefType);
+  uint32_t field_index = 0;
+  j->builder()->AddExport(CStrVector("j"), j);
+  byte i_code[] = {
+      WASM_SET_LOCAL(local_index,
+                     WASM_STRUCT_NEW(type_index, WASM_I32V(42), WASM_I32V(64))),
+      WASM_STRUCT_SET(type_index, field_index, WASM_GET_LOCAL(local_index),
+                      WASM_I32V(-99)),
+      WASM_STRUCT_GET(type_index, field_index, WASM_GET_LOCAL(local_index)),
+      kExprEnd};
+  j->EmitCode(i_code, sizeof(i_code));
 
   ZoneBuffer buffer(&zone);
   builder->WriteTo(&buffer);
@@ -92,6 +106,9 @@ WASM_EXEC_TEST(BasicStruct) {
       Execution::Call(isolate, h_export, undefined, 0, nullptr)
           .ToHandleChecked();
   CHECK(ref_result->IsWasmStruct());
+
+  CHECK_EQ(-99, testing::CallWasmFunctionForTesting(isolate, instance, &thrower,
+                                                    "j", 0, nullptr));
 }
 
 }  // namespace test_gc

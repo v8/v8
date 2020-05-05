@@ -20,21 +20,26 @@ namespace wasm {
 // Type for holding simd values, defined in wasm-value.h.
 class Simd128;
 
-// Type lattice: For any two types connected by a line, the type at the bottom
-// is a subtype of the other type.
+// Type lattice: Given a fixed struct type S, the following lattice
+// defines the subtyping relation among types:
+// For every two types connected by a line, the top type is a
+// (direct) subtype of the bottom type.
 //
-//                       AnyRef
-//                       /    \
-//                 FuncRef    ExnRef
-//                       \    /
-// I32  I64  F32  F64    NullRef
-//   \    \    \    \    /
-//   ------------   Bottom
+//                           AnyRef
+//                         /    |   \
+//                  FuncRef  ExnRef  OptRef(S)
+//                         \    |   /        \
+// I32  I64  F32  F64        NullRef        Ref(S)
+//   \    \    \    \           |            /
+//    ---------------------- Bottom ---------
 // Format: kind, log2Size, code, machineType, shortName, typeName
 //
 // Some of these types are from proposals that are not standardized yet:
 // - "ref" types per https://github.com/WebAssembly/function-references
 // - "optref"/"eqref" per https://github.com/WebAssembly/gc
+//
+// TODO(7748): Extend this with eqref, struct and function subtyping.
+//             Keep up to date with funcref vs. anyref subtyping.
 #define FOREACH_VALUE_TYPE(V)                                                \
   V(Stmt, -1, Void, None, 'v', "<stmt>")                                     \
   V(I32, 2, I32, Int32, 'i', "i32")                                          \
@@ -59,20 +64,24 @@ class ValueType {
 #undef DEF_ENUM
   };
 
+  constexpr bool has_immediate() const {
+    return kind() == kRef || kind() == kOptRef;
+  }
+
   constexpr ValueType() : bit_field_(KindField::encode(kStmt)) {}
   explicit constexpr ValueType(Kind kind)
       : bit_field_(KindField::encode(kind)) {
-    DCHECK(kind != kRef && kind != kOptRef);
+    DCHECK(!has_immediate());
   }
   constexpr ValueType(Kind kind, uint32_t ref_index)
       : bit_field_(KindField::encode(kind) | RefIndexField::encode(ref_index)) {
-    DCHECK(kind == kRef || kind == kOptRef);
+    DCHECK(has_immediate());
   }
 
   constexpr Kind kind() const { return KindField::decode(bit_field_); }
   constexpr uint32_t ref_index() const {
 #if V8_HAS_CXX14_CONSTEXPR
-    DCHECK(kind() == kRef || kind() == kOptRef);
+    DCHECK(has_immediate());
 #endif
     return RefIndexField::decode(bit_field_);
   }
@@ -101,13 +110,18 @@ class ValueType {
     return bit_field_ != other.bit_field_;
   }
 
+  // TODO(7748): Extend this with eqref, struct and function subtyping.
+  //             Keep up to date with funcref vs. anyref subtyping.
   bool IsSubTypeOf(ValueType other) const {
     return (*this == other) ||
-           (kind() == kNullRef && other.kind() == kAnyRef) ||
-           (kind() == kFuncRef && other.kind() == kAnyRef) ||
-           (kind() == kExnRef && other.kind() == kAnyRef) ||
-           (kind() == kNullRef && other.kind() == kFuncRef) ||
-           (kind() == kNullRef && other.kind() == kExnRef);
+           (kind() == kNullRef &&
+            (other.kind() == kAnyRef || other.kind() == kFuncRef ||
+             other.kind() == kExnRef || other.kind() == kOptRef)) ||
+           (other.kind() == kAnyRef &&
+            (kind() == kFuncRef || kind() == kExnRef || kind() == kOptRef ||
+             kind() == kRef)) ||
+           (kind() == kRef && other.kind() == kOptRef &&
+            ref_index() == other.ref_index());
   }
 
   bool IsReferenceType() const {
@@ -116,17 +130,21 @@ class ValueType {
            kind() == kEqRef;
   }
 
+  // TODO(7748): Extend this with eqref, struct and function subtyping.
+  //             Keep up to date with funcref vs. anyref subtyping.
   static ValueType CommonSubType(ValueType a, ValueType b) {
-    if (a.kind() == b.kind()) return a;
+    if (a == b) return a;
     // The only sub type of any value type is {bot}.
     if (!a.IsReferenceType() || !b.IsReferenceType()) {
       return ValueType(kBottom);
     }
     if (a.IsSubTypeOf(b)) return a;
     if (b.IsSubTypeOf(a)) return b;
-    // {a} and {b} are not each other's subtype. The biggest sub-type of all
-    // reference types is {kWasmNullRef}.
-    return ValueType(kNullRef);
+    // {a} and {b} are not each other's subtype.
+    // If one of them is not nullable, their greatest subtype is bottom,
+    // otherwise null.
+    return (a.kind() == kRef || b.kind() == kRef) ? ValueType(kBottom)
+                                                  : ValueType(kNullRef);
   }
 
   ValueTypeCode value_type_code() const {
