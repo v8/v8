@@ -336,6 +336,22 @@ TEST(Torque, ConstexprLetBindingDoesNotCrash) {
       HasSubstr("Use 'const' instead of 'let' for variable 'foo'"));
 }
 
+TEST(Torque, FailedImplicitCastFromConstexprDoesNotCrash) {
+  ExpectFailingCompilation(
+      R"(
+    extern enum SomeEnum {
+      kValue,
+      ...
+    }
+    macro Foo() {
+      Bar(SomeEnum::kValue);
+    }
+    macro Bar<T: type>(value: T) {}
+  )",
+      HasSubstr(
+          "Cannot find non-constexpr type corresponding to constexpr kValue"));
+}
+
 TEST(Torque, DoubleUnderScorePrefixIllegalForIdentifiers) {
   ExpectFailingCompilation(R"(
     @export macro Foo() {

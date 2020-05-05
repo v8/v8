@@ -300,8 +300,13 @@ class AbstractType final : public Type {
   }
 
   std::string SimpleNameImpl() const override {
-    if (IsConstexpr())
-      return "constexpr_" + NonConstexprVersion()->SimpleName();
+    if (IsConstexpr()) {
+      const Type* non_constexpr_version = NonConstexprVersion();
+      if (non_constexpr_version == nullptr) {
+        ReportError("Cannot find non-constexpr type corresponding to ", *this);
+      }
+      return "constexpr_" + non_constexpr_version->SimpleName();
+    }
     return name();
   }
 
