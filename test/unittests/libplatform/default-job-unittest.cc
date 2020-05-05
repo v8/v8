@@ -13,20 +13,12 @@ namespace v8 {
 namespace platform {
 namespace default_job_unittest {
 
-class DefaultJobTest : public ::testing::Test {
- public:
-  DefaultPlatform* platform() { return &platform_; }
-
- private:
-  DefaultPlatform platform_;
-};
-
 // Verify that Cancel() on a job stops running the worker task and causes
 // current workers to yield.
-TEST_F(DefaultJobTest, CancelJob) {
+TEST(DefaultJobTest, CancelJob) {
   static constexpr size_t kTooManyTasks = 1000;
   static constexpr size_t kMaxTask = 4;
-  platform()->SetThreadPoolSize(kMaxTask);
+  DefaultPlatform platform(kMaxTask);
 
   // This Job notifies |threads_running| once started and loops until
   // ShouldYield() returns true, and then returns.
@@ -57,7 +49,7 @@ TEST_F(DefaultJobTest, CancelJob) {
   auto job = std::make_unique<JobTest>();
   JobTest* job_raw = job.get();
   auto state = std::make_shared<DefaultJobState>(
-      platform(), std::move(job), TaskPriority::kUserVisible, kMaxTask);
+      &platform, std::move(job), TaskPriority::kUserVisible, kMaxTask);
   state->NotifyConcurrencyIncrease();
 
   {
@@ -73,9 +65,9 @@ TEST_F(DefaultJobTest, CancelJob) {
 
 // Verify that Join() on a job contributes to max concurrency and waits for all
 // workers to return.
-TEST_F(DefaultJobTest, JoinJobContributes) {
+TEST(DefaultJobTest, JoinJobContributes) {
   static constexpr size_t kMaxTask = 4;
-  platform()->SetThreadPoolSize(kMaxTask);
+  DefaultPlatform platform(kMaxTask);
 
   // This Job notifies |threads_running| once started and blocks on a barrier
   // until kMaxTask + 1 threads reach that point, and then returns.
@@ -104,7 +96,7 @@ TEST_F(DefaultJobTest, JoinJobContributes) {
   auto job = std::make_unique<JobTest>();
   JobTest* job_raw = job.get();
   auto state = std::make_shared<DefaultJobState>(
-      platform(), std::move(job), TaskPriority::kUserVisible, kMaxTask);
+      &platform, std::move(job), TaskPriority::kUserVisible, kMaxTask);
   state->NotifyConcurrencyIncrease();
 
   // The main thread contributing is necessary for |worker_count| to reach
@@ -115,9 +107,9 @@ TEST_F(DefaultJobTest, JoinJobContributes) {
 
 // Verify that calling NotifyConcurrencyIncrease() (re-)schedules tasks with the
 // intended concurrency.
-TEST_F(DefaultJobTest, JobNotifyConcurrencyIncrease) {
+TEST(DefaultJobTest, JobNotifyConcurrencyIncrease) {
   static constexpr size_t kMaxTask = 4;
-  platform()->SetThreadPoolSize(kMaxTask);
+  DefaultPlatform platform(kMaxTask);
 
   // This Job notifies |threads_running| once started and blocks on a barrier
   // until kMaxTask threads reach that point, and then returns.
@@ -148,7 +140,7 @@ TEST_F(DefaultJobTest, JobNotifyConcurrencyIncrease) {
   auto job = std::make_unique<JobTest>();
   JobTest* job_raw = job.get();
   auto state = std::make_shared<DefaultJobState>(
-      platform(), std::move(job), TaskPriority::kUserVisible, kMaxTask);
+      &platform, std::move(job), TaskPriority::kUserVisible, kMaxTask);
   state->NotifyConcurrencyIncrease();
 
   {
@@ -167,9 +159,9 @@ TEST_F(DefaultJobTest, JobNotifyConcurrencyIncrease) {
 }
 
 // Verify that Join() doesn't contribute if the Job is already finished.
-TEST_F(DefaultJobTest, FinishBeforeJoin) {
+TEST(DefaultJobTest, FinishBeforeJoin) {
   static constexpr size_t kMaxTask = 4;
-  platform()->SetThreadPoolSize(kMaxTask);
+  DefaultPlatform platform(kMaxTask);
 
   // This Job notifies |threads_running| once started and returns.
   class JobTest : public JobTask {
@@ -199,7 +191,7 @@ TEST_F(DefaultJobTest, FinishBeforeJoin) {
   auto job = std::make_unique<JobTest>();
   JobTest* job_raw = job.get();
   auto state = std::make_shared<DefaultJobState>(
-      platform(), std::move(job), TaskPriority::kUserVisible, kMaxTask);
+      &platform, std::move(job), TaskPriority::kUserVisible, kMaxTask);
   state->NotifyConcurrencyIncrease();
 
   {
@@ -215,7 +207,7 @@ TEST_F(DefaultJobTest, FinishBeforeJoin) {
 
 // Verify that destroying a DefaultJobHandle triggers a DCHECK if neither Join()
 // or Cancel() was called.
-TEST_F(DefaultJobTest, LeakHandle) {
+TEST(DefaultJobTest, LeakHandle) {
   class JobTest : public JobTask {
    public:
     ~JobTest() override = default;
@@ -225,8 +217,9 @@ TEST_F(DefaultJobTest, LeakHandle) {
     size_t GetMaxConcurrency() const override { return 0; }
   };
 
+  DefaultPlatform platform(0);
   auto job = std::make_unique<JobTest>();
-  auto state = std::make_shared<DefaultJobState>(platform(), std::move(job),
+  auto state = std::make_shared<DefaultJobState>(&platform, std::move(job),
                                                  TaskPriority::kUserVisible, 1);
   auto handle = std::make_unique<DefaultJobHandle>(std::move(state));
 #ifdef DEBUG

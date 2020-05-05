@@ -39,11 +39,10 @@ std::unique_ptr<v8::Platform> NewDefaultPlatform(
   if (in_process_stack_dumping == InProcessStackDumping::kEnabled) {
     v8::base::debug::EnableInProcessStackDumping();
   }
-  std::unique_ptr<DefaultPlatform> platform(
-      new DefaultPlatform(idle_task_support, std::move(tracing_controller)));
-  platform->SetThreadPoolSize(thread_pool_size);
+  auto platform = std::make_unique<DefaultPlatform>(
+      thread_pool_size, idle_task_support, std::move(tracing_controller));
   platform->EnsureBackgroundTaskRunnerInitialized();
-  return std::move(platform);
+  return platform;
 }
 
 bool PumpMessageLoop(v8::Platform* platform, v8::Isolate* isolate,
@@ -65,16 +64,25 @@ void SetTracingController(
       std::unique_ptr<v8::TracingController>(tracing_controller));
 }
 
-const int DefaultPlatform::kMaxThreadPoolSize = 8;
+namespace {
+constexpr int kMaxThreadPoolSize = 8;
+
+int GetActualThreadPoolSize(int thread_pool_size) {
+  DCHECK_GE(thread_pool_size, 0);
+  if (thread_pool_size < 1) {
+    thread_pool_size = base::SysInfo::NumberOfProcessors() - 1;
+  }
+  return std::max(std::min(thread_pool_size, kMaxThreadPoolSize), 1);
+}
+}  // namespace
 
 DefaultPlatform::DefaultPlatform(
-    IdleTaskSupport idle_task_support,
+    int thread_pool_size, IdleTaskSupport idle_task_support,
     std::unique_ptr<v8::TracingController> tracing_controller)
-    : thread_pool_size_(0),
+    : thread_pool_size_(GetActualThreadPoolSize(thread_pool_size)),
       idle_task_support_(idle_task_support),
       tracing_controller_(std::move(tracing_controller)),
-      page_allocator_(new v8::base::PageAllocator()),
-      time_function_for_testing_(nullptr) {
+      page_allocator_(std::make_unique<v8::base::PageAllocator>()) {
   if (!tracing_controller_) {
     tracing::TracingController* controller = new tracing::TracingController();
 #if !defined(V8_USE_PERFETTO)
@@ -90,16 +98,6 @@ DefaultPlatform::~DefaultPlatform() {
   for (const auto& it : foreground_task_runner_map_) {
     it.second->Terminate();
   }
-}
-
-void DefaultPlatform::SetThreadPoolSize(int thread_pool_size) {
-  base::MutexGuard guard(&lock_);
-  DCHECK_GE(thread_pool_size, 0);
-  if (thread_pool_size < 1) {
-    thread_pool_size = base::SysInfo::NumberOfProcessors() - 1;
-  }
-  thread_pool_size_ =
-      std::max(std::min(thread_pool_size, kMaxThreadPoolSize), 1);
 }
 
 namespace {
