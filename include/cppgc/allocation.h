@@ -107,6 +107,17 @@ class MakeGarbageCollectedTrait : public MakeGarbageCollectedTraitBase<T> {
 };
 
 /**
+ * Allows users to specify a post-construction callback for specific types. The
+ * callback is invoked on the instance of type T right after it has been
+ * constructed. This can be useful when the callback requires a
+ * fully-constructed object to be able to dispatch to virtual methods.
+ */
+template <typename T, typename = void>
+struct PostConstructionCallbackTrait {
+  static void Call(T*) {}
+};
+
+/**
  * Constructs a managed object of type T where T transitively inherits from
  * GarbageCollected.
  *
@@ -116,7 +127,10 @@ class MakeGarbageCollectedTrait : public MakeGarbageCollectedTraitBase<T> {
  */
 template <typename T, typename... Args>
 T* MakeGarbageCollected(Heap* heap, Args&&... args) {
-  return MakeGarbageCollectedTrait<T>::Call(heap, std::forward<Args>(args)...);
+  T* object =
+      MakeGarbageCollectedTrait<T>::Call(heap, std::forward<Args>(args)...);
+  PostConstructionCallbackTrait<T>::Call(object);
+  return object;
 }
 
 }  // namespace cppgc

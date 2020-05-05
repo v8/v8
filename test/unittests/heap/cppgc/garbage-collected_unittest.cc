@@ -5,6 +5,8 @@
 #include "include/cppgc/garbage-collected.h"
 
 #include "include/cppgc/allocation.h"
+#include "include/cppgc/type-traits.h"
+#include "src/heap/cppgc/heap-object-header-inl.h"
 #include "src/heap/cppgc/heap.h"
 #include "test/unittests/heap/cppgc/tests.h"
 #include "testing/gtest/include/gtest/gtest.h"
@@ -74,6 +76,67 @@ TEST_F(GarbageCollectedTestWithHeap, GetObjectStartReturnsCorrentAddress) {
   EXPECT_NE(gced, static_cast<Mixin*>(gced_with_mixin)
                       ->GetTraceDescriptor()
                       .base_object_payload);
+}
+
+namespace {
+
+class GCedWithPostConstructionCallback final : public GCed {
+ public:
+  static size_t cb_callcount;
+  GCedWithPostConstructionCallback() { cb_callcount = 0; }
+};
+size_t GCedWithPostConstructionCallback::cb_callcount;
+
+class MixinWithPostConstructionCallback {
+ public:
+  static size_t cb_callcount;
+  MixinWithPostConstructionCallback() { cb_callcount = 0; }
+  using MarkerForMixinWithPostConstructionCallback = int;
+};
+size_t MixinWithPostConstructionCallback::cb_callcount;
+
+class GCedWithMixinWithPostConstructionCallback final
+    : public GCed,
+      public MixinWithPostConstructionCallback {};
+
+}  // namespace
+}  // namespace internal
+
+template <>
+struct PostConstructionCallbackTrait<
+    internal::GCedWithPostConstructionCallback> {
+  static void Call(internal::GCedWithPostConstructionCallback* object) {
+    EXPECT_FALSE(
+        internal::HeapObjectHeader::FromPayload(object).IsInConstruction());
+    internal::GCedWithPostConstructionCallback::cb_callcount++;
+  }
+};
+
+template <typename T>
+struct PostConstructionCallbackTrait<
+    T,
+    internal::void_t<typename T::MarkerForMixinWithPostConstructionCallback>> {
+  // The parameter could just be T*.
+  static void Call(
+      internal::GCedWithMixinWithPostConstructionCallback* object) {
+    EXPECT_FALSE(
+        internal::HeapObjectHeader::FromPayload(object).IsInConstruction());
+    internal::GCedWithMixinWithPostConstructionCallback::cb_callcount++;
+  }
+};
+
+namespace internal {
+
+TEST_F(GarbageCollectedTestWithHeap, PostConstructionCallback) {
+  EXPECT_EQ(0u, GCedWithPostConstructionCallback::cb_callcount);
+  MakeGarbageCollected<GCedWithPostConstructionCallback>(GetHeap());
+  EXPECT_EQ(1u, GCedWithPostConstructionCallback::cb_callcount);
+}
+
+TEST_F(GarbageCollectedTestWithHeap, PostConstructionCallbackForMixin) {
+  EXPECT_EQ(0u, MixinWithPostConstructionCallback::cb_callcount);
+  MakeGarbageCollected<GCedWithMixinWithPostConstructionCallback>(GetHeap());
+  EXPECT_EQ(1u, MixinWithPostConstructionCallback::cb_callcount);
 }
 
 }  // namespace internal
