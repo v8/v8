@@ -204,7 +204,7 @@ struct EnumDescription {
 
 class Ast {
  public:
-  Ast() {}
+  Ast() = default;
 
   std::vector<Declaration*>& declarations() { return declarations_; }
   const std::vector<Declaration*>& declarations() const {
