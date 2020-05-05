@@ -355,7 +355,7 @@ void LiftoffAssembler::LoadConstant(LiftoffRegister reg, WasmValue value,
       break;
     case ValueType::kF64: {
       Register extra_scratch = GetUnusedRegister(kGpReg).gp();
-      vmov(reg.fp(), Double(value.to_f64_boxed().get_scalar()), extra_scratch);
+      vmov(reg.fp(), Double(value.to_f64_boxed().get_bits()), extra_scratch);
       break;
     }
     default:
