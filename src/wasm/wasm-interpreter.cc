@@ -2519,11 +2519,11 @@ class ThreadImpl {
       case kExprS128LoadMem:
         return ExecuteLoad<Simd128, Simd128>(decoder, code, pc, len,
                                              MachineRepresentation::kSimd128,
-                                             /*prefix_len=*/1);
+                                             /*prefix_len=*/opcode_length);
       case kExprS128StoreMem:
         return ExecuteStore<Simd128, Simd128>(decoder, code, pc, len,
                                               MachineRepresentation::kSimd128,
-                                              /*prefix_len=*/1);
+                                              /*prefix_len=*/opcode_length);
 #define SHIFT_CASE(op, name, stype, count, expr) \
   case kExpr##op: {                              \
     uint32_t shift = Pop().to<uint32_t>();       \
@@ -2795,7 +2795,7 @@ class ThreadImpl {
     static_assert(sizeof(wide_type) == sizeof(narrow_type) * 2,
                   "size mismatch for wide and narrow types");
     if (!ExecuteLoad<uint64_t, uint64_t>(decoder, code, pc, len, rep,
-                                         /*prefix_len=*/1)) {
+                                         /*prefix_len=*/*len - 1)) {
       return false;
     }
     constexpr int lanes = kSimd128Size / sizeof(wide_type);
