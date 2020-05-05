@@ -55,6 +55,7 @@ FEATURE_FLAGS = {
   'FinalizationRegistry': '--harmony-weak-refs-with-cleanup-some',
   'WeakRef': '--harmony-weak-refs-with-cleanup-some',
   'host-gc-required': '--expose-gc-as=v8GC',
+  'IsHTMLDDA': '--allow-natives-syntax',
   'top-level-await': '--harmony-top-level-await',
   'regexp-match-indices': '--harmony-regexp-match-indices',
   # https://github.com/tc39/test262/pull/2395
@@ -206,6 +207,8 @@ class TestCase(testcase.D8TestCase):
         list(self.suite.harness) +
         ([os.path.join(self.suite.root, "harness-agent.js")]
          if self.__needs_harness_agent() else []) +
+        ([os.path.join(self.suite.root, "harness-ishtmldda.js")]
+         if "IsHTMLDDA" in self.test_record.get("features", []) else []) +
         ([os.path.join(self.suite.root, "harness-adapt-donotevaluate.js")]
          if self.fail_phase_only and not self._fail_phase_reverse else []) +
         self._get_includes() +

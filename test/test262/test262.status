@@ -446,16 +446,6 @@
 
   # https://bugs.chromium.org/p/v8/issues/detail?id=7184
   'annexB/language/expressions/yield/star-iterable-return-emulates-undefined-throws-when-called': [FAIL],
-  'annexB/language/statements/for-await-of/iterator-close-return-emulates-undefined-throws-when-called': [FAIL],
-  'annexB/language/statements/for-of/iterator-close-return-emulates-undefined-throws-when-called': [FAIL],
-
-  # http://crbug/v8/10451
-  'annexB/language/expressions/assignment/dstr/array-pattern-emulates-undefined': [FAIL],
-  'annexB/language/expressions/assignment/dstr/object-pattern-emulates-undefined': [FAIL],
-  'annexB/language/expressions/yield/star-iterable-throw-emulates-undefined-throws-when-called': [FAIL],
-  'annexB/language/statements/const/dstr/array-pattern-emulates-undefined': [FAIL],
-  'annexB/language/statements/const/dstr/object-pattern-emulates-undefined': [FAIL],
-  'annexB/language/statements/function/default-parameters-emulates-undefined': [FAIL],
 
   # https://bugs.chromium.org/p/v8/issues/detail?id=5690
   'language/expressions/call/eval-spread': [FAIL],
