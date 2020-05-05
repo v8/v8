@@ -2,12 +2,13 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#include <iostream>
-
-#include "src/base/optional.h"
 #include "src/torque/types.h"
 
+#include <cmath>
+#include <iostream>
+
 #include "src/base/bits.h"
+#include "src/base/optional.h"
 #include "src/torque/ast.h"
 #include "src/torque/declarable.h"
 #include "src/torque/global-context.h"
