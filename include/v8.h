@@ -7842,6 +7842,7 @@ class V8_EXPORT EmbedderHeapTracer {
   enum TraceFlags : uint64_t {
     kNoFlags = 0,
     kReduceMemory = 1 << 0,
+    kForced = 1 << 2,
   };
 
   // Indicator for the stack state of the embedder.

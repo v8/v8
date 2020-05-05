@@ -5464,8 +5464,11 @@ EmbedderHeapTracer* Heap::GetEmbedderHeapTracer() const {
 }
 
 EmbedderHeapTracer::TraceFlags Heap::flags_for_embedder_tracer() const {
-  if (ShouldReduceMemory())
+  if (is_current_gc_forced()) {
+    return EmbedderHeapTracer::TraceFlags::kForced;
+  } else if (ShouldReduceMemory()) {
     return EmbedderHeapTracer::TraceFlags::kReduceMemory;
+  }
   return EmbedderHeapTracer::TraceFlags::kNoFlags;
 }
 
