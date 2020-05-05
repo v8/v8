@@ -489,92 +489,92 @@ void Decoder::Unknown(Instruction* instr) { Format(instr, "unknown"); }
 void Decoder::DecodeRType(Instruction* instr) {
   switch (instr->InstructionBits() & kRTypeMask) {
     case RO_ADD:
-      Format(instr, "add     'rd, 'rs1, 'rs2");
+      Format(instr, "add       'rd, 'rs1, 'rs2");
       break;
     case RO_SUB:
-      Format(instr, "sub     'rd, 'rs1, 'rs2");
+      Format(instr, "sub       'rd, 'rs1, 'rs2");
       break;
     case RO_SLL:
-      Format(instr, "sll      'rd, 'rs1, 'rs2");
+      Format(instr, "sll       'rd, 'rs1, 'rs2");
       break;
     case RO_SLT:
-      Format(instr, "slt     'rd, 'rs1, 'rs2");
+      Format(instr, "slt       'rd, 'rs1, 'rs2");
       break;
     case RO_SLTU:
-      Format(instr, "sltu    'rd, 'rs1, 'rs2");
+      Format(instr, "sltu      'rd, 'rs1, 'rs2");
       break;
     case RO_XOR:
-      Format(instr, "xor     'rd, 'rs1, 'rs2");
+      Format(instr, "xor       'rd, 'rs1, 'rs2");
       break;
     case RO_SRL:
-      Format(instr, "srl     'rd, 'rs1, 'rs2");
+      Format(instr, "srl       'rd, 'rs1, 'rs2");
       break;
     case RO_SRA:
-      Format(instr, "sra     'rd, 'rs1, 'rs2");
+      Format(instr, "sra       'rd, 'rs1, 'rs2");
       break;
     case RO_OR:
-      Format(instr, "or      'rd, 'rs1, 'rs2");
+      Format(instr, "or        'rd, 'rs1, 'rs2");
       break;
     case RO_AND:
-      Format(instr, "and     'rd, 'rs1, 'rs2");
+      Format(instr, "and       'rd, 'rs1, 'rs2");
       break;
 #ifdef V8_TARGET_ARCH_64_BIT
     case RO_ADDW:
-      Format(instr, "addw    'rd, 'rs1, 'rs2");
+      Format(instr, "addw      'rd, 'rs1, 'rs2");
       break;
     case RO_SUBW:
-      Format(instr, "subw    'rd, 'rs1, 'rs2");
+      Format(instr, "subw      'rd, 'rs1, 'rs2");
       break;
     case RO_SLLW:
-      Format(instr, "sllw    'rd, 'rs1, 'rs2");
+      Format(instr, "sllw      'rd, 'rs1, 'rs2");
       break;
     case RO_SRLW:
-      Format(instr, "srlw    'rd, 'rs1, 'rs2");
+      Format(instr, "srlw      'rd, 'rs1, 'rs2");
       break;
     case RO_SRAW:
-      Format(instr, "sraw    'rd, 'rs1, 'rs2");
+      Format(instr, "sraw      'rd, 'rs1, 'rs2");
       break;
 #endif /* V8_TARGET_ARCH_64_BIT */
     // TODO: Add RISCV M extension macro
     case RO_MUL:
-      Format(instr, "mul     'rd, 'rs1, 'rs2");
+      Format(instr, "mul       'rd, 'rs1, 'rs2");
       break;
     case RO_MULH:
-      Format(instr, "mulh    'rd, 'rs1, 'rs2");
+      Format(instr, "mulh      'rd, 'rs1, 'rs2");
       break;
     case RO_MULHSU:
-      Format(instr, "mulhsu  'rd, 'rs1, 'rs2");
+      Format(instr, "mulhsu    'rd, 'rs1, 'rs2");
       break;
     case RO_MULHU:
-      Format(instr, "mulhu   'rd, 'rs1, 'rs2");
+      Format(instr, "mulhu     'rd, 'rs1, 'rs2");
       break;
     case RO_DIV:
-      Format(instr, "div     'rd, 'rs1, 'rs2");
+      Format(instr, "div       'rd, 'rs1, 'rs2");
       break;
     case RO_DIVU:
-      Format(instr, "divu    'rd, 'rs1, 'rs2");
+      Format(instr, "divu      'rd, 'rs1, 'rs2");
       break;
     case RO_REM:
-      Format(instr, "rem     'rd, 'rs1, 'rs2");
+      Format(instr, "rem       'rd, 'rs1, 'rs2");
       break;
     case RO_REMU:
-      Format(instr, "remu    'rd, 'rs1, 'rs2");
+      Format(instr, "remu      'rd, 'rs1, 'rs2");
       break;
 #ifdef V8_TARGET_ARCH_64_BIT
     case RO_MULW:
-      Format(instr, "mulw    'rd, 'rs1, 'rs2");
+      Format(instr, "mulw      'rd, 'rs1, 'rs2");
       break;
     case RO_DIVW:
-      Format(instr, "divw    'rd, 'rs1, 'rs2");
+      Format(instr, "divw      'rd, 'rs1, 'rs2");
       break;
     case RO_DIVUW:
-      Format(instr, "divuw   'rd, 'rs1, 'rs2");
+      Format(instr, "divuw     'rd, 'rs1, 'rs2");
       break;
     case RO_REMW:
-      Format(instr, "remw    'rd, 'rs1, 'rs2");
+      Format(instr, "remw      'rd, 'rs1, 'rs2");
       break;
     case RO_REMUW:
-      Format(instr, "remuw   'rd, 'rs1, 'rs2");
+      Format(instr, "remuw     'rd, 'rs1, 'rs2");
       break;
 #endif /*V8_TARGET_ARCH_64_BIT*/
     // TODO: End Add RISCV M extension macro
@@ -681,30 +681,30 @@ void Decoder::DecodeRFPType(Instruction* instr) {
   switch (instr->InstructionBits() & kRFPTypeMask) {
     // TODO: Add macro for RISCV F extension
     case RO_FADD_S:
-      Format(instr, "fadd.s  'fd, 'fs1, 'fs2");
+      Format(instr, "fadd.s    'fd, 'fs1, 'fs2");
       break;
     case RO_FSUB_S:
-      Format(instr, "fsub.s  'fd, 'fs1, 'fs2");
+      Format(instr, "fsub.s    'fd, 'fs1, 'fs2");
       break;
     case RO_FMUL_S:
-      Format(instr, "fmul.s  'fd, 'fs1, 'fs2");
+      Format(instr, "fmul.s    'fd, 'fs1, 'fs2");
       break;
     case RO_FDIV_S:
-      Format(instr, "fdiv.s  'fd, 'fs1, 'fs2");
+      Format(instr, "fdiv.s    'fd, 'fs1, 'fs2");
       break;
     case RO_FSQRT_S:
-      Format(instr, "fsqrt.s 'fd, 'fs1");
+      Format(instr, "fsqrt.s   'fd, 'fs1");
       break;
     case RO_FSGNJ_S: {  // RO_FSGNJN_S  RO_FSGNJX_S
       switch (instr->Funct3Value()) {
         case 0b000:  // RO_FSGNJ_S
-          Format(instr, "fsgnj.s 'fd, 'fs1, 'fs2");
+          Format(instr, "fsgnj.s   'fd, 'fs1, 'fs2");
           break;
         case 0b001:  // RO_FSGNJN_S
-          Format(instr, "fsgnjn.s 'fd, 'fs1, 'fs2");
+          Format(instr, "fsgnjn.s  'fd, 'fs1, 'fs2");
           break;
         case 0b010:  // RO_FSGNJX_S
-          Format(instr, "fsgnjx.s 'fd, 'fs1, 'fs2");
+          Format(instr, "fsgnjx.s  'fd, 'fs1, 'fs2");
           break;
         default:
           UNSUPPORTED_RISCV();
@@ -714,10 +714,10 @@ void Decoder::DecodeRFPType(Instruction* instr) {
     case RO_FMIN_S: {  // RO_FMAX_S
       switch (instr->Funct3Value()) {
         case 0b000:  // RO_FMIN_S
-          Format(instr, "fmin.s  'fd, 'fs1, 'fs2");
+          Format(instr, "fmin.s    'fd, 'fs1, 'fs2");
           break;
         case 0b001:  // RO_FMAX_S
-          Format(instr, "fmax.s  'fd, 'fs1, 'fs2");
+          Format(instr, "fmax.s    'fd, 'fs1, 'fs2");
           break;
         default:
           UNSUPPORTED_RISCV();
@@ -751,10 +751,10 @@ void Decoder::DecodeRFPType(Instruction* instr) {
       }
       switch (instr->Funct3Value()) {
         case 0b000:  // RO_FMV_X_W
-          Format(instr, "fmv.x.w 'rd, 'fs1");
+          Format(instr, "fmv.x.w   'rd, 'fs1");
           break;
         case 0b001:  // RO_FCLASS_S
-          Format(instr, "fclass.s 'rd, 'fs1");
+          Format(instr, "fclass.s  'rd, 'fs1");
           break;
         default:
           UNSUPPORTED_RISCV();
@@ -764,13 +764,13 @@ void Decoder::DecodeRFPType(Instruction* instr) {
     case RO_FLE_S: {  // RO_FEQ_S RO_FLT_S RO_FLE_S
       switch (instr->Funct3Value()) {
         case 0b010:  // RO_FEQ_S
-          Format(instr, "feq.s 'rd, 'fs1, 'fs2");
+          Format(instr, "feq.s     'rd, 'fs1, 'fs2");
           break;
         case 0b001:  // RO_FLT_S
-          Format(instr, "flt.s 'rd, 'fs1, 'fs2");
+          Format(instr, "flt.s     'rd, 'fs1, 'fs2");
           break;
         case 0b000:  // RO_FLE_S
-          Format(instr, "fle.s 'rd, 'fs1, 'fs2");
+          Format(instr, "fle.s     'rd, 'fs1, 'fs2");
           break;
         default:
           UNSUPPORTED_RISCV();
@@ -780,14 +780,14 @@ void Decoder::DecodeRFPType(Instruction* instr) {
     case RO_FCVT_S_W: {  // RO_FCVT_S_WU , 64F RO_FCVT_S_L RO_FCVT_S_LU
       switch (instr->Rs2Value()) {
         case 0b00000:  // RO_FCVT_S_W
-          Format(instr, "fcvt.s.w 'fd, 'rs1");
+          Format(instr, "fcvt.s.w  'fd, 'rs1");
           break;
         case 0b00001:  // RO_FCVT_S_WU
           Format(instr, "fcvt.s.wu 'fd, 'rs1");
           break;
 #ifdef V8_TARGET_ARCH_64_BIT
         case 0b00010:  // RO_FCVT_S_L
-          Format(instr, "fcvt.s.l 'fd, 'rs1");
+          Format(instr, "fcvt.s.l  'fd, 'rs1");
           break;
         case 0b00011:  // RO_FCVT_S_LU
           Format(instr, "fcvt.s.lu 'fd, 'rs1");
@@ -801,7 +801,7 @@ void Decoder::DecodeRFPType(Instruction* instr) {
     }
     case RO_FMV_W_X: {
       if (instr->Funct3Value() == 0b000) {
-        Format(instr, "fmv.w.x 'fd, 'rs1");
+        Format(instr, "fmv.w.x   'fd, 'rs1");
       } else {
         UNSUPPORTED_RISCV();
       }
@@ -809,20 +809,20 @@ void Decoder::DecodeRFPType(Instruction* instr) {
     }
     // TODO: Add macro for RISCV D extension
     case RO_FADD_D:
-      Format(instr, "fadd.d 'fd, 'fs1, 'fs2");
+      Format(instr, "fadd.d    'fd, 'fs1, 'fs2");
       break;
     case RO_FSUB_D:
-      Format(instr, "fsub.d 'fd, 'fs1, 'fs2");
+      Format(instr, "fsub.d    'fd, 'fs1, 'fs2");
       break;
     case RO_FMUL_D:
-      Format(instr, "fmul.d 'fd, 'fs1, 'fs2");
+      Format(instr, "fmul.d    'fd, 'fs1, 'fs2");
       break;
     case RO_FDIV_D:
-      Format(instr, "fdiv.d 'fd, 'fs1, 'fs2");
+      Format(instr, "fdiv.d    'fd, 'fs1, 'fs2");
       break;
     case RO_FSQRT_D: {
       if (instr->Rs2Value() == 0b00000) {
-        Format(instr, "fsqrt.d 'fd, 'fs1");
+        Format(instr, "fsqrt.d   'fd, 'fs1");
       } else {
         UNSUPPORTED_RISCV();
       }
@@ -831,13 +831,13 @@ void Decoder::DecodeRFPType(Instruction* instr) {
     case RO_FSGNJ_D: {  // RO_FSGNJN_D RO_FSGNJX_D
       switch (instr->Funct3Value()) {
         case 0b000:  // RO_FSGNJ_D
-          Format(instr, "fsgnj.d 'fd, 'fs1, 'fs2");
+          Format(instr, "fsgnj.d   'fd, 'fs1, 'fs2");
           break;
         case 0b001:  // RO_FSGNJN_D
-          Format(instr, "fsgnjn.d 'fd, 'fs1, 'fs2");
+          Format(instr, "fsgnjn.d  'fd, 'fs1, 'fs2");
           break;
         case 0b010:  // RO_FSGNJX_D
-          Format(instr, "fsgnjx.d 'fd, 'fs1, 'fs2");
+          Format(instr, "fsgnjx.d  'fd, 'fs1, 'fs2");
           break;
         default:
           UNSUPPORTED_RISCV();
@@ -847,10 +847,10 @@ void Decoder::DecodeRFPType(Instruction* instr) {
     case RO_FMIN_D: {  // RO_FMAX_D
       switch (instr->Funct3Value()) {
         case 0b000:  // RO_FMIN_D
-          Format(instr, "fmin.d 'fd, 'fs1, 'fs2");
+          Format(instr, "fmin.d    'fd, 'fs1, 'fs2");
           break;
         case 0b001:  // RO_FMAX_D
-          Format(instr, "fmax.d 'fd, 'fs1, 'fs2");
+          Format(instr, "fmax.d    'fd, 'fs1, 'fs2");
           break;
         default:
           UNSUPPORTED_RISCV();
@@ -867,7 +867,7 @@ void Decoder::DecodeRFPType(Instruction* instr) {
     }
     case RO_FCVT_D_S: {
       if (instr->Rs2Value() == 0b00000) {
-        Format(instr, "fcvt.d.s 'fd, 'fs1");
+        Format(instr, "fcvt.d.s  'fd, 'fs1");
       } else {
         UNSUPPORTED_RISCV();
       }
@@ -876,13 +876,13 @@ void Decoder::DecodeRFPType(Instruction* instr) {
     case RO_FLE_D: {  // RO_FEQ_D RO_FLT_D RO_FLE_D
       switch (instr->Funct3Value()) {
         case 0b010:  // RO_FEQ_S
-          Format(instr, "feq.d 'rd, 'fs1, 'fs2");
+          Format(instr, "feq.d     'rd, 'fs1, 'fs2");
           break;
         case 0b001:  // RO_FLT_D
-          Format(instr, "flt.d 'rd, 'fs1, 'fs2");
+          Format(instr, "flt.d     'rd, 'fs1, 'fs2");
           break;
         case 0b000:  // RO_FLE_D
-          Format(instr, "fle.d 'rd, 'fs1, 'fs2");
+          Format(instr, "fle.d     'rd, 'fs1, 'fs2");
           break;
         default:
           UNSUPPORTED_RISCV();
@@ -896,11 +896,11 @@ void Decoder::DecodeRFPType(Instruction* instr) {
       }
       switch (instr->Funct3Value()) {
         case 0b001:  // RO_FCLASS_D
-          Format(instr, "fclass.d 'rd, 'fs1");
+          Format(instr, "fclass.d  'rd, 'fs1");
           break;
 #ifdef V8_TARGET_ARCH_64_BIT
         case 0b000:  // RO_FMV_X_D
-          Format(instr, "fmv.x.d 'rd, 'fs1");
+          Format(instr, "fmv.x.d   'rd, 'fs1");
           break;
 #endif /* V8_TARGET_ARCH_64_BIT */
         default:
@@ -932,14 +932,14 @@ void Decoder::DecodeRFPType(Instruction* instr) {
     case RO_FCVT_D_W: {  // RO_FCVT_D_WU , 64F RO_FCVT_D_L RO_FCVT_D_LU
       switch (instr->Rs2Value()) {
         case 0b00000:  // RO_FCVT_D_W
-          Format(instr, "fcvt.d.w 'fd, 'rs1");
+          Format(instr, "fcvt.d.w  'fd, 'rs1");
           break;
         case 0b00001:  // RO_FCVT_D_WU
           Format(instr, "fcvt.d.wu 'fd, 'rs1");
           break;
 #ifdef V8_TARGET_ARCH_64_BIT
         case 0b00010:  // RO_FCVT_D_L
-          Format(instr, "fcvt.d.l 'fd, 'rs1");
+          Format(instr, "fcvt.d.l  'fd, 'rs1");
           break;
         case 0b00011:  // RO_FCVT_D_LU
           Format(instr, "fcvt.d.lu 'fd, 'rs1");
@@ -953,7 +953,7 @@ void Decoder::DecodeRFPType(Instruction* instr) {
 #ifdef V8_TARGET_ARCH_64_BIT
     case RO_FMV_D_X: {
       if (instr->Funct3Value() == 0b000 && instr->Rs2Value() == 0b00000) {
-        Format(instr, "fmv.d.x 'fd, 'rs1");
+        Format(instr, "fmv.d.x   'fd, 'rs1");
       } else {
         UNSUPPORTED_RISCV();
       }
@@ -970,29 +970,29 @@ void Decoder::DecodeR4Type(Instruction* instr) {
   switch (instr->InstructionBits() & kR4TypeMask) {
     // TODO: use F Extension macro block
     case RO_FMADD_S:
-      Format(instr, "fmadd.s 'fd, 'fs1, 'fs2, 'fs3");
+      Format(instr, "fmadd.s   'fd, 'fs1, 'fs2, 'fs3");
       break;
     case RO_FMSUB_S:
-      Format(instr, "fmsub.s 'fd, 'fs1, 'fs2, 'fs3");
+      Format(instr, "fmsub.s   'fd, 'fs1, 'fs2, 'fs3");
       break;
     case RO_FNMSUB_S:
-      Format(instr, "fnmsub.s 'fd, 'fs1, 'fs2, 'fs3");
+      Format(instr, "fnmsub.s   'fd, 'fs1, 'fs2, 'fs3");
       break;
     case RO_FNMADD_S:
-      Format(instr, "fnmadd.s 'fd, 'fs1, 'fs2, 'fs3");
+      Format(instr, "fnmadd.s   'fd, 'fs1, 'fs2, 'fs3");
       break;
     // TODO: use F Extension macro block
     case RO_FMADD_D:
-      Format(instr, "fmadd.d 'fd, 'fs1, 'fs2, 'fs3");
+      Format(instr, "fmadd.d   'fd, 'fs1, 'fs2, 'fs3");
       break;
     case RO_FMSUB_D:
-      Format(instr, "fmsub.d 'fd, 'fs1, 'fs2, 'fs3");
+      Format(instr, "fmsub.d   'fd, 'fs1, 'fs2, 'fs3");
       break;
     case RO_FNMSUB_D:
-      Format(instr, "fnmsub.d 'fd, 'fs1, 'fs2, 'fs3");
+      Format(instr, "fnmsub.d  'fd, 'fs1, 'fs2, 'fs3");
       break;
     case RO_FNMADD_D:
-      Format(instr, "fnmadd.d 'fd, 'fs1, 'fs2, 'fs3");
+      Format(instr, "fnmadd.d  'fd, 'fs1, 'fs2, 'fs3");
       break;
     default:
       UNSUPPORTED_RISCV();
@@ -1002,72 +1002,72 @@ void Decoder::DecodeR4Type(Instruction* instr) {
 void Decoder::DecodeIType(Instruction* instr) {
   switch (instr->InstructionBits() & kITypeMask) {
     case RO_JALR:
-      Format(instr, "jalr    'rd, 'imm12('rs1)");
+      Format(instr, "jalr      'rd, 'imm12('rs1)");
       break;
     case RO_LB:
-      Format(instr, "lb      'rd, 'imm12('rs1)");
+      Format(instr, "lb        'rd, 'imm12('rs1)");
       break;
     case RO_LH:
-      Format(instr, "lh      'rd, 'imm12('rs1)");
+      Format(instr, "lh        'rd, 'imm12('rs1)");
       break;
     case RO_LW:
-      Format(instr, "lw      'rd, 'imm12('rs1)");
+      Format(instr, "lw        'rd, 'imm12('rs1)");
       break;
     case RO_LBU:
-      Format(instr, "lbu     'rd, 'imm12('rs1)");
+      Format(instr, "lbu       'rd, 'imm12('rs1)");
       break;
     case RO_LHU:
-      Format(instr, "lhu     'rd, 'imm12('rs1)");
+      Format(instr, "lhu       'rd, 'imm12('rs1)");
       break;
 #ifdef V8_TARGET_ARCH_64_BIT
     case RO_LWU:
-      Format(instr, "lwu     'rd, 'imm12('rs1)");
+      Format(instr, "lwu       'rd, 'imm12('rs1)");
       break;
     case RO_LD:
-      Format(instr, "ld      'rd, 'imm12('rs1)");
+      Format(instr, "ld        'rd, 'imm12('rs1)");
       break;
 #endif /*V8_TARGET_ARCH_64_BIT*/
     case RO_ADDI:
-      Format(instr, "addi    'rd, 'rs1, 'imm12");
+      Format(instr, "addi      'rd, 'rs1, 'imm12");
       break;
     case RO_SLTI:
-      Format(instr, "slti    'rd, 'rs1, 'imm12");
+      Format(instr, "slti      'rd, 'rs1, 'imm12");
       break;
     case RO_SLTIU:
-      Format(instr, "sltiu   'rd, 'rs1, 'imm12");
+      Format(instr, "sltiu     'rd, 'rs1, 'imm12");
       break;
     case RO_XORI:
-      Format(instr, "xori    'rd, 'rs1, 'imm12");
+      Format(instr, "xori      'rd, 'rs1, 'imm12");
       break;
     case RO_ORI:
-      Format(instr, "ori     'rd, 'rs1, 'imm12");
+      Format(instr, "ori       'rd, 'rs1, 'imm12");
       break;
     case RO_ANDI:
-      Format(instr, "andi    'rd, 'rs1, 'imm12");
+      Format(instr, "andi      'rd, 'rs1, 'imm12");
       break;
     case RO_SLLI:
-      Format(instr, "slli    'rd, 'rs1, 's64");
+      Format(instr, "slli      'rd, 'rs1, 's64");
       break;
     case RO_SRLI: {  //  RO_SRAI
       if (!instr->IsArithShift()) {
-        Format(instr, "srli    'rd, 'rs1, 's64");
+        Format(instr, "srli      'rd, 'rs1, 's64");
       } else {
-        Format(instr, "srai    'rd, 'rs1, 's64");
+        Format(instr, "srai      'rd, 'rs1, 's64");
       }
       break;
     }
 #ifdef V8_TARGET_ARCH_64_BIT
     case RO_ADDIW:
-      Format(instr, "addiw   'rd, 'rs1, 'imm12");
+      Format(instr, "addiw     'rd, 'rs1, 'imm12");
       break;
     case RO_SLLIW:
-      Format(instr, "slliw   'rd, 'rs1, 's32");
+      Format(instr, "slliw     'rd, 'rs1, 's32");
       break;
     case RO_SRLIW: {  //  RO_SRAIW
       if (!instr->IsArithShift()) {
-        Format(instr, "srliw   'rd, 'rs1, 's32");
+        Format(instr, "srliw     'rd, 'rs1, 's32");
       } else {
-        Format(instr, "sraiw   'rd, 'rs1, 's32");
+        Format(instr, "sraiw     'rd, 'rs1, 's32");
       }
       break;
     }
@@ -1092,30 +1092,30 @@ void Decoder::DecodeIType(Instruction* instr) {
     // TODO: use Zicsr Standard Extension macro block
     // FIXME(RISC-V): Add special formatting for CSR registers
     case RO_CSRRW:
-      Format(instr, "csrrw   'rd, 'csr, 'rs1");
+      Format(instr, "csrrw     'rd, 'csr, 'rs1");
       break;
     case RO_CSRRS:
-      Format(instr, "csrrs   'rd, 'csr, 'rs1");
+      Format(instr, "csrrs     'rd, 'csr, 'rs1");
       break;
     case RO_CSRRC:
-      Format(instr, "csrrc   'rd, 'csr, 'rs1");
+      Format(instr, "csrrc     'rd, 'csr, 'rs1");
       break;
     case RO_CSRRWI:
-      Format(instr, "csrrwi  'rd, 'csr, 'vs1");
+      Format(instr, "csrrwi    'rd, 'csr, 'vs1");
       break;
     case RO_CSRRSI:
-      Format(instr, "csrrsi  'rd, 'csr, 'vs1");
+      Format(instr, "csrrsi    'rd, 'csr, 'vs1");
       break;
     case RO_CSRRCI:
-      Format(instr, "csrrci  'rd, 'csr, 'vs1");
+      Format(instr, "csrrci    'rd, 'csr, 'vs1");
       break;
     // TODO: use F Extension macro block
     case RO_FLW:
-      Format(instr, "flw     'fd, 'imm12('rs1)");
+      Format(instr, "flw       'fd, 'imm12('rs1)");
       break;
     // TODO: use D Extension macro block
     case RO_FLD:
-      Format(instr, "fld     'fd, 'imm12('rs1)");
+      Format(instr, "fld       'fd, 'imm12('rs1)");
       break;
     default:
       UNSUPPORTED_RISCV();
@@ -1125,26 +1125,26 @@ void Decoder::DecodeIType(Instruction* instr) {
 void Decoder::DecodeSType(Instruction* instr) {
   switch (instr->InstructionBits() & kSTypeMask) {
     case RO_SB:
-      Format(instr, "sb      'rs2, 'offS('rs1)");
+      Format(instr, "sb        'rs2, 'offS('rs1)");
       break;
     case RO_SH:
-      Format(instr, "sh      'rs2, 'offS('rs1)");
+      Format(instr, "sh        'rs2, 'offS('rs1)");
       break;
     case RO_SW:
-      Format(instr, "sw      'rs2, 'offS('rs1)");
+      Format(instr, "sw        'rs2, 'offS('rs1)");
       break;
 #ifdef V8_TARGET_ARCH_64_BIT
     case RO_SD:
-      Format(instr, "sd      'rs2, 'offS('rs1)");
+      Format(instr, "sd        'rs2, 'offS('rs1)");
       break;
 #endif /*V8_TARGET_ARCH_64_BIT*/
     // TODO: use F Extension macro block
     case RO_FSW:
-      Format(instr, "fsw      'fs2, 'offS('rs1)");
+      Format(instr, "fsw       'fs2, 'offS('rs1)");
       break;
     // TODO: use D Extension macro block
     case RO_FSD:
-      Format(instr, "fsd      'fs2, 'offS('rs1)");
+      Format(instr, "fsd       'fs2, 'offS('rs1)");
       break;
     default:
       UNSUPPORTED_RISCV();
@@ -1154,22 +1154,22 @@ void Decoder::DecodeSType(Instruction* instr) {
 void Decoder::DecodeBType(Instruction* instr) {
   switch (instr->InstructionBits() & kBTypeMask) {
     case RO_BEQ:
-      Format(instr, "beq     'rs1, 'rs2, 'offB");
+      Format(instr, "beq       'rs1, 'rs2, 'offB");
       break;
     case RO_BNE:
-      Format(instr, "bne     'rs1, 'rs2, 'offB");
+      Format(instr, "bne       'rs1, 'rs2, 'offB");
       break;
     case RO_BLT:
-      Format(instr, "blt     'rs1, 'rs2, 'offB");
+      Format(instr, "blt       'rs1, 'rs2, 'offB");
       break;
     case RO_BGE:
-      Format(instr, "bge     'rs1, 'rs2, 'offB");
+      Format(instr, "bge       'rs1, 'rs2, 'offB");
       break;
     case RO_BLTU:
-      Format(instr, "bltu    'rs1, 'rs2, 'offB");
+      Format(instr, "bltu      'rs1, 'rs2, 'offB");
       break;
     case RO_BGEU:
-      Format(instr, "bgeu    'rs1, 'rs2, 'offB");
+      Format(instr, "bgeu      'rs1, 'rs2, 'offB");
       break;
     default:
       UNSUPPORTED_RISCV();
@@ -1179,10 +1179,10 @@ void Decoder::DecodeUType(Instruction* instr) {
   // U Type doesn't have additional mask
   switch (instr->BaseOpcodeFieldRaw()) {
     case RO_LUI:
-      Format(instr, "lui     'rd, 'imm20U");
+      Format(instr, "lui       'rd, 'imm20U");
       break;
     case RO_AUIPC:
-      Format(instr, "auipc   'rd, 'imm20U");
+      Format(instr, "auipc     'rd, 'imm20U");
       break;
     default:
       UNSUPPORTED_RISCV();
@@ -1192,7 +1192,7 @@ void Decoder::DecodeJType(Instruction* instr) {
   // J Type doesn't have additional mask
   switch (instr->BaseOpcodeValue()) {
     case RO_JAL:
-      Format(instr, "jal     'rd, 'imm20J");
+      Format(instr, "jal       'rd, 'imm20J");
       break;
     default:
       UNSUPPORTED_RISCV();
