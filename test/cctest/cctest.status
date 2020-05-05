@@ -631,4 +631,9 @@
   'test-regexp/UnicodePropertyEscapeCodeSize': [SKIP],
 }],  # no_i18n == True
 
+################################################################################
+['variant == stress_snapshot', {
+  '*': [SKIP],  # only relevant for mjsunit tests.
+}],
+
 ]

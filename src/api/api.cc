@@ -774,78 +774,10 @@ StartupData SnapshotCreator::CreateBlob(
     isolate->heap()->CompactWeakArrayLists(internal::AllocationType::kOld);
   }
 
-  if (function_code_handling == FunctionCodeHandling::kClear) {
-    // Clear out re-compilable data from all shared function infos. Any
-    // JSFunctions using these SFIs will have their code pointers reset by the
-    // context serializer.
-    //
-    // We have to iterate the heap and collect handles to each clearable SFI,
-    // before we disable allocation, since we have to allocate UncompiledDatas
-    // to be able to recompile them.
-    //
-    // Compiled irregexp code is also flushed by collecting and clearing any
-    // seen JSRegExp objects.
-    i::HandleScope scope(isolate);
-    std::vector<i::Handle<i::SharedFunctionInfo>> sfis_to_clear;
-
-    {  // Heap allocation is disallowed within this scope.
-      i::HeapObjectIterator heap_iterator(isolate->heap());
-      for (i::HeapObject current_obj = heap_iterator.Next();
-           !current_obj.is_null(); current_obj = heap_iterator.Next()) {
-        if (current_obj.IsSharedFunctionInfo()) {
-          i::SharedFunctionInfo shared =
-              i::SharedFunctionInfo::cast(current_obj);
-          if (shared.CanDiscardCompiled()) {
-            sfis_to_clear.emplace_back(shared, isolate);
-          }
-        } else if (current_obj.IsJSRegExp()) {
-          i::JSRegExp regexp = i::JSRegExp::cast(current_obj);
-          if (regexp.HasCompiledCode()) {
-            regexp.DiscardCompiledCodeForSerialization();
-          }
-        }
-      }
-    }
-
-    // Must happen after heap iteration since SFI::DiscardCompiled may allocate.
-    for (i::Handle<i::SharedFunctionInfo> shared : sfis_to_clear) {
-      i::SharedFunctionInfo::DiscardCompiled(isolate, shared);
-    }
-  }
+  i::Snapshot::ClearReconstructableDataForSerialization(
+      isolate, function_code_handling == FunctionCodeHandling::kClear);
 
   i::DisallowHeapAllocation no_gc_from_here_on;
-
-  i::HeapObjectIterator heap_iterator(isolate->heap());
-  for (i::HeapObject current_obj = heap_iterator.Next(); !current_obj.is_null();
-       current_obj = heap_iterator.Next()) {
-    if (current_obj.IsJSFunction()) {
-      i::JSFunction fun = i::JSFunction::cast(current_obj);
-
-      // Complete in-object slack tracking for all functions.
-      fun.CompleteInobjectSlackTrackingIfActive();
-
-      // Also, clear out feedback vectors, or any optimized code.
-      // Note that checking for fun.IsOptimized() || fun.IsInterpreted() is not
-      // sufficient because the function can have a feedback vector even if it
-      // is not compiled (e.g. when the bytecode was flushed). On the other
-      // hand, only checking for the feedback vector is not sufficient because
-      // there can be multiple functions sharing the same feedback vector. So we
-      // need all these checks.
-      if (fun.IsOptimized() || fun.IsInterpreted() ||
-          !fun.raw_feedback_cell().value().IsUndefined()) {
-        fun.raw_feedback_cell().set_value(
-            i::ReadOnlyRoots(isolate).undefined_value());
-        fun.set_code(isolate->builtins()->builtin(i::Builtins::kCompileLazy));
-      }
-#ifdef DEBUG
-      if (function_code_handling == FunctionCodeHandling::kClear) {
-        DCHECK(fun.shared().HasWasmExportedFunctionData() ||
-               fun.shared().HasBuiltinId() || fun.shared().IsApiFunction() ||
-               fun.shared().HasUncompiledDataWithoutPreparseData());
-      }
-#endif  // DEBUG
-    }
-  }
 
   // Create a vector with all contexts and clear associated Persistent fields.
   // Note these contexts may be dead after calling Clear(), but will not be

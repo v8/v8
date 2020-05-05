@@ -3046,9 +3046,12 @@ int Shell::RunMain(Isolate* isolate, bool last_run) {
       DisposeModuleEmbedderData(context);
     }
     WriteLcovData(isolate, options.lcov_file);
-    if (options.stress_snapshot) {
+    if (last_run && options.stress_snapshot) {
+      static constexpr bool kClearRecompilableData = true;
       i::Isolate* i_isolate = reinterpret_cast<i::Isolate*>(isolate);
       i::Handle<i::Context> i_context = Utils::OpenHandle(*context);
+      i::Snapshot::ClearReconstructableDataForSerialization(
+          i_isolate, kClearRecompilableData);
       i::Snapshot::SerializeDeserializeAndVerifyForTesting(i_isolate,
                                                            i_context);
     }

@@ -10,6 +10,7 @@
 #include "src/execution/isolate-inl.h"
 #include "src/init/bootstrapper.h"
 #include "src/logging/counters.h"
+#include "src/objects/js-regexp-inl.h"
 #include "src/snapshot/context-deserializer.h"
 #include "src/snapshot/context-serializer.h"
 #include "src/snapshot/read-only-deserializer.h"
@@ -186,6 +187,79 @@ MaybeHandle<Context> Snapshot::NewContextFromSnapshot(
            context_index, bytes, ms);
   }
   return result;
+}
+
+// static
+void Snapshot::ClearReconstructableDataForSerialization(
+    Isolate* isolate, bool clear_recompilable_data) {
+  // Clear SFIs and JSRegExps.
+
+  if (clear_recompilable_data) {
+    HandleScope scope(isolate);
+    std::vector<i::Handle<i::SharedFunctionInfo>> sfis_to_clear;
+    {  // Heap allocation is disallowed within this scope.
+      i::HeapObjectIterator it(isolate->heap());
+      for (i::HeapObject o = it.Next(); !o.is_null(); o = it.Next()) {
+        if (o.IsSharedFunctionInfo()) {
+          i::SharedFunctionInfo shared = i::SharedFunctionInfo::cast(o);
+          if (shared.script().IsScript() &&
+              Script::cast(shared.script()).type() == Script::TYPE_EXTENSION) {
+            continue;  // Don't clear extensions, they cannot be recompiled.
+          }
+          if (shared.CanDiscardCompiled()) {
+            sfis_to_clear.emplace_back(shared, isolate);
+          }
+        } else if (o.IsJSRegExp()) {
+          i::JSRegExp regexp = i::JSRegExp::cast(o);
+          if (regexp.HasCompiledCode()) {
+            regexp.DiscardCompiledCodeForSerialization();
+          }
+        }
+      }
+    }
+
+    // Must happen after heap iteration since SFI::DiscardCompiled may allocate.
+    for (i::Handle<i::SharedFunctionInfo> shared : sfis_to_clear) {
+      i::SharedFunctionInfo::DiscardCompiled(isolate, shared);
+    }
+  }
+
+  // Clear JSFunctions.
+
+  i::HeapObjectIterator it(isolate->heap());
+  for (i::HeapObject o = it.Next(); !o.is_null(); o = it.Next()) {
+    if (!o.IsJSFunction()) continue;
+
+    i::JSFunction fun = i::JSFunction::cast(o);
+    fun.CompleteInobjectSlackTrackingIfActive();
+
+    i::SharedFunctionInfo shared = fun.shared();
+    if (shared.script().IsScript() &&
+        Script::cast(shared.script()).type() == Script::TYPE_EXTENSION) {
+      continue;  // Don't clear extensions, they cannot be recompiled.
+    }
+
+    // Also, clear out feedback vectors, or any optimized code.
+    // Note that checking for fun.IsOptimized() || fun.IsInterpreted() is
+    // not sufficient because the function can have a feedback vector even
+    // if it is not compiled (e.g. when the bytecode was flushed). On the
+    // other hand, only checking for the feedback vector is not sufficient
+    // because there can be multiple functions sharing the same feedback
+    // vector. So we need all these checks.
+    if (fun.IsOptimized() || fun.IsInterpreted() ||
+        !fun.raw_feedback_cell().value().IsUndefined()) {
+      fun.raw_feedback_cell().set_value(
+          i::ReadOnlyRoots(isolate).undefined_value());
+      fun.set_code(isolate->builtins()->builtin(i::Builtins::kCompileLazy));
+    }
+#ifdef DEBUG
+    if (clear_recompilable_data) {
+      DCHECK(fun.shared().HasWasmExportedFunctionData() ||
+             fun.shared().HasBuiltinId() || fun.shared().IsApiFunction() ||
+             fun.shared().HasUncompiledDataWithoutPreparseData());
+    }
+#endif  // DEBUG
+  }
 }
 
 // static

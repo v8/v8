@@ -162,4 +162,9 @@
   'regress/regress-crbug-1032042': [SKIP],
 }],  # 'isolates'
 
+################################################################################
+['variant == stress_snapshot', {
+  '*': [SKIP],  # only relevant for mjsunit tests.
+}],
+
 ]

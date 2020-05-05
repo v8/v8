@@ -86,4 +86,9 @@
   'debugger/wasm-*': [SKIP],
 }],  # 'arch == s390 or arch == s390x'
 
+################################################################################
+['variant == stress_snapshot', {
+  '*': [SKIP],  # only relevant for mjsunit tests.
+}],
+
 ]

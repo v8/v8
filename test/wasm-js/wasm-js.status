@@ -3,6 +3,7 @@
 # found in the LICENSE file.
 
 [
+
 [ALWAYS, {
   # These are slow, and not useful to run for the proposals:
   'proposals/reference-types/limits': [SKIP],
@@ -33,5 +34,10 @@
   # TODO(v8:7777): Re-enable once wasm is supported in jitless mode.
   '*': [SKIP],
 }], # lite_mode or variant == jitless
+
+################################################################################
+['variant == stress_snapshot', {
+  '*': [SKIP],  # only relevant for mjsunit tests.
+}],
 
 ]

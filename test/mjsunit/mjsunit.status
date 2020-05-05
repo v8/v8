@@ -1192,12 +1192,16 @@
 }],  # variant == assert_types
 
 ##############################################################################
-['variant == stress_snapshot', {
-  # TODO(jgruber): Remove this wildcard line ASAP.
+['variant == stress_snapshot and arch != x64', {
+  # Deserialization fails due to read-only snapshot checksum verification.
+  # https://crbug.com/v8/10491
   '*': [SKIP],
+}],
 
+['variant == stress_snapshot and arch == x64', {
   # Crashes the serializer due to recursion.
   'deep-recursion': [SKIP],
+  'string-replace-gc': [SKIP],
   # Check failed: !field_type.NowStable() || field_type.NowContains(value).
   'eval': [SKIP],
   'regress/regress-737588': [SKIP],

@@ -66,4 +66,9 @@
   'regress-7770': [SKIP],
 }],  # 'system == android'
 
+################################################################################
+['variant == stress_snapshot', {
+  '*': [SKIP],  # only relevant for mjsunit tests.
+}],
+
 ]

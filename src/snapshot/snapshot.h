@@ -41,6 +41,13 @@ class Snapshot : public AllStatic {
   V8_EXPORT_PRIVATE static constexpr SerializerFlags kDefaultSerializerFlags =
       {};
 
+  // In preparation for serialization, clear data from the given isolate's heap
+  // that 1. can be reconstructed and 2. is not suitable for serialization. The
+  // `clear_recompilable_data` flag controls whether compiled objects are
+  // cleared from shared function infos and regexp objects.
+  V8_EXPORT_PRIVATE static void ClearReconstructableDataForSerialization(
+      Isolate* isolate, bool clear_recompilable_data);
+
   // Serializes the given isolate and contexts. Each context may have an
   // associated callback to serialize internal fields. The default context must
   // be passed at index 0.
