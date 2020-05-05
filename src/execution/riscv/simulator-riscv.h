@@ -424,8 +424,8 @@ class Simulator : public SimulatorBase {
     DWORD,
     FLOAT,
     DOUBLE,
-    FLOAT_DOUBLE,
-    WORD_DWORD
+    // FLOAT_DOUBLE,
+    // WORD_DWORD
   };
 
   // RISCV Memory read/write methods
@@ -434,8 +434,9 @@ class Simulator : public SimulatorBase {
   template <typename T>
   void RV_WriteMem(int64_t addr, T value, Instruction* instr);
   template <typename T, typename OP>
-  T RV_amo(int64_t addr, OP f, Instruction* instr) {
+  T RV_amo(int64_t addr, OP f, Instruction* instr, TraceType t) {
     auto lhs = RV_ReadMem<T>(addr, instr);
+    // FIXME: trace memory read for AMO
     RV_WriteMem<T>(addr, (T)f(lhs), instr);
     return lhs;
   }
@@ -449,9 +450,8 @@ class Simulator : public SimulatorBase {
   template <typename T>
   void TraceMSARegWr(T* value);
   void TraceMemWr(int64_t addr, int64_t value, TraceType t);
-  void TraceMemRd(int64_t addr, int64_t value, TraceType t = DWORD);
   template <typename T>
-  void TraceMemRd(int64_t addr, T value);
+  void TraceMemRd(int64_t addr, T value, int64_t reg_value);
   template <typename T>
   void TraceMemWr(int64_t addr, T value);
 
@@ -478,17 +478,17 @@ class Simulator : public SimulatorBase {
   inline int32_t imm5CSR() const { return instr_.Rs1Value(); }
   inline int16_t csr_reg() const { return instr_.CsrValue(); }
 
-  inline void set_rd(int64_t value) {
+  inline void set_rd(int64_t value, bool trace = true) {
     set_register(RV_rd_reg(), value);
-    TraceRegWr(get_register(RV_rd_reg()), DWORD);
+    if (trace) TraceRegWr(get_register(RV_rd_reg()), DWORD);
   }
-  inline void set_frd(float value) {
+  inline void set_frd(float value, bool trace = true) {
     set_fpu_register_float(RV_rd_reg(), value);
-    TraceRegWr(get_fpu_register_word(RV_rd_reg()), FLOAT);
+    if (trace) TraceRegWr(get_fpu_register_word(RV_rd_reg()), FLOAT);
   }
-  inline void set_drd(double value) {
+  inline void set_drd(double value, bool trace = true) {
     set_fpu_register_double(RV_rd_reg(), value);
-    TraceRegWr(get_fpu_register(RV_rd_reg()), DOUBLE);
+    if (trace) TraceRegWr(get_fpu_register(RV_rd_reg()), DOUBLE);
   }
   inline int16_t shamt() const { return (imm12() & 0x3F); }
   inline int32_t s_imm12() const { return instr_.StoreOffset(); }

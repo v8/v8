@@ -1149,70 +1149,6 @@ void Simulator::TraceRegWr(int64_t value, TraceType t) {
         SNPrintF(trace_buf_, "%016" PRIx64 "    (%" PRId64 ")    dbl:%e",
                  v.fmt_int64, icount_, v.fmt_double);
         break;
-      case FLOAT_DOUBLE:
-        SNPrintF(trace_buf_, "%016" PRIx64 "    (%" PRId64 ")    flt:%e dbl:%e",
-                 v.fmt_int64, icount_, v.fmt_float[0], v.fmt_double);
-        break;
-      case WORD_DWORD:
-        SNPrintF(trace_buf_,
-                 "%016" PRIx64 "    (%" PRId64 ")    int32:%" PRId32
-                 " uint32:%" PRIu32 " int64:%" PRId64 " uint64:%" PRIu64,
-                 v.fmt_int64, icount_, v.fmt_int32[0], v.fmt_int32[0],
-                 v.fmt_int64, v.fmt_int64);
-        break;
-      default:
-        UNREACHABLE();
-    }
-  }
-}
-
-template <typename T>
-void Simulator::TraceMSARegWr(T* value, TraceType t) {
-  if (::v8::internal::FLAG_trace_sim) {
-    union {
-      uint8_t b[16];
-      uint16_t h[8];
-      uint32_t w[4];
-      uint64_t d[2];
-      float f[4];
-      double df[2];
-    } v;
-    memcpy(v.b, value, kSimd128Size);
-    switch (t) {
-      case BYTE:
-        SNPrintF(trace_buf_,
-                 "LO: %016" PRIx64 "  HI: %016" PRIx64 "    (%" PRIu64 ")",
-                 v.d[0], v.d[1], icount_);
-        break;
-      case HALF:
-        SNPrintF(trace_buf_,
-                 "LO: %016" PRIx64 "  HI: %016" PRIx64 "    (%" PRIu64 ")",
-                 v.d[0], v.d[1], icount_);
-        break;
-      case WORD:
-        SNPrintF(trace_buf_,
-                 "LO: %016" PRIx64 "  HI: %016" PRIx64 "    (%" PRIu64
-                 ")    int32[0..3]:%" PRId32 "  %" PRId32 "  %" PRId32
-                 "  %" PRId32,
-                 v.d[0], v.d[1], icount_, v.w[0], v.w[1], v.w[2], v.w[3]);
-        break;
-      case DWORD:
-        SNPrintF(trace_buf_,
-                 "LO: %016" PRIx64 "  HI: %016" PRIx64 "    (%" PRIu64 ")",
-                 v.d[0], v.d[1], icount_);
-        break;
-      case FLOAT:
-        SNPrintF(trace_buf_,
-                 "LO: %016" PRIx64 "  HI: %016" PRIx64 "    (%" PRIu64
-                 ")    flt[0..3]:%e  %e  %e  %e",
-                 v.d[0], v.d[1], icount_, v.f[0], v.f[1], v.f[2], v.f[3]);
-        break;
-      case DOUBLE:
-        SNPrintF(trace_buf_,
-                 "LO: %016" PRIx64 "  HI: %016" PRIx64 "    (%" PRIu64
-                 ")    dbl[0..1]:%e  %e",
-                 v.d[0], v.d[1], icount_, v.df[0], v.df[1]);
-        break;
       default:
         UNREACHABLE();
     }
@@ -1257,118 +1193,54 @@ void Simulator::TraceMSARegWr(T* value) {
 }
 
 // TODO(plind): consider making icount_ printing a flag option.
-void Simulator::TraceMemRd(int64_t addr, int64_t value, TraceType t) {
-  if (::v8::internal::FLAG_trace_sim) {
-    union {
-      int64_t fmt_int64;
-      int32_t fmt_int32[2];
-      float fmt_float[2];
-      double fmt_double;
-    } v;
-    v.fmt_int64 = value;
-
-    switch (t) {
-      case WORD:
-        SNPrintF(trace_buf_,
-                 "%016" PRIx64 "  <-- [%016" PRIx64 "]    (%" PRId64
-                 ")    int32:%" PRId32 " uint32:%" PRIu32,
-                 v.fmt_int64, addr, icount_, v.fmt_int32[0], v.fmt_int32[0]);
-        break;
-      case DWORD:
-        SNPrintF(trace_buf_,
-                 "%016" PRIx64 "  <-- [%016" PRIx64 "]    (%" PRId64
-                 ")    int64:%" PRId64 " uint64:%" PRIu64,
-                 value, addr, icount_, value, value);
-        break;
-      case FLOAT:
-        SNPrintF(trace_buf_,
-                 "%016" PRIx64 "  <-- [%016" PRIx64 "]    (%" PRId64
-                 ")    flt:%e",
-                 v.fmt_int64, addr, icount_, v.fmt_float[0]);
-        break;
-      case DOUBLE:
-        SNPrintF(trace_buf_,
-                 "%016" PRIx64 "  <-- [%016" PRIx64 "]    (%" PRId64
-                 ")    dbl:%e",
-                 v.fmt_int64, addr, icount_, v.fmt_double);
-        break;
-      case FLOAT_DOUBLE:
-        SNPrintF(trace_buf_,
-                 "%016" PRIx64 "  <-- [%016" PRIx64 "]    (%" PRId64
-                 ")    flt:%e dbl:%e",
-                 v.fmt_int64, addr, icount_, v.fmt_float[0], v.fmt_double);
-        break;
-      default:
-        UNREACHABLE();
-    }
-  }
-}
-
-void Simulator::TraceMemWr(int64_t addr, int64_t value, TraceType t) {
-  if (::v8::internal::FLAG_trace_sim) {
-    switch (t) {
-      case BYTE:
-        SNPrintF(trace_buf_,
-                 "               %02" PRIx8 " --> [%016" PRIx64 "]    (%" PRId64
-                 ")",
-                 static_cast<uint8_t>(value), addr, icount_);
-        break;
-      case HALF:
-        SNPrintF(trace_buf_,
-                 "            %04" PRIx16 " --> [%016" PRIx64 "]    (%" PRId64
-                 ")",
-                 static_cast<uint16_t>(value), addr, icount_);
-        break;
-      case WORD:
-        SNPrintF(trace_buf_,
-                 "        %08" PRIx32 " --> [%016" PRIx64 "]    (%" PRId64 ")",
-                 static_cast<uint32_t>(value), addr, icount_);
-        break;
-      case DWORD:
-        SNPrintF(trace_buf_,
-                 "%016" PRIx64 "  --> [%016" PRIx64 "]    (%" PRId64 " )",
-                 value, addr, icount_);
-        break;
-      default:
-        UNREACHABLE();
-    }
-  }
-}
-
 template <typename T>
-void Simulator::TraceMemRd(int64_t addr, T value) {
+void Simulator::TraceMemRd(int64_t addr, T value, int64_t reg_value) {
   if (::v8::internal::FLAG_trace_sim) {
-    switch (sizeof(T)) {
-      case 1:
-        SNPrintF(trace_buf_,
-                 "%08" PRIx8 " <-- [%08" PRIx64 "]    (%" PRIu64
-                 ")    int8:%" PRId8 " uint8:%" PRIu8,
-                 static_cast<uint8_t>(value), addr, icount_,
-                 static_cast<int8_t>(value), static_cast<uint8_t>(value));
-        break;
-      case 2:
-        SNPrintF(trace_buf_,
-                 "%08" PRIx16 " <-- [%08" PRIx64 "]    (%" PRIu64
-                 ")    int16:%" PRId16 " uint16:%" PRIu16,
-                 static_cast<uint16_t>(value), addr, icount_,
-                 static_cast<int16_t>(value), static_cast<uint16_t>(value));
-        break;
-      case 4:
-        SNPrintF(trace_buf_,
-                 "%08" PRIx32 " <-- [%08" PRIx64 "]    (%" PRIu64
-                 ")    int32:%" PRId32 " uint32:%" PRIu32,
-                 static_cast<uint32_t>(value), addr, icount_,
-                 static_cast<int32_t>(value), static_cast<uint32_t>(value));
-        break;
-      case 8:
-        SNPrintF(trace_buf_,
-                 "%08" PRIx64 " <-- [%08" PRIx64 "]    (%" PRIu64
-                 ")    int64:%" PRId64 " uint64:%" PRIu64,
-                 static_cast<uint64_t>(value), addr, icount_,
-                 static_cast<int64_t>(value), static_cast<uint64_t>(value));
-        break;
-      default:
-        UNREACHABLE();
+    if (std::is_integral<T>::value) {
+      switch (sizeof(T)) {
+        case 1:
+          SNPrintF(trace_buf_,
+                   "%016" PRIx64 "    (%" PRId64 ")    int8:%" PRId8
+                   " uint8:%" PRIu8 " <-- [addr: %" PRIx64 "]",
+                   reg_value, icount_, static_cast<int8_t>(value),
+                   static_cast<uint8_t>(value), addr);
+          break;
+        case 2:
+          SNPrintF(trace_buf_,
+                   "%016" PRIx64 "    (%" PRId64 ")    int16:%" PRId16
+                   " uint16:%" PRIu16 " <-- [addr: %" PRIx64 "]",
+                   reg_value, icount_, static_cast<int16_t>(value),
+                   static_cast<uint16_t>(value), addr);
+          break;
+        case 4:
+          SNPrintF(trace_buf_,
+                   "%016" PRIx64 "    (%" PRId64 ")    int32:%" PRId32
+                   " uint32:%" PRIu32 " <-- [addr: %" PRIx64 "]",
+                   reg_value, icount_, static_cast<int32_t>(value),
+                   static_cast<uint32_t>(value), addr);
+          break;
+        case 8:
+          SNPrintF(trace_buf_,
+                   "%016" PRIx64 "    (%" PRId64 ")    int64:%" PRId64
+                   " uint64:%" PRIu64 " <-- [addr: %" PRIx64 "]",
+                   reg_value, icount_, static_cast<int64_t>(value),
+                   static_cast<uint64_t>(value), addr);
+          break;
+        default:
+          UNREACHABLE();
+      }
+    } else if (std::is_same<float, T>::value) {
+      SNPrintF(trace_buf_,
+               "%016" PRIx64 "    (%" PRId64 ")    flt:%e <-- [addr: %" PRIx64
+               "]",
+               reg_value, icount_, static_cast<float>(value), addr);
+    } else if (std::is_same<double, T>::value) {
+      SNPrintF(trace_buf_,
+               "%016" PRIx64 "    (%" PRId64 ")    dbl:%e <-- [addr: %" PRIx64
+               "]",
+               reg_value, icount_, static_cast<double>(value), addr);
+    } else {
+      UNREACHABLE();
     }
   }
 }
@@ -1379,23 +1251,45 @@ void Simulator::TraceMemWr(int64_t addr, T value) {
     switch (sizeof(T)) {
       case 1:
         SNPrintF(trace_buf_,
-                 "      %02" PRIx8 " --> [%08" PRIx64 "]    (%" PRIu64 ")",
-                 static_cast<uint8_t>(value), addr, icount_);
+                 "                    (%" PRIu64 ")    int8:%" PRId8
+                 " uint8:%" PRIu8 " --> [addr: %" PRIx64 "]",
+                 icount_, static_cast<int8_t>(value),
+                 static_cast<uint8_t>(value), addr);
         break;
       case 2:
         SNPrintF(trace_buf_,
-                 "    %04" PRIx16 " --> [%08" PRIx64 "]    (%" PRIu64 ")",
-                 static_cast<uint16_t>(value), addr, icount_);
+                 "                    (%" PRIu64 ")    int16:%" PRId16
+                 " uint16:%" PRIu16 " --> [addr: %" PRIx64 "]",
+                 icount_, static_cast<int16_t>(value),
+                 static_cast<uint16_t>(value), addr);
         break;
       case 4:
-        SNPrintF(trace_buf_,
-                 "%08" PRIx32 " --> [%08" PRIx64 "]    (%" PRIu64 ")",
-                 static_cast<uint32_t>(value), addr, icount_);
+        if (std::is_integral<T>::value) {
+          SNPrintF(trace_buf_,
+                   "                    (%" PRIu64 ")    int32:%" PRId32
+                   " uint32:%" PRIu32 " --> [addr: %" PRIx64 "]",
+                   icount_, static_cast<int32_t>(value),
+                   static_cast<uint32_t>(value), addr);
+        } else {
+          SNPrintF(trace_buf_,
+                   "                    (%" PRIu64
+                   ")    flt:%e --> [addr: %" PRIx64 "]",
+                   icount_, static_cast<float>(value), addr);
+        }
         break;
       case 8:
-        SNPrintF(trace_buf_,
-                 "%16" PRIx64 " --> [%08" PRIx64 "]    (%" PRIu64 ")",
-                 static_cast<uint64_t>(value), addr, icount_);
+        if (std::is_integral<T>::value) {
+          SNPrintF(trace_buf_,
+                   "                    (%" PRIu64 ")    int64:%" PRId64
+                   " uint64:%" PRIu64 " --> [addr: %" PRIx64 "]",
+                   icount_, static_cast<int64_t>(value),
+                   static_cast<uint64_t>(value), addr);
+        } else {
+          SNPrintF(trace_buf_,
+                   "                    (%" PRIu64
+                   ")    dbl:%e --> [addr: %" PRIx64 "]",
+                   icount_, static_cast<double>(value), addr);
+        }
         break;
       default:
         UNREACHABLE();
@@ -1406,18 +1300,50 @@ void Simulator::TraceMemWr(int64_t addr, T value) {
 // RISCV Memory Read/Write functions
 // Compared with mips64, RISCV can support unaligned read/write. EEI decides.
 // FIXME: RISCV porting: Add boundary check and TraceMem* support
-// FIXME: our target board traps on unaligned loads, so need to add detection of
-// unaligned load/store
+// FIXME: our target board traps on unaligned loads, so need to add detection
+// of unaligned load/store
 
 template <typename T>
 T Simulator::RV_ReadMem(int64_t addr, Instruction* instr) {
+  if (addr >= 0 && addr < 0x400) {
+    // This has to be a nullptr-dereference, drop into debugger.
+    PrintF("Memory read from bad address: 0x%08" PRIx64 " , pc=0x%08" PRIxPTR
+           " \n",
+           addr, reinterpret_cast<intptr_t>(instr));
+    DieOrDebug();
+  }
+
+  // check for natural alignment
+  if ((addr & (sizeof(T) - 1)) != 0) {
+    PrintF("Unaligned read at 0x%08" PRIx64 " , pc=0x%08" V8PRIxPTR "\n", addr,
+           reinterpret_cast<intptr_t>(instr));
+    DieOrDebug();
+  }
+
   T* ptr = reinterpret_cast<T*>(addr);
-  return *ptr;
+  T value = *ptr;
+  return value;
 }
 
 template <typename T>
 void Simulator::RV_WriteMem(int64_t addr, T value, Instruction* instr) {
+  if (addr >= 0 && addr < 0x400) {
+    // This has to be a nullptr-dereference, drop into debugger.
+    PrintF("Memory write to bad address: 0x%08" PRIx64 " , pc=0x%08" PRIxPTR
+           " \n",
+           addr, reinterpret_cast<intptr_t>(instr));
+    DieOrDebug();
+  }
+
+  // check for natural alignment
+  if ((addr & (sizeof(T) - 1)) != 0) {
+    PrintF("Unaligned write at 0x%08" PRIx64 " , pc=0x%08" V8PRIxPTR "\n", addr,
+           reinterpret_cast<intptr_t>(instr));
+    DieOrDebug();
+  }
+
   T* ptr = reinterpret_cast<T*>(addr);
+  TraceMemWr(addr, value);
   *ptr = value;
 }
 
@@ -2147,125 +2073,135 @@ void Simulator::DecodeRVRAType() {
   // Memory address lock or other synchronizaiton behaviors.
   switch (instr_.InstructionBits() & kRATypeMask) {
     case RO_LR_W: {
-      set_rd(sext32(RV_ReadMem<int32_t>(rs1(), instr_.instr())));
+      int64_t addr = rs1();
+      auto val = RV_ReadMem<int32_t>(addr, instr_.instr());
+      set_rd(sext32(val), false);
+      TraceMemRd(addr, val, get_register(RV_rd_reg()));
       break;
     }
     case RO_SC_W: {
       RV_WriteMem<int32_t>(rs1(), (int32_t)rs2(), instr_.instr());
-      set_rd(0);  // Always success in simulator
+      set_rd(0, false);  // Always success in simulator
       break;
     }
     case RO_AMOSWAP_W: {
       set_rd(sext32(RV_amo<uint32_t>(
-          rs1(), [&](uint32_t lhs) { return (uint32_t)rs2(); },
-          instr_.instr())));
+          rs1(), [&](uint32_t lhs) { return (uint32_t)rs2(); }, instr_.instr(),
+          WORD)));
       break;
     }
     case RO_AMOADD_W: {
       set_rd(sext32(RV_amo<uint32_t>(
           rs1(), [&](uint32_t lhs) { return lhs + (uint32_t)rs2(); },
-          instr_.instr())));
+          instr_.instr(), WORD)));
       break;
     }
     case RO_AMOXOR_W: {
       set_rd(sext32(RV_amo<uint32_t>(
           rs1(), [&](uint32_t lhs) { return lhs ^ (uint32_t)rs2(); },
-          instr_.instr())));
+          instr_.instr(), WORD)));
       break;
     }
     case RO_AMOAND_W: {
       set_rd(sext32(RV_amo<uint32_t>(
           rs1(), [&](uint32_t lhs) { return lhs & (uint32_t)rs2(); },
-          instr_.instr())));
+          instr_.instr(), WORD)));
       break;
     }
     case RO_AMOOR_W: {
       set_rd(sext32(RV_amo<uint32_t>(
           rs1(), [&](uint32_t lhs) { return lhs | (uint32_t)rs2(); },
-          instr_.instr())));
+          instr_.instr(), WORD)));
       break;
     }
     case RO_AMOMIN_W: {
       set_rd(sext32(RV_amo<int32_t>(
           rs1(), [&](int32_t lhs) { return std::min(lhs, (int32_t)rs2()); },
-          instr_.instr())));
+          instr_.instr(), WORD)));
       break;
     }
     case RO_AMOMAX_W: {
       set_rd(sext32(RV_amo<int32_t>(
           rs1(), [&](int32_t lhs) { return std::max(lhs, (int32_t)rs2()); },
-          instr_.instr())));
+          instr_.instr(), WORD)));
       break;
     }
     case RO_AMOMINU_W: {
       set_rd(sext32(RV_amo<uint32_t>(
           rs1(), [&](uint32_t lhs) { return std::min(lhs, (uint32_t)rs2()); },
-          instr_.instr())));
+          instr_.instr(), WORD)));
       break;
     }
     case RO_AMOMAXU_W: {
       set_rd(sext32(RV_amo<uint32_t>(
           rs1(), [&](uint32_t lhs) { return std::max(lhs, (uint32_t)rs2()); },
-          instr_.instr())));
+          instr_.instr(), WORD)));
       break;
     }
 #ifdef V8_TARGET_ARCH_64_BIT
     case RO_LR_D: {
-      set_rd(RV_ReadMem<int64_t>(rs1(), instr_.instr()));
+      int64_t addr = rs1();
+      auto val = RV_ReadMem<int64_t>(addr, instr_.instr());
+      set_rd(val, false);
+      TraceMemRd(addr, val, get_register(RV_rd_reg()));
       break;
     }
     case RO_SC_D: {
       RV_WriteMem<int64_t>(rs1(), rs2(), instr_.instr());
-      set_rd(0);  // Always success in simulator
+      set_rd(0, false);  // Always success in simulator
       break;
     }
     case RO_AMOSWAP_D: {
       set_rd(RV_amo<int64_t>(
-          rs1(), [&](int64_t lhs) { return rs2(); }, instr_.instr()));
+          rs1(), [&](int64_t lhs) { return rs2(); }, instr_.instr(), DWORD));
       break;
     }
     case RO_AMOADD_D: {
       set_rd(RV_amo<int64_t>(
-          rs1(), [&](int64_t lhs) { return lhs + rs2(); }, instr_.instr()));
+          rs1(), [&](int64_t lhs) { return lhs + rs2(); }, instr_.instr(),
+          DWORD));
       break;
     }
     case RO_AMOXOR_D: {
       set_rd(RV_amo<int64_t>(
-          rs1(), [&](int64_t lhs) { return lhs ^ rs2(); }, instr_.instr()));
+          rs1(), [&](int64_t lhs) { return lhs ^ rs2(); }, instr_.instr(),
+          DWORD));
       break;
     }
     case RO_AMOAND_D: {
       set_rd(RV_amo<int64_t>(
-          rs1(), [&](int64_t lhs) { return lhs & rs2(); }, instr_.instr()));
+          rs1(), [&](int64_t lhs) { return lhs & rs2(); }, instr_.instr(),
+          DWORD));
       break;
     }
     case RO_AMOOR_D: {
       set_rd(RV_amo<int64_t>(
-          rs1(), [&](int64_t lhs) { return lhs | rs2(); }, instr_.instr()));
+          rs1(), [&](int64_t lhs) { return lhs | rs2(); }, instr_.instr(),
+          DWORD));
       break;
     }
     case RO_AMOMIN_D: {
       set_rd(RV_amo<int64_t>(
           rs1(), [&](int64_t lhs) { return std::min(lhs, rs2()); },
-          instr_.instr()));
+          instr_.instr(), DWORD));
       break;
     }
     case RO_AMOMAX_D: {
       set_rd(RV_amo<int64_t>(
           rs1(), [&](int64_t lhs) { return std::max(lhs, rs2()); },
-          instr_.instr()));
+          instr_.instr(), DWORD));
       break;
     }
     case RO_AMOMINU_D: {
       set_rd(RV_amo<uint64_t>(
           rs1(), [&](uint64_t lhs) { return std::min(lhs, (uint64_t)rs2()); },
-          instr_.instr()));
+          instr_.instr(), DWORD));
       break;
     }
     case RO_AMOMAXU_D: {
       set_rd(RV_amo<uint64_t>(
           rs1(), [&](uint64_t lhs) { return std::max(lhs, (uint64_t)rs2()); },
-          instr_.instr()));
+          instr_.instr(), DWORD));
       break;
     }
 #endif /*V8_TARGET_ARCH_64_BIT*/
@@ -2761,39 +2697,53 @@ void Simulator::DecodeRVIType() {
       break;
     }
     case RO_LB: {
-      int8_t val = RV_ReadMem<int8_t>(rs1() + imm12(), instr_.instr());
-      set_rd(sext_xlen(val));
+      int64_t addr = rs1() + imm12();
+      int8_t val = RV_ReadMem<int8_t>(addr, instr_.instr());
+      set_rd(sext_xlen(val), false);
+      TraceMemRd(addr, val, get_register(RV_rd_reg()));
       break;
     }
     case RO_LH: {
-      int16_t val = RV_ReadMem<int16_t>(rs1() + imm12(), instr_.instr());
-      set_rd(sext_xlen(val));
+      int64_t addr = rs1() + imm12();
+      int16_t val = RV_ReadMem<int16_t>(addr, instr_.instr());
+      set_rd(sext_xlen(val), false);
+      TraceMemRd(addr, val, get_register(RV_rd_reg()));
       break;
     }
     case RO_LW: {
-      int32_t val = RV_ReadMem<int32_t>(rs1() + imm12(), instr_.instr());
-      set_rd(sext_xlen(val));
+      int64_t addr = rs1() + imm12();
+      int32_t val = RV_ReadMem<int32_t>(addr, instr_.instr());
+      set_rd(sext_xlen(val), false);
+      TraceMemRd(addr, val, get_register(RV_rd_reg()));
       break;
     }
     case RO_LBU: {
-      uint8_t val = RV_ReadMem<uint8_t>(rs1() + imm12(), instr_.instr());
-      set_rd(zext_xlen(val));
+      int64_t addr = rs1() + imm12();
+      uint8_t val = RV_ReadMem<uint8_t>(addr, instr_.instr());
+      set_rd(zext_xlen(val), false);
+      TraceMemRd(addr, val, get_register(RV_rd_reg()));
       break;
     }
     case RO_LHU: {
-      uint16_t val = RV_ReadMem<uint16_t>(rs1() + imm12(), instr_.instr());
-      set_rd(zext_xlen(val));
+      int64_t addr = rs1() + imm12();
+      uint16_t val = RV_ReadMem<uint16_t>(addr, instr_.instr());
+      set_rd(zext_xlen(val), false);
+      TraceMemRd(addr, val, get_register(RV_rd_reg()));
       break;
     }
 #ifdef V8_TARGET_ARCH_64_BIT
     case RO_LWU: {
-      uint32_t val = RV_ReadMem<uint32_t>(rs1() + imm12(), instr_.instr());
-      set_rd(zext_xlen(val));
+      int64_t addr = rs1() + imm12();
+      uint32_t val = RV_ReadMem<uint32_t>(addr, instr_.instr());
+      set_rd(zext_xlen(val), false);
+      TraceMemRd(addr, val, get_register(RV_rd_reg()));
       break;
     }
     case RO_LD: {
-      int64_t val = RV_ReadMem<int64_t>(rs1() + imm12(), instr_.instr());
-      set_rd(sext_xlen(val));
+      int64_t addr = rs1() + imm12();
+      int64_t val = RV_ReadMem<int64_t>(addr, instr_.instr());
+      set_rd(sext_xlen(val), false);
+      TraceMemRd(addr, val, get_register(RV_rd_reg()));
       break;
     }
 #endif /*V8_TARGET_ARCH_64_BIT*/
@@ -2918,14 +2868,18 @@ void Simulator::DecodeRVIType() {
     }
     // TODO: use F Extension macro block
     case RO_FLW: {
-      float val = RV_ReadMem<float>(rs1() + imm12(), instr_.instr());
-      set_frd(val);
+      int64_t addr = rs1() + imm12();
+      float val = RV_ReadMem<float>(addr, instr_.instr());
+      set_frd(val, false);
+      TraceMemRd(addr, val, get_fpu_register(RV_frd_reg()));
       break;
     }
     // TODO: use D Extension macro block
     case RO_FLD: {
-      double val = RV_ReadMem<double>(rs1() + imm12(), instr_.instr());
-      set_drd(val);
+      int64_t addr = rs1() + imm12();
+      double val = RV_ReadMem<double>(addr, instr_.instr());
+      set_drd(val, false);
+      TraceMemRd(addr, val, get_fpu_register(RV_frd_reg()));
       break;
     }
     default:
