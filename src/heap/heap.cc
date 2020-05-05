@@ -52,7 +52,7 @@
 #include "src/heap/objects-visiting-inl.h"
 #include "src/heap/objects-visiting.h"
 #include "src/heap/read-only-heap.h"
-#include "src/heap/remembered-set.h"
+#include "src/heap/remembered-set-inl.h"
 #include "src/heap/safepoint.h"
 #include "src/heap/scavenge-job.h"
 #include "src/heap/scavenger-inl.h"
@@ -4273,10 +4273,14 @@ class SlotVerifyingVisitor : public ObjectVisitor {
   void VisitEmbeddedPointer(Code host, RelocInfo* rinfo) override {
     Object target = rinfo->target_object();
     if (ShouldHaveBeenRecorded(host, MaybeObject::FromObject(target))) {
-      CHECK(InTypedSet(FULL_EMBEDDED_OBJECT_SLOT, rinfo->pc()) ||
-            InTypedSet(COMPRESSED_EMBEDDED_OBJECT_SLOT, rinfo->pc()) ||
-            (rinfo->IsInConstantPool() &&
-             InTypedSet(OBJECT_SLOT, rinfo->constant_pool_entry_address())));
+      CHECK(
+          InTypedSet(FULL_EMBEDDED_OBJECT_SLOT, rinfo->pc()) ||
+          InTypedSet(COMPRESSED_EMBEDDED_OBJECT_SLOT, rinfo->pc()) ||
+          (rinfo->IsInConstantPool() &&
+           InTypedSet(COMPRESSED_OBJECT_SLOT,
+                      rinfo->constant_pool_entry_address())) ||
+          (rinfo->IsInConstantPool() &&
+           InTypedSet(FULL_OBJECT_SLOT, rinfo->constant_pool_entry_address())));
     }
   }
 
@@ -6754,12 +6758,11 @@ void Heap::GenerationalBarrierForCodeSlow(Code host, RelocInfo* rinfo,
     addr = rinfo->constant_pool_entry_address();
     if (RelocInfo::IsCodeTargetMode(rmode)) {
       slot_type = CODE_ENTRY_SLOT;
+    } else if (RelocInfo::IsCompressedEmbeddedObject(rmode)) {
+      slot_type = COMPRESSED_OBJECT_SLOT;
     } else {
-      // Constant pools don't currently support compressed objects, as
-      // their values are all pointer sized (though this could change
-      // therefore we have a DCHECK).
       DCHECK(RelocInfo::IsFullEmbeddedObject(rmode));
-      slot_type = OBJECT_SLOT;
+      slot_type = FULL_OBJECT_SLOT;
     }
   }
   uintptr_t offset = addr - source_page->address();

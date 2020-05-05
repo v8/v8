@@ -2,8 +2,8 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#ifndef V8_HEAP_REMEMBERED_SET_H_
-#define V8_HEAP_REMEMBERED_SET_H_
+#ifndef V8_HEAP_REMEMBERED_SET_INL_H_
+#define V8_HEAP_REMEMBERED_SET_INL_H_
 
 #include <memory>
 
@@ -11,6 +11,7 @@
 #include "src/base/memory.h"
 #include "src/codegen/reloc-info.h"
 #include "src/common/globals.h"
+#include "src/common/ptr-compr-inl.h"
 #include "src/heap/heap.h"
 #include "src/heap/memory-chunk.h"
 #include "src/heap/slot-set.h"
@@ -314,7 +315,19 @@ class UpdateTypedSlotHelper {
         RelocInfo rinfo(addr, RelocInfo::FULL_EMBEDDED_OBJECT, 0, Code());
         return UpdateEmbeddedPointer(heap, &rinfo, callback);
       }
-      case OBJECT_SLOT: {
+      case COMPRESSED_OBJECT_SLOT: {
+        HeapObject old_target = HeapObject::cast(Object(DecompressTaggedAny(
+            heap->isolate(),
+            static_cast<Tagged_t>(base::Memory<Address>(addr)))));
+        HeapObject new_target = old_target;
+        SlotCallbackResult result = callback(FullMaybeObjectSlot(&new_target));
+        DCHECK(!HasWeakHeapObjectTag(new_target));
+        if (new_target != old_target) {
+          base::Memory<Address>(addr) = new_target.ptr();
+        }
+        return result;
+      }
+      case FULL_OBJECT_SLOT: {
         return callback(FullMaybeObjectSlot(addr));
       }
       case CLEARED_SLOT:
@@ -426,4 +439,4 @@ inline SlotType SlotTypeForRelocInfoMode(RelocInfo::Mode rmode) {
 }  // namespace internal
 }  // namespace v8
 
-#endif  // V8_HEAP_REMEMBERED_SET_H_
+#endif  // V8_HEAP_REMEMBERED_SET_INL_H_

@@ -45,7 +45,7 @@
 #include "src/heap/mark-compact.h"
 #include "src/heap/memory-chunk.h"
 #include "src/heap/memory-reducer.h"
-#include "src/heap/remembered-set.h"
+#include "src/heap/remembered-set-inl.h"
 #include "src/ic/ic.h"
 #include "src/numbers/hash-seed-inl.h"
 #include "src/objects/elements.h"

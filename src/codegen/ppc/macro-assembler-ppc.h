@@ -182,6 +182,14 @@ class V8_EXPORT_PRIVATE TurboAssembler : public TurboAssemblerBase {
              CRegister cr = cr7);
   void Cmpwi(Register src1, const Operand& src2, Register scratch,
              CRegister cr = cr7);
+  void CompareTagged(Register src1, Register src2, CRegister cr = cr7) {
+    if (COMPRESS_POINTERS_BOOL) {
+      cmpw(src1, src2, cr);
+    } else {
+      cmp(src1, src2, cr);
+    }
+  }
+
   // Set new rounding mode RN to FPSCR
   void SetRoundingMode(FPRoundingMode RN);
 
@@ -469,22 +477,20 @@ class V8_EXPORT_PRIVATE TurboAssembler : public TurboAssemblerBase {
   void MovFloatToInt(Register dst, DoubleRegister src);
   // Register move. May do nothing if the registers are identical.
   void Move(Register dst, Smi smi) { LoadSmiLiteral(dst, smi); }
-  void Move(Register dst, Handle<HeapObject> value);
+  void Move(Register dst, Handle<HeapObject> value,
+            RelocInfo::Mode rmode = RelocInfo::FULL_EMBEDDED_OBJECT);
   void Move(Register dst, ExternalReference reference);
   void Move(Register dst, Register src, Condition cond = al);
   void Move(DoubleRegister dst, DoubleRegister src);
 
-  void SmiUntag(Register reg, RCBit rc = LeaveRC, int scale = 0) {
-    SmiUntag(reg, reg, rc, scale);
-  }
+  void SmiUntag(Register dst, const MemOperand& src, RCBit rc);
+  void SmiUntag(Register reg, RCBit rc = LeaveRC) { SmiUntag(reg, reg, rc); }
 
-  void SmiUntag(Register dst, Register src, RCBit rc = LeaveRC, int scale = 0) {
-    if (scale > kSmiShift) {
-      ShiftLeftImm(dst, src, Operand(scale - kSmiShift), rc);
-    } else if (scale < kSmiShift) {
-      ShiftRightArithImm(dst, src, kSmiShift - scale, rc);
+  void SmiUntag(Register dst, Register src, RCBit rc = LeaveRC) {
+    if (COMPRESS_POINTERS_BOOL) {
+      srawi(dst, src, kSmiShift, rc);
     } else {
-      // do nothing
+      ShiftRightArithImm(dst, src, kSmiShift, rc);
     }
   }
 
@@ -650,6 +656,41 @@ class V8_EXPORT_PRIVATE TurboAssembler : public TurboAssemblerBase {
   // Define an exception handler and bind a label.
   void BindExceptionHandler(Label* label) { bind(label); }
 
+  // ---------------------------------------------------------------------------
+  // Pointer compression Support
+
+  // Loads a field containing a HeapObject and decompresses it if pointer
+  // compression is enabled.
+  void LoadTaggedPointerField(const Register& destination,
+                              const MemOperand& field_operand,
+                              const Register& scratch = no_reg);
+
+  // Loads a field containing any tagged value and decompresses it if necessary.
+  void LoadAnyTaggedField(const Register& destination,
+                          const MemOperand& field_operand,
+                          const Register& scratch = no_reg);
+
+  // Loads a field containing smi value and untags it.
+  void SmiUntagField(Register dst, const MemOperand& src, RCBit rc = LeaveRC);
+
+  // Compresses and stores tagged value to given on-heap location.
+  void StoreTaggedField(const Register& value,
+                        const MemOperand& dst_field_operand,
+                        const Register& scratch = no_reg);
+  void StoreTaggedFieldX(const Register& value,
+                         const MemOperand& dst_field_operand,
+                         const Register& scratch = no_reg);
+
+  void DecompressTaggedSigned(Register destination, MemOperand field_operand);
+  void DecompressTaggedSigned(Register destination, Register src);
+  void DecompressTaggedPointer(Register destination, MemOperand field_operand);
+  void DecompressTaggedPointer(Register destination, Register source);
+  void DecompressAnyTagged(Register destination, MemOperand field_operand);
+  void DecompressAnyTagged(Register destination, Register source);
+
+  void LoadWord(Register dst, const MemOperand& mem, Register scratch);
+  void StoreWord(Register src, const MemOperand& mem, Register scratch);
+
  private:
   static const int kSmiShift = kSmiTagSize + kSmiShiftSize;
 
@@ -718,8 +759,6 @@ class V8_EXPORT_PRIVATE MacroAssembler : public TurboAssembler {
   // than assembler-ppc and may generate variable length sequences
 
   // load a literal double value <value> to FPR <result>
-  void LoadWord(Register dst, const MemOperand& mem, Register scratch);
-  void StoreWord(Register src, const MemOperand& mem, Register scratch);
 
   void LoadHalfWord(Register dst, const MemOperand& mem,
                     Register scratch = no_reg);

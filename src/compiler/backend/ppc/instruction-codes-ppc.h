@@ -195,7 +195,11 @@ namespace compiler {
   V(PPC_I64x2Splat)                  \
   V(PPC_I32x4Splat)                  \
   V(PPC_I16x8Splat)                  \
-  V(PPC_I8x16Splat)
+  V(PPC_I8x16Splat)                  \
+  V(PPC_StoreCompressTagged)         \
+  V(PPC_LoadDecompressTaggedSigned)  \
+  V(PPC_LoadDecompressTaggedPointer) \
+  V(PPC_LoadDecompressAnyTagged)
 
 // Addressing modes represent the "shape" of inputs to an instruction.
 // Many instructions support multiple addressing modes. Addressing modes

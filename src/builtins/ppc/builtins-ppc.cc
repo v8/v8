@@ -209,7 +209,8 @@ void Builtins::Generate_JSConstructStubGeneric(MacroAssembler* masm) {
     //  --        sp[4*kSystemPointerSize]: context
     // -----------------------------------
 
-    __ LoadP(r7, FieldMemOperand(r4, JSFunction::kSharedFunctionInfoOffset));
+    __ LoadTaggedPointerField(
+        r7, FieldMemOperand(r4, JSFunction::kSharedFunctionInfoOffset));
     __ lwz(r7, FieldMemOperand(r7, SharedFunctionInfo::kFlagsOffset));
     __ DecodeField<SharedFunctionInfo::FunctionKindBits>(r7);
     __ JumpIfIsInRange(r7, kDefaultDerivedConstructor, kDerivedConstructor,
@@ -381,8 +382,9 @@ static void GetSharedFunctionInfoBytecode(MacroAssembler* masm,
 
   __ CompareObjectType(sfi_data, scratch1, scratch1, INTERPRETER_DATA_TYPE);
   __ bne(&done);
-  __ LoadP(sfi_data,
-           FieldMemOperand(sfi_data, InterpreterData::kBytecodeArrayOffset));
+  __ LoadTaggedPointerField(
+      sfi_data,
+      FieldMemOperand(sfi_data, InterpreterData::kBytecodeArrayOffset));
   __ bind(&done);
 }
 
@@ -396,14 +398,16 @@ void Builtins::Generate_ResumeGeneratorTrampoline(MacroAssembler* masm) {
   __ AssertGeneratorObject(r4);
 
   // Store input value into generator object.
-  __ StoreP(r3, FieldMemOperand(r4, JSGeneratorObject::kInputOrDebugPosOffset),
-            r0);
+  __ StoreTaggedField(
+      r3, FieldMemOperand(r4, JSGeneratorObject::kInputOrDebugPosOffset), r0);
   __ RecordWriteField(r4, JSGeneratorObject::kInputOrDebugPosOffset, r3, r6,
                       kLRHasNotBeenSaved, kDontSaveFPRegs);
 
   // Load suspended function and context.
-  __ LoadP(r7, FieldMemOperand(r4, JSGeneratorObject::kFunctionOffset));
-  __ LoadP(cp, FieldMemOperand(r7, JSFunction::kContextOffset));
+  __ LoadTaggedPointerField(
+      r7, FieldMemOperand(r4, JSGeneratorObject::kFunctionOffset));
+  __ LoadTaggedPointerField(cp,
+                            FieldMemOperand(r7, JSFunction::kContextOffset));
 
   // Flood function if we are stepping.
   Label prepare_step_in_if_stepping, prepare_step_in_suspended_generator;
@@ -436,7 +440,8 @@ void Builtins::Generate_ResumeGeneratorTrampoline(MacroAssembler* masm) {
   __ blt(&stack_overflow);
 
   // Push receiver.
-  __ LoadP(scratch, FieldMemOperand(r4, JSGeneratorObject::kReceiverOffset));
+  __ LoadTaggedPointerField(
+      scratch, FieldMemOperand(r4, JSGeneratorObject::kReceiverOffset));
   __ Push(scratch);
 
   // ----------- S t a t e -------------
@@ -448,24 +453,26 @@ void Builtins::Generate_ResumeGeneratorTrampoline(MacroAssembler* masm) {
   // -----------------------------------
 
   // Copy the function arguments from the generator object's register file.
-  __ LoadP(r6, FieldMemOperand(r7, JSFunction::kSharedFunctionInfoOffset));
+  __ LoadTaggedPointerField(
+      r6, FieldMemOperand(r7, JSFunction::kSharedFunctionInfoOffset));
   __ LoadHalfWord(
       r6, FieldMemOperand(r6, SharedFunctionInfo::kFormalParameterCountOffset));
-  __ LoadP(r5, FieldMemOperand(
-                   r4, JSGeneratorObject::kParametersAndRegistersOffset));
+  __ LoadTaggedPointerField(
+      r5,
+      FieldMemOperand(r4, JSGeneratorObject::kParametersAndRegistersOffset));
   {
     Label loop, done_loop;
     __ cmpi(r6, Operand::Zero());
     __ ble(&done_loop);
 
-    // setup r9 to first element address - kSystemPointerSize
-    __ addi(
-        r9, r5,
-        Operand(FixedArray::kHeaderSize - kHeapObjectTag - kSystemPointerSize));
+    // setup r9 to first element address - kTaggedSize
+    __ addi(r9, r5,
+            Operand(FixedArray::kHeaderSize - kHeapObjectTag - kTaggedSize));
 
     __ mtctr(r6);
     __ bind(&loop);
-    __ LoadPU(scratch, MemOperand(r9, kSystemPointerSize));
+    __ LoadAnyTaggedField(scratch, MemOperand(r9, kTaggedSize));
+    __ addi(r9, r9, Operand(kTaggedSize));
     __ push(scratch);
     __ bdnz(&loop);
 
@@ -474,8 +481,10 @@ void Builtins::Generate_ResumeGeneratorTrampoline(MacroAssembler* masm) {
 
   // Underlying function needs to have bytecode available.
   if (FLAG_debug_code) {
-    __ LoadP(r6, FieldMemOperand(r7, JSFunction::kSharedFunctionInfoOffset));
-    __ LoadP(r6, FieldMemOperand(r6, SharedFunctionInfo::kFunctionDataOffset));
+    __ LoadTaggedPointerField(
+        r6, FieldMemOperand(r7, JSFunction::kSharedFunctionInfoOffset));
+    __ LoadTaggedPointerField(
+        r6, FieldMemOperand(r6, SharedFunctionInfo::kFunctionDataOffset));
     GetSharedFunctionInfoBytecode(masm, r6, r3);
     __ CompareObjectType(r6, r6, r6, BYTECODE_ARRAY_TYPE);
     __ Assert(eq, AbortReason::kMissingBytecodeArray);
@@ -489,7 +498,7 @@ void Builtins::Generate_ResumeGeneratorTrampoline(MacroAssembler* masm) {
     __ mr(r6, r4);
     __ mr(r4, r7);
     static_assert(kJavaScriptCallCodeStartRegister == r5, "ABI mismatch");
-    __ LoadP(r5, FieldMemOperand(r4, JSFunction::kCodeOffset));
+    __ LoadTaggedPointerField(r5, FieldMemOperand(r4, JSFunction::kCodeOffset));
     __ JumpCodeObject(r5);
   }
 
@@ -501,7 +510,8 @@ void Builtins::Generate_ResumeGeneratorTrampoline(MacroAssembler* masm) {
     __ PushRoot(RootIndex::kTheHoleValue);
     __ CallRuntime(Runtime::kDebugOnFunctionCall);
     __ Pop(r4);
-    __ LoadP(r7, FieldMemOperand(r4, JSGeneratorObject::kFunctionOffset));
+    __ LoadTaggedPointerField(
+        r7, FieldMemOperand(r4, JSGeneratorObject::kFunctionOffset));
   }
   __ b(&stepping_prepared);
 
@@ -511,7 +521,8 @@ void Builtins::Generate_ResumeGeneratorTrampoline(MacroAssembler* masm) {
     __ Push(r4);
     __ CallRuntime(Runtime::kDebugPrepareStepInSuspendedGenerator);
     __ Pop(r4);
-    __ LoadP(r7, FieldMemOperand(r4, JSGeneratorObject::kFunctionOffset));
+    __ LoadTaggedPointerField(
+        r7, FieldMemOperand(r4, JSGeneratorObject::kFunctionOffset));
   }
   __ b(&stepping_prepared);
 
@@ -852,8 +863,8 @@ static void ReplaceClosureCodeWithOptimizedCode(MacroAssembler* masm,
                                                 Register scratch1,
                                                 Register scratch2) {
   // Store code entry in the closure.
-  __ StoreP(optimized_code, FieldMemOperand(closure, JSFunction::kCodeOffset),
-            r0);
+  __ StoreTaggedField(optimized_code,
+                      FieldMemOperand(closure, JSFunction::kCodeOffset), r0);
   __ mr(scratch1, optimized_code);  // Write barrier clobbers scratch1 below.
   __ RecordWriteField(closure, JSFunction::kCodeOffset, scratch1, scratch2,
                       kLRHasNotBeenSaved, kDontSaveFPRegs, OMIT_REMEMBERED_SET,
@@ -901,8 +912,9 @@ static void TailCallOptimizedCodeSlot(MacroAssembler* masm,
   // Check if the optimized code is marked for deopt. If it is, call the
   // runtime to clear it.
   Label found_deoptimized_code;
-  __ LoadP(scratch, FieldMemOperand(optimized_code_entry,
-                                    Code::kCodeDataContainerOffset));
+  __ LoadTaggedPointerField(
+      scratch,
+      FieldMemOperand(optimized_code_entry, Code::kCodeDataContainerOffset));
   __ LoadWordArith(
       scratch,
       FieldMemOperand(scratch, CodeDataContainer::kKindSpecificFlagsOffset));
@@ -1058,10 +1070,12 @@ void Builtins::Generate_InterpreterEntryTrampoline(MacroAssembler* masm) {
 
   // Get the bytecode array from the function object and load it into
   // kInterpreterBytecodeArrayRegister.
-  __ LoadP(r3, FieldMemOperand(closure, JSFunction::kSharedFunctionInfoOffset));
+  __ LoadTaggedPointerField(
+      r3, FieldMemOperand(closure, JSFunction::kSharedFunctionInfoOffset));
   // Load original bytecode array or the debug copy.
-  __ LoadP(kInterpreterBytecodeArrayRegister,
-           FieldMemOperand(r3, SharedFunctionInfo::kFunctionDataOffset));
+  __ LoadTaggedPointerField(
+      kInterpreterBytecodeArrayRegister,
+      FieldMemOperand(r3, SharedFunctionInfo::kFunctionDataOffset));
   GetSharedFunctionInfoBytecode(masm, kInterpreterBytecodeArrayRegister, r7);
 
   // The bytecode array could have been flushed from the shared function info,
@@ -1072,15 +1086,17 @@ void Builtins::Generate_InterpreterEntryTrampoline(MacroAssembler* masm) {
   __ bne(&compile_lazy);
 
   // Load the feedback vector from the closure.
-  __ LoadP(feedback_vector,
-           FieldMemOperand(closure, JSFunction::kFeedbackCellOffset));
-  __ LoadP(feedback_vector,
-           FieldMemOperand(feedback_vector, Cell::kValueOffset));
+  __ LoadTaggedPointerField(
+      feedback_vector,
+      FieldMemOperand(closure, JSFunction::kFeedbackCellOffset));
+  __ LoadTaggedPointerField(
+      feedback_vector, FieldMemOperand(feedback_vector, Cell::kValueOffset));
 
   Label push_stack_frame;
   // Check if feedback vector is valid. If valid, check for optimized code
   // and update invocation count. Otherwise, setup the stack frame.
-  __ LoadP(r7, FieldMemOperand(feedback_vector, HeapObject::kMapOffset));
+  __ LoadTaggedPointerField(
+      r7, FieldMemOperand(feedback_vector, HeapObject::kMapOffset));
   __ LoadHalfWord(r7, FieldMemOperand(r7, Map::kInstanceTypeOffset));
   __ cmpi(r7, Operand(FEEDBACK_VECTOR_TYPE));
   __ bne(&push_stack_frame);
@@ -1088,9 +1104,10 @@ void Builtins::Generate_InterpreterEntryTrampoline(MacroAssembler* masm) {
   Register optimized_code_entry = r7;
 
   // Read off the optimized code slot in the feedback vector.
-  __ LoadP(optimized_code_entry,
-           FieldMemOperand(feedback_vector,
-                           FeedbackVector::kOptimizedCodeWeakOrSmiOffset));
+  __ LoadAnyTaggedField(
+      optimized_code_entry,
+      FieldMemOperand(feedback_vector,
+                      FeedbackVector::kOptimizedCodeWeakOrSmiOffset));
   // Check if the optimized code slot is not empty.
   Label optimized_code_slot_not_empty;
   __ CmpSmiLiteral(optimized_code_entry,
@@ -1410,15 +1427,17 @@ static void Generate_InterpreterEnterBytecode(MacroAssembler* masm) {
   // get the custom trampoline, otherwise grab the entry address of the global
   // trampoline.
   __ LoadP(r5, MemOperand(fp, StandardFrameConstants::kFunctionOffset));
-  __ LoadP(r5, FieldMemOperand(r5, JSFunction::kSharedFunctionInfoOffset));
-  __ LoadP(r5, FieldMemOperand(r5, SharedFunctionInfo::kFunctionDataOffset));
+  __ LoadTaggedPointerField(
+      r5, FieldMemOperand(r5, JSFunction::kSharedFunctionInfoOffset));
+  __ LoadTaggedPointerField(
+      r5, FieldMemOperand(r5, SharedFunctionInfo::kFunctionDataOffset));
   __ CompareObjectType(r5, kInterpreterDispatchTableRegister,
                        kInterpreterDispatchTableRegister,
                        INTERPRETER_DATA_TYPE);
   __ bne(&builtin_trampoline);
 
-  __ LoadP(r5,
-           FieldMemOperand(r5, InterpreterData::kInterpreterTrampolineOffset));
+  __ LoadTaggedPointerField(
+      r5, FieldMemOperand(r5, InterpreterData::kInterpreterTrampolineOffset));
   __ addi(r5, r5, Operand(Code::kHeaderSize - kHeapObjectTag));
   __ b(&trampoline_loaded);
 
@@ -1618,7 +1637,8 @@ void Builtins::Generate_InterpreterOnStackReplacement(MacroAssembler* masm) {
 
   // Load deoptimization data from the code object.
   // <deopt_data> = <code>[#deoptimization_data_offset]
-  __ LoadP(r4, FieldMemOperand(r3, Code::kDeoptimizationDataOffset));
+  __ LoadTaggedPointerField(
+      r4, FieldMemOperand(r3, Code::kDeoptimizationDataOffset));
 
   {
     ConstantPoolUnavailableScope constant_pool_unavailable(masm);
@@ -1630,10 +1650,9 @@ void Builtins::Generate_InterpreterOnStackReplacement(MacroAssembler* masm) {
 
     // Load the OSR entrypoint offset from the deoptimization data.
     // <osr_offset> = <deopt_data>[#header_size + #osr_pc_offset]
-    __ LoadP(r4,
-             FieldMemOperand(r4, FixedArray::OffsetOfElementAt(
-                                     DeoptimizationData::kOsrPcOffsetIndex)));
-    __ SmiUntag(r4);
+    __ SmiUntagField(
+        r4, FieldMemOperand(r4, FixedArray::OffsetOfElementAt(
+                                    DeoptimizationData::kOsrPcOffsetIndex)));
 
     // Compute the target address = code start + osr_offset
     __ add(r0, r3, r4);
@@ -1901,7 +1920,8 @@ void Builtins::Generate_CallOrConstructVarargs(MacroAssembler* masm,
     // Allow r5 to be a FixedArray, or a FixedDoubleArray if r7 == 0.
     Label ok, fail;
     __ AssertNotSmi(r5);
-    __ LoadP(scratch, FieldMemOperand(r5, HeapObject::kMapOffset));
+    __ LoadTaggedPointerField(scratch,
+                              FieldMemOperand(r5, HeapObject::kMapOffset));
     __ LoadHalfWord(scratch,
                     FieldMemOperand(scratch, Map::kInstanceTypeOffset));
     __ cmpi(scratch, Operand(FIXED_ARRAY_TYPE));
@@ -1926,12 +1946,12 @@ void Builtins::Generate_CallOrConstructVarargs(MacroAssembler* masm,
     Label loop, no_args, skip;
     __ cmpi(r7, Operand::Zero());
     __ beq(&no_args);
-    __ addi(
-        r5, r5,
-        Operand(FixedArray::kHeaderSize - kHeapObjectTag - kSystemPointerSize));
+    __ addi(r5, r5,
+            Operand(FixedArray::kHeaderSize - kHeapObjectTag - kTaggedSize));
     __ mtctr(r7);
     __ bind(&loop);
-    __ LoadPU(scratch, MemOperand(r5, kSystemPointerSize));
+    __ LoadTaggedPointerField(scratch, MemOperand(r5, kTaggedSize));
+    __ addi(r5, r5, Operand(kTaggedSize));
     __ CompareRoot(scratch, RootIndex::kTheHoleValue);
     __ bne(&skip);
     __ LoadRoot(scratch, RootIndex::kUndefinedValue);
@@ -1965,7 +1985,8 @@ void Builtins::Generate_CallOrConstructForwardVarargs(MacroAssembler* masm,
   if (mode == CallOrConstructMode::kConstruct) {
     Label new_target_constructor, new_target_not_constructor;
     __ JumpIfSmi(r6, &new_target_not_constructor);
-    __ LoadP(scratch, FieldMemOperand(r6, HeapObject::kMapOffset));
+    __ LoadTaggedPointerField(scratch,
+                              FieldMemOperand(r6, HeapObject::kMapOffset));
     __ lbz(scratch, FieldMemOperand(scratch, Map::kBitFieldOffset));
     __ TestBit(scratch, Map::Bits1::IsConstructorBit::kShift, r0);
     __ bne(&new_target_constructor, cr0);
@@ -1989,7 +2010,8 @@ void Builtins::Generate_CallOrConstructForwardVarargs(MacroAssembler* masm,
   __ beq(&arguments_adaptor);
   {
     __ LoadP(r8, MemOperand(fp, StandardFrameConstants::kFunctionOffset));
-    __ LoadP(r8, FieldMemOperand(r8, JSFunction::kSharedFunctionInfoOffset));
+    __ LoadTaggedPointerField(
+        r8, FieldMemOperand(r8, JSFunction::kSharedFunctionInfoOffset));
     __ LoadHalfWord(
         r8,
         FieldMemOperand(r8, SharedFunctionInfo::kFormalParameterCountOffset));
@@ -2049,7 +2071,8 @@ void Builtins::Generate_CallFunction(MacroAssembler* masm,
   // See ES6 section 9.2.1 [[Call]] ( thisArgument, argumentsList)
   // Check that the function is not a "classConstructor".
   Label class_constructor;
-  __ LoadP(r5, FieldMemOperand(r4, JSFunction::kSharedFunctionInfoOffset));
+  __ LoadTaggedPointerField(
+      r5, FieldMemOperand(r4, JSFunction::kSharedFunctionInfoOffset));
   __ lwz(r6, FieldMemOperand(r5, SharedFunctionInfo::kFlagsOffset));
   __ TestBitMask(r6, SharedFunctionInfo::IsClassConstructorBit::kMask, r0);
   __ bne(&class_constructor, cr0);
@@ -2057,7 +2080,8 @@ void Builtins::Generate_CallFunction(MacroAssembler* masm,
   // Enter the context of the function; ToObject has to run in the function
   // context, and we also need to take the global proxy from the function
   // context in case of conversion.
-  __ LoadP(cp, FieldMemOperand(r4, JSFunction::kContextOffset));
+  __ LoadTaggedPointerField(cp,
+                            FieldMemOperand(r4, JSFunction::kContextOffset));
   // We need to convert the receiver for non-native sloppy mode functions.
   Label done_convert;
   __ andi(r0, r6,
@@ -2111,7 +2135,8 @@ void Builtins::Generate_CallFunction(MacroAssembler* masm,
         __ Pop(r3, r4);
         __ SmiUntag(r3);
       }
-      __ LoadP(r5, FieldMemOperand(r4, JSFunction::kSharedFunctionInfoOffset));
+      __ LoadTaggedPointerField(
+          r5, FieldMemOperand(r4, JSFunction::kSharedFunctionInfoOffset));
       __ bind(&convert_receiver);
     }
     __ ShiftLeftImm(r7, r3, Operand(kSystemPointerSizeLog2));
@@ -2150,9 +2175,9 @@ void Generate_PushBoundArguments(MacroAssembler* masm) {
 
   // Load [[BoundArguments]] into r5 and length of that into r7.
   Label no_bound_arguments;
-  __ LoadP(r5, FieldMemOperand(r4, JSBoundFunction::kBoundArgumentsOffset));
-  __ LoadP(r7, FieldMemOperand(r5, FixedArray::kLengthOffset));
-  __ SmiUntag(r7, SetRC);
+  __ LoadTaggedPointerField(
+      r5, FieldMemOperand(r4, JSBoundFunction::kBoundArgumentsOffset));
+  __ SmiUntagField(r7, FieldMemOperand(r5, FixedArray::kLengthOffset), SetRC);
   __ beq(&no_bound_arguments, cr0);
   {
     // ----------- S t a t e -------------
@@ -2167,9 +2192,8 @@ void Generate_PushBoundArguments(MacroAssembler* masm) {
     // Reserve stack space for the [[BoundArguments]].
     {
       Label done;
-      __ mr(scratch, sp);  // preserve previous stack pointer
       __ ShiftLeftImm(r10, r7, Operand(kSystemPointerSizeLog2));
-      __ sub(sp, sp, r10);
+      __ sub(r0, sp, r10);
       // Check the stack for overflow. We are not trying to catch interruptions
       // (i.e. debug break and preemption) here, so check the "real stack
       // limit".
@@ -2177,11 +2201,9 @@ void Generate_PushBoundArguments(MacroAssembler* masm) {
         UseScratchRegisterScope temps(masm);
         Register scratch = temps.Acquire();
         LoadStackLimit(masm, scratch, StackLimitKind::kRealStackLimit);
-        __ cmpl(sp, scratch);
+        __ cmpl(r0, scratch);
       }
       __ bgt(&done);  // Signed comparison.
-      // Restore the stack pointer.
-      __ mr(sp, scratch);
       {
         FrameScope scope(masm, StackFrame::MANUAL);
         __ EnterFrame(StackFrame::INTERNAL);
@@ -2189,6 +2211,9 @@ void Generate_PushBoundArguments(MacroAssembler* masm) {
       }
       __ bind(&done);
     }
+
+    __ mr(scratch, sp);
+    __ mr(sp, r0);
 
     // Relocate arguments down the stack.
     //  -- r3 : the number of arguments (not including the receiver)
@@ -2211,13 +2236,15 @@ void Generate_PushBoundArguments(MacroAssembler* masm) {
     // Copy [[BoundArguments]] to the stack (below the arguments).
     {
       Label loop;
-      __ addi(r5, r5, Operand(FixedArray::kHeaderSize - kHeapObjectTag));
+      __ ShiftLeftImm(r10, r7, Operand(kTaggedSizeLog2));
+      __ addi(r10, r10, Operand(FixedArray::kHeaderSize - kHeapObjectTag));
       __ add(r5, r5, r10);
       __ mtctr(r7);
       __ bind(&loop);
-      __ LoadPU(r0, MemOperand(r5, -kSystemPointerSize));
-      __ StorePX(r0, MemOperand(sp, r8));
+      __ LoadAnyTaggedField(ip, MemOperand(r5, -kTaggedSize), r0);
+      __ StorePX(ip, MemOperand(sp, r8));
       __ addi(r8, r8, Operand(kSystemPointerSize));
+      __ addi(r5, r5, Operand(-kTaggedSize));
       __ bdnz(&loop);
       __ add(r3, r3, r7);
     }
@@ -2236,7 +2263,8 @@ void Builtins::Generate_CallBoundFunctionImpl(MacroAssembler* masm) {
   __ AssertBoundFunction(r4);
 
   // Patch the receiver to [[BoundThis]].
-  __ LoadP(r6, FieldMemOperand(r4, JSBoundFunction::kBoundThisOffset));
+  __ LoadAnyTaggedField(r6,
+                        FieldMemOperand(r4, JSBoundFunction::kBoundThisOffset));
   __ ShiftLeftImm(r0, r3, Operand(kSystemPointerSizeLog2));
   __ StorePX(r6, MemOperand(sp, r0));
 
@@ -2244,8 +2272,8 @@ void Builtins::Generate_CallBoundFunctionImpl(MacroAssembler* masm) {
   Generate_PushBoundArguments(masm);
 
   // Call the [[BoundTargetFunction]] via the Call builtin.
-  __ LoadP(r4,
-           FieldMemOperand(r4, JSBoundFunction::kBoundTargetFunctionOffset));
+  __ LoadTaggedPointerField(
+      r4, FieldMemOperand(r4, JSBoundFunction::kBoundTargetFunctionOffset));
   __ Jump(BUILTIN_CODE(masm->isolate(), Call_ReceiverIsAny),
           RelocInfo::CODE_TARGET);
 }
@@ -2313,7 +2341,8 @@ void Builtins::Generate_ConstructFunction(MacroAssembler* masm) {
   Label call_generic_stub;
 
   // Jump to JSBuiltinsConstructStub or JSConstructStubGeneric.
-  __ LoadP(r7, FieldMemOperand(r4, JSFunction::kSharedFunctionInfoOffset));
+  __ LoadTaggedPointerField(
+      r7, FieldMemOperand(r4, JSFunction::kSharedFunctionInfoOffset));
   __ lwz(r7, FieldMemOperand(r7, SharedFunctionInfo::kFlagsOffset));
   __ mov(ip, Operand(SharedFunctionInfo::ConstructAsBuiltinBit::kMask));
   __ and_(r7, r7, ip, SetRC);
@@ -2342,15 +2371,15 @@ void Builtins::Generate_ConstructBoundFunction(MacroAssembler* masm) {
 
   // Patch new.target to [[BoundTargetFunction]] if new.target equals target.
   Label skip;
-  __ cmp(r4, r6);
+  __ CompareTagged(r4, r6);
   __ bne(&skip);
-  __ LoadP(r6,
-           FieldMemOperand(r4, JSBoundFunction::kBoundTargetFunctionOffset));
+  __ LoadTaggedPointerField(
+      r6, FieldMemOperand(r4, JSBoundFunction::kBoundTargetFunctionOffset));
   __ bind(&skip);
 
   // Construct the [[BoundTargetFunction]] via the Construct builtin.
-  __ LoadP(r4,
-           FieldMemOperand(r4, JSBoundFunction::kBoundTargetFunctionOffset));
+  __ LoadTaggedPointerField(
+      r4, FieldMemOperand(r4, JSBoundFunction::kBoundTargetFunctionOffset));
   __ Jump(BUILTIN_CODE(masm->isolate(), Construct), RelocInfo::CODE_TARGET);
 }
 
@@ -2368,7 +2397,7 @@ void Builtins::Generate_Construct(MacroAssembler* masm) {
   __ JumpIfSmi(r4, &non_constructor);
 
   // Check if target has a [[Construct]] internal method.
-  __ LoadP(r7, FieldMemOperand(r4, HeapObject::kMapOffset));
+  __ LoadTaggedPointerField(r7, FieldMemOperand(r4, HeapObject::kMapOffset));
   __ lbz(r5, FieldMemOperand(r7, Map::kBitFieldOffset));
   __ TestBit(r5, Map::Bits1::IsConstructorBit::kShift, r0);
   __ beq(&non_constructor, cr0);
@@ -2420,7 +2449,8 @@ void Builtins::Generate_ArgumentsAdaptorTrampoline(MacroAssembler* masm) {
   Label dont_adapt_arguments, stack_overflow, skip_adapt_arguments;
   __ cmpli(r5, Operand(kDontAdaptArgumentsSentinel));
   __ beq(&dont_adapt_arguments);
-  __ LoadP(r7, FieldMemOperand(r4, JSFunction::kSharedFunctionInfoOffset));
+  __ LoadTaggedPointerField(
+      r7, FieldMemOperand(r4, JSFunction::kSharedFunctionInfoOffset));
   __ lwz(r7, FieldMemOperand(r7, SharedFunctionInfo::kFlagsOffset));
   __ TestBitMask(r7, SharedFunctionInfo::IsSafeToSkipArgumentsAdaptorBit::kMask,
                  r0);
@@ -2524,7 +2554,7 @@ void Builtins::Generate_ArgumentsAdaptorTrampoline(MacroAssembler* masm) {
     // r4 : function (passed through to callee)
     // r6 : new target (passed through to callee)
     static_assert(kJavaScriptCallCodeStartRegister == r5, "ABI mismatch");
-    __ LoadP(r5, FieldMemOperand(r4, JSFunction::kCodeOffset));
+    __ LoadTaggedPointerField(r5, FieldMemOperand(r4, JSFunction::kCodeOffset));
     __ CallCodeObject(r5);
 
     // Store offset of return address for deoptimizer.
@@ -2576,8 +2606,9 @@ void Builtins::Generate_ArgumentsAdaptorTrampoline(MacroAssembler* masm) {
   // Dont adapt arguments.
   // -------------------------------------------
   __ bind(&dont_adapt_arguments);
+  __ RecordComment("-- Call without adapting args --");
   static_assert(kJavaScriptCallCodeStartRegister == r5, "ABI mismatch");
-  __ LoadP(r5, FieldMemOperand(r4, JSFunction::kCodeOffset));
+  __ LoadTaggedPointerField(r5, FieldMemOperand(r4, JSFunction::kCodeOffset));
   __ JumpCodeObject(r5);
 
   __ bind(&stack_overflow);
@@ -3218,14 +3249,16 @@ void Builtins::Generate_CallApiGetter(MacroAssembler* masm) {
 
   __ push(receiver);
   // Push data from AccessorInfo.
-  __ LoadP(scratch, FieldMemOperand(callback, AccessorInfo::kDataOffset));
+  __ LoadAnyTaggedField(scratch,
+                        FieldMemOperand(callback, AccessorInfo::kDataOffset));
   __ push(scratch);
   __ LoadRoot(scratch, RootIndex::kUndefinedValue);
   __ Push(scratch, scratch);
   __ Move(scratch, ExternalReference::isolate_address(masm->isolate()));
   __ Push(scratch, holder);
   __ Push(Smi::zero());  // should_throw_on_error -> false
-  __ LoadP(scratch, FieldMemOperand(callback, AccessorInfo::kNameOffset));
+  __ LoadTaggedPointerField(
+      scratch, FieldMemOperand(callback, AccessorInfo::kNameOffset));
   __ push(scratch);
 
   // v8::PropertyCallbackInfo::args_ array and name handle.
@@ -3274,7 +3307,8 @@ void Builtins::Generate_CallApiGetter(MacroAssembler* masm) {
   ExternalReference thunk_ref =
       ExternalReference::invoke_accessor_getter_callback();
 
-  __ LoadP(scratch, FieldMemOperand(callback, AccessorInfo::kJsGetterOffset));
+  __ LoadTaggedPointerField(
+      scratch, FieldMemOperand(callback, AccessorInfo::kJsGetterOffset));
   __ LoadP(api_function_address,
         FieldMemOperand(scratch, Foreign::kForeignAddressOffset));
 

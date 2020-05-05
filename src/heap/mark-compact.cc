@@ -2575,11 +2575,11 @@ MarkCompactCollector::PrepareRecordRelocSlot(Code host, RelocInfo* rinfo,
       addr = rinfo->constant_pool_entry_address();
       if (RelocInfo::IsCodeTargetMode(rmode)) {
         slot_type = CODE_ENTRY_SLOT;
+      } else if (RelocInfo::IsCompressedEmbeddedObject(rmode)) {
+        slot_type = COMPRESSED_OBJECT_SLOT;
       } else {
-        // Constant pools don't support compressed values at this time
-        // (this may change, therefore use a DCHECK).
         DCHECK(RelocInfo::IsFullEmbeddedObject(rmode));
-        slot_type = OBJECT_SLOT;
+        slot_type = FULL_OBJECT_SLOT;
       }
     }
     uintptr_t offset = addr - source_page->address();

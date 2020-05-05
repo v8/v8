@@ -7,7 +7,7 @@
 #include "src/heap/heap-inl.h"
 #include "src/heap/mark-compact.h"
 #include "src/heap/memory-chunk.h"
-#include "src/heap/remembered-set.h"
+#include "src/heap/remembered-set-inl.h"
 #include "src/objects/objects-inl.h"
 #include "test/cctest/cctest.h"
 #include "test/cctest/heap/heap-tester.h"

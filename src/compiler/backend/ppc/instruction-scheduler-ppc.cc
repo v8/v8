@@ -136,6 +136,9 @@ int InstructionScheduler::GetTargetInstructionFlags(
     case kPPC_AtomicLoadWord32:
     case kPPC_AtomicLoadWord64:
     case kPPC_Peek:
+    case kPPC_LoadDecompressTaggedSigned:
+    case kPPC_LoadDecompressTaggedPointer:
+    case kPPC_LoadDecompressAnyTagged:
       return kIsLoadOperation;
 
     case kPPC_StoreWord8:
@@ -145,6 +148,7 @@ int InstructionScheduler::GetTargetInstructionFlags(
     case kPPC_StoreFloat32:
     case kPPC_StoreDouble:
     case kPPC_StoreSimd128:
+    case kPPC_StoreCompressTagged:
     case kPPC_Push:
     case kPPC_PushFrame:
     case kPPC_StoreToStackSlot:
