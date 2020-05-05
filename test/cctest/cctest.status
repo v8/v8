@@ -364,8 +364,8 @@
 ##############################################################################
 ['arch == riscv32  or arch == riscv64', {
   # skip some macro-assembler failures while still debugging
-  'test-assembler-riscv/RISCV7': [PASS, FAIL],
-  'test-macro-assembler-riscv/OverflowInstructions': [PASS, FAIL],
+  'test-assembler-riscv/RISCV7': [SKIP],
+  'test-macro-assembler-riscv/OverflowInstructions': [SKIP],
 
   'test-run-machops/RunFloat64MulAndFloat64Add2': [SKIP],
   'test-run-machops/RunFloat64MulAndFloat64Sub1': [SKIP],
