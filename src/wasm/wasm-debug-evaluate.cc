@@ -199,13 +199,6 @@ class DebugEvaluatorProxy {
 
  private:
   WasmValue LoadLocalValue(uint32_t local) {
-    if (frame_->is_wasm_interpreter_entry()) {
-      i::wasm::WasmInterpreter::FramePtr framePtr =
-          debuggee_->debug_info().GetInterpretedFrame(frame_->fp(),
-                                                      inlined_frame_);
-      return framePtr->GetLocalValue(local);
-    }
-
     DCHECK(frame_->is_wasm_compiled());
     wasm::DebugInfo* debug_info =
         WasmCompiledFrame::cast(frame_)->native_module()->GetDebugInfo();
@@ -247,7 +240,6 @@ class DebugEvaluatorProxy {
 
   Isolate* isolate_;
   StandardFrame* frame_;
-  int inlined_frame_ = 0;
   Handle<WasmInstanceObject> evaluator_;
   Handle<WasmInstanceObject> debuggee_;
 };

@@ -4236,8 +4236,7 @@ Handle<FrameArray> FrameArray::AppendWasmFrame(
     int wasm_function_index, wasm::WasmCode* code, int offset, int flags) {
   // This must be either a compiled or interpreted wasm frame, or an asm.js
   // frame (which is always compiled).
-  DCHECK_EQ(1, ((flags & kIsWasmInterpretedFrame) != 0) +
-                   ((flags & kIsWasmCompiledFrame) != 0) +
+  DCHECK_EQ(1, ((flags & kIsWasmCompiledFrame) != 0) +
                    ((flags & kIsAsmJsWasmFrame) != 0));
   Isolate* isolate = wasm_instance->GetIsolate();
   const int frame_count = in->FrameCount();

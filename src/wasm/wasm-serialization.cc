@@ -300,8 +300,7 @@ NativeModuleSerializer::NativeModuleSerializer(
 
 size_t NativeModuleSerializer::MeasureCode(const WasmCode* code) const {
   if (code == nullptr) return sizeof(bool);
-  DCHECK(code->kind() == WasmCode::kFunction ||
-         code->kind() == WasmCode::kInterpreterEntry);
+  DCHECK_EQ(WasmCode::kFunction, code->kind());
   return kCodeHeaderSize + code->instructions().size() +
          code->reloc_info().size() + code->source_positions().size() +
          code->protected_instructions_data().size();
@@ -329,8 +328,7 @@ void NativeModuleSerializer::WriteCode(const WasmCode* code, Writer* writer) {
     return;
   }
   writer->Write(true);
-  DCHECK(code->kind() == WasmCode::kFunction ||
-         code->kind() == WasmCode::kInterpreterEntry);
+  DCHECK_EQ(WasmCode::kFunction, code->kind());
   // Write the size of the entire code section, followed by the code header.
   writer->Write(code->constant_pool_offset());
   writer->Write(code->safepoint_table_offset());

@@ -4094,8 +4094,7 @@ class ThreadImpl {
       return CallExternalWasmFunction(isolate_, object_ref, code, signature);
     }
 
-    DCHECK(code->kind() == WasmCode::kInterpreterEntry ||
-           code->kind() == WasmCode::kFunction);
+    DCHECK_EQ(WasmCode::kFunction, code->kind());
     return {ExternalCallResult::INTERNAL, codemap()->GetCode(code->index())};
   }
 

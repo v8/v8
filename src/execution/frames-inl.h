@@ -242,10 +242,6 @@ inline WasmCompiledFrame::WasmCompiledFrame(StackFrameIteratorBase* iterator)
 inline WasmExitFrame::WasmExitFrame(StackFrameIteratorBase* iterator)
     : WasmCompiledFrame(iterator) {}
 
-inline WasmInterpreterEntryFrame::WasmInterpreterEntryFrame(
-    StackFrameIteratorBase* iterator)
-    : StandardFrame(iterator) {}
-
 inline WasmDebugBreakFrame::WasmDebugBreakFrame(
     StackFrameIteratorBase* iterator)
     : StandardFrame(iterator) {}

@@ -88,8 +88,6 @@ static const char* ComputeMarker(const wasm::WasmCode* code) {
   switch (code->kind()) {
     case wasm::WasmCode::kFunction:
       return code->is_liftoff() ? "" : "*";
-    case wasm::WasmCode::kInterpreterEntry:
-      return "~";
     default:
       return "";
   }
@@ -2068,10 +2066,6 @@ void ExistingCodeLogger::LogCodeObject(Object object) {
       break;
     case AbstractCode::WASM_TO_JS_FUNCTION:
       description = "A Wasm to JavaScript adapter";
-      tag = CodeEventListener::STUB_TAG;
-      break;
-    case AbstractCode::WASM_INTERPRETER_ENTRY:
-      description = "A Wasm to Interpreter adapter";
       tag = CodeEventListener::STUB_TAG;
       break;
     case AbstractCode::C_WASM_ENTRY:

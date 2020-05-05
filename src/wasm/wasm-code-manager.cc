@@ -430,8 +430,6 @@ const char* GetWasmCodeKindAsString(WasmCode::Kind kind) {
       return "wasm-to-capi";
     case WasmCode::kWasmToJsWrapper:
       return "wasm-to-js";
-    case WasmCode::kInterpreterEntry:
-      return "interpreter entry";
     case WasmCode::kJumpTable:
       return "jump table";
   }
@@ -1064,8 +1062,6 @@ WasmCode::Kind GetCodeKind(const WasmCompilationResult& result) {
   switch (result.kind) {
     case WasmCompilationResult::kWasmToJsWrapper:
       return WasmCode::Kind::kWasmToJsWrapper;
-    case WasmCompilationResult::kInterpreterEntry:
-      return WasmCode::Kind::kInterpreterEntry;
     case WasmCompilationResult::kFunction:
       return WasmCode::Kind::kFunction;
     default:

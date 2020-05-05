@@ -2328,7 +2328,6 @@ struct VerifyGraphPhase {
       case Code::WASM_TO_CAPI_FUNCTION:
       case Code::WASM_TO_JS_FUNCTION:
       case Code::JS_TO_WASM_FUNCTION:
-      case Code::WASM_INTERPRETER_ENTRY:
       case Code::C_WASM_ENTRY:
         code_type = Verifier::kWasm;
         break;

@@ -843,20 +843,6 @@ class WasmDebugInfo : public Struct {
   V8_EXPORT_PRIVATE static wasm::WasmInterpreter* SetupForTesting(
       Handle<WasmInstanceObject>);
 
-  // TODO(clemensb): The next three methods will become dead once the
-  // WasmInterpreterEntryFrame is deleted.
-
-  // Get the stack of the wasm interpreter as pairs of <function index, byte
-  // offset>. The list is ordered bottom-to-top, i.e. caller before callee.
-  std::vector<std::pair<uint32_t, int>> GetInterpretedStack(
-      Address frame_pointer);
-
-  int NumberOfActiveFrames(Address frame_pointer);
-
-  V8_EXPORT_PRIVATE
-  std::unique_ptr<wasm::InterpretedFrame, wasm::InterpretedFrameDeleter>
-  GetInterpretedFrame(Address frame_pointer, int frame_index);
-
   V8_EXPORT_PRIVATE static Handle<Code> GetCWasmEntry(Handle<WasmDebugInfo>,
                                                       const wasm::FunctionSig*);
 

@@ -135,7 +135,6 @@ std::vector<wasm_addr_t> WasmModuleDebug::GetCallStack(
         break;
       }
 
-      case StackFrame::WASM_INTERPRETER_ENTRY:
       case StackFrame::BUILTIN_EXIT:
       default:
         // ignore the frame.
@@ -157,8 +156,7 @@ std::vector<FrameSummary> WasmModuleDebug::FindWasmFrame(
       case StackFrame::OPTIMIZED:
       case StackFrame::INTERPRETED:
       case StackFrame::BUILTIN:
-      case StackFrame::WASM_COMPILED:
-      case StackFrame::WASM_INTERPRETER_ENTRY: {
+      case StackFrame::WASM_COMPILED: {
         // A standard frame may include many summarized frames, due to inlining.
         std::vector<FrameSummary> frames;
         StandardFrame::cast(frame)->Summarize(&frames);

@@ -93,7 +93,6 @@ CodeGenerator::CodeGenerator(
   if (code_kind == Code::WASM_FUNCTION ||
       code_kind == Code::WASM_TO_CAPI_FUNCTION ||
       code_kind == Code::WASM_TO_JS_FUNCTION ||
-      code_kind == Code::WASM_INTERPRETER_ENTRY ||
       code_kind == Code::JS_TO_WASM_FUNCTION) {
     tasm_.set_abort_hard(true);
   }

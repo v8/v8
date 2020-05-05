@@ -558,8 +558,6 @@ StackFrame::Type StackFrame::ComputeType(const StackFrameIteratorBase* iterator,
           return WASM_EXIT;
         case wasm::WasmCode::kWasmToJsWrapper:
           return WASM_TO_JS;
-        case wasm::WasmCode::kInterpreterEntry:
-          return WASM_INTERPRETER_ENTRY;
         default:
           UNREACHABLE();
       }
@@ -592,7 +590,6 @@ StackFrame::Type StackFrame::ComputeType(const StackFrameIteratorBase* iterator,
           case Code::WASM_FUNCTION:
           case Code::WASM_TO_CAPI_FUNCTION:
           case Code::WASM_TO_JS_FUNCTION:
-          case Code::WASM_INTERPRETER_ENTRY:
             // Never appear as on-heap {Code} objects.
             UNREACHABLE();
           default:
@@ -975,7 +972,6 @@ void StandardFrame::IterateCompiledFrame(RootVisitor* v) const {
         break;
       case WASM_TO_JS:
       case WASM_COMPILED:
-      case WASM_INTERPRETER_ENTRY:
       case WASM_COMPILE_LAZY:
         frame_header_size = WasmCompiledFrameConstants::kFixedFrameSizeFromFp;
         break;
@@ -1406,13 +1402,11 @@ Handle<Object> FrameSummary::WasmFrameSummary::receiver() const {
   return wasm_instance_->GetIsolate()->global_proxy();
 }
 
-#define WASM_SUMMARY_DISPATCH(type, name)                                      \
-  type FrameSummary::WasmFrameSummary::name() const {                          \
-    DCHECK(kind() == Kind::WASM_COMPILED || kind() == Kind::WASM_INTERPRETED); \
-    return kind() == Kind::WASM_COMPILED                                       \
-               ? static_cast<const WasmCompiledFrameSummary*>(this)->name()    \
-               : static_cast<const WasmInterpretedFrameSummary*>(this)         \
-                     ->name();                                                 \
+// TODO(clemensb): Remove this dispatch.
+#define WASM_SUMMARY_DISPATCH(type, name)                              \
+  type FrameSummary::WasmFrameSummary::name() const {                  \
+    DCHECK_EQ(Kind::WASM_COMPILED, kind());                            \
+    return static_cast<const WasmCompiledFrameSummary*>(this)->name(); \
   }
 
 WASM_SUMMARY_DISPATCH(uint32_t, function_index)
@@ -1457,13 +1451,6 @@ uint32_t FrameSummary::WasmCompiledFrameSummary::function_index() const {
 int FrameSummary::WasmCompiledFrameSummary::byte_offset() const {
   return code_->GetSourcePositionBefore(code_offset());
 }
-
-FrameSummary::WasmInterpretedFrameSummary::WasmInterpretedFrameSummary(
-    Isolate* isolate, Handle<WasmInstanceObject> instance,
-    uint32_t function_index, int byte_offset)
-    : WasmFrameSummary(isolate, WASM_INTERPRETED, instance, false),
-      function_index_(function_index),
-      byte_offset_(byte_offset) {}
 
 FrameSummary::~FrameSummary() {
 #define FRAME_SUMMARY_DESTR(kind, type, field, desc) \
@@ -1511,11 +1498,8 @@ FrameSummary FrameSummary::Get(const StandardFrame* frame, int index) {
         return java_script_summary_.name();      \
       case WASM_COMPILED:                        \
         return wasm_compiled_summary_.name();    \
-      case WASM_INTERPRETED:                     \
-        return wasm_interpreted_summary_.name(); \
       default:                                   \
         UNREACHABLE();                           \
-        return ret{};                            \
     }                                            \
   }
 
@@ -1964,70 +1948,6 @@ int WasmCompiledFrame::LookupExceptionHandlerInTable() {
     return table.LookupReturn(pc_offset);
   }
   return -1;
-}
-
-void WasmInterpreterEntryFrame::Iterate(RootVisitor* v) const {
-  IterateCompiledFrame(v);
-}
-
-void WasmInterpreterEntryFrame::Print(StringStream* accumulator, PrintMode mode,
-                                      int index) const {
-  PrintIndex(accumulator, mode, index);
-  accumulator->Add("WASM INTERPRETER ENTRY [");
-  Script script = this->script();
-  accumulator->PrintName(script.name());
-  accumulator->Add("]");
-  if (mode != OVERVIEW) accumulator->Add("\n");
-}
-
-void WasmInterpreterEntryFrame::Summarize(
-    std::vector<FrameSummary>* functions) const {
-  Handle<WasmInstanceObject> instance(wasm_instance(), isolate());
-  std::vector<std::pair<uint32_t, int>> interpreted_stack =
-      instance->debug_info().GetInterpretedStack(fp());
-
-  for (auto& e : interpreted_stack) {
-    FrameSummary::WasmInterpretedFrameSummary summary(isolate(), instance,
-                                                      e.first, e.second);
-    functions->push_back(summary);
-  }
-}
-
-Code WasmInterpreterEntryFrame::unchecked_code() const { return Code(); }
-
-int WasmInterpreterEntryFrame::NumberOfActiveFrames() const {
-  Handle<WasmInstanceObject> instance(wasm_instance(), isolate());
-  return instance->debug_info().NumberOfActiveFrames(fp());
-}
-
-WasmInstanceObject WasmInterpreterEntryFrame::wasm_instance() const {
-  const int offset = WasmCompiledFrameConstants::kWasmInstanceOffset;
-  Object instance(Memory<Address>(fp() + offset));
-  return WasmInstanceObject::cast(instance);
-}
-
-WasmDebugInfo WasmInterpreterEntryFrame::debug_info() const {
-  return wasm_instance().debug_info();
-}
-
-WasmModuleObject WasmInterpreterEntryFrame::module_object() const {
-  return wasm_instance().module_object();
-}
-
-Script WasmInterpreterEntryFrame::script() const {
-  return module_object().script();
-}
-
-int WasmInterpreterEntryFrame::position() const {
-  return FrameSummary::GetBottom(this).AsWasmInterpreted().SourcePosition();
-}
-
-Object WasmInterpreterEntryFrame::context() const {
-  return wasm_instance().native_context();
-}
-
-Address WasmInterpreterEntryFrame::GetCallerStackPointer() const {
-  return fp() + ExitFrameConstants::kCallerSPOffset;
 }
 
 void WasmDebugBreakFrame::Iterate(RootVisitor* v) const {

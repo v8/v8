@@ -547,19 +547,14 @@ void WasmStackFrame::FromFrameArray(Isolate* isolate, Handle<FrameArray> array,
   // This function is called for compiled and interpreted wasm frames, and for
   // asm.js->wasm frames.
   DCHECK(array->IsWasmFrame(frame_ix) ||
-         array->IsWasmInterpretedFrame(frame_ix) ||
          array->IsAsmJsWasmFrame(frame_ix));
   isolate_ = isolate;
   wasm_instance_ = handle(array->WasmInstance(frame_ix), isolate);
   wasm_func_index_ = array->WasmFunctionIndex(frame_ix).value();
-  if (array->IsWasmInterpretedFrame(frame_ix)) {
-    code_ = nullptr;
-  } else {
-    // The {WasmCode*} is held alive by the {GlobalWasmCodeRef}.
-    auto global_wasm_code_ref =
-        Managed<wasm::GlobalWasmCodeRef>::cast(array->WasmCodeObject(frame_ix));
-    code_ = global_wasm_code_ref.get()->code();
-  }
+  // The {WasmCode*} is held alive by the {GlobalWasmCodeRef}.
+  auto global_wasm_code_ref =
+      Managed<wasm::GlobalWasmCodeRef>::cast(array->WasmCodeObject(frame_ix));
+  code_ = global_wasm_code_ref.get()->code();
   offset_ = array->Offset(frame_ix).value();
 }
 
@@ -688,20 +683,15 @@ StackFrameBase* FrameArrayIterator::Frame() {
   DCHECK(HasFrame());
   const int flags = array_->Flags(frame_ix_).value();
   int flag_mask = FrameArray::kIsWasmCompiledFrame |
-                  FrameArray::kIsWasmInterpretedFrame |
                   FrameArray::kIsAsmJsWasmFrame;
   switch (flags & flag_mask) {
     case 0:
-      // JavaScript Frame.
       js_frame_.FromFrameArray(isolate_, array_, frame_ix_);
       return &js_frame_;
     case FrameArray::kIsWasmCompiledFrame:
-    case FrameArray::kIsWasmInterpretedFrame:
-      // Wasm Frame:
       wasm_frame_.FromFrameArray(isolate_, array_, frame_ix_);
       return &wasm_frame_;
     case FrameArray::kIsAsmJsWasmFrame:
-      // Asm.js Wasm Frame:
       asm_wasm_frame_.FromFrameArray(isolate_, array_, frame_ix_);
       return &asm_wasm_frame_;
     default:

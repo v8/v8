@@ -55,7 +55,6 @@ struct WasmCompilationResult {
   enum Kind : int8_t {
     kFunction,
     kWasmToJsWrapper,
-    kInterpreterEntry,
   };
 
   bool succeeded() const { return code_desc.buffer != nullptr; }

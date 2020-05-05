@@ -650,16 +650,6 @@ class FrameArrayBuilder {
         summary.code_offset(), flags);
   }
 
-  void AppendWasmInterpretedFrame(
-      FrameSummary::WasmInterpretedFrameSummary const& summary) {
-    Handle<WasmInstanceObject> instance = summary.wasm_instance();
-    int flags = FrameArray::kIsWasmInterpretedFrame;
-    DCHECK(!instance->module_object().is_asm_js());
-    elements_ = FrameArray::AppendWasmFrame(elements_, instance,
-                                            summary.function_index(), {},
-                                            summary.byte_offset(), flags);
-  }
-
   void AppendBuiltinExitFrame(BuiltinExitFrame* exit_frame) {
     Handle<JSFunction> function = handle(exit_frame->function(), isolate_);
 
@@ -952,8 +942,7 @@ Handle<Object> CaptureStackTrace(Isolate* isolate, Handle<Object> caller,
       case StackFrame::OPTIMIZED:
       case StackFrame::INTERPRETED:
       case StackFrame::BUILTIN:
-      case StackFrame::WASM_COMPILED:
-      case StackFrame::WASM_INTERPRETER_ENTRY: {
+      case StackFrame::WASM_COMPILED: {
         // A standard frame may include many summarized frames (due to
         // inlining).
         std::vector<FrameSummary> frames;
@@ -977,12 +966,6 @@ Handle<Object> CaptureStackTrace(Isolate* isolate, Handle<Object> caller,
             //=========================================================
             auto const& wasm_compiled = summary.AsWasmCompiled();
             builder.AppendWasmCompiledFrame(wasm_compiled);
-          } else if (summary.IsWasmInterpreted()) {
-            //=========================================================
-            // Handle a Wasm interpreted frame.
-            //=========================================================
-            auto const& wasm_interpreted = summary.AsWasmInterpreted();
-            builder.AppendWasmInterpretedFrame(wasm_interpreted);
           }
         }
         break;
@@ -1799,12 +1782,6 @@ Object Isolate::UnwindAndFindHandler() {
                        nullptr, nullptr));
         }
         break;
-
-      case StackFrame::WASM_INTERPRETER_ENTRY: {
-        if (trap_handler::IsThreadInWasm()) {
-          trap_handler::ClearThreadInWasm();
-        }
-      } break;
 
       case StackFrame::JAVA_SCRIPT_BUILTIN_CONTINUATION_WITH_CATCH: {
         // Builtin continuation frames with catch can handle exceptions.

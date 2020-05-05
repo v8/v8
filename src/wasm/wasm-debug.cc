@@ -248,19 +248,6 @@ class InterpreterHandle {
     return frame_range.second - frame_range.first;
   }
 
-  WasmInterpreter::FramePtr GetInterpretedFrame(Address frame_pointer,
-                                                int idx) {
-    DCHECK_EQ(1, interpreter()->GetThreadCount());
-    WasmInterpreter::Thread* thread = interpreter()->GetThread(0);
-
-    std::pair<uint32_t, uint32_t> frame_range =
-        GetActivationFrameRange(thread, frame_pointer);
-    DCHECK_LE(0, idx);
-    DCHECK_GT(frame_range.second - frame_range.first, idx);
-
-    return thread->GetFrame(frame_range.first + idx);
-  }
-
  private:
   DISALLOW_COPY_AND_ASSIGN(InterpreterHandle);
 };
@@ -897,18 +884,6 @@ void DebugInfo::RemoveDebugSideTables(Vector<WasmCode* const> code) {
 
 }  // namespace wasm
 
-namespace {
-
-// TODO(clemensb): This method is indirectly dead. It can be removed once the
-// WasmInterpreterEntryFrame is deleted.
-wasm::InterpreterHandle* GetInterpreterHandle(WasmDebugInfo debug_info) {
-  Object handle_obj = debug_info.interpreter_handle();
-  DCHECK(!handle_obj.IsUndefined());
-  return Managed<wasm::InterpreterHandle>::cast(handle_obj).raw();
-}
-
-}  // namespace
-
 Handle<WasmDebugInfo> WasmDebugInfo::New(Handle<WasmInstanceObject> instance) {
   DCHECK(!instance->has_debug_info());
   Factory* factory = instance->GetIsolate()->factory();
@@ -934,20 +909,6 @@ wasm::WasmInterpreter* WasmDebugInfo::SetupForTesting(
       isolate, interpreter_size, isolate, debug_info);
   debug_info->set_interpreter_handle(*interp_handle);
   return interp_handle->raw()->interpreter();
-}
-
-std::vector<std::pair<uint32_t, int>> WasmDebugInfo::GetInterpretedStack(
-    Address frame_pointer) {
-  return GetInterpreterHandle(*this)->GetInterpretedStack(frame_pointer);
-}
-
-int WasmDebugInfo::NumberOfActiveFrames(Address frame_pointer) {
-  return GetInterpreterHandle(*this)->NumberOfActiveFrames(frame_pointer);
-}
-
-wasm::WasmInterpreter::FramePtr WasmDebugInfo::GetInterpretedFrame(
-    Address frame_pointer, int idx) {
-  return GetInterpreterHandle(*this)->GetInterpretedFrame(frame_pointer, idx);
 }
 
 // static
