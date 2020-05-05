@@ -984,10 +984,15 @@ std::shared_ptr<NativeModule> WasmEngine::NewNativeModule(
       native_module.get(), std::make_unique<NativeModuleInfo>()));
   DCHECK(pair.second);  // inserted new entry.
   pair.first->second.get()->isolates.insert(isolate);
-  isolates_[isolate]->native_modules.insert(native_module.get());
+  auto& modules_per_isolate = isolates_[isolate]->native_modules;
+  modules_per_isolate.insert(native_module.get());
   if (isolates_[isolate]->keep_tiered_down) {
     native_module->SetTieredDown();
   }
+  isolate->counters()->wasm_modules_per_isolate()->AddSample(
+      static_cast<int>(modules_per_isolate.size()));
+  isolate->counters()->wasm_modules_per_engine()->AddSample(
+      static_cast<int>(native_modules_.size()));
   return native_module;
 }
 
