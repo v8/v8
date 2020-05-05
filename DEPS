@@ -266,7 +266,7 @@ deps = {
     'dep_type': 'cipd',
   },
   'v8/third_party/perfetto':
-    Var('android_url') + '/platform/external/perfetto.git' + '@' + '9bd480acdcad450c5ed5d2aa329eb603c53e5f40',
+    Var('android_url') + '/platform/external/perfetto.git' + '@' + 'ff70e0d273ed10995866c803f23e11250eb3dc52',
   'v8/third_party/protobuf':
     Var('chromium_url') + '/external/github.com/google/protobuf'+ '@' + 'b68a347f56137b4b1a746e8c7438495a6ac1bd91',
   'v8/third_party/zlib':

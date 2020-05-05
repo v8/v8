@@ -1606,7 +1606,10 @@ v8_source_set("v8_initializers") {
     "test/cctest:*",
   ]
 
-  deps = [ ":torque_generated_initializers" ]
+  deps = [
+    ":torque_generated_initializers",
+    ":v8_tracing",
+  ]
 
   sources = [
     ### gcmole(all) ###
@@ -1735,7 +1738,10 @@ v8_source_set("v8_initializers") {
 v8_source_set("v8_init") {
   visibility = [ ":*" ]  # Only targets in this file can depend on this.
 
-  deps = [ ":v8_initializers" ]
+  deps = [
+    ":v8_initializers",
+    ":v8_tracing",
+  ]
 
   sources = [
     ### gcmole(all) ###
@@ -4232,6 +4238,7 @@ if (current_toolchain == v8_snapshot_toolchain) {
       ":v8_libbase",
       ":v8_libplatform",
       ":v8_maybe_icu",
+      ":v8_tracing",
       "//build/win:default_exe_manifest",
     ]
   }
