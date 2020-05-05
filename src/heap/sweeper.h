@@ -6,6 +6,7 @@
 #define V8_HEAP_SWEEPER_H_
 
 #include <deque>
+#include <map>
 #include <vector>
 
 #include "src/base/platform/semaphore.h"
@@ -15,9 +16,11 @@
 namespace v8 {
 namespace internal {
 
+class InvalidatedSlotsCleanup;
 class MajorNonAtomicMarkingState;
 class Page;
 class PagedSpace;
+class Space;
 
 enum FreeSpaceTreatmentMode { IGNORE_FREE_SPACE, ZAP_FREE_SPACE };
 
@@ -26,6 +29,7 @@ class Sweeper {
   using IterabilityList = std::vector<Page*>;
   using SweepingList = std::vector<Page*>;
   using SweptList = std::vector<Page*>;
+  using FreeRangesMap = std::map<uint32_t, uint32_t>;
 
   // Pauses the sweeper tasks or completes sweeping.
   class PauseOrCompleteScope final {
@@ -126,6 +130,33 @@ class Sweeper {
     callback(CODE_SPACE);
     callback(MAP_SPACE);
   }
+
+  // Helper function for RawSweep. Depending on the FreeListRebuildingMode and
+  // FreeSpaceTreatmentMode this function may add the free memory to a free
+  // list, make the memory iterable, clear it, and return the free memory to
+  // the operating system.
+  size_t FreeAndProcessFreedMemory(Address free_start, Address free_end,
+                                   Page* page, Space* space,
+                                   bool non_empty_typed_slots,
+                                   FreeListRebuildingMode free_list_mode,
+                                   FreeSpaceTreatmentMode free_space_mode);
+
+  // Helper function for RawSweep. Handle remembered set entries in the freed
+  // memory which require clearing.
+  void CleanupRememberedSetEntriesForFreedMemory(
+      Address free_start, Address free_end, Page* page,
+      bool non_empty_typed_slots, FreeRangesMap* free_ranges_map,
+      InvalidatedSlotsCleanup* old_to_new_cleanup);
+
+  // Helper function for RawSweep. Clears invalid typed slots in the given free
+  // ranges.
+  void CleanupInvalidTypedSlotsOfFreeRanges(
+      Page* page, const FreeRangesMap& free_ranges_map);
+
+  // Helper function for RawSweep. Clears the mark bits and ensures consistency
+  // of live bytes.
+  void ClearMarkBitsAndHandleLivenessStatistics(
+      Page* page, size_t live_bytes, FreeListRebuildingMode free_list_mode);
 
   // Can only be called on the main thread when no tasks are running.
   bool IsDoneSweeping() const {
