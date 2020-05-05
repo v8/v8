@@ -948,6 +948,62 @@ void TurboAssembler::Dlsa(Register rd, Register rt, Register rs, uint8_t sa,
 }
 
 // ------------Pseudo-instructions-------------
+// Change endianness
+void TurboAssembler::ByteSwapSigned(Register rd, Register rs,
+                                    int operand_size) {
+  ByteSwapUnsigned(rd, rs, operand_size);
+}
+
+void TurboAssembler::ByteSwapUnsigned(Register rd, Register rs,
+                                      int operand_size) {
+  DCHECK(operand_size == 4 || operand_size == 8);
+  DCHECK(rd != t5 && rd != t6);
+  if (operand_size == 4) {
+    // Uint32_t t5 = 0x00FF00FF;
+    // x = (x << 16 | x >> 16);
+    // x = (((x & t5) << 8)  | ((x & (t5 << 8)) >> 8));
+    UseScratchRegisterScope temps(this);
+    BlockTrampolinePoolScope block_trampoline_pool(this);
+    Register x = temps.Acquire();
+    li(t5, 0x00FF00FF);
+    RV_slliw(x, rs, 16);
+    RV_srliw(rd, rs, 16);
+    RV_or_(x, rd, x);     // x <- x << 16 | x >> 16
+    RV_and_(t6, x, t5);              // t <- x & 0x00FF00FF
+    RV_slliw(t6, t6, 8);  // t <- (x & t5) << 8
+    RV_slliw(t5, t5, 8);  // t5 <- 0xFF00FF00
+    RV_and_(rd, x, t5);   // x & 0xFF00FF00
+    RV_srliw(rd, rd, 8);
+    RV_or_(rd, rd, t6);  // (((x & t5) << 8)  | ((x & (t5 << 8)) >> 8))
+  } else {
+    // uint64_t t5 = 0x0000FFFF0000FFFFl;
+    // uint64_t t5 = 0x00FF00FF00FF00FFl;
+    // x = (x << 32 | x >> 32);
+    // x = (x & t5) << 16 | (x & (t5 << 16)) >> 16;
+    // x = (x & t5) << 8  | (x & (t5 << 8)) >> 8;
+    UseScratchRegisterScope temps(this);
+    BlockTrampolinePoolScope block_trampoline_pool(this);
+    Register x = temps.Acquire();
+    li(t5, 0x0000FFFF0000FFFFl);
+    RV_slli(x, rs, 32);
+    RV_srli(rd, rs, 32);
+    RV_or_(x, rd, x);     // x <- x << 32 | x >> 32
+    RV_and_(t6,x, t5);    // t <- x & 0x0000FFFF0000FFFF
+    RV_slli(t6, t6, 16);  // t <- (x & 0x0000FFFF0000FFFF) << 16
+    RV_slli(t5, t5, 16);  // t5 <- 0xFFFF0000FFFF0000
+    RV_and_(rd, x, t5);   // rd <- x & 0xFFFF0000FFFF0000
+    RV_srli(rd, rd, 16);  // rd <- x & (t5 << 16)) >> 16
+    RV_or_(x, rd, t6);    // (x & t5) << 16 | (x & (t5 << 16)) >> 16;
+    li(t5, 0x00FF00FF00FF00FFl);
+    RV_and_(t6, x, t5);   // t <- x & 0x00FF00FF00FF00FF
+    RV_slli(t6, t6, 8);   // t <- (x & t5) << 8
+    RV_slli(t5, t5, 8);   // t5 <- 0xFF00FF00FF00FF00
+    RV_and_(rd, x, t5);
+    RV_srli(rd, rd, 8);   // rd <- (x & (t5 << 8)) >> 8
+    RV_or_(rd, rd, t6);   // (((x & t5) << 8)  | ((x & (t5 << 8)) >> 8))
+  }
+}
+
 template <int NBYTES, bool LOAD_SIGNED>
 void TurboAssembler::LoadNBytes(Register rd, const MemOperand& rs,
                                 Register scratch) {

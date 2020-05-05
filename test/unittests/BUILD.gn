@@ -275,6 +275,11 @@ v8_source_set("unittests_sources") {
       "assembler/turbo-assembler-mips64-unittest.cc",
       "compiler/mips64/instruction-selector-mips64-unittest.cc",
     ]
+  } else if (v8_current_cpu == "riscv64" || v8_current_cpu == "riscv") {
+    sources += [
+      "assembler/turbo-assembler-riscv-unittest.cc",
+      "compiler/riscv/instruction-selector-riscv-unittest.cc",
+    ]
   } else if (v8_current_cpu == "x64") {
     sources += [
       "assembler/turbo-assembler-x64-unittest.cc",

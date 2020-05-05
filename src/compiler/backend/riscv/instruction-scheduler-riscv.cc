@@ -24,6 +24,8 @@ int InstructionScheduler::GetTargetInstructionFlags(
     case kMips64AssertEqual:
     case kMips64BitcastDL:
     case kMips64BitcastLD:
+    case kMips64ByteSwap32:
+    case kMips64ByteSwap64:
     case kMips64CeilWD:
     case kMips64CeilWS:
     case kMips64Clz:
@@ -1706,6 +1708,10 @@ int InstructionScheduler::GetInstructionLatency(const Instruction* instr) {
       }
       return latency;
     }
+    case kMips64ByteSwap64:
+      return ByteSwapSignedLatency();
+    case kMips64ByteSwap32:
+      return ByteSwapSignedLatency();
     case kWord32AtomicLoadInt8:
     case kWord32AtomicLoadUint8:
     case kWord32AtomicLoadInt16:
