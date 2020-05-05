@@ -13,7 +13,6 @@
 #include "src/heap/heap.h"
 #include "src/heap/invalidated-slots.h"
 #include "src/heap/list.h"
-#include "src/heap/memory-chunk.h"
 
 namespace v8 {
 namespace internal {
