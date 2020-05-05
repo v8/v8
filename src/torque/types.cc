@@ -616,7 +616,8 @@ std::vector<ObjectSlotKind> ClassType::ComputeHeaderSlotKinds() const {
   std::vector<ObjectSlotKind> result;
   std::vector<Field> header_fields = ComputeHeaderFields();
   ComputeSlotKindsHelper(&result, 0, header_fields);
-  DCHECK_EQ(std::ceil(double{header_size()} / TargetArchitecture::TaggedSize()),
+  DCHECK_EQ(std::ceil(static_cast<double>(header_size()) /
+                      TargetArchitecture::TaggedSize()),
             result.size());
   return result;
 }
