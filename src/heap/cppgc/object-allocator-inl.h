@@ -5,13 +5,13 @@
 #ifndef V8_HEAP_CPPGC_OBJECT_ALLOCATOR_INL_H_
 #define V8_HEAP_CPPGC_OBJECT_ALLOCATOR_INL_H_
 
-#include "src/heap/cppgc/object-allocator.h"
-
 #include <new>
 
 #include "src/base/logging.h"
 #include "src/heap/cppgc/heap-object-header-inl.h"
 #include "src/heap/cppgc/heap-object-header.h"
+#include "src/heap/cppgc/object-allocator.h"
+#include "src/heap/cppgc/sanitizers.h"
 
 namespace cppgc {
 namespace internal {
@@ -37,13 +37,16 @@ inline RawHeap::SpaceType ObjectAllocator::GetSpaceIndexForSize(size_t size) {
 void* ObjectAllocator::AllocateObjectOnSpace(NormalPageSpace* space,
                                              size_t size, GCInfoIndex gcinfo) {
   DCHECK_LT(0u, gcinfo);
+
   NormalPageSpace::LinearAllocationBuffer& current_lab =
       space->linear_allocation_buffer();
   if (current_lab.size() < size) {
     return OutOfLineAllocate(space, size, gcinfo);
   }
-  auto* header =
-      new (current_lab.Allocate(size)) HeapObjectHeader(size, gcinfo);
+
+  void* raw = current_lab.Allocate(size);
+  SET_MEMORY_ACCESIBLE(raw, size);
+  auto* header = new (raw) HeapObjectHeader(size, gcinfo);
   return header->Payload();
 }
 }  // namespace internal

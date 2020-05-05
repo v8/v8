@@ -35,6 +35,9 @@ class V8_EXPORT Heap {
     kUserDefined4,
   };
 
+  static constexpr size_t kMaxNumberOfSpaces =
+      static_cast<size_t>(SpaceType::kUserDefined4) + 1;
+
   static std::unique_ptr<Heap> Create();
 
   virtual ~Heap() = default;

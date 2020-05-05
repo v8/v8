@@ -21,11 +21,10 @@ class BaseSpace;
 
 // RawHeap is responsible for space management.
 class V8_EXPORT_PRIVATE RawHeap final {
-  static constexpr size_t kNumberOfSpaces = 9;
-
  public:
   using SpaceType = cppgc::Heap::SpaceType;
-  using Spaces = std::array<std::unique_ptr<BaseSpace>, kNumberOfSpaces>;
+  using Spaces =
+      std::array<std::unique_ptr<BaseSpace>, cppgc::Heap::kMaxNumberOfSpaces>;
 
   using iterator = Spaces::iterator;
   using const_iterator = Spaces::const_iterator;

@@ -239,6 +239,10 @@ TEST_F(PageTest, UnsweptPageDestruction) {
         static_cast<LargePageSpace*>(heap.Space(RawHeap::SpaceType::kLarge));
     auto* page = LargePage::Create(space, 2 * kLargeObjectSizeThreshold);
     EXPECT_DEATH_IF_SUPPORTED(LargePage::Destroy(page), "");
+    // Detach page and really destroy page in the parent process so that sweeper
+    // doesn't consider it.
+    space->RemovePage(page);
+    LargePage::Destroy(page);
   }
 }
 #endif

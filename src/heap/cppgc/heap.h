@@ -18,6 +18,7 @@
 #include "src/heap/cppgc/page-memory.h"
 #include "src/heap/cppgc/prefinalizer-handler.h"
 #include "src/heap/cppgc/raw-heap.h"
+#include "src/heap/cppgc/sweeper.h"
 
 namespace cppgc {
 namespace internal {
@@ -98,6 +99,8 @@ class V8_EXPORT_PRIVATE Heap final : public cppgc::Heap {
   PageBackend* page_backend() { return page_backend_.get(); }
   const PageBackend* page_backend() const { return page_backend_.get(); }
 
+  Sweeper& sweeper() { return sweeper_; }
+
   size_t ObjectPayloadSize() const;
 
  private:
@@ -109,6 +112,7 @@ class V8_EXPORT_PRIVATE Heap final : public cppgc::Heap {
   v8::base::PageAllocator system_allocator_;
   std::unique_ptr<PageBackend> page_backend_;
   ObjectAllocator object_allocator_;
+  Sweeper sweeper_;
 
   std::unique_ptr<Stack> stack_;
   std::unique_ptr<PreFinalizerHandler> prefinalizer_handler_;

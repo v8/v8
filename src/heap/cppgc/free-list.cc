@@ -10,6 +10,7 @@
 #include "src/base/bits.h"
 #include "src/heap/cppgc/globals.h"
 #include "src/heap/cppgc/heap-object-header-inl.h"
+#include "src/heap/cppgc/sanitizers.h"
 
 namespace cppgc {
 namespace internal {
@@ -64,6 +65,8 @@ void FreeList::Add(FreeList::Block block) {
   DCHECK_GT(kPageSize, size);
   DCHECK_LE(kFreeListEntrySize, size);
 
+  // Make sure the freelist header is writable.
+  SET_MEMORY_ACCESIBLE(block.address, sizeof(Entry));
   Entry* entry = new (block.address) Entry(size);
   const size_t index = BucketIndexForSize(static_cast<uint32_t>(size));
   entry->Link(&free_list_heads_[index]);

@@ -3,7 +3,6 @@
 // found in the LICENSE file.
 
 #include "src/heap/cppgc/object-allocator.h"
-#include "src/heap/cppgc/object-allocator-inl.h"
 
 #include "src/heap/cppgc/globals.h"
 #include "src/heap/cppgc/heap-object-header-inl.h"
@@ -11,7 +10,9 @@
 #include "src/heap/cppgc/heap-page.h"
 #include "src/heap/cppgc/heap-space.h"
 #include "src/heap/cppgc/heap.h"
+#include "src/heap/cppgc/object-allocator-inl.h"
 #include "src/heap/cppgc/page-memory.h"
+#include "src/heap/cppgc/sweeper.h"
 
 namespace cppgc {
 namespace internal {
@@ -19,15 +20,6 @@ namespace {
 
 void* AllocateLargeObject(RawHeap* raw_heap, LargePageSpace* space, size_t size,
                           GCInfoIndex gcinfo) {
-  // 1. Try to sweep large objects more than size bytes before allocating a new
-  // large object.
-  // TODO(chromium:1056170): Add lazy sweep.
-
-  // 2. If we have failed in sweeping size bytes, we complete sweeping before
-  // allocating this large object.
-  // TODO(chromium:1056170):
-  // raw_heap->heap()->sweeper()->Complete(space);
-
   LargePage* page = LargePage::Create(space, size);
   auto* header = new (page->ObjectHeader())
       HeapObjectHeader(HeapObjectHeader::kLargeObjectSizeInHeader, gcinfo);
@@ -61,8 +53,7 @@ void* ObjectAllocator::OutOfLineAllocate(NormalPageSpace* space, size_t size,
   // TODO(chromium:1056170): Add lazy sweep.
 
   // 4. Complete sweeping.
-  // TODO(chromium:1056170):
-  // raw_heap_->heap()->sweeper()->Complete(space);
+  raw_heap_->heap()->sweeper().Finish();
 
   // 5. Add a new page to this heap.
   NormalPage::Create(space);

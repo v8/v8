@@ -12,6 +12,7 @@
 #include "src/heap/cppgc/heap-page.h"
 #include "src/heap/cppgc/heap-visitor.h"
 #include "src/heap/cppgc/stack.h"
+#include "src/heap/cppgc/sweeper.h"
 
 namespace cppgc {
 
@@ -87,13 +88,13 @@ Heap::Heap()
     : raw_heap_(this),
       page_backend_(std::make_unique<PageBackend>(&system_allocator_)),
       object_allocator_(&raw_heap_),
+      sweeper_(&raw_heap_),
       stack_(std::make_unique<Stack>(v8::base::Stack::GetStackStart())),
       prefinalizer_handler_(std::make_unique<PreFinalizerHandler>()) {}
 
 Heap::~Heap() {
-  for (HeapObjectHeader* header : objects_) {
-    header->Finalize();
-  }
+  // Finish already running GC if any, but don't finalize live objects.
+  sweeper_.Finish();
 }
 
 void Heap::CollectGarbage(GCConfig config) {
@@ -112,16 +113,7 @@ void Heap::CollectGarbage(GCConfig config) {
     NoAllocationScope no_allocation_scope_(this);
     prefinalizer_handler_->InvokePreFinalizers();
   }
-  for (auto it = objects_.begin(); it != objects_.end();) {
-    HeapObjectHeader* header = *it;
-    if (header->IsMarked()) {
-      header->Unmark();
-      ++it;
-    } else {
-      header->Finalize();
-      it = objects_.erase(it);
-    }
-  }
+  sweeper_.Start(Sweeper::Config::kAtomic);
 }
 
 size_t Heap::ObjectPayloadSize() const {

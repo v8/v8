@@ -7,7 +7,7 @@
 #include <algorithm>
 
 #include "src/base/logging.h"
-#include "src/heap/cppgc/raw-heap.h"
+#include "src/heap/cppgc/heap-page.h"
 
 namespace cppgc {
 namespace internal {
@@ -28,6 +28,14 @@ void BaseSpace::RemovePage(BasePage* page) {
 
 NormalPageSpace::NormalPageSpace(RawHeap* heap, size_t index)
     : BaseSpace(heap, index, PageType::kNormal) {}
+
+void NormalPageSpace::ResetLinearAllocationBuffer() {
+  if (current_lab_.size()) {
+    DCHECK_NOT_NULL(current_lab_.start());
+    free_list_.Add({current_lab_.start(), current_lab_.size()});
+    current_lab_.Set(nullptr, 0);
+  }
+}
 
 LargePageSpace::LargePageSpace(RawHeap* heap, size_t index)
     : BaseSpace(heap, index, PageType::kLarge) {}
