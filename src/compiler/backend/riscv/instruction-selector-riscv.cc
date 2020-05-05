@@ -850,9 +850,17 @@ void InstructionSelector::VisitWord32ReverseBits(Node* node) { UNREACHABLE(); }
 
 void InstructionSelector::VisitWord64ReverseBits(Node* node) { UNREACHABLE(); }
 
-void InstructionSelector::VisitWord64ReverseBytes(Node* node) { UNREACHABLE(); }
+void InstructionSelector::VisitWord64ReverseBytes(Node* node) {
+  Mips64OperandGenerator g(this);
+  Emit(kMips64ByteSwap64, g.DefineAsRegister(node),
+       g.UseRegister(node->InputAt(0)));
+}
 
-void InstructionSelector::VisitWord32ReverseBytes(Node* node) { UNREACHABLE(); }
+void InstructionSelector::VisitWord32ReverseBytes(Node* node) {
+  Mips64OperandGenerator g(this);
+  Emit(kMips64ByteSwap32, g.DefineAsRegister(node),
+       g.UseRegister(node->InputAt(0)));
+}
 
 void InstructionSelector::VisitSimd128ReverseBytes(Node* node) {
   UNREACHABLE();
@@ -1993,7 +2001,7 @@ void VisitWord32Compare(InstructionSelector* selector, Node* node,
 #else
   if (IsNodeUnsigned(node->InputAt(0)) != IsNodeUnsigned(node->InputAt(1)) ||
       node->InputAt(0)->opcode() == IrOpcode::kCall ||
-      node->InputAt(1)->opcode() == IrOpcode::kCall ) {
+      node->InputAt(1)->opcode() == IrOpcode::kCall) {
 #endif
     VisitFullWord32Compare(selector, node, kMips64Cmp, cont);
   } else {
@@ -3040,8 +3048,7 @@ void InstructionSelector::VisitS8x16Swizzle(Node* node) {
   // modify output before do the calculation.
   Emit(kMips64S8x16Swizzle, g.DefineAsRegister(node),
        g.UseUniqueRegister(node->InputAt(0)),
-       g.UseUniqueRegister(node->InputAt(1)),
-       arraysize(temps), temps);
+       g.UseUniqueRegister(node->InputAt(1)), arraysize(temps), temps);
 }
 
 void InstructionSelector::VisitSignExtendWord8ToInt32(Node* node) {
@@ -3074,8 +3081,7 @@ void InstructionSelector::VisitSignExtendWord32ToInt64(Node* node) {
 MachineOperatorBuilder::Flags
 InstructionSelector::SupportedMachineOperatorFlags() {
   MachineOperatorBuilder::Flags flags = MachineOperatorBuilder::kNoFlags;
-  return flags | 
-         MachineOperatorBuilder::kWord32ShiftIsSafe |
+  return flags | MachineOperatorBuilder::kWord32ShiftIsSafe |
          MachineOperatorBuilder::kInt32DivIsSafe |
          MachineOperatorBuilder::kUint32DivIsSafe |
          MachineOperatorBuilder::kFloat64RoundDown |
