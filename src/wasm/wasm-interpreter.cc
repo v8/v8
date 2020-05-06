@@ -3183,7 +3183,8 @@ class ThreadImpl {
           break;
         }
         case kExprSelectWithType: {
-          SelectTypeImmediate<Decoder::kNoValidate> imm(&decoder, code->at(pc));
+          SelectTypeImmediate<Decoder::kNoValidate> imm(WasmFeatures::All(),
+                                                        &decoder, code->at(pc));
           len = 1 + imm.length;
           V8_FALLTHROUGH;
         }

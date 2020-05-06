@@ -1722,67 +1722,14 @@ class ModuleDecoderImpl : public Decoder {
     return val != 0;
   }
 
-  // Reads a single 8-bit integer, interpreting it as a local type.
   ValueType consume_value_type() {
-    byte val = consume_u8("value type");
-    ValueTypeCode t = static_cast<ValueTypeCode>(val);
-    switch (t) {
-      case kLocalI32:
-        return kWasmI32;
-      case kLocalI64:
-        return kWasmI64;
-      case kLocalF32:
-        return kWasmF32;
-      case kLocalF64:
-        return kWasmF64;
-      default:
-        if (origin_ == kWasmOrigin) {
-          switch (t) {
-            case kLocalS128:
-              if (enabled_features_.has_simd()) return kWasmS128;
-              break;
-            case kLocalFuncRef:
-              if (enabled_features_.has_anyref()) return kWasmFuncRef;
-              break;
-            case kLocalAnyRef:
-              if (enabled_features_.has_anyref()) return kWasmAnyRef;
-              break;
-            case kLocalNullRef:
-              if (enabled_features_.has_anyref()) return kWasmNullRef;
-              break;
-            case kLocalExnRef:
-              if (enabled_features_.has_eh()) return kWasmExnRef;
-              break;
-            case kLocalRef:
-              if (enabled_features_.has_gc()) {
-                uint32_t type_index = consume_u32v("type index");
-                return ValueType(ValueType::kRef, type_index);
-              }
-              break;
-            case kLocalOptRef:
-              if (enabled_features_.has_gc()) {
-                uint32_t type_index = consume_u32v("type index");
-                return ValueType(ValueType::kOptRef, type_index);
-              }
-              break;
-            case kLocalEqRef:
-              if (enabled_features_.has_gc()) {
-                return ValueType(ValueType::kEqRef);
-              }
-              break;
-            case kLocalI31Ref:
-            case kLocalRttRef:
-              if (enabled_features_.has_gc()) {
-                UNIMPLEMENTED();  // TODO(7748): implement.
-              }
-              break;
-            default:
-              break;
-          }
-        }
-        error(pc_ - 1, "invalid local type");
-        return kWasmStmt;
-    }
+    ValueType result;
+    uint32_t type_length = value_type_reader::read_value_type<kValidate>(
+        this, this->pc(), &result,
+        origin_ == kWasmOrigin ? enabled_features_ : WasmFeatures::None());
+    if (type_length == 0) error(pc_, "invalid value type");
+    consume_bytes(type_length);
+    return result;
   }
 
   // Reads a single 8-bit integer, interpreting it as a reference type.

@@ -187,6 +187,7 @@ bool PrintRawWasmCode(AccountingAllocator* allocator, const FunctionBody& body,
         opcode == kExprTry) {
       DCHECK_EQ(2, length);
 
+      // TODO(7748) Update this for gc and ref types if needed
       switch (i.pc()[1]) {
 #define CASE_LOCAL_TYPE(local_name, type_name) \
   case kLocal##local_name:                     \

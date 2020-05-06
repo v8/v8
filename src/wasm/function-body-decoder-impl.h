@@ -207,55 +207,139 @@ struct GlobalIndexImmediate {
   }
 };
 
-namespace function_body_decoder {
-// Decode a byte representing a local type. Return {false} if the encoded
-// byte was invalid or the start of a type index.
-// TODO(7748): Refactor this to handle (opt)ref types
-inline bool decode_local_type(uint8_t val, ValueType* result) {
-  switch (static_cast<ValueTypeCode>(val)) {
-    case kLocalVoid:
-      *result = kWasmStmt;
-      return true;
+namespace value_type_reader {
+
+// Read a value type starting at address 'pc' in 'decoder'.
+// No bytes are consumed. The result is written into the 'result' parameter.
+// Returns the amount of bytes read, or 0 if decoding failed.
+// Registers an error if the type opcode is invalid iff validate is set.
+template <Decoder::ValidateFlag validate>
+uint32_t read_value_type(Decoder* decoder, const byte* pc, ValueType* result,
+                         const WasmFeatures& enabled) {
+  byte val = decoder->read_u8<validate>(pc, "value type opcode");
+  if (decoder->failed()) return 0;
+
+  ValueTypeCode code = static_cast<ValueTypeCode>(val);
+  switch (code) {
     case kLocalI32:
       *result = kWasmI32;
-      return true;
+      return 1;
     case kLocalI64:
       *result = kWasmI64;
-      return true;
+      return 1;
     case kLocalF32:
       *result = kWasmF32;
-      return true;
+      return 1;
     case kLocalF64:
       *result = kWasmF64;
-      return true;
-    case kLocalS128:
-      *result = kWasmS128;
-      return true;
-    case kLocalFuncRef:
-      *result = kWasmFuncRef;
-      return true;
+      return 1;
     case kLocalAnyRef:
-      *result = kWasmAnyRef;
-      return true;
+      if (enabled.has_anyref()) {
+        *result = kWasmAnyRef;
+        return 1;
+      }
+      decoder->error(pc,
+                     "invalid value type 'anyref', enable with "
+                     "--experimental-wasm-anyref");
+      return 0;
+    case kLocalFuncRef:
+      if (enabled.has_anyref()) {
+        *result = kWasmFuncRef;
+        return 1;
+      }
+      decoder->error(pc,
+                     "invalid value type 'funcref', enable with "
+                     "--experimental-wasm-anyref");
+      return 0;
     case kLocalNullRef:
-      *result = kWasmNullRef;
-      return true;
+      if (enabled.has_anyref()) {
+        *result = kWasmNullRef;
+        return 1;
+      }
+      decoder->error(pc,
+                     "invalid value type 'nullref', enable with "
+                     "--experimental-wasm-anyref");
+      return 0;
     case kLocalExnRef:
-      *result = kWasmExnRef;
-      return true;
+      if (enabled.has_eh()) {
+        *result = kWasmExnRef;
+        return 1;
+      }
+      decoder->error(pc,
+                     "invalid value type 'exception ref', enable with "
+                     "--experimental-wasm-eh");
+      return 0;
+    case kLocalRef:
+      if (enabled.has_gc()) {
+        uint32_t length;
+        uint32_t type_index =
+            decoder->read_u32v<validate>(pc + 1, &length, "type index");
+        *result = ValueType(ValueType::kRef, type_index);
+        return length + 1;
+      }
+      decoder->error(pc,
+                     "invalid value type 'ref', enable with "
+                     "--experimental-wasm-gc");
+      return 0;
+    case kLocalOptRef:
+      if (enabled.has_gc()) {
+        uint32_t length;
+        uint32_t type_index =
+            decoder->read_u32v<validate>(pc + 1, &length, "type index");
+        *result = ValueType(ValueType::kOptRef, type_index);
+        return length + 1;
+      }
+      decoder->error(pc,
+                     "invalid value type 'optref', enable with "
+                     "--experimental-wasm-gc");
+      return 0;
+    case kLocalEqRef:
+      if (enabled.has_gc()) {
+        UNIMPLEMENTED();  // TODO(7748): Implement
+      }
+      decoder->error(pc,
+                     "invalid value type 'eqref', enable with "
+                     "--experimental-wasm-simd");
+      return 0;
+    case kLocalI31Ref:
+      if (enabled.has_gc()) {
+        UNIMPLEMENTED();  // TODO(7748): Implement
+      }
+      decoder->error(pc,
+                     "invalid value type 'i31ref', enable with "
+                     "--experimental-wasm-simd");
+      return 0;
+    case kLocalRttRef:
+      if (enabled.has_gc()) {
+        UNIMPLEMENTED();  // TODO(7748): Implement
+      }
+      decoder->error(pc,
+                     "invalid value type 'rttref', enable with "
+                     "--experimental-wasm-simd");
+      return 0;
+    case kLocalS128:
+      if (enabled.has_simd()) {
+        *result = kWasmS128;
+        return 1;
+      }
+      decoder->error(pc,
+                     "invalid value type 'Simd128', enable with "
+                     "--experimental-wasm-simd");
+      return 0;
     default:
       *result = kWasmBottom;
-      return false;
+      return 0;
   }
 }
-}  // namespace function_body_decoder
+}  // namespace value_type_reader
 
 template <Decoder::ValidateFlag validate>
 struct SelectTypeImmediate {
   uint32_t length;
   ValueType type;
 
-  inline SelectTypeImmediate(Decoder* decoder, const byte* pc) {
+  inline SelectTypeImmediate(const WasmFeatures& enabled, Decoder* decoder,
+                             const byte* pc) {
     uint8_t num_types =
         decoder->read_u32v<validate>(pc + 1, &length, "number of select types");
     if (!VALIDATE(num_types == 1)) {
@@ -263,12 +347,11 @@ struct SelectTypeImmediate {
           pc + 1, "Invalid number of types. Select accepts exactly one type");
       return;
     }
-    uint8_t val = decoder->read_u8<validate>(pc + length + 1, "select type");
-    length++;
-    if (!function_body_decoder::decode_local_type(val, &type) ||
-        type == kWasmStmt) {
+    uint32_t type_length = value_type_reader::read_value_type<validate>(
+        decoder, pc + length + 1, &type, enabled);
+    length += type_length;
+    if (type_length == 0) {
       decoder->error(pc + 1, "invalid select type");
-      return;
     }
   }
 };
@@ -282,22 +365,30 @@ struct BlockTypeImmediate {
 
   inline BlockTypeImmediate(const WasmFeatures& enabled, Decoder* decoder,
                             const byte* pc) {
-    uint8_t val = decoder->read_u8<validate>(pc + 1, "block type");
-    if (!function_body_decoder::decode_local_type(val, &type)) {
-      // Handle multi-value blocks.
-      if (!VALIDATE(enabled.has_mv())) {
-        decoder->error(pc + 1, "invalid block type");
-        return;
-      }
-      if (!VALIDATE(decoder->ok())) return;
-      int32_t index =
-          decoder->read_i32v<validate>(pc + 1, &length, "block arity");
-      if (!VALIDATE(length > 0 && index >= 0)) {
-        decoder->error(pc + 1, "invalid block type index");
-        return;
-      }
-      sig_index = static_cast<uint32_t>(index);
+    if (decoder->read_u8<validate>(pc + 1, "block type") == kLocalVoid) {
+      // 1st case: void block. Struct fields stay at default values.
+      return;
     }
+    length = value_type_reader::read_value_type<validate>(decoder, pc + 1,
+                                                          &type, enabled);
+    if (length > 0) {
+      // 2nd case: block with val type immediate.
+      return;
+    }
+    // It has to be the 3rd case: multi-value block,
+    // which is represented by a type index.
+    if (!VALIDATE(enabled.has_mv())) {
+      decoder->error(pc + 1, "invalid block type");
+      return;
+    }
+    if (!VALIDATE(decoder->ok())) return;
+    int32_t index =
+        decoder->read_i32v<validate>(pc + 1, &length, "block type index");
+    if (!VALIDATE(length > 0 && index >= 0)) {
+      decoder->error(pc + 1, "invalid block type index");
+      return;
+    }
+    sig_index = static_cast<uint32_t>(index);
   }
 
   uint32_t in_arity() const {
@@ -865,93 +956,15 @@ class WasmDecoder : public Decoder {
         decoder->error(decoder->pc() - 1, "local count too large");
         return false;
       }
-      byte code = decoder->consume_u8("local type");
-      if (decoder->failed()) return false;
-
       ValueType type;
-      switch (code) {
-        case kLocalI32:
-          type = kWasmI32;
-          break;
-        case kLocalI64:
-          type = kWasmI64;
-          break;
-        case kLocalF32:
-          type = kWasmF32;
-          break;
-        case kLocalF64:
-          type = kWasmF64;
-          break;
-        case kLocalAnyRef:
-          if (enabled.has_anyref()) {
-            type = kWasmAnyRef;
-            break;
-          }
-          decoder->error(decoder->pc() - 1,
-                         "invalid local type 'anyref', enable with "
-                         "--experimental-wasm-anyref");
-          return false;
-        case kLocalFuncRef:
-          if (enabled.has_anyref()) {
-            type = kWasmFuncRef;
-            break;
-          }
-          decoder->error(decoder->pc() - 1,
-                         "invalid local type 'funcref', enable with "
-                         "--experimental-wasm-anyref");
-          return false;
-        case kLocalNullRef:
-          if (enabled.has_anyref()) {
-            type = kWasmNullRef;
-            break;
-          }
-          decoder->error(decoder->pc() - 1,
-                         "invalid local type 'nullref', enable with "
-                         "--experimental-wasm-anyref");
-          return false;
-        case kLocalExnRef:
-          if (enabled.has_eh()) {
-            type = kWasmExnRef;
-            break;
-          }
-          decoder->error(decoder->pc() - 1,
-                         "invalid local type 'exception ref', enable with "
-                         "--experimental-wasm-eh");
-          return false;
-        case kLocalRef:
-          if (enabled.has_gc()) {
-            uint32_t type_index = decoder->consume_u32v("type index");
-            type = ValueType(ValueType::kRef, type_index);
-            break;
-          }
-          decoder->error(decoder->pc() - 1,
-                         "invalid local type 'ref', enable with "
-                         "--experimental-wasm-gc");
-          return false;
-        case kLocalOptRef:
-          if (enabled.has_gc()) {
-            uint32_t type_index = decoder->consume_u32v("type index");
-            type = ValueType(ValueType::kOptRef, type_index);
-            break;
-          }
-          decoder->error(decoder->pc() - 1,
-                         "invalid local type 'optref', enable with "
-                         "--experimental-wasm-gc");
-          return false;
-        case kLocalS128:
-          if (enabled.has_simd()) {
-            type = kWasmS128;
-            break;
-          }
-          decoder->error(decoder->pc() - 1,
-                         "invalid local type 'Simd128', enable with "
-                         "--experimental-wasm-simd");
-          return false;
-        default:
-          decoder->error(decoder->pc() - 1, "invalid local type");
-          return false;
+      uint32_t type_length = value_type_reader::read_value_type<validate>(
+          decoder, decoder->pc(), &type, enabled);
+      if (type_length == 0) {
+        decoder->error(decoder->pc(), "invalid local type");
+        return false;
       }
       type_list->insert(type_list->end(), count, type);
+      decoder->consume_bytes(type_length);
     }
     DCHECK(decoder->ok());
     return true;
@@ -1372,7 +1385,7 @@ class WasmDecoder : public Decoder {
         return 1 + imm.length;
       }
       case kExprSelectWithType: {
-        SelectTypeImmediate<validate> imm(decoder, pc);
+        SelectTypeImmediate<validate> imm(WasmFeatures::All(), decoder, pc);
         return 1 + imm.length;
       }
       case kExprBrTable: {
@@ -2033,7 +2046,8 @@ class WasmFullDecoder : public WasmDecoder<validate> {
         }
         case kExprSelectWithType: {
           CHECK_PROTOTYPE_OPCODE(anyref);
-          SelectTypeImmediate<validate> imm(this, this->pc_);
+          SelectTypeImmediate<validate> imm(WasmFeatures::All(), this,
+                                            this->pc_);
           if (this->failed()) break;
           auto cond = Pop(2, kWasmI32);
           auto fval = Pop(1, imm.type);

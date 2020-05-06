@@ -2399,6 +2399,7 @@ TEST_F(FunctionBodyDecoderTest, Break_TypeCheck) {
 }
 
 TEST_F(FunctionBodyDecoderTest, Break_TypeCheckAll1) {
+  WASM_FEATURE_SCOPE(anyref);
   for (size_t i = 0; i < arraysize(kValueTypes); i++) {
     for (size_t j = 0; j < arraysize(kValueTypes); j++) {
       ValueType storage[] = {kValueTypes[i], kValueTypes[i], kValueTypes[j]};
@@ -2413,6 +2414,7 @@ TEST_F(FunctionBodyDecoderTest, Break_TypeCheckAll1) {
 }
 
 TEST_F(FunctionBodyDecoderTest, Break_TypeCheckAll2) {
+  WASM_FEATURE_SCOPE(anyref);
   for (size_t i = 0; i < arraysize(kValueTypes); i++) {
     for (size_t j = 0; j < arraysize(kValueTypes); j++) {
       ValueType storage[] = {kValueTypes[i], kValueTypes[i], kValueTypes[j]};
@@ -2427,6 +2429,7 @@ TEST_F(FunctionBodyDecoderTest, Break_TypeCheckAll2) {
 }
 
 TEST_F(FunctionBodyDecoderTest, Break_TypeCheckAll3) {
+  WASM_FEATURE_SCOPE(anyref);
   for (size_t i = 0; i < arraysize(kValueTypes); i++) {
     for (size_t j = 0; j < arraysize(kValueTypes); j++) {
       ValueType storage[] = {kValueTypes[i], kValueTypes[i], kValueTypes[j]};
@@ -2457,6 +2460,7 @@ TEST_F(FunctionBodyDecoderTest, Break_Unify) {
 }
 
 TEST_F(FunctionBodyDecoderTest, BreakIf_cond_type) {
+  WASM_FEATURE_SCOPE(anyref);
   for (size_t i = 0; i < arraysize(kValueTypes); i++) {
     for (size_t j = 0; j < arraysize(kValueTypes); j++) {
       ValueType types[] = {kValueTypes[i], kValueTypes[i], kValueTypes[j]};
@@ -2470,6 +2474,7 @@ TEST_F(FunctionBodyDecoderTest, BreakIf_cond_type) {
 }
 
 TEST_F(FunctionBodyDecoderTest, BreakIf_val_type) {
+  WASM_FEATURE_SCOPE(anyref);
   for (size_t i = 0; i < arraysize(kValueTypes); i++) {
     for (size_t j = 0; j < arraysize(kValueTypes); j++) {
       ValueType types[] = {kValueTypes[i], kValueTypes[i], kValueTypes[j],
