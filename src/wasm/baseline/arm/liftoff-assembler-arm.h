@@ -896,11 +896,174 @@ void LiftoffAssembler::AtomicExchange(Register dst_addr, Register offset_reg,
                          type, &liftoff::Exchange);
 }
 
+namespace liftoff {
+#define __ lasm->
+
+inline void AtomicI64CompareExchange(LiftoffAssembler* lasm, Register dst_addr,
+                                     Register offset_reg, uint32_t offset_imm,
+                                     LiftoffRegister expected,
+                                     LiftoffRegister new_value,
+                                     LiftoffRegister result) {
+  // To implement I64AtomicCompareExchange, we nearly need all registers, with
+  // some registers having special constraints, e.g. like for {new_value} and
+  // {result} the low-word register has to have an even register code, and the
+  // high-word has to be in the next higher register. To avoid complicated
+  // register allocation code here, we just assign fixed registers to all
+  // values here, and then move all values into the correct register.
+  // {ip} is the scratch register of {UseScratchRegisterScope}. Either it will
+  // be used by the actual address, or we force it to.
+  Register actual_addr = ip;
+  Register result_low = r4;
+  Register result_high = r5;
+  Register new_value_low = r2;
+  Register new_value_high = r3;
+  Register store_result = r6;
+  Register expected_low = r8;
+  Register expected_high = r9;
+
+  // We spill all registers, so that we can re-assign them afterwards.
+  __ SpillRegisters(result_low, result_high, new_value_low, new_value_high,
+                    store_result, expected_low, expected_high);
+
+  // We calculate the address after spilling. Spilling may require the scratch
+  // register.
+  UseScratchRegisterScope temps(lasm);
+  Register initial_addr = liftoff::CalculateActualAddress(
+      lasm, &temps, dst_addr, offset_reg, offset_imm);
+  // Make sure the actual address is stored in the right register.
+  if (initial_addr != actual_addr) {
+    __ mov(actual_addr, initial_addr);
+  }
+
+  LiftoffAssembler::ParallelRegisterMoveTuple reg_moves[]{
+      {LiftoffRegister::ForPair(new_value_low, new_value_high), new_value,
+       kWasmI64},
+      {LiftoffRegister::ForPair(expected_low, expected_high), expected,
+       kWasmI64}};
+  __ ParallelRegisterMove(ArrayVector(reg_moves));
+
+  Label retry;
+  Label done;
+  __ dmb(ISH);
+  __ bind(&retry);
+  __ ldrexd(result_low, result_high, actual_addr);
+  __ cmp(result_low, expected_low);
+  __ b(ne, &done);
+  __ cmp(result_high, expected_high);
+  __ b(ne, &done);
+  __ strexd(store_result, new_value_low, new_value_high, actual_addr);
+  __ cmp(store_result, Operand(0));
+  __ b(ne, &retry);
+  __ dmb(ISH);
+  __ bind(&done);
+
+  LiftoffAssembler::ParallelRegisterMoveTuple reg_moves_result[]{
+      {result, LiftoffRegister::ForPair(result_low, result_high), kWasmI64}};
+  __ ParallelRegisterMove(ArrayVector(reg_moves_result));
+}
+#undef __
+}  // namespace liftoff
+
 void LiftoffAssembler::AtomicCompareExchange(
     Register dst_addr, Register offset_reg, uint32_t offset_imm,
     LiftoffRegister expected, LiftoffRegister new_value, LiftoffRegister result,
     StoreType type) {
-  bailout(kAtomics, "AtomicCompareExchange");
+  if (type.value() == StoreType::kI64Store) {
+    liftoff::AtomicI64CompareExchange(this, dst_addr, offset_reg, offset_imm,
+                                      expected, new_value, result);
+    return;
+  }
+
+  // The other versions of CompareExchange can share code, but need special load
+  // and store instructions.
+  void (Assembler::*load)(Register, Register, Condition) = nullptr;
+  void (Assembler::*store)(Register, Register, Register, Condition) = nullptr;
+
+  LiftoffRegList pinned = LiftoffRegList::ForRegs(dst_addr, offset_reg);
+  // We need to remember the high word of {result}, so we can set it to zero in
+  // the end if necessary.
+  Register result_high = no_reg;
+  switch (type.value()) {
+    case StoreType::kI64Store8:
+      result_high = result.high_gp();
+      result = result.low();
+      new_value = new_value.low();
+      expected = expected.low();
+      V8_FALLTHROUGH;
+    case StoreType::kI32Store8:
+      load = &Assembler::ldrexb;
+      store = &Assembler::strexb;
+      // We have to clear the high bits of {expected}, as we can only do a
+      // 32-bit comparison. If the {expected} register is used, we spill it
+      // first.
+      if (cache_state()->is_used(expected)) {
+        SpillRegister(expected);
+      }
+      uxtb(expected.gp(), expected.gp());
+      break;
+    case StoreType::kI64Store16:
+      result_high = result.high_gp();
+      result = result.low();
+      new_value = new_value.low();
+      expected = expected.low();
+      V8_FALLTHROUGH;
+    case StoreType::kI32Store16:
+      load = &Assembler::ldrexh;
+      store = &Assembler::strexh;
+      // We have to clear the high bits of {expected}, as we can only do a
+      // 32-bit comparison. If the {expected} register is used, we spill it
+      // first.
+      if (cache_state()->is_used(expected)) {
+        SpillRegister(expected);
+      }
+      uxth(expected.gp(), expected.gp());
+      break;
+    case StoreType::kI64Store32:
+      result_high = result.high_gp();
+      result = result.low();
+      new_value = new_value.low();
+      expected = expected.low();
+      V8_FALLTHROUGH;
+    case StoreType::kI32Store:
+      load = &Assembler::ldrex;
+      store = &Assembler::strex;
+      break;
+    default:
+      UNREACHABLE();
+  }
+  pinned.set(new_value);
+  pinned.set(expected);
+
+  Register result_reg = result.gp();
+  if (pinned.has(result)) {
+    result_reg = GetUnusedRegister(kGpReg, pinned).gp();
+  }
+  pinned.set(LiftoffRegister(result));
+  Register store_result = GetUnusedRegister(kGpReg, pinned).gp();
+
+  UseScratchRegisterScope temps(this);
+  Register actual_addr = liftoff::CalculateActualAddress(
+      this, &temps, dst_addr, offset_reg, offset_imm);
+
+  Label retry;
+  Label done;
+  dmb(ISH);
+  bind(&retry);
+  (this->*load)(result.gp(), actual_addr, al);
+  cmp(result.gp(), expected.gp());
+  b(ne, &done);
+  (this->*store)(store_result, new_value.gp(), actual_addr, al);
+  cmp(store_result, Operand(0));
+  b(ne, &retry);
+  dmb(ISH);
+  bind(&done);
+
+  if (result.gp() != result_reg) {
+    mov(result.gp(), result_reg);
+  }
+  if (result_high != no_reg) {
+    LoadConstant(LiftoffRegister(result_high), WasmValue(0));
+  }
 }
 
 void LiftoffAssembler::AtomicFence() { dmb(ISH); }

@@ -569,7 +569,7 @@ WASM_EXEC_TEST(I64AtomicNonConstIndexCompareExchangeNarrow) {
                WASM_I64_EQ(WASM_I64V(1), WASM_I64V(0)), WASM_GET_LOCAL(0),
                WASM_GET_LOCAL(1), MachineRepresentation::kWord16)));
 
-  uint64_t initial = 4444333322221111, local = 0x9999888877776666;
+  uint64_t initial = 0x4444333322221111, local = 0x9999888877776666;
   r.builder().WriteMemory(&memory[0], initial);
   CHECK_EQ(static_cast<uint16_t>(initial), r.Call(initial, local));
   CHECK_EQ(static_cast<uint16_t>(CompareExchange(initial, initial, local)),

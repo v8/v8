@@ -122,13 +122,6 @@ inline void push(LiftoffAssembler* assm, LiftoffRegister reg, ValueType type) {
   }
 }
 
-template <typename... Regs>
-inline void SpillRegisters(LiftoffAssembler* assm, Regs... regs) {
-  for (LiftoffRegister r : {LiftoffRegister(regs)...}) {
-    if (assm->cache_state()->is_used(r)) assm->SpillRegister(r);
-  }
-}
-
 constexpr int kSubSpSize = 7;  // 7 bytes for "subq rsp, <imm32>"
 
 }  // namespace liftoff
@@ -936,7 +929,7 @@ void EmitIntDivOrRem(LiftoffAssembler* assm, Register dst, Register lhs,
   // another temporary register.
   // Do all this before any branch, such that the code is executed
   // unconditionally, as the cache state will also be modified unconditionally.
-  liftoff::SpillRegisters(assm, rdx, rax);
+  assm->SpillRegisters(rdx, rax);
   if (rhs == rax || rhs == rdx) {
     iop(mov, kScratchRegister, rhs);
     rhs = kScratchRegister;

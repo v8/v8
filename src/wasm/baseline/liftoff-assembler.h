@@ -402,6 +402,14 @@ class LiftoffAssembler : public TurboAssembler {
                      std::initializer_list<Register*> possible_uses,
                      LiftoffRegList pinned);
 
+  // Spills all passed registers.
+  template <typename... Regs>
+  void SpillRegisters(Regs... regs) {
+    for (LiftoffRegister r : {LiftoffRegister(regs)...}) {
+      if (cache_state()->is_used(r)) SpillRegister(r);
+    }
+  }
+
   // Call this method whenever spilling something, such that the number of used
   // spill slot can be tracked and the stack frame will be allocated big enough.
   void RecordUsedSpillOffset(int offset) {
