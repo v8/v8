@@ -473,45 +473,8 @@ class LiftoffCompiler {
       LiftoffRegister in_reg = kGpCacheRegList.GetFirstRegSet();
       if (param_loc.IsRegister()) {
         DCHECK(!param_loc.IsAnyRegister());
-        int reg_code = param_loc.AsRegister();
-        if (!kSimpleFPAliasing && type == kWasmF32) {
-          // Liftoff assumes a one-to-one mapping between float registers and
-          // double registers, and so does not distinguish between f32 and f64
-          // registers. The f32 register code must therefore be halved in order
-          // to pass the f64 code to Liftoff.
-          DCHECK_EQ(0, reg_code % 2);
-          reg_code /= 2;
-        } else if (kNeedS128RegPair && type == kWasmS128) {
-          // Similarly for double registers and SIMD registers, the SIMD code
-          // needs to be doubled to pass the f64 code to Liftoff.
-          reg_code *= 2;
-        }
-        RegList cache_regs = rc == kGpReg ? kLiftoffAssemblerGpCacheRegs
-                                          : kLiftoffAssemblerFpCacheRegs;
-        if (cache_regs & (1ULL << reg_code)) {
-          // This is a cache register, just use it.
-          if (kNeedS128RegPair && rc == kFpRegPair) {
-            in_reg =
-                LiftoffRegister::ForFpPair(DoubleRegister::from_code(reg_code));
-          } else {
-            in_reg = LiftoffRegister::from_code(rc, reg_code);
-          }
-        } else {
-          // Move to a cache register (spill one if necessary).
-          // Note that we cannot create a {LiftoffRegister} for reg_code, since
-          // {LiftoffRegister} can only store cache regs.
-          in_reg = __ GetUnusedRegister(rc, pinned);
-          if (rc == kGpReg) {
-            __ Move(in_reg.gp(), Register::from_code(reg_code), lowered_type);
-          } else if (kNeedS128RegPair && rc == kFpRegPair) {
-            __ Move(in_reg.low_fp(), DoubleRegister::from_code(reg_code),
-                    lowered_type);
-          } else {
-            DCHECK_EQ(kFpReg, rc);
-            __ Move(in_reg.fp(), DoubleRegister::from_code(reg_code),
-                    lowered_type);
-          }
-        }
+        in_reg = LiftoffRegister::from_external_code(rc, type,
+                                                     param_loc.AsRegister());
       } else if (param_loc.IsCallerFrameSlot()) {
         in_reg = __ GetUnusedRegister(rc, pinned);
         __ LoadCallerFrameSlot(in_reg, -param_loc.AsCallerFrameSlot(),
@@ -2164,13 +2127,10 @@ class LiftoffCompiler {
   void CallDirect(FullDecoder* decoder,
                   const CallFunctionImmediate<validate>& imm,
                   const Value args[], Value returns[]) {
-    if (imm.sig->return_count() > 1) {
-      return unsupported(decoder, kMultiValue, "multi-return");
-    }
-    if (imm.sig->return_count() == 1 &&
-        !CheckSupportedType(decoder, kSupportedTypes, imm.sig->GetReturn(0),
-                            "return")) {
-      return;
+    for (ValueType ret : imm.sig->returns()) {
+      if (!CheckSupportedType(decoder, kSupportedTypes, ret, "return")) {
+        return;
+      }
     }
 
     auto call_descriptor =

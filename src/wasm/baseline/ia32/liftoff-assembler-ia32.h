@@ -23,12 +23,14 @@ namespace liftoff {
 // ebp-4 holds the stack marker, ebp-8 is the instance parameter.
 constexpr int kInstanceOffset = 8;
 
-inline Operand GetStackSlot(int offset) { return Operand(ebp, -offset); }
+inline Operand GetStackSlot(int offset) {
+  return Operand(offset > 0 ? ebp : esp, -offset);
+}
 
 inline MemOperand GetHalfStackSlot(int offset, RegPairHalf half) {
   int32_t half_offset =
       half == kLowWord ? 0 : LiftoffAssembler::kStackSlotSize / 2;
-  return Operand(ebp, -offset + half_offset);
+  return Operand(offset > 0 ? ebp : esp, -offset + half_offset);
 }
 
 // TODO(clemensb): Make this a constexpr variable once Operand is constexpr.

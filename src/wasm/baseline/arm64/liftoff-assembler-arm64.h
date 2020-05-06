@@ -41,7 +41,9 @@ namespace liftoff {
 
 constexpr int kInstanceOffset = 2 * kSystemPointerSize;
 
-inline MemOperand GetStackSlot(int offset) { return MemOperand(fp, -offset); }
+inline MemOperand GetStackSlot(int offset) {
+  return MemOperand(offset > 0 ? fp : sp, -offset);
+}
 
 inline MemOperand GetInstanceOperand() { return GetStackSlot(kInstanceOffset); }
 

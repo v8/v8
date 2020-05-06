@@ -36,7 +36,9 @@ static_assert((kLiftoffAssemblerFpCacheRegs &
 // rbp-8 holds the stack marker, rbp-16 is the instance parameter.
 constexpr int kInstanceOffset = 16;
 
-inline Operand GetStackSlot(int offset) { return Operand(rbp, -offset); }
+inline Operand GetStackSlot(int offset) {
+  return Operand(offset > 0 ? rbp : rsp, -offset);
+}
 
 // TODO(clemensb): Make this a constexpr variable once Operand is constexpr.
 inline Operand GetInstanceOperand() { return GetStackSlot(kInstanceOffset); }
