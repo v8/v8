@@ -956,17 +956,10 @@
   'regress/regress-356053': [SKIP],
   'regress/regress-embedded-cons-string': [SKIP],
 
-  # Relies on async compilation which requires background tasks.
-  'wasm/streaming-error-position': [SKIP],
-
   # Intentionally non-deterministic using shared arraybuffers.
   'wasm/atomics-stress': [SKIP],
   'wasm/atomics64-stress': [SKIP],
   'wasm/futex': [SKIP],
-
-  # Deadlocks on predictable platform (https://crbug.com/v8/9760).
-  'wasm/async-compile': [SKIP],
-  'wasm/streaming-compile': [SKIP],
 }],  # 'predictable == True'
 
 ##############################################################################

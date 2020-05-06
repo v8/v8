@@ -1035,9 +1035,7 @@ bool ExecuteJSToWasmWrapperCompilationUnits(
   return true;
 }
 
-bool NeedsDeterministicCompile() {
-  return FLAG_trace_wasm_decoder || FLAG_wasm_num_compilation_tasks <= 1;
-}
+bool NeedsDeterministicCompile() { return FLAG_single_threaded; }
 
 // Run by the main thread and background tasks to take part in compilation.
 // Returns whether any units were executed.
@@ -1368,15 +1366,11 @@ void CompileNativeModule(Isolate* isolate, ErrorThrower* thrower,
   // are part of initial compilation). Otherwise, just execute baseline units.
   bool is_tiering = compilation_state->compile_mode() == CompileMode::kTiering;
   auto baseline_only = is_tiering ? kBaselineOnly : kBaselineOrTopTier;
-  // The main threads contributes to the compilation, except if we need
-  // deterministic compilation; in that case, the single background task will
-  // execute all compilation.
-  if (!NeedsDeterministicCompile()) {
-    while (ExecuteCompilationUnits(
-        compilation_state->background_compile_token(), isolate->counters(),
-        kMainThreadTaskId, baseline_only)) {
-      // Continue executing compilation units.
-    }
+  // The main threads contributes to the compilation.
+  while (ExecuteCompilationUnits(compilation_state->background_compile_token(),
+                                 isolate->counters(), kMainThreadTaskId,
+                                 baseline_only)) {
+    // Continue executing compilation units.
   }
 
   // Now wait until baseline compilation finished.
@@ -1486,15 +1480,11 @@ void RecompileNativeModule(Isolate* isolate, NativeModule* native_module,
 
   // We only wait for tier down. Tier up can happen in the background.
   if (tiering_state == kTieredDown) {
-    // The main thread contributes to the compilation, except if we need
-    // deterministic compilation; in that case, the single background task will
-    // execute all compilation.
-    if (!NeedsDeterministicCompile()) {
-      while (ExecuteCompilationUnits(
-          compilation_state->background_compile_token(), isolate->counters(),
-          kMainThreadTaskId, kBaselineOnly)) {
-        // Continue executing compilation units.
-      }
+    // The main thread contributes to the compilation.
+    while (ExecuteCompilationUnits(
+        compilation_state->background_compile_token(), isolate->counters(),
+        kMainThreadTaskId, kBaselineOnly)) {
+      // Continue executing compilation units.
     }
 
     // Now wait until baseline recompilation finished.

@@ -3125,6 +3125,17 @@ bool ProcessMessages(
     while (v8::platform::PumpMessageLoop(g_default_platform, isolate,
                                          behavior())) {
       MicrotasksScope::PerformCheckpoint(isolate);
+
+      if (i::FLAG_verify_predictable) {
+        // In predictable mode we push all background tasks into the foreground
+        // task queue of the {kProcessGlobalPredictablePlatformWorkerTaskQueue}
+        // isolate. We execute the tasks after one foreground task has been
+        // executed.
+        while (v8::platform::PumpMessageLoop(
+            g_default_platform,
+            kProcessGlobalPredictablePlatformWorkerTaskQueue, behavior())) {
+        }
+      }
     }
     if (g_default_platform->IdleTasksEnabled(isolate)) {
       v8::platform::RunIdleTasks(g_default_platform, isolate,
