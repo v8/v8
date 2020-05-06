@@ -2062,6 +2062,34 @@ I_TYPE Simulator::RoundF2IHelper(F_TYPE original, int rmode) {
   return static_cast<I_TYPE>(rounded);
 }
 
+#define BIT(n) (0x1LL << n)
+#define QUIET_BIT_S(nan) (bit_cast<int32_t>(nan) & BIT(22))
+#define QUIET_BIT_D(nan) (bit_cast<int64_t>(nan) & BIT(51))
+static inline bool isSnan(float fp) { return !QUIET_BIT_S(fp); }
+static inline bool isSnan(double fp) { return !QUIET_BIT_D(fp); }
+#undef QUIET_BIT_S
+#undef QUIET_BIT_D
+
+template <typename T>
+static int64_t FclassHelper(T value) {
+  switch (std::fpclassify(value)) {
+    case FP_INFINITE:
+      return (std::signbit(value) ? kNegativeInfinity : kPositiveInfinity);
+    case FP_NAN:
+      return (isSnan(value) ? kSignalingNaN : kQuietNaN);
+    case FP_NORMAL:
+      return (std::signbit(value) ? kNegativeNormalNumber
+                                  : kPositiveNormalNumber);
+    case FP_SUBNORMAL:
+      return (std::signbit(value) ? kNegativeSubnormalNumber
+                                  : kPositiveSubnormalNumber);
+    case FP_ZERO:
+      return (std::signbit(value) ? kNegativeZero : kPositiveZero);
+    default:
+      UNREACHABLE();
+  }
+}
+
 template <typename T>
 bool Simulator::CompareFHelper(T input1, T input2, FPUCondition cc) {
   DCHECK(std::is_floating_point<T>::value);
@@ -2365,8 +2393,7 @@ void Simulator::DecodeRVRFPType() {
           break;
         }
         case 0b001: {  // RO_FCLASS_S
-          printf("Sim: fclass.s yet to be supported\n");
-          UNSUPPORTED();
+          set_rd(FclassHelper(frs1()));
           break;
         }
         default: {
@@ -2557,8 +2584,7 @@ void Simulator::DecodeRVRFPType() {
       }
       switch (instr_.Funct3Value()) {
         case 0b001: {  // RO_FCLASS_D
-          printf("Sim: fclass.d not yet supported\n");
-          UNSUPPORTED();
+          set_rd(FclassHelper(drs1()));
           break;
         }
 #ifdef V8_TARGET_ARCH_64_BIT
