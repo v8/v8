@@ -35,19 +35,23 @@ namespace internal {
   V(BigIntToI32Pair)                  \
   V(BigIntToI64)                      \
   V(BinaryOp)                         \
+  V(BinaryOp_WithFeedback)            \
   V(CallForwardVarargs)               \
   V(CallFunctionTemplate)             \
   V(CallTrampoline)                   \
+  V(CallTrampoline_WithFeedback)      \
   V(CallVarargs)                      \
   V(CallWithArrayLike)                \
   V(CallWithSpread)                   \
   V(CEntry1ArgvOnStack)               \
   V(CloneObjectWithVector)            \
   V(Compare)                          \
+  V(Compare_WithFeedback)             \
   V(ConstructForwardVarargs)          \
   V(ConstructStub)                    \
   V(ConstructVarargs)                 \
   V(ConstructWithArrayLike)           \
+  V(Construct_WithFeedback)           \
   V(ConstructWithSpread)              \
   V(ContextOnly)                      \
   V(CppBuiltinAdaptor)                \
@@ -89,6 +93,7 @@ namespace internal {
   V(TypeConversion)                   \
   V(TypeConversionStackParameter)     \
   V(Typeof)                           \
+  V(UnaryOp_WithFeedback)             \
   V(Void)                             \
   V(WasmAtomicNotify)                 \
   V(WasmFloat32ToNumber)              \
@@ -1503,6 +1508,57 @@ class CloneObjectWithVectorDescriptor final : public CallInterfaceDescriptor {
                                     MachineType::TaggedSigned(),   // kSlot
                                     MachineType::AnyTagged())      // kVector
   DECLARE_DESCRIPTOR(CloneObjectWithVectorDescriptor, CallInterfaceDescriptor)
+};
+
+class BinaryOp_WithFeedbackDescriptor : public CallInterfaceDescriptor {
+ public:
+  DEFINE_PARAMETERS(kLeft, kRight, kSlot, kMaybeFeedbackVector)
+  DEFINE_PARAMETER_TYPES(MachineType::AnyTagged(),  // kLeft
+                         MachineType::AnyTagged(),  // kRight
+                         MachineType::Int32(),      // kSlot
+                         MachineType::AnyTagged())  // kMaybeFeedbackVector
+  DECLARE_DESCRIPTOR(BinaryOp_WithFeedbackDescriptor, CallInterfaceDescriptor)
+};
+
+class CallTrampoline_WithFeedbackDescriptor : public CallInterfaceDescriptor {
+ public:
+  DEFINE_PARAMETERS_VARARGS(kFunction, kActualArgumentsCount, kSlot,
+                            kMaybeFeedbackVector)
+  DEFINE_PARAMETER_TYPES(MachineType::AnyTagged(),  // kFunction
+                         MachineType::Int32(),      // kActualArgumentsCount
+                         MachineType::Int32(),      // kSlot
+                         MachineType::AnyTagged())  // kMaybeFeedbackVector
+  DECLARE_DESCRIPTOR(CallTrampoline_WithFeedbackDescriptor,
+                     CallInterfaceDescriptor)
+};
+
+class Compare_WithFeedbackDescriptor : public CallInterfaceDescriptor {
+ public:
+  DEFINE_PARAMETERS(kLeft, kRight, kSlot, kMaybeFeedbackVector)
+  DEFINE_PARAMETER_TYPES(MachineType::AnyTagged(),  // kLeft
+                         MachineType::AnyTagged(),  // kRight
+                         MachineType::Int32(),      // kSlot
+                         MachineType::AnyTagged())  // kMaybeFeedbackVector
+  DECLARE_DESCRIPTOR(Compare_WithFeedbackDescriptor, CallInterfaceDescriptor)
+};
+
+class Construct_WithFeedbackDescriptor : public CallInterfaceDescriptor {
+ public:
+  // kSlot is passed in a register, kMaybeFeedbackVector on the stack.
+  DEFINE_JS_PARAMETERS(kSlot, kMaybeFeedbackVector)
+  DEFINE_JS_PARAMETER_TYPES(MachineType::Int32(),      // kSlot
+                            MachineType::AnyTagged())  // kMaybeFeedbackVector
+  DECLARE_JS_COMPATIBLE_DESCRIPTOR(Construct_WithFeedbackDescriptor,
+                                   CallInterfaceDescriptor, 1)
+};
+
+class UnaryOp_WithFeedbackDescriptor : public CallInterfaceDescriptor {
+ public:
+  DEFINE_PARAMETERS(kValue, kSlot, kMaybeFeedbackVector)
+  DEFINE_PARAMETER_TYPES(MachineType::AnyTagged(),  // kValue
+                         MachineType::Int32(),      // kSlot
+                         MachineType::AnyTagged())  // kMaybeFeedbackVector
+  DECLARE_DESCRIPTOR(UnaryOp_WithFeedbackDescriptor, CallInterfaceDescriptor)
 };
 
 #define DEFINE_TFS_BUILTIN_DESCRIPTOR(Name, ...)                          \
