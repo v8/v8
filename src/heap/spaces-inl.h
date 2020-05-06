@@ -335,8 +335,9 @@ AllocationResult LocalAllocationBuffer::AllocateRawAligned(
 
   allocation_info_.set_top(new_top);
   if (filler_size > 0) {
-    return heap_->PrecedeWithFiller(HeapObject::FromAddress(current_top),
-                                    filler_size);
+    return Heap::PrecedeWithFiller(ReadOnlyRoots(heap_),
+                                   HeapObject::FromAddress(current_top),
+                                   filler_size);
   }
 
   return AllocationResult(HeapObject::FromAddress(current_top));
@@ -369,8 +370,9 @@ HeapObject PagedSpace::TryAllocateLinearlyAligned(
   allocation_info_.set_top(new_top);
   if (filler_size > 0) {
     *size_in_bytes += filler_size;
-    return heap()->PrecedeWithFiller(HeapObject::FromAddress(current_top),
-                                     filler_size);
+    return Heap::PrecedeWithFiller(ReadOnlyRoots(heap()),
+                                   HeapObject::FromAddress(current_top),
+                                   filler_size);
   }
 
   return HeapObject::FromAddress(current_top);
@@ -484,7 +486,7 @@ AllocationResult NewSpace::AllocateRawAligned(int size_in_bytes,
   DCHECK_SEMISPACE_ALLOCATION_INFO(allocation_info_, to_space_);
 
   if (filler_size > 0) {
-    obj = heap()->PrecedeWithFiller(obj, filler_size);
+    obj = Heap::PrecedeWithFiller(ReadOnlyRoots(heap()), obj, filler_size);
   }
 
   MSAN_ALLOCATED_UNINITIALIZED_MEMORY(obj.address(), size_in_bytes);

@@ -2848,7 +2848,7 @@ int Heap::GetMaximumFillToAlign(AllocationAlignment alignment) {
   return 0;
 }
 
-
+// static
 int Heap::GetFillToAlign(Address address, AllocationAlignment alignment) {
   if (alignment == kDoubleAligned && (address & kDoubleAlignmentMask) != 0)
     return kTaggedSize;
@@ -2861,24 +2861,28 @@ size_t Heap::GetCodeRangeReservedAreaSize() {
   return kReservedCodeRangePages * MemoryAllocator::GetCommitPageSize();
 }
 
-HeapObject Heap::PrecedeWithFiller(HeapObject object, int filler_size) {
-  CreateFillerObjectAt(object.address(), filler_size, ClearRecordedSlots::kNo);
+// static
+HeapObject Heap::PrecedeWithFiller(ReadOnlyRoots roots, HeapObject object,
+                                   int filler_size) {
+  CreateFillerObjectAt(roots, object.address(), filler_size,
+                       ClearFreedMemoryMode::kDontClearFreedMemory);
   return HeapObject::FromAddress(object.address() + filler_size);
 }
 
-HeapObject Heap::AlignWithFiller(HeapObject object, int object_size,
-                                 int allocation_size,
+// static
+HeapObject Heap::AlignWithFiller(ReadOnlyRoots roots, HeapObject object,
+                                 int object_size, int allocation_size,
                                  AllocationAlignment alignment) {
   int filler_size = allocation_size - object_size;
   DCHECK_LT(0, filler_size);
   int pre_filler = GetFillToAlign(object.address(), alignment);
   if (pre_filler) {
-    object = PrecedeWithFiller(object, pre_filler);
+    object = PrecedeWithFiller(roots, object, pre_filler);
     filler_size -= pre_filler;
   }
   if (filler_size) {
-    CreateFillerObjectAt(object.address() + object_size, filler_size,
-                         ClearRecordedSlots::kNo);
+    CreateFillerObjectAt(roots, object.address() + object_size, filler_size,
+                         ClearFreedMemoryMode::kDontClearFreedMemory);
   }
   return object;
 }
