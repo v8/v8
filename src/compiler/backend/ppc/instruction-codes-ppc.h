@@ -190,6 +190,9 @@ namespace compiler {
   V(PPC_AtomicXorInt16)              \
   V(PPC_AtomicXorInt32)              \
   V(PPC_AtomicXorInt64)              \
+  V(PPC_F64x2Splat)                  \
+  V(PPC_F32x4Splat)                  \
+  V(PPC_I64x2Splat)                  \
   V(PPC_I32x4Splat)                  \
   V(PPC_I16x8Splat)                  \
   V(PPC_I8x16Splat)

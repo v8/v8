@@ -2101,6 +2101,8 @@ void InstructionSelector::VisitInt64AbsWithOverflow(Node* node) {
 }
 
 #define SIMD_TYPES(V) \
+  V(F64x2)            \
+  V(F32x4)            \
   V(I32x4)            \
   V(I16x8)            \
   V(I8x16)
@@ -2288,8 +2290,6 @@ void InstructionSelector::VisitF32x4Lt(Node* node) { UNIMPLEMENTED(); }
 
 void InstructionSelector::VisitF32x4Le(Node* node) { UNIMPLEMENTED(); }
 
-void InstructionSelector::VisitF32x4Splat(Node* node) { UNIMPLEMENTED(); }
-
 void InstructionSelector::VisitF32x4ReplaceLane(Node* node) { UNIMPLEMENTED(); }
 
 void InstructionSelector::EmitPrepareResults(
@@ -2431,8 +2431,6 @@ void InstructionSelector::VisitI8x16Mul(Node* node) { UNIMPLEMENTED(); }
 void InstructionSelector::VisitS8x16Shuffle(Node* node) { UNIMPLEMENTED(); }
 
 void InstructionSelector::VisitS8x16Swizzle(Node* node) { UNIMPLEMENTED(); }
-
-void InstructionSelector::VisitF64x2Splat(Node* node) { UNIMPLEMENTED(); }
 
 void InstructionSelector::VisitF64x2ReplaceLane(Node* node) { UNIMPLEMENTED(); }
 

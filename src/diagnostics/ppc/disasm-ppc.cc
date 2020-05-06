@@ -360,15 +360,23 @@ void Decoder::UnknownFormat(Instruction* instr, const char* name) {
 void Decoder::DecodeExt0(Instruction* instr) {
   switch (EXT0 | (instr->BitField(10, 0))) {
     case VSPLTB: {
-      Format(instr, "vspltb   'Dt, 'Db, 'UIM");
+      Format(instr, "vspltb  'Dt, 'Db, 'UIM");
       break;
     }
     case VSPLTW: {
-      Format(instr, "vspltw   'Dt, 'Db, 'UIM");
+      Format(instr, "vspltw  'Dt, 'Db, 'UIM");
       break;
     }
     case VSPLTH: {
-      Format(instr, "vsplth   'Dt, 'Db, 'UIM");
+      Format(instr, "vsplth  'Dt, 'Db, 'UIM");
+      break;
+    }
+    case VSRO: {
+      Format(instr, "vsro    'Dt, 'Da, 'Db");
+      break;
+    }
+    case VOR: {
+      Format(instr, "vor     'Dt, 'Da, 'Db");
       break;
     }
   }

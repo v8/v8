@@ -936,6 +936,10 @@ class Assembler : public AssemblerBase {
 
   // Vector instructions
   void mtvsrd(const DoubleRegister rt, const Register ra);
+  void vor(const DoubleRegister rt, const DoubleRegister ra,
+           const DoubleRegister rb);
+  void vsro(const DoubleRegister rt, const DoubleRegister ra,
+            const DoubleRegister rb);
 
   // Pseudo instructions
 

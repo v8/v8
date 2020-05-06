@@ -1763,6 +1763,16 @@ void Assembler::mtvsrd(const DoubleRegister rt, const Register ra) {
   emit(MTVSRD | rt.code() * B21 | ra.code() * B16 | TX);
 }
 
+void Assembler::vor(const DoubleRegister rt, const DoubleRegister ra,
+                    const DoubleRegister rb) {
+  emit(VOR | rt.code() * B21 | ra.code() * B16 | rb.code() * B11);
+}
+
+void Assembler::vsro(const DoubleRegister rt, const DoubleRegister ra,
+                     const DoubleRegister rb) {
+  emit(VSRO | rt.code() * B21 | ra.code() * B16 | rb.code() * B11);
+}
+
 // Pseudo instructions.
 void Assembler::nop(int type) {
   Register reg = r0;

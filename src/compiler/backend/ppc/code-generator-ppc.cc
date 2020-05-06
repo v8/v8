@@ -2145,6 +2145,43 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       break;
     }
 #endif  // V8_TARGET_ARCH_PPC64
+    case kPPC_F64x2Splat: {
+      Simd128Register dst = i.OutputSimd128Register();
+      constexpr int shift_bits = 64;
+      __ MovDoubleToInt64(r0, i.InputDoubleRegister(0));
+      __ mtvsrd(dst, r0);
+      // right shift
+      __ li(ip, Operand(shift_bits));
+      __ mtvsrd(kScratchDoubleReg, ip);
+      __ vspltb(kScratchDoubleReg, kScratchDoubleReg, Operand(7));
+      __ vsro(dst, dst, kScratchDoubleReg);
+      // reload
+      __ mtvsrd(kScratchDoubleReg, r0);
+      __ vor(dst, dst, kScratchDoubleReg);
+      break;
+    }
+    case kPPC_F32x4Splat: {
+      Simd128Register dst = i.OutputSimd128Register();
+      __ MovFloatToInt(kScratchReg, i.InputDoubleRegister(0));
+      __ mtvsrd(dst, kScratchReg);
+      __ vspltw(dst, dst, Operand(1));
+      break;
+    }
+    case kPPC_I64x2Splat: {
+      Register src = i.InputRegister(0);
+      Simd128Register dst = i.OutputSimd128Register();
+      constexpr int shift_bits = 64;
+      __ mtvsrd(dst, src);
+      // right shift
+      __ li(ip, Operand(shift_bits));
+      __ mtvsrd(kScratchDoubleReg, ip);
+      __ vspltb(kScratchDoubleReg, kScratchDoubleReg, Operand(7));
+      __ vsro(dst, dst, kScratchDoubleReg);
+      // reload
+      __ mtvsrd(kScratchDoubleReg, src);
+      __ vor(dst, dst, kScratchDoubleReg);
+      break;
+    }
     case kPPC_I32x4Splat: {
       Simd128Register dst = i.OutputSimd128Register();
       __ mtvsrd(dst, i.InputRegister(0));
