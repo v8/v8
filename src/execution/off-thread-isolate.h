@@ -5,7 +5,7 @@
 #ifndef V8_EXECUTION_OFF_THREAD_ISOLATE_H_
 #define V8_EXECUTION_OFF_THREAD_ISOLATE_H_
 
-#include "src/base/logging.h"
+#include "src/base/macros.h"
 #include "src/execution/thread-id.h"
 #include "src/handles/handles.h"
 #include "src/handles/maybe-handles.h"
@@ -79,6 +79,8 @@ class V8_EXPORT_PRIVATE OffThreadIsolate final
   ~OffThreadIsolate();
 
   OffThreadHeap* heap() { return &heap_; }
+
+  inline Address isolate_root() const;
 
   v8::internal::OffThreadFactory* factory() {
     // Upcast to the privately inherited base-class using c-style casts to avoid
