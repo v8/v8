@@ -408,87 +408,6 @@ bool ExpectFused(ExecutionTier tier) {
                                     lane_index, WASM_GET_LOCAL(value))),       \
           WASM_RETURN1(WASM_ZERO))
 
-#define TO_BYTE(val) static_cast<byte>(val)
-// TODO(v8:10258): Still need this for shuffle test
-#define WASM_SIMD_OP_BYTE(op) kSimdPrefix, TO_BYTE(op)
-// Encode all simd ops as a 2-byte LEB.
-#define WASM_SIMD_OP(op) kSimdPrefix, U32V_2(op & 0xff)
-#define WASM_SIMD_SPLAT(Type, ...) __VA_ARGS__, WASM_SIMD_OP(kExpr##Type##Splat)
-#define WASM_SIMD_UNOP(op, x) x, WASM_SIMD_OP(op)
-#define WASM_SIMD_BINOP(op, x, y) x, y, WASM_SIMD_OP(op)
-#define WASM_SIMD_SHIFT_OP(op, x, y) x, y, WASM_SIMD_OP(op)
-#define WASM_SIMD_CONCAT_OP(op, bytes, x, y) \
-  x, y, WASM_SIMD_OP(op), TO_BYTE(bytes)
-#define WASM_SIMD_SELECT(format, x, y, z) x, y, z, WASM_SIMD_OP(kExprS128Select)
-
-#define WASM_SIMD_F64x2_SPLAT(x) WASM_SIMD_SPLAT(F64x2, x)
-#define WASM_SIMD_F64x2_EXTRACT_LANE(lane, x) \
-  x, WASM_SIMD_OP(kExprF64x2ExtractLane), TO_BYTE(lane)
-#define WASM_SIMD_F64x2_REPLACE_LANE(lane, x, y) \
-  x, y, WASM_SIMD_OP(kExprF64x2ReplaceLane), TO_BYTE(lane)
-
-#define WASM_SIMD_F32x4_SPLAT(x) WASM_SIMD_SPLAT(F32x4, x)
-#define WASM_SIMD_F32x4_EXTRACT_LANE(lane, x) \
-  x, WASM_SIMD_OP(kExprF32x4ExtractLane), TO_BYTE(lane)
-#define WASM_SIMD_F32x4_REPLACE_LANE(lane, x, y) \
-  x, y, WASM_SIMD_OP(kExprF32x4ReplaceLane), TO_BYTE(lane)
-
-#define WASM_SIMD_I64x2_SPLAT(x) WASM_SIMD_SPLAT(I64x2, x)
-#define WASM_SIMD_I64x2_EXTRACT_LANE(lane, x) \
-  x, WASM_SIMD_OP(kExprI64x2ExtractLane), TO_BYTE(lane)
-#define WASM_SIMD_I64x2_REPLACE_LANE(lane, x, y) \
-  x, y, WASM_SIMD_OP(kExprI64x2ReplaceLane), TO_BYTE(lane)
-
-#define WASM_SIMD_I32x4_SPLAT(x) WASM_SIMD_SPLAT(I32x4, x)
-#define WASM_SIMD_I32x4_EXTRACT_LANE(lane, x) \
-  x, WASM_SIMD_OP(kExprI32x4ExtractLane), TO_BYTE(lane)
-#define WASM_SIMD_I32x4_REPLACE_LANE(lane, x, y) \
-  x, y, WASM_SIMD_OP(kExprI32x4ReplaceLane), TO_BYTE(lane)
-
-#define WASM_SIMD_I16x8_SPLAT(x) WASM_SIMD_SPLAT(I16x8, x)
-#define WASM_SIMD_I16x8_EXTRACT_LANE(lane, x) \
-  x, WASM_SIMD_OP(kExprI16x8ExtractLaneS), TO_BYTE(lane)
-#define WASM_SIMD_I16x8_EXTRACT_LANE_U(lane, x) \
-  x, WASM_SIMD_OP(kExprI16x8ExtractLaneU), TO_BYTE(lane)
-#define WASM_SIMD_I16x8_REPLACE_LANE(lane, x, y) \
-  x, y, WASM_SIMD_OP(kExprI16x8ReplaceLane), TO_BYTE(lane)
-
-#define WASM_SIMD_I8x16_SPLAT(x) WASM_SIMD_SPLAT(I8x16, x)
-#define WASM_SIMD_I8x16_EXTRACT_LANE(lane, x) \
-  x, WASM_SIMD_OP(kExprI8x16ExtractLaneS), TO_BYTE(lane)
-#define WASM_SIMD_I8x16_EXTRACT_LANE_U(lane, x) \
-  x, WASM_SIMD_OP(kExprI8x16ExtractLaneU), TO_BYTE(lane)
-#define WASM_SIMD_I8x16_REPLACE_LANE(lane, x, y) \
-  x, y, WASM_SIMD_OP(kExprI8x16ReplaceLane), TO_BYTE(lane)
-
-#define WASM_SIMD_S8x16_SHUFFLE_OP(opcode, m, x, y)                        \
-  x, y, WASM_SIMD_OP(opcode), TO_BYTE(m[0]), TO_BYTE(m[1]), TO_BYTE(m[2]), \
-      TO_BYTE(m[3]), TO_BYTE(m[4]), TO_BYTE(m[5]), TO_BYTE(m[6]),          \
-      TO_BYTE(m[7]), TO_BYTE(m[8]), TO_BYTE(m[9]), TO_BYTE(m[10]),         \
-      TO_BYTE(m[11]), TO_BYTE(m[12]), TO_BYTE(m[13]), TO_BYTE(m[14]),      \
-      TO_BYTE(m[15])
-
-#define WASM_SIMD_LOAD_MEM(index) \
-  index, WASM_SIMD_OP(kExprS128LoadMem), ZERO_ALIGNMENT, ZERO_OFFSET
-#define WASM_SIMD_LOAD_MEM_OFFSET(offset, index) \
-  index, WASM_SIMD_OP(kExprS128LoadMem), ZERO_ALIGNMENT, offset
-#define WASM_SIMD_STORE_MEM(index, val) \
-  index, val, WASM_SIMD_OP(kExprS128StoreMem), ZERO_ALIGNMENT, ZERO_OFFSET
-#define WASM_SIMD_STORE_MEM_OFFSET(offset, index, val) \
-  index, val, WASM_SIMD_OP(kExprS128StoreMem), ZERO_ALIGNMENT, offset
-
-#define WASM_SIMD_F64x2_QFMA(a, b, c) a, b, c, WASM_SIMD_OP(kExprF64x2Qfma)
-#define WASM_SIMD_F64x2_QFMS(a, b, c) a, b, c, WASM_SIMD_OP(kExprF64x2Qfms)
-#define WASM_SIMD_F32x4_QFMA(a, b, c) a, b, c, WASM_SIMD_OP(kExprF32x4Qfma)
-#define WASM_SIMD_F32x4_QFMS(a, b, c) a, b, c, WASM_SIMD_OP(kExprF32x4Qfms)
-
-#define WASM_SIMD_LOAD_SPLAT(opcode, index) \
-  index, WASM_SIMD_OP(opcode), ZERO_ALIGNMENT, ZERO_OFFSET
-#define WASM_SIMD_LOAD_SPLAT_OFFSET(opcode, index, offset) \
-  index, WASM_SIMD_OP(opcode), ZERO_ALIGNMENT, offset
-#define WASM_SIMD_LOAD_EXTEND(opcode, index) \
-  index, WASM_SIMD_OP(opcode), ZERO_ALIGNMENT, ZERO_OFFSET
-
 // Runs tests of compiled code, using the interpreter as a reference.
 #define WASM_SIMD_COMPILED_TEST(name)                              \
   void RunWasm_##name##_Impl(LowerSimd lower_simd,                 \
@@ -2967,7 +2886,7 @@ WASM_SIMD_TEST(S8x16ShuffleFuzz) {
 }
 
 void AppendShuffle(const Shuffle& shuffle, std::vector<byte>* buffer) {
-  byte opcode[] = {WASM_SIMD_OP_BYTE(kExprS8x16Shuffle)};
+  byte opcode[] = {WASM_SIMD_OP(kExprS8x16Shuffle)};
   for (size_t i = 0; i < arraysize(opcode); ++i) buffer->push_back(opcode[i]);
   for (size_t i = 0; i < kSimd128Size; ++i) buffer->push_back((shuffle[i]));
 }
