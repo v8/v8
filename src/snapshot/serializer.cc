@@ -413,7 +413,7 @@ void Serializer::ObjectSerializer::SerializeExternalString() {
   if (serializer_->external_reference_encoder_.TryEncode(resource).To(
           &reference)) {
     DCHECK(reference.is_from_api());
-    string.set_uint32_as_resource(reference.index());
+    string.set_uint32_as_resource(serializer_->isolate(), reference.index());
     SerializeObject();
     string.set_address_as_resource(serializer_->isolate(), resource);
   } else {

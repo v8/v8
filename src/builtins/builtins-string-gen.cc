@@ -20,10 +20,10 @@ namespace internal {
 
 using Node = compiler::Node;
 
-TNode<IntPtrT> StringBuiltinsAssembler::DirectStringData(
+TNode<RawPtrT> StringBuiltinsAssembler::DirectStringData(
     TNode<String> string, TNode<Word32T> string_instance_type) {
   // Compute the effective offset of the first character.
-  TVARIABLE(IntPtrT, var_data);
+  TVARIABLE(RawPtrT, var_data);
   Label if_sequential(this), if_external(this), if_join(this);
   Branch(Word32Equal(Word32And(string_instance_type,
                                Int32Constant(kStringRepresentationMask)),
@@ -32,9 +32,9 @@ TNode<IntPtrT> StringBuiltinsAssembler::DirectStringData(
 
   BIND(&if_sequential);
   {
-    var_data = IntPtrAdd(
-        IntPtrConstant(SeqOneByteString::kHeaderSize - kHeapObjectTag),
-        BitcastTaggedToWord(string));
+    var_data = RawPtrAdd(
+        ReinterpretCast<RawPtrT>(BitcastTaggedToWord(string)),
+        IntPtrConstant(SeqOneByteString::kHeaderSize - kHeapObjectTag));
     Goto(&if_join);
   }
 
@@ -47,7 +47,7 @@ TNode<IntPtrT> StringBuiltinsAssembler::DirectStringData(
                                    Int32Constant(kUncachedExternalStringMask)),
                          Int32Constant(kUncachedExternalStringTag)));
     var_data =
-        LoadObjectField<IntPtrT>(string, ExternalString::kResourceDataOffset);
+        DecodeExternalPointer(LoadExternalStringResourceData(CAST(string)));
     Goto(&if_join);
   }
 
@@ -254,8 +254,8 @@ void StringBuiltinsAssembler::StringEqual_Loop(
   CSA_ASSERT(this, WordEqual(LoadStringLengthAsWord(rhs), length));
 
   // Compute the effective offset of the first character.
-  TNode<IntPtrT> lhs_data = DirectStringData(lhs, lhs_instance_type);
-  TNode<IntPtrT> rhs_data = DirectStringData(rhs, rhs_instance_type);
+  TNode<RawPtrT> lhs_data = DirectStringData(lhs, lhs_instance_type);
+  TNode<RawPtrT> rhs_data = DirectStringData(rhs, rhs_instance_type);
 
   // Loop over the {lhs} and {rhs} strings to see if they are equal.
   TVARIABLE(IntPtrT, var_offset, IntPtrConstant(0));

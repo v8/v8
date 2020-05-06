@@ -691,7 +691,8 @@ FieldAccess AccessBuilder::ForExternalStringResourceData() {
                         ExternalString::kResourceDataOffset,
                         Handle<Name>(),
                         MaybeHandle<Map>(),
-                        Type::ExternalPointer(),
+                        V8_HEAP_SANDBOX_BOOL ? Type::SandboxedExternalPointer()
+                                             : Type::ExternalPointer(),
                         MachineType::Pointer(),
                         kNoWriteBarrier};
   return access;

@@ -6881,12 +6881,13 @@ TNode<RawPtrT> ToDirectStringAssembler::TryToSequential(
   {
     STATIC_ASSERT(SeqOneByteString::kHeaderSize ==
                   SeqTwoByteString::kHeaderSize);
-    TNode<IntPtrT> result = BitcastTaggedToWord(var_string_.value());
+    TNode<RawPtrT> result =
+        ReinterpretCast<RawPtrT>(BitcastTaggedToWord(var_string_.value()));
     if (ptr_kind == PTR_TO_DATA) {
-      result = IntPtrAdd(result, IntPtrConstant(SeqOneByteString::kHeaderSize -
+      result = RawPtrAdd(result, IntPtrConstant(SeqOneByteString::kHeaderSize -
                                                 kHeapObjectTag));
     }
-    var_result = ReinterpretCast<RawPtrT>(result);
+    var_result = result;
     Goto(&out);
   }
 
@@ -6896,13 +6897,13 @@ TNode<RawPtrT> ToDirectStringAssembler::TryToSequential(
            if_bailout);
 
     TNode<String> string = var_string_.value();
-    TNode<IntPtrT> result =
-        LoadObjectField<IntPtrT>(string, ExternalString::kResourceDataOffset);
+    TNode<RawPtrT> result =
+        DecodeExternalPointer(LoadExternalStringResourceData(CAST(string)));
     if (ptr_kind == PTR_TO_STRING) {
-      result = IntPtrSub(result, IntPtrConstant(SeqOneByteString::kHeaderSize -
+      result = RawPtrSub(result, IntPtrConstant(SeqOneByteString::kHeaderSize -
                                                 kHeapObjectTag));
     }
-    var_result = ReinterpretCast<RawPtrT>(result);
+    var_result = result;
     Goto(&out);
   }
 

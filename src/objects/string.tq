@@ -20,7 +20,7 @@ extern class ConsString extends String {
 @generateBodyDescriptor
 extern class ExternalString extends String {
   resource: ExternalPointer;
-  resource_data: RawPtr;
+  resource_data: ExternalPointer;
 }
 
 extern class ExternalOneByteString extends ExternalString {}

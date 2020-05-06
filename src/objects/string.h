@@ -719,7 +719,7 @@ class ExternalString : public String {
   DECL_GETTER(resource_as_address, Address)
   inline void set_address_as_resource(Isolate* isolate, Address address);
   inline uint32_t resource_as_uint32();
-  inline void set_uint32_as_resource(uint32_t value);
+  inline void set_uint32_as_resource(Isolate* isolate, uint32_t value);
 
   // Disposes string's resource object if it has not already been disposed.
   inline void DisposeResource(Isolate* isolate);
@@ -751,7 +751,7 @@ class ExternalOneByteString : public ExternalString {
   // The cached pointer is always valid, as the external character array does =
   // not move during lifetime.  Deserialization is the only exception, after
   // which the pointer cache has to be refreshed.
-  inline void update_data_cache();
+  inline void update_data_cache(Isolate* isolate);
 
   inline const uint8_t* GetChars();
 
@@ -792,7 +792,7 @@ class ExternalTwoByteString : public ExternalString {
   // The cached pointer is always valid, as the external character array does =
   // not move during lifetime.  Deserialization is the only exception, after
   // which the pointer cache has to be refreshed.
-  inline void update_data_cache();
+  inline void update_data_cache(Isolate* isolate);
 
   inline const uint16_t* GetChars();
 
