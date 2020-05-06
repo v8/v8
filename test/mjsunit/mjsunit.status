@@ -1202,10 +1202,6 @@
   # Crashes the serializer due to recursion.
   'deep-recursion': [SKIP],
   'string-replace-gc': [SKIP],
-  # Check failed: !field_type.NowStable() || field_type.NowContains(value).
-  'eval': [SKIP],
-  'regress/regress-737588': [SKIP],
-  'regress/regress-crbug-716520': [SKIP],
   # Debug check failed:
   # map == GetReadOnlyRoots(isolate).fixed_array_map() || map == GetReadOnlyRoots(isolate).fixed_cow_array_map().
   # This means a mismatch of elements kinds / elements on the global object.
@@ -1226,13 +1222,6 @@
   'regress/regress-crbug-454091': [SKIP],
   'regress/regress-crbug-663750': [SKIP],
   'regress/regress-freeze-setter': [SKIP],
-  # TODO(v8:10495): Serialization now clears feedback vectors of the host
-  # isolate, but then execution cannot continue.
-  'compiler/regress-1028208': [SKIP],
-  'compiler/regress-1037771': [SKIP],
-  'es6/promises': [SKIP],
-  'serialize-deserialize-now': [SKIP],
-  'string-case': [SKIP],
   # TODO(v8:10494): asm Code objects can't be flushed and end up in the isolate
   # serializer.
   'asm/*': [SKIP],
@@ -1244,6 +1233,7 @@
   'regress/regress-7893': [SKIP],
   'regress/regress-799690': [SKIP],
   'regress/regress-8377': [SKIP],
+  'regress/regress-crbug-1047368': [SKIP],
   'regress/regress-crbug-898974': [SKIP],
   'regress/regress-crbug-935800': [SKIP],
   'regress/regress-crbug-976934': [SKIP],

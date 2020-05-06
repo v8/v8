@@ -85,8 +85,14 @@ void ContextSerializer::Serialize(Context* o,
                                   const DisallowHeapAllocation& no_gc) {
   context_ = *o;
   DCHECK(context_.IsNativeContext());
+
+  // Upon deserialization, references to the global proxy and its map will be
+  // replaced.
   reference_map()->AddAttachedReference(
       reinterpret_cast<void*>(context_.global_proxy().ptr()));
+  reference_map()->AddAttachedReference(
+      reinterpret_cast<void*>(context_.global_proxy().map().ptr()));
+
   // The bootstrap snapshot has a code-stub context. When serializing the
   // context snapshot, it is chained into the weak context list on the isolate
   // and it's next context pointer may point to the code-stub context.  Clear

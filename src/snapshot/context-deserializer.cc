@@ -35,7 +35,10 @@ MaybeHandle<Object> ContextDeserializer::Deserialize(
     V8::FatalProcessOutOfMemory(isolate, "ContextDeserializer");
   }
 
+  // Replace serialized references to the global proxy and its map with the
+  // given global proxy and its map.
   AddAttachedObject(global_proxy);
+  AddAttachedObject(handle(global_proxy->map(), isolate));
 
   Handle<Object> result;
   {
