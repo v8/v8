@@ -1833,6 +1833,9 @@ Node** SimdScalarLowering::GetReplacementsWithType(Node* node, SimdType type) {
       Int32ToFloat32(replacements, result);
     } else if (ReplacementType(node) == SimdType::kInt16x8) {
       UNIMPLEMENTED();
+    } else if (ReplacementType(node) == SimdType::kInt8x16) {
+      SmallerIntToInt32<int8_t>(replacements, result);
+      Int32ToFloat32(result, result);
     } else {
       UNREACHABLE();
     }
