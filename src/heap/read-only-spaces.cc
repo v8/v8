@@ -153,13 +153,7 @@ void ReadOnlySpace::Seal(SealMode ro_mode) {
       memory_allocator->UnregisterMemory(p);
       static_cast<ReadOnlyPage*>(p)->MakeHeaderRelocatable();
     }
-  } else {
-    for (Page* p : *this) {
-      p->ReleaseAllocatedMemoryNeededForWritableChunk();
-    }
   }
-
-  free_list_.reset();
 
   SetPermissionsForPages(memory_allocator, PageAllocator::kRead);
 }

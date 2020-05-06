@@ -1248,14 +1248,14 @@ void MemoryChunk::ReleaseAllocatedMemoryNeededForWritableChunk() {
 
   if (local_tracker_ != nullptr) ReleaseLocalTracker();
   if (young_generation_bitmap_ != nullptr) ReleaseYoungGenerationBitmap();
+}
 
+void MemoryChunk::ReleaseAllAllocatedMemory() {
   if (!IsLargePage()) {
     Page* page = static_cast<Page*>(this);
     page->ReleaseFreeListCategories();
   }
-}
 
-void MemoryChunk::ReleaseAllAllocatedMemory() {
   ReleaseAllocatedMemoryNeededForWritableChunk();
   if (marking_bitmap_ != nullptr) ReleaseMarkingBitmap();
 }
