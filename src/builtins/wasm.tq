@@ -63,17 +63,14 @@ namespace wasm {
             TaggedToHeapObject<HeapObject>(entry) otherwise ReturnEntry;
         if (IsTuple2Map(entryObject.map)) goto CallRuntime;
         goto ReturnEntry;
-      }
-      label ReturnEntry {
+      } label ReturnEntry {
         return entry;
       }
-    }
-    label CallRuntime deferred {
+    } label CallRuntime deferred {
       tail runtime::WasmFunctionTableGet(
           LoadContextFromInstance(instance), instance,
           SmiFromIntPtr(tableIndex), SmiFromIntPtr(entryIndex));
-    }
-    label IndexOutOfRange deferred {
+    } label IndexOutOfRange deferred {
       tail runtime::ThrowWasmError(
           LoadContextFromInstance(instance),
           SmiConstant(MessageTemplate::kWasmTrapTableOutOfBounds));
@@ -103,13 +100,11 @@ namespace wasm {
       const entries: FixedArray = table.entries;
       StoreFixedArrayElement(entries, entryIndex, value);
       return Undefined;
-    }
-    label CallRuntime deferred {
+    } label CallRuntime deferred {
       tail runtime::WasmFunctionTableSet(
           LoadContextFromInstance(instance), instance,
           SmiFromIntPtr(tableIndex), SmiFromIntPtr(entryIndex), value);
-    }
-    label IndexOutOfRange deferred {
+    } label IndexOutOfRange deferred {
       tail runtime::ThrowWasmError(
           LoadContextFromInstance(instance),
           SmiConstant(MessageTemplate::kWasmTrapTableOutOfBounds));
@@ -125,8 +120,7 @@ namespace wasm {
       const result: Object = LoadFixedArrayElement(table, functionIndex);
       if (result == Undefined) goto CallRuntime;
       return result;
-    }
-    label CallRuntime deferred {
+    } label CallRuntime deferred {
       tail runtime::WasmRefFunc(
           LoadContextFromInstance(instance), instance, SmiFromUint32(index));
     }

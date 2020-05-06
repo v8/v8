@@ -218,8 +218,7 @@ namespace regexp {
         // b. Return ! CreateIterResultObject(undefined, true).
         goto ReturnEmptyDoneResult;
       }
-    }
-    label ReturnEmptyDoneResult {
+    } label ReturnEmptyDoneResult {
       return AllocateJSIteratorResult(Undefined, True);
     }
   }

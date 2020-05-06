@@ -131,8 +131,7 @@ namespace object {
         }
       }
       return AllocateJSObjectFromMap(map, properties);
-    }
-    label Runtime deferred {
+    } label Runtime deferred {
       return runtime::ObjectCreate(prototype, Undefined);
     }
   }

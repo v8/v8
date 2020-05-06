@@ -97,16 +97,14 @@ namespace typed_array {
       }
 
       return typedArray;
-    }
-    label AllocateOffHeap {
+    } label AllocateOffHeap {
       if constexpr (initialize) {
         goto AttachOffHeapBuffer(Construct(defaultConstructor, byteLengthNum));
       } else {
         goto AttachOffHeapBuffer(Call(
             context, GetArrayBufferNoInitFunction(), Undefined, byteLengthNum));
       }
-    }
-    label AttachOffHeapBuffer(bufferObj: Object) {
+    } label AttachOffHeapBuffer(bufferObj: Object) {
       const buffer = Cast<JSArrayBuffer>(bufferObj) otherwise unreachable;
       const isOnHeap: constexpr bool = false;
       return AllocateTypedArray(
@@ -126,8 +124,7 @@ namespace typed_array {
       return TypedArrayInitialize(
           initialize, map, length, elementsInfo, defaultConstructor)
           otherwise RangeError;
-    }
-    label RangeError deferred {
+    } label RangeError deferred {
       ThrowRangeError(MessageTemplate::kInvalidTypedArrayLength, lengthObj);
     }
   }
@@ -160,16 +157,14 @@ namespace typed_array {
           typed_array::CallCMemcpy(
               typedArray.data_ptr, src.data_ptr, byteLength);
         }
-      }
-      label IfSlow deferred {
+      } label IfSlow deferred {
         if (length > 0) {
           TypedArrayCopyElements(
               context, typedArray, arrayLike, Convert<Number>(length));
         }
       }
       return typedArray;
-    }
-    label RangeError deferred {
+    } label RangeError deferred {
       ThrowRangeError(
           MessageTemplate::kInvalidTypedArrayLength, Convert<Number>(length));
     }
@@ -270,14 +265,11 @@ namespace typed_array {
       const isOnHeap: constexpr bool = false;
       return AllocateTypedArray(
           isOnHeap, map, buffer, offset, newByteLength, newLength);
-    }
-    label IfInvalidAlignment(problemString: String) deferred {
+    } label IfInvalidAlignment(problemString: String) deferred {
       ThrowInvalidTypedArrayAlignment(map, problemString);
-    }
-    label IfInvalidLength deferred {
+    } label IfInvalidLength deferred {
       ThrowRangeError(MessageTemplate::kInvalidTypedArrayLength, length);
-    }
-    label IfInvalidOffset deferred {
+    } label IfInvalidOffset deferred {
       ThrowRangeError(MessageTemplate::kInvalidOffset, byteOffset);
     }
   }
@@ -323,8 +315,7 @@ namespace typed_array {
           otherwise IfIteratorUndefined, IfIteratorNotCallable;
       ConstructByIterable(obj, iteratorMethod)
           otherwise IfConstructByArrayLike;
-    }
-    label IfIteratorUndefined {
+    } label IfIteratorUndefined {
       const lengthObj: JSAny = GetProperty(obj, kLengthString);
       const lengthNumber: Number = ToLength_Inline(lengthObj);
       // Throw RangeError here if the length does not fit in uintptr because
@@ -333,11 +324,9 @@ namespace typed_array {
       const length: uintptr = ChangeSafeIntegerNumberToUintPtr(lengthNumber)
           otherwise goto IfInvalidLength(lengthNumber);
       goto IfConstructByArrayLike(obj, length, GetArrayBufferFunction());
-    }
-    label IfInvalidLength(length: Number) {
+    } label IfInvalidLength(length: Number) {
       ThrowRangeError(MessageTemplate::kInvalidTypedArrayLength, length);
-    }
-    label IfIteratorNotCallable(_value: JSAny) deferred {
+    } label IfIteratorNotCallable(_value: JSAny) deferred {
       ThrowTypeError(MessageTemplate::kIteratorSymbolNonCallable);
     }
   }
@@ -376,11 +365,9 @@ namespace typed_array {
           goto IfConstructByLength(lengthObj);
         }
       }
-    }
-    label IfConstructByLength(length: JSAny) {
+    } label IfConstructByLength(length: JSAny) {
       return ConstructByLength(map, length, elementsInfo);
-    }
-    label IfConstructByArrayLike(
+    } label IfConstructByArrayLike(
         arrayLike: JSReceiver, length: uintptr, bufferConstructor: JSReceiver) {
       return ConstructByArrayLike(
           map, arrayLike, length, elementsInfo, bufferConstructor);
@@ -405,8 +392,7 @@ namespace typed_array {
       assert(!IsDetachedBuffer(typedArray.buffer));
 
       return typedArray;
-    }
-    label IfSlow deferred {
+    } label IfSlow deferred {
       const constructor =
           Cast<Constructor>(SpeciesConstructor(exemplar, defaultConstructor))
           otherwise unreachable;

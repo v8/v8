@@ -23,11 +23,9 @@ namespace array {
     try {
       return BasicLoadNumberDictionaryElement(dict, Signed(k))
           otherwise IfNoData, IfHole;
-    }
-    label IfNoData deferred {
+    } label IfNoData deferred {
       return GetProperty(receiver, Convert<Number>(k));
-    }
-    label IfHole {
+    } label IfHole {
       return kEmptyString;
     }
   }
@@ -75,8 +73,7 @@ namespace array {
         result = Call(context, callable, element, locales, options);
       }
       return ToString_Inline(result);
-    }
-    label TypeError {
+    } label TypeError {
       ThrowTypeError(MessageTemplate::kCalledNonCallable, prop);
     }
   }
@@ -115,8 +112,7 @@ namespace array {
       const length: intptr = TryIntPtrAdd(lenA, lenB) otherwise IfOverflow;
       if (length > kStringMaxLength) goto IfOverflow;
       return length;
-    }
-    label IfOverflow deferred {
+    } label IfOverflow deferred {
       ThrowInvalidStringLength(context);
     }
   }
@@ -351,8 +347,7 @@ namespace array {
               const nofSeparators: Smi =
                   Cast<Smi>(lenNumber - 1) otherwise IfNotSmi;
               return StringRepeat(context, sep, nofSeparators);
-            }
-            label IfNotSmi {
+            } label IfNotSmi {
               ThrowInvalidStringLength(context);
             }
           } else {
@@ -362,8 +357,7 @@ namespace array {
       else {
         goto IfSlowPath;
       }
-    }
-    label IfSlowPath {
+    } label IfSlowPath {
       loadFn = LoadJoinElement<array::GenericElementsAccessor>;
     }
     return ArrayJoinImpl<JSArray>(
@@ -473,8 +467,7 @@ namespace array {
         deferred {
           return false;
         }
-    }
-    label IfUninitialized {
+    } label IfUninitialized {
       const stack: FixedArray =
           AllocateFixedArrayWithHoles(kMinJoinStackSize, AllocationFlag::kNone);
       stack.objects[0] = receiver;
@@ -607,8 +600,7 @@ namespace array {
 
       // 4. Return ? Call(func, array).
       return Call(context, func, array);
-    }
-    label NotCallable {
+    } label NotCallable {
       return ObjectToString(context, array);
     }
   }

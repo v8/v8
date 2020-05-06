@@ -63,15 +63,13 @@ namespace proxy {
         return True;
       }
       ThrowTypeError(MessageTemplate::kProxySetPrototypeOfNonExtensible);
-    }
-    label TrapUndefined(target: JSAny, proto: JSReceiver|Null) {
+    } label TrapUndefined(target: JSAny, proto: JSReceiver|Null) {
       // 7.a. Return ? target.[[SetPrototypeOf]]().
       if (doThrow == True) {
         return object::ObjectSetPrototypeOfThrow(target, proto);
       }
       return object::ObjectSetPrototypeOfDontThrow(target, proto);
-    }
-    label ThrowProxyHandlerRevoked deferred {
+    } label ThrowProxyHandlerRevoked deferred {
       ThrowTypeError(MessageTemplate::kProxyRevoked, kTrapName);
     }
   }

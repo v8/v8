@@ -203,8 +203,7 @@ namespace regexp {
           }
 
           return RegExpReplaceFastString(fastRegexp, string, replaceString);
-        }
-        label Runtime deferred {
+        } label Runtime deferred {
           return RegExpReplaceRT(context, stableRegexp, string, replaceString);
         }
       }
@@ -253,8 +252,7 @@ namespace regexp {
     try {
       const fastRx: FastJSRegExp = Cast<FastJSRegExp>(rx) otherwise Runtime;
       return RegExpReplace(fastRx, s, replaceValue);
-    }
-    label Runtime deferred {
+    } label Runtime deferred {
       IncrementUseCounter(
           context, SmiConstant(kRegExpReplaceCalledOnSlowRegExp));
       return RegExpReplaceRT(context, rx, s, replaceValue);

@@ -100,12 +100,10 @@ namespace string {
     try {
       GenerateStringAt(receiver, position, 'String.prototype.charAt')
           otherwise IfInBounds, IfOutOfBounds;
-    }
-    label IfInBounds(string: String, index: uintptr, _length: uintptr) {
+    } label IfInBounds(string: String, index: uintptr, _length: uintptr) {
       const code: int32 = StringCharCodeAt(string, index);
       return StringFromSingleCharCode(code);
-    }
-    label IfOutOfBounds {
+    } label IfOutOfBounds {
       return kEmptyString;
     }
   }
@@ -117,12 +115,10 @@ namespace string {
     try {
       GenerateStringAt(receiver, position, 'String.prototype.charCodeAt')
           otherwise IfInBounds, IfOutOfBounds;
-    }
-    label IfInBounds(string: String, index: uintptr, _length: uintptr) {
+    } label IfInBounds(string: String, index: uintptr, _length: uintptr) {
       const code: int32 = StringCharCodeAt(string, index);
       return Convert<Smi>(code);
-    }
-    label IfOutOfBounds {
+    } label IfOutOfBounds {
       return kNaN;
     }
   }
@@ -134,15 +130,13 @@ namespace string {
     try {
       GenerateStringAt(receiver, position, 'String.prototype.codePointAt')
           otherwise IfInBounds, IfOutOfBounds;
-    }
-    label IfInBounds(string: String, index: uintptr, length: uintptr) {
+    } label IfInBounds(string: String, index: uintptr, length: uintptr) {
       // This is always a call to a builtin from Javascript, so we need to
       // produce UTF32.
       const code: int32 = LoadSurrogatePairAt(
           string, Signed(length), Signed(index), UnicodeEncoding::UTF32);
       return Convert<Smi>(code);
-    }
-    label IfOutOfBounds {
+    } label IfOutOfBounds {
       return Undefined;
     }
   }

@@ -73,6 +73,7 @@ def postprocess(output):
       r"@export", output)
   output = re.sub(r'jS_iMpLiCiT_',
       r"js-implicit ", output)
+  output = re.sub(r'}\n *label ', r'} label ', output);
 
   output = re.sub(kPercentEscape, r'%', output)
 

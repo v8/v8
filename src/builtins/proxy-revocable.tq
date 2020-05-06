@@ -33,8 +33,7 @@ namespace proxy {
       // 7. Perform CreateDataProperty(result, "revoke", revoker).
       // 8. Return result.
       return NewJSProxyRevocableResult(proxy, revoke);
-    }
-    label ThrowProxyNonObject deferred {
+    } label ThrowProxyNonObject deferred {
       ThrowTypeError(MessageTemplate::kProxyNonObject, 'Proxy.revocable');
     }
   }

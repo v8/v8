@@ -56,8 +56,7 @@ namespace string {
     try {
       return TryFastAbstractStringIndexOf(string, searchString, fromIndex)
           otherwise Slow;
-    }
-    label Slow {
+    } label Slow {
       for (let i: intptr = SmiUntag(fromIndex);
            i + searchStringLength <= stringLength; i++) {
         if (StringCompareSequence(
@@ -119,8 +118,7 @@ namespace string {
         const replacer = GetMethod(searchValue, ReplaceSymbolConstant())
             otherwise ReplaceSymbolIsNullOrUndefined;
         return Call(context, replacer, searchValue, receiver, replaceValue);
-      }
-      label ReplaceSymbolIsNullOrUndefined {}
+      } label ReplaceSymbolIsNullOrUndefined {}
     }
 
     // 3. Let string be ? ToString(O).

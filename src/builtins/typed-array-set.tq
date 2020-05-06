@@ -42,8 +42,7 @@ namespace typed_array {
       // 3. Perform ? RequireInternalSlot(target, [[TypedArrayName]]).
       // 4. Assert: target has a [[ViewedArrayBuffer]] internal slot.
       target = Cast<JSTypedArray>(receiver) otherwise NotTypedArray;
-    }
-    label NotTypedArray deferred {
+    } label NotTypedArray deferred {
       ThrowTypeError(MessageTemplate::kNotTypedArray, kBuiltinNameSet);
     }
 
@@ -61,8 +60,7 @@ namespace typed_array {
               // On UintPtr or SafeInteger range overflow throw RangeError after
               // performing observable steps to follow the spec.
               OffsetOverflow, OffsetOverflow;
-        }
-        label OffsetOverflow {
+        } label OffsetOverflow {
           targetOffsetOverflowed = true;
         }
       } else {
@@ -95,18 +93,15 @@ namespace typed_array {
             utarget, utypedArray, targetOffset, targetOffsetOverflowed)
             otherwise OffsetOutOfBounds;
         return Undefined;
-      }
-      label NotTypedArray deferred {
+      } label NotTypedArray deferred {
         TypedArrayPrototypeSetArray(
             utarget, overloadedArg, targetOffset, targetOffsetOverflowed)
             otherwise OffsetOutOfBounds, IsDetached;
         return Undefined;
       }
-    }
-    label OffsetOutOfBounds deferred {
+    } label OffsetOutOfBounds deferred {
       ThrowRangeError(MessageTemplate::kTypedArraySetOffsetOutOfBounds);
-    }
-    label IsDetached deferred {
+    } label IsDetached deferred {
       ThrowTypeError(MessageTemplate::kDetachedOperation, kBuiltinNameSet);
     }
   }
@@ -128,8 +123,7 @@ namespace typed_array {
       // ignoring the call, so that users know they did something wrong.
       // (Consistent with Firefox and Blink/WebKit)
       ThrowTypeError(MessageTemplate::kInvalidArgument);
-    }
-    label NotNumber {
+    } label NotNumber {
       // Proceed to step 14.
     }
 
@@ -187,8 +181,7 @@ namespace typed_array {
       } else {
         goto IfSlow;
       }
-    }
-    label IfSlow deferred {
+    } label IfSlow deferred {
       TypedArraySet(
           context, target, src, srcLengthNum, Convert<Number>(targetOffset));
     }
@@ -290,8 +283,7 @@ namespace typed_array {
       //    iii. Set srcByteIndex to srcByteIndex + 1.
       //     iv. Set targetByteIndex to targetByteIndex + 1.
       CallCMemmove(dstPtr, typedArray.data_ptr, countBytes);
-    }
-    label IfSlow deferred {
+    } label IfSlow deferred {
       // 22. If target.[[ContentType]] is not equal to
       //   typedArray.[[ContentType]], throw a TypeError exception.
       if (IsBigInt64ElementsKind(srcKind) !=

@@ -39,8 +39,7 @@ namespace math {
   MathAbs(js-implicit context: NativeContext)(x: JSAny): Number {
     try {
       ReduceToSmiOrFloat64(x) otherwise SmiResult, Float64Result;
-    }
-    label SmiResult(s: Smi) {
+    } label SmiResult(s: Smi) {
       try {
         if constexpr (IsIntPtrAbsWithOverflowSupported()) {
           const result: Smi = TrySmiAbs(s)
@@ -54,12 +53,10 @@ namespace math {
             return result;
           }
         }
-      }
-      label SmiOverflow {
+      } label SmiOverflow {
         return NumberConstant(kSmiMaxValuePlusOne);
       }
-    }
-    label Float64Result(f: float64) {
+    } label Float64Result(f: float64) {
       return Convert<Number>(Float64Abs(f));
     }
   }
@@ -70,11 +67,9 @@ namespace math {
   MathCeil(js-implicit context: NativeContext)(x: JSAny): Number {
     try {
       ReduceToSmiOrFloat64(x) otherwise SmiResult, Float64Result;
-    }
-    label SmiResult(s: Smi) {
+    } label SmiResult(s: Smi) {
       return s;
-    }
-    label Float64Result(f: float64) {
+    } label Float64Result(f: float64) {
       return Convert<Number>(Float64Ceil(f));
     }
   }
@@ -85,11 +80,9 @@ namespace math {
   MathFloor(js-implicit context: NativeContext)(x: JSAny): Number {
     try {
       ReduceToSmiOrFloat64(x) otherwise SmiResult, Float64Result;
-    }
-    label SmiResult(s: Smi) {
+    } label SmiResult(s: Smi) {
       return s;
-    }
-    label Float64Result(f: float64) {
+    } label Float64Result(f: float64) {
       return Convert<Number>(Float64Floor(f));
     }
   }
@@ -100,11 +93,9 @@ namespace math {
   MathRound(js-implicit context: NativeContext)(x: JSAny): Number {
     try {
       ReduceToSmiOrFloat64(x) otherwise SmiResult, Float64Result;
-    }
-    label SmiResult(s: Smi) {
+    } label SmiResult(s: Smi) {
       return s;
-    }
-    label Float64Result(f: float64) {
+    } label Float64Result(f: float64) {
       return Convert<Number>(Float64Round(f));
     }
   }
@@ -115,11 +106,9 @@ namespace math {
   MathTrunc(js-implicit context: NativeContext)(x: JSAny): Number {
     try {
       ReduceToSmiOrFloat64(x) otherwise SmiResult, Float64Result;
-    }
-    label SmiResult(s: Smi) {
+    } label SmiResult(s: Smi) {
       return s;
-    }
-    label Float64Result(f: float64) {
+    } label Float64Result(f: float64) {
       return Convert<Number>(Float64Trunc(f));
     }
   }

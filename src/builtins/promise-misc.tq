@@ -263,13 +263,11 @@ namespace promise {
           }
         }
       }
-    }
-    label CallRuntime deferred {
+    } label CallRuntime deferred {
       const result = runtime::AllowDynamicFunction(promiseConstructor);
       if (result != True) {
         goto IfNoAccess;
       }
-    }
-    label HasAccess {}
+    } label HasAccess {}
   }
 }

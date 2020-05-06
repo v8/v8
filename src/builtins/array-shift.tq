@@ -99,11 +99,9 @@ namespace array {
       receiver: JSAny)(...arguments): JSAny {
     try {
       return TryFastArrayShift(receiver) otherwise Slow, Runtime;
-    }
-    label Slow {
+    } label Slow {
       return GenericArrayShift(receiver);
-    }
-    label Runtime {
+    } label Runtime {
       tail ArrayShift(
           context, LoadTargetFromFrame(), Undefined,
           Convert<int32>(arguments.length));

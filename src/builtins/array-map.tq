@@ -206,15 +206,13 @@ namespace array {
           const result: JSAny =
               Call(context, callbackfn, thisArg, value, k, fastOW.Get());
           vector.StoreResult(k, result);
-        }
-        label FoundHole {
+        } label FoundHole {
           // Our output array must necessarily be holey because of holes in
           // the input array.
           vector.ReportSkippedElement();
         }
       }
-    }
-    label PrepareBailout(k: Smi) deferred {
+    } label PrepareBailout(k: Smi) deferred {
       // Transform {vector} into a JSArray and bail out.
       goto Bailout(vector.CreateJSArray(k), k);
     }
@@ -255,18 +253,15 @@ namespace array {
 
         return FastArrayMap(o, smiLength, callbackfn, thisArg)
             otherwise Bailout;
-      }
-      label SlowSpeciesCreate {
+      } label SlowSpeciesCreate {
         array = ArraySpeciesCreate(context, receiver, len);
-      }
-      label Bailout(output: JSArray, kValue: Smi) deferred {
+      } label Bailout(output: JSArray, kValue: Smi) deferred {
         array = output;
         k = kValue;
       }
 
       return ArrayMapLoopContinuation(o, callbackfn, thisArg, array, o, k, len);
-    }
-    label TypeError deferred {
+    } label TypeError deferred {
       ThrowTypeError(MessageTemplate::kCalledNonCallable, arguments[0]);
     }
   }

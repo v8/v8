@@ -72,8 +72,7 @@ namespace bigint {
       sign: uint32, length: intptr): MutableBigInt {
     try {
       return AllocateEmptyBigIntNoThrow(sign, length) otherwise BigIntTooBig;
-    }
-    label BigIntTooBig {
+    } label BigIntTooBig {
       ThrowRangeError(MessageTemplate::kBigIntTooBig);
     }
   }
@@ -160,8 +159,7 @@ namespace bigint {
       Numeric {
     try {
       return BigIntAddImpl(x, y) otherwise BigIntTooBig;
-    }
-    label BigIntTooBig {
+    } label BigIntTooBig {
       // Smi sentinal is used to signal BigIntTooBig exception.
       return Convert<Smi>(0);
     }
@@ -174,11 +172,9 @@ namespace bigint {
       const y = Cast<BigInt>(yNum) otherwise MixedTypes;
 
       return BigIntAddImpl(x, y) otherwise BigIntTooBig;
-    }
-    label MixedTypes {
+    } label MixedTypes {
       ThrowTypeError(MessageTemplate::kBigIntMixedTypes);
-    }
-    label BigIntTooBig {
+    } label BigIntTooBig {
       ThrowRangeError(MessageTemplate::kBigIntTooBig);
     }
   }
@@ -205,8 +201,7 @@ namespace bigint {
                                     Context)(x: BigInt, y: BigInt): Numeric {
     try {
       return BigIntSubtractImpl(x, y) otherwise BigIntTooBig;
-    }
-    label BigIntTooBig {
+    } label BigIntTooBig {
       // Smi sentinal is used to signal BigIntTooBig exception.
       return Convert<Smi>(0);
     }
@@ -219,11 +214,9 @@ namespace bigint {
       const y = Cast<BigInt>(yNum) otherwise MixedTypes;
 
       return BigIntSubtractImpl(x, y) otherwise BigIntTooBig;
-    }
-    label MixedTypes {
+    } label MixedTypes {
       ThrowTypeError(MessageTemplate::kBigIntMixedTypes);
-    }
-    label BigIntTooBig {
+    } label BigIntTooBig {
       ThrowRangeError(MessageTemplate::kBigIntTooBig);
     }
   }

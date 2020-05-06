@@ -46,8 +46,7 @@ namespace promise {
         resultPromiseOrCapability = promiseCapability;
         resultPromise = promiseCapability.promise;
       }
-    }
-    label AllocateAndInit {
+    } label AllocateAndInit {
       const resultJSPromise = NewJSPromise(promise);
       resultPromiseOrCapability = resultJSPromise;
       resultPromise = resultJSPromise;

@@ -413,8 +413,7 @@ namespace array {
       return FastArraySplice(
           context, arguments, o, len, actualStart, insertCount,
           actualDeleteCount) otherwise Bailout;
-    }
-    label Bailout {}
+    } label Bailout {}
 
     // If the fast case fails, just continue with the slow, correct,
     // spec-compliant case.

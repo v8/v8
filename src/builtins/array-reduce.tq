@@ -186,13 +186,11 @@ namespace array {
       try {
         return FastArrayReduce(o, len, callbackfn, initialValue)
             otherwise Bailout;
-      }
-      label Bailout(value: Number, accumulator: JSAny|TheHole) {
+      } label Bailout(value: Number, accumulator: JSAny|TheHole) {
         return ArrayReduceLoopContinuation(
             o, callbackfn, accumulator, o, value, len);
       }
-    }
-    label NoCallableError deferred {
+    } label NoCallableError deferred {
       ThrowTypeError(MessageTemplate::kCalledNonCallable, arguments[0]);
     }
   }

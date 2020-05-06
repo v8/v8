@@ -47,8 +47,7 @@ namespace array {
           assert(Is<FastJSArray>(array));
           return k;
         }
-      }
-      label Hole {}  // Do nothing for holes.
+      } label Hole {}  // Do nothing for holes.
 
       --k;
     }
@@ -148,8 +147,7 @@ namespace array {
     try {
       return TryFastArrayLastIndexOf(context, object, searchElement, from)
           otherwise Baseline;
-    }
-    label Baseline {
+    } label Baseline {
       return GenericArrayLastIndexOf(context, object, searchElement, from);
     }
   }

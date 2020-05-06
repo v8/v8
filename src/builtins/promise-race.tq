@@ -119,8 +119,7 @@ namespace promise {
       } catch (e) deferred {
         iterator::IteratorCloseOnException(i, e) otherwise Reject;
       }
-    }
-    label Reject(exception: Object) deferred {
+    } label Reject(exception: Object) deferred {
       Call(
           context, UnsafeCast<JSAny>(reject), Undefined,
           UnsafeCast<JSAny>(exception));

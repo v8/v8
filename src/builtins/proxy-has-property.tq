@@ -45,12 +45,10 @@ namespace proxy {
       }
       CheckHasTrapResult(target, proxy, name);
       return False;
-    }
-    label TrapUndefined(target: JSAny) {
+    } label TrapUndefined(target: JSAny) {
       // 7.a. Return ? target.[[HasProperty]](P).
       tail HasProperty(target, name);
-    }
-    label ThrowProxyHandlerRevoked deferred {
+    } label ThrowProxyHandlerRevoked deferred {
       ThrowTypeError(MessageTemplate::kProxyRevoked, 'has');
     }
   }

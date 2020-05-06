@@ -64,14 +64,11 @@ namespace string {
           goto InvalidStringLength;
         }
       }
-    }
-    label EmptyString {
+    } label EmptyString {
       return kEmptyString;
-    }
-    label InvalidCount deferred {
+    } label InvalidCount deferred {
       ThrowRangeError(MessageTemplate::kInvalidCountValue, count);
-    }
-    label InvalidStringLength deferred {
+    } label InvalidStringLength deferred {
       ThrowInvalidStringLength(context);
     }
   }

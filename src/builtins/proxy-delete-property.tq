@@ -59,12 +59,10 @@ namespace proxy {
 
       // 15. Return true.
       return True;
-    }
-    label TrapUndefined(target: JSAny) {
+    } label TrapUndefined(target: JSAny) {
       // 7.a. Return ? target.[[Delete]](P).
       return DeleteProperty(target, name, languageMode);
-    }
-    label ThrowProxyHandlerRevoked deferred {
+    } label ThrowProxyHandlerRevoked deferred {
       ThrowTypeError(MessageTemplate::kProxyRevoked, kTrapName);
     }
   }

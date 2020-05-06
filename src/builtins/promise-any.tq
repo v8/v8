@@ -273,8 +273,7 @@ namespace promise {
     } catch (e) deferred {
       iterator::IteratorCloseOnException(iteratorRecord, e)
           otherwise Reject;
-    }
-    label Done {}
+    } label Done {}
 
     // (8.d)
     //   i. Set iteratorRecord.[[Done]] to true.
@@ -348,8 +347,7 @@ namespace promise {
       } catch (e) deferred {
         goto Reject(e);
       }
-    }
-    label Reject(e: Object) deferred {
+    } label Reject(e: Object) deferred {
       // Exception must be bound to a JS value.
       assert(e != TheHole);
       Call(

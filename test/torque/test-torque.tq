@@ -68,8 +68,7 @@ namespace test {
   macro TestGotoLabel(): Boolean {
     try {
       LabelTestHelper1() otherwise Label1;
-    }
-    label Label1 {
+    } label Label1 {
       return True;
     }
   }
@@ -78,8 +77,7 @@ namespace test {
   macro TestGotoLabelWithOneParameter(): Boolean {
     try {
       LabelTestHelper2() otherwise Label2;
-    }
-    label Label2(smi: Smi) {
+    } label Label2(smi: Smi) {
       check(smi == 42);
       return True;
     }
@@ -89,8 +87,7 @@ namespace test {
   macro TestGotoLabelWithTwoParameters(): Boolean {
     try {
       LabelTestHelper3() otherwise Label3;
-    }
-    label Label3(o: Oddball, smi: Smi) {
+    } label Label3(o: Oddball, smi: Smi) {
       check(o == Null);
       check(smi == 7);
       return True;
@@ -125,11 +122,9 @@ namespace test {
   macro CallLabelTestHelper4(flag: constexpr bool): bool {
     try {
       LabelTestHelper4(flag) otherwise Label4, Label5;
-    }
-    label Label4 {
+    } label Label4 {
       return true;
-    }
-    label Label5 {
+    } label Label5 {
       return false;
     }
   }
@@ -177,10 +172,8 @@ namespace test {
       check((GenericMacroTestWithLabels<Smi>(0) otherwise Fail) == Undefined);
       try {
         GenericMacroTestWithLabels<Object>(False) otherwise Expected;
-      }
-      label Expected {}
-    }
-    label Fail {
+      } label Expected {}
+    } label Fail {
       unreachable;
     }
   }
@@ -357,8 +350,7 @@ namespace test {
   macro CallTestStructInLabel(implicit context: Context)() {
     try {
       TestStructInLabel() otherwise Foo;
-    }
-    label Foo(_s: TestStructA) {}
+    } label Foo(_s: TestStructA) {}
   }
 
   // This macro tests different versions of the for-loop where some parts
@@ -452,8 +444,7 @@ namespace test {
       for (;;) {
         if (++j == 10) goto Exit;
       }
-    }
-    label Exit {
+    } label Exit {
       check(j == 10);
     }
 
@@ -598,8 +589,7 @@ namespace test {
     let s: Smi = 1;
     try {
       TestCall(10) otherwise goto B(++s);
-    }
-    label B(v1: Smi) {
+    } label B(v1: Smi) {
       v = v1;
     }
     assert(v == 2);
@@ -628,11 +618,9 @@ namespace test {
   macro TestForwardLabel() {
     try {
       goto A;
-    }
-    label A {
+    } label A {
       goto B(5);
-    }
-    label B(b: Smi) {
+    } label B(b: Smi) {
       assert(b == 5);
     }
   }
@@ -684,8 +672,7 @@ namespace test {
     } catch (_e) {
       r = 2;
       return r;
-    }
-    label Abort {
+    } label Abort {
       return -1;
     }
   }
@@ -709,8 +696,7 @@ namespace test {
       const _t7: JSArray = iterator::IterableToList(t1, t1);
 
       iterator::IteratorCloseOnException(t2, t5);
-    }
-    label Fail {}
+    } label Fail {}
   }
 
   @export

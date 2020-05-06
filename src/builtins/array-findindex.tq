@@ -143,13 +143,11 @@ namespace array {
       try {
         return FastArrayFindIndex(o, len, callbackfn, thisArg)
             otherwise Bailout;
-      }
-      label Bailout(k: Smi) deferred {
+      } label Bailout(k: Smi) deferred {
         return ArrayFindIndexLoopContinuation(
             o, callbackfn, thisArg, o, k, len);
       }
-    }
-    label NotCallableError deferred {
+    } label NotCallableError deferred {
       ThrowTypeError(MessageTemplate::kCalledNonCallable, arguments[0]);
     }
   }

@@ -169,8 +169,7 @@ namespace array {
     try {
       TryFastPackedArrayReverse(receiver) otherwise Baseline;
       return receiver;
-    }
-    label Baseline {
+    } label Baseline {
       return GenericArrayReverse(context, receiver);
     }
   }

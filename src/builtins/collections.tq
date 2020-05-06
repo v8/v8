@@ -47,8 +47,7 @@ namespace collections {
       KeyValuePair {
     try {
       return LoadKeyValuePairNoSideEffects(o) otherwise Generic;
-    }
-    label Generic {
+    } label Generic {
       return KeyValuePair{
         key: GetProperty(o, Convert<Smi>(0)),
         value: GetProperty(o, Convert<Smi>(1))

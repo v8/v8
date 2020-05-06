@@ -51,8 +51,7 @@ namespace string {
       // Fast Path: If both strings are direct and relevant indices are Smis.
       return TryFastStringCompareSequence(
           string, searchStr, start, searchLength) otherwise Slow;
-    }
-    label Slow {
+    } label Slow {
       // Slow Path: If either of the string is indirect, bail into runtime.
       return StringCompareSequence(
           context, string, searchStr, Convert<Number>(start));

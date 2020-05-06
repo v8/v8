@@ -51,15 +51,13 @@ namespace proxy {
 
       // 9. Return booleanTrapResult.
       return True;
-    }
-    label TrapUndefined(target: JSAny) {
+    } label TrapUndefined(target: JSAny) {
       // 6.a. Return ? target.[[PreventExtensions]]().
       if (doThrow == True) {
         return object::ObjectPreventExtensionsThrow(target);
       }
       return object::ObjectPreventExtensionsDontThrow(target);
-    }
-    label ThrowProxyHandlerRevoked deferred {
+    } label ThrowProxyHandlerRevoked deferred {
       ThrowTypeError(MessageTemplate::kProxyRevoked, kTrapName);
     }
   }

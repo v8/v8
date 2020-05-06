@@ -38,8 +38,7 @@ namespace proxy {
       // 9. Set P.[[ProxyHandler]] to handler.
       // 10. Return P.
       return AllocateProxy(targetJSReceiver, handlerJSReceiver);
-    }
-    label ThrowProxyNonObject deferred {
+    } label ThrowProxyNonObject deferred {
       ThrowTypeError(MessageTemplate::kProxyNonObject);
     }
   }

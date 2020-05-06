@@ -91,8 +91,7 @@ namespace array {
       tail ArrayUnshift(
           context, LoadTargetFromFrame(), Undefined,
           Convert<int32>(arguments.length));
-    }
-    label Slow {
+    } label Slow {
       return GenericArrayUnshift(context, receiver, arguments);
     }
   }

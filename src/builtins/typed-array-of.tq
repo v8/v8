@@ -45,11 +45,9 @@ namespace typed_array {
 
       // 8. Return newObj.
       return newObj;
-    }
-    label NotConstructor deferred {
+    } label NotConstructor deferred {
       ThrowTypeError(MessageTemplate::kNotConstructor, receiver);
-    }
-    label IfDetached deferred {
+    } label IfDetached deferred {
       ThrowTypeError(MessageTemplate::kDetachedOperation, kBuiltinNameOf);
     }
   }

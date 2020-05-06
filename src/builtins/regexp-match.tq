@@ -82,11 +82,9 @@ namespace regexp {
           match = ToString_Inline(GetProperty(resultTemp, SmiConstant(0)));
         }
         goto IfDidMatch;
-      }
-      label IfDidNotMatch {
+      } label IfDidNotMatch {
         return array.length == 0 ? Null : array.ToJSArray();
-      }
-      label IfDidMatch {
+      } label IfDidMatch {
         // Store the match, growing the fixed array if needed.
 
         array.Push(match);

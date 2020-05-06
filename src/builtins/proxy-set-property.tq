@@ -76,13 +76,11 @@ namespace proxy {
           SmiConstant(MessageTemplate::kProxyTrapReturnedFalsishFor), 'set',
           name);
       return value;
-    }
-    label TrapUndefined(target: Object) {
+    } label TrapUndefined(target: Object) {
       // 7.a. Return ? target.[[Set]](P, V, Receiver).
       SetPropertyWithReceiver(target, name, value, receiverValue);
       return value;
-    }
-    label ThrowProxyHandlerRevoked deferred {
+    } label ThrowProxyHandlerRevoked deferred {
       ThrowTypeError(MessageTemplate::kProxyRevoked, 'set');
     }
   }

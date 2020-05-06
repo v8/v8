@@ -116,15 +116,13 @@ namespace array {
       try {
         return FastArrayForEach(o, len, callbackfn, thisArg)
             otherwise Bailout;
-      }
-      label Bailout(kValue: Smi) deferred {
+      } label Bailout(kValue: Smi) deferred {
         k = kValue;
       }
 
       return ArrayForEachLoopContinuation(
           o, callbackfn, thisArg, Undefined, o, k, len, Undefined);
-    }
-    label TypeError deferred {
+    } label TypeError deferred {
       ThrowTypeError(MessageTemplate::kCalledNonCallable, arguments[0]);
     }
   }

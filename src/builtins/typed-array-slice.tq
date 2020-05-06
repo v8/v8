@@ -92,11 +92,9 @@ namespace typed_array {
         const srcAttached = typed_array::EnsureAttached(src)
             otherwise IfDetached;
         FastCopy(srcAttached, dest, k, count) otherwise IfSlow;
-      }
-      label IfDetached deferred {
+      } label IfDetached deferred {
         ThrowTypeError(MessageTemplate::kDetachedOperation, kBuiltinNameSlice);
-      }
-      label IfSlow deferred {
+      } label IfSlow deferred {
         SlowCopy(src, dest, k, final);
       }
     }

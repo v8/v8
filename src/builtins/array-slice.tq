@@ -125,8 +125,7 @@ namespace array {
           goto Bailout;
         }
       }
-    }
-    label HandleSimpleArgumentsSlice(a: JSArgumentsObjectWithLength) {
+    } label HandleSimpleArgumentsSlice(a: JSArgumentsObjectWithLength) {
       return HandleSimpleArgumentsSlice(context, a, start, count)
           otherwise Bailout;
     }
@@ -185,8 +184,7 @@ namespace array {
     try {
       return HandleFastSlice(context, o, k, count)
           otherwise Slow;
-    }
-    label Slow {}
+    } label Slow {}
 
     // 8. Let A be ? ArraySpeciesCreate(O, count).
     const a: JSReceiver = ArraySpeciesCreate(context, o, count);

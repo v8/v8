@@ -265,8 +265,7 @@ namespace typed_array {
       StoreJSTypedArrayElementFromTagged(
           context, typedArray, index, value, KindForArrayType<T>())
           otherwise IfDetached;
-    }
-    label IfDetached {
+    } label IfDetached {
       return kStoreFailureArrayDetached;
     }
     return kStoreSucceded;

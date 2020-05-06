@@ -66,8 +66,7 @@ namespace data_view {
       JSDataView {
     try {
       return Cast<JSDataView>(o) otherwise CastError;
-    }
-    label CastError {
+    } label CastError {
       ThrowTypeError(MessageTemplate::kIncompatibleMethodReceiver, method);
     }
   }
@@ -423,8 +422,7 @@ namespace data_view {
       } else {
         unreachable;
       }
-    }
-    label RangeError {
+    } label RangeError {
       ThrowRangeError(MessageTemplate::kInvalidDataViewAccessorOffset);
     }
   }
@@ -750,8 +748,7 @@ namespace data_view {
         }
       }
       return Undefined;
-    }
-    label RangeError {
+    } label RangeError {
       ThrowRangeError(MessageTemplate::kInvalidDataViewAccessorOffset);
     }
   }

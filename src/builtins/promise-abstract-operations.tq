@@ -68,8 +68,7 @@ namespace promise {
                                                    Undefined): Context {
     try {
       return ExtractHandlerContextInternal(handler) otherwise NotFound;
-    }
-    label NotFound deferred {
+    } label NotFound deferred {
       return context;
     }
   }
@@ -79,11 +78,9 @@ namespace promise {
       primary: Callable|Undefined, secondary: Callable|Undefined): Context {
     try {
       return ExtractHandlerContextInternal(primary) otherwise NotFound;
-    }
-    label NotFound deferred {
+    } label NotFound deferred {
       return ExtractHandlerContextInternal(secondary) otherwise Default;
-    }
-    label Default deferred {
+    } label Default deferred {
       return context;
     }
   }

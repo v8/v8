@@ -52,15 +52,13 @@ namespace promise {
       // native Promise.
       if (promiseFun != constructor) goto SlowConstructor;
       return value;
-    }
-    label SlowConstructor deferred {
+    } label SlowConstructor deferred {
       // At this point, value or/and constructor are not native promises, but
       // they could be of the same subclass.
       const valueConstructor = GetProperty(value, kConstructorString);
       if (valueConstructor != constructor) goto NeedToAllocate;
       return value;
-    }
-    label NeedToAllocate {
+    } label NeedToAllocate {
       if (promiseFun == constructor) {
         // This adds a fast path for native promises that don't need to
         // create NewPromiseCapability.
@@ -154,8 +152,7 @@ namespace promise {
         goto Enqueue;
       }
       goto Slow;
-    }
-    label Slow deferred {
+    } label Slow deferred {
       // 9. Let then be Get(resolution, "then").
       // 10. If then is an abrupt completion, then
       try {
@@ -172,8 +169,7 @@ namespace promise {
         return FulfillPromise(promise, resolution);
       }
       goto Enqueue;
-    }
-    label Enqueue {
+    } label Enqueue {
       // 13. Let job be NewPromiseResolveThenableJob(promise, resolution,
       //                                             thenAction).
       const task = NewPromiseResolveThenableJobTask(

@@ -122,8 +122,7 @@ namespace array {
           fastOutputW.Recheck() otherwise SlowStore;
           if (fastOutputW.Get().length != to) goto SlowStore;
           fastOutputW.Push(value) otherwise SlowStore;
-        }
-        label SlowStore {
+        } label SlowStore {
           FastCreateDataProperty(fastOutputW.stable, to, value);
         }
         to = to + 1;
@@ -182,20 +181,17 @@ namespace array {
           FastArrayFilter(fastO, smiLen, callbackfn, thisArg, fastOutput)
               otherwise Bailout;
           return output;
-        }
-        label Bailout(kValue: Number, toValue: Number) deferred {
+        } label Bailout(kValue: Number, toValue: Number) deferred {
           k = kValue;
           to = toValue;
         }
-      }
-      label SlowSpeciesCreate {
+      } label SlowSpeciesCreate {
         output = ArraySpeciesCreate(context, receiver, 0);
       }
 
       return ArrayFilterLoopContinuation(
           o, callbackfn, thisArg, output, o, k, len, to);
-    }
-    label TypeError deferred {
+    } label TypeError deferred {
       ThrowTypeError(MessageTemplate::kCalledNonCallable, arguments[0]);
     }
   }

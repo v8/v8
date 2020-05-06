@@ -14,8 +14,7 @@ namespace array {
     if (arguments.length == 1 && receiver == GetArrayFunction()) {
       try {
         return iterator::FastIterableToList(arguments[0]) otherwise Slow;
-      }
-      label Slow {
+      } label Slow {
         // fall through
       }
     }
@@ -128,8 +127,7 @@ namespace array {
         k += 1;
       }
       unreachable;
-    }
-    label IteratorIsUndefined {
+    } label IteratorIsUndefined {
       // 6. NOTE: items is not an Iterable so assume it is an array-like object.
       // 7. Let arrayLike be ! ToObject(items).
       const arrayLike = ToObject_Inline(context, items);
@@ -176,8 +174,7 @@ namespace array {
       array::SetPropertyLength(a, len);
       // 14. Return A.
       return a;
-    }
-    label IteratorNotCallable(_value: JSAny) deferred {
+    } label IteratorNotCallable(_value: JSAny) deferred {
       ThrowTypeError(MessageTemplate::kIteratorSymbolNonCallable);
     }
   }

@@ -42,14 +42,11 @@ namespace typed_array {
       const callbackfn = Cast<Callable>(arguments[0]) otherwise NotCallable;
       const thisArg = arguments[1];
       return EveryAllElements(uarray, callbackfn, thisArg);
-    }
-    label NotCallable deferred {
+    } label NotCallable deferred {
       ThrowTypeError(MessageTemplate::kCalledNonCallable, arguments[0]);
-    }
-    label NotTypedArray deferred {
+    } label NotTypedArray deferred {
       ThrowTypeError(MessageTemplate::kNotTypedArray, kBuiltinNameEvery);
-    }
-    label IsDetached deferred {
+    } label IsDetached deferred {
       ThrowTypeError(MessageTemplate::kDetachedOperation, kBuiltinNameEvery);
     }
   }

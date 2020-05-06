@@ -39,8 +39,7 @@ namespace object {
     try {
       if (IsNullOrUndefined(iterable)) goto Throw;
       return ObjectFromEntriesFastCase(iterable) otherwise IfSlow;
-    }
-    label IfSlow {
+    } label IfSlow {
       const result: JSObject = NewJSObject();
       const fastIteratorResultMap: Map = GetIteratorResultMap();
       let i: iterator::IteratorRecord = iterator::GetIterator(iterable);
@@ -60,8 +59,7 @@ namespace object {
       } catch (e) deferred {
         iterator::IteratorCloseOnException(i, e);
       }
-    }
-    label Throw deferred {
+    } label Throw deferred {
       ThrowTypeError(MessageTemplate::kNotIterable);
     }
   }

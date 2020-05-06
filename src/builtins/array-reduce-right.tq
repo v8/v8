@@ -187,13 +187,11 @@ namespace array {
       try {
         return FastArrayReduceRight(o, len, callbackfn, initialValue)
             otherwise Bailout;
-      }
-      label Bailout(value: Number, accumulator: JSAny|TheHole) {
+      } label Bailout(value: Number, accumulator: JSAny|TheHole) {
         return ArrayReduceRightLoopContinuation(
             o, callbackfn, accumulator, o, value, len);
       }
-    }
-    label NoCallableError deferred {
+    } label NoCallableError deferred {
       ThrowTypeError(MessageTemplate::kCalledNonCallable, arguments[0]);
     }
   }
