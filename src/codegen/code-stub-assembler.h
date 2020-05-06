@@ -34,24 +34,47 @@ class StubCache;
 
 enum class PrimitiveType { kBoolean, kNumber, kString, kSymbol };
 
-#define HEAP_MUTABLE_IMMOVABLE_OBJECT_LIST(V)                                 \
-  V(ArrayIteratorProtector, array_iterator_protector, ArrayIteratorProtector) \
-  V(ArraySpeciesProtector, array_species_protector, ArraySpeciesProtector)    \
-  V(MapIteratorProtector, map_iterator_protector, MapIteratorProtector)       \
-  V(NoElementsProtector, no_elements_protector, NoElementsProtector)          \
-  V(NumberStringCache, number_string_cache, NumberStringCache)                \
-  V(PromiseResolveProtector, promise_resolve_protector,                       \
-    PromiseResolveProtector)                                                  \
-  V(PromiseSpeciesProtector, promise_species_protector,                       \
-    PromiseSpeciesProtector)                                                  \
-  V(PromiseThenProtector, promise_then_protector, PromiseThenProtector)       \
-  V(RegExpSpeciesProtector, regexp_species_protector, RegExpSpeciesProtector) \
-  V(SetIteratorProtector, set_iterator_protector, SetIteratorProtector)       \
-  V(SingleCharacterStringCache, single_character_string_cache,                \
-    SingleCharacterStringCache)                                               \
-  V(StringIteratorProtector, string_iterator_protector,                       \
-    StringIteratorProtector)                                                  \
-  V(TypedArraySpeciesProtector, typed_array_species_protector,                \
+#define HEAP_MUTABLE_IMMOVABLE_OBJECT_LIST(V)                                  \
+  V(ArrayIteratorProtector, array_iterator_protector, ArrayIteratorProtector)  \
+  V(ArraySpeciesProtector, array_species_protector, ArraySpeciesProtector)     \
+  V(AsyncFunctionAwaitRejectSharedFun, async_function_await_reject_shared_fun, \
+    AsyncFunctionAwaitRejectSharedFun)                                         \
+  V(AsyncFunctionAwaitResolveSharedFun,                                        \
+    async_function_await_resolve_shared_fun,                                   \
+    AsyncFunctionAwaitResolveSharedFun)                                        \
+  V(AsyncGeneratorAwaitRejectSharedFun,                                        \
+    async_generator_await_reject_shared_fun,                                   \
+    AsyncGeneratorAwaitRejectSharedFun)                                        \
+  V(AsyncGeneratorAwaitResolveSharedFun,                                       \
+    async_generator_await_resolve_shared_fun,                                  \
+    AsyncGeneratorAwaitResolveSharedFun)                                       \
+  V(AsyncGeneratorReturnClosedRejectSharedFun,                                 \
+    async_generator_return_closed_reject_shared_fun,                           \
+    AsyncGeneratorReturnClosedRejectSharedFun)                                 \
+  V(AsyncGeneratorReturnClosedResolveSharedFun,                                \
+    async_generator_return_closed_resolve_shared_fun,                          \
+    AsyncGeneratorReturnClosedResolveSharedFun)                                \
+  V(AsyncGeneratorReturnResolveSharedFun,                                      \
+    async_generator_return_resolve_shared_fun,                                 \
+    AsyncGeneratorReturnResolveSharedFun)                                      \
+  V(AsyncGeneratorYieldResolveSharedFun,                                       \
+    async_generator_yield_resolve_shared_fun,                                  \
+    AsyncGeneratorYieldResolveSharedFun)                                       \
+  V(MapIteratorProtector, map_iterator_protector, MapIteratorProtector)        \
+  V(NoElementsProtector, no_elements_protector, NoElementsProtector)           \
+  V(NumberStringCache, number_string_cache, NumberStringCache)                 \
+  V(PromiseResolveProtector, promise_resolve_protector,                        \
+    PromiseResolveProtector)                                                   \
+  V(PromiseSpeciesProtector, promise_species_protector,                        \
+    PromiseSpeciesProtector)                                                   \
+  V(PromiseThenProtector, promise_then_protector, PromiseThenProtector)        \
+  V(RegExpSpeciesProtector, regexp_species_protector, RegExpSpeciesProtector)  \
+  V(SetIteratorProtector, set_iterator_protector, SetIteratorProtector)        \
+  V(SingleCharacterStringCache, single_character_string_cache,                 \
+    SingleCharacterStringCache)                                                \
+  V(StringIteratorProtector, string_iterator_protector,                        \
+    StringIteratorProtector)                                                   \
+  V(TypedArraySpeciesProtector, typed_array_species_protector,                 \
     TypedArraySpeciesProtector)
 
 #define HEAP_IMMUTABLE_IMMOVABLE_OBJECT_LIST(V)                                \

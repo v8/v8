@@ -231,7 +231,24 @@ class Symbol;
   V(FixedArray, string_split_cache, StringSplitCache)                          \
   V(FixedArray, regexp_multiple_cache, RegExpMultipleCache)                    \
   /* Indirection lists for isolate-independent builtins */                     \
-  V(FixedArray, builtins_constants_table, BuiltinsConstantsTable)
+  V(FixedArray, builtins_constants_table, BuiltinsConstantsTable)              \
+  /* Internal SFIs */                                                          \
+  V(SharedFunctionInfo, async_function_await_reject_shared_fun,                \
+    AsyncFunctionAwaitRejectSharedFun)                                         \
+  V(SharedFunctionInfo, async_function_await_resolve_shared_fun,               \
+    AsyncFunctionAwaitResolveSharedFun)                                        \
+  V(SharedFunctionInfo, async_generator_await_reject_shared_fun,               \
+    AsyncGeneratorAwaitRejectSharedFun)                                        \
+  V(SharedFunctionInfo, async_generator_await_resolve_shared_fun,              \
+    AsyncGeneratorAwaitResolveSharedFun)                                       \
+  V(SharedFunctionInfo, async_generator_yield_resolve_shared_fun,              \
+    AsyncGeneratorYieldResolveSharedFun)                                       \
+  V(SharedFunctionInfo, async_generator_return_resolve_shared_fun,             \
+    AsyncGeneratorReturnResolveSharedFun)                                      \
+  V(SharedFunctionInfo, async_generator_return_closed_reject_shared_fun,       \
+    AsyncGeneratorReturnClosedRejectSharedFun)                                 \
+  V(SharedFunctionInfo, async_generator_return_closed_resolve_shared_fun,      \
+    AsyncGeneratorReturnClosedResolveSharedFun)
 
 // These root references can be updated by the mutator.
 #define STRONG_MUTABLE_MOVABLE_ROOT_LIST(V)                                \

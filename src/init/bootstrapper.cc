@@ -368,6 +368,9 @@ void Bootstrapper::DetachGlobal(Handle<Context> env) {
 
 namespace {
 
+// FIXME(marja): Remove SimpleCreateSharedFunctionInfo and
+// SimpleCreateBuiltinSharedFunctionInfo when migration to
+// setup-heap-internal.cc is complete (see v8:10482).
 V8_NOINLINE Handle<SharedFunctionInfo> SimpleCreateSharedFunctionInfo(
     Isolate* isolate, Builtins::Name builtin_id, Handle<String> name, int len,
     FunctionKind kind = FunctionKind::kNormalFunction) {
@@ -1618,40 +1621,6 @@ void Genesis::InitializeGlobal(Handle<JSGlobalObject> global_object,
         isolate_, Builtins::kAsyncIteratorValueUnwrap, factory->empty_string(),
         1);
     native_context()->set_async_iterator_value_unwrap_shared_fun(*info);
-  }
-
-  {  // --- A s y n c G e n e r a t o r ---
-    Handle<SharedFunctionInfo> info = SimpleCreateSharedFunctionInfo(
-        isolate_, Builtins::kAsyncGeneratorAwaitResolveClosure,
-        factory->empty_string(), 1);
-    native_context()->set_async_generator_await_resolve_shared_fun(*info);
-
-    info = SimpleCreateSharedFunctionInfo(
-        isolate_, Builtins::kAsyncGeneratorAwaitRejectClosure,
-        factory->empty_string(), 1);
-    native_context()->set_async_generator_await_reject_shared_fun(*info);
-
-    info = SimpleCreateSharedFunctionInfo(
-        isolate_, Builtins::kAsyncGeneratorYieldResolveClosure,
-        factory->empty_string(), 1);
-    native_context()->set_async_generator_yield_resolve_shared_fun(*info);
-
-    info = SimpleCreateSharedFunctionInfo(
-        isolate_, Builtins::kAsyncGeneratorReturnResolveClosure,
-        factory->empty_string(), 1);
-    native_context()->set_async_generator_return_resolve_shared_fun(*info);
-
-    info = SimpleCreateSharedFunctionInfo(
-        isolate_, Builtins::kAsyncGeneratorReturnClosedResolveClosure,
-        factory->empty_string(), 1);
-    native_context()->set_async_generator_return_closed_resolve_shared_fun(
-        *info);
-
-    info = SimpleCreateSharedFunctionInfo(
-        isolate_, Builtins::kAsyncGeneratorReturnClosedRejectClosure,
-        factory->empty_string(), 1);
-    native_context()->set_async_generator_return_closed_reject_shared_fun(
-        *info);
   }
 
   Handle<JSFunction> array_prototype_to_string_fun;
@@ -3734,11 +3703,11 @@ void Genesis::InitializeGlobal(Handle<JSGlobalObject> global_object,
         factory->NewJSObject(isolate_->object_function(), AllocationType::kOld);
     JSObject::AddProperty(isolate_, global, reflect_string, reflect, DONT_ENUM);
 
-        SimpleInstallFunction(isolate_, reflect, "defineProperty",
-                              Builtins::kReflectDefineProperty, 3, true);
+    SimpleInstallFunction(isolate_, reflect, "defineProperty",
+                          Builtins::kReflectDefineProperty, 3, true);
 
-        SimpleInstallFunction(isolate_, reflect, "deleteProperty",
-                              Builtins::kReflectDeleteProperty, 2, true);
+    SimpleInstallFunction(isolate_, reflect, "deleteProperty",
+                          Builtins::kReflectDeleteProperty, 2, true);
 
     Handle<JSFunction> apply = SimpleInstallFunction(
         isolate_, reflect, "apply", Builtins::kReflectApply, 3, false);
@@ -4180,20 +4149,6 @@ void Genesis::InitializeIteratorFunctions() {
     Handle<Map> async_function_object_map = factory->NewMap(
         JS_ASYNC_FUNCTION_OBJECT_TYPE, JSAsyncFunctionObject::kHeaderSize);
     native_context->set_async_function_object_map(*async_function_object_map);
-
-    {
-      Handle<SharedFunctionInfo> info = SimpleCreateSharedFunctionInfo(
-          isolate, Builtins::kAsyncFunctionAwaitRejectClosure,
-          factory->empty_string(), 1);
-      native_context->set_async_function_await_reject_shared_fun(*info);
-    }
-
-    {
-      Handle<SharedFunctionInfo> info = SimpleCreateSharedFunctionInfo(
-          isolate, Builtins::kAsyncFunctionAwaitResolveClosure,
-          factory->empty_string(), 1);
-      native_context->set_async_function_await_resolve_shared_fun(*info);
-    }
   }
 }
 

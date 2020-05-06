@@ -2,8 +2,6 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#include "src/init/setup-isolate.h"
-
 #include "src/builtins/accessors.h"
 #include "src/codegen/compilation-cache.h"
 #include "src/execution/isolate.h"
@@ -12,6 +10,7 @@
 #include "src/heap/heap-inl.h"
 #include "src/ic/handler-configuration.h"
 #include "src/init/heap-symbols.h"
+#include "src/init/setup-isolate.h"
 #include "src/interpreter/interpreter.h"
 #include "src/objects/arguments.h"
 #include "src/objects/cell-inl.h"
@@ -50,6 +49,21 @@
 
 namespace v8 {
 namespace internal {
+
+namespace {
+
+Handle<SharedFunctionInfo> CreateSharedFunctionInfo(
+    Isolate* isolate, Builtins::Name builtin_id, int len,
+    FunctionKind kind = FunctionKind::kNormalFunction) {
+  Handle<SharedFunctionInfo> shared =
+      isolate->factory()->NewSharedFunctionInfoForBuiltin(
+          isolate->factory()->empty_string(), builtin_id, kind);
+  shared->set_internal_formal_parameter_count(len);
+  shared->set_length(len);
+  return shared;
+}
+
+}  // namespace
 
 bool SetupIsolateDelegate::SetupHeapInternal(Heap* heap) {
   return heap->CreateHeapObjects();
@@ -348,7 +362,7 @@ bool Heap::CreateInitialMaps() {
   }
 
 #define ALLOCATE_VARSIZE_MAP(instance_type, field_name) \
-    ALLOCATE_MAP(instance_type, kVariableSizeSentinel, field_name)
+  ALLOCATE_MAP(instance_type, kVariableSizeSentinel, field_name)
 
 #define ALLOCATE_PRIMITIVE_MAP(instance_type, size, field_name, \
                                constructor_function_index)      \
@@ -434,14 +448,14 @@ bool Heap::CreateInitialMaps() {
 
     // The "no closures" and "one closure" FeedbackCell maps need
     // to be marked unstable because their objects can change maps.
-    ALLOCATE_MAP(
-      FEEDBACK_CELL_TYPE, FeedbackCell::kAlignedSize, no_closures_cell)
+    ALLOCATE_MAP(FEEDBACK_CELL_TYPE, FeedbackCell::kAlignedSize,
+                 no_closures_cell)
     roots.no_closures_cell_map().mark_unstable();
-    ALLOCATE_MAP(
-      FEEDBACK_CELL_TYPE, FeedbackCell::kAlignedSize, one_closure_cell)
+    ALLOCATE_MAP(FEEDBACK_CELL_TYPE, FeedbackCell::kAlignedSize,
+                 one_closure_cell)
     roots.one_closure_cell_map().mark_unstable();
-    ALLOCATE_MAP(
-      FEEDBACK_CELL_TYPE, FeedbackCell::kAlignedSize, many_closures_cell)
+    ALLOCATE_MAP(FEEDBACK_CELL_TYPE, FeedbackCell::kAlignedSize,
+                 many_closures_cell)
 
     ALLOCATE_VARSIZE_MAP(TRANSITION_ARRAY_TYPE, transition_array)
 
@@ -988,6 +1002,46 @@ void Heap::CreateInitialObjects() {
 
   // Initialize compilation cache.
   isolate_->compilation_cache()->Clear();
+
+  // Create internal SharedFunctionInfos.
+
+  // Async functions:
+  {
+    Handle<SharedFunctionInfo> info = CreateSharedFunctionInfo(
+        isolate(), Builtins::kAsyncFunctionAwaitRejectClosure, 1);
+    set_async_function_await_reject_shared_fun(*info);
+
+    info = CreateSharedFunctionInfo(
+        isolate(), Builtins::kAsyncFunctionAwaitResolveClosure, 1);
+    set_async_function_await_resolve_shared_fun(*info);
+  }
+
+  // Async generators:
+  {
+    Handle<SharedFunctionInfo> info = CreateSharedFunctionInfo(
+        isolate(), Builtins::kAsyncGeneratorAwaitResolveClosure, 1);
+    set_async_generator_await_resolve_shared_fun(*info);
+
+    info = CreateSharedFunctionInfo(
+        isolate(), Builtins::kAsyncGeneratorAwaitRejectClosure, 1);
+    set_async_generator_await_reject_shared_fun(*info);
+
+    info = CreateSharedFunctionInfo(
+        isolate(), Builtins::kAsyncGeneratorYieldResolveClosure, 1);
+    set_async_generator_yield_resolve_shared_fun(*info);
+
+    info = CreateSharedFunctionInfo(
+        isolate(), Builtins::kAsyncGeneratorReturnResolveClosure, 1);
+    set_async_generator_return_resolve_shared_fun(*info);
+
+    info = CreateSharedFunctionInfo(
+        isolate(), Builtins::kAsyncGeneratorReturnClosedResolveClosure, 1);
+    set_async_generator_return_closed_resolve_shared_fun(*info);
+
+    info = CreateSharedFunctionInfo(
+        isolate(), Builtins::kAsyncGeneratorReturnClosedRejectClosure, 1);
+    set_async_generator_return_closed_reject_shared_fun(*info);
+  }
 }
 
 void Heap::CreateInternalAccessorInfoObjects() {
