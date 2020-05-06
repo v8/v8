@@ -32,10 +32,8 @@ namespace internal {
   V(ArrayNoArgumentConstructor)       \
   V(ArraySingleArgumentConstructor)   \
   V(AsyncFunctionStackParameter)      \
-  V(BigIntToI64)                      \
   V(BigIntToI32Pair)                  \
-  V(I64ToBigInt)                      \
-  V(I32PairToBigInt)                  \
+  V(BigIntToI64)                      \
   V(BinaryOp)                         \
   V(CallForwardVarargs)               \
   V(CallFunctionTemplate)             \
@@ -60,6 +58,8 @@ namespace internal {
   V(GetIteratorStackParameter)        \
   V(GetProperty)                      \
   V(GrowArrayElements)                \
+  V(I32PairToBigInt)                  \
+  V(I64ToBigInt)                      \
   V(InterpreterCEntry1)               \
   V(InterpreterCEntry2)               \
   V(InterpreterDispatch)              \
@@ -69,15 +69,15 @@ namespace internal {
   V(Load)                             \
   V(LoadGlobal)                       \
   V(LoadGlobalNoFeedback)             \
-  V(LoadNoFeedback)                   \
   V(LoadGlobalWithVector)             \
+  V(LoadNoFeedback)                   \
   V(LoadWithVector)                   \
   V(NewArgumentsElements)             \
   V(NoContext)                        \
   V(RecordWrite)                      \
   V(ResumeGenerator)                  \
-  V(RunMicrotasksEntry)               \
   V(RunMicrotasks)                    \
+  V(RunMicrotasksEntry)               \
   V(Store)                            \
   V(StoreGlobal)                      \
   V(StoreGlobalWithVector)            \
@@ -90,16 +90,16 @@ namespace internal {
   V(TypeConversionStackParameter)     \
   V(Typeof)                           \
   V(Void)                             \
+  V(WasmAtomicNotify)                 \
   V(WasmFloat32ToNumber)              \
   V(WasmFloat64ToNumber)              \
-  V(WasmAtomicNotify)                 \
   V(WasmI32AtomicWait32)              \
   V(WasmI32AtomicWait64)              \
   V(WasmI64AtomicWait32)              \
   V(WasmI64AtomicWait64)              \
   V(WasmMemoryGrow)                   \
-  V(WasmTableInit)                    \
   V(WasmTableCopy)                    \
+  V(WasmTableInit)                    \
   V(WasmThrow)                        \
   BUILTIN_LIST_TFS(V)                 \
   TORQUE_BUILTIN_LIST_TFC(V)
