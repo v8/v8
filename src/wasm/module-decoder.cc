@@ -35,11 +35,6 @@ constexpr char kCompilationHintsString[] = "compilationHints";
 constexpr char kDebugInfoString[] = ".debug_info";
 constexpr char kExternalDebugInfoString[] = ".external_debug_info";
 
-template <size_t N>
-constexpr size_t num_chars(const char (&)[N]) {
-  return N - 1;  // remove null character at end.
-}
-
 const char* ExternalKindName(ImportExportKindCode kind) {
   switch (kind) {
     case kExternalFunction:
@@ -167,30 +162,21 @@ SectionCode IdentifyUnknownSectionInternal(Decoder* decoder) {
         static_cast<int>(section_name_start - decoder->start()),
         string.length() < 20 ? string.length() : 20, section_name_start);
 
-  if (string.length() == num_chars(kNameString) &&
-      strncmp(reinterpret_cast<const char*>(section_name_start), kNameString,
-              num_chars(kNameString)) == 0) {
-    return kNameSectionCode;
-  } else if (string.length() == num_chars(kSourceMappingURLString) &&
-             strncmp(reinterpret_cast<const char*>(section_name_start),
-                     kSourceMappingURLString,
-                     num_chars(kSourceMappingURLString)) == 0) {
-    return kSourceMappingURLSectionCode;
-  } else if (string.length() == num_chars(kCompilationHintsString) &&
-             strncmp(reinterpret_cast<const char*>(section_name_start),
-                     kCompilationHintsString,
-                     num_chars(kCompilationHintsString)) == 0) {
-    return kCompilationHintsSectionCode;
-  } else if (string.length() == num_chars(kDebugInfoString) &&
-             strncmp(reinterpret_cast<const char*>(section_name_start),
-                     kDebugInfoString, num_chars(kDebugInfoString)) == 0) {
-    return kDebugInfoSectionCode;
-  } else if (string.length() == num_chars(kExternalDebugInfoString) &&
-             strncmp(reinterpret_cast<const char*>(section_name_start),
-                     kExternalDebugInfoString,
-                     num_chars(kExternalDebugInfoString)) == 0) {
-    return kExternalDebugInfoSectionCode;
+  using SpecialSectionPair = std::pair<Vector<const char>, SectionCode>;
+  static constexpr SpecialSectionPair kSpecialSections[]{
+      {StaticCharVector(kNameString), kNameSectionCode},
+      {StaticCharVector(kSourceMappingURLString), kSourceMappingURLSectionCode},
+      {StaticCharVector(kCompilationHintsString), kCompilationHintsSectionCode},
+      {StaticCharVector(kDebugInfoString), kDebugInfoSectionCode},
+      {StaticCharVector(kExternalDebugInfoString),
+       kExternalDebugInfoSectionCode}};
+
+  auto name_vec =
+      Vector<const char>::cast(VectorOf(section_name_start, string.length()));
+  for (auto& special_section : kSpecialSections) {
+    if (name_vec == special_section.first) return special_section.second;
   }
+
   return kUnknownSectionCode;
 }
 }  // namespace
