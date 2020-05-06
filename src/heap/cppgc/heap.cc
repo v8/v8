@@ -20,12 +20,17 @@ std::unique_ptr<Heap> Heap::Create() {
   return std::make_unique<internal::Heap>();
 }
 
+void Heap::ForceGarbageCollectionSlow(const char* source, const char* reason,
+                                      Heap::StackState stack_state) {
+  internal::Heap::From(this)->CollectGarbage({stack_state});
+}
+
 namespace internal {
 
 namespace {
 
 constexpr bool NeedsConservativeStackScan(Heap::GCConfig config) {
-  return config.stack_state == Heap::GCConfig::StackState::kNonEmpty;
+  return config.stack_state != Heap::GCConfig::StackState::kEmpty;
 }
 
 class ObjectSizeCounter : public HeapVisitor<ObjectSizeCounter> {

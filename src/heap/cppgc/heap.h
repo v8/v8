@@ -57,14 +57,11 @@ class V8_EXPORT_PRIVATE Heap final : public cppgc::Heap {
   };
 
   struct GCConfig {
-    enum class StackState : uint8_t {
-      kEmpty,
-      kNonEmpty,
-    };
+    using StackState = Heap::StackState;
 
-    static GCConfig Default() { return {StackState::kNonEmpty}; }
+    static GCConfig Default() { return {StackState::kUnkown}; }
 
-    StackState stack_state = StackState::kNonEmpty;
+    StackState stack_state = StackState::kUnkown;
   };
 
   static Heap* From(cppgc::Heap* heap) { return static_cast<Heap*>(heap); }

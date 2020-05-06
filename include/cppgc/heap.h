@@ -38,9 +38,41 @@ class V8_EXPORT Heap {
   static constexpr size_t kMaxNumberOfSpaces =
       static_cast<size_t>(SpaceType::kUserDefined4) + 1;
 
+  /**
+   * Specifies the stack state the embedder is in.
+   */
+  enum class StackState : uint8_t {
+    /**
+     * The embedder does not know anything about it's stack.
+     */
+    kUnkown,
+    /**
+     * The stack is empty, i.e., it does not contain any raw pointers
+     * to garbage-collected objects.
+     */
+    kEmpty,
+    /**
+     * The stack is non-empty, i.e., it may contain raw pointers to
+     * garabge-collected objects.
+     */
+    kNonEmpty,
+  };
+
   static std::unique_ptr<Heap> Create();
 
   virtual ~Heap() = default;
+
+  /**
+   * Forces garbage collection.
+   *
+   * \param source String specifying the source (or caller) triggering a
+   *   forced garbage collection.
+   * \param reason String specifying the reason for the forced garbage
+   *   collection.
+   * \param stack_state The embedder stack state, see StackState.
+   */
+  void ForceGarbageCollectionSlow(const char* source, const char* reason,
+                                  StackState stack_state = StackState::kUnkown);
 
  private:
   Heap() = default;
