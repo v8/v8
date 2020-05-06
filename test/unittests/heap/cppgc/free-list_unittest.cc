@@ -2,12 +2,13 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#include "src/heap/cppgc/free-list.h"
+
 #include <memory>
 #include <numeric>
 #include <vector>
 
 #include "src/base/bits.h"
-#include "src/heap/cppgc/free-list.h"
 #include "src/heap/cppgc/globals.h"
 #include "src/heap/cppgc/heap-object-header.h"
 #include "testing/gtest/include/gtest/gtest.h"
@@ -84,6 +85,14 @@ TEST(FreeListTest, Add) {
       blocks.cbegin(), blocks.cend(), 0u,
       [](size_t acc, const Block& b) { return acc + b.Size(); });
   EXPECT_EQ(allocated_size, list.Size());
+}
+
+TEST(FreeListTest, AddWasted) {
+  FreeList list;
+  alignas(HeapObjectHeader) uint8_t buffer[sizeof(HeapObjectHeader)];
+  list.Add({buffer, sizeof(buffer)});
+  EXPECT_EQ(0u, list.Size());
+  EXPECT_TRUE(list.IsEmpty());
 }
 
 TEST(FreeListTest, Clear) {

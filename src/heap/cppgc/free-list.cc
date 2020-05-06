@@ -63,7 +63,14 @@ FreeList& FreeList::operator=(FreeList&& other) V8_NOEXCEPT {
 void FreeList::Add(FreeList::Block block) {
   const size_t size = block.size;
   DCHECK_GT(kPageSize, size);
-  DCHECK_LE(kFreeListEntrySize, size);
+  DCHECK_LE(sizeof(HeapObjectHeader), size);
+
+  if (block.size < sizeof(Entry)) {
+    // Create wasted entry. This can happen when an almost emptied linear
+    // allocation buffer is returned to the freelist.
+    new (block.address) HeapObjectHeader(size, kFreeListGCInfoIndex);
+    return;
+  }
 
   // Make sure the freelist header is writable.
   SET_MEMORY_ACCESIBLE(block.address, sizeof(Entry));

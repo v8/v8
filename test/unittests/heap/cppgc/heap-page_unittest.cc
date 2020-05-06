@@ -15,7 +15,6 @@
 #include "src/heap/cppgc/heap-object-header.h"
 #include "src/heap/cppgc/page-memory-inl.h"
 #include "src/heap/cppgc/raw-heap.h"
-
 #include "test/unittests/heap/cppgc/tests.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
@@ -104,7 +103,8 @@ TEST_F(PageTest, NormalPageIndexing) {
   using Type = GCed<kObjectSize>;
   static const size_t kNumberOfObjects =
       (kExpectedNumberOfPages * NormalPage::PayloadSize() /
-       (sizeof(Type) + sizeof(HeapObjectHeader)));
+       (sizeof(Type) + sizeof(HeapObjectHeader))) -
+      kExpectedNumberOfPages;
 
   std::vector<Persistent<Type>> persistents(kNumberOfObjects);
   for (auto& p : persistents) {
