@@ -17,7 +17,8 @@ class WasmBuiltinsAssembler : public CodeStubAssembler {
 
   TNode<WasmInstanceObject> LoadInstanceFromFrame();
 
-  TNode<Context> LoadContextFromInstance(TNode<WasmInstanceObject> instance);
+  TNode<NativeContext> LoadContextFromInstance(
+      TNode<WasmInstanceObject> instance);
 
   TNode<FixedArray> LoadTablesFromInstance(TNode<WasmInstanceObject> instance);
 

@@ -102,10 +102,8 @@ namespace internal {
   V(WasmI32AtomicWait64)              \
   V(WasmI64AtomicWait32)              \
   V(WasmI64AtomicWait64)              \
-  V(WasmMemoryGrow)                   \
-  V(WasmTableCopy)                    \
   V(WasmTableInit)                    \
-  V(WasmThrow)                        \
+  V(WasmTableCopy)                    \
   BUILTIN_LIST_TFS(V)                 \
   TORQUE_BUILTIN_LIST_TFC(V)
 
@@ -1333,14 +1331,6 @@ class WasmFloat64ToNumberDescriptor final : public CallInterfaceDescriptor {
   DECLARE_DESCRIPTOR(WasmFloat64ToNumberDescriptor, CallInterfaceDescriptor)
 };
 
-class WasmMemoryGrowDescriptor final : public CallInterfaceDescriptor {
- public:
-  DEFINE_PARAMETERS_NO_CONTEXT(kNumPages)
-  DEFINE_RESULT_AND_PARAMETER_TYPES(MachineType::Int32(),  // result 1
-                                    MachineType::Int32())  // kNumPages
-  DECLARE_DESCRIPTOR(WasmMemoryGrowDescriptor, CallInterfaceDescriptor)
-};
-
 class WasmTableInitDescriptor final : public CallInterfaceDescriptor {
  public:
   DEFINE_PARAMETERS_NO_CONTEXT(kDestination, kSource, kSize, kTableIndex,
@@ -1385,14 +1375,6 @@ class WasmTableCopyDescriptor final : public CallInterfaceDescriptor {
   static constexpr int kStackArgumentsCount = kPassLastArgOnStack ? 1 : 0;
 
   DECLARE_DESCRIPTOR(WasmTableCopyDescriptor, CallInterfaceDescriptor)
-};
-
-class WasmThrowDescriptor final : public CallInterfaceDescriptor {
- public:
-  DEFINE_PARAMETERS_NO_CONTEXT(kException)
-  DEFINE_RESULT_AND_PARAMETER_TYPES(MachineType::AnyTagged(),  // result 1
-                                    MachineType::AnyTagged())  // kException
-  DECLARE_DESCRIPTOR(WasmThrowDescriptor, CallInterfaceDescriptor)
 };
 
 class V8_EXPORT_PRIVATE I64ToBigIntDescriptor final

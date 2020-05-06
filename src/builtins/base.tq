@@ -307,7 +307,21 @@ extern enum MessageTemplate {
   kProxySetPrototypeOfNonExtensible,
   kProxyDeletePropertyNonExtensible,
   kWeakRefsCleanupMustBeCallable,
+  kWasmTrapUnreachable,
+  kWasmTrapMemOutOfBounds,
+  kWasmTrapUnalignedAccess,
+  kWasmTrapDivByZero,
+  kWasmTrapDivUnrepresentable,
+  kWasmTrapRemByZero,
+  kWasmTrapFloatUnrepresentable,
+  kWasmTrapFuncInvalid,
+  kWasmTrapFuncSigMismatch,
+  kWasmTrapDataSegmentDropped,
+  kWasmTrapElemSegmentDropped,
   kWasmTrapTableOutOfBounds,
+  kWasmTrapBrOnExnNullRef,
+  kWasmTrapRethrowNullRef,
+  kWasmTrapNullDereference,
   ...
 }
 
