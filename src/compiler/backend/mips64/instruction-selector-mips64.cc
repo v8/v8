@@ -852,6 +852,10 @@ void InstructionSelector::VisitWord64Sar(Node* node) {
   VisitRRO(this, kMips64Dsar, node);
 }
 
+void InstructionSelector::VisitWord32Rol(Node* node) { UNREACHABLE(); }
+
+void InstructionSelector::VisitWord64Rol(Node* node) { UNREACHABLE(); }
+
 void InstructionSelector::VisitWord32Ror(Node* node) {
   VisitRRO(this, kMips64Ror, node);
 }
