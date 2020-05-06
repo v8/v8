@@ -1329,35 +1329,43 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
                i.InputDoubleRegister(1));
       break;
     case kMips64Float64RoundDown: {
-      __ Floor_d_d(i.OutputDoubleRegister(), i.InputDoubleRegister(0));
+      __ Floor_d_d(i.OutputDoubleRegister(), i.InputDoubleRegister(0),
+                   kScratchDoubleReg);
       break;
     }
     case kMips64Float32RoundDown: {
-      __ Floor_s_s(i.OutputSingleRegister(), i.InputSingleRegister(0));
+      __ Floor_s_s(i.OutputSingleRegister(), i.InputSingleRegister(0),
+                   kScratchDoubleReg);
       break;
     }
     case kMips64Float64RoundTruncate: {
-      __ Trunc_d_d(i.OutputDoubleRegister(), i.InputDoubleRegister(0));
+      __ Trunc_d_d(i.OutputDoubleRegister(), i.InputDoubleRegister(0),
+                   kScratchDoubleReg);
       break;
     }
     case kMips64Float32RoundTruncate: {
-      __ Trunc_s_s(i.OutputSingleRegister(), i.InputSingleRegister(0));
+      __ Trunc_s_s(i.OutputSingleRegister(), i.InputSingleRegister(0),
+                   kScratchDoubleReg);
       break;
     }
     case kMips64Float64RoundUp: {
-      __ Ceil_d_d(i.OutputDoubleRegister(), i.InputDoubleRegister(0));
+      __ Ceil_d_d(i.OutputDoubleRegister(), i.InputDoubleRegister(0),
+                  kScratchDoubleReg);
       break;
     }
     case kMips64Float32RoundUp: {
-      __ Ceil_s_s(i.OutputSingleRegister(), i.InputSingleRegister(0));
+      __ Ceil_s_s(i.OutputSingleRegister(), i.InputSingleRegister(0),
+                  kScratchDoubleReg);
       break;
     }
     case kMips64Float64RoundTiesEven: {
-      __ Round_d_d(i.OutputDoubleRegister(), i.InputDoubleRegister(0));
+      __ Round_d_d(i.OutputDoubleRegister(), i.InputDoubleRegister(0),
+                   kScratchDoubleReg);
       break;
     }
     case kMips64Float32RoundTiesEven: {
-      __ Round_s_s(i.OutputSingleRegister(), i.InputSingleRegister(0));
+      __ Round_s_s(i.OutputSingleRegister(), i.InputSingleRegister(0),
+                   kScratchDoubleReg);
       break;
     }
     case kMips64Float32Max: {

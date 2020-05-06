@@ -1333,7 +1333,7 @@ TEST(FCLASS) {
     }
   }
 }
-/*
+
 TEST(RISCV7) {
   // Test floating point compare and
   // branch instructions.
@@ -1364,7 +1364,7 @@ TEST(RISCV7) {
   __ RV_fclass_d(t5, ft0);
   __ RV_fclass_d(t6, ft1);
   __ RV_or_(t5, t5, t6);
-  __ RV_andi(t5, t5, 0b1100000000);
+  __ RV_andi(t5, t5, kSignalingNaN | kQuietNaN);
   __ RV_beq(t5, zero_reg, &neither_is_nan);
   __ RV_sw(zero_reg, a0, offsetof(T, result));
   __ RV_j(&outa_here);
@@ -1404,7 +1404,6 @@ TEST(RISCV7) {
   CHECK_EQ(2.75e11, t.b);
   CHECK_EQ(1, t.result);
 }
-*/
 
 TEST(RISCV9) {
   // Test BRANCH improvements.
