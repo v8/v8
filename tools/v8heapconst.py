@@ -443,6 +443,7 @@ KNOWN_OBJECTS = {
   ("old_space", 0x01669): "AsyncGeneratorReturnResolveSharedFun",
   ("old_space", 0x01691): "AsyncGeneratorReturnClosedRejectSharedFun",
   ("old_space", 0x016b9): "AsyncGeneratorReturnClosedResolveSharedFun",
+  ("old_space", 0x016e1): "AsyncIteratorValueUnwrapSharedFun",
 }
 
 # Lower 32 bits of first page addresses for various heap spaces.

@@ -60,6 +60,8 @@ enum class PrimitiveType { kBoolean, kNumber, kString, kSymbol };
   V(AsyncGeneratorYieldResolveSharedFun,                                       \
     async_generator_yield_resolve_shared_fun,                                  \
     AsyncGeneratorYieldResolveSharedFun)                                       \
+  V(AsyncIteratorValueUnwrapSharedFun, async_iterator_value_unwrap_shared_fun, \
+    AsyncIteratorValueUnwrapSharedFun)                                         \
   V(MapIteratorProtector, map_iterator_protector, MapIteratorProtector)        \
   V(NoElementsProtector, no_elements_protector, NoElementsProtector)           \
   V(NumberStringCache, number_string_cache, NumberStringCache)                 \

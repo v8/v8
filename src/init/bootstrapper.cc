@@ -1616,13 +1616,6 @@ void Genesis::InitializeGlobal(Handle<JSGlobalObject> global_object,
     }
   }
 
-  {  // --- A s y n c F r o m S y n c I t e r a t o r
-    Handle<SharedFunctionInfo> info = SimpleCreateSharedFunctionInfo(
-        isolate_, Builtins::kAsyncIteratorValueUnwrap, factory->empty_string(),
-        1);
-    native_context()->set_async_iterator_value_unwrap_shared_fun(*info);
-  }
-
   Handle<JSFunction> array_prototype_to_string_fun;
   {  // --- A r r a y ---
     Handle<JSFunction> array_function = InstallFunction(

@@ -283,8 +283,8 @@ TNode<JSFunction> AsyncBuiltinsAssembler::CreateUnwrapClosure(
     TNode<NativeContext> native_context, TNode<Oddball> done) {
   const TNode<Map> map = CAST(LoadContextElement(
       native_context, Context::STRICT_FUNCTION_WITHOUT_PROTOTYPE_MAP_INDEX));
-  const TNode<SharedFunctionInfo> on_fulfilled_shared = CAST(LoadContextElement(
-      native_context, Context::ASYNC_ITERATOR_VALUE_UNWRAP_SHARED_FUN));
+  const TNode<SharedFunctionInfo> on_fulfilled_shared =
+      AsyncIteratorValueUnwrapSharedFunConstant();
   const TNode<Context> closure_context =
       AllocateAsyncIteratorValueUnwrapContext(native_context, done);
   return AllocateFunctionWithMapAndContext(map, on_fulfilled_shared,

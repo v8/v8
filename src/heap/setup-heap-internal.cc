@@ -1042,6 +1042,13 @@ void Heap::CreateInitialObjects() {
         isolate(), Builtins::kAsyncGeneratorReturnClosedRejectClosure, 1);
     set_async_generator_return_closed_reject_shared_fun(*info);
   }
+
+  // AsyncIterator:
+  {
+    Handle<SharedFunctionInfo> info = CreateSharedFunctionInfo(
+        isolate_, Builtins::kAsyncIteratorValueUnwrap, 1);
+    set_async_iterator_value_unwrap_shared_fun(*info);
+  }
 }
 
 void Heap::CreateInternalAccessorInfoObjects() {

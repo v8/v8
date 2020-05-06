@@ -74,8 +74,6 @@ enum ContextLookupFlags {
   V(ASYNC_FUNCTION_OBJECT_MAP_INDEX, Map, async_function_object_map)           \
   V(ASYNC_GENERATOR_FUNCTION_FUNCTION_INDEX, JSFunction,                       \
     async_generator_function_function)                                         \
-  V(ASYNC_ITERATOR_VALUE_UNWRAP_SHARED_FUN, SharedFunctionInfo,                \
-    async_iterator_value_unwrap_shared_fun)                                    \
   V(ATOMICS_OBJECT, JSObject, atomics_object)                                  \
   V(BIGINT_FUNCTION_INDEX, JSFunction, bigint_function)                        \
   V(BIGINT64_ARRAY_FUN_INDEX, JSFunction, bigint64_array_fun)                  \
