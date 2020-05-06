@@ -12,6 +12,7 @@
 #include "testing/gtest/include/gtest/gtest.h"
 
 namespace cppgc {
+namespace internal {
 namespace testing {
 
 class TestWithPlatform : public ::testing::Test {
@@ -29,10 +30,10 @@ class TestWithHeap : public TestWithPlatform {
 
   void PreciseGC() {
     heap_->ForceGarbageCollectionSlow("TestWithHeap", "Testing",
-                                      Heap::StackState::kEmpty);
+                                      Heap::GCConfig::StackState::kEmpty);
   }
 
-  Heap* GetHeap() const { return heap_.get(); }
+  cppgc::Heap* GetHeap() const { return heap_.get(); }
 
  private:
   std::unique_ptr<cppgc::Heap> heap_;
@@ -47,10 +48,11 @@ class TestSupportingAllocationOnly : public TestWithHeap {
   TestSupportingAllocationOnly();
 
  private:
-  std::unique_ptr<cppgc::internal::Heap::NoGCScope> no_gc_scope_;
+  Heap::NoGCScope no_gc_scope_;
 };
 
 }  // namespace testing
+}  // namespace internal
 }  // namespace cppgc
 
 #endif  // V8_UNITTESTS_HEAP_CPPGC_TESTS_H_

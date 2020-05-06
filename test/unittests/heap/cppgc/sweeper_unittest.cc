@@ -189,5 +189,30 @@ TEST_F(SweeperTest, CoalesceFreeListEntries) {
   EXPECT_TRUE(freelist.Contains(coalesced_block));
 }
 
+namespace {
+
+class GCInDestructor final : public GarbageCollected<GCInDestructor> {
+ public:
+  explicit GCInDestructor(Heap* heap) : heap_(heap) {}
+  ~GCInDestructor() {
+    // Instead of directly calling GC, allocations should be supported here as
+    // well.
+    heap_->CollectGarbage(internal::Heap::GCConfig::Default());
+  }
+
+ private:
+  Heap* heap_;
+};
+
+}  // namespace
+
+TEST_F(SweeperTest, SweepDoesNotTriggerRecursiveGC) {
+  auto* internal_heap = internal::Heap::From(GetHeap());
+  size_t saved_epoch = internal_heap->epoch();
+  MakeGarbageCollected<GCInDestructor>(GetHeap(), internal_heap);
+  PreciseGC();
+  EXPECT_EQ(saved_epoch + 1, internal_heap->epoch());
+}
+
 }  // namespace internal
 }  // namespace cppgc

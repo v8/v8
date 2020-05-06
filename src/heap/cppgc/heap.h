@@ -32,28 +32,35 @@ class V8_EXPORT_PRIVATE LivenessBrokerFactory {
 
 class V8_EXPORT_PRIVATE Heap final : public cppgc::Heap {
  public:
+  // NoGCScope allows going over limits and avoids triggering garbage
+  // collection triggered through allocations or even explicitly.
   class V8_EXPORT_PRIVATE NoGCScope final {
+    CPPGC_STACK_ALLOCATED();
+
    public:
     explicit NoGCScope(Heap* heap);
     ~NoGCScope();
 
+    NoGCScope(const NoGCScope&) = delete;
+    NoGCScope& operator=(const NoGCScope&) = delete;
+
    private:
-    Heap* heap_;
+    Heap* const heap_;
   };
 
-  // The NoAllocationScope class is used in debug mode to catch unwanted
-  // allocations. E.g. allocations during GC.
+  // NoAllocationScope is used in debug mode to catch unwanted allocations. E.g.
+  // allocations during GC.
   class V8_EXPORT_PRIVATE NoAllocationScope final {
     CPPGC_STACK_ALLOCATED();
-
    public:
     explicit NoAllocationScope(Heap* heap);
     ~NoAllocationScope();
 
+    NoAllocationScope(const NoAllocationScope&) = delete;
+    NoAllocationScope& operator=(const NoAllocationScope&) = delete;
+
    private:
     Heap* const heap_;
-
-    DISALLOW_COPY_AND_ASSIGN(NoAllocationScope);
   };
 
   struct GCConfig {
@@ -98,6 +105,8 @@ class V8_EXPORT_PRIVATE Heap final : public cppgc::Heap {
 
   Sweeper& sweeper() { return sweeper_; }
 
+  size_t epoch() const { return epoch_; }
+
   size_t ObjectPayloadSize() const;
 
  private:
@@ -117,6 +126,8 @@ class V8_EXPORT_PRIVATE Heap final : public cppgc::Heap {
 
   PersistentRegion strong_persistent_region_;
   PersistentRegion weak_persistent_region_;
+
+  size_t epoch_ = 0;
 
   size_t no_gc_scope_ = 0;
   size_t no_allocation_scope_ = 0;

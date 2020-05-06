@@ -98,13 +98,15 @@ Heap::Heap()
       prefinalizer_handler_(std::make_unique<PreFinalizerHandler>()) {}
 
 Heap::~Heap() {
+  NoGCScope no_gc(this);
   // Finish already running GC if any, but don't finalize live objects.
   sweeper_.Finish();
 }
 
 void Heap::CollectGarbage(GCConfig config) {
-  // No GC calls when in NoGCScope.
-  CHECK(!in_no_gc_scope());
+  if (in_no_gc_scope()) return;
+
+  epoch_++;
 
   // TODO(chromium:1056170): Replace with proper mark-sweep algorithm.
   // "Marking".
@@ -118,7 +120,10 @@ void Heap::CollectGarbage(GCConfig config) {
     NoAllocationScope no_allocation_scope_(this);
     prefinalizer_handler_->InvokePreFinalizers();
   }
-  sweeper_.Start(Sweeper::Config::kAtomic);
+  {
+    NoGCScope no_gc(this);
+    sweeper_.Start(Sweeper::Config::kAtomic);
+  }
 }
 
 size_t Heap::ObjectPayloadSize() const {

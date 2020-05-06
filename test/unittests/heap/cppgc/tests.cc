@@ -7,6 +7,7 @@
 #include <memory>
 
 namespace cppgc {
+namespace internal {
 namespace testing {
 
 // static
@@ -27,8 +28,8 @@ void TestWithPlatform::TearDownTestSuite() {
 TestWithHeap::TestWithHeap() : heap_(Heap::Create()) {}
 
 TestSupportingAllocationOnly::TestSupportingAllocationOnly()
-    : no_gc_scope_(std::make_unique<internal::Heap::NoGCScope>(
-          internal::Heap::From(GetHeap()))) {}
+    : no_gc_scope_(internal::Heap::From(GetHeap())) {}
 
 }  // namespace testing
+}  // namespace internal
 }  // namespace cppgc
