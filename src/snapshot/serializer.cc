@@ -569,16 +569,11 @@ SnapshotSpace GetSnapshotSpace(HeapObject object) {
     // Large code objects are not supported and cannot be expressed by
     // SnapshotSpace.
     DCHECK_NE(heap_space, CODE_LO_SPACE);
-    switch (heap_space) {
-      // Young generation objects are tenured, as objects that have survived
-      // until snapshot building probably deserve to be considered 'old'.
-      case NEW_SPACE:
-        return SnapshotSpace::kOld;
-      case NEW_LO_SPACE:
-        return SnapshotSpace::kLargeObject;
-
-      default:
-        return static_cast<SnapshotSpace>(heap_space);
+    // Young generation large objects are tenured.
+    if (heap_space == NEW_LO_SPACE) {
+      return SnapshotSpace::kLargeObject;
+    } else {
+      return static_cast<SnapshotSpace>(heap_space);
     }
   }
 }
