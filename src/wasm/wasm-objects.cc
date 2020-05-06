@@ -1230,6 +1230,7 @@ Handle<WasmInstanceObject> WasmInstanceObject::New(
       module_object->native_module()->jump_table_start());
   instance->set_hook_on_function_call_address(
       isolate->debug()->hook_on_function_call_address());
+  instance->set_managed_object_maps(*isolate->factory()->empty_fixed_array());
 
   // Insert the new instance into the scripts weak list of instances. This list
   // is used for breakpoints affecting all instances belonging to the script.
@@ -1412,29 +1413,6 @@ WasmInstanceObject::GetOrCreateWasmExternalFunction(
   WasmInstanceObject::SetWasmExternalFunction(isolate, instance, function_index,
                                               result);
   return result;
-}
-
-Handle<Map> WasmInstanceObject::GetOrCreateStructMap(
-    Isolate* isolate, Handle<WasmInstanceObject> instance, int struct_index) {
-  Handle<WasmModuleObject> module_object(instance->module_object(), isolate);
-  const WasmModule* module = module_object->module();
-  const wasm::StructType* type = module->struct_type(struct_index);
-
-  int inobject_properties = 0;
-  DCHECK_LE(type->total_fields_size(), kMaxInt - WasmStruct::kHeaderSize);
-  int instance_size =
-      WasmStruct::kHeaderSize + static_cast<int>(type->total_fields_size());
-  InstanceType instance_type = WASM_STRUCT_TYPE;
-  // TODO(jkummerow): If NO_ELEMENTS were supported, we could use that here.
-  ElementsKind elements_kind = TERMINAL_FAST_ELEMENTS_KIND;
-  Handle<Foreign> type_info =
-      isolate->factory()->NewForeign(reinterpret_cast<Address>(type));
-  Handle<Map> map = isolate->factory()->NewMap(
-      instance_type, instance_size, elements_kind, inobject_properties);
-  map->set_constructor_or_backpointer(*type_info);
-
-  // TODO(7748): Cache the map somewhere on the instance.
-  return map;
 }
 
 void WasmInstanceObject::SetWasmExternalFunction(

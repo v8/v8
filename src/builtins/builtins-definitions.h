@@ -842,6 +842,7 @@ namespace internal {
   TFC(WasmFloat32ToNumber, WasmFloat32ToNumber)                                \
   TFC(WasmFloat64ToNumber, WasmFloat64ToNumber)                                \
   TFS(WasmAllocateJSArray, kArraySize)                                         \
+  TFS(WasmAllocateStruct, kMapIndex)                                           \
   TFC(WasmAtomicNotify, WasmAtomicNotify)                                      \
   TFS(WasmGetOwnProperty, kObject, kUniqueName)                                \
   TFC(WasmI32AtomicWait32, WasmI32AtomicWait32)                                \

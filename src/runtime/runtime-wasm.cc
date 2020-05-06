@@ -294,22 +294,6 @@ RUNTIME_FUNCTION(Runtime_WasmRefFunc) {
   return *function;
 }
 
-RUNTIME_FUNCTION(Runtime_WasmStructNew) {
-  ClearThreadInWasmScope flag_scope;
-  HandleScope scope(isolate);
-  DCHECK_EQ(1, args.length());
-  Handle<WasmInstanceObject> instance =
-      handle(GetWasmInstanceOnStackTop(isolate), isolate);
-  DCHECK(isolate->context().is_null());
-  isolate->set_context(instance->native_context());
-  CONVERT_UINT32_ARG_CHECKED(struct_index, 0);
-
-  Handle<Map> map =
-      WasmInstanceObject::GetOrCreateStructMap(isolate, instance, struct_index);
-  Handle<Object> obj = isolate->factory()->NewWasmStruct(map);
-  return *obj;
-}
-
 RUNTIME_FUNCTION(Runtime_WasmFunctionTableGet) {
   ClearThreadInWasmScope flag_scope;
   HandleScope scope(isolate);

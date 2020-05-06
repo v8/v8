@@ -351,6 +351,19 @@ TF_BUILTIN(WasmTableCopy, WasmBuiltinsAssembler) {
                   src_table, dst, src, size);
 }
 
+TF_BUILTIN(WasmAllocateStruct, WasmBuiltinsAssembler) {
+  TNode<WasmInstanceObject> instance = LoadInstanceFromFrame();
+  TNode<Smi> map_index = CAST(Parameter(Descriptor::kMapIndex));
+  TNode<FixedArray> maps_list = LoadObjectField<FixedArray>(
+      instance, WasmInstanceObject::kManagedObjectMapsOffset);
+  TNode<Map> map = CAST(LoadFixedArrayElement(maps_list, map_index));
+  TNode<IntPtrT> instance_size =
+      TimesTaggedSize(LoadMapInstanceSizeInWords(map));
+  TNode<WasmStruct> result = UncheckedCast<WasmStruct>(Allocate(instance_size));
+  StoreMap(result, map);
+  Return(result);
+}
+
 #define DECLARE_THROW_RUNTIME_FN(name)                            \
   TF_BUILTIN(ThrowWasm##name, WasmBuiltinsAssembler) {            \
     TNode<WasmInstanceObject> instance = LoadInstanceFromFrame(); \

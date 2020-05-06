@@ -387,6 +387,7 @@ class WasmInstanceObject : public JSObject {
   DECL_OPTIONAL_ACCESSORS(managed_native_allocations, Foreign)
   DECL_OPTIONAL_ACCESSORS(exceptions_table, FixedArray)
   DECL_OPTIONAL_ACCESSORS(wasm_external_functions, FixedArray)
+  DECL_ACCESSORS(managed_object_maps, FixedArray)
   DECL_PRIMITIVE_ACCESSORS(memory_start, byte*)
   DECL_PRIMITIVE_ACCESSORS(memory_size, size_t)
   DECL_PRIMITIVE_ACCESSORS(memory_mask, size_t)
@@ -446,6 +447,7 @@ class WasmInstanceObject : public JSObject {
   V(kManagedNativeAllocationsOffset, kTaggedSize)                         \
   V(kExceptionsTableOffset, kTaggedSize)                                  \
   V(kWasmExternalFunctionsOffset, kTaggedSize)                            \
+  V(kManagedObjectMapsOffset, kTaggedSize)                                \
   V(kRealStackLimitAddressOffset, kSystemPointerSize)                     \
   V(kDataSegmentStartsOffset, kSystemPointerSize)                         \
   V(kDataSegmentSizesOffset, kSystemPointerSize)                          \
@@ -483,7 +485,8 @@ class WasmInstanceObject : public JSObject {
       kIndirectFunctionTablesOffset,
       kManagedNativeAllocationsOffset,
       kExceptionsTableOffset,
-      kWasmExternalFunctionsOffset};
+      kWasmExternalFunctionsOffset,
+      kManagedObjectMapsOffset};
 
   V8_EXPORT_PRIVATE const wasm::WasmModule* module();
 
@@ -574,10 +577,6 @@ class WasmInstanceObject : public JSObject {
   static MaybeHandle<String> GetMemoryNameOrNull(Isolate*,
                                                  Handle<WasmInstanceObject>,
                                                  uint32_t memory_index);
-
-  static Handle<Map> GetOrCreateStructMap(Isolate* isolate,
-                                          Handle<WasmInstanceObject> instance,
-                                          int struct_index);
 
   OBJECT_CONSTRUCTORS(WasmInstanceObject, JSObject);
 

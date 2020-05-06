@@ -5049,12 +5049,24 @@ Node* StoreStructFieldUnchecked(MachineGraph* graph, WasmGraphAssembler* gasm,
 Node* WasmGraphBuilder::StructNew(uint32_t struct_index,
                                   const wasm::StructType* type,
                                   Vector<Node*> fields) {
-  Node* runtime_args[] = {
-      graph()->NewNode(mcgraph()->common()->NumberConstant(struct_index))};
-  // TODO(7748): Make this more efficient: ideally an inline allocation,
-  // or at least go through a builtin to save code size.
-  Node* s = BuildCallToRuntime(Runtime::kWasmStructNew, runtime_args,
-                               arraysize(runtime_args));
+  // This logic is duplicated from module-instantiate.cc.
+  // TODO(jkummerow): Find a nicer solution.
+  int map_index = 0;
+  const std::vector<uint8_t>& type_kinds = env_->module->type_kinds;
+  for (uint32_t i = 0; i < struct_index; i++) {
+    if (type_kinds[i] == wasm::kWasmStructTypeCode) map_index++;
+  }
+
+  CallDescriptor* call_descriptor =
+      GetBuiltinCallDescriptor<WasmAllocateStructDescriptor>(
+          this, StubCallMode::kCallBuiltinPointer);
+  Node* call_target = graph()->NewNode(
+      mcgraph()->common()->NumberConstant(Builtins::kWasmAllocateStruct));
+  Node* native_context =
+      LOAD_INSTANCE_FIELD(NativeContext, MachineType::TaggedPointer());
+  Node* s = gasm_->Call(call_descriptor, call_target,
+                        gasm_->Int32Constant(map_index), native_context);
+
   for (uint32_t i = 0; i < type->field_count(); i++) {
     StoreStructFieldUnchecked(mcgraph(), gasm_.get(), s, type, i, fields[i]);
   }
