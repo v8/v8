@@ -320,7 +320,7 @@ TEST(RV32F) {
   COMPARE(RV_fsgnjx_s(ft0, ft8, fa5), "20fe2053       fsgnjx.s  ft0, ft8, fa5");
   COMPARE(RV_fmin_s(ft0, ft8, fa5), "28fe0053       fmin.s    ft0, ft8, fa5");
   COMPARE(RV_fmax_s(ft0, ft8, fa5), "28fe1053       fmax.s    ft0, ft8, fa5");
-  COMPARE(RV_fcvt_w_s(a0, ft8, RNE), "c00e0553       fcvt.w.s [RNE] a0, ft8");
+  COMPARE(RV_fcvt_w_s(a0, ft8, RNE), "c00e0553       fcvt.w.s  [RNE] a0, ft8");
   COMPARE(RV_fcvt_wu_s(a0, ft8, RTZ), "c01e1553       fcvt.wu.s [RTZ] a0, ft8");
   COMPARE(RV_fmv_x_w(a0, ft8), "e00e0553       fmv.x.w   a0, ft8");
   COMPARE(RV_feq_s(a0, ft8, fa5), "a0fe2553       feq.s     a0, ft8, fa5");
@@ -336,7 +336,7 @@ TEST(RV32F) {
 TEST(RV64F) {
   SET_UP();
   // RV64F Standard Extension (in addition to RV32F)
-  COMPARE(RV_fcvt_l_s(a0, ft8, RNE), "c02e0553       fcvt.l.s [RNE] a0, ft8");
+  COMPARE(RV_fcvt_l_s(a0, ft8, RNE), "c02e0553       fcvt.l.s  [RNE] a0, ft8");
   COMPARE(RV_fcvt_lu_s(a0, ft8, RMM), "c03e4553       fcvt.lu.s [RMM] a0, ft8");
   COMPARE(RV_fcvt_s_l(ft0, s3), "d0298053       fcvt.s.l  ft0, s3");
   COMPARE(RV_fcvt_s_lu(ft0, s3), "d0398053       fcvt.s.lu ft0, s3");
@@ -366,13 +366,13 @@ TEST(RV32D) {
   COMPARE(RV_fsgnjx_d(ft0, ft8, fa5), "22fe2053       fsgnjx.d  ft0, ft8, fa5");
   COMPARE(RV_fmin_d(ft0, ft8, fa5), "2afe0053       fmin.d    ft0, ft8, fa5");
   COMPARE(RV_fmax_d(ft0, ft8, fa5), "2afe1053       fmax.d    ft0, ft8, fa5");
-  COMPARE(RV_fcvt_s_d(ft0, ft8, RDN), "401e2053       fcvt.s.d [RDN] ft0, t3");
+  COMPARE(RV_fcvt_s_d(ft0, ft8, RDN), "401e2053       fcvt.s.d  [RDN] ft0, t3");
   COMPARE(RV_fcvt_d_s(ft0, fa0), "42050053       fcvt.d.s  ft0, fa0");
   COMPARE(RV_feq_d(a0, ft8, fa5), "a2fe2553       feq.d     a0, ft8, fa5");
   COMPARE(RV_flt_d(a0, ft8, fa5), "a2fe1553       flt.d     a0, ft8, fa5");
   COMPARE(RV_fle_d(a0, ft8, fa5), "a2fe0553       fle.d     a0, ft8, fa5");
   COMPARE(RV_fclass_d(a0, ft8), "e20e1553       fclass.d  a0, ft8");
-  COMPARE(RV_fcvt_w_d(a0, ft8, RNE), "c20e0553       fcvt.w.d [RNE] a0, ft8");
+  COMPARE(RV_fcvt_w_d(a0, ft8, RNE), "c20e0553       fcvt.w.d  [RNE] a0, ft8");
   COMPARE(RV_fcvt_wu_d(a0, ft8, RUP), "c21e3553       fcvt.wu.d [RUP] a0, ft8");
   COMPARE(RV_fcvt_d_w(ft0, s3), "d2098053       fcvt.d.w  ft0, s3");
   COMPARE(RV_fcvt_d_wu(ft0, s3), "d2198053       fcvt.d.wu ft0, s3");
@@ -383,7 +383,7 @@ TEST(RV32D) {
 TEST(RV64D) {
   SET_UP();
   // RV64D Standard Extension (in addition to RV32D)
-  COMPARE(RV_fcvt_l_d(a0, ft8, RMM), "c22e4553       fcvt.l.d [RMM] a0, ft8");
+  COMPARE(RV_fcvt_l_d(a0, ft8, RMM), "c22e4553       fcvt.l.d  [RMM] a0, ft8");
   COMPARE(RV_fcvt_lu_d(a0, ft8, RDN), "c23e2553       fcvt.lu.d [RDN] a0, ft8");
   COMPARE(RV_fmv_x_d(a0, ft8), "e20e0553       fmv.x.d   a0, ft8");
   COMPARE(RV_fcvt_d_l(ft0, s3), "d2298053       fcvt.d.l  ft0, s3");

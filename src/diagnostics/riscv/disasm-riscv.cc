@@ -727,14 +727,14 @@ void Decoder::DecodeRFPType(Instruction* instr) {
     case RO_FCVT_W_S: {  // RO_FCVT_WU_S , 64F RO_FCVT_L_S RO_FCVT_LU_S
       switch (instr->Rs2Value()) {
         case 0b00000:  // RO_FCVT_W_S
-          Format(instr, "fcvt.w.s ['frm] 'rd, 'fs1");
+          Format(instr, "fcvt.w.s  ['frm] 'rd, 'fs1");
           break;
         case 0b00001:  // RO_FCVT_WU_S
           Format(instr, "fcvt.wu.s ['frm] 'rd, 'fs1");
           break;
 #ifdef V8_TARGET_ARCH_64_BIT
         case 0b00010:  // RO_FCVT_L_S
-          Format(instr, "fcvt.l.s ['frm] 'rd, 'fs1");
+          Format(instr, "fcvt.l.s  ['frm] 'rd, 'fs1");
           break;
         case 0b00011:  // RO_FCVT_LU_S
           Format(instr, "fcvt.lu.s ['frm] 'rd, 'fs1");
@@ -859,7 +859,7 @@ void Decoder::DecodeRFPType(Instruction* instr) {
     }
     case (RO_FCVT_S_D & kRFPTypeMask): {
       if (instr->Rs2Value() == 0b00001) {
-        Format(instr, "fcvt.s.d ['frm] 'fd, 'rs1");
+        Format(instr, "fcvt.s.d  ['frm] 'fd, 'rs1");
       } else {
         UNSUPPORTED_RISCV();
       }
@@ -911,14 +911,14 @@ void Decoder::DecodeRFPType(Instruction* instr) {
     case RO_FCVT_W_D: {  // RO_FCVT_WU_D , 64F RO_FCVT_L_D RO_FCVT_LU_D
       switch (instr->Rs2Value()) {
         case 0b00000:  // RO_FCVT_W_D
-          Format(instr, "fcvt.w.d ['frm] 'rd, 'fs1");
+          Format(instr, "fcvt.w.d  ['frm] 'rd, 'fs1");
           break;
         case 0b00001:  // RO_FCVT_WU_D
           Format(instr, "fcvt.wu.d ['frm] 'rd, 'fs1");
           break;
 #ifdef V8_TARGET_ARCH_64_BIT
         case 0b00010:  // RO_FCVT_L_D
-          Format(instr, "fcvt.l.d ['frm] 'rd, 'fs1");
+          Format(instr, "fcvt.l.d  ['frm] 'rd, 'fs1");
           break;
         case 0b00011:  // RO_FCVT_LU_D
           Format(instr, "fcvt.lu.d ['frm] 'rd, 'fs1");
