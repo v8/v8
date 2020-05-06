@@ -3848,11 +3848,15 @@ void LinearScanAllocator::AllocateRegisters() {
               auto& spill_state = data()->GetSpillState(pred);
               TRACE("Not a fallthrough. Adding %zu elements...\n",
                     spill_state.size());
+              LifetimePosition pred_end =
+                  LifetimePosition::GapFromInstructionIndex(
+                      this->code()->InstructionBlockAt(pred)->code_end());
               for (const auto range : spill_state) {
-                // Filter out ranges that had their register stolen by backwards
-                // working spill heuristics. These have been spilled after the
-                // fact, so ignore them.
-                if (!range->HasRegisterAssigned()) continue;
+                // Filter out ranges that were split or had their register
+                // stolen by backwards working spill heuristics. These have
+                // been spilled after the fact, so ignore them.
+                if (range->End() < pred_end || !range->HasRegisterAssigned())
+                  continue;
                 to_be_live->emplace(range);
               }
             }
