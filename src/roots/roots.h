@@ -19,6 +19,7 @@ namespace internal {
 
 // Forward declarations.
 enum ElementsKind : uint8_t;
+class OffThreadHeap;
 class OffThreadIsolate;
 template <typename T>
 class Handle;
@@ -498,6 +499,7 @@ class ReadOnlyRoots {
       static_cast<size_t>(RootIndex::kReadOnlyRootsCount);
 
   V8_INLINE explicit ReadOnlyRoots(Heap* heap);
+  V8_INLINE explicit ReadOnlyRoots(OffThreadHeap* heap);
   V8_INLINE explicit ReadOnlyRoots(Isolate* isolate);
   V8_INLINE explicit ReadOnlyRoots(OffThreadIsolate* isolate);
 

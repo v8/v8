@@ -78,6 +78,11 @@ class V8_EXPORT_PRIVATE OffThreadIsolate final
   explicit OffThreadIsolate(Isolate* isolate, Zone* zone);
   ~OffThreadIsolate();
 
+  static OffThreadIsolate* FromHeap(OffThreadHeap* heap) {
+    return reinterpret_cast<OffThreadIsolate*>(
+        reinterpret_cast<Address>(heap) - OFFSET_OF(OffThreadIsolate, heap_));
+  }
+
   OffThreadHeap* heap() { return &heap_; }
 
   inline Address isolate_root() const;
