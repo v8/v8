@@ -650,6 +650,15 @@ DEFINE_BOOL(turbo_fast_api_calls, false, "enable fast API calls from TurboFan")
 DEFINE_INT(reuse_opt_code_count, 0,
            "don't discard optimized code for the specified number of deopts.")
 
+// Native context independent (NCI) code.
+DEFINE_BOOL(turbo_nci, false,
+            "enable experimental native context independent code.")
+DEFINE_BOOL(turbo_nci_as_highest_tier, false,
+            "replace default TF with NCI code as the highest tier for testing "
+            "purposes.")
+DEFINE_BOOL(print_nci_code, false, "print native context independent code.")
+DEFINE_BOOL(trace_turbo_nci, false, "trace native context independent code.")
+
 // Favor memory over execution speed.
 DEFINE_BOOL(optimize_for_size, false,
             "Enables optimizations which favor memory size over execution "

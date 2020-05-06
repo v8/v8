@@ -225,6 +225,10 @@ declare_args() {
   # Enable V8 heap sandbox experimental feature.
   # Sets -DV8_HEAP_SANDBOX.
   v8_enable_heap_sandbox = ""
+
+  # Experimental support for native context independent code.
+  # https://crbug.com/v8/8888
+  v8_enable_nci_code = false
 }
 
 # Derived defaults.
@@ -453,10 +457,6 @@ config("features") {
   }
   if (v8_enable_lite_mode) {
     defines += [ "V8_LITE_MODE" ]
-
-    # TODO(v8:7777): Remove the define once the --jitless runtime flag does
-    # everything we need.
-    defines += [ "V8_JITLESS_MODE" ]
   }
   if (v8_enable_gdbjit) {
     defines += [ "ENABLE_GDB_JIT_INTERFACE" ]
@@ -526,10 +526,6 @@ config("features") {
   if (v8_check_microtasks_scopes_consistency) {
     defines += [ "V8_CHECK_MICROTASKS_SCOPES_CONSISTENCY" ]
   }
-
-  # TODO(v8:8519): Remove the define once all use-sites in
-  #                the code are removed/fixed
-  defines += [ "V8_EMBEDDED_BUILTINS" ]
   if (v8_use_multi_snapshots) {
     defines += [ "V8_MULTI_SNAPSHOTS" ]
   }
@@ -556,6 +552,9 @@ config("features") {
   }
   if (v8_enable_wasm_gdb_remote_debugging) {
     defines += [ "V8_ENABLE_WASM_GDB_REMOTE_DEBUGGING" ]
+  }
+  if (v8_enable_nci_code) {
+    defines += [ "V8_ENABLE_NCI_CODE" ]
   }
 }
 
