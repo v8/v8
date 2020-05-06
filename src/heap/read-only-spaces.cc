@@ -71,13 +71,8 @@ void ReadOnlySpace::DetachPagesAndAddToArtifacts(
 
 void ReadOnlyPage::MakeHeaderRelocatable() {
   ReleaseAllocatedMemoryNeededForWritableChunk();
-  // Detached read-only space needs to have a valid marking bitmap and free list
-  // categories. Instruct Lsan to ignore them if required.
-  LSAN_IGNORE_OBJECT(categories_);
-  for (int i = kFirstCategory; i < owner()->free_list()->number_of_categories();
-       i++) {
-    LSAN_IGNORE_OBJECT(categories_[i]);
-  }
+  // Detached read-only space needs to have a valid marking bitmap. Instruct
+  // Lsan to ignore it if required.
   LSAN_IGNORE_OBJECT(marking_bitmap_);
   heap_ = nullptr;
   owner_ = nullptr;
@@ -153,7 +148,13 @@ void ReadOnlySpace::Seal(SealMode ro_mode) {
       memory_allocator->UnregisterMemory(p);
       static_cast<ReadOnlyPage*>(p)->MakeHeaderRelocatable();
     }
+  } else {
+    for (Page* p : *this) {
+      p->ReleaseAllocatedMemoryNeededForWritableChunk();
+    }
   }
+
+  free_list_.reset();
 
   SetPermissionsForPages(memory_allocator, PageAllocator::kRead);
 }

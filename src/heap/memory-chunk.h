@@ -354,6 +354,10 @@ class MemoryChunk : public BasicMemoryChunk {
     return &possibly_empty_buckets_;
   }
 
+  // Release memory allocated by the chunk, except that which is needed by
+  // read-only space chunks.
+  void ReleaseAllocatedMemoryNeededForWritableChunk();
+
  protected:
   static MemoryChunk* Initialize(Heap* heap, Address base, size_t size,
                                  Address area_start, Address area_end,
@@ -363,9 +367,6 @@ class MemoryChunk : public BasicMemoryChunk {
   // Release all memory allocated by the chunk. Should be called when memory
   // chunk is about to be freed.
   void ReleaseAllAllocatedMemory();
-  // Release memory allocated by the chunk, except that which is needed by
-  // read-only space chunks.
-  void ReleaseAllocatedMemoryNeededForWritableChunk();
 
   // Sets the requested page permissions only if the write unprotect counter
   // has reached 0.
