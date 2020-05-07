@@ -1118,6 +1118,12 @@ bool WasmScript::ClearBreakPointById(Handle<Script> script, int breakpoint_id) {
 }
 
 // static
+void WasmScript::ClearAllBreakpoints(Script script) {
+  script.set_wasm_breakpoint_infos(
+      ReadOnlyRoots(script.GetIsolate()).empty_fixed_array());
+}
+
+// static
 void WasmScript::AddBreakpointToInfo(Handle<Script> script, int position,
                                      Handle<BreakPoint> break_point) {
   Isolate* isolate = script->GetIsolate();

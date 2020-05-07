@@ -622,6 +622,7 @@ bool Debug::SetBreakPointForScript(Handle<Script> script,
   Handle<BreakPoint> break_point =
       isolate_->factory()->NewBreakPoint(*id, condition);
   if (script->type() == Script::TYPE_WASM) {
+    RecordWasmScriptWithBreakpoints(script);
     return WasmScript::SetBreakPoint(script, source_position, break_point);
   }
 
@@ -777,12 +778,53 @@ void Debug::RemoveBreakpointForWasmScript(Handle<Script> script, int id) {
   }
 }
 
+void Debug::RecordWasmScriptWithBreakpoints(Handle<Script> script) {
+  if (wasm_scripts_with_breakpoints_.is_null()) {
+    Handle<WeakArrayList> new_list = isolate_->factory()->NewWeakArrayList(4);
+    wasm_scripts_with_breakpoints_ =
+        isolate_->global_handles()->Create(*new_list);
+  }
+  {
+    DisallowHeapAllocation no_gc;
+    for (int idx = wasm_scripts_with_breakpoints_->length() - 1; idx >= 0;
+         --idx) {
+      HeapObject wasm_script;
+      if (wasm_scripts_with_breakpoints_->Get(idx).GetHeapObject(
+              &wasm_script) &&
+          wasm_script == *script) {
+        return;
+      }
+    }
+  }
+  Handle<WeakArrayList> new_list = WeakArrayList::Append(
+      isolate_, wasm_scripts_with_breakpoints_, MaybeObjectHandle{script});
+  if (*new_list != *wasm_scripts_with_breakpoints_) {
+    isolate_->global_handles()->Destroy(
+        wasm_scripts_with_breakpoints_.location());
+    wasm_scripts_with_breakpoints_ =
+        isolate_->global_handles()->Create(*new_list);
+  }
+}
+
 // Clear out all the debug break code.
 void Debug::ClearAllBreakPoints() {
   ClearAllDebugInfos([=](Handle<DebugInfo> info) {
     ClearBreakPoints(info);
     info->ClearBreakInfo(isolate_);
   });
+  // Clear all wasm breakpoints.
+  if (!wasm_scripts_with_breakpoints_.is_null()) {
+    DisallowHeapAllocation no_gc;
+    for (int idx = wasm_scripts_with_breakpoints_->length() - 1; idx >= 0;
+         --idx) {
+      HeapObject raw_wasm_script;
+      if (wasm_scripts_with_breakpoints_->Get(idx).GetHeapObject(
+              &raw_wasm_script)) {
+        WasmScript::ClearAllBreakpoints(Script::cast(raw_wasm_script));
+      }
+    }
+    wasm_scripts_with_breakpoints_ = Handle<WeakArrayList>{};
+  }
 }
 
 void Debug::FloodWithOneShot(Handle<SharedFunctionInfo> shared,
