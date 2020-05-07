@@ -2688,8 +2688,8 @@ Handle<JSDataView> Factory::NewJSDataView(Handle<JSArrayBuffer> buffer,
                   isolate());
   Handle<JSDataView> obj = Handle<JSDataView>::cast(NewJSArrayBufferView(
       map, empty_fixed_array(), buffer, byte_offset, byte_length));
-  obj->set_data_pointer(static_cast<uint8_t*>(buffer->backing_store()) +
-                        byte_offset);
+  obj->set_data_pointer(
+      isolate(), static_cast<uint8_t*>(buffer->backing_store()) + byte_offset);
   return obj;
 }
 

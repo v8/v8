@@ -306,8 +306,9 @@ HeapObject Deserializer::PostProcessNewObject(HeapObject obj,
       uint32_t store_index = buffer.GetBackingStoreRefForDeserialization();
       backing_store = backing_stores_[store_index]->buffer_start();
     }
-    data_view.set_data_pointer(reinterpret_cast<uint8_t*>(backing_store) +
-                               data_view.byte_offset());
+    data_view.set_data_pointer(
+        isolate_,
+        reinterpret_cast<uint8_t*>(backing_store) + data_view.byte_offset());
   } else if (obj.IsJSTypedArray()) {
     JSTypedArray typed_array = JSTypedArray::cast(obj);
     // Fixup typed array pointers.

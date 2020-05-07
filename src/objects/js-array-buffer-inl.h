@@ -303,12 +303,16 @@ MaybeHandle<JSTypedArray> JSTypedArray::Validate(Isolate* isolate,
   return array;
 }
 
-void* JSDataView::data_pointer() const {
-  return reinterpret_cast<void*>(ReadField<Address>(kDataPointerOffset));
+DEF_GETTER(JSDataView, data_pointer, void*) {
+  ExternalPointer_t encoded_value =
+      ReadField<ExternalPointer_t>(kDataPointerOffset);
+  return reinterpret_cast<void*>(DecodeExternalPointer(isolate, encoded_value));
 }
 
-void JSDataView::set_data_pointer(void* value) {
-  WriteField<Address>(kDataPointerOffset, reinterpret_cast<Address>(value));
+void JSDataView::set_data_pointer(Isolate* isolate, void* value) {
+  WriteField<ExternalPointer_t>(
+      kDataPointerOffset,
+      EncodeExternalPointer(isolate, reinterpret_cast<Address>(value)));
 }
 
 }  // namespace internal

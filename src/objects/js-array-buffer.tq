@@ -46,4 +46,6 @@ extern class JSTypedArray extends JSArrayBufferView {
   base_pointer: ByteArray|Smi;
 }
 
-extern class JSDataView extends JSArrayBufferView { data_pointer: RawPtr; }
+extern class JSDataView extends JSArrayBufferView {
+  data_pointer: ExternalPointer;
+}

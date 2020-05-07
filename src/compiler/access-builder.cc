@@ -430,9 +430,13 @@ FieldAccess AccessBuilder::ForJSTypedArrayExternalPointer() {
 
 // static
 FieldAccess AccessBuilder::ForJSDataViewDataPointer() {
-  FieldAccess access = {kTaggedBase,           JSDataView::kDataPointerOffset,
-                        MaybeHandle<Name>(),   MaybeHandle<Map>(),
-                        Type::OtherInternal(), MachineType::Pointer(),
+  FieldAccess access = {kTaggedBase,
+                        JSDataView::kDataPointerOffset,
+                        MaybeHandle<Name>(),
+                        MaybeHandle<Map>(),
+                        V8_HEAP_SANDBOX_BOOL ? Type::SandboxedExternalPointer()
+                                             : Type::ExternalPointer(),
+                        MachineType::Pointer(),
                         kNoWriteBarrier};
   return access;
 }

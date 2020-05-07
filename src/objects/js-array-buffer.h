@@ -369,7 +369,8 @@ class JSTypedArray : public JSArrayBufferView {
 class JSDataView : public JSArrayBufferView {
  public:
   // [data_pointer]: pointer to the actual data.
-  DECL_PRIMITIVE_ACCESSORS(data_pointer, void*)
+  DECL_GETTER(data_pointer, void*)
+  inline void set_data_pointer(Isolate* isolate, void* value);
 
   DECL_CAST(JSDataView)
 
