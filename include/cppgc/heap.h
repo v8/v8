@@ -45,7 +45,7 @@ class V8_EXPORT Heap {
     /**
      * The embedder does not know anything about it's stack.
      */
-    kUnkown,
+    kUnknown,
     /**
      * The stack is empty, i.e., it does not contain any raw pointers
      * to garbage-collected objects.
@@ -71,8 +71,9 @@ class V8_EXPORT Heap {
    *   collection.
    * \param stack_state The embedder stack state, see StackState.
    */
-  void ForceGarbageCollectionSlow(const char* source, const char* reason,
-                                  StackState stack_state = StackState::kUnkown);
+  void ForceGarbageCollectionSlow(
+      const char* source, const char* reason,
+      StackState stack_state = StackState::kUnknown);
 
  private:
   Heap() = default;
