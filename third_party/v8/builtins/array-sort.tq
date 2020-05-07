@@ -21,6 +21,8 @@ namespace array {
     }
 
     macro CheckAccessor(implicit context: Context)() labels Bailout {
+      if (!IsFastJSArray(this.receiver, context)) goto Bailout;
+
       const canUseSameAccessorFn: CanUseSameAccessorFn =
           this.canUseSameAccessorFn;
 
