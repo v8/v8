@@ -659,6 +659,11 @@ TNode<Boolean> JSGraphAssembler::ObjectIsCallable(TNode<Object> value) {
       graph()->NewNode(simplified()->ObjectIsCallable(), value));
 }
 
+TNode<Boolean> JSGraphAssembler::ObjectIsUndetectable(TNode<Object> value) {
+  return AddNode<Boolean>(
+      graph()->NewNode(simplified()->ObjectIsUndetectable(), value));
+}
+
 Node* JSGraphAssembler::CheckIf(Node* cond, DeoptimizeReason reason) {
   return AddNode(graph()->NewNode(simplified()->CheckIf(reason), cond, effect(),
                                   control()));

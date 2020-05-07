@@ -825,6 +825,7 @@ class V8_EXPORT_PRIVATE JSGraphAssembler : public GraphAssembler {
   TNode<String> StringSubstring(TNode<String> string, TNode<Number> from,
                                 TNode<Number> to);
   TNode<Boolean> ObjectIsCallable(TNode<Object> value);
+  TNode<Boolean> ObjectIsUndetectable(TNode<Object> value);
   Node* CheckIf(Node* cond, DeoptimizeReason reason);
   TNode<Boolean> NumberIsFloat64Hole(TNode<Number> value);
   TNode<Boolean> ToBoolean(TNode<Object> value);
