@@ -134,8 +134,6 @@ class V8_EXPORT_PRIVATE PreparseDataBuilder : public ZoneObject,
     ByteData()
         : byte_data_(nullptr), index_(0), free_quarters_in_last_byte_(0) {}
 
-    ~ByteData() {}
-
     void Start(std::vector<uint8_t>* buffer);
     void Finalize(Zone* zone);
 
