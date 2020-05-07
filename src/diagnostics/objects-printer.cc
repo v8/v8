@@ -1731,6 +1731,46 @@ void WasmStruct::WasmStructPrint(std::ostream& os) {  // NOLINT
   os << "\n";
 }
 
+void WasmArray::WasmArrayPrint(std::ostream& os) {  // NOLINT
+  PrintHeader(os, "WasmArray");
+  wasm::ArrayType* array_type = type();
+  uint32_t len = length();
+  os << "\n - type: " << array_type->element_type().type_name();
+  os << "\n - length: " << len;
+  Address data_ptr = ptr() + WasmArray::kHeaderSize - kHeapObjectTag;
+  switch (array_type->element_type().kind()) {
+    case wasm::ValueType::kI32:
+      PrintTypedArrayElements(os, reinterpret_cast<int32_t*>(data_ptr), len,
+                              true);
+      break;
+    case wasm::ValueType::kI64:
+      PrintTypedArrayElements(os, reinterpret_cast<int64_t*>(data_ptr), len,
+                              true);
+      break;
+    case wasm::ValueType::kF32:
+      PrintTypedArrayElements(os, reinterpret_cast<float*>(data_ptr), len,
+                              true);
+      break;
+    case wasm::ValueType::kF64:
+      PrintTypedArrayElements(os, reinterpret_cast<double*>(data_ptr), len,
+                              true);
+      break;
+    case wasm::ValueType::kS128:
+    case wasm::ValueType::kAnyRef:
+    case wasm::ValueType::kFuncRef:
+    case wasm::ValueType::kNullRef:
+    case wasm::ValueType::kExnRef:
+    case wasm::ValueType::kRef:
+    case wasm::ValueType::kOptRef:
+    case wasm::ValueType::kEqRef:
+    case wasm::ValueType::kBottom:
+    case wasm::ValueType::kStmt:
+      UNIMPLEMENTED();  // TODO(7748): Implement.
+      break;
+  }
+  os << "\n";
+}
+
 void WasmDebugInfo::WasmDebugInfoPrint(std::ostream& os) {  // NOLINT
   PrintHeader(os, "WasmDebugInfo");
   os << "\n - wasm_instance: " << Brief(wasm_instance());

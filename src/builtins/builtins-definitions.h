@@ -841,6 +841,7 @@ namespace internal {
   ASM(WasmDebugBreak, Dummy)                                                   \
   TFC(WasmFloat32ToNumber, WasmFloat32ToNumber)                                \
   TFC(WasmFloat64ToNumber, WasmFloat64ToNumber)                                \
+  TFS(WasmAllocateArray, kMapIndex, kLength, kElementSize)                     \
   TFS(WasmAllocateStruct, kMapIndex)                                           \
   TFC(WasmAtomicNotify, WasmAtomicNotify)                                      \
   TFS(WasmGetOwnProperty, kObject, kUniqueName)                                \

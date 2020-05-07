@@ -374,6 +374,8 @@ class WasmGraphBuilder {
   Node* StructSet(Node* struct_object, const wasm::StructType* type,
                   uint32_t field_index, Node* value,
                   wasm::WasmCodePosition position);
+  Node* ArrayNew(uint32_t array_index, const wasm::ArrayType* type,
+                 Node* length, Node* initial_value);
 
   bool has_simd() const { return has_simd_; }
 

@@ -242,6 +242,7 @@ class V8_EXPORT_PRIVATE WasmModuleBuilder : public ZoneObject {
   void AddDataSegment(const byte* data, uint32_t size, uint32_t dest);
   uint32_t AddSignature(FunctionSig* sig);
   uint32_t AddStructType(StructType* type);
+  uint32_t AddArrayType(ArrayType* type);
   // In the current implementation, it's supported to have uninitialized slots
   // at the beginning and/or end of the indirect function table, as long as
   // the filled slots form a contiguous block in the middle.
@@ -276,15 +277,18 @@ class V8_EXPORT_PRIVATE WasmModuleBuilder : public ZoneObject {
 
  private:
   struct Type {
-    enum Kind { kFunctionSig, kStructType };
+    enum Kind { kFunctionSig, kStructType, kArrayType };
     explicit Type(FunctionSig* signature)
         : kind(kFunctionSig), sig(signature) {}
     explicit Type(StructType* struct_type)
-        : kind(kStructType), type(struct_type) {}
+        : kind(kStructType), struct_type(struct_type) {}
+    explicit Type(ArrayType* array_type)
+        : kind(kArrayType), array_type(array_type) {}
     Kind kind;
     union {
       FunctionSig* sig;
-      StructType* type;
+      StructType* struct_type;
+      ArrayType* array_type;
     };
   };
 

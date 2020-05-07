@@ -106,3 +106,11 @@ extern class AsmWasmData extends Struct {
 @generateCppClass
 extern class WasmStruct extends HeapObject {
 }
+
+@generateCppClass
+extern class WasmArray extends HeapObject {
+  length: uint32;
+
+  @if(TAGGED_SIZE_8_BYTES) optional_padding: uint32;
+  @ifnot(TAGGED_SIZE_8_BYTES) optional_padding: void;
+}

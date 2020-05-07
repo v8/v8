@@ -100,6 +100,8 @@ class ArrayType : public ZoneObject {
  public:
   constexpr explicit ArrayType(ValueType rep) : rep_(rep) {}
 
+  ValueType element_type() const { return rep_; }
+
   bool operator==(const ArrayType& other) const { return rep_ == other.rep_; }
   bool operator!=(const ArrayType& other) const { return rep_ != other.rep_; }
 

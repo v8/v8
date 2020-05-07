@@ -3365,6 +3365,13 @@ class LiftoffCompiler {
     unsupported(decoder, kGC, "struct.set");
   }
 
+  void ArrayNew(FullDecoder* decoder, const ArrayIndexImmediate<validate>& imm,
+                const Value& length, const Value& initial_value,
+                Value* result) {
+    // TODO(7748): Implement.
+    unsupported(decoder, kGC, "array.new");
+  }
+
  private:
   // Emit additional source positions for return addresses. Used by debugging to
   // OSR frames with different sets of breakpoints.

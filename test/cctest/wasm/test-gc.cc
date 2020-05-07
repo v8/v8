@@ -111,6 +111,56 @@ WASM_EXEC_TEST(BasicStruct) {
                                                     "j", 0, nullptr));
 }
 
+WASM_EXEC_TEST(BasicArray) {
+  // TODO(7748): Implement support in other tiers.
+  if (execution_tier == ExecutionTier::kLiftoff) return;
+  if (execution_tier == ExecutionTier::kInterpreter) return;
+  TestSignatures sigs;
+  EXPERIMENTAL_FLAG_SCOPE(gc);
+  EXPERIMENTAL_FLAG_SCOPE(anyref);
+  v8::internal::AccountingAllocator allocator;
+  Zone zone(&allocator, ZONE_NAME);
+
+  WasmModuleBuilder* builder = new (&zone) WasmModuleBuilder(&zone);
+  ArrayType type(wasm::kWasmI32);
+  int32_t type_index = builder->AddArrayType(&type);
+  ValueType kRefTypes[] = {ValueType(ValueType::kRef, type_index)};
+  FunctionSig sig_q_v(1, 0, kRefTypes);
+
+  WasmFunctionBuilder* h = builder->AddFunction(&sig_q_v);
+  h->builder()->AddExport(CStrVector("h"), h);
+  // Create an array of length 2, initialized to [42, 42].
+  byte h_code[] = {WASM_ARRAY_NEW(type_index, WASM_I32V(42), WASM_I32V(2)),
+                   kExprEnd};
+  h->EmitCode(h_code, sizeof(h_code));
+
+  ZoneBuffer buffer(&zone);
+  builder->WriteTo(&buffer);
+
+  Isolate* isolate = CcTest::InitIsolateOnce();
+  HandleScope scope(isolate);
+  testing::SetupIsolateForWasmModule(isolate);
+  ErrorThrower thrower(isolate, "Test");
+  Handle<WasmInstanceObject> instance =
+      testing::CompileAndInstantiateForTesting(
+          isolate, &thrower, ModuleWireBytes(buffer.begin(), buffer.end()))
+          .ToHandleChecked();
+
+  // TODO(7748): This uses the JavaScript interface to retrieve the plain
+  // WasmArray. Once the JS interaction story is settled, this may well
+  // need to be changed.
+  Handle<WasmExportedFunction> h_export =
+      testing::GetExportedFunction(isolate, instance, "h").ToHandleChecked();
+  Handle<Object> undefined = isolate->factory()->undefined_value();
+  Handle<Object> ref_result =
+      Execution::Call(isolate, h_export, undefined, 0, nullptr)
+          .ToHandleChecked();
+  CHECK(ref_result->IsWasmArray());
+#if OBJECT_PRINT
+  ref_result->Print();
+#endif
+}
+
 }  // namespace test_gc
 }  // namespace wasm
 }  // namespace internal

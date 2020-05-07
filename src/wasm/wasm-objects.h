@@ -954,6 +954,22 @@ class WasmStruct : public TorqueGeneratedWasmStruct<WasmStruct, HeapObject> {
   TQ_OBJECT_CONSTRUCTORS(WasmStruct)
 };
 
+class WasmArray : public TorqueGeneratedWasmArray<WasmArray, HeapObject> {
+ public:
+  static inline wasm::ArrayType* type(Map map);
+  inline wasm::ArrayType* type() const;
+  static inline wasm::ArrayType* GcSafeType(Map map);
+
+  static inline int SizeFor(Map map, int length);
+
+  DECL_CAST(WasmArray)
+  DECL_PRINTER(WasmArray)
+
+  class BodyDescriptor;
+
+  TQ_OBJECT_CONSTRUCTORS(WasmArray)
+};
+
 #undef DECL_OPTIONAL_ACCESSORS
 
 }  // namespace internal

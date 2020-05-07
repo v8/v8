@@ -226,6 +226,7 @@ class ZoneForwardList;
   V(UncompiledDataWithoutPreparseData)         \
   V(Undetectable)                              \
   V(UniqueName)                                \
+  V(WasmArray)                                 \
   V(WasmExceptionObject)                       \
   V(WasmExceptionPackage)                      \
   V(WasmGlobalObject)                          \

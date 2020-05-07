@@ -800,6 +800,27 @@ class CodeDataContainer::BodyDescriptor final : public BodyDescriptorBase {
   }
 };
 
+class WasmArray::BodyDescriptor final : public BodyDescriptorBase {
+ public:
+  static bool IsValidSlot(Map map, HeapObject obj, int offset) {
+    // Fields in WasmArrays never change their types in place, so
+    // there should never be a need to call this function.
+    UNREACHABLE();
+    return false;
+  }
+
+  template <typename ObjectVisitor>
+  static inline void IterateBody(Map map, HeapObject obj, int object_size,
+                                 ObjectVisitor* v) {
+    if (!WasmArray::type(map)->element_type().IsReferenceType()) return;
+    IteratePointers(obj, WasmArray::kHeaderSize, object_size, v);
+  }
+
+  static inline int SizeOf(Map map, HeapObject object) {
+    return WasmArray::SizeFor(map, WasmArray::cast(object).length());
+  }
+};
+
 class WasmStruct::BodyDescriptor final : public BodyDescriptorBase {
  public:
   static bool IsValidSlot(Map map, HeapObject obj, int offset) {
@@ -946,6 +967,8 @@ ReturnType BodyDescriptorApply(InstanceType type, T1 p1, T2 p2, T3 p3, T4 p4) {
       return Op::template apply<FeedbackVector::BodyDescriptor>(p1, p2, p3, p4);
     case COVERAGE_INFO_TYPE:
       return Op::template apply<CoverageInfo::BodyDescriptor>(p1, p2, p3, p4);
+    case WASM_ARRAY_TYPE:
+      return Op::template apply<WasmArray::BodyDescriptor>(p1, p2, p3, p4);
     case WASM_STRUCT_TYPE:
       return Op::template apply<WasmStruct::BodyDescriptor>(p1, p2, p3, p4);
     case JS_OBJECT_TYPE:

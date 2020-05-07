@@ -286,6 +286,12 @@ uint32_t WasmModuleBuilder::AddStructType(StructType* type) {
   return index;
 }
 
+uint32_t WasmModuleBuilder::AddArrayType(ArrayType* type) {
+  uint32_t index = static_cast<uint32_t>(types_.size());
+  types_.push_back(Type(type));
+  return index;
+}
+
 uint32_t WasmModuleBuilder::AllocateIndirectFunctions(uint32_t count) {
   DCHECK(allocating_indirect_functions_allowed_);
   uint32_t index = static_cast<uint32_t>(indirect_functions_.size());
@@ -441,12 +447,18 @@ void WasmModuleBuilder::WriteTo(ZoneBuffer* buffer) const {
           break;
         }
         case Type::kStructType: {
-          StructType* struct_type = type.type;
+          StructType* struct_type = type.struct_type;
           buffer->write_u8(kWasmStructTypeCode);
           buffer->write_size(struct_type->field_count());
           for (auto field : struct_type->fields()) {
             WriteValueType(buffer, field);
           }
+          break;
+        }
+        case Type::kArrayType: {
+          ArrayType* array_type = type.array_type;
+          buffer->write_u8(kWasmArrayTypeCode);
+          WriteValueType(buffer, array_type->element_type());
           break;
         }
       }

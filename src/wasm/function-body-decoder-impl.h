@@ -489,6 +489,16 @@ struct FieldIndexImmediate {
 };
 
 template <Decoder::ValidateFlag validate>
+struct ArrayIndexImmediate {
+  uint32_t index = 0;
+  uint32_t length = 0;
+  const ArrayType* array_type = nullptr;
+  inline ArrayIndexImmediate(Decoder* decoder, const byte* pc) {
+    index = decoder->read_u32v<validate>(pc, &length, "array index");
+  }
+};
+
+template <Decoder::ValidateFlag validate>
 struct CallIndirectImmediate {
   uint32_t table_index;
   uint32_t sig_index;
@@ -904,7 +914,9 @@ enum class LoadTransformationKind : uint8_t {
   F(StructGet, const Value& struct_object,                                    \
     const FieldIndexImmediate<validate>& field, Value* result)                \
   F(StructSet, const Value& struct_object,                                    \
-    const FieldIndexImmediate<validate>& field, const Value& field_value)
+    const FieldIndexImmediate<validate>& field, const Value& field_value)     \
+  F(ArrayNew, const ArrayIndexImmediate<validate>& imm, const Value& length,  \
+    const Value& initial_value, Value* result)
 
 // Generic Wasm bytecode decoder with utilities for decoding immediates,
 // lengths, etc.
@@ -1079,6 +1091,20 @@ class WasmDecoder : public Decoder {
     if (!Validate(pc, imm.struct_index)) return false;
     if (imm.index < imm.struct_index.struct_type->field_count()) return true;
     errorf(pc + imm.struct_index.length, "invalid field index: %u", imm.index);
+    return false;
+  }
+
+  inline bool Complete(const byte* pc, ArrayIndexImmediate<validate>& imm) {
+    if (!VALIDATE(module_ != nullptr && module_->has_array(imm.index))) {
+      return false;
+    }
+    imm.array_type = module_->array_type(imm.index);
+    return true;
+  }
+
+  inline bool Validate(const byte* pc, ArrayIndexImmediate<validate>& imm) {
+    if (Complete(pc, imm)) return true;
+    errorf(pc, "invalid array index: %u", imm.index);
     return false;
   }
 
@@ -2959,9 +2985,17 @@ class WasmFullDecoder : public WasmDecoder<validate> {
         CALL_INTERFACE_IF_REACHABLE(StructSet, struct_obj, field, field_value);
         break;
       }
-      case kExprArrayNew:
-        UNIMPLEMENTED();  // TODO(7748): Implement.
+      case kExprArrayNew: {
+        ArrayIndexImmediate<validate> imm(this, this->pc_ + len);
+        len += imm.length;
+        if (!this->Validate(this->pc_, imm)) break;
+        auto length = Pop(0, kWasmI32);
+        auto initial_value = Pop(0, imm.array_type->element_type());
+        auto* value = Push(ValueType(ValueType::kRef, imm.index));
+        CALL_INTERFACE_IF_REACHABLE(ArrayNew, imm, length, initial_value,
+                                    value);
         break;
+      }
       case kExprArrayGet:
         UNIMPLEMENTED();  // TODO(7748): Implement.
         break;

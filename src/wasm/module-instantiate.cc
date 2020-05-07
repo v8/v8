@@ -103,6 +103,21 @@ Handle<Map> CreateStructMap(Isolate* isolate, const WasmModule* module,
   return map;
 }
 
+Handle<Map> CreateArrayMap(Isolate* isolate, const WasmModule* module,
+                           int array_index) {
+  const wasm::ArrayType* type = module->array_type(array_index);
+  int inobject_properties = 0;
+  int instance_size = kVariableSizeSentinel;
+  InstanceType instance_type = WASM_ARRAY_TYPE;
+  ElementsKind elements_kind = TERMINAL_FAST_ELEMENTS_KIND;
+  Handle<Foreign> type_info =
+      isolate->factory()->NewForeign(reinterpret_cast<Address>(type));
+  Handle<Map> map = isolate->factory()->NewMap(
+      instance_type, instance_size, elements_kind, inobject_properties);
+  map->set_wasm_type_info(*type_info);
+  return map;
+}
+
 }  // namespace
 
 // A helper class to simplify instantiating a module from a module object.
@@ -557,9 +572,10 @@ MaybeHandle<WasmInstanceObject> InstanceBuilder::Build() {
   //--------------------------------------------------------------------------
   if (enabled_.has_gc()) {
     int count = 0;
-    // TODO(7748): Add array support to both loops.
     for (uint8_t type_kind : module_->type_kinds) {
-      if (type_kind == kWasmStructTypeCode) count++;
+      if (type_kind == kWasmStructTypeCode || type_kind == kWasmArrayTypeCode) {
+        count++;
+      }
     }
     Handle<FixedArray> maps =
         isolate_->factory()->NewUninitializedFixedArray(count);
@@ -567,6 +583,10 @@ MaybeHandle<WasmInstanceObject> InstanceBuilder::Build() {
       int index = 0;
       if (module_->type_kinds[i] == kWasmStructTypeCode) {
         Handle<Map> map = CreateStructMap(isolate_, module_, i);
+        maps->set(index++, *map);
+      }
+      if (module_->type_kinds[i] == kWasmArrayTypeCode) {
+        Handle<Map> map = CreateArrayMap(isolate_, module_, i);
         maps->set(index++, *map);
       }
     }

@@ -626,6 +626,13 @@ class WasmGraphBuildingInterface {
           field.index, field_value.node, decoder->position());
   }
 
+  void ArrayNew(FullDecoder* decoder, const ArrayIndexImmediate<validate>& imm,
+                const Value& length, const Value& initial_value,
+                Value* result) {
+    result->node = BUILD(ArrayNew, imm.index, imm.array_type, length.node,
+                         initial_value.node);
+  }
+
  private:
   SsaEnv* ssa_env_ = nullptr;
   compiler::WasmGraphBuilder* builder_;

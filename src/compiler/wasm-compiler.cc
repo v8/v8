@@ -5054,7 +5054,10 @@ Node* WasmGraphBuilder::StructNew(uint32_t struct_index,
   int map_index = 0;
   const std::vector<uint8_t>& type_kinds = env_->module->type_kinds;
   for (uint32_t i = 0; i < struct_index; i++) {
-    if (type_kinds[i] == wasm::kWasmStructTypeCode) map_index++;
+    if (type_kinds[i] == wasm::kWasmStructTypeCode ||
+        type_kinds[i] == wasm::kWasmArrayTypeCode) {
+      map_index++;
+    }
   }
 
   CallDescriptor* call_descriptor =
@@ -5064,13 +5067,68 @@ Node* WasmGraphBuilder::StructNew(uint32_t struct_index,
       mcgraph()->common()->NumberConstant(Builtins::kWasmAllocateStruct));
   Node* native_context =
       LOAD_INSTANCE_FIELD(NativeContext, MachineType::TaggedPointer());
-  Node* s = gasm_->Call(call_descriptor, call_target,
-                        gasm_->Int32Constant(map_index), native_context);
+  Node* s = gasm_->Call(
+      call_descriptor, call_target,
+      graph()->NewNode(mcgraph()->common()->NumberConstant(map_index)),
+      native_context);
 
   for (uint32_t i = 0; i < type->field_count(); i++) {
     StoreStructFieldUnchecked(mcgraph(), gasm_.get(), s, type, i, fields[i]);
   }
   return s;
+}
+
+Node* WasmGraphBuilder::ArrayNew(uint32_t array_index,
+                                 const wasm::ArrayType* type, Node* length,
+                                 Node* initial_value) {
+  // This logic is duplicated from module-instantiate.cc.
+  // TODO(jkummerow): Find a nicer solution.
+  int map_index = 0;
+  const std::vector<uint8_t>& type_kinds = env_->module->type_kinds;
+  for (uint32_t i = 0; i < array_index; i++) {
+    if (type_kinds[i] == wasm::kWasmStructTypeCode ||
+        type_kinds[i] == wasm::kWasmArrayTypeCode) {
+      map_index++;
+    }
+  }
+
+  wasm::ValueType element_type = type->element_type();
+  Node* a = CALL_BUILTIN(
+      WasmAllocateArray,
+      graph()->NewNode(mcgraph()->common()->NumberConstant(map_index)),
+      BuildChangeUint31ToSmi(length),
+      graph()->NewNode(mcgraph()->common()->NumberConstant(
+          element_type.element_size_bytes())),
+      LOAD_INSTANCE_FIELD(NativeContext, MachineType::TaggedPointer()));
+  WriteBarrierKind write_barrier =
+      element_type.IsReferenceType() ? kPointerWriteBarrier : kNoWriteBarrier;
+  StoreRepresentation rep(element_type.machine_representation(), write_barrier);
+
+  auto loop = gasm_->MakeLoopLabel(MachineRepresentation::kWord32);
+  auto done = gasm_->MakeLabel();
+  Node* start_offset =
+      gasm_->Int32Constant(WasmArray::kHeaderSize - kHeapObjectTag);
+  Node* element_size = gasm_->Int32Constant(element_type.element_size_bytes());
+  Node* end_offset =
+      gasm_->Int32Add(start_offset, gasm_->Int32Mul(element_size, length));
+  // "Goto" requires the graph's end to have been set up.
+  // TODO(jkummerow): Figure out if there's a more elegant solution.
+  Graph* g = mcgraph()->graph();
+  if (!g->end()) {
+    g->SetEnd(g->NewNode(mcgraph()->common()->End(0)));
+  }
+  gasm_->Goto(&loop, start_offset);
+  gasm_->Bind(&loop);
+  {
+    Node* offset = loop.PhiAt(0);
+    Node* check = gasm_->Uint32LessThan(offset, end_offset);
+    gasm_->GotoIfNot(check, &done);
+    gasm_->Store(rep, a, offset, initial_value);
+    offset = gasm_->Int32Add(offset, element_size);
+    gasm_->Goto(&loop, offset);
+  }
+  gasm_->Bind(&done);
+  return a;
 }
 
 Node* WasmGraphBuilder::StructGet(Node* struct_object,
