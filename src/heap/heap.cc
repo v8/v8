@@ -1607,11 +1607,9 @@ bool Heap::CollectGarbage(AllocationSpace space,
       // Trigger one more GC if
       // - this GC decreased committed memory,
       // - there is high fragmentation,
-      // - there are live detached contexts.
       event.next_gc_likely_to_collect_more =
           (committed_memory_before > committed_memory_after + MB) ||
-          HasHighFragmentation(used_memory_after, committed_memory_after) ||
-          (detached_contexts().length() > 0);
+          HasHighFragmentation(used_memory_after, committed_memory_after);
       event.committed_memory = committed_memory_after;
       if (deserialization_complete_) {
         memory_reducer_->NotifyMarkCompact(event);
