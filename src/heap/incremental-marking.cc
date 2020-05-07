@@ -677,34 +677,33 @@ StepResult IncrementalMarking::EmbedderStep(double expected_duration_ms,
     return StepResult::kNoImmediateWork;
   }
 
-  constexpr size_t kObjectsToProcessBeforeInterrupt = 500;
+  constexpr size_t kObjectsToProcessBeforeDeadlineCheck = 500;
 
   TRACE_GC(heap()->tracer(), GCTracer::Scope::MC_INCREMENTAL_EMBEDDER_TRACING);
   LocalEmbedderHeapTracer* local_tracer = heap_->local_embedder_heap_tracer();
   const double start = heap_->MonotonicallyIncreasingTimeInMs();
   const double deadline = start + expected_duration_ms;
-  double current;
   bool empty_worklist;
-  bool remote_tracing_done = false;
-  do {
-    {
-      LocalEmbedderHeapTracer::ProcessingScope scope(local_tracer);
-      HeapObject object;
-      size_t cnt = 0;
-      empty_worklist = true;
-      while (marking_worklists()->PopEmbedder(&object)) {
-        scope.TracePossibleWrapper(JSObject::cast(object));
-        if (++cnt == kObjectsToProcessBeforeInterrupt) {
-          cnt = 0;
+  {
+    LocalEmbedderHeapTracer::ProcessingScope scope(local_tracer);
+    HeapObject object;
+    size_t cnt = 0;
+    empty_worklist = true;
+    while (marking_worklists()->PopEmbedder(&object)) {
+      scope.TracePossibleWrapper(JSObject::cast(object));
+      if (++cnt == kObjectsToProcessBeforeDeadlineCheck) {
+        if (deadline <= heap_->MonotonicallyIncreasingTimeInMs()) {
           empty_worklist = false;
           break;
         }
+        cnt = 0;
       }
     }
-    remote_tracing_done = local_tracer->Trace(deadline);
-    current = heap_->MonotonicallyIncreasingTimeInMs();
-  } while (!empty_worklist && !remote_tracing_done && (current < deadline));
-  local_tracer->SetEmbedderWorklistEmpty(empty_worklist);
+  }
+  bool remote_tracing_done =
+      local_tracer->Trace(deadline - heap_->MonotonicallyIncreasingTimeInMs());
+  double current = heap_->MonotonicallyIncreasingTimeInMs();
+  local_tracer->SetEmbedderWorklistEmpty(true);
   *duration_ms = current - start;
   return (empty_worklist && remote_tracing_done)
              ? StepResult::kNoImmediateWork
