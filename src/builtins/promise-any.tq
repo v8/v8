@@ -95,6 +95,14 @@ namespace promise {
     const index = identityHash - 1;
 
     // 6. Let errors be F.[[Errors]].
+    if (context[PromiseAnyRejectElementContextSlots::
+                    kPromiseAnyRejectElementErrorsArraySlot] == Undefined) {
+      // We're going to reject the Promise with a more fundamental error (e.g.,
+      // something went wrong with iterating the Promises). We don't need to
+      // construct the "errors" array.
+      return Undefined;
+    }
+
     const errorsArray = UnsafeCast<FixedArray>(
         context[PromiseAnyRejectElementContextSlots::
                     kPromiseAnyRejectElementErrorsArraySlot]);
