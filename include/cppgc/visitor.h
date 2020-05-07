@@ -64,21 +64,20 @@ class Visitor {
     if (!p.Get()) {
       return;
     }
-    VisitRoot(p.Get(), TraceTrait<PointeeType>::GetTraceDescriptor(p.Get()));
+    VisitRoot(p.Get(), TraceTrait<PointeeType>::GetTraceDescriptor(p.Get()),
+              loc);
   }
 
-  template <
-      typename WeakPersistent,
-      std::enable_if_t<!WeakPersistent::IsStrongPersistent::value>* = nullptr>
-  void TraceRoot(const WeakPersistent& p, const SourceLocation& loc) {
-    using PointeeType = typename WeakPersistent::PointeeType;
+  template <typename Persistent,
+            std::enable_if_t<!Persistent::IsStrongPersistent::value>* = nullptr>
+  void TraceRoot(const Persistent& p, const SourceLocation& loc) {
+    using PointeeType = typename Persistent::PointeeType;
     static_assert(sizeof(PointeeType),
                   "Persistent's pointee type must be fully defined");
     static_assert(internal::IsGarbageCollectedType<PointeeType>::value,
                   "Persisent's pointee type must be GarabgeCollected or "
                   "GarbageCollectedMixin");
-    VisitWeakRoot(p.Get(), TraceTrait<PointeeType>::GetTraceDescriptor(p.Get()),
-                  &HandleWeak<WeakPersistent>, &p);
+    VisitWeakRoot(&p, &HandleWeak<Persistent>);
   }
 
   template <typename T, void (T::*method)(const LivenessBroker&)>
@@ -92,9 +91,9 @@ class Visitor {
   virtual void Visit(const void* self, TraceDescriptor) {}
   virtual void VisitWeak(const void* self, TraceDescriptor, WeakCallback,
                          const void* weak_member) {}
-  virtual void VisitRoot(const void*, TraceDescriptor) {}
-  virtual void VisitWeakRoot(const void* self, TraceDescriptor, WeakCallback,
-                             const void* weak_root) {}
+  virtual void VisitRoot(const void*, TraceDescriptor,
+                         const SourceLocation& loc) {}
+  virtual void VisitWeakRoot(const void*, WeakCallback) {}
 
  private:
   template <typename T, void (T::*method)(const LivenessBroker&)>

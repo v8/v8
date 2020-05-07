@@ -29,6 +29,10 @@ namespace internal {
 
 namespace {
 
+constexpr bool NeedsConservativeStackScan(Heap::GCConfig config) {
+  return config.stack_state != Heap::GCConfig::StackState::kEmpty;
+}
+
 class ObjectSizeCounter : public HeapVisitor<ObjectSizeCounter> {
   friend class HeapVisitor<ObjectSizeCounter>;
 
@@ -65,6 +69,26 @@ cppgc::LivenessBroker LivenessBrokerFactory::Create() {
   return cppgc::LivenessBroker();
 }
 
+// TODO(chromium:1056170): Replace with fast stack scanning once
+// object are allocated actual arenas/spaces.
+class StackMarker final : public StackVisitor {
+ public:
+  explicit StackMarker(const std::vector<HeapObjectHeader*>& objects)
+      : objects_(objects) {}
+
+  void VisitPointer(const void* address) final {
+    for (auto* header : objects_) {
+      if (address >= header->Payload() &&
+          address < (header + header->GetSize())) {
+        header->TryMarkAtomic();
+      }
+    }
+  }
+
+ private:
+  const std::vector<HeapObjectHeader*>& objects_;
+};
+
 Heap::Heap()
     : raw_heap_(this),
       page_backend_(std::make_unique<PageBackend>(&system_allocator_)),
@@ -86,17 +110,16 @@ void Heap::CollectGarbage(GCConfig config) {
 
   // TODO(chromium:1056170): Replace with proper mark-sweep algorithm.
   // "Marking".
-  marker_ = std::make_unique<Marker>(this);
-  marker_->StartMarking(Marker::MarkingConfig(config.stack_state));
-  marker_->FinishMarking();
+  if (NeedsConservativeStackScan(config)) {
+    StackMarker marker(objects_);
+    stack_->IteratePointers(&marker);
+  }
   // "Sweeping and finalization".
   {
     // Pre finalizers are forbidden from allocating objects
     NoAllocationScope no_allocation_scope_(this);
-    marker_->ProcessWeakness();
     prefinalizer_handler_->InvokePreFinalizers();
   }
-  marker_.reset();
   {
     NoGCScope no_gc(this);
     sweeper_.Start(Sweeper::Config::kAtomic);

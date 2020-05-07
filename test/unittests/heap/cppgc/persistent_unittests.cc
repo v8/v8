@@ -59,11 +59,11 @@ class RootVisitor final : public VisitorBase {
   }
 
  protected:
-  void VisitRoot(const void* t, TraceDescriptor desc) final {
+  void VisitRoot(const void* t, TraceDescriptor desc,
+                 const SourceLocation&) final {
     desc.callback(this, desc.base_object_payload);
   }
-  void VisitWeakRoot(const void*, TraceDescriptor, WeakCallback callback,
-                     const void* object) final {
+  void VisitWeakRoot(const void* object, WeakCallback callback) final {
     weak_callbacks_.emplace_back(callback, object);
   }
 
