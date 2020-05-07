@@ -168,6 +168,37 @@ namespace wasm {
     return AllocateJSArray(ElementsKind::PACKED_ELEMENTS, map, size, size);
   }
 
+  extern macro TryHasOwnProperty(HeapObject, Map, InstanceType, Name): never
+      labels Found, NotFound, Bailout;
+  type OnNonExistent constexpr 'OnNonExistent';
+  const kReturnUndefined: constexpr OnNonExistent
+  generates 'OnNonExistent::kReturnUndefined';
+  extern macro SmiConstant(constexpr OnNonExistent): Smi;
+  extern transitioning builtin GetPropertyWithReceiver(
+      implicit context: Context)(JSAny, Name, JSAny, Smi): JSAny;
+
+  transitioning builtin WasmGetOwnProperty(implicit context: Context)(
+      object: Object, uniqueName: Name): JSAny {
+    try {
+      const heapObject: HeapObject =
+          TaggedToHeapObject(object) otherwise NotFound;
+      const receiver: JSReceiver =
+          Cast<JSReceiver>(heapObject) otherwise NotFound;
+      try {
+        TryHasOwnProperty(
+            receiver, receiver.map, receiver.instanceType, uniqueName)
+            otherwise Found, NotFound, Bailout;
+      } label Found {
+        tail GetPropertyWithReceiver(
+            receiver, uniqueName, receiver, SmiConstant(kReturnUndefined));
+      }
+    } label NotFound deferred {
+      return Undefined;
+    } label Bailout deferred {
+      unreachable;
+    }
+  }
+
   // Trap builtins.
 
   builtin WasmTrap(error: Smi): JSAny {

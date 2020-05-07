@@ -844,7 +844,6 @@ namespace internal {
   TFS(WasmAllocateArray, kMapIndex, kLength, kElementSize)                     \
   TFS(WasmAllocateStruct, kMapIndex)                                           \
   TFC(WasmAtomicNotify, WasmAtomicNotify)                                      \
-  TFS(WasmGetOwnProperty, kObject, kUniqueName)                                \
   TFC(WasmI32AtomicWait32, WasmI32AtomicWait32)                                \
   TFC(WasmI32AtomicWait64, WasmI32AtomicWait64)                                \
   TFC(WasmI64AtomicWait32, WasmI64AtomicWait32)                                \
