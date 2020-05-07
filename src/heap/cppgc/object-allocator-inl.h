@@ -19,19 +19,32 @@ namespace internal {
 void* ObjectAllocator::AllocateObject(size_t size, GCInfoIndex gcinfo) {
   const size_t allocation_size =
       RoundUp(size + sizeof(HeapObjectHeader), kAllocationGranularity);
-  const RawHeap::SpaceType type = GetSpaceIndexForSize(allocation_size);
+  const RawHeap::RegularSpaceType type =
+      GetInitialSpaceIndexForSize(allocation_size);
   return AllocateObjectOnSpace(NormalPageSpace::From(raw_heap_->Space(type)),
                                allocation_size, gcinfo);
 }
 
+void* ObjectAllocator::AllocateObject(size_t size, GCInfoIndex gcinfo,
+                                      CustomSpaceIndex space_index) {
+  const size_t allocation_size =
+      RoundUp(size + sizeof(HeapObjectHeader), kAllocationGranularity);
+  const size_t internal_space_index =
+      raw_heap_->SpaceIndexForCustomSpace(space_index);
+  return AllocateObjectOnSpace(
+      NormalPageSpace::From(raw_heap_->Space(internal_space_index)),
+      allocation_size, gcinfo);
+}
+
 // static
-inline RawHeap::SpaceType ObjectAllocator::GetSpaceIndexForSize(size_t size) {
+inline RawHeap::RegularSpaceType ObjectAllocator::GetInitialSpaceIndexForSize(
+    size_t size) {
   if (size < 64) {
-    if (size < 32) return RawHeap::SpaceType::kNormal1;
-    return RawHeap::SpaceType::kNormal2;
+    if (size < 32) return RawHeap::RegularSpaceType::kNormal1;
+    return RawHeap::RegularSpaceType::kNormal2;
   }
-  if (size < 128) return RawHeap::SpaceType::kNormal3;
-  return RawHeap::SpaceType::kNormal4;
+  if (size < 128) return RawHeap::RegularSpaceType::kNormal3;
+  return RawHeap::RegularSpaceType::kNormal4;
 }
 
 void* ObjectAllocator::AllocateObjectOnSpace(NormalPageSpace* space,

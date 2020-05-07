@@ -38,8 +38,8 @@ void* ObjectAllocator::OutOfLineAllocate(NormalPageSpace* space, size_t size,
 
   // 1. If this allocation is big enough, allocate a large object.
   if (size >= kLargeObjectSizeThreshold) {
-    auto* large_space =
-        LargePageSpace::From(raw_heap_->Space(RawHeap::SpaceType::kLarge));
+    auto* large_space = LargePageSpace::From(
+        raw_heap_->Space(RawHeap::RegularSpaceType::kLarge));
     return AllocateLargeObject(raw_heap_, large_space, size, gcinfo);
   }
 

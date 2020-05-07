@@ -17,9 +17,14 @@ class V8_EXPORT_PRIVATE ObjectAllocator final {
   explicit ObjectAllocator(RawHeap* heap);
 
   inline void* AllocateObject(size_t size, GCInfoIndex gcinfo);
+  inline void* AllocateObject(size_t size, GCInfoIndex gcinfo,
+                              CustomSpaceIndex space_index);
 
  private:
-  inline static RawHeap::SpaceType GetSpaceIndexForSize(size_t size);
+  // Returns the initially tried SpaceType to allocate an object of |size| bytes
+  // on. Returns the largest regular object size bucket for large objects.
+  inline static RawHeap::RegularSpaceType GetInitialSpaceIndexForSize(
+      size_t size);
 
   inline void* AllocateObjectOnSpace(NormalPageSpace* space, size_t size,
                                      GCInfoIndex gcinfo);

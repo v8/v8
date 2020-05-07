@@ -16,8 +16,24 @@
 
 namespace cppgc {
 
-std::unique_ptr<Heap> Heap::Create() {
-  return std::make_unique<internal::Heap>();
+namespace {
+
+void VerifyCustomSpaces(
+    const std::vector<std::unique_ptr<CustomSpaceBase>>& custom_spaces) {
+  // Ensures that user-provided custom spaces have indices that form a sequence
+  // starting at 0.
+#ifdef DEBUG
+  for (size_t i = 0; i < custom_spaces.size(); ++i) {
+    DCHECK_EQ(i, custom_spaces[i]->GetCustomSpaceIndex());
+  }
+#endif  // DEBUG
+}
+
+}  // namespace
+
+std::unique_ptr<Heap> Heap::Create(cppgc::Heap::HeapOptions options) {
+  VerifyCustomSpaces(options.custom_spaces);
+  return std::make_unique<internal::Heap>(options.custom_spaces.size());
 }
 
 void Heap::ForceGarbageCollectionSlow(const char* source, const char* reason,
@@ -65,8 +81,8 @@ cppgc::LivenessBroker LivenessBrokerFactory::Create() {
   return cppgc::LivenessBroker();
 }
 
-Heap::Heap()
-    : raw_heap_(this),
+Heap::Heap(size_t custom_spaces)
+    : raw_heap_(this, custom_spaces),
       page_backend_(std::make_unique<PageBackend>(&system_allocator_)),
       object_allocator_(&raw_heap_),
       sweeper_(&raw_heap_),

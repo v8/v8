@@ -46,17 +46,16 @@ TEST_F(PageTest, SpaceIndexing) {
   RawHeap& heap = GetRawHeap();
   size_t space = 0u;
   for (const auto& ptr : heap) {
-    EXPECT_EQ(ptr.get(),
-              heap.Space(static_cast<cppgc::Heap::SpaceType>(space)));
+    EXPECT_EQ(ptr.get(), heap.Space(space));
     EXPECT_EQ(&heap, ptr.get()->raw_heap());
     EXPECT_EQ(space, ptr->index());
     ++space;
   }
-  EXPECT_EQ(space, static_cast<size_t>(cppgc::Heap::SpaceType::kUserDefined1));
+  EXPECT_GE(space, RawHeap::kNumberOfRegularSpaces);
 }
 
 TEST_F(PageTest, PredefinedSpaces) {
-  using SpaceType = RawHeap::SpaceType;
+  using SpaceType = RawHeap::RegularSpaceType;
   RawHeap& heap = GetRawHeap();
   {
     auto* gced = MakeGarbageCollected<GCed<1>>(GetHeap());
@@ -97,7 +96,7 @@ TEST_F(PageTest, PredefinedSpaces) {
 }
 
 TEST_F(PageTest, NormalPageIndexing) {
-  using SpaceType = RawHeap::SpaceType;
+  using SpaceType = RawHeap::RegularSpaceType;
   constexpr size_t kExpectedNumberOfPages = 10u;
   constexpr size_t kObjectSize = 8u;
   using Type = GCed<kObjectSize>;
@@ -125,7 +124,7 @@ TEST_F(PageTest, NormalPageIndexing) {
 }
 
 TEST_F(PageTest, LargePageIndexing) {
-  using SpaceType = RawHeap::SpaceType;
+  using SpaceType = RawHeap::RegularSpaceType;
   constexpr size_t kExpectedNumberOfPages = 10u;
   constexpr size_t kObjectSize = 2 * kLargeObjectSizeThreshold;
   using Type = GCed<kObjectSize>;
@@ -192,8 +191,8 @@ TEST_F(PageTest, HeapObjectHeaderOnLargePageIndexing) {
 TEST_F(PageTest, NormalPageCreationDestruction) {
   RawHeap& heap = GetRawHeap();
   const PageBackend* backend = Heap::From(GetHeap())->page_backend();
-  auto* space =
-      static_cast<NormalPageSpace*>(heap.Space(RawHeap::SpaceType::kNormal1));
+  auto* space = static_cast<NormalPageSpace*>(
+      heap.Space(RawHeap::RegularSpaceType::kNormal1));
   auto* page = NormalPage::Create(space);
   EXPECT_NE(space->end(), std::find(space->begin(), space->end(), page));
   EXPECT_TRUE(
@@ -213,8 +212,8 @@ TEST_F(PageTest, LargePageCreationDestruction) {
   constexpr size_t kObjectSize = 2 * kLargeObjectSizeThreshold;
   RawHeap& heap = GetRawHeap();
   const PageBackend* backend = Heap::From(GetHeap())->page_backend();
-  auto* space =
-      static_cast<LargePageSpace*>(heap.Space(RawHeap::SpaceType::kLarge));
+  auto* space = static_cast<LargePageSpace*>(
+      heap.Space(RawHeap::RegularSpaceType::kLarge));
   auto* page = LargePage::Create(space, kObjectSize);
   EXPECT_NE(space->end(), std::find(space->begin(), space->end(), page));
   EXPECT_NE(nullptr, backend->Lookup(page->PayloadStart()));
@@ -229,14 +228,14 @@ TEST_F(PageTest, LargePageCreationDestruction) {
 TEST_F(PageTest, UnsweptPageDestruction) {
   RawHeap& heap = GetRawHeap();
   {
-    auto* space =
-        static_cast<NormalPageSpace*>(heap.Space(RawHeap::SpaceType::kNormal1));
+    auto* space = static_cast<NormalPageSpace*>(
+        heap.Space(RawHeap::RegularSpaceType::kNormal1));
     auto* page = NormalPage::Create(space);
     EXPECT_DEATH_IF_SUPPORTED(NormalPage::Destroy(page), "");
   }
   {
-    auto* space =
-        static_cast<LargePageSpace*>(heap.Space(RawHeap::SpaceType::kLarge));
+    auto* space = static_cast<LargePageSpace*>(
+        heap.Space(RawHeap::RegularSpaceType::kLarge));
     auto* page = LargePage::Create(space, 2 * kLargeObjectSizeThreshold);
     EXPECT_DEATH_IF_SUPPORTED(LargePage::Destroy(page), "");
     // Detach page and really destroy page in the parent process so that sweeper

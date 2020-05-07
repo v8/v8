@@ -4020,6 +4020,7 @@ v8_source_set("cppgc_base") {
 
   sources = [
     "include/cppgc/allocation.h",
+    "include/cppgc/custom-space.h",
     "include/cppgc/garbage-collected.h",
     "include/cppgc/heap.h",
     "include/cppgc/internal/accessors.h",

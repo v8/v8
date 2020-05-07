@@ -9,14 +9,22 @@
 namespace cppgc {
 namespace internal {
 
-RawHeap::RawHeap(Heap* heap) : main_heap_(heap), used_spaces_(0) {
+// static
+constexpr size_t RawHeap::kNumberOfRegularSpaces;
+
+RawHeap::RawHeap(Heap* heap, size_t custom_spaces)
+    : main_heap_(heap), custom_spaces_(custom_spaces) {
   size_t i = 0;
-  for (; i < static_cast<size_t>(SpaceType::kLarge); ++i) {
-    spaces_[i] = std::make_unique<NormalPageSpace>(this, i);
+  for (; i < static_cast<size_t>(RegularSpaceType::kLarge); ++i) {
+    spaces_.push_back(std::make_unique<NormalPageSpace>(this, i));
   }
-  spaces_[i] = std::make_unique<LargePageSpace>(
-      this, static_cast<size_t>(SpaceType::kLarge));
-  used_spaces_ = i + 1;
+  spaces_.push_back(std::make_unique<LargePageSpace>(
+      this, static_cast<size_t>(RegularSpaceType::kLarge)));
+  DCHECK_EQ(kNumberOfRegularSpaces, spaces_.size());
+  for (size_t j = 0; j < custom_spaces; j++) {
+    spaces_.push_back(
+        std::make_unique<NormalPageSpace>(this, kNumberOfRegularSpaces + j));
+  }
 }
 
 RawHeap::~RawHeap() = default;

@@ -74,10 +74,12 @@ class V8_EXPORT_PRIVATE Heap final : public cppgc::Heap {
 
   static Heap* From(cppgc::Heap* heap) { return static_cast<Heap*>(heap); }
 
-  Heap();
+  explicit Heap(size_t custom_spaces);
   ~Heap() final;
 
   inline void* Allocate(size_t size, GCInfoIndex index);
+  inline void* Allocate(size_t size, GCInfoIndex index,
+                        CustomSpaceIndex space_index);
 
   void CollectGarbage(GCConfig config = GCConfig::Default());
 

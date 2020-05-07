@@ -4,7 +4,7 @@
 
 #include "src/heap/cppgc/sweeper.h"
 
-#include <array>
+#include <vector>
 
 #include "src/heap/cppgc/free-list.h"
 #include "src/heap/cppgc/heap-object-header-inl.h"
@@ -23,7 +23,8 @@ namespace {
 struct SpaceState {
   BaseSpace::Pages unswept_pages;
 };
-using SpaceStates = std::array<SpaceState, cppgc::Heap::kMaxNumberOfSpaces>;
+// using SpaceStates = std::array<SpaceState, RawHeap::kMaxNumberOfSpaces>;
+using SpaceStates = std::vector<SpaceState>;
 
 bool SweepNormalPage(NormalPage* page) {
   constexpr auto kAtomicAccess = HeapObjectHeader::AccessMode::kAtomic;
@@ -142,7 +143,9 @@ class MutatorThreadSweepVisitor final
 
 class Sweeper::SweeperImpl final {
  public:
-  explicit SweeperImpl(RawHeap* heap) : heap_(heap) {}
+  explicit SweeperImpl(RawHeap* heap) : heap_(heap) {
+    space_states_.resize(heap_->size());
+  }
 
   void Start(Config config) {
     is_in_progress_ = true;

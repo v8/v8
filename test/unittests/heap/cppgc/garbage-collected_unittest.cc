@@ -66,7 +66,7 @@ TEST(GarbageCollectedTest, GarbageCollectedMixinTrait) {
   STATIC_ASSERT(IsGarbageCollectedMixinType<GCWithMergedMixins>::value);
 }
 
-TEST_F(GarbageCollectedTestWithHeap, GetObjectStartReturnsCorrentAddress) {
+TEST_F(GarbageCollectedTestWithHeap, GetObjectStartReturnsCurrentAddress) {
   GCed* gced = MakeGarbageCollected<GCed>(GetHeap());
   GCedWithMixin* gced_with_mixin =
       MakeGarbageCollected<GCedWithMixin>(GetHeap());
