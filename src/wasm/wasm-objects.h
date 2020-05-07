@@ -942,6 +942,7 @@ class WasmStruct : public TorqueGeneratedWasmStruct<WasmStruct, HeapObject> {
  public:
   static inline wasm::StructType* type(Map map);
   inline wasm::StructType* type() const;
+  static inline wasm::StructType* GcSafeType(Map map);
 
   inline ObjectSlot RawField(int raw_offset);
 

@@ -813,7 +813,7 @@ class WasmStruct::BodyDescriptor final : public BodyDescriptorBase {
   static inline void IterateBody(Map map, HeapObject obj, int object_size,
                                  ObjectVisitor* v) {
     WasmStruct wasm_struct = WasmStruct::cast(obj);
-    wasm::StructType* type = WasmStruct::type(map);
+    wasm::StructType* type = WasmStruct::GcSafeType(map);
     for (uint32_t i = 0; i < type->field_count(); i++) {
       if (!type->field(i).IsReferenceType()) continue;
       int offset =

@@ -99,7 +99,7 @@ Handle<Map> CreateStructMap(Isolate* isolate, const WasmModule* module,
       isolate->factory()->NewForeign(reinterpret_cast<Address>(type));
   Handle<Map> map = isolate->factory()->NewMap(
       instance_type, instance_size, elements_kind, inobject_properties);
-  map->set_constructor_or_backpointer(*type_info);
+  map->set_wasm_type_info(*type_info);
   return map;
 }
 

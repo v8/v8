@@ -417,8 +417,17 @@ ACCESSORS(AsmWasmData, export_wrappers, FixedArray, kExportWrappersOffset)
 ACCESSORS(AsmWasmData, uses_bitset, HeapNumber, kUsesBitsetOffset)
 
 wasm::StructType* WasmStruct::type(Map map) {
+  Foreign foreign = map.wasm_type_info();
+  return reinterpret_cast<wasm::StructType*>(foreign.foreign_address());
+}
+
+wasm::StructType* WasmStruct::GcSafeType(Map map) {
   DCHECK_EQ(WASM_STRUCT_TYPE, map.instance_type());
-  Foreign foreign = Foreign::cast(map.constructor_or_backpointer());
+  HeapObject raw = HeapObject::cast(map.constructor_or_backpointer());
+  MapWord map_word = raw.map_word();
+  HeapObject forwarded =
+      map_word.IsForwardingAddress() ? map_word.ToForwardingAddress() : raw;
+  Foreign foreign = Foreign::cast(forwarded);
   return reinterpret_cast<wasm::StructType*>(foreign.foreign_address());
 }
 
