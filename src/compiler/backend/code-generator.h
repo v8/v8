@@ -81,7 +81,9 @@ class DeoptimizationLiteral {
 
   Handle<Object> Reify(Isolate* isolate) const;
 
-  void Validate() const { CHECK(kind_ != DeoptimizationLiteralKind::kInvalid); }
+  void Validate() const {
+    CHECK_NE(kind_, DeoptimizationLiteralKind::kInvalid);
+  }
 
   DeoptimizationLiteralKind kind() const {
     Validate();
