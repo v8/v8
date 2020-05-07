@@ -55,6 +55,7 @@ BasePage::BasePage(Heap* heap, BaseSpace* space, PageType type)
 NormalPage* NormalPage::Create(NormalPageSpace* space) {
   DCHECK(space);
   Heap* heap = space->raw_heap()->heap();
+  DCHECK(heap);
   void* memory = heap->page_backend()->AllocateNormalPageMemory(space->index());
   auto* normal_page = new (memory) NormalPage(heap, space);
   space->AddPage(normal_page);

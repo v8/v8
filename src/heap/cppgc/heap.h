@@ -14,6 +14,7 @@
 #include "include/cppgc/liveness-broker.h"
 #include "src/base/page-allocator.h"
 #include "src/heap/cppgc/heap-object-header.h"
+#include "src/heap/cppgc/marker.h"
 #include "src/heap/cppgc/object-allocator.h"
 #include "src/heap/cppgc/page-memory.h"
 #include "src/heap/cppgc/prefinalizer-handler.h"
@@ -66,9 +67,9 @@ class V8_EXPORT_PRIVATE Heap final : public cppgc::Heap {
   struct GCConfig {
     using StackState = Heap::StackState;
 
-    static GCConfig Default() { return {StackState::kUnkown}; }
+    static GCConfig Default() { return {StackState::kUnknown}; }
 
-    StackState stack_state = StackState::kUnkown;
+    StackState stack_state = StackState::kUnknown;
   };
 
   static Heap* From(cppgc::Heap* heap) { return static_cast<Heap*>(heap); }
@@ -100,6 +101,8 @@ class V8_EXPORT_PRIVATE Heap final : public cppgc::Heap {
   RawHeap& raw_heap() { return raw_heap_; }
   const RawHeap& raw_heap() const { return raw_heap_; }
 
+  Stack* stack() { return stack_.get(); }
+
   PageBackend* page_backend() { return page_backend_.get(); }
   const PageBackend* page_backend() const { return page_backend_.get(); }
 
@@ -108,6 +111,10 @@ class V8_EXPORT_PRIVATE Heap final : public cppgc::Heap {
   size_t epoch() const { return epoch_; }
 
   size_t ObjectPayloadSize() const;
+
+  // Temporary getter until proper visitation of on-stack objects is
+  // implemented.
+  std::vector<HeapObjectHeader*>& objects() { return objects_; }
 
  private:
   bool in_no_gc_scope() const { return no_gc_scope_ > 0; }
@@ -122,6 +129,7 @@ class V8_EXPORT_PRIVATE Heap final : public cppgc::Heap {
 
   std::unique_ptr<Stack> stack_;
   std::unique_ptr<PreFinalizerHandler> prefinalizer_handler_;
+  std::unique_ptr<Marker> marker_;
   std::vector<HeapObjectHeader*> objects_;
 
   PersistentRegion strong_persistent_region_;
