@@ -5,11 +5,8 @@
 #ifndef V8_LIBPLATFORM_DEFAULT_PLATFORM_H_
 #define V8_LIBPLATFORM_DEFAULT_PLATFORM_H_
 
-#include <functional>
 #include <map>
 #include <memory>
-#include <queue>
-#include <vector>
 
 #include "include/libplatform/libplatform-export.h"
 #include "include/libplatform/libplatform.h"
