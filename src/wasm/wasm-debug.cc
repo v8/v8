@@ -259,7 +259,7 @@ std::vector<int> StackFramePositions(int func_index, Isolate* isolate) {
   WasmCodeRefScope code_ref_scope;
   for (StackTraceFrameIterator it(isolate); !it.done(); it.Advance()) {
     if (!it.is_wasm()) continue;
-    WasmCompiledFrame* frame = WasmCompiledFrame::cast(it.frame());
+    WasmFrame* frame = WasmFrame::cast(it.frame());
     if (static_cast<int>(frame->function_index()) != func_index) continue;
     WasmCode* wasm_code = frame->wasm_code();
     if (!wasm_code->is_liftoff()) continue;
@@ -558,7 +558,7 @@ class DebugInfoImpl {
     UpdateReturnAddresses(current_isolate, new_code);
   }
 
-  void FloodWithBreakpoints(WasmCompiledFrame* frame, Isolate* current_isolate,
+  void FloodWithBreakpoints(WasmFrame* frame, Isolate* current_isolate,
                             ReturnLocation return_location) {
     // 0 is an invalid offset used to indicate flooding.
     int offset = 0;
@@ -575,8 +575,8 @@ class DebugInfoImpl {
   void PrepareStep(Isolate* isolate, StackFrameId break_frame_id) {
     StackTraceFrameIterator it(isolate, break_frame_id);
     DCHECK(!it.done());
-    DCHECK(it.frame()->is_wasm_compiled());
-    WasmCompiledFrame* frame = WasmCompiledFrame::cast(it.frame());
+    DCHECK(it.frame()->is_wasm());
+    WasmFrame* frame = WasmFrame::cast(it.frame());
     StepAction step_action = isolate->debug()->last_step_action();
 
     // If we are flooding the top frame, the return location is after a
@@ -587,8 +587,8 @@ class DebugInfoImpl {
     // to StepOut, and we need to flood the parent function.
     if (IsAtReturn(frame) || step_action == StepOut) {
       it.Advance();
-      if (it.done() || !it.frame()->is_wasm_compiled()) return;
-      frame = WasmCompiledFrame::cast(it.frame());
+      if (it.done() || !it.frame()->is_wasm()) return;
+      frame = WasmFrame::cast(it.frame());
       return_location = kAfterWasmCall;
     }
 
@@ -598,7 +598,7 @@ class DebugInfoImpl {
 
   void ClearStepping() { stepping_frame_ = NO_ID; }
 
-  bool IsStepping(WasmCompiledFrame* frame) {
+  bool IsStepping(WasmFrame* frame) {
     Isolate* isolate = frame->wasm_instance().GetIsolate();
     StepAction last_step_action = isolate->debug()->last_step_action();
     return stepping_frame_ == frame->id() || last_step_action == StepIn;
@@ -759,7 +759,7 @@ class DebugInfoImpl {
       // We still need the flooded function for stepping.
       if (it.frame()->id() == stepping_frame_) continue;
       if (!it.is_wasm()) continue;
-      WasmCompiledFrame* frame = WasmCompiledFrame::cast(it.frame());
+      WasmFrame* frame = WasmFrame::cast(it.frame());
       if (frame->native_module() != new_code->native_module()) continue;
       if (frame->function_index() != new_code->index()) continue;
       if (!frame->wasm_code()->is_liftoff()) continue;
@@ -767,7 +767,7 @@ class DebugInfoImpl {
     }
   }
 
-  void UpdateReturnAddress(WasmCompiledFrame* frame, WasmCode* new_code,
+  void UpdateReturnAddress(WasmFrame* frame, WasmCode* new_code,
                            ReturnLocation return_location) {
     DCHECK(new_code->is_liftoff());
     DCHECK_EQ(frame->function_index(), new_code->index());
@@ -783,7 +783,7 @@ class DebugInfoImpl {
     DCHECK_EQ(old_position, frame->position());
   }
 
-  bool IsAtReturn(WasmCompiledFrame* frame) {
+  bool IsAtReturn(WasmFrame* frame) {
     DisallowHeapAllocation no_gc;
     int position = frame->position();
     NativeModule* native_module =
@@ -869,7 +869,7 @@ void DebugInfo::PrepareStep(Isolate* isolate, StackFrameId break_frame_id) {
 
 void DebugInfo::ClearStepping() { impl_->ClearStepping(); }
 
-bool DebugInfo::IsStepping(WasmCompiledFrame* frame) {
+bool DebugInfo::IsStepping(WasmFrame* frame) {
   return impl_->IsStepping(frame);
 }
 

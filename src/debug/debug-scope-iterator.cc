@@ -170,16 +170,16 @@ v8::Local<v8::Object> DebugWasmScopeIterator::GetObject() {
       return Utils::ToLocal(wasm::GetModuleScopeObject(instance));
     }
     case debug::ScopeIterator::ScopeTypeLocal: {
-      DCHECK(frame_->is_wasm_compiled());
+      DCHECK(frame_->is_wasm());
       wasm::DebugInfo* debug_info =
-          WasmCompiledFrame::cast(frame_)->native_module()->GetDebugInfo();
+          WasmFrame::cast(frame_)->native_module()->GetDebugInfo();
       return Utils::ToLocal(debug_info->GetLocalScopeObject(
           isolate_, frame_->pc(), frame_->fp(), frame_->callee_fp()));
     }
     case debug::ScopeIterator::ScopeTypeWasmExpressionStack: {
-      DCHECK(frame_->is_wasm_compiled());
+      DCHECK(frame_->is_wasm());
       wasm::DebugInfo* debug_info =
-          WasmCompiledFrame::cast(frame_)->native_module()->GetDebugInfo();
+          WasmFrame::cast(frame_)->native_module()->GetDebugInfo();
       return Utils::ToLocal(debug_info->GetStackScopeObject(
           isolate_, frame_->pc(), frame_->fp(), frame_->callee_fp()));
     }

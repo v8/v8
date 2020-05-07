@@ -153,7 +153,7 @@ int CallDescriptor::CalculateFixedFrameSize(Code::Kind code_kind) const {
       return TypedFrameConstants::kFixedSlotCount;
     case kCallWasmFunction:
     case kCallWasmImportWrapper:
-      return WasmCompiledFrameConstants::kFixedSlotCount;
+      return WasmFrameConstants::kFixedSlotCount;
     case kCallWasmCapiFunction:
       return WasmExitFrameConstants::kFixedSlotCount;
   }

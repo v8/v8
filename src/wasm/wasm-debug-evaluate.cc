@@ -199,9 +199,9 @@ class DebugEvaluatorProxy {
 
  private:
   WasmValue LoadLocalValue(uint32_t local) {
-    DCHECK(frame_->is_wasm_compiled());
+    DCHECK(frame_->is_wasm());
     wasm::DebugInfo* debug_info =
-        WasmCompiledFrame::cast(frame_)->native_module()->GetDebugInfo();
+        WasmFrame::cast(frame_)->native_module()->GetDebugInfo();
     return debug_info->GetLocalValue(local, isolate_, frame_->pc(),
                                      frame_->fp(), frame_->callee_fp());
   }

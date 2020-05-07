@@ -54,7 +54,7 @@ class FrameFinder {
 };
 
 WasmInstanceObject GetWasmInstanceOnStackTop(Isolate* isolate) {
-  return FrameFinder<WasmCompiledFrame, StackFrame::EXIT>(isolate)
+  return FrameFinder<WasmFrame, StackFrame::EXIT>(isolate)
       .frame()
       ->wasm_instance();
 }
@@ -431,7 +431,7 @@ RUNTIME_FUNCTION(Runtime_WasmDebugBreak) {
   ClearThreadInWasmScope flag_scope;
   HandleScope scope(isolate);
   DCHECK_EQ(0, args.length());
-  FrameFinder<WasmCompiledFrame, StackFrame::EXIT, StackFrame::WASM_DEBUG_BREAK>
+  FrameFinder<WasmFrame, StackFrame::EXIT, StackFrame::WASM_DEBUG_BREAK>
       frame_finder(isolate);
   auto instance = handle(frame_finder.frame()->wasm_instance(), isolate);
   int position = frame_finder.frame()->position();
@@ -441,7 +441,7 @@ RUNTIME_FUNCTION(Runtime_WasmDebugBreak) {
   DebugScope debug_scope(isolate->debug());
 
   const auto undefined = ReadOnlyRoots(isolate).undefined_value();
-  WasmCompiledFrame* frame = frame_finder.frame();
+  WasmFrame* frame = frame_finder.frame();
   auto* debug_info = frame->native_module()->GetDebugInfo();
   if (debug_info->IsStepping(frame)) {
     debug_info->ClearStepping();

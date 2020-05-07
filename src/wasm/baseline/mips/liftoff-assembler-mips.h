@@ -25,7 +25,7 @@ namespace liftoff {
 //   1   | return addr (ra)   |
 //   0   | previous frame (fp)|
 //  -----+--------------------+  <-- frame ptr (fp)
-//  -1   | 0xa: WASM_COMPILED |
+//  -1   | 0xa: WASM          |
 //  -2   |     instance       |
 //  -----+--------------------+---------------------------
 //  -3   |    slot 0 (high)   |   ^

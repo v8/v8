@@ -230,7 +230,7 @@ class CollectValuesBreakHandler : public debug::DebugDelegate {
     HandleScope handles(isolate_);
 
     StackTraceFrameIterator frame_it(isolate_);
-    WasmCompiledFrame* frame = WasmCompiledFrame::cast(frame_it.frame());
+    WasmFrame* frame = WasmFrame::cast(frame_it.frame());
     DebugInfo* debug_info = frame->native_module()->GetDebugInfo();
 
     int num_locals = debug_info->GetNumLocals(isolate_, frame->pc());

@@ -682,13 +682,12 @@ void FrameArrayIterator::Advance() { frame_ix_++; }
 StackFrameBase* FrameArrayIterator::Frame() {
   DCHECK(HasFrame());
   const int flags = array_->Flags(frame_ix_).value();
-  int flag_mask = FrameArray::kIsWasmCompiledFrame |
-                  FrameArray::kIsAsmJsWasmFrame;
+  int flag_mask = FrameArray::kIsWasmFrame | FrameArray::kIsAsmJsWasmFrame;
   switch (flags & flag_mask) {
     case 0:
       js_frame_.FromFrameArray(isolate_, array_, frame_ix_);
       return &js_frame_;
-    case FrameArray::kIsWasmCompiledFrame:
+    case FrameArray::kIsWasmFrame:
       wasm_frame_.FromFrameArray(isolate_, array_, frame_ix_);
       return &wasm_frame_;
     case FrameArray::kIsAsmJsWasmFrame:

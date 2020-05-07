@@ -120,7 +120,7 @@ class WasmGCForegroundTask : public CancelableTask {
     // report an empty set of live wasm code.
 #ifdef ENABLE_SLOW_DCHECKS
     for (StackFrameIterator it(isolate_); !it.done(); it.Advance()) {
-      DCHECK_NE(StackFrame::WASM_COMPILED, it.frame()->type());
+      DCHECK_NE(StackFrame::WASM, it.frame()->type());
     }
 #endif
     CheckNoArchivedThreads(isolate_);
@@ -1141,8 +1141,8 @@ void WasmEngine::ReportLiveCodeFromStackForGC(Isolate* isolate) {
   std::unordered_set<wasm::WasmCode*> live_wasm_code;
   for (StackFrameIterator it(isolate); !it.done(); it.Advance()) {
     StackFrame* const frame = it.frame();
-    if (frame->type() != StackFrame::WASM_COMPILED) continue;
-    live_wasm_code.insert(WasmCompiledFrame::cast(frame)->wasm_code());
+    if (frame->type() != StackFrame::WASM) continue;
+    live_wasm_code.insert(WasmFrame::cast(frame)->wasm_code());
   }
 
   CheckNoArchivedThreads(isolate);

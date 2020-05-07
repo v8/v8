@@ -543,7 +543,7 @@ class LiftoffCompiler {
     __ CodeEntry();
 
     DEBUG_CODE_COMMENT("enter frame");
-    __ EnterFrame(StackFrame::WASM_COMPILED);
+    __ EnterFrame(StackFrame::WASM);
     __ set_has_frame(true);
     pc_offset_stack_frame_construction_ = __ PrepareStackFrame();
     // {PrepareStackFrame} is the first platform-specific assembler method.
@@ -640,7 +640,7 @@ class LiftoffCompiler {
       DCHECK(!is_stack_check);
       __ CallTrapCallbackForTesting();
       DEBUG_CODE_COMMENT("leave frame");
-      __ LeaveFrame(StackFrame::WASM_COMPILED);
+      __ LeaveFrame(StackFrame::WASM);
       __ DropStackSlotsAndRet(
           static_cast<uint32_t>(descriptor_->StackParameterCount()));
       return;
@@ -1527,7 +1527,7 @@ class LiftoffCompiler {
     }
     if (num_returns > 0) __ MoveToReturnRegisters(decoder->sig_);
     DEBUG_CODE_COMMENT("leave frame");
-    __ LeaveFrame(StackFrame::WASM_COMPILED);
+    __ LeaveFrame(StackFrame::WASM);
     __ DropStackSlotsAndRet(
         static_cast<uint32_t>(descriptor_->StackParameterCount()));
   }
@@ -3399,7 +3399,7 @@ class LiftoffCompiler {
       //   0    foo
       //   1    nop  // top frame return address
       //        bar
-      // {WasmCompiledFrame::position} would then return "0" as the source
+      // {WasmFrame::position} would then return "0" as the source
       // position of the top frame instead of "1".  This is fixed by explicitly
       // emitting the missing position before the return address, with a nop so
       // that code offsets do not collide.

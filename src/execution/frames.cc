@@ -553,7 +553,7 @@ StackFrame::Type StackFrame::ComputeType(const StackFrameIteratorBase* iterator,
     if (wasm_code != nullptr) {
       switch (wasm_code->kind()) {
         case wasm::WasmCode::kFunction:
-          return WASM_COMPILED;
+          return WASM;
         case wasm::WasmCode::kWasmToCapiWrapper:
           return WASM_EXIT;
         case wasm::WasmCode::kWasmToJsWrapper:
@@ -616,7 +616,7 @@ StackFrame::Type StackFrame::ComputeType(const StackFrameIteratorBase* iterator,
     case CONSTRUCT:
     case ARGUMENTS_ADAPTOR:
     case WASM_TO_JS:
-    case WASM_COMPILED:
+    case WASM:
     case WASM_COMPILE_LAZY:
     case WASM_EXIT:
     case WASM_DEBUG_BREAK:
@@ -971,17 +971,17 @@ void StandardFrame::IterateCompiledFrame(RootVisitor* v) const {
         frame_header_size = TypedFrameConstants::kFixedFrameSizeFromFp;
         break;
       case WASM_TO_JS:
-      case WASM_COMPILED:
+      case WASM:
       case WASM_COMPILE_LAZY:
-        frame_header_size = WasmCompiledFrameConstants::kFixedFrameSizeFromFp;
+        frame_header_size = WasmFrameConstants::kFixedFrameSizeFromFp;
         break;
       case WASM_EXIT:
         // The last value in the frame header is the calling PC, which should
         // not be visited.
         static_assert(WasmExitFrameConstants::kFixedSlotCountFromFp ==
-                          WasmCompiledFrameConstants::kFixedSlotCountFromFp + 1,
-                      "WasmExitFrame has one slot more than WasmCompiledFrame");
-        frame_header_size = WasmCompiledFrameConstants::kFixedFrameSizeFromFp;
+                          WasmFrameConstants::kFixedSlotCountFromFp + 1,
+                      "WasmExitFrame has one slot more than WasmFrame");
+        frame_header_size = WasmFrameConstants::kFixedFrameSizeFromFp;
         break;
       case OPTIMIZED:
       case INTERPRETED:
@@ -1810,8 +1810,8 @@ Address InternalFrame::GetCallerStackPointer() const {
 
 Code InternalFrame::unchecked_code() const { return Code(); }
 
-void WasmCompiledFrame::Print(StringStream* accumulator, PrintMode mode,
-                              int index) const {
+void WasmFrame::Print(StringStream* accumulator, PrintMode mode,
+                      int index) const {
   PrintIndex(accumulator, mode, index);
   accumulator->Add("WASM [");
   accumulator->PrintName(script().name());
@@ -1838,60 +1838,56 @@ void WasmCompiledFrame::Print(StringStream* accumulator, PrintMode mode,
   if (mode != OVERVIEW) accumulator->Add("\n");
 }
 
-Code WasmCompiledFrame::unchecked_code() const {
+Code WasmFrame::unchecked_code() const {
   return isolate()->FindCodeObject(pc());
 }
 
-void WasmCompiledFrame::Iterate(RootVisitor* v) const {
-  IterateCompiledFrame(v);
-}
+void WasmFrame::Iterate(RootVisitor* v) const { IterateCompiledFrame(v); }
 
-Address WasmCompiledFrame::GetCallerStackPointer() const {
+Address WasmFrame::GetCallerStackPointer() const {
   return fp() + ExitFrameConstants::kCallerSPOffset;
 }
 
-wasm::WasmCode* WasmCompiledFrame::wasm_code() const {
+wasm::WasmCode* WasmFrame::wasm_code() const {
   return isolate()->wasm_engine()->code_manager()->LookupCode(pc());
 }
 
-WasmInstanceObject WasmCompiledFrame::wasm_instance() const {
-  const int offset = WasmCompiledFrameConstants::kWasmInstanceOffset;
+WasmInstanceObject WasmFrame::wasm_instance() const {
+  const int offset = WasmFrameConstants::kWasmInstanceOffset;
   Object instance(Memory<Address>(fp() + offset));
   return WasmInstanceObject::cast(instance);
 }
 
-wasm::NativeModule* WasmCompiledFrame::native_module() const {
+wasm::NativeModule* WasmFrame::native_module() const {
   return module_object().native_module();
 }
 
-WasmModuleObject WasmCompiledFrame::module_object() const {
+WasmModuleObject WasmFrame::module_object() const {
   return wasm_instance().module_object();
 }
 
-uint32_t WasmCompiledFrame::function_index() const {
+uint32_t WasmFrame::function_index() const {
   return FrameSummary::GetSingle(this).AsWasm().function_index();
 }
 
-Script WasmCompiledFrame::script() const { return module_object().script(); }
+Script WasmFrame::script() const { return module_object().script(); }
 
-int WasmCompiledFrame::position() const {
+int WasmFrame::position() const {
   wasm::WasmCodeRefScope code_ref_scope;
   const wasm::WasmModule* module = wasm_instance().module_object().module();
   return GetSourcePosition(module, function_index(), byte_offset(),
                            at_to_number_conversion());
 }
 
-int WasmCompiledFrame::byte_offset() const {
+int WasmFrame::byte_offset() const {
   wasm::WasmCode* code = wasm_code();
   int offset = static_cast<int>(pc() - code->instruction_start());
   return code->GetSourcePositionBefore(offset);
 }
 
-Object WasmCompiledFrame::context() const {
-  return wasm_instance().native_context();
-}
+Object WasmFrame::context() const { return wasm_instance().native_context(); }
 
-void WasmCompiledFrame::Summarize(std::vector<FrameSummary>* functions) const {
+void WasmFrame::Summarize(std::vector<FrameSummary>* functions) const {
   DCHECK(functions->empty());
   // The {WasmCode*} escapes this scope via the {FrameSummary}, which is fine,
   // since this code object is part of our stack.
@@ -1904,7 +1900,7 @@ void WasmCompiledFrame::Summarize(std::vector<FrameSummary>* functions) const {
   functions->push_back(summary);
 }
 
-bool WasmCompiledFrame::at_to_number_conversion() const {
+bool WasmFrame::at_to_number_conversion() const {
   // Check whether our callee is a WASM_TO_JS frame, and this frame is at the
   // ToNumber conversion call.
   wasm::WasmCode* code =
@@ -1920,7 +1916,7 @@ bool WasmCompiledFrame::at_to_number_conversion() const {
   return pos == 1;
 }
 
-int WasmCompiledFrame::LookupExceptionHandlerInTable() {
+int WasmFrame::LookupExceptionHandlerInTable() {
   wasm::WasmCode* code =
       isolate()->wasm_engine()->code_manager()->LookupCode(pc());
   if (!code->IsAnonymous() && code->handler_table_size() > 0) {

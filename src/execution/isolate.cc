@@ -641,7 +641,7 @@ class FrameArrayBuilder {
         flags |= FrameArray::kAsmJsAtNumberConversion;
       }
     } else {
-      flags |= FrameArray::kIsWasmCompiledFrame;
+      flags |= FrameArray::kIsWasmFrame;
     }
 
     elements_ = FrameArray::AppendWasmFrame(
@@ -941,7 +941,7 @@ Handle<Object> CaptureStackTrace(Isolate* isolate, Handle<Object> caller,
       case StackFrame::OPTIMIZED:
       case StackFrame::INTERPRETED:
       case StackFrame::BUILTIN:
-      case StackFrame::WASM_COMPILED: {
+      case StackFrame::WASM: {
         // A standard frame may include many summarized frames (due to
         // inlining).
         std::vector<FrameSummary> frames;
@@ -1652,7 +1652,7 @@ Object Isolate::UnwindAndFindHandler() {
                             code.constant_pool(), return_sp, frame->fp());
       }
 
-      case StackFrame::WASM_COMPILED: {
+      case StackFrame::WASM: {
         if (trap_handler::IsThreadInWasm()) {
           trap_handler::ClearThreadInWasm();
         }
@@ -1664,7 +1664,7 @@ Object Isolate::UnwindAndFindHandler() {
         // the code. It's not actually necessary to keep the code alive as it's
         // currently being executed.
         wasm::WasmCodeRefScope code_ref_scope;
-        WasmCompiledFrame* wasm_frame = static_cast<WasmCompiledFrame*>(frame);
+        WasmFrame* wasm_frame = static_cast<WasmFrame*>(frame);
         wasm::WasmCode* wasm_code =
             wasm_engine()->code_manager()->LookupCode(frame->pc());
         int offset = wasm_frame->LookupExceptionHandlerInTable();
@@ -2092,7 +2092,7 @@ bool Isolate::ComputeLocationFromStackTrace(MessageLocation* target,
       bool is_at_number_conversion =
           elements->IsAsmJsWasmFrame(i) &&
           elements->Flags(i).value() & FrameArray::kAsmJsAtNumberConversion;
-      if (elements->IsWasmCompiledFrame(i) || elements->IsAsmJsWasmFrame(i)) {
+      if (elements->IsWasmFrame(i) || elements->IsAsmJsWasmFrame(i)) {
         // WasmCode* held alive by the {GlobalWasmCodeRef}.
         wasm::WasmCode* code =
             Managed<wasm::GlobalWasmCodeRef>::cast(elements->WasmCodeObject(i))

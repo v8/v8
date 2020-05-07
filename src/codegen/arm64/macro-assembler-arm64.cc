@@ -2319,7 +2319,7 @@ void TurboAssembler::EnterFrame(StackFrame::Type type) {
     // sp[2] : fp
     // sp[1] : type
     // sp[0] : for alignment
-  } else if (type == StackFrame::WASM_COMPILED ||
+  } else if (type == StackFrame::WASM ||
              type == StackFrame::WASM_COMPILE_LAZY ||
              type == StackFrame::WASM_EXIT) {
     Register type_reg = temps.AcquireX();

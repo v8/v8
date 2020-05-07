@@ -66,7 +66,7 @@ class StackHandler {
   V(CONSTRUCT_ENTRY, ConstructEntryFrame)                                 \
   V(EXIT, ExitFrame)                                                      \
   V(OPTIMIZED, OptimizedFrame)                                            \
-  V(WASM_COMPILED, WasmCompiledFrame)                                     \
+  V(WASM, WasmFrame)                                                      \
   V(WASM_TO_JS, WasmToJsFrame)                                            \
   V(JS_TO_WASM, JsToWasmFrame)                                            \
   V(WASM_DEBUG_BREAK, WasmDebugBreakFrame)                                \
@@ -180,9 +180,7 @@ class StackFrame {
   bool is_exit() const { return type() == EXIT; }
   bool is_optimized() const { return type() == OPTIMIZED; }
   bool is_interpreted() const { return type() == INTERPRETED; }
-  bool is_wasm() const { return this->type() == WASM_COMPILED; }
-  // TODO(clemensb): Remove {is_wasm_compiled}, replace by {is_wasm}.
-  bool is_wasm_compiled() const { return type() == WASM_COMPILED; }
+  bool is_wasm() const { return this->type() == WASM; }
   bool is_wasm_compile_lazy() const { return type() == WASM_COMPILE_LAZY; }
   bool is_wasm_debug_break() const { return type() == WASM_DEBUG_BREAK; }
   bool is_arguments_adaptor() const { return type() == ARGUMENTS_ADAPTOR; }
@@ -897,9 +895,9 @@ class BuiltinFrame final : public JavaScriptFrame {
   friend class StackFrameIteratorBase;
 };
 
-class WasmCompiledFrame : public StandardFrame {
+class WasmFrame : public StandardFrame {
  public:
-  Type type() const override { return WASM_COMPILED; }
+  Type type() const override { return WASM; }
 
   // GC support.
   void Iterate(RootVisitor* v) const override;
@@ -929,13 +927,13 @@ class WasmCompiledFrame : public StandardFrame {
 
   void Summarize(std::vector<FrameSummary>* frames) const override;
 
-  static WasmCompiledFrame* cast(StackFrame* frame) {
-    DCHECK(frame->is_wasm_compiled());
-    return static_cast<WasmCompiledFrame*>(frame);
+  static WasmFrame* cast(StackFrame* frame) {
+    DCHECK(frame->is_wasm());
+    return static_cast<WasmFrame*>(frame);
   }
 
  protected:
-  inline explicit WasmCompiledFrame(StackFrameIteratorBase* iterator);
+  inline explicit WasmFrame(StackFrameIteratorBase* iterator);
 
   Address GetCallerStackPointer() const override;
 
@@ -944,7 +942,7 @@ class WasmCompiledFrame : public StandardFrame {
   WasmModuleObject module_object() const;
 };
 
-class WasmExitFrame : public WasmCompiledFrame {
+class WasmExitFrame : public WasmFrame {
  public:
   Type type() const override { return WASM_EXIT; }
   static Address ComputeStackPointer(Address fp);

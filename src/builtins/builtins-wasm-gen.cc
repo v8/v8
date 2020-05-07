@@ -15,8 +15,7 @@ namespace v8 {
 namespace internal {
 
 TNode<WasmInstanceObject> WasmBuiltinsAssembler::LoadInstanceFromFrame() {
-  return CAST(
-      LoadFromParentFrame(WasmCompiledFrameConstants::kWasmInstanceOffset));
+  return CAST(LoadFromParentFrame(WasmFrameConstants::kWasmInstanceOffset));
 }
 
 TNode<NativeContext> WasmBuiltinsAssembler::LoadContextFromInstance(

@@ -236,11 +236,11 @@ inline ArgumentsAdaptorFrame::ArgumentsAdaptorFrame(
 inline BuiltinFrame::BuiltinFrame(StackFrameIteratorBase* iterator)
     : JavaScriptFrame(iterator) {}
 
-inline WasmCompiledFrame::WasmCompiledFrame(StackFrameIteratorBase* iterator)
+inline WasmFrame::WasmFrame(StackFrameIteratorBase* iterator)
     : StandardFrame(iterator) {}
 
 inline WasmExitFrame::WasmExitFrame(StackFrameIteratorBase* iterator)
-    : WasmCompiledFrame(iterator) {}
+    : WasmFrame(iterator) {}
 
 inline WasmDebugBreakFrame::WasmDebugBreakFrame(
     StackFrameIteratorBase* iterator)

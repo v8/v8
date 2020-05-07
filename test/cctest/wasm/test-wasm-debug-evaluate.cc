@@ -204,7 +204,7 @@ class WasmBreakHandler : public debug::DebugDelegate {
     // Check the current position.
     StackTraceFrameIterator frame_it(isolate_);
 
-    WasmCompiledFrame* frame = WasmCompiledFrame::cast(frame_it.frame());
+    WasmFrame* frame = WasmFrame::cast(frame_it.frame());
     Handle<WasmInstanceObject> instance{frame->wasm_instance(), isolate_};
 
     MaybeHandle<String> result_handle = v8::internal::wasm::DebugEvaluate(

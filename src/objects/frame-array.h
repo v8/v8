@@ -38,8 +38,6 @@ class FrameArray : public FixedArray {
 #undef DECL_FRAME_ARRAY_ACCESSORS
 
   inline bool IsWasmFrame(int frame_ix) const;
-  // TODO(clemensb): Remove {IsWasmCompiledFrame}.
-  inline bool IsWasmCompiledFrame(int frame_ix) const;
   inline bool IsAsmJsWasmFrame(int frame_ix) const;
   inline bool IsAnyWasmFrame(int frame_ix) const;
   inline int FrameCount() const;
@@ -48,7 +46,7 @@ class FrameArray : public FixedArray {
 
   // Flags.
   enum Flag {
-    kIsWasmCompiledFrame = 1 << 0,
+    kIsWasmFrame = 1 << 0,
     kIsAsmJsWasmFrame = 1 << 1,
     kIsStrict = 1 << 2,
     kIsConstructor = 1 << 3,

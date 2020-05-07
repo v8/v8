@@ -1068,9 +1068,9 @@ void Debug::PrepareStep(StepAction step_action) {
     thread_local_.last_frame_count_ = current_frame_count;
     // No longer perform the current async step.
     clear_suspended_generator();
-  } else if (frame->is_wasm_compiled()) {
+  } else if (frame->is_wasm()) {
     // Handle stepping in Liftoff code.
-    WasmCompiledFrame* wasm_frame = WasmCompiledFrame::cast(frame);
+    WasmFrame* wasm_frame = WasmFrame::cast(frame);
     wasm::WasmCodeRefScope code_ref_scope;
     wasm::WasmCode* code = wasm_frame->wasm_code();
     if (code->is_liftoff()) {

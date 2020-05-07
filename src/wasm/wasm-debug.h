@@ -23,7 +23,7 @@ class Handle;
 class JSObject;
 template <typename T>
 class Vector;
-class WasmCompiledFrame;
+class WasmFrame;
 class WasmInstanceObject;
 
 namespace wasm {
@@ -166,7 +166,7 @@ class V8_EXPORT_PRIVATE DebugInfo {
 
   void ClearStepping();
 
-  bool IsStepping(WasmCompiledFrame*);
+  bool IsStepping(WasmFrame*);
 
   void RemoveBreakpoint(int func_index, int offset, Isolate* current_isolate);
 

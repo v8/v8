@@ -1349,7 +1349,7 @@ RUNTIME_FUNCTION(Runtime_WasmTraceMemory) {
   StackTraceFrameIterator it(isolate);
   DCHECK(!it.done());
   DCHECK(it.is_wasm());
-  WasmCompiledFrame* frame = WasmCompiledFrame::cast(it.frame());
+  WasmFrame* frame = WasmFrame::cast(it.frame());
 
   uint8_t* mem_start = reinterpret_cast<uint8_t*>(
       frame->wasm_instance().memory_object().array_buffer().backing_store());
