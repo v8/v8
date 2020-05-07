@@ -2208,6 +2208,46 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       __ vspltb(dst, dst, Operand(7));
       break;
     }
+    case kPPC_F64x2ExtractLane: {
+      __ mfvsrd(kScratchReg, i.InputSimd128Register(0));
+      __ MovInt64ToDouble(i.OutputDoubleRegister(), kScratchReg);
+      break;
+    }
+    case kPPC_F32x4ExtractLane: {
+      __ mfvsrwz(kScratchReg, i.InputSimd128Register(0));
+      __ MovIntToFloat(i.OutputDoubleRegister(), kScratchReg);
+      break;
+    }
+    case kPPC_I64x2ExtractLane: {
+      __ mfvsrd(i.OutputRegister(), i.InputSimd128Register(0));
+      break;
+    }
+    case kPPC_I32x4ExtractLane: {
+      __ mfvsrwz(i.OutputRegister(), i.InputSimd128Register(0));
+      break;
+    }
+    case kPPC_I16x8ExtractLaneU: {
+      __ mfvsrwz(r0, i.InputSimd128Register(0));
+      __ li(ip, Operand(16));
+      __ srd(i.OutputRegister(), r0, ip);
+      break;
+    }
+    case kPPC_I16x8ExtractLaneS: {
+      __ mfvsrwz(kScratchReg, i.InputSimd128Register(0));
+      __ sradi(i.OutputRegister(), kScratchReg, 16);
+      break;
+    }
+    case kPPC_I8x16ExtractLaneU: {
+      __ mfvsrwz(r0, i.InputSimd128Register(0));
+      __ li(ip, Operand(24));
+      __ srd(i.OutputRegister(), r0, ip);
+      break;
+    }
+    case kPPC_I8x16ExtractLaneS: {
+      __ mfvsrwz(kScratchReg, i.InputSimd128Register(0));
+      __ sradi(i.OutputRegister(), kScratchReg, 24);
+      break;
+    }
     case kPPC_StoreCompressTagged: {
       ASSEMBLE_STORE_INTEGER(StoreTaggedField, StoreTaggedFieldX);
       break;

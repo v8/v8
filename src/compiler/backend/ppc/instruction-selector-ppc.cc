@@ -2139,7 +2139,10 @@ SIMD_TYPES(SIMD_VISIT_SPLAT)
 
 #define SIMD_VISIT_EXTRACT_LANE(Type, Sign)                              \
   void InstructionSelector::Visit##Type##ExtractLane##Sign(Node* node) { \
-    UNIMPLEMENTED();                                                     \
+    PPCOperandGenerator g(this);                                         \
+    int32_t lane = OpParameter<int32_t>(node->op());                     \
+    Emit(kPPC_##Type##ExtractLane##Sign, g.DefineAsRegister(node),       \
+         g.UseRegister(node->InputAt(0)), g.UseImmediate(lane));         \
   }
 SIMD_VISIT_EXTRACT_LANE(F64x2, )
 SIMD_VISIT_EXTRACT_LANE(F32x4, )

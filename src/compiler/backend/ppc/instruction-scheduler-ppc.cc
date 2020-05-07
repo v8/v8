@@ -114,11 +114,19 @@ int InstructionScheduler::GetTargetInstructionFlags(
     case kPPC_CompressPointer:
     case kPPC_CompressAny:
     case kPPC_F64x2Splat:
+    case kPPC_F64x2ExtractLane:
     case kPPC_F32x4Splat:
+    case kPPC_F32x4ExtractLane:
     case kPPC_I64x2Splat:
+    case kPPC_I64x2ExtractLane:
     case kPPC_I32x4Splat:
+    case kPPC_I32x4ExtractLane:
     case kPPC_I16x8Splat:
+    case kPPC_I16x8ExtractLaneU:
+    case kPPC_I16x8ExtractLaneS:
     case kPPC_I8x16Splat:
+    case kPPC_I8x16ExtractLaneU:
+    case kPPC_I8x16ExtractLaneS:
       return kNoOpcodeFlags;
 
     case kPPC_LoadWordS8:

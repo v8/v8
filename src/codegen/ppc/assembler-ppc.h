@@ -947,6 +947,8 @@ class Assembler : public AssemblerBase {
              RCBit rc = LeaveRC);
 
   // Vector instructions
+  void mfvsrd(const Register ra, const DoubleRegister r);
+  void mfvsrwz(const Register ra, const DoubleRegister r);
   void mtvsrd(const DoubleRegister rt, const Register ra);
   void vor(const DoubleRegister rt, const DoubleRegister ra,
            const DoubleRegister rb);
