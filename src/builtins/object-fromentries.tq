@@ -57,7 +57,8 @@ namespace object {
         }
         return result;
       } catch (e) deferred {
-        iterator::IteratorCloseOnException(i, e);
+        iterator::IteratorCloseOnException(i);
+        ReThrow(context, e);
       }
     } label Throw deferred {
       ThrowTypeError(MessageTemplate::kNotIterable);

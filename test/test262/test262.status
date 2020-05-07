@@ -548,10 +548,6 @@
   'built-ins/AsyncFromSyncIteratorPrototype/next/absent-value-not-passed': [FAIL],
   'built-ins/AsyncFromSyncIteratorPrototype/return/absent-value-not-passed': [FAIL],
 
-  # https://bugs.chromium.org/p/v8/issues/detail?id=10397
-  'language/statements/for-await-of/iterator-close-throw-get-method-abrupt': [FAIL],
-  'language/statements/for-of/iterator-close-throw-get-method-abrupt': [FAIL],
-
   # http://crbug/v8/10449
   'built-ins/Atomics/waitAsync/bad-range': [FAIL],
   'built-ins/Atomics/waitAsync/descriptor': [FAIL],

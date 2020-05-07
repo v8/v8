@@ -117,7 +117,8 @@ namespace promise {
             }
         }
       } catch (e) deferred {
-        iterator::IteratorCloseOnException(i, e) otherwise Reject;
+        iterator::IteratorCloseOnException(i);
+        goto Reject(e);
       }
     } label Reject(exception: Object) deferred {
       Call(

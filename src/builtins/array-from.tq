@@ -109,7 +109,8 @@ namespace array {
             mappedValue = Call(
                 context, UnsafeCast<Callable>(mapfn), thisArg, nextValue, k);
           } catch (e) {
-            iterator::IteratorCloseOnException(iteratorRecord, e);
+            iterator::IteratorCloseOnException(iteratorRecord);
+            ReThrow(context, e);
           }
         } else {
           mappedValue = nextValue;
@@ -121,7 +122,8 @@ namespace array {
         try {
           FastCreateDataProperty(a, k, mappedValue);
         } catch (e) deferred {
-          iterator::IteratorCloseOnException(iteratorRecord, e);
+          iterator::IteratorCloseOnException(iteratorRecord);
+          ReThrow(context, e);
         }
         // x. Set k to k + 1.
         k += 1;

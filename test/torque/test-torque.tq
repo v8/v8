@@ -682,7 +682,8 @@ namespace test {
   // IteratorBuiltinsAssembler match the signatures provided in
   // iterator.tq.
   @export
-  macro TestIterator(implicit context: Context)(o: JSReceiver, map: Map) {
+  transitioning macro TestIterator(implicit context:
+                                       Context)(o: JSReceiver, map: Map) {
     try {
       const t1: JSAny = iterator::GetIteratorMethod(o);
       const t2: iterator::IteratorRecord = iterator::GetIterator(o);
@@ -690,12 +691,12 @@ namespace test {
       const _t3: JSAny = iterator::IteratorStep(t2) otherwise Fail;
       const _t4: JSAny = iterator::IteratorStep(t2, map) otherwise Fail;
 
-      const t5: JSAny = iterator::IteratorValue(o);
+      const _t5: JSAny = iterator::IteratorValue(o);
       const _t6: JSAny = iterator::IteratorValue(o, map);
 
       const _t7: JSArray = iterator::IterableToList(t1, t1);
 
-      iterator::IteratorCloseOnException(t2, t5);
+      iterator::IteratorCloseOnException(t2);
     } label Fail {}
   }
 

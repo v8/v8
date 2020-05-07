@@ -133,49 +133,6 @@ TNode<Object> IteratorBuiltinsAssembler::IteratorValue(
   return var_value.value();
 }
 
-void IteratorBuiltinsAssembler::IteratorCloseOnException(
-    TNode<Context> context, const IteratorRecord& iterator, Label* if_exception,
-    TVariable<Object>* exception) {
-  // Perform ES #sec-iteratorclose when an exception occurs. This simpler
-  // algorithm does not include redundant steps which are never reachable from
-  // the spec IteratorClose algorithm.
-  DCHECK((if_exception != nullptr && exception != nullptr));
-  CSA_ASSERT(this, IsNotTheHole(exception->value()));
-  CSA_ASSERT(this, IsJSReceiver(iterator.object));
-
-  // Let return be ? GetMethod(iterator, "return").
-  TNode<Object> method;
-  {
-    compiler::ScopedExceptionHandler handler(this, if_exception, exception);
-    method = GetProperty(context, iterator.object, factory()->return_string());
-  }
-
-  // If return is undefined, return Completion(completion).
-  GotoIf(Word32Or(IsUndefined(method), IsNull(method)), if_exception);
-
-  {
-    // Let innerResult be Call(return, iterator, « »).
-    // If an exception occurs, the original exception remains bound.
-    compiler::ScopedExceptionHandler handler(this, if_exception, nullptr);
-    Call(context, method, iterator.object);
-  }
-
-  // (If completion.[[Type]] is throw) return Completion(completion).
-  Goto(if_exception);
-}
-
-void IteratorBuiltinsAssembler::IteratorCloseOnException(
-    TNode<Context> context, const IteratorRecord& iterator,
-    TNode<Object> exception) {
-  Label rethrow(this, Label::kDeferred);
-  TVARIABLE(Object, exception_variable, exception);
-  IteratorCloseOnException(context, iterator, &rethrow, &exception_variable);
-
-  BIND(&rethrow);
-  CallRuntime(Runtime::kReThrow, context, exception_variable.value());
-  Unreachable();
-}
-
 TNode<JSArray> IteratorBuiltinsAssembler::IterableToList(
     TNode<Context> context, TNode<Object> iterable, TNode<Object> iterator_fn) {
   GrowableFixedArray values(state());
@@ -311,7 +268,9 @@ TNode<JSArray> IteratorBuiltinsAssembler::StringListFromIterable(
 
       // 2. Return ? IteratorClose(iteratorRecord, error).
       BIND(&if_exception);
-      IteratorCloseOnException(context, iterator_record, var_exception.value());
+      IteratorCloseOnException(context, iterator_record);
+      CallRuntime(Runtime::kReThrow, context, var_exception.value());
+      Unreachable();
     }
   }
 

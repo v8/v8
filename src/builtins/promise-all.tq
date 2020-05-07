@@ -270,7 +270,8 @@ namespace promise {
           index += 1;
         }
       } catch (e) deferred {
-        iterator::IteratorCloseOnException(iter, e) otherwise Reject;
+        iterator::IteratorCloseOnException(iter);
+        goto Reject(e);
       }
     } label Done {}
 

@@ -3538,16 +3538,15 @@ BytecodeGenerator::AssignmentLhsData BytecodeGenerator::PrepareAssignmentLhs(
 // In pseudo-code, this builds:
 //
 // if (!done) {
-//   let method = iterator.return
-//   if (method !== null && method !== undefined) {
-//     try {
-//       if (typeof(method) !== "function") throw TypeError
+//   try {
+//     let method = iterator.return
+//     if (method !== null && method !== undefined) {
 //       let return_val = method.call(iterator)
 //       if (!%IsObject(return_val)) throw TypeError
-//     } catch (e) {
-//       if (iteration_continuation != RETHROW)
-//         rethrow e
 //     }
+//   } catch (e) {
+//     if (iteration_continuation != RETHROW)
+//       rethrow e
 //   }
 // }
 //
@@ -3562,44 +3561,24 @@ void BytecodeGenerator::BuildFinalizeIteration(
   builder()->LoadAccumulatorWithRegister(done).JumpIfTrue(
       ToBooleanMode::kConvertToBoolean, iterator_is_done.New());
 
-  //   method = iterator.return
-  //   if (method !== null && method !== undefined) {
-  Register method = register_allocator()->NewRegister();
-  builder()
-      ->LoadNamedProperty(iterator.object(),
-                          ast_string_constants()->return_string(),
-                          feedback_index(feedback_spec()->AddLoadICSlot()))
-      .StoreAccumulatorInRegister(method)
-      .JumpIfUndefinedOrNull(iterator_is_done.New());
-
   {
     RegisterAllocationScope register_scope(this);
     BuildTryCatch(
         // try {
-        //   if (typeof(method) !== "function") throw TypeError
-        //   let return_val = method.call(iterator)
-        //   if (!%IsObject(return_val)) throw TypeError
+        //   let method = iterator.return
+        //   if (method !== null && method !== undefined) {
+        //     let return_val = method.call(iterator)
+        //     if (!%IsObject(return_val)) throw TypeError
+        //   }
         // }
         [&]() {
-          BytecodeLabel if_callable;
+          Register method = register_allocator()->NewRegister();
           builder()
-              ->CompareTypeOf(TestTypeOfFlags::LiteralFlag::kFunction)
-              .JumpIfTrue(ToBooleanMode::kAlreadyBoolean, &if_callable);
-          {
-            // throw %NewTypeError(kReturnMethodNotCallable)
-            RegisterAllocationScope register_scope(this);
-            RegisterList new_type_error_args =
-                register_allocator()->NewRegisterList(2);
-            builder()
-                ->LoadLiteral(
-                    Smi::FromEnum(MessageTemplate::kReturnMethodNotCallable))
-                .StoreAccumulatorInRegister(new_type_error_args[0])
-                .LoadLiteral(ast_string_constants()->empty_string())
-                .StoreAccumulatorInRegister(new_type_error_args[1])
-                .CallRuntime(Runtime::kNewTypeError, new_type_error_args)
-                .Throw();
-          }
-          builder()->Bind(&if_callable);
+              ->LoadNamedProperty(
+                  iterator.object(), ast_string_constants()->return_string(),
+                  feedback_index(feedback_spec()->AddLoadICSlot()))
+              .JumpIfUndefinedOrNull(iterator_is_done.New())
+              .StoreAccumulatorInRegister(method);
 
           RegisterList args(iterator.object());
           builder()->CallProperty(
