@@ -131,9 +131,9 @@ class V8_EXPORT_PRIVATE TurboAssembler : public TurboAssemblerBase {
 #define COND_ARGS cond, r1, r2
 
   // Cases when relocation is not needed.
-#define DECLARE_NORELOC_PROTOTYPE(Name, target_type)                          \
-  void Name(target_type target);                \
-  void Name(target_type target, COND_TYPED_ARGS);                                    \
+#define DECLARE_NORELOC_PROTOTYPE(Name, target_type) \
+  void Name(target_type target);                     \
+  void Name(target_type target, COND_TYPED_ARGS);
 
 #define DECLARE_BRANCH_PROTOTYPES(Name)   \
   DECLARE_NORELOC_PROTOTYPE(Name, Label*) \
@@ -192,8 +192,8 @@ class V8_EXPORT_PRIVATE TurboAssembler : public TurboAssemblerBase {
   void LoadRootRelative(Register destination, int32_t offset) override;
 
 // Jump, Call, and Ret pseudo instructions implementing inter-working.
-#define COND_ARGS                                  \
-  Condition cond = al, Register rs = zero_reg,     \
+#define COND_ARGS                              \
+  Condition cond = al, Register rs = zero_reg, \
             const Operand &rt = Operand(zero_reg)
 
   void Jump(Register target, COND_ARGS);
@@ -547,8 +547,7 @@ class V8_EXPORT_PRIVATE TurboAssembler : public TurboAssemblerBase {
   // MIPS64 R6 instruction macros.
 
   // Change endianness
-  void ByteSwapSigned(Register dest, Register src, int operand_size);
-  void ByteSwapUnsigned(Register dest, Register src, int operand_size);
+  void ByteSwap(Register dest, Register src, int operand_size);
 
   // Convert single to unsigned word.
   void Trunc_uw_s(Register rd, FPURegister fs, Register result = no_reg);
@@ -1125,7 +1124,8 @@ class V8_EXPORT_PRIVATE MacroAssembler : public TurboAssembler {
   }
 
   // Jump if the register contains a non-smi.
-  void JumpIfNotSmi(Register value, Label* not_smi_label, Register scratch = t3);
+  void JumpIfNotSmi(Register value, Label* not_smi_label,
+                    Register scratch = t3);
 
   // Abort execution if argument is a smi, enabled via --debug-code.
   void AssertNotSmi(Register object);

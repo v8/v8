@@ -1637,6 +1637,16 @@ TEST(Dctz) {
   }
 }
 
+TEST(ByteSwap) {
+  CcTest::InitializeVM();
+  auto fn0 = [](MacroAssembler* masm) { __ ByteSwap(a0, a0, 4); };
+  CHECK_EQ((int32_t)0x89ab'cdef, run_Cvt<int32_t>(0xefcd'ab89, fn0));
+
+  auto fn1 = [](MacroAssembler* masm) { __ ByteSwap(a0, a0, 8); };
+  CHECK_EQ((int64_t)0x0123'4567'89ab'cdef,
+           run_Cvt<int64_t>(0xefcd'ab89'6745'2301, fn1));
+}
+
 TEST(Dpopcnt) {
   CcTest::InitializeVM();
   Isolate* isolate = CcTest::i_isolate();
