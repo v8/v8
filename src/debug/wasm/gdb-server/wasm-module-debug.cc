@@ -109,20 +109,17 @@ std::vector<wasm_addr_t> WasmModuleDebug::GetCallStack(
                 summary.AsJavaScript();
             offset = java_script.code_offset();
             script = Handle<Script>::cast(java_script.script());
-          } else if (summary.IsWasmCompiled()) {
-            FrameSummary::WasmCompiledFrameSummary const& wasm_compiled =
-                summary.AsWasmCompiled();
-            offset =
-                GetWasmFunctionOffset(wasm_compiled.wasm_instance()->module(),
-                                      wasm_compiled.function_index()) +
-                wasm_compiled.byte_offset();
-            script = wasm_compiled.script();
+          } else if (summary.IsWasm()) {
+            FrameSummary::WasmFrameSummary const& wasm = summary.AsWasm();
+            offset = GetWasmFunctionOffset(wasm.wasm_instance()->module(),
+                                           wasm.function_index()) +
+                     wasm.byte_offset();
+            script = wasm.script();
 
             bool zeroth_frame = call_stack.empty();
             if (!zeroth_frame) {
-              const NativeModule* native_module = wasm_compiled.wasm_instance()
-                                                      ->module_object()
-                                                      .native_module();
+              const NativeModule* native_module =
+                  wasm.wasm_instance()->module_object().native_module();
               offset = ReturnPc(native_module, offset);
             }
           }
@@ -232,7 +229,7 @@ bool WasmModuleDebug::GetWasmLocal(Isolate* isolate, uint32_t frame_index,
 
   int reversed_index = static_cast<int>(frames.size() - 1 - frame_index);
   const FrameSummary& summary = frames[reversed_index];
-  if (summary.IsWasmCompiled()) {
+  if (summary.IsWasm()) {
     Handle<WasmInstanceObject> instance = summary.AsWasm().wasm_instance();
     if (!instance.is_null()) {
       Handle<WasmModuleObject> module_object(instance->module_object(),
@@ -265,7 +262,7 @@ bool WasmModuleDebug::GetWasmStackValue(Isolate* isolate, uint32_t frame_index,
 
   int reversed_index = static_cast<int>(frames.size() - 1 - frame_index);
   const FrameSummary& summary = frames[reversed_index];
-  if (summary.IsWasmCompiled()) {
+  if (summary.IsWasm()) {
     Handle<WasmInstanceObject> instance = summary.AsWasm().wasm_instance();
     if (!instance.is_null()) {
       Handle<WasmModuleObject> module_object(instance->module_object(),

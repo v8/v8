@@ -1392,27 +1392,25 @@ Handle<Context> FrameSummary::JavaScriptFrameSummary::native_context() const {
 }
 
 FrameSummary::WasmFrameSummary::WasmFrameSummary(
-    Isolate* isolate, FrameSummary::Kind kind,
-    Handle<WasmInstanceObject> instance, bool at_to_number_conversion)
-    : FrameSummaryBase(isolate, kind),
+    Isolate* isolate, Handle<WasmInstanceObject> instance, wasm::WasmCode* code,
+    int code_offset, bool at_to_number_conversion)
+    : FrameSummaryBase(isolate, WASM),
       wasm_instance_(instance),
-      at_to_number_conversion_(at_to_number_conversion) {}
+      at_to_number_conversion_(at_to_number_conversion),
+      code_(code),
+      code_offset_(code_offset) {}
 
 Handle<Object> FrameSummary::WasmFrameSummary::receiver() const {
   return wasm_instance_->GetIsolate()->global_proxy();
 }
 
-// TODO(clemensb): Remove this dispatch.
-#define WASM_SUMMARY_DISPATCH(type, name)                              \
-  type FrameSummary::WasmFrameSummary::name() const {                  \
-    DCHECK_EQ(Kind::WASM_COMPILED, kind());                            \
-    return static_cast<const WasmCompiledFrameSummary*>(this)->name(); \
-  }
+uint32_t FrameSummary::WasmFrameSummary::function_index() const {
+  return code()->index();
+}
 
-WASM_SUMMARY_DISPATCH(uint32_t, function_index)
-WASM_SUMMARY_DISPATCH(int, byte_offset)
-
-#undef WASM_SUMMARY_DISPATCH
+int FrameSummary::WasmFrameSummary::byte_offset() const {
+  return code_->GetSourcePositionBefore(code_offset());
+}
 
 int FrameSummary::WasmFrameSummary::SourcePosition() const {
   const wasm::WasmModule* module = wasm_instance()->module_object().module();
@@ -1434,22 +1432,6 @@ Handle<String> FrameSummary::WasmFrameSummary::FunctionName() const {
 
 Handle<Context> FrameSummary::WasmFrameSummary::native_context() const {
   return handle(wasm_instance()->native_context(), isolate());
-}
-
-FrameSummary::WasmCompiledFrameSummary::WasmCompiledFrameSummary(
-    Isolate* isolate, Handle<WasmInstanceObject> instance, wasm::WasmCode* code,
-    int code_offset, bool at_to_number_conversion)
-    : WasmFrameSummary(isolate, WASM_COMPILED, instance,
-                       at_to_number_conversion),
-      code_(code),
-      code_offset_(code_offset) {}
-
-uint32_t FrameSummary::WasmCompiledFrameSummary::function_index() const {
-  return code()->index();
-}
-
-int FrameSummary::WasmCompiledFrameSummary::byte_offset() const {
-  return code_->GetSourcePositionBefore(code_offset());
 }
 
 FrameSummary::~FrameSummary() {
@@ -1491,16 +1473,16 @@ FrameSummary FrameSummary::Get(const StandardFrame* frame, int index) {
   return frames[index];
 }
 
-#define FRAME_SUMMARY_DISPATCH(ret, name)        \
-  ret FrameSummary::name() const {               \
-    switch (base_.kind()) {                      \
-      case JAVA_SCRIPT:                          \
-        return java_script_summary_.name();      \
-      case WASM_COMPILED:                        \
-        return wasm_compiled_summary_.name();    \
-      default:                                   \
-        UNREACHABLE();                           \
-    }                                            \
+#define FRAME_SUMMARY_DISPATCH(ret, name)   \
+  ret FrameSummary::name() const {          \
+    switch (base_.kind()) {                 \
+      case JAVA_SCRIPT:                     \
+        return java_script_summary_.name(); \
+      case WASM:                            \
+        return wasm_summary_.name();        \
+      default:                              \
+        UNREACHABLE();                      \
+    }                                       \
   }
 
 FRAME_SUMMARY_DISPATCH(Handle<Object>, receiver)
@@ -1887,7 +1869,7 @@ WasmModuleObject WasmCompiledFrame::module_object() const {
 }
 
 uint32_t WasmCompiledFrame::function_index() const {
-  return FrameSummary::GetSingle(this).AsWasmCompiled().function_index();
+  return FrameSummary::GetSingle(this).AsWasm().function_index();
 }
 
 Script WasmCompiledFrame::script() const { return module_object().script(); }
@@ -1917,8 +1899,8 @@ void WasmCompiledFrame::Summarize(std::vector<FrameSummary>* functions) const {
   wasm::WasmCode* code = wasm_code();
   int offset = static_cast<int>(pc() - code->instruction_start());
   Handle<WasmInstanceObject> instance(wasm_instance(), isolate());
-  FrameSummary::WasmCompiledFrameSummary summary(
-      isolate(), instance, code, offset, at_to_number_conversion());
+  FrameSummary::WasmFrameSummary summary(isolate(), instance, code, offset,
+                                         at_to_number_conversion());
   functions->push_back(summary);
 }
 

@@ -631,8 +631,7 @@ class FrameArrayBuilder {
         abstract_code, offset, flags, parameters);
   }
 
-  void AppendWasmCompiledFrame(
-      FrameSummary::WasmCompiledFrameSummary const& summary) {
+  void AppendWasmFrame(FrameSummary::WasmFrameSummary const& summary) {
     if (summary.code()->kind() != wasm::WasmCode::kFunction) return;
     Handle<WasmInstanceObject> instance = summary.wasm_instance();
     int flags = 0;
@@ -960,12 +959,12 @@ Handle<Object> CaptureStackTrace(Isolate* isolate, Handle<Object> caller,
             //=========================================================
             auto const& java_script = summary.AsJavaScript();
             builder.AppendJavaScriptFrame(java_script);
-          } else if (summary.IsWasmCompiled()) {
+          } else if (summary.IsWasm()) {
             //=========================================================
-            // Handle a Wasm compiled frame.
+            // Handle a Wasm frame.
             //=========================================================
-            auto const& wasm_compiled = summary.AsWasmCompiled();
-            builder.AppendWasmCompiledFrame(wasm_compiled);
+            auto const& wasm = summary.AsWasm();
+            builder.AppendWasmFrame(wasm);
           }
         }
         break;

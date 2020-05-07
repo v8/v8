@@ -454,8 +454,7 @@ class V8_EXPORT_PRIVATE FrameSummary {
 // Subclasses for the different summary kinds:
 #define FRAME_SUMMARY_VARIANTS(F)                                          \
   F(JAVA_SCRIPT, JavaScriptFrameSummary, java_script_summary_, JavaScript) \
-  F(WASM_COMPILED, WasmCompiledFrameSummary, wasm_compiled_summary_,       \
-    WasmCompiled)
+  F(WASM, WasmFrameSummary, wasm_summary_, Wasm)
 
 #define FRAME_SUMMARY_KIND(kind, type, field, desc) kind,
   enum Kind { FRAME_SUMMARY_VARIANTS(FRAME_SUMMARY_KIND) };
@@ -506,14 +505,15 @@ class V8_EXPORT_PRIVATE FrameSummary {
   };
 
   class WasmFrameSummary : public FrameSummaryBase {
-   protected:
-    WasmFrameSummary(Isolate*, Kind, Handle<WasmInstanceObject>,
-                     bool at_to_number_conversion);
-
    public:
+    WasmFrameSummary(Isolate*, Handle<WasmInstanceObject>, wasm::WasmCode*,
+                     int code_offset, bool at_to_number_conversion);
+
     Handle<Object> receiver() const;
     uint32_t function_index() const;
-    int byte_offset() const;
+    wasm::WasmCode* code() const { return code_; }
+    int code_offset() const { return code_offset_; }
+    V8_EXPORT_PRIVATE int byte_offset() const;
     bool is_constructor() const { return false; }
     bool is_subject_to_debugging() const { return true; }
     int SourcePosition() const;
@@ -527,19 +527,6 @@ class V8_EXPORT_PRIVATE FrameSummary {
    private:
     Handle<WasmInstanceObject> wasm_instance_;
     bool at_to_number_conversion_;
-  };
-
-  class WasmCompiledFrameSummary : public WasmFrameSummary {
-   public:
-    WasmCompiledFrameSummary(Isolate*, Handle<WasmInstanceObject>,
-                             wasm::WasmCode*, int code_offset,
-                             bool at_to_number_conversion);
-    uint32_t function_index() const;
-    wasm::WasmCode* code() const { return code_; }
-    int code_offset() const { return code_offset_; }
-    V8_EXPORT_PRIVATE int byte_offset() const;
-
-   private:
     wasm::WasmCode* const code_;
     int code_offset_;
   };
@@ -578,10 +565,6 @@ class V8_EXPORT_PRIVATE FrameSummary {
   }
   FRAME_SUMMARY_VARIANTS(FRAME_SUMMARY_CAST)
 #undef FRAME_SUMMARY_CAST
-
-  // TODO(clemensb): Remove {IsWasmCompiled()} and {AsWasmCompiled()}.
-  bool IsWasm() const { return IsWasmCompiled(); }
-  const WasmFrameSummary& AsWasm() const { return AsWasmCompiled(); }
 
  private:
 #define FRAME_SUMMARY_FIELD(kind, type, field, desc) type field;
