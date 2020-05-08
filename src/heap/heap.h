@@ -17,6 +17,7 @@
 #include "include/v8-internal.h"
 #include "include/v8.h"
 #include "src/base/atomic-utils.h"
+#include "src/base/enum-set.h"
 #include "src/base/platform/condition-variable.h"
 #include "src/builtins/accessors.h"
 #include "src/common/assert-scope.h"
@@ -163,6 +164,15 @@ enum class YoungGenerationHandling {
 };
 
 enum class GCIdleTimeAction : uint8_t;
+
+enum class SkipRoot {
+  kExternalStringTable,
+  kGlobalHandles,
+  kOldGeneration,
+  kStack,
+  kUnserializable,
+  kWeak
+};
 
 class AllocationResult {
  public:
@@ -922,14 +932,12 @@ class Heap {
   // (de)serialization or heap verification.
 
   // Iterates over the strong roots and the weak roots.
-  void IterateRoots(RootVisitor* v, VisitMode mode);
-  // Iterates over the strong roots.
-  void IterateStrongRoots(RootVisitor* v, VisitMode mode);
+  void IterateRoots(RootVisitor* v, base::EnumSet<SkipRoot> options);
   // Iterates over entries in the smi roots list.  Only interesting to the
   // serializer/deserializer, since GC does not care about smis.
   void IterateSmiRoots(RootVisitor* v);
   // Iterates over weak string tables.
-  void IterateWeakRoots(RootVisitor* v, VisitMode mode);
+  void IterateWeakRoots(RootVisitor* v, base::EnumSet<SkipRoot> options);
   // Iterates over weak global handles.
   void IterateWeakGlobalHandles(RootVisitor* v);
   // Iterates over builtins.

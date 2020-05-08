@@ -33,9 +33,12 @@ void StartupDeserializer::DeserializeInto(Isolate* isolate) {
   {
     DisallowHeapAllocation no_gc;
     isolate->heap()->IterateSmiRoots(this);
-    isolate->heap()->IterateStrongRoots(this, VISIT_FOR_SERIALIZATION);
+    isolate->heap()->IterateRoots(
+        this,
+        base::EnumSet<SkipRoot>{SkipRoot::kUnserializable, SkipRoot::kWeak});
     Iterate(isolate, this);
-    isolate->heap()->IterateWeakRoots(this, VISIT_FOR_SERIALIZATION);
+    isolate->heap()->IterateWeakRoots(
+        this, base::EnumSet<SkipRoot>{SkipRoot::kUnserializable});
     DeserializeDeferredObjects();
     RestoreExternalReferenceRedirectors(isolate, accessor_infos());
     RestoreExternalReferenceRedirectors(isolate, call_handler_infos());

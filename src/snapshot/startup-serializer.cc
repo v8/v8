@@ -179,7 +179,8 @@ void StartupSerializer::SerializeWeakReferencesAndDeferred() {
   Object undefined = ReadOnlyRoots(isolate()).undefined_value();
   VisitRootPointer(Root::kStartupObjectCache, nullptr,
                    FullObjectSlot(&undefined));
-  isolate()->heap()->IterateWeakRoots(this, VISIT_FOR_SERIALIZATION);
+  isolate()->heap()->IterateWeakRoots(
+      this, base::EnumSet<SkipRoot>{SkipRoot::kUnserializable});
   SerializeDeferredObjects();
   Pad();
 }
@@ -199,7 +200,9 @@ void StartupSerializer::SerializeStrongReferences(
   // Visit smi roots and immortal immovables first to make sure they end up in
   // the first page.
   isolate->heap()->IterateSmiRoots(this);
-  isolate->heap()->IterateStrongRoots(this, VISIT_FOR_SERIALIZATION);
+  isolate->heap()->IterateRoots(
+      this,
+      base::EnumSet<SkipRoot>{SkipRoot::kUnserializable, SkipRoot::kWeak});
 }
 
 SerializedHandleChecker::SerializedHandleChecker(Isolate* isolate,

@@ -811,17 +811,6 @@ enum class LocalSpaceKind {
 
 enum Executability { NOT_EXECUTABLE, EXECUTABLE };
 
-enum VisitMode {
-  VISIT_ALL,
-  VISIT_ALL_IN_MINOR_MC_MARK,
-  VISIT_ALL_IN_MINOR_MC_UPDATE,
-  VISIT_ALL_IN_SCAVENGE,
-  VISIT_ALL_IN_SWEEP_NEWSPACE,
-  VISIT_ONLY_STRONG,
-  VISIT_ONLY_STRONG_IGNORE_STACK,
-  VISIT_FOR_SERIALIZATION,
-};
-
 enum class BytecodeFlushMode {
   kDoNotFlushBytecode,
   kFlushBytecode,

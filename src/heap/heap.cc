@@ -3247,7 +3247,7 @@ FixedArrayBase Heap::LeftTrimFixedArray(FixedArrayBase object,
     // to the original FixedArray (which is now the filler object).
     LeftTrimmerVerifierRootVisitor root_visitor(object);
     ReadOnlyRoots(this).Iterate(&root_visitor);
-    IterateRoots(&root_visitor, VISIT_ALL);
+    IterateRoots(&root_visitor, {});
   }
 #endif  // ENABLE_SLOW_DCHECKS
 
@@ -4218,7 +4218,7 @@ void Heap::Verify() {
   array_buffer_sweeper()->EnsureFinished();
 
   VerifyPointersVisitor visitor(this);
-  IterateRoots(&visitor, VISIT_ONLY_STRONG);
+  IterateRoots(&visitor, {});
 
   if (!isolate()->context().is_null() &&
       !isolate()->normalized_map_cache()->IsUndefined(isolate())) {
@@ -4469,20 +4469,13 @@ void Heap::set_builtin(int index, Code builtin) {
   isolate()->builtins_table()[index] = builtin.ptr();
 }
 
-void Heap::IterateRoots(RootVisitor* v, VisitMode mode) {
-  IterateStrongRoots(v, mode);
-  IterateWeakRoots(v, mode);
-}
-
-void Heap::IterateWeakRoots(RootVisitor* v, VisitMode mode) {
-  const bool isMinorGC = mode == VISIT_ALL_IN_SCAVENGE ||
-                         mode == VISIT_ALL_IN_MINOR_MC_MARK ||
-                         mode == VISIT_ALL_IN_MINOR_MC_UPDATE;
+void Heap::IterateWeakRoots(RootVisitor* v, base::EnumSet<SkipRoot> options) {
+  DCHECK(!options.contains(SkipRoot::kWeak));
   v->VisitRootPointer(Root::kStringTable, nullptr,
                       FullObjectSlot(&roots_table()[RootIndex::kStringTable]));
   v->Synchronize(VisitorSynchronization::kStringTable);
-  if (!isMinorGC && mode != VISIT_ALL_IN_SWEEP_NEWSPACE &&
-      mode != VISIT_FOR_SERIALIZATION) {
+  if (!options.contains(SkipRoot::kExternalStringTable) &&
+      !options.contains(SkipRoot::kUnserializable)) {
     // Scavenge collections have special processing for this.
     // Do not visit for serialization, since the external string table will
     // be populated from scratch upon deserialization.
@@ -4549,10 +4542,7 @@ class FixStaleLeftTrimmedHandlesVisitor : public RootVisitor {
   Heap* heap_;
 };
 
-void Heap::IterateStrongRoots(RootVisitor* v, VisitMode mode) {
-  const bool isMinorGC = mode == VISIT_ALL_IN_SCAVENGE ||
-                         mode == VISIT_ALL_IN_MINOR_MC_MARK ||
-                         mode == VISIT_ALL_IN_MINOR_MC_UPDATE;
+void Heap::IterateRoots(RootVisitor* v, base::EnumSet<SkipRoot> options) {
   v->VisitRootPointers(Root::kStrongRootList, nullptr,
                        roots_table().strong_roots_begin(),
                        roots_table().strong_roots_end());
@@ -4568,36 +4558,10 @@ void Heap::IterateStrongRoots(RootVisitor* v, VisitMode mode) {
   isolate_->compilation_cache()->Iterate(v);
   v->Synchronize(VisitorSynchronization::kCompilationCache);
 
-  // Iterate over the builtin code objects in the heap. Note that it is not
-  // necessary to iterate over code objects on scavenge collections.
-  if (!isMinorGC) {
+  if (!options.contains(SkipRoot::kOldGeneration)) {
     IterateBuiltins(v);
     v->Synchronize(VisitorSynchronization::kBuiltins);
   }
-
-  // Iterate over global handles.
-  switch (mode) {
-    case VISIT_FOR_SERIALIZATION:
-      // Global handles are not iterated by the serializer. Values referenced by
-      // global handles need to be added manually.
-      break;
-    case VISIT_ONLY_STRONG:
-    case VISIT_ONLY_STRONG_IGNORE_STACK:
-      isolate_->global_handles()->IterateStrongRoots(v);
-      break;
-    case VISIT_ALL_IN_SCAVENGE:
-    case VISIT_ALL_IN_MINOR_MC_MARK:
-      isolate_->global_handles()->IterateYoungStrongAndDependentRoots(v);
-      break;
-    case VISIT_ALL_IN_MINOR_MC_UPDATE:
-      isolate_->global_handles()->IterateAllYoungRoots(v);
-      break;
-    case VISIT_ALL_IN_SWEEP_NEWSPACE:
-    case VISIT_ALL:
-      isolate_->global_handles()->IterateAllRoots(v);
-      break;
-  }
-  v->Synchronize(VisitorSynchronization::kGlobalHandles);
 
   // Iterate over pointers being held by inactive threads.
   isolate_->thread_manager()->Iterate(v);
@@ -4618,8 +4582,30 @@ void Heap::IterateStrongRoots(RootVisitor* v, VisitMode mode) {
   // The general guideline for adding visitors to this section vs. adding them
   // above is that non-transient heap state is always visited, transient heap
   // state is visited only when not serializing.
-  if (mode != VISIT_FOR_SERIALIZATION) {
-    if (mode != VISIT_ONLY_STRONG_IGNORE_STACK) {
+  if (!options.contains(SkipRoot::kUnserializable)) {
+    if (!options.contains(SkipRoot::kGlobalHandles)) {
+      if (options.contains(SkipRoot::kWeak)) {
+        if (options.contains(SkipRoot::kOldGeneration)) {
+          // Skip handles that are either weak or old.
+          isolate_->global_handles()->IterateYoungStrongAndDependentRoots(v);
+        } else {
+          // Skip handles that are weak.
+          isolate_->global_handles()->IterateStrongRoots(v);
+        }
+      } else {
+        // Do not skip weak handles.
+        if (options.contains(SkipRoot::kOldGeneration)) {
+          // Skip handles that are old.
+          isolate_->global_handles()->IterateAllYoungRoots(v);
+        } else {
+          // Do not skip any handles.
+          isolate_->global_handles()->IterateAllRoots(v);
+        }
+      }
+    }
+    v->Synchronize(VisitorSynchronization::kGlobalHandles);
+
+    if (!options.contains(SkipRoot::kStack)) {
       isolate_->Iterate(v);
       isolate_->global_handles()->IterateStrongStackRoots(v);
       v->Synchronize(VisitorSynchronization::kTop);
@@ -4641,10 +4627,7 @@ void Heap::IterateStrongRoots(RootVisitor* v, VisitMode mode) {
     isolate_->IterateDeferredHandles(v);
     v->Synchronize(VisitorSynchronization::kHandleScope);
 
-    // Iterate over eternal handles. Eternal handles are not iterated by the
-    // serializer. Values referenced by eternal handles need to be added
-    // manually.
-    if (isMinorGC) {
+    if (options.contains(SkipRoot::kOldGeneration)) {
       isolate_->eternal_handles()->IterateYoungRoots(v);
     } else {
       isolate_->eternal_handles()->IterateAllRoots(v);
@@ -4673,6 +4656,10 @@ void Heap::IterateStrongRoots(RootVisitor* v, VisitMode mode) {
     // deserializing.
     SerializerDeserializer::Iterate(isolate_, v);
     v->Synchronize(VisitorSynchronization::kStartupObjectCache);
+  }
+
+  if (!options.contains(SkipRoot::kWeak)) {
+    IterateWeakRoots(v, options);
   }
 }
 
@@ -6030,7 +6017,7 @@ class UnreachableObjectsFilter : public HeapObjectsFilter {
 
   void MarkReachableObjects() {
     MarkingVisitor visitor(this);
-    heap_->IterateRoots(&visitor, VISIT_ALL);
+    heap_->IterateRoots(&visitor, {});
     visitor.TransitiveClosure();
   }
 

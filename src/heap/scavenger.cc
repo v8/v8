@@ -296,7 +296,16 @@ void ScavengerCollector::CollectGarbage() {
     {
       // Copy roots.
       TRACE_GC(heap_->tracer(), GCTracer::Scope::SCAVENGER_SCAVENGE_ROOTS);
-      heap_->IterateRoots(&root_scavenge_visitor, VISIT_ALL_IN_SCAVENGE);
+      // Scavenger treats all weak roots except for global handles as strong.
+      // That is why we don't set skip_weak = true here and instead visit
+      // global handles separately.
+      heap_->IterateRoots(
+          &root_scavenge_visitor,
+          base::EnumSet<SkipRoot>{SkipRoot::kExternalStringTable,
+                                  SkipRoot::kGlobalHandles,
+                                  SkipRoot::kOldGeneration});
+      isolate_->global_handles()->IterateYoungStrongAndDependentRoots(
+          &root_scavenge_visitor);
     }
     {
       // Parallel phase scavenging all copied and promoted objects.
