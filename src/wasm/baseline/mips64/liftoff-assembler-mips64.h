@@ -42,7 +42,9 @@ namespace liftoff {
 // fp-8 holds the stack marker, fp-16 is the instance parameter.
 constexpr int kInstanceOffset = 16;
 
-inline MemOperand GetStackSlot(int offset) { return MemOperand(fp, -offset); }
+inline MemOperand GetStackSlot(int offset) {
+  return MemOperand(offset > 0 ? fp : sp, -offset);
+}
 
 inline MemOperand GetInstanceOperand() { return GetStackSlot(kInstanceOffset); }
 
