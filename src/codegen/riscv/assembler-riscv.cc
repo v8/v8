@@ -3504,19 +3504,9 @@ void Assembler::mfhc1(Register rt, FPURegister fs) { UNREACHABLE(); }
 
 void Assembler::dmfc1(Register rt, FPURegister fs) { RV_fmv_x_d(rt, fs); }
 
-// FIXME (RISCV): to be ported
-void Assembler::ctc1(Register rt, FPUControlRegister fs) {
-  // UNREACHABLE();
-  printf("ERROR: ctc1 generated\n");
-  GenInstrRegister(COP1, CTC1, rt, fs);
-}
+void Assembler::ctc1(Register rt, FPUControlRegister fs) { UNREACHABLE(); }
 
-// FIXME (RISCV): to be ported
-void Assembler::cfc1(Register rt, FPUControlRegister fs) {
-  // UNREACHABLE();
-  printf("ERROR: cfc1 generated\n");
-  GenInstrRegister(COP1, CFC1, rt, fs);
-}
+void Assembler::cfc1(Register rt, FPUControlRegister fs) { UNREACHABLE(); }
 
 void Assembler::sel(SecondaryField fmt, FPURegister fd, FPURegister fs,
                     FPURegister ft) {
