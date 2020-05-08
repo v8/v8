@@ -4606,8 +4606,7 @@ void Heap::IterateRoots(RootVisitor* v, base::EnumSet<SkipRoot> options) {
     v->Synchronize(VisitorSynchronization::kGlobalHandles);
 
     if (!options.contains(SkipRoot::kStack)) {
-      isolate_->Iterate(v);
-      isolate_->global_handles()->IterateStrongStackRoots(v);
+      IterateStackRoots(v);
       v->Synchronize(VisitorSynchronization::kTop);
     }
 
@@ -4675,6 +4674,11 @@ void Heap::IterateBuiltins(RootVisitor* v) {
 
   // The entry table doesn't need to be updated since all builtins are embedded.
   STATIC_ASSERT(Builtins::AllBuiltinsAreIsolateIndependent());
+}
+
+void Heap::IterateStackRoots(RootVisitor* v) {
+  isolate_->Iterate(v);
+  isolate_->global_handles()->IterateStrongStackRoots(v);
 }
 
 namespace {

@@ -938,10 +938,9 @@ class Heap {
   void IterateSmiRoots(RootVisitor* v);
   // Iterates over weak string tables.
   void IterateWeakRoots(RootVisitor* v, base::EnumSet<SkipRoot> options);
-  // Iterates over weak global handles.
   void IterateWeakGlobalHandles(RootVisitor* v);
-  // Iterates over builtins.
   void IterateBuiltins(RootVisitor* v);
+  void IterateStackRoots(RootVisitor* v);
 
   // ===========================================================================
   // Store buffer API. =========================================================

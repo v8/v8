@@ -495,6 +495,7 @@
   F(SCAVENGER_SCAVENGE_WEAK_GLOBAL_HANDLES_PROCESS)  \
   F(SCAVENGER_SCAVENGE_PARALLEL)                     \
   F(SCAVENGER_SCAVENGE_ROOTS)                        \
+  F(SCAVENGER_SCAVENGE_STACK_ROOTS)                  \
   F(SCAVENGER_SCAVENGE_UPDATE_REFS)                  \
   F(SCAVENGER_SCAVENGE_WEAK)                         \
   F(SCAVENGER_SCAVENGE_FINALIZE)                     \
