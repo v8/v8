@@ -444,9 +444,6 @@
   'built-ins/Object/internals/DefineOwnProperty/consistent-value-function-caller': [FAIL_SLOPPY],
   'built-ins/Object/internals/DefineOwnProperty/consistent-value-function-arguments': [FAIL_SLOPPY],
 
-  # https://bugs.chromium.org/p/v8/issues/detail?id=7184
-  'annexB/language/expressions/yield/star-iterable-throw-emulates-undefined-throws-when-called': [FAIL],
-
   # https://bugs.chromium.org/p/v8/issues/detail?id=5690
   'language/expressions/call/eval-spread': [FAIL],
   'language/expressions/call/eval-spread-empty-leading': [FAIL],
@@ -591,6 +588,10 @@
   'built-ins/Atomics/waitAsync/object-for-timeout-agent': [SKIP],
   'built-ins/Atomics/waitAsync/true-for-timeout-agent': [SKIP],
   'built-ins/Atomics/waitAsync/value-not-equal-agent': [SKIP],
+
+  # https://bugs.chromium.org/p/v8/issues/detail?id=10510
+  # https://github.com/tc39/test262/issues/2614
+  'language/module-code/export-star-as-dflt': [FAIL],
 
   ######################## NEEDS INVESTIGATION ###########################
 
