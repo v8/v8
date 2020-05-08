@@ -3952,19 +3952,17 @@ void Isolate::SetHostImportModuleDynamicallyCallback(
 
 Handle<JSObject> Isolate::RunHostInitializeImportMetaObjectCallback(
     Handle<SourceTextModule> module) {
-  Handle<HeapObject> host_meta(module->import_meta(), this);
-  if (host_meta->IsTheHole(this)) {
-    host_meta = factory()->NewJSObjectWithNullProto();
-    if (host_initialize_import_meta_object_callback_ != nullptr) {
-      v8::Local<v8::Context> api_context =
-          v8::Utils::ToLocal(Handle<Context>(native_context()));
-      host_initialize_import_meta_object_callback_(
-          api_context, Utils::ToLocal(Handle<Module>::cast(module)),
-          v8::Local<v8::Object>::Cast(v8::Utils::ToLocal(host_meta)));
-    }
-    module->set_import_meta(*host_meta);
+  CHECK(module->import_meta().IsTheHole(this));
+  Handle<JSObject> import_meta = factory()->NewJSObjectWithNullProto();
+  if (host_initialize_import_meta_object_callback_ != nullptr) {
+    v8::Local<v8::Context> api_context =
+        v8::Utils::ToLocal(Handle<Context>(native_context()));
+    host_initialize_import_meta_object_callback_(
+        api_context, Utils::ToLocal(Handle<Module>::cast(module)),
+        v8::Local<v8::Object>::Cast(v8::Utils::ToLocal(import_meta)));
+    CHECK(!has_scheduled_exception());
   }
-  return Handle<JSObject>::cast(host_meta);
+  return import_meta;
 }
 
 void Isolate::SetHostInitializeImportMetaObjectCallback(

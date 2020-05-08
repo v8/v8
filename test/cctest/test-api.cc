@@ -25760,7 +25760,6 @@ void HostInitializeImportMetaObjectCallbackStatic(Local<Context> context,
                                                   Local<Module> module,
                                                   Local<Object> meta) {
   CHECK(!module.IsEmpty());
-
   meta->CreateDataProperty(context, v8_str("foo"), v8_str("bar")).ToChecked();
 }
 
@@ -25784,10 +25783,9 @@ TEST(ImportMeta) {
   v8::ScriptCompiler::Source source(source_text, origin);
   Local<Module> module =
       v8::ScriptCompiler::CompileModule(isolate, &source).ToLocalChecked();
-  i::Handle<i::Object> meta =
-      i_isolate->RunHostInitializeImportMetaObjectCallback(
-          i::Handle<i::SourceTextModule>::cast(v8::Utils::OpenHandle(*module)));
-  CHECK(meta->IsJSObject());
+  i::Handle<i::JSObject> meta = i::SourceTextModule::GetImportMeta(
+      i_isolate,
+      i::Handle<i::SourceTextModule>::cast(v8::Utils::OpenHandle(*module)));
   Local<Object> meta_obj = Local<Object>::Cast(v8::Utils::ToLocal(meta));
   CHECK(meta_obj->Get(context.local(), v8_str("foo"))
             .ToLocalChecked()

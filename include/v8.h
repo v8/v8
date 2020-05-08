@@ -7219,7 +7219,8 @@ typedef MaybeLocal<Promise> (*HostImportModuleDynamicallyCallback)(
 
 /**
  * HostInitializeImportMetaObjectCallback is called the first time import.meta
- * is accessed for a module. Subsequent access will reuse the same value.
+ * is accessed for a module. Subsequent access will reuse the same value. The
+ * callback must not throw.
  *
  * The method combines two implementation-defined abstract operations into one:
  * HostGetImportMetaProperties and HostFinalizeImportMeta.
