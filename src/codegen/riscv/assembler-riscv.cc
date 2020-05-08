@@ -225,39 +225,6 @@ void Assembler::AllocateAndInstallRequestedHeapObjects(Isolate* isolate) {
 // -----------------------------------------------------------------------------
 // Specific instructions, constants, and masks.
 
-// daddiu(sp, sp, 8) aka Pop() operation or part of Pop(r)
-// operations as post-increment of sp.
-const Instr kPopInstruction = DADDIU | (sp.code() << kRsShift) |
-                              (sp.code() << kRtShift) |
-                              (kPointerSize & kImm16Mask);  // NOLINT
-// daddiu(sp, sp, -8) part of Push(r) operation as pre-decrement of sp.
-const Instr kPushInstruction = DADDIU | (sp.code() << kRsShift) |
-                               (sp.code() << kRtShift) |
-                               (-kPointerSize & kImm16Mask);  // NOLINT
-// Sd(r, MemOperand(sp, 0))
-const Instr kPushRegPattern =
-    SD | (sp.code() << kRsShift) | (0 & kImm16Mask);  // NOLINT
-//  Ld(r, MemOperand(sp, 0))
-const Instr kPopRegPattern =
-    LD | (sp.code() << kRsShift) | (0 & kImm16Mask);  // NOLINT
-
-const Instr kLwRegFpOffsetPattern =
-    LW | (fp.code() << kRsShift) | (0 & kImm16Mask);  // NOLINT
-
-const Instr kSwRegFpOffsetPattern =
-    SW | (fp.code() << kRsShift) | (0 & kImm16Mask);  // NOLINT
-
-const Instr kLwRegFpNegOffsetPattern =
-    LW | (fp.code() << kRsShift) | (kNegOffset & kImm16Mask);  // NOLINT
-
-const Instr kSwRegFpNegOffsetPattern =
-    SW | (fp.code() << kRsShift) | (kNegOffset & kImm16Mask);  // NOLINT
-// A mask for the Rt register for push, pop, lw, sw instructions.
-const Instr kRtMask = kRtFieldMask;
-const Instr kLwSwInstrTypeMask = 0xFFE00000;
-const Instr kLwSwInstrArgumentMask = ~kLwSwInstrTypeMask;
-const Instr kLwSwOffsetMask = kImm16Mask;
-
 Assembler::Assembler(const AssemblerOptions& options,
                      std::unique_ptr<AssemblerBuffer> buffer)
     : AssemblerBase(options, std::move(buffer)),
@@ -376,32 +343,6 @@ uint32_t Assembler::GetFunctionField(Instr instr) {
 uint32_t Assembler::GetImmediate16(Instr instr) { return instr & kImm16Mask; }
 
 uint32_t Assembler::GetLabelConst(Instr instr) { return instr & ~kImm16Mask; }
-
-bool Assembler::IsPop(Instr instr) {
-  return (instr & ~kRtMask) == kPopRegPattern;
-}
-
-bool Assembler::IsPush(Instr instr) {
-  return (instr & ~kRtMask) == kPushRegPattern;
-}
-
-bool Assembler::IsSwRegFpOffset(Instr instr) {
-  return ((instr & kLwSwInstrTypeMask) == kSwRegFpOffsetPattern);
-}
-
-bool Assembler::IsLwRegFpOffset(Instr instr) {
-  return ((instr & kLwSwInstrTypeMask) == kLwRegFpOffsetPattern);
-}
-
-bool Assembler::IsSwRegFpNegOffset(Instr instr) {
-  return ((instr & (kLwSwInstrTypeMask | kNegOffset)) ==
-          kSwRegFpNegOffsetPattern);
-}
-
-bool Assembler::IsLwRegFpNegOffset(Instr instr) {
-  return ((instr & (kLwSwInstrTypeMask | kNegOffset)) ==
-          kLwRegFpNegOffsetPattern);
-}
 
 // Labels refer to positions in the (to be) generated code.
 // There are bound, linked, and unused labels.

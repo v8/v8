@@ -606,18 +606,6 @@ class Simulator : public SimulatorBase {
   // Used for breakpoints and traps.
   void SoftwareInterrupt();
 
-  // Compact branch guard.
-  void CheckForbiddenSlot(int64_t current_pc) {
-    Instruction* instr_after_compact_branch =
-        reinterpret_cast<Instruction*>(current_pc + kInstrSize);
-    if (instr_after_compact_branch->IsForbiddenAfterBranch()) {
-      FATAL(
-          "Error: Unexpected instruction 0x%08x immediately after a "
-          "compact branch instruction.",
-          *reinterpret_cast<uint32_t*>(instr_after_compact_branch));
-    }
-  }
-
   // Stop helper functions.
   bool IsWatchpoint(uint64_t code);
   void PrintWatchpoint(uint64_t code);
@@ -631,21 +619,6 @@ class Simulator : public SimulatorBase {
 
   // Executes one instruction.
   void InstructionDecode(Instruction* instr);
-  // Execute one instruction placed in a branch delay slot.
-  void BranchDelayInstructionDecode(Instruction* instr) {
-    if (instr->InstructionBits() == nopInstr) {
-      // Short-cut generic nop instructions. They are always valid and they
-      // never change the simulator state.
-      return;
-    }
-
-    if (instr->IsForbiddenAfterBranch()) {
-      FATAL("Eror:Unexpected %i opcode in a branch delay slot.",
-            instr->OpcodeValue());
-    }
-    InstructionDecode(instr);
-    SNPrintF(trace_buf_, " ");
-  }
 
   // ICache.
   static void CheckICache(base::CustomMatcherHashMap* i_cache,

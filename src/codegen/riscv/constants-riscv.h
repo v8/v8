@@ -1499,30 +1499,6 @@ inline Hint NegateHint(Hint hint) { return no_hint; }
 // These constants are declared in assembler-mips.cc, as they use named
 // registers and other constants.
 
-// addiu(sp, sp, 4) aka Pop() operation or part of Pop(r)
-// operations as post-increment of sp.
-extern const Instr kPopInstruction;
-// addiu(sp, sp, -4) part of Push(r) operation as pre-decrement of sp.
-extern const Instr kPushInstruction;
-// Sw(r, MemOperand(sp, 0))
-extern const Instr kPushRegPattern;
-// Lw(r, MemOperand(sp, 0))
-extern const Instr kPopRegPattern;
-extern const Instr kLwRegFpOffsetPattern;
-extern const Instr kSwRegFpOffsetPattern;
-extern const Instr kLwRegFpNegOffsetPattern;
-extern const Instr kSwRegFpNegOffsetPattern;
-// A mask for the Rt register for push, pop, lw, sw instructions.
-extern const Instr kRtMask;
-extern const Instr kLwSwInstrTypeMask;
-extern const Instr kLwSwInstrArgumentMask;
-extern const Instr kLwSwOffsetMask;
-
-// Break 0xfffff, reserved for redirected real time call.
-const Instr rtCallRedirInstr = SPECIAL | BREAK | call_rt_redirected << 6;
-// A nop instruction. (Encoding of sll 0 0 0).
-const Instr nopInstr = 0;
-
 static constexpr uint64_t OpcodeToBitNumber(Opcode opcode) {
   return 1ULL << (static_cast<uint32_t>(opcode) >> kOpcodeShift);
 }
@@ -1571,61 +1547,7 @@ class InstructionBase {
     return (InstructionBits() >> lo) & ((2U << (hi - lo)) - 1);
   }
 
-  static constexpr uint64_t kOpcodeImmediateTypeMask =
-      OpcodeToBitNumber(REGIMM) | OpcodeToBitNumber(BEQ) |
-      OpcodeToBitNumber(BNE) | OpcodeToBitNumber(BLEZ) |
-      OpcodeToBitNumber(BGTZ) | OpcodeToBitNumber(ADDI) |
-      OpcodeToBitNumber(DADDI) | OpcodeToBitNumber(ADDIU) |
-      OpcodeToBitNumber(DADDIU) | OpcodeToBitNumber(SLTI) |
-      OpcodeToBitNumber(SLTIU) | OpcodeToBitNumber(ANDI) |
-      OpcodeToBitNumber(ORI) | OpcodeToBitNumber(XORI) |
-      OpcodeToBitNumber(LUI) | OpcodeToBitNumber(BEQL) |
-      OpcodeToBitNumber(BNEL) | OpcodeToBitNumber(BLEZL) |
-      OpcodeToBitNumber(BGTZL) | OpcodeToBitNumber(POP66) |
-      OpcodeToBitNumber(POP76) | OpcodeToBitNumber(LB) | OpcodeToBitNumber(LH) |
-      OpcodeToBitNumber(LWL) | OpcodeToBitNumber(LW) | OpcodeToBitNumber(LWU) |
-      OpcodeToBitNumber(LD) | OpcodeToBitNumber(LBU) | OpcodeToBitNumber(LHU) |
-      OpcodeToBitNumber(LDL) | OpcodeToBitNumber(LDR) | OpcodeToBitNumber(LWR) |
-      OpcodeToBitNumber(SDL) | OpcodeToBitNumber(SB) | OpcodeToBitNumber(SH) |
-      OpcodeToBitNumber(SWL) | OpcodeToBitNumber(SW) | OpcodeToBitNumber(SD) |
-      OpcodeToBitNumber(SWR) | OpcodeToBitNumber(SDR) |
-      OpcodeToBitNumber(LWC1) | OpcodeToBitNumber(LDC1) |
-      OpcodeToBitNumber(SWC1) | OpcodeToBitNumber(SDC1) |
-      OpcodeToBitNumber(PCREL) | OpcodeToBitNumber(DAUI) |
-      OpcodeToBitNumber(BC) | OpcodeToBitNumber(BALC);
-
 #define FunctionFieldToBitNumber(function) (1ULL << function)
-
-  // On r6, DCLZ_R6 aliases to existing MFLO.
-  static const uint64_t kFunctionFieldRegisterTypeMask =
-      FunctionFieldToBitNumber(JR) | FunctionFieldToBitNumber(JALR) |
-      FunctionFieldToBitNumber(BREAK) | FunctionFieldToBitNumber(SLL) |
-      FunctionFieldToBitNumber(DSLL) | FunctionFieldToBitNumber(DSLL32) |
-      FunctionFieldToBitNumber(SRL) | FunctionFieldToBitNumber(DSRL) |
-      FunctionFieldToBitNumber(DSRL32) | FunctionFieldToBitNumber(SRA) |
-      FunctionFieldToBitNumber(DSRA) | FunctionFieldToBitNumber(DSRA32) |
-      FunctionFieldToBitNumber(SLLV) | FunctionFieldToBitNumber(DSLLV) |
-      FunctionFieldToBitNumber(SRLV) | FunctionFieldToBitNumber(DSRLV) |
-      FunctionFieldToBitNumber(SRAV) | FunctionFieldToBitNumber(DSRAV) |
-      FunctionFieldToBitNumber(LSA) | FunctionFieldToBitNumber(DLSA) |
-      FunctionFieldToBitNumber(MFHI) | FunctionFieldToBitNumber(MFLO) |
-      FunctionFieldToBitNumber(MULT) | FunctionFieldToBitNumber(DMULT) |
-      FunctionFieldToBitNumber(MULTU) | FunctionFieldToBitNumber(DMULTU) |
-      FunctionFieldToBitNumber(DIV) | FunctionFieldToBitNumber(DDIV) |
-      FunctionFieldToBitNumber(DIVU) | FunctionFieldToBitNumber(DDIVU) |
-      FunctionFieldToBitNumber(ADD) | FunctionFieldToBitNumber(DADD) |
-      FunctionFieldToBitNumber(ADDU) | FunctionFieldToBitNumber(DADDU) |
-      FunctionFieldToBitNumber(SUB) | FunctionFieldToBitNumber(DSUB) |
-      FunctionFieldToBitNumber(SUBU) | FunctionFieldToBitNumber(DSUBU) |
-      FunctionFieldToBitNumber(AND) | FunctionFieldToBitNumber(OR) |
-      FunctionFieldToBitNumber(XOR) | FunctionFieldToBitNumber(NOR) |
-      FunctionFieldToBitNumber(SLT) | FunctionFieldToBitNumber(SLTU) |
-      FunctionFieldToBitNumber(TGE) | FunctionFieldToBitNumber(TGEU) |
-      FunctionFieldToBitNumber(TLT) | FunctionFieldToBitNumber(TLTU) |
-      FunctionFieldToBitNumber(TEQ) | FunctionFieldToBitNumber(TNE) |
-      FunctionFieldToBitNumber(MOVZ) | FunctionFieldToBitNumber(MOVN) |
-      FunctionFieldToBitNumber(MOVCI) | FunctionFieldToBitNumber(SELEQZ_S) |
-      FunctionFieldToBitNumber(SELNEZ_S) | FunctionFieldToBitNumber(SYNC);
 
   // Accessors for the different named fields used in the RISC-V encoding.
   inline Opcode BaseOpcodeValue() const {
@@ -1664,88 +1586,11 @@ class InstructionBase {
     return InstructionBits() & kRdFieldMask;
   }
 
-  // Accessors for the different named fields used in the MIPS encoding.
-  inline Opcode OpcodeValue() const {
-    return static_cast<Opcode>(
-        Bits(kOpcodeShift + kOpcodeBits - 1, kOpcodeShift));
-  }
-
-  inline int FunctionFieldRaw() const {
-    return InstructionBits() & kFunctionFieldMask;
-  }
-
+  // FIXME (RISCV): to be cleaned up
   inline int32_t ITypeBits() const { return InstructionBits() & kITypeMask; }
-
-  // Return the fields at their original place in the instruction encoding.
-  inline Opcode OpcodeFieldRaw() const {
-    return static_cast<Opcode>(InstructionBits() & kOpcodeMask);
-  }
-
-  // Safe to call within InstructionType().
-  inline int RsFieldRawNoAssert() const {
-    return InstructionBits() & kRsFieldMask;
-  }
-
-  inline int SaFieldRaw() const { return InstructionBits() & kSaFieldMask; }
 
   // Get the encoding type of the instruction.
   inline Type InstructionType() const;
-
-  inline MSAMinorOpcode MSAMinorOpcodeField() const {
-    int op = this->FunctionFieldRaw();
-    switch (op) {
-      case 0:
-      case 1:
-      case 2:
-        return kMsaMinorI8;
-      case 6:
-        return kMsaMinorI5;
-      case 7:
-        return (((this->InstructionBits() & kMsaI5I10Mask) == LDI)
-                    ? kMsaMinorI10
-                    : kMsaMinorI5);
-      case 9:
-      case 10:
-        return kMsaMinorBIT;
-      case 13:
-      case 14:
-      case 15:
-      case 16:
-      case 17:
-      case 18:
-      case 19:
-      case 20:
-      case 21:
-        return kMsaMinor3R;
-      case 25:
-        return kMsaMinorELM;
-      case 26:
-      case 27:
-      case 28:
-        return kMsaMinor3RF;
-      case 30:
-        switch (this->RsFieldRawNoAssert()) {
-          case MSA_2R_FORMAT:
-            return kMsaMinor2R;
-          case MSA_2RF_FORMAT:
-            return kMsaMinor2RF;
-          default:
-            return kMsaMinorVEC;
-        }
-        break;
-      case 32:
-      case 33:
-      case 34:
-      case 35:
-      case 36:
-      case 37:
-      case 38:
-      case 39:
-        return kMsaMinorMI10;
-      default:
-        return kMsaMinorUndefined;
-    }
-  }
 
  protected:
   InstructionBase() {}
@@ -1910,239 +1755,12 @@ class InstructionGetters : public T {
   inline bool RlValue() const { return this->Bits(kRlShift, kRlShift); }
 
   // Original MIPS methods
-
-  inline int RsValue() const {
-    DCHECK(this->InstructionType() == InstructionBase::kRegisterType ||
-           this->InstructionType() == InstructionBase::kImmediateType);
-    return this->Bits(kRsShift + kRsBits - 1, kRsShift);
-  }
-
-  inline int RtValue() const {
-    DCHECK(this->InstructionType() == InstructionBase::kRegisterType ||
-           this->InstructionType() == InstructionBase::kImmediateType);
-    return this->Bits(kRtShift + kRtBits - 1, kRtShift);
-  }
-
-  inline int RdValue() const {
-    DCHECK_EQ(this->InstructionType(), InstructionBase::kRegisterType);
-    return this->Bits(kRdShift + kRdBits - 1, kRdShift);
-  }
-
-  inline int BaseValue() const {
-    DCHECK_EQ(this->InstructionType(), InstructionBase::kImmediateType);
-    return this->Bits(kBaseShift + kBaseBits - 1, kBaseShift);
-  }
-
-  inline int SaValue() const {
-    DCHECK_EQ(this->InstructionType(), InstructionBase::kRegisterType);
-    return this->Bits(kSaShift + kSaBits - 1, kSaShift);
-  }
-
-  inline int LsaSaValue() const {
-    DCHECK_EQ(this->InstructionType(), InstructionBase::kRegisterType);
-    return this->Bits(kSaShift + kLsaSaBits - 1, kSaShift);
-  }
-
-  inline int FunctionValue() const {
-    DCHECK(this->InstructionType() == InstructionBase::kRegisterType ||
-           this->InstructionType() == InstructionBase::kImmediateType);
-    return this->Bits(kFunctionShift + kFunctionBits - 1, kFunctionShift);
-  }
-
-  // Return the fields at their original place in the instruction encoding.
-  inline Opcode OpcodeFieldRaw() const {
-    return static_cast<Opcode>(this->InstructionBits() & kOpcodeMask);
-  }
-
-  inline int RsFieldRaw() const {
-    DCHECK(this->InstructionType() == InstructionBase::kRegisterType ||
-           this->InstructionType() == InstructionBase::kImmediateType);
-    return this->InstructionBits() & kRsFieldMask;
-  }
-
-  // Same as above function, but safe to call within InstructionType().
-  inline int RsFieldRawNoAssert() const {
-    return this->InstructionBits() & kRsFieldMask;
-  }
-
-  inline int RtFieldRaw() const {
-    DCHECK(this->InstructionType() == InstructionBase::kRegisterType ||
-           this->InstructionType() == InstructionBase::kImmediateType);
-    return this->InstructionBits() & kRtFieldMask;
-  }
-
-  inline int RdFieldRaw() const {
-    DCHECK_EQ(this->InstructionType(), InstructionBase::kRegisterType);
-    return this->InstructionBits() & kRdFieldMask;
-  }
-
-  inline int SaFieldRaw() const {
-    return this->InstructionBits() & kSaFieldMask;
-  }
-
-  inline int FunctionFieldRaw() const {
-    return this->InstructionBits() & kFunctionFieldMask;
-  }
-
-  // Get the secondary field according to the opcode.
-  inline int SecondaryValue() const {
-    Opcode op = this->OpcodeFieldRaw();
-    switch (op) {
-      case SPECIAL:
-      case SPECIAL2:
-        return FunctionValue();
-      case COP1:
-        return RsValue();
-      case REGIMM:
-        return RtValue();
-      default:
-        return nullptrSF;
-    }
-  }
-
-  inline int32_t ImmValue(int bits) const {
-    DCHECK_EQ(this->InstructionType(), InstructionBase::kImmediateType);
-    return this->Bits(bits - 1, 0);
-  }
-
-  inline int32_t Imm9Value() const {
-    DCHECK_EQ(this->InstructionType(), InstructionBase::kImmediateType);
-    return this->Bits(kImm9Shift + kImm9Bits - 1, kImm9Shift);
-  }
-
-  inline int32_t Imm16Value() const {
-    DCHECK_EQ(this->InstructionType(), InstructionBase::kImmediateType);
-    return this->Bits(kImm16Shift + kImm16Bits - 1, kImm16Shift);
-  }
-
-  inline int32_t Imm18Value() const {
-    DCHECK_EQ(this->InstructionType(), InstructionBase::kImmediateType);
-    return this->Bits(kImm18Shift + kImm18Bits - 1, kImm18Shift);
-  }
-
-  inline int32_t Imm19Value() const {
-    DCHECK_EQ(this->InstructionType(), InstructionBase::kImmediateType);
-    return this->Bits(kImm19Shift + kImm19Bits - 1, kImm19Shift);
-  }
-
-  inline int32_t Imm21Value() const {
-    DCHECK_EQ(this->InstructionType(), InstructionBase::kImmediateType);
-    return this->Bits(kImm21Shift + kImm21Bits - 1, kImm21Shift);
-  }
-
-  inline int32_t Imm26Value() const {
-    DCHECK((this->InstructionType() == InstructionBase::kJumpType) ||
-           (this->InstructionType() == InstructionBase::kImmediateType));
-    return this->Bits(kImm26Shift + kImm26Bits - 1, kImm26Shift);
-  }
-
-  inline int32_t MsaImm8Value() const {
-    DCHECK_EQ(this->InstructionType(), InstructionBase::kImmediateType);
-    return this->Bits(kMsaImm8Shift + kMsaImm8Bits - 1, kMsaImm8Shift);
-  }
-
-  inline int32_t MsaImm5Value() const {
-    DCHECK_EQ(this->InstructionType(), InstructionBase::kImmediateType);
-    return this->Bits(kMsaImm5Shift + kMsaImm5Bits - 1, kMsaImm5Shift);
-  }
-
-  inline int32_t MsaImm10Value() const {
-    DCHECK_EQ(this->InstructionType(), InstructionBase::kImmediateType);
-    return this->Bits(kMsaImm10Shift + kMsaImm10Bits - 1, kMsaImm10Shift);
-  }
-
-  inline int32_t MsaImmMI10Value() const {
-    DCHECK_EQ(this->InstructionType(), InstructionBase::kImmediateType);
-    return this->Bits(kMsaImmMI10Shift + kMsaImmMI10Bits - 1, kMsaImmMI10Shift);
-  }
-
-  inline int32_t MsaBitDf() const {
-    DCHECK_EQ(this->InstructionType(), InstructionBase::kImmediateType);
-    int32_t df_m = this->Bits(22, 16);
-    if (((df_m >> 6) & 1U) == 0) {
-      return 3;
-    } else if (((df_m >> 5) & 3U) == 2) {
-      return 2;
-    } else if (((df_m >> 4) & 7U) == 6) {
-      return 1;
-    } else if (((df_m >> 3) & 15U) == 14) {
-      return 0;
-    } else {
-      return -1;
-    }
-  }
-
-  inline int32_t MsaBitMValue() const {
-    DCHECK_EQ(this->InstructionType(), InstructionBase::kImmediateType);
-    return this->Bits(16 + this->MsaBitDf() + 3, 16);
-  }
-
-  inline int32_t MsaElmDf() const {
-    DCHECK(this->InstructionType() == InstructionBase::kRegisterType ||
-           this->InstructionType() == InstructionBase::kImmediateType);
-    int32_t df_n = this->Bits(21, 16);
-    if (((df_n >> 4) & 3U) == 0) {
-      return 0;
-    } else if (((df_n >> 3) & 7U) == 4) {
-      return 1;
-    } else if (((df_n >> 2) & 15U) == 12) {
-      return 2;
-    } else if (((df_n >> 1) & 31U) == 28) {
-      return 3;
-    } else {
-      return -1;
-    }
-  }
-
-  inline int32_t MsaElmNValue() const {
-    DCHECK(this->InstructionType() == InstructionBase::kRegisterType ||
-           this->InstructionType() == InstructionBase::kImmediateType);
-    return this->Bits(16 + 4 - this->MsaElmDf(), 16);
-  }
-
+  // FIXME (RISCV): to be cleaned up
   static bool IsForbiddenAfterBranchInstr(Instr instr);
 
-  // Say if the instruction should not be used in a branch delay slot or
-  // immediately after a compact branch.
-  inline bool IsForbiddenAfterBranch() const {
-    return IsForbiddenAfterBranchInstr(this->InstructionBits());
-  }
-
-  inline bool IsForbiddenInBranchDelay() const {
-    return IsForbiddenAfterBranch();
-  }
-
-  // Say if the instruction 'links'. e.g. jal, bal.
-  bool IsLinkingInstruction() const;
+  // FIXME (RISCV): to be ported
   // Say if the instruction is a break or a trap.
   bool IsTrap() const;
-
-  inline bool IsMSABranchInstr() const {
-    if (this->OpcodeFieldRaw() == COP1) {
-      switch (this->RsFieldRaw()) {
-        case BZ_V:
-        case BZ_B:
-        case BZ_H:
-        case BZ_W:
-        case BZ_D:
-        case BNZ_V:
-        case BNZ_B:
-        case BNZ_H:
-        case BNZ_W:
-        case BNZ_D:
-          return true;
-        default:
-          return false;
-      }
-    }
-    return false;
-  }
-
-  inline bool IsMSAInstr() const {
-    if (this->IsMSABranchInstr() || (this->OpcodeFieldRaw() == MSA))
-      return true;
-    return false;
-  }
 };
 
 class Instruction : public InstructionGetters<InstructionBase> {
@@ -2218,135 +1836,6 @@ InstructionBase::Type InstructionBase::InstructionType() const {
     case SYSTEM:
       return kIType;
   }
-  // fall back to MIPS
-
-  switch (OpcodeFieldRaw()) {
-    case SPECIAL:
-      if (FunctionFieldToBitNumber(FunctionFieldRaw()) &
-          kFunctionFieldRegisterTypeMask) {
-        return kRegisterType;
-      }
-      return kUnsupported;
-    case SPECIAL2:
-      switch (FunctionFieldRaw()) {
-        case MUL:
-        case CLZ:
-        case DCLZ:
-          return kRegisterType;
-        default:
-          return kUnsupported;
-      }
-      break;
-    case SPECIAL3:
-      switch (FunctionFieldRaw()) {
-        case INS:
-        case DINS:
-        case DINSM:
-        case DINSU:
-        case EXT:
-        case DEXT:
-        case DEXTM:
-        case DEXTU:
-          return kRegisterType;
-        case BSHFL: {
-          int sa = SaFieldRaw() >> kSaShift;
-          switch (sa) {
-            case BITSWAP:
-            case WSBH:
-            case SEB:
-            case SEH:
-              return kRegisterType;
-          }
-          sa >>= kBp2Bits;
-          switch (sa) {
-            case ALIGN:
-              return kRegisterType;
-            default:
-              return kUnsupported;
-          }
-        }
-        case LL_R6:
-        case LLD_R6:
-        case SC_R6:
-        case SCD_R6: {
-          DCHECK_EQ(kArchVariant, kMips64r6);
-          return kImmediateType;
-        }
-        case DBSHFL: {
-          int sa = SaFieldRaw() >> kSaShift;
-          switch (sa) {
-            case DBITSWAP:
-            case DSBH:
-            case DSHD:
-              return kRegisterType;
-          }
-          sa = SaFieldRaw() >> kSaShift;
-          sa >>= kBp3Bits;
-          switch (sa) {
-            case DALIGN:
-              return kRegisterType;
-            default:
-              return kUnsupported;
-          }
-        }
-        default:
-          return kUnsupported;
-      }
-      break;
-    case COP1:  // Coprocessor instructions.
-      switch (RsFieldRawNoAssert()) {
-        case BC1:  // Branch on coprocessor condition.
-        case BC1EQZ:
-        case BC1NEZ:
-          return kImmediateType;
-        // MSA Branch instructions
-        case BZ_V:
-        case BNZ_V:
-        case BZ_B:
-        case BZ_H:
-        case BZ_W:
-        case BZ_D:
-        case BNZ_B:
-        case BNZ_H:
-        case BNZ_W:
-        case BNZ_D:
-          return kImmediateType;
-        default:
-          return kRegisterType;
-      }
-      break;
-    case COP1X:
-      return kRegisterType;
-
-    // 26 bits immediate type instructions. e.g.: j imm26.
-    case J:
-    case JAL:
-      return kJumpType;
-
-    case MSA:
-      switch (MSAMinorOpcodeField()) {
-        case kMsaMinor3R:
-        case kMsaMinor3RF:
-        case kMsaMinorVEC:
-        case kMsaMinor2R:
-        case kMsaMinor2RF:
-          return kRegisterType;
-        case kMsaMinorELM:
-          switch (InstructionBits() & kMsaLongerELMMask) {
-            case CFCMSA:
-            case CTCMSA:
-            case MOVE_V:
-              return kRegisterType;
-            default:
-              return kImmediateType;
-          }
-        default:
-          return kImmediateType;
-      }
-
-    default:
-      return kImmediateType;
-  }
   return kUnsupported;
 }
 #undef OpcodeToBitNumber
@@ -2355,38 +1844,11 @@ InstructionBase::Type InstructionBase::InstructionType() const {
 // -----------------------------------------------------------------------------
 // Instructions.
 
-template <class P>
-bool InstructionGetters<P>::IsLinkingInstruction() const {
-  switch (OpcodeFieldRaw()) {
-    case JAL:
-      return true;
-    case POP76:
-      if (RsFieldRawNoAssert() == JIALC)
-        return true;  // JIALC
-      else
-        return false;  // BNEZC
-    case REGIMM:
-      switch (RtFieldRaw()) {
-        case BGEZAL:
-        case BLTZAL:
-          return true;
-        default:
-          return false;
-      }
-    case SPECIAL:
-      switch (FunctionFieldRaw()) {
-        case JALR:
-          return true;
-        default:
-          return false;
-      }
-    default:
-      return false;
-  }
-}
-
+// FIXME (RISCV): to be ported
 template <class P>
 bool InstructionGetters<P>::IsTrap() const {
+  UNIMPLEMENTED();
+  /*
   if (OpcodeFieldRaw() != SPECIAL) {
     return false;
   } else {
@@ -2403,74 +1865,14 @@ bool InstructionGetters<P>::IsTrap() const {
         return false;
     }
   }
+  */
 }
 
+// FIXME (RISCV): to be cleaned up
 // static
 template <class T>
 bool InstructionGetters<T>::IsForbiddenAfterBranchInstr(Instr instr) {
-  Opcode opcode = static_cast<Opcode>(instr & kOpcodeMask);
-  switch (opcode) {
-    case J:
-    case JAL:
-    case BEQ:
-    case BNE:
-    case BLEZ:  // POP06 bgeuc/bleuc, blezalc, bgezalc
-    case BGTZ:  // POP07 bltuc/bgtuc, bgtzalc, bltzalc
-    case BEQL:
-    case BNEL:
-    case BLEZL:  // POP26 bgezc, blezc, bgec/blec
-    case BGTZL:  // POP27 bgtzc, bltzc, bltc/bgtc
-    case BC:
-    case BALC:
-    case POP10:  // beqzalc, bovc, beqc
-    case POP30:  // bnezalc, bnvc, bnec
-    case POP66:  // beqzc, jic
-    case POP76:  // bnezc, jialc
-      return true;
-    case REGIMM:
-      switch (instr & kRtFieldMask) {
-        case BLTZ:
-        case BGEZ:
-        case BLTZAL:
-        case BGEZAL:
-          return true;
-        default:
-          return false;
-      }
-      break;
-    case SPECIAL:
-      switch (instr & kFunctionFieldMask) {
-        case JR:
-        case JALR:
-          return true;
-        default:
-          return false;
-      }
-      break;
-    case COP1:
-      switch (instr & kRsFieldMask) {
-        case BC1:
-        case BC1EQZ:
-        case BC1NEZ:
-        case BZ_V:
-        case BZ_B:
-        case BZ_H:
-        case BZ_W:
-        case BZ_D:
-        case BNZ_V:
-        case BNZ_B:
-        case BNZ_H:
-        case BNZ_W:
-        case BNZ_D:
-          return true;
-          break;
-        default:
-          return false;
-      }
-      break;
-    default:
-      return false;
-  }
+  UNREACHABLE();
 }
 }  // namespace internal
 }  // namespace v8
