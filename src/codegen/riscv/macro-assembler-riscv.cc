@@ -2120,6 +2120,21 @@ void TurboAssembler::BranchMSA(Label* target, MSABranchDF df,
   UNREACHABLE();
 }
 
+void TurboAssembler::FmoveHigh(FPURegister dst, Register src_high) {
+  UseScratchRegisterScope temps(this);
+  Register scratch = temps.Acquire();
+  BlockTrampolinePoolScope block_trampoline_pool(this);
+
+  DCHECK(src_high != t5 && src_high != scratch);
+
+  RV_fmv_x_d(scratch, dst);
+  RV_slli(t5, src_high, 32);
+  RV_srli(scratch, scratch, 32);
+  RV_slli(scratch, scratch, 32);
+  RV_or_(scratch, scratch, t5);
+  RV_fmv_d_x(dst, scratch);
+}
+
 void TurboAssembler::FmoveLow(FPURegister dst, Register src_low) {
   UseScratchRegisterScope temps(this);
   Register scratch = temps.Acquire();
@@ -2131,6 +2146,20 @@ void TurboAssembler::FmoveLow(FPURegister dst, Register src_low) {
   RV_srli(t5, t5, 32);
   RV_srli(scratch, scratch, 32);
   RV_slli(scratch, scratch, 32);
+  RV_or_(scratch, scratch, t5);
+  RV_fmv_d_x(dst, scratch);
+}
+
+void TurboAssembler::Move(FPURegister dst, Register src_low,
+                          Register src_high) {
+  UseScratchRegisterScope temps(this);
+  Register scratch = temps.Acquire();
+  BlockTrampolinePoolScope block_trampoline_pool(this);
+
+  DCHECK(src_high != t5 && src_high != scratch);
+  RV_slli(scratch, src_low, 32);
+  RV_slli(t5, src_high, 32);
+  RV_srli(scratch, scratch, 32);
   RV_or_(scratch, scratch, t5);
   RV_fmv_d_x(dst, scratch);
 }
