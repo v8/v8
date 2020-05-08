@@ -637,6 +637,9 @@ void UpdateFeatureUseCounts(Isolate* isolate, const WasmFeatures& detected) {
   if (detected.has_threads()) {
     isolate->CountUsage(v8::Isolate::UseCounterFeature::kWasmThreadOpcodes);
   }
+  if (detected.has_simd()) {
+    isolate->CountUsage(v8::Isolate::UseCounterFeature::kWasmSimdOpcodes);
+  }
 }
 
 }  // namespace

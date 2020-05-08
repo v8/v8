@@ -7483,6 +7483,9 @@ typedef bool (*WasmThreadsEnabledCallback)(Local<Context> context);
 typedef Local<String> (*WasmLoadSourceMapCallback)(Isolate* isolate,
                                                    const char* name);
 
+// --- Callback for checking if WebAssembly Simd is enabled ---
+typedef bool (*WasmSimdEnabledCallback)(Local<Context> context);
+
 // --- Garbage Collection Callbacks ---
 
 /**
@@ -8445,6 +8448,7 @@ class V8_EXPORT Isolate {
     kInvalidatedStringIteratorLookupChainProtector = 103,
     kInvalidatedStringLengthOverflowLookupChainProtector = 104,
     kInvalidatedTypedArraySpeciesLookupChainProtector = 105,
+    kWasmSimdOpcodes = 106,
 
     // If you add new values here, you'll also need to update Chromium's:
     // web_feature.mojom, use_counter_callback.cc, and enums.xml. V8 changes to
@@ -9346,6 +9350,8 @@ class V8_EXPORT Isolate {
   void SetWasmThreadsEnabledCallback(WasmThreadsEnabledCallback callback);
 
   void SetWasmLoadSourceMapCallback(WasmLoadSourceMapCallback callback);
+
+  void SetWasmSimdEnabledCallback(WasmSimdEnabledCallback callback);
 
   /**
   * Check if V8 is dead and therefore unusable.  This is the case after

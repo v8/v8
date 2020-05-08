@@ -408,6 +408,7 @@ using DebugObjectCache = std::vector<Handle<HeapObject>>;
   V(WasmStreamingCallback, wasm_streaming_callback, nullptr)                   \
   V(WasmThreadsEnabledCallback, wasm_threads_enabled_callback, nullptr)        \
   V(WasmLoadSourceMapCallback, wasm_load_source_map_callback, nullptr)         \
+  V(WasmSimdEnabledCallback, wasm_simd_enabled_callback, nullptr)              \
   /* State for Relocatable. */                                                 \
   V(Relocatable*, relocatable_top, nullptr)                                    \
   V(DebugObjectCache*, string_stream_debug_object_cache, nullptr)              \
@@ -621,6 +622,7 @@ class V8_EXPORT_PRIVATE Isolate final : private HiddenFactory {
   inline void clear_pending_exception();
 
   bool AreWasmThreadsEnabled(Handle<Context> context);
+  bool IsWasmSimdEnabled(Handle<Context> context);
 
   THREAD_LOCAL_TOP_ADDRESS(Object, pending_exception)
 
