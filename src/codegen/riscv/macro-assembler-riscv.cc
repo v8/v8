@@ -949,13 +949,7 @@ void TurboAssembler::Dlsa(Register rd, Register rt, Register rs, uint8_t sa,
 
 // ------------Pseudo-instructions-------------
 // Change endianness
-void TurboAssembler::ByteSwapSigned(Register rd, Register rs,
-                                    int operand_size) {
-  ByteSwapUnsigned(rd, rs, operand_size);
-}
-
-void TurboAssembler::ByteSwapUnsigned(Register rd, Register rs,
-                                      int operand_size) {
+void TurboAssembler::ByteSwap(Register rd, Register rs, int operand_size) {
   DCHECK(operand_size == 4 || operand_size == 8);
   DCHECK(rd != t5 && rd != t6);
   if (operand_size == 4) {

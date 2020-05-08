@@ -547,8 +547,7 @@ class V8_EXPORT_PRIVATE TurboAssembler : public TurboAssemblerBase {
   // MIPS64 R6 instruction macros.
 
   // Change endianness
-  void ByteSwapSigned(Register dest, Register src, int operand_size);
-  void ByteSwapUnsigned(Register dest, Register src, int operand_size);
+  void ByteSwap(Register dest, Register src, int operand_size);
 
   // Convert single to unsigned word.
   void Trunc_uw_s(Register rd, FPURegister fs, Register result = no_reg);

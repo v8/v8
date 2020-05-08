@@ -155,13 +155,13 @@ inline void ChangeEndiannessLoad(LiftoffAssembler* assm, LiftoffRegister dst,
       assm->emit_type_conversion(kExprI32ReinterpretF32, tmp, dst);
       V8_FALLTHROUGH;
     case LoadType::kI32Load:
-      assm->TurboAssembler::ByteSwapSigned(tmp.gp(), tmp.gp(), 4);
+      assm->TurboAssembler::ByteSwap(tmp.gp(), tmp.gp(), 4);
       break;
     case LoadType::kI32Load16S:
-      assm->TurboAssembler::ByteSwapSigned(tmp.gp(), tmp.gp(), 2);
+      assm->TurboAssembler::ByteSwap(tmp.gp(), tmp.gp(), 2);
       break;
     case LoadType::kI32Load16U:
-      assm->TurboAssembler::ByteSwapUnsigned(tmp.gp(), tmp.gp(), 2);
+      assm->TurboAssembler::ByteSwap(tmp.gp(), tmp.gp(), 2);
       break;
     case LoadType::kF64Load:
       is_float = true;
@@ -170,23 +170,23 @@ inline void ChangeEndiannessLoad(LiftoffAssembler* assm, LiftoffRegister dst,
       V8_FALLTHROUGH;
     case LoadType::kI64Load:
       assm->TurboAssembler::Move(kScratchReg, tmp.low_gp());
-      assm->TurboAssembler::ByteSwapSigned(tmp.low_gp(), tmp.high_gp(), 4);
-      assm->TurboAssembler::ByteSwapSigned(tmp.high_gp(), kScratchReg, 4);
+      assm->TurboAssembler::ByteSwap(tmp.low_gp(), tmp.high_gp(), 4);
+      assm->TurboAssembler::ByteSwap(tmp.high_gp(), kScratchReg, 4);
       break;
     case LoadType::kI64Load16U:
-      assm->TurboAssembler::ByteSwapUnsigned(tmp.low_gp(), tmp.low_gp(), 2);
+      assm->TurboAssembler::ByteSwap(tmp.low_gp(), tmp.low_gp(), 2);
       assm->TurboAssembler::Move(tmp.high_gp(), zero_reg);
       break;
     case LoadType::kI64Load16S:
-      assm->TurboAssembler::ByteSwapSigned(tmp.low_gp(), tmp.low_gp(), 2);
+      assm->TurboAssembler::ByteSwap(tmp.low_gp(), tmp.low_gp(), 2);
       assm->sra(tmp.high_gp(), tmp.low_gp(), 31);
       break;
     case LoadType::kI64Load32U:
-      assm->TurboAssembler::ByteSwapSigned(tmp.low_gp(), tmp.low_gp(), 4);
+      assm->TurboAssembler::ByteSwap(tmp.low_gp(), tmp.low_gp(), 4);
       assm->TurboAssembler::Move(tmp.high_gp(), zero_reg);
       break;
     case LoadType::kI64Load32S:
-      assm->TurboAssembler::ByteSwapSigned(tmp.low_gp(), tmp.low_gp(), 4);
+      assm->TurboAssembler::ByteSwap(tmp.low_gp(), tmp.low_gp(), 4);
       assm->sra(tmp.high_gp(), tmp.low_gp(), 31);
       break;
     default:
@@ -222,10 +222,10 @@ inline void ChangeEndiannessStore(LiftoffAssembler* assm, LiftoffRegister src,
       assm->emit_type_conversion(kExprI32ReinterpretF32, tmp, src);
       V8_FALLTHROUGH;
     case StoreType::kI32Store:
-      assm->TurboAssembler::ByteSwapSigned(tmp.gp(), tmp.gp(), 4);
+      assm->TurboAssembler::ByteSwap(tmp.gp(), tmp.gp(), 4);
       break;
     case StoreType::kI32Store16:
-      assm->TurboAssembler::ByteSwapSigned(tmp.gp(), tmp.gp(), 2);
+      assm->TurboAssembler::ByteSwap(tmp.gp(), tmp.gp(), 2);
       break;
     case StoreType::kF64Store:
       is_float = true;
@@ -234,14 +234,14 @@ inline void ChangeEndiannessStore(LiftoffAssembler* assm, LiftoffRegister src,
       V8_FALLTHROUGH;
     case StoreType::kI64Store:
       assm->TurboAssembler::Move(kScratchReg, tmp.low_gp());
-      assm->TurboAssembler::ByteSwapSigned(tmp.low_gp(), tmp.high_gp(), 4);
-      assm->TurboAssembler::ByteSwapSigned(tmp.high_gp(), kScratchReg, 4);
+      assm->TurboAssembler::ByteSwap(tmp.low_gp(), tmp.high_gp(), 4);
+      assm->TurboAssembler::ByteSwap(tmp.high_gp(), kScratchReg, 4);
       break;
     case StoreType::kI64Store32:
-      assm->TurboAssembler::ByteSwapSigned(tmp.low_gp(), tmp.low_gp(), 4);
+      assm->TurboAssembler::ByteSwap(tmp.low_gp(), tmp.low_gp(), 4);
       break;
     case StoreType::kI64Store16:
-      assm->TurboAssembler::ByteSwapSigned(tmp.low_gp(), tmp.low_gp(), 2);
+      assm->TurboAssembler::ByteSwap(tmp.low_gp(), tmp.low_gp(), 2);
       break;
     default:
       UNREACHABLE();
@@ -780,8 +780,7 @@ I32_SHIFTOP_I(shr, srl)
 void LiftoffAssembler::emit_i64_add(LiftoffRegister dst, LiftoffRegister lhs,
                                     int32_t imm) {
   TurboAssembler::AddPair(dst.low_gp(), dst.high_gp(), lhs.low_gp(),
-                          lhs.high_gp(), imm,
-                          kScratchReg, kScratchReg2);
+                          lhs.high_gp(), imm, kScratchReg, kScratchReg2);
 }
 
 void LiftoffAssembler::emit_i64_mul(LiftoffRegister dst, LiftoffRegister lhs,

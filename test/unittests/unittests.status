@@ -43,6 +43,12 @@
 }],  # tsan == True
 
 ##############################################################################
+['arch == riscv32 or arch == riscv64', {
+  'TurboAssemblerTest.*': [SKIP],
+  'InstructionSelectorTest/InstructionSelectorMemoryAccessUnalignedImmTest.StoreZero/*': [SKIP],
+}],  # arch == riscv
+
+##############################################################################
 ['not pointer_compression', {
   # Tests are irrelevant without pointer compression
   'DecompressionOptimizerTest.*': [SKIP],
