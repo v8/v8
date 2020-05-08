@@ -2,9 +2,10 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#include "include/cppgc/internal/finalizer-trait.h"
+
 #include <type_traits>
 
-#include "include/cppgc/internal/finalizer-trait.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
 namespace cppgc {

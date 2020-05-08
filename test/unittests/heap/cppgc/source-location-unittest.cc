@@ -5,14 +5,13 @@
 #include "include/cppgc/source-location.h"
 
 #include "src/base/macros.h"
-
 #include "testing/gtest/include/gtest/gtest.h"
 
 namespace cppgc {
 namespace internal {
 
 namespace {
-constexpr char kFileName[] = "source-location_unittest.cc";
+constexpr char kFileName[] = "source-location-unittest.cc";
 
 bool Contains(const std::string& base_string, const std::string& substring) {
   return base_string.find(substring) != std::string::npos;
