@@ -1251,7 +1251,32 @@ void WasmGenerator::Generate<ValueType::kS128>(DataRange* data) {
       &WasmGenerator::simd_op<kExprF64x2Max, ValueType::kS128,
                               ValueType::kS128>,
 
+      &WasmGenerator::simd_op<kExprI32x4SConvertF32x4, ValueType::kS128>,
+      &WasmGenerator::simd_op<kExprI32x4UConvertF32x4, ValueType::kS128>,
+      &WasmGenerator::simd_op<kExprF32x4SConvertI32x4, ValueType::kS128>,
+      &WasmGenerator::simd_op<kExprF32x4UConvertI32x4, ValueType::kS128>,
+
+      &WasmGenerator::simd_op<kExprI8x16SConvertI16x8, ValueType::kS128,
+                              ValueType::kS128>,
+      &WasmGenerator::simd_op<kExprI8x16UConvertI16x8, ValueType::kS128,
+                              ValueType::kS128>,
+      &WasmGenerator::simd_op<kExprI16x8SConvertI32x4, ValueType::kS128,
+                              ValueType::kS128>,
+      &WasmGenerator::simd_op<kExprI16x8UConvertI32x4, ValueType::kS128,
+                              ValueType::kS128>,
+
+      &WasmGenerator::simd_op<kExprI16x8SConvertI8x16Low, ValueType::kS128>,
+      &WasmGenerator::simd_op<kExprI16x8SConvertI8x16High, ValueType::kS128>,
+      &WasmGenerator::simd_op<kExprI16x8UConvertI8x16Low, ValueType::kS128>,
+      &WasmGenerator::simd_op<kExprI16x8UConvertI8x16High, ValueType::kS128>,
+      &WasmGenerator::simd_op<kExprI32x4SConvertI16x8Low, ValueType::kS128>,
+      &WasmGenerator::simd_op<kExprI32x4SConvertI16x8High, ValueType::kS128>,
+      &WasmGenerator::simd_op<kExprI32x4UConvertI16x8Low, ValueType::kS128>,
+      &WasmGenerator::simd_op<kExprI32x4UConvertI16x8High, ValueType::kS128>,
+
       &WasmGenerator::simd_shuffle,
+      &WasmGenerator::simd_op<kExprS8x16Swizzle, ValueType::kS128,
+                              ValueType::kS128>,
 
       &WasmGenerator::memop<kExprS128LoadMem>};
 
