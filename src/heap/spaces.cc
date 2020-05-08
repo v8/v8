@@ -2042,7 +2042,7 @@ PagedSpace::TryAllocationFromFreeListBackground(size_t min_size_in_bytes,
   Page* page = Page::FromHeapObject(new_node);
   IncreaseAllocatedBytes(new_node_size, page);
 
-  // TODO(dinfuehr): Start incremental marking if allocation limit is reached
+  heap()->StartIncrementalMarkingIfAllocationLimitIsReachedBackground();
 
   size_t used_size_in_bytes = Min(new_node_size, max_size_in_bytes);
 
@@ -2356,17 +2356,23 @@ bool SemiSpace::EnsureCurrentCapacity() {
   return true;
 }
 
-LinearAllocationArea LocalAllocationBuffer::CloseWithFiller() {
+LinearAllocationArea LocalAllocationBuffer::CloseAndMakeIterable() {
   if (IsValid()) {
-    heap_->CreateFillerObjectAt(
-        allocation_info_.top(),
-        static_cast<int>(allocation_info_.limit() - allocation_info_.top()),
-        ClearRecordedSlots::kNo);
+    MakeIterable();
     const LinearAllocationArea old_info = allocation_info_;
     allocation_info_ = LinearAllocationArea(kNullAddress, kNullAddress);
     return old_info;
   }
   return LinearAllocationArea(kNullAddress, kNullAddress);
+}
+
+void LocalAllocationBuffer::MakeIterable() {
+  if (IsValid()) {
+    heap_->CreateFillerObjectAt(
+        allocation_info_.top(),
+        static_cast<int>(allocation_info_.limit() - allocation_info_.top()),
+        ClearRecordedSlots::kNo);
+  }
 }
 
 LocalAllocationBuffer::LocalAllocationBuffer(

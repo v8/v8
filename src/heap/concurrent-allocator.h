@@ -35,6 +35,7 @@ class ConcurrentAllocator {
                                 AllocationOrigin origin);
 
   void FreeLinearAllocationArea();
+  void MakeLinearAllocationAreaIterable();
 
  private:
   inline bool EnsureLab(AllocationOrigin origin);

@@ -103,5 +103,9 @@ void LocalHeap::FreeLinearAllocationArea() {
   old_space_allocator_.FreeLinearAllocationArea();
 }
 
+void LocalHeap::MakeLinearAllocationAreaIterable() {
+  old_space_allocator_.MakeLinearAllocationAreaIterable();
+}
+
 }  // namespace internal
 }  // namespace v8

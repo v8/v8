@@ -4,6 +4,7 @@
 
 #include "src/heap/incremental-marking-job.h"
 
+#include "src/base/platform/mutex.h"
 #include "src/base/platform/time.h"
 #include "src/execution/isolate.h"
 #include "src/execution/vm-state-inl.h"
@@ -47,6 +48,8 @@ void IncrementalMarkingJob::Start(Heap* heap) {
 }
 
 void IncrementalMarkingJob::ScheduleTask(Heap* heap, TaskType task_type) {
+  base::MutexGuard guard(&mutex_);
+
   if (!IsTaskPending(task_type) && !heap->IsTearingDown() &&
       FLAG_incremental_marking_task) {
     v8::Isolate* isolate = reinterpret_cast<v8::Isolate*>(heap->isolate());
@@ -112,8 +115,11 @@ void IncrementalMarkingJob::Task::RunInternal() {
   }
 
   // Clear this flag after StartIncrementalMarking call to avoid
-  // scheduling a new task when startining incremental marking.
-  job_->SetTaskPending(task_type_, false);
+  // scheduling a new task when starting incremental marking.
+  {
+    base::MutexGuard guard(&job_->mutex_);
+    job_->SetTaskPending(task_type_, false);
+  }
 
   if (!incremental_marking->IsStopped()) {
     StepResult step_result = Step(heap);

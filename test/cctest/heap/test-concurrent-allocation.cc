@@ -49,6 +49,9 @@ class ConcurrentAllocationThread final : public v8::base::Thread {
                                           AllocationOrigin::kRuntime);
       heap_->CreateFillerObjectAt(address, kLargeObjectSize,
                                   ClearRecordedSlots::kNo);
+      if (i % 10 == 0) {
+        local_heap.Safepoint();
+      }
     }
 
     pending_->fetch_sub(1);
@@ -59,7 +62,7 @@ class ConcurrentAllocationThread final : public v8::base::Thread {
 };
 
 UNINITIALIZED_TEST(ConcurrentAllocationInOldSpace) {
-  FLAG_max_old_space_size = 8;
+  FLAG_max_old_space_size = 32;
   FLAG_concurrent_allocation = true;
 
   v8::Isolate::CreateParams create_params;

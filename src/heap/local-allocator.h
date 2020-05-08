@@ -33,7 +33,7 @@ class EvacuationAllocator {
     heap_->code_space()->MergeLocalSpace(compaction_spaces_.Get(CODE_SPACE));
     // Give back remaining LAB space if this EvacuationAllocator's new space LAB
     // sits right next to new space allocation top.
-    const LinearAllocationArea info = new_space_lab_.CloseWithFiller();
+    const LinearAllocationArea info = new_space_lab_.CloseAndMakeIterable();
     const Address top = new_space_->top();
     if (info.limit() != kNullAddress && info.limit() == top) {
       DCHECK_NE(info.top(), kNullAddress);

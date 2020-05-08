@@ -31,7 +31,13 @@ Address ConcurrentAllocator::PerformCollectionAndAllocateAgain(
   heap->FatalProcessOutOfMemory("ConcurrentAllocator: allocation failed");
 }
 
-void ConcurrentAllocator::FreeLinearAllocationArea() { lab_.CloseWithFiller(); }
+void ConcurrentAllocator::FreeLinearAllocationArea() {
+  lab_.CloseAndMakeIterable();
+}
+
+void ConcurrentAllocator::MakeLinearAllocationAreaIterable() {
+  lab_.MakeIterable();
+}
 
 }  // namespace internal
 }  // namespace v8

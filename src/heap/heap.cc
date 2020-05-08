@@ -1138,15 +1138,6 @@ void Heap::GarbageCollectionEpilogueInSafepoint() {
 #undef UPDATE_COUNTERS_FOR_SPACE
 #undef UPDATE_FRAGMENTATION_FOR_SPACE
 #undef UPDATE_COUNTERS_AND_FRAGMENTATION_FOR_SPACE
-}
-
-void Heap::GarbageCollectionEpilogue() {
-  TRACE_GC(tracer(), GCTracer::Scope::HEAP_EPILOGUE);
-  if (Heap::ShouldZapGarbage() || FLAG_clear_free_memory) {
-    ZapFromSpace();
-  }
-
-  AllowHeapAllocation for_the_rest_of_the_epilogue;
 
 #ifdef DEBUG
   // Old-to-new slot sets must be empty after each collection.
@@ -1164,6 +1155,15 @@ void Heap::GarbageCollectionEpilogue() {
   if (FLAG_code_stats) ReportCodeStatistics("After GC");
   if (FLAG_check_handle_count) CheckHandleCount();
 #endif
+}
+
+void Heap::GarbageCollectionEpilogue() {
+  TRACE_GC(tracer(), GCTracer::Scope::HEAP_EPILOGUE);
+  if (Heap::ShouldZapGarbage() || FLAG_clear_free_memory) {
+    ZapFromSpace();
+  }
+
+  AllowHeapAllocation for_the_rest_of_the_epilogue;
 
   UpdateMaximumCommitted();
 
@@ -1668,6 +1668,7 @@ void Heap::StartIncrementalMarking(int gc_flags,
                                    GarbageCollectionReason gc_reason,
                                    GCCallbackFlags gc_callback_flags) {
   DCHECK(incremental_marking()->IsStopped());
+  SafepointScope safepoint(this);
   set_current_gc_flags(gc_flags);
   current_gc_callback_flags_ = gc_callback_flags;
   incremental_marking()->Start(gc_reason);
@@ -1687,6 +1688,21 @@ void Heap::StartIncrementalMarkingIfAllocationLimitIsReached(
               : GarbageCollectionReason::kGlobalAllocationLimit,
           gc_callback_flags);
     }
+  }
+}
+
+void Heap::StartIncrementalMarkingIfAllocationLimitIsReachedBackground() {
+  if (!incremental_marking()->IsStopped() ||
+      !incremental_marking()->CanBeActivated()) {
+    return;
+  }
+
+  const size_t old_generation_space_available = OldGenerationSpaceAvailable();
+  const size_t global_memory_available = GlobalMemoryAvailable();
+
+  if (old_generation_space_available < new_space_->Capacity() ||
+      global_memory_available < new_space_->Capacity()) {
+    incremental_marking()->incremental_marking_job()->ScheduleTask(this);
   }
 }
 
@@ -3551,6 +3567,7 @@ void Heap::FinalizeIncrementalMarkingIncrementally(
   TRACE_EVENT0("v8", "V8.GCIncrementalMarkingFinalize");
   TRACE_GC(tracer(), GCTracer::Scope::MC_INCREMENTAL_FINALIZE);
 
+  SafepointScope safepoint(this);
   InvokeIncrementalMarkingPrologueCallbacks();
   incremental_marking()->FinalizeIncrementally();
   InvokeIncrementalMarkingEpilogueCallbacks();
@@ -4392,6 +4409,13 @@ void Heap::VerifyRememberedSetFor(HeapObject object) {
 
 #ifdef DEBUG
 void Heap::VerifyCountersAfterSweeping() {
+  if (FLAG_local_heaps) {
+    // Ensure heap is iterable
+    safepoint()->IterateLocalHeaps([](LocalHeap* local_heap) {
+      local_heap->MakeLinearAllocationAreaIterable();
+    });
+  }
+
   PagedSpaceIterator spaces(this);
   for (PagedSpace* space = spaces.Next(); space != nullptr;
        space = spaces.Next()) {
@@ -5503,12 +5527,8 @@ void Heap::StartTearDown() {
   // a good time to run heap verification (if requested), before starting to
   // tear down parts of the Isolate.
   if (FLAG_verify_heap) {
-    if (FLAG_local_heaps) {
-      SafepointScope scope(this);
-      Verify();
-    } else {
-      Verify();
-    }
+    SafepointScope scope(this);
+    Verify();
   }
 #endif
 }

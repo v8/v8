@@ -75,7 +75,7 @@ bool ConcurrentAllocator::EnsureLab(AllocationOrigin origin) {
       local_heap_->heap(), AllocationResult(object), result->second);
   DCHECK(lab_.IsValid());
   if (!lab_.TryMerge(&saved_lab)) {
-    saved_lab.CloseWithFiller();
+    saved_lab.CloseAndMakeIterable();
   }
   return true;
 }

@@ -1715,7 +1715,7 @@ class LocalAllocationBuffer {
                                                  AllocationResult result,
                                                  intptr_t size);
 
-  ~LocalAllocationBuffer() { CloseWithFiller(); }
+  ~LocalAllocationBuffer() { CloseAndMakeIterable(); }
 
   LocalAllocationBuffer(const LocalAllocationBuffer& other) = delete;
   V8_EXPORT_PRIVATE LocalAllocationBuffer(LocalAllocationBuffer&& other)
@@ -1737,7 +1737,8 @@ class LocalAllocationBuffer {
   inline bool TryFreeLast(HeapObject object, int object_size);
 
   // Close a LAB, effectively invalidating it. Returns the unused area.
-  V8_EXPORT_PRIVATE LinearAllocationArea CloseWithFiller();
+  V8_EXPORT_PRIVATE LinearAllocationArea CloseAndMakeIterable();
+  void MakeIterable();
 
  private:
   V8_EXPORT_PRIVATE LocalAllocationBuffer(

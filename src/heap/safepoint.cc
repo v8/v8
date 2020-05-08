@@ -90,10 +90,12 @@ void GlobalSafepoint::Barrier::Wait() {
 }
 
 SafepointScope::SafepointScope(Heap* heap) : safepoint_(heap->safepoint()) {
-  safepoint_->StopThreads();
+  if (FLAG_local_heaps) safepoint_->StopThreads();
 }
 
-SafepointScope::~SafepointScope() { safepoint_->ResumeThreads(); }
+SafepointScope::~SafepointScope() {
+  if (FLAG_local_heaps) safepoint_->ResumeThreads();
+}
 
 void GlobalSafepoint::AddLocalHeap(LocalHeap* local_heap) {
   base::MutexGuard guard(&local_heaps_mutex_);

@@ -93,7 +93,7 @@ bool EvacuationAllocator::NewLocalAllocationBuffer() {
   new_space_lab_ = LocalAllocationBuffer::FromResult(heap_, result, kLabSize);
   DCHECK(new_space_lab_.IsValid());
   if (!new_space_lab_.TryMerge(&saved_lab)) {
-    saved_lab.CloseWithFiller();
+    saved_lab.CloseAndMakeIterable();
   }
   return true;
 }

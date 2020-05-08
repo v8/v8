@@ -69,6 +69,7 @@ class LocalHeap {
   void EnterSafepoint();
 
   void FreeLinearAllocationArea();
+  void MakeLinearAllocationAreaIterable();
 
   Heap* heap_;
 

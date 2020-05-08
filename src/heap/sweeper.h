@@ -204,7 +204,9 @@ class Sweeper {
   SweptList swept_list_[kNumberOfSweepingSpaces];
   SweepingList sweeping_list_[kNumberOfSweepingSpaces];
   bool incremental_sweeper_pending_;
-  bool sweeping_in_progress_;
+  // Main thread can finalize sweeping, while background threads allocation slow
+  // path checks this flag to see whether it could support concurrent sweeping.
+  std::atomic<bool> sweeping_in_progress_;
   // Counter is actively maintained by the concurrent tasks to avoid querying
   // the semaphore for maintaining a task counter on the main thread.
   std::atomic<intptr_t> num_sweeping_tasks_;

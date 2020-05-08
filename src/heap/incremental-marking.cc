@@ -413,10 +413,8 @@ void IncrementalMarking::MarkRoots() {
   DCHECK(!finalize_marking_completed_);
   DCHECK(IsMarking());
 
-  if (FLAG_local_heaps) heap_->safepoint()->Start();
   IncrementalMarkingRootMarkingVisitor visitor(this);
   heap_->IterateStrongRoots(&visitor, VISIT_ONLY_STRONG_IGNORE_STACK);
-  if (FLAG_local_heaps) heap_->safepoint()->End();
 }
 
 bool IncrementalMarking::ShouldRetainMap(Map map, int age) {
@@ -959,6 +957,11 @@ StepResult IncrementalMarking::AdvanceWithDeadline(
 
 void IncrementalMarking::FinalizeSweeping() {
   DCHECK(state_ == SWEEPING);
+#ifdef DEBUG
+  // Enforce safepoint here such that background threads cannot allocate between
+  // completing sweeping and VerifyCountersAfterSweeping().
+  SafepointScope scope(heap());
+#endif
   if (collector_->sweeping_in_progress() &&
       (!FLAG_concurrent_sweeping ||
        !collector_->sweeper()->AreSweeperTasksRunning())) {
@@ -967,6 +970,8 @@ void IncrementalMarking::FinalizeSweeping() {
   if (!collector_->sweeping_in_progress()) {
 #ifdef DEBUG
     heap_->VerifyCountersAfterSweeping();
+#else
+    SafepointScope scope(heap());
 #endif
     StartMarking();
   }

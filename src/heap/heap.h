@@ -983,6 +983,7 @@ class Heap {
   void StartIncrementalMarkingIfAllocationLimitIsReached(
       int gc_flags,
       GCCallbackFlags gc_callback_flags = GCCallbackFlags::kNoGCCallbackFlags);
+  void StartIncrementalMarkingIfAllocationLimitIsReachedBackground();
 
   void FinalizeIncrementalMarkingIfComplete(GarbageCollectionReason gc_reason);
   // Synchronously finalizes incremental marking.
