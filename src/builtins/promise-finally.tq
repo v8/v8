@@ -43,8 +43,7 @@ namespace promise {
     const map = UnsafeCast<Map>(
         nativeContext
             [NativeContextSlot::STRICT_FUNCTION_WITHOUT_PROTOTYPE_MAP_INDEX]);
-    const throwerInfo = UnsafeCast<SharedFunctionInfo>(
-        nativeContext[NativeContextSlot::PROMISE_THROWER_FINALLY_SHARED_FUN]);
+    const throwerInfo = PromiseThrowerFinallySharedFunConstant();
     return AllocateFunctionWithMapAndContext(map, throwerInfo, throwerContext);
   }
 
@@ -85,9 +84,7 @@ namespace promise {
     const map = UnsafeCast<Map>(
         nativeContext
             [NativeContextSlot::STRICT_FUNCTION_WITHOUT_PROTOTYPE_MAP_INDEX]);
-    const valueThunkInfo = UnsafeCast<SharedFunctionInfo>(
-        nativeContext
-            [NativeContextSlot::PROMISE_VALUE_THUNK_FINALLY_SHARED_FUN]);
+    const valueThunkInfo = PromiseValueThunkFinallySharedFunConstant();
     return AllocateFunctionWithMapAndContext(
         map, valueThunkInfo, valueThunkContext);
   }
@@ -136,12 +133,10 @@ namespace promise {
     const map = UnsafeCast<Map>(
         nativeContext
             [NativeContextSlot::STRICT_FUNCTION_WITHOUT_PROTOTYPE_MAP_INDEX]);
-    const thenFinallyInfo = UnsafeCast<SharedFunctionInfo>(
-        nativeContext[NativeContextSlot::PROMISE_THEN_FINALLY_SHARED_FUN]);
+    const thenFinallyInfo = PromiseThenFinallySharedFunConstant();
     const thenFinally =
         AllocateFunctionWithMapAndContext(map, thenFinallyInfo, promiseContext);
-    const catchFinallyInfo = UnsafeCast<SharedFunctionInfo>(
-        nativeContext[NativeContextSlot::PROMISE_CATCH_FINALLY_SHARED_FUN]);
+    const catchFinallyInfo = PromiseCatchFinallySharedFunConstant();
     const catchFinally = AllocateFunctionWithMapAndContext(
         map, catchFinallyInfo, promiseContext);
     return PromiseFinallyFunctions{
@@ -205,4 +200,9 @@ namespace promise {
     return UnsafeCast<JSAny>(
         InvokeThen(nativeContext, receiver, thenFinally, catchFinally));
   }
+
+  extern macro PromiseCatchFinallySharedFunConstant(): SharedFunctionInfo;
+  extern macro PromiseThenFinallySharedFunConstant(): SharedFunctionInfo;
+  extern macro PromiseThrowerFinallySharedFunConstant(): SharedFunctionInfo;
+  extern macro PromiseValueThunkFinallySharedFunConstant(): SharedFunctionInfo;
 }

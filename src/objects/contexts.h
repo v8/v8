@@ -207,14 +207,6 @@ enum ContextLookupFlags {
     promise_capability_default_reject_shared_fun)                              \
   V(PROMISE_CAPABILITY_DEFAULT_RESOLVE_SHARED_FUN_INDEX, SharedFunctionInfo,   \
     promise_capability_default_resolve_shared_fun)                             \
-  V(PROMISE_THEN_FINALLY_SHARED_FUN, SharedFunctionInfo,                       \
-    promise_then_finally_shared_fun)                                           \
-  V(PROMISE_CATCH_FINALLY_SHARED_FUN, SharedFunctionInfo,                      \
-    promise_catch_finally_shared_fun)                                          \
-  V(PROMISE_VALUE_THUNK_FINALLY_SHARED_FUN, SharedFunctionInfo,                \
-    promise_value_thunk_finally_shared_fun)                                    \
-  V(PROMISE_THROWER_FINALLY_SHARED_FUN, SharedFunctionInfo,                    \
-    promise_thrower_finally_shared_fun)                                        \
   V(PROMISE_ALL_RESOLVE_ELEMENT_SHARED_FUN, SharedFunctionInfo,                \
     promise_all_resolve_element_shared_fun)                                    \
   V(PROMISE_ALL_SETTLED_RESOLVE_ELEMENT_SHARED_FUN, SharedFunctionInfo,        \

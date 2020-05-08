@@ -445,6 +445,10 @@ KNOWN_OBJECTS = {
   ("old_space", 0x01691): "AsyncGeneratorReturnClosedRejectSharedFun",
   ("old_space", 0x016b9): "AsyncGeneratorReturnClosedResolveSharedFun",
   ("old_space", 0x016e1): "AsyncIteratorValueUnwrapSharedFun",
+  ("old_space", 0x01709): "PromiseCatchFinallySharedFun",
+  ("old_space", 0x01731): "PromiseThenFinallySharedFun",
+  ("old_space", 0x01759): "PromiseThrowerFinallySharedFun",
+  ("old_space", 0x01781): "PromiseValueThunkFinallySharedFun",
 }
 
 # Lower 32 bits of first page addresses for various heap spaces.

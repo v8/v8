@@ -2351,36 +2351,6 @@ void Genesis::InitializeGlobal(Handle<JSGlobalObject> global_object,
     InstallFunctionWithBuiltinId(isolate_, prototype, "finally",
                                  Builtins::kPromisePrototypeFinally, 1, true);
 
-    {
-      Handle<SharedFunctionInfo> info = SimpleCreateSharedFunctionInfo(
-          isolate(), Builtins::kPromiseThenFinally,
-          isolate_->factory()->empty_string(), 1);
-      info->set_native(true);
-      native_context()->set_promise_then_finally_shared_fun(*info);
-    }
-
-    {
-      Handle<SharedFunctionInfo> info = SimpleCreateSharedFunctionInfo(
-          isolate(), Builtins::kPromiseCatchFinally,
-          isolate_->factory()->empty_string(), 1);
-      info->set_native(true);
-      native_context()->set_promise_catch_finally_shared_fun(*info);
-    }
-
-    {
-      Handle<SharedFunctionInfo> info = SimpleCreateSharedFunctionInfo(
-          isolate(), Builtins::kPromiseValueThunkFinally,
-          isolate_->factory()->empty_string(), 0);
-      native_context()->set_promise_value_thunk_finally_shared_fun(*info);
-    }
-
-    {
-      Handle<SharedFunctionInfo> info = SimpleCreateSharedFunctionInfo(
-          isolate(), Builtins::kPromiseThrowerFinally,
-          isolate_->factory()->empty_string(), 0);
-      native_context()->set_promise_thrower_finally_shared_fun(*info);
-    }
-
     DCHECK(promise_fun->HasFastProperties());
 
     Handle<Map> prototype_map(prototype->map(), isolate());

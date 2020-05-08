@@ -251,7 +251,15 @@ class Symbol;
   V(SharedFunctionInfo, async_generator_return_closed_resolve_shared_fun,      \
     AsyncGeneratorReturnClosedResolveSharedFun)                                \
   V(SharedFunctionInfo, async_iterator_value_unwrap_shared_fun,                \
-    AsyncIteratorValueUnwrapSharedFun)
+    AsyncIteratorValueUnwrapSharedFun)                                         \
+  V(SharedFunctionInfo, promise_catch_finally_shared_fun,                      \
+    PromiseCatchFinallySharedFun)                                              \
+  V(SharedFunctionInfo, promise_then_finally_shared_fun,                       \
+    PromiseThenFinallySharedFun)                                               \
+  V(SharedFunctionInfo, promise_thrower_finally_shared_fun,                    \
+    PromiseThrowerFinallySharedFun)                                            \
+  V(SharedFunctionInfo, promise_value_thunk_finally_shared_fun,                \
+    PromiseValueThunkFinallySharedFun)
 
 // These root references can be updated by the mutator.
 #define STRONG_MUTABLE_MOVABLE_ROOT_LIST(V)                                \

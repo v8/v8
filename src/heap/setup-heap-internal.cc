@@ -1049,6 +1049,27 @@ void Heap::CreateInitialObjects() {
         isolate_, Builtins::kAsyncIteratorValueUnwrap, 1);
     set_async_iterator_value_unwrap_shared_fun(*info);
   }
+
+  // Promises / finally:
+  {
+    Handle<SharedFunctionInfo> info =
+        CreateSharedFunctionInfo(isolate(), Builtins::kPromiseThenFinally, 1);
+    info->set_native(true);
+    set_promise_then_finally_shared_fun(*info);
+
+    info =
+        CreateSharedFunctionInfo(isolate(), Builtins::kPromiseCatchFinally, 1);
+    info->set_native(true);
+    set_promise_catch_finally_shared_fun(*info);
+
+    info = CreateSharedFunctionInfo(isolate(),
+                                    Builtins::kPromiseValueThunkFinally, 0);
+    set_promise_value_thunk_finally_shared_fun(*info);
+
+    info = CreateSharedFunctionInfo(isolate(), Builtins::kPromiseThrowerFinally,
+                                    0);
+    set_promise_thrower_finally_shared_fun(*info);
+  }
 }
 
 void Heap::CreateInternalAccessorInfoObjects() {

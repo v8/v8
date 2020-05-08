@@ -421,8 +421,6 @@ class ContextRef : public HeapObjectRef {
   V(Map, with_context_map)                                            \
   V(ScriptContextTable, script_context_table)                         \
   V(SharedFunctionInfo, promise_capability_default_reject_shared_fun) \
-  V(SharedFunctionInfo, promise_catch_finally_shared_fun)             \
-  V(SharedFunctionInfo, promise_then_finally_shared_fun)              \
   V(SharedFunctionInfo, promise_capability_default_resolve_shared_fun)
 
 // Those are set by Bootstrapper::ExportFromRuntime, which may not yet have

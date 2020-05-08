@@ -65,11 +65,19 @@ enum class PrimitiveType { kBoolean, kNumber, kString, kSymbol };
   V(MapIteratorProtector, map_iterator_protector, MapIteratorProtector)        \
   V(NoElementsProtector, no_elements_protector, NoElementsProtector)           \
   V(NumberStringCache, number_string_cache, NumberStringCache)                 \
+  V(PromiseCatchFinallySharedFun, promise_catch_finally_shared_fun,            \
+    PromiseCatchFinallySharedFun)                                              \
   V(PromiseResolveProtector, promise_resolve_protector,                        \
     PromiseResolveProtector)                                                   \
   V(PromiseSpeciesProtector, promise_species_protector,                        \
     PromiseSpeciesProtector)                                                   \
+  V(PromiseThenFinallySharedFun, promise_then_finally_shared_fun,              \
+    PromiseThenFinallySharedFun)                                               \
   V(PromiseThenProtector, promise_then_protector, PromiseThenProtector)        \
+  V(PromiseThrowerFinallySharedFun, promise_thrower_finally_shared_fun,        \
+    PromiseThrowerFinallySharedFun)                                            \
+  V(PromiseValueThunkFinallySharedFun, promise_value_thunk_finally_shared_fun, \
+    PromiseValueThunkFinallySharedFun)                                         \
   V(RegExpSpeciesProtector, regexp_species_protector, RegExpSpeciesProtector)  \
   V(SetIteratorProtector, set_iterator_protector, SetIteratorProtector)        \
   V(SingleCharacterStringCache, single_character_string_cache,                 \

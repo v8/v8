@@ -6355,14 +6355,16 @@ Reduction JSCallReducer::ReducePromisePrototypeFinally(Node* node) {
         context, constructor, etrue, if_true);
 
     // Allocate the closure for the reject case.
+    SharedFunctionInfoRef promise_catch_finally(
+        broker(), factory()->promise_catch_finally_shared_fun());
     catch_true = etrue = CreateClosureFromBuiltinSharedFunctionInfo(
-        native_context().promise_catch_finally_shared_fun(), context, etrue,
-        if_true);
+        promise_catch_finally, context, etrue, if_true);
 
     // Allocate the closure for the fulfill case.
+    SharedFunctionInfoRef promise_then_finally(
+        broker(), factory()->promise_then_finally_shared_fun());
     then_true = etrue = CreateClosureFromBuiltinSharedFunctionInfo(
-        native_context().promise_then_finally_shared_fun(), context, etrue,
-        if_true);
+        promise_then_finally, context, etrue, if_true);
   }
 
   Node* if_false = graph()->NewNode(common()->IfFalse(), branch);

@@ -2302,6 +2302,12 @@ void SerializerForBackgroundCompilation::ProcessBuiltinCall(
         if (arguments.size() >= 1) {
           ProcessMapHintsForPromises(arguments[0]);
         }
+        SharedFunctionInfoRef(
+            broker(),
+            broker()->isolate()->factory()->promise_catch_finally_shared_fun());
+        SharedFunctionInfoRef(
+            broker(),
+            broker()->isolate()->factory()->promise_then_finally_shared_fun());
       }
       break;
     }
