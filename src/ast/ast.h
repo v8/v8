@@ -1446,9 +1446,7 @@ class VariableProxy final : public Expression {
         HoleCheckModeField::update(bit_field_, HoleCheckMode::kRequired);
   }
 
-  bool IsPrivateName() const {
-    return raw_name()->length() > 0 && raw_name()->FirstCharacter() == '#';
-  }
+  bool IsPrivateName() const { return raw_name()->IsPrivateName(); }
 
   // Bind this proxy to the variable var.
   void BindTo(Variable* var);

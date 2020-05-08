@@ -2586,8 +2586,8 @@ Variable* ClassScope::DeclarePrivateName(const AstRawString* name,
                                          bool* was_added) {
   Variable* result = EnsureRareData()->private_name_map.Declare(
       zone(), this, name, mode, NORMAL_VARIABLE,
-      InitializationFlag::kNeedsInitialization,
-      MaybeAssignedFlag::kMaybeAssigned, is_static_flag, was_added);
+      InitializationFlag::kNeedsInitialization, MaybeAssignedFlag::kNotAssigned,
+      is_static_flag, was_added);
   if (*was_added) {
     locals_.Add(result);
     has_static_private_methods_ |=
@@ -2683,7 +2683,7 @@ Variable* ClassScope::LookupPrivateNameInScopeInfo(const AstRawString* name) {
 
   DCHECK(IsConstVariableMode(mode));
   DCHECK_EQ(init_flag, InitializationFlag::kNeedsInitialization);
-  DCHECK_EQ(maybe_assigned_flag, MaybeAssignedFlag::kMaybeAssigned);
+  DCHECK_EQ(maybe_assigned_flag, MaybeAssignedFlag::kNotAssigned);
 
   // Add the found private name to the map to speed up subsequent
   // lookups for the same name.
@@ -2812,7 +2812,7 @@ Variable* ClassScope::DeclareBrandVariable(AstValueFactory* ast_value_factory,
   Variable* brand = Declare(zone(), ast_value_factory->dot_brand_string(),
                             VariableMode::kConst, NORMAL_VARIABLE,
                             InitializationFlag::kNeedsInitialization,
-                            MaybeAssignedFlag::kMaybeAssigned, &was_added);
+                            MaybeAssignedFlag::kNotAssigned, &was_added);
   DCHECK(was_added);
   brand->set_is_static_flag(is_static_flag);
   brand->ForceContextAllocation();

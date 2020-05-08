@@ -67,6 +67,8 @@ class AstRawString final : public ZoneObject {
   int byte_length() const { return literal_bytes_.length(); }
   const unsigned char* raw_data() const { return literal_bytes_.begin(); }
 
+  bool IsPrivateName() const { return length() > 0 && FirstCharacter() == '#'; }
+
   // For storing AstRawStrings in a hash map.
   uint32_t hash_field() const { return hash_field_; }
   uint32_t Hash() const { return hash_field_ >> Name::kHashShift; }
