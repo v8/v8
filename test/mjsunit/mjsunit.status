@@ -391,6 +391,7 @@
 
   # Flag --interpreted-frames-native-stack incompatible with jitless
   'regress/regress-10138': [SKIP],
+  'regress/regress-1078913': [SKIP],
 }],  # 'lite_mode or variant == jitless'
 
 ##############################################################################

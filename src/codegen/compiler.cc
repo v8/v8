@@ -393,7 +393,10 @@ bool UseAsmWasm(FunctionLiteral* literal, bool asm_wasm_broken) {
 void InstallInterpreterTrampolineCopy(Isolate* isolate,
                                       Handle<SharedFunctionInfo> shared_info) {
   DCHECK(FLAG_interpreted_frames_native_stack);
-  DCHECK(shared_info->function_data().IsBytecodeArray());
+  if (!shared_info->function_data().IsBytecodeArray()) {
+    DCHECK(!shared_info->HasBytecodeArray());
+    return;
+  }
   Handle<BytecodeArray> bytecode_array(shared_info->GetBytecodeArray(),
                                        isolate);
 
@@ -1002,8 +1005,6 @@ void FinalizeUnoptimizedCompilation(
   bool need_source_positions = FLAG_stress_lazy_source_positions ||
                                (!flags.collect_source_positions() &&
                                 isolate->NeedsSourcePositionsForProfiling());
-  bool need_interpreter_trampoline_copies =
-      FLAG_interpreted_frames_native_stack;
 
   for (const auto& finalize_data : finalize_unoptimized_compilation_data_list) {
     Handle<SharedFunctionInfo> shared_info =
@@ -1013,7 +1014,7 @@ void FinalizeUnoptimizedCompilation(
     if (need_source_positions) {
       SharedFunctionInfo::EnsureSourcePositionsAvailable(isolate, shared_info);
     }
-    if (need_interpreter_trampoline_copies) {
+    if (FLAG_interpreted_frames_native_stack) {
       InstallInterpreterTrampolineCopy(isolate, shared_info);
     }
 
