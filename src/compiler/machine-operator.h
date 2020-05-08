@@ -574,6 +574,8 @@ class V8_EXPORT_PRIVATE MachineOperatorBuilder final
   const Operator* F64x2Le();
   const Operator* F64x2Qfma();
   const Operator* F64x2Qfms();
+  const Operator* F64x2Pmin();
+  const Operator* F64x2Pmax();
 
   const Operator* F32x4Splat();
   const Operator* F32x4ExtractLane(int32_t);
@@ -598,6 +600,8 @@ class V8_EXPORT_PRIVATE MachineOperatorBuilder final
   const Operator* F32x4Le();
   const Operator* F32x4Qfma();
   const Operator* F32x4Qfms();
+  const Operator* F32x4Pmin();
+  const Operator* F32x4Pmax();
 
   const Operator* I64x2Splat();
   const Operator* I64x2SplatI32Pair();

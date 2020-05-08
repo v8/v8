@@ -4128,6 +4128,12 @@ Node* WasmGraphBuilder::SimdOp(wasm::WasmOpcode opcode, Node* const* inputs) {
     case wasm::kExprF64x2Qfms:
       return graph()->NewNode(mcgraph()->machine()->F64x2Qfms(), inputs[0],
                               inputs[1], inputs[2]);
+    case wasm::kExprF64x2Pmin:
+      return graph()->NewNode(mcgraph()->machine()->F64x2Pmin(), inputs[0],
+                              inputs[1]);
+    case wasm::kExprF64x2Pmax:
+      return graph()->NewNode(mcgraph()->machine()->F64x2Pmax(), inputs[0],
+                              inputs[1]);
     case wasm::kExprF32x4Splat:
       return graph()->NewNode(mcgraph()->machine()->F32x4Splat(), inputs[0]);
     case wasm::kExprF32x4SConvertI32x4:
@@ -4193,6 +4199,12 @@ Node* WasmGraphBuilder::SimdOp(wasm::WasmOpcode opcode, Node* const* inputs) {
     case wasm::kExprF32x4Qfms:
       return graph()->NewNode(mcgraph()->machine()->F32x4Qfms(), inputs[0],
                               inputs[1], inputs[2]);
+    case wasm::kExprF32x4Pmin:
+      return graph()->NewNode(mcgraph()->machine()->F32x4Pmin(), inputs[0],
+                              inputs[1]);
+    case wasm::kExprF32x4Pmax:
+      return graph()->NewNode(mcgraph()->machine()->F32x4Pmax(), inputs[0],
+                              inputs[1]);
     case wasm::kExprI64x2Splat:
       return graph()->NewNode(mcgraph()->machine()->I64x2Splat(), inputs[0]);
     case wasm::kExprI64x2Neg:

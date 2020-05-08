@@ -3380,6 +3380,34 @@ void InstructionSelector::VisitS8x16Swizzle(Node* node) {
        arraysize(temps), temps);
 }
 
+namespace {
+void VisitPminOrPmax(InstructionSelector* selector, Node* node,
+                     ArchOpcode opcode) {
+  // Due to the way minps/minpd work, we want the dst to be same as the second
+  // input: b = pmin(a, b) directly maps to minps b a.
+  X64OperandGenerator g(selector);
+  selector->Emit(opcode, g.DefineSameAsFirst(node),
+                 g.UseRegister(node->InputAt(1)),
+                 g.UseRegister(node->InputAt(0)));
+}
+}  // namespace
+
+void InstructionSelector::VisitF32x4Pmin(Node* node) {
+  VisitPminOrPmax(this, node, kX64F32x4Pmin);
+}
+
+void InstructionSelector::VisitF32x4Pmax(Node* node) {
+  VisitPminOrPmax(this, node, kX64F32x4Pmax);
+}
+
+void InstructionSelector::VisitF64x2Pmin(Node* node) {
+  VisitPminOrPmax(this, node, kX64F64x2Pmin);
+}
+
+void InstructionSelector::VisitF64x2Pmax(Node* node) {
+  VisitPminOrPmax(this, node, kX64F64x2Pmax);
+}
+
 // static
 MachineOperatorBuilder::Flags
 InstructionSelector::SupportedMachineOperatorFlags() {

@@ -321,6 +321,11 @@ const char* WasmOpcodes::OpcodeName(WasmOpcode opcode) {
     CASE_I16x8_OP(BitMask, "bitmask")
     CASE_I32x4_OP(BitMask, "bitmask")
 
+    CASE_F32x4_OP(Pmin, "pmin")
+    CASE_F32x4_OP(Pmax, "pmax")
+    CASE_F64x2_OP(Pmin, "pmin")
+    CASE_F64x2_OP(Pmax, "pmax")
+
     // Atomic operations.
     CASE_OP(AtomicNotify, "atomic.notify")
     CASE_INT_OP(AtomicWait, "atomic.wait")

@@ -1884,6 +1884,10 @@ void InstructionSelector::VisitNode(Node* node) {
       return MarkAsSimd128(node), VisitF64x2Qfma(node);
     case IrOpcode::kF64x2Qfms:
       return MarkAsSimd128(node), VisitF64x2Qfms(node);
+    case IrOpcode::kF64x2Pmin:
+      return MarkAsSimd128(node), VisitF64x2Pmin(node);
+    case IrOpcode::kF64x2Pmax:
+      return MarkAsSimd128(node), VisitF64x2Pmax(node);
     case IrOpcode::kF32x4Splat:
       return MarkAsSimd128(node), VisitF32x4Splat(node);
     case IrOpcode::kF32x4ExtractLane:
@@ -1930,6 +1934,10 @@ void InstructionSelector::VisitNode(Node* node) {
       return MarkAsSimd128(node), VisitF32x4Qfma(node);
     case IrOpcode::kF32x4Qfms:
       return MarkAsSimd128(node), VisitF32x4Qfms(node);
+    case IrOpcode::kF32x4Pmin:
+      return MarkAsSimd128(node), VisitF32x4Pmin(node);
+    case IrOpcode::kF32x4Pmax:
+      return MarkAsSimd128(node), VisitF32x4Pmax(node);
     case IrOpcode::kI64x2Splat:
       return MarkAsSimd128(node), VisitI64x2Splat(node);
     case IrOpcode::kI64x2SplatI32Pair:
@@ -2652,6 +2660,14 @@ void InstructionSelector::VisitI16x8BitMask(Node* node) { UNIMPLEMENTED(); }
 void InstructionSelector::VisitI32x4BitMask(Node* node) { UNIMPLEMENTED(); }
 #endif  // !V8_TARGET_ARCH_ARM64 && !V8_TARGET_ARCH_ARM && !V8_TARGET_ARCH_IA32
         // && !V8_TARGET_ARCH_X64
+
+// TODO(v8:10501) Prototyping pmin and pmax instructions.
+#if !V8_TARGET_ARCH_X64
+void InstructionSelector::VisitF32x4Pmin(Node* node) { UNIMPLEMENTED(); }
+void InstructionSelector::VisitF32x4Pmax(Node* node) { UNIMPLEMENTED(); }
+void InstructionSelector::VisitF64x2Pmin(Node* node) { UNIMPLEMENTED(); }
+void InstructionSelector::VisitF64x2Pmax(Node* node) { UNIMPLEMENTED(); }
+#endif  // !V8_TARGET_ARCH_X64
 
 void InstructionSelector::VisitFinishRegion(Node* node) { EmitIdentity(node); }
 

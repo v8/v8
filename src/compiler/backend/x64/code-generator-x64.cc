@@ -2607,6 +2607,30 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       }
       break;
     }
+    case kX64F32x4Pmin: {
+      XMMRegister dst = i.OutputSimd128Register();
+      DCHECK_EQ(dst, i.InputSimd128Register(0));
+      __ Minps(dst, i.InputSimd128Register(1));
+      break;
+    }
+    case kX64F32x4Pmax: {
+      XMMRegister dst = i.OutputSimd128Register();
+      DCHECK_EQ(dst, i.InputSimd128Register(0));
+      __ Maxps(dst, i.InputSimd128Register(1));
+      break;
+    }
+    case kX64F64x2Pmin: {
+      XMMRegister dst = i.OutputSimd128Register();
+      DCHECK_EQ(dst, i.InputSimd128Register(0));
+      __ Minpd(dst, i.InputSimd128Register(1));
+      break;
+    }
+    case kX64F64x2Pmax: {
+      XMMRegister dst = i.OutputSimd128Register();
+      DCHECK_EQ(dst, i.InputSimd128Register(0));
+      __ Maxpd(dst, i.InputSimd128Register(1));
+      break;
+    }
     case kX64I64x2Splat: {
       XMMRegister dst = i.OutputSimd128Register();
       if (HasRegisterInput(instr, 0)) {
