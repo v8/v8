@@ -11171,8 +11171,7 @@ void CodeStubAssembler::GenerateEqual_Same(SloppyTNode<Object> value,
 
       BIND(&if_boolean);
       {
-        CombineFeedback(var_type_feedback,
-                        CompareOperationFeedback::kNumberOrOddball);
+        CombineFeedback(var_type_feedback, CompareOperationFeedback::kAny);
         Goto(if_equal);
       }
 
@@ -11254,67 +11253,60 @@ TNode<Oddball> CodeStubAssembler::Equal(SloppyTNode<Object> left,
     BIND(&if_left_smi);
     {
       Label if_right_smi(this), if_right_not_smi(this);
-      CombineFeedback(var_type_feedback,
-                      CompareOperationFeedback::kSignedSmall);
       Branch(TaggedIsSmi(right), &if_right_smi, &if_right_not_smi);
 
       BIND(&if_right_smi);
       {
         // We have already checked for {left} and {right} being the same value,
         // so when we get here they must be different Smis.
+        CombineFeedback(var_type_feedback,
+                        CompareOperationFeedback::kSignedSmall);
         Goto(&if_notequal);
       }
 
       BIND(&if_right_not_smi);
+      TNode<Map> right_map = LoadMap(CAST(right));
+      Label if_right_heapnumber(this), if_right_boolean(this),
+          if_right_bigint(this, Label::kDeferred),
+          if_right_receiver(this, Label::kDeferred);
+      GotoIf(IsHeapNumberMap(right_map), &if_right_heapnumber);
+      // {left} is Smi and {right} is not HeapNumber or Smi.
+      if (var_type_feedback != nullptr) {
+        *var_type_feedback = SmiConstant(CompareOperationFeedback::kAny);
+      }
+      GotoIf(IsBooleanMap(right_map), &if_right_boolean);
+      TNode<Uint16T> right_type = LoadMapInstanceType(right_map);
+      GotoIf(IsStringInstanceType(right_type), &do_right_stringtonumber);
+      GotoIf(IsBigIntInstanceType(right_type), &if_right_bigint);
+      Branch(IsJSReceiverInstanceType(right_type), &if_right_receiver,
+             &if_notequal);
+
+      BIND(&if_right_heapnumber);
       {
-        TNode<Map> right_map = LoadMap(CAST(right));
-        Label if_right_heapnumber(this), if_right_oddball(this),
-            if_right_bigint(this, Label::kDeferred),
-            if_right_receiver(this, Label::kDeferred);
-        GotoIf(IsHeapNumberMap(right_map), &if_right_heapnumber);
+        var_left_float = SmiToFloat64(CAST(left));
+        var_right_float = LoadHeapNumberValue(CAST(right));
+        CombineFeedback(var_type_feedback, CompareOperationFeedback::kNumber);
+        Goto(&do_float_comparison);
+      }
 
-        // {left} is Smi and {right} is not HeapNumber or Smi.
-        TNode<Uint16T> right_type = LoadMapInstanceType(right_map);
-        GotoIf(IsStringInstanceType(right_type), &do_right_stringtonumber);
-        GotoIf(IsOddballInstanceType(right_type), &if_right_oddball);
-        GotoIf(IsBigIntInstanceType(right_type), &if_right_bigint);
-        GotoIf(IsJSReceiverInstanceType(right_type), &if_right_receiver);
-        CombineFeedback(var_type_feedback, CompareOperationFeedback::kAny);
-        Goto(&if_notequal);
+      BIND(&if_right_boolean);
+      {
+        var_right = LoadObjectField(CAST(right), Oddball::kToNumberOffset);
+        Goto(&loop);
+      }
 
-        BIND(&if_right_heapnumber);
-        {
-          CombineFeedback(var_type_feedback, CompareOperationFeedback::kNumber);
-          var_left_float = SmiToFloat64(CAST(left));
-          var_right_float = LoadHeapNumberValue(CAST(right));
-          Goto(&do_float_comparison);
-        }
+      BIND(&if_right_bigint);
+      {
+        result = CAST(CallRuntime(Runtime::kBigIntEqualToNumber,
+                                  NoContextConstant(), right, left));
+        Goto(&end);
+      }
 
-        BIND(&if_right_oddball);
-        {
-          CombineFeedback(var_type_feedback,
-                          CompareOperationFeedback::kOddball);
-          GotoIfNot(IsBooleanMap(right_map), &if_notequal);
-          var_right = LoadObjectField(CAST(right), Oddball::kToNumberOffset);
-          Goto(&loop);
-        }
-
-        BIND(&if_right_bigint);
-        {
-          CombineFeedback(var_type_feedback, CompareOperationFeedback::kBigInt);
-          result = CAST(CallRuntime(Runtime::kBigIntEqualToNumber,
-                                    NoContextConstant(), right, left));
-          Goto(&end);
-        }
-
-        BIND(&if_right_receiver);
-        {
-          CombineFeedback(var_type_feedback,
-                          CompareOperationFeedback::kReceiver);
-          Callable callable = CodeFactory::NonPrimitiveToPrimitive(isolate());
-          var_right = CallStub(callable, context, right);
-          Goto(&loop);
-        }
+      BIND(&if_right_receiver);
+      {
+        Callable callable = CodeFactory::NonPrimitiveToPrimitive(isolate());
+        var_right = CallStub(callable, context, right);
+        Goto(&loop);
       }
     }
 
@@ -11353,30 +11345,27 @@ TNode<Oddball> CodeStubAssembler::Equal(SloppyTNode<Object> left,
       BIND(&if_left_number);
       {
         Label if_right_not_number(this);
-
-        CombineFeedback(var_type_feedback, CompareOperationFeedback::kNumber);
         GotoIf(Word32NotEqual(left_type, right_type), &if_right_not_number);
 
         var_left_float = LoadHeapNumberValue(CAST(left));
         var_right_float = LoadHeapNumberValue(CAST(right));
+        CombineFeedback(var_type_feedback, CompareOperationFeedback::kNumber);
         Goto(&do_float_comparison);
 
         BIND(&if_right_not_number);
         {
-          Label if_right_oddball(this);
-
+          Label if_right_boolean(this);
+          if (var_type_feedback != nullptr) {
+            *var_type_feedback = SmiConstant(CompareOperationFeedback::kAny);
+          }
           GotoIf(IsStringInstanceType(right_type), &do_right_stringtonumber);
-          GotoIf(IsOddballInstanceType(right_type), &if_right_oddball);
+          GotoIf(IsBooleanMap(right_map), &if_right_boolean);
           GotoIf(IsBigIntInstanceType(right_type), &use_symmetry);
-          GotoIf(IsJSReceiverInstanceType(right_type), &use_symmetry);
-          CombineFeedback(var_type_feedback, CompareOperationFeedback::kAny);
-          Goto(&if_notequal);
+          Branch(IsJSReceiverInstanceType(right_type), &use_symmetry,
+                 &if_notequal);
 
-          BIND(&if_right_oddball);
+          BIND(&if_right_boolean);
           {
-            CombineFeedback(var_type_feedback,
-                            CompareOperationFeedback::kOddball);
-            GotoIfNot(IsBooleanMap(right_map), &if_notequal);
             var_right = LoadObjectField(CAST(right), Oddball::kToNumberOffset);
             Goto(&loop);
           }
@@ -11387,8 +11376,6 @@ TNode<Oddball> CodeStubAssembler::Equal(SloppyTNode<Object> left,
       {
         Label if_right_heapnumber(this), if_right_bigint(this),
             if_right_string(this), if_right_boolean(this);
-        CombineFeedback(var_type_feedback, CompareOperationFeedback::kBigInt);
-
         GotoIf(IsHeapNumberMap(right_map), &if_right_heapnumber);
         GotoIf(IsBigIntInstanceType(right_type), &if_right_bigint);
         GotoIf(IsStringInstanceType(right_type), &if_right_string);
@@ -11398,7 +11385,9 @@ TNode<Oddball> CodeStubAssembler::Equal(SloppyTNode<Object> left,
 
         BIND(&if_right_heapnumber);
         {
-          CombineFeedback(var_type_feedback, CompareOperationFeedback::kNumber);
+          if (var_type_feedback != nullptr) {
+            *var_type_feedback = SmiConstant(CompareOperationFeedback::kAny);
+          }
           result = CAST(CallRuntime(Runtime::kBigIntEqualToNumber,
                                     NoContextConstant(), left, right));
           Goto(&end);
@@ -11406,7 +11395,7 @@ TNode<Oddball> CodeStubAssembler::Equal(SloppyTNode<Object> left,
 
         BIND(&if_right_bigint);
         {
-          // We already have BigInt feedback.
+          CombineFeedback(var_type_feedback, CompareOperationFeedback::kBigInt);
           result = CAST(CallRuntime(Runtime::kBigIntEqualToBigInt,
                                     NoContextConstant(), left, right));
           Goto(&end);
@@ -11414,7 +11403,9 @@ TNode<Oddball> CodeStubAssembler::Equal(SloppyTNode<Object> left,
 
         BIND(&if_right_string);
         {
-          CombineFeedback(var_type_feedback, CompareOperationFeedback::kString);
+          if (var_type_feedback != nullptr) {
+            *var_type_feedback = SmiConstant(CompareOperationFeedback::kAny);
+          }
           result = CAST(CallRuntime(Runtime::kBigIntEqualToString,
                                     NoContextConstant(), left, right));
           Goto(&end);
@@ -11422,8 +11413,9 @@ TNode<Oddball> CodeStubAssembler::Equal(SloppyTNode<Object> left,
 
         BIND(&if_right_boolean);
         {
-          CombineFeedback(var_type_feedback,
-                          CompareOperationFeedback::kBoolean);
+          if (var_type_feedback != nullptr) {
+            *var_type_feedback = SmiConstant(CompareOperationFeedback::kAny);
+          }
           var_right = LoadObjectField(CAST(right), Oddball::kToNumberOffset);
           Goto(&loop);
         }
@@ -11438,42 +11430,29 @@ TNode<Oddball> CodeStubAssembler::Equal(SloppyTNode<Object> left,
         {
           // {left} is either Null or Undefined. Check if {right} is
           // undetectable (which includes Null and Undefined).
-          Label if_right_undetectable(this), if_right_number_or_oddball(this),
-              if_right_not_number_or_oddball_or_undetectable(this);
-          GotoIf(IsUndetectableMap(right_map), &if_right_undetectable);
-          GotoIf(IsHeapNumberInstanceType(right_type),
-                 &if_right_number_or_oddball);
-          GotoIf(IsOddballInstanceType(right_type),
-                 &if_right_number_or_oddball);
-          Goto(&if_right_not_number_or_oddball_or_undetectable);
+          Label if_right_undetectable(this), if_right_not_undetectable(this);
+          Branch(IsUndetectableMap(right_map), &if_right_undetectable,
+                 &if_right_not_undetectable);
 
           BIND(&if_right_undetectable);
           {
-            // If {right} is undetectable, it must be either also
-            // Null or Undefined, or a Receiver (aka document.all).
-            CombineFeedback(
-                var_type_feedback,
-                CompareOperationFeedback::kReceiverOrNullOrUndefined);
+            if (var_type_feedback != nullptr) {
+              // If {right} is undetectable, it must be either also
+              // Null or Undefined, or a Receiver (aka document.all).
+              *var_type_feedback = SmiConstant(
+                  CompareOperationFeedback::kReceiverOrNullOrUndefined);
+            }
             Goto(&if_equal);
           }
 
-          BIND(&if_right_number_or_oddball);
-          {
-            CombineFeedback(var_type_feedback,
-                            CompareOperationFeedback::kNumberOrOddball);
-            Goto(&if_notequal);
-          }
-
-          BIND(&if_right_not_number_or_oddball_or_undetectable);
+          BIND(&if_right_not_undetectable);
           {
             if (var_type_feedback != nullptr) {
               // Track whether {right} is Null, Undefined or Receiver.
-              CombineFeedback(
-                  var_type_feedback,
+              *var_type_feedback = SmiConstant(
                   CompareOperationFeedback::kReceiverOrNullOrUndefined);
               GotoIf(IsJSReceiverInstanceType(right_type), &if_notequal);
-              CombineFeedback(var_type_feedback,
-                              CompareOperationFeedback::kAny);
+              *var_type_feedback = SmiConstant(CompareOperationFeedback::kAny);
             }
             Goto(&if_notequal);
           }
@@ -11481,8 +11460,9 @@ TNode<Oddball> CodeStubAssembler::Equal(SloppyTNode<Object> left,
 
         BIND(&if_left_boolean);
         {
-          CombineFeedback(var_type_feedback,
-                          CompareOperationFeedback::kBoolean);
+          if (var_type_feedback != nullptr) {
+            *var_type_feedback = SmiConstant(CompareOperationFeedback::kAny);
+          }
 
           // If {right} is a Boolean too, it must be a different Boolean.
           GotoIf(TaggedEqual(right_map, left_map), &if_notequal);
@@ -11565,7 +11545,9 @@ TNode<Oddball> CodeStubAssembler::Equal(SloppyTNode<Object> left,
           {
             // {right} is a Primitive, and neither Null or Undefined;
             // convert {left} to Primitive too.
-            CombineFeedback(var_type_feedback, CompareOperationFeedback::kAny);
+            if (var_type_feedback != nullptr) {
+              *var_type_feedback = SmiConstant(CompareOperationFeedback::kAny);
+            }
             Callable callable = CodeFactory::NonPrimitiveToPrimitive(isolate());
             var_left = CallStub(callable, context, left);
             Goto(&loop);
@@ -11576,12 +11558,6 @@ TNode<Oddball> CodeStubAssembler::Equal(SloppyTNode<Object> left,
 
     BIND(&do_right_stringtonumber);
     {
-      if (var_type_feedback != nullptr) {
-        TNode<Map> right_map = LoadMap(CAST(right));
-        TNode<Uint16T> right_type = LoadMapInstanceType(right_map);
-        CombineFeedback(var_type_feedback,
-                        CollectFeedbackForString(right_type));
-      }
       var_right = CallBuiltin(Builtins::kStringToNumber, context, right);
       Goto(&loop);
     }
@@ -11860,47 +11836,15 @@ TNode<Oddball> CodeStubAssembler::StrictEqual(
 
               BIND(&if_lhsisoddball);
               {
-                Label if_lhsisboolean(this), if_lhsisnotboolean(this);
-                Branch(IsBooleanMap(lhs_map), &if_lhsisboolean,
-                       &if_lhsisnotboolean);
-
-                BIND(&if_lhsisboolean);
-                {
-                  OverwriteFeedback(var_type_feedback,
-                                    CompareOperationFeedback::kNumberOrOddball);
-                  GotoIf(IsBooleanMap(rhs_map), &if_notequal);
-                  Goto(&if_not_equivalent_types);
-                }
-
-                BIND(&if_lhsisnotboolean);
-                {
-                  Label if_rhsisheapnumber(this), if_rhsisnotheapnumber(this);
-
-                  STATIC_ASSERT(LAST_PRIMITIVE_HEAP_OBJECT_TYPE ==
-                                ODDBALL_TYPE);
-                  GotoIf(Int32LessThan(rhs_instance_type,
-                                       Int32Constant(ODDBALL_TYPE)),
-                         &if_not_equivalent_types);
-
-                  Branch(IsHeapNumberMap(rhs_map), &if_rhsisheapnumber,
-                         &if_rhsisnotheapnumber);
-
-                  BIND(&if_rhsisheapnumber);
-                  {
-                    OverwriteFeedback(
-                        var_type_feedback,
-                        CompareOperationFeedback::kNumberOrOddball);
-                    Goto(&if_not_equivalent_types);
-                  }
-
-                  BIND(&if_rhsisnotheapnumber);
-                  {
-                    OverwriteFeedback(
-                        var_type_feedback,
-                        CompareOperationFeedback::kReceiverOrNullOrUndefined);
-                    Goto(&if_notequal);
-                  }
-                }
+                STATIC_ASSERT(LAST_PRIMITIVE_HEAP_OBJECT_TYPE == ODDBALL_TYPE);
+                GotoIf(IsBooleanMap(rhs_map), &if_not_equivalent_types);
+                GotoIf(Int32LessThan(rhs_instance_type,
+                                     Int32Constant(ODDBALL_TYPE)),
+                       &if_not_equivalent_types);
+                OverwriteFeedback(
+                    var_type_feedback,
+                    CompareOperationFeedback::kReceiverOrNullOrUndefined);
+                Goto(&if_notequal);
               }
 
               BIND(&if_lhsissymbol);
@@ -11956,14 +11900,7 @@ TNode<Oddball> CodeStubAssembler::StrictEqual(
         }
 
         BIND(&if_rhsisnotnumber);
-        {
-          TNode<Uint16T> rhs_instance_type = LoadMapInstanceType(rhs_map);
-          GotoIfNot(IsOddballInstanceType(rhs_instance_type),
-                    &if_not_equivalent_types);
-          OverwriteFeedback(var_type_feedback,
-                            CompareOperationFeedback::kNumberOrOddball);
-          Goto(&if_notequal);
-        }
+        Goto(&if_not_equivalent_types);
       }
     }
   }

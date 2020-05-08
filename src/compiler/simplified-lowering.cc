@@ -2054,6 +2054,11 @@ class RepresentationSelector {
             // This doesn't make sense for compare operations.
             UNREACHABLE();
           case NumberOperationHint::kNumberOrOddball:
+            // Abstract and strict equality don't perform ToNumber conversions
+            // on Oddballs, so make sure we don't accidentially sneak in a
+            // hint with Oddball feedback here.
+            DCHECK_NE(IrOpcode::kSpeculativeNumberEqual, node->opcode());
+            V8_FALLTHROUGH;
           case NumberOperationHint::kNumber:
             VisitBinop<T>(node,
                           CheckedUseInfoAsFloat64FromHint(

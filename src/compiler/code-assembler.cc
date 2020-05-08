@@ -1393,7 +1393,6 @@ void CodeAssemblerLabel::MergeVariables() {
     }
     // If the following asserts, then you've jumped to a label without a bound
     // variable along that path that expects to merge its value into a phi.
-    // This can also occur if a label is bound that is never jumped to.
     DCHECK(variable_phis_.find(var) == variable_phis_.end() ||
            count == merge_count_);
     USE(count);

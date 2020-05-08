@@ -887,12 +887,7 @@ Reduction JSTypedLowering::ReduceJSStrictEqual(Node* node) {
   if (r.BothInputsAre(Type::Signed32()) ||
       r.BothInputsAre(Type::Unsigned32())) {
     return r.ChangeToPureOperator(simplified()->NumberEqual());
-  } else if (r.GetCompareNumberOperationHint(&hint) &&
-             hint != NumberOperationHint::kNumberOrOddball) {
-    // SpeculativeNumberEqual[kNumberOrOddball] performs implicit conversion
-    // of oddballs to numbers, so we must not generate it for strict equality.
-    DCHECK(hint == NumberOperationHint::kNumber ||
-           hint == NumberOperationHint::kSignedSmall);
+  } else if (r.GetCompareNumberOperationHint(&hint)) {
     return r.ChangeToSpeculativeOperator(
         simplified()->SpeculativeNumberEqual(hint), Type::Boolean());
   } else if (r.BothInputsAre(Type::Number())) {
