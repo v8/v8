@@ -131,9 +131,9 @@ class V8_EXPORT_PRIVATE TurboAssembler : public TurboAssemblerBase {
 #define COND_ARGS cond, r1, r2
 
   // Cases when relocation is not needed.
-#define DECLARE_NORELOC_PROTOTYPE(Name, target_type)                          \
-  void Name(target_type target);                \
-  void Name(target_type target, COND_TYPED_ARGS);                                    \
+#define DECLARE_NORELOC_PROTOTYPE(Name, target_type) \
+  void Name(target_type target);                     \
+  void Name(target_type target, COND_TYPED_ARGS);
 
 #define DECLARE_BRANCH_PROTOTYPES(Name)   \
   DECLARE_NORELOC_PROTOTYPE(Name, Label*) \
@@ -192,8 +192,8 @@ class V8_EXPORT_PRIVATE TurboAssembler : public TurboAssemblerBase {
   void LoadRootRelative(Register destination, int32_t offset) override;
 
 // Jump, Call, and Ret pseudo instructions implementing inter-working.
-#define COND_ARGS                                  \
-  Condition cond = al, Register rs = zero_reg,     \
+#define COND_ARGS                              \
+  Condition cond = al, Register rs = zero_reg, \
             const Operand &rt = Operand(zero_reg)
 
   void Jump(Register target, COND_ARGS);
@@ -785,16 +785,16 @@ class V8_EXPORT_PRIVATE TurboAssembler : public TurboAssemblerBase {
   void Floor_w_d(Register rd, FPURegister fs, Register result = no_reg);
 
   // Round double functions
-  void Trunc_d_d(FPURegister fd, FPURegister fs);
-  void Round_d_d(FPURegister fd, FPURegister fs);
-  void Floor_d_d(FPURegister fd, FPURegister fs);
-  void Ceil_d_d(FPURegister fd, FPURegister fs);
+  void Trunc_d_d(FPURegister fd, FPURegister fs, FPURegister fpu_scratch);
+  void Round_d_d(FPURegister fd, FPURegister fs, FPURegister fpu_scratch);
+  void Floor_d_d(FPURegister fd, FPURegister fs, FPURegister fpu_scratch);
+  void Ceil_d_d(FPURegister fd, FPURegister fs, FPURegister fpu_scratch);
 
   // Round float functions
-  void Trunc_s_s(FPURegister fd, FPURegister fs);
-  void Round_s_s(FPURegister fd, FPURegister fs);
-  void Floor_s_s(FPURegister fd, FPURegister fs);
-  void Ceil_s_s(FPURegister fd, FPURegister fs);
+  void Trunc_s_s(FPURegister fd, FPURegister fs, FPURegister fpu_scratch);
+  void Round_s_s(FPURegister fd, FPURegister fs, FPURegister fpu_scratch);
+  void Floor_s_s(FPURegister fd, FPURegister fs, FPURegister fpu_scratch);
+  void Ceil_s_s(FPURegister fd, FPURegister fs, FPURegister fpu_scratch);
 
   // Jump the register contains a smi.
   void JumpIfSmi(Register value, Label* smi_label, Register scratch = t3);
@@ -868,7 +868,8 @@ class V8_EXPORT_PRIVATE TurboAssembler : public TurboAssemblerBase {
   void BranchAndLinkLong(Label* L);
 
   template <typename F_TYPE>
-  void RoundHelper(FPURegister dst, FPURegister src, RoundingMode mode);
+  void RoundHelper(FPURegister dst, FPURegister src, FPURegister fpu_scratch,
+                   RoundingMode mode);
 
   template <typename TruncFunc>
   void RoundFloatingPointToInteger(Register rd, FPURegister fs, Register result,
@@ -1125,7 +1126,8 @@ class V8_EXPORT_PRIVATE MacroAssembler : public TurboAssembler {
   }
 
   // Jump if the register contains a non-smi.
-  void JumpIfNotSmi(Register value, Label* not_smi_label, Register scratch = t3);
+  void JumpIfNotSmi(Register value, Label* not_smi_label,
+                    Register scratch = t3);
 
   // Abort execution if argument is a smi, enabled via --debug-code.
   void AssertNotSmi(Register object);

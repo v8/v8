@@ -1494,6 +1494,19 @@ enum MemoryOdering {
   PSW = 0b0001   // PW or SW
 };
 
+enum FClassFlag {
+  kNegativeInfinity = 1,
+  kNegativeNormalNumber = 1 << 1,
+  kNegativeSubnormalNumber = 1 << 2,
+  kNegativeZero = 1 << 3,
+  kPositiveZero = 1 << 4,
+  kPositiveSubnormalNumber = 1 << 5,
+  kPositiveNormalNumber = 1 << 6,
+  kPositiveInfinity = 1 << 7,
+  kSignalingNaN = 1 << 8,
+  kQuietNaN = 1 << 9
+};
+
 // -----------------------------------------------------------------------------
 // Hints.
 

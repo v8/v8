@@ -865,7 +865,7 @@ void LiftoffAssembler::emit_f64_copysign(DoubleRegister dst, DoubleRegister lhs,
   }
 #define FP_UNOP_RETURN_TRUE(name, instruction)                                 \
   bool LiftoffAssembler::emit_##name(DoubleRegister dst, DoubleRegister src) { \
-    instruction(dst, src);                                                     \
+    instruction(dst, src, kScratchDoubleReg);                                  \
     return true;                                                               \
   }
 

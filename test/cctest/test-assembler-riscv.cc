@@ -725,7 +725,6 @@ UTEST_CONV_I_FROM_F(fcvt_wu_s, float, int32_t, RUP, 256.1f, 257)
 UTEST_R2_FORM_WITH_RES_F(fsgnj_s, float, -100.0f, 200.0f, 100.0f)
 UTEST_R2_FORM_WITH_RES_F(fsgnjn_s, float, 100.0f, 200.0f, -100.0f)
 UTEST_R2_FORM_WITH_RES_F(fsgnjx_s, float, -100.0f, 200.0f, -100.0f)
-// void RV_fclass_s(Register rd, FPURegister rs1);
 
 // -- RV64F Standard Extension (in addition to RV32F) --
 UTEST_LOAD_STORE_F(fld, fsd, double, -3456.678)
@@ -775,7 +774,6 @@ UTEST_CONV_F_FROM_F(fcvt_d_s, float, double, 100.0f, 100.0)
 UTEST_R2_FORM_WITH_RES_F(fsgnj_d, double, -100.0, 200.0, 100.0)
 UTEST_R2_FORM_WITH_RES_F(fsgnjn_d, double, 100.0, 200.0, -100.0)
 UTEST_R2_FORM_WITH_RES_F(fsgnjx_d, double, -100.0, 200.0, -100.0)
-// void RV_fclass_d(Register rd, FPURegister rs1);
 
 // -- RV64D Standard Extension (in addition to RV32D) --
 UTEST_CONV_I_FROM_F(fcvt_l_d, double, int64_t, RNE, -100.5, -100)
@@ -1295,6 +1293,47 @@ TEST(RISCV6) {
   }
 }
 
+// pair.first is the F_TYPE input to test, pair.second is I_TYPE expected result
+template <typename T>
+static const std::vector<std::pair<T, uint64_t>> fclass_test_values() {
+  static const std::pair<T, uint64_t> kValues[] = {
+      std::make_pair(-std::numeric_limits<T>::infinity(), kNegativeInfinity),
+      std::make_pair(-10240.56, kNegativeNormalNumber),
+      std::make_pair(-(std::numeric_limits<T>::min() / 2),
+                     kNegativeSubnormalNumber),
+      std::make_pair(-0.0, kNegativeZero),
+      std::make_pair(+0.0, kPositiveZero),
+      std::make_pair((std::numeric_limits<T>::min() / 2),
+                     kPositiveSubnormalNumber),
+      std::make_pair(10240.56, kPositiveNormalNumber),
+      std::make_pair(std::numeric_limits<T>::infinity(), kPositiveInfinity),
+      std::make_pair(std::numeric_limits<T>::signaling_NaN(), kSignalingNaN),
+      std::make_pair(std::numeric_limits<T>::quiet_NaN(), kQuietNaN)};
+  return std::vector<std::pair<T, uint64_t>>(&kValues[0],
+                                             &kValues[arraysize(kValues)]);
+}
+
+TEST(FCLASS) {
+  CcTest::InitializeVM();
+  {
+    auto i_vec = fclass_test_values<float>();
+    for (auto i = i_vec.begin(); i != i_vec.end(); ++i) {
+      auto input = *i;
+      auto fn = [](MacroAssembler& assm) { __ RV_fclass_s(a0, fa0); };
+      GenAndRunTest(input.first, input.second, fn);
+    }
+  }
+
+  {
+    auto i_vec = fclass_test_values<double>();
+    for (auto i = i_vec.begin(); i != i_vec.end(); ++i) {
+      auto input = *i;
+      auto fn = [](MacroAssembler& assm) { __ RV_fclass_d(a0, fa0); };
+      GenAndRunTest(input.first, input.second, fn);
+    }
+  }
+}
+
 TEST(RISCV7) {
   // Test floating point compare and
   // branch instructions.
@@ -1325,7 +1364,7 @@ TEST(RISCV7) {
   __ RV_fclass_d(t5, ft0);
   __ RV_fclass_d(t6, ft1);
   __ RV_or_(t5, t5, t6);
-  __ RV_andi(t5, t5, 0b1100000000);
+  __ RV_andi(t5, t5, kSignalingNaN | kQuietNaN);
   __ RV_beq(t5, zero_reg, &neither_is_nan);
   __ RV_sw(zero_reg, a0, offsetof(T, result));
   __ RV_j(&outa_here);
