@@ -408,7 +408,10 @@ base::Optional<VariableProxy*> Rewriter::RewriteBody(
       return result_value;
     }
 
-    if (processor.HasStackOverflow()) return base::nullopt;
+    if (processor.HasStackOverflow()) {
+      info->pending_error_handler()->set_stack_overflow();
+      return base::nullopt;
+    }
   }
   return nullptr;
 }
