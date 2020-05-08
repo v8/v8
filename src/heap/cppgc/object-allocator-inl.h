@@ -37,7 +37,7 @@ void* ObjectAllocator::AllocateObject(size_t size, GCInfoIndex gcinfo,
 }
 
 // static
-inline RawHeap::RegularSpaceType ObjectAllocator::GetInitialSpaceIndexForSize(
+RawHeap::RegularSpaceType ObjectAllocator::GetInitialSpaceIndexForSize(
     size_t size) {
   if (size < 64) {
     if (size < 32) return RawHeap::RegularSpaceType::kNormal1;

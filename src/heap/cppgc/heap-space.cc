@@ -26,6 +26,12 @@ void BaseSpace::RemovePage(BasePage* page) {
   pages_.erase(it);
 }
 
+BaseSpace::Pages BaseSpace::RemoveAllPages() {
+  Pages pages = std::move(pages_);
+  pages_.clear();
+  return pages;
+}
+
 NormalPageSpace::NormalPageSpace(RawHeap* heap, size_t index)
     : BaseSpace(heap, index, PageType::kNormal) {}
 

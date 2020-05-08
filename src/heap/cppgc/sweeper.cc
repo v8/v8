@@ -7,6 +7,7 @@
 #include <vector>
 
 #include "src/heap/cppgc/free-list.h"
+#include "src/heap/cppgc/globals.h"
 #include "src/heap/cppgc/heap-object-header-inl.h"
 #include "src/heap/cppgc/heap-object-header.h"
 #include "src/heap/cppgc/heap-page.h"
@@ -80,26 +81,17 @@ class PrepareForSweepVisitor final
   bool VisitNormalPageSpace(NormalPageSpace* space) {
     space->ResetLinearAllocationBuffer();
     space->free_list().Clear();
-    return false;
-  }
-
-  bool VisitNormalPage(NormalPage* page) {
-    MovePageToSweeper(page);
+    (*states_)[space->index()].unswept_pages = space->RemoveAllPages();
     return true;
   }
 
-  bool VisitLargePage(LargePage* page) {
-    MovePageToSweeper(page);
+  bool VisitLargePageSpace(LargePageSpace* space) {
+    (*states_)[space->index()].unswept_pages = space->RemoveAllPages();
+
     return true;
   }
 
  private:
-  void MovePageToSweeper(BasePage* page) {
-    BaseSpace* space = page->space();
-    space->RemovePage(page);
-    (*states_)[space->index()].unswept_pages.push_back(page);
-  }
-
   SpaceStates* states_;
 };
 

@@ -156,6 +156,18 @@ TEST_F(SweeperTest, SweepObjectsOnAllArenas) {
   EXPECT_EQ(5u, g_destructor_callcount);
 }
 
+TEST_F(SweeperTest, SweepMultiplePagesInSingleSpace) {
+  MakeGarbageCollected<GCed<2 * kLargeObjectSizeThreshold>>(GetHeap());
+  MakeGarbageCollected<GCed<2 * kLargeObjectSizeThreshold>>(GetHeap());
+  MakeGarbageCollected<GCed<2 * kLargeObjectSizeThreshold>>(GetHeap());
+
+  EXPECT_EQ(0u, g_destructor_callcount);
+
+  Sweep();
+
+  EXPECT_EQ(3u, g_destructor_callcount);
+}
+
 TEST_F(SweeperTest, CoalesceFreeListEntries) {
   constexpr size_t kObjectSize = 32;
   using Type = GCed<kObjectSize>;

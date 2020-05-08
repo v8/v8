@@ -44,6 +44,7 @@ class V8_EXPORT_PRIVATE BaseSpace {
   // Page manipulation functions.
   void AddPage(BasePage*);
   void RemovePage(BasePage*);
+  Pages RemoveAllPages();
 
  protected:
   enum class PageType { kNormal, kLarge };
