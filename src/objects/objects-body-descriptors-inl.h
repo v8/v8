@@ -5,8 +5,6 @@
 #ifndef V8_OBJECTS_OBJECTS_BODY_DESCRIPTORS_INL_H_
 #define V8_OBJECTS_OBJECTS_BODY_DESCRIPTORS_INL_H_
 
-#include "src/objects/objects-body-descriptors.h"
-
 #include <algorithm>
 
 #include "src/codegen/reloc-info.h"
@@ -17,14 +15,15 @@
 #include "src/objects/hash-table.h"
 #include "src/objects/js-collection.h"
 #include "src/objects/js-weak-refs.h"
+#include "src/objects/objects-body-descriptors.h"
 #include "src/objects/oddball.h"
 #include "src/objects/ordered-hash-table-inl.h"
 #include "src/objects/source-text-module.h"
 #include "src/objects/synthetic-module.h"
 #include "src/objects/transitions.h"
 #include "src/wasm/wasm-objects-inl.h"
-
 #include "torque-generated/class-definitions-tq-inl.h"
+#include "torque-generated/exported-class-definitions-tq-inl.h"
 #include "torque-generated/internal-class-definitions-tq-inl.h"
 
 namespace v8 {

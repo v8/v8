@@ -1223,6 +1223,8 @@ template("run_torque") {
       "instance-types-tq.h",
       "internal-class-definitions-tq.h",
       "internal-class-definitions-tq-inl.h",
+      "exported-class-definitions-tq.h",
+      "exported-class-definitions-tq-inl.h",
     ]
 
     outputs = []

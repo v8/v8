@@ -3857,6 +3857,7 @@ void EmitClassDefinitionHeadersIncludes(const std::string& basename,
                                         std::stringstream& header,
                                         std::stringstream& inline_header) {
   header << "#include \"src/objects/objects.h\"\n";
+  header << "#include \"src/objects/heap-object.h\"\n";
   header << "#include \"src/objects/smi.h\"\n";
   header << "#include \"torque-generated/field-offsets-tq.h\"\n";
   header << "#include <type_traits>\n\n";
@@ -3900,14 +3901,19 @@ void ImplementationVisitor::GenerateClassDefinitions(
   std::stringstream inline_external_header;
   std::stringstream internal_header;
   std::stringstream inline_internal_header;
+  std::stringstream exported_header;
+  std::stringstream inline_exported_header;
   std::stringstream implementation;
   std::stringstream factory_header;
   std::stringstream factory_impl;
   std::string basename = "class-definitions-tq";
   std::string internal_basename = "internal-" + basename;
+  std::string exported_basename = "exported-" + basename;
   std::string file_basename = output_directory + "/" + basename;
   std::string internal_file_basename =
       output_directory + "/" + internal_basename;
+  std::string exported_file_basename =
+      output_directory + "/" + exported_basename;
   std::string factory_basename = "factory-tq";
   std::string factory_file_basename = output_directory + "/" + factory_basename;
 
@@ -3923,12 +3929,24 @@ void ImplementationVisitor::GenerateClassDefinitions(
     IncludeGuardScope internal_inline_header_guard(
         inline_internal_header, internal_basename + "-inl.h");
 
+    IncludeGuardScope exported_header_guard(exported_header,
+                                            exported_basename + ".h");
+
+    IncludeGuardScope exported_inline_header_guard(
+        inline_exported_header, exported_basename + "-inl.h");
+
     internal_header << "#include \"torque-generated/class-definitions-tq.h\"\n";
     internal_header << "#include \"src/objects/fixed-array.h\"\n";
     inline_internal_header
         << "#include \"torque-generated/internal-class-definitions-tq.h\"\n";
     inline_internal_header
         << "#include \"torque-generated/class-definitions-tq-inl.h\"\n";
+
+    exported_header << "#include \"src/objects/fixed-array.h\"\n";
+    exported_header << "#include \"torque-generated/class-definitions-tq.h\"\n";
+    inline_exported_header
+        << "#include \"torque-generated/exported-class-definitions-tq.h\"\n";
+    inline_exported_header << "#include \"src/objects/fixed-array-inl.h\"\n";
 
     EmitClassDefinitionHeadersIncludes(basename, external_header,
                                        inline_external_header);
@@ -3943,12 +3961,20 @@ void ImplementationVisitor::GenerateClassDefinitions(
     IncludeObjectMacrosScope internal_inline_header_macros(
         inline_internal_header);
 
+    IncludeObjectMacrosScope exported_header_macros(exported_header);
+    IncludeObjectMacrosScope exported_inline_header_macros(
+        inline_exported_header);
+
     NamespaceScope header_namespaces(external_header, {"v8", "internal"});
     NamespaceScope inline_header_namespaces(inline_external_header,
                                             {"v8", "internal"});
     NamespaceScope internal_header_namespaces(internal_header,
                                               {"v8", "internal"});
     NamespaceScope internal_inline_header_namespaces(inline_internal_header,
+                                                     {"v8", "internal"});
+    NamespaceScope exported_header_namespaces(exported_header,
+                                              {"v8", "internal"});
+    NamespaceScope exported_inline_header_namespaces(inline_exported_header,
                                                      {"v8", "internal"});
 
     EmitClassDefinitionHeadersForwardDeclarations(external_header);
@@ -3962,6 +3988,9 @@ void ImplementationVisitor::GenerateClassDefinitions(
     factory_impl
         << "#include "
            "\"torque-generated/internal-class-definitions-tq-inl.h\"\n\n";
+    factory_impl
+        << "#include "
+           "\"torque-generated/exported-class-definitions-tq-inl.h\"\n\n";
     NamespaceScope factory_impl_namespaces(factory_impl, {"v8", "internal"});
     factory_impl << "\n";
 
@@ -3989,18 +4018,23 @@ void ImplementationVisitor::GenerateClassDefinitions(
     implementation
         << "#include "
            "\"torque-generated/internal-class-definitions-tq-inl.h\"\n\n";
+    implementation
+        << "#include "
+           "\"torque-generated/exported-class-definitions-tq-inl.h\"\n\n";
     NamespaceScope implementation_namespaces(implementation,
                                              {"v8", "internal"});
 
     std::set<const StructType*, TypeLess> structs_used_in_classes;
 
     for (const ClassType* type : TypeOracle::GetClasses()) {
-      std::stringstream& header = (type->IsExtern() || type->ShouldExport())
-                                      ? external_header
-                                      : internal_header;
+      std::stringstream& header =
+          type->IsExtern()
+              ? external_header
+              : type->ShouldExport() ? exported_header : internal_header;
       std::stringstream& inline_header =
-          (type->IsExtern() || type->ShouldExport()) ? inline_external_header
-                                                     : inline_internal_header;
+          type->IsExtern() ? inline_external_header
+                           : type->ShouldExport() ? inline_exported_header
+                                                  : inline_internal_header;
 
       if (type->GenerateCppClassDefinitions()) {
         CppClassGenerator g(type, header, inline_header, implementation);
@@ -4096,6 +4130,8 @@ void ImplementationVisitor::GenerateClassDefinitions(
   WriteFile(file_basename + ".cc", implementation.str());
   WriteFile(internal_file_basename + ".h", internal_header.str());
   WriteFile(internal_file_basename + "-inl.h", inline_internal_header.str());
+  WriteFile(exported_file_basename + ".h", exported_header.str());
+  WriteFile(exported_file_basename + "-inl.h", inline_exported_header.str());
   WriteFile(factory_file_basename + ".inc", factory_header.str());
   WriteFile(factory_file_basename + ".cc", factory_impl.str());
 }
@@ -4147,6 +4183,8 @@ void ImplementationVisitor::GeneratePrintDefinitions(
     impl << "#include <iosfwd>\n\n";
     impl << "#include "
             "\"torque-generated/internal-class-definitions-tq-inl.h\"\n";
+    impl << "#include "
+            "\"torque-generated/exported-class-definitions-tq-inl.h\"\n";
     impl << "#include \"src/objects/struct-inl.h\"\n\n";
     impl << "#include \"src/objects/template-objects-inl.h\"\n\n";
 
@@ -4470,6 +4508,8 @@ void ImplementationVisitor::GenerateClassVerifiers(
     cc_contents << "#include \"torque-generated/" << file_name << ".h\"\n";
     cc_contents << "#include "
                    "\"torque-generated/internal-class-definitions-tq-inl.h\"\n";
+    cc_contents << "#include "
+                   "\"torque-generated/exported-class-definitions-tq-inl.h\"\n";
 
     IncludeObjectMacrosScope object_macros(cc_contents);
 
@@ -4582,6 +4622,8 @@ void ImplementationVisitor::GenerateExportedMacrosAssembler(
     h_contents << "#include \"torque-generated/csa-types-tq.h\"\n";
     h_contents
         << "#include \"torque-generated/internal-class-definitions-tq.h\"\n";
+    h_contents
+        << "#include \"torque-generated/exported-class-definitions-tq.h\"\n";
     cc_contents << "#include \"src/objects/fixed-array-inl.h\"\n";
     cc_contents << "#include \"src/objects/free-space.h\"\n";
     cc_contents << "#include \"src/objects/js-regexp-string-iterator.h\"\n";
