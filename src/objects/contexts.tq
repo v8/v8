@@ -6,7 +6,7 @@
 extern class Context extends HeapObject {
   length: Smi;
   scope_info: ScopeInfo;
-  previous: Object;
+  previous: Context|Zero|Undefined;
 }
 extern class AwaitContext extends Context generates 'TNode<Context>';
 extern class BlockContext extends Context generates 'TNode<Context>';

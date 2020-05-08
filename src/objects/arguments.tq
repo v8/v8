@@ -29,6 +29,7 @@ extern shape JSStrictArgumentsObject extends JSArgumentsObject {
 type SloppyArgumentsElements extends FixedArray;
 
 @generateCppClass
+@generatePrint
 extern class AliasedArgumentsEntry extends Struct {
   aliased_context_slot: Smi;
 }

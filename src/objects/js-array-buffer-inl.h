@@ -20,15 +20,10 @@
 namespace v8 {
 namespace internal {
 
-OBJECT_CONSTRUCTORS_IMPL(JSArrayBuffer, JSObject)
-OBJECT_CONSTRUCTORS_IMPL(JSArrayBufferView, JSObject)
-OBJECT_CONSTRUCTORS_IMPL(JSTypedArray, JSArrayBufferView)
-OBJECT_CONSTRUCTORS_IMPL(JSDataView, JSArrayBufferView)
-
-CAST_ACCESSOR(JSArrayBuffer)
-CAST_ACCESSOR(JSArrayBufferView)
-CAST_ACCESSOR(JSTypedArray)
-CAST_ACCESSOR(JSDataView)
+TQ_OBJECT_CONSTRUCTORS_IMPL(JSArrayBuffer)
+TQ_OBJECT_CONSTRUCTORS_IMPL(JSArrayBufferView)
+TQ_OBJECT_CONSTRUCTORS_IMPL(JSTypedArray)
+TQ_OBJECT_CONSTRUCTORS_IMPL(JSDataView)
 
 size_t JSArrayBuffer::byte_length() const {
   return ReadField<size_t>(kByteLengthOffset);
@@ -190,8 +185,6 @@ void JSArrayBufferView::set_byte_length(size_t value) {
   WriteField<size_t>(kByteLengthOffset, value);
 }
 
-ACCESSORS(JSArrayBufferView, buffer, Object, kBufferOffset)
-
 bool JSArrayBufferView::WasDetached() const {
   return JSArrayBuffer::cast(buffer()).was_detached();
 }
@@ -246,8 +239,6 @@ void JSTypedArray::RemoveExternalPointerCompensationForSerialization(
       isolate,
       external_pointer() - ExternalPointerCompensationForOnHeapArray(isolate));
 }
-
-ACCESSORS(JSTypedArray, base_pointer, Object, kBasePointerOffset)
 
 void* JSTypedArray::DataPtr() {
   // Zero-extend Tagged_t to Address according to current compression scheme

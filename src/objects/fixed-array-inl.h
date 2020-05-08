@@ -35,18 +35,15 @@ FixedArrayBase::FixedArrayBase(Address ptr,
     : TorqueGeneratedFixedArrayBase(ptr, allow_smi) {}
 TQ_OBJECT_CONSTRUCTORS_IMPL(FixedArray)
 TQ_OBJECT_CONSTRUCTORS_IMPL(FixedDoubleArray)
-OBJECT_CONSTRUCTORS_IMPL(ArrayList, FixedArray)
+TQ_OBJECT_CONSTRUCTORS_IMPL(ArrayList)
 TQ_OBJECT_CONSTRUCTORS_IMPL(ByteArray)
 ByteArray::ByteArray(Address ptr, HeapObject::AllowInlineSmiStorage allow_smi)
     : TorqueGeneratedByteArray(ptr, allow_smi) {}
-OBJECT_CONSTRUCTORS_IMPL(TemplateList, FixedArray)
+TQ_OBJECT_CONSTRUCTORS_IMPL(TemplateList)
 TQ_OBJECT_CONSTRUCTORS_IMPL(WeakFixedArray)
 TQ_OBJECT_CONSTRUCTORS_IMPL(WeakArrayList)
 
 NEVER_READ_ONLY_SPACE_IMPL(WeakArrayList)
-
-CAST_ACCESSOR(ArrayList)
-CAST_ACCESSOR(TemplateList)
 
 SYNCHRONIZED_SMI_ACCESSORS(FixedArrayBase, length, kLengthOffset)
 

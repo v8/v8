@@ -296,10 +296,6 @@ void BytecodeArray::BytecodeArrayVerify(Isolate* isolate) {
   CHECK(handler_table().IsByteArray());
 }
 
-USE_TORQUE_VERIFIER(FreeSpace)
-
-USE_TORQUE_VERIFIER(HeapNumber)
-
 USE_TORQUE_VERIFIER(FeedbackVector)
 
 USE_TORQUE_VERIFIER(JSReceiver)
@@ -1304,8 +1300,6 @@ void JSDataView::JSDataViewVerify(Isolate* isolate) {
   }
 }
 
-USE_TORQUE_VERIFIER(Foreign)
-
 void AsyncGeneratorRequest::AsyncGeneratorRequestVerify(Isolate* isolate) {
   TorqueGeneratedClassVerifiers::AsyncGeneratorRequestVerify(*this, isolate);
   CHECK_GE(resume_mode(), JSGeneratorObject::kNext);
@@ -1488,8 +1482,6 @@ void StoreHandler::StoreHandlerVerify(Isolate* isolate) {
   // TODO(ishell): check handler integrity
 }
 
-USE_TORQUE_VERIFIER(AccessorInfo)
-
 void CallHandlerInfo::CallHandlerInfoVerify(Isolate* isolate) {
   TorqueGeneratedClassVerifiers::CallHandlerInfoVerify(*this, isolate);
   CHECK(map() == ReadOnlyRoots(isolate).side_effect_call_handler_info_map() ||
@@ -1512,8 +1504,6 @@ void AllocationSite::AllocationSiteVerify(Isolate* isolate) {
         transition_info_or_boilerplate().IsJSObject());
   CHECK(nested_site().IsAllocationSite() || nested_site() == Smi::zero());
 }
-
-USE_TORQUE_VERIFIER(AllocationMemento)
 
 void Script::ScriptVerify(Isolate* isolate) {
   TorqueGeneratedClassVerifiers::ScriptVerify(*this, isolate);
@@ -1557,32 +1547,6 @@ void PreparseData::PreparseDataVerify(Isolate* isolate) {
 }
 
 USE_TORQUE_VERIFIER(InterpreterData)
-
-#ifdef V8_INTL_SUPPORT
-
-USE_TORQUE_VERIFIER(JSV8BreakIterator)
-
-USE_TORQUE_VERIFIER(JSCollator)
-
-USE_TORQUE_VERIFIER(JSDateTimeFormat)
-
-USE_TORQUE_VERIFIER(JSDisplayNames)
-
-USE_TORQUE_VERIFIER(JSListFormat)
-
-USE_TORQUE_VERIFIER(JSLocale)
-
-USE_TORQUE_VERIFIER(JSNumberFormat)
-
-USE_TORQUE_VERIFIER(JSPluralRules)
-
-USE_TORQUE_VERIFIER(JSRelativeTimeFormat)
-
-USE_TORQUE_VERIFIER(JSSegmentIterator)
-
-USE_TORQUE_VERIFIER(JSSegmenter)
-
-#endif  // V8_INTL_SUPPORT
 
 #endif  // VERIFY_HEAP
 

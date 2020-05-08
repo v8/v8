@@ -419,7 +419,7 @@ class WeakArrayList::Iterator {
 // the allocated size. The number of elements is stored at kLengthIndex and is
 // updated with every insertion. The elements of the ArrayList are stored in the
 // underlying FixedArray starting at kFirstIndex.
-class ArrayList : public FixedArray {
+class ArrayList : public TorqueGeneratedArrayList<ArrayList, FixedArray> {
  public:
   V8_EXPORT_PRIVATE static Handle<ArrayList> Add(Isolate* isolate,
                                                  Handle<ArrayList> array,
@@ -452,14 +452,13 @@ class ArrayList : public FixedArray {
   // Return a copy of the list of size Length() without the first entry. The
   // number returned by Length() is stored in the first entry.
   static Handle<FixedArray> Elements(Isolate* isolate, Handle<ArrayList> array);
-  DECL_CAST(ArrayList)
 
  private:
   static Handle<ArrayList> EnsureSpace(Isolate* isolate,
                                        Handle<ArrayList> array, int length);
   static const int kLengthIndex = 0;
   static const int kFirstIndex = 1;
-  OBJECT_CONSTRUCTORS(ArrayList, FixedArray);
+  TQ_OBJECT_CONSTRUCTORS(ArrayList)
 };
 
 enum SearchMode { ALL_ENTRIES, VALID_ENTRIES };
@@ -575,7 +574,8 @@ class PodArray : public ByteArray {
   OBJECT_CONSTRUCTORS(PodArray<T>, ByteArray);
 };
 
-class TemplateList : public FixedArray {
+class TemplateList
+    : public TorqueGeneratedTemplateList<TemplateList, FixedArray> {
  public:
   static Handle<TemplateList> New(Isolate* isolate, int size);
   inline int length() const;
@@ -584,12 +584,11 @@ class TemplateList : public FixedArray {
   inline void set(int index, Object value);
   static Handle<TemplateList> Add(Isolate* isolate, Handle<TemplateList> list,
                                   Handle<Object> value);
-  DECL_CAST(TemplateList)
  private:
   static const int kLengthIndex = 0;
   static const int kFirstElementIndex = kLengthIndex + 1;
 
-  OBJECT_CONSTRUCTORS(TemplateList, FixedArray);
+  TQ_OBJECT_CONSTRUCTORS(TemplateList)
 };
 
 }  // namespace internal

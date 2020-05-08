@@ -10,6 +10,7 @@ bitfield struct JSArrayBufferFlags extends uint32 {
   is_shared: bool: 1 bit;
 }
 
+@generateCppClass
 extern class JSArrayBuffer extends JSObject {
   byte_length: uintptr;
   backing_store: ExternalPointer;
@@ -34,18 +35,22 @@ macro IsSharedArrayBuffer(buffer: JSArrayBuffer): bool {
 }
 
 @abstract
+@generateCppClass
 extern class JSArrayBufferView extends JSObject {
   buffer: JSArrayBuffer;
   byte_offset: uintptr;
   byte_length: uintptr;
 }
 
+@generateCppClass
 extern class JSTypedArray extends JSArrayBufferView {
   length: uintptr;
   external_pointer: ExternalPointer;
+  // [base_pointer]: TODO(v8:4153)
   base_pointer: ByteArray|Smi;
 }
 
+@generateCppClass
 extern class JSDataView extends JSArrayBufferView {
   data_pointer: ExternalPointer;
 }

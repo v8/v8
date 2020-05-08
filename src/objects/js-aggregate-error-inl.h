@@ -15,7 +15,6 @@
 namespace v8 {
 namespace internal {
 
-CAST_ACCESSOR(JSAggregateError)
 TQ_OBJECT_CONSTRUCTORS_IMPL(JSAggregateError)
 
 }  // namespace internal

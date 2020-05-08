@@ -126,9 +126,6 @@ class DebugInfo : public TorqueGeneratedDebugInfo<DebugInfo, Struct> {
   // Clears all fields related to block coverage.
   void ClearCoverageInfo(Isolate* isolate);
 
-  // Dispatched behavior.
-  DECL_PRINTER(DebugInfo)
-
   static const int kEstimatedNofBreakPointsInFunction = 4;
 
  private:
@@ -206,7 +203,6 @@ class BreakPoint : public TorqueGeneratedBreakPoint<BreakPoint, Struct> {
 class WasmValue : public TorqueGeneratedWasmValue<WasmValue, Struct> {
  public:
   NEVER_READ_ONLY_SPACE
-  DECL_PRINTER(WasmValue)
 
   TQ_OBJECT_CONSTRUCTORS(WasmValue)
 };

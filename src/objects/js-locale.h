@@ -25,7 +25,7 @@ class Locale;
 namespace v8 {
 namespace internal {
 
-class JSLocale : public JSObject {
+class JSLocale : public TorqueGeneratedJSLocale<JSLocale, JSObject> {
  public:
   // Creates locale object with properties derived from input locale string
   // and options.
@@ -62,18 +62,11 @@ class JSLocale : public JSObject {
   // Help function to check well-formed "3alpha"
   static bool Is3Alpha(const std::string& value);
 
-  DECL_CAST(JSLocale)
-
   DECL_ACCESSORS(icu_locale, Managed<icu::Locale>)
 
   DECL_PRINTER(JSLocale)
-  DECL_VERIFIER(JSLocale)
 
-  // Layout description.
-  DEFINE_FIELD_OFFSET_CONSTANTS(JSObject::kHeaderSize,
-                                TORQUE_GENERATED_JS_LOCALE_FIELDS)
-
-  OBJECT_CONSTRUCTORS(JSLocale, JSObject);
+  TQ_OBJECT_CONSTRUCTORS(JSLocale)
 };
 
 }  // namespace internal

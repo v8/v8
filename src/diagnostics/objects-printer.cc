@@ -715,12 +715,6 @@ void DescriptorArray::DescriptorArrayPrint(std::ostream& os) {
   PrintDescriptors(os);
 }
 
-void AliasedArgumentsEntry::AliasedArgumentsEntryPrint(
-    std::ostream& os) {  // NOLINT
-  PrintHeader(os, "AliasedArgumentsEntry");
-  os << "\n - aliased_context_slot: " << aliased_context_slot();
-}
-
 namespace {
 void PrintFixedArrayWithHeader(std::ostream& os, FixedArray array,
                                const char* type) {
@@ -1436,12 +1430,6 @@ void JSGlobalObject::JSGlobalObjectPrint(std::ostream& os) {  // NOLINT
   JSObjectPrintBody(os, *this);
 }
 
-void Cell::CellPrint(std::ostream& os) {  // NOLINT
-  PrintHeader(os, "Cell");
-  os << "\n - value: " << Brief(value());
-  os << "\n";
-}
-
 void PropertyCell::PropertyCellPrint(std::ostream& os) {  // NOLINT
   PrintHeader(os, "PropertyCell");
   os << "\n - name: ";
@@ -1511,17 +1499,6 @@ void CodeDataContainer::CodeDataContainerPrint(std::ostream& os) {  // NOLINT
 void Foreign::ForeignPrint(std::ostream& os) {  // NOLINT
   PrintHeader(os, "Foreign");
   os << "\n - foreign address : " << reinterpret_cast<void*>(foreign_address());
-  os << "\n";
-}
-
-void AccessorInfo::AccessorInfoPrint(std::ostream& os) {  // NOLINT
-  PrintHeader(os, "AccessorInfo");
-  os << "\n - name: " << Brief(name());
-  os << "\n - flags: " << flags();
-  os << "\n - getter: " << Brief(getter());
-  os << "\n - setter: " << Brief(setter());
-  os << "\n - js_getter: " << Brief(js_getter());
-  os << "\n - data: " << Brief(data());
   os << "\n";
 }
 
@@ -1938,15 +1915,6 @@ void AccessorPair::AccessorPairPrint(std::ostream& os) {  // NOLINT
   os << "\n";
 }
 
-void AccessCheckInfo::AccessCheckInfoPrint(std::ostream& os) {  // NOLINT
-  PrintHeader(os, "AccessCheckInfo");
-  os << "\n - callback: " << Brief(callback());
-  os << "\n - named_interceptor: " << Brief(named_interceptor());
-  os << "\n - indexed_interceptor: " << Brief(indexed_interceptor());
-  os << "\n - data: " << Brief(data());
-  os << "\n";
-}
-
 void CallHandlerInfo::CallHandlerInfoPrint(std::ostream& os) {  // NOLINT
   PrintHeader(os, "CallHandlerInfo");
   os << "\n - callback: " << Brief(callback());
@@ -1954,17 +1922,6 @@ void CallHandlerInfo::CallHandlerInfoPrint(std::ostream& os) {  // NOLINT
   os << "\n - data: " << Brief(data());
   os << "\n - side_effect_free: "
      << (IsSideEffectFreeCallHandlerInfo() ? "true" : "false");
-  os << "\n";
-}
-
-void InterceptorInfo::InterceptorInfoPrint(std::ostream& os) {  // NOLINT
-  PrintHeader(os, "InterceptorInfo");
-  os << "\n - getter: " << Brief(getter());
-  os << "\n - setter: " << Brief(setter());
-  os << "\n - query: " << Brief(query());
-  os << "\n - deleter: " << Brief(deleter());
-  os << "\n - enumerator: " << Brief(enumerator());
-  os << "\n - data: " << Brief(data());
   os << "\n";
 }
 
@@ -2271,27 +2228,6 @@ void ScopeInfo::ScopeInfoPrint(std::ostream& os) {  // NOLINT
                        ContextLocalNamesIndex(), ContextLocalCount());
     // TODO(neis): Print module stuff if present.
   }
-  os << "\n";
-}
-
-void DebugInfo::DebugInfoPrint(std::ostream& os) {  // NOLINT
-  PrintHeader(os, "DebugInfo");
-  os << "\n - flags: " << flags();
-  os << "\n - debugger_hints: " << debugger_hints();
-  os << "\n - shared: " << Brief(shared());
-  os << "\n - script: " << Brief(script());
-  os << "\n - original bytecode array: " << Brief(original_bytecode_array());
-  os << "\n - debug bytecode array: " << Brief(debug_bytecode_array());
-  os << "\n - break_points: ";
-  break_points().FixedArrayPrint(os);
-  os << "\n - coverage_info: " << Brief(coverage_info());
-  os << "\n";
-}
-
-void WasmValue::WasmValuePrint(std::ostream& os) {  // NOLINT
-  PrintHeader(os, "WasmValue");
-  os << "\n - value_type: " << value_type();
-  os << "\n - bytes_or_ref: " << Brief(bytes_or_ref());
   os << "\n";
 }
 

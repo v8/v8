@@ -18,9 +18,7 @@
 namespace v8 {
 namespace internal {
 
-OBJECT_CONSTRUCTORS_IMPL(Foreign, HeapObject)
-
-CAST_ACCESSOR(Foreign)
+TQ_OBJECT_CONSTRUCTORS_IMPL(Foreign)
 
 // static
 bool Foreign::IsNormalized(Object value) {

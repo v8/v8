@@ -17,7 +17,6 @@ namespace internal {
 class JSAggregateError
     : public TorqueGeneratedJSAggregateError<JSAggregateError, JSObject> {
  public:
-  DECL_CAST(JSAggregateError)
   DECL_PRINTER(JSAggregateError)
   TQ_OBJECT_CONSTRUCTORS(JSAggregateError)
 };

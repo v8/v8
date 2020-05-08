@@ -3636,6 +3636,11 @@ void CppClassGenerator::GenerateFieldAccessor(const Field& f) {
   // TODO(danno): Support generation of struct accessors
   if (f.name_and_type.type->IsStructType()) return;
 
+  // TODO(v8:10391) Generate accessors for external pointers
+  if (f.name_and_type.type->IsSubtypeOf(TypeOracle::GetExternalPointerType())) {
+    return;
+  }
+
   if (!f.name_and_type.type->IsSubtypeOf(TypeOracle::GetTaggedType())) {
     return GenerateFieldAccessorForUntagged(f);
   }
@@ -3997,24 +4002,8 @@ void ImplementationVisitor::GenerateClassDefinitions(
     implementation
         << "#include \"torque-generated/class-definitions-tq.h\"\n\n";
     implementation << "#include \"torque-generated/class-verifiers-tq.h\"\n\n";
-    implementation << "#include \"src/objects/arguments-inl.h\"\n";
-    implementation << "#include \"src/objects/js-aggregate-error-inl.h\"\n";
-    implementation << "#include \"src/objects/js-collection-inl.h\"\n";
-    implementation << "#include \"src/objects/embedder-data-array-inl.h\"\n";
-    implementation << "#include \"src/objects/js-generator-inl.h\"\n";
-    implementation << "#include \"src/objects/js-regexp-inl.h\"\n";
-    implementation << "#include \"src/objects/js-weak-refs-inl.h\"\n";
     implementation
-        << "#include \"src/objects/js-regexp-string-iterator-inl.h\"\n";
-    implementation << "#include \"src/objects/literal-objects-inl.h\"\n";
-    implementation << "#include \"src/objects/microtask-inl.h\"\n";
-    implementation << "#include \"src/objects/module-inl.h\"\n";
-    implementation << "#include \"src/objects/promise-inl.h\"\n";
-    implementation
-        << "#include \"src/objects/property-descriptor-object-inl.h\"\n";
-    implementation << "#include \"src/objects/stack-frame-info-inl.h\"\n";
-    implementation << "#include \"src/objects/struct-inl.h\"\n";
-    implementation << "#include \"src/objects/template-objects-inl.h\"\n\n";
+        << "#include \"src/objects/class-definitions-tq-deps-inl.h\"\n\n";
     implementation
         << "#include "
            "\"torque-generated/internal-class-definitions-tq-inl.h\"\n\n";
