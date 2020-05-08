@@ -34,7 +34,7 @@ class CustomSpaceBase {
  * };
  * class CustomSpace2 : public CustomSpace<CustomSpace2> {
  *  public:
- *   static constexpr CustomSpaceIndex kSpaceIndex = 2;
+ *   static constexpr CustomSpaceIndex kSpaceIndex = 1;
  * };
  * \endcode
  */
