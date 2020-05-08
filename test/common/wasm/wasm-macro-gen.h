@@ -89,10 +89,15 @@
 #define WASM_BLOCK_F(...) kExprBlock, kLocalF32, __VA_ARGS__, kExprEnd
 #define WASM_BLOCK_D(...) kExprBlock, kLocalF64, __VA_ARGS__, kExprEnd
 
+#define TYPE_IMM(t) \
+  static_cast<byte>((t).value_type_code()), U32V_1((t).ref_index())
+
 #define WASM_BLOCK_T(t, ...) \
   kExprBlock, static_cast<byte>((t).value_type_code()), __VA_ARGS__, kExprEnd
 
-#define WASM_BLOCK_X(index, ...)                                  \
+#define WASM_BLOCK_R(t, ...) kExprBlock, TYPE_IMM(t), __VA_ARGS__, kExprEnd
+
+#define WASM_BLOCK_X(index, ...) \
   kExprBlock, static_cast<byte>(index), __VA_ARGS__, kExprEnd
 
 #define WASM_INFINITE_LOOP kExprLoop, kLocalVoid, kExprBr, DEPTH_0, kExprEnd
@@ -106,13 +111,18 @@
 #define WASM_LOOP_T(t, ...) \
   kExprLoop, static_cast<byte>((t).value_type_code()), __VA_ARGS__, kExprEnd
 
-#define WASM_LOOP_X(index, ...)                                   \
+#define WASM_LOOP_R(t, ...) kExprLoop, TYPE_IMM(t), __VA_ARGS__, kExprEnd
+
+#define WASM_LOOP_X(index, ...) \
   kExprLoop, static_cast<byte>(index), __VA_ARGS__, kExprEnd
 
 #define WASM_IF(cond, ...) cond, kExprIf, kLocalVoid, __VA_ARGS__, kExprEnd
 
 #define WASM_IF_T(t, cond, ...) \
   cond, kExprIf, static_cast<byte>((t).value_type_code()), __VA_ARGS__, kExprEnd
+
+#define WASM_IF_R(t, cond, ...) \
+  cond, kExprIf, TYPE_IMM(t), __VA_ARGS__, kExprEnd
 
 #define WASM_IF_X(index, cond, ...)                                   \
   cond, kExprIf, static_cast<byte>(index), __VA_ARGS__, kExprEnd
@@ -133,12 +143,17 @@
   cond, kExprIf, static_cast<byte>((t).value_type_code()), tstmt, kExprElse, \
       fstmt, kExprEnd
 
+#define WASM_IF_ELSE_R(t, cond, tstmt, fstmt) \
+  cond, kExprIf, TYPE_IMM(t), tstmt, kExprElse, fstmt, kExprEnd
+
 #define WASM_IF_ELSE_X(index, cond, tstmt, fstmt)                            \
   cond, kExprIf, static_cast<byte>(index), tstmt, kExprElse, fstmt, kExprEnd
 
 #define WASM_TRY_CATCH_T(t, trystmt, catchstmt)                            \
   kExprTry, static_cast<byte>((t).value_type_code()), trystmt, kExprCatch, \
       catchstmt, kExprEnd
+#define WASM_TRY_CATCH_R(t, trystmt, catchstmt) \
+  kExprTry, TYPE_IMM(t), trystmt, kExprCatch, catchstmt, kExprEnd
 
 #define WASM_SELECT(tval, fval, cond) tval, fval, cond, kExprSelect
 #define WASM_SELECT_I(tval, fval, cond) \
@@ -358,10 +373,6 @@ inline WasmOpcode LoadStoreOpcodeOf(MachineType type, bool store) {
       static_cast<byte>(bit_cast<uint64_t>(static_cast<double>(val)) >> 48), \
       static_cast<byte>(bit_cast<uint64_t>(static_cast<double>(val)) >> 56)
 
-#define WASM_REF_NULL kExprRefNull
-#define WASM_REF_FUNC(val) kExprRefFunc, val
-#define WASM_REF_IS_NULL(val) val, kExprRefIsNull
-
 #define WASM_GET_LOCAL(index) kExprLocalGet, static_cast<byte>(index)
 #define WASM_SET_LOCAL(index, val) val, kExprLocalSet, static_cast<byte>(index)
 #define WASM_TEE_LOCAL(index, val) val, kExprLocalTee, static_cast<byte>(index)
@@ -409,6 +420,9 @@ inline WasmOpcode LoadStoreOpcodeOf(MachineType type, bool store) {
 
 #define TABLE_ZERO 0
 
+//------------------------------------------------------------------------------
+// Heap-allocated object operations.
+//------------------------------------------------------------------------------
 #define WASM_GC_OP(op) kGCPrefix, static_cast<byte>(op)
 #define WASM_STRUCT_NEW(index, ...) \
   __VA_ARGS__, WASM_GC_OP(kExprStructNew), static_cast<byte>(index)
@@ -418,6 +432,9 @@ inline WasmOpcode LoadStoreOpcodeOf(MachineType type, bool store) {
 #define WASM_STRUCT_SET(typeidx, fieldidx, ...)                        \
   __VA_ARGS__, WASM_GC_OP(kExprStructSet), static_cast<byte>(typeidx), \
       static_cast<byte>(fieldidx)
+#define WASM_REF_NULL kExprRefNull
+#define WASM_REF_FUNC(val) kExprRefFunc, val
+#define WASM_REF_IS_NULL(val) val, kExprRefIsNull
 
 #define WASM_ARRAY_NEW(index, default_value, length) \
   default_value, length, WASM_GC_OP(kExprArrayNew), static_cast<byte>(index)

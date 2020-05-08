@@ -5059,19 +5059,10 @@ Node* WasmGraphBuilder::StructNew(uint32_t struct_index,
       map_index++;
     }
   }
-
-  CallDescriptor* call_descriptor =
-      GetBuiltinCallDescriptor<WasmAllocateStructDescriptor>(
-          this, StubCallMode::kCallBuiltinPointer);
-  Node* call_target = graph()->NewNode(
-      mcgraph()->common()->NumberConstant(Builtins::kWasmAllocateStruct));
-  Node* native_context =
-      LOAD_INSTANCE_FIELD(NativeContext, MachineType::TaggedPointer());
-  Node* s = gasm_->Call(
-      call_descriptor, call_target,
+  Node* s = CALL_BUILTIN(
+      WasmAllocateStruct,
       graph()->NewNode(mcgraph()->common()->NumberConstant(map_index)),
-      native_context);
-
+      LOAD_INSTANCE_FIELD(NativeContext, MachineType::TaggedPointer()));
   for (uint32_t i = 0; i < type->field_count(); i++) {
     StoreStructFieldUnchecked(mcgraph(), gasm_.get(), s, type, i, fields[i]);
   }

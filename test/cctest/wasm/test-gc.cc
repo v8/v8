@@ -44,6 +44,7 @@ WASM_EXEC_TEST(BasicStruct) {
   ValueType kOptRefType = ValueType(ValueType::kOptRef, type_index);
   FunctionSig sig_q_v(1, 0, kRefTypes);
 
+  // Test struct.new and struct.get.
   WasmFunctionBuilder* f = builder->AddFunction(sigs.i_v());
   f->builder()->AddExport(CStrVector("f"), f);
   byte f_code[] = {WASM_STRUCT_GET(type_index, 0,
@@ -52,6 +53,7 @@ WASM_EXEC_TEST(BasicStruct) {
                    kExprEnd};
   f->EmitCode(f_code, sizeof(f_code));
 
+  // Test struct.new and struct.get.
   WasmFunctionBuilder* g = builder->AddFunction(sigs.i_v());
   g->builder()->AddExport(CStrVector("g"), g);
   byte g_code[] = {WASM_STRUCT_GET(type_index, 1,
@@ -60,24 +62,41 @@ WASM_EXEC_TEST(BasicStruct) {
                    kExprEnd};
   g->EmitCode(g_code, sizeof(g_code));
 
+  // Test struct.new, returning struct references to JS.
   WasmFunctionBuilder* h = builder->AddFunction(&sig_q_v);
   h->builder()->AddExport(CStrVector("h"), h);
   byte h_code[] = {WASM_STRUCT_NEW(type_index, WASM_I32V(42), WASM_I32V(64)),
                    kExprEnd};
   h->EmitCode(h_code, sizeof(h_code));
 
+  // Test struct.set, struct refs types in locals.
   WasmFunctionBuilder* j = builder->AddFunction(sigs.i_v());
-  uint32_t local_index = j->AddLocal(kOptRefType);
-  uint32_t field_index = 0;
+  uint32_t j_local_index = j->AddLocal(kOptRefType);
+  uint32_t j_field_index = 0;
   j->builder()->AddExport(CStrVector("j"), j);
-  byte i_code[] = {
-      WASM_SET_LOCAL(local_index,
+  byte j_code[] = {
+      WASM_SET_LOCAL(j_local_index,
                      WASM_STRUCT_NEW(type_index, WASM_I32V(42), WASM_I32V(64))),
-      WASM_STRUCT_SET(type_index, field_index, WASM_GET_LOCAL(local_index),
+      WASM_STRUCT_SET(type_index, j_field_index, WASM_GET_LOCAL(j_local_index),
                       WASM_I32V(-99)),
-      WASM_STRUCT_GET(type_index, field_index, WASM_GET_LOCAL(local_index)),
+      WASM_STRUCT_GET(type_index, j_field_index, WASM_GET_LOCAL(j_local_index)),
       kExprEnd};
-  j->EmitCode(i_code, sizeof(i_code));
+  j->EmitCode(j_code, sizeof(j_code));
+
+  // Test struct.set, struct refs types in globals and if-results.
+  uint32_t k_global_index = builder->AddGlobal(kOptRefType, true);
+  WasmFunctionBuilder* k = builder->AddFunction(sigs.i_v());
+  uint32_t k_field_index = 0;
+  k->builder()->AddExport(CStrVector("k"), k);
+  byte k_code[] = {
+      WASM_SET_GLOBAL(k_global_index, WASM_STRUCT_NEW(type_index, WASM_I32V(55),
+                                                      WASM_I32V(66))),
+      WASM_STRUCT_GET(
+          type_index, k_field_index,
+          WASM_IF_ELSE_R(kOptRefType, WASM_I32V(1),
+                         WASM_GET_GLOBAL(k_global_index), WASM_REF_NULL)),
+      kExprEnd};
+  k->EmitCode(k_code, sizeof(k_code));
 
   ZoneBuffer buffer(&zone);
   builder->WriteTo(&buffer);
@@ -109,6 +128,9 @@ WASM_EXEC_TEST(BasicStruct) {
 
   CHECK_EQ(-99, testing::CallWasmFunctionForTesting(isolate, instance, &thrower,
                                                     "j", 0, nullptr));
+
+  CHECK_EQ(55, testing::CallWasmFunctionForTesting(isolate, instance, &thrower,
+                                                   "k", 0, nullptr));
 }
 
 WASM_EXEC_TEST(BasicArray) {

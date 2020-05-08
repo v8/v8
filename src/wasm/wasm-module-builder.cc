@@ -535,7 +535,7 @@ void WasmModuleBuilder::WriteTo(ZoneBuffer* buffer) const {
     buffer->write_size(globals_.size());
 
     for (const WasmGlobal& global : globals_) {
-      buffer->write_u8(global.type.value_type_code());
+      WriteValueType(buffer, global.type);
       buffer->write_u8(global.mutability ? 1 : 0);
       switch (global.init.kind) {
         case WasmInitExpr::kI32Const:
@@ -588,6 +588,12 @@ void WasmModuleBuilder::WriteTo(ZoneBuffer* buffer) const {
             case ValueType::kF64:
               buffer->write_u8(kExprF64Const);
               buffer->write_f64(0.);
+              break;
+            case ValueType::kOptRef:
+            case ValueType::kFuncRef:
+            case ValueType::kExnRef:
+            case ValueType::kEqRef:
+              buffer->write_u8(kExprRefNull);
               break;
             default:
               UNREACHABLE();

@@ -2072,8 +2072,7 @@ class WasmFullDecoder : public WasmDecoder<validate> {
         }
         case kExprSelectWithType: {
           CHECK_PROTOTYPE_OPCODE(anyref);
-          SelectTypeImmediate<validate> imm(WasmFeatures::All(), this,
-                                            this->pc_);
+          SelectTypeImmediate<validate> imm(this->enabled_, this, this->pc_);
           if (this->failed()) break;
           auto cond = Pop(2, kWasmI32);
           auto fval = Pop(1, imm.type);
