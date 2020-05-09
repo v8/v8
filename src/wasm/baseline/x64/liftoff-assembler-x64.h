@@ -1943,6 +1943,38 @@ void EmitSimdNonCommutativeBinOp(
     (assm->*sse_op)(dst.fp(), rhs.fp());
   }
 }
+
+template <void (Assembler::*avx_op)(XMMRegister, XMMRegister, XMMRegister),
+          void (Assembler::*sse_op)(XMMRegister, XMMRegister), uint8_t width>
+void EmitSimdShiftOp(LiftoffAssembler* assm, LiftoffRegister dst,
+                     LiftoffRegister operand, LiftoffRegister count) {
+  constexpr int mask = (1 << width) - 1;
+  assm->movq(kScratchRegister, count.gp());
+  assm->andq(kScratchRegister, Immediate(mask));
+  assm->Movq(kScratchDoubleReg, kScratchRegister);
+  if (CpuFeatures::IsSupported(AVX)) {
+    CpuFeatureScope scope(assm, AVX);
+    (assm->*avx_op)(dst.fp(), operand.fp(), kScratchDoubleReg);
+  } else {
+    if (dst.fp() != operand.fp()) assm->movaps(dst.fp(), operand.fp());
+    (assm->*sse_op)(dst.fp(), kScratchDoubleReg);
+  }
+}
+
+template <void (Assembler::*avx_op)(XMMRegister, XMMRegister, byte),
+          void (Assembler::*sse_op)(XMMRegister, byte), uint8_t width>
+void EmitSimdShiftOpImm(LiftoffAssembler* assm, LiftoffRegister dst,
+                        LiftoffRegister operand, int32_t count) {
+  constexpr int mask = (1 << width) - 1;
+  byte shift = static_cast<byte>(count & mask);
+  if (CpuFeatures::IsSupported(AVX)) {
+    CpuFeatureScope scope(assm, AVX);
+    (assm->*avx_op)(dst.fp(), operand.fp(), shift);
+  } else {
+    if (dst.fp() != operand.fp()) assm->movaps(dst.fp(), operand.fp());
+    (assm->*sse_op)(dst.fp(), shift);
+  }
+}
 }  // namespace liftoff
 
 void LiftoffAssembler::emit_i8x16_splat(LiftoffRegister dst,
@@ -2270,6 +2302,51 @@ void LiftoffAssembler::emit_i8x16_neg(LiftoffRegister dst,
   }
 }
 
+void LiftoffAssembler::emit_i8x16_shl(LiftoffRegister dst, LiftoffRegister lhs,
+                                      LiftoffRegister rhs) {
+  static constexpr RegClass tmp_simd_rc = reg_class_for(ValueType::kS128);
+  LiftoffRegister tmp_simd =
+      GetUnusedRegister(tmp_simd_rc, LiftoffRegList::ForRegs(dst, lhs));
+  // Mask off the unwanted bits before word-shifting.
+  Pcmpeqw(kScratchDoubleReg, kScratchDoubleReg);
+  movq(kScratchRegister, rhs.gp());
+  andq(kScratchRegister, Immediate(7));
+  addq(kScratchRegister, Immediate(8));
+  Movq(tmp_simd.fp(), kScratchRegister);
+  Psrlw(kScratchDoubleReg, tmp_simd.fp());
+  Packuswb(kScratchDoubleReg, kScratchDoubleReg);
+
+  if (CpuFeatures::IsSupported(AVX)) {
+    CpuFeatureScope scope(this, AVX);
+    vpand(dst.fp(), lhs.fp(), kScratchDoubleReg);
+  } else {
+    if (dst.fp() != lhs.fp()) movaps(dst.fp(), lhs.fp());
+    pand(dst.fp(), kScratchDoubleReg);
+  }
+  subq(kScratchRegister, Immediate(8));
+  Movq(tmp_simd.fp(), kScratchRegister);
+  Psllw(dst.fp(), tmp_simd.fp());
+}
+
+void LiftoffAssembler::emit_i8x16_shli(LiftoffRegister dst, LiftoffRegister lhs,
+                                       int32_t rhs) {
+  byte shift = static_cast<byte>(rhs & 0x7);
+  if (CpuFeatures::IsSupported(AVX)) {
+    CpuFeatureScope scope(this, AVX);
+    vpsllw(dst.fp(), lhs.fp(), shift);
+  } else {
+    if (dst.fp() != lhs.fp()) movaps(dst.fp(), lhs.fp());
+    psllw(dst.fp(), shift);
+  }
+
+  uint8_t bmask = static_cast<uint8_t>(0xff << shift);
+  uint32_t mask = bmask << 24 | bmask << 16 | bmask << 8 | bmask;
+  movl(kScratchRegister, Immediate(mask));
+  Movd(kScratchDoubleReg, kScratchRegister);
+  Pshufd(kScratchDoubleReg, kScratchDoubleReg, uint8_t{0});
+  Pand(dst.fp(), kScratchDoubleReg);
+}
+
 void LiftoffAssembler::emit_i8x16_add(LiftoffRegister dst, LiftoffRegister lhs,
                                       LiftoffRegister rhs) {
   liftoff::EmitSimdCommutativeBinOp<&Assembler::vpaddb, &Assembler::paddb>(
@@ -2412,6 +2489,18 @@ void LiftoffAssembler::emit_i16x8_neg(LiftoffRegister dst,
   }
 }
 
+void LiftoffAssembler::emit_i16x8_shl(LiftoffRegister dst, LiftoffRegister lhs,
+                                      LiftoffRegister rhs) {
+  liftoff::EmitSimdShiftOp<&Assembler::vpsllw, &Assembler::psllw, 4>(this, dst,
+                                                                     lhs, rhs);
+}
+
+void LiftoffAssembler::emit_i16x8_shli(LiftoffRegister dst, LiftoffRegister lhs,
+                                       int32_t rhs) {
+  liftoff::EmitSimdShiftOpImm<&Assembler::vpsllw, &Assembler::psllw, 4>(
+      this, dst, lhs, rhs);
+}
+
 void LiftoffAssembler::emit_i16x8_add(LiftoffRegister dst, LiftoffRegister lhs,
                                       LiftoffRegister rhs) {
   liftoff::EmitSimdCommutativeBinOp<&Assembler::vpaddw, &Assembler::paddw>(
@@ -2498,6 +2587,18 @@ void LiftoffAssembler::emit_i32x4_neg(LiftoffRegister dst,
   }
 }
 
+void LiftoffAssembler::emit_i32x4_shl(LiftoffRegister dst, LiftoffRegister lhs,
+                                      LiftoffRegister rhs) {
+  liftoff::EmitSimdShiftOp<&Assembler::vpslld, &Assembler::pslld, 5>(this, dst,
+                                                                     lhs, rhs);
+}
+
+void LiftoffAssembler::emit_i32x4_shli(LiftoffRegister dst, LiftoffRegister lhs,
+                                       int32_t rhs) {
+  liftoff::EmitSimdShiftOpImm<&Assembler::vpslld, &Assembler::pslld, 5>(
+      this, dst, lhs, rhs);
+}
+
 void LiftoffAssembler::emit_i32x4_add(LiftoffRegister dst, LiftoffRegister lhs,
                                       LiftoffRegister rhs) {
   liftoff::EmitSimdCommutativeBinOp<&Assembler::vpaddd, &Assembler::paddd>(
@@ -2555,6 +2656,18 @@ void LiftoffAssembler::emit_i64x2_neg(LiftoffRegister dst,
     psubq(reg, src.fp());
     if (dst.fp() != reg) movapd(dst.fp(), reg);
   }
+}
+
+void LiftoffAssembler::emit_i64x2_shl(LiftoffRegister dst, LiftoffRegister lhs,
+                                      LiftoffRegister rhs) {
+  liftoff::EmitSimdShiftOp<&Assembler::vpsllq, &Assembler::psllq, 6>(this, dst,
+                                                                     lhs, rhs);
+}
+
+void LiftoffAssembler::emit_i64x2_shli(LiftoffRegister dst, LiftoffRegister lhs,
+                                       int32_t rhs) {
+  liftoff::EmitSimdShiftOpImm<&Assembler::vpsllq, &Assembler::psllq, 6>(
+      this, dst, lhs, rhs);
 }
 
 void LiftoffAssembler::emit_i64x2_add(LiftoffRegister dst, LiftoffRegister lhs,

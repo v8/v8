@@ -2349,6 +2349,31 @@ class LiftoffCompiler {
     __ PushRegister(ValueType(result_type), dst);
   }
 
+  template <typename EmitFn, typename EmitFnImm>
+  void EmitSimdShiftOp(EmitFn fn, EmitFnImm fnImm) {
+    static constexpr RegClass result_rc = reg_class_for(ValueType::kS128);
+
+    LiftoffAssembler::VarState rhs_slot = __ cache_state()->stack_state.back();
+    // Check if the RHS is an immediate.
+    if (rhs_slot.is_const()) {
+      __ cache_state()->stack_state.pop_back();
+      int32_t imm = rhs_slot.i32_const();
+
+      LiftoffRegister operand = __ PopToRegister();
+      LiftoffRegister dst = __ GetUnusedRegister(result_rc, {operand});
+
+      CallEmitFn(fnImm, dst, operand, imm);
+      __ PushRegister(kWasmS128, dst);
+    } else {
+      LiftoffRegister count = __ PopToRegister();
+      LiftoffRegister operand = __ PopToRegister();
+      LiftoffRegister dst = __ GetUnusedRegister(result_rc, {operand});
+
+      CallEmitFn(fn, dst, operand, count);
+      __ PushRegister(kWasmS128, dst);
+    }
+  }
+
   void SimdOp(FullDecoder* decoder, WasmOpcode opcode, Vector<Value> args,
               Value* result) {
     if (!CpuFeatures::SupportsWasmSimd128()) {
@@ -2475,6 +2500,9 @@ class LiftoffCompiler {
         return EmitTerOp<kS128, kS128>(&LiftoffAssembler::emit_s128_select);
       case wasm::kExprI8x16Neg:
         return EmitUnOp<kS128, kS128>(&LiftoffAssembler::emit_i8x16_neg);
+      case wasm::kExprI8x16Shl:
+        return EmitSimdShiftOp(&LiftoffAssembler::emit_i8x16_shl,
+                               &LiftoffAssembler::emit_i8x16_shli);
       case wasm::kExprI8x16Add:
         return EmitBinOp<kS128, kS128>(&LiftoffAssembler::emit_i8x16_add);
       case wasm::kExprI8x16AddSaturateS:
@@ -2503,6 +2531,9 @@ class LiftoffCompiler {
         return EmitBinOp<kS128, kS128>(&LiftoffAssembler::emit_i8x16_max_u);
       case wasm::kExprI16x8Neg:
         return EmitUnOp<kS128, kS128>(&LiftoffAssembler::emit_i16x8_neg);
+      case wasm::kExprI16x8Shl:
+        return EmitSimdShiftOp(&LiftoffAssembler::emit_i16x8_shl,
+                               &LiftoffAssembler::emit_i16x8_shli);
       case wasm::kExprI16x8Add:
         return EmitBinOp<kS128, kS128>(&LiftoffAssembler::emit_i16x8_add);
       case wasm::kExprI16x8AddSaturateS:
@@ -2531,6 +2562,9 @@ class LiftoffCompiler {
         return EmitBinOp<kS128, kS128>(&LiftoffAssembler::emit_i16x8_max_u);
       case wasm::kExprI32x4Neg:
         return EmitUnOp<kS128, kS128>(&LiftoffAssembler::emit_i32x4_neg);
+      case wasm::kExprI32x4Shl:
+        return EmitSimdShiftOp(&LiftoffAssembler::emit_i32x4_shl,
+                               &LiftoffAssembler::emit_i32x4_shli);
       case wasm::kExprI32x4Add:
         return EmitBinOp<kS128, kS128>(&LiftoffAssembler::emit_i32x4_add);
       case wasm::kExprI32x4Sub:
@@ -2547,6 +2581,9 @@ class LiftoffCompiler {
         return EmitBinOp<kS128, kS128>(&LiftoffAssembler::emit_i32x4_max_u);
       case wasm::kExprI64x2Neg:
         return EmitUnOp<kS128, kS128>(&LiftoffAssembler::emit_i64x2_neg);
+      case wasm::kExprI64x2Shl:
+        return EmitSimdShiftOp(&LiftoffAssembler::emit_i64x2_shl,
+                               &LiftoffAssembler::emit_i64x2_shli);
       case wasm::kExprI64x2Add:
         return EmitBinOp<kS128, kS128>(&LiftoffAssembler::emit_i64x2_add);
       case wasm::kExprI64x2Sub:
