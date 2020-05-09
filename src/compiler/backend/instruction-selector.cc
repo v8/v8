@@ -2662,12 +2662,12 @@ void InstructionSelector::VisitI32x4BitMask(Node* node) { UNIMPLEMENTED(); }
         // && !V8_TARGET_ARCH_X64
 
 // TODO(v8:10501) Prototyping pmin and pmax instructions.
-#if !V8_TARGET_ARCH_X64
+#if !V8_TARGET_ARCH_X64 && !V8_TARGET_ARCH_IA32
 void InstructionSelector::VisitF32x4Pmin(Node* node) { UNIMPLEMENTED(); }
 void InstructionSelector::VisitF32x4Pmax(Node* node) { UNIMPLEMENTED(); }
 void InstructionSelector::VisitF64x2Pmin(Node* node) { UNIMPLEMENTED(); }
 void InstructionSelector::VisitF64x2Pmax(Node* node) { UNIMPLEMENTED(); }
-#endif  // !V8_TARGET_ARCH_X64
+#endif  // !V8_TARGET_ARCH_X64 && !V8_TARGET_ARCH_IA32
 
 void InstructionSelector::VisitFinishRegion(Node* node) { EmitIdentity(node); }
 
