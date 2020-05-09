@@ -164,10 +164,6 @@ class V8_EXPORT_PRIVATE TurboAssembler : public TurboAssemblerBase {
   void BranchTrueF(Register rs, Label* target);
   void BranchFalseF(Register rs, Label* target);
 
-  // MSA branches
-  void BranchMSA(Label* target, MSABranchDF df, MSABranchCondition cond,
-                 MSARegister wt);
-
   void Branch(Label* L, Condition cond, Register rs, RootIndex index);
 
   static int InstrCountForLi64Bit(int64_t value);
@@ -961,23 +957,6 @@ class V8_EXPORT_PRIVATE MacroAssembler : public TurboAssembler {
   void Madd_d(FPURegister fd, FPURegister fr, FPURegister fs, FPURegister ft);
   void Msub_s(FPURegister fd, FPURegister fr, FPURegister fs, FPURegister ft);
   void Msub_d(FPURegister fd, FPURegister fr, FPURegister fs, FPURegister ft);
-
-  void BranchShortMSA(MSABranchDF df, Label* target, MSABranchCondition cond,
-                      MSARegister wt);
-
-  /*
-    // Truncates a double using a specific rounding mode, and writes the value
-    // to the result register.
-    // The except_flag will contain any exceptions caused by the instruction.
-    // If check_inexact is kDontCheckForInexactConversion, then the inexact
-    // exception is masked.
-    void EmitFPUTruncate(
-        FPURoundingMode rounding_mode, Register result,
-        DoubleRegister double_input, Register scratch,
-        DoubleRegister double_scratch, Register except_flag,
-        CheckForInexactConversion check_inexact =
-    kDontCheckForInexactConversion);
-  */
 
   // Enter exit frame.
   // argc - argument count to be dropped by LeaveExitFrame.

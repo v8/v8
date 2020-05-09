@@ -262,6 +262,7 @@ enum MSARegisterCode {
 };
 
 // MIPS SIMD (MSA) register
+// FIXME (RISCV)
 class MSARegister : public RegisterBase<MSARegister, kMsaAfterLast> {
   friend class RegisterBase;
   explicit constexpr MSARegister(int code) : RegisterBase(code) {}
@@ -311,60 +312,6 @@ constexpr DoubleRegister kDoubleRegZero = fs9;
 // Used on mips64r6 for compare operations.
 // We use the last non-callee saved odd register for N64 ABI
 constexpr DoubleRegister kDoubleCompareReg = fs4;
-
-// MSA zero and scratch regs must have the same numbers as FPU zero and scratch
-constexpr Simd128Register kSimd128RegZero = w28;
-constexpr Simd128Register kSimd128ScratchReg = w30;
-
-// FPU (coprocessor 1) control registers.
-// Currently only FCSR (#31) is implemented.
-struct FPUControlRegister {
-  bool is_valid() const { return reg_code == kFCSRRegister; }
-  bool is(FPUControlRegister creg) const { return reg_code == creg.reg_code; }
-  int code() const {
-    DCHECK(is_valid());
-    return reg_code;
-  }
-  int bit() const {
-    DCHECK(is_valid());
-    return 1 << reg_code;
-  }
-  void setcode(int f) {
-    reg_code = f;
-    DCHECK(is_valid());
-  }
-  // Unfortunately we can't make this private in a struct.
-  int reg_code;
-};
-
-constexpr FPUControlRegister no_fpucreg = {kInvalidFPUControlRegister};
-constexpr FPUControlRegister FCSR = {kFCSRRegister};
-
-// MSA control registers
-struct MSAControlRegister {
-  bool is_valid() const {
-    return (reg_code == kMSAIRRegister) || (reg_code == kMSACSRRegister);
-  }
-  bool is(MSAControlRegister creg) const { return reg_code == creg.reg_code; }
-  int code() const {
-    DCHECK(is_valid());
-    return reg_code;
-  }
-  int bit() const {
-    DCHECK(is_valid());
-    return 1 << reg_code;
-  }
-  void setcode(int f) {
-    reg_code = f;
-    DCHECK(is_valid());
-  }
-  // Unfortunately we can't make this private in a struct.
-  int reg_code;
-};
-
-constexpr MSAControlRegister no_msacreg = {kInvalidMSAControlRegister};
-constexpr MSAControlRegister MSAIR = {kMSAIRRegister};
-constexpr MSAControlRegister MSACSR = {kMSACSRRegister};
 
 // Define {RegisterName} methods for the register types.
 DEFINE_REGISTER_NAMES(Register, GENERAL_REGISTERS)

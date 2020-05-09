@@ -2115,11 +2115,6 @@ void TurboAssembler::BranchFalseF(Register rs, Label* target) {
   }
 }
 
-void TurboAssembler::BranchMSA(Label* target, MSABranchDF df,
-                               MSABranchCondition cond, MSARegister wt) {
-  UNREACHABLE();
-}
-
 void TurboAssembler::FmoveHigh(FPURegister dst, Register src_high) {
   UseScratchRegisterScope temps(this);
   Register scratch = temps.Acquire();

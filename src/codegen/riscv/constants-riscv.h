@@ -121,29 +121,6 @@ const int kPCRegister = 34;
 const int kNumFPURegisters = 32;
 const int kInvalidFPURegister = -1;
 
-// Number of MSA registers
-const int kNumMSARegisters = 32;
-const int kInvalidMSARegister = -1;
-
-const int kInvalidMSAControlRegister = -1;
-const int kMSAIRRegister = 0;
-const int kMSACSRRegister = 1;
-const int kMSARegSize = 128;
-const int kMSALanesByte = kMSARegSize / 8;
-const int kMSALanesHalf = kMSARegSize / 16;
-const int kMSALanesWord = kMSARegSize / 32;
-const int kMSALanesDword = kMSARegSize / 64;
-
-// FPU (coprocessor 1) control registers. Currently only FCSR is implemented.
-const int kFCSRRegister = 31;
-const int kInvalidFPUControlRegister = -1;
-const uint32_t kFPUInvalidResult = static_cast<uint32_t>(1u << 31) - 1;
-const int32_t kFPUInvalidResultNegative = static_cast<int32_t>(1u << 31);
-const uint64_t kFPU64InvalidResult =
-    static_cast<uint64_t>(static_cast<uint64_t>(1) << 63) - 1;
-const int64_t kFPU64InvalidResultNegative =
-    static_cast<int64_t>(static_cast<uint64_t>(1) << 63);
-
 // 'pref' instruction hints
 const int32_t kPrefHintLoad = 0;
 const int32_t kPrefHintStore = 1;
@@ -197,25 +174,6 @@ class FPURegisters {
 
  private:
   static const char* names_[kNumFPURegisters];
-  static const RegisterAlias aliases_[];
-};
-
-// Helper functions for converting between register numbers and names.
-class MSARegisters {
- public:
-  // Return the name of the register.
-  static const char* Name(int reg);
-
-  // Lookup the register number for the name provided.
-  static int Number(const char* name);
-
-  struct RegisterAlias {
-    int creg;
-    const char* name;
-  };
-
- private:
-  static const char* names_[kNumMSARegisters];
   static const RegisterAlias aliases_[];
 };
 
@@ -312,120 +270,18 @@ const int kFcsrBits = kFcsrFlagsBits + kFcsrFrmBits;
 const int kFcsrMask = kFcsrFlagsMask | kFcsrFrmMask;
 
 // Original MIPS constants
+// FIXME (RISCV): to be cleaned up
 const int kOpcodeShift = 26;
-const int kOpcodeBits = 6;
-const int kRsShift = 21;
-const int kRsBits = 5;
-const int kRtShift = 16;
-const int kRtBits = 5;
-const int kRdShift = 11;
-const int kRdBits = 5;
-const int kSaShift = 6;
-const int kSaBits = 5;
-const int kLsaSaBits = 2;
-const int kFunctionShift = 0;
-const int kFunctionBits = 6;
-const int kLuiShift = 16;
-const int kBp2Shift = 6;
-const int kBp2Bits = 2;
-const int kBp3Shift = 6;
-const int kBp3Bits = 3;
-const int kBaseShift = 21;
-const int kBaseBits = 5;
-const int kBit6Shift = 6;
-const int kBit6Bits = 1;
-
-const int kImm9Shift = 7;
-const int kImm9Bits = 9;
 const int kImm16Shift = 0;
 const int kImm16Bits = 16;
-const int kImm18Shift = 0;
-const int kImm18Bits = 18;
-const int kImm19Shift = 0;
-const int kImm19Bits = 19;
-const int kImm21Shift = 0;
-const int kImm21Bits = 21;
 const int kImm26Shift = 0;
 const int kImm26Bits = 26;
 const int kImm28Shift = 0;
 const int kImm28Bits = 28;
-const int kImm32Shift = 0;
-const int kImm32Bits = 32;
-const int kMsaImm8Shift = 16;
-const int kMsaImm8Bits = 8;
-const int kMsaImm5Shift = 16;
-const int kMsaImm5Bits = 5;
-const int kMsaImm10Shift = 11;
-const int kMsaImm10Bits = 10;
-const int kMsaImmMI10Shift = 16;
-const int kMsaImmMI10Bits = 10;
-
-// In branches and jumps immediate fields point to words, not bytes,
-// and are therefore shifted by 2.
-const int kImmFieldShift = 2;
-
-const int kFrBits = 5;
-const int kFrShift = 21;
-const int kFsShift = 11;
-const int kFsBits = 5;
-const int kFtShift = 16;
-const int kFtBits = 5;
-const int kFdShift = 6;
-const int kFdBits = 5;
-const int kFCccShift = 8;
-const int kFCccBits = 3;
-const int kFBccShift = 18;
-const int kFBccBits = 3;
-const int kFBtrueShift = 16;
-const int kFBtrueBits = 1;
-const int kWtBits = 5;
-const int kWtShift = 16;
-const int kWsBits = 5;
-const int kWsShift = 11;
-const int kWdBits = 5;
-const int kWdShift = 6;
-
-// ----- Miscellaneous useful masks.
-// Instruction bit masks.
-const int kOpcodeMask = ((1 << kOpcodeBits) - 1) << kOpcodeShift;
-const int kImm9Mask = ((1 << kImm9Bits) - 1) << kImm9Shift;
 const int kImm16Mask = ((1 << kImm16Bits) - 1) << kImm16Shift;
-const int kImm18Mask = ((1 << kImm18Bits) - 1) << kImm18Shift;
-const int kImm19Mask = ((1 << kImm19Bits) - 1) << kImm19Shift;
-const int kImm21Mask = ((1 << kImm21Bits) - 1) << kImm21Shift;
 const int kImm26Mask = ((1 << kImm26Bits) - 1) << kImm26Shift;
 const int kImm28Mask = ((1 << kImm28Bits) - 1) << kImm28Shift;
-const int kImm5Mask = ((1 << 5) - 1);
-const int kImm8Mask = ((1 << 8) - 1);
-const int kImm10Mask = ((1 << 10) - 1);
-const int kMsaI5I10Mask = ((7U << 23) | ((1 << 6) - 1));
-const int kMsaI8Mask = ((3U << 24) | ((1 << 6) - 1));
-const int kMsaI5Mask = ((7U << 23) | ((1 << 6) - 1));
-const int kMsaMI10Mask = (15U << 2);
-const int kMsaBITMask = ((7U << 23) | ((1 << 6) - 1));
-const int kMsaELMMask = (15U << 22);
-const int kMsaLongerELMMask = kMsaELMMask | (63U << 16);
-const int kMsa3RMask = ((7U << 23) | ((1 << 6) - 1));
-const int kMsa3RFMask = ((15U << 22) | ((1 << 6) - 1));
-const int kMsaVECMask = (23U << 21);
-const int kMsa2RMask = (7U << 18);
-const int kMsa2RFMask = (15U << 17);
-const int kRsFieldMask = ((1 << kRsBits) - 1) << kRsShift;
-const int kRtFieldMask = ((1 << kRtBits) - 1) << kRtShift;
-const int kRdFieldMask = ((1 << kRdBits) - 1) << kRdShift;
-const int kSaFieldMask = ((1 << kSaBits) - 1) << kSaShift;
-const int kFunctionFieldMask = ((1 << kFunctionBits) - 1) << kFunctionShift;
-// Misc masks.
-const int kHiMaskOf32 = 0xffff << 16;  // Only to be used with 32-bit values
-const int kLoMaskOf32 = 0xffff;
-const int kSignMaskOf32 = 0x80000000;  // Only to be used with 32-bit values
-const int kJumpAddrMask = (1 << (kImm26Bits + kImmFieldShift)) - 1;
-const int64_t kTop16MaskOf64 = (int64_t)0xffff << 48;
-const int64_t kHigher16MaskOf64 = (int64_t)0xffff << 32;
-const int64_t kUpper16MaskOf64 = (int64_t)0xffff << 16;
-const int32_t kJalRawMark = 0x00000000;
-const int32_t kJRawMark = 0xf0000000;
-const int32_t kJumpRawMask = 0xf0000000;
+// end of FIXME (RISCV): to be cleaned up
 
 // ----- RISCV Base Opcodes
 
@@ -645,634 +501,15 @@ enum Opcode : uint32_t {
                (0b00000 << kRs2Shift),
 
   // Original MIPS opcodes
+  // FIXME (RISCV): to be cleaned up
   SPECIAL = 0U << kOpcodeShift,
-  REGIMM = 1U << kOpcodeShift,
-
-  J = ((0U << 3) + 2) << kOpcodeShift,
-  JAL = ((0U << 3) + 3) << kOpcodeShift,
-  BEQ = ((0U << 3) + 4) << kOpcodeShift,
-  BNE = ((0U << 3) + 5) << kOpcodeShift,
-  BLEZ = ((0U << 3) + 6) << kOpcodeShift,
-  BGTZ = ((0U << 3) + 7) << kOpcodeShift,
-
-  ADDI = ((1U << 3) + 0) << kOpcodeShift,
-  ADDIU = ((1U << 3) + 1) << kOpcodeShift,
-  SLTI = ((1U << 3) + 2) << kOpcodeShift,
-  SLTIU = ((1U << 3) + 3) << kOpcodeShift,
-  ANDI = ((1U << 3) + 4) << kOpcodeShift,
-  ORI = ((1U << 3) + 5) << kOpcodeShift,
-  XORI = ((1U << 3) + 6) << kOpcodeShift,
-  LUI = ((1U << 3) + 7) << kOpcodeShift,  // LUI/AUI family.
-  DAUI = ((3U << 3) + 5) << kOpcodeShift,
-
-  BEQC = ((2U << 3) + 0) << kOpcodeShift,
-  COP1 = ((2U << 3) + 1) << kOpcodeShift,  // Coprocessor 1 class.
-  BEQL = ((2U << 3) + 4) << kOpcodeShift,
-  BNEL = ((2U << 3) + 5) << kOpcodeShift,
-  BLEZL = ((2U << 3) + 6) << kOpcodeShift,
-  BGTZL = ((2U << 3) + 7) << kOpcodeShift,
-
-  DADDI = ((3U << 3) + 0) << kOpcodeShift,  // This is also BNEC.
-  DADDIU = ((3U << 3) + 1) << kOpcodeShift,
-  LDL = ((3U << 3) + 2) << kOpcodeShift,
-  LDR = ((3U << 3) + 3) << kOpcodeShift,
-  SPECIAL2 = ((3U << 3) + 4) << kOpcodeShift,
-  MSA = ((3U << 3) + 6) << kOpcodeShift,
-  SPECIAL3 = ((3U << 3) + 7) << kOpcodeShift,
-
-  LB = ((4U << 3) + 0) << kOpcodeShift,
-  LH = ((4U << 3) + 1) << kOpcodeShift,
-  LWL = ((4U << 3) + 2) << kOpcodeShift,
-  LW = ((4U << 3) + 3) << kOpcodeShift,
-  LBU = ((4U << 3) + 4) << kOpcodeShift,
-  LHU = ((4U << 3) + 5) << kOpcodeShift,
-  LWR = ((4U << 3) + 6) << kOpcodeShift,
-  LWU = ((4U << 3) + 7) << kOpcodeShift,
-
-  SB = ((5U << 3) + 0) << kOpcodeShift,
-  SH = ((5U << 3) + 1) << kOpcodeShift,
-  SWL = ((5U << 3) + 2) << kOpcodeShift,
-  SW = ((5U << 3) + 3) << kOpcodeShift,
-  SDL = ((5U << 3) + 4) << kOpcodeShift,
-  SDR = ((5U << 3) + 5) << kOpcodeShift,
-  SWR = ((5U << 3) + 6) << kOpcodeShift,
-
-  LL = ((6U << 3) + 0) << kOpcodeShift,
-  LWC1 = ((6U << 3) + 1) << kOpcodeShift,
-  BC = ((6U << 3) + 2) << kOpcodeShift,
-  LLD = ((6U << 3) + 4) << kOpcodeShift,
-  LDC1 = ((6U << 3) + 5) << kOpcodeShift,
-  POP66 = ((6U << 3) + 6) << kOpcodeShift,
-  LD = ((6U << 3) + 7) << kOpcodeShift,
-
-  PREF = ((6U << 3) + 3) << kOpcodeShift,
-
-  SC = ((7U << 3) + 0) << kOpcodeShift,
-  SWC1 = ((7U << 3) + 1) << kOpcodeShift,
-  BALC = ((7U << 3) + 2) << kOpcodeShift,
-  PCREL = ((7U << 3) + 3) << kOpcodeShift,
-  SCD = ((7U << 3) + 4) << kOpcodeShift,
-  SDC1 = ((7U << 3) + 5) << kOpcodeShift,
-  POP76 = ((7U << 3) + 6) << kOpcodeShift,
-  SD = ((7U << 3) + 7) << kOpcodeShift,
-
-  COP1X = ((1U << 4) + 3) << kOpcodeShift,
-
-  // New r6 instruction.
-  POP06 = BLEZ,   // bgeuc/bleuc, blezalc, bgezalc
-  POP07 = BGTZ,   // bltuc/bgtuc, bgtzalc, bltzalc
-  POP10 = ADDI,   // beqzalc, bovc, beqc
-  POP26 = BLEZL,  // bgezc, blezc, bgec/blec
-  POP27 = BGTZL,  // bgtzc, bltzc, bltc/bgtc
-  POP30 = DADDI,  // bnezalc, bnvc, bnec
 };
 
+// FIXME (RISCV): to be cleaned up
 enum SecondaryField : uint32_t {
   // SPECIAL Encoding of Function Field.
   SLL = ((0U << 3) + 0),
-  MOVCI = ((0U << 3) + 1),
-  SRL = ((0U << 3) + 2),
-  SRA = ((0U << 3) + 3),
-  SLLV = ((0U << 3) + 4),
-  LSA = ((0U << 3) + 5),
-  SRLV = ((0U << 3) + 6),
-  SRAV = ((0U << 3) + 7),
-
-  JR = ((1U << 3) + 0),
-  JALR = ((1U << 3) + 1),
-  MOVZ = ((1U << 3) + 2),
-  MOVN = ((1U << 3) + 3),
   BREAK = ((1U << 3) + 5),
-  SYNC = ((1U << 3) + 7),
-
-  MFHI = ((2U << 3) + 0),
-  CLZ_R6 = ((2U << 3) + 0),
-  CLO_R6 = ((2U << 3) + 1),
-  MFLO = ((2U << 3) + 2),
-  DCLZ_R6 = ((2U << 3) + 2),
-  DCLO_R6 = ((2U << 3) + 3),
-  DSLLV = ((2U << 3) + 4),
-  DLSA = ((2U << 3) + 5),
-  DSRLV = ((2U << 3) + 6),
-  DSRAV = ((2U << 3) + 7),
-
-  MULT = ((3U << 3) + 0),
-  MULTU = ((3U << 3) + 1),
-  DIV = ((3U << 3) + 2),
-  DIVU = ((3U << 3) + 3),
-  DMULT = ((3U << 3) + 4),
-  DMULTU = ((3U << 3) + 5),
-  DDIV = ((3U << 3) + 6),
-  DDIVU = ((3U << 3) + 7),
-
-  ADD = ((4U << 3) + 0),
-  ADDU = ((4U << 3) + 1),
-  SUB = ((4U << 3) + 2),
-  SUBU = ((4U << 3) + 3),
-  AND = ((4U << 3) + 4),
-  OR = ((4U << 3) + 5),
-  XOR = ((4U << 3) + 6),
-  NOR = ((4U << 3) + 7),
-
-  SLT = ((5U << 3) + 2),
-  SLTU = ((5U << 3) + 3),
-  DADD = ((5U << 3) + 4),
-  DADDU = ((5U << 3) + 5),
-  DSUB = ((5U << 3) + 6),
-  DSUBU = ((5U << 3) + 7),
-
-  TGE = ((6U << 3) + 0),
-  TGEU = ((6U << 3) + 1),
-  TLT = ((6U << 3) + 2),
-  TLTU = ((6U << 3) + 3),
-  TEQ = ((6U << 3) + 4),
-  SELEQZ_S = ((6U << 3) + 5),
-  TNE = ((6U << 3) + 6),
-  SELNEZ_S = ((6U << 3) + 7),
-
-  DSLL = ((7U << 3) + 0),
-  DSRL = ((7U << 3) + 2),
-  DSRA = ((7U << 3) + 3),
-  DSLL32 = ((7U << 3) + 4),
-  DSRL32 = ((7U << 3) + 6),
-  DSRA32 = ((7U << 3) + 7),
-
-  // Multiply integers in r6.
-  MUL_MUH = ((3U << 3) + 0),      // MUL, MUH.
-  MUL_MUH_U = ((3U << 3) + 1),    // MUL_U, MUH_U.
-  D_MUL_MUH = ((7U << 2) + 0),    // DMUL, DMUH.
-  D_MUL_MUH_U = ((7U << 2) + 1),  // DMUL_U, DMUH_U.
-  RINT = ((3U << 3) + 2),
-
-  MUL_OP = ((0U << 3) + 2),
-  MUH_OP = ((0U << 3) + 3),
-  DIV_OP = ((0U << 3) + 2),
-  MOD_OP = ((0U << 3) + 3),
-
-  DIV_MOD = ((3U << 3) + 2),
-  DIV_MOD_U = ((3U << 3) + 3),
-  D_DIV_MOD = ((3U << 3) + 6),
-  D_DIV_MOD_U = ((3U << 3) + 7),
-
-  // drotr in special4?
-
-  // SPECIAL2 Encoding of Function Field.
-  MUL = ((0U << 3) + 2),
-  CLZ = ((4U << 3) + 0),
-  CLO = ((4U << 3) + 1),
-  DCLZ = ((4U << 3) + 4),
-  DCLO = ((4U << 3) + 5),
-
-  // SPECIAL3 Encoding of Function Field.
-  EXT = ((0U << 3) + 0),
-  DEXTM = ((0U << 3) + 1),
-  DEXTU = ((0U << 3) + 2),
-  DEXT = ((0U << 3) + 3),
-  INS = ((0U << 3) + 4),
-  DINSM = ((0U << 3) + 5),
-  DINSU = ((0U << 3) + 6),
-  DINS = ((0U << 3) + 7),
-
-  BSHFL = ((4U << 3) + 0),
-  DBSHFL = ((4U << 3) + 4),
-  SC_R6 = ((4U << 3) + 6),
-  SCD_R6 = ((4U << 3) + 7),
-  LL_R6 = ((6U << 3) + 6),
-  LLD_R6 = ((6U << 3) + 7),
-
-  // SPECIAL3 Encoding of sa Field.
-  BITSWAP = ((0U << 3) + 0),
-  ALIGN = ((0U << 3) + 2),
-  WSBH = ((0U << 3) + 2),
-  SEB = ((2U << 3) + 0),
-  SEH = ((3U << 3) + 0),
-
-  DBITSWAP = ((0U << 3) + 0),
-  DALIGN = ((0U << 3) + 1),
-  DBITSWAP_SA = ((0U << 3) + 0) << kSaShift,
-  DSBH = ((0U << 3) + 2),
-  DSHD = ((0U << 3) + 5),
-
-  // REGIMM  encoding of rt Field.
-  BLTZ = ((0U << 3) + 0) << 16,
-  BGEZ = ((0U << 3) + 1) << 16,
-  BLTZAL = ((2U << 3) + 0) << 16,
-  BGEZAL = ((2U << 3) + 1) << 16,
-  BGEZALL = ((2U << 3) + 3) << 16,
-  DAHI = ((0U << 3) + 6) << 16,
-  DATI = ((3U << 3) + 6) << 16,
-
-  // COP1 Encoding of rs Field.
-  MFC1 = ((0U << 3) + 0) << 21,
-  DMFC1 = ((0U << 3) + 1) << 21,
-  CFC1 = ((0U << 3) + 2) << 21,
-  MFHC1 = ((0U << 3) + 3) << 21,
-  MTC1 = ((0U << 3) + 4) << 21,
-  DMTC1 = ((0U << 3) + 5) << 21,
-  CTC1 = ((0U << 3) + 6) << 21,
-  MTHC1 = ((0U << 3) + 7) << 21,
-  BC1 = ((1U << 3) + 0) << 21,
-  S = ((2U << 3) + 0) << 21,
-  D = ((2U << 3) + 1) << 21,
-  W = ((2U << 3) + 4) << 21,
-  L = ((2U << 3) + 5) << 21,
-  PS = ((2U << 3) + 6) << 21,
-  // COP1 Encoding of Function Field When rs=S.
-
-  ADD_S = ((0U << 3) + 0),
-  SUB_S = ((0U << 3) + 1),
-  MUL_S = ((0U << 3) + 2),
-  DIV_S = ((0U << 3) + 3),
-  ABS_S = ((0U << 3) + 5),
-  SQRT_S = ((0U << 3) + 4),
-  MOV_S = ((0U << 3) + 6),
-  NEG_S = ((0U << 3) + 7),
-  ROUND_L_S = ((1U << 3) + 0),
-  TRUNC_L_S = ((1U << 3) + 1),
-  CEIL_L_S = ((1U << 3) + 2),
-  FLOOR_L_S = ((1U << 3) + 3),
-  ROUND_W_S = ((1U << 3) + 4),
-  TRUNC_W_S = ((1U << 3) + 5),
-  CEIL_W_S = ((1U << 3) + 6),
-  FLOOR_W_S = ((1U << 3) + 7),
-  RECIP_S = ((2U << 3) + 5),
-  RSQRT_S = ((2U << 3) + 6),
-  MADDF_S = ((3U << 3) + 0),
-  MSUBF_S = ((3U << 3) + 1),
-  CLASS_S = ((3U << 3) + 3),
-  CVT_D_S = ((4U << 3) + 1),
-  CVT_W_S = ((4U << 3) + 4),
-  CVT_L_S = ((4U << 3) + 5),
-  CVT_PS_S = ((4U << 3) + 6),
-  // COP1 Encoding of Function Field When rs=D.
-  ADD_D = ((0U << 3) + 0),
-  SUB_D = ((0U << 3) + 1),
-  MUL_D = ((0U << 3) + 2),
-  DIV_D = ((0U << 3) + 3),
-  SQRT_D = ((0U << 3) + 4),
-  ABS_D = ((0U << 3) + 5),
-  MOV_D = ((0U << 3) + 6),
-  NEG_D = ((0U << 3) + 7),
-  ROUND_L_D = ((1U << 3) + 0),
-  TRUNC_L_D = ((1U << 3) + 1),
-  CEIL_L_D = ((1U << 3) + 2),
-  FLOOR_L_D = ((1U << 3) + 3),
-  ROUND_W_D = ((1U << 3) + 4),
-  TRUNC_W_D = ((1U << 3) + 5),
-  CEIL_W_D = ((1U << 3) + 6),
-  FLOOR_W_D = ((1U << 3) + 7),
-  RECIP_D = ((2U << 3) + 5),
-  RSQRT_D = ((2U << 3) + 6),
-  MADDF_D = ((3U << 3) + 0),
-  MSUBF_D = ((3U << 3) + 1),
-  CLASS_D = ((3U << 3) + 3),
-  MIN = ((3U << 3) + 4),
-  MINA = ((3U << 3) + 5),
-  MAX = ((3U << 3) + 6),
-  MAXA = ((3U << 3) + 7),
-  CVT_S_D = ((4U << 3) + 0),
-  CVT_W_D = ((4U << 3) + 4),
-  CVT_L_D = ((4U << 3) + 5),
-  C_F_D = ((6U << 3) + 0),
-  C_UN_D = ((6U << 3) + 1),
-  C_EQ_D = ((6U << 3) + 2),
-  C_UEQ_D = ((6U << 3) + 3),
-  C_OLT_D = ((6U << 3) + 4),
-  C_ULT_D = ((6U << 3) + 5),
-  C_OLE_D = ((6U << 3) + 6),
-  C_ULE_D = ((6U << 3) + 7),
-
-  // COP1 Encoding of Function Field When rs=W or L.
-  CVT_S_W = ((4U << 3) + 0),
-  CVT_D_W = ((4U << 3) + 1),
-  CVT_S_L = ((4U << 3) + 0),
-  CVT_D_L = ((4U << 3) + 1),
-  BC1EQZ = ((2U << 2) + 1) << 21,
-  BC1NEZ = ((3U << 2) + 1) << 21,
-  // COP1 CMP positive predicates Bit 5..4 = 00.
-  CMP_AF = ((0U << 3) + 0),
-  CMP_UN = ((0U << 3) + 1),
-  CMP_EQ = ((0U << 3) + 2),
-  CMP_UEQ = ((0U << 3) + 3),
-  CMP_LT = ((0U << 3) + 4),
-  CMP_ULT = ((0U << 3) + 5),
-  CMP_LE = ((0U << 3) + 6),
-  CMP_ULE = ((0U << 3) + 7),
-  CMP_SAF = ((1U << 3) + 0),
-  CMP_SUN = ((1U << 3) + 1),
-  CMP_SEQ = ((1U << 3) + 2),
-  CMP_SUEQ = ((1U << 3) + 3),
-  CMP_SSLT = ((1U << 3) + 4),
-  CMP_SSULT = ((1U << 3) + 5),
-  CMP_SLE = ((1U << 3) + 6),
-  CMP_SULE = ((1U << 3) + 7),
-  // COP1 CMP negative predicates Bit 5..4 = 01.
-  CMP_AT = ((2U << 3) + 0),  // Reserved, not implemented.
-  CMP_OR = ((2U << 3) + 1),
-  CMP_UNE = ((2U << 3) + 2),
-  CMP_NE = ((2U << 3) + 3),
-  CMP_UGE = ((2U << 3) + 4),  // Reserved, not implemented.
-  CMP_OGE = ((2U << 3) + 5),  // Reserved, not implemented.
-  CMP_UGT = ((2U << 3) + 6),  // Reserved, not implemented.
-  CMP_OGT = ((2U << 3) + 7),  // Reserved, not implemented.
-  CMP_SAT = ((3U << 3) + 0),  // Reserved, not implemented.
-  CMP_SOR = ((3U << 3) + 1),
-  CMP_SUNE = ((3U << 3) + 2),
-  CMP_SNE = ((3U << 3) + 3),
-  CMP_SUGE = ((3U << 3) + 4),  // Reserved, not implemented.
-  CMP_SOGE = ((3U << 3) + 5),  // Reserved, not implemented.
-  CMP_SUGT = ((3U << 3) + 6),  // Reserved, not implemented.
-  CMP_SOGT = ((3U << 3) + 7),  // Reserved, not implemented.
-
-  SEL = ((2U << 3) + 0),
-  MOVF = ((2U << 3) + 1),      // Function field for MOVT.fmt and MOVF.fmt
-  MOVZ_C = ((2U << 3) + 2),    // COP1 on FPR registers.
-  MOVN_C = ((2U << 3) + 3),    // COP1 on FPR registers.
-  SELEQZ_C = ((2U << 3) + 4),  // COP1 on FPR registers.
-  SELNEZ_C = ((2U << 3) + 7),  // COP1 on FPR registers.
-
-  // COP1 Encoding of Function Field When rs=PS.
-
-  // COP1X Encoding of Function Field.
-  MADD_S = ((4U << 3) + 0),
-  MADD_D = ((4U << 3) + 1),
-  MSUB_S = ((5U << 3) + 0),
-  MSUB_D = ((5U << 3) + 1),
-
-  // PCREL Encoding of rt Field.
-  ADDIUPC = ((0U << 2) + 0),
-  LWPC = ((0U << 2) + 1),
-  LWUPC = ((0U << 2) + 2),
-  LDPC = ((0U << 3) + 6),
-  // reserved ((1U << 3) + 6),
-  AUIPC = ((3U << 3) + 6),
-  ALUIPC = ((3U << 3) + 7),
-
-  // POP66 Encoding of rs Field.
-  JIC = ((0U << 5) + 0),
-
-  // POP76 Encoding of rs Field.
-  JIALC = ((0U << 5) + 0),
-
-  // COP1 Encoding of rs Field for MSA Branch Instructions
-  BZ_V = (((1U << 3) + 3) << kRsShift),
-  BNZ_V = (((1U << 3) + 7) << kRsShift),
-  BZ_B = (((3U << 3) + 0) << kRsShift),
-  BZ_H = (((3U << 3) + 1) << kRsShift),
-  BZ_W = (((3U << 3) + 2) << kRsShift),
-  BZ_D = (((3U << 3) + 3) << kRsShift),
-  BNZ_B = (((3U << 3) + 4) << kRsShift),
-  BNZ_H = (((3U << 3) + 5) << kRsShift),
-  BNZ_W = (((3U << 3) + 6) << kRsShift),
-  BNZ_D = (((3U << 3) + 7) << kRsShift),
-
-  // MSA: Operation Field for MI10 Instruction Formats
-  MSA_LD = (8U << 2),
-  MSA_ST = (9U << 2),
-  LD_B = ((8U << 2) + 0),
-  LD_H = ((8U << 2) + 1),
-  LD_W = ((8U << 2) + 2),
-  LD_D = ((8U << 2) + 3),
-  ST_B = ((9U << 2) + 0),
-  ST_H = ((9U << 2) + 1),
-  ST_W = ((9U << 2) + 2),
-  ST_D = ((9U << 2) + 3),
-
-  // MSA: Operation Field for I5 Instruction Format
-  ADDVI = ((0U << 23) + 6),
-  SUBVI = ((1U << 23) + 6),
-  MAXI_S = ((2U << 23) + 6),
-  MAXI_U = ((3U << 23) + 6),
-  MINI_S = ((4U << 23) + 6),
-  MINI_U = ((5U << 23) + 6),
-  CEQI = ((0U << 23) + 7),
-  CLTI_S = ((2U << 23) + 7),
-  CLTI_U = ((3U << 23) + 7),
-  CLEI_S = ((4U << 23) + 7),
-  CLEI_U = ((5U << 23) + 7),
-  LDI = ((6U << 23) + 7),  // I10 instruction format
-  I5_DF_b = (0U << 21),
-  I5_DF_h = (1U << 21),
-  I5_DF_w = (2U << 21),
-  I5_DF_d = (3U << 21),
-
-  // MSA: Operation Field for I8 Instruction Format
-  ANDI_B = ((0U << 24) + 0),
-  ORI_B = ((1U << 24) + 0),
-  NORI_B = ((2U << 24) + 0),
-  XORI_B = ((3U << 24) + 0),
-  BMNZI_B = ((0U << 24) + 1),
-  BMZI_B = ((1U << 24) + 1),
-  BSELI_B = ((2U << 24) + 1),
-  SHF_B = ((0U << 24) + 2),
-  SHF_H = ((1U << 24) + 2),
-  SHF_W = ((2U << 24) + 2),
-
-  MSA_VEC_2R_2RF_MINOR = ((3U << 3) + 6),
-
-  // MSA: Operation Field for VEC Instruction Formats
-  AND_V = (((0U << 2) + 0) << 21),
-  OR_V = (((0U << 2) + 1) << 21),
-  NOR_V = (((0U << 2) + 2) << 21),
-  XOR_V = (((0U << 2) + 3) << 21),
-  BMNZ_V = (((1U << 2) + 0) << 21),
-  BMZ_V = (((1U << 2) + 1) << 21),
-  BSEL_V = (((1U << 2) + 2) << 21),
-
-  // MSA: Operation Field for 2R Instruction Formats
-  MSA_2R_FORMAT = (((6U << 2) + 0) << 21),
-  FILL = (0U << 18),
-  PCNT = (1U << 18),
-  NLOC = (2U << 18),
-  NLZC = (3U << 18),
-  MSA_2R_DF_b = (0U << 16),
-  MSA_2R_DF_h = (1U << 16),
-  MSA_2R_DF_w = (2U << 16),
-  MSA_2R_DF_d = (3U << 16),
-
-  // MSA: Operation Field for 2RF Instruction Formats
-  MSA_2RF_FORMAT = (((6U << 2) + 1) << 21),
-  FCLASS = (0U << 17),
-  FTRUNC_S = (1U << 17),
-  FTRUNC_U = (2U << 17),
-  FSQRT = (3U << 17),
-  FRSQRT = (4U << 17),
-  FRCP = (5U << 17),
-  FRINT = (6U << 17),
-  FLOG2 = (7U << 17),
-  FEXUPL = (8U << 17),
-  FEXUPR = (9U << 17),
-  FFQL = (10U << 17),
-  FFQR = (11U << 17),
-  FTINT_S = (12U << 17),
-  FTINT_U = (13U << 17),
-  FFINT_S = (14U << 17),
-  FFINT_U = (15U << 17),
-  MSA_2RF_DF_w = (0U << 16),
-  MSA_2RF_DF_d = (1U << 16),
-
-  // MSA: Operation Field for 3R Instruction Format
-  SLL_MSA = ((0U << 23) + 13),
-  SRA_MSA = ((1U << 23) + 13),
-  SRL_MSA = ((2U << 23) + 13),
-  BCLR = ((3U << 23) + 13),
-  BSET = ((4U << 23) + 13),
-  BNEG = ((5U << 23) + 13),
-  BINSL = ((6U << 23) + 13),
-  BINSR = ((7U << 23) + 13),
-  ADDV = ((0U << 23) + 14),
-  SUBV = ((1U << 23) + 14),
-  MAX_S = ((2U << 23) + 14),
-  MAX_U = ((3U << 23) + 14),
-  MIN_S = ((4U << 23) + 14),
-  MIN_U = ((5U << 23) + 14),
-  MAX_A = ((6U << 23) + 14),
-  MIN_A = ((7U << 23) + 14),
-  CEQ = ((0U << 23) + 15),
-  CLT_S = ((2U << 23) + 15),
-  CLT_U = ((3U << 23) + 15),
-  CLE_S = ((4U << 23) + 15),
-  CLE_U = ((5U << 23) + 15),
-  ADD_A = ((0U << 23) + 16),
-  ADDS_A = ((1U << 23) + 16),
-  ADDS_S = ((2U << 23) + 16),
-  ADDS_U = ((3U << 23) + 16),
-  AVE_S = ((4U << 23) + 16),
-  AVE_U = ((5U << 23) + 16),
-  AVER_S = ((6U << 23) + 16),
-  AVER_U = ((7U << 23) + 16),
-  SUBS_S = ((0U << 23) + 17),
-  SUBS_U = ((1U << 23) + 17),
-  SUBSUS_U = ((2U << 23) + 17),
-  SUBSUU_S = ((3U << 23) + 17),
-  ASUB_S = ((4U << 23) + 17),
-  ASUB_U = ((5U << 23) + 17),
-  MULV = ((0U << 23) + 18),
-  MADDV = ((1U << 23) + 18),
-  MSUBV = ((2U << 23) + 18),
-  DIV_S_MSA = ((4U << 23) + 18),
-  DIV_U = ((5U << 23) + 18),
-  MOD_S = ((6U << 23) + 18),
-  MOD_U = ((7U << 23) + 18),
-  DOTP_S = ((0U << 23) + 19),
-  DOTP_U = ((1U << 23) + 19),
-  DPADD_S = ((2U << 23) + 19),
-  DPADD_U = ((3U << 23) + 19),
-  DPSUB_S = ((4U << 23) + 19),
-  DPSUB_U = ((5U << 23) + 19),
-  SLD = ((0U << 23) + 20),
-  SPLAT = ((1U << 23) + 20),
-  PCKEV = ((2U << 23) + 20),
-  PCKOD = ((3U << 23) + 20),
-  ILVL = ((4U << 23) + 20),
-  ILVR = ((5U << 23) + 20),
-  ILVEV = ((6U << 23) + 20),
-  ILVOD = ((7U << 23) + 20),
-  VSHF = ((0U << 23) + 21),
-  SRAR = ((1U << 23) + 21),
-  SRLR = ((2U << 23) + 21),
-  HADD_S = ((4U << 23) + 21),
-  HADD_U = ((5U << 23) + 21),
-  HSUB_S = ((6U << 23) + 21),
-  HSUB_U = ((7U << 23) + 21),
-  MSA_3R_DF_b = (0U << 21),
-  MSA_3R_DF_h = (1U << 21),
-  MSA_3R_DF_w = (2U << 21),
-  MSA_3R_DF_d = (3U << 21),
-
-  // MSA: Operation Field for 3RF Instruction Format
-  FCAF = ((0U << 22) + 26),
-  FCUN = ((1U << 22) + 26),
-  FCEQ = ((2U << 22) + 26),
-  FCUEQ = ((3U << 22) + 26),
-  FCLT = ((4U << 22) + 26),
-  FCULT = ((5U << 22) + 26),
-  FCLE = ((6U << 22) + 26),
-  FCULE = ((7U << 22) + 26),
-  FSAF = ((8U << 22) + 26),
-  FSUN = ((9U << 22) + 26),
-  FSEQ = ((10U << 22) + 26),
-  FSUEQ = ((11U << 22) + 26),
-  FSLT = ((12U << 22) + 26),
-  FSULT = ((13U << 22) + 26),
-  FSLE = ((14U << 22) + 26),
-  FSULE = ((15U << 22) + 26),
-  FADD = ((0U << 22) + 27),
-  FSUB = ((1U << 22) + 27),
-  FMUL = ((2U << 22) + 27),
-  FDIV = ((3U << 22) + 27),
-  FMADD = ((4U << 22) + 27),
-  FMSUB = ((5U << 22) + 27),
-  FEXP2 = ((7U << 22) + 27),
-  FEXDO = ((8U << 22) + 27),
-  FTQ = ((10U << 22) + 27),
-  FMIN = ((12U << 22) + 27),
-  FMIN_A = ((13U << 22) + 27),
-  FMAX = ((14U << 22) + 27),
-  FMAX_A = ((15U << 22) + 27),
-  FCOR = ((1U << 22) + 28),
-  FCUNE = ((2U << 22) + 28),
-  FCNE = ((3U << 22) + 28),
-  MUL_Q = ((4U << 22) + 28),
-  MADD_Q = ((5U << 22) + 28),
-  MSUB_Q = ((6U << 22) + 28),
-  FSOR = ((9U << 22) + 28),
-  FSUNE = ((10U << 22) + 28),
-  FSNE = ((11U << 22) + 28),
-  MULR_Q = ((12U << 22) + 28),
-  MADDR_Q = ((13U << 22) + 28),
-  MSUBR_Q = ((14U << 22) + 28),
-
-  // MSA: Operation Field for ELM Instruction Format
-  MSA_ELM_MINOR = ((3U << 3) + 1),
-  SLDI = (0U << 22),
-  CTCMSA = ((0U << 22) | (62U << 16)),
-  SPLATI = (1U << 22),
-  CFCMSA = ((1U << 22) | (62U << 16)),
-  COPY_S = (2U << 22),
-  MOVE_V = ((2U << 22) | (62U << 16)),
-  COPY_U = (3U << 22),
-  INSERT = (4U << 22),
-  INSVE = (5U << 22),
-  ELM_DF_B = ((0U << 4) << 16),
-  ELM_DF_H = ((4U << 3) << 16),
-  ELM_DF_W = ((12U << 2) << 16),
-  ELM_DF_D = ((28U << 1) << 16),
-
-  // MSA: Operation Field for BIT Instruction Format
-  SLLI = ((0U << 23) + 9),
-  SRAI = ((1U << 23) + 9),
-  SRLI = ((2U << 23) + 9),
-  BCLRI = ((3U << 23) + 9),
-  BSETI = ((4U << 23) + 9),
-  BNEGI = ((5U << 23) + 9),
-  BINSLI = ((6U << 23) + 9),
-  BINSRI = ((7U << 23) + 9),
-  SAT_S = ((0U << 23) + 10),
-  SAT_U = ((1U << 23) + 10),
-  SRARI = ((2U << 23) + 10),
-  SRLRI = ((3U << 23) + 10),
-  BIT_DF_b = ((14U << 3) << 16),
-  BIT_DF_h = ((6U << 4) << 16),
-  BIT_DF_w = ((2U << 5) << 16),
-  BIT_DF_d = ((0U << 6) << 16),
-
-  nullptrSF = 0U
-};
-
-enum MSAMinorOpcode : uint32_t {
-  kMsaMinorUndefined = 0,
-  kMsaMinorI8,
-  kMsaMinorI5,
-  kMsaMinorI10,
-  kMsaMinorBIT,
-  kMsaMinor3R,
-  kMsaMinor3RF,
-  kMsaMinorELM,
-  kMsaMinorVEC,
-  kMsaMinor2R,
-  kMsaMinor2RF,
-  kMsaMinorMI10
 };
 
 // ----- Emulated conditions.
@@ -1280,8 +517,7 @@ enum MSAMinorOpcode : uint32_t {
 // The 'U' prefix is used to specify unsigned comparisons.
 // Opposite conditions must be paired as odd/even numbers
 // because 'NegateCondition' function flips LSB to negate condition.
-enum Condition {
-  // Any value < 0 is considered no_condition.
+enum Condition {  // Any value < 0 is considered no_condition.
   kNoCondition = -1,
   overflow = 0,
   no_overflow = 1,
@@ -1371,37 +607,6 @@ inline Condition NegateFpuCondition(Condition cc) {
       return cc;
   }
 }
-
-enum MSABranchCondition {
-  all_not_zero = 0,   // Branch If All Elements Are Not Zero
-  one_elem_not_zero,  // Branch If At Least One Element of Any Format Is Not
-                      // Zero
-  one_elem_zero,      // Branch If At Least One Element Is Zero
-  all_zero            // Branch If All Elements of Any Format Are Zero
-};
-
-inline MSABranchCondition NegateMSABranchCondition(MSABranchCondition cond) {
-  switch (cond) {
-    case all_not_zero:
-      return one_elem_zero;
-    case one_elem_not_zero:
-      return all_zero;
-    case one_elem_zero:
-      return all_not_zero;
-    case all_zero:
-      return one_elem_not_zero;
-    default:
-      return cond;
-  }
-}
-
-enum MSABranchDF {
-  MSA_BRANCH_B = 0,
-  MSA_BRANCH_H,
-  MSA_BRANCH_W,
-  MSA_BRANCH_D,
-  MSA_BRANCH_V
-};
 
 // ----- Coprocessor conditions.
 enum FPUCondition {
@@ -1499,10 +704,6 @@ inline Hint NegateHint(Hint hint) { return no_hint; }
 // These constants are declared in assembler-mips.cc, as they use named
 // registers and other constants.
 
-static constexpr uint64_t OpcodeToBitNumber(Opcode opcode) {
-  return 1ULL << (static_cast<uint32_t>(opcode) >> kOpcodeShift);
-}
-
 constexpr uint8_t kInstrSize = 4;
 constexpr uint8_t kInstrSizeLog2 = 2;
 
@@ -1516,9 +717,6 @@ class InstructionBase {
 
   // Instruction type.
   enum Type {
-    kRegisterType,
-    kImmediateType,
-    kJumpType,
     kRType,
     kR4Type,  // Special R4 for Q extension
     kIType,
@@ -1546,8 +744,6 @@ class InstructionBase {
   inline int Bits(int hi, int lo) const {
     return (InstructionBits() >> lo) & ((2U << (hi - lo)) - 1);
   }
-
-#define FunctionFieldToBitNumber(function) (1ULL << function)
 
   // Accessors for the different named fields used in the RISC-V encoding.
   inline Opcode BaseOpcodeValue() const {
@@ -1579,11 +775,6 @@ class InstructionBase {
   // Safe to call within R4-type instructions
   inline int Rs3FieldRawNoAssert() const {
     return InstructionBits() & kRs3FieldMask;
-  }
-
-  // Safe to call within R-, I-, U-, or J-type instructions
-  inline int RdFieldRawNoAssert() const {
-    return InstructionBits() & kRdFieldMask;
   }
 
   // FIXME (RISCV): to be cleaned up
@@ -1838,8 +1029,6 @@ InstructionBase::Type InstructionBase::InstructionType() const {
   }
   return kUnsupported;
 }
-#undef OpcodeToBitNumber
-#undef FunctionFieldToBitNumber
 
 // -----------------------------------------------------------------------------
 // Instructions.

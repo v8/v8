@@ -1687,8 +1687,10 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
     case kMips64StoreToStackSlot: {
       if (instr->InputAt(0)->IsFPRegister()) {
         if (instr->InputAt(0)->IsSimd128Register()) {
-          CpuFeatureScope msa_scope(tasm(), MIPS_SIMD);
-          __ st_b(i.InputSimd128Register(0), MemOperand(sp, i.InputInt32(1)));
+          UNREACHABLE();
+          // CpuFeatureScope msa_scope(tasm(), MIPS_SIMD);
+          // __ st_b(i.InputSimd128Register(0), MemOperand(sp,
+          // i.InputInt32(1)));
         } else {
           __ Sdc1(i.InputDoubleRegister(0), MemOperand(sp, i.InputInt32(1)));
         }
@@ -1705,6 +1707,7 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       __ ByteSwap(i.OutputRegister(0), i.InputRegister(0), 4);
       break;
     }
+    /*
     case kMips64S8x16LoadSplat: {
       CpuFeatureScope msa_scope(tasm(), MIPS_SIMD);
       __ Lb(kScratchReg, i.MemoryOperand());
@@ -1783,6 +1786,7 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       __ ilvr_w(dst, kSimd128RegZero, dst);
       break;
     }
+    */
     case kWord32AtomicLoadInt8:
       ASSEMBLE_ATOMIC_LOAD_INTEGER(Lb);
       break;
@@ -1931,6 +1935,10 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       __ Assert(eq, static_cast<AbortReason>(i.InputOperand(2).immediate()),
                 i.InputRegister(0), Operand(i.InputRegister(1)));
       break;
+
+    default:
+      UNIMPLEMENTED();
+      /*
     case kMips64S128Zero: {
       CpuFeatureScope msa_scope(tasm(), MIPS_SIMD);
       __ xor_v(i.OutputSimd128Register(), i.OutputSimd128Register(),
@@ -3185,6 +3193,7 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       __ pckev_h(dst, kSimd128RegZero, kSimd128ScratchReg);
       break;
     }
+    */
   }
   return kSuccess;
 }  // NOLINT(readability/fn_size)
@@ -3924,6 +3933,8 @@ void CodeGenerator::AssembleMove(InstructionOperand* source,
   } else if (source->IsFPRegister()) {
     MachineRepresentation rep = LocationOperand::cast(source)->representation();
     if (rep == MachineRepresentation::kSimd128) {
+      UNIMPLEMENTED();
+      /*
       CpuFeatureScope msa_scope(tasm(), MIPS_SIMD);
       MSARegister src = g.ToSimd128Register(source);
       if (destination->IsSimd128Register()) {
@@ -3933,6 +3944,7 @@ void CodeGenerator::AssembleMove(InstructionOperand* source,
         DCHECK(destination->IsSimd128StackSlot());
         __ st_b(src, g.ToMemOperand(destination));
       }
+      */
     } else {
       FPURegister src = g.ToDoubleRegister(source);
       if (destination->IsFPRegister()) {
@@ -3948,6 +3960,8 @@ void CodeGenerator::AssembleMove(InstructionOperand* source,
     MemOperand src = g.ToMemOperand(source);
     MachineRepresentation rep = LocationOperand::cast(source)->representation();
     if (rep == MachineRepresentation::kSimd128) {
+      UNIMPLEMENTED();
+      /*
       CpuFeatureScope msa_scope(tasm(), MIPS_SIMD);
       if (destination->IsSimd128Register()) {
         __ ld_b(g.ToSimd128Register(destination), src);
@@ -3957,6 +3971,7 @@ void CodeGenerator::AssembleMove(InstructionOperand* source,
         __ ld_b(temp, src);
         __ st_b(temp, g.ToMemOperand(destination));
       }
+      */
     } else {
       if (destination->IsFPRegister()) {
         __ Ldc1(g.ToDoubleRegister(destination), src);
@@ -4006,6 +4021,8 @@ void CodeGenerator::AssembleSwap(InstructionOperand* source,
   } else if (source->IsFPRegister()) {
     MachineRepresentation rep = LocationOperand::cast(source)->representation();
     if (rep == MachineRepresentation::kSimd128) {
+      UNIMPLEMENTED();
+      /*
       CpuFeatureScope msa_scope(tasm(), MIPS_SIMD);
       MSARegister temp = kSimd128ScratchReg;
       MSARegister src = g.ToSimd128Register(source);
@@ -4021,6 +4038,7 @@ void CodeGenerator::AssembleSwap(InstructionOperand* source,
         __ ld_b(src, dst);
         __ st_b(temp, dst);
       }
+      */
     } else {
       FPURegister temp = kScratchDoubleReg;
       FPURegister src = g.ToDoubleRegister(source);
@@ -4046,6 +4064,8 @@ void CodeGenerator::AssembleSwap(InstructionOperand* source,
     MemOperand dst1(dst0.rm(), dst0.offset() + kIntSize);
     MachineRepresentation rep = LocationOperand::cast(source)->representation();
     if (rep == MachineRepresentation::kSimd128) {
+      UNIMPLEMENTED();
+      /*
       MemOperand src2(src0.rm(), src0.offset() + 2 * kIntSize);
       MemOperand src3(src0.rm(), src0.offset() + 3 * kIntSize);
       MemOperand dst2(dst0.rm(), dst0.offset() + 2 * kIntSize);
@@ -4062,6 +4082,7 @@ void CodeGenerator::AssembleSwap(InstructionOperand* source,
       __ Lw(temp_0, src3);
       __ Sw(temp_0, dst3);
       __ st_b(temp_1, src0);
+      */
     } else {
       FPURegister temp_1 = kScratchDoubleReg;
       __ Ldc1(temp_1, dst0);  // Save destination in temp_1.

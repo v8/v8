@@ -110,25 +110,33 @@ int Assembler::deserialization_special_target_size(
   return kSpecialTargetSize;
 }
 
+// RISCV (FIXME): still use MIPS constant kImm28Mask
 void Assembler::set_target_internal_reference_encoded_at(Address pc,
                                                          Address target) {
-  // Encoded internal references are j/jal instructions.
-  Instr instr = Assembler::instr_at(pc + 0 * kInstrSize);
-  DCHECK(IsJump(instr));
+  UNIMPLEMENTED();
+  /*
+    // Encoded internal references are j/jal instructions.
+    Instr instr = Assembler::instr_at(pc + 0 * kInstrSize);
+    DCHECK(IsJump(instr));
 
-  uint64_t imm28 = target & static_cast<uint64_t>(kImm28Mask);
+    uint64_t imm28 = target & static_cast<uint64_t>(kImm28Mask);
 
-  instr &= ~kImm26Mask;
-  uint64_t imm26 = imm28 >> 2;
-  DCHECK(is_uint26(imm26));
+    instr &= ~kImm26Mask;
+    uint64_t imm26 = imm28 >> 2;
+    DCHECK(is_uint26(imm26));
 
-  instr_at_put(pc, instr | (imm26 & kImm26Mask));
-  // Currently used only by deserializer, and all code will be flushed
-  // after complete deserialization, no need to flush on each reference.
+    instr_at_put(pc, instr | (imm26 & kImm26Mask));
+    // Currently used only by deserializer, and all code will be flushed
+    // after complete deserialization, no need to flush on each reference.
+  */
 }
 
+// FIXME (RISCV): still use MIPS function IsJ
 void Assembler::deserialization_set_target_internal_reference_at(
     Address pc, Address target, RelocInfo::Mode mode) {
+  UNIMPLEMENTED();
+  /*
+
   if (mode == RelocInfo::INTERNAL_REFERENCE_ENCODED) {
     DCHECK(IsJ(instr_at(pc)));
     set_target_internal_reference_encoded_at(pc, target);
@@ -136,6 +144,7 @@ void Assembler::deserialization_set_target_internal_reference_at(
     DCHECK(mode == RelocInfo::INTERNAL_REFERENCE);
     Memory<Address>(pc) = target;
   }
+  */
 }
 
 HeapObject RelocInfo::target_object() {
@@ -178,10 +187,13 @@ void RelocInfo::set_target_external_reference(
                                    icache_flush_mode);
 }
 
+// FIXME (RISCV): still use MIPS constant kImm26Mask
 Address RelocInfo::target_internal_reference() {
   if (rmode_ == INTERNAL_REFERENCE) {
     return Memory<Address>(pc_);
   } else {
+    UNIMPLEMENTED();
+    /*
     // Encoded internal references are j/jal instructions.
     DCHECK(rmode_ == INTERNAL_REFERENCE_ENCODED);
     Instr instr = Assembler::instr_at(pc_ + 0 * kInstrSize);
@@ -190,6 +202,7 @@ Address RelocInfo::target_internal_reference() {
     uint64_t imm28 = instr << 2;
     uint64_t segment = pc_ & ~static_cast<uint64_t>(kImm28Mask);
     return static_cast<Address>(segment | imm28);
+    */
   }
 }
 
@@ -239,22 +252,29 @@ void Assembler::CheckBuffer() {
   }
 }
 
+// FIXME (RISCV): MIPS constants SPECIAL and SLL are still in use
 void Assembler::CheckForEmitInForbiddenSlot() {
   if (!is_buffer_growth_blocked()) {
     CheckBuffer();
   }
   if (IsPrevInstrCompactBranch()) {
+    UNIMPLEMENTED();
+    /*
     // Nop instruction to precede a CTI in forbidden slot:
     Instr nop = SPECIAL | SLL;
     *reinterpret_cast<Instr*>(pc_) = nop;
     pc_ += kInstrSize;
 
     ClearCompactBranchState();
+    */
   }
 }
 
+// FIXME (RISCV): MIPS constants SPECIAL and SLL are still in use
 void Assembler::EmitHelper(Instr x, CompactBranchType is_compact_branch) {
   if (IsPrevInstrCompactBranch()) {
+    UNIMPLEMENTED();
+    /*
     if (Instruction::IsForbiddenAfterBranchInstr(x)) {
       // Nop instruction to precede a CTI in forbidden slot:
       Instr nop = SPECIAL | SLL;
@@ -262,6 +282,7 @@ void Assembler::EmitHelper(Instr x, CompactBranchType is_compact_branch) {
       pc_ += kInstrSize;
     }
     ClearCompactBranchState();
+    */
   }
   DEBUG_PRINTF("%p: ", pc_);
   disassembleInstr(x);

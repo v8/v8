@@ -266,43 +266,6 @@ class Simulator : public SimulatorBase {
     kNumFPURegisters
   };
 
-  // MSA registers
-  enum MSARegister {
-    w0,
-    w1,
-    w2,
-    w3,
-    w4,
-    w5,
-    w6,
-    w7,
-    w8,
-    w9,
-    w10,
-    w11,
-    w12,
-    w13,
-    w14,
-    w15,
-    w16,
-    w17,
-    w18,
-    w19,
-    w20,
-    w21,
-    w22,
-    w23,
-    w24,
-    w25,
-    w26,
-    w27,
-    w28,
-    w29,
-    w30,
-    w31,
-    kNumMSARegisters
-  };
-
   explicit Simulator(Isolate* isolate);
   ~Simulator();
 
@@ -447,10 +410,6 @@ class Simulator : public SimulatorBase {
   inline void DieOrDebug();
 
   void TraceRegWr(int64_t value, TraceType t = DWORD);
-  template <typename T>
-  void TraceMSARegWr(T* value, TraceType t);
-  template <typename T>
-  void TraceMSARegWr(T* value);
   void TraceMemWr(int64_t addr, int64_t value, TraceType t);
   template <typename T>
   void TraceMemRd(int64_t addr, T value, int64_t reg_value);
@@ -656,8 +615,6 @@ class Simulator : public SimulatorBase {
   int64_t FPUregisters_[kNumFPURegisters * 2];
   // Floating-point control and status register.
   uint32_t FCSR_;
-  // MSA control register.
-  uint32_t MSACSR_;
 
   // Simulator support.
   // Allocate 1MB for stack.

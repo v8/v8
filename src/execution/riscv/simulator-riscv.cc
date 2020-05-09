@@ -78,6 +78,7 @@ class RiscvDebugger {
   void PrintAllRegsIncludingFPU();
 
  private:
+  // FIXME (RISCV): SPECIAL and BRREAK are MIPS constants
   // We set the breakpoint code to 0xFFFFF to easily recognize it.
   static const Instr kBreakpointInstr = SPECIAL | BREAK | 0xFFFFF << 6;
   static const Instr kNopInstr = 0x0;
@@ -726,6 +727,7 @@ void Simulator::set_last_debugger_input(char* input) {
 // FIXME (RISCV): to be ported
 void Simulator::SetRedirectInstruction(Instruction* instruction) {
   // This function actually invoked in mksnapshot
+  std::cout << "ERROR: SetRedirectInstruction not yet ported" << std::endl;
   /*
   instruction->SetInstructionBits(rtCallRedirInstr);
   */
@@ -1186,43 +1188,6 @@ void Simulator::TraceRegWr(int64_t value, TraceType t) {
         break;
       default:
         UNREACHABLE();
-    }
-  }
-}
-
-template <typename T>
-void Simulator::TraceMSARegWr(T* value) {
-  if (::v8::internal::FLAG_trace_sim) {
-    union {
-      uint8_t b[kMSALanesByte];
-      uint16_t h[kMSALanesHalf];
-      uint32_t w[kMSALanesWord];
-      uint64_t d[kMSALanesDword];
-      float f[kMSALanesWord];
-      double df[kMSALanesDword];
-    } v;
-    memcpy(v.b, value, kMSALanesByte);
-
-    if (std::is_same<T, int32_t>::value) {
-      SNPrintF(trace_buf_,
-               "LO: %016" PRIx64 "  HI: %016" PRIx64 "    (%" PRIu64
-               ")    int32[0..3]:%" PRId32 "  %" PRId32 "  %" PRId32
-               "  %" PRId32,
-               v.d[0], v.d[1], icount_, v.w[0], v.w[1], v.w[2], v.w[3]);
-    } else if (std::is_same<T, float>::value) {
-      SNPrintF(trace_buf_,
-               "LO: %016" PRIx64 "  HI: %016" PRIx64 "    (%" PRIu64
-               ")    flt[0..3]:%e  %e  %e  %e",
-               v.d[0], v.d[1], icount_, v.f[0], v.f[1], v.f[2], v.f[3]);
-    } else if (std::is_same<T, double>::value) {
-      SNPrintF(trace_buf_,
-               "LO: %016" PRIx64 "  HI: %016" PRIx64 "    (%" PRIu64
-               ")    dbl[0..1]:%e  %e",
-               v.d[0], v.d[1], icount_, v.df[0], v.df[1]);
-    } else {
-      SNPrintF(trace_buf_,
-               "LO: %016" PRIx64 "  HI: %016" PRIx64 "    (%" PRIu64 ")",
-               v.d[0], v.d[1], icount_);
     }
   }
 }
