@@ -6788,9 +6788,10 @@ wasm::WasmCompilationResult ExecuteTurbofanWasmCompilation(
       &info, wasm_engine, mcgraph, call_descriptor, source_positions,
       node_origins, func_body, env->module, func_index);
 
-  // TODO(bradnelson): Improve histogram handling of size_t.
-  counters->wasm_compile_function_peak_memory_bytes()->AddSample(
-      static_cast<int>(mcgraph->graph()->zone()->allocation_size()));
+  if (counters) {
+    counters->wasm_compile_function_peak_memory_bytes()->AddSample(
+        static_cast<int>(mcgraph->graph()->zone()->allocation_size()));
+  }
   auto result = info.ReleaseWasmCompilationResult();
   CHECK_NOT_NULL(result);  // Compilation expected to succeed.
   DCHECK_EQ(wasm::ExecutionTier::kTurbofan, result->result_tier);

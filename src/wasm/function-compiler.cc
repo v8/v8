@@ -130,7 +130,7 @@ WasmCompilationResult WasmCompilationUnit::ExecuteCompilation(
                                         counters, detected);
   }
 
-  if (result.succeeded()) {
+  if (result.succeeded() && counters) {
     counters->wasm_generated_code_size()->Increment(
         result.code_desc.instr_size);
     counters->wasm_reloc_size()->Increment(result.code_desc.reloc_size);
@@ -163,12 +163,16 @@ WasmCompilationResult WasmCompilationUnit::ExecuteFunctionCompilation(
   wasm::FunctionBody func_body{func->sig, func->code.offset(), code.begin(),
                                code.end()};
 
-  auto size_histogram = SELECT_WASM_COUNTER(counters, env->module->origin, wasm,
-                                            function_size_bytes);
-  size_histogram->AddSample(static_cast<int>(func_body.end - func_body.start));
-  auto timed_histogram = SELECT_WASM_COUNTER(counters, env->module->origin,
-                                             wasm_compile, function_time);
-  TimedHistogramScope wasm_compile_function_time_scope(timed_histogram);
+  base::Optional<TimedHistogramScope> wasm_compile_function_time_scope;
+  if (counters) {
+    auto size_histogram = SELECT_WASM_COUNTER(counters, env->module->origin,
+                                              wasm, function_size_bytes);
+    size_histogram->AddSample(
+        static_cast<int>(func_body.end - func_body.start));
+    auto timed_histogram = SELECT_WASM_COUNTER(counters, env->module->origin,
+                                               wasm_compile, function_time);
+    wasm_compile_function_time_scope.emplace(timed_histogram);
+  }
 
   if (FLAG_trace_wasm_compiler) {
     PrintF("Compiling wasm function %d with %s\n", func_index_,

@@ -600,10 +600,13 @@ class V8_EXPORT_PRIVATE NativeModule final {
   bool SetTieredDown();
   bool IsTieredDown();
 
-  // Sets the flag, triggers recompilation of all methods to tier down or up,
-  // waits for that to complete.
-  void TierDown(Isolate* isolate);
-  void TierUp(Isolate* isolate);
+  // Set the flag to keep this module tiered down, trigger recompilation of all
+  // functions, and wait for recompilation to complete.
+  void TierDown();
+
+  // Clear the flag to keep this module tiered down and trigger recompilation
+  // of all functions. Does not wait for completion of recompilation.
+  void StartTierUp();
 
   // Free a set of functions of this module. Uncommits whole pages if possible.
   // The given vector must be ordered by the instruction start address, and all

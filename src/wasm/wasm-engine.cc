@@ -626,7 +626,7 @@ void WasmEngine::TierDownAllModulesPerIsolate(Isolate* isolate) {
     }
   }
   for (auto* native_module : native_modules) {
-    native_module->TierDown(isolate);
+    native_module->TierDown();
   }
 }
 
@@ -640,7 +640,7 @@ void WasmEngine::TierUpAllModulesPerIsolate(Isolate* isolate) {
     }
   }
   for (auto* native_module : native_modules) {
-    native_module->TierUp(isolate);
+    native_module->StartTierUp();
   }
 }
 

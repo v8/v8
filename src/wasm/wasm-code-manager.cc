@@ -1853,17 +1853,17 @@ bool NativeModule::IsTieredDown() {
   return tiering_state_ == kTieredDown;
 }
 
-void NativeModule::TierDown(Isolate* isolate) {
+void NativeModule::TierDown() {
   // Do not tier down asm.js.
   if (module()->origin != kWasmOrigin) return;
 
   // Set the module to tiered down state; return if it is already in that state.
   if (!SetTieredDown()) return;
 
-  RecompileNativeModule(isolate, this, kTieredDown);
+  RecompileNativeModule(this, kTieredDown);
 }
 
-void NativeModule::TierUp(Isolate* isolate) {
+void NativeModule::StartTierUp() {
   // Do not tier up asm.js.
   if (module()->origin != kWasmOrigin) return;
 
@@ -1873,7 +1873,7 @@ void NativeModule::TierUp(Isolate* isolate) {
     tiering_state_ = kTieredUp;
   }
 
-  RecompileNativeModule(isolate, this, kTieredUp);
+  RecompileNativeModule(this, kTieredUp);
 }
 
 void NativeModule::FreeCode(Vector<WasmCode* const> codes) {

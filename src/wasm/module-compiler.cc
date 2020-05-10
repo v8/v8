@@ -1466,7 +1466,7 @@ std::shared_ptr<NativeModule> CompileToNativeModule(
   return native_module;
 }
 
-void RecompileNativeModule(Isolate* isolate, NativeModule* native_module,
+void RecompileNativeModule(NativeModule* native_module,
                            TieringState tiering_state) {
   // Install a callback to notify us once background recompilation finished.
   auto recompilation_finished_semaphore = std::make_shared<base::Semaphore>(0);
@@ -1484,8 +1484,9 @@ void RecompileNativeModule(Isolate* isolate, NativeModule* native_module,
   // We only wait for tier down. Tier up can happen in the background.
   if (tiering_state == kTieredDown) {
     // The main thread contributes to the compilation.
+    constexpr Counters* kNoCounters = nullptr;
     while (ExecuteCompilationUnits(
-        compilation_state->background_compile_token(), isolate->counters(),
+        compilation_state->background_compile_token(), kNoCounters,
         kMainThreadTaskId, kBaselineOnly)) {
       // Continue executing compilation units.
     }
