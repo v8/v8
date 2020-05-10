@@ -124,11 +124,11 @@ class CompilationState {
   // delete} with {size_t} argument. The {size_t} argument would be incorrect.
   void operator delete(void* ptr) { ::operator delete(ptr); }
 
+  CompilationState() = delete;
+
  private:
   // NativeModule is allowed to call the static {New} method.
   friend class NativeModule;
-
-  CompilationState() = delete;
 
   // The CompilationState keeps a {std::weak_ptr} back to the {NativeModule}
   // such that it can keep it alive (by regaining a {std::shared_ptr}) in
