@@ -1452,8 +1452,8 @@ void Builtins::Generate_NotifyDeoptimized(MacroAssembler* masm) {
     __ CallRuntime(Runtime::kNotifyDeoptimized);
   }
 
-  DCHECK_EQ(kInterpreterAccumulatorRegister.code(), t0.code());
-  __ Ld(t0, MemOperand(sp, 0 * kPointerSize));
+  DCHECK_EQ(kInterpreterAccumulatorRegister.code(), a6.code());
+  __ Ld(a6, MemOperand(sp, 0 * kPointerSize));
   __ Daddu(sp, sp, Operand(1 * kPointerSize));  // Remove state.
   __ Ret();
 }
