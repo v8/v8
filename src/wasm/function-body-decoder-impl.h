@@ -925,6 +925,7 @@ enum class LoadTransformationKind : uint8_t {
   F(ArraySet, const Value& array_obj,                                         \
     const ArrayIndexImmediate<validate>& imm, const Value& index,             \
     const Value& value)                                                       \
+  F(ArrayLen, const Value& array_obj, Value* result)                          \
   F(PassThrough, const Value& from, Value* to)
 
 // Generic Wasm bytecode decoder with utilities for decoding immediates,
@@ -3100,11 +3101,15 @@ class WasmFullDecoder : public WasmDecoder<validate> {
         CALL_INTERFACE_IF_REACHABLE(ArraySet, array_obj, imm, index, value);
         break;
       }
-        UNIMPLEMENTED();  // TODO(7748): Implement.
+      case kExprArrayLen: {
+        ArrayIndexImmediate<validate> imm(this, this->pc_ + len);
+        len += imm.length;
+        if (!this->Validate(this->pc_ + len, imm)) break;
+        auto array_obj = Pop(0, ValueType(ValueType::kOptRef, imm.index));
+        auto* value = Push(kWasmI32);
+        CALL_INTERFACE_IF_REACHABLE(ArrayLen, array_obj, value);
         break;
-      case kExprArrayLen:
-        UNIMPLEMENTED();  // TODO(7748): Implement.
-        break;
+      }
       default:
         this->error("invalid gc opcode");
         return 0;

@@ -443,6 +443,8 @@ inline WasmOpcode LoadStoreOpcodeOf(MachineType type, bool store) {
   array, index, WASM_GC_OP(kExprArrayGet), static_cast<byte>(typeidx)
 #define WASM_ARRAY_SET(typeidx, array, index, value) \
   array, index, value, WASM_GC_OP(kExprArraySet), static_cast<byte>(typeidx)
+#define WASM_ARRAY_LEN(typeidx, array) \
+  array, WASM_GC_OP(kExprArrayLen), static_cast<byte>(typeidx)
 
 #define WASM_BR_ON_NULL(depth, ref_object) \
   ref_object, kExprBrOnNull, static_cast<byte>(depth)

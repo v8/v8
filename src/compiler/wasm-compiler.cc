@@ -5185,11 +5185,15 @@ Node* ArrayElementOffset(GraphAssembler* gasm, Node* index,
                      gasm->Int32Constant(element_type.element_size_bytes())));
 }
 
+Node* ArrayLength(GraphAssembler* gasm, Node* array) {
+  return gasm->Load(
+      MachineType::Uint32(), array,
+      gasm->Int32Constant(WasmArray::kLengthOffset - kHeapObjectTag));
+}
+
 void WasmGraphBuilder::BoundsCheck(Node* array, Node* index,
                                    wasm::WasmCodePosition position) {
-  Node* length = gasm_->Load(
-      MachineType::Uint32(), array,
-      gasm_->Int32Constant(WasmArray::kLengthOffset - kHeapObjectTag));
+  Node* length = ArrayLength(gasm_.get(), array);
   TrapIfFalse(wasm::kTrapArrayOutOfBounds, gasm_->Uint32LessThan(index, length),
               position);
 }
@@ -5219,6 +5223,13 @@ Node* WasmGraphBuilder::ArraySet(Node* array_object,
                           write_barrier);
   Node* offset = ArrayElementOffset(gasm_.get(), index, type->element_type());
   return gasm_->Store(rep, array_object, offset, value);
+}
+
+Node* WasmGraphBuilder::ArrayLen(Node* array_object,
+                                 wasm::WasmCodePosition position) {
+  TrapIfTrue(wasm::kTrapNullDereference,
+             gasm_->WordEqual(array_object, RefNull()), position);
+  return ArrayLength(gasm_.get(), array_object);
 }
 
 class WasmDecorator final : public GraphDecorator {

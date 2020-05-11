@@ -672,6 +672,10 @@ class WasmGraphBuildingInterface {
           decoder->position());
   }
 
+  void ArrayLen(FullDecoder* decoder, const Value& array_obj, Value* result) {
+    result->node = BUILD(ArrayLen, array_obj.node, decoder->position());
+  }
+
   void PassThrough(FullDecoder* decoder, const Value& from, Value* to) {
     to->node = from.node;
   }

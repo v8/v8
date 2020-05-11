@@ -3384,6 +3384,10 @@ class LiftoffCompiler {
     // TODO(7748): Implement.
     unsupported(decoder, kGC, "array.set");
   }
+  void ArrayLen(FullDecoder* decoder, const Value& array_obj, Value* result) {
+    // TODO(7748): Implement.
+    unsupported(decoder, kGC, "array.len");
+  }
 
   void PassThrough(FullDecoder* decoder, const Value& from, Value* to) {
     // TODO(7748): Implement.

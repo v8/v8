@@ -201,6 +201,15 @@ WASM_EXEC_TEST(BasicArray) {
       kExprEnd};
   f->EmitCode(f_code, sizeof(f_code));
 
+  // Reads and returns an array's length.
+  WasmFunctionBuilder* g = builder->AddFunction(sigs.i_v());
+  f->builder()->AddExport(CStrVector("g"), g);
+  byte g_code[] = {
+      WASM_ARRAY_LEN(type_index,
+                     WASM_ARRAY_NEW(type_index, WASM_I32V(0), WASM_I32V(42))),
+      kExprEnd};
+  g->EmitCode(g_code, sizeof(g_code));
+
   WasmFunctionBuilder* h = builder->AddFunction(&sig_q_v);
   h->builder()->AddExport(CStrVector("h"), h);
   // Create an array of length 2, initialized to [42, 42].
@@ -246,6 +255,9 @@ WASM_EXEC_TEST(BasicArray) {
     CHECK(try_catch.HasCaught());
     isolate->clear_pending_exception();
   }
+
+  CHECK_EQ(42, testing::CallWasmFunctionForTesting(isolate, instance, &thrower,
+                                                   "g", 0, nullptr));
 
   // TODO(7748): This uses the JavaScript interface to retrieve the plain
   // WasmArray. Once the JS interaction story is settled, this may well
