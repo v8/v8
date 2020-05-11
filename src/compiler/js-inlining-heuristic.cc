@@ -784,6 +784,13 @@ void JSInliningHeuristic::PrintCandidates() {
       os << "  - target: " << shared;
       if (candidate.bytecode[i].has_value()) {
         os << ", bytecode size: " << candidate.bytecode[i]->length();
+        if (candidate.functions[i].has_value()) {
+          JSFunctionRef function = candidate.functions[i].value();
+          if (function.IsOptimized()) {
+            os << ", existing opt code's inlined bytecode size: "
+               << function.code().inlined_bytecode_size();
+          }
+        }
       } else {
         os << ", no bytecode";
       }
