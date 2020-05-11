@@ -12,6 +12,7 @@
 #include "src/wasm/decoder.h"
 #include "src/wasm/function-body-decoder-impl.h"
 #include "src/wasm/function-body-decoder.h"
+#include "src/wasm/value-type.h"
 #include "src/wasm/wasm-limits.h"
 #include "src/wasm/wasm-linkage.h"
 #include "src/wasm/wasm-module.h"
@@ -259,6 +260,10 @@ class WasmGraphBuildingInterface {
     result->node = BUILD(RefFunc, function_index);
   }
 
+  void RefAsNonNull(FullDecoder* decoder, const Value& arg, Value* result) {
+    result->node = BUILD(RefAsNonNull, arg.node, decoder->position());
+  }
+
   void Drop(FullDecoder* decoder, const Value& value) {}
 
   void DoReturn(FullDecoder* decoder, Vector<Value> values) {
@@ -307,7 +312,7 @@ class WasmGraphBuildingInterface {
   }
 
   void Unreachable(FullDecoder* decoder) {
-    BUILD(Unreachable, decoder->position());
+    BUILD(Trap, wasm::TrapReason::kTrapUnreachable, decoder->position());
   }
 
   void Select(FullDecoder* decoder, const Value& cond, const Value& fval,
@@ -614,16 +619,24 @@ class WasmGraphBuildingInterface {
 
   void StructGet(FullDecoder* decoder, const Value& struct_object,
                  const FieldIndexImmediate<validate>& field, Value* result) {
+    using CheckForNull = compiler::WasmGraphBuilder::CheckForNull;
+    CheckForNull null_check = struct_object.type.kind() == ValueType::kRef
+                                  ? CheckForNull::kWithoutNullCheck
+                                  : CheckForNull::kWithNullCheck;
     result->node =
         BUILD(StructGet, struct_object.node, field.struct_index.struct_type,
-              field.index, decoder->position());
+              field.index, null_check, decoder->position());
   }
 
   void StructSet(FullDecoder* decoder, const Value& struct_object,
                  const FieldIndexImmediate<validate>& field,
                  const Value& field_value) {
+    using CheckForNull = compiler::WasmGraphBuilder::CheckForNull;
+    CheckForNull null_check = struct_object.type.kind() == ValueType::kRef
+                                  ? CheckForNull::kWithoutNullCheck
+                                  : CheckForNull::kWithNullCheck;
     BUILD(StructSet, struct_object.node, field.struct_index.struct_type,
-          field.index, field_value.node, decoder->position());
+          field.index, field_value.node, null_check, decoder->position());
   }
 
   void ArrayNew(FullDecoder* decoder, const ArrayIndexImmediate<validate>& imm,
@@ -631,6 +644,10 @@ class WasmGraphBuildingInterface {
                 Value* result) {
     result->node = BUILD(ArrayNew, imm.index, imm.array_type, length.node,
                          initial_value.node);
+  }
+
+  void PassThrough(FullDecoder* decoder, const Value& from, Value* to) {
+    to->node = from.node;
   }
 
  private:

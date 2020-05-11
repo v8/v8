@@ -264,4 +264,8 @@ namespace wasm {
   builtin ThrowWasmTrapNullDereference(): JSAny {
     tail WasmTrap(SmiConstant(MessageTemplate::kWasmTrapNullDereference));
   }
+
+  builtin ThrowWasmTrapIllegalCast(): JSAny {
+    tail WasmTrap(SmiConstant(MessageTemplate::kWasmTrapIllegalCast));
+  }
 }

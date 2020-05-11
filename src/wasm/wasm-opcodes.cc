@@ -116,6 +116,7 @@ const char* WasmOpcodes::OpcodeName(WasmOpcode opcode) {
     CASE_REF_OP(Null, "null")
     CASE_REF_OP(IsNull, "is_null")
     CASE_REF_OP(Func, "func")
+    CASE_REF_OP(AsNonNull, "as_non_null")
     CASE_I32_OP(ConvertI64, "wrap_i64")
     CASE_CONVERT_OP(Convert, INT, F32, "f32", "trunc")
     CASE_CONVERT_OP(Convert, INT, F64, "f64", "trunc")
@@ -467,6 +468,7 @@ bool WasmOpcodes::IsAnyRefOpcode(WasmOpcode opcode) {
     case kExprRefNull:
     case kExprRefIsNull:
     case kExprRefFunc:
+    case kExprRefAsNonNull:
       return true;
     default:
       return false;

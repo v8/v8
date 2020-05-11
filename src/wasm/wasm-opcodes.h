@@ -60,7 +60,8 @@ bool IsJSCompatibleSignature(const FunctionSig* sig, const WasmFeatures&);
   V(F32Const, 0x43, _)           \
   V(F64Const, 0x44, _)           \
   V(RefNull, 0xd0, _)            \
-  V(RefFunc, 0xd2, _)
+  V(RefFunc, 0xd2, _)            \
+  V(RefAsNonNull, 0xd3, _)
 
 // Load memory expressions.
 #define FOREACH_LOAD_MEM_OPCODE(V) \
@@ -229,7 +230,7 @@ bool IsJSCompatibleSignature(const FunctionSig* sig, const WasmFeatures&);
 
 #define FOREACH_SIMPLE_PROTOTYPE_OPCODE(V) \
   V(RefIsNull, 0xd1, i_r)                  \
-  V(RefEq, 0xd3, i_rr) /* made-up opcode, guessing future spec (GC) */
+  V(RefEq, 0xd5, i_rr)  // made-up opcode, guessing future spec (GC)
 
 // For compatibility with Asm.js.
 // These opcodes are not spec'ed (or visible) externally; the idea is
@@ -247,8 +248,8 @@ bool IsJSCompatibleSignature(const FunctionSig* sig, const WasmFeatures&);
   V(F64Pow, 0xce, d_dd)                \
   V(F64Mod, 0xcf, d_dd)                \
   V(I32AsmjsDivS, 0xe7, i_ii)          \
-  V(I32AsmjsDivU, 0xd4, i_ii)          \
-  V(I32AsmjsRemS, 0xd5, i_ii)          \
+  V(I32AsmjsDivU, 0xe8, i_ii)          \
+  V(I32AsmjsRemS, 0xe9, i_ii)          \
   V(I32AsmjsRemU, 0xd6, i_ii)          \
   V(I32AsmjsLoadMem8S, 0xd7, i_i)      \
   V(I32AsmjsLoadMem8U, 0xd8, i_i)      \

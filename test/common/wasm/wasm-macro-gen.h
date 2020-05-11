@@ -435,6 +435,7 @@ inline WasmOpcode LoadStoreOpcodeOf(MachineType type, bool store) {
 #define WASM_REF_NULL kExprRefNull
 #define WASM_REF_FUNC(val) kExprRefFunc, val
 #define WASM_REF_IS_NULL(val) val, kExprRefIsNull
+#define WASM_REF_AS_NON_NULL(val) val, kExprRefAsNonNull
 
 #define WASM_ARRAY_NEW(index, default_value, length) \
   default_value, length, WASM_GC_OP(kExprArrayNew), static_cast<byte>(index)

@@ -554,6 +554,7 @@ namespace internal {
   T(WasmTrapBrOnExnNullRef, "br_on_exn on nullref value")                      \
   T(WasmTrapRethrowNullRef, "rethrowing nullref value")                        \
   T(WasmTrapNullDereference, "dereferencing a null pointer")                   \
+  T(WasmTrapIllegalCast, "illegal cast")                                       \
   T(WasmExceptionError, "wasm exception")                                      \
   /* Asm.js validation related */                                              \
   T(AsmJsInvalid, "Invalid asm.js: %")                                         \
