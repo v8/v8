@@ -46,7 +46,6 @@ TEST_F(PageTest, SpaceIndexing) {
   RawHeap& heap = GetRawHeap();
   size_t space = 0u;
   for (const auto& ptr : heap) {
-    EXPECT_EQ(ptr.get(), heap.Space(space));
     EXPECT_EQ(&heap, ptr.get()->raw_heap());
     EXPECT_EQ(space, ptr->index());
     ++space;

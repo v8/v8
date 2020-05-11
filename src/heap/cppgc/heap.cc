@@ -24,7 +24,7 @@ void VerifyCustomSpaces(
   // starting at 0.
 #ifdef DEBUG
   for (size_t i = 0; i < custom_spaces.size(); ++i) {
-    DCHECK_EQ(i, custom_spaces[i]->GetCustomSpaceIndex());
+    DCHECK_EQ(i, custom_spaces[i]->GetCustomSpaceIndex().value);
   }
 #endif  // DEBUG
 }

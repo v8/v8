@@ -64,12 +64,26 @@ class V8_EXPORT_PRIVATE RawHeap final {
   BaseSpace* Space(RegularSpaceType type) {
     const size_t index = static_cast<size_t>(type);
     DCHECK_GT(kNumberOfRegularSpaces, index);
-    BaseSpace* space = spaces_[index].get();
-    DCHECK(space);
-    return space;
+    return Space(index);
   }
   const BaseSpace* Space(RegularSpaceType space) const {
     return const_cast<RawHeap&>(*this).Space(space);
+  }
+
+  BaseSpace* CustomSpace(CustomSpaceIndex space_index) {
+    return Space(SpaceIndexForCustomSpace(space_index));
+  }
+  const BaseSpace* CustomSpace(CustomSpaceIndex space_index) const {
+    return const_cast<RawHeap&>(*this).CustomSpace(space_index);
+  }
+
+  Heap* heap() { return main_heap_; }
+  const Heap* heap() const { return main_heap_; }
+
+ private:
+  size_t SpaceIndexForCustomSpace(CustomSpaceIndex space_index) const {
+    DCHECK_LT(space_index.value, spaces_.size() - kNumberOfRegularSpaces);
+    return kNumberOfRegularSpaces + space_index.value;
   }
 
   BaseSpace* Space(size_t space_index) {
@@ -82,15 +96,6 @@ class V8_EXPORT_PRIVATE RawHeap final {
     return const_cast<RawHeap&>(*this).Space(space_index);
   }
 
-  size_t SpaceIndexForCustomSpace(CustomSpaceIndex space_index) const {
-    DCHECK_LT(space_index, spaces_.size() - kNumberOfRegularSpaces);
-    return kNumberOfRegularSpaces + space_index;
-  }
-
-  Heap* heap() { return main_heap_; }
-  const Heap* heap() const { return main_heap_; }
-
- private:
   Heap* main_heap_;
   Spaces spaces_;
 };

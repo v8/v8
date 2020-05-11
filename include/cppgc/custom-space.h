@@ -9,7 +9,10 @@
 
 namespace cppgc {
 
-using CustomSpaceIndex = size_t;
+struct CustomSpaceIndex {
+  CustomSpaceIndex(size_t value) : value(value) {}  // NOLINT
+  size_t value;
+};
 
 /**
  * Top-level base class for custom spaces. Users must inherit from CustomSpace

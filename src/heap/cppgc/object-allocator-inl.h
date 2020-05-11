@@ -18,7 +18,7 @@ namespace internal {
 
 void* ObjectAllocator::AllocateObject(size_t size, GCInfoIndex gcinfo) {
   const size_t allocation_size =
-      RoundUp(size + sizeof(HeapObjectHeader), kAllocationGranularity);
+      RoundUp<kAllocationGranularity>(size + sizeof(HeapObjectHeader));
   const RawHeap::RegularSpaceType type =
       GetInitialSpaceIndexForSize(allocation_size);
   return AllocateObjectOnSpace(NormalPageSpace::From(raw_heap_->Space(type)),
@@ -28,11 +28,9 @@ void* ObjectAllocator::AllocateObject(size_t size, GCInfoIndex gcinfo) {
 void* ObjectAllocator::AllocateObject(size_t size, GCInfoIndex gcinfo,
                                       CustomSpaceIndex space_index) {
   const size_t allocation_size =
-      RoundUp(size + sizeof(HeapObjectHeader), kAllocationGranularity);
-  const size_t internal_space_index =
-      raw_heap_->SpaceIndexForCustomSpace(space_index);
+      RoundUp<kAllocationGranularity>(size + sizeof(HeapObjectHeader));
   return AllocateObjectOnSpace(
-      NormalPageSpace::From(raw_heap_->Space(internal_space_index)),
+      NormalPageSpace::From(raw_heap_->CustomSpace(space_index)),
       allocation_size, gcinfo);
 }
 
