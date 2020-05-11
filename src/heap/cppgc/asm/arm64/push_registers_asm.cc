@@ -16,12 +16,19 @@
 // Calling convention source:
 // https://en.wikipedia.org/wiki/Calling_convention#ARM_(A64)
 
-asm(".globl PushAllRegistersAndIterateStack             \n"
-#ifndef _WIN64
+asm(
+#if defined(__APPLE__)
+    ".globl _PushAllRegistersAndIterateStack            \n"
+    ".private_extern _PushAllRegistersAndIterateStack   \n"
+    "_PushAllRegistersAndIterateStack:                  \n"
+#else  // !defined(__APPLE__)
+    ".globl PushAllRegistersAndIterateStack             \n"
+#if !defined(_WIN64)
     ".type PushAllRegistersAndIterateStack, %function   \n"
     ".hidden PushAllRegistersAndIterateStack            \n"
-#endif
+#endif  // !defined(_WIN64)
     "PushAllRegistersAndIterateStack:                   \n"
+#endif  // !defined(__APPLE__)
     // x19-x29 are callee-saved.
     "  stp x19, x20, [sp, #-16]!                        \n"
     "  stp x21, x22, [sp, #-16]!                        \n"
