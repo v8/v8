@@ -26,7 +26,7 @@ inline BytesAndDuration MakeBytesAndDuration(uint64_t bytes, double duration) {
 enum ScavengeSpeedMode { kForAllObjects, kForSurvivedObjects };
 
 #define TRACE_GC_CATEGORIES \
-  TRACE_DISABLED_BY_DEFAULT("v8.gc") ",devtools.timeline"
+  "devtools.timeline," TRACE_DISABLED_BY_DEFAULT("v8.gc")
 
 #define TRACE_GC(tracer, scope_id)                             \
   GCTracer::Scope::ScopeId gc_tracer_scope_id(scope_id);       \

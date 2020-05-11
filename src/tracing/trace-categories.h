@@ -33,7 +33,8 @@ PERFETTO_DEFINE_CATEGORIES(
     perfetto::Category("v8.execute"),
     perfetto::Category("v8.runtime"),
     perfetto::Category::Group("devtools.timeline,v8"),
-
+    perfetto::Category::Group("devtools.timeline,"
+                              TRACE_DISABLED_BY_DEFAULT("v8.gc")),
     perfetto::Category(TRACE_DISABLED_BY_DEFAULT("devtools.timeline")),
     perfetto::Category(TRACE_DISABLED_BY_DEFAULT("v8")),
     perfetto::Category(TRACE_DISABLED_BY_DEFAULT("v8.compile")),
@@ -49,9 +50,7 @@ PERFETTO_DEFINE_CATEGORIES(
     perfetto::Category(TRACE_DISABLED_BY_DEFAULT("v8.wasm")),
     perfetto::Category::Group("v8,devtools.timeline"),
     perfetto::Category::Group(TRACE_DISABLED_BY_DEFAULT("v8.turbofan") ","
-                              TRACE_DISABLED_BY_DEFAULT("v8.wasm")),
-    perfetto::Category::Group(TRACE_DISABLED_BY_DEFAULT("v8.gc")
-                              ",devtools.timeline"));
+                              TRACE_DISABLED_BY_DEFAULT("v8.wasm")));
 // clang-format on
 
 #endif  // defined(V8_USE_PERFETTO)

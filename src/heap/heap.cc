@@ -1444,7 +1444,7 @@ void Heap::ReportExternalMemoryPressure() {
       isolate()->isolate_data()->external_memory_low_since_mark_compact_;
   int64_t limit = isolate()->isolate_data()->external_memory_limit_;
   TRACE_EVENT2(
-      "v8,devtools.timeline", "V8.ExternalMemoryPressure", "external_memory_mb",
+      "devtools.timeline,v8", "V8.ExternalMemoryPressure", "external_memory_mb",
       static_cast<int>((current - baseline) / MB), "external_memory_limit_mb",
       static_cast<int>((limit - baseline) / MB));
   if (current > baseline + external_memory_hard_limit()) {
@@ -3852,11 +3852,11 @@ void Heap::CheckMemoryPressure() {
   // the finalizers.
   memory_pressure_level_ = MemoryPressureLevel::kNone;
   if (memory_pressure_level == MemoryPressureLevel::kCritical) {
-    TRACE_EVENT0("v8,devtools.timeline", "V8.CheckMemoryPressure");
+    TRACE_EVENT0("devtools.timeline,v8", "V8.CheckMemoryPressure");
     CollectGarbageOnMemoryPressure();
   } else if (memory_pressure_level == MemoryPressureLevel::kModerate) {
     if (FLAG_incremental_marking && incremental_marking()->IsStopped()) {
-      TRACE_EVENT0("v8,devtools.timeline", "V8.CheckMemoryPressure");
+      TRACE_EVENT0("devtools.timeline,v8", "V8.CheckMemoryPressure");
       StartIncrementalMarking(kReduceMemoryFootprintMask,
                               GarbageCollectionReason::kMemoryPressure);
     }
@@ -3901,7 +3901,7 @@ void Heap::CollectGarbageOnMemoryPressure() {
 
 void Heap::MemoryPressureNotification(MemoryPressureLevel level,
                                       bool is_isolate_locked) {
-  TRACE_EVENT1("v8,devtools.timeline", "V8.MemoryPressureNotification", "level",
+  TRACE_EVENT1("devtools.timeline,v8", "V8.MemoryPressureNotification", "level",
                static_cast<int>(level));
   MemoryPressureLevel previous = memory_pressure_level_;
   memory_pressure_level_ = level;
