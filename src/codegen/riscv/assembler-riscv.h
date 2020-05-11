@@ -815,17 +815,6 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase {
   void sltu(Register rd, Register rs, Register rt);
   void sltiu(Register rd, Register rs, int32_t j);
 
-  // Conditional move.
-  void selnez(Register rs, Register rt, Register rd);
-  void seleqz_d(FPURegister fd, FPURegister fs, FPURegister ft);
-  void seleqz_s(FPURegister fd, FPURegister fs, FPURegister ft);
-  void selnez_d(FPURegister fd, FPURegister fs, FPURegister ft);
-  void selnez_s(FPURegister fd, FPURegister fs, FPURegister ft);
-
-  // Bit twiddling.
-  void seh(Register rd, Register rt);
-  void seb(Register rd, Register rt);
-
   // --------Coprocessor-instructions----------------
 
   // Load, store, and move.
@@ -836,7 +825,6 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase {
   void dmtc1(Register rt, FPURegister fs);
 
   void mfc1(Register rt, FPURegister fs);
-  void mfhc1(Register rt, FPURegister fs);
   void dmfc1(Register rt, FPURegister fs);
 
   // Arithmetic.
@@ -850,8 +838,6 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase {
   void div_d(FPURegister fd, FPURegister fs, FPURegister ft);
   void abs_s(FPURegister fd, FPURegister fs);
   void abs_d(FPURegister fd, FPURegister fs);
-  void mov_d(FPURegister fd, FPURegister fs);
-  void mov_s(FPURegister fd, FPURegister fs);
   void sqrt_s(FPURegister fd, FPURegister fs);
   void sqrt_d(FPURegister fd, FPURegister fs);
 
@@ -863,16 +849,6 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase {
 
   void cvt_s_d(FPURegister fd, FPURegister fs);
   void cvt_d_s(FPURegister fd, FPURegister fs);
-  // Conditions and branches for MIPSr6.
-
-  void bc1eqz(int16_t offset, FPURegister ft);
-  inline void bc1eqz(Label* L, FPURegister ft) {
-    bc1eqz(shifted_branch_offset(L), ft);
-  }
-  void bc1nez(int16_t offset, FPURegister ft);
-  inline void bc1nez(Label* L, FPURegister ft) {
-    bc1nez(shifted_branch_offset(L), ft);
-  }
 
   // Check the code size generated from label to here.
   int SizeOfCodeGeneratedSince(Label* label) {
