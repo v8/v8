@@ -2780,7 +2780,10 @@ void CodeGenerator::AssembleMove(InstructionOperand* source,
           if (IsMaterializableFromRoot(src_object, &index)) {
             __ LoadRoot(dst, index);
           } else {
-            __ Move(dst, src_object, RelocInfo::COMPRESSED_EMBEDDED_OBJECT);
+            // TODO(v8:7703, jyan@ca.ibm.com): Turn into a
+            // COMPRESSED_EMBEDDED_OBJECT when the constant pool entry size is
+            // tagged size.
+            __ Move(dst, src_object, RelocInfo::FULL_EMBEDDED_OBJECT);
           }
           break;
         }

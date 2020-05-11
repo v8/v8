@@ -317,13 +317,12 @@ class UpdateTypedSlotHelper {
       }
       case COMPRESSED_OBJECT_SLOT: {
         HeapObject old_target = HeapObject::cast(Object(DecompressTaggedAny(
-            heap->isolate(),
-            static_cast<Tagged_t>(base::Memory<Address>(addr)))));
+            heap->isolate(), base::Memory<Tagged_t>(addr))));
         HeapObject new_target = old_target;
         SlotCallbackResult result = callback(FullMaybeObjectSlot(&new_target));
         DCHECK(!HasWeakHeapObjectTag(new_target));
         if (new_target != old_target) {
-          base::Memory<Address>(addr) = new_target.ptr();
+          base::Memory<Tagged_t>(addr) = CompressTagged(new_target.ptr());
         }
         return result;
       }

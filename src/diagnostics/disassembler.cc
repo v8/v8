@@ -222,7 +222,11 @@ static void PrintRelocInfo(StringBuilder* out, Isolate* isolate,
   } else if (RelocInfo::IsEmbeddedObjectMode(rmode)) {
     HeapStringAllocator allocator;
     StringStream accumulator(&allocator);
-    relocinfo->target_object().ShortPrint(&accumulator);
+    if (relocinfo->host().is_null()) {
+      relocinfo->target_object_no_host(isolate).ShortPrint(&accumulator);
+    } else {
+      relocinfo->target_object().ShortPrint(&accumulator);
+    }
     std::unique_ptr<char[]> obj_name = accumulator.ToCString();
     const bool is_compressed = RelocInfo::IsCompressedEmbeddedObject(rmode);
     out->AddFormatted("    ;; %sobject: %s",
