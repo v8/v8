@@ -2366,28 +2366,6 @@ void Assembler::max_d(FPURegister fd, FPURegister fs, FPURegister ft) {
   RV_fmax_d(fd, fs, ft);
 }
 
-// GPR.
-void Assembler::selnez(Register rd, Register rs, Register rt) {
-  UseScratchRegisterScope temps(this);
-  BlockTrampolinePoolScope block_trampoline_pool(this);
-  Register scratch = temps.hasAvailable() ? temps.Acquire() : t5;
-  RV_snez(scratch, rt);
-  RV_neg(scratch, scratch);  // if rt == 0, scratch = 0; else, scratch = -1
-  RV_and_(rd, rs, scratch);  // if rt == 0, rd = 0; else rd = rs
-}
-
-// Bit twiddling.
-
-void Assembler::seh(Register rd, Register rt) {
-  RV_slli(rd, rt, 64 - 16);
-  RV_srai(rd, rd, 64 - 16);
-}
-
-void Assembler::seb(Register rd, Register rt) {
-  RV_slli(rd, rt, 64 - 8);
-  RV_srai(rd, rd, 64 - 8);
-}
-
 // --------Coprocessor-instructions----------------
 
 // Load, store, move.
@@ -2421,8 +2399,6 @@ void Assembler::mtc1(Register rt, FPURegister fs) { RV_fmv_w_x(fs, rt); }
 void Assembler::dmtc1(Register rt, FPURegister fs) { RV_fmv_d_x(fs, rt); }
 
 void Assembler::mfc1(Register rt, FPURegister fs) { RV_fmv_x_w(rt, fs); }
-// FIXME (RISCV): to be ported
-void Assembler::mfhc1(Register rt, FPURegister fs) { UNREACHABLE(); }
 
 void Assembler::dmfc1(Register rt, FPURegister fs) { RV_fmv_x_d(rt, fs); }
 
@@ -2464,10 +2440,6 @@ void Assembler::abs_s(FPURegister fd, FPURegister fs) { RV_fabs_s(fd, fs); }
 
 void Assembler::abs_d(FPURegister fd, FPURegister fs) { RV_fabs_d(fd, fs); }
 
-void Assembler::mov_d(FPURegister fd, FPURegister fs) { RV_fmv_d(fd, fs); }
-// FIXME (RISCV): to be ported
-void Assembler::mov_s(FPURegister fd, FPURegister fs) { UNREACHABLE(); }
-
 void Assembler::sqrt_s(FPURegister fd, FPURegister fs) { RV_fsqrt_s(fd, fs); }
 
 void Assembler::sqrt_d(FPURegister fd, FPURegister fs) { RV_fsqrt_d(fd, fs); }
@@ -2477,10 +2449,6 @@ void Assembler::sqrt_d(FPURegister fd, FPURegister fs) { RV_fsqrt_d(fd, fs); }
 void Assembler::cvt_s_d(FPURegister fd, FPURegister fs) { RV_fcvt_s_d(fd, fs); }
 
 void Assembler::cvt_d_s(FPURegister fd, FPURegister fs) { RV_fcvt_d_s(fd, fs); }
-
-void Assembler::bc1eqz(int16_t offset, FPURegister ft) { UNREACHABLE(); }
-
-void Assembler::bc1nez(int16_t offset, FPURegister ft) { UNREACHABLE(); }
 
 // FIXME (RISCV): not yet ported (or not used?)
 int Assembler::RelocateInternalReference(RelocInfo::Mode rmode, Address pc,

@@ -646,8 +646,9 @@ class V8_EXPORT_PRIVATE TurboAssembler : public TurboAssemblerBase {
   inline void Move(FPURegister dst, FPURegister src) { Move_d(dst, src); }
 
   inline void Move(Register dst_low, Register dst_high, FPURegister src) {
-    mfc1(dst_low, src);
-    mfhc1(dst_high, src);
+    RV_fmv_x_d(dst_high, src);
+    RV_fmv_x_w(dst_low, src);
+    RV_srli(dst_high, dst_high, 32);
   }
 
   inline void Move(Register dst, FPURegister src) { dmfc1(dst, src); }
@@ -670,15 +671,11 @@ class V8_EXPORT_PRIVATE TurboAssembler : public TurboAssemblerBase {
   void Move(FPURegister dst, Register src_low, Register src_high);
 
   inline void Move_d(FPURegister dst, FPURegister src) {
-    if (dst != src) {
-      mov_d(dst, src);
-    }
+    if (dst != src) RV_fmv_d(dst, src);
   }
 
   inline void Move_s(FPURegister dst, FPURegister src) {
-    if (dst != src) {
-      mov_s(dst, src);
-    }
+    if (dst != src) RV_fmv_s(dst, src);
   }
 
   void Move(FPURegister dst, float imm) { Move(dst, bit_cast<uint32_t>(imm)); }
