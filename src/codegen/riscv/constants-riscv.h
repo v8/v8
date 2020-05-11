@@ -20,16 +20,6 @@
 
 #define UNSUPPORTED_RISCV() v8::internal::PrintF("Unsupported instruction.\n")
 
-enum ArchVariants { kMips64r2, kMips64r6 };
-
-#ifdef _MIPS_ARCH_MIPS64R2
-static const ArchVariants kArchVariant = kMips64r2;
-#elif _MIPS_ARCH_MIPS64R6
-static const ArchVariants kArchVariant = kMips64r6;
-#else
-static const ArchVariants kArchVariant = kMips64r2;
-#endif
-
 enum Endianness { kLittle, kBig };
 
 #if defined(V8_TARGET_LITTLE_ENDIAN)
