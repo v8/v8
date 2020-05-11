@@ -30,8 +30,8 @@ class V8_EXPORT_PRIVATE RawHeap final {
   //
   // Objects of size greater than 2^16 get stored in the large space.
   //
-  // Users can override where objects are allocated via Heap::SpacePolicy and
-  // force allocation in one of the kUserDefined* spaces.
+  // Users can override where objects are allocated via cppgc::CustomSpace to
+  // force allocation in a custom space.
   enum class RegularSpaceType : uint8_t {
     kNormal1,
     kNormal2,
@@ -60,11 +60,10 @@ class V8_EXPORT_PRIVATE RawHeap final {
   iterator custom_end() { return end(); }
 
   size_t size() const { return spaces_.size(); }
-  size_t custom_spaces() const { return custom_spaces_; }
 
   BaseSpace* Space(RegularSpaceType type) {
     const size_t index = static_cast<size_t>(type);
-    DCHECK_GT(spaces_.size(), index);
+    DCHECK_GT(kNumberOfRegularSpaces, index);
     BaseSpace* space = spaces_[index].get();
     DCHECK(space);
     return space;
@@ -83,8 +82,8 @@ class V8_EXPORT_PRIVATE RawHeap final {
     return const_cast<RawHeap&>(*this).Space(space_index);
   }
 
-  size_t SpaceIndexForCustomSpace(CustomSpaceIndex space_index) {
-    DCHECK_LT(space_index, custom_spaces_);
+  size_t SpaceIndexForCustomSpace(CustomSpaceIndex space_index) const {
+    DCHECK_LT(space_index, spaces_.size() - kNumberOfRegularSpaces);
     return kNumberOfRegularSpaces + space_index;
   }
 
@@ -94,7 +93,6 @@ class V8_EXPORT_PRIVATE RawHeap final {
  private:
   Heap* main_heap_;
   Spaces spaces_;
-  size_t custom_spaces_;
 };
 
 }  // namespace internal

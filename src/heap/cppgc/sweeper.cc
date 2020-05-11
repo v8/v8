@@ -24,7 +24,6 @@ namespace {
 struct SpaceState {
   BaseSpace::Pages unswept_pages;
 };
-// using SpaceStates = std::array<SpaceState, RawHeap::kMaxNumberOfSpaces>;
 using SpaceStates = std::vector<SpaceState>;
 
 bool SweepNormalPage(NormalPage* page) {
