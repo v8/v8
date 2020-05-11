@@ -71,11 +71,18 @@ inline MemOperand GetMemOp(LiftoffAssembler* assm,
 inline Register CalculateActualAddress(LiftoffAssembler* assm,
                                        UseScratchRegisterScope* temps,
                                        Register addr_reg, Register offset_reg,
-                                       int32_t offset_imm) {
+                                       int32_t offset_imm,
+                                       Register result_reg = no_reg) {
   if (offset_reg == no_reg && offset_imm == 0) {
-    return addr_reg;
+    if (result_reg == no_reg) {
+      return addr_reg;
+    } else {
+      assm->mov(result_reg, addr_reg);
+      return result_reg;
+    }
   }
-  Register actual_addr_reg = temps->Acquire();
+  Register actual_addr_reg =
+      result_reg != no_reg ? result_reg : temps->Acquire();
   if (offset_reg == no_reg) {
     assm->add(actual_addr_reg, addr_reg, Operand(offset_imm));
   } else {
@@ -901,8 +908,9 @@ void LiftoffAssembler::AtomicExchange(Register dst_addr, Register offset_reg,
 namespace liftoff {
 #define __ lasm->
 
-inline void AtomicI64CompareExchange(LiftoffAssembler* lasm, Register dst_addr,
-                                     Register offset_reg, uint32_t offset_imm,
+inline void AtomicI64CompareExchange(LiftoffAssembler* lasm,
+                                     Register dst_addr_reg, Register offset_reg,
+                                     uint32_t offset_imm,
                                      LiftoffRegister expected,
                                      LiftoffRegister new_value,
                                      LiftoffRegister result) {
@@ -912,9 +920,8 @@ inline void AtomicI64CompareExchange(LiftoffAssembler* lasm, Register dst_addr,
   // high-word has to be in the next higher register. To avoid complicated
   // register allocation code here, we just assign fixed registers to all
   // values here, and then move all values into the correct register.
-  // {ip} is the scratch register of {UseScratchRegisterScope}. Either it will
-  // be used by the actual address, or we force it to.
-  Register actual_addr = ip;
+  Register dst_addr = r0;
+  Register offset = r1;
   Register result_low = r4;
   Register result_high = r5;
   Register new_value_low = r2;
@@ -924,36 +931,39 @@ inline void AtomicI64CompareExchange(LiftoffAssembler* lasm, Register dst_addr,
   Register expected_high = r9;
 
   // We spill all registers, so that we can re-assign them afterwards.
-  __ SpillRegisters(result_low, result_high, new_value_low, new_value_high,
-                    store_result, expected_low, expected_high);
-
-  // We calculate the address after spilling. Spilling may require the scratch
-  // register.
-  UseScratchRegisterScope temps(lasm);
-  Register initial_addr = liftoff::CalculateActualAddress(
-      lasm, &temps, dst_addr, offset_reg, offset_imm);
-  // Make sure the actual address is stored in the right register.
-  if (initial_addr != actual_addr) {
-    __ mov(actual_addr, initial_addr);
-  }
+  __ SpillRegisters(dst_addr, offset, result_low, result_high, new_value_low,
+                    new_value_high, store_result, expected_low, expected_high);
 
   LiftoffAssembler::ParallelRegisterMoveTuple reg_moves[]{
       {LiftoffRegister::ForPair(new_value_low, new_value_high), new_value,
        kWasmI64},
       {LiftoffRegister::ForPair(expected_low, expected_high), expected,
-       kWasmI64}};
+       kWasmI64},
+      {LiftoffRegister(dst_addr), LiftoffRegister(dst_addr_reg), kWasmI32},
+      {LiftoffRegister(offset),
+       LiftoffRegister(offset_reg != no_reg ? offset_reg : offset), kWasmI32}};
   __ ParallelRegisterMove(ArrayVector(reg_moves));
+
+  {
+    UseScratchRegisterScope temps(lasm);
+    Register temp = liftoff::CalculateActualAddress(
+        lasm, &temps, dst_addr, offset_reg == no_reg ? no_reg : offset,
+        offset_imm, dst_addr);
+    // Make sure the actual address is stored in the right register.
+    DCHECK_EQ(dst_addr, temp);
+    USE(temp);
+  }
 
   Label retry;
   Label done;
   __ dmb(ISH);
   __ bind(&retry);
-  __ ldrexd(result_low, result_high, actual_addr);
+  __ ldrexd(result_low, result_high, dst_addr);
   __ cmp(result_low, expected_low);
   __ b(ne, &done);
   __ cmp(result_high, expected_high);
   __ b(ne, &done);
-  __ strexd(store_result, new_value_low, new_value_high, actual_addr);
+  __ strexd(store_result, new_value_low, new_value_high, dst_addr);
   __ cmp(store_result, Operand(0));
   __ b(ne, &retry);
   __ dmb(ISH);
