@@ -881,6 +881,7 @@ enum class LoadTransformationKind : uint8_t {
     const Value args[])                                                       \
   F(ReturnCallIndirect, const Value& index,                                   \
     const CallIndirectImmediate<validate>& imm, const Value args[])           \
+  F(BrOnNull, const Value& ref_object, uint32_t depth)                        \
   F(SimdOp, WasmOpcode opcode, Vector<Value> args, Value* result)             \
   F(SimdLaneOp, WasmOpcode opcode, const SimdLaneImmediate<validate>& imm,    \
     const Vector<Value> inputs, Value* result)                                \
@@ -1576,6 +1577,7 @@ class WasmDecoder : public Decoder {
       case kExprLocalTee:
       case kExprMemoryGrow:
       case kExprRefAsNonNull:
+      case kExprBrOnNull:
         return {1, 1};
       case kExprLocalSet:
       case kExprGlobalSet:
@@ -1974,6 +1976,51 @@ class WasmFullDecoder : public WasmDecoder<validate> {
           for (size_t i = 0; i < value_count; ++i) Pop();
           auto* pexception = Push(kWasmExnRef);
           *pexception = exception;
+          break;
+        }
+        case kExprBrOnNull: {
+          CHECK_PROTOTYPE_OPCODE(gc);
+          BranchDepthImmediate<validate> imm(this, this->pc_);
+          if (!this->Validate(this->pc_, imm, control_.size())) break;
+          len = 1 + imm.length;
+          Value ref_object = Pop();
+          if (this->failed()) break;
+          Control* c = control_at(imm.depth);
+          TypeCheckBranchResult check_result = TypeCheckBranch(c, true);
+          if (V8_LIKELY(check_result == kReachableBranch)) {
+            switch (ref_object.type.kind()) {
+              case ValueType::kRef: {
+                auto* result = Push(
+                    ValueType(ValueType::kRef, ref_object.type.ref_index()));
+                CALL_INTERFACE(PassThrough, ref_object, result);
+                break;
+              }
+              case ValueType::kOptRef: {
+                // We need to Push the result value after calling BrOnNull on
+                // the interface. Therefore we must sync the ref_object and
+                // result nodes afterwards (in PassThrough).
+                CALL_INTERFACE(BrOnNull, ref_object, imm.depth);
+                auto* result = Push(
+                    ValueType(ValueType::kRef, ref_object.type.ref_index()));
+                CALL_INTERFACE(PassThrough, ref_object, result);
+                c->br_merge()->reached = true;
+                break;
+              }
+              case ValueType::kNullRef:
+                if (imm.depth == control_.size() - 1) {
+                  DoReturn();
+                } else {
+                  CALL_INTERFACE(Br, c);
+                  c->br_merge()->reached = true;
+                }
+                EndControl();
+                break;
+              default:
+                this->error(this->pc_,
+                            "invalid agrument type to ref.as_non_null");
+                break;
+            }
+          }
           break;
         }
         case kExprLoop: {

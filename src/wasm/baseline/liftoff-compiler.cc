@@ -2335,6 +2335,10 @@ class LiftoffCompiler {
     unsupported(decoder, kTailCall, "return_call_indirect");
   }
 
+  void BrOnNull(FullDecoder* decoder, const Value& ref_object, uint32_t depth) {
+    unsupported(decoder, kAnyRef, "br_on_null");
+  }
+
   template <ValueType::Kind src_type, ValueType::Kind result_type,
             typename EmitFn>
   void EmitTerOp(EmitFn fn) {

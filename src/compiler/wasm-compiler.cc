@@ -2956,6 +2956,15 @@ Node* WasmGraphBuilder::ReturnCallIndirect(uint32_t table_index,
                            kReturnCall);
 }
 
+Node* WasmGraphBuilder::BrOnNull(Node* ref_object, Node** null_node,
+                                 Node** non_null_node) {
+  BranchExpectFalse(gasm_->WordEqual(ref_object, RefNull()), null_node,
+                    non_null_node);
+  // Return value is not used, but we need it for compatibility
+  // with graph-builder-interface.
+  return nullptr;
+}
+
 Node* WasmGraphBuilder::BuildI32Rol(Node* left, Node* right) {
   // Implement Rol by Ror since TurboFan does not have Rol opcode.
   // TODO(weiliang): support Word32Rol opcode in TurboFan.

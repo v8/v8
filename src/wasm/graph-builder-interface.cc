@@ -450,6 +450,18 @@ class WasmGraphBuildingInterface {
                  args);
   }
 
+  void BrOnNull(FullDecoder* decoder, const Value& ref_object, uint32_t depth) {
+    SsaEnv* non_null_env = ssa_env_;
+    SsaEnv* null_env = Split(decoder, non_null_env);
+    non_null_env->SetNotMerged();
+    BUILD(BrOnNull, ref_object.node, &null_env->control,
+          &non_null_env->control);
+    builder_->SetControl(non_null_env->control);
+    SetEnv(null_env);
+    BrOrRet(decoder, depth);
+    SetEnv(non_null_env);
+  }
+
   void SimdOp(FullDecoder* decoder, WasmOpcode opcode, Vector<Value> args,
               Value* result) {
     base::SmallVector<TFNode*, 8> inputs(args.size());

@@ -262,6 +262,9 @@ class WasmGraphBuilder {
                    wasm::WasmCodePosition position);
   Node* ReturnCallIndirect(uint32_t table_index, uint32_t sig_index,
                            Vector<Node*> args, wasm::WasmCodePosition position);
+  // Return value is not expected to be used,
+  // but we need it for compatibility with graph-builder-interface.
+  Node* BrOnNull(Node* ref_object, Node** non_null_node, Node** null_node);
 
   Node* Invert(Node* node);
 
