@@ -606,6 +606,7 @@
   'test-log/LogInterpretedFramesNativeStack': [SKIP],
   'test-log/LogInterpretedFramesNativeStackWithSerialization': [SKIP],
   'test-serialize/CodeSerializerOnePlusOneWithInterpretedFramesNativeStack': [SKIP],
+  'test-interpreter/InterpreterWithNativeStack': [SKIP],
 
   # Crashes on native arm.
   'test-macro-assembler-arm/ExtractLane': [PASS, ['arch == arm and not simulator_run', SKIP]],
