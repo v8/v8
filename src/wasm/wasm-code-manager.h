@@ -595,9 +595,11 @@ class V8_EXPORT_PRIVATE NativeModule final {
   V8_WARN_UNUSED_RESULT std::vector<std::unique_ptr<WasmCode>> AddCompiledCode(
       Vector<WasmCompilationResult>);
 
-  // Set to tiered down state. Returns {true} if this caused a change, {false}
-  // otherwise.
-  bool SetTieredDown();
+  // Set the module to tiered down state. Triggering recompilation (if
+  // necessary) has to be done by the caller.
+  void SetTieredDown();
+
+  // Check whether this modules is tiered down for debugging.
   bool IsTieredDown();
 
   // Set the flag to keep this module tiered down, trigger recompilation of all
