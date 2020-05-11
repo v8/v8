@@ -2336,11 +2336,12 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
     case kAVXF32x4Min: {
       CpuFeatureScope avx_scope(tasm(), AVX);
       XMMRegister dst = i.OutputSimd128Register();
+      XMMRegister src0 = i.InputSimd128Register(0);
       Operand src1 = i.InputOperand(1);
       // See comment above for correction of minps.
       __ movups(kScratchDoubleReg, src1);
       __ vminps(kScratchDoubleReg, kScratchDoubleReg, dst);
-      __ vminps(dst, dst, src1);
+      __ vminps(dst, src0, src1);
       __ vorps(dst, dst, kScratchDoubleReg);
       __ vcmpneqps(kScratchDoubleReg, dst, dst);
       __ vorps(dst, dst, kScratchDoubleReg);
