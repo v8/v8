@@ -12658,6 +12658,18 @@ TNode<BoolT> CodeStubAssembler::IsFastElementsKind(
                                Int32Constant(LAST_FAST_ELEMENTS_KIND));
 }
 
+TNode<BoolT> CodeStubAssembler::IsFastOrNonExtensibleOrSealedElementsKind(
+    TNode<Int32T> elements_kind) {
+  STATIC_ASSERT(FIRST_ELEMENTS_KIND == FIRST_FAST_ELEMENTS_KIND);
+  STATIC_ASSERT(LAST_FAST_ELEMENTS_KIND + 1 == PACKED_NONEXTENSIBLE_ELEMENTS);
+  STATIC_ASSERT(PACKED_NONEXTENSIBLE_ELEMENTS + 1 ==
+                HOLEY_NONEXTENSIBLE_ELEMENTS);
+  STATIC_ASSERT(HOLEY_NONEXTENSIBLE_ELEMENTS + 1 == PACKED_SEALED_ELEMENTS);
+  STATIC_ASSERT(PACKED_SEALED_ELEMENTS + 1 == HOLEY_SEALED_ELEMENTS);
+  return Uint32LessThanOrEqual(elements_kind,
+                               Int32Constant(HOLEY_SEALED_ELEMENTS));
+}
+
 TNode<BoolT> CodeStubAssembler::IsDoubleElementsKind(
     TNode<Int32T> elements_kind) {
   STATIC_ASSERT(FIRST_ELEMENTS_KIND == FIRST_FAST_ELEMENTS_KIND);

@@ -13,6 +13,7 @@
 #include "src/logging/counters-inl.h"
 #include "src/logging/log.h"
 #include "src/objects/descriptor-array.h"
+#include "src/objects/elements-kind.h"
 #include "src/objects/field-type.h"
 #include "src/objects/js-objects.h"
 #include "src/objects/layout-descriptor.h"
@@ -1418,27 +1419,26 @@ bool Map::OnlyHasSimpleProperties() const {
          !IsSpecialReceiverMap() && !is_dictionary_map();
 }
 
-bool Map::DictionaryElementsInPrototypeChainOnly(Isolate* isolate) {
-  if (IsDictionaryElementsKind(elements_kind())) {
-    return false;
-  }
-
+bool Map::MayHaveReadOnlyElementsInPrototypeChain(Isolate* isolate) {
   for (PrototypeIterator iter(isolate, *this); !iter.IsAtEnd();
        iter.Advance()) {
-    // Be conservative, don't walk into proxies.
-    if (iter.GetCurrent().IsJSProxy()) return true;
-    // String wrappers have non-configurable, non-writable elements.
-    if (iter.GetCurrent().IsStringWrapper()) return true;
-    JSObject current = iter.GetCurrent<JSObject>();
+    // Be conservative, don't look into any JSReceivers that may have custom
+    // elements. For example, into JSProxies, String wrappers (which have have
+    // non-configurable, non-writable elements), API objects, etc.
+    if (iter.GetCurrent().map().IsCustomElementsReceiverMap()) return true;
 
-    if (current.HasDictionaryElements() &&
-        current.element_dictionary().requires_slow_elements()) {
+    JSObject current = iter.GetCurrent<JSObject>();
+    ElementsKind elements_kind = current.GetElementsKind(isolate);
+    if (IsFrozenElementsKind(elements_kind)) return true;
+
+    if (IsDictionaryElementsKind(elements_kind) &&
+        current.element_dictionary(isolate).requires_slow_elements()) {
       return true;
     }
 
-    if (current.HasSlowArgumentsElements()) {
-      FixedArray parameter_map = FixedArray::cast(current.elements());
-      Object arguments = parameter_map.get(1);
+    if (IsSlowArgumentsElementsKind(elements_kind)) {
+      FixedArray parameter_map = FixedArray::cast(current.elements(isolate));
+      Object arguments = parameter_map.get(isolate, 1);
       if (NumberDictionary::cast(arguments).requires_slow_elements()) {
         return true;
       }

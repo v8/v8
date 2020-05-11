@@ -420,9 +420,11 @@ class Map : public HeapObject {
   // there is no guarantee it is attached.
   inline bool IsDetached(Isolate* isolate) const;
 
-  // Returns true if the current map doesn't have DICTIONARY_ELEMENTS but if a
-  // map with DICTIONARY_ELEMENTS was found in the prototype chain.
-  bool DictionaryElementsInPrototypeChainOnly(Isolate* isolate);
+  // Returns true if there is an object with potentially read-only elements
+  // in the prototype chain. It could be a Proxy, a string wrapper,
+  // an object with DICTIONARY_ELEMENTS potentially containing read-only
+  // elements or an object with any frozen elements, or a slow arguments object.
+  bool MayHaveReadOnlyElementsInPrototypeChain(Isolate* isolate);
 
   inline Map ElementsTransitionMap(Isolate* isolate);
 
