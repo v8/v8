@@ -1026,114 +1026,6 @@ void Assembler::b(int16_t offset) {
   }
 }
 
-void Assembler::bal(int16_t offset) { bgezal(zero_reg, offset); }
-
-void Assembler::bc(int32_t offset) { UNREACHABLE(); }
-
-void Assembler::balc(int32_t offset) { UNREACHABLE(); }
-
-void Assembler::beq(Register rs, Register rt, int16_t offset) { UNREACHABLE(); }
-
-void Assembler::bgez(Register rs, int16_t offset) { UNREACHABLE(); }
-
-void Assembler::bgezc(Register rt, int16_t offset) { UNREACHABLE(); }
-
-void Assembler::bgeuc(Register rs, Register rt, int16_t offset) {
-  UNREACHABLE();
-}
-
-void Assembler::bgec(Register rs, Register rt, int16_t offset) {
-  UNREACHABLE();
-}
-
-void Assembler::bgezal(Register rs, int16_t offset) { UNREACHABLE(); }
-
-void Assembler::bgtz(Register rs, int16_t offset) { UNREACHABLE(); }
-
-void Assembler::bgtzc(Register rt, int16_t offset) { UNREACHABLE(); }
-
-void Assembler::blez(Register rs, int16_t offset) { UNREACHABLE(); }
-
-void Assembler::blezc(Register rt, int16_t offset) { UNREACHABLE(); }
-
-void Assembler::bltzc(Register rt, int16_t offset) { UNREACHABLE(); }
-
-void Assembler::bltuc(Register rs, Register rt, int16_t offset) {
-  UNREACHABLE();
-}
-
-void Assembler::bltc(Register rs, Register rt, int16_t offset) {
-  UNREACHABLE();
-}
-
-void Assembler::bltz(Register rs, int16_t offset) { UNREACHABLE(); }
-
-void Assembler::bltzal(Register rs, int16_t offset) { UNREACHABLE(); }
-
-void Assembler::bne(Register rs, Register rt, int16_t offset) { UNREACHABLE(); }
-
-void Assembler::bovc(Register rs, Register rt, int16_t offset) {
-  UNREACHABLE();
-}
-
-void Assembler::bnvc(Register rs, Register rt, int16_t offset) {
-  UNREACHABLE();
-}
-
-void Assembler::blezalc(Register rt, int16_t offset) { UNREACHABLE(); }
-
-void Assembler::bgezalc(Register rt, int16_t offset) { UNREACHABLE(); }
-
-void Assembler::bgezall(Register rs, int16_t offset) { UNREACHABLE(); }
-
-void Assembler::bltzalc(Register rt, int16_t offset) { UNREACHABLE(); }
-
-void Assembler::bgtzalc(Register rt, int16_t offset) { UNREACHABLE(); }
-
-void Assembler::beqzalc(Register rt, int16_t offset) { UNREACHABLE(); }
-
-void Assembler::bnezalc(Register rt, int16_t offset) { UNREACHABLE(); }
-
-void Assembler::beqc(Register rs, Register rt, int16_t offset) {
-  UNREACHABLE();
-}  // namespace internal
-
-void Assembler::beqzc(Register rs, int32_t offset) { UNREACHABLE(); }
-
-void Assembler::bnec(Register rs, Register rt, int16_t offset) {
-  UNREACHABLE();
-}
-
-void Assembler::bnezc(Register rs, int32_t offset) { UNREACHABLE(); }
-
-void Assembler::j(int64_t target) {
-  // Deprecated. Use PC-relative jumps instead.
-  UNREACHABLE();
-}
-
-void Assembler::j(Label* target) {
-  // Deprecated. Use PC-relative jumps instead.
-  UNREACHABLE();
-}
-
-void Assembler::jal(Label* target) {
-  // Deprecated. Use PC-relative jumps instead.
-  UNREACHABLE();
-}
-
-void Assembler::jal(int64_t target) {
-  // Deprecated. Use PC-relative jumps instead.
-  UNREACHABLE();
-}
-
-void Assembler::jr(Register rs) { UNREACHABLE(); }
-
-void Assembler::jalr(Register rs, Register rd) { UNREACHABLE(); }
-
-void Assembler::jic(Register rt, int16_t offset) { UNREACHABLE(); }
-
-void Assembler::jialc(Register rt, int16_t offset) { UNREACHABLE(); }
-
 //===----------------------------------------------------------------------===//
 // Instructions
 //===----------------------------------------------------------------------===//
@@ -2127,26 +2019,6 @@ void Assembler::subu(Register rd, Register rs, Register rt) {
   RV_subw(rd, rs, rt);
 }
 
-void Assembler::mul(Register rd, Register rs, Register rt) { UNREACHABLE(); }
-
-void Assembler::muh(Register rd, Register rs, Register rt) { UNREACHABLE(); }
-
-void Assembler::mulu(Register rd, Register rs, Register rt) { UNREACHABLE(); }
-
-void Assembler::muhu(Register rd, Register rs, Register rt) { UNREACHABLE(); }
-
-void Assembler::dmul(Register rd, Register rs, Register rt) { UNREACHABLE(); }
-
-void Assembler::dmuh(Register rd, Register rs, Register rt) { UNREACHABLE(); }
-
-void Assembler::dmulu(Register rd, Register rs, Register rt) { UNREACHABLE(); }
-
-void Assembler::dmuhu(Register rd, Register rs, Register rt) { UNREACHABLE(); }
-
-void Assembler::mult(Register rs, Register rt) { UNREACHABLE(); }
-
-void Assembler::multu(Register rs, Register rt) { UNREACHABLE(); }
-
 void Assembler::daddiu(Register rd, Register rs, int32_t j) {
   if (is_int12(j))
     RV_addi(rd, rs, j);
@@ -2159,18 +2031,6 @@ void Assembler::daddiu(Register rd, Register rs, int32_t j) {
   }
 }
 
-void Assembler::div(Register rs, Register rt) { UNREACHABLE(); }
-
-void Assembler::div(Register rd, Register rs, Register rt) { UNREACHABLE(); }
-
-void Assembler::mod(Register rd, Register rs, Register rt) { UNREACHABLE(); }
-
-void Assembler::divu(Register rs, Register rt) { UNREACHABLE(); }
-
-void Assembler::divu(Register rd, Register rs, Register rt) { UNREACHABLE(); }
-
-void Assembler::modu(Register rd, Register rs, Register rt) { UNREACHABLE(); }
-
 void Assembler::daddu(Register rd, Register rs, Register rt) {
   RV_add(rd, rs, rt);
 }
@@ -2178,22 +2038,6 @@ void Assembler::daddu(Register rd, Register rs, Register rt) {
 void Assembler::dsubu(Register rd, Register rs, Register rt) {
   RV_sub(rd, rs, rt);
 }
-
-void Assembler::dmult(Register rs, Register rt) { UNREACHABLE(); }
-
-void Assembler::dmultu(Register rs, Register rt) { UNREACHABLE(); }
-
-void Assembler::ddiv(Register rs, Register rt) { UNREACHABLE(); }
-
-void Assembler::ddiv(Register rd, Register rs, Register rt) { UNREACHABLE(); }
-
-void Assembler::dmod(Register rd, Register rs, Register rt) { UNREACHABLE(); }
-
-void Assembler::ddivu(Register rs, Register rt) { UNREACHABLE(); }
-
-void Assembler::ddivu(Register rd, Register rs, Register rt) { UNREACHABLE(); }
-
-void Assembler::dmodu(Register rd, Register rs, Register rt) { UNREACHABLE(); }
 
 // Logical.
 
@@ -2216,8 +2060,6 @@ void Assembler::andi(Register rt, Register rs, int32_t j) {
 void Assembler::or_(Register rd, Register rs, Register rt) {
   RV_or_(rd, rs, rt);
 }
-
-void Assembler::ori(Register rt, Register rs, int32_t j) { UNREACHABLE(); }
 
 void Assembler::xor_(Register rd, Register rs, Register rt) {
   RV_xor_(rd, rs, rt);
@@ -2266,10 +2108,6 @@ void Assembler::srav(Register rd, Register rt, Register rs) {
   RV_sraw(rd, rt, rs);
 }
 
-void Assembler::rotr(Register rd, Register rt, uint16_t sa) { UNREACHABLE(); }
-
-void Assembler::rotrv(Register rd, Register rt, Register rs) { UNREACHABLE(); }
-
 void Assembler::dsll(Register rd, Register rt, uint16_t sa) {
   RV_slli(rd, rt, sa & 0x1F);
 }
@@ -2282,21 +2120,9 @@ void Assembler::dsrl(Register rd, Register rt, uint16_t sa) {
   RV_srli(rd, rt, sa & 0x1F);
 }
 
-void Assembler::dsrlv(Register rd, Register rt, Register rs) { UNREACHABLE(); }
-
-void Assembler::drotr(Register rd, Register rt, uint16_t sa) { UNREACHABLE(); }
-
-void Assembler::drotr32(Register rd, Register rt, uint16_t sa) {
-  UNREACHABLE();
-}
-
-void Assembler::drotrv(Register rd, Register rt, Register rs) { UNREACHABLE(); }
-
 void Assembler::dsra(Register rd, Register rt, uint16_t sa) {
   RV_srai(rd, rt, sa & 0x1F);
 }
-
-void Assembler::dsrav(Register rd, Register rt, Register rs) { UNREACHABLE(); }
 
 void Assembler::dsll32(Register rd, Register rt, uint16_t sa) {
   RV_slli(rd, rt, 32 + (sa & 0x1F));
@@ -2308,14 +2134,6 @@ void Assembler::dsrl32(Register rd, Register rt, uint16_t sa) {
 
 void Assembler::dsra32(Register rd, Register rt, uint16_t sa) {
   RV_srai(rd, rt, 32 + (sa & 0x1F));
-}
-
-void Assembler::lsa(Register rd, Register rt, Register rs, uint8_t sa) {
-  UNREACHABLE();
-}
-
-void Assembler::dlsa(Register rd, Register rt, Register rs, uint8_t sa) {
-  UNREACHABLE();
 }
 
 // ------------Memory-instructions-------------
@@ -2379,10 +2197,6 @@ void Assembler::lbu(Register rd, const MemOperand& rs) {
   }
 }
 
-void Assembler::lh(Register rd, const MemOperand& rs) { UNREACHABLE(); }
-
-void Assembler::lhu(Register rd, const MemOperand& rs) { UNREACHABLE(); }
-
 void Assembler::lw(Register rd, const MemOperand& rs) {
   if (is_int12(rs.offset()))
     RV_lw(rd, rs.rm(), rs.offset());
@@ -2408,10 +2222,6 @@ void Assembler::lwu(Register rd, const MemOperand& rs) {
     RV_lwu(rd, scratch, 0);
   }
 }
-
-void Assembler::lwl(Register rd, const MemOperand& rs) { UNREACHABLE(); }
-
-void Assembler::lwr(Register rd, const MemOperand& rs) { UNREACHABLE(); }
 
 void Assembler::sb(Register rd, const MemOperand& rs) {
   if (is_int12(rs.offset()))
@@ -2452,10 +2262,6 @@ void Assembler::sw(Register rd, const MemOperand& rs) {
   }
 }
 
-void Assembler::swl(Register rd, const MemOperand& rs) { UNREACHABLE(); }
-
-void Assembler::swr(Register rd, const MemOperand& rs) { UNREACHABLE(); }
-
 void Assembler::ll(Register rd, const MemOperand& rs) { UNREACHABLE(); }
 
 void Assembler::lld(Register rd, const MemOperand& rs) { UNREACHABLE(); }
@@ -2463,24 +2269,6 @@ void Assembler::lld(Register rd, const MemOperand& rs) { UNREACHABLE(); }
 void Assembler::sc(Register rd, const MemOperand& rs) { UNREACHABLE(); }
 
 void Assembler::scd(Register rd, const MemOperand& rs) { UNREACHABLE(); }
-
-void Assembler::lui(Register rd, int32_t j) { UNREACHABLE(); }
-
-void Assembler::aui(Register rt, Register rs, int32_t j) { UNREACHABLE(); }
-
-void Assembler::daui(Register rt, Register rs, int32_t j) { UNREACHABLE(); }
-
-void Assembler::dahi(Register rs, int32_t j) { UNREACHABLE(); }
-
-void Assembler::dati(Register rs, int32_t j) { UNREACHABLE(); }
-
-void Assembler::ldl(Register rd, const MemOperand& rs) { UNREACHABLE(); }
-
-void Assembler::ldr(Register rd, const MemOperand& rs) { UNREACHABLE(); }
-
-void Assembler::sdl(Register rd, const MemOperand& rs) { UNREACHABLE(); }
-
-void Assembler::sdr(Register rd, const MemOperand& rs) { UNREACHABLE(); }
 
 void Assembler::ld(Register rd, const MemOperand& rs) {
   if (is_int12(rs.offset_))
@@ -2508,20 +2296,6 @@ void Assembler::sd(Register rd, const MemOperand& rs) {
   }
 }
 
-// ---------PC-Relative instructions-----------
-
-void Assembler::addiupc(Register rs, int32_t imm19) { UNREACHABLE(); }
-
-void Assembler::lwpc(Register rs, int32_t offset19) { UNREACHABLE(); }
-
-void Assembler::lwupc(Register rs, int32_t offset19) { UNREACHABLE(); }
-
-void Assembler::ldpc(Register rs, int32_t offset18) { UNREACHABLE(); }
-
-void Assembler::auipc(Register rs, int16_t imm16) { UNREACHABLE(); }
-
-void Assembler::aluipc(Register rs, int16_t imm16) { UNREACHABLE(); }
-
 // -------------Misc-instructions--------------
 
 // Break / Trap instructions.
@@ -2542,25 +2316,7 @@ void Assembler::stop(uint32_t code) {
 #endif
 }
 
-void Assembler::tge(Register rs, Register rt, uint16_t code) { UNREACHABLE(); }
-
-void Assembler::tgeu(Register rs, Register rt, uint16_t code) { UNREACHABLE(); }
-
-void Assembler::tlt(Register rs, Register rt, uint16_t code) { UNREACHABLE(); }
-
-void Assembler::tltu(Register rs, Register rt, uint16_t code) { UNREACHABLE(); }
-
-void Assembler::teq(Register rs, Register rt, uint16_t code) { UNREACHABLE(); }
-
-void Assembler::tne(Register rs, Register rt, uint16_t code) { UNREACHABLE(); }
-
 void Assembler::sync() { RV_fence(0b1111, 0b1111); }
-
-// Move from HI/LO register.
-
-void Assembler::mfhi(Register rd) { UNREACHABLE(); }
-
-void Assembler::mflo(Register rd) { UNREACHABLE(); }
 
 // Set on less than instructions.
 void Assembler::slt(Register rd, Register rs, Register rt) {
@@ -2581,8 +2337,6 @@ void Assembler::sltu(Register rd, Register rs, Register rt) {
   RV_sltu(rd, rd, scratch);
 }
 
-void Assembler::slti(Register rt, Register rs, int32_t j) { UNREACHABLE(); }
-
 void Assembler::sltiu(Register rd, Register rs, int32_t j) {
   RV_sext_w(rd, rs);
   if (is_int12(j)) {
@@ -2596,14 +2350,6 @@ void Assembler::sltiu(Register rd, Register rs, int32_t j) {
 }
 
 // Conditional move.
-void Assembler::movz(Register rd, Register rs, Register rt) { UNREACHABLE(); }
-
-void Assembler::movn(Register rd, Register rs, Register rt) { UNREACHABLE(); }
-
-void Assembler::movt(Register rd, Register rs, uint16_t cc) { UNREACHABLE(); }
-
-void Assembler::movf(Register rd, Register rs, uint16_t cc) { UNREACHABLE(); }
-
 void Assembler::min_s(FPURegister fd, FPURegister fs, FPURegister ft) {
   RV_fmin_s(fd, fs, ft);
 }
@@ -2621,9 +2367,6 @@ void Assembler::max_d(FPURegister fd, FPURegister fs, FPURegister ft) {
 }
 
 // GPR.
-void Assembler::seleqz(Register rd, Register rs, Register rt) { UNREACHABLE(); }
-
-// GPR.
 void Assembler::selnez(Register rd, Register rs, Register rt) {
   UseScratchRegisterScope temps(this);
   BlockTrampolinePoolScope block_trampoline_pool(this);
@@ -2634,61 +2377,6 @@ void Assembler::selnez(Register rd, Register rs, Register rt) {
 }
 
 // Bit twiddling.
-void Assembler::clz(Register rd, Register rs) { UNREACHABLE(); }
-
-void Assembler::dclz(Register rd, Register rs) { UNREACHABLE(); }
-
-void Assembler::ins_(Register rt, Register rs, uint16_t pos, uint16_t size) {
-  UNREACHABLE();
-}
-
-void Assembler::dins_(Register rt, Register rs, uint16_t pos, uint16_t size) {
-  UNREACHABLE();
-}
-
-void Assembler::dinsm_(Register rt, Register rs, uint16_t pos, uint16_t size) {
-  UNREACHABLE();
-}
-
-void Assembler::dinsu_(Register rt, Register rs, uint16_t pos, uint16_t size) {
-  UNREACHABLE();
-}
-
-void Assembler::ext_(Register rt, Register rs, uint16_t pos, uint16_t size) {
-  UNREACHABLE();
-}
-
-void Assembler::dext_(Register rt, Register rs, uint16_t pos, uint16_t size) {
-  UNREACHABLE();
-}
-
-void Assembler::dextm_(Register rt, Register rs, uint16_t pos, uint16_t size) {
-  UNREACHABLE();
-}
-
-void Assembler::dextu_(Register rt, Register rs, uint16_t pos, uint16_t size) {
-  UNREACHABLE();
-}
-
-void Assembler::bitswap(Register rd, Register rt) { UNREACHABLE(); }
-
-void Assembler::dbitswap(Register rd, Register rt) { UNREACHABLE(); }
-
-void Assembler::pref(int32_t hint, const MemOperand& rs) { UNREACHABLE(); }
-
-void Assembler::align(Register rd, Register rs, Register rt, uint8_t bp) {
-  UNREACHABLE();
-}
-
-void Assembler::dalign(Register rd, Register rs, Register rt, uint8_t bp) {
-  UNREACHABLE();
-}
-
-void Assembler::wsbh(Register rd, Register rt) { UNREACHABLE(); }
-
-void Assembler::dsbh(Register rd, Register rt) { UNREACHABLE(); }
-
-void Assembler::dshd(Register rd, Register rt) { UNREACHABLE(); }
 
 void Assembler::seh(Register rd, Register rt) {
   RV_slli(rd, rt, 64 - 16);
@@ -2716,8 +2404,6 @@ void Assembler::lwc1(FPURegister fd, const MemOperand& src) {
   }
 }
 
-void Assembler::ldc1(FPURegister fd, const MemOperand& src) { UNREACHABLE(); }
-
 void Assembler::swc1(FPURegister fs, const MemOperand& src) {
   if (is_int12(src.offset()))
     RV_fsw(fs, src.rm(), src.offset());
@@ -2730,52 +2416,15 @@ void Assembler::swc1(FPURegister fs, const MemOperand& src) {
     RV_fsw(fs, scratch, 0);
   }
 }
-
-void Assembler::sdc1(FPURegister fs, const MemOperand& src) { UNREACHABLE(); }
-
 void Assembler::mtc1(Register rt, FPURegister fs) { RV_fmv_w_x(fs, rt); }
-
-void Assembler::mthc1(Register rt, FPURegister fs) { UNREACHABLE(); }
 
 void Assembler::dmtc1(Register rt, FPURegister fs) { RV_fmv_d_x(fs, rt); }
 
 void Assembler::mfc1(Register rt, FPURegister fs) { RV_fmv_x_w(rt, fs); }
-
+// FIXME (RISCV): to be ported
 void Assembler::mfhc1(Register rt, FPURegister fs) { UNREACHABLE(); }
 
 void Assembler::dmfc1(Register rt, FPURegister fs) { RV_fmv_x_d(rt, fs); }
-
-void Assembler::movz_s(FPURegister fd, FPURegister fs, Register rt) {
-  UNREACHABLE();
-}
-
-void Assembler::movz_d(FPURegister fd, FPURegister fs, Register rt) {
-  UNREACHABLE();
-}
-
-void Assembler::movt_s(FPURegister fd, FPURegister fs, uint16_t cc) {
-  UNREACHABLE();
-}
-
-void Assembler::movt_d(FPURegister fd, FPURegister fs, uint16_t cc) {
-  UNREACHABLE();
-}
-
-void Assembler::movf_s(FPURegister fd, FPURegister fs, uint16_t cc) {
-  UNREACHABLE();
-}
-
-void Assembler::movf_d(FPURegister fd, FPURegister fs, uint16_t cc) {
-  UNREACHABLE();
-}
-
-void Assembler::movn_s(FPURegister fd, FPURegister fs, Register rt) {
-  UNREACHABLE();
-}
-
-void Assembler::movn_d(FPURegister fd, FPURegister fs, Register rt) {
-  UNREACHABLE();
-}
 
 // Arithmetic.
 
@@ -2803,50 +2452,6 @@ void Assembler::mul_d(FPURegister fd, FPURegister fs, FPURegister ft) {
   RV_fmul_d(fd, fs, ft);
 }
 
-void Assembler::madd_s(FPURegister fd, FPURegister fr, FPURegister fs,
-                       FPURegister ft) {
-  // On Loongson 3A (MIPS64R2), MADD.S instruction is actually fused MADD.S and
-  // this causes failure in some of the tests. Since this optimization is rarely
-  // used, and not used at all on MIPS64R6, this isntruction is removed.
-  UNREACHABLE();
-}
-
-void Assembler::madd_d(FPURegister fd, FPURegister fr, FPURegister fs,
-                       FPURegister ft) {
-  // On Loongson 3A (MIPS64R2), MADD.D instruction is actually fused MADD.D and
-  // this causes failure in some of the tests. Since this optimization is rarely
-  // used, and not used at all on MIPS64R6, this isntruction is removed.
-  UNREACHABLE();
-}
-
-void Assembler::msub_s(FPURegister fd, FPURegister fr, FPURegister fs,
-                       FPURegister ft) {
-  // See explanation for instruction madd_s.
-  UNREACHABLE();
-}
-
-void Assembler::msub_d(FPURegister fd, FPURegister fr, FPURegister fs,
-                       FPURegister ft) {
-  // See explanation for instruction madd_d.
-  UNREACHABLE();
-}
-
-void Assembler::maddf_s(FPURegister fd, FPURegister fs, FPURegister ft) {
-  UNREACHABLE();
-}
-
-void Assembler::maddf_d(FPURegister fd, FPURegister fs, FPURegister ft) {
-  UNREACHABLE();
-}
-
-void Assembler::msubf_s(FPURegister fd, FPURegister fs, FPURegister ft) {
-  UNREACHABLE();
-}
-
-void Assembler::msubf_d(FPURegister fd, FPURegister fs, FPURegister ft) {
-  UNREACHABLE();
-}
-
 void Assembler::div_s(FPURegister fd, FPURegister fs, FPURegister ft) {
   RV_fdiv_s(fd, fs, ft);
 }
@@ -2860,95 +2465,22 @@ void Assembler::abs_s(FPURegister fd, FPURegister fs) { RV_fabs_s(fd, fs); }
 void Assembler::abs_d(FPURegister fd, FPURegister fs) { RV_fabs_d(fd, fs); }
 
 void Assembler::mov_d(FPURegister fd, FPURegister fs) { RV_fmv_d(fd, fs); }
-
+// FIXME (RISCV): to be ported
 void Assembler::mov_s(FPURegister fd, FPURegister fs) { UNREACHABLE(); }
-
-void Assembler::neg_s(FPURegister fd, FPURegister fs) { UNREACHABLE(); }
-
-void Assembler::neg_d(FPURegister fd, FPURegister fs) { UNREACHABLE(); }
 
 void Assembler::sqrt_s(FPURegister fd, FPURegister fs) { RV_fsqrt_s(fd, fs); }
 
 void Assembler::sqrt_d(FPURegister fd, FPURegister fs) { RV_fsqrt_d(fd, fs); }
 
-void Assembler::rsqrt_s(FPURegister fd, FPURegister fs) { UNREACHABLE(); }
-
-void Assembler::rsqrt_d(FPURegister fd, FPURegister fs) { UNREACHABLE(); }
-
-void Assembler::recip_d(FPURegister fd, FPURegister fs) { UNREACHABLE(); }
-
-void Assembler::recip_s(FPURegister fd, FPURegister fs) { UNREACHABLE(); }
-
 // Conversions.
-void Assembler::cvt_w_s(FPURegister fd, FPURegister fs) { UNREACHABLE(); }
-
-void Assembler::cvt_w_d(FPURegister fd, FPURegister fs) { UNREACHABLE(); }
-
-void Assembler::trunc_w_s(FPURegister fd, FPURegister fs) { UNREACHABLE(); }
-
-void Assembler::trunc_w_d(FPURegister fd, FPURegister fs) { UNREACHABLE(); }
-
-void Assembler::round_w_s(FPURegister fd, FPURegister fs) { UNREACHABLE(); }
-
-void Assembler::round_w_d(FPURegister fd, FPURegister fs) { UNREACHABLE(); }
-
-void Assembler::floor_w_s(FPURegister fd, FPURegister fs) { UNREACHABLE(); }
-
-void Assembler::floor_w_d(FPURegister fd, FPURegister fs) { UNREACHABLE(); }
-
-void Assembler::ceil_w_s(FPURegister fd, FPURegister fs) { UNREACHABLE(); }
-
-void Assembler::ceil_w_d(FPURegister fd, FPURegister fs) { UNREACHABLE(); }
-
-void Assembler::cvt_l_s(FPURegister fd, FPURegister fs) { UNREACHABLE(); }
-
-void Assembler::cvt_l_d(FPURegister fd, FPURegister fs) { UNREACHABLE(); }
-
-void Assembler::trunc_l_s(FPURegister fd, FPURegister fs) { UNREACHABLE(); }
-
-void Assembler::trunc_l_d(FPURegister fd, FPURegister fs) { UNREACHABLE(); }
-
-void Assembler::round_l_s(FPURegister fd, FPURegister fs) { UNREACHABLE(); }
-
-void Assembler::round_l_d(FPURegister fd, FPURegister fs) { UNREACHABLE(); }
-
-void Assembler::floor_l_s(FPURegister fd, FPURegister fs) { UNREACHABLE(); }
-
-void Assembler::floor_l_d(FPURegister fd, FPURegister fs) { UNREACHABLE(); }
-
-void Assembler::ceil_l_s(FPURegister fd, FPURegister fs) { UNREACHABLE(); }
-
-void Assembler::ceil_l_d(FPURegister fd, FPURegister fs) { UNREACHABLE(); }
-
-void Assembler::class_s(FPURegister fd, FPURegister fs) { UNREACHABLE(); }
-
-void Assembler::class_d(FPURegister fd, FPURegister fs) { UNREACHABLE(); }
-
-void Assembler::cvt_s_w(FPURegister fd, FPURegister fs) { UNREACHABLE(); }
-
-void Assembler::cvt_s_l(FPURegister fd, FPURegister fs) { UNREACHABLE(); }
 
 void Assembler::cvt_s_d(FPURegister fd, FPURegister fs) { RV_fcvt_s_d(fd, fs); }
-
-void Assembler::cvt_d_w(FPURegister fd, FPURegister fs) { UNREACHABLE(); }
-
-void Assembler::cvt_d_l(FPURegister fd, FPURegister fs) { UNREACHABLE(); }
 
 void Assembler::cvt_d_s(FPURegister fd, FPURegister fs) { RV_fcvt_d_s(fd, fs); }
 
 void Assembler::bc1eqz(int16_t offset, FPURegister ft) { UNREACHABLE(); }
 
 void Assembler::bc1nez(int16_t offset, FPURegister ft) { UNREACHABLE(); }
-
-// Conditions for < MIPSr6.
-
-void Assembler::fcmp(FPURegister src1, const double src2, FPUCondition cond) {
-  UNREACHABLE();
-}
-
-void Assembler::bc1f(int16_t offset, uint16_t cc) { UNREACHABLE(); }
-
-void Assembler::bc1t(int16_t offset, uint16_t cc) { UNREACHABLE(); }
 
 // FIXME (RISCV): not yet ported (or not used?)
 int Assembler::RelocateInternalReference(RelocInfo::Mode rmode, Address pc,

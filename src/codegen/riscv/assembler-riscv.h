@@ -738,125 +738,6 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase {
   inline void b(Label* L) { b(shifted_branch_offset(L)); }
   void bal(int16_t offset);
   inline void bal(Label* L) { bal(shifted_branch_offset(L)); }
-  void bc(int32_t offset);
-  inline void bc(Label* L) { bc(shifted_branch_offset26(L)); }
-  void balc(int32_t offset);
-  inline void balc(Label* L) { balc(shifted_branch_offset26(L)); }
-
-  void beq(Register rs, Register rt, int16_t offset);
-  inline void beq(Register rs, Register rt, Label* L) {
-    beq(rs, rt, shifted_branch_offset(L));
-  }
-  void bgez(Register rs, int16_t offset);
-  void bgezc(Register rt, int16_t offset);
-  inline void bgezc(Register rt, Label* L) {
-    bgezc(rt, shifted_branch_offset(L));
-  }
-  void bgeuc(Register rs, Register rt, int16_t offset);
-  inline void bgeuc(Register rs, Register rt, Label* L) {
-    bgeuc(rs, rt, shifted_branch_offset(L));
-  }
-  void bgec(Register rs, Register rt, int16_t offset);
-  inline void bgec(Register rs, Register rt, Label* L) {
-    bgec(rs, rt, shifted_branch_offset(L));
-  }
-  void bgezal(Register rs, int16_t offset);
-  void bgezalc(Register rt, int16_t offset);
-  inline void bgezalc(Register rt, Label* L) {
-    bgezalc(rt, shifted_branch_offset(L));
-  }
-  void bgezall(Register rs, int16_t offset);
-  inline void bgezall(Register rs, Label* L) {
-    bgezall(rs, branch_offset(L) >> 2);
-  }
-  void bgtz(Register rs, int16_t offset);
-  void bgtzc(Register rt, int16_t offset);
-  inline void bgtzc(Register rt, Label* L) {
-    bgtzc(rt, shifted_branch_offset(L));
-  }
-  void blez(Register rs, int16_t offset);
-  void blezc(Register rt, int16_t offset);
-  inline void blezc(Register rt, Label* L) {
-    blezc(rt, shifted_branch_offset(L));
-  }
-  void bltz(Register rs, int16_t offset);
-  void bltzc(Register rt, int16_t offset);
-  inline void bltzc(Register rt, Label* L) {
-    bltzc(rt, shifted_branch_offset(L));
-  }
-  void bltuc(Register rs, Register rt, int16_t offset);
-  inline void bltuc(Register rs, Register rt, Label* L) {
-    bltuc(rs, rt, shifted_branch_offset(L));
-  }
-  void bltc(Register rs, Register rt, int16_t offset);
-  inline void bltc(Register rs, Register rt, Label* L) {
-    bltc(rs, rt, shifted_branch_offset(L));
-  }
-  void bltzal(Register rs, int16_t offset);
-  void nal() { UNREACHABLE(); }
-  void blezalc(Register rt, int16_t offset);
-  inline void blezalc(Register rt, Label* L) {
-    blezalc(rt, shifted_branch_offset(L));
-  }
-  void bltzalc(Register rt, int16_t offset);
-  inline void bltzalc(Register rt, Label* L) {
-    bltzalc(rt, shifted_branch_offset(L));
-  }
-  void bgtzalc(Register rt, int16_t offset);
-  inline void bgtzalc(Register rt, Label* L) {
-    bgtzalc(rt, shifted_branch_offset(L));
-  }
-  void beqzalc(Register rt, int16_t offset);
-  inline void beqzalc(Register rt, Label* L) {
-    beqzalc(rt, shifted_branch_offset(L));
-  }
-  void beqc(Register rs, Register rt, int16_t offset);
-  inline void beqc(Register rs, Register rt, Label* L) {
-    beqc(rs, rt, shifted_branch_offset(L));
-  }
-  void beqzc(Register rs, int32_t offset);
-  inline void beqzc(Register rs, Label* L) {
-    beqzc(rs, shifted_branch_offset21(L));
-  }
-  void bnezalc(Register rt, int16_t offset);
-  inline void bnezalc(Register rt, Label* L) {
-    bnezalc(rt, shifted_branch_offset(L));
-  }
-  void bnec(Register rs, Register rt, int16_t offset);
-  inline void bnec(Register rs, Register rt, Label* L) {
-    bnec(rs, rt, shifted_branch_offset(L));
-  }
-  void bnezc(Register rt, int32_t offset);
-  inline void bnezc(Register rt, Label* L) {
-    bnezc(rt, shifted_branch_offset21(L));
-  }
-  void bne(Register rs, Register rt, int16_t offset);
-  inline void bne(Register rs, Register rt, Label* L) {
-    bne(rs, rt, shifted_branch_offset(L));
-  }
-  void bovc(Register rs, Register rt, int16_t offset);
-  inline void bovc(Register rs, Register rt, Label* L) {
-    bovc(rs, rt, shifted_branch_offset(L));
-  }
-  void bnvc(Register rs, Register rt, int16_t offset);
-  inline void bnvc(Register rs, Register rt, Label* L) {
-    bnvc(rs, rt, shifted_branch_offset(L));
-  }
-
-  // Never use the int16_t b(l)cond version with a branch offset
-  // instead of using the Label* version.
-
-  void jalr(Register rs, Register rd = ra);
-  void jr(Register target);
-  void jic(Register rt, int16_t offset);
-  void jialc(Register rt, int16_t offset);
-
-  // Following instructions are deprecated and require 256 MB
-  // code alignment. Use PC-relative instructions instead.
-  void j(int64_t target);
-  void jal(int64_t target);
-  void j(Label* target);
-  void jal(Label* target);
 
   // -------Data-processing-instructions---------
 
@@ -864,34 +745,8 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase {
 
   void addu(Register rd, Register rs, Register rt);
   void subu(Register rd, Register rs, Register rt);
-
-  void div(Register rs, Register rt);
-  void divu(Register rs, Register rt);
-  void ddiv(Register rs, Register rt);
-  void ddivu(Register rs, Register rt);
-  void div(Register rd, Register rs, Register rt);
-  void divu(Register rd, Register rs, Register rt);
-  void ddiv(Register rd, Register rs, Register rt);
-  void ddivu(Register rd, Register rs, Register rt);
-  void mod(Register rd, Register rs, Register rt);
-  void modu(Register rd, Register rs, Register rt);
-  void dmod(Register rd, Register rs, Register rt);
-  void dmodu(Register rd, Register rs, Register rt);
-
-  void mul(Register rd, Register rs, Register rt);
-  void muh(Register rd, Register rs, Register rt);
-  void mulu(Register rd, Register rs, Register rt);
-  void muhu(Register rd, Register rs, Register rt);
-  void mult(Register rs, Register rt);
-  void multu(Register rs, Register rt);
-  void dmul(Register rd, Register rs, Register rt);
-  void dmuh(Register rd, Register rs, Register rt);
-  void dmulu(Register rd, Register rs, Register rt);
-  void dmuhu(Register rd, Register rs, Register rt);
   void daddu(Register rd, Register rs, Register rt);
   void dsubu(Register rd, Register rs, Register rt);
-  void dmult(Register rs, Register rt);
-  void dmultu(Register rs, Register rt);
 
   void addiu(Register rd, Register rs, int32_t j);
   void daddiu(Register rd, Register rs, int32_t j);
@@ -903,13 +758,7 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase {
   void nor(Register rd, Register rs, Register rt);
 
   void andi(Register rd, Register rs, int32_t j);
-  void ori(Register rd, Register rs, int32_t j);
   void xori(Register rd, Register rs, int32_t j);
-  void lui(Register rd, int32_t j);
-  void aui(Register rt, Register rs, int32_t j);
-  void daui(Register rt, Register rs, int32_t j);
-  void dahi(Register rs, int32_t j);
-  void dati(Register rs, int32_t j);
 
   // Shifts.
   // Please note: sll(zero_reg, zero_reg, x) instructions are reserved as nop
@@ -921,17 +770,10 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase {
   void srlv(Register rd, Register rt, Register rs);
   void sra(Register rt, Register rd, uint16_t sa);
   void srav(Register rt, Register rd, Register rs);
-  void rotr(Register rd, Register rt, uint16_t sa);
-  void rotrv(Register rd, Register rt, Register rs);
   void dsll(Register rd, Register rt, uint16_t sa);
   void dsllv(Register rd, Register rt, Register rs);
   void dsrl(Register rd, Register rt, uint16_t sa);
-  void dsrlv(Register rd, Register rt, Register rs);
-  void drotr(Register rd, Register rt, uint16_t sa);
-  void drotr32(Register rd, Register rt, uint16_t sa);
-  void drotrv(Register rd, Register rt, Register rs);
   void dsra(Register rt, Register rd, uint16_t sa);
-  void dsrav(Register rd, Register rt, Register rs);
   void dsll32(Register rt, Register rd, uint16_t sa);
   void dsrl32(Register rt, Register rd, uint16_t sa);
   void dsra32(Register rt, Register rd, uint16_t sa);
@@ -940,21 +782,11 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase {
 
   void lb(Register rd, const MemOperand& rs);
   void lbu(Register rd, const MemOperand& rs);
-  void lh(Register rd, const MemOperand& rs);
-  void lhu(Register rd, const MemOperand& rs);
   void lw(Register rd, const MemOperand& rs);
   void lwu(Register rd, const MemOperand& rs);
-  void lwl(Register rd, const MemOperand& rs);
-  void lwr(Register rd, const MemOperand& rs);
   void sb(Register rd, const MemOperand& rs);
   void sh(Register rd, const MemOperand& rs);
   void sw(Register rd, const MemOperand& rs);
-  void swl(Register rd, const MemOperand& rs);
-  void swr(Register rd, const MemOperand& rs);
-  void ldl(Register rd, const MemOperand& rs);
-  void ldr(Register rd, const MemOperand& rs);
-  void sdl(Register rd, const MemOperand& rs);
-  void sdr(Register rd, const MemOperand& rs);
   void ld(Register rd, const MemOperand& rs);
   void sd(Register rd, const MemOperand& rs);
 
@@ -965,15 +797,6 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase {
   void lld(Register rd, const MemOperand& rs);
   void scd(Register rd, const MemOperand& rs);
 
-  // ---------PC-Relative-instructions-----------
-
-  void addiupc(Register rs, int32_t imm19);
-  void lwpc(Register rs, int32_t offset19);
-  void lwupc(Register rs, int32_t offset19);
-  void ldpc(Register rs, int32_t offset18);
-  void auipc(Register rs, int16_t imm16);
-  void aluipc(Register rs, int16_t imm16);
-
   // ----------------Prefetch--------------------
 
   void pref(int32_t hint, const MemOperand& rs);
@@ -983,66 +806,23 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase {
   // Break / Trap instructions.
   void break_(uint32_t code, bool break_as_stop = false);
   void stop(uint32_t code = kMaxStopCode);
-  void tge(Register rs, Register rt, uint16_t code);
-  void tgeu(Register rs, Register rt, uint16_t code);
-  void tlt(Register rs, Register rt, uint16_t code);
-  void tltu(Register rs, Register rt, uint16_t code);
-  void teq(Register rs, Register rt, uint16_t code);
-  void tne(Register rs, Register rt, uint16_t code);
 
   // Memory barrier instruction.
   void sync();
 
-  // Move from HI/LO register.
-  void mfhi(Register rd);
-  void mflo(Register rd);
-
   // Set on less than.
   void slt(Register rd, Register rs, Register rt);
   void sltu(Register rd, Register rs, Register rt);
-  void slti(Register rd, Register rs, int32_t j);
   void sltiu(Register rd, Register rs, int32_t j);
 
   // Conditional move.
-  void movz(Register rd, Register rs, Register rt);
-  void movn(Register rd, Register rs, Register rt);
-  void movt(Register rd, Register rs, uint16_t cc = 0);
-  void movf(Register rd, Register rs, uint16_t cc = 0);
-
-  void seleqz(Register rd, Register rs, Register rt);
   void selnez(Register rs, Register rt, Register rd);
   void seleqz_d(FPURegister fd, FPURegister fs, FPURegister ft);
   void seleqz_s(FPURegister fd, FPURegister fs, FPURegister ft);
   void selnez_d(FPURegister fd, FPURegister fs, FPURegister ft);
   void selnez_s(FPURegister fd, FPURegister fs, FPURegister ft);
 
-  void movz_s(FPURegister fd, FPURegister fs, Register rt);
-  void movz_d(FPURegister fd, FPURegister fs, Register rt);
-  void movt_s(FPURegister fd, FPURegister fs, uint16_t cc = 0);
-  void movt_d(FPURegister fd, FPURegister fs, uint16_t cc = 0);
-  void movf_s(FPURegister fd, FPURegister fs, uint16_t cc = 0);
-  void movf_d(FPURegister fd, FPURegister fs, uint16_t cc = 0);
-  void movn_s(FPURegister fd, FPURegister fs, Register rt);
-  void movn_d(FPURegister fd, FPURegister fs, Register rt);
   // Bit twiddling.
-  void clz(Register rd, Register rs);
-  void dclz(Register rd, Register rs);
-  void ins_(Register rt, Register rs, uint16_t pos, uint16_t size);
-  void ext_(Register rt, Register rs, uint16_t pos, uint16_t size);
-  void dext_(Register rt, Register rs, uint16_t pos, uint16_t size);
-  void dextm_(Register rt, Register rs, uint16_t pos, uint16_t size);
-  void dextu_(Register rt, Register rs, uint16_t pos, uint16_t size);
-  void dins_(Register rt, Register rs, uint16_t pos, uint16_t size);
-  void dinsm_(Register rt, Register rs, uint16_t pos, uint16_t size);
-  void dinsu_(Register rt, Register rs, uint16_t pos, uint16_t size);
-  void bitswap(Register rd, Register rt);
-  void dbitswap(Register rd, Register rt);
-  void align(Register rd, Register rs, Register rt, uint8_t bp);
-  void dalign(Register rd, Register rs, Register rt, uint8_t bp);
-
-  void wsbh(Register rd, Register rt);
-  void dsbh(Register rd, Register rt);
-  void dshd(Register rd, Register rt);
   void seh(Register rd, Register rt);
   void seb(Register rd, Register rt);
 
@@ -1050,13 +830,9 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase {
 
   // Load, store, and move.
   void lwc1(FPURegister fd, const MemOperand& src);
-  void ldc1(FPURegister fd, const MemOperand& src);
-
   void swc1(FPURegister fs, const MemOperand& dst);
-  void sdc1(FPURegister fs, const MemOperand& dst);
 
   void mtc1(Register rt, FPURegister fs);
-  void mthc1(Register rt, FPURegister fs);
   void dmtc1(Register rt, FPURegister fs);
 
   void mfc1(Register rt, FPURegister fs);
@@ -1070,68 +846,23 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase {
   void sub_d(FPURegister fd, FPURegister fs, FPURegister ft);
   void mul_s(FPURegister fd, FPURegister fs, FPURegister ft);
   void mul_d(FPURegister fd, FPURegister fs, FPURegister ft);
-  void madd_s(FPURegister fd, FPURegister fr, FPURegister fs, FPURegister ft);
-  void madd_d(FPURegister fd, FPURegister fr, FPURegister fs, FPURegister ft);
-  void msub_s(FPURegister fd, FPURegister fr, FPURegister fs, FPURegister ft);
-  void msub_d(FPURegister fd, FPURegister fr, FPURegister fs, FPURegister ft);
-  void maddf_s(FPURegister fd, FPURegister fs, FPURegister ft);
-  void maddf_d(FPURegister fd, FPURegister fs, FPURegister ft);
-  void msubf_s(FPURegister fd, FPURegister fs, FPURegister ft);
-  void msubf_d(FPURegister fd, FPURegister fs, FPURegister ft);
   void div_s(FPURegister fd, FPURegister fs, FPURegister ft);
   void div_d(FPURegister fd, FPURegister fs, FPURegister ft);
   void abs_s(FPURegister fd, FPURegister fs);
   void abs_d(FPURegister fd, FPURegister fs);
   void mov_d(FPURegister fd, FPURegister fs);
   void mov_s(FPURegister fd, FPURegister fs);
-  void neg_s(FPURegister fd, FPURegister fs);
-  void neg_d(FPURegister fd, FPURegister fs);
   void sqrt_s(FPURegister fd, FPURegister fs);
   void sqrt_d(FPURegister fd, FPURegister fs);
-  void rsqrt_s(FPURegister fd, FPURegister fs);
-  void rsqrt_d(FPURegister fd, FPURegister fs);
-  void recip_d(FPURegister fd, FPURegister fs);
-  void recip_s(FPURegister fd, FPURegister fs);
 
   // Conversion.
-  void cvt_w_s(FPURegister fd, FPURegister fs);
-  void cvt_w_d(FPURegister fd, FPURegister fs);
-  void trunc_w_s(FPURegister fd, FPURegister fs);
-  void trunc_w_d(FPURegister fd, FPURegister fs);
-  void round_w_s(FPURegister fd, FPURegister fs);
-  void round_w_d(FPURegister fd, FPURegister fs);
-  void floor_w_s(FPURegister fd, FPURegister fs);
-  void floor_w_d(FPURegister fd, FPURegister fs);
-  void ceil_w_s(FPURegister fd, FPURegister fs);
-  void ceil_w_d(FPURegister fd, FPURegister fs);
-
-  void cvt_l_s(FPURegister fd, FPURegister fs);
-  void cvt_l_d(FPURegister fd, FPURegister fs);
-  void trunc_l_s(FPURegister fd, FPURegister fs);
-  void trunc_l_d(FPURegister fd, FPURegister fs);
-  void round_l_s(FPURegister fd, FPURegister fs);
-  void round_l_d(FPURegister fd, FPURegister fs);
-  void floor_l_s(FPURegister fd, FPURegister fs);
-  void floor_l_d(FPURegister fd, FPURegister fs);
-  void ceil_l_s(FPURegister fd, FPURegister fs);
-  void ceil_l_d(FPURegister fd, FPURegister fs);
-
-  void class_s(FPURegister fd, FPURegister fs);
-  void class_d(FPURegister fd, FPURegister fs);
-
   void min_s(FPURegister fd, FPURegister fs, FPURegister ft);
   void min_d(FPURegister fd, FPURegister fs, FPURegister ft);
   void max_s(FPURegister fd, FPURegister fs, FPURegister ft);
   void max_d(FPURegister fd, FPURegister fs, FPURegister ft);
 
-  void cvt_s_w(FPURegister fd, FPURegister fs);
-  void cvt_s_l(FPURegister fd, FPURegister fs);
   void cvt_s_d(FPURegister fd, FPURegister fs);
-
-  void cvt_d_w(FPURegister fd, FPURegister fs);
-  void cvt_d_l(FPURegister fd, FPURegister fs);
   void cvt_d_s(FPURegister fd, FPURegister fs);
-
   // Conditions and branches for MIPSr6.
 
   void bc1eqz(int16_t offset, FPURegister ft);
@@ -1142,18 +873,6 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase {
   inline void bc1nez(Label* L, FPURegister ft) {
     bc1nez(shifted_branch_offset(L), ft);
   }
-
-  // Conditions and branches for non MIPSr6.
-
-  void bc1f(int16_t offset, uint16_t cc = 0);
-  inline void bc1f(Label* L, uint16_t cc = 0) {
-    bc1f(shifted_branch_offset(L), cc);
-  }
-  void bc1t(int16_t offset, uint16_t cc = 0);
-  inline void bc1t(Label* L, uint16_t cc = 0) {
-    bc1t(shifted_branch_offset(L), cc);
-  }
-  void fcmp(FPURegister src1, const double src2, FPUCondition cond);
 
   // Check the code size generated from label to here.
   int SizeOfCodeGeneratedSince(Label* label) {
@@ -1252,10 +971,6 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase {
   inline int UnboundLabelsCount() { return unbound_labels_count_; }
 
  protected:
-  // Load Scaled Address instructions.
-  void lsa(Register rd, Register rt, Register rs, uint8_t sa);
-  void dlsa(Register rd, Register rt, Register rs, uint8_t sa);
-
   // Readable constants for base and offset adjustment helper, these indicate if
   // aside from offset, another value like offset + 4 should fit into int16.
   enum class OffsetAccessType : bool {
