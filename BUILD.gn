@@ -1039,6 +1039,8 @@ torque_files = [
   "src/builtins/frames.tq",
   "src/builtins/frame-arguments.tq",
   "src/builtins/growable-fixed-array.tq",
+  "src/builtins/ic-callable.tq",
+  "src/builtins/ic.tq",
   "src/builtins/internal-coverage.tq",
   "src/builtins/iterator.tq",
   "src/builtins/math.tq",

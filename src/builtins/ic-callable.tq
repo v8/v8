@@ -1,0 +1,127 @@
+// Copyright 2020 the V8 project authors. All rights reserved.
+// Use of this source code is governed by a BSD-style license that can be
+// found in the LICENSE file.
+
+namespace ic_callable {
+
+  extern macro IncrementCallCount(FeedbackVector, uintptr): void;
+
+  macro IsMonomorphic(feedback: MaybeObject, target: JSAny): bool {
+    return IsWeakReferenceToObject(feedback, target);
+  }
+
+  macro InSameNativeContext(lhs: Context, rhs: Context): bool {
+    return LoadNativeContext(lhs) == LoadNativeContext(rhs);
+  }
+
+  macro MaybeObjectToStrong(maybeObject: MaybeObject):
+      HeapObject labels IfCleared {
+    assert(IsWeakOrCleared(maybeObject));
+    const weakObject = %RawDownCast<Weak<HeapObject>>(maybeObject);
+    return WeakToStrong(weakObject) otherwise IfCleared;
+  }
+
+  macro TryInitializeAsMonomorphic(implicit context: Context)(
+      maybeTarget: JSAny, feedbackVector: FeedbackVector,
+      slotId: uintptr): void labels TransitionToMegamorphic {
+    const targetHeapObject =
+        Cast<HeapObject>(maybeTarget) otherwise TransitionToMegamorphic;
+
+    let unwrappedTarget = targetHeapObject;
+    while (Is<JSBoundFunction>(unwrappedTarget)) {
+      unwrappedTarget =
+          UnsafeCast<JSBoundFunction>(unwrappedTarget).bound_target_function;
+    }
+
+    const unwrappedTargetJSFunction =
+        Cast<JSFunction>(unwrappedTarget) otherwise TransitionToMegamorphic;
+    if (!InSameNativeContext(unwrappedTargetJSFunction.context, context)) {
+      goto TransitionToMegamorphic;
+    }
+
+    ic::StoreWeakReferenceInFeedbackVector(
+        feedbackVector, slotId, targetHeapObject);
+    ic::ReportFeedbackUpdate(feedbackVector, slotId, 'Call:Initialize');
+  }
+
+  macro TransitionToMegamorphic(implicit context: Context)(
+      feedbackVector: FeedbackVector, slotId: uintptr): void {
+    ic::StoreFeedbackVectorSlot(feedbackVector, slotId, ic::kMegamorphicSymbol);
+    ic::ReportFeedbackUpdate(
+        feedbackVector, slotId, 'Call:TransitionMegamorphic');
+  }
+
+  macro CollectCallFeedback(
+      maybeTarget: JSAny, context: Context,
+      maybeFeedbackVector: Undefined|FeedbackVector, slotId: uintptr): void {
+    const feedbackVector =
+        Cast<FeedbackVector>(maybeFeedbackVector) otherwise return;
+    IncrementCallCount(feedbackVector, slotId);
+
+    try {
+      const feedback: MaybeObject =
+          ic::LoadFeedbackVectorSlot(feedbackVector, slotId);
+      if (IsMonomorphic(feedback, maybeTarget)) return;
+      if (ic::IsMegamorphic(feedback)) return;
+      if (ic::IsUninitialized(feedback)) goto TryInitializeAsMonomorphic;
+
+      // If cleared, we have a new chance to become monomorphic.
+      const feedbackValue: HeapObject =
+          MaybeObjectToStrong(feedback) otherwise TryInitializeAsMonomorphic;
+
+      // Try transitioning to a feedback cell.
+      // Check if {target}s feedback cell matches the {feedbackValue}.
+      const target =
+          Cast<JSFunction>(maybeTarget) otherwise TransitionToMegamorphic;
+      const targetFeedbackCell: FeedbackCell = target.feedback_cell;
+      if (TaggedEqual(feedbackValue, targetFeedbackCell)) return;
+
+      // Check if {target} and {feedbackValue} are both JSFunctions with
+      // the same feedback vector cell, and that those functions were
+      // actually compiled already.
+      const feedbackValueJSFunction =
+          Cast<JSFunction>(feedbackValue) otherwise TransitionToMegamorphic;
+      const feedbackCell: FeedbackCell = feedbackValueJSFunction.feedback_cell;
+      if (!TaggedEqual(feedbackCell, targetFeedbackCell))
+        goto TransitionToMegamorphic;
+
+      ic::StoreWeakReferenceInFeedbackVector(
+          feedbackVector, slotId, feedbackCell);
+      ic::ReportFeedbackUpdate(
+          feedbackVector, slotId, 'Call:FeedbackVectorCell');
+    } label TryInitializeAsMonomorphic {
+      TryInitializeAsMonomorphic(maybeTarget, feedbackVector, slotId)
+          otherwise TransitionToMegamorphic;
+    } label TransitionToMegamorphic {
+      TransitionToMegamorphic(feedbackVector, slotId);
+    }
+  }
+
+  macro CollectInstanceOfFeedback(
+      maybeTarget: JSAny, context: Context,
+      maybeFeedbackVector: Undefined|FeedbackVector, slotId: uintptr): void {
+    const feedbackVector =
+        Cast<FeedbackVector>(maybeFeedbackVector) otherwise return;
+    // Note: The call count is not incremented.
+
+    try {
+      const feedback: MaybeObject =
+          ic::LoadFeedbackVectorSlot(feedbackVector, slotId);
+      if (IsMonomorphic(feedback, maybeTarget)) return;
+      if (ic::IsMegamorphic(feedback)) return;
+      if (ic::IsUninitialized(feedback)) goto TryInitializeAsMonomorphic;
+
+      // If cleared, we have a new chance to become monomorphic.
+      const _feedbackValue: HeapObject =
+          MaybeObjectToStrong(feedback) otherwise TryInitializeAsMonomorphic;
+
+      goto TransitionToMegamorphic;
+    } label TryInitializeAsMonomorphic {
+      TryInitializeAsMonomorphic(maybeTarget, feedbackVector, slotId)
+          otherwise TransitionToMegamorphic;
+    } label TransitionToMegamorphic {
+      TransitionToMegamorphic(feedbackVector, slotId);
+    }
+  }
+
+}  // namespace ic_callable

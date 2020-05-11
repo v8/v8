@@ -3,6 +3,7 @@
 // found in the LICENSE file.
 
 extern macro IsConstructor(HeapObject): bool;
+extern macro IsFeedbackCell(HeapObject): bool;
 extern macro IsFeedbackVector(HeapObject): bool;
 extern macro IsJSAggregateError(HeapObject): bool;
 extern macro IsJSArray(HeapObject): bool;
@@ -486,6 +487,12 @@ Cast<JSRegExpResult>(implicit context: Context)(o: HeapObject): JSRegExpResult
 Cast<Map>(implicit context: Context)(o: HeapObject): Map
     labels CastError {
   if (IsMap(o)) return %RawDownCast<Map>(o);
+  goto CastError;
+}
+
+Cast<FeedbackCell>(implicit context: Context)(o: HeapObject): FeedbackCell
+    labels CastError {
+  if (IsFeedbackCell(o)) return %RawDownCast<FeedbackCell>(o);
   goto CastError;
 }
 

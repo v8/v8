@@ -71,7 +71,8 @@ namespace iterator {
       context: Context, receiver: JSAny, iteratorMethod: JSAny, callSlot: Smi,
       feedback: Undefined|FeedbackVector): JSAny {
     const callSlotUnTagged: uintptr = Unsigned(SmiUntag(callSlot));
-    CollectCallFeedback(iteratorMethod, context, feedback, callSlotUnTagged);
+    ic::CollectCallFeedback(
+        iteratorMethod, context, feedback, callSlotUnTagged);
     const iteratorCallable: Callable = Cast<Callable>(iteratorMethod)
         otherwise ThrowCalledNonCallable(iteratorMethod);
     return Call(context, iteratorCallable, receiver);

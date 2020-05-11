@@ -52,6 +52,7 @@ extern macro MakeWeak(HeapObject): WeakHeapObject;
 extern macro GetHeapObjectAssumeWeak(WeakHeapObject):
     HeapObject labels ClearedWeakPointer;
 extern macro IsWeakOrCleared(MaybeObject): bool;
+extern macro IsWeakReferenceToObject(MaybeObject, Object): bool;
 
 macro StrongToWeak<T: type>(x: T): Weak<T> {
   return %RawDownCast<Weak<T>>(MakeWeak(x));
@@ -382,20 +383,20 @@ type Boolean = True|False;
 
 type NumberOrUndefined = Number|Undefined;
 
-extern macro TheHoleConstant(): TheHole;
-extern macro NullConstant(): Null;
-extern macro UndefinedConstant(): Undefined;
-extern macro TrueConstant(): True;
-extern macro FalseConstant(): False;
-extern macro Int32TrueConstant(): bool;
-extern macro Int32FalseConstant(): bool;
 extern macro EmptyStringConstant(): EmptyString;
+extern macro FalseConstant(): False;
+extern macro Int32FalseConstant(): bool;
+extern macro Int32TrueConstant(): bool;
+extern macro IteratorSymbolConstant(): PublicSymbol;
 extern macro LengthStringConstant(): String;
+extern macro MatchSymbolConstant(): Symbol;
 extern macro MessageStringConstant(): String;
 extern macro NanConstant(): NaN;
-extern macro IteratorSymbolConstant(): PublicSymbol;
-extern macro MatchSymbolConstant(): Symbol;
+extern macro NullConstant(): Null;
 extern macro ReturnStringConstant(): String;
+extern macro TheHoleConstant(): TheHole;
+extern macro TrueConstant(): True;
+extern macro UndefinedConstant(): Undefined;
 
 const TheHole: TheHole = TheHoleConstant();
 const Null: Null = NullConstant();
@@ -523,8 +524,6 @@ extern transitioning macro HasProperty_Inline(implicit context: Context)(
     JSReceiver, JSAny): Boolean;
 extern builtin LoadIC(
     Context, JSAny, JSAny, TaggedIndex, FeedbackVector): JSAny;
-extern macro CollectCallFeedback(
-    JSAny, Context, Undefined | FeedbackVector, uintptr);
 
 extern macro ThrowRangeError(implicit context: Context)(
     constexpr MessageTemplate): never;
@@ -724,7 +723,7 @@ macro Float64IsNaN(n: float64): bool {
 
 // The type of all tagged values that can safely be compared with TaggedEqual.
 type TaggedWithIdentity =
-    JSReceiver|FixedArrayBase|Oddball|Map|WeakCell|EmptyString;
+    JSReceiver|FixedArrayBase|Oddball|Map|WeakCell|Context|EmptyString;
 
 extern operator '==' macro TaggedEqual(TaggedWithIdentity, Object): bool;
 extern operator '==' macro TaggedEqual(Object, TaggedWithIdentity): bool;
