@@ -23,7 +23,7 @@ function checkTieredDown(instance) {
   }
 }
 
-function waitForTieredUp(instance) {
+function checkTieredUp(instance) {
   // Busy waiting until all functions are tiered up.
   let num_liftoff_functions = 0;
   while (true) {
@@ -37,8 +37,6 @@ function waitForTieredUp(instance) {
   }
 }
 
-// In the 'isolates' test, this test runs in parallel to itself on two isolates.
-// All checks below should still hold.
 const instance = create_builder().instantiate();
 const Debug = new DebugWrapper();
 Debug.enable();
@@ -46,9 +44,8 @@ checkTieredDown(instance);
 const newInstance = create_builder(num_functions*2).instantiate();
 checkTieredDown(newInstance);
 Debug.disable();
-// Eventually the instances will be completely tiered up again.
-waitForTieredUp(instance);
-waitForTieredUp(newInstance);
+checkTieredUp(instance);
+checkTieredUp(newInstance);
 
 // Async.
 async function testTierDownToLiftoffAsync() {
@@ -58,8 +55,8 @@ async function testTierDownToLiftoffAsync() {
   const newAsyncInstance = await create_builder(num_functions*3).asyncInstantiate();
   checkTieredDown(newAsyncInstance);
   Debug.disable();
-  waitForTieredUp(asyncInstance);
-  waitForTieredUp(newAsyncInstance);
+  checkTieredUp(asyncInstance);
+  checkTieredUp(newAsyncInstance);
 }
 
 assertPromiseResult(testTierDownToLiftoffAsync());

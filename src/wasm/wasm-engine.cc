@@ -631,20 +631,15 @@ void WasmEngine::TierDownAllModulesPerIsolate(Isolate* isolate) {
 }
 
 void WasmEngine::TierUpAllModulesPerIsolate(Isolate* isolate) {
-  base::MutexGuard lock(&mutex_);
-  isolates_[isolate]->keep_tiered_down = false;
-  auto test_keep_tiered_down = [this](NativeModule* native_module) {
-    DCHECK_EQ(1, native_modules_.count(native_module));
-    for (auto* isolate : native_modules_[native_module]->isolates) {
-      DCHECK_EQ(1, isolates_.count(isolate));
-      if (isolates_[isolate]->keep_tiered_down) return true;
+  std::vector<NativeModule*> native_modules;
+  {
+    base::MutexGuard lock(&mutex_);
+    isolates_[isolate]->keep_tiered_down = false;
+    for (auto* native_module : isolates_[isolate]->native_modules) {
+      native_modules.push_back(native_module);
     }
-    return false;
-  };
-  for (auto* native_module : isolates_[isolate]->native_modules) {
-    // Only start tier-up if no other isolate needs this modules in tiered down
-    // state.
-    if (test_keep_tiered_down(native_module)) continue;
+  }
+  for (auto* native_module : native_modules) {
     native_module->StartTierUp();
   }
 }
@@ -1006,7 +1001,6 @@ std::shared_ptr<NativeModule> WasmEngine::MaybeGetNativeModule(
     ModuleOrigin origin, Vector<const uint8_t> wire_bytes, Isolate* isolate) {
   std::shared_ptr<NativeModule> native_module =
       native_module_cache_.MaybeGetNativeModule(origin, wire_bytes);
-  bool tier_down_module = false;
   if (native_module) {
     base::MutexGuard guard(&mutex_);
     auto& native_module_info = native_modules_[native_module.get()];
@@ -1015,10 +1009,7 @@ std::shared_ptr<NativeModule> WasmEngine::MaybeGetNativeModule(
     }
     native_module_info->isolates.insert(isolate);
     isolates_[isolate]->native_modules.insert(native_module.get());
-    tier_down_module = isolates_[isolate]->keep_tiered_down;
   }
-  // Potentially tier down after releasing the mutex.
-  if (tier_down_module) native_module->TierDown();
   return native_module;
 }
 
@@ -1034,17 +1025,11 @@ bool WasmEngine::UpdateNativeModuleCache(
 
   if (prev == native_module->get()) return true;
 
-  bool tier_down_module = false;
-  {
-    base::MutexGuard guard(&mutex_);
-    DCHECK_EQ(1, native_modules_.count(native_module->get()));
-    native_modules_[native_module->get()]->isolates.insert(isolate);
-    DCHECK_EQ(1, isolates_.count(isolate));
-    isolates_[isolate]->native_modules.insert(native_module->get());
-    tier_down_module = isolates_[isolate]->keep_tiered_down;
-  }
-  // Potentially tier down after releasing the mutex.
-  if (tier_down_module) native_module->get()->TierDown();
+  base::MutexGuard guard(&mutex_);
+  DCHECK_EQ(1, native_modules_.count(native_module->get()));
+  native_modules_[native_module->get()]->isolates.insert(isolate);
+  DCHECK_EQ(1, isolates_.count(isolate));
+  isolates_[isolate]->native_modules.insert(native_module->get());
   return false;
 }
 

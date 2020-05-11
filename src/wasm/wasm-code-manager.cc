@@ -1838,12 +1838,14 @@ std::vector<std::unique_ptr<WasmCode>> NativeModule::AddCompiledCode(
   return generated_code;
 }
 
-void NativeModule::SetTieredDown() {
+bool NativeModule::SetTieredDown() {
   // Do not tier down asm.js.
-  if (module()->origin != kWasmOrigin) return;
+  if (module()->origin != kWasmOrigin) return true;
 
   base::MutexGuard lock(&allocation_mutex_);
+  if (tiering_state_ == kTieredDown) return false;
   tiering_state_ = kTieredDown;
+  return true;
 }
 
 bool NativeModule::IsTieredDown() {
@@ -1855,7 +1857,9 @@ void NativeModule::TierDown() {
   // Do not tier down asm.js.
   if (module()->origin != kWasmOrigin) return;
 
-  SetTieredDown();
+  // Set the module to tiered down state; return if it is already in that state.
+  if (!SetTieredDown()) return;
+
   RecompileNativeModule(this, kTieredDown);
 }
 
