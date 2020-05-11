@@ -56,6 +56,16 @@ const double inf_d = std::numeric_limits<double>::infinity();
 const float minf_f = -inf_f;
 const double minf_d = -inf_d;
 
+#define ERROR_CODE 1
+#define SUCCESS_CODE 0
+
+typedef union {
+  int32_t i32val;
+  int64_t i64val;
+  float fval;
+  double dval;
+} Param_T;
+
 // TODO(mips64): Refine these signatures per test case.
 using FV = void*(int64_t x, int64_t y, int p2, int p3, int p4);
 using F1 = void*(int x, int p1, int p2, int p3, int p4);
@@ -509,12 +519,20 @@ static const std::vector<int64_t> cvt_trunc_int64_test_values() {
 
 template <typename RET_TYPE, typename IN_TYPE, typename Func>
 RET_TYPE run_Cvt(IN_TYPE x, Func GenerateConvertInstructionFunc) {
-  using F_CVT = RET_TYPE(IN_TYPE x0);
+  DCHECK(std::is_integral<RET_TYPE>::value);
 
   Isolate* isolate = CcTest::i_isolate();
   HandleScope scope(isolate);
   MacroAssembler assm(isolate, v8::internal::CodeObjectRequired::kYes);
   MacroAssembler* masm = &assm;
+
+  // Vararg f.Call() passes floating-point params via GPRs, so move arguments to
+  // FPRs first
+  if (std::is_same<IN_TYPE, float>::value) {
+    __ RV_fmv_w_x(fa0, a0);
+  } else {
+    __ RV_fmv_d_x(fa0, a0);
+  }
 
   GenerateConvertInstructionFunc(masm);
   __ RV_jr(ra);
@@ -523,8 +541,30 @@ RET_TYPE run_Cvt(IN_TYPE x, Func GenerateConvertInstructionFunc) {
   assm.GetCode(isolate, &desc);
   Handle<Code> code = Factory::CodeBuilder(isolate, desc, Code::STUB).Build();
 
-  auto f = GeneratedCode<F_CVT>::FromCode(*code);
-  return f.Call(x);
+  // deal w/ passing floating-point parameters to f.Call
+  using IIN_TYPE =
+      typename std::conditional<sizeof(IN_TYPE) == 4, int32_t, int64_t>::type;
+  auto f = GeneratedCode<RET_TYPE(IIN_TYPE)>::FromCode(*code);
+
+  Param_T t;
+  memset(&t, 0, sizeof(t));
+  if (std::is_same<IN_TYPE, float>::value) {
+    t.fval = x;
+    return f.Call(t.i32val);
+  } else if (std::is_same<IN_TYPE, double>::value) {
+    t.dval = x;
+    return f.Call(t.i64val);
+  } else if (std::is_integral<IN_TYPE>::value) {
+    if (sizeof(IN_TYPE) <= 4) {
+      t.i32val = x;
+      return f.Call(t.i32val);
+    } else {
+      t.i64val = x;
+      return f.Call(t.i64val);
+    }
+  } else {
+    UNREACHABLE();
+  }
 }
 
 TEST(Cvt_s_uw_Trunc_uw_s) {
@@ -1428,16 +1468,6 @@ TEST(macro_float_minmax_f64) {
 #undef CHECK_MINMAX
 }
 
-#define ERROR_CODE 1
-#define SUCCESS_CODE 0
-
-typedef union {
-  int32_t i32val;
-  int64_t i64val;
-  float fval;
-  double dval;
-} Param_T;
-
 template <typename IN_TYPE, typename Func>
 int32_t run_CompareF(IN_TYPE x1, IN_TYPE x2, bool expected_res,
                      Func CompareGenerator) {
@@ -1761,6 +1791,35 @@ TEST(Popcnt) {
     CHECK(out[i] == result[i]);
   }
 }
+
+TEST(Move) {
+  CcTest::InitializeVM();
+  union {
+    double dval;
+    int32_t ival[2];
+  } t;
+
+  {
+    auto fn = [](MacroAssembler* masm) { __ FmoveHigh(a0, fa0); };
+    t.ival[0] = 256;
+    t.ival[1] = -123;
+    CHECK_EQ(static_cast<int64_t>(t.ival[1]), run_Cvt<int64_t>(t.dval, fn));
+    t.ival[0] = 645;
+    t.ival[1] = 127;
+    CHECK_EQ(static_cast<int64_t>(t.ival[1]), run_Cvt<int64_t>(t.dval, fn));
+  }
+
+  {
+    auto fn = [](MacroAssembler* masm) { __ FmoveLow(a0, fa0); };
+    t.ival[0] = 256;
+    t.ival[1] = -123;
+    CHECK_EQ(static_cast<int64_t>(t.ival[0]), run_Cvt<int64_t>(t.dval, fn));
+    t.ival[0] = -645;
+    t.ival[1] = 127;
+    CHECK_EQ(static_cast<int64_t>(t.ival[0]), run_Cvt<int64_t>(t.dval, fn));
+  }
+}
+
 #undef __
 
 }  // namespace internal
