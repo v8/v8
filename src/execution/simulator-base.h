@@ -123,6 +123,7 @@ class SimulatorBase {
 //  - V8_TARGET_ARCH_MIPS64: swi (software-interrupt)
 //  - V8_TARGET_ARCH_PPC: svc (Supervisor Call)
 //  - V8_TARGET_ARCH_S390: svc (Supervisor Call)
+//  - V8_TARGET_ARCH_RISCV64: ecall (Supervisor Call)
 class Redirection {
  public:
   Redirection(Address external_function, ExternalReference::Type type);

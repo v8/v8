@@ -704,6 +704,9 @@ inline Hint NegateHint(Hint hint) { return no_hint; }
 // These constants are declared in assembler-mips.cc, as they use named
 // registers and other constants.
 
+// An ECALL instruction, used for redirected real time call
+const Instr rtCallRedirInstr = SYSTEM; // All other bits are 0s
+
 constexpr uint8_t kInstrSize = 4;
 constexpr uint8_t kInstrSizeLog2 = 2;
 
