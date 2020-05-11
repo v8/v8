@@ -162,6 +162,9 @@ void SimulateIncrementalMarking(i::Heap* heap, bool force_completion) {
   if (collector->sweeping_in_progress()) {
     collector->EnsureSweepingCompleted();
   }
+  if (marking->IsSweeping()) {
+    marking->FinalizeSweeping();
+  }
   CHECK(marking->IsMarking() || marking->IsStopped() || marking->IsComplete());
   if (marking->IsStopped()) {
     heap->StartIncrementalMarking(i::Heap::kNoGCFlags,

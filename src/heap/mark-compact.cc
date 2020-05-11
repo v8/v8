@@ -847,6 +847,10 @@ void MarkCompactCollector::Prepare() {
     heap_->array_buffer_sweeper()->EnsureFinished();
   }
 
+  if (heap()->incremental_marking()->IsSweeping()) {
+    heap()->incremental_marking()->Stop();
+  }
+
   if (!was_marked_incrementally_) {
     {
       TRACE_GC(heap()->tracer(), GCTracer::Scope::MC_MARK_EMBEDDER_PROLOGUE);

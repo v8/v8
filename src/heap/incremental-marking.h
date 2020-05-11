@@ -28,7 +28,7 @@ enum class StepResult {
 
 class V8_EXPORT_PRIVATE IncrementalMarking final {
  public:
-  enum State : uint8_t { STOPPED, MARKING, COMPLETE };
+  enum State : uint8_t { STOPPED, SWEEPING, MARKING, COMPLETE };
 
   enum CompletionAction { GC_VIA_STACK_GUARD, NO_GC_VIA_STACK_GUARD };
 
@@ -115,6 +115,8 @@ class V8_EXPORT_PRIVATE IncrementalMarking final {
 
   inline bool IsStopped() const { return state() == STOPPED; }
 
+  inline bool IsSweeping() const { return state() == SWEEPING; }
+
   inline bool IsMarking() const { return state() >= MARKING; }
 
   inline bool IsMarkingIncomplete() const { return state() == MARKING; }
@@ -164,6 +166,8 @@ class V8_EXPORT_PRIVATE IncrementalMarking final {
   StepResult AdvanceWithDeadline(double deadline_in_ms,
                                  CompletionAction completion_action,
                                  StepOrigin step_origin);
+
+  void FinalizeSweeping();
 
   StepResult Step(double max_step_size_in_ms, CompletionAction action,
                   StepOrigin step_origin);

@@ -292,16 +292,15 @@ void IncrementalMarking::Start(GarbageCollectionReason gc_reason) {
     heap_->array_buffer_sweeper()->EnsureFinished();
   }
 
-  if (collector_->sweeping_in_progress()) {
-    TRACE_GC(heap_->tracer(), GCTracer::Scope::MC_INCREMENTAL_SWEEPING);
-    collector_->EnsureSweepingCompleted();
-#ifdef DEBUG
-    heap_->VerifyCountersAfterSweeping();
-#endif
+  if (!collector_->sweeping_in_progress()) {
+    StartMarking();
+  } else {
+    if (FLAG_trace_incremental_marking) {
+      heap()->isolate()->PrintWithTimestamp(
+          "[IncrementalMarking] Start sweeping.\n");
+    }
+    SetState(SWEEPING);
   }
-
-  CHECK(!collector_->sweeping_in_progress());
-  StartMarking();
 
   heap_->AddAllocationObserversToAllSpaces(&old_generation_observer_,
                                            &new_generation_observer_);
@@ -956,6 +955,28 @@ StepResult IncrementalMarking::AdvanceWithDeadline(
   return Step(kStepSizeInMs, completion_action, step_origin);
 }
 
+void IncrementalMarking::FinalizeSweeping() {
+  DCHECK(state_ == SWEEPING);
+#ifdef DEBUG
+  // Enforce safepoint here such that background threads cannot allocate between
+  // completing sweeping and VerifyCountersAfterSweeping().
+  SafepointScope scope(heap());
+#endif
+  if (collector_->sweeping_in_progress() &&
+      (!FLAG_concurrent_sweeping ||
+       !collector_->sweeper()->AreSweeperTasksRunning())) {
+    collector_->EnsureSweepingCompleted();
+  }
+  if (!collector_->sweeping_in_progress()) {
+#ifdef DEBUG
+    heap_->VerifyCountersAfterSweeping();
+#else
+    SafepointScope scope(heap());
+#endif
+    StartMarking();
+  }
+}
+
 size_t IncrementalMarking::StepSizeToKeepUpWithAllocations() {
   // Update bytes_allocated_ based on the allocation counter.
   size_t current_counter = heap_->OldGenerationAllocationCounter();
@@ -1046,7 +1067,7 @@ void IncrementalMarking::AdvanceOnAllocation() {
   // Code using an AlwaysAllocateScope assumes that the GC state does not
   // change; that implies that no marking steps must be performed.
   if (heap_->gc_state() != Heap::NOT_IN_GC || !FLAG_incremental_marking ||
-      state_ != MARKING || heap_->always_allocate()) {
+      (state_ != SWEEPING && state_ != MARKING) || heap_->always_allocate()) {
     return;
   }
   HistogramTimerScope incremental_marking_scope(
@@ -1061,6 +1082,11 @@ StepResult IncrementalMarking::Step(double max_step_size_in_ms,
                                     CompletionAction action,
                                     StepOrigin step_origin) {
   double start = heap_->MonotonicallyIncreasingTimeInMs();
+
+  if (state_ == SWEEPING) {
+    TRACE_GC(heap_->tracer(), GCTracer::Scope::MC_INCREMENTAL_SWEEPING);
+    FinalizeSweeping();
+  }
 
   StepResult combined_result = StepResult::kMoreWorkRemaining;
   size_t bytes_to_process = 0;
