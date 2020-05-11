@@ -89,6 +89,9 @@ class WeakCell : public TorqueGeneratedWeakCell<WeakCell, HeapObject> {
 
   class BodyDescriptor;
 
+  // Provide relaxed load access to target field.
+  inline HeapObject relaxed_target() const;
+
   // Nullify is called during GC and it modifies the pointers in WeakCell and
   // JSFinalizationRegistry. Thus we need to tell the GC about the modified
   // slots via the gc_notify_updated_slot function. The normal write barrier is

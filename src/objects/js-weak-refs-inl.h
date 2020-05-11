@@ -177,6 +177,10 @@ bool JSFinalizationRegistry::NeedsCleanup() const {
   return cleared_cells().IsWeakCell();
 }
 
+HeapObject WeakCell::relaxed_target() const {
+  return TaggedField<HeapObject>::Relaxed_Load(*this, kTargetOffset);
+}
+
 template <typename GCNotifyUpdatedSlotCallback>
 void WeakCell::Nullify(Isolate* isolate,
                        GCNotifyUpdatedSlotCallback gc_notify_updated_slot) {
