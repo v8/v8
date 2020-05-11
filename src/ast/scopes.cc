@@ -1138,7 +1138,8 @@ Variable* Scope::NewTemporary(const AstRawString* name,
   return var;
 }
 
-Declaration* DeclarationScope::CheckConflictingVarDeclarations() {
+Declaration* DeclarationScope::CheckConflictingVarDeclarations(
+    bool* allowed_catch_binding_var_redeclaration) {
   if (has_checked_syntax_) return nullptr;
   for (Declaration* decl : decls_) {
     // Lexical vs lexical conflicts within the same scope have already been
@@ -1152,11 +1153,12 @@ Declaration* DeclarationScope::CheckConflictingVarDeclarations() {
       // Iterate through all scopes until the declaration scope.
       do {
         // There is a conflict if there exists a non-VAR binding.
+        Variable* other_var = current->LookupLocal(decl->var()->raw_name());
         if (current->is_catch_scope()) {
+          *allowed_catch_binding_var_redeclaration |= other_var != nullptr;
           current = current->outer_scope();
           continue;
         }
-        Variable* other_var = current->LookupLocal(decl->var()->raw_name());
         if (other_var != nullptr) {
           DCHECK(IsLexicalVariableMode(other_var->mode()));
           return decl;
