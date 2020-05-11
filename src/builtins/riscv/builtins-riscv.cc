@@ -99,24 +99,24 @@ void Generate_JSBuiltinsConstructStubHelper(MacroAssembler* masm) {
 
     // Copy arguments and receiver to the expression stack.
     Label loop, entry;
-    __ Move(t3, a0);
+    __ Move(t4, a0);
     // ----------- S t a t e -------------
     //  --                        a0: number of arguments (untagged)
     //  --                        a3: new target
     //  --                        t2: pointer to last argument
-    //  --                        t3: counter
+    //  --                        t4: counter
     //  --        sp[0*kPointerSize]: the hole (receiver)
     //  --        sp[1*kPointerSize]: number of arguments (tagged)
     //  --        sp[2*kPointerSize]: context
     // -----------------------------------
     __ Branch(&entry);
     __ bind(&loop);
-    __ Dlsa(t0, t2, t3, kPointerSizeLog2);
+    __ Dlsa(t0, t2, t4, kPointerSizeLog2);
     __ Ld(t1, MemOperand(t0));
     __ push(t1);
     __ bind(&entry);
-    __ Daddu(t3, t3, Operand(-1));
-    __ Branch(&loop, greater_equal, t3, Operand(zero_reg));
+    __ Daddu(t4, t4, Operand(-1));
+    __ Branch(&loop, greater_equal, t4, Operand(zero_reg));
 
     // Call the function.
     // a0: number of arguments (untagged)
@@ -194,7 +194,7 @@ void Builtins::Generate_JSConstructStubGeneric(MacroAssembler* masm) {
 
     // If not derived class constructor: Allocate the new receiver object.
     __ IncrementCounter(masm->isolate()->counters()->constructed_objects(), 1,
-                        t2, t3);
+                        t2, t4);
     __ Call(BUILTIN_CODE(masm->isolate(), FastNewObject),
             RelocInfo::CODE_TARGET);
     __ Branch(&post_instantiation_deopt_entry);
@@ -256,12 +256,12 @@ void Builtins::Generate_JSConstructStubGeneric(MacroAssembler* masm) {
 
     // Copy arguments and receiver to the expression stack.
     Label loop, entry;
-    __ Move(t3, a0);
+    __ Move(t4, a0);
     // ----------- S t a t e -------------
     //  --                        a0: number of arguments (untagged)
     //  --                        a3: new target
     //  --                        t2: pointer to last argument
-    //  --                        t3: counter
+    //  --                        t4: counter
     //  --        sp[0*kPointerSize]: implicit receiver
     //  --        sp[1*kPointerSize]: implicit receiver
     //  --        sp[2*kPointerSize]: padding
@@ -271,12 +271,12 @@ void Builtins::Generate_JSConstructStubGeneric(MacroAssembler* masm) {
     // -----------------------------------
     __ Branch(&entry);
     __ bind(&loop);
-    __ Dlsa(t0, t2, t3, kPointerSizeLog2);
+    __ Dlsa(t0, t2, t4, kPointerSizeLog2);
     __ Ld(t1, MemOperand(t0));
     __ push(t1);
     __ bind(&entry);
-    __ Daddu(t3, t3, Operand(-1));
-    __ Branch(&loop, greater_equal, t3, Operand(zero_reg));
+    __ Daddu(t4, t4, Operand(-1));
+    __ Branch(&loop, greater_equal, t4, Operand(zero_reg));
 
     // Call the function.
     __ InvokeFunctionWithNewTarget(a1, a3, a0, CALL_FUNCTION);
@@ -2245,9 +2245,9 @@ void Builtins::Generate_Construct(MacroAssembler* masm) {
 
   // Check if target has a [[Construct]] internal method.
   __ ld(t1, FieldMemOperand(a1, HeapObject::kMapOffset));
-  __ Lbu(t3, FieldMemOperand(t1, Map::kBitFieldOffset));
-  __ And(t3, t3, Operand(Map::Bits1::IsConstructorBit::kMask));
-  __ Branch(&non_constructor, eq, t3, Operand(zero_reg));
+  __ Lbu(t4, FieldMemOperand(t1, Map::kBitFieldOffset));
+  __ And(t4, t4, Operand(Map::Bits1::IsConstructorBit::kMask));
+  __ Branch(&non_constructor, eq, t4, Operand(zero_reg));
 
   // Dispatch based on instance type.
   __ Lhu(t2, FieldMemOperand(t1, Map::kInstanceTypeOffset));
