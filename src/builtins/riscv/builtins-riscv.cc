@@ -2482,13 +2482,13 @@ void Builtins::Generate_CEntry(MacroAssembler* masm, int result_size,
       save_doubles == kSaveFPRegs, 0,
       builtin_exit_frame ? StackFrame::BUILTIN_EXIT : StackFrame::EXIT);
 
-  // fp: number of arguments  including receiver (C callee-saved)
+  // s3: number of arguments  including receiver (C callee-saved)
   // s1: pointer to first argument (C callee-saved)
   // s2: pointer to builtin function (C callee-saved)
 
   // Prepare arguments for C routine.
   // a0 = argc
-  __ Move(fp, a0);
+  __ Move(s3, a0);
   __ Move(s2, a1);
 
   // We are calling compiled C/C++ code. a0 and a1 hold our two arguments. We
@@ -2531,8 +2531,8 @@ void Builtins::Generate_CEntry(MacroAssembler* masm, int result_size,
   Register argc = argv_mode == kArgvInRegister
                       // We don't want to pop arguments so set argc to no_reg.
                       ? no_reg
-                      // fp: still holds argc (callee-saved).
-                      : fp;
+                      // s3: still holds argc (callee-saved).
+                      : s3;
   __ LeaveExitFrame(save_doubles == kSaveFPRegs, argc, EMIT_RETURN);
 
   // Handling of exception.
@@ -2753,7 +2753,7 @@ void CallApiFunctionAndReturn(MacroAssembler* masm, Register function_address,
 
   // Allocate HandleScope in callee-save registers.
   __ li(s5, next_address);
-  __ Ld(fp, MemOperand(s5, kNextOffset));
+  __ Ld(s3, MemOperand(s5, kNextOffset));
   __ Ld(s1, MemOperand(s5, kLimitOffset));
   __ Lw(s2, MemOperand(s5, kLevelOffset));
   __ Addu(s2, s2, Operand(1));
@@ -2772,7 +2772,7 @@ void CallApiFunctionAndReturn(MacroAssembler* masm, Register function_address,
 
   // No more valid handles (the result handle was the last one). Restore
   // previous handle scope.
-  __ Sd(fp, MemOperand(s5, kNextOffset));
+  __ Sd(s3, MemOperand(s5, kNextOffset));
   if (__ emit_debug_code()) {
     __ Lw(a1, MemOperand(s5, kLevelOffset));
     __ Check(eq, AbortReason::kUnexpectedLevelAfterReturnFromApiCall, a1,
@@ -2788,16 +2788,16 @@ void CallApiFunctionAndReturn(MacroAssembler* masm, Register function_address,
 
   if (stack_space_operand == nullptr) {
     DCHECK_NE(stack_space, 0);
-    __ li(fp, Operand(stack_space));
+    __ li(s3, Operand(stack_space));
   } else {
     DCHECK_EQ(stack_space, 0);
     STATIC_ASSERT(kCArgSlotCount == 0);
-    __ Ld(fp, *stack_space_operand);
+    __ Ld(s3, *stack_space_operand);
   }
 
   static constexpr bool kDontSaveDoubles = false;
   static constexpr bool kRegisterContainsSlotCount = false;
-  __ LeaveExitFrame(kDontSaveDoubles, fp, NO_EMIT_RETURN,
+  __ LeaveExitFrame(kDontSaveDoubles, s3, NO_EMIT_RETURN,
                     kRegisterContainsSlotCount);
 
   // Check if the function scheduled an exception.
@@ -2815,12 +2815,12 @@ void CallApiFunctionAndReturn(MacroAssembler* masm, Register function_address,
   // HandleScope limit has changed. Delete allocated extensions.
   __ bind(&delete_allocated_handles);
   __ Sd(s1, MemOperand(s5, kLimitOffset));
-  __ Move(fp, a0);
+  __ Move(s3, a0);
   __ Move(a0, a0);
   __ PrepareCallCFunction(1, s1);
   __ li(a0, ExternalReference::isolate_address(isolate));
   __ CallCFunction(ExternalReference::delete_handle_scope_extensions(), 1);
-  __ Move(a0, fp);
+  __ Move(a0, s3);
   __ Branch(&leave_exit_frame);
 }
 
