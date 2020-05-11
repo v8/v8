@@ -481,7 +481,8 @@ let kExprS1x16AnyTrue = 0x62;
 let kExprS1x16AllTrue = 0x63;
 let kExprI8x16Add = 0x6e;
 let kExprI16x8ShrS = [0x8c, 01];
-let kExprF32x4Min = [0xe8, 01];
+let kExprS1x4AnyTrue = 0xa2;
+let kExprF32x4Min = 0xe8;
 
 // Compilation hint constants.
 let kCompilationHintStrategyDefault = 0x00;
