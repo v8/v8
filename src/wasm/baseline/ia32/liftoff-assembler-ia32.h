@@ -544,6 +544,13 @@ void LiftoffAssembler::LoadCallerFrameSlot(LiftoffRegister dst,
                 type);
 }
 
+void LiftoffAssembler::StoreCallerFrameSlot(LiftoffRegister src,
+                                            uint32_t caller_slot_idx,
+                                            ValueType type) {
+  liftoff::Store(this, ebp, kSystemPointerSize * (caller_slot_idx + 1), src,
+                 type);
+}
+
 void LiftoffAssembler::MoveStackValue(uint32_t dst_offset, uint32_t src_offset,
                                       ValueType type) {
   if (needs_gp_reg_pair(type)) {

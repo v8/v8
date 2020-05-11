@@ -1526,10 +1526,7 @@ class LiftoffCompiler {
 
   void ReturnImpl(FullDecoder* decoder) {
     size_t num_returns = decoder->sig_->return_count();
-    if (num_returns > 1) {
-      return unsupported(decoder, kMultiValue, "multi-return");
-    }
-    if (num_returns > 0) __ MoveToReturnRegisters(decoder->sig_);
+    if (num_returns > 0) __ MoveToReturnLocations(decoder->sig_, descriptor_);
     DEBUG_CODE_COMMENT("leave frame");
     __ LeaveFrame(StackFrame::WASM);
     __ DropStackSlotsAndRet(

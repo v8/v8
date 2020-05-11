@@ -446,7 +446,8 @@ class LiftoffAssembler : public TurboAssembler {
   };
   void ParallelRegisterMove(Vector<ParallelRegisterMoveTuple>);
 
-  void MoveToReturnRegisters(const FunctionSig*);
+  void MoveToReturnLocations(const FunctionSig*,
+                             compiler::CallDescriptor* descriptor);
 
 #ifdef ENABLE_SLOW_DCHECKS
   // Validate that the register use counts reflect the state of the cache.
@@ -527,6 +528,8 @@ class LiftoffAssembler : public TurboAssembler {
 
   inline void LoadCallerFrameSlot(LiftoffRegister, uint32_t caller_slot_idx,
                                   ValueType);
+  inline void StoreCallerFrameSlot(LiftoffRegister, uint32_t caller_slot_idx,
+                                   ValueType);
   inline void MoveStackValue(uint32_t dst_offset, uint32_t src_offset,
                              ValueType);
 
@@ -1065,6 +1068,7 @@ class LiftoffAssembler : public TurboAssembler {
 
  private:
   LiftoffRegister LoadToRegister(VarState slot, LiftoffRegList pinned);
+  LiftoffRegister LoadI64HalfIntoRegister(VarState slot, RegPairHalf half);
 
   uint32_t num_locals_ = 0;
   static constexpr uint32_t kInlineLocalTypes = 8;

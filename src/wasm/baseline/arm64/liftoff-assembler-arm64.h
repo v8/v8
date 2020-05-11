@@ -407,6 +407,13 @@ void LiftoffAssembler::LoadCallerFrameSlot(LiftoffRegister dst,
   Ldr(liftoff::GetRegFromType(dst, type), MemOperand(fp, offset));
 }
 
+void LiftoffAssembler::StoreCallerFrameSlot(LiftoffRegister src,
+                                            uint32_t caller_slot_idx,
+                                            ValueType type) {
+  int32_t offset = (caller_slot_idx + 1) * LiftoffAssembler::kStackSlotSize;
+  Str(liftoff::GetRegFromType(src, type), MemOperand(fp, offset));
+}
+
 void LiftoffAssembler::MoveStackValue(uint32_t dst_offset, uint32_t src_offset,
                                       ValueType type) {
   UseScratchRegisterScope temps(this);
