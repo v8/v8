@@ -658,6 +658,20 @@ class WasmGraphBuildingInterface {
                          initial_value.node);
   }
 
+  void ArrayGet(FullDecoder* decoder, const Value& array_obj,
+                const ArrayIndexImmediate<validate>& imm, const Value& index,
+                Value* result) {
+    result->node = BUILD(ArrayGet, array_obj.node, imm.array_type, index.node,
+                         decoder->position());
+  }
+
+  void ArraySet(FullDecoder* decoder, const Value& array_obj,
+                const ArrayIndexImmediate<validate>& imm, const Value& index,
+                const Value& value) {
+    BUILD(ArraySet, array_obj.node, imm.array_type, index.node, value.node,
+          decoder->position());
+  }
+
   void PassThrough(FullDecoder* decoder, const Value& from, Value* to) {
     to->node = from.node;
   }

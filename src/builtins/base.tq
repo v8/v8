@@ -324,6 +324,7 @@ extern enum MessageTemplate {
   kWasmTrapRethrowNullRef,
   kWasmTrapNullDereference,
   kWasmTrapIllegalCast,
+  kWasmTrapArrayOutOfBounds,
   ...
 }
 

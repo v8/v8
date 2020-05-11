@@ -185,6 +185,21 @@ WASM_EXEC_TEST(BasicArray) {
   int32_t type_index = builder->AddArrayType(&type);
   ValueType kRefTypes[] = {ValueType(ValueType::kRef, type_index)};
   FunctionSig sig_q_v(1, 0, kRefTypes);
+  ValueType kOptRefType = ValueType(ValueType::kOptRef, type_index);
+
+  WasmFunctionBuilder* f = builder->AddFunction(sigs.i_i());
+  uint32_t local_index = f->AddLocal(kOptRefType);
+  f->builder()->AddExport(CStrVector("f"), f);
+  // f: a = [12, 12, 12]; a[1] = 42; return a[arg0]
+  byte f_code[] = {
+      WASM_SET_LOCAL(local_index,
+                     WASM_ARRAY_NEW(type_index, WASM_I32V(12), WASM_I32V(3))),
+      WASM_ARRAY_SET(type_index, WASM_GET_LOCAL(local_index), WASM_I32V(1),
+                     WASM_I32V(42)),
+      WASM_ARRAY_GET(type_index, WASM_GET_LOCAL(local_index),
+                     WASM_GET_LOCAL(0)),
+      kExprEnd};
+  f->EmitCode(f_code, sizeof(f_code));
 
   WasmFunctionBuilder* h = builder->AddFunction(&sig_q_v);
   h->builder()->AddExport(CStrVector("h"), h);
@@ -205,12 +220,38 @@ WASM_EXEC_TEST(BasicArray) {
           isolate, &thrower, ModuleWireBytes(buffer.begin(), buffer.end()))
           .ToHandleChecked();
 
+  Handle<Object> argv[] = {handle(Smi::FromInt(0), isolate)};
+  CHECK_EQ(12, testing::CallWasmFunctionForTesting(isolate, instance, &thrower,
+                                                   "f", 1, argv));
+  argv[0] = handle(Smi::FromInt(1), isolate);
+  CHECK_EQ(42, testing::CallWasmFunctionForTesting(isolate, instance, &thrower,
+                                                   "f", 1, argv));
+  argv[0] = handle(Smi::FromInt(2), isolate);
+  CHECK_EQ(12, testing::CallWasmFunctionForTesting(isolate, instance, &thrower,
+                                                   "f", 1, argv));
+  Handle<Object> undefined = isolate->factory()->undefined_value();
+  {
+    Handle<WasmExportedFunction> f_export =
+        testing::GetExportedFunction(isolate, instance, "f").ToHandleChecked();
+    TryCatch try_catch(reinterpret_cast<v8::Isolate*>(isolate));
+    argv[0] = handle(Smi::FromInt(3), isolate);
+    MaybeHandle<Object> no_result =
+        Execution::Call(isolate, f_export, undefined, 1, argv);
+    CHECK(no_result.is_null());
+    CHECK(try_catch.HasCaught());
+    isolate->clear_pending_exception();
+    argv[0] = handle(Smi::FromInt(-1), isolate);
+    no_result = Execution::Call(isolate, f_export, undefined, 1, argv);
+    CHECK(no_result.is_null());
+    CHECK(try_catch.HasCaught());
+    isolate->clear_pending_exception();
+  }
+
   // TODO(7748): This uses the JavaScript interface to retrieve the plain
   // WasmArray. Once the JS interaction story is settled, this may well
   // need to be changed.
   Handle<WasmExportedFunction> h_export =
       testing::GetExportedFunction(isolate, instance, "h").ToHandleChecked();
-  Handle<Object> undefined = isolate->factory()->undefined_value();
   Handle<Object> ref_result =
       Execution::Call(isolate, h_export, undefined, 0, nullptr)
           .ToHandleChecked();

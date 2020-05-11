@@ -919,6 +919,12 @@ enum class LoadTransformationKind : uint8_t {
     const FieldIndexImmediate<validate>& field, const Value& field_value)     \
   F(ArrayNew, const ArrayIndexImmediate<validate>& imm, const Value& length,  \
     const Value& initial_value, Value* result)                                \
+  F(ArrayGet, const Value& array_obj,                                         \
+    const ArrayIndexImmediate<validate>& imm, const Value& index,             \
+    Value* result)                                                            \
+  F(ArraySet, const Value& array_obj,                                         \
+    const ArrayIndexImmediate<validate>& imm, const Value& index,             \
+    const Value& value)                                                       \
   F(PassThrough, const Value& from, Value* to)
 
 // Generic Wasm bytecode decoder with utilities for decoding immediates,
@@ -3072,10 +3078,28 @@ class WasmFullDecoder : public WasmDecoder<validate> {
                                     value);
         break;
       }
-      case kExprArrayGet:
-        UNIMPLEMENTED();  // TODO(7748): Implement.
+      case kExprArrayGet: {
+        ArrayIndexImmediate<validate> imm(this, this->pc_ + len);
+        len += imm.length;
+        if (!this->Validate(this->pc_ + len, imm)) break;
+        auto index = Pop(0, kWasmI32);
+        auto array_obj = Pop(0, ValueType(ValueType::kOptRef, imm.index));
+        auto* value = Push(imm.array_type->element_type());
+        // TODO(7748): Optimize this when array_obj is non-nullable ref.
+        CALL_INTERFACE_IF_REACHABLE(ArrayGet, array_obj, imm, index, value);
         break;
-      case kExprArraySet:
+      }
+      case kExprArraySet: {
+        ArrayIndexImmediate<validate> imm(this, this->pc_ + len);
+        len += imm.length;
+        if (!this->Validate(this->pc_ + len, imm)) break;
+        auto value = Pop(0, imm.array_type->element_type());
+        auto index = Pop(0, kWasmI32);
+        auto array_obj = Pop(0, ValueType(ValueType::kOptRef, imm.index));
+        // TODO(7748): Optimize this when array_obj is non-nullable ref.
+        CALL_INTERFACE_IF_REACHABLE(ArraySet, array_obj, imm, index, value);
+        break;
+      }
         UNIMPLEMENTED();  // TODO(7748): Implement.
         break;
       case kExprArrayLen:

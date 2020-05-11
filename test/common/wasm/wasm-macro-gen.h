@@ -426,11 +426,11 @@ inline WasmOpcode LoadStoreOpcodeOf(MachineType type, bool store) {
 #define WASM_GC_OP(op) kGCPrefix, static_cast<byte>(op)
 #define WASM_STRUCT_NEW(index, ...) \
   __VA_ARGS__, WASM_GC_OP(kExprStructNew), static_cast<byte>(index)
-#define WASM_STRUCT_GET(typeidx, fieldidx, ...)                        \
-  __VA_ARGS__, WASM_GC_OP(kExprStructGet), static_cast<byte>(typeidx), \
+#define WASM_STRUCT_GET(typeidx, fieldidx, struct_obj)                \
+  struct_obj, WASM_GC_OP(kExprStructGet), static_cast<byte>(typeidx), \
       static_cast<byte>(fieldidx)
-#define WASM_STRUCT_SET(typeidx, fieldidx, ...)                        \
-  __VA_ARGS__, WASM_GC_OP(kExprStructSet), static_cast<byte>(typeidx), \
+#define WASM_STRUCT_SET(typeidx, fieldidx, struct_obj, value)                \
+  struct_obj, value, WASM_GC_OP(kExprStructSet), static_cast<byte>(typeidx), \
       static_cast<byte>(fieldidx)
 #define WASM_REF_NULL kExprRefNull
 #define WASM_REF_FUNC(val) kExprRefFunc, val
@@ -439,6 +439,10 @@ inline WasmOpcode LoadStoreOpcodeOf(MachineType type, bool store) {
 
 #define WASM_ARRAY_NEW(index, default_value, length) \
   default_value, length, WASM_GC_OP(kExprArrayNew), static_cast<byte>(index)
+#define WASM_ARRAY_GET(typeidx, array, index) \
+  array, index, WASM_GC_OP(kExprArrayGet), static_cast<byte>(typeidx)
+#define WASM_ARRAY_SET(typeidx, array, index, value) \
+  array, index, value, WASM_GC_OP(kExprArraySet), static_cast<byte>(typeidx)
 
 #define WASM_BR_ON_NULL(depth, ref_object) \
   ref_object, kExprBrOnNull, static_cast<byte>(depth)

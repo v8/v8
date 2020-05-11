@@ -385,6 +385,11 @@ class WasmGraphBuilder {
                   wasm::WasmCodePosition position);
   Node* ArrayNew(uint32_t array_index, const wasm::ArrayType* type,
                  Node* length, Node* initial_value);
+  void BoundsCheck(Node* array, Node* index, wasm::WasmCodePosition position);
+  Node* ArrayGet(Node* array_object, const wasm::ArrayType* type, Node* index,
+                 wasm::WasmCodePosition position);
+  Node* ArraySet(Node* array_object, const wasm::ArrayType* type, Node* index,
+                 Node* value, wasm::WasmCodePosition position);
 
   bool has_simd() const { return has_simd_; }
 

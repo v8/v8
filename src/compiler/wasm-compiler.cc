@@ -5177,6 +5177,50 @@ Node* WasmGraphBuilder::StructSet(Node* struct_object,
                                    struct_type, field_index, field_value);
 }
 
+Node* ArrayElementOffset(GraphAssembler* gasm, Node* index,
+                         wasm::ValueType element_type) {
+  return gasm->Int32Add(
+      gasm->Int32Constant(WasmArray::kHeaderSize - kHeapObjectTag),
+      gasm->Int32Mul(index,
+                     gasm->Int32Constant(element_type.element_size_bytes())));
+}
+
+void WasmGraphBuilder::BoundsCheck(Node* array, Node* index,
+                                   wasm::WasmCodePosition position) {
+  Node* length = gasm_->Load(
+      MachineType::Uint32(), array,
+      gasm_->Int32Constant(WasmArray::kLengthOffset - kHeapObjectTag));
+  TrapIfFalse(wasm::kTrapArrayOutOfBounds, gasm_->Uint32LessThan(index, length),
+              position);
+}
+
+Node* WasmGraphBuilder::ArrayGet(Node* array_object,
+                                 const wasm::ArrayType* type, Node* index,
+                                 wasm::WasmCodePosition position) {
+  TrapIfTrue(wasm::kTrapNullDereference,
+             gasm_->WordEqual(array_object, RefNull()), position);
+  BoundsCheck(array_object, index, position);
+  MachineType machine_type = MachineType::TypeForRepresentation(
+      type->element_type().machine_representation());
+  Node* offset = ArrayElementOffset(gasm_.get(), index, type->element_type());
+  return gasm_->Load(machine_type, array_object, offset);
+}
+
+Node* WasmGraphBuilder::ArraySet(Node* array_object,
+                                 const wasm::ArrayType* type, Node* index,
+                                 Node* value, wasm::WasmCodePosition position) {
+  TrapIfTrue(wasm::kTrapNullDereference,
+             gasm_->WordEqual(array_object, RefNull()), position);
+  BoundsCheck(array_object, index, position);
+  WriteBarrierKind write_barrier = type->element_type().IsReferenceType()
+                                       ? kPointerWriteBarrier
+                                       : kNoWriteBarrier;
+  StoreRepresentation rep(type->element_type().machine_representation(),
+                          write_barrier);
+  Node* offset = ArrayElementOffset(gasm_.get(), index, type->element_type());
+  return gasm_->Store(rep, array_object, offset, value);
+}
+
 class WasmDecorator final : public GraphDecorator {
  public:
   explicit WasmDecorator(NodeOriginTable* origins, wasm::Decoder* decoder)

@@ -268,4 +268,8 @@ namespace wasm {
   builtin ThrowWasmTrapIllegalCast(): JSAny {
     tail WasmTrap(SmiConstant(MessageTemplate::kWasmTrapIllegalCast));
   }
+
+  builtin ThrowWasmTrapArrayOutOfBounds(): JSAny {
+    tail WasmTrap(SmiConstant(MessageTemplate::kWasmTrapArrayOutOfBounds));
+  }
 }
