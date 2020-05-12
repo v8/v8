@@ -2859,28 +2859,6 @@ int JSFunctionRef::InitialMapInstanceSizeWithMinSlack() const {
   return data()->AsJSFunction()->initial_map_instance_size_with_min_slack();
 }
 
-// Not needed for TypedLowering.
-base::Optional<ScriptContextTableRef::LookupResult>
-ScriptContextTableRef::lookup(const NameRef& name) const {
-  AllowHandleAllocationIf allow_handle_allocation(data()->kind(),
-                                                  broker()->mode());
-  AllowHandleDereferenceIf allow_handle_dereference(data()->kind(),
-                                                    broker()->mode());
-  if (!name.IsString()) return {};
-  ScriptContextTable::LookupResult lookup_result;
-  auto table = object();
-  if (!ScriptContextTable::Lookup(broker()->isolate(), *table,
-                                  *name.AsString().object(), &lookup_result)) {
-    return {};
-  }
-  Handle<Context> script_context = ScriptContextTable::GetContext(
-      broker()->isolate(), table, lookup_result.context_index);
-  LookupResult result{ContextRef(broker(), script_context),
-                      lookup_result.mode == VariableMode::kConst,
-                      lookup_result.slot_index};
-  return result;
-}
-
 OddballType MapRef::oddball_type() const {
   if (instance_type() != ODDBALL_TYPE) {
     return OddballType::kNone;

@@ -468,14 +468,6 @@ class ScriptContextTableRef : public HeapObjectRef {
   DEFINE_REF_CONSTRUCTOR(ScriptContextTable, HeapObjectRef)
 
   Handle<ScriptContextTable> object() const;
-
-  struct LookupResult {
-    ContextRef context;
-    bool immutable;
-    int index;
-  };
-
-  base::Optional<LookupResult> lookup(const NameRef& name) const;
 };
 
 class DescriptorArrayRef : public HeapObjectRef {
