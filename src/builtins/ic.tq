@@ -22,6 +22,17 @@ macro CollectInstanceOfFeedback(
       maybeTarget, context, maybeFeedbackVector, slotId);
 }
 
+@export
+macro CollectConstructFeedback(implicit context: Context)(
+    target: JSAny, newTarget: JSAny,
+    maybeFeedbackVector: Undefined|FeedbackVector,
+    slotId: uintptr): never labels ConstructGeneric,
+    ConstructArray(AllocationSite) {
+  callable::CollectConstructFeedback(
+      target, newTarget, maybeFeedbackVector, slotId)
+      otherwise ConstructGeneric, ConstructArray;
+}
+
 // --- Common functionality.
 
 extern macro MegamorphicSymbolConstant(): Symbol;
@@ -44,4 +55,5 @@ extern macro StoreFeedbackVectorSlot(
 extern macro StoreWeakReferenceInFeedbackVector(
     FeedbackVector, uintptr, HeapObject): MaybeObject;
 extern macro ReportFeedbackUpdate(FeedbackVector, uintptr, constexpr string);
-}
+
+}  // namespace ic
