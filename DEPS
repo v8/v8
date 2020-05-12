@@ -72,9 +72,9 @@ vars = {
 
 deps = {
   'v8/build':
-    Var('chromium_url') + '/chromium/src/build.git' + '@' + '10edae4e5c3afa37eabbc5e9a70c54562f1223b2',
+    Var('chromium_url') + '/chromium/src/build.git' + '@' + '1b904cc30093c25d5fd48389bd58e3f7409bcf80',
   'v8/third_party/depot_tools':
-    Var('chromium_url') + '/chromium/tools/depot_tools.git' + '@' + 'aaf566999558aa8ead38811228cd539a6e6e2fda',
+    Var('chromium_url') + '/chromium/tools/depot_tools.git' + '@' + '454f4ba4b3a69feb03c73f93d789062033433b4c',
   'v8/third_party/icu':
     Var('chromium_url') + '/chromium/deps/icu.git' + '@' + 'f2223961702f00a8833874b0560d615a2cc42738',
   'v8/third_party/instrumented_libraries':
@@ -126,7 +126,7 @@ deps = {
     'condition': 'checkout_android',
   },
   'v8/third_party/android_platform': {
-    'url': Var('chromium_url') + '/chromium/src/third_party/android_platform.git' + '@' + '2244b5ea295f8fda3179bef160c84ef8fa0ec9fc',
+    'url': Var('chromium_url') + '/chromium/src/third_party/android_platform.git' + '@' + '716366f5685ad8aaf1208c64941e440e8e117441',
     'condition': 'checkout_android',
   },
   'v8/third_party/android_sdk/public': {
@@ -168,7 +168,7 @@ deps = {
       'dep_type': 'cipd',
   },
   'v8/third_party/catapult': {
-    'url': Var('chromium_url') + '/catapult.git' + '@' + '4ca83c7cea29ca857b6c43874503044c983754ca',
+    'url': Var('chromium_url') + '/catapult.git' + '@' + 'e9a8d378c950ee44beec5dd5207e151f48e5b5be',
     'condition': 'checkout_android',
   },
   'v8/third_party/colorama/src': {
@@ -180,7 +180,7 @@ deps = {
     'condition': 'checkout_fuchsia',
   },
   'v8/third_party/googletest/src':
-    Var('chromium_url') + '/external/github.com/google/googletest.git' + '@' + 'e3f0319d89f4cbf32993de595d984183b1a9fc57',
+    Var('chromium_url') + '/external/github.com/google/googletest.git' + '@' + 'a09ea700d32bab83325aff9ff34d0582e50e3997',
   'v8/third_party/jinja2':
     Var('chromium_url') + '/chromium/src/third_party/jinja2.git' + '@' + '3f90fa05c85718505e28c9c3426c1ba52843b9b7',
   'v8/third_party/markupsafe':
@@ -219,7 +219,7 @@ deps = {
       'packages': [
           {
               'package': 'fuchsia/third_party/aemu/linux-amd64',
-              'version': 'fPXztkM0sEne8uTSiAXBgjYK_46aVSqohP1kVE4u-u8C'
+              'version': '5LzaFiFYMxwWXcgus5JjF74yr90M5oz9IMo29pTdoLgC'
           },
       ],
       'condition': 'host_os == "linux" and checkout_fuchsia',
