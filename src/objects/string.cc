@@ -1114,13 +1114,8 @@ MaybeHandle<String> String::GetSubstitution(Isolate* isolate, Match* match,
             isolate, capture,
             match->GetNamedCapture(capture_name, &capture_state), String);
 
-        switch (capture_state) {
-          case CaptureState::INVALID:
-          case CaptureState::UNMATCHED:
-            break;
-          case CaptureState::MATCHED:
-            builder.AppendString(capture);
-            break;
+        if (capture_state == CaptureState::MATCHED) {
+          builder.AppendString(capture);
         }
 
         continue_from_ix = closing_bracket_ix + 1;

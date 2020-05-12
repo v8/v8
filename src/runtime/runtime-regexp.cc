@@ -938,8 +938,8 @@ class MatchInfoBackedMatch : public String::Match {
         *capture_name_map_);
 
     if (capture_index == -1) {
-      *state = INVALID;
-      return name;  // Arbitrary string handle.
+      *state = UNMATCHED;
+      return isolate_->factory()->empty_string();
     }
 
     DCHECK(1 <= capture_index && capture_index <= CaptureCount());
@@ -1014,15 +1014,6 @@ class VectorBackedMatch : public String::Match {
   MaybeHandle<String> GetNamedCapture(Handle<String> name,
                                       CaptureState* state) override {
     DCHECK(has_named_captures_);
-
-    Maybe<bool> maybe_capture_exists =
-        JSReceiver::HasProperty(groups_obj_, name);
-    if (maybe_capture_exists.IsNothing()) return MaybeHandle<String>();
-
-    if (!maybe_capture_exists.FromJust()) {
-      *state = INVALID;
-      return name;  // Arbitrary string handle.
-    }
 
     Handle<Object> capture_obj;
     ASSIGN_RETURN_ON_EXCEPTION(isolate_, capture_obj,
