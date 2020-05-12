@@ -395,8 +395,11 @@ class DebugInfoImpl {
     wasm::WasmCodeRefScope wasm_code_ref_scope;
     wasm::WasmCode* code =
         isolate->wasm_engine()->code_manager()->LookupCode(pc);
-    // Only Liftoff code can be inspected.
-    if (!code->is_liftoff()) return local_scope_object;
+    // Only Liftoff code that was generated for debugging can be inspected
+    // (otherwise debug side table positions would not match up).
+    if (!code->is_liftoff() || !code->for_debugging()) {
+      return local_scope_object;
+    }
 
     auto* module = native_module_->module();
     auto* function = &module->functions[code->index()];
@@ -510,6 +513,7 @@ class DebugInfoImpl {
     WasmCode* new_code = native_module_->PublishCode(
         native_module_->AddCompiledCode(std::move(result)));
 
+    DCHECK(new_code->is_liftoff() && new_code->for_debugging());
     bool added =
         debug_side_tables_.emplace(new_code, std::move(debug_sidetable)).second;
     DCHECK(added);
@@ -654,13 +658,13 @@ class DebugInfoImpl {
 
   const DebugSideTable* GetDebugSideTable(WasmCode* code,
                                           AccountingAllocator* allocator) {
+    DCHECK(code->is_liftoff() && code->for_debugging());
     {
       // Only hold the mutex temporarily. We can't hold it while generating the
       // debug side table, because compilation takes the {NativeModule} lock.
       base::MutexGuard guard(&mutex_);
-      if (auto& existing_table = debug_side_tables_[code]) {
-        return existing_table.get();
-      }
+      auto it = debug_side_tables_.find(code);
+      if (it != debug_side_tables_.end()) return it->second.get();
     }
 
     // Otherwise create the debug side table now.
