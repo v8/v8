@@ -245,30 +245,5 @@ TEST_F(PageTest, UnsweptPageDestruction) {
 }
 #endif
 
-TEST_F(PageTest, ObjectHeaderFromInnerAddress) {
-  {
-    auto* object = MakeGarbageCollected<GCed<64>>(GetHeap());
-    const HeapObjectHeader& expected = HeapObjectHeader::FromPayload(object);
-
-    for (auto* inner_ptr = reinterpret_cast<ConstAddress>(object);
-         inner_ptr < reinterpret_cast<ConstAddress>(object + 1); ++inner_ptr) {
-      const HeapObjectHeader* hoh =
-          BasePage::FromPayload(object)->ObjectHeaderFromInnerAddress(
-              inner_ptr);
-      EXPECT_EQ(&expected, hoh);
-    }
-  }
-  {
-    auto* object =
-        MakeGarbageCollected<GCed<2 * kLargeObjectSizeThreshold>>(GetHeap());
-    const HeapObjectHeader& expected = HeapObjectHeader::FromPayload(object);
-
-    const HeapObjectHeader* hoh =
-        BasePage::FromPayload(object)->ObjectHeaderFromInnerAddress(
-            reinterpret_cast<ConstAddress>(object) + kLargeObjectSizeThreshold);
-    EXPECT_EQ(&expected, hoh);
-  }
-}
-
 }  // namespace internal
 }  // namespace cppgc

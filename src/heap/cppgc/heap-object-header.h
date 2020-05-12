@@ -6,7 +6,6 @@
 #define V8_HEAP_CPPGC_HEAP_OBJECT_HEADER_H_
 
 #include <stdint.h>
-
 #include <atomic>
 
 #include "include/cppgc/internal/gc-info.h"

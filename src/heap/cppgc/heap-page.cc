@@ -2,18 +2,15 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#include "src/heap/cppgc/heap-page.h"
-
 #include <algorithm>
+
+#include "src/heap/cppgc/heap-page.h"
 
 #include "include/cppgc/internal/api-constants.h"
 #include "src/base/logging.h"
 #include "src/heap/cppgc/globals.h"
-#include "src/heap/cppgc/heap-object-header-inl.h"
 #include "src/heap/cppgc/heap-space.h"
 #include "src/heap/cppgc/heap.h"
-#include "src/heap/cppgc/object-start-bitmap-inl.h"
-#include "src/heap/cppgc/object-start-bitmap.h"
 #include "src/heap/cppgc/page-memory.h"
 #include "src/heap/cppgc/raw-heap.h"
 
@@ -45,27 +42,6 @@ const BasePage* BasePage::FromPayload(const void* payload) {
       kGuardPageSize);
 }
 
-HeapObjectHeader* BasePage::ObjectHeaderFromInnerAddress(void* address) {
-  return const_cast<HeapObjectHeader*>(
-      ObjectHeaderFromInnerAddress(const_cast<const void*>(address)));
-}
-
-const HeapObjectHeader* BasePage::ObjectHeaderFromInnerAddress(
-    const void* address) {
-  if (is_large()) {
-    return LargePage::From(this)->ObjectHeader();
-  }
-  ObjectStartBitmap& bitmap = NormalPage::From(this)->object_start_bitmap();
-  HeapObjectHeader* header =
-      bitmap.FindHeader(static_cast<ConstAddress>(address));
-  DCHECK_LT(address,
-            reinterpret_cast<ConstAddress>(header) +
-                header->GetSize<HeapObjectHeader::AccessMode::kAtomic>());
-  DCHECK_NE(kFreeListGCInfoIndex,
-            header->GetGCInfoIndex<HeapObjectHeader::AccessMode::kAtomic>());
-  return header;
-}
-
 BasePage::BasePage(Heap* heap, BaseSpace* space, PageType type)
     : heap_(heap), space_(space), type_(type) {
   DCHECK_EQ(0u, (reinterpret_cast<uintptr_t>(this) - kGuardPageSize) &
@@ -83,7 +59,8 @@ NormalPage* NormalPage::Create(NormalPageSpace* space) {
   void* memory = heap->page_backend()->AllocateNormalPageMemory(space->index());
   auto* normal_page = new (memory) NormalPage(heap, space);
   space->AddPage(normal_page);
-  space->AddToFreeList(normal_page->PayloadStart(), normal_page->PayloadSize());
+  space->free_list().Add(
+      {normal_page->PayloadStart(), normal_page->PayloadSize()});
   return normal_page;
 }
 
@@ -99,8 +76,7 @@ void NormalPage::Destroy(NormalPage* page) {
 }
 
 NormalPage::NormalPage(Heap* heap, BaseSpace* space)
-    : BasePage(heap, space, PageType::kNormal),
-      object_start_bitmap_(PayloadStart()) {
+    : BasePage(heap, space, PageType::kNormal) {
   DCHECK_LT(kLargeObjectSizeThreshold,
             static_cast<size_t>(PayloadEnd() - PayloadStart()));
 }

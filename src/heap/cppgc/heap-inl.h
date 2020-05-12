@@ -5,8 +5,9 @@
 #ifndef V8_HEAP_CPPGC_HEAP_INL_H_
 #define V8_HEAP_CPPGC_HEAP_INL_H_
 
-#include "src/heap/cppgc/globals.h"
 #include "src/heap/cppgc/heap.h"
+
+#include "src/heap/cppgc/globals.h"
 #include "src/heap/cppgc/object-allocator-inl.h"
 
 namespace cppgc {
