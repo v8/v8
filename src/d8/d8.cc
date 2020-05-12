@@ -3054,6 +3054,9 @@ int Shell::RunMain(Isolate* isolate, bool last_run) {
       static constexpr bool kClearRecompilableData = true;
       i::Isolate* i_isolate = reinterpret_cast<i::Isolate*>(isolate);
       i::Handle<i::Context> i_context = Utils::OpenHandle(*context);
+      // TODO(jgruber,v8:10500): Don't deoptimize once we support serialization
+      // of optimized code.
+      i::Deoptimizer::DeoptimizeAll(i_isolate);
       i::Snapshot::ClearReconstructableDataForSerialization(
           i_isolate, kClearRecompilableData);
       i::Snapshot::SerializeDeserializeAndVerifyForTesting(i_isolate,
