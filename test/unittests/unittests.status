@@ -44,7 +44,6 @@
 
 ##############################################################################
 ['arch == riscv32 or arch == riscv64', {
-  'TurboAssemblerTest.*': [SKIP],
   'InstructionSelectorTest/InstructionSelectorMemoryAccessUnalignedImmTest.StoreZero/*': [SKIP],
 }],  # arch == riscv
 
