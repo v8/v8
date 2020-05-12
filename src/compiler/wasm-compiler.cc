@@ -1161,8 +1161,9 @@ Node* WasmGraphBuilder::MaskShiftCount64(Node* node) {
   return node;
 }
 
-static bool ReverseBytesSupported(MachineOperatorBuilder* m,
-                                  size_t size_in_bytes) {
+namespace {
+
+bool ReverseBytesSupported(MachineOperatorBuilder* m, size_t size_in_bytes) {
   switch (size_in_bytes) {
     case 4:
     case 16:
@@ -1174,6 +1175,8 @@ static bool ReverseBytesSupported(MachineOperatorBuilder* m,
   }
   return false;
 }
+
+}  // namespace
 
 Node* WasmGraphBuilder::BuildChangeEndiannessStore(
     Node* node, MachineRepresentation mem_rep, wasm::ValueType wasmtype) {
@@ -2991,19 +2994,6 @@ Node* WasmGraphBuilder::BuildI64Rol(Node* left, Node* right) {
 
 Node* WasmGraphBuilder::Invert(Node* node) {
   return Unop(wasm::kExprI32Eqz, node);
-}
-
-bool CanCover(Node* value, IrOpcode::Value opcode) {
-  if (value->opcode() != opcode) return false;
-  bool first = true;
-  for (Edge const edge : value->use_edges()) {
-    if (NodeProperties::IsControlEdge(edge)) continue;
-    if (NodeProperties::IsEffectEdge(edge)) continue;
-    DCHECK(NodeProperties::IsValueEdge(edge));
-    if (!first) return false;
-    first = false;
-  }
-  return true;
 }
 
 Node* WasmGraphBuilder::BuildTruncateIntPtrToInt32(Node* value) {
@@ -5048,6 +5038,8 @@ Node* WasmGraphBuilder::TableFill(uint32_t table_index, Node* start,
   return BuildCallToRuntime(Runtime::kWasmTableFill, args, arraysize(args));
 }
 
+namespace {
+
 MachineType FieldType(const wasm::StructType* type, uint32_t field_index) {
   return MachineType::TypeForRepresentation(
       type->field(field_index).machine_representation());
@@ -5074,6 +5066,22 @@ Node* StoreStructFieldUnchecked(MachineGraph* graph, WasmGraphAssembler* gasm,
   Node* offset = FieldOffset(graph, type, field_index);
   return gasm->Store(rep, struct_object, offset, value);
 }
+
+Node* ArrayElementOffset(GraphAssembler* gasm, Node* index,
+                         wasm::ValueType element_type) {
+  return gasm->Int32Add(
+      gasm->Int32Constant(WasmArray::kHeaderSize - kHeapObjectTag),
+      gasm->Int32Mul(index,
+                     gasm->Int32Constant(element_type.element_size_bytes())));
+}
+
+Node* ArrayLength(GraphAssembler* gasm, Node* array) {
+  return gasm->Load(
+      MachineType::Uint32(), array,
+      gasm->Int32Constant(WasmArray::kLengthOffset - kHeapObjectTag));
+}
+
+}  // namespace
 
 Node* WasmGraphBuilder::StructNew(uint32_t struct_index,
                                   const wasm::StructType* type,
@@ -5175,20 +5183,6 @@ Node* WasmGraphBuilder::StructSet(Node* struct_object,
   }
   return StoreStructFieldUnchecked(mcgraph(), gasm_.get(), struct_object,
                                    struct_type, field_index, field_value);
-}
-
-Node* ArrayElementOffset(GraphAssembler* gasm, Node* index,
-                         wasm::ValueType element_type) {
-  return gasm->Int32Add(
-      gasm->Int32Constant(WasmArray::kHeaderSize - kHeapObjectTag),
-      gasm->Int32Mul(index,
-                     gasm->Int32Constant(element_type.element_size_bytes())));
-}
-
-Node* ArrayLength(GraphAssembler* gasm, Node* array) {
-  return gasm->Load(
-      MachineType::Uint32(), array,
-      gasm->Int32Constant(WasmArray::kLengthOffset - kHeapObjectTag));
 }
 
 void WasmGraphBuilder::BoundsCheck(Node* array, Node* index,
@@ -6431,6 +6425,8 @@ std::pair<WasmImportCallKind, Handle<JSReceiver>> ResolveWasmImportCall(
   return std::make_pair(WasmImportCallKind::kUseCallBuiltin, callable);
 }
 
+namespace {
+
 wasm::WasmOpcode GetMathIntrinsicOpcode(WasmImportCallKind kind,
                                         const char** name_ptr) {
 #define CASE(name)                          \
@@ -6530,6 +6526,8 @@ wasm::WasmCompilationResult CompileWasmMathIntrinsic(
       source_positions);
   return result;
 }
+
+}  // namespace
 
 wasm::WasmCompilationResult CompileWasmImportCallWrapper(
     wasm::WasmEngine* wasm_engine, wasm::CompilationEnv* env,
