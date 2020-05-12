@@ -58,8 +58,8 @@ void IncrementalMarkingJob::ScheduleTask(Heap* heap, TaskType task_type) {
         V8::GetCurrentPlatform()->GetForegroundTaskRunner(isolate);
     const EmbedderHeapTracer::EmbedderStackState stack_state =
         taskrunner->NonNestableTasksEnabled()
-            ? EmbedderHeapTracer::EmbedderStackState::kEmpty
-            : EmbedderHeapTracer::EmbedderStackState::kUnknown;
+            ? EmbedderHeapTracer::EmbedderStackState::kNoHeapPointers
+            : EmbedderHeapTracer::EmbedderStackState::kMayContainHeapPointers;
     auto task =
         std::make_unique<Task>(heap->isolate(), this, stack_state, task_type);
     if (task_type == TaskType::kNormal) {

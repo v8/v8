@@ -67,9 +67,9 @@ class V8_EXPORT_PRIVATE Heap final : public cppgc::Heap {
   struct GCConfig {
     using StackState = Heap::StackState;
 
-    static GCConfig Default() { return {StackState::kUnknown}; }
+    static GCConfig Default() { return {StackState::kMayContainHeapPointers}; }
 
-    StackState stack_state = StackState::kUnknown;
+    StackState stack_state = StackState::kMayContainHeapPointers;
   };
 
   static Heap* From(cppgc::Heap* heap) { return static_cast<Heap*>(heap); }

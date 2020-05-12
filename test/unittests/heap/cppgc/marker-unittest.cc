@@ -55,7 +55,7 @@ TEST_F(MarkerTest, PersistentIsMarked) {
   Persistent<GCed> object = MakeGarbageCollected<GCed>(GetHeap());
   HeapObjectHeader& header = HeapObjectHeader::FromPayload(object);
   EXPECT_FALSE(header.IsMarked());
-  DoMarking(MarkingConfig(MarkingConfig::StackState::kEmpty));
+  DoMarking(MarkingConfig(MarkingConfig::StackState::kNoHeapPointers));
   EXPECT_TRUE(header.IsMarked());
 }
 
@@ -64,7 +64,7 @@ TEST_F(MarkerTest, ReachableMemberIsMarked) {
   parent->SetChild(MakeGarbageCollected<GCed>(GetHeap()));
   HeapObjectHeader& header = HeapObjectHeader::FromPayload(parent->child());
   EXPECT_FALSE(header.IsMarked());
-  DoMarking(MarkingConfig(MarkingConfig::StackState::kEmpty));
+  DoMarking(MarkingConfig(MarkingConfig::StackState::kNoHeapPointers));
   EXPECT_TRUE(header.IsMarked());
 }
 
@@ -72,14 +72,14 @@ TEST_F(MarkerTest, UnreachableMemberIsNotMarked) {
   Member<GCed> object = MakeGarbageCollected<GCed>(GetHeap());
   HeapObjectHeader& header = HeapObjectHeader::FromPayload(object);
   EXPECT_FALSE(header.IsMarked());
-  DoMarking(MarkingConfig(MarkingConfig::StackState::kEmpty));
+  DoMarking(MarkingConfig(MarkingConfig::StackState::kNoHeapPointers));
   EXPECT_FALSE(header.IsMarked());
 }
 
 TEST_F(MarkerTest, ObjectReachableFromStackIsMarked) {
   GCed* object = MakeGarbageCollected<GCed>(GetHeap());
   EXPECT_FALSE(HeapObjectHeader::FromPayload(object).IsMarked());
-  DoMarking(MarkingConfig(MarkingConfig::StackState::kNonEmpty));
+  DoMarking(MarkingConfig(MarkingConfig::StackState::kMayContainHeapPointers));
   EXPECT_TRUE(HeapObjectHeader::FromPayload(object).IsMarked());
   access(object);
 }
@@ -88,7 +88,7 @@ TEST_F(MarkerTest, ObjectReachableOnlyFromStackIsNotMarkedIfStackIsEmpty) {
   GCed* object = MakeGarbageCollected<GCed>(GetHeap());
   HeapObjectHeader& header = HeapObjectHeader::FromPayload(object);
   EXPECT_FALSE(header.IsMarked());
-  DoMarking(MarkingConfig(MarkingConfig::StackState::kEmpty));
+  DoMarking(MarkingConfig(MarkingConfig::StackState::kNoHeapPointers));
   EXPECT_FALSE(header.IsMarked());
   access(object);
 }
@@ -97,14 +97,14 @@ TEST_F(MarkerTest, WeakReferenceToUnreachableObjectIsCleared) {
   {
     WeakPersistent<GCed> weak_object = MakeGarbageCollected<GCed>(GetHeap());
     EXPECT_TRUE(weak_object);
-    DoMarking(MarkingConfig(MarkingConfig::StackState::kEmpty));
+    DoMarking(MarkingConfig(MarkingConfig::StackState::kNoHeapPointers));
     EXPECT_FALSE(weak_object);
   }
   {
     Persistent<GCed> parent = MakeGarbageCollected<GCed>(GetHeap());
     parent->SetWeakChild(MakeGarbageCollected<GCed>(GetHeap()));
     EXPECT_TRUE(parent->weak_child());
-    DoMarking(MarkingConfig(MarkingConfig::StackState::kEmpty));
+    DoMarking(MarkingConfig(MarkingConfig::StackState::kNoHeapPointers));
     EXPECT_FALSE(parent->weak_child());
   }
 }
@@ -115,7 +115,7 @@ TEST_F(MarkerTest, WeakReferenceToReachableObjectIsNotCleared) {
     Persistent<GCed> object = MakeGarbageCollected<GCed>(GetHeap());
     WeakPersistent<GCed> weak_object(object);
     EXPECT_TRUE(weak_object);
-    DoMarking(MarkingConfig(MarkingConfig::StackState::kEmpty));
+    DoMarking(MarkingConfig(MarkingConfig::StackState::kNoHeapPointers));
     EXPECT_TRUE(weak_object);
   }
   {
@@ -123,7 +123,7 @@ TEST_F(MarkerTest, WeakReferenceToReachableObjectIsNotCleared) {
     Persistent<GCed> parent = MakeGarbageCollected<GCed>(GetHeap());
     parent->SetWeakChild(object);
     EXPECT_TRUE(parent->weak_child());
-    DoMarking(MarkingConfig(MarkingConfig::StackState::kEmpty));
+    DoMarking(MarkingConfig(MarkingConfig::StackState::kNoHeapPointers));
     EXPECT_TRUE(parent->weak_child());
   }
   // Reachable from Member
@@ -132,7 +132,7 @@ TEST_F(MarkerTest, WeakReferenceToReachableObjectIsNotCleared) {
     WeakPersistent<GCed> weak_object(MakeGarbageCollected<GCed>(GetHeap()));
     parent->SetChild(weak_object);
     EXPECT_TRUE(weak_object);
-    DoMarking(MarkingConfig(MarkingConfig::StackState::kEmpty));
+    DoMarking(MarkingConfig(MarkingConfig::StackState::kNoHeapPointers));
     EXPECT_TRUE(weak_object);
   }
   {
@@ -140,7 +140,7 @@ TEST_F(MarkerTest, WeakReferenceToReachableObjectIsNotCleared) {
     parent->SetChild(MakeGarbageCollected<GCed>(GetHeap()));
     parent->SetWeakChild(parent->child());
     EXPECT_TRUE(parent->weak_child());
-    DoMarking(MarkingConfig(MarkingConfig::StackState::kEmpty));
+    DoMarking(MarkingConfig(MarkingConfig::StackState::kNoHeapPointers));
     EXPECT_TRUE(parent->weak_child());
   }
   // Reachable from stack
@@ -148,7 +148,8 @@ TEST_F(MarkerTest, WeakReferenceToReachableObjectIsNotCleared) {
     GCed* object = MakeGarbageCollected<GCed>(GetHeap());
     WeakPersistent<GCed> weak_object(object);
     EXPECT_TRUE(weak_object);
-    DoMarking(MarkingConfig(MarkingConfig::StackState::kNonEmpty));
+    DoMarking(
+        MarkingConfig(MarkingConfig::StackState::kMayContainHeapPointers));
     EXPECT_TRUE(weak_object);
     access(object);
   }
@@ -157,7 +158,8 @@ TEST_F(MarkerTest, WeakReferenceToReachableObjectIsNotCleared) {
     Persistent<GCed> parent = MakeGarbageCollected<GCed>(GetHeap());
     parent->SetWeakChild(object);
     EXPECT_TRUE(parent->weak_child());
-    DoMarking(MarkingConfig(MarkingConfig::StackState::kNonEmpty));
+    DoMarking(
+        MarkingConfig(MarkingConfig::StackState::kMayContainHeapPointers));
     EXPECT_TRUE(parent->weak_child());
     access(object);
   }
@@ -172,7 +174,7 @@ TEST_F(MarkerTest, DeepHierarchyIsMarked) {
     parent->SetWeakChild(parent->child());
     parent = parent->child();
   }
-  DoMarking(MarkingConfig(MarkingConfig::StackState::kEmpty));
+  DoMarking(MarkingConfig(MarkingConfig::StackState::kNoHeapPointers));
   EXPECT_TRUE(HeapObjectHeader::FromPayload(root).IsMarked());
   parent = root;
   for (int i = 0; i < kHierarchyDepth; ++i) {

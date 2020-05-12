@@ -27,6 +27,9 @@ config("external_config") {
   if (is_component_build) {
     defines = [ "USING_V8_DEBUG_HELPER" ]
   }
+
+  configs = [ "../..:external_config" ]
+
   include_dirs = [ "." ]
 }
 

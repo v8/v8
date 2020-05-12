@@ -48,8 +48,8 @@ class V8_EXPORT_PRIVATE Marker {
     enum class ConcurrentMarking : uint8_t { kDisabled };
 
     static MarkingConfig Default() {
-      return {StackState::kUnknown, IncrementalMarking::kDisabled,
-              ConcurrentMarking::kDisabled};
+      return {StackState::kMayContainHeapPointers,
+              IncrementalMarking::kDisabled, ConcurrentMarking::kDisabled};
     }
 
     explicit MarkingConfig(StackState stack_state)

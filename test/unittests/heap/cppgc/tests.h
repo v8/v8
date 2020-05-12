@@ -29,8 +29,8 @@ class TestWithHeap : public TestWithPlatform {
   TestWithHeap();
 
   void PreciseGC() {
-    heap_->ForceGarbageCollectionSlow("TestWithHeap", "Testing",
-                                      Heap::GCConfig::StackState::kEmpty);
+    heap_->ForceGarbageCollectionSlow(
+        "TestWithHeap", "Testing", Heap::GCConfig::StackState::kNoHeapPointers);
   }
 
   cppgc::Heap* GetHeap() const { return heap_.get(); }

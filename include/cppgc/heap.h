@@ -8,6 +8,7 @@
 #include <memory>
 #include <vector>
 
+#include "cppgc/common.h"
 #include "cppgc/custom-space.h"
 #include "v8config.h"  // NOLINT(build/include_directory)
 
@@ -21,22 +22,7 @@ class V8_EXPORT Heap {
   /**
    * Specifies the stack state the embedder is in.
    */
-  enum class StackState : uint8_t {
-    /**
-     * The embedder does not know anything about it's stack.
-     */
-    kUnknown,
-    /**
-     * The stack is empty, i.e., it does not contain any raw pointers
-     * to garbage-collected objects.
-     */
-    kEmpty,
-    /**
-     * The stack is non-empty, i.e., it may contain raw pointers to
-     * garabge-collected objects.
-     */
-    kNonEmpty,
-  };
+  using StackState = EmbedderStackState;
 
   struct HeapOptions {
     static HeapOptions Default() { return {}; }
@@ -64,7 +50,7 @@ class V8_EXPORT Heap {
    */
   void ForceGarbageCollectionSlow(
       const char* source, const char* reason,
-      StackState stack_state = StackState::kUnknown);
+      StackState stack_state = StackState::kMayContainHeapPointers);
 
  private:
   Heap() = default;

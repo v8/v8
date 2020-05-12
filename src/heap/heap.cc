@@ -1594,7 +1594,7 @@ bool Heap::CollectGarbage(AllocationSpace space,
         // their own state on the stack and recursively trigger GC.
         EmbedderStackStateScope embedder_scope(
             local_embedder_heap_tracer(),
-            EmbedderHeapTracer::EmbedderStackState::kUnknown);
+            EmbedderHeapTracer::EmbedderStackState::kMayContainHeapPointers);
         if (scope.CheckReenter()) {
           AllowHeapAllocation allow_allocation;
           AllowJavascriptExecution allow_js(isolate());

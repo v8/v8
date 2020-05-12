@@ -18,12 +18,14 @@
 #include <stddef.h>
 #include <stdint.h>
 #include <stdio.h>
+
 #include <memory>
 #include <string>
 #include <type_traits>
 #include <utility>
 #include <vector>
 
+#include "cppgc/common.h"
 #include "v8-internal.h"  // NOLINT(build/include_directory)
 #include "v8-version.h"   // NOLINT(build/include_directory)
 #include "v8config.h"     // NOLINT(build/include_directory)
@@ -7843,17 +7845,12 @@ enum class MemoryPressureLevel { kNone, kModerate, kCritical };
  */
 class V8_EXPORT EmbedderHeapTracer {
  public:
+  using EmbedderStackState = cppgc::EmbedderStackState;
+
   enum TraceFlags : uint64_t {
     kNoFlags = 0,
     kReduceMemory = 1 << 0,
     kForced = 1 << 2,
-  };
-
-  // Indicator for the stack state of the embedder.
-  enum EmbedderStackState {
-    kUnknown,
-    kNonEmpty,
-    kEmpty,
   };
 
   /**

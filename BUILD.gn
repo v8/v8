@@ -2107,6 +2107,7 @@ v8_source_set("v8_base_without_compiler") {
 
     ### gcmole(all) ###
     "$target_gen_dir/builtins-generated/bytecodes-builtins-list.h",
+    "include/cppgc/common.h",
     "include/v8-fast-api-calls.h",
     "include/v8-inspector-protocol.h",
     "include/v8-inspector.h",
@@ -4030,6 +4031,7 @@ v8_source_set("cppgc_base") {
 
   sources = [
     "include/cppgc/allocation.h",
+    "include/cppgc/common.h",
     "include/cppgc/custom-space.h",
     "include/cppgc/garbage-collected.h",
     "include/cppgc/heap.h",

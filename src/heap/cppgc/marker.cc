@@ -44,7 +44,7 @@ Marker::~Marker() {
   // and should thus already be marked.
   if (!not_fully_constructed_worklist_.IsEmpty()) {
 #if DEBUG
-    DCHECK_NE(MarkingConfig::StackState::kEmpty, config_.stack_state_);
+    DCHECK_NE(MarkingConfig::StackState::kNoHeapPointers, config_.stack_state_);
     NotFullyConstructedItem item;
     NotFullyConstructedWorklist::View view(&not_fully_constructed_worklist_,
                                            kMutatorThreadId);
@@ -68,7 +68,7 @@ void Marker::StartMarking(MarkingConfig config) {
 }
 
 void Marker::FinishMarking() {
-  if (config_.stack_state_ == MarkingConfig::StackState::kEmpty) {
+  if (config_.stack_state_ == MarkingConfig::StackState::kNoHeapPointers) {
     FlushNotFullyConstructedObjects();
   }
   AdvanceMarkingWithDeadline(v8::base::TimeDelta::Max());
@@ -90,7 +90,7 @@ void Marker::ProcessWeakness() {
 
 void Marker::VisitRoots() {
   heap_->GetStrongPersistentRegion().Trace(marking_visitor_.get());
-  if (config_.stack_state_ != MarkingConfig::StackState::kEmpty)
+  if (config_.stack_state_ != MarkingConfig::StackState::kNoHeapPointers)
     heap_->stack()->IteratePointers(marking_visitor_.get());
 }
 

@@ -50,7 +50,8 @@ void LocalEmbedderHeapTracer::EnterFinalPause() {
   remote_tracer_->EnterFinalPause(embedder_stack_state_);
   // Resetting to state unknown as there may be follow up garbage collections
   // triggered from callbacks that have a different stack state.
-  embedder_stack_state_ = EmbedderHeapTracer::kUnknown;
+  embedder_stack_state_ =
+      EmbedderHeapTracer::EmbedderStackState::kMayContainHeapPointers;
 }
 
 bool LocalEmbedderHeapTracer::Trace(double deadline) {
@@ -68,7 +69,7 @@ void LocalEmbedderHeapTracer::SetEmbedderStackStateForNextFinalization(
   if (!InUse()) return;
 
   embedder_stack_state_ = stack_state;
-  if (EmbedderHeapTracer::EmbedderStackState::kEmpty == stack_state) {
+  if (EmbedderHeapTracer::EmbedderStackState::kNoHeapPointers == stack_state) {
     remote_tracer()->NotifyEmptyEmbedderStack();
   }
 }
