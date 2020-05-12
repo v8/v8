@@ -2183,16 +2183,13 @@ class LiftoffCompiler {
   void CallIndirect(FullDecoder* decoder, const Value& index_val,
                     const CallIndirectImmediate<validate>& imm,
                     const Value args[], Value returns[]) {
-    if (imm.sig->return_count() > 1) {
-      return unsupported(decoder, kMultiValue, "multi-return");
-    }
     if (imm.table_index != 0) {
       return unsupported(decoder, kAnyRef, "table index != 0");
     }
-    if (imm.sig->return_count() == 1 &&
-        !CheckSupportedType(decoder, kSupportedTypes, imm.sig->GetReturn(0),
-                            "return")) {
-      return;
+    for (ValueType ret : imm.sig->returns()) {
+      if (!CheckSupportedType(decoder, kSupportedTypes, ret, "return")) {
+        return;
+      }
     }
 
     // Place the source position before any stack manipulation, since this will
