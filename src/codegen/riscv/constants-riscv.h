@@ -525,36 +525,20 @@ enum Condition {  // Any value < 0 is considered no_condition.
   greater_equal = 13,
   less_equal = 14,
   greater = 15,
-  ueq = 16,  // Unordered or Equal.
-  ogl = 17,  // Ordered and Not Equal.
   cc_always = 18,
 
   // Aliases.
-  carry = Uless,
-  not_carry = Ugreater_equal,
-  zero = equal,
   eq = equal,
-  not_zero = not_equal,
   ne = not_equal,
-  nz = not_equal,
-  sign = negative,
-  not_sign = positive,
-  mi = negative,
-  pl = positive,
-  hi = Ugreater,
-  ls = Uless_equal,
   ge = greater_equal,
   lt = less,
   gt = greater,
   le = less_equal,
-  hs = Ugreater_equal,
-  lo = Uless,
   al = cc_always,
   ult = Uless,
   uge = Ugreater_equal,
   ule = Uless_equal,
   ugt = Ugreater,
-  cc_default = kNoCondition
 };
 
 // Returns the equivalent of !cc.
@@ -589,10 +573,6 @@ inline Condition NegateFpuCondition(Condition cc) {
       return ne;
     case ne:
       return eq;
-    case ueq:
-      return ogl;
-    case ogl:
-      return ueq;
     default:
       return cc;
   }
@@ -601,22 +581,9 @@ inline Condition NegateFpuCondition(Condition cc) {
 // ----- Coprocessor conditions.
 enum FPUCondition {
   kNoFPUCondition = -1,
-
-  F = 0x00,    // False.
-  UN = 0x01,   // Unordered.
-  EQ = 0x02,   // Equal.
-  UEQ = 0x03,  // Unordered or Equal.
-  OLT = 0x04,  // Ordered or Less Than, on Mips release < 6.
-  LT = 0x04,   // Ordered or Less Than, on Mips release >= 6.
-  ULT = 0x05,  // Unordered or Less Than.
-  OLE = 0x06,  // Ordered or Less Than or Equal, on Mips release < 6.
-  LE = 0x06,   // Ordered or Less Than or Equal, on Mips release >= 6.
-  ULE = 0x07,  // Unordered or Less Than or Equal.
-
-  // Following constants are available on Mips release >= 6 only.
-  ORD = 0x11,  // Ordered, on Mips release >= 6.
-  UNE = 0x12,  // Not equal, on Mips release >= 6.
-  NE = 0x13,   // Ordered Greater Than or Less Than. on Mips >= 6 only.
+  EQ = 0x02,  // Equal.
+  LT = 0x04,  // Ordered and Less Than
+  LE = 0x06,  // Ordered and Less Than or Equal
 };
 
 enum CheckForInexactConversion {

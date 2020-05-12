@@ -217,13 +217,13 @@ Condition FlagsConditionToConditionCmp(FlagsCondition condition) {
     case kSignedGreaterThan:
       return gt;
     case kUnsignedLessThan:
-      return lo;
+      return Uless;
     case kUnsignedGreaterThanOrEqual:
-      return hs;
+      return Ugreater_equal;
     case kUnsignedLessThanOrEqual:
-      return ls;
+      return Uless_equal;
     case kUnsignedGreaterThan:
-      return hi;
+      return Ugreater;
     case kUnorderedEqual:
     case kUnorderedNotEqual:
       break;
@@ -268,16 +268,16 @@ FPUCondition FlagsConditionToConditionCmpFPU(bool* predicate,
       return EQ;
     case kUnsignedLessThan:
       *predicate = true;
-      return OLT;
+      return LT;
     case kUnsignedGreaterThanOrEqual:
       *predicate = false;
-      return OLT;
+      return LT;
     case kUnsignedLessThanOrEqual:
       *predicate = true;
-      return OLE;
+      return LE;
     case kUnsignedGreaterThan:
       *predicate = false;
-      return OLE;
+      return LE;
     case kUnorderedEqual:
     case kUnorderedNotEqual:
       *predicate = true;
@@ -2222,21 +2222,21 @@ void CodeGenerator::AssembleArchBoolean(Instruction* instr,
           __ Xor(result, result, 1);
         }
       } break;
-      case lo:
-      case hs: {
+      case Uless:
+      case Ugreater_equal: {
         Register left = i.InputRegister(0);
         Operand right = i.InputOperand(1);
         __ Sltu(result, left, right);
-        if (cc == hs) {
+        if (cc == Ugreater_equal) {
           __ Xor(result, result, 1);
         }
       } break;
-      case hi:
-      case ls: {
+      case Ugreater:
+      case Uless_equal: {
         Register left = i.InputRegister(1);
         Operand right = i.InputOperand(0);
         __ Sltu(result, left, right);
-        if (cc == ls) {
+        if (cc == Uless_equal) {
           __ Xor(result, result, 1);
         }
       } break;
@@ -2296,7 +2296,8 @@ void CodeGenerator::AssembleArchTableSwitch(Instruction* instr) {
   Register input = i.InputRegister(0);
   size_t const case_count = instr->InputCount() - 2;
 
-  __ Branch(GetLabel(i.InputRpo(1)), hs, input, Operand(case_count));
+  __ Branch(GetLabel(i.InputRpo(1)), Ugreater_equal, input,
+            Operand(case_count));
   __ GenerateSwitchTable(input, case_count, [&i, this](size_t index) {
     return GetLabel(i.InputRpo(index + 2));
   });

@@ -395,7 +395,7 @@ void Builtins::Generate_ResumeGeneratorTrampoline(MacroAssembler* masm) {
   // (i.e. debug break and preemption) here, so check the "real stack limit".
   Label stack_overflow;
   LoadRealStackLimit(masm, kScratchReg);
-  __ Branch(&stack_overflow, lo, sp, Operand(kScratchReg));
+  __ Branch(&stack_overflow, Uless, sp, Operand(kScratchReg));
 
   // Push receiver.
   __ Ld(a5, FieldMemOperand(a1, JSGeneratorObject::kReceiverOffset));
@@ -940,7 +940,7 @@ static void AdvanceBytecodeOffsetOrReturn(MacroAssembler* masm,
   STATIC_ASSERT(2 == static_cast<int>(interpreter::Bytecode::kDebugBreakWide));
   STATIC_ASSERT(3 ==
                 static_cast<int>(interpreter::Bytecode::kDebugBreakExtraWide));
-  __ Branch(&process_bytecode, hi, bytecode, Operand(3));
+  __ Branch(&process_bytecode, Ugreater, bytecode, Operand(3));
   __ And(scratch2, bytecode, Operand(1));
   __ Branch(&extra_wide, ne, scratch2, Operand(zero_reg));
 
@@ -1076,7 +1076,7 @@ void Builtins::Generate_InterpreterEntryTrampoline(MacroAssembler* masm) {
     // Do a stack check to ensure we don't go over the limit.
     __ Dsubu(a5, sp, Operand(a4));
     LoadRealStackLimit(masm, a2);
-    __ Branch(&stack_overflow, lo, a5, Operand(a2));
+    __ Branch(&stack_overflow, Uless, a5, Operand(a2));
 
     // If ok, push undefined as the initial value for all register file entries.
     Label loop_header;
@@ -1188,7 +1188,7 @@ static void Generate_InterpreterPushArgs(MacroAssembler* masm,
   __ Daddu(index, index, Operand(-kPointerSize));
   __ push(scratch);
   __ bind(&loop_check);
-  __ Branch(&loop_header, hi, index, Operand(scratch2));
+  __ Branch(&loop_header, Ugreater, index, Operand(scratch2));
 }
 
 // static
@@ -1929,7 +1929,8 @@ void Builtins::Generate_CallFunction(MacroAssembler* masm,
       __ JumpIfSmi(a3, &convert_to_object);
       STATIC_ASSERT(LAST_JS_RECEIVER_TYPE == LAST_TYPE);
       __ GetObjectType(a3, a4, a4);
-      __ Branch(&done_convert, hs, a4, Operand(FIRST_JS_RECEIVER_TYPE));
+      __ Branch(&done_convert, Ugreater_equal, a4,
+                Operand(FIRST_JS_RECEIVER_TYPE));
       if (mode != ConvertReceiverMode::kNotNullOrUndefined) {
         Label convert_global_proxy;
         __ JumpIfRoot(a3, RootIndex::kUndefinedValue, &convert_global_proxy);
@@ -2020,7 +2021,7 @@ void Builtins::Generate_CallBoundFunctionImpl(MacroAssembler* masm) {
     // Check the stack for overflow. We are not trying to catch interruptions
     // (i.e. debug break and preemption) here, so check the "real stack limit".
     LoadRealStackLimit(masm, kScratchReg);
-    __ Branch(&done, hs, sp, Operand(kScratchReg));
+    __ Branch(&done, Ugreater_equal, sp, Operand(kScratchReg));
     // Restore the stack pointer.
     __ Daddu(sp, sp, Operand(a5));
     {
@@ -2173,7 +2174,7 @@ void Builtins::Generate_ConstructBoundFunction(MacroAssembler* masm) {
     // Check the stack for overflow. We are not trying to catch interruptions
     // (i.e. debug break and preemption) here, so check the "real stack limit".
     LoadRealStackLimit(masm, kScratchReg);
-    __ Branch(&done, hs, sp, Operand(kScratchReg));
+    __ Branch(&done, Ugreater_equal, sp, Operand(kScratchReg));
     // Restore the stack pointer.
     __ Daddu(sp, sp, Operand(a5));
     {
