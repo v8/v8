@@ -21,6 +21,7 @@ class GraphAssembler::BasicBlockUpdater {
  public:
   BasicBlockUpdater(Schedule* schedule, Graph* graph,
                     CommonOperatorBuilder* common, Zone* temp_zone);
+  ~BasicBlockUpdater();
 
   Node* AddNode(Node* node);
   Node* AddNode(Node* node, BasicBlock* to);
@@ -85,6 +86,9 @@ class GraphAssembler::BasicBlockUpdater {
   bool original_deferred_;
   size_t original_node_count_;
 
+  // Blocks which have been removed from the schedule due to being unreachable.
+  ZoneSet<BasicBlock*> unreachable_blocks_;
+
   State state_;
 };
 
@@ -103,7 +107,19 @@ GraphAssembler::BasicBlockUpdater::BasicBlockUpdater(
       original_control_input_(nullptr),
       original_deferred_(false),
       original_node_count_(graph->NodeCount()),
+      unreachable_blocks_(temp_zone),
       state_(kUnchanged) {}
+
+GraphAssembler::BasicBlockUpdater::~BasicBlockUpdater() {
+#ifdef DEBUG
+  // Ensure that the set of blocks being removed from the schedule are self
+  // contained, i.e., all predecessors have been removed from these blocks.
+  for (BasicBlock* block : unreachable_blocks_) {
+    CHECK_EQ(block->PredecessorCount(), 0);
+    CHECK_EQ(block->SuccessorCount(), 0);
+  }
+#endif
+}
 
 Node* GraphAssembler::BasicBlockUpdater::AddNode(Node* node) {
   return AddNode(node, current_block_);
@@ -269,13 +285,12 @@ void GraphAssembler::BasicBlockUpdater::AddGoto(BasicBlock* from,
 }
 
 void GraphAssembler::BasicBlockUpdater::RemoveSuccessorsFromSchedule() {
-  ZoneSet<BasicBlock*> blocks(temp_zone());
   ZoneQueue<BasicBlock*> worklist(temp_zone());
 
   for (SuccessorInfo succ : saved_successors_) {
     BasicBlock* block = succ.block;
     block->predecessors().erase(block->predecessors().begin() + succ.index);
-    blocks.insert(block);
+    unreachable_blocks_.insert(block);
     worklist.push(block);
   }
   saved_successors_.clear();
@@ -283,10 +298,10 @@ void GraphAssembler::BasicBlockUpdater::RemoveSuccessorsFromSchedule() {
   // Walk through blocks until we get to the end node, then remove the path from
   // end, clearing their successors / predecessors.
   // This works because the unreachable paths form self-contained control flow
-  // that doesn't re-merge with reachable control flow (checked below) and
-  // DeadCodeElimination::ReduceEffectPhi preventing Unreachable from going into
-  // an effect-phi. We would need to extend this if we need the ability to mark
-  // control flow as unreachable later in the pipeline.
+  // that doesn't re-merge with reachable control flow (checked in the
+  // destructor) and DeadCodeElimination::ReduceEffectPhi preventing Unreachable
+  // from going into an effect-phi. We would need to extend this if we need the
+  // ability to mark control flow as unreachable later in the pipeline.
   while (!worklist.empty()) {
     BasicBlock* current = worklist.front();
     worklist.pop();
@@ -306,22 +321,13 @@ void GraphAssembler::BasicBlockUpdater::RemoveSuccessorsFromSchedule() {
                                              current->control_input());
       } else {
         // Otherwise, add successor to worklist if it's not already been seen.
-        if (blocks.insert(successor).second) {
+        if (unreachable_blocks_.insert(successor).second) {
           worklist.push(successor);
         }
       }
     }
     current->ClearSuccessors();
   }
-
-#ifdef DEBUG
-  // Ensure that the set of blocks being removed from the schedule are self
-  // contained, i.e., all predecessors have been removed from these blocks.
-  for (BasicBlock* block : blocks) {
-    CHECK_EQ(block->PredecessorCount(), 0);
-    CHECK_EQ(block->SuccessorCount(), 0);
-  }
-#endif
 }
 
 void GraphAssembler::BasicBlockUpdater::AddThrow(Node* node) {
