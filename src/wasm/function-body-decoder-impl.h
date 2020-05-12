@@ -291,7 +291,8 @@ uint32_t read_value_type(Decoder* decoder, const byte* pc, ValueType* result,
       return 0;
     case kLocalEqRef:
       if (enabled.has_gc()) {
-        UNIMPLEMENTED();  // TODO(7748): Implement
+        *result = kWasmEqRef;
+        return 1;
       }
       decoder->error(pc,
                      "invalid value type 'eqref', enable with "
@@ -299,7 +300,8 @@ uint32_t read_value_type(Decoder* decoder, const byte* pc, ValueType* result,
       return 0;
     case kLocalI31Ref:
       if (enabled.has_gc()) {
-        UNIMPLEMENTED();  // TODO(7748): Implement
+        // TODO(7748): Implement
+        decoder->error(pc, "'i31ref' is unimplemented");
       }
       decoder->error(pc,
                      "invalid value type 'i31ref', enable with "
@@ -307,7 +309,8 @@ uint32_t read_value_type(Decoder* decoder, const byte* pc, ValueType* result,
       return 0;
     case kLocalRttRef:
       if (enabled.has_gc()) {
-        UNIMPLEMENTED();  // TODO(7748): Implement
+        // TODO(7748): Implement
+        decoder->error(pc, "'rttref' is unimplemented");
       }
       decoder->error(pc,
                      "invalid value type 'rttref', enable with "
@@ -1410,6 +1413,11 @@ class WasmDecoder : public Decoder {
         return 1 + imm.length;
       }
 
+      case kExprBrOnNull: {
+        BranchDepthImmediate<validate> imm(decoder, pc);
+        return 1 + imm.length;
+      }
+
       case kExprLocalGet:
       case kExprLocalSet:
       case kExprLocalTee: {
@@ -1551,6 +1559,48 @@ class WasmDecoder : public Decoder {
           }
           default:
             decoder->error(pc, "invalid Atomics opcode");
+            return 2;
+        }
+      }
+      case kGCPrefix: {
+        byte gc_index = decoder->read_u8<validate>(pc + 1, "gc_index");
+        WasmOpcode opcode = static_cast<WasmOpcode>(kGCPrefix << 8 | gc_index);
+        switch (opcode) {
+          case kExprStructNew:
+          case kExprStructNewSub:
+          case kExprStructNewDefault: {
+            StructIndexImmediate<validate> imm(decoder, pc + 2);
+            return 2 + imm.length;
+          }
+          case kExprStructGet:
+          case kExprStructGetS:
+          case kExprStructGetU:
+          case kExprStructSet: {
+            FieldIndexImmediate<validate> imm(decoder, pc + 2);
+            return 2 + imm.length;
+          }
+          case kExprArrayNew:
+          case kExprArrayNewSub:
+          case kExprArrayNewDefault:
+          case kExprArrayGet:
+          case kExprArrayGetS:
+          case kExprArrayGetU:
+          case kExprArraySet:
+          case kExprArrayLen: {
+            ArrayIndexImmediate<validate> imm(decoder, pc + 2);
+            return 2 + imm.length;
+          }
+          case kExprBrOnCast: {
+            BranchDepthImmediate<validate> imm(decoder, pc + 2);
+            return 2 + imm.length;
+          }
+          case kExprRttGet:
+          case kExprRttSub: {
+            // TODO(7748): Impelement.
+            UNIMPLEMENTED();
+          }
+
+          default:
             return 2;
         }
       }
@@ -2289,7 +2339,7 @@ class WasmFullDecoder : public WasmDecoder<validate> {
           break;
         }
         case kExprRefAsNonNull: {
-          CHECK_PROTOTYPE_OPCODE(anyref);
+          CHECK_PROTOTYPE_OPCODE(gc);
           auto value = Pop();
           switch (value.type.kind()) {
             case ValueType::kRef: {
