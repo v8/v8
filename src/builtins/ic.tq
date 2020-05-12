@@ -10,7 +10,7 @@ namespace ic {
 macro CollectCallFeedback(
     maybeTarget: JSAny, context: Context,
     maybeFeedbackVector: Undefined|FeedbackVector, slotId: uintptr): void {
-  ic_callable::CollectCallFeedback(
+  callable::CollectCallFeedback(
       maybeTarget, context, maybeFeedbackVector, slotId);
 }
 
@@ -18,7 +18,7 @@ macro CollectCallFeedback(
 macro CollectInstanceOfFeedback(
     maybeTarget: JSAny, context: Context,
     maybeFeedbackVector: Undefined|FeedbackVector, slotId: uintptr): void {
-  ic_callable::CollectInstanceOfFeedback(
+  callable::CollectInstanceOfFeedback(
       maybeTarget, context, maybeFeedbackVector, slotId);
 }
 

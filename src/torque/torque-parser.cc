@@ -2436,21 +2436,17 @@ struct TorqueGrammar : Grammar {
                 Sequence({Token("constexpr"), &externalString})),
             Token("{"), NonemptyList<Identifier*>(&name, Token(",")),
             CheckIf(Sequence({Token(","), Token("...")})), Token("}")},
-           MakeEnumDeclaration)};
+           MakeEnumDeclaration),
+      Rule({Token("namespace"), &identifier, Token("{"), &declarationList,
+            Token("}")},
+           AsSingletonVector<Declaration*, MakeNamespaceDeclaration>())};
 
   // Result: std::vector<Declaration*>
   Symbol declarationList = {
       Rule({List<std::vector<Declaration*>>(&declaration)}, ConcatList)};
 
-  // Result: std::vector<Declaration*>
-  Symbol namespaceDeclaration = {
-      Rule({Token("namespace"), &identifier, Token("{"), &declarationList,
-            Token("}")},
-           AsSingletonVector<Declaration*, MakeNamespaceDeclaration>())};
-
   Symbol file = {Rule({&file, Token("import"), &externalString},
                       ProcessTorqueImportDeclaration),
-                 Rule({&file, &namespaceDeclaration}, AddGlobalDeclarations),
                  Rule({&file, &declaration}, AddGlobalDeclarations), Rule({})};
 };
 

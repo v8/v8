@@ -2,7 +2,8 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-namespace ic_callable {
+namespace ic {
+namespace callable {
 
 extern macro IncrementCallCount(FeedbackVector, uintptr): void;
 
@@ -39,16 +40,14 @@ macro TryInitializeAsMonomorphic(implicit context: Context)(
     goto TransitionToMegamorphic;
   }
 
-  ic::StoreWeakReferenceInFeedbackVector(
-      feedbackVector, slotId, targetHeapObject);
-  ic::ReportFeedbackUpdate(feedbackVector, slotId, 'Call:Initialize');
+  StoreWeakReferenceInFeedbackVector(feedbackVector, slotId, targetHeapObject);
+  ReportFeedbackUpdate(feedbackVector, slotId, 'Call:Initialize');
 }
 
 macro TransitionToMegamorphic(implicit context: Context)(
     feedbackVector: FeedbackVector, slotId: uintptr): void {
-  ic::StoreFeedbackVectorSlot(feedbackVector, slotId, ic::kMegamorphicSymbol);
-  ic::ReportFeedbackUpdate(
-      feedbackVector, slotId, 'Call:TransitionMegamorphic');
+  StoreFeedbackVectorSlot(feedbackVector, slotId, kMegamorphicSymbol);
+  ReportFeedbackUpdate(feedbackVector, slotId, 'Call:TransitionMegamorphic');
 }
 
 macro CollectCallFeedback(
@@ -60,10 +59,10 @@ macro CollectCallFeedback(
 
   try {
     const feedback: MaybeObject =
-        ic::LoadFeedbackVectorSlot(feedbackVector, slotId);
+        LoadFeedbackVectorSlot(feedbackVector, slotId);
     if (IsMonomorphic(feedback, maybeTarget)) return;
-    if (ic::IsMegamorphic(feedback)) return;
-    if (ic::IsUninitialized(feedback)) goto TryInitializeAsMonomorphic;
+    if (IsMegamorphic(feedback)) return;
+    if (IsUninitialized(feedback)) goto TryInitializeAsMonomorphic;
 
     // If cleared, we have a new chance to become monomorphic.
     const feedbackValue: HeapObject =
@@ -85,9 +84,8 @@ macro CollectCallFeedback(
     if (!TaggedEqual(feedbackCell, targetFeedbackCell))
       goto TransitionToMegamorphic;
 
-    ic::StoreWeakReferenceInFeedbackVector(
-        feedbackVector, slotId, feedbackCell);
-    ic::ReportFeedbackUpdate(feedbackVector, slotId, 'Call:FeedbackVectorCell');
+    StoreWeakReferenceInFeedbackVector(feedbackVector, slotId, feedbackCell);
+    ReportFeedbackUpdate(feedbackVector, slotId, 'Call:FeedbackVectorCell');
   } label TryInitializeAsMonomorphic {
     TryInitializeAsMonomorphic(maybeTarget, feedbackVector, slotId)
         otherwise TransitionToMegamorphic;
@@ -105,10 +103,10 @@ macro CollectInstanceOfFeedback(
 
   try {
     const feedback: MaybeObject =
-        ic::LoadFeedbackVectorSlot(feedbackVector, slotId);
+        LoadFeedbackVectorSlot(feedbackVector, slotId);
     if (IsMonomorphic(feedback, maybeTarget)) return;
-    if (ic::IsMegamorphic(feedback)) return;
-    if (ic::IsUninitialized(feedback)) goto TryInitializeAsMonomorphic;
+    if (IsMegamorphic(feedback)) return;
+    if (IsUninitialized(feedback)) goto TryInitializeAsMonomorphic;
 
     // If cleared, we have a new chance to become monomorphic.
     const _feedbackValue: HeapObject =
@@ -123,4 +121,5 @@ macro CollectInstanceOfFeedback(
   }
 }
 
-}  // namespace ic_callable
+}  // namespace callable
+}  // namespace ic

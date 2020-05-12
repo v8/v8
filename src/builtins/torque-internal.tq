@@ -20,15 +20,17 @@ struct Reference<T: type> {
 type ConstReference<T: type> extends Reference<T>;
 type MutableReference<T: type> extends ConstReference<T>;
 
-macro UnsafeNewReference<T: type>(object: HeapObject, offset: intptr):&T {
+namespace unsafe {
+macro NewReference<T: type>(object: HeapObject, offset: intptr):&T {
   return %RawDownCast<&T>(
       Reference<T>{object: object, offset: offset, unsafeMarker: Unsafe {}});
 }
+}  // namespace unsafe
 
 struct Slice<T: type> {
   macro TryAtIndex(index: intptr):&T labels OutOfBounds {
     if (Convert<uintptr>(index) < Convert<uintptr>(this.length)) {
-      return UnsafeNewReference<T>(
+      return unsafe::NewReference<T>(
           this.object, this.offset + index * %SizeOf<T>());
     } else {
       goto OutOfBounds;
@@ -105,7 +107,7 @@ struct SliceIterator<T: type> {
     if (this.Empty()) {
       goto NoMore;
     } else {
-      const result = UnsafeNewReference<T>(this.object, this.start);
+      const result = unsafe::NewReference<T>(this.object, this.start);
       this.start += %SizeOf<T>();
       return result;
     }
@@ -174,14 +176,14 @@ extern macro StoreDoubleHole(HeapObject, intptr);
 macro LoadFloat64OrHole(r:&float64_or_hole): float64_or_hole {
   return float64_or_hole{
     is_hole: IsDoubleHole(r.object, r.offset - kHeapObjectTag),
-    value: * UnsafeNewReference<float64>(r.object, r.offset)
+    value: * unsafe::NewReference<float64>(r.object, r.offset)
   };
 }
 macro StoreFloat64OrHole(r:&float64_or_hole, value: float64_or_hole) {
   if (value.is_hole) {
     StoreDoubleHole(r.object, r.offset - kHeapObjectTag);
   } else {
-    * UnsafeNewReference<float64>(r.object, r.offset) = value.value;
+    * unsafe::NewReference<float64>(r.object, r.offset) = value.value;
   }
 }
 }  // namespace torque_internal
