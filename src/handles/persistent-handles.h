@@ -17,6 +17,9 @@ namespace internal {
 
 class Heap;
 
+// PersistentHandles serves as a container for handles that can be passed back
+// and forth between threads. Allocation and deallocation of this class is
+// thread-safe and the isolate tracks all PersistentHandles containers.
 class PersistentHandles {
  public:
   V8_EXPORT_PRIVATE explicit PersistentHandles(

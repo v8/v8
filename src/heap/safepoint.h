@@ -19,7 +19,7 @@ class LocalHeap;
 class RootVisitor;
 
 // Used to bring all background threads with heap access to a safepoint such
-// that e.g. a garabge collection can be performed.
+// that e.g. a garbage collection can be performed.
 class GlobalSafepoint {
  public:
   explicit GlobalSafepoint(Heap* heap);
