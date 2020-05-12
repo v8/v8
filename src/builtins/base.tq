@@ -1513,8 +1513,8 @@ extern transitioning runtime
 CreateDataProperty(implicit context: Context)(JSReceiver, JSAny, JSAny);
 
 namespace runtime {
-  extern runtime
-  GetDerivedMap(Context, JSFunction, JSReceiver): Map;
+extern runtime
+GetDerivedMap(Context, JSFunction, JSReceiver): Map;
 }
 
 transitioning builtin FastCreateDataProperty(implicit context: Context)(
