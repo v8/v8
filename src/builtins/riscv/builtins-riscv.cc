@@ -2816,7 +2816,6 @@ void CallApiFunctionAndReturn(MacroAssembler* masm, Register function_address,
   __ bind(&delete_allocated_handles);
   __ Sd(s1, MemOperand(s5, kLimitOffset));
   __ Move(s3, a0);
-  __ Move(a0, a0);
   __ PrepareCallCFunction(1, s1);
   __ li(a0, ExternalReference::isolate_address(isolate));
   __ CallCFunction(ExternalReference::delete_handle_scope_extensions(), 1);
