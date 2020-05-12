@@ -1635,9 +1635,10 @@ class Heap {
   // over all objects.  May cause a GC.
   void MakeHeapIterable();
 
-  // Performs garbage collection in a safepoint.
-  // Returns the number of freed global handles.
-  size_t PerformGarbageCollection(
+  // Performs garbage collection
+  // Returns whether there is a chance another major GC could
+  // collect more garbage.
+  bool PerformGarbageCollection(
       GarbageCollector collector,
       const GCCallbackFlags gc_callback_flags = kNoGCCallbackFlags);
 

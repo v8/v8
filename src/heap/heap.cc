@@ -1555,8 +1555,7 @@ bool Heap::CollectGarbage(AllocationSpace space,
     }
   }
 
-  size_t freed_global_handles = 0;
-
+  bool next_gc_likely_to_collect_more = false;
   size_t committed_memory_before = 0;
 
   if (collector == MARK_COMPACTOR) {
@@ -1582,68 +1581,17 @@ bool Heap::CollectGarbage(AllocationSpace space,
       OptionalTimedHistogramScope histogram_timer_priority_scope(
           gc_type_priority_timer, isolate_, mode);
 
-      if (!IsYoungGenerationCollector(collector)) {
-        PROFILE(isolate_, CodeMovingGCEvent());
-      }
-
-      GCType gc_type = collector == MARK_COMPACTOR ? kGCTypeMarkSweepCompact
-                                                   : kGCTypeScavenge;
-      {
-        GCCallbacksScope scope(this);
-        // Temporary override any embedder stack state as callbacks may create
-        // their own state on the stack and recursively trigger GC.
-        EmbedderStackStateScope embedder_scope(
-            local_embedder_heap_tracer(),
-            EmbedderHeapTracer::EmbedderStackState::kUnknown);
-        if (scope.CheckReenter()) {
-          AllowHeapAllocation allow_allocation;
-          AllowJavascriptExecution allow_js(isolate());
-          TRACE_GC(tracer(), GCTracer::Scope::HEAP_EXTERNAL_PROLOGUE);
-          VMState<EXTERNAL> state(isolate_);
-          HandleScope handle_scope(isolate_);
-          CallGCPrologueCallbacks(gc_type, kNoGCCallbackFlags);
-        }
-      }
-
-      if (V8_ENABLE_THIRD_PARTY_HEAP_BOOL) {
-        tp_heap_->CollectGarbage();
-      } else {
-        freed_global_handles +=
-            PerformGarbageCollection(collector, gc_callback_flags);
-      }
-      // Clear is_current_gc_forced now that the current GC is complete. Do this
-      // before GarbageCollectionEpilogue() since that could trigger another
-      // unforced GC.
-      is_current_gc_forced_ = false;
-
-      {
-        TRACE_GC(tracer(), GCTracer::Scope::HEAP_EXTERNAL_WEAK_GLOBAL_HANDLES);
-        gc_post_processing_depth_++;
-        {
-          AllowHeapAllocation allow_allocation;
-          AllowJavascriptExecution allow_js(isolate());
-          freed_global_handles +=
-              isolate_->global_handles()->PostGarbageCollectionProcessing(
-                  collector, gc_callback_flags);
-        }
-        gc_post_processing_depth_--;
-      }
-
-      {
-        GCCallbacksScope scope(this);
-        if (scope.CheckReenter()) {
-          AllowHeapAllocation allow_allocation;
-          AllowJavascriptExecution allow_js(isolate());
-          TRACE_GC(tracer(), GCTracer::Scope::HEAP_EXTERNAL_EPILOGUE);
-          VMState<EXTERNAL> state(isolate_);
-          HandleScope handle_scope(isolate_);
-          CallGCEpilogueCallbacks(gc_type, gc_callback_flags);
-        }
-      }
+      next_gc_likely_to_collect_more =
+          PerformGarbageCollection(collector, gc_callback_flags);
       if (collector == MARK_COMPACTOR || collector == SCAVENGER) {
         tracer()->RecordGCPhasesHistograms(gc_type_timer);
       }
     }
+
+    // Clear is_current_gc_forced now that the current GC is complete. Do this
+    // before GarbageCollectionEpilogue() since that could trigger another
+    // unforced GC.
+    is_current_gc_forced_ = false;
 
     GarbageCollectionEpilogue();
     if (collector == MARK_COMPACTOR && FLAG_track_detached_contexts) {
@@ -1691,7 +1639,7 @@ bool Heap::CollectGarbage(AllocationSpace space,
         kGCCallbackScheduleIdleGarbageCollection);
   }
 
-  return freed_global_handles > 0;
+  return next_gc_likely_to_collect_more;
 }
 
 
@@ -2056,22 +2004,61 @@ void Heap::UpdateSurvivalStatistics(int start_new_space_size) {
   tracer()->AddSurvivalRatio(survival_rate);
 }
 
-size_t Heap::PerformGarbageCollection(
+bool Heap::PerformGarbageCollection(
     GarbageCollector collector, const v8::GCCallbackFlags gc_callback_flags) {
   DisallowJavascriptExecution no_js(isolate());
-  base::Optional<SafepointScope> optional_safepoint_scope;
+
+  if (V8_ENABLE_THIRD_PARTY_HEAP_BOOL) {
+    return tp_heap_->CollectGarbage();
+  }
+
+  size_t freed_global_handles = 0;
+
+  if (!IsYoungGenerationCollector(collector)) {
+    PROFILE(isolate_, CodeMovingGCEvent());
+  }
+
+#ifdef VERIFY_HEAP
+  if (FLAG_verify_heap) {
+    VerifyStringTable(this->isolate());
+  }
+#endif
+
+  GCType gc_type =
+      collector == MARK_COMPACTOR ? kGCTypeMarkSweepCompact : kGCTypeScavenge;
+
+  {
+    GCCallbacksScope scope(this);
+    // Temporary override any embedder stack state as callbacks may create their
+    // own state on the stack and recursively trigger GC.
+    EmbedderStackStateScope embedder_scope(
+        local_embedder_heap_tracer(),
+        EmbedderHeapTracer::EmbedderStackState::kUnknown);
+    if (scope.CheckReenter()) {
+      AllowHeapAllocation allow_allocation;
+      AllowJavascriptExecution allow_js(isolate());
+      TRACE_GC(tracer(), GCTracer::Scope::HEAP_EXTERNAL_PROLOGUE);
+      VMState<EXTERNAL> state(isolate_);
+      HandleScope handle_scope(isolate_);
+      CallGCPrologueCallbacks(gc_type, kNoGCCallbackFlags);
+    }
+  }
+
   if (FLAG_local_heaps) {
-    optional_safepoint_scope.emplace(this);
+    safepoint()->Start();
+
     // Fill and reset all LABs
     safepoint()->IterateLocalHeaps(
         [](LocalHeap* local_heap) { local_heap->FreeLinearAllocationArea(); });
   }
+
+  tracer()->StartInSafepoint();
+
 #ifdef VERIFY_HEAP
   if (FLAG_verify_heap) {
     Verify();
   }
 #endif
-  tracer()->StartInSafepoint();
 
   EnsureFromSpaceIsCommitted();
 
@@ -2080,13 +2067,34 @@ size_t Heap::PerformGarbageCollection(
 
   switch (collector) {
     case MARK_COMPACTOR:
+      UpdateOldGenerationAllocationCounter();
+      // Perform mark-sweep with optional compaction.
       MarkCompact();
+      old_generation_size_configured_ = true;
+      // This should be updated before PostGarbageCollectionProcessing, which
+      // can cause another GC. Take into account the objects promoted during
+      // GC.
+      old_generation_allocation_counter_at_last_gc_ +=
+          static_cast<size_t>(promoted_objects_size_);
+      old_generation_size_at_last_gc_ = OldGenerationSizeOfObjects();
+      global_memory_at_last_gc_ = GlobalSizeOfObjects();
       break;
     case MINOR_MARK_COMPACTOR:
       MinorMarkCompact();
       break;
     case SCAVENGER:
-      Scavenge();
+      if ((fast_promotion_mode_ &&
+           CanExpandOldGeneration(new_space()->Size() +
+                                  new_lo_space()->Size()))) {
+        tracer()->NotifyYoungGenerationHandling(
+            YoungGenerationHandling::kFastPromotionDuringScavenge);
+        EvacuateYoungGeneration();
+      } else {
+        tracer()->NotifyYoungGenerationHandling(
+            YoungGenerationHandling::kRegularScavenge);
+
+        Scavenge();
+      }
       break;
   }
 
@@ -2107,13 +2115,6 @@ size_t Heap::PerformGarbageCollection(
   }
 
   isolate_->counters()->objs_since_last_young()->Set(0);
-
-  isolate_->eternal_handles()->PostGarbageCollectionProcessing();
-
-  // Update relocatables.
-  Relocatable::PostGarbageCollectionProcessing(isolate_);
-
-  size_t freed_global_handles;
 
   {
     TRACE_GC(tracer(), GCTracer::Scope::HEAP_EXTERNAL_WEAK_GLOBAL_HANDLES);
@@ -2145,7 +2146,45 @@ size_t Heap::PerformGarbageCollection(
 
   tracer()->StopInSafepoint();
 
-  return freed_global_handles;
+  if (FLAG_local_heaps) safepoint()->End();
+
+  {
+    TRACE_GC(tracer(), GCTracer::Scope::HEAP_EXTERNAL_WEAK_GLOBAL_HANDLES);
+    gc_post_processing_depth_++;
+    {
+      AllowHeapAllocation allow_allocation;
+      AllowJavascriptExecution allow_js(isolate());
+      freed_global_handles +=
+          isolate_->global_handles()->PostGarbageCollectionProcessing(
+              collector, gc_callback_flags);
+    }
+    gc_post_processing_depth_--;
+  }
+
+  isolate_->eternal_handles()->PostGarbageCollectionProcessing();
+
+  // Update relocatables.
+  Relocatable::PostGarbageCollectionProcessing(isolate_);
+
+  {
+    GCCallbacksScope scope(this);
+    if (scope.CheckReenter()) {
+      AllowHeapAllocation allow_allocation;
+      AllowJavascriptExecution allow_js(isolate());
+      TRACE_GC(tracer(), GCTracer::Scope::HEAP_EXTERNAL_EPILOGUE);
+      VMState<EXTERNAL> state(isolate_);
+      HandleScope handle_scope(isolate_);
+      CallGCEpilogueCallbacks(gc_type, gc_callback_flags);
+    }
+  }
+
+#ifdef VERIFY_HEAP
+  if (FLAG_verify_heap) {
+    VerifyStringTable(this->isolate());
+  }
+#endif
+
+  return freed_global_handles > 0;
 }
 
 void Heap::RecomputeLimits(GarbageCollector collector) {
@@ -2257,10 +2296,9 @@ void Heap::MarkCompact() {
 
   LOG(isolate_, ResourceEvent("markcompact", "begin"));
 
-  CodeSpaceMemoryModificationScope code_modifcation(this);
-
-  UpdateOldGenerationAllocationCounter();
   uint64_t size_of_objects_before_gc = SizeOfObjects();
+
+  CodeSpaceMemoryModificationScope code_modifcation(this);
 
   mark_compact_collector()->Prepare();
 
@@ -2277,14 +2315,6 @@ void Heap::MarkCompact() {
   if (FLAG_allocation_site_pretenuring) {
     EvaluateOldSpaceLocalPretenuring(size_of_objects_before_gc);
   }
-  old_generation_size_configured_ = true;
-  // This should be updated before PostGarbageCollectionProcessing, which
-  // can cause another GC. Take into account the objects promoted during
-  // GC.
-  old_generation_allocation_counter_at_last_gc_ +=
-      static_cast<size_t>(promoted_objects_size_);
-  old_generation_size_at_last_gc_ = OldGenerationSizeOfObjects();
-  global_memory_at_last_gc_ = GlobalSizeOfObjects();
 }
 
 void Heap::MinorMarkCompact() {
@@ -2399,16 +2429,6 @@ void Heap::EvacuateYoungGeneration() {
 }
 
 void Heap::Scavenge() {
-  if ((fast_promotion_mode_ &&
-       CanExpandOldGeneration(new_space()->Size() + new_lo_space()->Size()))) {
-    tracer()->NotifyYoungGenerationHandling(
-        YoungGenerationHandling::kFastPromotionDuringScavenge);
-    EvacuateYoungGeneration();
-    return;
-  }
-  tracer()->NotifyYoungGenerationHandling(
-      YoungGenerationHandling::kRegularScavenge);
-
   TRACE_GC(tracer(), GCTracer::Scope::SCAVENGER_SCAVENGE);
   base::MutexGuard guard(relocation_mutex());
   ConcurrentMarking::PauseScope pause_scope(concurrent_marking());
@@ -4220,7 +4240,6 @@ void Heap::Verify() {
   lo_space_->Verify(isolate());
   code_lo_space_->Verify(isolate());
   new_lo_space_->Verify(isolate());
-  VerifyStringTable(isolate());
 }
 
 void Heap::VerifyReadOnlyHeap() {
