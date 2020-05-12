@@ -643,6 +643,20 @@ TEST(Torque, EnumInTypeswitch) {
       }
     }
   )");
+
+  ExpectSuccessfulCompilation(R"(
+  extern enum MyEnum extends Smi {
+    kA,
+    kB,
+    kC,
+    ...
+  }
+
+  @export
+  macro Test(implicit context: Context)(b: bool): Smi {
+    return b ? MyEnum::kB : MyEnum::kA;
+  }
+)");
 }
 
 TEST(Torque, ConstClassFields) {

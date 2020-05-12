@@ -275,6 +275,7 @@ class AbstractType final : public Type {
   const Type* NonConstexprVersion() const override {
     if (non_constexpr_version_) return non_constexpr_version_;
     if (!IsConstexpr()) return this;
+    if (parent()) return parent()->NonConstexprVersion();
     return nullptr;
   }
 
@@ -429,6 +430,13 @@ class V8_EXPORT_PRIVATE UnionType final : public Type {
       }
     }
     return false;
+  }
+
+  bool IsConstexpr() const override { return parent()->IsConstexpr(); }
+
+  const Type* NonConstexprVersion() const override {
+    if (!IsConstexpr()) return this;
+    return parent()->NonConstexprVersion();
   }
 
   void Extend(const Type* t) {
