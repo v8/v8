@@ -724,13 +724,8 @@ void Simulator::set_last_debugger_input(char* input) {
   last_debugger_input_ = input;
 }
 
-// FIXME (RISCV): to be ported
 void Simulator::SetRedirectInstruction(Instruction* instruction) {
-  // This function actually invoked in mksnapshot
-  std::cout << "ERROR: SetRedirectInstruction not yet ported" << std::endl;
-  /*
   instruction->SetInstructionBits(rtCallRedirInstr);
-  */
 }
 
 void Simulator::FlushICache(base::CustomMatcherHashMap* i_cache,
@@ -1396,17 +1391,13 @@ using SimulatorRuntimeDirectGetterCall = void (*)(int64_t arg0, int64_t arg1);
 using SimulatorRuntimeProfilingGetterCall = void (*)(int64_t arg0, int64_t arg1,
                                                      void* arg2);
 
-// FIXME (RISCV): to be ported
 // Software interrupt instructions are used by the simulator to call into the
 // C-based V8 runtime. They are also used for debugging with simulator.
 void Simulator::SoftwareInterrupt() {
-  UNIMPLEMENTED();
-  /*
-  // There are several instructions that could get us here,
-  // the break_ instruction, or several variants of traps. All
-  // Are "SPECIAL" class opcode, and are distinuished by function.
-  int32_t func = instr_.FunctionFieldRaw();
-  uint32_t code = (func == BREAK) ? instr_.Bits(25, 6) : -1;
+  // There are two instructions that could get us here,
+  // the ebreak instruction, or the ecall instruction. Both are
+  // "SPECIAL" class opcode, and are distinuished by the immediate field.
+  int32_t func = instr_.Imm12Value();
   // We first check if we met a call_rt_redirected.
   if (instr_.InstructionBits() == rtCallRedirInstr) {
     Redirection* redirection = Redirection::FromInstruction(instr_.instr());
@@ -1430,33 +1421,6 @@ void Simulator::SoftwareInterrupt() {
         (redirection->type() == ExternalReference::BUILTIN_COMPARE_CALL) ||
         (redirection->type() == ExternalReference::BUILTIN_FP_CALL) ||
         (redirection->type() == ExternalReference::BUILTIN_FP_INT_CALL);
-
-    if (!IsMipsSoftFloatABI) {
-      // With the hard floating point calling convention, double
-      // arguments are passed in FPU registers. Fetch the arguments
-      // from there and call the builtin using soft floating point
-      // convention.
-      switch (redirection->type()) {
-        case ExternalReference::BUILTIN_FP_FP_CALL:
-        case ExternalReference::BUILTIN_COMPARE_CALL:
-          arg0 = get_fpu_register(fa0);
-          arg1 = get_fpu_register(fa1);
-          arg2 = get_fpu_register(fa2);
-          arg3 = get_fpu_register(fa3);
-          break;
-        case ExternalReference::BUILTIN_FP_CALL:
-          arg0 = get_fpu_register(fa0);
-          arg1 = get_fpu_register(fa1);
-          break;
-        case ExternalReference::BUILTIN_FP_INT_CALL:
-          arg0 = get_fpu_register(fa0);
-          arg1 = get_fpu_register(fa1);
-          arg2 = get_register(a2);
-          break;
-        default:
-          break;
-      }
-    }
 
     // This is dodgy but it works because the C entry stubs are never moved.
     // See comment in codegen-arm.cc and bug 1242173.
@@ -1611,7 +1575,11 @@ void Simulator::SoftwareInterrupt() {
     set_register(ra, saved_ra);
     set_pc(get_register(ra));
 
-  } else if (func == BREAK && code <= kMaxStopCode) {
+  }
+  // FIXME (RISCV): Need to handle ebreak instructions used by the debugger
+   else if (func == 1) {
+     UNIMPLEMENTED();
+  /*
     if (IsWatchpoint(code)) {
       PrintWatchpoint(code);
     } else {
@@ -1622,8 +1590,8 @@ void Simulator::SoftwareInterrupt() {
     // All remaining break_ codes, and all traps are handled here.
     RiscvDebugger dbg(this);
     dbg.Debug();
-  }
   */
+  }
 }
 
 // Stop helper functions.

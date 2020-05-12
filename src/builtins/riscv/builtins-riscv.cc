@@ -54,7 +54,7 @@ static void GenerateTailCallToReturnedCode(MacroAssembler* masm,
   }
 
   static_assert(kJavaScriptCallCodeStartRegister == a2, "ABI mismatch");
-  __ Daddu(a2, t0, Operand(Code::kHeaderSize - kHeapObjectTag));
+  __ Daddu(a2, a0, Operand(Code::kHeaderSize - kHeapObjectTag));
   __ Jump(a2);
 }
 
@@ -99,24 +99,24 @@ void Generate_JSBuiltinsConstructStubHelper(MacroAssembler* masm) {
 
     // Copy arguments and receiver to the expression stack.
     Label loop, entry;
-    __ Move(t3, a0);
+    __ Move(t4, a0);
     // ----------- S t a t e -------------
     //  --                        a0: number of arguments (untagged)
     //  --                        a3: new target
     //  --                        t2: pointer to last argument
-    //  --                        t3: counter
+    //  --                        t4: counter
     //  --        sp[0*kPointerSize]: the hole (receiver)
     //  --        sp[1*kPointerSize]: number of arguments (tagged)
     //  --        sp[2*kPointerSize]: context
     // -----------------------------------
     __ Branch(&entry);
     __ bind(&loop);
-    __ Dlsa(t0, t2, t3, kPointerSizeLog2);
+    __ Dlsa(t0, t2, t4, kPointerSizeLog2);
     __ Ld(t1, MemOperand(t0));
     __ push(t1);
     __ bind(&entry);
-    __ Daddu(t3, t3, Operand(-1));
-    __ Branch(&loop, greater_equal, t3, Operand(zero_reg));
+    __ Daddu(t4, t4, Operand(-1));
+    __ Branch(&loop, greater_equal, t4, Operand(zero_reg));
 
     // Call the function.
     // a0: number of arguments (untagged)
@@ -194,17 +194,17 @@ void Builtins::Generate_JSConstructStubGeneric(MacroAssembler* masm) {
 
     // If not derived class constructor: Allocate the new receiver object.
     __ IncrementCounter(masm->isolate()->counters()->constructed_objects(), 1,
-                        t2, t3);
+                        t2, t4);
     __ Call(BUILTIN_CODE(masm->isolate(), FastNewObject),
             RelocInfo::CODE_TARGET);
     __ Branch(&post_instantiation_deopt_entry);
 
     // Else: use TheHoleValue as receiver for constructor call
     __ bind(&not_create_implicit_receiver);
-    __ LoadRoot(t0, RootIndex::kTheHoleValue);
+    __ LoadRoot(a0, RootIndex::kTheHoleValue);
 
     // ----------- S t a t e -------------
-    //  --                          t0: receiver
+    //  --                          a0: receiver
     //  -- Slot 4 / sp[0*kPointerSize]: new target
     //  -- Slot 3 / sp[1*kPointerSize]: padding
     //  -- Slot 2 / sp[2*kPointerSize]: constructor function
@@ -221,7 +221,7 @@ void Builtins::Generate_JSConstructStubGeneric(MacroAssembler* masm) {
     // Push the allocated receiver to the stack. We need two copies
     // because we may have to return the original one and the calling
     // conventions dictate that the called function pops the receiver.
-    __ Push(t0, t0);
+    __ Push(a0, a0);
 
     // ----------- S t a t e -------------
     //  --                 r3: new target
@@ -256,12 +256,12 @@ void Builtins::Generate_JSConstructStubGeneric(MacroAssembler* masm) {
 
     // Copy arguments and receiver to the expression stack.
     Label loop, entry;
-    __ Move(t3, a0);
+    __ Move(t4, a0);
     // ----------- S t a t e -------------
     //  --                        a0: number of arguments (untagged)
     //  --                        a3: new target
     //  --                        t2: pointer to last argument
-    //  --                        t3: counter
+    //  --                        t4: counter
     //  --        sp[0*kPointerSize]: implicit receiver
     //  --        sp[1*kPointerSize]: implicit receiver
     //  --        sp[2*kPointerSize]: padding
@@ -271,18 +271,18 @@ void Builtins::Generate_JSConstructStubGeneric(MacroAssembler* masm) {
     // -----------------------------------
     __ Branch(&entry);
     __ bind(&loop);
-    __ Dlsa(t0, t2, t3, kPointerSizeLog2);
+    __ Dlsa(t0, t2, t4, kPointerSizeLog2);
     __ Ld(t1, MemOperand(t0));
     __ push(t1);
     __ bind(&entry);
-    __ Daddu(t3, t3, Operand(-1));
-    __ Branch(&loop, greater_equal, t3, Operand(zero_reg));
+    __ Daddu(t4, t4, Operand(-1));
+    __ Branch(&loop, greater_equal, t4, Operand(zero_reg));
 
     // Call the function.
     __ InvokeFunctionWithNewTarget(a1, a3, a0, CALL_FUNCTION);
 
     // ----------- S t a t e -------------
-    //  --                 t0: constructor result
+    //  --                 a0: constructor result
     //  -- sp[0*kPointerSize]: implicit receiver
     //  -- sp[1*kPointerSize]: padding
     //  -- sp[2*kPointerSize]: constructor function
@@ -303,17 +303,17 @@ void Builtins::Generate_JSConstructStubGeneric(MacroAssembler* masm) {
     Label use_receiver, do_throw, leave_frame;
 
     // If the result is undefined, we jump out to using the implicit receiver.
-    __ JumpIfRoot(t0, RootIndex::kUndefinedValue, &use_receiver);
+    __ JumpIfRoot(a0, RootIndex::kUndefinedValue, &use_receiver);
 
     // Otherwise we do a smi check and fall through to check if the return value
     // is a valid receiver.
 
     // If the result is a smi, it is *not* an object in the ECMA sense.
-    __ JumpIfSmi(t0, &use_receiver);
+    __ JumpIfSmi(a0, &use_receiver);
 
     // If the type of the result (stored in its map) is less than
     // FIRST_JS_RECEIVER_TYPE, it is not an object in the ECMA sense.
-    __ GetObjectType(t0, t2, t2);
+    __ GetObjectType(a0, t2, t2);
     STATIC_ASSERT(LAST_JS_RECEIVER_TYPE == LAST_TYPE);
     __ Branch(&leave_frame, greater_equal, t2, Operand(FIRST_JS_RECEIVER_TYPE));
     __ Branch(&use_receiver);
@@ -324,8 +324,8 @@ void Builtins::Generate_JSConstructStubGeneric(MacroAssembler* masm) {
     // Throw away the result of the constructor invocation and use the
     // on-stack receiver as the result.
     __ bind(&use_receiver);
-    __ Ld(t0, MemOperand(sp, 0 * kPointerSize));
-    __ JumpIfRoot(t0, RootIndex::kTheHoleValue, &do_throw);
+    __ Ld(a0, MemOperand(sp, 0 * kPointerSize));
+    __ JumpIfRoot(a0, RootIndex::kTheHoleValue, &do_throw);
 
     __ bind(&leave_frame);
     // Restore smi-tagged arguments count from the frame.
@@ -359,15 +359,15 @@ static void GetSharedFunctionInfoBytecode(MacroAssembler* masm,
 // static
 void Builtins::Generate_ResumeGeneratorTrampoline(MacroAssembler* masm) {
   // ----------- S t a t e -------------
-  //  -- t0 : the value to pass to the generator
+  //  -- a0 : the value to pass to the generator
   //  -- a1 : the JSGeneratorObject to resume
   //  -- ra : return address
   // -----------------------------------
   __ AssertGeneratorObject(a1);
 
   // Store input value into generator object.
-  __ Sd(t0, FieldMemOperand(a1, JSGeneratorObject::kInputOrDebugPosOffset));
-  __ RecordWriteField(a1, JSGeneratorObject::kInputOrDebugPosOffset, t0, a3,
+  __ Sd(a0, FieldMemOperand(a1, JSGeneratorObject::kInputOrDebugPosOffset));
+  __ RecordWriteField(a1, JSGeneratorObject::kInputOrDebugPosOffset, a0, a3,
                       kRAHasNotBeenSaved, kDontSaveFPRegs);
 
   // Load suspended function and context.
@@ -630,8 +630,8 @@ void Generate_JSEntryVariant(MacroAssembler* masm, StackFrame::Type type,
   // signal the existence of the JSEntry frame.
   __ li(s1, ExternalReference::Create(
                 IsolateAddressId::kPendingExceptionAddress, masm->isolate()));
-  __ Sd(t0, MemOperand(s1));  // We come back from 'invoke'. result is in t0.
-  __ LoadRoot(t0, RootIndex::kException);
+  __ Sd(a0, MemOperand(s1));  // We come back from 'invoke'. result is in a0.
+  __ LoadRoot(a0, RootIndex::kException);
   __ b(&exit);  // b exposes branch delay slot.
   __ nop();     // Branch delay slot nop.
 
@@ -672,7 +672,7 @@ void Generate_JSEntryVariant(MacroAssembler* masm, StackFrame::Type type,
   // Unlink this frame from the handler chain.
   __ PopStackHandler();
 
-  __ bind(&exit);  // t0 holds result
+  __ bind(&exit);  // a0 holds result
   // Check if the current stack frame is marked as the outermost JS frame.
   Label non_outermost_js_2;
   __ pop(a5);
@@ -1142,8 +1142,8 @@ void Builtins::Generate_InterpreterEntryTrampoline(MacroAssembler* masm) {
   __ Branch(&do_dispatch);
 
   __ bind(&do_return);
-  // The return value is in t0.
-  LeaveInterpreterFrame(masm, t0);
+  // The return value is in a0.
+  LeaveInterpreterFrame(masm, a0);
   __ Jump(ra);
 
   __ bind(&optimized_code_slot_not_empty);
@@ -1403,7 +1403,7 @@ void Generate_ContinueToBuiltinHelper(MacroAssembler* masm,
   if (with_result) {
     // Overwrite the hole inserted by the deoptimizer with the return value from
     // the LAZY deopt point.
-    __ Sd(t0,
+    __ Sd(a0,
           MemOperand(
               sp, config->num_allocatable_general_registers() * kPointerSize +
                       BuiltinContinuationFrameConstants::kFixedFrameSize));
@@ -1452,8 +1452,8 @@ void Builtins::Generate_NotifyDeoptimized(MacroAssembler* masm) {
     __ CallRuntime(Runtime::kNotifyDeoptimized);
   }
 
-  DCHECK_EQ(kInterpreterAccumulatorRegister.code(), t0.code());
-  __ Ld(t0, MemOperand(sp, 0 * kPointerSize));
+  DCHECK_EQ(kInterpreterAccumulatorRegister.code(), a6.code());
+  __ Ld(a6, MemOperand(sp, 0 * kPointerSize));
   __ Daddu(sp, sp, Operand(1 * kPointerSize));  // Remove state.
   __ Ret();
 }
@@ -1465,7 +1465,7 @@ void Builtins::Generate_InterpreterOnStackReplacement(MacroAssembler* masm) {
   }
 
   // If the code object is null, just return to the caller.
-  __ Ret(eq, t0, Operand(Smi::zero()));
+  __ Ret(eq, a0, Operand(Smi::zero()));
 
   // Drop the handler frame that is be sitting on top of the actual
   // JavaScript frame. This is the case then OSR is triggered from bytecode.
@@ -1473,7 +1473,7 @@ void Builtins::Generate_InterpreterOnStackReplacement(MacroAssembler* masm) {
 
   // Load deoptimization data from the code object.
   // <deopt_data> = <code>[#deoptimization_data_offset]
-  __ Ld(a1, MemOperand(t0, Code::kDeoptimizationDataOffset - kHeapObjectTag));
+  __ Ld(a1, MemOperand(a0, Code::kDeoptimizationDataOffset - kHeapObjectTag));
 
   // Load the OSR entrypoint offset from the deoptimization data.
   // <osr_offset> = <deopt_data>[#header_size + #osr_pc_offset]
@@ -1483,8 +1483,8 @@ void Builtins::Generate_InterpreterOnStackReplacement(MacroAssembler* masm) {
 
   // Compute the target address = code_obj + header_size + osr_offset
   // <entry_addr> = <code_obj> + #header_size + <osr_offset>
-  __ Daddu(t0, t0, a1);
-  __ Daddu(ra, t0, Code::kHeaderSize - kHeapObjectTag);
+  __ Daddu(a0, a0, a1);
+  __ Daddu(ra, a0, Code::kHeaderSize - kHeapObjectTag);
   // And "return" to the OSR entry point of the function.
   __ Ret();
 }
@@ -1727,7 +1727,7 @@ static void EnterArgumentsAdaptorFrame(MacroAssembler* masm) {
 
 static void LeaveArgumentsAdaptorFrame(MacroAssembler* masm) {
   // ----------- S t a t e -------------
-  //  -- t0 : result being passed through
+  //  -- a0 : result being passed through
   // -----------------------------------
   // Get the number of arguments passed (as a smi), tear down the frame and
   // then tear down the parameters.
@@ -1954,7 +1954,7 @@ void Builtins::Generate_CallFunction(MacroAssembler* masm,
         __ Call(BUILTIN_CODE(masm->isolate(), ToObject),
                 RelocInfo::CODE_TARGET);
         __ Pop(cp);
-        __ Move(a3, t0);
+        __ Move(a3, a0);
         __ Pop(a0, a1);
         __ SmiUntag(a0);
       }
@@ -2245,9 +2245,9 @@ void Builtins::Generate_Construct(MacroAssembler* masm) {
 
   // Check if target has a [[Construct]] internal method.
   __ ld(t1, FieldMemOperand(a1, HeapObject::kMapOffset));
-  __ Lbu(t3, FieldMemOperand(t1, Map::kBitFieldOffset));
-  __ And(t3, t3, Operand(Map::Bits1::IsConstructorBit::kMask));
-  __ Branch(&non_constructor, eq, t3, Operand(zero_reg));
+  __ Lbu(t4, FieldMemOperand(t1, Map::kBitFieldOffset));
+  __ And(t4, t4, Operand(Map::Bits1::IsConstructorBit::kMask));
+  __ Branch(&non_constructor, eq, t4, Operand(zero_reg));
 
   // Dispatch based on instance type.
   __ Lhu(t2, FieldMemOperand(t1, Map::kInstanceTypeOffset));
@@ -2451,7 +2451,7 @@ void Builtins::Generate_WasmCompileLazy(MacroAssembler* masm) {
     __ MultiPop(gp_regs);
   }
   // Finally, jump to the entrypoint.
-  __ Jump(t0);
+  __ Jump(a0);
 }
 
 void Builtins::Generate_CEntry(MacroAssembler* masm, int result_size,
@@ -2482,13 +2482,13 @@ void Builtins::Generate_CEntry(MacroAssembler* masm, int result_size,
       save_doubles == kSaveFPRegs, 0,
       builtin_exit_frame ? StackFrame::BUILTIN_EXIT : StackFrame::EXIT);
 
-  // fp: number of arguments  including receiver (C callee-saved)
+  // s3: number of arguments  including receiver (C callee-saved)
   // s1: pointer to first argument (C callee-saved)
   // s2: pointer to builtin function (C callee-saved)
 
   // Prepare arguments for C routine.
   // a0 = argc
-  __ Move(fp, a0);
+  __ Move(s3, a0);
   __ Move(s2, a1);
 
   // We are calling compiled C/C++ code. a0 and a1 hold our two arguments. We
@@ -2502,12 +2502,12 @@ void Builtins::Generate_CEntry(MacroAssembler* masm, int result_size,
 
   __ StoreReturnAddressAndCall(s2);
 
-  // Result returned in t0 or v1:t0 - do not destroy these registers!
+  // Result returned in a0 or a1:a0 - do not destroy these registers!
 
   // Check result for exception sentinel.
   Label exception_returned;
   __ LoadRoot(a4, RootIndex::kException);
-  __ Branch(&exception_returned, eq, a4, Operand(t0));
+  __ Branch(&exception_returned, eq, a4, Operand(a0));
 
   // Check that there is no pending exception, otherwise we
   // should have returned the exception sentinel.
@@ -2525,14 +2525,14 @@ void Builtins::Generate_CEntry(MacroAssembler* masm, int result_size,
   }
 
   // Exit C frame and return.
-  // t0:v1: result
+  // a0:a1: result
   // sp: stack pointer
   // fp: frame pointer
   Register argc = argv_mode == kArgvInRegister
                       // We don't want to pop arguments so set argc to no_reg.
                       ? no_reg
-                      // fp: still holds argc (callee-saved).
-                      : fp;
+                      // s3: still holds argc (callee-saved).
+                      : s3;
   __ LeaveExitFrame(save_doubles == kSaveFPRegs, argc, EMIT_RETURN);
 
   // Handling of exception.
@@ -2548,7 +2548,7 @@ void Builtins::Generate_CEntry(MacroAssembler* masm, int result_size,
   ExternalReference pending_handler_sp_address = ExternalReference::Create(
       IsolateAddressId::kPendingHandlerSPAddress, masm->isolate());
 
-  // Ask the runtime for help to determine the handler. This will set t0 to
+  // Ask the runtime for help to determine the handler. This will set a0 to
   // contain the current pending exception, don't clobber it.
   ExternalReference find_handler =
       ExternalReference::Create(Runtime::kUnwindAndFindExceptionHandler);
@@ -2753,7 +2753,7 @@ void CallApiFunctionAndReturn(MacroAssembler* masm, Register function_address,
 
   // Allocate HandleScope in callee-save registers.
   __ li(s5, next_address);
-  __ Ld(fp, MemOperand(s5, kNextOffset));
+  __ Ld(s3, MemOperand(s5, kNextOffset));
   __ Ld(s1, MemOperand(s5, kLimitOffset));
   __ Lw(s2, MemOperand(s5, kLevelOffset));
   __ Addu(s2, s2, Operand(1));
@@ -2767,12 +2767,12 @@ void CallApiFunctionAndReturn(MacroAssembler* masm, Register function_address,
   Label return_value_loaded;
 
   // Load value from ReturnValue.
-  __ Ld(t0, return_value_operand);
+  __ Ld(a0, return_value_operand);
   __ bind(&return_value_loaded);
 
   // No more valid handles (the result handle was the last one). Restore
   // previous handle scope.
-  __ Sd(fp, MemOperand(s5, kNextOffset));
+  __ Sd(s3, MemOperand(s5, kNextOffset));
   if (__ emit_debug_code()) {
     __ Lw(a1, MemOperand(s5, kLevelOffset));
     __ Check(eq, AbortReason::kUnexpectedLevelAfterReturnFromApiCall, a1,
@@ -2788,16 +2788,16 @@ void CallApiFunctionAndReturn(MacroAssembler* masm, Register function_address,
 
   if (stack_space_operand == nullptr) {
     DCHECK_NE(stack_space, 0);
-    __ li(fp, Operand(stack_space));
+    __ li(s3, Operand(stack_space));
   } else {
     DCHECK_EQ(stack_space, 0);
     STATIC_ASSERT(kCArgSlotCount == 0);
-    __ Ld(fp, *stack_space_operand);
+    __ Ld(s3, *stack_space_operand);
   }
 
   static constexpr bool kDontSaveDoubles = false;
   static constexpr bool kRegisterContainsSlotCount = false;
-  __ LeaveExitFrame(kDontSaveDoubles, fp, NO_EMIT_RETURN,
+  __ LeaveExitFrame(kDontSaveDoubles, s3, NO_EMIT_RETURN,
                     kRegisterContainsSlotCount);
 
   // Check if the function scheduled an exception.
@@ -2815,12 +2815,11 @@ void CallApiFunctionAndReturn(MacroAssembler* masm, Register function_address,
   // HandleScope limit has changed. Delete allocated extensions.
   __ bind(&delete_allocated_handles);
   __ Sd(s1, MemOperand(s5, kLimitOffset));
-  __ Move(fp, t0);
-  __ Move(a0, t0);
+  __ Move(s3, a0);
   __ PrepareCallCFunction(1, s1);
   __ li(a0, ExternalReference::isolate_address(isolate));
   __ CallCFunction(ExternalReference::delete_handle_scope_extensions(), 1);
-  __ Move(t0, fp);
+  __ Move(a0, s3);
   __ Branch(&leave_exit_frame);
 }
 

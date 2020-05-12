@@ -326,10 +326,10 @@ constexpr Register kJSFunctionRegister = a1;
 constexpr Register kContextRegister = s7;
 constexpr Register kAllocateSizeRegister = a0;
 constexpr Register kSpeculationPoisonRegister = a7;
-constexpr Register kInterpreterAccumulatorRegister = t0;
-constexpr Register kInterpreterBytecodeOffsetRegister = a4;
-constexpr Register kInterpreterBytecodeArrayRegister = a5;
-constexpr Register kInterpreterDispatchTableRegister = a6;
+constexpr Register kInterpreterAccumulatorRegister = a6;
+constexpr Register kInterpreterBytecodeOffsetRegister = t0;
+constexpr Register kInterpreterBytecodeArrayRegister = t1;
+constexpr Register kInterpreterDispatchTableRegister = t2;
 
 constexpr Register kJavaScriptCallArgCountRegister = a0;
 constexpr Register kJavaScriptCallCodeStartRegister = a2;
