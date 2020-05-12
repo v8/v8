@@ -41,22 +41,18 @@ struct WasmException;
     return true;                  \
   }())
 
-#define RET_ON_PROTOTYPE_OPCODE(feat)                                          \
+#define CHECK_PROTOTYPE_OPCODE_GEN(feat, opt_break)                            \
   DCHECK(!this->module_ || this->module_->origin == kWasmOrigin);              \
   if (!this->enabled_.has_##feat()) {                                          \
     this->error("Invalid opcode (enable with --experimental-wasm-" #feat ")"); \
+    opt_break                                                                  \
   } else {                                                                     \
     this->detected_->Add(kFeature_##feat);                                     \
   }
 
-#define CHECK_PROTOTYPE_OPCODE(feat)                                           \
-  DCHECK(!this->module_ || this->module_->origin == kWasmOrigin);              \
-  if (!this->enabled_.has_##feat()) {                                          \
-    this->error("Invalid opcode (enable with --experimental-wasm-" #feat ")"); \
-    break;                                                                     \
-  } else {                                                                     \
-    this->detected_->Add(kFeature_##feat);                                     \
-  }
+#define CHECK_PROTOTYPE_OPCODE(feat) CHECK_PROTOTYPE_OPCODE_GEN(feat, break;)
+
+#define RET_ON_PROTOTYPE_OPCODE(feat) CHECK_PROTOTYPE_OPCODE_GEN(feat, )
 
 #define OPCODE_ERROR(opcode, message)                                 \
   (this->errorf(this->pc_, "%s: %s", WasmOpcodes::OpcodeName(opcode), \
@@ -3524,10 +3520,11 @@ class WasmFullDecoder : public WasmDecoder<validate> {
   }
 
   void BuildSimplePrototypeOperator(WasmOpcode opcode) {
-    if (WasmOpcodes::IsAnyRefOpcode(opcode)) {
+    if (opcode == kExprRefIsNull) {
       RET_ON_PROTOTYPE_OPCODE(anyref);
+    } else if (opcode == kExprRefEq) {
+      RET_ON_PROTOTYPE_OPCODE(gc);
     }
-    // TODO(7748): Add RefEq support here.
     const FunctionSig* sig = WasmOpcodes::Signature(opcode);
     BuildSimpleOperator(opcode, sig);
   }
@@ -3598,6 +3595,8 @@ class EmptyInterface {
 #undef TRACE_INST_FORMAT
 #undef VALIDATE
 #undef CHECK_PROTOTYPE_OPCODE
+#undef RET_ON_PROTOTYPE_OPCODE
+#undef CHECK_PROTOTYPE_OPCODE_GEN
 #undef OPCODE_ERROR
 
 }  // namespace wasm

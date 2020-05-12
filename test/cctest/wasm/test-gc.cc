@@ -129,6 +129,35 @@ WASM_EXEC_TEST(BasicStruct) {
       kExprEnd};
   m->EmitCode(m_code, sizeof(m_code));
 
+  // Test ref.eq
+  WasmFunctionBuilder* n = builder->AddFunction(sigs.i_v());
+  uint32_t n_local_index = n->AddLocal(kOptRefType);
+  n->builder()->AddExport(CStrVector("n"), n);
+  byte n_code[] = {
+      WASM_SET_LOCAL(n_local_index,
+                     WASM_STRUCT_NEW(type_index, WASM_I32V(55), WASM_I32V(66))),
+      WASM_I32_ADD(
+          WASM_I32_SHL(
+              WASM_REF_EQ(  // true
+                  WASM_GET_LOCAL(n_local_index), WASM_GET_LOCAL(n_local_index)),
+              WASM_I32V(0)),
+          WASM_I32_ADD(
+              WASM_I32_SHL(WASM_REF_EQ(  // false
+                               WASM_GET_LOCAL(n_local_index),
+                               WASM_STRUCT_NEW(type_index, WASM_I32V(55),
+                                               WASM_I32V(66))),
+                           WASM_I32V(1)),
+              WASM_I32_ADD(
+                  WASM_I32_SHL(  // false
+                      WASM_REF_EQ(WASM_GET_LOCAL(n_local_index), WASM_REF_NULL),
+                      WASM_I32V(2)),
+                  WASM_I32_SHL(WASM_REF_EQ(  // true
+                                   WASM_REF_NULL, WASM_REF_NULL),
+                               WASM_I32V(3))))),
+      kExprEnd};
+  n->EmitCode(n_code, sizeof(n_code));
+  // Result: 0b1001
+
   ZoneBuffer buffer(&zone);
   builder->WriteTo(&buffer);
 
@@ -168,6 +197,9 @@ WASM_EXEC_TEST(BasicStruct) {
 
   CHECK_EQ(52, testing::CallWasmFunctionForTesting(isolate, instance, &thrower,
                                                    "m", 0, nullptr));
+
+  CHECK_EQ(0b1001, testing::CallWasmFunctionForTesting(
+                       isolate, instance, &thrower, "n", 0, nullptr));
 }
 
 WASM_EXEC_TEST(BasicArray) {

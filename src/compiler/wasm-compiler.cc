@@ -660,6 +660,8 @@ Node* WasmGraphBuilder::Binop(wasm::WasmOpcode opcode, Node* left, Node* right,
       break;
     case wasm::kExprF64Mod:
       return BuildF64Mod(left, right);
+    case wasm::kExprRefEq:
+      return gasm_->TaggedEqual(left, right);
     case wasm::kExprI32AsmjsDivS:
       return BuildI32AsmjsDivS(left, right);
     case wasm::kExprI32AsmjsDivU:
