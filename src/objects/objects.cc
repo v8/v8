@@ -5717,17 +5717,27 @@ const char* AllocationSite::PretenureDecisionName(PretenureDecision decision) {
   return nullptr;
 }
 
+// static
+bool JSArray::MayHaveReadOnlyLength(Map js_array_map) {
+  DCHECK(js_array_map.IsJSArrayMap());
+  if (js_array_map.is_dictionary_map()) return true;
+
+  // Fast path: "length" is the first fast property of arrays with non
+  // dictionary properties. Since it's not configurable, it's guaranteed to be
+  // the first in the descriptor array.
+  InternalIndex first(0);
+  DCHECK(js_array_map.instance_descriptors().GetKey(first) ==
+         js_array_map.GetReadOnlyRoots().length_string());
+  return js_array_map.instance_descriptors().GetDetails(first).IsReadOnly();
+}
+
 bool JSArray::HasReadOnlyLength(Handle<JSArray> array) {
   Map map = array->map();
-  // Fast path: "length" is the first fast property of arrays. Since it's not
-  // configurable, it's guaranteed to be the first in the descriptor array.
-  if (!map.is_dictionary_map()) {
-    InternalIndex first(0);
-    DCHECK(map.instance_descriptors().GetKey(first) ==
-           array->GetReadOnlyRoots().length_string());
-    return map.instance_descriptors().GetDetails(first).IsReadOnly();
-  }
 
+  // If map guarantees that there can't be a read-only length, we are done.
+  if (!MayHaveReadOnlyLength(map)) return false;
+
+  // Look at the object.
   Isolate* isolate = array->GetIsolate();
   LookupIterator it(isolate, array, isolate->factory()->length_string(), array,
                     LookupIterator::OWN_SKIP_INTERCEPTOR);
