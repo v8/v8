@@ -119,7 +119,7 @@ class WasmGenerator {
     BlockScope(WasmGenerator* gen, WasmOpcode block_type, ValueType result_type,
                ValueType br_type)
         : gen_(gen) {
-      gen->blocks_.push_back(br_type);
+      gen->blocks_.emplace_back(1, br_type);
       gen->builder_->EmitWithU8(block_type, result_type.value_type_code());
     }
 
@@ -165,9 +165,11 @@ class WasmGenerator {
     // There is always at least the block representing the function body.
     DCHECK(!blocks_.empty());
     const uint32_t target_block = data->get<uint32_t>() % blocks_.size();
-    const ValueType break_type = blocks_[target_block];
+    const auto break_types = blocks_[target_block];
 
-    Generate(break_type, data);
+    for (size_t i = 0; i < break_types.size(); ++i) {
+      Generate(break_types[i], data);
+    }
     builder_->EmitWithI32V(
         kExprBr, static_cast<uint32_t>(blocks_.size()) - 1 - target_block);
   }
@@ -177,13 +179,19 @@ class WasmGenerator {
     // There is always at least the block representing the function body.
     DCHECK(!blocks_.empty());
     const uint32_t target_block = data->get<uint32_t>() % blocks_.size();
-    const ValueType break_type = blocks_[target_block];
+    const auto break_types = blocks_[target_block];
 
-    Generate(break_type, data);
+    for (size_t i = 0; i < break_types.size(); ++i) {
+      Generate(break_types[i], data);
+    }
+
     Generate(kWasmI32, data);
     builder_->EmitWithI32V(
         kExprBrIf, static_cast<uint32_t>(blocks_.size()) - 1 - target_block);
-    ConvertOrGenerate(break_type, ValueType(wanted_type), data);
+    for (size_t i = 0; i < break_types.size() - 1; ++i) {
+      builder_->Emit(kExprDrop);
+    }
+    ConvertOrGenerate(break_types.front(), ValueType(wanted_type), data);
   }
 
   // TODO(eholk): make this function constexpr once gcc supports it
@@ -399,19 +407,30 @@ class WasmGenerator {
     }
     // Emit call.
     builder_->EmitWithU32V(kExprCallFunction, func_index);
-    // Convert the return value to the wanted type.
-    ValueType return_type =
-        sig->return_count() == 0 ? kWasmStmt : sig->GetReturn(0);
-    if (return_type == kWasmStmt && wanted_type != kWasmStmt) {
+    if (sig->return_count() == 0 && wanted_type != kWasmStmt) {
       // The call did not generate a value. Thus just generate it here.
       Generate(wanted_type, data);
-    } else if (return_type != kWasmStmt && wanted_type == kWasmStmt) {
-      // The call did generate a value, but we did not want one.
-      builder_->Emit(kExprDrop);
-    } else if (return_type != wanted_type) {
-      // If the returned type does not match the wanted type, convert it.
-      Convert(return_type, wanted_type);
+      return;
     }
+    if (wanted_type == kWasmStmt) {
+      // The call did generate values, but we did not want one.
+      for (size_t i = 0; i < sig->return_count(); ++i) {
+        builder_->Emit(kExprDrop);
+      }
+      return;
+    }
+    // Keep exactly one of the return values on the stack with a combination of
+    // drops and selects, then convert this value to the wanted type.
+    size_t return_index = data->get<uint8_t>() % sig->return_count();
+    for (size_t i = sig->return_count() - 1; i > return_index; --i) {
+      builder_->Emit(kExprDrop);
+    }
+    for (size_t i = return_index; i > 0; --i) {
+      Convert(sig->GetReturn(i), sig->GetReturn(i - 1));
+      builder_->EmitI32Const(0);
+      builder_->Emit(kExprSelect);
+    }
+    Convert(sig->GetReturn(0), wanted_type);
   }
 
   struct Var {
@@ -570,8 +589,14 @@ class WasmGenerator {
         globals_(globals),
         mutable_globals_(mutable_globals) {
     FunctionSig* sig = fn->signature();
-    DCHECK_GE(1, sig->return_count());
-    blocks_.push_back(sig->return_count() == 0 ? kWasmStmt : sig->GetReturn(0));
+    if (sig->return_count() == 0) {
+      blocks_.emplace_back(1, kWasmStmt);
+    } else {
+      blocks_.emplace_back();
+      for (size_t i = 0; i < sig->return_count(); ++i) {
+        blocks_.back().push_back(sig->GetReturn(i));
+      }
+    }
 
     constexpr uint32_t kMaxLocals = 32;
     locals_.resize(data->get<uint8_t>() % kMaxLocals);
@@ -596,7 +621,7 @@ class WasmGenerator {
 
  private:
   WasmFunctionBuilder* builder_;
-  std::vector<ValueType> blocks_;
+  std::vector<std::vector<ValueType>> blocks_;
   const std::vector<FunctionSig*>& functions_;
   std::vector<ValueType> locals_;
   std::vector<ValueType> globals_;
@@ -1331,10 +1356,11 @@ FunctionSig* GenerateSig(Zone* zone, DataRange* data) {
   // Generate enough parameters to spill some to the stack.
   constexpr int kMaxParameters = 15;
   int num_params = int{data->get<uint8_t>()} % (kMaxParameters + 1);
-  bool has_return = data->get<bool>();
+  constexpr int kMaxReturns = 15;
+  int num_returns = int{data->get<uint8_t>()} % (kMaxReturns + 1);
 
-  FunctionSig::Builder builder(zone, has_return ? 1 : 0, num_params);
-  if (has_return) builder.AddReturn(GetValueType(data));
+  FunctionSig::Builder builder(zone, num_returns, num_params);
+  for (int i = 0; i < num_returns; ++i) builder.AddReturn(GetValueType(data));
   for (int i = 0; i < num_params; ++i) builder.AddParam(GetValueType(data));
   return builder.Build();
 }
@@ -1386,9 +1412,12 @@ class WasmCompileFuzzer : public WasmExecutionFuzzer {
 
       WasmGenerator gen(f, function_signatures, globals, mutable_globals,
                         &function_range);
-      ValueType return_type =
-          sig->return_count() == 0 ? kWasmStmt : sig->GetReturn(0);
-      gen.Generate(return_type, &function_range);
+      if (sig->return_count() == 0) {
+        gen.Generate(kWasmStmt, &function_range);
+      }
+      for (size_t i = 0; i < sig->return_count(); ++i) {
+        gen.Generate(sig->GetReturn(i), &function_range);
+      }
 
       f->Emit(kExprEnd);
       if (i == 0) builder.AddExport(CStrVector("main"), f);
