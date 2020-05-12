@@ -191,6 +191,12 @@ void LiftoffAssembler::LoadCallerFrameSlot(LiftoffRegister dst,
   bailout(kUnsupportedArchitecture, "LoadCallerFrameSlot");
 }
 
+void LiftoffAssembler::StoreCallerFrameSlot(LiftoffRegister src,
+                                            uint32_t caller_slot_idx,
+                                            ValueType type) {
+  bailout(kUnsupportedArchitecture, "StoreCallerFrameSlot");
+}
+
 void LiftoffAssembler::MoveStackValue(uint32_t dst_offset, uint32_t src_offset,
                                       ValueType type) {
   bailout(kUnsupportedArchitecture, "MoveStackValue");
