@@ -774,10 +774,6 @@ class LiftoffCompiler {
     DCHECK_EQ(if_block, decoder->control_at(0));
     DCHECK(if_block->is_if());
 
-    if (if_block->start_merge.arity > 0 || if_block->end_merge.arity > 1) {
-      return unsupported(decoder, kMultiValue, "multi-value if");
-    }
-
     // Allocate the else state.
     if_block->else_state = std::make_unique<ElseState>();
 
@@ -816,9 +812,9 @@ class LiftoffCompiler {
       // No merge yet at the end of the if, but we need to create a merge for
       // the both arms of this if. Thus init the merge point from the else
       // state, then merge the if state into that.
-      DCHECK_EQ(0, c->end_merge.arity);
-      c->label_state.InitMerge(c->else_state->state, __ num_locals(), 0,
-                               c->stack_depth);
+      DCHECK_EQ(c->start_merge.arity, c->end_merge.arity);
+      c->label_state.InitMerge(c->else_state->state, __ num_locals(),
+                               c->start_merge.arity, c->stack_depth);
       __ MergeFullStackWith(c->label_state, *__ cache_state());
       __ emit_jump(c->label.get());
       // Merge the else state into the end state.
