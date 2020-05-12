@@ -34,6 +34,23 @@ namespace internal {
 
 namespace {
 
+std::string ToHourCycleString(JSDateTimeFormat::HourCycle hc) {
+  switch (hc) {
+    case JSDateTimeFormat::HourCycle::kH11:
+      return "h11";
+    case JSDateTimeFormat::HourCycle::kH12:
+      return "h12";
+    case JSDateTimeFormat::HourCycle::kH23:
+      return "h23";
+    case JSDateTimeFormat::HourCycle::kH24:
+      return "h24";
+    case JSDateTimeFormat::HourCycle::kUndefined:
+      return "";
+    default:
+      UNREACHABLE();
+  }
+}
+
 JSDateTimeFormat::HourCycle ToHourCycle(const std::string& hc) {
   if (hc == "h11") return JSDateTimeFormat::HourCycle::kH11;
   if (hc == "h12") return JSDateTimeFormat::HourCycle::kH12;
@@ -1158,10 +1175,18 @@ icu::DateIntervalFormat* LazyCreateDateIntervalFormat(
   icu::SimpleDateFormat* icu_simple_date_format =
       date_time_format->icu_simple_date_format().raw();
   UErrorCode status = U_ZERO_ERROR;
+
+  icu::Locale loc = *(date_time_format->icu_locale().raw());
+  // We need to pass in the hc to DateIntervalFormat by using Unicode 'hc'
+  // extension.
+  std::string hcString = ToHourCycleString(date_time_format->hour_cycle());
+  if (!hcString.empty()) {
+    loc.setUnicodeKeywordValue("hc", hcString, status);
+  }
+
   std::unique_ptr<icu::DateIntervalFormat> date_interval_format(
       icu::DateIntervalFormat::createInstance(
-          SkeletonFromDateFormat(*icu_simple_date_format),
-          *(date_time_format->icu_locale().raw()), status));
+          SkeletonFromDateFormat(*icu_simple_date_format), loc, status));
   if (U_FAILURE(status)) {
     return nullptr;
   }
