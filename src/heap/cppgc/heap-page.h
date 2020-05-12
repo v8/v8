@@ -9,6 +9,7 @@
 #include "src/base/macros.h"
 #include "src/heap/cppgc/globals.h"
 #include "src/heap/cppgc/heap-object-header.h"
+#include "src/heap/cppgc/object-start-bitmap.h"
 
 namespace cppgc {
 namespace internal {
@@ -35,6 +36,10 @@ class V8_EXPORT_PRIVATE BasePage {
   void set_space(BaseSpace* space) { space_ = space; }
 
   bool is_large() const { return type_ == PageType::kLarge; }
+
+  // |address| must refer to real object.
+  HeapObjectHeader* ObjectHeaderFromInnerAddress(void* address);
+  const HeapObjectHeader* ObjectHeaderFromInnerAddress(const void* address);
 
  protected:
   enum class PageType { kNormal, kLarge };
@@ -125,9 +130,16 @@ class V8_EXPORT_PRIVATE NormalPage final : public BasePage {
 
   static size_t PayloadSize();
 
+  ObjectStartBitmap& object_start_bitmap() { return object_start_bitmap_; }
+  const ObjectStartBitmap& object_start_bitmap() const {
+    return object_start_bitmap_;
+  }
+
  private:
   NormalPage(Heap* heap, BaseSpace* space);
   ~NormalPage();
+
+  ObjectStartBitmap object_start_bitmap_;
 };
 
 class V8_EXPORT_PRIVATE LargePage final : public BasePage {

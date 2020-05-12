@@ -53,6 +53,7 @@ class V8_EXPORT_PRIVATE Heap final : public cppgc::Heap {
   // allocations during GC.
   class V8_EXPORT_PRIVATE NoAllocationScope final {
     CPPGC_STACK_ALLOCATED();
+
    public:
     explicit NoAllocationScope(Heap* heap);
     ~NoAllocationScope();

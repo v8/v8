@@ -45,7 +45,7 @@ namespace internal {
 
 namespace {
 
-class ObjectSizeCounter : public HeapVisitor<ObjectSizeCounter> {
+class ObjectSizeCounter : private HeapVisitor<ObjectSizeCounter> {
   friend class HeapVisitor<ObjectSizeCounter>;
 
  public:

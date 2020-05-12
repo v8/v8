@@ -8,6 +8,7 @@
 
 #include "src/base/logging.h"
 #include "src/heap/cppgc/heap-page.h"
+#include "src/heap/cppgc/object-start-bitmap-inl.h"
 
 namespace cppgc {
 namespace internal {
@@ -35,10 +36,17 @@ BaseSpace::Pages BaseSpace::RemoveAllPages() {
 NormalPageSpace::NormalPageSpace(RawHeap* heap, size_t index)
     : BaseSpace(heap, index, PageType::kNormal) {}
 
+void NormalPageSpace::AddToFreeList(void* address, size_t size) {
+  free_list_.Add({address, size});
+  NormalPage::From(BasePage::FromPayload(address))
+      ->object_start_bitmap()
+      .SetBit(static_cast<Address>(address));
+}
+
 void NormalPageSpace::ResetLinearAllocationBuffer() {
   if (current_lab_.size()) {
     DCHECK_NOT_NULL(current_lab_.start());
-    free_list_.Add({current_lab_.start(), current_lab_.size()});
+    AddToFreeList(current_lab_.start(), current_lab_.size());
     current_lab_.Set(nullptr, 0);
   }
 }
