@@ -97,6 +97,7 @@ enum class PrimitiveType { kBoolean, kNumber, kString, kSymbol };
     PromiseThrowerFinallySharedFun)                                            \
   V(PromiseValueThunkFinallySharedFun, promise_value_thunk_finally_shared_fun, \
     PromiseValueThunkFinallySharedFun)                                         \
+  V(ProxyRevokeSharedFun, proxy_revoke_shared_fun, ProxyRevokeSharedFun)       \
   V(RegExpSpeciesProtector, regexp_species_protector, RegExpSpeciesProtector)  \
   V(SetIteratorProtector, set_iterator_protector, SetIteratorProtector)        \
   V(SingleCharacterStringCache, single_character_string_cache,                 \

@@ -368,19 +368,6 @@ void Bootstrapper::DetachGlobal(Handle<Context> env) {
 
 namespace {
 
-// FIXME(marja): Remove SimpleCreateSharedFunctionInfo when migration to
-// setup-heap-internal.cc is complete (see v8:10482).
-V8_NOINLINE Handle<SharedFunctionInfo> SimpleCreateSharedFunctionInfo(
-    Isolate* isolate, Builtins::Name builtin_id, Handle<String> name, int len,
-    FunctionKind kind = FunctionKind::kNormalFunction) {
-  Handle<SharedFunctionInfo> shared =
-      isolate->factory()->NewSharedFunctionInfoForBuiltin(name, builtin_id,
-                                                          kind);
-  shared->set_internal_formal_parameter_count(len);
-  shared->set_length(len);
-  return shared;
-}
-
 V8_NOINLINE Handle<JSFunction> CreateFunction(
     Isolate* isolate, Handle<String> name, InstanceType type, int instance_size,
     int inobject_properties, Handle<HeapObject> prototype,
@@ -3608,12 +3595,6 @@ void Genesis::InitializeGlobal(Handle<JSGlobalObject> global_object,
 
     SimpleInstallFunction(isolate_, proxy_function, "revocable",
                           Builtins::kProxyRevocable, 2, true);
-
-    {  // Internal: ProxyRevoke
-      Handle<SharedFunctionInfo> info = SimpleCreateSharedFunctionInfo(
-          isolate_, Builtins::kProxyRevoke, factory->empty_string(), 0);
-      native_context()->set_proxy_revoke_shared_fun(*info);
-    }
   }
 
   {  // -- R e f l e c t

@@ -1113,6 +1113,13 @@ void Heap::CreateInitialObjects() {
         isolate_, Builtins::kPromiseAnyRejectElementClosure, 1);
     set_promise_any_reject_element_shared_fun(*info);
   }
+
+  // ProxyRevoke:
+  {
+    Handle<SharedFunctionInfo> info =
+        CreateSharedFunctionInfo(isolate_, Builtins::kProxyRevoke, 0);
+    set_proxy_revoke_shared_fun(*info);
+  }
 }
 
 void Heap::CreateInternalAccessorInfoObjects() {
