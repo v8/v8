@@ -221,7 +221,8 @@ class TestingModuleBuilder {
   void SetExecutable() { native_module_->SetExecutable(true); }
 
   void TierDown() {
-    native_module_->TierDown();
+    native_module_->SetTieringState(kTieredDown);
+    native_module_->TriggerRecompilation();
     execution_tier_ = ExecutionTier::kLiftoff;
   }
 

@@ -623,24 +623,40 @@ void WasmEngine::TierDownAllModulesPerIsolate(Isolate* isolate) {
     isolates_[isolate]->keep_tiered_down = true;
     for (auto* native_module : isolates_[isolate]->native_modules) {
       native_modules.push_back(native_module);
+      native_module->SetTieringState(kTieredDown);
     }
   }
   for (auto* native_module : native_modules) {
-    native_module->TierDown();
+    native_module->TriggerRecompilation();
   }
 }
 
 void WasmEngine::TierUpAllModulesPerIsolate(Isolate* isolate) {
-  std::vector<NativeModule*> native_modules;
+  // Only trigger recompilation after releasing the mutex, otherwise we risk
+  // deadlocks because of lock inversion.
+  std::vector<NativeModule*> native_modules_to_recompile;
   {
     base::MutexGuard lock(&mutex_);
     isolates_[isolate]->keep_tiered_down = false;
+    auto test_keep_tiered_down = [this](NativeModule* native_module) {
+      DCHECK_EQ(1, native_modules_.count(native_module));
+      for (auto* isolate : native_modules_[native_module]->isolates) {
+        DCHECK_EQ(1, isolates_.count(isolate));
+        if (isolates_[isolate]->keep_tiered_down) return true;
+      }
+      return false;
+    };
     for (auto* native_module : isolates_[isolate]->native_modules) {
-      native_modules.push_back(native_module);
+      if (!native_module->IsTieredDown()) continue;
+      // Only start tier-up if no other isolate needs this modules in tiered
+      // down state.
+      if (test_keep_tiered_down(native_module)) continue;
+      native_module->SetTieringState(kTieredUp);
+      native_modules_to_recompile.push_back(native_module);
     }
   }
-  for (auto* native_module : native_modules) {
-    native_module->StartTierUp();
+  for (auto* native_module : native_modules_to_recompile) {
+    native_module->TriggerRecompilation();
   }
 }
 
@@ -988,7 +1004,7 @@ std::shared_ptr<NativeModule> WasmEngine::NewNativeModule(
   auto& modules_per_isolate = isolates_[isolate]->native_modules;
   modules_per_isolate.insert(native_module.get());
   if (isolates_[isolate]->keep_tiered_down) {
-    native_module->SetTieredDown();
+    native_module->SetTieringState(kTieredDown);
   }
   isolate->counters()->wasm_modules_per_isolate()->AddSample(
       static_cast<int>(modules_per_isolate.size()));
@@ -1001,6 +1017,7 @@ std::shared_ptr<NativeModule> WasmEngine::MaybeGetNativeModule(
     ModuleOrigin origin, Vector<const uint8_t> wire_bytes, Isolate* isolate) {
   std::shared_ptr<NativeModule> native_module =
       native_module_cache_.MaybeGetNativeModule(origin, wire_bytes);
+  bool recompile_module = false;
   if (native_module) {
     base::MutexGuard guard(&mutex_);
     auto& native_module_info = native_modules_[native_module.get()];
@@ -1009,7 +1026,13 @@ std::shared_ptr<NativeModule> WasmEngine::MaybeGetNativeModule(
     }
     native_module_info->isolates.insert(isolate);
     isolates_[isolate]->native_modules.insert(native_module.get());
+    if (isolates_[isolate]->keep_tiered_down) {
+      native_module->SetTieringState(kTieredDown);
+      recompile_module = true;
+    }
   }
+  // Potentially recompile the module for tier down, after releasing the mutex.
+  if (recompile_module) native_module->TriggerRecompilation();
   return native_module;
 }
 
@@ -1025,11 +1048,20 @@ bool WasmEngine::UpdateNativeModuleCache(
 
   if (prev == native_module->get()) return true;
 
-  base::MutexGuard guard(&mutex_);
-  DCHECK_EQ(1, native_modules_.count(native_module->get()));
-  native_modules_[native_module->get()]->isolates.insert(isolate);
-  DCHECK_EQ(1, isolates_.count(isolate));
-  isolates_[isolate]->native_modules.insert(native_module->get());
+  bool recompile_module = false;
+  {
+    base::MutexGuard guard(&mutex_);
+    DCHECK_EQ(1, native_modules_.count(native_module->get()));
+    native_modules_[native_module->get()]->isolates.insert(isolate);
+    DCHECK_EQ(1, isolates_.count(isolate));
+    isolates_[isolate]->native_modules.insert(native_module->get());
+    if (isolates_[isolate]->keep_tiered_down) {
+      native_module->get()->SetTieringState(kTieredDown);
+      recompile_module = true;
+    }
+  }
+  // Potentially recompile the module for tier down, after releasing the mutex.
+  if (recompile_module) native_module->get()->TriggerRecompilation();
   return false;
 }
 

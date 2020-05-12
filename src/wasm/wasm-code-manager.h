@@ -595,18 +595,19 @@ class V8_EXPORT_PRIVATE NativeModule final {
   V8_WARN_UNUSED_RESULT std::vector<std::unique_ptr<WasmCode>> AddCompiledCode(
       Vector<WasmCompilationResult>);
 
-  // Set to tiered down state. Returns {true} if this caused a change, {false}
-  // otherwise.
-  bool SetTieredDown();
+  // Set a new tiering state, but don't trigger any recompilation yet; use
+  // {TriggerRecompilation} for that. The two steps are split because In some
+  // scenarios we need to drop locks before triggering recompilation.
+  void SetTieringState(TieringState);
+
+  // Check whether this modules is tiered down for debugging.
   bool IsTieredDown();
 
-  // Set the flag to keep this module tiered down, trigger recompilation of all
-  // functions, and wait for recompilation to complete.
-  void TierDown();
-
-  // Clear the flag to keep this module tiered down and trigger recompilation
-  // of all functions. Does not wait for completion of recompilation.
-  void StartTierUp();
+  // Trigger a full recompilation of this module, in the tier set previously via
+  // {SetTieringState}. When tiering down, the calling thread contributes to
+  // compilation and only returns once recompilation is done. Tiering up happens
+  // concurrently, so this method might return before it is complete.
+  void TriggerRecompilation();
 
   // Free a set of functions of this module. Uncommits whole pages if possible.
   // The given vector must be ordered by the instruction start address, and all

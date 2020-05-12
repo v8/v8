@@ -1383,7 +1383,8 @@ RUNTIME_FUNCTION(Runtime_WasmTierDownModule) {
   DCHECK_EQ(1, args.length());
   CONVERT_ARG_HANDLE_CHECKED(WasmInstanceObject, instance, 0);
   auto* native_module = instance->module_object().native_module();
-  native_module->TierDown();
+  native_module->SetTieringState(wasm::kTieredDown);
+  native_module->TriggerRecompilation();
   CHECK(!native_module->compilation_state()->failed());
   return ReadOnlyRoots(isolate).undefined_value();
 }
@@ -1393,7 +1394,8 @@ RUNTIME_FUNCTION(Runtime_WasmTierUpModule) {
   DCHECK_EQ(1, args.length());
   CONVERT_ARG_HANDLE_CHECKED(WasmInstanceObject, instance, 0);
   auto* native_module = instance->module_object().native_module();
-  native_module->StartTierUp();
+  native_module->SetTieringState(wasm::kTieredUp);
+  native_module->TriggerRecompilation();
   CHECK(!native_module->compilation_state()->failed());
   return ReadOnlyRoots(isolate).undefined_value();
 }

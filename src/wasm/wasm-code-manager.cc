@@ -1838,14 +1838,12 @@ std::vector<std::unique_ptr<WasmCode>> NativeModule::AddCompiledCode(
   return generated_code;
 }
 
-bool NativeModule::SetTieredDown() {
-  // Do not tier down asm.js.
-  if (module()->origin != kWasmOrigin) return true;
+void NativeModule::SetTieringState(TieringState new_tiering_state) {
+  // Do not tier down asm.js (just never change the tiering state).
+  if (module()->origin != kWasmOrigin) return;
 
   base::MutexGuard lock(&allocation_mutex_);
-  if (tiering_state_ == kTieredDown) return false;
-  tiering_state_ = kTieredDown;
-  return true;
+  tiering_state_ = new_tiering_state;
 }
 
 bool NativeModule::IsTieredDown() {
@@ -1853,27 +1851,16 @@ bool NativeModule::IsTieredDown() {
   return tiering_state_ == kTieredDown;
 }
 
-void NativeModule::TierDown() {
-  // Do not tier down asm.js.
-  if (module()->origin != kWasmOrigin) return;
-
-  // Set the module to tiered down state; return if it is already in that state.
-  if (!SetTieredDown()) return;
-
-  RecompileNativeModule(this, kTieredDown);
-}
-
-void NativeModule::StartTierUp() {
-  // Do not tier up asm.js.
-  if (module()->origin != kWasmOrigin) return;
-
+void NativeModule::TriggerRecompilation() {
+  // Read the tiering state under the lock, then trigger recompilation after
+  // releasing the lock. If the tiering state was changed when the triggered
+  // compilation units finish, code installation will handle that correctly.
+  TieringState current_state;
   {
     base::MutexGuard lock(&allocation_mutex_);
-    if (tiering_state_ == kTieredUp) return;
-    tiering_state_ = kTieredUp;
+    current_state = tiering_state_;
   }
-
-  RecompileNativeModule(this, kTieredUp);
+  RecompileNativeModule(this, current_state);
 }
 
 void NativeModule::FreeCode(Vector<WasmCode* const> codes) {
