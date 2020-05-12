@@ -49,9 +49,7 @@ namespace promise {
     const map = UnsafeCast<Map>(
         nativeContext
             [NativeContextSlot::STRICT_FUNCTION_WITHOUT_PROTOTYPE_MAP_INDEX]);
-    const rejectInfo = UnsafeCast<SharedFunctionInfo>(
-        nativeContext
-            [NativeContextSlot::PROMISE_ANY_REJECT_ELEMENT_SHARED_FUN]);
+    const rejectInfo = PromiseAnyRejectElementSharedFunConstant();
     const reject = AllocateFunctionWithMapAndContext(
         map, rejectInfo, rejectElementContext);
     assert(kPropertyArrayNoHashSentinel == 0);
@@ -372,4 +370,6 @@ namespace promise {
     obj.errors = errorsArray;
     return obj;
   }
+
+  extern macro PromiseAnyRejectElementSharedFunConstant(): SharedFunctionInfo;
 }

@@ -295,14 +295,11 @@ namespace promise {
     const map = UnsafeCast<Map>(
         nativeContext
             [NativeContextSlot::STRICT_FUNCTION_WITHOUT_PROTOTYPE_MAP_INDEX]);
-    const resolveInfo = UnsafeCast<SharedFunctionInfo>(
-        nativeContext[NativeContextSlot::
-                          PROMISE_CAPABILITY_DEFAULT_RESOLVE_SHARED_FUN_INDEX]);
+    const resolveInfo = PromiseCapabilityDefaultResolveSharedFunConstant();
+
     const resolve: JSFunction =
         AllocateFunctionWithMapAndContext(map, resolveInfo, promiseContext);
-    const rejectInfo = UnsafeCast<SharedFunctionInfo>(
-        nativeContext[NativeContextSlot::
-                          PROMISE_CAPABILITY_DEFAULT_REJECT_SHARED_FUN_INDEX]);
+    const rejectInfo = PromiseCapabilityDefaultRejectSharedFunConstant();
     const reject: JSFunction =
         AllocateFunctionWithMapAndContext(map, rejectInfo, promiseContext);
     return PromiseResolvingFunctions{resolve: resolve, reject: reject};
@@ -329,9 +326,7 @@ namespace promise {
       const executorContext =
           CreatePromiseCapabilitiesExecutorContext(nativeContext, capability);
 
-      const executorInfo = UnsafeCast<SharedFunctionInfo>(
-          nativeContext[NativeContextSlot::
-                            PROMISE_GET_CAPABILITIES_EXECUTOR_SHARED_FUN]);
+      const executorInfo = PromiseGetCapabilitiesExecutorSharedFunConstant();
       const functionMap = UnsafeCast<Map>(
           nativeContext
               [NativeContextSlot::STRICT_FUNCTION_WITHOUT_PROTOTYPE_MAP_INDEX]);
@@ -543,4 +538,11 @@ namespace promise {
     }
     return promise;
   }
+
+  extern macro PromiseCapabilityDefaultRejectSharedFunConstant():
+      SharedFunctionInfo;
+  extern macro PromiseCapabilityDefaultResolveSharedFunConstant():
+      SharedFunctionInfo;
+  extern macro PromiseGetCapabilitiesExecutorSharedFunConstant():
+      SharedFunctionInfo;
 }

@@ -252,8 +252,22 @@ class Symbol;
     AsyncGeneratorReturnClosedResolveSharedFun)                                \
   V(SharedFunctionInfo, async_iterator_value_unwrap_shared_fun,                \
     AsyncIteratorValueUnwrapSharedFun)                                         \
+  V(SharedFunctionInfo, promise_all_resolve_element_shared_fun,                \
+    PromiseAllResolveElementSharedFun)                                         \
+  V(SharedFunctionInfo, promise_all_settled_resolve_element_shared_fun,        \
+    PromiseAllSettledResolveElementSharedFun)                                  \
+  V(SharedFunctionInfo, promise_all_settled_reject_element_shared_fun,         \
+    PromiseAllSettledRejectElementSharedFun)                                   \
+  V(SharedFunctionInfo, promise_any_reject_element_shared_fun,                 \
+    PromiseAnyRejectElementSharedFun)                                          \
+  V(SharedFunctionInfo, promise_capability_default_reject_shared_fun,          \
+    PromiseCapabilityDefaultRejectSharedFun)                                   \
+  V(SharedFunctionInfo, promise_capability_default_resolve_shared_fun,         \
+    PromiseCapabilityDefaultResolveSharedFun)                                  \
   V(SharedFunctionInfo, promise_catch_finally_shared_fun,                      \
     PromiseCatchFinallySharedFun)                                              \
+  V(SharedFunctionInfo, promise_get_capabilities_executor_shared_fun,          \
+    PromiseGetCapabilitiesExecutorSharedFun)                                   \
   V(SharedFunctionInfo, promise_then_finally_shared_fun,                       \
     PromiseThenFinallySharedFun)                                               \
   V(SharedFunctionInfo, promise_thrower_finally_shared_fun,                    \

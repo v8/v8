@@ -1051,6 +1051,29 @@ void Heap::CreateInitialObjects() {
     set_async_iterator_value_unwrap_shared_fun(*info);
   }
 
+  // Promises:
+  {
+    Handle<SharedFunctionInfo> info = CreateSharedFunctionInfo(
+        isolate_, Builtins::kPromiseCapabilityDefaultResolve, 1,
+        FunctionKind::kConciseMethod);
+    info->set_native(true);
+    info->set_function_map_index(
+        Context::STRICT_FUNCTION_WITHOUT_PROTOTYPE_MAP_INDEX);
+    set_promise_capability_default_resolve_shared_fun(*info);
+
+    info = CreateSharedFunctionInfo(isolate_,
+                                    Builtins::kPromiseCapabilityDefaultReject,
+                                    1, FunctionKind::kConciseMethod);
+    info->set_native(true);
+    info->set_function_map_index(
+        Context::STRICT_FUNCTION_WITHOUT_PROTOTYPE_MAP_INDEX);
+    set_promise_capability_default_reject_shared_fun(*info);
+
+    info = CreateSharedFunctionInfo(
+        isolate_, Builtins::kPromiseGetCapabilitiesExecutor, 2);
+    set_promise_get_capabilities_executor_shared_fun(*info);
+  }
+
   // Promises / finally:
   {
     Handle<SharedFunctionInfo> info =
@@ -1070,6 +1093,25 @@ void Heap::CreateInitialObjects() {
     info = CreateSharedFunctionInfo(isolate(), Builtins::kPromiseThrowerFinally,
                                     0);
     set_promise_thrower_finally_shared_fun(*info);
+  }
+
+  // Promise combinators:
+  {
+    Handle<SharedFunctionInfo> info = CreateSharedFunctionInfo(
+        isolate_, Builtins::kPromiseAllResolveElementClosure, 1);
+    set_promise_all_resolve_element_shared_fun(*info);
+
+    info = CreateSharedFunctionInfo(
+        isolate_, Builtins::kPromiseAllSettledResolveElementClosure, 1);
+    set_promise_all_settled_resolve_element_shared_fun(*info);
+
+    info = CreateSharedFunctionInfo(
+        isolate_, Builtins::kPromiseAllSettledRejectElementClosure, 1);
+    set_promise_all_settled_reject_element_shared_fun(*info);
+
+    info = CreateSharedFunctionInfo(
+        isolate_, Builtins::kPromiseAnyRejectElementClosure, 1);
+    set_promise_any_reject_element_shared_fun(*info);
   }
 }
 

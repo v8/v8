@@ -368,8 +368,7 @@ void Bootstrapper::DetachGlobal(Handle<Context> env) {
 
 namespace {
 
-// FIXME(marja): Remove SimpleCreateSharedFunctionInfo and
-// SimpleCreateBuiltinSharedFunctionInfo when migration to
+// FIXME(marja): Remove SimpleCreateSharedFunctionInfo when migration to
 // setup-heap-internal.cc is complete (see v8:10482).
 V8_NOINLINE Handle<SharedFunctionInfo> SimpleCreateSharedFunctionInfo(
     Isolate* isolate, Builtins::Name builtin_id, Handle<String> name, int len,
@@ -377,16 +376,6 @@ V8_NOINLINE Handle<SharedFunctionInfo> SimpleCreateSharedFunctionInfo(
   Handle<SharedFunctionInfo> shared =
       isolate->factory()->NewSharedFunctionInfoForBuiltin(name, builtin_id,
                                                           kind);
-  shared->set_internal_formal_parameter_count(len);
-  shared->set_length(len);
-  return shared;
-}
-
-V8_NOINLINE Handle<SharedFunctionInfo> SimpleCreateBuiltinSharedFunctionInfo(
-    Isolate* isolate, Builtins::Name builtin_id, Handle<String> name, int len) {
-  Handle<SharedFunctionInfo> shared =
-      isolate->factory()->NewSharedFunctionInfoForBuiltin(name, builtin_id,
-                                                          kNormalFunction);
   shared->set_internal_formal_parameter_count(len);
   shared->set_length(len);
   return shared;
@@ -2298,13 +2287,6 @@ void Genesis::InitializeGlobal(Handle<JSGlobalObject> global_object,
         static_cast<PropertyAttributes>(DONT_ENUM | READ_ONLY));
   }
 
-  {
-    Handle<SharedFunctionInfo> info = SimpleCreateBuiltinSharedFunctionInfo(
-        isolate_, Builtins::kPromiseGetCapabilitiesExecutor,
-        factory->empty_string(), 2);
-    native_context()->set_promise_get_capabilities_executor_shared_fun(*info);
-  }
-
   {  // -- P r o m i s e
     Handle<JSFunction> promise_fun = InstallFunction(
         isolate_, global, "Promise", JS_PROMISE_TYPE,
@@ -2355,32 +2337,6 @@ void Genesis::InitializeGlobal(Handle<JSGlobalObject> global_object,
 
     Handle<Map> prototype_map(prototype->map(), isolate());
     Map::SetShouldBeFastPrototypeMap(prototype_map, true, isolate_);
-
-    {
-      Handle<SharedFunctionInfo> info = SimpleCreateSharedFunctionInfo(
-          isolate_, Builtins::kPromiseCapabilityDefaultResolve,
-          factory->empty_string(), 1, FunctionKind::kConciseMethod);
-      info->set_native(true);
-      info->set_function_map_index(
-          Context::STRICT_FUNCTION_WITHOUT_PROTOTYPE_MAP_INDEX);
-      native_context()->set_promise_capability_default_resolve_shared_fun(
-          *info);
-
-      info = SimpleCreateSharedFunctionInfo(
-          isolate_, Builtins::kPromiseCapabilityDefaultReject,
-          factory->empty_string(), 1, FunctionKind::kConciseMethod);
-      info->set_native(true);
-      info->set_function_map_index(
-          Context::STRICT_FUNCTION_WITHOUT_PROTOTYPE_MAP_INDEX);
-      native_context()->set_promise_capability_default_reject_shared_fun(*info);
-    }
-
-    {
-      Handle<SharedFunctionInfo> info = SimpleCreateSharedFunctionInfo(
-          isolate_, Builtins::kPromiseAllResolveElementClosure,
-          factory->empty_string(), 1);
-      native_context()->set_promise_all_resolve_element_shared_fun(*info);
-    }
 
     DCHECK(promise_fun->HasFastProperties());
   }
@@ -4319,13 +4275,6 @@ void Genesis::InitializeGlobal_harmony_promise_any() {
   JSObject::DefineAccessor(prototype, factory->errors_string(), getter,
                            factory->undefined_value(), DONT_ENUM);
 
-  {
-    Handle<SharedFunctionInfo> info = SimpleCreateSharedFunctionInfo(
-        isolate_, Builtins::kPromiseAnyRejectElementClosure,
-        factory->empty_string(), 1);
-    native_context()->set_promise_any_reject_element_shared_fun(*info);
-  }
-
   Handle<JSFunction> promise_fun(
       JSFunction::cast(
           isolate()->native_context()->get(Context::PROMISE_FUNCTION_INDEX)),
@@ -4340,20 +4289,6 @@ void Genesis::InitializeGlobal_harmony_promise_all_settled() {
   if (!FLAG_harmony_promise_all_settled) return;
   SimpleInstallFunction(isolate(), isolate()->promise_function(), "allSettled",
                         Builtins::kPromiseAllSettled, 1, true);
-  Factory* factory = isolate()->factory();
-  {
-    Handle<SharedFunctionInfo> info = SimpleCreateSharedFunctionInfo(
-        isolate_, Builtins::kPromiseAllSettledResolveElementClosure,
-        factory->empty_string(), 1);
-    native_context()->set_promise_all_settled_resolve_element_shared_fun(*info);
-  }
-
-  {
-    Handle<SharedFunctionInfo> info = SimpleCreateSharedFunctionInfo(
-        isolate_, Builtins::kPromiseAllSettledRejectElementClosure,
-        factory->empty_string(), 1);
-    native_context()->set_promise_all_settled_reject_element_shared_fun(*info);
-  }
 }
 
 void Genesis::InitializeGlobal_harmony_regexp_match_indices() {

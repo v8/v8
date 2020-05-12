@@ -38,17 +38,15 @@ namespace promise {
 
   macro CreatePromiseAllResolveElementFunction(implicit context: Context)(
       resolveElementContext: Context, index: Smi, nativeContext: NativeContext,
-      slotIndex: constexpr NativeContextSlot): JSFunction {
+      resolveFunction: SharedFunctionInfo): JSFunction {
     assert(index > 0);
     assert(index < kPropertyArrayHashFieldMax);
 
     const map = UnsafeCast<Map>(
         nativeContext
             [NativeContextSlot::STRICT_FUNCTION_WITHOUT_PROTOTYPE_MAP_INDEX]);
-    const resolveInfo =
-        UnsafeCast<SharedFunctionInfo>(nativeContext[slotIndex]);
     const resolve = AllocateFunctionWithMapAndContext(
-        map, resolveInfo, resolveElementContext);
+        map, resolveFunction, resolveElementContext);
 
     assert(kPropertyArrayNoHashSentinel == 0);
     resolve.properties_or_hash = index;
@@ -83,7 +81,7 @@ namespace promise {
         index: Smi, _capability: PromiseCapability): Callable {
       return CreatePromiseAllResolveElementFunction(
           resolveElementContext, index, nativeContext,
-          NativeContextSlot::PROMISE_ALL_RESOLVE_ELEMENT_SHARED_FUN);
+          PromiseAllResolveElementSharedFunConstant());
     }
   }
 
@@ -101,7 +99,7 @@ namespace promise {
         index: Smi, _capability: PromiseCapability): Callable {
       return CreatePromiseAllResolveElementFunction(
           resolveElementContext, index, nativeContext,
-          NativeContextSlot::PROMISE_ALL_SETTLED_RESOLVE_ELEMENT_SHARED_FUN);
+          PromiseAllSettledResolveElementSharedFunConstant());
     }
   }
 
@@ -111,7 +109,7 @@ namespace promise {
         index: Smi, _capability: PromiseCapability): Callable {
       return CreatePromiseAllResolveElementFunction(
           resolveElementContext, index, nativeContext,
-          NativeContextSlot::PROMISE_ALL_SETTLED_REJECT_ELEMENT_SHARED_FUN);
+          PromiseAllSettledRejectElementSharedFunConstant());
     }
   }
 
@@ -373,4 +371,11 @@ namespace promise {
         receiver, iterable, PromiseAllSettledResolveElementFunctor{},
         PromiseAllSettledRejectElementFunctor{});
   }
+
+  extern macro PromiseAllResolveElementSharedFunConstant(): SharedFunctionInfo;
+  extern macro PromiseAllSettledRejectElementSharedFunConstant():
+      SharedFunctionInfo;
+  extern macro PromiseAllSettledResolveElementSharedFunConstant():
+      SharedFunctionInfo;
+
 }

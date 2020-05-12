@@ -65,8 +65,27 @@ enum class PrimitiveType { kBoolean, kNumber, kString, kSymbol };
   V(MapIteratorProtector, map_iterator_protector, MapIteratorProtector)        \
   V(NoElementsProtector, no_elements_protector, NoElementsProtector)           \
   V(NumberStringCache, number_string_cache, NumberStringCache)                 \
+  V(PromiseAllResolveElementSharedFun, promise_all_resolve_element_shared_fun, \
+    PromiseAllResolveElementSharedFun)                                         \
+  V(PromiseAllSettledRejectElementSharedFun,                                   \
+    promise_all_settled_reject_element_shared_fun,                             \
+    PromiseAllSettledRejectElementSharedFun)                                   \
+  V(PromiseAllSettledResolveElementSharedFun,                                  \
+    promise_all_settled_resolve_element_shared_fun,                            \
+    PromiseAllSettledResolveElementSharedFun)                                  \
+  V(PromiseAnyRejectElementSharedFun, promise_any_reject_element_shared_fun,   \
+    PromiseAnyRejectElementSharedFun)                                          \
+  V(PromiseCapabilityDefaultRejectSharedFun,                                   \
+    promise_capability_default_reject_shared_fun,                              \
+    PromiseCapabilityDefaultRejectSharedFun)                                   \
+  V(PromiseCapabilityDefaultResolveSharedFun,                                  \
+    promise_capability_default_resolve_shared_fun,                             \
+    PromiseCapabilityDefaultResolveSharedFun)                                  \
   V(PromiseCatchFinallySharedFun, promise_catch_finally_shared_fun,            \
     PromiseCatchFinallySharedFun)                                              \
+  V(PromiseGetCapabilitiesExecutorSharedFun,                                   \
+    promise_get_capabilities_executor_shared_fun,                              \
+    PromiseGetCapabilitiesExecutorSharedFun)                                   \
   V(PromiseResolveProtector, promise_resolve_protector,                        \
     PromiseResolveProtector)                                                   \
   V(PromiseSpeciesProtector, promise_species_protector,                        \

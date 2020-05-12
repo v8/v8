@@ -201,20 +201,6 @@ enum ContextLookupFlags {
   V(PROXY_MAP_INDEX, Map, proxy_map)                                           \
   V(PROXY_REVOCABLE_RESULT_MAP_INDEX, Map, proxy_revocable_result_map)         \
   V(PROXY_REVOKE_SHARED_FUN, SharedFunctionInfo, proxy_revoke_shared_fun)      \
-  V(PROMISE_GET_CAPABILITIES_EXECUTOR_SHARED_FUN, SharedFunctionInfo,          \
-    promise_get_capabilities_executor_shared_fun)                              \
-  V(PROMISE_CAPABILITY_DEFAULT_REJECT_SHARED_FUN_INDEX, SharedFunctionInfo,    \
-    promise_capability_default_reject_shared_fun)                              \
-  V(PROMISE_CAPABILITY_DEFAULT_RESOLVE_SHARED_FUN_INDEX, SharedFunctionInfo,   \
-    promise_capability_default_resolve_shared_fun)                             \
-  V(PROMISE_ALL_RESOLVE_ELEMENT_SHARED_FUN, SharedFunctionInfo,                \
-    promise_all_resolve_element_shared_fun)                                    \
-  V(PROMISE_ALL_SETTLED_RESOLVE_ELEMENT_SHARED_FUN, SharedFunctionInfo,        \
-    promise_all_settled_resolve_element_shared_fun)                            \
-  V(PROMISE_ALL_SETTLED_REJECT_ELEMENT_SHARED_FUN, SharedFunctionInfo,         \
-    promise_all_settled_reject_element_shared_fun)                             \
-  V(PROMISE_ANY_REJECT_ELEMENT_SHARED_FUN, SharedFunctionInfo,                 \
-    promise_any_reject_element_shared_fun)                                     \
   V(PROMISE_PROTOTYPE_INDEX, JSObject, promise_prototype)                      \
   V(REGEXP_EXEC_FUNCTION_INDEX, JSFunction, regexp_exec_function)              \
   V(REGEXP_FUNCTION_INDEX, JSFunction, regexp_function)                        \

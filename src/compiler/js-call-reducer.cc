@@ -781,8 +781,9 @@ class IteratingArrayBuiltinReducerAssembler : public JSCallReducerAssembler {
 
 class PromiseBuiltinReducerAssembler : public JSCallReducerAssembler {
  public:
-  PromiseBuiltinReducerAssembler(JSGraph* jsgraph, Zone* zone, Node* node)
-      : JSCallReducerAssembler(jsgraph, zone, node) {
+  PromiseBuiltinReducerAssembler(JSGraph* jsgraph, Zone* zone, Node* node,
+                                 JSHeapBroker* broker)
+      : JSCallReducerAssembler(jsgraph, zone, node), broker_(broker) {
     DCHECK_EQ(IrOpcode::kJSConstruct, node->opcode());
   }
 
@@ -864,6 +865,8 @@ class PromiseBuiltinReducerAssembler : public JSCallReducerAssembler {
           effect(), control()));
     });
   }
+
+  JSHeapBroker* const broker_;
 };
 
 class FastApiCallReducerAssembler : public JSCallReducerAssembler {
@@ -2101,12 +2104,19 @@ TNode<Object> PromiseBuiltinReducerAssembler::ReducePromiseConstructor(
                    TrueConstant());
 
   // Allocate closures for the resolve and reject cases.
-  TNode<JSFunction> resolve = CreateClosureFromBuiltinSharedFunctionInfo(
-      native_context.promise_capability_default_resolve_shared_fun(),
-      promise_context);
-  TNode<JSFunction> reject = CreateClosureFromBuiltinSharedFunctionInfo(
-      native_context.promise_capability_default_reject_shared_fun(),
-      promise_context);
+  SharedFunctionInfoRef resolve_sfi(
+      broker_, broker_->isolate()
+                   ->factory()
+                   ->promise_capability_default_resolve_shared_fun());
+  TNode<JSFunction> resolve =
+      CreateClosureFromBuiltinSharedFunctionInfo(resolve_sfi, promise_context);
+
+  SharedFunctionInfoRef reject_sfi(
+      broker_, broker_->isolate()
+                   ->factory()
+                   ->promise_capability_default_reject_shared_fun());
+  TNode<JSFunction> reject =
+      CreateClosureFromBuiltinSharedFunctionInfo(reject_sfi, promise_context);
 
   FrameState lazy_with_catch_frame_state =
       PromiseConstructorLazyWithCatchFrameState(
@@ -6210,7 +6220,7 @@ Reduction JSCallReducer::ReduceStringPrototypeConcat(Node* node) {
 
 Reduction JSCallReducer::ReducePromiseConstructor(Node* node) {
   DisallowHeapAccessIf no_heap_access(should_disallow_heap_access());
-  PromiseBuiltinReducerAssembler a(jsgraph(), temp_zone(), node);
+  PromiseBuiltinReducerAssembler a(jsgraph(), temp_zone(), node, broker());
 
   // We only inline when we have the executor.
   if (a.ConstructArity() < 1) return NoChange();

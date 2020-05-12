@@ -2442,6 +2442,17 @@ void SerializerForBackgroundCompilation::ProcessBuiltinCall(
               kMissingArgumentsAreUnknown, result_hints);
         }
       }
+      SharedFunctionInfoRef(
+          broker(), broker()
+                        ->isolate()
+                        ->factory()
+                        ->promise_capability_default_reject_shared_fun());
+      SharedFunctionInfoRef(
+          broker(), broker()
+                        ->isolate()
+                        ->factory()
+                        ->promise_capability_default_resolve_shared_fun());
+
       break;
     case Builtins::kFunctionPrototypeCall:
       if (arguments.size() >= 1) {

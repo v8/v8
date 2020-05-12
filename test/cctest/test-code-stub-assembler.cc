@@ -2686,9 +2686,8 @@ TEST(AllocateFunctionWithMapAndContext) {
       m.NewJSPromise(context, m.UndefinedConstant());
   TNode<Context> promise_context = m.CreatePromiseResolvingFunctionsContext(
       context, promise, m.BooleanConstant(false), native_context);
-  TNode<Object> resolve_info = m.LoadContextElement(
-      native_context,
-      Context::PROMISE_CAPABILITY_DEFAULT_RESOLVE_SHARED_FUN_INDEX);
+  TNode<Object> resolve_info =
+      m.PromiseCapabilityDefaultResolveSharedFunConstant();
   const TNode<Object> map = m.LoadContextElement(
       native_context, Context::STRICT_FUNCTION_WITHOUT_PROTOTYPE_MAP_INDEX);
   const TNode<JSFunction> resolve = m.AllocateFunctionWithMapAndContext(
@@ -2705,9 +2704,11 @@ TEST(AllocateFunctionWithMapAndContext) {
   CHECK_EQ(ReadOnlyRoots(isolate).empty_fixed_array(), fun->elements());
   CHECK_EQ(isolate->heap()->many_closures_cell(), fun->raw_feedback_cell());
   CHECK(!fun->has_prototype_slot());
-  CHECK_EQ(*isolate->promise_capability_default_resolve_shared_fun(),
+  CHECK_EQ(*isolate->factory()->promise_capability_default_resolve_shared_fun(),
            fun->shared());
-  CHECK_EQ(isolate->promise_capability_default_resolve_shared_fun()->GetCode(),
+  CHECK_EQ(isolate->factory()
+               ->promise_capability_default_resolve_shared_fun()
+               ->GetCode(),
            fun->code());
 }
 
@@ -2769,10 +2770,12 @@ TEST(NewPromiseCapability) {
     CHECK(result->promise().IsJSPromise());
     CHECK(result->resolve().IsJSFunction());
     CHECK(result->reject().IsJSFunction());
-    CHECK_EQ(*isolate->promise_capability_default_reject_shared_fun(),
-             JSFunction::cast(result->reject()).shared());
-    CHECK_EQ(*isolate->promise_capability_default_resolve_shared_fun(),
-             JSFunction::cast(result->resolve()).shared());
+    CHECK_EQ(
+        *isolate->factory()->promise_capability_default_reject_shared_fun(),
+        JSFunction::cast(result->reject()).shared());
+    CHECK_EQ(
+        *isolate->factory()->promise_capability_default_resolve_shared_fun(),
+        JSFunction::cast(result->resolve()).shared());
 
     Handle<JSFunction> callbacks[] = {
         handle(JSFunction::cast(result->resolve()), isolate),
