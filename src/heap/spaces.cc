@@ -1593,6 +1593,10 @@ void PagedSpace::MergeLocalSpace(LocalSpace* other) {
       p->MergeOldToNewRememberedSets();
     }
 
+    // Ensure that pages are initialized before objects on it are discovered by
+    // concurrent markers.
+    p->InitializationMemoryFence();
+
     // Relinking requires the category to be unlinked.
     other->RemovePage(p);
     AddPage(p);
