@@ -29,6 +29,11 @@ function instantiate(bytes) {
 const evalWithUrl = (code, url) => Protocol.Runtime.evaluate(
     {'expression': code + '\n//# sourceURL=v8://test/' + url});
 
+function getWasmValue(value) {
+  return typeof (value.value) === 'undefined' ? value.unserializableValue :
+                                                value.value;
+}
+
 Protocol.Debugger.onPaused(async msg => {
   let loc = msg.params.callFrames[0].location;
   let line = [`Paused at offset ${loc.columnNumber}`];
@@ -42,11 +47,11 @@ Protocol.Debugger.onPaused(async msg => {
       for (var value of scope_properties.result.result) {
         let msg = await Protocol.Runtime.getProperties(
           {objectId: value.value.objectId});
-        let str = msg.result.result.map(elem => elem.value.value).join(', ');
+        let str = msg.result.result.map(elem => getWasmValue(elem.value)).join(', ');
         line.push(`${value.name}: [${str}]`);
       }
     } else {
-      let str = scope_properties.result.result.map(elem => elem.value.value).join(', ');
+      let str = scope_properties.result.result.map(elem => getWasmValue(elem.value)).join(', ');
       line.push(`${scope.type}: [${str}]`);
     }
   }

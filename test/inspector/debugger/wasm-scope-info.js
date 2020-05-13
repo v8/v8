@@ -147,11 +147,11 @@ async function getScopeValues(value) {
     let msg = await Protocol.Runtime.getProperties({objectId: value.objectId});
     printIfFailure(msg);
     const printProperty = function(elem) {
-      return `"${elem.name}": ${elem.value.value} (${elem.value.type})`;
+      return `"${elem.name}": ${getWasmValue(elem.value)} (${elem.value.subtype})`;
     }
     return msg.result.result.map(printProperty).join(', ');
   }
-  return value.value + ' (' + value.type + ')';
+  return getWasmValue(value) + ' (' + value.subtype + ')';
 }
 
 async function dumpScopeProperties(message) {
@@ -160,4 +160,10 @@ async function dumpScopeProperties(message) {
     var value_str = await getScopeValues(value.value);
     InspectorTest.log('   ' + value.name + ': ' + value_str);
   }
+}
+
+function getWasmValue(wasmValue) {
+  return typeof (wasmValue.value) === 'undefined' ?
+      wasmValue.unserializableValue :
+      wasmValue.value;
 }

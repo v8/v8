@@ -13,7 +13,7 @@ at wasm_A (0:38):
 at wasm_B (0:56):
  - scope (module):
  - scope (local):
-   locals: "var0": 3 (number)
+   locals: "var0": 3 (i32)
  - scope (wasm-expression-stack):
 at (anonymous) (0:17):
    -- skipped
@@ -36,7 +36,7 @@ at wasm_A (0:39):
 at wasm_B (0:56):
  - scope (module):
  - scope (local):
-   locals: "var0": 3 (number)
+   locals: "var0": 3 (i32)
  - scope (wasm-expression-stack):
 at (anonymous) (0:17):
    -- skipped
@@ -46,7 +46,7 @@ Scope:
 at wasm_B (0:45):
  - scope (module):
  - scope (local):
-   locals: "var0": 3 (number)
+   locals: "var0": 3 (i32)
  - scope (wasm-expression-stack):
 at (anonymous) (0:17):
    -- skipped
@@ -56,9 +56,9 @@ Scope:
 at wasm_B (0:47):
  - scope (module):
  - scope (local):
-   locals: "var0": 3 (number)
+   locals: "var0": 3 (i32)
  - scope (wasm-expression-stack):
-   0: 3 (number)
+   0: 3 (i32)
 at (anonymous) (0:17):
    -- skipped
 Paused:
@@ -67,7 +67,7 @@ Scope:
 at wasm_B (0:49):
  - scope (module):
  - scope (local):
-   locals: "var0": 3 (number)
+   locals: "var0": 3 (i32)
  - scope (wasm-expression-stack):
 at (anonymous) (0:17):
    -- skipped
@@ -77,9 +77,9 @@ Scope:
 at wasm_B (0:51):
  - scope (module):
  - scope (local):
-   locals: "var0": 3 (number)
+   locals: "var0": 3 (i32)
  - scope (wasm-expression-stack):
-   0: 3 (number)
+   0: 3 (i32)
 at (anonymous) (0:17):
    -- skipped
 Paused:
@@ -88,10 +88,10 @@ Scope:
 at wasm_B (0:53):
  - scope (module):
  - scope (local):
-   locals: "var0": 3 (number)
+   locals: "var0": 3 (i32)
  - scope (wasm-expression-stack):
-   0: 3 (number)
-   1: 1 (number)
+   0: 3 (i32)
+   1: 1 (i32)
 at (anonymous) (0:17):
    -- skipped
 Paused:
@@ -100,9 +100,9 @@ Scope:
 at wasm_B (0:54):
  - scope (module):
  - scope (local):
-   locals: "var0": 3 (number)
+   locals: "var0": 3 (i32)
  - scope (wasm-expression-stack):
-   0: 2 (number)
+   0: 2 (i32)
 at (anonymous) (0:17):
    -- skipped
 Paused:
@@ -115,7 +115,7 @@ at wasm_A (0:38):
 at wasm_B (0:56):
  - scope (module):
  - scope (local):
-   locals: "var0": 2 (number)
+   locals: "var0": 2 (i32)
  - scope (wasm-expression-stack):
 at (anonymous) (0:17):
    -- skipped
@@ -129,7 +129,7 @@ at wasm_A (0:39):
 at wasm_B (0:56):
  - scope (module):
  - scope (local):
-   locals: "var0": 2 (number)
+   locals: "var0": 2 (i32)
  - scope (wasm-expression-stack):
 at (anonymous) (0:17):
    -- skipped
@@ -139,7 +139,7 @@ Scope:
 at wasm_B (0:45):
  - scope (module):
  - scope (local):
-   locals: "var0": 2 (number)
+   locals: "var0": 2 (i32)
  - scope (wasm-expression-stack):
 at (anonymous) (0:17):
    -- skipped
@@ -149,9 +149,9 @@ Scope:
 at wasm_B (0:47):
  - scope (module):
  - scope (local):
-   locals: "var0": 2 (number)
+   locals: "var0": 2 (i32)
  - scope (wasm-expression-stack):
-   0: 2 (number)
+   0: 2 (i32)
 at (anonymous) (0:17):
    -- skipped
 Paused:
@@ -160,7 +160,7 @@ Scope:
 at wasm_B (0:49):
  - scope (module):
  - scope (local):
-   locals: "var0": 2 (number)
+   locals: "var0": 2 (i32)
  - scope (wasm-expression-stack):
 at (anonymous) (0:17):
    -- skipped
@@ -170,9 +170,9 @@ Scope:
 at wasm_B (0:51):
  - scope (module):
  - scope (local):
-   locals: "var0": 2 (number)
+   locals: "var0": 2 (i32)
  - scope (wasm-expression-stack):
-   0: 2 (number)
+   0: 2 (i32)
 at (anonymous) (0:17):
    -- skipped
 Paused:
@@ -181,10 +181,10 @@ Scope:
 at wasm_B (0:53):
  - scope (module):
  - scope (local):
-   locals: "var0": 2 (number)
+   locals: "var0": 2 (i32)
  - scope (wasm-expression-stack):
-   0: 2 (number)
-   1: 1 (number)
+   0: 2 (i32)
+   1: 1 (i32)
 at (anonymous) (0:17):
    -- skipped
 Paused:
@@ -193,9 +193,9 @@ Scope:
 at wasm_B (0:54):
  - scope (module):
  - scope (local):
-   locals: "var0": 2 (number)
+   locals: "var0": 2 (i32)
  - scope (wasm-expression-stack):
-   0: 1 (number)
+   0: 1 (i32)
 at (anonymous) (0:17):
    -- skipped
 Paused:
@@ -208,7 +208,7 @@ at wasm_A (0:38):
 at wasm_B (0:56):
  - scope (module):
  - scope (local):
-   locals: "var0": 1 (number)
+   locals: "var0": 1 (i32)
  - scope (wasm-expression-stack):
 at (anonymous) (0:17):
    -- skipped
@@ -222,7 +222,7 @@ at wasm_A (0:39):
 at wasm_B (0:56):
  - scope (module):
  - scope (local):
-   locals: "var0": 1 (number)
+   locals: "var0": 1 (i32)
  - scope (wasm-expression-stack):
 at (anonymous) (0:17):
    -- skipped
@@ -232,7 +232,7 @@ Scope:
 at wasm_B (0:45):
  - scope (module):
  - scope (local):
-   locals: "var0": 1 (number)
+   locals: "var0": 1 (i32)
  - scope (wasm-expression-stack):
 at (anonymous) (0:17):
    -- skipped
@@ -242,9 +242,9 @@ Scope:
 at wasm_B (0:47):
  - scope (module):
  - scope (local):
-   locals: "var0": 1 (number)
+   locals: "var0": 1 (i32)
  - scope (wasm-expression-stack):
-   0: 1 (number)
+   0: 1 (i32)
 at (anonymous) (0:17):
    -- skipped
 Paused:
@@ -253,7 +253,7 @@ Scope:
 at wasm_B (0:49):
  - scope (module):
  - scope (local):
-   locals: "var0": 1 (number)
+   locals: "var0": 1 (i32)
  - scope (wasm-expression-stack):
 at (anonymous) (0:17):
    -- skipped
@@ -263,9 +263,9 @@ Scope:
 at wasm_B (0:51):
  - scope (module):
  - scope (local):
-   locals: "var0": 1 (number)
+   locals: "var0": 1 (i32)
  - scope (wasm-expression-stack):
-   0: 1 (number)
+   0: 1 (i32)
 at (anonymous) (0:17):
    -- skipped
 Paused:
@@ -274,10 +274,10 @@ Scope:
 at wasm_B (0:53):
  - scope (module):
  - scope (local):
-   locals: "var0": 1 (number)
+   locals: "var0": 1 (i32)
  - scope (wasm-expression-stack):
-   0: 1 (number)
-   1: 1 (number)
+   0: 1 (i32)
+   1: 1 (i32)
 at (anonymous) (0:17):
    -- skipped
 Paused:
@@ -286,9 +286,9 @@ Scope:
 at wasm_B (0:54):
  - scope (module):
  - scope (local):
-   locals: "var0": 1 (number)
+   locals: "var0": 1 (i32)
  - scope (wasm-expression-stack):
-   0: 0 (number)
+   0: 0 (i32)
 at (anonymous) (0:17):
    -- skipped
 Paused:
@@ -301,7 +301,7 @@ at wasm_A (0:38):
 at wasm_B (0:56):
  - scope (module):
  - scope (local):
-   locals: "var0": 0 (number)
+   locals: "var0": 0 (i32)
  - scope (wasm-expression-stack):
 at (anonymous) (0:17):
    -- skipped
@@ -315,7 +315,7 @@ at wasm_A (0:39):
 at wasm_B (0:56):
  - scope (module):
  - scope (local):
-   locals: "var0": 0 (number)
+   locals: "var0": 0 (i32)
  - scope (wasm-expression-stack):
 at (anonymous) (0:17):
    -- skipped
@@ -325,7 +325,7 @@ Scope:
 at wasm_B (0:45):
  - scope (module):
  - scope (local):
-   locals: "var0": 0 (number)
+   locals: "var0": 0 (i32)
  - scope (wasm-expression-stack):
 at (anonymous) (0:17):
    -- skipped
@@ -335,9 +335,9 @@ Scope:
 at wasm_B (0:47):
  - scope (module):
  - scope (local):
-   locals: "var0": 0 (number)
+   locals: "var0": 0 (i32)
  - scope (wasm-expression-stack):
-   0: 0 (number)
+   0: 0 (i32)
 at (anonymous) (0:17):
    -- skipped
 Paused:
@@ -346,7 +346,7 @@ Scope:
 at wasm_B (0:61):
  - scope (module):
  - scope (local):
-   locals: "var0": 0 (number)
+   locals: "var0": 0 (i32)
  - scope (wasm-expression-stack):
 at (anonymous) (0:17):
    -- skipped

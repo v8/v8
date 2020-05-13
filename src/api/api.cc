@@ -10311,8 +10311,8 @@ int debug::WasmValue::value_type() {
 v8::Local<v8::Array> debug::WasmValue::bytes() {
   i::Handle<i::WasmValue> obj = Utils::OpenHandle(this);
   // Should only be called on i32, i64, f32, f64, s128.
-  DCHECK_GE(1, obj->value_type());
-  DCHECK_LE(5, obj->value_type());
+  DCHECK_LE(1, obj->value_type());
+  DCHECK_GE(5, obj->value_type());
 
   i::Isolate* isolate = obj->GetIsolate();
   i::Handle<i::Object> bytes_or_ref(obj->bytes_or_ref(), isolate);

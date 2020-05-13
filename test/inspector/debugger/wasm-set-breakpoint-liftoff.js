@@ -103,15 +103,20 @@ Protocol.Debugger.onPaused(async msg => {
   Protocol.Debugger.resume();
 });
 
+function getWasmValue(value) {
+  return typeof (value.value) === 'undefined' ? value.unserializableValue :
+                                                value.value;
+}
+
 async function getScopeValues(value) {
   if (value.type == 'object') {
     let msg = await Protocol.Runtime.getProperties({objectId: value.objectId});
     const printProperty = function(elem) {
-      return `"${elem.name}": ${elem.value.value} (${elem.value.type})`;
+      return `"${elem.name}": ${getWasmValue(elem.value)} (${elem.value.subtype})`;
     }
     return msg.result.result.map(printProperty).join(', ');
   }
-  return value.value + ' (' + value.type + ')';
+  return getWasmValue(value) + ' (' + value.subtype + ')';
 }
 
 (async function test() {

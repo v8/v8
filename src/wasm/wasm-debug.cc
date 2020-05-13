@@ -50,28 +50,43 @@ Handle<String> PrintFToOneByteString(Isolate* isolate, const char* format,
 }
 
 Handle<Object> WasmValueToValueObject(Isolate* isolate, WasmValue value) {
+  Handle<ByteArray> bytes;
   switch (value.type().kind()) {
-    case ValueType::kI32:
-      if (Smi::IsValid(value.to<int32_t>()))
-        return handle(Smi::FromInt(value.to<int32_t>()), isolate);
-      return PrintFToOneByteString<false>(isolate, "%d", value.to<int32_t>());
-    case ValueType::kI64: {
-      int64_t i64 = value.to<int64_t>();
-      int32_t i32 = static_cast<int32_t>(i64);
-      if (i32 == i64 && Smi::IsValid(i32))
-        return handle(Smi::FromIntptr(i32), isolate);
-      return PrintFToOneByteString<false>(isolate, "%" PRId64, i64);
+    case ValueType::kI32: {
+      int32_t val = value.to_i32();
+      bytes = isolate->factory()->NewByteArray(sizeof(val));
+      memcpy(bytes->GetDataStartAddress(), &val, sizeof(val));
+      break;
     }
-    case ValueType::kF32:
-      return isolate->factory()->NewNumber(value.to<float>());
-    case ValueType::kF64:
-      return isolate->factory()->NewNumber(value.to<double>());
-    case ValueType::kAnyRef:
-      return value.to_anyref();
-    default:
+    case ValueType::kI64: {
+      int64_t val = value.to_i64();
+      bytes = isolate->factory()->NewByteArray(sizeof(val));
+      memcpy(bytes->GetDataStartAddress(), &val, sizeof(val));
+      break;
+    }
+    case ValueType::kF32: {
+      float val = value.to_f32();
+      bytes = isolate->factory()->NewByteArray(sizeof(val));
+      memcpy(bytes->GetDataStartAddress(), &val, sizeof(val));
+      break;
+    }
+    case ValueType::kF64: {
+      double val = value.to_f64();
+      bytes = isolate->factory()->NewByteArray(sizeof(val));
+      memcpy(bytes->GetDataStartAddress(), &val, sizeof(val));
+      break;
+    }
+    case ValueType::kAnyRef: {
+      return isolate->factory()->NewWasmValue(
+          static_cast<int32_t>(value.type().kind()), value.to_anyref());
+    }
+    default: {
       UNIMPLEMENTED();
       return isolate->factory()->undefined_value();
+    }
   }
+  return isolate->factory()->NewWasmValue(
+      static_cast<int32_t>(value.type().kind()), bytes);
 }
 
 MaybeHandle<String> GetLocalNameString(Isolate* isolate,
