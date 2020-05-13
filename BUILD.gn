@@ -4081,6 +4081,8 @@ v8_source_set("cppgc_base") {
     "src/heap/cppgc/object-allocator-inl.h",
     "src/heap/cppgc/object-allocator.cc",
     "src/heap/cppgc/object-allocator.h",
+    "src/heap/cppgc/object-start-bitmap-inl.h",
+    "src/heap/cppgc/object-start-bitmap.h",
     "src/heap/cppgc/page-memory-inl.h",
     "src/heap/cppgc/page-memory.cc",
     "src/heap/cppgc/page-memory.h",

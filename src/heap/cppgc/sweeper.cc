@@ -13,6 +13,8 @@
 #include "src/heap/cppgc/heap-page.h"
 #include "src/heap/cppgc/heap-space.h"
 #include "src/heap/cppgc/heap-visitor.h"
+#include "src/heap/cppgc/object-start-bitmap-inl.h"
+#include "src/heap/cppgc/object-start-bitmap.h"
 #include "src/heap/cppgc/raw-heap.h"
 #include "src/heap/cppgc/sanitizers.h"
 
@@ -20,6 +22,37 @@ namespace cppgc {
 namespace internal {
 
 namespace {
+
+class ObjectStartBitmapVerifier
+    : private HeapVisitor<ObjectStartBitmapVerifier> {
+  friend class HeapVisitor<ObjectStartBitmapVerifier>;
+
+ public:
+  void Verify(RawHeap* heap) { Traverse(heap); }
+
+ private:
+  bool VisitNormalPage(NormalPage* page) {
+    // Remember bitmap and reset previous pointer.
+    bitmap_ = &page->object_start_bitmap();
+    prev_ = nullptr;
+    return false;
+  }
+
+  bool VisitHeapObjectHeader(HeapObjectHeader* header) {
+    if (header->IsLargeObject()) return true;
+
+    auto* raw_header = reinterpret_cast<ConstAddress>(header);
+    CHECK(bitmap_->CheckBit(raw_header));
+    if (prev_) {
+      CHECK_EQ(prev_, bitmap_->FindHeader(raw_header - 1));
+    }
+    prev_ = header;
+    return true;
+  }
+
+  ObjectStartBitmap* bitmap_ = nullptr;
+  HeapObjectHeader* prev_ = nullptr;
+};
 
 struct SpaceState {
   BaseSpace::Pages unswept_pages;
@@ -30,6 +63,9 @@ bool SweepNormalPage(NormalPage* page) {
   constexpr auto kAtomicAccess = HeapObjectHeader::AccessMode::kAtomic;
 
   auto* space = NormalPageSpace::From(page->space());
+  ObjectStartBitmap& bitmap = page->object_start_bitmap();
+  bitmap.Clear();
+
   Address start_of_gap = page->PayloadStart();
   for (Address begin = page->PayloadStart(), end = page->PayloadEnd();
        begin != end;) {
@@ -37,7 +73,7 @@ bool SweepNormalPage(NormalPage* page) {
     const size_t size = header->GetSize();
     // Check if this is a free list entry.
     if (header->IsFree<kAtomicAccess>()) {
-      SET_MEMORY_INACCESIBLE(header, kFreeListEntrySize);
+      SET_MEMORY_INACCESIBLE(header, std::min(kFreeListEntrySize, size));
       begin += size;
       continue;
     }
@@ -51,18 +87,19 @@ bool SweepNormalPage(NormalPage* page) {
     // The object is alive.
     const Address header_address = reinterpret_cast<Address>(header);
     if (start_of_gap != header_address) {
-      space->free_list().Add(
-          {start_of_gap, static_cast<size_t>(header_address - start_of_gap)});
+      space->AddToFreeList(start_of_gap,
+                           static_cast<size_t>(header_address - start_of_gap));
     }
     header->Unmark<kAtomicAccess>();
+    bitmap.SetBit(begin);
     begin += size;
     start_of_gap = begin;
   }
 
   if (start_of_gap != page->PayloadStart() &&
       start_of_gap != page->PayloadEnd()) {
-    space->free_list().Add(
-        {start_of_gap, static_cast<size_t>(page->PayloadEnd() - start_of_gap)});
+    space->AddToFreeList(
+        start_of_gap, static_cast<size_t>(page->PayloadEnd() - start_of_gap));
   }
 
   const bool is_empty = (start_of_gap == page->PayloadStart());
@@ -140,6 +177,9 @@ class Sweeper::SweeperImpl final {
 
   void Start(Config config) {
     is_in_progress_ = true;
+#if DEBUG
+    ObjectStartBitmapVerifier().Verify(heap_);
+#endif
     PrepareForSweepVisitor(&space_states_).Traverse(heap_);
     if (config == Config::kAtomic) {
       Finish();

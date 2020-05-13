@@ -11,6 +11,7 @@
 #include "src/heap/cppgc/heap-space.h"
 #include "src/heap/cppgc/heap.h"
 #include "src/heap/cppgc/object-allocator-inl.h"
+#include "src/heap/cppgc/object-start-bitmap.h"
 #include "src/heap/cppgc/page-memory.h"
 #include "src/heap/cppgc/sweeper.h"
 
@@ -72,10 +73,13 @@ void* ObjectAllocator::AllocateFromFreeList(NormalPageSpace* space, size_t size,
 
   auto& current_lab = space->linear_allocation_buffer();
   if (current_lab.size()) {
-    space->free_list().Add({current_lab.start(), current_lab.size()});
+    space->AddToFreeList(current_lab.start(), current_lab.size());
   }
 
   current_lab.Set(static_cast<Address>(entry.address), entry.size);
+  NormalPage::From(BasePage::FromPayload(current_lab.start()))
+      ->object_start_bitmap()
+      .ClearBit(current_lab.start());
   return AllocateObjectOnSpace(space, size, gcinfo);
 }
 
