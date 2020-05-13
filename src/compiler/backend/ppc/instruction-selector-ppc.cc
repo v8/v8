@@ -2135,7 +2135,6 @@ void InstructionSelector::VisitInt64AbsWithOverflow(Node* node) {
   }
 SIMD_TYPES(SIMD_VISIT_SPLAT)
 #undef SIMD_VISIT_SPLAT
-#undef SIMD_TYPES
 
 #define SIMD_VISIT_EXTRACT_LANE(Type, Sign)                              \
   void InstructionSelector::Visit##Type##ExtractLane##Sign(Node* node) { \
@@ -2153,7 +2152,17 @@ SIMD_VISIT_EXTRACT_LANE(I8x16, U)
 SIMD_VISIT_EXTRACT_LANE(I8x16, S)
 #undef SIMD_VISIT_EXTRACT_LANE
 
-void InstructionSelector::VisitI32x4ReplaceLane(Node* node) { UNIMPLEMENTED(); }
+#define SIMD_VISIT_REPLACE_LANE(Type)                                 \
+  void InstructionSelector::Visit##Type##ReplaceLane(Node* node) {    \
+    PPCOperandGenerator g(this);                                      \
+    int32_t lane = OpParameter<int32_t>(node->op());                  \
+    Emit(kPPC_##Type##ReplaceLane, g.DefineAsRegister(node),          \
+         g.UseUniqueRegister(node->InputAt(0)), g.UseImmediate(lane), \
+         g.UseUniqueRegister(node->InputAt(1)));                      \
+  }
+SIMD_TYPES(SIMD_VISIT_REPLACE_LANE)
+#undef SIMD_VISIT_REPLACE_LANE
+#undef SIMD_TYPES
 
 void InstructionSelector::VisitI32x4Add(Node* node) { UNIMPLEMENTED(); }
 
@@ -2188,8 +2197,6 @@ void InstructionSelector::VisitI32x4GeS(Node* node) { UNIMPLEMENTED(); }
 void InstructionSelector::VisitI32x4GtU(Node* node) { UNIMPLEMENTED(); }
 
 void InstructionSelector::VisitI32x4GeU(Node* node) { UNIMPLEMENTED(); }
-
-void InstructionSelector::VisitI16x8ReplaceLane(Node* node) { UNIMPLEMENTED(); }
 
 void InstructionSelector::VisitI16x8Shl(Node* node) { UNIMPLEMENTED(); }
 
@@ -2251,8 +2258,6 @@ void InstructionSelector::VisitI8x16RoundingAverageU(Node* node) {
 
 void InstructionSelector::VisitI8x16Neg(Node* node) { UNIMPLEMENTED(); }
 
-void InstructionSelector::VisitI8x16ReplaceLane(Node* node) { UNIMPLEMENTED(); }
-
 void InstructionSelector::VisitI8x16Add(Node* node) { UNIMPLEMENTED(); }
 
 void InstructionSelector::VisitI8x16AddSaturateS(Node* node) {
@@ -2312,8 +2317,6 @@ void InstructionSelector::VisitF32x4Ne(Node* node) { UNIMPLEMENTED(); }
 void InstructionSelector::VisitF32x4Lt(Node* node) { UNIMPLEMENTED(); }
 
 void InstructionSelector::VisitF32x4Le(Node* node) { UNIMPLEMENTED(); }
-
-void InstructionSelector::VisitF32x4ReplaceLane(Node* node) { UNIMPLEMENTED(); }
 
 void InstructionSelector::EmitPrepareResults(
     ZoneVector<PushParameter>* results, const CallDescriptor* call_descriptor,
@@ -2454,8 +2457,6 @@ void InstructionSelector::VisitI8x16Mul(Node* node) { UNIMPLEMENTED(); }
 void InstructionSelector::VisitS8x16Shuffle(Node* node) { UNIMPLEMENTED(); }
 
 void InstructionSelector::VisitS8x16Swizzle(Node* node) { UNIMPLEMENTED(); }
-
-void InstructionSelector::VisitF64x2ReplaceLane(Node* node) { UNIMPLEMENTED(); }
 
 void InstructionSelector::VisitF64x2Abs(Node* node) { UNIMPLEMENTED(); }
 

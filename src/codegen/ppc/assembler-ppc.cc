@@ -1778,9 +1778,30 @@ void Assembler::vor(const DoubleRegister rt, const DoubleRegister ra,
   emit(VOR | rt.code() * B21 | ra.code() * B16 | rb.code() * B11);
 }
 
+void Assembler::vxor(const DoubleRegister rt, const DoubleRegister ra,
+                     const DoubleRegister rb) {
+  emit(VXOR | rt.code() * B21 | ra.code() * B16 | rb.code() * B11);
+}
+
+void Assembler::vnor(const DoubleRegister rt, const DoubleRegister ra,
+                     const DoubleRegister rb) {
+  emit(VNOR | rt.code() * B21 | ra.code() * B16 | rb.code() * B11);
+}
+
 void Assembler::vsro(const DoubleRegister rt, const DoubleRegister ra,
                      const DoubleRegister rb) {
   emit(VSRO | rt.code() * B21 | ra.code() * B16 | rb.code() * B11);
+}
+
+void Assembler::vslo(const DoubleRegister rt, const DoubleRegister ra,
+                     const DoubleRegister rb) {
+  emit(VSLO | rt.code() * B21 | ra.code() * B16 | rb.code() * B11);
+}
+
+void Assembler::vperm(const DoubleRegister rt, const DoubleRegister ra,
+                      const DoubleRegister rb, const DoubleRegister rc) {
+  emit(VPERM | rt.code() * B21 | ra.code() * B16 | rb.code() * B11 |
+       rc.code() * B6);
 }
 
 // Pseudo instructions.

@@ -358,6 +358,13 @@ void Decoder::UnknownFormat(Instruction* instr, const char* name) {
 }
 
 void Decoder::DecodeExt0(Instruction* instr) {
+  // Some encodings are 5-0 bits, handle those first
+  switch (EXT0 | (instr->BitField(5, 0))) {
+    case VPERM: {
+      Format(instr, "vperm   'Dt, 'Da, 'Db, 'Dc");
+      return;
+    }
+  }
   switch (EXT0 | (instr->BitField(10, 0))) {
     case VSPLTB: {
       Format(instr, "vspltb  'Dt, 'Db, 'UIM");
@@ -377,6 +384,18 @@ void Decoder::DecodeExt0(Instruction* instr) {
     }
     case VOR: {
       Format(instr, "vor     'Dt, 'Da, 'Db");
+      break;
+    }
+    case VXOR: {
+      Format(instr, "vxor    'Dt, 'Da, 'Db");
+      break;
+    }
+    case VNOR: {
+      Format(instr, "vnor    'Dt, 'Da, 'Db");
+      break;
+    }
+    case VSLO: {
+      Format(instr, "vslo    'Dt, 'Da, 'Db");
       break;
     }
   }
@@ -912,7 +931,7 @@ void Decoder::DecodeExt2(Instruction* instr) {
       return;
     }
     case LVX: {
-      Format(instr, "lvx   'Dt, 'ra, 'rb");
+      Format(instr, "lvx     'Dt, 'ra, 'rb");
       return;
     }
 #if V8_TARGET_ARCH_PPC64

@@ -950,10 +950,18 @@ class Assembler : public AssemblerBase {
   void mfvsrd(const Register ra, const DoubleRegister r);
   void mfvsrwz(const Register ra, const DoubleRegister r);
   void mtvsrd(const DoubleRegister rt, const Register ra);
+  void vxor(const DoubleRegister rt, const DoubleRegister ra,
+            const DoubleRegister rb);
+  void vnor(const DoubleRegister rt, const DoubleRegister ra,
+            const DoubleRegister rb);
   void vor(const DoubleRegister rt, const DoubleRegister ra,
            const DoubleRegister rb);
   void vsro(const DoubleRegister rt, const DoubleRegister ra,
             const DoubleRegister rb);
+  void vslo(const DoubleRegister rt, const DoubleRegister ra,
+            const DoubleRegister rb);
+  void vperm(const DoubleRegister rt, const DoubleRegister ra,
+             const DoubleRegister rb, const DoubleRegister rc);
 
   // Pseudo instructions
 
