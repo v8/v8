@@ -1885,6 +1885,11 @@ int WasmFrame::byte_offset() const {
   return code->GetSourcePositionBefore(offset);
 }
 
+bool WasmFrame::is_inspectable() const {
+  wasm::WasmCodeRefScope code_ref_scope;
+  return wasm_code()->is_inspectable();
+}
+
 Object WasmFrame::context() const { return wasm_instance().native_context(); }
 
 void WasmFrame::Summarize(std::vector<FrameSummary>* functions) const {

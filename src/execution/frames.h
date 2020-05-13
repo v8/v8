@@ -924,6 +924,7 @@ class WasmFrame : public StandardFrame {
   bool at_to_number_conversion() const;
   // Byte offset in the function.
   int byte_offset() const;
+  bool is_inspectable() const;
 
   void Summarize(std::vector<FrameSummary>* frames) const override;
 

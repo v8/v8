@@ -359,7 +359,7 @@ class DebugInfoImpl {
 
   int GetNumLocals(Isolate* isolate, Address pc) {
     FrameInspectionScope scope(this, isolate, pc);
-    if (!scope.code->is_liftoff()) return 0;
+    if (!scope.is_inspectable()) return 0;
     return scope.debug_side_table->num_locals();
   }
 
@@ -371,7 +371,7 @@ class DebugInfoImpl {
 
   int GetStackDepth(Isolate* isolate, Address pc) {
     FrameInspectionScope scope(this, isolate, pc);
-    if (!scope.code->is_liftoff()) return 0;
+    if (!scope.is_inspectable()) return 0;
     int num_locals = static_cast<int>(scope.debug_side_table->num_locals());
     int value_count = scope.debug_side_table_entry->num_values();
     return value_count - num_locals;
@@ -389,27 +389,17 @@ class DebugInfoImpl {
 
   Handle<JSObject> GetLocalScopeObject(Isolate* isolate, Address pc, Address fp,
                                        Address debug_break_fp) {
+    FrameInspectionScope scope(this, isolate, pc);
     Handle<JSObject> local_scope_object =
         isolate->factory()->NewJSObjectWithNullProto();
 
-    wasm::WasmCodeRefScope wasm_code_ref_scope;
-    wasm::WasmCode* code =
-        isolate->wasm_engine()->code_manager()->LookupCode(pc);
-    // Only Liftoff code that was generated for debugging can be inspected
-    // (otherwise debug side table positions would not match up).
-    if (!code->is_liftoff() || !code->for_debugging()) {
-      return local_scope_object;
-    }
+    if (!scope.is_inspectable()) return local_scope_object;
 
     auto* module = native_module_->module();
-    auto* function = &module->functions[code->index()];
-    auto* debug_side_table = GetDebugSideTable(code, isolate->allocator());
-    int pc_offset = static_cast<int>(pc - code->instruction_start());
-    auto* debug_side_table_entry = debug_side_table->GetEntry(pc_offset);
-    DCHECK_NOT_NULL(debug_side_table_entry);
+    auto* function = &module->functions[scope.code->index()];
 
     // Fill parameters and locals.
-    int num_locals = static_cast<int>(debug_side_table->num_locals());
+    int num_locals = static_cast<int>(scope.debug_side_table->num_locals());
     DCHECK_LE(static_cast<int>(function->sig->parameter_count()), num_locals);
     if (num_locals > 0) {
       Handle<JSObject> locals_obj =
@@ -426,7 +416,7 @@ class DebugInfoImpl {
           name = PrintFToOneByteString<true>(isolate, "var%d", i);
         }
         WasmValue value =
-            GetValue(debug_side_table_entry, i, fp, debug_break_fp);
+            GetValue(scope.debug_side_table_entry, i, fp, debug_break_fp);
         Handle<Object> value_obj = WasmValueToValueObject(isolate, value);
         // {name} can be a string representation of an element index.
         LookupIterator::Key lookup_key{isolate, name};
@@ -444,28 +434,21 @@ class DebugInfoImpl {
 
   Handle<JSObject> GetStackScopeObject(Isolate* isolate, Address pc, Address fp,
                                        Address debug_break_fp) {
+    FrameInspectionScope scope(this, isolate, pc);
     Handle<JSObject> stack_scope_obj =
         isolate->factory()->NewJSObjectWithNullProto();
-    wasm::WasmCodeRefScope wasm_code_ref_scope;
 
-    wasm::WasmCode* code =
-        isolate->wasm_engine()->code_manager()->LookupCode(pc);
-    // Only Liftoff code can be inspected.
-    if (!code->is_liftoff()) return stack_scope_obj;
-
-    auto* debug_side_table = GetDebugSideTable(code, isolate->allocator());
-    int pc_offset = static_cast<int>(pc - code->instruction_start());
-    auto* debug_side_table_entry = debug_side_table->GetEntry(pc_offset);
-    DCHECK_NOT_NULL(debug_side_table_entry);
+    if (!scope.is_inspectable()) return stack_scope_obj;
 
     // Fill stack values.
     // Use an object without prototype instead of an Array, for nicer displaying
     // in DevTools. For Arrays, the length field and prototype is displayed,
     // which does not make too much sense here.
-    int num_locals = static_cast<int>(debug_side_table->num_locals());
-    int value_count = debug_side_table_entry->num_values();
+    int num_locals = static_cast<int>(scope.debug_side_table->num_locals());
+    int value_count = scope.debug_side_table_entry->num_values();
     for (int i = num_locals; i < value_count; ++i) {
-      WasmValue value = GetValue(debug_side_table_entry, i, fp, debug_break_fp);
+      WasmValue value =
+          GetValue(scope.debug_side_table_entry, i, fp, debug_break_fp);
       Handle<Object> value_obj = WasmValueToValueObject(isolate, value);
       JSObject::AddDataElement(stack_scope_obj,
                                static_cast<uint32_t>(i - num_locals), value_obj,
@@ -513,7 +496,7 @@ class DebugInfoImpl {
     WasmCode* new_code = native_module_->PublishCode(
         native_module_->AddCompiledCode(std::move(result)));
 
-    DCHECK(new_code->is_liftoff() && new_code->for_debugging());
+    DCHECK(new_code->is_inspectable());
     bool added =
         debug_side_tables_.emplace(new_code, std::move(debug_sidetable)).second;
     DCHECK(added);
@@ -642,12 +625,17 @@ class DebugInfoImpl {
                          Address pc)
         : code(isolate->wasm_engine()->code_manager()->LookupCode(pc)),
           pc_offset(static_cast<int>(pc - code->instruction_start())),
-          debug_side_table(code->is_liftoff() ? debug_info->GetDebugSideTable(
-                                                    code, isolate->allocator())
-                                              : nullptr),
+          debug_side_table(
+              code->is_inspectable()
+                  ? debug_info->GetDebugSideTable(code, isolate->allocator())
+                  : nullptr),
           debug_side_table_entry(debug_side_table
                                      ? debug_side_table->GetEntry(pc_offset)
-                                     : nullptr) {}
+                                     : nullptr) {
+      DCHECK_IMPLIES(code->is_inspectable(), debug_side_table_entry != nullptr);
+    }
+
+    bool is_inspectable() const { return debug_side_table_entry; }
 
     wasm::WasmCodeRefScope wasm_code_ref_scope;
     wasm::WasmCode* code;
@@ -658,7 +646,7 @@ class DebugInfoImpl {
 
   const DebugSideTable* GetDebugSideTable(WasmCode* code,
                                           AccountingAllocator* allocator) {
-    DCHECK(code->is_liftoff() && code->for_debugging());
+    DCHECK(code->is_inspectable());
     {
       // Only hold the mutex temporarily. We can't hold it while generating the
       // debug side table, because compilation takes the {NativeModule} lock.

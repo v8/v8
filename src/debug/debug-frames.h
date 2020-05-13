@@ -11,13 +11,13 @@
 #include "src/execution/isolate.h"
 #include "src/execution/v8threads.h"
 #include "src/objects/objects.h"
-#include "src/wasm/wasm-interpreter.h"
 
 namespace v8 {
 namespace internal {
 
 class JavaScriptFrame;
 class StandardFrame;
+class WasmFrame;
 
 class FrameInspector {
  public:
