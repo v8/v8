@@ -98,6 +98,8 @@ enum FunctionMode {
       kWithReadonlyPrototypeBit | kWithNameBit,
 };
 
+enum class NumberCacheMode { kIgnore, kSetOnly, kBoth };
+
 // Interface for handle based allocation.
 class V8_EXPORT_PRIVATE Factory : public FactoryBase<Factory> {
  public:
@@ -681,10 +683,13 @@ class V8_EXPORT_PRIVATE Factory : public FactoryBase<Factory> {
   DECLARE_ERROR(WasmRuntimeError)
 #undef DECLARE_ERROR
 
-  Handle<String> NumberToString(Handle<Object> number, bool check_cache = true);
-  Handle<String> SmiToString(Smi number, bool check_cache = true);
-  Handle<String> HeapNumberToString(Handle<HeapNumber> number, double value,
-                                    bool check_cache = true);
+  Handle<String> NumberToString(Handle<Object> number,
+                                NumberCacheMode mode = NumberCacheMode::kBoth);
+  Handle<String> SmiToString(Smi number,
+                             NumberCacheMode mode = NumberCacheMode::kBoth);
+  Handle<String> HeapNumberToString(
+      Handle<HeapNumber> number, double value,
+      NumberCacheMode mode = NumberCacheMode::kBoth);
 
   Handle<String> SizeToString(size_t value, bool check_cache = true);
   inline Handle<String> Uint32ToString(uint32_t value,
@@ -941,11 +946,11 @@ class V8_EXPORT_PRIVATE Factory : public FactoryBase<Factory> {
 
   // Attempt to find the number in a small cache.  If we finds it, return
   // the string representation of the number.  Otherwise return undefined.
-  Handle<Object> NumberToStringCacheGet(Object number, int hash);
+  V8_INLINE Handle<Object> NumberToStringCacheGet(Object number, int hash);
 
   // Update the cache with a new number-string pair.
-  Handle<String> NumberToStringCacheSet(Handle<Object> number, int hash,
-                                        const char* string, bool check_cache);
+  V8_INLINE void NumberToStringCacheSet(Handle<Object> number, int hash,
+                                        Handle<String> js_string);
 
   // Creates a new JSArray with the given backing storage. Performs no
   // verification of the backing storage because it may not yet be filled.

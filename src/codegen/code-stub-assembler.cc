@@ -6867,8 +6867,8 @@ TNode<String> CodeStubAssembler::NumberToString(TNode<Number> input) {
   BIND(&runtime);
   {
     // No cache entry, go to the runtime.
-    result =
-        CAST(CallRuntime(Runtime::kNumberToString, NoContextConstant(), input));
+    result = CAST(
+        CallRuntime(Runtime::kNumberToStringSlow, NoContextConstant(), input));
     Goto(&done);
   }
   BIND(&done);
