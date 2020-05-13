@@ -140,6 +140,15 @@ V8_INLINE static constexpr internal::Address IntToSmi(int value) {
          kSmiTag;
 }
 
+// {obj} must be the raw tagged pointer representation of a HeapObject
+// that's guaranteed to never be in ReadOnlySpace.
+V8_EXPORT internal::Isolate* IsolateFromNeverReadOnlySpaceObject(Address obj);
+
+// Returns if we need to throw when an error occurs. This infers the language
+// mode based on the current context and the closure. This returns true if the
+// language mode is strict.
+V8_EXPORT bool ShouldThrowOnError(v8::internal::Isolate* isolate);
+
 /**
  * This class exports constants and functionality from within v8 that
  * is necessary to implement inline functions in the v8 api.  Don't
@@ -339,17 +348,25 @@ class Internals {
 #endif
   }
 
+  V8_INLINE static internal::Isolate* GetIsolateForHeapSandbox(
+      internal::Address obj) {
+#ifdef V8_HEAP_SANDBOX
+    return internal::IsolateFromNeverReadOnlySpaceObject(obj);
+#else
+    // Not used in non-sandbox mode.
+    return nullptr;
+#endif
+  }
+
   V8_INLINE static internal::Address ReadExternalPointerField(
       internal::Isolate* isolate, internal::Address heap_object_ptr,
       int offset) {
-#ifdef V8_COMPRESS_POINTERS
     internal::Address value = ReadRawField<Address>(heap_object_ptr, offset);
+#ifdef V8_HEAP_SANDBOX
     // We currently have to treat zero as nullptr in embedder slots.
     if (value) value = DecodeExternalPointer(isolate, value);
-    return value;
-#else
-    return ReadRawField<internal::Address>(heap_object_ptr, offset);
 #endif
+    return value;
   }
 
 #ifdef V8_COMPRESS_POINTERS
@@ -405,15 +422,6 @@ template <class T>
 V8_INLINE void PerformCastCheck(T* data) {
   CastCheck<std::is_base_of<Data, T>::value>::Perform(data);
 }
-
-// {obj} must be the raw tagged pointer representation of a HeapObject
-// that's guaranteed to never be in ReadOnlySpace.
-V8_EXPORT internal::Isolate* IsolateFromNeverReadOnlySpaceObject(Address obj);
-
-// Returns if we need to throw when an error occurs. This infers the language
-// mode based on the current context and the closure. This returns true if the
-// language mode is strict.
-V8_EXPORT bool ShouldThrowOnError(v8::internal::Isolate* isolate);
 
 // A base class for backing stores, which is needed due to vagaries of
 // how static casts work with std::shared_ptr.
