@@ -169,7 +169,7 @@ DebugStackTraceIterator::GetScopeIterator() const {
   StandardFrame* frame = iterator_.frame();
   if (frame->is_wasm()) {
     return std::make_unique<DebugWasmScopeIterator>(isolate_,
-                                                    iterator_.frame());
+                                                    WasmFrame::cast(frame));
   }
   return std::make_unique<DebugScopeIterator>(isolate_, frame_inspector_.get());
 }

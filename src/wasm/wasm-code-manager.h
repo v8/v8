@@ -174,6 +174,10 @@ class V8_EXPORT_PRIVATE WasmCode final {
            pc < reinterpret_cast<Address>(instructions_ + instructions_size_);
   }
 
+  // Only Liftoff code that was generated for debugging can be inspected
+  // (otherwise debug side table positions would not match up).
+  bool is_inspectable() const { return is_liftoff() && for_debugging(); }
+
   Vector<const uint8_t> protected_instructions_data() const {
     return {meta_data_.get(),
             static_cast<size_t>(protected_instructions_size_)};

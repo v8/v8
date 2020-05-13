@@ -129,7 +129,7 @@ bool DebugScopeIterator::SetVariableValue(v8::Local<v8::String> name,
 }
 
 DebugWasmScopeIterator::DebugWasmScopeIterator(Isolate* isolate,
-                                               StandardFrame* frame)
+                                               WasmFrame* frame)
     : isolate_(isolate),
       frame_(frame),
       type_(debug::ScopeIterator::ScopeTypeModule) {}
@@ -142,7 +142,10 @@ void DebugWasmScopeIterator::Advance() {
   DCHECK(!Done());
   switch (type_) {
     case ScopeTypeModule:
-      type_ = debug::ScopeIterator::ScopeTypeLocal;
+      // Skip local scope and expression stack scope if the frame is not
+      // inspectable.
+      type_ = frame_->is_inspectable() ? debug::ScopeIterator::ScopeTypeLocal
+                                       : debug::ScopeIterator::ScopeTypeWith;
       break;
     case ScopeTypeLocal:
       type_ = debug::ScopeIterator::ScopeTypeWasmExpressionStack;
@@ -171,15 +174,13 @@ v8::Local<v8::Object> DebugWasmScopeIterator::GetObject() {
     }
     case debug::ScopeIterator::ScopeTypeLocal: {
       DCHECK(frame_->is_wasm());
-      wasm::DebugInfo* debug_info =
-          WasmFrame::cast(frame_)->native_module()->GetDebugInfo();
+      wasm::DebugInfo* debug_info = frame_->native_module()->GetDebugInfo();
       return Utils::ToLocal(debug_info->GetLocalScopeObject(
           isolate_, frame_->pc(), frame_->fp(), frame_->callee_fp()));
     }
     case debug::ScopeIterator::ScopeTypeWasmExpressionStack: {
       DCHECK(frame_->is_wasm());
-      wasm::DebugInfo* debug_info =
-          WasmFrame::cast(frame_)->native_module()->GetDebugInfo();
+      wasm::DebugInfo* debug_info = frame_->native_module()->GetDebugInfo();
       return Utils::ToLocal(debug_info->GetStackScopeObject(
           isolate_, frame_->pc(), frame_->fp(), frame_->callee_fp()));
     }
