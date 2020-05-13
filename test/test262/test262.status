@@ -557,13 +557,17 @@
   'built-ins/Atomics/waitAsync/negative-timeout': [FAIL],
   'built-ins/Atomics/waitAsync/null-for-timeout': [FAIL],
   'built-ins/Atomics/waitAsync/object-for-timeout': [FAIL],
+  'built-ins/Atomics/waitAsync/poisoned-object-for-timeout-throws-agent': [FAIL],
   'built-ins/Atomics/waitAsync/returns-result-object-value-is-promise-resolves-to-ok': [FAIL],
   'built-ins/Atomics/waitAsync/returns-result-object-value-is-promise-resolves-to-timed-out': [FAIL],
   'built-ins/Atomics/waitAsync/returns-result-object-value-is-string-not-equal': [FAIL],
   'built-ins/Atomics/waitAsync/returns-result-object-value-is-string-timed-out': [FAIL],
   'built-ins/Atomics/waitAsync/symbol-for-index-throws': [FAIL],
+  'built-ins/Atomics/waitAsync/symbol-for-index-throws-agent': [FAIL],
   'built-ins/Atomics/waitAsync/symbol-for-timeout-throws': [FAIL],
+  'built-ins/Atomics/waitAsync/symbol-for-timeout-throws-agent': [FAIL],
   'built-ins/Atomics/waitAsync/symbol-for-value-throws': [FAIL],
+  'built-ins/Atomics/waitAsync/symbol-for-value-throws-agent': [FAIL],
   'built-ins/Atomics/waitAsync/true-for-timeout': [FAIL],
   'built-ins/Atomics/waitAsync/undefined-for-timeout-agent': [FAIL],
   'built-ins/Atomics/waitAsync/undefined-for-timeout': [FAIL],
@@ -571,6 +575,7 @@
   'built-ins/Atomics/waitAsync/value-not-equal': [FAIL],
   'built-ins/Atomics/waitAsync/waiterlist-block-indexedposition-wake': [FAIL],
   'built-ins/Atomics/waitAsync/was-woken-before-timeout': [FAIL],
+
   # SKIP the following TIMEOUT tests instead of FAIL
   'built-ins/Atomics/waitAsync/false-for-timeout-agent': [SKIP],
   'built-ins/Atomics/waitAsync/good-views': [SKIP],
@@ -588,10 +593,6 @@
   'built-ins/Atomics/waitAsync/object-for-timeout-agent': [SKIP],
   'built-ins/Atomics/waitAsync/true-for-timeout-agent': [SKIP],
   'built-ins/Atomics/waitAsync/value-not-equal-agent': [SKIP],
-
-  # https://bugs.chromium.org/p/v8/issues/detail?id=10510
-  # https://github.com/tc39/test262/issues/2614
-  'language/module-code/export-star-as-dflt': [FAIL],
 
   ######################## NEEDS INVESTIGATION ###########################
 
