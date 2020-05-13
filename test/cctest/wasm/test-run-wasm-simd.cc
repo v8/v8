@@ -756,7 +756,7 @@ WASM_SIMD_TEST(F32x4Max) {
   RunF32x4BinOpTest(execution_tier, lower_simd, kExprF32x4Max, JSMax);
 }
 
-#if V8_TARGET_ARCH_X64 || V8_TARGET_ARCH_IA32
+#if V8_TARGET_ARCH_X64 || V8_TARGET_ARCH_IA32 || V8_TARGET_ARCH_ARM64
 WASM_SIMD_TEST_NO_LOWERING(F32x4Pmin) {
   FLAG_SCOPE(wasm_simd_post_mvp);
   RunF32x4BinOpTest(execution_tier, lower_simd, kExprF32x4Pmin, Minimum);
@@ -766,7 +766,7 @@ WASM_SIMD_TEST_NO_LOWERING(F32x4Pmax) {
   FLAG_SCOPE(wasm_simd_post_mvp);
   RunF32x4BinOpTest(execution_tier, lower_simd, kExprF32x4Pmax, Maximum);
 }
-#endif  // V8_TARGET_ARCH_X64 || V8_TARGET_ARCH_IA32
+#endif  // V8_TARGET_ARCH_X64 || V8_TARGET_ARCH_IA32 || V8_TARGET_ARCH_ARM64
 
 void RunF32x4CompareOpTest(ExecutionTier execution_tier, LowerSimd lower_simd,
                            WasmOpcode opcode, FloatCompareOp expected_op) {
@@ -1358,7 +1358,7 @@ WASM_SIMD_TEST_NO_LOWERING(F64x2Div) {
   RunF64x2BinOpTest(execution_tier, lower_simd, kExprF64x2Div, Div);
 }
 
-#if V8_TARGET_ARCH_X64 || V8_TARGET_ARCH_IA32
+#if V8_TARGET_ARCH_X64 || V8_TARGET_ARCH_IA32 || V8_TARGET_ARCH_ARM64
 WASM_SIMD_TEST_NO_LOWERING(F64x2Pmin) {
   FLAG_SCOPE(wasm_simd_post_mvp);
   RunF64x2BinOpTest(execution_tier, lower_simd, kExprF64x2Pmin, Minimum);
@@ -1368,7 +1368,7 @@ WASM_SIMD_TEST_NO_LOWERING(F64x2Pmax) {
   FLAG_SCOPE(wasm_simd_post_mvp);
   RunF64x2BinOpTest(execution_tier, lower_simd, kExprF64x2Pmax, Maximum);
 }
-#endif  // V8_TARGET_ARCH_X64 || V8_TARGET_ARCH_IA32
+#endif  // V8_TARGET_ARCH_X64 || V8_TARGET_ARCH_IA32 || V8_TARGET_ARCH_ARM64
 
 void RunF64x2CompareOpTest(ExecutionTier execution_tier, LowerSimd lower_simd,
                            WasmOpcode opcode, DoubleCompareOp expected_op) {

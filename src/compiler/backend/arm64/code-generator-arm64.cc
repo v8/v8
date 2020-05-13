@@ -1901,6 +1901,27 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
     }
       SIMD_DESTRUCTIVE_BINOP_CASE(kArm64F64x2Qfma, Fmla, 2D);
       SIMD_DESTRUCTIVE_BINOP_CASE(kArm64F64x2Qfms, Fmls, 2D);
+    case kArm64F64x2Pmin: {
+      VRegister dst = i.OutputSimd128Register().V2D();
+      VRegister lhs = i.InputSimd128Register(0).V2D();
+      VRegister rhs = i.InputSimd128Register(1).V2D();
+      // f64x2.pmin(lhs, rhs)
+      // = v128.bitselect(rhs, lhs, f64x2.lt(rhs,lhs))
+      // = v128.bitselect(rhs, lhs, f64x2.gt(lhs,rhs))
+      __ Fcmgt(dst, lhs, rhs);
+      __ Bsl(dst.V16B(), rhs.V16B(), lhs.V16B());
+      break;
+    }
+    case kArm64F64x2Pmax: {
+      VRegister dst = i.OutputSimd128Register().V2D();
+      VRegister lhs = i.InputSimd128Register(0).V2D();
+      VRegister rhs = i.InputSimd128Register(1).V2D();
+      // f64x2.pmax(lhs, rhs)
+      // = v128.bitselect(rhs, lhs, f64x2.gt(rhs, lhs))
+      __ Fcmgt(dst, rhs, lhs);
+      __ Bsl(dst.V16B(), rhs.V16B(), lhs.V16B());
+      break;
+    }
     case kArm64F32x4Splat: {
       __ Dup(i.OutputSimd128Register().V4S(), i.InputSimd128Register(0).S(), 0);
       break;
@@ -1953,6 +1974,27 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
     }
       SIMD_DESTRUCTIVE_BINOP_CASE(kArm64F32x4Qfma, Fmla, 4S);
       SIMD_DESTRUCTIVE_BINOP_CASE(kArm64F32x4Qfms, Fmls, 4S);
+    case kArm64F32x4Pmin: {
+      VRegister dst = i.OutputSimd128Register().V4S();
+      VRegister lhs = i.InputSimd128Register(0).V4S();
+      VRegister rhs = i.InputSimd128Register(1).V4S();
+      // f32x4.pmin(lhs, rhs)
+      // = v128.bitselect(rhs, lhs, f32x4.lt(rhs, lhs))
+      // = v128.bitselect(rhs, lhs, f32x4.gt(lhs, rhs))
+      __ Fcmgt(dst, lhs, rhs);
+      __ Bsl(dst.V16B(), rhs.V16B(), lhs.V16B());
+      break;
+    }
+    case kArm64F32x4Pmax: {
+      VRegister dst = i.OutputSimd128Register().V4S();
+      VRegister lhs = i.InputSimd128Register(0).V4S();
+      VRegister rhs = i.InputSimd128Register(1).V4S();
+      // f32x4.pmax(lhs, rhs)
+      // = v128.bitselect(rhs, lhs, f32x4.gt(rhs, lhs))
+      __ Fcmgt(dst, rhs, lhs);
+      __ Bsl(dst.V16B(), rhs.V16B(), lhs.V16B());
+      break;
+    }
     case kArm64I64x2Splat: {
       __ Dup(i.OutputSimd128Register().V2D(), i.InputRegister64(0));
       break;
