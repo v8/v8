@@ -459,6 +459,10 @@ class V8_EXPORT_PRIVATE UsePosition final
   bool RegisterIsBeneficial() const {
     return RegisterBeneficialField::decode(flags_);
   }
+  bool SpillDetrimental() const {
+    return SpillDetrimentalField::decode(flags_);
+  }
+
   UsePositionType type() const { return TypeField::decode(flags_); }
   void set_type(UsePositionType type, bool register_beneficial);
 
@@ -470,6 +474,9 @@ class V8_EXPORT_PRIVATE UsePosition final
   // For hinting only.
   void set_assigned_register(int register_code) {
     flags_ = AssignedRegisterField::update(flags_, register_code);
+  }
+  void set_spill_detrimental() {
+    flags_ = SpillDetrimentalField::update(flags_, true);
   }
 
   UsePositionHintType hint_type() const {
@@ -489,6 +496,7 @@ class V8_EXPORT_PRIVATE UsePosition final
   using HintTypeField = base::BitField<UsePositionHintType, 2, 3>;
   using RegisterBeneficialField = base::BitField<bool, 5, 1>;
   using AssignedRegisterField = base::BitField<int32_t, 6, 6>;
+  using SpillDetrimentalField = base::BitField<int32_t, 12, 1>;
 
   InstructionOperand* const operand_;
   void* hint_;
@@ -583,6 +591,10 @@ class V8_EXPORT_PRIVATE LiveRange : public NON_EXPORTED_BASE(ZoneObject) {
   // range and which precedes start.
   UsePosition* PreviousUsePositionRegisterIsBeneficial(
       LifetimePosition start) const;
+
+  // Returns use position for which spilling is detrimental in this live
+  // range and which follows both start and last processed use position
+  UsePosition* NextUsePositionSpillDetrimental(LifetimePosition start) const;
 
   // Can this live range be spilled at this position.
   bool CanBeSpilled(LifetimePosition pos) const;

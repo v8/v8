@@ -519,6 +519,16 @@ UsePosition* LiveRange::PreviousUsePositionRegisterIsBeneficial(
   return prev;
 }
 
+UsePosition* LiveRange::NextUsePositionSpillDetrimental(
+    LifetimePosition start) const {
+  UsePosition* pos = NextUsePosition(start);
+  while (pos != nullptr && pos->type() != UsePositionType::kRequiresRegister &&
+         !pos->SpillDetrimental()) {
+    pos = pos->next();
+  }
+  return pos;
+}
+
 UsePosition* LiveRange::NextRegisterPosition(LifetimePosition start) const {
   UsePosition* pos = NextUsePosition(start);
   while (pos != nullptr && pos->type() != UsePositionType::kRequiresRegister) {
@@ -2424,6 +2434,15 @@ void LiveRangeBuilder::ProcessInstructions(const InstructionBlock* block,
         if (from.IsUnallocated()) {
           live->Add(UnallocatedOperand::cast(from).virtual_register());
         }
+        // When the value is moved to a register to meet input constraints,
+        // we should consider this value use similar as a register use in the
+        // backward spilling heuristics, even though this value use is not
+        // register benefical at the AllocateBlockedReg stage.
+        if (to.IsAnyRegister() ||
+            (to.IsUnallocated() &&
+             UnallocatedOperand::cast(&to)->HasRegisterPolicy())) {
+          from_use->set_spill_detrimental();
+        }
         // Resolve use position hints just created.
         if (to_use != nullptr && from_use != nullptr) {
           to_use->ResolveHint(from_use);
@@ -3039,14 +3058,17 @@ LifetimePosition RegisterAllocator::FindOptimalSpillingPos(
         LiveRange* check_use = live_at_header;
         for (; check_use != nullptr && check_use->Start() < pos;
              check_use = check_use->next()) {
-          UsePosition* next_use = check_use->NextRegisterPosition(loop_start);
+          // If we find a use for which spilling is detrimental, don't spill
+          // at the loop header
+          UsePosition* next_use =
+              check_use->NextUsePositionSpillDetrimental(loop_start);
           // UsePosition at the end of a UseInterval may
           // have the same value as the start of next range.
           if (next_use != nullptr && next_use->pos() <= pos) {
             return pos;
           }
         }
-        // No register use inside the loop before the pos.
+        // No register beneficial use inside the loop before the pos.
         *begin_spill_out = live_at_header;
         pos = loop_start;
         break;
