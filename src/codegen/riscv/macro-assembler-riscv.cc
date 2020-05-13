@@ -4183,8 +4183,15 @@ void MacroAssembler::AssertUndefinedOrAllocationSite(Register object,
 template <typename F_TYPE>
 void TurboAssembler::FloatMinMaxHelper(FPURegister dst, FPURegister src1,
                                        FPURegister src2, MaxMinKind kind) {
+  DCHECK((std::is_same<F_TYPE, float>::value) ||
+         (std::is_same<F_TYPE, double>::value));
+
   if (src1 == src2) {
-    Move_s(dst, src1);
+    if (std::is_same<float, F_TYPE>::value) {
+      Move_s(dst, src1);
+    } else {
+      Move_d(dst, src1);
+    }
     return;
   }
 
