@@ -104,6 +104,21 @@ inline MemOperand GetMemOp(LiftoffAssembler* assm,
   return MemOperand(addr.X(), offset_imm);
 }
 
+inline void EmitSimdShiftLeft(LiftoffAssembler* assm, VRegister dst,
+                              VRegister lhs, Register rhs,
+                              VectorFormat format) {
+  DCHECK(dst.IsSameFormat(lhs));
+  DCHECK_EQ(dst.LaneCount(), LaneCountFromFormat(format));
+
+  UseScratchRegisterScope temps(assm);
+  VRegister tmp = temps.AcquireV(format);
+  Register shift = dst.Is2D() ? temps.AcquireX() : temps.AcquireW();
+  int mask = LaneSizeInBitsFromFormat(format) - 1;
+  assm->And(shift, rhs, mask);
+  assm->Dup(tmp, shift);
+  assm->Sshl(dst, lhs, tmp);
+}
+
 }  // namespace liftoff
 
 int LiftoffAssembler::PrepareStackFrame() {
@@ -439,7 +454,7 @@ void LiftoffAssembler::Move(DoubleRegister dst, DoubleRegister src,
     Fmov(dst.D(), src.D());
   } else {
     DCHECK_EQ(kWasmS128, type);
-    Fmov(dst.Q(), src.Q());
+    Mov(dst.Q(), src.Q());
   }
 }
 
@@ -1254,12 +1269,13 @@ void LiftoffAssembler::emit_i64x2_neg(LiftoffRegister dst,
 
 void LiftoffAssembler::emit_i64x2_shl(LiftoffRegister dst, LiftoffRegister lhs,
                                       LiftoffRegister rhs) {
-  bailout(kSimd, "i64x2_shl");
+  liftoff::EmitSimdShiftLeft(this, dst.fp().V2D(), lhs.fp().V2D(), rhs.gp(),
+                             kFormat2D);
 }
 
 void LiftoffAssembler::emit_i64x2_shli(LiftoffRegister dst, LiftoffRegister lhs,
                                        int32_t rhs) {
-  bailout(kSimd, "i64x2_shli");
+  Shl(dst.fp().V2D(), lhs.fp().V2D(), rhs & 63);
 }
 
 void LiftoffAssembler::emit_i64x2_add(LiftoffRegister dst, LiftoffRegister lhs,
@@ -1321,12 +1337,13 @@ void LiftoffAssembler::emit_i32x4_neg(LiftoffRegister dst,
 
 void LiftoffAssembler::emit_i32x4_shl(LiftoffRegister dst, LiftoffRegister lhs,
                                       LiftoffRegister rhs) {
-  bailout(kSimd, "i32x4_shl");
+  liftoff::EmitSimdShiftLeft(this, dst.fp().V4S(), lhs.fp().V4S(), rhs.gp(),
+                             kFormat4S);
 }
 
 void LiftoffAssembler::emit_i32x4_shli(LiftoffRegister dst, LiftoffRegister lhs,
                                        int32_t rhs) {
-  bailout(kSimd, "i32x4_shli");
+  Shl(dst.fp().V4S(), lhs.fp().V4S(), rhs & 31);
 }
 
 void LiftoffAssembler::emit_i32x4_add(LiftoffRegister dst, LiftoffRegister lhs,
@@ -1402,12 +1419,13 @@ void LiftoffAssembler::emit_i16x8_neg(LiftoffRegister dst,
 
 void LiftoffAssembler::emit_i16x8_shl(LiftoffRegister dst, LiftoffRegister lhs,
                                       LiftoffRegister rhs) {
-  bailout(kSimd, "i16x8_shl");
+  liftoff::EmitSimdShiftLeft(this, dst.fp().V8H(), lhs.fp().V8H(), rhs.gp(),
+                             kFormat8H);
 }
 
 void LiftoffAssembler::emit_i16x8_shli(LiftoffRegister dst, LiftoffRegister lhs,
                                        int32_t rhs) {
-  bailout(kSimd, "i16x8_shli");
+  Shl(dst.fp().V8H(), lhs.fp().V8H(), rhs & 15);
 }
 
 void LiftoffAssembler::emit_i16x8_add(LiftoffRegister dst, LiftoffRegister lhs,
@@ -1507,12 +1525,13 @@ void LiftoffAssembler::emit_i8x16_neg(LiftoffRegister dst,
 
 void LiftoffAssembler::emit_i8x16_shl(LiftoffRegister dst, LiftoffRegister lhs,
                                       LiftoffRegister rhs) {
-  bailout(kSimd, "i8x16_shl");
+  liftoff::EmitSimdShiftLeft(this, dst.fp().V16B(), lhs.fp().V16B(), rhs.gp(),
+                             kFormat16B);
 }
 
 void LiftoffAssembler::emit_i8x16_shli(LiftoffRegister dst, LiftoffRegister lhs,
                                        int32_t rhs) {
-  bailout(kSimd, "i8x16_shli");
+  Shl(dst.fp().V16B(), lhs.fp().V16B(), rhs & 7);
 }
 
 void LiftoffAssembler::emit_i8x16_add(LiftoffRegister dst, LiftoffRegister lhs,

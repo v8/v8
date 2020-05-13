@@ -861,6 +861,10 @@ void LiftoffAssembler::Move(LiftoffRegister dst, LiftoffRegister src,
     // Use the {StackTransferRecipe} to move pairs, as the registers in the
     // pairs might overlap.
     StackTransferRecipe(this).MoveRegister(dst, src, type);
+  } else if (kNeedS128RegPair && dst.is_fp_pair()) {
+    // Calling low_fp is fine, Move will automatically check the type and
+    // convert this FP to its SIMD register, and use a SIMD move.
+    Move(dst.low_fp(), src.low_fp(), type);
   } else if (dst.is_gp()) {
     Move(dst.gp(), src.gp(), type);
   } else {

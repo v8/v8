@@ -327,6 +327,36 @@ inline void Load(LiftoffAssembler* assm, LiftoffRegister dst, MemOperand src,
   }
 }
 
+constexpr int MaskFromNeonDataType(NeonDataType dt) {
+  switch (dt) {
+    case NeonS8:
+    case NeonU8:
+      return 7;
+    case NeonS16:
+    case NeonU16:
+      return 15;
+    case NeonS32:
+    case NeonU32:
+      return 31;
+    case NeonS64:
+    case NeonU64:
+      return 63;
+  }
+}
+
+template <NeonDataType dt, NeonSize sz>
+inline void EmitSimdShl(LiftoffAssembler* assm, LiftoffRegister dst,
+                        LiftoffRegister lhs, LiftoffRegister rhs) {
+  constexpr int mask = MaskFromNeonDataType(dt);
+  UseScratchRegisterScope temps(assm);
+  QwNeonRegister tmp = temps.AcquireQ();
+  Register shift = temps.Acquire();
+  assm->and_(shift, rhs.gp(), Operand(mask));
+  assm->vdup(sz, tmp, shift);
+  assm->vshl(dt, liftoff::GetSimd128Register(dst),
+             liftoff::GetSimd128Register(lhs), tmp);
+}
+
 }  // namespace liftoff
 
 int LiftoffAssembler::PrepareStackFrame() {
@@ -2268,12 +2298,13 @@ void LiftoffAssembler::emit_i64x2_neg(LiftoffRegister dst,
 
 void LiftoffAssembler::emit_i64x2_shl(LiftoffRegister dst, LiftoffRegister lhs,
                                       LiftoffRegister rhs) {
-  bailout(kSimd, "i64x2_shl");
+  liftoff::EmitSimdShl<NeonS64, Neon32>(this, dst, lhs, rhs);
 }
 
 void LiftoffAssembler::emit_i64x2_shli(LiftoffRegister dst, LiftoffRegister lhs,
                                        int32_t rhs) {
-  bailout(kSimd, "i64x2_shli");
+  vshl(NeonS64, liftoff::GetSimd128Register(dst),
+       liftoff::GetSimd128Register(lhs), rhs & 63);
 }
 
 void LiftoffAssembler::emit_i64x2_add(LiftoffRegister dst, LiftoffRegister lhs,
@@ -2360,12 +2391,13 @@ void LiftoffAssembler::emit_i32x4_neg(LiftoffRegister dst,
 
 void LiftoffAssembler::emit_i32x4_shl(LiftoffRegister dst, LiftoffRegister lhs,
                                       LiftoffRegister rhs) {
-  bailout(kSimd, "i32x4_shl");
+  liftoff::EmitSimdShl<NeonS32, Neon32>(this, dst, lhs, rhs);
 }
 
 void LiftoffAssembler::emit_i32x4_shli(LiftoffRegister dst, LiftoffRegister lhs,
                                        int32_t rhs) {
-  bailout(kSimd, "i32x4_shli");
+  vshl(NeonS32, liftoff::GetSimd128Register(dst),
+       liftoff::GetSimd128Register(lhs), rhs & 31);
 }
 
 void LiftoffAssembler::emit_i32x4_add(LiftoffRegister dst, LiftoffRegister lhs,
@@ -2427,12 +2459,13 @@ void LiftoffAssembler::emit_i16x8_neg(LiftoffRegister dst,
 
 void LiftoffAssembler::emit_i16x8_shl(LiftoffRegister dst, LiftoffRegister lhs,
                                       LiftoffRegister rhs) {
-  bailout(kSimd, "i16x8_shl");
+  liftoff::EmitSimdShl<NeonS16, Neon16>(this, dst, lhs, rhs);
 }
 
 void LiftoffAssembler::emit_i16x8_shli(LiftoffRegister dst, LiftoffRegister lhs,
                                        int32_t rhs) {
-  bailout(kSimd, "i16x8_shli");
+  vshl(NeonS16, liftoff::GetSimd128Register(dst),
+       liftoff::GetSimd128Register(lhs), rhs & 15);
 }
 
 void LiftoffAssembler::emit_i16x8_add(LiftoffRegister dst, LiftoffRegister lhs,
@@ -2566,12 +2599,13 @@ void LiftoffAssembler::emit_i8x16_neg(LiftoffRegister dst,
 
 void LiftoffAssembler::emit_i8x16_shl(LiftoffRegister dst, LiftoffRegister lhs,
                                       LiftoffRegister rhs) {
-  bailout(kSimd, "i8x16_shl");
+  liftoff::EmitSimdShl<NeonS8, Neon8>(this, dst, lhs, rhs);
 }
 
 void LiftoffAssembler::emit_i8x16_shli(LiftoffRegister dst, LiftoffRegister lhs,
                                        int32_t rhs) {
-  bailout(kSimd, "i8x16_shli");
+  vshl(NeonS8, liftoff::GetSimd128Register(dst),
+       liftoff::GetSimd128Register(lhs), rhs & 7);
 }
 
 void LiftoffAssembler::emit_i8x16_add(LiftoffRegister dst, LiftoffRegister lhs,
