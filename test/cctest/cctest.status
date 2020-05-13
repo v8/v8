@@ -412,6 +412,8 @@
   'test-run-machops/RunTruncateFloat64ToWord32P': [SKIP],
   'test-run-machops/RunUint32DivP': [SKIP],
   'test-run-machops/RunUint32MulHighP': [SKIP],
+
+  'test-c-wasm-entry/TestCWasmEntryArgPassing_int64_double': [SKIP],
 }],
 
 ##############################################################################
