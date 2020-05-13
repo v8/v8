@@ -16,7 +16,10 @@ namespace internal {
 
 namespace {
 
-class GCed : public GarbageCollected<GCed> {};
+class GCed : public GarbageCollected<GCed> {
+ public:
+  void Trace(Visitor*) const {}
+};
 class NotGCed {};
 class Mixin : public GarbageCollectedMixin {};
 class GCedWithMixin : public GarbageCollected<GCedWithMixin>, public Mixin {

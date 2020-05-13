@@ -48,18 +48,26 @@ class TestWithHeapWithCustomSpaces : public testing::TestWithPlatform {
   std::unique_ptr<cppgc::Heap> heap_;
 };
 
-class RegularGCed final : public GarbageCollected<RegularGCed> {};
+class RegularGCed final : public GarbageCollected<RegularGCed> {
+ public:
+  void Trace(Visitor*) const {}
+};
 
 class CustomGCed1 final : public GarbageCollected<CustomGCed1> {
  public:
   ~CustomGCed1() { g_destructor_callcount++; }
+  void Trace(Visitor*) const {}
 };
 class CustomGCed2 final : public GarbageCollected<CustomGCed2> {
  public:
   ~CustomGCed2() { g_destructor_callcount++; }
+  void Trace(Visitor*) const {}
 };
 
-class CustomGCedBase : public GarbageCollected<CustomGCedBase> {};
+class CustomGCedBase : public GarbageCollected<CustomGCedBase> {
+ public:
+  void Trace(Visitor*) const {}
+};
 class CustomGCedFinal1 final : public CustomGCedBase {
  public:
   ~CustomGCedFinal1() { g_destructor_callcount++; }

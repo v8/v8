@@ -36,6 +36,8 @@ class Foo : public GarbageCollected<Foo> {
 
   Foo() { destructor_callcount = 0; }
   ~Foo() { destructor_callcount++; }
+
+  void Trace(cppgc::Visitor*) const {}
 };
 
 size_t Foo::destructor_callcount;
@@ -43,7 +45,7 @@ size_t Foo::destructor_callcount;
 template <size_t Size>
 class GCed : public GarbageCollected<Foo> {
  public:
-  void Visit(cppgc::Visitor*) {}
+  void Trace(cppgc::Visitor*) const {}
   char buf[Size];
 };
 

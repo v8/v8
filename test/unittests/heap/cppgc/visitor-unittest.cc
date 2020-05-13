@@ -202,7 +202,7 @@ class GCedWithCustomWeakCallback final
     WeakCallbackDispatcher::Call(broker, this);
   }
 
-  void Trace(cppgc::Visitor* visitor) {
+  void Trace(cppgc::Visitor* visitor) const {
     visitor->RegisterWeakCallbackMethod<
         GCedWithCustomWeakCallback,
         &GCedWithCustomWeakCallback::CustomWeakCallbackMethod>(this);

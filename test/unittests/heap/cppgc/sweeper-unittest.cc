@@ -211,6 +211,7 @@ class GCInDestructor final : public GarbageCollected<GCInDestructor> {
     // well.
     heap_->CollectGarbage(internal::Heap::GCConfig::Default());
   }
+  void Trace(Visitor*) const {}
 
  private:
   Heap* heap_;

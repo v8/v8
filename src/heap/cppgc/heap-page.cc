@@ -61,8 +61,7 @@ const HeapObjectHeader* BasePage::ObjectHeaderFromInnerAddress(
   DCHECK_LT(address,
             reinterpret_cast<ConstAddress>(header) +
                 header->GetSize<HeapObjectHeader::AccessMode::kAtomic>());
-  DCHECK_NE(kFreeListGCInfoIndex,
-            header->GetGCInfoIndex<HeapObjectHeader::AccessMode::kAtomic>());
+  DCHECK_NE(kFreeListGCInfoIndex, header->GetGCInfoIndex());
   return header;
 }
 
