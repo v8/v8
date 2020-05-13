@@ -788,13 +788,11 @@ class V8_EXPORT_PRIVATE TurboAssembler : public TurboAssemblerBase {
   void JumpIfSmi(Register value, Label* smi_label, Register scratch = t3);
 
   void JumpIfEqual(Register a, int32_t b, Label* dest) {
-    li(kScratchReg, Operand(b));
-    Branch(dest, eq, a, Operand(kScratchReg));
+    Branch(dest, eq, a, Operand(b));
   }
 
   void JumpIfLessThan(Register a, int32_t b, Label* dest) {
-    li(kScratchReg, Operand(b));
-    Branch(dest, lt, a, Operand(kScratchReg));
+    Branch(dest, lt, a, Operand(b));
   }
 
   // Push a standard frame, consisting of ra, fp, context and JS function.

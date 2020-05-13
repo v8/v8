@@ -1577,20 +1577,20 @@ void Simulator::SoftwareInterrupt() {
 
   }
   // FIXME (RISCV): Need to handle ebreak instructions used by the debugger
-   else if (func == 1) {
-     UNIMPLEMENTED();
-  /*
-    if (IsWatchpoint(code)) {
-      PrintWatchpoint(code);
+  else if (func == 1) {
+    UNIMPLEMENTED();
+    /*
+      if (IsWatchpoint(code)) {
+        PrintWatchpoint(code);
+      } else {
+        IncreaseStopCounter(code);
+        HandleStop(code, instr_.instr());
+      }
     } else {
-      IncreaseStopCounter(code);
-      HandleStop(code, instr_.instr());
-    }
-  } else {
-    // All remaining break_ codes, and all traps are handled here.
-    RiscvDebugger dbg(this);
-    dbg.Debug();
-  */
+      // All remaining break_ codes, and all traps are handled here.
+      RiscvDebugger dbg(this);
+      dbg.Debug();
+    */
   }
 }
 
@@ -2259,24 +2259,15 @@ void Simulator::DecodeRVRFPType() {
     case RO_FSGNJ_S: {  // RO_FSGNJN_S  RO_FSQNJX_S
       switch (instr_.Funct3Value()) {
         case 0b000: {  // RO_FSGNJ_S
-          auto fn = [](float frs1, float frs2) {
-            return fsgnj32(frs1, frs2, false, false);
-          };
-          set_frd(CanonicalizeFPUOp2<float>(fn));
+          set_frd(fsgnj32(frs1(), frs2(), false, false));
           break;
         }
         case 0b001: {  // RO_FSGNJN_S
-          auto fn = [](float frs1, float frs2) {
-            return fsgnj32(frs1, frs2, true, false);
-          };
-          set_frd(CanonicalizeFPUOp2<float>(fn));
+          set_frd(fsgnj32(frs1(), frs2(), true, false));
           break;
         }
         case 0b010: {  // RO_FSQNJX_S
-          auto fn = [](float frs1, float frs2) {
-            return fsgnj32(frs1, frs2, false, true);
-          };
-          set_frd(CanonicalizeFPUOp2<float>(fn));
+          set_frd(fsgnj32(frs1(), frs2(), false, true));
           break;
         }
         default: {
@@ -2443,24 +2434,15 @@ void Simulator::DecodeRVRFPType() {
     case RO_FSGNJ_D: {  // RO_FSGNJN_D RO_FSQNJX_D
       switch (instr_.Funct3Value()) {
         case 0b000: {  // RO_FSGNJ_D
-          auto fn = [](double drs1, double drs2) {
-            return fsgnj64(drs1, drs2, false, false);
-          };
-          set_drd(CanonicalizeFPUOp2<double>(fn));
+          set_drd(fsgnj64(drs1(), drs2(), false, false));
           break;
         }
         case 0b001: {  // RO_FSGNJN_D
-          auto fn = [](double drs1, double drs2) {
-            return fsgnj64(drs1, drs2, true, false);
-          };
-          set_drd(CanonicalizeFPUOp2<double>(fn));
+          set_drd(fsgnj64(drs1(), drs2(), true, false));
           break;
         }
         case 0b010: {  // RO_FSQNJX_D
-          auto fn = [](double drs1, double drs2) {
-            return fsgnj64(drs1, drs2, false, true);
-          };
-          set_drd(CanonicalizeFPUOp2<double>(fn));
+          set_drd(fsgnj64(drs1(), drs2(), false, true));
           break;
         }
         default: {
