@@ -35,7 +35,7 @@ class Visitor {
 
   template <typename T>
   void Trace(const WeakMember<T>& weak_member) {
-    static_assert(sizeof(T), "T must be fully defined");
+    static_assert(sizeof(T), "Pointee type must be fully defined.");
     static_assert(internal::IsGarbageCollectedType<T>::value,
                   "T must be GarabgeCollected or GarbageCollectedMixin type");
 
@@ -81,6 +81,18 @@ class Visitor {
                   &HandleWeak<WeakPersistent>, &p);
   }
 
+  template <typename T>
+  void Trace(const T& object) {
+#if V8_ENABLE_CHECKS
+    // This object is embedded in potentially multiple nested objects. The
+    // outermost object must not be in construction as such objects are (a) not
+    // processed immediately, and (b) only processed conservatively if not
+    // otherwise possible.
+    CheckObjectNotInConstruction(&object);
+#endif  // V8_ENABLE_CHECKS
+    TraceTrait<T>::Trace(this, &object);
+  }
+
   template <typename T, void (T::*method)(const LivenessBroker&)>
   void RegisterWeakCallbackMethod(const T* obj) {
     RegisterWeakCallback(&WeakCallbackMethodDelegate<T, method>, obj);
@@ -121,7 +133,7 @@ class Visitor {
 
   template <typename T>
   void Trace(const T* t) {
-    static_assert(sizeof(T), "T must be fully defined");
+    static_assert(sizeof(T), "Pointee type must be fully defined.");
     static_assert(internal::IsGarbageCollectedType<T>::value,
                   "T must be GarabgeCollected or GarbageCollectedMixin type");
     if (!t) {
@@ -129,6 +141,10 @@ class Visitor {
     }
     Visit(t, TraceTrait<T>::GetTraceDescriptor(t));
   }
+
+#if V8_ENABLE_CHECKS
+  V8_EXPORT void CheckObjectNotInConstruction(const void* address);
+#endif  // V8_ENABLE_CHECKS
 
   friend class internal::VisitorBase;
 };

@@ -228,5 +228,34 @@ TEST_F(VisitorTest, DispatchRegisterWeakCallbackMethod) {
   EXPECT_EQ(1u, WeakCallbackDispatcher::callback_callcount);
 }
 
+namespace {
+
+class Composite final {
+ public:
+  static size_t callback_callcount;
+  Composite() { callback_callcount = 0; }
+  void Trace(Visitor* visitor) const { callback_callcount++; }
+};
+
+size_t Composite::callback_callcount;
+
+class GCedWithComposite final : public GarbageCollected<GCedWithComposite> {
+ public:
+  void Trace(Visitor* visitor) const { visitor->Trace(composite); }
+
+  Composite composite;
+};
+
+}  // namespace
+
+TEST_F(VisitorTest, DispatchToCompositeObject) {
+  Member<GCedWithComposite> ref =
+      MakeGarbageCollected<GCedWithComposite>(GetHeap());
+  DispatchingVisitor visitor(ref, ref);
+  EXPECT_EQ(0u, Composite::callback_callcount);
+  visitor.Trace(ref);
+  EXPECT_EQ(1u, Composite::callback_callcount);
+}
+
 }  // namespace internal
 }  // namespace cppgc
