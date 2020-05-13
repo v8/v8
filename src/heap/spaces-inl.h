@@ -123,19 +123,19 @@ void Space::MoveExternalBackingStoreBytes(ExternalBackingStoreType type,
 // -----------------------------------------------------------------------------
 // SemiSpace
 
-bool SemiSpace::Contains(HeapObject o) {
+bool SemiSpace::Contains(HeapObject o) const {
   MemoryChunk* memory_chunk = MemoryChunk::FromHeapObject(o);
   if (memory_chunk->IsLargePage()) return false;
   return id_ == kToSpace ? memory_chunk->IsToPage()
                          : memory_chunk->IsFromPage();
 }
 
-bool SemiSpace::Contains(Object o) {
+bool SemiSpace::Contains(Object o) const {
   return o.IsHeapObject() && Contains(HeapObject::cast(o));
 }
 
-bool SemiSpace::ContainsSlow(Address a) {
-  for (Page* p : *this) {
+bool SemiSpace::ContainsSlow(Address a) const {
+  for (const Page* p : *this) {
     if (p == MemoryChunk::FromAddress(a)) return true;
   }
   return false;
@@ -144,33 +144,35 @@ bool SemiSpace::ContainsSlow(Address a) {
 // --------------------------------------------------------------------------
 // NewSpace
 
-bool NewSpace::Contains(Object o) {
+bool NewSpace::Contains(Object o) const {
   return o.IsHeapObject() && Contains(HeapObject::cast(o));
 }
 
-bool NewSpace::Contains(HeapObject o) {
+bool NewSpace::Contains(HeapObject o) const {
   return MemoryChunk::FromHeapObject(o)->InNewSpace();
 }
 
-bool NewSpace::ContainsSlow(Address a) {
+bool NewSpace::ContainsSlow(Address a) const {
   return from_space_.ContainsSlow(a) || to_space_.ContainsSlow(a);
 }
 
-bool NewSpace::ToSpaceContainsSlow(Address a) {
+bool NewSpace::ToSpaceContainsSlow(Address a) const {
   return to_space_.ContainsSlow(a);
 }
 
-bool NewSpace::ToSpaceContains(Object o) { return to_space_.Contains(o); }
-bool NewSpace::FromSpaceContains(Object o) { return from_space_.Contains(o); }
+bool NewSpace::ToSpaceContains(Object o) const { return to_space_.Contains(o); }
+bool NewSpace::FromSpaceContains(Object o) const {
+  return from_space_.Contains(o);
+}
 
-bool PagedSpace::Contains(Address addr) {
+bool PagedSpace::Contains(Address addr) const {
   if (V8_ENABLE_THIRD_PARTY_HEAP_BOOL) {
     return true;
   }
   return Page::FromAddress(addr)->owner() == this;
 }
 
-bool PagedSpace::Contains(Object o) {
+bool PagedSpace::Contains(Object o) const {
   if (!o.IsHeapObject()) return false;
   return Page::FromAddress(o.ptr())->owner() == this;
 }

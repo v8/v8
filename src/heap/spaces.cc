@@ -1628,9 +1628,9 @@ size_t PagedSpace::CommittedPhysicalMemory() {
   return size;
 }
 
-bool PagedSpace::ContainsSlow(Address addr) {
+bool PagedSpace::ContainsSlow(Address addr) const {
   Page* p = Page::FromAddress(addr);
-  for (Page* page : *this) {
+  for (const Page* page : *this) {
     if (page == p) return true;
   }
   return false;

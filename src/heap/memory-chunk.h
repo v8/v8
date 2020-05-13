@@ -353,6 +353,7 @@ class MemoryChunk : public BasicMemoryChunk {
   }
 
   heap::ListNode<MemoryChunk>& list_node() { return list_node_; }
+  const heap::ListNode<MemoryChunk>& list_node() const { return list_node_; }
 
   CodeObjectRegistry* GetCodeObjectRegistry() { return code_object_registry_; }
 

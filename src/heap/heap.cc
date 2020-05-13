@@ -415,7 +415,7 @@ bool Heap::CanExpandOldGeneration(size_t size) {
   return memory_allocator()->Size() + size <= MaxReserved();
 }
 
-bool Heap::HasBeenSetUp() {
+bool Heap::HasBeenSetUp() const {
   // We will always have a new space when the heap is set up.
   return new_space_ != nullptr;
 }
@@ -4079,7 +4079,7 @@ const char* Heap::GarbageCollectionReasonToString(
   UNREACHABLE();
 }
 
-bool Heap::Contains(HeapObject value) {
+bool Heap::Contains(HeapObject value) const {
   if (V8_ENABLE_THIRD_PARTY_HEAP_BOOL) {
     return true;
   }
@@ -4096,7 +4096,7 @@ bool Heap::Contains(HeapObject value) {
           new_lo_space_->Contains(value));
 }
 
-bool Heap::InSpace(HeapObject value, AllocationSpace space) {
+bool Heap::InSpace(HeapObject value, AllocationSpace space) const {
   if (memory_allocator()->IsOutsideAllocatedSpace(value.address())) {
     return false;
   }
@@ -4123,7 +4123,7 @@ bool Heap::InSpace(HeapObject value, AllocationSpace space) {
   UNREACHABLE();
 }
 
-bool Heap::InSpaceSlow(Address addr, AllocationSpace space) {
+bool Heap::InSpaceSlow(Address addr, AllocationSpace space) const {
   if (memory_allocator()->IsOutsideAllocatedSpace(addr)) {
     return false;
   }

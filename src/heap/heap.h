@@ -749,7 +749,7 @@ class Heap {
   void TearDown();
 
   // Returns whether SetUp has been called.
-  bool HasBeenSetUp();
+  bool HasBeenSetUp() const;
 
   // ===========================================================================
   // Getters for spaces. =======================================================
@@ -779,6 +779,9 @@ class Heap {
   GCTracer* tracer() { return tracer_.get(); }
 
   MemoryAllocator* memory_allocator() { return memory_allocator_.get(); }
+  const MemoryAllocator* memory_allocator() const {
+    return memory_allocator_.get();
+  }
 
   inline Isolate* isolate();
 
@@ -1107,15 +1110,15 @@ class Heap {
   // Checks whether an address/object is in the non-read-only heap (including
   // auxiliary area and unused area). Use IsValidHeapObject if checking both
   // heaps is required.
-  V8_EXPORT_PRIVATE bool Contains(HeapObject value);
+  V8_EXPORT_PRIVATE bool Contains(HeapObject value) const;
 
   // Checks whether an address/object in a space.
   // Currently used by tests, serialization and heap verification only.
-  V8_EXPORT_PRIVATE bool InSpace(HeapObject value, AllocationSpace space);
+  V8_EXPORT_PRIVATE bool InSpace(HeapObject value, AllocationSpace space) const;
 
   // Slow methods that can be used for verification as they can also be used
   // with off-heap Addresses.
-  V8_EXPORT_PRIVATE bool InSpaceSlow(Address addr, AllocationSpace space);
+  V8_EXPORT_PRIVATE bool InSpaceSlow(Address addr, AllocationSpace space) const;
 
   static inline Heap* FromWritableHeapObject(HeapObject obj);
 

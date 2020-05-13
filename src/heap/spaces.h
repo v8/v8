@@ -499,6 +499,9 @@ class V8_EXPORT_PRIVATE Space : public Malloced {
   MemoryChunk* first_page() { return memory_chunk_list_.front(); }
   MemoryChunk* last_page() { return memory_chunk_list_.back(); }
 
+  const MemoryChunk* first_page() const { return memory_chunk_list_.front(); }
+  const MemoryChunk* last_page() const { return memory_chunk_list_.back(); }
+
   heap::List<MemoryChunk>& memory_chunk_list() { return memory_chunk_list_; }
 
   FreeList* free_list() { return free_list_.get(); }
@@ -608,6 +611,13 @@ class Page : public MemoryChunk {
 
   Page* next_page() { return static_cast<Page*>(list_node_.next()); }
   Page* prev_page() { return static_cast<Page*>(list_node_.prev()); }
+
+  const Page* next_page() const {
+    return static_cast<const Page*>(list_node_.next());
+  }
+  const Page* prev_page() const {
+    return static_cast<const Page*>(list_node_.prev());
+  }
 
   template <typename Callback>
   inline void ForAllFreeListCategories(Callback callback) {
@@ -848,20 +858,20 @@ class MemoryAllocator {
   void Free(MemoryChunk* chunk);
 
   // Returns allocated spaces in bytes.
-  size_t Size() { return size_; }
+  size_t Size() const { return size_; }
 
   // Returns allocated executable spaces in bytes.
-  size_t SizeExecutable() { return size_executable_; }
+  size_t SizeExecutable() const { return size_executable_; }
 
   // Returns the maximum available bytes of heaps.
-  size_t Available() {
+  size_t Available() const {
     const size_t size = Size();
     return capacity_ < size ? 0 : capacity_ - size;
   }
 
   // Returns an indication of whether a pointer is in a space that has
   // been allocated by this MemoryAllocator.
-  V8_INLINE bool IsOutsideAllocatedSpace(Address address) {
+  V8_INLINE bool IsOutsideAllocatedSpace(Address address) const {
     return address < lowest_ever_allocated_ ||
            address >= highest_ever_allocated_;
   }
@@ -1107,6 +1117,7 @@ class PageIteratorImpl
 };
 
 using PageIterator = PageIteratorImpl<Page>;
+using ConstPageIterator = PageIteratorImpl<const Page>;
 using LargePageIterator = PageIteratorImpl<LargePage>;
 
 class PageRange {
@@ -1815,6 +1826,7 @@ class V8_EXPORT_PRIVATE PagedSpace
     : NON_EXPORTED_BASE(public SpaceWithLinearArea) {
  public:
   using iterator = PageIterator;
+  using const_iterator = ConstPageIterator;
 
   static const size_t kCompactionMemoryWanted = 500 * KB;
 
@@ -1826,9 +1838,9 @@ class V8_EXPORT_PRIVATE PagedSpace
   ~PagedSpace() override { TearDown(); }
 
   // Checks whether an object/address is in this space.
-  inline bool Contains(Address a);
-  inline bool Contains(Object o);
-  bool ContainsSlow(Address addr);
+  inline bool Contains(Address a) const;
+  inline bool Contains(Object o) const;
+  bool ContainsSlow(Address addr) const;
 
   // Does the space need executable memory?
   Executability executable() { return executable_; }
@@ -2034,9 +2046,15 @@ class V8_EXPORT_PRIVATE PagedSpace
   inline size_t RelinkFreeListCategories(Page* page);
 
   Page* first_page() { return reinterpret_cast<Page*>(Space::first_page()); }
+  const Page* first_page() const {
+    return reinterpret_cast<const Page*>(Space::first_page());
+  }
 
   iterator begin() { return iterator(first_page()); }
   iterator end() { return iterator(nullptr); }
+
+  const_iterator begin() const { return const_iterator(first_page()); }
+  const_iterator end() const { return const_iterator(nullptr); }
 
   // Shrink immortal immovable pages of the space to be exactly the size needed
   // using the high water mark.
@@ -2158,6 +2176,7 @@ enum SemiSpaceId { kFromSpace = 0, kToSpace = 1 };
 class SemiSpace : public Space {
  public:
   using iterator = PageIterator;
+  using const_iterator = ConstPageIterator;
 
   static void Swap(SemiSpace* from, SemiSpace* to);
 
@@ -2172,9 +2191,9 @@ class SemiSpace : public Space {
         current_page_(nullptr),
         pages_used_(0) {}
 
-  inline bool Contains(HeapObject o);
-  inline bool Contains(Object o);
-  inline bool ContainsSlow(Address a);
+  inline bool Contains(HeapObject o) const;
+  inline bool Contains(Object o) const;
+  inline bool ContainsSlow(Address a) const;
 
   void SetUp(size_t initial_capacity, size_t maximum_capacity);
   void TearDown();
@@ -2263,8 +2282,18 @@ class SemiSpace : public Space {
   Page* first_page() { return reinterpret_cast<Page*>(Space::first_page()); }
   Page* last_page() { return reinterpret_cast<Page*>(Space::last_page()); }
 
+  const Page* first_page() const {
+    return reinterpret_cast<const Page*>(Space::first_page());
+  }
+  const Page* last_page() const {
+    return reinterpret_cast<const Page*>(Space::last_page());
+  }
+
   iterator begin() { return iterator(first_page()); }
   iterator end() { return iterator(nullptr); }
+
+  const_iterator begin() const { return const_iterator(first_page()); }
+  const_iterator end() const { return const_iterator(nullptr); }
 
   std::unique_ptr<ObjectIterator> GetObjectIterator(Heap* heap) override;
 
@@ -2348,15 +2377,16 @@ class V8_EXPORT_PRIVATE NewSpace
     : NON_EXPORTED_BASE(public SpaceWithLinearArea) {
  public:
   using iterator = PageIterator;
+  using const_iterator = ConstPageIterator;
 
   NewSpace(Heap* heap, v8::PageAllocator* page_allocator,
            size_t initial_semispace_capacity, size_t max_semispace_capacity);
 
   ~NewSpace() override { TearDown(); }
 
-  inline bool ContainsSlow(Address a);
-  inline bool Contains(Object o);
-  inline bool Contains(HeapObject o);
+  inline bool ContainsSlow(Address a) const;
+  inline bool Contains(Object o) const;
+  inline bool Contains(HeapObject o) const;
 
   // Tears down the space.  Heap memory was not allocated by the space, so it
   // is not deallocated here.
@@ -2530,9 +2560,9 @@ class V8_EXPORT_PRIVATE NewSpace
   // it in steps to guarantee that the observers are notified periodically.
   void UpdateInlineAllocationLimit(size_t size_in_bytes) override;
 
-  inline bool ToSpaceContainsSlow(Address a);
-  inline bool ToSpaceContains(Object o);
-  inline bool FromSpaceContains(Object o);
+  inline bool ToSpaceContainsSlow(Address a) const;
+  inline bool ToSpaceContains(Object o) const;
+  inline bool FromSpaceContains(Object o) const;
 
   // Try to switch the active semispace to a new, empty, page.
   // Returns false if this isn't possible or reasonable (i.e., there
@@ -2571,6 +2601,9 @@ class V8_EXPORT_PRIVATE NewSpace
 
   iterator begin() { return to_space_.begin(); }
   iterator end() { return to_space_.end(); }
+
+  const_iterator begin() const { return to_space_.begin(); }
+  const_iterator end() const { return to_space_.end(); }
 
   std::unique_ptr<ObjectIterator> GetObjectIterator(Heap* heap) override;
 
