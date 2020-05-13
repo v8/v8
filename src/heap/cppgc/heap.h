@@ -12,6 +12,7 @@
 #include "include/cppgc/internal/gc-info.h"
 #include "include/cppgc/internal/persistent-node.h"
 #include "include/cppgc/liveness-broker.h"
+#include "include/cppgc/macros.h"
 #include "src/base/page-allocator.h"
 #include "src/heap/cppgc/heap-object-header.h"
 #include "src/heap/cppgc/marker.h"

@@ -9,7 +9,6 @@
 #include "cppgc/internal/compiler-specific.h"
 #include "cppgc/internal/prefinalizer-handler.h"
 #include "cppgc/liveness-broker.h"
-#include "cppgc/macros.h"
 
 namespace cppgc {
 
@@ -47,7 +46,7 @@ class PrefinalizerRegistration final {
  private:                                                                   \
   CPPGC_NO_UNIQUE_ADDRESS internal::PrefinalizerRegistration<Class>         \
       prefinalizer_dummy_{this};                                            \
-  friend class internal::__thisIsHereToForceASemicolonAfterThisMacro
+  static_assert(true, "Force semicolon.")
 
 }  // namespace cppgc
 

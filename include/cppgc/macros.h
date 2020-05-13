@@ -7,10 +7,6 @@
 
 namespace cppgc {
 
-namespace internal {
-class __thisIsHereToForceASemicolonAfterThisMacro {};
-}  // namespace internal
-
 // Use if the object is only stack allocated.
 #define CPPGC_STACK_ALLOCATED()               \
  public:                                      \
@@ -19,7 +15,7 @@ class __thisIsHereToForceASemicolonAfterThisMacro {};
  private:                                     \
   void* operator new(size_t) = delete;        \
   void* operator new(size_t, void*) = delete; \
-  friend class internal::__thisIsHereToForceASemicolonAfterThisMacro
+  static_assert(true, "Force semicolon.")
 
 }  // namespace cppgc
 
