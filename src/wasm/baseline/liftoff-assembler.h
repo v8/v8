@@ -1221,19 +1221,19 @@ class LiftoffStackSlots {
   }
   void Add(const LiftoffAssembler::VarState& src) { slots_.emplace_back(src); }
 
+  void Reverse() { std::reverse(slots_.begin(), slots_.end()); }
+
   inline void Construct();
 
  private:
   struct Slot {
-    // Allow move construction.
-    Slot(Slot&&) V8_NOEXCEPT = default;
     Slot(const LiftoffAssembler::VarState& src, uint32_t src_offset,
          RegPairHalf half)
         : src_(src), src_offset_(src_offset), half_(half) {}
     explicit Slot(const LiftoffAssembler::VarState& src)
         : src_(src), half_(kLowWord) {}
 
-    const LiftoffAssembler::VarState src_;
+    LiftoffAssembler::VarState src_;
     uint32_t src_offset_ = 0;
     RegPairHalf half_;
   };

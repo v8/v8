@@ -705,21 +705,21 @@ void TestTableCopyCalls(ExecutionTier execution_tier, int table_dst,
   }
 }
 
-WASM_COMPILED_EXEC_TEST(TableCopyCallsFrom0To0) {
+WASM_COMPILED_EXEC_TEST(TableCopyCallsTo0From0) {
   TestTableCopyCalls(execution_tier, 0, 0);
 }
 
-WASM_COMPILED_EXEC_TEST(TableCopyCallsFrom3To0) {
+WASM_COMPILED_EXEC_TEST(TableCopyCallsTo3From0) {
   EXPERIMENTAL_FLAG_SCOPE(anyref);
   TestTableCopyCalls(execution_tier, 3, 0);
 }
 
-WASM_COMPILED_EXEC_TEST(TableCopyCallsFrom5To9) {
+WASM_COMPILED_EXEC_TEST(TableCopyCallsTo5From9) {
   EXPERIMENTAL_FLAG_SCOPE(anyref);
   TestTableCopyCalls(execution_tier, 5, 9);
 }
 
-WASM_COMPILED_EXEC_TEST(TableCopyCallsFrom6To6) {
+WASM_COMPILED_EXEC_TEST(TableCopyCallsTo6From6) {
   EXPERIMENTAL_FLAG_SCOPE(anyref);
   TestTableCopyCalls(execution_tier, 6, 6);
 }

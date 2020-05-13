@@ -724,6 +724,8 @@ void LiftoffAssembler::PrepareBuiltinCall(
   PrepareStackTransfers(sig, call_descriptor, params.begin(), &stack_slots,
                         &stack_transfers, &param_regs);
   // Create all the slots.
+  // Builtin stack parameters are pushed in reversed order.
+  stack_slots.Reverse();
   stack_slots.Construct();
   // Execute the stack transfers before filling the instance register.
   stack_transfers.Execute();
