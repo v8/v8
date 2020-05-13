@@ -4260,8 +4260,9 @@ void Genesis::InitializeGlobal_harmony_promise_any() {
       JSFunction::cast(
           isolate()->native_context()->get(Context::PROMISE_FUNCTION_INDEX)),
       isolate());
-  InstallFunctionWithBuiltinId(isolate_, promise_fun, "any",
-                               Builtins::kPromiseAny, 1, true);
+  Handle<JSFunction> promise_any = InstallFunctionWithBuiltinId(
+      isolate_, promise_fun, "any", Builtins::kPromiseAny, 1, true);
+  native_context()->set_promise_any(*promise_any);
 
   DCHECK(promise_fun->HasFastProperties());
 }

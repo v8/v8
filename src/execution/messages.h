@@ -86,7 +86,8 @@ class StackFrameBase {
   // Return 0-based Wasm function index. Returns -1 for non-Wasm frames.
   virtual int GetWasmFunctionIndex();
 
-  // Returns index for Promise.all() async frames, or -1 for other frames.
+  // Returns the index of the rejected promise in the Promise combinator input,
+  // or -1 if this frame is not a Promise combinator frame.
   virtual int GetPromiseIndex() const = 0;
 
   virtual bool IsNative() = 0;
@@ -94,6 +95,7 @@ class StackFrameBase {
   virtual bool IsEval();
   virtual bool IsAsync() const = 0;
   virtual bool IsPromiseAll() const = 0;
+  virtual bool IsPromiseAny() const = 0;
   virtual bool IsConstructor() = 0;
   virtual bool IsStrict() const = 0;
 
@@ -136,6 +138,7 @@ class JSStackFrame : public StackFrameBase {
   bool IsToplevel() override;
   bool IsAsync() const override { return is_async_; }
   bool IsPromiseAll() const override { return is_promise_all_; }
+  bool IsPromiseAny() const override { return is_promise_any_; }
   bool IsConstructor() override { return is_constructor_; }
   bool IsStrict() const override { return is_strict_; }
 
@@ -155,6 +158,7 @@ class JSStackFrame : public StackFrameBase {
   bool is_async_ : 1;
   bool is_constructor_ : 1;
   bool is_promise_all_ : 1;
+  bool is_promise_any_ : 1;
   bool is_strict_ : 1;
 
   friend class FrameArrayIterator;
@@ -186,6 +190,7 @@ class WasmStackFrame : public StackFrameBase {
   bool IsToplevel() override { return false; }
   bool IsAsync() const override { return false; }
   bool IsPromiseAll() const override { return false; }
+  bool IsPromiseAny() const override { return false; }
   bool IsConstructor() override { return false; }
   bool IsStrict() const override { return false; }
   bool IsInterpreted() const { return code_ == nullptr; }

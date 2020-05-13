@@ -588,21 +588,28 @@ class FrameArrayBuilder {
                                           offset, flags, parameters);
   }
 
-  void AppendPromiseAllFrame(Handle<Context> context, int offset) {
+  void AppendPromiseCombinatorFrame(Handle<JSFunction> element_function,
+                                    Handle<JSFunction> combinator,
+                                    FrameArray::Flag combinator_flag,
+                                    Handle<Context> context) {
     if (full()) return;
-    int flags = FrameArray::kIsAsync | FrameArray::kIsPromiseAll;
+    int flags = FrameArray::kIsAsync | combinator_flag;
 
     Handle<Context> native_context(context->native_context(), isolate_);
-    Handle<JSFunction> function(native_context->promise_all(), isolate_);
-    if (!IsVisibleInStackTrace(function)) return;
+    if (!IsVisibleInStackTrace(combinator)) return;
 
     Handle<Object> receiver(native_context->promise_function(), isolate_);
-    Handle<AbstractCode> code(AbstractCode::cast(function->code()), isolate_);
+    Handle<AbstractCode> code(AbstractCode::cast(combinator->code()), isolate_);
 
-    // TODO(mmarchini) save Promises list from Promise.all()
+    // TODO(mmarchini) save Promises list from the Promise combinator
     Handle<FixedArray> parameters = isolate_->factory()->empty_fixed_array();
 
-    elements_ = FrameArray::AppendJSFrame(elements_, receiver, function, code,
+    // We store the offset of the promise into the element function's
+    // hash field for element callbacks.
+    int const offset =
+        Smi::ToInt(Smi::cast(element_function->GetIdentityHash())) - 1;
+
+    elements_ = FrameArray::AppendJSFrame(elements_, receiver, combinator, code,
                                           offset, flags, parameters);
   }
 
@@ -861,17 +868,34 @@ void CaptureAsyncStackTrace(Isolate* isolate, Handle<JSPromise> promise,
       Handle<JSFunction> function(JSFunction::cast(reaction->fulfill_handler()),
                                   isolate);
       Handle<Context> context(function->context(), isolate);
-
-      // We store the offset of the promise into the {function}'s
-      // hash field for promise resolve element callbacks.
-      int const offset = Smi::ToInt(Smi::cast(function->GetIdentityHash())) - 1;
-      builder->AppendPromiseAllFrame(context, offset);
+      Handle<JSFunction> combinator(context->native_context().promise_all(),
+                                    isolate);
+      builder->AppendPromiseCombinatorFrame(function, combinator,
+                                            FrameArray::kIsPromiseAll, context);
 
       // Now peak into the Promise.all() resolve element context to
       // find the promise capability that's being resolved when all
       // the concurrent promises resolve.
       int const index =
           PromiseBuiltins::kPromiseAllResolveElementCapabilitySlot;
+      Handle<PromiseCapability> capability(
+          PromiseCapability::cast(context->get(index)), isolate);
+      if (!capability->promise().IsJSPromise()) return;
+      promise = handle(JSPromise::cast(capability->promise()), isolate);
+    } else if (IsBuiltinFunction(isolate, reaction->reject_handler(),
+                                 Builtins::kPromiseAnyRejectElementClosure)) {
+      Handle<JSFunction> function(JSFunction::cast(reaction->reject_handler()),
+                                  isolate);
+      Handle<Context> context(function->context(), isolate);
+      Handle<JSFunction> combinator(context->native_context().promise_any(),
+                                    isolate);
+      builder->AppendPromiseCombinatorFrame(function, combinator,
+                                            FrameArray::kIsPromiseAny, context);
+
+      // Now peak into the Promise.any() reject element context to
+      // find the promise capability that's being resolved when any of
+      // the concurrent promises resolve.
+      int const index = PromiseBuiltins::kPromiseAnyRejectElementCapabilitySlot;
       Handle<PromiseCapability> capability(
           PromiseCapability::cast(context->get(index)), isolate);
       if (!capability->promise().IsJSPromise()) return;

@@ -28,9 +28,10 @@ SMI_ACCESSORS(StackFrameInfo, line_number, kLineNumberOffset)
 SMI_ACCESSORS(StackFrameInfo, column_number, kColumnNumberOffset)
 SMI_ACCESSORS(StackFrameInfo, script_id, kScriptIdOffset)
 SMI_ACCESSORS(StackFrameInfo, wasm_function_index, kWasmFunctionIndexOffset)
-SMI_ACCESSORS(StackFrameInfo, promise_all_index, kPromiseAllIndexOffset)
-SMI_ACCESSORS_CHECKED(StackFrameInfo, function_offset, kPromiseAllIndexOffset,
-                      is_wasm())
+SMI_ACCESSORS(StackFrameInfo, promise_combinator_index,
+              kPromiseCombinatorIndexOffset)
+SMI_ACCESSORS_CHECKED(StackFrameInfo, function_offset,
+                      kPromiseCombinatorIndexOffset, is_wasm())
 ACCESSORS(StackFrameInfo, script_name, Object, kScriptNameOffset)
 ACCESSORS(StackFrameInfo, script_name_or_source_url, Object,
           kScriptNameOrSourceUrlOffset)
@@ -49,6 +50,7 @@ BOOL_ACCESSORS(StackFrameInfo, flag, is_user_java_script, kIsUserJavaScriptBit)
 BOOL_ACCESSORS(StackFrameInfo, flag, is_toplevel, kIsToplevelBit)
 BOOL_ACCESSORS(StackFrameInfo, flag, is_async, kIsAsyncBit)
 BOOL_ACCESSORS(StackFrameInfo, flag, is_promise_all, kIsPromiseAllBit)
+BOOL_ACCESSORS(StackFrameInfo, flag, is_promise_any, kIsPromiseAnyBit)
 
 TQ_OBJECT_CONSTRUCTORS_IMPL(StackTraceFrame)
 NEVER_READ_ONLY_SPACE_IMPL(StackTraceFrame)

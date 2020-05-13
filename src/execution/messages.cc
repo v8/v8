@@ -351,6 +351,7 @@ void JSStackFrame::FromFrameArray(Isolate* isolate, Handle<FrameArray> array,
   is_strict_ = (flags & FrameArray::kIsStrict) != 0;
   is_async_ = (flags & FrameArray::kIsAsync) != 0;
   is_promise_all_ = (flags & FrameArray::kIsPromiseAll) != 0;
+  is_promise_any_ = (flags & FrameArray::kIsPromiseAny) != 0;
 }
 
 JSStackFrame::JSStackFrame(Isolate* isolate, Handle<Object> receiver,
@@ -514,7 +515,7 @@ int JSStackFrame::GetColumnNumber() {
 }
 
 int JSStackFrame::GetPromiseIndex() const {
-  return is_promise_all_ ? offset_ : kNone;
+  return (is_promise_all_ || is_promise_any_) ? offset_ : kNone;
 }
 
 bool JSStackFrame::IsNative() {

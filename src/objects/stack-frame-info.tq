@@ -5,7 +5,7 @@
 extern class StackFrameInfo extends Struct {
   line_number: Smi;
   column_number: Smi;
-  promise_all_index: Smi;
+  promise_combinator_index: Smi;
   script_id: Smi;
   wasm_function_index: Smi;
   script_name: String|Null|Undefined;

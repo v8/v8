@@ -3159,7 +3159,8 @@ Handle<StackFrameInfo> Factory::NewStackFrameInfo(
   info->set_is_toplevel(is_toplevel);
   info->set_is_async(frame->IsAsync());
   info->set_is_promise_all(frame->IsPromiseAll());
-  info->set_promise_all_index(frame->GetPromiseIndex());
+  info->set_is_promise_any(frame->IsPromiseAny());
+  info->set_promise_combinator_index(frame->GetPromiseIndex());
 
   return info;
 }

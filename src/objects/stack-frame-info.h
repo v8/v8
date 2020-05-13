@@ -23,8 +23,8 @@ class StackFrameInfo : public Struct {
   DECL_INT_ACCESSORS(column_number)
   DECL_INT_ACCESSORS(script_id)
   DECL_INT_ACCESSORS(wasm_function_index)
-  DECL_INT_ACCESSORS(promise_all_index)
-  // Wasm frames only: function_offset instead of promise_all_index.
+  DECL_INT_ACCESSORS(promise_combinator_index)
+  // Wasm frames only: function_offset instead of promise_combinator_index.
   DECL_INT_ACCESSORS(function_offset)
   DECL_ACCESSORS(script_name, Object)
   DECL_ACCESSORS(script_name_or_source_url, Object)
@@ -42,6 +42,7 @@ class StackFrameInfo : public Struct {
   DECL_BOOLEAN_ACCESSORS(is_toplevel)
   DECL_BOOLEAN_ACCESSORS(is_async)
   DECL_BOOLEAN_ACCESSORS(is_promise_all)
+  DECL_BOOLEAN_ACCESSORS(is_promise_any)
   DECL_INT_ACCESSORS(flag)
 
   DECL_CAST(StackFrameInfo)
@@ -63,6 +64,7 @@ class StackFrameInfo : public Struct {
   static const int kIsToplevelBit = 5;
   static const int kIsAsyncBit = 6;
   static const int kIsPromiseAllBit = 7;
+  static const int kIsPromiseAnyBit = 8;
 
   OBJECT_CONSTRUCTORS(StackFrameInfo, Struct);
 };
@@ -85,7 +87,7 @@ class StackTraceFrame
   static int GetColumnNumber(Handle<StackTraceFrame> frame);
   static int GetOneBasedColumnNumber(Handle<StackTraceFrame> frame);
   static int GetScriptId(Handle<StackTraceFrame> frame);
-  static int GetPromiseAllIndex(Handle<StackTraceFrame> frame);
+  static int GetPromiseCombinatorIndex(Handle<StackTraceFrame> frame);
   static int GetFunctionOffset(Handle<StackTraceFrame> frame);
   static int GetWasmFunctionIndex(Handle<StackTraceFrame> frame);
 
@@ -107,6 +109,7 @@ class StackTraceFrame
   static bool IsToplevel(Handle<StackTraceFrame> frame);
   static bool IsAsync(Handle<StackTraceFrame> frame);
   static bool IsPromiseAll(Handle<StackTraceFrame> frame);
+  static bool IsPromiseAny(Handle<StackTraceFrame> frame);
 
  private:
   static Handle<StackFrameInfo> GetFrameInfo(Handle<StackTraceFrame> frame);
