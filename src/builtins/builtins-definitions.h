@@ -842,12 +842,8 @@ namespace internal {
   TFC(WasmFloat32ToNumber, WasmFloat32ToNumber)                                \
   TFC(WasmFloat64ToNumber, WasmFloat64ToNumber)                                \
   TFS(WasmAllocateArray, kMapIndex, kLength, kElementSize)                     \
-  TFS(WasmAllocateStruct, kMapIndex)                                           \
-  TFC(WasmAtomicNotify, WasmAtomicNotify)                                      \
   TFC(WasmI32AtomicWait32, WasmI32AtomicWait32)                                \
-  TFC(WasmI32AtomicWait64, WasmI32AtomicWait64)                                \
   TFC(WasmI64AtomicWait32, WasmI64AtomicWait32)                                \
-  TFC(WasmI64AtomicWait64, WasmI64AtomicWait64)                                \
   TFC(WasmTableInit, WasmTableInit)                                            \
   TFC(WasmTableCopy, WasmTableCopy)                                            \
                                                                                \

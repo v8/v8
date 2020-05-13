@@ -95,13 +95,10 @@ namespace internal {
   V(Typeof)                           \
   V(UnaryOp_WithFeedback)             \
   V(Void)                             \
-  V(WasmAtomicNotify)                 \
   V(WasmFloat32ToNumber)              \
   V(WasmFloat64ToNumber)              \
   V(WasmI32AtomicWait32)              \
-  V(WasmI32AtomicWait64)              \
   V(WasmI64AtomicWait32)              \
-  V(WasmI64AtomicWait64)              \
   V(WasmTableInit)                    \
   V(WasmTableCopy)                    \
   BUILTIN_LIST_TFS(V)                 \
@@ -1414,15 +1411,6 @@ class V8_EXPORT_PRIVATE BigIntToI32PairDescriptor final
   DECLARE_DESCRIPTOR(BigIntToI32PairDescriptor, CallInterfaceDescriptor)
 };
 
-class WasmAtomicNotifyDescriptor final : public CallInterfaceDescriptor {
- public:
-  DEFINE_PARAMETERS_NO_CONTEXT(kAddress, kCount)
-  DEFINE_RESULT_AND_PARAMETER_TYPES(MachineType::Uint32(),  // result 1
-                                    MachineType::Uint32(),  // kAddress
-                                    MachineType::Uint32())  // kCount
-  DECLARE_DESCRIPTOR(WasmAtomicNotifyDescriptor, CallInterfaceDescriptor)
-};
-
 class WasmI32AtomicWait32Descriptor final : public CallInterfaceDescriptor {
  public:
   DEFINE_PARAMETERS_NO_CONTEXT(kAddress, kExpectedValue, kTimeoutLow,
@@ -1459,26 +1447,6 @@ class WasmI64AtomicWait32Descriptor final : public CallInterfaceDescriptor {
   static constexpr int kStackArgumentsCount = kPassLastArgOnStack ? 1 : 0;
 
   DECLARE_DESCRIPTOR(WasmI64AtomicWait32Descriptor, CallInterfaceDescriptor)
-};
-
-class WasmI32AtomicWait64Descriptor final : public CallInterfaceDescriptor {
- public:
-  DEFINE_PARAMETERS_NO_CONTEXT(kAddress, kExpectedValue, kTimeout)
-  DEFINE_RESULT_AND_PARAMETER_TYPES(MachineType::Uint32(),  // result 1
-                                    MachineType::Uint32(),  // kAddress
-                                    MachineType::Int32(),   // kExpectedValue
-                                    MachineType::Uint64())  // kTimeout
-  DECLARE_DESCRIPTOR(WasmI32AtomicWait64Descriptor, CallInterfaceDescriptor)
-};
-
-class WasmI64AtomicWait64Descriptor final : public CallInterfaceDescriptor {
- public:
-  DEFINE_PARAMETERS_NO_CONTEXT(kAddress, kExpectedValue, kTimeout)
-  DEFINE_RESULT_AND_PARAMETER_TYPES(MachineType::Uint32(),  // result 1
-                                    MachineType::Uint32(),  // kAddress
-                                    MachineType::Uint64(),  // kExpectedValue
-                                    MachineType::Uint64())  // kTimeout
-  DECLARE_DESCRIPTOR(WasmI64AtomicWait64Descriptor, CallInterfaceDescriptor)
 };
 
 class CloneObjectWithVectorDescriptor final : public CallInterfaceDescriptor {

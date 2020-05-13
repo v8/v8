@@ -17,6 +17,17 @@ extern runtime ReThrow(Context, Object): JSAny;
 extern runtime WasmStackGuard(Context): JSAny;
 extern runtime ThrowWasmStackOverflow(Context): JSAny;
 extern runtime WasmTraceMemory(Context, Smi): JSAny;
+extern runtime WasmAtomicNotify(
+    Context, WasmInstanceObject, Number, Number): Smi;
+extern runtime WasmI32AtomicWait(
+    Context, WasmInstanceObject, Number, Number, BigInt): Smi;
+extern runtime WasmI64AtomicWait(
+    Context, WasmInstanceObject, Number, BigInt, BigInt): Smi;
+}
+
+namespace unsafe {
+extern macro TimesTaggedSize(intptr): intptr;
+extern macro Allocate(intptr): HeapObject;
 }
 
 namespace wasm {
@@ -32,6 +43,8 @@ extern macro WasmBuiltinsAssembler::LoadContextFromInstance(WasmInstanceObject):
 extern macro WasmBuiltinsAssembler::LoadTablesFromInstance(WasmInstanceObject):
     FixedArray;
 extern macro WasmBuiltinsAssembler::LoadExternalFunctionsFromInstance(
+    WasmInstanceObject): FixedArray;
+extern macro WasmBuiltinsAssembler::LoadManagedObjectMapsFromInstance(
     WasmInstanceObject): FixedArray;
 
 macro LoadContextFromFrame(): NativeContext {
@@ -164,6 +177,64 @@ builtin WasmTraceMemory(info: Smi): JSAny {
 builtin WasmAllocateJSArray(implicit context: Context)(size: Smi): JSArray {
   const map: Map = GetFastPackedElementsJSArrayMap();
   return AllocateJSArray(ElementsKind::PACKED_ELEMENTS, map, size, size);
+}
+
+builtin WasmAllocateStruct(implicit context: Context)(mapIndex: Smi):
+    HeapObject {
+  const instance: WasmInstanceObject = LoadInstanceFromFrame();
+  const maps: FixedArray = LoadManagedObjectMapsFromInstance(instance);
+  const map: Map = %RawDownCast<Map>(LoadFixedArrayElement(maps, mapIndex));
+  const instanceSize: intptr =
+      unsafe::TimesTaggedSize(Convert<intptr>(map.instance_size_in_words));
+  const result: HeapObject = unsafe::Allocate(instanceSize);
+  * UnsafeConstCast(& result.map) = map;
+  return result;
+}
+
+builtin WasmInt32ToNumber(value: int32): Number {
+  return ChangeInt32ToTagged(value);
+}
+
+builtin WasmUint32ToNumber(value: uint32): Number {
+  return ChangeUint32ToTagged(value);
+}
+
+extern builtin I64ToBigInt(intptr): BigInt;
+
+builtin WasmAtomicNotify(address: uint32, count: uint32): uint32 {
+  const instance: WasmInstanceObject = LoadInstanceFromFrame();
+  const result: Smi = runtime::WasmAtomicNotify(
+      LoadContextFromInstance(instance), instance, WasmUint32ToNumber(address),
+      WasmUint32ToNumber(count));
+  return Unsigned(SmiToInt32(result));
+}
+
+builtin WasmI32AtomicWait64(
+    address: uint32, expectedValue: int32, timeout: intptr): uint32 {
+  if constexpr (Is64()) {
+    const instance: WasmInstanceObject = LoadInstanceFromFrame();
+    const result: Smi = runtime::WasmI32AtomicWait(
+        LoadContextFromInstance(instance), instance,
+        WasmUint32ToNumber(address), WasmInt32ToNumber(expectedValue),
+        I64ToBigInt(timeout));
+    return Unsigned(SmiToInt32(result));
+  } else {
+    unreachable;
+  }
+}
+
+builtin WasmI64AtomicWait64(
+    address: uint32, expectedValue: intptr, timeout: intptr): uint32 {
+  if constexpr (Is64()) {
+    const instance: WasmInstanceObject = LoadInstanceFromFrame();
+    const result: Smi = runtime::WasmI64AtomicWait(
+        LoadContextFromInstance(instance), instance,
+        WasmUint32ToNumber(address), I64ToBigInt(expectedValue),
+        I64ToBigInt(timeout));
+    return Unsigned(SmiToInt32(result));
+  } else {
+    unreachable;
+  }
 }
 
 extern macro TryHasOwnProperty(HeapObject, Map, InstanceType, Name): never

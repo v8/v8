@@ -39,14 +39,6 @@ void WasmI32AtomicWait32Descriptor::InitializePlatformSpecific(
   data->InitializePlatformSpecific(kParameterCount, default_stub_registers);
 }
 
-void WasmI32AtomicWait64Descriptor::InitializePlatformSpecific(
-    CallInterfaceDescriptorData* data) {
-  const Register default_stub_registers[] = {a0, a1, a2};
-  CHECK_EQ(static_cast<size_t>(kParameterCount),
-           arraysize(default_stub_registers));
-  data->InitializePlatformSpecific(kParameterCount, default_stub_registers);
-}
-
 void WasmI64AtomicWait32Descriptor::InitializePlatformSpecific(
     CallInterfaceDescriptorData* data) {
   const Register default_stub_registers[] = {a0, a1, a2, a3, t0};
@@ -54,14 +46,6 @@ void WasmI64AtomicWait32Descriptor::InitializePlatformSpecific(
            arraysize(default_stub_registers));
   data->InitializePlatformSpecific(kParameterCount - kStackArgumentsCount,
                                    default_stub_registers);
-}
-
-void WasmI64AtomicWait64Descriptor::InitializePlatformSpecific(
-    CallInterfaceDescriptorData* data) {
-  const Register default_stub_registers[] = {a0, a1, a2};
-  CHECK_EQ(static_cast<size_t>(kParameterCount),
-           arraysize(default_stub_registers));
-  data->InitializePlatformSpecific(kParameterCount, default_stub_registers);
 }
 
 void RecordWriteDescriptor::InitializePlatformSpecific(

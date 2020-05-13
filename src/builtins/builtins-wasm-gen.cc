@@ -37,6 +37,12 @@ TNode<FixedArray> WasmBuiltinsAssembler::LoadExternalFunctionsFromInstance(
       instance, WasmInstanceObject::kWasmExternalFunctionsOffset);
 }
 
+TNode<FixedArray> WasmBuiltinsAssembler::LoadManagedObjectMapsFromInstance(
+    TNode<WasmInstanceObject> instance) {
+  return LoadObjectField<FixedArray>(
+      instance, WasmInstanceObject::kManagedObjectMapsOffset);
+}
+
 TNode<Smi> WasmBuiltinsAssembler::SmiFromUint32WithSaturation(
     TNode<Uint32T> value, uint32_t max) {
   DCHECK_LE(max, static_cast<uint32_t>(Smi::kMaxValue));
@@ -53,22 +59,6 @@ TF_BUILTIN(WasmFloat32ToNumber, WasmBuiltinsAssembler) {
 TF_BUILTIN(WasmFloat64ToNumber, WasmBuiltinsAssembler) {
   TNode<Float64T> val = UncheckedCast<Float64T>(Parameter(Descriptor::kValue));
   Return(ChangeFloat64ToTagged(val));
-}
-
-TF_BUILTIN(WasmAtomicNotify, WasmBuiltinsAssembler) {
-  TNode<Uint32T> address =
-      UncheckedCast<Uint32T>(Parameter(Descriptor::kAddress));
-  TNode<Uint32T> count = UncheckedCast<Uint32T>(Parameter(Descriptor::kCount));
-
-  TNode<WasmInstanceObject> instance = LoadInstanceFromFrame();
-  TNode<Number> address_number = ChangeUint32ToTagged(address);
-  TNode<Number> count_number = ChangeUint32ToTagged(count);
-  TNode<Context> context = LoadContextFromInstance(instance);
-
-  TNode<Smi> result_smi =
-      CAST(CallRuntime(Runtime::kWasmAtomicNotify, context, instance,
-                       address_number, count_number));
-  Return(Unsigned(SmiToInt32(result_smi)));
 }
 
 TF_BUILTIN(WasmI32AtomicWait32, WasmBuiltinsAssembler) {
@@ -90,33 +80,6 @@ TF_BUILTIN(WasmI32AtomicWait32, WasmBuiltinsAssembler) {
   TNode<IntPtrT> timeout_high =
       UncheckedCast<IntPtrT>(Parameter(Descriptor::kTimeoutHigh));
   TNode<BigInt> timeout = BigIntFromInt32Pair(timeout_low, timeout_high);
-
-  TNode<WasmInstanceObject> instance = LoadInstanceFromFrame();
-  TNode<Context> context = LoadContextFromInstance(instance);
-
-  TNode<Smi> result_smi =
-      CAST(CallRuntime(Runtime::kWasmI32AtomicWait, context, instance,
-                       address_number, expected_value_number, timeout));
-  Return(Unsigned(SmiToInt32(result_smi)));
-}
-
-TF_BUILTIN(WasmI32AtomicWait64, WasmBuiltinsAssembler) {
-  if (!Is64()) {
-    Unreachable();
-    return;
-  }
-
-  TNode<Uint32T> address =
-      UncheckedCast<Uint32T>(Parameter(Descriptor::kAddress));
-  TNode<Number> address_number = ChangeUint32ToTagged(address);
-
-  TNode<Int32T> expected_value =
-      UncheckedCast<Int32T>(Parameter(Descriptor::kExpectedValue));
-  TNode<Number> expected_value_number = ChangeInt32ToTagged(expected_value);
-
-  TNode<IntPtrT> timeout_raw =
-      UncheckedCast<IntPtrT>(Parameter(Descriptor::kTimeout));
-  TNode<BigInt> timeout = BigIntFromInt64(timeout_raw);
 
   TNode<WasmInstanceObject> instance = LoadInstanceFromFrame();
   TNode<Context> context = LoadContextFromInstance(instance);
@@ -149,33 +112,6 @@ TF_BUILTIN(WasmI64AtomicWait32, WasmBuiltinsAssembler) {
   TNode<IntPtrT> timeout_high =
       UncheckedCast<IntPtrT>(Parameter(Descriptor::kTimeoutHigh));
   TNode<BigInt> timeout = BigIntFromInt32Pair(timeout_low, timeout_high);
-
-  TNode<WasmInstanceObject> instance = LoadInstanceFromFrame();
-  TNode<Context> context = LoadContextFromInstance(instance);
-
-  TNode<Smi> result_smi =
-      CAST(CallRuntime(Runtime::kWasmI64AtomicWait, context, instance,
-                       address_number, expected_value, timeout));
-  Return(Unsigned(SmiToInt32(result_smi)));
-}
-
-TF_BUILTIN(WasmI64AtomicWait64, WasmBuiltinsAssembler) {
-  if (!Is64()) {
-    Unreachable();
-    return;
-  }
-
-  TNode<Uint32T> address =
-      UncheckedCast<Uint32T>(Parameter(Descriptor::kAddress));
-  TNode<Number> address_number = ChangeUint32ToTagged(address);
-
-  TNode<IntPtrT> expected_value_raw =
-      UncheckedCast<IntPtrT>(Parameter(Descriptor::kExpectedValue));
-  TNode<BigInt> expected_value = BigIntFromInt64(expected_value_raw);
-
-  TNode<IntPtrT> timeout_raw =
-      UncheckedCast<IntPtrT>(Parameter(Descriptor::kTimeout));
-  TNode<BigInt> timeout = BigIntFromInt64(timeout_raw);
 
   TNode<WasmInstanceObject> instance = LoadInstanceFromFrame();
   TNode<Context> context = LoadContextFromInstance(instance);
@@ -267,19 +203,6 @@ TF_BUILTIN(WasmAllocateArray, WasmBuiltinsAssembler) {
   StoreMap(result, map);
   StoreObjectFieldNoWriteBarrier(result, WasmArray::kLengthOffset,
                                  TruncateIntPtrToInt32(untagged_length));
-  Return(result);
-}
-
-TF_BUILTIN(WasmAllocateStruct, WasmBuiltinsAssembler) {
-  TNode<WasmInstanceObject> instance = LoadInstanceFromFrame();
-  TNode<Smi> map_index = CAST(Parameter(Descriptor::kMapIndex));
-  TNode<FixedArray> maps_list = LoadObjectField<FixedArray>(
-      instance, WasmInstanceObject::kManagedObjectMapsOffset);
-  TNode<Map> map = CAST(LoadFixedArrayElement(maps_list, map_index));
-  TNode<IntPtrT> instance_size =
-      TimesTaggedSize(LoadMapInstanceSizeInWords(map));
-  TNode<WasmStruct> result = UncheckedCast<WasmStruct>(Allocate(instance_size));
-  StoreMap(result, map);
   Return(result);
 }
 
