@@ -8,7 +8,6 @@
 
 #include "src/heap/heap-write-barrier-inl.h"
 #include "src/objects/heap-object.h"
-#include "src/objects/slots-inl.h"
 
 namespace v8 {
 namespace internal {

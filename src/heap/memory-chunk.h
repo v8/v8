@@ -13,6 +13,7 @@
 #include "src/heap/heap.h"
 #include "src/heap/invalidated-slots.h"
 #include "src/heap/list.h"
+#include "src/heap/slot-set.h"
 
 namespace v8 {
 namespace internal {
@@ -76,12 +77,13 @@ class MemoryChunk : public BasicMemoryChunk {
   };
 
   static const size_t kHeaderSize =
-      BasicMemoryChunk::kHeaderSize  // Parent size.
-      + 3 * kSystemPointerSize       // VirtualMemory reservation_
-      + kSystemPointerSize           // Address owner_
-      + kSizetSize                   // size_t progress_bar_
-      + kIntptrSize                  // intptr_t live_byte_count_
-      + kSystemPointerSize           // SlotSet* sweeping_slot_set_
+      BasicMemoryChunk::kHeaderSize                          // Parent size.
+      + kSystemPointerSize * NUMBER_OF_REMEMBERED_SET_TYPES  // SlotSet* array
+      + 3 * kSystemPointerSize  // VirtualMemory reservation_
+      + kSystemPointerSize      // Address owner_
+      + kSizetSize              // size_t progress_bar_
+      + kIntptrSize             // intptr_t live_byte_count_
+      + kSystemPointerSize      // SlotSet* sweeping_slot_set_
       + kSystemPointerSize *
             NUMBER_OF_REMEMBERED_SET_TYPES  // TypedSlotSet* array
       + kSystemPointerSize *
@@ -104,6 +106,8 @@ class MemoryChunk : public BasicMemoryChunk {
       + kSystemPointerSize   // CodeObjectRegistry* code_object_registry_
       + kSystemPointerSize;  // PossiblyEmptyBuckets possibly_empty_buckets_
 
+  static const intptr_t kOldToNewSlotSetOffset = BasicMemoryChunk::kHeaderSize;
+
   // Page size in bytes.  This must be a multiple of the OS page size.
   static const int kPageSize = 1 << kPageSizeBits;
 
@@ -120,6 +124,8 @@ class MemoryChunk : public BasicMemoryChunk {
     DCHECK(!V8_ENABLE_THIRD_PARTY_HEAP_BOOL);
     return reinterpret_cast<MemoryChunk*>(BaseAddress(o.ptr()));
   }
+
+  size_t buckets() const { return SlotSet::BucketsForSize(size()); }
 
   void SetOldGenerationPageFlags(bool is_marking);
   void SetYoungGenerationPageFlags(bool is_marking);
@@ -384,6 +390,11 @@ class MemoryChunk : public BasicMemoryChunk {
   ConcurrentBitmap<mode>* young_generation_bitmap() const {
     return reinterpret_cast<ConcurrentBitmap<mode>*>(young_generation_bitmap_);
   }
+
+  // A single slot set for small pages (of size kPageSize) or an array of slot
+  // set for large pages. In the latter case the number of entries in the array
+  // is ceil(size() / kPageSize).
+  SlotSet* slot_set_[NUMBER_OF_REMEMBERED_SET_TYPES];
 
   // If the chunk needs to remember its memory reservation, it is stored here.
   VirtualMemory reservation_;
