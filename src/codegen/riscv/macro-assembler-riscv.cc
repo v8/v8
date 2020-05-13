@@ -3117,7 +3117,7 @@ void TurboAssembler::PatchAndJump(Address target) {
   UseScratchRegisterScope temps(this);
   Register scratch = temps.Acquire();
   RV_auipc(scratch, 0);  // Load PC into scratch
-  Ld(t6, MemOperand(scratch, kInstrSize * 3));
+  Ld(t6, MemOperand(scratch, kInstrSize * 4));
   RV_jr(t6);
   RV_nop();  // For alignment
   DCHECK_EQ(reinterpret_cast<uint64_t>(pc_) % 8, 0);
@@ -3147,7 +3147,7 @@ void TurboAssembler::StoreReturnAddressAndCall(Register target) {
   bind(&find_ra);
   RV_addi(
       ra, ra,
-      kNumInstructionsToJump * kInstrSize);  // Set ra to insn after the call
+      (kNumInstructionsToJump + 1) * kInstrSize);  // Set ra to insn after the call
 
   // This spot was reserved in EnterExitFrame.
   Sd(ra, MemOperand(sp));
