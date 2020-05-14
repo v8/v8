@@ -1597,7 +1597,8 @@ class WasmDecoder : public Decoder {
           case kExprRttGet:
           case kExprRttSub: {
             // TODO(7748): Impelement.
-            UNIMPLEMENTED();
+            decoder->error(pc, "rtt opcodes not impelemented yet");
+            return 2;
           }
 
           default:
