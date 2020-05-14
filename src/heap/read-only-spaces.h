@@ -12,6 +12,7 @@
 #include "src/base/macros.h"
 #include "src/heap/list.h"
 #include "src/heap/memory-chunk.h"
+#include "src/heap/paged-spaces.h"
 #include "src/heap/spaces.h"
 
 namespace v8 {

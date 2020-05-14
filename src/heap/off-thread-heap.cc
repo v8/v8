@@ -5,8 +5,8 @@
 #include "src/heap/off-thread-heap.h"
 
 #include "src/common/globals.h"
+#include "src/heap/paged-spaces-inl.h"
 #include "src/heap/spaces-inl.h"
-#include "src/heap/spaces.h"
 #include "src/objects/objects-body-descriptors-inl.h"
 #include "src/roots/roots.h"
 #include "src/snapshot/references.h"

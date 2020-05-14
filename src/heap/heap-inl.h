@@ -23,7 +23,9 @@
 // leak heap internals to users of this interface!
 #include "src/execution/isolate-data.h"
 #include "src/execution/isolate.h"
+#include "src/heap/code-object-registry.h"
 #include "src/heap/memory-chunk.h"
+#include "src/heap/paged-spaces-inl.h"
 #include "src/heap/read-only-spaces.h"
 #include "src/heap/spaces-inl.h"
 #include "src/objects/allocation-site-inl.h"
