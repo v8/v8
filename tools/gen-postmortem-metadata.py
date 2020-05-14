@@ -223,9 +223,6 @@ consts_misc = [
         'value': 'SimpleNumberDictionaryShape::kEntrySize' },
 
     { 'name': 'type_JSError__JS_ERROR_TYPE', 'value': 'JS_ERROR_TYPE' },
-
-    { 'name': 'class_SharedFunctionInfo__function_data__Object',
-        'value': 'SharedFunctionInfo::kFunctionDataOffset' },
 ];
 
 #
