@@ -1975,6 +1975,38 @@ void EmitSimdShiftOpImm(LiftoffAssembler* assm, LiftoffRegister dst,
     (assm->*sse_op)(dst.fp(), shift);
   }
 }
+
+// Can be used by both the immediate and register version of the shifts. psraq
+// is only available in AVX512, so we can't use it yet.
+template <typename ShiftOperand>
+void EmitI64x2ShrS(LiftoffAssembler* assm, LiftoffRegister dst,
+                   LiftoffRegister lhs, ShiftOperand rhs,
+                   bool shift_is_rcx = false) {
+  bool restore_rcx = false;
+  if (!shift_is_rcx) {
+    if (assm->cache_state()->is_used(LiftoffRegister(rcx))) {
+      restore_rcx = true;
+      assm->movq(kScratchRegister, rcx);
+    }
+    assm->movl(rcx, rhs);
+  }
+
+  Register tmp = kScratchRegister;
+
+  assm->Pextrq(tmp, lhs.fp(), int8_t{0x0});
+  assm->sarq_cl(tmp);
+  assm->Pinsrq(dst.fp(), tmp, int8_t{0x0});
+
+  assm->Pextrq(tmp, lhs.fp(), int8_t{0x1});
+  assm->sarq_cl(tmp);
+  assm->Pinsrq(dst.fp(), tmp, int8_t{0x1});
+
+  // restore rcx.
+  if (restore_rcx) {
+    assm->movq(rcx, kScratchRegister);
+  }
+}
+
 }  // namespace liftoff
 
 void LiftoffAssembler::emit_i8x16_splat(LiftoffRegister dst,
@@ -2667,6 +2699,31 @@ void LiftoffAssembler::emit_i64x2_shl(LiftoffRegister dst, LiftoffRegister lhs,
 void LiftoffAssembler::emit_i64x2_shli(LiftoffRegister dst, LiftoffRegister lhs,
                                        int32_t rhs) {
   liftoff::EmitSimdShiftOpImm<&Assembler::vpsllq, &Assembler::psllq, 6>(
+      this, dst, lhs, rhs);
+}
+
+void LiftoffAssembler::emit_i64x2_shr_s(LiftoffRegister dst,
+                                        LiftoffRegister lhs,
+                                        LiftoffRegister rhs) {
+  liftoff::EmitI64x2ShrS(this, dst, lhs, rhs.gp(),
+                         /*shift_is_rcx=*/rhs.gp() == rcx);
+}
+
+void LiftoffAssembler::emit_i64x2_shri_s(LiftoffRegister dst,
+                                         LiftoffRegister lhs, int32_t rhs) {
+  liftoff::EmitI64x2ShrS(this, dst, lhs, Immediate(rhs));
+}
+
+void LiftoffAssembler::emit_i64x2_shr_u(LiftoffRegister dst,
+                                        LiftoffRegister lhs,
+                                        LiftoffRegister rhs) {
+  liftoff::EmitSimdShiftOp<&Assembler::vpsrlq, &Assembler::psrlq, 6>(this, dst,
+                                                                     lhs, rhs);
+}
+
+void LiftoffAssembler::emit_i64x2_shri_u(LiftoffRegister dst,
+                                         LiftoffRegister lhs, int32_t rhs) {
+  liftoff::EmitSimdShiftOpImm<&Assembler::vpsrlq, &Assembler::psrlq, 6>(
       this, dst, lhs, rhs);
 }
 

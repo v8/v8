@@ -2723,6 +2723,56 @@ void LiftoffAssembler::emit_i64x2_shli(LiftoffRegister dst, LiftoffRegister lhs,
       this, dst, lhs, rhs);
 }
 
+void LiftoffAssembler::emit_i64x2_shr_s(LiftoffRegister dst,
+                                        LiftoffRegister lhs,
+                                        LiftoffRegister rhs) {
+  XMMRegister shift = liftoff::kScratchDoubleReg;
+  XMMRegister tmp =
+      GetUnusedRegister(RegClass::kFpReg, LiftoffRegList::ForRegs(dst, lhs))
+          .fp();
+
+  // Take shift value modulo 64.
+  and_(rhs.gp(), Immediate(63));
+  Movd(shift, rhs.gp());
+
+  // Set up a mask [0x80000000,0,0x80000000,0].
+  Pcmpeqb(tmp, tmp);
+  Psllq(tmp, tmp, 63);
+
+  Psrlq(tmp, tmp, shift);
+  Psrlq(dst.fp(), lhs.fp(), shift);
+  Pxor(dst.fp(), tmp);
+  Psubq(dst.fp(), tmp);
+}
+
+void LiftoffAssembler::emit_i64x2_shri_s(LiftoffRegister dst,
+                                         LiftoffRegister lhs, int32_t rhs) {
+  XMMRegister tmp = liftoff::kScratchDoubleReg;
+  int32_t shift = rhs & 63;
+
+  // Set up a mask [0x80000000,0,0x80000000,0].
+  Pcmpeqb(tmp, tmp);
+  Psllq(tmp, tmp, 63);
+
+  Psrlq(tmp, tmp, shift);
+  Psrlq(dst.fp(), lhs.fp(), shift);
+  Pxor(dst.fp(), tmp);
+  Psubq(dst.fp(), tmp);
+}
+
+void LiftoffAssembler::emit_i64x2_shr_u(LiftoffRegister dst,
+                                        LiftoffRegister lhs,
+                                        LiftoffRegister rhs) {
+  liftoff::EmitSimdShiftOp<&Assembler::vpsrlq, &Assembler::psrlq, 6>(this, dst,
+                                                                     lhs, rhs);
+}
+
+void LiftoffAssembler::emit_i64x2_shri_u(LiftoffRegister dst,
+                                         LiftoffRegister lhs, int32_t rhs) {
+  liftoff::EmitSimdShiftOpImm<&Assembler::vpsrlq, &Assembler::psrlq, 6>(
+      this, dst, lhs, rhs);
+}
+
 void LiftoffAssembler::emit_i64x2_add(LiftoffRegister dst, LiftoffRegister lhs,
                                       LiftoffRegister rhs) {
   liftoff::EmitSimdCommutativeBinOp<&Assembler::vpaddq, &Assembler::paddq>(
