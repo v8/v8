@@ -303,15 +303,15 @@ class MajorMarkingState final
   // Concurrent marking uses local live bytes so we may do these accesses
   // non-atomically.
   void IncrementLiveBytes(MemoryChunk* chunk, intptr_t by) {
-    chunk->live_byte_count_ += by;
+    chunk->live_byte_count_.fetch_add(by, std::memory_order_relaxed);
   }
 
   intptr_t live_bytes(MemoryChunk* chunk) const {
-    return chunk->live_byte_count_;
+    return chunk->live_byte_count_.load(std::memory_order_relaxed);
   }
 
   void SetLiveBytes(MemoryChunk* chunk, intptr_t value) {
-    chunk->live_byte_count_ = value;
+    chunk->live_byte_count_.store(value, std::memory_order_relaxed);
   }
 };
 
@@ -328,8 +328,7 @@ class MajorAtomicMarkingState final
   }
 
   void IncrementLiveBytes(MemoryChunk* chunk, intptr_t by) {
-    std::atomic_fetch_add(
-        reinterpret_cast<std::atomic<intptr_t>*>(&chunk->live_byte_count_), by);
+    chunk->live_byte_count_.fetch_add(by);
   }
 };
 
@@ -346,15 +345,15 @@ class MajorNonAtomicMarkingState final
   }
 
   void IncrementLiveBytes(MemoryChunk* chunk, intptr_t by) {
-    chunk->live_byte_count_ += by;
+    chunk->live_byte_count_.fetch_add(by, std::memory_order_relaxed);
   }
 
   intptr_t live_bytes(MemoryChunk* chunk) const {
-    return chunk->live_byte_count_;
+    return chunk->live_byte_count_.load(std::memory_order_relaxed);
   }
 
   void SetLiveBytes(MemoryChunk* chunk, intptr_t value) {
-    chunk->live_byte_count_ = value;
+    chunk->live_byte_count_.store(value, std::memory_order_relaxed);
   }
 };
 

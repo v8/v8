@@ -410,7 +410,7 @@ class MemoryChunk : public BasicMemoryChunk {
   std::atomic<size_t> progress_bar_;
 
   // Count of bytes marked black on page.
-  intptr_t live_byte_count_;
+  std::atomic<intptr_t> live_byte_count_;
 
   // A single slot set for small pages (of size kPageSize) or an array of slot
   // set for large pages. In the latter case the number of entries in the array
