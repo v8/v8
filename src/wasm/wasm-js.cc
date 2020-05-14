@@ -2060,6 +2060,11 @@ void WasmJs::Install(Isolate* isolate, bool exposed_on_global_object) {
   InstallFunc(isolate, webassembly, "validate", WebAssemblyValidate, 1);
   InstallFunc(isolate, webassembly, "instantiate", WebAssemblyInstantiate, 1);
 
+  // The implementation of streaming compilation depends on async compilation.
+  // If async compilation is disabled, then a streaming compilation callback
+  // should not be set.
+  CHECK_IMPLIES(!FLAG_wasm_async_compilation,
+                isolate->wasm_streaming_callback() == nullptr);
   if (FLAG_wasm_test_streaming) {
     isolate->set_wasm_streaming_callback(WasmStreamingCallbackForTesting);
   }
