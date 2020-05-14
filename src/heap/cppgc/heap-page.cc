@@ -14,7 +14,7 @@
 #include "src/heap/cppgc/heap.h"
 #include "src/heap/cppgc/object-start-bitmap-inl.h"
 #include "src/heap/cppgc/object-start-bitmap.h"
-#include "src/heap/cppgc/page-memory.h"
+#include "src/heap/cppgc/page-memory-inl.h"
 #include "src/heap/cppgc/raw-heap.h"
 
 namespace cppgc {
@@ -25,6 +25,21 @@ namespace {
 Address AlignAddress(Address address, size_t alignment) {
   return reinterpret_cast<Address>(
       RoundUp(reinterpret_cast<uintptr_t>(address), alignment));
+}
+
+const HeapObjectHeader* ObjectHeaderFromInnerAddressImpl(const BasePage* page,
+                                                         const void* address) {
+  if (page->is_large()) {
+    return LargePage::From(page)->ObjectHeader();
+  }
+  const ObjectStartBitmap& bitmap =
+      NormalPage::From(page)->object_start_bitmap();
+  const HeapObjectHeader* header =
+      bitmap.FindHeader(static_cast<ConstAddress>(address));
+  DCHECK_LT(address,
+            reinterpret_cast<ConstAddress>(header) +
+                header->GetSize<HeapObjectHeader::AccessMode::kAtomic>());
+  return header;
 }
 
 }  // namespace
@@ -45,22 +60,58 @@ const BasePage* BasePage::FromPayload(const void* payload) {
       kGuardPageSize);
 }
 
-HeapObjectHeader* BasePage::ObjectHeaderFromInnerAddress(void* address) {
-  return const_cast<HeapObjectHeader*>(
+// static
+BasePage* BasePage::FromInnerAddress(const Heap* heap, void* address) {
+  return const_cast<BasePage*>(
+      FromInnerAddress(heap, const_cast<const void*>(address)));
+}
+
+// static
+const BasePage* BasePage::FromInnerAddress(const Heap* heap,
+                                           const void* address) {
+  return reinterpret_cast<const BasePage*>(
+      heap->page_backend()->Lookup(static_cast<ConstAddress>(address)));
+}
+
+HeapObjectHeader& BasePage::ObjectHeaderFromInnerAddress(void* address) const {
+  return const_cast<HeapObjectHeader&>(
       ObjectHeaderFromInnerAddress(const_cast<const void*>(address)));
 }
 
-const HeapObjectHeader* BasePage::ObjectHeaderFromInnerAddress(
-    const void* address) {
+const HeapObjectHeader& BasePage::ObjectHeaderFromInnerAddress(
+    const void* address) const {
+  const HeapObjectHeader* header =
+      ObjectHeaderFromInnerAddressImpl(this, address);
+  DCHECK_NE(kFreeListGCInfoIndex, header->GetGCInfoIndex());
+  return *header;
+}
+
+HeapObjectHeader* BasePage::TryObjectHeaderFromInnerAddress(
+    void* address) const {
+  return const_cast<HeapObjectHeader*>(
+      TryObjectHeaderFromInnerAddress(const_cast<const void*>(address)));
+}
+
+const HeapObjectHeader* BasePage::TryObjectHeaderFromInnerAddress(
+    const void* address) const {
   if (is_large()) {
-    return LargePage::From(this)->ObjectHeader();
+    if (!LargePage::From(this)->PayloadContains(
+            static_cast<ConstAddress>(address)))
+      return nullptr;
+  } else {
+    const NormalPage* normal_page = NormalPage::From(this);
+    if (!normal_page->PayloadContains(static_cast<ConstAddress>(address)))
+      return nullptr;
+    // Check that the space has no linear allocation buffer.
+    DCHECK(!NormalPageSpace::From(normal_page->space())
+                ->linear_allocation_buffer()
+                .size());
   }
-  ObjectStartBitmap& bitmap = NormalPage::From(this)->object_start_bitmap();
-  HeapObjectHeader* header =
-      bitmap.FindHeader(static_cast<ConstAddress>(address));
-  DCHECK_LT(address,
-            reinterpret_cast<ConstAddress>(header) +
-                header->GetSize<HeapObjectHeader::AccessMode::kAtomic>());
+
+  // |address| is on the heap, so we FromInnerAddress can get the header.
+  const HeapObjectHeader* header =
+      ObjectHeaderFromInnerAddressImpl(this, address);
+  if (header->IsFree()) return nullptr;
   DCHECK_NE(kFreeListGCInfoIndex, header->GetGCInfoIndex());
   return header;
 }

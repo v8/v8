@@ -184,5 +184,15 @@ TEST_F(MarkerTest, DeepHierarchyIsMarked) {
   }
 }
 
+TEST_F(MarkerTest, NestedObjectsOnStackAreMarked) {
+  GCed* root = MakeGarbageCollected<GCed>(GetHeap());
+  root->SetChild(MakeGarbageCollected<GCed>(GetHeap()));
+  root->child()->SetChild(MakeGarbageCollected<GCed>(GetHeap()));
+  DoMarking(MarkingConfig(MarkingConfig::StackState::kMayContainHeapPointers));
+  EXPECT_TRUE(HeapObjectHeader::FromPayload(root).IsMarked());
+  EXPECT_TRUE(HeapObjectHeader::FromPayload(root->child()).IsMarked());
+  EXPECT_TRUE(HeapObjectHeader::FromPayload(root->child()->child()).IsMarked());
+}
+
 }  // namespace internal
 }  // namespace cppgc
