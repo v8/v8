@@ -8,6 +8,7 @@
 #include "src/base/macros.h"
 #include "src/builtins/accessors.h"
 #include "src/common/globals.h"
+#include "src/execution/local-isolate-wrapper.h"
 #include "src/handles/handles.h"
 #include "src/init/heap-symbols.h"
 #include "src/objects/objects-definitions.h"
@@ -527,6 +528,8 @@ class ReadOnlyRoots {
   V8_INLINE explicit ReadOnlyRoots(OffThreadHeap* heap);
   V8_INLINE explicit ReadOnlyRoots(Isolate* isolate);
   V8_INLINE explicit ReadOnlyRoots(OffThreadIsolate* isolate);
+  V8_INLINE explicit ReadOnlyRoots(LocalIsolateWrapper wrapper);
+  V8_INLINE explicit ReadOnlyRoots(LocalHeapWrapper wrapper);
 
 #define ROOT_ACCESSOR(Type, name, CamelName)     \
   V8_INLINE class Type name() const;             \
@@ -553,13 +556,15 @@ class ReadOnlyRoots {
 #undef ROOT_TYPE_CHECK
 #endif
 
-  V8_INLINE explicit ReadOnlyRoots(Address* ro_roots);
+  V8_INLINE explicit ReadOnlyRoots(Address* ro_roots)
+      : read_only_roots_(ro_roots) {}
 
   V8_INLINE Address* GetLocation(RootIndex root_index) const;
 
   Address* read_only_roots_;
 
   friend class ReadOnlyHeap;
+  friend class DeserializerAllocator;
 };
 
 }  // namespace internal

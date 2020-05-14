@@ -4,10 +4,12 @@
 
 #include "src/heap/off-thread-heap.h"
 
+#include "src/common/globals.h"
 #include "src/heap/spaces-inl.h"
 #include "src/heap/spaces.h"
 #include "src/objects/objects-body-descriptors-inl.h"
 #include "src/roots/roots.h"
+#include "src/snapshot/references.h"
 
 // Has to be the last include (doesn't have include guards)
 #include "src/objects/object-macros.h"
@@ -16,6 +18,10 @@ namespace v8 {
 namespace internal {
 
 OffThreadHeap::OffThreadHeap(Heap* heap) : space_(heap), lo_space_(heap) {}
+
+bool OffThreadHeap::Contains(HeapObject obj) {
+  return space_.Contains(obj) || lo_space_.Contains(obj);
+}
 
 class OffThreadHeap::StringSlotCollectingVisitor : public ObjectVisitor {
  public:
@@ -223,7 +229,37 @@ HeapObject OffThreadHeap::AllocateRaw(int size, AllocationType allocation,
   } else {
     result = space_.AllocateRaw(size, alignment);
   }
-  return result.ToObjectChecked();
+  HeapObject obj = result.ToObjectChecked();
+  OnAllocationEvent(obj, size);
+  return obj;
+}
+
+bool OffThreadHeap::ReserveSpace(Heap::Reservation* reservations) {
+#ifdef DEBUG
+  for (int space = FIRST_SPACE;
+       space < static_cast<int>(SnapshotSpace::kNumberOfHeapSpaces); space++) {
+    if (space == OLD_SPACE || space == LO_SPACE) continue;
+    Heap::Reservation* reservation = &reservations[space];
+    DCHECK_EQ(reservation->size(), 1);
+    DCHECK_EQ(reservation->at(0).size, 0);
+  }
+#endif
+
+  for (auto& chunk : reservations[OLD_SPACE]) {
+    int size = chunk.size;
+    AllocationResult allocation = space_.AllocateRawUnaligned(size);
+    HeapObject free_space = allocation.ToObjectChecked();
+
+    // Mark with a free list node, in case we have a GC before
+    // deserializing.
+    Address free_space_address = free_space.address();
+    CreateFillerObjectAt(free_space_address, size,
+                         ClearFreedMemoryMode::kDontClearFreedMemory);
+    chunk.start = free_space_address;
+    chunk.end = free_space_address + size;
+  }
+
+  return true;
 }
 
 HeapObject OffThreadHeap::CreateFillerObjectAt(

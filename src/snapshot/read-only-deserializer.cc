@@ -55,7 +55,7 @@ void ReadOnlyDeserializer::DeserializeInto(Isolate* isolate) {
   }
 
   if (FLAG_rehash_snapshot && can_rehash()) {
-    isolate_->heap()->InitializeHashSeed();
+    isolate->heap()->InitializeHashSeed();
     Rehash();
   }
 }

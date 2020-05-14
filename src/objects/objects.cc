@@ -2354,7 +2354,8 @@ bool HeapObject::CanBeRehashed() const {
   return false;
 }
 
-void HeapObject::RehashBasedOnMap(ReadOnlyRoots roots) {
+void HeapObject::RehashBasedOnMap(LocalIsolateWrapper isolate) {
+  ReadOnlyRoots roots = ReadOnlyRoots(isolate);
   switch (map().instance_type()) {
     case HASH_TABLE_TYPE:
       UNREACHABLE();

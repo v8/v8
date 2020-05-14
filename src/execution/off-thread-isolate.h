@@ -86,6 +86,8 @@ class V8_EXPORT_PRIVATE OffThreadIsolate final
   OffThreadHeap* heap() { return &heap_; }
 
   inline Address isolate_root() const;
+  inline ReadOnlyHeap* read_only_heap();
+  inline Object root(RootIndex index);
 
   v8::internal::OffThreadFactory* factory() {
     // Upcast to the privately inherited base-class using c-style casts to avoid

@@ -6,9 +6,11 @@
 #define V8_HEAP_OFF_THREAD_HEAP_H_
 
 #include <vector>
+
 #include "src/common/globals.h"
 #include "src/heap/large-spaces.h"
 #include "src/heap/spaces.h"
+#include "src/objects/heap-object.h"
 
 namespace v8 {
 namespace internal {
@@ -21,6 +23,19 @@ class V8_EXPORT_PRIVATE OffThreadHeap {
                          AllocationAlignment alignment = kWordAligned);
   void AddToScriptList(Handle<Script> shared);
 
+  void OnAllocationEvent(HeapObject obj, int size) {
+    // TODO(leszeks): Do something here.
+  }
+
+  ReadOnlySpace* read_only_space() const {
+    // Access the main-thread heap via the spaces.
+    return space_.heap()->read_only_space();
+  }
+
+  bool Contains(HeapObject obj);
+
+  bool ReserveSpace(Heap::Reservation* reservations);
+
   HeapObject CreateFillerObjectAt(Address addr, int size,
                                   ClearFreedMemoryMode clear_memory_mode);
 
@@ -28,6 +43,8 @@ class V8_EXPORT_PRIVATE OffThreadHeap {
   void Publish(Heap* heap);
 
  private:
+  friend class DeserializerAllocator;
+
   class StringSlotCollectingVisitor;
 
   struct RelativeSlot {

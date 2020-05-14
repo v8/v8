@@ -4,9 +4,12 @@
 
 #include "src/snapshot/code-serializer.h"
 
+#include "src/base/platform/platform.h"
 #include "src/codegen/macro-assembler.h"
+#include "src/common/globals.h"
 #include "src/debug/debug.h"
 #include "src/heap/heap-inl.h"
+#include "src/heap/off-thread-factory-inl.h"
 #include "src/logging/counters.h"
 #include "src/logging/log.h"
 #include "src/objects/objects-inl.h"
@@ -259,6 +262,39 @@ void CreateInterpreterDataForDeserializedCode(Isolate* isolate,
 }
 #endif  // V8_TARGET_ARCH_ARM
 
+namespace {
+class StressOffThreadDeserializeThread final : public base::Thread {
+ public:
+  explicit StressOffThreadDeserializeThread(
+      OffThreadIsolate* off_thread_isolate, const SerializedCodeData* scd)
+      : Thread(
+            base::Thread::Options("StressOffThreadDeserializeThread", 2 * MB)),
+        off_thread_isolate_(off_thread_isolate),
+        scd_(scd) {}
+
+  MaybeHandle<SharedFunctionInfo> maybe_result() const {
+    return maybe_result_.ToHandle();
+  }
+
+  void Run() final {
+    off_thread_isolate_->PinToCurrentThread();
+
+    MaybeHandle<SharedFunctionInfo> off_thread_maybe_result =
+        ObjectDeserializer::DeserializeSharedFunctionInfoOffThread(
+            off_thread_isolate_, scd_,
+            off_thread_isolate_->factory()->empty_string());
+
+    maybe_result_ =
+        off_thread_isolate_->TransferHandle(off_thread_maybe_result);
+  }
+
+ private:
+  OffThreadIsolate* off_thread_isolate_;
+  const SerializedCodeData* scd_;
+  OffThreadTransferMaybeHandle<SharedFunctionInfo> maybe_result_;
+};
+}  // namespace
+
 MaybeHandle<SharedFunctionInfo> CodeSerializer::Deserialize(
     Isolate* isolate, ScriptData* cached_data, Handle<String> source,
     ScriptOriginOptions origin_options) {
@@ -281,8 +317,29 @@ MaybeHandle<SharedFunctionInfo> CodeSerializer::Deserialize(
   }
 
   // Deserialize.
-  MaybeHandle<SharedFunctionInfo> maybe_result =
-      ObjectDeserializer::DeserializeSharedFunctionInfo(isolate, &scd, source);
+  MaybeHandle<SharedFunctionInfo> maybe_result;
+  if (FLAG_stress_background_compile) {
+    Zone zone(isolate->allocator(), "Deserialize");
+    OffThreadIsolate off_thread_isolate(isolate, &zone);
+
+    StressOffThreadDeserializeThread thread(&off_thread_isolate, &scd);
+    CHECK(thread.Start());
+    thread.Join();
+
+    off_thread_isolate.FinishOffThread();
+    off_thread_isolate.Publish(isolate);
+
+    maybe_result = thread.maybe_result();
+
+    // Fix-up result script source.
+    Handle<SharedFunctionInfo> result;
+    if (maybe_result.ToHandle(&result)) {
+      Script::cast(result->script()).set_source(*source);
+    }
+  } else {
+    maybe_result = ObjectDeserializer::DeserializeSharedFunctionInfo(
+        isolate, &scd, source);
+  }
 
   Handle<SharedFunctionInfo> result;
   if (!maybe_result.ToHandle(&result)) {
@@ -355,7 +412,6 @@ MaybeHandle<SharedFunctionInfo> CodeSerializer::Deserialize(
   }
   return scope.CloseAndEscape(result);
 }
-
 
 SerializedCodeData::SerializedCodeData(const std::vector<byte>* payload,
                                        const CodeSerializer* cs) {
