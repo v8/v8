@@ -3491,10 +3491,14 @@ Reduction JSCallReducer::ReduceCallApiFunction(
             function_template_info.LookupHolderOfExpectedType(receiver_map);
 
         if (api_holder.lookup != holder_i.lookup) return inference.NoChange();
-        if (!(api_holder.holder.has_value() && holder_i.holder.has_value()))
-          return inference.NoChange();
-        if (!api_holder.holder->equals(*holder_i.holder))
-          return inference.NoChange();
+        DCHECK(holder_i.lookup == CallOptimization::kHolderFound ||
+               holder_i.lookup == CallOptimization::kHolderIsReceiver);
+        if (holder_i.lookup == CallOptimization::kHolderFound) {
+          DCHECK(api_holder.holder.has_value() && holder_i.holder.has_value());
+          if (!api_holder.holder->equals(*holder_i.holder)) {
+            return inference.NoChange();
+          }
+        }
 
         CHECK(receiver_map.IsJSReceiverMap());
         CHECK(!receiver_map.is_access_check_needed() ||
