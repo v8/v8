@@ -8,6 +8,7 @@
 #include "include/cppgc/member.h"
 #include "include/cppgc/persistent.h"
 #include "src/heap/cppgc/heap-object-header-inl.h"
+#include "src/heap/cppgc/marking-visitor.h"
 #include "test/unittests/heap/cppgc/tests.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
@@ -23,7 +24,7 @@ class MarkerTest : public testing::TestWithHeap {
   void DoMarking(MarkingConfig config) {
     Marker marker(Heap::From(GetHeap()));
     marker.StartMarking(config);
-    marker.FinishMarking();
+    marker.FinishMarking(config);
     marker.ProcessWeakness();
   }
 };
@@ -192,6 +193,48 @@ TEST_F(MarkerTest, NestedObjectsOnStackAreMarked) {
   EXPECT_TRUE(HeapObjectHeader::FromPayload(root).IsMarked());
   EXPECT_TRUE(HeapObjectHeader::FromPayload(root->child()).IsMarked());
   EXPECT_TRUE(HeapObjectHeader::FromPayload(root->child()->child()).IsMarked());
+}
+
+namespace {
+class GCedWithCallback : public GarbageCollected<GCedWithCallback> {
+ public:
+  template <typename Callback>
+  explicit GCedWithCallback(Callback callback) {
+    callback(this);
+  }
+
+  void Trace(Visitor*) const {}
+};
+}  // namespace
+
+TEST_F(MarkerTest, InConstructionObjectIsEventuallyMarkedEmptyStack) {
+  Marker marker(Heap::From(GetHeap()));
+  marker.StartMarking(
+      MarkingConfig(MarkingConfig::StackState::kMayContainHeapPointers));
+  GCedWithCallback* object = MakeGarbageCollected<GCedWithCallback>(
+      GetHeap(), [&marker](GCedWithCallback* obj) {
+        Member<GCedWithCallback> member(obj);
+        marker.GetMarkingVisitorForTesting()->Trace(member);
+      });
+  EXPECT_FALSE(HeapObjectHeader::FromPayload(object).IsMarked());
+  marker.FinishMarking(
+      MarkingConfig(MarkingConfig::StackState::kNoHeapPointers));
+  EXPECT_TRUE(HeapObjectHeader::FromPayload(object).IsMarked());
+}
+
+TEST_F(MarkerTest, InConstructionObjectIsEventuallyMarkedNonEmptyStack) {
+  Marker marker(Heap::From(GetHeap()));
+  marker.StartMarking(
+      MarkingConfig(MarkingConfig::StackState::kMayContainHeapPointers));
+  MakeGarbageCollected<GCedWithCallback>(
+      GetHeap(), [&marker](GCedWithCallback* obj) {
+        Member<GCedWithCallback> member(obj);
+        marker.GetMarkingVisitorForTesting()->Trace(member);
+        EXPECT_FALSE(HeapObjectHeader::FromPayload(obj).IsMarked());
+        marker.FinishMarking(
+            MarkingConfig(MarkingConfig::StackState::kMayContainHeapPointers));
+        EXPECT_TRUE(HeapObjectHeader::FromPayload(obj).IsMarked());
+      });
 }
 
 }  // namespace internal

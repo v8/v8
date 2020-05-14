@@ -103,8 +103,9 @@ void Heap::CollectGarbage(GCConfig config) {
   // TODO(chromium:1056170): Replace with proper mark-sweep algorithm.
   // "Marking".
   marker_ = std::make_unique<Marker>(this);
-  marker_->StartMarking(Marker::MarkingConfig(config.stack_state));
-  marker_->FinishMarking();
+  Marker::MarkingConfig marking_config(config.stack_state);
+  marker_->StartMarking(marking_config);
+  marker_->FinishMarking(marking_config);
   // "Sweeping and finalization".
   {
     // Pre finalizers are forbidden from allocating objects

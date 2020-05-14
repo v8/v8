@@ -78,8 +78,9 @@ class V8_EXPORT_PRIVATE Marker {
   // trigger incremental/concurrent marking if needed.
   void StartMarking(MarkingConfig config);
   // Finalize marking. This method stops incremental/concurrent marking
-  // if exsists and performs atomic pause marking.
-  void FinishMarking();
+  // if exsists and performs atomic pause marking. FinishMarking may
+  // update the MarkingConfig, e.g. if the stack state has changed.
+  void FinishMarking(MarkingConfig config);
 
   void ProcessWeakness();
 
@@ -94,6 +95,10 @@ class V8_EXPORT_PRIVATE Marker {
 
   void ClearAllWorklistsForTesting();
 
+  MutatorThreadMarkingVisitor* GetMarkingVisitorForTesting() {
+    return marking_visitor_.get();
+  }
+
  protected:
   virtual std::unique_ptr<MutatorThreadMarkingVisitor>
   CreateMutatorThreadMarkingVisitor();
@@ -103,6 +108,7 @@ class V8_EXPORT_PRIVATE Marker {
 
   bool AdvanceMarkingWithDeadline(v8::base::TimeDelta);
   void FlushNotFullyConstructedObjects();
+  void MarkNotFullyConstructedObjects();
 
   Heap* const heap_;
   MarkingConfig config_ = MarkingConfig::Default();

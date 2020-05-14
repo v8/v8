@@ -9,8 +9,6 @@
 #include "include/cppgc/trace-trait.h"
 #include "include/v8config.h"
 #include "src/heap/cppgc/globals.h"
-#include "src/heap/cppgc/heap-object-header.h"
-#include "src/heap/cppgc/heap-page.h"
 #include "src/heap/cppgc/heap.h"
 #include "src/heap/cppgc/marker.h"
 #include "src/heap/cppgc/stack.h"
@@ -18,6 +16,9 @@
 
 namespace cppgc {
 namespace internal {
+
+class BasePage;
+class HeapObjectHeader;
 
 class MarkingVisitor : public VisitorBase, public StackVisitor {
  public:
@@ -30,6 +31,7 @@ class MarkingVisitor : public VisitorBase, public StackVisitor {
   void FlushWorklists();
 
   void DynamicallyMarkAddress(ConstAddress);
+  void ConservativelyMarkAddress(const BasePage*, ConstAddress);
 
   void AccountMarkedBytes(const HeapObjectHeader&);
   size_t marked_bytes() const { return marked_bytes_; }

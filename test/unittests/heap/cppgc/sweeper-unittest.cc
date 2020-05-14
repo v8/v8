@@ -12,6 +12,7 @@
 #include "src/heap/cppgc/heap-object-header-inl.h"
 #include "src/heap/cppgc/heap-object-header.h"
 #include "src/heap/cppgc/heap-page.h"
+#include "src/heap/cppgc/heap-visitor.h"
 #include "src/heap/cppgc/heap.h"
 #include "src/heap/cppgc/page-memory-inl.h"
 #include "src/heap/cppgc/page-memory.h"
@@ -22,6 +23,21 @@ namespace cppgc {
 namespace internal {
 
 namespace {
+
+class ResetLocalAllocationBufferVisitor final
+    : public HeapVisitor<ResetLocalAllocationBufferVisitor> {
+ public:
+  bool VisitLargePageSpace(LargePageSpace*) { return true; }
+  bool VisitNormalPageSpace(NormalPageSpace* space) {
+    space->ResetLinearAllocationBuffer();
+    return true;
+  }
+};
+
+void ResetLocalAllocationBuffers(Heap* heap) {
+  ResetLocalAllocationBufferVisitor visitor;
+  visitor.Traverse(&heap->raw_heap());
+}
 
 size_t g_destructor_callcount;
 
@@ -41,7 +57,9 @@ class SweeperTest : public testing::TestWithHeap {
   SweeperTest() { g_destructor_callcount = 0; }
 
   void Sweep() {
-    Sweeper& sweeper = Heap::From(GetHeap())->sweeper();
+    Heap* heap = Heap::From(GetHeap());
+    ResetLocalAllocationBuffers(heap);
+    Sweeper& sweeper = heap->sweeper();
     sweeper.Start(Sweeper::Config::kAtomic);
     sweeper.Finish();
   }

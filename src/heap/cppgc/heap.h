@@ -116,10 +116,6 @@ class V8_EXPORT_PRIVATE Heap final : public cppgc::Heap {
 
   size_t ObjectPayloadSize() const;
 
-  // Temporary getter until proper visitation of on-stack objects is
-  // implemented.
-  std::vector<HeapObjectHeader*>& objects() { return objects_; }
-
  private:
   bool in_no_gc_scope() const { return no_gc_scope_ > 0; }
   bool is_allocation_allowed() const { return no_allocation_scope_ == 0; }
@@ -134,7 +130,6 @@ class V8_EXPORT_PRIVATE Heap final : public cppgc::Heap {
   std::unique_ptr<Stack> stack_;
   std::unique_ptr<PreFinalizerHandler> prefinalizer_handler_;
   std::unique_ptr<Marker> marker_;
-  std::vector<HeapObjectHeader*> objects_;
 
   PersistentRegion strong_persistent_region_;
   PersistentRegion weak_persistent_region_;

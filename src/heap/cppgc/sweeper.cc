@@ -115,7 +115,7 @@ class PrepareForSweepVisitor final
   explicit PrepareForSweepVisitor(SpaceStates* states) : states_(states) {}
 
   bool VisitNormalPageSpace(NormalPageSpace* space) {
-    space->ResetLinearAllocationBuffer();
+    DCHECK(!space->linear_allocation_buffer().size());
     space->free_list().Clear();
     (*states_)[space->index()].unswept_pages = space->RemoveAllPages();
     return true;

@@ -7,6 +7,7 @@
 #include "include/cppgc/garbage-collected.h"
 #include "include/cppgc/internal/accessors.h"
 #include "src/heap/cppgc/heap-object-header-inl.h"
+#include "src/heap/cppgc/heap-page.h"
 #include "src/heap/cppgc/heap.h"
 #include "src/heap/cppgc/page-memory-inl.h"
 #include "src/heap/cppgc/sanitizers.h"
@@ -116,29 +117,21 @@ void MarkingVisitor::FlushWorklists() {
 }
 
 void MarkingVisitor::DynamicallyMarkAddress(ConstAddress address) {
-  for (auto* header : marker_->heap()->objects()) {
-    if (address >= header->Payload() &&
-        address < (header->Payload() + header->GetSize())) {
-      header->TryMarkAtomic();
-    }
+  HeapObjectHeader& header =
+      BasePage::FromPayload(address)->ObjectHeaderFromInnerAddress(
+          const_cast<Address>(address));
+  DCHECK(!IsInConstruction(header));
+  if (MarkHeaderNoTracing(&header)) {
+    marking_worklist_.Push(
+        {reinterpret_cast<void*>(header.Payload()),
+         GlobalGCInfoTable::GCInfoFromIndex(header.GetGCInfoIndex()).trace});
   }
-  // TODO(chromium:1056170): Implement dynamically getting HeapObjectHeader
-  // for handling previously_not_fully_constructed objects. Requires object
-  // start bitmap.
 }
 
-void MarkingVisitor::VisitPointer(const void* address) {
-  // TODO(chromium:1056170): Add page bloom filter
-
-  const BasePage* page = BasePage::FromInnerAddress(
-      marker_->heap(), static_cast<ConstAddress>(address));
-
-  if (!page) return;
-
-  DCHECK_EQ(marker_->heap(), page->heap());
-
+void MarkingVisitor::ConservativelyMarkAddress(const BasePage* page,
+                                               ConstAddress address) {
   HeapObjectHeader* const header =
-      page->TryObjectHeaderFromInnerAddress(const_cast<void*>(address));
+      page->TryObjectHeaderFromInnerAddress(const_cast<Address>(address));
 
   if (!header || header->IsMarked()) return;
 
@@ -179,6 +172,20 @@ void MarkingVisitor::VisitPointer(const void* address) {
     if (maybe_ptr) VisitPointer(maybe_ptr);
   }
   AccountMarkedBytes(*header);
+}
+
+void MarkingVisitor::VisitPointer(const void* address) {
+  // TODO(chromium:1056170): Add page bloom filter
+
+  const BasePage* page =
+      reinterpret_cast<const BasePage*>(marker_->heap()->page_backend()->Lookup(
+          static_cast<ConstAddress>(address)));
+
+  if (!page) return;
+
+  DCHECK_EQ(marker_->heap(), page->heap());
+
+  ConservativelyMarkAddress(page, reinterpret_cast<ConstAddress>(address));
 }
 
 MutatorThreadMarkingVisitor::MutatorThreadMarkingVisitor(Marker* marker)

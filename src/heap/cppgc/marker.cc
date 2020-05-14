@@ -22,6 +22,11 @@ class ResetLocalAllocationBufferVisitor final
     return true;
   }
 };
+
+void ResetLocalAllocationBuffers(Heap* heap) {
+  ResetLocalAllocationBufferVisitor visitor;
+  visitor.Traverse(&heap->raw_heap());
+}
 }  // namespace
 
 namespace {
@@ -62,12 +67,10 @@ Marker::~Marker() {
     NotFullyConstructedWorklist::View view(&not_fully_constructed_worklist_,
                                            kMutatorThreadId);
     while (view.Pop(&item)) {
-      // TODO(chromium:1056170): uncomment following check after implementing
-      // FromInnerAddress.
-      //
-      // HeapObjectHeader* const header = HeapObjectHeader::FromInnerAddress(
-      //     reinterpret_cast<Address>(const_cast<void*>(item)));
-      // DCHECK(header->IsMarked())
+      const HeapObjectHeader& header =
+          BasePage::FromPayload(item)->ObjectHeaderFromInnerAddress(
+              static_cast<ConstAddress>(item));
+      DCHECK(header.IsMarked());
     }
 #else
     not_fully_constructed_worklist_.Clear();
@@ -80,9 +83,16 @@ void Marker::StartMarking(MarkingConfig config) {
   VisitRoots();
 }
 
-void Marker::FinishMarking() {
+void Marker::FinishMarking(MarkingConfig config) {
+  config_ = config;
+
+  // Reset LABs before trying to conservatively mark in-construction objects.
+  // This is also needed in preparation for sweeping.
+  ResetLocalAllocationBuffers(heap_);
   if (config_.stack_state_ == MarkingConfig::StackState::kNoHeapPointers) {
     FlushNotFullyConstructedObjects();
+  } else {
+    MarkNotFullyConstructedObjects();
   }
   AdvanceMarkingWithDeadline(v8::base::TimeDelta::Max());
 }
@@ -102,12 +112,9 @@ void Marker::ProcessWeakness() {
 }
 
 void Marker::VisitRoots() {
-  {
-    // Reset LABs before scanning roots. LABs are cleared to allow
-    // ObjectStartBitmap handling without considering LABs.
-    ResetLocalAllocationBufferVisitor visitor;
-    visitor.Traverse(&heap_->raw_heap());
-  }
+  // Reset LABs before scanning roots. LABs are cleared to allow
+  // ObjectStartBitmap handling without considering LABs.
+  ResetLocalAllocationBuffers(heap_);
 
   heap_->GetStrongPersistentRegion().Trace(marking_visitor_.get());
   if (config_.stack_state_ != MarkingConfig::StackState::kNoHeapPointers)
@@ -159,6 +166,16 @@ void Marker::FlushNotFullyConstructedObjects() {
         &not_fully_constructed_worklist_);
   }
   DCHECK(not_fully_constructed_worklist_.IsLocalViewEmpty(kMutatorThreadId));
+}
+
+void Marker::MarkNotFullyConstructedObjects() {
+  NotFullyConstructedItem item;
+  NotFullyConstructedWorklist::View view(&not_fully_constructed_worklist_,
+                                         kMutatorThreadId);
+  while (view.Pop(&item)) {
+    marking_visitor_->ConservativelyMarkAddress(
+        BasePage::FromPayload(item), reinterpret_cast<ConstAddress>(item));
+  }
 }
 
 void Marker::ClearAllWorklistsForTesting() {
