@@ -5,24 +5,11 @@
 #include "src/heap/cppgc/marker.h"
 
 #include "src/heap/cppgc/heap-object-header-inl.h"
-#include "src/heap/cppgc/heap-visitor.h"
 #include "src/heap/cppgc/heap.h"
 #include "src/heap/cppgc/marking-visitor.h"
 
 namespace cppgc {
 namespace internal {
-
-namespace {
-class ResetLocalAllocationBufferVisitor final
-    : public HeapVisitor<ResetLocalAllocationBufferVisitor> {
- public:
-  bool VisitLargePageSpace(LargePageSpace*) { return true; }
-  bool VisitNormalPageSpace(NormalPageSpace* space) {
-    space->ResetLinearAllocationBuffer();
-    return true;
-  }
-};
-}  // namespace
 
 namespace {
 template <typename Worklist, typename Callback>
@@ -102,13 +89,6 @@ void Marker::ProcessWeakness() {
 }
 
 void Marker::VisitRoots() {
-  {
-    // Reset LABs before scanning roots. LABs are cleared to allow
-    // ObjectStartBitmap handling without considering LABs.
-    ResetLocalAllocationBufferVisitor visitor;
-    visitor.Traverse(&heap_->raw_heap());
-  }
-
   heap_->GetStrongPersistentRegion().Trace(marking_visitor_.get());
   if (config_.stack_state_ != MarkingConfig::StackState::kNoHeapPointers)
     heap_->stack()->IteratePointers(marking_visitor_.get());

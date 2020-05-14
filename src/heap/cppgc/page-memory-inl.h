@@ -16,19 +16,19 @@ inline bool SupportsCommittingGuardPages(PageAllocator* allocator) {
   return kGuardPageSize % allocator->CommitPageSize() == 0;
 }
 
-Address NormalPageMemoryRegion::Lookup(ConstAddress address) const {
+Address NormalPageMemoryRegion::Lookup(Address address) const {
   size_t index = GetIndex(address);
   if (!page_memories_in_use_[index]) return nullptr;
   const MemoryRegion writeable_region = GetPageMemory(index).writeable_region();
   return writeable_region.Contains(address) ? writeable_region.base() : nullptr;
 }
 
-Address LargePageMemoryRegion::Lookup(ConstAddress address) const {
+Address LargePageMemoryRegion::Lookup(Address address) const {
   const MemoryRegion writeable_region = GetPageMemory().writeable_region();
   return writeable_region.Contains(address) ? writeable_region.base() : nullptr;
 }
 
-Address PageMemoryRegion::Lookup(ConstAddress address) const {
+Address PageMemoryRegion::Lookup(Address address) const {
   DCHECK(reserved_region().Contains(address));
   return is_large()
              ? static_cast<const LargePageMemoryRegion*>(this)->Lookup(address)
@@ -36,7 +36,7 @@ Address PageMemoryRegion::Lookup(ConstAddress address) const {
                    address);
 }
 
-PageMemoryRegion* PageMemoryRegionTree::Lookup(ConstAddress address) const {
+PageMemoryRegion* PageMemoryRegionTree::Lookup(Address address) const {
   auto it = set_.upper_bound(address);
   // This check also covers set_.size() > 0, since for empty vectors it is
   // guaranteed that begin() == end().
@@ -46,7 +46,7 @@ PageMemoryRegion* PageMemoryRegionTree::Lookup(ConstAddress address) const {
   return nullptr;
 }
 
-Address PageBackend::Lookup(ConstAddress address) const {
+Address PageBackend::Lookup(Address address) const {
   PageMemoryRegion* pmr = page_memory_region_tree_.Lookup(address);
   return pmr ? pmr->Lookup(address) : nullptr;
 }

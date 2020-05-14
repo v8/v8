@@ -25,9 +25,6 @@ class V8_EXPORT_PRIVATE BasePage {
   static BasePage* FromPayload(void*);
   static const BasePage* FromPayload(const void*);
 
-  static BasePage* FromInnerAddress(const Heap*, void*);
-  static const BasePage* FromInnerAddress(const Heap*, const void*);
-
   BasePage(const BasePage&) = delete;
   BasePage& operator=(const BasePage&) = delete;
 
@@ -41,16 +38,8 @@ class V8_EXPORT_PRIVATE BasePage {
   bool is_large() const { return type_ == PageType::kLarge; }
 
   // |address| must refer to real object.
-  HeapObjectHeader& ObjectHeaderFromInnerAddress(void* address) const;
-  const HeapObjectHeader& ObjectHeaderFromInnerAddress(
-      const void* address) const;
-
-  // |address| is guaranteed to point into the page but not payload. Returns
-  // nullptr when pointing into free list entries and the valid header
-  // otherwise.
-  HeapObjectHeader* TryObjectHeaderFromInnerAddress(void* address) const;
-  const HeapObjectHeader* TryObjectHeaderFromInnerAddress(
-      const void* address) const;
+  HeapObjectHeader* ObjectHeaderFromInnerAddress(void* address);
+  const HeapObjectHeader* ObjectHeaderFromInnerAddress(const void* address);
 
  protected:
   enum class PageType { kNormal, kLarge };
@@ -146,10 +135,6 @@ class V8_EXPORT_PRIVATE NormalPage final : public BasePage {
     return object_start_bitmap_;
   }
 
-  bool PayloadContains(ConstAddress address) const {
-    return (PayloadStart() <= address) && (address < PayloadEnd());
-  }
-
  private:
   NormalPage(Heap* heap, BaseSpace* space);
   ~NormalPage();
@@ -182,10 +167,6 @@ class V8_EXPORT_PRIVATE LargePage final : public BasePage {
   ConstAddress PayloadEnd() const;
 
   size_t PayloadSize() const { return payload_size_; }
-
-  bool PayloadContains(ConstAddress address) const {
-    return (PayloadStart() <= address) && (address < PayloadEnd());
-  }
 
  private:
   LargePage(Heap* heap, BaseSpace* space, size_t);

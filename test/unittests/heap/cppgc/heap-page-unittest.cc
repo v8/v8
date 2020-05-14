@@ -252,10 +252,10 @@ TEST_F(PageTest, ObjectHeaderFromInnerAddress) {
 
     for (auto* inner_ptr = reinterpret_cast<ConstAddress>(object);
          inner_ptr < reinterpret_cast<ConstAddress>(object + 1); ++inner_ptr) {
-      const HeapObjectHeader& hoh =
+      const HeapObjectHeader* hoh =
           BasePage::FromPayload(object)->ObjectHeaderFromInnerAddress(
               inner_ptr);
-      EXPECT_EQ(&expected, &hoh);
+      EXPECT_EQ(&expected, hoh);
     }
   }
   {
@@ -263,10 +263,10 @@ TEST_F(PageTest, ObjectHeaderFromInnerAddress) {
         MakeGarbageCollected<GCed<2 * kLargeObjectSizeThreshold>>(GetHeap());
     const HeapObjectHeader& expected = HeapObjectHeader::FromPayload(object);
 
-    const HeapObjectHeader& hoh =
+    const HeapObjectHeader* hoh =
         BasePage::FromPayload(object)->ObjectHeaderFromInnerAddress(
             reinterpret_cast<ConstAddress>(object) + kLargeObjectSizeThreshold);
-    EXPECT_EQ(&expected, &hoh);
+    EXPECT_EQ(&expected, hoh);
   }
 }
 
