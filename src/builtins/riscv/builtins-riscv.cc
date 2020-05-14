@@ -1143,7 +1143,7 @@ void Builtins::Generate_InterpreterEntryTrampoline(MacroAssembler* masm) {
 
   __ bind(&do_return);
   // The return value is in a0.
-  LeaveInterpreterFrame(masm, a0);
+  LeaveInterpreterFrame(masm, t0);
   __ Jump(ra);
 
   __ bind(&optimized_code_slot_not_empty);
