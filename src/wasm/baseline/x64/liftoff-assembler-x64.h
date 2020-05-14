@@ -1703,11 +1703,19 @@ inline bool EmitSatTruncateFloatToInt(LiftoffAssembler* assm, Register dst,
   DoubleRegister converted_back = kScratchDoubleReg2;
   DoubleRegister zero_reg = kScratchDoubleReg;
 
-  __ Roundss(rounded, src, kRoundToZero);
+  if (std::is_same<double, src_type>::value) {  // f64
+    __ Roundsd(rounded, src, kRoundToZero);
+  } else {  // f32
+    __ Roundss(rounded, src, kRoundToZero);
+  }
 
   ConvertFloatToIntAndBack<dst_type, src_type>(assm, dst, rounded,
                                                converted_back);
-  __ Ucomiss(converted_back, rounded);
+  if (std::is_same<double, src_type>::value) {  // f64
+    __ Ucomisd(converted_back, rounded);
+  } else {  // f32
+    __ Ucomiss(converted_back, rounded);
+  }
 
   // Return 0 if PF is 0 (one of the operands was NaN)
   __ j(parity_odd, &not_nan);
@@ -1720,14 +1728,18 @@ inline bool EmitSatTruncateFloatToInt(LiftoffAssembler* assm, Register dst,
 
   __ xorpd(zero_reg, zero_reg);
 
-  __ Ucomiss(src, kScratchDoubleReg);
+  if (std::is_same<double, src_type>::value) {  // f64
+    __ Ucomisd(src, kScratchDoubleReg);
+  } else {  // f32
+    __ Ucomiss(src, kScratchDoubleReg);
+  }
   __ j(above, &src_pos);
-  __ movl(dst, Immediate(kMinInt));
+  __ movl(dst, Immediate(std::numeric_limits<dst_type>::min()));
   __ jmp(&done);
 
   __ bind(&src_pos);
 
-  __ movl(dst, Immediate(kMaxInt));
+  __ movl(dst, Immediate(std::numeric_limits<dst_type>::max()));
 
   __ bind(&done);
   return true;
@@ -1757,6 +1769,15 @@ bool LiftoffAssembler::emit_type_conversion(WasmOpcode opcode,
     case kExprI32SConvertSatF32:
       return liftoff::EmitSatTruncateFloatToInt<int32_t, float>(this, dst.gp(),
                                                                 src.fp());
+    case kExprI32UConvertSatF32:
+      return liftoff::EmitSatTruncateFloatToInt<uint32_t, float>(this, dst.gp(),
+                                                                 src.fp());
+    case kExprI32SConvertSatF64:
+      return liftoff::EmitSatTruncateFloatToInt<int32_t, double>(this, dst.gp(),
+                                                                 src.fp());
+    case kExprI32UConvertSatF64:
+      return liftoff::EmitSatTruncateFloatToInt<uint32_t, double>(
+          this, dst.gp(), src.fp());
     case kExprI32ReinterpretF32:
       Movd(dst.gp(), src.fp());
       return true;

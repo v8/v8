@@ -1272,6 +1272,15 @@ bool LiftoffAssembler::emit_type_conversion(WasmOpcode opcode,
     case kExprI32SConvertSatF32:
       bailout(kNonTrappingFloatToInt, "kExprI32SConvertSatF32");
       return true;
+    case kExprI32UConvertSatF32:
+      bailout(kNonTrappingFloatToInt, "kExprI32UConvertSatF32");
+      return true;
+    case kExprI32SConvertSatF64:
+      bailout(kNonTrappingFloatToInt, "kExprI32SConvertSatF64");
+      return true;
+    case kExprI32UConvertSatF64:
+      bailout(kNonTrappingFloatToInt, "kExprI32UConvertSatF64");
+      return true;
     case kExprI32ReinterpretF32:
       mfc1(dst.gp(), src.fp());
       return true;

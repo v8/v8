@@ -1090,9 +1090,9 @@ class LiftoffCompiler {
                                       nullptr);
             });
         CASE_TYPE_CONVERSION(I32SConvertSatF32, I32, F32, nullptr, kNoTrap)
-      case kExprI32UConvertSatF32:
-      case kExprI32SConvertSatF64:
-      case kExprI32UConvertSatF64:
+        CASE_TYPE_CONVERSION(I32UConvertSatF32, I32, F32, nullptr, kNoTrap)
+        CASE_TYPE_CONVERSION(I32SConvertSatF64, I32, F64, nullptr, kNoTrap)
+        CASE_TYPE_CONVERSION(I32UConvertSatF64, I32, F64, nullptr, kNoTrap)
       case kExprI64SConvertSatF32:
       case kExprI64UConvertSatF32:
       case kExprI64SConvertSatF64:
