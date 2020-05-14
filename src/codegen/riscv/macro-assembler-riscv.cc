@@ -1681,17 +1681,17 @@ void TurboAssembler::RoundFloatingPointToInteger(Register rd, FPURegister fs,
     Register scratch = temps.hasAvailable() ? temps.Acquire() : t5;
 
     // Save csr_fflags to scratch & clear exception flags
-    int exception_flags = kInvalidOperation | kOverflow | kUnderflow;
+    int exception_flags = kInvalidOperation;
     RV_csrrci(scratch, csr_fflags, exception_flags);
 
     // actual conversion instruction
     fcvt_generator(this, rd, fs);
 
-    // check exception flags (overflow, NaN, underflow), set result to 1 for
-    // abnormal status, otherwise 0
+    // check kInvalidOperation flag (out-of-range, NaN)
+    // set result to 1 if normal, otherwise set result to 0 for abnormal
     RV_frflags(result);
     RV_andi(result, result, exception_flags);
-    RV_snez(result, result);
+    RV_seqz(result, result);  // result <-- 1 (normal), result <-- 0 (abnormal)
 
     // restore csr_fflags
     RV_csrw(csr_fflags, scratch);
@@ -1884,7 +1884,11 @@ void TurboAssembler::RoundHelper(FPURegister dst, FPURegister src,
   // if src is NaN/+-Infinity/+-Zero or if the exponent is larger than # of bits
   // in mantissa, the result is the same as src, so move src to dest  (to avoid
   // generating another branch)
-  Move(dst, src);
+  if (std::is_same<F, double>::value) {
+    Move_d(dst, src);
+  } else {
+    Move_s(dst, src);
+  }
 
   // If real exponent (i.e., t6 - kFloatExponentBias) is greater than
   // kFloat32MantissaBits, it means the floating-point value has no fractional
@@ -2495,8 +2499,8 @@ void TurboAssembler::TryInlineTruncateDoubleToI(Register result,
   Register scratch = temps.Acquire();
   // if scratch == 1, exception happens during truncation
   Trunc_w_d(result, double_input, scratch);
-  // If we had no exceptions we are done.
-  Branch(done, eq, scratch, Operand(zero_reg));
+  // If we had no exceptions (i.e., scratch==1) we are done.
+  Branch(done, eq, scratch, Operand(1));
 }
 
 void TurboAssembler::TruncateDoubleToI(Isolate* isolate, Zone* zone,
@@ -3118,9 +3122,9 @@ void TurboAssembler::StoreReturnAddressAndCall(Register target) {
   // This is the return address of the exit frame.
   RV_auipc(ra, 0);  // Set ra the current PC
   bind(&find_ra);
-  RV_addi(
-      ra, ra,
-      (kNumInstructionsToJump + 1) * kInstrSize);  // Set ra to insn after the call
+  RV_addi(ra, ra,
+          (kNumInstructionsToJump + 1) *
+              kInstrSize);  // Set ra to insn after the call
 
   // This spot was reserved in EnterExitFrame.
   Sd(ra, MemOperand(sp));

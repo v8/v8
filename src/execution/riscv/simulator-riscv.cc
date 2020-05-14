@@ -1991,10 +1991,24 @@ I_TYPE Simulator::RoundF2IHelper(F_TYPE original, int rmode) {
   // Rounding up may happen when converting max_i to floating-point, e.g.,
   // max<uint64> is 9223372036854775807 vs. (double)max<uint64> is
   // 9223372036854775808.00000000000000
-  if (rounded >= max_i) {
-    if (rounded > max_i) set_fflags(kOverflow | kInvalidOperation);
+
+  // Since integer max values are either all 1s (for unsigned) or all 1s except
+  // for sign-bit (for signed), they cannot be represented precisely in floating
+  // point, in order to precisely tell whether the rounded floating point is
+  // within the max range, we compare against (max_i+1) which would have a
+  // single 1 w/ many trailing zeros
+  float max_i_plus_1 =
+      std::is_same<uint64_t, I_TYPE>::value
+          ? 0x1p64f  // uint64_t::max + 1 cannot be represented in integers, so
+                     // use its float representation directly
+          : static_cast<float>(static_cast<uint64_t>(max_i) + 1);
+  if (rounded >= max_i_plus_1) {
+    set_fflags(kOverflow | kInvalidOperation);
     return max_i;
   }
+
+  // Since min_i (either 0 for unsigned, or for signed) is represented precisely
+  // in floating-point,  comparing rounded directly against min_i
   if (rounded <= min_i) {
     if (rounded < min_i) set_fflags(kOverflow | kInvalidOperation);
     return min_i;

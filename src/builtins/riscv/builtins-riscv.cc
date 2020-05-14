@@ -2608,12 +2608,12 @@ void Builtins::Generate_DoubleToI(MacroAssembler* masm) {
   __ Ldc1(double_scratch, MemOperand(sp, kArgumentOffset));
 
   // Try a conversion to a signed integer, if exception occurs, scratch is
-  // set to 1
+  // set to 0
   __ Trunc_w_d(scratch3, double_scratch, scratch);
 
   // If we had no exceptions then set result_reg and we are done.
   Label error;
-  __ Branch(&error, ne, scratch, Operand(zero_reg));
+  __ Branch(&error, eq, scratch, Operand(zero_reg));
   __ Move(result_reg, scratch3);
   __ Branch(&done);
   __ bind(&error);
