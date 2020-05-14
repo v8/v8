@@ -2819,8 +2819,11 @@ class WasmFullDecoder : public WasmDecoder<validate> {
   int DecodeLoadTransformMem(LoadType type, LoadTransformationKind transform,
                              uint32_t opcode_length) {
     if (!CheckHasMemory()) return 0;
+    // Load extends always load 64-bits.
+    uint32_t max_alignment =
+        transform == LoadTransformationKind::kExtend ? 3 : type.size_log_2();
     MemoryAccessImmediate<validate> imm(this, this->pc_ + opcode_length,
-                                        type.size_log_2());
+                                        max_alignment);
     auto index = Pop(0, kWasmI32);
     auto* result = Push(kWasmS128);
     CALL_INTERFACE_IF_REACHABLE(LoadTransform, type, transform, imm, index,

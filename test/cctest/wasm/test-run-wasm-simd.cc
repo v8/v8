@@ -3430,20 +3430,25 @@ void RunLoadExtendTest(ExecutionTier execution_tier, LowerSimd lower_simd,
   constexpr int lanes_s = 16 / sizeof(S);
   constexpr int lanes_t = 16 / sizeof(T);
   constexpr int mem_index = 16;  // Load from mem index 16 (bytes).
-  WasmRunner<int32_t> r(execution_tier, lower_simd);
-  S* memory = r.builder().AddMemoryElems<S>(kWasmPageSize / sizeof(S));
-  T* global = r.builder().AddGlobal<T>(kWasmS128);
-  BUILD(r, WASM_SET_GLOBAL(0, WASM_SIMD_LOAD_EXTEND(op, WASM_I32V(mem_index))),
-        WASM_ONE);
+  // Load extends always load 64 bits, so alignment values can be from 0 to 3.
+  for (byte alignment = 0; alignment <= 3; alignment++) {
+    WasmRunner<int32_t> r(execution_tier, lower_simd);
+    S* memory = r.builder().AddMemoryElems<S>(kWasmPageSize / sizeof(S));
+    T* global = r.builder().AddGlobal<T>(kWasmS128);
+    BUILD(r,
+          WASM_SET_GLOBAL(0, WASM_SIMD_LOAD_EXTEND_ALIGNMENT(
+                                 op, WASM_I32V(mem_index), alignment)),
+          WASM_ONE);
 
-  for (S x : compiler::ValueHelper::GetVector<S>()) {
-    for (int i = 0; i < lanes_s; i++) {
-      // 16-th byte in memory is lanes-th element (size T) of memory.
-      r.builder().WriteMemory(&memory[lanes_s + i], x);
-    }
-    r.Call();
-    for (int i = 0; i < lanes_t; i++) {
-      CHECK_EQ(static_cast<T>(x), ReadLittleEndianValue<T>(&global[i]));
+    for (S x : compiler::ValueHelper::GetVector<S>()) {
+      for (int i = 0; i < lanes_s; i++) {
+        // 16-th byte in memory is lanes-th element (size T) of memory.
+        r.builder().WriteMemory(&memory[lanes_s + i], x);
+      }
+      r.Call();
+      for (int i = 0; i < lanes_t; i++) {
+        CHECK_EQ(static_cast<T>(x), ReadLittleEndianValue<T>(&global[i]));
+      }
     }
   }
 }
