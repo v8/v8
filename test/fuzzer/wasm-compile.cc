@@ -79,17 +79,6 @@ class DataRange {
   DISALLOW_COPY_AND_ASSIGN(DataRange);
 };
 
-template <>
-bool DataRange::get<bool>() {
-  // SPECIALIZATION FOR BOOL
-  // The -O3 on release will break the result. This creates a different
-  // observable side effect when invoking get<bool> between debug and release
-  // version, which eventually makes the code output different as well as
-  // raising various unrecoverable errors on runtime. It is caused by undefined
-  // behavior of assigning boolean via memcpy from randomized bytes.
-  return get<uint8_t>() % 2 == 0;
-}
-
 ValueType GetValueType(DataRange* data) {
   // TODO(v8:8460): We do not add kWasmS128 here yet because this method is used
   // to generate globals, and since we do not have v128.const yet, there is no
