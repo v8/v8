@@ -8,6 +8,7 @@
 #include "include/cppgc/internal/accessors.h"
 #include "src/heap/cppgc/heap-object-header-inl.h"
 #include "src/heap/cppgc/heap.h"
+#include "src/heap/cppgc/page-memory-inl.h"
 
 namespace cppgc {
 namespace internal {
@@ -126,14 +127,57 @@ void MarkingVisitor::DynamicallyMarkAddress(ConstAddress address) {
 }
 
 void MarkingVisitor::VisitPointer(const void* address) {
-  for (auto* header : marker_->heap()->objects()) {
-    if (address >= header->Payload() &&
-        address < (header->Payload() + header->GetSize())) {
-      header->TryMarkAtomic();
-    }
+  // TODO(chromium:1056170): Add page bloom filter
+
+  const BasePage* page = BasePage::FromInnerAddress(
+      marker_->heap(), static_cast<ConstAddress>(address));
+
+  if (!page) return;
+
+  DCHECK_EQ(marker_->heap(), page->heap());
+
+  HeapObjectHeader* const header =
+      page->TryObjectHeaderFromInnerAddress(const_cast<void*>(address));
+
+  if (!header || header->IsMarked()) return;
+
+  // Simple case for fully constructed objects. This just adds the object to the
+  // regular marking worklist.
+  if (!IsInConstruction(*header)) {
+    MarkHeader(
+        header,
+        {header->Payload(),
+         GlobalGCInfoTable::GCInfoFromIndex(header->GetGCInfoIndex()).trace});
+    return;
   }
-  // TODO(chromium:1056170): Implement proper conservative scanning for
-  // on-stack objects. Requires page bloom filter.
+
+  // This case is reached for not-fully-constructed objects with vtables.
+  // We can differentiate multiple cases:
+  // 1. No vtable set up. Example:
+  //      class A : public GarbageCollected<A> { virtual void f() = 0; };
+  //      class B : public A { B() : A(foo()) {}; };
+  //    The vtable for A is not set up if foo() allocates and triggers a GC.
+  //
+  // 2. Vtables properly set up (non-mixin case).
+  // 3. Vtables not properly set up (mixin) if GC is allowed during mixin
+  //    construction.
+  //
+  // We use a simple conservative approach for these cases as they are not
+  // performance critical.
+  MarkHeaderNoTracing(header);
+  Address* payload = reinterpret_cast<Address*>(header->Payload());
+  const size_t payload_size = header->GetSize();
+  for (size_t i = 0; i < (payload_size / sizeof(Address)); ++i) {
+    Address maybe_ptr = payload[i];
+#if defined(MEMORY_SANITIZER)
+    // |payload| may be uninitialized by design or just contain padding bytes.
+    // Copy into a local variable that is unpoisoned for conservative marking.
+    // Copy into a temporary variable to maintain the original MSAN state.
+    __msan_unpoison(&maybe_ptr, sizeof(maybe_ptr));
+#endif
+    if (maybe_ptr) VisitPointer(maybe_ptr);
+  }
+  AccountMarkedBytes(*header);
 }
 
 MutatorThreadMarkingVisitor::MutatorThreadMarkingVisitor(Marker* marker)
