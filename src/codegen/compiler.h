@@ -361,10 +361,50 @@ class OptimizedCompilationJob : public CompilationJob {
   const char* compiler_name_;
 };
 
-struct FinalizeUnoptimizedCompilationData {
-  int function_literal_id;
-  base::TimeDelta time_taken_to_execute;
-  base::TimeDelta time_taken_to_finalize;
+class FinalizeUnoptimizedCompilationData {
+ public:
+  FinalizeUnoptimizedCompilationData(Isolate* isolate,
+                                     Handle<SharedFunctionInfo> function_handle,
+                                     base::TimeDelta time_taken_to_execute,
+                                     base::TimeDelta time_taken_to_finalize)
+      : time_taken_to_execute_(time_taken_to_execute),
+        time_taken_to_finalize_(time_taken_to_finalize),
+        function_handle_(function_handle),
+        handle_state_(kHandle) {}
+
+  FinalizeUnoptimizedCompilationData(OffThreadIsolate* isolate,
+                                     Handle<SharedFunctionInfo> function_handle,
+                                     base::TimeDelta time_taken_to_execute,
+                                     base::TimeDelta time_taken_to_finalize)
+      : time_taken_to_execute_(time_taken_to_execute),
+        time_taken_to_finalize_(time_taken_to_finalize),
+        function_transfer_handle_(isolate->TransferHandle(function_handle)),
+        handle_state_(kTransferHandle) {}
+
+  Handle<SharedFunctionInfo> function_handle() const {
+    switch (handle_state_) {
+      case kHandle:
+        return function_handle_;
+      case kTransferHandle:
+        return function_transfer_handle_.ToHandle();
+    }
+  }
+
+  base::TimeDelta time_taken_to_execute() const {
+    return time_taken_to_execute_;
+  }
+  base::TimeDelta time_taken_to_finalize() const {
+    return time_taken_to_finalize_;
+  }
+
+ private:
+  base::TimeDelta time_taken_to_execute_;
+  base::TimeDelta time_taken_to_finalize_;
+  union {
+    Handle<SharedFunctionInfo> function_handle_;
+    OffThreadTransferHandle<SharedFunctionInfo> function_transfer_handle_;
+  };
+  enum { kHandle, kTransferHandle } handle_state_;
 };
 
 using FinalizeUnoptimizedCompilationDataList =

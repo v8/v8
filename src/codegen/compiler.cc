@@ -549,10 +549,9 @@ CompilationJob::Status FinalizeSingleUnoptimizedCompilationJob(
   CompilationJob::Status status = job->FinalizeJob(shared_info, isolate);
   if (status == CompilationJob::SUCCEEDED) {
     InstallUnoptimizedCode(compilation_info, shared_info, isolate);
-    finalize_unoptimized_compilation_data_list->push_back(
-        FinalizeUnoptimizedCompilationData{
-            compilation_info->literal()->function_literal_id(),
-            job->time_taken_to_execute(), job->time_taken_to_finalize()});
+    finalize_unoptimized_compilation_data_list->emplace_back(
+        isolate, shared_info, job->time_taken_to_execute(),
+        job->time_taken_to_finalize());
   }
   return status;
 }
@@ -1007,10 +1006,13 @@ void FinalizeUnoptimizedCompilation(
                                 isolate->NeedsSourcePositionsForProfiling());
 
   for (const auto& finalize_data : finalize_unoptimized_compilation_data_list) {
-    Handle<SharedFunctionInfo> shared_info =
-        script
-            ->FindSharedFunctionInfo(isolate, finalize_data.function_literal_id)
-            .ToHandleChecked();
+    Handle<SharedFunctionInfo> shared_info = finalize_data.function_handle();
+    // It's unlikely, but possible, that the bytecode was flushed between being
+    // allocated and now, so guard against that case, and against it being
+    // flushed in the middle of this loop.
+    IsCompiledScope is_compiled_scope(*shared_info, isolate);
+    if (!is_compiled_scope.is_compiled()) continue;
+
     if (need_source_positions) {
       SharedFunctionInfo::EnsureSourcePositionsAvailable(isolate, shared_info);
     }
@@ -1019,8 +1021,8 @@ void FinalizeUnoptimizedCompilation(
     }
 
     LogUnoptimizedCompilation(isolate, shared_info, flags,
-                              finalize_data.time_taken_to_execute,
-                              finalize_data.time_taken_to_finalize);
+                              finalize_data.time_taken_to_execute(),
+                              finalize_data.time_taken_to_finalize());
   }
 }
 
