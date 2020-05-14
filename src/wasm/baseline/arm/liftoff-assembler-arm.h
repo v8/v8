@@ -1887,6 +1887,9 @@ bool LiftoffAssembler::emit_type_conversion(WasmOpcode opcode,
       b(trap, ge);
       return true;
     }
+    case kExprI32SConvertSatF32:
+      bailout(kNonTrappingFloatToInt, "kExprI32SConvertSatF32");
+      return true;
     case kExprI32ReinterpretF32:
       vmov(dst.gp(), liftoff::GetFloatRegister(src.fp()));
       return true;

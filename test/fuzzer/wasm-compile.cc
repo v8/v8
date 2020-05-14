@@ -753,6 +753,8 @@ void WasmGenerator::Generate<ValueType::kI32>(DataRange* data) {
       &WasmGenerator::op<kExprI32UConvertF64, ValueType::kF64>,
       &WasmGenerator::op<kExprI32ReinterpretF32, ValueType::kF32>,
 
+      &WasmGenerator::op<kExprI32SConvertSatF32, ValueType::kF32>,
+
       &WasmGenerator::block<ValueType::kI32>,
       &WasmGenerator::loop<ValueType::kI32>,
       &WasmGenerator::if_<ValueType::kI32, kIfElse>,

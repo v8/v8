@@ -1089,7 +1089,7 @@ class LiftoffCompiler {
               __ emit_type_conversion(kExprI64UConvertI32, dst, c_call_dst,
                                       nullptr);
             });
-      case kExprI32SConvertSatF32:
+        CASE_TYPE_CONVERSION(I32SConvertSatF32, I32, F32, nullptr, kNoTrap)
       case kExprI32UConvertSatF32:
       case kExprI32SConvertSatF64:
       case kExprI32UConvertSatF64:
