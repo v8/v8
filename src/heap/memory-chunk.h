@@ -5,14 +5,16 @@
 #ifndef V8_HEAP_MEMORY_CHUNK_H_
 #define V8_HEAP_MEMORY_CHUNK_H_
 
-#include <set>
-#include <vector>
+#include <atomic>
 
 #include "src/base/macros.h"
+#include "src/base/platform/mutex.h"
+#include "src/common/globals.h"
 #include "src/heap/basic-memory-chunk.h"
 #include "src/heap/heap.h"
 #include "src/heap/invalidated-slots.h"
 #include "src/heap/list.h"
+#include "src/heap/marking.h"
 #include "src/heap/slot-set.h"
 
 namespace v8 {
