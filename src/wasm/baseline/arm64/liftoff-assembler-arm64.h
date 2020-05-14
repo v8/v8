@@ -104,9 +104,14 @@ inline MemOperand GetMemOp(LiftoffAssembler* assm,
   return MemOperand(addr.X(), offset_imm);
 }
 
-inline void EmitSimdShiftLeft(LiftoffAssembler* assm, VRegister dst,
-                              VRegister lhs, Register rhs,
-                              VectorFormat format) {
+enum class ShiftDirection : bool { kLeft, kRight };
+
+enum class ShiftSign : bool { kSigned, kUnsigned };
+
+template <ShiftDirection dir, ShiftSign sign = ShiftSign::kSigned>
+inline void EmitSimdShift(LiftoffAssembler* assm, VRegister dst, VRegister lhs,
+                          Register rhs, VectorFormat format) {
+  DCHECK_IMPLIES(dir == ShiftDirection::kLeft, sign == ShiftSign::kSigned);
   DCHECK(dst.IsSameFormat(lhs));
   DCHECK_EQ(dst.LaneCount(), LaneCountFromFormat(format));
 
@@ -116,7 +121,36 @@ inline void EmitSimdShiftLeft(LiftoffAssembler* assm, VRegister dst,
   int mask = LaneSizeInBitsFromFormat(format) - 1;
   assm->And(shift, rhs, mask);
   assm->Dup(tmp, shift);
-  assm->Sshl(dst, lhs, tmp);
+
+  if (dir == ShiftDirection::kRight) {
+    assm->Neg(tmp, tmp);
+  }
+
+  if (sign == ShiftSign::kSigned) {
+    assm->Sshl(dst, lhs, tmp);
+  } else {
+    assm->Ushl(dst, lhs, tmp);
+  }
+}
+
+template <VectorFormat format, ShiftSign sign>
+inline void EmitSimdShiftRightImmediate(LiftoffAssembler* assm, VRegister dst,
+                                        VRegister lhs, int32_t rhs) {
+  // Sshr and Ushr does not allow shifts to be 0, so check for that here.
+  int mask = LaneSizeInBitsFromFormat(format) - 1;
+  int32_t shift = rhs & mask;
+  if (!shift) {
+    if (dst != lhs) {
+      assm->Mov(dst, lhs);
+    }
+    return;
+  }
+
+  if (sign == ShiftSign::kSigned) {
+    assm->Sshr(dst, lhs, rhs & mask);
+  } else {
+    assm->Ushr(dst, lhs, rhs & mask);
+  }
 }
 
 }  // namespace liftoff
@@ -1272,8 +1306,8 @@ void LiftoffAssembler::emit_i64x2_neg(LiftoffRegister dst,
 
 void LiftoffAssembler::emit_i64x2_shl(LiftoffRegister dst, LiftoffRegister lhs,
                                       LiftoffRegister rhs) {
-  liftoff::EmitSimdShiftLeft(this, dst.fp().V2D(), lhs.fp().V2D(), rhs.gp(),
-                             kFormat2D);
+  liftoff::EmitSimdShift<liftoff::ShiftDirection::kLeft>(
+      this, dst.fp().V2D(), lhs.fp().V2D(), rhs.gp(), kFormat2D);
 }
 
 void LiftoffAssembler::emit_i64x2_shli(LiftoffRegister dst, LiftoffRegister lhs,
@@ -1284,23 +1318,30 @@ void LiftoffAssembler::emit_i64x2_shli(LiftoffRegister dst, LiftoffRegister lhs,
 void LiftoffAssembler::emit_i64x2_shr_s(LiftoffRegister dst,
                                         LiftoffRegister lhs,
                                         LiftoffRegister rhs) {
-  bailout(kSimd, "i64x2_shr_s");
+  liftoff::EmitSimdShift<liftoff::ShiftDirection::kRight,
+                         liftoff::ShiftSign::kSigned>(
+      this, dst.fp().V2D(), lhs.fp().V2D(), rhs.gp(), kFormat2D);
 }
 
 void LiftoffAssembler::emit_i64x2_shri_s(LiftoffRegister dst,
                                          LiftoffRegister lhs, int32_t rhs) {
-  bailout(kSimd, "i64x2_shri_s");
+  liftoff::EmitSimdShiftRightImmediate<kFormat2D, liftoff::ShiftSign::kSigned>(
+      this, dst.fp().V2D(), lhs.fp().V2D(), rhs);
 }
 
 void LiftoffAssembler::emit_i64x2_shr_u(LiftoffRegister dst,
                                         LiftoffRegister lhs,
                                         LiftoffRegister rhs) {
-  bailout(kSimd, "i64x2_shr_u");
+  liftoff::EmitSimdShift<liftoff::ShiftDirection::kRight,
+                         liftoff::ShiftSign::kUnsigned>(
+      this, dst.fp().V2D(), lhs.fp().V2D(), rhs.gp(), kFormat2D);
 }
 
 void LiftoffAssembler::emit_i64x2_shri_u(LiftoffRegister dst,
                                          LiftoffRegister lhs, int32_t rhs) {
-  bailout(kSimd, "i64x2_shri_u");
+  liftoff::EmitSimdShiftRightImmediate<kFormat2D,
+                                       liftoff::ShiftSign::kUnsigned>(
+      this, dst.fp().V2D(), lhs.fp().V2D(), rhs);
 }
 
 void LiftoffAssembler::emit_i64x2_add(LiftoffRegister dst, LiftoffRegister lhs,
@@ -1362,8 +1403,8 @@ void LiftoffAssembler::emit_i32x4_neg(LiftoffRegister dst,
 
 void LiftoffAssembler::emit_i32x4_shl(LiftoffRegister dst, LiftoffRegister lhs,
                                       LiftoffRegister rhs) {
-  liftoff::EmitSimdShiftLeft(this, dst.fp().V4S(), lhs.fp().V4S(), rhs.gp(),
-                             kFormat4S);
+  liftoff::EmitSimdShift<liftoff::ShiftDirection::kLeft>(
+      this, dst.fp().V4S(), lhs.fp().V4S(), rhs.gp(), kFormat4S);
 }
 
 void LiftoffAssembler::emit_i32x4_shli(LiftoffRegister dst, LiftoffRegister lhs,
@@ -1444,8 +1485,8 @@ void LiftoffAssembler::emit_i16x8_neg(LiftoffRegister dst,
 
 void LiftoffAssembler::emit_i16x8_shl(LiftoffRegister dst, LiftoffRegister lhs,
                                       LiftoffRegister rhs) {
-  liftoff::EmitSimdShiftLeft(this, dst.fp().V8H(), lhs.fp().V8H(), rhs.gp(),
-                             kFormat8H);
+  liftoff::EmitSimdShift<liftoff::ShiftDirection::kLeft>(
+      this, dst.fp().V8H(), lhs.fp().V8H(), rhs.gp(), kFormat8H);
 }
 
 void LiftoffAssembler::emit_i16x8_shli(LiftoffRegister dst, LiftoffRegister lhs,
@@ -1550,8 +1591,8 @@ void LiftoffAssembler::emit_i8x16_neg(LiftoffRegister dst,
 
 void LiftoffAssembler::emit_i8x16_shl(LiftoffRegister dst, LiftoffRegister lhs,
                                       LiftoffRegister rhs) {
-  liftoff::EmitSimdShiftLeft(this, dst.fp().V16B(), lhs.fp().V16B(), rhs.gp(),
-                             kFormat16B);
+  liftoff::EmitSimdShift<liftoff::ShiftDirection::kLeft>(
+      this, dst.fp().V16B(), lhs.fp().V16B(), rhs.gp(), kFormat16B);
 }
 
 void LiftoffAssembler::emit_i8x16_shli(LiftoffRegister dst, LiftoffRegister lhs,
