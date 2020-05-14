@@ -573,12 +573,7 @@ int MulLatency(bool is_operand_register = true) {
 }
 
 int DmulLatency(bool is_operand_register = true) {
-  int latency = 0;
-  if (kArchVariant >= kMips64r6) {
-    latency = Latency::DMUL;
-  } else {
-    latency = Latency::DMULT + Latency::MFLO;
-  }
+  int latency = Latency::DMULT + Latency::MFLO;
   if (!is_operand_register) {
     latency += 1;
   }
@@ -586,12 +581,7 @@ int DmulLatency(bool is_operand_register = true) {
 }
 
 int MulhLatency(bool is_operand_register = true) {
-  int latency = 0;
-  if (kArchVariant >= kMips64r6) {
-    latency = Latency::MUH;
-  } else {
-    latency = Latency::MULT + Latency::MFHI;
-  }
+  int latency = Latency::MULT + Latency::MFHI;
   if (!is_operand_register) {
     latency += 1;
   }
@@ -599,12 +589,7 @@ int MulhLatency(bool is_operand_register = true) {
 }
 
 int MulhuLatency(bool is_operand_register = true) {
-  int latency = 0;
-  if (kArchVariant >= kMips64r6) {
-    latency = Latency::MUH;
-  } else {
-    latency = Latency::MULTU + Latency::MFHI;
-  }
+  int latency = Latency::MULTU + Latency::MFHI;
   if (!is_operand_register) {
     latency += 1;
   }
@@ -612,12 +597,7 @@ int MulhuLatency(bool is_operand_register = true) {
 }
 
 int DMulhLatency(bool is_operand_register = true) {
-  int latency = 0;
-  if (kArchVariant >= kMips64r6) {
-    latency = Latency::DMUH;
-  } else {
-    latency = Latency::DMULT + Latency::MFHI;
-  }
+  int latency = Latency::DMULT + Latency::MFHI;
   if (!is_operand_register) {
     latency += 1;
   }
@@ -641,12 +621,7 @@ int DivuLatency(bool is_operand_register = true) {
 }
 
 int DdivLatency(bool is_operand_register = true) {
-  int latency = 0;
-  if (kArchVariant >= kMips64r6) {
-    latency = Latency::DDIV;
-  } else {
-    latency = Latency::DDIV + Latency::MFLO;
-  }
+  int latency = Latency::DDIV + Latency::MFLO;
   if (!is_operand_register) {
     latency += 1;
   }
@@ -654,12 +629,7 @@ int DdivLatency(bool is_operand_register = true) {
 }
 
 int DdivuLatency(bool is_operand_register = true) {
-  int latency = 0;
-  if (kArchVariant >= kMips64r6) {
-    latency = Latency::DDIVU;
-  } else {
-    latency = Latency::DDIVU + Latency::MFLO;
-  }
+  int latency = Latency::DDIVU + Latency::MFLO;
   if (!is_operand_register) {
     latency += 1;
   }
@@ -667,12 +637,7 @@ int DdivuLatency(bool is_operand_register = true) {
 }
 
 int ModLatency(bool is_operand_register = true) {
-  int latency = 0;
-  if (kArchVariant >= kMips64r6) {
-    latency = 1;
-  } else {
-    latency = Latency::DIV + Latency::MFHI;
-  }
+  int latency = Latency::DIV + Latency::MFHI;
   if (!is_operand_register) {
     latency += 1;
   }
@@ -680,12 +645,7 @@ int ModLatency(bool is_operand_register = true) {
 }
 
 int ModuLatency(bool is_operand_register = true) {
-  int latency = 0;
-  if (kArchVariant >= kMips64r6) {
-    latency = 1;
-  } else {
-    latency = Latency::DIVU + Latency::MFHI;
-  }
+  int latency = Latency::DIVU + Latency::MFHI;
   if (!is_operand_register) {
     latency += 1;
   }
@@ -693,12 +653,7 @@ int ModuLatency(bool is_operand_register = true) {
 }
 
 int DmodLatency(bool is_operand_register = true) {
-  int latency = 0;
-  if (kArchVariant >= kMips64r6) {
-    latency = 1;
-  } else {
-    latency = Latency::DDIV + Latency::MFHI;
-  }
+  int latency = Latency::DDIV + Latency::MFHI;
   if (!is_operand_register) {
     latency += 1;
   }
@@ -706,33 +661,16 @@ int DmodLatency(bool is_operand_register = true) {
 }
 
 int DmoduLatency(bool is_operand_register = true) {
-  int latency = 0;
-  if (kArchVariant >= kMips64r6) {
-    latency = 1;
-  } else {
-    latency = Latency::DDIV + Latency::MFHI;
-  }
+  int latency = Latency::DDIV + Latency::MFHI;
   if (!is_operand_register) {
     latency += 1;
   }
   return latency;
 }
 
-int MovzLatency() {
-  if (kArchVariant >= kMips64r6) {
-    return Latency::BRANCH + 1;
-  } else {
-    return 1;
-  }
-}
+int MovzLatency() { return 1; }
 
-int MovnLatency() {
-  if (kArchVariant >= kMips64r6) {
-    return Latency::BRANCH + 1;
-  } else {
-    return 1;
-  }
-}
+int MovnLatency() { return 1; }
 
 int DlsaLatency() {
   // Estimated max.
@@ -780,95 +718,37 @@ int AdjustBaseAndOffsetLatency() {
 int AlignedMemoryLatency() { return AdjustBaseAndOffsetLatency() + 1; }
 
 int UlhuLatency() {
-  if (kArchVariant >= kMips64r6) {
-    return AlignedMemoryLatency();
-  } else {
-    return AdjustBaseAndOffsetLatency() + 2 * AlignedMemoryLatency() + 2;
-  }
+  return AdjustBaseAndOffsetLatency() + 2 * AlignedMemoryLatency() + 2;
 }
 
 int UlwLatency() {
-  if (kArchVariant >= kMips64r6) {
-    return AlignedMemoryLatency();
-  } else {
-    // Estimated max.
-    return AdjustBaseAndOffsetLatency() + 3;
-  }
+  // Estimated max.
+  return AdjustBaseAndOffsetLatency() + 3;
 }
 
-int UlwuLatency() {
-  if (kArchVariant >= kMips64r6) {
-    return AlignedMemoryLatency();
-  } else {
-    return UlwLatency() + 1;
-  }
-}
+int UlwuLatency() { return UlwLatency() + 1; }
 
 int UldLatency() {
-  if (kArchVariant >= kMips64r6) {
-    return AlignedMemoryLatency();
-  } else {
-    // Estimated max.
-    return AdjustBaseAndOffsetLatency() + 3;
-  }
+  // Estimated max.
+  return AdjustBaseAndOffsetLatency() + 3;
 }
 
-int Ulwc1Latency() {
-  if (kArchVariant >= kMips64r6) {
-    return AlignedMemoryLatency();
-  } else {
-    return UlwLatency() + Latency::MTC1;
-  }
-}
+int Ulwc1Latency() { return UlwLatency() + Latency::MTC1; }
 
-int Uldc1Latency() {
-  if (kArchVariant >= kMips64r6) {
-    return AlignedMemoryLatency();
-  } else {
-    return UldLatency() + Latency::DMTC1;
-  }
-}
+int Uldc1Latency() { return UldLatency() + Latency::DMTC1; }
 
 int UshLatency() {
-  if (kArchVariant >= kMips64r6) {
-    return AlignedMemoryLatency();
-  } else {
-    // Estimated max.
-    return AdjustBaseAndOffsetLatency() + 2 + 2 * AlignedMemoryLatency();
-  }
+  // Estimated max.
+  return AdjustBaseAndOffsetLatency() + 2 + 2 * AlignedMemoryLatency();
 }
 
-int UswLatency() {
-  if (kArchVariant >= kMips64r6) {
-    return AlignedMemoryLatency();
-  } else {
-    return AdjustBaseAndOffsetLatency() + 2;
-  }
-}
+int UswLatency() { return AdjustBaseAndOffsetLatency() + 2; }
 
-int UsdLatency() {
-  if (kArchVariant >= kMips64r6) {
-    return AlignedMemoryLatency();
-  } else {
-    return AdjustBaseAndOffsetLatency() + 2;
-  }
-}
+int UsdLatency() { return AdjustBaseAndOffsetLatency() + 2; }
 
-int Uswc1Latency() {
-  if (kArchVariant >= kMips64r6) {
-    return AlignedMemoryLatency();
-  } else {
-    return Latency::MFC1 + UswLatency();
-  }
-}
+int Uswc1Latency() { return Latency::MFC1 + UswLatency(); }
 
-int Usdc1Latency() {
-  if (kArchVariant >= kMips64r6) {
-    return AlignedMemoryLatency();
-  } else {
-    return Latency::DMFC1 + UsdLatency();
-  }
-}
+int Usdc1Latency() { return Latency::DMFC1 + UsdLatency(); }
 
 int Lwc1Latency() { return AdjustBaseAndOffsetLatency() + Latency::LWC1; }
 
@@ -953,12 +833,7 @@ int AssembleArchLookupSwitchLatency(const Instruction* instr) {
 }
 
 int GenerateSwitchTableLatency() {
-  int latency = 0;
-  if (kArchVariant >= kMips64r6) {
-    latency = DlsaLatency() + 2;
-  } else {
-    latency = 6;
-  }
+  int latency = 6;
   latency += 2;
   return latency;
 }
@@ -1008,9 +883,7 @@ int BranchShortHelperLatency() {
   return SltuLatency() + 2;  // Estimated max.
 }
 
-int BranchShortLatency() {
-  return BranchShortHelperLatency();
-}
+int BranchShortLatency() { return BranchShortHelperLatency(); }
 
 int MoveLatency() { return 1; }
 
@@ -1036,21 +909,12 @@ int MulOverflowLatency() {
 int DclzLatency() { return 1; }
 
 int CtzLatency() {
-  if (kArchVariant >= kMips64r6) {
-    return 3 + DclzLatency();
-  } else {
-    return DadduLatency(false) + XorLatency() + AndLatency() + DclzLatency() +
-           1 + DsubuLatency();
-  }
+  return DadduLatency(false) + XorLatency() + AndLatency() + DclzLatency() + 1 +
+         DsubuLatency();
 }
 
 int DctzLatency() {
-  if (kArchVariant >= kMips64r6) {
-    return 4;
-  } else {
-    return DadduLatency(false) + XorLatency() + AndLatency() + 1 +
-           DsubuLatency();
-  }
+  return DadduLatency(false) + XorLatency() + AndLatency() + 1 + DsubuLatency();
 }
 
 int PopcntLatency() {
@@ -1078,89 +942,56 @@ int CompareIsNanF32Latency() { return CompareIsNanFLatency(); }
 int CompareIsNanF64Latency() { return CompareIsNanFLatency(); }
 
 int NegsLatency() {
-  if (kArchVariant >= kMips64r6) {
-    return Latency::NEG_S;
-  } else {
-    // Estimated.
-    return CompareIsNanF32Latency() + 2 * Latency::BRANCH + Latency::NEG_S +
-           Latency::MFC1 + 1 + XorLatency() + Latency::MTC1;
-  }
+  // Estimated.
+  return CompareIsNanF32Latency() + 2 * Latency::BRANCH + Latency::NEG_S +
+         Latency::MFC1 + 1 + XorLatency() + Latency::MTC1;
 }
 
 int NegdLatency() {
-  if (kArchVariant >= kMips64r6) {
-    return Latency::NEG_D;
-  } else {
-    // Estimated.
-    return CompareIsNanF64Latency() + 2 * Latency::BRANCH + Latency::NEG_D +
-           Latency::DMFC1 + 1 + XorLatency() + Latency::DMTC1;
-  }
+  // Estimated.
+  return CompareIsNanF64Latency() + 2 * Latency::BRANCH + Latency::NEG_D +
+         Latency::DMFC1 + 1 + XorLatency() + Latency::DMTC1;
 }
 
 int Float64RoundLatency() {
-  if (kArchVariant >= kMips64r6) {
-    return Latency::RINT_D + 4;
-  } else {
-    // For ceil_l_d, floor_l_d, round_l_d, trunc_l_d latency is 4.
-    return Latency::DMFC1 + 1 + Latency::BRANCH + Latency::MOV_D + 4 +
-           Latency::DMFC1 + Latency::BRANCH + Latency::CVT_D_L + 2 +
-           Latency::MTHC1;
-  }
+  // For ceil_l_d, floor_l_d, round_l_d, trunc_l_d latency is 4.
+  return Latency::DMFC1 + 1 + Latency::BRANCH + Latency::MOV_D + 4 +
+         Latency::DMFC1 + Latency::BRANCH + Latency::CVT_D_L + 2 +
+         Latency::MTHC1;
 }
 
 int Float32RoundLatency() {
-  if (kArchVariant >= kMips64r6) {
-    return Latency::RINT_S + 4;
-  } else {
-    // For ceil_w_s, floor_w_s, round_w_s, trunc_w_s latency is 4.
-    return Latency::MFC1 + 1 + Latency::BRANCH + Latency::MOV_S + 4 +
-           Latency::MFC1 + Latency::BRANCH + Latency::CVT_S_W + 2 +
-           Latency::MTC1;
-  }
+  // For ceil_w_s, floor_w_s, round_w_s, trunc_w_s latency is 4.
+  return Latency::MFC1 + 1 + Latency::BRANCH + Latency::MOV_S + 4 +
+         Latency::MFC1 + Latency::BRANCH + Latency::CVT_S_W + 2 + Latency::MTC1;
 }
 
 int Float32MaxLatency() {
   // Estimated max.
   int latency = CompareIsNanF32Latency() + Latency::BRANCH;
-  if (kArchVariant >= kMips64r6) {
-    return latency + Latency::MAX_S;
-  } else {
-    return latency + 5 * Latency::BRANCH + 2 * CompareF32Latency() +
-           Latency::MFC1 + 1 + Latency::MOV_S;
-  }
+  return latency + 5 * Latency::BRANCH + 2 * CompareF32Latency() +
+         Latency::MFC1 + 1 + Latency::MOV_S;
 }
 
 int Float64MaxLatency() {
   // Estimated max.
   int latency = CompareIsNanF64Latency() + Latency::BRANCH;
-  if (kArchVariant >= kMips64r6) {
-    return latency + Latency::MAX_D;
-  } else {
-    return latency + 5 * Latency::BRANCH + 2 * CompareF64Latency() +
-           Latency::DMFC1 + Latency::MOV_D;
-  }
+  return latency + 5 * Latency::BRANCH + 2 * CompareF64Latency() +
+         Latency::DMFC1 + Latency::MOV_D;
 }
 
 int Float32MinLatency() {
   // Estimated max.
   int latency = CompareIsNanF32Latency() + Latency::BRANCH;
-  if (kArchVariant >= kMips64r6) {
-    return latency + Latency::MIN_S;
-  } else {
-    return latency + 5 * Latency::BRANCH + 2 * CompareF32Latency() +
-           Latency::MFC1 + 1 + Latency::MOV_S;
-  }
+  return latency + 5 * Latency::BRANCH + 2 * CompareF32Latency() +
+         Latency::MFC1 + 1 + Latency::MOV_S;
 }
 
 int Float64MinLatency() {
   // Estimated max.
   int latency = CompareIsNanF64Latency() + Latency::BRANCH;
-  if (kArchVariant >= kMips64r6) {
-    return latency + Latency::MIN_D;
-  } else {
-    return latency + 5 * Latency::BRANCH + 2 * CompareF32Latency() +
-           Latency::DMFC1 + Latency::MOV_D;
-  }
+  return latency + 5 * Latency::BRANCH + 2 * CompareF32Latency() +
+         Latency::DMFC1 + Latency::MOV_D;
 }
 
 int TruncLSLatency(bool load_status) {
@@ -1200,8 +1031,7 @@ int PushLatency() { return DadduLatency() + AlignedMemoryLatency(); }
 int ByteSwapSignedLatency() { return 2; }
 
 int LlLatency(int offset) {
-  bool is_one_instruction =
-      (kArchVariant == kMips64r6) ? is_int9(offset) : is_int16(offset);
+  bool is_one_instruction = is_int12(offset);
   if (is_one_instruction) {
     return 1;
   } else {
@@ -1227,15 +1057,7 @@ int ExtractBitsLatency(bool sign_extend, int size) {
 
 int InsertBitsLatency() { return 2 + DsubuLatency(false) + 2; }
 
-int ScLatency(int offset) {
-  bool is_one_instruction =
-      (kArchVariant == kMips64r6) ? is_int9(offset) : is_int16(offset);
-  if (is_one_instruction) {
-    return 1;
-  } else {
-    return 3;
-  }
-}
+int ScLatency(int offset) { return 3; }
 
 int Word32AtomicExchangeLatency(bool sign_extend, int size) {
   return DadduLatency(false) + 1 + DsubuLatency() + 2 + LlLatency(0) +
@@ -1368,19 +1190,11 @@ int InstructionScheduler::GetInstructionLatency(const Instruction* instr) {
       return DMulhLatency();
     case kMips64Div: {
       int latency = DivLatency(instr->InputAt(1)->IsRegister());
-      if (kArchVariant >= kMips64r6) {
-        return latency++;
-      } else {
-        return latency + MovzLatency();
-      }
+      return latency + MovzLatency();
     }
     case kMips64DivU: {
       int latency = DivuLatency(instr->InputAt(1)->IsRegister());
-      if (kArchVariant >= kMips64r6) {
-        return latency++;
-      } else {
-        return latency + MovzLatency();
-      }
+      return latency + MovzLatency();
     }
     case kMips64Mod:
       return ModLatency();
@@ -1390,19 +1204,11 @@ int InstructionScheduler::GetInstructionLatency(const Instruction* instr) {
       return DmulLatency();
     case kMips64Ddiv: {
       int latency = DdivLatency();
-      if (kArchVariant >= kMips64r6) {
-        return latency++;
-      } else {
-        return latency + MovzLatency();
-      }
+      return latency + MovzLatency();
     }
     case kMips64DdivU: {
       int latency = DdivuLatency();
-      if (kArchVariant >= kMips64r6) {
-        return latency++;
-      } else {
-        return latency + MovzLatency();
-      }
+      return latency + MovzLatency();
     }
     case kMips64Dmod:
       return DmodLatency();

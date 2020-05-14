@@ -1097,16 +1097,16 @@ inline FPUCondition ConditionToConditionCmpFPU(Condition condition,
       return EQ;
     case kUnsignedLessThan:
       *predicate = true;
-      return OLT;
+      return LT;
     case kUnsignedGreaterEqual:
       *predicate = false;
-      return OLT;
+      return LT;
     case kUnsignedLessEqual:
       *predicate = true;
-      return OLE;
+      return LE;
     case kUnsignedGreaterThan:
       *predicate = false;
-      return OLE;
+      return LE;
     default:
       *predicate = true;
       break;

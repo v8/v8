@@ -942,7 +942,6 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase {
   void CheckTrampolinePool();
 
   bool IsPrevInstrCompactBranch() { return prev_instr_compact_branch_; }
-  static bool IsCompactBranchSupported() { return kArchVariant == kMips64r6; }
 
   inline int UnboundLabelsCount() { return unbound_labels_count_; }
 

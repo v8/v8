@@ -1991,31 +1991,12 @@ void TurboAssembler::CompareF32(Register rd, FPUCondition cc, FPURegister cmp1,
     case EQ:  // Equal.
       RV_feq_s(rd, cmp1, cmp2);
       break;
-    case LT:  // Ordered or Less Than, on Mips release >= 6.
+    case LT:  // Ordered and Less Than
       RV_flt_s(rd, cmp1, cmp2);
       break;
-    case LE:  // Ordered or Less Than or Equal, on Mips release >= 6.
+    case LE:  // Ordered and Less Than or Equal
       RV_fle_s(rd, cmp1, cmp2);
       break;
-
-      // MIPS FPUCondition codes not supported, RISCV (FIXME): cleanup
-    case UEQ:  // Unordered or Equal.
-      UNREACHABLE();
-      break;
-    case ULT:  // Unordered or Less Than.
-    case ULE:  // Unordered or Less Than or Equal.
-      UNREACHABLE();
-      break;
-    case F:  // False.
-      UNREACHABLE();
-      break;
-    case UN:  // Unordered.
-      UNREACHABLE();
-      break;
-    // Following constants are available on Mips release >= 6 only.
-    case ORD:  // Ordered, on Mips release >= 6.
-    case UNE:  // Not equal, on Mips release >= 6.
-    case NE:   // Ordered Greater Than or Less Than. on Mips >= 6 only.
     default:
       UNREACHABLE();
   }
@@ -2033,25 +2014,6 @@ void TurboAssembler::CompareF64(Register rd, FPUCondition cc, FPURegister cmp1,
     case LE:  // Ordered or Less Than or Equal, on Mips release >= 6.
       RV_fle_d(rd, cmp1, cmp2);
       break;
-
-      // MIPS FPUCondition codes not supported, RISCV (FIXME): cleanup
-    case UEQ:  // Unordered or Equal.
-      UNREACHABLE();
-      break;
-    case ULT:  // Unordered or Less Than.
-    case ULE:  // Unordered or Less Than or Equal.
-      UNREACHABLE();
-      break;
-    case F:  // False.
-      UNREACHABLE();
-      break;
-    case UN:  // Unordered.
-      UNREACHABLE();
-      break;
-    // Following constants are available on Mips release >= 6 only.
-    case ORD:  // Ordered, on Mips release >= 6.
-    case UNE:  // Not equal, on Mips release >= 6.
-    case NE:   // Ordered Greater Than or Less Than. on Mips >= 6 only.
     default:
       UNREACHABLE();
   }
@@ -3054,9 +3016,11 @@ void MacroAssembler::JumpIfIsInRange(Register value, unsigned lower_limit,
     UseScratchRegisterScope temps(this);
     Register scratch = temps.Acquire();
     Dsubu(scratch, value, Operand(lower_limit));
-    Branch(on_in_range, ls, scratch, Operand(higher_limit - lower_limit));
+    Branch(on_in_range, Uless_equal, scratch,
+           Operand(higher_limit - lower_limit));
   } else {
-    Branch(on_in_range, ls, value, Operand(higher_limit - lower_limit));
+    Branch(on_in_range, Uless_equal, value,
+           Operand(higher_limit - lower_limit));
   }
 }
 
@@ -3417,7 +3381,7 @@ void TurboAssembler::PrepareForTailCall(Register callee_args_count,
   Daddu(src_reg, src_reg, Operand(kPointerSize));
 
   if (FLAG_debug_code) {
-    Check(lo, AbortReason::kStackAccessBelowStackPointer, src_reg,
+    Check(Uless, AbortReason::kStackAccessBelowStackPointer, src_reg,
           Operand(dst_reg));
   }
 
