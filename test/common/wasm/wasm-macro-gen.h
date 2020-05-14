@@ -815,6 +815,8 @@ inline WasmOpcode LoadStoreOpcodeOf(MachineType type, bool store) {
   index, WASM_SIMD_OP(opcode), ZERO_ALIGNMENT, offset
 #define WASM_SIMD_LOAD_EXTEND(opcode, index) \
   index, WASM_SIMD_OP(opcode), ZERO_ALIGNMENT, ZERO_OFFSET
+#define WASM_SIMD_LOAD_EXTEND_ALIGNMENT(opcode, index, alignment) \
+  index, WASM_SIMD_OP(opcode), alignment, ZERO_OFFSET
 
 //------------------------------------------------------------------------------
 // Compilation Hints.
