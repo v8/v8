@@ -909,7 +909,7 @@ DEFINE_BOOL(parallel_scavenge, true, "parallel scavenge")
 DEFINE_BOOL(scavenge_task, true, "schedule scavenge tasks")
 DEFINE_INT(scavenge_task_trigger, 80,
            "scavenge task trigger in percent of the current heap limit")
-DEFINE_BOOL(scavenge_separate_stack_scanning, true,
+DEFINE_BOOL(scavenge_separate_stack_scanning, false,
             "use a separate phase for stack scanning in scavenge")
 DEFINE_BOOL(trace_parallel_scavenge, false, "trace parallel scavenge")
 DEFINE_BOOL(write_protect_code_memory, true, "write protect code memory")
