@@ -232,7 +232,8 @@ class WasmGraphBuildingInterface {
 
   void BinOp(FullDecoder* decoder, WasmOpcode opcode, const Value& lhs,
              const Value& rhs, Value* result) {
-    auto node = BUILD(Binop, opcode, lhs.node, rhs.node, decoder->position());
+    TFNode* node =
+        BUILD(Binop, opcode, lhs.node, rhs.node, decoder->position());
     if (result) result->node = node;
   }
 

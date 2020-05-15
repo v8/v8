@@ -1904,7 +1904,7 @@ class WasmFullDecoder : public WasmDecoder<validate> {
 
     // Set up initial function block.
     {
-      auto* c = PushControl(kControlBlock);
+      Control* c = PushControl(kControlBlock);
       InitMerge(&c->start_merge, 0, [](uint32_t) -> Value { UNREACHABLE(); });
       InitMerge(&c->end_merge,
                 static_cast<uint32_t>(this->sig_->return_count()),
@@ -1943,8 +1943,8 @@ class WasmFullDecoder : public WasmDecoder<validate> {
         case kExprBlock: {
           BlockTypeImmediate<validate> imm(this->enabled_, this, this->pc_);
           if (!this->Validate(imm)) break;
-          auto args = PopArgs(imm.sig);
-          auto* block = PushControl(kControlBlock);
+          ArgVector args = PopArgs(imm.sig);
+          Control* block = PushControl(kControlBlock);
           SetBlockType(block, imm, args.begin());
           CALL_INTERFACE_IF_REACHABLE(Block, block);
           PushMergeValues(block, &block->start_merge);
@@ -1953,7 +1953,7 @@ class WasmFullDecoder : public WasmDecoder<validate> {
         }
         case kExprRethrow: {
           CHECK_PROTOTYPE_OPCODE(eh);
-          auto exception = Pop(0, kWasmExnRef);
+          Value exception = Pop(0, kWasmExnRef);
           CALL_INTERFACE_IF_REACHABLE(Rethrow, exception);
           EndControl();
           break;
@@ -1963,7 +1963,7 @@ class WasmFullDecoder : public WasmDecoder<validate> {
           ExceptionIndexImmediate<validate> imm(this, this->pc_);
           len = 1 + imm.length;
           if (!this->Validate(this->pc_, imm)) break;
-          auto args = PopArgs(imm.exception->ToFunctionSig());
+          ArgVector args = PopArgs(imm.exception->ToFunctionSig());
           CALL_INTERFACE_IF_REACHABLE(Throw, imm, VectorOf(args));
           EndControl();
           break;
@@ -1972,8 +1972,8 @@ class WasmFullDecoder : public WasmDecoder<validate> {
           CHECK_PROTOTYPE_OPCODE(eh);
           BlockTypeImmediate<validate> imm(this->enabled_, this, this->pc_);
           if (!this->Validate(imm)) break;
-          auto args = PopArgs(imm.sig);
-          auto* try_block = PushControl(kControlTry);
+          ArgVector args = PopArgs(imm.sig);
+          Control* try_block = PushControl(kControlTry);
           SetBlockType(try_block, imm, args.begin());
           len = 1 + imm.length;
           CALL_INTERFACE_IF_REACHABLE(Try, try_block);
@@ -1999,7 +1999,7 @@ class WasmFullDecoder : public WasmDecoder<validate> {
           FallThruTo(c);
           stack_.erase(stack_.begin() + c->stack_depth, stack_.end());
           c->reachability = control_at(1)->innerReachability();
-          auto* exception = Push(kWasmExnRef);
+          Value* exception = Push(kWasmExnRef);
           CALL_INTERFACE_IF_PARENT_REACHABLE(Catch, c, exception);
           break;
         }
@@ -2009,7 +2009,7 @@ class WasmFullDecoder : public WasmDecoder<validate> {
           if (!this->Validate(this->pc_, imm.depth, control_.size())) break;
           if (!this->Validate(this->pc_ + imm.depth.length, imm.index)) break;
           Control* c = control_at(imm.depth.depth);
-          auto exception = Pop(0, kWasmExnRef);
+          Value exception = Pop(0, kWasmExnRef);
           const WasmExceptionSig* sig = imm.index.exception->sig;
           size_t value_count = sig->parameter_count();
           // TODO(wasm): This operand stack mutation is an ugly hack to make
@@ -2028,7 +2028,7 @@ class WasmFullDecoder : public WasmDecoder<validate> {
           }
           len = 1 + imm.length;
           for (size_t i = 0; i < value_count; ++i) Pop();
-          auto* pexception = Push(kWasmExnRef);
+          Value* pexception = Push(kWasmExnRef);
           *pexception = exception;
           break;
         }
@@ -2044,7 +2044,7 @@ class WasmFullDecoder : public WasmDecoder<validate> {
           if (V8_LIKELY(check_result == kReachableBranch)) {
             switch (ref_object.type.kind()) {
               case ValueType::kRef: {
-                auto* result = Push(
+                Value* result = Push(
                     ValueType(ValueType::kRef, ref_object.type.ref_index()));
                 CALL_INTERFACE(PassThrough, ref_object, result);
                 break;
@@ -2054,7 +2054,7 @@ class WasmFullDecoder : public WasmDecoder<validate> {
                 // the interface. Therefore we must sync the ref_object and
                 // result nodes afterwards (in PassThrough).
                 CALL_INTERFACE(BrOnNull, ref_object, imm.depth);
-                auto* result = Push(
+                Value* result = Push(
                     ValueType(ValueType::kRef, ref_object.type.ref_index()));
                 CALL_INTERFACE(PassThrough, ref_object, result);
                 c->br_merge()->reached = true;
@@ -2080,8 +2080,8 @@ class WasmFullDecoder : public WasmDecoder<validate> {
         case kExprLoop: {
           BlockTypeImmediate<validate> imm(this->enabled_, this, this->pc_);
           if (!this->Validate(imm)) break;
-          auto args = PopArgs(imm.sig);
-          auto* block = PushControl(kControlLoop);
+          ArgVector args = PopArgs(imm.sig);
+          Control* block = PushControl(kControlLoop);
           SetBlockType(&control_.back(), imm, args.begin());
           len = 1 + imm.length;
           CALL_INTERFACE_IF_REACHABLE(Loop, block);
@@ -2091,10 +2091,10 @@ class WasmFullDecoder : public WasmDecoder<validate> {
         case kExprIf: {
           BlockTypeImmediate<validate> imm(this->enabled_, this, this->pc_);
           if (!this->Validate(imm)) break;
-          auto cond = Pop(0, kWasmI32);
-          auto args = PopArgs(imm.sig);
+          Value cond = Pop(0, kWasmI32);
+          ArgVector args = PopArgs(imm.sig);
           if (!VALIDATE(this->ok())) break;
-          auto* if_block = PushControl(kControlIf);
+          Control* if_block = PushControl(kControlIf);
           SetBlockType(if_block, imm, args.begin());
           CALL_INTERFACE_IF_REACHABLE(If, cond, if_block);
           len = 1 + imm.length;
@@ -2161,16 +2161,16 @@ class WasmFullDecoder : public WasmDecoder<validate> {
           break;
         }
         case kExprSelect: {
-          auto cond = Pop(2, kWasmI32);
-          auto fval = Pop();
-          auto tval = Pop(0, fval.type);
+          Value cond = Pop(2, kWasmI32);
+          Value fval = Pop();
+          Value tval = Pop(0, fval.type);
           ValueType type = tval.type == kWasmBottom ? fval.type : tval.type;
           if (type.IsSubTypeOf(kWasmAnyRef)) {
             this->error(
                 "select without type is only valid for value type inputs");
             break;
           }
-          auto* result = Push(type);
+          Value* result = Push(type);
           CALL_INTERFACE_IF_REACHABLE(Select, cond, fval, tval, result);
           break;
         }
@@ -2178,10 +2178,10 @@ class WasmFullDecoder : public WasmDecoder<validate> {
           CHECK_PROTOTYPE_OPCODE(anyref);
           SelectTypeImmediate<validate> imm(this->enabled_, this, this->pc_);
           if (this->failed()) break;
-          auto cond = Pop(2, kWasmI32);
-          auto fval = Pop(1, imm.type);
-          auto tval = Pop(0, imm.type);
-          auto* result = Push(imm.type);
+          Value cond = Pop(2, kWasmI32);
+          Value fval = Pop(1, imm.type);
+          Value tval = Pop(0, imm.type);
+          Value* result = Push(imm.type);
           CALL_INTERFACE_IF_REACHABLE(Select, cond, fval, tval, result);
           len = 1 + imm.length;
           break;
@@ -2207,7 +2207,7 @@ class WasmFullDecoder : public WasmDecoder<validate> {
         }
         case kExprBrIf: {
           BranchDepthImmediate<validate> imm(this, this->pc_);
-          auto cond = Pop(0, kWasmI32);
+          Value cond = Pop(0, kWasmI32);
           if (this->failed()) break;
           if (!this->Validate(this->pc_, imm, control_.size())) break;
           Control* c = control_at(imm.depth);
@@ -2224,7 +2224,7 @@ class WasmFullDecoder : public WasmDecoder<validate> {
         case kExprBrTable: {
           BranchTableImmediate<validate> imm(this, this->pc_);
           BranchTableIterator<validate> iterator(this, imm);
-          auto key = Pop(0, kWasmI32);
+          Value key = Pop(0, kWasmI32);
           if (this->failed()) break;
           if (!this->Validate(this->pc_, imm, control_.size())) break;
 
@@ -2297,35 +2297,35 @@ class WasmFullDecoder : public WasmDecoder<validate> {
         }
         case kExprI32Const: {
           ImmI32Immediate<validate> imm(this, this->pc_);
-          auto* value = Push(kWasmI32);
+          Value* value = Push(kWasmI32);
           CALL_INTERFACE_IF_REACHABLE(I32Const, value, imm.value);
           len = 1 + imm.length;
           break;
         }
         case kExprI64Const: {
           ImmI64Immediate<validate> imm(this, this->pc_);
-          auto* value = Push(kWasmI64);
+          Value* value = Push(kWasmI64);
           CALL_INTERFACE_IF_REACHABLE(I64Const, value, imm.value);
           len = 1 + imm.length;
           break;
         }
         case kExprF32Const: {
           ImmF32Immediate<validate> imm(this, this->pc_);
-          auto* value = Push(kWasmF32);
+          Value* value = Push(kWasmF32);
           CALL_INTERFACE_IF_REACHABLE(F32Const, value, imm.value);
           len = 1 + imm.length;
           break;
         }
         case kExprF64Const: {
           ImmF64Immediate<validate> imm(this, this->pc_);
-          auto* value = Push(kWasmF64);
+          Value* value = Push(kWasmF64);
           CALL_INTERFACE_IF_REACHABLE(F64Const, value, imm.value);
           len = 1 + imm.length;
           break;
         }
         case kExprRefNull: {
           CHECK_PROTOTYPE_OPCODE(anyref);
-          auto* value = Push(kWasmNullRef);
+          Value* value = Push(kWasmNullRef);
           CALL_INTERFACE_IF_REACHABLE(RefNull, value);
           len = 1;
           break;
@@ -2334,23 +2334,23 @@ class WasmFullDecoder : public WasmDecoder<validate> {
           CHECK_PROTOTYPE_OPCODE(anyref);
           FunctionIndexImmediate<validate> imm(this, this->pc_);
           if (!this->Validate(this->pc_, imm)) break;
-          auto* value = Push(kWasmFuncRef);
+          Value* value = Push(kWasmFuncRef);
           CALL_INTERFACE_IF_REACHABLE(RefFunc, imm.index, value);
           len = 1 + imm.length;
           break;
         }
         case kExprRefAsNonNull: {
           CHECK_PROTOTYPE_OPCODE(gc);
-          auto value = Pop();
+          Value value = Pop();
           switch (value.type.kind()) {
             case ValueType::kRef: {
-              auto* result =
+              Value* result =
                   Push(ValueType(ValueType::kRef, value.type.ref_index()));
               CALL_INTERFACE_IF_REACHABLE(PassThrough, value, result);
               break;
             }
             case ValueType::kOptRef: {
-              auto* result =
+              Value* result =
                   Push(ValueType(ValueType::kRef, value.type.ref_index()));
               CALL_INTERFACE_IF_REACHABLE(RefAsNonNull, value, result);
               break;
@@ -2371,7 +2371,7 @@ class WasmFullDecoder : public WasmDecoder<validate> {
         case kExprLocalGet: {
           LocalIndexImmediate<validate> imm(this, this->pc_);
           if (!this->Validate(this->pc_, imm)) break;
-          auto* value = Push(imm.type);
+          Value* value = Push(imm.type);
           CALL_INTERFACE_IF_REACHABLE(LocalGet, value, imm);
           len = 1 + imm.length;
           break;
@@ -2379,7 +2379,7 @@ class WasmFullDecoder : public WasmDecoder<validate> {
         case kExprLocalSet: {
           LocalIndexImmediate<validate> imm(this, this->pc_);
           if (!this->Validate(this->pc_, imm)) break;
-          auto value = Pop(0, local_type_vec_[imm.index]);
+          Value value = Pop(0, local_type_vec_[imm.index]);
           CALL_INTERFACE_IF_REACHABLE(LocalSet, value, imm);
           len = 1 + imm.length;
           break;
@@ -2387,14 +2387,14 @@ class WasmFullDecoder : public WasmDecoder<validate> {
         case kExprLocalTee: {
           LocalIndexImmediate<validate> imm(this, this->pc_);
           if (!this->Validate(this->pc_, imm)) break;
-          auto value = Pop(0, local_type_vec_[imm.index]);
-          auto* result = Push(value.type);
+          Value value = Pop(0, local_type_vec_[imm.index]);
+          Value* result = Push(value.type);
           CALL_INTERFACE_IF_REACHABLE(LocalTee, value, result, imm);
           len = 1 + imm.length;
           break;
         }
         case kExprDrop: {
-          auto value = Pop();
+          Value value = Pop();
           CALL_INTERFACE_IF_REACHABLE(Drop, value);
           break;
         }
@@ -2402,7 +2402,7 @@ class WasmFullDecoder : public WasmDecoder<validate> {
           GlobalIndexImmediate<validate> imm(this, this->pc_);
           len = 1 + imm.length;
           if (!this->Validate(this->pc_, imm)) break;
-          auto* result = Push(imm.type);
+          Value* result = Push(imm.type);
           CALL_INTERFACE_IF_REACHABLE(GlobalGet, result, imm);
           break;
         }
@@ -2415,7 +2415,7 @@ class WasmFullDecoder : public WasmDecoder<validate> {
                          imm.index);
             break;
           }
-          auto value = Pop(0, imm.type);
+          Value value = Pop(0, imm.type);
           CALL_INTERFACE_IF_REACHABLE(GlobalSet, value, imm);
           break;
         }
@@ -2425,8 +2425,8 @@ class WasmFullDecoder : public WasmDecoder<validate> {
           len = 1 + imm.length;
           if (!this->Validate(this->pc_, imm)) break;
           DCHECK_NOT_NULL(this->module_);
-          auto index = Pop(0, kWasmI32);
-          auto* result = Push(this->module_->tables[imm.index].type);
+          Value index = Pop(0, kWasmI32);
+          Value* result = Push(this->module_->tables[imm.index].type);
           CALL_INTERFACE_IF_REACHABLE(TableGet, index, result, imm);
           break;
         }
@@ -2435,8 +2435,8 @@ class WasmFullDecoder : public WasmDecoder<validate> {
           TableIndexImmediate<validate> imm(this, this->pc_);
           len = 1 + imm.length;
           if (!this->Validate(this->pc_, imm)) break;
-          auto value = Pop(1, this->module_->tables[imm.index].type);
-          auto index = Pop(0, kWasmI32);
+          Value value = Pop(1, this->module_->tables[imm.index].type);
+          Value index = Pop(0, kWasmI32);
           CALL_INTERFACE_IF_REACHABLE(TableSet, index, value, imm);
           break;
         }
@@ -2519,15 +2519,15 @@ class WasmFullDecoder : public WasmDecoder<validate> {
             this->error("grow_memory is not supported for asmjs modules");
             break;
           }
-          auto value = Pop(0, kWasmI32);
-          auto* result = Push(kWasmI32);
+          Value value = Pop(0, kWasmI32);
+          Value* result = Push(kWasmI32);
           CALL_INTERFACE_IF_REACHABLE(MemoryGrow, value, result);
           break;
         }
         case kExprMemorySize: {
           if (!CheckHasMemory()) break;
           MemoryIndexImmediate<validate> imm(this, this->pc_);
-          auto* result = Push(kWasmI32);
+          Value* result = Push(kWasmI32);
           len = 1 + imm.length;
           CALL_INTERFACE_IF_REACHABLE(CurrentMemoryPages, result);
           break;
@@ -2536,8 +2536,8 @@ class WasmFullDecoder : public WasmDecoder<validate> {
           CallFunctionImmediate<validate> imm(this, this->pc_);
           len = 1 + imm.length;
           if (!this->Validate(this->pc_, imm)) break;
-          auto args = PopArgs(imm.sig);
-          auto* returns = PushReturns(imm.sig);
+          ArgVector args = PopArgs(imm.sig);
+          Value* returns = PushReturns(imm.sig);
           CALL_INTERFACE_IF_REACHABLE(CallDirect, imm, args.begin(), returns);
           break;
         }
@@ -2545,9 +2545,9 @@ class WasmFullDecoder : public WasmDecoder<validate> {
           CallIndirectImmediate<validate> imm(this->enabled_, this, this->pc_);
           len = 1 + imm.length;
           if (!this->Validate(this->pc_, imm)) break;
-          auto index = Pop(0, kWasmI32);
-          auto args = PopArgs(imm.sig);
-          auto* returns = PushReturns(imm.sig);
+          Value index = Pop(0, kWasmI32);
+          ArgVector args = PopArgs(imm.sig);
+          Value* returns = PushReturns(imm.sig);
           CALL_INTERFACE_IF_REACHABLE(CallIndirect, index, imm, args.begin(),
                                       returns);
           break;
@@ -2563,7 +2563,7 @@ class WasmFullDecoder : public WasmDecoder<validate> {
             break;
           }
 
-          auto args = PopArgs(imm.sig);
+          ArgVector args = PopArgs(imm.sig);
 
           CALL_INTERFACE_IF_REACHABLE(ReturnCall, imm, args.begin());
           EndControl();
@@ -2578,8 +2578,8 @@ class WasmFullDecoder : public WasmDecoder<validate> {
             OPCODE_ERROR(opcode, "tail call return types mismatch");
             break;
           }
-          auto index = Pop(0, kWasmI32);
-          auto args = PopArgs(imm.sig);
+          Value index = Pop(0, kWasmI32);
+          ArgVector args = PopArgs(imm.sig);
           CALL_INTERFACE_IF_REACHABLE(ReturnCallIndirect, index, imm,
                                       args.begin());
           EndControl();
@@ -2683,7 +2683,7 @@ class WasmFullDecoder : public WasmDecoder<validate> {
         }
         TRACE_PART(" | ");
         for (size_t i = 0; i < stack_.size(); ++i) {
-          auto& val = stack_[i];
+          Value& val = stack_[i];
           WasmOpcode opcode = static_cast<WasmOpcode>(*val.pc);
           if (WasmOpcodes::IsPrefixOpcode(opcode)) {
             opcode = this->template read_prefixed_opcode<Decoder::kNoValidate>(
@@ -2729,7 +2729,7 @@ class WasmFullDecoder : public WasmDecoder<validate> {
 
   void EndControl() {
     DCHECK(!control_.empty());
-    auto* current = &control_.back();
+    Control* current = &control_.back();
     stack_.erase(stack_.begin() + current->stack_depth, stack_.end());
     CALL_INTERFACE_IF_REACHABLE(EndControl, current);
     current->reachability = kUnreachable;
@@ -2810,8 +2810,8 @@ class WasmFullDecoder : public WasmDecoder<validate> {
     if (!CheckHasMemory()) return 0;
     MemoryAccessImmediate<validate> imm(this, this->pc_ + prefix_len,
                                         type.size_log_2());
-    auto index = Pop(0, kWasmI32);
-    auto* result = Push(type.value_type());
+    Value index = Pop(0, kWasmI32);
+    Value* result = Push(type.value_type());
     CALL_INTERFACE_IF_REACHABLE(LoadMem, type, imm, index, result);
     return imm.length;
   }
@@ -2824,8 +2824,8 @@ class WasmFullDecoder : public WasmDecoder<validate> {
         transform == LoadTransformationKind::kExtend ? 3 : type.size_log_2();
     MemoryAccessImmediate<validate> imm(this, this->pc_ + opcode_length,
                                         max_alignment);
-    auto index = Pop(0, kWasmI32);
-    auto* result = Push(kWasmS128);
+    Value index = Pop(0, kWasmI32);
+    Value* result = Push(kWasmS128);
     CALL_INTERFACE_IF_REACHABLE(LoadTransform, type, transform, imm, index,
                                 result);
     return imm.length;
@@ -2835,8 +2835,8 @@ class WasmFullDecoder : public WasmDecoder<validate> {
     if (!CheckHasMemory()) return 0;
     MemoryAccessImmediate<validate> imm(this, this->pc_ + prefix_len,
                                         store.size_log_2());
-    auto value = Pop(1, store.value_type());
-    auto index = Pop(0, kWasmI32);
+    Value value = Pop(1, store.value_type());
+    Value index = Pop(0, kWasmI32);
     CALL_INTERFACE_IF_REACHABLE(StoreMem, store, imm, index, value);
     return imm.length;
   }
@@ -2851,7 +2851,7 @@ class WasmFullDecoder : public WasmDecoder<validate> {
   }
 
   std::vector<ValueType> InitializeBrTableResultTypes(uint32_t target) {
-    auto* merge = control_at(target)->br_merge();
+    Merge<Value>* merge = control_at(target)->br_merge();
     int br_arity = merge->arity;
     std::vector<ValueType> result(br_arity);
     for (int i = 0; i < br_arity; ++i) {
@@ -2862,7 +2862,7 @@ class WasmFullDecoder : public WasmDecoder<validate> {
 
   bool UpdateBrTableResultTypes(std::vector<ValueType>* result_types,
                                 uint32_t target, const byte* pos, int index) {
-    auto* merge = control_at(target)->br_merge();
+    Merge<Value>* merge = control_at(target)->br_merge();
     int br_arity = merge->arity;
     // First we check if the arities match.
     if (br_arity != static_cast<int>(result_types->size())) {
@@ -2929,7 +2929,7 @@ class WasmFullDecoder : public WasmDecoder<validate> {
     SimdLaneImmediate<validate> imm(this, this->pc_, opcode_length);
     if (this->Validate(this->pc_, opcode, imm)) {
       Value inputs[] = {Pop(0, kWasmS128)};
-      auto* result = Push(type);
+      Value* result = Push(type);
       CALL_INTERFACE_IF_REACHABLE(SimdLaneOp, opcode, imm, ArrayVector(inputs),
                                   result);
     }
@@ -2944,7 +2944,7 @@ class WasmFullDecoder : public WasmDecoder<validate> {
                          UnreachableValue(this->pc_)};
       inputs[1] = Pop(1, type);
       inputs[0] = Pop(0, kWasmS128);
-      auto* result = Push(kWasmS128);
+      Value* result = Push(kWasmS128);
       CALL_INTERFACE_IF_REACHABLE(SimdLaneOp, opcode, imm, ArrayVector(inputs),
                                   result);
     }
@@ -2954,9 +2954,9 @@ class WasmFullDecoder : public WasmDecoder<validate> {
   uint32_t Simd8x16ShuffleOp(uint32_t opcode_length) {
     Simd8x16ShuffleImmediate<validate> imm(this, this->pc_, opcode_length);
     if (this->Validate(this->pc_, imm)) {
-      auto input1 = Pop(1, kWasmS128);
-      auto input0 = Pop(0, kWasmS128);
-      auto* result = Push(kWasmS128);
+      Value input1 = Pop(1, kWasmS128);
+      Value input0 = Pop(0, kWasmS128);
+      Value* result = Push(kWasmS128);
       CALL_INTERFACE_IF_REACHABLE(Simd8x16ShuffleOp, imm, input0, input1,
                                   result);
     }
@@ -3076,8 +3076,8 @@ class WasmFullDecoder : public WasmDecoder<validate> {
           this->error("invalid simd opcode");
           break;
         }
-        auto args = PopArgs(sig);
-        auto* results =
+        ArgVector args = PopArgs(sig);
+        Value* results =
             sig->return_count() == 0 ? nullptr : Push(GetReturnType(sig));
         CALL_INTERFACE_IF_REACHABLE(SimdOp, opcode, VectorOf(args), results);
       }
@@ -3092,8 +3092,8 @@ class WasmFullDecoder : public WasmDecoder<validate> {
         StructIndexImmediate<validate> imm(this, this->pc_ + len);
         len += imm.length;
         if (!this->Validate(this->pc_, imm)) break;
-        auto args = PopArgs(imm.struct_type);
-        auto* value = Push(ValueType(ValueType::kRef, imm.index));
+        ArgVector args = PopArgs(imm.struct_type);
+        Value* value = Push(ValueType(ValueType::kRef, imm.index));
         CALL_INTERFACE_IF_REACHABLE(StructNew, imm, args.begin(), value);
         break;
       }
@@ -3101,9 +3101,9 @@ class WasmFullDecoder : public WasmDecoder<validate> {
         FieldIndexImmediate<validate> field(this, this->pc_ + len);
         if (!this->Validate(this->pc_ + len, field)) break;
         len += field.length;
-        auto struct_obj =
+        Value struct_obj =
             Pop(0, ValueType(ValueType::kOptRef, field.struct_index.index));
-        auto* value = Push(field.struct_index.struct_type->field(field.index));
+        Value* value = Push(field.struct_index.struct_type->field(field.index));
         CALL_INTERFACE_IF_REACHABLE(StructGet, struct_obj, field, value);
         break;
       }
@@ -3111,9 +3111,9 @@ class WasmFullDecoder : public WasmDecoder<validate> {
         FieldIndexImmediate<validate> field(this, this->pc_ + len);
         if (!this->Validate(this->pc_ + len, field)) break;
         len += field.length;
-        auto field_value = Pop(
+        Value field_value = Pop(
             0, ValueType(field.struct_index.struct_type->field(field.index)));
-        auto struct_obj =
+        Value struct_obj =
             Pop(0, ValueType(ValueType::kOptRef, field.struct_index.index));
         CALL_INTERFACE_IF_REACHABLE(StructSet, struct_obj, field, field_value);
         break;
@@ -3122,9 +3122,9 @@ class WasmFullDecoder : public WasmDecoder<validate> {
         ArrayIndexImmediate<validate> imm(this, this->pc_ + len);
         len += imm.length;
         if (!this->Validate(this->pc_, imm)) break;
-        auto length = Pop(0, kWasmI32);
-        auto initial_value = Pop(0, imm.array_type->element_type());
-        auto* value = Push(ValueType(ValueType::kRef, imm.index));
+        Value length = Pop(0, kWasmI32);
+        Value initial_value = Pop(0, imm.array_type->element_type());
+        Value* value = Push(ValueType(ValueType::kRef, imm.index));
         CALL_INTERFACE_IF_REACHABLE(ArrayNew, imm, length, initial_value,
                                     value);
         break;
@@ -3133,9 +3133,9 @@ class WasmFullDecoder : public WasmDecoder<validate> {
         ArrayIndexImmediate<validate> imm(this, this->pc_ + len);
         len += imm.length;
         if (!this->Validate(this->pc_ + len, imm)) break;
-        auto index = Pop(0, kWasmI32);
-        auto array_obj = Pop(0, ValueType(ValueType::kOptRef, imm.index));
-        auto* value = Push(imm.array_type->element_type());
+        Value index = Pop(0, kWasmI32);
+        Value array_obj = Pop(0, ValueType(ValueType::kOptRef, imm.index));
+        Value* value = Push(imm.array_type->element_type());
         // TODO(7748): Optimize this when array_obj is non-nullable ref.
         CALL_INTERFACE_IF_REACHABLE(ArrayGet, array_obj, imm, index, value);
         break;
@@ -3144,9 +3144,9 @@ class WasmFullDecoder : public WasmDecoder<validate> {
         ArrayIndexImmediate<validate> imm(this, this->pc_ + len);
         len += imm.length;
         if (!this->Validate(this->pc_ + len, imm)) break;
-        auto value = Pop(0, imm.array_type->element_type());
-        auto index = Pop(0, kWasmI32);
-        auto array_obj = Pop(0, ValueType(ValueType::kOptRef, imm.index));
+        Value value = Pop(0, imm.array_type->element_type());
+        Value index = Pop(0, kWasmI32);
+        Value array_obj = Pop(0, ValueType(ValueType::kOptRef, imm.index));
         // TODO(7748): Optimize this when array_obj is non-nullable ref.
         CALL_INTERFACE_IF_REACHABLE(ArraySet, array_obj, imm, index, value);
         break;
@@ -3155,8 +3155,8 @@ class WasmFullDecoder : public WasmDecoder<validate> {
         ArrayIndexImmediate<validate> imm(this, this->pc_ + len);
         len += imm.length;
         if (!this->Validate(this->pc_ + len, imm)) break;
-        auto array_obj = Pop(0, ValueType(ValueType::kOptRef, imm.index));
-        auto* value = Push(kWasmI32);
+        Value array_obj = Pop(0, ValueType(ValueType::kOptRef, imm.index));
+        Value* value = Push(kWasmI32);
         CALL_INTERFACE_IF_REACHABLE(ArrayLen, array_obj, value);
         break;
       }
@@ -3210,8 +3210,8 @@ class WasmFullDecoder : public WasmDecoder<validate> {
     MemoryAccessImmediate<validate> imm(
         this, this->pc_ + 1, ElementSizeLog2Of(memtype.representation()));
     len += imm.length;
-    auto args = PopArgs(sig);
-    auto result = ret_type == kWasmStmt ? nullptr : Push(GetReturnType(sig));
+    ArgVector args = PopArgs(sig);
+    Value* result = ret_type == kWasmStmt ? nullptr : Push(GetReturnType(sig));
     CALL_INTERFACE_IF_REACHABLE(AtomicOp, opcode, VectorOf(args), imm, result);
     return len;
   }
@@ -3235,9 +3235,9 @@ class WasmFullDecoder : public WasmDecoder<validate> {
           MemoryInitImmediate<validate> imm(this, this->pc_);
           if (!this->Validate(imm)) break;
           len += imm.length;
-          auto size = Pop(2, sig->GetParam(2));
-          auto src = Pop(1, sig->GetParam(1));
-          auto dst = Pop(0, sig->GetParam(0));
+          Value size = Pop(2, sig->GetParam(2));
+          Value src = Pop(1, sig->GetParam(1));
+          Value dst = Pop(0, sig->GetParam(0));
           CALL_INTERFACE_IF_REACHABLE(MemoryInit, imm, dst, src, size);
           break;
         }
@@ -3252,9 +3252,9 @@ class WasmFullDecoder : public WasmDecoder<validate> {
           MemoryCopyImmediate<validate> imm(this, this->pc_);
           if (!this->Validate(imm)) break;
           len += imm.length;
-          auto size = Pop(2, sig->GetParam(2));
-          auto src = Pop(1, sig->GetParam(1));
-          auto dst = Pop(0, sig->GetParam(0));
+          Value size = Pop(2, sig->GetParam(2));
+          Value src = Pop(1, sig->GetParam(1));
+          Value dst = Pop(0, sig->GetParam(0));
           CALL_INTERFACE_IF_REACHABLE(MemoryCopy, imm, dst, src, size);
           break;
         }
@@ -3262,9 +3262,9 @@ class WasmFullDecoder : public WasmDecoder<validate> {
           MemoryIndexImmediate<validate> imm(this, this->pc_ + 1);
           if (!this->Validate(this->pc_ + 1, imm)) break;
           len += imm.length;
-          auto size = Pop(2, sig->GetParam(2));
-          auto value = Pop(1, sig->GetParam(1));
-          auto dst = Pop(0, sig->GetParam(0));
+          Value size = Pop(2, sig->GetParam(2));
+          Value value = Pop(1, sig->GetParam(1));
+          Value dst = Pop(0, sig->GetParam(0));
           CALL_INTERFACE_IF_REACHABLE(MemoryFill, imm, dst, value, size);
           break;
         }
@@ -3272,7 +3272,7 @@ class WasmFullDecoder : public WasmDecoder<validate> {
           TableInitImmediate<validate> imm(this, this->pc_);
           if (!this->Validate(imm)) break;
           len += imm.length;
-          auto args = PopArgs(sig);
+          ArgVector args = PopArgs(sig);
           CALL_INTERFACE_IF_REACHABLE(TableInit, imm, VectorOf(args));
           break;
         }
@@ -3287,7 +3287,7 @@ class WasmFullDecoder : public WasmDecoder<validate> {
           TableCopyImmediate<validate> imm(this, this->pc_);
           if (!this->Validate(imm)) break;
           len += imm.length;
-          auto args = PopArgs(sig);
+          ArgVector args = PopArgs(sig);
           CALL_INTERFACE_IF_REACHABLE(TableCopy, imm, VectorOf(args));
           break;
         }
@@ -3295,9 +3295,9 @@ class WasmFullDecoder : public WasmDecoder<validate> {
           TableIndexImmediate<validate> imm(this, this->pc_ + 1);
           if (!this->Validate(this->pc_, imm)) break;
           len += imm.length;
-          auto delta = Pop(1, sig->GetParam(1));
-          auto value = Pop(0, this->module_->tables[imm.index].type);
-          auto* result = Push(kWasmI32);
+          Value delta = Pop(1, sig->GetParam(1));
+          Value value = Pop(0, this->module_->tables[imm.index].type);
+          Value* result = Push(kWasmI32);
           CALL_INTERFACE_IF_REACHABLE(TableGrow, imm, value, delta, result);
           break;
         }
@@ -3305,7 +3305,7 @@ class WasmFullDecoder : public WasmDecoder<validate> {
           TableIndexImmediate<validate> imm(this, this->pc_ + 1);
           if (!this->Validate(this->pc_, imm)) break;
           len += imm.length;
-          auto* result = Push(kWasmI32);
+          Value* result = Push(kWasmI32);
           CALL_INTERFACE_IF_REACHABLE(TableSize, imm, result);
           break;
         }
@@ -3313,9 +3313,9 @@ class WasmFullDecoder : public WasmDecoder<validate> {
           TableIndexImmediate<validate> imm(this, this->pc_ + 1);
           if (!this->Validate(this->pc_, imm)) break;
           len += imm.length;
-          auto count = Pop(2, sig->GetParam(2));
-          auto value = Pop(1, this->module_->tables[imm.index].type);
-          auto start = Pop(0, sig->GetParam(0));
+          Value count = Pop(2, sig->GetParam(2));
+          Value value = Pop(1, this->module_->tables[imm.index].type);
+          Value start = Pop(0, sig->GetParam(0));
           CALL_INTERFACE_IF_REACHABLE(TableFill, imm, start, value, count);
           break;
         }
@@ -3371,7 +3371,7 @@ class WasmFullDecoder : public WasmDecoder<validate> {
   }
 
   V8_INLINE Value Pop(int index, ValueType expected) {
-    auto val = Pop();
+    Value val = Pop();
     if (!VALIDATE(val.type.IsSubTypeOf(expected) || val.type == kWasmBottom ||
                   expected == kWasmBottom)) {
       this->errorf(val.pc, "%s[%d] expected type %s, found %s of type %s",
@@ -3392,7 +3392,7 @@ class WasmFullDecoder : public WasmDecoder<validate> {
       }
       return UnreachableValue(this->pc_);
     }
-    auto val = stack_.back();
+    Value val = stack_.back();
     stack_.pop_back();
     return val;
   }
@@ -3555,7 +3555,7 @@ class WasmFullDecoder : public WasmDecoder<validate> {
     // This line requires num_returns > 0.
     Value* stack_values = &*(stack_.end() - num_returns);
     for (int i = 0; i < num_returns; ++i) {
-      auto& val = stack_values[i];
+      Value& val = stack_values[i];
       ValueType expected_type = this->sig_->GetReturn(i);
       if (!val.type.IsSubTypeOf(expected_type)) {
         this->errorf(this->pc_,
@@ -3586,16 +3586,16 @@ class WasmFullDecoder : public WasmDecoder<validate> {
   void BuildSimpleOperator(WasmOpcode opcode, const FunctionSig* sig) {
     switch (sig->parameter_count()) {
       case 1: {
-        auto val = Pop(0, sig->GetParam(0));
-        auto* ret =
+        Value val = Pop(0, sig->GetParam(0));
+        Value* ret =
             sig->return_count() == 0 ? nullptr : Push(sig->GetReturn(0));
         CALL_INTERFACE_IF_REACHABLE(UnOp, opcode, val, ret);
         break;
       }
       case 2: {
-        auto rval = Pop(1, sig->GetParam(1));
-        auto lval = Pop(0, sig->GetParam(0));
-        auto* ret =
+        Value rval = Pop(1, sig->GetParam(1));
+        Value lval = Pop(0, sig->GetParam(0));
+        Value* ret =
             sig->return_count() == 0 ? nullptr : Push(sig->GetReturn(0));
         CALL_INTERFACE_IF_REACHABLE(BinOp, opcode, lval, rval, ret);
         break;
@@ -3607,16 +3607,16 @@ class WasmFullDecoder : public WasmDecoder<validate> {
 
   void BuildSimpleOperator(WasmOpcode opcode, ValueType return_type,
                            ValueType arg_type) {
-    auto val = Pop(0, arg_type);
-    auto* ret = return_type == kWasmStmt ? nullptr : Push(return_type);
+    Value val = Pop(0, arg_type);
+    Value* ret = return_type == kWasmStmt ? nullptr : Push(return_type);
     CALL_INTERFACE_IF_REACHABLE(UnOp, opcode, val, ret);
   }
 
   void BuildSimpleOperator(WasmOpcode opcode, ValueType return_type,
                            ValueType lhs_type, ValueType rhs_type) {
-    auto rval = Pop(1, rhs_type);
-    auto lval = Pop(0, lhs_type);
-    auto* ret = return_type == kWasmStmt ? nullptr : Push(return_type);
+    Value rval = Pop(1, rhs_type);
+    Value lval = Pop(0, lhs_type);
+    Value* ret = return_type == kWasmStmt ? nullptr : Push(return_type);
     CALL_INTERFACE_IF_REACHABLE(BinOp, opcode, lval, rval, ret);
   }
 
