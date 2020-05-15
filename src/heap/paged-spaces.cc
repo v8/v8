@@ -204,6 +204,7 @@ void PagedSpace::MergeLocalSpace(LocalSpace* other) {
     AddPage(p);
     // These code pages were allocated by the CompactionSpace.
     if (identity() == CODE_SPACE) heap()->isolate()->AddCodeMemoryChunk(p);
+    heap()->NotifyOldGenerationExpansion();
     DCHECK_IMPLIES(
         !p->IsFlagSet(Page::NEVER_ALLOCATE_ON_PAGE),
         p->AvailableInFreeList() == p->AvailableInFreeListFromAllocatedBytes());
@@ -338,7 +339,9 @@ bool PagedSpace::Expand() {
   }
   Free(page->area_start(), page->area_size(),
        SpaceAccountingMode::kSpaceAccounted);
-  heap()->NotifyOldGenerationExpansion();
+  if (!is_off_thread_space()) {
+    heap()->NotifyOldGenerationExpansion();
+  }
   return true;
 }
 
