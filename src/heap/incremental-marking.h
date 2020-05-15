@@ -168,6 +168,7 @@ class V8_EXPORT_PRIVATE IncrementalMarking final {
                                  StepOrigin step_origin);
 
   void FinalizeSweeping();
+  bool ContinueConcurrentSweeping();
 
   StepResult Step(double max_step_size_in_ms, CompletionAction action,
                   StepOrigin step_origin);

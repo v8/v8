@@ -958,24 +958,21 @@ StepResult IncrementalMarking::AdvanceWithDeadline(
 
 void IncrementalMarking::FinalizeSweeping() {
   DCHECK(state_ == SWEEPING);
-#ifdef DEBUG
-  // Enforce safepoint here such that background threads cannot allocate between
-  // completing sweeping and VerifyCountersAfterSweeping().
+  if (ContinueConcurrentSweeping()) return;
+
   SafepointScope scope(heap());
-#endif
-  if (collector_->sweeping_in_progress() &&
-      (!FLAG_concurrent_sweeping ||
-       !collector_->sweeper()->AreSweeperTasksRunning())) {
-    collector_->EnsureSweepingCompleted();
-  }
-  if (!collector_->sweeping_in_progress()) {
+  collector_->EnsureSweepingCompleted();
+  DCHECK(!collector_->sweeping_in_progress());
 #ifdef DEBUG
-    heap_->VerifyCountersAfterSweeping();
-#else
-    SafepointScope scope(heap());
+  heap_->VerifyCountersAfterSweeping();
 #endif
-    StartMarking();
-  }
+  StartMarking();
+}
+
+bool IncrementalMarking::ContinueConcurrentSweeping() {
+  if (!collector_->sweeping_in_progress()) return false;
+  return FLAG_concurrent_sweeping &&
+         collector_->sweeper()->AreSweeperTasksRunning();
 }
 
 size_t IncrementalMarking::StepSizeToKeepUpWithAllocations() {
