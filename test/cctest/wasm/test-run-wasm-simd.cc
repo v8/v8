@@ -3503,6 +3503,18 @@ WASM_SIMD_ANYTRUE_TEST(32x4, 4, 0xffffffff, int32_t)
 WASM_SIMD_ANYTRUE_TEST(16x8, 8, 0xffff, int32_t)
 WASM_SIMD_ANYTRUE_TEST(8x16, 16, 0xff, int32_t)
 
+// Special any true test cases that splats a -0.0 double into a i64x2.
+// This is specifically to ensure that our implementation correct handles that
+// 0.0 and -0.0 will be different in an anytrue (IEEE753 says they are equals).
+WASM_SIMD_TEST_NO_LOWERING(S1x4AnytrueWithNegativeZero) {
+  WasmRunner<int32_t, int64_t> r(execution_tier, lower_simd);
+  byte simd = r.AllocateLocal(kWasmS128);
+  BUILD(r, WASM_SET_LOCAL(simd, WASM_SIMD_I64x2_SPLAT(WASM_GET_LOCAL(0))),
+        WASM_SIMD_UNOP(kExprS1x4AnyTrue, WASM_GET_LOCAL(simd)));
+  DCHECK_EQ(1, r.Call(0x8000000000000000));
+  DCHECK_EQ(0, r.Call(0x0000000000000000));
+}
+
 #define WASM_SIMD_ALLTRUE_TEST(format, lanes, max, param_type)                \
   WASM_SIMD_TEST(S##format##AllTrue) {                                        \
     FLAG_SCOPE(wasm_simd_post_mvp);                                           \

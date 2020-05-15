@@ -3028,7 +3028,9 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       __ vrev16(Neon8, i.OutputSimd128Register(), i.InputSimd128Register(0));
       break;
     }
-    case kArmS1x4AnyTrue: {
+    case kArmS1x4AnyTrue:
+    case kArmS1x8AnyTrue:
+    case kArmS1x16AnyTrue: {
       const QwNeonRegister& src = i.InputSimd128Register(0);
       UseScratchRegisterScope temps(tasm());
       DwVfpRegister scratch = temps.AcquireD();
@@ -3050,18 +3052,6 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       __ mov(i.OutputRegister(), Operand(1), LeaveCC, ne);
       break;
     }
-    case kArmS1x8AnyTrue: {
-      const QwNeonRegister& src = i.InputSimd128Register(0);
-      UseScratchRegisterScope temps(tasm());
-      DwVfpRegister scratch = temps.AcquireD();
-      __ vpmax(NeonU16, scratch, src.low(), src.high());
-      __ vpmax(NeonU16, scratch, scratch, scratch);
-      __ vpmax(NeonU16, scratch, scratch, scratch);
-      __ ExtractLane(i.OutputRegister(), scratch, NeonS16, 0);
-      __ cmp(i.OutputRegister(), Operand(0));
-      __ mov(i.OutputRegister(), Operand(1), LeaveCC, ne);
-      break;
-    }
     case kArmS1x8AllTrue: {
       const QwNeonRegister& src = i.InputSimd128Register(0);
       UseScratchRegisterScope temps(tasm());
@@ -3070,22 +3060,6 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       __ vpmin(NeonU16, scratch, scratch, scratch);
       __ vpmin(NeonU16, scratch, scratch, scratch);
       __ ExtractLane(i.OutputRegister(), scratch, NeonS16, 0);
-      __ cmp(i.OutputRegister(), Operand(0));
-      __ mov(i.OutputRegister(), Operand(1), LeaveCC, ne);
-      break;
-    }
-    case kArmS1x16AnyTrue: {
-      const QwNeonRegister& src = i.InputSimd128Register(0);
-      UseScratchRegisterScope temps(tasm());
-      QwNeonRegister q_scratch = temps.AcquireQ();
-      DwVfpRegister d_scratch = q_scratch.low();
-      __ vpmax(NeonU8, d_scratch, src.low(), src.high());
-      __ vpmax(NeonU8, d_scratch, d_scratch, d_scratch);
-      // vtst to detect any bits in the bottom 32 bits of d_scratch.
-      // This saves an instruction vs. the naive sequence of vpmax.
-      // kDoubleRegZero is not changed, since it is 0.
-      __ vtst(Neon32, q_scratch, q_scratch, q_scratch);
-      __ ExtractLane(i.OutputRegister(), d_scratch, NeonS32, 0);
       __ cmp(i.OutputRegister(), Operand(0));
       __ mov(i.OutputRegister(), Operand(1), LeaveCC, ne);
       break;
