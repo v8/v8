@@ -53,7 +53,6 @@ class LocalArrayBufferTracker;
 class Page;
 class PagedSpace;
 class SemiSpace;
-class SlotsBuffer;
 
 // -----------------------------------------------------------------------------
 // Heap structures:

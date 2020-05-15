@@ -514,9 +514,6 @@ class MarkCompactCollector final : public MarkCompactCollectorBase {
                                    HeapObjectSlot slot, HeapObject target);
   void RecordLiveSlotsOnPage(Page* page);
 
-  void UpdateSlots(SlotsBuffer* buffer);
-  void UpdateSlotsRecordedIn(SlotsBuffer* buffer);
-
   bool is_compacting() const { return compacting_; }
 
   // Ensures that sweeping is finished.
@@ -566,7 +563,6 @@ class MarkCompactCollector final : public MarkCompactCollectorBase {
 
   void VerifyMarking();
 #ifdef VERIFY_HEAP
-  void VerifyValidStoreAndSlotsBufferEntries();
   void VerifyMarkbitsAreClean();
   void VerifyMarkbitsAreDirty(ReadOnlySpace* space);
   void VerifyMarkbitsAreClean(PagedSpace* space);
