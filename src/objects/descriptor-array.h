@@ -189,7 +189,7 @@ class DescriptorArray
 
 #ifdef DEBUG
   // Is the descriptor array sorted and without duplicates?
-  V8_EXPORT_PRIVATE bool IsSortedNoDuplicates(int valid_descriptors = -1);
+  V8_EXPORT_PRIVATE bool IsSortedNoDuplicates();
 
   // Are two DescriptorArrays equal?
   bool IsEqualTo(DescriptorArray other);

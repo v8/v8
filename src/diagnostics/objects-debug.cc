@@ -1662,8 +1662,7 @@ void JSObject::SpillInformation::Print() {
   PrintF("\n");
 }
 
-bool DescriptorArray::IsSortedNoDuplicates(int valid_entries) {
-  if (valid_entries == -1) valid_entries = number_of_descriptors();
+bool DescriptorArray::IsSortedNoDuplicates() {
   Name current_key;
   uint32_t current = 0;
   for (int i = 0; i < number_of_descriptors(); i++) {
@@ -1683,8 +1682,7 @@ bool DescriptorArray::IsSortedNoDuplicates(int valid_entries) {
   return true;
 }
 
-bool TransitionArray::IsSortedNoDuplicates(int valid_entries) {
-  DCHECK_EQ(valid_entries, -1);
+bool TransitionArray::IsSortedNoDuplicates() {
   Name prev_key;
   PropertyKind prev_kind = kData;
   PropertyAttributes prev_attributes = NONE;
