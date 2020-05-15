@@ -2020,6 +2020,40 @@ void EmitSimdShiftOpImm(LiftoffAssembler* assm, LiftoffRegister dst,
     (assm->*sse_op)(dst.fp(), shift);
   }
 }
+
+enum class ShiftSignedness { kSigned, kUnsigned };
+
+template <bool is_signed>
+void EmitI8x16Shr(LiftoffAssembler* assm, LiftoffRegister dst,
+                  LiftoffRegister lhs, LiftoffRegister rhs) {
+  // Same algorithm is used for both signed and unsigned shifts, the only
+  // difference is the actual shift and pack in the end. This is the same
+  // algorithm as used in code-generator-ia32.cc
+  Register tmp =
+      assm->GetUnusedRegister(kGpReg, LiftoffRegList::ForRegs(rhs)).gp();
+  XMMRegister tmp_simd =
+      assm->GetUnusedRegister(kFpReg, LiftoffRegList::ForRegs(dst, lhs)).fp();
+
+  // Unpack the bytes into words, do logical shifts, and repack.
+  assm->Punpckhbw(liftoff::kScratchDoubleReg, lhs.fp());
+  assm->Punpcklbw(dst.fp(), lhs.fp());
+  assm->mov(tmp, rhs.gp());
+  // Take shift value modulo 8.
+  assm->and_(tmp, 7);
+  assm->add(tmp, Immediate(8));
+  assm->Movd(tmp_simd, tmp);
+  if (is_signed) {
+    assm->Psraw(liftoff::kScratchDoubleReg, liftoff::kScratchDoubleReg,
+                tmp_simd);
+    assm->Psraw(dst.fp(), dst.fp(), tmp_simd);
+    assm->Packsswb(dst.fp(), liftoff::kScratchDoubleReg);
+  } else {
+    assm->Psrlw(liftoff::kScratchDoubleReg, liftoff::kScratchDoubleReg,
+                tmp_simd);
+    assm->Psrlw(dst.fp(), dst.fp(), tmp_simd);
+    assm->Packuswb(dst.fp(), liftoff::kScratchDoubleReg);
+  }
+}
 }  // namespace liftoff
 
 void LiftoffAssembler::emit_i8x16_splat(LiftoffRegister dst,
@@ -2405,23 +2439,38 @@ void LiftoffAssembler::emit_i8x16_shli(LiftoffRegister dst, LiftoffRegister lhs,
 void LiftoffAssembler::emit_i8x16_shr_s(LiftoffRegister dst,
                                         LiftoffRegister lhs,
                                         LiftoffRegister rhs) {
-  bailout(kSimd, "i8x16_shr_s");
+  liftoff::EmitI8x16Shr</*is_signed=*/true>(this, dst, lhs, rhs);
 }
 
 void LiftoffAssembler::emit_i8x16_shri_s(LiftoffRegister dst,
                                          LiftoffRegister lhs, int32_t rhs) {
-  bailout(kSimd, "i8x16_shri_s");
+  Punpckhbw(liftoff::kScratchDoubleReg, lhs.fp());
+  Punpcklbw(dst.fp(), lhs.fp());
+  uint8_t shift = (rhs & 7) + 8;
+  Psraw(liftoff::kScratchDoubleReg, shift);
+  Psraw(dst.fp(), shift);
+  Packsswb(dst.fp(), liftoff::kScratchDoubleReg);
 }
 
 void LiftoffAssembler::emit_i8x16_shr_u(LiftoffRegister dst,
                                         LiftoffRegister lhs,
                                         LiftoffRegister rhs) {
-  bailout(kSimd, "i8x16_shr_u");
+  liftoff::EmitI8x16Shr</*is_signed=*/false>(this, dst, lhs, rhs);
 }
 
 void LiftoffAssembler::emit_i8x16_shri_u(LiftoffRegister dst,
                                          LiftoffRegister lhs, int32_t rhs) {
-  bailout(kSimd, "i8x16_shri_u");
+  Register tmp = GetUnusedRegister(kGpReg).gp();
+  // Perform 16-bit shift, then mask away high bits.
+  uint8_t shift = rhs & 7;
+  Psrlw(dst.fp(), lhs.fp(), byte{shift});
+
+  uint8_t bmask = 0xff >> shift;
+  uint32_t mask = bmask << 24 | bmask << 16 | bmask << 8 | bmask;
+  mov(tmp, mask);
+  Movd(liftoff::kScratchDoubleReg, tmp);
+  Pshufd(liftoff::kScratchDoubleReg, liftoff::kScratchDoubleReg, 0);
+  Pand(dst.fp(), liftoff::kScratchDoubleReg);
 }
 
 void LiftoffAssembler::emit_i8x16_add(LiftoffRegister dst, LiftoffRegister lhs,
