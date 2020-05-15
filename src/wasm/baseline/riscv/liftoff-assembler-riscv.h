@@ -694,7 +694,6 @@ bool LiftoffAssembler::emit_i32_popcnt(Register dst, Register src) {
 #define I32_SHIFTOP_I(name, instruction)                             \
   void LiftoffAssembler::emit_i32_##name(Register dst, Register src, \
                                          int amount) {               \
-    DCHECK(is_uint5(amount));                                        \
     instruction(dst, src, amount);                                   \
   }
 
