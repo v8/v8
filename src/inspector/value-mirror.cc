@@ -814,10 +814,10 @@ void getInternalPropertiesForPreview(
       object->IsBigIntObject()) {
     whitelist.emplace_back("[[PrimitiveValue]]");
   } else if (object->IsPromise()) {
-    whitelist.emplace_back("[[PromiseStatus]]");
-    whitelist.emplace_back("[[PromiseValue]]");
+    whitelist.emplace_back("[[PromiseState]]");
+    whitelist.emplace_back("[[PromiseResult]]");
   } else if (object->IsGeneratorObject()) {
-    whitelist.emplace_back("[[GeneratorStatus]]");
+    whitelist.emplace_back("[[GeneratorState]]");
   }
   for (auto& mirror : mirrors) {
     if (std::find(whitelist.begin(), whitelist.end(), mirror.name) ==
