@@ -2065,8 +2065,15 @@ void WasmJs::Install(Isolate* isolate, bool exposed_on_global_object) {
   // should not be set.
   CHECK_IMPLIES(!FLAG_wasm_async_compilation,
                 isolate->wasm_streaming_callback() == nullptr);
+
   if (FLAG_wasm_test_streaming) {
-    isolate->set_wasm_streaming_callback(WasmStreamingCallbackForTesting);
+    if (FLAG_wasm_async_compilation) {
+      isolate->set_wasm_streaming_callback(WasmStreamingCallbackForTesting);
+    } else {
+      printf(
+          "--wasm-test-streaming gets ignored because async compilation is "
+          "disabled.");
+    }
   }
 
   if (isolate->wasm_streaming_callback() != nullptr) {
