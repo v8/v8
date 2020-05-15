@@ -90,7 +90,17 @@ macro Cast<A : type extends WeakHeapObject>(o: A|Object): A labels CastError {
   return %RawDownCast<A>(o);
 }
 
-macro Cast<A: type>(o: MaybeObject): A labels CastError;
+macro Cast<A : type extends Object>(implicit context: Context)(o: MaybeObject):
+    A labels CastError {
+  typeswitch (o) {
+    case (WeakHeapObject): {
+      goto CastError;
+    }
+    case (o: Object): {
+      return Cast<A>(o) otherwise CastError;
+    }
+  }
+}
 
 Cast<Undefined>(o: MaybeObject): Undefined labels CastError {
   if (TaggedNotEqual(o, Undefined)) goto CastError;
