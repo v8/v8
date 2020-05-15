@@ -362,15 +362,19 @@ inline void EmitSimdShift(LiftoffAssembler* assm, LiftoffRegister dst,
              liftoff::GetSimd128Register(lhs), tmp);
 }
 
-template <NeonDataType dt>
-inline void EmitSimdShiftRightImmediate(LiftoffAssembler* assm,
-                                        LiftoffRegister dst,
-                                        LiftoffRegister lhs, int32_t rhs) {
+template <ShiftDirection dir, NeonDataType dt>
+inline void EmitSimdShiftImmediate(LiftoffAssembler* assm, LiftoffRegister dst,
+                                   LiftoffRegister lhs, int32_t rhs) {
   // vshr by 0 is not allowed, so check for it, and only move if dst != lhs.
   int32_t shift = rhs & MaskFromNeonDataType(dt);
   if (shift) {
-    assm->vshr(dt, liftoff::GetSimd128Register(dst),
-               liftoff::GetSimd128Register(lhs), shift);
+    if (dir == kLeft) {
+      assm->vshl(dt, liftoff::GetSimd128Register(dst),
+                 liftoff::GetSimd128Register(lhs), shift);
+    } else {
+      assm->vshr(dt, liftoff::GetSimd128Register(dst),
+                 liftoff::GetSimd128Register(lhs), shift);
+    }
   } else if (dst != lhs) {
     assm->vmov(liftoff::GetSimd128Register(dst),
                liftoff::GetSimd128Register(lhs));
@@ -2338,7 +2342,8 @@ void LiftoffAssembler::emit_i64x2_shr_s(LiftoffRegister dst,
 
 void LiftoffAssembler::emit_i64x2_shri_s(LiftoffRegister dst,
                                          LiftoffRegister lhs, int32_t rhs) {
-  liftoff::EmitSimdShiftRightImmediate<NeonS64>(this, dst, lhs, rhs);
+  liftoff::EmitSimdShiftImmediate<liftoff::kRight, NeonS64>(this, dst, lhs,
+                                                            rhs);
 }
 
 void LiftoffAssembler::emit_i64x2_shr_u(LiftoffRegister dst,
@@ -2349,7 +2354,8 @@ void LiftoffAssembler::emit_i64x2_shr_u(LiftoffRegister dst,
 
 void LiftoffAssembler::emit_i64x2_shri_u(LiftoffRegister dst,
                                          LiftoffRegister lhs, int32_t rhs) {
-  liftoff::EmitSimdShiftRightImmediate<NeonU64>(this, dst, lhs, rhs);
+  liftoff::EmitSimdShiftImmediate<liftoff::kRight, NeonU64>(this, dst, lhs,
+                                                            rhs);
 }
 
 void LiftoffAssembler::emit_i64x2_add(LiftoffRegister dst, LiftoffRegister lhs,
@@ -2443,6 +2449,30 @@ void LiftoffAssembler::emit_i32x4_shli(LiftoffRegister dst, LiftoffRegister lhs,
                                        int32_t rhs) {
   vshl(NeonS32, liftoff::GetSimd128Register(dst),
        liftoff::GetSimd128Register(lhs), rhs & 31);
+}
+
+void LiftoffAssembler::emit_i32x4_shr_s(LiftoffRegister dst,
+                                        LiftoffRegister lhs,
+                                        LiftoffRegister rhs) {
+  liftoff::EmitSimdShift<liftoff::kRight, NeonS32, Neon32>(this, dst, lhs, rhs);
+}
+
+void LiftoffAssembler::emit_i32x4_shri_s(LiftoffRegister dst,
+                                         LiftoffRegister lhs, int32_t rhs) {
+  liftoff::EmitSimdShiftImmediate<liftoff::kRight, NeonS32>(this, dst, lhs,
+                                                            rhs);
+}
+
+void LiftoffAssembler::emit_i32x4_shr_u(LiftoffRegister dst,
+                                        LiftoffRegister lhs,
+                                        LiftoffRegister rhs) {
+  liftoff::EmitSimdShift<liftoff::kRight, NeonU32, Neon32>(this, dst, lhs, rhs);
+}
+
+void LiftoffAssembler::emit_i32x4_shri_u(LiftoffRegister dst,
+                                         LiftoffRegister lhs, int32_t rhs) {
+  liftoff::EmitSimdShiftImmediate<liftoff::kRight, NeonU32>(this, dst, lhs,
+                                                            rhs);
 }
 
 void LiftoffAssembler::emit_i32x4_add(LiftoffRegister dst, LiftoffRegister lhs,

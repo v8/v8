@@ -2566,6 +2566,12 @@ class LiftoffCompiler {
       case wasm::kExprI32x4Shl:
         return EmitSimdShiftOp(&LiftoffAssembler::emit_i32x4_shl,
                                &LiftoffAssembler::emit_i32x4_shli);
+      case wasm::kExprI32x4ShrS:
+        return EmitSimdShiftOp(&LiftoffAssembler::emit_i32x4_shr_s,
+                               &LiftoffAssembler::emit_i32x4_shri_s);
+      case wasm::kExprI32x4ShrU:
+        return EmitSimdShiftOp(&LiftoffAssembler::emit_i32x4_shr_u,
+                               &LiftoffAssembler::emit_i32x4_shri_u);
       case wasm::kExprI32x4Add:
         return EmitBinOp<kS128, kS128>(&LiftoffAssembler::emit_i32x4_add);
       case wasm::kExprI32x4Sub:

@@ -1412,6 +1412,35 @@ void LiftoffAssembler::emit_i32x4_shli(LiftoffRegister dst, LiftoffRegister lhs,
   Shl(dst.fp().V4S(), lhs.fp().V4S(), rhs & 31);
 }
 
+void LiftoffAssembler::emit_i32x4_shr_s(LiftoffRegister dst,
+                                        LiftoffRegister lhs,
+                                        LiftoffRegister rhs) {
+  liftoff::EmitSimdShift<liftoff::ShiftDirection::kRight,
+                         liftoff::ShiftSign::kSigned>(
+      this, dst.fp().V4S(), lhs.fp().V4S(), rhs.gp(), kFormat4S);
+}
+
+void LiftoffAssembler::emit_i32x4_shri_s(LiftoffRegister dst,
+                                         LiftoffRegister lhs, int32_t rhs) {
+  liftoff::EmitSimdShiftRightImmediate<kFormat4S, liftoff::ShiftSign::kSigned>(
+      this, dst.fp().V4S(), lhs.fp().V4S(), rhs);
+}
+
+void LiftoffAssembler::emit_i32x4_shr_u(LiftoffRegister dst,
+                                        LiftoffRegister lhs,
+                                        LiftoffRegister rhs) {
+  liftoff::EmitSimdShift<liftoff::ShiftDirection::kRight,
+                         liftoff::ShiftSign::kUnsigned>(
+      this, dst.fp().V4S(), lhs.fp().V4S(), rhs.gp(), kFormat4S);
+}
+
+void LiftoffAssembler::emit_i32x4_shri_u(LiftoffRegister dst,
+                                         LiftoffRegister lhs, int32_t rhs) {
+  liftoff::EmitSimdShiftRightImmediate<kFormat4S,
+                                       liftoff::ShiftSign::kUnsigned>(
+      this, dst.fp().V4S(), lhs.fp().V4S(), rhs);
+}
+
 void LiftoffAssembler::emit_i32x4_add(LiftoffRegister dst, LiftoffRegister lhs,
                                       LiftoffRegister rhs) {
   Add(dst.fp().V4S(), lhs.fp().V4S(), rhs.fp().V4S());
