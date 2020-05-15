@@ -680,9 +680,9 @@ void PrintFunctionSource(OptimizedCompilationInfo* info, Isolate* isolate,
     Handle<Script> script(Script::cast(shared->script()), isolate);
 
     if (!script->source().IsUndefined(isolate)) {
-      CodeTracer::Scope tracing_scope(isolate->GetCodeTracer());
+      CodeTracer::StreamScope tracing_scope(isolate->GetCodeTracer());
       Object source_name = script->name();
-      OFStream os(tracing_scope.file());
+      auto& os = tracing_scope.stream();
       os << "--- FUNCTION SOURCE (";
       if (source_name.IsString()) {
         os << String::cast(source_name).ToCString().get() << ":";
@@ -711,8 +711,8 @@ void PrintFunctionSource(OptimizedCompilationInfo* info, Isolate* isolate,
 void PrintInlinedFunctionInfo(
     OptimizedCompilationInfo* info, Isolate* isolate, int source_id,
     int inlining_id, const OptimizedCompilationInfo::InlinedFunctionHolder& h) {
-  CodeTracer::Scope tracing_scope(isolate->GetCodeTracer());
-  OFStream os(tracing_scope.file());
+  CodeTracer::StreamScope tracing_scope(isolate->GetCodeTracer());
+  auto& os = tracing_scope.stream();
   os << "INLINE (" << h.shared_info->DebugName().ToCString().get() << ") id{"
      << info->optimization_id() << "," << source_id << "} AS " << inlining_id
      << " AT ";
@@ -753,8 +753,8 @@ void PrintCode(Isolate* isolate, Handle<Code> code,
        info->shared_info()->PassesFilter(FLAG_print_opt_code_filter));
   if (print_code) {
     std::unique_ptr<char[]> debug_name = info->GetDebugName();
-    CodeTracer::Scope tracing_scope(isolate->GetCodeTracer());
-    OFStream os(tracing_scope.file());
+    CodeTracer::StreamScope tracing_scope(isolate->GetCodeTracer());
+    auto& os = tracing_scope.stream();
 
     // Print the source code if available.
     bool print_source = code->kind() == Code::OPTIMIZED_FUNCTION;
@@ -810,9 +810,10 @@ void TraceScheduleAndVerify(OptimizedCompilationInfo* info, PipelineData* data,
   }
   if (info->trace_turbo_graph_enabled() || FLAG_trace_turbo_scheduler) {
     AllowHandleDereference allow_deref;
-    CodeTracer::Scope tracing_scope(data->GetCodeTracer());
-    OFStream os(tracing_scope.file());
-    os << "-- Schedule --------------------------------------\n" << *schedule;
+    CodeTracer::StreamScope tracing_scope(data->GetCodeTracer());
+    tracing_scope.stream()
+        << "-- Schedule --------------------------------------\n"
+        << *schedule;
   }
 
   if (FLAG_turbo_verify) ScheduleVerifier::Run(schedule);
@@ -1270,11 +1271,11 @@ CompilationJob::Status WasmHeapStubCompilationJob::ExecuteJobImpl(
     pipeline_statistics->BeginPhaseKind("V8.WasmStubCodegen");
   }
   if (info_.trace_turbo_json_enabled() || info_.trace_turbo_graph_enabled()) {
-    CodeTracer::Scope tracing_scope(data_.GetCodeTracer());
-    OFStream os(tracing_scope.file());
-    os << "---------------------------------------------------\n"
-       << "Begin compiling method " << info_.GetDebugName().get()
-       << " using TurboFan" << std::endl;
+    CodeTracer::StreamScope tracing_scope(data_.GetCodeTracer());
+    tracing_scope.stream()
+        << "---------------------------------------------------\n"
+        << "Begin compiling method " << info_.GetDebugName().get()
+        << " using TurboFan" << std::endl;
   }
   if (info_.trace_turbo_graph_enabled()) {  // Simple textual RPO.
     StdoutStream{} << "-- wasm stub " << Code::Kind2String(info_.code_kind())
@@ -1306,9 +1307,9 @@ CompilationJob::Status WasmHeapStubCompilationJob::FinalizeJobImpl(
     info_.SetCode(code);
 #ifdef ENABLE_DISASSEMBLER
     if (FLAG_print_opt_code) {
-      CodeTracer::Scope tracing_scope(isolate->GetCodeTracer());
-      OFStream os(tracing_scope.file());
-      code->Disassemble(compilation_info()->GetDebugName().get(), os, isolate);
+      CodeTracer::StreamScope tracing_scope(isolate->GetCodeTracer());
+      code->Disassemble(compilation_info()->GetDebugName().get(),
+                        tracing_scope.stream(), isolate);
     }
 #endif
     return SUCCEEDED;
@@ -2302,16 +2303,16 @@ struct PrintGraphPhase {
       }
 
       AllowHandleDereference allow_deref;
-      CodeTracer::Scope tracing_scope(data->GetCodeTracer());
-      OFStream os(tracing_scope.file());
-      os << "-- Graph after " << phase << " -- " << std::endl;
-      os << AsScheduledGraph(schedule);
+      CodeTracer::StreamScope tracing_scope(data->GetCodeTracer());
+      tracing_scope.stream()
+          << "-- Graph after " << phase << " -- " << std::endl
+          << AsScheduledGraph(schedule);
     } else if (info->trace_turbo_graph_enabled()) {  // Simple textual RPO.
       AllowHandleDereference allow_deref;
-      CodeTracer::Scope tracing_scope(data->GetCodeTracer());
-      OFStream os(tracing_scope.file());
-      os << "-- Graph after " << phase << " -- " << std::endl;
-      os << AsRPO(*graph);
+      CodeTracer::StreamScope tracing_scope(data->GetCodeTracer());
+      tracing_scope.stream()
+          << "-- Graph after " << phase << " -- " << std::endl
+          << AsRPO(*graph);
     }
   }
 };
@@ -2361,11 +2362,11 @@ void PipelineImpl::Serialize() {
 
   if (info()->trace_turbo_json_enabled() ||
       info()->trace_turbo_graph_enabled()) {
-    CodeTracer::Scope tracing_scope(data->GetCodeTracer());
-    OFStream os(tracing_scope.file());
-    os << "---------------------------------------------------\n"
-       << "Begin compiling method " << info()->GetDebugName().get()
-       << " using TurboFan" << std::endl;
+    CodeTracer::StreamScope tracing_scope(data->GetCodeTracer());
+    tracing_scope.stream()
+        << "---------------------------------------------------\n"
+        << "Begin compiling method " << info()->GetDebugName().get()
+        << " using TurboFan" << std::endl;
   }
   if (info()->trace_turbo_json_enabled()) {
     TurboCfgFile tcf(isolate());
@@ -2640,10 +2641,10 @@ MaybeHandle<Code> Pipeline::GenerateCodeForCodeStub(
   PipelineImpl pipeline(&data);
 
   if (info.trace_turbo_json_enabled() || info.trace_turbo_graph_enabled()) {
-    CodeTracer::Scope tracing_scope(data.GetCodeTracer());
-    OFStream os(tracing_scope.file());
-    os << "---------------------------------------------------\n"
-       << "Begin compiling " << debug_name << " using TurboFan" << std::endl;
+    CodeTracer::StreamScope tracing_scope(data.GetCodeTracer());
+    tracing_scope.stream()
+        << "---------------------------------------------------\n"
+        << "Begin compiling " << debug_name << " using TurboFan" << std::endl;
     if (info.trace_turbo_json_enabled()) {
       TurboJsonFile json_of(&info, std::ios_base::trunc);
       json_of << "{\"function\" : ";
@@ -2742,11 +2743,11 @@ wasm::WasmCompilationResult Pipeline::GenerateCodeForWasmNativeStub(
   PipelineImpl pipeline(&data);
 
   if (info.trace_turbo_json_enabled() || info.trace_turbo_graph_enabled()) {
-    CodeTracer::Scope tracing_scope(data.GetCodeTracer());
-    OFStream os(tracing_scope.file());
-    os << "---------------------------------------------------\n"
-       << "Begin compiling method " << info.GetDebugName().get()
-       << " using TurboFan" << std::endl;
+    CodeTracer::StreamScope tracing_scope(data.GetCodeTracer());
+    tracing_scope.stream()
+        << "---------------------------------------------------\n"
+        << "Begin compiling method " << info.GetDebugName().get()
+        << " using TurboFan" << std::endl;
   }
 
   if (info.trace_turbo_graph_enabled()) {  // Simple textual RPO.
@@ -2803,11 +2804,11 @@ wasm::WasmCompilationResult Pipeline::GenerateCodeForWasmNativeStub(
   }
 
   if (info.trace_turbo_json_enabled() || info.trace_turbo_graph_enabled()) {
-    CodeTracer::Scope tracing_scope(data.GetCodeTracer());
-    OFStream os(tracing_scope.file());
-    os << "---------------------------------------------------\n"
-       << "Finished compiling method " << info.GetDebugName().get()
-       << " using TurboFan" << std::endl;
+    CodeTracer::StreamScope tracing_scope(data.GetCodeTracer());
+    tracing_scope.stream()
+        << "---------------------------------------------------\n"
+        << "Finished compiling method " << info.GetDebugName().get()
+        << " using TurboFan" << std::endl;
   }
 
   return result;
@@ -2917,11 +2918,11 @@ void Pipeline::GenerateCodeForWasmFunction(
 
   if (data.info()->trace_turbo_json_enabled() ||
       data.info()->trace_turbo_graph_enabled()) {
-    CodeTracer::Scope tracing_scope(data.GetCodeTracer());
-    OFStream os(tracing_scope.file());
-    os << "---------------------------------------------------\n"
-       << "Begin compiling method " << data.info()->GetDebugName().get()
-       << " using TurboFan" << std::endl;
+    CodeTracer::StreamScope tracing_scope(data.GetCodeTracer());
+    tracing_scope.stream()
+        << "---------------------------------------------------\n"
+        << "Begin compiling method " << data.info()->GetDebugName().get()
+        << " using TurboFan" << std::endl;
   }
 
   pipeline.RunPrintAndVerify("V8.WasmMachineCode", true);
@@ -3008,11 +3009,11 @@ void Pipeline::GenerateCodeForWasmFunction(
 
   if (data.info()->trace_turbo_json_enabled() ||
       data.info()->trace_turbo_graph_enabled()) {
-    CodeTracer::Scope tracing_scope(data.GetCodeTracer());
-    OFStream os(tracing_scope.file());
-    os << "---------------------------------------------------\n"
-       << "Finished compiling method " << data.info()->GetDebugName().get()
-       << " using TurboFan" << std::endl;
+    CodeTracer::StreamScope tracing_scope(data.GetCodeTracer());
+    tracing_scope.stream()
+        << "---------------------------------------------------\n"
+        << "Finished compiling method " << data.info()->GetDebugName().get()
+        << " using TurboFan" << std::endl;
   }
 
   DCHECK(result->succeeded());
@@ -3074,15 +3075,16 @@ bool PipelineImpl::SelectInstructions(Linkage* linkage) {
   if (verify_stub_graph) {
     if (FLAG_trace_verify_csa) {
       AllowHandleDereference allow_deref;
-      CodeTracer::Scope tracing_scope(data->GetCodeTracer());
-      OFStream os(tracing_scope.file());
-      os << "--------------------------------------------------\n"
-         << "--- Verifying " << data->debug_name() << " generated by TurboFan\n"
-         << "--------------------------------------------------\n"
-         << *data->schedule()
-         << "--------------------------------------------------\n"
-         << "--- End of " << data->debug_name() << " generated by TurboFan\n"
-         << "--------------------------------------------------\n";
+      CodeTracer::StreamScope tracing_scope(data->GetCodeTracer());
+      tracing_scope.stream()
+          << "--------------------------------------------------\n"
+          << "--- Verifying " << data->debug_name()
+          << " generated by TurboFan\n"
+          << "--------------------------------------------------\n"
+          << *data->schedule()
+          << "--------------------------------------------------\n"
+          << "--- End of " << data->debug_name() << " generated by TurboFan\n"
+          << "--------------------------------------------------\n";
     }
     Zone temp_zone(data->allocator(), kMachineGraphVerifierZoneName);
     MachineGraphVerifier::Run(
@@ -3304,11 +3306,11 @@ MaybeHandle<Code> PipelineImpl::FinalizeCode(bool retire_broker) {
   }
   if (info()->trace_turbo_json_enabled() ||
       info()->trace_turbo_graph_enabled()) {
-    CodeTracer::Scope tracing_scope(data->GetCodeTracer());
-    OFStream os(tracing_scope.file());
-    os << "---------------------------------------------------\n"
-       << "Finished compiling method " << info()->GetDebugName().get()
-       << " using TurboFan" << std::endl;
+    CodeTracer::StreamScope tracing_scope(data->GetCodeTracer());
+    tracing_scope.stream()
+        << "---------------------------------------------------\n"
+        << "Finished compiling method " << info()->GetDebugName().get()
+        << " using TurboFan" << std::endl;
   }
   data->EndPhaseKind();
   return code;
@@ -3351,10 +3353,10 @@ void TraceSequence(OptimizedCompilationInfo* info, PipelineData* data,
   }
   if (info->trace_turbo_graph_enabled()) {
     AllowHandleDereference allow_deref;
-    CodeTracer::Scope tracing_scope(data->GetCodeTracer());
-    OFStream os(tracing_scope.file());
-    os << "----- Instruction sequence " << phase_name << " -----\n"
-       << *data->sequence();
+    CodeTracer::StreamScope tracing_scope(data->GetCodeTracer());
+    tracing_scope.stream() << "----- Instruction sequence " << phase_name
+                           << " -----\n"
+                           << *data->sequence();
   }
 }
 

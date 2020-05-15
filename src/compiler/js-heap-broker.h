@@ -33,20 +33,20 @@ std::ostream& operator<<(std::ostream& os, const ObjectRef& ref);
 #define TRACE_BROKER(broker, x)                                      \
   do {                                                               \
     if (broker->tracing_enabled() && FLAG_trace_heap_broker_verbose) \
-      broker->Trace() << x << '\n';                                  \
+      StdoutStream{} << broker->Trace() << x << '\n';                \
   } while (false)
 
 #define TRACE_BROKER_MEMORY(broker, x)                              \
   do {                                                              \
     if (broker->tracing_enabled() && FLAG_trace_heap_broker_memory) \
-      broker->Trace() << x << std::endl;                            \
+      StdoutStream{} << broker->Trace() << x << std::endl;          \
   } while (false)
 
-#define TRACE_BROKER_MISSING(broker, x)                             \
-  do {                                                              \
-    if (broker->tracing_enabled())                                  \
-      broker->Trace() << "Missing " << x << " (" << __FILE__ << ":" \
-                      << __LINE__ << ")" << std::endl;              \
+#define TRACE_BROKER_MISSING(broker, x)                                        \
+  do {                                                                         \
+    if (broker->tracing_enabled())                                             \
+      StdoutStream{} << broker->Trace() << "Missing " << x << " (" << __FILE__ \
+                     << ":" << __LINE__ << ")" << std::endl;                   \
   } while (false)
 
 struct PropertyAccessTarget {
@@ -193,7 +193,7 @@ class V8_EXPORT_PRIVATE JSHeapBroker {
   bool IsSerializedForCompilation(const SharedFunctionInfoRef& shared,
                                   const FeedbackVectorRef& feedback) const;
 
-  std::ostream& Trace() const;
+  std::string Trace() const;
   void IncrementTracingIndentation();
   void DecrementTracingIndentation();
 
@@ -242,7 +242,6 @@ class V8_EXPORT_PRIVATE JSHeapBroker {
   BrokerMode mode_ = kDisabled;
   bool const tracing_enabled_;
   bool const is_concurrent_inlining_;
-  mutable StdoutStream trace_out_;
   unsigned trace_indentation_ = 0;
   PerIsolateCompilerCache* compiler_cache_ = nullptr;
   ZoneUnorderedMap<FeedbackSource, ProcessedFeedback const*,
