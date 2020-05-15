@@ -1127,24 +1127,20 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       break;
     case kMips64Shr:
       if (instr->InputAt(1)->IsRegister()) {
-        __ Sll(i.InputRegister(0), i.InputRegister(0), 0x0);
         __ Srl(i.OutputRegister(), i.InputRegister(0), i.InputRegister(1));
       } else {
         int64_t imm = i.InputOperand(1).immediate();
-        __ Sll(i.OutputRegister(), i.InputRegister(0), 0x0);
-        __ Srl(i.OutputRegister(), i.OutputRegister(),
+        __ Srl(i.OutputRegister(), i.InputRegister(0),
                static_cast<uint16_t>(imm));
       }
       break;
     case kMips64Sar:
       if (instr->InputAt(1)->IsRegister()) {
-        __ Sll(i.InputRegister(0), i.InputRegister(0), 0x0);
-        __ Dsra(i.OutputRegister(), i.InputRegister(0), i.InputRegister(1));
+        __ Sra(i.OutputRegister(), i.InputRegister(0), i.InputRegister(1));
       } else {
         int64_t imm = i.InputOperand(1).immediate();
-        __ Sll(i.OutputRegister(), i.InputRegister(0), 0x0);
-        __ Dsra(i.OutputRegister(), i.OutputRegister(),
-                static_cast<uint16_t>(imm));
+        __ Sra(i.OutputRegister(), i.InputRegister(0),
+               static_cast<uint16_t>(imm));
       }
       break;
     case kMips64Ext:

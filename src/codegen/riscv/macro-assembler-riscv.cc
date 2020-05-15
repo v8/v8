@@ -823,6 +823,15 @@ void TurboAssembler::Seh(Register rd, const Operand& rt) {
   RV_srai(rd, rt.rm(), 64 - 16);
 }
 
+void TurboAssembler::Sra(Register rd, Register rs, const Operand& rt) {
+  if (rt.is_reg())
+    RV_sraw(rd, rs, rt.rm());
+  else {
+    uint8_t shamt = static_cast<uint8_t>(rt.immediate());
+    RV_sraiw(rd, rs, shamt);
+  }
+}
+
 void TurboAssembler::Srl(Register rd, Register rs, const Operand& rt) {
   if (rt.is_reg())
     RV_srlw(rd, rs, rt.rm());

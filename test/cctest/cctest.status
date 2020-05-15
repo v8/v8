@@ -428,9 +428,7 @@
   'test-run-wasm/RunWasmLiftoff_StoreMem_offset_oob': [SKIP],
   'test-run-wasm/RunWasmTurbofan_I32Binop_DivU': [SKIP],
   'test-run-wasm/RunWasmTurbofan_I32DivUOnDifferentRegisters': [SKIP],
-  'test-run-wasm/RunWasmTurbofan_I32Binop_ShrS': [SKIP],
   'test-run-wasm/RunWasmTurbofan_I32SConvertF32': [SKIP],
-  'test-run-wasm/RunWasmTurbofan_I32ShrSOnDifferentRegisters': [SKIP],
   'test-run-wasm/RunWasmTurbofan_I32UConvertF32': [SKIP],
   'test-run-wasm/RunWasmTurbofan_StoreMem_offset_oob': [SKIP],
 
