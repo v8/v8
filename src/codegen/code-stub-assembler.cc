@@ -2950,7 +2950,7 @@ TNode<Smi> CodeStubAssembler::BuildAppendJSArray(ElementsKind kind,
 
   BIND(&pre_bailout);
   {
-    TNode<Smi> length = ParameterToTagged(var_length.value(), mode);
+    TNode<Smi> length = ParameterToTagged(var_length.value());
     var_tagged_length = length;
     TNode<Smi> diff = SmiSub(length, LoadFastJSArrayLength(array));
     StoreObjectFieldNoWriteBarrier(array, JSArray::kLengthOffset, length);
@@ -3728,9 +3728,10 @@ TNode<JSArray> CodeStubAssembler::AllocateJSArray(
   return array;
 }
 
-TNode<JSArray> CodeStubAssembler::ExtractFastJSArray(
-    TNode<Context> context, TNode<JSArray> array, Node* begin, Node* count,
-    ParameterMode mode, Node* capacity, TNode<AllocationSite> allocation_site) {
+TNode<JSArray> CodeStubAssembler::ExtractFastJSArray(TNode<Context> context,
+                                                     TNode<JSArray> array,
+                                                     TNode<BInt> begin,
+                                                     TNode<BInt> count) {
   TNode<Map> original_array_map = LoadMap(array);
   TNode<Int32T> elements_kind = LoadMapElementsKind(original_array_map);
 
@@ -3739,11 +3740,11 @@ TNode<JSArray> CodeStubAssembler::ExtractFastJSArray(
   TNode<Map> array_map = LoadJSArrayElementsMap(elements_kind, native_context);
 
   TNode<FixedArrayBase> new_elements = ExtractFixedArray(
-      LoadElements(array), begin, count, capacity,
-      ExtractFixedArrayFlag::kAllFixedArrays, mode, nullptr, elements_kind);
+      LoadElements(array), begin, count, base::nullopt,
+      ExtractFixedArrayFlag::kAllFixedArrays, nullptr, elements_kind);
 
-  TNode<JSArray> result = AllocateJSArray(
-      array_map, new_elements, ParameterToTagged(count, mode), allocation_site);
+  TNode<JSArray> result =
+      AllocateJSArray(array_map, new_elements, ParameterToTagged(count), {});
   return result;
 }
 

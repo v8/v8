@@ -438,7 +438,6 @@ TF_BUILTIN(ArrayPrototypePush, CodeStubAssembler) {
 }
 
 TF_BUILTIN(ExtractFastJSArray, ArrayBuiltinsAssembler) {
-  ParameterMode mode = OptimalParameterMode();
   TNode<Context> context = CAST(Parameter(Descriptor::kContext));
   TNode<JSArray> array = CAST(Parameter(Descriptor::kSource));
   TNode<BInt> begin = SmiToBInt(CAST(Parameter(Descriptor::kBegin)));
@@ -446,7 +445,7 @@ TF_BUILTIN(ExtractFastJSArray, ArrayBuiltinsAssembler) {
 
   CSA_ASSERT(this, Word32BinaryNot(IsNoElementsProtectorCellInvalid()));
 
-  Return(ExtractFastJSArray(context, array, begin, count, mode));
+  Return(ExtractFastJSArray(context, array, begin, count));
 }
 
 TF_BUILTIN(CloneFastJSArray, ArrayBuiltinsAssembler) {
