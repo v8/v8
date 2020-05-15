@@ -2028,29 +2028,6 @@ void EmitSimdShiftOpImm(LiftoffAssembler* assm, LiftoffRegister dst,
   }
 }
 
-template <bool is_signed>
-void EmitI8x16Shr(LiftoffAssembler* assm, LiftoffRegister dst,
-                  LiftoffRegister lhs, LiftoffRegister rhs) {
-  // Same algorithm as the one in code-generator-x64.cc.
-  assm->Punpckhbw(kScratchDoubleReg, lhs.fp());
-  assm->Punpcklbw(dst.fp(), lhs.fp());
-  // Prepare shift value
-  assm->movq(kScratchRegister, rhs.gp());
-  // Take shift value modulo 8.
-  assm->andq(kScratchRegister, Immediate(7));
-  assm->addq(kScratchRegister, Immediate(8));
-  assm->Movq(liftoff::kScratchDoubleReg2, kScratchRegister);
-  if (is_signed) {
-    assm->Psraw(kScratchDoubleReg, liftoff::kScratchDoubleReg2);
-    assm->Psraw(dst.fp(), liftoff::kScratchDoubleReg2);
-    assm->Packsswb(dst.fp(), kScratchDoubleReg);
-  } else {
-    assm->Psrlw(kScratchDoubleReg, liftoff::kScratchDoubleReg2);
-    assm->Psrlw(dst.fp(), liftoff::kScratchDoubleReg2);
-    assm->Packuswb(dst.fp(), kScratchDoubleReg);
-  }
-}
-
 // Can be used by both the immediate and register version of the shifts. psraq
 // is only available in AVX512, so we can't use it yet.
 template <typename ShiftOperand>
@@ -2457,43 +2434,23 @@ void LiftoffAssembler::emit_i8x16_shli(LiftoffRegister dst, LiftoffRegister lhs,
 void LiftoffAssembler::emit_i8x16_shr_s(LiftoffRegister dst,
                                         LiftoffRegister lhs,
                                         LiftoffRegister rhs) {
-  liftoff::EmitI8x16Shr</*is_signed=*/true>(this, dst, lhs, rhs);
+  bailout(kSimd, "i8x16_shr_s");
 }
 
 void LiftoffAssembler::emit_i8x16_shri_s(LiftoffRegister dst,
                                          LiftoffRegister lhs, int32_t rhs) {
-  Punpckhbw(kScratchDoubleReg, lhs.fp());
-  Punpcklbw(dst.fp(), lhs.fp());
-  uint8_t shift = (rhs & 7) + 8;
-  Psraw(kScratchDoubleReg, shift);
-  Psraw(dst.fp(), shift);
-  Packsswb(dst.fp(), kScratchDoubleReg);
+  bailout(kSimd, "i8x16_shri_s");
 }
 
 void LiftoffAssembler::emit_i8x16_shr_u(LiftoffRegister dst,
                                         LiftoffRegister lhs,
                                         LiftoffRegister rhs) {
-  liftoff::EmitI8x16Shr</*is_signed=*/false>(this, dst, lhs, rhs);
+  bailout(kSimd, "i8x16_shr_u");
 }
 
 void LiftoffAssembler::emit_i8x16_shri_u(LiftoffRegister dst,
                                          LiftoffRegister lhs, int32_t rhs) {
-  // Perform 16-bit shift, then mask away high bits.
-  uint8_t shift = rhs & 7;  // i.InputInt3(1);
-  if (CpuFeatures::IsSupported(AVX)) {
-    CpuFeatureScope scope(this, AVX);
-    vpsrlw(dst.fp(), lhs.fp(), byte{shift});
-  } else if (dst != lhs) {
-    Movaps(dst.fp(), lhs.fp());
-    psrlw(dst.fp(), byte{shift});
-  }
-
-  uint8_t bmask = 0xff >> shift;
-  uint32_t mask = bmask << 24 | bmask << 16 | bmask << 8 | bmask;
-  movl(kScratchRegister, Immediate(mask));
-  Movd(kScratchDoubleReg, kScratchRegister);
-  Pshufd(kScratchDoubleReg, kScratchDoubleReg, byte{0});
-  Pand(dst.fp(), kScratchDoubleReg);
+  bailout(kSimd, "i8x16_shri_u");
 }
 
 void LiftoffAssembler::emit_i8x16_add(LiftoffRegister dst, LiftoffRegister lhs,
