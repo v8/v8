@@ -1137,15 +1137,15 @@ void Assembler::RV_andi(Register rd, Register rs1, int16_t imm12) {
 }
 
 void Assembler::RV_slli(Register rd, Register rs1, uint8_t shamt) {
-  GenInstrShift_ri(0, 0b001, rd, rs1, shamt);
+  GenInstrShift_ri(0, 0b001, rd, rs1, shamt & 0x3f);
 }
 
 void Assembler::RV_srli(Register rd, Register rs1, uint8_t shamt) {
-  GenInstrShift_ri(0, 0b101, rd, rs1, shamt);
+  GenInstrShift_ri(0, 0b101, rd, rs1, shamt & 0x3f);
 }
 
 void Assembler::RV_srai(Register rd, Register rs1, uint8_t shamt) {
-  GenInstrShift_ri(1, 0b101, rd, rs1, shamt);
+  GenInstrShift_ri(1, 0b101, rd, rs1, shamt & 0x3f);
 }
 
 // Arithmetic
@@ -1269,15 +1269,15 @@ void Assembler::RV_addiw(Register rd, Register rs1, int16_t imm12) {
 }
 
 void Assembler::RV_slliw(Register rd, Register rs1, uint8_t shamt) {
-  GenInstrShiftW_ri(0, 0b001, rd, rs1, shamt);
+  GenInstrShiftW_ri(0, 0b001, rd, rs1, shamt & 0x1f);
 }
 
 void Assembler::RV_srliw(Register rd, Register rs1, uint8_t shamt) {
-  GenInstrShiftW_ri(0, 0b101, rd, rs1, shamt);
+  GenInstrShiftW_ri(0, 0b101, rd, rs1, shamt & 0x1f);
 }
 
 void Assembler::RV_sraiw(Register rd, Register rs1, uint8_t shamt) {
-  GenInstrShiftW_ri(1, 0b101, rd, rs1, shamt);
+  GenInstrShiftW_ri(1, 0b101, rd, rs1, shamt & 0x1f);
 }
 
 void Assembler::RV_addw(Register rd, Register rs1, Register rs2) {
