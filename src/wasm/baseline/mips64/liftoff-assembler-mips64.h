@@ -1794,6 +1794,30 @@ void LiftoffAssembler::emit_i64x2_shli(LiftoffRegister dst, LiftoffRegister lhs,
   slli_d(dst.fp().toW(), lhs.fp().toW(), rhs & 63);
 }
 
+void LiftoffAssembler::emit_i64x2_shr_s(LiftoffRegister dst,
+                                        LiftoffRegister lhs,
+                                        LiftoffRegister rhs) {
+  fill_d(kSimd128ScratchReg, rhs.gp());
+  sra_d(dst.fp().toW(), lhs.fp().toW(), kSimd128ScratchReg);
+}
+
+void LiftoffAssembler::emit_i64x2_shri_s(LiftoffRegister dst,
+                                         LiftoffRegister lhs, int32_t rhs) {
+  srai_d(dst.fp().toW(), lhs.fp().toW(), rhs & 63);
+}
+
+void LiftoffAssembler::emit_i64x2_shr_u(LiftoffRegister dst,
+                                        LiftoffRegister lhs,
+                                        LiftoffRegister rhs) {
+  fill_d(kSimd128ScratchReg, rhs.gp());
+  srl_d(dst.fp().toW(), lhs.fp().toW(), kSimd128ScratchReg);
+}
+
+void LiftoffAssembler::emit_i64x2_shri_u(LiftoffRegister dst,
+                                         LiftoffRegister lhs, int32_t rhs) {
+  srli_d(dst.fp().toW(), lhs.fp().toW(), rhs & 63);
+}
+
 void LiftoffAssembler::emit_i64x2_add(LiftoffRegister dst, LiftoffRegister lhs,
                                       LiftoffRegister rhs) {
   addv_d(dst.fp().toW(), lhs.fp().toW(), rhs.fp().toW());
