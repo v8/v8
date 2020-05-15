@@ -582,6 +582,7 @@ void GraphAssembler::MergeState(GraphAssemblerLabel<sizeof...(Vars)>* label,
       label->effect_->ReplaceInput(1, effect());
       for (size_t i = 0; i < kVarCount; i++) {
         label->bindings_[i]->ReplaceInput(1, var_array[i]);
+        CHECK(!NodeProperties::IsTyped(var_array[i]));  // Unsupported.
       }
     }
   } else {
@@ -625,6 +626,13 @@ void GraphAssembler::MergeState(GraphAssemblerLabel<sizeof...(Vars)>* label,
         NodeProperties::ChangeOp(
             label->bindings_[i],
             common()->Phi(label->representations_[i], merged_count + 1));
+        if (NodeProperties::IsTyped(label->bindings_[i])) {
+          CHECK(NodeProperties::IsTyped(var_array[i]));
+          Type old_type = NodeProperties::GetType(label->bindings_[i]);
+          Type new_type = Type::Union(
+              old_type, NodeProperties::GetType(var_array[i]), graph()->zone());
+          NodeProperties::SetType(label->bindings_[i], new_type);
+        }
       }
     }
   }
