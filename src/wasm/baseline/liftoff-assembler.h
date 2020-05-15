@@ -814,6 +814,14 @@ class LiftoffAssembler : public TurboAssembler {
                              LiftoffRegister rhs);
   inline void emit_i8x16_shli(LiftoffRegister dst, LiftoffRegister lhs,
                               int32_t rhs);
+  inline void emit_i8x16_shr_s(LiftoffRegister dst, LiftoffRegister lhs,
+                               LiftoffRegister rhs);
+  inline void emit_i8x16_shri_s(LiftoffRegister dst, LiftoffRegister lhs,
+                                int32_t rhs);
+  inline void emit_i8x16_shr_u(LiftoffRegister dst, LiftoffRegister lhs,
+                               LiftoffRegister rhs);
+  inline void emit_i8x16_shri_u(LiftoffRegister dst, LiftoffRegister lhs,
+                                int32_t rhs);
   inline void emit_i8x16_add(LiftoffRegister dst, LiftoffRegister lhs,
                              LiftoffRegister rhs);
   inline void emit_i8x16_add_saturate_s(LiftoffRegister dst,

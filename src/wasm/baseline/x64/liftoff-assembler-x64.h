@@ -2431,6 +2431,28 @@ void LiftoffAssembler::emit_i8x16_shli(LiftoffRegister dst, LiftoffRegister lhs,
   Pand(dst.fp(), kScratchDoubleReg);
 }
 
+void LiftoffAssembler::emit_i8x16_shr_s(LiftoffRegister dst,
+                                        LiftoffRegister lhs,
+                                        LiftoffRegister rhs) {
+  bailout(kSimd, "i8x16_shr_s");
+}
+
+void LiftoffAssembler::emit_i8x16_shri_s(LiftoffRegister dst,
+                                         LiftoffRegister lhs, int32_t rhs) {
+  bailout(kSimd, "i8x16_shri_s");
+}
+
+void LiftoffAssembler::emit_i8x16_shr_u(LiftoffRegister dst,
+                                        LiftoffRegister lhs,
+                                        LiftoffRegister rhs) {
+  bailout(kSimd, "i8x16_shr_u");
+}
+
+void LiftoffAssembler::emit_i8x16_shri_u(LiftoffRegister dst,
+                                         LiftoffRegister lhs, int32_t rhs) {
+  bailout(kSimd, "i8x16_shri_u");
+}
+
 void LiftoffAssembler::emit_i8x16_add(LiftoffRegister dst, LiftoffRegister lhs,
                                       LiftoffRegister rhs) {
   liftoff::EmitSimdCommutativeBinOp<&Assembler::vpaddb, &Assembler::paddb>(

@@ -1658,6 +1658,35 @@ void LiftoffAssembler::emit_i8x16_shli(LiftoffRegister dst, LiftoffRegister lhs,
   Shl(dst.fp().V16B(), lhs.fp().V16B(), rhs & 7);
 }
 
+void LiftoffAssembler::emit_i8x16_shr_s(LiftoffRegister dst,
+                                        LiftoffRegister lhs,
+                                        LiftoffRegister rhs) {
+  liftoff::EmitSimdShift<liftoff::ShiftDirection::kRight,
+                         liftoff::ShiftSign::kSigned>(
+      this, dst.fp().V16B(), lhs.fp().V16B(), rhs.gp(), kFormat16B);
+}
+
+void LiftoffAssembler::emit_i8x16_shri_s(LiftoffRegister dst,
+                                         LiftoffRegister lhs, int32_t rhs) {
+  liftoff::EmitSimdShiftRightImmediate<kFormat16B, liftoff::ShiftSign::kSigned>(
+      this, dst.fp().V16B(), lhs.fp().V16B(), rhs);
+}
+
+void LiftoffAssembler::emit_i8x16_shr_u(LiftoffRegister dst,
+                                        LiftoffRegister lhs,
+                                        LiftoffRegister rhs) {
+  liftoff::EmitSimdShift<liftoff::ShiftDirection::kRight,
+                         liftoff::ShiftSign::kUnsigned>(
+      this, dst.fp().V16B(), lhs.fp().V16B(), rhs.gp(), kFormat16B);
+}
+
+void LiftoffAssembler::emit_i8x16_shri_u(LiftoffRegister dst,
+                                         LiftoffRegister lhs, int32_t rhs) {
+  liftoff::EmitSimdShiftRightImmediate<kFormat16B,
+                                       liftoff::ShiftSign::kUnsigned>(
+      this, dst.fp().V16B(), lhs.fp().V16B(), rhs);
+}
+
 void LiftoffAssembler::emit_i8x16_add(LiftoffRegister dst, LiftoffRegister lhs,
                                       LiftoffRegister rhs) {
   Add(dst.fp().V16B(), lhs.fp().V16B(), rhs.fp().V16B());

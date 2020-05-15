@@ -2707,6 +2707,28 @@ void LiftoffAssembler::emit_i8x16_shli(LiftoffRegister dst, LiftoffRegister lhs,
        liftoff::GetSimd128Register(lhs), rhs & 7);
 }
 
+void LiftoffAssembler::emit_i8x16_shr_s(LiftoffRegister dst,
+                                        LiftoffRegister lhs,
+                                        LiftoffRegister rhs) {
+  liftoff::EmitSimdShift<liftoff::kRight, NeonS8, Neon8>(this, dst, lhs, rhs);
+}
+
+void LiftoffAssembler::emit_i8x16_shri_s(LiftoffRegister dst,
+                                         LiftoffRegister lhs, int32_t rhs) {
+  liftoff::EmitSimdShiftImmediate<liftoff::kRight, NeonS8>(this, dst, lhs, rhs);
+}
+
+void LiftoffAssembler::emit_i8x16_shr_u(LiftoffRegister dst,
+                                        LiftoffRegister lhs,
+                                        LiftoffRegister rhs) {
+  liftoff::EmitSimdShift<liftoff::kRight, NeonU8, Neon8>(this, dst, lhs, rhs);
+}
+
+void LiftoffAssembler::emit_i8x16_shri_u(LiftoffRegister dst,
+                                         LiftoffRegister lhs, int32_t rhs) {
+  liftoff::EmitSimdShiftImmediate<liftoff::kRight, NeonU8>(this, dst, lhs, rhs);
+}
+
 void LiftoffAssembler::emit_i8x16_add(LiftoffRegister dst, LiftoffRegister lhs,
                                       LiftoffRegister rhs) {
   vadd(Neon8, liftoff::GetSimd128Register(dst),
