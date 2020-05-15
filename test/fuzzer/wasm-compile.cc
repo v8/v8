@@ -63,6 +63,13 @@ class DataRange {
 
   template <typename T, size_t max_bytes = sizeof(T)>
   T get() {
+    // DISABLE FOR BOOL
+    // The -O3 on release will break the result. This creates a different
+    // observable side effect when invoking get<bool> between debug and release
+    // version, which eventually makes the code output different as well as
+    // raising various unrecoverable errors on runtime. It is caused by
+    // undefined behavior of assigning boolean via memcpy from randomized bytes.
+    STATIC_ASSERT(!(std::is_same<T, bool>::value));
     STATIC_ASSERT(max_bytes <= sizeof(T));
     // We want to support the case where we have less than sizeof(T) bytes
     // remaining in the slice. For example, if we emit an i32 constant, it's
