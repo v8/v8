@@ -4,6 +4,7 @@
 
 #include "src/wasm/wasm-debug.h"
 
+#include <iomanip>
 #include <unordered_map>
 
 #include "src/base/optional.h"
@@ -15,7 +16,6 @@
 #include "src/execution/frames-inl.h"
 #include "src/execution/isolate.h"
 #include "src/heap/factory.h"
-#include "src/utils/identity-map.h"
 #include "src/wasm/baseline/liftoff-compiler.h"
 #include "src/wasm/baseline/liftoff-register.h"
 #include "src/wasm/module-decoder.h"
@@ -303,6 +303,32 @@ Address FindNewPC(WasmCode* wasm_code, int byte_offset,
 }
 
 }  // namespace
+
+void DebugSideTable::Print(std::ostream& os) const {
+  os << "Debug side table (" << num_locals_ << " locals, " << entries_.size()
+     << " entries):\n";
+  for (auto& entry : entries_) entry.Print(os);
+  os << "\n";
+}
+
+void DebugSideTable::Entry::Print(std::ostream& os) const {
+  os << std::setw(6) << std::hex << pc_offset_ << std::dec << " [";
+  for (auto& value : values_) {
+    os << " " << value.type.type_name() << ":";
+    switch (value.kind) {
+      case kConstant:
+        os << "const#" << value.i32_const;
+        break;
+      case kRegister:
+        os << "reg#" << value.reg_code;
+        break;
+      case kStack:
+        os << "stack#" << value.stack_offset;
+        break;
+    }
+  }
+  os << " ]\n";
+}
 
 Handle<JSObject> GetModuleScopeObject(Handle<WasmInstanceObject> instance) {
   Isolate* isolate = instance->GetIsolate();
@@ -619,6 +645,12 @@ class DebugInfoImpl {
     }
   }
 
+  DebugSideTable* GetDebugSideTableIfExists(const WasmCode* code) const {
+    base::MutexGuard guard(&mutex_);
+    auto it = debug_side_tables_.find(code);
+    return it == debug_side_tables_.end() ? nullptr : it->second.get();
+  }
+
  private:
   struct FrameInspectionScope {
     FrameInspectionScope(DebugInfoImpl* debug_info, Isolate* isolate,
@@ -672,6 +704,9 @@ class DebugInfoImpl {
       base::MutexGuard guard(&mutex_);
       debug_side_tables_[code] = std::move(debug_side_table);
     }
+
+    // Print the code together with the debug table, if requested.
+    code->MaybePrint();
     return ret;
   }
 
@@ -794,7 +829,7 @@ class DebugInfoImpl {
   mutable base::Mutex mutex_;
 
   // DebugSideTable per code object, lazily initialized.
-  std::unordered_map<WasmCode*, std::unique_ptr<DebugSideTable>>
+  std::unordered_map<const WasmCode*, std::unique_ptr<DebugSideTable>>
       debug_side_tables_;
 
   // Names of locals, lazily decoded from the wire bytes.
@@ -872,6 +907,11 @@ void DebugInfo::RemoveBreakpoint(int func_index, int offset,
 
 void DebugInfo::RemoveDebugSideTables(Vector<WasmCode* const> code) {
   impl_->RemoveDebugSideTables(code);
+}
+
+DebugSideTable* DebugInfo::GetDebugSideTableIfExists(
+    const WasmCode* code) const {
+  return impl_->GetDebugSideTableIfExists(code);
 }
 
 }  // namespace wasm

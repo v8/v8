@@ -623,6 +623,9 @@ class V8_EXPORT_PRIVATE NativeModule final {
   // Retrieve the number of separately reserved code spaces for this module.
   size_t GetNumberOfCodeSpacesForTesting() const;
 
+  // Check whether there is DebugInfo for this NativeModule.
+  bool HasDebugInfo() const;
+
   // Get or create the debug info for this NativeModule.
   DebugInfo* GetDebugInfo();
 

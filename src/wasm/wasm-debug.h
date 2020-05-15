@@ -91,6 +91,8 @@ class DebugSideTable {
       return values_[index].reg_code;
     }
 
+    void Print(std::ostream&) const;
+
    private:
     int pc_offset_;
     std::vector<Value> values_;
@@ -119,6 +121,8 @@ class DebugSideTable {
   }
 
   int num_locals() const { return num_locals_; }
+
+  void Print(std::ostream&) const;
 
  private:
   struct EntryPositionLess {
@@ -171,6 +175,10 @@ class V8_EXPORT_PRIVATE DebugInfo {
   void RemoveBreakpoint(int func_index, int offset, Isolate* current_isolate);
 
   void RemoveDebugSideTables(Vector<WasmCode* const>);
+
+  // Return the debug side table for the given code object, but only if it has
+  // already been created. This will never trigger generation of the table.
+  DebugSideTable* GetDebugSideTableIfExists(const WasmCode*) const;
 
  private:
   std::unique_ptr<DebugInfoImpl> impl_;

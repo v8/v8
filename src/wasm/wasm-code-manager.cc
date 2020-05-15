@@ -327,6 +327,12 @@ void WasmCode::Print(const char* name) const {
   StdoutStream os;
   os << "--- WebAssembly code ---\n";
   Disassemble(name, os);
+  if (native_module_->HasDebugInfo()) {
+    if (auto* debug_side_table =
+            native_module_->GetDebugInfo()->GetDebugSideTableIfExists(this)) {
+      debug_side_table->Print(os);
+    }
+  }
   os << "--- End code ---\n";
 }
 
@@ -923,7 +929,7 @@ WasmCode* NativeModule::AddCodeForTesting(Handle<Code> code) {
                    WasmCode::kFunction,     // kind
                    ExecutionTier::kNone,    // tier
                    kNoDebugging}};          // for_debugging
-  new_code->MaybePrint(nullptr);
+  new_code->MaybePrint();
   new_code->Validate();
 
   return PublishCode(std::move(new_code));
@@ -1879,6 +1885,11 @@ void NativeModule::FreeCode(Vector<WasmCode* const> codes) {
 
 size_t NativeModule::GetNumberOfCodeSpacesForTesting() const {
   return code_allocator_.GetNumCodeSpaces();
+}
+
+bool NativeModule::HasDebugInfo() const {
+  base::MutexGuard guard(&allocation_mutex_);
+  return debug_info_ != nullptr;
 }
 
 DebugInfo* NativeModule::GetDebugInfo() {
