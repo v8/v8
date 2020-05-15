@@ -973,6 +973,8 @@ class JSFunction : public JSFunctionOrBoundFunction {
   static const int kNameDescriptorIndex = 1;
   // Home object descriptor index when function has a [[HomeObject]] slot.
   static const int kMaybeHomeObjectDescriptorIndex = 2;
+  // Fast binding requires length and name accessors.
+  static const int kMinDescriptorsForFastBind = 2;
 
   // [context]: The context for this function.
   inline Context context();

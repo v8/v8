@@ -503,11 +503,7 @@ namespace internal {
   CPP(FunctionConstructor)                                                     \
   ASM(FunctionPrototypeApply, JSTrampoline)                                    \
   CPP(FunctionPrototypeBind)                                                   \
-  /* ES6 #sec-function.prototype.bind */                                       \
-  TFJ(FastFunctionPrototypeBind, kDontAdaptArgumentsSentinel)                  \
   ASM(FunctionPrototypeCall, JSTrampoline)                                     \
-  /* ES6 #sec-function.prototype-@@hasinstance */                              \
-  TFJ(FunctionPrototypeHasInstance, 1, kReceiver, kV)                          \
   /* ES6 #sec-function.prototype.tostring */                                   \
   CPP(FunctionPrototypeToString)                                               \
                                                                                \

@@ -101,6 +101,9 @@ operator '[]=' macro StoreFixedArrayDirect(a: FixedArray, i: Smi, v: Object) {
   a.objects[i] = v;
 }
 
+extern macro AllocateFixedArray(
+    constexpr ElementsKind, intptr, constexpr AllocationFlag): FixedArrayBase;
+
 extern macro AllocateZeroedFixedArray(intptr): FixedArray;
 extern macro AllocateZeroedFixedDoubleArray(intptr): FixedDoubleArray;
 extern macro CalculateNewElementsCapacity(Smi): Smi;

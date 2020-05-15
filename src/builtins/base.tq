@@ -394,6 +394,7 @@ extern macro LengthStringConstant(): String;
 extern macro MatchSymbolConstant(): Symbol;
 extern macro MessageStringConstant(): String;
 extern macro NanConstant(): NaN;
+extern macro NameStringConstant(): String;
 extern macro NullConstant(): Null;
 extern macro ReturnStringConstant(): String;
 extern macro TheHoleConstant(): TheHole;

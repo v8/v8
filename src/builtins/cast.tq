@@ -659,6 +659,13 @@ Cast<CoverageInfo>(implicit context: Context)(o: HeapObject): CoverageInfo
   goto CastError;
 }
 
+extern macro IsAccessorInfo(HeapObject): bool;
+Cast<AccessorInfo>(o: HeapObject): AccessorInfo
+    labels CastError {
+  if (IsAccessorInfo(o)) return %RawDownCast<AccessorInfo>(o);
+  goto CastError;
+}
+
 Cast<JSReceiver|Null>(o: HeapObject): JSReceiver|Null
     labels CastError {
   typeswitch (o) {
@@ -750,6 +757,21 @@ Cast<Zero|PromiseReaction>(implicit context: Context)(o: Object): Zero|
 Cast<JSBoundFunction>(o: HeapObject): JSBoundFunction labels CastError {
   if (IsJSBoundFunction(o)) return %RawDownCast<JSBoundFunction>(o);
   goto CastError;
+}
+
+Cast<JSFunction|JSBoundFunction>(implicit context: Context)(o: Object):
+    JSFunction|JSBoundFunction labels CastError {
+  typeswitch (o) {
+    case (o: JSFunction): {
+      return o;
+    }
+    case (o: JSBoundFunction): {
+      return o;
+    }
+    case (Object): {
+      goto CastError;
+    }
+  }
 }
 
 Cast<PromiseCapability>(o: HeapObject): PromiseCapability labels CastError {
