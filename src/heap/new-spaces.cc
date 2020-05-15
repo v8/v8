@@ -9,6 +9,7 @@
 #include "src/heap/heap-inl.h"
 #include "src/heap/incremental-marking.h"
 #include "src/heap/mark-compact.h"
+#include "src/heap/memory-allocator.h"
 #include "src/heap/paged-spaces.h"
 #include "src/heap/spaces-inl.h"
 

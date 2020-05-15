@@ -18,6 +18,7 @@
 namespace v8 {
 namespace internal {
 
+class MemoryAllocator;
 class ReadOnlyHeap;
 
 class ReadOnlyPage : public Page {

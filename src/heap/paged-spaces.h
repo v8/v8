@@ -13,6 +13,7 @@
 #include "src/base/optional.h"
 #include "src/base/platform/mutex.h"
 #include "src/common/globals.h"
+#include "src/flags/flags.h"
 #include "src/heap/memory-chunk.h"
 #include "src/heap/spaces.h"
 

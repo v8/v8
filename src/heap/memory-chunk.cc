@@ -7,6 +7,7 @@
 #include "src/base/platform/platform.h"
 #include "src/heap/array-buffer-tracker.h"
 #include "src/heap/code-object-registry.h"
+#include "src/heap/memory-allocator.h"
 #include "src/heap/memory-chunk-inl.h"
 #include "src/heap/spaces.h"
 #include "src/objects/heap-object.h"

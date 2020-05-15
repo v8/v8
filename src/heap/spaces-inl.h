@@ -6,7 +6,6 @@
 #define V8_HEAP_SPACES_INL_H_
 
 #include "src/base/atomic-utils.h"
-#include "src/base/bounded-page-allocator.h"
 #include "src/base/v8-fallthrough.h"
 #include "src/common/globals.h"
 #include "src/heap/heap-inl.h"

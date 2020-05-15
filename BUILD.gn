@@ -2458,6 +2458,8 @@ v8_source_set("v8_base_without_compiler") {
     "src/heap/marking-worklist.h",
     "src/heap/marking.cc",
     "src/heap/marking.h",
+    "src/heap/memory-allocator.cc",
+    "src/heap/memory-allocator.h",
     "src/heap/memory-chunk-inl.h",
     "src/heap/memory-chunk.cc",
     "src/heap/memory-chunk.h",
