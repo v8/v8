@@ -22,6 +22,8 @@ namespace internal {
 class Heap;
 class HeapObject;
 class Isolate;
+class LocalSpace;
+class OffThreadSpace;
 class ObjectVisitor;
 
 // -----------------------------------------------------------------------------
@@ -499,13 +501,6 @@ class CodeSpace : public PagedSpace {
   explicit CodeSpace(Heap* heap)
       : PagedSpace(heap, CODE_SPACE, EXECUTABLE, FreeList::CreateFreeList()) {}
 };
-
-// For contiguous spaces, top should be in the space (or at the end) and limit
-// should be the end of the space.
-#define DCHECK_SEMISPACE_ALLOCATION_INFO(info, space) \
-  SLOW_DCHECK((space).page_low() <= (info).top() &&   \
-              (info).top() <= (space).page_high() &&  \
-              (info).limit() <= (space).page_high())
 
 // -----------------------------------------------------------------------------
 // Old space for all map objects

@@ -7,6 +7,7 @@
 
 #include "src/common/globals.h"
 #include "src/heap/heap.h"
+#include "src/heap/new-spaces.h"
 #include "src/heap/paged-spaces.h"
 #include "src/heap/spaces.h"
 
