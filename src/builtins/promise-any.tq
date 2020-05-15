@@ -35,7 +35,7 @@ transitioning macro CreatePromiseAnyRejectElementContext(
                     kPromiseAnyRejectElementRemainingSlot] = SmiConstant(1);
   rejectContext[PromiseAnyRejectElementContextSlots::
                     kPromiseAnyRejectElementCapabilitySlot] = capability;
-  // Will be set later.
+  // Will be set when handling the first rejection.
   rejectContext[PromiseAnyRejectElementContextSlots::
                     kPromiseAnyRejectElementErrorsArraySlot] = Undefined;
   return rejectContext;
@@ -91,25 +91,28 @@ PromiseAnyRejectElementClosure(
   assert(identityHash > 0);
   const index = identityHash - 1;
 
-  // 6. Let errors be F.[[Errors]].
-  if (context[PromiseAnyRejectElementContextSlots::
-                  kPromiseAnyRejectElementErrorsArraySlot] == Undefined) {
-    // We're going to reject the Promise with a more fundamental error (e.g.,
-    // something went wrong with iterating the Promises). We don't need to
-    // construct the "errors" array.
-    return Undefined;
-  }
-
-  const errorsArray = UnsafeCast<FixedArray>(
-      context[PromiseAnyRejectElementContextSlots::
-                  kPromiseAnyRejectElementErrorsArraySlot]);
-
   // 7. Let promiseCapability be F.[[Capability]].
 
   // 8. Let remainingElementsCount be F.[[RemainingElements]].
   let remainingElementsCount =
       UnsafeCast<Smi>(context[PromiseAnyRejectElementContextSlots::
                                   kPromiseAnyRejectElementRemainingSlot]);
+
+  // 6. Let errors be F.[[Errors]].
+  let errorsArray: FixedArray;
+  if (context[PromiseAnyRejectElementContextSlots::
+                  kPromiseAnyRejectElementErrorsArraySlot] == Undefined) {
+    // This is the first rejection function to be called.
+    errorsArray =
+        AllocateZeroedFixedArray(Convert<intptr>(remainingElementsCount));
+    context[PromiseAnyRejectElementContextSlots::
+                kPromiseAnyRejectElementErrorsArraySlot] = errorsArray;
+  } else {
+    errorsArray = UnsafeCast<FixedArray>(
+        context[PromiseAnyRejectElementContextSlots::
+                    kPromiseAnyRejectElementErrorsArraySlot]);
+  }
+
   // 9. Set errors[index] to x.
   errorsArray.objects[index] = value;
 
@@ -145,8 +148,8 @@ Reject(Object) {
 
   const nativeContext = LoadNativeContext(context);
 
-  // 3. Let errors be a new empty List.
-  let growableErrorsArray = growable_fixed_array::NewGrowableFixedArray();
+  // 3. Let errors be a new empty List. (Do nothing: errors is
+  // initialized lazily when the first Promise rejects.)
 
   // 4. Let remainingElementsCount be a new Record { [[Value]]: 1 }.
   const rejectElementContext =
@@ -215,8 +218,8 @@ Reject(Object) {
             MessageTemplate::kTooManyElementsInPromiseCombinator, 'any');
       }
 
-      // h. Append undefined to errors.
-      growableErrorsArray.Push(Undefined);
+      // h. Append undefined to errors. (Do nothing: errors is initialized
+      // lazily when the first Promise rejects.)
 
       let nextPromise: JSAny;
       // i. Let nextPromise be ? Call(constructor, promiseResolve,
@@ -291,16 +294,11 @@ Reject(Object) {
                            kPromiseAnyRejectElementRemainingSlot] =
       remainingElementsCount;
 
-  const errorsArray = growableErrorsArray.ToFixedArray();
-  rejectElementContext[PromiseAnyRejectElementContextSlots::
-                           kPromiseAnyRejectElementErrorsArraySlot] =
-      errorsArray;
-
   // iii. If remainingElementsCount.[[Value]] is 0, then
   if (remainingElementsCount == 0) deferred {
       // 1. Let error be a newly created AggregateError object.
       // 2. Set error.[[AggregateErrors]] to errors.
-      const error = ConstructAggregateError(errorsArray);
+      const error = ConstructAggregateError(kEmptyFixedArray);
       // 3. Return ThrowCompletion(error).
       goto Reject(error);
     }
