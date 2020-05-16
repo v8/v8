@@ -134,7 +134,7 @@ AllocationResult OldLargeObjectSpace::AllocateRaw(int object_size,
       heap()->incremental_marking()->black_allocation(),
       heap()->incremental_marking()->marking_state()->IsBlack(object));
   page->InitializationMemoryFence();
-  heap()->NotifyOldGenerationExpansion();
+  heap()->NotifyOldGenerationExpansion(identity(), page);
   AllocationStep(object_size, object.address(), object_size);
   return object;
 }
@@ -514,7 +514,6 @@ AllocationResult CodeLargeObjectSpace::AllocateRaw(int object_size) {
 void CodeLargeObjectSpace::AddPage(LargePage* page, size_t object_size) {
   OldLargeObjectSpace::AddPage(page, object_size);
   InsertChunkMapEntries(page);
-  heap()->isolate()->AddCodeMemoryChunk(page);
 }
 
 void CodeLargeObjectSpace::RemovePage(LargePage* page, size_t object_size) {

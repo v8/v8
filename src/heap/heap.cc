@@ -417,6 +417,11 @@ bool Heap::CanExpandOldGeneration(size_t size) {
   return memory_allocator()->Size() + size <= MaxReserved();
 }
 
+bool Heap::CanExpandOldGenerationBackground(size_t size) {
+  if (force_oom_) return false;
+  return memory_allocator()->Size() + size <= MaxReserved();
+}
+
 bool Heap::HasBeenSetUp() const {
   // We will always have a new space when the heap is set up.
   return new_space_ != nullptr;
@@ -5445,7 +5450,15 @@ void Heap::NotifyBootstrapComplete() {
   }
 }
 
-void Heap::NotifyOldGenerationExpansion() {
+void Heap::NotifyOldGenerationExpansion(AllocationSpace space,
+                                        MemoryChunk* chunk) {
+  // Pages created during bootstrapping may contain immortal immovable objects.
+  if (!deserialization_complete()) {
+    chunk->MarkNeverEvacuate();
+  }
+  if (space == CODE_SPACE || space == CODE_LO_SPACE) {
+    isolate()->AddCodeMemoryChunk(chunk);
+  }
   const size_t kMemoryReducerActivationThreshold = 1 * MB;
   if (old_generation_capacity_after_bootstrap_ && ms_count_ == 0 &&
       OldGenerationCapacity() >= old_generation_capacity_after_bootstrap_ +

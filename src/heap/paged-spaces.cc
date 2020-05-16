@@ -202,9 +202,7 @@ void PagedSpace::MergeLocalSpace(LocalSpace* other) {
     // Relinking requires the category to be unlinked.
     other->RemovePage(p);
     AddPage(p);
-    // These code pages were allocated by the CompactionSpace.
-    if (identity() == CODE_SPACE) heap()->isolate()->AddCodeMemoryChunk(p);
-    heap()->NotifyOldGenerationExpansion();
+    heap()->NotifyOldGenerationExpansion(identity(), p);
     DCHECK_IMPLIES(
         !p->IsFlagSet(Page::NEVER_ALLOCATE_ON_PAGE),
         p->AvailableInFreeList() == p->AvailableInFreeListFromAllocatedBytes());
@@ -318,31 +316,19 @@ void PagedSpace::ShrinkImmortalImmovablePages() {
   }
 }
 
-bool PagedSpace::Expand() {
+Page* PagedSpace::Expand() {
+  // TODO(ulan): Remove the mutex as it seems redundant:
   // Always lock against the main space as we can only adjust capacity and
   // pages concurrently for the main paged space.
   base::MutexGuard guard(heap()->paged_space(identity())->mutex());
 
-  const int size = AreaSize();
-
-  if (!heap()->CanExpandOldGeneration(size)) return false;
-
   Page* page =
-      heap()->memory_allocator()->AllocatePage(size, this, executable());
-  if (page == nullptr) return false;
-  // Pages created during bootstrapping may contain immortal immovable objects.
-  if (!heap()->deserialization_complete()) page->MarkNeverEvacuate();
+      heap()->memory_allocator()->AllocatePage(AreaSize(), this, executable());
+  if (page == nullptr) return nullptr;
   AddPage(page);
-  // If this is a non-compaction code space, this is a previously unseen page.
-  if (identity() == CODE_SPACE && !is_compaction_space()) {
-    heap()->isolate()->AddCodeMemoryChunk(page);
-  }
   Free(page->area_start(), page->area_size(),
        SpaceAccountingMode::kSpaceAccounted);
-  if (!is_off_thread_space()) {
-    heap()->NotifyOldGenerationExpansion();
-  }
-  return true;
+  return page;
 }
 
 int PagedSpace::CountTotalPages() {
@@ -581,7 +567,7 @@ PagedSpace::SlowGetLinearAllocationAreaBackground(LocalHeap* local_heap,
   }
 
   if (heap()->ShouldExpandOldGenerationOnSlowAllocation(local_heap) &&
-      Expand()) {
+      heap()->CanExpandOldGenerationBackground(AreaSize()) && Expand()) {
     DCHECK((CountTotalPages() > 1) ||
            (min_size_in_bytes <= free_list_->Available()));
     return TryAllocationFromFreeListBackground(
@@ -868,7 +854,7 @@ bool OffThreadSpace::SlowRefillLinearAllocationArea(int size_in_bytes,
   if (RefillLinearAllocationAreaFromFreeList(size_in_bytes, origin))
     return true;
 
-  if (Expand()) {
+  if (heap()->CanExpandOldGenerationBackground(size_in_bytes) && Expand()) {
     DCHECK((CountTotalPages() > 1) ||
            (static_cast<size_t>(size_in_bytes) <= free_list_->Available()));
     return RefillLinearAllocationAreaFromFreeList(
@@ -925,11 +911,18 @@ bool PagedSpace::RawSlowRefillLinearAllocationArea(int size_in_bytes,
     }
   }
 
-  if (heap()->ShouldExpandOldGenerationOnSlowAllocation() && Expand()) {
-    DCHECK((CountTotalPages() > 1) ||
-           (static_cast<size_t>(size_in_bytes) <= free_list_->Available()));
-    return RefillLinearAllocationAreaFromFreeList(
-        static_cast<size_t>(size_in_bytes), origin);
+  if (heap()->ShouldExpandOldGenerationOnSlowAllocation() &&
+      heap()->CanExpandOldGeneration(AreaSize())) {
+    Page* page = Expand();
+    if (page) {
+      if (!is_compaction_space()) {
+        heap()->NotifyOldGenerationExpansion(identity(), page);
+      }
+      DCHECK((CountTotalPages() > 1) ||
+             (static_cast<size_t>(size_in_bytes) <= free_list_->Available()));
+      return RefillLinearAllocationAreaFromFreeList(
+          static_cast<size_t>(size_in_bytes), origin);
+    }
   }
 
   if (is_compaction_space()) {

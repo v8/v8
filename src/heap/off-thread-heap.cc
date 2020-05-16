@@ -149,7 +149,6 @@ void OffThreadHeap::Publish(Heap* heap) {
     heap->lo_space()->MergeOffThreadSpace(&lo_space_);
 
     DCHECK(heap->CanExpandOldGeneration(0));
-    heap->NotifyOldGenerationExpansion();
 
     // Possibly trigger a GC if we're close to exhausting the old generation.
     // TODO(leszeks): Adjust the heuristics here.
