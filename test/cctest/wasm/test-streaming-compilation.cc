@@ -1174,9 +1174,10 @@ STREAM_TEST(TestCompileErrorFunctionName) {
       U32V_1(1),                            // functions count
       0,                                    // signature index
       kCodeSectionCode,                     // section code
-      U32V_1(3),                            // section size
+      U32V_1(4),                            // section size
       U32V_1(1),                            // functions count
-      1,                                    // body size
+      2,                                    // body size
+      0,                                    // local definitions count
       kExprNop,                             // body
   };
 
@@ -1210,7 +1211,7 @@ STREAM_TEST(TestCompileErrorFunctionName) {
     CHECK(tester.IsPromiseRejected());
     CHECK_EQ(
         "CompileError: WebAssembly.compileStreaming(): Compiling function "
-        "#0:\"f\" failed: function body must end with \"end\" opcode @+25",
+        "#0:\"f\" failed: function body must end with \"end\" opcode @+26",
         tester.error_message());
   }
 }

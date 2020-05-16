@@ -1723,11 +1723,11 @@ class ModuleDecoderImpl : public Decoder {
   }
 
   ValueType consume_value_type() {
-    ValueType result;
-    uint32_t type_length = value_type_reader::read_value_type<kValidate>(
-        this, this->pc(), &result,
+    uint32_t type_length;
+    ValueType result = value_type_reader::read_value_type<kValidate>(
+        this, this->pc(), &type_length,
         origin_ == kWasmOrigin ? enabled_features_ : WasmFeatures::None());
-    if (type_length == 0) error(pc_, "invalid value type");
+    if (result == kWasmBottom) error(pc_, "invalid value type");
     consume_bytes(type_length);
     return result;
   }

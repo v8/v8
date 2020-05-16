@@ -21,10 +21,15 @@ namespace wasm {
 
 bool DecodeLocalDecls(const WasmFeatures& enabled, BodyLocalDecls* decls,
                       const byte* start, const byte* end) {
-  Decoder decoder(start, end);
-  if (WasmDecoder<Decoder::kValidate>::DecodeLocals(enabled, &decoder, nullptr,
-                                                    &decls->type_list)) {
+  WasmFeatures no_features = WasmFeatures::None();
+  WasmDecoder<Decoder::kValidate> decoder(nullptr, enabled, &no_features,
+                                          nullptr, start, end, 0);
+  decoder.local_types_ = &decls->type_list;
+  uint32_t length;
+  if (decoder.DecodeLocals(decoder.pc(), &length,
+                           decoder.DecodeLocalsMode::kUpdateLocals)) {
     DCHECK(decoder.ok());
+    decoder.consume_bytes(length);
     decls->encoded_size = decoder.pc_offset();
     return true;
   }

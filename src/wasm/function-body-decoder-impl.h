@@ -210,94 +210,86 @@ namespace value_type_reader {
 // Returns the amount of bytes read, or 0 if decoding failed.
 // Registers an error if the type opcode is invalid iff validate is set.
 template <Decoder::ValidateFlag validate>
-uint32_t read_value_type(Decoder* decoder, const byte* pc, ValueType* result,
-                         const WasmFeatures& enabled) {
+ValueType read_value_type(Decoder* decoder, const byte* pc,
+                          uint32_t* const length, const WasmFeatures& enabled) {
+  *length = 1;
   byte val = decoder->read_u8<validate>(pc, "value type opcode");
-  if (decoder->failed()) return 0;
+  if (decoder->failed()) {
+    return kWasmBottom;
+  }
 
   ValueTypeCode code = static_cast<ValueTypeCode>(val);
   switch (code) {
     case kLocalI32:
-      *result = kWasmI32;
-      return 1;
+      return kWasmI32;
     case kLocalI64:
-      *result = kWasmI64;
-      return 1;
+      return kWasmI64;
     case kLocalF32:
-      *result = kWasmF32;
-      return 1;
+      return kWasmF32;
     case kLocalF64:
-      *result = kWasmF64;
-      return 1;
+      return kWasmF64;
     case kLocalAnyRef:
       if (enabled.has_anyref()) {
-        *result = kWasmAnyRef;
-        return 1;
+        return kWasmAnyRef;
       }
       decoder->error(pc,
                      "invalid value type 'anyref', enable with "
                      "--experimental-wasm-anyref");
-      return 0;
+      return kWasmBottom;
     case kLocalFuncRef:
       if (enabled.has_anyref()) {
-        *result = kWasmFuncRef;
-        return 1;
+        return kWasmFuncRef;
       }
       decoder->error(pc,
                      "invalid value type 'funcref', enable with "
                      "--experimental-wasm-anyref");
-      return 0;
+      return kWasmBottom;
     case kLocalNullRef:
       if (enabled.has_anyref()) {
-        *result = kWasmNullRef;
-        return 1;
+        return kWasmNullRef;
       }
       decoder->error(pc,
                      "invalid value type 'nullref', enable with "
                      "--experimental-wasm-anyref");
-      return 0;
+      return kWasmBottom;
     case kLocalExnRef:
       if (enabled.has_eh()) {
-        *result = kWasmExnRef;
-        return 1;
+        return kWasmExnRef;
       }
       decoder->error(pc,
                      "invalid value type 'exception ref', enable with "
                      "--experimental-wasm-eh");
-      return 0;
+      return kWasmBottom;
     case kLocalRef:
       if (enabled.has_gc()) {
-        uint32_t length;
         uint32_t type_index =
-            decoder->read_u32v<validate>(pc + 1, &length, "type index");
-        *result = ValueType(ValueType::kRef, type_index);
-        return length + 1;
+            decoder->read_u32v<validate>(pc + 1, length, "type index");
+        (*length)++;
+        return ValueType(ValueType::kRef, type_index);
       }
       decoder->error(pc,
                      "invalid value type 'ref', enable with "
                      "--experimental-wasm-gc");
-      return 0;
+      return kWasmBottom;
     case kLocalOptRef:
       if (enabled.has_gc()) {
-        uint32_t length;
         uint32_t type_index =
-            decoder->read_u32v<validate>(pc + 1, &length, "type index");
-        *result = ValueType(ValueType::kOptRef, type_index);
-        return length + 1;
+            decoder->read_u32v<validate>(pc + 1, length, "type index");
+        (*length)++;
+        return ValueType(ValueType::kOptRef, type_index);
       }
       decoder->error(pc,
                      "invalid value type 'optref', enable with "
                      "--experimental-wasm-gc");
-      return 0;
+      return kWasmBottom;
     case kLocalEqRef:
       if (enabled.has_gc()) {
-        *result = kWasmEqRef;
-        return 1;
+        return kWasmEqRef;
       }
       decoder->error(pc,
                      "invalid value type 'eqref', enable with "
                      "--experimental-wasm-simd");
-      return 0;
+      return kWasmBottom;
     case kLocalI31Ref:
       if (enabled.has_gc()) {
         // TODO(7748): Implement
@@ -306,7 +298,7 @@ uint32_t read_value_type(Decoder* decoder, const byte* pc, ValueType* result,
       decoder->error(pc,
                      "invalid value type 'i31ref', enable with "
                      "--experimental-wasm-simd");
-      return 0;
+      return kWasmBottom;
     case kLocalRttRef:
       if (enabled.has_gc()) {
         // TODO(7748): Implement
@@ -315,19 +307,22 @@ uint32_t read_value_type(Decoder* decoder, const byte* pc, ValueType* result,
       decoder->error(pc,
                      "invalid value type 'rttref', enable with "
                      "--experimental-wasm-simd");
-      return 0;
+      return kWasmBottom;
     case kLocalS128:
       if (enabled.has_simd()) {
-        *result = kWasmS128;
-        return 1;
+        return kWasmS128;
       }
       decoder->error(pc,
                      "invalid value type 'Simd128', enable with "
                      "--experimental-wasm-simd");
-      return 0;
+      return kWasmBottom;
+    case kLocalVoid:
+      // Although void is included in ValueType, it is technically not a value
+      // type and is only used to indicate a void block return type. The caller
+      // of this function is responsible to check for its presence separately.
+      return kWasmBottom;
     default:
-      *result = kWasmBottom;
-      return 0;
+      return kWasmBottom;
   }
 }
 }  // namespace value_type_reader
@@ -346,10 +341,11 @@ struct SelectTypeImmediate {
           pc + 1, "Invalid number of types. Select accepts exactly one type");
       return;
     }
-    uint32_t type_length = value_type_reader::read_value_type<validate>(
-        decoder, pc + length + 1, &type, enabled);
+    uint32_t type_length;
+    type = value_type_reader::read_value_type<validate>(
+        decoder, pc + length + 1, &type_length, enabled);
     length += type_length;
-    if (type_length == 0) {
+    if (type == kWasmBottom) {
       decoder->error(pc + 1, "invalid select type");
     }
   }
@@ -368,9 +364,9 @@ struct BlockTypeImmediate {
       // 1st case: void block. Struct fields stay at default values.
       return;
     }
-    length = value_type_reader::read_value_type<validate>(decoder, pc + 1,
-                                                          &type, enabled);
-    if (length > 0) {
+    type = value_type_reader::read_value_type<validate>(decoder, pc + 1,
+                                                        &length, enabled);
+    if (type != kWasmBottom) {
       // 2nd case: block with val type immediate.
       return;
     }
@@ -954,40 +950,71 @@ class WasmDecoder : public Decoder {
                : static_cast<uint32_t>(local_types_->size());
   }
 
-  static bool DecodeLocals(const WasmFeatures& enabled, Decoder* decoder,
-                           const FunctionSig* sig,
-                           ZoneVector<ValueType>* type_list) {
-    DCHECK_NOT_NULL(type_list);
-    DCHECK_EQ(0, type_list->size());
-    // Initialize from signature.
-    if (sig != nullptr) {
-      type_list->assign(sig->parameters().begin(), sig->parameters().end());
+  void InitializeLocalsFromSig() {
+    if (sig_ != nullptr) {
+      local_types_->assign(sig_->parameters().begin(),
+                           sig_->parameters().end());
     }
+  }
+
+  enum DecodeLocalsMode { kUpdateLocals, kNoUpdateLocals };
+
+  // Decodes local definitions in the current decoder.
+  // Returns true iff locals are found.
+  // Write the total length of decoded locals in 'total_length'.
+  // If 'mode' is kPrependLocals, the 'local_types_' of this decoder
+  // will be updated. Otherwise, this is used just to check legality and
+  // measure the size of the locals.
+  // The decoder's pc is not advanced.
+  // If no locals are found (i.e., no compressed uint32 is found at pc),
+  // this will exit as 'false' and without an error.
+  bool DecodeLocals(const byte* pc, uint32_t* total_length,
+                    DecodeLocalsMode mode) {
+    DCHECK_NOT_NULL(local_types_);
+
+    uint32_t length;
+    *total_length = 0;
+
     // Decode local declarations, if any.
-    uint32_t entries = decoder->consume_u32v("local decls count");
-    if (decoder->failed()) return false;
-
-    TRACE("local decls count: %u\n", entries);
-    while (entries-- > 0 && decoder->more()) {
-      uint32_t count = decoder->consume_u32v("local count");
-      if (decoder->failed()) return false;
-
-      DCHECK_LE(type_list->size(), kV8MaxWasmFunctionLocals);
-      if (count > kV8MaxWasmFunctionLocals - type_list->size()) {
-        decoder->error(decoder->pc() - 1, "local count too large");
-        return false;
-      }
-      ValueType type;
-      uint32_t type_length = value_type_reader::read_value_type<validate>(
-          decoder, decoder->pc(), &type, enabled);
-      if (type_length == 0) {
-        decoder->error(decoder->pc(), "invalid local type");
-        return false;
-      }
-      type_list->insert(type_list->end(), count, type);
-      decoder->consume_bytes(type_length);
+    uint32_t entries = read_u32v<kValidate>(pc, &length, "local decls count");
+    if (failed()) {
+      error(pc + *total_length, "invalid local decls count");
+      return false;
     }
-    DCHECK(decoder->ok());
+
+    *total_length += length;
+    TRACE("local decls count: %u\n", entries);
+
+    while (entries-- > 0) {
+      if (!more()) {
+        error(end(), "expected more local decls but reached end of input");
+        return false;
+      }
+      uint32_t count =
+          read_u32v<kValidate>(pc + *total_length, &length, "local count");
+      if (failed()) {
+        error(pc + *total_length, "invalid local count");
+        return false;
+      }
+      DCHECK_LE(local_types_->size(), kV8MaxWasmFunctionLocals);
+      if (count > kV8MaxWasmFunctionLocals - local_types_->size()) {
+        error(pc + *total_length, "local count too large");
+        return false;
+      }
+      *total_length += length;
+
+      ValueType type = value_type_reader::read_value_type<kValidate>(
+          this, pc + *total_length, &length, enabled_);
+      if (type == kWasmBottom) {
+        error(pc + *total_length, "invalid local type");
+        return false;
+      }
+      *total_length += length;
+      if (mode == kUpdateLocals) {
+        local_types_->insert(local_types_->end(), count, type);
+      }
+    }
+    DCHECK(ok());
     return true;
   }
 
@@ -1766,8 +1793,12 @@ class WasmFullDecoder : public WasmDecoder<validate> {
     }
 
     DCHECK_EQ(0, this->local_types_->size());
-    WasmDecoder<validate>::DecodeLocals(this->enabled_, this, this->sig_,
-                                        this->local_types_);
+    this->InitializeLocalsFromSig();
+    uint32_t locals_length;
+    this->DecodeLocals(this->pc(), &locals_length,
+                       WasmDecoder<validate>::kUpdateLocals);
+    this->consume_bytes(locals_length);
+
     CALL_INTERFACE(StartFunction);
     DecodeFunctionBody();
     if (!this->failed()) CALL_INTERFACE(FinishFunction);

@@ -3820,6 +3820,21 @@ TEST_F(LocalDeclDecoderTest, NoLocals) {
   EXPECT_TRUE(decls.type_list.empty());
 }
 
+TEST_F(LocalDeclDecoderTest, WrongLocalDeclsCount1) {
+  static const byte data[] = {1};
+  BodyLocalDecls decls(zone());
+  bool result = DecodeLocalDecls(&decls, data, data + sizeof(data));
+  EXPECT_FALSE(result);
+}
+
+TEST_F(LocalDeclDecoderTest, WrongLocalDeclsCount2) {
+  static const byte data[] = {2, 1,
+                              static_cast<byte>(kWasmI32.value_type_code())};
+  BodyLocalDecls decls(zone());
+  bool result = DecodeLocalDecls(&decls, data, data + sizeof(data));
+  EXPECT_FALSE(result);
+}
+
 TEST_F(LocalDeclDecoderTest, OneLocal) {
   WASM_FEATURE_SCOPE(anyref);
   for (size_t i = 0; i < arraysize(kValueTypes); i++) {
