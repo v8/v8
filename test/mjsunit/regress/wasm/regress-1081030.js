@@ -13,9 +13,9 @@ builder.addFunction(undefined, 0 /* sig */).addBodyWithEnd([
   // signature: i_iii
   // body:
   kExprF32Const, 0xf8, 0xf8, 0xf8, 0xf8,
-  kSimdPrefix, kExprF32x4Splat,         // i8x16.splat
+  kSimdPrefix, kExprF32x4Splat,         // f32x4.splat
   kExprF32Const, 0xf8, 0xf8, 0xf8, 0xf8,
-  kSimdPrefix, kExprF32x4Splat,         // i8x16.splat
+  kSimdPrefix, kExprF32x4Splat,         // f32x4.splat
   kSimdPrefix, kExprF32x4Min, 0x01,     // f32x4.min
   kSimdPrefix, kExprS1x4AnyTrue, 0x01,  // s1x4.any_true
   kExprEnd,                             // end @16
