@@ -36,6 +36,31 @@ void Builtins::Generate_ConstructFunctionForwardVarargs(MacroAssembler* masm) {
       BUILTIN_CODE(masm->isolate(), ConstructFunction));
 }
 
+TF_BUILTIN(Construct_WithFeedback, CallOrConstructBuiltinsAssembler) {
+  TNode<Object> target = CAST(Parameter(Descriptor::kTarget));
+  TNode<Object> new_target = CAST(Parameter(Descriptor::kNewTarget));
+  TNode<Int32T> argc =
+      UncheckedCast<Int32T>(Parameter(Descriptor::kActualArgumentsCount));
+  TNode<Context> context = CAST(Parameter(Descriptor::kContext));
+  TNode<HeapObject> maybe_feedback_vector =
+      CAST(Parameter(Descriptor::kMaybeFeedbackVector));
+  TNode<Int32T> slot = UncheckedCast<Int32T>(Parameter(Descriptor::kSlot));
+
+  TVARIABLE(AllocationSite, allocation_site);
+  Label if_construct_generic(this), if_construct_array(this);
+  CollectConstructFeedback(context, target, new_target, maybe_feedback_vector,
+                           Unsigned(ChangeInt32ToIntPtr(slot)),
+                           &if_construct_generic, &if_construct_array,
+                           &allocation_site);
+
+  BIND(&if_construct_generic);
+  TailCallBuiltin(Builtins::kConstruct, context, target, new_target, argc);
+
+  BIND(&if_construct_array);
+  TailCallBuiltin(Builtins::kArrayConstructorImpl, context, target, new_target,
+                  argc, allocation_site.value());
+}
+
 TF_BUILTIN(ConstructWithArrayLike, CallOrConstructBuiltinsAssembler) {
   TNode<Object> target = CAST(Parameter(Descriptor::kTarget));
   TNode<Object> new_target = CAST(Parameter(Descriptor::kNewTarget));

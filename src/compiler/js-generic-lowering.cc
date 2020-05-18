@@ -25,6 +25,12 @@ namespace compiler {
 
 namespace {
 
+// The nci flag is currently used to experiment with feedback collection in
+// optimized code produced by generic lowering.
+// TODO(jgruber): Remove once we've made a decision whether to collect feedback
+// unconditionally.
+bool CollectFeedback() { return FLAG_turbo_nci; }
+
 CallDescriptor::Flags FrameStateFlagForCall(Node* node) {
   return OperatorProperties::HasFrameStateInput(node->op())
              ? CallDescriptor::kNeedsFrameState
@@ -690,19 +696,52 @@ void JSGenericLowering::LowerJSConstruct(Node* node) {
   ConstructParameters const& p = ConstructParametersOf(node->op());
   int const arg_count = static_cast<int>(p.arity() - 2);
   CallDescriptor::Flags flags = FrameStateFlagForCall(node);
-  Callable callable = CodeFactory::Construct(isolate());
-  auto call_descriptor = Linkage::GetStubCallDescriptor(
-      zone(), callable.descriptor(), arg_count + 1, flags);
-  Node* stub_code = jsgraph()->HeapConstant(callable.code());
-  Node* stub_arity = jsgraph()->Int32Constant(arg_count);
-  Node* new_target = node->InputAt(arg_count + 1);
-  Node* receiver = jsgraph()->UndefinedConstant();
-  node->RemoveInput(arg_count + 1);  // Drop new target.
-  node->InsertInput(zone(), 0, stub_code);
-  node->InsertInput(zone(), 2, new_target);
-  node->InsertInput(zone(), 3, stub_arity);
-  node->InsertInput(zone(), 4, receiver);
-  NodeProperties::ChangeOp(node, common()->Call(call_descriptor));
+
+  static constexpr int kReceiver = 1;
+  static constexpr int kMaybeFeedbackVector = 1;
+
+  if (CollectFeedback() && p.feedback().IsValid()) {
+    const int stack_argument_count =
+        arg_count + kReceiver + kMaybeFeedbackVector;
+    Callable callable =
+        Builtins::CallableFor(isolate(), Builtins::kConstruct_WithFeedback);
+    auto call_descriptor = Linkage::GetStubCallDescriptor(
+        zone(), callable.descriptor(), stack_argument_count, flags);
+    Node* maybe_feedback_vector = jsgraph()->HeapConstant(p.feedback().vector);
+    Node* stub_code = jsgraph()->HeapConstant(callable.code());
+    Node* new_target = node->InputAt(arg_count + 1);
+    Node* stub_arity = jsgraph()->Int32Constant(arg_count);
+    Node* slot = jsgraph()->Int32Constant(p.feedback().index());
+    Node* receiver = jsgraph()->UndefinedConstant();
+    node->RemoveInput(arg_count + 1);  // Drop new target.
+    // Register argument inputs are followed by stack argument inputs (such as
+    // maybe_feedback_vector). Both are listed in ascending order. Note that
+    // the receiver is implicitly placed on the stack and is thus inserted
+    // between explicitly-specified register and stack arguments.
+    // TODO(jgruber): Implement a simpler way to specify these mutations.
+    node->InsertInput(zone(), arg_count + 1, maybe_feedback_vector);
+    node->InsertInput(zone(), 0, stub_code);
+    node->InsertInput(zone(), 2, new_target);
+    node->InsertInput(zone(), 3, stub_arity);
+    node->InsertInput(zone(), 4, slot);
+    node->InsertInput(zone(), 5, receiver);
+    NodeProperties::ChangeOp(node, common()->Call(call_descriptor));
+  } else {
+    const int stack_argument_count = arg_count + kReceiver;
+    Callable callable = Builtins::CallableFor(isolate(), Builtins::kConstruct);
+    auto call_descriptor = Linkage::GetStubCallDescriptor(
+        zone(), callable.descriptor(), stack_argument_count, flags);
+    Node* stub_code = jsgraph()->HeapConstant(callable.code());
+    Node* stub_arity = jsgraph()->Int32Constant(arg_count);
+    Node* new_target = node->InputAt(arg_count + 1);
+    Node* receiver = jsgraph()->UndefinedConstant();
+    node->RemoveInput(arg_count + 1);  // Drop new target.
+    node->InsertInput(zone(), 0, stub_code);
+    node->InsertInput(zone(), 2, new_target);
+    node->InsertInput(zone(), 3, stub_arity);
+    node->InsertInput(zone(), 4, receiver);
+    NodeProperties::ChangeOp(node, common()->Call(call_descriptor));
+  }
 }
 
 void JSGenericLowering::LowerJSConstructWithArrayLike(Node* node) {
