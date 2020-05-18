@@ -3523,24 +3523,24 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
 
   enum class ForEachDirection { kForward, kReverse };
 
-  using FastFixedArrayForEachBody =
-      std::function<void(Node* fixed_array, Node* offset)>;
+  using FastArrayForEachBody =
+      std::function<void(TNode<HeapObject> array, TNode<IntPtrT> offset)>;
 
-  void BuildFastFixedArrayForEach(
-      const CodeStubAssembler::VariableList& vars, Node* fixed_array,
+  void BuildFastArrayForEach(
+      const CodeStubAssembler::VariableList& vars, Node* array,
       ElementsKind kind, Node* first_element_inclusive,
-      Node* last_element_exclusive, const FastFixedArrayForEachBody& body,
+      Node* last_element_exclusive, const FastArrayForEachBody& body,
       ParameterMode mode = INTPTR_PARAMETERS,
       ForEachDirection direction = ForEachDirection::kReverse);
 
-  void BuildFastFixedArrayForEach(
-      Node* fixed_array, ElementsKind kind, Node* first_element_inclusive,
-      Node* last_element_exclusive, const FastFixedArrayForEachBody& body,
+  void BuildFastArrayForEach(
+      Node* array, ElementsKind kind, Node* first_element_inclusive,
+      Node* last_element_exclusive, const FastArrayForEachBody& body,
       ParameterMode mode = INTPTR_PARAMETERS,
       ForEachDirection direction = ForEachDirection::kReverse) {
     CodeStubAssembler::VariableList list(0, zone());
-    BuildFastFixedArrayForEach(list, fixed_array, kind, first_element_inclusive,
-                               last_element_exclusive, body, mode, direction);
+    BuildFastArrayForEach(list, array, kind, first_element_inclusive,
+                          last_element_exclusive, body, mode, direction);
   }
 
   TNode<IntPtrT> GetArrayAllocationSize(TNode<IntPtrT> element_count,

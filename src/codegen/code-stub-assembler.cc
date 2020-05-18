@@ -4289,9 +4289,9 @@ void CodeStubAssembler::FillPropertyArrayWithUndefined(
   CSA_SLOW_ASSERT(this, MatchesParameterMode(to_node, mode));
   ElementsKind kind = PACKED_ELEMENTS;
   TNode<Oddball> value = UndefinedConstant();
-  BuildFastFixedArrayForEach(
+  BuildFastArrayForEach(
       array, kind, from_node, to_node,
-      [this, value](Node* array, Node* offset) {
+      [this, value](TNode<HeapObject> array, TNode<IntPtrT> offset) {
         StoreNoWriteBarrier(MachineRepresentation::kTagged, array, offset,
                             value);
       },
@@ -4317,9 +4317,10 @@ void CodeStubAssembler::FillFixedArrayWithValue(ElementsKind kind,
     float_value = LoadHeapNumberValue(CAST(value));
   }
 
-  BuildFastFixedArrayForEach(
+  BuildFastArrayForEach(
       array, kind, from_node, to_node,
-      [this, value, float_value, kind](Node* array, Node* offset) {
+      [this, value, float_value, kind](TNode<HeapObject> array,
+                                       TNode<IntPtrT> offset) {
         if (IsDoubleElementsKind(kind)) {
           StoreNoWriteBarrier(MachineRepresentation::kFloat64, array, offset,
                               float_value);
@@ -4477,7 +4478,7 @@ void CodeStubAssembler::MoveElements(ElementsKind kind,
       const TNode<IntPtrT> delta =
           IntPtrMul(IntPtrSub(dst_index, begin),
                     IntPtrConstant(ElementsKindToByteSize(kind)));
-      auto loop_body = [&](Node* array, Node* offset) {
+      auto loop_body = [&](TNode<HeapObject> array, TNode<IntPtrT> offset) {
         const TNode<AnyTaggedT> element = Load<AnyTaggedT>(array, offset);
         const TNode<WordT> delta_offset = IntPtrAdd(offset, delta);
         Store(array, delta_offset, element);
@@ -4490,17 +4491,15 @@ void CodeStubAssembler::MoveElements(ElementsKind kind,
       BIND(&iterate_forward);
       {
         // Make a loop for the stores.
-        BuildFastFixedArrayForEach(elements, kind, begin, end, loop_body,
-                                   INTPTR_PARAMETERS,
-                                   ForEachDirection::kForward);
+        BuildFastArrayForEach(elements, kind, begin, end, loop_body,
+                              INTPTR_PARAMETERS, ForEachDirection::kForward);
         Goto(&finished);
       }
 
       BIND(&iterate_backward);
       {
-        BuildFastFixedArrayForEach(elements, kind, begin, end, loop_body,
-                                   INTPTR_PARAMETERS,
-                                   ForEachDirection::kReverse);
+        BuildFastArrayForEach(elements, kind, begin, end, loop_body,
+                              INTPTR_PARAMETERS, ForEachDirection::kReverse);
         Goto(&finished);
       }
     }
@@ -4568,9 +4567,9 @@ void CodeStubAssembler::CopyElements(ElementsKind kind,
       const TNode<IntPtrT> delta =
           IntPtrMul(IntPtrSub(dst_index, src_index),
                     IntPtrConstant(ElementsKindToByteSize(kind)));
-      BuildFastFixedArrayForEach(
+      BuildFastArrayForEach(
           src_elements, kind, begin, end,
-          [&](Node* array, Node* offset) {
+          [&](TNode<HeapObject> array, TNode<IntPtrT> offset) {
             const TNode<AnyTaggedT> element = Load<AnyTaggedT>(array, offset);
             const TNode<WordT> delta_offset = IntPtrAdd(offset, delta);
             if (write_barrier == SKIP_WRITE_BARRIER) {
@@ -4800,10 +4799,10 @@ void CodeStubAssembler::CopyPropertyArrayValues(TNode<HeapObject> from_array,
 
   Node* start = IntPtrOrSmiConstant(0, mode);
   ElementsKind kind = PACKED_ELEMENTS;
-  BuildFastFixedArrayForEach(
+  BuildFastArrayForEach(
       from_array, kind, start, property_count,
-      [this, to_array, needs_write_barrier, destroy_source](Node* array,
-                                                            Node* offset) {
+      [this, to_array, needs_write_barrier, destroy_source](
+          TNode<HeapObject> array, TNode<IntPtrT> offset) {
         TNode<AnyTaggedT> value = Load<AnyTaggedT>(array, offset);
 
         if (destroy_source == DestroySource::kNo) {
@@ -10321,10 +10320,10 @@ template TNode<UintPtrT> CodeStubAssembler::BuildFastLoop<UintPtrT>(
     TNode<UintPtrT> end_index, const FastLoopBody<UintPtrT>& body,
     int increment, IndexAdvanceMode advance_mode);
 
-void CodeStubAssembler::BuildFastFixedArrayForEach(
+void CodeStubAssembler::BuildFastArrayForEach(
     const CodeStubAssembler::VariableList& vars, Node* fixed_array,
     ElementsKind kind, Node* first_element_inclusive,
-    Node* last_element_exclusive, const FastFixedArrayForEachBody& body,
+    Node* last_element_exclusive, const FastArrayForEachBody& body,
     ParameterMode mode, ForEachDirection direction) {
   STATIC_ASSERT(FixedArray::kHeaderSize == FixedDoubleArray::kHeaderSize);
   CSA_SLOW_ASSERT(this, MatchesParameterMode(first_element_inclusive, mode));
@@ -10344,14 +10343,14 @@ void CodeStubAssembler::BuildFastFixedArrayForEach(
           TNode<IntPtrT> index = IntPtrConstant(i);
           TNode<IntPtrT> offset = ElementOffsetFromIndex(
               index, kind, FixedArray::kHeaderSize - kHeapObjectTag);
-          body(fixed_array, offset);
+          body(CAST(fixed_array), offset);
         }
       } else {
         for (int i = last_val - 1; i >= first_val; --i) {
           TNode<IntPtrT> index = IntPtrConstant(i);
           TNode<IntPtrT> offset = ElementOffsetFromIndex(
               index, kind, FixedArray::kHeaderSize - kHeapObjectTag);
-          body(fixed_array, offset);
+          body(CAST(fixed_array), offset);
         }
       }
       return;
@@ -10369,7 +10368,7 @@ void CodeStubAssembler::BuildFastFixedArrayForEach(
   int increment = IsDoubleElementsKind(kind) ? kDoubleSize : kTaggedSize;
   BuildFastLoop<IntPtrT>(
       vars, start, limit,
-      [&](TNode<IntPtrT> offset) { body(fixed_array, offset); },
+      [&](TNode<IntPtrT> offset) { body(CAST(fixed_array), offset); },
       direction == ForEachDirection::kReverse ? -increment : increment,
       direction == ForEachDirection::kReverse ? IndexAdvanceMode::kPre
                                               : IndexAdvanceMode::kPost);
