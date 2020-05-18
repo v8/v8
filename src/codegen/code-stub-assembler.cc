@@ -2413,10 +2413,10 @@ TNode<Int32T> CodeStubAssembler::LoadAndUntagToWord32FixedArrayElement(
 }
 
 TNode<MaybeObject> CodeStubAssembler::LoadWeakFixedArrayElement(
-    TNode<WeakFixedArray> object, Node* index, int additional_offset,
-    ParameterMode parameter_mode, LoadSensitivity needs_poisoning) {
+    TNode<WeakFixedArray> object, TNode<IntPtrT> index, int additional_offset) {
   return LoadArrayElement(object, WeakFixedArray::kHeaderSize, index,
-                          additional_offset, parameter_mode, needs_poisoning);
+                          additional_offset, INTPTR_PARAMETERS,
+                          LoadSensitivity::kSafe);
 }
 
 TNode<Float64T> CodeStubAssembler::LoadFixedDoubleArrayElement(

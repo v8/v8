@@ -1518,18 +1518,9 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
   }
 
   // Load an array element from a WeakFixedArray.
-  TNode<MaybeObject> LoadWeakFixedArrayElement(
-      TNode<WeakFixedArray> object, Node* index, int additional_offset = 0,
-      ParameterMode parameter_mode = INTPTR_PARAMETERS,
-      LoadSensitivity needs_poisoning = LoadSensitivity::kSafe);
-
-  TNode<MaybeObject> LoadWeakFixedArrayElement(
-      TNode<WeakFixedArray> object, int index, int additional_offset = 0,
-      LoadSensitivity needs_poisoning = LoadSensitivity::kSafe) {
-    return LoadWeakFixedArrayElement(object, IntPtrConstant(index),
-                                     additional_offset, INTPTR_PARAMETERS,
-                                     needs_poisoning);
-  }
+  TNode<MaybeObject> LoadWeakFixedArrayElement(TNode<WeakFixedArray> object,
+                                               TNode<IntPtrT> index,
+                                               int additional_offset = 0);
 
   // Load an array element from a FixedDoubleArray.
   TNode<Float64T> LoadFixedDoubleArrayElement(
