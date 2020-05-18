@@ -959,28 +959,28 @@ bool LiftoffAssembler::emit_type_conversion(WasmOpcode opcode,
       return true;
     }
     case kExprI32SConvertSatF32:
-      bailout(kNonTrappingFloatToInt, "kExprI32SConvertSatF32");
+      Fcvtzs(dst.gp().W(), src.fp().S());
       return true;
     case kExprI32UConvertSatF32:
-      bailout(kNonTrappingFloatToInt, "kExprI32UConvertSatF32");
+      Fcvtzu(dst.gp().W(), src.fp().S());
       return true;
     case kExprI32SConvertSatF64:
-      bailout(kNonTrappingFloatToInt, "kExprI32SConvertSatF64");
+      Fcvtzs(dst.gp().W(), src.fp().D());
       return true;
     case kExprI32UConvertSatF64:
-      bailout(kNonTrappingFloatToInt, "kExprI32UConvertSatF64");
+      Fcvtzu(dst.gp().W(), src.fp().D());
       return true;
     case kExprI64SConvertSatF32:
-      bailout(kNonTrappingFloatToInt, "kExprI64SConvertSatF32");
+      Fcvtzs(dst.gp().X(), src.fp().S());
       return true;
     case kExprI64UConvertSatF32:
-      bailout(kNonTrappingFloatToInt, "kExprI64UConvertSatF32");
+      Fcvtzu(dst.gp().X(), src.fp().S());
       return true;
     case kExprI64SConvertSatF64:
-      bailout(kNonTrappingFloatToInt, "kExprI64SConvertSatF64");
+      Fcvtzs(dst.gp().X(), src.fp().D());
       return true;
     case kExprI64UConvertSatF64:
-      bailout(kNonTrappingFloatToInt, "kExprI64UConvertSatF64");
+      Fcvtzu(dst.gp().X(), src.fp().D());
       return true;
     case kExprI32ReinterpretF32:
       Fmov(dst.gp().W(), src.fp().S());
