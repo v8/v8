@@ -608,18 +608,23 @@ void EmitLoad(InstructionSelector* selector, Node* node, InstructionCode opcode,
 void InstructionSelector::VisitLoadTransform(Node* node) {
   LoadTransformParameters params = LoadTransformParametersOf(node->op());
   InstructionCode opcode = kArchNop;
+  bool require_add = false;
   switch (params.transformation) {
     case LoadTransformation::kS8x16LoadSplat:
       opcode = kArm64S8x16LoadSplat;
+      require_add = true;
       break;
     case LoadTransformation::kS16x8LoadSplat:
       opcode = kArm64S16x8LoadSplat;
+      require_add = true;
       break;
     case LoadTransformation::kS32x4LoadSplat:
       opcode = kArm64S32x4LoadSplat;
+      require_add = true;
       break;
     case LoadTransformation::kS64x2LoadSplat:
       opcode = kArm64S64x2LoadSplat;
+      require_add = true;
       break;
     case LoadTransformation::kI16x8Load8x8S:
       opcode = kArm64I16x8Load8x8S;
@@ -655,13 +660,17 @@ void InstructionSelector::VisitLoadTransform(Node* node) {
   inputs[1] = g.UseRegister(index);
   outputs[0] = g.DefineAsRegister(node);
 
-  // ld1r uses post-index, so construct address first.
-  // TODO(v8:9886) If index can be immediate, use vldr without this add.
-  InstructionOperand addr = g.TempRegister();
-  Emit(kArm64Add, 1, &addr, 2, inputs);
-  inputs[0] = addr;
-  inputs[1] = g.TempImmediate(0);
-  opcode |= AddressingModeField::encode(kMode_MRI);
+  if (require_add) {
+    // ld1r uses post-index, so construct address first.
+    // TODO(v8:9886) If index can be immediate, use vldr without this add.
+    InstructionOperand addr = g.TempRegister();
+    Emit(kArm64Add, 1, &addr, 2, inputs);
+    inputs[0] = addr;
+    inputs[1] = g.TempImmediate(0);
+    opcode |= AddressingModeField::encode(kMode_MRI);
+  } else {
+    opcode |= AddressingModeField::encode(kMode_MRR);
+  }
   Emit(opcode, 1, outputs, 2, inputs);
 }
 
