@@ -802,6 +802,9 @@ class CompilationUnitBuilder {
     ExecutionTierPair tiers = GetRequestedExecutionTiers(
         native_module_->module(), compilation_state()->compile_mode(),
         native_module_->enabled_features(), func_index);
+    // Compile everything for non-debugging initially. If needed, we will tier
+    // down when the module is fully compiled. Synchronization would be pretty
+    // difficult otherwise.
     baseline_units_.emplace_back(func_index, tiers.baseline_tier, kNoDebugging);
     if (tiers.baseline_tier != tiers.top_tier) {
       tiering_units_.emplace_back(func_index, tiers.top_tier, kNoDebugging);
@@ -2406,6 +2409,13 @@ void AsyncStreamingProcessor::OnFinishedStream(OwnedVector<uint8_t> bytes) {
   }
   const bool needs_finish = job_->DecrementAndCheckFinisherCount();
   DCHECK_IMPLIES(!has_code_section, needs_finish);
+  // We might need to recompile the module for debugging, if the debugger was
+  // enabled while streaming compilation was running. Since handling this while
+  // compiling via streaming is tricky, we just tier down now, before publishing
+  // the module.
+  if (job_->native_module_->IsTieredDown()) {
+    job_->native_module_->TriggerRecompilation();
+  }
   if (needs_finish) {
     const bool failed = job_->native_module_->compilation_state()->failed();
     if (!cache_hit) {
