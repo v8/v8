@@ -387,6 +387,7 @@ static bool SuspectedToCauseGC(clang::MangleContext* ctx,
   }
 
   if (gc_functions.find(decl->getNameAsString()) != gc_functions.end()) {
+    TRACE_LLVM_DECL("Suspected by ", decl);
     return true;
   }
 
