@@ -126,9 +126,8 @@ ValueType TypeOf(const WasmModule* module, const WasmInitExpr& expr) {
       return kWasmNullRef;
     case WasmInitExpr::kRefFuncConst:
       return kWasmFuncRef;
-    default:
-      UNREACHABLE();
   }
+  UNREACHABLE();
 }
 
 // Reads a length-prefixed string, checking that it is within bounds. Returns

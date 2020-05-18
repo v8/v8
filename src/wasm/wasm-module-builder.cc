@@ -595,7 +595,12 @@ void WasmModuleBuilder::WriteTo(ZoneBuffer* buffer) const {
             case ValueType::kEqRef:
               buffer->write_u8(kExprRefNull);
               break;
-            default:
+            case ValueType::kStmt:
+            case ValueType::kS128:
+            case ValueType::kBottom:
+            case ValueType::kRef:
+            case ValueType::kAnyRef:
+            case ValueType::kNullRef:
               UNREACHABLE();
           }
         }

@@ -1782,8 +1782,6 @@ class AsyncCompileJob::CompilationStateCallback {
         // {kFinishedTopTierCompilation}, hence don't remember this in
         // {last_event_}.
         return;
-      default:
-        UNREACHABLE();
     }
 #ifdef DEBUG
     last_event_ = event;

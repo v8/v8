@@ -788,7 +788,9 @@ class WasmGraphBuildingInterface {
       case ValueType::kOptRef:
       case ValueType::kEqRef:
         return builder_->RefNull();
-      default:
+      case ValueType::kStmt:
+      case ValueType::kBottom:
+      case ValueType::kRef:
         UNREACHABLE();
     }
   }

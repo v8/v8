@@ -306,8 +306,6 @@ void LiftoffAssembler::Load(LiftoffRegister dst, Register src_addr,
     case LoadType::kS128Load:
       Movdqu(dst.fp(), src_op);
       break;
-    default:
-      UNREACHABLE();
   }
 }
 
@@ -345,8 +343,6 @@ void LiftoffAssembler::Store(Register dst_addr, Register offset_reg,
     case StoreType::kS128Store:
       Movdqu(dst_op, src.fp());
       break;
-    default:
-      UNREACHABLE();
   }
 }
 

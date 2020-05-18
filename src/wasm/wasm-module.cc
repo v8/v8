@@ -458,9 +458,8 @@ Handle<JSArray> GetImports(Isolate* isolate,
       case kExternalException:
         import_kind = exception_string;
         break;
-      default:
-        UNREACHABLE();
     }
+    DCHECK(!import_kind->is_null());
 
     Handle<String> import_module =
         WasmModuleObject::ExtractUtf8StringFromModuleBytes(

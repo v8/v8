@@ -198,7 +198,6 @@ class InterpreterHandle {
           return false;
         // RUNNING should never occur here.
         case WasmInterpreter::State::RUNNING:
-        default:
           UNREACHABLE();
       }
     }

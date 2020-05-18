@@ -320,10 +320,10 @@ ValueType read_value_type(Decoder* decoder, const byte* pc,
       // Although void is included in ValueType, it is technically not a value
       // type and is only used to indicate a void block return type. The caller
       // of this function is responsible to check for its presence separately.
-      return kWasmBottom;
-    default:
-      return kWasmBottom;
+      break;
   }
+  // Malformed modules specifying invalid types can get here.
+  return kWasmBottom;
 }
 }  // namespace value_type_reader
 
@@ -1623,13 +1623,20 @@ class WasmDecoder : public Decoder {
           }
           case kExprRttGet:
           case kExprRttSub: {
-            // TODO(7748): Impelement.
-            decoder->error(pc, "rtt opcodes not impelemented yet");
+            // TODO(7748): Implement.
+            decoder->error(pc, "rtt opcodes not implemented yet");
             return 2;
           }
 
-          default:
+          case kExprI31New:
+          case kExprI31GetS:
+          case kExprI31GetU:
+          case kExprRefTest:
+          case kExprRefCast:
             return 2;
+
+          default:
+            UNREACHABLE();
         }
       }
       default:
@@ -2705,7 +2712,8 @@ class WasmFullDecoder : public WasmDecoder<validate> {
             case kControlTry:
               TRACE_PART("T");
               break;
-            default:
+            case kControlIfElse:
+            case kControlTryCatch:
               break;
           }
           if (c.start_merge.arity) TRACE_PART("%u-", c.start_merge.arity);
