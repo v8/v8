@@ -851,6 +851,7 @@ class MinorMarkCompactCollector final : public MarkCompactCollectorBase {
   void MarkRootSetInParallel(RootMarkingVisitor* root_visitor);
   V8_INLINE void MarkRootObject(HeapObject obj);
   void DrainMarkingWorklist() override;
+  void TraceFragmentation();
   void ClearNonLiveReferences() override;
 
   void EvacuatePrologue() override;

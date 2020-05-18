@@ -890,6 +890,8 @@ DEFINE_INT(trace_duplicate_threshold_kb, 0,
 DEFINE_BOOL(trace_fragmentation, false, "report fragmentation for old space")
 DEFINE_BOOL(trace_fragmentation_verbose, false,
             "report fragmentation for old space (detailed)")
+DEFINE_BOOL(minor_mc_trace_fragmentation, false,
+            "trace fragmentation after marking")
 DEFINE_BOOL(trace_evacuation, false, "report evacuation statistics")
 DEFINE_BOOL(trace_mutator_utilization, false,
             "print mutator utilization, allocation speed, gc speed")

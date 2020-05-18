@@ -4708,6 +4708,7 @@ void MinorMarkCompactCollector::EvacuatePrologue() {
        PageRange(new_space->first_allocatable_address(), new_space->top())) {
     new_space_evacuation_pages_.push_back(p);
   }
+
   new_space->Flip();
   new_space->ResetLinearAllocationArea();
 
@@ -4980,6 +4981,10 @@ void MinorMarkCompactCollector::MarkLiveObjects() {
             &root_visitor, &IsUnmarkedObjectForYoungGeneration);
     DrainMarkingWorklist();
   }
+
+  if (FLAG_minor_mc_trace_fragmentation) {
+    TraceFragmentation();
+  }
 }
 
 void MinorMarkCompactCollector::DrainMarkingWorklist() {
@@ -4993,6 +4998,57 @@ void MinorMarkCompactCollector::DrainMarkingWorklist() {
     main_marking_visitor()->Visit(object);
   }
   DCHECK(marking_worklist.IsLocalEmpty());
+}
+
+void MinorMarkCompactCollector::TraceFragmentation() {
+  NewSpace* new_space = heap()->new_space();
+  const std::array<size_t, 4> free_size_class_limits = {0, 1024, 2048, 4096};
+  size_t free_bytes_of_class[free_size_class_limits.size()] = {0};
+  size_t live_bytes = 0;
+  size_t allocatable_bytes = 0;
+  for (Page* p :
+       PageRange(new_space->first_allocatable_address(), new_space->top())) {
+    Address free_start = p->area_start();
+    for (auto object_and_size : LiveObjectRange<kGreyObjects>(
+             p, non_atomic_marking_state()->bitmap(p))) {
+      HeapObject const object = object_and_size.first;
+      Address free_end = object.address();
+      if (free_end != free_start) {
+        size_t free_bytes = free_end - free_start;
+        int free_bytes_index = 0;
+        for (auto free_size_class_limit : free_size_class_limits) {
+          if (free_bytes >= free_size_class_limit) {
+            free_bytes_of_class[free_bytes_index] += free_bytes;
+          }
+          free_bytes_index++;
+        }
+      }
+      Map map = object.synchronized_map();
+      int size = object.SizeFromMap(map);
+      live_bytes += size;
+      free_start = free_end + size;
+    }
+    size_t area_end =
+        p->Contains(new_space->top()) ? new_space->top() : p->area_end();
+    if (free_start != area_end) {
+      size_t free_bytes = area_end - free_start;
+      int free_bytes_index = 0;
+      for (auto free_size_class_limit : free_size_class_limits) {
+        if (free_bytes >= free_size_class_limit) {
+          free_bytes_of_class[free_bytes_index] += free_bytes;
+        }
+        free_bytes_index++;
+      }
+    }
+    allocatable_bytes += area_end - p->area_start();
+    CHECK_EQ(allocatable_bytes, live_bytes + free_bytes_of_class[0]);
+  }
+  PrintIsolate(
+      isolate(),
+      "Minor Mark-Compact Fragmentation: allocatable_bytes=%zu live_bytes=%zu "
+      "free_bytes=%zu free_bytes_1K=%zu free_bytes_2K=%zu free_bytes_4K=%zu\n",
+      allocatable_bytes, live_bytes, free_bytes_of_class[0],
+      free_bytes_of_class[1], free_bytes_of_class[2], free_bytes_of_class[3]);
 }
 
 void MinorMarkCompactCollector::Evacuate() {
