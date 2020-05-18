@@ -4833,11 +4833,9 @@ void CodeStubAssembler::CopyPropertyArrayValues(TNode<HeapObject> from_array,
   Comment("] CopyPropertyArrayValues");
 }
 
-Node* CodeStubAssembler::LoadElementAndPrepareForStore(Node* array,
-                                                       Node* offset,
-                                                       ElementsKind from_kind,
-                                                       ElementsKind to_kind,
-                                                       Label* if_hole) {
+Node* CodeStubAssembler::LoadElementAndPrepareForStore(
+    TNode<FixedArrayBase> array, TNode<IntPtrT> offset, ElementsKind from_kind,
+    ElementsKind to_kind, Label* if_hole) {
   CSA_ASSERT(this, IsFixedArrayWithKind(array, from_kind));
   if (IsDoubleElementsKind(from_kind)) {
     TNode<Float64T> value =

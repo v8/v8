@@ -2411,7 +2411,8 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
   // (NOTE: not index!), does a hole check if |if_hole| is provided and
   // converts the value so that it becomes ready for storing to array of
   // |to_kind| elements.
-  Node* LoadElementAndPrepareForStore(Node* array, Node* offset,
+  Node* LoadElementAndPrepareForStore(TNode<FixedArrayBase> array,
+                                      TNode<IntPtrT> offset,
                                       ElementsKind from_kind,
                                       ElementsKind to_kind, Label* if_hole);
 
