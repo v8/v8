@@ -1911,18 +1911,38 @@ bool LiftoffAssembler::emit_type_conversion(WasmOpcode opcode,
       b(trap, ge);
       return true;
     }
-    case kExprI32SConvertSatF32:
-      bailout(kNonTrappingFloatToInt, "kExprI32SConvertSatF32");
+    case kExprI32SConvertSatF32: {
+      UseScratchRegisterScope temps(this);
+      SwVfpRegister scratch_f = temps.AcquireS();
+      vcvt_s32_f32(
+          scratch_f,
+          liftoff::GetFloatRegister(src.fp()));  // f32 -> i32 round to zero.
+      vmov(dst.gp(), scratch_f);
       return true;
-    case kExprI32UConvertSatF32:
-      bailout(kNonTrappingFloatToInt, "kExprI32UConvertSatF32");
+    }
+    case kExprI32UConvertSatF32: {
+      UseScratchRegisterScope temps(this);
+      SwVfpRegister scratch_f = temps.AcquireS();
+      vcvt_u32_f32(
+          scratch_f,
+          liftoff::GetFloatRegister(src.fp()));  // f32 -> u32 round to zero.
+      vmov(dst.gp(), scratch_f);
       return true;
-    case kExprI32SConvertSatF64:
-      bailout(kNonTrappingFloatToInt, "kExprI32SConvertSatF64");
+    }
+    case kExprI32SConvertSatF64: {
+      UseScratchRegisterScope temps(this);
+      SwVfpRegister scratch_f = temps.AcquireS();
+      vcvt_s32_f64(scratch_f, src.fp());  // f64 -> i32 round to zero.
+      vmov(dst.gp(), scratch_f);
       return true;
-    case kExprI32UConvertSatF64:
-      bailout(kNonTrappingFloatToInt, "kExprI32UConvertSatF64");
+    }
+    case kExprI32UConvertSatF64: {
+      UseScratchRegisterScope temps(this);
+      SwVfpRegister scratch_f = temps.AcquireS();
+      vcvt_u32_f64(scratch_f, src.fp());  // f64 -> u32 round to zero.
+      vmov(dst.gp(), scratch_f);
       return true;
+    }
     case kExprI64SConvertSatF32:
       bailout(kNonTrappingFloatToInt, "kExprI64SConvertSatF32");
       return true;
