@@ -1635,8 +1635,16 @@ void SimdScalarLowering::LowerNode(Node* node) {
     case IrOpcode::kS1x16AllTrue: {
       DCHECK_EQ(1, node->InputCount());
       SimdType input_rep_type = ReplacementType(node->InputAt(0));
+      Node** rep;
+      // If the input is a SIMD float, bitcast it to a SIMD int of the same
+      // shape, because the comparisons below use Word32.
+      if (input_rep_type == SimdType::kFloat32x4) {
+        // TODO(v8:9418): f64x2 lowering is not implemented yet.
+        rep = GetReplacementsWithType(node->InputAt(0), SimdType::kInt32x4);
+      } else {
+        rep = GetReplacements(node->InputAt(0));
+      }
       int input_num_lanes = NumLanes(input_rep_type);
-      Node** rep = GetReplacements(node->InputAt(0));
       Node** rep_node = zone()->NewArray<Node*>(num_lanes);
       Node* true_node = mcgraph_->Int32Constant(1);
       Node* false_node = mcgraph_->Int32Constant(0);
