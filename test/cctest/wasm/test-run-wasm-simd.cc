@@ -2,6 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#include <limits>
 #include <type_traits>
 
 #include "src/base/bits.h"
@@ -3427,6 +3428,8 @@ WASM_SIMD_TEST_NO_LOWERING(S64x2LoadSplat) {
 template <typename S, typename T>
 void RunLoadExtendTest(ExecutionTier execution_tier, LowerSimd lower_simd,
                        WasmOpcode op) {
+  static_assert(sizeof(S) < sizeof(T),
+                "load extend should go from smaller to larger type");
   constexpr int lanes_s = 16 / sizeof(S);
   constexpr int lanes_t = 16 / sizeof(T);
   constexpr int mem_index = 16;  // Load from mem index 16 (bytes).
@@ -3449,6 +3452,35 @@ void RunLoadExtendTest(ExecutionTier execution_tier, LowerSimd lower_simd,
       for (int i = 0; i < lanes_t; i++) {
         CHECK_EQ(static_cast<T>(x), ReadLittleEndianValue<T>(&global[i]));
       }
+    }
+  }
+
+  // Test for offset.
+  {
+    WasmRunner<int32_t> r(execution_tier, lower_simd);
+    S* memory = r.builder().AddMemoryElems<S>(kWasmPageSize / sizeof(S));
+    T* global = r.builder().AddGlobal<T>(kWasmS128);
+    constexpr byte offset = sizeof(S);
+    BUILD(
+        r,
+        WASM_SET_GLOBAL(0, WASM_SIMD_LOAD_EXTEND_OFFSET(op, WASM_ZERO, offset)),
+        WASM_ONE);
+
+    // Let max_s be the max_s value for type S, we set up the memory as such:
+    // memory = [max_s, max_s - 1, ... max_s - (lane_s - 1)].
+    constexpr S max_s = std::numeric_limits<S>::max();
+    for (int i = 0; i < lanes_s; i++) {
+      // Integer promotion due to -, static_cast to narrow.
+      r.builder().WriteMemory(&memory[i], static_cast<S>(max_s - i));
+    }
+
+    r.Call();
+
+    // Loads will be offset by sizeof(S), so will always start from (max_s - 1).
+    for (int i = 0; i < lanes_t; i++) {
+      // Integer promotion due to -, static_cast to narrow.
+      T expected = static_cast<T>(max_s - i - 1);
+      CHECK_EQ(expected, ReadLittleEndianValue<T>(&global[i]));
     }
   }
 }
