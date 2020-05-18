@@ -337,6 +337,14 @@ bool CheckBitInTable(const uint32_t current_char, const byte* const table) {
   next_pc = code_base + offset;    \
   DECODE()
 
+// Current position mutations.
+#define SET_CURRENT_POSITION(value)                         \
+  do {                                                      \
+    current = (value);                                      \
+    DCHECK(base::IsInBounds(current, 0, subject.length())); \
+  } while (false)
+#define ADVANCE_CURRENT_POSITION(by) SET_CURRENT_POSITION(current + (by))
+
 #ifdef DEBUG
 #define BYTECODE(name)                                                \
   BC_LABEL(name)                                                      \
@@ -469,7 +477,7 @@ IrregexpInterpreter::Result RawMatch(
     }
     BYTECODE(SET_CP_TO_REGISTER) {
       ADVANCE(SET_CP_TO_REGISTER);
-      current = registers[insn >> BYTECODE_SHIFT];
+      SET_CURRENT_POSITION(registers[insn >> BYTECODE_SHIFT]);
       DISPATCH();
     }
     BYTECODE(SET_REGISTER_TO_SP) {
@@ -484,7 +492,7 @@ IrregexpInterpreter::Result RawMatch(
     }
     BYTECODE(POP_CP) {
       ADVANCE(POP_CP);
-      current = backtrack_stack.pop();
+      SET_CURRENT_POSITION(backtrack_stack.pop());
       DISPATCH();
     }
     BYTECODE(POP_BT) {
@@ -520,7 +528,7 @@ IrregexpInterpreter::Result RawMatch(
     }
     BYTECODE(ADVANCE_CP) {
       ADVANCE(ADVANCE_CP);
-      current += insn >> BYTECODE_SHIFT;
+      ADVANCE_CURRENT_POSITION(insn >> BYTECODE_SHIFT);
       DISPATCH();
     }
     BYTECODE(GOTO) {
@@ -529,7 +537,7 @@ IrregexpInterpreter::Result RawMatch(
     }
     BYTECODE(ADVANCE_CP_AND_GOTO) {
       SET_PC_FROM_OFFSET(Load32Aligned(pc + 4));
-      current += insn >> BYTECODE_SHIFT;
+      ADVANCE_CURRENT_POSITION(insn >> BYTECODE_SHIFT);
       DISPATCH();
     }
     BYTECODE(CHECK_GREEDY) {
@@ -772,7 +780,7 @@ IrregexpInterpreter::Result RawMatch(
           SET_PC_FROM_OFFSET(Load32Aligned(pc + 4));
           DISPATCH();
         }
-        current += len;
+        ADVANCE_CURRENT_POSITION(len);
       }
       ADVANCE(CHECK_NOT_BACK_REF);
       DISPATCH();
@@ -786,7 +794,7 @@ IrregexpInterpreter::Result RawMatch(
           SET_PC_FROM_OFFSET(Load32Aligned(pc + 4));
           DISPATCH();
         }
-        current -= len;
+        SET_CURRENT_POSITION(current - len);
       }
       ADVANCE(CHECK_NOT_BACK_REF_BACKWARD);
       DISPATCH();
@@ -803,7 +811,7 @@ IrregexpInterpreter::Result RawMatch(
           SET_PC_FROM_OFFSET(Load32Aligned(pc + 4));
           DISPATCH();
         }
-        current += len;
+        ADVANCE_CURRENT_POSITION(len);
       }
       ADVANCE(CHECK_NOT_BACK_REF_NO_CASE);
       DISPATCH();
@@ -820,7 +828,7 @@ IrregexpInterpreter::Result RawMatch(
           SET_PC_FROM_OFFSET(Load32Aligned(pc + 4));
           DISPATCH();
         }
-        current -= len;
+        SET_CURRENT_POSITION(current - len);
       }
       ADVANCE(CHECK_NOT_BACK_REF_NO_CASE_BACKWARD);
       DISPATCH();
@@ -845,7 +853,7 @@ IrregexpInterpreter::Result RawMatch(
       ADVANCE(SET_CURRENT_POSITION_FROM_END);
       int by = static_cast<uint32_t>(insn) >> BYTECODE_SHIFT;
       if (subject.length() - current > by) {
-        current = subject.length() - by;
+        SET_CURRENT_POSITION(subject.length() - by);
         current_char = subject[current - 1];
       }
       DISPATCH();
@@ -870,7 +878,7 @@ IrregexpInterpreter::Result RawMatch(
           SET_PC_FROM_OFFSET(Load32Aligned(pc + 8));
           DISPATCH();
         }
-        current += advance;
+        ADVANCE_CURRENT_POSITION(advance);
       }
       SET_PC_FROM_OFFSET(Load32Aligned(pc + 12));
       DISPATCH();
@@ -888,7 +896,7 @@ IrregexpInterpreter::Result RawMatch(
           SET_PC_FROM_OFFSET(Load32Aligned(pc + 16));
           DISPATCH();
         }
-        current += advance;
+        ADVANCE_CURRENT_POSITION(advance);
       }
       SET_PC_FROM_OFFSET(Load32Aligned(pc + 20));
       DISPATCH();
@@ -905,7 +913,7 @@ IrregexpInterpreter::Result RawMatch(
           SET_PC_FROM_OFFSET(Load32Aligned(pc + 12));
           DISPATCH();
         }
-        current += advance;
+        ADVANCE_CURRENT_POSITION(advance);
       }
       SET_PC_FROM_OFFSET(Load32Aligned(pc + 16));
       DISPATCH();
@@ -921,7 +929,7 @@ IrregexpInterpreter::Result RawMatch(
           SET_PC_FROM_OFFSET(Load32Aligned(pc + 24));
           DISPATCH();
         }
-        current += advance;
+        ADVANCE_CURRENT_POSITION(advance);
       }
       SET_PC_FROM_OFFSET(Load32Aligned(pc + 28));
       DISPATCH();
@@ -942,7 +950,7 @@ IrregexpInterpreter::Result RawMatch(
           SET_PC_FROM_OFFSET(Load32Aligned(pc + 24));
           DISPATCH();
         }
-        current += advance;
+        ADVANCE_CURRENT_POSITION(advance);
       }
       SET_PC_FROM_OFFSET(Load32Aligned(pc + 28));
       DISPATCH();
@@ -966,7 +974,7 @@ IrregexpInterpreter::Result RawMatch(
           SET_PC_FROM_OFFSET(Load32Aligned(pc + 12));
           DISPATCH();
         }
-        current += advance;
+        ADVANCE_CURRENT_POSITION(advance);
       }
       SET_PC_FROM_OFFSET(Load32Aligned(pc + 16));
       DISPATCH();
@@ -986,6 +994,8 @@ IrregexpInterpreter::Result RawMatch(
 }
 
 #undef BYTECODE
+#undef ADVANCE_CURRENT_POSITION
+#undef SET_CURRENT_POSITION
 #undef DISPATCH
 #undef DECODE
 #undef SET_PC_FROM_OFFSET
