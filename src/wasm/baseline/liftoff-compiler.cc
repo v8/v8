@@ -1093,10 +1093,10 @@ class LiftoffCompiler {
         CASE_TYPE_CONVERSION(I32UConvertSatF32, I32, F32, nullptr, kNoTrap)
         CASE_TYPE_CONVERSION(I32SConvertSatF64, I32, F64, nullptr, kNoTrap)
         CASE_TYPE_CONVERSION(I32UConvertSatF64, I32, F64, nullptr, kNoTrap)
-      case kExprI64SConvertSatF32:
-      case kExprI64UConvertSatF32:
-      case kExprI64SConvertSatF64:
-      case kExprI64UConvertSatF64:
+        CASE_TYPE_CONVERSION(I64SConvertSatF32, I64, F32, nullptr, kNoTrap)
+        CASE_TYPE_CONVERSION(I64UConvertSatF32, I64, F32, nullptr, kNoTrap)
+        CASE_TYPE_CONVERSION(I64SConvertSatF64, I64, F64, nullptr, kNoTrap)
+        CASE_TYPE_CONVERSION(I64UConvertSatF64, I64, F64, nullptr, kNoTrap)
         return unsupported(decoder, kNonTrappingFloatToInt,
                            WasmOpcodes::OpcodeName(opcode));
       default:

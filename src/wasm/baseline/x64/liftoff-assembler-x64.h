@@ -1697,7 +1697,7 @@ inline bool EmitSatTruncateFloatToInt(LiftoffAssembler* assm, Register dst,
 
   Label done;
   Label not_nan;
-  Label src_pos;
+  Label src_positive;
 
   DoubleRegister rounded = kScratchDoubleReg;
   DoubleRegister converted_back = kScratchDoubleReg2;
@@ -1728,19 +1728,78 @@ inline bool EmitSatTruncateFloatToInt(LiftoffAssembler* assm, Register dst,
 
   __ xorpd(zero_reg, zero_reg);
 
+  // if out-of-bounds, check if src is positive
   if (std::is_same<double, src_type>::value) {  // f64
-    __ Ucomisd(src, kScratchDoubleReg);
+    __ Ucomisd(src, zero_reg);
   } else {  // f32
-    __ Ucomiss(src, kScratchDoubleReg);
+    __ Ucomiss(src, zero_reg);
   }
-  __ j(above, &src_pos);
-  __ movl(dst, Immediate(std::numeric_limits<dst_type>::min()));
+  __ j(above, &src_positive);
+  if (std::is_same<int32_t, dst_type>::value ||
+      std::is_same<uint32_t, dst_type>::value) {  // i32
+    __ movl(
+        dst,
+        Immediate(static_cast<int32_t>(std::numeric_limits<dst_type>::min())));
+  } else if (std::is_same<int64_t, dst_type>::value) {  // i64s
+    __ movq(dst, Immediate64(std::numeric_limits<dst_type>::min()));
+  } else {
+    UNREACHABLE();
+  }
   __ jmp(&done);
 
-  __ bind(&src_pos);
+  __ bind(&src_positive);
+  if (std::is_same<int32_t, dst_type>::value ||
+      std::is_same<uint32_t, dst_type>::value) {  // i32
+    __ movl(
+        dst,
+        Immediate(static_cast<int32_t>(std::numeric_limits<dst_type>::max())));
+  } else if (std::is_same<int64_t, dst_type>::value) {  // i64s
+    __ movq(dst, Immediate64(std::numeric_limits<dst_type>::max()));
+  } else {
+    UNREACHABLE();
+  }
 
-  __ movl(dst, Immediate(std::numeric_limits<dst_type>::max()));
+  __ bind(&done);
+  return true;
+}
 
+template <typename src_type>
+inline bool EmitSatTruncateFloatToUInt64(LiftoffAssembler* assm, Register dst,
+                                         DoubleRegister src) {
+  if (!CpuFeatures::IsSupported(SSE4_1)) {
+    __ bailout(kMissingCPUFeature, "no SSE4.1");
+    return true;
+  }
+  CpuFeatureScope feature(assm, SSE4_1);
+
+  Label done;
+  Label neg_or_nan;
+  Label overflow;
+
+  DoubleRegister zero_reg = kScratchDoubleReg;
+
+  __ xorpd(zero_reg, zero_reg);
+  if (std::is_same<double, src_type>::value) {  // f64
+    __ Ucomisd(src, zero_reg);
+  } else {  // f32
+    __ Ucomiss(src, zero_reg);
+  }
+  // Check if NaN
+  __ j(parity_even, &neg_or_nan);
+  __ j(below, &neg_or_nan);
+  if (std::is_same<double, src_type>::value) {  // f64
+    __ Cvttsd2uiq(dst, src, &overflow);
+  } else {  // f32
+    __ Cvttss2uiq(dst, src, &overflow);
+  }
+  __ jmp(&done);
+
+  __ bind(&neg_or_nan);
+  __ movq(dst, zero_reg);
+  __ jmp(&done);
+
+  __ bind(&overflow);
+  __ movq(dst, Immediate64(std::numeric_limits<uint64_t>::max()));
   __ bind(&done);
   return true;
 }
@@ -1799,6 +1858,20 @@ bool LiftoffAssembler::emit_type_conversion(WasmOpcode opcode,
       RETURN_FALSE_IF_MISSING_CPU_FEATURE(SSE4_1);
       Cvttsd2uiq(dst.gp(), src.fp(), trap);
       return true;
+    }
+    case kExprI64SConvertSatF32:
+      return liftoff::EmitSatTruncateFloatToInt<int64_t, float>(this, dst.gp(),
+                                                                src.fp());
+    case kExprI64UConvertSatF32: {
+      return liftoff::EmitSatTruncateFloatToUInt64<float>(this, dst.gp(),
+                                                          src.fp());
+    }
+    case kExprI64SConvertSatF64:
+      return liftoff::EmitSatTruncateFloatToInt<int64_t, double>(this, dst.gp(),
+                                                                 src.fp());
+    case kExprI64UConvertSatF64: {
+      return liftoff::EmitSatTruncateFloatToUInt64<double>(this, dst.gp(),
+                                                           src.fp());
     }
     case kExprI64UConvertI32:
       AssertZeroExtended(src.gp());
