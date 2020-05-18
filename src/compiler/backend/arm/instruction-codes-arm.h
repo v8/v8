@@ -144,6 +144,8 @@ namespace compiler {
   V(ArmF64x2Ne)                    \
   V(ArmF64x2Lt)                    \
   V(ArmF64x2Le)                    \
+  V(ArmF64x2Pmin)                  \
+  V(ArmF64x2Pmax)                  \
   V(ArmF32x4Splat)                 \
   V(ArmF32x4ExtractLane)           \
   V(ArmF32x4ReplaceLane)           \
@@ -165,6 +167,8 @@ namespace compiler {
   V(ArmF32x4Ne)                    \
   V(ArmF32x4Lt)                    \
   V(ArmF32x4Le)                    \
+  V(ArmF32x4Pmin)                  \
+  V(ArmF32x4Pmax)                  \
   V(ArmI64x2SplatI32Pair)          \
   V(ArmI64x2ReplaceLaneI32Pair)    \
   V(ArmI64x2Neg)                   \

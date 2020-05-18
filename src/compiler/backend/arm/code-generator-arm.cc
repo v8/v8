@@ -1997,6 +1997,32 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       __ vmov(i.OutputSimd128Register().high(), scratch, scratch);
       break;
     }
+    case kArmF64x2Pmin: {
+      Simd128Register dst = i.OutputSimd128Register();
+      Simd128Register lhs = i.InputSimd128Register(0);
+      Simd128Register rhs = i.InputSimd128Register(1);
+      DCHECK_EQ(dst, lhs);
+
+      // Move rhs only when rhs is strictly greater (mi).
+      __ VFPCompareAndSetFlags(rhs.low(), lhs.low());
+      __ vmov(dst.low(), rhs.low(), mi);
+      __ VFPCompareAndSetFlags(rhs.high(), lhs.high());
+      __ vmov(dst.high(), rhs.high(), mi);
+      break;
+    }
+    case kArmF64x2Pmax: {
+      Simd128Register dst = i.OutputSimd128Register();
+      Simd128Register lhs = i.InputSimd128Register(0);
+      Simd128Register rhs = i.InputSimd128Register(1);
+      DCHECK_EQ(dst, lhs);
+
+      // Move rhs only when rhs is strictly greater (mi).
+      __ VFPCompareAndSetFlags(rhs.low(), lhs.low());
+      __ vmov(dst.low(), rhs.low(), gt);
+      __ VFPCompareAndSetFlags(rhs.high(), lhs.high());
+      __ vmov(dst.high(), rhs.high(), gt);
+      break;
+    }
     case kArmI64x2SplatI32Pair: {
       Simd128Register dst = i.OutputSimd128Register();
       __ vdup(Neon32, dst, i.InputRegister(0));
@@ -2218,6 +2244,33 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
     case kArmF32x4Le: {
       __ vcge(i.OutputSimd128Register(), i.InputSimd128Register(1),
               i.InputSimd128Register(0));
+      break;
+    }
+    case kArmF32x4Pmin: {
+      Simd128Register dst = i.OutputSimd128Register();
+      Simd128Register lhs = i.InputSimd128Register(0);
+      Simd128Register rhs = i.InputSimd128Register(1);
+      DCHECK_NE(dst, lhs);
+      DCHECK_NE(dst, rhs);
+
+      // f32x4.pmin(lhs, rhs)
+      // = v128.bitselect(rhs, lhs, f32x4.lt(rhs, lhs))
+      // = v128.bitselect(rhs, lhs, f32x4.gt(lhs, rhs))
+      __ vcgt(dst, lhs, rhs);
+      __ vbsl(dst, rhs, lhs);
+      break;
+    }
+    case kArmF32x4Pmax: {
+      Simd128Register dst = i.OutputSimd128Register();
+      Simd128Register lhs = i.InputSimd128Register(0);
+      Simd128Register rhs = i.InputSimd128Register(1);
+      DCHECK_NE(dst, lhs);
+      DCHECK_NE(dst, rhs);
+
+      // f32x4.pmax(lhs, rhs)
+      // = v128.bitselect(rhs, lhs, f32x4.gt(rhs, lhs))
+      __ vcgt(dst, rhs, lhs);
+      __ vbsl(dst, rhs, lhs);
       break;
     }
     case kArmI32x4Splat: {

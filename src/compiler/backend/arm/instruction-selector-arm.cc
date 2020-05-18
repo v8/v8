@@ -2941,6 +2941,42 @@ void InstructionSelector::VisitI32x4BitMask(Node* node) {
   VisitBitMask<kArmI32x4BitMask>(this, node);
 }
 
+namespace {
+void VisitF32x4PminOrPmax(InstructionSelector* selector, ArchOpcode opcode,
+                          Node* node) {
+  ArmOperandGenerator g(selector);
+  // Need all unique registers because we first compare the two inputs, then we
+  // need the inputs to remain unchanged for the bitselect later.
+  selector->Emit(opcode, g.DefineAsRegister(node),
+                 g.UseUniqueRegister(node->InputAt(0)),
+                 g.UseUniqueRegister(node->InputAt(1)));
+}
+
+void VisitF64x2PminOrPMax(InstructionSelector* selector, ArchOpcode opcode,
+                          Node* node) {
+  ArmOperandGenerator g(selector);
+  selector->Emit(opcode, g.DefineSameAsFirst(node),
+                 g.UseRegister(node->InputAt(0)),
+                 g.UseRegister(node->InputAt(1)));
+}
+}  // namespace
+
+void InstructionSelector::VisitF32x4Pmin(Node* node) {
+  VisitF32x4PminOrPmax(this, kArmF32x4Pmin, node);
+}
+
+void InstructionSelector::VisitF32x4Pmax(Node* node) {
+  VisitF32x4PminOrPmax(this, kArmF32x4Pmax, node);
+}
+
+void InstructionSelector::VisitF64x2Pmin(Node* node) {
+  VisitF64x2PminOrPMax(this, kArmF64x2Pmin, node);
+}
+
+void InstructionSelector::VisitF64x2Pmax(Node* node) {
+  VisitF64x2PminOrPMax(this, kArmF64x2Pmax, node);
+}
+
 // static
 MachineOperatorBuilder::Flags
 InstructionSelector::SupportedMachineOperatorFlags() {
