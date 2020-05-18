@@ -1177,8 +1177,6 @@ bool LiftoffAssembler::emit_type_conversion(WasmOpcode opcode,
     case kExprF64ReinterpretI64:
       dmtc1(src.gp(), dst.fp());
       return true;
-    default:
-      return false;
     case kExprI32SConvertSatF32:
       bailout(kNonTrappingFloatToInt, "kExprI32SConvertSatF32");
       return true;
@@ -1191,6 +1189,8 @@ bool LiftoffAssembler::emit_type_conversion(WasmOpcode opcode,
     case kExprI32UConvertSatF64:
       bailout(kNonTrappingFloatToInt, "kExprI32UConvertSatF64");
       return true;
+    default:
+      return false;
   }
 }
 
