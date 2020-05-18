@@ -1608,6 +1608,7 @@ void LiftoffAssembler::emit_f64_sqrt(DoubleRegister dst, DoubleRegister src) {
 }
 
 namespace liftoff {
+#define __ assm->
 // Used for float to int conversions. If the value in {converted_back} equals
 // {src} afterwards, the conversion succeeded.
 template <typename dst_type, typename src_type>
@@ -1617,21 +1618,21 @@ inline void ConvertFloatToIntAndBack(LiftoffAssembler* assm, Register dst,
                                      LiftoffRegList pinned) {
   if (std::is_same<double, src_type>::value) {  // f64
     if (std::is_signed<dst_type>::value) {      // f64 -> i32
-      assm->cvttsd2si(dst, src);
-      assm->Cvtsi2sd(converted_back, dst);
+      __ cvttsd2si(dst, src);
+      __ Cvtsi2sd(converted_back, dst);
     } else {  // f64 -> u32
-      assm->Cvttsd2ui(dst, src, liftoff::kScratchDoubleReg);
-      assm->Cvtui2sd(converted_back, dst,
-                     assm->GetUnusedRegister(kGpReg, pinned).gp());
+      __ Cvttsd2ui(dst, src, liftoff::kScratchDoubleReg);
+      __ Cvtui2sd(converted_back, dst,
+                  __ GetUnusedRegister(kGpReg, pinned).gp());
     }
   } else {                                  // f32
     if (std::is_signed<dst_type>::value) {  // f32 -> i32
-      assm->cvttss2si(dst, src);
-      assm->Cvtsi2ss(converted_back, dst);
+      __ cvttss2si(dst, src);
+      __ Cvtsi2ss(converted_back, dst);
     } else {  // f32 -> u32
-      assm->Cvttss2ui(dst, src, liftoff::kScratchDoubleReg);
-      assm->Cvtui2ss(converted_back, dst,
-                     assm->GetUnusedRegister(kGpReg, pinned).gp());
+      __ Cvttss2ui(dst, src, liftoff::kScratchDoubleReg);
+      __ Cvtui2ss(converted_back, dst,
+                  __ GetUnusedRegister(kGpReg, pinned).gp());
     }
   }
 }
@@ -1640,36 +1641,101 @@ template <typename dst_type, typename src_type>
 inline bool EmitTruncateFloatToInt(LiftoffAssembler* assm, Register dst,
                                    DoubleRegister src, Label* trap) {
   if (!CpuFeatures::IsSupported(SSE4_1)) {
-    assm->bailout(kMissingCPUFeature, "no SSE4.1");
+    __ bailout(kMissingCPUFeature, "no SSE4.1");
     return true;
   }
   CpuFeatureScope feature(assm, SSE4_1);
 
   LiftoffRegList pinned = LiftoffRegList::ForRegs(src, dst);
   DoubleRegister rounded =
-      pinned.set(assm->GetUnusedRegister(kFpReg, pinned)).fp();
+      pinned.set(__ GetUnusedRegister(kFpReg, pinned)).fp();
   DoubleRegister converted_back =
-      pinned.set(assm->GetUnusedRegister(kFpReg, pinned)).fp();
+      pinned.set(__ GetUnusedRegister(kFpReg, pinned)).fp();
 
   if (std::is_same<double, src_type>::value) {  // f64
-    assm->roundsd(rounded, src, kRoundToZero);
+    __ roundsd(rounded, src, kRoundToZero);
   } else {  // f32
-    assm->roundss(rounded, src, kRoundToZero);
+    __ roundss(rounded, src, kRoundToZero);
   }
   ConvertFloatToIntAndBack<dst_type, src_type>(assm, dst, rounded,
                                                converted_back, pinned);
   if (std::is_same<double, src_type>::value) {  // f64
-    assm->ucomisd(converted_back, rounded);
+    __ ucomisd(converted_back, rounded);
   } else {  // f32
-    assm->ucomiss(converted_back, rounded);
+    __ ucomiss(converted_back, rounded);
   }
 
   // Jump to trap if PF is 0 (one of the operands was NaN) or they are not
   // equal.
-  assm->j(parity_even, trap);
-  assm->j(not_equal, trap);
+  __ j(parity_even, trap);
+  __ j(not_equal, trap);
   return true;
 }
+
+template <typename dst_type, typename src_type>
+inline bool EmitSatTruncateFloatToInt(LiftoffAssembler* assm, Register dst,
+                                      DoubleRegister src) {
+  if (!CpuFeatures::IsSupported(SSE4_1)) {
+    __ bailout(kMissingCPUFeature, "no SSE4.1");
+    return true;
+  }
+  CpuFeatureScope feature(assm, SSE4_1);
+
+  Label done;
+  Label not_nan;
+  Label src_positive;
+
+  LiftoffRegList pinned = LiftoffRegList::ForRegs(src, dst);
+  DoubleRegister rounded =
+      pinned.set(__ GetUnusedRegister(kFpReg, pinned)).fp();
+  DoubleRegister converted_back =
+      pinned.set(__ GetUnusedRegister(kFpReg, pinned)).fp();
+  DoubleRegister zero_reg =
+      pinned.set(__ GetUnusedRegister(kFpReg, pinned)).fp();
+
+  if (std::is_same<double, src_type>::value) {  // f64
+    __ roundsd(rounded, src, kRoundToZero);
+  } else {  // f32
+    __ roundss(rounded, src, kRoundToZero);
+  }
+
+  ConvertFloatToIntAndBack<dst_type, src_type>(assm, dst, rounded,
+                                               converted_back, pinned);
+  if (std::is_same<double, src_type>::value) {  // f64
+    __ ucomisd(converted_back, rounded);
+  } else {  // f32
+    __ ucomiss(converted_back, rounded);
+  }
+
+  // Return 0 if PF is 0 (one of the operands was NaN)
+  __ j(parity_odd, &not_nan);
+  __ xor_(dst, dst);
+  __ jmp(&done);
+
+  __ bind(&not_nan);
+  // If rounding is as expected, return result
+  __ j(equal, &done);
+
+  __ Xorpd(zero_reg, zero_reg);
+
+  // if out-of-bounds, check if src is positive
+  if (std::is_same<double, src_type>::value) {  // f64
+    __ ucomisd(src, zero_reg);
+  } else {  // f32
+    __ ucomiss(src, zero_reg);
+  }
+  __ j(above, &src_positive);
+  __ mov(dst, Immediate(std::numeric_limits<dst_type>::min()));
+  __ jmp(&done);
+
+  __ bind(&src_positive);
+
+  __ mov(dst, Immediate(std::numeric_limits<dst_type>::max()));
+
+  __ bind(&done);
+  return true;
+}
+#undef __
 }  // namespace liftoff
 
 bool LiftoffAssembler::emit_type_conversion(WasmOpcode opcode,
@@ -1692,17 +1758,17 @@ bool LiftoffAssembler::emit_type_conversion(WasmOpcode opcode,
       return liftoff::EmitTruncateFloatToInt<uint32_t, double>(this, dst.gp(),
                                                                src.fp(), trap);
     case kExprI32SConvertSatF32:
-      bailout(kNonTrappingFloatToInt, "kExprI32SConvertSatF32");
-      return true;
+      return liftoff::EmitSatTruncateFloatToInt<int32_t, float>(this, dst.gp(),
+                                                                src.fp());
     case kExprI32UConvertSatF32:
-      bailout(kNonTrappingFloatToInt, "kExprI32UConvertSatF32");
-      return true;
+      return liftoff::EmitSatTruncateFloatToInt<uint32_t, float>(this, dst.gp(),
+                                                                 src.fp());
     case kExprI32SConvertSatF64:
-      bailout(kNonTrappingFloatToInt, "kExprI32SConvertSatF64");
-      return true;
+      return liftoff::EmitSatTruncateFloatToInt<int32_t, double>(this, dst.gp(),
+                                                                 src.fp());
     case kExprI32UConvertSatF64:
-      bailout(kNonTrappingFloatToInt, "kExprI32UConvertSatF64");
-      return true;
+      return liftoff::EmitSatTruncateFloatToInt<uint32_t, double>(
+          this, dst.gp(), src.fp());
     case kExprI64SConvertSatF32:
       bailout(kNonTrappingFloatToInt, "kExprI64SConvertSatF32");
       return true;
