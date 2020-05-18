@@ -4029,49 +4029,24 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
       ParameterMode parameter_mode = INTPTR_PARAMETERS);
 };
 
-// template <typename TIndex>
 class V8_EXPORT_PRIVATE CodeStubArguments {
  public:
   using Node = compiler::Node;
-  enum ReceiverMode { kHasReceiver, kNoReceiver };
 
   // |argc| specifies the number of arguments passed to the builtin excluding
-  // the receiver. The arguments will include a receiver iff |receiver_mode|
-  // is kHasReceiver.
+  // the receiver. The arguments include the receiver.
+  CodeStubArguments(CodeStubAssembler* assembler, TNode<IntPtrT> argc)
+      : CodeStubArguments(assembler, argc, TNode<RawPtrT>()) {}
+  CodeStubArguments(CodeStubAssembler* assembler, TNode<Int32T> argc)
+      : CodeStubArguments(assembler, assembler->ChangeInt32ToIntPtr(argc)) {}
   CodeStubArguments(CodeStubAssembler* assembler, TNode<IntPtrT> argc,
-                    ReceiverMode receiver_mode = ReceiverMode::kHasReceiver)
-      : CodeStubArguments(assembler, argc, TNode<RawPtrT>(), receiver_mode) {}
-
-  CodeStubArguments(CodeStubAssembler* assembler, TNode<Int32T> argc,
-                    ReceiverMode receiver_mode = ReceiverMode::kHasReceiver)
-      : CodeStubArguments(assembler, assembler->ChangeInt32ToIntPtr(argc),
-                          TNode<RawPtrT>(), receiver_mode) {}
-
-  // TODO(v8:9708): Consider removing this variant
-  CodeStubArguments(CodeStubAssembler* assembler, TNode<Smi> argc,
-                    ReceiverMode receiver_mode = ReceiverMode::kHasReceiver)
-      : CodeStubArguments(assembler, assembler->ParameterToIntPtr(argc),
-                          TNode<RawPtrT>(), receiver_mode) {}
-
-  // |argc| specifies the number of arguments passed to the builtin excluding
-  // the receiver. The arguments will include a receiver iff |receiver_mode|
-  // is kHasReceiver.
-  CodeStubArguments(CodeStubAssembler* assembler, TNode<IntPtrT> argc,
-                    TNode<RawPtrT> fp,
-                    ReceiverMode receiver_mode = ReceiverMode::kHasReceiver);
-
-  CodeStubArguments(CodeStubAssembler* assembler, TNode<Smi> argc,
-                    TNode<RawPtrT> fp,
-                    ReceiverMode receiver_mode = ReceiverMode::kHasReceiver)
-      : CodeStubArguments(assembler, assembler->ParameterToIntPtr(argc), fp,
-                          receiver_mode) {}
+                    TNode<RawPtrT> fp);
 
   // Used by Torque to construct arguments based on a Torque-defined
   // struct of values.
   CodeStubArguments(CodeStubAssembler* assembler,
                     TorqueStructArguments torque_arguments)
       : assembler_(assembler),
-        receiver_mode_(ReceiverMode::kHasReceiver),
         argc_(torque_arguments.length),
         base_(torque_arguments.base),
         fp_(torque_arguments.frame) {}
@@ -4084,24 +4059,10 @@ class V8_EXPORT_PRIVATE CodeStubArguments {
 
   // Computes address of the index'th argument.
   TNode<RawPtrT> AtIndexPtr(TNode<IntPtrT> index) const;
-  TNode<RawPtrT> AtIndexPtr(TNode<Smi> index) const {
-    return AtIndexPtr(assembler_->ParameterToIntPtr(index));
-  }
 
   // |index| is zero-based and does not include the receiver
   TNode<Object> AtIndex(TNode<IntPtrT> index) const;
-  // TODO(v8:9708): Consider removing this variant
-  TNode<Object> AtIndex(TNode<Smi> index) const {
-    return AtIndex(assembler_->ParameterToIntPtr(index));
-  }
-
   TNode<Object> AtIndex(int index) const;
-
-  TNode<Object> GetOptionalArgumentValue(int index) {
-    return GetOptionalArgumentValue(index, assembler_->UndefinedConstant());
-  }
-  TNode<Object> GetOptionalArgumentValue(int index,
-                                         TNode<Object> default_value);
 
   TNode<IntPtrT> GetLength() const { return argc_; }
 
@@ -4109,43 +4070,30 @@ class V8_EXPORT_PRIVATE CodeStubArguments {
     return TorqueStructArguments{fp_, base_, argc_};
   }
 
+  TNode<Object> GetOptionalArgumentValue(TNode<IntPtrT> index,
+                                         TNode<Object> default_value);
   TNode<Object> GetOptionalArgumentValue(TNode<IntPtrT> index) {
     return GetOptionalArgumentValue(index, assembler_->UndefinedConstant());
   }
-  TNode<Object> GetOptionalArgumentValue(TNode<IntPtrT> index,
-                                         TNode<Object> default_value);
-
-  using ForEachBodyFunction = std::function<void(TNode<Object> arg)>;
+  TNode<Object> GetOptionalArgumentValue(int index) {
+    return GetOptionalArgumentValue(assembler_->IntPtrConstant(index));
+  }
 
   // Iteration doesn't include the receiver. |first| and |last| are zero-based.
-  template <typename TIndex>
-  void ForEach(const ForEachBodyFunction& body, TNode<TIndex> first = {},
-               TNode<TIndex> last = {}) const {
+  using ForEachBodyFunction = std::function<void(TNode<Object> arg)>;
+  void ForEach(const ForEachBodyFunction& body, TNode<IntPtrT> first = {},
+               TNode<IntPtrT> last = {}) const {
     CodeStubAssembler::VariableList list(0, assembler_->zone());
     ForEach(list, body, first, last);
   }
-
-  // Iteration doesn't include the receiver. |first| and |last| are zero-based.
   void ForEach(const CodeStubAssembler::VariableList& vars,
                const ForEachBodyFunction& body, TNode<IntPtrT> first = {},
                TNode<IntPtrT> last = {}) const;
-
-  void ForEach(const CodeStubAssembler::VariableList& vars,
-               const ForEachBodyFunction& body, TNode<Smi> first,
-               TNode<Smi> last = {}) const {
-    TNode<IntPtrT> first_intptr = assembler_->ParameterToIntPtr(first);
-    TNode<IntPtrT> last_intptr;
-    if (last != nullptr) {
-      last_intptr = assembler_->ParameterToIntPtr(last);
-    }
-    return ForEach(vars, body, first_intptr, last_intptr);
-  }
 
   void PopAndReturn(TNode<Object> value);
 
  private:
   CodeStubAssembler* assembler_;
-  ReceiverMode receiver_mode_;
   TNode<IntPtrT> argc_;
   TNode<RawPtrT> base_;
   TNode<RawPtrT> fp_;

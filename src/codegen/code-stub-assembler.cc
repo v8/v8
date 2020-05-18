@@ -12513,10 +12513,8 @@ TNode<UintPtrT> CodeStubAssembler::LoadJSTypedArrayLength(
 }
 
 CodeStubArguments::CodeStubArguments(CodeStubAssembler* assembler,
-                                     TNode<IntPtrT> argc, TNode<RawPtrT> fp,
-                                     ReceiverMode receiver_mode)
+                                     TNode<IntPtrT> argc, TNode<RawPtrT> fp)
     : assembler_(assembler),
-      receiver_mode_(receiver_mode),
       argc_(argc),
       base_(),
       fp_(fp != nullptr ? fp : assembler_->LoadFramePointer()) {
@@ -12536,7 +12534,6 @@ CodeStubArguments::CodeStubArguments(CodeStubAssembler* assembler,
 }
 
 TNode<Object> CodeStubArguments::GetReceiver() const {
-  DCHECK_EQ(receiver_mode_, ReceiverMode::kHasReceiver);
 #ifdef V8_REVERSE_JSARGS
   intptr_t offset = -kSystemPointerSize;
 #else
@@ -12546,7 +12543,6 @@ TNode<Object> CodeStubArguments::GetReceiver() const {
 }
 
 void CodeStubArguments::SetReceiver(TNode<Object> object) const {
-  DCHECK_EQ(receiver_mode_, ReceiverMode::kHasReceiver);
 #ifdef V8_REVERSE_JSARGS
   intptr_t offset = -kSystemPointerSize;
 #else
@@ -12577,26 +12573,6 @@ TNode<Object> CodeStubArguments::AtIndex(TNode<IntPtrT> index) const {
 
 TNode<Object> CodeStubArguments::AtIndex(int index) const {
   return AtIndex(assembler_->IntPtrConstant(index));
-}
-
-TNode<Object> CodeStubArguments::GetOptionalArgumentValue(
-    int index, TNode<Object> default_value) {
-  CodeStubAssembler::TVariable<Object> result(assembler_);
-  CodeStubAssembler::Label argument_missing(assembler_),
-      argument_done(assembler_, &result);
-
-  assembler_->GotoIf(assembler_->UintPtrGreaterThanOrEqual(
-                         assembler_->IntPtrConstant(index), argc_),
-                     &argument_missing);
-  result = AtIndex(index);
-  assembler_->Goto(&argument_done);
-
-  assembler_->BIND(&argument_missing);
-  result = default_value;
-  assembler_->Goto(&argument_done);
-
-  assembler_->BIND(&argument_done);
-  return result.value();
 }
 
 TNode<Object> CodeStubArguments::GetOptionalArgumentValue(
@@ -12646,13 +12622,8 @@ void CodeStubArguments::ForEach(
 }
 
 void CodeStubArguments::PopAndReturn(TNode<Object> value) {
-  TNode<IntPtrT> pop_count;
-  if (receiver_mode_ == ReceiverMode::kHasReceiver) {
-    pop_count = assembler_->IntPtrAdd(argc_, assembler_->IntPtrConstant(1));
-  } else {
-    pop_count = argc_;
-  }
-
+  TNode<IntPtrT> pop_count =
+      assembler_->IntPtrAdd(argc_, assembler_->IntPtrConstant(1));
   assembler_->PopAndReturn(pop_count, value);
 }
 
