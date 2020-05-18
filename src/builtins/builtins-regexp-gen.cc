@@ -89,7 +89,7 @@ TNode<JSRegExpResult> RegExpBuiltinsAssembler::AllocateRegExpResult(
   const ElementsKind elements_kind = PACKED_ELEMENTS;
   TNode<Map> map = CAST(LoadContextElement(LoadNativeContext(context),
                                            Context::REGEXP_RESULT_MAP_INDEX));
-  TNode<AllocationSite> no_allocation_site = {};
+  base::Optional<TNode<AllocationSite>> no_allocation_site = base::nullopt;
   TNode<IntPtrT> length_intptr = SmiUntag(length);
 
   // Note: The returned `elements` may be in young large object space, but
@@ -1356,7 +1356,6 @@ TNode<JSArray> RegExpBuiltinsAssembler::RegExpPrototypeSplitBody(
   const ElementsKind kind = PACKED_ELEMENTS;
   const ParameterMode mode = CodeStubAssembler::INTPTR_PARAMETERS;
 
-  TNode<AllocationSite> allocation_site = {};
   const TNode<NativeContext> native_context = LoadNativeContext(context);
   TNode<Map> array_map = LoadJSArrayElementsMap(kind, native_context);
 
@@ -1396,6 +1395,7 @@ TNode<JSArray> RegExpBuiltinsAssembler::RegExpPrototypeSplitBody(
       {
         TNode<Smi> length = SmiConstant(1);
         TNode<IntPtrT> capacity = IntPtrConstant(1);
+        base::Optional<TNode<AllocationSite>> allocation_site = base::nullopt;
         var_result =
             AllocateJSArray(kind, array_map, capacity, length, allocation_site);
 
@@ -1570,6 +1570,7 @@ TNode<JSArray> RegExpBuiltinsAssembler::RegExpPrototypeSplitBody(
   {
     TNode<Smi> length = SmiZero();
     TNode<IntPtrT> capacity = IntPtrZero();
+    base::Optional<TNode<AllocationSite>> allocation_site = base::nullopt;
     var_result =
         AllocateJSArray(kind, array_map, capacity, length, allocation_site);
     Goto(&done);

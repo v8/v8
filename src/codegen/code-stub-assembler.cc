@@ -3552,12 +3552,13 @@ TNode<BoolT> CodeStubAssembler::IsValidFastJSArrayCapacity(
 
 TNode<JSArray> CodeStubAssembler::AllocateJSArray(
     TNode<Map> array_map, TNode<FixedArrayBase> elements, TNode<Smi> length,
-    TNode<AllocationSite> allocation_site, int array_header_size) {
+    base::Optional<TNode<AllocationSite>> allocation_site,
+    int array_header_size) {
   Comment("begin allocation of JSArray passing in elements");
   CSA_SLOW_ASSERT(this, TaggedIsPositiveSmi(length));
 
   int base_size = array_header_size;
-  if (!allocation_site.is_null()) {
+  if (allocation_site) {
     base_size += AllocationMemento::kSize;
   }
 
@@ -3571,8 +3572,9 @@ TNode<JSArray> CodeStubAssembler::AllocateJSArray(
 std::pair<TNode<JSArray>, TNode<FixedArrayBase>>
 CodeStubAssembler::AllocateUninitializedJSArrayWithElements(
     ElementsKind kind, TNode<Map> array_map, TNode<Smi> length,
-    TNode<AllocationSite> allocation_site, TNode<IntPtrT> capacity,
-    AllocationFlags allocation_flags, int array_header_size) {
+    base::Optional<TNode<AllocationSite>> allocation_site,
+    TNode<IntPtrT> capacity, AllocationFlags allocation_flags,
+    int array_header_size) {
   Comment("begin allocation of JSArray with elements");
   CHECK_EQ(allocation_flags & ~kAllowLargeObjectAllocation, 0);
   CSA_SLOW_ASSERT(this, TaggedIsPositiveSmi(length));
@@ -3608,7 +3610,7 @@ CodeStubAssembler::AllocateUninitializedJSArrayWithElements(
   BIND(&nonempty);
   {
     int base_size = array_header_size;
-    if (!allocation_site.is_null()) {
+    if (allocation_site) {
       base_size += AllocationMemento::kSize;
     }
 
@@ -3680,7 +3682,8 @@ CodeStubAssembler::AllocateUninitializedJSArrayWithElements(
 
 TNode<JSArray> CodeStubAssembler::AllocateUninitializedJSArray(
     TNode<Map> array_map, TNode<Smi> length,
-    TNode<AllocationSite> allocation_site, TNode<IntPtrT> size_in_bytes) {
+    base::Optional<TNode<AllocationSite>> allocation_site,
+    TNode<IntPtrT> size_in_bytes) {
   CSA_SLOW_ASSERT(this, TaggedIsPositiveSmi(length));
 
   // Allocate space for the JSArray and the elements FixedArray in one go.
@@ -3691,9 +3694,9 @@ TNode<JSArray> CodeStubAssembler::AllocateUninitializedJSArray(
   StoreObjectFieldRoot(array, JSArray::kPropertiesOrHashOffset,
                        RootIndex::kEmptyFixedArray);
 
-  if (!allocation_site.is_null()) {
+  if (allocation_site) {
     InitializeAllocationMemento(array, IntPtrConstant(JSArray::kHeaderSize),
-                                allocation_site);
+                                *allocation_site);
   }
 
   return CAST(array);
@@ -3701,7 +3704,7 @@ TNode<JSArray> CodeStubAssembler::AllocateUninitializedJSArray(
 
 TNode<JSArray> CodeStubAssembler::AllocateJSArray(
     ElementsKind kind, TNode<Map> array_map, TNode<IntPtrT> capacity,
-    TNode<Smi> length, TNode<AllocationSite> allocation_site,
+    TNode<Smi> length, base::Optional<TNode<AllocationSite>> allocation_site,
     AllocationFlags allocation_flags) {
   CSA_SLOW_ASSERT(this, TaggedIsPositiveSmi(length));
 
@@ -3743,14 +3746,15 @@ TNode<JSArray> CodeStubAssembler::ExtractFastJSArray(TNode<Context> context,
       LoadElements(array), begin, count, base::nullopt,
       ExtractFixedArrayFlag::kAllFixedArrays, nullptr, elements_kind);
 
-  TNode<JSArray> result =
-      AllocateJSArray(array_map, new_elements, ParameterToTagged(count), {});
+  TNode<JSArray> result = AllocateJSArray(
+      array_map, new_elements, ParameterToTagged(count), base::nullopt);
   return result;
 }
 
 TNode<JSArray> CodeStubAssembler::CloneFastJSArray(
     TNode<Context> context, TNode<JSArray> array,
-    TNode<AllocationSite> allocation_site, HoleConversionMode convert_holes) {
+    base::Optional<TNode<AllocationSite>> allocation_site,
+    HoleConversionMode convert_holes) {
   // TODO(dhai): we should be able to assert IsFastJSArray(array) here, but this
   // function is also used to copy boilerplates even when the no-elements
   // protector is invalid. This function should be renamed to reflect its uses.

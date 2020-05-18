@@ -1968,41 +1968,40 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
   std::pair<TNode<JSArray>, TNode<FixedArrayBase>>
   AllocateUninitializedJSArrayWithElements(
       ElementsKind kind, TNode<Map> array_map, TNode<Smi> length,
-      TNode<AllocationSite> allocation_site, TNode<IntPtrT> capacity,
-      AllocationFlags allocation_flags = kNone,
+      base::Optional<TNode<AllocationSite>> allocation_site,
+      TNode<IntPtrT> capacity, AllocationFlags allocation_flags = kNone,
       int array_header_size = JSArray::kHeaderSize);
 
   // Allocate a JSArray and fill elements with the hole.
-  TNode<JSArray> AllocateJSArray(ElementsKind kind, TNode<Map> array_map,
-                                 TNode<IntPtrT> capacity, TNode<Smi> length,
-                                 TNode<AllocationSite> allocation_site,
-                                 AllocationFlags allocation_flags = kNone);
-  TNode<JSArray> AllocateJSArray(ElementsKind kind, TNode<Map> array_map,
-                                 TNode<Smi> capacity, TNode<Smi> length,
-                                 TNode<AllocationSite> allocation_site,
-                                 AllocationFlags allocation_flags = kNone) {
+  TNode<JSArray> AllocateJSArray(
+      ElementsKind kind, TNode<Map> array_map, TNode<IntPtrT> capacity,
+      TNode<Smi> length, base::Optional<TNode<AllocationSite>> allocation_site,
+      AllocationFlags allocation_flags = kNone);
+  TNode<JSArray> AllocateJSArray(
+      ElementsKind kind, TNode<Map> array_map, TNode<Smi> capacity,
+      TNode<Smi> length, base::Optional<TNode<AllocationSite>> allocation_site,
+      AllocationFlags allocation_flags = kNone) {
     return AllocateJSArray(kind, array_map, SmiUntag(capacity), length,
                            allocation_site, allocation_flags);
   }
   TNode<JSArray> AllocateJSArray(ElementsKind kind, TNode<Map> array_map,
                                  TNode<Smi> capacity, TNode<Smi> length,
                                  AllocationFlags allocation_flags = kNone) {
-    return AllocateJSArray(kind, array_map, SmiUntag(capacity), length, {},
-                           allocation_flags);
+    return AllocateJSArray(kind, array_map, SmiUntag(capacity), length,
+                           base::nullopt, allocation_flags);
   }
   TNode<JSArray> AllocateJSArray(ElementsKind kind, TNode<Map> array_map,
                                  TNode<IntPtrT> capacity, TNode<Smi> length,
                                  AllocationFlags allocation_flags = kNone) {
-    return AllocateJSArray(kind, array_map, capacity, length, {},
+    return AllocateJSArray(kind, array_map, capacity, length, base::nullopt,
                            allocation_flags);
   }
 
   // Allocate a JSArray and initialize the header fields.
-  TNode<JSArray> AllocateJSArray(TNode<Map> array_map,
-                                 TNode<FixedArrayBase> elements,
-                                 TNode<Smi> length,
-                                 TNode<AllocationSite> allocation_site = {},
-                                 int array_header_size = JSArray::kHeaderSize);
+  TNode<JSArray> AllocateJSArray(
+      TNode<Map> array_map, TNode<FixedArrayBase> elements, TNode<Smi> length,
+      base::Optional<TNode<AllocationSite>> allocation_site = base::nullopt,
+      int array_header_size = JSArray::kHeaderSize);
 
   enum class HoleConversionMode { kDontConvert, kConvertToUndefined };
   // Clone a fast JSArray |array| into a new fast JSArray.
@@ -2017,7 +2016,7 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
   // function generates significantly less code in this case.
   TNode<JSArray> CloneFastJSArray(
       TNode<Context> context, TNode<JSArray> array,
-      TNode<AllocationSite> allocation_site = {},
+      base::Optional<TNode<AllocationSite>> allocation_site = base::nullopt,
       HoleConversionMode convert_holes = HoleConversionMode::kDontConvert);
 
   TNode<JSArray> ExtractFastJSArray(TNode<Context> context,
@@ -3955,7 +3954,8 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
   // fields initialized.
   TNode<JSArray> AllocateUninitializedJSArray(
       TNode<Map> array_map, TNode<Smi> length,
-      TNode<AllocationSite> allocation_site, TNode<IntPtrT> size_in_bytes);
+      base::Optional<TNode<AllocationSite>> allocation_site,
+      TNode<IntPtrT> size_in_bytes);
 
   TNode<BoolT> IsValidSmi(TNode<Smi> smi);
 

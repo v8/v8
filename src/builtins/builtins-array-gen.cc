@@ -476,7 +476,7 @@ TF_BUILTIN(CloneFastJSArrayFillingHoles, ArrayBuiltinsAssembler) {
                           LoadElementsKind(array))),
                       Word32BinaryNot(IsNoElementsProtectorCellInvalid())));
 
-  Return(CloneFastJSArray(context, array, {},
+  Return(CloneFastJSArray(context, array, base::nullopt,
                           HoleConversionMode::kConvertToUndefined));
 }
 
@@ -1664,7 +1664,8 @@ void ArrayBuiltinsAssembler::TailCallArrayConstructorStub(
 
 void ArrayBuiltinsAssembler::CreateArrayDispatchNoArgument(
     TNode<Context> context, TNode<JSFunction> target, TNode<Int32T> argc,
-    AllocationSiteOverrideMode mode, TNode<AllocationSite> allocation_site) {
+    AllocationSiteOverrideMode mode,
+    base::Optional<TNode<AllocationSite>> allocation_site) {
   if (mode == DISABLE_ALLOCATION_SITES) {
     Callable callable = CodeFactory::ArrayNoArgumentConstructor(
         isolate(), GetInitialFastElementsKind(), mode);
@@ -1673,7 +1674,8 @@ void ArrayBuiltinsAssembler::CreateArrayDispatchNoArgument(
                                  argc);
   } else {
     DCHECK_EQ(mode, DONT_OVERRIDE);
-    TNode<Int32T> elements_kind = LoadElementsKind(allocation_site);
+    DCHECK(allocation_site);
+    TNode<Int32T> elements_kind = LoadElementsKind(*allocation_site);
 
     // TODO(ishell): Compute the builtin index dynamically instead of
     // iterating over all expected elements kinds.
@@ -1687,7 +1689,7 @@ void ArrayBuiltinsAssembler::CreateArrayDispatchNoArgument(
       Callable callable =
           CodeFactory::ArrayNoArgumentConstructor(isolate(), kind, mode);
 
-      TailCallArrayConstructorStub(callable, context, target, allocation_site,
+      TailCallArrayConstructorStub(callable, context, target, *allocation_site,
                                    argc);
 
       BIND(&next);
@@ -1700,7 +1702,8 @@ void ArrayBuiltinsAssembler::CreateArrayDispatchNoArgument(
 
 void ArrayBuiltinsAssembler::CreateArrayDispatchSingleArgument(
     TNode<Context> context, TNode<JSFunction> target, TNode<Int32T> argc,
-    AllocationSiteOverrideMode mode, TNode<AllocationSite> allocation_site) {
+    AllocationSiteOverrideMode mode,
+    base::Optional<TNode<AllocationSite>> allocation_site) {
   if (mode == DISABLE_ALLOCATION_SITES) {
     ElementsKind initial = GetInitialFastElementsKind();
     ElementsKind holey_initial = GetHoleyElementsKind(initial);
@@ -1711,7 +1714,8 @@ void ArrayBuiltinsAssembler::CreateArrayDispatchSingleArgument(
                                  argc);
   } else {
     DCHECK_EQ(mode, DONT_OVERRIDE);
-    TNode<Smi> transition_info = LoadTransitionInfo(allocation_site);
+    DCHECK(allocation_site);
+    TNode<Smi> transition_info = LoadTransitionInfo(*allocation_site);
 
     // Least significant bit in fast array elements kind means holeyness.
     STATIC_ASSERT(PACKED_SMI_ELEMENTS == 0);
@@ -1734,7 +1738,7 @@ void ArrayBuiltinsAssembler::CreateArrayDispatchSingleArgument(
       // Make elements kind holey and update elements kind in the type info.
       var_elements_kind = Word32Or(var_elements_kind.value(), Int32Constant(1));
       StoreObjectFieldNoWriteBarrier(
-          allocation_site, AllocationSite::kTransitionInfoOrBoilerplateOffset,
+          *allocation_site, AllocationSite::kTransitionInfoOrBoilerplateOffset,
           SmiOr(transition_info, SmiConstant(fast_elements_kind_holey_mask)));
       Goto(&normal_sequence);
     }
@@ -1755,7 +1759,7 @@ void ArrayBuiltinsAssembler::CreateArrayDispatchSingleArgument(
       Callable callable =
           CodeFactory::ArraySingleArgumentConstructor(isolate(), kind, mode);
 
-      TailCallArrayConstructorStub(callable, context, target, allocation_site,
+      TailCallArrayConstructorStub(callable, context, target, *allocation_site,
                                    argc);
 
       BIND(&next);
@@ -1768,7 +1772,8 @@ void ArrayBuiltinsAssembler::CreateArrayDispatchSingleArgument(
 
 void ArrayBuiltinsAssembler::GenerateDispatchToArrayStub(
     TNode<Context> context, TNode<JSFunction> target, TNode<Int32T> argc,
-    AllocationSiteOverrideMode mode, TNode<AllocationSite> allocation_site) {
+    AllocationSiteOverrideMode mode,
+    base::Optional<TNode<AllocationSite>> allocation_site) {
   Label check_one_case(this), fallthrough(this);
   GotoIfNot(Word32Equal(argc, Int32Constant(0)), &check_one_case);
   CreateArrayDispatchNoArgument(context, target, argc, mode, allocation_site);
@@ -1861,8 +1866,9 @@ void ArrayBuiltinsAssembler::GenerateConstructor(
     {
       TNode<JSArray> array = AllocateJSArray(
           elements_kind, array_map, array_size_smi, array_size_smi,
-          mode == DONT_TRACK_ALLOCATION_SITE ? TNode<AllocationSite>()
-                                             : CAST(allocation_site));
+          mode == DONT_TRACK_ALLOCATION_SITE
+              ? base::Optional<TNode<AllocationSite>>(base::nullopt)
+              : CAST(allocation_site));
       Return(array);
     }
   }
@@ -1881,9 +1887,10 @@ void ArrayBuiltinsAssembler::GenerateArrayNoArgumentConstructor(
       Parameter(Descriptor::kFunction), JSFunction::kContextOffset));
   bool track_allocation_site =
       AllocationSite::ShouldTrack(kind) && mode != DISABLE_ALLOCATION_SITES;
-  TNode<AllocationSite> allocation_site =
-      track_allocation_site ? CAST(Parameter(Descriptor::kAllocationSite))
-                            : TNode<AllocationSite>();
+  base::Optional<TNode<AllocationSite>> allocation_site =
+      track_allocation_site
+          ? CAST(Parameter(Descriptor::kAllocationSite))
+          : base::Optional<TNode<AllocationSite>>(base::nullopt);
   TNode<Map> array_map = LoadJSArrayElementsMap(kind, native_context);
   TNode<JSArray> array = AllocateJSArray(
       kind, array_map, IntPtrConstant(JSArray::kPreallocatedArrayElements),
