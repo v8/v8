@@ -32,6 +32,8 @@ namespace {
 
 constexpr int kMaxFunctions = 4;
 constexpr int kMaxGlobals = 64;
+constexpr int kMaxParameters = 15;
+constexpr int kMaxReturns = 15;
 
 class DataRange {
   Vector<const uint8_t> data_;
@@ -112,11 +114,36 @@ class WasmGenerator {
 
   class BlockScope {
    public:
-    BlockScope(WasmGenerator* gen, WasmOpcode block_type, ValueType result_type,
-               ValueType br_type)
+    BlockScope(WasmGenerator* gen, WasmOpcode block_type,
+               const std::vector<ValueType>& param_types,
+               const std::vector<ValueType>& result_types,
+               const std::vector<ValueType>& br_types)
         : gen_(gen) {
-      gen->blocks_.emplace_back(1, br_type);
-      gen->builder_->EmitWithU8(block_type, result_type.value_type_code());
+      gen->blocks_.push_back(br_types);
+      if (param_types.size() == 0 && result_types.size() == 0) {
+        gen->builder_->EmitWithU8(block_type, kWasmStmt.value_type_code());
+        return;
+      }
+      if (param_types.size() == 0 && result_types.size() == 1) {
+        gen->builder_->EmitWithU8(block_type,
+                                  result_types[0].value_type_code());
+        return;
+      }
+      // Multi-value block.
+      Zone* zone = gen->builder_->builder()->zone();
+      FunctionSig::Builder builder(zone, result_types.size(),
+                                   param_types.size());
+      for (auto& type : param_types) {
+        DCHECK_NE(type, kWasmStmt);
+        builder.AddParam(type);
+      }
+      for (auto& type : result_types) {
+        DCHECK_NE(type, kWasmStmt);
+        builder.AddReturn(type);
+      }
+      FunctionSig* sig = builder.Build();
+      int sig_id = gen->builder_->builder()->AddSignature(sig);
+      gen->builder_->EmitWithI32V(block_type, sig_id);
     }
 
     ~BlockScope() {
@@ -128,17 +155,23 @@ class WasmGenerator {
     WasmGenerator* const gen_;
   };
 
+  void block(const std::vector<ValueType>& param_types,
+             const std::vector<ValueType>& return_types, DataRange* data) {
+    BlockScope block_scope(this, kExprBlock, param_types, return_types,
+                           return_types);
+    ConsumeAndGenerate(param_types, return_types, data);
+  }
+
   template <ValueType::Kind T>
   void block(DataRange* data) {
-    BlockScope block_scope(this, kExprBlock, ValueType(T), ValueType(T));
-    Generate<T>(data);
+    block({}, {ValueType(T)}, data);
   }
 
   template <ValueType::Kind T>
   void loop(DataRange* data) {
     // When breaking to a loop header, don't provide any input value (hence
     // kWasmStmt).
-    BlockScope block_scope(this, kExprLoop, ValueType(T), kWasmStmt);
+    BlockScope block_scope(this, kExprLoop, {}, {ValueType(T)}, {});
     Generate<T>(data);
   }
 
@@ -149,7 +182,7 @@ class WasmGenerator {
     static_assert(T == ValueType::kStmt || type == kIfElse,
                   "if without else cannot produce a value");
     Generate<ValueType::kI32>(data);
-    BlockScope block_scope(this, kExprIf, ValueType(T), ValueType(T));
+    BlockScope block_scope(this, kExprIf, {}, {ValueType(T)}, {ValueType(T)});
     Generate<T>(data);
     if (type == kIfElse) {
       builder_->Emit(kExprElse);
@@ -163,9 +196,7 @@ class WasmGenerator {
     const uint32_t target_block = data->get<uint32_t>() % blocks_.size();
     const auto break_types = blocks_[target_block];
 
-    for (size_t i = 0; i < break_types.size(); ++i) {
-      Generate(break_types[i], data);
-    }
+    Generate(VectorOf(break_types), data);
     builder_->EmitWithI32V(
         kExprBr, static_cast<uint32_t>(blocks_.size()) - 1 - target_block);
   }
@@ -177,10 +208,7 @@ class WasmGenerator {
     const uint32_t target_block = data->get<uint32_t>() % blocks_.size();
     const auto break_types = blocks_[target_block];
 
-    for (size_t i = 0; i < break_types.size(); ++i) {
-      Generate(break_types[i], data);
-    }
-
+    Generate(VectorOf(break_types), data);
     Generate(kWasmI32, data);
     builder_->EmitWithI32V(
         kExprBrIf, static_cast<uint32_t>(blocks_.size()) - 1 - target_block);
@@ -415,18 +443,12 @@ class WasmGenerator {
       }
       return;
     }
-    // Keep exactly one of the return values on the stack with a combination of
-    // drops and selects, then convert this value to the wanted type.
-    size_t return_index = data->get<uint8_t>() % sig->return_count();
-    for (size_t i = sig->return_count() - 1; i > return_index; --i) {
-      builder_->Emit(kExprDrop);
-    }
-    for (size_t i = return_index; i > 0; --i) {
-      Convert(sig->GetReturn(i), sig->GetReturn(i - 1));
-      builder_->EmitI32Const(0);
-      builder_->Emit(kExprSelect);
-    }
-    Convert(sig->GetReturn(0), wanted_type);
+    std::vector<ValueType> return_types(sig->returns().begin(),
+                                        sig->returns().end());
+    auto wanted_types = wanted_type == kWasmStmt
+                            ? std::vector<ValueType>{}
+                            : std::vector<ValueType>{wanted_type};
+    ConsumeAndGenerate(return_types, wanted_types, data);
   }
 
   struct Var {
@@ -615,6 +637,12 @@ class WasmGenerator {
     Generate<T2, Ts...>(data);
   }
 
+  std::vector<ValueType> GenerateTypes(DataRange* data);
+  void Generate(Vector<const ValueType> types, DataRange* data);
+  void ConsumeAndGenerate(const std::vector<ValueType>& parameter_types,
+                          const std::vector<ValueType>& return_types,
+                          DataRange* data);
+
  private:
   WasmFunctionBuilder* builder_;
   std::vector<std::vector<ValueType>> blocks_;
@@ -630,6 +658,11 @@ class WasmGenerator {
     return recursion_depth >= kMaxRecursionDepth;
   }
 };
+
+template <>
+void WasmGenerator::block<ValueType::kStmt>(DataRange* data) {
+  block({}, {}, data);
+}
 
 template <>
 void WasmGenerator::Generate<ValueType::kStmt>(DataRange* data) {
@@ -1350,11 +1383,83 @@ void WasmGenerator::Generate(ValueType type, DataRange* data) {
   }
 }
 
+std::vector<ValueType> WasmGenerator::GenerateTypes(DataRange* data) {
+  std::vector<ValueType> types;
+  int num_params = int{data->get<uint8_t>()} % (kMaxParameters + 1);
+  for (int i = 0; i < num_params; ++i) {
+    types.push_back(GetValueType(data));
+  }
+  return types;
+}
+
+void WasmGenerator::Generate(Vector<const ValueType> types, DataRange* data) {
+  // Maybe emit a multi-value block with the expected return type. Use a
+  // non-default value to indicate block generation to avoid recursion when we
+  // reach the end of the data.
+  bool generate_block = data->get<uint8_t>() % 32 == 1;
+  if (generate_block) {
+    GeneratorRecursionScope rec_scope(this);
+    if (!recursion_limit_reached()) {
+      const auto param_types = GenerateTypes(data);
+      Generate(VectorOf(param_types), data);
+      block(param_types, {types.begin(), types.end()}, data);
+      return;
+    }
+  }
+
+  if (types.size() == 0) {
+    Generate(kWasmStmt, data);
+    return;
+  }
+  if (types.size() == 1) {
+    Generate(types[0], data);
+    return;
+  }
+
+  // Split the types in two halves and recursively generate each half.
+  // Each half is non empty to ensure termination.
+  size_t split_index = data->get<uint8_t>() % (types.size() - 1) + 1;
+  Vector<const ValueType> lower_half(types.begin(), split_index);
+  Vector<const ValueType> upper_half(types.begin() + split_index,
+                                     types.size() - split_index);
+  DataRange first_range = data->split();
+  Generate(lower_half, &first_range);
+  Generate(upper_half, data);
+}
+
+// Emit code to match an arbitrary signature.
+void WasmGenerator::ConsumeAndGenerate(
+    const std::vector<ValueType>& param_types,
+    const std::vector<ValueType>& return_types, DataRange* data) {
+  if (param_types.size() == 0) {
+    Generate(VectorOf(return_types), data);
+    return;
+  }
+  // Keep exactly one of the parameters on the stack with a combination of drops
+  // and selects, convert this value to the first return type, and generate the
+  // remaining types.
+  // TODO(thibaudm): Improve this strategy to potentially generate any sequence
+  // of instructions matching the given signature.
+  size_t return_index = data->get<uint8_t>() % param_types.size();
+  for (size_t i = param_types.size() - 1; i > return_index; --i) {
+    builder_->Emit(kExprDrop);
+  }
+  for (size_t i = return_index; i > 0; --i) {
+    Convert(param_types[i], param_types[i - 1]);
+    builder_->EmitI32Const(0);
+    builder_->Emit(kExprSelect);
+  }
+  if (return_types.empty()) {
+    builder_->Emit(kExprDrop);
+  } else {
+    Convert(param_types[0], return_types[0]);
+    Generate(VectorOf(return_types) + 1, data);
+  }
+}
+
 FunctionSig* GenerateSig(Zone* zone, DataRange* data) {
   // Generate enough parameters to spill some to the stack.
-  constexpr int kMaxParameters = 15;
   int num_params = int{data->get<uint8_t>()} % (kMaxParameters + 1);
-  constexpr int kMaxReturns = 15;
   int num_returns = int{data->get<uint8_t>()} % (kMaxReturns + 1);
 
   FunctionSig::Builder builder(zone, num_returns, num_params);
@@ -1413,9 +1518,9 @@ class WasmCompileFuzzer : public WasmExecutionFuzzer {
       if (sig->return_count() == 0) {
         gen.Generate(kWasmStmt, &function_range);
       }
-      for (size_t i = 0; i < sig->return_count(); ++i) {
-        gen.Generate(sig->GetReturn(i), &function_range);
-      }
+      Vector<const ValueType> return_types(sig->returns().begin(),
+                                           sig->return_count());
+      gen.Generate(return_types, &function_range);
 
       f->Emit(kExprEnd);
       if (i == 0) builder.AddExport(CStrVector("main"), f);
