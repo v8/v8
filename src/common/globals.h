@@ -151,8 +151,6 @@ constexpr int kMaxInt16 = (1 << 15) - 1;
 constexpr int kMinInt16 = -(1 << 15);
 constexpr int kMaxUInt16 = (1 << 16) - 1;
 constexpr int kMinUInt16 = 0;
-constexpr int kMaxInt31 = kMaxInt / 2;
-constexpr int kMinInt31 = kMinInt / 2;
 
 constexpr uint32_t kMaxUInt32 = 0xFFFFFFFFu;
 constexpr int kMinUInt32 = 0;

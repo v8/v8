@@ -83,6 +83,7 @@ void CallDescriptors::InitializeOncePerProcess() {
   DCHECK(ContextOnlyDescriptor{}.HasContextParameter());
   DCHECK(!NoContextDescriptor{}.HasContextParameter());
   DCHECK(!AllocateDescriptor{}.HasContextParameter());
+  DCHECK(!AllocateHeapNumberDescriptor{}.HasContextParameter());
   DCHECK(!AbortDescriptor{}.HasContextParameter());
   DCHECK(!WasmFloat32ToNumberDescriptor{}.HasContextParameter());
   DCHECK(!WasmFloat64ToNumberDescriptor{}.HasContextParameter());

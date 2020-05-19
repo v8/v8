@@ -78,8 +78,7 @@ type JSPrimitive = Numeric|String|Symbol|Boolean|Null|Undefined;
 // TheHole or FixedArray.
 type JSAny = JSReceiver|JSPrimitive;
 
-type JSAnyNotNumeric = String|Symbol|Boolean|Null|Undefined|JSReceiver;
-type JSAnyNotNumber = BigInt|JSAnyNotNumeric;
+type JSAnyNotNumber = BigInt|String|Symbol|Boolean|Null|Undefined|JSReceiver;
 
 // This is the intersection of JSAny and HeapObject.
 type JSAnyNotSmi = JSAnyNotNumber|HeapNumber;
@@ -620,11 +619,6 @@ extern macro StringCharCodeAt(String, uintptr): int32;
 extern runtime StringCompareSequence(Context, String, String, Number): Boolean;
 extern macro StringFromSingleCharCode(int32): String;
 
-extern macro Equal(JSAny, JSAny, Context): Boolean;
-macro Equal(implicit context: Context)(left: JSAny, right: JSAny): Boolean {
-  return Equal(left, right);
-}
-
 extern macro StrictEqual(JSAny, JSAny): Boolean;
 extern macro SmiLexicographicCompare(Smi, Smi): Smi;
 extern runtime ReThrow(Context, JSAny): never;
@@ -823,7 +817,6 @@ extern operator '+' macro Float64Add(float64, float64): float64;
 extern operator '-' macro Float64Sub(float64, float64): float64;
 extern operator '*' macro Float64Mul(float64, float64): float64;
 extern operator '/' macro Float64Div(float64, float64): float64;
-extern operator '%' macro Float64Mod(float64, float64): float64;
 
 extern operator '+' macro NumberAdd(Number, Number): Number;
 extern operator '-' macro NumberSub(Number, Number): Number;
@@ -892,7 +885,6 @@ extern macro TaggedIsNotSmi(Object): bool;
 extern macro TaggedIsPositiveSmi(Object): bool;
 extern macro IsValidPositiveSmi(intptr): bool;
 
-extern macro IsInteger(JSAny): bool;
 extern macro IsInteger(HeapNumber): bool;
 
 extern macro AllocateHeapNumberWithValue(float64): HeapNumber;
@@ -923,7 +915,6 @@ macro SmiTag<T : type extends uint31>(value: T): SmiTagged<T> {
   return %RawDownCast<SmiTagged<T>>(SmiFromUint32(value));
 }
 extern macro SmiToInt32(Smi): int32;
-extern macro SmiToFloat64(Smi): float64;
 extern macro TaggedIndexToIntPtr(TaggedIndex): intptr;
 extern macro IntPtrToTaggedIndex(intptr): TaggedIndex;
 extern macro TaggedIndexToSmi(TaggedIndex): Smi;
