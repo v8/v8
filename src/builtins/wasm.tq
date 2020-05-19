@@ -7,6 +7,10 @@
 namespace runtime {
 extern runtime WasmMemoryGrow(Context, WasmInstanceObject, Smi): Smi;
 extern runtime WasmRefFunc(Context, WasmInstanceObject, Smi): JSAny;
+extern runtime WasmTableInit(
+    Context, WasmInstanceObject, Object, Object, Smi, Smi, Smi): JSAny;
+extern runtime WasmTableCopy(
+    Context, WasmInstanceObject, Object, Object, Smi, Smi, Smi): JSAny;
 extern runtime WasmFunctionTableGet(
     Context, WasmInstanceObject, Smi, Smi): JSAny;
 extern runtime WasmFunctionTableSet(
@@ -72,6 +76,38 @@ builtin WasmMemoryGrow(numPages: int32): int32 {
   const result: Smi =
       runtime::WasmMemoryGrow(context, instance, SmiFromInt32(numPages));
   return SmiToInt32(result);
+}
+
+builtin WasmTableInit(
+    dstRaw: uint32, srcRaw: uint32, sizeRaw: uint32, tableIndex: Smi,
+    segmentIndex: Smi): JSAny {
+  try {
+    const instance: WasmInstanceObject = LoadInstanceFromFrame();
+    const dst: Smi = Convert<PositiveSmi>(dstRaw) otherwise TableOutOfBounds;
+    const src: Smi = Convert<PositiveSmi>(srcRaw) otherwise TableOutOfBounds;
+    const size: Smi = Convert<PositiveSmi>(sizeRaw) otherwise TableOutOfBounds;
+    tail runtime::WasmTableInit(
+        LoadContextFromInstance(instance), instance, tableIndex, segmentIndex,
+        dst, src, size);
+  } label TableOutOfBounds deferred {
+    tail ThrowWasmTrapTableOutOfBounds();
+  }
+}
+
+builtin WasmTableCopy(
+    dstRaw: uint32, srcRaw: uint32, sizeRaw: uint32, dstTable: Smi,
+    srcTable: Smi): JSAny {
+  try {
+    const instance: WasmInstanceObject = LoadInstanceFromFrame();
+    const dst: Smi = Convert<PositiveSmi>(dstRaw) otherwise TableOutOfBounds;
+    const src: Smi = Convert<PositiveSmi>(srcRaw) otherwise TableOutOfBounds;
+    const size: Smi = Convert<PositiveSmi>(sizeRaw) otherwise TableOutOfBounds;
+    tail runtime::WasmTableCopy(
+        LoadContextFromInstance(instance), instance, dstTable, srcTable, dst,
+        src, size);
+  } label TableOutOfBounds deferred {
+    tail ThrowWasmTrapTableOutOfBounds();
+  }
 }
 
 builtin WasmTableGet(tableIndex: intptr, index: int32): Object {

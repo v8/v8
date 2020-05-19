@@ -103,8 +103,6 @@ namespace internal {
   V(WasmFloat64ToNumber)                 \
   V(WasmI32AtomicWait32)                 \
   V(WasmI64AtomicWait32)                 \
-  V(WasmTableInit)                       \
-  V(WasmTableCopy)                       \
   BUILTIN_LIST_TFS(V)                    \
   TORQUE_BUILTIN_LIST_TFC(V)
 
@@ -1382,52 +1380,6 @@ class WasmFloat64ToNumberDescriptor final : public CallInterfaceDescriptor {
   DEFINE_RESULT_AND_PARAMETER_TYPES(MachineType::AnyTagged(),  // result
                                     MachineType::Float64())    // value
   DECLARE_DESCRIPTOR(WasmFloat64ToNumberDescriptor, CallInterfaceDescriptor)
-};
-
-class WasmTableInitDescriptor final : public CallInterfaceDescriptor {
- public:
-  DEFINE_PARAMETERS_NO_CONTEXT(kDestination, kSource, kSize, kTableIndex,
-                               kSegmentIndex)
-  DEFINE_PARAMETER_TYPES(MachineType::Int32(),      // kDestination
-                         MachineType::Int32(),      // kSource
-                         MachineType::Int32(),      // kSize
-                         MachineType::AnyTagged(),  // kTableIndex
-                         MachineType::AnyTagged(),  // kSegmentindex
-  )
-
-#if V8_TARGET_ARCH_IA32
-  static constexpr bool kPassLastArgOnStack = true;
-#else
-  static constexpr bool kPassLastArgOnStack = false;
-#endif
-
-  // Pass the last parameter through the stack.
-  static constexpr int kStackArgumentsCount = kPassLastArgOnStack ? 1 : 0;
-
-  DECLARE_DESCRIPTOR(WasmTableInitDescriptor, CallInterfaceDescriptor)
-};
-
-class WasmTableCopyDescriptor final : public CallInterfaceDescriptor {
- public:
-  DEFINE_PARAMETERS_NO_CONTEXT(kDestination, kSource, kSize, kDestinationTable,
-                               kSourceTable)
-  DEFINE_PARAMETER_TYPES(MachineType::Int32(),      // kDestination
-                         MachineType::Int32(),      // kSource
-                         MachineType::Int32(),      // kSize
-                         MachineType::AnyTagged(),  // kDestinationTable
-                         MachineType::AnyTagged(),  // kSourceTable
-  )
-
-#if V8_TARGET_ARCH_IA32
-  static constexpr bool kPassLastArgOnStack = true;
-#else
-  static constexpr bool kPassLastArgOnStack = false;
-#endif
-
-  // Pass the last parameter through the stack.
-  static constexpr int kStackArgumentsCount = kPassLastArgOnStack ? 1 : 0;
-
-  DECLARE_DESCRIPTOR(WasmTableCopyDescriptor, CallInterfaceDescriptor)
 };
 
 class V8_EXPORT_PRIVATE I64ToBigIntDescriptor final

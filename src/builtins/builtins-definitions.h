@@ -851,8 +851,6 @@ namespace internal {
   TFS(WasmAllocateArray, kMapIndex, kLength, kElementSize)                     \
   TFC(WasmI32AtomicWait32, WasmI32AtomicWait32)                                \
   TFC(WasmI64AtomicWait32, WasmI64AtomicWait32)                                \
-  TFC(WasmTableInit, WasmTableInit)                                            \
-  TFC(WasmTableCopy, WasmTableCopy)                                            \
                                                                                \
   /* WeakMap */                                                                \
   TFJ(WeakMapConstructor, kDontAdaptArgumentsSentinel)                         \

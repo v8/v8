@@ -918,6 +918,7 @@ extern macro SmiToTaggedIndex(Smi): TaggedIndex;
 extern macro RoundIntPtrToFloat64(intptr): float64;
 extern macro ChangeFloat32ToFloat64(float32): float64;
 extern macro ChangeNumberToFloat64(Number): float64;
+extern macro ChangeNumberToUint32(Number): uint32;
 extern macro ChangeTaggedNonSmiToInt32(implicit context: Context)(JSAnyNotSmi):
     int32;
 extern macro ChangeTaggedToFloat64(implicit context: Context)(JSAny): float64;

@@ -344,6 +344,9 @@ RUNTIME_FUNCTION(Runtime_WasmTableInit) {
   CONVERT_ARG_HANDLE_CHECKED(WasmInstanceObject, instance, 0);
   CONVERT_UINT32_ARG_CHECKED(table_index, 1);
   CONVERT_UINT32_ARG_CHECKED(elem_segment_index, 2);
+  static_assert(
+      wasm::kV8MaxWasmTableSize < kSmiMaxValue,
+      "Make sure clamping to Smi range doesn't make an invalid call valid");
   CONVERT_UINT32_ARG_CHECKED(dst, 3);
   CONVERT_UINT32_ARG_CHECKED(src, 4);
   CONVERT_UINT32_ARG_CHECKED(count, 5);
@@ -363,6 +366,9 @@ RUNTIME_FUNCTION(Runtime_WasmTableCopy) {
   CONVERT_ARG_HANDLE_CHECKED(WasmInstanceObject, instance, 0);
   CONVERT_UINT32_ARG_CHECKED(table_dst_index, 1);
   CONVERT_UINT32_ARG_CHECKED(table_src_index, 2);
+  static_assert(
+      wasm::kV8MaxWasmTableSize < kSmiMaxValue,
+      "Make sure clamping to Smi range doesn't make an invalid call valid");
   CONVERT_UINT32_ARG_CHECKED(dst, 3);
   CONVERT_UINT32_ARG_CHECKED(src, 4);
   CONVERT_UINT32_ARG_CHECKED(count, 5);
