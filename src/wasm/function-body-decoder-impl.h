@@ -805,6 +805,11 @@ struct ControlBase {
   }
 };
 
+enum class LoadTransformationKind : uint8_t {
+  kSplat,
+  kExtend,
+};
+
 // This is the list of callback functions that an interface for the
 // WasmFullDecoder should implement.
 // F(Name, args...)

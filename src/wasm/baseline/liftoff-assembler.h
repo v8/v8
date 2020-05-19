@@ -742,11 +742,6 @@ class LiftoffAssembler : public TurboAssembler {
   inline void emit_f64_set_cond(Condition condition, Register dst,
                                 DoubleRegister lhs, DoubleRegister rhs);
 
-  inline void LoadTransform(LiftoffRegister dst, Register src_addr,
-                            Register offset_reg, uint32_t offset_imm,
-                            LoadType type, LoadTransformationKind transform,
-                            uint32_t* protected_load_pc);
-
   inline void emit_i8x16_splat(LiftoffRegister dst, LiftoffRegister src);
   inline void emit_i16x8_splat(LiftoffRegister dst, LiftoffRegister src);
   inline void emit_i32x4_splat(LiftoffRegister dst, LiftoffRegister src);

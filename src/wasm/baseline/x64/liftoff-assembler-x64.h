@@ -8,6 +8,7 @@
 #include "src/wasm/baseline/liftoff-assembler.h"
 
 #include "src/codegen/assembler.h"
+#include "src/wasm/value-type.h"
 
 namespace v8 {
 namespace internal {
@@ -2172,37 +2173,6 @@ void EmitI64x2ShrS(LiftoffAssembler* assm, LiftoffRegister dst,
 }
 
 }  // namespace liftoff
-
-void LiftoffAssembler::LoadTransform(LiftoffRegister dst, Register src_addr,
-                                     Register offset_reg, uint32_t offset_imm,
-                                     LoadType type,
-                                     LoadTransformationKind transform,
-                                     uint32_t* protected_load_pc) {
-  if (emit_debug_code() && offset_reg != no_reg) {
-    AssertZeroExtended(offset_reg);
-  }
-  Operand src_op = liftoff::GetMemOp(this, src_addr, offset_reg, offset_imm);
-  *protected_load_pc = pc_offset();
-  if (transform == LoadTransformationKind::kExtend) {
-    MachineType memtype = type.mem_type();
-    if (memtype == MachineType::Int8()) {
-      Pmovsxbw(dst.fp(), src_op);
-    } else if (memtype == MachineType::Uint8()) {
-      Pmovzxbw(dst.fp(), src_op);
-    } else if (memtype == MachineType::Int16()) {
-      Pmovsxwd(dst.fp(), src_op);
-    } else if (memtype == MachineType::Uint16()) {
-      Pmovzxwd(dst.fp(), src_op);
-    } else if (memtype == MachineType::Int32()) {
-      Pmovsxdq(dst.fp(), src_op);
-    } else if (memtype == MachineType::Uint32()) {
-      Pmovzxdq(dst.fp(), src_op);
-    }
-  } else {
-    DCHECK_EQ(LoadTransformationKind::kSplat, transform);
-    bailout(kSimd, "load splats unimplemented");
-  }
-}
 
 void LiftoffAssembler::emit_i8x16_splat(LiftoffRegister dst,
                                         LiftoffRegister src) {
