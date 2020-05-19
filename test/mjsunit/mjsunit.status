@@ -962,8 +962,6 @@
   'wasm/atomics64-stress': [SKIP],
   'wasm/futex': [SKIP],
   'regress/wasm/regress-1067621': [SKIP],
-
-  'wasm/tier-down-to-liftoff': [SKIP],
 }],  # 'predictable == True'
 
 ##############################################################################

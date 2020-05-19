@@ -724,6 +724,11 @@ DEFINE_BOOL(liftoff, false,
             "enable Liftoff, the baseline compiler for WebAssembly")
 DEFINE_IMPLICATION(future, liftoff)
 #endif
+// We can't tier up (from Liftoff to TurboFan) in single-threaded mode, hence
+// disable Liftoff in that configuration for now. The alternative is disabling
+// TurboFan, which would reduce peak performance considerably.
+// Note that for debugging, Liftoff will still be used.
+DEFINE_NEG_IMPLICATION(single_threaded, liftoff)
 DEFINE_DEBUG_BOOL(trace_liftoff, false,
                   "trace Liftoff, the baseline compiler for WebAssembly")
 DEFINE_BOOL(trace_wasm_memory, false,

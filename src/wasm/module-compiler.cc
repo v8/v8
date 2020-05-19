@@ -1481,8 +1481,9 @@ void RecompileNativeModule(NativeModule* native_module,
         }
       });
 
-  // We only wait for tier down. Tier up can happen in the background.
-  if (tiering_state == kTieredDown) {
+  // Always wait for tier down. Tier up usually happens in the background,
+  // except in single-threaded mode.
+  if (tiering_state == kTieredDown || FLAG_single_threaded) {
     // The main thread contributes to the compilation.
     constexpr Counters* kNoCounters = nullptr;
     while (ExecuteCompilationUnits(
