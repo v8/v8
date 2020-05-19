@@ -2947,6 +2947,9 @@ void Simulator::InstructionDecode(Instruction* instr) {
     disasm::Disassembler dasm(converter);
     // Use a reasonably large buffer.
     dasm.InstructionDecode(buffer, reinterpret_cast<byte*>(instr));
+
+    // PrintF("EXECUTING  0x%08" PRIxPTR "   %-44s\n",
+    //       reinterpret_cast<intptr_t>(instr), buffer.begin());
   }
 
   instr_ = instr;
