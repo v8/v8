@@ -104,10 +104,12 @@ TEST(Arith) {
   COMPARE(RV_addi(t6, s3, -268), "ef498f93       addi      t6, s3, -268");
   COMPARE(RV_slti(t5, s4, -268), "ef4a2f13       slti      t5, s4, -268");
   COMPARE(RV_sltiu(t4, s5, -268), "ef4abe93       sltiu     t4, s5, -268");
-  COMPARE(RV_xori(t3, s6, -268), "ef4b4e13       xori      t3, s6, -268");
-  COMPARE(RV_ori(s11, zero_reg, -268),
-          "ef406d93       ori       s11, zero_reg, -268");
-  COMPARE(RV_andi(s10, ra, -268), "ef40fd13       andi      s10, ra, -268");
+  COMPARE(RV_xori(t3, s6, static_cast<int16_t>(0xfffffef4)),
+          "ef4b4e13       xori      t3, s6, 0xfffffef4");
+  COMPARE(RV_ori(s11, zero_reg, static_cast<int16_t>(0xfffffef4)),
+          "ef406d93       ori       s11, zero_reg, 0xfffffef4");
+  COMPARE(RV_andi(s10, ra, static_cast<int16_t>(0xfffffef4)),
+          "ef40fd13       andi      s10, ra, 0xfffffef4");
   COMPARE(RV_slli(s9, sp, 17), "01111c93       slli      s9, sp, 17");
   COMPARE(RV_srli(s8, gp, 17), "0111dc13       srli      s8, gp, 17");
   COMPARE(RV_srai(s7, tp, 17), "41125b93       srai      s7, tp, 17");
@@ -147,8 +149,8 @@ TEST(LD_ST) {
 TEST(MISC) {
   SET_UP();
 
-  COMPARE(RV_lui(sp, 100), "00064137       lui       sp, 100");
-  COMPARE(RV_auipc(ra, 2046), "007fe097       auipc     ra, 2046");
+  COMPARE(RV_lui(sp, 0x64), "00064137       lui       sp, 0x64");
+  COMPARE(RV_auipc(ra, 0x7fe), "007fe097       auipc     ra, 0x7fe");
 
   // Jumps
   COMPARE(RV_jal(gp, 100), "064001ef       jal       gp, 100");

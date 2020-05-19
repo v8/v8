@@ -76,6 +76,7 @@ class Decoder {
   void PrintFRs3(Instruction* instr);
   void PrintFRd(Instruction* instr);
   void PrintImm12(Instruction* instr);
+  void PrintImm12X(Instruction* instr);
   void PrintImm20U(Instruction* instr);
   void PrintImm20J(Instruction* instr);
   void PrintShamt(Instruction* instr);
@@ -192,6 +193,11 @@ void Decoder::PrintFRd(Instruction* instr) {
   PrintFPURegister(reg);
 }
 
+void Decoder::PrintImm12X(Instruction* instr) {
+  int32_t imm = instr->Imm12Value();
+  out_buffer_pos_ += SNPrintF(out_buffer_ + out_buffer_pos_, "0x%x", imm);
+}
+
 void Decoder::PrintImm12(Instruction* instr) {
   int32_t imm = instr->Imm12Value();
   out_buffer_pos_ += SNPrintF(out_buffer_ + out_buffer_pos_, "%d", imm);
@@ -209,7 +215,7 @@ void Decoder::PrintStoreOffset(Instruction* instr) {
 
 void Decoder::PrintImm20U(Instruction* instr) {
   int32_t imm = instr->Imm20UValue();
-  out_buffer_pos_ += SNPrintF(out_buffer_ + out_buffer_pos_, "%d", imm);
+  out_buffer_pos_ += SNPrintF(out_buffer_ + out_buffer_pos_, "0x%x", imm);
 }
 
 void Decoder::PrintImm20J(Instruction* instr) {
@@ -380,10 +386,14 @@ int Decoder::FormatOption(Instruction* instr, const char* format) {
       }
       UNREACHABLE();
     }
-    case 'i': {  // 'imm12, 'imm20U, or 'imm20J: Immediates.
+    case 'i': {  // 'imm12, 'imm12x, 'imm20U, or 'imm20J: Immediates.
       if (format[3] == '1') {
         if (format[4] == '2') {
           DCHECK(STRING_STARTS_WITH(format, "imm12"));
+          if (format[5] == 'x') {
+            PrintImm12X(instr);
+            return 6;
+          }
           PrintImm12(instr);
           return 5;
         }
@@ -1037,13 +1047,13 @@ void Decoder::DecodeIType(Instruction* instr) {
       Format(instr, "sltiu     'rd, 'rs1, 'imm12");
       break;
     case RO_XORI:
-      Format(instr, "xori      'rd, 'rs1, 'imm12");
+      Format(instr, "xori      'rd, 'rs1, 'imm12x");
       break;
     case RO_ORI:
-      Format(instr, "ori       'rd, 'rs1, 'imm12");
+      Format(instr, "ori       'rd, 'rs1, 'imm12x");
       break;
     case RO_ANDI:
-      Format(instr, "andi      'rd, 'rs1, 'imm12");
+      Format(instr, "andi      'rd, 'rs1, 'imm12x");
       break;
     case RO_SLLI:
       Format(instr, "slli      'rd, 'rs1, 's64");
