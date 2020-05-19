@@ -404,7 +404,10 @@ void PagedSpace::FreeLinearAllocationArea() {
     }
   }
 
-  InlineAllocationStep(current_top, kNullAddress, kNullAddress, 0);
+  if (!is_local_space()) {
+    InlineAllocationStep(current_top, kNullAddress, kNullAddress, 0);
+  }
+
   SetTopAndLimit(kNullAddress, kNullAddress);
   DCHECK_GE(current_limit, current_top);
 
