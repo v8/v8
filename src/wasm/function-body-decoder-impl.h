@@ -1636,7 +1636,9 @@ class WasmDecoder : public Decoder {
             return 2;
 
           default:
-            UNREACHABLE();
+            // This is unreachable except for malformed modules.
+            decoder->error(pc, "invalid gc opcode");
+            return 2;
         }
       }
       default:
