@@ -412,6 +412,16 @@
   'test-run-wasm/RunWasmTurbofan_I32UConvertF32': [SKIP],
   'test-run-wasm/RunWasmTurbofan_StoreMem_offset_oob': [SKIP],
 
+  'test-code-assembler/SimpleCallJSFunction1Arg': [SKIP],
+  'test-code-assembler/SimpleCallJSFunction2Arg': [SKIP],
+
+  'test-torque/TestGotoLabelWithTwoParameters': [SKIP],
+  'test-torque/TestGotoLabel': [SKIP],
+  'test-torque/TestFunctionPointers': [SKIP],
+  'test-torque/TestGotoLabelWithOneParameter': [SKIP],
+  'test-torque/TestUnsafeCast': [SKIP],
+  'test-torque/TestPartiallyUnusedLabel': [SKIP],
+  
 }],
 
 ##############################################################################

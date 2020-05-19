@@ -1499,6 +1499,24 @@ void TurboAssembler::MultiPush(RegList regs) {
   int16_t stack_offset = num_to_push * kPointerSize;
 
   Dsubu(sp, sp, Operand(stack_offset));
+  // GPRs are pushed onto the stack iframe in the following order: ra (if bit
+  // set), fp (if bit set), other GPRs (if bit set) in decreasing register
+  // numbers (e.g., a4, a3, a2, a1)
+
+  // On RISCV, ra and fp have lower register numbers than other GPRs (unlike
+  // MIPS) but need to be pushed first, so they are handled separately from the
+  // loop below
+  if ((regs & ra.bit()) != 0) {
+    stack_offset -= kPointerSize;
+    Sd(ra, MemOperand(sp, stack_offset));
+  }
+  if ((regs & fp.bit()) != 0) {
+    stack_offset -= kPointerSize;
+    Sd(fp, MemOperand(sp, stack_offset));
+  }
+
+  // push the rest of the GPRs in decreasing register numbers
+  regs &= (~(ra.bit() | fp.bit()));
   for (int16_t i = kNumRegisters - 1; i >= 0; i--) {
     if ((regs & (1 << i)) != 0) {
       stack_offset -= kPointerSize;
@@ -1510,11 +1528,27 @@ void TurboAssembler::MultiPush(RegList regs) {
 void TurboAssembler::MultiPop(RegList regs) {
   int16_t stack_offset = 0;
 
+  // GPRs are popped from the stack frame in the following order: other GPRs (if
+  // bit set) in increasing register numbers (e.g., a0, a1, a2, a3), fp (if bit
+  // set), ra (if bit set)
+  RegList original = regs;
+
+  // On RISCV, fp and ra have lower register numbers from other GPRs but they
+  // need to be popped last, so they are handled separately
+  regs &= ~(ra.bit() | fp.bit());
   for (int16_t i = 0; i < kNumRegisters; i++) {
     if ((regs & (1 << i)) != 0) {
       Ld(ToRegister(i), MemOperand(sp, stack_offset));
       stack_offset += kPointerSize;
     }
+  }
+  if ((original & fp.bit()) != 0) {
+    Ld(fp, MemOperand(sp, stack_offset));
+    stack_offset += kPointerSize;
+  }
+  if ((original & ra.bit()) != 0) {
+    Ld(ra, MemOperand(sp, stack_offset));
+    stack_offset += kPointerSize;
   }
   RV_addi(sp, sp, stack_offset);
 }
