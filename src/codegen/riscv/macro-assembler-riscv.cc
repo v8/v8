@@ -1138,7 +1138,7 @@ void TurboAssembler::UnalignedStoreHelper(Register rd, const MemOperand& rs,
          scratch_other != source.rm());
 
   RV_sb(rd, source.rm(), source.offset());
-  for (size_t i = 0; i <= (NBYTES - 1); i++) {
+  for (size_t i = 1; i <= (NBYTES - 1); i++) {
     RV_srli(scratch_other, rd, i * 8);
     RV_sb(scratch_other, source.rm(), source.offset() + i);
   }
