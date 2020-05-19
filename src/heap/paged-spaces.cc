@@ -318,11 +318,6 @@ void PagedSpace::ShrinkImmortalImmovablePages() {
 }
 
 Page* PagedSpace::Expand() {
-  // TODO(ulan): Remove the mutex as it seems redundant:
-  // Always lock against the main space as we can only adjust capacity and
-  // pages concurrently for the main paged space.
-  base::MutexGuard guard(heap()->paged_space(identity())->mutex());
-
   Page* page =
       heap()->memory_allocator()->AllocatePage(AreaSize(), this, executable());
   if (page == nullptr) return nullptr;
