@@ -672,7 +672,6 @@ DebugInfo::SideEffectState BuiltinGetSideEffectState(Builtins::Name id) {
     case Builtins::kMathMax:
     case Builtins::kMathMin:
     case Builtins::kMathPow:
-    case Builtins::kMathRandom:
     case Builtins::kMathRound:
     case Builtins::kMathSign:
     case Builtins::kMathSin:
