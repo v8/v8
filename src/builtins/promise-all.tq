@@ -18,12 +18,6 @@ const kPromiseBuiltinsPromiseContextLength: constexpr int31
 // case to mark it's done).
 macro CreatePromiseAllResolveElementContext(implicit context: Context)(
     capability: PromiseCapability, nativeContext: NativeContext): Context {
-  // TODO(bmeurer): Manually fold this into a single allocation.
-  const arrayMap = UnsafeCast<Map>(
-      nativeContext[NativeContextSlot::JS_ARRAY_PACKED_ELEMENTS_MAP_INDEX]);
-  const valuesArray = AllocateJSArray(
-      ElementsKind::PACKED_ELEMENTS, arrayMap, IntPtrConstant(0),
-      SmiConstant(0));
   const resolveContext = AllocateSyntheticFunctionContext(
       nativeContext,
       PromiseAllResolveElementContextSlots::kPromiseAllResolveElementLength);
@@ -32,7 +26,7 @@ macro CreatePromiseAllResolveElementContext(implicit context: Context)(
   resolveContext[PromiseAllResolveElementContextSlots::
                      kPromiseAllResolveElementCapabilitySlot] = capability;
   resolveContext[PromiseAllResolveElementContextSlots::
-                     kPromiseAllResolveElementValuesArraySlot] = valuesArray;
+                     kPromiseAllResolveElementValuesSlot] = kEmptyFixedArray;
   return resolveContext;
 }
 
@@ -283,30 +277,36 @@ Reject(Object) {
                             kPromiseAllResolveElementRemainingSlot] =
       remainingElementsCount;
   if (remainingElementsCount > 0) {
-    // Pre-allocate the backing store for the {values_array} to the desired
-    // capacity here. We may already have elements here in case of some
-    // fancy Thenable that calls the resolve callback immediately, so we need
-    // to handle that correctly here.
-    const valuesArray = UnsafeCast<JSArray>(
+    // Pre-allocate the backing store for the {values} to the desired
+    // capacity. We may already have elements in "values" - this happens
+    // when the Thenable calls the resolve callback immediately.
+    let values = UnsafeCast<FixedArray>(
         resolveElementContext[PromiseAllResolveElementContextSlots::
-                                  kPromiseAllResolveElementValuesArraySlot]);
-    const oldElements = UnsafeCast<FixedArray>(valuesArray.elements);
-    const oldCapacity = oldElements.length_intptr;
-    const newCapacity = SmiUntag(index);
+                                  kPromiseAllResolveElementValuesSlot]);
+    // 'index' is a 1-based index and incremented after every Promise. Later we
+    // use 'values' as a 0-based array, so capacity 'index - 1' is enough.
+    const newCapacity = SmiUntag(index) - 1;
+
+    const oldCapacity = values.length_intptr;
     if (oldCapacity < newCapacity) {
-      valuesArray.elements =
-          ExtractFixedArray(oldElements, 0, oldCapacity, newCapacity);
+      values = ExtractFixedArray(values, 0, oldCapacity, newCapacity);
+      resolveElementContext[PromiseAllResolveElementContextSlots::
+                                kPromiseAllResolveElementValuesSlot] = values;
     }
   } else
     deferred {
+      assert(remainingElementsCount == 0);
       // If remainingElementsCount.[[Value]] is 0, then
       //     Let valuesArray be CreateArrayFromList(values).
       //     Perform ? Call(resultCapability.[[Resolve]], undefined,
       //                    « valuesArray »).
-      assert(remainingElementsCount == 0);
-      const valuesArray = UnsafeCast<JSAny>(
+
+      const values = UnsafeCast<FixedArray>(
           resolveElementContext[PromiseAllResolveElementContextSlots::
-                                    kPromiseAllResolveElementValuesArraySlot]);
+                                    kPromiseAllResolveElementValuesSlot]);
+      const arrayMap = UnsafeCast<Map>(
+          nativeContext[NativeContextSlot::JS_ARRAY_PACKED_ELEMENTS_MAP_INDEX]);
+      const valuesArray = NewJSArray(arrayMap, values);
       Call(nativeContext, UnsafeCast<JSAny>(resolve), Undefined, valuesArray);
     }
 

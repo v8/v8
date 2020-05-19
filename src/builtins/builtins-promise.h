@@ -35,7 +35,7 @@ class PromiseBuiltins {
     kPromiseAllResolveElementCapabilitySlot,
 
     // Values array from Promise.all
-    kPromiseAllResolveElementValuesArraySlot,
+    kPromiseAllResolveElementValuesSlot,
 
     kPromiseAllResolveElementLength
   };

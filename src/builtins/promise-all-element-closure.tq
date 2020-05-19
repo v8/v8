@@ -66,7 +66,7 @@ extern enum PromiseAllResolveElementContextSlots extends int31
 constexpr 'PromiseBuiltins::PromiseAllResolveElementContextSlots' {
   kPromiseAllResolveElementRemainingSlot,
   kPromiseAllResolveElementCapabilitySlot,
-  kPromiseAllResolveElementValuesArraySlot,
+  kPromiseAllResolveElementValuesSlot,
   kPromiseAllResolveElementLength
 }
 extern operator '[]=' macro StoreContextElement(
@@ -109,45 +109,22 @@ transitioning macro PromiseAllResolveElementClosure<F: type>(
   assert(identityHash > 0);
   const index = identityHash - 1;
 
-  // Check if we need to grow the [[ValuesArray]] to store {value} at {index}.
-  const valuesArray = UnsafeCast<JSArray>(
-      context[PromiseAllResolveElementContextSlots::
-                  kPromiseAllResolveElementValuesArraySlot]);
-  const elements = UnsafeCast<FixedArray>(valuesArray.elements);
-  const valuesLength = Convert<intptr>(valuesArray.length);
-  if (index < valuesLength) {
-    // The {index} is in bounds of the {values_array},
-    // just store the {value} and continue.
-    elements.objects[index] = updatedValue;
-  } else {
-    // Check if we need to grow the backing store.
-    const newLength = index + 1;
-    const elementsLength = elements.length_intptr;
-    if (index < elementsLength) {
-      // The {index} is within bounds of the {elements} backing store, so
-      // just store the {value} and update the "length" of the {values_array}.
-      valuesArray.length = Convert<Smi>(newLength);
-      elements.objects[index] = updatedValue;
-    } else
-      deferred {
-        // We need to grow the backing store to fit the {index} as well.
-        const newElementsLength = IntPtrMin(
-            CalculateNewElementsCapacity(newLength),
-            kPropertyArrayHashFieldMax + 1);
-        assert(index < newElementsLength);
-        assert(elementsLength < newElementsLength);
-        const newElements =
-            ExtractFixedArray(elements, 0, elementsLength, newElementsLength);
-        newElements.objects[index] = updatedValue;
-
-        // Update backing store and "length" on {values_array}.
-        valuesArray.elements = newElements;
-        valuesArray.length = Convert<Smi>(newLength);
-      }
-  }
   let remainingElementsCount =
       UnsafeCast<Smi>(context[PromiseAllResolveElementContextSlots::
                                   kPromiseAllResolveElementRemainingSlot]);
+
+  let values =
+      UnsafeCast<FixedArray>(context[PromiseAllResolveElementContextSlots::
+                                         kPromiseAllResolveElementValuesSlot]);
+  const newCapacity = index + 1;
+  if (newCapacity > values.length_intptr) deferred {
+      // This happens only when the promises are resolved during iteration.
+      values = ExtractFixedArray(values, 0, values.length_intptr, newCapacity);
+      context[PromiseAllResolveElementContextSlots::
+                  kPromiseAllResolveElementValuesSlot] = values;
+    }
+  values.objects[index] = updatedValue;
+
   remainingElementsCount = remainingElementsCount - 1;
   context[PromiseAllResolveElementContextSlots::
               kPromiseAllResolveElementRemainingSlot] = remainingElementsCount;
@@ -156,6 +133,9 @@ transitioning macro PromiseAllResolveElementClosure<F: type>(
         context[PromiseAllResolveElementContextSlots::
                     kPromiseAllResolveElementCapabilitySlot]);
     const resolve = UnsafeCast<JSAny>(capability.resolve);
+    const arrayMap = UnsafeCast<Map>(
+        nativeContext[NativeContextSlot::JS_ARRAY_PACKED_ELEMENTS_MAP_INDEX]);
+    const valuesArray = NewJSArray(arrayMap, values);
     Call(context, resolve, Undefined, valuesArray);
   }
   return Undefined;
