@@ -212,10 +212,14 @@ class WasmGenerator {
     Generate(kWasmI32, data);
     builder_->EmitWithI32V(
         kExprBrIf, static_cast<uint32_t>(blocks_.size()) - 1 - target_block);
-    for (size_t i = 0; i < break_types.size() - 1; ++i) {
+    for (size_t i = 1; i < break_types.size(); ++i) {
       builder_->Emit(kExprDrop);
     }
-    ConvertOrGenerate(break_types.front(), ValueType(wanted_type), data);
+    if (break_types.empty()) {
+      Generate(ValueType(wanted_type), data);
+    } else {
+      ConvertOrGenerate(break_types.front(), ValueType(wanted_type), data);
+    }
   }
 
   // TODO(eholk): make this function constexpr once gcc supports it
