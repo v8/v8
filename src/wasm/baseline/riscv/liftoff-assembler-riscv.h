@@ -909,47 +909,44 @@ bool LiftoffAssembler::emit_type_conversion(WasmOpcode opcode,
     case kExprI64SConvertF64:
     case kExprI64UConvertF64:
     case kExprF32ConvertF64: {
-      // Save csr_fflags to scratch & clear kInvalidOperation
-      RV_csrrci(kScratchReg2, csr_fflags, kInvalidOperation);
-      // real conversion
+      // real conversion, if src is out-of-bound of target integer types,
+      // kScratchReg is set to 0
       switch (opcode) {
         case kExprI32SConvertF32:
-          RV_fcvt_w_s(dst.gp(), src.fp());
+          Trunc_w_s(dst.gp(), src.fp(), kScratchReg);
           break;
         case kExprI32UConvertF32:
-          RV_fcvt_wu_s(dst.gp(), src.fp());
+          Trunc_uw_s(dst.gp(), src.fp(), kScratchReg);
           break;
         case kExprI32SConvertF64:
-          RV_fcvt_w_d(dst.gp(), src.fp());
+          Trunc_w_d(dst.gp(), src.fp(), kScratchReg);
           break;
         case kExprI32UConvertF64:
-          RV_fcvt_wu_d(dst.gp(), src.fp());
+          Trunc_uw_d(dst.gp(), src.fp(), kScratchReg);
           break;
         case kExprI64SConvertF32:
-          RV_fcvt_l_s(dst.gp(), src.fp());
+          Trunc_l_s(dst.gp(), src.fp(), kScratchReg);
           break;
         case kExprI64UConvertF32:
-          RV_fcvt_lu_s(dst.gp(), src.fp());
+          Trunc_ul_s(dst.gp(), src.fp(), kScratchReg);
           break;
         case kExprI64SConvertF64:
-          RV_fcvt_l_d(dst.gp(), src.fp());
+          Trunc_l_d(dst.gp(), src.fp(), kScratchReg);
           break;
         case kExprI64UConvertF64:
-          RV_fcvt_lu_d(dst.gp(), src.fp());
+          Trunc_ul_d(dst.gp(), src.fp(), kScratchReg);
           break;
         case kExprF32ConvertF64:
           RV_fcvt_s_d(dst.fp(), src.fp());
+          // FIXME (?): what if double cannot be represented by float?
+          // Trunc_s_d(dst.gp(), src.fp(), kScratchReg);
           break;
         default:
           UNREACHABLE();
       }
-      // trap if the Invalid Operation flag was set
-      RV_frflags(kScratchReg);
-      RV_andi(kScratchReg, kScratchReg, kInvalidOperation);
-      JumpIfEqual(kScratchReg, kInvalidOperation, trap);
 
-      // restore csr_fflags
-      RV_csrw(csr_fflags, kScratchReg2);
+      // Checking if trap.
+      TurboAssembler::Branch(trap, eq, kScratchReg, Operand(zero_reg));
 
       return true;
     }
