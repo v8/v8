@@ -33,7 +33,12 @@
   /* Official proposal: https://github.com/WebAssembly/gc */                   \
   /* Prototype engineering spec: https://bit.ly/3cWcm6Q */                     \
   /* V8 side owner: jkummerow */                                               \
-  V(gc, "garbage collection", false)
+  V(gc, "garbage collection", false)                                           \
+                                                                               \
+  /* Typed function references proposal. */                                    \
+  /* Official proposal: https://github.com/WebAssembly/function-references */  \
+  /* V8 side owner: ahaas */                                                   \
+  V(typed_funcref, "typed function references", false)
 
 // #############################################################################
 // Staged features (disabled by default, but enabled via --wasm-staging (also

@@ -1589,7 +1589,7 @@ void WebAssemblyTableGetLength(
       v8::Number::New(isolate, receiver->current_length()));
 }
 
-// WebAssembly.Table.grow(num) -> num
+// WebAssembly.Table.grow(num, init_value = null) -> num
 void WebAssemblyTableGrow(const v8::FunctionCallbackInfo<v8::Value>& args) {
   v8::Isolate* isolate = args.GetIsolate();
   i::Isolate* i_isolate = reinterpret_cast<i::Isolate*>(isolate);
@@ -1603,8 +1603,20 @@ void WebAssemblyTableGrow(const v8::FunctionCallbackInfo<v8::Value>& args) {
     return;
   }
 
-  int old_size = i::WasmTableObject::Grow(i_isolate, receiver, grow_by,
-                                          i_isolate->factory()->null_value());
+  i::Handle<i::Object> init_value = i_isolate->factory()->null_value();
+  auto enabled_features = i::wasm::WasmFeatures::FromIsolate(i_isolate);
+  if (enabled_features.has_typed_funcref()) {
+    if (args.Length() >= 2 && !args[1]->IsUndefined()) {
+      init_value = Utils::OpenHandle(*args[1]);
+    }
+    if (!i::WasmTableObject::IsValidElement(i_isolate, receiver, init_value)) {
+      thrower.TypeError("Argument 1 must be a valid type for the table");
+      return;
+    }
+  }
+
+  int old_size =
+      i::WasmTableObject::Grow(i_isolate, receiver, grow_by, init_value);
 
   if (old_size < 0) {
     thrower.RangeError("failed to grow table by %u", grow_by);
