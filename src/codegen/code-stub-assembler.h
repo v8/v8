@@ -2659,9 +2659,6 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
   TNode<BoolT> IsCustomElementsReceiverInstanceType(
       TNode<Int32T> instance_type);
   TNode<BoolT> IsSpecialReceiverMap(SloppyTNode<Map> map);
-  // Returns true if the map corresponds to non-special fast or dictionary
-  // object.
-  TNode<BoolT> IsSimpleObjectMap(TNode<Map> map);
   TNode<BoolT> IsStringInstanceType(SloppyTNode<Int32T> instance_type);
   TNode<BoolT> IsString(SloppyTNode<HeapObject> object);
   TNode<BoolT> IsSymbolInstanceType(SloppyTNode<Int32T> instance_type);

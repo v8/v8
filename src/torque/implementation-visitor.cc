@@ -2,7 +2,10 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#include "src/torque/implementation-visitor.h"
+
 #include <algorithm>
+#include <iomanip>
 #include <string>
 
 #include "src/base/optional.h"
@@ -10,7 +13,6 @@
 #include "src/torque/csa-generator.h"
 #include "src/torque/declaration-visitor.h"
 #include "src/torque/global-context.h"
-#include "src/torque/implementation-visitor.h"
 #include "src/torque/parameter-difference.h"
 #include "src/torque/server-data.h"
 #include "src/torque/type-inference.h"
@@ -787,7 +789,10 @@ VisitResult ImplementationVisitor::Visit(NumberLiteralExpression* expr) {
       }
     }
   }
-  return VisitResult{result_type, ToString(expr->number)};
+  std::stringstream str;
+  str << std::setprecision(std::numeric_limits<double>::digits10 + 1)
+      << expr->number;
+  return VisitResult{result_type, str.str()};
 }
 
 VisitResult ImplementationVisitor::Visit(AssumeTypeImpossibleExpression* expr) {

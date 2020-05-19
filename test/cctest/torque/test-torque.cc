@@ -756,6 +756,26 @@ TEST(TestBitFieldUintptrOps) {
   ft.Call(ft.Val(val2), ft.Val(val3));
 }
 
+TEST(TestBitFieldMultipleFlags) {
+  CcTest::InitializeVM();
+  Isolate* isolate(CcTest::i_isolate());
+  i::HandleScope scope(isolate);
+  const int kNumParams = 3;
+  CodeAssemblerTester asm_tester(isolate, kNumParams);
+  TestTorqueAssembler m(asm_tester.state());
+  {
+    TNode<BoolT> a =
+        m.UncheckedCast<BoolT>(m.Unsigned(m.SmiToInt32(m.Parameter(0))));
+    TNode<Int32T> b = m.SmiToInt32(m.Parameter(1));
+    TNode<BoolT> c =
+        m.UncheckedCast<BoolT>(m.Unsigned(m.SmiToInt32(m.Parameter(2))));
+    m.TestBitFieldMultipleFlags(a, b, c);
+    m.Return(m.UndefinedConstant());
+  }
+  FunctionTester ft(asm_tester.GenerateCode(), kNumParams);
+  // No need to call it; we just checked StaticAsserts during compilation.
+}
+
 TEST(TestTestParentFrameArguments) {
   CcTest::InitializeVM();
   Isolate* isolate(CcTest::i_isolate());

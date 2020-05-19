@@ -8401,16 +8401,6 @@ void CodeStubAssembler::Lookup(TNode<Name> unique_name, TNode<Array> array,
   }
 }
 
-TNode<BoolT> CodeStubAssembler::IsSimpleObjectMap(TNode<Map> map) {
-  uint32_t mask = Map::Bits1::HasNamedInterceptorBit::kMask |
-                  Map::Bits1::IsAccessCheckNeededBit::kMask;
-  // !IsSpecialReceiverType && !IsNamedInterceptor && !IsAccessCheckNeeded
-  return Select<BoolT>(
-      IsSpecialReceiverInstanceType(LoadMapInstanceType(map)),
-      [=] { return Int32FalseConstant(); },
-      [=] { return IsClearWord32(LoadMapBitField(map), mask); });
-}
-
 void CodeStubAssembler::TryLookupPropertyInSimpleObject(
     TNode<JSObject> object, TNode<Map> map, TNode<Name> unique_name,
     Label* if_found_fast, Label* if_found_dict,
