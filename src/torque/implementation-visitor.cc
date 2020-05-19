@@ -775,13 +775,16 @@ VisitResult ImplementationVisitor::Visit(AssignmentExpression* expr) {
 }
 
 VisitResult ImplementationVisitor::Visit(NumberLiteralExpression* expr) {
-  int32_t i = static_cast<int32_t>(expr->number);
   const Type* result_type = TypeOracle::GetConstFloat64Type();
-  if (i == expr->number) {
-    if ((i >> 30) == (i >> 31)) {
-      result_type = TypeOracle::GetConstInt31Type();
-    } else {
-      result_type = TypeOracle::GetConstInt32Type();
+  if (expr->number >= std::numeric_limits<int32_t>::min() &&
+      expr->number <= std::numeric_limits<int32_t>::max()) {
+    int32_t i = static_cast<int32_t>(expr->number);
+    if (i == expr->number) {
+      if ((i >> 30) == (i >> 31)) {
+        result_type = TypeOracle::GetConstInt31Type();
+      } else {
+        result_type = TypeOracle::GetConstInt32Type();
+      }
     }
   }
   return VisitResult{result_type, ToString(expr->number)};
