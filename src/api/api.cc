@@ -1274,7 +1274,7 @@ void Context::SetAlignedPointerInEmbedderData(int index, void* value) {
 
 static void InitializeTemplate(i::Handle<i::TemplateInfo> that, int type) {
   that->set_number_of_properties(0);
-  that->set_tag(i::Smi::FromInt(type));
+  that->set_tag(type);
 }
 
 void Template::Set(v8::Local<Name> name, v8::Local<Data> value,
@@ -1286,7 +1286,7 @@ void Template::Set(v8::Local<Name> name, v8::Local<Data> value,
   auto value_obj = Utils::OpenHandle(*value);
   CHECK(!value_obj->IsJSReceiver() || value_obj->IsTemplateInfo());
   if (value_obj->IsObjectTemplateInfo()) {
-    templ->set_serial_number(i::Smi::zero());
+    templ->set_serial_number(0);
     if (templ->IsFunctionTemplateInfo()) {
       i::Handle<i::FunctionTemplateInfo>::cast(templ)->set_do_not_cache(true);
     }
@@ -1336,7 +1336,7 @@ Local<ObjectTemplate> FunctionTemplate::PrototypeTemplate() {
   auto self = Utils::OpenHandle(this);
   i::Isolate* i_isolate = self->GetIsolate();
   ENTER_V8_NO_SCRIPT_NO_EXCEPTION(i_isolate);
-  i::Handle<i::Object> result(self->GetPrototypeTemplate(), i_isolate);
+  i::Handle<i::HeapObject> result(self->GetPrototypeTemplate(), i_isolate);
   if (result->IsUndefined(i_isolate)) {
     // Do not cache prototype objects.
     result = Utils::OpenHandle(
@@ -1351,7 +1351,8 @@ void FunctionTemplate::SetPrototypeProviderTemplate(
   auto self = Utils::OpenHandle(this);
   i::Isolate* i_isolate = self->GetIsolate();
   ENTER_V8_NO_SCRIPT_NO_EXCEPTION(i_isolate);
-  i::Handle<i::Object> result = Utils::OpenHandle(*prototype_provider);
+  i::Handle<i::FunctionTemplateInfo> result =
+      Utils::OpenHandle(*prototype_provider);
   CHECK(self->GetPrototypeTemplate().IsUndefined(i_isolate));
   CHECK(self->GetParentTemplate().IsUndefined(i_isolate));
   i::FunctionTemplateInfo::SetPrototypeProviderTemplate(i_isolate, self,
@@ -1394,7 +1395,7 @@ static Local<FunctionTemplate> FunctionTemplateNew(
     if (!do_not_cache) {
       next_serial_number = isolate->heap()->GetNextTemplateSerialNumber();
     }
-    obj->set_serial_number(i::Smi::FromInt(next_serial_number));
+    obj->set_serial_number(next_serial_number);
   }
   if (callback != nullptr) {
     Utils::ToLocal(obj)->SetCallHandler(callback, data, side_effect_type,
@@ -1605,15 +1606,19 @@ static Local<ObjectTemplate> ObjectTemplateNew(
       i::OBJECT_TEMPLATE_INFO_TYPE, i::AllocationType::kOld);
   i::Handle<i::ObjectTemplateInfo> obj =
       i::Handle<i::ObjectTemplateInfo>::cast(struct_obj);
-  InitializeTemplate(obj, Consts::OBJECT_TEMPLATE);
-  int next_serial_number = 0;
-  if (!do_not_cache) {
-    next_serial_number = isolate->heap()->GetNextTemplateSerialNumber();
+  {
+    // Disallow GC until all fields of obj have acceptable types.
+    i::DisallowHeapAllocation no_gc;
+    InitializeTemplate(obj, Consts::OBJECT_TEMPLATE);
+    int next_serial_number = 0;
+    if (!do_not_cache) {
+      next_serial_number = isolate->heap()->GetNextTemplateSerialNumber();
+    }
+    obj->set_serial_number(next_serial_number);
+    obj->set_data(0);
   }
-  obj->set_serial_number(i::Smi::FromInt(next_serial_number));
   if (!constructor.IsEmpty())
     obj->set_constructor(*Utils::OpenHandle(*constructor));
-  obj->set_data(i::Smi::zero());
   return Utils::ToLocal(obj);
 }
 
@@ -5802,9 +5807,9 @@ static i::Handle<ObjectType> CreateEnvironment(
     v8::Local<ObjectTemplate> proxy_template;
     i::Handle<i::FunctionTemplateInfo> proxy_constructor;
     i::Handle<i::FunctionTemplateInfo> global_constructor;
-    i::Handle<i::Object> named_interceptor(
+    i::Handle<i::HeapObject> named_interceptor(
         isolate->factory()->undefined_value());
-    i::Handle<i::Object> indexed_interceptor(
+    i::Handle<i::HeapObject> indexed_interceptor(
         isolate->factory()->undefined_value());
 
     if (!maybe_global_template.IsEmpty()) {

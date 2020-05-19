@@ -540,7 +540,7 @@ void Serializer::ObjectSerializer::Serialize() {
 
   if (object_.IsScript()) {
     // Clear cached line ends.
-    Object undefined = ReadOnlyRoots(serializer_->isolate()).undefined_value();
+    Oddball undefined = ReadOnlyRoots(serializer_->isolate()).undefined_value();
     Script::cast(object_).set_line_ends(undefined);
   }
 

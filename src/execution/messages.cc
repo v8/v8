@@ -311,18 +311,18 @@ MaybeHandle<String> FormatEvalOrigin(Isolate* isolate, Handle<Script> script) {
 
 }  // namespace
 
-Handle<Object> StackFrameBase::GetEvalOrigin() {
+Handle<PrimitiveHeapObject> StackFrameBase::GetEvalOrigin() {
   if (!HasScript() || !IsEval()) return isolate_->factory()->undefined_value();
   return FormatEvalOrigin(isolate_, GetScript()).ToHandleChecked();
 }
 
-Handle<Object> StackFrameBase::GetWasmModuleName() {
+Handle<PrimitiveHeapObject> StackFrameBase::GetWasmModuleName() {
   return isolate_->factory()->undefined_value();
 }
 
 int StackFrameBase::GetWasmFunctionIndex() { return StackFrameBase::kNone; }
 
-Handle<Object> StackFrameBase::GetWasmInstance() {
+Handle<HeapObject> StackFrameBase::GetWasmInstance() {
   return isolate_->factory()->undefined_value();
 }
 
@@ -376,7 +376,7 @@ Handle<Object> JSStackFrame::GetFileName() {
   return handle(GetScript()->name(), isolate_);
 }
 
-Handle<Object> JSStackFrame::GetFunctionName() {
+Handle<PrimitiveHeapObject> JSStackFrame::GetFunctionName() {
   Handle<String> result = JSFunction::GetDebugName(function_);
   if (result->length() != 0) return result;
 
@@ -419,7 +419,7 @@ Handle<Object> JSStackFrame::GetScriptNameOrSourceUrl() {
   return ScriptNameOrSourceUrl(GetScript(), isolate_);
 }
 
-Handle<Object> JSStackFrame::GetMethodName() {
+Handle<PrimitiveHeapObject> JSStackFrame::GetMethodName() {
   if (receiver_->IsNullOrUndefined(isolate_)) {
     return isolate_->factory()->null_value();
   }
@@ -453,7 +453,7 @@ Handle<Object> JSStackFrame::GetMethodName() {
   }
 
   HandleScope outer_scope(isolate_);
-  Handle<Object> result;
+  Handle<PrimitiveHeapObject> result;
   for (PrototypeIterator iter(isolate_, receiver, kStartAtReceiver);
        !iter.IsAtEnd(); iter.Advance()) {
     Handle<Object> current = PrototypeIterator::GetCurrent(iter);
@@ -479,7 +479,7 @@ Handle<Object> JSStackFrame::GetMethodName() {
   return isolate_->factory()->null_value();
 }
 
-Handle<Object> JSStackFrame::GetTypeName() {
+Handle<PrimitiveHeapObject> JSStackFrame::GetTypeName() {
   // TODO(jgruber): Check for strict/constructor here as in
   // CallSitePrototypeGetThis.
 
@@ -565,8 +565,8 @@ Handle<Object> WasmStackFrame::GetFunction() const {
   return handle(Smi::FromInt(wasm_func_index_), isolate_);
 }
 
-Handle<Object> WasmStackFrame::GetFunctionName() {
-  Handle<Object> name;
+Handle<PrimitiveHeapObject> WasmStackFrame::GetFunctionName() {
+  Handle<PrimitiveHeapObject> name;
   Handle<WasmModuleObject> module_object(wasm_instance_->module_object(),
                                          isolate_);
   if (!WasmModuleObject::GetFunctionNameOrNull(isolate_, module_object,
@@ -583,8 +583,8 @@ Handle<Object> WasmStackFrame::GetScriptNameOrSourceUrl() {
   return ScriptNameOrSourceUrl(script, isolate_);
 }
 
-Handle<Object> WasmStackFrame::GetWasmModuleName() {
-  Handle<Object> module_name;
+Handle<PrimitiveHeapObject> WasmStackFrame::GetWasmModuleName() {
+  Handle<PrimitiveHeapObject> module_name;
   Handle<WasmModuleObject> module_object(wasm_instance_->module_object(),
                                          isolate_);
   if (!WasmModuleObject::GetModuleNameOrNull(isolate_, module_object)
@@ -594,7 +594,7 @@ Handle<Object> WasmStackFrame::GetWasmModuleName() {
   return module_name;
 }
 
-Handle<Object> WasmStackFrame::GetWasmInstance() { return wasm_instance_; }
+Handle<HeapObject> WasmStackFrame::GetWasmInstance() { return wasm_instance_; }
 
 int WasmStackFrame::GetPosition() const {
   return IsInterpreted() ? offset_ : code_->GetSourcePositionBefore(offset_);
@@ -608,7 +608,9 @@ int WasmStackFrame::GetModuleOffset() const {
   return function_offset + GetPosition();
 }
 
-Handle<Object> WasmStackFrame::Null() const {
+Handle<Object> WasmStackFrame::GetFileName() { return Null(); }
+
+Handle<PrimitiveHeapObject> WasmStackFrame::Null() const {
   return isolate_->factory()->null_value();
 }
 
