@@ -4,6 +4,8 @@
 
 #include "src/heap/paged-spaces.h"
 
+#include "src/base/optional.h"
+#include "src/base/platform/mutex.h"
 #include "src/execution/isolate.h"
 #include "src/execution/vm-state-inl.h"
 #include "src/heap/array-buffer-sweeper.h"
@@ -317,10 +319,24 @@ void PagedSpace::ShrinkImmortalImmovablePages() {
   }
 }
 
+Page* PagedSpace::AllocatePage() {
+  return heap()->memory_allocator()->AllocatePage(AreaSize(), this,
+                                                  executable());
+}
+
 Page* PagedSpace::Expand() {
-  Page* page =
-      heap()->memory_allocator()->AllocatePage(AreaSize(), this, executable());
+  Page* page = AllocatePage();
   if (page == nullptr) return nullptr;
+  AddPage(page);
+  Free(page->area_start(), page->area_size(),
+       SpaceAccountingMode::kSpaceAccounted);
+  return page;
+}
+
+Page* PagedSpace::ExpandBackground() {
+  Page* page = AllocatePage();
+  if (page == nullptr) return nullptr;
+  base::MutexGuard guard(&allocation_mutex_);
   AddPage(page);
   Free(page->area_start(), page->area_size(),
        SpaceAccountingMode::kSpaceAccounted);
@@ -533,7 +549,6 @@ PagedSpace::SlowGetLinearAllocationAreaBackground(LocalHeap* local_heap,
                                                   AllocationOrigin origin) {
   DCHECK(!is_local_space() && identity() == OLD_SPACE);
   DCHECK_EQ(origin, AllocationOrigin::kRuntime);
-  base::MutexGuard lock(&allocation_mutex_);
 
   auto result = TryAllocationFromFreeListBackground(
       min_size_in_bytes, max_size_in_bytes, alignment, origin);
@@ -544,7 +559,10 @@ PagedSpace::SlowGetLinearAllocationAreaBackground(LocalHeap* local_heap,
   if (collector->sweeping_in_progress()) {
     // First try to refill the free-list, concurrent sweeper threads
     // may have freed some objects in the meantime.
-    RefillFreeList();
+    {
+      base::MutexGuard lock(&allocation_mutex_);
+      RefillFreeList();
+    }
 
     // Retry the free list allocation.
     auto result = TryAllocationFromFreeListBackground(
@@ -559,18 +577,27 @@ PagedSpace::SlowGetLinearAllocationAreaBackground(LocalHeap* local_heap,
     int max_freed = collector->sweeper()->ParallelSweepSpace(
         identity(), static_cast<int>(min_size_in_bytes), kMaxPagesToSweep,
         invalidated_slots_in_free_space);
-    RefillFreeList();
-    if (static_cast<size_t>(max_freed) >= min_size_in_bytes)
-      return TryAllocationFromFreeListBackground(
+
+    {
+      base::MutexGuard lock(&allocation_mutex_);
+      RefillFreeList();
+    }
+
+    if (static_cast<size_t>(max_freed) >= min_size_in_bytes) {
+      auto result = TryAllocationFromFreeListBackground(
           min_size_in_bytes, max_size_in_bytes, alignment, origin);
+      if (result) return result;
+    }
   }
 
   if (heap()->ShouldExpandOldGenerationOnSlowAllocation(local_heap) &&
-      heap()->CanExpandOldGenerationBackground(AreaSize()) && Expand()) {
+      heap()->CanExpandOldGenerationBackground(AreaSize()) &&
+      ExpandBackground()) {
     DCHECK((CountTotalPages() > 1) ||
            (min_size_in_bytes <= free_list_->Available()));
-    return TryAllocationFromFreeListBackground(
+    auto result = TryAllocationFromFreeListBackground(
         min_size_in_bytes, max_size_in_bytes, alignment, origin);
+    if (result) return result;
   }
 
   // TODO(dinfuehr): Complete sweeping here and try allocation again.
@@ -583,6 +610,7 @@ PagedSpace::TryAllocationFromFreeListBackground(size_t min_size_in_bytes,
                                                 size_t max_size_in_bytes,
                                                 AllocationAlignment alignment,
                                                 AllocationOrigin origin) {
+  base::MutexGuard lock(&allocation_mutex_);
   DCHECK_LE(min_size_in_bytes, max_size_in_bytes);
   DCHECK_EQ(identity(), OLD_SPACE);
 

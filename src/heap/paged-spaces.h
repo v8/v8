@@ -338,6 +338,8 @@ class V8_EXPORT_PRIVATE PagedSpace
   // it cannot allocate requested number of pages from OS, or if the hard heap
   // size limit has been hit.
   Page* Expand();
+  Page* ExpandBackground();
+  Page* AllocatePage();
 
   // Sets up a linear allocation area that fits the given number of bytes.
   // Returns false if there is not enough space and the caller has to retry
