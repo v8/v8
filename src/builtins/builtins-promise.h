@@ -48,7 +48,7 @@ class PromiseBuiltins {
     kPromiseAnyRejectElementCapabilitySlot,
 
     // errors array from Promise.any
-    kPromiseAnyRejectElementErrorsArraySlot,
+    kPromiseAnyRejectElementErrorsSlot,
     kPromiseAnyRejectElementLength
   };
 

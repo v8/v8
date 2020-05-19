@@ -92,3 +92,27 @@ load('test/mjsunit/test-async.js');
     })();
   });
 })();
+
+// Test that we return a proper array even if (custom) "then" invokes the
+// reject callbacks right away.
+(function() {
+  class MyPromise extends Promise {
+    constructor(executor, id) {
+      super(executor);
+      this.id = id;
+    }
+
+    then(resolve, reject) {
+      if (this.id) return reject(this.id);
+      return super.then(resolve, reject)
+    }
+  };
+  const a = new MyPromise(() => {}, 'a');
+  const b = new MyPromise(() => {}, 'b');
+  testAsync(assert => {
+    assert.plan(1);
+    MyPromise.any([a, b]).then(
+      assert.unreachable,
+        (e) => { assert.equals(['a', 'b'], e.errors) });
+  });
+})();

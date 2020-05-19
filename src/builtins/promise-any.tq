@@ -9,7 +9,7 @@ extern enum PromiseAnyRejectElementContextSlots extends int31
 constexpr 'PromiseBuiltins::PromiseAnyRejectElementContextSlots' {
   kPromiseAnyRejectElementRemainingSlot,
   kPromiseAnyRejectElementCapabilitySlot,
-  kPromiseAnyRejectElementErrorsArraySlot,
+  kPromiseAnyRejectElementErrorsSlot,
   kPromiseAnyRejectElementLength
 }
 
@@ -35,9 +35,8 @@ transitioning macro CreatePromiseAnyRejectElementContext(
                     kPromiseAnyRejectElementRemainingSlot] = SmiConstant(1);
   rejectContext[PromiseAnyRejectElementContextSlots::
                     kPromiseAnyRejectElementCapabilitySlot] = capability;
-  // Will be set when handling the first rejection.
   rejectContext[PromiseAnyRejectElementContextSlots::
-                    kPromiseAnyRejectElementErrorsArraySlot] = Undefined;
+                    kPromiseAnyRejectElementErrorsSlot] = kEmptyFixedArray;
   return rejectContext;
 }
 
@@ -91,6 +90,11 @@ PromiseAnyRejectElementClosure(
   assert(identityHash > 0);
   const index = identityHash - 1;
 
+  // 6. Let errors be F.[[Errors]].
+  let errors =
+      UnsafeCast<FixedArray>(context[PromiseAnyRejectElementContextSlots::
+                                         kPromiseAnyRejectElementErrorsSlot]);
+
   // 7. Let promiseCapability be F.[[Capability]].
 
   // 8. Let remainingElementsCount be F.[[RemainingElements]].
@@ -98,23 +102,14 @@ PromiseAnyRejectElementClosure(
       UnsafeCast<Smi>(context[PromiseAnyRejectElementContextSlots::
                                   kPromiseAnyRejectElementRemainingSlot]);
 
-  // 6. Let errors be F.[[Errors]].
-  let errorsArray: FixedArray;
-  if (context[PromiseAnyRejectElementContextSlots::
-                  kPromiseAnyRejectElementErrorsArraySlot] == Undefined) {
-    // This is the first rejection function to be called.
-    errorsArray =
-        AllocateZeroedFixedArray(Convert<intptr>(remainingElementsCount));
-    context[PromiseAnyRejectElementContextSlots::
-                kPromiseAnyRejectElementErrorsArraySlot] = errorsArray;
-  } else {
-    errorsArray = UnsafeCast<FixedArray>(
-        context[PromiseAnyRejectElementContextSlots::
-                    kPromiseAnyRejectElementErrorsArraySlot]);
-  }
-
   // 9. Set errors[index] to x.
-  errorsArray.objects[index] = value;
+  const newCapacity = IntPtrMax(SmiUntag(remainingElementsCount), index + 1);
+  if (newCapacity > errors.length_intptr) deferred {
+      errors = ExtractFixedArray(errors, 0, errors.length_intptr, newCapacity);
+      context[PromiseAnyRejectElementContextSlots::
+                  kPromiseAnyRejectElementErrorsSlot] = errors;
+    }
+  errors.objects[index] = value;
 
   // 10. Set remainingElementsCount.[[Value]] to
   // remainingElementsCount.[[Value]] - 1.
@@ -127,7 +122,7 @@ PromiseAnyRejectElementClosure(
     //   a. Let error be a newly created AggregateError object.
 
     //   b. Set error.[[AggregateErrors]] to errors.
-    const error = ConstructAggregateError(errorsArray);
+    const error = ConstructAggregateError(errors);
     //   c. Return ? Call(promiseCapability.[[Reject]], undefined, « error »).
     const capability = UnsafeCast<PromiseCapability>(
         context[PromiseAnyRejectElementContextSlots::
@@ -298,7 +293,14 @@ Reject(Object) {
   if (remainingElementsCount == 0) deferred {
       // 1. Let error be a newly created AggregateError object.
       // 2. Set error.[[AggregateErrors]] to errors.
-      const error = ConstructAggregateError(kEmptyFixedArray);
+
+      // We may already have elements in "errors" - this happens when the
+      // Thenable calls the reject callback immediately.
+      const errors = UnsafeCast<FixedArray>(
+          rejectElementContext[PromiseAnyRejectElementContextSlots::
+                                   kPromiseAnyRejectElementErrorsSlot]);
+
+      const error = ConstructAggregateError(errors);
       // 3. Return ThrowCompletion(error).
       goto Reject(error);
     }
@@ -359,10 +361,10 @@ PromiseAny(
 }
 
 transitioning macro ConstructAggregateError(implicit context: Context)(
-    errorsArray: FixedArray): JSObject {
+    errors: FixedArray): JSObject {
   const obj: JSAggregateError = error::ConstructInternalAggregateErrorHelper(
       context, SmiConstant(MessageTemplate::kAllPromisesRejected));
-  obj.errors = errorsArray;
+  obj.errors = errors;
   return obj;
 }
 
