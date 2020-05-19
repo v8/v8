@@ -168,7 +168,7 @@ enum class PrimitiveType { kBoolean, kNumber, kString, kSymbol };
   V(NoClosuresCellMap, no_closures_cell_map, NoClosuresCellMap)                \
   V(null_to_string, null_to_string, NullToString)                              \
   V(NullValue, null_value, Null)                                               \
-  V(number_string, number_string, numberString)                                \
+  V(number_string, number_string, NumberString)                                \
   V(number_to_string, number_to_string, NumberToString)                        \
   V(Object_string, Object_string, ObjectString)                                \
   V(object_to_string, object_to_string, ObjectToString)                        \
@@ -212,6 +212,8 @@ enum class PrimitiveType { kBoolean, kNumber, kString, kSymbol };
   V(SymbolMap, symbol_map, SymbolMap)                                          \
   V(TheHoleValue, the_hole_value, TheHole)                                     \
   V(then_string, then_string, ThenString)                                      \
+  V(toString_string, toString_string, ToStringString)                          \
+  V(to_primitive_symbol, to_primitive_symbol, ToPrimitiveSymbol)               \
   V(to_string_tag_symbol, to_string_tag_symbol, ToStringTagSymbol)             \
   V(TransitionArrayMap, transition_array_map, TransitionArrayMap)              \
   V(TrueValue, true_value, True)                                               \
@@ -228,6 +230,7 @@ enum class PrimitiveType { kBoolean, kNumber, kString, kSymbol };
   V(undefined_to_string, undefined_to_string, UndefinedToString)               \
   V(UndefinedValue, undefined_value, Undefined)                                \
   V(uninitialized_symbol, uninitialized_symbol, UninitializedSymbol)           \
+  V(valueOf_string, valueOf_string, ValueOfString)                             \
   V(WeakFixedArrayMap, weak_fixed_array_map, WeakFixedArrayMap)                \
   V(zero_string, zero_string, ZeroString)                                      \
   TORQUE_INTERNAL_MAP_CSA_LIST(V)
@@ -2846,6 +2849,9 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
   // ES6 7.1.15 ToLength, but with inlined fast path.
   TNode<Number> ToLength_Inline(SloppyTNode<Context> context,
                                 SloppyTNode<Object> input);
+
+  TNode<Object> OrdinaryToPrimitive(TNode<Context> context, TNode<Object> input,
+                                    OrdinaryToPrimitiveHint hint);
 
   // Returns a node that contains a decoded (unsigned!) value of a bit
   // field |BitField| in |word32|. Returns result as an uint32 node.

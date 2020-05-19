@@ -425,6 +425,11 @@ Cast<NumberDictionary>(o: HeapObject): NumberDictionary
   goto CastError;
 }
 
+Cast<Name>(o: HeapObject): Name
+    labels CastError {
+  if (IsName(o)) return %RawDownCast<Name>(o);
+  goto CastError;
+}
 Cast<String>(o: HeapObject): String
     labels CastError {
   return HeapObjectToString(o) otherwise CastError;

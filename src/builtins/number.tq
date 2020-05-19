@@ -16,6 +16,8 @@ extern macro MinusInfinityStringConstant(): String;
 const kAsciiZero: constexpr int32 = 48;        // '0' (ascii)
 const kAsciiLowerCaseA: constexpr int32 = 97;  // 'a' (ascii)
 
+extern macro NumberToString(Number): String;
+
 transitioning macro ThisNumberValue(implicit context: Context)(
     receiver: JSAny, method: constexpr string): Number {
   return UnsafeCast<Number>(

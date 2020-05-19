@@ -196,22 +196,8 @@ namespace internal {
   ASM(HandleDebuggerStatement, ContextOnly)                                    \
                                                                                \
   /* Type conversions */                                                       \
-  TFC(ToObject, TypeConversion)                                                \
-  TFC(ToBoolean, TypeConversion)                                               \
-  TFC(OrdinaryToPrimitive_Number, TypeConversion)                              \
-  TFC(OrdinaryToPrimitive_String, TypeConversion)                              \
-  TFC(NonPrimitiveToPrimitive_Default, TypeConversion)                         \
-  TFC(NonPrimitiveToPrimitive_Number, TypeConversion)                          \
-  TFC(NonPrimitiveToPrimitive_String, TypeConversion)                          \
-  TFC(StringToNumber, TypeConversion)                                          \
-  TFC(ToName, TypeConversion)                                                  \
-  TFC(NonNumberToNumber, TypeConversion)                                       \
-  TFC(NonNumberToNumeric, TypeConversion)                                      \
   TFC(ToNumber, TypeConversion)                                                \
   TFC(ToNumberConvertBigInt, TypeConversion)                                   \
-  TFC(ToNumeric, TypeConversion)                                               \
-  TFC(NumberToString, TypeConversion)                                          \
-  TFC(ToLength, TypeConversion)                                                \
   TFC(Typeof, Typeof)                                                          \
   TFC(GetSuperConstructor, Typeof)                                             \
   TFC(BigIntToI64, BigIntToI64)                                                \

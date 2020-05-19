@@ -7299,6 +7299,12 @@ TNode<Number> CodeStubAssembler::ToLength_Inline(SloppyTNode<Context> context,
       [=] { return CAST(CallBuiltin(Builtins::kToLength, context, input)); });
 }
 
+TNode<Object> CodeStubAssembler::OrdinaryToPrimitive(
+    TNode<Context> context, TNode<Object> input, OrdinaryToPrimitiveHint hint) {
+  Callable callable = CodeFactory::OrdinaryToPrimitive(isolate(), hint);
+  return CallStub(callable, context, input);
+}
+
 TNode<Uint32T> CodeStubAssembler::DecodeWord32(SloppyTNode<Word32T> word32,
                                                uint32_t shift, uint32_t mask) {
   DCHECK_EQ((mask >> shift) << shift, mask);

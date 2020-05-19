@@ -292,11 +292,11 @@ transitioning macro ArrayJoinImpl<T: type>(implicit context: Context)(
           next = str;
         }
         case (num: Number): {
-          next = NumberToString(num);
+          next = number::NumberToString(num);
         }
         case (obj: JSAny): {
           if (IsNullOrUndefined(obj)) continue;
-          next = ToString(context, obj);
+          next = string::ToString(context, obj);
         }
       }
     }
