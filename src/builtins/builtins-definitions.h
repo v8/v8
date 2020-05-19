@@ -598,53 +598,15 @@ namespace internal {
   TFJ(MapIteratorPrototypeNext, 0, kReceiver)                                  \
   TFS(MapIteratorToList, kSource)                                              \
                                                                                \
-  /* Number */                                                                 \
-  TFC(AllocateHeapNumber, AllocateHeapNumber)                                  \
   /* ES #sec-number-constructor */                                             \
   TFJ(NumberConstructor, kDontAdaptArgumentsSentinel)                          \
-  /* ES6 #sec-number.isfinite */                                               \
-  TFJ(NumberIsFinite, 1, kReceiver, kNumber)                                   \
-  /* ES6 #sec-number.isinteger */                                              \
-  TFJ(NumberIsInteger, 1, kReceiver, kNumber)                                  \
-  /* ES6 #sec-number.isnan */                                                  \
-  TFJ(NumberIsNaN, 1, kReceiver, kNumber)                                      \
-  /* ES6 #sec-number.issafeinteger */                                          \
-  TFJ(NumberIsSafeInteger, 1, kReceiver, kNumber)                              \
-  /* ES6 #sec-number.parsefloat */                                             \
-  TFJ(NumberParseFloat, 1, kReceiver, kString)                                 \
-  /* ES6 #sec-number.parseint */                                               \
-  TFJ(NumberParseInt, 2, kReceiver, kString, kRadix)                           \
-  TFS(ParseInt, kString, kRadix)                                               \
   CPP(NumberPrototypeToExponential)                                            \
   CPP(NumberPrototypeToFixed)                                                  \
   CPP(NumberPrototypeToLocaleString)                                           \
   CPP(NumberPrototypeToPrecision)                                              \
-  /* ES6 #sec-number.prototype.valueof */                                      \
-  TFJ(NumberPrototypeValueOf, 0, kReceiver)                                    \
   TFC(Add, BinaryOp)                                                           \
-  TFC(Subtract, BinaryOp)                                                      \
-  TFC(Multiply, BinaryOp)                                                      \
-  TFC(Divide, BinaryOp)                                                        \
-  TFC(Modulus, BinaryOp)                                                       \
-  TFC(Exponentiate, BinaryOp)                                                  \
-  TFC(BitwiseAnd, BinaryOp)                                                    \
-  TFC(BitwiseOr, BinaryOp)                                                     \
-  TFC(BitwiseXor, BinaryOp)                                                    \
-  TFC(ShiftLeft, BinaryOp)                                                     \
-  TFC(ShiftRight, BinaryOp)                                                    \
-  TFC(ShiftRightLogical, BinaryOp)                                             \
-  TFC(LessThan, Compare)                                                       \
-  TFC(LessThanOrEqual, Compare)                                                \
-  TFC(GreaterThan, Compare)                                                    \
-  TFC(GreaterThanOrEqual, Compare)                                             \
-  TFC(Equal, Compare)                                                          \
   TFC(SameValue, Compare)                                                      \
   TFC(SameValueNumbersOnly, Compare)                                           \
-  TFC(StrictEqual, Compare)                                                    \
-  TFS(BitwiseNot, kValue)                                                      \
-  TFS(Decrement, kValue)                                                       \
-  TFS(Increment, kValue)                                                       \
-  TFS(Negate, kValue)                                                          \
                                                                                \
   /* Object */                                                                 \
   /* ES #sec-object-constructor */                                             \

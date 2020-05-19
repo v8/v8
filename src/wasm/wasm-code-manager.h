@@ -72,7 +72,6 @@ struct WasmModule;
   V(WasmThrow)                           \
   V(WasmRethrow)                         \
   V(WasmTraceMemory)                     \
-  V(AllocateHeapNumber)                  \
   V(ArgumentsAdaptorTrampoline)          \
   V(BigIntToI32Pair)                     \
   V(BigIntToI64)                         \
