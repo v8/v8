@@ -2947,8 +2947,8 @@ Reduction JSCallReducer::ReduceReflectConstruct(Node* node) {
   while (arity-- > 3) {
     node->RemoveInput(arity);
   }
-  NodeProperties::ChangeOp(node,
-                           javascript()->ConstructWithArrayLike(p.frequency()));
+  NodeProperties::ChangeOp(
+      node, javascript()->ConstructWithArrayLike(p.frequency(), p.feedback()));
   return Changed(node).FollowedBy(ReduceJSConstructWithArrayLike(node));
 }
 
@@ -4839,9 +4839,11 @@ Reduction JSCallReducer::ReduceStringPrototypeSubstr(Node* node) {
 
 Reduction JSCallReducer::ReduceJSConstructWithArrayLike(Node* node) {
   DCHECK_EQ(IrOpcode::kJSConstructWithArrayLike, node->opcode());
-  CallFrequency frequency = CallFrequencyOf(node->op());
+  ConstructParameters const& p = ConstructParametersOf(node->op());
+  const int arity = static_cast<int>(p.arity() - 2);
+  DCHECK_EQ(arity, 1);
   return ReduceCallOrConstructWithArrayLikeOrSpread(
-      node, 1, frequency, FeedbackSource(),
+      node, arity, p.frequency(), p.feedback(),
       SpeculationMode::kDisallowSpeculation, CallFeedbackRelation::kRelated);
 }
 

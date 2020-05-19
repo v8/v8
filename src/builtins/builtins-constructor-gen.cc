@@ -69,6 +69,30 @@ TF_BUILTIN(ConstructWithArrayLike, CallOrConstructBuiltinsAssembler) {
   CallOrConstructWithArrayLike(target, new_target, arguments_list, context);
 }
 
+TF_BUILTIN(ConstructWithArrayLike_WithFeedback,
+           CallOrConstructBuiltinsAssembler) {
+  TNode<Object> target = CAST(Parameter(Descriptor::kTarget));
+  TNode<Object> new_target = CAST(Parameter(Descriptor::kNewTarget));
+  TNode<Object> arguments_list = CAST(Parameter(Descriptor::kArgumentsList));
+  TNode<Context> context = CAST(Parameter(Descriptor::kContext));
+  TNode<HeapObject> maybe_feedback_vector =
+      CAST(Parameter(Descriptor::kMaybeFeedbackVector));
+  TNode<Int32T> slot = UncheckedCast<Int32T>(Parameter(Descriptor::kSlot));
+
+  TVARIABLE(AllocationSite, allocation_site);
+  Label if_construct_generic(this), if_construct_array(this);
+  CollectConstructFeedback(context, target, new_target, maybe_feedback_vector,
+                           Unsigned(ChangeInt32ToIntPtr(slot)),
+                           &if_construct_generic, &if_construct_array,
+                           &allocation_site);
+
+  BIND(&if_construct_array);
+  Goto(&if_construct_generic);  // Not implemented.
+
+  BIND(&if_construct_generic);
+  CallOrConstructWithArrayLike(target, new_target, arguments_list, context);
+}
+
 TF_BUILTIN(ConstructWithSpread, CallOrConstructBuiltinsAssembler) {
   TNode<Object> target = CAST(Parameter(Descriptor::kTarget));
   TNode<Object> new_target = CAST(Parameter(Descriptor::kNewTarget));
@@ -76,6 +100,31 @@ TF_BUILTIN(ConstructWithSpread, CallOrConstructBuiltinsAssembler) {
   TNode<Int32T> args_count =
       UncheckedCast<Int32T>(Parameter(Descriptor::kActualArgumentsCount));
   TNode<Context> context = CAST(Parameter(Descriptor::kContext));
+  CallOrConstructWithSpread(target, new_target, spread, args_count, context);
+}
+
+TF_BUILTIN(ConstructWithSpread_WithFeedback, CallOrConstructBuiltinsAssembler) {
+  TNode<Object> target = CAST(Parameter(Descriptor::kTarget));
+  TNode<Object> new_target = CAST(Parameter(Descriptor::kNewTarget));
+  TNode<Object> spread = CAST(Parameter(Descriptor::kSpread));
+  TNode<Int32T> args_count =
+      UncheckedCast<Int32T>(Parameter(Descriptor::kActualArgumentsCount));
+  TNode<Context> context = CAST(Parameter(Descriptor::kContext));
+  TNode<HeapObject> maybe_feedback_vector =
+      CAST(Parameter(Descriptor::kMaybeFeedbackVector));
+  TNode<Int32T> slot = UncheckedCast<Int32T>(Parameter(Descriptor::kSlot));
+
+  TVARIABLE(AllocationSite, allocation_site);
+  Label if_construct_generic(this), if_construct_array(this);
+  CollectConstructFeedback(context, target, new_target, maybe_feedback_vector,
+                           Unsigned(ChangeInt32ToIntPtr(slot)),
+                           &if_construct_generic, &if_construct_array,
+                           &allocation_site);
+
+  BIND(&if_construct_array);
+  Goto(&if_construct_generic);  // Not implemented.
+
+  BIND(&if_construct_generic);
   CallOrConstructWithSpread(target, new_target, spread, args_count, context);
 }
 

@@ -60,8 +60,6 @@ class CallFrequency final {
 
 std::ostream& operator<<(std::ostream&, CallFrequency const&);
 
-CallFrequency CallFrequencyOf(Operator const* op) V8_WARN_UNUSED_RESULT;
-
 // Defines the flags for a JavaScript call forwarding parameters. This
 // is used as parameter by JSConstructForwardVarargs operators.
 class ConstructForwardVarargsParameters final {
@@ -98,7 +96,8 @@ ConstructForwardVarargsParameters const& ConstructForwardVarargsParametersOf(
     Operator const*) V8_WARN_UNUSED_RESULT;
 
 // Defines the arity and the feedback for a JavaScript constructor call. This is
-// used as a parameter by JSConstruct and JSConstructWithSpread operators.
+// used as a parameter by JSConstruct, JSConstructWithArrayLike, and
+// JSConstructWithSpread operators.
 class ConstructParameters final {
  public:
   ConstructParameters(uint32_t arity, CallFrequency const& frequency,
@@ -849,7 +848,8 @@ class V8_EXPORT_PRIVATE JSOperatorBuilder final
   const Operator* Construct(uint32_t arity,
                             CallFrequency const& frequency = CallFrequency(),
                             FeedbackSource const& feedback = FeedbackSource());
-  const Operator* ConstructWithArrayLike(CallFrequency const& frequency);
+  const Operator* ConstructWithArrayLike(CallFrequency const& frequency,
+                                         FeedbackSource const& feedback);
   const Operator* ConstructWithSpread(
       uint32_t arity, CallFrequency const& frequency = CallFrequency(),
       FeedbackSource const& feedback = FeedbackSource());

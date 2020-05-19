@@ -22,11 +22,6 @@ std::ostream& operator<<(std::ostream& os, CallFrequency const& f) {
   return os << f.value();
 }
 
-CallFrequency CallFrequencyOf(Operator const* op) {
-  DCHECK_EQ(op->opcode(), IrOpcode::kJSConstructWithArrayLike);
-  return OpParameter<CallFrequency>(op);
-}
-
 std::ostream& operator<<(std::ostream& os,
                          ConstructForwardVarargsParameters const& p) {
   return os << p.arity() << ", " << p.start_index();
@@ -60,6 +55,7 @@ std::ostream& operator<<(std::ostream& os, ConstructParameters const& p) {
 
 ConstructParameters const& ConstructParametersOf(Operator const* op) {
   DCHECK(op->opcode() == IrOpcode::kJSConstruct ||
+         op->opcode() == IrOpcode::kJSConstructWithArrayLike ||
          op->opcode() == IrOpcode::kJSConstructWithSpread);
   return OpParameter<ConstructParameters>(op);
 }
@@ -972,13 +968,15 @@ const Operator* JSOperatorBuilder::Construct(uint32_t arity,
 }
 
 const Operator* JSOperatorBuilder::ConstructWithArrayLike(
-    CallFrequency const& frequency) {
-  return new (zone()) Operator1<CallFrequency>(  // --
-      IrOpcode::kJSConstructWithArrayLike,       // opcode
-      Operator::kNoProperties,                   // properties
-      "JSConstructWithArrayLike",                // name
-      3, 1, 1, 1, 1, 2,                          // counts
-      frequency);                                // parameter
+    CallFrequency const& frequency, FeedbackSource const& feedback) {
+  static constexpr uint32_t arity = 3;
+  ConstructParameters parameters(arity, frequency, feedback);
+  return new (zone()) Operator1<ConstructParameters>(  // --
+      IrOpcode::kJSConstructWithArrayLike,             // opcode
+      Operator::kNoProperties,                         // properties
+      "JSConstructWithArrayLike",                      // name
+      parameters.arity(), 1, 1, 1, 1, 2,               // counts
+      parameters);                                     // parameter
 }
 
 const Operator* JSOperatorBuilder::ConstructWithSpread(

@@ -295,6 +295,30 @@ void CallTrampoline_WithFeedbackDescriptor::InitializePlatformSpecific(
   DefaultInitializePlatformSpecific(data, 4);
 }
 
+void CallWithArrayLike_WithFeedbackDescriptor::InitializePlatformSpecific(
+    CallInterfaceDescriptorData* data) {
+  // TODO(v8:8888): Implement on this platform.
+  DefaultInitializePlatformSpecific(data, 4);
+}
+
+void CallWithSpread_WithFeedbackDescriptor::InitializePlatformSpecific(
+    CallInterfaceDescriptorData* data) {
+  // TODO(v8:8888): Implement on this platform.
+  DefaultInitializePlatformSpecific(data, 4);
+}
+
+void ConstructWithArrayLike_WithFeedbackDescriptor::InitializePlatformSpecific(
+    CallInterfaceDescriptorData* data) {
+  // TODO(v8:8888): Implement on this platform.
+  DefaultInitializePlatformSpecific(data, 4);
+}
+
+void ConstructWithSpread_WithFeedbackDescriptor::InitializePlatformSpecific(
+    CallInterfaceDescriptorData* data) {
+  // TODO(v8:8888): Implement on this platform.
+  DefaultInitializePlatformSpecific(data, 4);
+}
+
 void Compare_WithFeedbackDescriptor::InitializePlatformSpecific(
     CallInterfaceDescriptorData* data) {
   // TODO(v8:8888): Implement on this platform.

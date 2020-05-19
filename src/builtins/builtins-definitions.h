@@ -51,12 +51,19 @@ namespace internal {
   ASM(Call_ReceiverIsNullOrUndefined, CallTrampoline)                          \
   ASM(Call_ReceiverIsNotNullOrUndefined, CallTrampoline)                       \
   ASM(Call_ReceiverIsAny, CallTrampoline)                                      \
+  TFC(Call_ReceiverIsNullOrUndefined_WithFeedback,                             \
+      CallTrampoline_WithFeedback)                                             \
+  TFC(Call_ReceiverIsNotNullOrUndefined_WithFeedback,                          \
+      CallTrampoline_WithFeedback)                                             \
+  TFC(Call_ReceiverIsAny_WithFeedback, CallTrampoline_WithFeedback)            \
                                                                                \
   /* ES6 section 9.5.12[[Call]] ( thisArgument, argumentsList ) */             \
   TFC(CallProxy, CallTrampoline)                                               \
   ASM(CallVarargs, CallVarargs)                                                \
   TFC(CallWithSpread, CallWithSpread)                                          \
+  TFC(CallWithSpread_WithFeedback, CallWithSpread_WithFeedback)                \
   TFC(CallWithArrayLike, CallWithArrayLike)                                    \
+  TFC(CallWithArrayLike_WithFeedback, CallWithArrayLike_WithFeedback)          \
   ASM(CallForwardVarargs, CallForwardVarargs)                                  \
   ASM(CallFunctionForwardVarargs, CallForwardVarargs)                          \
   /* Call an API callback via a {FunctionTemplateInfo}, doing appropriate */   \
@@ -76,7 +83,10 @@ namespace internal {
   ASM(Construct, JSTrampoline)                                                 \
   ASM(ConstructVarargs, ConstructVarargs)                                      \
   TFC(ConstructWithSpread, ConstructWithSpread)                                \
+  TFC(ConstructWithSpread_WithFeedback, ConstructWithSpread_WithFeedback)      \
   TFC(ConstructWithArrayLike, ConstructWithArrayLike)                          \
+  TFC(ConstructWithArrayLike_WithFeedback,                                     \
+      ConstructWithArrayLike_WithFeedback)                                     \
   ASM(ConstructForwardVarargs, ConstructForwardVarargs)                        \
   ASM(ConstructFunctionForwardVarargs, ConstructForwardVarargs)                \
   TFC(Construct_WithFeedback, Construct_WithFeedback)                          \

@@ -20,88 +20,92 @@ namespace internal {
   BUILTIN_LIST_FROM_TORQUE(IGNORE_BUILTIN, IGNORE_BUILTIN, V, IGNORE_BUILTIN, \
                            IGNORE_BUILTIN, IGNORE_BUILTIN)
 
-#define INTERFACE_DESCRIPTOR_LIST(V)  \
-  V(Abort)                            \
-  V(Allocate)                         \
-  V(AllocateHeapNumber)               \
-  V(ApiCallback)                      \
-  V(ApiGetter)                        \
-  V(ArgumentsAdaptor)                 \
-  V(ArrayConstructor)                 \
-  V(ArrayNArgumentsConstructor)       \
-  V(ArrayNoArgumentConstructor)       \
-  V(ArraySingleArgumentConstructor)   \
-  V(AsyncFunctionStackParameter)      \
-  V(BigIntToI32Pair)                  \
-  V(BigIntToI64)                      \
-  V(BinaryOp)                         \
-  V(BinaryOp_WithFeedback)            \
-  V(CallForwardVarargs)               \
-  V(CallFunctionTemplate)             \
-  V(CallTrampoline)                   \
-  V(CallTrampoline_WithFeedback)      \
-  V(CallVarargs)                      \
-  V(CallWithArrayLike)                \
-  V(CallWithSpread)                   \
-  V(CEntry1ArgvOnStack)               \
-  V(CloneObjectWithVector)            \
-  V(Compare)                          \
-  V(Compare_WithFeedback)             \
-  V(ConstructForwardVarargs)          \
-  V(ConstructStub)                    \
-  V(ConstructVarargs)                 \
-  V(ConstructWithArrayLike)           \
-  V(Construct_WithFeedback)           \
-  V(ConstructWithSpread)              \
-  V(ContextOnly)                      \
-  V(CppBuiltinAdaptor)                \
-  V(EphemeronKeyBarrier)              \
-  V(FastNewFunctionContext)           \
-  V(FastNewObject)                    \
-  V(FrameDropperTrampoline)           \
-  V(GetIteratorStackParameter)        \
-  V(GetProperty)                      \
-  V(GrowArrayElements)                \
-  V(I32PairToBigInt)                  \
-  V(I64ToBigInt)                      \
-  V(InterpreterCEntry1)               \
-  V(InterpreterCEntry2)               \
-  V(InterpreterDispatch)              \
-  V(InterpreterPushArgsThenCall)      \
-  V(InterpreterPushArgsThenConstruct) \
-  V(JSTrampoline)                     \
-  V(Load)                             \
-  V(LoadGlobal)                       \
-  V(LoadGlobalNoFeedback)             \
-  V(LoadGlobalWithVector)             \
-  V(LoadNoFeedback)                   \
-  V(LoadWithVector)                   \
-  V(NewArgumentsElements)             \
-  V(NoContext)                        \
-  V(RecordWrite)                      \
-  V(ResumeGenerator)                  \
-  V(RunMicrotasks)                    \
-  V(RunMicrotasksEntry)               \
-  V(Store)                            \
-  V(StoreGlobal)                      \
-  V(StoreGlobalWithVector)            \
-  V(StoreTransition)                  \
-  V(StoreWithVector)                  \
-  V(StringAt)                         \
-  V(StringAtAsString)                 \
-  V(StringSubstring)                  \
-  V(TypeConversion)                   \
-  V(TypeConversionStackParameter)     \
-  V(Typeof)                           \
-  V(UnaryOp_WithFeedback)             \
-  V(Void)                             \
-  V(WasmFloat32ToNumber)              \
-  V(WasmFloat64ToNumber)              \
-  V(WasmI32AtomicWait32)              \
-  V(WasmI64AtomicWait32)              \
-  V(WasmTableInit)                    \
-  V(WasmTableCopy)                    \
-  BUILTIN_LIST_TFS(V)                 \
+#define INTERFACE_DESCRIPTOR_LIST(V)     \
+  V(Abort)                               \
+  V(Allocate)                            \
+  V(AllocateHeapNumber)                  \
+  V(ApiCallback)                         \
+  V(ApiGetter)                           \
+  V(ArgumentsAdaptor)                    \
+  V(ArrayConstructor)                    \
+  V(ArrayNArgumentsConstructor)          \
+  V(ArrayNoArgumentConstructor)          \
+  V(ArraySingleArgumentConstructor)      \
+  V(AsyncFunctionStackParameter)         \
+  V(BigIntToI32Pair)                     \
+  V(BigIntToI64)                         \
+  V(BinaryOp)                            \
+  V(BinaryOp_WithFeedback)               \
+  V(CallForwardVarargs)                  \
+  V(CallFunctionTemplate)                \
+  V(CallTrampoline)                      \
+  V(CallTrampoline_WithFeedback)         \
+  V(CallVarargs)                         \
+  V(CallWithArrayLike)                   \
+  V(CallWithArrayLike_WithFeedback)      \
+  V(CallWithSpread)                      \
+  V(CallWithSpread_WithFeedback)         \
+  V(CEntry1ArgvOnStack)                  \
+  V(CloneObjectWithVector)               \
+  V(Compare)                             \
+  V(Compare_WithFeedback)                \
+  V(ConstructForwardVarargs)             \
+  V(ConstructStub)                       \
+  V(ConstructVarargs)                    \
+  V(ConstructWithArrayLike)              \
+  V(ConstructWithArrayLike_WithFeedback) \
+  V(Construct_WithFeedback)              \
+  V(ConstructWithSpread)                 \
+  V(ConstructWithSpread_WithFeedback)    \
+  V(ContextOnly)                         \
+  V(CppBuiltinAdaptor)                   \
+  V(EphemeronKeyBarrier)                 \
+  V(FastNewFunctionContext)              \
+  V(FastNewObject)                       \
+  V(FrameDropperTrampoline)              \
+  V(GetIteratorStackParameter)           \
+  V(GetProperty)                         \
+  V(GrowArrayElements)                   \
+  V(I32PairToBigInt)                     \
+  V(I64ToBigInt)                         \
+  V(InterpreterCEntry1)                  \
+  V(InterpreterCEntry2)                  \
+  V(InterpreterDispatch)                 \
+  V(InterpreterPushArgsThenCall)         \
+  V(InterpreterPushArgsThenConstruct)    \
+  V(JSTrampoline)                        \
+  V(Load)                                \
+  V(LoadGlobal)                          \
+  V(LoadGlobalNoFeedback)                \
+  V(LoadGlobalWithVector)                \
+  V(LoadNoFeedback)                      \
+  V(LoadWithVector)                      \
+  V(NewArgumentsElements)                \
+  V(NoContext)                           \
+  V(RecordWrite)                         \
+  V(ResumeGenerator)                     \
+  V(RunMicrotasks)                       \
+  V(RunMicrotasksEntry)                  \
+  V(Store)                               \
+  V(StoreGlobal)                         \
+  V(StoreGlobalWithVector)               \
+  V(StoreTransition)                     \
+  V(StoreWithVector)                     \
+  V(StringAt)                            \
+  V(StringAtAsString)                    \
+  V(StringSubstring)                     \
+  V(TypeConversion)                      \
+  V(TypeConversionStackParameter)        \
+  V(Typeof)                              \
+  V(UnaryOp_WithFeedback)                \
+  V(Void)                                \
+  V(WasmFloat32ToNumber)                 \
+  V(WasmFloat64ToNumber)                 \
+  V(WasmI32AtomicWait32)                 \
+  V(WasmI64AtomicWait32)                 \
+  V(WasmTableInit)                       \
+  V(WasmTableCopy)                       \
+  BUILTIN_LIST_TFS(V)                    \
   TORQUE_BUILTIN_LIST_TFC(V)
 
 class V8_EXPORT_PRIVATE CallInterfaceDescriptorData {
@@ -945,12 +949,37 @@ class CallWithSpreadDescriptor : public CallInterfaceDescriptor {
   DECLARE_DESCRIPTOR(CallWithSpreadDescriptor, CallInterfaceDescriptor)
 };
 
+class CallWithSpread_WithFeedbackDescriptor : public CallInterfaceDescriptor {
+ public:
+  DEFINE_PARAMETERS(kTarget, kArgumentsCount, kSpread, kSlot,
+                    kMaybeFeedbackVector)
+  DEFINE_PARAMETER_TYPES(MachineType::AnyTagged(),  // kTarget
+                         MachineType::Int32(),      // kArgumentsCount
+                         MachineType::AnyTagged(),  // kSpread
+                         MachineType::Int32(),      // kSlot
+                         MachineType::AnyTagged())  // kMaybeFeedbackVector
+  DECLARE_DESCRIPTOR(CallWithSpread_WithFeedbackDescriptor,
+                     CallInterfaceDescriptor)
+};
+
 class CallWithArrayLikeDescriptor : public CallInterfaceDescriptor {
  public:
   DEFINE_PARAMETERS(kTarget, kArgumentsList)
   DEFINE_PARAMETER_TYPES(MachineType::AnyTagged(),  // kTarget
                          MachineType::AnyTagged())  // kArgumentsList
   DECLARE_DESCRIPTOR(CallWithArrayLikeDescriptor, CallInterfaceDescriptor)
+};
+
+class CallWithArrayLike_WithFeedbackDescriptor
+    : public CallInterfaceDescriptor {
+ public:
+  DEFINE_PARAMETERS(kTarget, kArgumentsList, kSlot, kMaybeFeedbackVector)
+  DEFINE_PARAMETER_TYPES(MachineType::AnyTagged(),  // kTarget
+                         MachineType::AnyTagged(),  // kArgumentsList
+                         MachineType::Int32(),      // kSlot
+                         MachineType::AnyTagged())  // kMaybeFeedbackVector
+  DECLARE_DESCRIPTOR(CallWithArrayLike_WithFeedbackDescriptor,
+                     CallInterfaceDescriptor)
 };
 
 class ConstructVarargsDescriptor : public CallInterfaceDescriptor {
@@ -976,6 +1005,19 @@ class ConstructWithSpreadDescriptor : public CallInterfaceDescriptor {
   DECLARE_DESCRIPTOR(ConstructWithSpreadDescriptor, CallInterfaceDescriptor)
 };
 
+class ConstructWithSpread_WithFeedbackDescriptor
+    : public CallInterfaceDescriptor {
+ public:
+  // Note: kSlot comes before kSpread since as an untagged value it must be
+  // passed in a register.
+  DEFINE_JS_PARAMETERS(kSlot, kSpread, kMaybeFeedbackVector)
+  DEFINE_JS_PARAMETER_TYPES(MachineType::Int32(),      // kSlot
+                            MachineType::AnyTagged(),  // kSpread
+                            MachineType::AnyTagged())  // kMaybeFeedbackVector
+  DECLARE_DESCRIPTOR(ConstructWithSpread_WithFeedbackDescriptor,
+                     CallInterfaceDescriptor)
+};
+
 class ConstructWithArrayLikeDescriptor : public CallInterfaceDescriptor {
  public:
   DEFINE_PARAMETERS(kTarget, kNewTarget, kArgumentsList)
@@ -983,6 +1025,20 @@ class ConstructWithArrayLikeDescriptor : public CallInterfaceDescriptor {
                          MachineType::AnyTagged(),  // kNewTarget
                          MachineType::AnyTagged())  // kArgumentsList
   DECLARE_DESCRIPTOR(ConstructWithArrayLikeDescriptor, CallInterfaceDescriptor)
+};
+
+class ConstructWithArrayLike_WithFeedbackDescriptor
+    : public CallInterfaceDescriptor {
+ public:
+  DEFINE_PARAMETERS(kTarget, kNewTarget, kArgumentsList, kSlot,
+                    kMaybeFeedbackVector)
+  DEFINE_PARAMETER_TYPES(MachineType::AnyTagged(),  // kTarget
+                         MachineType::AnyTagged(),  // kNewTarget
+                         MachineType::AnyTagged(),  // kArgumentsList
+                         MachineType::Int32(),      // kSlot
+                         MachineType::AnyTagged())  // kMaybeFeedbackVector
+  DECLARE_DESCRIPTOR(ConstructWithArrayLike_WithFeedbackDescriptor,
+                     CallInterfaceDescriptor)
 };
 
 // TODO(ishell): consider merging this with ArrayConstructorDescriptor
