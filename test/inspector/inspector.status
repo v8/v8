@@ -91,4 +91,10 @@
   '*': [SKIP],  # only relevant for mjsunit tests.
 }],
 
+##############################################################################
+['tsan == True', {
+  # TSan handles SIGPROF incorrectly (https://crbug.com/v8/9869).
+  'cpu-profiler/console-profile-wasm': [SKIP],
+}],  # 'tsan == True'
+
 ]
