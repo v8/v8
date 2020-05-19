@@ -8,6 +8,7 @@
 #include "src/codegen/assembler-inl.h"
 // TODO(clemensb): Remove dependences on compiler stuff.
 #include "src/codegen/interface-descriptors.h"
+#include "src/codegen/machine-type.h"
 #include "src/codegen/macro-assembler-inl.h"
 #include "src/compiler/linkage.h"
 #include "src/compiler/wasm-compiler.h"
@@ -2042,11 +2043,54 @@ class LiftoffCompiler {
                            offset, decoder->position());
     }
   }
+
   void LoadTransform(FullDecoder* decoder, LoadType type,
                      LoadTransformationKind transform,
                      const MemoryAccessImmediate<validate>& imm,
                      const Value& index_val, Value* result) {
-    unsupported(decoder, kSimd, "simd");
+    // LoadTransform requires SIMD support, so check for it here. If
+    // unsupported, bailout and let TurboFan lower the code.
+    if (!CheckSupportedType(decoder, kSupportedTypes, kWasmS128,
+                            "LoadTransform")) {
+      return;
+    }
+
+    LiftoffRegList pinned;
+    Register index = pinned.set(__ PopToRegister()).gp();
+    // For load splats, LoadType is the size of the load, and for load
+    // extends, LoadType is the size of the lane, and it always loads 8 bytes.
+    uint32_t access_size =
+        transform == LoadTransformationKind::kExtend ? 8 : type.size();
+    if (BoundsCheckMem(decoder, access_size, imm.offset, index, pinned,
+                       kDontForceCheck)) {
+      return;
+    }
+
+    uint32_t offset = imm.offset;
+    index = AddMemoryMasking(index, &offset, &pinned);
+    DEBUG_CODE_COMMENT("LoadTransform from memory");
+    Register addr = __ GetUnusedRegister(kGpReg, pinned).gp();
+    LOAD_INSTANCE_FIELD(addr, MemoryStart, kSystemPointerSize);
+    LiftoffRegister value = __ GetUnusedRegister(reg_class_for(kS128), {});
+    uint32_t protected_load_pc = 0;
+    __ LoadTransform(value, addr, index, offset, type, transform,
+                     &protected_load_pc);
+
+    if (env_->use_trap_handler) {
+      AddOutOfLineTrap(decoder->position(),
+                       WasmCode::kThrowWasmTrapMemOutOfBounds,
+                       protected_load_pc);
+    }
+    __ PushRegister(ValueType{kS128}, value);
+
+    if (FLAG_trace_wasm_memory) {
+      // Again load extend is different.
+      MachineRepresentation mem_rep =
+          transform == LoadTransformationKind::kExtend
+              ? MachineRepresentation::kWord64
+              : type.mem_type().representation();
+      TraceMemoryOperation(false, mem_rep, index, offset, decoder->position());
+    }
   }
 
   void StoreMem(FullDecoder* decoder, StoreType type,
