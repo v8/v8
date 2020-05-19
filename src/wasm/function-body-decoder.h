@@ -34,6 +34,8 @@ struct FunctionBody {
       : sig(sig), offset(offset), start(start), end(end) {}
 };
 
+enum class LoadTransformationKind : uint8_t { kSplat, kExtend };
+
 V8_EXPORT_PRIVATE DecodeResult VerifyWasmCode(AccountingAllocator* allocator,
                                               const WasmFeatures& enabled,
                                               const WasmModule* module,
