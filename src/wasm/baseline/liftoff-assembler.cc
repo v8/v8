@@ -571,9 +571,22 @@ LiftoffRegister LiftoffAssembler::PeekToRegister(int index,
 void LiftoffAssembler::PrepareLoopArgs(int num) {
   for (int i = 0; i < num; ++i) {
     VarState& slot = cache_state_.stack_state.end()[-1 - i];
-    if (!slot.is_const()) continue;
-    RegClass rc =
-        kNeedI64RegPair && slot.type() == kWasmI64 ? kGpRegPair : kGpReg;
+    if (slot.is_stack()) continue;
+    RegClass rc = reg_class_for(slot.type());
+    if (slot.is_reg()) {
+      if (cache_state_.get_use_count(slot.reg()) > 1) {
+        // If the register is used more than once, we cannot use it for the
+        // merge. Move it to an unused register instead.
+        LiftoffRegList pinned;
+        pinned.set(slot.reg());
+        LiftoffRegister dst_reg = GetUnusedRegister(rc, pinned);
+        Move(dst_reg, slot.reg(), slot.type());
+        cache_state_.dec_used(slot.reg());
+        cache_state_.inc_used(dst_reg);
+        slot.MakeRegister(dst_reg);
+      }
+      continue;
+    }
     LiftoffRegister reg = GetUnusedRegister(rc, {});
     LoadConstant(reg, slot.constant());
     slot.MakeRegister(reg);
