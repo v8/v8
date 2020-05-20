@@ -829,10 +829,6 @@ void WasmGenerator::Generate<ValueType::kI32>(DataRange* data) {
       &WasmGenerator::op_with_prefix<kExprI32UConvertSatF32, ValueType::kF32>,
       &WasmGenerator::op_with_prefix<kExprI32SConvertSatF64, ValueType::kF64>,
       &WasmGenerator::op_with_prefix<kExprI32UConvertSatF64, ValueType::kF64>,
-      &WasmGenerator::op_with_prefix<kExprI64SConvertSatF32, ValueType::kF32>,
-      &WasmGenerator::op_with_prefix<kExprI64UConvertSatF32, ValueType::kF32>,
-      &WasmGenerator::op_with_prefix<kExprI64SConvertSatF64, ValueType::kF64>,
-      &WasmGenerator::op_with_prefix<kExprI64UConvertSatF64, ValueType::kF64>,
 
       &WasmGenerator::block<ValueType::kI32>,
       &WasmGenerator::loop<ValueType::kI32>,
@@ -956,6 +952,11 @@ void WasmGenerator::Generate<ValueType::kI64>(DataRange* data) {
       &WasmGenerator::op<kExprI64Clz, ValueType::kI64>,
       &WasmGenerator::op<kExprI64Ctz, ValueType::kI64>,
       &WasmGenerator::op<kExprI64Popcnt, ValueType::kI64>,
+
+      &WasmGenerator::op_with_prefix<kExprI64SConvertSatF32, ValueType::kF32>,
+      &WasmGenerator::op_with_prefix<kExprI64UConvertSatF32, ValueType::kF32>,
+      &WasmGenerator::op_with_prefix<kExprI64SConvertSatF64, ValueType::kF64>,
+      &WasmGenerator::op_with_prefix<kExprI64UConvertSatF64, ValueType::kF64>,
 
       &WasmGenerator::block<ValueType::kI64>,
       &WasmGenerator::loop<ValueType::kI64>,
