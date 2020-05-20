@@ -27,10 +27,6 @@ HeapObject PagedSpaceObjectIterator::Next() {
 
 HeapObject PagedSpaceObjectIterator::FromCurrentPage() {
   while (cur_addr_ != cur_end_) {
-    if (cur_addr_ == space_->top() && cur_addr_ != space_->limit()) {
-      cur_addr_ = space_->limit();
-      continue;
-    }
     HeapObject obj = HeapObject::FromAddress(cur_addr_);
     const int obj_size = obj.Size();
     cur_addr_ += obj_size;

@@ -32,6 +32,7 @@ PagedSpaceObjectIterator::PagedSpaceObjectIterator(Heap* heap,
       space_(space),
       page_range_(space->first_page(), nullptr),
       current_page_(page_range_.begin()) {
+  space_->MakeLinearAllocationAreaIterable();
   heap->mark_compact_collector()->EnsureSweepingCompleted();
 }
 
@@ -43,6 +44,7 @@ PagedSpaceObjectIterator::PagedSpaceObjectIterator(Heap* heap,
       space_(space),
       page_range_(page),
       current_page_(page_range_.begin()) {
+  space_->MakeLinearAllocationAreaIterable();
   heap->mark_compact_collector()->EnsureSweepingCompleted();
 #ifdef DEBUG
   AllocationSpace owner = page->owner_identity();
@@ -56,7 +58,9 @@ PagedSpaceObjectIterator::PagedSpaceObjectIterator(OffThreadSpace* space)
       cur_end_(kNullAddress),
       space_(space),
       page_range_(space->first_page(), nullptr),
-      current_page_(page_range_.begin()) {}
+      current_page_(page_range_.begin()) {
+  space_->MakeLinearAllocationAreaIterable();
+}
 
 // We have hit the end of the page and should advance to the next block of
 // objects.  This happens at the end of the page.
@@ -391,6 +395,23 @@ void PagedSpace::UnmarkLinearAllocationArea() {
   if (current_top != kNullAddress && current_top != current_limit) {
     Page::FromAllocationAreaAddress(current_top)
         ->DestroyBlackArea(current_top, current_limit);
+  }
+}
+
+void PagedSpace::MakeLinearAllocationAreaIterable() {
+  Address current_top = top();
+  Address current_limit = limit();
+  if (current_top != kNullAddress && current_top != current_limit) {
+    base::Optional<CodePageMemoryModificationScope> optional_scope;
+
+    if (identity() == CODE_SPACE) {
+      MemoryChunk* chunk = MemoryChunk::FromAddress(current_top);
+      optional_scope.emplace(chunk);
+    }
+
+    heap_->CreateFillerObjectAt(current_top,
+                                static_cast<int>(current_limit - current_top),
+                                ClearRecordedSlots::kNo);
   }
 }
 

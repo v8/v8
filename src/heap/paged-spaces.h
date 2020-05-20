@@ -189,6 +189,8 @@ class V8_EXPORT_PRIVATE PagedSpace
   // Empty space linear allocation area, returning unused area to free list.
   void FreeLinearAllocationArea();
 
+  void MakeLinearAllocationAreaIterable();
+
   void MarkLinearAllocationAreaBlack();
   void UnmarkLinearAllocationArea();
 
