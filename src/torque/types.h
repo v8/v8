@@ -104,6 +104,7 @@ struct RuntimeType {
 
 class V8_EXPORT_PRIVATE Type : public TypeBase {
  public:
+  Type& operator=(const Type& other) = delete;
   virtual bool IsSubtypeOf(const Type* supertype) const;
 
   // Default rendering for error messages etc.
@@ -164,7 +165,6 @@ class V8_EXPORT_PRIVATE Type : public TypeBase {
   Type(TypeBase::Kind kind, const Type* parent,
        MaybeSpecializationKey specialized_from = base::nullopt);
   Type(const Type& other) V8_NOEXCEPT;
-  Type& operator=(const Type& other) = delete;
   void set_parent(const Type* t) { parent_ = t; }
   int Depth() const;
   virtual std::string ToExplicitString() const = 0;
