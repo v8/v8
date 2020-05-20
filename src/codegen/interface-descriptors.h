@@ -23,7 +23,6 @@ namespace internal {
 #define INTERFACE_DESCRIPTOR_LIST(V)     \
   V(Abort)                               \
   V(Allocate)                            \
-  V(AllocateHeapNumber)                  \
   V(ApiCallback)                         \
   V(ApiGetter)                           \
   V(ArgumentsAdaptor)                    \
@@ -1055,13 +1054,6 @@ class AbortDescriptor : public CallInterfaceDescriptor {
   DEFINE_PARAMETERS_NO_CONTEXT(kMessageOrMessageId)
   DEFINE_PARAMETER_TYPES(MachineType::AnyTagged())
   DECLARE_DESCRIPTOR(AbortDescriptor, CallInterfaceDescriptor)
-};
-
-class AllocateHeapNumberDescriptor : public CallInterfaceDescriptor {
- public:
-  DEFINE_PARAMETERS_NO_CONTEXT()
-  DEFINE_PARAMETER_TYPES()
-  DECLARE_DESCRIPTOR(AllocateHeapNumberDescriptor, CallInterfaceDescriptor)
 };
 
 class ArrayConstructorDescriptor : public CallInterfaceDescriptor {
