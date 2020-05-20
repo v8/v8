@@ -30,6 +30,7 @@ class TimeDelta;
 
 namespace internal {
 
+class BackingStore;
 template <typename T>
 class Handle;
 class Isolate;
@@ -52,7 +53,6 @@ class FutexWaitListNode {
   FutexWaitListNode()
       : prev_(nullptr),
         next_(nullptr),
-        backing_store_(nullptr),
         wait_addr_(0),
         waiting_(false),
         interrupted_(false) {}
@@ -68,7 +68,7 @@ class FutexWaitListNode {
   // prev_ and next_ are protected by FutexEmulation::mutex_.
   FutexWaitListNode* prev_;
   FutexWaitListNode* next_;
-  void* backing_store_;
+  std::weak_ptr<BackingStore> backing_store_;
   size_t wait_addr_;
   // waiting_ and interrupted_ are protected by FutexEmulation::mutex_
   // if this node is currently contained in FutexEmulation::wait_list_
