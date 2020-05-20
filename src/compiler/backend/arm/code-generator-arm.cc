@@ -1960,40 +1960,32 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
     case kArmF64x2Lt: {
       UseScratchRegisterScope temps(tasm());
       Register scratch = temps.Acquire();
-      __ mov(scratch, Operand(0));
       __ VFPCompareAndSetFlags(i.InputSimd128Register(0).low(),
                                i.InputSimd128Register(1).low());
-      __ mov(scratch, Operand(-1), LeaveCC, lt);
-      // Check for NaN.
-      __ mov(scratch, Operand(0), LeaveCC, vs);
+      __ mov(scratch, Operand(0), LeaveCC, cs);
+      __ mov(scratch, Operand(-1), LeaveCC, mi);
       __ vmov(i.OutputSimd128Register().low(), scratch, scratch);
 
-      __ mov(scratch, Operand(0));
       __ VFPCompareAndSetFlags(i.InputSimd128Register(0).high(),
                                i.InputSimd128Register(1).high());
-      __ mov(scratch, Operand(-1), LeaveCC, lt);
-      // Check for NaN.
-      __ mov(scratch, Operand(0), LeaveCC, vs);
+      __ mov(scratch, Operand(0), LeaveCC, cs);
+      __ mov(scratch, Operand(-1), LeaveCC, mi);
       __ vmov(i.OutputSimd128Register().high(), scratch, scratch);
       break;
     }
     case kArmF64x2Le: {
       UseScratchRegisterScope temps(tasm());
       Register scratch = temps.Acquire();
-      __ mov(scratch, Operand(0));
       __ VFPCompareAndSetFlags(i.InputSimd128Register(0).low(),
                                i.InputSimd128Register(1).low());
-      __ mov(scratch, Operand(-1), LeaveCC, le);
-      // Check for NaN.
-      __ mov(scratch, Operand(0), LeaveCC, vs);
+      __ mov(scratch, Operand(0), LeaveCC, hi);
+      __ mov(scratch, Operand(-1), LeaveCC, ls);
       __ vmov(i.OutputSimd128Register().low(), scratch, scratch);
 
-      __ mov(scratch, Operand(0));
       __ VFPCompareAndSetFlags(i.InputSimd128Register(0).high(),
                                i.InputSimd128Register(1).high());
-      __ mov(scratch, Operand(-1), LeaveCC, le);
-      // Check for NaN.
-      __ mov(scratch, Operand(0), LeaveCC, vs);
+      __ mov(scratch, Operand(0), LeaveCC, hi);
+      __ mov(scratch, Operand(-1), LeaveCC, ls);
       __ vmov(i.OutputSimd128Register().high(), scratch, scratch);
       break;
     }
