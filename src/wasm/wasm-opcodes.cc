@@ -367,6 +367,7 @@ const char* WasmOpcodes::OpcodeName(WasmOpcode opcode) {
     CASE_OP(RefCast, "ref.cast")
     CASE_OP(BrOnCast, "br_on_cast")
     CASE_OP(RefEq, "ref.eq")
+    CASE_OP(Let, "let")
 
 
     case kNumericPrefix:

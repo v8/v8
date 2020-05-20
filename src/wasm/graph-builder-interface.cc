@@ -296,6 +296,19 @@ class WasmGraphBuildingInterface {
     ssa_env_->locals[imm.index] = value.node;
   }
 
+  void AllocateLocals(FullDecoder* decoder, Vector<Value> local_values) {
+    ZoneVector<TFNode*>* locals = &ssa_env_->locals;
+    locals->insert(locals->begin(), local_values.size(), nullptr);
+    for (uint32_t i = 0; i < local_values.size(); i++) {
+      (*locals)[i] = local_values[i].node;
+    }
+  }
+
+  void DeallocateLocals(FullDecoder* decoder, uint32_t count) {
+    ZoneVector<TFNode*>* locals = &ssa_env_->locals;
+    locals->erase(locals->begin(), locals->begin() + count);
+  }
+
   void GlobalGet(FullDecoder* decoder, Value* result,
                  const GlobalIndexImmediate<validate>& imm) {
     result->node = BUILD(GlobalGet, imm.index);

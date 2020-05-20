@@ -158,6 +158,8 @@ WASM_EXEC_TEST(BasicStruct) {
   n->EmitCode(n_code, sizeof(n_code));
   // Result: 0b1001
 
+  /************************* End of test definitions *************************/
+
   ZoneBuffer buffer(&zone);
   builder->WriteTo(&buffer);
 
@@ -165,10 +167,11 @@ WASM_EXEC_TEST(BasicStruct) {
   HandleScope scope(isolate);
   testing::SetupIsolateForWasmModule(isolate);
   ErrorThrower thrower(isolate, "Test");
-  Handle<WasmInstanceObject> instance =
+  MaybeHandle<WasmInstanceObject> maybe_instance =
       testing::CompileAndInstantiateForTesting(
-          isolate, &thrower, ModuleWireBytes(buffer.begin(), buffer.end()))
-          .ToHandleChecked();
+          isolate, &thrower, ModuleWireBytes(buffer.begin(), buffer.end()));
+  if (thrower.error()) FATAL("%s", thrower.error_msg());
+  Handle<WasmInstanceObject> instance = maybe_instance.ToHandleChecked();
 
   CHECK_EQ(42, testing::CallWasmFunctionForTesting(isolate, instance, &thrower,
                                                    "f", 0, nullptr));
@@ -200,6 +203,106 @@ WASM_EXEC_TEST(BasicStruct) {
 
   CHECK_EQ(0b1001, testing::CallWasmFunctionForTesting(
                        isolate, instance, &thrower, "n", 0, nullptr));
+}
+
+WASM_EXEC_TEST(LetInstruction) {
+  // TODO(7748): Implement support in other tiers.
+  if (execution_tier == ExecutionTier::kLiftoff) return;
+  if (execution_tier == ExecutionTier::kInterpreter) return;
+  TestSignatures sigs;
+  EXPERIMENTAL_FLAG_SCOPE(gc);
+  EXPERIMENTAL_FLAG_SCOPE(typed_funcref);
+  EXPERIMENTAL_FLAG_SCOPE(anyref);
+  v8::internal::AccountingAllocator allocator;
+  Zone zone(&allocator, ZONE_NAME);
+
+  WasmModuleBuilder* builder = new (&zone) WasmModuleBuilder(&zone);
+  StructType::Builder type_builder(&zone, 2);
+  type_builder.AddField(kWasmI32);
+  type_builder.AddField(kWasmI32);
+  int32_t type_index = builder->AddStructType(type_builder.Build());
+  ValueType kRefTypes[] = {ValueType(ValueType::kRef, type_index)};
+  FunctionSig sig_q_v(1, 0, kRefTypes);
+
+  WasmFunctionBuilder* let_test_1 = builder->AddFunction(sigs.i_v());
+  let_test_1->builder()->AddExport(CStrVector("let_test_1"), let_test_1);
+  uint32_t let_local_index = 0;
+  uint32_t let_field_index = 0;
+  byte let_code[] = {
+      WASM_LET_1_I(WASM_REF_TYPE(type_index),
+                   WASM_STRUCT_NEW(type_index, WASM_I32V(42), WASM_I32V(52)),
+                   WASM_STRUCT_GET(type_index, let_field_index,
+                                   WASM_GET_LOCAL(let_local_index))),
+      kExprEnd};
+  let_test_1->EmitCode(let_code, sizeof(let_code));
+
+  WasmFunctionBuilder* let_test_2 = builder->AddFunction(sigs.i_v());
+  let_test_2->builder()->AddExport(CStrVector("let_test_2"), let_test_2);
+  uint32_t let_2_field_index = 0;
+  byte let_code_2[] = {
+      WASM_LET_2_I(kLocalI32, WASM_I32_ADD(WASM_I32V(42), WASM_I32V(-32)),
+                   WASM_REF_TYPE(type_index),
+                   WASM_STRUCT_NEW(type_index, WASM_I32V(42), WASM_I32V(52)),
+                   WASM_I32_MUL(WASM_STRUCT_GET(type_index, let_2_field_index,
+                                                WASM_GET_LOCAL(1)),
+                                WASM_GET_LOCAL(0))),
+      kExprEnd};
+  let_test_2->EmitCode(let_code_2, sizeof(let_code_2));
+
+  WasmFunctionBuilder* let_test_locals = builder->AddFunction(sigs.i_i());
+  let_test_locals->builder()->AddExport(CStrVector("let_test_locals"),
+                                        let_test_locals);
+  let_test_locals->AddLocal(kWasmI32);
+  byte let_code_locals[] = {
+      WASM_SET_LOCAL(1, WASM_I32V(100)),
+      WASM_LET_2_I(
+          kLocalI32, WASM_I32V(1), kLocalI32, WASM_I32V(10),
+          WASM_I32_SUB(WASM_I32_ADD(WASM_GET_LOCAL(0),     // 1st let-local
+                                    WASM_GET_LOCAL(2)),    // Parameter
+                       WASM_I32_ADD(WASM_GET_LOCAL(1),     // 2nd let-local
+                                    WASM_GET_LOCAL(3)))),  // Function local
+      kExprEnd};
+  // Result: (1 + 1000) - (10 + 100) = 891
+  let_test_locals->EmitCode(let_code_locals, sizeof(let_code_locals));
+
+  WasmFunctionBuilder* let_test_erase = builder->AddFunction(sigs.i_v());
+  let_test_erase->builder()->AddExport(CStrVector("let_test_erase"),
+                                       let_test_erase);
+  uint32_t let_erase_local_index = let_test_erase->AddLocal(kWasmI32);
+  byte let_code_erase[] = {WASM_SET_LOCAL(let_erase_local_index, WASM_I32V(0)),
+                           WASM_LET_1_V(kLocalI32, WASM_I32V(1), WASM_NOP),
+                           WASM_GET_LOCAL(let_erase_local_index), kExprEnd};
+  // The result should be 0 and not 1, as local_get(0) refers to the original
+  // local.
+  let_test_erase->EmitCode(let_code_erase, sizeof(let_code_erase));
+
+  /************************* End of test definitions *************************/
+
+  ZoneBuffer buffer(&zone);
+  builder->WriteTo(&buffer);
+
+  Isolate* isolate = CcTest::InitIsolateOnce();
+  HandleScope scope(isolate);
+  testing::SetupIsolateForWasmModule(isolate);
+  ErrorThrower thrower(isolate, "Test");
+  MaybeHandle<WasmInstanceObject> maybe_instance =
+      testing::CompileAndInstantiateForTesting(
+          isolate, &thrower, ModuleWireBytes(buffer.begin(), buffer.end()));
+  if (thrower.error()) FATAL("%s", thrower.error_msg());
+  Handle<WasmInstanceObject> instance = maybe_instance.ToHandleChecked();
+
+  CHECK_EQ(42, testing::CallWasmFunctionForTesting(isolate, instance, &thrower,
+                                                   "let_test_1", 0, nullptr));
+
+  CHECK_EQ(420, testing::CallWasmFunctionForTesting(isolate, instance, &thrower,
+                                                    "let_test_2", 0, nullptr));
+
+  Handle<Object> let_local_args[] = {handle(Smi::FromInt(1000), isolate)};
+  CHECK_EQ(891, testing::CallWasmFunctionForTesting(isolate, instance, &thrower,
+                                                    "let_test_locals", 1,
+                                                    let_local_args));
+  CHECK_EQ(0, testing::CallWasmFunctionForTesting(
+                  isolate, instance, &thrower, "let_test_erase", 0, nullptr));
 }
 
 WASM_EXEC_TEST(BasicArray) {

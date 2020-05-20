@@ -64,7 +64,9 @@ DecodeResult VerifyWasmCode(AccountingAllocator* allocator,
 }
 
 unsigned OpcodeLength(const byte* pc, const byte* end) {
-  Decoder decoder(pc, end);
+  WasmFeatures no_features = WasmFeatures::None();
+  WasmDecoder<Decoder::kNoValidate> decoder(nullptr, no_features, &no_features,
+                                            nullptr, pc, end, 0);
   return WasmDecoder<Decoder::kNoValidate>::OpcodeLength(&decoder, pc);
 }
 
@@ -293,7 +295,9 @@ bool PrintRawWasmCode(AccountingAllocator* allocator, const FunctionBody& body,
 
 BitVector* AnalyzeLoopAssignmentForTesting(Zone* zone, size_t num_locals,
                                            const byte* start, const byte* end) {
-  Decoder decoder(start, end);
+  WasmFeatures no_features = WasmFeatures::None();
+  WasmDecoder<Decoder::kValidate> decoder(nullptr, no_features, &no_features,
+                                          nullptr, start, end, 0);
   return WasmDecoder<Decoder::kValidate>::AnalyzeLoopAssignment(
       &decoder, start, static_cast<uint32_t>(num_locals), zone);
 }

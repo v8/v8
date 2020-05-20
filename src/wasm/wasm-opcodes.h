@@ -38,7 +38,8 @@ bool IsJSCompatibleSignature(const FunctionSig* sig, const WasmFeatures&);
   V(BrIf, 0x0d, _)                       \
   V(BrTable, 0x0e, _)                    \
   V(Return, 0x0f, _)                     \
-  V(BrOnNull, 0xd4, _) /* gc prototype */
+  V(Let, 0x17, _ /* gc prototype */)     \
+  V(BrOnNull, 0xd4, _ /* gc prototype */)
 
 // Constants, locals, globals, and calls.
 #define FOREACH_MISC_OPCODE(V)   \
