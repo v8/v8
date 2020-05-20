@@ -47,6 +47,7 @@ std::string ToString(Args&&... args) {
 
 class V8_EXPORT_PRIVATE MessageBuilder {
  public:
+  MessageBuilder() = delete;
   MessageBuilder(const std::string& message, TorqueMessage::Kind kind);
 
   MessageBuilder& Position(SourcePosition position) {
@@ -62,7 +63,6 @@ class V8_EXPORT_PRIVATE MessageBuilder {
   }
 
  private:
-  MessageBuilder() = delete;
   void Report() const;
 
   TorqueMessage message_;
@@ -370,10 +370,10 @@ class IfDefScope {
  public:
   IfDefScope(std::ostream& os, std::string d);
   ~IfDefScope();
-
- private:
   IfDefScope(const IfDefScope&) = delete;
   IfDefScope& operator=(const IfDefScope&) = delete;
+
+ private:
   std::ostream& os_;
   std::string d_;
 };
@@ -383,10 +383,10 @@ class NamespaceScope {
   NamespaceScope(std::ostream& os,
                  std::initializer_list<std::string> namespaces);
   ~NamespaceScope();
-
- private:
   NamespaceScope(const NamespaceScope&) = delete;
   NamespaceScope& operator=(const NamespaceScope&) = delete;
+
+ private:
   std::ostream& os_;
   std::vector<std::string> d_;
 };
@@ -395,10 +395,10 @@ class IncludeGuardScope {
  public:
   IncludeGuardScope(std::ostream& os, std::string file_name);
   ~IncludeGuardScope();
-
- private:
   IncludeGuardScope(const IncludeGuardScope&) = delete;
   IncludeGuardScope& operator=(const IncludeGuardScope&) = delete;
+
+ private:
   std::ostream& os_;
   std::string d_;
 };
@@ -407,10 +407,10 @@ class IncludeObjectMacrosScope {
  public:
   explicit IncludeObjectMacrosScope(std::ostream& os);
   ~IncludeObjectMacrosScope();
-
- private:
   IncludeObjectMacrosScope(const IncludeObjectMacrosScope&) = delete;
   IncludeObjectMacrosScope& operator=(const IncludeObjectMacrosScope&) = delete;
+
+ private:
   std::ostream& os_;
 };
 
