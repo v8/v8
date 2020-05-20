@@ -1168,7 +1168,36 @@ void LiftoffAssembler::LoadTransform(LiftoffRegister dst, Register src_addr,
                                      LoadType type,
                                      LoadTransformationKind transform,
                                      uint32_t* protected_load_pc) {
-  bailout(kSimd, "Load transform unimplemented");
+  UseScratchRegisterScope temps(this);
+  MemOperand src_op =
+      liftoff::GetMemOp(this, &temps, src_addr, offset_reg, offset_imm);
+  *protected_load_pc = pc_offset();
+
+  if (transform == LoadTransformationKind::kExtend) {
+    MachineType memtype = type.mem_type();
+    if (memtype == MachineType::Int8()) {
+      Ldr(dst.fp().D(), src_op);
+      Sxtl(dst.fp().V8H(), dst.fp().V8B());
+    } else if (memtype == MachineType::Uint8()) {
+      Ldr(dst.fp().D(), src_op);
+      Uxtl(dst.fp().V8H(), dst.fp().V8B());
+    } else if (memtype == MachineType::Int16()) {
+      Ldr(dst.fp().D(), src_op);
+      Sxtl(dst.fp().V4S(), dst.fp().V4H());
+    } else if (memtype == MachineType::Uint16()) {
+      Ldr(dst.fp().D(), src_op);
+      Uxtl(dst.fp().V4S(), dst.fp().V4H());
+    } else if (memtype == MachineType::Int32()) {
+      Ldr(dst.fp().D(), src_op);
+      Sxtl(dst.fp().V2D(), dst.fp().V2S());
+    } else if (memtype == MachineType::Uint32()) {
+      Ldr(dst.fp().D(), src_op);
+      Uxtl(dst.fp().V2D(), dst.fp().V2S());
+    }
+  } else {
+    DCHECK_EQ(LoadTransformationKind::kSplat, transform);
+    bailout(kSimd, "load splats unimplemented");
+  }
 }
 
 void LiftoffAssembler::emit_f64x2_splat(LiftoffRegister dst,

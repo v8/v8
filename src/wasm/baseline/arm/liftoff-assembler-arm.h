@@ -2142,7 +2142,42 @@ void LiftoffAssembler::LoadTransform(LiftoffRegister dst, Register src_addr,
                                      LoadType type,
                                      LoadTransformationKind transform,
                                      uint32_t* protected_load_pc) {
-  bailout(kSimd, "Load transform unimplemented");
+  UseScratchRegisterScope temps(this);
+  Register actual_src_addr = liftoff::CalculateActualAddress(
+      this, &temps, src_addr, offset_reg, offset_imm);
+  *protected_load_pc = pc_offset();
+
+  if (transform == LoadTransformationKind::kExtend) {
+    MachineType memtype = type.mem_type();
+    if (memtype == MachineType::Int8()) {
+      vld1(Neon8, NeonListOperand(dst.low_fp()),
+           NeonMemOperand(actual_src_addr));
+      vmovl(NeonS8, liftoff::GetSimd128Register(dst), dst.low_fp());
+    } else if (memtype == MachineType::Uint8()) {
+      vld1(Neon8, NeonListOperand(dst.low_fp()),
+           NeonMemOperand(actual_src_addr));
+      vmovl(NeonU8, liftoff::GetSimd128Register(dst), dst.low_fp());
+    } else if (memtype == MachineType::Int16()) {
+      vld1(Neon16, NeonListOperand(dst.low_fp()),
+           NeonMemOperand(actual_src_addr));
+      vmovl(NeonS16, liftoff::GetSimd128Register(dst), dst.low_fp());
+    } else if (memtype == MachineType::Uint16()) {
+      vld1(Neon16, NeonListOperand(dst.low_fp()),
+           NeonMemOperand(actual_src_addr));
+      vmovl(NeonU16, liftoff::GetSimd128Register(dst), dst.low_fp());
+    } else if (memtype == MachineType::Int32()) {
+      vld1(Neon32, NeonListOperand(dst.low_fp()),
+           NeonMemOperand(actual_src_addr));
+      vmovl(NeonS32, liftoff::GetSimd128Register(dst), dst.low_fp());
+    } else if (memtype == MachineType::Uint32()) {
+      vld1(Neon32, NeonListOperand(dst.low_fp()),
+           NeonMemOperand(actual_src_addr));
+      vmovl(NeonU32, liftoff::GetSimd128Register(dst), dst.low_fp());
+    }
+  } else {
+    DCHECK_EQ(LoadTransformationKind::kSplat, transform);
+    bailout(kSimd, "load splats unimplemented");
+  }
 }
 
 void LiftoffAssembler::emit_f64x2_splat(LiftoffRegister dst,
