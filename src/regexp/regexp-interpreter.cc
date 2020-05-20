@@ -308,6 +308,12 @@ bool CheckBitInTable(const uint32_t current_char, const byte* const table) {
   return (b & (1 << bit)) != 0;
 }
 
+// Returns true iff 0 <= index < length.
+bool IndexIsInBounds(int index, int length) {
+  DCHECK_GE(length, 0);
+  return static_cast<uintptr_t>(index) < static_cast<uintptr_t>(length);
+}
+
 // If computed gotos are supported by the compiler, we can get addresses to
 // labels directly in C/C++. Every bytecode handler has its own label and we
 // store the addresses in a dispatch table indexed by bytecode. To execute the
@@ -350,10 +356,10 @@ bool CheckBitInTable(const uint32_t current_char, const byte* const table) {
   DECODE()
 
 // Current position mutations.
-#define SET_CURRENT_POSITION(value)                         \
-  do {                                                      \
-    current = (value);                                      \
-    DCHECK(base::IsInBounds(current, 0, subject.length())); \
+#define SET_CURRENT_POSITION(value)                        \
+  do {                                                     \
+    current = (value);                                     \
+    DCHECK(base::IsInRange(current, 0, subject.length())); \
   } while (false)
 #define ADVANCE_CURRENT_POSITION(by) SET_CURRENT_POSITION(current + (by))
 
@@ -880,11 +886,10 @@ IrregexpInterpreter::Result RawMatch(
       DISPATCH();
     }
     BYTECODE(SKIP_UNTIL_CHAR) {
-      uint32_t load_offset = LoadPacked24Unsigned(insn);
+      int32_t load_offset = LoadPacked24Signed(insn);
       int32_t advance = Load16AlignedSigned(pc + 4);
       uint32_t c = Load16Aligned(pc + 6);
-      while (static_cast<uintptr_t>(current + load_offset) <
-             static_cast<uintptr_t>(subject.length())) {
+      while (IndexIsInBounds(current + load_offset, subject.length())) {
         current_char = subject[current + load_offset];
         if (c == current_char) {
           SET_PC_FROM_OFFSET(Load32Aligned(pc + 8));
@@ -896,7 +901,7 @@ IrregexpInterpreter::Result RawMatch(
       DISPATCH();
     }
     BYTECODE(SKIP_UNTIL_CHAR_AND) {
-      uint32_t load_offset = LoadPacked24Unsigned(insn);
+      int32_t load_offset = LoadPacked24Signed(insn);
       int32_t advance = Load16AlignedSigned(pc + 4);
       uint16_t c = Load16Aligned(pc + 6);
       uint32_t mask = Load32Aligned(pc + 8);
@@ -914,7 +919,7 @@ IrregexpInterpreter::Result RawMatch(
       DISPATCH();
     }
     BYTECODE(SKIP_UNTIL_CHAR_POS_CHECKED) {
-      uint32_t load_offset = LoadPacked24Unsigned(insn);
+      int32_t load_offset = LoadPacked24Signed(insn);
       int32_t advance = Load16AlignedSigned(pc + 4);
       uint16_t c = Load16Aligned(pc + 6);
       int32_t maximum_offset = Load32Aligned(pc + 8);
@@ -931,11 +936,10 @@ IrregexpInterpreter::Result RawMatch(
       DISPATCH();
     }
     BYTECODE(SKIP_UNTIL_BIT_IN_TABLE) {
-      uint32_t load_offset = LoadPacked24Unsigned(insn);
+      int32_t load_offset = LoadPacked24Signed(insn);
       int32_t advance = Load16AlignedSigned(pc + 4);
       const byte* table = pc + 8;
-      while (static_cast<uintptr_t>(current + load_offset) <
-             static_cast<uintptr_t>(subject.length())) {
+      while (IndexIsInBounds(current + load_offset, subject.length())) {
         current_char = subject[current + load_offset];
         if (CheckBitInTable(current_char, table)) {
           SET_PC_FROM_OFFSET(Load32Aligned(pc + 24));
@@ -947,12 +951,11 @@ IrregexpInterpreter::Result RawMatch(
       DISPATCH();
     }
     BYTECODE(SKIP_UNTIL_GT_OR_NOT_BIT_IN_TABLE) {
-      uint32_t load_offset = LoadPacked24Unsigned(insn);
+      int32_t load_offset = LoadPacked24Signed(insn);
       int32_t advance = Load16AlignedSigned(pc + 4);
       uint16_t limit = Load16Aligned(pc + 6);
       const byte* table = pc + 8;
-      while (static_cast<uintptr_t>(current + load_offset) <
-             static_cast<uintptr_t>(subject.length())) {
+      while (IndexIsInBounds(current + load_offset, subject.length())) {
         current_char = subject[current + load_offset];
         if (current_char > limit) {
           SET_PC_FROM_OFFSET(Load32Aligned(pc + 24));
@@ -968,12 +971,11 @@ IrregexpInterpreter::Result RawMatch(
       DISPATCH();
     }
     BYTECODE(SKIP_UNTIL_CHAR_OR_CHAR) {
-      uint32_t load_offset = LoadPacked24Unsigned(insn);
+      int32_t load_offset = LoadPacked24Signed(insn);
       int32_t advance = Load32Aligned(pc + 4);
       uint16_t c = Load16Aligned(pc + 8);
       uint16_t c2 = Load16Aligned(pc + 10);
-      while (static_cast<uintptr_t>(current + load_offset) <
-             static_cast<uintptr_t>(subject.length())) {
+      while (IndexIsInBounds(current + load_offset, subject.length())) {
         current_char = subject[current + load_offset];
         // The two if-statements below are split up intentionally, as combining
         // them seems to result in register allocation behaving quite
