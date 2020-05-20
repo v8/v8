@@ -158,8 +158,7 @@ TEST(MISC) {
           "06400267       jalr      tp, 100(zero_reg)");
 
   // Branches
-  COMPARE(RV_beq(fp, zero_reg, -268),
-          "ee040ae3       beq       fp, zero_reg, -268");
+  COMPARE(RV_beq(fp, a4, -268), "eee40ae3       beq       fp, a4, -268");
   COMPARE(RV_bne(t1, s4, -268), "ef431ae3       bne       t1, s4, -268");
   COMPARE(RV_blt(s3, t4, -268), "efd9cae3       blt       s3, t4, -268");
   COMPARE(RV_bge(t2, sp, -268), "ee23dae3       bge       t2, sp, -268");
@@ -181,18 +180,17 @@ TEST(MISC) {
 TEST(CSR) {
   SET_UP();
 
-  COMPARE(RV_csrrw(zero_reg, csr_fflags, t3),
-          "001e1073       csrrw     zero_reg, csr_fflags, t3");
-  COMPARE(RV_csrrs(a0, csr_frm, zero_reg),
-          "00202573       csrrs     a0, csr_frm, zero_reg");
+  COMPARE(RV_csrrw(a0, csr_fflags, t3), "001e1573       fsflags   a0, t3");
+  COMPARE(RV_csrrs(a0, csr_frm, t1),
+          "00232573       csrrs     a0, csr_frm, t1");
   COMPARE(RV_csrrc(a0, csr_fcsr, s3),
           "0039b573       csrrc     a0, csr_fcsr, s3");
-  COMPARE(RV_csrrwi(a0, csr_fflags, 0b10000),
-          "00185573       csrrwi    a0, csr_fflags, 16");
-  COMPARE(RV_csrrsi(t3, csr_frm, 0b011),
-          "0021ee73       csrrsi    t3, csr_frm, 3");
-  COMPARE(RV_csrrci(a0, csr_fflags, 0b10000),
-          "00187573       csrrci    a0, csr_fflags, 16");
+  COMPARE(RV_csrrwi(a0, csr_fflags, 0x10),
+          "00185573       csrrwi    a0, csr_fflags, 0x10");
+  COMPARE(RV_csrrsi(t3, csr_frm, 0x3),
+          "0021ee73       csrrsi    t3, csr_frm, 0x3");
+  COMPARE(RV_csrrci(a0, csr_fflags, 0x10),
+          "00187573       csrrci    a0, csr_fflags, 0x10");
 
   VERIFY_RUN();
 }
@@ -391,6 +389,67 @@ TEST(RV64D) {
   COMPARE(RV_fcvt_d_l(ft0, s3), "d2298053       fcvt.d.l  ft0, s3");
   COMPARE(RV_fcvt_d_lu(ft0, s3), "d2398053       fcvt.d.lu ft0, s3");
   COMPARE(RV_fmv_d_x(ft0, s3), "f2098053       fmv.d.x   ft0, s3");
+  VERIFY_RUN();
+}
+
+TEST(PSEUDO) {
+  SET_UP();
+  // pseodu instructions according to rISCV assembly programmer's handbook
+  COMPARE(RV_nop(), "00000013       nop");
+  COMPARE(RV_mv(t0, a4), "00070293       mv        t0, a4");
+  COMPARE(RV_not(t0, a5), "fff7c293       not       t0, a5");
+  COMPARE(RV_neg(ra, a6), "410000b3       neg       ra, rs2");
+  COMPARE(RV_negw(t2, fp), "408003bb       negw      t2, fp");
+  COMPARE(RV_sext_w(t0, s1), "0004829b       sext.w    t0, s1");
+  COMPARE(RV_seqz(sp, s2), "00193113       seqz      sp, s2");
+  COMPARE(RV_snez(fp, s3), "01303433       snez      fp, s3");
+  COMPARE(RV_sltz(a0, t5), "000f2533       sltz      a0, t5");
+  COMPARE(RV_sgtz(a1, t4), "01d025b3       sgtz      a1, t4");
+
+  COMPARE(RV_fmv_s(fa0, fs4), "214a0553       fmv.s   fa0, fs4");
+  COMPARE(RV_fabs_s(fa1, fs3), "2139a5d3       fabs.s  fa1, fs3");
+  COMPARE(RV_fneg_s(fa2, fs5), "215a9653       fneg.s  fa2, fs5");
+  COMPARE(RV_fmv_d(fa3, fs2), "232906d3       fmv.d   fa3, fs2");
+  COMPARE(RV_fabs_d(fs0, fs2), "23292453       fabs.d   fs0, fs2");
+  COMPARE(RV_fneg_d(fs1, fs1), "229494d3       fneg.d   fs1, fs1");
+
+  COMPARE(RV_j(-1024), "c01ff06f       j         -1024");
+  COMPARE(RV_jal(32), "020000ef       jal       32");
+  COMPARE(RV_jr(a1), "00058067       jr        a1");
+  COMPARE(RV_jalr(a1), "000580e7       jalr      a1");
+  COMPARE(RV_ret(), "00008067       ret");
+  // COMPARE(RV_call(int32_t offset);
+
+  COMPARE(RV_rdinstret(t0), "c02022f3       rdinstret t0");
+  COMPARE(RV_rdinstreth(a0), "c8202573       rdinstreth a0");
+  COMPARE(RV_rdcycle(a4), "c0002773       rdcycle   a4");
+  COMPARE(RV_rdcycleh(a5), "c80027f3       rdcycleh  a5");
+  COMPARE(RV_rdtime(a3), "c01026f3       rdtime    a3");
+  COMPARE(RV_rdtimeh(t2), "c81023f3       rdtimeh   t2");
+
+  COMPARE(RV_csrr(t3, csr_cycle), "c0002e73       rdcycle   t3");
+  COMPARE(RV_csrw(csr_instret, a1), "c0259073       csrw      csr_instret, a1");
+  COMPARE(RV_csrs(csr_timeh, a2), "c8162073       csrs      csr_timeh, a2");
+  COMPARE(RV_csrc(csr_cycleh, t1), "c8033073       csrc      csr_cycleh, t1");
+
+  COMPARE(RV_csrwi(csr_time, 0xf), "c017d073       csrwi     csr_time, 0xf");
+  COMPARE(RV_csrsi(csr_cycleh, 0x1),
+          "c800e073       csrsi     csr_cycleh, 0x1");
+  COMPARE(RV_csrci(csr_instreth, 0x15),
+          "c82af073       csrci     csr_instreth, 0x15");
+
+  COMPARE(RV_frcsr(t4), "00302ef3       frcsr     t4");
+  COMPARE(RV_fscsr(t1, a1), "00359373       fscsr     t1, a1");
+  COMPARE(RV_fscsr(a4), "00371073       fscsr     a4");
+
+  COMPARE(RV_frrm(t2), "002023f3       frrm      t2");
+  COMPARE(RV_fsrm(t0, a1), "002592f3       fsrm      t0, a1");
+  COMPARE(RV_fsrm(a5), "00279073       fsrm      a5");
+
+  COMPARE(RV_frflags(s5), "00102af3       frflags   s5");
+  COMPARE(RV_fsflags(s2, t1), "00131973       fsflags   s2, t1");
+  COMPARE(RV_fsflags(s1), "00149073       fsflags   s1");
+
   VERIFY_RUN();
 }
 

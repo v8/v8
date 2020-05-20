@@ -630,7 +630,8 @@ enum MemoryOdering {
   PSI = 0b1000,  // PI or SI
   PSO = 0b0100,  // PO or SO
   PSR = 0b0010,  // PR or SR
-  PSW = 0b0001   // PW or SW
+  PSW = 0b0001,  // PW or SW
+  PSIORW = PSI | PSO | PSR | PSW
 };
 
 enum FClassFlag {
@@ -662,7 +663,7 @@ inline Hint NegateHint(Hint hint) { return no_hint; }
 // registers and other constants.
 
 // An ECALL instruction, used for redirected real time call
-const Instr rtCallRedirInstr = SYSTEM; // All other bits are 0s
+const Instr rtCallRedirInstr = SYSTEM;  // All other bits are 0s
 
 constexpr uint8_t kInstrSize = 4;
 constexpr uint8_t kInstrSizeLog2 = 2;
