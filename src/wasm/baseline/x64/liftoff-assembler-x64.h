@@ -2183,8 +2183,8 @@ void LiftoffAssembler::LoadTransform(LiftoffRegister dst, Register src_addr,
   }
   Operand src_op = liftoff::GetMemOp(this, src_addr, offset_reg, offset_imm);
   *protected_load_pc = pc_offset();
+  MachineType memtype = type.mem_type();
   if (transform == LoadTransformationKind::kExtend) {
-    MachineType memtype = type.mem_type();
     if (memtype == MachineType::Int8()) {
       Pmovsxbw(dst.fp(), src_op);
     } else if (memtype == MachineType::Uint8()) {
@@ -2200,7 +2200,25 @@ void LiftoffAssembler::LoadTransform(LiftoffRegister dst, Register src_addr,
     }
   } else {
     DCHECK_EQ(LoadTransformationKind::kSplat, transform);
-    bailout(kSimd, "load splats unimplemented");
+    if (memtype == MachineType::Int8()) {
+      Pinsrb(dst.fp(), src_op, 0);
+      Pxor(kScratchDoubleReg, kScratchDoubleReg);
+      Pshufb(dst.fp(), kScratchDoubleReg);
+    } else if (memtype == MachineType::Int16()) {
+      Pinsrw(dst.fp(), src_op, 0);
+      Pshuflw(dst.fp(), dst.fp(), uint8_t{0});
+      Punpcklqdq(dst.fp(), dst.fp());
+    } else if (memtype == MachineType::Int32()) {
+      if (CpuFeatures::IsSupported(AVX)) {
+        CpuFeatureScope avx_scope(this, AVX);
+        vbroadcastss(dst.fp(), src_op);
+      } else {
+        Movss(dst.fp(), src_op);
+        Shufps(dst.fp(), dst.fp(), byte{0});
+      }
+    } else if (memtype == MachineType::Int64()) {
+      Movddup(dst.fp(), src_op);
+    }
   }
 }
 
