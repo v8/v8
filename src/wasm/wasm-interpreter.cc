@@ -2788,7 +2788,7 @@ class ThreadImpl {
     }
     result_type v = Pop().to<result_type>();
     s_type s;
-    for (size_t i = 0; i < arraysize(s.val); i++) s.val[i] = v;
+    for (size_t i = 0; i < arraysize(s.val); i++) s.val[LANE(i, s)] = v;
     Push(WasmValue(Simd128(s)));
     return true;
   }
@@ -2808,7 +2808,7 @@ class ThreadImpl {
     for (int i = 0; i < lanes; i++) {
       uint8_t shift = i * (sizeof(narrow_type) * 8);
       narrow_type el = static_cast<narrow_type>(v >> shift);
-      s.val[i] = static_cast<wide_type>(el);
+      s.val[LANE(i, s)] = static_cast<wide_type>(el);
     }
     Push(WasmValue(Simd128(s)));
     return true;

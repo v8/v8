@@ -3699,31 +3699,66 @@ LoadKind GetLoadKind(MachineGraph* mcgraph, MachineType memtype,
 // TODO(miladfar): Remove SIM once V8_TARGET_BIG_ENDIAN includes the Sim.
 #if defined(V8_TARGET_BIG_ENDIAN) || defined(V8_TARGET_ARCH_S390_LE_SIM)
 Node* WasmGraphBuilder::LoadTransformBigEndian(
-    MachineType memtype, wasm::LoadTransformationKind transform, Node* value) {
+    wasm::ValueType type, MachineType memtype,
+    wasm::LoadTransformationKind transform, Node* index, uint32_t offset,
+    uint32_t alignment, wasm::WasmCodePosition position) {
+#define LOAD_EXTEND(num_lanes, bytes_per_load, replace_lane)                   \
+  result = graph()->NewNode(mcgraph()->machine()->S128Zero());                 \
+  Node* values[num_lanes];                                                     \
+  for (int i = 0; i < num_lanes; i++) {                                        \
+    values[i] = LoadMem(type, memtype, index, offset + i * bytes_per_load,     \
+                        alignment, position);                                  \
+    if (memtype.IsSigned()) {                                                  \
+      /* sign extend */                                                        \
+      values[i] = graph()->NewNode(mcgraph()->machine()->ChangeInt32ToInt64(), \
+                                   values[i]);                                 \
+    } else {                                                                   \
+      /* zero extend */                                                        \
+      values[i] = graph()->NewNode(                                            \
+          mcgraph()->machine()->ChangeUint32ToUint64(), values[i]);            \
+    }                                                                          \
+  }                                                                            \
+  for (int lane = 0; lane < num_lanes; lane++) {                               \
+    result = graph()->NewNode(mcgraph()->machine()->replace_lane(lane),        \
+                              result, values[lane]);                           \
+  }
   Node* result;
   LoadTransformation transformation = GetLoadTransformation(memtype, transform);
 
   switch (transformation) {
     case LoadTransformation::kS8x16LoadSplat: {
-      result = graph()->NewNode(mcgraph()->machine()->I8x16Splat(), value);
+      result = LoadMem(type, memtype, index, offset, alignment, position);
+      result = graph()->NewNode(mcgraph()->machine()->I8x16Splat(), result);
       break;
     }
     case LoadTransformation::kI16x8Load8x8S:
-    case LoadTransformation::kI16x8Load8x8U:
+    case LoadTransformation::kI16x8Load8x8U: {
+      LOAD_EXTEND(8, 1, I16x8ReplaceLane)
+      break;
+    }
     case LoadTransformation::kS16x8LoadSplat: {
-      result = graph()->NewNode(mcgraph()->machine()->I16x8Splat(), value);
+      result = LoadMem(type, memtype, index, offset, alignment, position);
+      result = graph()->NewNode(mcgraph()->machine()->I16x8Splat(), result);
       break;
     }
     case LoadTransformation::kI32x4Load16x4S:
-    case LoadTransformation::kI32x4Load16x4U:
+    case LoadTransformation::kI32x4Load16x4U: {
+      LOAD_EXTEND(4, 2, I32x4ReplaceLane)
+      break;
+    }
     case LoadTransformation::kS32x4LoadSplat: {
-      result = graph()->NewNode(mcgraph()->machine()->I32x4Splat(), value);
+      result = LoadMem(type, memtype, index, offset, alignment, position);
+      result = graph()->NewNode(mcgraph()->machine()->I32x4Splat(), result);
       break;
     }
     case LoadTransformation::kI64x2Load32x2S:
-    case LoadTransformation::kI64x2Load32x2U:
+    case LoadTransformation::kI64x2Load32x2U: {
+      LOAD_EXTEND(2, 4, I64x2ReplaceLane)
+      break;
+    }
     case LoadTransformation::kS64x2LoadSplat: {
-      result = graph()->NewNode(mcgraph()->machine()->I64x2Splat(), value);
+      result = LoadMem(type, memtype, index, offset, alignment, position);
+      result = graph()->NewNode(mcgraph()->machine()->I64x2Splat(), result);
       break;
     }
     default:
@@ -3731,6 +3766,7 @@ Node* WasmGraphBuilder::LoadTransformBigEndian(
   }
 
   return result;
+#undef LOAD_EXTEND
 }
 #endif
 
@@ -3749,8 +3785,8 @@ Node* WasmGraphBuilder::LoadTransform(wasm::ValueType type, MachineType memtype,
   // LoadTransform cannot efficiently be executed on BE machines as a
   // single operation since loaded bytes need to be reversed first,
   // therefore we divide them into separate "load" and "operation" nodes.
-  load = LoadMem(type, memtype, index, offset, alignment, position);
-  load = LoadTransformBigEndian(memtype, transform, load);
+  load = LoadTransformBigEndian(type, memtype, transform, index, offset,
+                                alignment, position);
   USE(GetLoadKind);
 #else
   // Wasm semantics throw on OOB. Introduce explicit bounds check and
