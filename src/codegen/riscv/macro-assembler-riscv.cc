@@ -569,27 +569,27 @@ void TurboAssembler::Modu(Register rd, Register rs, const Operand& rt) {
 
 void TurboAssembler::Ddiv(Register rd, Register rs, const Operand& rt) {
   if (rt.is_reg()) {
-    RV_div(rd, rs, rt.rm());
+    RV_divw(rd, rs, rt.rm());
   } else {
     // li handles the relocation.
     UseScratchRegisterScope temps(this);
     Register scratch = temps.Acquire();
     DCHECK(rs != scratch);
     RV_li(scratch, rt.immediate());
-    RV_div(rd, rs, scratch);
+    RV_divw(rd, rs, scratch);
   }
 }
 
 void TurboAssembler::Divu(Register res, Register rs, const Operand& rt) {
   if (rt.is_reg()) {
-    RV_divu(res, rs, rt.rm());
+    RV_divuw(res, rs, rt.rm());
   } else {
     // li handles the relocation.
     UseScratchRegisterScope temps(this);
     Register scratch = temps.Acquire();
     DCHECK(rs != scratch);
     RV_li(scratch, rt.immediate());
-    RV_divu(res, rs, scratch);
+    RV_divuw(res, rs, scratch);
   }
 }
 
