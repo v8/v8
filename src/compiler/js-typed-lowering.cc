@@ -1577,8 +1577,7 @@ Reduction JSTypedLowering::ReduceJSConstructForwardVarargs(Node* node) {
 Reduction JSTypedLowering::ReduceJSConstruct(Node* node) {
   DCHECK_EQ(IrOpcode::kJSConstruct, node->opcode());
   ConstructParameters const& p = ConstructParametersOf(node->op());
-  DCHECK_LE(2u, p.arity());
-  int const arity = static_cast<int>(p.arity() - 2);
+  int const arity = p.arity_without_implicit_args();
   Node* target = NodeProperties::GetValueInput(node, 0);
   Type target_type = NodeProperties::GetType(target);
   Node* new_target = NodeProperties::GetValueInput(node, arity + 1);
@@ -1649,7 +1648,7 @@ Reduction JSTypedLowering::ReduceJSCallForwardVarargs(Node* node) {
 Reduction JSTypedLowering::ReduceJSCall(Node* node) {
   DCHECK_EQ(IrOpcode::kJSCall, node->opcode());
   CallParameters const& p = CallParametersOf(node->op());
-  int arity = static_cast<int>(p.arity() - 2);
+  int arity = p.arity_without_implicit_args();
   ConvertReceiverMode convert_mode = p.convert_mode();
   Node* target = NodeProperties::GetValueInput(node, 0);
   Type target_type = NodeProperties::GetType(target);

@@ -722,9 +722,7 @@ void JSGenericLowering::LowerJSConstructForwardVarargs(Node* node) {
 
 void JSGenericLowering::LowerJSConstruct(Node* node) {
   ConstructParameters const& p = ConstructParametersOf(node->op());
-  // TODO(jgruber): Document or refactor the magic `- 2` (target and
-  // new_target) here and elsewhere.
-  int const arg_count = static_cast<int>(p.arity() - 2);
+  int const arg_count = p.arity_without_implicit_args();
   CallDescriptor::Flags flags = FrameStateFlagForCall(node);
 
   // TODO(jgruber): Understand and document how stack_argument_count is
@@ -780,7 +778,7 @@ void JSGenericLowering::LowerJSConstruct(Node* node) {
 void JSGenericLowering::LowerJSConstructWithArrayLike(Node* node) {
   ConstructParameters const& p = ConstructParametersOf(node->op());
   CallDescriptor::Flags flags = FrameStateFlagForCall(node);
-  const int arg_count = static_cast<int>(p.arity() - 2);
+  const int arg_count = p.arity_without_implicit_args();
   DCHECK_EQ(arg_count, 1);
 
   static constexpr int kReceiver = 1;
@@ -834,7 +832,7 @@ void JSGenericLowering::LowerJSConstructWithArrayLike(Node* node) {
 
 void JSGenericLowering::LowerJSConstructWithSpread(Node* node) {
   ConstructParameters const& p = ConstructParametersOf(node->op());
-  int const arg_count = static_cast<int>(p.arity() - 2);
+  int const arg_count = p.arity_without_implicit_args();
   int const spread_index = arg_count;
   int const new_target_index = arg_count + 1;
   CallDescriptor::Flags flags = FrameStateFlagForCall(node);
@@ -916,7 +914,7 @@ void JSGenericLowering::LowerJSCallForwardVarargs(Node* node) {
 
 void JSGenericLowering::LowerJSCall(Node* node) {
   CallParameters const& p = CallParametersOf(node->op());
-  int const arg_count = static_cast<int>(p.arity() - 2);
+  int const arg_count = p.arity_without_implicit_args();
   ConvertReceiverMode const mode = p.convert_mode();
 
   if (CollectFeedbackInGenericLowering() && p.feedback().IsValid()) {
@@ -948,7 +946,7 @@ void JSGenericLowering::LowerJSCall(Node* node) {
 
 void JSGenericLowering::LowerJSCallWithArrayLike(Node* node) {
   CallParameters const& p = CallParametersOf(node->op());
-  const int arg_count = static_cast<int>(p.arity() - 2);
+  const int arg_count = p.arity_without_implicit_args();
   CallDescriptor::Flags flags = FrameStateFlagForCall(node);
 
   DCHECK_EQ(arg_count, 0);
@@ -986,7 +984,7 @@ void JSGenericLowering::LowerJSCallWithArrayLike(Node* node) {
 
 void JSGenericLowering::LowerJSCallWithSpread(Node* node) {
   CallParameters const& p = CallParametersOf(node->op());
-  int const arg_count = static_cast<int>(p.arity() - 2);
+  int const arg_count = p.arity_without_implicit_args();
   int const spread_index = arg_count + 1;
   CallDescriptor::Flags flags = FrameStateFlagForCall(node);
 

@@ -2210,10 +2210,7 @@ void BytecodeGraphBuilder::VisitGetTemplateObject() {
 Node* const* BytecodeGraphBuilder::GetCallArgumentsFromRegisters(
     Node* callee, Node* receiver, interpreter::Register first_arg,
     int arg_count) {
-  // The arity of the Call node -- includes the callee, receiver and function
-  // arguments.
-  int arity = 2 + arg_count;
-
+  int arity = kTargetAndReceiver + arg_count;
   Node** all = local_zone()->NewArray<Node*>(static_cast<size_t>(arity));
 
   all[0] = callee;
@@ -2222,7 +2219,7 @@ Node* const* BytecodeGraphBuilder::GetCallArgumentsFromRegisters(
   // The function arguments are in consecutive registers.
   int arg_base = first_arg.index();
   for (int i = 0; i < arg_count; ++i) {
-    all[2 + i] =
+    all[kTargetAndReceiver + i] =
         environment()->LookupRegister(interpreter::Register(arg_base + i));
   }
 
@@ -2247,7 +2244,8 @@ Node* BytecodeGraphBuilder::ProcessCallArguments(const Operator* call_op,
 
   Node* const* call_args = GetCallArgumentsFromRegisters(callee, receiver_node,
                                                          first_arg, arg_count);
-  return ProcessCallArguments(call_op, call_args, 2 + arg_count);
+  return ProcessCallArguments(call_op, call_args,
+                              kTargetAndReceiver + arg_count);
 }
 
 void BytecodeGraphBuilder::BuildCall(ConvertReceiverMode receiver_mode,
@@ -2318,8 +2316,8 @@ void BytecodeGraphBuilder::BuildCallVarArgs(ConvertReceiverMode receiver_mode) {
                       : static_cast<int>(reg_count) - 1;
   Node* const* call_args =
       ProcessCallVarArgs(receiver_mode, callee, first_reg, arg_count);
-  BuildCall(receiver_mode, call_args, static_cast<size_t>(2 + arg_count),
-            slot_id);
+  BuildCall(receiver_mode, call_args,
+            static_cast<size_t>(kTargetAndReceiver + arg_count), slot_id);
 }
 
 void BytecodeGraphBuilder::VisitCallAnyReceiver() {
@@ -2341,9 +2339,7 @@ void BytecodeGraphBuilder::VisitCallNoFeedback() {
   // The receiver is the first register, followed by the arguments in the
   // consecutive registers.
   int arg_count = static_cast<int>(reg_count) - 1;
-  // The arity of the Call node -- includes the callee, receiver and function
-  // arguments.
-  int arity = 2 + arg_count;
+  int arity = kTargetAndReceiver + arg_count;
 
   // Setting call frequency to a value less than min_inlining frequency to
   // prevent inlining of one-shot call node.
@@ -2459,7 +2455,7 @@ void BytecodeGraphBuilder::VisitCallWithSpread() {
     node = lowering.value();
   } else {
     DCHECK(!lowering.Changed());
-    node = ProcessCallArguments(op, args, 2 + arg_count);
+    node = ProcessCallArguments(op, args, kTargetAndReceiver + arg_count);
   }
   environment()->BindAccumulator(node, Environment::kAttachFrameState);
 }
@@ -2472,10 +2468,11 @@ void BytecodeGraphBuilder::VisitCallJSRuntime() {
   size_t reg_count = bytecode_iterator().GetRegisterCountOperand(2);
   int arg_count = static_cast<int>(reg_count);
 
-  const Operator* call = javascript()->Call(2 + arg_count);
+  const Operator* call = javascript()->Call(kTargetAndReceiver + arg_count);
   Node* const* call_args = ProcessCallVarArgs(
       ConvertReceiverMode::kNullOrUndefined, callee, first_reg, arg_count);
-  Node* value = ProcessCallArguments(call, call_args, 2 + arg_count);
+  Node* value =
+      ProcessCallArguments(call, call_args, kTargetAndReceiver + arg_count);
   environment()->BindAccumulator(value, Environment::kAttachFrameState);
 }
 
@@ -2532,8 +2529,7 @@ void BytecodeGraphBuilder::VisitCallRuntimeForPair() {
 Node* const* BytecodeGraphBuilder::GetConstructArgumentsFromRegister(
     Node* target, Node* new_target, interpreter::Register first_arg,
     int arg_count) {
-  // arity is args + callee and new target.
-  int arity = arg_count + 2;
+  int arity = kTargetAndNewTarget + arg_count;
   Node** all = local_zone()->NewArray<Node*>(static_cast<size_t>(arity));
   all[0] = target;
   int first_arg_index = first_arg.index();
@@ -2563,9 +2559,10 @@ void BytecodeGraphBuilder::VisitConstruct() {
   Node* callee = environment()->LookupRegister(callee_reg);
 
   CallFrequency frequency = ComputeCallFrequency(slot_id);
-  const Operator* op = javascript()->Construct(
-      static_cast<uint32_t>(reg_count + 2), frequency, feedback);
-  int arg_count = static_cast<int>(reg_count);
+  const uint32_t arg_count = static_cast<uint32_t>(reg_count);
+  const uint32_t arg_count_with_extra_args = kTargetAndNewTarget + arg_count;
+  const Operator* op =
+      javascript()->Construct(arg_count_with_extra_args, frequency, feedback);
   Node* const* args = GetConstructArgumentsFromRegister(callee, new_target,
                                                         first_reg, arg_count);
   JSTypeHintLowering::LoweringResult lowering = TryBuildSimplifiedConstruct(
@@ -2577,7 +2574,7 @@ void BytecodeGraphBuilder::VisitConstruct() {
     node = lowering.value();
   } else {
     DCHECK(!lowering.Changed());
-    node = ProcessConstructArguments(op, args, 2 + arg_count);
+    node = ProcessConstructArguments(op, args, arg_count_with_extra_args);
   }
   environment()->BindAccumulator(node, Environment::kAttachFrameState);
 }
@@ -2594,9 +2591,10 @@ void BytecodeGraphBuilder::VisitConstructWithSpread() {
   Node* callee = environment()->LookupRegister(callee_reg);
 
   CallFrequency frequency = ComputeCallFrequency(slot_id);
+  const uint32_t arg_count = static_cast<uint32_t>(reg_count);
+  const uint32_t arg_count_with_extra_args = kTargetAndNewTarget + arg_count;
   const Operator* op = javascript()->ConstructWithSpread(
-      static_cast<uint32_t>(reg_count + 2), frequency, feedback);
-  int arg_count = static_cast<int>(reg_count);
+      arg_count_with_extra_args, frequency, feedback);
   Node* const* args = GetConstructArgumentsFromRegister(callee, new_target,
                                                         first_reg, arg_count);
   JSTypeHintLowering::LoweringResult lowering = TryBuildSimplifiedConstruct(
@@ -2608,7 +2606,7 @@ void BytecodeGraphBuilder::VisitConstructWithSpread() {
     node = lowering.value();
   } else {
     DCHECK(!lowering.Changed());
-    node = ProcessConstructArguments(op, args, 2 + arg_count);
+    node = ProcessConstructArguments(op, args, arg_count_with_extra_args);
   }
   environment()->BindAccumulator(node, Environment::kAttachFrameState);
 }
