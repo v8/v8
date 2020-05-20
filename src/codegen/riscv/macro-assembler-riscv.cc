@@ -814,13 +814,13 @@ void TurboAssembler::Sll(Register rd, Register rs, const Operand& rt) {
 void TurboAssembler::Seb(Register rd, const Operand& rt) {
   DCHECK(rt.is_reg());
   RV_slli(rd, rt.rm(), 64 - 8);
-  RV_srai(rd, rt.rm(), 64 - 8);
+  RV_srai(rd, rd, 64 - 8);
 }
 
 void TurboAssembler::Seh(Register rd, const Operand& rt) {
   DCHECK(rt.is_reg());
   RV_slli(rd, rt.rm(), 64 - 16);
-  RV_srai(rd, rt.rm(), 64 - 16);
+  RV_srai(rd, rd, 64 - 16);
 }
 
 void TurboAssembler::Sra(Register rd, Register rs, const Operand& rt) {
