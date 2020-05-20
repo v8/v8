@@ -952,23 +952,27 @@ class WasmDecoder : public Decoder {
     }
   }
 
-  enum DecodeLocalsMode { kUpdateLocals, kNoUpdateLocals };
-
   // Decodes local definitions in the current decoder.
   // Returns true iff locals are found.
-  // Write the total length of decoded locals in 'total_length'.
-  // If 'mode' is kPrependLocals, the 'local_types_' of this decoder
-  // will be updated. Otherwise, this is used just to check legality and
-  // measure the size of the locals.
-  // The decoder's pc is not advanced.
-  // If no locals are found (i.e., no compressed uint32 is found at pc),
-  // this will exit as 'false' and without an error.
+  // Writes the total length of decoded locals in 'total_length'.
+  // If insert_postion is present, the decoded locals will be inserted into the
+  // 'local_types_' of this decoder. Otherwise, this function is used just to
+  // check validity and determine the encoding length of the locals in bytes.
+  // The decoder's pc is not advanced. If no locals are found (i.e., no
+  // compressed uint32 is found at pc), this will exit as 'false' and without an
+  // error.
   bool DecodeLocals(const byte* pc, uint32_t* total_length,
-                    DecodeLocalsMode mode) {
+                    const base::Optional<uint32_t> insert_position) {
     DCHECK_NOT_NULL(local_types_);
 
     uint32_t length;
     *total_length = 0;
+
+    // The 'else' value is useless, we pass it for convenience.
+    ZoneVector<ValueType>::iterator insert_iterator =
+        insert_position.has_value()
+            ? local_types_->begin() + insert_position.value()
+            : local_types_->begin();
 
     // Decode local declarations, if any.
     uint32_t entries = read_u32v<kValidate>(pc, &length, "local decls count");
@@ -1005,8 +1009,9 @@ class WasmDecoder : public Decoder {
         return false;
       }
       *total_length += length;
-      if (mode == kUpdateLocals) {
-        local_types_->insert(local_types_->end(), count, type);
+      if (insert_position.has_value()) {
+        insert_iterator =
+            local_types_->insert(insert_iterator, count, type) + count;
       }
     }
     DCHECK(ok());
@@ -1800,7 +1805,7 @@ class WasmFullDecoder : public WasmDecoder<validate> {
     this->InitializeLocalsFromSig();
     uint32_t locals_length;
     this->DecodeLocals(this->pc(), &locals_length,
-                       WasmDecoder<validate>::kUpdateLocals);
+                       static_cast<uint32_t>(this->local_types_->size()));
     this->consume_bytes(locals_length);
 
     CALL_INTERFACE(StartFunction);
