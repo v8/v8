@@ -740,14 +740,14 @@ class V8_EXPORT_PRIVATE MachineOperatorBuilder final
   const Operator* S8x16Swizzle();
   const Operator* S8x16Shuffle(const uint8_t shuffle[16]);
 
-  const Operator* S1x2AnyTrue();
-  const Operator* S1x2AllTrue();
-  const Operator* S1x4AnyTrue();
-  const Operator* S1x4AllTrue();
-  const Operator* S1x8AnyTrue();
-  const Operator* S1x8AllTrue();
-  const Operator* S1x16AnyTrue();
-  const Operator* S1x16AllTrue();
+  const Operator* V64x2AnyTrue();
+  const Operator* V64x2AllTrue();
+  const Operator* V32x4AnyTrue();
+  const Operator* V32x4AllTrue();
+  const Operator* V16x8AnyTrue();
+  const Operator* V16x8AllTrue();
+  const Operator* V8x16AnyTrue();
+  const Operator* V8x16AllTrue();
 
   // load [base + index]
   const Operator* Load(LoadRepresentation rep);

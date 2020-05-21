@@ -889,9 +889,9 @@ void WasmGenerator::Generate<ValueType::kI32>(DataRange* data) {
                                 ValueType::kI32, ValueType::kI32,
                                 ValueType::kI32>,
 
-      &WasmGenerator::op_with_prefix<kExprS1x16AnyTrue, ValueType::kS128>,
-      &WasmGenerator::op_with_prefix<kExprS1x8AnyTrue, ValueType::kS128>,
-      &WasmGenerator::op_with_prefix<kExprS1x4AnyTrue, ValueType::kS128>,
+      &WasmGenerator::op_with_prefix<kExprV8x16AnyTrue, ValueType::kS128>,
+      &WasmGenerator::op_with_prefix<kExprV16x8AnyTrue, ValueType::kS128>,
+      &WasmGenerator::op_with_prefix<kExprV32x4AnyTrue, ValueType::kS128>,
 
       &WasmGenerator::current_memory,
       &WasmGenerator::grow_memory,

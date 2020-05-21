@@ -2672,14 +2672,14 @@ void InstructionSelector::VisitWord64AtomicStore(Node* node) {
   V(I8x16ShrU)
 
 #define SIMD_BOOL_LIST(V) \
-  V(S1x2AnyTrue)          \
-  V(S1x4AnyTrue)          \
-  V(S1x8AnyTrue)          \
-  V(S1x16AnyTrue)         \
-  V(S1x2AllTrue)          \
-  V(S1x4AllTrue)          \
-  V(S1x8AllTrue)          \
-  V(S1x16AllTrue)
+  V(V64x2AnyTrue)         \
+  V(V32x4AnyTrue)         \
+  V(V16x8AnyTrue)         \
+  V(V8x16AnyTrue)         \
+  V(V64x2AllTrue)         \
+  V(V32x4AllTrue)         \
+  V(V16x8AllTrue)         \
+  V(V8x16AllTrue)
 
 #define SIMD_CONVERSION_LIST(V) \
   V(I32x4SConvertF32x4)         \

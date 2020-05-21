@@ -2434,17 +2434,17 @@ void InstructionSelector::VisitI8x16UConvertI16x8(Node* node) {
   UNIMPLEMENTED();
 }
 
-void InstructionSelector::VisitS1x4AnyTrue(Node* node) { UNIMPLEMENTED(); }
+void InstructionSelector::VisitV32x4AnyTrue(Node* node) { UNIMPLEMENTED(); }
 
-void InstructionSelector::VisitS1x4AllTrue(Node* node) { UNIMPLEMENTED(); }
+void InstructionSelector::VisitV32x4AllTrue(Node* node) { UNIMPLEMENTED(); }
 
-void InstructionSelector::VisitS1x8AnyTrue(Node* node) { UNIMPLEMENTED(); }
+void InstructionSelector::VisitV16x8AnyTrue(Node* node) { UNIMPLEMENTED(); }
 
-void InstructionSelector::VisitS1x8AllTrue(Node* node) { UNIMPLEMENTED(); }
+void InstructionSelector::VisitV16x8AllTrue(Node* node) { UNIMPLEMENTED(); }
 
-void InstructionSelector::VisitS1x16AnyTrue(Node* node) { UNIMPLEMENTED(); }
+void InstructionSelector::VisitV8x16AnyTrue(Node* node) { UNIMPLEMENTED(); }
 
-void InstructionSelector::VisitS1x16AllTrue(Node* node) { UNIMPLEMENTED(); }
+void InstructionSelector::VisitV8x16AllTrue(Node* node) { UNIMPLEMENTED(); }
 
 void InstructionSelector::VisitI8x16Shl(Node* node) { UNIMPLEMENTED(); }
 

@@ -3926,10 +3926,10 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       __ Por(dst, kScratchDoubleReg);
       break;
     }
-    case kX64S1x2AnyTrue:
-    case kX64S1x4AnyTrue:
-    case kX64S1x8AnyTrue:
-    case kX64S1x16AnyTrue: {
+    case kX64V64x2AnyTrue:
+    case kX64V32x4AnyTrue:
+    case kX64V16x8AnyTrue:
+    case kX64V8x16AnyTrue: {
       Register dst = i.OutputRegister();
       XMMRegister src = i.InputSimd128Register(0);
 
@@ -3942,19 +3942,19 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
     // comparison instruction used matters, e.g. given 0xff00, pcmpeqb returns
     // 0x0011, pcmpeqw returns 0x0000, ptest will set ZF to 0 and 1
     // respectively.
-    case kX64S1x2AllTrue: {
+    case kX64V64x2AllTrue: {
       ASSEMBLE_SIMD_ALL_TRUE(Pcmpeqq);
       break;
     }
-    case kX64S1x4AllTrue: {
+    case kX64V32x4AllTrue: {
       ASSEMBLE_SIMD_ALL_TRUE(Pcmpeqd);
       break;
     }
-    case kX64S1x8AllTrue: {
+    case kX64V16x8AllTrue: {
       ASSEMBLE_SIMD_ALL_TRUE(Pcmpeqw);
       break;
     }
-    case kX64S1x16AllTrue: {
+    case kX64V8x16AllTrue: {
       ASSEMBLE_SIMD_ALL_TRUE(Pcmpeqb);
       break;
     }

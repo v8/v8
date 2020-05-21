@@ -3853,10 +3853,10 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       break;
     }
     // vector boolean unops
-    case kS390_S1x2AnyTrue:
-    case kS390_S1x4AnyTrue:
-    case kS390_S1x8AnyTrue:
-    case kS390_S1x16AnyTrue: {
+    case kS390_V64x2AnyTrue:
+    case kS390_V32x4AnyTrue:
+    case kS390_V16x8AnyTrue:
+    case kS390_V8x16AnyTrue: {
       Simd128Register src = i.InputSimd128Register(0);
       Register dst = i.OutputRegister();
       Register temp = i.TempRegister(0);
@@ -3879,19 +3879,19 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
   __ vtm(kScratchDoubleReg, kScratchDoubleReg, Condition(0), Condition(0),     \
          Condition(0));                                                        \
   __ locgr(Condition(8), dst, temp);
-    case kS390_S1x2AllTrue: {
+    case kS390_V64x2AllTrue: {
       SIMD_ALL_TRUE(3)
       break;
     }
-    case kS390_S1x4AllTrue: {
+    case kS390_V32x4AllTrue: {
       SIMD_ALL_TRUE(2)
       break;
     }
-    case kS390_S1x8AllTrue: {
+    case kS390_V16x8AllTrue: {
       SIMD_ALL_TRUE(1)
       break;
     }
-    case kS390_S1x16AllTrue: {
+    case kS390_V8x16AllTrue: {
       SIMD_ALL_TRUE(0)
       break;
     }

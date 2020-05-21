@@ -238,12 +238,12 @@ int InstructionScheduler::GetTargetInstructionFlags(
     case kMipsS16x8InterleaveRight:
     case kMipsS16x8PackEven:
     case kMipsS16x8PackOdd:
-    case kMipsS1x16AllTrue:
-    case kMipsS1x16AnyTrue:
-    case kMipsS1x4AllTrue:
-    case kMipsS1x4AnyTrue:
-    case kMipsS1x8AllTrue:
-    case kMipsS1x8AnyTrue:
+    case kMipsV8x16AllTrue:
+    case kMipsV8x16AnyTrue:
+    case kMipsV32x4AllTrue:
+    case kMipsV32x4AnyTrue:
+    case kMipsV16x8AllTrue:
+    case kMipsV16x8AnyTrue:
     case kMipsS32x4InterleaveEven:
     case kMipsS32x4InterleaveLeft:
     case kMipsS32x4InterleaveOdd:

@@ -3193,14 +3193,14 @@ void InstructionSelector::VisitInt64AbsWithOverflow(Node* node) {
   V(I8x16Neg, kArm64I8x16Neg)                             \
   V(I8x16Abs, kArm64I8x16Abs)                             \
   V(S128Not, kArm64S128Not)                               \
-  V(S1x2AnyTrue, kArm64S1x2AnyTrue)                       \
-  V(S1x2AllTrue, kArm64S1x2AllTrue)                       \
-  V(S1x4AnyTrue, kArm64S1x4AnyTrue)                       \
-  V(S1x4AllTrue, kArm64S1x4AllTrue)                       \
-  V(S1x8AnyTrue, kArm64S1x8AnyTrue)                       \
-  V(S1x8AllTrue, kArm64S1x8AllTrue)                       \
-  V(S1x16AnyTrue, kArm64S1x16AnyTrue)                     \
-  V(S1x16AllTrue, kArm64S1x16AllTrue)
+  V(V64x2AnyTrue, kArm64V64x2AnyTrue)                     \
+  V(V64x2AllTrue, kArm64V64x2AllTrue)                     \
+  V(V32x4AnyTrue, kArm64V32x4AnyTrue)                     \
+  V(V32x4AllTrue, kArm64V32x4AllTrue)                     \
+  V(V16x8AnyTrue, kArm64V16x8AnyTrue)                     \
+  V(V16x8AllTrue, kArm64V16x8AllTrue)                     \
+  V(V8x16AnyTrue, kArm64V8x16AnyTrue)                     \
+  V(V8x16AllTrue, kArm64V8x16AllTrue)
 
 #define SIMD_SHIFT_OP_LIST(V) \
   V(I64x2Shl, 64)             \

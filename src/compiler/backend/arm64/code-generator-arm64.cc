@@ -2522,7 +2522,7 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       SIMD_UNOP_CASE(kArm64S8x8Reverse, Rev64, 16B);
       SIMD_UNOP_CASE(kArm64S8x4Reverse, Rev32, 16B);
       SIMD_UNOP_CASE(kArm64S8x2Reverse, Rev16, 16B);
-    case kArm64S1x2AllTrue: {
+    case kArm64V64x2AllTrue: {
       UseScratchRegisterScope scope(tasm());
       VRegister temp1 = scope.AcquireV(kFormat2D);
       VRegister temp2 = scope.AcquireV(kFormatS);
@@ -2590,13 +2590,13 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
     break;                                                 \
   }
       // for AnyTrue, the format does not matter, umaxv does not support 2D
-      SIMD_REDUCE_OP_CASE(kArm64S1x2AnyTrue, Umaxv, kFormatS, 4S);
-      SIMD_REDUCE_OP_CASE(kArm64S1x4AnyTrue, Umaxv, kFormatS, 4S);
-      SIMD_REDUCE_OP_CASE(kArm64S1x4AllTrue, Uminv, kFormatS, 4S);
-      SIMD_REDUCE_OP_CASE(kArm64S1x8AnyTrue, Umaxv, kFormatH, 8H);
-      SIMD_REDUCE_OP_CASE(kArm64S1x8AllTrue, Uminv, kFormatH, 8H);
-      SIMD_REDUCE_OP_CASE(kArm64S1x16AnyTrue, Umaxv, kFormatB, 16B);
-      SIMD_REDUCE_OP_CASE(kArm64S1x16AllTrue, Uminv, kFormatB, 16B);
+      SIMD_REDUCE_OP_CASE(kArm64V64x2AnyTrue, Umaxv, kFormatS, 4S);
+      SIMD_REDUCE_OP_CASE(kArm64V32x4AnyTrue, Umaxv, kFormatS, 4S);
+      SIMD_REDUCE_OP_CASE(kArm64V32x4AllTrue, Uminv, kFormatS, 4S);
+      SIMD_REDUCE_OP_CASE(kArm64V16x8AnyTrue, Umaxv, kFormatH, 8H);
+      SIMD_REDUCE_OP_CASE(kArm64V16x8AllTrue, Uminv, kFormatH, 8H);
+      SIMD_REDUCE_OP_CASE(kArm64V8x16AnyTrue, Umaxv, kFormatB, 16B);
+      SIMD_REDUCE_OP_CASE(kArm64V8x16AllTrue, Uminv, kFormatB, 16B);
   }
   return kSuccess;
 }  // NOLINT(readability/fn_size)

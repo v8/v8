@@ -2188,22 +2188,22 @@ void InstructionSelector::VisitNode(Node* node) {
       return MarkAsSimd128(node), VisitS8x16Swizzle(node);
     case IrOpcode::kS8x16Shuffle:
       return MarkAsSimd128(node), VisitS8x16Shuffle(node);
-    case IrOpcode::kS1x2AnyTrue:
-      return MarkAsWord32(node), VisitS1x2AnyTrue(node);
-    case IrOpcode::kS1x2AllTrue:
-      return MarkAsWord32(node), VisitS1x2AllTrue(node);
-    case IrOpcode::kS1x4AnyTrue:
-      return MarkAsWord32(node), VisitS1x4AnyTrue(node);
-    case IrOpcode::kS1x4AllTrue:
-      return MarkAsWord32(node), VisitS1x4AllTrue(node);
-    case IrOpcode::kS1x8AnyTrue:
-      return MarkAsWord32(node), VisitS1x8AnyTrue(node);
-    case IrOpcode::kS1x8AllTrue:
-      return MarkAsWord32(node), VisitS1x8AllTrue(node);
-    case IrOpcode::kS1x16AnyTrue:
-      return MarkAsWord32(node), VisitS1x16AnyTrue(node);
-    case IrOpcode::kS1x16AllTrue:
-      return MarkAsWord32(node), VisitS1x16AllTrue(node);
+    case IrOpcode::kV64x2AnyTrue:
+      return MarkAsWord32(node), VisitV64x2AnyTrue(node);
+    case IrOpcode::kV64x2AllTrue:
+      return MarkAsWord32(node), VisitV64x2AllTrue(node);
+    case IrOpcode::kV32x4AnyTrue:
+      return MarkAsWord32(node), VisitV32x4AnyTrue(node);
+    case IrOpcode::kV32x4AllTrue:
+      return MarkAsWord32(node), VisitV32x4AllTrue(node);
+    case IrOpcode::kV16x8AnyTrue:
+      return MarkAsWord32(node), VisitV16x8AnyTrue(node);
+    case IrOpcode::kV16x8AllTrue:
+      return MarkAsWord32(node), VisitV16x8AllTrue(node);
+    case IrOpcode::kV8x16AnyTrue:
+      return MarkAsWord32(node), VisitV8x16AnyTrue(node);
+    case IrOpcode::kV8x16AllTrue:
+      return MarkAsWord32(node), VisitV8x16AllTrue(node);
     default:
       FATAL("Unexpected operator #%d:%s @ node #%d", node->opcode(),
             node->op()->mnemonic(), node->id());
@@ -2638,8 +2638,8 @@ void InstructionSelector::VisitI64x2GtS(Node* node) { UNIMPLEMENTED(); }
 void InstructionSelector::VisitI64x2GeS(Node* node) { UNIMPLEMENTED(); }
 void InstructionSelector::VisitI64x2GtU(Node* node) { UNIMPLEMENTED(); }
 void InstructionSelector::VisitI64x2GeU(Node* node) { UNIMPLEMENTED(); }
-void InstructionSelector::VisitS1x2AnyTrue(Node* node) { UNIMPLEMENTED(); }
-void InstructionSelector::VisitS1x2AllTrue(Node* node) { UNIMPLEMENTED(); }
+void InstructionSelector::VisitV64x2AnyTrue(Node* node) { UNIMPLEMENTED(); }
+void InstructionSelector::VisitV64x2AllTrue(Node* node) { UNIMPLEMENTED(); }
 void InstructionSelector::VisitF64x2Qfma(Node* node) { UNIMPLEMENTED(); }
 void InstructionSelector::VisitF64x2Qfms(Node* node) { UNIMPLEMENTED(); }
 void InstructionSelector::VisitF32x4Qfma(Node* node) { UNIMPLEMENTED(); }
