@@ -370,33 +370,12 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
 #endif
   }
 
-  MachineRepresentation ParameterRepresentation(ParameterMode mode) const {
-    return mode == INTPTR_PARAMETERS ? MachineType::PointerRepresentation()
-                                     : MachineRepresentation::kTaggedSigned;
-  }
-
-  MachineRepresentation OptimalParameterRepresentation() const {
-    return ParameterRepresentation(OptimalParameterMode());
-  }
-
   TNode<IntPtrT> ParameterToIntPtr(TNode<Smi> value) { return SmiUntag(value); }
   TNode<IntPtrT> ParameterToIntPtr(TNode<IntPtrT> value) { return value; }
   // TODO(v8:9708): remove once all uses are ported.
   TNode<IntPtrT> ParameterToIntPtr(Node* value, ParameterMode mode) {
     if (mode == SMI_PARAMETERS) value = SmiUntag(value);
     return UncheckedCast<IntPtrT>(value);
-  }
-
-  template <typename TIndex>
-  TNode<TIndex> IntPtrToParameter(TNode<IntPtrT> value);
-
-  Node* IntPtrToParameter(SloppyTNode<IntPtrT> value, ParameterMode mode) {
-    if (mode == SMI_PARAMETERS) return SmiTag(value);
-    return value;
-  }
-
-  Node* Int32ToParameter(SloppyTNode<Int32T> value, ParameterMode mode) {
-    return IntPtrToParameter(ChangeInt32ToIntPtr(value), mode);
   }
 
   TNode<Smi> ParameterToTagged(TNode<Smi> value) { return value; }
@@ -666,11 +645,6 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
   // TODO(v8:9708): remove once all uses are ported.
   Node* IntPtrOrSmiConstant(int value, ParameterMode mode);
 
-  bool IsIntPtrOrSmiConstantZero(TNode<Smi> test);
-  bool IsIntPtrOrSmiConstantZero(TNode<IntPtrT> test);
-  // TODO(v8:9708): remove once all uses are ported.
-  bool IsIntPtrOrSmiConstantZero(Node* test, ParameterMode mode);
-
   bool TryGetIntPtrOrSmiConstantValue(Node* maybe_constant, int* value,
                                       ParameterMode mode);
 
@@ -781,15 +755,6 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
               TruncateWordToInt32(BitcastTaggedToWordForTagAndSmiBits(a)),
               shift)),
           BitcastTaggedToWordForTagAndSmiBits(SmiConstant(-1))));
-    }
-  }
-
-  Node* WordOrSmiShl(Node* a, int shift, ParameterMode mode) {
-    if (mode == SMI_PARAMETERS) {
-      return SmiShl(CAST(a), shift);
-    } else {
-      DCHECK_EQ(INTPTR_PARAMETERS, mode);
-      return WordShl(a, shift);
     }
   }
 

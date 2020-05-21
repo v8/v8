@@ -136,17 +136,6 @@ void CodeStubAssembler::Check(SloppyTNode<Word32T> condition_node,
   Check(branch, message, file, line, extra_nodes);
 }
 
-template <>
-TNode<Smi> CodeStubAssembler::IntPtrToParameter<Smi>(TNode<IntPtrT> value) {
-  return SmiTag(value);
-}
-template <>
-TNode<IntPtrT> CodeStubAssembler::IntPtrToParameter<IntPtrT>(
-    TNode<IntPtrT> value) {
-  return value;
-}
-
-
 void CodeStubAssembler::IncrementCallCount(
     TNode<FeedbackVector> feedback_vector, TNode<UintPtrT> slot_id) {
   Comment("increment call count");
@@ -290,33 +279,6 @@ Node* CodeStubAssembler::IntPtrOrSmiConstant(int value, ParameterMode mode) {
     DCHECK_EQ(INTPTR_PARAMETERS, mode);
     return IntPtrConstant(value);
   }
-}
-
-bool CodeStubAssembler::IsIntPtrOrSmiConstantZero(TNode<Smi> test) {
-  Smi smi_test;
-  if (ToSmiConstant(test, &smi_test) && smi_test.value() == 0) {
-    return true;
-  }
-  return false;
-}
-
-bool CodeStubAssembler::IsIntPtrOrSmiConstantZero(TNode<IntPtrT> test) {
-  int32_t constant_test;
-  if (ToInt32Constant(test, &constant_test) && constant_test == 0) {
-    return true;
-  }
-  return false;
-}
-
-bool CodeStubAssembler::IsIntPtrOrSmiConstantZero(Node* test,
-                                                  ParameterMode mode) {
-  if (mode == INTPTR_PARAMETERS) {
-    return IsIntPtrOrSmiConstantZero(UncheckedCast<IntPtrT>(test));
-  } else {
-    DCHECK_EQ(mode, SMI_PARAMETERS);
-    return IsIntPtrOrSmiConstantZero(UncheckedCast<Smi>(test));
-  }
-  return false;
 }
 
 bool CodeStubAssembler::TryGetIntPtrOrSmiConstantValue(Node* maybe_constant,
