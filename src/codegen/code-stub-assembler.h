@@ -1411,11 +1411,10 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
   // This doesn't emit a bounds-check. As part of the security-performance
   // tradeoff, only use it if it is performance critical.
   TNode<Object> UnsafeLoadFixedArrayElement(
-      TNode<FixedArray> object, Node* index, int additional_offset = 0,
-      ParameterMode parameter_mode = INTPTR_PARAMETERS,
+      TNode<FixedArray> object, TNode<IntPtrT> index, int additional_offset = 0,
       LoadSensitivity needs_poisoning = LoadSensitivity::kSafe) {
     return LoadFixedArrayElement(object, index, additional_offset,
-                                 parameter_mode, needs_poisoning,
+                                 INTPTR_PARAMETERS, needs_poisoning,
                                  CheckBounds::kDebugOnly);
   }
 
@@ -1425,14 +1424,6 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
       CheckBounds check_bounds = CheckBounds::kAlways) {
     return LoadFixedArrayElement(object, index, 0, INTPTR_PARAMETERS,
                                  needs_poisoning, check_bounds);
-  }
-  // This doesn't emit a bounds-check. As part of the security-performance
-  // tradeoff, only use it if it is performance critical.
-  TNode<Object> UnsafeLoadFixedArrayElement(TNode<FixedArray> object,
-                                            TNode<IntPtrT> index,
-                                            LoadSensitivity needs_poisoning) {
-    return LoadFixedArrayElement(object, index, needs_poisoning,
-                                 CheckBounds::kDebugOnly);
   }
 
   TNode<Object> LoadFixedArrayElement(

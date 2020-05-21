@@ -6817,13 +6817,13 @@ TNode<String> CodeStubAssembler::NumberToString(TNode<Number> input,
     TNode<Word32T> hash = Word32And(SmiToInt32(smi_input.value()), mask);
     TNode<IntPtrT> entry_index =
         Signed(ChangeUint32ToWord(Int32Add(hash, hash)));
-    TNode<Object> smi_key = UnsafeLoadFixedArrayElement(
-        number_string_cache, entry_index, 0, INTPTR_PARAMETERS);
+    TNode<Object> smi_key =
+        UnsafeLoadFixedArrayElement(number_string_cache, entry_index);
     GotoIf(TaggedNotEqual(smi_key, smi_input.value()), bailout);
 
     // Smi match, return value from cache entry.
     result = CAST(UnsafeLoadFixedArrayElement(number_string_cache, entry_index,
-                                              kTaggedSize, INTPTR_PARAMETERS));
+                                              kTaggedSize));
     Goto(&done);
   }
   BIND(&done);
