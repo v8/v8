@@ -387,7 +387,7 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
     return UncheckedCast<Smi>(value);
   }
 
-  Node* TaggedToParameter(SloppyTNode<Smi> value, ParameterMode mode) {
+  Node* TaggedToParameter(TNode<Smi> value, ParameterMode mode) {
     if (mode != SMI_PARAMETERS) return SmiUntag(value);
     return value;
   }
@@ -1808,9 +1808,9 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
   TNode<Int32T> EnsureArrayPushable(TNode<Context> context, TNode<Map> map,
                                     Label* bailout);
 
-  void TryStoreArrayElement(ElementsKind kind, ParameterMode mode,
-                            Label* bailout, TNode<FixedArrayBase> elements,
-                            Node* index, TNode<Object> value);
+  void TryStoreArrayElement(ElementsKind kind, Label* bailout,
+                            TNode<FixedArrayBase> elements, Node* index,
+                            TNode<Object> value);
   // Consumes args into the array, and returns tagged new length.
   TNode<Smi> BuildAppendJSArray(ElementsKind kind, TNode<JSArray> array,
                                 CodeStubArguments* args,
@@ -2375,8 +2375,7 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
                                       ElementsKind from_kind,
                                       ElementsKind to_kind, Label* if_hole);
 
-  Node* CalculateNewElementsCapacity(Node* old_capacity,
-                                     ParameterMode mode = INTPTR_PARAMETERS);
+  Node* CalculateNewElementsCapacity(Node* old_capacity, ParameterMode mode);
 
   TNode<Smi> CalculateNewElementsCapacity(TNode<Smi> old_capacity) {
     return CAST(CalculateNewElementsCapacity(old_capacity, SMI_PARAMETERS));
@@ -2412,10 +2411,10 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
   // Given a need to grow by |growth|, allocate an appropriate new capacity
   // if necessary, and return a new elements FixedArray object. Label |bailout|
   // is followed for allocation failure.
-  void PossiblyGrowElementsCapacity(ParameterMode mode, ElementsKind kind,
-                                    TNode<HeapObject> array, Node* length,
+  void PossiblyGrowElementsCapacity(ElementsKind kind, TNode<HeapObject> array,
+                                    TNode<BInt> length,
                                     TVariable<FixedArrayBase>* var_elements,
-                                    Node* growth, Label* bailout);
+                                    TNode<BInt> growth, Label* bailout);
 
   // Allocation site manipulation
   void InitializeAllocationMemento(TNode<HeapObject> base,

@@ -2855,17 +2855,18 @@ TNode<Int32T> CodeStubAssembler::EnsureArrayPushable(TNode<Context> context,
 }
 
 void CodeStubAssembler::PossiblyGrowElementsCapacity(
-    ParameterMode mode, ElementsKind kind, TNode<HeapObject> array,
-    Node* length, TVariable<FixedArrayBase>* var_elements, Node* growth,
+    ElementsKind kind, TNode<HeapObject> array, TNode<BInt> length,
+    TVariable<FixedArrayBase>* var_elements, TNode<BInt> growth,
     Label* bailout) {
+  ParameterMode mode = OptimalParameterMode();
   Label fits(this, var_elements);
   Node* capacity =
       TaggedToParameter(LoadFixedArrayBaseLength(var_elements->value()), mode);
   // length and growth nodes are already in a ParameterMode appropriate
   // representation.
-  Node* new_length = IntPtrOrSmiAdd(growth, length, mode);
+  TNode<BInt> new_length = IntPtrOrSmiAdd(growth, length);
   GotoIfNot(IntPtrOrSmiGreaterThan(new_length, capacity, mode), &fits);
-  Node* new_capacity = CalculateNewElementsCapacity(new_length, mode);
+  TNode<BInt> new_capacity = CalculateNewElementsCapacity(new_length);
   *var_elements = GrowElementsCapacity(array, var_elements->value(), kind, kind,
                                        capacity, new_capacity, mode, bailout);
   Goto(&fits);
@@ -2881,15 +2882,14 @@ TNode<Smi> CodeStubAssembler::BuildAppendJSArray(ElementsKind kind,
   Label pre_bailout(this);
   Label success(this);
   TVARIABLE(Smi, var_tagged_length);
-  ParameterMode mode = OptimalParameterMode();
   TVARIABLE(BInt, var_length, SmiToBInt(LoadFastJSArrayLength(array)));
   TVARIABLE(FixedArrayBase, var_elements, LoadElements(array));
 
   // Resize the capacity of the fixed array if it doesn't fit.
   TNode<IntPtrT> first = arg_index->value();
   TNode<BInt> growth = IntPtrToBInt(IntPtrSub(args->GetLength(), first));
-  PossiblyGrowElementsCapacity(mode, kind, array, var_length.value(),
-                               &var_elements, growth, &pre_bailout);
+  PossiblyGrowElementsCapacity(kind, array, var_length.value(), &var_elements,
+                               growth, &pre_bailout);
 
   // Push each argument onto the end of the array now that there is enough
   // capacity.
@@ -2898,8 +2898,8 @@ TNode<Smi> CodeStubAssembler::BuildAppendJSArray(ElementsKind kind,
   args->ForEach(
       push_vars,
       [&](TNode<Object> arg) {
-        TryStoreArrayElement(kind, mode, &pre_bailout, elements,
-                             var_length.value(), arg);
+        TryStoreArrayElement(kind, &pre_bailout, elements, var_length.value(),
+                             arg);
         Increment(&var_length);
       },
       first);
@@ -2924,8 +2924,7 @@ TNode<Smi> CodeStubAssembler::BuildAppendJSArray(ElementsKind kind,
   return var_tagged_length.value();
 }
 
-void CodeStubAssembler::TryStoreArrayElement(ElementsKind kind,
-                                             ParameterMode mode, Label* bailout,
+void CodeStubAssembler::TryStoreArrayElement(ElementsKind kind, Label* bailout,
                                              TNode<FixedArrayBase> elements,
                                              Node* index, TNode<Object> value) {
   if (IsSmiElementsKind(kind)) {
@@ -2933,6 +2932,8 @@ void CodeStubAssembler::TryStoreArrayElement(ElementsKind kind,
   } else if (IsDoubleElementsKind(kind)) {
     GotoIfNotNumber(value, bailout);
   }
+
+  ParameterMode mode = OptimalParameterMode();
   if (IsDoubleElementsKind(kind)) {
     StoreElement(elements, kind, index, ChangeNumberToFloat64(CAST(value)),
                  mode);
@@ -2946,19 +2947,18 @@ void CodeStubAssembler::BuildAppendJSArray(ElementsKind kind,
                                            TNode<Object> value,
                                            Label* bailout) {
   Comment("BuildAppendJSArray: ", ElementsKindToString(kind));
-  ParameterMode mode = OptimalParameterMode();
   TVARIABLE(BInt, var_length, SmiToBInt(LoadFastJSArrayLength(array)));
   TVARIABLE(FixedArrayBase, var_elements, LoadElements(array));
 
   // Resize the capacity of the fixed array if it doesn't fit.
-  Node* growth = IntPtrOrSmiConstant(1, mode);
-  PossiblyGrowElementsCapacity(mode, kind, array, var_length.value(),
-                               &var_elements, growth, bailout);
+  TNode<BInt> growth = IntPtrOrSmiConstant<BInt>(1);
+  PossiblyGrowElementsCapacity(kind, array, var_length.value(), &var_elements,
+                               growth, bailout);
 
   // Push each argument onto the end of the array now that there is enough
   // capacity.
-  TryStoreArrayElement(kind, mode, bailout, var_elements.value(),
-                       var_length.value(), value);
+  TryStoreArrayElement(kind, bailout, var_elements.value(), var_length.value(),
+                       value);
   Increment(&var_length);
 
   TNode<Smi> length = BIntToSmi(var_length.value());
