@@ -465,10 +465,10 @@ bool IsJSCompatibleSignature(const FunctionSig* sig, const WasmFeatures&);
   V(F32x4AddHoriz, 0xfdb2, s_ss)        \
   V(F32x4RecipApprox, 0xfdb3, s_s)      \
   V(F32x4RecipSqrtApprox, 0xfdba, s_s)  \
-  V(F32x4Pmin, 0xfdda, s_ss)            \
-  V(F32x4Pmax, 0xfddb, s_ss)            \
-  V(F64x2Pmin, 0xfddc, s_ss)            \
-  V(F64x2Pmax, 0xfddd, s_ss)
+  V(F32x4Pmin, 0xfdea, s_ss)            \
+  V(F32x4Pmax, 0xfdeb, s_ss)            \
+  V(F64x2Pmin, 0xfdf6, s_ss)            \
+  V(F64x2Pmax, 0xfdf7, s_ss)
 
 #define FOREACH_SIMD_1_OPERAND_1_PARAM_OPCODE(V) \
   V(I8x16ExtractLaneS, 0xfd15, _)                \
