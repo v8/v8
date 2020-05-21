@@ -2935,7 +2935,8 @@ TNode<Smi> CodeStubAssembler::BuildAppendJSArray(ElementsKind kind,
 
 void CodeStubAssembler::TryStoreArrayElement(ElementsKind kind, Label* bailout,
                                              TNode<FixedArrayBase> elements,
-                                             Node* index, TNode<Object> value) {
+                                             TNode<BInt> index,
+                                             TNode<Object> value) {
   if (IsSmiElementsKind(kind)) {
     GotoIf(TaggedIsNotSmi(value), bailout);
   } else if (IsDoubleElementsKind(kind)) {

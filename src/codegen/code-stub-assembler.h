@@ -1802,7 +1802,7 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
                                     Label* bailout);
 
   void TryStoreArrayElement(ElementsKind kind, Label* bailout,
-                            TNode<FixedArrayBase> elements, Node* index,
+                            TNode<FixedArrayBase> elements, TNode<BInt> index,
                             TNode<Object> value);
   // Consumes args into the array, and returns tagged new length.
   TNode<Smi> BuildAppendJSArray(ElementsKind kind, TNode<JSArray> array,
