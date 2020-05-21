@@ -412,7 +412,13 @@
   'test-torque/TestGotoLabelWithOneParameter': [SKIP],
   'test-torque/TestUnsafeCast': [SKIP],
   'test-torque/TestPartiallyUnusedLabel': [SKIP],
-  
+
+  'test-run-wasm-64/RunWasmLiftoff_I64Eqz': [SKIP],
+  'test-run-wasm-64/RunWasmLiftoff_StoreMem_offset_oob_i64': [SKIP],
+  'test-run-wasm-64/RunWasmTurbofan_StoreMem_offset_oob_i64': [SKIP], 
+
+  'test-run-wasm-asmjs/RunWasmTurbofan_Int32AsmjsDivS_byzero_const': [SKIP],
+  'test-run-wasm-asmjs/RunWasmTurbofan_Int32AsmjsRemS_byzero_const': [SKIP], 
 }],
 
 ##############################################################################
