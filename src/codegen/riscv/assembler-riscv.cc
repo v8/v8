@@ -2320,32 +2320,21 @@ void Assembler::sync() { RV_fence(0b1111, 0b1111); }
 
 // Set on less than instructions.
 void Assembler::slt(Register rd, Register rs, Register rt) {
-  DCHECK(rd != rt);
-  UseScratchRegisterScope temps(this);
-  Register scratch = temps.Acquire();
-  RV_sext_w(rd, rs);
-  RV_sext_w(scratch, rt);
-  RV_slt(rd, rd, scratch);
+  RV_slt(rd, rs, rt);
 }
 
 void Assembler::sltu(Register rd, Register rs, Register rt) {
-  DCHECK(rd != rt);
-  UseScratchRegisterScope temps(this);
-  Register scratch = temps.Acquire();
-  RV_sext_w(rd, rs);
-  RV_sext_w(scratch, rt);
-  RV_sltu(rd, rd, scratch);
+  RV_sltu(rd, rs, rt);
 }
 
 void Assembler::sltiu(Register rd, Register rs, int32_t j) {
-  RV_sext_w(rd, rs);
   if (is_int12(j)) {
-    RV_sltiu(rd, rd, j);
+    RV_sltiu(rd, rs, j);
   } else {
     UseScratchRegisterScope temps(this);
     Register scratch = temps.Acquire();
     RV_li(scratch, j);
-    RV_sltu(rd, rd, scratch);
+    RV_sltu(rd, rs, scratch);
   }
 }
 
