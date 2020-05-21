@@ -3756,7 +3756,7 @@ Node* EffectControlLinearizer::LowerDeadValue(Node* node) {
     Node* unreachable = __ Unreachable();
     NodeProperties::ReplaceValueInput(node, unreachable, 0);
   }
-  return node;
+  return gasm()->AddNode(node);
 }
 
 Node* EffectControlLinearizer::LowerStringToNumber(Node* node) {

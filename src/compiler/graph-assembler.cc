@@ -21,7 +21,6 @@ class GraphAssembler::BasicBlockUpdater {
  public:
   BasicBlockUpdater(Schedule* schedule, Graph* graph,
                     CommonOperatorBuilder* common, Zone* temp_zone);
-  ~BasicBlockUpdater();
 
   Node* AddNode(Node* node);
   Node* AddNode(Node* node, BasicBlock* to);
@@ -33,7 +32,6 @@ class GraphAssembler::BasicBlockUpdater {
   void AddBranch(Node* branch, BasicBlock* tblock, BasicBlock* fblock);
   void AddGoto(BasicBlock* to);
   void AddGoto(BasicBlock* from, BasicBlock* to);
-  void AddThrow(Node* node);
 
   void StartBlock(BasicBlock* block);
   BasicBlock* Finalize(BasicBlock* original);
@@ -86,9 +84,6 @@ class GraphAssembler::BasicBlockUpdater {
   bool original_deferred_;
   size_t original_node_count_;
 
-  // Blocks which have been removed from the schedule due to being unreachable.
-  ZoneSet<BasicBlock*> unreachable_blocks_;
-
   State state_;
 };
 
@@ -107,19 +102,7 @@ GraphAssembler::BasicBlockUpdater::BasicBlockUpdater(
       original_control_input_(nullptr),
       original_deferred_(false),
       original_node_count_(graph->NodeCount()),
-      unreachable_blocks_(temp_zone),
       state_(kUnchanged) {}
-
-GraphAssembler::BasicBlockUpdater::~BasicBlockUpdater() {
-#ifdef DEBUG
-  // Ensure that the set of blocks being removed from the schedule are self
-  // contained, i.e., all predecessors have been removed from these blocks.
-  for (BasicBlock* block : unreachable_blocks_) {
-    CHECK_EQ(block->PredecessorCount(), 0);
-    CHECK_EQ(block->SuccessorCount(), 0);
-  }
-#endif
-}
 
 Node* GraphAssembler::BasicBlockUpdater::AddNode(Node* node) {
   return AddNode(node, current_block_);
@@ -282,82 +265,6 @@ void GraphAssembler::BasicBlockUpdater::AddGoto(BasicBlock* from,
 
   schedule_->AddGoto(from, to);
   current_block_ = nullptr;
-}
-
-void GraphAssembler::BasicBlockUpdater::RemoveSuccessorsFromSchedule() {
-  ZoneQueue<BasicBlock*> worklist(temp_zone());
-
-  for (SuccessorInfo succ : saved_successors_) {
-    BasicBlock* block = succ.block;
-    block->predecessors().erase(block->predecessors().begin() + succ.index);
-    unreachable_blocks_.insert(block);
-    worklist.push(block);
-  }
-  saved_successors_.clear();
-
-  // Walk through blocks until we get to the end node, then remove the path from
-  // end, clearing their successors / predecessors.
-  // This works because the unreachable paths form self-contained control flow
-  // that doesn't re-merge with reachable control flow (checked in the
-  // destructor) and DeadCodeElimination::ReduceEffectPhi preventing Unreachable
-  // from going into an effect-phi. We would need to extend this if we need the
-  // ability to mark control flow as unreachable later in the pipeline.
-  while (!worklist.empty()) {
-    BasicBlock* current = worklist.front();
-    worklist.pop();
-
-    for (BasicBlock* successor : current->successors()) {
-      // Remove the block from sucessors predecessors.
-      ZoneVector<BasicBlock*>& predecessors = successor->predecessors();
-      auto it = std::find(predecessors.begin(), predecessors.end(), current);
-      DCHECK_EQ(*it, current);
-      predecessors.erase(it);
-
-      if (successor == schedule_->end()) {
-        // If we have reached the end block, remove this block's control input
-        // from the end node's control inputs.
-        DCHECK_EQ(current->SuccessorCount(), 1);
-        NodeProperties::RemoveControlFromEnd(graph_, common_,
-                                             current->control_input());
-      } else {
-        // Otherwise, add successor to worklist if it's not already been seen.
-        if (unreachable_blocks_.insert(successor).second) {
-          worklist.push(successor);
-        }
-      }
-    }
-    current->ClearSuccessors();
-  }
-}
-
-void GraphAssembler::BasicBlockUpdater::AddThrow(Node* node) {
-  if (state_ == kUnchanged) {
-    CopyForChange();
-  }
-
-  // Clear original successors and replace the block's original control and
-  // control input to the throw, since this block is now connected directly to
-  // the end.
-  if (original_control_input_ != nullptr) {
-    NodeProperties::ReplaceUses(original_control_input_, node, nullptr, node);
-    original_control_input_->Kill();
-  }
-  original_control_input_ = node;
-  original_control_ = BasicBlock::kThrow;
-
-  bool already_connected_to_end =
-      saved_successors_.size() == 1 &&
-      saved_successors_[0].block == schedule_->end();
-  if (!already_connected_to_end) {
-    // Remove all successor blocks from the schedule.
-    RemoveSuccessorsFromSchedule();
-
-    // Update current block's successor withend.
-    DCHECK(saved_successors_.empty());
-    size_t index = schedule_->end()->predecessors().size();
-    schedule_->end()->AddPredecessor(current_block_);
-    saved_successors_.push_back({schedule_->end(), index});
-  }
 }
 
 void GraphAssembler::BasicBlockUpdater::UpdateSuccessors(BasicBlock* block) {
@@ -912,11 +819,15 @@ BasicBlock* GraphAssembler::FinalizeCurrentBlock(BasicBlock* block) {
 
 void GraphAssembler::ConnectUnreachableToEnd() {
   DCHECK_EQ(effect()->opcode(), IrOpcode::kUnreachable);
-  Node* throw_node = graph()->NewNode(common()->Throw(), effect(), control());
-  NodeProperties::MergeControlToEnd(graph(), common(), throw_node);
-  effect_ = control_ = mcgraph()->Dead();
-  if (block_updater_) {
-    block_updater_->AddThrow(throw_node);
+  // When maintaining the schedule we can't easily rewire the successor blocks
+  // to disconnect them from the graph, so we just leave the unreachable nodes
+  // in the schedule.
+  // TODO(9684): Add a scheduled dead-code elimination phase to remove all the
+  // subsiquent unreacahble code from the schedule.
+  if (!block_updater_) {
+    Node* throw_node = graph()->NewNode(common()->Throw(), effect(), control());
+    NodeProperties::MergeControlToEnd(graph(), common(), throw_node);
+    effect_ = control_ = mcgraph()->Dead();
   }
 }
 
