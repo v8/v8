@@ -2388,11 +2388,12 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
   // Tries to grow the |capacity|-length |elements| array of given |object|
   // to store the |key| or bails out if the growing gap is too big. Returns
   // new elements.
+  template <typename TIndex>
   TNode<FixedArrayBase> TryGrowElementsCapacity(TNode<HeapObject> object,
                                                 TNode<FixedArrayBase> elements,
-                                                ElementsKind kind, Node* key,
-                                                Node* capacity,
-                                                ParameterMode mode,
+                                                ElementsKind kind,
+                                                TNode<TIndex> key,
+                                                TNode<TIndex> capacity,
                                                 Label* bailout);
 
   // Grows elements capacity of given object. Returns new elements.

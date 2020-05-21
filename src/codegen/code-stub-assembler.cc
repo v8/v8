@@ -4848,28 +4848,32 @@ TNode<FixedArrayBase> CodeStubAssembler::TryGrowElementsCapacity(
   CSA_SLOW_ASSERT(this, IsFixedArrayWithKindOrEmpty(elements, kind));
   TNode<Smi> capacity = LoadFixedArrayBaseLength(elements);
 
-  ParameterMode mode = OptimalParameterMode();
-  return TryGrowElementsCapacity(
-      object, elements, kind, TaggedToParameter<BInt>(key),
-      TaggedToParameter<BInt>(capacity), mode, bailout);
+  return TryGrowElementsCapacity(object, elements, kind,
+                                 TaggedToParameter<BInt>(key),
+                                 TaggedToParameter<BInt>(capacity), bailout);
 }
 
+template <typename TIndex>
 TNode<FixedArrayBase> CodeStubAssembler::TryGrowElementsCapacity(
     TNode<HeapObject> object, TNode<FixedArrayBase> elements, ElementsKind kind,
-    Node* key, Node* capacity, ParameterMode mode, Label* bailout) {
+    TNode<TIndex> key, TNode<TIndex> capacity, Label* bailout) {
+  static_assert(
+      std::is_same<TIndex, Smi>::value || std::is_same<TIndex, IntPtrT>::value,
+      "Only Smi or IntPtrT key and capacity nodes are allowed");
   Comment("TryGrowElementsCapacity");
   CSA_SLOW_ASSERT(this, IsFixedArrayWithKindOrEmpty(elements, kind));
-  CSA_SLOW_ASSERT(this, MatchesParameterMode(capacity, mode));
-  CSA_SLOW_ASSERT(this, MatchesParameterMode(key, mode));
 
   // If the gap growth is too big, fall back to the runtime.
-  Node* max_gap = IntPtrOrSmiConstant(JSObject::kMaxGap, mode);
-  Node* max_capacity = IntPtrOrSmiAdd(capacity, max_gap, mode);
-  GotoIf(UintPtrOrSmiGreaterThanOrEqual(key, max_capacity, mode), bailout);
+  TNode<TIndex> max_gap = IntPtrOrSmiConstant<TIndex>(JSObject::kMaxGap);
+  TNode<TIndex> max_capacity = IntPtrOrSmiAdd(capacity, max_gap);
+  GotoIf(UintPtrOrSmiGreaterThanOrEqual(key, max_capacity), bailout);
 
   // Calculate the capacity of the new backing store.
   Node* new_capacity = CalculateNewElementsCapacity(
-      IntPtrOrSmiAdd(key, IntPtrOrSmiConstant(1, mode), mode), mode);
+      IntPtrOrSmiAdd(key, IntPtrOrSmiConstant<TIndex>(1)));
+
+  ParameterMode mode =
+      std::is_same<TIndex, Smi>::value ? SMI_PARAMETERS : INTPTR_PARAMETERS;
   return GrowElementsCapacity(object, elements, kind, kind, capacity,
                               new_capacity, mode, bailout);
 }
@@ -9979,9 +9983,8 @@ Node* CodeStubAssembler::CheckForCapacityGrow(
     GotoIf(UintPtrLessThan(key, current_capacity), &fits_capacity);
 
     {
-      Node* new_elements =
-          TryGrowElementsCapacity(object, elements, kind, key, current_capacity,
-                                  INTPTR_PARAMETERS, &grow_bailout);
+      Node* new_elements = TryGrowElementsCapacity(
+          object, elements, kind, key, current_capacity, &grow_bailout);
       checked_elements.Bind(new_elements);
       Goto(&fits_capacity);
     }
