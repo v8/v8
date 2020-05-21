@@ -1218,6 +1218,8 @@ void WasmGenerator::Generate<ValueType::kS128>(DataRange* data) {
                                      ValueType::kS128>,
       &WasmGenerator::op_with_prefix<kExprI8x16MaxU, ValueType::kS128,
                                      ValueType::kS128>,
+      &WasmGenerator::op_with_prefix<kExprI8x16RoundingAverageU,
+                                     ValueType::kS128, ValueType::kS128>,
 
       &WasmGenerator::op_with_prefix<kExprI16x8Splat, ValueType::kI32>,
       &WasmGenerator::op_with_prefix<kExprI16x8Eq, ValueType::kS128,
@@ -1269,6 +1271,8 @@ void WasmGenerator::Generate<ValueType::kS128>(DataRange* data) {
                                      ValueType::kS128>,
       &WasmGenerator::op_with_prefix<kExprI16x8MaxU, ValueType::kS128,
                                      ValueType::kS128>,
+      &WasmGenerator::op_with_prefix<kExprI16x8RoundingAverageU,
+                                     ValueType::kS128, ValueType::kS128>,
 
       &WasmGenerator::op_with_prefix<kExprI32x4Splat, ValueType::kI32>,
       &WasmGenerator::op_with_prefix<kExprI32x4Eq, ValueType::kS128,
