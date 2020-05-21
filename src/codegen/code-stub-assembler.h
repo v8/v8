@@ -387,6 +387,10 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
     return UncheckedCast<Smi>(value);
   }
 
+  template <typename TIndex>
+  TNode<TIndex> TaggedToParameter(TNode<Smi> value);
+
+  // TODO(v8:9708): remove once all uses are ported.
   Node* TaggedToParameter(TNode<Smi> value, ParameterMode mode) {
     if (mode != SMI_PARAMETERS) return SmiUntag(value);
     return value;

@@ -566,6 +566,16 @@ TNode<BoolT> CodeStubAssembler::IsValidSmiIndex(TNode<Smi> smi) {
   return Int32TrueConstant();
 }
 
+template <>
+TNode<Smi> CodeStubAssembler::TaggedToParameter(TNode<Smi> value) {
+  return value;
+}
+
+template <>
+TNode<IntPtrT> CodeStubAssembler::TaggedToParameter(TNode<Smi> value) {
+  return SmiUntag(value);
+}
+
 TNode<IntPtrT> CodeStubAssembler::TaggedIndexToIntPtr(
     TNode<TaggedIndex> value) {
   return Signed(WordSarShiftOutZeros(BitcastTaggedToWordForTagAndSmiBits(value),
@@ -2860,12 +2870,11 @@ void CodeStubAssembler::PossiblyGrowElementsCapacity(
     Label* bailout) {
   ParameterMode mode = OptimalParameterMode();
   Label fits(this, var_elements);
-  Node* capacity =
-      TaggedToParameter(LoadFixedArrayBaseLength(var_elements->value()), mode);
-  // length and growth nodes are already in a ParameterMode appropriate
-  // representation.
+  TNode<BInt> capacity =
+      TaggedToParameter<BInt>(LoadFixedArrayBaseLength(var_elements->value()));
+
   TNode<BInt> new_length = IntPtrOrSmiAdd(growth, length);
-  GotoIfNot(IntPtrOrSmiGreaterThan(new_length, capacity, mode), &fits);
+  GotoIfNot(IntPtrOrSmiGreaterThan(new_length, capacity), &fits);
   TNode<BInt> new_capacity = CalculateNewElementsCapacity(new_length);
   *var_elements = GrowElementsCapacity(array, var_elements->value(), kind, kind,
                                        capacity, new_capacity, mode, bailout);
@@ -3742,7 +3751,7 @@ TNode<JSArray> CodeStubAssembler::CloneFastJSArray(
   // Simple extraction that preserves holes.
   new_elements =
       ExtractFixedArray(LoadElements(array), IntPtrOrSmiConstant(0, mode),
-                        TaggedToParameter(CAST(length), mode), nullptr,
+                        TaggedToParameter<BInt>(CAST(length)), nullptr,
                         ExtractFixedArrayFlag::kAllFixedArraysDontCopyCOW, mode,
                         nullptr, var_elements_kind.value());
   var_new_elements = new_elements;
@@ -3760,7 +3769,7 @@ TNode<JSArray> CodeStubAssembler::CloneFastJSArray(
     // ExtractFixedArrayFlag::kDontCopyCOW.
     new_elements = ExtractFixedArray(
         LoadElements(array), IntPtrOrSmiConstant(0, mode),
-        TaggedToParameter(CAST(length), mode), nullptr,
+        TaggedToParameter<BInt>(CAST(length)), nullptr,
         ExtractFixedArrayFlag::kAllFixedArrays, mode, &var_holes_converted);
     var_new_elements = new_elements;
     // If the array type didn't change, use the original elements kind.
@@ -4840,8 +4849,8 @@ TNode<FixedArrayBase> CodeStubAssembler::TryGrowElementsCapacity(
 
   ParameterMode mode = OptimalParameterMode();
   return TryGrowElementsCapacity(
-      object, elements, kind, TaggedToParameter(key, mode),
-      TaggedToParameter(capacity, mode), mode, bailout);
+      object, elements, kind, TaggedToParameter<BInt>(key),
+      TaggedToParameter<BInt>(capacity), mode, bailout);
 }
 
 TNode<FixedArrayBase> CodeStubAssembler::TryGrowElementsCapacity(
