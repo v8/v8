@@ -926,6 +926,8 @@ void Oddball::OddballVerify(Isolate* isolate) {
   } else if (map() == roots.self_reference_marker_map()) {
     // Multiple instances of this oddball may exist at once.
     CHECK_EQ(kind(), Oddball::kSelfReferenceMarker);
+  } else if (map() == roots.basic_block_counters_marker_map()) {
+    CHECK(*this == roots.basic_block_counters_marker());
   } else {
     UNREACHABLE();
   }

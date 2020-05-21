@@ -393,6 +393,7 @@ bool Heap::CreateInitialMaps() {
     ALLOCATE_MAP(ODDBALL_TYPE, Oddball::kSize, optimized_out);
     ALLOCATE_MAP(ODDBALL_TYPE, Oddball::kSize, stale_register);
     ALLOCATE_MAP(ODDBALL_TYPE, Oddball::kSize, self_reference_marker);
+    ALLOCATE_MAP(ODDBALL_TYPE, Oddball::kSize, basic_block_counters_marker);
     ALLOCATE_VARSIZE_MAP(BIGINT_TYPE, bigint);
 
     for (unsigned i = 0; i < arraysize(string_type_table); i++) {
@@ -717,8 +718,9 @@ void Heap::CreateInitialObjects() {
                            handle(Smi::FromInt(-7), isolate()), "undefined",
                            Oddball::kStaleRegister));
 
-  // Initialize the self-reference marker.
+  // Initialize marker objects used during compilation.
   set_self_reference_marker(*factory->NewSelfReferenceMarker());
+  set_basic_block_counters_marker(*factory->NewBasicBlockCountersMarker());
 
   set_interpreter_entry_trampoline_for_profiling(roots.undefined_value());
 
@@ -768,6 +770,8 @@ void Heap::CreateInitialObjects() {
 
   set_number_string_cache(*factory->NewFixedArray(
       kInitialNumberStringCacheSize * 2, AllocationType::kOld));
+
+  set_basic_block_profiling_data(ArrayList::cast(roots.empty_fixed_array()));
 
   // Allocate cache for string split and regexp-multiple.
   set_string_split_cache(*factory->NewFixedArray(

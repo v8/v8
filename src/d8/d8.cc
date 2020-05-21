@@ -2169,8 +2169,9 @@ void Shell::WriteLcovData(v8::Isolate* isolate, const char* file) {
 void Shell::OnExit(v8::Isolate* isolate) {
   // Dump basic block profiling data.
   if (i::FLAG_turbo_profiling) {
-    i::BasicBlockProfiler* profiler = i::BasicBlockProfiler::Get();
-    i::StdoutStream{} << *profiler;
+    i::StdoutStream out;
+    i::BasicBlockProfiler::Get()->Print(out,
+                                        reinterpret_cast<i::Isolate*>(isolate));
   }
   isolate->Dispose();
 

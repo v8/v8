@@ -503,6 +503,7 @@ MaybeHandle<Code> CodeGenerator::FinalizeCode() {
           .set_deoptimization_data(deopt_data)
           .set_is_turbofanned()
           .set_stack_slots(frame()->GetTotalFrameSlotCount())
+          .set_profiler_data(info()->profiler_data())
           .TryBuild();
 
   Handle<Code> code;

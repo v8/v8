@@ -349,11 +349,6 @@ class PipelineData {
     return register_allocation_data_;
   }
 
-  BasicBlockProfiler::Data* profiler_data() const { return profiler_data_; }
-  void set_profiler_data(BasicBlockProfiler::Data* profiler_data) {
-    profiler_data_ = profiler_data;
-  }
-
   std::string const& source_position_output() const {
     return source_position_output_;
   }
@@ -598,9 +593,6 @@ class PipelineData {
   ZoneStats::Scope register_allocation_zone_scope_;
   Zone* register_allocation_zone_;
   RegisterAllocationData* register_allocation_data_ = nullptr;
-
-  // Basic block profiling support.
-  BasicBlockProfiler::Data* profiler_data_ = nullptr;
 
   // Source position output for --trace-turbo.
   std::string source_position_output_;
@@ -2622,8 +2614,9 @@ MaybeHandle<Code> Pipeline::GenerateCodeForCodeStub(
   ZoneStats zone_stats(isolate->allocator());
   NodeOriginTable node_origins(graph);
   JumpOptimizationInfo jump_opt;
-  bool should_optimize_jumps =
-      isolate->serializer_enabled() && FLAG_turbo_rewrite_far_jumps;
+  bool should_optimize_jumps = isolate->serializer_enabled() &&
+                               FLAG_turbo_rewrite_far_jumps &&
+                               !FLAG_turbo_profiling;
   PipelineData data(&zone_stats, &info, isolate, isolate->allocator(), graph,
                     jsgraph, nullptr, source_positions, &node_origins,
                     should_optimize_jumps ? &jump_opt : nullptr, options);
@@ -3055,7 +3048,7 @@ bool PipelineImpl::SelectInstructions(Linkage* linkage) {
   DCHECK_NOT_NULL(data->schedule());
 
   if (FLAG_turbo_profiling) {
-    data->set_profiler_data(BasicBlockInstrumentor::Instrument(
+    data->info()->set_profiler_data(BasicBlockInstrumentor::Instrument(
         info(), data->graph(), data->schedule(), data->isolate()));
   }
 
@@ -3271,14 +3264,6 @@ MaybeHandle<Code> PipelineImpl::FinalizeCode(bool retire_broker) {
   Handle<Code> code;
   if (!maybe_code.ToHandle(&code)) {
     return maybe_code;
-  }
-
-  if (data->profiler_data()) {
-#ifdef ENABLE_DISASSEMBLER
-    std::ostringstream os;
-    code->Disassemble(nullptr, os, isolate());
-    data->profiler_data()->SetCode(&os);
-#endif  // ENABLE_DISASSEMBLER
   }
 
   info()->SetCode(code);

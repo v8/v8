@@ -663,6 +663,8 @@ class Heap {
   void SetSerializedObjects(FixedArray objects);
   void SetSerializedGlobalProxySizes(FixedArray sizes);
 
+  void SetBasicBlockProfilingData(Handle<ArrayList> list);
+
   // For post mortem debugging.
   void RememberUnmappedPage(Address page, bool compacted);
 

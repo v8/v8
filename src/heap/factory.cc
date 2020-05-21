@@ -15,6 +15,7 @@
 #include "src/builtins/constants-table-builder.h"
 #include "src/codegen/compiler.h"
 #include "src/common/globals.h"
+#include "src/diagnostics/basic-block-profiler.h"
 #include "src/execution/isolate-inl.h"
 #include "src/execution/protectors-inl.h"
 #include "src/heap/heap-inl.h"
@@ -118,6 +119,22 @@ MaybeHandle<Code> Factory::CodeBuilder::BuildInternal(
     data_container->set_kind_specific_flags(kind_specific_flags_);
   }
 
+  // Basic block profiling data for builtins is stored in the JS heap rather
+  // than in separately-allocated C++ objects. Allocate that data now if
+  // appropriate.
+  Handle<OnHeapBasicBlockProfilerData> on_heap_profiler_data;
+  if (profiler_data_ && isolate_->IsGeneratingEmbeddedBuiltins()) {
+    on_heap_profiler_data = profiler_data_->CopyToJSHeap(isolate_);
+
+    // Add the on-heap data to a global list, which keeps it alive and allows
+    // iteration.
+    Handle<ArrayList> list(isolate_->heap()->basic_block_profiling_data(),
+                           isolate_);
+    Handle<ArrayList> new_list =
+        ArrayList::Add(isolate_, list, on_heap_profiler_data);
+    isolate_->heap()->SetBasicBlockProfilingData(new_list);
+  }
+
   Handle<Code> code;
   {
     int object_size = ComputeCodeObjectSize(code_desc_);
@@ -189,6 +206,14 @@ MaybeHandle<Code> Factory::CodeBuilder::BuildInternal(
       *(self_reference.location()) = code->ptr();
     }
 
+    // Likewise, any references to the basic block counters marker need to be
+    // updated to point to the newly-allocated counters array.
+    if (!on_heap_profiler_data.is_null()) {
+      isolate_->builtins_constants_table_builder()
+          ->PatchBasicBlockCountersReference(
+              handle(on_heap_profiler_data->counts(), isolate_));
+    }
+
     // Migrate generated code.
     // The generated code can contain embedded objects (typically from handles)
     // in a pointer-to-tagged-value format (i.e. with indirection like a handle)
@@ -209,6 +234,21 @@ MaybeHandle<Code> Factory::CodeBuilder::BuildInternal(
     // cache flush instructions to trigger access error on non-writable memory.
     // See https://bugs.chromium.org/p/v8/issues/detail?id=8157
     code->FlushICache();
+  }
+
+  if (profiler_data_) {
+#ifdef ENABLE_DISASSEMBLER
+    std::ostringstream os;
+    code->Disassemble(nullptr, os, isolate_);
+    if (!on_heap_profiler_data.is_null()) {
+      Handle<String> disassembly =
+          isolate_->factory()->NewStringFromAsciiChecked(os.str().c_str(),
+                                                         AllocationType::kOld);
+      on_heap_profiler_data->set_code(*disassembly);
+    } else {
+      profiler_data_->SetCode(os);
+    }
+#endif  // ENABLE_DISASSEMBLER
   }
 
   return code;
@@ -323,6 +363,13 @@ Handle<Oddball> Factory::NewSelfReferenceMarker() {
   return NewOddball(self_reference_marker_map(), "self_reference_marker",
                     handle(Smi::FromInt(-1), isolate()), "undefined",
                     Oddball::kSelfReferenceMarker);
+}
+
+Handle<Oddball> Factory::NewBasicBlockCountersMarker() {
+  return NewOddball(basic_block_counters_marker_map(),
+                    "basic_block_counters_marker",
+                    handle(Smi::FromInt(-1), isolate()), "undefined",
+                    Oddball::kBasicBlockCountersMarker);
 }
 
 Handle<PropertyArray> Factory::NewPropertyArray(int length) {

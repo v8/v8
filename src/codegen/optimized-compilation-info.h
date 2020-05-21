@@ -11,6 +11,7 @@
 #include "src/codegen/source-position-table.h"
 #include "src/codegen/tick-counter.h"
 #include "src/common/globals.h"
+#include "src/diagnostics/basic-block-profiler.h"
 #include "src/execution/frames.h"
 #include "src/handles/handles.h"
 #include "src/objects/objects.h"
@@ -290,6 +291,11 @@ class V8_EXPORT_PRIVATE OptimizedCompilationInfo final {
 
   TickCounter& tick_counter() { return tick_counter_; }
 
+  BasicBlockProfilerData* profiler_data() const { return profiler_data_; }
+  void set_profiler_data(BasicBlockProfilerData* profiler_data) {
+    profiler_data_ = profiler_data;
+  }
+
  private:
   OptimizedCompilationInfo(Code::Kind code_kind, Zone* zone);
   void ConfigureFlags();
@@ -317,6 +323,9 @@ class V8_EXPORT_PRIVATE OptimizedCompilationInfo final {
 
   // The compiled code.
   Handle<Code> code_;
+
+  // Basic block profiling support.
+  BasicBlockProfilerData* profiler_data_ = nullptr;
 
   // The WebAssembly compilation result, not published in the NativeModule yet.
   std::unique_ptr<wasm::WasmCompilationResult> wasm_compilation_result_;

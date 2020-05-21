@@ -130,6 +130,11 @@ declare_args() {
   # Sets -dV8_ARRAY_BUFFER_EXTENSION
   v8_enable_array_buffer_extension = true
 
+  # Runs mksnapshot with --turbo-profiling. After building in this
+  # configuration, any subsequent run of d8 with --turbo-profiling will output
+  # information about both runtime-generated code and builtins.
+  v8_enable_builtins_profiling = false
+
   # Enables various testing features.
   v8_enable_test_features = ""
 
@@ -1409,6 +1414,10 @@ template("run_mksnapshot") {
       "--embedded_src",
       rebase_path("$target_gen_dir/embedded${suffix}.S", root_build_dir),
     ]
+
+    if (v8_enable_builtins_profiling) {
+      args += [ "--turbo-profiling" ]
+    }
 
     # This is needed to distinguish between generating code for the simulator
     # and cross-compiling. The latter may need to run code on the host with the

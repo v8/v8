@@ -42,6 +42,7 @@ bool IsInitiallyMutable(Factory* factory, Address object_address) {
 #define INITIALLY_READ_ONLY_ROOT_LIST(V)  \
   V(api_private_symbol_table)             \
   V(api_symbol_table)                     \
+  V(basic_block_profiling_data)           \
   V(builtins_constants_table)             \
   V(current_microtask)                    \
   V(detached_contexts)                    \

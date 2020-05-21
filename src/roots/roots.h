@@ -156,6 +156,7 @@ class Symbol;
   V(Map, optimized_out_map, OptimizedOutMap)                                   \
   V(Map, stale_register_map, StaleRegisterMap)                                 \
   V(Map, self_reference_marker_map, SelfReferenceMarkerMap)                    \
+  V(Map, basic_block_counters_marker_map, BasicBlockCountersMarkerMap)         \
   /* Canonical empty values */                                                 \
   V(EnumCache, empty_enum_cache, EmptyEnumCache)                               \
   V(PropertyArray, empty_property_array, EmptyPropertyArray)                   \
@@ -185,6 +186,8 @@ class Symbol;
   V(HeapNumber, minus_infinity_value, MinusInfinityValue)                      \
   /* Marker for self-references during code-generation */                      \
   V(HeapObject, self_reference_marker, SelfReferenceMarker)                    \
+  /* Marker for basic-block usage counters array during code-generation */     \
+  V(Oddball, basic_block_counters_marker, BasicBlockCountersMarker)            \
   /* Canonical off-heap trampoline data */                                     \
   V(ByteArray, off_heap_trampoline_relocation_info,                            \
     OffHeapTrampolineRelocationInfo)                                           \
@@ -303,6 +306,7 @@ class Symbol;
     InterpreterEntryTrampolineForProfiling)                                \
   V(Object, pending_optimize_for_test_bytecode,                            \
     PendingOptimizeForTestBytecode)                                        \
+  V(ArrayList, basic_block_profiling_data, BasicBlockProfilingData)        \
   V(WeakArrayList, shared_wasm_memories, SharedWasmMemories)
 
 // Entries in this list are limited to Smis and are not visited during GC.

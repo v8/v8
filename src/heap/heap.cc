@@ -176,6 +176,10 @@ void Heap::SetSerializedGlobalProxySizes(FixedArray sizes) {
   set_serialized_global_proxy_sizes(sizes);
 }
 
+void Heap::SetBasicBlockProfilingData(Handle<ArrayList> list) {
+  set_basic_block_profiling_data(*list);
+}
+
 bool Heap::GCCallbackTuple::operator==(
     const Heap::GCCallbackTuple& other) const {
   return other.callback == callback && other.data == data;
