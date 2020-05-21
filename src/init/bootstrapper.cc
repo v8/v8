@@ -2775,7 +2775,7 @@ void Genesis::InitializeGlobal(Handle<JSGlobalObject> global_object,
       Handle<JSObject> prototype(
           JSObject::cast(date_time_format_constructor->prototype()), isolate_);
 
-      InstallToStringTag(isolate_, prototype, factory->Object_string());
+      InstallToStringTag(isolate_, prototype, "Intl.DateTimeFormat");
 
       SimpleInstallFunction(isolate_, prototype, "resolvedOptions",
                             Builtins::kDateTimeFormatPrototypeResolvedOptions,
@@ -2814,7 +2814,7 @@ void Genesis::InitializeGlobal(Handle<JSGlobalObject> global_object,
       Handle<JSObject> prototype(
           JSObject::cast(number_format_constructor->prototype()), isolate_);
 
-      InstallToStringTag(isolate_, prototype, factory->Object_string());
+      InstallToStringTag(isolate_, prototype, "Intl.NumberFormat");
 
       SimpleInstallFunction(isolate_, prototype, "resolvedOptions",
                             Builtins::kNumberFormatPrototypeResolvedOptions, 0,
@@ -2842,7 +2842,7 @@ void Genesis::InitializeGlobal(Handle<JSGlobalObject> global_object,
       Handle<JSObject> prototype(
           JSObject::cast(collator_constructor->prototype()), isolate_);
 
-      InstallToStringTag(isolate_, prototype, factory->Object_string());
+      InstallToStringTag(isolate_, prototype, "Intl.Collator");
 
       SimpleInstallFunction(isolate_, prototype, "resolvedOptions",
                             Builtins::kCollatorPrototypeResolvedOptions, 0,
@@ -2905,7 +2905,7 @@ void Genesis::InitializeGlobal(Handle<JSGlobalObject> global_object,
       Handle<JSObject> prototype(
           JSObject::cast(plural_rules_constructor->prototype()), isolate_);
 
-      InstallToStringTag(isolate_, prototype, factory->Object_string());
+      InstallToStringTag(isolate_, prototype, "Intl.PluralRules");
 
       SimpleInstallFunction(isolate_, prototype, "resolvedOptions",
                             Builtins::kPluralRulesPrototypeResolvedOptions, 0,
