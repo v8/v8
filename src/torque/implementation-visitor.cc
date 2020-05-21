@@ -3341,7 +3341,6 @@ void ImplementationVisitor::GenerateBitFields(
                  << " = 1 << " << field.offset << ", \\\n";
         }
         header << "  }; \\\n";
-        header << "  using Flags = base::Flags<Flag>; \\\n";
       }
 
       header << "\n";

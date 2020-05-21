@@ -68,13 +68,12 @@ class ContextualVariable {
     return Top()->Value();
   }
 
-  static bool HasScope() { return Top() != nullptr; }
-
  private:
   template <class T>
   friend V8_EXPORT_PRIVATE typename T::Scope*& ContextualVariableTop();
   static Scope*& Top() { return ContextualVariableTop<Derived>(); }
 
+  static bool HasScope() { return Top() != nullptr; }
   friend class MessageBuilder;
 };
 
