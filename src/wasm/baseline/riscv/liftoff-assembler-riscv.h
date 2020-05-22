@@ -1037,7 +1037,7 @@ void LiftoffAssembler::emit_cond_jump(Condition cond, Label* label,
 }
 
 void LiftoffAssembler::emit_i32_eqz(Register dst, Register src) {
-  sltiu(dst, src, 1);
+  TurboAssembler::Sltu(dst, src, 1);
 }
 
 void LiftoffAssembler::emit_i32_set_cond(Condition cond, Register dst,
@@ -1058,7 +1058,7 @@ void LiftoffAssembler::emit_i32_set_cond(Condition cond, Register dst,
 }
 
 void LiftoffAssembler::emit_i64_eqz(Register dst, LiftoffRegister src) {
-  sltiu(dst, src.gp(), 1);
+  TurboAssembler::Sltu(dst, src.gp(), 1);
 }
 
 void LiftoffAssembler::emit_i64_set_cond(Condition cond, Register dst,

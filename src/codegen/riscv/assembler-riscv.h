@@ -810,11 +810,6 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase {
   // Memory barrier instruction.
   void sync();
 
-  // Set on less than.
-  void slt(Register rd, Register rs, Register rt);
-  void sltu(Register rd, Register rs, Register rt);
-  void sltiu(Register rd, Register rs, int32_t j);
-
   // --------Coprocessor-instructions----------------
 
   // Load, store, and move.

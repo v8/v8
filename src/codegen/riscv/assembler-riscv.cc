@@ -2318,27 +2318,6 @@ void Assembler::stop(uint32_t code) {
 
 void Assembler::sync() { RV_fence(0b1111, 0b1111); }
 
-// Set on less than instructions.
-void Assembler::slt(Register rd, Register rs, Register rt) {
-  RV_slt(rd, rs, rt);
-}
-
-void Assembler::sltu(Register rd, Register rs, Register rt) {
-  RV_sltu(rd, rs, rt);
-}
-
-void Assembler::sltiu(Register rd, Register rs, int32_t j) {
-  if (is_int12(j)) {
-    RV_sltiu(rd, rs, j);
-  } else {
-    UseScratchRegisterScope temps(this);
-    Register scratch = temps.Acquire();
-    RV_li(scratch, j);
-    RV_sltu(rd, rs, scratch);
-  }
-}
-
-// Conditional move.
 void Assembler::min_s(FPURegister fd, FPURegister fs, FPURegister ft) {
   RV_fmin_s(fd, fs, ft);
 }

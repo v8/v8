@@ -2151,7 +2151,7 @@ void CodeGenerator::AssembleArchBoolean(Instruction* instr,
   } else if (instr->arch_opcode() == kMips64DaddOvf ||
              instr->arch_opcode() == kMips64DsubOvf) {
     // Overflow occurs if overflow register is negative
-    __ slt(result, kScratchReg, zero_reg);
+    __ Slt(result, kScratchReg, zero_reg);
   } else if (instr->arch_opcode() == kMips64MulOvf) {
     // Overflow occurs if overflow register is not zero
     __ Sgtu(result, kScratchReg, zero_reg);
