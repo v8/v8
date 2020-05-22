@@ -395,16 +395,12 @@
   'test-run-machops/RunInt32MulHighP': [SKIP],
   'test-run-machops/RunInt64AddWithOverflow*': [SKIP],
   'test-run-machops/RunInt64SubWithOverflow*': [SKIP],
-  'test-run-machops/RunSpillConstantsAndParameters': [SKIP],
   'test-run-machops/RunUint32MulHighP': [SKIP],
 
   'test-run-wasm/RunWasmLiftoff_StoreMem_offset_oob': [SKIP],
   'test-run-wasm/RunWasmTurbofan_I32SConvertF32': [SKIP],
   'test-run-wasm/RunWasmTurbofan_I32UConvertF32': [SKIP],
   'test-run-wasm/RunWasmTurbofan_StoreMem_offset_oob': [SKIP],
-
-  'test-code-assembler/SimpleCallJSFunction1Arg': [SKIP],
-  'test-code-assembler/SimpleCallJSFunction2Arg': [SKIP],
 
   'test-torque/TestGotoLabelWithTwoParameters': [SKIP],
   'test-torque/TestGotoLabel': [SKIP],

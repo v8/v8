@@ -2331,7 +2331,7 @@ void Builtins::Generate_ArgumentsAdaptorTrampoline(MacroAssembler* masm) {
     __ Ld(a5, MemOperand(a0));
     __ push(a5);
     __ Daddu(a0, a0, -kPointerSize);
-    __ Branch(&copy, ne, a0, Operand(a4));
+    __ Branch(&copy, ge, a0, Operand(a4));
 
     __ Branch(&invoke);
   }
