@@ -67,14 +67,25 @@ hostFunc.name = 'host'
 class FunctionCall:
     indentLevel = 0
 
-    def __init__(self, func, pc, ra):
+    def __init__(self, func, pc, ra, sp=None, fp=None):
         self.func = func
         self.pc = pc
         self.ra = ra
+        self.sp = sp
+        self.fp = fp
         self.indentLevel = FunctionCall.indentLevel
         FunctionCall.indentLevel = FunctionCall.indentLevel + 1
 
-    def returnFrom(self):
+    def returnFrom(self, ra=None, sp=None, fp=None):
+        if ra is not None and ra != self.ra:
+            print(
+                f"### WARNING: Expected return address = {self.ra}, actual = {ra}")
+        if sp is not None and self.sp is not None and sp != self.sp:
+            print(
+                f"### WARNING: Expected stack pointer = {self.sp}, actual = {sp}")
+        if fp is not None and self.fp is not None and fp != self.fp:
+            print(
+                f"### WARNING: Expected frame pointer = {self.fp}, actual = {fp}")
         FunctionCall.indentLevel = FunctionCall.indentLevel - 1
 
 
@@ -198,7 +209,7 @@ while nextLine:
     elif words[0] == "CallImpl:":
         addr = int(words[7], 16)
         func = functions[addr]
-        call = FunctionCall(func, addr, -2)
+        call = FunctionCall(func, addr, 0xFFFFFFFFFFFFFFFE)
         callStack.append(call)
         print(f"### Start in {func.name}")
         inTraceSim = True
@@ -253,7 +264,8 @@ while nextLine:
                     addr = int(addrParts[0]) + registers[addrParts[1]]
                     if addr in functions.keys():
                         func = functions[addr]
-                        call = FunctionCall(func, addr, words[5])
+                        call = FunctionCall(func, addr, int(
+                            words[5], 16), registers['sp'], registers['fp'])
                         callStack.append(call)
                         print(
                             f"### {'  ' * call.indentLevel}Call {func.name} {words[6]}")
@@ -261,15 +273,17 @@ while nextLine:
                         func = unknownFunc
                         if nextLine and nextLine.startswith("Call to host function"):
                             func = hostFunc
-                        call = FunctionCall(func, addr, words[5])
+                        call = FunctionCall(func, addr, int(
+                            words[5], 16), registers['sp'], registers['fp'])
                         callStack.append(call)
                         print(
-                            f"### {'  ' * call.indentLevel}Call {func.name} {words[6]} A {addr}")
+                            f"### {'  ' * call.indentLevel}Call {func.name} {words[6]}")
                 if len(words) >= 4 and words[2] == "jalr" and not words[3].endswith(','):
                     addr = registers[words[3]]
                     if addr in functions.keys():
                         func = functions[addr]
-                        call = FunctionCall(func, addr, words[4])
+                        call = FunctionCall(func, addr, int(
+                            words[4], 16), registers['sp'], registers['fp'])
                         callStack.append(call)
                         print(
                             f"### {'  ' * call.indentLevel}Call {func.name} {words[5]}")
@@ -277,10 +291,11 @@ while nextLine:
                         func = unknownFunc
                         if nextLine and nextLine.startswith("Call to host function"):
                             func = hostFunc
-                        call = FunctionCall(func, addr, words[4])
+                        call = FunctionCall(func, addr, int(
+                            words[4], 16), registers['sp'], registers['fp'])
                         callStack.append(call)
                         print(
-                            f"### {'  ' * call.indentLevel}Call {func.name} {words[5]} B{addr}")
+                            f"### {'  ' * call.indentLevel}Call {func.name} {words[5]}")
 
                 # Check for a return
                 if len(words) >= 5 and words[2] == "jalr" and \
@@ -289,21 +304,25 @@ while nextLine:
                         call = callStack.pop()
                         print(
                             f"### {'  ' * call.indentLevel}Return from {call.func.name} {words[6]}")
-                        call.returnFrom()
+                        call.returnFrom(
+                            registers['ra'], registers['sp'], registers['fp'])
                     else:
                         print(
                             f"### {'  ' * call.indentLevel}Return from top-level {words[6]}")
-                        call.returnFrom()
+                        call.returnFrom(
+                            registers['ra'], registers['sp'], registers['fp'])
                 if words[2] == "ret":
                     if len(callStack) > 0:
                         call = callStack.pop()
                         print(
                             f"### {'  ' * call.indentLevel}Return from {call.func.name} {words[4]}")
-                        call.returnFrom()
+                        call.returnFrom(
+                            registers['ra'], registers['sp'], registers['fp'])
                     else:
                         print(
                             f"### {'  ' * call.indentLevel}Return from top-level {words[4]}")
-                        call.returnFrom()
+                        call.returnFrom(
+                            registers['ra'], registers['sp'], registers['fp'])
 
             if args.inline and inTraceSim:
                 print(line, end='')
