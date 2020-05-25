@@ -233,19 +233,19 @@ class CollectValuesBreakHandler : public debug::DebugDelegate {
     WasmFrame* frame = WasmFrame::cast(frame_it.frame());
     DebugInfo* debug_info = frame->native_module()->GetDebugInfo();
 
-    int num_locals = debug_info->GetNumLocals(isolate_, frame->pc());
+    int num_locals = debug_info->GetNumLocals(frame->pc());
     CHECK_EQ(expected.locals.size(), num_locals);
     for (int i = 0; i < num_locals; ++i) {
       WasmValue local_value = debug_info->GetLocalValue(
-          i, isolate_, frame->pc(), frame->fp(), frame->callee_fp());
+          i, frame->pc(), frame->fp(), frame->callee_fp());
       CHECK_EQ(WasmValWrapper{expected.locals[i]}, WasmValWrapper{local_value});
     }
 
-    int stack_depth = debug_info->GetStackDepth(isolate_, frame->pc());
+    int stack_depth = debug_info->GetStackDepth(frame->pc());
     CHECK_EQ(expected.stack.size(), stack_depth);
     for (int i = 0; i < stack_depth; ++i) {
       WasmValue stack_value = debug_info->GetStackValue(
-          i, isolate_, frame->pc(), frame->fp(), frame->callee_fp());
+          i, frame->pc(), frame->fp(), frame->callee_fp());
       CHECK_EQ(WasmValWrapper{expected.stack[i]}, WasmValWrapper{stack_value});
     }
 

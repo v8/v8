@@ -374,29 +374,29 @@ class DebugInfoImpl {
   explicit DebugInfoImpl(NativeModule* native_module)
       : native_module_(native_module) {}
 
-  int GetNumLocals(Isolate* isolate, Address pc) {
-    FrameInspectionScope scope(this, isolate, pc);
+  int GetNumLocals(Address pc) {
+    FrameInspectionScope scope(this, pc);
     if (!scope.is_inspectable()) return 0;
     return scope.debug_side_table->num_locals();
   }
 
-  WasmValue GetLocalValue(int local, Isolate* isolate, Address pc, Address fp,
+  WasmValue GetLocalValue(int local, Address pc, Address fp,
                           Address debug_break_fp) {
-    FrameInspectionScope scope(this, isolate, pc);
+    FrameInspectionScope scope(this, pc);
     return GetValue(scope.debug_side_table_entry, local, fp, debug_break_fp);
   }
 
-  int GetStackDepth(Isolate* isolate, Address pc) {
-    FrameInspectionScope scope(this, isolate, pc);
+  int GetStackDepth(Address pc) {
+    FrameInspectionScope scope(this, pc);
     if (!scope.is_inspectable()) return 0;
     int num_locals = static_cast<int>(scope.debug_side_table->num_locals());
     int value_count = scope.debug_side_table_entry->num_values();
     return value_count - num_locals;
   }
 
-  WasmValue GetStackValue(int index, Isolate* isolate, Address pc, Address fp,
+  WasmValue GetStackValue(int index, Address pc, Address fp,
                           Address debug_break_fp) {
-    FrameInspectionScope scope(this, isolate, pc);
+    FrameInspectionScope scope(this, pc);
     int num_locals = static_cast<int>(scope.debug_side_table->num_locals());
     int value_count = scope.debug_side_table_entry->num_values();
     if (num_locals + index >= value_count) return {};
@@ -406,7 +406,7 @@ class DebugInfoImpl {
 
   Handle<JSObject> GetLocalScopeObject(Isolate* isolate, Address pc, Address fp,
                                        Address debug_break_fp) {
-    FrameInspectionScope scope(this, isolate, pc);
+    FrameInspectionScope scope(this, pc);
     Handle<JSObject> local_scope_object =
         isolate->factory()->NewJSObjectWithNullProto();
 
@@ -451,7 +451,7 @@ class DebugInfoImpl {
 
   Handle<JSObject> GetStackScopeObject(Isolate* isolate, Address pc, Address fp,
                                        Address debug_break_fp) {
-    FrameInspectionScope scope(this, isolate, pc);
+    FrameInspectionScope scope(this, pc);
     Handle<JSObject> stack_scope_obj =
         isolate->factory()->NewJSObjectWithNullProto();
 
@@ -644,13 +644,14 @@ class DebugInfoImpl {
 
  private:
   struct FrameInspectionScope {
-    FrameInspectionScope(DebugInfoImpl* debug_info, Isolate* isolate,
-                         Address pc)
-        : code(isolate->wasm_engine()->code_manager()->LookupCode(pc)),
+    FrameInspectionScope(DebugInfoImpl* debug_info, Address pc)
+        : code(debug_info->native_module_->engine()->code_manager()->LookupCode(
+              pc)),
           pc_offset(static_cast<int>(pc - code->instruction_start())),
           debug_side_table(
               code->is_inspectable()
-                  ? debug_info->GetDebugSideTable(code, isolate->allocator())
+                  ? debug_info->GetDebugSideTable(
+                        code, debug_info->native_module_->engine()->allocator())
                   : nullptr),
           debug_side_table_entry(debug_side_table
                                      ? debug_side_table->GetEntry(pc_offset)
@@ -842,22 +843,18 @@ DebugInfo::DebugInfo(NativeModule* native_module)
 
 DebugInfo::~DebugInfo() = default;
 
-int DebugInfo::GetNumLocals(Isolate* isolate, Address pc) {
-  return impl_->GetNumLocals(isolate, pc);
+int DebugInfo::GetNumLocals(Address pc) { return impl_->GetNumLocals(pc); }
+
+WasmValue DebugInfo::GetLocalValue(int local, Address pc, Address fp,
+                                   Address debug_break_fp) {
+  return impl_->GetLocalValue(local, pc, fp, debug_break_fp);
 }
 
-WasmValue DebugInfo::GetLocalValue(int local, Isolate* isolate, Address pc,
-                                   Address fp, Address debug_break_fp) {
-  return impl_->GetLocalValue(local, isolate, pc, fp, debug_break_fp);
-}
+int DebugInfo::GetStackDepth(Address pc) { return impl_->GetStackDepth(pc); }
 
-int DebugInfo::GetStackDepth(Isolate* isolate, Address pc) {
-  return impl_->GetStackDepth(isolate, pc);
-}
-
-WasmValue DebugInfo::GetStackValue(int index, Isolate* isolate, Address pc,
-                                   Address fp, Address debug_break_fp) {
-  return impl_->GetStackValue(index, isolate, pc, fp, debug_break_fp);
+WasmValue DebugInfo::GetStackValue(int index, Address pc, Address fp,
+                                   Address debug_break_fp) {
+  return impl_->GetStackValue(index, pc, fp, debug_break_fp);
 }
 
 Handle<JSObject> DebugInfo::GetLocalScopeObject(Isolate* isolate, Address pc,

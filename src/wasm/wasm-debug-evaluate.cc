@@ -202,8 +202,8 @@ class DebugEvaluatorProxy {
     DCHECK(frame_->is_wasm());
     wasm::DebugInfo* debug_info =
         WasmFrame::cast(frame_)->native_module()->GetDebugInfo();
-    return debug_info->GetLocalValue(local, isolate_, frame_->pc(),
-                                     frame_->fp(), frame_->callee_fp());
+    return debug_info->GetLocalValue(local, frame_->pc(), frame_->fp(),
+                                     frame_->callee_fp());
   }
 
   uint32_t GetArgAsUInt32(const v8::FunctionCallbackInfo<v8::Value>& args,
