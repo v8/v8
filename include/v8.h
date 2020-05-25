@@ -8308,7 +8308,7 @@ class V8_EXPORT Isolate {
 
   /**
    * This scope allows terminations inside direct V8 API calls and forbid them
-   * inside any recursice API calls without explicit SafeForTerminationScope.
+   * inside any recursive API calls without explicit SafeForTerminationScope.
    */
   class V8_EXPORT SafeForTerminationScope {
    public:
@@ -8543,7 +8543,7 @@ class V8_EXPORT Isolate {
       HostImportModuleDynamicallyCallback callback);
 
   /**
-   * This specifies the callback called by the upcoming importa.meta
+   * This specifies the callback called by the upcoming import.meta
    * language feature to retrieve host-defined meta data for a module.
    */
   void SetHostInitializeImportMetaObjectCallback(
