@@ -50,8 +50,6 @@ using base::WriteUnalignedValue;
 #define LANE(i, type) (i)
 #endif
 
-#define FOREACH_INTERNAL_OPCODE(V) V(Breakpoint, 0xFF)
-
 #define FOREACH_SIMPLE_BINOP(V) \
   V(I32Add, uint32_t, +)        \
   V(I32Sub, uint32_t, -)        \
@@ -624,23 +622,6 @@ inline int64_t ExecuteI64ReinterpretF64(WasmValue a) {
   return a.to_f64_boxed().get_bits();
 }
 
-enum InternalOpcode {
-#define DECL_INTERNAL_ENUM(name, value) kInternal##name = value,
-  FOREACH_INTERNAL_OPCODE(DECL_INTERNAL_ENUM)
-#undef DECL_INTERNAL_ENUM
-};
-
-const char* OpcodeName(uint32_t val) {
-  switch (val) {
-#define DECL_INTERNAL_CASE(name, value) \
-  case kInternal##name:                 \
-    return "Internal" #name;
-    FOREACH_INTERNAL_OPCODE(DECL_INTERNAL_CASE)
-#undef DECL_INTERNAL_CASE
-  }
-  return WasmOpcodes::OpcodeName(static_cast<WasmOpcode>(val));
-}
-
 constexpr int32_t kCatchInArity = 1;
 
 }  // namespace
@@ -651,11 +632,9 @@ class SideTable;
 struct InterpreterCode {
   const WasmFunction* function;  // wasm function
   BodyLocalDecls locals;         // local declarations
-  const byte* orig_start;        // start of original code
-  const byte* orig_end;          // end of original code
-  byte* start;                   // start of (maybe altered) code
-  byte* end;                     // end of (maybe altered) code
-  SideTable* side_table;         // precomputed side table for control flow.
+  const byte* start;             // start of code
+  const byte* end;               // end of code
+  SideTable* side_table;         // precomputed side table for control flow
 
   const byte* at(pc_t pc) { return start + pc; }
 };
@@ -769,7 +748,7 @@ class SideTable : public ZoneObject {
         static_cast<uint32_t>(code->function->sig->return_count());
     CLabel* func_label =
         CLabel::New(&control_transfer_zone, stack_height, func_arity);
-    control_stack.emplace_back(code->orig_start, func_label, func_arity);
+    control_stack.emplace_back(code->start, func_label, func_arity);
     auto control_parent = [&]() -> Control& {
       DCHECK_LE(2, control_stack.size());
       return control_stack[control_stack.size() - 2];
@@ -777,7 +756,7 @@ class SideTable : public ZoneObject {
     auto copy_unreachable = [&] {
       control_stack.back().unreachable = control_parent().unreachable;
     };
-    for (BytecodeIterator i(code->orig_start, code->orig_end, &code->locals);
+    for (BytecodeIterator i(code->start, code->end, &code->locals);
          i.has_next(); i.next()) {
       WasmOpcode opcode = i.current();
       int32_t exceptional_stack_height = 0;
@@ -809,7 +788,8 @@ class SideTable : public ZoneObject {
         if (exceptional_stack_height + kCatchInArity > max_stack_height_) {
           max_stack_height_ = exceptional_stack_height + kCatchInArity;
         }
-        TRACE("handler @%u: %s -> try @%u\n", i.pc_offset(), OpcodeName(opcode),
+        TRACE("handler @%u: %s -> try @%u\n", i.pc_offset(),
+              WasmOpcodes::OpcodeName(opcode),
               static_cast<uint32_t>(c->pc - code->start));
       }
       switch (opcode) {
@@ -859,7 +839,7 @@ class SideTable : public ZoneObject {
           }
           DCHECK_NOT_NULL(c->else_label);
           c->else_label->Bind(i.pc() + 1);
-          c->else_label->Finish(&map_, code->orig_start);
+          c->else_label->Finish(&map_, code->start);
           stack_height = c->else_label->target_stack_height;
           c->else_label = nullptr;
           DCHECK_IMPLIES(!unreachable,
@@ -895,7 +875,7 @@ class SideTable : public ZoneObject {
           }
           DCHECK_NOT_NULL(c->else_label);
           c->else_label->Bind(i.pc() + 1);
-          c->else_label->Finish(&map_, code->orig_start);
+          c->else_label->Finish(&map_, code->start);
           c->else_label = nullptr;
           DCHECK_IMPLIES(!unreachable,
                          stack_height >= c->end_label->target_stack_height);
@@ -924,7 +904,7 @@ class SideTable : public ZoneObject {
             if (c->else_label) c->else_label->Bind(i.pc());
             c->end_label->Bind(i.pc() + 1);
           }
-          c->Finish(&map_, code->orig_start);
+          c->Finish(&map_, code->start);
           DCHECK_IMPLIES(!unreachable,
                          stack_height >= c->end_label->target_stack_height);
           stack_height = c->end_label->target_stack_height + c->exit_arity;
@@ -1030,10 +1010,8 @@ class CodeMap {
 
   void AddFunction(const WasmFunction* function, const byte* code_start,
                    const byte* code_end) {
-    InterpreterCode code = {
-        function, BodyLocalDecls(zone_),         code_start,
-        code_end, const_cast<byte*>(code_start), const_cast<byte*>(code_end),
-        nullptr};
+    InterpreterCode code = {function, BodyLocalDecls(zone_), code_start,
+                            code_end, nullptr};
 
     DCHECK_EQ(interpreter_code_.size(), function->func_index);
     interpreter_code_.push_back(code);
@@ -1044,8 +1022,6 @@ class CodeMap {
     DCHECK_LT(function->func_index, interpreter_code_.size());
     InterpreterCode* code = &interpreter_code_[function->func_index];
     DCHECK_EQ(function, code->function);
-    code->orig_start = start;
-    code->orig_end = end;
     code->start = const_cast<byte*>(start);
     code->end = const_cast<byte*>(end);
     code->side_table = nullptr;
@@ -1239,15 +1215,9 @@ class ThreadImpl {
 
   TrapReason GetTrapReason() { return trap_reason_; }
 
-  pc_t GetBreakpointPc() { return break_pc_; }
-
   bool PossibleNondeterminism() { return possible_nondeterminism_; }
 
   uint64_t NumInterpretedCalls() { return num_interpreted_calls_; }
-
-  void AddBreakFlags(uint8_t flags) { break_flags_ |= flags; }
-
-  void ClearBreakFlags() { break_flags_ = WasmInterpreter::BreakFlag::None; }
 
   Handle<Cell> reference_stack_cell() const { return reference_stack_cell_; }
 
@@ -1409,10 +1379,8 @@ class ThreadImpl {
   Handle<Cell> reference_stack_cell_;  // References are on an on-heap stack.
   ZoneVector<Frame> frames_;
   WasmInterpreter::State state_ = WasmInterpreter::STOPPED;
-  pc_t break_pc_ = kInvalidPc;
   TrapReason trap_reason_ = kTrapCount;
   bool possible_nondeterminism_ = false;
-  uint8_t break_flags_ = 0;  // a combination of WasmInterpreter::BreakFlag
   uint64_t num_interpreted_calls_ = 0;
   // Store the stack height of each activation (for unwind and frame
   // inspection).
@@ -1490,15 +1458,6 @@ class ThreadImpl {
     frames_.back().pc = pc;
   }
 
-  bool SkipBreakpoint(InterpreterCode* code, pc_t pc) {
-    if (pc == break_pc_) {
-      // Skip the previously hit breakpoint when resuming.
-      break_pc_ = kInvalidPc;
-      return true;
-    }
-    return false;
-  }
-
   void ReloadFromFrameOnException(Decoder* decoder, InterpreterCode** code,
                                   pc_t* pc, pc_t* limit) {
     Frame* top = &frames_.back();
@@ -1527,7 +1486,7 @@ class ThreadImpl {
   }
 
   pc_t ReturnPc(Decoder* decoder, InterpreterCode* code, pc_t pc) {
-    switch (code->orig_start[pc]) {
+    switch (code->start[pc]) {
       case kExprCallFunction: {
         CallFunctionImmediate<Decoder::kNoValidate> imm(decoder, code->at(pc));
         return pc + 1 + imm.length;
@@ -1966,8 +1925,9 @@ class ThreadImpl {
         return true;
       }
       default:
-        FATAL("Unknown or unimplemented opcode #%d:%s", code->start[pc],
-              OpcodeName(code->start[pc]));
+        FATAL(
+            "Unknown or unimplemented opcode #%d:%s", code->start[pc],
+            WasmOpcodes::OpcodeName(static_cast<WasmOpcode>(code->start[pc])));
         UNREACHABLE();
     }
     return false;
@@ -3053,20 +3013,11 @@ class ThreadImpl {
 
     Decoder decoder(code->start, code->end);
     pc_t limit = code->end - code->start;
-    bool hit_break = false;
 
     while (true) {
-#define PAUSE_IF_BREAK_FLAG(flag)                                     \
-  if (V8_UNLIKELY(break_flags_ & WasmInterpreter::BreakFlag::flag)) { \
-    hit_break = true;                                                 \
-    max = 0;                                                          \
-  }
-
       DCHECK_GT(limit, pc);
       DCHECK_NOT_NULL(code->start);
 
-      // Do first check for a breakpoint, in order to set hit_break correctly.
-      const char* skip = "        ";
       int len = 1;
       // We need to store this, because SIMD opcodes are LEB encoded, and later
       // on when executing, we need to know where to read immediates from.
@@ -3078,23 +3029,6 @@ class ThreadImpl {
             &code->start[pc], &simd_opcode_length);
         len += simd_opcode_length;
       }
-      if (V8_UNLIKELY(orig == kInternalBreakpoint)) {
-        orig = code->orig_start[pc];
-        if (WasmOpcodes::IsPrefixOpcode(static_cast<WasmOpcode>(orig))) {
-          opcode = decoder.read_prefixed_opcode<Decoder::kNoValidate>(
-              &code->start[pc]);
-        }
-        if (SkipBreakpoint(code, pc)) {
-          // skip breakpoint by switching on original code.
-          skip = "[skip]  ";
-        } else {
-          TRACE("@%-3zu: [break] %-24s:", pc, WasmOpcodes::OpcodeName(opcode));
-          TraceValueStack();
-          TRACE("\n");
-          hit_break = true;
-          break;
-        }
-      }
 
       // If max is 0, break. If max is positive (a limit is set), decrement it.
       if (max >= 0 && WasmOpcodes::IsBreakable(opcode)) {
@@ -3102,8 +3036,7 @@ class ThreadImpl {
         --max;
       }
 
-      USE(skip);
-      TRACE("@%-3zu: %s%-24s:", pc, skip, WasmOpcodes::OpcodeName(opcode));
+      TRACE("@%-3zu: %-24s:", pc, WasmOpcodes::OpcodeName(opcode));
       TraceValueStack();
       TRACE("\n");
 
@@ -3112,7 +3045,7 @@ class ThreadImpl {
       // stack was modified accordingly.
       std::pair<uint32_t, uint32_t> stack_effect =
           StackEffect(codemap_->module(), frames_.back().code->function->sig,
-                      code->orig_start + pc, code->orig_end);
+                      code->start + pc, code->end);
       sp_t expected_new_stack_height =
           StackHeight() - stack_effect.first + stack_effect.second;
 #endif
@@ -3239,7 +3172,6 @@ class ThreadImpl {
         case kExprReturn: {
           size_t arity = code->function->sig->return_count();
           if (!DoReturn(&decoder, &code, &pc, &limit, arity)) return;
-          PAUSE_IF_BREAK_FLAG(AfterReturn);
           continue;  // Do not bump pc.
         }
         case kExprUnreachable: {
@@ -3334,7 +3266,6 @@ class ThreadImpl {
                 // Direct calls are checked statically.
                 UNREACHABLE();
               case ExternalCallResult::EXTERNAL_RETURNED:
-                PAUSE_IF_BREAK_FLAG(AfterCall);
                 len = 1 + imm.length;
                 break;
               case ExternalCallResult::EXTERNAL_UNWOUND:
@@ -3348,7 +3279,6 @@ class ThreadImpl {
           // Execute an internal call.
           if (!DoCall(&decoder, target, &pc, &limit)) return;
           code = target;
-          PAUSE_IF_BREAK_FLAG(AfterCall);
           continue;  // Do not bump pc.
         } break;
 
@@ -3365,14 +3295,12 @@ class ThreadImpl {
               if (!DoCall(&decoder, result.interpreter_code, &pc, &limit))
                 return;
               code = result.interpreter_code;
-              PAUSE_IF_BREAK_FLAG(AfterCall);
               continue;  // Do not bump pc.
             case ExternalCallResult::INVALID_FUNC:
               return DoTrap(kTrapFuncInvalid, pc);
             case ExternalCallResult::SIGNATURE_MISMATCH:
               return DoTrap(kTrapFuncSigMismatch, pc);
             case ExternalCallResult::EXTERNAL_RETURNED:
-              PAUSE_IF_BREAK_FLAG(AfterCall);
               len = 1 + imm.length;
               break;
             case ExternalCallResult::EXTERNAL_UNWOUND:
@@ -3392,8 +3320,6 @@ class ThreadImpl {
             // Enter internal found function.
             if (!DoReturnCall(&decoder, target, &pc, &limit)) return;
             code = target;
-            PAUSE_IF_BREAK_FLAG(AfterCall);
-
             continue;  // Do not bump pc.
           }
           // Function is imported.
@@ -3418,7 +3344,6 @@ class ThreadImpl {
           }
           size_t arity = code->function->sig->return_count();
           if (!DoReturn(&decoder, &code, &pc, &limit, arity)) return;
-          PAUSE_IF_BREAK_FLAG(AfterReturn);
           continue;
         } break;
 
@@ -3441,7 +3366,6 @@ class ThreadImpl {
               // The function belongs to this instance. Enter it directly.
               if (!DoReturnCall(&decoder, target, &pc, &limit)) return;
               code = result.interpreter_code;
-              PAUSE_IF_BREAK_FLAG(AfterCall);
               continue;  // Do not bump pc.
             }
             case ExternalCallResult::INVALID_FUNC:
@@ -3453,7 +3377,6 @@ class ThreadImpl {
 
               size_t arity = code->function->sig->return_count();
               if (!DoReturn(&decoder, &code, &pc, &limit, arity)) return;
-              PAUSE_IF_BREAK_FLAG(AfterCall);
               break;
             }
             case ExternalCallResult::EXTERNAL_UNWOUND:
@@ -3753,7 +3676,8 @@ class ThreadImpl {
 
         default:
           FATAL("Unknown or unimplemented opcode #%d:%s", code->start[pc],
-                OpcodeName(code->start[pc]));
+                WasmOpcodes::OpcodeName(
+                    static_cast<WasmOpcode>(code->start[pc])));
           UNREACHABLE();
       }
 
@@ -3770,13 +3694,10 @@ class ThreadImpl {
         size_t arity = code->function->sig->return_count();
         DCHECK_EQ(StackHeight() - arity, frames_.back().llimit());
         if (!DoReturn(&decoder, &code, &pc, &limit, arity)) return;
-        PAUSE_IF_BREAK_FLAG(AfterReturn);
       }
-#undef PAUSE_IF_BREAK_FLAG
     }
 
     state_ = WasmInterpreter::PAUSED;
-    break_pc_ = hit_break ? pc : kInvalidPc;
     CommitPc(pc);
   }
 
@@ -4230,9 +4151,6 @@ WasmInterpreter::Thread::RaiseException(Isolate* isolate,
   ThreadImpl::ReferenceStackScope stack_scope(impl);
   return impl->RaiseException(isolate, exception);
 }
-pc_t WasmInterpreter::Thread::GetBreakpointPc() {
-  return ToImpl(this)->GetBreakpointPc();
-}
 int WasmInterpreter::Thread::GetFrameCount() {
   return ToImpl(this)->GetFrameCount();
 }
@@ -4254,12 +4172,6 @@ bool WasmInterpreter::Thread::PossibleNondeterminism() {
 }
 uint64_t WasmInterpreter::Thread::NumInterpretedCalls() {
   return ToImpl(this)->NumInterpretedCalls();
-}
-void WasmInterpreter::Thread::AddBreakFlags(uint8_t flags) {
-  ToImpl(this)->AddBreakFlags(flags);
-}
-void WasmInterpreter::Thread::ClearBreakFlags() {
-  ToImpl(this)->ClearBreakFlags();
 }
 uint32_t WasmInterpreter::Thread::NumActivations() {
   return ToImpl(this)->NumActivations();
@@ -4336,48 +4248,6 @@ void WasmInterpreter::Run() { internals_->threads_[0].Run(); }
 
 void WasmInterpreter::Pause() { internals_->threads_[0].Pause(); }
 
-void WasmInterpreter::PrepareStepIn(const WasmFunction* function) {
-  // Set a breakpoint at the start of function.
-  InterpreterCode* code = internals_->codemap_.GetCode(function);
-  pc_t pc = code->locals.encoded_size;
-  SetBreakpoint(function, pc, true);
-}
-
-bool WasmInterpreter::SetBreakpoint(const WasmFunction* function, pc_t pc,
-                                    bool enabled) {
-  InterpreterCode* code = internals_->codemap_.GetCode(function);
-  size_t size = static_cast<size_t>(code->end - code->start);
-  // Check bounds for {pc}.
-  if (pc < code->locals.encoded_size || pc >= size) return false;
-  // Make a copy of the code before enabling a breakpoint.
-  if (enabled && code->orig_start == code->start) {
-    code->start = reinterpret_cast<byte*>(zone_.New(size));
-    memcpy(code->start, code->orig_start, size);
-    code->end = code->start + size;
-  }
-  bool prev = code->start[pc] == kInternalBreakpoint;
-  if (enabled) {
-    code->start[pc] = kInternalBreakpoint;
-  } else {
-    code->start[pc] = code->orig_start[pc];
-  }
-  return prev;
-}
-
-bool WasmInterpreter::GetBreakpoint(const WasmFunction* function, pc_t pc) {
-  InterpreterCode* code = internals_->codemap_.GetCode(function);
-  size_t size = static_cast<size_t>(code->end - code->start);
-  // Check bounds for {pc}.
-  if (pc < code->locals.encoded_size || pc >= size) return false;
-  // Check if a breakpoint is present at that place in the code.
-  return code->start[pc] == kInternalBreakpoint;
-}
-
-bool WasmInterpreter::SetTracing(const WasmFunction* function, bool enabled) {
-  UNIMPLEMENTED();
-  return false;
-}
-
 int WasmInterpreter::GetThreadCount() {
   return 1;  // only one thread for now.
 }
@@ -4409,8 +4279,7 @@ ControlTransferMap WasmInterpreter::ComputeControlTransfersForTesting(
                         false,   // imported
                         false,   // exported
                         false};  // declared
-  InterpreterCode code{
-      &function, BodyLocalDecls(zone), start, end, nullptr, nullptr, nullptr};
+  InterpreterCode code{&function, BodyLocalDecls(zone), start, end, nullptr};
 
   // Now compute and return the control transfers.
   SideTable side_table(zone, module, &code);
@@ -4445,7 +4314,6 @@ void InterpretedFrameDeleter::operator()(InterpretedFrame* ptr) {
 
 #undef TRACE
 #undef LANE
-#undef FOREACH_INTERNAL_OPCODE
 #undef FOREACH_SIMPLE_BINOP
 #undef FOREACH_OTHER_BINOP
 #undef FOREACH_I32CONV_FLOATOP

@@ -273,49 +273,6 @@ std::unique_ptr<int[]> Find(byte* code, size_t code_size, int n, ...) {
   return offsets;
 }
 
-TEST(Breakpoint_I32Add) {
-  static const int kLocalsDeclSize = 1;
-  static const int kNumBreakpoints = 3;
-  byte code[] = {WASM_I32_ADD(WASM_GET_LOCAL(0), WASM_GET_LOCAL(1))};
-  std::unique_ptr<int[]> offsets =
-      Find(code, sizeof(code), kNumBreakpoints, kExprLocalGet, kExprLocalGet,
-           kExprI32Add);
-
-  WasmRunner<int32_t, uint32_t, uint32_t> r(ExecutionTier::kInterpreter);
-
-  r.Build(code, code + arraysize(code));
-
-  WasmInterpreter* interpreter = r.interpreter();
-  WasmInterpreter::Thread* thread = interpreter->GetThread(0);
-  for (int i = 0; i < kNumBreakpoints; i++) {
-    interpreter->SetBreakpoint(r.function(), kLocalsDeclSize + offsets[i],
-                               true);
-  }
-
-  FOR_UINT32_INPUTS(a) {
-    for (uint32_t b = 11; b < 3000000000u; b += 1000000000u) {
-      thread->Reset();
-      WasmValue args[] = {WasmValue(a), WasmValue(b)};
-      thread->InitFrame(r.function(), args);
-
-      for (int i = 0; i < kNumBreakpoints; i++) {
-        thread->Run();  // run to next breakpoint
-        // Check the thread stopped at the right pc.
-        CHECK_EQ(WasmInterpreter::PAUSED, thread->state());
-        CHECK_EQ(static_cast<size_t>(kLocalsDeclSize + offsets[i]),
-                 thread->GetBreakpointPc());
-      }
-
-      thread->Run();  // run to completion
-
-      // Check the thread finished with the right value.
-      CHECK_EQ(WasmInterpreter::FINISHED, thread->state());
-      uint32_t expected = (a) + (b);
-      CHECK_EQ(expected, thread->GetReturnValue().to<uint32_t>());
-    }
-  }
-}
-
 TEST(Step_I32Mul) {
   static const int kTraceLength = 4;
   byte code[] = {WASM_I32_MUL(WASM_GET_LOCAL(0), WASM_GET_LOCAL(1))};
@@ -347,49 +304,6 @@ TEST(Step_I32Mul) {
       CHECK_EQ(WasmInterpreter::FINISHED, thread->state());
       uint32_t expected = (a) * (b);
       CHECK_EQ(expected, thread->GetReturnValue().to<uint32_t>());
-    }
-  }
-}
-
-TEST(Breakpoint_I32And_disable) {
-  static const int kLocalsDeclSize = 1;
-  static const int kNumBreakpoints = 1;
-  byte code[] = {WASM_I32_AND(WASM_GET_LOCAL(0), WASM_GET_LOCAL(1))};
-  std::unique_ptr<int[]> offsets =
-      Find(code, sizeof(code), kNumBreakpoints, kExprI32And);
-
-  WasmRunner<int32_t, uint32_t, uint32_t> r(ExecutionTier::kInterpreter);
-
-  r.Build(code, code + arraysize(code));
-
-  WasmInterpreter* interpreter = r.interpreter();
-  WasmInterpreter::Thread* thread = interpreter->GetThread(0);
-
-  FOR_UINT32_INPUTS(a) {
-    for (uint32_t b = 11; b < 3000000000u; b += 1000000000u) {
-      // Run with and without breakpoints.
-      for (int do_break = 0; do_break < 2; do_break++) {
-        interpreter->SetBreakpoint(r.function(), kLocalsDeclSize + offsets[0],
-                                   do_break);
-        thread->Reset();
-        WasmValue args[] = {WasmValue(a), WasmValue(b)};
-        thread->InitFrame(r.function(), args);
-
-        if (do_break) {
-          thread->Run();  // run to next breakpoint
-          // Check the thread stopped at the right pc.
-          CHECK_EQ(WasmInterpreter::PAUSED, thread->state());
-          CHECK_EQ(static_cast<size_t>(kLocalsDeclSize + offsets[0]),
-                   thread->GetBreakpointPc());
-        }
-
-        thread->Run();  // run to completion
-
-        // Check the thread finished with the right value.
-        CHECK_EQ(WasmInterpreter::FINISHED, thread->state());
-        uint32_t expected = (a) & (b);
-        CHECK_EQ(expected, thread->GetReturnValue().to<uint32_t>());
-      }
     }
   }
 }

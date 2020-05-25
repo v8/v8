@@ -29,8 +29,6 @@ using sp_t = size_t;
 using pcdiff_t = int32_t;
 using spdiff_t = uint32_t;
 
-constexpr pc_t kInvalidPc = 0x80000000;
-
 struct ControlTransferEntry {
   // Distance from the instruction to the label to jump to (forward, but can be
   // negative).
@@ -132,7 +130,6 @@ class V8_EXPORT_PRIVATE WasmInterpreter {
     ExceptionHandlingResult RaiseException(Isolate*, Handle<Object> exception);
 
     // Stack inspection and modification.
-    pc_t GetBreakpointPc();
     int GetFrameCount();
     // The InterpretedFrame is only valid as long as the Thread is paused.
     FramePtr GetFrame(int index);
@@ -146,14 +143,6 @@ class V8_EXPORT_PRIVATE WasmInterpreter {
 
     // Returns the number of calls / function frames executed on this thread.
     uint64_t NumInterpretedCalls();
-
-    // Thread-specific breakpoints.
-    // TODO(wasm): Implement this once we support multiple threads.
-    // bool SetBreakpoint(const WasmFunction* function, int pc, bool enabled);
-    // bool GetBreakpoint(const WasmFunction* function, int pc);
-
-    void AddBreakFlags(uint8_t flags);
-    void ClearBreakFlags();
 
     // Each thread can have multiple activations, each represented by a portion
     // of the stack frames of this thread. StartActivation returns the id
@@ -179,19 +168,6 @@ class V8_EXPORT_PRIVATE WasmInterpreter {
   //==========================================================================
   void Run();
   void Pause();
-
-  // Prepare {function} for stepping in from Javascript.
-  void PrepareStepIn(const WasmFunction* function);
-
-  // Set a breakpoint at {pc} in {function} to be {enabled}. Returns the
-  // previous state of the breakpoint at {pc}.
-  bool SetBreakpoint(const WasmFunction* function, pc_t pc, bool enabled);
-
-  // Gets the current state of the breakpoint at {function}.
-  bool GetBreakpoint(const WasmFunction* function, pc_t pc);
-
-  // Enable or disable tracing for {function}. Return the previous state.
-  bool SetTracing(const WasmFunction* function, bool enabled);
 
   //==========================================================================
   // Thread iteration and inspection.
