@@ -823,6 +823,8 @@ bool StartupData::CanBeRehashed() const {
   return i::Snapshot::ExtractRehashability(this);
 }
 
+bool StartupData::IsValid() const { return i::Snapshot::VersionIsValid(this); }
+
 void V8::SetDcheckErrorHandler(DcheckErrorCallback that) {
   v8::base::SetDcheckFunction(that);
 }

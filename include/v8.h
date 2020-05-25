@@ -9499,11 +9499,15 @@ class V8_EXPORT StartupData {
    * Only valid for StartupData returned by SnapshotCreator::CreateBlob().
    */
   bool CanBeRehashed() const;
+  /**
+   * Allows embedders to verify whether the data is valid for the current
+   * V8 instance.
+   */
+  bool IsValid() const;
 
   const char* data;
   int raw_size;
 };
-
 
 /**
  * EntropySource is used as a callback function when v8 needs a source
