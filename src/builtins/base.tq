@@ -365,12 +365,6 @@ const kMaxRegularHeapObjectSize: constexpr int31
 
 const kMaxNewSpaceFixedArrayElements: constexpr int31
     generates 'FixedArray::kMaxRegularLength';
-const kSloppyArgumentsArgumentsIndex: constexpr int31
-    generates 'SloppyArgumentsElements::kArgumentsIndex';
-const kSloppyArgumentsContextIndex: constexpr int31
-    generates 'SloppyArgumentsElements::kContextIndex';
-const kSloppyArgumentsParameterMapStart: constexpr int31
-    generates 'SloppyArgumentsElements::kParameterMapStart';
 
 extern enum PrimitiveType { kString, kBoolean, kSymbol, kNumber }
 
@@ -999,7 +993,6 @@ extern macro EmptyFixedArrayConstant(): EmptyFixedArray;
 extern macro PromiseCapabilityMapConstant(): Map;
 extern macro OneByteStringMapConstant(): Map;
 extern macro StringMapConstant(): Map;
-extern macro SloppyArgumentsElementsMapConstant(): Map;
 
 const kFixedArrayMap: Map = FixedArrayMapConstant();
 const kFixedDoubleArrayMap: Map = FixedDoubleArrayMapConstant();
@@ -1011,7 +1004,6 @@ const kPromiseCapabilityMap: Map = PromiseCapabilityMapConstant();
 const kOneByteStringMap: Map = OneByteStringMapConstant();
 // The map of a non-internalized internal SeqTwoByteString.
 const kStringMap: Map = StringMapConstant();
-const kSloppyArgumentsElementsMap: Map = SloppyArgumentsElementsMapConstant();
 
 extern macro IsPrototypeInitialArrayPrototype(implicit context: Context)(Map):
     bool;

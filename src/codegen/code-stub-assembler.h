@@ -195,8 +195,6 @@ enum class PrimitiveType { kBoolean, kNumber, kString, kSymbol };
   V(resolve_string, resolve_string, ResolveString)                             \
   V(return_string, return_string, ReturnString)                                \
   V(SharedFunctionInfoMap, shared_function_info_map, SharedFunctionInfoMap)    \
-  V(SloppyArgumentsElementsMap, sloppy_arguments_elements_map,                 \
-    SloppyArgumentsElementsMap)                                                \
   V(SmallOrderedHashSetMap, small_ordered_hash_set_map,                        \
     SmallOrderedHashSetMap)                                                    \
   V(SmallOrderedHashMapMap, small_ordered_hash_map_map,                        \

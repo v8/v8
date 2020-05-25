@@ -179,6 +179,12 @@ class V8_EXPORT_PRIVATE AccessBuilder final
   // Provides access to FixedArray::length() field.
   static FieldAccess ForFixedArrayLength();
 
+  // Provides access to SloppyArgumentsElements::context() field.
+  static FieldAccess ForSloppyArgumentsElementsContext();
+
+  // Provides access to SloppyArgumentsElements::arguments() field.
+  static FieldAccess ForSloppyArgumentsElementsArguments();
+
   // Provides access to PropertyArray::length() field.
   static FieldAccess ForPropertyArrayLengthAndHash();
 
@@ -282,6 +288,9 @@ class V8_EXPORT_PRIVATE AccessBuilder final
   static ElementAccess ForFixedArrayElement(
       ElementsKind kind,
       LoadSensitivity load_sensitivity = LoadSensitivity::kUnsafe);
+
+  // Provides access to SloppyArgumentsElements elements.
+  static ElementAccess ForSloppyArgumentsElementsMappedEntry();
 
   // Provides access to stack arguments
   static ElementAccess ForStackArgument();

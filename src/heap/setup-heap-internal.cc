@@ -429,8 +429,6 @@ bool Heap::CreateInitialMaps() {
     TORQUE_INTERNAL_VARSIZE_INSTANCE_TYPE_LIST(TORQUE_ALLOCATE_VARSIZE_MAP);
 #undef TORQUE_ALLOCATE_VARSIZE_MAP
 
-    ALLOCATE_VARSIZE_MAP(FIXED_ARRAY_TYPE, sloppy_arguments_elements)
-
     ALLOCATE_VARSIZE_MAP(CODE_TYPE, code)
 
     ALLOCATE_MAP(CELL_TYPE, Cell::kSize, cell);
@@ -783,14 +781,6 @@ void Heap::CreateInitialObjects() {
   Handle<FeedbackCell> many_closures_cell =
       factory->NewManyClosuresCell(factory->undefined_value());
   set_many_closures_cell(*many_closures_cell);
-
-  {
-    Handle<FixedArray> empty_sloppy_arguments_elements =
-        factory->NewFixedArray(2, AllocationType::kReadOnly);
-    empty_sloppy_arguments_elements->set_map_after_allocation(
-        roots.sloppy_arguments_elements_map(), SKIP_WRITE_BARRIER);
-    set_empty_sloppy_arguments_elements(*empty_sloppy_arguments_elements);
-  }
 
   set_detached_contexts(roots.empty_weak_array_list());
   set_retaining_path_targets(roots.empty_weak_array_list());

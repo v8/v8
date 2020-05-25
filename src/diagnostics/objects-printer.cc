@@ -436,11 +436,9 @@ void PrintSloppyArgumentElements(std::ostream& os, ElementsKind kind,
   os << "\n    0: context: " << Brief(elements.context())
      << "\n    1: arguments_store: " << Brief(arguments_store)
      << "\n    parameter to context slot map:";
-  for (uint32_t i = 0; i < elements.parameter_map_length(); i++) {
-    uint32_t raw_index = i + SloppyArgumentsElements::kParameterMapStart;
-    Object mapped_entry = elements.get_mapped_entry(i);
-    os << "\n    " << raw_index << ": param(" << i
-       << "): " << Brief(mapped_entry);
+  for (int i = 0; i < elements.length(); i++) {
+    Object mapped_entry = elements.mapped_entries(i);
+    os << "\n    " << i << ": param(" << i << "): " << Brief(mapped_entry);
     if (mapped_entry.IsTheHole()) {
       os << " in the arguments_store[" << i << "]";
     } else {
