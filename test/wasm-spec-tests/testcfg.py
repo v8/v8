@@ -9,11 +9,13 @@ from testrunner.objects import testcase
 
 proposal_flags = [{
                     'name': 'reference-types',
-                    'flags': ['--experimental-wasm-anyref']
+                    'flags': ['--experimental-wasm-anyref',
+                              '--wasm-staging']
                   },
                   {
                     'name': 'bulk-memory-operations',
-                    'flags': ['--experimental-wasm-bulk-memory']
+                    'flags': ['--experimental-wasm-bulk-memory',
+                              '--wasm-staging']
                   },
                   {
                     'name': 'js-types',
