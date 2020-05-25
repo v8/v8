@@ -1869,6 +1869,23 @@ void NativeModule::TriggerRecompilation() {
   RecompileNativeModule(this, current_state);
 }
 
+std::vector<int> NativeModule::FindFunctionsToRecompile(
+    TieringState new_tiering_state) {
+  base::MutexGuard guard(&allocation_mutex_);
+  std::vector<int> function_indexes;
+  int imported = module()->num_imported_functions;
+  int declared = module()->num_declared_functions;
+  for (int slot_index = 0; slot_index < declared; ++slot_index) {
+    int function_index = imported + slot_index;
+    WasmCode* code = code_table_[slot_index];
+    bool code_is_good = new_tiering_state == kTieredDown
+                            ? code && code->for_debugging()
+                            : code && code->tier() == ExecutionTier::kTurbofan;
+    if (!code_is_good) function_indexes.push_back(function_index);
+  }
+  return function_indexes;
+}
+
 void NativeModule::FreeCode(Vector<WasmCode* const> codes) {
   // Free the code space.
   code_allocator_.FreeCode(codes);

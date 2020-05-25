@@ -2583,26 +2583,44 @@ void CompilationStateImpl::InitializeRecompilation(
   // Generate necessary compilation units on the fly.
   CompilationUnitBuilder builder(native_module_);
 
+  // Information about compilation progress is shared between this class and the
+  // NativeModule. Before updating information here, consult the NativeModule to
+  // find all functions that need recompilation.
+  // Since the current tiering state is updated on the NativeModule before
+  // triggering recompilation, it's OK if the information is slightly outdated.
+  // If we compile functions twice, the NativeModule will ignore all redundant
+  // code (or code compiled for the wrong tier).
+  std::vector<int> recompile_function_indexes =
+      native_module_->FindFunctionsToRecompile(new_tiering_state);
+
   {
     base::MutexGuard guard(&callbacks_mutex_);
 
-    // Restart recompilation if another recompilation is already happening.
-    outstanding_recompilation_functions_ = 0;
-    // If compilation hasn't started yet then code would be kept as tiered-down
-    // and don't need to recompile.
+    // If compilation progress is not initialized yet, then compilation didn't
+    // start yet, and new code will be kept tiered-down from the start. For
+    // streaming compilation, there is a special path to tier down later, when
+    // the module is complete. In any case, we don't need to recompile here.
     if (compilation_progress_.size() > 0) {
       const WasmModule* module = native_module_->module();
+      DCHECK_EQ(module->num_declared_functions, compilation_progress_.size());
+      DCHECK_GE(module->num_declared_functions,
+                recompile_function_indexes.size());
+      outstanding_recompilation_functions_ =
+          static_cast<int>(recompile_function_indexes.size());
+      // Restart recompilation if another recompilation is already happening.
+      for (auto& progress : compilation_progress_) {
+        progress = MissingRecompilationField::update(progress, false);
+      }
+      auto new_tier = new_tiering_state == kTieredDown
+                          ? ExecutionTier::kLiftoff
+                          : ExecutionTier::kTurbofan;
       int imported = module->num_imported_functions;
-      int declared = module->num_declared_functions;
-      outstanding_recompilation_functions_ = declared;
-      DCHECK_EQ(declared, compilation_progress_.size());
-      for (int slot_index = 0; slot_index < declared; ++slot_index) {
-        compilation_progress_[slot_index] = MissingRecompilationField::update(
-            compilation_progress_[slot_index], true);
-        builder.AddRecompilationUnit(imported + slot_index,
-                                     new_tiering_state == kTieredDown
-                                         ? ExecutionTier::kLiftoff
-                                         : ExecutionTier::kTurbofan);
+      for (int function_index : recompile_function_indexes) {
+        DCHECK_LE(imported, function_index);
+        int slot_index = function_index - imported;
+        auto& progress = compilation_progress_[slot_index];
+        progress = MissingRecompilationField::update(progress, true);
+        builder.AddRecompilationUnit(function_index, new_tier);
       }
     }
 

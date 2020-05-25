@@ -612,6 +612,12 @@ class V8_EXPORT_PRIVATE NativeModule final {
   // concurrently, so this method might return before it is complete.
   void TriggerRecompilation();
 
+  // Find all functions that need to be recompiled for a new tier. Note that
+  // compilation jobs might run concurrently, so this method only considers the
+  // compilation state of this native module at the time of the call.
+  // Returns a vector of function indexes to recompile.
+  std::vector<int> FindFunctionsToRecompile(TieringState);
+
   // Free a set of functions of this module. Uncommits whole pages if possible.
   // The given vector must be ordered by the instruction start address, and all
   // {WasmCode} objects must not be used any more.
