@@ -588,6 +588,25 @@ class ModuleDecoderImpl : public Decoder {
       }
     }
     module_->signature_map.Freeze();
+    VerifyDeferredTypeOffsets();
+  }
+
+  void VerifyDeferredTypeOffsets() {
+    for (auto& struct_offset : deferred_struct_field_type_offsets_) {
+      if (struct_offset.first >= module_->type_kinds.size()) {
+        errorf(struct_offset.second, "reference to undeclared struct/array #%u",
+               struct_offset.first);
+        break;
+      }
+      uint8_t type = module_->type_kinds[struct_offset.first];
+      if (type != kWasmStructTypeCode && type != kWasmArrayTypeCode) {
+        errorf(struct_offset.second,
+               "array element type or struct field "
+               "references non-type index #%u",
+               struct_offset.first);
+        break;
+      }
+    }
   }
 
   void DecodeImportSection() {
@@ -1360,6 +1379,10 @@ class ModuleDecoderImpl : public Decoder {
   // in global section. Used for deferred checking and proper error reporting if
   // these were not properly declared in the element section.
   std::unordered_map<uint32_t, int> deferred_funcref_error_offsets_;
+  // Set of type offsets discovered in field types during type section decoding.
+  // Since struct types may be recursive, this is used for checking and error
+  // reporting once the whole type section is parsed.
+  std::unordered_map<uint32_t, int> deferred_struct_field_type_offsets_;
   ModuleOrigin origin_;
 
   bool has_seen_unordered_section(SectionCode section_code) {
@@ -1804,6 +1827,10 @@ class ModuleDecoderImpl : public Decoder {
     std::vector<ValueType> fields;
     for (uint32_t i = 0; ok() && i < field_count; ++i) {
       ValueType field = consume_value_type();
+      if (field.has_immediate()) {
+        deferred_struct_field_type_offsets_.emplace(field.ref_index(),
+                                                    pc_offset());
+      }
       fields.push_back(field);
     }
     if (failed()) return nullptr;
@@ -1816,6 +1843,10 @@ class ModuleDecoderImpl : public Decoder {
   const ArrayType* consume_array(Zone* zone) {
     ValueType field = consume_value_type();
     if (failed()) return nullptr;
+    if (field.has_immediate()) {
+      deferred_struct_field_type_offsets_.emplace(field.ref_index(),
+                                                  pc_offset());
+    }
     return new (zone) ArrayType(field);
   }
 
