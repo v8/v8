@@ -226,8 +226,12 @@ std::ostream& operator<<(std::ostream& os, FeedbackParameter const& p) {
 }
 
 FeedbackParameter const& FeedbackParameterOf(const Operator* op) {
-  DCHECK(op->opcode() == IrOpcode::kJSCreateEmptyLiteralArray ||
+  DCHECK(op->opcode() == IrOpcode::kJSDecrement ||
+         op->opcode() == IrOpcode::kJSBitwiseNot ||
+         op->opcode() == IrOpcode::kJSCreateEmptyLiteralArray ||
+         op->opcode() == IrOpcode::kJSIncrement ||
          op->opcode() == IrOpcode::kJSInstanceOf ||
+         op->opcode() == IrOpcode::kJSNegate ||
          op->opcode() == IrOpcode::kJSStoreDataPropertyInLiteral ||
          op->opcode() == IrOpcode::kJSStoreInArrayLiteral);
   return OpParameter<FeedbackParameter>(op);
@@ -659,10 +663,6 @@ CompareOperationHint CompareOperationHintOf(const Operator* op) {
   V(Divide, Operator::kNoProperties, 2, 1)                               \
   V(Modulus, Operator::kNoProperties, 2, 1)                              \
   V(Exponentiate, Operator::kNoProperties, 2, 1)                         \
-  V(BitwiseNot, Operator::kNoProperties, 1, 1)                           \
-  V(Decrement, Operator::kNoProperties, 1, 1)                            \
-  V(Increment, Operator::kNoProperties, 1, 1)                            \
-  V(Negate, Operator::kNoProperties, 1, 1)                               \
   V(ToLength, Operator::kNoProperties, 1, 1)                             \
   V(ToName, Operator::kNoProperties, 1, 1)                               \
   V(ToNumber, Operator::kNoProperties, 1, 1)                             \
@@ -698,6 +698,12 @@ CompareOperationHint CompareOperationHintOf(const Operator* op) {
   V(GetSuperConstructor, Operator::kNoWrite, 1, 1)                       \
   V(ParseInt, Operator::kNoProperties, 2, 1)                             \
   V(RegExpTest, Operator::kNoProperties, 2, 1)
+
+#define UNARY_OP_LIST(V) \
+  V(BitwiseNot)          \
+  V(Decrement)           \
+  V(Increment)           \
+  V(Negate)
 
 #define BINARY_OP_LIST(V) V(Add)
 
@@ -814,6 +820,16 @@ CACHED_OP_LIST(CACHED_OP)
   }
 BINARY_OP_LIST(BINARY_OP)
 #undef BINARY_OP
+
+#define UNARY_OP(Name)                                                        \
+  const Operator* JSOperatorBuilder::Name(FeedbackSource const& feedback) {   \
+    FeedbackParameter parameters(feedback);                                   \
+    return new (zone()) Operator1<FeedbackParameter>(                         \
+        IrOpcode::kJS##Name, Operator::kNoProperties, "JS" #Name, 1, 1, 1, 1, \
+        1, 2, parameters);                                                    \
+  }
+UNARY_OP_LIST(UNARY_OP)
+#undef UNARY_OP
 
 #define COMPARE_OP(Name, ...)                                          \
   const Operator* JSOperatorBuilder::Name(CompareOperationHint hint) { \
@@ -1418,6 +1434,7 @@ Handle<ScopeInfo> ScopeInfoOf(const Operator* op) {
   return OpParameter<Handle<ScopeInfo>>(op);
 }
 
+#undef UNARY_OP_LIST
 #undef BINARY_OP_LIST
 #undef CACHED_OP_LIST
 #undef COMPARE_OP_LIST

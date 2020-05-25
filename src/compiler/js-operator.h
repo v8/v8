@@ -771,10 +771,10 @@ class V8_EXPORT_PRIVATE JSOperatorBuilder final
   const Operator* Modulus();
   const Operator* Exponentiate();
 
-  const Operator* BitwiseNot();
-  const Operator* Decrement();
-  const Operator* Increment();
-  const Operator* Negate();
+  const Operator* BitwiseNot(FeedbackSource const& feedback);
+  const Operator* Decrement(FeedbackSource const& feedback);
+  const Operator* Increment(FeedbackSource const& feedback);
+  const Operator* Negate(FeedbackSource const& feedback);
 
   const Operator* ToLength();
   const Operator* ToName();

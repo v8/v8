@@ -2810,19 +2810,27 @@ SpeculationMode BytecodeGraphBuilder::GetSpeculationMode(int slot_id) const {
 }
 
 void BytecodeGraphBuilder::VisitBitwiseNot() {
-  BuildUnaryOp(javascript()->BitwiseNot());
+  FeedbackSource feedback = CreateFeedbackSource(
+      bytecode_iterator().GetSlotOperand(kUnaryOperationHintIndex).ToInt());
+  BuildUnaryOp(javascript()->BitwiseNot(feedback));
 }
 
 void BytecodeGraphBuilder::VisitDec() {
-  BuildUnaryOp(javascript()->Decrement());
+  FeedbackSource feedback = CreateFeedbackSource(
+      bytecode_iterator().GetSlotOperand(kUnaryOperationHintIndex).ToInt());
+  BuildUnaryOp(javascript()->Decrement(feedback));
 }
 
 void BytecodeGraphBuilder::VisitInc() {
-  BuildUnaryOp(javascript()->Increment());
+  FeedbackSource feedback = CreateFeedbackSource(
+      bytecode_iterator().GetSlotOperand(kUnaryOperationHintIndex).ToInt());
+  BuildUnaryOp(javascript()->Increment(feedback));
 }
 
 void BytecodeGraphBuilder::VisitNegate() {
-  BuildUnaryOp(javascript()->Negate());
+  FeedbackSource feedback = CreateFeedbackSource(
+      bytecode_iterator().GetSlotOperand(kUnaryOperationHintIndex).ToInt());
+  BuildUnaryOp(javascript()->Negate(feedback));
 }
 
 void BytecodeGraphBuilder::VisitAdd() {
