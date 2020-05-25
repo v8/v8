@@ -600,10 +600,14 @@ std::shared_ptr<StreamingDecoder> WasmEngine::StartStreamingCompilation(
     Isolate* isolate, const WasmFeatures& enabled, Handle<Context> context,
     const char* api_method_name,
     std::shared_ptr<CompilationResultResolver> resolver) {
-  AsyncCompileJob* job =
-      CreateAsyncCompileJob(isolate, enabled, std::unique_ptr<byte[]>(nullptr),
-                            0, context, api_method_name, std::move(resolver));
-  return job->CreateStreamingDecoder();
+  if (FLAG_wasm_async_compilation) {
+    AsyncCompileJob* job = CreateAsyncCompileJob(
+        isolate, enabled, std::unique_ptr<byte[]>(nullptr), 0, context,
+        api_method_name, std::move(resolver));
+    return job->CreateStreamingDecoder();
+  }
+  return StreamingDecoder::CreateSyncStreamingDecoder(
+      isolate, enabled, context, api_method_name, std::move(resolver));
 }
 
 void WasmEngine::CompileFunction(Isolate* isolate, NativeModule* native_module,

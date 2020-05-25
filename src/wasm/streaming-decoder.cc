@@ -40,22 +40,8 @@ class V8_EXPORT_PRIVATE AsyncStreamingDecoder : public StreamingDecoder {
   // StreamingProcessor should not be called anymore.
   void NotifyCompilationEnded() override { Fail(); }
 
-  // Caching support.
-  // Sets the callback that is called after the module is fully compiled.
-  using ModuleCompiledCallback =
-      std::function<void(const std::shared_ptr<NativeModule>&)>;
-  void SetModuleCompiledCallback(ModuleCompiledCallback callback) override;
-  // Passes previously compiled module bytes from the embedder's cache.
-  bool SetCompiledModuleBytes(
-      Vector<const uint8_t> compiled_module_bytes) override;
-
   void NotifyNativeModuleCreated(
       const std::shared_ptr<NativeModule>& native_module) override;
-
-  Vector<const char> url() override { return VectorOf(url_); }
-  void SetUrl(Vector<const char> url) override {
-    url_.assign(url.begin(), url.length());
-  }
 
  private:
   // The SectionBuffer is the data object for the content of a single section.
@@ -222,21 +208,15 @@ class V8_EXPORT_PRIVATE AsyncStreamingDecoder : public StreamingDecoder {
 
   uint32_t module_offset() const { return module_offset_; }
 
-  bool deserializing() const { return !compiled_module_bytes_.empty(); }
-
   std::unique_ptr<StreamingProcessor> processor_;
   std::unique_ptr<DecodingState> state_;
   std::vector<std::shared_ptr<SectionBuffer>> section_buffers_;
   bool code_section_processed_ = false;
   uint32_t module_offset_ = 0;
   size_t total_size_ = 0;
-  std::string url_;
 
-  // Caching support.
-  ModuleCompiledCallback module_compiled_callback_ = nullptr;
   // We need wire bytes in an array for deserializing cached modules.
   std::vector<uint8_t> wire_bytes_for_deserializing_;
-  Vector<const uint8_t> compiled_module_bytes_;
 
   DISALLOW_COPY_AND_ASSIGN(AsyncStreamingDecoder);
 };
@@ -320,18 +300,6 @@ void AsyncStreamingDecoder::Abort() {
   if (!ok()) return;  // Failed already.
   processor_->OnAbort();
   Fail();
-}
-
-void AsyncStreamingDecoder::SetModuleCompiledCallback(
-    ModuleCompiledCallback callback) {
-  DCHECK_NULL(module_compiled_callback_);
-  module_compiled_callback_ = callback;
-}
-
-bool AsyncStreamingDecoder::SetCompiledModuleBytes(
-    Vector<const uint8_t> compiled_module_bytes) {
-  compiled_module_bytes_ = compiled_module_bytes;
-  return true;
 }
 
 namespace {

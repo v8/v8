@@ -12,6 +12,7 @@
 #include "src/utils/vector.h"
 #include "src/wasm/compilation-environment.h"
 #include "src/wasm/wasm-constants.h"
+#include "src/wasm/wasm-engine.h"
 #include "src/wasm/wasm-result.h"
 
 namespace v8 {
@@ -83,18 +84,40 @@ class V8_EXPORT_PRIVATE StreamingDecoder {
   // Sets the callback that is called after the module is fully compiled.
   using ModuleCompiledCallback =
       std::function<void(const std::shared_ptr<NativeModule>&)>;
-  virtual void SetModuleCompiledCallback(ModuleCompiledCallback callback) = 0;
+
+  void SetModuleCompiledCallback(ModuleCompiledCallback callback) {
+    module_compiled_callback_ = callback;
+  }
+
   // Passes previously compiled module bytes from the embedder's cache.
-  virtual bool SetCompiledModuleBytes(
-      Vector<const uint8_t> compiled_module_bytes) = 0;
+  bool SetCompiledModuleBytes(Vector<const uint8_t> compiled_module_bytes) {
+    compiled_module_bytes_ = compiled_module_bytes;
+    return true;
+  }
 
   virtual void NotifyNativeModuleCreated(
       const std::shared_ptr<NativeModule>& native_module) = 0;
 
-  virtual Vector<const char> url() = 0;
-  virtual void SetUrl(Vector<const char> url) = 0;
+  Vector<const char> url() { return VectorOf(url_); }
+
+  void SetUrl(Vector<const char> url) {
+    url_.assign(url.begin(), url.length());
+  }
+
   static std::unique_ptr<StreamingDecoder> CreateAsyncStreamingDecoder(
       std::unique_ptr<StreamingProcessor> processor);
+
+  static std::unique_ptr<StreamingDecoder> CreateSyncStreamingDecoder(
+      Isolate* isolate, const WasmFeatures& enabled, Handle<Context> context,
+      const char* api_method_name_for_errors,
+      std::shared_ptr<CompilationResultResolver> resolver);
+
+ protected:
+  bool deserializing() const { return !compiled_module_bytes_.empty(); }
+
+  std::string url_;
+  ModuleCompiledCallback module_compiled_callback_;
+  Vector<const uint8_t> compiled_module_bytes_;
 };
 
 }  // namespace wasm

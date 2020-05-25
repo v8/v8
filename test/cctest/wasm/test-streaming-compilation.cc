@@ -7,7 +7,6 @@
 #include "src/objects/managed.h"
 #include "src/objects/objects-inl.h"
 #include "src/utils/vector.h"
-
 #include "src/wasm/module-decoder.h"
 #include "src/wasm/streaming-decoder.h"
 #include "src/wasm/wasm-engine.h"
@@ -16,9 +15,8 @@
 #include "src/wasm/wasm-objects-inl.h"
 #include "src/wasm/wasm-objects.h"
 #include "src/wasm/wasm-serialization.h"
-
 #include "test/cctest/cctest.h"
-
+#include "test/common/wasm/flag-utils.h"
 #include "test/common/wasm/test-signatures.h"
 #include "test/common/wasm/wasm-macro-gen.h"
 
@@ -174,13 +172,20 @@ class StreamTester {
 };
 }  // namespace
 
-#define STREAM_TEST(name)                               \
-  void RunStream_##name();                              \
-  TEST(name) {                                          \
-    MockPlatform platform;                              \
-    CcTest::InitializeVM();                             \
-    RunStream_##name();                                 \
-  }                                                     \
+#define STREAM_TEST(name)                                                     \
+  void RunStream_##name();                                                    \
+  TEST(Async##name) {                                                         \
+    MockPlatform platform;                                                    \
+    CcTest::InitializeVM();                                                   \
+    RunStream_##name();                                                       \
+  }                                                                           \
+                                                                              \
+  TEST(SingleThreaded##name) {                                                \
+    i::FlagScope<bool> single_threaded_scope(&i::FLAG_single_threaded, true); \
+    MockPlatform platform;                                                    \
+    CcTest::InitializeVM();                                                   \
+    RunStream_##name();                                                       \
+  }                                                                           \
   void RunStream_##name()
 
 // Create a valid module with 3 functions.
