@@ -1364,7 +1364,6 @@ class ThreadImpl {
     WasmValue value_;
   };
 
-  friend class InterpretedFrameImpl;
   friend class ReferenceStackScope;
 
   CodeMap* codemap_;
@@ -4029,70 +4028,6 @@ class ThreadImpl {
   }
 };
 
-class InterpretedFrameImpl {
- public:
-  InterpretedFrameImpl(ThreadImpl* thread, int index)
-      : thread_(thread), index_(index) {
-    DCHECK_LE(0, index);
-  }
-
-  const WasmFunction* function() const { return frame()->code->function; }
-
-  int pc() const {
-    DCHECK_LE(0, frame()->pc);
-    DCHECK_GE(kMaxInt, frame()->pc);
-    return static_cast<int>(frame()->pc);
-  }
-
-  int GetParameterCount() const {
-    DCHECK_GE(kMaxInt, function()->sig->parameter_count());
-    return static_cast<int>(function()->sig->parameter_count());
-  }
-
-  int GetLocalCount() const {
-    size_t num_locals = function()->sig->parameter_count() +
-                        frame()->code->locals.type_list.size();
-    DCHECK_GE(kMaxInt, num_locals);
-    return static_cast<int>(num_locals);
-  }
-
-  int GetStackHeight() const {
-    bool is_top_frame =
-        static_cast<size_t>(index_) + 1 == thread_->frames_.size();
-    size_t stack_limit =
-        is_top_frame ? thread_->StackHeight() : thread_->frames_[index_ + 1].sp;
-    DCHECK_LE(frame()->sp, stack_limit);
-    size_t frame_size = stack_limit - frame()->sp;
-    DCHECK_LE(GetLocalCount(), frame_size);
-    return static_cast<int>(frame_size) - GetLocalCount();
-  }
-
-  WasmValue GetLocalValue(int index) const {
-    ThreadImpl::ReferenceStackScope stack_scope(thread_);
-    DCHECK_LE(0, index);
-    DCHECK_GT(GetLocalCount(), index);
-    return thread_->GetStackValue(static_cast<int>(frame()->sp) + index);
-  }
-
-  WasmValue GetStackValue(int index) const {
-    ThreadImpl::ReferenceStackScope stack_scope(thread_);
-    DCHECK_LE(0, index);
-    // Index must be within the number of stack values of this frame.
-    DCHECK_GT(GetStackHeight(), index);
-    return thread_->GetStackValue(static_cast<int>(frame()->sp) +
-                                  GetLocalCount() + index);
-  }
-
- private:
-  ThreadImpl* thread_;
-  int index_;
-
-  ThreadImpl::Frame* frame() const {
-    DCHECK_GT(thread_->frames_.size(), index_);
-    return &thread_->frames_[index_];
-  }
-};
-
 namespace {
 
 // Converters between WasmInterpreter::Thread and WasmInterpreter::ThreadImpl.
@@ -4104,14 +4039,6 @@ WasmInterpreter::Thread* ToThread(ThreadImpl* impl) {
 }
 ThreadImpl* ToImpl(WasmInterpreter::Thread* thread) {
   return reinterpret_cast<ThreadImpl*>(thread);
-}
-
-// Same conversion for InterpretedFrame and InterpretedFrameImpl.
-InterpretedFrame* ToFrame(InterpretedFrameImpl* impl) {
-  return reinterpret_cast<InterpretedFrame*>(impl);
-}
-const InterpretedFrameImpl* ToImpl(const InterpretedFrame* frame) {
-  return reinterpret_cast<const InterpretedFrameImpl*>(frame);
 }
 
 }  // namespace
@@ -4153,11 +4080,6 @@ WasmInterpreter::Thread::RaiseException(Isolate* isolate,
 }
 int WasmInterpreter::Thread::GetFrameCount() {
   return ToImpl(this)->GetFrameCount();
-}
-WasmInterpreter::FramePtr WasmInterpreter::Thread::GetFrame(int index) {
-  DCHECK_LE(0, index);
-  DCHECK_GT(GetFrameCount(), index);
-  return FramePtr(ToFrame(new InterpretedFrameImpl(ToImpl(this), index)));
 }
 WasmValue WasmInterpreter::Thread::GetReturnValue(int index) {
   ThreadImpl* impl = ToImpl(this);
@@ -4284,32 +4206,6 @@ ControlTransferMap WasmInterpreter::ComputeControlTransfersForTesting(
   // Now compute and return the control transfers.
   SideTable side_table(zone, module, &code);
   return side_table.map_;
-}
-
-//============================================================================
-// Implementation of the frame inspection interface.
-//============================================================================
-const WasmFunction* InterpretedFrame::function() const {
-  return ToImpl(this)->function();
-}
-int InterpretedFrame::pc() const { return ToImpl(this)->pc(); }
-int InterpretedFrame::GetParameterCount() const {
-  return ToImpl(this)->GetParameterCount();
-}
-int InterpretedFrame::GetLocalCount() const {
-  return ToImpl(this)->GetLocalCount();
-}
-int InterpretedFrame::GetStackHeight() const {
-  return ToImpl(this)->GetStackHeight();
-}
-WasmValue InterpretedFrame::GetLocalValue(int index) const {
-  return ToImpl(this)->GetLocalValue(index);
-}
-WasmValue InterpretedFrame::GetStackValue(int index) const {
-  return ToImpl(this)->GetStackValue(index);
-}
-void InterpretedFrameDeleter::operator()(InterpretedFrame* ptr) {
-  delete ToImpl(ptr);
 }
 
 #undef TRACE

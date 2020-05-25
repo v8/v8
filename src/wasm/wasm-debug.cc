@@ -233,35 +233,6 @@ class InterpreterHandle {
     return true;
   }
 
-  std::vector<std::pair<uint32_t, int>> GetInterpretedStack(
-      Address frame_pointer) {
-    DCHECK_EQ(1, interpreter()->GetThreadCount());
-    WasmInterpreter::Thread* thread = interpreter()->GetThread(0);
-
-    std::pair<uint32_t, uint32_t> frame_range =
-        GetActivationFrameRange(thread, frame_pointer);
-
-    std::vector<std::pair<uint32_t, int>> stack;
-    stack.reserve(frame_range.second - frame_range.first);
-    for (uint32_t fp = frame_range.first; fp < frame_range.second; ++fp) {
-      auto frame = thread->GetFrame(fp);
-      stack.emplace_back(frame->function()->func_index, frame->pc());
-    }
-    return stack;
-  }
-
-  int NumberOfActiveFrames(Address frame_pointer) {
-    if (!HasActivation(frame_pointer)) return 0;
-
-    DCHECK_EQ(1, interpreter()->GetThreadCount());
-    WasmInterpreter::Thread* thread = interpreter()->GetThread(0);
-
-    std::pair<uint32_t, uint32_t> frame_range =
-        GetActivationFrameRange(thread, frame_pointer);
-
-    return frame_range.second - frame_range.first;
-  }
-
  private:
   DISALLOW_COPY_AND_ASSIGN(InterpreterHandle);
 };
