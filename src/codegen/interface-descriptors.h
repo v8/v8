@@ -946,6 +946,7 @@ class CallWithSpreadDescriptor : public CallInterfaceDescriptor {
   DECLARE_DESCRIPTOR(CallWithSpreadDescriptor, CallInterfaceDescriptor)
 };
 
+// TODO(jgruber): Pass the slot as UintPtr.
 class CallWithSpread_WithFeedbackDescriptor : public CallInterfaceDescriptor {
  public:
   DEFINE_PARAMETERS(kTarget, kArgumentsCount, kSpread, kSlot,
@@ -967,6 +968,7 @@ class CallWithArrayLikeDescriptor : public CallInterfaceDescriptor {
   DECLARE_DESCRIPTOR(CallWithArrayLikeDescriptor, CallInterfaceDescriptor)
 };
 
+// TODO(jgruber): Pass the slot as UintPtr.
 class CallWithArrayLike_WithFeedbackDescriptor
     : public CallInterfaceDescriptor {
  public:
@@ -1002,6 +1004,7 @@ class ConstructWithSpreadDescriptor : public CallInterfaceDescriptor {
   DECLARE_DESCRIPTOR(ConstructWithSpreadDescriptor, CallInterfaceDescriptor)
 };
 
+// TODO(jgruber): Pass the slot as UintPtr.
 class ConstructWithSpread_WithFeedbackDescriptor
     : public CallInterfaceDescriptor {
  public:
@@ -1024,6 +1027,7 @@ class ConstructWithArrayLikeDescriptor : public CallInterfaceDescriptor {
   DECLARE_DESCRIPTOR(ConstructWithArrayLikeDescriptor, CallInterfaceDescriptor)
 };
 
+// TODO(jgruber): Pass the slot as UintPtr.
 class ConstructWithArrayLike_WithFeedbackDescriptor
     : public CallInterfaceDescriptor {
  public:
@@ -1465,11 +1469,12 @@ class BinaryOp_WithFeedbackDescriptor : public CallInterfaceDescriptor {
   DEFINE_PARAMETERS(kLeft, kRight, kSlot, kMaybeFeedbackVector)
   DEFINE_PARAMETER_TYPES(MachineType::AnyTagged(),  // kLeft
                          MachineType::AnyTagged(),  // kRight
-                         MachineType::Int32(),      // kSlot
+                         MachineType::UintPtr(),    // kSlot
                          MachineType::AnyTagged())  // kMaybeFeedbackVector
   DECLARE_DESCRIPTOR(BinaryOp_WithFeedbackDescriptor, CallInterfaceDescriptor)
 };
 
+// TODO(jgruber): Pass the slot as UintPtr.
 class CallTrampoline_WithFeedbackDescriptor : public CallInterfaceDescriptor {
  public:
   DEFINE_PARAMETERS_VARARGS(kFunction, kActualArgumentsCount, kSlot,
@@ -1487,11 +1492,12 @@ class Compare_WithFeedbackDescriptor : public CallInterfaceDescriptor {
   DEFINE_PARAMETERS(kLeft, kRight, kSlot, kMaybeFeedbackVector)
   DEFINE_PARAMETER_TYPES(MachineType::AnyTagged(),  // kLeft
                          MachineType::AnyTagged(),  // kRight
-                         MachineType::Int32(),      // kSlot
+                         MachineType::UintPtr(),    // kSlot
                          MachineType::AnyTagged())  // kMaybeFeedbackVector
   DECLARE_DESCRIPTOR(Compare_WithFeedbackDescriptor, CallInterfaceDescriptor)
 };
 
+// TODO(jgruber): Pass the slot as UintPtr.
 class Construct_WithFeedbackDescriptor : public CallInterfaceDescriptor {
  public:
   // kSlot is passed in a register, kMaybeFeedbackVector on the stack.
@@ -1506,7 +1512,7 @@ class UnaryOp_WithFeedbackDescriptor : public CallInterfaceDescriptor {
  public:
   DEFINE_PARAMETERS(kValue, kSlot, kMaybeFeedbackVector)
   DEFINE_PARAMETER_TYPES(MachineType::AnyTagged(),  // kValue
-                         MachineType::Int32(),      // kSlot
+                         MachineType::UintPtr(),    // kSlot
                          MachineType::AnyTagged())  // kMaybeFeedbackVector
   DECLARE_DESCRIPTOR(UnaryOp_WithFeedbackDescriptor, CallInterfaceDescriptor)
 };

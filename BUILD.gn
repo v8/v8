@@ -1683,6 +1683,8 @@ v8_source_set("v8_initializers") {
     "src/ic/binary-op-assembler.h",
     "src/ic/keyed-store-generic.cc",
     "src/ic/keyed-store-generic.h",
+    "src/ic/unary-op-assembler.cc",
+    "src/ic/unary-op-assembler.h",
     "src/interpreter/interpreter-assembler.cc",
     "src/interpreter/interpreter-assembler.h",
     "src/interpreter/interpreter-generator.cc",

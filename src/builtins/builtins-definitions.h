@@ -608,6 +608,34 @@ namespace internal {
   TFC(SameValue, Compare)                                                      \
   TFC(SameValueNumbersOnly, Compare)                                           \
                                                                                \
+  /* Binary ops with feedback collection */                                    \
+  TFC(Add_WithFeedback, BinaryOp_WithFeedback)                                 \
+  TFC(Subtract_WithFeedback, BinaryOp_WithFeedback)                            \
+  TFC(Multiply_WithFeedback, BinaryOp_WithFeedback)                            \
+  TFC(Divide_WithFeedback, BinaryOp_WithFeedback)                              \
+  TFC(Modulus_WithFeedback, BinaryOp_WithFeedback)                             \
+  TFC(Exponentiate_WithFeedback, BinaryOp_WithFeedback)                        \
+  TFC(BitwiseAnd_WithFeedback, BinaryOp_WithFeedback)                          \
+  TFC(BitwiseOr_WithFeedback, BinaryOp_WithFeedback)                           \
+  TFC(BitwiseXor_WithFeedback, BinaryOp_WithFeedback)                          \
+  TFC(ShiftLeft_WithFeedback, BinaryOp_WithFeedback)                           \
+  TFC(ShiftRight_WithFeedback, BinaryOp_WithFeedback)                          \
+  TFC(ShiftRightLogical_WithFeedback, BinaryOp_WithFeedback)                   \
+                                                                               \
+  /* Compare ops with feedback collection */                                   \
+  TFC(Equal_WithFeedback, Compare_WithFeedback)                                \
+  TFC(StrictEqual_WithFeedback, Compare_WithFeedback)                          \
+  TFC(LessThan_WithFeedback, Compare_WithFeedback)                             \
+  TFC(GreaterThan_WithFeedback, Compare_WithFeedback)                          \
+  TFC(LessThanOrEqual_WithFeedback, Compare_WithFeedback)                      \
+  TFC(GreaterThanOrEqual_WithFeedback, Compare_WithFeedback)                   \
+                                                                               \
+  /* Unary ops with feedback collection */                                     \
+  TFC(BitwiseNot_WithFeedback, UnaryOp_WithFeedback)                           \
+  TFC(Decrement_WithFeedback, UnaryOp_WithFeedback)                            \
+  TFC(Increment_WithFeedback, UnaryOp_WithFeedback)                            \
+  TFC(Negate_WithFeedback, UnaryOp_WithFeedback)                               \
+                                                                               \
   /* Object */                                                                 \
   /* ES #sec-object-constructor */                                             \
   TFJ(ObjectConstructor, kDontAdaptArgumentsSentinel)                          \
