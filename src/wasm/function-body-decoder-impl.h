@@ -265,7 +265,15 @@ ValueType read_value_type(Decoder* decoder, const byte* pc,
         uint32_t type_index =
             decoder->read_u32v<validate>(pc + 1, length, "type index");
         (*length)++;
-        return ValueType(ValueType::kRef, type_index);
+        if (!VALIDATE(type_index < kV8MaxWasmTypes)) {
+          decoder->errorf(pc,
+                          "Type index %u is greater than the maximum "
+                          "number %zu of type definitions supported by V8",
+                          type_index, kV8MaxWasmTypes);
+          return kWasmBottom;
+        } else {
+          return ValueType(ValueType::kRef, type_index);
+        }
       }
       decoder->error(pc,
                      "invalid value type 'ref', enable with "
@@ -276,7 +284,15 @@ ValueType read_value_type(Decoder* decoder, const byte* pc,
         uint32_t type_index =
             decoder->read_u32v<validate>(pc + 1, length, "type index");
         (*length)++;
-        return ValueType(ValueType::kOptRef, type_index);
+        if (!VALIDATE(type_index < kV8MaxWasmTypes)) {
+          decoder->errorf(pc,
+                          "Type index %u is greater than the maximum "
+                          "number %zu of type definitions supported by V8",
+                          type_index, kV8MaxWasmTypes);
+          return kWasmBottom;
+        } else {
+          return ValueType(ValueType::kOptRef, type_index);
+        }
       }
       decoder->error(pc,
                      "invalid value type 'optref', enable with "
