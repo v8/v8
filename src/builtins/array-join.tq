@@ -292,7 +292,7 @@ transitioning macro ArrayJoinImpl<T: type>(implicit context: Context)(
           next = str;
         }
         case (num: Number): {
-          next = number::NumberToString(num);
+          next = NumberToString(num);
         }
         case (obj: JSAny): {
           if (IsNullOrUndefined(obj)) continue;

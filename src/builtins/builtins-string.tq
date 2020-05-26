@@ -15,7 +15,7 @@ transitioning macro ToStringImpl(context: Context, o: JSAny): String {
   while (true) {
     typeswitch (result) {
       case (num: Number): {
-        return number::NumberToString(num);
+        return NumberToString(num);
       }
       case (str: String): {
         return str;
