@@ -325,7 +325,11 @@ CallDescriptor* Linkage::GetJSCallDescriptor(Zone* zone, bool is_osr,
 
   // All parameters to JS calls go on the stack.
   for (int i = 0; i < js_parameter_count; i++) {
+#ifdef V8_REVERSE_JSARGS
+    int spill_slot_index = -i - 1;
+#else
     int spill_slot_index = i - js_parameter_count;
+#endif
     locations.AddParam(LinkageLocation::ForCallerFrameSlot(
         spill_slot_index, MachineType::AnyTagged()));
   }
@@ -358,7 +362,8 @@ CallDescriptor* Linkage::GetJSCallDescriptor(Zone* zone, bool is_osr,
       kNoCalleeSaved,                   // callee-saved
       kNoCalleeSaved,                   // callee-saved fp
       flags,                            // flags
-      "js-call");
+      "js-call",                        // debug name
+      StackArgumentOrder::kJS);         // stack order
 }
 
 // TODO(turbofan): cache call descriptors for code stub calls.
@@ -458,6 +463,7 @@ CallDescriptor* Linkage::GetStubCallDescriptor(
       kNoCalleeSaved,                        // callee-saved fp
       CallDescriptor::kCanUseRoots | flags,  // flags
       descriptor.DebugName(),                // debug name
+      descriptor.GetStackArgumentOrder(),    // stack order
       descriptor.allocatable_registers());
 }
 

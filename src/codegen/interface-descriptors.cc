@@ -30,10 +30,12 @@ void CallInterfaceDescriptorData::InitializePlatformSpecific(
 
 void CallInterfaceDescriptorData::InitializePlatformIndependent(
     Flags flags, int return_count, int parameter_count,
-    const MachineType* machine_types, int machine_types_length) {
+    const MachineType* machine_types, int machine_types_length,
+    StackArgumentOrder stack_order) {
   DCHECK(IsInitializedPlatformSpecific());
 
   flags_ = flags;
+  stack_order_ = stack_order;
   return_count_ = return_count;
   param_count_ = parameter_count;
   const int types_length = return_count_ + param_count_;

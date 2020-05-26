@@ -1027,11 +1027,7 @@ Node* CodeAssembler::CallJSStubImpl(const CallInterfaceDescriptor& descriptor,
     inputs.Add(new_target);
   }
   inputs.Add(arity);
-#ifdef V8_REVERSE_JSARGS
-  for (auto arg : base::Reversed(args)) inputs.Add(arg);
-#else
   for (auto arg : args) inputs.Add(arg);
-#endif
   if (descriptor.HasContextParameter()) {
     inputs.Add(context);
   }

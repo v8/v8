@@ -7012,18 +7012,19 @@ CallDescriptor* GetWasmCallDescriptor(
 
   CallDescriptor::Flags flags =
       use_retpoline ? CallDescriptor::kRetpoline : CallDescriptor::kNoFlags;
-  return new (zone) CallDescriptor(             // --
-      descriptor_kind,                          // kind
-      target_type,                              // target MachineType
-      target_loc,                               // target location
-      locations.Build(),                        // location_sig
-      parameter_slots,                          // stack_parameter_count
-      compiler::Operator::kNoProperties,        // properties
-      kCalleeSaveRegisters,                     // callee-saved registers
-      kCalleeSaveFPRegisters,                   // callee-saved fp regs
-      flags,                                    // flags
-      "wasm-call",                              // debug name
-      0,                                        // allocatable registers
+  return new (zone) CallDescriptor(       // --
+      descriptor_kind,                    // kind
+      target_type,                        // target MachineType
+      target_loc,                         // target location
+      locations.Build(),                  // location_sig
+      parameter_slots,                    // stack_parameter_count
+      compiler::Operator::kNoProperties,  // properties
+      kCalleeSaveRegisters,               // callee-saved registers
+      kCalleeSaveFPRegisters,             // callee-saved fp regs
+      flags,                              // flags
+      "wasm-call",                        // debug name
+      StackArgumentOrder::kDefault,       // order of the arguments in the stack
+      0,                                  // allocatable registers
       rets.NumStackSlots() - parameter_slots);  // stack_return_count
 }
 
@@ -7101,6 +7102,7 @@ CallDescriptor* ReplaceTypeInCallDescriptorWith(
       call_descriptor->CalleeSavedFPRegisters(),       // callee-saved fp regs
       call_descriptor->flags(),                        // flags
       call_descriptor->debug_name(),                   // debug name
+      call_descriptor->GetStackArgumentOrder(),        // stack order
       call_descriptor->AllocatableRegisters(),         // allocatable registers
       rets.NumStackSlots() - params.NumStackSlots());  // stack_return_count
 }

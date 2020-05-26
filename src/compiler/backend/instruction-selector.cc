@@ -1043,7 +1043,8 @@ void InstructionSelector::InitializeCallBuffer(Node* call, CallBuffer* buffer,
     InstructionOperand op = g.UseLocation(*iter, location);
     UnallocatedOperand unallocated = UnallocatedOperand::cast(op);
     if (unallocated.HasFixedSlotPolicy() && !call_tail) {
-      int stack_index = -unallocated.fixed_slot_index() - 1;
+      int stack_index = buffer->descriptor->GetStackIndexFromSlot(
+          unallocated.fixed_slot_index());
       // This can insert empty slots before stack_index and will insert enough
       // slots after stack_index to store the parameter.
       if (static_cast<size_t>(stack_index) >= buffer->pushed_nodes.size()) {

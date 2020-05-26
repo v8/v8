@@ -105,6 +105,16 @@ namespace internal {
   BUILTIN_LIST_TFS(V)                    \
   TORQUE_BUILTIN_LIST_TFC(V)
 
+enum class StackArgumentOrder {
+  kDefault,  // Arguments in the stack are pushed in the default/stub order (the
+             // first argument is pushed first).
+  kJS,  // Arguments in the stack are pushed in the same order as the one used
+        // by JS-to-JS function calls. This should be used if calling a
+        // JSFunction or if the builtin is expected to be called directly from a
+        // JSFunction. When V8_REVERSE_JSARGS is set, this order is reversed
+        // compared to kDefault.
+};
+
 class V8_EXPORT_PRIVATE CallInterfaceDescriptorData {
  public:
   enum Flag {
@@ -140,7 +150,8 @@ class V8_EXPORT_PRIVATE CallInterfaceDescriptorData {
   void InitializePlatformIndependent(Flags flags, int return_count,
                                      int parameter_count,
                                      const MachineType* machine_types,
-                                     int machine_types_length);
+                                     int machine_types_length,
+                                     StackArgumentOrder stack_order);
 
   void Reset();
 
@@ -163,6 +174,7 @@ class V8_EXPORT_PRIVATE CallInterfaceDescriptorData {
     DCHECK_LT(index, param_count_);
     return machine_types_[return_count_ + index];
   }
+  StackArgumentOrder stack_order() const { return stack_order_; }
 
   void RestrictAllocatableRegisters(const Register* registers, int num) {
     DCHECK_EQ(allocatable_registers_, 0);
@@ -197,6 +209,7 @@ class V8_EXPORT_PRIVATE CallInterfaceDescriptorData {
   int return_count_ = -1;
   int param_count_ = -1;
   Flags flags_ = kNoFlags;
+  StackArgumentOrder stack_order_ = StackArgumentOrder::kDefault;
 
   // Specifying the set of registers that could be used by the register
   // allocator. Currently, it's only used by RecordWrite code stub.
@@ -293,6 +306,10 @@ class V8_EXPORT_PRIVATE CallInterfaceDescriptor {
     return data()->allocatable_registers();
   }
 
+  StackArgumentOrder GetStackArgumentOrder() const {
+    return data()->stack_order();
+  }
+
   static const Register ContextRegister();
 
   const char* DebugName() const;
@@ -312,9 +329,9 @@ class V8_EXPORT_PRIVATE CallInterfaceDescriptor {
       CallInterfaceDescriptorData* data) {
     // Default descriptor configuration: one result, all parameters are passed
     // in registers and all parameters have MachineType::AnyTagged() type.
-    data->InitializePlatformIndependent(CallInterfaceDescriptorData::kNoFlags,
-                                        1, data->register_param_count(),
-                                        nullptr, 0);
+    data->InitializePlatformIndependent(
+        CallInterfaceDescriptorData::kNoFlags, 1, data->register_param_count(),
+        nullptr, 0, StackArgumentOrder::kDefault);
   }
 
   // Initializes |data| using the platform dependent default set of registers.
@@ -400,7 +417,8 @@ STATIC_ASSERT(kMaxTFSBuiltinRegisterParams <= kMaxBuiltinRegisterParams);
   void InitializePlatformIndependent(CallInterfaceDescriptorData* data)        \
       override {                                                               \
     data->InitializePlatformIndependent(Flags(kDescriptorFlags), kReturnCount, \
-                                        kParameterCount, nullptr, 0);          \
+                                        kParameterCount, nullptr, 0,           \
+                                        kStackArgumentOrder);                  \
   }                                                                            \
   name(CallDescriptors::Key key) : base(key) {}                                \
                                                                                \
@@ -418,9 +436,11 @@ STATIC_ASSERT(kMaxTFSBuiltinRegisterParams <= kMaxBuiltinRegisterParams);
                                                                             \
  public:
 
-#define DEFINE_FLAGS_AND_RESULT_AND_PARAMETERS(flags, return_count, ...) \
+#define DEFINE_FLAGS_AND_RESULT_AND_PARAMETERS(flags, stack_order,       \
+                                               return_count, ...)        \
   static constexpr int kDescriptorFlags = flags;                         \
   static constexpr int kReturnCount = return_count;                      \
+  static constexpr StackArgumentOrder kStackArgumentOrder = stack_order; \
   enum ParameterIndices {                                                \
     __dummy = -1, /* to be able to pass zero arguments */                \
     ##__VA_ARGS__,                                                       \
@@ -429,35 +449,41 @@ STATIC_ASSERT(kMaxTFSBuiltinRegisterParams <= kMaxBuiltinRegisterParams);
     kContext = kParameterCount /* implicit parameter */                  \
   };
 
-#define DEFINE_RESULT_AND_PARAMETERS(return_count, ...) \
-  DEFINE_FLAGS_AND_RESULT_AND_PARAMETERS(               \
-      CallInterfaceDescriptorData::kNoFlags, return_count, ##__VA_ARGS__)
+#define DEFINE_RESULT_AND_PARAMETERS(return_count, ...)                    \
+  DEFINE_FLAGS_AND_RESULT_AND_PARAMETERS(                                  \
+      CallInterfaceDescriptorData::kNoFlags, StackArgumentOrder::kDefault, \
+      return_count, ##__VA_ARGS__)
 
 // This is valid only for builtins that use EntryFrame, which does not scan
 // stack arguments on GC.
-#define DEFINE_PARAMETERS_ENTRY(...)                      \
-  static constexpr int kDescriptorFlags =                 \
-      CallInterfaceDescriptorData::kNoContext |           \
-      CallInterfaceDescriptorData::kNoStackScan;          \
-  static constexpr int kReturnCount = 1;                  \
-  enum ParameterIndices {                                 \
-    __dummy = -1, /* to be able to pass zero arguments */ \
-    ##__VA_ARGS__,                                        \
-                                                          \
-    kParameterCount                                       \
+#define DEFINE_PARAMETERS_ENTRY(...)                        \
+  static constexpr int kDescriptorFlags =                   \
+      CallInterfaceDescriptorData::kNoContext |             \
+      CallInterfaceDescriptorData::kNoStackScan;            \
+  static constexpr StackArgumentOrder kStackArgumentOrder = \
+      StackArgumentOrder::kDefault;                         \
+  static constexpr int kReturnCount = 1;                    \
+  enum ParameterIndices {                                   \
+    __dummy = -1, /* to be able to pass zero arguments */   \
+    ##__VA_ARGS__,                                          \
+                                                            \
+    kParameterCount                                         \
   };
 
-#define DEFINE_PARAMETERS(...)            \
-  DEFINE_FLAGS_AND_RESULT_AND_PARAMETERS( \
-      CallInterfaceDescriptorData::kNoFlags, 1, ##__VA_ARGS__)
+#define DEFINE_PARAMETERS(...)                                                \
+  DEFINE_FLAGS_AND_RESULT_AND_PARAMETERS(                                     \
+      CallInterfaceDescriptorData::kNoFlags, StackArgumentOrder::kDefault, 1, \
+      ##__VA_ARGS__)
 
-#define DEFINE_PARAMETERS_NO_CONTEXT(...) \
-  DEFINE_FLAGS_AND_RESULT_AND_PARAMETERS( \
-      CallInterfaceDescriptorData::kNoContext, 1, ##__VA_ARGS__)
+#define DEFINE_PARAMETERS_NO_CONTEXT(...)                                    \
+  DEFINE_FLAGS_AND_RESULT_AND_PARAMETERS(                                    \
+      CallInterfaceDescriptorData::kNoContext, StackArgumentOrder::kDefault, \
+      1, ##__VA_ARGS__)
 
-#define DEFINE_PARAMETERS_VARARGS(...)    \
-  DEFINE_FLAGS_AND_RESULT_AND_PARAMETERS( \
-      CallInterfaceDescriptorData::kAllowVarArgs, 1, ##__VA_ARGS__)
+#define DEFINE_PARAMETERS_VARARGS(...)                                        \
+  DEFINE_FLAGS_AND_RESULT_AND_PARAMETERS(                                     \
+      CallInterfaceDescriptorData::kAllowVarArgs, StackArgumentOrder::kJS, 1, \
+      ##__VA_ARGS__)
 
 #define DEFINE_RESULT_AND_PARAMETER_TYPES_WITH_FLAG(flag, ...)                \
   void InitializePlatformIndependent(CallInterfaceDescriptorData* data)       \
@@ -468,7 +494,7 @@ STATIC_ASSERT(kMaxTFSBuiltinRegisterParams <= kMaxBuiltinRegisterParams);
         "Parameter names definition is not consistent with parameter types"); \
     data->InitializePlatformIndependent(                                      \
         Flags(flag | kDescriptorFlags), kReturnCount, kParameterCount,        \
-        machine_types, arraysize(machine_types));                             \
+        machine_types, arraysize(machine_types), kStackArgumentOrder);        \
   }
 
 #define DEFINE_RESULT_AND_PARAMETER_TYPES(...) \
@@ -479,18 +505,20 @@ STATIC_ASSERT(kMaxTFSBuiltinRegisterParams <= kMaxBuiltinRegisterParams);
   DEFINE_RESULT_AND_PARAMETER_TYPES(MachineType::AnyTagged() /* result */, \
                                     ##__VA_ARGS__)
 
-#define DEFINE_JS_PARAMETERS(...)                       \
-  static constexpr int kDescriptorFlags =               \
-      CallInterfaceDescriptorData::kAllowVarArgs;       \
-  static constexpr int kReturnCount = 1;                \
-  enum ParameterIndices {                               \
-    kTarget,                                            \
-    kNewTarget,                                         \
-    kActualArgumentsCount,                              \
-    ##__VA_ARGS__,                                      \
-                                                        \
-    kParameterCount,                                    \
-    kContext = kParameterCount /* implicit parameter */ \
+#define DEFINE_JS_PARAMETERS(...)                           \
+  static constexpr int kDescriptorFlags =                   \
+      CallInterfaceDescriptorData::kAllowVarArgs;           \
+  static constexpr int kReturnCount = 1;                    \
+  static constexpr StackArgumentOrder kStackArgumentOrder = \
+      StackArgumentOrder::kJS;                              \
+  enum ParameterIndices {                                   \
+    kTarget,                                                \
+    kNewTarget,                                             \
+    kActualArgumentsCount,                                  \
+    ##__VA_ARGS__,                                          \
+                                                            \
+    kParameterCount,                                        \
+    kContext = kParameterCount /* implicit parameter */     \
   };
 
 #define DEFINE_JS_PARAMETER_TYPES(...)                                         \
@@ -552,7 +580,8 @@ class TorqueInterfaceDescriptor : public CallInterfaceDescriptor {
     DCHECK_EQ(kReturnCount + kParameterCount, machine_types.size());
     data->InitializePlatformIndependent(Flags(kDescriptorFlags), kReturnCount,
                                         kParameterCount, machine_types.data(),
-                                        static_cast<int>(machine_types.size()));
+                                        static_cast<int>(machine_types.size()),
+                                        StackArgumentOrder::kDefault);
   }
 };
 

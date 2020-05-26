@@ -13025,17 +13025,9 @@ TNode<Object> CodeStubAssembler::CallApiCallback(
     TNode<Object> context, TNode<RawPtrT> callback, TNode<IntPtrT> argc,
     TNode<Object> data, TNode<Object> holder, TNode<Object> receiver,
     TNode<Object> value) {
-  // CallApiCallback receives the first four arguments in registers
-  // (callback, argc, data and holder). The last arguments are in the stack in
-  // JS ordering. See ApiCallbackDescriptor.
   Callable callable = CodeFactory::CallApiCallback(isolate());
-#ifdef V8_REVERSE_JSARGS
-  return CallStub(callable, context, callback, argc, data, holder, value,
-                  receiver);
-#else
   return CallStub(callable, context, callback, argc, data, holder, receiver,
                   value);
-#endif
 }
 
 TNode<Object> CodeStubAssembler::CallRuntimeNewArray(
