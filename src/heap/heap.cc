@@ -2073,9 +2073,6 @@ size_t Heap::PerformGarbageCollection(
   base::Optional<SafepointScope> optional_safepoint_scope;
   if (FLAG_local_heaps) {
     optional_safepoint_scope.emplace(this);
-    // Fill and reset all LABs
-    safepoint()->IterateLocalHeaps(
-        [](LocalHeap* local_heap) { local_heap->FreeLinearAllocationArea(); });
   }
 #ifdef VERIFY_HEAP
   if (FLAG_verify_heap) {
@@ -4203,6 +4200,13 @@ class VerifyReadOnlyPointersVisitor : public VerifyPointersVisitor {
 void Heap::Verify() {
   CHECK(HasBeenSetUp());
   HandleScope scope(isolate());
+
+  if (FLAG_local_heaps) {
+    // Ensure heap is iterable
+    safepoint()->IterateLocalHeaps([](LocalHeap* local_heap) {
+      local_heap->MakeLinearAllocationAreaIterable();
+    });
+  }
 
   // We have to wait here for the sweeper threads to have an iterable heap.
   mark_compact_collector()->EnsureSweepingCompleted();

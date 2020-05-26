@@ -48,6 +48,17 @@ class LocalHeap {
 
   ConcurrentAllocator* old_space_allocator() { return &old_space_allocator_; }
 
+  // Mark/Unmark linear allocation areas black. Used for black allocation.
+  void MarkLinearAllocationAreaBlack();
+  void UnmarkLinearAllocationArea();
+
+  // Give up linear allocation areas. Used for mark-compact GC.
+  void FreeLinearAllocationArea();
+
+  // Create filler object in linear allocation areas. Verifying requires
+  // iterable heap.
+  void MakeLinearAllocationAreaIterable();
+
  private:
   enum class ThreadState {
     // Threads in this state need to be stopped in a safepoint.
@@ -67,9 +78,6 @@ class LocalHeap {
   void ClearSafepointRequested();
 
   void EnterSafepoint();
-
-  void FreeLinearAllocationArea();
-  void MakeLinearAllocationAreaIterable();
 
   Heap* heap_;
 

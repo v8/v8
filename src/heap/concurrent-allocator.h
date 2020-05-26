@@ -36,12 +36,17 @@ class ConcurrentAllocator {
 
   void FreeLinearAllocationArea();
   void MakeLinearAllocationAreaIterable();
+  void MarkLinearAllocationAreaBlack();
+  void UnmarkLinearAllocationArea();
 
  private:
   inline bool EnsureLab(AllocationOrigin origin);
   inline AllocationResult AllocateInLab(int object_size,
                                         AllocationAlignment alignment,
                                         AllocationOrigin origin);
+
+  V8_EXPORT_PRIVATE AllocationResult AllocateOutsideLab(
+      int object_size, AllocationAlignment alignment, AllocationOrigin origin);
 
   V8_EXPORT_PRIVATE Address PerformCollectionAndAllocateAgain(
       int object_size, AllocationAlignment alignment, AllocationOrigin origin);

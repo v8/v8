@@ -32,6 +32,7 @@
 #include "src/heap/objects-visiting-inl.h"
 #include "src/heap/read-only-heap.h"
 #include "src/heap/read-only-spaces.h"
+#include "src/heap/safepoint.h"
 #include "src/heap/spaces-inl.h"
 #include "src/heap/sweeper.h"
 #include "src/heap/worklist.h"
@@ -869,6 +870,13 @@ void MarkCompactCollector::Prepare() {
        space = spaces.Next()) {
     space->PrepareForMarkCompact();
   }
+
+  if (FLAG_local_heaps) {
+    // Fill and reset all background thread LABs
+    heap_->safepoint()->IterateLocalHeaps(
+        [](LocalHeap* local_heap) { local_heap->FreeLinearAllocationArea(); });
+  }
+
   heap()->account_external_memory_concurrently_freed();
 }
 

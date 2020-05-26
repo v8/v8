@@ -629,7 +629,9 @@ class Page : public MemoryChunk {
   size_t ShrinkToHighWaterMark();
 
   V8_EXPORT_PRIVATE void CreateBlackArea(Address start, Address end);
+  V8_EXPORT_PRIVATE void CreateBlackAreaBackground(Address start, Address end);
   void DestroyBlackArea(Address start, Address end);
+  void DestroyBlackAreaBackground(Address start, Address end);
 
   void InitializeFreeListCategories();
   void AllocateFreeListCategories();
@@ -1273,6 +1275,9 @@ class LocalAllocationBuffer {
   // Close a LAB, effectively invalidating it. Returns the unused area.
   V8_EXPORT_PRIVATE LinearAllocationArea CloseAndMakeIterable();
   void MakeIterable();
+
+  Address top() const { return allocation_info_.top(); }
+  Address limit() const { return allocation_info_.limit(); }
 
  private:
   V8_EXPORT_PRIVATE LocalAllocationBuffer(

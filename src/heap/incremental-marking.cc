@@ -93,6 +93,13 @@ void IncrementalMarking::MarkBlackAndVisitObjectDueToLayoutChange(
   collector_->VisitObject(obj);
 }
 
+void IncrementalMarking::MarkBlackBackground(HeapObject obj, int object_size) {
+  MarkBit mark_bit = atomic_marking_state()->MarkBitFrom(obj);
+  Marking::MarkBlack<AccessMode::ATOMIC>(mark_bit);
+  MemoryChunk* chunk = MemoryChunk::FromHeapObject(obj);
+  IncrementLiveBytesBackground(chunk, static_cast<intptr_t>(object_size));
+}
+
 void IncrementalMarking::NotifyLeftTrimming(HeapObject from, HeapObject to) {
   DCHECK(IsMarking());
   DCHECK(MemoryChunk::FromHeapObject(from)->SweepingDone());
@@ -367,6 +374,11 @@ void IncrementalMarking::StartBlackAllocation() {
   heap()->old_space()->MarkLinearAllocationAreaBlack();
   heap()->map_space()->MarkLinearAllocationAreaBlack();
   heap()->code_space()->MarkLinearAllocationAreaBlack();
+  if (FLAG_local_heaps) {
+    heap()->safepoint()->IterateLocalHeaps([](LocalHeap* local_heap) {
+      local_heap->MarkLinearAllocationAreaBlack();
+    });
+  }
   if (FLAG_trace_incremental_marking) {
     heap()->isolate()->PrintWithTimestamp(
         "[IncrementalMarking] Black allocation started\n");
@@ -378,6 +390,11 @@ void IncrementalMarking::PauseBlackAllocation() {
   heap()->old_space()->UnmarkLinearAllocationArea();
   heap()->map_space()->UnmarkLinearAllocationArea();
   heap()->code_space()->UnmarkLinearAllocationArea();
+  if (FLAG_local_heaps) {
+    heap()->safepoint()->IterateLocalHeaps([](LocalHeap* local_heap) {
+      local_heap->UnmarkLinearAllocationArea();
+    });
+  }
   if (FLAG_trace_incremental_marking) {
     heap()->isolate()->PrintWithTimestamp(
         "[IncrementalMarking] Black allocation paused\n");
@@ -790,6 +807,20 @@ void IncrementalMarking::Stop() {
   SetState(STOPPED);
   is_compacting_ = false;
   FinishBlackAllocation();
+
+  if (FLAG_local_heaps) {
+    // Merge live bytes counters of background threads
+    for (auto pair : background_live_bytes_) {
+      MemoryChunk* memory_chunk = pair.first;
+      intptr_t live_bytes = pair.second;
+
+      if (live_bytes) {
+        marking_state()->IncrementLiveBytes(memory_chunk, live_bytes);
+      }
+    }
+
+    background_live_bytes_.clear();
+  }
 }
 
 
