@@ -448,18 +448,44 @@ class Assembler : public AssemblerBase {
 #undef DECLARE_PPC_XX3_INSTRUCTIONS
 
 #define DECLARE_PPC_VX_INSTRUCTIONS_A_FORM(name, instr_name, instr_value) \
-  inline void name(const DoubleRegister rt, const DoubleRegister rb,      \
+  inline void name(const Simd128Register rt, const Simd128Register rb,    \
                    const Operand& imm) {                                  \
     vx_form(instr_name, rt, rb, imm);                                     \
   }
+#define DECLARE_PPC_VX_INSTRUCTIONS_B_FORM(name, instr_name, instr_value) \
+  inline void name(const Simd128Register rt, const Simd128Register ra,    \
+                   const Simd128Register rb) {                            \
+    vx_form(instr_name, rt, ra, rb);                                      \
+  }
 
-  inline void vx_form(Instr instr, DoubleRegister rt, DoubleRegister rb,
+  inline void vx_form(Instr instr, Simd128Register rt, Simd128Register rb,
                       const Operand& imm) {
     emit(instr | rt.code() * B21 | imm.immediate() * B16 | rb.code() * B11);
   }
+  inline void vx_form(Instr instr, Simd128Register rt, Simd128Register ra,
+                      Simd128Register rb) {
+    emit(instr | rt.code() * B21 | ra.code() * B16 | rb.code() * B11);
+  }
 
   PPC_VX_OPCODE_A_FORM_LIST(DECLARE_PPC_VX_INSTRUCTIONS_A_FORM)
+  PPC_VX_OPCODE_B_FORM_LIST(DECLARE_PPC_VX_INSTRUCTIONS_B_FORM)
 #undef DECLARE_PPC_VX_INSTRUCTIONS_A_FORM
+#undef DECLARE_PPC_VX_INSTRUCTIONS_B_FORM
+
+#define DECLARE_PPC_VA_INSTRUCTIONS_A_FORM(name, instr_name, instr_value) \
+  inline void name(const Simd128Register rt, const Simd128Register ra,    \
+                   const Simd128Register rb, const Simd128Register rc) {  \
+    va_form(instr_name, rt, ra, rb, rc);                                  \
+  }
+
+  inline void va_form(Instr instr, Simd128Register rt, Simd128Register ra,
+                      Simd128Register rb, Simd128Register rc) {
+    emit(instr | rt.code() * B21 | ra.code() * B16 | rb.code() * B11 |
+         rc.code() * B6);
+  }
+
+  PPC_VA_OPCODE_A_FORM_LIST(DECLARE_PPC_VA_INSTRUCTIONS_A_FORM)
+#undef DECLARE_PPC_VA_INSTRUCTIONS_A_FORM
 
   RegList* GetScratchRegisterList() { return &scratch_register_list_; }
   // ---------------------------------------------------------------------------
@@ -950,49 +976,7 @@ class Assembler : public AssemblerBase {
   // Vector instructions
   void mfvsrd(const Register ra, const DoubleRegister r);
   void mfvsrwz(const Register ra, const DoubleRegister r);
-  void mtvsrd(const DoubleRegister rt, const Register ra);
-  void vxor(const DoubleRegister rt, const DoubleRegister ra,
-            const DoubleRegister rb);
-  void vnor(const DoubleRegister rt, const DoubleRegister ra,
-            const DoubleRegister rb);
-  void vor(const DoubleRegister rt, const DoubleRegister ra,
-           const DoubleRegister rb);
-  void vsro(const DoubleRegister rt, const DoubleRegister ra,
-            const DoubleRegister rb);
-  void vslo(const DoubleRegister rt, const DoubleRegister ra,
-            const DoubleRegister rb);
-  void vperm(const DoubleRegister rt, const DoubleRegister ra,
-             const DoubleRegister rb, const DoubleRegister rc);
-  void vaddudm(const Simd128Register rt, const Simd128Register ra,
-               const Simd128Register rb);
-  void vadduwm(const Simd128Register rt, const Simd128Register ra,
-               const Simd128Register rb);
-  void vadduhm(const Simd128Register rt, const Simd128Register ra,
-               const Simd128Register rb);
-  void vaddubm(const Simd128Register rt, const Simd128Register ra,
-               const Simd128Register rb);
-  void vaddfp(const Simd128Register rt, const Simd128Register ra,
-              const Simd128Register rb);
-  void vsubfp(const Simd128Register rt, const Simd128Register ra,
-              const Simd128Register rb);
-  void vsubudm(const Simd128Register rt, const Simd128Register ra,
-               const Simd128Register rb);
-  void vsubuwm(const Simd128Register rt, const Simd128Register ra,
-               const Simd128Register rb);
-  void vsubuhm(const Simd128Register rt, const Simd128Register ra,
-               const Simd128Register rb);
-  void vsububm(const Simd128Register rt, const Simd128Register ra,
-               const Simd128Register rb);
-  void vmuluwm(const Simd128Register rt, const Simd128Register ra,
-               const Simd128Register rb);
-  void vpkuhum(const Simd128Register rt, const Simd128Register ra,
-               const Simd128Register rb);
-  void vmuleub(const Simd128Register rt, const Simd128Register ra,
-               const Simd128Register rb);
-  void vmuloub(const Simd128Register rt, const Simd128Register ra,
-               const Simd128Register rb);
-  void vmladduhm(const Simd128Register rt, const Simd128Register ra,
-                 const Simd128Register rb, const Simd128Register rc);
+  void mtvsrd(const Simd128Register rt, const Register ra);
 
   // Pseudo instructions
 
