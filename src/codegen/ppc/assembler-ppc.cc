@@ -1804,6 +1804,82 @@ void Assembler::vperm(const DoubleRegister rt, const DoubleRegister ra,
        rc.code() * B6);
 }
 
+void Assembler::vaddudm(const Simd128Register rt, const Simd128Register ra,
+                        const Simd128Register rb) {
+  emit(VADDUDM | rt.code() * B21 | ra.code() * B16 | rb.code() * B11);
+}
+
+void Assembler::vadduwm(const Simd128Register rt, const Simd128Register ra,
+                        const Simd128Register rb) {
+  emit(VADDUWM | rt.code() * B21 | ra.code() * B16 | rb.code() * B11);
+}
+
+void Assembler::vadduhm(const Simd128Register rt, const Simd128Register ra,
+                        const Simd128Register rb) {
+  emit(VADDUHM | rt.code() * B21 | ra.code() * B16 | rb.code() * B11);
+}
+
+void Assembler::vaddubm(const Simd128Register rt, const Simd128Register ra,
+                        const Simd128Register rb) {
+  emit(VADDUBM | rt.code() * B21 | ra.code() * B16 | rb.code() * B11);
+}
+
+void Assembler::vaddfp(const Simd128Register rt, const Simd128Register ra,
+                       const Simd128Register rb) {
+  emit(VADDFP | rt.code() * B21 | ra.code() * B16 | rb.code() * B11);
+}
+
+void Assembler::vsubfp(const Simd128Register rt, const Simd128Register ra,
+                       const Simd128Register rb) {
+  emit(VSUBFP | rt.code() * B21 | ra.code() * B16 | rb.code() * B11);
+}
+
+void Assembler::vsubudm(const Simd128Register rt, const Simd128Register ra,
+                        const Simd128Register rb) {
+  emit(VSUBUDM | rt.code() * B21 | ra.code() * B16 | rb.code() * B11);
+}
+
+void Assembler::vsubuwm(const Simd128Register rt, const Simd128Register ra,
+                        const Simd128Register rb) {
+  emit(VSUBUWM | rt.code() * B21 | ra.code() * B16 | rb.code() * B11);
+}
+
+void Assembler::vsubuhm(const Simd128Register rt, const Simd128Register ra,
+                        const Simd128Register rb) {
+  emit(VSUBUHM | rt.code() * B21 | ra.code() * B16 | rb.code() * B11);
+}
+
+void Assembler::vsububm(const Simd128Register rt, const Simd128Register ra,
+                        const Simd128Register rb) {
+  emit(VSUBUBM | rt.code() * B21 | ra.code() * B16 | rb.code() * B11);
+}
+
+void Assembler::vmuluwm(const Simd128Register rt, const Simd128Register ra,
+                        const Simd128Register rb) {
+  emit(VMULUWM | rt.code() * B21 | ra.code() * B16 | rb.code() * B11);
+}
+
+void Assembler::vpkuhum(const Simd128Register rt, const Simd128Register ra,
+                        const Simd128Register rb) {
+  emit(VPKUHUM | rt.code() * B21 | ra.code() * B16 | rb.code() * B11);
+}
+
+void Assembler::vmuleub(const Simd128Register rt, const Simd128Register ra,
+                        const Simd128Register rb) {
+  emit(VMULEUB | rt.code() * B21 | ra.code() * B16 | rb.code() * B11);
+}
+
+void Assembler::vmuloub(const Simd128Register rt, const Simd128Register ra,
+                        const Simd128Register rb) {
+  emit(VMULOUB | rt.code() * B21 | ra.code() * B16 | rb.code() * B11);
+}
+
+void Assembler::vmladduhm(const Simd128Register rt, const Simd128Register ra,
+                          const Simd128Register rb, const Simd128Register rc) {
+  emit(VMLADDUHM | rt.code() * B21 | ra.code() * B16 | rb.code() * B11 |
+       rc.code() * B6);
+}
+
 // Pseudo instructions.
 void Assembler::nop(int type) {
   Register reg = r0;

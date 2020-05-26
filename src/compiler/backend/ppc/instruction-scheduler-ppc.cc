@@ -116,23 +116,41 @@ int InstructionScheduler::GetTargetInstructionFlags(
     case kPPC_F64x2Splat:
     case kPPC_F64x2ExtractLane:
     case kPPC_F64x2ReplaceLane:
+    case kPPC_F64x2Add:
+    case kPPC_F64x2Sub:
+    case kPPC_F64x2Mul:
     case kPPC_F32x4Splat:
     case kPPC_F32x4ExtractLane:
     case kPPC_F32x4ReplaceLane:
+    case kPPC_F32x4Add:
+    case kPPC_F32x4Sub:
+    case kPPC_F32x4Mul:
     case kPPC_I64x2Splat:
     case kPPC_I64x2ExtractLane:
     case kPPC_I64x2ReplaceLane:
+    case kPPC_I64x2Add:
+    case kPPC_I64x2Sub:
+    case kPPC_I64x2Mul:
     case kPPC_I32x4Splat:
     case kPPC_I32x4ExtractLane:
     case kPPC_I32x4ReplaceLane:
+    case kPPC_I32x4Add:
+    case kPPC_I32x4Sub:
+    case kPPC_I32x4Mul:
     case kPPC_I16x8Splat:
     case kPPC_I16x8ExtractLaneU:
     case kPPC_I16x8ExtractLaneS:
     case kPPC_I16x8ReplaceLane:
+    case kPPC_I16x8Add:
+    case kPPC_I16x8Sub:
+    case kPPC_I16x8Mul:
     case kPPC_I8x16Splat:
     case kPPC_I8x16ExtractLaneU:
     case kPPC_I8x16ExtractLaneS:
     case kPPC_I8x16ReplaceLane:
+    case kPPC_I8x16Add:
+    case kPPC_I8x16Sub:
+    case kPPC_I8x16Mul:
       return kNoOpcodeFlags;
 
     case kPPC_LoadWordS8:

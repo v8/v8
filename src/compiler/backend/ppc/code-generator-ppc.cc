@@ -2164,6 +2164,7 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       __ vspltb(kScratchDoubleReg, kScratchDoubleReg, Operand(7));
       __ vsro(dst, dst, kScratchDoubleReg);
       // reload
+      __ vxor(kScratchDoubleReg, kScratchDoubleReg, kScratchDoubleReg);
       __ mtvsrd(kScratchDoubleReg, r0);
       __ vor(dst, dst, kScratchDoubleReg);
       break;
@@ -2186,6 +2187,7 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       __ vspltb(kScratchDoubleReg, kScratchDoubleReg, Operand(7));
       __ vsro(dst, dst, kScratchDoubleReg);
       // reload
+      __ vxor(kScratchDoubleReg, kScratchDoubleReg, kScratchDoubleReg);
       __ mtvsrd(kScratchDoubleReg, src);
       __ vor(dst, dst, kScratchDoubleReg);
       break;
@@ -2380,6 +2382,114 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       break;
     }
 #undef GENERATE_REPLACE_LANE_MASK
+    case kPPC_F64x2Add: {
+      __ xvadddp(i.OutputSimd128Register(), i.InputSimd128Register(0),
+                 i.InputSimd128Register(1));
+      break;
+    }
+    case kPPC_F64x2Sub: {
+      __ xvsubdp(i.OutputSimd128Register(), i.InputSimd128Register(0),
+                 i.InputSimd128Register(1));
+      break;
+    }
+    case kPPC_F64x2Mul: {
+      __ xvmuldp(i.OutputSimd128Register(), i.InputSimd128Register(0),
+                 i.InputSimd128Register(1));
+      break;
+    }
+    case kPPC_F32x4Add: {
+      __ vaddfp(i.OutputSimd128Register(), i.InputSimd128Register(0),
+                i.InputSimd128Register(1));
+      break;
+    }
+    case kPPC_F32x4Sub: {
+      __ vsubfp(i.OutputSimd128Register(), i.InputSimd128Register(0),
+                i.InputSimd128Register(1));
+      break;
+    }
+    case kPPC_F32x4Mul: {
+      __ xvmulsp(i.OutputSimd128Register(), i.InputSimd128Register(0),
+                 i.InputSimd128Register(1));
+      break;
+    }
+    case kPPC_I64x2Add: {
+      __ vaddudm(i.OutputSimd128Register(), i.InputSimd128Register(0),
+                 i.InputSimd128Register(1));
+      break;
+    }
+    case kPPC_I64x2Sub: {
+      __ vsubudm(i.OutputSimd128Register(), i.InputSimd128Register(0),
+                 i.InputSimd128Register(1));
+      break;
+    }
+    case kPPC_I64x2Mul: {
+      // Need to maintain 16 byte alignment for stvx and lvx.
+      __ addi(sp, sp, Operand(-40));
+      __ li(r0, Operand(0));
+      __ stvx(i.InputSimd128Register(0), MemOperand(sp, r0));
+      __ li(r0, Operand(16));
+      __ stvx(i.InputSimd128Register(1), MemOperand(sp, r0));
+      for (int i = 0; i < 2; i++) {
+        __ LoadP(r0, MemOperand(sp, kBitsPerByte * i));
+        __ LoadP(ip, MemOperand(sp, (kBitsPerByte * i) + kSimd128Size));
+        __ mulld(r0, r0, ip);
+        __ StoreP(r0, MemOperand(sp, i * kBitsPerByte));
+      }
+      __ li(r0, Operand(0));
+      __ lvx(i.OutputSimd128Register(), MemOperand(sp, r0));
+      __ addi(sp, sp, Operand(40));
+      break;
+    }
+    case kPPC_I32x4Add: {
+      __ vadduwm(i.OutputSimd128Register(), i.InputSimd128Register(0),
+                 i.InputSimd128Register(1));
+      break;
+    }
+    case kPPC_I32x4Sub: {
+      __ vsubuwm(i.OutputSimd128Register(), i.InputSimd128Register(0),
+                 i.InputSimd128Register(1));
+      break;
+    }
+    case kPPC_I32x4Mul: {
+      __ vmuluwm(i.OutputSimd128Register(), i.InputSimd128Register(0),
+                 i.InputSimd128Register(1));
+      break;
+    }
+    case kPPC_I16x8Add: {
+      __ vadduhm(i.OutputSimd128Register(), i.InputSimd128Register(0),
+                 i.InputSimd128Register(1));
+      break;
+    }
+    case kPPC_I16x8Sub: {
+      __ vsubuhm(i.OutputSimd128Register(), i.InputSimd128Register(0),
+                 i.InputSimd128Register(1));
+      break;
+    }
+    case kPPC_I16x8Mul: {
+      __ vxor(kScratchDoubleReg, kScratchDoubleReg, kScratchDoubleReg);
+      __ vmladduhm(i.OutputSimd128Register(), i.InputSimd128Register(0),
+                   i.InputSimd128Register(1), kScratchDoubleReg);
+      break;
+    }
+    case kPPC_I8x16Add: {
+      __ vaddubm(i.OutputSimd128Register(), i.InputSimd128Register(0),
+                 i.InputSimd128Register(1));
+      break;
+    }
+    case kPPC_I8x16Sub: {
+      __ vsububm(i.OutputSimd128Register(), i.InputSimd128Register(0),
+                 i.InputSimd128Register(1));
+      break;
+    }
+    case kPPC_I8x16Mul: {
+      __ vmuleub(kScratchDoubleReg, i.InputSimd128Register(0),
+                 i.InputSimd128Register(1));
+      __ vmuloub(i.OutputSimd128Register(), i.InputSimd128Register(0),
+                 i.InputSimd128Register(1));
+      __ vpkuhum(i.OutputSimd128Register(), kScratchDoubleReg,
+                 i.OutputSimd128Register());
+      break;
+    }
     case kPPC_StoreCompressTagged: {
       ASSEMBLE_STORE_INTEGER(StoreTaggedField, StoreTaggedFieldX);
       break;

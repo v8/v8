@@ -435,9 +435,10 @@ class Assembler : public AssemblerBase {
 
   inline void xx3_form(Instr instr, DoubleRegister t, DoubleRegister a,
                        DoubleRegister b) {
-    int AX = ((a.code() & 0x20) >> 5) & 0x1;
-    int BX = ((b.code() & 0x20) >> 5) & 0x1;
-    int TX = ((t.code() & 0x20) >> 5) & 0x1;
+    // Using VR (high VSR) registers.
+    int AX = 1;
+    int BX = 1;
+    int TX = 1;
 
     emit(instr | (t.code() & 0x1F) * B21 | (a.code() & 0x1F) * B16 |
          (b.code() & 0x1F) * B11 | AX * B2 | BX * B1 | TX);
@@ -962,6 +963,36 @@ class Assembler : public AssemblerBase {
             const DoubleRegister rb);
   void vperm(const DoubleRegister rt, const DoubleRegister ra,
              const DoubleRegister rb, const DoubleRegister rc);
+  void vaddudm(const Simd128Register rt, const Simd128Register ra,
+               const Simd128Register rb);
+  void vadduwm(const Simd128Register rt, const Simd128Register ra,
+               const Simd128Register rb);
+  void vadduhm(const Simd128Register rt, const Simd128Register ra,
+               const Simd128Register rb);
+  void vaddubm(const Simd128Register rt, const Simd128Register ra,
+               const Simd128Register rb);
+  void vaddfp(const Simd128Register rt, const Simd128Register ra,
+              const Simd128Register rb);
+  void vsubfp(const Simd128Register rt, const Simd128Register ra,
+              const Simd128Register rb);
+  void vsubudm(const Simd128Register rt, const Simd128Register ra,
+               const Simd128Register rb);
+  void vsubuwm(const Simd128Register rt, const Simd128Register ra,
+               const Simd128Register rb);
+  void vsubuhm(const Simd128Register rt, const Simd128Register ra,
+               const Simd128Register rb);
+  void vsububm(const Simd128Register rt, const Simd128Register ra,
+               const Simd128Register rb);
+  void vmuluwm(const Simd128Register rt, const Simd128Register ra,
+               const Simd128Register rb);
+  void vpkuhum(const Simd128Register rt, const Simd128Register ra,
+               const Simd128Register rb);
+  void vmuleub(const Simd128Register rt, const Simd128Register ra,
+               const Simd128Register rb);
+  void vmuloub(const Simd128Register rt, const Simd128Register ra,
+               const Simd128Register rb);
+  void vmladduhm(const Simd128Register rt, const Simd128Register ra,
+                 const Simd128Register rb, const Simd128Register rc);
 
   // Pseudo instructions
 
