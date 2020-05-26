@@ -263,6 +263,10 @@ extern builtin NonNumberToNumeric(implicit context: Context)(JSAny): Numeric;
 extern builtin BitwiseXor(implicit context: Context)(Number, Number): Number;
 extern builtin Subtract(implicit context: Context)(Number, Number): Number;
 extern builtin Add(implicit context: Context)(Number, Number): Number;
+extern builtin StringAddConvertLeft(implicit context: Context)(
+    JSAny, String): JSAny;
+extern builtin StringAddConvertRight(implicit context: Context)(
+    String, JSAny): JSAny;
 
 extern macro BitwiseOp(int32, int32, constexpr Operation): Number;
 extern macro RelationalComparison(
@@ -270,6 +274,119 @@ extern macro RelationalComparison(
 
 // TODO(bbudge) Use a simpler macro structure that doesn't loop when converting
 // non-numbers, if such a code sequence doesn't make the builtin bigger.
+
+transitioning macro ToNumericOrPrimitive(implicit context: Context)(
+    value: JSAny): JSAny {
+  typeswitch (value) {
+    case (v: JSReceiver): {
+      return NonPrimitiveToPrimitive_Default(context, v);
+    }
+    case (v: JSPrimitive): {
+      return NonNumberToNumeric(v);
+    }
+  }
+}
+
+transitioning builtin Add(implicit context: Context)(
+    leftArg: JSAny, rightArg: JSAny): JSAny {
+  let left: JSAny = leftArg;
+  let right: JSAny = rightArg;
+  try {
+    while (true) {
+      typeswitch (left) {
+        case (left: Smi): {
+          typeswitch (right) {
+            case (right: Smi): {
+              return math::TrySmiAdd(left, right) otherwise goto Float64s(
+                  SmiToFloat64(left), SmiToFloat64(right));
+            }
+            case (right: HeapNumber): {
+              goto Float64s(SmiToFloat64(left), Convert<float64>(right));
+            }
+            case (right: BigInt): {
+              goto Numerics(left, right);
+            }
+            case (right: String): {
+              goto StringAddConvertLeft(left, right);
+            }
+            case (HeapObject): {
+              right = ToNumericOrPrimitive(right);
+              continue;
+            }
+          }
+        }
+        case (left: HeapNumber): {
+          typeswitch (right) {
+            case (right: Smi): {
+              goto Float64s(Convert<float64>(left), SmiToFloat64(right));
+            }
+            case (right: HeapNumber): {
+              goto Float64s(Convert<float64>(left), Convert<float64>(right));
+            }
+            case (right: BigInt): {
+              goto Numerics(left, right);
+            }
+            case (right: String): {
+              goto StringAddConvertLeft(left, right);
+            }
+            case (HeapObject): {
+              right = ToNumericOrPrimitive(right);
+              continue;
+            }
+          }
+        }
+        case (left: BigInt): {
+          typeswitch (right) {
+            case (right: Numeric): {
+              goto Numerics(left, right);
+            }
+            case (right: String): {
+              goto StringAddConvertLeft(left, right);
+            }
+            case (HeapObject): {
+              right = ToNumericOrPrimitive(right);
+              continue;
+            }
+          }
+        }
+        case (left: String): {
+          goto StringAddConvertRight(left, right);
+        }
+        case (leftReceiver: JSReceiver): {
+          left = ToPrimitiveDefault(leftReceiver);
+        }
+        case (HeapObject): {
+          // left: HeapObject
+          typeswitch (right) {
+            case (right: String): {
+              goto StringAddConvertLeft(left, right);
+            }
+            case (rightReceiver: JSReceiver): {
+              // left is JSPrimitive and right is JSReceiver, convert right
+              // with priority.
+              right = ToPrimitiveDefault(rightReceiver);
+              continue;
+            }
+            case (JSPrimitive): {
+              // Neither left or right is JSReceiver, convert left.
+              left = NonNumberToNumeric(left);
+              continue;
+            }
+          }
+        }
+      }
+    }
+  } label StringAddConvertLeft(left: JSAny, right: String) {
+    tail StringAddConvertLeft(left, right);
+  } label StringAddConvertRight(left: String, right: JSAny) {
+    tail StringAddConvertRight(left, right);
+  } label Numerics(left: Numeric, right: Numeric) {
+    tail bigint::BigIntAdd(left, right);
+  } label Float64s(left: float64, right: float64) {
+    return AllocateHeapNumberWithValue(left + right);
+  }
+  unreachable;
+}
 
 // Unary type switch on Number | BigInt.
 macro UnaryOp1(implicit context: Context)(value: JSAny): never labels
@@ -357,7 +474,7 @@ Number(Number, Number), AtLeastOneBigInt(Numeric, Numeric) {
   unreachable;
 }
 
-// Binary type switch on Number | BigInt.
+// Binary type switch on Smi | HeapNumber | BigInt.
 macro BinaryOp2(implicit context: Context)(leftVal: JSAny, rightVal: JSAny):
     never labels Smis(Smi, Smi), Float64s(float64, float64),
     AtLeastOneBigInt(Numeric, Numeric) {

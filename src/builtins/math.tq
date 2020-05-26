@@ -29,6 +29,7 @@ transitioning macro ReduceToSmiOrFloat64(implicit context: Context)(x: JSAny):
 
 // ES6 #sec-math.abs
 extern macro IsIntPtrAbsWithOverflowSupported(): constexpr bool;
+extern macro TrySmiAdd(Smi, Smi): Smi labels Overflow;
 extern macro TrySmiSub(Smi, Smi): Smi labels Overflow;
 extern macro TrySmiAbs(Smi): Smi labels Overflow;
 extern macro Float64Abs(float64): float64;
