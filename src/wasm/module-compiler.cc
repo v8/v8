@@ -2596,6 +2596,9 @@ void CompilationStateImpl::InitializeRecompilation(
   {
     base::MutexGuard guard(&callbacks_mutex_);
 
+    callbacks_.emplace_back(std::move(recompilation_finished_callback));
+    tiering_state_ = new_tiering_state;
+
     // If compilation progress is not initialized yet, then compilation didn't
     // start yet, and new code will be kept tiered-down from the start. For
     // streaming compilation, there is a special path to tier down later, when
@@ -2624,13 +2627,10 @@ void CompilationStateImpl::InitializeRecompilation(
       }
     }
 
-    // Trigger callback if module needs no recompilation. Add to the list of
-    // callbacks (to be called later) otherwise.
+    // Trigger callback if module needs no recompilation.
     if (outstanding_recompilation_functions_ == 0) {
-      recompilation_finished_callback(CompilationEvent::kFinishedRecompilation);
-    } else {
-      callbacks_.emplace_back(std::move(recompilation_finished_callback));
-      tiering_state_ = new_tiering_state;
+      TriggerCallbacks(base::EnumSet<CompilationEvent>(
+          {CompilationEvent::kFinishedRecompilation}));
     }
   }
 
