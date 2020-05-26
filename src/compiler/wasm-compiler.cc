@@ -2126,6 +2126,8 @@ Node* WasmGraphBuilder::Throw(uint32_t exception_index,
         STORE_FIXED_ARRAY_SLOT_ANY(values_array, index, value);
         ++index;
         break;
+      case wasm::ValueType::kI8:
+      case wasm::ValueType::kI16:
       case wasm::ValueType::kStmt:
       case wasm::ValueType::kBottom:
         UNREACHABLE();
@@ -2279,6 +2281,8 @@ Node* WasmGraphBuilder::GetExceptionValues(Node* except_obj,
         value = LOAD_FIXED_ARRAY_SLOT_ANY(values_array, index);
         ++index;
         break;
+      case wasm::ValueType::kI8:
+      case wasm::ValueType::kI16:
       case wasm::ValueType::kStmt:
       case wasm::ValueType::kBottom:
         UNREACHABLE();
@@ -5507,6 +5511,9 @@ class WasmWrapperGraphBuilder : public WasmGraphBuilder {
         // TODO(7748): Implement properly. For now, we just expose the raw
         // object for testing.
         return node;
+      case wasm::ValueType::kI8:
+      case wasm::ValueType::kI16:
+        UNIMPLEMENTED();
       case wasm::ValueType::kStmt:
       case wasm::ValueType::kBottom:
         UNREACHABLE();
@@ -5616,7 +5623,14 @@ class WasmWrapperGraphBuilder : public WasmGraphBuilder {
         DCHECK(enabled_features_.has_bigint());
         return BuildChangeBigIntToInt64(input, js_context);
 
-      default:
+      case wasm::ValueType::kS128:
+      case wasm::ValueType::kRef:
+      case wasm::ValueType::kOptRef:
+      case wasm::ValueType::kEqRef:
+      case wasm::ValueType::kI8:
+      case wasm::ValueType::kI16:
+      case wasm::ValueType::kBottom:
+      case wasm::ValueType::kStmt:
         UNREACHABLE();
         break;
     }

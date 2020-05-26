@@ -49,6 +49,8 @@ class Simd128;
   V(F32, 2, F32, Float32, 'f', "f32")                                        \
   V(F64, 3, F64, Float64, 'd', "f64")                                        \
   V(S128, 4, S128, Simd128, 's', "s128")                                     \
+  V(I8, 1, I8, Int8, 'b', "i8")                                              \
+  V(I16, 1, I16, Int16, 'h', "i16")                                          \
   V(AnyRef, kSystemPointerSizeLog2, AnyRef, TaggedPointer, 'r', "anyref")    \
   V(FuncRef, kSystemPointerSizeLog2, FuncRef, TaggedPointer, 'a', "funcref") \
   V(NullRef, kSystemPointerSizeLog2, NullRef, TaggedPointer, 'n', "nullref") \
@@ -129,9 +131,7 @@ class ValueType {
   }
 
   constexpr bool IsReferenceType() const {
-    return kind() == kAnyRef || kind() == kFuncRef || kind() == kNullRef ||
-           kind() == kExnRef || kind() == kRef || kind() == kOptRef ||
-           kind() == kEqRef;
+    return kAnyRef <= kind() && kind() <= kEqRef;
   }
 
   // TODO(7748): Extend this with struct and function subtyping.
@@ -226,6 +226,12 @@ class ValueType {
     return kTypeName[kind()];
   }
 
+  constexpr bool IsPacked() const { return kind() == kI8 || kind() == kI16; }
+
+  constexpr ValueType Unpack() const {
+    return IsPacked() ? ValueType(kI32) : *this;
+  }
+
  private:
   using KindField = base::BitField<Kind, 0, 8>;
   using RefIndexField = base::BitField<uint32_t, 8, 24>;
@@ -255,6 +261,8 @@ constexpr ValueType kWasmExnRef = ValueType(ValueType::kExnRef);
 constexpr ValueType kWasmFuncRef = ValueType(ValueType::kFuncRef);
 constexpr ValueType kWasmNullRef = ValueType(ValueType::kNullRef);
 constexpr ValueType kWasmS128 = ValueType(ValueType::kS128);
+constexpr ValueType kWasmI8 = ValueType(ValueType::kI8);
+constexpr ValueType kWasmI16 = ValueType(ValueType::kI16);
 constexpr ValueType kWasmStmt = ValueType(ValueType::kStmt);
 constexpr ValueType kWasmBottom = ValueType(ValueType::kBottom);
 

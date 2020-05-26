@@ -333,9 +333,11 @@ ValueType read_value_type(Decoder* decoder, const byte* pc,
                      "--experimental-wasm-simd");
       return kWasmBottom;
     case kLocalVoid:
-      // Although void is included in ValueType, it is technically not a value
-      // type and is only used to indicate a void block return type. The caller
-      // of this function is responsible to check for its presence separately.
+    case kLocalI8:
+    case kLocalI16:
+      // Although these types are included in ValueType, they are technically
+      // not value types and are only used in specific contexts. The caller of
+      // this function is responsible to check for them separately.
       break;
   }
   // Malformed modules specifying invalid types can get here.
@@ -2275,7 +2277,7 @@ class WasmFullDecoder : public WasmDecoder<validate> {
           Value fval = Pop();
           Value tval = Pop(0, fval.type);
           ValueType type = tval.type == kWasmBottom ? fval.type : tval.type;
-          if (type.IsSubTypeOf(kWasmAnyRef)) {
+          if (type.IsReferenceType()) {
             this->error(
                 "select without type is only valid for value type inputs");
             break;

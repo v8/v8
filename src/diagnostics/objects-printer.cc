@@ -1690,6 +1690,8 @@ void WasmStruct::WasmStructPrint(std::ostream& os) {  // NOLINT
       case wasm::ValueType::kF64:
         os << base::ReadUnalignedValue<double>(field_address);
         break;
+      case wasm::ValueType::kI8:
+      case wasm::ValueType::kI16:
       case wasm::ValueType::kS128:
       case wasm::ValueType::kAnyRef:
       case wasm::ValueType::kFuncRef:
@@ -1731,6 +1733,8 @@ void WasmArray::WasmArrayPrint(std::ostream& os) {  // NOLINT
       PrintTypedArrayElements(os, reinterpret_cast<double*>(data_ptr), len,
                               true);
       break;
+    case wasm::ValueType::kI8:
+    case wasm::ValueType::kI16:
     case wasm::ValueType::kS128:
     case wasm::ValueType::kAnyRef:
     case wasm::ValueType::kFuncRef:

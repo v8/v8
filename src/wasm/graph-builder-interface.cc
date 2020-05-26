@@ -795,6 +795,8 @@ class WasmGraphBuildingInterface {
 
   TFNode* DefaultValue(ValueType type) {
     switch (type.kind()) {
+      case ValueType::kI8:
+      case ValueType::kI16:
       case ValueType::kI32:
         return builder_->Int32Constant(0);
       case ValueType::kI64:

@@ -1738,6 +1738,8 @@ uint32_t WasmExceptionPackage::GetEncodedSize(
         break;
       case wasm::ValueType::kStmt:
       case wasm::ValueType::kBottom:
+      case wasm::ValueType::kI8:
+      case wasm::ValueType::kI16:
         UNREACHABLE();
     }
   }

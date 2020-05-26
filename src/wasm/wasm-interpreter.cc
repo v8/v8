@@ -1444,6 +1444,8 @@ class ThreadImpl {
         }
         case ValueType::kStmt:
         case ValueType::kBottom:
+        case ValueType::kI8:
+        case ValueType::kI16:
           UNREACHABLE();
           break;
       }
@@ -2877,6 +2879,8 @@ class ThreadImpl {
         case ValueType::kEqRef:
           // TODO(7748): Implement these.
           UNIMPLEMENTED();
+        case ValueType::kI8:
+        case ValueType::kI16:
         case ValueType::kStmt:
         case ValueType::kBottom:
           UNREACHABLE();
@@ -2987,6 +2991,8 @@ class ThreadImpl {
         case ValueType::kEqRef:
           // TODO(7748): Implement these.
           UNIMPLEMENTED();
+        case ValueType::kI8:
+        case ValueType::kI16:
         case ValueType::kStmt:
         case ValueType::kBottom:
           UNREACHABLE();
@@ -3430,6 +3436,8 @@ class ThreadImpl {
               global_buffer->set(global_index, *ref);
               break;
             }
+            case ValueType::kI8:
+            case ValueType::kI16:
             case ValueType::kStmt:
             case ValueType::kBottom:
               UNREACHABLE();
@@ -3835,6 +3843,8 @@ class ThreadImpl {
         case ValueType::kEqRef:
           PrintF("(func|null|exn|opt|eq|)ref:unimplemented");
           break;
+        case ValueType::kI8:
+        case ValueType::kI16:
         case ValueType::kBottom:
           UNREACHABLE();
           break;

@@ -112,6 +112,8 @@ bool InterpretWasmModuleForTesting(Isolate* isolate,
         arguments[i] =
             WasmValue(Handle<Object>::cast(isolate->factory()->null_value()));
         break;
+      case ValueType::kI8:
+      case ValueType::kI16:
       case ValueType::kStmt:
       case ValueType::kBottom:
       case ValueType::kS128:

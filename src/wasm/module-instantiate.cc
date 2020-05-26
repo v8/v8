@@ -815,6 +815,8 @@ void InstanceBuilder::WriteGlobalValue(const WasmGlobal& global,
     case ValueType::kStmt:
     case ValueType::kS128:
     case ValueType::kBottom:
+    case ValueType::kI8:
+    case ValueType::kI16:
       UNREACHABLE();
   }
   TRACE(", type = %s (from WebAssembly.Global)\n", global.type.type_name());

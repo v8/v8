@@ -1369,6 +1369,8 @@ void WebAssemblyGlobal(const v8::FunctionCallbackInfo<v8::Value>& args) {
     case i::wasm::ValueType::kEqRef:
       // TODO(7748): Implement these.
       UNIMPLEMENTED();
+    case i::wasm::ValueType::kI8:
+    case i::wasm::ValueType::kI16:
     case i::wasm::ValueType::kStmt:
     case i::wasm::ValueType::kS128:
     case i::wasm::ValueType::kBottom:
@@ -1834,6 +1836,8 @@ void WebAssemblyGlobalGetValueCommon(
     case i::wasm::ValueType::kEqRef:
       // TODO(7748): Implement these.
       UNIMPLEMENTED();
+    case i::wasm::ValueType::kI8:
+    case i::wasm::ValueType::kI16:
     case i::wasm::ValueType::kBottom:
     case i::wasm::ValueType::kStmt:
     case i::wasm::ValueType::kS128:
@@ -1924,6 +1928,8 @@ void WebAssemblyGlobalSetValue(
     case i::wasm::ValueType::kEqRef:
       // TODO(7748): Implement these.
       UNIMPLEMENTED();
+    case i::wasm::ValueType::kI8:
+    case i::wasm::ValueType::kI16:
     case i::wasm::ValueType::kBottom:
     case i::wasm::ValueType::kStmt:
     case i::wasm::ValueType::kS128:

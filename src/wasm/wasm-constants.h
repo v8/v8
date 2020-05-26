@@ -35,6 +35,8 @@ enum ValueTypeCode : uint8_t {
   kLocalI31Ref = 0x6a,  // GC proposal
   kLocalRttRef = 0x69,  // GC proposal
   kLocalExnRef = 0x68,
+  kLocalI8 = 0x7a,  // GC proposal
+  kLocalI16 = 0x79  // GC proposal
 };
 // Binary encoding of other types.
 constexpr uint8_t kWasmFunctionTypeCode = 0x60;
