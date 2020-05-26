@@ -962,6 +962,9 @@
   'wasm/atomics64-stress': [SKIP],
   'wasm/futex': [SKIP],
   'regress/wasm/regress-1067621': [SKIP],
+
+  # BUG(v8:9975).
+  'es6/typedarray-copywithin': [SKIP],
 }],  # 'predictable == True'
 
 ##############################################################################
