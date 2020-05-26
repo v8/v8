@@ -246,6 +246,13 @@ void Sweeper::EnsureCompleted() {
   sweeping_in_progress_ = false;
 }
 
+void Sweeper::SupportConcurrentSweeping() {
+  ForAllSweepingSpaces([this](AllocationSpace space) {
+    const int kMaxPagesToSweepPerSpace = 1;
+    ParallelSweepSpace(space, 0, kMaxPagesToSweepPerSpace);
+  });
+}
+
 bool Sweeper::AreSweeperTasksRunning() { return num_sweeping_tasks_ != 0; }
 
 V8_INLINE size_t Sweeper::FreeAndProcessFreedMemory(

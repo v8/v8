@@ -989,7 +989,14 @@ StepResult IncrementalMarking::AdvanceWithDeadline(
 
 void IncrementalMarking::FinalizeSweeping() {
   DCHECK(state_ == SWEEPING);
-  if (ContinueConcurrentSweeping()) return;
+  if (ContinueConcurrentSweeping()) {
+    if (FLAG_stress_incremental_marking) {
+      // To start concurrent marking a bit earlier, support concurrent sweepers
+      // from main thread by sweeping some pages.
+      SupportConcurrentSweeping();
+    }
+    return;
+  }
 
   SafepointScope scope(heap());
   collector_->EnsureSweepingCompleted();
@@ -1004,6 +1011,10 @@ bool IncrementalMarking::ContinueConcurrentSweeping() {
   if (!collector_->sweeping_in_progress()) return false;
   return FLAG_concurrent_sweeping &&
          collector_->sweeper()->AreSweeperTasksRunning();
+}
+
+void IncrementalMarking::SupportConcurrentSweeping() {
+  collector_->sweeper()->SupportConcurrentSweeping();
 }
 
 size_t IncrementalMarking::StepSizeToKeepUpWithAllocations() {

@@ -108,6 +108,9 @@ class Sweeper {
   void EnsureCompleted();
   bool AreSweeperTasksRunning();
 
+  // Support concurrent sweepers from main thread
+  void SupportConcurrentSweeping();
+
   Page* GetSweptPageSafe(PagedSpace* space);
 
   void AddPageForIterability(Page* page);
