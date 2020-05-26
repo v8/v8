@@ -3149,7 +3149,7 @@ Handle<StackFrameInfo> Factory::NewStackFrameInfo(
   // TODO(szuend): Adjust this, once it is decided what name to use in both
   //               "simple" and "detailed" stack traces. This code is for
   //               backwards compatibility to fullfill test expectations.
-  auto function_name = frame->GetFunctionName();
+  Handle<PrimitiveHeapObject> function_name = frame->GetFunctionName();
   bool is_user_java_script = false;
   if (!is_wasm) {
     Handle<Object> function = frame->GetFunction();
@@ -3160,11 +3160,11 @@ Handle<StackFrameInfo> Factory::NewStackFrameInfo(
     }
   }
 
-  Handle<Object> method_name = undefined_value();
-  Handle<Object> type_name = undefined_value();
-  Handle<Object> eval_origin = frame->GetEvalOrigin();
-  Handle<Object> wasm_module_name = frame->GetWasmModuleName();
-  Handle<Object> wasm_instance = frame->GetWasmInstance();
+  Handle<PrimitiveHeapObject> method_name = undefined_value();
+  Handle<PrimitiveHeapObject> type_name = undefined_value();
+  Handle<PrimitiveHeapObject> eval_origin = frame->GetEvalOrigin();
+  Handle<PrimitiveHeapObject> wasm_module_name = frame->GetWasmModuleName();
+  Handle<HeapObject> wasm_instance = frame->GetWasmInstance();
 
   // MethodName and TypeName are expensive to look up, so they are only
   // included when they are strictly needed by the stack trace

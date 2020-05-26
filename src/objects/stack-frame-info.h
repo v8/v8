@@ -6,6 +6,7 @@
 #define V8_OBJECTS_STACK_FRAME_INFO_H_
 
 #include "src/objects/struct.h"
+#include "torque-generated/bit-fields-tq.h"
 
 // Has to be the last include (doesn't have include guards):
 #include "src/objects/object-macros.h"
@@ -16,24 +17,12 @@ namespace internal {
 class FrameArray;
 class WasmInstanceObject;
 
-class StackFrameInfo : public Struct {
+class StackFrameInfo
+    : public TorqueGeneratedStackFrameInfo<StackFrameInfo, Struct> {
  public:
   NEVER_READ_ONLY_SPACE
-  DECL_INT_ACCESSORS(line_number)
-  DECL_INT_ACCESSORS(column_number)
-  DECL_INT_ACCESSORS(script_id)
-  DECL_INT_ACCESSORS(wasm_function_index)
-  DECL_INT_ACCESSORS(promise_combinator_index)
   // Wasm frames only: function_offset instead of promise_combinator_index.
   DECL_INT_ACCESSORS(function_offset)
-  DECL_ACCESSORS(script_name, Object)
-  DECL_ACCESSORS(script_name_or_source_url, Object)
-  DECL_ACCESSORS(function_name, Object)
-  DECL_ACCESSORS(method_name, Object)
-  DECL_ACCESSORS(type_name, Object)
-  DECL_ACCESSORS(eval_origin, Object)
-  DECL_ACCESSORS(wasm_module_name, Object)
-  DECL_ACCESSORS(wasm_instance, Object)
   DECL_BOOLEAN_ACCESSORS(is_eval)
   DECL_BOOLEAN_ACCESSORS(is_constructor)
   DECL_BOOLEAN_ACCESSORS(is_wasm)
@@ -43,30 +32,15 @@ class StackFrameInfo : public Struct {
   DECL_BOOLEAN_ACCESSORS(is_async)
   DECL_BOOLEAN_ACCESSORS(is_promise_all)
   DECL_BOOLEAN_ACCESSORS(is_promise_any)
-  DECL_INT_ACCESSORS(flag)
-
-  DECL_CAST(StackFrameInfo)
 
   // Dispatched behavior.
   DECL_PRINTER(StackFrameInfo)
-  DECL_VERIFIER(StackFrameInfo)
-
-  DEFINE_FIELD_OFFSET_CONSTANTS(Struct::kHeaderSize,
-                                TORQUE_GENERATED_STACK_FRAME_INFO_FIELDS)
 
  private:
   // Bit position in the flag, from least significant bit position.
-  static const int kIsEvalBit = 0;
-  static const int kIsConstructorBit = 1;
-  static const int kIsWasmBit = 2;
-  static const int kIsAsmJsWasmBit = 3;
-  static const int kIsUserJavaScriptBit = 4;
-  static const int kIsToplevelBit = 5;
-  static const int kIsAsyncBit = 6;
-  static const int kIsPromiseAllBit = 7;
-  static const int kIsPromiseAnyBit = 8;
+  DEFINE_TORQUE_GENERATED_STACK_FRAME_INFO_FLAGS()
 
-  OBJECT_CONSTRUCTORS(StackFrameInfo, Struct);
+  TQ_OBJECT_CONSTRUCTORS(StackFrameInfo)
 };
 
 // This class is used to lazily initialize a StackFrameInfo object from

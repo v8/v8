@@ -27,6 +27,7 @@ class AbstractCode;
 class FrameArray;
 class JSMessageObject;
 class LookupIterator;
+class PrimitiveHeapObject;
 class SharedFunctionInfo;
 class SourceInfo;
 class WasmInstanceObject;
@@ -67,13 +68,13 @@ class StackFrameBase {
   virtual Handle<Object> GetFunction() const = 0;
 
   virtual Handle<Object> GetFileName() = 0;
-  virtual Handle<Object> GetFunctionName() = 0;
+  virtual Handle<PrimitiveHeapObject> GetFunctionName() = 0;
   virtual Handle<Object> GetScriptNameOrSourceUrl() = 0;
-  virtual Handle<Object> GetMethodName() = 0;
-  virtual Handle<Object> GetTypeName() = 0;
-  virtual Handle<Object> GetEvalOrigin();
-  virtual Handle<Object> GetWasmModuleName();
-  virtual Handle<Object> GetWasmInstance();
+  virtual Handle<PrimitiveHeapObject> GetMethodName() = 0;
+  virtual Handle<PrimitiveHeapObject> GetTypeName() = 0;
+  virtual Handle<PrimitiveHeapObject> GetEvalOrigin();
+  virtual Handle<PrimitiveHeapObject> GetWasmModuleName();
+  virtual Handle<HeapObject> GetWasmInstance();
 
   // Returns the script ID if one is attached, -1 otherwise.
   int GetScriptId() const;
@@ -123,10 +124,10 @@ class JSStackFrame : public StackFrameBase {
   Handle<Object> GetFunction() const override;
 
   Handle<Object> GetFileName() override;
-  Handle<Object> GetFunctionName() override;
+  Handle<PrimitiveHeapObject> GetFunctionName() override;
   Handle<Object> GetScriptNameOrSourceUrl() override;
-  Handle<Object> GetMethodName() override;
-  Handle<Object> GetTypeName() override;
+  Handle<PrimitiveHeapObject> GetMethodName() override;
+  Handle<PrimitiveHeapObject> GetTypeName() override;
 
   int GetPosition() const override;
   int GetLineNumber() override;
@@ -171,13 +172,13 @@ class WasmStackFrame : public StackFrameBase {
   Handle<Object> GetReceiver() const override;
   Handle<Object> GetFunction() const override;
 
-  Handle<Object> GetFileName() override { return Null(); }
-  Handle<Object> GetFunctionName() override;
+  Handle<Object> GetFileName() override;
+  Handle<PrimitiveHeapObject> GetFunctionName() override;
   Handle<Object> GetScriptNameOrSourceUrl() override;
-  Handle<Object> GetMethodName() override { return Null(); }
-  Handle<Object> GetTypeName() override { return Null(); }
-  Handle<Object> GetWasmModuleName() override;
-  Handle<Object> GetWasmInstance() override;
+  Handle<PrimitiveHeapObject> GetMethodName() override { return Null(); }
+  Handle<PrimitiveHeapObject> GetTypeName() override { return Null(); }
+  Handle<PrimitiveHeapObject> GetWasmModuleName() override;
+  Handle<HeapObject> GetWasmInstance() override;
 
   int GetPosition() const override;
   int GetLineNumber() override { return 0; }
@@ -196,7 +197,7 @@ class WasmStackFrame : public StackFrameBase {
   bool IsInterpreted() const { return code_ == nullptr; }
 
  protected:
-  Handle<Object> Null() const;
+  Handle<PrimitiveHeapObject> Null() const;
 
   bool HasScript() const override;
   Handle<Script> GetScript() const override;
