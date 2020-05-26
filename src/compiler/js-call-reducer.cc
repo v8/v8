@@ -65,7 +65,6 @@ class JSCallReducerAssembler : public JSGraphAssembler {
     outermost_catch_scope_.set_has_handler(has_handler);
     outermost_catch_scope_.set_gasm(this);
   }
-  virtual ~JSCallReducerAssembler() {}
 
   TNode<Object> ReduceMathUnary(const Operator* op);
   TNode<Object> ReduceMathBinary(const Operator* op);
