@@ -1081,6 +1081,8 @@ void Decoder::DecodeIType(Instruction* instr) {
           Format(instr, "nop");
         else
           Format(instr, "mv        'rd, 'rs1");
+      } else if (instr->Rs1Value() == zero_reg.code()) {
+        Format(instr, "li        'rd, 'imm12");
       } else {
         Format(instr, "addi      'rd, 'rs1, 'imm12");
       }
