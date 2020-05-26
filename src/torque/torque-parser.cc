@@ -1602,6 +1602,17 @@ base::Optional<ParseResult> MakeRightShiftIdentifier(
   return ParseResult{MakeNode<Identifier>(str)};
 }
 
+base::Optional<ParseResult> MakeNamespaceQualification(
+    ParseResultIterator* child_results) {
+  bool global_namespace = child_results->NextAs<bool>();
+  auto namespace_qualification =
+      child_results->NextAs<std::vector<std::string>>();
+  if (global_namespace) {
+    namespace_qualification.insert(namespace_qualification.begin(), "");
+  }
+  return ParseResult(std::move(namespace_qualification));
+}
+
 base::Optional<ParseResult> MakeIdentifierExpression(
     ParseResultIterator* child_results) {
   auto namespace_qualification =
@@ -1982,14 +1993,19 @@ struct TorqueGrammar : Grammar {
   // Result: std::vector<Annotation>
   Symbol* annotations = List<Annotation>(&annotation);
 
+  // Result: std::vector<std::string>
+  Symbol namespaceQualification = {
+      Rule({CheckIf(Token("::")),
+            List<std::string>(Sequence({&identifier, Token("::")}))},
+           MakeNamespaceQualification)};
+
   // Result: TypeList
   Symbol* typeList = List<TypeExpression*>(&type, Token(","));
 
   // Result: TypeExpression*
   Symbol simpleType = {
       Rule({Token("("), &type, Token(")")}),
-      Rule({List<std::string>(Sequence({&identifier, Token("::")})),
-            CheckIf(Token("constexpr")), &identifier,
+      Rule({&namespaceQualification, CheckIf(Token("constexpr")), &identifier,
             TryOrDefault<std::vector<TypeExpression*>>(
                 &genericSpecializationTypeList)},
            MakeBasicTypeExpression),
@@ -2123,7 +2139,7 @@ struct TorqueGrammar : Grammar {
 
   // Result: Expression*
   Symbol identifierExpression = {
-      Rule({List<std::string>(Sequence({&identifier, Token("::")})), &name,
+      Rule({&namespaceQualification, &name,
             TryOrDefault<TypeList>(&genericSpecializationTypeList)},
            MakeIdentifierExpression),
   };

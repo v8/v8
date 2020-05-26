@@ -46,16 +46,6 @@ extern runtime BigIntBinaryOp(
     Context, Numeric, Numeric, SmiTagged<Operation>): BigInt;
 }  // namespace runtime
 
-// Disambiguate macros with the same name as JS builtins.
-// TODO(bbudge) Clean this up with appropriate namespaces.
-macro NumberIsNaNImpl(number: Number): bool {
-  return NumberIsNaN(number);
-}
-
-macro StrictEqualImpl(left: JSAny, right: JSAny): Boolean {
-  return StrictEqual(left, right);
-}
-
 namespace number {
 extern macro NaNStringConstant(): String;
 extern macro ZeroStringConstant(): String;
@@ -111,7 +101,7 @@ transitioning javascript builtin NumberPrototypeToString(
 
   if (x == -0) {
     return ZeroStringConstant();
-  } else if (NumberIsNaNImpl(x)) {
+  } else if (::NumberIsNaN(x)) {
     return NaNStringConstant();
   } else if (x == V8_INFINITY) {
     return InfinityStringConstant();
@@ -639,7 +629,7 @@ builtin Equal(implicit context: Context)(left: JSAny, right: JSAny): Object {
 
 builtin StrictEqual(implicit context: Context)(
     left: JSAny, right: JSAny): Object {
-  return StrictEqualImpl(left, right);
+  return ::StrictEqual(left, right);
 }
 
 }  // namespace number
