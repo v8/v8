@@ -67,11 +67,12 @@ MaybeHandle<HeapObject> ObjectDeserializer::Deserialize(
       LogNewMapEvents();
     }
     result = handle(HeapObject::cast(root), local_isolate);
-    Rehash();
     if (is_main_thread()) {
       allocator()->RegisterDeserializedObjectsForBlackAllocation();
     }
   }
+
+  Rehash();
   CommitPostProcessedObjects();
   return scope.CloseAndEscape(result);
 }
