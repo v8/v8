@@ -25,6 +25,8 @@
 #include "src/roots/roots.h"
 #include "src/utils/ostreams.h"
 #include "src/zone/zone-containers.h"
+#include "torque-generated/exported-class-definitions-tq-inl.h"
+#include "torque-generated/exported-class-definitions-tq.h"
 #include "torque-generated/field-offsets-tq.h"
 
 namespace v8 {
@@ -1437,8 +1439,9 @@ bool Map::MayHaveReadOnlyElementsInPrototypeChain(Isolate* isolate) {
     }
 
     if (IsSlowArgumentsElementsKind(elements_kind)) {
-      FixedArray parameter_map = FixedArray::cast(current.elements(isolate));
-      Object arguments = parameter_map.get(isolate, 1);
+      SloppyArgumentsElements elements =
+          SloppyArgumentsElements::cast(current.elements(isolate));
+      Object arguments = elements.arguments();
       if (NumberDictionary::cast(arguments).requires_slow_elements()) {
         return true;
       }
