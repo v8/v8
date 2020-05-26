@@ -795,12 +795,6 @@ namespace internal {
   TFJ(TypedArrayPrototypeByteOffset, 0, kReceiver)                             \
   /* ES6 #sec-get-%typedarray%.prototype.length */                             \
   TFJ(TypedArrayPrototypeLength, 0, kReceiver)                                 \
-  /* ES6 #sec-%typedarray%.prototype.entries */                                \
-  TFJ(TypedArrayPrototypeEntries, 0, kReceiver)                                \
-  /* ES6 #sec-%typedarray%.prototype.keys */                                   \
-  TFJ(TypedArrayPrototypeKeys, 0, kReceiver)                                   \
-  /* ES6 #sec-%typedarray%.prototype.values */                                 \
-  TFJ(TypedArrayPrototypeValues, 0, kReceiver)                                 \
   /* ES6 #sec-%typedarray%.prototype.copywithin */                             \
   CPP(TypedArrayPrototypeCopyWithin)                                           \
   /* ES6 #sec-%typedarray%.prototype.fill */                                   \

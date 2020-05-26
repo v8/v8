@@ -12433,28 +12433,6 @@ TNode<Number> CodeStubAssembler::BitwiseOp(TNode<Word32T> left32,
   UNREACHABLE();
 }
 
-// ES #sec-createarrayiterator
-TNode<JSArrayIterator> CodeStubAssembler::CreateArrayIterator(
-    TNode<Context> context, TNode<Object> object, IterationKind kind) {
-  TNode<NativeContext> native_context = LoadNativeContext(context);
-  TNode<Map> iterator_map = CAST(LoadContextElement(
-      native_context, Context::INITIAL_ARRAY_ITERATOR_MAP_INDEX));
-  TNode<HeapObject> iterator = Allocate(JSArrayIterator::kHeaderSize);
-  StoreMapNoWriteBarrier(iterator, iterator_map);
-  StoreObjectFieldRoot(iterator, JSArrayIterator::kPropertiesOrHashOffset,
-                       RootIndex::kEmptyFixedArray);
-  StoreObjectFieldRoot(iterator, JSArrayIterator::kElementsOffset,
-                       RootIndex::kEmptyFixedArray);
-  StoreObjectFieldNoWriteBarrier(
-      iterator, JSArrayIterator::kIteratedObjectOffset, object);
-  StoreObjectFieldNoWriteBarrier(iterator, JSArrayIterator::kNextIndexOffset,
-                                 SmiConstant(0));
-  StoreObjectFieldNoWriteBarrier(
-      iterator, JSArrayIterator::kKindOffset,
-      SmiConstant(Smi::FromInt(static_cast<int>(kind))));
-  return CAST(iterator);
-}
-
 TNode<JSObject> CodeStubAssembler::AllocateJSIteratorResult(
     SloppyTNode<Context> context, SloppyTNode<Object> value,
     SloppyTNode<Oddball> done) {

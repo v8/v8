@@ -2042,11 +2042,6 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
       Node* capacity, ParameterMode mode = INTPTR_PARAMETERS,
       AllocationFlags flags = kNone);
 
-  // Perform CreateArrayIterator (ES #sec-createarrayiterator).
-  TNode<JSArrayIterator> CreateArrayIterator(TNode<Context> context,
-                                             TNode<Object> object,
-                                             IterationKind mode);
-
   // TODO(v8:9722): Return type should be JSIteratorResult
   TNode<JSObject> AllocateJSIteratorResult(SloppyTNode<Context> context,
                                            SloppyTNode<Object> value,

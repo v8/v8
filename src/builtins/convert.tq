@@ -95,6 +95,11 @@ FromConstexpr<PromiseState, constexpr PromiseState>(c: constexpr PromiseState):
   return %RawDownCast<PromiseState>(Int32Constant(c));
 }
 
+FromConstexpr<IterationKind, constexpr IterationKind>(
+    c: constexpr IterationKind): IterationKind {
+  return %RawDownCast<IterationKind>(Unsigned(%FromConstexpr<int32>(c)));
+}
+
 macro Convert<To: type, From: type>(i: From): To {
   return i;
 }
