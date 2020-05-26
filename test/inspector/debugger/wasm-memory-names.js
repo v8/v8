@@ -62,6 +62,7 @@ async function logMemoryName(msg, Protocol) {
                             })).result.result;
 
     for (let prop of moduleObjectProps) {
+      if (prop.name == 'instance') continue;
       InspectorTest.log(`name: ${prop.name}`);
     }
   }

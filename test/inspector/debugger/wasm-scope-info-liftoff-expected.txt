@@ -5,30 +5,36 @@ Calling instantiate function.
 Got wasm script!
 Setting breakpoint on line 2 (first instruction) of third function
 {
-    columnNumber : 85
+    columnNumber : 150
     lineNumber : 0
     scriptId : <scriptId>
 }
 Paused:
-Script wasm://wasm/c4eb034a byte offset 85: Wasm opcode 0x20
+Script wasm://wasm/be0fbeba byte offset 150: Wasm opcode 0x20
 Scope:
-at C (interpreted) (0:85):
+at C (interpreted) (0:150):
  - scope (module):
-   globals: "global0": 0 (i32)
+   instance: exports: "exported_global" (Global), "exported_memory" (Memory), "exported_table" (Table), "main" (Function)
+   exported_memory: Uint8Array(65536)
+   globals: "exported_global": 0 (i32)
  - scope (local):
    locals: "i32_arg": 42 (i32), "i32_local": 0 (i32)
  - scope (wasm-expression-stack):
-at B (liftoff) (0:76):
+at B (liftoff) (0:141):
  - scope (module):
-   globals: "global0": 0 (i32)
+   instance: exports: "exported_global" (Global), "exported_memory" (Memory), "exported_table" (Table), "main" (Function)
+   exported_memory: Uint8Array(65536)
+   globals: "exported_global": 0 (i32)
  - scope (local):
    locals: "0": 0 (f32), "i32_arg": 42 (i32), "i32_local": 0 (i32), "f32_local": 7.199999809265137 (f32), "var5": 0 (f32)
  - scope (wasm-expression-stack):
    0: 42 (i32)
    1: 3 (i32)
-at A (liftoff) (0:54):
+at A (liftoff) (0:119):
  - scope (module):
-   globals: "global0": 0 (i32)
+   instance: exports: "exported_global" (Global), "exported_memory" (Memory), "exported_table" (Table), "main" (Function)
+   exported_memory: Uint8Array(65536)
+   globals: "exported_global": 0 (i32)
  - scope (local):
    locals: "var0": 42 (i32)
  - scope (wasm-expression-stack):
@@ -37,26 +43,32 @@ at (anonymous) (0:17):
    -- skipped globals
 
 Paused:
-Script wasm://wasm/c4eb034a byte offset 87: Wasm opcode 0x24
+Script wasm://wasm/be0fbeba byte offset 152: Wasm opcode 0x24
 Scope:
-at C (interpreted) (0:87):
+at C (interpreted) (0:152):
  - scope (module):
-   globals: "global0": 0 (i32)
+   instance: exports: "exported_global" (Global), "exported_memory" (Memory), "exported_table" (Table), "main" (Function)
+   exported_memory: Uint8Array(65536)
+   globals: "exported_global": 0 (i32)
  - scope (local):
    locals: "i32_arg": 42 (i32), "i32_local": 0 (i32)
  - scope (wasm-expression-stack):
    0: 42 (i32)
-at B (liftoff) (0:76):
+at B (liftoff) (0:141):
  - scope (module):
-   globals: "global0": 0 (i32)
+   instance: exports: "exported_global" (Global), "exported_memory" (Memory), "exported_table" (Table), "main" (Function)
+   exported_memory: Uint8Array(65536)
+   globals: "exported_global": 0 (i32)
  - scope (local):
    locals: "0": 0 (f32), "i32_arg": 42 (i32), "i32_local": 0 (i32), "f32_local": 7.199999809265137 (f32), "var5": 0 (f32)
  - scope (wasm-expression-stack):
    0: 42 (i32)
    1: 3 (i32)
-at A (liftoff) (0:54):
+at A (liftoff) (0:119):
  - scope (module):
-   globals: "global0": 0 (i32)
+   instance: exports: "exported_global" (Global), "exported_memory" (Memory), "exported_table" (Table), "main" (Function)
+   exported_memory: Uint8Array(65536)
+   globals: "exported_global": 0 (i32)
  - scope (local):
    locals: "var0": 42 (i32)
  - scope (wasm-expression-stack):
@@ -65,25 +77,31 @@ at (anonymous) (0:17):
    -- skipped globals
 
 Paused:
-Script wasm://wasm/c4eb034a byte offset 89: Wasm opcode 0x41
+Script wasm://wasm/be0fbeba byte offset 154: Wasm opcode 0x41
 Scope:
-at C (interpreted) (0:89):
+at C (interpreted) (0:154):
  - scope (module):
-   globals: "global0": 42 (i32)
+   instance: exports: "exported_global" (Global), "exported_memory" (Memory), "exported_table" (Table), "main" (Function)
+   exported_memory: Uint8Array(65536)
+   globals: "exported_global": 42 (i32)
  - scope (local):
    locals: "i32_arg": 42 (i32), "i32_local": 0 (i32)
  - scope (wasm-expression-stack):
-at B (liftoff) (0:76):
+at B (liftoff) (0:141):
  - scope (module):
-   globals: "global0": 42 (i32)
+   instance: exports: "exported_global" (Global), "exported_memory" (Memory), "exported_table" (Table), "main" (Function)
+   exported_memory: Uint8Array(65536)
+   globals: "exported_global": 42 (i32)
  - scope (local):
    locals: "0": 0 (f32), "i32_arg": 42 (i32), "i32_local": 0 (i32), "f32_local": 7.199999809265137 (f32), "var5": 0 (f32)
  - scope (wasm-expression-stack):
    0: 42 (i32)
    1: 3 (i32)
-at A (liftoff) (0:54):
+at A (liftoff) (0:119):
  - scope (module):
-   globals: "global0": 42 (i32)
+   instance: exports: "exported_global" (Global), "exported_memory" (Memory), "exported_table" (Table), "main" (Function)
+   exported_memory: Uint8Array(65536)
+   globals: "exported_global": 42 (i32)
  - scope (local):
    locals: "var0": 42 (i32)
  - scope (wasm-expression-stack):
@@ -92,26 +110,32 @@ at (anonymous) (0:17):
    -- skipped globals
 
 Paused:
-Script wasm://wasm/c4eb034a byte offset 91: Wasm opcode 0x21
+Script wasm://wasm/be0fbeba byte offset 156: Wasm opcode 0x21
 Scope:
-at C (interpreted) (0:91):
+at C (interpreted) (0:156):
  - scope (module):
-   globals: "global0": 42 (i32)
+   instance: exports: "exported_global" (Global), "exported_memory" (Memory), "exported_table" (Table), "main" (Function)
+   exported_memory: Uint8Array(65536)
+   globals: "exported_global": 42 (i32)
  - scope (local):
    locals: "i32_arg": 42 (i32), "i32_local": 0 (i32)
  - scope (wasm-expression-stack):
    0: 47 (i32)
-at B (liftoff) (0:76):
+at B (liftoff) (0:141):
  - scope (module):
-   globals: "global0": 42 (i32)
+   instance: exports: "exported_global" (Global), "exported_memory" (Memory), "exported_table" (Table), "main" (Function)
+   exported_memory: Uint8Array(65536)
+   globals: "exported_global": 42 (i32)
  - scope (local):
    locals: "0": 0 (f32), "i32_arg": 42 (i32), "i32_local": 0 (i32), "f32_local": 7.199999809265137 (f32), "var5": 0 (f32)
  - scope (wasm-expression-stack):
    0: 42 (i32)
    1: 3 (i32)
-at A (liftoff) (0:54):
+at A (liftoff) (0:119):
  - scope (module):
-   globals: "global0": 42 (i32)
+   instance: exports: "exported_global" (Global), "exported_memory" (Memory), "exported_table" (Table), "main" (Function)
+   exported_memory: Uint8Array(65536)
+   globals: "exported_global": 42 (i32)
  - scope (local):
    locals: "var0": 42 (i32)
  - scope (wasm-expression-stack):
@@ -120,25 +144,31 @@ at (anonymous) (0:17):
    -- skipped globals
 
 Paused:
-Script wasm://wasm/c4eb034a byte offset 93: Wasm opcode 0x0b
+Script wasm://wasm/be0fbeba byte offset 158: Wasm opcode 0x0b
 Scope:
-at C (interpreted) (0:93):
+at C (interpreted) (0:158):
  - scope (module):
-   globals: "global0": 42 (i32)
+   instance: exports: "exported_global" (Global), "exported_memory" (Memory), "exported_table" (Table), "main" (Function)
+   exported_memory: Uint8Array(65536)
+   globals: "exported_global": 42 (i32)
  - scope (local):
    locals: "i32_arg": 42 (i32), "i32_local": 47 (i32)
  - scope (wasm-expression-stack):
-at B (liftoff) (0:76):
+at B (liftoff) (0:141):
  - scope (module):
-   globals: "global0": 42 (i32)
+   instance: exports: "exported_global" (Global), "exported_memory" (Memory), "exported_table" (Table), "main" (Function)
+   exported_memory: Uint8Array(65536)
+   globals: "exported_global": 42 (i32)
  - scope (local):
    locals: "0": 0 (f32), "i32_arg": 42 (i32), "i32_local": 0 (i32), "f32_local": 7.199999809265137 (f32), "var5": 0 (f32)
  - scope (wasm-expression-stack):
    0: 42 (i32)
    1: 3 (i32)
-at A (liftoff) (0:54):
+at A (liftoff) (0:119):
  - scope (module):
-   globals: "global0": 42 (i32)
+   instance: exports: "exported_global" (Global), "exported_memory" (Memory), "exported_table" (Table), "main" (Function)
+   exported_memory: Uint8Array(65536)
+   globals: "exported_global": 42 (i32)
  - scope (local):
    locals: "var0": 42 (i32)
  - scope (wasm-expression-stack):
@@ -147,19 +177,23 @@ at (anonymous) (0:17):
    -- skipped globals
 
 Paused:
-Script wasm://wasm/c4eb034a byte offset 78: Wasm opcode 0x1a
+Script wasm://wasm/be0fbeba byte offset 143: Wasm opcode 0x1a
 Scope:
-at B (liftoff) (0:78):
+at B (liftoff) (0:143):
  - scope (module):
-   globals: "global0": 42 (i32)
+   instance: exports: "exported_global" (Global), "exported_memory" (Memory), "exported_table" (Table), "main" (Function)
+   exported_memory: Uint8Array(65536)
+   globals: "exported_global": 42 (i32)
  - scope (local):
    locals: "0": 0 (f32), "i32_arg": 42 (i32), "i32_local": 0 (i32), "f32_local": 7.199999809265137 (f32), "var5": 0 (f32)
  - scope (wasm-expression-stack):
    0: 42 (i32)
    1: 3 (i32)
-at A (liftoff) (0:54):
+at A (liftoff) (0:119):
  - scope (module):
-   globals: "global0": 42 (i32)
+   instance: exports: "exported_global" (Global), "exported_memory" (Memory), "exported_table" (Table), "main" (Function)
+   exported_memory: Uint8Array(65536)
+   globals: "exported_global": 42 (i32)
  - scope (local):
    locals: "var0": 42 (i32)
  - scope (wasm-expression-stack):
@@ -168,18 +202,22 @@ at (anonymous) (0:17):
    -- skipped globals
 
 Paused:
-Script wasm://wasm/c4eb034a byte offset 79: Wasm opcode 0x1a
+Script wasm://wasm/be0fbeba byte offset 144: Wasm opcode 0x1a
 Scope:
-at B (liftoff) (0:79):
+at B (liftoff) (0:144):
  - scope (module):
-   globals: "global0": 42 (i32)
+   instance: exports: "exported_global" (Global), "exported_memory" (Memory), "exported_table" (Table), "main" (Function)
+   exported_memory: Uint8Array(65536)
+   globals: "exported_global": 42 (i32)
  - scope (local):
    locals: "0": 0 (f32), "i32_arg": 42 (i32), "i32_local": 0 (i32), "f32_local": 7.199999809265137 (f32), "var5": 0 (f32)
  - scope (wasm-expression-stack):
    0: 42 (i32)
-at A (liftoff) (0:54):
+at A (liftoff) (0:119):
  - scope (module):
-   globals: "global0": 42 (i32)
+   instance: exports: "exported_global" (Global), "exported_memory" (Memory), "exported_table" (Table), "main" (Function)
+   exported_memory: Uint8Array(65536)
+   globals: "exported_global": 42 (i32)
  - scope (local):
    locals: "var0": 42 (i32)
  - scope (wasm-expression-stack):
@@ -188,17 +226,21 @@ at (anonymous) (0:17):
    -- skipped globals
 
 Paused:
-Script wasm://wasm/c4eb034a byte offset 80: Wasm opcode 0x0b
+Script wasm://wasm/be0fbeba byte offset 145: Wasm opcode 0x0b
 Scope:
-at B (liftoff) (0:80):
+at B (liftoff) (0:145):
  - scope (module):
-   globals: "global0": 42 (i32)
+   instance: exports: "exported_global" (Global), "exported_memory" (Memory), "exported_table" (Table), "main" (Function)
+   exported_memory: Uint8Array(65536)
+   globals: "exported_global": 42 (i32)
  - scope (local):
    locals: "0": 0 (f32), "i32_arg": 42 (i32), "i32_local": 0 (i32), "f32_local": 7.199999809265137 (f32), "var5": 0 (f32)
  - scope (wasm-expression-stack):
-at A (liftoff) (0:54):
+at A (liftoff) (0:119):
  - scope (module):
-   globals: "global0": 42 (i32)
+   instance: exports: "exported_global" (Global), "exported_memory" (Memory), "exported_table" (Table), "main" (Function)
+   exported_memory: Uint8Array(65536)
+   globals: "exported_global": 42 (i32)
  - scope (local):
    locals: "var0": 42 (i32)
  - scope (wasm-expression-stack):
@@ -207,11 +249,13 @@ at (anonymous) (0:17):
    -- skipped globals
 
 Paused:
-Script wasm://wasm/c4eb034a byte offset 56: Wasm opcode 0x0b
+Script wasm://wasm/be0fbeba byte offset 121: Wasm opcode 0x0b
 Scope:
-at A (liftoff) (0:56):
+at A (liftoff) (0:121):
  - scope (module):
-   globals: "global0": 42 (i32)
+   instance: exports: "exported_global" (Global), "exported_memory" (Memory), "exported_table" (Table), "main" (Function)
+   exported_memory: Uint8Array(65536)
+   globals: "exported_global": 42 (i32)
  - scope (local):
    locals: "var0": 42 (i32)
  - scope (wasm-expression-stack):
