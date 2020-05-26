@@ -1592,9 +1592,6 @@ class WasmCompileFuzzer : public WasmExecutionFuzzer {
 
       WasmGenerator gen(f, function_signatures, globals, mutable_globals,
                         &function_range);
-      if (sig->return_count() == 0) {
-        gen.Generate(kWasmStmt, &function_range);
-      }
       Vector<const ValueType> return_types(sig->returns().begin(),
                                            sig->return_count());
       gen.Generate(return_types, &function_range);
