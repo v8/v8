@@ -21737,11 +21737,10 @@ THREADED_TEST(FunctionNew) {
   CHECK(v8::Integer::New(isolate, 17)->Equals(env.local(), result).FromJust());
   // Serial number should be invalid => should not be cached.
   auto serial_number =
-      i::Smi::cast(i::Handle<i::JSFunction>::cast(v8::Utils::OpenHandle(*func))
-                       ->shared()
-                       .get_api_func_data()
-                       .serial_number())
-          .value();
+      i::Handle<i::JSFunction>::cast(v8::Utils::OpenHandle(*func))
+          ->shared()
+          .get_api_func_data()
+          .serial_number();
   CHECK_EQ(i::FunctionTemplateInfo::kInvalidSerialNumber, serial_number);
 
   // Verify that each Function::New creates a new function instance
