@@ -731,8 +731,17 @@ VisitResult ImplementationVisitor::Visit(LogicalAndExpression* expr) {
   VisitResult true_result;
   {
     StackScope true_block_scope(this);
+    VisitResult right_result = Visit(expr->right);
+    if (TryGetSourceForBitfieldExpression(expr->left) != nullptr &&
+        TryGetSourceForBitfieldExpression(expr->right) != nullptr &&
+        TryGetSourceForBitfieldExpression(expr->left)->value ==
+            TryGetSourceForBitfieldExpression(expr->right)->value) {
+      Lint(
+          "Please use & rather than && when checking multiple bitfield "
+          "values, to avoid complexity in generated code.");
+    }
     true_result = true_block_scope.Yield(
-        GenerateImplicitConvert(TypeOracle::GetBoolType(), Visit(expr->right)));
+        GenerateImplicitConvert(TypeOracle::GetBoolType(), right_result));
   }
   assembler().Goto(done_block);
 
@@ -831,6 +840,17 @@ VisitResult ImplementationVisitor::GetBuiltinCode(Builtin* builtin) {
 VisitResult ImplementationVisitor::Visit(LocationExpression* expr) {
   StackScope scope(this);
   return scope.Yield(GenerateFetchFromLocation(GetLocationReference(expr)));
+}
+
+VisitResult ImplementationVisitor::Visit(FieldAccessExpression* expr) {
+  StackScope scope(this);
+  LocationReference location = GetLocationReference(expr);
+  if (location.IsBitFieldAccess()) {
+    if (auto* identifier = IdentifierExpression::DynamicCast(expr->object)) {
+      bitfield_expressions_[expr] = identifier->name;
+    }
+  }
+  return scope.Yield(GenerateFetchFromLocation(location));
 }
 
 const Type* ImplementationVisitor::Visit(GotoStatement* stmt) {
@@ -2681,6 +2701,16 @@ VisitResult ImplementationVisitor::Visit(CallExpression* expr,
                                           arguments, specialization_types);
       LanguageServerData::AddDefinition(expr->callee->name->pos,
                                         callable->IdentifierPosition());
+    }
+    if (expr->callee->name->value == "!" && arguments.parameters.size() == 1) {
+      PropagateBitfieldMark(expr->arguments[0], expr);
+    }
+    if (expr->callee->name->value == "==" && arguments.parameters.size() == 2) {
+      if (arguments.parameters[0].type()->IsConstexpr()) {
+        PropagateBitfieldMark(expr->arguments[1], expr);
+      } else if (arguments.parameters[1].type()->IsConstexpr()) {
+        PropagateBitfieldMark(expr->arguments[0], expr);
+      }
     }
     return scope.Yield(
         GenerateCall(name, arguments, specialization_types, is_tailcall));
