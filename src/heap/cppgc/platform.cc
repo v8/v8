@@ -10,16 +10,18 @@
 namespace cppgc {
 namespace internal {
 
-static PageAllocator* g_page_allocator;
+static Platform* g_platform;
 
 }  // namespace internal
 
-void InitializePlatform(PageAllocator* page_allocator) {
-  internal::g_page_allocator = page_allocator;
-  internal::GlobalGCInfoTable::Create(page_allocator);
+void InitializePlatform(Platform* platform) {
+  internal::g_platform = platform;
+  internal::GlobalGCInfoTable::Create(internal::g_platform->GetPageAllocator());
 }
 
-void ShutdownPlatform() { internal::g_page_allocator = nullptr; }
+Platform* GetPlatform() { return internal::g_platform; }
+
+void ShutdownPlatform() { internal::g_platform = nullptr; }
 
 namespace internal {
 

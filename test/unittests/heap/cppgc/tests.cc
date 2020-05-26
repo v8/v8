@@ -6,23 +6,25 @@
 
 #include <memory>
 
+#include "test/unittests/heap/cppgc/test-platform.h"
+
 namespace cppgc {
 namespace internal {
 namespace testing {
 
 // static
-std::unique_ptr<cppgc::PageAllocator> TestWithPlatform::page_allocator_;
+std::unique_ptr<TestPlatform> TestWithPlatform::platform_;
 
 // static
 void TestWithPlatform::SetUpTestSuite() {
-  page_allocator_ = std::make_unique<v8::base::PageAllocator>();
-  cppgc::InitializePlatform(page_allocator_.get());
+  platform_ = std::make_unique<TestPlatform>();
+  cppgc::InitializePlatform(platform_.get());
 }
 
 // static
 void TestWithPlatform::TearDownTestSuite() {
   cppgc::ShutdownPlatform();
-  page_allocator_.reset();
+  platform_.reset();
 }
 
 TestWithHeap::TestWithHeap() : heap_(Heap::Create()) {}

@@ -7,8 +7,8 @@
 
 #include "include/cppgc/heap.h"
 #include "include/cppgc/platform.h"
-#include "src/base/page-allocator.h"
 #include "src/heap/cppgc/heap.h"
+#include "test/unittests/heap/cppgc/test-platform.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
 namespace cppgc {
@@ -20,8 +20,10 @@ class TestWithPlatform : public ::testing::Test {
   static void SetUpTestSuite();
   static void TearDownTestSuite();
 
+  TestPlatform& GetPlatform() const { return *platform_; }
+
  private:
-  static std::unique_ptr<cppgc::PageAllocator> page_allocator_;
+  static std::unique_ptr<TestPlatform> platform_;
 };
 
 class TestWithHeap : public TestWithPlatform {
