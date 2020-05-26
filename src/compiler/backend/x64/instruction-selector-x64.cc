@@ -1898,16 +1898,33 @@ void VisitWord32EqualImpl(InstructionSelector* selector, Node* node,
     X64OperandGenerator g(selector);
     const RootsTable& roots_table = selector->isolate()->roots_table();
     RootIndex root_index;
-    CompressedHeapObjectBinopMatcher m(node);
-    if (m.right().HasValue() &&
-        roots_table.IsRootHandle(m.right().Value(), &root_index)) {
+    Node* left = nullptr;
+    Handle<HeapObject> right;
+    // HeapConstants and CompressedHeapConstants can be treated the same when
+    // using them as an input to a 32-bit comparison. Check whether either is
+    // present.
+    {
+      CompressedHeapObjectBinopMatcher m(node);
+      if (m.right().HasValue()) {
+        left = m.left().node();
+        right = m.right().Value();
+      } else {
+        HeapObjectBinopMatcher m2(node);
+        if (m2.right().HasValue()) {
+          left = m2.left().node();
+          right = m2.right().Value();
+        }
+      }
+    }
+    if (!right.is_null() && roots_table.IsRootHandle(right, &root_index)) {
+      DCHECK_NE(left, nullptr);
       InstructionCode opcode =
           kX64Cmp32 | AddressingModeField::encode(kMode_Root);
       return VisitCompare(
           selector, opcode,
           g.TempImmediate(
               TurboAssemblerBase::RootRegisterOffsetForRootIndex(root_index)),
-          g.UseRegister(m.left().node()), cont);
+          g.UseRegister(left), cont);
     }
   }
   VisitWordCompare(selector, node, kX64Cmp32, cont);
