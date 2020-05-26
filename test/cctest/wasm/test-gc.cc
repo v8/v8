@@ -37,8 +37,8 @@ WASM_EXEC_TEST(BasicStruct) {
 
   WasmModuleBuilder* builder = new (&zone) WasmModuleBuilder(&zone);
   StructType::Builder type_builder(&zone, 2);
-  type_builder.AddField(kWasmI32);
-  type_builder.AddField(kWasmI32);
+  type_builder.AddField(kWasmI32, true);
+  type_builder.AddField(kWasmI32, true);
   int32_t type_index = builder->AddStructType(type_builder.Build());
   ValueType kRefTypes[] = {ValueType(ValueType::kRef, type_index)};
   ValueType kOptRefType = ValueType(ValueType::kOptRef, type_index);
@@ -218,8 +218,8 @@ WASM_EXEC_TEST(LetInstruction) {
 
   WasmModuleBuilder* builder = new (&zone) WasmModuleBuilder(&zone);
   StructType::Builder type_builder(&zone, 2);
-  type_builder.AddField(kWasmI32);
-  type_builder.AddField(kWasmI32);
+  type_builder.AddField(kWasmI32, true);
+  type_builder.AddField(kWasmI32, true);
   int32_t type_index = builder->AddStructType(type_builder.Build());
   ValueType kRefTypes[] = {ValueType(ValueType::kRef, type_index)};
   FunctionSig sig_q_v(1, 0, kRefTypes);
@@ -316,7 +316,7 @@ WASM_EXEC_TEST(BasicArray) {
   Zone zone(&allocator, ZONE_NAME);
 
   WasmModuleBuilder* builder = new (&zone) WasmModuleBuilder(&zone);
-  ArrayType type(wasm::kWasmI32);
+  ArrayType type(wasm::kWasmI32, true);
   int32_t type_index = builder->AddArrayType(&type);
   ValueType kRefTypes[] = {ValueType(ValueType::kRef, type_index)};
   FunctionSig sig_q_v(1, 0, kRefTypes);

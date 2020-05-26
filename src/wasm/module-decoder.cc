@@ -1754,6 +1754,21 @@ class ModuleDecoderImpl : public Decoder {
     return result;
   }
 
+  ValueType consume_storage_type() {
+    uint8_t opcode = read_u8<kValidate>(this->pc());
+    switch (opcode) {
+      case kLocalI8:
+        consume_bytes(1);
+        return kWasmI8;
+      case kLocalI16:
+        consume_bytes(1);
+        return kWasmI16;
+      default:
+        // It is not a packed type, so it has to be a value type.
+        return consume_value_type();
+    }
+  }
+
   // Reads a single 8-bit integer, interpreting it as a reference type.
   ValueType consume_reference_type() {
     byte val = consume_u8("reference type");
@@ -1824,30 +1839,35 @@ class ModuleDecoderImpl : public Decoder {
     // TODO(7748): Introduce a proper maximum.
     uint32_t field_count = consume_count("field count", 999);
     if (failed()) return nullptr;
-    std::vector<ValueType> fields;
+    ValueType* fields = zone->NewArray<ValueType>(field_count);
+    bool* mutabilities = zone->NewArray<bool>(field_count);
     for (uint32_t i = 0; ok() && i < field_count; ++i) {
-      ValueType field = consume_value_type();
+      ValueType field = consume_storage_type();
       if (field.has_immediate()) {
         deferred_struct_field_type_offsets_.emplace(field.ref_index(),
                                                     pc_offset());
       }
-      fields.push_back(field);
+      fields[i] = field;
+      bool mutability = consume_mutability();
+      mutabilities[i] = mutability;
     }
     if (failed()) return nullptr;
-    ValueType* buffer = zone->NewArray<ValueType>(field_count);
-    for (uint32_t i = 0; i < field_count; i++) buffer[i] = fields[i];
     uint32_t* offsets = zone->NewArray<uint32_t>(field_count);
-    return new (zone) StructType(field_count, offsets, buffer);
+    return new (zone) StructType(field_count, offsets, fields, mutabilities);
   }
 
   const ArrayType* consume_array(Zone* zone) {
-    ValueType field = consume_value_type();
+    ValueType field = consume_storage_type();
     if (failed()) return nullptr;
     if (field.has_immediate()) {
       deferred_struct_field_type_offsets_.emplace(field.ref_index(),
                                                   pc_offset());
     }
-    return new (zone) ArrayType(field);
+    bool mutability = consume_mutability();
+    if (!mutability) {
+      error(this->pc() - 1, "immutable arrays are not supported yet");
+    }
+    return new (zone) ArrayType(field, mutability);
   }
 
   // Consume the attribute field of an exception.

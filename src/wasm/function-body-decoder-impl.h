@@ -3223,10 +3223,18 @@ class WasmFullDecoder : public WasmDecoder<validate> {
       case kExprStructGet: {
         FieldIndexImmediate<validate> field(this, this->pc_ + len);
         if (!this->Validate(this->pc_ + len, field)) break;
+        ValueType field_type =
+            field.struct_index.struct_type->field(field.index);
+        if (field_type.IsPacked()) {
+          this->error(this->pc_,
+                      "struct.get used with a field of packed type. "
+                      "Use struct.get_s or struct.get_u instead.");
+          break;
+        }
         len += field.length;
         Value struct_obj =
             Pop(0, ValueType(ValueType::kOptRef, field.struct_index.index));
-        Value* value = Push(field.struct_index.struct_type->field(field.index));
+        Value* value = Push(field_type);
         CALL_INTERFACE_IF_REACHABLE(StructGet, struct_obj, field, value);
         break;
       }
@@ -3234,8 +3242,14 @@ class WasmFullDecoder : public WasmDecoder<validate> {
         FieldIndexImmediate<validate> field(this, this->pc_ + len);
         if (!this->Validate(this->pc_ + len, field)) break;
         len += field.length;
+        if (!field.struct_index.struct_type->mutability(field.index)) {
+          this->error(this->pc_, "setting immutable struct field");
+          break;
+        }
         Value field_value = Pop(
-            0, ValueType(field.struct_index.struct_type->field(field.index)));
+            0,
+            ValueType(
+                field.struct_index.struct_type->field(field.index).Unpack()));
         Value struct_obj =
             Pop(0, ValueType(ValueType::kOptRef, field.struct_index.index));
         CALL_INTERFACE_IF_REACHABLE(StructSet, struct_obj, field, field_value);
@@ -3256,6 +3270,12 @@ class WasmFullDecoder : public WasmDecoder<validate> {
         ArrayIndexImmediate<validate> imm(this, this->pc_ + len);
         len += imm.length;
         if (!this->Validate(this->pc_ + len, imm)) break;
+        if (imm.array_type->element_type().IsPacked()) {
+          this->error(this->pc_,
+                      "array.get used with a field of packed type. "
+                      "Use array.get_s or array.get_u instead.");
+          break;
+        }
         Value index = Pop(0, kWasmI32);
         Value array_obj = Pop(0, ValueType(ValueType::kOptRef, imm.index));
         Value* value = Push(imm.array_type->element_type());
@@ -3267,7 +3287,11 @@ class WasmFullDecoder : public WasmDecoder<validate> {
         ArrayIndexImmediate<validate> imm(this, this->pc_ + len);
         len += imm.length;
         if (!this->Validate(this->pc_ + len, imm)) break;
-        Value value = Pop(0, imm.array_type->element_type());
+        if (!imm.array_type->mutability()) {
+          this->error(this->pc_, "setting element of immutable array");
+          break;
+        }
+        Value value = Pop(0, imm.array_type->element_type().Unpack());
         Value index = Pop(0, kWasmI32);
         Value array_obj = Pop(0, ValueType(ValueType::kOptRef, imm.index));
         // TODO(7748): Optimize this when array_obj is non-nullable ref.
