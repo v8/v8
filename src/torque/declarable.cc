@@ -95,7 +95,8 @@ std::vector<Declarable*> Scope::Lookup(const QualifiedName& name) {
 
 base::Optional<std::string> TypeConstraint::IsViolated(const Type* type) const {
   if (upper_bound && !type->IsSubtypeOf(*upper_bound)) {
-    return {ToString("expected ", *type, " to be a subtype of ", *upper_bound)};
+    return {
+        ToString("expected ", *type, " to be a subtype of ", **upper_bound)};
   }
   return base::nullopt;
 }
