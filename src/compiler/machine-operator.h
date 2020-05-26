@@ -602,6 +602,10 @@ class V8_EXPORT_PRIVATE MachineOperatorBuilder final
   const Operator* F32x4Qfms();
   const Operator* F32x4Pmin();
   const Operator* F32x4Pmax();
+  const Operator* F32x4Ceil();
+  const Operator* F32x4Floor();
+  const Operator* F32x4Trunc();
+  const Operator* F32x4NearestInt();
 
   const Operator* I64x2Splat();
   const Operator* I64x2SplatI32Pair();

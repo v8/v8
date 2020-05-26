@@ -199,6 +199,7 @@ namespace compiler {
   V(X64F32x4Qfms)                         \
   V(X64F32x4Pmin)                         \
   V(X64F32x4Pmax)                         \
+  V(X64F32x4Round)                        \
   V(X64I64x2Splat)                        \
   V(X64I64x2ExtractLane)                  \
   V(X64I64x2ReplaceLane)                  \

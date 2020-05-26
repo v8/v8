@@ -4254,6 +4254,15 @@ Node* WasmGraphBuilder::SimdOp(wasm::WasmOpcode opcode, Node* const* inputs) {
     case wasm::kExprF32x4Pmax:
       return graph()->NewNode(mcgraph()->machine()->F32x4Pmax(), inputs[0],
                               inputs[1]);
+    case wasm::kExprF32x4Ceil:
+      return graph()->NewNode(mcgraph()->machine()->F32x4Ceil(), inputs[0]);
+    case wasm::kExprF32x4Floor:
+      return graph()->NewNode(mcgraph()->machine()->F32x4Floor(), inputs[0]);
+    case wasm::kExprF32x4Trunc:
+      return graph()->NewNode(mcgraph()->machine()->F32x4Trunc(), inputs[0]);
+    case wasm::kExprF32x4NearestInt:
+      return graph()->NewNode(mcgraph()->machine()->F32x4NearestInt(),
+                              inputs[0]);
     case wasm::kExprI64x2Splat:
       return graph()->NewNode(mcgraph()->machine()->I64x2Splat(), inputs[0]);
     case wasm::kExprI64x2Neg:

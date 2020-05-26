@@ -792,6 +792,10 @@
   V(F32x4Qfms)                  \
   V(F32x4Pmin)                  \
   V(F32x4Pmax)                  \
+  V(F32x4Ceil)                  \
+  V(F32x4Floor)                 \
+  V(F32x4Trunc)                 \
+  V(F32x4NearestInt)            \
   V(I64x2Splat)                 \
   V(I64x2SplatI32Pair)          \
   V(I64x2ExtractLane)           \

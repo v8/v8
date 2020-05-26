@@ -326,6 +326,11 @@ const char* WasmOpcodes::OpcodeName(WasmOpcode opcode) {
     CASE_F64x2_OP(Pmin, "pmin")
     CASE_F64x2_OP(Pmax, "pmax")
 
+    CASE_F32x4_OP(Ceil, "ceil")
+    CASE_F32x4_OP(Floor, "floor")
+    CASE_F32x4_OP(Trunc, "trunc")
+    CASE_F32x4_OP(NearestInt, "nearest")
+
     // Atomic operations.
     CASE_OP(AtomicNotify, "atomic.notify")
     CASE_INT_OP(AtomicWait, "atomic.wait")

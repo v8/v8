@@ -3424,6 +3424,13 @@ void Assembler::roundsd(XMMRegister dst, XMMRegister src, RoundingMode mode) {
   emit(static_cast<byte>(mode) | 0x8);
 }
 
+void Assembler::roundps(XMMRegister dst, XMMRegister src, RoundingMode mode) {
+  DCHECK(!IsEnabled(AVX));
+  sse4_instr(dst, src, 0x66, 0x0F, 0x3A, 0x08);
+  // Mask precision exception.
+  emit(static_cast<byte>(mode) | 0x8);
+}
+
 void Assembler::movmskpd(Register dst, XMMRegister src) {
   EnsureSpace ensure_space(this);
   emit(0x66);

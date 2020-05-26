@@ -176,6 +176,7 @@ class V8_EXPORT_PRIVATE TurboAssembler : public TurboAssemblerBase {
   AVX_OP(Cmpnlepd, cmpnlepd)
   AVX_OP(Roundss, roundss)
   AVX_OP(Roundsd, roundsd)
+  AVX_OP(Roundps, roundps)
   AVX_OP(Sqrtss, sqrtss)
   AVX_OP(Sqrtsd, sqrtsd)
   AVX_OP(Sqrtps, sqrtps)

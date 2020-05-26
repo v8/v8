@@ -1461,7 +1461,12 @@ void VisitFloatUnop(InstructionSelector* selector, Node* node, Node* input,
   V(Float64RoundTruncate, kSSEFloat64Round | MiscField::encode(kRoundToZero)) \
   V(Float32RoundTiesEven,                                                     \
     kSSEFloat32Round | MiscField::encode(kRoundToNearest))                    \
-  V(Float64RoundTiesEven, kSSEFloat64Round | MiscField::encode(kRoundToNearest))
+  V(Float64RoundTiesEven,                                                     \
+    kSSEFloat64Round | MiscField::encode(kRoundToNearest))                    \
+  V(F32x4Ceil, kX64F32x4Round | MiscField::encode(kRoundUp))                  \
+  V(F32x4Floor, kX64F32x4Round | MiscField::encode(kRoundDown))               \
+  V(F32x4Trunc, kX64F32x4Round | MiscField::encode(kRoundToZero))             \
+  V(F32x4NearestInt, kX64F32x4Round | MiscField::encode(kRoundToNearest))
 
 #define RO_VISITOR(Name, opcode)                      \
   void InstructionSelector::Visit##Name(Node* node) { \

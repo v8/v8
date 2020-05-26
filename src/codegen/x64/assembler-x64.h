@@ -1141,6 +1141,7 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase {
 
   void roundss(XMMRegister dst, XMMRegister src, RoundingMode mode);
   void roundsd(XMMRegister dst, XMMRegister src, RoundingMode mode);
+  void roundps(XMMRegister dst, XMMRegister src, RoundingMode mode);
 
   void cmpps(XMMRegister dst, XMMRegister src, int8_t cmp);
   void cmpps(XMMRegister dst, Operand src, int8_t cmp);
@@ -1356,6 +1357,11 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase {
   void vroundsd(XMMRegister dst, XMMRegister src1, XMMRegister src2,
                 RoundingMode mode) {
     vinstr(0x0b, dst, src1, src2, k66, k0F3A, kWIG);
+    emit(static_cast<byte>(mode) | 0x8);  // Mask precision exception.
+  }
+  void vroundps(XMMRegister dst, XMMRegister src1, XMMRegister src2,
+                RoundingMode mode) {
+    vinstr(0x08, dst, src1, src2, k66, k0F3A, kWIG);
     emit(static_cast<byte>(mode) | 0x8);  // Mask precision exception.
   }
 
