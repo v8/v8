@@ -68,14 +68,10 @@ class V8_EXPORT_PRIVATE Heap final : public cppgc::Heap {
 
   struct GCConfig {
     using StackState = Heap::StackState;
-    using SweepType = Sweeper::Config;
 
-    static GCConfig Default() {
-      return {StackState::kMayContainHeapPointers, SweepType::kAtomic};
-    }
+    static GCConfig Default() { return {StackState::kMayContainHeapPointers}; }
 
     StackState stack_state = StackState::kMayContainHeapPointers;
-    SweepType sweep_type = SweepType::kAtomic;
   };
 
   static Heap* From(cppgc::Heap* heap) { return static_cast<Heap*>(heap); }

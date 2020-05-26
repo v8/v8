@@ -73,15 +73,6 @@ const BasePage* BasePage::FromInnerAddress(const Heap* heap,
       heap->page_backend()->Lookup(static_cast<ConstAddress>(address)));
 }
 
-// static
-void BasePage::Destroy(BasePage* page) {
-  if (page->is_large()) {
-    LargePage::Destroy(LargePage::From(page));
-  } else {
-    NormalPage::Destroy(NormalPage::From(page));
-  }
-}
-
 HeapObjectHeader& BasePage::ObjectHeaderFromInnerAddress(void* address) const {
   return const_cast<HeapObjectHeader&>(
       ObjectHeaderFromInnerAddress(const_cast<const void*>(address)));

@@ -245,25 +245,5 @@ TEST_F(SweeperTest, SweepDoesNotTriggerRecursiveGC) {
   EXPECT_EQ(saved_epoch + 1, internal_heap->epoch());
 }
 
-TEST_F(SweeperTest, UnmarkObjects) {
-  auto* normal_object = MakeGarbageCollected<GCed<32>>(GetHeap());
-  auto* large_object =
-      MakeGarbageCollected<GCed<kLargeObjectSizeThreshold * 2>>(GetHeap());
-
-  auto& normal_object_header = HeapObjectHeader::FromPayload(normal_object);
-  auto& large_object_header = HeapObjectHeader::FromPayload(large_object);
-
-  normal_object_header.TryMarkAtomic();
-  large_object_header.TryMarkAtomic();
-
-  EXPECT_TRUE(normal_object_header.IsMarked());
-  EXPECT_TRUE(large_object_header.IsMarked());
-
-  Sweep();
-
-  EXPECT_FALSE(normal_object_header.IsMarked());
-  EXPECT_FALSE(large_object_header.IsMarked());
-}
-
 }  // namespace internal
 }  // namespace cppgc

@@ -9,7 +9,6 @@
 
 #include "src/base/logging.h"
 #include "src/base/macros.h"
-#include "src/base/platform/mutex.h"
 #include "src/heap/cppgc/free-list.h"
 
 namespace cppgc {
@@ -54,7 +53,6 @@ class V8_EXPORT_PRIVATE BaseSpace {
  private:
   RawHeap* heap_;
   Pages pages_;
-  v8::base::Mutex pages_mutex_;
   const size_t index_;
   const PageType type_;
 };

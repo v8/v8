@@ -10,16 +10,13 @@
 
 namespace cppgc {
 
-// TODO(v8:10346): Put PageAllocator and Platform in a non-V8 include header to
-// avoid depending on namespace v8.
+// TODO(v8:10346): Put PageAllocator in a non-V8 include header to avoid
+// depending on namespace v8.
 using PageAllocator = v8::PageAllocator;
-using Platform = v8::Platform;
 
 // Initializes the garbage collector with the provided platform. Must be called
 // before creating a Heap.
-V8_EXPORT void InitializePlatform(Platform* platform);
-
-V8_EXPORT Platform* GetPlatform();
+V8_EXPORT void InitializePlatform(PageAllocator* page_allocator);
 
 // Must be called after destroying the last used heap.
 V8_EXPORT void ShutdownPlatform();

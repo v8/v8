@@ -28,8 +28,6 @@ class V8_EXPORT_PRIVATE BasePage {
   static BasePage* FromInnerAddress(const Heap*, void*);
   static const BasePage* FromInnerAddress(const Heap*, const void*);
 
-  static void Destroy(BasePage*);
-
   BasePage(const BasePage&) = delete;
   BasePage& operator=(const BasePage&) = delete;
 
@@ -143,13 +141,13 @@ class V8_EXPORT_PRIVATE NormalPage final : public BasePage {
 
   static size_t PayloadSize();
 
-  bool PayloadContains(ConstAddress address) const {
-    return (PayloadStart() <= address) && (address < PayloadEnd());
-  }
-
   ObjectStartBitmap& object_start_bitmap() { return object_start_bitmap_; }
   const ObjectStartBitmap& object_start_bitmap() const {
     return object_start_bitmap_;
+  }
+
+  bool PayloadContains(ConstAddress address) const {
+    return (PayloadStart() <= address) && (address < PayloadEnd());
   }
 
  private:

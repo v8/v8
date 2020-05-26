@@ -116,7 +116,7 @@ void Heap::CollectGarbage(GCConfig config) {
   marker_.reset();
   {
     NoGCScope no_gc(this);
-    sweeper_.Start(config.sweep_type);
+    sweeper_.Start(Sweeper::Config::kAtomic);
   }
 }
 
