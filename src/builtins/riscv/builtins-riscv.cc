@@ -609,7 +609,6 @@ void Generate_JSEntryVariant(MacroAssembler* masm, StackFrame::Type type,
   __ li(s3, Operand(StackFrame::OUTERMOST_JSENTRY_FRAME));
   Label cont;
   __ b(&cont);
-  __ nop();  // Branch delay slot nop.
   __ bind(&non_outermost_js);
   __ li(s3, Operand(StackFrame::INNER_JSENTRY_FRAME));
   __ bind(&cont);
@@ -632,8 +631,7 @@ void Generate_JSEntryVariant(MacroAssembler* masm, StackFrame::Type type,
                 IsolateAddressId::kPendingExceptionAddress, masm->isolate()));
   __ Sd(a0, MemOperand(s1));  // We come back from 'invoke'. result is in a0.
   __ LoadRoot(a0, RootIndex::kException);
-  __ b(&exit);  // b exposes branch delay slot.
-  __ nop();     // Branch delay slot nop.
+  __ b(&exit);
 
   // Invoke: Link this frame into the handler chain.
   __ bind(&invoke);
@@ -760,7 +758,6 @@ static void Generate_JSEntryTrampolineHelper(MacroAssembler* masm,
     Label loop, entry;
     __ Dlsa(s1, a5, a4, kPointerSizeLog2);
     __ b(&entry);
-    __ nop();  // Branch delay slot nop.
     // s1 points past last arg.
     __ bind(&loop);
     __ Ld(s2, MemOperand(a5));  // Read next parameter.
