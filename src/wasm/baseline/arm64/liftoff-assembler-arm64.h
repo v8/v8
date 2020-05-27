@@ -1461,6 +1461,11 @@ void LiftoffAssembler::emit_i32x4_neg(LiftoffRegister dst,
   Neg(dst.fp().V4S(), src.fp().V4S());
 }
 
+void LiftoffAssembler::emit_v32x4_anytrue(LiftoffRegister dst,
+                                          LiftoffRegister src) {
+  bailout(kSimd, "v32x4_anytrue");
+}
+
 void LiftoffAssembler::emit_i32x4_shl(LiftoffRegister dst, LiftoffRegister lhs,
                                       LiftoffRegister rhs) {
   liftoff::EmitSimdShift<liftoff::ShiftDirection::kLeft>(
@@ -1570,6 +1575,11 @@ void LiftoffAssembler::emit_i16x8_replace_lane(LiftoffRegister dst,
 void LiftoffAssembler::emit_i16x8_neg(LiftoffRegister dst,
                                       LiftoffRegister src) {
   Neg(dst.fp().V8H(), src.fp().V8H());
+}
+
+void LiftoffAssembler::emit_v16x8_anytrue(LiftoffRegister dst,
+                                          LiftoffRegister src) {
+  bailout(kSimd, "v16x8_anytrue");
 }
 
 void LiftoffAssembler::emit_i16x8_shl(LiftoffRegister dst, LiftoffRegister lhs,
@@ -1705,6 +1715,11 @@ void LiftoffAssembler::emit_i8x16_replace_lane(LiftoffRegister dst,
 void LiftoffAssembler::emit_i8x16_neg(LiftoffRegister dst,
                                       LiftoffRegister src) {
   Neg(dst.fp().V16B(), src.fp().V16B());
+}
+
+void LiftoffAssembler::emit_v8x16_anytrue(LiftoffRegister dst,
+                                          LiftoffRegister src) {
+  bailout(kSimd, "v8x16_anytrue");
 }
 
 void LiftoffAssembler::emit_i8x16_shl(LiftoffRegister dst, LiftoffRegister lhs,

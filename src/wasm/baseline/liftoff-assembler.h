@@ -816,6 +816,7 @@ class LiftoffAssembler : public TurboAssembler {
   inline void emit_s128_select(LiftoffRegister dst, LiftoffRegister src1,
                                LiftoffRegister src2, LiftoffRegister mask);
   inline void emit_i8x16_neg(LiftoffRegister dst, LiftoffRegister src);
+  inline void emit_v8x16_anytrue(LiftoffRegister dst, LiftoffRegister src);
   inline void emit_i8x16_shl(LiftoffRegister dst, LiftoffRegister lhs,
                              LiftoffRegister rhs);
   inline void emit_i8x16_shli(LiftoffRegister dst, LiftoffRegister lhs,
@@ -855,6 +856,7 @@ class LiftoffAssembler : public TurboAssembler {
   inline void emit_i8x16_max_u(LiftoffRegister dst, LiftoffRegister lhs,
                                LiftoffRegister rhs);
   inline void emit_i16x8_neg(LiftoffRegister dst, LiftoffRegister src);
+  inline void emit_v16x8_anytrue(LiftoffRegister dst, LiftoffRegister src);
   inline void emit_i16x8_shl(LiftoffRegister dst, LiftoffRegister lhs,
                              LiftoffRegister rhs);
   inline void emit_i16x8_shli(LiftoffRegister dst, LiftoffRegister lhs,
@@ -894,6 +896,7 @@ class LiftoffAssembler : public TurboAssembler {
   inline void emit_i16x8_max_u(LiftoffRegister dst, LiftoffRegister lhs,
                                LiftoffRegister rhs);
   inline void emit_i32x4_neg(LiftoffRegister dst, LiftoffRegister src);
+  inline void emit_v32x4_anytrue(LiftoffRegister dst, LiftoffRegister src);
   inline void emit_i32x4_shl(LiftoffRegister dst, LiftoffRegister lhs,
                              LiftoffRegister rhs);
   inline void emit_i32x4_shli(LiftoffRegister dst, LiftoffRegister lhs,
