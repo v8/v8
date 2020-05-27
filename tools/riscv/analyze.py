@@ -285,7 +285,7 @@ def isJump(s):
 
 
 def isJumpAndLink(s):
-    if s[0:3] == "jal" or self.insn == "bal":
+    if s[0:3] == "jal" or s == "bal":
         return True
     return False
 
