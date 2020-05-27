@@ -2012,22 +2012,22 @@ void LiftoffAssembler::emit_s128_select(LiftoffRegister dst,
 
 void LiftoffAssembler::emit_i32x4_sconvert_f32x4(LiftoffRegister dst,
                                                  LiftoffRegister src) {
-  bailout(kSimd, "i32x4_sconvert_f32x4");
+  Fcvtzs(dst.fp().V4S(), src.fp().V4S());
 }
 
 void LiftoffAssembler::emit_i32x4_uconvert_f32x4(LiftoffRegister dst,
                                                  LiftoffRegister src) {
-  bailout(kSimd, "i32x4_uconvert_f32x4");
+  Fcvtzu(dst.fp().V4S(), src.fp().V4S());
 }
 
 void LiftoffAssembler::emit_f32x4_sconvert_i32x4(LiftoffRegister dst,
                                                  LiftoffRegister src) {
-  bailout(kSimd, "f32x4_sconvert_i32x4");
+  Scvtf(dst.fp().V4S(), src.fp().V4S());
 }
 
 void LiftoffAssembler::emit_f32x4_uconvert_i32x4(LiftoffRegister dst,
                                                  LiftoffRegister src) {
-  bailout(kSimd, "f32x4_uconvert_i32x4");
+  Ucvtf(dst.fp().V4S(), src.fp().V4S());
 }
 
 void LiftoffAssembler::emit_i8x16_sconvert_i16x8(LiftoffRegister dst,

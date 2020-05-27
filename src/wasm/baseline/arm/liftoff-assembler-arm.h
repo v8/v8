@@ -3115,22 +3115,26 @@ void LiftoffAssembler::emit_s128_select(LiftoffRegister dst,
 
 void LiftoffAssembler::emit_i32x4_sconvert_f32x4(LiftoffRegister dst,
                                                  LiftoffRegister src) {
-  bailout(kSimd, "i32x4_sconvert_f32x4");
+  vcvt_s32_f32(liftoff::GetSimd128Register(dst),
+               liftoff::GetSimd128Register(src));
 }
 
 void LiftoffAssembler::emit_i32x4_uconvert_f32x4(LiftoffRegister dst,
                                                  LiftoffRegister src) {
-  bailout(kSimd, "i32x4_uconvert_f32x4");
+  vcvt_u32_f32(liftoff::GetSimd128Register(dst),
+               liftoff::GetSimd128Register(src));
 }
 
 void LiftoffAssembler::emit_f32x4_sconvert_i32x4(LiftoffRegister dst,
                                                  LiftoffRegister src) {
-  bailout(kSimd, "f32x4_sconvert_i32x4");
+  vcvt_f32_s32(liftoff::GetSimd128Register(dst),
+               liftoff::GetSimd128Register(src));
 }
 
 void LiftoffAssembler::emit_f32x4_uconvert_i32x4(LiftoffRegister dst,
                                                  LiftoffRegister src) {
-  bailout(kSimd, "f32x4_uconvert_i32x4");
+  vcvt_f32_u32(liftoff::GetSimd128Register(dst),
+               liftoff::GetSimd128Register(src));
 }
 
 void LiftoffAssembler::emit_i8x16_sconvert_i16x8(LiftoffRegister dst,
