@@ -153,7 +153,7 @@ void JSGenericLowering::ReplaceUnaryOpWithBuiltinCall(
   if (CollectFeedbackInGenericLowering() && p.feedback().IsValid()) {
     Callable callable = Builtins::CallableFor(isolate(), builtin_with_feedback);
     Node* feedback_vector = jsgraph()->HeapConstant(p.feedback().vector);
-    Node* slot = jsgraph()->Int32Constant(p.feedback().slot.ToInt());
+    Node* slot = jsgraph()->UintPtrConstant(p.feedback().slot.ToInt());
     const CallInterfaceDescriptor& descriptor = callable.descriptor();
     auto call_descriptor = Linkage::GetStubCallDescriptor(
         zone(), descriptor, descriptor.GetStackParameterCount(), flags,
