@@ -307,67 +307,6 @@ class RepresentationSelector {
         tick_counter_(tick_counter) {
   }
 
-  // Forward propagation of types from type feedback.
-  void RunTypePropagationPhase() {
-    // Run type propagation.
-    TRACE("--{Type propagation phase}--\n");
-    ResetNodeInfoState();
-    DCHECK(revisit_queue_.empty());
-
-    for (auto it = traversal_nodes_.cbegin(); it != traversal_nodes_.cend();
-         ++it) {
-      Node* node = *it;
-      NodeInfo* info = GetInfo(node);
-      info->set_visited();
-      bool updated = UpdateFeedbackType(node);
-      TRACE(" visit #%d: %s\n", node->id(), node->op()->mnemonic());
-      VisitNode<RETYPE>(node, info->truncation(), nullptr);
-      TRACE("  ==> output ");
-      PrintOutputInfo(info);
-      TRACE("\n");
-      if (updated) {
-        auto revisit_it = might_need_revisit_.find(node);
-        if (revisit_it == might_need_revisit_.end()) continue;
-
-        for (Node* const user : revisit_it->second) {
-          if (GetInfo(user)->visited()) {
-            TRACE(" QUEUEING #%d: %s\n", user->id(), user->op()->mnemonic());
-            GetInfo(user)->set_queued();
-            revisit_queue_.push(user);
-          }
-        }
-
-        // Process the revisit queue.
-        while (!revisit_queue_.empty()) {
-          Node* revisit_node = revisit_queue_.front();
-          revisit_queue_.pop();
-          NodeInfo* revisit_info = GetInfo(revisit_node);
-          revisit_info->set_visited();
-          bool updated = UpdateFeedbackType(revisit_node);
-          TRACE(" revisit #%d: %s\n", revisit_node->id(),
-                revisit_node->op()->mnemonic());
-          VisitNode<RETYPE>(revisit_node, revisit_info->truncation(), nullptr);
-          TRACE("  ==> output ");
-          PrintOutputInfo(revisit_info);
-          TRACE("\n");
-          if (updated) {
-            // Here we need to check all uses since we can't easily know which
-            // nodes will need to be revisited due to having an input which was
-            // a revisited node.
-            for (Node* const user : revisit_node->uses()) {
-              if (GetInfo(user)->visited()) {
-                TRACE(" QUEUEING #%d: %s\n", user->id(),
-                      user->op()->mnemonic());
-                GetInfo(user)->set_queued();
-                revisit_queue_.push(user);
-              }
-            }
-          }
-        }
-      }
-    }
-  }
-
   void ResetNodeInfoState() {
     // Clean up for the next phase.
     for (NodeInfo& info : info_) {
@@ -585,37 +524,6 @@ class RepresentationSelector {
                        graph_zone());
   }
 
-  // Backward propagation of truncations.
-  void RunTruncationPropagationPhase() {
-    // Run propagation phase to a fixpoint.
-    TRACE("--{Propagation phase}--\n");
-    ResetNodeInfoState();
-    DCHECK(revisit_queue_.empty());
-
-    // Process nodes in reverse post order, with End as the root.
-    for (auto it = traversal_nodes_.crbegin(); it != traversal_nodes_.crend();
-         ++it) {
-      Node* node = *it;
-      NodeInfo* info = GetInfo(node);
-      info->set_visited();
-      TRACE(" visit #%d: %s (trunc: %s)\n", node->id(), node->op()->mnemonic(),
-            info->truncation().description());
-      VisitNode<PROPAGATE>(node, info->truncation(), nullptr);
-
-      // Revisit queue
-      while (!revisit_queue_.empty()) {
-        Node* revisit_node = revisit_queue_.front();
-        NodeInfo* revisit_info = GetInfo(revisit_node);
-        revisit_queue_.pop();
-        revisit_info->set_visited();
-        TRACE(" visit #%d: %s (trunc: %s)\n", revisit_node->id(),
-              revisit_node->op()->mnemonic(),
-              revisit_info->truncation().description());
-        VisitNode<PROPAGATE>(revisit_node, revisit_info->truncation(), nullptr);
-      }
-    }
-  }
-
   // Generates a pre-order traversal of the nodes, starting with End.
   void GenerateTraversal() {
     ZoneStack<NodeState> stack(zone_);
@@ -658,15 +566,99 @@ class RepresentationSelector {
     }
   }
 
-  void Run(SimplifiedLowering* lowering) {
-    GenerateTraversal();
+  // Backward propagation of truncations to a fixpoint.
+  void RunPropagatePhase() {
+    TRACE("--{Propagate phase}--\n");
+    ResetNodeInfoState();
+    DCHECK(revisit_queue_.empty());
 
-    RunTruncationPropagationPhase();
+    // Process nodes in reverse post order, with End as the root.
+    for (auto it = traversal_nodes_.crbegin(); it != traversal_nodes_.crend();
+         ++it) {
+      Node* node = *it;
+      NodeInfo* info = GetInfo(node);
+      info->set_visited();
+      TRACE(" visit #%d: %s (trunc: %s)\n", node->id(), node->op()->mnemonic(),
+            info->truncation().description());
+      VisitNode<PROPAGATE>(node, info->truncation(), nullptr);
 
-    RunTypePropagationPhase();
+      // Revisit queue
+      while (!revisit_queue_.empty()) {
+        Node* revisit_node = revisit_queue_.front();
+        NodeInfo* revisit_info = GetInfo(revisit_node);
+        revisit_queue_.pop();
+        revisit_info->set_visited();
+        TRACE(" visit #%d: %s (trunc: %s)\n", revisit_node->id(),
+              revisit_node->op()->mnemonic(),
+              revisit_info->truncation().description());
+        VisitNode<PROPAGATE>(revisit_node, revisit_info->truncation(), nullptr);
+      }
+    }
+  }
 
-    // Run lowering and change insertion phase.
-    TRACE("--{Simplified lowering phase}--\n");
+  // Forward propagation of types from type feedback to a fixpoint.
+  void RunRetypePhase() {
+    TRACE("--{Retype phase}--\n");
+    ResetNodeInfoState();
+    DCHECK(revisit_queue_.empty());
+
+    for (auto it = traversal_nodes_.cbegin(); it != traversal_nodes_.cend();
+         ++it) {
+      Node* node = *it;
+      NodeInfo* info = GetInfo(node);
+      info->set_visited();
+      bool updated = UpdateFeedbackType(node);
+      TRACE(" visit #%d: %s\n", node->id(), node->op()->mnemonic());
+      VisitNode<RETYPE>(node, info->truncation(), nullptr);
+      TRACE("  ==> output ");
+      PrintOutputInfo(info);
+      TRACE("\n");
+      if (updated) {
+        auto revisit_it = might_need_revisit_.find(node);
+        if (revisit_it == might_need_revisit_.end()) continue;
+
+        for (Node* const user : revisit_it->second) {
+          if (GetInfo(user)->visited()) {
+            TRACE(" QUEUEING #%d: %s\n", user->id(), user->op()->mnemonic());
+            GetInfo(user)->set_queued();
+            revisit_queue_.push(user);
+          }
+        }
+
+        // Process the revisit queue.
+        while (!revisit_queue_.empty()) {
+          Node* revisit_node = revisit_queue_.front();
+          revisit_queue_.pop();
+          NodeInfo* revisit_info = GetInfo(revisit_node);
+          revisit_info->set_visited();
+          bool updated = UpdateFeedbackType(revisit_node);
+          TRACE(" revisit #%d: %s\n", revisit_node->id(),
+                revisit_node->op()->mnemonic());
+          VisitNode<RETYPE>(revisit_node, revisit_info->truncation(), nullptr);
+          TRACE("  ==> output ");
+          PrintOutputInfo(revisit_info);
+          TRACE("\n");
+          if (updated) {
+            // Here we need to check all uses since we can't easily know which
+            // nodes will need to be revisited due to having an input which was
+            // a revisited node.
+            for (Node* const user : revisit_node->uses()) {
+              if (GetInfo(user)->visited()) {
+                TRACE(" QUEUEING #%d: %s\n", user->id(),
+                      user->op()->mnemonic());
+                GetInfo(user)->set_queued();
+                revisit_queue_.push(user);
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+
+  // Lowering and change insertion phase.
+  void RunLowerPhase(SimplifiedLowering* lowering) {
+    TRACE("--{Lower phase}--\n");
     for (auto it = traversal_nodes_.cbegin(); it != traversal_nodes_.cend();
          ++it) {
       Node* node = *it;
@@ -693,6 +685,13 @@ class RepresentationSelector {
         if (*j == node) *j = replacement;
       }
     }
+  }
+
+  void Run(SimplifiedLowering* lowering) {
+    GenerateTraversal();
+    RunPropagatePhase();
+    RunRetypePhase();
+    RunLowerPhase(lowering);
   }
 
   // Just assert for Retype and Lower. Propagate specialized below.
@@ -825,10 +824,10 @@ class RepresentationSelector {
   // it takes the input from the input node {TypeOf(node->InputAt(index))}.
   void ConvertInput(Node* node, int index, UseInfo use,
                     Type input_type = Type::Invalid()) {
-    Node* input = node->InputAt(index);
     // In the change phase, insert a change before the use if necessary.
     if (use.representation() == MachineRepresentation::kNone)
       return;  // No input requirement on the use.
+    Node* input = node->InputAt(index);
     DCHECK_NOT_NULL(input);
     NodeInfo* input_info = GetInfo(input);
     MachineRepresentation input_rep = input_info->representation();
@@ -845,8 +844,8 @@ class RepresentationSelector {
       if (input_type.IsInvalid()) {
         input_type = TypeOf(input);
       }
-      Node* n = changer_->GetRepresentationFor(
-          input, input_info->representation(), input_type, node, use);
+      Node* n = changer_->GetRepresentationFor(input, input_rep, input_type,
+                                               node, use);
       node->ReplaceInput(index, n);
     }
   }
@@ -886,18 +885,16 @@ class RepresentationSelector {
 
   template <Phase T>
   void VisitReturn(Node* node) {
-    int tagged_limit = node->op()->ValueInputCount() +
-                       OperatorProperties::GetContextInputCount(node->op()) +
-                       OperatorProperties::GetFrameStateInputCount(node->op());
+    int first_effect_index = NodeProperties::FirstEffectIndex(node);
     // Visit integer slot count to pop
     ProcessInput<T>(node, 0, UseInfo::TruncatingWord32());
 
     // Visit value, context and frame state inputs as tagged.
-    for (int i = 1; i < tagged_limit; i++) {
+    for (int i = 1; i < first_effect_index; i++) {
       ProcessInput<T>(node, i, UseInfo::AnyTagged());
     }
     // Only enqueue other inputs (effects, control).
-    for (int i = tagged_limit; i < node->InputCount(); i++) {
+    for (int i = first_effect_index; i < node->InputCount(); i++) {
       EnqueueInput<T>(node, i);
     }
   }
@@ -905,13 +902,11 @@ class RepresentationSelector {
   // Helper for an unused node.
   template <Phase T>
   void VisitUnused(Node* node) {
-    int value_count = node->op()->ValueInputCount() +
-                      OperatorProperties::GetContextInputCount(node->op()) +
-                      OperatorProperties::GetFrameStateInputCount(node->op());
-    for (int i = 0; i < value_count; i++) {
+    int first_effect_index = NodeProperties::FirstEffectIndex(node);
+    for (int i = 0; i < first_effect_index; i++) {
       ProcessInput<T>(node, i, UseInfo::None());
     }
-    ProcessRemainingInputs<T>(node, value_count);
+    ProcessRemainingInputs<T>(node, first_effect_index);
     if (lower<T>()) Kill(node);
   }
 
@@ -1115,19 +1110,27 @@ class RepresentationSelector {
     auto call_descriptor = CallDescriptorOf(node->op());
     int params = static_cast<int>(call_descriptor->ParameterCount());
     int value_input_count = node->op()->ValueInputCount();
-    // Propagate representation information from call descriptor.
-    for (int i = 0; i < value_input_count; i++) {
-      if (i == 0) {
-        // The target of the call.
-        ProcessInput<T>(node, i, UseInfo::Any());
-      } else if ((i - 1) < params) {
-        ProcessInput<T>(node, i,
-                        TruncatingUseInfoFromRepresentation(
-                            call_descriptor->GetInputType(i).representation()));
-      } else {
-        ProcessInput<T>(node, i, UseInfo::AnyTagged());
-      }
+
+    DCHECK_GT(value_input_count, 0);
+    DCHECK_GE(value_input_count, params);
+
+    // The target of the call.
+    ProcessInput<T>(node, 0, UseInfo::Any());
+
+    // For the parameters (indexes [1, ..., params]), propagate representation
+    // information from call descriptor.
+    for (int i = 1; i <= params; i++) {
+      ProcessInput<T>(node, i,
+                      TruncatingUseInfoFromRepresentation(
+                          call_descriptor->GetInputType(i).representation()));
     }
+
+    // Rest of the value inputs.
+    for (int i = params + 1; i < value_input_count; i++) {
+      ProcessInput<T>(node, i, UseInfo::AnyTagged());
+    }
+
+    // Effect and Control.
     ProcessRemainingInputs<T>(node, value_input_count);
 
     if (call_descriptor->ReturnCount() > 0) {
@@ -3802,12 +3805,6 @@ class RepresentationSelector {
     }
   }
 
-  void PrintRepresentation(MachineRepresentation rep) {
-    if (FLAG_trace_representation) {
-      StdoutStream{} << rep;
-    }
-  }
-
   void PrintTruncation(Truncation truncation) {
     if (FLAG_trace_representation) {
       StdoutStream{} << truncation.description() << std::endl;
@@ -3953,15 +3950,12 @@ void RepresentationSelector::ProcessInput<LOWER>(Node* node, int index,
 template <>
 void RepresentationSelector::ProcessRemainingInputs<PROPAGATE>(Node* node,
                                                                int index) {
-  DCHECK_GE(index, NodeProperties::PastValueIndex(node));
   DCHECK_GE(index, NodeProperties::PastContextIndex(node));
+
+  // Enqueue other inputs (effects, control).
   for (int i = std::max(index, NodeProperties::FirstEffectIndex(node));
-       i < NodeProperties::PastEffectIndex(node); ++i) {
-    EnqueueInput<PROPAGATE>(node, i);  // Effect inputs: just visit
-  }
-  for (int i = std::max(index, NodeProperties::FirstControlIndex(node));
-       i < NodeProperties::PastControlIndex(node); ++i) {
-    EnqueueInput<PROPAGATE>(node, i);  // Control inputs: just visit
+       i < node->InputCount(); ++i) {
+    EnqueueInput<PROPAGATE>(node, i);
   }
 }
 
@@ -3971,26 +3965,22 @@ void RepresentationSelector::ProcessRemainingInputs<PROPAGATE>(Node* node,
 // values {kTypeAny}.
 template <>
 void RepresentationSelector::VisitInputs<PROPAGATE>(Node* node) {
-  int tagged_count = node->op()->ValueInputCount() +
-                     OperatorProperties::GetContextInputCount(node->op()) +
-                     OperatorProperties::GetFrameStateInputCount(node->op());
+  int first_effect_index = NodeProperties::FirstEffectIndex(node);
   // Visit value, context and frame state inputs as tagged.
-  for (int i = 0; i < tagged_count; i++) {
+  for (int i = 0; i < first_effect_index; i++) {
     ProcessInput<PROPAGATE>(node, i, UseInfo::AnyTagged());
   }
   // Only enqueue other inputs (effects, control).
-  for (int i = tagged_count; i < node->InputCount(); i++) {
+  for (int i = first_effect_index; i < node->InputCount(); i++) {
     EnqueueInput<PROPAGATE>(node, i);
   }
 }
 
 template <>
 void RepresentationSelector::VisitInputs<LOWER>(Node* node) {
-  int tagged_count = node->op()->ValueInputCount() +
-                     OperatorProperties::GetContextInputCount(node->op()) +
-                     OperatorProperties::GetFrameStateInputCount(node->op());
+  int first_effect_index = NodeProperties::FirstEffectIndex(node);
   // Visit value, context and frame state inputs as tagged.
-  for (int i = 0; i < tagged_count; i++) {
+  for (int i = 0; i < first_effect_index; i++) {
     ProcessInput<LOWER>(node, i, UseInfo::AnyTagged());
   }
 }
