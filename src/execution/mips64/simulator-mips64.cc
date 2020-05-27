@@ -7427,6 +7427,15 @@ intptr_t Simulator::CallImpl(Address entry, int argument_count,
   if (reg_arg_count > 6) set_register(a6, arguments[6]);
   if (reg_arg_count > 7) set_register(a7, arguments[7]);
 
+  if (::v8::internal::FLAG_trace_sim) {
+    std::cout << "CallImpl: reg_arg_count = " << reg_arg_count << std::hex
+              << " entry-pc (JSEntry) = 0x" << entry << " a0 (Isolate) = 0x"
+              << get_register(a0) << " a1 (orig_func/new_target) = 0x"
+              << get_register(a1) << " a2 (func/target) = 0x"
+              << get_register(a2) << " a3 (receiver) = 0x" << get_register(a3)
+              << " a4 (argc) = 0x" << get_register(a4) << std::endl;
+  }
+
   // Remaining arguments passed on stack.
   int64_t original_stack = get_register(sp);
   // Compute position of stack on entry to generated code.

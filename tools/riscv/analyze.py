@@ -58,23 +58,200 @@ class Function:
         return False, False
 
 
-unknownFunc = Function('unknown')
-unknownFunc.name = 'unknown'
-hostFunc = Function('host')
-hostFunc.name = 'host'
+class Instruction:
+    def __init__(self, line, pc, insn, operands, offset):
+        self.line = line
+        self.pc = pc
+        self.insn = insn
+        self.operands = operands
+        self.offset = offset
+
+    def __repr__(self):
+        return f"{hex(self.pc)} {self.insn} {','.join(self.operands)}"
+
+    # Create an Instruction from a line of the code dump, or if it
+    # does not look like an instruction, return None
+    # A normal instruction looks like:
+    #  0x55a1aa324b38   178  00008393       mv        t2, ra
+    @classmethod
+    def fromLine(cls, line):
+        words = line.split()
+        if len(words) < 4:
+            return None
+        pc = None
+        offset = None
+        insnHex = None
+        try:
+            pc = int(words[0], 16)
+            offset = int(words[1], 16)
+            insnHex = int(words[2], 16)
+        except ValueError:
+            pass
+        if pc is None or offset is None or insnHex is None:
+            return None
+
+        insn = words[3]
+        operands = []
+        for idx in range(4, len(words)):
+            word = words[idx]
+            parts = re.split('[\(\)]', word)
+            for part in parts:
+                if len(part) > 0:
+                    operands.append(part.strip(','))
+            if not word.endswith(','):
+                # This is the last operand
+                break
+        return cls(line, pc, insn, operands, offset)
+
+
+class InstructionTrace:
+    def __init__(self, line, pc, insn, operands, result, count):
+        self.line = line
+        self.pc = pc
+        self.insn = insn
+        self.operands = operands
+        self.result = result
+        self.count = count
+
+    def __repr__(self):
+        return f"{hex(self.pc)}\t{self.insn} {','.join(self.operands)}\t({insn.count})"
+
+    # Create an InstructionTrace from a line of the simulator trace, or if it
+    # does not look like an instruction, return None
+    # A normal instruction looks like:
+    #   0x00a0caf43be0   00000e37       lui       t3, 0x0               0000000000000000    (71)    int64:0       uint64:0
+    @classmethod
+    def fromLine(cls, line):
+        words = line.split()
+        if len(words) < 3:
+            return None
+        if not words[0].startswith('0x') or len(words[1]) != 8:
+            return None
+
+        insn = words[2]
+        pc = None
+        insnHex = None
+        try:
+            pc = int(words[0], 16)
+            insnHex = int(words[1], 16)
+        except ValueError:
+            pass
+        countRes = re.search('\(([1-9][0-9]* *)\)', line)
+        if pc is None or insnHex is None or (countRes is None and \
+                not isControlFlow(insn)):
+            return None
+
+        count = -1
+        if countRes is not None:
+            count = int(countRes.group(1))
+        operands = []
+        result = None
+        if insn == 'ret': # No operands
+            pass
+        else:
+            resIdx = 3
+            for idx in range(3, len(words)):
+                resIdx = idx + 1
+                word = words[idx]
+                parts = re.split('[\(\)]', word)
+                for part in parts:
+                    if len(part) > 0:
+                        operands.append(part.strip(','))
+                if not word.endswith(','):
+                    # This is the last operand
+                    break
+            # The result is the next word after the operands
+            if resIdx < len(words) and not isStore(insn) and not isBranch(insn):
+                result = int(words[resIdx], 16)
+            if args.target == 'mips' and (insn == 'bal' or insn == 'jalr'):
+                result = pc + 8
+
+        return cls(line, pc, insn, operands, result, count)
+
+    def isStore(self):
+        return isStore(self.insn)
+
+    def isBranch(self):
+        return isBranch(self.insn)
+
+    def isJump(self):
+        return isJump(self.insn)
+
+    def isJumpAndLink(self):
+        return isJumpAndLink(self.insn)
+
+    def isCall(self):
+        if self.insn == 'jalr' and \
+                ((args.target == 'riscv' and
+                  (self.operands[0] == 'ra' or len(self.operands) == 1)) or
+                (args.target == 'mips' and self.operands[1] == 'ra')):
+            return True
+        return False
+
+    def isReturn(self):
+        if self.insn == 'ret' or (self.insn == 'jr' and self.operands[0] == 'ra'):
+            return True
+        return False
+
+    def callTarget(self):
+        if not self.isCall():
+            return None
+        if args.target == 'riscv':
+            # jalr xN
+            if len(self.operands) == 1:
+                return registers[self.operands[0]]
+
+            offset=None
+            try:
+                int(self.operands[0])
+            except ValueError:
+                pass
+            # jalr M(xN)
+            if offset is not None:
+                return offset + registers[self.operands[1]]
+            else:  # jalr xM, xN
+                return registers[self.operands[1]]
+        elif args.target == 'mips':
+            return registers[self.operands[0]]
+        else:
+            return None
+
+    def getDestinationReg(self):
+        if len(self.operands) == 0:
+            return None
+        if self.isStore():
+            return None
+        elif self.isBranch():
+            return None
+        elif self.isJump():
+            return None
+        elif self.isJumpAndLink():
+            if len(self.operands) == 1:  # Implicit ra
+                return 'ra'
+            elif args.target == 'riscv':
+                return self.operands[0]
+            elif args.target == 'mips':
+                return self.operands[1]
+        return self.operands[0]
+
+
+unknownFunc=Function('unknown')
+unknownFunc.name='unknown'
+hostFunc=Function('host')
+hostFunc.name='host'
 
 
 class FunctionCall:
-    indentLevel = 0
+    indentLevel=0
 
     def __init__(self, func, pc, ra, sp=None, fp=None):
-        self.func = func
-        self.pc = pc
-        self.ra = ra
-        self.sp = sp
-        self.fp = fp
-        self.indentLevel = FunctionCall.indentLevel
-        FunctionCall.indentLevel = FunctionCall.indentLevel + 1
+        self.func=func
+        self.pc=pc
+        self.ra=ra
+        self.sp=sp
+        self.fp=fp
+        self.indentLevel=FunctionCall.indentLevel
+        FunctionCall.indentLevel=FunctionCall.indentLevel + 1
 
     def returnFrom(self, ra=None, sp=None, fp=None):
         if ra is not None and ra != self.ra:
@@ -86,7 +263,7 @@ class FunctionCall:
         if fp is not None and self.fp is not None and fp != self.fp:
             print(
                 f"### WARNING: Expected frame pointer = {self.fp}, actual = {fp}")
-        FunctionCall.indentLevel = FunctionCall.indentLevel - 1
+        FunctionCall.indentLevel=FunctionCall.indentLevel - 1
 
 
 def isStore(s):
@@ -108,229 +285,141 @@ def isJump(s):
 
 
 def isJumpAndLink(s):
-    if s[0:3] == "jal":
+    if s[0:3] == "jal" or self.insn == "bal":
         return True
     return False
 
+def isControlFlow(s):
+    return isBranch(s) or isJump(s) or isJumpAndLink(s) or s == 'ecall'
 
-parser = argparse.ArgumentParser()
+
+parser=argparse.ArgumentParser()
 parser.add_argument('--inline', action='store_true', default=False,
                     dest='inline', help='Print comments inline with trace')
+parser.add_argument('--target', default='riscv')
 parser.add_argument('logfile', nargs=1)
-args = parser.parse_args()
+args=parser.parse_args()
 
-tracefile = open(args.logfile[0])
-functions = {}
-current = None
-inTrampoline = False
-inBody = False
-inSafePoints = False
-skip = 0
+tracefile=open(args.logfile[0])
+functions={}
+current=None
+inTrampoline=False
+inBody=False
+inSafePoints=False
+skip=0
 
-inTraceSim = False
-callStack = []
-registers = {
-    "zero_reg": 0,
-    "ra": 0,
-    "sp": 0,
-    "gp": 0,
-    "tp": 0,
-    "t0": 0,
-    "t1": 0,
-    "t2": 0,
-    "fp": 0,
-    "s1": 0,
-    "a0": 0,
-    "a1": 0,
-    "a2": 0,
-    "a3": 0,
-    "a4": 0,
-    "a5": 0,
-    "a6": 0,
-    "a7": 0,
-    "s2": 0,
-    "s3": 0,
-    "s4": 0,
-    "s5": 0,
-    "s6": 0,
-    "s7": 0,
-    "s8": 0,
-    "s9": 0,
-    "s10": 0,
-    "s11": 0,
-    "t3": 0,
-    "t4": 0,
-    "t5": 0,
-    "t6": 0
-}
+inTraceSim=False
+callStack=[]
+registers={}
 
-nextLine = tracefile.readline()
+nextLine=tracefile.readline()
 while nextLine:
-    line = nextLine
-    nextLine = tracefile.readline()
+    line=nextLine
+    nextLine=tracefile.readline()
     if skip > 0:
-        skip = skip - 1
+        skip=skip - 1
         continue
 
-    words = line.split()
+    words=line.split()
     if len(words) == 0:
         continue
 
     if words[0] == "kind":
         # Start a new function
-        current = Function(words[2])
+        current=Function(words[2])
     elif words[0] == "name":
-        current.name = words[2]
+        current.name=words[2]
     elif words[0] == "compiler":
-        current.compiler = words[2]
+        current.compiler=words[2]
     elif words[0] == "address":
-        current.address = words[2]
+        current.address=words[2]
     elif words[0] == "Trampoline":
-        current.trampoline = Trampoline()
-        inTrampoline = True
+        current.trampoline=Trampoline()
+        inTrampoline=True
     elif words[0] == "Instructions":
-        inTrampoline = False
-        inBody = True
+        inTrampoline=False
+        inBody=True
     elif words[0] == "Safepoints" or words[0] == "Deoptimization":
-        inBody = False
-        inSafePoints = True
+        inBody=False
+        inSafePoints=True
     elif words[0] == "RelocInfo":
-        inSafePoints = False
+        inSafePoints=False
         # End this function
-        inBody = False
-        functions[current.start] = current
+        inBody=False
+        functions[current.start]=current
         if current.trampoline is not None:
-            functions[current.trampoline.start] = current
-        current = None
+            functions[current.trampoline.start]=current
+        current=None
         # skip the next line
-        skip = 1
+        skip=1
     elif words[0] == "---":
-        inTraceSim = False
+        inTraceSim=False
     elif words[0] == "CallImpl:":
-        addr = int(words[7], 16)
-        func = functions[addr]
-        call = FunctionCall(func, addr, 0xFFFFFFFFFFFFFFFE)
+        addr=int(words[7], 16)
+        func=functions[addr]
+        call=FunctionCall(func, addr, 0xFFFFFFFFFFFFFFFE)
         callStack.append(call)
         print(f"### Start in {func.name}")
-        inTraceSim = True
+        inTraceSim=True
     else:
         if inSafePoints:
             continue
 
-        pc = None
-        try:
-            pc = int(words[0], 16)
-        except ValueError:
-            pass
-
-        if pc is not None and len(words) >= 3:
-            if not inTraceSim:
-                if words[1] == "0":
+        if not inTraceSim:
+            insn=Instruction.fromLine(line)
+            if insn is not None:
+                if insn.offset == 0:
                     if inTrampoline:
-                        current.trampoline.start = int(words[0], 16)
+                        current.trampoline.start=insn.pc
                     elif inBody:
-                        current.start = int(words[0], 16)
+                        current.start=insn.pc
                 else:
                     if inTrampoline:
-                        current.trampoline.end = int(words[0], 16)
+                        current.trampoline.end=insn.pc
                     elif inBody:
-                        current.end = int(words[0], 16)
-            else:
-                # Track all register writes
-                if isJumpAndLink(words[2]):
-                    val = int(line[66:82], 16)
-                    parts = line[44:66].split(',')
-                    if len(parts) == 1:  # implicit rd = ra
-                        registers['ra'] = val
-                    else:                # explicit rd
-                        registers[parts[0]] = val
-                elif not isStore(words[2]) and \
-                        not isBranch(words[2]) and \
-                        not isJump(words[2]):
-                    rdRes = re.search('^[a-zA-Z0-9_]+', line[44:-1])
-                    val = None
-                    try:
-                        val = int(line[66:82], 16)
-                    except ValueError:
-                        pass
-                    if rdRes is not None and val is not None:
-                        rd = rdRes.group(0)
-                        if rd in registers:
-                            registers[rd] = val
+                        current.end=insn.pc
+        else:
+            insn=InstructionTrace.fromLine(line)
+            if insn is not None:
+                dest=insn.getDestinationReg()
+                if dest is not None and insn.result is not None:
+                    registers[dest]=insn.result
 
-                # Check for a call instruction: "jalr ra, N(R)"
-                if len(words) >= 4 and words[2] == "jalr" and words[3] == "ra,":
-                    addrParts = re.split('[\(\)]', words[4])
-                    addr = int(addrParts[0]) + registers[addrParts[1]]
+                if insn.isCall():
+                    addr=insn.callTarget()
                     if addr in functions.keys():
-                        func = functions[addr]
-                        call = FunctionCall(func, addr, int(
-                            words[5], 16), registers['sp'], registers['fp'])
+                        func=functions[addr]
+                        call=FunctionCall(func, addr, insn.result,
+                                        registers['sp'], registers['fp'])
                         callStack.append(call)
                         print(
-                            f"### {'  ' * call.indentLevel}Call {func.name} {words[6]}")
+                            f"### {'  ' * call.indentLevel}Call {func.name} {insn.count}")
                     else:
-                        func = unknownFunc
+                        func=unknownFunc
                         if nextLine and nextLine.startswith("Call to host function"):
-                            func = hostFunc
-                        call = FunctionCall(func, addr, int(
-                            words[5], 16), registers['sp'], registers['fp'])
+                            func=hostFunc
+                        call=FunctionCall(func, addr, insn.result,
+                                        registers['sp'], registers['fp'])
                         callStack.append(call)
                         print(
-                            f"### {'  ' * call.indentLevel}Call {func.name} {words[6]}")
-                if len(words) >= 4 and words[2] == "jalr" and not words[3].endswith(','):
-                    addr = registers[words[3]]
-                    if addr in functions.keys():
-                        func = functions[addr]
-                        call = FunctionCall(func, addr, int(
-                            words[4], 16), registers['sp'], registers['fp'])
-                        callStack.append(call)
-                        print(
-                            f"### {'  ' * call.indentLevel}Call {func.name} {words[5]}")
-                    else:
-                        func = unknownFunc
-                        if nextLine and nextLine.startswith("Call to host function"):
-                            func = hostFunc
-                        call = FunctionCall(func, addr, int(
-                            words[4], 16), registers['sp'], registers['fp'])
-                        callStack.append(call)
-                        print(
-                            f"### {'  ' * call.indentLevel}Call {func.name} {words[5]}")
+                            f"### {'  ' * call.indentLevel}Call {func.name} {insn.count}")
 
-                # Check for a return
-                if len(words) >= 5 and words[2] == "jalr" and \
-                        words[3] == "zero_reg," and words[4] == "0(ra)":
-                    if len(callStack) > 0:
-                        call = callStack.pop()
-                        print(
-                            f"### {'  ' * call.indentLevel}Return from {call.func.name} {words[6]}")
-                        call.returnFrom(
-                            registers['ra'], registers['sp'], registers['fp'])
-                    else:
-                        print(
-                            f"### {'  ' * call.indentLevel}Return from top-level {words[6]}")
-                        call.returnFrom(
-                            registers['ra'], registers['sp'], registers['fp'])
-                if words[2] == "ret":
-                    if len(callStack) > 0:
-                        call = callStack.pop()
-                        print(
-                            f"### {'  ' * call.indentLevel}Return from {call.func.name} {words[4]}")
-                        call.returnFrom(
-                            registers['ra'], registers['sp'], registers['fp'])
-                    else:
-                        print(
-                            f"### {'  ' * call.indentLevel}Return from top-level {words[4]}")
-                        call.returnFrom(
-                            registers['ra'], registers['sp'], registers['fp'])
+                if insn.isReturn():
+                    call=callStack.pop()
+                    print(f"### {'  ' * call.indentLevel}Return from {call.func.name} {insn.count}")
+                    call.returnFrom(registers['ra'],
+                                    registers['sp'], registers['fp'])
 
-            if args.inline and inTraceSim:
-                print(line, end='')
-        if words[0] == "Returned":
-            call = callStack.pop()
-            print(f"### {'  ' * call.indentLevel}Return from {call.func.name}")
-            call.returnFrom()
+                if args.inline:
+                    print(line, end='')
 
-    line = nextLine
+            if words[0] == "Returned":
+                call=callStack.pop()
+                print(
+                    f"### {'  ' * call.indentLevel}Return from {call.func.name}")
+                call.returnFrom()
+
+
+    line=nextLine
 
 tracefile.close()
