@@ -89,11 +89,11 @@ Object WaitJsTranslateReturn(Isolate* isolate, Object res) {
     int val = Smi::ToInt(res);
     switch (val) {
       case WaitReturnValue::kOk:
-        return ReadOnlyRoots(isolate).ok();
+        return ReadOnlyRoots(isolate).ok_string();
       case WaitReturnValue::kNotEqual:
-        return ReadOnlyRoots(isolate).not_equal();
+        return ReadOnlyRoots(isolate).not_equal_string();
       case WaitReturnValue::kTimedOut:
-        return ReadOnlyRoots(isolate).timed_out();
+        return ReadOnlyRoots(isolate).timed_out_string();
       default:
         UNREACHABLE();
     }
