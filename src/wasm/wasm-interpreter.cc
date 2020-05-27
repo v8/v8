@@ -1031,29 +1031,23 @@ class CodeMap {
 
 namespace {
 
-struct ExternalCallResult {
+struct CallResult {
   enum Type {
     // The function should be executed inside this interpreter.
     INTERNAL,
     // For indirect calls: Table or function does not exist.
     INVALID_FUNC,
     // For indirect calls: Signature does not match expected signature.
-    SIGNATURE_MISMATCH,
-    // The function was executed and returned normally.
-    EXTERNAL_RETURNED,
-    // The function was executed, threw an exception, and the stack was unwound.
-    EXTERNAL_UNWOUND,
-    // The function was executed and threw an exception that was locally caught.
-    EXTERNAL_CAUGHT
+    SIGNATURE_MISMATCH
   };
   Type type;
   // If type is INTERNAL, this field holds the function to call internally.
   InterpreterCode* interpreter_code;
 
-  ExternalCallResult(Type type) : type(type) {  // NOLINT
+  CallResult(Type type) : type(type) {  // NOLINT
     DCHECK_NE(INTERNAL, type);
   }
-  ExternalCallResult(Type type, InterpreterCode* code)
+  CallResult(Type type, InterpreterCode* code)
       : type(type), interpreter_code(code) {
     DCHECK_EQ(INTERNAL, type);
   }
@@ -3257,30 +3251,7 @@ class ThreadImpl {
           CallFunctionImmediate<Decoder::kNoValidate> imm(&decoder,
                                                           code->at(pc));
           InterpreterCode* target = codemap()->GetCode(imm.index);
-          if (target->function->imported) {
-            CommitPc(pc);
-            ExternalCallResult result =
-                CallImportedFunction(target->function->func_index);
-            switch (result.type) {
-              case ExternalCallResult::INTERNAL:
-                // The import is a function of this instance. Call it directly.
-                DCHECK(!result.interpreter_code->function->imported);
-                break;
-              case ExternalCallResult::INVALID_FUNC:
-              case ExternalCallResult::SIGNATURE_MISMATCH:
-                // Direct calls are checked statically.
-                UNREACHABLE();
-              case ExternalCallResult::EXTERNAL_RETURNED:
-                len = 1 + imm.length;
-                break;
-              case ExternalCallResult::EXTERNAL_UNWOUND:
-                return;
-              case ExternalCallResult::EXTERNAL_CAUGHT:
-                ReloadFromFrameOnException(&decoder, &code, &pc, &limit);
-                continue;  // Do not bump pc.
-            }
-            if (result.type != ExternalCallResult::INTERNAL) break;
-          }
+          CHECK(!target->function->imported);
           // Execute an internal call.
           if (!DoCall(&decoder, target, &pc, &limit)) return;
           code = target;
@@ -3292,27 +3263,19 @@ class ThreadImpl {
               WasmFeatures::All(), &decoder, code->at(pc));
           uint32_t entry_index = Pop().to<uint32_t>();
           CommitPc(pc);  // TODO(wasm): Be more disciplined about committing PC.
-          ExternalCallResult result =
+          CallResult result =
               CallIndirectFunction(imm.table_index, entry_index, imm.sig_index);
           switch (result.type) {
-            case ExternalCallResult::INTERNAL:
+            case CallResult::INTERNAL:
               // The import is a function of this instance. Call it directly.
               if (!DoCall(&decoder, result.interpreter_code, &pc, &limit))
                 return;
               code = result.interpreter_code;
               continue;  // Do not bump pc.
-            case ExternalCallResult::INVALID_FUNC:
+            case CallResult::INVALID_FUNC:
               return DoTrap(kTrapFuncInvalid, pc);
-            case ExternalCallResult::SIGNATURE_MISMATCH:
+            case CallResult::SIGNATURE_MISMATCH:
               return DoTrap(kTrapFuncSigMismatch, pc);
-            case ExternalCallResult::EXTERNAL_RETURNED:
-              len = 1 + imm.length;
-              break;
-            case ExternalCallResult::EXTERNAL_UNWOUND:
-              return;
-            case ExternalCallResult::EXTERNAL_CAUGHT:
-              ReloadFromFrameOnException(&decoder, &code, &pc, &limit);
-              continue;  // Do not bump pc.
           }
         } break;
 
@@ -3321,35 +3284,11 @@ class ThreadImpl {
                                                           code->at(pc));
           InterpreterCode* target = codemap()->GetCode(imm.index);
 
-          if (!target->function->imported) {
-            // Enter internal found function.
-            if (!DoReturnCall(&decoder, target, &pc, &limit)) return;
-            code = target;
-            continue;  // Do not bump pc.
-          }
-          // Function is imported.
-          CommitPc(pc);
-          ExternalCallResult result =
-              CallImportedFunction(target->function->func_index);
-          switch (result.type) {
-            case ExternalCallResult::INTERNAL:
-              // Cannot import internal functions.
-            case ExternalCallResult::INVALID_FUNC:
-            case ExternalCallResult::SIGNATURE_MISMATCH:
-              // Direct calls are checked statically.
-              UNREACHABLE();
-            case ExternalCallResult::EXTERNAL_RETURNED:
-              len = 1 + imm.length;
-              break;
-            case ExternalCallResult::EXTERNAL_UNWOUND:
-              return;
-            case ExternalCallResult::EXTERNAL_CAUGHT:
-              ReloadFromFrameOnException(&decoder, &code, &pc, &limit);
-              continue;
-          }
-          size_t arity = code->function->sig->return_count();
-          if (!DoReturn(&decoder, &code, &pc, &limit, arity)) return;
-          continue;
+          CHECK(!target->function->imported);
+          // Enter internal found function.
+          if (!DoReturnCall(&decoder, target, &pc, &limit)) return;
+          code = target;
+          continue;  // Do not bump pc.
         } break;
 
         case kExprReturnCallIndirect: {
@@ -3360,10 +3299,10 @@ class ThreadImpl {
 
           // TODO(wasm): Calling functions needs some refactoring to avoid
           // multi-exit code like this.
-          ExternalCallResult result =
+          CallResult result =
               CallIndirectFunction(imm.table_index, entry_index, imm.sig_index);
           switch (result.type) {
-            case ExternalCallResult::INTERNAL: {
+            case CallResult::INTERNAL: {
               InterpreterCode* target = result.interpreter_code;
 
               DCHECK(!target->function->imported);
@@ -3373,23 +3312,10 @@ class ThreadImpl {
               code = result.interpreter_code;
               continue;  // Do not bump pc.
             }
-            case ExternalCallResult::INVALID_FUNC:
+            case CallResult::INVALID_FUNC:
               return DoTrap(kTrapFuncInvalid, pc);
-            case ExternalCallResult::SIGNATURE_MISMATCH:
+            case CallResult::SIGNATURE_MISMATCH:
               return DoTrap(kTrapFuncSigMismatch, pc);
-            case ExternalCallResult::EXTERNAL_RETURNED: {
-              len = 1 + imm.length;
-
-              size_t arity = code->function->sig->return_count();
-              if (!DoReturn(&decoder, &code, &pc, &limit, arity)) return;
-              break;
-            }
-            case ExternalCallResult::EXTERNAL_UNWOUND:
-              return;
-
-            case ExternalCallResult::EXTERNAL_CAUGHT:
-              ReloadFromFrameOnException(&decoder, &code, &pc, &limit);
-              break;
           }
         } break;
 
@@ -3853,110 +3779,6 @@ class ThreadImpl {
 #endif  // DEBUG
   }
 
-  ExternalCallResult TryHandleException(Isolate* isolate) {
-    DCHECK(isolate->has_pending_exception());  // Assume exceptional return.
-    if (HandleException(isolate) == WasmInterpreter::Thread::UNWOUND) {
-      return {ExternalCallResult::EXTERNAL_UNWOUND};
-    }
-    return {ExternalCallResult::EXTERNAL_CAUGHT};
-  }
-
-  ExternalCallResult CallExternalWasmFunction(Isolate* isolate,
-                                              Handle<Object> object_ref,
-                                              const WasmCode* code,
-                                              const FunctionSig* sig) {
-    int num_args = static_cast<int>(sig->parameter_count());
-    WasmFeatures enabled_features = WasmFeatures::FromIsolate(isolate);
-
-    if (code->kind() == WasmCode::kWasmToJsWrapper &&
-        !IsJSCompatibleSignature(sig, enabled_features)) {
-      Drop(num_args);  // Pop arguments before throwing.
-      isolate->Throw(*isolate->factory()->NewTypeError(
-          MessageTemplate::kWasmTrapTypeError));
-      return TryHandleException(isolate);
-    }
-
-    Handle<WasmDebugInfo> debug_info(instance_object_->debug_info(), isolate);
-    Handle<Code> wasm_entry = WasmDebugInfo::GetCWasmEntry(debug_info, sig);
-
-    TRACE("  => Calling external wasm function\n");
-
-    // Copy the arguments to one buffer.
-    CWasmArgumentsPacker packer(CWasmArgumentsPacker::TotalSize(sig));
-    sp_t base_index = StackHeight() - num_args;
-    for (int i = 0; i < num_args; ++i) {
-      WasmValue arg = GetStackValue(base_index + i);
-      switch (sig->GetParam(i).kind()) {
-        case ValueType::kI32:
-          packer.Push(arg.to<uint32_t>());
-          break;
-        case ValueType::kI64:
-          packer.Push(arg.to<uint64_t>());
-          break;
-        case ValueType::kF32:
-          packer.Push(arg.to<float>());
-          break;
-        case ValueType::kF64:
-          packer.Push(arg.to<double>());
-          break;
-        case ValueType::kAnyRef:
-        case ValueType::kFuncRef:
-        case ValueType::kNullRef:
-        case ValueType::kExnRef:
-          DCHECK_IMPLIES(sig->GetParam(i) == kWasmNullRef,
-                         arg.to_anyref()->IsNull());
-          packer.Push(arg.to_anyref()->ptr());
-          break;
-        default:
-          UNIMPLEMENTED();
-      }
-    }
-
-    Address call_target = code->instruction_start();
-    Execution::CallWasm(isolate, wasm_entry, call_target, object_ref,
-                        packer.argv());
-    TRACE("  => External wasm function returned%s\n",
-          isolate->has_pending_exception() ? " with exception" : "");
-
-    // Pop arguments off the stack.
-    Drop(num_args);
-
-    if (isolate->has_pending_exception()) {
-      return TryHandleException(isolate);
-    }
-
-    // Push return values.
-    packer.Reset();
-    for (size_t i = 0; i < sig->return_count(); i++) {
-      switch (sig->GetReturn(i).kind()) {
-        case ValueType::kI32:
-          Push(WasmValue(packer.Pop<uint32_t>()));
-          break;
-        case ValueType::kI64:
-          Push(WasmValue(packer.Pop<uint64_t>()));
-          break;
-        case ValueType::kF32:
-          Push(WasmValue(packer.Pop<float>()));
-          break;
-        case ValueType::kF64:
-          Push(WasmValue(packer.Pop<double>()));
-          break;
-        case ValueType::kAnyRef:
-        case ValueType::kFuncRef:
-        case ValueType::kNullRef:
-        case ValueType::kExnRef: {
-          Handle<Object> ref(Object(packer.Pop<Address>()), isolate);
-          DCHECK_IMPLIES(sig->GetReturn(i) == kWasmNullRef, ref->IsNull());
-          Push(WasmValue(ref));
-          break;
-        }
-        default:
-          UNIMPLEMENTED();
-      }
-    }
-    return {ExternalCallResult::EXTERNAL_RETURNED};
-  }
-
   static WasmCode* GetTargetCode(Isolate* isolate, Address target) {
     WasmCodeManager* code_manager = isolate->wasm_engine()->code_manager();
     NativeModule* native_module = code_manager->LookupNativeModule(target);
@@ -3979,25 +3801,8 @@ class ThreadImpl {
     return code;
   }
 
-  ExternalCallResult CallImportedFunction(uint32_t function_index) {
-    DCHECK_GT(module()->num_imported_functions, function_index);
-    HandleScope handle_scope(isolate_);  // Avoid leaking handles.
-
-    ImportedFunctionEntry entry(instance_object_, function_index);
-    Handle<Object> object_ref(entry.object_ref(), isolate_);
-    WasmCode* code = GetTargetCode(isolate_, entry.target());
-
-    // In case a function's body is invalid and the function is lazily validated
-    // and compiled we may get an exception.
-    if (code == nullptr) return TryHandleException(isolate_);
-
-    const FunctionSig* sig = module()->functions[function_index].sig;
-    return CallExternalWasmFunction(isolate_, object_ref, code, sig);
-  }
-
-  ExternalCallResult CallIndirectFunction(uint32_t table_index,
-                                          uint32_t entry_index,
-                                          uint32_t sig_index) {
+  CallResult CallIndirectFunction(uint32_t table_index, uint32_t entry_index,
+                                  uint32_t sig_index) {
     HandleScope handle_scope(isolate_);  // Avoid leaking handles.
     uint32_t expected_sig_id = module()->signature_ids[sig_index];
     DCHECK_EQ(expected_sig_id,
@@ -4006,31 +3811,26 @@ class ThreadImpl {
     if (entry_index >=
         static_cast<uint32_t>(WasmInstanceObject::IndirectFunctionTableSize(
             isolate_, instance_object_, table_index))) {
-      return {ExternalCallResult::INVALID_FUNC};
+      return {CallResult::INVALID_FUNC};
     }
 
     IndirectFunctionTableEntry entry(instance_object_, table_index,
                                      entry_index);
     // Signature check.
     if (entry.sig_id() != static_cast<int32_t>(expected_sig_id)) {
-      return {ExternalCallResult::SIGNATURE_MISMATCH};
+      return {CallResult::SIGNATURE_MISMATCH};
     }
 
-    const FunctionSig* signature = module()->signature(sig_index);
     Handle<Object> object_ref = handle(entry.object_ref(), isolate_);
     WasmCode* code = GetTargetCode(isolate_, entry.target());
+    CHECK_NOT_NULL(code);
 
-    // In case a function's body is invalid and the function is lazily validated
-    // and compiled we may get an exception.
-    if (code == nullptr) return TryHandleException(isolate_);
-
-    if (!object_ref->IsWasmInstanceObject() || /* call to an import */
-        !instance_object_.is_identical_to(object_ref) /* cross-instance */) {
-      return CallExternalWasmFunction(isolate_, object_ref, code, signature);
-    }
+    // Check that this is an internal call (within the same instance).
+    CHECK(object_ref->IsWasmInstanceObject() &&
+          instance_object_.is_identical_to(object_ref));
 
     DCHECK_EQ(WasmCode::kFunction, code->kind());
-    return {ExternalCallResult::INTERNAL, codemap()->GetCode(code->index())};
+    return {CallResult::INTERNAL, codemap()->GetCode(code->index())};
   }
 
   inline Activation current_activation() {
