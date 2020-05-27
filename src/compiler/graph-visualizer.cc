@@ -964,6 +964,97 @@ void PrintScheduledGraph(std::ostream& os, const Schedule* schedule) {
 
 }  // namespace
 
+std::ostream& operator<<(std::ostream& os,
+                         const LiveRangeAsJSON& live_range_json) {
+  const LiveRange& range = live_range_json.range_;
+  os << "{\"id\":" << range.relative_id() << ",\"type\":";
+  if (range.HasRegisterAssigned()) {
+    const InstructionOperand op = range.GetAssignedOperand();
+    os << "\"assigned\",\"op\":"
+       << InstructionOperandAsJSON{&op, &(live_range_json.code_)};
+  } else if (range.spilled() && !range.TopLevel()->HasNoSpillType()) {
+    const TopLevelLiveRange* top = range.TopLevel();
+    if (top->HasSpillOperand()) {
+      os << "\"assigned\",\"op\":"
+         << InstructionOperandAsJSON{top->GetSpillOperand(),
+                                     &(live_range_json.code_)};
+    } else {
+      int index = top->GetSpillRange()->assigned_slot();
+      os << "\"spilled\",\"op\":";
+      if (IsFloatingPoint(top->representation())) {
+        os << "\"fp_stack:" << index << "\"";
+      } else {
+        os << "\"stack:" << index << "\"";
+      }
+    }
+  } else {
+    os << "\"none\"";
+  }
+
+  os << ",\"intervals\":[";
+  bool first = true;
+  for (const UseInterval* interval = range.first_interval();
+       interval != nullptr; interval = interval->next()) {
+    if (!first) os << ",";
+    first = false;
+    os << "[" << interval->start().value() << "," << interval->end().value()
+       << "]";
+  }
+
+  os << "]}";
+  return os;
+}
+
+std::ostream& operator<<(
+    std::ostream& os,
+    const TopLevelLiveRangeAsJSON& top_level_live_range_json) {
+  int vreg = top_level_live_range_json.range_.vreg();
+  bool first = true;
+  os << "\"" << (vreg > 0 ? vreg : -vreg) << "\":{ \"child_ranges\":[";
+  for (const LiveRange* child = &(top_level_live_range_json.range_);
+       child != nullptr; child = child->next()) {
+    if (!top_level_live_range_json.range_.IsEmpty()) {
+      if (!first) os << ",";
+      first = false;
+      os << LiveRangeAsJSON{*child, top_level_live_range_json.code_};
+    }
+  }
+  os << "]";
+  if (top_level_live_range_json.range_.IsFixed()) {
+    os << ", \"is_deferred\": "
+       << (top_level_live_range_json.range_.IsDeferredFixed() ? "true"
+                                                              : "false");
+  }
+  os << "}";
+  return os;
+}
+
+void PrintTopLevelLiveRanges(std::ostream& os,
+                             const ZoneVector<TopLevelLiveRange*> ranges,
+                             const InstructionSequence& code) {
+  bool first = true;
+  os << "{";
+  for (const TopLevelLiveRange* range : ranges) {
+    if (range != nullptr && !range->IsEmpty()) {
+      if (!first) os << ",";
+      first = false;
+      os << TopLevelLiveRangeAsJSON{*range, code};
+    }
+  }
+  os << "}";
+}
+
+std::ostream& operator<<(std::ostream& os,
+                         const RegisterAllocationDataAsJSON& ac) {
+  os << "\"fixed_double_live_ranges\": ";
+  PrintTopLevelLiveRanges(os, ac.data_.fixed_double_live_ranges(), ac.code_);
+  os << ",\"fixed_live_ranges\": ";
+  PrintTopLevelLiveRanges(os, ac.data_.fixed_live_ranges(), ac.code_);
+  os << ",\"live_ranges\": ";
+  PrintTopLevelLiveRanges(os, ac.data_.live_ranges(), ac.code_);
+  return os;
+}
+
 std::ostream& operator<<(std::ostream& os, const AsScheduledGraph& scheduled) {
   PrintScheduledGraph(os, scheduled.schedule);
   return os;
@@ -1228,7 +1319,7 @@ std::ostream& operator<<(std::ostream& os, const InstructionBlockAsJSON& b) {
 std::ostream& operator<<(std::ostream& os, const InstructionSequenceAsJSON& s) {
   const InstructionSequence* code = s.sequence_;
 
-  os << "\"blocks\": [";
+  os << "[";
 
   bool need_comma = false;
   for (int i = 0; i < code->InstructionBlockCount(); i++) {

@@ -3332,9 +3332,12 @@ void TraceSequence(OptimizedCompilationInfo* info, PipelineData* data,
   if (info->trace_turbo_json_enabled()) {
     AllowHandleDereference allow_deref;
     TurboJsonFile json_of(info, std::ios_base::app);
-    json_of << "{\"name\":\"" << phase_name << "\",\"type\":\"sequence\",";
-    json_of << InstructionSequenceAsJSON{data->sequence()};
-    json_of << "},\n";
+    json_of << "{\"name\":\"" << phase_name << "\",\"type\":\"sequence\""
+            << ",\"blocks\":" << InstructionSequenceAsJSON{data->sequence()}
+            << ",\"register_allocation\":{"
+            << RegisterAllocationDataAsJSON{*(data->register_allocation_data()),
+                                            *(data->sequence())}
+            << "}},\n";
   }
   if (info->trace_turbo_graph_enabled()) {
     AllowHandleDereference allow_deref;
