@@ -382,6 +382,12 @@ while nextLine:
     elif words[0] == "---":
         inTraceSim = False
     elif words[0] == "CallImpl:":
+        # Record registers from the output
+        registers['a0'] = int(words[11], 16)
+        registers['a1'] = int(words[15], 16)
+        registers['a2'] = int(words[19], 16)
+        registers['a3'] = int(words[23], 16)
+        registers['a4'] = int(words[27], 16)
         addr = int(words[7], 16)
         func = functions[addr]
         call = FunctionCall(func, addr, 0xFFFFFFFFFFFFFFFE)
