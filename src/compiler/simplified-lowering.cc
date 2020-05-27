@@ -336,30 +336,32 @@ class RepresentationSelector {
             revisit_queue_.push(user);
           }
         }
-      }
-    }
 
-    // Process the revisit queue.
-    while (!revisit_queue_.empty()) {
-      Node* node = revisit_queue_.front();
-      revisit_queue_.pop();
-      NodeInfo* info = GetInfo(node);
-      info->set_visited();
-      bool updated = UpdateFeedbackType(node);
-      TRACE(" revisit #%d: %s\n", node->id(), node->op()->mnemonic());
-      VisitNode<RETYPE>(node, info->truncation(), nullptr);
-      TRACE("  ==> output ");
-      PrintOutputInfo(info);
-      TRACE("\n");
-      if (updated) {
-        // Here we need to check all uses since we can't easily know which
-        // nodes will need to be revisited due to having an input which was
-        // a revisited node.
-        for (Node* const user : node->uses()) {
-          if (GetInfo(user)->visited()) {
-            TRACE(" QUEUEING #%d: %s\n", user->id(), user->op()->mnemonic());
-            GetInfo(user)->set_queued();
-            revisit_queue_.push(user);
+        // Process the revisit queue.
+        while (!revisit_queue_.empty()) {
+          Node* revisit_node = revisit_queue_.front();
+          revisit_queue_.pop();
+          NodeInfo* revisit_info = GetInfo(revisit_node);
+          revisit_info->set_visited();
+          bool updated = UpdateFeedbackType(revisit_node);
+          TRACE(" revisit #%d: %s\n", revisit_node->id(),
+                revisit_node->op()->mnemonic());
+          VisitNode<RETYPE>(revisit_node, revisit_info->truncation(), nullptr);
+          TRACE("  ==> output ");
+          PrintOutputInfo(revisit_info);
+          TRACE("\n");
+          if (updated) {
+            // Here we need to check all uses since we can't easily know which
+            // nodes will need to be revisited due to having an input which was
+            // a revisited node.
+            for (Node* const user : revisit_node->uses()) {
+              if (GetInfo(user)->visited()) {
+                TRACE(" QUEUEING #%d: %s\n", user->id(),
+                      user->op()->mnemonic());
+                GetInfo(user)->set_queued();
+                revisit_queue_.push(user);
+              }
+            }
           }
         }
       }
@@ -599,17 +601,18 @@ class RepresentationSelector {
       TRACE(" visit #%d: %s (trunc: %s)\n", node->id(), node->op()->mnemonic(),
             info->truncation().description());
       VisitNode<PROPAGATE>(node, info->truncation(), nullptr);
-    }
 
-    // Revisit queue
-    while (!revisit_queue_.empty()) {
-      Node* node = revisit_queue_.front();
-      NodeInfo* info = GetInfo(node);
-      revisit_queue_.pop();
-      info->set_visited();
-      TRACE(" visit #%d: %s (trunc: %s)\n", node->id(), node->op()->mnemonic(),
-            info->truncation().description());
-      VisitNode<PROPAGATE>(node, info->truncation(), nullptr);
+      // Revisit queue
+      while (!revisit_queue_.empty()) {
+        Node* revisit_node = revisit_queue_.front();
+        NodeInfo* revisit_info = GetInfo(revisit_node);
+        revisit_queue_.pop();
+        revisit_info->set_visited();
+        TRACE(" visit #%d: %s (trunc: %s)\n", revisit_node->id(),
+              revisit_node->op()->mnemonic(),
+              revisit_info->truncation().description());
+        VisitNode<PROPAGATE>(revisit_node, revisit_info->truncation(), nullptr);
+      }
     }
   }
 
