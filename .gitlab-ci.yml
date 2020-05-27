@@ -22,6 +22,11 @@ cctests:
   stage: test
   script:
     - tools/run-tests.py --outdir=out.gn/riscv64_debug
+        unittests
+        cctest/test-run-jsops/*
+        cctest/test-interpreter/*
+        cctest/test-strings/*
+        cctest/test-code-stub-assembler/*
         cctest/test-run-wasm-asmjs/*
         cctest/test-run-wasm-64/*
         cctest/test-run-wasm-sign-extension/*
@@ -38,5 +43,3 @@ cctests:
         cctest/test-wasm-stack/*
         cctest/test-torque/*
         cctest/test-interpreter-intrinsics/*
-        unittests/InstructionSelector*
-        unittests/TurboAssembler*
