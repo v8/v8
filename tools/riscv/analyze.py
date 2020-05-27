@@ -137,8 +137,8 @@ class InstructionTrace:
         except ValueError:
             pass
         countRes = re.search('\(([1-9][0-9]* *)\)', line)
-        if pc is None or insnHex is None or (countRes is None and \
-                not isControlFlow(insn)):
+        if pc is None or insnHex is None or (countRes is None and
+                                             not isControlFlow(insn)):
             return None
 
         count = -1
@@ -146,7 +146,7 @@ class InstructionTrace:
             count = int(countRes.group(1))
         operands = []
         result = None
-        if insn == 'ret': # No operands
+        if insn == 'ret':  # No operands
             pass
         else:
             resIdx = 3
@@ -184,7 +184,7 @@ class InstructionTrace:
         if self.insn == 'jalr' and \
                 ((args.target == 'riscv' and
                   (self.operands[0] == 'ra' or len(self.operands) == 1)) or
-                (args.target == 'mips' and self.operands[1] == 'ra')):
+                 (args.target == 'mips' and self.operands[1] == 'ra')):
             return True
         return False
 
@@ -201,7 +201,7 @@ class InstructionTrace:
             if len(self.operands) == 1:
                 return registers[self.operands[0]]
 
-            offset=None
+            offset = None
             try:
                 int(self.operands[0])
             except ValueError:
@@ -235,23 +235,23 @@ class InstructionTrace:
         return self.operands[0]
 
 
-unknownFunc=Function('unknown')
-unknownFunc.name='unknown'
-hostFunc=Function('host')
-hostFunc.name='host'
+unknownFunc = Function('unknown')
+unknownFunc.name = 'unknown'
+hostFunc = Function('host')
+hostFunc.name = 'host'
 
 
 class FunctionCall:
-    indentLevel=0
+    indentLevel = 0
 
     def __init__(self, func, pc, ra, sp=None, fp=None):
-        self.func=func
-        self.pc=pc
-        self.ra=ra
-        self.sp=sp
-        self.fp=fp
-        self.indentLevel=FunctionCall.indentLevel
-        FunctionCall.indentLevel=FunctionCall.indentLevel + 1
+        self.func = func
+        self.pc = pc
+        self.ra = ra
+        self.sp = sp
+        self.fp = fp
+        self.indentLevel = FunctionCall.indentLevel
+        FunctionCall.indentLevel = FunctionCall.indentLevel + 1
 
     def returnFrom(self, ra=None, sp=None, fp=None):
         if ra is not None and ra != self.ra:
@@ -263,7 +263,7 @@ class FunctionCall:
         if fp is not None and self.fp is not None and fp != self.fp:
             print(
                 f"### WARNING: Expected frame pointer = {self.fp}, actual = {fp}")
-        FunctionCall.indentLevel=FunctionCall.indentLevel - 1
+        FunctionCall.indentLevel = FunctionCall.indentLevel - 1
 
 
 def isStore(s):
@@ -289,124 +289,155 @@ def isJumpAndLink(s):
         return True
     return False
 
+
 def isControlFlow(s):
     return isBranch(s) or isJump(s) or isJumpAndLink(s) or s == 'ecall'
 
 
-parser=argparse.ArgumentParser()
+def printArgs(indentLevel=0):
+    print(
+        f"### {'  ' * call.indentLevel}  sp={hex(registers['sp'])} fp={hex(registers['fp'])}")
+    print(f"### {'  ' * call.indentLevel}  Args:", end='')
+    for i in range(0, 8):
+        r = f"a{i}"
+        val = '?'
+        if r in registers:
+            val = hex(registers[r])
+        print(f" {val}", end='')
+    print()
+
+
+def printReturnValues(indentLevel=0):
+    print(f"### {'  ' * call.indentLevel}  Returned: ", end='')
+    prefix = 'a' if args.target == 'riscv' else 'v'
+    for i in range(0, 2):
+        r = f"{prefix}{i}"
+        val = '?'
+        if r in registers:
+            val = hex(registers[r])
+        print(f" {val}", end='')
+    print()
+
+
+parser = argparse.ArgumentParser()
 parser.add_argument('--inline', action='store_true', default=False,
                     dest='inline', help='Print comments inline with trace')
-parser.add_argument('--target', default='riscv')
+parser.add_argument('--target', default='riscv',
+                    help='Specify the target architecture')
 parser.add_argument('logfile', nargs=1)
-args=parser.parse_args()
+args = parser.parse_args()
 
-tracefile=open(args.logfile[0])
-functions={}
-current=None
-inTrampoline=False
-inBody=False
-inSafePoints=False
-skip=0
+tracefile = open(args.logfile[0])
+functions = {}
+current = None
+inTrampoline = False
+inBody = False
+inSafePoints = False
+skip = 0
 
-inTraceSim=False
-callStack=[]
-registers={}
+inTraceSim = False
+callStack = []
+registers = {}
 
-nextLine=tracefile.readline()
+nextLine = tracefile.readline()
 while nextLine:
-    line=nextLine
-    nextLine=tracefile.readline()
+    line = nextLine
+    nextLine = tracefile.readline()
     if skip > 0:
-        skip=skip - 1
+        skip = skip - 1
         continue
 
-    words=line.split()
+    words = line.split()
     if len(words) == 0:
         continue
 
     if words[0] == "kind":
         # Start a new function
-        current=Function(words[2])
+        current = Function(words[2])
     elif words[0] == "name":
-        current.name=words[2]
+        current.name = words[2]
     elif words[0] == "compiler":
-        current.compiler=words[2]
+        current.compiler = words[2]
     elif words[0] == "address":
-        current.address=words[2]
+        current.address = words[2]
     elif words[0] == "Trampoline":
-        current.trampoline=Trampoline()
-        inTrampoline=True
+        current.trampoline = Trampoline()
+        inTrampoline = True
     elif words[0] == "Instructions":
-        inTrampoline=False
-        inBody=True
+        inTrampoline = False
+        inBody = True
     elif words[0] == "Safepoints" or words[0] == "Deoptimization":
-        inBody=False
-        inSafePoints=True
+        inBody = False
+        inSafePoints = True
     elif words[0] == "RelocInfo":
-        inSafePoints=False
+        inSafePoints = False
         # End this function
-        inBody=False
-        functions[current.start]=current
+        inBody = False
+        functions[current.start] = current
         if current.trampoline is not None:
-            functions[current.trampoline.start]=current
-        current=None
+            functions[current.trampoline.start] = current
+        current = None
         # skip the next line
-        skip=1
+        skip = 1
     elif words[0] == "---":
-        inTraceSim=False
+        inTraceSim = False
     elif words[0] == "CallImpl:":
-        addr=int(words[7], 16)
-        func=functions[addr]
-        call=FunctionCall(func, addr, 0xFFFFFFFFFFFFFFFE)
+        addr = int(words[7], 16)
+        func = functions[addr]
+        call = FunctionCall(func, addr, 0xFFFFFFFFFFFFFFFE)
         callStack.append(call)
         print(f"### Start in {func.name}")
-        inTraceSim=True
+        inTraceSim = True
     else:
         if inSafePoints:
             continue
 
         if not inTraceSim:
-            insn=Instruction.fromLine(line)
+            insn = Instruction.fromLine(line)
             if insn is not None:
                 if insn.offset == 0:
                     if inTrampoline:
-                        current.trampoline.start=insn.pc
+                        current.trampoline.start = insn.pc
                     elif inBody:
-                        current.start=insn.pc
+                        current.start = insn.pc
                 else:
                     if inTrampoline:
-                        current.trampoline.end=insn.pc
+                        current.trampoline.end = insn.pc
                     elif inBody:
-                        current.end=insn.pc
+                        current.end = insn.pc
         else:
-            insn=InstructionTrace.fromLine(line)
+            insn = InstructionTrace.fromLine(line)
             if insn is not None:
-                dest=insn.getDestinationReg()
+                dest = insn.getDestinationReg()
                 if dest is not None and insn.result is not None:
-                    registers[dest]=insn.result
+                    registers[dest] = insn.result
 
                 if insn.isCall():
-                    addr=insn.callTarget()
+                    addr = insn.callTarget()
                     if addr in functions.keys():
-                        func=functions[addr]
-                        call=FunctionCall(func, addr, insn.result,
-                                        registers['sp'], registers['fp'])
+                        func = functions[addr]
+                        call = FunctionCall(func, addr, insn.result,
+                                            registers['sp'], registers['fp'])
                         callStack.append(call)
                         print(
                             f"### {'  ' * call.indentLevel}Call {func.name} {insn.count}")
+                        printArgs(call.indentLevel)
                     else:
-                        func=unknownFunc
+                        func = unknownFunc
                         if nextLine and nextLine.startswith("Call to host function"):
-                            func=hostFunc
-                        call=FunctionCall(func, addr, insn.result,
-                                        registers['sp'], registers['fp'])
+                            func = hostFunc
+                        call = FunctionCall(func, addr, insn.result,
+                                            registers['sp'], registers['fp'])
                         callStack.append(call)
                         print(
                             f"### {'  ' * call.indentLevel}Call {func.name} {insn.count}")
+                        printArgs(call.indentLevel)
 
                 if insn.isReturn():
-                    call=callStack.pop()
-                    print(f"### {'  ' * call.indentLevel}Return from {call.func.name} {insn.count}")
+                    call = callStack.pop()
+                    print(
+                        f"### {'  ' * call.indentLevel}Return from {call.func.name} {insn.count}")
+                    printReturnValues(call.indentLevel)
                     call.returnFrom(registers['ra'],
                                     registers['sp'], registers['fp'])
 
@@ -414,12 +445,14 @@ while nextLine:
                     print(line, end='')
 
             if words[0] == "Returned":
-                call=callStack.pop()
+                prefix = 'a' if args.target == 'riscv' else 'v'
+                registers[f'{prefix}1'] = int(words[1], 16)
+                registers[f'{prefix}0'] = int(words[3], 16)
+                call = callStack.pop()
                 print(
                     f"### {'  ' * call.indentLevel}Return from {call.func.name}")
+                printReturnValues(call.indentLevel)
                 call.returnFrom()
-
-
-    line=nextLine
+    line = nextLine
 
 tracefile.close()
