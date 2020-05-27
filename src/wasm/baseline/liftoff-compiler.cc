@@ -520,6 +520,14 @@ class LiftoffCompiler {
     return false;
   }
 
+  void TraceFunctionEntry(FullDecoder* decoder) {
+    DEBUG_CODE_COMMENT("trace function entry");
+    source_position_table_builder_.AddPosition(
+        __ pc_offset(), SourcePosition(decoder->position()), false);
+    __ CallRuntimeStub(WasmCode::kWasmTraceEnter);
+    safepoint_table_builder_.DefineSafepoint(&asm_, Safepoint::kNoLazyDeopt);
+  }
+
   void StartFunctionBody(FullDecoder* decoder, Control* block) {
     for (uint32_t i = 0; i < __ num_locals(); ++i) {
       if (!CheckSupportedType(decoder, kSupportedTypes, __ local_type(i),
@@ -593,6 +601,8 @@ class LiftoffCompiler {
     // The function-prologue stack check is associated with position 0, which
     // is never a position of any instruction in the function.
     StackCheck(0);
+
+    if (FLAG_trace_wasm) TraceFunctionEntry(decoder);
 
     // If we are generating debug code, do check the "hook on function call"
     // flag. If set, trigger a break.

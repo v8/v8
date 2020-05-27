@@ -21,6 +21,7 @@ extern runtime ReThrow(Context, Object): JSAny;
 extern runtime WasmStackGuard(Context): JSAny;
 extern runtime ThrowWasmStackOverflow(Context): JSAny;
 extern runtime WasmTraceMemory(Context, Smi): JSAny;
+extern runtime WasmTraceEnter(Context): JSAny;
 extern runtime WasmAtomicNotify(
     Context, WasmInstanceObject, Number, Number): Smi;
 extern runtime WasmI32AtomicWait(
@@ -208,6 +209,10 @@ builtin WasmStackOverflow(): JSAny {
 
 builtin WasmTraceMemory(info: Smi): JSAny {
   tail runtime::WasmTraceMemory(LoadContextFromFrame(), info);
+}
+
+builtin WasmTraceEnter(): JSAny {
+  tail runtime::WasmTraceEnter(LoadContextFromFrame());
 }
 
 builtin WasmAllocateJSArray(implicit context: Context)(size: Smi): JSArray {

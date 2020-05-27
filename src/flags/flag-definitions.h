@@ -1149,7 +1149,8 @@ DEFINE_BOOL(inline_new, true, "use fast inline allocation")
 DEFINE_NEG_NEG_IMPLICATION(inline_new, turbo_allocation_folding)
 
 // codegen-ia32.cc / codegen-arm.cc
-DEFINE_BOOL(trace, false, "trace function calls")
+DEFINE_BOOL(trace, false, "trace javascript function calls")
+DEFINE_BOOL(trace_wasm, false, "trace wasm function calls")
 
 // codegen.cc
 DEFINE_BOOL(lazy, true, "use lazy compilation")

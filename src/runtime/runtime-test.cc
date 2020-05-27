@@ -952,7 +952,6 @@ RUNTIME_FUNCTION(Runtime_TraceEnter) {
   return ReadOnlyRoots(isolate).undefined_value();
 }
 
-
 RUNTIME_FUNCTION(Runtime_TraceExit) {
   SealHandleScope shs(isolate);
   DCHECK_EQ(1, args.length());
@@ -962,6 +961,14 @@ RUNTIME_FUNCTION(Runtime_TraceExit) {
   obj.ShortPrint();
   PrintF("\n");
   return obj;  // return TOS
+}
+
+RUNTIME_FUNCTION(Runtime_WasmTraceEnter) {
+  SealHandleScope shs(isolate);
+  DCHECK_EQ(0, args.length());
+  // TODO(10559): Print more useful info here.
+  PrintF("Enter function\n");
+  return ReadOnlyRoots(isolate).undefined_value();
 }
 
 RUNTIME_FUNCTION(Runtime_HaveSameMap) {
