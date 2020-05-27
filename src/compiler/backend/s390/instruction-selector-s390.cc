@@ -2794,6 +2794,17 @@ SIMD_VISIT_QFMOP(F64x2Qfms)
 SIMD_VISIT_QFMOP(F32x4Qfma)
 SIMD_VISIT_QFMOP(F32x4Qfms)
 #undef SIMD_VISIT_QFMOP
+
+#define SIMD_VISIT_BITMASK(Opcode)                      \
+  void InstructionSelector::Visit##Opcode(Node* node) { \
+    S390OperandGenerator g(this);                       \
+    Emit(kS390_##Opcode, g.DefineAsRegister(node),      \
+         g.UseUniqueRegister(node->InputAt(0)));        \
+  }
+SIMD_VISIT_BITMASK(I8x16BitMask)
+SIMD_VISIT_BITMASK(I16x8BitMask)
+SIMD_VISIT_BITMASK(I32x4BitMask)
+#undef SIMD_VISIT_BITMASK
 #undef SIMD_TYPES
 
 void InstructionSelector::VisitS8x16Shuffle(Node* node) {

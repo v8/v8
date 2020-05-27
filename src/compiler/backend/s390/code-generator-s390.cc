@@ -4185,6 +4185,38 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
 #endif
       break;
     }
+    case kS390_I32x4BitMask: {
+      __ lgfi(kScratchReg, Operand(0x204060));
+      __ aih(kScratchReg, Operand(0x80808080));  // Zeroing the high bits
+      __ vlvg(kScratchDoubleReg, kScratchReg, MemOperand(r0, 1), Condition(3));
+      __ vbperm(kScratchDoubleReg, i.InputSimd128Register(0), kScratchDoubleReg,
+                Condition(0), Condition(0), Condition(0));
+      __ vlgv(i.OutputRegister(), kScratchDoubleReg, MemOperand(r0, 7),
+              Condition(0));
+      break;
+    }
+    case kS390_I16x8BitMask: {
+      __ lgfi(kScratchReg, Operand(0x40506070));
+      __ aih(kScratchReg, Operand(0x102030));
+      __ vlvg(kScratchDoubleReg, kScratchReg, MemOperand(r0, 1), Condition(3));
+      __ vbperm(kScratchDoubleReg, i.InputSimd128Register(0), kScratchDoubleReg,
+                Condition(0), Condition(0), Condition(0));
+      __ vlgv(i.OutputRegister(), kScratchDoubleReg, MemOperand(r0, 7),
+              Condition(0));
+      break;
+    }
+    case kS390_I8x16BitMask: {
+      __ lgfi(r0, Operand(0x60687078));
+      __ aih(r0, Operand(0x40485058));
+      __ lgfi(ip, Operand(0x20283038));
+      __ aih(ip, Operand(0x81018));
+      __ vlvgp(kScratchDoubleReg, ip, r0);
+      __ vbperm(kScratchDoubleReg, i.InputSimd128Register(0), kScratchDoubleReg,
+                Condition(0), Condition(0), Condition(0));
+      __ vlgv(i.OutputRegister(), kScratchDoubleReg, MemOperand(r0, 3),
+              Condition(1));
+      break;
+    }
     case kS390_StoreCompressTagged: {
       CHECK(!instr->HasOutput());
       size_t index = 0;
