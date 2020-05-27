@@ -12,7 +12,11 @@
 #include "cppgc/custom-space.h"
 #include "v8config.h"  // NOLINT(build/include_directory)
 
+/**
+ * cppgc - A C++ garbage collection library.
+ */
 namespace cppgc {
+
 namespace internal {
 class Heap;
 }  // namespace internal
@@ -24,7 +28,16 @@ class V8_EXPORT Heap {
    */
   using StackState = EmbedderStackState;
 
+  /**
+   * Options specifying Heap properties (e.g. custom spaces) when initializing a
+   * heap through Heap::Create().
+   */
   struct HeapOptions {
+    /**
+     * Creates reasonable defaults for instantiating a Heap.
+     *
+     * \returns the HeapOptions that can be passed to Heap::Create().
+     */
     static HeapOptions Default() { return {}; }
 
     /**
@@ -35,7 +48,14 @@ class V8_EXPORT Heap {
     std::vector<std::unique_ptr<CustomSpaceBase>> custom_spaces;
   };
 
-  static std::unique_ptr<Heap> Create(HeapOptions = HeapOptions::Default());
+  /**
+   * Creates a new heap that can be used for object allocation.
+   *
+   * \param options HeapOptions specifying various properties for the Heap.
+   * \returns a new Heap instance.
+   */
+  static std::unique_ptr<Heap> Create(
+      HeapOptions options = HeapOptions::Default());
 
   virtual ~Heap() = default;
 
