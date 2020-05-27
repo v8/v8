@@ -1293,6 +1293,8 @@ class V8_EXPORT_PRIVATE Isolate final : private HiddenFactory {
 
   int GetNextScriptId();
 
+  int GetNextStackFrameInfoId();
+
 #if V8_SFI_HAS_UNIQUE_ID
   int GetNextUniqueSharedFunctionInfoId() {
     int current_id = next_unique_sfi_id_.load(std::memory_order_relaxed);
