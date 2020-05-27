@@ -193,6 +193,21 @@ class InstructionTrace:
             return True
         return False
 
+    def jumpTarget(self):
+        if self.insn == 'j':             # j  4
+            return self.pc + int(self.operands[0])
+        elif self.insn == 'jal' and len(self.operands) == 2 and self.operands[0] == 'zero_reg':
+            return self.pc + int(self.operands[1])
+        elif self.insn == 'jr':
+            if len(self.operands) == 2:  # jr 4(t4)
+                return int(self.operands[0]) + registers[self.operands[1]]
+            else:                        # jr t4
+                return registers[self.operands[0]]
+        elif self.insn == 'jalr' and len(self.operands) == 3 and self.operands[0] == 'zero_reg':
+            return int(self.operands[1]) + registers[self.operands[2]]
+        else:
+            return None
+
     def callTarget(self):
         if not self.isCall():
             return None
@@ -382,6 +397,12 @@ while nextLine:
     elif words[0] == "---":
         inTraceSim = False
     elif words[0] == "CallImpl:":
+        # Record registers from the output
+        registers['a0'] = int(words[11], 16)
+        registers['a1'] = int(words[15], 16)
+        registers['a2'] = int(words[19], 16)
+        registers['a3'] = int(words[23], 16)
+        registers['a4'] = int(words[27], 16)
         addr = int(words[7], 16)
         func = functions[addr]
         call = FunctionCall(func, addr, 0xFFFFFFFFFFFFFFFE)
@@ -440,6 +461,10 @@ while nextLine:
                     printReturnValues(call.indentLevel)
                     call.returnFrom(registers['ra'],
                                     registers['sp'], registers['fp'])
+
+                if insn.jumpTarget() in functions:
+                    func = functions[insn.jumpTarget()]
+                    print(f"### {'  ' * call.indentLevel}Jump to {func.name} {insn.count}")
 
                 if args.inline:
                     print(line, end='')
