@@ -2180,6 +2180,23 @@ void LiftoffAssembler::LoadTransform(LiftoffRegister dst, Register src_addr,
   }
 }
 
+void LiftoffAssembler::emit_s8x16_swizzle(LiftoffRegister dst,
+                                          LiftoffRegister lhs,
+                                          LiftoffRegister rhs) {
+  UseScratchRegisterScope temps(this);
+
+  NeonListOperand table(liftoff::GetSimd128Register(lhs));
+  if (dst == lhs) {
+    // dst will be overwritten, so keep the table somewhere else.
+    QwNeonRegister tbl = temps.AcquireQ();
+    TurboAssembler::Move(tbl, liftoff::GetSimd128Register(lhs));
+    table = NeonListOperand(tbl);
+  }
+
+  vtbl(dst.low_fp(), table, rhs.low_fp());
+  vtbl(dst.high_fp(), table, rhs.high_fp());
+}
+
 void LiftoffAssembler::emit_f64x2_splat(LiftoffRegister dst,
                                         LiftoffRegister src) {
   TurboAssembler::Move(dst.low_fp(), src.fp());

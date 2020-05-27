@@ -2453,6 +2453,8 @@ class LiftoffCompiler {
       return unsupported(decoder, kSimd, "simd");
     }
     switch (opcode) {
+      case wasm::kExprS8x16Swizzle:
+        return EmitBinOp<kS128, kS128>(&LiftoffAssembler::emit_s8x16_swizzle);
       case wasm::kExprI8x16Splat:
         return EmitUnOp<kI32, kS128>(&LiftoffAssembler::emit_i8x16_splat);
       case wasm::kExprI16x8Splat:
