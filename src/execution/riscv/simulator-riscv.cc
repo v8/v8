@@ -10,6 +10,7 @@
 #include <limits.h>
 #include <stdarg.h>
 #include <stdlib.h>
+
 #include <cfenv>
 #include <cmath>
 
@@ -1759,28 +1760,15 @@ void Simulator::DecodeRVRType() {
       break;
     }
     case RO_MULH: {
-#ifdef V8_TARGET_ARCH_64_BIT
       set_rd(mulh(rs1(), rs2()));
-#else
-      set_rd(sext32((sext32(rs1()) * sext32(rs2())) >> 32));
-#endif /*V8_TARGET_ARCH_64_BIT*/
       break;
     }
     case RO_MULHSU: {
-#ifdef V8_TARGET_ARCH_64_BIT
       set_rd(mulhsu(rs1(), rs2()));
-#else
-      set_rd(sext32((sext32(rs1()) * reg_t((uint32_t)rs2())) >> 32));
-#endif /*V8_TARGET_ARCH_64_BIT*/
       break;
     }
     case RO_MULHU: {
-#ifdef V8_TARGET_ARCH_64_BIT
       set_rd(mulhu(rs1(), rs2()));
-#else
-      set_rd(sext32(((uint64_t)(uint32_t)rs1() * (uint64_t)(uint32_t)rs2()) >>
-                    32));
-#endif /*V8_TARGET_ARCH_64_BIT*/
       break;
     }
     case RO_DIV: {
