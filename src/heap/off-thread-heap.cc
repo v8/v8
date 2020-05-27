@@ -96,7 +96,7 @@ void OffThreadHeap::Publish(Heap* heap) {
   // TODO(leszeks): We might be able to create a HandleScope-compatible
   // structure off-thread and merge it into the current handle scope all in one
   // go (DeferredHandles maybe?).
-  std::vector<Handle<HeapObject>> heap_object_handles;
+  std::vector<std::pair<Handle<HeapObject>, Handle<Map>>> heap_object_handles;
   std::vector<Handle<Script>> script_handles;
   {
     TRACE_EVENT0(TRACE_DISABLED_BY_DEFAULT("v8.compile"),
@@ -106,7 +106,8 @@ void OffThreadHeap::Publish(Heap* heap) {
       // TODO(leszeks): Group slots in the same parent object to avoid creating
       // multiple duplicate handles.
       HeapObject obj = HeapObject::FromAddress(relative_slot.object_address);
-      heap_object_handles.push_back(handle(obj, isolate));
+      heap_object_handles.push_back(
+          {handle(obj, isolate), handle(obj.map(), isolate)});
 
       // De-internalize the string so that we can re-internalize it later.
       String string =
@@ -168,12 +169,13 @@ void OffThreadHeap::Publish(Heap* heap) {
     TRACE_EVENT0(TRACE_DISABLED_BY_DEFAULT("v8.compile"),
                  "V8.OffThreadFinalization.Publish.UpdateHandles");
     for (size_t i = 0; i < string_slots_.size(); ++i) {
-      HeapObject obj = *heap_object_handles[i];
+      HeapObject obj = *heap_object_handles[i].first;
       int slot_offset = string_slots_[i].slot_offset;
 
       // There's currently no cases where the holder object could have been
       // resized.
-      DCHECK_LT(slot_offset, obj.Size());
+      CHECK_EQ(obj.map(), *heap_object_handles[i].second);
+      CHECK_LT(slot_offset, obj.Size());
 
       String string = String::cast(RELAXED_READ_FIELD(obj, slot_offset));
       if (string.IsThinString()) {
@@ -193,8 +195,14 @@ void OffThreadHeap::Publish(Heap* heap) {
         if (*string_handle != *internalized_string) {
           // Re-read the object from the handle in case there was GC during
           // internalization and it moved.
-          HeapObject obj = *heap_object_handles[i];
+          HeapObject obj = *heap_object_handles[i].first;
           String value = *internalized_string;
+
+          // Sanity checks that the object or string slot value hasn't changed.
+          CHECK_EQ(obj.map(), *heap_object_handles[i].second);
+          CHECK_LT(slot_offset, obj.Size());
+          CHECK_EQ(RELAXED_READ_FIELD(obj, slot_offset), *string_handle);
+
           RELAXED_WRITE_FIELD(obj, slot_offset, value);
           WRITE_BARRIER(obj, slot_offset, value);
         }
