@@ -1041,8 +1041,6 @@ bool ExecuteJSToWasmWrapperCompilationUnits(
   return true;
 }
 
-bool NeedsDeterministicCompile() { return FLAG_single_threaded; }
-
 // Run by the main thread and background tasks to take part in compilation.
 // Returns whether any units were executed.
 bool ExecuteCompilationUnits(
@@ -1070,7 +1068,6 @@ bool ExecuteCompilationUnits(
   // These fields are initialized in a {BackgroundCompileScope} before
   // starting compilation.
   double deadline = 0;
-  const bool deterministic = NeedsDeterministicCompile();
   base::Optional<CompilationEnv> env;
   std::shared_ptr<WireBytesStorage> wire_bytes;
   std::shared_ptr<const WasmModule> module;
@@ -1164,7 +1161,8 @@ bool ExecuteCompilationUnits(
       }
 
       // Get next unit.
-      if (deterministic || deadline < platform->MonotonicallyIncreasingTime()) {
+      if (FLAG_predictable ||
+          deadline < platform->MonotonicallyIncreasingTime()) {
         unit = {};
       } else {
         unit = compile_scope.compilation_state()->GetNextCompilationUnit(
@@ -2467,7 +2465,6 @@ bool AsyncStreamingProcessor::Deserialize(Vector<const uint8_t> module_bytes,
 }
 
 int GetMaxBackgroundTasks() {
-  if (NeedsDeterministicCompile()) return 0;
   int num_worker_threads = V8::GetCurrentPlatform()->NumberOfWorkerThreads();
   return std::min(FLAG_wasm_num_compilation_tasks, num_worker_threads);
 }
