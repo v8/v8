@@ -1381,6 +1381,64 @@ void LiftoffAssembler::emit_f64_set_cond(Condition cond, Register dst,
   bind(&cont);
 }
 
+void LiftoffAssembler::LoadTransform(LiftoffRegister dst, Register src_addr,
+                                     Register offset_reg, uint32_t offset_imm,
+                                     LoadType type,
+                                     LoadTransformationKind transform,
+                                     uint32_t* protected_load_pc) {
+  UseScratchRegisterScope temps(this);
+  Register scratch = temps.Acquire();
+  Daddu(scratch, src_addr, offset_reg);
+  MemOperand src_op = MemOperand(scratch, offset_imm);
+  MSARegister dst_msa = dst.fp().toW();
+  *protected_load_pc = pc_offset();
+  MachineType memtype = type.mem_type();
+
+  if (transform == LoadTransformationKind::kExtend) {
+    Ld(scratch, src_op);
+    if (memtype == MachineType::Int8()) {
+      fill_d(dst_msa, scratch);
+      clti_s_b(kSimd128ScratchReg, dst_msa, 0);
+      ilvr_b(dst_msa, kSimd128ScratchReg, dst_msa);
+    } else if (memtype == MachineType::Uint8()) {
+      xor_v(kSimd128RegZero, kSimd128RegZero, kSimd128RegZero);
+      fill_d(dst_msa, scratch);
+      ilvr_b(dst_msa, kSimd128RegZero, dst_msa);
+    } else if (memtype == MachineType::Int16()) {
+      fill_d(dst_msa, scratch);
+      clti_s_h(kSimd128ScratchReg, dst_msa, 0);
+      ilvr_h(dst_msa, kSimd128ScratchReg, dst_msa);
+    } else if (memtype == MachineType::Uint16()) {
+      xor_v(kSimd128RegZero, kSimd128RegZero, kSimd128RegZero);
+      fill_d(dst_msa, scratch);
+      ilvr_h(dst_msa, kSimd128RegZero, dst_msa);
+    } else if (memtype == MachineType::Int32()) {
+      fill_d(dst_msa, scratch);
+      clti_s_w(kSimd128ScratchReg, dst_msa, 0);
+      ilvr_w(dst_msa, kSimd128ScratchReg, dst_msa);
+    } else if (memtype == MachineType::Uint32()) {
+      xor_v(kSimd128RegZero, kSimd128RegZero, kSimd128RegZero);
+      fill_d(dst_msa, scratch);
+      ilvr_w(dst_msa, kSimd128RegZero, dst_msa);
+    }
+  } else {
+    DCHECK_EQ(LoadTransformationKind::kSplat, transform);
+    if (memtype == MachineType::Int8()) {
+      Lb(scratch, src_op);
+      fill_b(dst_msa, scratch);
+    } else if (memtype == MachineType::Int16()) {
+      Lh(scratch, src_op);
+      fill_h(dst_msa, scratch);
+    } else if (memtype == MachineType::Int32()) {
+      Lw(scratch, src_op);
+      fill_w(dst_msa, scratch);
+    } else if (memtype == MachineType::Int64()) {
+      Ld(scratch, src_op);
+      fill_d(dst_msa, scratch);
+    }
+  }
+}
+
 void LiftoffAssembler::emit_i8x16_splat(LiftoffRegister dst,
                                         LiftoffRegister src) {
   fill_b(dst.fp().toW(), src.gp());
