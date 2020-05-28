@@ -381,6 +381,17 @@ inline void EmitSimdShiftImmediate(LiftoffAssembler* assm, LiftoffRegister dst,
   }
 }
 
+inline void EmitAnyTrue(LiftoffAssembler* assm, LiftoffRegister dst,
+                        LiftoffRegister src) {
+  UseScratchRegisterScope temps(assm);
+  DwVfpRegister scratch = temps.AcquireD();
+  assm->vpmax(NeonU32, scratch, src.low_fp(), src.high_fp());
+  assm->vpmax(NeonU32, scratch, scratch, scratch);
+  assm->ExtractLane(dst.gp(), scratch, NeonS32, 0);
+  assm->cmp(dst.gp(), Operand(0));
+  assm->mov(dst.gp(), Operand(1), LeaveCC, ne);
+}
+
 }  // namespace liftoff
 
 int LiftoffAssembler::PrepareStackFrame() {
@@ -2548,7 +2559,7 @@ void LiftoffAssembler::emit_i32x4_neg(LiftoffRegister dst,
 
 void LiftoffAssembler::emit_v32x4_anytrue(LiftoffRegister dst,
                                           LiftoffRegister src) {
-  bailout(kSimd, "v32x4_anytrue");
+  liftoff::EmitAnyTrue(this, dst, src);
 }
 
 void LiftoffAssembler::emit_i32x4_shl(LiftoffRegister dst, LiftoffRegister lhs,
@@ -2645,7 +2656,7 @@ void LiftoffAssembler::emit_i16x8_neg(LiftoffRegister dst,
 
 void LiftoffAssembler::emit_v16x8_anytrue(LiftoffRegister dst,
                                           LiftoffRegister src) {
-  bailout(kSimd, "v16x8_anytrue");
+  liftoff::EmitAnyTrue(this, dst, src);
 }
 
 void LiftoffAssembler::emit_i16x8_shl(LiftoffRegister dst, LiftoffRegister lhs,
@@ -2814,7 +2825,7 @@ void LiftoffAssembler::emit_i8x16_neg(LiftoffRegister dst,
 
 void LiftoffAssembler::emit_v8x16_anytrue(LiftoffRegister dst,
                                           LiftoffRegister src) {
-  bailout(kSimd, "v8x16_anytrue");
+  liftoff::EmitAnyTrue(this, dst, src);
 }
 
 void LiftoffAssembler::emit_i8x16_shl(LiftoffRegister dst, LiftoffRegister lhs,

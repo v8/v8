@@ -153,6 +153,17 @@ inline void EmitSimdShiftRightImmediate(LiftoffAssembler* assm, VRegister dst,
   }
 }
 
+inline void EmitAnyTrue(LiftoffAssembler* assm, LiftoffRegister dst,
+                        LiftoffRegister src) {
+  // AnyTrue does not depend on the number of lanes, so we can use V4S for all.
+  UseScratchRegisterScope scope(assm);
+  VRegister temp = scope.AcquireV(kFormatS);
+  assm->Umaxv(temp, src.fp().V4S());
+  assm->Umov(dst.gp().W(), temp, 0);
+  assm->Cmp(dst.gp().W(), 0);
+  assm->Cset(dst.gp().W(), ne);
+}
+
 }  // namespace liftoff
 
 int LiftoffAssembler::PrepareStackFrame() {
@@ -1484,7 +1495,7 @@ void LiftoffAssembler::emit_i32x4_neg(LiftoffRegister dst,
 
 void LiftoffAssembler::emit_v32x4_anytrue(LiftoffRegister dst,
                                           LiftoffRegister src) {
-  bailout(kSimd, "v32x4_anytrue");
+  liftoff::EmitAnyTrue(this, dst, src);
 }
 
 void LiftoffAssembler::emit_i32x4_shl(LiftoffRegister dst, LiftoffRegister lhs,
@@ -1600,7 +1611,7 @@ void LiftoffAssembler::emit_i16x8_neg(LiftoffRegister dst,
 
 void LiftoffAssembler::emit_v16x8_anytrue(LiftoffRegister dst,
                                           LiftoffRegister src) {
-  bailout(kSimd, "v16x8_anytrue");
+  liftoff::EmitAnyTrue(this, dst, src);
 }
 
 void LiftoffAssembler::emit_i16x8_shl(LiftoffRegister dst, LiftoffRegister lhs,
@@ -1740,7 +1751,7 @@ void LiftoffAssembler::emit_i8x16_neg(LiftoffRegister dst,
 
 void LiftoffAssembler::emit_v8x16_anytrue(LiftoffRegister dst,
                                           LiftoffRegister src) {
-  bailout(kSimd, "v8x16_anytrue");
+  liftoff::EmitAnyTrue(this, dst, src);
 }
 
 void LiftoffAssembler::emit_i8x16_shl(LiftoffRegister dst, LiftoffRegister lhs,
