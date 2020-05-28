@@ -3158,7 +3158,8 @@ intptr_t Simulator::CallImpl(Address entry, int argument_count,
               << get_register(a0) << " a1 (orig_func/new_target) = 0x"
               << get_register(a1) << " a2 (func/target) = 0x"
               << get_register(a2) << " a3 (receiver) = 0x" << get_register(a3)
-              << " a4 (argc) = 0x" << get_register(a4) << std::endl;
+              << " a4 (argc) = 0x" << get_register(a4) << " a5 (argv) = 0x"
+              << get_register(a5) << std::endl;
   }
 
   // Remaining arguments passed on stack.
