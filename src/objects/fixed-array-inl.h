@@ -209,8 +209,13 @@ inline int WeakArrayList::AllocatedSize() {
 template <SearchMode search_mode, typename T>
 int BinarySearch(T* array, Name name, int valid_entries,
                  int* out_insertion_index) {
-  DCHECK(search_mode == ALL_ENTRIES || out_insertion_index == nullptr);
+  DCHECK_IMPLIES(search_mode == VALID_ENTRIES, out_insertion_index == nullptr);
   int low = 0;
+  // We have to search on all entries, even when search_mode == VALID_ENTRIES.
+  // This is because the InternalIndex might be different from the SortedIndex
+  // (i.e the first added item in {array} could be the last in the sorted
+  // index). After doing the binary search and getting the correct internal
+  // index we check to have the index lower than valid_entries, if needed.
   int high = array->number_of_entries() - 1;
   uint32_t hash = name.hash_field();
   int limit = high;
@@ -234,6 +239,11 @@ int BinarySearch(T* array, Name name, int valid_entries,
     Name entry = array->GetKey(InternalIndex(sort_index));
     uint32_t current_hash = entry.hash_field();
     if (current_hash != hash) {
+      // 'search_mode == ALL_ENTRIES' here and below is not needed since
+      // 'out_insertion_index != nullptr' implies 'search_mode == ALL_ENTRIES'.
+      // Having said that, when creating the template for <VALID_ENTRIES> these
+      // ifs can be elided by the C++ compiler if we add 'search_mode ==
+      // ALL_ENTRIES'.
       if (search_mode == ALL_ENTRIES && out_insertion_index != nullptr) {
         *out_insertion_index = sort_index + (current_hash > hash ? 0 : 1);
       }
