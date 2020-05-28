@@ -2146,9 +2146,9 @@ void LiftoffAssembler::LoadTransform(LiftoffRegister dst, Register src_addr,
   Register actual_src_addr = liftoff::CalculateActualAddress(
       this, &temps, src_addr, offset_reg, offset_imm);
   *protected_load_pc = pc_offset();
+  MachineType memtype = type.mem_type();
 
   if (transform == LoadTransformationKind::kExtend) {
-    MachineType memtype = type.mem_type();
     if (memtype == MachineType::Int8()) {
       vld1(Neon8, NeonListOperand(dst.low_fp()),
            NeonMemOperand(actual_src_addr));
@@ -2176,7 +2176,20 @@ void LiftoffAssembler::LoadTransform(LiftoffRegister dst, Register src_addr,
     }
   } else {
     DCHECK_EQ(LoadTransformationKind::kSplat, transform);
-    bailout(kSimd, "load splats unimplemented");
+    if (memtype == MachineType::Int8()) {
+      vld1r(Neon8, NeonListOperand(liftoff::GetSimd128Register(dst)),
+            NeonMemOperand(actual_src_addr));
+    } else if (memtype == MachineType::Int16()) {
+      vld1r(Neon16, NeonListOperand(liftoff::GetSimd128Register(dst)),
+            NeonMemOperand(actual_src_addr));
+    } else if (memtype == MachineType::Int32()) {
+      vld1r(Neon32, NeonListOperand(liftoff::GetSimd128Register(dst)),
+            NeonMemOperand(actual_src_addr));
+    } else if (memtype == MachineType::Int64()) {
+      vld1(Neon32, NeonListOperand(dst.low_fp()),
+           NeonMemOperand(actual_src_addr));
+      TurboAssembler::Move(dst.high_fp(), dst.low_fp());
+    }
   }
 }
 

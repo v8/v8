@@ -1172,9 +1172,9 @@ void LiftoffAssembler::LoadTransform(LiftoffRegister dst, Register src_addr,
   MemOperand src_op =
       liftoff::GetMemOp(this, &temps, src_addr, offset_reg, offset_imm);
   *protected_load_pc = pc_offset();
+  MachineType memtype = type.mem_type();
 
   if (transform == LoadTransformationKind::kExtend) {
-    MachineType memtype = type.mem_type();
     if (memtype == MachineType::Int8()) {
       Ldr(dst.fp().D(), src_op);
       Sxtl(dst.fp().V8H(), dst.fp().V8B());
@@ -1195,8 +1195,29 @@ void LiftoffAssembler::LoadTransform(LiftoffRegister dst, Register src_addr,
       Uxtl(dst.fp().V2D(), dst.fp().V2S());
     }
   } else {
+    // ld1r only allows no offset or post-index, so emit an add.
     DCHECK_EQ(LoadTransformationKind::kSplat, transform);
-    bailout(kSimd, "load splats unimplemented");
+    if (src_op.IsRegisterOffset()) {
+      // We have 2 tmp gps, so it's okay to acquire 1 more here, and actually
+      // doesn't matter if we acquire the same one.
+      Register tmp = temps.AcquireX();
+      Add(tmp, src_op.base(), src_op.regoffset().X());
+      src_op = MemOperand(tmp.X(), 0);
+    } else if (src_op.IsImmediateOffset() && src_op.offset() != 0) {
+      Register tmp = temps.AcquireX();
+      Add(tmp, src_op.base(), src_op.offset());
+      src_op = MemOperand(tmp.X(), 0);
+    }
+
+    if (memtype == MachineType::Int8()) {
+      ld1r(dst.fp().V16B(), src_op);
+    } else if (memtype == MachineType::Int16()) {
+      ld1r(dst.fp().V8H(), src_op);
+    } else if (memtype == MachineType::Int32()) {
+      ld1r(dst.fp().V4S(), src_op);
+    } else if (memtype == MachineType::Int64()) {
+      ld1r(dst.fp().V2D(), src_op);
+    }
   }
 }
 
