@@ -137,6 +137,7 @@ enum class PrimitiveType { kBoolean, kNumber, kString, kSymbol };
     EmptySlowElementDictionary)                                                \
   V(empty_string, empty_string, EmptyString)                                   \
   V(error_to_string, error_to_string, ErrorToString)                           \
+  V(errors_string, errors_string, ErrorsString)                                \
   V(FalseValue, false_value, False)                                            \
   V(FeedbackVectorMap, feedback_vector_map, FeedbackVectorMap)                 \
   V(FixedArrayMap, fixed_array_map, FixedArrayMap)                             \
@@ -468,9 +469,6 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
     GotoIf(TaggedIsSmi(value), fail);
     return UncheckedCast<HeapObject>(value);
   }
-
-  TNode<JSAggregateError> HeapObjectToJSAggregateError(
-      TNode<HeapObject> heap_object, Label* fail);
 
   TNode<JSArray> HeapObjectToJSArray(TNode<HeapObject> heap_object,
                                      Label* fail) {
@@ -2572,7 +2570,6 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
   TNode<BoolT> IsOddball(SloppyTNode<HeapObject> object);
   TNode<BoolT> IsOddballInstanceType(SloppyTNode<Int32T> instance_type);
   TNode<BoolT> IsIndirectStringInstanceType(SloppyTNode<Int32T> instance_type);
-  TNode<BoolT> IsJSAggregateError(TNode<HeapObject> object);
   TNode<BoolT> IsJSArrayBuffer(SloppyTNode<HeapObject> object);
   TNode<BoolT> IsJSDataView(TNode<HeapObject> object);
   TNode<BoolT> IsJSArrayInstanceType(SloppyTNode<Int32T> instance_type);

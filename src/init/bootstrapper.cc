@@ -34,7 +34,6 @@
 #ifdef V8_INTL_SUPPORT
 #include "src/objects/intl-objects.h"
 #endif  // V8_INTL_SUPPORT
-#include "src/objects/js-aggregate-error.h"
 #include "src/objects/js-array-buffer-inl.h"
 #include "src/objects/js-array-inl.h"
 #ifdef V8_INTL_SUPPORT
@@ -1319,18 +1318,16 @@ static void InstallError(
     Isolate* isolate, Handle<JSObject> global, Handle<String> name,
     int context_index,
     Builtins::Name error_constructor = Builtins::kErrorConstructor,
-    InstanceType error_type = JS_ERROR_TYPE, int error_function_length = 1,
-    int header_size = JSObject::kHeaderSize) {
+    int error_function_length = 1, int in_object_properties = 2) {
   Factory* factory = isolate->factory();
 
   // Most Error objects consist of a message and a stack trace.
   // Reserve two in-object properties for these.
-  const int kInObjectPropertiesCount = 2;
   const int kErrorObjectSize =
-      header_size + kInObjectPropertiesCount * kTaggedSize;
+      JSObject::kHeaderSize + in_object_properties * kTaggedSize;
   Handle<JSFunction> error_fun = InstallFunction(
-      isolate, global, name, error_type, kErrorObjectSize,
-      kInObjectPropertiesCount, factory->the_hole_value(), error_constructor);
+      isolate, global, name, JS_ERROR_TYPE, kErrorObjectSize,
+      in_object_properties, factory->the_hole_value(), error_constructor);
   error_fun->shared().DontAdaptArguments();
   error_fun->shared().set_length(error_function_length);
 
@@ -4234,8 +4231,7 @@ void Genesis::InitializeGlobal_harmony_promise_any() {
 
   InstallError(isolate_, global, factory->AggregateError_string(),
                Context::AGGREGATE_ERROR_FUNCTION_INDEX,
-               Builtins::kAggregateErrorConstructor, JS_AGGREGATE_ERROR_TYPE, 2,
-               JSAggregateError::kHeaderSize);
+               Builtins::kAggregateErrorConstructor, 2, 2);
 
   // Setup %AggregateErrorPrototype%.
   Handle<JSFunction> aggregate_error_function(
@@ -4243,18 +4239,6 @@ void Genesis::InitializeGlobal_harmony_promise_any() {
   Handle<JSObject> prototype(
       JSObject::cast(aggregate_error_function->instance_prototype()),
       isolate());
-
-  Handle<String> getter_name =
-      Name::ToFunctionName(isolate_, factory->errors_string(),
-                           isolate_->factory()->get_string())
-          .ToHandleChecked();
-
-  Handle<JSFunction> getter = SimpleCreateFunction(
-      isolate(), getter_name, Builtins::kAggregateErrorPrototypeErrorsGetter, 0,
-      true);
-
-  JSObject::DefineAccessor(prototype, factory->errors_string(), getter,
-                           factory->undefined_value(), DONT_ENUM);
 
   Handle<JSFunction> promise_fun(
       JSFunction::cast(

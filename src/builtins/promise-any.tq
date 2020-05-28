@@ -362,9 +362,10 @@ PromiseAny(
 
 transitioning macro ConstructAggregateError(implicit context: Context)(
     errors: FixedArray): JSObject {
-  const obj: JSAggregateError = error::ConstructInternalAggregateErrorHelper(
+  const obj: JSObject = error::ConstructInternalAggregateErrorHelper(
       context, SmiConstant(MessageTemplate::kAllPromisesRejected));
-  obj.errors = errors;
+  const errorsJSArray = array::CreateJSArrayWithElements(errors);
+  CreateDataProperty(obj, ErrorsStringConstant(), errorsJSArray);
   return obj;
 }
 

@@ -384,6 +384,7 @@ type NumberOrUndefined = Number|Undefined;
 
 extern macro DefaultStringConstant(): String;
 extern macro EmptyStringConstant(): EmptyString;
+extern macro ErrorsStringConstant(): String;
 extern macro FalseConstant(): False;
 extern macro Int32FalseConstant(): bool;
 extern macro Int32TrueConstant(): bool;

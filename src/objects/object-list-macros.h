@@ -126,7 +126,6 @@ class ZoneForwardList;
   V(HandlerTable)                              \
   V(HeapNumber)                                \
   V(InternalizedString)                        \
-  V(JSAggregateError)                          \
   V(JSArgumentsObject)                         \
   V(JSArray)                                   \
   V(JSArrayBuffer)                             \

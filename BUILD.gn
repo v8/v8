@@ -1010,6 +1010,7 @@ action("postmortem-metadata") {
 }
 
 torque_files = [
+  "src/builtins/aggregate-error.tq",
   "src/builtins/array-copywithin.tq",
   "src/builtins/array-every.tq",
   "src/builtins/array-filter.tq",
@@ -1136,7 +1137,6 @@ torque_files = [
   "src/objects/heap-number.tq",
   "src/objects/heap-object.tq",
   "src/objects/intl-objects.tq",
-  "src/objects/js-aggregate-error.tq",
   "src/objects/js-array-buffer.tq",
   "src/objects/js-array.tq",
   "src/objects/js-collection-iterator.tq",
@@ -2694,8 +2694,6 @@ v8_source_set("v8_base_without_compiler") {
     "src/objects/internal-index.h",
     "src/objects/intl-objects.cc",
     "src/objects/intl-objects.h",
-    "src/objects/js-aggregate-error-inl.h",
-    "src/objects/js-aggregate-error.h",
     "src/objects/js-array-buffer-inl.h",
     "src/objects/js-array-buffer.cc",
     "src/objects/js-array-buffer.h",

@@ -20,7 +20,6 @@
 #include "src/objects/descriptor-array.h"
 #include "src/objects/function-kind.h"
 #include "src/objects/heap-number.h"
-#include "src/objects/js-aggregate-error.h"
 #include "src/objects/js-generator.h"
 #include "src/objects/oddball.h"
 #include "src/objects/ordered-hash-table-inl.h"
@@ -4733,12 +4732,6 @@ void CodeStubAssembler::CopyFixedArrayElements(
   Comment("] CopyFixedArrayElements");
 }
 
-TNode<JSAggregateError> CodeStubAssembler::HeapObjectToJSAggregateError(
-    TNode<HeapObject> heap_object, Label* fail) {
-  GotoIfNot(IsJSAggregateError(heap_object), fail);
-  return UncheckedCast<JSAggregateError>(heap_object);
-}
-
 TNode<FixedArray> CodeStubAssembler::HeapObjectToFixedArray(
     TNode<HeapObject> base, Label* cast_fail) {
   Label fixed_array(this);
@@ -5978,10 +5971,6 @@ TNode<BoolT> CodeStubAssembler::IsJSPrimitiveWrapper(
 
 TNode<BoolT> CodeStubAssembler::IsJSPrimitiveWrapperMap(SloppyTNode<Map> map) {
   return IsJSPrimitiveWrapperInstanceType(LoadMapInstanceType(map));
-}
-
-TNode<BoolT> CodeStubAssembler::IsJSAggregateError(TNode<HeapObject> object) {
-  return HasInstanceType(object, JS_AGGREGATE_ERROR_TYPE);
 }
 
 TNode<BoolT> CodeStubAssembler::IsJSArrayInstanceType(

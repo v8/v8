@@ -270,7 +270,6 @@ VisitorId Map::GetVisitorId(Map map) {
 
     case JS_OBJECT_TYPE:
     case JS_ERROR_TYPE:
-    case JS_AGGREGATE_ERROR_TYPE:
     case JS_ARGUMENTS_OBJECT_TYPE:
     case JS_ASYNC_FROM_SYNC_ITERATOR_TYPE:
     case JS_CONTEXT_EXTENSION_OBJECT_TYPE:

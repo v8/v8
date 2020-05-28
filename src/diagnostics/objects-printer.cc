@@ -24,7 +24,6 @@
 #include "src/objects/free-space-inl.h"
 #include "src/objects/hash-table-inl.h"
 #include "src/objects/heap-number-inl.h"
-#include "src/objects/js-aggregate-error-inl.h"
 #include "src/objects/js-array-buffer-inl.h"
 #include "src/objects/js-array-inl.h"
 #include "src/objects/objects-inl.h"
@@ -638,12 +637,6 @@ void JSGeneratorObject::JSGeneratorObjectPrint(std::ostream& os) {  // NOLINT
     }
   }
   os << "\n - register file: " << Brief(parameters_and_registers());
-  JSObjectPrintBody(os, *this);
-}
-
-void JSAggregateError::JSAggregateErrorPrint(std::ostream& os) {
-  JSObjectPrintHeader(os, *this, "JSAggregateError");
-  os << "\n - errors: " << Brief(errors());
   JSObjectPrintBody(os, *this);
 }
 

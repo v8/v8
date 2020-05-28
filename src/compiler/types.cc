@@ -224,7 +224,6 @@ Type::bitset BitsetType::Lub(const MapRefLike& map) {
     case JS_ASYNC_FUNCTION_OBJECT_TYPE:
     case JS_ASYNC_GENERATOR_OBJECT_TYPE:
     case JS_MODULE_NAMESPACE_TYPE:
-    case JS_AGGREGATE_ERROR_TYPE:
     case JS_ARRAY_BUFFER_TYPE:
     case JS_ARRAY_ITERATOR_TYPE:
     case JS_REG_EXP_TYPE:
