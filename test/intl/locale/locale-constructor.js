@@ -19,8 +19,9 @@ assertThrows(() => new Intl.Locale('abcdefghi'), RangeError);
 // Options will be force converted into Object.
 assertDoesNotThrow(() => new Intl.Locale('sr', 5));
 
-// Regression for http://bugs.icu-project.org/trac/ticket/13417.
-assertDoesNotThrow(
+// ICU problem - locale length is limited.
+// http://bugs.icu-project.org/trac/ticket/13417.
+assertThrows(
     () => new Intl.Locale(
         'sr-cyrl-rs-t-ja-u-ca-islamic-cu-rsd-tz-uslax-x-whatever', {
           calendar: 'buddhist',
