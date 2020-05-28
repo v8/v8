@@ -143,6 +143,25 @@ ORIGINAL_SOURCE_HASH_LENGTH = 3
 # Placeholder string if no original source file could be determined.
 ORIGINAL_SOURCE_DEFAULT = 'none'
 
+# Placeholder string for failures from crash tests. If a failure is found with
+# this signature, the matching sources should be moved to the mapping below.
+ORIGINAL_SOURCE_CRASHTESTS = 'placeholder for CrashTests'
+
+# Mapping from relative original source path (e.g. CrashTests/path/to/file.js)
+# to a string key. Map to the same key for duplicate issues. The key should
+# have more than 3 characters to not collide with other existing hashes.
+# If a symptom from a particular original source file is known to map to a
+# known failure, it can be added to this mapping. This should be done for all
+# failures from CrashTests, as those by default map to the placeholder above.
+KNOWN_FAILURES = {
+  # Foo.caller with asm.js: https://crbug.com/1042556
+  'CrashTests/5712410200899584/04483.js': '.caller',
+  'CrashTests/5703451898085376/02176.js': '.caller',
+  'CrashTests/4846282433495040/04342.js': '.caller',
+  # Flaky issue that almost never repros.
+  'CrashTests/5694376231632896/1033966.js': 'flaky',
+}
+
 
 def infer_arch(d8):
   """Infer the V8 architecture from the build configuration next to the
@@ -313,6 +332,31 @@ def print_difference(
     print(text.encode('utf-8', 'replace'))
 
 
+def cluster_failures(source, known_failures=None):
+  """Returns a string key for clustering duplicate failures.
+
+  Args:
+    source: The original source path where the failure happened.
+    known_failures: Mapping from original source path to failure key.
+  """
+  known_failures = known_failures or KNOWN_FAILURES
+  # No source known. Typical for manually uploaded issues. This
+  # requires also manual issue creation.
+  if not source:
+    return ORIGINAL_SOURCE_DEFAULT
+  # Source is known to produce a particular failure.
+  if source in known_failures:
+    return known_failures[source]
+  # Subsume all other sources from CrashTests under one key. Otherwise
+  # failures lead to new crash tests which in turn lead to new failures.
+  if source.startswith('CrashTests'):
+    return ORIGINAL_SOURCE_CRASHTESTS
+
+  # We map all remaining failures to a short hash of the original source.
+  long_key = hashlib.sha1(source.encode('utf-8')).hexdigest()
+  return long_key[:ORIGINAL_SOURCE_HASH_LENGTH]
+
+
 def main():
   options = parse_args()
 
@@ -368,12 +412,6 @@ def main():
 
   difference, source = suppress.diff(first_config_output, second_config_output)
 
-  if source:
-    long_key = hashlib.sha1(source.encode('utf-8')).hexdigest()
-    source_key = long_key[:ORIGINAL_SOURCE_HASH_LENGTH]
-  else:
-    source_key = ORIGINAL_SOURCE_DEFAULT
-
   if difference:
     # Only bail out due to suppressed output if there was a difference. If a
     # suppression doesn't show up anymore in the statistics, we might want to
@@ -383,6 +421,7 @@ def main():
     if fail_bailout(second_config_output, suppress.ignore_by_output2):
       return RETURN_FAIL
 
+    source_key = cluster_failures(source)
     print_difference(
         options, source_key, first_cmd, second_cmd,
         first_config_output, second_config_output, difference, source)

@@ -101,6 +101,23 @@ class ConfigTest(unittest.TestCase):
 
 
 class UnitTest(unittest.TestCase):
+  def testCluster(self):
+    crash_test_example_path = 'CrashTests/path/to/file.js'
+    self.assertEqual(
+        v8_foozzie.ORIGINAL_SOURCE_DEFAULT,
+        v8_foozzie.cluster_failures(''))
+    self.assertEqual(
+        v8_foozzie.ORIGINAL_SOURCE_CRASHTESTS,
+        v8_foozzie.cluster_failures(crash_test_example_path))
+    self.assertEqual(
+        '_o_O_',
+        v8_foozzie.cluster_failures(
+            crash_test_example_path,
+            known_failures={crash_test_example_path: '_o_O_'}))
+    self.assertEqual(
+        '980',
+        v8_foozzie.cluster_failures('v8/test/mjsunit/apply.js'))
+
   def testDiff(self):
     def diff_fun(one, two, skip=False):
       suppress = v8_suppressions.get_suppression(
