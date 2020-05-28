@@ -31,9 +31,12 @@ void VerifyCustomSpaces(
 
 }  // namespace
 
-std::unique_ptr<Heap> Heap::Create(cppgc::Heap::HeapOptions options) {
+std::unique_ptr<Heap> Heap::Create(std::shared_ptr<cppgc::Platform> platform,
+                                   cppgc::Heap::HeapOptions options) {
+  DCHECK(platform.get());
   VerifyCustomSpaces(options.custom_spaces);
-  return std::make_unique<internal::Heap>(options.custom_spaces.size());
+  return std::make_unique<internal::Heap>(std::move(platform),
+                                          options.custom_spaces.size());
 }
 
 void Heap::ForceGarbageCollectionSlow(const char* source, const char* reason,
@@ -81,11 +84,13 @@ cppgc::LivenessBroker LivenessBrokerFactory::Create() {
   return cppgc::LivenessBroker();
 }
 
-Heap::Heap(size_t custom_spaces)
+Heap::Heap(std::shared_ptr<cppgc::Platform> platform, size_t custom_spaces)
     : raw_heap_(this, custom_spaces),
-      page_backend_(std::make_unique<PageBackend>(&system_allocator_)),
+      platform_(std::move(platform)),
+      page_backend_(
+          std::make_unique<PageBackend>(platform_->GetPageAllocator())),
       object_allocator_(&raw_heap_),
-      sweeper_(&raw_heap_),
+      sweeper_(&raw_heap_, platform_.get()),
       stack_(std::make_unique<Stack>(v8::base::Stack::GetStackStart())),
       prefinalizer_handler_(std::make_unique<PreFinalizerHandler>()) {}
 

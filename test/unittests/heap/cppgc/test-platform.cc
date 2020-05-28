@@ -84,20 +84,6 @@ TestPlatform::TestPlatform()
 
 TestPlatform::~TestPlatform() V8_NOEXCEPT { WaitAllBackgroundTasks(); }
 
-void TestPlatform::CallOnWorkerThread(std::unique_ptr<v8::Task> task) {
-  if (AreBackgroundTasksDisabled()) return;
-
-  auto thread = std::make_unique<WorkerThread>(std::move(task));
-  if (thread->Start()) {
-    threads_.push_back(std::move(thread));
-  }
-}
-
-void TestPlatform::CallDelayedOnWorkerThread(std::unique_ptr<v8::Task> task,
-                                             double) {
-  CallOnWorkerThread(std::move(task));
-}
-
 std::unique_ptr<v8::JobHandle> TestPlatform::PostJob(
     v8::TaskPriority, std::unique_ptr<v8::JobTask> job_task) {
   if (AreBackgroundTasksDisabled()) return {};
@@ -112,23 +98,15 @@ double TestPlatform::MonotonicallyIncreasingTime() {
          static_cast<double>(v8::base::Time::kMicrosecondsPerSecond);
 }
 
-double TestPlatform::CurrentClockTimeMillis() {
-  return v8::base::OS::TimeCurrentMillis();
-}
-
 void TestPlatform::WaitAllForegroundTasks() {
   foreground_task_runner_->RunUntilIdle();
 }
 
 void TestPlatform::WaitAllBackgroundTasks() {
-  for (auto& thread : threads_) {
-    thread->Join();
-  }
-  threads_.clear();
   for (auto& thread : job_threads_) {
     thread->Join();
   }
-  threads_.clear();
+  job_threads_.clear();
 }
 
 TestPlatform::DisableBackgroundTasksScope::DisableBackgroundTasksScope(

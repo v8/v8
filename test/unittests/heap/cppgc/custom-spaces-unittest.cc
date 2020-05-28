@@ -32,7 +32,7 @@ class TestWithHeapWithCustomSpaces : public testing::TestWithPlatform {
     Heap::HeapOptions options;
     options.custom_spaces.emplace_back(std::make_unique<CustomSpace1>());
     options.custom_spaces.emplace_back(std::make_unique<CustomSpace2>());
-    heap_ = Heap::Create(std::move(options));
+    heap_ = Heap::Create(platform_, std::move(options));
     g_destructor_callcount = 0;
   }
 

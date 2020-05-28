@@ -13,21 +13,21 @@ namespace internal {
 namespace testing {
 
 // static
-std::unique_ptr<TestPlatform> TestWithPlatform::platform_;
+std::shared_ptr<TestPlatform> TestWithPlatform::platform_;
 
 // static
 void TestWithPlatform::SetUpTestSuite() {
   platform_ = std::make_unique<TestPlatform>();
-  cppgc::InitializePlatform(platform_.get());
+  cppgc::InitializeProcess(platform_->GetPageAllocator());
 }
 
 // static
 void TestWithPlatform::TearDownTestSuite() {
-  cppgc::ShutdownPlatform();
+  cppgc::ShutdownProcess();
   platform_.reset();
 }
 
-TestWithHeap::TestWithHeap() : heap_(Heap::Create()) {}
+TestWithHeap::TestWithHeap() : heap_(Heap::Create(platform_)) {}
 
 TestSupportingAllocationOnly::TestSupportingAllocationOnly()
     : no_gc_scope_(internal::Heap::From(GetHeap())) {}

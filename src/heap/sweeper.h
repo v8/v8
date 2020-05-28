@@ -47,7 +47,7 @@ class Sweeper {
   // after exiting this scope.
   class FilterSweepingPagesScope final {
    public:
-    explicit FilterSweepingPagesScope(
+    FilterSweepingPagesScope(
         Sweeper* sweeper, const PauseOrCompleteScope& pause_or_complete_scope);
     ~FilterSweepingPagesScope();
 

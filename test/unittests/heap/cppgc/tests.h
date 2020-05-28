@@ -22,8 +22,8 @@ class TestWithPlatform : public ::testing::Test {
 
   TestPlatform& GetPlatform() const { return *platform_; }
 
- private:
-  static std::unique_ptr<TestPlatform> platform_;
+ protected:
+  static std::shared_ptr<TestPlatform> platform_;
 };
 
 class TestWithHeap : public TestWithPlatform {

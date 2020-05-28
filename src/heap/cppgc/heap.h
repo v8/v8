@@ -80,7 +80,8 @@ class V8_EXPORT_PRIVATE Heap final : public cppgc::Heap {
 
   static Heap* From(cppgc::Heap* heap) { return static_cast<Heap*>(heap); }
 
-  explicit Heap(size_t custom_spaces);
+  explicit Heap(std::shared_ptr<cppgc::Platform> platform,
+                size_t custom_spaces);
   ~Heap() final;
 
   inline void* Allocate(size_t size, GCInfoIndex index);
@@ -126,7 +127,7 @@ class V8_EXPORT_PRIVATE Heap final : public cppgc::Heap {
 
   RawHeap raw_heap_;
 
-  v8::base::PageAllocator system_allocator_;
+  std::shared_ptr<cppgc::Platform> platform_;
   std::unique_ptr<PageBackend> page_backend_;
   ObjectAllocator object_allocator_;
   Sweeper sweeper_;

@@ -225,7 +225,7 @@ typename FinalizationBuilder::ResultType SweepNormalPage(NormalPage* page) {
 // - merges freelists to the space's freelist.
 class SweepFinalizer final {
  public:
-  explicit SweepFinalizer(v8::Platform* platform) : platform_(platform) {}
+  explicit SweepFinalizer(cppgc::Platform* platform) : platform_(platform) {}
 
   void FinalizeHeap(SpaceStates* space_states) {
     for (SpaceState& space_state : *space_states) {
@@ -292,14 +292,14 @@ class SweepFinalizer final {
   }
 
  private:
-  v8::Platform* platform_;
+  cppgc::Platform* platform_;
 };
 
 class MutatorThreadSweeper final : private HeapVisitor<MutatorThreadSweeper> {
   friend class HeapVisitor<MutatorThreadSweeper>;
 
  public:
-  explicit MutatorThreadSweeper(SpaceStates* states, v8::Platform* platform)
+  explicit MutatorThreadSweeper(SpaceStates* states, cppgc::Platform* platform)
       : states_(states), platform_(platform) {}
 
   void Sweep() {
@@ -374,7 +374,7 @@ class MutatorThreadSweeper final : private HeapVisitor<MutatorThreadSweeper> {
   }
 
   SpaceStates* states_;
-  v8::Platform* platform_;
+  cppgc::Platform* platform_;
 };
 
 class ConcurrentSweepTask final : public v8::JobTask,
@@ -466,13 +466,11 @@ class PrepareForSweepVisitor final
 
 class Sweeper::SweeperImpl final {
  public:
-  explicit SweeperImpl(RawHeap* heap)
+  explicit SweeperImpl(RawHeap* heap, cppgc::Platform* platform)
       : heap_(heap),
         space_states_(heap->size()),
-        platform_(cppgc::GetPlatform()),
-        foreground_task_runner_(platform_->GetForegroundTaskRunner(nullptr)) {
-    // TODO(chromium:1056170): support Isolate independent task runner.
-  }
+        platform_(platform),
+        foreground_task_runner_(platform_->GetForegroundTaskRunner()) {}
 
   ~SweeperImpl() { CancelSweepers(); }
 
@@ -600,14 +598,15 @@ class Sweeper::SweeperImpl final {
 
   RawHeap* heap_;
   SpaceStates space_states_;
-  v8::Platform* platform_;
+  cppgc::Platform* platform_;
   std::shared_ptr<v8::TaskRunner> foreground_task_runner_;
   IncrementalSweepTask::Handle incremental_sweeper_handle_;
   std::unique_ptr<v8::JobHandle> concurrent_sweeper_handle_;
   bool is_in_progress_ = false;
 };
 
-Sweeper::Sweeper(RawHeap* heap) : impl_(std::make_unique<SweeperImpl>(heap)) {}
+Sweeper::Sweeper(RawHeap* heap, cppgc::Platform* platform)
+    : impl_(std::make_unique<SweeperImpl>(heap, platform)) {}
 
 Sweeper::~Sweeper() = default;
 

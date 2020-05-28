@@ -10,6 +10,9 @@
 #include "src/base/macros.h"
 
 namespace cppgc {
+
+class Platform;
+
 namespace internal {
 
 class RawHeap;
@@ -18,7 +21,7 @@ class V8_EXPORT_PRIVATE Sweeper final {
  public:
   enum class Config { kAtomic, kIncrementalAndConcurrent };
 
-  explicit Sweeper(RawHeap*);
+  explicit Sweeper(RawHeap*, cppgc::Platform*);
   ~Sweeper();
 
   Sweeper(const Sweeper&) = delete;

@@ -10,6 +10,7 @@
 
 #include "cppgc/common.h"
 #include "cppgc/custom-space.h"
+#include "cppgc/platform.h"
 #include "v8config.h"  // NOLINT(build/include_directory)
 
 /**
@@ -51,10 +52,12 @@ class V8_EXPORT Heap {
   /**
    * Creates a new heap that can be used for object allocation.
    *
+   * \param platform implemented and provided by the embedder.
    * \param options HeapOptions specifying various properties for the Heap.
    * \returns a new Heap instance.
    */
   static std::unique_ptr<Heap> Create(
+      std::shared_ptr<Platform> platform,
       HeapOptions options = HeapOptions::Default());
 
   virtual ~Heap() = default;

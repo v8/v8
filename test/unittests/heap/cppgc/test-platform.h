@@ -53,30 +53,14 @@ class TestPlatform : public Platform {
 
   PageAllocator* GetPageAllocator() override { return &page_allocator_; }
 
-  int NumberOfWorkerThreads() override {
-    return static_cast<int>(threads_.size());
-  }
-
-  std::shared_ptr<v8::TaskRunner> GetForegroundTaskRunner(
-      v8::Isolate*) override {
+  std::shared_ptr<v8::TaskRunner> GetForegroundTaskRunner() override {
     return foreground_task_runner_;
   }
-
-  void CallOnWorkerThread(std::unique_ptr<v8::Task> task) override;
-  void CallDelayedOnWorkerThread(std::unique_ptr<v8::Task> task,
-                                 double) override;
-
-  bool IdleTasksEnabled(v8::Isolate*) override { return true; }
 
   std::unique_ptr<v8::JobHandle> PostJob(
       v8::TaskPriority, std::unique_ptr<v8::JobTask> job_task) override;
 
   double MonotonicallyIncreasingTime() override;
-  double CurrentClockTimeMillis() override;
-
-  v8::TracingController* GetTracingController() override {
-    return &tracing_controller_;
-  }
 
   void WaitAllForegroundTasks();
   void WaitAllBackgroundTasks();
@@ -122,9 +106,7 @@ class TestPlatform : public Platform {
 
   v8::base::PageAllocator page_allocator_;
   std::shared_ptr<TestTaskRunner> foreground_task_runner_;
-  std::vector<std::unique_ptr<WorkerThread>> threads_;
   std::vector<std::shared_ptr<JobThread>> job_threads_;
-  v8::TracingController tracing_controller_;
   size_t disabled_background_tasks_ = 0;
 };
 
