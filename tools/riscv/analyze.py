@@ -403,6 +403,7 @@ while nextLine:
         registers['a2'] = int(words[19], 16)
         registers['a3'] = int(words[23], 16)
         registers['a4'] = int(words[27], 16)
+        registers['a5'] = int(words[31], 16)
         addr = int(words[7], 16)
         func = functions[addr]
         call = FunctionCall(func, addr, 0xFFFFFFFFFFFFFFFE)
