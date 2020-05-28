@@ -3682,6 +3682,15 @@ WASM_SIMD_TEST_NO_LOWERING(I16x8GtUMixed) {
                                 UnsignedGreater);
 }
 
+WASM_SIMD_TEST_NO_LOWERING(I16x8ExtractLaneU_I8x16Splat) {
+  // Test that we are correctly signed/unsigned extending when extracting.
+  WasmRunner<int32_t, int32_t> r(execution_tier, lower_simd);
+  byte simd_val = r.AllocateLocal(kWasmS128);
+  BUILD(r, WASM_SET_LOCAL(simd_val, WASM_SIMD_I8x16_SPLAT(WASM_GET_LOCAL(0))),
+        WASM_SIMD_I16x8_EXTRACT_LANE_U(0, WASM_GET_LOCAL(simd_val)));
+  CHECK_EQ(0xfafa, r.Call(0xfa));
+}
+
 #define WASM_EXTRACT_I16x8_TEST(Sign, Type)                                    \
   WASM_SIMD_TEST(I16X8ExtractLane##Sign) {                                     \
     WasmRunner<int32_t, int32_t> r(execution_tier, lower_simd);                \

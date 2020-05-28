@@ -2215,22 +2215,38 @@ class ThreadImpl {
       EXTRACT_LANE_CASE(I64x2, i64x2)
       EXTRACT_LANE_CASE(I32x4, i32x4)
 #undef EXTRACT_LANE_CASE
-#define EXTRACT_LANE_EXTEND_CASE(format, name, sign, type)             \
-  case kExpr##format##ExtractLane##sign: {                             \
-    SimdLaneImmediate<Decoder::kNoValidate> imm(decoder, code->at(pc), \
-                                                opcode_length);        \
-    *len += 1;                                                         \
-    WasmValue val = Pop();                                             \
-    Simd128 s = val.to_s128();                                         \
-    auto ss = s.to_##name();                                           \
-    Push(WasmValue(static_cast<type>(ss.val[LANE(imm.lane, ss)])));    \
-    return true;                                                       \
+
+      // Unsigned extracts require a bit more care. The underlying array in
+      // Simd128 is signed (see wasm-value.h), so when casted to uint32_t it
+      // will be signed extended, e.g. int8_t -> int32_t -> uint32_t. So for
+      // unsigned extracts, we will cast it int8_t -> uint8_t -> uint32_t. We
+      // add the DCHECK to ensure that if the array type changes, we know to
+      // change this function.
+#define EXTRACT_LANE_EXTEND_CASE(format, name, sign, extended_type)      \
+  case kExpr##format##ExtractLane##sign: {                               \
+    SimdLaneImmediate<Decoder::kNoValidate> imm(decoder, code->at(pc),   \
+                                                opcode_length);          \
+    *len += 1;                                                           \
+    WasmValue val = Pop();                                               \
+    Simd128 s = val.to_s128();                                           \
+    auto ss = s.to_##name();                                             \
+    auto res = ss.val[LANE(imm.lane, ss)];                               \
+    DCHECK(std::is_signed<decltype(res)>::value);                        \
+    if (std::is_unsigned<extended_type>::value) {                        \
+      using unsigned_type = std::make_unsigned<decltype(res)>::type;     \
+      Push(WasmValue(                                                    \
+          static_cast<extended_type>(static_cast<unsigned_type>(res)))); \
+    } else {                                                             \
+      Push(WasmValue(static_cast<extended_type>(res)));                  \
+    }                                                                    \
+    return true;                                                         \
   }
       EXTRACT_LANE_EXTEND_CASE(I16x8, i16x8, S, int32_t)
       EXTRACT_LANE_EXTEND_CASE(I16x8, i16x8, U, uint32_t)
       EXTRACT_LANE_EXTEND_CASE(I8x16, i8x16, S, int32_t)
       EXTRACT_LANE_EXTEND_CASE(I8x16, i8x16, U, uint32_t)
 #undef EXTRACT_LANE_EXTEND_CASE
+
 #define BINOP_CASE(op, name, stype, count, expr)              \
   case kExpr##op: {                                           \
     WasmValue v2 = Pop();                                     \
