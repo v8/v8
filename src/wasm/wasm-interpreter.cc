@@ -2357,17 +2357,17 @@ class ThreadImpl {
 
 // Cast to double in call to signbit is due to MSCV issue, see
 // https://github.com/microsoft/STL/issues/519.
-#define BITMASK_CASE(op, name, stype, count)                   \
-  case kExpr##op: {                                            \
-    WasmValue v = Pop();                                       \
-    stype s = v.to_s128().to_##name();                         \
-    int32_t res = 0;                                           \
-    for (size_t i = 0; i < count; ++i) {                       \
-      bool sign = std::signbit(static_cast<double>(s.val[i])); \
-      res |= (sign << i);                                      \
-    }                                                          \
-    Push(WasmValue(res));                                      \
-    return true;                                               \
+#define BITMASK_CASE(op, name, stype, count)                            \
+  case kExpr##op: {                                                     \
+    WasmValue v = Pop();                                                \
+    stype s = v.to_s128().to_##name();                                  \
+    int32_t res = 0;                                                    \
+    for (size_t i = 0; i < count; ++i) {                                \
+      bool sign = std::signbit(static_cast<double>(s.val[LANE(i, s)])); \
+      res |= (sign << i);                                               \
+    }                                                                   \
+    Push(WasmValue(res));                                               \
+    return true;                                                        \
   }
       BITMASK_CASE(I8x16BitMask, i8x16, int16, 16)
       BITMASK_CASE(I16x8BitMask, i16x8, int8, 8)
