@@ -339,6 +339,8 @@ parser.add_argument('--inline', action='store_true', default=False,
                     dest='inline', help='Print comments inline with trace')
 parser.add_argument('--target', default='riscv',
                     help='Specify the target architecture')
+parser.add_argument('--print-host-calls', action='store_true', default=False,
+                    dest='print_host_calls', help='Print info about calls to host functions')
 parser.add_argument('logfile', nargs=1)
 args = parser.parse_args()
 
@@ -447,6 +449,8 @@ while nextLine:
                     else:
                         func = unknownFunc
                         if nextLine and nextLine.startswith("Call to host function"):
+                            if not args.print_host_calls:
+                                continue
                             func = hostFunc
                         call = FunctionCall(func, addr, insn.result,
                                             registers['sp'], registers['fp'])
@@ -470,7 +474,7 @@ while nextLine:
                 if args.inline:
                     print(line, end='')
 
-            if words[0] == "Returned":
+            if words[0] == "Returned" and args.print_host_calls:
                 prefix = 'a' if args.target == 'riscv' else 'v'
                 registers[f'{prefix}1'] = int(words[1], 16)
                 registers[f'{prefix}0'] = int(words[3], 16)
