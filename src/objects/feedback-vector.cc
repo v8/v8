@@ -238,7 +238,13 @@ Handle<FeedbackVector> FeedbackVector::New(
     Handle<ClosureFeedbackCellArray> closure_feedback_cell_array) {
   Factory* factory = isolate->factory();
 
-  const int slot_count = shared->feedback_metadata().slot_count();
+  // Hold on to bytecode here. The allocation of a new feedback vector could
+  // trigger a GC and flush the bytecode and feedback metadata.
+  IsCompiledScope is_compiled_scope(*shared, isolate);
+  CHECK(is_compiled_scope.is_compiled());
+  Handle<FeedbackMetadata> feedback_metadata(shared->feedback_metadata(),
+                                             isolate);
+  const int slot_count = feedback_metadata->slot_count();
 
   Handle<FeedbackVector> vector =
       factory->NewFeedbackVector(shared, closure_feedback_cell_array);
@@ -260,7 +266,7 @@ Handle<FeedbackVector> FeedbackVector::New(
             *uninitialized_sentinel);
   for (int i = 0; i < slot_count;) {
     FeedbackSlot slot(i);
-    FeedbackSlotKind kind = shared->feedback_metadata().GetKind(slot);
+    FeedbackSlotKind kind = feedback_metadata->GetKind(slot);
     int index = FeedbackVector::GetIndex(slot);
     int entry_size = FeedbackMetadata::GetSlotSize(kind);
 

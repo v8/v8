@@ -2,9 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-// TODO(mythria): Investigate why this is failing with stress-flush-bytecode and
-// remove the --no-stress-flush-bytecode here.
-// Flags: --allow-natives-syntax --no-stress-flush-bytecode
+// Flags: --allow-natives-syntax
 
 function f() {
   function g(arg) { return arg; }
