@@ -217,8 +217,6 @@ static IrOpcode::Value NumberToI32(bool is_signed) {
 }
 
 
-// TODO(turbofan): Lowering of StringAdd is disabled for now.
-#if 0
 TEST(StringBinops) {
   JSTypedLoweringTester R;
 
@@ -228,16 +226,15 @@ TEST(StringBinops) {
     for (size_t j = 0; j < arraysize(kStringTypes); ++j) {
       Node* p1 = R.Parameter(kStringTypes[j], 1);
 
-      Node* add = R.Binop(R.javascript.Add(), p0, p1);
+      Node* add = R.Binop(R.javascript.Add(BinaryOperationHint::kAny), p0, p1);
       Node* r = R.reduce(add);
 
-      R.CheckBinop(IrOpcode::kStringAdd, r);
-      CHECK_EQ(p0, r->InputAt(0));
-      CHECK_EQ(p1, r->InputAt(1));
+      R.CheckBinop(IrOpcode::kStringConcat, r);
+      CHECK_EQ(p0, r->InputAt(1));
+      CHECK_EQ(p1, r->InputAt(2));
     }
   }
 }
-#endif
 
 TEST(AddNumber1) {
   JSTypedLoweringTester R;
