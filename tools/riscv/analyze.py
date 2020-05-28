@@ -469,7 +469,9 @@ while nextLine:
 
                 if insn.jumpTarget() in functions:
                     func = functions[insn.jumpTarget()]
-                    print(f"### {'  ' * call.indentLevel}Jump to {func.name} {insn.count}")
+                    print(
+                        f"### {'  ' * call.indentLevel}Jump to {func.name} {insn.count}")
+                    printArgs(call.indentLevel)
 
                 if args.inline:
                     print(line, end='')
