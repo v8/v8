@@ -1110,9 +1110,9 @@ void Builtins::Generate_InterpreterEntryTrampoline(MacroAssembler* masm) {
   __ bind(&do_dispatch);
   __ li(kInterpreterDispatchTableRegister,
         ExternalReference::interpreter_dispatch_table_address(masm->isolate()));
-  __ Daddu(a0, kInterpreterBytecodeArrayRegister,
+  __ Daddu(a1, kInterpreterBytecodeArrayRegister,
            kInterpreterBytecodeOffsetRegister);
-  __ Lbu(a7, MemOperand(a0));
+  __ Lbu(a7, MemOperand(a1));
   __ Dlsa(kScratchReg, kInterpreterDispatchTableRegister, a7, kPointerSizeLog2);
   __ Ld(kJavaScriptCallCodeStartRegister, MemOperand(kScratchReg));
   __ Call(kJavaScriptCallCodeStartRegister);
@@ -1449,8 +1449,8 @@ void Builtins::Generate_NotifyDeoptimized(MacroAssembler* masm) {
     __ CallRuntime(Runtime::kNotifyDeoptimized);
   }
 
-  DCHECK_EQ(kInterpreterAccumulatorRegister.code(), a6.code());
-  __ Ld(a6, MemOperand(sp, 0 * kPointerSize));
+  DCHECK_EQ(kInterpreterAccumulatorRegister.code(), a0.code());
+  __ Ld(a0, MemOperand(sp, 0 * kPointerSize));
   __ Daddu(sp, sp, Operand(1 * kPointerSize));  // Remove state.
   __ Ret();
 }
