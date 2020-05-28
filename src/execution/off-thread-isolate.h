@@ -131,7 +131,7 @@ class V8_EXPORT_PRIVATE OffThreadIsolate final
     if (handle.is_null()) {
       return OffThreadTransferHandle<T>();
     }
-    return OffThreadTransferHandle<T>(AddTransferHandleStorage(handle));
+    return OffThreadTransferHandle<T>(heap()->AddTransferHandleStorage(handle));
   }
 
   template <typename T>
@@ -141,7 +141,8 @@ class V8_EXPORT_PRIVATE OffThreadIsolate final
     if (!maybe_handle.ToHandle(&handle)) {
       return OffThreadTransferMaybeHandle<T>();
     }
-    return OffThreadTransferMaybeHandle<T>(AddTransferHandleStorage(handle));
+    return OffThreadTransferMaybeHandle<T>(
+        heap()->AddTransferHandleStorage(handle));
   }
 
   int GetNextScriptId();
@@ -159,8 +160,6 @@ class V8_EXPORT_PRIVATE OffThreadIsolate final
  private:
   friend class v8::internal::OffThreadFactory;
 
-  OffThreadTransferHandleStorage* AddTransferHandleStorage(HandleBase handle);
-
   OffThreadHeap heap_;
 
   // TODO(leszeks): Extract out the fields of the Isolate we want and store
@@ -170,8 +169,6 @@ class V8_EXPORT_PRIVATE OffThreadIsolate final
   std::unique_ptr<OffThreadLogger> logger_;
   ThreadId thread_id_;
   Zone* handle_zone_;
-  std::unique_ptr<OffThreadTransferHandleStorage>
-      off_thread_transfer_handles_head_;
 };
 
 }  // namespace internal

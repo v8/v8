@@ -16,6 +16,8 @@
 namespace v8 {
 namespace internal {
 
+class OffThreadTransferHandleStorage;
+
 class V8_EXPORT_PRIVATE OffThreadHeap {
  public:
   explicit OffThreadHeap(Heap* heap);
@@ -40,6 +42,8 @@ class V8_EXPORT_PRIVATE OffThreadHeap {
   HeapObject CreateFillerObjectAt(Address addr, int size,
                                   ClearFreedMemoryMode clear_memory_mode);
 
+  OffThreadTransferHandleStorage* AddTransferHandleStorage(HandleBase handle);
+
   void FinishOffThread();
   void Publish(Heap* heap);
 
@@ -61,6 +65,8 @@ class V8_EXPORT_PRIVATE OffThreadHeap {
   OffThreadLargeObjectSpace lo_space_;
   std::vector<RelativeSlot> string_slots_;
   std::vector<Script> script_list_;
+  std::unique_ptr<OffThreadTransferHandleStorage>
+      off_thread_transfer_handles_head_;
   bool is_finished = false;
 };
 

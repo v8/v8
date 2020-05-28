@@ -36,6 +36,7 @@
 #include "src/debug/debug.h"
 #include "src/deoptimizer/deoptimizer.h"
 #include "src/execution/execution.h"
+#include "src/execution/off-thread-isolate.h"
 #include "src/handles/global-handles.h"
 #include "src/heap/combined-heap.h"
 #include "src/heap/factory.h"
@@ -7000,6 +7001,44 @@ TEST(Regress978156) {
   // an out-of-bounds access of the marking bitmap in a bad case.
   marking_state->WhiteToGrey(filler);
   marking_state->GreyToBlack(filler);
+}
+
+HEAP_TEST(GCDuringOffThreadMergeWithTransferHandle) {
+  CcTest::InitializeVM();
+  Isolate* isolate = CcTest::i_isolate();
+  Heap* heap = isolate->heap();
+
+  HandleScope handle_scope(isolate);
+
+  Zone zone(isolate->allocator(), ZONE_NAME);
+  OffThreadIsolate off_thread_isolate(isolate, &zone);
+
+  OffThreadTransferHandle<FixedArray> transfer_handle;
+
+  {
+    OffThreadHandleScope handle_scope(&off_thread_isolate);
+    Handle<FixedArray> obj =
+        off_thread_isolate.factory()->NewFixedArray(10, AllocationType::kOld);
+
+    transfer_handle = off_thread_isolate.TransferHandle(obj);
+
+    off_thread_isolate.FinishOffThread();
+  }
+
+  heap->set_force_oom(true);
+
+  heap->AddNearHeapLimitCallback(
+      [](void* data, size_t current_heap_limit,
+         size_t initial_heap_limit) -> size_t {
+        Heap* heap = static_cast<Heap*>(data);
+        heap->set_force_oom(false);
+        return 0;
+      },
+      heap);
+
+  off_thread_isolate.Publish(isolate);
+  CHECK(transfer_handle.ToHandle()->IsFixedArray());
+  CHECK_EQ(transfer_handle.ToHandle()->length(), 10);
 }
 
 }  // namespace heap

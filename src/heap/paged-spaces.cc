@@ -18,6 +18,7 @@
 #include "src/heap/read-only-heap.h"
 #include "src/logging/counters.h"
 #include "src/objects/string.h"
+#include "src/utils/utils.h"
 
 namespace v8 {
 namespace internal {
@@ -194,6 +195,14 @@ void PagedSpace::MergeLocalSpace(LocalSpace* other) {
 
     if (merging_from_off_thread) {
       DCHECK_NULL(p->sweeping_slot_set());
+
+      // Make sure the page is entirely white.
+      CHECK(heap()
+                ->incremental_marking()
+                ->non_atomic_marking_state()
+                ->bitmap(p)
+                ->IsClean());
+
       p->SetOldGenerationPageFlags(heap()->incremental_marking()->IsMarking());
       if (heap()->incremental_marking()->black_allocation()) {
         p->CreateBlackArea(p->area_start(), p->HighWaterMark());

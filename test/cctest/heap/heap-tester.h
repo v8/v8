@@ -33,6 +33,7 @@
   V(InvalidatedSlotsFastToSlow)                             \
   V(InvalidatedSlotsSomeInvalidatedRanges)                  \
   V(TestNewSpaceRefsInCopiedCode)                           \
+  V(GCDuringOffThreadMergeWithTransferHandle)               \
   V(GCFlags)                                                \
   V(MarkCompactCollector)                                   \
   V(MarkCompactEpochCounter)                                \
