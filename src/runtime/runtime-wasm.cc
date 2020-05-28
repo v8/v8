@@ -450,7 +450,7 @@ RUNTIME_FUNCTION(Runtime_WasmDebugBreak) {
   WasmFrame* frame = frame_finder.frame();
   auto* debug_info = frame->native_module()->GetDebugInfo();
   if (debug_info->IsStepping(frame)) {
-    debug_info->ClearStepping();
+    debug_info->ClearStepping(isolate);
     isolate->debug()->ClearStepping();
     isolate->debug()->OnDebugBreak(isolate->factory()->empty_fixed_array());
     return undefined;
@@ -461,7 +461,7 @@ RUNTIME_FUNCTION(Runtime_WasmDebugBreak) {
   Handle<FixedArray> breakpoints;
   if (WasmScript::CheckBreakPoints(isolate, script, position)
           .ToHandle(&breakpoints)) {
-    debug_info->ClearStepping();
+    debug_info->ClearStepping(isolate);
     isolate->debug()->ClearStepping();
     if (isolate->debug()->break_points_active()) {
       // We hit one or several breakpoints. Notify the debug listeners.

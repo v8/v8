@@ -485,10 +485,6 @@ class DebugInfoImpl {
 
   WasmCode* RecompileLiftoffWithBreakpoints(
       int func_index, Vector<int> offsets, Vector<int> extra_source_positions) {
-    // During compilation, we cannot hold the lock, since compilation takes the
-    // {NativeModule} lock, which could lead to deadlocks.
-    mutex_.AssertUnheld();
-
     // Recompile the function with Liftoff, setting the new breakpoints.
     // Not thread-safe. The caller is responsible for locking {mutex_}.
     CompilationEnv env = native_module_->CreateCompilationEnv();
@@ -514,16 +510,18 @@ class DebugInfoImpl {
         native_module_->AddCompiledCode(std::move(result)));
 
     DCHECK(new_code->is_inspectable());
-    bool added =
-        debug_side_tables_.emplace(new_code, std::move(debug_sidetable)).second;
-    DCHECK(added);
-    USE(added);
+    {
+      base::MutexGuard guard(&mutex_);
+      DCHECK_EQ(0, debug_side_tables_.count(new_code));
+      debug_side_tables_.emplace(new_code, std::move(debug_sidetable));
+    }
 
     return new_code;
   }
 
-  void SetBreakpoint(int func_index, int offset, Isolate* current_isolate) {
+  void SetBreakpoint(int func_index, int offset, Isolate* isolate) {
     std::vector<int> breakpoints_copy;
+    StackFrameId stepping_frame = NO_ID;
     {
       // Hold the mutex while modifying the set of breakpoints, but release it
       // before compiling the new code (see comment in
@@ -544,26 +542,28 @@ class DebugInfoImpl {
       }
       breakpoints.insert(insertion_point, offset);
       breakpoints_copy = breakpoints;
+
+      stepping_frame = per_isolate_data_[isolate].stepping_frame;
     }
 
-    UpdateBreakpoints(func_index, VectorOf(breakpoints_copy), current_isolate);
+    UpdateBreakpoints(func_index, VectorOf(breakpoints_copy), isolate,
+                      stepping_frame);
   }
 
   void UpdateBreakpoints(int func_index, Vector<int> breakpoints,
-                         Isolate* current_isolate) {
+                         Isolate* isolate, StackFrameId stepping_frame) {
     // Generate additional source positions for current stack frame positions.
     // These source positions are used to find return addresses in the new code.
     std::vector<int> stack_frame_positions =
-        StackFramePositions(func_index, current_isolate);
+        StackFramePositions(func_index, isolate);
 
     WasmCodeRefScope wasm_code_ref_scope;
     WasmCode* new_code = RecompileLiftoffWithBreakpoints(
         func_index, breakpoints, VectorOf(stack_frame_positions));
-    UpdateReturnAddresses(current_isolate, new_code);
+    UpdateReturnAddresses(isolate, new_code, stepping_frame);
   }
 
-  void FloodWithBreakpoints(WasmFrame* frame, Isolate* current_isolate,
-                            ReturnLocation return_location) {
+  void FloodWithBreakpoints(WasmFrame* frame, ReturnLocation return_location) {
     // 0 is an invalid offset used to indicate flooding.
     int offset = 0;
     WasmCodeRefScope wasm_code_ref_scope;
@@ -596,21 +596,30 @@ class DebugInfoImpl {
       return_location = kAfterWasmCall;
     }
 
-    FloodWithBreakpoints(frame, isolate, return_location);
-    stepping_frame_ = frame->id();
+    FloodWithBreakpoints(frame, return_location);
+
+    base::MutexGuard guard(&mutex_);
+    per_isolate_data_[isolate].stepping_frame = frame->id();
   }
 
-  void ClearStepping() { stepping_frame_ = NO_ID; }
+  void ClearStepping(Isolate* isolate) {
+    base::MutexGuard guard(&mutex_);
+    auto it = per_isolate_data_.find(isolate);
+    if (it != per_isolate_data_.end()) it->second.stepping_frame = NO_ID;
+  }
 
   bool IsStepping(WasmFrame* frame) {
     Isolate* isolate = frame->wasm_instance().GetIsolate();
-    StepAction last_step_action = isolate->debug()->last_step_action();
-    return stepping_frame_ == frame->id() || last_step_action == StepIn;
+    if (isolate->debug()->last_step_action() == StepIn) return true;
+    base::MutexGuard guard(&mutex_);
+    auto it = per_isolate_data_.find(isolate);
+    return it != per_isolate_data_.end() &&
+           it->second.stepping_frame == frame->id();
   }
 
-  void RemoveBreakpoint(int func_index, int position,
-                        Isolate* current_isolate) {
+  void RemoveBreakpoint(int func_index, int position, Isolate* isolate) {
     std::vector<int> breakpoints_copy;
+    StackFrameId stepping_frame = NO_ID;
     {
       base::MutexGuard guard(&mutex_);
       const auto& function = native_module_->module()->functions[func_index];
@@ -624,9 +633,12 @@ class DebugInfoImpl {
       if (*insertion_point != offset) return;
       breakpoints.erase(insertion_point);
       breakpoints_copy = breakpoints;
+
+      stepping_frame = per_isolate_data_[isolate].stepping_frame;
     }
 
-    UpdateBreakpoints(func_index, VectorOf(breakpoints_copy), current_isolate);
+    UpdateBreakpoints(func_index, VectorOf(breakpoints_copy), isolate,
+                      stepping_frame);
   }
 
   void RemoveDebugSideTables(Vector<WasmCode* const> codes) {
@@ -640,6 +652,11 @@ class DebugInfoImpl {
     base::MutexGuard guard(&mutex_);
     auto it = debug_side_tables_.find(code);
     return it == debug_side_tables_.end() ? nullptr : it->second.get();
+  }
+
+  void RemoveIsolate(Isolate* isolate) {
+    base::MutexGuard guard(&mutex_);
+    per_isolate_data_.erase(isolate);
   }
 
  private:
@@ -691,10 +708,13 @@ class DebugInfoImpl {
         GenerateLiftoffDebugSideTable(allocator, &env, func_body);
     DebugSideTable* ret = debug_side_table.get();
 
-    // Install into cache and return.
+    // Check cache again, maybe another thread concurrently generated a debug
+    // side table already.
     {
       base::MutexGuard guard(&mutex_);
-      debug_side_tables_[code] = std::move(debug_side_table);
+      auto& slot = debug_side_tables_[code];
+      if (slot != nullptr) return slot.get();
+      slot = std::move(debug_side_table);
     }
 
     // Print the code together with the debug table, if requested.
@@ -768,15 +788,15 @@ class DebugInfoImpl {
   // After installing a Liftoff code object with a different set of breakpoints,
   // update return addresses on the stack so that execution resumes in the new
   // code. The frame layout itself should be independent of breakpoints.
-  // TODO(thibaudm): update other threads as well.
-  void UpdateReturnAddresses(Isolate* isolate, WasmCode* new_code) {
+  void UpdateReturnAddresses(Isolate* isolate, WasmCode* new_code,
+                             StackFrameId stepping_frame) {
     // The first return location is after the breakpoint, others are after wasm
     // calls.
     ReturnLocation return_location = kAfterBreakpoint;
     for (StackTraceFrameIterator it(isolate); !it.done();
          it.Advance(), return_location = kAfterWasmCall) {
       // We still need the flooded function for stepping.
-      if (it.frame()->id() == stepping_frame_) continue;
+      if (it.frame()->id() == stepping_frame) continue;
       if (!it.is_wasm()) continue;
       WasmFrame* frame = WasmFrame::cast(it.frame());
       if (frame->native_module() != new_code->native_module()) continue;
@@ -815,6 +835,16 @@ class DebugInfoImpl {
     return static_cast<size_t>(position) == code.end_offset() - 1;
   }
 
+  // Isolate-specific data, for debugging modules that are shared by multiple
+  // isolates.
+  struct PerIsolateDebugData {
+    // Store the frame ID when stepping, to avoid overwriting that frame when
+    // setting or removing a breakpoint.
+    StackFrameId stepping_frame = NO_ID;
+
+    // TODO(clemensb): Also move breakpoint here.
+  };
+
   NativeModule* const native_module_;
 
   // {mutex_} protects all fields below.
@@ -829,11 +859,11 @@ class DebugInfoImpl {
 
   // Keeps track of the currently set breakpoints (by offset within that
   // function).
+  // TODO(clemensb): Move this into {PerIsolateDebugData}.
   std::unordered_map<int, std::vector<int>> breakpoints_per_function_;
 
-  // Store the frame ID when stepping, to avoid overwriting that frame when
-  // setting or removing a breakpoint.
-  StackFrameId stepping_frame_ = NO_ID;
+  // Isolate-specific data.
+  std::unordered_map<Isolate*, PerIsolateDebugData> per_isolate_data_;
 
   DISALLOW_COPY_AND_ASSIGN(DebugInfoImpl);
 };
@@ -882,7 +912,9 @@ void DebugInfo::PrepareStep(Isolate* isolate, StackFrameId break_frame_id) {
   impl_->PrepareStep(isolate, break_frame_id);
 }
 
-void DebugInfo::ClearStepping() { impl_->ClearStepping(); }
+void DebugInfo::ClearStepping(Isolate* isolate) {
+  impl_->ClearStepping(isolate);
+}
 
 bool DebugInfo::IsStepping(WasmFrame* frame) {
   return impl_->IsStepping(frame);
@@ -900,6 +932,10 @@ void DebugInfo::RemoveDebugSideTables(Vector<WasmCode* const> code) {
 DebugSideTable* DebugInfo::GetDebugSideTableIfExists(
     const WasmCode* code) const {
   return impl_->GetDebugSideTableIfExists(code);
+}
+
+void DebugInfo::RemoveIsolate(Isolate* isolate) {
+  return impl_->RemoveIsolate(isolate);
 }
 
 }  // namespace wasm

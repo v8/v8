@@ -168,7 +168,7 @@ class V8_EXPORT_PRIVATE DebugInfo {
 
   void PrepareStep(Isolate*, StackFrameId);
 
-  void ClearStepping();
+  void ClearStepping(Isolate*);
 
   bool IsStepping(WasmFrame*);
 
@@ -179,6 +179,8 @@ class V8_EXPORT_PRIVATE DebugInfo {
   // Return the debug side table for the given code object, but only if it has
   // already been created. This will never trigger generation of the table.
   DebugSideTable* GetDebugSideTableIfExists(const WasmCode*) const;
+
+  void RemoveIsolate(Isolate*);
 
  private:
   std::unique_ptr<DebugInfoImpl> impl_;

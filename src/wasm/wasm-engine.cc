@@ -22,6 +22,7 @@
 #include "src/wasm/module-decoder.h"
 #include "src/wasm/module-instantiate.h"
 #include "src/wasm/streaming-decoder.h"
+#include "src/wasm/wasm-debug.h"
 #include "src/wasm/wasm-limits.h"
 #include "src/wasm/wasm-objects-inl.h"
 
@@ -923,6 +924,9 @@ void WasmEngine::RemoveIsolate(Isolate* isolate) {
       for (WasmCode* code : info->potentially_dead_code) {
         current_gc_info_->dead_code.erase(code);
       }
+    }
+    if (native_module->HasDebugInfo()) {
+      native_module->GetDebugInfo()->RemoveIsolate(isolate);
     }
   }
   if (current_gc_info_) {
