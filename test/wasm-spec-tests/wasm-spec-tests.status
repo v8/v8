@@ -25,7 +25,6 @@
 
   'proposals/reference-types/linking': [FAIL],
   'proposals/reference-types/ref_func': [FAIL],
-  'proposals/reference-types/unreached-invalid': [FAIL],
 
   # TODO(wasm): This test declares a table larger than allowed by the spec.
   'table': [FAIL],
