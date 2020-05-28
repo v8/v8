@@ -299,7 +299,6 @@ class Intl {
 
       set_ = Intl::BuildLocaleSet(all_locales, C::path(), C::key());
     }
-    virtual ~AvailableLocales() {}
     const std::set<std::string>& Get() const { return set_; }
 
    private:
