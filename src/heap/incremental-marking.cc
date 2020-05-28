@@ -745,10 +745,13 @@ StepResult IncrementalMarking::EmbedderStep(double expected_duration_ms,
       }
     }
   }
+  // |deadline - heap_->MonotonicallyIncreasingTimeInMs()| could be negative,
+  // which means |local_tracer| won't do any actual tracing, so there is no
+  // need to check for |deadline <= heap_->MonotonicallyIncreasingTimeInMs()|.
   bool remote_tracing_done =
       local_tracer->Trace(deadline - heap_->MonotonicallyIncreasingTimeInMs());
   double current = heap_->MonotonicallyIncreasingTimeInMs();
-  local_tracer->SetEmbedderWorklistEmpty(true);
+  local_tracer->SetEmbedderWorklistEmpty(empty_worklist);
   *duration_ms = current - start;
   return (empty_worklist && remote_tracing_done)
              ? StepResult::kNoImmediateWork
