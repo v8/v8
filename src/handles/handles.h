@@ -204,6 +204,10 @@ class HandleScope {
     return ::operator new(size, storage);
   }
 
+  // Prevent heap allocation or illegal handle scopes.
+  void* operator new(size_t size) = delete;
+  void operator delete(void* size_t) = delete;
+
   inline ~HandleScope();
 
   inline HandleScope& operator=(HandleScope&& other) V8_NOEXCEPT;
@@ -239,10 +243,6 @@ class HandleScope {
   static const int kCheckHandleThreshold = 30 * 1024;
 
  private:
-  // Prevent heap allocation or illegal handle scopes.
-  void* operator new(size_t size) = delete;
-  void operator delete(void* size_t) = delete;
-
   Isolate* isolate_;
   Address* prev_next_;
   Address* prev_limit_;
