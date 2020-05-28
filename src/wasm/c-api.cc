@@ -456,7 +456,7 @@ struct FuncTypeImpl : ExternTypeImpl {
         params(std::move(params)),
         results(std::move(results)) {}
 
-  ~FuncTypeImpl() {}
+  ~FuncTypeImpl() override {}
 };
 
 template <>
@@ -510,7 +510,7 @@ struct GlobalTypeImpl : ExternTypeImpl {
         content(std::move(content)),
         mutability(mutability) {}
 
-  ~GlobalTypeImpl() {}
+  ~GlobalTypeImpl() override {}
 };
 
 template <>
@@ -563,7 +563,7 @@ struct TableTypeImpl : ExternTypeImpl {
         element(std::move(element)),
         limits(limits) {}
 
-  ~TableTypeImpl() {}
+  ~TableTypeImpl() override {}
 };
 
 template <>
@@ -609,7 +609,7 @@ struct MemoryTypeImpl : ExternTypeImpl {
   explicit MemoryTypeImpl(Limits limits)
       : ExternTypeImpl(EXTERN_MEMORY), limits(limits) {}
 
-  ~MemoryTypeImpl() {}
+  ~MemoryTypeImpl() override {}
 };
 
 template <>
