@@ -45,6 +45,9 @@ class JSBinopReduction final {
       case CompareOperationHint::kNumber:
         *hint = NumberOperationHint::kNumber;
         return true;
+      case CompareOperationHint::kNumberOrBoolean:
+        *hint = NumberOperationHint::kNumberOrBoolean;
+        return true;
       case CompareOperationHint::kNumberOrOddball:
         *hint = NumberOperationHint::kNumberOrOddball;
         return true;
@@ -887,7 +890,14 @@ Reduction JSTypedLowering::ReduceJSStrictEqual(Node* node) {
   if (r.BothInputsAre(Type::Signed32()) ||
       r.BothInputsAre(Type::Unsigned32())) {
     return r.ChangeToPureOperator(simplified()->NumberEqual());
-  } else if (r.GetCompareNumberOperationHint(&hint)) {
+  } else if (r.GetCompareNumberOperationHint(&hint) &&
+             hint != NumberOperationHint::kNumberOrOddball &&
+             hint != NumberOperationHint::kNumberOrBoolean) {
+    // SpeculativeNumberEqual performs implicit conversion of oddballs to
+    // numbers, so me must not generate it for strict equality with respective
+    // hint.
+    DCHECK(hint == NumberOperationHint::kNumber ||
+           hint == NumberOperationHint::kSignedSmall);
     return r.ChangeToSpeculativeOperator(
         simplified()->SpeculativeNumberEqual(hint), Type::Boolean());
   } else if (r.BothInputsAre(Type::Number())) {

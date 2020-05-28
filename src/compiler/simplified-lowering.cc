@@ -105,6 +105,9 @@ UseInfo CheckedUseInfoAsWord32FromHint(
       return UseInfo::CheckedSigned32AsWord32(identify_zeros, feedback);
     case NumberOperationHint::kNumber:
       return UseInfo::CheckedNumberAsWord32(feedback);
+    case NumberOperationHint::kNumberOrBoolean:
+      // Not used currently.
+      UNREACHABLE();
     case NumberOperationHint::kNumberOrOddball:
       return UseInfo::CheckedNumberOrOddballAsWord32(feedback);
   }
@@ -122,6 +125,8 @@ UseInfo CheckedUseInfoAsFloat64FromHint(
       UNREACHABLE();
     case NumberOperationHint::kNumber:
       return UseInfo::CheckedNumberAsFloat64(identify_zeros, feedback);
+    case NumberOperationHint::kNumberOrBoolean:
+      return UseInfo::CheckedNumberOrBooleanAsFloat64(identify_zeros, feedback);
     case NumberOperationHint::kNumberOrOddball:
       return UseInfo::CheckedNumberOrOddballAsFloat64(identify_zeros, feedback);
   }
@@ -2083,6 +2088,7 @@ class RepresentationSelector {
             // hint with Oddball feedback here.
             DCHECK_NE(IrOpcode::kSpeculativeNumberEqual, node->opcode());
             V8_FALLTHROUGH;
+          case NumberOperationHint::kNumberOrBoolean:
           case NumberOperationHint::kNumber:
             VisitBinop<T>(node,
                           CheckedUseInfoAsFloat64FromHint(
@@ -3302,6 +3308,7 @@ class RepresentationSelector {
                          MachineRepresentation::kWord32, Type::Signed32());
             break;
           case NumberOperationHint::kNumber:
+          case NumberOperationHint::kNumberOrBoolean:
           case NumberOperationHint::kNumberOrOddball:
             VisitUnop<T>(
                 node, CheckedUseInfoAsFloat64FromHint(p.hint(), p.feedback()),

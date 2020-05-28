@@ -11,6 +11,7 @@
 #include "src/compiler/js-heap-broker.h"
 #include "src/compiler/machine-operator.h"
 #include "src/compiler/node-matchers.h"
+#include "src/compiler/simplified-operator.h"
 #include "src/compiler/type-cache.h"
 #include "src/heap/factory-inl.h"
 
@@ -662,6 +663,7 @@ Node* RepresentationChanger::GetFloat64RepresentationFor(
     switch (use_info.type_check()) {
       case TypeCheckKind::kNone:
       case TypeCheckKind::kNumber:
+      case TypeCheckKind::kNumberOrBoolean:
       case TypeCheckKind::kNumberOrOddball:
         return jsgraph()->Float64Constant(m.Value());
       case TypeCheckKind::kBigInt:
@@ -695,6 +697,7 @@ Node* RepresentationChanger::GetFloat64RepresentationFor(
   } else if (output_rep == MachineRepresentation::kBit) {
     CHECK(output_type.Is(Type::Boolean()));
     if (use_info.truncation().TruncatesOddballAndBigIntToNumber() ||
+        use_info.type_check() == TypeCheckKind::kNumberOrBoolean ||
         use_info.type_check() == TypeCheckKind::kNumberOrOddball) {
       op = machine()->ChangeUint32ToFloat64();
     } else {
@@ -707,9 +710,16 @@ Node* RepresentationChanger::GetFloat64RepresentationFor(
     }
   } else if (IsAnyTagged(output_rep)) {
     if (output_type.Is(Type::Undefined())) {
-      return jsgraph()->Float64Constant(
-          std::numeric_limits<double>::quiet_NaN());
-
+      if (use_info.type_check() == TypeCheckKind::kNumberOrBoolean) {
+        Node* unreachable = InsertUnconditionalDeopt(
+            use_node, DeoptimizeReason::kNotANumberOrBoolean);
+        return jsgraph()->graph()->NewNode(
+            jsgraph()->common()->DeadValue(MachineRepresentation::kFloat64),
+            unreachable);
+      } else {
+        return jsgraph()->Float64Constant(
+            std::numeric_limits<double>::quiet_NaN());
+      }
     } else if (output_rep == MachineRepresentation::kTaggedSigned) {
       node = InsertChangeTaggedSignedToInt32(node);
       op = machine()->ChangeInt32ToFloat64();
@@ -732,6 +742,9 @@ Node* RepresentationChanger::GetFloat64RepresentationFor(
                 !output_type.Maybe(Type::BooleanOrNullOrNumber()))) {
       op = simplified()->CheckedTaggedToFloat64(CheckTaggedInputMode::kNumber,
                                                 use_info.feedback());
+    } else if (use_info.type_check() == TypeCheckKind::kNumberOrBoolean) {
+      op = simplified()->CheckedTaggedToFloat64(
+          CheckTaggedInputMode::kNumberOrBoolean, use_info.feedback());
     } else if (use_info.type_check() == TypeCheckKind::kNumberOrOddball) {
       op = simplified()->CheckedTaggedToFloat64(
           CheckTaggedInputMode::kNumberOrOddball, use_info.feedback());

@@ -97,6 +97,9 @@ class JSSpeculativeBinopBuilder final {
       case CompareOperationHint::kNumber:
         *hint = NumberOperationHint::kNumber;
         return true;
+      case CompareOperationHint::kNumberOrBoolean:
+        *hint = NumberOperationHint::kNumberOrBoolean;
+        return true;
       case CompareOperationHint::kNumberOrOddball:
         *hint = NumberOperationHint::kNumberOrOddball;
         return true;
