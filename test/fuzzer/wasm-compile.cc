@@ -403,6 +403,13 @@ class WasmGenerator {
     builder_->EmitWithPrefix(Op);
   }
 
+  template <WasmOpcode Op, int lanes, ValueType::Kind... Args>
+  void simd_lane_op(DataRange* data) {
+    Generate<Args...>(data);
+    builder_->EmitWithPrefix(Op);
+    builder_->EmitByte(data->get<byte>() % lanes);
+  }
+
   void simd_shuffle(DataRange* data) {
     Generate<ValueType::kS128, ValueType::kS128>(data);
     builder_->EmitWithPrefix(kExprS8x16Shuffle);
@@ -892,6 +899,13 @@ void WasmGenerator::Generate<ValueType::kI32>(DataRange* data) {
       &WasmGenerator::op_with_prefix<kExprV8x16AnyTrue, ValueType::kS128>,
       &WasmGenerator::op_with_prefix<kExprV16x8AnyTrue, ValueType::kS128>,
       &WasmGenerator::op_with_prefix<kExprV32x4AnyTrue, ValueType::kS128>,
+      &WasmGenerator::simd_lane_op<kExprI8x16ExtractLaneS, 16,
+                                   ValueType::kS128>,
+      &WasmGenerator::simd_lane_op<kExprI8x16ExtractLaneU, 16,
+                                   ValueType::kS128>,
+      &WasmGenerator::simd_lane_op<kExprI16x8ExtractLaneS, 8, ValueType::kS128>,
+      &WasmGenerator::simd_lane_op<kExprI16x8ExtractLaneU, 8, ValueType::kS128>,
+      &WasmGenerator::simd_lane_op<kExprI32x4ExtractLane, 4, ValueType::kS128>,
 
       &WasmGenerator::current_memory,
       &WasmGenerator::grow_memory,
@@ -1035,6 +1049,8 @@ void WasmGenerator::Generate<ValueType::kI64>(DataRange* data) {
                                 ValueType::kI32, ValueType::kI64,
                                 ValueType::kI64>,
 
+      &WasmGenerator::simd_lane_op<kExprI64x2ExtractLane, 2, ValueType::kS128>,
+
       &WasmGenerator::get_local<ValueType::kI64>,
       &WasmGenerator::tee_local<ValueType::kI64>,
       &WasmGenerator::get_global<ValueType::kI64>,
@@ -1090,6 +1106,8 @@ void WasmGenerator::Generate<ValueType::kF32>(DataRange* data) {
 
       &WasmGenerator::memop<kExprF32LoadMem>,
 
+      &WasmGenerator::simd_lane_op<kExprF32x4ExtractLane, 4, ValueType::kS128>,
+
       &WasmGenerator::get_local<ValueType::kF32>,
       &WasmGenerator::tee_local<ValueType::kF32>,
       &WasmGenerator::get_global<ValueType::kF32>,
@@ -1144,6 +1162,8 @@ void WasmGenerator::Generate<ValueType::kF64>(DataRange* data) {
       &WasmGenerator::br_if<ValueType::kF64>,
 
       &WasmGenerator::memop<kExprF64LoadMem>,
+
+      &WasmGenerator::simd_lane_op<kExprF64x2ExtractLane, 2, ValueType::kS128>,
 
       &WasmGenerator::get_local<ValueType::kF64>,
       &WasmGenerator::tee_local<ValueType::kF64>,
