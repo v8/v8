@@ -1833,10 +1833,10 @@ bool RegExpParser::ParseRegExp(Isolate* isolate, Zone* zone,
 bool RegExpParser::VerifyRegExpSyntax(Isolate* isolate, Zone* zone,
                                       FlatStringReader* input,
                                       JSRegExp::Flags flags,
+                                      RegExpCompileData* result,
                                       const DisallowHeapAllocation& no_gc) {
   RegExpParser parser(input, flags, isolate, zone);
-  RegExpCompileData dummy;
-  return parser.Parse(&dummy, no_gc);
+  return parser.Parse(result, no_gc);
 }
 
 RegExpBuilder::RegExpBuilder(Zone* zone, JSRegExp::Flags flags)

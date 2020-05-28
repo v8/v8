@@ -161,6 +161,7 @@ class V8_EXPORT_PRIVATE RegExpParser {
                           JSRegExp::Flags flags, RegExpCompileData* result);
   static bool VerifyRegExpSyntax(Isolate* isolate, Zone* zone,
                                  FlatStringReader* input, JSRegExp::Flags flags,
+                                 RegExpCompileData* result,
                                  const DisallowHeapAllocation& no_gc);
 
  private:
