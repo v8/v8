@@ -112,8 +112,8 @@ transitioning javascript builtin NumberPrototypeToString(
 // ES6 #sec-number.isfinite
 javascript builtin NumberIsFinite(
     js-implicit context: NativeContext,
-    receiver: JSAny)(...arguments): Boolean {
-  typeswitch (arguments[0]) {
+    receiver: JSAny)(value: JSAny): Boolean {
+  typeswitch (value) {
     case (Smi): {
       return True;
     }
@@ -130,14 +130,14 @@ javascript builtin NumberIsFinite(
 
 // ES6 #sec-number.isinteger
 javascript builtin NumberIsInteger(js-implicit context: NativeContext)(
-    ...arguments): Boolean {
-  return SelectBooleanConstant(IsInteger(arguments[0]));
+    value: JSAny): Boolean {
+  return SelectBooleanConstant(IsInteger(value));
 }
 
 // ES6 #sec-number.isnan
 javascript builtin NumberIsNaN(js-implicit context: NativeContext)(
-    ...arguments): Boolean {
-  typeswitch (arguments[0]) {
+    value: JSAny): Boolean {
+  typeswitch (value) {
     case (Smi): {
       return False;
     }
@@ -153,23 +153,22 @@ javascript builtin NumberIsNaN(js-implicit context: NativeContext)(
 
 // ES6 #sec-number.issafeinteger
 javascript builtin NumberIsSafeInteger(js-implicit context: NativeContext)(
-    ...arguments): Boolean {
-  return SelectBooleanConstant(IsSafeInteger(arguments[0]));
+    value: JSAny): Boolean {
+  return SelectBooleanConstant(IsSafeInteger(value));
 }
 
 // ES6 #sec-number.prototype.valueof
 transitioning javascript builtin NumberPrototypeValueOf(
-    js-implicit context: NativeContext, receiver: JSAny)(...arguments): JSAny {
+    js-implicit context: NativeContext, receiver: JSAny)(): JSAny {
   return ToThisValue(
       receiver, PrimitiveType::kNumber, 'Number.prototype.valueOf');
 }
 
 // ES6 #sec-number.parsefloat
 transitioning javascript builtin NumberParseFloat(
-    js-implicit context: NativeContext)(...arguments): Number {
-  const input: JSAny = arguments[0];
+    js-implicit context: NativeContext)(value: JSAny): Number {
   try {
-    typeswitch (input) {
+    typeswitch (value) {
       case (s: Smi): {
         return s;
       }
@@ -182,7 +181,7 @@ transitioning javascript builtin NumberParseFloat(
         goto String(s);
       }
       case (HeapObject): {
-        goto String(string::ToString(context, input));
+        goto String(string::ToString(context, value));
       }
     }
   } label String(s: String) {
@@ -253,10 +252,8 @@ transitioning builtin ParseInt(implicit context: Context)(
 
 // ES6 #sec-number.parseint
 transitioning javascript builtin NumberParseInt(
-    js-implicit context: NativeContext)(...arguments): Number {
-  const input: JSAny = arguments[0];
-  const radix: JSAny = arguments[1];
-  return ParseInt(input, radix);
+    js-implicit context: NativeContext)(value: JSAny, radix: JSAny): Number {
+  return ParseInt(value, radix);
 }
 
 extern builtin NonNumberToNumeric(implicit context: Context)(JSAny): Numeric;
