@@ -3648,6 +3648,17 @@ class WasmOpcodeLengthTest : public TestWithZone {
     // length of index, + number of operands + prefix bye
     ExpectLength(len + operands + 1, prefix, encoded[0], encoded[1]);
   }
+
+  template <typename... Bytes>
+  void ExpectFailure(Bytes... bytes) {
+    const byte code[] = {bytes..., 0, 0, 0, 0, 0, 0, 0, 0};
+    WasmFeatures no_features = WasmFeatures::None();
+    WasmDecoder<Decoder::kValidate> decoder(nullptr, no_features, &no_features,
+                                            nullptr, code, code + sizeof(code),
+                                            0);
+    WasmDecoder<Decoder::kValidate>::OpcodeLength(&decoder, code);
+    EXPECT_EQ(decoder.failed(), true);
+  }
 };
 
 TEST_F(WasmOpcodeLengthTest, Statements) {
@@ -3783,6 +3794,11 @@ TEST_F(WasmOpcodeLengthTest, SimdExpressions) {
   ExpectLengthPrefixed(16, kExprS8x16Shuffle);
   // test for bad simd opcode, 0xFF is encoded in two bytes.
   ExpectLength(3, kSimdPrefix, 0xFF, 0x1);
+}
+
+TEST_F(WasmOpcodeLengthTest, IllegalRefIndices) {
+  ExpectFailure(kExprBlock, kLocalRef, U32V_3(kV8MaxWasmTypes + 1));
+  ExpectFailure(kExprBlock, kLocalRef, U32V_4(0x01000000));
 }
 
 using TypesOfLocals = ZoneVector<ValueType>;
