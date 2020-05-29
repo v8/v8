@@ -472,39 +472,6 @@ TEST(TestPossibleNondeterminism) {
   }
 }
 
-TEST(WasmInterpreterActivations) {
-  WasmRunner<void> r(ExecutionTier::kInterpreter);
-  Isolate* isolate = r.main_isolate();
-  BUILD(r, WASM_UNREACHABLE);
-
-  WasmInterpreter* interpreter = r.interpreter();
-  WasmInterpreter::Thread* thread = interpreter->GetThread(0);
-  CHECK_EQ(0, thread->NumActivations());
-  uint32_t act0 = thread->StartActivation();
-  CHECK_EQ(0, act0);
-  thread->InitFrame(r.function(), nullptr);
-  uint32_t act1 = thread->StartActivation();
-  CHECK_EQ(1, act1);
-  thread->InitFrame(r.function(), nullptr);
-  CHECK_EQ(2, thread->NumActivations());
-  CHECK_EQ(2, thread->GetFrameCount());
-  CHECK_EQ(WasmInterpreter::TRAPPED, thread->Run());
-  thread->RaiseException(isolate, handle(Smi::zero(), isolate));
-  CHECK_EQ(1, thread->GetFrameCount());
-  CHECK_EQ(2, thread->NumActivations());
-  thread->FinishActivation(act1);
-  isolate->clear_pending_exception();
-  CHECK_EQ(1, thread->GetFrameCount());
-  CHECK_EQ(1, thread->NumActivations());
-  CHECK_EQ(WasmInterpreter::TRAPPED, thread->Run());
-  thread->RaiseException(isolate, handle(Smi::zero(), isolate));
-  CHECK_EQ(0, thread->GetFrameCount());
-  CHECK_EQ(1, thread->NumActivations());
-  thread->FinishActivation(act0);
-  isolate->clear_pending_exception();
-  CHECK_EQ(0, thread->NumActivations());
-}
-
 TEST(InterpreterLoadWithoutMemory) {
   WasmRunner<int32_t, int32_t> r(ExecutionTier::kInterpreter);
   r.builder().AddMemory(0);

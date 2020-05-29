@@ -1104,12 +1104,6 @@ V8_INLINE bool has_nondeterminism<double>(double val) {
 
 // Responsible for executing code directly.
 class ThreadImpl {
-  struct Activation {
-    uint32_t fp;
-    sp_t sp;
-    Activation(uint32_t fp, sp_t sp) : fp(fp), sp(sp) {}
-  };
-
  public:
   // The {ReferenceStackScope} sets up the reference stack in the interpreter.
   // The handle to the reference stack has to be re-initialized everytime we
@@ -1146,8 +1140,7 @@ class ThreadImpl {
       : codemap_(codemap),
         isolate_(instance_object->GetIsolate()),
         instance_object_(instance_object),
-        frames_(zone),
-        activations_(zone) {}
+        frames_(zone) {}
 
   //==========================================================================
   // Implementation of public interface for WasmInterpreter::Thread.
@@ -1156,7 +1149,7 @@ class ThreadImpl {
   WasmInterpreter::State state() { return state_; }
 
   void InitFrame(const WasmFunction* function, WasmValue* args) {
-    DCHECK_EQ(current_activation().fp, frames_.size());
+    DCHECK(frames_.empty());
     InterpreterCode* code = codemap()->GetCode(function);
     size_t num_params = function->sig->parameter_count();
     EnsureStackSpace(num_params);
@@ -1177,9 +1170,8 @@ class ThreadImpl {
     }
     state_ = WasmInterpreter::RUNNING;
     Execute(frames_.back().code, frames_.back().pc, num_steps);
-    // If state_ is STOPPED, the current activation must be fully unwound.
-    DCHECK_IMPLIES(state_ == WasmInterpreter::STOPPED,
-                   current_activation().fp == frames_.size());
+    // If state_ is STOPPED, the stack must be fully unwound.
+    DCHECK_IMPLIES(state_ == WasmInterpreter::STOPPED, frames_.empty());
     return state_;
   }
 
@@ -1202,10 +1194,7 @@ class ThreadImpl {
   WasmValue GetReturnValue(uint32_t index) {
     if (state_ == WasmInterpreter::TRAPPED) return WasmValue(0xDEADBEEF);
     DCHECK_EQ(WasmInterpreter::FINISHED, state_);
-    Activation act = current_activation();
-    // Current activation must be finished.
-    DCHECK_EQ(act.fp, frames_.size());
-    return GetStackValue(act.sp + index);
+    return GetStackValue(index);
   }
 
   WasmValue GetStackValue(sp_t index) {
@@ -1226,39 +1215,6 @@ class ThreadImpl {
 
   Handle<Cell> reference_stack_cell() const { return reference_stack_cell_; }
 
-  uint32_t NumActivations() {
-    return static_cast<uint32_t>(activations_.size());
-  }
-
-  uint32_t StartActivation() {
-    TRACE("----- START ACTIVATION %zu -----\n", activations_.size());
-    // If you use activations, use them consistently:
-    DCHECK_IMPLIES(activations_.empty(), frames_.empty());
-    DCHECK_IMPLIES(activations_.empty(), StackHeight() == 0);
-    uint32_t activation_id = static_cast<uint32_t>(activations_.size());
-    activations_.emplace_back(static_cast<uint32_t>(frames_.size()),
-                              StackHeight());
-    state_ = WasmInterpreter::STOPPED;
-    return activation_id;
-  }
-
-  void FinishActivation(uint32_t id) {
-    TRACE("----- FINISH ACTIVATION %zu -----\n", activations_.size() - 1);
-    DCHECK_LT(0, activations_.size());
-    DCHECK_EQ(activations_.size() - 1, id);
-    // Stack height must match the start of this activation (otherwise unwind
-    // first).
-    DCHECK_EQ(activations_.back().fp, frames_.size());
-    DCHECK_LE(activations_.back().sp, StackHeight());
-    ResetStack(activations_.back().sp);
-    activations_.pop_back();
-  }
-
-  uint32_t ActivationFrameBase(uint32_t id) {
-    DCHECK_GT(activations_.size(), id);
-    return activations_[id].fp;
-  }
-
   WasmInterpreter::Thread::ExceptionHandlingResult RaiseException(
       Isolate* isolate, Handle<Object> exception) {
     DCHECK_EQ(WasmInterpreter::TRAPPED, state_);
@@ -1273,15 +1229,13 @@ class ThreadImpl {
 
  private:
   // Handle a thrown exception. Returns whether the exception was handled inside
-  // the current activation. Unwinds the interpreted stack accordingly.
+  // of wasm. Unwinds the interpreted stack accordingly.
   WasmInterpreter::Thread::ExceptionHandlingResult HandleException(
       Isolate* isolate) {
     DCHECK(isolate->has_pending_exception());
     bool catchable =
         isolate->is_catchable_by_wasm(isolate->pending_exception());
-    DCHECK_LT(0, activations_.size());
-    Activation& act = activations_.back();
-    while (frames_.size() > act.fp) {
+    while (!frames_.empty()) {
       Frame& frame = frames_.back();
       InterpreterCode* code = frame.code;
       if (catchable && code->side_table->HasEntryAt(frame.pc)) {
@@ -1299,8 +1253,8 @@ class ThreadImpl {
       frames_.pop_back();
     }
     TRACE("----- UNWIND -----\n");
-    DCHECK_EQ(act.fp, frames_.size());
-    DCHECK_EQ(act.sp, StackHeight());
+    DCHECK(frames_.empty());
+    DCHECK_EQ(sp_, stack_.get());
     state_ = WasmInterpreter::STOPPED;
     return WasmInterpreter::Thread::UNWOUND;
   }
@@ -1322,8 +1276,6 @@ class ThreadImpl {
   // kept in a separate on-heap reference stack to make the GC trace them.
   // TODO(wasm): Optimize simple stack operations (like "get_local",
   // "set_local", and "tee_local") so that they don't require a handle scope.
-  // TODO(wasm): Consider optimizing activations that use no reference
-  // values to avoid allocating the reference stack entirely.
   class StackValue {
    public:
     StackValue() = default;  // Only needed for resizing the stack.
@@ -1386,9 +1338,6 @@ class ThreadImpl {
   TrapReason trap_reason_ = kTrapCount;
   bool possible_nondeterminism_ = false;
   uint64_t num_interpreted_calls_ = 0;
-  // Store the stack height of each activation (for unwind and frame
-  // inspection).
-  ZoneVector<Activation> activations_;
 
   CodeMap* codemap() const { return codemap_; }
   const WasmModule* module() const { return codemap_->module(); }
@@ -1512,7 +1461,7 @@ class ThreadImpl {
     DCHECK_GT(frames_.size(), 0);
     spdiff_t sp_diff = static_cast<spdiff_t>(StackHeight() - frames_.back().sp);
     frames_.pop_back();
-    if (frames_.size() == current_activation().fp) {
+    if (frames_.empty()) {
       // A return from the last frame terminates the execution.
       state_ = WasmInterpreter::FINISHED;
       DoStackTransfer(sp_diff, arity);
@@ -1533,7 +1482,7 @@ class ThreadImpl {
   }
 
   // Returns true if the call was successful, false if the stack check failed
-  // and the current activation was fully unwound.
+  // and the stack was fully unwound.
   bool DoCall(Decoder* decoder, InterpreterCode* target, pc_t* pc,
               pc_t* limit) V8_WARN_UNUSED_RESULT {
     frames_.back().pc = *pc;
@@ -2802,10 +2751,9 @@ class ThreadImpl {
 
   // Check if our control stack (frames_) exceeds the limit. Trigger stack
   // overflow if it does, and unwinding the current frame.
-  // Returns true if execution can continue, false if the current activation was
-  // fully unwound.
-  // Do call this function immediately *after* pushing a new frame. The pc of
-  // the top frame will be reset to 0 if the stack check fails.
+  // Returns true if execution can continue, false if the stack was fully
+  // unwound. Do call this function immediately *after* pushing a new frame. The
+  // pc of the top frame will be reset to 0 if the stack check fails.
   bool DoStackCheck() V8_WARN_UNUSED_RESULT {
     // The goal of this stack check is not to prevent actual stack overflows,
     // but to simulate stack overflows during the execution of compiled code.
@@ -3863,10 +3811,6 @@ class ThreadImpl {
     DCHECK_EQ(WasmCode::kFunction, code->kind());
     return {CallResult::INTERNAL, codemap()->GetCode(code->index())};
   }
-
-  inline Activation current_activation() {
-    return activations_.empty() ? Activation(0, 0) : activations_.back();
-  }
 };
 
 namespace {
@@ -3935,24 +3879,6 @@ bool WasmInterpreter::Thread::PossibleNondeterminism() {
 }
 uint64_t WasmInterpreter::Thread::NumInterpretedCalls() {
   return ToImpl(this)->NumInterpretedCalls();
-}
-uint32_t WasmInterpreter::Thread::NumActivations() {
-  return ToImpl(this)->NumActivations();
-}
-uint32_t WasmInterpreter::Thread::StartActivation() {
-  ThreadImpl* impl = ToImpl(this);
-  ThreadImpl::ReferenceStackScope stack_scope(impl);
-  return impl->StartActivation();
-}
-void WasmInterpreter::Thread::FinishActivation(uint32_t id) {
-  ThreadImpl* impl = ToImpl(this);
-  ThreadImpl::ReferenceStackScope stack_scope(impl);
-  impl->FinishActivation(id);
-}
-uint32_t WasmInterpreter::Thread::ActivationFrameBase(uint32_t id) {
-  ThreadImpl* impl = ToImpl(this);
-  ThreadImpl::ReferenceStackScope stack_scope(impl);
-  return impl->ActivationFrameBase(id);
 }
 
 //============================================================================

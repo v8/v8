@@ -98,18 +98,6 @@ class V8_EXPORT_PRIVATE WasmInterpreter {
 
     // Returns the number of calls / function frames executed on this thread.
     uint64_t NumInterpretedCalls();
-
-    // Each thread can have multiple activations, each represented by a portion
-    // of the stack frames of this thread. StartActivation returns the id
-    // (counting from 0 up) of the started activation.
-    // Activations must be properly stacked, i.e. if FinishActivation is called,
-    // the given id must the the latest activation on the stack.
-    uint32_t NumActivations();
-    uint32_t StartActivation();
-    void FinishActivation(uint32_t activation_id);
-    // Return the frame base of the given activation, i.e. the number of frames
-    // when this activation was started.
-    uint32_t ActivationFrameBase(uint32_t activation_id);
   };
 
   WasmInterpreter(Isolate* isolate, const WasmModule* module,
