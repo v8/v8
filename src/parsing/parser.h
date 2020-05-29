@@ -541,10 +541,14 @@ class V8_EXPORT_PRIVATE Parser : public NON_EXPORTED_BASE(ParserBase<Parser>) {
     return property != nullptr && property->obj()->IsThisExpression();
   }
 
-  // Returns true if the expression is of type "obj.#foo".
+  // Returns true if the expression is of type "obj.#foo" or "obj?.#foo".
   V8_INLINE static bool IsPrivateReference(Expression* expression) {
     DCHECK_NOT_NULL(expression);
     Property* property = expression->AsProperty();
+    if (expression->IsOptionalChain()) {
+      Expression* expr_inner = expression->AsOptionalChain()->expression();
+      property = expr_inner->AsProperty();
+    }
     return property != nullptr && property->IsPrivateReference();
   }
 

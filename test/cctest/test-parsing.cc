@@ -6225,9 +6225,21 @@ TEST(PrivateClassFieldsErrors) {
     "foo() { delete this.x.#a }",
     "foo() { delete this.x().#a }",
 
+    "foo() { delete this?.#a }",
+    "foo() { delete this.x?.#a }",
+    "foo() { delete this?.x.#a }",
+    "foo() { delete this.x()?.#a }",
+    "foo() { delete this?.x().#a }",
+
     "foo() { delete f.#a }",
     "foo() { delete f.x.#a }",
     "foo() { delete f.x().#a }",
+
+    "foo() { delete f?.#a }",
+    "foo() { delete f.x?.#a }",
+    "foo() { delete f?.x.#a }",
+    "foo() { delete f.x()?.#a }",
+    "foo() { delete f?.x().#a }",
 
     // ASI requires a linebreak
     "#a b",
