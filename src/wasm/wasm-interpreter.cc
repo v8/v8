@@ -655,9 +655,9 @@ class SideTable : public ZoneObject {
     // Represents a control flow label.
     class CLabel : public ZoneObject {
       explicit CLabel(Zone* zone, int32_t target_stack_height, uint32_t arity)
-          : target_stack_height(target_stack_height),
-            arity(arity),
-            refs(zone) {}
+          : target_stack_height(target_stack_height), arity(arity), refs(zone) {
+        DCHECK_LE(0, target_stack_height);
+      }
 
      public:
       struct Ref {
@@ -803,8 +803,14 @@ class SideTable : public ZoneObject {
           }
           TRACE("control @%u: %s, arity %d->%d\n", i.pc_offset(),
                 is_loop ? "Loop" : "Block", imm.in_arity(), imm.out_arity());
+          DCHECK_IMPLIES(!unreachable,
+                         stack_height >= static_cast<int32_t>(imm.in_arity()));
+          int32_t target_stack_height = stack_height - imm.in_arity();
+          // The stack may underflow in unreachable code. In this case the
+          // stack height is clamped at 0.
+          if (V8_UNLIKELY(target_stack_height < 0)) target_stack_height = 0;
           CLabel* label =
-              CLabel::New(&control_transfer_zone, stack_height - imm.in_arity(),
+              CLabel::New(&control_transfer_zone, target_stack_height,
                           is_loop ? imm.in_arity() : imm.out_arity());
           control_stack.emplace_back(i.pc(), label, imm.out_arity());
           copy_unreachable();
@@ -819,9 +825,14 @@ class SideTable : public ZoneObject {
           }
           TRACE("control @%u: If, arity %d->%d\n", i.pc_offset(),
                 imm.in_arity(), imm.out_arity());
-          CLabel* end_label =
-              CLabel::New(&control_transfer_zone, stack_height - imm.in_arity(),
-                          imm.out_arity());
+          DCHECK_IMPLIES(!unreachable,
+                         stack_height >= static_cast<int32_t>(imm.in_arity()));
+          int32_t target_stack_height = stack_height - imm.in_arity();
+          // The stack may underflow in unreachable code. In this case the
+          // stack height is clamped at 0.
+          if (V8_UNLIKELY(target_stack_height < 0)) target_stack_height = 0;
+          CLabel* end_label = CLabel::New(&control_transfer_zone,
+                                          target_stack_height, imm.out_arity());
           CLabel* else_label =
               CLabel::New(&control_transfer_zone, stack_height, 0);
           control_stack.emplace_back(i.pc(), end_label, else_label,
