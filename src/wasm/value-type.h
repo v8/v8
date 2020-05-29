@@ -121,9 +121,7 @@ class ValueType {
   // TODO(7748): Extend this with struct and function subtyping.
   //             Keep up to date with funcref vs. anyref subtyping.
   constexpr bool IsSubTypeOf(ValueType other) const {
-    return (*this == other) || (other.kind() == kAnyRef && IsReferenceType()) ||
-           (kind() == kNullRef && other.kind() != kRef &&
-            other.IsReferenceType()) ||
+    return (*this == other) ||
            (other.kind() == kEqRef &&
             (kind() == kExnRef || kind() == kOptRef || kind() == kRef)) ||
            (kind() == kRef && other.kind() == kOptRef &&

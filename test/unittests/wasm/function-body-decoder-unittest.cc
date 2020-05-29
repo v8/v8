@@ -1942,14 +1942,11 @@ TEST_F(FunctionBodyDecoderTest, TableSet) {
   byte tab_func1 = builder.AddTable(kWasmFuncRef, 20, true, 30);
   byte tab_func2 = builder.AddTable(kWasmFuncRef, 10, false, 20);
   byte tab_ref2 = builder.AddTable(kWasmAnyRef, 10, false, 20);
-  byte tab_null1 = builder.AddTable(kWasmNullRef, 10, true, 20);
-  byte tab_null2 = builder.AddTable(kWasmNullRef, 10, false, 20);
-  ValueType sig_types[]{kWasmAnyRef, kWasmFuncRef, kWasmNullRef, kWasmI32};
-  FunctionSig sig(0, 4, sig_types);
+  ValueType sig_types[]{kWasmAnyRef, kWasmFuncRef, kWasmI32};
+  FunctionSig sig(0, 3, sig_types);
   byte local_ref = 0;
   byte local_func = 1;
-  byte local_null = 2;
-  byte local_int = 3;
+  byte local_int = 2;
   ExpectValidates(&sig, {WASM_TABLE_SET(tab_ref1, WASM_I32V(6),
                                         WASM_GET_LOCAL(local_ref))});
   ExpectValidates(&sig, {WASM_TABLE_SET(tab_func1, WASM_I32V(5),
@@ -1959,45 +1956,18 @@ TEST_F(FunctionBodyDecoderTest, TableSet) {
   ExpectValidates(&sig, {WASM_TABLE_SET(tab_ref2, WASM_I32V(8),
                                         WASM_GET_LOCAL(local_ref))});
 
-  // We can store funcref values as anyref, but not the other way around.
-  ExpectValidates(&sig, {WASM_TABLE_SET(tab_ref1, WASM_I32V(4),
-                                        WASM_GET_LOCAL(local_func))});
+  // Only values of the correct type can be set to a table.
+  ExpectFailure(&sig, {WASM_TABLE_SET(tab_ref1, WASM_I32V(4),
+                                      WASM_GET_LOCAL(local_func))});
   ExpectFailure(&sig, {WASM_TABLE_SET(tab_func1, WASM_I32V(9),
                                       WASM_GET_LOCAL(local_ref))});
   ExpectFailure(&sig, {WASM_TABLE_SET(tab_func2, WASM_I32V(3),
                                       WASM_GET_LOCAL(local_ref))});
-  ExpectValidates(&sig, {WASM_TABLE_SET(tab_ref2, WASM_I32V(2),
-                                        WASM_GET_LOCAL(local_func))});
+  ExpectFailure(&sig, {WASM_TABLE_SET(tab_ref2, WASM_I32V(2),
+                                      WASM_GET_LOCAL(local_func))});
   ExpectFailure(&sig, {WASM_TABLE_SET(tab_ref1, WASM_I32V(9),
                                       WASM_GET_LOCAL(local_int))});
   ExpectFailure(&sig, {WASM_TABLE_SET(tab_func1, WASM_I32V(3),
-                                      WASM_GET_LOCAL(local_int))});
-
-  // We can store nullref values as funcref or anyref but not the other way
-  // round.
-  ExpectValidates(&sig, {WASM_TABLE_SET(tab_null1, WASM_I32V(3),
-                                        WASM_GET_LOCAL(local_null))});
-  ExpectValidates(&sig, {WASM_TABLE_SET(tab_ref1, WASM_I32V(8),
-                                        WASM_GET_LOCAL(local_null))});
-  ExpectValidates(&sig, {WASM_TABLE_SET(tab_func1, WASM_I32V(8),
-                                        WASM_GET_LOCAL(local_null))});
-  ExpectFailure(&sig, {WASM_TABLE_SET(tab_null1, WASM_I32V(3),
-                                      WASM_GET_LOCAL(local_ref))});
-  ExpectFailure(&sig, {WASM_TABLE_SET(tab_null1, WASM_I32V(3),
-                                      WASM_GET_LOCAL(local_func))});
-  ExpectFailure(&sig, {WASM_TABLE_SET(tab_null1, WASM_I32V(3),
-                                      WASM_GET_LOCAL(local_int))});
-  ExpectValidates(&sig, {WASM_TABLE_SET(tab_null2, WASM_I32V(3),
-                                        WASM_GET_LOCAL(local_null))});
-  ExpectValidates(&sig, {WASM_TABLE_SET(tab_ref2, WASM_I32V(8),
-                                        WASM_GET_LOCAL(local_null))});
-  ExpectValidates(&sig, {WASM_TABLE_SET(tab_func2, WASM_I32V(8),
-                                        WASM_GET_LOCAL(local_null))});
-  ExpectFailure(&sig, {WASM_TABLE_SET(tab_null2, WASM_I32V(3),
-                                      WASM_GET_LOCAL(local_ref))});
-  ExpectFailure(&sig, {WASM_TABLE_SET(tab_null2, WASM_I32V(3),
-                                      WASM_GET_LOCAL(local_func))});
-  ExpectFailure(&sig, {WASM_TABLE_SET(tab_null2, WASM_I32V(3),
                                       WASM_GET_LOCAL(local_int))});
 
   // Out-of-bounds table index should fail.
@@ -2006,8 +1976,6 @@ TEST_F(FunctionBodyDecoderTest, TableSet) {
       &sig, {WASM_TABLE_SET(oob_tab, WASM_I32V(9), WASM_GET_LOCAL(local_ref))});
   ExpectFailure(&sig, {WASM_TABLE_SET(oob_tab, WASM_I32V(3),
                                       WASM_GET_LOCAL(local_func))});
-  ExpectFailure(&sig, {WASM_TABLE_SET(oob_tab, WASM_I32V(3),
-                                      WASM_GET_LOCAL(local_null))});
 }
 
 TEST_F(FunctionBodyDecoderTest, TableGet) {
@@ -2037,15 +2005,13 @@ TEST_F(FunctionBodyDecoderTest, TableGet) {
       &sig, {WASM_SET_LOCAL(local_ref, WASM_SEQ(WASM_I32V(6), kExprTableGet,
                                                 U32V_2(tab_ref1)))});
 
-  // We can store funcref values as anyref, but not the other way around.
+  // We cannot store references as any other type.
   ExpectFailure(&sig, {WASM_SET_LOCAL(local_func,
                                       WASM_TABLE_GET(tab_ref1, WASM_I32V(4)))});
-  ExpectValidates(
-      &sig,
-      {WASM_SET_LOCAL(local_ref, WASM_TABLE_GET(tab_func1, WASM_I32V(9)))});
-  ExpectValidates(
-      &sig,
-      {WASM_SET_LOCAL(local_ref, WASM_TABLE_GET(tab_func2, WASM_I32V(3)))});
+  ExpectFailure(&sig, {WASM_SET_LOCAL(
+                          local_ref, WASM_TABLE_GET(tab_func1, WASM_I32V(9)))});
+  ExpectFailure(&sig, {WASM_SET_LOCAL(
+                          local_ref, WASM_TABLE_GET(tab_func2, WASM_I32V(3)))});
   ExpectFailure(&sig, {WASM_SET_LOCAL(local_func,
                                       WASM_TABLE_GET(tab_ref2, WASM_I32V(2)))});
 
@@ -3208,7 +3174,6 @@ TEST_F(FunctionBodyDecoderTest, TableCopyWrongType) {
 TEST_F(FunctionBodyDecoderTest, TableGrow) {
   byte tab_func = builder.AddTable(kWasmFuncRef, 10, true, 20);
   byte tab_ref = builder.AddTable(kWasmAnyRef, 10, true, 20);
-  byte tab_null = builder.AddTable(kWasmNullRef, 10, true, 20);
 
   ExpectFailure(
       sigs.i_a(),
@@ -3220,22 +3185,12 @@ TEST_F(FunctionBodyDecoderTest, TableGrow) {
   ExpectValidates(
       sigs.i_r(),
       {WASM_TABLE_GROW(tab_ref, WASM_REF_NULL(kLocalAnyRef), WASM_ONE)});
-  // FuncRef table cannot be initialized with an anyref value.
+  // FuncRef table cannot be initialized with an AnyRef value.
   ExpectFailure(sigs.i_r(),
                 {WASM_TABLE_GROW(tab_func, WASM_GET_LOCAL(0), WASM_ONE)});
-  // FuncRef table can be initialized with a nullref value.
-  ExpectValidates(sigs.i_n(),
-                  {WASM_TABLE_GROW(tab_func, WASM_GET_LOCAL(0), WASM_ONE)});
-  // Anyref table can be initialized with an funcref or nullref value.
-  ExpectValidates(sigs.i_a(),
-                  {WASM_TABLE_GROW(tab_ref, WASM_GET_LOCAL(0), WASM_ONE)});
-  ExpectValidates(sigs.i_n(),
-                  {WASM_TABLE_GROW(tab_ref, WASM_GET_LOCAL(0), WASM_ONE)});
-  // NullRef table cannot be initialized with an funcref or anyref value.
+  // AnyRef table cannot be initialized with a FuncRef value.
   ExpectFailure(sigs.i_a(),
-                {WASM_TABLE_GROW(tab_null, WASM_GET_LOCAL(0), WASM_ONE)});
-  ExpectFailure(sigs.i_r(),
-                {WASM_TABLE_GROW(tab_null, WASM_GET_LOCAL(0), WASM_ONE)});
+                {WASM_TABLE_GROW(tab_ref, WASM_GET_LOCAL(0), WASM_ONE)});
   // Check that the table index gets verified.
   ExpectFailure(
       sigs.i_r(),
@@ -3265,17 +3220,12 @@ TEST_F(FunctionBodyDecoderTest, TableFill) {
   ExpectValidates(sigs.v_r(),
                   {WASM_TABLE_FILL(tab_ref, WASM_ONE,
                                    WASM_REF_NULL(kLocalAnyRef), WASM_ONE)});
-  // FuncRef table cannot be initialized with an anyref value.
+  // FuncRef table cannot be initialized with an AnyRef value.
   ExpectFailure(sigs.v_r(), {WASM_TABLE_FILL(tab_func, WASM_ONE,
                                              WASM_GET_LOCAL(0), WASM_ONE)});
-  // FuncRef table can be initialized with an nullref value.
-  ExpectValidates(sigs.v_n(), {WASM_TABLE_FILL(tab_func, WASM_ONE,
-                                               WASM_GET_LOCAL(0), WASM_ONE)});
-  // Anyref table can be initialized with an funcref or nullref value.
-  ExpectValidates(sigs.v_a(), {WASM_TABLE_FILL(tab_ref, WASM_ONE,
-                                               WASM_GET_LOCAL(0), WASM_ONE)});
-  ExpectValidates(sigs.v_n(), {WASM_TABLE_FILL(tab_ref, WASM_ONE,
-                                               WASM_GET_LOCAL(0), WASM_ONE)});
+  // AnyRef table cannot be initialized with a FuncRef value.
+  ExpectFailure(sigs.v_a(), {WASM_TABLE_FILL(tab_ref, WASM_ONE,
+                                             WASM_GET_LOCAL(0), WASM_ONE)});
   // Check that the table index gets verified.
   ExpectFailure(sigs.v_r(),
                 {WASM_TABLE_FILL(tab_ref + 2, WASM_ONE,
@@ -3358,7 +3308,7 @@ TEST_F(FunctionBodyDecoderTest, TableInitMultiTable) {
   {
     TestModuleBuilder builder;
     builder.AddTable(kWasmAnyRef, 10, true, 20);
-    builder.AddPassiveElementSegment(wasm::kWasmFuncRef);
+    builder.AddPassiveElementSegment(wasm::kWasmAnyRef);
     module = builder.module();
     // We added one table, therefore table.init on table 0 should work.
     int table_index = 0;
@@ -3373,7 +3323,7 @@ TEST_F(FunctionBodyDecoderTest, TableInitMultiTable) {
     TestModuleBuilder builder;
     builder.AddTable(kWasmAnyRef, 10, true, 20);
     builder.AddTable(kWasmAnyRef, 10, true, 20);
-    builder.AddPassiveElementSegment(wasm::kWasmFuncRef);
+    builder.AddPassiveElementSegment(wasm::kWasmAnyRef);
     module = builder.module();
     // We added two tables, therefore table.init on table 0 should work.
     int table_index = 0;

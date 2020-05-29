@@ -23,7 +23,6 @@
   # TODO(v8:10556): Remove sub-typing in the reference-types implementation
   'proposals/bulk-memory-operations/imports': [FAIL],
 
-  'proposals/reference-types/linking': [FAIL],
   'proposals/reference-types/ref_func': [FAIL],
 
   # TODO(wasm): This test declares a table larger than allowed by the spec.

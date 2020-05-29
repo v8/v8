@@ -104,7 +104,7 @@ load("test/mjsunit/wasm/exceptions-utils.js");
   print(arguments.callee.name);
   let builder = new WasmModuleBuilder();
   let except = builder.addException(kSig_v_a);
-  builder.addFunction("throw_catch_local", kSig_r_v)
+  builder.addFunction("throw_catch_local", kSig_a_v)
       .addLocals({anyfunc_count: 1})
       .addBody([
         kExprTry, kWasmAnyFunc,
