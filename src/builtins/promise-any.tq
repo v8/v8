@@ -365,7 +365,9 @@ transitioning macro ConstructAggregateError(implicit context: Context)(
   const obj: JSObject = error::ConstructInternalAggregateErrorHelper(
       context, SmiConstant(MessageTemplate::kAllPromisesRejected));
   const errorsJSArray = array::CreateJSArrayWithElements(errors);
-  CreateDataProperty(obj, ErrorsStringConstant(), errorsJSArray);
+  SetOwnPropertyIgnoreAttributes(
+      obj, ErrorsStringConstant(), errorsJSArray,
+      SmiConstant(PropertyAttributes::DONT_ENUM));
   return obj;
 }
 

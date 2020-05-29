@@ -30,15 +30,20 @@ transitioning javascript builtin AggregateErrorConstructor(
   const errors: JSAny = arguments[0];
   const errorsList = iterator::IterableToListWithSymbolLookup(errors);
 
-  // 5. Perform ! CreateDataPropertyOrThrow(_O_, `"errors"`, _errorsList_).
-  CreateDataProperty(obj, ErrorsStringConstant(), errorsList);
+  // 5. Perform ! DefinePropertyOrThrow(_O_, `"errors"`, Property Descriptor {
+  // [[Configurable]]: *true*, [[Enumerable]]: *false*, [[Writable]]: *true*,
+  // [[Value]]: ! CreateArrayFromList(_errorsList_) }).
+  SetOwnPropertyIgnoreAttributes(
+      obj, ErrorsStringConstant(), errorsList,
+      SmiConstant(PropertyAttributes::DONT_ENUM));
 
   // 6. Return O.
   return obj;
 }
 
-extern runtime ConstructAggregateErrorHelper(
+extern transitioning runtime ConstructAggregateErrorHelper(
     Context, JSFunction, JSAny, Object): JSObject;
 
-extern runtime ConstructInternalAggregateErrorHelper(Context, Object): JSObject;
+extern transitioning runtime ConstructInternalAggregateErrorHelper(
+    Context, Object): JSObject;
 }

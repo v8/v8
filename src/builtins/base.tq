@@ -331,6 +331,16 @@ extern enum MessageTemplate {
   ...
 }
 
+extern enum PropertyAttributes extends int31 {
+  NONE,
+  READ_ONLY,
+  DONT_ENUM,
+  DONT_DELETE,
+  ALL_ATTRIBUTES_MASK,
+  FROZEN,
+  ...
+}
+
 const kMaxArrayIndex:
     constexpr uint32 generates 'JSArray::kMaxArrayIndex';
 const kArrayBufferMaxByteLength:
@@ -523,6 +533,8 @@ extern transitioning macro GetProperty(implicit context: Context)(
     JSAny, JSAny): JSAny;
 extern transitioning builtin SetProperty(implicit context: Context)(
     JSAny, JSAny, JSAny): JSAny;
+extern transitioning builtin SetPropertyIgnoreAttributes(
+    implicit context: Context)(JSObject, String, JSAny, Smi): JSAny;
 extern transitioning builtin SetPropertyInLiteral(implicit context: Context)(
     JSAny, JSAny, JSAny): JSAny;
 extern transitioning builtin DeleteProperty(implicit context: Context)(
@@ -1527,6 +1539,9 @@ macro IsFastJSArrayForReadWithNoCustomIteration(context: Context, o: Object):
 
 extern transitioning runtime
 CreateDataProperty(implicit context: Context)(JSReceiver, JSAny, JSAny);
+
+extern transitioning runtime SetOwnPropertyIgnoreAttributes(
+    implicit context: Context)(JSObject, String, JSAny, Smi);
 
 namespace runtime {
 extern runtime

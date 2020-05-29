@@ -186,3 +186,11 @@
     assertEquals(2, to_string_called);
     assertEquals(3, errors_iterated);
  })();
+
+(function TestErrorsProperties() {
+    let error = new AggregateError([1, 20, 4]);
+    let desc = Object.getOwnPropertyDescriptor(error, 'errors');
+    assertEquals(true, desc.configurable);
+    assertEquals(false, desc.enumerable);
+    assertEquals(true, desc.writable);
+})();

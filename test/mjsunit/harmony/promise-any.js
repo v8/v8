@@ -116,3 +116,16 @@ load('test/mjsunit/test-async.js');
         (e) => { assert.equals(['a', 'b'], e.errors) });
   });
 })();
+
+(function TestErrorsProperties() {
+  testAsync(assert => {
+    assert.plan(3);
+    Promise.any([]).catch(
+      (error) =>  {
+        let desc = Object.getOwnPropertyDescriptor(error, 'errors');
+        assert.equals(true, desc.configurable);
+        assert.equals(false, desc.enumerable);
+        assert.equals(true, desc.writable);
+    });
+  });
+})();
