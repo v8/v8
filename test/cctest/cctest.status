@@ -365,6 +365,15 @@
 ['arch == riscv32  or arch == riscv64', {
   'test-macro-assembler-riscv/OverflowInstructions': [SKIP],
 
+  'test-strings/OneByteArrayJoin': [SKIP],
+
+  'test-interpreter/InterpreterBinaryOpsHeapNumber': [SKIP],
+  'test-interpreter/InterpreterBinaryOpTypeFeedback': [SKIP],
+  'test-interpreter/InterpreterRegExpLiterals': [SKIP],
+
+  'test-run-jsops/BinopInstanceOf': [SKIP],
+  'test-run-jsops/BinopModulus': [SKIP],
+
   'test-run-machops/RunFloat64Acosh': [SKIP],
   'test-run-machops/RunFloat64Atan': [SKIP],
   'test-run-machops/RunFloat64Asin': [SKIP],
@@ -391,27 +400,18 @@
   'test-run-machops/RunFloat64Sinh': [SKIP],
   'test-run-machops/RunFloat64Sin': [SKIP],
 
-  'test-run-machops/RunInt32MulWithOverflow*': [SKIP],
-  'test-run-machops/RunInt64AddWithOverflow*': [SKIP],
-  'test-run-machops/RunInt64SubWithOverflow*': [SKIP],
-
   'test-run-wasm/RunWasmLiftoff_StoreMem_offset_oob': [SKIP],
   'test-run-wasm/RunWasmTurbofan_I32SConvertF32': [SKIP],
   'test-run-wasm/RunWasmTurbofan_I32UConvertF32': [SKIP],
   'test-run-wasm/RunWasmTurbofan_StoreMem_offset_oob': [SKIP],
-
-  'test-torque/TestGotoLabelWithTwoParameters': [SKIP],
-  'test-torque/TestGotoLabel': [SKIP],
-  'test-torque/TestFunctionPointers': [SKIP],
-  'test-torque/TestGotoLabelWithOneParameter': [SKIP],
-  'test-torque/TestUnsafeCast': [SKIP],
-  'test-torque/TestPartiallyUnusedLabel': [SKIP],
 
   'test-run-wasm-64/RunWasmLiftoff_StoreMem_offset_oob_i64': [SKIP],
   'test-run-wasm-64/RunWasmTurbofan_StoreMem_offset_oob_i64': [SKIP],
 
   'test-run-wasm-asmjs/RunWasmTurbofan_Int32AsmjsDivS_byzero_const': [SKIP],
   'test-run-wasm-asmjs/RunWasmTurbofan_Int32AsmjsRemS_byzero_const': [SKIP],
+
+   'test-code-stub-assembler/ToUint32': [SKIP],
 }],
 
 ##############################################################################
