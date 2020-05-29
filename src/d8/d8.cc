@@ -444,6 +444,7 @@ std::unordered_set<std::shared_ptr<Worker>> Shell::running_workers_;
 std::atomic<bool> Shell::script_executed_{false};
 base::LazyMutex Shell::isolate_status_lock_;
 std::map<v8::Isolate*, bool> Shell::isolate_status_;
+std::map<v8::Isolate*, int> Shell::isolate_running_streaming_tasks_;
 base::LazyMutex Shell::cached_code_mutex_;
 std::map<std::string, std::unique_ptr<ScriptCompiler::CachedData>>
     Shell::cached_code_map_;
@@ -485,6 +486,61 @@ void Shell::StoreInCodeCache(Isolate* isolate, Local<Value> source,
       new ScriptCompiler::CachedData(cache, length,
                                      ScriptCompiler::CachedData::BufferOwned));
 }
+
+// Dummy external source stream which returns the whole source in one go.
+// TODO(leszeks): Also test chunking the data.
+class DummySourceStream : public v8::ScriptCompiler::ExternalSourceStream {
+ public:
+  explicit DummySourceStream(Local<String> source) : done_(false) {
+    source_buffer_ = Utils::OpenHandle(*source)->ToCString(
+        i::ALLOW_NULLS, i::FAST_STRING_TRAVERSAL, &source_length_);
+  }
+
+  size_t GetMoreData(const uint8_t** src) override {
+    if (done_) {
+      return 0;
+    }
+    *src = reinterpret_cast<uint8_t*>(source_buffer_.release());
+    done_ = true;
+
+    return source_length_;
+  }
+
+ private:
+  int source_length_;
+  std::unique_ptr<char[]> source_buffer_;
+  bool done_;
+};
+
+class StreamingCompileTask final : public v8::Task {
+ public:
+  StreamingCompileTask(Isolate* isolate,
+                       v8::ScriptCompiler::StreamedSource* streamed_source)
+      : isolate_(isolate),
+        script_streaming_task_(v8::ScriptCompiler::StartStreamingScript(
+            isolate, streamed_source)) {
+    Shell::NotifyStartStreamingTask(isolate_);
+  }
+
+  void Run() override {
+    script_streaming_task_->Run();
+    // Signal that the task has finished using the task runner to wake the
+    // message loop.
+    Shell::PostForegroundTask(isolate_, std::make_unique<FinishTask>(isolate_));
+  }
+
+ private:
+  class FinishTask final : public v8::Task {
+   public:
+    explicit FinishTask(Isolate* isolate) : isolate_(isolate) {}
+    void Run() final { Shell::NotifyFinishStreamingTask(isolate_); }
+    Isolate* isolate_;
+  };
+
+  Isolate* isolate_;
+  std::unique_ptr<v8::ScriptCompiler::ScriptStreamingTask>
+      script_streaming_task_;
+};
 
 // Executes a string within the current v8 context.
 bool Shell::ExecuteString(Isolate* isolate, Local<String> source,
@@ -547,6 +603,19 @@ bool Shell::ExecuteString(Isolate* isolate, Local<String> source,
         maybe_script = ScriptCompiler::Compile(
             context, &script_source, ScriptCompiler::kNoCompileOptions);
       }
+    } else if (options.streaming_compile) {
+      v8::ScriptCompiler::StreamedSource streamed_source(
+          std::make_unique<DummySourceStream>(source),
+          v8::ScriptCompiler::StreamedSource::UTF8);
+
+      PostBlockingBackgroundTask(
+          std::make_unique<StreamingCompileTask>(isolate, &streamed_source));
+
+      // Pump the loop until the streaming task completes.
+      Shell::CompleteMessageLoop(isolate);
+
+      maybe_script =
+          ScriptCompiler::Compile(context, &streamed_source, source, origin);
     } else {
       ScriptCompiler::Source script_source(source, origin);
       maybe_script = ScriptCompiler::Compile(context, &script_source,
@@ -2936,6 +3005,13 @@ bool Shell::SetOptions(int argc, char* argv[]) {
         return false;
       }
       argv[i] = nullptr;
+    } else if (strcmp(argv[i], "--streaming-compile") == 0) {
+      options.streaming_compile = true;
+      argv[i] = nullptr;
+    } else if ((strcmp(argv[i], "--no-streaming-compile") == 0) ||
+               (strcmp(argv[i], "--nostreaming-compile") == 0)) {
+      options.streaming_compile = false;
+      argv[i] = nullptr;
     } else if (strcmp(argv[i], "--enable-tracing") == 0) {
       options.trace_enabled = true;
       argv[i] = nullptr;
@@ -3094,11 +3170,20 @@ void Shell::CollectGarbage(Isolate* isolate) {
 
 void Shell::SetWaitUntilDone(Isolate* isolate, bool value) {
   base::MutexGuard guard(isolate_status_lock_.Pointer());
-  if (isolate_status_.count(isolate) == 0) {
-    isolate_status_.insert(std::make_pair(isolate, value));
-  } else {
-    isolate_status_[isolate] = value;
-  }
+  isolate_status_[isolate] = value;
+}
+
+void Shell::NotifyStartStreamingTask(Isolate* isolate) {
+  DCHECK(options.streaming_compile);
+  base::MutexGuard guard(isolate_status_lock_.Pointer());
+  ++isolate_running_streaming_tasks_[isolate];
+}
+
+void Shell::NotifyFinishStreamingTask(Isolate* isolate) {
+  DCHECK(options.streaming_compile);
+  base::MutexGuard guard(isolate_status_lock_.Pointer());
+  --isolate_running_streaming_tasks_[isolate];
+  DCHECK_GE(isolate_running_streaming_tasks_[isolate], 0);
 }
 
 namespace {
@@ -3164,7 +3249,8 @@ bool Shell::CompleteMessageLoop(Isolate* isolate) {
     i::wasm::WasmEngine* wasm_engine = i_isolate->wasm_engine();
     bool should_wait = (options.wait_for_wasm &&
                         wasm_engine->HasRunningCompileJob(i_isolate)) ||
-                       isolate_status_[isolate];
+                       isolate_status_[isolate] ||
+                       isolate_running_streaming_tasks_[isolate] > 0;
     return should_wait ? platform::MessageLoopBehavior::kWaitForWork
                        : platform::MessageLoopBehavior::kDoNotWait;
   };
@@ -3174,6 +3260,15 @@ bool Shell::CompleteMessageLoop(Isolate* isolate) {
 bool Shell::EmptyMessageQueues(Isolate* isolate) {
   return ProcessMessages(
       isolate, []() { return platform::MessageLoopBehavior::kDoNotWait; });
+}
+
+void Shell::PostForegroundTask(Isolate* isolate, std::unique_ptr<Task> task) {
+  g_default_platform->GetForegroundTaskRunner(isolate)->PostTask(
+      std::move(task));
+}
+
+void Shell::PostBlockingBackgroundTask(std::unique_ptr<Task> task) {
+  g_default_platform->CallBlockingTaskOnWorkerThread(std::move(task));
 }
 
 class Serializer : public ValueSerializer::Delegate {

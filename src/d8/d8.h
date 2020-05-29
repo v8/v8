@@ -280,6 +280,7 @@ class ShellOptions {
   v8::ScriptCompiler::CompileOptions compile_options =
       v8::ScriptCompiler::kNoCompileOptions;
   CodeCacheOptions code_cache_options = CodeCacheOptions::kNoProduceCache;
+  bool streaming_compile = false;
   SourceGroup* isolate_sources = nullptr;
   const char* icu_data_file = nullptr;
   const char* icu_locale = nullptr;
@@ -330,6 +331,9 @@ class Shell : public i::AllStatic {
   static void CollectGarbage(Isolate* isolate);
   static bool EmptyMessageQueues(Isolate* isolate);
   static bool CompleteMessageLoop(Isolate* isolate);
+
+  static void PostForegroundTask(Isolate* isolate, std::unique_ptr<Task> task);
+  static void PostBlockingBackgroundTask(std::unique_ptr<Task> task);
 
   static std::unique_ptr<SerializationData> SerializeValue(
       Isolate* isolate, Local<Value> value, Local<Value> transfer);
@@ -446,6 +450,8 @@ class Shell : public i::AllStatic {
   static ArrayBuffer::Allocator* array_buffer_allocator;
 
   static void SetWaitUntilDone(Isolate* isolate, bool value);
+  static void NotifyStartStreamingTask(Isolate* isolate);
+  static void NotifyFinishStreamingTask(Isolate* isolate);
 
   static char* ReadCharsFromTcpPort(const char* name, int* size_out);
 
@@ -506,6 +512,7 @@ class Shell : public i::AllStatic {
   // the isolate_status_ needs to be concurrency-safe.
   static base::LazyMutex isolate_status_lock_;
   static std::map<Isolate*, bool> isolate_status_;
+  static std::map<Isolate*, int> isolate_running_streaming_tasks_;
 
   static base::LazyMutex cached_code_mutex_;
   static std::map<std::string, std::unique_ptr<ScriptCompiler::CachedData>>
