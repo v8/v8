@@ -4154,10 +4154,10 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       for (int i = 0, j = 0; i < 2; i++, j = +2) {
 #ifdef V8_TARGET_BIG_ENDIAN
         __ lgfi(i < 1 ? ip : r0, Operand(k8x16_indices[j + 1]));
-        __ aih(i < 1 ? ip : r0, Operand(k8x16_indices[j]));
+        __ iihf(i < 1 ? ip : r0, Operand(k8x16_indices[j]));
 #else
         __ lgfi(i < 1 ? ip : r0, Operand(k8x16_indices[j]));
-        __ aih(i < 1 ? ip : r0, Operand(k8x16_indices[j + 1]));
+        __ iihf(i < 1 ? ip : r0, Operand(k8x16_indices[j + 1]));
 #endif
       }
       __ vlvgp(kScratchDoubleReg, ip, r0);
