@@ -24,6 +24,8 @@
           "V8 Win64",
           "V8 Win64 - debug",
           "V8 Win64 - msvc",
+          "V8 Clusterfuzz Win64 ASAN - release builder",
+          "V8 Clusterfuzz Win64 ASAN - debug builder",
           "V8 Win64 ASAN"
         ],
         "builders": {
@@ -43,8 +45,6 @@
     "https://build.chromium.org/p/client.v8.clusterfuzz": [
       {
         "excluded_builders" : [
-          "V8 Clusterfuzz Win64 ASAN - release builder",
-          "V8 Clusterfuzz Win64 ASAN - debug builder",
           "V8 NumFuzz",
           "V8 NumFuzz - debug",
           "V8 NumFuzz - TSAN",
