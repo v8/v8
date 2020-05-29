@@ -495,7 +495,8 @@ int ScriptLinePosition(Handle<Script> script, int line) {
   if (line < 0) return -1;
 
   if (script->type() == Script::TYPE_WASM) {
-    return GetWasmFunctionOffset(script->wasm_native_module()->module(), line);
+    // Wasm positions are relative to the start of the module.
+    return 0;
   }
 
   Script::InitLineEnds(script->GetIsolate(), script);

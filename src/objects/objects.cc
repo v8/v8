@@ -5527,12 +5527,20 @@ int SharedFunctionInfo::StartPosition() const {
     if (info.HasPositionInfo()) {
       return info.StartPosition();
     }
-  } else if (HasUncompiledData()) {
+  }
+  if (HasUncompiledData()) {
     // Works with or without scope.
     return uncompiled_data().start_position();
-  } else if (IsApiFunction() || HasBuiltinId()) {
+  }
+  if (IsApiFunction() || HasBuiltinId()) {
     DCHECK_IMPLIES(HasBuiltinId(), builtin_id() != Builtins::kCompileLazy);
     return 0;
+  }
+  if (HasWasmExportedFunctionData()) {
+    WasmInstanceObject instance = wasm_exported_function_data().instance();
+    int func_index = wasm_exported_function_data().function_index();
+    auto& function = instance.module()->functions[func_index];
+    return static_cast<int>(function.code.offset());
   }
   return kNoSourcePosition;
 }
@@ -5544,12 +5552,20 @@ int SharedFunctionInfo::EndPosition() const {
     if (info.HasPositionInfo()) {
       return info.EndPosition();
     }
-  } else if (HasUncompiledData()) {
+  }
+  if (HasUncompiledData()) {
     // Works with or without scope.
     return uncompiled_data().end_position();
-  } else if (IsApiFunction() || HasBuiltinId()) {
+  }
+  if (IsApiFunction() || HasBuiltinId()) {
     DCHECK_IMPLIES(HasBuiltinId(), builtin_id() != Builtins::kCompileLazy);
     return 0;
+  }
+  if (HasWasmExportedFunctionData()) {
+    WasmInstanceObject instance = wasm_exported_function_data().instance();
+    int func_index = wasm_exported_function_data().function_index();
+    auto& function = instance.module()->functions[func_index];
+    return static_cast<int>(function.code.end_offset());
   }
   return kNoSourcePosition;
 }

@@ -241,7 +241,6 @@ class InterpreterHandle {
 // current positions on the stack.
 std::vector<int> StackFramePositions(int func_index, Isolate* isolate) {
   std::vector<int> byte_offsets;
-  WasmCodeRefScope code_ref_scope;
   for (StackTraceFrameIterator it(isolate); !it.done(); it.Advance()) {
     if (!it.is_wasm()) continue;
     WasmFrame* frame = WasmFrame::cast(it.frame());
@@ -485,6 +484,7 @@ class DebugInfoImpl {
 
   WasmCode* RecompileLiftoffWithBreakpoints(
       int func_index, Vector<int> offsets, Vector<int> extra_source_positions) {
+    DCHECK(!mutex_.TryLock());  // Mutex is held externally.
     // Recompile the function with Liftoff, setting the new breakpoints.
     // Not thread-safe. The caller is responsible for locking {mutex_}.
     CompilationEnv env = native_module_->CreateCompilationEnv();
@@ -510,54 +510,61 @@ class DebugInfoImpl {
         native_module_->AddCompiledCode(std::move(result)));
 
     DCHECK(new_code->is_inspectable());
-    {
-      base::MutexGuard guard(&mutex_);
-      DCHECK_EQ(0, debug_side_tables_.count(new_code));
-      debug_side_tables_.emplace(new_code, std::move(debug_sidetable));
-    }
+    DCHECK_EQ(0, debug_side_tables_.count(new_code));
+    debug_side_tables_.emplace(new_code, std::move(debug_sidetable));
 
     return new_code;
   }
 
   void SetBreakpoint(int func_index, int offset, Isolate* isolate) {
-    std::vector<int> breakpoints_copy;
-    StackFrameId stepping_frame = NO_ID;
-    {
-      // Hold the mutex while modifying the set of breakpoints, but release it
-      // before compiling the new code (see comment in
-      // {RecompileLiftoffWithBreakpoints}). This needs to be revisited once we
-      // support setting different breakpoints in different isolates
-      // (https://crbug.com/v8/10351).
-      base::MutexGuard guard(&mutex_);
+    // Put the code ref scope outside of the mutex, so we don't unnecessarily
+    // hold the mutex while freeing code.
+    WasmCodeRefScope wasm_code_ref_scope;
 
-      // offset == 0 indicates flooding and should not happen here.
-      DCHECK_NE(0, offset);
+    // Hold the mutex while modifying breakpoints, to ensure consistency when
+    // multiple isolates set/remove breakpoints at the same time.
+    base::MutexGuard guard(&mutex_);
 
-      std::vector<int>& breakpoints = breakpoints_per_function_[func_index];
-      auto insertion_point =
-          std::lower_bound(breakpoints.begin(), breakpoints.end(), offset);
-      if (insertion_point != breakpoints.end() && *insertion_point == offset) {
-        // The breakpoint is already set.
-        return;
-      }
-      breakpoints.insert(insertion_point, offset);
-      breakpoints_copy = breakpoints;
+    // offset == 0 indicates flooding and should not happen here.
+    DCHECK_NE(0, offset);
 
-      stepping_frame = per_isolate_data_[isolate].stepping_frame;
+    auto& isolate_data = per_isolate_data_[isolate];
+    std::vector<int>& breakpoints =
+        isolate_data.breakpoints_per_function[func_index];
+    auto insertion_point =
+        std::lower_bound(breakpoints.begin(), breakpoints.end(), offset);
+    if (insertion_point != breakpoints.end() && *insertion_point == offset) {
+      // The breakpoint is already set for this isolate.
+      return;
     }
+    breakpoints.insert(insertion_point, offset);
 
-    UpdateBreakpoints(func_index, VectorOf(breakpoints_copy), isolate,
-                      stepping_frame);
+    // TODO(clemensb): Avoid recompilation if the breakpoint was already set in
+    // another isolate.
+    std::vector<int> all_breakpoints = FindAllBreakpoints(func_index);
+    UpdateBreakpoints(func_index, VectorOf(all_breakpoints), isolate,
+                      isolate_data.stepping_frame);
+  }
+
+  std::vector<int> FindAllBreakpoints(int func_index) {
+    DCHECK(!mutex_.TryLock());  // Mutex must be held externally.
+    std::set<int> breakpoints;
+    for (auto& data : per_isolate_data_) {
+      auto it = data.second.breakpoints_per_function.find(func_index);
+      if (it == data.second.breakpoints_per_function.end()) continue;
+      for (int offset : it->second) breakpoints.insert(offset);
+    }
+    return {breakpoints.begin(), breakpoints.end()};
   }
 
   void UpdateBreakpoints(int func_index, Vector<int> breakpoints,
                          Isolate* isolate, StackFrameId stepping_frame) {
+    DCHECK(!mutex_.TryLock());  // Mutex is held externally.
     // Generate additional source positions for current stack frame positions.
     // These source positions are used to find return addresses in the new code.
     std::vector<int> stack_frame_positions =
         StackFramePositions(func_index, isolate);
 
-    WasmCodeRefScope wasm_code_ref_scope;
     WasmCode* new_code = RecompileLiftoffWithBreakpoints(
         func_index, breakpoints, VectorOf(stack_frame_positions));
     UpdateReturnAddresses(isolate, new_code, stepping_frame);
@@ -570,6 +577,7 @@ class DebugInfoImpl {
     DCHECK(frame->wasm_code()->is_liftoff());
     // Generate an additional source position for the current byte offset.
     int byte_offset = frame->byte_offset();
+    base::MutexGuard guard(&mutex_);
     WasmCode* new_code = RecompileLiftoffWithBreakpoints(
         frame->function_index(), VectorOf(&offset, 1),
         VectorOf(&byte_offset, 1));
@@ -618,27 +626,33 @@ class DebugInfoImpl {
   }
 
   void RemoveBreakpoint(int func_index, int position, Isolate* isolate) {
-    std::vector<int> breakpoints_copy;
-    StackFrameId stepping_frame = NO_ID;
-    {
-      base::MutexGuard guard(&mutex_);
-      const auto& function = native_module_->module()->functions[func_index];
-      int offset = position - function.code.offset();
+    // Put the code ref scope outside of the mutex, so we don't unnecessarily
+    // hold the mutex while freeing code.
+    WasmCodeRefScope wasm_code_ref_scope;
 
-      std::vector<int>& breakpoints = breakpoints_per_function_[func_index];
-      DCHECK_LT(0, offset);
-      auto insertion_point =
-          std::lower_bound(breakpoints.begin(), breakpoints.end(), offset);
-      if (insertion_point == breakpoints.end()) return;
-      if (*insertion_point != offset) return;
-      breakpoints.erase(insertion_point);
-      breakpoints_copy = breakpoints;
+    // Hold the mutex while modifying breakpoints, to ensure consistency when
+    // multiple isolates set/remove breakpoints at the same time.
+    base::MutexGuard guard(&mutex_);
 
-      stepping_frame = per_isolate_data_[isolate].stepping_frame;
-    }
+    const auto& function = native_module_->module()->functions[func_index];
+    int offset = position - function.code.offset();
 
-    UpdateBreakpoints(func_index, VectorOf(breakpoints_copy), isolate,
-                      stepping_frame);
+    auto& isolate_data = per_isolate_data_[isolate];
+    std::vector<int>& breakpoints =
+        isolate_data.breakpoints_per_function[func_index];
+    DCHECK_LT(0, offset);
+    auto insertion_point =
+        std::lower_bound(breakpoints.begin(), breakpoints.end(), offset);
+    if (insertion_point == breakpoints.end()) return;
+    if (*insertion_point != offset) return;
+    breakpoints.erase(insertion_point);
+
+    std::vector<int> remaining = FindAllBreakpoints(func_index);
+    // If the breakpoint is still set in another isolate, don't remove it.
+    DCHECK(std::is_sorted(remaining.begin(), remaining.end()));
+    if (std::binary_search(remaining.begin(), remaining.end(), offset)) return;
+    UpdateBreakpoints(func_index, VectorOf(remaining), isolate,
+                      isolate_data.stepping_frame);
   }
 
   void RemoveDebugSideTables(Vector<WasmCode* const> codes) {
@@ -654,9 +668,36 @@ class DebugInfoImpl {
     return it == debug_side_tables_.end() ? nullptr : it->second.get();
   }
 
+  static bool HasRemovedBreakpoints(const std::vector<int>& removed,
+                                    const std::vector<int>& remaining) {
+    DCHECK(std::is_sorted(remaining.begin(), remaining.end()));
+    for (int offset : removed) {
+      // Return true if we removed a breakpoint which is not part of remaining.
+      if (!std::binary_search(remaining.begin(), remaining.end(), offset)) {
+        return true;
+      }
+    }
+    return false;
+  }
+
   void RemoveIsolate(Isolate* isolate) {
+    // Put the code ref scope outside of the mutex, so we don't unnecessarily
+    // hold the mutex while freeing code.
+    WasmCodeRefScope wasm_code_ref_scope;
+
     base::MutexGuard guard(&mutex_);
-    per_isolate_data_.erase(isolate);
+    auto per_isolate_data_it = per_isolate_data_.find(isolate);
+    if (per_isolate_data_it == per_isolate_data_.end()) return;
+    std::unordered_map<int, std::vector<int>> removed_per_function;
+    for (auto& entry : per_isolate_data_it->second.breakpoints_per_function) {
+      int func_index = entry.first;
+      std::vector<int>& removed = entry.second;
+      std::vector<int> remaining = FindAllBreakpoints(func_index);
+      if (HasRemovedBreakpoints(removed, remaining)) {
+        RecompileLiftoffWithBreakpoints(func_index, VectorOf(remaining), {});
+      }
+    }
+    per_isolate_data_.erase(per_isolate_data_it);
   }
 
  private:
@@ -838,11 +879,13 @@ class DebugInfoImpl {
   // Isolate-specific data, for debugging modules that are shared by multiple
   // isolates.
   struct PerIsolateDebugData {
+    // Keeps track of the currently set breakpoints (by offset within that
+    // function).
+    std::unordered_map<int, std::vector<int>> breakpoints_per_function;
+
     // Store the frame ID when stepping, to avoid overwriting that frame when
     // setting or removing a breakpoint.
     StackFrameId stepping_frame = NO_ID;
-
-    // TODO(clemensb): Also move breakpoint here.
   };
 
   NativeModule* const native_module_;
@@ -856,11 +899,6 @@ class DebugInfoImpl {
 
   // Names of locals, lazily decoded from the wire bytes.
   std::unique_ptr<LocalNames> local_names_;
-
-  // Keeps track of the currently set breakpoints (by offset within that
-  // function).
-  // TODO(clemensb): Move this into {PerIsolateDebugData}.
-  std::unordered_map<int, std::vector<int>> breakpoints_per_function_;
 
   // Isolate-specific data.
   std::unordered_map<Isolate*, PerIsolateDebugData> per_isolate_data_;

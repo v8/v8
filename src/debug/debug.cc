@@ -820,7 +820,10 @@ void Debug::ClearAllBreakPoints() {
       HeapObject raw_wasm_script;
       if (wasm_scripts_with_breakpoints_->Get(idx).GetHeapObject(
               &raw_wasm_script)) {
-        WasmScript::ClearAllBreakpoints(Script::cast(raw_wasm_script));
+        Script wasm_script = Script::cast(raw_wasm_script);
+        WasmScript::ClearAllBreakpoints(wasm_script);
+        wasm_script.wasm_native_module()->GetDebugInfo()->RemoveIsolate(
+            isolate_);
       }
     }
     wasm_scripts_with_breakpoints_ = Handle<WeakArrayList>{};
