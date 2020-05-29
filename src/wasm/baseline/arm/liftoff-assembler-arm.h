@@ -2564,7 +2564,13 @@ void LiftoffAssembler::emit_v32x4_anytrue(LiftoffRegister dst,
 
 void LiftoffAssembler::emit_v32x4_alltrue(LiftoffRegister dst,
                                           LiftoffRegister src) {
-  bailout(kSimd, "v32x4_alltrue");
+  UseScratchRegisterScope temps(this);
+  DwVfpRegister scratch = temps.AcquireD();
+  vpmin(NeonU32, scratch, src.low_fp(), src.high_fp());
+  vpmin(NeonU32, scratch, scratch, scratch);
+  ExtractLane(dst.gp(), scratch, NeonS32, 0);
+  cmp(dst.gp(), Operand(0));
+  mov(dst.gp(), Operand(1), LeaveCC, ne);
 }
 
 void LiftoffAssembler::emit_i32x4_shl(LiftoffRegister dst, LiftoffRegister lhs,
@@ -2666,7 +2672,14 @@ void LiftoffAssembler::emit_v16x8_anytrue(LiftoffRegister dst,
 
 void LiftoffAssembler::emit_v16x8_alltrue(LiftoffRegister dst,
                                           LiftoffRegister src) {
-  bailout(kSimd, "v16x8_alltrue");
+  UseScratchRegisterScope temps(this);
+  DwVfpRegister scratch = temps.AcquireD();
+  vpmin(NeonU16, scratch, src.low_fp(), src.high_fp());
+  vpmin(NeonU16, scratch, scratch, scratch);
+  vpmin(NeonU16, scratch, scratch, scratch);
+  ExtractLane(dst.gp(), scratch, NeonS16, 0);
+  cmp(dst.gp(), Operand(0));
+  mov(dst.gp(), Operand(1), LeaveCC, ne);
 }
 
 void LiftoffAssembler::emit_i16x8_shl(LiftoffRegister dst, LiftoffRegister lhs,
@@ -2840,7 +2853,15 @@ void LiftoffAssembler::emit_v8x16_anytrue(LiftoffRegister dst,
 
 void LiftoffAssembler::emit_v8x16_alltrue(LiftoffRegister dst,
                                           LiftoffRegister src) {
-  bailout(kSimd, "v8x16_alltrue");
+  UseScratchRegisterScope temps(this);
+  DwVfpRegister scratch = temps.AcquireD();
+  vpmin(NeonU8, scratch, src.low_fp(), src.high_fp());
+  vpmin(NeonU8, scratch, scratch, scratch);
+  vpmin(NeonU8, scratch, scratch, scratch);
+  vpmin(NeonU8, scratch, scratch, scratch);
+  ExtractLane(dst.gp(), scratch, NeonS8, 0);
+  cmp(dst.gp(), Operand(0));
+  mov(dst.gp(), Operand(1), LeaveCC, ne);
 }
 
 void LiftoffAssembler::emit_i8x16_shl(LiftoffRegister dst, LiftoffRegister lhs,

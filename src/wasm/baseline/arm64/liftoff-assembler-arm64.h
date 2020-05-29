@@ -164,6 +164,16 @@ inline void EmitAnyTrue(LiftoffAssembler* assm, LiftoffRegister dst,
   assm->Cset(dst.gp().W(), ne);
 }
 
+inline void EmitAllTrue(LiftoffAssembler* assm, LiftoffRegister dst,
+                        LiftoffRegister src, VectorFormat format) {
+  UseScratchRegisterScope scope(assm);
+  VRegister temp = scope.AcquireV(ScalarFormatFromFormat(format));
+  assm->Uminv(temp, VRegister::Create(src.fp().code(), format));
+  assm->Umov(dst.gp().W(), temp, 0);
+  assm->Cmp(dst.gp().W(), 0);
+  assm->Cset(dst.gp().W(), ne);
+}
+
 }  // namespace liftoff
 
 int LiftoffAssembler::PrepareStackFrame() {
@@ -1500,7 +1510,7 @@ void LiftoffAssembler::emit_v32x4_anytrue(LiftoffRegister dst,
 
 void LiftoffAssembler::emit_v32x4_alltrue(LiftoffRegister dst,
                                           LiftoffRegister src) {
-  bailout(kSimd, "v32x4_alltrue");
+  liftoff::EmitAllTrue(this, dst, src, kFormat4S);
 }
 
 void LiftoffAssembler::emit_i32x4_shl(LiftoffRegister dst, LiftoffRegister lhs,
@@ -1621,7 +1631,7 @@ void LiftoffAssembler::emit_v16x8_anytrue(LiftoffRegister dst,
 
 void LiftoffAssembler::emit_v16x8_alltrue(LiftoffRegister dst,
                                           LiftoffRegister src) {
-  bailout(kSimd, "v16x8_alltrue");
+  liftoff::EmitAllTrue(this, dst, src, kFormat8H);
 }
 
 void LiftoffAssembler::emit_i16x8_shl(LiftoffRegister dst, LiftoffRegister lhs,
@@ -1766,7 +1776,7 @@ void LiftoffAssembler::emit_v8x16_anytrue(LiftoffRegister dst,
 
 void LiftoffAssembler::emit_v8x16_alltrue(LiftoffRegister dst,
                                           LiftoffRegister src) {
-  bailout(kSimd, "v8x16_alltrue");
+  liftoff::EmitAllTrue(this, dst, src, kFormat16B);
 }
 
 void LiftoffAssembler::emit_i8x16_shl(LiftoffRegister dst, LiftoffRegister lhs,
