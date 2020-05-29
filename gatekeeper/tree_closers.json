@@ -19,11 +19,6 @@
           "V8 Linux - arm - sim - lite - debug",
           "V8 Linux - full debug",
           "V8 Mac64 - full debug",
-          "V8 Win32 - builder",
-          "V8 Win32 - debug builder",
-          "V8 Win64",
-          "V8 Win64 - debug",
-          "V8 Win64 - msvc",
           "V8 Win64 ASAN"
         ],
         "builders": {
