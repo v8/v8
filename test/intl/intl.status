@@ -33,11 +33,6 @@
   # https://code.google.com/p/v8/issues/detail?id=7481
   'collator/check-kf-option': [FAIL],
   'collator/check-kn-option': [FAIL],
-
-  # http://crbug/v8/9930
-  'date-format/format_range_hour_cycle': [FAIL],
-  # http://crbug/v8/10437
-  'regress-10437': [FAIL],
 }],  # ALWAYS
 
 ['variant == no_wasm_traps', {
