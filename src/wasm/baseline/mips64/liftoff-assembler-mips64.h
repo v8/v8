@@ -1321,6 +1321,16 @@ inline FPUCondition ConditionToConditionCmpFPU(Condition condition,
   UNREACHABLE();
 }
 
+inline void EmitAnyTrue(LiftoffAssembler* assm, LiftoffRegister dst,
+                        LiftoffRegister src) {
+  Label all_false;
+  assm->BranchMSA(&all_false, MSA_BRANCH_V, all_zero, src.fp().toW(),
+                  USE_DELAY_SLOT);
+  assm->li(dst.gp(), 0l);
+  assm->li(dst.gp(), 1);
+  assm->bind(&all_false);
+}
+
 }  // namespace liftoff
 
 void LiftoffAssembler::emit_f32_set_cond(Condition cond, Register dst,
@@ -1437,6 +1447,22 @@ void LiftoffAssembler::LoadTransform(LiftoffRegister dst, Register src_addr,
       fill_d(dst_msa, scratch);
     }
   }
+}
+
+void LiftoffAssembler::emit_s8x16_swizzle(LiftoffRegister dst,
+                                          LiftoffRegister lhs,
+                                          LiftoffRegister rhs) {
+  MSARegister dst_msa = dst.fp().toW();
+  MSARegister lhs_msa = lhs.fp().toW();
+  MSARegister rhs_msa = rhs.fp().toW();
+
+  if (dst == lhs) {
+    move_v(kSimd128ScratchReg, lhs_msa);
+    lhs_msa = kSimd128ScratchReg;
+  }
+  xor_v(kSimd128RegZero, kSimd128RegZero, kSimd128RegZero);
+  move_v(dst_msa, rhs_msa);
+  vshf_b(dst_msa, kSimd128RegZero, lhs_msa);
 }
 
 void LiftoffAssembler::emit_i8x16_splat(LiftoffRegister dst,
@@ -1649,6 +1675,11 @@ void LiftoffAssembler::emit_i8x16_neg(LiftoffRegister dst,
   subv_b(dst.fp().toW(), kSimd128RegZero, src.fp().toW());
 }
 
+void LiftoffAssembler::emit_v8x16_anytrue(LiftoffRegister dst,
+                                          LiftoffRegister src) {
+  liftoff::EmitAnyTrue(this, dst, src);
+}
+
 void LiftoffAssembler::emit_i8x16_shl(LiftoffRegister dst, LiftoffRegister lhs,
                                       LiftoffRegister rhs) {
   fill_b(kSimd128ScratchReg, rhs.gp());
@@ -1753,6 +1784,11 @@ void LiftoffAssembler::emit_i16x8_neg(LiftoffRegister dst,
   subv_h(dst.fp().toW(), kSimd128RegZero, src.fp().toW());
 }
 
+void LiftoffAssembler::emit_v16x8_anytrue(LiftoffRegister dst,
+                                          LiftoffRegister src) {
+  liftoff::EmitAnyTrue(this, dst, src);
+}
+
 void LiftoffAssembler::emit_i16x8_shl(LiftoffRegister dst, LiftoffRegister lhs,
                                       LiftoffRegister rhs) {
   fill_h(kSimd128ScratchReg, rhs.gp());
@@ -1855,6 +1891,11 @@ void LiftoffAssembler::emit_i32x4_neg(LiftoffRegister dst,
                                       LiftoffRegister src) {
   xor_v(kSimd128RegZero, kSimd128RegZero, kSimd128RegZero);
   subv_w(dst.fp().toW(), kSimd128RegZero, src.fp().toW());
+}
+
+void LiftoffAssembler::emit_v32x4_anytrue(LiftoffRegister dst,
+                                          LiftoffRegister src) {
+  liftoff::EmitAnyTrue(this, dst, src);
 }
 
 void LiftoffAssembler::emit_i32x4_shl(LiftoffRegister dst, LiftoffRegister lhs,
@@ -2135,6 +2176,26 @@ void LiftoffAssembler::emit_f64x2_max(LiftoffRegister dst, LiftoffRegister lhs,
   // dst = (scratch0 <= scratch1) ? scratch1 : scratch0.
   fsle_d(dst_msa, scratch0, scratch1);
   bsel_v(dst_msa, scratch0, scratch1);
+}
+
+void LiftoffAssembler::emit_i32x4_sconvert_f32x4(LiftoffRegister dst,
+                                                 LiftoffRegister src) {
+  ftrunc_s_w(dst.fp().toW(), src.fp().toW());
+}
+
+void LiftoffAssembler::emit_i32x4_uconvert_f32x4(LiftoffRegister dst,
+                                                 LiftoffRegister src) {
+  ftrunc_u_w(dst.fp().toW(), src.fp().toW());
+}
+
+void LiftoffAssembler::emit_f32x4_sconvert_i32x4(LiftoffRegister dst,
+                                                 LiftoffRegister src) {
+  ffint_s_w(dst.fp().toW(), src.fp().toW());
+}
+
+void LiftoffAssembler::emit_f32x4_uconvert_i32x4(LiftoffRegister dst,
+                                                 LiftoffRegister src) {
+  ffint_u_w(dst.fp().toW(), src.fp().toW());
 }
 
 void LiftoffAssembler::emit_i8x16_sconvert_i16x8(LiftoffRegister dst,
