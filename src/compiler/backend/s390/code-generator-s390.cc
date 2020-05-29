@@ -4186,8 +4186,13 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       break;
     }
     case kS390_I32x4BitMask: {
+#ifdef V8_TARGET_BIG_ENDIAN
       __ lgfi(kScratchReg, Operand(0x204060));
-      __ aih(kScratchReg, Operand(0x80808080));  // Zeroing the high bits
+      __ iihf(kScratchReg, Operand(0x80808080));  // Zeroing the high bits.
+#else
+      __ lgfi(kScratchReg, Operand(0x80808080));
+      __ iihf(kScratchReg, Operand(0x60402000));
+#endif
       __ vlvg(kScratchDoubleReg, kScratchReg, MemOperand(r0, 1), Condition(3));
       __ vbperm(kScratchDoubleReg, i.InputSimd128Register(0), kScratchDoubleReg,
                 Condition(0), Condition(0), Condition(0));
@@ -4196,8 +4201,13 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       break;
     }
     case kS390_I16x8BitMask: {
+#ifdef V8_TARGET_BIG_ENDIAN
       __ lgfi(kScratchReg, Operand(0x40506070));
-      __ aih(kScratchReg, Operand(0x102030));
+      __ iihf(kScratchReg, Operand(0x102030));
+#else
+      __ lgfi(kScratchReg, Operand(0x30201000));
+      __ iihf(kScratchReg, Operand(0x70605040));
+#endif
       __ vlvg(kScratchDoubleReg, kScratchReg, MemOperand(r0, 1), Condition(3));
       __ vbperm(kScratchDoubleReg, i.InputSimd128Register(0), kScratchDoubleReg,
                 Condition(0), Condition(0), Condition(0));
@@ -4206,10 +4216,17 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       break;
     }
     case kS390_I8x16BitMask: {
+#ifdef V8_TARGET_BIG_ENDIAN
       __ lgfi(r0, Operand(0x60687078));
-      __ aih(r0, Operand(0x40485058));
+      __ iihf(r0, Operand(0x40485058));
       __ lgfi(ip, Operand(0x20283038));
-      __ aih(ip, Operand(0x81018));
+      __ iihf(ip, Operand(0x81018));
+#else
+      __ lgfi(ip, Operand(0x58504840));
+      __ iihf(ip, Operand(0x78706860));
+      __ lgfi(r0, Operand(0x18100800));
+      __ iihf(r0, Operand(0x38302820));
+#endif
       __ vlvgp(kScratchDoubleReg, ip, r0);
       __ vbperm(kScratchDoubleReg, i.InputSimd128Register(0), kScratchDoubleReg,
                 Condition(0), Condition(0), Condition(0));

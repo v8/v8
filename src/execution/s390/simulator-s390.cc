@@ -785,9 +785,10 @@ void Simulator::EvalTableInit() {
   V(vlc, VLC, 0xE7DE)     /* type = VRR_A VECTOR LOAD COMPLEMENT  */           \
   V(vsel, VSEL, 0xE78D)   /* type = VRR_E VECTOR SELECT  */                    \
   V(vperm, VPERM, 0xE78C) /* type = VRR_E VECTOR PERMUTE  */                   \
-  V(vtm, VTM, 0xE7D8)     /* type = VRR_A VECTOR TEST UNDER MASK  */           \
-  V(vesl, VESL, 0xE730)   /* type = VRS_A VECTOR ELEMENT SHIFT LEFT  */        \
-  V(veslv, VESLV, 0xE770) /* type = VRR_C VECTOR ELEMENT SHIFT LEFT  */        \
+  V(vbperm, VBPERM, 0xE785) /* type = VRR_C VECTOR BIT PERMUTE   */            \
+  V(vtm, VTM, 0xE7D8)       /* type = VRR_A VECTOR TEST UNDER MASK  */         \
+  V(vesl, VESL, 0xE730)     /* type = VRS_A VECTOR ELEMENT SHIFT LEFT  */      \
+  V(veslv, VESLV, 0xE770)   /* type = VRR_C VECTOR ELEMENT SHIFT LEFT  */      \
   V(vesrl, VESRL,                                                              \
     0xE738) /* type = VRS_A VECTOR ELEMENT SHIFT RIGHT LOGICAL  */             \
   V(vesrlv, VESRLV,                                                            \
@@ -3699,6 +3700,34 @@ EVALUATE(VPERM) {
     }
     set_simd_register_by_lane<int8_t>(r1, i, result);
   }
+  return length;
+}
+
+EVALUATE(VBPERM) {
+  DCHECK_OPCODE(VBPERM);
+  DECODE_VRR_C_INSTRUCTION(r1, r2, r3, m6, m5, m4);
+  USE(m4);
+  USE(m5);
+  USE(m6);
+  uint16_t result_bits = 0;
+  for (int i = 0; i < kSimd128Size; i++) {
+    result_bits <<= 1;
+    uint8_t selected_bit_index = get_simd_register_by_lane<uint8_t>(r3, i);
+    unsigned __int128 src_bits =
+        *(reinterpret_cast<__int128*>(get_simd_register(r2).int8));
+    if (selected_bit_index < (kSimd128Size * kBitsPerByte)) {
+      unsigned __int128 bit_value =
+          (src_bits << selected_bit_index) >> (kSimd128Size * kBitsPerByte - 1);
+      result_bits |= bit_value;
+    }
+  }
+  set_simd_register_by_lane<uint64_t>(r1, 0, 0);
+  set_simd_register_by_lane<uint64_t>(r1, 1, 0);
+  // Write back in bytes to avoid endianness problems.
+  set_simd_register_by_lane<uint8_t>(r1, 6,
+                                     static_cast<uint8_t>(result_bits >> 8));
+  set_simd_register_by_lane<uint8_t>(
+      r1, 7, static_cast<uint8_t>((result_bits << 8) >> 8));
   return length;
 }
 
