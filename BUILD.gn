@@ -227,6 +227,9 @@ declare_args() {
   # Enable object names in cppgc for debug purposes.
   cppgc_enable_object_names = false
 
+  # Enable heap reservation of size 4GB. Only possible for 64bit archs.
+  cppgc_enable_caged_heap = v8_current_cpu == "x64" || v8_current_cpu == "arm64"
+
   # Enable V8 heap sandbox experimental feature.
   # Sets -DV8_HEAP_SANDBOX.
   v8_enable_heap_sandbox = ""
@@ -305,6 +308,10 @@ assert(
 assert(!v8_enable_heap_sandbox || v8_enable_pointer_compression,
        "V8 Heap Sandbox requires pointer compression")
 
+assert(!cppgc_enable_caged_heap || v8_current_cpu == "x64" ||
+           v8_current_cpu == "arm64",
+       "CppGC caged heap requires 64bit platforms")
+
 v8_random_seed = "314159265"
 v8_toolset_for_shell = "host"
 
@@ -374,6 +381,9 @@ config("cppgc_base_config") {
   defines = []
   if (cppgc_enable_object_names) {
     defines += [ "CPPGC_SUPPORTS_OBJECT_NAMES" ]
+  }
+  if (cppgc_enable_caged_heap) {
+    defines += [ "CPPGC_CAGED_HEAP" ]
   }
 }
 
@@ -4123,6 +4133,8 @@ v8_source_set("cppgc_base") {
     "src/heap/cppgc/stack.h",
     "src/heap/cppgc/sweeper.cc",
     "src/heap/cppgc/sweeper.h",
+    "src/heap/cppgc/virtual-memory.cc",
+    "src/heap/cppgc/virtual-memory.h",
     "src/heap/cppgc/visitor.cc",
     "src/heap/cppgc/worklist.h",
   ]

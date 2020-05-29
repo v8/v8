@@ -21,6 +21,11 @@
 #include "src/heap/cppgc/prefinalizer-handler.h"
 #include "src/heap/cppgc/raw-heap.h"
 #include "src/heap/cppgc/sweeper.h"
+#include "src/heap/cppgc/virtual-memory.h"
+
+#if defined(CPPGC_CAGED_HEAP)
+#include "src/base/bounded-page-allocator.h"
+#endif
 
 namespace cppgc {
 namespace internal {
@@ -128,6 +133,12 @@ class V8_EXPORT_PRIVATE Heap final : public cppgc::Heap {
   RawHeap raw_heap_;
 
   std::shared_ptr<cppgc::Platform> platform_;
+#if defined(CPPGC_CAGED_HEAP)
+  // The order is important: page_backend_ must be destroyed before
+  // reserved_area_ is freed.
+  VirtualMemory reserved_area_;
+  std::unique_ptr<v8::base::BoundedPageAllocator> bounded_allocator_;
+#endif
   std::unique_ptr<PageBackend> page_backend_;
   ObjectAllocator object_allocator_;
   Sweeper sweeper_;
