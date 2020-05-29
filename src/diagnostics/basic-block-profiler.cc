@@ -106,6 +106,7 @@ void BasicBlockProfiler::ResetCounts(Isolate* isolate) {
   for (const auto& data : data_list_) {
     data->ResetCounts();
   }
+  HandleScope scope(isolate);
   Handle<ArrayList> list(isolate->heap()->basic_block_profiling_data(),
                          isolate);
   for (int i = 0; i < list->Length(); ++i) {
@@ -115,6 +116,11 @@ void BasicBlockProfiler::ResetCounts(Isolate* isolate) {
       counts->set_uint32(j, 0);
     }
   }
+}
+
+bool BasicBlockProfiler::HasData(Isolate* isolate) {
+  return data_list_.size() > 0 ||
+         isolate->heap()->basic_block_profiling_data().Length() > 0;
 }
 
 void BasicBlockProfiler::Print(std::ostream& os, Isolate* isolate) {

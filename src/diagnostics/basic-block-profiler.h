@@ -66,6 +66,7 @@ class BasicBlockProfiler {
   V8_EXPORT_PRIVATE static BasicBlockProfiler* Get();
   BasicBlockProfilerData* NewData(size_t n_blocks);
   V8_EXPORT_PRIVATE void ResetCounts(Isolate* isolate);
+  V8_EXPORT_PRIVATE bool HasData(Isolate* isolate);
   V8_EXPORT_PRIVATE void Print(std::ostream& os, Isolate* isolate);
 
   const DataList* data_list() { return &data_list_; }

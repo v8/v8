@@ -35,7 +35,6 @@
 #include "src/d8/d8.h"
 #include "src/debug/debug-interface.h"
 #include "src/deoptimizer/deoptimizer.h"
-#include "src/diagnostics/basic-block-profiler.h"
 #include "src/execution/vm-state-inl.h"
 #include "src/handles/maybe-handles.h"
 #include "src/init/v8.h"
@@ -2236,12 +2235,6 @@ void Shell::WriteLcovData(v8::Isolate* isolate, const char* file) {
 }
 
 void Shell::OnExit(v8::Isolate* isolate) {
-  // Dump basic block profiling data.
-  if (i::FLAG_turbo_profiling) {
-    i::StdoutStream out;
-    i::BasicBlockProfiler::Get()->Print(out,
-                                        reinterpret_cast<i::Isolate*>(isolate));
-  }
   isolate->Dispose();
 
   if (i::FLAG_dump_counters || i::FLAG_dump_counters_nvp) {

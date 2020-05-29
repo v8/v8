@@ -622,7 +622,11 @@ DEFINE_BOOL(trace_environment_liveness, false,
 DEFINE_BOOL(turbo_load_elimination, true, "enable load elimination in TurboFan")
 DEFINE_BOOL(trace_turbo_load_elimination, false,
             "trace TurboFan load elimination")
-DEFINE_BOOL(turbo_profiling, false, "enable profiling in TurboFan")
+DEFINE_BOOL(turbo_profiling, false, "enable basic block profiling in TurboFan")
+DEFINE_BOOL(turbo_profiling_verbose, false,
+            "enable basic block profiling in TurboFan, and include each "
+            "function's schedule and disassembly in the output")
+DEFINE_IMPLICATION(turbo_profiling_verbose, turbo_profiling)
 DEFINE_BOOL(turbo_verify_allocation, DEBUG_BOOL,
             "verify register allocation in TurboFan")
 DEFINE_BOOL(turbo_move_optimization, true, "optimize gap moves in TurboFan")

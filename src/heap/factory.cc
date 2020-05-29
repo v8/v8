@@ -236,7 +236,7 @@ MaybeHandle<Code> Factory::CodeBuilder::BuildInternal(
     code->FlushICache();
   }
 
-  if (profiler_data_) {
+  if (profiler_data_ && FLAG_turbo_profiling_verbose) {
 #ifdef ENABLE_DISASSEMBLER
     std::ostringstream os;
     code->Disassemble(nullptr, os, isolate_);

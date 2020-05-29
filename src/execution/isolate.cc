@@ -32,6 +32,7 @@
 #include "src/debug/debug-frames.h"
 #include "src/debug/debug.h"
 #include "src/deoptimizer/deoptimizer.h"
+#include "src/diagnostics/basic-block-profiler.h"
 #include "src/diagnostics/compilation-statistics.h"
 #include "src/execution/frames-inl.h"
 #include "src/execution/isolate-inl.h"
@@ -3639,6 +3640,11 @@ void Isolate::DumpAndResetStats() {
         counters()->runtime_call_stats());
     counters()->runtime_call_stats()->Print();
     counters()->runtime_call_stats()->Reset();
+  }
+  if (BasicBlockProfiler::Get()->HasData(this)) {
+    StdoutStream out;
+    BasicBlockProfiler::Get()->Print(out, this);
+    BasicBlockProfiler::Get()->ResetCounts(this);
   }
 }
 

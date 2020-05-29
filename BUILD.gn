@@ -131,9 +131,15 @@ declare_args() {
   v8_enable_array_buffer_extension = true
 
   # Runs mksnapshot with --turbo-profiling. After building in this
-  # configuration, any subsequent run of d8 with --turbo-profiling will output
-  # information about both runtime-generated code and builtins.
+  # configuration, any subsequent run of d8 will output information about usage
+  # of basic blocks in builtins.
   v8_enable_builtins_profiling = false
+
+  # Runs mksnapshot with --turbo-profiling-verbose. After building in this
+  # configuration, any subsequent run of d8 will output information about usage
+  # of basic blocks in builtins, including the schedule and disassembly of all
+  # used builtins.
+  v8_enable_builtins_profiling_verbose = false
 
   # Enables various testing features.
   v8_enable_test_features = ""
@@ -1430,6 +1436,9 @@ template("run_mksnapshot") {
 
     if (v8_enable_builtins_profiling) {
       args += [ "--turbo-profiling" ]
+    }
+    if (v8_enable_builtins_profiling_verbose) {
+      args += [ "--turbo-profiling-verbose" ]
     }
 
     # This is needed to distinguish between generating code for the simulator
