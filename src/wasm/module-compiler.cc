@@ -1539,7 +1539,7 @@ class AsyncStreamingProcessor final : public StreamingProcessor {
                                    std::shared_ptr<Counters> counters,
                                    AccountingAllocator* allocator);
 
-  ~AsyncStreamingProcessor();
+  ~AsyncStreamingProcessor() override;
 
   bool ProcessModuleHeader(Vector<const uint8_t> bytes,
                            uint32_t offset) override;

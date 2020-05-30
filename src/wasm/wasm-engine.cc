@@ -55,7 +55,7 @@ class LogCodesTask : public Task {
     DCHECK_NOT_NULL(isolate);
   }
 
-  ~LogCodesTask() {
+  ~LogCodesTask() override {
     // If the platform deletes this task before executing it, we also deregister
     // it to avoid use-after-free from still-running background threads.
     if (!cancelled()) DeregisterTask();
