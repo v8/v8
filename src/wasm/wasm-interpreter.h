@@ -65,11 +65,10 @@ class V8_EXPORT_PRIVATE WasmInterpreter {
 
   // Representation of a thread in the interpreter.
   class V8_EXPORT_PRIVATE Thread {
+   public:
     // Don't instante Threads; they will be allocated as ThreadImpl in the
     // interpreter implementation.
     Thread() = delete;
-
-   public:
     enum ExceptionHandlingResult { HANDLED, UNWOUND };
 
     // Execution control.
