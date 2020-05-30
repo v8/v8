@@ -329,6 +329,8 @@ const kStringMaxLengthUintptr:
     constexpr uintptr generates 'String::kMaxLength';
 const kFixedArrayMaxLength:
     constexpr int31 generates 'FixedArray::kMaxLength';
+const kFixedDoubleArrayMaxLength:
+    constexpr int31 generates 'FixedDoubleArray::kMaxLength';
 const kObjectAlignmentMask: constexpr intptr
     generates 'kObjectAlignmentMask';
 const kMinAddedElementsCapacity:

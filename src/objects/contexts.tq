@@ -78,3 +78,9 @@ extern operator '[]=' macro StoreContextElement(
 
 extern operator '[]' macro LoadContextElement(Context, intptr): Object;
 extern operator '[]' macro LoadContextElement(Context, Smi): Object;
+
+// A dummy used instead of a context constant for runtime calls that don't need
+// a context.
+type NoContext extends Smi;
+extern macro NoContextConstant(): NoContext;
+const kNoContext: NoContext = NoContextConstant();

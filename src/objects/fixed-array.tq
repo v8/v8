@@ -120,8 +120,15 @@ macro ExtractFixedDoubleArray(
           ConstantIterator(kDoubleHole)));
 }
 
+namespace runtime {
+  extern runtime FatalProcessOutOfMemoryInvalidArrayLength(NoContext): never;
+}
+
 macro NewFixedArray<Iterator: type>(length: intptr, it: Iterator): FixedArray {
   if (length == 0) return kEmptyFixedArray;
+  if (length > kFixedArrayMaxLength) deferred {
+      runtime::FatalProcessOutOfMemoryInvalidArrayLength(kNoContext);
+    }
   return new
   FixedArray{map: kFixedArrayMap, length: Convert<Smi>(length), objects: ...it};
 }
@@ -129,6 +136,9 @@ macro NewFixedArray<Iterator: type>(length: intptr, it: Iterator): FixedArray {
 macro NewFixedDoubleArray<Iterator: type>(
     length: intptr, it: Iterator): FixedDoubleArray|EmptyFixedArray {
   if (length == 0) return kEmptyFixedArray;
+  if (length > kFixedDoubleArrayMaxLength) deferred {
+      runtime::FatalProcessOutOfMemoryInvalidArrayLength(kNoContext);
+    }
   return new FixedDoubleArray{
     map: kFixedDoubleArrayMap,
     length: Convert<Smi>(length),

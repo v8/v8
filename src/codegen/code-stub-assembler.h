@@ -576,7 +576,7 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
     return Word32BinaryNot(TaggedEqual(a, b));
   }
 
-  TNode<Object> NoContextConstant();
+  TNode<Smi> NoContextConstant();
 
 #define HEAP_CONSTANT_ACCESSOR(rootIndexName, rootAccessorName, name)  \
   TNode<std::remove_pointer<std::remove_reference<decltype(            \
