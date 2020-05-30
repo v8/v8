@@ -205,7 +205,7 @@ TNode<Smi> CodeStubAssembler::SelectSmiConstant(SloppyTNode<BoolT> condition,
                              SmiConstant(false_value));
 }
 
-TNode<Object> CodeStubAssembler::NoContextConstant() {
+TNode<Smi> CodeStubAssembler::NoContextConstant() {
   return SmiConstant(Context::kNoContext);
 }
 
