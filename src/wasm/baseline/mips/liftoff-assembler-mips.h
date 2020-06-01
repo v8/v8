@@ -1782,6 +1782,11 @@ void LiftoffAssembler::emit_v8x16_anytrue(LiftoffRegister dst,
   bailout(kSimd, "emit_v8x16_anytrue");
 }
 
+void LiftoffAssembler::emit_v8x16_alltrue(LiftoffRegister dst,
+                                          LiftoffRegister src) {
+  bailout(kSimd, "emit_v8x16_alltrue");
+}
+
 void LiftoffAssembler::emit_i8x16_shl(LiftoffRegister dst, LiftoffRegister lhs,
                                       LiftoffRegister rhs) {
   bailout(kSimd, "emit_i8x16_shl");
@@ -1887,6 +1892,11 @@ void LiftoffAssembler::emit_v16x8_anytrue(LiftoffRegister dst,
   bailout(kSimd, "emit_v16x8_anytrue");
 }
 
+void LiftoffAssembler::emit_v16x8_alltrue(LiftoffRegister dst,
+                                          LiftoffRegister src) {
+  bailout(kSimd, "emit_v16x8_alltrue");
+}
+
 void LiftoffAssembler::emit_i16x8_shl(LiftoffRegister dst, LiftoffRegister lhs,
                                       LiftoffRegister rhs) {
   bailout(kSimd, "emit_i16x8_shl");
@@ -1990,6 +2000,11 @@ void LiftoffAssembler::emit_i32x4_neg(LiftoffRegister dst,
 void LiftoffAssembler::emit_v32x4_anytrue(LiftoffRegister dst,
                                           LiftoffRegister src) {
   bailout(kSimd, "emit_v32x4_anytrue");
+}
+
+void LiftoffAssembler::emit_v32x4_alltrue(LiftoffRegister dst,
+                                          LiftoffRegister src) {
+  bailout(kSimd, "emit_v32x4_alltrue");
 }
 
 void LiftoffAssembler::emit_i32x4_shl(LiftoffRegister dst, LiftoffRegister lhs,

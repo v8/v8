@@ -1331,6 +1331,16 @@ inline void EmitAnyTrue(LiftoffAssembler* assm, LiftoffRegister dst,
   assm->bind(&all_false);
 }
 
+inline void EmitAllTrue(LiftoffAssembler* assm, LiftoffRegister dst,
+                        LiftoffRegister src, MSABranchDF msa_branch_df) {
+  Label all_true;
+  assm->BranchMSA(&all_true, msa_branch_df, all_not_zero, src.fp().toW(),
+                  USE_DELAY_SLOT);
+  assm->li(dst.gp(), 1);
+  assm->li(dst.gp(), 0l);
+  assm->bind(&all_true);
+}
+
 }  // namespace liftoff
 
 void LiftoffAssembler::emit_f32_set_cond(Condition cond, Register dst,
@@ -1680,6 +1690,11 @@ void LiftoffAssembler::emit_v8x16_anytrue(LiftoffRegister dst,
   liftoff::EmitAnyTrue(this, dst, src);
 }
 
+void LiftoffAssembler::emit_v8x16_alltrue(LiftoffRegister dst,
+                                          LiftoffRegister src) {
+  liftoff::EmitAllTrue(this, dst, src, MSA_BRANCH_B);
+}
+
 void LiftoffAssembler::emit_i8x16_shl(LiftoffRegister dst, LiftoffRegister lhs,
                                       LiftoffRegister rhs) {
   fill_b(kSimd128ScratchReg, rhs.gp());
@@ -1789,6 +1804,11 @@ void LiftoffAssembler::emit_v16x8_anytrue(LiftoffRegister dst,
   liftoff::EmitAnyTrue(this, dst, src);
 }
 
+void LiftoffAssembler::emit_v16x8_alltrue(LiftoffRegister dst,
+                                          LiftoffRegister src) {
+  liftoff::EmitAllTrue(this, dst, src, MSA_BRANCH_H);
+}
+
 void LiftoffAssembler::emit_i16x8_shl(LiftoffRegister dst, LiftoffRegister lhs,
                                       LiftoffRegister rhs) {
   fill_h(kSimd128ScratchReg, rhs.gp());
@@ -1896,6 +1916,11 @@ void LiftoffAssembler::emit_i32x4_neg(LiftoffRegister dst,
 void LiftoffAssembler::emit_v32x4_anytrue(LiftoffRegister dst,
                                           LiftoffRegister src) {
   liftoff::EmitAnyTrue(this, dst, src);
+}
+
+void LiftoffAssembler::emit_v32x4_alltrue(LiftoffRegister dst,
+                                          LiftoffRegister src) {
+  liftoff::EmitAllTrue(this, dst, src, MSA_BRANCH_W);
 }
 
 void LiftoffAssembler::emit_i32x4_shl(LiftoffRegister dst, LiftoffRegister lhs,
