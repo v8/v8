@@ -30,20 +30,6 @@ static const Endianness kArchEndian = kBig;
 #error Unknown endianness
 #endif
 
-// TODO(plind): consider renaming these ...
-#if defined(__mips_hard_float) && __mips_hard_float != 0
-// Use floating-point coprocessor instructions. This flag is raised when
-// -mhard-float is passed to the compiler.
-const bool IsMipsSoftFloatABI = false;
-#elif defined(__mips_soft_float) && __mips_soft_float != 0
-// This flag is raised when -msoft-float is passed to the compiler.
-// Although FPU is a base requirement for v8, soft-float ABI is used
-// on soft-float systems with FPU kernel emulation.
-const bool IsMipsSoftFloatABI = true;
-#else
-const bool IsMipsSoftFloatABI = true;
-#endif
-
 #if defined(V8_TARGET_LITTLE_ENDIAN)
 const uint32_t kMipsLwrOffset = 0;
 const uint32_t kMipsLwlOffset = 3;

@@ -967,46 +967,15 @@ double Simulator::get_fpu_register_double(int fpureg) const {
 // or one integer arguments. All are constructed here,
 // from a0-a3 or fa0 and fa1 (n64), or fa2 (O32).
 void Simulator::GetFpArgs(double* x, double* y, int32_t* z) {
-  if (!IsMipsSoftFloatABI) {
-    const int fparg2 = 13;
-    *x = get_fpu_register_double(12);
-    *y = get_fpu_register_double(fparg2);
-    *z = static_cast<int32_t>(get_register(a2));
-  } else {
-    // FIXME (RISCV): a0,... are 64-bit, why move them to 32-bit buffer?
-
-    // TODO(plind): bad ABI stuff, refactor or remove.
-    // We use a char buffer to get around the strict-aliasing rules which
-    // otherwise allow the compiler to optimize away the copy.
-    char buffer[sizeof(*x)];
-    int32_t* reg_buffer = reinterpret_cast<int32_t*>(buffer);
-
-    // Registers a0 and a1 -> x.
-    reg_buffer[0] = get_register(a0);
-    reg_buffer[1] = get_register(a1);
-    memcpy(x, buffer, sizeof(buffer));
-    // Registers a2 and a3 -> y.
-    reg_buffer[0] = get_register(a2);
-    reg_buffer[1] = get_register(a3);
-    memcpy(y, buffer, sizeof(buffer));
-    // Register 2 -> z.
-    reg_buffer[0] = get_register(a2);
-    memcpy(z, buffer, sizeof(*z));
-  }
+  const int fparg2 = 13;
+  *x = get_fpu_register_double(12);
+  *y = get_fpu_register_double(fparg2);
+  *z = static_cast<int32_t>(get_register(a2));
 }
 
 // The return value is either in a0/a1 or ft0.
 void Simulator::SetFpResult(const double& result) {
-  if (!IsMipsSoftFloatABI) {
-    set_fpu_register_double(0, result);
-  } else {
-    char buffer[2 * sizeof(registers_[0])];
-    int64_t* reg_buffer = reinterpret_cast<int64_t*>(buffer);
-    memcpy(buffer, &result, sizeof(buffer));
-    // Copy result to a0 and a1.
-    set_register(a0, reg_buffer[0]);
-    set_register(a1, reg_buffer[1]);
-  }
+  set_fpu_register_double(0, result);
 }
 
 // helper functions to read/write/set/clear CRC values/bits
@@ -3190,24 +3159,11 @@ intptr_t Simulator::CallImpl(Address entry, int argument_count,
 }
 
 double Simulator::CallFP(Address entry, double d0, double d1) {
-  if (!IsMipsSoftFloatABI) {
-    const FPURegister fparg2 = fa1;
-    set_fpu_register_double(fa0, d0);
-    set_fpu_register_double(fparg2, d1);
-  } else {
-    int buffer[2];
-    DCHECK(sizeof(buffer[0]) * 2 == sizeof(d0));
-    memcpy(buffer, &d0, sizeof(d0));
-    set_dw_register(a0, buffer);
-    memcpy(buffer, &d1, sizeof(d1));
-    set_dw_register(a2, buffer);
-  }
+  const FPURegister fparg2 = fa1;
+  set_fpu_register_double(fa0, d0);
+  set_fpu_register_double(fparg2, d1);
   CallInternal(entry);
-  if (!IsMipsSoftFloatABI) {
-    return get_fpu_register_double(ft0);
-  } else {
-    return get_double_from_register_pair(a0);
-  }
+  return get_fpu_register_double(ft0);
 }
 
 uintptr_t Simulator::PushAddress(uintptr_t address) {
