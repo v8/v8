@@ -3988,19 +3988,19 @@ void MacroAssembler::LeaveExitFrame(bool save_doubles, Register argument_count,
 }
 
 int TurboAssembler::ActivationFrameAlignment() {
-#if V8_HOST_ARCH_MIPS || V8_HOST_ARCH_MIPS64
+#if V8_HOST_ARCH_RISCV
   // Running on the real platform. Use the alignment as mandated by the local
   // environment.
   // Note: This will break if we ever start generating snapshots on one Mips
   // platform for another Mips platform with a different alignment.
   return base::OS::ActivationFrameAlignment();
-#else   // V8_HOST_ARCH_MIPS
+#else   // V8_HOST_ARCH_RISCV
   // If we are using the simulator then we should always align to the expected
   // alignment. As the simulator is used to generate snapshots we do not know
   // if the target platform will need alignment, so this is controlled from a
   // flag.
   return FLAG_sim_stack_alignment;
-#endif  // V8_HOST_ARCH_MIPS
+#endif  // V8_HOST_ARCH_RISCV
 }
 
 void MacroAssembler::AssertStackIsAligned() {
@@ -4304,7 +4304,7 @@ void TurboAssembler::CallCFunctionHelper(Register function,
   // The argument stots are presumed to have been set up by
   // PrepareCallCFunction. The C function must be called via t6, for mips ABI.
 
-#if V8_HOST_ARCH_MIPS || V8_HOST_ARCH_MIPS64
+#if V8_HOST_ARCH_RISCV
   if (emit_debug_code()) {
     int frame_alignment = base::OS::ActivationFrameAlignment();
     int frame_alignment_mask = frame_alignment - 1;
@@ -4323,7 +4323,7 @@ void TurboAssembler::CallCFunctionHelper(Register function,
       bind(&alignment_as_expected);
     }
   }
-#endif  // V8_HOST_ARCH_MIPS
+#endif  // V8_HOST_ARCH_RISCV
 
   // Just call directly. The function called cannot cause a GC, or
   // allow preemption, so the return address in the link register

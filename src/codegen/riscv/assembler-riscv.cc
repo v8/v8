@@ -2305,13 +2305,12 @@ void Assembler::break_(uint32_t code, bool break_as_stop) {
   RV_ebreak();
 }
 
-// FIXME (RISCV): may need to remove MIPS flags
 void Assembler::stop(uint32_t code) {
   DCHECK_GT(code, kMaxWatchpointCode);
   DCHECK_LE(code, kMaxStopCode);
-#if defined(V8_HOST_ARCH_MIPS) || defined(V8_HOST_ARCH_MIPS64)
+#if defined(V8_HOST_ARCH_RISCV)
   break_(0x54321);
-#else  // V8_HOST_ARCH_MIPS
+#else  // V8_HOST_ARCH_RISCV
   break_(code, true);
 #endif
 }

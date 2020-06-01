@@ -745,7 +745,7 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
           linkage()->GetIncomingDescriptor()->IsWasmCapiFunction();
       // from start_call to return address.
       int offset = 48;  // FIXME(RISC-V): This offset may be incorrect
-#if V8_HOST_ARCH_MIPS64
+#if V8_HOST_ARCH_RISCV
       if (__ emit_debug_code()) {
         offset += 16;
       }
