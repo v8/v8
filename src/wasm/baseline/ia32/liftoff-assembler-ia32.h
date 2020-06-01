@@ -2552,11 +2552,6 @@ void LiftoffAssembler::emit_v8x16_alltrue(LiftoffRegister dst,
   liftoff::EmitAllTrue<&TurboAssembler::Pcmpeqb>(this, dst, src);
 }
 
-void LiftoffAssembler::emit_i8x16_bitmask(LiftoffRegister dst,
-                                          LiftoffRegister src) {
-  Pmovmskb(dst.gp(), src.fp());
-}
-
 void LiftoffAssembler::emit_i8x16_shl(LiftoffRegister dst, LiftoffRegister lhs,
                                       LiftoffRegister rhs) {
   static constexpr RegClass tmp_rc = reg_class_for(ValueType::kI32);
@@ -2795,14 +2790,6 @@ void LiftoffAssembler::emit_v16x8_alltrue(LiftoffRegister dst,
   liftoff::EmitAllTrue<&TurboAssembler::Pcmpeqw>(this, dst, src);
 }
 
-void LiftoffAssembler::emit_i16x8_bitmask(LiftoffRegister dst,
-                                          LiftoffRegister src) {
-  XMMRegister tmp = liftoff::kScratchDoubleReg;
-  Packsswb(tmp, src.fp());
-  Pmovmskb(dst.gp(), tmp);
-  shr(dst.gp(), 8);
-}
-
 void LiftoffAssembler::emit_i16x8_shl(LiftoffRegister dst, LiftoffRegister lhs,
                                       LiftoffRegister rhs) {
   liftoff::EmitSimdShiftOp<&Assembler::vpsllw, &Assembler::psllw, 4>(this, dst,
@@ -2935,11 +2922,6 @@ void LiftoffAssembler::emit_v32x4_anytrue(LiftoffRegister dst,
 void LiftoffAssembler::emit_v32x4_alltrue(LiftoffRegister dst,
                                           LiftoffRegister src) {
   liftoff::EmitAllTrue<&TurboAssembler::Pcmpeqd>(this, dst, src);
-}
-
-void LiftoffAssembler::emit_i32x4_bitmask(LiftoffRegister dst,
-                                          LiftoffRegister src) {
-  Movmskps(dst.gp(), src.fp());
 }
 
 void LiftoffAssembler::emit_i32x4_shl(LiftoffRegister dst, LiftoffRegister lhs,
