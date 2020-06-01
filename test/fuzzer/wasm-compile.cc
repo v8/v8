@@ -1189,6 +1189,19 @@ void WasmGenerator::Generate<ValueType::kS128>(DataRange* data) {
   }
 
   constexpr GenerateFn alternatives[] = {
+      &WasmGenerator::simd_lane_op<kExprI8x16ReplaceLane, 16, ValueType::kS128,
+                                   ValueType::kI32>,
+      &WasmGenerator::simd_lane_op<kExprI16x8ReplaceLane, 8, ValueType::kS128,
+                                   ValueType::kI32>,
+      &WasmGenerator::simd_lane_op<kExprI32x4ReplaceLane, 4, ValueType::kS128,
+                                   ValueType::kI32>,
+      &WasmGenerator::simd_lane_op<kExprI64x2ReplaceLane, 2, ValueType::kS128,
+                                   ValueType::kI64>,
+      &WasmGenerator::simd_lane_op<kExprF32x4ReplaceLane, 4, ValueType::kS128,
+                                   ValueType::kF32>,
+      &WasmGenerator::simd_lane_op<kExprF64x2ReplaceLane, 2, ValueType::kS128,
+                                   ValueType::kF64>,
+
       &WasmGenerator::op_with_prefix<kExprI8x16Splat, ValueType::kI32>,
       &WasmGenerator::op_with_prefix<kExprI8x16Eq, ValueType::kS128,
                                      ValueType::kS128>,
