@@ -3687,7 +3687,7 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
 
       // Out-of-range indices should return 0, add 112 so that any value > 15
       // saturates to 128 (top bit set), so pshufb will zero that lane.
-      __ Move(mask, (uint32_t)0x70707070);
+      __ Move(mask, uint32_t{0x70707070});
       __ Pshufd(mask, mask, 0x0);
       __ Paddusb(mask, i.InputSimd128Register(1));
       __ Pshufb(dst, mask);
