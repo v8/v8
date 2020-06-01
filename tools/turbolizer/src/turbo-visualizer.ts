@@ -50,6 +50,7 @@ window.onload = function () {
       multiview = null;
       document.getElementById("ranges").innerHTML = '';
       document.getElementById('ranges').style.visibility = "hidden";
+      document.getElementById('show-hide-ranges').style.visibility = "hidden";
       if (disassemblyView) disassemblyView.hide();
       sourceViews = [];
       sourceResolver = new SourceResolver();
