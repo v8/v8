@@ -363,8 +363,6 @@
 
 ##############################################################################
 ['arch == riscv32  or arch == riscv64', {
-  'test-macro-assembler-riscv/OverflowInstructions': [SKIP],
-
   'test-strings/OneByteArrayJoin': [SKIP],
 
   'test-interpreter/InterpreterBinaryOpsHeapNumber': [SKIP],
