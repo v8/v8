@@ -281,13 +281,15 @@ class LiftoffCompiler {
 
   // For debugging, we need to spill registers before a trap, to be able to
   // inspect them.
-  struct SpilledRegistersBeforeTrap {
+  struct SpilledRegistersBeforeTrap : public ZoneObject {
     struct Entry {
       int offset;
       LiftoffRegister reg;
       ValueType type;
     };
-    std::vector<Entry> entries;
+    ZoneVector<Entry> entries;
+
+    explicit SpilledRegistersBeforeTrap(Zone* zone) : entries(zone) {}
   };
 
   struct OutOfLineCode {
@@ -299,13 +301,13 @@ class LiftoffCompiler {
     uint32_t pc;  // for trap handler.
     // These two pointers will only be used for debug code:
     DebugSideTableBuilder::EntryBuilder* debug_sidetable_entry_builder;
-    std::unique_ptr<SpilledRegistersBeforeTrap> spilled_registers;
+    SpilledRegistersBeforeTrap* spilled_registers;
 
     // Named constructors:
     static OutOfLineCode Trap(
         WasmCode::RuntimeStubId s, WasmCodePosition pos, uint32_t pc,
         DebugSideTableBuilder::EntryBuilder* debug_sidetable_entry_builder,
-        std::unique_ptr<SpilledRegistersBeforeTrap> spilled_registers) {
+        SpilledRegistersBeforeTrap* spilled_registers) {
       DCHECK_LT(0, pos);
       return {{},
               {},
@@ -314,13 +316,13 @@ class LiftoffCompiler {
               {},
               pc,
               debug_sidetable_entry_builder,
-              std::move(spilled_registers)};
+              spilled_registers};
     }
     static OutOfLineCode StackCheck(
         WasmCodePosition pos, LiftoffRegList regs,
         DebugSideTableBuilder::EntryBuilder* debug_sidetable_entry_builder) {
       return {{},   {}, WasmCode::kWasmStackGuard,     pos,
-              regs, 0,  debug_sidetable_entry_builder, {}};
+              regs, 0,  debug_sidetable_entry_builder, nullptr};
     }
   };
 
@@ -336,6 +338,8 @@ class LiftoffCompiler {
         env_(env),
         debug_sidetable_builder_(debug_sidetable_builder),
         for_debugging_(for_debugging),
+        out_of_line_code_(compilation_zone),
+        protected_instructions_(compilation_zone),
         compilation_zone_(compilation_zone),
         safepoint_table_builder_(compilation_zone_),
         next_breakpoint_ptr_(breakpoints.begin()),
@@ -1849,11 +1853,12 @@ class LiftoffCompiler {
     __ cache_state()->Steal(c->else_state->state);
   }
 
-  std::unique_ptr<SpilledRegistersBeforeTrap> GetSpilledRegistersBeforeTrap() {
-    if (V8_LIKELY(!for_debugging_)) return nullptr;
+  SpilledRegistersBeforeTrap* GetSpilledRegistersBeforeTrap() {
+    DCHECK(for_debugging_);
     // If we are generating debugging code, we really need to spill all
     // registers to make them inspectable when stopping at the trap.
-    auto spilled = std::make_unique<SpilledRegistersBeforeTrap>();
+    auto* spilled =
+        new (compilation_zone_) SpilledRegistersBeforeTrap(compilation_zone_);
     for (uint32_t i = 0, e = __ cache_state()->stack_height(); i < e; ++i) {
       auto& slot = __ cache_state()->stack_state[i];
       if (!slot.is_reg()) continue;
@@ -1870,7 +1875,8 @@ class LiftoffCompiler {
     out_of_line_code_.push_back(OutOfLineCode::Trap(
         stub, position, pc,
         RegisterDebugSideTableEntry(DebugSideTableBuilder::kAssumeSpilling),
-        GetSpilledRegistersBeforeTrap()));
+        V8_UNLIKELY(for_debugging_) ? GetSpilledRegistersBeforeTrap()
+                                    : nullptr));
     return out_of_line_code_.back().label.get();
   }
 
@@ -3607,9 +3613,9 @@ class LiftoffCompiler {
   DebugSideTableBuilder* const debug_sidetable_builder_;
   const ForDebugging for_debugging_;
   LiftoffBailoutReason bailout_reason_ = kSuccess;
-  std::vector<OutOfLineCode> out_of_line_code_;
+  ZoneVector<OutOfLineCode> out_of_line_code_;
   SourcePositionTableBuilder source_position_table_builder_;
-  std::vector<trap_handler::ProtectedInstructionData> protected_instructions_;
+  ZoneVector<trap_handler::ProtectedInstructionData> protected_instructions_;
   // Zone used to store information during compilation. The result will be
   // stored independently, such that this zone can die together with the
   // LiftoffCompiler after compilation.
