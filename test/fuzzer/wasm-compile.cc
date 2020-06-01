@@ -1454,6 +1454,18 @@ void WasmGenerator::Generate<ValueType::kS128>(DataRange* data) {
       &WasmGenerator::op_with_prefix<kExprI32x4UConvertI16x8High,
                                      ValueType::kS128>,
 
+      &WasmGenerator::op_with_prefix<kExprS128Not, ValueType::kS128>,
+      &WasmGenerator::op_with_prefix<kExprS128And, ValueType::kS128,
+                                     ValueType::kS128>,
+      &WasmGenerator::op_with_prefix<kExprS128AndNot, ValueType::kS128,
+                                     ValueType::kS128>,
+      &WasmGenerator::op_with_prefix<kExprS128Or, ValueType::kS128,
+                                     ValueType::kS128>,
+      &WasmGenerator::op_with_prefix<kExprS128Xor, ValueType::kS128,
+                                     ValueType::kS128>,
+      &WasmGenerator::op_with_prefix<kExprS128Select, ValueType::kS128,
+                                     ValueType::kS128, ValueType::kS128>,
+
       &WasmGenerator::simd_shuffle,
       &WasmGenerator::op_with_prefix<kExprS8x16Swizzle, ValueType::kS128,
                                      ValueType::kS128>,
