@@ -3450,8 +3450,8 @@ void Assembler::movmskps(Register dst, XMMRegister src) {
 
 void Assembler::pmovmskb(Register dst, XMMRegister src) {
   EnsureSpace ensure_space(this);
-  emit_optional_rex_32(dst, src);
   emit(0x66);
+  emit_optional_rex_32(dst, src);
   emit(0x0F);
   emit(0xD7);
   emit_sse_operand(dst, src);

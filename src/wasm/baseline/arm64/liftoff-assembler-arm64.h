@@ -1513,6 +1513,11 @@ void LiftoffAssembler::emit_v32x4_alltrue(LiftoffRegister dst,
   liftoff::EmitAllTrue(this, dst, src, kFormat4S);
 }
 
+void LiftoffAssembler::emit_i32x4_bitmask(LiftoffRegister dst,
+                                          LiftoffRegister src) {
+  bailout(kSimd, "i32x4_bitmask");
+}
+
 void LiftoffAssembler::emit_i32x4_shl(LiftoffRegister dst, LiftoffRegister lhs,
                                       LiftoffRegister rhs) {
   liftoff::EmitSimdShift<liftoff::ShiftDirection::kLeft>(
@@ -1632,6 +1637,11 @@ void LiftoffAssembler::emit_v16x8_anytrue(LiftoffRegister dst,
 void LiftoffAssembler::emit_v16x8_alltrue(LiftoffRegister dst,
                                           LiftoffRegister src) {
   liftoff::EmitAllTrue(this, dst, src, kFormat8H);
+}
+
+void LiftoffAssembler::emit_i16x8_bitmask(LiftoffRegister dst,
+                                          LiftoffRegister src) {
+  bailout(kSimd, "i16x8_bitmask");
 }
 
 void LiftoffAssembler::emit_i16x8_shl(LiftoffRegister dst, LiftoffRegister lhs,
@@ -1777,6 +1787,11 @@ void LiftoffAssembler::emit_v8x16_anytrue(LiftoffRegister dst,
 void LiftoffAssembler::emit_v8x16_alltrue(LiftoffRegister dst,
                                           LiftoffRegister src) {
   liftoff::EmitAllTrue(this, dst, src, kFormat16B);
+}
+
+void LiftoffAssembler::emit_i8x16_bitmask(LiftoffRegister dst,
+                                          LiftoffRegister src) {
+  bailout(kSimd, "i8x16_bitmask");
 }
 
 void LiftoffAssembler::emit_i8x16_shl(LiftoffRegister dst, LiftoffRegister lhs,

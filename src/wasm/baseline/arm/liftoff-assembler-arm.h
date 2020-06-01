@@ -2573,6 +2573,11 @@ void LiftoffAssembler::emit_v32x4_alltrue(LiftoffRegister dst,
   mov(dst.gp(), Operand(1), LeaveCC, ne);
 }
 
+void LiftoffAssembler::emit_i32x4_bitmask(LiftoffRegister dst,
+                                          LiftoffRegister src) {
+  bailout(kSimd, "i32x4_bitmask");
+}
+
 void LiftoffAssembler::emit_i32x4_shl(LiftoffRegister dst, LiftoffRegister lhs,
                                       LiftoffRegister rhs) {
   liftoff::EmitSimdShift<liftoff::kLeft, NeonS32, Neon32>(this, dst, lhs, rhs);
@@ -2680,6 +2685,11 @@ void LiftoffAssembler::emit_v16x8_alltrue(LiftoffRegister dst,
   ExtractLane(dst.gp(), scratch, NeonS16, 0);
   cmp(dst.gp(), Operand(0));
   mov(dst.gp(), Operand(1), LeaveCC, ne);
+}
+
+void LiftoffAssembler::emit_i16x8_bitmask(LiftoffRegister dst,
+                                          LiftoffRegister src) {
+  bailout(kSimd, "i16x8_bitmask");
 }
 
 void LiftoffAssembler::emit_i16x8_shl(LiftoffRegister dst, LiftoffRegister lhs,
@@ -2862,6 +2872,11 @@ void LiftoffAssembler::emit_v8x16_alltrue(LiftoffRegister dst,
   ExtractLane(dst.gp(), scratch, NeonS8, 0);
   cmp(dst.gp(), Operand(0));
   mov(dst.gp(), Operand(1), LeaveCC, ne);
+}
+
+void LiftoffAssembler::emit_i8x16_bitmask(LiftoffRegister dst,
+                                          LiftoffRegister src) {
+  bailout(kSimd, "i8x16_bitmask");
 }
 
 void LiftoffAssembler::emit_i8x16_shl(LiftoffRegister dst, LiftoffRegister lhs,
