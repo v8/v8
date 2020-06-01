@@ -176,8 +176,10 @@ bool PrintRawWasmCode(AccountingAllocator* allocator, const FunctionBody& body,
 
     unsigned offset = 1;
     WasmOpcode opcode = i.current();
-    if (WasmOpcodes::IsPrefixOpcode(opcode)) {
-      os << PrefixName(opcode) << ", ";
+    WasmOpcode prefix = kExprUnreachable;
+    bool has_prefix = WasmOpcodes::IsPrefixOpcode(opcode);
+    if (has_prefix) {
+      prefix = i.current();
       opcode = i.prefixed_opcode();
       offset = 2;
     }
@@ -192,6 +194,10 @@ bool PrintRawWasmCode(AccountingAllocator* allocator, const FunctionBody& body,
     const char* padding =
         "                                                                ";
     os.write(padding, num_whitespaces);
+
+    if (has_prefix) {
+      os << PrefixName(prefix) << ", ";
+    }
 
     os << RawOpcodeName(opcode) << ",";
 
