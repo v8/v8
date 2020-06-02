@@ -4142,54 +4142,57 @@ void Isolate::RunPromiseHook(PromiseHookType type, Handle<JSPromise> promise,
 void Isolate::RunPromiseHookForAsyncEventDelegate(PromiseHookType type,
                                                   Handle<JSPromise> promise) {
   if (!async_event_delegate_) return;
-  if (type == PromiseHookType::kResolve) return;
-
-  if (type == PromiseHookType::kBefore) {
-    if (!promise->async_task_id()) return;
-    async_event_delegate_->AsyncEventOccurred(debug::kDebugWillHandle,
-                                              promise->async_task_id(), false);
-  } else if (type == PromiseHookType::kAfter) {
-    if (!promise->async_task_id()) return;
-    async_event_delegate_->AsyncEventOccurred(debug::kDebugDidHandle,
-                                              promise->async_task_id(), false);
-  } else {
-    DCHECK(type == PromiseHookType::kInit);
-    debug::DebugAsyncActionType type = debug::kDebugPromiseThen;
-    bool last_frame_was_promise_builtin = false;
-    JavaScriptFrameIterator it(this);
-    while (!it.done()) {
-      std::vector<Handle<SharedFunctionInfo>> infos;
-      it.frame()->GetFunctions(&infos);
-      for (size_t i = 1; i <= infos.size(); ++i) {
-        Handle<SharedFunctionInfo> info = infos[infos.size() - i];
-        if (info->IsUserJavaScript()) {
-          // We should not report PromiseThen and PromiseCatch which is called
-          // indirectly, e.g. Promise.all calls Promise.then internally.
-          if (last_frame_was_promise_builtin) {
-            if (!promise->async_task_id()) {
-              promise->set_async_task_id(++async_task_count_);
+  switch (type) {
+    case PromiseHookType::kResolve:
+      return;
+    case PromiseHookType::kBefore:
+      if (!promise->async_task_id()) return;
+      async_event_delegate_->AsyncEventOccurred(
+          debug::kDebugWillHandle, promise->async_task_id(), false);
+      break;
+    case PromiseHookType::kAfter:
+      if (!promise->async_task_id()) return;
+      async_event_delegate_->AsyncEventOccurred(
+          debug::kDebugDidHandle, promise->async_task_id(), false);
+      break;
+    case PromiseHookType::kInit:
+      debug::DebugAsyncActionType type = debug::kDebugPromiseThen;
+      bool last_frame_was_promise_builtin = false;
+      JavaScriptFrameIterator it(this);
+      while (!it.done()) {
+        std::vector<Handle<SharedFunctionInfo>> infos;
+        it.frame()->GetFunctions(&infos);
+        for (size_t i = 1; i <= infos.size(); ++i) {
+          Handle<SharedFunctionInfo> info = infos[infos.size() - i];
+          if (info->IsUserJavaScript()) {
+            // We should not report PromiseThen and PromiseCatch which is called
+            // indirectly, e.g. Promise.all calls Promise.then internally.
+            if (last_frame_was_promise_builtin) {
+              if (!promise->async_task_id()) {
+                promise->set_async_task_id(++async_task_count_);
+              }
+              async_event_delegate_->AsyncEventOccurred(
+                  type, promise->async_task_id(), debug()->IsBlackboxed(info));
             }
-            async_event_delegate_->AsyncEventOccurred(
-                type, promise->async_task_id(), debug()->IsBlackboxed(info));
+            return;
           }
-          return;
-        }
-        last_frame_was_promise_builtin = false;
-        if (info->HasBuiltinId()) {
-          if (info->builtin_id() == Builtins::kPromisePrototypeThen) {
-            type = debug::kDebugPromiseThen;
-            last_frame_was_promise_builtin = true;
-          } else if (info->builtin_id() == Builtins::kPromisePrototypeCatch) {
-            type = debug::kDebugPromiseCatch;
-            last_frame_was_promise_builtin = true;
-          } else if (info->builtin_id() == Builtins::kPromisePrototypeFinally) {
-            type = debug::kDebugPromiseFinally;
-            last_frame_was_promise_builtin = true;
+          last_frame_was_promise_builtin = false;
+          if (info->HasBuiltinId()) {
+            if (info->builtin_id() == Builtins::kPromisePrototypeThen) {
+              type = debug::kDebugPromiseThen;
+              last_frame_was_promise_builtin = true;
+            } else if (info->builtin_id() == Builtins::kPromisePrototypeCatch) {
+              type = debug::kDebugPromiseCatch;
+              last_frame_was_promise_builtin = true;
+            } else if (info->builtin_id() ==
+                       Builtins::kPromisePrototypeFinally) {
+              type = debug::kDebugPromiseFinally;
+              last_frame_was_promise_builtin = true;
+            }
           }
         }
+        it.Advance();
       }
-      it.Advance();
-    }
   }
 }
 
