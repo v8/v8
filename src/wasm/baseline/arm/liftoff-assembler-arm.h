@@ -2500,18 +2500,15 @@ void LiftoffAssembler::emit_i64x2_mul(LiftoffRegister dst, LiftoffRegister lhs,
   QwNeonRegister tmp1 = left;
   QwNeonRegister tmp2 = right;
 
-  LiftoffRegList used_plus_dst =
-      cache_state()->used_registers | LiftoffRegList::ForRegs(dst);
-
-  if (used_plus_dst.has(lhs) && used_plus_dst.has(rhs)) {
+  if (cache_state()->is_used(lhs) && cache_state()->is_used(rhs)) {
     tmp1 = temps.AcquireQ();
     // We only have 1 scratch Q register, so acquire another ourselves.
     LiftoffRegList pinned = LiftoffRegList::ForRegs(dst);
     LiftoffRegister unused_pair = GetUnusedRegister(kFpRegPair, pinned);
     tmp2 = liftoff::GetSimd128Register(unused_pair);
-  } else if (used_plus_dst.has(lhs)) {
+  } else if (cache_state()->is_used(lhs)) {
     tmp1 = temps.AcquireQ();
-  } else if (used_plus_dst.has(rhs)) {
+  } else if (cache_state()->is_used(rhs)) {
     tmp2 = temps.AcquireQ();
   }
 
