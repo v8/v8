@@ -21,6 +21,7 @@ class OffThreadTransferHandleStorage;
 class V8_EXPORT_PRIVATE OffThreadHeap {
  public:
   explicit OffThreadHeap(Heap* heap);
+  ~OffThreadHeap();
 
   HeapObject AllocateRaw(int size, AllocationType allocation,
                          AllocationAlignment alignment = kWordAligned);

@@ -19,6 +19,8 @@
 namespace v8 {
 namespace internal {
 
+OffThreadHeap::~OffThreadHeap() = default;
+
 OffThreadHeap::OffThreadHeap(Heap* heap)
     : space_(heap),
       lo_space_(heap),
