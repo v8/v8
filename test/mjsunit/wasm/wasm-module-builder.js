@@ -474,6 +474,7 @@ let kExprI8x16Splat = 0x0f;
 let kExprI16x8Splat = 0x10;
 let kExprI32x4Splat = 0x11;
 let kExprF32x4Splat = 0x13;
+let kExprI16x8ExtractLaneU = 0x19;
 let kExprI8x16LtU = 0x26;
 let kExprI8x16LeU = 0x2a;
 let kExprI32x4Eq = 0x37;
@@ -482,6 +483,7 @@ let kExprV8x16AllTrue = 0x63;
 let kExprI8x16Add = 0x6e;
 let kExprI16x8ShrS = [0x8c, 01];
 let kExprV32x4AnyTrue = 0xa2;
+let kExprI64x2Mul = 0xd5;
 let kExprF32x4Min = 0xe8;
 
 // Compilation hint constants.
