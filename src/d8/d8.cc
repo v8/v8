@@ -3601,8 +3601,14 @@ int Shell::Main(int argc, char* argv[]) {
   std::ofstream trace_file;
   if (options.trace_enabled && !i::FLAG_verify_predictable) {
     tracing = std::make_unique<platform::tracing::TracingController>();
-    trace_file.open(options.trace_path ? options.trace_path : "v8_trace.json");
-    DCHECK(trace_file.good());
+    const char* trace_path =
+        options.trace_path ? options.trace_path : "v8_trace.json";
+    trace_file.open(trace_path);
+    if (!trace_file.good()) {
+      printf("Cannot open trace file '%s' for writing: %s.\n", trace_path,
+             strerror(errno));
+      return 1;
+    }
 
 #ifdef V8_USE_PERFETTO
     // Set up the in-process backend that the tracing controller will connect
