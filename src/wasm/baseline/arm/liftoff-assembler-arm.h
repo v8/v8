@@ -2575,7 +2575,26 @@ void LiftoffAssembler::emit_v32x4_alltrue(LiftoffRegister dst,
 
 void LiftoffAssembler::emit_i32x4_bitmask(LiftoffRegister dst,
                                           LiftoffRegister src) {
-  bailout(kSimd, "i32x4_bitmask");
+  UseScratchRegisterScope temps(this);
+  Simd128Register tmp = liftoff::GetSimd128Register(src);
+  Simd128Register mask = temps.AcquireQ();
+
+  if (cache_state()->is_used(src)) {
+    // We only have 1 scratch Q register, so try and reuse src.
+    LiftoffRegList pinned = LiftoffRegList::ForRegs(src);
+    LiftoffRegister unused_pair = GetUnusedRegister(kFpRegPair, pinned);
+    mask = liftoff::GetSimd128Register(unused_pair);
+  }
+
+  vshr(NeonS32, tmp, liftoff::GetSimd128Register(src), 31);
+  // Set i-th bit of each lane i. When AND with tmp, the lanes that
+  // are signed will have i-th bit set, unsigned will be 0.
+  vmov(mask.low(), Double((uint64_t)0x0000'0002'0000'0001));
+  vmov(mask.high(), Double((uint64_t)0x0000'0008'0000'0004));
+  vand(tmp, mask, tmp);
+  vpadd(Neon32, tmp.low(), tmp.low(), tmp.high());
+  vpadd(Neon32, tmp.low(), tmp.low(), kDoubleRegZero);
+  VmovLow(dst.gp(), tmp.low());
 }
 
 void LiftoffAssembler::emit_i32x4_shl(LiftoffRegister dst, LiftoffRegister lhs,
@@ -2689,7 +2708,27 @@ void LiftoffAssembler::emit_v16x8_alltrue(LiftoffRegister dst,
 
 void LiftoffAssembler::emit_i16x8_bitmask(LiftoffRegister dst,
                                           LiftoffRegister src) {
-  bailout(kSimd, "i16x8_bitmask");
+  UseScratchRegisterScope temps(this);
+  Simd128Register tmp = liftoff::GetSimd128Register(src);
+  Simd128Register mask = temps.AcquireQ();
+
+  if (cache_state()->is_used(src)) {
+    // We only have 1 scratch Q register, so try and reuse src.
+    LiftoffRegList pinned = LiftoffRegList::ForRegs(src);
+    LiftoffRegister unused_pair = GetUnusedRegister(kFpRegPair, pinned);
+    mask = liftoff::GetSimd128Register(unused_pair);
+  }
+
+  vshr(NeonS16, tmp, liftoff::GetSimd128Register(src), 15);
+  // Set i-th bit of each lane i. When AND with tmp, the lanes that
+  // are signed will have i-th bit set, unsigned will be 0.
+  vmov(mask.low(), Double((uint64_t)0x0008'0004'0002'0001));
+  vmov(mask.high(), Double((uint64_t)0x0080'0040'0020'0010));
+  vand(tmp, mask, tmp);
+  vpadd(Neon16, tmp.low(), tmp.low(), tmp.high());
+  vpadd(Neon16, tmp.low(), tmp.low(), tmp.low());
+  vpadd(Neon16, tmp.low(), tmp.low(), tmp.low());
+  vmov(NeonU16, dst.gp(), tmp.low(), 0);
 }
 
 void LiftoffAssembler::emit_i16x8_shl(LiftoffRegister dst, LiftoffRegister lhs,
@@ -2876,7 +2915,29 @@ void LiftoffAssembler::emit_v8x16_alltrue(LiftoffRegister dst,
 
 void LiftoffAssembler::emit_i8x16_bitmask(LiftoffRegister dst,
                                           LiftoffRegister src) {
-  bailout(kSimd, "i8x16_bitmask");
+  UseScratchRegisterScope temps(this);
+  Simd128Register tmp = liftoff::GetSimd128Register(src);
+  Simd128Register mask = temps.AcquireQ();
+
+  if (cache_state()->is_used(src)) {
+    // We only have 1 scratch Q register, so try and reuse src.
+    LiftoffRegList pinned = LiftoffRegList::ForRegs(src);
+    LiftoffRegister unused_pair = GetUnusedRegister(kFpRegPair, pinned);
+    mask = liftoff::GetSimd128Register(unused_pair);
+  }
+
+  vshr(NeonS8, tmp, liftoff::GetSimd128Register(src), 7);
+  // Set i-th bit of each lane i. When AND with tmp, the lanes that
+  // are signed will have i-th bit set, unsigned will be 0.
+  vmov(mask.low(), Double((uint64_t)0x8040'2010'0804'0201));
+  vmov(mask.high(), Double((uint64_t)0x8040'2010'0804'0201));
+  vand(tmp, mask, tmp);
+  vext(mask, tmp, tmp, 8);
+  vzip(Neon8, mask, tmp);
+  vpadd(Neon16, tmp.low(), tmp.low(), tmp.high());
+  vpadd(Neon16, tmp.low(), tmp.low(), tmp.low());
+  vpadd(Neon16, tmp.low(), tmp.low(), tmp.low());
+  vmov(NeonU16, dst.gp(), tmp.low(), 0);
 }
 
 void LiftoffAssembler::emit_i8x16_shl(LiftoffRegister dst, LiftoffRegister lhs,
