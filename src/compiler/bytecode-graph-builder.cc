@@ -247,10 +247,6 @@ class BytecodeGraphBuilder {
   // type feedback.
   BinaryOperationHint GetBinaryOperationHint(int operand_index);
 
-  // Helper function to create compare operation hint from the recorded
-  // type feedback.
-  CompareOperationHint GetCompareOperationHint();
-
   // Helper function to create for-in mode from the recorded type feedback.
   ForInMode GetForInMode(int operand_index);
 
@@ -443,10 +439,11 @@ class BytecodeGraphBuilder {
 
   TickCounter* const tick_counter_;
 
-  static int const kBinaryOperationHintIndex = 1;
-  static int const kCountOperationHintIndex = 0;
-  static int const kBinaryOperationSmiHintIndex = 1;
-  static int const kUnaryOperationHintIndex = 0;
+  static constexpr int kBinaryOperationHintIndex = 1;
+  static constexpr int kBinaryOperationSmiHintIndex = 1;
+  static constexpr int kCompareOperationHintIndex = 1;
+  static constexpr int kCountOperationHintIndex = 0;
+  static constexpr int kUnaryOperationHintIndex = 0;
 
   DISALLOW_COPY_AND_ASSIGN(BytecodeGraphBuilder);
 };
@@ -2761,14 +2758,6 @@ BinaryOperationHint BytecodeGraphBuilder::GetBinaryOperationHint(
   return broker()->GetFeedbackForBinaryOperation(source);
 }
 
-// Helper function to create compare operation hint from the recorded type
-// feedback.
-CompareOperationHint BytecodeGraphBuilder::GetCompareOperationHint() {
-  FeedbackSlot slot = bytecode_iterator().GetSlotOperand(1);
-  FeedbackSource source(feedback_vector(), slot);
-  return broker()->GetFeedbackForCompareOperation(source);
-}
-
 // Helper function to create for-in mode from the recorded type feedback.
 ForInMode BytecodeGraphBuilder::GetForInMode(int operand_index) {
   FeedbackSlot slot = bytecode_iterator().GetSlotOperand(operand_index);
@@ -3014,27 +3003,39 @@ void BytecodeGraphBuilder::BuildCompareOp(const Operator* op) {
 }
 
 void BytecodeGraphBuilder::VisitTestEqual() {
-  BuildCompareOp(javascript()->Equal(GetCompareOperationHint()));
+  FeedbackSource feedback = CreateFeedbackSource(
+      bytecode_iterator().GetSlotOperand(kCompareOperationHintIndex).ToInt());
+  BuildCompareOp(javascript()->Equal(feedback));
 }
 
 void BytecodeGraphBuilder::VisitTestEqualStrict() {
-  BuildCompareOp(javascript()->StrictEqual(GetCompareOperationHint()));
+  FeedbackSource feedback = CreateFeedbackSource(
+      bytecode_iterator().GetSlotOperand(kCompareOperationHintIndex).ToInt());
+  BuildCompareOp(javascript()->StrictEqual(feedback));
 }
 
 void BytecodeGraphBuilder::VisitTestLessThan() {
-  BuildCompareOp(javascript()->LessThan(GetCompareOperationHint()));
+  FeedbackSource feedback = CreateFeedbackSource(
+      bytecode_iterator().GetSlotOperand(kCompareOperationHintIndex).ToInt());
+  BuildCompareOp(javascript()->LessThan(feedback));
 }
 
 void BytecodeGraphBuilder::VisitTestGreaterThan() {
-  BuildCompareOp(javascript()->GreaterThan(GetCompareOperationHint()));
+  FeedbackSource feedback = CreateFeedbackSource(
+      bytecode_iterator().GetSlotOperand(kCompareOperationHintIndex).ToInt());
+  BuildCompareOp(javascript()->GreaterThan(feedback));
 }
 
 void BytecodeGraphBuilder::VisitTestLessThanOrEqual() {
-  BuildCompareOp(javascript()->LessThanOrEqual(GetCompareOperationHint()));
+  FeedbackSource feedback = CreateFeedbackSource(
+      bytecode_iterator().GetSlotOperand(kCompareOperationHintIndex).ToInt());
+  BuildCompareOp(javascript()->LessThanOrEqual(feedback));
 }
 
 void BytecodeGraphBuilder::VisitTestGreaterThanOrEqual() {
-  BuildCompareOp(javascript()->GreaterThanOrEqual(GetCompareOperationHint()));
+  FeedbackSource feedback = CreateFeedbackSource(
+      bytecode_iterator().GetSlotOperand(kCompareOperationHintIndex).ToInt());
+  BuildCompareOp(javascript()->GreaterThanOrEqual(feedback));
 }
 
 void BytecodeGraphBuilder::VisitTestReferenceEqual() {

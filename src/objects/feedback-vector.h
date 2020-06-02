@@ -264,6 +264,9 @@ class FeedbackVector : public HeapObject {
       Isolate* isolate, Handle<SharedFunctionInfo> shared,
       Handle<ClosureFeedbackCellArray> closure_feedback_cell_array);
 
+  V8_EXPORT_PRIVATE static Handle<FeedbackVector>
+  NewWithOneCompareSlotForTesting(Zone* zone, Isolate* isolate);
+
 #define DEFINE_SLOT_KIND_PREDICATE(Name) \
   bool Name(FeedbackSlot slot) const { return Name##Kind(GetKind(slot)); }
 

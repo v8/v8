@@ -85,6 +85,28 @@ Reduction JSHeapCopyReducer::Reduce(Node* node) {
       }
       break;
     }
+    case IrOpcode::kJSBitwiseNot:
+    case IrOpcode::kJSDecrement:
+    case IrOpcode::kJSIncrement:
+    case IrOpcode::kJSNegate: {
+      FeedbackParameter const& p = FeedbackParameterOf(node->op());
+      if (p.feedback().IsValid()) {
+        broker()->ProcessFeedbackForBinaryOperation(p.feedback());
+      }
+      break;
+    }
+    case IrOpcode::kJSEqual:
+    case IrOpcode::kJSGreaterThan:
+    case IrOpcode::kJSGreaterThanOrEqual:
+    case IrOpcode::kJSLessThan:
+    case IrOpcode::kJSLessThanOrEqual:
+    case IrOpcode::kJSStrictEqual: {
+      FeedbackParameter const& p = FeedbackParameterOf(node->op());
+      if (p.feedback().IsValid()) {
+        broker()->ProcessFeedbackForCompareOperation(p.feedback());
+      }
+      break;
+    }
     case IrOpcode::kJSCreateFunctionContext: {
       CreateFunctionContextParameters const& p =
           CreateFunctionContextParametersOf(node->op());

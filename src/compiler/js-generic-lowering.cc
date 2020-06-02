@@ -73,12 +73,7 @@ REPLACE_STUB_CALL(BitwiseXor)
 REPLACE_STUB_CALL(ShiftLeft)
 REPLACE_STUB_CALL(ShiftRight)
 REPLACE_STUB_CALL(ShiftRightLogical)
-REPLACE_STUB_CALL(LessThan)
-REPLACE_STUB_CALL(LessThanOrEqual)
-REPLACE_STUB_CALL(GreaterThan)
-REPLACE_STUB_CALL(GreaterThanOrEqual)
 REPLACE_STUB_CALL(HasProperty)
-REPLACE_STUB_CALL(Equal)
 REPLACE_STUB_CALL(ToLength)
 REPLACE_STUB_CALL(ToNumber)
 REPLACE_STUB_CALL(ToNumberConvertBigInt)
@@ -136,18 +131,13 @@ void JSGenericLowering::ReplaceWithRuntimeCall(Node* node,
   NodeProperties::ChangeOp(node, common()->Call(call_descriptor));
 }
 
-void JSGenericLowering::LowerJSStrictEqual(Node* node) {
-  // The === operator doesn't need the current context.
-  NodeProperties::ReplaceContextInput(node, jsgraph()->NoContextConstant());
-  Callable callable = Builtins::CallableFor(isolate(), Builtins::kStrictEqual);
-  node->RemoveInput(4);  // control
-  ReplaceWithStubCall(node, callable, CallDescriptor::kNoFlags,
-                      Operator::kEliminatable);
-}
-
 void JSGenericLowering::ReplaceUnaryOpWithBuiltinCall(
     Node* node, Builtins::Name builtin_without_feedback,
     Builtins::Name builtin_with_feedback) {
+  DCHECK(node->opcode() == IrOpcode::kJSBitwiseNot ||
+         node->opcode() == IrOpcode::kJSDecrement ||
+         node->opcode() == IrOpcode::kJSIncrement ||
+         node->opcode() == IrOpcode::kJSNegate);
   const FeedbackParameter& p = FeedbackParameterOf(node->op());
   CallDescriptor::Flags flags = FrameStateFlagForCall(node);
   if (CollectFeedbackInGenericLowering() && p.feedback().IsValid()) {
@@ -180,6 +170,65 @@ DEF_UNARY_LOWERING(Decrement)
 DEF_UNARY_LOWERING(Increment)
 DEF_UNARY_LOWERING(Negate)
 #undef DEF_UNARY_LOWERING
+
+void JSGenericLowering::ReplaceCompareOpWithBuiltinCall(
+    Node* node, Builtins::Name builtin_without_feedback,
+    Builtins::Name builtin_with_feedback) {
+  DCHECK(node->opcode() == IrOpcode::kJSEqual ||
+         node->opcode() == IrOpcode::kJSGreaterThan ||
+         node->opcode() == IrOpcode::kJSGreaterThanOrEqual ||
+         node->opcode() == IrOpcode::kJSLessThan ||
+         node->opcode() == IrOpcode::kJSLessThanOrEqual);
+  Builtins::Name builtin_id;
+  const FeedbackParameter& p = FeedbackParameterOf(node->op());
+  if (CollectFeedbackInGenericLowering() && p.feedback().IsValid()) {
+    Node* feedback_vector = jsgraph()->HeapConstant(p.feedback().vector);
+    Node* slot = jsgraph()->UintPtrConstant(p.feedback().slot.ToInt());
+    node->InsertInput(zone(), 2, slot);
+    node->InsertInput(zone(), 3, feedback_vector);
+    builtin_id = builtin_with_feedback;
+  } else {
+    builtin_id = builtin_without_feedback;
+  }
+
+  CallDescriptor::Flags flags = FrameStateFlagForCall(node);
+  Callable callable = Builtins::CallableFor(isolate(), builtin_id);
+  ReplaceWithStubCall(node, callable, flags);
+}
+
+#define DEF_COMPARE_LOWERING(Name)                                     \
+  void JSGenericLowering::LowerJS##Name(Node* node) {                  \
+    ReplaceCompareOpWithBuiltinCall(node, Builtins::k##Name,           \
+                                    Builtins::k##Name##_WithFeedback); \
+  }
+DEF_COMPARE_LOWERING(Equal)
+DEF_COMPARE_LOWERING(GreaterThan)
+DEF_COMPARE_LOWERING(GreaterThanOrEqual)
+DEF_COMPARE_LOWERING(LessThan)
+DEF_COMPARE_LOWERING(LessThanOrEqual)
+#undef DEF_COMPARE_LOWERING
+
+void JSGenericLowering::LowerJSStrictEqual(Node* node) {
+  // The === operator doesn't need the current context.
+  NodeProperties::ReplaceContextInput(node, jsgraph()->NoContextConstant());
+  node->RemoveInput(4);  // control
+
+  Builtins::Name builtin_id;
+  const FeedbackParameter& p = FeedbackParameterOf(node->op());
+  if (CollectFeedbackInGenericLowering() && p.feedback().IsValid()) {
+    Node* feedback_vector = jsgraph()->HeapConstant(p.feedback().vector);
+    Node* slot = jsgraph()->UintPtrConstant(p.feedback().slot.ToInt());
+    node->InsertInput(zone(), 2, slot);
+    node->InsertInput(zone(), 3, feedback_vector);
+    builtin_id = Builtins::kStrictEqual_WithFeedback;
+  } else {
+    builtin_id = Builtins::kStrictEqual;
+  }
+
+  Callable callable = Builtins::CallableFor(isolate(), builtin_id);
+  ReplaceWithStubCall(node, callable, CallDescriptor::kNoFlags,
+                      Operator::kEliminatable);
+}
 
 namespace {
 bool ShouldUseMegamorphicLoadBuiltin(FeedbackSource const& source,

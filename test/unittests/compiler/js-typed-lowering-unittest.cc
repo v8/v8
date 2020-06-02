@@ -164,6 +164,16 @@ TEST_F(JSTypedLoweringTest, JSToStringWithBoolean) {
 // -----------------------------------------------------------------------------
 // JSStrictEqual
 
+namespace {
+
+FeedbackSource FeedbackSourceWithOneCompareSlot(JSTypedLoweringTest* R) {
+  return FeedbackSource{
+      FeedbackVector::NewWithOneCompareSlotForTesting(R->zone(), R->isolate()),
+      FeedbackSlot{0}};
+}
+
+}  // namespace
+
 TEST_F(JSTypedLoweringTest, JSStrictEqualWithTheHole) {
   Node* const the_hole = HeapConstant(factory()->the_hole_value());
   Node* const context = UndefinedConstant();
@@ -171,9 +181,9 @@ TEST_F(JSTypedLoweringTest, JSStrictEqualWithTheHole) {
   Node* const control = graph()->start();
   TRACED_FOREACH(Type, type, kJSTypes) {
     Node* const lhs = Parameter(type);
-    Reduction r = Reduce(
-        graph()->NewNode(javascript()->StrictEqual(CompareOperationHint::kAny),
-                         lhs, the_hole, context, effect, control));
+    Reduction r = Reduce(graph()->NewNode(
+        javascript()->StrictEqual(FeedbackSourceWithOneCompareSlot(this)), lhs,
+        the_hole, context, effect, control));
     ASSERT_FALSE(r.Changed());
   }
 }
@@ -185,9 +195,9 @@ TEST_F(JSTypedLoweringTest, JSStrictEqualWithUnique) {
   Node* const context = Parameter(Type::Any(), 2);
   Node* const effect = graph()->start();
   Node* const control = graph()->start();
-  Reduction r = Reduce(
-      graph()->NewNode(javascript()->StrictEqual(CompareOperationHint::kAny),
-                       lhs, rhs, context, effect, control));
+  Reduction r = Reduce(graph()->NewNode(
+      javascript()->StrictEqual(FeedbackSourceWithOneCompareSlot(this)), lhs,
+      rhs, context, effect, control));
   ASSERT_TRUE(r.Changed());
   EXPECT_THAT(r.replacement(), IsReferenceEqual(lhs, rhs));
 }

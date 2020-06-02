@@ -762,8 +762,6 @@ ForInMode ForInModeOf(Operator const* op) V8_WARN_UNUSED_RESULT;
 
 BinaryOperationHint BinaryOperationHintOf(const Operator* op);
 
-CompareOperationHint CompareOperationHintOf(const Operator* op);
-
 int RegisterCountOf(Operator const* op) V8_WARN_UNUSED_RESULT;
 
 int GeneratorStoreValueCountOf(const Operator* op) V8_WARN_UNUSED_RESULT;
@@ -779,12 +777,12 @@ class V8_EXPORT_PRIVATE JSOperatorBuilder final
  public:
   explicit JSOperatorBuilder(Zone* zone);
 
-  const Operator* Equal(CompareOperationHint hint);
-  const Operator* StrictEqual(CompareOperationHint hint);
-  const Operator* LessThan(CompareOperationHint hint);
-  const Operator* GreaterThan(CompareOperationHint hint);
-  const Operator* LessThanOrEqual(CompareOperationHint hint);
-  const Operator* GreaterThanOrEqual(CompareOperationHint hint);
+  const Operator* Equal(FeedbackSource const& feedback);
+  const Operator* StrictEqual(FeedbackSource const& feedback);
+  const Operator* LessThan(FeedbackSource const& feedback);
+  const Operator* GreaterThan(FeedbackSource const& feedback);
+  const Operator* LessThanOrEqual(FeedbackSource const& feedback);
+  const Operator* GreaterThanOrEqual(FeedbackSource const& feedback);
 
   const Operator* BitwiseOr();
   const Operator* BitwiseXor();

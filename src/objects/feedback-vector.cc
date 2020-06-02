@@ -327,6 +327,25 @@ Handle<FeedbackVector> FeedbackVector::New(
 }
 
 // static
+Handle<FeedbackVector> FeedbackVector::NewWithOneCompareSlotForTesting(
+    Zone* zone, Isolate* isolate) {
+  FeedbackVectorSpec one_slot(zone);
+  one_slot.AddCompareICSlot();
+
+  Handle<FeedbackMetadata> metadata = FeedbackMetadata::New(isolate, &one_slot);
+  Handle<SharedFunctionInfo> shared =
+      isolate->factory()->NewSharedFunctionInfoForBuiltin(
+          isolate->factory()->empty_string(), Builtins::kIllegal);
+  // Set the raw feedback metadata to circumvent checks that we are not
+  // overwriting existing metadata.
+  shared->set_raw_outer_scope_info_or_feedback_metadata(*metadata);
+  Handle<ClosureFeedbackCellArray> closure_feedback_cell_array =
+      ClosureFeedbackCellArray::New(isolate, shared);
+
+  return FeedbackVector::New(isolate, shared, closure_feedback_cell_array);
+}
+
+// static
 void FeedbackVector::AddToVectorsForProfilingTools(
     Isolate* isolate, Handle<FeedbackVector> vector) {
   DCHECK(!isolate->is_best_effort_code_coverage() ||

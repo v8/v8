@@ -324,7 +324,7 @@ void BinaryOp_WithFeedbackDescriptor::InitializePlatformSpecific(
     CallInterfaceDescriptorData* data) {
   Register registers[] = {rdx,   // kLeft
                           rax,   // kRight
-                          rdi,   // Slot
+                          rdi,   // kSlot
                           rbx};  // kMaybeFeedbackVector
   data->InitializePlatformSpecific(arraysize(registers), registers);
 }
@@ -342,7 +342,7 @@ void Compare_WithFeedbackDescriptor::InitializePlatformSpecific(
     CallInterfaceDescriptorData* data) {
   Register registers[] = {rdx,   // kLeft
                           rax,   // kRight
-                          rdi,   // Slot
+                          rdi,   // kSlot
                           rbx};  // kMaybeFeedbackVector
   data->InitializePlatformSpecific(arraysize(registers), registers);
 }

@@ -362,9 +362,20 @@ TEST_F(TyperTest, TypeJSShiftRight) {
   TestBinaryBitOp(javascript_.ShiftRight(), shift_right);
 }
 
+namespace {
+
+FeedbackSource FeedbackSourceWithOneCompareSlot(TyperTest* R) {
+  return FeedbackSource{
+      FeedbackVector::NewWithOneCompareSlotForTesting(R->zone(), R->isolate()),
+      FeedbackSlot{0}};
+}
+
+}  // namespace
+
 TEST_F(TyperTest, TypeJSLessThan) {
-  TestBinaryCompareOp(javascript_.LessThan(CompareOperationHint::kAny),
-                      std::less<double>());
+  TestBinaryCompareOp(
+      javascript_.LessThan(FeedbackSourceWithOneCompareSlot(this)),
+      std::less<double>());
 }
 
 TEST_F(TyperTest, TypeNumberLessThan) {
@@ -378,8 +389,9 @@ TEST_F(TyperTest, TypeSpeculativeNumberLessThan) {
 }
 
 TEST_F(TyperTest, TypeJSLessThanOrEqual) {
-  TestBinaryCompareOp(javascript_.LessThanOrEqual(CompareOperationHint::kAny),
-                      std::less_equal<double>());
+  TestBinaryCompareOp(
+      javascript_.LessThanOrEqual(FeedbackSourceWithOneCompareSlot(this)),
+      std::less_equal<double>());
 }
 
 TEST_F(TyperTest, TypeNumberLessThanOrEqual) {
@@ -394,19 +406,20 @@ TEST_F(TyperTest, TypeSpeculativeNumberLessThanOrEqual) {
 }
 
 TEST_F(TyperTest, TypeJSGreaterThan) {
-  TestBinaryCompareOp(javascript_.GreaterThan(CompareOperationHint::kAny),
-                      std::greater<double>());
+  TestBinaryCompareOp(
+      javascript_.GreaterThan(FeedbackSourceWithOneCompareSlot(this)),
+      std::greater<double>());
 }
 
 
 TEST_F(TyperTest, TypeJSGreaterThanOrEqual) {
   TestBinaryCompareOp(
-      javascript_.GreaterThanOrEqual(CompareOperationHint::kAny),
+      javascript_.GreaterThanOrEqual(FeedbackSourceWithOneCompareSlot(this)),
       std::greater_equal<double>());
 }
 
 TEST_F(TyperTest, TypeJSEqual) {
-  TestBinaryCompareOp(javascript_.Equal(CompareOperationHint::kAny),
+  TestBinaryCompareOp(javascript_.Equal(FeedbackSourceWithOneCompareSlot(this)),
                       std::equal_to<double>());
 }
 
@@ -422,8 +435,9 @@ TEST_F(TyperTest, TypeSpeculativeNumberEqual) {
 
 // For numbers there's no difference between strict and non-strict equality.
 TEST_F(TyperTest, TypeJSStrictEqual) {
-  TestBinaryCompareOp(javascript_.StrictEqual(CompareOperationHint::kAny),
-                      std::equal_to<double>());
+  TestBinaryCompareOp(
+      javascript_.StrictEqual(FeedbackSourceWithOneCompareSlot(this)),
+      std::equal_to<double>());
 }
 
 //------------------------------------------------------------------------------
@@ -442,9 +456,10 @@ TEST_MONOTONICITY(ToString)
 #undef TEST_MONOTONICITY
 
 // JS BINOPs with CompareOperationHint
-#define TEST_MONOTONICITY(name)                                           \
-  TEST_F(TyperTest, Monotonicity_##name) {                                \
-    TestBinaryMonotonicity(javascript_.name(CompareOperationHint::kAny)); \
+#define TEST_MONOTONICITY(name)                                    \
+  TEST_F(TyperTest, Monotonicity_##name) {                         \
+    TestBinaryMonotonicity(                                        \
+        javascript_.name(FeedbackSourceWithOneCompareSlot(this))); \
   }
 TEST_MONOTONICITY(Equal)
 TEST_MONOTONICITY(StrictEqual)
