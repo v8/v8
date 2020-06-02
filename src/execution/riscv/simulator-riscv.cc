@@ -79,7 +79,7 @@ class RiscvDebugger {
   void PrintAllRegsIncludingFPU();
 
  private:
-  // FIXME (RISCV): SPECIAL and BRREAK are MIPS constants
+  // FIXME (RISCV): SPECIAL and BREAK are MIPS constants
   // We set the breakpoint code to 0xFFFFF to easily recognize it.
   static const Instr kBreakpointInstr = SPECIAL | BREAK | 0xFFFFF << 6;
   static const Instr kNopInstr = 0x0;
@@ -1103,13 +1103,9 @@ bool Simulator::has_bad_pc() const {
 // Raw access to the PC register without the special adjustment when reading.
 int64_t Simulator::get_pc() const { return registers_[pc]; }
 
-// The MIPS cannot do unaligned reads and writes.  On some MIPS platforms an
-// interrupt is caused.  On others it does a funky rotation thing.  For now we
-// simply disallow unaligned reads, but at some point we may want to move to
-// emulating the rotate behaviour.  Note that simulator runs have the runtime
-// system running directly on the host system and only generated code is
-// executed in the simulator.  Since the host is typically IA32 we will not
-// get the correct MIPS-like behaviour on unaligned accesses.
+// The RISC-V spec leaves it open to the implementation on how to handle
+// unaligned reads and writes. For now, we simply disallow unaligned reads but
+// at some point, we may want to implement some other behavior.
 
 // TODO(plind): refactor this messy debug code when we do unaligned access.
 void Simulator::DieOrDebug() {
@@ -1400,10 +1396,6 @@ void Simulator::SoftwareInterrupt() {
     intptr_t external =
         reinterpret_cast<intptr_t>(redirection->external_function());
 
-    // Based on CpuFeatures::IsSupported(FPU), Mips will use either hardware
-    // FPU, or gcc soft-float routines. Hardware FPU is simulated in this
-    // simulator. Soft-float has additional abstraction of ExternalReference,
-    // to support serialization.
     if (fp_call) {
       double dval0, dval1;  // one or two double parameters
       int32_t ival;         // zero or one integer parameters

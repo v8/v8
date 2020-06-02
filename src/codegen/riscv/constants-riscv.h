@@ -68,11 +68,11 @@ const uint32_t kLessSignificantWordInDoublewordOffset = 4;
 #include <inttypes.h>
 
 // Defines constants and accessor classes to assemble, disassemble and
-// simulate MIPS32 instructions.
+// simulate RISC-V instructions.
 //
-// See: MIPS32 Architecture For Programmers
-//      Volume II: The MIPS32 Instruction Set
-// Try www.cs.cornell.edu/courses/cs3410/2008fa/MIPS_Vol2.pdf.
+// See: The RISC-V Instruction Set Manual
+//      Volume I: User-Level ISA
+// Try https://content.riscv.org/wp-content/uploads/2017/05/riscv-spec-v2.2.pdf.
 
 namespace v8 {
 namespace internal {
@@ -159,14 +159,14 @@ class FPURegisters {
 // On RISCV all instructions are 32 bits.
 using Instr = int32_t;
 
-// Special Software Interrupt codes when used in the presence of the MIPS
+// Special Software Interrupt codes when used in the presence of the RISC-V
 // simulator.
 enum SoftwareInterruptCodes {
   // Transition to C code.
   call_rt_redirected = 0xfffff
 };
 
-// On MIPS Simulator breakpoints can have different codes:
+// On RISC-V Simulator breakpoints can have different codes:
 // - Breaks between 0 and kMaxWatchpointCode are treated as simple watchpoints,
 //   the simulator will run through them and print the registers.
 // - Breaks between kMaxWatchpointCode and kMaxStopCode are treated as stop()
@@ -489,7 +489,7 @@ enum SecondaryField : uint32_t {
 };
 
 // ----- Emulated conditions.
-// On MIPS we use this enum to abstract from conditional branch instructions.
+// On RISC-V we use this enum to abstract from conditional branch instructions.
 // The 'U' prefix is used to specify unsigned comparisons.
 // Opposite conditions must be paired as odd/even numbers
 // because 'NegateCondition' function flips LSB to negate condition.
@@ -636,8 +636,8 @@ enum FClassFlag {
 // -----------------------------------------------------------------------------
 // Hints.
 
-// Branch hints are not used on the MIPS.  They are defined so that they can
-// appear in shared function signatures, but will be ignored in MIPS
+// Branch hints are not used on RISC-V.  They are defined so that they can
+// appear in shared function signatures, but will be ignored in RISC-V
 // implementations.
 enum Hint { no_hint = 0 };
 
@@ -645,7 +645,7 @@ inline Hint NegateHint(Hint hint) { return no_hint; }
 
 // -----------------------------------------------------------------------------
 // Specific instructions, constants, and masks.
-// These constants are declared in assembler-mips.cc, as they use named
+// These constants are declared in assembler-riscv.cc, as they use named
 // registers and other constants.
 
 // An ECALL instruction, used for redirected real time call
@@ -657,7 +657,7 @@ constexpr uint8_t kInstrSizeLog2 = 2;
 class InstructionBase {
  public:
   enum {
-    // On MIPS PC cannot actually be directly accessed. We behave as if PC was
+    // On RISC-V, PC cannot actually be directly accessed. We behave as if PC was
     // always the value of the current instruction being executed.
     kPCReadOffset = 0
   };
@@ -917,7 +917,7 @@ class Instruction : public InstructionGetters<InstructionBase> {
 };
 
 // -----------------------------------------------------------------------------
-// MIPS assembly various constants.
+// RISC-V assembly various constants.
 
 // C/C++ argument slots size.
 const int kCArgSlotCount = 0;

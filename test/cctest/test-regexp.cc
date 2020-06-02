@@ -616,8 +616,7 @@ using ArchRegExpMacroAssembler = RegExpMacroAssemblerMIPS;
 #elif V8_TARGET_ARCH_X87
 using ArchRegExpMacroAssembler = RegExpMacroAssemblerX87;
 #elif V8_TARGET_ARCH_RISCV
-//FIXME: RISCV porting switch to RISCV macro assembler
-using ArchRegExpMacroAssembler = RegExpMacroAssemblerMIPS;
+using ArchRegExpMacroAssembler = RegExpMacroAssemblerRISCV;
 #endif
 
 class ContextInitializer {

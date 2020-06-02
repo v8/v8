@@ -21,15 +21,16 @@ enum class AbortReason : uint8_t;
 
 // Reserved Register Usage Summary.
 //
-// Registers t8, t9, and at are reserved for use by the MacroAssembler.
+// Registers t5, t6, and t3 are reserved for use by the MacroAssembler.
 //
 // The programmer should know that the MacroAssembler may clobber these three,
 // but won't touch other registers except in special cases.
 //
-// Per the MIPS ABI, register t9 must be used for indirect function call
-// via 'jalr t9' or 'jr t9' instructions. This is relied upon by gcc when
+// FIXME(RISCV): Cannot find info about this ABI. We chose t6 for now.
+// Per the RISC-V ABI, register t6 must be used for indirect function call
+// via 'jalr t6' or 'jr t6' instructions. This is relied upon by gcc when
 // trying to update gp register for position-independent-code. Whenever
-// MIPS generated code calls C code, it must be via t9 register.
+// RISC-V generated code calls C code, it must be via t6 register.
 
 // Flags used for LeaveExitFrame function.
 enum LeaveExitFrameMode { EMIT_RETURN = true, NO_EMIT_RETURN = false };
@@ -94,7 +95,7 @@ class V8_EXPORT_PRIVATE TurboAssembler : public TurboAssemblerBase {
   // Activation support.
   void EnterFrame(StackFrame::Type type);
   void EnterFrame(StackFrame::Type type, bool load_constant_pool_pointer_reg) {
-    // Out-of-line constant pool not implemented on mips.
+    // Out-of-line constant pool not implemented on RISC-V.
     UNREACHABLE();
   }
   void LeaveFrame(StackFrame::Type type);
@@ -215,15 +216,15 @@ class V8_EXPORT_PRIVATE TurboAssembler : public TurboAssemblerBase {
 
   void LoadCodeObjectEntry(Register destination,
                            Register code_object) override {
-    // TODO(mips): Implement.
+    // TODO(RISCV): Implement.
     UNIMPLEMENTED();
   }
   void CallCodeObject(Register code_object) override {
-    // TODO(mips): Implement.
+    // TODO(RISCV): Implement.
     UNIMPLEMENTED();
   }
   void JumpCodeObject(Register code_object) override {
-    // TODO(mips): Implement.
+    // TODO(RISCV): Implement.
     UNIMPLEMENTED();
   }
 
@@ -426,7 +427,6 @@ class V8_EXPORT_PRIVATE TurboAssembler : public TurboAssemblerBase {
 
   DEFINE_INSTRUCTION(Selnez)
   DEFINE_INSTRUCTION(Seleqz)
-  // MIPS32 R2 instruction macro.
   DEFINE_INSTRUCTION(Ror)
   DEFINE_INSTRUCTION(Dror)
 
@@ -459,10 +459,9 @@ class V8_EXPORT_PRIVATE TurboAssembler : public TurboAssemblerBase {
 
   int CalculateStackPassedDWords(int num_gp_arguments, int num_fp_arguments);
 
-  // Before calling a C-function from generated code, align arguments on stack
-  // and add space for the four mips argument slots.
+  // Before calling a C-function from generated code, align arguments on stack.
   // After aligning the frame, non-register arguments must be stored on the
-  // stack, after the argument-slots using helper: CFunctionArgumentOperand().
+  // stack, using helper: CFunctionArgumentOperand().
   // The argument count assumes all arguments are word sized.
   // Some compilers/platforms require the stack to be aligned when calling
   // C++ code.
@@ -472,9 +471,8 @@ class V8_EXPORT_PRIVATE TurboAssembler : public TurboAssemblerBase {
                             Register scratch);
   void PrepareCallCFunction(int num_reg_arguments, Register scratch);
 
-  // Arguments 1-4 are placed in registers a0 through a3 respectively.
-  // Arguments 5..n are stored to stack using following:
-  //  Sw(a4, CFunctionArgumentOperand(5));
+  // Arguments 1-8 are placed in registers a0 through a7 respectively.
+  // Arguments 9..n are stored to stack
 
   // Calls a C function and cleans up the space for arguments allocated
   // by PrepareCallCFunction. The called function is not allowed to trigger a
@@ -490,10 +488,8 @@ class V8_EXPORT_PRIVATE TurboAssembler : public TurboAssemblerBase {
   void MovFromFloatResult(DoubleRegister dst);
   void MovFromFloatParameter(DoubleRegister dst);
 
-  // There are two ways of passing double arguments on MIPS, depending on
-  // whether soft or hard floating point ABI is used. These functions
-  // abstract parameter passing for the three different ways we call
-  // C functions from generated code.
+  // These functions abstract parameter passing for the three different ways
+  // we call C functions from generated code.
   void MovToFloatParameter(DoubleRegister src);
   void MovToFloatParameters(DoubleRegister src1, DoubleRegister src2);
   void MovToFloatResult(DoubleRegister src);
@@ -530,7 +526,6 @@ class V8_EXPORT_PRIVATE TurboAssembler : public TurboAssemblerBase {
   void Popcnt(Register rd, Register rs);
   void Dpopcnt(Register rd, Register rs);
 
-  // MIPS64 R2 instruction macro.
   void Ext(Register rt, Register rs, uint16_t pos, uint16_t size);
   void Dext(Register rt, Register rs, uint16_t pos, uint16_t size);
   void Ins(Register rt, Register rs, uint16_t pos, uint16_t size);
@@ -540,8 +535,6 @@ class V8_EXPORT_PRIVATE TurboAssembler : public TurboAssemblerBase {
   void InsertBits(Register dest, Register source, Register pos, int size);
   void Neg_s(FPURegister fd, FPURegister fs);
   void Neg_d(FPURegister fd, FPURegister fs);
-
-  // MIPS64 R6 instruction macros.
 
   // Change endianness
   void ByteSwap(Register dest, Register src, int operand_size);
@@ -615,14 +608,6 @@ class V8_EXPORT_PRIVATE TurboAssembler : public TurboAssemblerBase {
   void Lld(Register rd, const MemOperand& rs);
   void Scd(Register rd, const MemOperand& rs);
 
-  // Perform a floating-point min or max operation with the
-  // (IEEE-754-compatible) semantics of MIPS32's Release 6 MIN.fmt/MAX.fmt.
-  // Some cases, typically NaNs or +/-0.0, are expected to be rare and are
-  // handled in out-of-line code. The specific behaviour depends on supported
-  // instructions.
-  //
-  // These functions assume (and assert) that src1!=src2. It is permitted
-  // for the result to alias either input register.
   void Float32Max(FPURegister dst, FPURegister src1, FPURegister src2);
   void Float32Min(FPURegister dst, FPURegister src1, FPURegister src2);
   void Float64Max(FPURegister dst, FPURegister src1, FPURegister src2);
@@ -833,7 +818,7 @@ class V8_EXPORT_PRIVATE TurboAssembler : public TurboAssemblerBase {
   void CallCFunctionHelper(Register function, int num_reg_arguments,
                            int num_double_arguments);
 
-  // TODO(mips) Reorder parameters so out parameters come last.
+  // TODO(RISCV) Reorder parameters so out parameters come last.
   bool CalculateOffset(Label* L, int32_t* offset, OffsetSize bits);
   bool CalculateOffset(Label* L, int32_t* offset, OffsetSize bits,
                        Register* scratch, const Operand& rt);

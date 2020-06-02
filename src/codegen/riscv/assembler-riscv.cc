@@ -57,13 +57,6 @@ static unsigned CpuFeaturesImpliedByCompiler() {
   answer |= 1u << FPU;
 #endif  // def CAN_USE_FPU_INSTRUCTIONS
 
-  // If the compiler is allowed to use FPU then we can use FPU too in our code
-  // generation even when generating snapshots.  This won't work for cross
-  // compilation.
-#if defined(__mips__) && defined(__mips_hard_float) && __mips_hard_float != 0
-  answer |= 1u << FPU;
-#endif
-
   return answer;
 }
 
@@ -73,26 +66,9 @@ void CpuFeatures::ProbeImpl(bool cross_compile) {
   // Only use statically determined features for cross compile (snapshot).
   if (cross_compile) return;
 
-    // If the compiler is allowed to use fpu then we can use fpu too in our
-    // code generation.
-#ifndef __mips__
-  // For the simulator build, use FPU.
-  supported_ |= 1u << FPU;
-#if defined(_MIPS_ARCH_MIPS64R6) && defined(_MIPS_MSA)
-  supported_ |= 1u << MIPS_SIMD;
-#endif
-#else
   // Probe for additional features at runtime.
   base::CPU cpu;
   if (cpu.has_fpu()) supported_ |= 1u << FPU;
-#if defined(_MIPS_ARCH_MIPS64R6)
-#if defined(_MIPS_MSA)
-  supported_ |= 1u << MIPS_SIMD;
-#else
-  if (cpu.has_msa()) supported_ |= 1u << MIPS_SIMD;
-#endif
-#endif
-#endif
 }
 
 void CpuFeatures::PrintTarget() {}
@@ -154,7 +130,7 @@ const int RelocInfo::kApplyMask =
 
 bool RelocInfo::IsCodedSpecially() {
   // The deserializer needs to know whether a pointer is specially coded.  Being
-  // specially coded on MIPS means that it is a lui/ori instruction, and that is
+  // specially coded on RISC-V means that it is a lui/addi instruction, and that is
   // always the case inside code objects.
   return true;
 }
@@ -169,7 +145,7 @@ uint32_t RelocInfo::wasm_call_tag() const {
 
 // -----------------------------------------------------------------------------
 // Implementation of Operand and MemOperand.
-// See assembler-mips-inl.h for inlined constructors.
+// See assembler-riscv-inl.h for inlined constructors.
 
 Operand::Operand(Handle<HeapObject> handle)
     : rm_(no_reg), rmode_(RelocInfo::FULL_EMBEDDED_OBJECT) {
@@ -566,7 +542,7 @@ int Assembler::RV_JumpOffset(Instr instr) {
 }
 
 // We have to use a temporary register for things that can be relocated even
-// if they can be encoded in the MIPS's 16 bits of immediate-offset instruction
+// if they can be encoded in RISC-V's 12 bits of immediate-offset instruction
 // space.  There is no guarantee that the relocated location can be similarly
 // encoded.
 bool Assembler::MustUseReg(RelocInfo::Mode rmode) {

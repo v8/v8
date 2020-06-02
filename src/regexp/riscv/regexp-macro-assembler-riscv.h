@@ -12,12 +12,12 @@
 namespace v8 {
 namespace internal {
 
-class V8_EXPORT_PRIVATE RegExpMacroAssemblerMIPS
+class V8_EXPORT_PRIVATE RegExpMacroAssemblerRISCV
     : public NativeRegExpMacroAssembler {
  public:
-  RegExpMacroAssemblerMIPS(Isolate* isolate, Zone* zone, Mode mode,
+  RegExpMacroAssemblerRISCV(Isolate* isolate, Zone* zone, Mode mode,
                            int registers_to_save);
-  virtual ~RegExpMacroAssemblerMIPS();
+  virtual ~RegExpMacroAssemblerRISCV();
   virtual int stack_limit_slack();
   virtual void AdvanceCurrentPosition(int by);
   virtual void AdvanceRegister(int reg, int by);

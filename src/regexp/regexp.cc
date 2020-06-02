@@ -849,8 +849,7 @@ bool RegExpImpl::Compile(Isolate* isolate, Zone* zone, RegExpCompileData* data,
     macro_assembler.reset(new RegExpMacroAssemblerMIPS(
         isolate, zone, mode, (data->capture_count + 1) * 2));
 #elif V8_TARGET_ARCH_RISCV
-    //FIXME: RISCV porting use RISCV Macro assembler
-    macro_assembler.reset(new RegExpMacroAssemblerMIPS(
+    macro_assembler.reset(new RegExpMacroAssemblerRISCV(
         isolate, zone, mode, (data->capture_count + 1) * 2));
 #else
 #error "Unsupported architecture"

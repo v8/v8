@@ -3043,7 +3043,7 @@ void TurboAssembler::Jump(const ExternalReference& reference) {
   Jump(t6);
 }
 
-// Note: To call gcc-compiled C code on mips, you must call through t6.
+// Note: To call gcc-compiled C code on riscv, you must call through t6.
 void TurboAssembler::Call(Register target, Condition cond, Register rs,
                           const Operand& rt) {
   BlockTrampolinePoolScope block_trampoline_pool(this);
@@ -3991,8 +3991,8 @@ int TurboAssembler::ActivationFrameAlignment() {
 #if V8_HOST_ARCH_RISCV
   // Running on the real platform. Use the alignment as mandated by the local
   // environment.
-  // Note: This will break if we ever start generating snapshots on one Mips
-  // platform for another Mips platform with a different alignment.
+  // Note: This will break if we ever start generating snapshots on one RISC-V
+  // platform for another RISC-V platform with a different alignment.
   return base::OS::ActivationFrameAlignment();
 #else   // V8_HOST_ARCH_RISCV
   // If we are using the simulator then we should always align to the expected
@@ -4302,7 +4302,9 @@ void TurboAssembler::CallCFunctionHelper(Register function,
   // running in the simulator. The simulator has its own alignment check which
   // provides more information.
   // The argument stots are presumed to have been set up by
-  // PrepareCallCFunction. The C function must be called via t6, for mips ABI.
+  // PrepareCallCFunction.
+  // FIXME(RISC-V): The MIPS ABI requires a C function must be called via t9,
+  //                does RISC-V have a similar requirement? We currently use t6
 
 #if V8_HOST_ARCH_RISCV
   if (emit_debug_code()) {

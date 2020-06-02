@@ -1250,7 +1250,7 @@ void LiftoffAssembler::CallC(wasm::FunctionSig* sig,
   DCHECK_LE(arg_bytes, stack_bytes);
 
   // Pass a pointer to the buffer with the arguments to the C function.
-  // On mips, the first argument is passed in {a0}.
+  // On RISC-V, the first argument is passed in {a0}.
   constexpr Register kFirstArgReg = a0;
   mov(kFirstArgReg, sp);
 

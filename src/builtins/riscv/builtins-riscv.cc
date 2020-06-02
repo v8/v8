@@ -545,9 +545,6 @@ void Generate_JSEntryVariant(MacroAssembler* masm, StackFrame::Type type,
     //  or
     //   a0: root register value
     //   a1: microtask_queue
-    //
-    // Stack:
-    // 0 arg slots on mips64 (4 args slots on mips)
 
     // Save callee saved registers on the stack.
     __ MultiPush(kCalleeSaved | ra.bit());
@@ -2653,8 +2650,7 @@ void Builtins::Generate_DoubleToI(MacroAssembler* masm) {
   result_reg = no_reg;
   __ And(sign, input_high, Operand(HeapNumber::kSignMask));
 
-  // On ARM shifts > 31 bits are valid and will result in zero. On MIPS we need
-  // to check for this specific case.
+  // We must specially handle shifts greater than 31.
   Label high_shift_needed, high_shift_done;
   __ Branch(&high_shift_needed, lt, scratch, Operand(32));
   __ Move(input_high, zero_reg);

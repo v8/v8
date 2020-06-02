@@ -660,8 +660,6 @@ config("toolchain") {
     defines += [ "__riscv_xlen=64" ]
     #FIXME: Temporarily use MIPS macro for the building.
     defines += [
-        "__mips__",
-        "__mips_hard_float=1",
         "CAN_USE_FPU_INSTRUCTIONS",
       ]
   }
@@ -3381,7 +3379,7 @@ v8_source_set("v8_base_without_compiler") {
       "src/regexp/riscv/regexp-macro-assembler-riscv.h",
       "src/wasm/baseline/riscv/liftoff-assembler-riscv.h",
     ]
-  } 
+  }
 
   configs = [ ":internal_config" ]
 
@@ -3469,9 +3467,9 @@ v8_source_set("v8_base_without_compiler") {
   if (v8_current_cpu == "mips" || v8_current_cpu == "mipsel" ||
       v8_current_cpu == "mips64" || v8_current_cpu == "mips64el" ||
       v8_current_cpu == "ppc" || v8_current_cpu == "ppc64" ||
-      v8_current_cpu == "s390" || v8_current_cpu == "s390x" || 
+      v8_current_cpu == "s390" || v8_current_cpu == "s390x" ||
       v8_current_cpu == "riscv64" || v8_current_cpu == "riscv32") {
-      #FIXME: RISCV porting: RISCV may provide CAS instruction  
+      #FIXME: RISCV porting: RISCV may provide CAS instruction
     libs += [ "atomic" ]
   }
 

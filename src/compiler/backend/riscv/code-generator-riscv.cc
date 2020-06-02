@@ -27,13 +27,13 @@ namespace compiler {
          __LINE__)
 
 #define TRACE_UNIMPL()                                                       \
-  PrintF("UNIMPLEMENTED code_generator_mips: %s at line %d\n", __FUNCTION__, \
+  PrintF("UNIMPLEMENTED code_generator_riscv: %s at line %d\n", __FUNCTION__, \
          __LINE__)
 
-// Adds Mips-specific methods to convert InstructionOperands.
-class MipsOperandConverter final : public InstructionOperandConverter {
+// Adds RISC-V-specific methods to convert InstructionOperands.
+class RiscvOperandConverter final : public InstructionOperandConverter {
  public:
-  MipsOperandConverter(CodeGenerator* gen, Instruction* instr)
+  RiscvOperandConverter(CodeGenerator* gen, Instruction* instr)
       : InstructionOperandConverter(gen, instr) {}
 
   FloatRegister OutputSingleRegister(size_t index = 0) {
@@ -45,7 +45,7 @@ class MipsOperandConverter final : public InstructionOperandConverter {
   }
 
   FloatRegister ToSingleRegister(InstructionOperand* op) {
-    // Single (Float) and Double register namespace is same on MIPS,
+    // Single (Float) and Double register namespace is same on RISC-V,
     // both are typedefs of FPURegister.
     return ToDoubleRegister(op);
   }
@@ -91,7 +91,7 @@ class MipsOperandConverter final : public InstructionOperandConverter {
         return Operand::EmbeddedStringConstant(
             constant.ToDelayedStringConstant());
       case Constant::kRpoNumber:
-        UNREACHABLE();  // TODO(titzer): RPO immediates on mips?
+        UNREACHABLE();  // TODO(titzer): RPO immediates
         break;
     }
     UNREACHABLE();
@@ -291,7 +291,7 @@ FPUCondition FlagsConditionToConditionCmpFPU(bool* predicate,
 
 void EmitWordLoadPoisoningIfNeeded(CodeGenerator* codegen,
                                    InstructionCode opcode, Instruction* instr,
-                                   MipsOperandConverter const& i) {
+                                   RiscvOperandConverter const& i) {
   const MemoryAccessMode access_mode =
       static_cast<MemoryAccessMode>(MiscField::decode(opcode));
   if (access_mode == kMemoryAccessPoisoned) {
@@ -597,7 +597,7 @@ void CodeGenerator::AssembleRegisterArgumentPoisoning() {
 // Assembles an instruction after register allocation, producing machine code.
 CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
     Instruction* instr) {
-  MipsOperandConverter i(this, instr);
+  RiscvOperandConverter i(this, instr);
   InstructionCode opcode = instr->opcode();
   ArchOpcode arch_opcode = ArchOpcodeField::decode(opcode);
   switch (arch_opcode) {
@@ -1684,9 +1684,6 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       if (instr->InputAt(0)->IsFPRegister()) {
         if (instr->InputAt(0)->IsSimd128Register()) {
           UNREACHABLE();
-          // CpuFeatureScope msa_scope(tasm(), MIPS_SIMD);
-          // __ st_b(i.InputSimd128Register(0), MemOperand(sp,
-          // i.InputInt32(1)));
         } else {
           __ Sdc1(i.InputDoubleRegister(0), MemOperand(sp, i.InputInt32(1)));
         }
@@ -1868,12 +1865,12 @@ void AssembleBranchToLabels(CodeGenerator* gen, TurboAssembler* tasm,
                             Label* tlabel, Label* flabel, bool fallthru) {
 #undef __
 #define __ tasm->
-  MipsOperandConverter i(gen, instr);
+  RiscvOperandConverter i(gen, instr);
 
   Condition cc = kNoCondition;
-  // MIPS does not have condition code flags, so compare and branch are
+  // RISC-V does not have condition code flags, so compare and branch are
   // implemented differently than on the other arch's. The compare operations
-  // emit mips pseudo-instructions, which are handled here by branch
+  // emit riscv pseudo-instructions, which are handled here by branch
   // instructions that do the actual comparison. Essential that the input
   // registers to compare pseudo-op are not modified before this branch op, as
   // they are tested here.
@@ -1962,7 +1959,7 @@ void CodeGenerator::AssembleBranchPoisoning(FlagsCondition condition,
     return;
   }
 
-  MipsOperandConverter i(this, instr);
+  RiscvOperandConverter i(this, instr);
   condition = NegateFlagsCondition(condition);
 
   switch (instr->arch_opcode()) {
@@ -2071,7 +2068,7 @@ void CodeGenerator::AssembleArchTrap(Instruction* instr,
     OutOfLineTrap(CodeGenerator* gen, Instruction* instr)
         : OutOfLineCode(gen), instr_(instr), gen_(gen) {}
     void Generate() final {
-      MipsOperandConverter i(gen_, instr_);
+      RiscvOperandConverter i(gen_, instr_);
       TrapId trap_id =
           static_cast<TrapId>(i.InputInt32(instr_->InputCount() - 1));
       GenerateCallToTrap(trap_id);
@@ -2119,16 +2116,16 @@ void CodeGenerator::AssembleArchTrap(Instruction* instr,
 // Assembles boolean materializations after an instruction.
 void CodeGenerator::AssembleArchBoolean(Instruction* instr,
                                         FlagsCondition condition) {
-  MipsOperandConverter i(this, instr);
+  RiscvOperandConverter i(this, instr);
 
   // Materialize a full 32-bit 1 or 0 value. The result register is always the
   // last output of the instruction.
   DCHECK_NE(0u, instr->OutputCount());
   Register result = i.OutputRegister(instr->OutputCount() - 1);
   Condition cc = kNoCondition;
-  // MIPS does not have condition code flags, so compare and branch are
+  // RISC-V does not have condition code flags, so compare and branch are
   // implemented differently than on the other arch's. The compare operations
-  // emit mips pseudo-instructions, which are checked and handled here.
+  // emit riscv pseudo-instructions, which are checked and handled here.
 
   if (instr->arch_opcode() == kMips64Tst) {
     cc = FlagsConditionToConditionTst(condition);
@@ -2267,7 +2264,7 @@ void CodeGenerator::AssembleArchBoolean(Instruction* instr,
 }
 
 void CodeGenerator::AssembleArchBinarySearchSwitch(Instruction* instr) {
-  MipsOperandConverter i(this, instr);
+  RiscvOperandConverter i(this, instr);
   Register input = i.InputRegister(0);
   std::vector<std::pair<int32_t, Label*>> cases;
   for (size_t index = 2; index < instr->InputCount(); index += 2) {
@@ -2278,7 +2275,7 @@ void CodeGenerator::AssembleArchBinarySearchSwitch(Instruction* instr) {
 }
 
 void CodeGenerator::AssembleArchLookupSwitch(Instruction* instr) {
-  MipsOperandConverter i(this, instr);
+  RiscvOperandConverter i(this, instr);
   Register input = i.InputRegister(0);
   for (size_t index = 2; index < instr->InputCount(); index += 2) {
     __ li(kScratchReg, Operand(i.InputInt32(index + 0)));
@@ -2288,7 +2285,7 @@ void CodeGenerator::AssembleArchLookupSwitch(Instruction* instr) {
 }
 
 void CodeGenerator::AssembleArchTableSwitch(Instruction* instr) {
-  MipsOperandConverter i(this, instr);
+  RiscvOperandConverter i(this, instr);
   Register input = i.InputRegister(0);
   size_t const case_count = instr->InputCount() - 2;
 
@@ -2462,7 +2459,7 @@ void CodeGenerator::AssembleReturn(InstructionOperand* pop) {
     __ MultiPopFPU(saves_fpu);
   }
 
-  MipsOperandConverter g(this, nullptr);
+  RiscvOperandConverter g(this, nullptr);
   if (call_descriptor->IsCFunctionCall()) {
     AssembleDeconstructFrame();
   } else if (frame_access_state()->has_frame()) {
@@ -2501,7 +2498,7 @@ void CodeGenerator::PrepareForDeoptimizationExits(int deopt_count) {}
 
 void CodeGenerator::AssembleMove(InstructionOperand* source,
                                  InstructionOperand* destination) {
-  MipsOperandConverter g(this, nullptr);
+  RiscvOperandConverter g(this, nullptr);
   // Dispatch on the source and destination operand kinds.  Not all
   // combinations are possible.
   if (source->IsRegister()) {
@@ -2563,7 +2560,7 @@ void CodeGenerator::AssembleMove(InstructionOperand* source,
         case Constant::kCompressedHeapObject:
           UNREACHABLE();
         case Constant::kRpoNumber:
-          UNREACHABLE();  // TODO(titzer): loading RPO numbers on mips64.
+          UNREACHABLE();  // TODO(titzer): loading RPO numbers
           break;
       }
       if (destination->IsStackSlot()) __ Sd(dst, g.ToMemOperand(destination));
@@ -2628,7 +2625,7 @@ void CodeGenerator::AssembleMove(InstructionOperand* source,
 
 void CodeGenerator::AssembleSwap(InstructionOperand* source,
                                  InstructionOperand* destination) {
-  MipsOperandConverter g(this, nullptr);
+  RiscvOperandConverter g(this, nullptr);
   // Dispatch on the source and destination operand kinds.  Not all
   // combinations are possible.
   if (source->IsRegister()) {
@@ -2703,7 +2700,7 @@ void CodeGenerator::AssembleSwap(InstructionOperand* source,
 }
 
 void CodeGenerator::AssembleJumpTable(Label** targets, size_t target_count) {
-  // On 64-bit MIPS we emit the jump tables inline.
+  // On 64-bit RISC-V we emit the jump tables inline.
   UNREACHABLE();
 }
 

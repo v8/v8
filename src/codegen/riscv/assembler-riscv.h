@@ -119,7 +119,7 @@ class Operand {
   friend class MacroAssembler;
 };
 
-// On MIPS we have only one addressing mode with base_reg + offset.
+// On RISC-V we have only one addressing mode with base_reg + offset.
 // Class MemOperand represents a memory operand in load and store instructions.
 class V8_EXPORT_PRIVATE MemOperand : public Operand {
  public:
@@ -131,7 +131,7 @@ class V8_EXPORT_PRIVATE MemOperand : public Operand {
                       OffsetAddend offset_addend = offset_zero);
   int32_t offset() const { return offset_; }
 
-  bool OffsetIsInt16Encodable() const { return is_int16(offset_); }
+  bool OffsetIsInt12Encodable() const { return is_int12(offset_); }
 
  private:
   int32_t offset_;
@@ -248,7 +248,7 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase {
       ICacheFlushMode icache_flush_mode = FLUSH_ICACHE_IF_NEEDED) {
     set_target_value_at(pc, target, icache_flush_mode);
   }
-  // On MIPS there is no Constant Pool so we skip that parameter.
+  // On RISC-V there is no Constant Pool so we skip that parameter.
   V8_INLINE static Address target_address_at(Address pc,
                                              Address constant_pool) {
     return target_address_at(pc);
@@ -294,9 +294,9 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase {
 
   static constexpr int kOptimizedBranchAndLinkLongReturnOffset = 4 * kInstrSize;
 
-  // Here we are patching the address in the LUI/ORI instruction pair.
+  // Here we are patching the address in the LUI/ADDI instruction pair.
   // These values are used in the serialization process and must be zero for
-  // MIPS platform, as Code, Embedded Object or External-reference pointers
+  // RISC-V platform, as Code, Embedded Object or External-reference pointers
   // are split across two consecutive instructions and don't exist separately
   // in the code, so the serializer should not step forwards in memory after
   // a target is resolved and written.
@@ -1248,7 +1248,7 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase {
 
   int WriteCodeComments();
 
-  friend class RegExpMacroAssemblerMIPS;
+  friend class RegExpMacroAssemblerRISCV;
   friend class RelocInfo;
   friend class BlockTrampolinePoolScope;
   friend class EnsureSpace;
