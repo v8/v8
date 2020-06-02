@@ -2755,7 +2755,8 @@ ParserBase<Impl>::ParseAssignmentExpressionCoverGrammar() {
   Token::Value op = peek();
 
   if (!Token::IsArrowOrAssignmentOp(op)) return expression;
-  if (Token::IsLogicalAssignmentOp(op) &&
+  if ((op == Token::ASSIGN_NULLISH || op == Token::ASSIGN_OR ||
+       op == Token::ASSIGN_AND) &&
       !flags().allow_harmony_logical_assignment()) {
     return expression;
   }
@@ -2829,16 +2830,12 @@ ParserBase<Impl>::ParseAssignmentExpressionCoverGrammar() {
 
   ExpressionT right = ParseAssignmentExpression();
 
-  if (op == Token::ASSIGN || Token::IsLogicalAssignmentOp(op)) {
+  if (op == Token::ASSIGN) {
     // We try to estimate the set of properties set by constructors. We define a
     // new property whenever there is an assignment to a property of 'this'. We
     // should probably only add properties if we haven't seen them before.
     // Otherwise we'll probably overestimate the number of properties.
-    //
-    // Do not count logical assignments, because they are conditional.
-    if (op == Token::ASSIGN && impl()->IsThisProperty(expression)) {
-      function_state_->AddProperty();
-    }
+    if (impl()->IsThisProperty(expression)) function_state_->AddProperty();
 
     impl()->CheckAssigningFunctionLiteralToProperty(expression, right);
 
