@@ -126,6 +126,7 @@
       ],
       "excluded_steps": [
         "Failure reason",
+        "compile confirm no-op",
         "update_scripts",
         "steps",
         "* (flakes)",
