@@ -315,6 +315,7 @@ class RowConstructor {
       }
     }
     grid.setRow(row, positionArray);
+    ranges.forEachRange((range: Range) => this.setUses(grid, row, range));
   }
 
   // This is the main function used to build new intervals.
@@ -416,6 +417,16 @@ class RowConstructor {
     spanEl.style.paddingTop = null;
     spanEl.style.paddingLeft = paddingLeft;
     spanEl.innerHTML = str;
+  }
+
+  private setUses(grid: Grid, row: number, range: Range) {
+    for (const liveRange of range.child_ranges) {
+      if (liveRange.uses) {
+        for (const use of liveRange.uses) {
+          grid.getCell(row, use).classList.toggle("range-use", true);
+        }
+      }
+    }
   }
 }
 

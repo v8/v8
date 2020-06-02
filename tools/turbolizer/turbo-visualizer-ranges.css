@@ -187,6 +187,10 @@ input.range-toggle-show {
   pointer-events: none
 }
 
+.range-position.range-use {
+  border-left: var(--range-instr-border) solid red;
+}
+
 .range-block-border,
 .range-block-border.range-position.range-interval-position:last-child {
   border-right: var(--range-block-border) solid rgb(109, 107, 107);

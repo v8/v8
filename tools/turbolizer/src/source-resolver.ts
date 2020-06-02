@@ -115,6 +115,7 @@ export interface ChildRange {
   type: string;
   op: any;
   intervals: Array<[number, number]>;
+  uses: Array<number>;
 }
 
 export interface Range {

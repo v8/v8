@@ -995,10 +995,25 @@ std::ostream& operator<<(std::ostream& os,
   bool first = true;
   for (const UseInterval* interval = range.first_interval();
        interval != nullptr; interval = interval->next()) {
-    if (!first) os << ",";
-    first = false;
+    if (first) {
+      first = false;
+    } else {
+      os << ",";
+    }
     os << "[" << interval->start().value() << "," << interval->end().value()
        << "]";
+  }
+
+  os << "],\"uses\":[";
+  first = true;
+  for (UsePosition* current_pos = range.first_pos(); current_pos != nullptr;
+       current_pos = current_pos->next()) {
+    if (first) {
+      first = false;
+    } else {
+      os << ",";
+    }
+    os << current_pos->pos().value();
   }
 
   os << "]}";
@@ -1014,8 +1029,11 @@ std::ostream& operator<<(
   for (const LiveRange* child = &(top_level_live_range_json.range_);
        child != nullptr; child = child->next()) {
     if (!top_level_live_range_json.range_.IsEmpty()) {
-      if (!first) os << ",";
-      first = false;
+      if (first) {
+        first = false;
+      } else {
+        os << ",";
+      }
       os << LiveRangeAsJSON{*child, top_level_live_range_json.code_};
     }
   }
@@ -1036,8 +1054,11 @@ void PrintTopLevelLiveRanges(std::ostream& os,
   os << "{";
   for (const TopLevelLiveRange* range : ranges) {
     if (range != nullptr && !range->IsEmpty()) {
-      if (!first) os << ",";
-      first = false;
+      if (first) {
+        first = false;
+      } else {
+        os << ",";
+      }
       os << TopLevelLiveRangeAsJSON{*range, code};
     }
   }
@@ -1212,8 +1233,11 @@ std::ostream& operator<<(std::ostream& os, const InstructionAsJSON& i_json) {
     bool first = true;
     for (MoveOperands* move : *pm) {
       if (move->IsEliminated()) continue;
-      if (!first) os << ",";
-      first = false;
+      if (first) {
+        first = false;
+      } else {
+        os << ",";
+      }
       os << "[" << InstructionOperandAsJSON{&move->destination(), i_json.code_}
          << "," << InstructionOperandAsJSON{&move->source(), i_json.code_}
          << "]";
