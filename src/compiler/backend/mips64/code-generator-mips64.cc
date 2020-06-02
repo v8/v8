@@ -2634,6 +2634,21 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
                   kSimd128RegZero);
       break;
     }
+    case kMips64I32x4BitMask: {
+      CpuFeatureScope msa_scope(tasm(), MIPS_SIMD);
+      Register dst = i.OutputRegister();
+      Simd128Register src = i.InputSimd128Register(0);
+      Simd128Register scratch0 = kSimd128RegZero;
+      Simd128Register scratch1 = kSimd128ScratchReg;
+      __ srli_w(scratch0, src, 31);
+      __ srli_d(scratch1, scratch0, 31);
+      __ or_v(scratch0, scratch0, scratch1);
+      __ shf_w(scratch1, scratch0, 0x0E);
+      __ slli_d(scratch1, scratch1, 2);
+      __ or_v(scratch0, scratch0, scratch1);
+      __ copy_u_b(dst, scratch0, 0);
+      break;
+    }
     case kMips64I16x8Splat: {
       CpuFeatureScope msa_scope(tasm(), MIPS_SIMD);
       __ fill_h(i.OutputSimd128Register(), i.InputRegister(0));
@@ -2820,6 +2835,23 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
                   kSimd128RegZero);
       break;
     }
+    case kMips64I16x8BitMask: {
+      CpuFeatureScope msa_scope(tasm(), MIPS_SIMD);
+      Register dst = i.OutputRegister();
+      Simd128Register src = i.InputSimd128Register(0);
+      Simd128Register scratch0 = kSimd128RegZero;
+      Simd128Register scratch1 = kSimd128ScratchReg;
+      __ srli_h(scratch0, src, 15);
+      __ srli_w(scratch1, scratch0, 15);
+      __ or_v(scratch0, scratch0, scratch1);
+      __ srli_d(scratch1, scratch0, 30);
+      __ or_v(scratch0, scratch0, scratch1);
+      __ shf_w(scratch1, scratch0, 0x0E);
+      __ slli_d(scratch1, scratch1, 4);
+      __ or_v(scratch0, scratch0, scratch1);
+      __ copy_u_b(dst, scratch0, 0);
+      break;
+    }
     case kMips64I8x16Splat: {
       CpuFeatureScope msa_scope(tasm(), MIPS_SIMD);
       __ fill_b(i.OutputSimd128Register(), i.InputRegister(0));
@@ -3004,6 +3036,24 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       __ xor_v(kSimd128RegZero, kSimd128RegZero, kSimd128RegZero);
       __ asub_s_b(i.OutputSimd128Register(), i.InputSimd128Register(0),
                   kSimd128RegZero);
+      break;
+    }
+    case kMips64I8x16BitMask: {
+      CpuFeatureScope msa_scope(tasm(), MIPS_SIMD);
+      Register dst = i.OutputRegister();
+      Simd128Register src = i.InputSimd128Register(0);
+      Simd128Register scratch0 = kSimd128RegZero;
+      Simd128Register scratch1 = kSimd128ScratchReg;
+      __ srli_b(scratch0, src, 7);
+      __ srli_h(scratch1, scratch0, 7);
+      __ or_v(scratch0, scratch0, scratch1);
+      __ srli_w(scratch1, scratch0, 14);
+      __ or_v(scratch0, scratch0, scratch1);
+      __ srli_d(scratch1, scratch0, 28);
+      __ or_v(scratch0, scratch0, scratch1);
+      __ shf_w(scratch1, scratch0, 0x0E);
+      __ ilvev_b(scratch0, scratch1, scratch0);
+      __ copy_u_h(dst, scratch0, 0);
       break;
     }
     case kMips64S128And: {

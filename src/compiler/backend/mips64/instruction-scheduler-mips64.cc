@@ -171,6 +171,7 @@ int InstructionScheduler::GetTargetInstructionFlags(
     case kMips64I16x8UConvertI8x16Low:
     case kMips64I16x8RoundingAverageU:
     case kMips64I16x8Abs:
+    case kMips64I16x8BitMask:
     case kMips64I32x4Add:
     case kMips64I32x4AddHoriz:
     case kMips64I32x4Eq:
@@ -199,6 +200,7 @@ int InstructionScheduler::GetTargetInstructionFlags(
     case kMips64I32x4UConvertI16x8High:
     case kMips64I32x4UConvertI16x8Low:
     case kMips64I32x4Abs:
+    case kMips64I32x4BitMask:
     case kMips64I8x16Add:
     case kMips64I8x16AddSaturateS:
     case kMips64I8x16AddSaturateU:
@@ -226,6 +228,7 @@ int InstructionScheduler::GetTargetInstructionFlags(
     case kMips64I8x16SubSaturateU:
     case kMips64I8x16RoundingAverageU:
     case kMips64I8x16Abs:
+    case kMips64I8x16BitMask:
     case kMips64Ins:
     case kMips64Lsa:
     case kMips64MaxD:
