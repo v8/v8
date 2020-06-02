@@ -947,6 +947,11 @@ int DisassemblerX64::AVXInstruction(byte* data) {
     int mod, regop, rm, vvvv = vex_vreg();
     get_modrm(*current, &mod, &regop, &rm);
     switch (opcode) {
+      case 0x08:
+        AppendToBuffer("vroundps %s,", NameOfXMMRegister(regop));
+        current += PrintRightXMMOperand(current);
+        AppendToBuffer(",0x%x", *current++);
+        break;
       case 0x0A:
         AppendToBuffer("vroundss %s,%s,", NameOfXMMRegister(regop),
                        NameOfXMMRegister(vvvv));
@@ -1839,6 +1844,12 @@ int DisassemblerX64::TwoByteOpcodeInstruction(byte* data) {
         AppendToBuffer("extractps ");  // reg/m32, xmm, imm8
         current += PrintRightOperand(current);
         AppendToBuffer(",%s,%d", NameOfXMMRegister(regop), (*current) & 3);
+        current += 1;
+      } else if (third_byte == 0x08) {
+        get_modrm(*current, &mod, &regop, &rm);
+        AppendToBuffer("roundps %s,", NameOfXMMRegister(regop));
+        current += PrintRightXMMOperand(current);
+        AppendToBuffer(",0x%x", (*current) & 3);
         current += 1;
       } else if (third_byte == 0x0A) {
         get_modrm(*current, &mod, &regop, &rm);

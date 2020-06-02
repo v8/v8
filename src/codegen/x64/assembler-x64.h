@@ -1433,9 +1433,8 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase {
     vinstr(0x0b, dst, src1, src2, k66, k0F3A, kWIG);
     emit(static_cast<byte>(mode) | 0x8);  // Mask precision exception.
   }
-  void vroundps(XMMRegister dst, XMMRegister src1, XMMRegister src2,
-                RoundingMode mode) {
-    vinstr(0x08, dst, src1, src2, k66, k0F3A, kWIG);
+  void vroundps(XMMRegister dst, XMMRegister src, RoundingMode mode) {
+    vinstr(0x08, dst, xmm0, src, k66, k0F3A, kWIG);
     emit(static_cast<byte>(mode) | 0x8);  // Mask precision exception.
   }
 
