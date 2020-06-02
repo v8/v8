@@ -17,6 +17,7 @@ namespace cppgc {
 namespace internal {
 
 class Heap;
+class HeapObjectHeader;
 class MutatorThreadMarkingVisitor;
 
 class V8_EXPORT_PRIVATE Marker {
@@ -41,31 +42,21 @@ class V8_EXPORT_PRIVATE Marker {
       Worklist<NotFullyConstructedItem, 16 /* local entries */, kNumMarkers>;
   using WeakCallbackWorklist =
       Worklist<WeakCallbackItem, 64 /* local entries */, kNumMarkers>;
+  using WriteBarrierWorklist =
+      Worklist<HeapObjectHeader*, 64 /*local entries */, kNumMarkers>;
 
   struct MarkingConfig {
     using StackState = cppgc::Heap::StackState;
-    enum class IncrementalMarking : uint8_t { kDisabled };
-    enum class ConcurrentMarking : uint8_t { kDisabled };
+    enum MarkingType : uint8_t {
+      kAtomic,
+      kIncremental,
+      kIncrementalAndConcurrent
+    };
 
-    static MarkingConfig Default() {
-      return {StackState::kMayContainHeapPointers,
-              IncrementalMarking::kDisabled, ConcurrentMarking::kDisabled};
-    }
+    static constexpr MarkingConfig Default() { return {}; }
 
-    explicit MarkingConfig(StackState stack_state)
-        : MarkingConfig(stack_state, IncrementalMarking::kDisabled,
-                        ConcurrentMarking::kDisabled) {}
-
-    MarkingConfig(StackState stack_state,
-                  IncrementalMarking incremental_marking_state,
-                  ConcurrentMarking concurrent_marking_state)
-        : stack_state_(stack_state),
-          incremental_marking_state_(incremental_marking_state),
-          concurrent_marking_state_(concurrent_marking_state) {}
-
-    StackState stack_state_;
-    IncrementalMarking incremental_marking_state_;
-    ConcurrentMarking concurrent_marking_state_;
+    StackState stack_state = StackState::kMayContainHeapPointers;
+    MarkingType marking_type = MarkingType::kAtomic;
   };
 
   explicit Marker(Heap* heap);
@@ -78,7 +69,7 @@ class V8_EXPORT_PRIVATE Marker {
   // trigger incremental/concurrent marking if needed.
   void StartMarking(MarkingConfig config);
   // Finalize marking. This method stops incremental/concurrent marking
-  // if exsists and performs atomic pause marking. FinishMarking may
+  // if exists and performs atomic pause marking. FinishMarking may
   // update the MarkingConfig, e.g. if the stack state has changed.
   void FinishMarking(MarkingConfig config);
 
@@ -88,6 +79,9 @@ class V8_EXPORT_PRIVATE Marker {
   MarkingWorklist* marking_worklist() { return &marking_worklist_; }
   NotFullyConstructedWorklist* not_fully_constructed_worklist() {
     return &not_fully_constructed_worklist_;
+  }
+  WriteBarrierWorklist* write_barrier_worklist() {
+    return &write_barrier_worklist_;
   }
   WeakCallbackWorklist* weak_callback_worklist() {
     return &weak_callback_worklist_;
@@ -118,6 +112,7 @@ class V8_EXPORT_PRIVATE Marker {
   MarkingWorklist marking_worklist_;
   NotFullyConstructedWorklist not_fully_constructed_worklist_;
   NotFullyConstructedWorklist previously_not_fully_constructed_worklist_;
+  WriteBarrierWorklist write_barrier_worklist_;
   WeakCallbackWorklist weak_callback_worklist_;
 };
 

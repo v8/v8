@@ -30,6 +30,10 @@
 namespace cppgc {
 namespace internal {
 
+namespace testing {
+class TestWithHeap;
+}
+
 class Stack;
 
 class V8_EXPORT_PRIVATE LivenessBrokerFactory {
@@ -73,14 +77,14 @@ class V8_EXPORT_PRIVATE Heap final : public cppgc::Heap {
 
   struct GCConfig {
     using StackState = Heap::StackState;
-    using SweepType = Sweeper::Config;
+    using MarkingType = Marker::MarkingConfig::MarkingType;
+    using SweepingType = Sweeper::Config;
 
-    static GCConfig Default() {
-      return {StackState::kMayContainHeapPointers, SweepType::kAtomic};
-    }
+    static constexpr GCConfig Default() { return {}; }
 
     StackState stack_state = StackState::kMayContainHeapPointers;
-    SweepType sweep_type = SweepType::kAtomic;
+    MarkingType marking_type = MarkingType::kAtomic;
+    SweepingType sweeping_type = SweepingType::kAtomic;
   };
 
   static Heap* From(cppgc::Heap* heap) { return static_cast<Heap*>(heap); }
@@ -154,6 +158,9 @@ class V8_EXPORT_PRIVATE Heap final : public cppgc::Heap {
 
   size_t no_gc_scope_ = 0;
   size_t no_allocation_scope_ = 0;
+
+  friend class WriteBarrier;
+  friend class testing::TestWithHeap;
 };
 
 }  // namespace internal

@@ -149,10 +149,10 @@ void Heap::CollectGarbage(GCConfig config) {
 
   epoch_++;
 
-  // TODO(chromium:1056170): Replace with proper mark-sweep algorithm.
   // "Marking".
   marker_ = std::make_unique<Marker>(this);
-  Marker::MarkingConfig marking_config(config.stack_state);
+  const Marker::MarkingConfig marking_config{config.stack_state,
+                                             config.marking_type};
   marker_->StartMarking(marking_config);
   marker_->FinishMarking(marking_config);
   // "Sweeping and finalization".
@@ -165,7 +165,7 @@ void Heap::CollectGarbage(GCConfig config) {
   marker_.reset();
   {
     NoGCScope no_gc(this);
-    sweeper_.Start(config.sweep_type);
+    sweeper_.Start(config.sweeping_type);
   }
 }
 

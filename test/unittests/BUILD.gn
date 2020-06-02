@@ -70,6 +70,7 @@ v8_source_set("cppgc_unittests_sources") {
     "heap/cppgc/tests.h",
     "heap/cppgc/visitor-unittest.cc",
     "heap/cppgc/worklist-unittest.cc",
+    "heap/cppgc/write-barrier-unittest.cc",
   ]
 
   configs = [

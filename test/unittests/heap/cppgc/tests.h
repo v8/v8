@@ -31,11 +31,15 @@ class TestWithHeap : public TestWithPlatform {
   TestWithHeap();
 
   void PreciseGC() {
-    heap_->ForceGarbageCollectionSlow(
-        "TestWithHeap", "Testing", Heap::GCConfig::StackState::kNoHeapPointers);
+    heap_->ForceGarbageCollectionSlow("TestWithHeap", "Testing",
+                                      cppgc::Heap::StackState::kNoHeapPointers);
   }
 
   cppgc::Heap* GetHeap() const { return heap_.get(); }
+
+  std::unique_ptr<Marker>& GetMarkerRef() {
+    return Heap::From(GetHeap())->marker_;
+  }
 
  private:
   std::unique_ptr<cppgc::Heap> heap_;

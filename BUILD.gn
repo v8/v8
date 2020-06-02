@@ -4080,12 +4080,15 @@ v8_source_set("cppgc_base") {
     "include/cppgc/heap.h",
     "include/cppgc/internal/accessors.h",
     "include/cppgc/internal/api-contants.h",
+    "include/cppgc/internal/atomic-entry-flag.h",
     "include/cppgc/internal/compiler-specific.h",
     "include/cppgc/internal/finalizer-traits.h",
     "include/cppgc/internal/gc-info.h",
     "include/cppgc/internal/persistent-node.h",
     "include/cppgc/internal/pointer-policies.h",
     "include/cppgc/internal/prefinalizer-handler.h",
+    "include/cppgc/internal/process-heap.h",
+    "include/cppgc/internal/write-barrier.h",
     "include/cppgc/liveness-broker.h",
     "include/cppgc/liveness-broker.h",
     "include/cppgc/macros.h",
@@ -4134,6 +4137,7 @@ v8_source_set("cppgc_base") {
     "src/heap/cppgc/pointer-policies.cc",
     "src/heap/cppgc/prefinalizer-handler.cc",
     "src/heap/cppgc/prefinalizer-handler.h",
+    "src/heap/cppgc/process-heap.cc",
     "src/heap/cppgc/raw-heap.cc",
     "src/heap/cppgc/raw-heap.h",
     "src/heap/cppgc/sanitizers.h",
@@ -4146,6 +4150,7 @@ v8_source_set("cppgc_base") {
     "src/heap/cppgc/virtual-memory.h",
     "src/heap/cppgc/visitor.cc",
     "src/heap/cppgc/worklist.h",
+    "src/heap/cppgc/write-barrier.cc",
   ]
 
   if (is_clang || !is_win) {

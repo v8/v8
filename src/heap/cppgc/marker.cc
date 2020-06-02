@@ -4,6 +4,7 @@
 
 #include "src/heap/cppgc/marker.h"
 
+#include "include/cppgc/internal/process-heap.h"
 #include "src/heap/cppgc/heap-object-header-inl.h"
 #include "src/heap/cppgc/heap-visitor.h"
 #include "src/heap/cppgc/heap.h"
@@ -27,6 +28,23 @@ void ResetLocalAllocationBuffers(Heap* heap) {
   ResetLocalAllocationBufferVisitor visitor;
   visitor.Traverse(&heap->raw_heap());
 }
+
+void EnterIncrementalMarkingIfNeeded(Marker::MarkingConfig config) {
+  if (config.marking_type == Marker::MarkingConfig::MarkingType::kIncremental ||
+      config.marking_type ==
+          Marker::MarkingConfig::MarkingType::kIncrementalAndConcurrent) {
+    ProcessHeap::EnterIncrementalOrConcurrentMarking();
+  }
+}
+
+void ExitIncrementalMarkingIfNeeded(Marker::MarkingConfig config) {
+  if (config.marking_type == Marker::MarkingConfig::MarkingType::kIncremental ||
+      config.marking_type ==
+          Marker::MarkingConfig::MarkingType::kIncrementalAndConcurrent) {
+    ProcessHeap::ExitIncrementalOrConcurrentMarking();
+  }
+}
+
 }  // namespace
 
 namespace {
@@ -62,7 +80,7 @@ Marker::~Marker() {
   // and should thus already be marked.
   if (!not_fully_constructed_worklist_.IsEmpty()) {
 #if DEBUG
-    DCHECK_NE(MarkingConfig::StackState::kNoHeapPointers, config_.stack_state_);
+    DCHECK_NE(MarkingConfig::StackState::kNoHeapPointers, config_.stack_state);
     NotFullyConstructedItem item;
     NotFullyConstructedWorklist::View view(&not_fully_constructed_worklist_,
                                            kMutatorThreadId);
@@ -81,15 +99,17 @@ Marker::~Marker() {
 void Marker::StartMarking(MarkingConfig config) {
   config_ = config;
   VisitRoots();
+  EnterIncrementalMarkingIfNeeded(config);
 }
 
 void Marker::FinishMarking(MarkingConfig config) {
+  ExitIncrementalMarkingIfNeeded(config_);
   config_ = config;
 
   // Reset LABs before trying to conservatively mark in-construction objects.
   // This is also needed in preparation for sweeping.
   ResetLocalAllocationBuffers(heap_);
-  if (config_.stack_state_ == MarkingConfig::StackState::kNoHeapPointers) {
+  if (config_.stack_state == MarkingConfig::StackState::kNoHeapPointers) {
     FlushNotFullyConstructedObjects();
   } else {
     MarkNotFullyConstructedObjects();
@@ -117,7 +137,7 @@ void Marker::VisitRoots() {
   ResetLocalAllocationBuffers(heap_);
 
   heap_->GetStrongPersistentRegion().Trace(marking_visitor_.get());
-  if (config_.stack_state_ != MarkingConfig::StackState::kNoHeapPointers)
+  if (config_.stack_state != MarkingConfig::StackState::kNoHeapPointers)
     heap_->stack()->IteratePointers(marking_visitor_.get());
 }
 
@@ -154,6 +174,19 @@ bool Marker::AdvanceMarkingWithDeadline(v8::base::TimeDelta duration) {
             },
             kMutatorThreadId))
       return false;
+
+    if (!DrainWorklistWithDeadline(
+            deadline, &write_barrier_worklist_,
+            [visitor](HeapObjectHeader* header) {
+              DCHECK(header);
+              DCHECK(!MutatorThreadMarkingVisitor::IsInConstruction(*header));
+              const GCInfo& gcinfo =
+                  GlobalGCInfoTable::GCInfoFromIndex(header->GetGCInfoIndex());
+              gcinfo.trace(visitor, header->Payload());
+              visitor->AccountMarkedBytes(*header);
+            },
+            kMutatorThreadId))
+      return false;
   } while (!marking_worklist_.IsLocalViewEmpty(kMutatorThreadId));
 
   return true;
@@ -182,6 +215,7 @@ void Marker::ClearAllWorklistsForTesting() {
   marking_worklist_.Clear();
   not_fully_constructed_worklist_.Clear();
   previously_not_fully_constructed_worklist_.Clear();
+  write_barrier_worklist_.Clear();
   weak_callback_worklist_.Clear();
 }
 
