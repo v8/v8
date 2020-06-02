@@ -577,6 +577,9 @@ config("features") {
   if (v8_enable_nci_code) {
     defines += [ "V8_ENABLE_NCI_CODE" ]
   }
+  if (v8_fuzzilli) {
+    defines += [ "V8_FUZZILLI" ]
+  }
 }
 
 config("toolchain") {
@@ -3232,6 +3235,13 @@ v8_source_set("v8_base_without_compiler") {
       "src/debug/wasm/gdb-server/transport.h",
       "src/debug/wasm/gdb-server/wasm-module-debug.cc",
       "src/debug/wasm/gdb-server/wasm-module-debug.h",
+    ]
+  }
+
+  if (v8_fuzzilli) {
+    sources += [
+      "src/d8/cov.cc",
+      "src/d8/cov.h",
     ]
   }
 

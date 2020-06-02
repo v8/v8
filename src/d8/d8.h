@@ -438,6 +438,10 @@ class Shell : public i::AllStatic {
                                              Local<Module> module,
                                              Local<Object> meta);
 
+#ifdef V8_FUZZILLI
+  static void Fuzzilli(const v8::FunctionCallbackInfo<v8::Value>& args);
+#endif  // V8_FUZZILLI
+
   // Data is of type DynamicImportData*. We use void* here to be able
   // to conform with MicrotaskCallback interface and enqueue this
   // function in the microtask queue.

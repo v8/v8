@@ -54,6 +54,10 @@
 #include "src/utils/utils.h"
 #include "src/wasm/wasm-engine.h"
 
+#ifdef V8_FUZZILLI
+#include "src/d8/cov.h"
+#endif  // V8_FUZZILLI
+
 #ifdef V8_USE_PERFETTO
 #include "perfetto/tracing.h"
 #endif  // V8_USE_PERFETTO
@@ -90,6 +94,19 @@ namespace v8 {
 namespace {
 
 const int kMB = 1024 * 1024;
+
+#ifdef V8_FUZZILLI
+// REPRL = read-eval-print-loop
+// These file descriptors are being opened when Fuzzilli uses fork & execve to
+// run V8.
+#define REPRL_CRFD 100  // Control read file decriptor
+#define REPRL_CWFD 101  // Control write file decriptor
+#define REPRL_DRFD 102  // Data read file decriptor
+#define REPRL_DWFD 103  // Data write file decriptor
+bool fuzzilli_reprl = true;
+#else
+bool fuzzilli_reprl = false;
+#endif  // V8_FUZZILLI
 
 const int kMaxSerializerMemoryUsage =
     1 * kMB;  // Arbitrary maximum for testing.
@@ -1762,6 +1779,57 @@ void Shell::Version(const v8::FunctionCallbackInfo<v8::Value>& args) {
           .ToLocalChecked());
 }
 
+#ifdef V8_FUZZILLI
+
+// We have to assume that the fuzzer will be able to call this function e.g. by
+// enumerating the properties of the global object and eval'ing them. As such
+// this function is implemented in a way that requires passing some magic value
+// as first argument (with the idea being that the fuzzer won't be able to
+// generate this value) which then also acts as a selector for the operation
+// to perform.
+void Shell::Fuzzilli(const v8::FunctionCallbackInfo<v8::Value>& args) {
+  HandleScope handle_scope(args.GetIsolate());
+
+  String::Utf8Value operation(args.GetIsolate(), args[0]);
+  if (*operation == nullptr) {
+    return;
+  }
+
+  if (strcmp(*operation, "FUZZILLI_CRASH") == 0) {
+    auto arg = args[1]
+                   ->Int32Value(args.GetIsolate()->GetCurrentContext())
+                   .FromMaybe(0);
+    switch (arg) {
+      case 0:
+        V8_IMMEDIATE_CRASH();
+        break;
+      case 1:
+        CHECK(0);
+        break;
+      default:
+        DCHECK(false);
+        break;
+    }
+  } else if (strcmp(*operation, "FUZZILLI_PRINT") == 0) {
+    static FILE* fzliout = fdopen(REPRL_DWFD, "w");
+    if (!fzliout) {
+      fprintf(
+          stderr,
+          "Fuzzer output channel not available, printing to stdout instead\n");
+      fzliout = stdout;
+    }
+
+    String::Utf8Value string(args.GetIsolate(), args[1]);
+    if (*string == nullptr) {
+      return;
+    }
+    fprintf(fzliout, "%s\n", *string);
+    fflush(fzliout);
+  }
+}
+
+#endif  // V8_FUZZILLI
+
 void Shell::ReportException(Isolate* isolate, Local<v8::Message> message,
                             Local<v8::Value> exception_obj) {
   HandleScope handle_scope(isolate);
@@ -2026,6 +2094,13 @@ Local<ObjectTemplate> Shell::CreateGlobalTemplate(Isolate* isolate) {
   AddOSMethods(isolate, os_templ);
   global_template->Set(isolate, "os", os_templ);
 
+#ifdef V8_FUZZILLI
+  global_template->Set(
+      String::NewFromUtf8(isolate, "fuzzilli", NewStringType::kNormal)
+          .ToLocalChecked(),
+      FunctionTemplate::New(isolate, Fuzzilli), PropertyAttribute::DontEnum);
+#endif  // V8_FUZZILLI
+
   if (i::FLAG_expose_async_hooks) {
     Local<ObjectTemplate> async_hooks_templ = ObjectTemplate::New(isolate);
     async_hooks_templ->Set(
@@ -2096,6 +2171,19 @@ void Shell::Initialize(Isolate* isolate, D8Console* console,
       Shell::HostImportModuleDynamically);
   isolate->SetHostInitializeImportMetaObjectCallback(
       Shell::HostInitializeImportMetaObject);
+
+#ifdef V8_FUZZILLI
+  // Let the parent process (Fuzzilli) know we are ready.
+  char helo[] = "HELO";
+  if (write(REPRL_CWFD, helo, 4) != 4 || read(REPRL_CRFD, helo, 4) != 4) {
+    fuzzilli_reprl = false;
+  }
+
+  if (memcmp(helo, "HELO", 4) != 0) {
+    fprintf(stderr, "Invalid response from parent\n");
+    _exit(-1);
+  }
+#endif  // V8_FUZZILLI
 
   debug::SetConsoleDelegate(isolate, console);
 }
@@ -2581,6 +2669,36 @@ bool ends_with(const char* input, const char* suffix) {
 
 bool SourceGroup::Execute(Isolate* isolate) {
   bool success = true;
+#ifdef V8_FUZZILLI
+  HandleScope handle_scope(isolate);
+  Local<String> file_name =
+      String::NewFromUtf8(isolate, "fuzzcode.js", NewStringType::kNormal)
+          .ToLocalChecked();
+
+  size_t script_size;
+  CHECK_EQ(read(REPRL_CRFD, &script_size, 8), 8);
+  char* buffer = new char[script_size + 1];
+  char* ptr = buffer;
+  size_t remaining = script_size;
+  while (remaining > 0) {
+    ssize_t rv = read(REPRL_DRFD, ptr, remaining);
+    CHECK_GE(rv, 0);
+    remaining -= rv;
+    ptr += rv;
+  }
+  buffer[script_size] = 0;
+
+  Local<String> source =
+      String::NewFromUtf8(isolate, buffer, NewStringType::kNormal)
+          .ToLocalChecked();
+  delete[] buffer;
+  Shell::set_script_executed();
+  if (!Shell::ExecuteString(isolate, source, file_name, Shell::kNoPrintResult,
+                            Shell::kReportExceptions,
+                            Shell::kNoProcessMessageQueue)) {
+    return false;
+  }
+#endif  // V8_FUZZILLI
   for (int i = begin_offset_; i < end_offset_; ++i) {
     const char* arg = argv_[i];
     if (strcmp(arg, "-e") == 0 && i + 1 < end_offset_) {
@@ -3706,112 +3824,140 @@ int Shell::Main(int argc, char* argv[]) {
     Initialize(isolate, &console);
     PerIsolateData data(isolate);
 
-    if (options.trace_enabled) {
-      platform::tracing::TraceConfig* trace_config;
-      if (options.trace_config) {
-        int size = 0;
-        char* trace_config_json_str = ReadChars(options.trace_config, &size);
-        trace_config =
-            tracing::CreateTraceConfigFromJSON(isolate, trace_config_json_str);
-        delete[] trace_config_json_str;
+    // Fuzzilli REPRL = read-eval-print-loop
+    do {
+#ifdef V8_FUZZILLI
+      if (fuzzilli_reprl) {
+        unsigned action = 0;
+        ssize_t nread = read(REPRL_CRFD, &action, 4);
+        if (nread != 4 || action != 'cexe') {
+          fprintf(stderr, "Unknown action: %u\n", action);
+          _exit(-1);
+        }
+      }
+#endif  // V8_FUZZILLI
+
+      result = 0;
+
+      if (options.trace_enabled) {
+        platform::tracing::TraceConfig* trace_config;
+        if (options.trace_config) {
+          int size = 0;
+          char* trace_config_json_str = ReadChars(options.trace_config, &size);
+          trace_config = tracing::CreateTraceConfigFromJSON(
+              isolate, trace_config_json_str);
+          delete[] trace_config_json_str;
+        } else {
+          trace_config =
+              platform::tracing::TraceConfig::CreateDefaultTraceConfig();
+        }
+        tracing_controller->StartTracing(trace_config);
+      }
+
+      CpuProfiler* cpu_profiler;
+      if (options.cpu_profiler) {
+        cpu_profiler = CpuProfiler::New(isolate);
+        CpuProfilingOptions profile_options;
+        cpu_profiler->StartProfiling(String::Empty(isolate), profile_options);
+      }
+
+      if (options.stress_opt) {
+        options.stress_runs = D8Testing::GetStressRuns();
+        for (int i = 0; i < options.stress_runs && result == 0; i++) {
+          printf("============ Stress %d/%d ============\n", i + 1,
+                 options.stress_runs);
+          D8Testing::PrepareStressRun(i);
+          bool last_run = i == options.stress_runs - 1;
+          result = RunMain(isolate, last_run);
+        }
+        printf("======== Full Deoptimization =======\n");
+        D8Testing::DeoptimizeAll(isolate);
+      } else if (i::FLAG_stress_runs > 0) {
+        options.stress_runs = i::FLAG_stress_runs;
+        for (int i = 0; i < options.stress_runs && result == 0; i++) {
+          printf("============ Run %d/%d ============\n", i + 1,
+                 options.stress_runs);
+          bool last_run = i == options.stress_runs - 1;
+          result = RunMain(isolate, last_run);
+        }
+      } else if (options.code_cache_options !=
+                 ShellOptions::CodeCacheOptions::kNoProduceCache) {
+        printf("============ Run: Produce code cache ============\n");
+        // First run to produce the cache
+        Isolate::CreateParams create_params;
+        create_params.array_buffer_allocator = Shell::array_buffer_allocator;
+        i::FLAG_hash_seed ^= 1337;  // Use a different hash seed.
+        Isolate* isolate2 = Isolate::New(create_params);
+        i::FLAG_hash_seed ^= 1337;  // Restore old hash seed.
+        {
+          D8Console console(isolate2);
+          Initialize(isolate2, &console);
+          PerIsolateData data(isolate2);
+          Isolate::Scope isolate_scope(isolate2);
+
+          result = RunMain(isolate2, false);
+        }
+        isolate2->Dispose();
+
+        // Change the options to consume cache
+        DCHECK(options.compile_options == v8::ScriptCompiler::kEagerCompile ||
+               options.compile_options ==
+                   v8::ScriptCompiler::kNoCompileOptions);
+        options.compile_options = v8::ScriptCompiler::kConsumeCodeCache;
+        options.code_cache_options =
+            ShellOptions::CodeCacheOptions::kNoProduceCache;
+
+        printf("============ Run: Consume code cache ============\n");
+        // Second run to consume the cache in current isolate
+        result = RunMain(isolate, true);
+        options.compile_options = v8::ScriptCompiler::kNoCompileOptions;
       } else {
-        trace_config =
-            platform::tracing::TraceConfig::CreateDefaultTraceConfig();
-      }
-      tracing_controller->StartTracing(trace_config);
-    }
-
-    CpuProfiler* cpu_profiler;
-    if (options.cpu_profiler) {
-      cpu_profiler = CpuProfiler::New(isolate);
-      CpuProfilingOptions profile_options;
-      cpu_profiler->StartProfiling(String::Empty(isolate), profile_options);
-    }
-
-    if (options.stress_opt) {
-      options.stress_runs = D8Testing::GetStressRuns();
-      for (int i = 0; i < options.stress_runs && result == 0; i++) {
-        printf("============ Stress %d/%d ============\n", i + 1,
-               options.stress_runs);
-        D8Testing::PrepareStressRun(i);
-        bool last_run = i == options.stress_runs - 1;
+        bool last_run = true;
         result = RunMain(isolate, last_run);
       }
-      printf("======== Full Deoptimization =======\n");
-      D8Testing::DeoptimizeAll(isolate);
-    } else if (i::FLAG_stress_runs > 0) {
-      options.stress_runs = i::FLAG_stress_runs;
-      for (int i = 0; i < options.stress_runs && result == 0; i++) {
-        printf("============ Run %d/%d ============\n", i + 1,
-               options.stress_runs);
-        bool last_run = i == options.stress_runs - 1;
-        result = RunMain(isolate, last_run);
+
+      // Run interactive shell if explicitly requested or if no script has been
+      // executed, but never on --test
+      if (use_interactive_shell()) {
+        RunShell(isolate);
       }
-    } else if (options.code_cache_options !=
-               ShellOptions::CodeCacheOptions::kNoProduceCache) {
-      printf("============ Run: Produce code cache ============\n");
-      // First run to produce the cache
-      Isolate::CreateParams create_params;
-      create_params.array_buffer_allocator = Shell::array_buffer_allocator;
-      i::FLAG_hash_seed ^= 1337;  // Use a different hash seed.
-      Isolate* isolate2 = Isolate::New(create_params);
-      i::FLAG_hash_seed ^= 1337;  // Restore old hash seed.
-      {
-        D8Console console(isolate2);
-        Initialize(isolate2, &console);
-        PerIsolateData data(isolate2);
-        Isolate::Scope isolate_scope(isolate2);
 
-        result = RunMain(isolate2, false);
+      if (i::FLAG_trace_ignition_dispatches &&
+          i::FLAG_trace_ignition_dispatches_output_file != nullptr) {
+        WriteIgnitionDispatchCountersFile(isolate);
       }
-      isolate2->Dispose();
 
-      // Change the options to consume cache
-      DCHECK(options.compile_options == v8::ScriptCompiler::kEagerCompile ||
-             options.compile_options == v8::ScriptCompiler::kNoCompileOptions);
-      options.compile_options = v8::ScriptCompiler::kConsumeCodeCache;
-      options.code_cache_options =
-          ShellOptions::CodeCacheOptions::kNoProduceCache;
-
-      printf("============ Run: Consume code cache ============\n");
-      // Second run to consume the cache in current isolate
-      result = RunMain(isolate, true);
-      options.compile_options = v8::ScriptCompiler::kNoCompileOptions;
-    } else {
-      bool last_run = true;
-      result = RunMain(isolate, last_run);
-    }
-
-    // Run interactive shell if explicitly requested or if no script has been
-    // executed, but never on --test
-    if (use_interactive_shell()) {
-      RunShell(isolate);
-    }
-
-    if (i::FLAG_trace_ignition_dispatches &&
-        i::FLAG_trace_ignition_dispatches_output_file != nullptr) {
-      WriteIgnitionDispatchCountersFile(isolate);
-    }
-
-    if (options.cpu_profiler) {
-      CpuProfile* profile = cpu_profiler->StopProfiling(String::Empty(isolate));
-      if (options.cpu_profiler_print) {
-        const internal::ProfileNode* root =
-            reinterpret_cast<const internal::ProfileNode*>(
-                profile->GetTopDownRoot());
-        root->Print(0);
+      if (options.cpu_profiler) {
+        CpuProfile* profile =
+            cpu_profiler->StopProfiling(String::Empty(isolate));
+        if (options.cpu_profiler_print) {
+          const internal::ProfileNode* root =
+              reinterpret_cast<const internal::ProfileNode*>(
+                  profile->GetTopDownRoot());
+          root->Print(0);
+        }
+        profile->Delete();
+        cpu_profiler->Dispose();
       }
-      profile->Delete();
-      cpu_profiler->Dispose();
-    }
 
-    // Shut down contexts and collect garbage.
-    cached_code_map_.clear();
-    evaluation_context_.Reset();
-    stringify_function_.Reset();
-    CollectGarbage(isolate);
+      // Shut down contexts and collect garbage.
+      cached_code_map_.clear();
+      evaluation_context_.Reset();
+      stringify_function_.Reset();
+      CollectGarbage(isolate);
+
+#ifdef V8_FUZZILLI
+      // Send result to parent (fuzzilli) and reset edge guards.
+      if (fuzzilli_reprl) {
+        int status = result << 8;
+        CHECK_EQ(write(REPRL_CWFD, &status, 4), 4);
+        __sanitizer_cov_reset_edgeguards();
+      }
+#endif  // V8_FUZZILLI
+    } while (fuzzilli_reprl);
   }
   OnExit(isolate);
+
   V8::Dispose();
   V8::ShutdownPlatform();
 
