@@ -1635,6 +1635,12 @@ TNode<JSArray> StringBuiltinsAssembler::StringToArray(
 
     ToDirectStringAssembler to_direct(state(), subject_string);
     to_direct.TryToDirect(&call_runtime);
+
+    // The extracted direct string may be two-byte even though the wrapping
+    // string is one-byte.
+    GotoIfNot(IsOneByteStringInstanceType(to_direct.instance_type()),
+              &call_runtime);
+
     TNode<FixedArray> elements = CAST(AllocateFixedArray(
         PACKED_ELEMENTS, length, AllocationFlag::kAllowLargeObjectAllocation));
     // Don't allocate anything while {string_data} is live!
