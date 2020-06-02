@@ -74,13 +74,12 @@ class ConcurrentAllocationThread final : public v8::base::Thread {
 UNINITIALIZED_TEST(ConcurrentAllocationInOldSpace) {
   FLAG_max_old_space_size = 32;
   FLAG_concurrent_allocation = true;
+  FLAG_local_heaps = true;
 
   v8::Isolate::CreateParams create_params;
   create_params.array_buffer_allocator = CcTest::array_buffer_allocator();
   v8::Isolate* isolate = v8::Isolate::New(create_params);
   Isolate* i_isolate = reinterpret_cast<Isolate*>(isolate);
-
-  FLAG_local_heaps = true;
 
   std::vector<std::unique_ptr<ConcurrentAllocationThread>> threads;
 
@@ -150,14 +149,13 @@ class ConcurrentBlackAllocationThread final : public v8::base::Thread {
 
 UNINITIALIZED_TEST(ConcurrentBlackAllocation) {
   FLAG_concurrent_allocation = true;
+  FLAG_local_heaps = true;
 
   v8::Isolate::CreateParams create_params;
   create_params.array_buffer_allocator = CcTest::array_buffer_allocator();
   v8::Isolate* isolate = v8::Isolate::New(create_params);
   Isolate* i_isolate = reinterpret_cast<Isolate*>(isolate);
   Heap* heap = i_isolate->heap();
-
-  FLAG_local_heaps = true;
 
   std::vector<Address> objects;
 
