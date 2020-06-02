@@ -783,7 +783,7 @@ WASM_SIMD_TEST(F32x4Max) {
 
 // TODO(v8:10501) Prototyping pmin and pmax instructions.
 #if V8_TARGET_ARCH_X64 || V8_TARGET_ARCH_IA32 || V8_TARGET_ARCH_ARM64 || \
-    V8_TARGET_ARCH_ARM
+    V8_TARGET_ARCH_ARM || V8_TARGET_ARCH_S390X
 WASM_SIMD_TEST_NO_LOWERING(F32x4Pmin) {
   FLAG_SCOPE(wasm_simd_post_mvp);
   RunF32x4BinOpTest(execution_tier, lower_simd, kExprF32x4Pmin, Minimum);
@@ -794,7 +794,7 @@ WASM_SIMD_TEST_NO_LOWERING(F32x4Pmax) {
   RunF32x4BinOpTest(execution_tier, lower_simd, kExprF32x4Pmax, Maximum);
 }
 #endif  // V8_TARGET_ARCH_X64 || V8_TARGET_ARCH_IA32 || V8_TARGET_ARCH_ARM64 ||
-        // V8_TARGET_ARCH_ARM
+        // V8_TARGET_ARCH_ARM || V8_TARGET_ARCH_S390X
 
 void RunF32x4CompareOpTest(ExecutionTier execution_tier, LowerSimd lower_simd,
                            WasmOpcode opcode, FloatCompareOp expected_op) {
@@ -1388,7 +1388,7 @@ WASM_SIMD_TEST_NO_LOWERING(F64x2Div) {
 
 // TODO(v8:10501) Prototyping pmin and pmax instructions.
 #if V8_TARGET_ARCH_X64 || V8_TARGET_ARCH_IA32 || V8_TARGET_ARCH_ARM64 || \
-    V8_TARGET_ARCH_ARM
+    V8_TARGET_ARCH_ARM || V8_TARGET_ARCH_S390X
 WASM_SIMD_TEST_NO_LOWERING(F64x2Pmin) {
   FLAG_SCOPE(wasm_simd_post_mvp);
   RunF64x2BinOpTest(execution_tier, lower_simd, kExprF64x2Pmin, Minimum);
@@ -1399,7 +1399,7 @@ WASM_SIMD_TEST_NO_LOWERING(F64x2Pmax) {
   RunF64x2BinOpTest(execution_tier, lower_simd, kExprF64x2Pmax, Maximum);
 }
 #endif  // V8_TARGET_ARCH_X64 || V8_TARGET_ARCH_IA32 || V8_TARGET_ARCH_ARM64 ||
-        // V8_TARGET_ARCH_ARM
+        // V8_TARGET_ARCH_ARM || V8_TARGET_ARCH_S390X
 
 void RunF64x2CompareOpTest(ExecutionTier execution_tier, LowerSimd lower_simd,
                            WasmOpcode opcode, DoubleCompareOp expected_op) {

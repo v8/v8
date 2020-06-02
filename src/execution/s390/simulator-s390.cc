@@ -4006,33 +4006,35 @@ EVALUATE(VFNMS) {
 #undef VECTOR_FP_MULTIPLY_QFMS_OPERATION
 
 template <class T, class Operation>
-void VectorFPMaxMin(void* dst, void* src1, void* src2, Operation op) {
+void VectorFPMaxMin(void* dst, void* src1, void* src2, int mode, Operation op) {
   T* dst_ptr = reinterpret_cast<T*>(dst);
   T* src1_ptr = reinterpret_cast<T*>(src1);
   T* src2_ptr = reinterpret_cast<T*>(src2);
   for (size_t i = 0; i < kSimd128Size / sizeof(T); i++) {
     T src1_val = *(src1_ptr + i);
     T src2_val = *(src2_ptr + i);
-    T value = op(src1_val, src2_val);
-    // using Java's Max Min functions
-    if (isnan(src1_val) || isnan(src2_val)) {
-      value = NAN;
-    }
+    T value = op(src1_val, src2_val, mode);
     memcpy(dst_ptr + i, &value, sizeof(T));
   }
 }
 
-#define VECTOR_FP_MAX_MIN_FOR_TYPE(type, op)                           \
+#define VECTOR_FP_MAX_MIN_FOR_TYPE(type, op, std_op)                   \
   VectorFPMaxMin<type>(&get_simd_register(r1), &get_simd_register(r2), \
-                       &get_simd_register(r3), [](type a, type b) {    \
-                         if (signbit(b) op signbit(a))                 \
+                       &get_simd_register(r3), m6,                     \
+                       [](type a, type b, int mode) {                  \
+                         if (mode == 3) {                              \
+                           return std::std_op(a, b);                   \
+                         }                                             \
+                         if (isnan(a) || isnan(b))                     \
+                           return static_cast<type>(NAN);              \
+                         else if (signbit(b) op signbit(a))            \
                            return a;                                   \
                          else if (signbit(b) != signbit(a))            \
                            return b;                                   \
                          return (a op b) ? a : b;                      \
                        });
 
-#define VECTOR_FP_MAX_MIN(op)                                                  \
+#define VECTOR_FP_MAX_MIN(op, std_op)                                          \
   switch (m4) {                                                                \
     case 2:                                                                    \
       if (m5 == 8) {                                                           \
@@ -4041,8 +4043,7 @@ void VectorFPMaxMin(void* dst, void* src1, void* src2, Operation op) {
         set_simd_register_by_lane<float>(r1, 0, (src1 op src2) ? src1 : src2); \
       } else {                                                                 \
         DCHECK_EQ(m5, 0);                                                      \
-        DCHECK_EQ(m6, 1);                                                      \
-        VECTOR_FP_MAX_MIN_FOR_TYPE(float, op)                                  \
+        VECTOR_FP_MAX_MIN_FOR_TYPE(float, op, std_op)                          \
       }                                                                        \
       break;                                                                   \
     case 3:                                                                    \
@@ -4053,8 +4054,7 @@ void VectorFPMaxMin(void* dst, void* src1, void* src2, Operation op) {
                                           (src1 op src2) ? src1 : src2);       \
       } else {                                                                 \
         DCHECK_EQ(m5, 0);                                                      \
-        DCHECK_EQ(m6, 1);                                                      \
-        VECTOR_FP_MAX_MIN_FOR_TYPE(double, op)                                 \
+        VECTOR_FP_MAX_MIN_FOR_TYPE(double, op, std_op)                         \
       }                                                                        \
       break;                                                                   \
     default:                                                                   \
@@ -4066,8 +4066,7 @@ EVALUATE(VFMIN) {
   DCHECK(CpuFeatures::IsSupported(VECTOR_ENHANCE_FACILITY_1));
   DCHECK_OPCODE(VFMIN);
   DECODE_VRR_C_INSTRUCTION(r1, r2, r3, m6, m5, m4);
-  USE(m6);
-  VECTOR_FP_MAX_MIN(<)  // NOLINT
+  VECTOR_FP_MAX_MIN(<, min)  // NOLINT
   return length;
 }
 
@@ -4076,7 +4075,7 @@ EVALUATE(VFMAX) {
   DCHECK_OPCODE(VFMAX);
   DECODE_VRR_C_INSTRUCTION(r1, r2, r3, m6, m5, m4);
   USE(m6);
-  VECTOR_FP_MAX_MIN(>)  // NOLINT
+  VECTOR_FP_MAX_MIN(>, max)  // NOLINT
   return length;
 }
 

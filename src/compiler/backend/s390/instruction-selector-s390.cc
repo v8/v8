@@ -2805,6 +2805,18 @@ SIMD_VISIT_BITMASK(I8x16BitMask)
 SIMD_VISIT_BITMASK(I16x8BitMask)
 SIMD_VISIT_BITMASK(I32x4BitMask)
 #undef SIMD_VISIT_BITMASK
+
+#define SIMD_VISIT_PMIN_MAX(Type)                                           \
+  void InstructionSelector::Visit##Type(Node* node) {                       \
+    S390OperandGenerator g(this);                                           \
+    Emit(kS390_##Type, g.DefineAsRegister(node),                            \
+         g.UseRegister(node->InputAt(0)), g.UseRegister(node->InputAt(1))); \
+  }
+SIMD_VISIT_PMIN_MAX(F64x2Pmin)
+SIMD_VISIT_PMIN_MAX(F32x4Pmin)
+SIMD_VISIT_PMIN_MAX(F64x2Pmax)
+SIMD_VISIT_PMIN_MAX(F32x4Pmax)
+#undef SIMD_VISIT_PMIN_MAX
 #undef SIMD_TYPES
 
 void InstructionSelector::VisitS8x16Shuffle(Node* node) {

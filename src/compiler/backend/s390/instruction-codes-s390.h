@@ -215,6 +215,8 @@ namespace compiler {
   V(S390_F64x2ExtractLane)                  \
   V(S390_F64x2Qfma)                         \
   V(S390_F64x2Qfms)                         \
+  V(S390_F64x2Pmin)                         \
+  V(S390_F64x2Pmax)                         \
   V(S390_F32x4Splat)                        \
   V(S390_F32x4ExtractLane)                  \
   V(S390_F32x4ReplaceLane)                  \
@@ -238,6 +240,8 @@ namespace compiler {
   V(S390_F32x4Max)                          \
   V(S390_F32x4Qfma)                         \
   V(S390_F32x4Qfms)                         \
+  V(S390_F32x4Pmin)                         \
+  V(S390_F32x4Pmax)                         \
   V(S390_I64x2Neg)                          \
   V(S390_I64x2Add)                          \
   V(S390_I64x2Sub)                          \

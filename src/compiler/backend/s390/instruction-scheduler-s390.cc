@@ -161,6 +161,8 @@ int InstructionScheduler::GetTargetInstructionFlags(
     case kS390_F64x2ExtractLane:
     case kS390_F64x2Qfma:
     case kS390_F64x2Qfms:
+    case kS390_F64x2Pmin:
+    case kS390_F64x2Pmax:
     case kS390_F32x4Splat:
     case kS390_F32x4ExtractLane:
     case kS390_F32x4ReplaceLane:
@@ -184,6 +186,8 @@ int InstructionScheduler::GetTargetInstructionFlags(
     case kS390_F32x4Max:
     case kS390_F32x4Qfma:
     case kS390_F32x4Qfms:
+    case kS390_F32x4Pmin:
+    case kS390_F32x4Pmax:
     case kS390_I64x2Neg:
     case kS390_I64x2Add:
     case kS390_I64x2Sub:

@@ -4234,6 +4234,30 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
               Condition(1));
       break;
     }
+    case kS390_F32x4Pmin: {
+      __ vfmin(i.OutputSimd128Register(), i.InputSimd128Register(0),
+               i.InputSimd128Register(1), Condition(3), Condition(0),
+               Condition(2));
+      break;
+    }
+    case kS390_F32x4Pmax: {
+      __ vfmax(i.OutputSimd128Register(), i.InputSimd128Register(0),
+               i.InputSimd128Register(1), Condition(3), Condition(0),
+               Condition(2));
+      break;
+    }
+    case kS390_F64x2Pmin: {
+      __ vfmin(i.OutputSimd128Register(), i.InputSimd128Register(0),
+               i.InputSimd128Register(1), Condition(3), Condition(0),
+               Condition(3));
+      break;
+    }
+    case kS390_F64x2Pmax: {
+      __ vfmax(i.OutputSimd128Register(), i.InputSimd128Register(0),
+               i.InputSimd128Register(1), Condition(3), Condition(0),
+               Condition(3));
+      break;
+    }
     case kS390_StoreCompressTagged: {
       CHECK(!instr->HasOutput());
       size_t index = 0;
