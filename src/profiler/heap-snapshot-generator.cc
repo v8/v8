@@ -11,6 +11,7 @@
 #include "src/debug/debug.h"
 #include "src/handles/global-handles.h"
 #include "src/heap/combined-heap.h"
+#include "src/heap/safepoint.h"
 #include "src/numbers/conversions.h"
 #include "src/objects/allocation-site-inl.h"
 #include "src/objects/api-callbacks.h"
@@ -2037,6 +2038,7 @@ bool HeapSnapshotGenerator::GenerateSnapshot() {
                                   GarbageCollectionReason::kHeapProfiler);
 
   NullContextForSnapshotScope null_context_scope(Isolate::FromHeap(heap_));
+  SafepointScope scope(heap_);
 
 #ifdef VERIFY_HEAP
   Heap* debug_heap = heap_;

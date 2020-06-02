@@ -88,6 +88,7 @@ class Page;
 class PagedSpace;
 class ReadOnlyHeap;
 class RootVisitor;
+class SafepointScope;
 class ScavengeJob;
 class Scavenger;
 class ScavengerCollector;
@@ -2507,6 +2508,7 @@ class V8_EXPORT_PRIVATE HeapObjectIterator {
   DISALLOW_HEAP_ALLOCATION(no_heap_allocation_)
 
   Heap* heap_;
+  std::unique_ptr<SafepointScope> safepoint_scope_;
   HeapObjectsFiltering filtering_;
   HeapObjectsFilter* filter_;
   // Space iterator for iterating all the spaces.

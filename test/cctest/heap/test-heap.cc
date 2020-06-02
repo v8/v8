@@ -47,6 +47,7 @@
 #include "src/heap/memory-chunk.h"
 #include "src/heap/memory-reducer.h"
 #include "src/heap/remembered-set-inl.h"
+#include "src/heap/safepoint.h"
 #include "src/ic/ic.h"
 #include "src/numbers/hash-seed-inl.h"
 #include "src/objects/elements.h"
@@ -5616,6 +5617,7 @@ TEST(Regress598319) {
                   i::IncrementalMarking::NO_GC_VIA_STACK_GUARD,
                   StepOrigin::kV8);
     if (marking->IsReadyToOverApproximateWeakClosure()) {
+      SafepointScope scope(heap);
       marking->FinalizeIncrementally();
     }
   }
@@ -5699,6 +5701,7 @@ TEST(Regress615489) {
     marking->Step(kStepSizeInMs, i::IncrementalMarking::NO_GC_VIA_STACK_GUARD,
                   StepOrigin::kV8);
     if (marking->IsReadyToOverApproximateWeakClosure()) {
+      SafepointScope scope(heap);
       marking->FinalizeIncrementally();
     }
   }
@@ -5761,6 +5764,7 @@ TEST(Regress631969) {
     marking->Step(kStepSizeInMs, i::IncrementalMarking::NO_GC_VIA_STACK_GUARD,
                   StepOrigin::kV8);
     if (marking->IsReadyToOverApproximateWeakClosure()) {
+      SafepointScope scope(heap);
       marking->FinalizeIncrementally();
     }
   }
@@ -6340,6 +6344,7 @@ HEAP_TEST(Regress670675) {
   }
   i::IncrementalMarking* marking = CcTest::heap()->incremental_marking();
   if (marking->IsStopped()) {
+    SafepointScope scope(heap);
     marking->Start(i::GarbageCollectionReason::kTesting);
   }
   size_t array_length = 128 * KB;
@@ -6998,6 +7003,7 @@ TEST(Regress978156) {
   // 5. Start incremental marking.
   i::IncrementalMarking* marking = heap->incremental_marking();
   if (marking->IsStopped()) {
+    SafepointScope scope(heap);
     marking->Start(i::GarbageCollectionReason::kTesting);
   }
   IncrementalMarking::MarkingState* marking_state = marking->marking_state();

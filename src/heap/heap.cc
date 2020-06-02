@@ -6,6 +6,7 @@
 
 #include <cinttypes>
 #include <iomanip>
+#include <memory>
 #include <unordered_map>
 #include <unordered_set>
 
@@ -3240,6 +3241,7 @@ FixedArrayBase Heap::LeftTrimFixedArray(FixedArrayBase object,
   if (FLAG_enable_slow_asserts) {
     // Make sure the stack or other roots (e.g., Handles) don't contain pointers
     // to the original FixedArray (which is now the filler object).
+    SafepointScope scope(this);
     LeftTrimmerVerifierRootVisitor root_visitor(object);
     ReadOnlyRoots(this).Iterate(&root_visitor);
     IterateRoots(&root_visitor, {});
@@ -4206,6 +4208,7 @@ class VerifyReadOnlyPointersVisitor : public VerifyPointersVisitor {
 
 void Heap::Verify() {
   CHECK(HasBeenSetUp());
+  SafepointScope safepoint_scope(this);
   HandleScope scope(isolate());
 
   if (FLAG_local_heaps) {
@@ -6046,6 +6049,7 @@ class UnreachableObjectsFilter : public HeapObjectsFilter {
 HeapObjectIterator::HeapObjectIterator(
     Heap* heap, HeapObjectIterator::HeapObjectsFiltering filtering)
     : heap_(heap),
+      safepoint_scope_(std::make_unique<SafepointScope>(heap)),
       filtering_(filtering),
       filter_(nullptr),
       space_iterator_(nullptr),
