@@ -752,38 +752,21 @@ RUNTIME_FUNCTION(Runtime_DebugPrint) {
     bool weak = maybe_object.IsWeak();
 
 #ifdef OBJECT_PRINT
-    if (object.IsString() && !isolate->context().is_null()) {
-      DCHECK(!weak);
-      // If we have a string, assume it's a code "marker"
-      // and print some interesting cpu debugging info.
-      object.Print(os);
-      JavaScriptFrameIterator it(isolate);
-      JavaScriptFrame* frame = it.frame();
-      os << "fp = " << reinterpret_cast<void*>(frame->fp())
-         << ", sp = " << reinterpret_cast<void*>(frame->sp())
-         << ", caller_sp = " << reinterpret_cast<void*>(frame->caller_sp())
-         << ": ";
-    } else {
-      os << "DebugPrint: ";
-      if (weak) {
-        os << "[weak] ";
-      }
-      object.Print(os);
-    }
+    os << "DebugPrint: ";
+    if (weak) os << "[weak] ";
+    object.Print(os);
     if (object.IsHeapObject()) {
       HeapObject::cast(object).map().Print(os);
     }
 #else
-    if (weak) {
-      os << "[weak] ";
-    }
+    if (weak) os << "[weak] ";
     // ShortPrint is available in release mode. Print is not.
     os << Brief(object);
 #endif
   }
   os << std::endl;
 
-  return args[0];  // return TOS
+  return args[0];
 }
 
 RUNTIME_FUNCTION(Runtime_PrintWithNameForAssert) {

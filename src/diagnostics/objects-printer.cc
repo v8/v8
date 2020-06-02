@@ -1046,34 +1046,9 @@ void JSMessageObject::JSMessageObjectPrint(std::ostream& os) {  // NOLINT
 }
 
 void String::StringPrint(std::ostream& os) {  // NOLINT
-  if (!IsOneByteRepresentation()) {
-    os << "u";
-  }
-  if (StringShape(*this).IsInternalized()) {
-    os << "#";
-  } else if (StringShape(*this).IsCons()) {
-    os << "c\"";
-  } else if (StringShape(*this).IsThin()) {
-    os << ">\"";
-  } else {
-    os << "\"";
-  }
-
-  const char truncated_epilogue[] = "...<truncated>";
-  int len = length();
-  if (!FLAG_use_verbose_printer) {
-    if (len > 100) {
-      len = 100 - sizeof(truncated_epilogue);
-    }
-  }
-  for (int i = 0; i < len; i++) {
-    os << AsUC16(Get(i));
-  }
-  if (len != length()) {
-    os << truncated_epilogue;
-  }
-
-  if (!StringShape(*this).IsInternalized()) os << "\"";
+  os << PrefixForDebugPrint();
+  PrintUC16(os, 0, length());
+  os << SuffixForDebugPrint();
 }
 
 void Name::NamePrint(std::ostream& os) {  // NOLINT
@@ -1475,9 +1450,7 @@ void Code::CodePrint(std::ostream& os) {  // NOLINT
   PrintHeader(os, "Code");
   os << "\n";
 #ifdef ENABLE_DISASSEMBLER
-  if (FLAG_use_verbose_printer) {
-    Disassemble(nullptr, os, GetIsolate());
-  }
+  Disassemble(nullptr, os, GetIsolate());
 #endif
 }
 

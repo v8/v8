@@ -5840,10 +5840,8 @@ void Symbol::SymbolShortPrint(std::ostream& os) {
   os << "<Symbol:";
   if (!description().IsUndefined()) {
     os << " ";
-    HeapStringAllocator allocator;
-    StringStream accumulator(&allocator);
-    String::cast(description()).StringShortPrint(&accumulator, false);
-    os << accumulator.ToCString().get();
+    String description_as_string = String::cast(description());
+    description_as_string.PrintUC16(os, 0, description_as_string.length());
   } else {
     os << " (" << PrivateSymbolToName() << ")";
   }
