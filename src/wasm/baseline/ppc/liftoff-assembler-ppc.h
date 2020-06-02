@@ -782,6 +782,11 @@ void LiftoffAssembler::emit_v32x4_alltrue(LiftoffRegister dst,
   bailout(kSimd, "v32x4_alltrue");
 }
 
+void LiftoffAssembler::emit_i32x4_bitmask(LiftoffRegister dst,
+                                          LiftoffRegister src) {
+  bailout(kSimd, "i32x4_bitmask");
+}
+
 void LiftoffAssembler::emit_i32x4_shl(LiftoffRegister dst, LiftoffRegister lhs,
                                       LiftoffRegister rhs) {
   bailout(kSimd, "i32x4_shl");
@@ -871,6 +876,11 @@ void LiftoffAssembler::emit_v16x8_anytrue(LiftoffRegister dst,
 void LiftoffAssembler::emit_v16x8_alltrue(LiftoffRegister dst,
                                           LiftoffRegister src) {
   bailout(kSimd, "v16x8_alltrue");
+}
+
+void LiftoffAssembler::emit_i16x8_bitmask(LiftoffRegister dst,
+                                          LiftoffRegister src) {
+  bailout(kSimd, "i16x8_bitmask");
 }
 
 void LiftoffAssembler::emit_i16x8_shl(LiftoffRegister dst, LiftoffRegister lhs,
@@ -1018,6 +1028,11 @@ void LiftoffAssembler::emit_v8x16_anytrue(LiftoffRegister dst,
 void LiftoffAssembler::emit_v8x16_alltrue(LiftoffRegister dst,
                                           LiftoffRegister src) {
   bailout(kSimd, "v8x16_alltrue");
+}
+
+void LiftoffAssembler::emit_i8x16_bitmask(LiftoffRegister dst,
+                                          LiftoffRegister src) {
+  bailout(kSimd, "i8x16_bitmask");
 }
 
 void LiftoffAssembler::emit_i8x16_shl(LiftoffRegister dst, LiftoffRegister lhs,
