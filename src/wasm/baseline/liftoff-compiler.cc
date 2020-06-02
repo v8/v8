@@ -339,6 +339,7 @@ class LiftoffCompiler {
         debug_sidetable_builder_(debug_sidetable_builder),
         for_debugging_(for_debugging),
         out_of_line_code_(compilation_zone),
+        source_position_table_builder_(compilation_zone),
         protected_instructions_(compilation_zone),
         compilation_zone_(compilation_zone),
         safepoint_table_builder_(compilation_zone_),

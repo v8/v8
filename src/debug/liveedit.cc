@@ -1003,7 +1003,8 @@ bool CanRestartFrame(
 
 void TranslateSourcePositionTable(Isolate* isolate, Handle<BytecodeArray> code,
                                   const std::vector<SourceChangeRange>& diffs) {
-  SourcePositionTableBuilder builder;
+  Zone zone(isolate->allocator(), ZONE_NAME);
+  SourcePositionTableBuilder builder(&zone);
 
   Handle<ByteArray> source_position_table(code->SourcePositionTable(), isolate);
   for (SourcePositionTableIterator iterator(*source_position_table);

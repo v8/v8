@@ -55,19 +55,20 @@ CodeGenerator::CodeGenerator(
       frame_access_state_(nullptr),
       linkage_(linkage),
       instructions_(instructions),
-      unwinding_info_writer_(zone()),
+      unwinding_info_writer_(codegen_zone),
       info_(info),
-      labels_(zone()->NewArray<Label>(instructions->InstructionBlockCount())),
+      labels_(
+          codegen_zone->NewArray<Label>(instructions->InstructionBlockCount())),
       current_block_(RpoNumber::Invalid()),
       start_source_position_(start_source_position),
       current_source_position_(SourcePosition::Unknown()),
       tasm_(isolate, options, CodeObjectRequired::kNo, std::move(buffer)),
       resolver_(this),
-      safepoints_(zone()),
-      handlers_(zone()),
-      deoptimization_exits_(zone()),
-      deoptimization_literals_(zone()),
-      translations_(zone()),
+      safepoints_(codegen_zone),
+      handlers_(codegen_zone),
+      deoptimization_exits_(codegen_zone),
+      deoptimization_literals_(codegen_zone),
+      translations_(codegen_zone),
       max_unoptimized_frame_height_(max_unoptimized_frame_height),
       max_pushed_argument_count_(max_pushed_argument_count),
       caller_registers_saved_(false),
@@ -77,12 +78,12 @@ CodeGenerator::CodeGenerator(
       osr_pc_offset_(-1),
       optimized_out_literal_id_(-1),
       source_position_table_builder_(
-          SourcePositionTableBuilder::RECORD_SOURCE_POSITIONS),
-      protected_instructions_(zone()),
+          codegen_zone, SourcePositionTableBuilder::RECORD_SOURCE_POSITIONS),
+      protected_instructions_(codegen_zone),
       result_(kSuccess),
       poisoning_level_(poisoning_level),
-      block_starts_(zone()),
-      instr_starts_(zone()) {
+      block_starts_(codegen_zone),
+      instr_starts_(codegen_zone) {
   for (int i = 0; i < instructions->InstructionBlockCount(); ++i) {
     new (&labels_[i]) Label;
   }
