@@ -42,7 +42,7 @@ struct WasmException;
   }())
 
 #define CHECK_PROTOTYPE_OPCODE_GEN(feat, opt_break)                            \
-  DCHECK(!this->module_ || this->module_->origin == kWasmOrigin);              \
+  DCHECK(this->module_->origin == kWasmOrigin);                                \
   if (!this->enabled_.has_##feat()) {                                          \
     this->error("Invalid opcode (enable with --experimental-wasm-" #feat ")"); \
     opt_break                                                                  \
@@ -1110,10 +1110,7 @@ class WasmDecoder : public Decoder {
   }
 
   inline bool Complete(const byte* pc, ExceptionIndexImmediate<validate>& imm) {
-    if (!VALIDATE(module_ != nullptr &&
-                  imm.index < module_->exceptions.size())) {
-      return false;
-    }
+    if (!VALIDATE(imm.index < module_->exceptions.size())) return false;
     imm.exception = &module_->exceptions[imm.index];
     return true;
   }
@@ -1127,7 +1124,7 @@ class WasmDecoder : public Decoder {
   }
 
   inline bool Validate(const byte* pc, GlobalIndexImmediate<validate>& imm) {
-    if (!VALIDATE(module_ != nullptr && imm.index < module_->globals.size())) {
+    if (!VALIDATE(imm.index < module_->globals.size())) {
       errorf(pc + 1, "invalid global index: %u", imm.index);
       return false;
     }
@@ -1137,9 +1134,7 @@ class WasmDecoder : public Decoder {
   }
 
   inline bool Complete(const byte* pc, StructIndexImmediate<validate>& imm) {
-    if (!VALIDATE(module_ != nullptr && module_->has_struct(imm.index))) {
-      return false;
-    }
+    if (!VALIDATE(module_->has_struct(imm.index))) return false;
     imm.struct_type = module_->struct_type(imm.index);
     return true;
   }
@@ -1158,9 +1153,7 @@ class WasmDecoder : public Decoder {
   }
 
   inline bool Complete(const byte* pc, ArrayIndexImmediate<validate>& imm) {
-    if (!VALIDATE(module_ != nullptr && module_->has_array(imm.index))) {
-      return false;
-    }
+    if (!VALIDATE(module_->has_array(imm.index))) return false;
     imm.array_type = module_->array_type(imm.index);
     return true;
   }
@@ -1182,10 +1175,7 @@ class WasmDecoder : public Decoder {
   }
 
   inline bool Complete(const byte* pc, CallFunctionImmediate<validate>& imm) {
-    if (!VALIDATE(module_ != nullptr &&
-                  imm.index < module_->functions.size())) {
-      return false;
-    }
+    if (!VALIDATE(imm.index < module_->functions.size())) return false;
     imm.sig = module_->functions[imm.index].sig;
     return true;
   }
@@ -1199,22 +1189,17 @@ class WasmDecoder : public Decoder {
   }
 
   inline bool Complete(const byte* pc, CallIndirectImmediate<validate>& imm) {
-    if (!VALIDATE(module_ != nullptr &&
-                  module_->has_signature(imm.sig_index))) {
-      return false;
-    }
+    if (!VALIDATE(module_->has_signature(imm.sig_index))) return false;
     imm.sig = module_->signature(imm.sig_index);
     return true;
   }
 
   inline bool Validate(const byte* pc, CallIndirectImmediate<validate>& imm) {
-    if (!VALIDATE(module_ != nullptr &&
-                  imm.table_index < module_->tables.size())) {
+    if (!VALIDATE(imm.table_index < module_->tables.size())) {
       error("function table has to exist to execute call_indirect");
       return false;
     }
-    if (!VALIDATE(module_ != nullptr &&
-                  module_->tables[imm.table_index].type == kWasmFuncRef)) {
+    if (!VALIDATE(module_->tables[imm.table_index].type == kWasmFuncRef)) {
       error("table of call_indirect must be of type funcref");
       return false;
     }
@@ -1298,9 +1283,7 @@ class WasmDecoder : public Decoder {
 
   inline bool Complete(BlockTypeImmediate<validate>& imm) {
     if (imm.type != kWasmBottom) return true;
-    if (!VALIDATE(module_ && module_->has_signature(imm.sig_index))) {
-      return false;
-    }
+    if (!VALIDATE(module_->has_signature(imm.sig_index))) return false;
     imm.sig = module_->signature(imm.sig_index);
     return true;
   }
@@ -1308,14 +1291,13 @@ class WasmDecoder : public Decoder {
   inline bool Validate(BlockTypeImmediate<validate>& imm) {
     if (!Complete(imm)) {
       errorf(pc_, "block type index %u out of bounds (%zu types)",
-             imm.sig_index, module_ ? module_->types.size() : 0);
+             imm.sig_index, module_->types.size());
       return false;
     }
     return true;
   }
 
   inline bool Validate(const byte* pc, FunctionIndexImmediate<validate>& imm) {
-    if (!module_) return true;
     if (!VALIDATE(imm.index < module_->functions.size())) {
       errorf(pc, "invalid function index: %u", imm.index);
       return false;
@@ -1328,7 +1310,7 @@ class WasmDecoder : public Decoder {
   }
 
   inline bool Validate(const byte* pc, MemoryIndexImmediate<validate>& imm) {
-    if (!VALIDATE(module_ != nullptr && module_->has_memory)) {
+    if (!VALIDATE(module_->has_memory)) {
       errorf(pc + 1, "memory instruction with no memory");
       return false;
     }
@@ -1336,9 +1318,8 @@ class WasmDecoder : public Decoder {
   }
 
   inline bool Validate(MemoryInitImmediate<validate>& imm) {
-    if (!VALIDATE(module_ != nullptr &&
-                  imm.data_segment_index <
-                      module_->num_declared_data_segments)) {
+    if (!VALIDATE(imm.data_segment_index <
+                  module_->num_declared_data_segments)) {
       errorf(pc_ + 2, "invalid data segment index: %u", imm.data_segment_index);
       return false;
     }
@@ -1348,8 +1329,7 @@ class WasmDecoder : public Decoder {
   }
 
   inline bool Validate(DataDropImmediate<validate>& imm) {
-    if (!VALIDATE(module_ != nullptr &&
-                  imm.index < module_->num_declared_data_segments)) {
+    if (!VALIDATE(imm.index < module_->num_declared_data_segments)) {
       errorf(pc_ + 2, "invalid data segment index: %u", imm.index);
       return false;
     }
@@ -1363,7 +1343,7 @@ class WasmDecoder : public Decoder {
   }
 
   inline bool Validate(const byte* pc, TableIndexImmediate<validate>& imm) {
-    if (!VALIDATE(module_ != nullptr && imm.index < module_->tables.size())) {
+    if (!VALIDATE(imm.index < module_->tables.size())) {
       errorf(pc, "invalid table index: %u", imm.index);
       return false;
     }
@@ -1371,8 +1351,7 @@ class WasmDecoder : public Decoder {
   }
 
   inline bool Validate(TableInitImmediate<validate>& imm) {
-    if (!VALIDATE(module_ != nullptr &&
-                  imm.elem_segment_index < module_->elem_segments.size())) {
+    if (!VALIDATE(imm.elem_segment_index < module_->elem_segments.size())) {
       errorf(pc_ + 2, "invalid element segment index: %u",
              imm.elem_segment_index);
       return false;
@@ -1391,8 +1370,7 @@ class WasmDecoder : public Decoder {
   }
 
   inline bool Validate(ElemDropImmediate<validate>& imm) {
-    if (!VALIDATE(module_ != nullptr &&
-                  imm.index < module_->elem_segments.size())) {
+    if (!VALIDATE(imm.index < module_->elem_segments.size())) {
       errorf(pc_ + 2, "invalid element segment index: %u", imm.index);
       return false;
     }
@@ -2536,7 +2514,6 @@ class WasmFullDecoder : public WasmDecoder<validate> {
           TableIndexImmediate<validate> imm(this, this->pc_);
           len = 1 + imm.length;
           if (!this->Validate(this->pc_, imm)) break;
-          DCHECK_NOT_NULL(this->module_);
           Value index = Pop(0, kWasmI32);
           Value* result = Push(this->module_->tables[imm.index].type);
           CALL_INTERFACE_IF_REACHABLE(TableGet, index, result, imm);
@@ -2626,7 +2603,6 @@ class WasmFullDecoder : public WasmDecoder<validate> {
           if (!CheckHasMemory()) break;
           MemoryIndexImmediate<validate> imm(this, this->pc_);
           len = 1 + imm.length;
-          DCHECK_NOT_NULL(this->module_);
           if (!VALIDATE(this->module_->origin == kWasmOrigin)) {
             this->error("grow_memory is not supported for asmjs modules");
             break;
@@ -2757,7 +2733,7 @@ class WasmFullDecoder : public WasmDecoder<validate> {
           break;
         default: {
           // Deal with special asmjs opcodes.
-          if (this->module_ != nullptr && is_asmjs_module(this->module_)) {
+          if (is_asmjs_module(this->module_)) {
             const FunctionSig* sig = WasmOpcodes::AsmjsSignature(opcode);
             if (sig) {
               BuildSimpleOperator(opcode, sig);
