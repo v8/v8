@@ -496,8 +496,12 @@ FUNCTION_REFERENCE_WITH_ISOLATE(re_match_for_call_from_js,
                                 IrregexpInterpreter::MatchForCallFromJs)
 
 FUNCTION_REFERENCE_WITH_ISOLATE(
-    re_case_insensitive_compare_uc16,
-    NativeRegExpMacroAssembler::CaseInsensitiveCompareUC16)
+    re_case_insensitive_compare_unicode,
+    NativeRegExpMacroAssembler::CaseInsensitiveCompareUnicode)
+
+FUNCTION_REFERENCE_WITH_ISOLATE(
+    re_case_insensitive_compare_non_unicode,
+    NativeRegExpMacroAssembler::CaseInsensitiveCompareNonUnicode)
 
 ExternalReference ExternalReference::re_word_character_map(Isolate* isolate) {
   return ExternalReference(

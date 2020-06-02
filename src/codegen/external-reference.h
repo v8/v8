@@ -77,8 +77,10 @@ class StatsCounter;
   V(address_of_regexp_stack_memory_top_address,                                \
     "RegExpStack::memory_top_address_address()")                               \
   V(address_of_static_offsets_vector, "OffsetsVector::static_offsets_vector")  \
-  V(re_case_insensitive_compare_uc16,                                          \
-    "NativeRegExpMacroAssembler::CaseInsensitiveCompareUC16()")                \
+  V(re_case_insensitive_compare_unicode,                                       \
+    "NativeRegExpMacroAssembler::CaseInsensitiveCompareUnicode()")             \
+  V(re_case_insensitive_compare_non_unicode,                                   \
+    "NativeRegExpMacroAssembler::CaseInsensitiveCompareNonUnicode()")          \
   V(re_check_stack_guard_state,                                                \
     "RegExpMacroAssembler*::CheckStackGuardState()")                           \
   V(re_grow_stack, "NativeRegExpMacroAssembler::GrowStack()")                  \

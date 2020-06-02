@@ -35,18 +35,23 @@ namespace internal {
 namespace {
 
 bool BackRefMatchesNoCase(Isolate* isolate, int from, int current, int len,
-                          Vector<const uc16> subject) {
+                          Vector<const uc16> subject, bool unicode) {
   Address offset_a =
       reinterpret_cast<Address>(const_cast<uc16*>(&subject.at(from)));
   Address offset_b =
       reinterpret_cast<Address>(const_cast<uc16*>(&subject.at(current)));
   size_t length = len * kUC16Size;
-  return RegExpMacroAssembler::CaseInsensitiveCompareUC16(offset_a, offset_b,
-                                                          length, isolate) == 1;
+
+  bool result = unicode
+                    ? RegExpMacroAssembler::CaseInsensitiveCompareUnicode(
+                          offset_a, offset_b, length, isolate)
+                    : RegExpMacroAssembler::CaseInsensitiveCompareNonUnicode(
+                          offset_a, offset_b, length, isolate);
+  return result == 1;
 }
 
 bool BackRefMatchesNoCase(Isolate* isolate, int from, int current, int len,
-                          Vector<const uint8_t> subject) {
+                          Vector<const uint8_t> subject, bool unicode) {
   // For Latin1 characters the unicode flag makes no difference.
   for (int i = 0; i < len; i++) {
     unsigned int old_char = subject[from++];
@@ -818,14 +823,26 @@ IrregexpInterpreter::Result RawMatch(
       DISPATCH();
     }
     BYTECODE(CHECK_NOT_BACK_REF_NO_CASE_UNICODE) {
-      UNREACHABLE();  // TODO(jgruber): Remove this unused bytecode.
+      int from = registers[LoadPacked24Unsigned(insn)];
+      int len = registers[LoadPacked24Unsigned(insn) + 1] - from;
+      if (from >= 0 && len > 0) {
+        if (current + len > subject.length() ||
+            !BackRefMatchesNoCase(isolate, from, current, len, subject, true)) {
+          SET_PC_FROM_OFFSET(Load32Aligned(pc + 4));
+          DISPATCH();
+        }
+        ADVANCE_CURRENT_POSITION(len);
+      }
+      ADVANCE(CHECK_NOT_BACK_REF_NO_CASE_UNICODE);
+      DISPATCH();
     }
     BYTECODE(CHECK_NOT_BACK_REF_NO_CASE) {
       int from = registers[LoadPacked24Unsigned(insn)];
       int len = registers[LoadPacked24Unsigned(insn) + 1] - from;
       if (from >= 0 && len > 0) {
         if (current + len > subject.length() ||
-            !BackRefMatchesNoCase(isolate, from, current, len, subject)) {
+            !BackRefMatchesNoCase(isolate, from, current, len, subject,
+                                  false)) {
           SET_PC_FROM_OFFSET(Load32Aligned(pc + 4));
           DISPATCH();
         }
@@ -835,14 +852,27 @@ IrregexpInterpreter::Result RawMatch(
       DISPATCH();
     }
     BYTECODE(CHECK_NOT_BACK_REF_NO_CASE_UNICODE_BACKWARD) {
-      UNREACHABLE();  // TODO(jgruber): Remove this unused bytecode.
+      int from = registers[LoadPacked24Unsigned(insn)];
+      int len = registers[LoadPacked24Unsigned(insn) + 1] - from;
+      if (from >= 0 && len > 0) {
+        if (current - len < 0 ||
+            !BackRefMatchesNoCase(isolate, from, current - len, len, subject,
+                                  true)) {
+          SET_PC_FROM_OFFSET(Load32Aligned(pc + 4));
+          DISPATCH();
+        }
+        SET_CURRENT_POSITION(current - len);
+      }
+      ADVANCE(CHECK_NOT_BACK_REF_NO_CASE_UNICODE_BACKWARD);
+      DISPATCH();
     }
     BYTECODE(CHECK_NOT_BACK_REF_NO_CASE_BACKWARD) {
       int from = registers[LoadPacked24Unsigned(insn)];
       int len = registers[LoadPacked24Unsigned(insn) + 1] - from;
       if (from >= 0 && len > 0) {
         if (current - len < 0 ||
-            !BackRefMatchesNoCase(isolate, from, current - len, len, subject)) {
+            !BackRefMatchesNoCase(isolate, from, current - len, len, subject,
+                                  false)) {
           SET_PC_FROM_OFFSET(Load32Aligned(pc + 4));
           DISPATCH();
         }
