@@ -474,6 +474,9 @@ class Heap {
   V8_EXPORT_PRIVATE HeapObject CreateFillerObjectAt(
       Address addr, int size, ClearRecordedSlots clear_slots_mode);
 
+  void CreateFillerObjectFromSweeper(Address addr, int size,
+                                     ClearFreedMemoryMode clear_memory_mode);
+
   template <typename T>
   void CreateFillerForArray(T object, int elements_to_trim, int bytes_to_trim);
 

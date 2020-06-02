@@ -265,14 +265,15 @@ V8_INLINE size_t Sweeper::FreeAndProcessFreedMemory(
   if (free_space_mode == ZAP_FREE_SPACE) {
     ZapCode(free_start, size);
   }
+  ClearFreedMemoryMode clear_memory_mode =
+      (free_list_mode == REBUILD_FREE_LIST)
+          ? ClearFreedMemoryMode::kDontClearFreedMemory
+          : ClearFreedMemoryMode::kClearFreedMemory;
+  page->heap()->CreateFillerObjectFromSweeper(
+      free_start, static_cast<int>(size), clear_memory_mode);
   if (free_list_mode == REBUILD_FREE_LIST) {
-    freed_bytes = reinterpret_cast<PagedSpace*>(space)->Free(
-        free_start, size, SpaceAccountingMode::kSpaceUnaccounted);
-
-  } else {
-    Heap::CreateFillerObjectAt(ReadOnlyRoots(page->heap()), free_start,
-                               static_cast<int>(size),
-                               ClearFreedMemoryMode::kClearFreedMemory);
+    freed_bytes =
+        reinterpret_cast<PagedSpace*>(space)->UnaccountedFree(free_start, size);
   }
   if (should_reduce_memory_) page->DiscardUnusedMemory(free_start, size);
 
