@@ -23,7 +23,7 @@
 #include "src/heap/large-spaces.h"
 #include "src/heap/mark-compact.h"
 #include "src/heap/read-only-heap.h"
-#include "src/heap/remembered-set-inl.h"
+#include "src/heap/remembered-set.h"
 #include "src/heap/slot-set.h"
 #include "src/init/v8.h"
 #include "src/logging/counters.h"
