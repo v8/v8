@@ -1695,6 +1695,22 @@ void LiftoffAssembler::emit_v8x16_alltrue(LiftoffRegister dst,
   liftoff::EmitAllTrue(this, dst, src, MSA_BRANCH_B);
 }
 
+void LiftoffAssembler::emit_i8x16_bitmask(LiftoffRegister dst,
+                                          LiftoffRegister src) {
+  MSARegister scratch0 = kSimd128RegZero;
+  MSARegister scratch1 = kSimd128ScratchReg;
+  srli_b(scratch0, src.fp().toW(), 7);
+  srli_h(scratch1, scratch0, 7);
+  or_v(scratch0, scratch0, scratch1);
+  srli_w(scratch1, scratch0, 14);
+  or_v(scratch0, scratch0, scratch1);
+  srli_d(scratch1, scratch0, 28);
+  or_v(scratch0, scratch0, scratch1);
+  shf_w(scratch1, scratch0, 0x0E);
+  ilvev_b(scratch0, scratch1, scratch0);
+  copy_u_h(dst.gp(), scratch0, 0);
+}
+
 void LiftoffAssembler::emit_i8x16_shl(LiftoffRegister dst, LiftoffRegister lhs,
                                       LiftoffRegister rhs) {
   fill_b(kSimd128ScratchReg, rhs.gp());
@@ -1809,6 +1825,21 @@ void LiftoffAssembler::emit_v16x8_alltrue(LiftoffRegister dst,
   liftoff::EmitAllTrue(this, dst, src, MSA_BRANCH_H);
 }
 
+void LiftoffAssembler::emit_i16x8_bitmask(LiftoffRegister dst,
+                                          LiftoffRegister src) {
+  MSARegister scratch0 = kSimd128RegZero;
+  MSARegister scratch1 = kSimd128ScratchReg;
+  srli_h(scratch0, src.fp().toW(), 15);
+  srli_w(scratch1, scratch0, 15);
+  or_v(scratch0, scratch0, scratch1);
+  srli_d(scratch1, scratch0, 30);
+  or_v(scratch0, scratch0, scratch1);
+  shf_w(scratch1, scratch0, 0x0E);
+  slli_d(scratch1, scratch1, 4);
+  or_v(scratch0, scratch0, scratch1);
+  copy_u_b(dst.gp(), scratch0, 0);
+}
+
 void LiftoffAssembler::emit_i16x8_shl(LiftoffRegister dst, LiftoffRegister lhs,
                                       LiftoffRegister rhs) {
   fill_h(kSimd128ScratchReg, rhs.gp());
@@ -1921,6 +1952,19 @@ void LiftoffAssembler::emit_v32x4_anytrue(LiftoffRegister dst,
 void LiftoffAssembler::emit_v32x4_alltrue(LiftoffRegister dst,
                                           LiftoffRegister src) {
   liftoff::EmitAllTrue(this, dst, src, MSA_BRANCH_W);
+}
+
+void LiftoffAssembler::emit_i32x4_bitmask(LiftoffRegister dst,
+                                          LiftoffRegister src) {
+  MSARegister scratch0 = kSimd128RegZero;
+  MSARegister scratch1 = kSimd128ScratchReg;
+  srli_w(scratch0, src.fp().toW(), 31);
+  srli_d(scratch1, scratch0, 31);
+  or_v(scratch0, scratch0, scratch1);
+  shf_w(scratch1, scratch0, 0x0E);
+  slli_d(scratch1, scratch1, 2);
+  or_v(scratch0, scratch0, scratch1);
+  copy_u_b(dst.gp(), scratch0, 0);
 }
 
 void LiftoffAssembler::emit_i32x4_shl(LiftoffRegister dst, LiftoffRegister lhs,
