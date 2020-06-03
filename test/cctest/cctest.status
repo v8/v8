@@ -370,7 +370,6 @@
   'test-interpreter/InterpreterRegExpLiterals': [SKIP],
 
   'test-run-jsops/BinopInstanceOf': [SKIP],
-  'test-run-jsops/BinopModulus': [SKIP],
 
   'test-run-machops/RunFloat64Acosh': [SKIP],
   'test-run-machops/RunFloat64Atan': [SKIP],
