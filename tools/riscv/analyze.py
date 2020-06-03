@@ -16,6 +16,8 @@
 import sys
 import argparse
 import re
+import struct
+import binascii
 
 
 class Trampoline:
@@ -320,18 +322,44 @@ def printArgs(indentLevel=0):
             val = hex(registers[r])
         print(f" {val}", end='')
     print()
+    if args.fp:
+        print(f"### {'  ' * call.indentLevel}  FPArgs:", end='')
+        if args.target == 'riscv':
+            prefix = "fa"
+            start = 0
+        else: # mips
+            prefix="f"
+            start = 12
+        for i in range(0, 8):
+            r = f"{prefix}{start + i}"
+            val = '?'
+            fpval = '?'
+            if r in registers:
+                val = format(registers[r], '016x')
+                fpval = struct.unpack('>d', binascii.unhexlify(val))[0]
+            print(f" {fpval} ({val})", end='')
+        print()
 
 
 def printReturnValues(indentLevel=0):
-    print(f"### {'  ' * call.indentLevel}  Returned: ", end='')
+    print(f"### {'  ' * call.indentLevel}  Returned: i: ", end='')
     prefix = 'a' if args.target == 'riscv' else 'v'
     for i in range(0, 2):
         r = f"{prefix}{i}"
         val = '?'
         if r in registers:
-            val = hex(registers[r])
+            val = format(registers[r], '016x')
         print(f" {val}", end='')
-    print()
+    if args.fp:
+        val = '?'
+        fpval = '?'
+        r = 'fa0' if args.target == 'riscv' else 'f0'
+        if r in registers:
+            val = format(registers[r], '016x')
+            fpval = struct.unpack('>d', binascii.unhexlify(val))[0]
+        print(f", f: {fpval} ({val})")
+    else:
+        print()
 
 
 parser = argparse.ArgumentParser()
@@ -341,6 +369,8 @@ parser.add_argument('--target', default='riscv',
                     help='Specify the target architecture')
 parser.add_argument('--print-host-calls', action='store_true', default=False,
                     dest='print_host_calls', help='Print info about calls to host functions')
+parser.add_argument('--fp', action='store_true', default=False,
+                    dest='fp', help='Print floating point arguments and return values')
 parser.add_argument('logfile', nargs=1)
 args = parser.parse_args()
 

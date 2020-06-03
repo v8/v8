@@ -619,9 +619,7 @@ class Simulator : public SimulatorBase {
   // Registers.
   int64_t registers_[kNumSimuRegisters];
   // Coprocessor Registers.
-  // Note: FPUregisters_[] array is increased to 64 * 8B = 32 * 16B in
-  // order to support MSA registers
-  int64_t FPUregisters_[kNumFPURegisters * 2];
+  int64_t FPUregisters_[kNumFPURegisters];
   // Floating-point control and status register.
   uint32_t FCSR_;
 

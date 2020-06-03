@@ -103,9 +103,9 @@ constexpr DoubleRegister kFpParamRegisters[] = {d0, d2};
 constexpr DoubleRegister kFpReturnRegisters[] = {d0, d2};
 
 #elif V8_TARGET_ARCH_RISCV
-// FIXME: RISCV Porting use RISCV rigisters
+// FIXME(RISCV): Figure out how these registers should be allocated.
 // ===========================================================================
-// == mips64 =================================================================
+// == riscv64 =================================================================
 // ===========================================================================
 constexpr Register kGpParamRegisters[] = {a0, a2, a3, a4, a5, a6, a7};
 constexpr Register kGpReturnRegisters[] = {a0, a1};

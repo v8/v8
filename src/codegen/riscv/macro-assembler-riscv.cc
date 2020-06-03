@@ -3338,11 +3338,11 @@ void TurboAssembler::FPUCanonicalizeNaN(const DoubleRegister dst,
 }
 
 void TurboAssembler::MovFromFloatResult(const DoubleRegister dst) {
-  Move(dst, fa0);  // Reg fa0 is o32 ABI FP return value.
+  Move(dst, fa0);  // Reg fa0 is FP return value.
 }
 
 void TurboAssembler::MovFromFloatParameter(const DoubleRegister dst) {
-  Move(dst, fa0);  // Reg fa0 is n64 ABI FP first argument value.
+  Move(dst, fa0);  // Reg fa0 is FP first argument value.
 }
 
 void TurboAssembler::MovToFloatParameter(DoubleRegister src) {
