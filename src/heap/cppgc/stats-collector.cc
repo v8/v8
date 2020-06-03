@@ -83,6 +83,10 @@ void StatsCollector::NotifyMarkingCompleted(size_t marked_bytes) {
   allocated_bytes_since_end_of_marking_ = 0;
   allocated_bytes_since_safepoint_ = 0;
   explicitly_freed_bytes_since_safepoint_ = 0;
+
+  ForAllAllocationObservers([marked_bytes](AllocationObserver* observer) {
+    observer->ResetAllocatedObjectSize(marked_bytes);
+  });
 }
 
 const StatsCollector::Event& StatsCollector::NotifySweepingCompleted() {

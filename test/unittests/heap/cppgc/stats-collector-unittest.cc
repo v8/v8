@@ -105,6 +105,7 @@ class MockAllocationObserver : public StatsCollector::AllocationObserver {
  public:
   MOCK_METHOD1(AllocatedObjectSizeIncreased, void(size_t));
   MOCK_METHOD1(AllocatedObjectSizeDecreased, void(size_t));
+  MOCK_METHOD1(ResetAllocatedObjectSize, void(size_t));
 };
 
 TEST_F(StatsCollectorTest, RegisterUnregisterObserver) {
@@ -113,7 +114,7 @@ TEST_F(StatsCollectorTest, RegisterUnregisterObserver) {
   stats.UnregisterObserver(&observer);
 }
 
-TEST_F(StatsCollectorTest, ObserveAllocatedObjectSize) {
+TEST_F(StatsCollectorTest, ObserveAllocatedObjectSizeIncreaseAndDecrease) {
   MockAllocationObserver observer;
   stats.RegisterObserver(&observer);
   EXPECT_CALL(observer, AllocatedObjectSizeIncreased(kMinReportedSize));
@@ -131,39 +132,63 @@ void FakeGC(StatsCollector* stats, size_t marked_bytes) {
   stats->NotifySweepingCompleted();
 }
 
+}  // namespace
+
+TEST_F(StatsCollectorTest, ObserveResetAllocatedObjectSize) {
+  MockAllocationObserver observer;
+  stats.RegisterObserver(&observer);
+  EXPECT_CALL(observer, AllocatedObjectSizeIncreased(kMinReportedSize));
+  FakeAllocate(kMinReportedSize);
+  EXPECT_CALL(observer, ResetAllocatedObjectSize(64));
+  FakeGC(&stats, 64);
+  stats.UnregisterObserver(&observer);
+}
+
+namespace {
+
 class AllocationObserverTriggeringGC final
     : public StatsCollector::AllocationObserver {
  public:
-  explicit AllocationObserverTriggeringGC(StatsCollector* stats)
-      : stats(stats) {}
+  AllocationObserverTriggeringGC(StatsCollector* stats, double survival_ratio)
+      : stats(stats), survival_ratio_(survival_ratio) {}
 
   void AllocatedObjectSizeIncreased(size_t bytes) final {
     increase_call_count++;
     increased_size_bytes += bytes;
     if (increase_call_count == 1) {
-      FakeGC(stats, bytes);
+      FakeGC(stats, bytes * survival_ratio_);
     }
   }
 
   // // Mock out the rest to trigger warnings if used.
   MOCK_METHOD1(AllocatedObjectSizeDecreased, void(size_t));
+  MOCK_METHOD1(ResetAllocatedObjectSize, void(size_t));
 
   size_t increase_call_count = 0;
   size_t increased_size_bytes = 0;
   StatsCollector* stats;
+  double survival_ratio_;
 };
 
 }  // namespace
 
 TEST_F(StatsCollectorTest, ObserverTriggersGC) {
-  AllocationObserverTriggeringGC gc_observer(&stats);
+  constexpr double kSurvivalRatio = 0.5;
+  AllocationObserverTriggeringGC gc_observer(&stats, kSurvivalRatio);
   MockAllocationObserver mock_observer;
-  // // Internal detail: First registered observer is also notified first.
+  // Internal detail: First registered observer is also notified first.
   stats.RegisterObserver(&gc_observer);
   stats.RegisterObserver(&mock_observer);
 
-  // Since the GC clears counters, it should see an increase call with a delta
-  // of zero bytes.
+  // Both observers see the exact allocated object size byte count.
+  EXPECT_CALL(mock_observer,
+              ResetAllocatedObjectSize(kMinReportedSize * kSurvivalRatio));
+  EXPECT_CALL(gc_observer,
+              ResetAllocatedObjectSize(kMinReportedSize * kSurvivalRatio));
+
+  // Since the GC clears counters, mock_observer should see an increase call
+  // with a delta of zero bytes. This expectation makes use of the internal
+  // detail that first registered observer triggers GC.
   EXPECT_CALL(mock_observer, AllocatedObjectSizeIncreased(0));
 
   // Trigger scenario.

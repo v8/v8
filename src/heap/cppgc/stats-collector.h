@@ -27,6 +27,8 @@ class V8_EXPORT_PRIVATE StatsCollector final {
     size_t marked_bytes = 0;
   };
 
+  // Observer for allocated object size. May be used to implement heap growing
+  // heuristics.
   class AllocationObserver {
    public:
     // Called after observing at least
@@ -38,6 +40,12 @@ class V8_EXPORT_PRIVATE StatsCollector final {
     // May trigger GC.
     virtual void AllocatedObjectSizeIncreased(size_t) = 0;
     virtual void AllocatedObjectSizeDecreased(size_t) = 0;
+
+    // Called when the exact size of allocated object size is known. In
+    // practice, this is after marking when marked bytes == allocated bytes.
+    //
+    // Must not trigger GC synchronously.
+    virtual void ResetAllocatedObjectSize(size_t) = 0;
   };
 
   // Observers are implemented using virtual calls. Avoid notifications below
