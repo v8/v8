@@ -3172,6 +3172,7 @@ bool Shell::SetOptions(int argc, char* argv[]) {
     }
   }
 
+  i::FLAG_abort_on_contradictory_flags = true;
   v8::V8::SetFlagsFromCommandLine(&argc, argv, true);
   options.mock_arraybuffer_allocator = i::FLAG_mock_arraybuffer_allocator;
   options.mock_arraybuffer_allocator_limit =
@@ -3618,12 +3619,11 @@ class D8Testing {
         "--max-inlined-bytecode-size=999999 "
         "--max-inlined-bytecode-size-cumulative=999999 "
         "--noalways-opt";
-    static const char* kForcedOptimizations = "--always-opt";
 
-    if (run == GetStressRuns() - 1) {
-      V8::SetFlagsFromString(kForcedOptimizations);
-    } else {
+    if (run < GetStressRuns() - 1) {
       V8::SetFlagsFromString(kLazyOptimizations);
+    } else {
+      i::FLAG_always_opt = true;
     }
   }
 

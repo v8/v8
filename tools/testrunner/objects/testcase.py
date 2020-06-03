@@ -34,6 +34,7 @@ from ..outproc import base as outproc
 from ..local import command
 from ..local import statusfile
 from ..local import utils
+from ..local.variants import INCOMPATIBLE_FLAGS_PER_VARIANT
 
 FLAGS_PATTERN = re.compile(r"//\s+Flags:(.*)")
 
@@ -84,7 +85,8 @@ class TestCase(object):
 
     # Outcomes
     self._statusfile_outcomes = None
-    self.expected_outcomes = None
+    self._expected_outcomes = None
+    self._checked_flag_contradictions = False
     self._statusfile_flags = None
 
     self._prepare_outcomes()
@@ -116,7 +118,7 @@ class TestCase(object):
       outcomes = self.suite.statusfile.get_outcomes(self.name, self.variant)
       self._statusfile_outcomes = filter(not_flag, outcomes)
       self._statusfile_flags = filter(is_flag, outcomes)
-    self.expected_outcomes = (
+    self._expected_outcomes = (
       self._parse_status_file_outcomes(self._statusfile_outcomes))
 
   def _parse_status_file_outcomes(self, outcomes):
@@ -140,6 +142,30 @@ class TestCase(object):
     if expected_outcomes == outproc.OUTCOMES_FAIL:
       return outproc.OUTCOMES_FAIL
     return expected_outcomes or outproc.OUTCOMES_PASS
+
+  @property
+  def expected_outcomes(self):
+    if not self._checked_flag_contradictions:
+      self._checked_flag_contradictions = True
+
+      def normalize_flag(flag):
+        return flag.replace("_", "-").replace("--no-", "--no")
+
+      all_flags = [normalize_flag(flag) for flag in self._get_cmd_params()]
+
+      def has_flag(conflicting_flag):
+          conflicting_flag = normalize_flag(conflicting_flag)
+          if conflicting_flag in all_flags:
+            return True
+          if conflicting_flag.endswith("*"):
+            return any(flag.startswith(conflicting_flag[:-1]) for flag in all_flags)
+          return False
+
+      if self.variant in INCOMPATIBLE_FLAGS_PER_VARIANT:
+        for conflicting_flag in INCOMPATIBLE_FLAGS_PER_VARIANT[self.variant]:
+          if has_flag(conflicting_flag):
+            self._expected_outcomes = outproc.OUTCOMES_FAIL
+    return self._expected_outcomes
 
   @property
   def do_skip(self):
