@@ -293,7 +293,8 @@ class MinorNonAtomicMarkingState final
 class MajorMarkingState final
     : public MarkingStateBase<MajorMarkingState, AccessMode::ATOMIC> {
  public:
-  ConcurrentBitmap<AccessMode::ATOMIC>* bitmap(const MemoryChunk* chunk) const {
+  ConcurrentBitmap<AccessMode::ATOMIC>* bitmap(
+      const BasicMemoryChunk* chunk) const {
     DCHECK_EQ(reinterpret_cast<intptr_t>(&chunk->marking_bitmap_) -
                   reinterpret_cast<intptr_t>(chunk),
               BasicMemoryChunk::kMarkBitmapOffset);
@@ -320,7 +321,8 @@ class MajorMarkingState final
 class MajorAtomicMarkingState final
     : public MarkingStateBase<MajorAtomicMarkingState, AccessMode::ATOMIC> {
  public:
-  ConcurrentBitmap<AccessMode::ATOMIC>* bitmap(const MemoryChunk* chunk) const {
+  ConcurrentBitmap<AccessMode::ATOMIC>* bitmap(
+      const BasicMemoryChunk* chunk) const {
     DCHECK_EQ(reinterpret_cast<intptr_t>(&chunk->marking_bitmap_) -
                   reinterpret_cast<intptr_t>(chunk),
               BasicMemoryChunk::kMarkBitmapOffset);
@@ -337,7 +339,7 @@ class MajorNonAtomicMarkingState final
                               AccessMode::NON_ATOMIC> {
  public:
   ConcurrentBitmap<AccessMode::NON_ATOMIC>* bitmap(
-      const MemoryChunk* chunk) const {
+      const BasicMemoryChunk* chunk) const {
     DCHECK_EQ(reinterpret_cast<intptr_t>(&chunk->marking_bitmap_) -
                   reinterpret_cast<intptr_t>(chunk),
               BasicMemoryChunk::kMarkBitmapOffset);

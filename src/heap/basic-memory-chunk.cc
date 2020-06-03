@@ -42,7 +42,8 @@ void BasicMemoryChunk::ReleaseMarkingBitmap() {
 // static
 BasicMemoryChunk* BasicMemoryChunk::Initialize(Heap* heap, Address base,
                                                size_t size, Address area_start,
-                                               Address area_end, Space* owner,
+                                               Address area_end,
+                                               BaseSpace* owner,
                                                VirtualMemory reservation) {
   BasicMemoryChunk* chunk = FromAddress(base);
   DCHECK_EQ(base, chunk->address());

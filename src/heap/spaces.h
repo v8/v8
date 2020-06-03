@@ -363,15 +363,70 @@ class NoFreeList final : public FreeList {
 };
 
 // ----------------------------------------------------------------------------
-// Space is the abstract superclass for all allocation spaces.
-class V8_EXPORT_PRIVATE Space : public Malloced {
+// BaseSpace is the abstract superclass for all allocation spaces.
+class V8_EXPORT_PRIVATE BaseSpace : public Malloced {
+ public:
+  Heap* heap() const {
+    DCHECK_NOT_NULL(heap_);
+    return heap_;
+  }
+
+  AllocationSpace identity() { return id_; }
+
+  const char* name() { return Heap::GetSpaceName(id_); }
+
+  void AccountCommitted(size_t bytes) {
+    DCHECK_GE(committed_ + bytes, committed_);
+    committed_ += bytes;
+    if (committed_ > max_committed_) {
+      max_committed_ = committed_;
+    }
+  }
+
+  void AccountUncommitted(size_t bytes) {
+    DCHECK_GE(committed_, committed_ - bytes);
+    committed_ -= bytes;
+  }
+
+  // Return the total amount committed memory for this space, i.e., allocatable
+  // memory and page headers.
+  virtual size_t CommittedMemory() { return committed_; }
+
+  virtual size_t MaximumCommittedMemory() { return max_committed_; }
+
+  // Approximate amount of physical memory committed for this space.
+  virtual size_t CommittedPhysicalMemory() = 0;
+
+  // Returns allocated size.
+  virtual size_t Size() = 0;
+
+ protected:
+  BaseSpace(Heap* heap, AllocationSpace id)
+      : heap_(heap), id_(id), committed_(0), max_committed_(0) {}
+
+  // Even though this has no virtual functions, this ensures that pointers are
+  // stable through casting.
+  virtual ~BaseSpace() = default;
+
+ protected:
+  Heap* heap_;
+  AllocationSpace id_;
+
+  // Keeps track of committed memory in a space.
+  std::atomic<size_t> committed_;
+  size_t max_committed_;
+
+  DISALLOW_COPY_AND_ASSIGN(BaseSpace);
+};
+
+// ----------------------------------------------------------------------------
+// Space is the abstract superclass for all allocation spaces that are not
+// sealed after startup (i.e. not ReadOnlySpace).
+class V8_EXPORT_PRIVATE Space : public BaseSpace {
  public:
   Space(Heap* heap, AllocationSpace id, FreeList* free_list)
-      : allocation_observers_paused_(false),
-        heap_(heap),
-        id_(id),
-        committed_(0),
-        max_committed_(0),
+      : BaseSpace(heap, id),
+        allocation_observers_paused_(false),
         free_list_(std::unique_ptr<FreeList>(free_list)) {
     external_backing_store_bytes_ =
         new std::atomic<size_t>[ExternalBackingStoreType::kNumTypes];
@@ -383,21 +438,10 @@ class V8_EXPORT_PRIVATE Space : public Malloced {
   static inline void MoveExternalBackingStoreBytes(
       ExternalBackingStoreType type, Space* from, Space* to, size_t amount);
 
-  virtual ~Space() {
+  ~Space() override {
     delete[] external_backing_store_bytes_;
     external_backing_store_bytes_ = nullptr;
   }
-
-  Heap* heap() const {
-    DCHECK_NOT_NULL(heap_);
-    return heap_;
-  }
-
-  bool IsDetached() const { return heap_ == nullptr; }
-
-  AllocationSpace identity() { return id_; }
-
-  const char* name() { return Heap::GetSpaceName(id_); }
 
   virtual void AddAllocationObserver(AllocationObserver* observer);
 
@@ -416,21 +460,9 @@ class V8_EXPORT_PRIVATE Space : public Malloced {
   // single allocation-folding group.
   void AllocationStepAfterMerge(Address first_object_in_chunk, int size);
 
-  // Return the total amount committed memory for this space, i.e., allocatable
-  // memory and page headers.
-  virtual size_t CommittedMemory() { return committed_; }
-
-  virtual size_t MaximumCommittedMemory() { return max_committed_; }
-
-  // Returns allocated size.
-  virtual size_t Size() = 0;
-
   // Returns size of objects. Can differ from the allocated size
   // (e.g. see OldLargeObjectSpace).
   virtual size_t SizeOfObjects() { return Size(); }
-
-  // Approximate amount of physical memory committed for this space.
-  virtual size_t CommittedPhysicalMemory() = 0;
 
   // Return the available bytes without growing.
   virtual size_t Available() = 0;
@@ -445,19 +477,6 @@ class V8_EXPORT_PRIVATE Space : public Malloced {
 
   virtual std::unique_ptr<ObjectIterator> GetObjectIterator(Heap* heap) = 0;
 
-  void AccountCommitted(size_t bytes) {
-    DCHECK_GE(committed_ + bytes, committed_);
-    committed_ += bytes;
-    if (committed_ > max_committed_) {
-      max_committed_ = committed_;
-    }
-  }
-
-  void AccountUncommitted(size_t bytes) {
-    DCHECK_GE(committed_, committed_ - bytes);
-    committed_ -= bytes;
-  }
-
   inline void IncrementExternalBackingStoreBytes(ExternalBackingStoreType type,
                                                  size_t amount);
 
@@ -470,8 +489,6 @@ class V8_EXPORT_PRIVATE Space : public Malloced {
     return external_backing_store_bytes_[type];
   }
 
-  void* GetRandomMmapAddr();
-
   MemoryChunk* first_page() { return memory_chunk_list_.front(); }
   MemoryChunk* last_page() { return memory_chunk_list_.back(); }
 
@@ -481,6 +498,8 @@ class V8_EXPORT_PRIVATE Space : public Malloced {
   heap::List<MemoryChunk>& memory_chunk_list() { return memory_chunk_list_; }
 
   FreeList* free_list() { return free_list_.get(); }
+
+  Address FirstPageAddress() const { return first_page()->address(); }
 
 #ifdef DEBUG
   virtual void Print() = 0;
@@ -492,8 +511,6 @@ class V8_EXPORT_PRIVATE Space : public Malloced {
     return !allocation_observers_paused_ && !allocation_observers_.empty();
   }
 
-  void DetachFromHeap() { heap_ = nullptr; }
-
   std::vector<AllocationObserver*> allocation_observers_;
 
   // The List manages the pages that belong to the given space.
@@ -503,12 +520,6 @@ class V8_EXPORT_PRIVATE Space : public Malloced {
   std::atomic<size_t>* external_backing_store_bytes_;
 
   bool allocation_observers_paused_;
-  Heap* heap_;
-  AllocationSpace id_;
-
-  // Keeps track of committed memory in a space.
-  std::atomic<size_t> committed_;
-  size_t max_committed_;
 
   std::unique_ptr<FreeList> free_list_;
 
@@ -585,17 +596,6 @@ class Page : public MemoryChunk {
     }
   }
 
-  // Returns the offset of a given address to this page.
-  inline size_t Offset(Address a) { return static_cast<size_t>(a - address()); }
-
-  // Returns the address for a given offset to the this page.
-  Address OffsetToAddress(size_t offset) {
-    Address address_in_page = address() + offset;
-    DCHECK_GE(address_in_page, area_start());
-    DCHECK_LT(address_in_page, area_end());
-    return address_in_page;
-  }
-
   void AllocateLocalTracker();
   inline LocalArrayBufferTracker* local_tracker() { return local_tracker_; }
   bool contains_array_buffers();
@@ -610,21 +610,6 @@ class Page : public MemoryChunk {
   FreeListCategory* free_list_category(FreeListCategoryType type) {
     return categories_[type];
   }
-
-  size_t wasted_memory() { return wasted_memory_; }
-  void add_wasted_memory(size_t waste) { wasted_memory_ += waste; }
-  size_t allocated_bytes() { return allocated_bytes_; }
-  void IncreaseAllocatedBytes(size_t bytes) {
-    DCHECK_LE(bytes, area_size());
-    allocated_bytes_ += bytes;
-  }
-  void DecreaseAllocatedBytes(size_t bytes) {
-    DCHECK_LE(bytes, area_size());
-    DCHECK_GE(allocated_bytes(), bytes);
-    allocated_bytes_ -= bytes;
-  }
-
-  void ResetAllocationStatistics();
 
   size_t ShrinkToHighWaterMark();
 

@@ -380,7 +380,7 @@ void SemiSpaceObjectIterator::Initialize(Address start, Address end) {
 
 size_t NewSpace::CommittedPhysicalMemory() {
   if (!base::OS::HasLazyCommits()) return CommittedMemory();
-  MemoryChunk::UpdateHighWaterMark(allocation_info_.top());
+  BasicMemoryChunk::UpdateHighWaterMark(allocation_info_.top());
   size_t size = to_space_.CommittedPhysicalMemory();
   if (from_space_.is_committed()) {
     size += from_space_.CommittedPhysicalMemory();
@@ -469,7 +469,7 @@ void NewSpace::UpdateLinearAllocationArea() {
   DCHECK(!AllocationObserversActive() || top_on_previous_step_ == top());
 
   Address new_top = to_space_.page_low();
-  MemoryChunk::UpdateHighWaterMark(allocation_info_.top());
+  BasicMemoryChunk::UpdateHighWaterMark(allocation_info_.top());
   allocation_info_.Reset(new_top, to_space_.page_high());
   // The order of the following two stores is important.
   // See the corresponding loads in ConcurrentMarking::Run.

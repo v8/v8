@@ -107,14 +107,14 @@ bool CodeSerializer::SerializeReadOnlyObject(HeapObject obj) {
   // create a back reference that encodes the page number as the chunk_index and
   // the offset within the page as the chunk_offset.
   Address address = obj.address();
-  Page* page = Page::FromAddress(address);
+  BasicMemoryChunk* chunk = BasicMemoryChunk::FromAddress(address);
   uint32_t chunk_index = 0;
   ReadOnlySpace* const read_only_space = isolate()->heap()->read_only_space();
-  for (Page* p : *read_only_space) {
-    if (p == page) break;
+  for (ReadOnlyPage* page : read_only_space->pages()) {
+    if (chunk == page) break;
     ++chunk_index;
   }
-  uint32_t chunk_offset = static_cast<uint32_t>(page->Offset(address));
+  uint32_t chunk_offset = static_cast<uint32_t>(chunk->Offset(address));
   SerializerReference back_reference = SerializerReference::BackReference(
       SnapshotSpace::kReadOnlyHeap, chunk_index, chunk_offset);
   reference_map()->Add(reinterpret_cast<void*>(obj.ptr()), back_reference);

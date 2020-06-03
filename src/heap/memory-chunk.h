@@ -286,15 +286,14 @@ class MemoryChunk : public BasicMemoryChunk {
   bool InOldSpace() const;
   V8_EXPORT_PRIVATE bool InLargeObjectSpace() const;
 
-  // Gets the chunk's owner or null if the space has been detached.
-  Space* owner() const { return owner_; }
-
-  void set_owner(Space* space) { owner_ = space; }
-
   bool IsWritable() const {
     // If this is a read-only space chunk but heap_ is non-null, it has not yet
     // been sealed and can be written to.
     return !InReadOnlySpace() || heap_ != nullptr;
+  }
+
+  Space* owner() const {
+    return reinterpret_cast<Space*>(BasicMemoryChunk::owner());
   }
 
   // Gets the chunk's allocation space, potentially dealing with a null owner_
@@ -331,10 +330,8 @@ class MemoryChunk : public BasicMemoryChunk {
   void ReleaseAllocatedMemoryNeededForWritableChunk();
 
  protected:
-  static MemoryChunk* Initialize(Heap* heap, Address base, size_t size,
-                                 Address area_start, Address area_end,
-                                 Executability executable, Space* owner,
-                                 VirtualMemory reservation);
+  static MemoryChunk* Initialize(BasicMemoryChunk* basic_chunk, Heap* heap,
+                                 Executability executable);
 
   // Release all memory allocated by the chunk. Should be called when memory
   // chunk is about to be freed.
