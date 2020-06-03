@@ -365,37 +365,11 @@
 ['arch == riscv32  or arch == riscv64', {
   'test-strings/OneByteArrayJoin': [SKIP],
 
-  'test-interpreter/InterpreterBinaryOpsHeapNumber': [SKIP],
-  'test-interpreter/InterpreterBinaryOpTypeFeedback': [SKIP],
   'test-interpreter/InterpreterRegExpLiterals': [SKIP],
 
   'test-run-jsops/BinopInstanceOf': [SKIP],
 
-  'test-run-machops/RunFloat64Acosh': [SKIP],
-  'test-run-machops/RunFloat64Atan': [SKIP],
-  'test-run-machops/RunFloat64Asin': [SKIP],
-  'test-run-machops/RunFloat64Asinh': [SKIP],
-  'test-run-machops/RunFloat64Atan2': [SKIP],
-  'test-run-machops/RunFloat64Acos': [SKIP],
-
-  'test-run-machops/RunFloat64Atanh': [SKIP],
-  'test-run-machops/RunFloat64Cos': [SKIP],
-  'test-run-machops/RunFloat64Cbrt': [SKIP],
-  'test-run-machops/RunFloat64Expm1': [SKIP],
   'test-run-machops/RunFloat64InsertHighWord32': [SKIP],
-  'test-run-machops/RunFloat64Exp': [SKIP],
-  'test-run-machops/RunFloat64Log10': [SKIP],
-  'test-run-machops/RunFloat64Cosh': [SKIP],
-  'test-run-machops/RunFloat64Mod': [SKIP],
-
-  'test-run-machops/RunFloat64Log': [SKIP],
-  'test-run-machops/RunFloat64ModP': [SKIP],
-  'test-run-machops/RunFloat64Log2': [SKIP],
-  'test-run-machops/RunFloat64Log1p': [SKIP],
-  'test-run-machops/RunFloat64Tanh': [SKIP],
-  'test-run-machops/RunFloat64Tan': [SKIP],
-  'test-run-machops/RunFloat64Sinh': [SKIP],
-  'test-run-machops/RunFloat64Sin': [SKIP],
 
   'test-run-wasm/RunWasmLiftoff_StoreMem_offset_oob': [SKIP],
   'test-run-wasm/RunWasmTurbofan_I32SConvertF32': [SKIP],
@@ -407,8 +381,6 @@
 
   'test-run-wasm-asmjs/RunWasmTurbofan_Int32AsmjsDivS_byzero_const': [SKIP],
   'test-run-wasm-asmjs/RunWasmTurbofan_Int32AsmjsRemS_byzero_const': [SKIP],
-
-   'test-code-stub-assembler/ToUint32': [SKIP],
 }],
 
 ##############################################################################

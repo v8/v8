@@ -812,10 +812,8 @@ Simulator::Simulator(Isolate* isolate) : isolate_(isolate) {
     registers_[i] = 0;
   }
 
-  // FIXME (RISCV): remove MSA ASE part?
   for (int i = 0; i < kNumFPURegisters; i++) {
-    FPUregisters_[2 * i] = 0;
-    FPUregisters_[2 * i + 1] = 0;  // upper part for MSA ASE
+    FPUregisters_[i] = 0;
   }
 
   FCSR_ = 0;
@@ -873,7 +871,7 @@ void Simulator::set_dw_register(int reg, const int* dbl) {
 
 void Simulator::set_fpu_register(int fpureg, int64_t value) {
   DCHECK((fpureg >= 0) && (fpureg < kNumFPURegisters));
-  FPUregisters_[fpureg * 2] = value;
+  FPUregisters_[fpureg] = value;
 }
 
 void Simulator::set_fpu_register_word(int fpureg, int32_t value) {
@@ -881,9 +879,9 @@ void Simulator::set_fpu_register_word(int fpureg, int32_t value) {
   DCHECK((fpureg >= 0) && (fpureg < kNumFPURegisters));
   int32_t* pword;
   if (kArchEndian == kLittle) {
-    pword = reinterpret_cast<int32_t*>(&FPUregisters_[fpureg * 2]);
+    pword = reinterpret_cast<int32_t*>(&FPUregisters_[fpureg]);
   } else {
-    pword = reinterpret_cast<int32_t*>(&FPUregisters_[fpureg * 2]) + 1;
+    pword = reinterpret_cast<int32_t*>(&FPUregisters_[fpureg]) + 1;
   }
   *pword = value;
 }
@@ -893,21 +891,21 @@ void Simulator::set_fpu_register_hi_word(int fpureg, int32_t value) {
   DCHECK((fpureg >= 0) && (fpureg < kNumFPURegisters));
   int32_t* phiword;
   if (kArchEndian == kLittle) {
-    phiword = (reinterpret_cast<int32_t*>(&FPUregisters_[fpureg * 2])) + 1;
+    phiword = (reinterpret_cast<int32_t*>(&FPUregisters_[fpureg])) + 1;
   } else {
-    phiword = reinterpret_cast<int32_t*>(&FPUregisters_[fpureg * 2]);
+    phiword = reinterpret_cast<int32_t*>(&FPUregisters_[fpureg]);
   }
   *phiword = value;
 }
 
 void Simulator::set_fpu_register_float(int fpureg, float value) {
   DCHECK((fpureg >= 0) && (fpureg < kNumFPURegisters));
-  *bit_cast<float*>(&FPUregisters_[fpureg * 2]) = value;
+  *bit_cast<float*>(&FPUregisters_[fpureg]) = value;
 }
 
 void Simulator::set_fpu_register_double(int fpureg, double value) {
   DCHECK((fpureg >= 0) && (fpureg < kNumFPURegisters));
-  *bit_cast<double*>(&FPUregisters_[fpureg * 2]) = value;
+  *bit_cast<double*>(&FPUregisters_[fpureg]) = value;
 }
 
 // Get the register from the architecture state. This function does handle
@@ -935,42 +933,41 @@ double Simulator::get_double_from_register_pair(int reg) {
 
 int64_t Simulator::get_fpu_register(int fpureg) const {
   DCHECK((fpureg >= 0) && (fpureg < kNumFPURegisters));
-  return FPUregisters_[fpureg * 2];
+  return FPUregisters_[fpureg];
 }
 
 int32_t Simulator::get_fpu_register_word(int fpureg) const {
   DCHECK((fpureg >= 0) && (fpureg < kNumFPURegisters));
-  return static_cast<int32_t>(FPUregisters_[fpureg * 2] & 0xFFFFFFFF);
+  return static_cast<int32_t>(FPUregisters_[fpureg] & 0xFFFFFFFF);
 }
 
 int32_t Simulator::get_fpu_register_signed_word(int fpureg) const {
   DCHECK((fpureg >= 0) && (fpureg < kNumFPURegisters));
-  return static_cast<int32_t>(FPUregisters_[fpureg * 2] & 0xFFFFFFFF);
+  return static_cast<int32_t>(FPUregisters_[fpureg] & 0xFFFFFFFF);
 }
 
 int32_t Simulator::get_fpu_register_hi_word(int fpureg) const {
   DCHECK((fpureg >= 0) && (fpureg < kNumFPURegisters));
-  return static_cast<int32_t>((FPUregisters_[fpureg * 2] >> 32) & 0xFFFFFFFF);
+  return static_cast<int32_t>((FPUregisters_[fpureg] >> 32) & 0xFFFFFFFF);
 }
 
 float Simulator::get_fpu_register_float(int fpureg) const {
   DCHECK((fpureg >= 0) && (fpureg < kNumFPURegisters));
-  return *bit_cast<float*>(const_cast<int64_t*>(&FPUregisters_[fpureg * 2]));
+  return *bit_cast<float*>(const_cast<int64_t*>(&FPUregisters_[fpureg]));
 }
 
 double Simulator::get_fpu_register_double(int fpureg) const {
   DCHECK((fpureg >= 0) && (fpureg < kNumFPURegisters));
-  return *bit_cast<double*>(&FPUregisters_[fpureg * 2]);
+  return *bit_cast<double*>(&FPUregisters_[fpureg]);
 }
 
 // Runtime FP routines take up to two double arguments and zero
 // or one integer arguments. All are constructed here,
-// from a0-a3 or fa0 and fa1 (n64), or fa2 (O32).
+// from fa0, fa1, and a0.
 void Simulator::GetFpArgs(double* x, double* y, int32_t* z) {
-  const int fparg2 = 13;
-  *x = get_fpu_register_double(12);
-  *y = get_fpu_register_double(fparg2);
-  *z = static_cast<int32_t>(get_register(a2));
+  *x = get_fpu_register_double(fa0);
+  *y = get_fpu_register_double(fa1);
+  *z = static_cast<int32_t>(get_register(a0));
 }
 
 // The return value is in fa0.
@@ -3151,11 +3148,10 @@ intptr_t Simulator::CallImpl(Address entry, int argument_count,
 }
 
 double Simulator::CallFP(Address entry, double d0, double d1) {
-  const FPURegister fparg2 = fa1;
   set_fpu_register_double(fa0, d0);
-  set_fpu_register_double(fparg2, d1);
+  set_fpu_register_double(fa1, d1);
   CallInternal(entry);
-  return get_fpu_register_double(ft0);
+  return get_fpu_register_double(fa0);
 }
 
 uintptr_t Simulator::PushAddress(uintptr_t address) {
