@@ -757,13 +757,14 @@ void LiftoffAssembler::PrepareCall(const FunctionSig* sig,
   constexpr size_t kInputShift = 1;
 
   // Spill all cache slots which are not being used as parameters.
-  // Don't update any register use counters, they will be reset later anyway.
-  for (uint32_t idx = 0, end = cache_state_.stack_height() - num_params;
-       idx < end; ++idx) {
-    VarState& slot = cache_state_.stack_state[idx];
-    if (!slot.is_reg()) continue;
-    Spill(slot.offset(), slot.reg(), slot.type());
-    slot.MakeStack();
+  for (VarState* it = cache_state_.stack_state.end() - 1 - num_params;
+       it >= cache_state_.stack_state.begin() &&
+       !cache_state_.used_registers.is_empty();
+       --it) {
+    if (!it->is_reg()) continue;
+    Spill(it->offset(), it->reg(), it->type());
+    cache_state_.dec_used(it->reg());
+    it->MakeStack();
   }
 
   LiftoffStackSlots stack_slots(this);
