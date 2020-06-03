@@ -165,7 +165,7 @@ load("test/mjsunit/wasm/wasm-module-builder.js");
   print(arguments.callee.name);
   const builder = new WasmModuleBuilder();
   builder.addFunction('main', kSig_r_v)
-      .addBody([kExprRefNull])
+      .addBody([kExprRefNull, kWasmAnyRef])
       .exportFunc();
 
   const instance = builder.instantiate();
@@ -177,7 +177,7 @@ load("test/mjsunit/wasm/wasm-module-builder.js");
   print(arguments.callee.name);
   const builder = new WasmModuleBuilder();
   builder.addFunction('main', kSig_i_r)
-      .addBody([kExprLocalGet, 0, kExprRefIsNull])
+      .addBody([kExprLocalGet, 0, kExprRefIsNull, kWasmAnyRef])
       .exportFunc();
 
   const instance = builder.instantiate();
@@ -196,7 +196,10 @@ load("test/mjsunit/wasm/wasm-module-builder.js");
 
   const builder = new WasmModuleBuilder();
   builder.addFunction('main', kSig_i_v)
-      .addBody([kExprRefNull, kExprRefIsNull])
+      .addBody([
+        kExprRefNull, kWasmAnyRef,   // --
+        kExprRefIsNull, kWasmAnyRef  // --
+      ])
       .exportFunc();
 
   const instance = builder.instantiate();
@@ -222,7 +225,7 @@ load("test/mjsunit/wasm/wasm-module-builder.js");
   const builder = new WasmModuleBuilder();
   const sig_index = builder.addType(kSig_r_v);
   builder.addFunction('main', sig_index)
-      .addBody([kExprRefNull])
+      .addBody([kExprRefNull, kWasmAnyRef])
       .exportFunc();
 
   const main = builder.instantiate().exports.main;
@@ -234,7 +237,7 @@ load("test/mjsunit/wasm/wasm-module-builder.js");
   const builder = new WasmModuleBuilder();
   const sig_index = builder.addType(kSig_r_v);
   builder.addFunction('main', sig_index)
-      .addBody([kExprRefNull, kExprReturn])
+      .addBody([kExprRefNull, kWasmAnyRef, kExprReturn])
       .exportFunc();
 
   const main = builder.instantiate().exports.main;

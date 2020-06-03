@@ -13,11 +13,11 @@ load('test/mjsunit/wasm/wasm-module-builder.js');
 function create_builder(i) {
   const builder = new WasmModuleBuilder();
   builder.addFunction('main', kSig_i_r)
-  .addBody([
-    kExprLocalGet, 0, kExprRefIsNull,
-    ...wasmI32Const(i),
-    kExprI32Add])
-  .exportFunc();
+      .addBody([
+        kExprLocalGet, 0, kExprRefIsNull, kWasmAnyRef, ...wasmI32Const(i),
+        kExprI32Add
+      ])
+      .exportFunc();
   return builder;
 }
 

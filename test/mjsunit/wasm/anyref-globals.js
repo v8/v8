@@ -560,21 +560,14 @@ function dummy_func() {
 (function TestRefFuncGlobalInit() {
   print(arguments.callee.name);
   let builder = new WasmModuleBuilder();
-  const g_ref = builder.addGlobal(kWasmAnyRef, true);
   const g_func = builder.addGlobal(kWasmAnyFunc, true);
-  const f_ref = builder.addFunction('get_anyref_global', kSig_r_v)
-                    .addBody([kExprGlobalGet, g_ref.index])
-                    .exportAs('get_anyref_global');
   const f_func = builder.addFunction('get_anyfunc_global', kSig_a_v)
                      .addBody([kExprGlobalGet, g_func.index])
                      .exportAs('get_anyfunc_global');
-  builder.addDeclarativeElementSegment([f_ref.index, f_func.index]);
-  g_ref.function_index = f_ref.index;
+  builder.addDeclarativeElementSegment([f_func.index]);
   g_func.function_index = f_func.index;
 
   const instance = builder.instantiate();
-  assertEquals(
-      instance.exports.get_anyref_global, instance.exports.get_anyref_global());
   assertEquals(
       instance.exports.get_anyfunc_global,
       instance.exports.get_anyfunc_global());

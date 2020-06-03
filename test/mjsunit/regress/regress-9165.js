@@ -36,7 +36,7 @@ let kSig_r_i = makeSig([kWasmI32], [kWasmAnyRef]);
         kExprLocalGet, 0,
         kExprI32Eqz,
         kExprIf, kWasmAnyRef,
-          kExprRefNull,
+          kExprRefNull, kWasmAnyRef,
         kExprElse,
           kExprLocalGet, 1,
         kExprEnd,

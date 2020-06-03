@@ -9,7 +9,7 @@ load("test/mjsunit/wasm/wasm-module-builder.js");
 (function testAnyRefNull() {
   const builder = new WasmModuleBuilder();
   builder.addFunction('main', kSig_r_v)
-      .addBody([kExprRefNull])
+      .addBody([kExprRefNull, kWasmAnyRef])
       .exportFunc();
 
   var wire_bytes = builder.toBuffer();
@@ -24,7 +24,7 @@ load("test/mjsunit/wasm/wasm-module-builder.js");
 (function testAnyRefIsNull() {
   const builder = new WasmModuleBuilder();
   builder.addFunction('main', kSig_i_r)
-      .addBody([kExprLocalGet, 0, kExprRefIsNull])
+      .addBody([kExprLocalGet, 0, kExprRefIsNull, kWasmAnyRef])
       .exportFunc();
 
   var wire_bytes = builder.toBuffer();

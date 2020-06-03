@@ -128,81 +128,6 @@ struct WasmException;
   V(I64AtomicStore16U, Uint16)  \
   V(I64AtomicStore32U, Uint32)
 
-// Helpers for decoding different kinds of immediates which follow bytecodes.
-template <Decoder::ValidateFlag validate>
-struct LocalIndexImmediate {
-  uint32_t index;
-  ValueType type = kWasmStmt;
-  uint32_t length;
-
-  inline LocalIndexImmediate(Decoder* decoder, const byte* pc) {
-    index = decoder->read_u32v<validate>(pc + 1, &length, "local index");
-  }
-};
-
-template <Decoder::ValidateFlag validate>
-struct ExceptionIndexImmediate {
-  uint32_t index;
-  const WasmException* exception = nullptr;
-  uint32_t length;
-
-  inline ExceptionIndexImmediate(Decoder* decoder, const byte* pc) {
-    index = decoder->read_u32v<validate>(pc + 1, &length, "exception index");
-  }
-};
-
-template <Decoder::ValidateFlag validate>
-struct ImmI32Immediate {
-  int32_t value;
-  uint32_t length;
-  inline ImmI32Immediate(Decoder* decoder, const byte* pc) {
-    value = decoder->read_i32v<validate>(pc + 1, &length, "immi32");
-  }
-};
-
-template <Decoder::ValidateFlag validate>
-struct ImmI64Immediate {
-  int64_t value;
-  uint32_t length;
-  inline ImmI64Immediate(Decoder* decoder, const byte* pc) {
-    value = decoder->read_i64v<validate>(pc + 1, &length, "immi64");
-  }
-};
-
-template <Decoder::ValidateFlag validate>
-struct ImmF32Immediate {
-  float value;
-  uint32_t length = 4;
-  inline ImmF32Immediate(Decoder* decoder, const byte* pc) {
-    // Avoid bit_cast because it might not preserve the signalling bit of a NaN.
-    uint32_t tmp = decoder->read_u32<validate>(pc + 1, "immf32");
-    memcpy(&value, &tmp, sizeof(value));
-  }
-};
-
-template <Decoder::ValidateFlag validate>
-struct ImmF64Immediate {
-  double value;
-  uint32_t length = 8;
-  inline ImmF64Immediate(Decoder* decoder, const byte* pc) {
-    // Avoid bit_cast because it might not preserve the signalling bit of a NaN.
-    uint64_t tmp = decoder->read_u64<validate>(pc + 1, "immf64");
-    memcpy(&value, &tmp, sizeof(value));
-  }
-};
-
-template <Decoder::ValidateFlag validate>
-struct GlobalIndexImmediate {
-  uint32_t index;
-  ValueType type = kWasmStmt;
-  const WasmGlobal* global = nullptr;
-  uint32_t length;
-
-  inline GlobalIndexImmediate(Decoder* decoder, const byte* pc) {
-    index = decoder->read_u32v<validate>(pc + 1, &length, "global index");
-  }
-};
-
 namespace value_type_reader {
 
 // Read a value type starting at address 'pc' in 'decoder'.
@@ -344,6 +269,94 @@ ValueType read_value_type(Decoder* decoder, const byte* pc,
   return kWasmBottom;
 }
 }  // namespace value_type_reader
+
+// Helpers for decoding different kinds of immediates which follow bytecodes.
+template <Decoder::ValidateFlag validate>
+struct LocalIndexImmediate {
+  uint32_t index;
+  ValueType type = kWasmStmt;
+  uint32_t length;
+
+  inline LocalIndexImmediate(Decoder* decoder, const byte* pc) {
+    index = decoder->read_u32v<validate>(pc + 1, &length, "local index");
+  }
+};
+
+template <Decoder::ValidateFlag validate>
+struct ExceptionIndexImmediate {
+  uint32_t index;
+  const WasmException* exception = nullptr;
+  uint32_t length;
+
+  inline ExceptionIndexImmediate(Decoder* decoder, const byte* pc) {
+    index = decoder->read_u32v<validate>(pc + 1, &length, "exception index");
+  }
+};
+
+template <Decoder::ValidateFlag validate>
+struct ImmI32Immediate {
+  int32_t value;
+  uint32_t length;
+  inline ImmI32Immediate(Decoder* decoder, const byte* pc) {
+    value = decoder->read_i32v<validate>(pc + 1, &length, "immi32");
+  }
+};
+
+template <Decoder::ValidateFlag validate>
+struct ImmI64Immediate {
+  int64_t value;
+  uint32_t length;
+  inline ImmI64Immediate(Decoder* decoder, const byte* pc) {
+    value = decoder->read_i64v<validate>(pc + 1, &length, "immi64");
+  }
+};
+
+template <Decoder::ValidateFlag validate>
+struct ImmF32Immediate {
+  float value;
+  uint32_t length = 4;
+  inline ImmF32Immediate(Decoder* decoder, const byte* pc) {
+    // We can't use bit_cast here because calling any helper function that
+    // returns a float would potentially flip NaN bits per C++ semantics, so we
+    // have to inline the memcpy call directly.
+    uint32_t tmp = decoder->read_u32<validate>(pc + 1, "immf32");
+    memcpy(&value, &tmp, sizeof(value));
+  }
+};
+
+template <Decoder::ValidateFlag validate>
+struct ImmF64Immediate {
+  double value;
+  uint32_t length = 8;
+  inline ImmF64Immediate(Decoder* decoder, const byte* pc) {
+    // Avoid bit_cast because it might not preserve the signalling bit of a NaN.
+    uint64_t tmp = decoder->read_u64<validate>(pc + 1, "immf64");
+    memcpy(&value, &tmp, sizeof(value));
+  }
+};
+
+template <Decoder::ValidateFlag validate>
+struct RefNullImmediate {
+  ValueType type;
+  uint32_t length = 1;
+  inline RefNullImmediate(const WasmFeatures& enabled, Decoder* decoder,
+                          const byte* pc) {
+    type = value_type_reader::read_value_type<validate>(decoder, pc + 1,
+                                                        &length, enabled);
+  }
+};
+
+template <Decoder::ValidateFlag validate>
+struct GlobalIndexImmediate {
+  uint32_t index;
+  ValueType type = kWasmStmt;
+  const WasmGlobal* global = nullptr;
+  uint32_t length;
+
+  inline GlobalIndexImmediate(Decoder* decoder, const byte* pc) {
+    index = decoder->read_u32v<validate>(pc + 1, &length, "global index");
+  }
+};
 
 template <Decoder::ValidateFlag validate>
 struct SelectTypeImmediate {
@@ -1109,6 +1122,14 @@ class WasmDecoder : public Decoder {
     return true;
   }
 
+  inline bool Validate(const byte* pc, RefNullImmediate<validate>& imm) {
+    if (!VALIDATE(imm.type.IsNullable())) {
+      errorf(pc + 1, "ref.null does not exist for %s", imm.type.type_name());
+      return false;
+    }
+    return true;
+  }
+
   inline bool Complete(const byte* pc, ExceptionIndexImmediate<validate>& imm) {
     if (!VALIDATE(imm.index < module_->exceptions.size())) return false;
     imm.exception = &module_->exceptions[imm.index];
@@ -1483,7 +1504,12 @@ class WasmDecoder : public Decoder {
         return 1 + imm.length;
       }
       case kExprRefNull: {
-        return 1;
+        RefNullImmediate<validate> imm(WasmFeatures::All(), decoder, pc);
+        return 1 + imm.length;
+      }
+      case kExprRefIsNull: {
+        RefNullImmediate<validate> imm(WasmFeatures::All(), decoder, pc);
+        return 1 + imm.length;
       }
       case kExprRefFunc: {
         FunctionIndexImmediate<validate> imm(decoder, pc);
@@ -1682,6 +1708,7 @@ class WasmDecoder : public Decoder {
       case kExprMemoryGrow:
       case kExprRefAsNonNull:
       case kExprBrOnNull:
+      case kExprRefIsNull:
         return {1, 1};
       case kExprLocalSet:
       case kExprGlobalSet:
@@ -2076,6 +2103,7 @@ class WasmFullDecoder : public WasmDecoder<validate> {
           for (size_t i = 0; i < value_count; ++i) Push(sig->GetParam(i));
           Vector<Value> values(stack_.data() + c->stack_depth, value_count);
           TypeCheckBranchResult check_result = TypeCheckBranch(c, true);
+          if (this->failed()) break;
           if (V8_LIKELY(check_result == kReachableBranch)) {
             CALL_INTERFACE(BrOnException, exception, imm.index, imm.depth.depth,
                            values);
@@ -2415,9 +2443,21 @@ class WasmFullDecoder : public WasmDecoder<validate> {
         }
         case kExprRefNull: {
           CHECK_PROTOTYPE_OPCODE(anyref);
-          Value* value = Push(kWasmNullRef);
+          RefNullImmediate<validate> imm(this->enabled_, this, this->pc_);
+          if (!this->Validate(this->pc_, imm)) break;
+          Value* value = Push(imm.type);
           CALL_INTERFACE_IF_REACHABLE(RefNull, value);
-          len = 1;
+          len = 1 + imm.length;
+          break;
+        }
+        case kExprRefIsNull: {
+          CHECK_PROTOTYPE_OPCODE(anyref);
+          RefNullImmediate<validate> imm(this->enabled_, this, this->pc_);
+          if (!this->Validate(this->pc_, imm)) break;
+          Value value = Pop(0, imm.type);
+          Value* result = Push(kWasmI32);
+          CALL_INTERFACE_IF_REACHABLE(UnOp, opcode, value, result);
+          len = 1 + imm.length;
           break;
         }
         case kExprRefFunc: {
@@ -3697,9 +3737,7 @@ class WasmFullDecoder : public WasmDecoder<validate> {
   }
 
   void BuildSimplePrototypeOperator(WasmOpcode opcode) {
-    if (opcode == kExprRefIsNull) {
-      RET_ON_PROTOTYPE_OPCODE(anyref);
-    } else if (opcode == kExprRefEq) {
+    if (opcode == kExprRefEq) {
       RET_ON_PROTOTYPE_OPCODE(gc);
     }
     const FunctionSig* sig = WasmOpcodes::Signature(opcode);

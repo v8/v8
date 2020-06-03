@@ -432,9 +432,11 @@ inline WasmOpcode LoadStoreOpcodeOf(MachineType type, bool store) {
 #define WASM_STRUCT_SET(typeidx, fieldidx, struct_obj, value)                \
   struct_obj, value, WASM_GC_OP(kExprStructSet), static_cast<byte>(typeidx), \
       static_cast<byte>(fieldidx)
-#define WASM_REF_NULL kExprRefNull
+#define WASM_REF_NULL(type) kExprRefNull, static_cast<byte>(type)
+#define WASM_REF_NULL_GC(type) \
+  kExprRefNull, kLocalOptRef, static_cast<byte>(type)
 #define WASM_REF_FUNC(val) kExprRefFunc, val
-#define WASM_REF_IS_NULL(val) val, kExprRefIsNull
+#define WASM_REF_IS_NULL(type, val) val, kExprRefIsNull, static_cast<byte>(type)
 #define WASM_REF_AS_NON_NULL(val) val, kExprRefAsNonNull
 #define WASM_REF_EQ(lhs, rhs) lhs, rhs, kExprRefEq
 

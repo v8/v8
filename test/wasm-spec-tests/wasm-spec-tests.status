@@ -21,23 +21,10 @@
   'proposals/js-types/linking': [FAIL],
 
   # TODO(v8:10556): Remove sub-typing in the reference-types implementation
-  'proposals/bulk-memory-operations/binary': [FAIL],
-  'proposals/bulk-memory-operations/bulk': [FAIL],
-  'proposals/bulk-memory-operations/elem': [FAIL],
   'proposals/bulk-memory-operations/imports': [FAIL],
 
-  'proposals/reference-types/binary': [FAIL],
-  'proposals/reference-types/bulk': [FAIL],
-  'proposals/reference-types/elem': [FAIL],
-  'proposals/reference-types/global': [FAIL],
   'proposals/reference-types/linking': [FAIL],
   'proposals/reference-types/ref_func': [FAIL],
-  'proposals/reference-types/ref_is_null': [FAIL],
-  'proposals/reference-types/ref_null': [FAIL],
-  'proposals/reference-types/table_get': [FAIL],
-  'proposals/reference-types/table_grow': [FAIL],
-  'proposals/reference-types/table_set': [FAIL],
-  'proposals/reference-types/table_size': [FAIL],
   'proposals/reference-types/unreached-invalid': [FAIL],
 
   # TODO(wasm): This test declares a table larger than allowed by the spec.

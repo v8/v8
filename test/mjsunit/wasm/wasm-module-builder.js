@@ -1126,18 +1126,23 @@ class WasmModuleBuilder {
               data_view.setFloat64(0, global.init, true);
               section.emit_bytes(byte_view);
               break;
-            case kWasmAnyFunc:
             case kWasmAnyRef:
-            case kWasmNullRef:
+              section.emit_u8(kExprRefNull);
+              section.emit_u8(kWasmAnyRef);
+              assertEquals(global.function_index, undefined);
+              break;
+            case kWasmAnyFunc:
               if (global.function_index !== undefined) {
                 section.emit_u8(kExprRefFunc);
                 section.emit_u32v(global.function_index);
               } else {
                 section.emit_u8(kExprRefNull);
+                section.emit_u8(kWasmAnyFunc);
               }
               break;
             case kWasmExnRef:
               section.emit_u8(kExprRefNull);
+              section.emit_u8(kWasmExnRef);
               break;
             }
           } else {
@@ -1227,6 +1232,7 @@ class WasmModuleBuilder {
             for (let index of init.array) {
               if (index === null) {
                 section.emit_u8(kExprRefNull);
+                section.emit_u8(kWasmAnyFunc);
                 section.emit_u8(kExprEnd);
               } else {
                 section.emit_u8(kExprRefFunc);

@@ -306,8 +306,7 @@ TEST_F(FunctionBodyDecoderTest, Int32Const1) {
 
 TEST_F(FunctionBodyDecoderTest, RefNull) {
   WASM_FEATURE_SCOPE(anyref);
-  ExpectValidates(sigs.r_v(), {kExprRefNull});
-  ExpectValidates(sigs.n_v(), {kExprRefNull});
+  ExpectValidates(sigs.r_v(), {kExprRefNull, kLocalAnyRef});
 }
 
 TEST_F(FunctionBodyDecoderTest, RefFunc) {
@@ -2667,9 +2666,11 @@ TEST_F(FunctionBodyDecoderTest, SelectWithType) {
   ExpectValidates(sigs.l_l(),
                   {WASM_SELECT_L(WASM_I64V_1(0), WASM_I64V_1(0), WASM_ZERO)});
   ExpectValidates(sigs.r_r(),
-                  {WASM_SELECT_R(WASM_REF_NULL, WASM_REF_NULL, WASM_ZERO)});
+                  {WASM_SELECT_R(WASM_REF_NULL(kLocalAnyRef),
+                                 WASM_REF_NULL(kLocalAnyRef), WASM_ZERO)});
   ExpectValidates(sigs.a_a(),
-                  {WASM_SELECT_A(WASM_REF_NULL, WASM_REF_NULL, WASM_ZERO)});
+                  {WASM_SELECT_A(WASM_REF_NULL(kLocalFuncRef),
+                                 WASM_REF_NULL(kLocalFuncRef), WASM_ZERO)});
 }
 
 TEST_F(FunctionBodyDecoderTest, SelectWithType_fail) {
@@ -3209,17 +3210,16 @@ TEST_F(FunctionBodyDecoderTest, TableGrow) {
   byte tab_ref = builder.AddTable(kWasmAnyRef, 10, true, 20);
   byte tab_null = builder.AddTable(kWasmNullRef, 10, true, 20);
 
-  ExpectFailure(sigs.i_a(),
-                {WASM_TABLE_GROW(tab_func, WASM_REF_NULL, WASM_ONE)});
-  ExpectFailure(sigs.i_n(),
-                {WASM_TABLE_GROW(tab_null, WASM_REF_NULL, WASM_ONE)});
+  ExpectFailure(
+      sigs.i_a(),
+      {WASM_TABLE_GROW(tab_func, WASM_REF_NULL(kLocalFuncRef), WASM_ONE)});
   WASM_FEATURE_SCOPE(anyref);
-  ExpectValidates(sigs.i_a(),
-                  {WASM_TABLE_GROW(tab_func, WASM_REF_NULL, WASM_ONE)});
-  ExpectValidates(sigs.i_r(),
-                  {WASM_TABLE_GROW(tab_ref, WASM_REF_NULL, WASM_ONE)});
-  ExpectValidates(sigs.i_n(),
-                  {WASM_TABLE_GROW(tab_null, WASM_REF_NULL, WASM_ONE)});
+  ExpectValidates(
+      sigs.i_a(),
+      {WASM_TABLE_GROW(tab_func, WASM_REF_NULL(kLocalFuncRef), WASM_ONE)});
+  ExpectValidates(
+      sigs.i_r(),
+      {WASM_TABLE_GROW(tab_ref, WASM_REF_NULL(kLocalAnyRef), WASM_ONE)});
   // FuncRef table cannot be initialized with an anyref value.
   ExpectFailure(sigs.i_r(),
                 {WASM_TABLE_GROW(tab_func, WASM_GET_LOCAL(0), WASM_ONE)});
@@ -3237,8 +3237,9 @@ TEST_F(FunctionBodyDecoderTest, TableGrow) {
   ExpectFailure(sigs.i_r(),
                 {WASM_TABLE_GROW(tab_null, WASM_GET_LOCAL(0), WASM_ONE)});
   // Check that the table index gets verified.
-  ExpectFailure(sigs.i_r(),
-                {WASM_TABLE_GROW(tab_ref + 2, WASM_REF_NULL, WASM_ONE)});
+  ExpectFailure(
+      sigs.i_r(),
+      {WASM_TABLE_GROW(tab_ref + 2, WASM_REF_NULL(kLocalAnyRef), WASM_ONE)});
 }
 
 TEST_F(FunctionBodyDecoderTest, TableSize) {
@@ -3253,19 +3254,17 @@ TEST_F(FunctionBodyDecoderTest, TableSize) {
 TEST_F(FunctionBodyDecoderTest, TableFill) {
   byte tab_func = builder.AddTable(kWasmFuncRef, 10, true, 20);
   byte tab_ref = builder.AddTable(kWasmAnyRef, 10, true, 20);
-  byte tab_null = builder.AddTable(kWasmNullRef, 10, true, 20);
 
   ExpectFailure(sigs.v_a(),
-                {WASM_TABLE_FILL(tab_func, WASM_ONE, WASM_REF_NULL, WASM_ONE)});
-  ExpectFailure(sigs.v_n(),
-                {WASM_TABLE_FILL(tab_null, WASM_ONE, WASM_REF_NULL, WASM_ONE)});
+                {WASM_TABLE_FILL(tab_func, WASM_ONE,
+                                 WASM_REF_NULL(kLocalFuncRef), WASM_ONE)});
   WASM_FEATURE_SCOPE(anyref);
-  ExpectValidates(sigs.v_a(), {WASM_TABLE_FILL(tab_func, WASM_ONE,
-                                               WASM_REF_NULL, WASM_ONE)});
-  ExpectValidates(sigs.v_r(), {WASM_TABLE_FILL(tab_ref, WASM_ONE, WASM_REF_NULL,
-                                               WASM_ONE)});
-  ExpectValidates(sigs.v_n(), {WASM_TABLE_FILL(tab_null, WASM_ONE,
-                                               WASM_REF_NULL, WASM_ONE)});
+  ExpectValidates(sigs.v_a(),
+                  {WASM_TABLE_FILL(tab_func, WASM_ONE,
+                                   WASM_REF_NULL(kLocalFuncRef), WASM_ONE)});
+  ExpectValidates(sigs.v_r(),
+                  {WASM_TABLE_FILL(tab_ref, WASM_ONE,
+                                   WASM_REF_NULL(kLocalAnyRef), WASM_ONE)});
   // FuncRef table cannot be initialized with an anyref value.
   ExpectFailure(sigs.v_r(), {WASM_TABLE_FILL(tab_func, WASM_ONE,
                                              WASM_GET_LOCAL(0), WASM_ONE)});
@@ -3278,17 +3277,20 @@ TEST_F(FunctionBodyDecoderTest, TableFill) {
   ExpectValidates(sigs.v_n(), {WASM_TABLE_FILL(tab_ref, WASM_ONE,
                                                WASM_GET_LOCAL(0), WASM_ONE)});
   // Check that the table index gets verified.
-  ExpectFailure(sigs.v_r(), {WASM_TABLE_FILL(tab_ref + 2, WASM_ONE,
-                                             WASM_REF_NULL, WASM_ONE)});
+  ExpectFailure(sigs.v_r(),
+                {WASM_TABLE_FILL(tab_ref + 2, WASM_ONE,
+                                 WASM_REF_NULL(kLocalAnyRef), WASM_ONE)});
 }
 
 TEST_F(FunctionBodyDecoderTest, TableOpsWithoutTable) {
   {
     WASM_FEATURE_SCOPE(anyref);
-    ExpectFailure(sigs.i_v(), {WASM_TABLE_GROW(0, WASM_REF_NULL, WASM_ONE)});
+    ExpectFailure(sigs.i_v(),
+                  {WASM_TABLE_GROW(0, WASM_REF_NULL(kLocalAnyRef), WASM_ONE)});
     ExpectFailure(sigs.i_v(), {WASM_TABLE_SIZE(0)});
-    ExpectFailure(sigs.i_r(),
-                  {WASM_TABLE_FILL(0, WASM_ONE, WASM_REF_NULL, WASM_ONE)});
+    ExpectFailure(
+        sigs.i_r(),
+        {WASM_TABLE_FILL(0, WASM_ONE, WASM_REF_NULL(kLocalAnyRef), WASM_ONE)});
   }
   {
     WASM_FEATURE_SCOPE(bulk_memory);
@@ -3519,7 +3521,7 @@ TEST_F(WasmOpcodeLengthTest, Statements) {
 TEST_F(WasmOpcodeLengthTest, MiscExpressions) {
   ExpectLength(5, kExprF32Const);
   ExpectLength(9, kExprF64Const);
-  ExpectLength(1, kExprRefNull);
+  ExpectLength(2, kExprRefNull);
   ExpectLength(2, kExprLocalGet);
   ExpectLength(2, kExprLocalSet);
   ExpectLength(2, kExprGlobalGet);

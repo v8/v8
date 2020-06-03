@@ -122,12 +122,15 @@ ValueType TypeOf(const WasmModule* module, const WasmInitExpr& expr) {
       return kWasmF32;
     case WasmInitExpr::kF64Const:
       return kWasmF64;
-    case WasmInitExpr::kRefNullConst:
-      return kWasmNullRef;
     case WasmInitExpr::kRefFuncConst:
       return kWasmFuncRef;
+    case WasmInitExpr::kRefNullConst:
+      // It is not possible to retrieve the full {ValueType} of a {WasmInitExpr}
+      // of kind {kRefNullConst}. As WasmInitExpr of kind {krefNullConst} is
+      // only valid in globals, the {ValueType} has to be retrieved from the
+      // global definition itself.
+      UNREACHABLE();
   }
-  UNREACHABLE();
 }
 
 // Reads a length-prefixed string, checking that it is within bounds. Returns
@@ -1423,7 +1426,7 @@ class ModuleDecoderImpl : public Decoder {
     global->type = consume_value_type();
     global->mutability = consume_mutability();
     const byte* pos = pc();
-    global->init = consume_init_expr(module, kWasmStmt);
+    global->init = consume_init_expr(module, global->type);
     if (global->init.kind == WasmInitExpr::kGlobalIndex) {
       uint32_t other_index = global->init.val.global_index;
       if (other_index >= index) {
@@ -1437,12 +1440,6 @@ class ModuleDecoderImpl : public Decoder {
                "(from global #%u), expected %s, got %s",
                other_index, global->type.type_name(),
                module->globals[other_index].type.type_name());
-      }
-    } else {
-      if (!TypeOf(module, global->init).IsSubTypeOf(global->type)) {
-        errorf(pos, "type error in global initialization, expected %s, got %s",
-               global->type.type_name(),
-               TypeOf(module, global->init).type_name());
       }
     }
   }
@@ -1698,8 +1695,19 @@ class ModuleDecoderImpl : public Decoder {
       }
       case kExprRefNull: {
         if (enabled_features_.has_anyref() || enabled_features_.has_eh()) {
+          RefNullImmediate<Decoder::kValidate> imm(WasmFeatures::All(), this,
+                                                   pc() - 1);
+          if (!imm.type.IsReferenceType()) {
+            errorf(pc() - 1, "ref.null is not supported for %s",
+                   imm.type.type_name());
+            break;
+          }
           expr.kind = WasmInitExpr::kRefNullConst;
-          len = 0;
+          len = imm.length;
+          if (expected != kWasmStmt && !imm.type.IsSubTypeOf(expected)) {
+            errorf(pos, "type error in init expression, expected %s, got %s",
+                   expected.type_name(), imm.type.type_name());
+          }
           break;
         }
         V8_FALLTHROUGH;
@@ -1730,7 +1738,10 @@ class ModuleDecoderImpl : public Decoder {
     if (!expect_u8("end opcode", kExprEnd)) {
       expr.kind = WasmInitExpr::kNone;
     }
-    if (expected != kWasmStmt && TypeOf(module, expr) != kWasmI32) {
+
+    // The type check of ref.null is special, and already done above.
+    if (expected != kWasmStmt && opcode != kExprRefNull &&
+        TypeOf(module, expr) != expected) {
       errorf(pos, "type error in init expression, expected %s, got %s",
              expected.type_name(), TypeOf(module, expr).type_name());
     }
@@ -2049,9 +2060,13 @@ class ModuleDecoderImpl : public Decoder {
     uint8_t opcode = consume_u8("element opcode");
     if (failed()) return index;
     switch (opcode) {
-      case kExprRefNull:
+      case kExprRefNull: {
+        RefNullImmediate<kValidate> imm(WasmFeatures::All(), this,
+                                        this->pc() - 1);
+        consume_bytes(imm.length, "ref.null immediate");
         index = WasmElemSegment::kNullIndex;
         break;
+      }
       case kExprRefFunc:
         index = consume_element_func_index();
         if (failed()) return index;

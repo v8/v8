@@ -62,6 +62,7 @@ bool IsJSCompatibleSignature(const FunctionSig* sig, const WasmFeatures&);
   V(F32Const, 0x43, _)           \
   V(F64Const, 0x44, _)           \
   V(RefNull, 0xd0, _)            \
+  V(RefIsNull, 0xd1, _)          \
   V(RefFunc, 0xd2, _)            \
   V(RefAsNonNull, 0xd3, _)
 
@@ -231,7 +232,6 @@ bool IsJSCompatibleSignature(const FunctionSig* sig, const WasmFeatures&);
   V(I64SExtendI32, 0xc4, l_l)
 
 #define FOREACH_SIMPLE_PROTOTYPE_OPCODE(V) \
-  V(RefIsNull, 0xd1, i_r)                  \
   V(RefEq, 0xd5, i_rr)  // made-up opcode, guessing future spec (GC)
 
 // For compatibility with Asm.js.
@@ -765,13 +765,16 @@ struct WasmInitExpr {
   explicit WasmInitExpr(int64_t v) : kind(kI64Const) { val.i64_const = v; }
   explicit WasmInitExpr(float v) : kind(kF32Const) { val.f32_const = v; }
   explicit WasmInitExpr(double v) : kind(kF64Const) { val.f64_const = v; }
+
+  explicit WasmInitExpr(WasmInitKind kind) : kind(kind) {
+    DCHECK_EQ(kind, kRefNullConst);
+  }
+
   WasmInitExpr(WasmInitKind kind, uint32_t index) : kind(kind) {
     if (kind == kGlobalIndex) {
       val.global_index = index;
     } else if (kind == kRefFuncConst) {
       val.function_index = index;
-    } else if (kind == kRefNullConst) {
-      // Nothing to do.
     } else {
       // For the other types, the other initializers should be used.
       UNREACHABLE();

@@ -134,6 +134,11 @@ class ValueType {
     return kAnyRef <= kind() && kind() <= kEqRef;
   }
 
+  constexpr bool IsNullable() const {
+    return kind() == kAnyRef || kind() == kFuncRef || kind() == kExnRef ||
+           kind() == kOptRef;
+  }
+
   // TODO(7748): Extend this with struct and function subtyping.
   //             Keep up to date with funcref vs. anyref subtyping.
   static ValueType CommonSubType(ValueType a, ValueType b) {

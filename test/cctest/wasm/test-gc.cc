@@ -85,17 +85,19 @@ WASM_EXEC_TEST(BasicStruct) {
 
   // Test struct.set, ref.as_non_null,
   // struct refs types in globals and if-results.
-  uint32_t k_global_index = builder->AddGlobal(kOptRefType, true);
+  uint32_t k_global_index = builder->AddGlobal(
+      kOptRefType, true, WasmInitExpr(WasmInitExpr::kRefNullConst));
   WasmFunctionBuilder* k = builder->AddFunction(sigs.i_v());
   uint32_t k_field_index = 0;
   k->builder()->AddExport(CStrVector("k"), k);
   byte k_code[] = {
       WASM_SET_GLOBAL(k_global_index, WASM_STRUCT_NEW(type_index, WASM_I32V(55),
                                                       WASM_I32V(66))),
-      WASM_STRUCT_GET(type_index, k_field_index,
-                      WASM_REF_AS_NON_NULL(WASM_IF_ELSE_R(
-                          kOptRefType, WASM_I32V(1),
-                          WASM_GET_GLOBAL(k_global_index), WASM_REF_NULL))),
+      WASM_STRUCT_GET(
+          type_index, k_field_index,
+          WASM_REF_AS_NON_NULL(WASM_IF_ELSE_R(kOptRefType, WASM_I32V(1),
+                                              WASM_GET_GLOBAL(k_global_index),
+                                              WASM_REF_NULL_GC(type_index)))),
       kExprEnd};
   k->EmitCode(k_code, sizeof(k_code));
 
@@ -147,13 +149,14 @@ WASM_EXEC_TEST(BasicStruct) {
                                WASM_STRUCT_NEW(type_index, WASM_I32V(55),
                                                WASM_I32V(66))),
                            WASM_I32V(1)),
-              WASM_I32_ADD(
-                  WASM_I32_SHL(  // false
-                      WASM_REF_EQ(WASM_GET_LOCAL(n_local_index), WASM_REF_NULL),
-                      WASM_I32V(2)),
-                  WASM_I32_SHL(WASM_REF_EQ(  // true
-                                   WASM_REF_NULL, WASM_REF_NULL),
-                               WASM_I32V(3))))),
+              WASM_I32_ADD(WASM_I32_SHL(  // false
+                               WASM_REF_EQ(WASM_GET_LOCAL(n_local_index),
+                                           WASM_REF_NULL_GC(type_index)),
+                               WASM_I32V(2)),
+                           WASM_I32_SHL(WASM_REF_EQ(  // true
+                                            WASM_REF_NULL_GC(type_index),
+                                            WASM_REF_NULL_GC(type_index)),
+                                        WASM_I32V(3))))),
       kExprEnd};
   n->EmitCode(n_code, sizeof(n_code));
   // Result: 0b1001
