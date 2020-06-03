@@ -7,10 +7,6 @@
 #include <sys/syscall.h>
 #include <unistd.h>
 
-#ifdef __mips
-#include <asm/cachectl.h>
-#endif  // #ifdef __mips
-
 #if V8_TARGET_ARCH_RISCV
 
 #include "src/codegen/cpu-features.h"

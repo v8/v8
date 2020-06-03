@@ -38,42 +38,8 @@ namespace internal {
  * The remaining registers are free for computations.
  * Each call to a public method should retain this convention.
  *
- * TODO(plind): O32 documented here with intent of having single 32/64 codebase
- *              in the future.
- *
- * The O32 stack will have the following structure:
- *
- *  - fp[72]  Isolate* isolate   (address of the current isolate)
- *  - fp[68]  direct_call  (if 1, direct call from JavaScript code,
- *                          if 0, call through the runtime system).
- *  - fp[64]  stack_area_base (High end of the memory area to use as
- *                             backtracking stack).
- *  - fp[60]  capture array size (may fit multiple sets of matches)
- *  - fp[44..59]  MIPS O32 four argument slots
- *  - fp[40]  int* capture_array (int[num_saved_registers_], for output).
- *  --- sp when called ---
- *  - fp[36]  return address      (lr).
- *  - fp[32]  old frame pointer   (r11).
- *  - fp[0..31]  backup of registers fp..s7.
- *  --- frame pointer ----
- *  - fp[-4]  end of input       (address of end of string).
- *  - fp[-8]  start of input     (address of first character in string).
- *  - fp[-12] start index        (character index of start).
- *  - fp[-16] void* input_string (location of a handle containing the string).
- *  - fp[-20] success counter    (only for global regexps to count matches).
- *  - fp[-24] Offset of location before start of input (effectively character
- *            string start - 1). Used to initialize capture registers to a
- *            non-position.
- *  - fp[-28] At start (if 1, we are starting at the start of the
- *    string, otherwise 0)
- *  - fp[-32] register 0         (Only positions must be stored in the first
- *  -         register 1          num_saved_registers_ registers)
- *  -         ...
- *  -         register num_registers-1
- *  --- sp ---
- *
- *
- * The N64 stack will have the following structure:
+ * The stack will have the following structure:
+ * FIXME(RISCV): Verify that this stack description is correct
  *
  *  - fp[80]  Isolate* isolate   (address of the current isolate)               kIsolate
  *                                                                              kStackFrameHeader
@@ -125,9 +91,9 @@ namespace internal {
 
 #define __ ACCESS_MASM(masm_)
 
-const int RegExpMacroAssemblerMIPS::kRegExpCodeSize;
+const int RegExpMacroAssemblerRISCV::kRegExpCodeSize;
 
-RegExpMacroAssemblerMIPS::RegExpMacroAssemblerMIPS(Isolate* isolate, Zone* zone,
+RegExpMacroAssemblerRISCV::RegExpMacroAssemblerRISCV(Isolate* isolate, Zone* zone,
                                                    Mode mode,
                                                    int registers_to_save)
     : NativeRegExpMacroAssembler(isolate, zone),
@@ -152,7 +118,7 @@ RegExpMacroAssemblerMIPS::RegExpMacroAssemblerMIPS(Isolate* isolate, Zone* zone,
   __ bind(&start_label_);  // And then continue from here.
 }
 
-RegExpMacroAssemblerMIPS::~RegExpMacroAssemblerMIPS() {
+RegExpMacroAssemblerRISCV::~RegExpMacroAssemblerRISCV() {
   delete masm_;
   // Unuse labels in case we throw away the assembler without calling GetCode.
   entry_label_.Unuse();
@@ -165,18 +131,18 @@ RegExpMacroAssemblerMIPS::~RegExpMacroAssemblerMIPS() {
   internal_failure_label_.Unuse();
 }
 
-int RegExpMacroAssemblerMIPS::stack_limit_slack() {
+int RegExpMacroAssemblerRISCV::stack_limit_slack() {
   return RegExpStack::kStackLimitSlack;
 }
 
-void RegExpMacroAssemblerMIPS::AdvanceCurrentPosition(int by) {
+void RegExpMacroAssemblerRISCV::AdvanceCurrentPosition(int by) {
   if (by != 0) {
     __ Daddu(current_input_offset(), current_input_offset(),
              Operand(by * char_size()));
   }
 }
 
-void RegExpMacroAssemblerMIPS::AdvanceRegister(int reg, int by) {
+void RegExpMacroAssemblerRISCV::AdvanceRegister(int reg, int by) {
   DCHECK_LE(0, reg);
   DCHECK_GT(num_registers_, reg);
   if (by != 0) {
@@ -186,7 +152,7 @@ void RegExpMacroAssemblerMIPS::AdvanceRegister(int reg, int by) {
   }
 }
 
-void RegExpMacroAssemblerMIPS::Backtrack() {
+void RegExpMacroAssemblerRISCV::Backtrack() {
   CheckPreemption();
   if (has_backtrack_limit()) {
     Label next;
@@ -206,24 +172,24 @@ void RegExpMacroAssemblerMIPS::Backtrack() {
   __ Jump(a0);
 }
 
-void RegExpMacroAssemblerMIPS::Bind(Label* label) { __ bind(label); }
+void RegExpMacroAssemblerRISCV::Bind(Label* label) { __ bind(label); }
 
-void RegExpMacroAssemblerMIPS::CheckCharacter(uint32_t c, Label* on_equal) {
+void RegExpMacroAssemblerRISCV::CheckCharacter(uint32_t c, Label* on_equal) {
   BranchOrBacktrack(on_equal, eq, current_character(), Operand(c));
 }
 
-void RegExpMacroAssemblerMIPS::CheckCharacterGT(uc16 limit, Label* on_greater) {
+void RegExpMacroAssemblerRISCV::CheckCharacterGT(uc16 limit, Label* on_greater) {
   BranchOrBacktrack(on_greater, gt, current_character(), Operand(limit));
 }
 
-void RegExpMacroAssemblerMIPS::CheckAtStart(int cp_offset, Label* on_at_start) {
+void RegExpMacroAssemblerRISCV::CheckAtStart(int cp_offset, Label* on_at_start) {
   __ Ld(a1, MemOperand(frame_pointer(), kStringStartMinusOne));
   __ Daddu(a0, current_input_offset(),
            Operand(-char_size() + cp_offset * char_size()));
   BranchOrBacktrack(on_at_start, eq, a0, Operand(a1));
 }
 
-void RegExpMacroAssemblerMIPS::CheckNotAtStart(int cp_offset,
+void RegExpMacroAssemblerRISCV::CheckNotAtStart(int cp_offset,
                                                Label* on_not_at_start) {
   __ Ld(a1, MemOperand(frame_pointer(), kStringStartMinusOne));
   __ Daddu(a0, current_input_offset(),
@@ -231,11 +197,11 @@ void RegExpMacroAssemblerMIPS::CheckNotAtStart(int cp_offset,
   BranchOrBacktrack(on_not_at_start, ne, a0, Operand(a1));
 }
 
-void RegExpMacroAssemblerMIPS::CheckCharacterLT(uc16 limit, Label* on_less) {
+void RegExpMacroAssemblerRISCV::CheckCharacterLT(uc16 limit, Label* on_less) {
   BranchOrBacktrack(on_less, lt, current_character(), Operand(limit));
 }
 
-void RegExpMacroAssemblerMIPS::CheckGreedyLoop(Label* on_equal) {
+void RegExpMacroAssemblerRISCV::CheckGreedyLoop(Label* on_equal) {
   Label backtrack_non_equal;
   __ Lw(a0, MemOperand(backtrack_stackpointer(), 0));
   __ Branch(&backtrack_non_equal, ne, current_input_offset(), Operand(a0));
@@ -245,7 +211,7 @@ void RegExpMacroAssemblerMIPS::CheckGreedyLoop(Label* on_equal) {
   BranchOrBacktrack(on_equal, eq, current_input_offset(), Operand(a0));
 }
 
-void RegExpMacroAssemblerMIPS::CheckNotBackReferenceIgnoreCase(
+void RegExpMacroAssemblerRISCV::CheckNotBackReferenceIgnoreCase(
     int start_reg, bool read_backward, bool unicode, Label* on_no_match) {
   Label fallthrough;
   __ Ld(a0, register_location(start_reg));      // Index of start of capture.
@@ -390,7 +356,7 @@ void RegExpMacroAssemblerMIPS::CheckNotBackReferenceIgnoreCase(
   __ bind(&fallthrough);
 }
 
-void RegExpMacroAssemblerMIPS::CheckNotBackReference(int start_reg,
+void RegExpMacroAssemblerRISCV::CheckNotBackReference(int start_reg,
                                                      bool read_backward,
                                                      Label* on_no_match) {
   Label fallthrough;
@@ -451,19 +417,19 @@ void RegExpMacroAssemblerMIPS::CheckNotBackReference(int start_reg,
   __ bind(&fallthrough);
 }
 
-void RegExpMacroAssemblerMIPS::CheckNotCharacter(uint32_t c,
+void RegExpMacroAssemblerRISCV::CheckNotCharacter(uint32_t c,
                                                  Label* on_not_equal) {
   BranchOrBacktrack(on_not_equal, ne, current_character(), Operand(c));
 }
 
-void RegExpMacroAssemblerMIPS::CheckCharacterAfterAnd(uint32_t c, uint32_t mask,
+void RegExpMacroAssemblerRISCV::CheckCharacterAfterAnd(uint32_t c, uint32_t mask,
                                                       Label* on_equal) {
   __ And(a0, current_character(), Operand(mask));
   Operand rhs = (c == 0) ? Operand(zero_reg) : Operand(c);
   BranchOrBacktrack(on_equal, eq, a0, rhs);
 }
 
-void RegExpMacroAssemblerMIPS::CheckNotCharacterAfterAnd(uint32_t c,
+void RegExpMacroAssemblerRISCV::CheckNotCharacterAfterAnd(uint32_t c,
                                                          uint32_t mask,
                                                          Label* on_not_equal) {
   __ And(a0, current_character(), Operand(mask));
@@ -471,7 +437,7 @@ void RegExpMacroAssemblerMIPS::CheckNotCharacterAfterAnd(uint32_t c,
   BranchOrBacktrack(on_not_equal, ne, a0, rhs);
 }
 
-void RegExpMacroAssemblerMIPS::CheckNotCharacterAfterMinusAnd(
+void RegExpMacroAssemblerRISCV::CheckNotCharacterAfterMinusAnd(
     uc16 c, uc16 minus, uc16 mask, Label* on_not_equal) {
   DCHECK_GT(String::kMaxUtf16CodeUnit, minus);
   __ Dsubu(a0, current_character(), Operand(minus));
@@ -479,21 +445,21 @@ void RegExpMacroAssemblerMIPS::CheckNotCharacterAfterMinusAnd(
   BranchOrBacktrack(on_not_equal, ne, a0, Operand(c));
 }
 
-void RegExpMacroAssemblerMIPS::CheckCharacterInRange(uc16 from, uc16 to,
+void RegExpMacroAssemblerRISCV::CheckCharacterInRange(uc16 from, uc16 to,
                                                      Label* on_in_range) {
   __ Dsubu(a0, current_character(), Operand(from));
   // Unsigned lower-or-same condition.
   BranchOrBacktrack(on_in_range, Uless_equal, a0, Operand(to - from));
 }
 
-void RegExpMacroAssemblerMIPS::CheckCharacterNotInRange(
+void RegExpMacroAssemblerRISCV::CheckCharacterNotInRange(
     uc16 from, uc16 to, Label* on_not_in_range) {
   __ Dsubu(a0, current_character(), Operand(from));
   // Unsigned higher condition.
   BranchOrBacktrack(on_not_in_range, Ugreater, a0, Operand(to - from));
 }
 
-void RegExpMacroAssemblerMIPS::CheckBitInTable(Handle<ByteArray> table,
+void RegExpMacroAssemblerRISCV::CheckBitInTable(Handle<ByteArray> table,
                                                Label* on_bit_set) {
   __ li(a0, Operand(table));
   if (mode_ != LATIN1 || kTableMask != String::kMaxOneByteCharCode) {
@@ -507,7 +473,7 @@ void RegExpMacroAssemblerMIPS::CheckBitInTable(Handle<ByteArray> table,
   BranchOrBacktrack(on_bit_set, ne, a0, Operand(zero_reg));
 }
 
-bool RegExpMacroAssemblerMIPS::CheckSpecialCharacterClass(uc16 type,
+bool RegExpMacroAssemblerRISCV::CheckSpecialCharacterClass(uc16 type,
                                                           Label* on_no_match) {
   // Range checks (c in min..max) are generally implemented by an unsigned
   // (c - min) <= (max - min) check.
@@ -614,12 +580,12 @@ bool RegExpMacroAssemblerMIPS::CheckSpecialCharacterClass(uc16 type,
   }
 }
 
-void RegExpMacroAssemblerMIPS::Fail() {
+void RegExpMacroAssemblerRISCV::Fail() {
   __ li(a0, Operand(FAILURE));
   __ jmp(&exit_label_);
 }
 
-Handle<HeapObject> RegExpMacroAssemblerMIPS::GetCode(Handle<String> source) {
+Handle<HeapObject> RegExpMacroAssemblerRISCV::GetCode(Handle<String> source) {
   Label return_a0;
   if (masm_->has_exception()) {
     // If the code gets corrupted due to long regular expressions and lack of
@@ -930,7 +896,7 @@ Handle<HeapObject> RegExpMacroAssemblerMIPS::GetCode(Handle<String> source) {
   return Handle<HeapObject>::cast(code);
 }
 
-void RegExpMacroAssemblerMIPS::GoTo(Label* to) {
+void RegExpMacroAssemblerRISCV::GoTo(Label* to) {
   if (to == nullptr) {
     Backtrack();
     return;
@@ -939,29 +905,29 @@ void RegExpMacroAssemblerMIPS::GoTo(Label* to) {
   return;
 }
 
-void RegExpMacroAssemblerMIPS::IfRegisterGE(int reg, int comparand,
+void RegExpMacroAssemblerRISCV::IfRegisterGE(int reg, int comparand,
                                             Label* if_ge) {
   __ Ld(a0, register_location(reg));
   BranchOrBacktrack(if_ge, ge, a0, Operand(comparand));
 }
 
-void RegExpMacroAssemblerMIPS::IfRegisterLT(int reg, int comparand,
+void RegExpMacroAssemblerRISCV::IfRegisterLT(int reg, int comparand,
                                             Label* if_lt) {
   __ Ld(a0, register_location(reg));
   BranchOrBacktrack(if_lt, lt, a0, Operand(comparand));
 }
 
-void RegExpMacroAssemblerMIPS::IfRegisterEqPos(int reg, Label* if_eq) {
+void RegExpMacroAssemblerRISCV::IfRegisterEqPos(int reg, Label* if_eq) {
   __ Ld(a0, register_location(reg));
   BranchOrBacktrack(if_eq, eq, a0, Operand(current_input_offset()));
 }
 
 RegExpMacroAssembler::IrregexpImplementation
-RegExpMacroAssemblerMIPS::Implementation() {
+RegExpMacroAssemblerRISCV::Implementation() {
   return kMIPSImplementation;
 }
 
-void RegExpMacroAssemblerMIPS::LoadCurrentCharacterImpl(int cp_offset,
+void RegExpMacroAssemblerRISCV::LoadCurrentCharacterImpl(int cp_offset,
                                                         Label* on_end_of_input,
                                                         bool check_bounds,
                                                         int characters,
@@ -981,16 +947,16 @@ void RegExpMacroAssemblerMIPS::LoadCurrentCharacterImpl(int cp_offset,
   LoadCurrentCharacterUnchecked(cp_offset, characters);
 }
 
-void RegExpMacroAssemblerMIPS::PopCurrentPosition() {
+void RegExpMacroAssemblerRISCV::PopCurrentPosition() {
   Pop(current_input_offset());
 }
 
-void RegExpMacroAssemblerMIPS::PopRegister(int register_index) {
+void RegExpMacroAssemblerRISCV::PopRegister(int register_index) {
   Pop(a0);
   __ Sd(a0, register_location(register_index));
 }
 
-void RegExpMacroAssemblerMIPS::PushBacktrack(Label* label) {
+void RegExpMacroAssemblerRISCV::PushBacktrack(Label* label) {
   if (label->is_bound()) {
     int target = label->pos();
     __ li(a0, Operand(target + Code::kHeaderSize - kHeapObjectTag));
@@ -1014,28 +980,28 @@ void RegExpMacroAssemblerMIPS::PushBacktrack(Label* label) {
   CheckStackLimit();
 }
 
-void RegExpMacroAssemblerMIPS::PushCurrentPosition() {
+void RegExpMacroAssemblerRISCV::PushCurrentPosition() {
   Push(current_input_offset());
 }
 
-void RegExpMacroAssemblerMIPS::PushRegister(int register_index,
+void RegExpMacroAssemblerRISCV::PushRegister(int register_index,
                                             StackCheckFlag check_stack_limit) {
   __ Ld(a0, register_location(register_index));
   Push(a0);
   if (check_stack_limit) CheckStackLimit();
 }
 
-void RegExpMacroAssemblerMIPS::ReadCurrentPositionFromRegister(int reg) {
+void RegExpMacroAssemblerRISCV::ReadCurrentPositionFromRegister(int reg) {
   __ Ld(current_input_offset(), register_location(reg));
 }
 
-void RegExpMacroAssemblerMIPS::ReadStackPointerFromRegister(int reg) {
+void RegExpMacroAssemblerRISCV::ReadStackPointerFromRegister(int reg) {
   __ Ld(backtrack_stackpointer(), register_location(reg));
   __ Ld(a0, MemOperand(frame_pointer(), kStackHighEnd));
   __ Daddu(backtrack_stackpointer(), backtrack_stackpointer(), Operand(a0));
 }
 
-void RegExpMacroAssemblerMIPS::SetCurrentPositionFromEnd(int by) {
+void RegExpMacroAssemblerRISCV::SetCurrentPositionFromEnd(int by) {
   Label after_position;
   __ Branch(&after_position, ge, current_input_offset(),
             Operand(-by * char_size()));
@@ -1047,18 +1013,18 @@ void RegExpMacroAssemblerMIPS::SetCurrentPositionFromEnd(int by) {
   __ bind(&after_position);
 }
 
-void RegExpMacroAssemblerMIPS::SetRegister(int register_index, int to) {
+void RegExpMacroAssemblerRISCV::SetRegister(int register_index, int to) {
   DCHECK(register_index >= num_saved_registers_);  // Reserved for positions!
   __ li(a0, Operand(to));
   __ Sd(a0, register_location(register_index));
 }
 
-bool RegExpMacroAssemblerMIPS::Succeed() {
+bool RegExpMacroAssemblerRISCV::Succeed() {
   __ jmp(&success_label_);
   return global();
 }
 
-void RegExpMacroAssemblerMIPS::WriteCurrentPositionToRegister(int reg,
+void RegExpMacroAssemblerRISCV::WriteCurrentPositionToRegister(int reg,
                                                               int cp_offset) {
   if (cp_offset == 0) {
     __ Sd(current_input_offset(), register_location(reg));
@@ -1068,7 +1034,7 @@ void RegExpMacroAssemblerMIPS::WriteCurrentPositionToRegister(int reg,
   }
 }
 
-void RegExpMacroAssemblerMIPS::ClearRegisters(int reg_from, int reg_to) {
+void RegExpMacroAssemblerRISCV::ClearRegisters(int reg_from, int reg_to) {
   DCHECK(reg_from <= reg_to);
   __ Ld(a0, MemOperand(frame_pointer(), kStringStartMinusOne));
   for (int reg = reg_from; reg <= reg_to; reg++) {
@@ -1076,17 +1042,17 @@ void RegExpMacroAssemblerMIPS::ClearRegisters(int reg_from, int reg_to) {
   }
 }
 
-void RegExpMacroAssemblerMIPS::WriteStackPointerToRegister(int reg) {
+void RegExpMacroAssemblerRISCV::WriteStackPointerToRegister(int reg) {
   __ Ld(a1, MemOperand(frame_pointer(), kStackHighEnd));
   __ Dsubu(a0, backtrack_stackpointer(), a1);
   __ Sd(a0, register_location(reg));
 }
 
-bool RegExpMacroAssemblerMIPS::CanReadUnaligned() { return false; }
+bool RegExpMacroAssemblerRISCV::CanReadUnaligned() { return false; }
 
 // Private methods:
 
-void RegExpMacroAssemblerMIPS::CallCheckStackGuardState(Register scratch) {
+void RegExpMacroAssemblerRISCV::CallCheckStackGuardState(Register scratch) {
   DCHECK(!isolate()->IsGeneratingEmbeddedBuiltins());
   DCHECK(!masm_->options().isolate_independent_code);
 
@@ -1157,7 +1123,7 @@ static T* frame_entry_address(Address re_frame, int frame_offset) {
   return reinterpret_cast<T*>(re_frame + frame_offset);
 }
 
-int64_t RegExpMacroAssemblerMIPS::CheckStackGuardState(Address* return_address,
+int64_t RegExpMacroAssemblerRISCV::CheckStackGuardState(Address* return_address,
                                                        Address raw_code,
                                                        Address re_frame) {
   Code re_code = Code::cast(Object(raw_code));
@@ -1172,7 +1138,7 @@ int64_t RegExpMacroAssemblerMIPS::CheckStackGuardState(Address* return_address,
       frame_entry_address<const byte*>(re_frame, kInputEnd));
 }
 
-MemOperand RegExpMacroAssemblerMIPS::register_location(int register_index) {
+MemOperand RegExpMacroAssemblerRISCV::register_location(int register_index) {
   DCHECK(register_index < (1 << 30));
   if (num_registers_ <= register_index) {
     num_registers_ = register_index + 1;
@@ -1181,7 +1147,7 @@ MemOperand RegExpMacroAssemblerMIPS::register_location(int register_index) {
                     kRegisterZero - register_index * kPointerSize);
 }
 
-void RegExpMacroAssemblerMIPS::CheckPosition(int cp_offset,
+void RegExpMacroAssemblerRISCV::CheckPosition(int cp_offset,
                                              Label* on_outside_input) {
   if (cp_offset >= 0) {
     BranchOrBacktrack(on_outside_input, ge, current_input_offset(),
@@ -1193,7 +1159,7 @@ void RegExpMacroAssemblerMIPS::CheckPosition(int cp_offset,
   }
 }
 
-void RegExpMacroAssemblerMIPS::BranchOrBacktrack(Label* to, Condition condition,
+void RegExpMacroAssemblerRISCV::BranchOrBacktrack(Label* to, Condition condition,
                                                  Register rs,
                                                  const Operand& rt) {
   if (condition == al) {  // Unconditional.
@@ -1211,37 +1177,37 @@ void RegExpMacroAssemblerMIPS::BranchOrBacktrack(Label* to, Condition condition,
   __ Branch(to, condition, rs, rt);
 }
 
-void RegExpMacroAssemblerMIPS::SafeCall(Label* to, Condition cond, Register rs,
+void RegExpMacroAssemblerRISCV::SafeCall(Label* to, Condition cond, Register rs,
                                         const Operand& rt) {
   __ BranchAndLink(to, cond, rs, rt);
 }
 
-void RegExpMacroAssemblerMIPS::SafeReturn() {
+void RegExpMacroAssemblerRISCV::SafeReturn() {
   __ pop(ra);
   __ Daddu(t1, ra, Operand(masm_->CodeObject()));
   __ Jump(t1);
 }
 
-void RegExpMacroAssemblerMIPS::SafeCallTarget(Label* name) {
+void RegExpMacroAssemblerRISCV::SafeCallTarget(Label* name) {
   __ bind(name);
   __ Dsubu(ra, ra, Operand(masm_->CodeObject()));
   __ push(ra);
 }
 
-void RegExpMacroAssemblerMIPS::Push(Register source) {
+void RegExpMacroAssemblerRISCV::Push(Register source) {
   DCHECK(source != backtrack_stackpointer());
   __ Daddu(backtrack_stackpointer(), backtrack_stackpointer(),
            Operand(-kIntSize));
   __ Sw(source, MemOperand(backtrack_stackpointer()));
 }
 
-void RegExpMacroAssemblerMIPS::Pop(Register target) {
+void RegExpMacroAssemblerRISCV::Pop(Register target) {
   DCHECK(target != backtrack_stackpointer());
   __ Lw(target, MemOperand(backtrack_stackpointer()));
   __ Daddu(backtrack_stackpointer(), backtrack_stackpointer(), kIntSize);
 }
 
-void RegExpMacroAssemblerMIPS::CheckPreemption() {
+void RegExpMacroAssemblerRISCV::CheckPreemption() {
   // Check for preemption.
   ExternalReference stack_limit =
       ExternalReference::address_of_jslimit(masm_->isolate());
@@ -1250,7 +1216,7 @@ void RegExpMacroAssemblerMIPS::CheckPreemption() {
   SafeCall(&check_preempt_label_, Uless_equal, sp, Operand(a0));
 }
 
-void RegExpMacroAssemblerMIPS::CheckStackLimit() {
+void RegExpMacroAssemblerRISCV::CheckStackLimit() {
   ExternalReference stack_limit =
       ExternalReference::address_of_regexp_stack_limit_address(
           masm_->isolate());
@@ -1261,7 +1227,7 @@ void RegExpMacroAssemblerMIPS::CheckStackLimit() {
            Operand(a0));
 }
 
-void RegExpMacroAssemblerMIPS::LoadCurrentCharacterUnchecked(int cp_offset,
+void RegExpMacroAssemblerRISCV::LoadCurrentCharacterUnchecked(int cp_offset,
                                                              int characters) {
   Register offset = current_input_offset();
   if (cp_offset != 0) {
@@ -1269,7 +1235,7 @@ void RegExpMacroAssemblerMIPS::LoadCurrentCharacterUnchecked(int cp_offset,
     __ Daddu(t4, current_input_offset(), Operand(cp_offset * char_size()));
     offset = t4;
   }
-  // We assume that we cannot do unaligned loads on MIPS, so this function
+  // We assume that we cannot do unaligned loads on RISC-V, so this function
   // must only be used to load a single character at a time.
   DCHECK_EQ(1, characters);
   __ Daddu(t1, end_of_input_address(), Operand(offset));

@@ -211,11 +211,8 @@ void Deoptimizer::GenerateDeoptimizationEntries(MacroAssembler* masm,
 }
 
 // Maximum size of a table entry generated below.
-#ifdef _MIPS_ARCH_MIPS64R6
+// FIXME(RISCV): Is this value correct?
 const int Deoptimizer::table_entry_size_ = 2 * kInstrSize;
-#else
-const int Deoptimizer::table_entry_size_ = 3 * kInstrSize;
-#endif
 
 Float32 RegisterValues::GetFloatRegister(unsigned n) const {
   return Float32::FromBits(

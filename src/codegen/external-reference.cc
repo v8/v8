@@ -474,8 +474,7 @@ ExternalReference ExternalReference::invoke_accessor_getter_callback() {
 #elif V8_TARGET_ARCH_S390
 #define re_stack_check_func RegExpMacroAssemblerS390::CheckStackGuardState
 #elif V8_TARGET_ARCH_RISCV
-//FIXME: RISCV porting: switch to RISCV MacroAssembler
-#define re_stack_check_func RegExpMacroAssemblerMIPS::CheckStackGuardState
+#define re_stack_check_func RegExpMacroAssemblerRISCV::CheckStackGuardState
 #else
 UNREACHABLE();
 #endif

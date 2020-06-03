@@ -27,7 +27,7 @@ const char* Registers::names_[kNumSimuRegisters] = {
     "a1",       "a2", "a3", "a4", "a5",  "a6",  "a7", "s2", "s3", "s4", "s5",
     "s6",       "s7", "s8", "s9", "s10", "s11", "t3", "t4", "t5", "t6", "pc"};
 
-// List of alias names which can be used when referring to MIPS registers.
+// List of alias names which can be used when referring to RISC-V registers.
 const Registers::RegisterAlias Registers::aliases_[] = {
     {0, "zero"},
     {33, "pc"},
@@ -78,7 +78,7 @@ const char* FPURegisters::names_[kNumFPURegisters] = {
     "fa6", "fa7", "fs2",  "fs3",  "fs4", "fs5", "fs6",  "fs7",
     "fs8", "fs9", "fs10", "fs11", "ft8", "ft9", "ft10", "ft11"};
 
-// List of alias names which can be used when referring to MIPS registers.
+// List of alias names which can be used when referring to RISC-V FP registers.
 const FPURegisters::RegisterAlias FPURegisters::aliases_[] = {
     {kInvalidRegister, nullptr}};
 

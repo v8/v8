@@ -1405,7 +1405,7 @@ const char* NameConverter::NameOfXMMRegister(int reg) const {
 }
 
 const char* NameConverter::NameOfByteCPURegister(int reg) const {
-  UNREACHABLE();  // MIPS does not have the concept of a byte register.
+  UNREACHABLE();  // RISC-V does not have the concept of a byte register.
   return "nobytereg";
 }
 
@@ -1423,7 +1423,7 @@ int Disassembler::InstructionDecode(v8::internal::Vector<char> buffer,
   return d.InstructionDecode(instruction);
 }
 
-// The MIPS assembler does not currently use constant pools.
+// The RISC-V assembler does not currently use constant pools.
 int Disassembler::ConstantPoolSizeAt(byte* instruction) { return -1; }
 
 void Disassembler::Disassemble(FILE* f, byte* begin, byte* end,

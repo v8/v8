@@ -79,7 +79,7 @@ class RiscvDebugger {
   void PrintAllRegsIncludingFPU();
 
  private:
-  // FIXME (RISCV): SPECIAL and BRREAK are MIPS constants
+  // FIXME (RISCV): SPECIAL and BREAK are MIPS constants
   // We set the breakpoint code to 0xFFFFF to easily recognize it.
   static const Instr kBreakpointInstr = SPECIAL | BREAK | 0xFFFFF << 6;
   static const Instr kNopInstr = 0x0;
@@ -967,46 +967,15 @@ double Simulator::get_fpu_register_double(int fpureg) const {
 // or one integer arguments. All are constructed here,
 // from a0-a3 or fa0 and fa1 (n64), or fa2 (O32).
 void Simulator::GetFpArgs(double* x, double* y, int32_t* z) {
-  if (!IsMipsSoftFloatABI) {
-    const int fparg2 = 13;
-    *x = get_fpu_register_double(12);
-    *y = get_fpu_register_double(fparg2);
-    *z = static_cast<int32_t>(get_register(a2));
-  } else {
-    // FIXME (RISCV): a0,... are 64-bit, why move them to 32-bit buffer?
-
-    // TODO(plind): bad ABI stuff, refactor or remove.
-    // We use a char buffer to get around the strict-aliasing rules which
-    // otherwise allow the compiler to optimize away the copy.
-    char buffer[sizeof(*x)];
-    int32_t* reg_buffer = reinterpret_cast<int32_t*>(buffer);
-
-    // Registers a0 and a1 -> x.
-    reg_buffer[0] = get_register(a0);
-    reg_buffer[1] = get_register(a1);
-    memcpy(x, buffer, sizeof(buffer));
-    // Registers a2 and a3 -> y.
-    reg_buffer[0] = get_register(a2);
-    reg_buffer[1] = get_register(a3);
-    memcpy(y, buffer, sizeof(buffer));
-    // Register 2 -> z.
-    reg_buffer[0] = get_register(a2);
-    memcpy(z, buffer, sizeof(*z));
-  }
+  const int fparg2 = 13;
+  *x = get_fpu_register_double(12);
+  *y = get_fpu_register_double(fparg2);
+  *z = static_cast<int32_t>(get_register(a2));
 }
 
-// The return value is either in a0/a1 or ft0.
+// The return value is in fa0.
 void Simulator::SetFpResult(const double& result) {
-  if (!IsMipsSoftFloatABI) {
-    set_fpu_register_double(0, result);
-  } else {
-    char buffer[2 * sizeof(registers_[0])];
-    int64_t* reg_buffer = reinterpret_cast<int64_t*>(buffer);
-    memcpy(buffer, &result, sizeof(buffer));
-    // Copy result to a0 and a1.
-    set_register(a0, reg_buffer[0]);
-    set_register(a1, reg_buffer[1]);
-  }
+  set_fpu_register_double(fa0, result);
 }
 
 // helper functions to read/write/set/clear CRC values/bits
@@ -1134,13 +1103,9 @@ bool Simulator::has_bad_pc() const {
 // Raw access to the PC register without the special adjustment when reading.
 int64_t Simulator::get_pc() const { return registers_[pc]; }
 
-// The MIPS cannot do unaligned reads and writes.  On some MIPS platforms an
-// interrupt is caused.  On others it does a funky rotation thing.  For now we
-// simply disallow unaligned reads, but at some point we may want to move to
-// emulating the rotate behaviour.  Note that simulator runs have the runtime
-// system running directly on the host system and only generated code is
-// executed in the simulator.  Since the host is typically IA32 we will not
-// get the correct MIPS-like behaviour on unaligned accesses.
+// The RISC-V spec leaves it open to the implementation on how to handle
+// unaligned reads and writes. For now, we simply disallow unaligned reads but
+// at some point, we may want to implement some other behavior.
 
 // TODO(plind): refactor this messy debug code when we do unaligned access.
 void Simulator::DieOrDebug() {
@@ -1431,10 +1396,6 @@ void Simulator::SoftwareInterrupt() {
     intptr_t external =
         reinterpret_cast<intptr_t>(redirection->external_function());
 
-    // Based on CpuFeatures::IsSupported(FPU), Mips will use either hardware
-    // FPU, or gcc soft-float routines. Hardware FPU is simulated in this
-    // simulator. Soft-float has additional abstraction of ExternalReference,
-    // to support serialization.
     if (fp_call) {
       double dval0, dval1;  // one or two double parameters
       int32_t ival;         // zero or one integer parameters
@@ -3190,24 +3151,11 @@ intptr_t Simulator::CallImpl(Address entry, int argument_count,
 }
 
 double Simulator::CallFP(Address entry, double d0, double d1) {
-  if (!IsMipsSoftFloatABI) {
-    const FPURegister fparg2 = fa1;
-    set_fpu_register_double(fa0, d0);
-    set_fpu_register_double(fparg2, d1);
-  } else {
-    int buffer[2];
-    DCHECK(sizeof(buffer[0]) * 2 == sizeof(d0));
-    memcpy(buffer, &d0, sizeof(d0));
-    set_dw_register(a0, buffer);
-    memcpy(buffer, &d1, sizeof(d1));
-    set_dw_register(a2, buffer);
-  }
+  const FPURegister fparg2 = fa1;
+  set_fpu_register_double(fa0, d0);
+  set_fpu_register_double(fparg2, d1);
   CallInternal(entry);
-  if (!IsMipsSoftFloatABI) {
-    return get_fpu_register_double(ft0);
-  } else {
-    return get_double_from_register_pair(a0);
-  }
+  return get_fpu_register_double(ft0);
 }
 
 uintptr_t Simulator::PushAddress(uintptr_t address) {

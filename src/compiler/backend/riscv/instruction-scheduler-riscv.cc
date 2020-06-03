@@ -861,7 +861,7 @@ int TryInlineTruncateDoubleToILatency() {
 int CallStubDelayedLatency() { return 1 + CallLatency(); }
 
 int TruncateDoubleToIDelayedLatency() {
-  // TODO(mips): This no longer reflects how TruncateDoubleToI is called.
+  // TODO(riscv): This no longer reflects how TruncateDoubleToI is called.
   return TryInlineTruncateDoubleToILatency() + 1 + DsubuLatency(false) +
          Sdc1Latency() + CallStubDelayedLatency() + DadduLatency(false) + 1;
 }
@@ -1072,8 +1072,7 @@ int Word32AtomicCompareExchangeLatency(bool sign_extend, int size) {
 }
 
 int InstructionScheduler::GetInstructionLatency(const Instruction* instr) {
-  // Basic latency modeling for MIPS64 instructions. They have been determined
-  // in empirical way.
+  // FIXME(RISCV): Verify these latencies for RISC-V (currently using MIPS numbers)
   switch (instr->arch_opcode()) {
     case kArchCallCodeObject:
     case kArchCallWasmFunction:

@@ -3043,7 +3043,7 @@ void TurboAssembler::Jump(const ExternalReference& reference) {
   Jump(t6);
 }
 
-// Note: To call gcc-compiled C code on mips, you must call through t6.
+// Note: To call gcc-compiled C code on riscv, you must call through t6.
 void TurboAssembler::Call(Register target, Condition cond, Register rs,
                           const Operand& rt) {
   BlockTrampolinePoolScope block_trampoline_pool(this);
@@ -3338,73 +3338,31 @@ void TurboAssembler::FPUCanonicalizeNaN(const DoubleRegister dst,
 }
 
 void TurboAssembler::MovFromFloatResult(const DoubleRegister dst) {
-  if (IsMipsSoftFloatABI) {
-    if (kArchEndian == kLittle) {
-      Move(dst, a0, a1);
-    } else {
-      Move(dst, a1, a0);
-    }
-  } else {
-    Move(dst, fa0);  // Reg fa0 is o32 ABI FP return value.
-  }
+  Move(dst, fa0);  // Reg fa0 is o32 ABI FP return value.
 }
 
 void TurboAssembler::MovFromFloatParameter(const DoubleRegister dst) {
-  if (IsMipsSoftFloatABI) {
-    if (kArchEndian == kLittle) {
-      Move(dst, a0, a1);
-    } else {
-      Move(dst, a1, a0);
-    }
-  } else {
-    Move(dst, fa0);  // Reg fa0 is n64 ABI FP first argument value.
-  }
+  Move(dst, fa0);  // Reg fa0 is n64 ABI FP first argument value.
 }
 
 void TurboAssembler::MovToFloatParameter(DoubleRegister src) {
-  if (!IsMipsSoftFloatABI) {
-    Move(fa0, src);
-  } else {
-    if (kArchEndian == kLittle) {
-      Move(a0, a1, src);
-    } else {
-      Move(a1, a0, src);
-    }
-  }
+  Move(fa0, src);
 }
 
 void TurboAssembler::MovToFloatResult(DoubleRegister src) {
-  if (!IsMipsSoftFloatABI) {
-    Move(fa0, src);
-  } else {
-    if (kArchEndian == kLittle) {
-      Move(a0, a1, src);
-    } else {
-      Move(a1, a0, src);
-    }
-  }
+  Move(fa0, src);
 }
 
 void TurboAssembler::MovToFloatParameters(DoubleRegister src1,
                                           DoubleRegister src2) {
-  if (!IsMipsSoftFloatABI) {
-    const DoubleRegister fparg2 = fa1;
-    if (src2 == fa0) {
-      DCHECK(src1 != fparg2);
-      Move(fparg2, src2);
-      Move(fa0, src1);
-    } else {
-      Move(fa0, src1);
-      Move(fparg2, src2);
-    }
+  const DoubleRegister fparg2 = fa1;
+  if (src2 == fa0) {
+    DCHECK(src1 != fparg2);
+    Move(fparg2, src2);
+    Move(fa0, src1);
   } else {
-    if (kArchEndian == kLittle) {
-      Move(a0, a1, src1);
-      Move(a2, a3, src2);
-    } else {
-      Move(a1, a0, src1);
-      Move(a3, a2, src2);
-    }
+    Move(fa0, src1);
+    Move(fparg2, src2);
   }
 }
 
@@ -4030,19 +3988,19 @@ void MacroAssembler::LeaveExitFrame(bool save_doubles, Register argument_count,
 }
 
 int TurboAssembler::ActivationFrameAlignment() {
-#if V8_HOST_ARCH_MIPS || V8_HOST_ARCH_MIPS64
+#if V8_HOST_ARCH_RISCV
   // Running on the real platform. Use the alignment as mandated by the local
   // environment.
-  // Note: This will break if we ever start generating snapshots on one Mips
-  // platform for another Mips platform with a different alignment.
+  // Note: This will break if we ever start generating snapshots on one RISC-V
+  // platform for another RISC-V platform with a different alignment.
   return base::OS::ActivationFrameAlignment();
-#else   // V8_HOST_ARCH_MIPS
+#else   // V8_HOST_ARCH_RISCV
   // If we are using the simulator then we should always align to the expected
   // alignment. As the simulator is used to generate snapshots we do not know
   // if the target platform will need alignment, so this is controlled from a
   // flag.
   return FLAG_sim_stack_alignment;
-#endif  // V8_HOST_ARCH_MIPS
+#endif  // V8_HOST_ARCH_RISCV
 }
 
 void MacroAssembler::AssertStackIsAligned() {
@@ -4344,9 +4302,11 @@ void TurboAssembler::CallCFunctionHelper(Register function,
   // running in the simulator. The simulator has its own alignment check which
   // provides more information.
   // The argument stots are presumed to have been set up by
-  // PrepareCallCFunction. The C function must be called via t6, for mips ABI.
+  // PrepareCallCFunction.
+  // FIXME(RISC-V): The MIPS ABI requires a C function must be called via t9,
+  //                does RISC-V have a similar requirement? We currently use t6
 
-#if V8_HOST_ARCH_MIPS || V8_HOST_ARCH_MIPS64
+#if V8_HOST_ARCH_RISCV
   if (emit_debug_code()) {
     int frame_alignment = base::OS::ActivationFrameAlignment();
     int frame_alignment_mask = frame_alignment - 1;
@@ -4365,7 +4325,7 @@ void TurboAssembler::CallCFunctionHelper(Register function,
       bind(&alignment_as_expected);
     }
   }
-#endif  // V8_HOST_ARCH_MIPS
+#endif  // V8_HOST_ARCH_RISCV
 
   // Just call directly. The function called cannot cause a GC, or
   // allow preemption, so the return address in the link register

@@ -22,11 +22,6 @@ void CallInterfaceDescriptor::DefaultInitializePlatformSpecific(
                                    default_stub_registers);
 }
 
-// On MIPS it is not allowed to use odd numbered floating point registers
-// (e.g. f1, f3, etc.) for parameters. This can happen if we use
-// DefaultInitializePlatformSpecific to assign float registers for parameters.
-// E.g if fourth parameter goes to float register, f7 would be assigned for
-// parameter (a3 casted to int is 7).
 bool CallInterfaceDescriptor::IsValidFloatParameterRegister(Register reg) {
   return true;
 }
