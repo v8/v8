@@ -1758,12 +1758,12 @@ void Assembler::fmsub(const DoubleRegister frt, const DoubleRegister fra,
 }
 
 // Vector instructions
-void Assembler::mfvsrd(const Register ra, const DoubleRegister rs) {
+void Assembler::mfvsrd(const Register ra, const Simd128Register rs) {
   int SX = 1;
   emit(MFVSRD | rs.code() * B21 | ra.code() * B16 | SX);
 }
 
-void Assembler::mfvsrwz(const Register ra, const DoubleRegister rs) {
+void Assembler::mfvsrwz(const Register ra, const Simd128Register rs) {
   int SX = 1;
   emit(MFVSRWZ | rs.code() * B21 | ra.code() * B16 | SX);
 }

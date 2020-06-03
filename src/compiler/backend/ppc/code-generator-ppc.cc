@@ -2402,6 +2402,26 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
                 i.InputSimd128Register(1));
       break;
     }
+    case kPPC_F32x4AddHoriz: {
+      Simd128Register src0 = i.InputSimd128Register(0);
+      Simd128Register src1 = i.InputSimd128Register(1);
+      Simd128Register dst = i.OutputSimd128Register();
+      Simd128Register tempFPReg1 = i.ToSimd128Register(instr->TempAt(0));
+      Simd128Register tempFPReg2 = i.ToSimd128Register(instr->TempAt(1));
+      constexpr int shift_bits = 32;
+      // generate first operand
+      __ vpkudum(dst, src1, src0);
+      // generate second operand
+      __ li(ip, Operand(shift_bits));
+      __ mtvsrd(tempFPReg2, ip);
+      __ vspltb(tempFPReg2, tempFPReg2, Operand(7));
+      __ vsro(tempFPReg1, src0, tempFPReg2);
+      __ vsro(tempFPReg2, src1, tempFPReg2);
+      __ vpkudum(kScratchDoubleReg, tempFPReg2, tempFPReg1);
+      // add the operands
+      __ vaddfp(dst, kScratchDoubleReg, dst);
+      break;
+    }
     case kPPC_F32x4Sub: {
       __ vsubfp(i.OutputSimd128Register(), i.InputSimd128Register(0),
                 i.InputSimd128Register(1));
@@ -2445,6 +2465,16 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
                  i.InputSimd128Register(1));
       break;
     }
+    case kPPC_I32x4AddHoriz: {
+      Simd128Register src0 = i.InputSimd128Register(0);
+      Simd128Register src1 = i.InputSimd128Register(1);
+      Simd128Register dst = i.OutputSimd128Register();
+      __ vxor(kScratchDoubleReg, kScratchDoubleReg, kScratchDoubleReg);
+      __ vsum2sws(dst, src0, kScratchDoubleReg);
+      __ vsum2sws(kScratchDoubleReg, src1, kScratchDoubleReg);
+      __ vpkudum(dst, kScratchDoubleReg, dst);
+      break;
+    }
     case kPPC_I32x4Sub: {
       __ vsubuwm(i.OutputSimd128Register(), i.InputSimd128Register(0),
                  i.InputSimd128Register(1));
@@ -2458,6 +2488,16 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
     case kPPC_I16x8Add: {
       __ vadduhm(i.OutputSimd128Register(), i.InputSimd128Register(0),
                  i.InputSimd128Register(1));
+      break;
+    }
+    case kPPC_I16x8AddHoriz: {
+      Simd128Register src0 = i.InputSimd128Register(0);
+      Simd128Register src1 = i.InputSimd128Register(1);
+      Simd128Register dst = i.OutputSimd128Register();
+      __ vxor(kScratchDoubleReg, kScratchDoubleReg, kScratchDoubleReg);
+      __ vsum4shs(dst, src0, kScratchDoubleReg);
+      __ vsum4shs(kScratchDoubleReg, src1, kScratchDoubleReg);
+      __ vpkuwus(dst, kScratchDoubleReg, dst);
       break;
     }
     case kPPC_I16x8Sub: {
