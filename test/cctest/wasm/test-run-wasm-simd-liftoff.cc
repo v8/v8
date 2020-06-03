@@ -9,6 +9,7 @@
 // compiles these functions, in order to verify correctness of SIMD
 // implementation in Liftoff.
 
+#include "src/codegen/assembler-inl.h"
 #include "test/cctest/cctest.h"
 #include "test/cctest/wasm/wasm-run-utils.h"
 #include "test/common/wasm/test-signatures.h"
@@ -82,6 +83,25 @@ WASM_SIMD_LIFTOFF_TEST(S128Return) {
         WASM_ONE);
 
   CHECK_EQ(1, r.Call());
+}
+
+WASM_SIMD_LIFTOFF_TEST(REGRESS_1088273) {
+  // TODO(v8:9418): This is a regression test for Liftoff, translated from a
+  // mjsunit test. We do not have I64x2Mul lowering yet, so this will cause a
+  // crash on arch that don't support SIMD 128 and require lowering, thus
+  // explicitly skip them.
+  if (!CpuFeatures::SupportsWasmSimd128()) return;
+
+  WasmRunner<int32_t> r(ExecutionTier::kLiftoff, kNoLowerSimd);
+  TestSignatures sigs;
+  WasmFunctionCompiler& simd_func = r.NewFunction(sigs.s_i());
+  byte temp1 = simd_func.AllocateLocal(kWasmS128);
+  BUILD(simd_func, WASM_GET_LOCAL(temp1));
+
+  BUILD(r, WASM_SIMD_SPLAT(I8x16, WASM_I32V(0x80)),
+        WASM_SIMD_SPLAT(I8x16, WASM_I32V(0x92)),
+        WASM_SIMD_I16x8_EXTRACT_LANE_U(0, WASM_SIMD_OP(kExprI64x2Mul)));
+  CHECK_EQ(18688, r.Call());
 }
 
 #undef WASM_SIMD_LIFTOFF_TEST
