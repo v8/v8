@@ -6218,12 +6218,12 @@ Handle<Object> JSPromise::TriggerPromiseReactions(Isolate* isolate,
 // static
 JSRegExp::Flags JSRegExp::FlagsFromString(Isolate* isolate,
                                           Handle<String> flags, bool* success) {
-  STATIC_ASSERT(JSRegExp::FlagFromChar('g') == JSRegExp::kGlobal);
-  STATIC_ASSERT(JSRegExp::FlagFromChar('i') == JSRegExp::kIgnoreCase);
-  STATIC_ASSERT(JSRegExp::FlagFromChar('m') == JSRegExp::kMultiline);
-  STATIC_ASSERT(JSRegExp::FlagFromChar('s') == JSRegExp::kDotAll);
-  STATIC_ASSERT(JSRegExp::FlagFromChar('u') == JSRegExp::kUnicode);
-  STATIC_ASSERT(JSRegExp::FlagFromChar('y') == JSRegExp::kSticky);
+  STATIC_ASSERT(*JSRegExp::FlagFromChar('g') == JSRegExp::kGlobal);
+  STATIC_ASSERT(*JSRegExp::FlagFromChar('i') == JSRegExp::kIgnoreCase);
+  STATIC_ASSERT(*JSRegExp::FlagFromChar('m') == JSRegExp::kMultiline);
+  STATIC_ASSERT(*JSRegExp::FlagFromChar('s') == JSRegExp::kDotAll);
+  STATIC_ASSERT(*JSRegExp::FlagFromChar('u') == JSRegExp::kUnicode);
+  STATIC_ASSERT(*JSRegExp::FlagFromChar('y') == JSRegExp::kSticky);
 
   int length = flags->length();
   if (length == 0) {
@@ -6232,14 +6232,16 @@ JSRegExp::Flags JSRegExp::FlagsFromString(Isolate* isolate,
   }
   // A longer flags string cannot be valid.
   if (length > JSRegExp::kFlagCount) return JSRegExp::Flags(0);
-  // Initialize {value} to {kInvalid} to allow 2-in-1 duplicate/invalid check.
-  JSRegExp::Flags value = JSRegExp::kInvalid;
+  JSRegExp::Flags value(0);
   if (flags->IsSeqOneByteString()) {
     DisallowHeapAllocation no_gc;
     SeqOneByteString seq_flags = SeqOneByteString::cast(*flags);
     for (int i = 0; i < length; i++) {
-      JSRegExp::Flag flag = JSRegExp::FlagFromChar(seq_flags.Get(i));
-      // Duplicate or invalid flag.
+      base::Optional<JSRegExp::Flag> maybe_flag =
+          JSRegExp::FlagFromChar(seq_flags.Get(i));
+      if (!maybe_flag.has_value()) return JSRegExp::Flags(0);
+      JSRegExp::Flag flag = *maybe_flag;
+      // Duplicate flag.
       if (value & flag) return JSRegExp::Flags(0);
       value |= flag;
     }
@@ -6248,15 +6250,16 @@ JSRegExp::Flags JSRegExp::FlagsFromString(Isolate* isolate,
     DisallowHeapAllocation no_gc;
     String::FlatContent flags_content = flags->GetFlatContent(no_gc);
     for (int i = 0; i < length; i++) {
-      JSRegExp::Flag flag = JSRegExp::FlagFromChar(flags_content.Get(i));
-      // Duplicate or invalid flag.
+      base::Optional<JSRegExp::Flag> maybe_flag =
+          JSRegExp::FlagFromChar(flags_content.Get(i));
+      if (!maybe_flag.has_value()) return JSRegExp::Flags(0);
+      JSRegExp::Flag flag = *maybe_flag;
+      // Duplicate flag.
       if (value & flag) return JSRegExp::Flags(0);
       value |= flag;
     }
   }
   *success = true;
-  // Drop the initially set {kInvalid} bit.
-  value ^= JSRegExp::kInvalid;
   return value;
 }
 

@@ -557,33 +557,45 @@ class OPTIONAL_DECLSPEC_EMPTY_BASES Optional
     return *this;
   }
 
-  const T* operator->() const {
+  constexpr const T* operator->() const {
+#if V8_HAS_CXX14_CONSTEXPR
     DCHECK(storage_.is_populated_);
+#endif
     return &storage_.value_;
   }
 
-  T* operator->() {
+  constexpr T* operator->() {
+#if V8_HAS_CXX14_CONSTEXPR
     DCHECK(storage_.is_populated_);
+#endif
     return &storage_.value_;
   }
 
-  const T& operator*() const & {
+  constexpr const T& operator*() const& {
+#if V8_HAS_CXX14_CONSTEXPR
     DCHECK(storage_.is_populated_);
+#endif
     return storage_.value_;
   }
 
-  T& operator*() & {
+  constexpr T& operator*() & {
+#if V8_HAS_CXX14_CONSTEXPR
     DCHECK(storage_.is_populated_);
+#endif
     return storage_.value_;
   }
 
-  const T&& operator*() const && {
+  constexpr const T&& operator*() const&& {
+#if V8_HAS_CXX14_CONSTEXPR
     DCHECK(storage_.is_populated_);
+#endif
     return std::move(storage_.value_);
   }
 
-  T&& operator*() && {
+  constexpr T&& operator*() && {
+#if V8_HAS_CXX14_CONSTEXPR
     DCHECK(storage_.is_populated_);
+#endif
     return std::move(storage_.value_);
   }
 

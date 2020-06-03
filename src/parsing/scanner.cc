@@ -986,8 +986,9 @@ Maybe<int> Scanner::ScanRegExpFlags() {
   // Scan regular expression flags.
   JSRegExp::Flags flags;
   while (IsIdentifierPart(c0_)) {
-    JSRegExp::Flags flag = JSRegExp::FlagFromChar(c0_);
-    if (flag == JSRegExp::kInvalid) return Nothing<int>();
+    base::Optional<JSRegExp::Flags> maybe_flag = JSRegExp::FlagFromChar(c0_);
+    if (!maybe_flag.has_value()) return Nothing<int>();
+    JSRegExp::Flags flag = *maybe_flag;
     if (flags & flag) return Nothing<int>();
     Advance();
     flags |= flag;
