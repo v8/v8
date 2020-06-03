@@ -3937,7 +3937,7 @@ WasmInterpreter::WasmInterpreter(Isolate* isolate, const WasmModule* module,
 
 // The destructor is here so we can forward declare {WasmInterpreterInternals}
 // used in the {unique_ptr} in the header.
-WasmInterpreter::~WasmInterpreter() {}
+WasmInterpreter::~WasmInterpreter() = default;
 
 void WasmInterpreter::Run() { internals_->threads_[0].Run(); }
 
