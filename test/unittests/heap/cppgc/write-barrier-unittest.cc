@@ -4,6 +4,7 @@
 
 #include "include/cppgc/internal/write-barrier.h"
 
+#include <algorithm>
 #include <initializer_list>
 #include <vector>
 
