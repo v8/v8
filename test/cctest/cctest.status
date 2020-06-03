@@ -409,8 +409,6 @@
 
   'test-run-jsops/BinopInstanceOf': [SKIP],
 
-  'test-run-machops/RunFloat64InsertHighWord32': [SKIP],
-
   'test-run-wasm/RunWasmTurbofan_I32SConvertF32': [SKIP],
   'test-run-wasm/RunWasmTurbofan_I32UConvertF32': [SKIP],
 
