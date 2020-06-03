@@ -8,11 +8,26 @@
 #include "src/common/globals.h"
 #include "src/heap/heap.h"
 #include "src/heap/spaces.h"
+#include "src/tasks/cancelable-task.h"
 
 namespace v8 {
 namespace internal {
 
 class LocalHeap;
+
+class StressConcurrentAllocatorTask : public CancelableTask {
+ public:
+  explicit StressConcurrentAllocatorTask(Isolate* isolate)
+      : CancelableTask(isolate), isolate_(isolate) {}
+
+  void RunInternal() override;
+
+  // Schedules task on background thread
+  static void Schedule(Isolate* isolate);
+
+ private:
+  Isolate* isolate_;
+};
 
 // Concurrent allocator for allocation from background threads/tasks.
 // Allocations are served from a TLAB if possible.

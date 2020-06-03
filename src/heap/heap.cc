@@ -34,6 +34,7 @@
 #include "src/heap/code-object-registry.h"
 #include "src/heap/code-stats.h"
 #include "src/heap/combined-heap.h"
+#include "src/heap/concurrent-allocator.h"
 #include "src/heap/concurrent-marking.h"
 #include "src/heap/embedder-tracing.h"
 #include "src/heap/finalization-registry-cleanup-task.h"
@@ -5438,6 +5439,10 @@ void Heap::NotifyDeserializationComplete() {
       DCHECK(p->NeverEvacuate());
     }
 #endif  // DEBUG
+  }
+
+  if (FLAG_stress_concurrent_allocation) {
+    StressConcurrentAllocatorTask::Schedule(isolate());
   }
 
   deserialization_complete_ = true;

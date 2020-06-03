@@ -943,6 +943,10 @@ DEFINE_BOOL(concurrent_array_buffer_sweeping, true,
 DEFINE_BOOL(concurrent_allocation, false, "concurrently allocate in old space")
 DEFINE_BOOL(local_heaps, false, "allow heap access from background tasks")
 DEFINE_NEG_NEG_IMPLICATION(array_buffer_extension, local_heaps)
+DEFINE_BOOL(stress_concurrent_allocation, false,
+            "start background threads that allocate memory")
+DEFINE_IMPLICATION(stress_concurrent_allocation, concurrent_allocation)
+DEFINE_IMPLICATION(stress_concurrent_allocation, local_heaps)
 DEFINE_BOOL(parallel_marking, true, "use parallel marking in atomic pause")
 DEFINE_INT(ephemeron_fixpoint_iterations, 10,
            "number of fixpoint iterations it takes to switch to linear "

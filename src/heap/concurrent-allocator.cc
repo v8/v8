@@ -4,12 +4,50 @@
 
 #include "src/heap/concurrent-allocator.h"
 
+#include "src/execution/isolate.h"
+#include "src/handles/persistent-handles.h"
 #include "src/heap/concurrent-allocator-inl.h"
 #include "src/heap/local-heap.h"
 #include "src/heap/marking.h"
 
 namespace v8 {
 namespace internal {
+
+void StressConcurrentAllocatorTask::RunInternal() {
+  Heap* heap = isolate_->heap();
+  LocalHeap local_heap(heap);
+  ConcurrentAllocator* allocator = local_heap.old_space_allocator();
+
+  const int kNumIterations = 2000;
+  const int kObjectSize = 10 * kTaggedSize;
+  const int kLargeObjectSize = 8 * KB;
+
+  for (int i = 0; i < kNumIterations; i++) {
+    Address address = allocator->AllocateOrFail(
+        kObjectSize, AllocationAlignment::kWordAligned,
+        AllocationOrigin::kRuntime);
+    heap->CreateFillerObjectAt(address, kObjectSize, ClearRecordedSlots::kNo);
+    address = allocator->AllocateOrFail(kLargeObjectSize,
+                                        AllocationAlignment::kWordAligned,
+                                        AllocationOrigin::kRuntime);
+    heap->CreateFillerObjectAt(address, kLargeObjectSize,
+                               ClearRecordedSlots::kNo);
+    if (i % 10 == 0) {
+      local_heap.Safepoint();
+    }
+  }
+
+  Schedule(isolate_);
+}
+
+// static
+void StressConcurrentAllocatorTask::Schedule(Isolate* isolate) {
+  CHECK(FLAG_local_heaps && FLAG_concurrent_allocation);
+  auto task = std::make_unique<StressConcurrentAllocatorTask>(isolate);
+  const double kDelayInSeconds = 0.1;
+  V8::GetCurrentPlatform()->CallDelayedOnWorkerThread(std::move(task),
+                                                      kDelayInSeconds);
+}
 
 Address ConcurrentAllocator::PerformCollectionAndAllocateAgain(
     int object_size, AllocationAlignment alignment, AllocationOrigin origin) {
