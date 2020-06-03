@@ -63,6 +63,14 @@ using reg_t = uint64_t;
 #define sext_xlen(x) (((sreg_t)(x) << (64 - xlen)) >> (64 - xlen))
 #define zext_xlen(x) (((reg_t)(x) << (64 - xlen)) >> (64 - xlen))
 
+#define BIT(n) (0x1LL << n)
+#define QUIET_BIT_S(nan) (bit_cast<int32_t>(nan) & BIT(22))
+#define QUIET_BIT_D(nan) (bit_cast<int64_t>(nan) & BIT(51))
+static inline bool isSnan(float fp) { return !QUIET_BIT_S(fp); }
+static inline bool isSnan(double fp) { return !QUIET_BIT_D(fp); }
+#undef QUIET_BIT_S
+#undef QUIET_BIT_D
+
 inline uint64_t mulhu(uint64_t a, uint64_t b) {
   if (is_int32((int64_t)a) && is_int32((int64_t)b)) {
     return ((((((a & 0xfffffffff) << 32) >> 32) *
@@ -476,9 +484,14 @@ class Simulator : public SimulatorBase {
     T src2 = std::is_same<float, T>::value ? frs2() : drs2();
     T src3 = std::is_same<float, T>::value ? frs3() : drs3();
     auto alu_out = fn(src1, src2, src3);
+    // if any input or result is NaN, the result is quiet_NaN
     if (std::isnan(alu_out) || std::isnan(src1) || std::isnan(src2) ||
-        std::isnan(src3))
+        std::isnan(src3)) {
+      // signaling_nan sets kInvalidOperation bit
+      if (isSnan(alu_out) || isSnan(src1) || isSnan(src2) || isSnan(src3))
+        set_fflags(kInvalidOperation);
       alu_out = std::numeric_limits<T>::quiet_NaN();
+    }
     return alu_out;
   }
 
@@ -488,8 +501,13 @@ class Simulator : public SimulatorBase {
     T src1 = std::is_same<float, T>::value ? frs1() : drs1();
     T src2 = std::is_same<float, T>::value ? frs2() : drs2();
     auto alu_out = fn(src1, src2);
-    if (std::isnan(alu_out) || std::isnan(src1) || std::isnan(src2))
+    // if any input or result is NaN, the result is quiet_NaN
+    if (std::isnan(alu_out) || std::isnan(src1) || std::isnan(src2)) {
+      // signaling_nan sets kInvalidOperation bit
+      if (isSnan(alu_out) || isSnan(src1) || isSnan(src2))
+        set_fflags(kInvalidOperation);
       alu_out = std::numeric_limits<T>::quiet_NaN();
+    }
     return alu_out;
   }
 
@@ -498,24 +516,12 @@ class Simulator : public SimulatorBase {
     DCHECK(std::is_floating_point<T>::value);
     T src1 = std::is_same<float, T>::value ? frs1() : drs1();
     auto alu_out = fn(src1);
-    if (std::isnan(alu_out) || std::isnan(src1))
+    // if any input or result is NaN, the result is quiet_NaN
+    if (std::isnan(alu_out) || std::isnan(src1)) {
+      // signaling_nan sets kInvalidOperation bit
+      if (isSnan(alu_out) || isSnan(src1)) set_fflags(kInvalidOperation);
       alu_out = std::numeric_limits<T>::quiet_NaN();
-    return alu_out;
-  }
-
-  template <typename Func>
-  inline float CanonicalizeFloat2Operation(Func fn) {
-    float alu_out = fn(frs1(), frs2());
-    if (std::isnan(alu_out) || std::isnan(frs1()) || std::isnan(frs2()))
-      std::numeric_limits<float>::quiet_NaN();
-    return alu_out;
-  }
-
-  template <typename Func>
-  inline float CanonicalizeFloat1Operation(Func fn) {
-    float alu_out = fn(frs1());
-    if (std::isnan(alu_out) || std::isnan(frs1()))
-      alu_out = std::numeric_limits<float>::quiet_NaN();
+    }
     return alu_out;
   }
 
@@ -524,31 +530,6 @@ class Simulator : public SimulatorBase {
     float alu_out = fn(drs1());
     if (std::isnan(alu_out) || std::isnan(drs1()))
       alu_out = std::numeric_limits<float>::quiet_NaN();
-    return alu_out;
-  }
-
-  template <typename Func>
-  inline double CanonicalizeDouble3Operation(Func fn) {
-    double alu_out = fn(drs1(), drs2(), drs3());
-    if (std::isnan(alu_out) || std::isnan(drs1()) || std::isnan(drs2()) ||
-        std::isnan(drs3()))
-      alu_out = std::numeric_limits<double>::quiet_NaN();
-    return alu_out;
-  }
-
-  template <typename Func>
-  inline double CanonicalizeDouble2Operation(Func fn) {
-    double alu_out = fn(drs1(), drs2());
-    if (std::isnan(alu_out) || std::isnan(drs1()) || std::isnan(drs2()))
-      std::numeric_limits<double>::quiet_NaN();
-    return alu_out;
-  }
-
-  template <typename Func>
-  inline double CanonicalizeDouble1Operation(Func fn) {
-    double alu_out = fn(drs1());
-    if (std::isnan(alu_out) || std::isnan(drs1()))
-      alu_out = std::numeric_limits<double>::quiet_NaN();
     return alu_out;
   }
 

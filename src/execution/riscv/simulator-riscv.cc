@@ -1733,7 +1733,7 @@ void Simulator::DecodeRVRType() {
       sreg_t lhs = sext_xlen(rs1());
       sreg_t rhs = sext_xlen(rs2());
       if (rhs == 0) {
-        set_rd(UINT64_MAX);
+        set_rd(-1);
       } else if (lhs == INT64_MIN && rhs == -1) {
         set_rd(lhs);
       } else {
@@ -1747,7 +1747,7 @@ void Simulator::DecodeRVRType() {
       if (rhs == 0) {
         set_rd(UINT64_MAX);
       } else {
-        set_rd(sext_xlen(lhs / rhs));
+        set_rd(zext_xlen(lhs / rhs));
       }
       break;
     }
@@ -1767,9 +1767,9 @@ void Simulator::DecodeRVRType() {
       reg_t lhs = zext_xlen(rs1());
       reg_t rhs = zext_xlen(rs2());
       if (rhs == 0) {
-        set_rd(sext_xlen(rs1()));
+        set_rd(lhs);
       } else {
-        set_rd(sext_xlen(lhs % rhs));
+        set_rd(zext_xlen(lhs % rhs));
       }
       break;
     }
@@ -1782,7 +1782,9 @@ void Simulator::DecodeRVRType() {
       sreg_t lhs = sext32(rs1());
       sreg_t rhs = sext32(rs2());
       if (rhs == 0) {
-        set_rd(UINT64_MAX);
+        set_rd(-1);
+      } else if (lhs == INT32_MIN && rhs == -1) {
+        set_rd(lhs);
       } else {
         set_rd(sext32(lhs / rhs));
       }
@@ -1792,9 +1794,9 @@ void Simulator::DecodeRVRType() {
       reg_t lhs = zext32(rs1());
       reg_t rhs = zext32(rs2());
       if (rhs == 0) {
-        set_rd(UINT64_MAX);
+        set_rd(UINT32_MAX);
       } else {
-        set_rd(sext32(lhs / rhs));
+        set_rd(zext32(lhs / rhs));
       }
       break;
     }
@@ -1803,6 +1805,8 @@ void Simulator::DecodeRVRType() {
       sreg_t rhs = sext32(rs2());
       if (rhs == 0) {
         set_rd(lhs);
+      } else if (lhs == INT32_MIN && rhs == -1) {
+        set_rd(0);
       } else {
         set_rd(sext32(lhs % rhs));
       }
@@ -1812,9 +1816,9 @@ void Simulator::DecodeRVRType() {
       reg_t lhs = zext32(rs1());
       reg_t rhs = zext32(rs2());
       if (rhs == 0) {
-        set_rd(sext32(lhs));
+        set_rd(zext32(lhs));
       } else {
-        set_rd(sext32(lhs % rhs));
+        set_rd(zext32(lhs % rhs));
       }
       break;
     }
@@ -1970,14 +1974,6 @@ I_TYPE Simulator::RoundF2IHelper(F_TYPE original, int rmode) {
   return static_cast<I_TYPE>(rounded);
 }
 
-#define BIT(n) (0x1LL << n)
-#define QUIET_BIT_S(nan) (bit_cast<int32_t>(nan) & BIT(22))
-#define QUIET_BIT_D(nan) (bit_cast<int64_t>(nan) & BIT(51))
-static inline bool isSnan(float fp) { return !QUIET_BIT_S(fp); }
-static inline bool isSnan(double fp) { return !QUIET_BIT_D(fp); }
-#undef QUIET_BIT_S
-#undef QUIET_BIT_D
-
 template <typename T>
 static int64_t FclassHelper(T value) {
   switch (std::fpclassify(value)) {
@@ -2005,6 +2001,7 @@ bool Simulator::CompareFHelper(T input1, T input2, FPUCondition cc) {
   switch (cc) {
     case LT:
     case LE:
+      // FLT, FLE are signaling compares
       if (std::isnan(input1) || std::isnan(input2)) {
         set_fflags(kInvalidOperation);
         result = false;
@@ -2029,6 +2026,34 @@ bool Simulator::CompareFHelper(T input1, T input2, FPUCondition cc) {
       UNREACHABLE();
   }
   return result;
+}
+
+template <typename T>
+static inline bool is_invalid_fmul(T src1, T src2) {
+  return (isinf(src1) && src2 == static_cast<T>(0.0)) ||
+         (src1 == static_cast<T>(0.0) && isinf(src2));
+}
+
+template <typename T>
+static inline bool is_invalid_fadd(T src1, T src2) {
+  return (isinf(src1) && isinf(src2) &&
+          std::signbit(src1) != std::signbit(src2));
+}
+
+template <typename T>
+static inline bool is_invalid_fsub(T src1, T src2) {
+  return (isinf(src1) && isinf(src2) &&
+          std::signbit(src1) == std::signbit(src2));
+}
+
+template <typename T>
+static inline bool is_invalid_fdiv(T src1, T src2) {
+  return ((src1 == 0 && src2 == 0) || (isinf(src1) && isinf(src2)));
+}
+
+template <typename T>
+static inline bool is_invalid_fsqrt(T src1) {
+  return (src1 < 0);
 }
 
 void Simulator::DecodeRVRAType() {
@@ -2185,32 +2210,72 @@ void Simulator::DecodeRVRFPType() {
     // TODO: Add macro for RISCV F extension
     case RO_FADD_S: {
       // TODO: use rm value (round mode)
-      auto fn = [](float frs1, float frs2) { return frs1 + frs2; };
+      auto fn = [this](float frs1, float frs2) {
+        if (is_invalid_fadd(frs1, frs2)) {
+          this->set_fflags(kInvalidOperation);
+          return std::numeric_limits<float>::quiet_NaN();
+        } else {
+          return frs1 + frs2;
+        }
+      };
       set_frd(CanonicalizeFPUOp2<float>(fn));
       break;
     }
     case RO_FSUB_S: {
       // TODO: use rm value (round mode)
-      auto fn = [](float frs1, float frs2) { return frs1 - frs2; };
+      auto fn = [this](float frs1, float frs2) {
+        if (is_invalid_fsub(frs1, frs2)) {
+          this->set_fflags(kInvalidOperation);
+          return std::numeric_limits<float>::quiet_NaN();
+        } else {
+          return frs1 - frs2;
+        }
+      };
       set_frd(CanonicalizeFPUOp2<float>(fn));
       break;
     }
     case RO_FMUL_S: {
       // TODO: use rm value (round mode)
-      auto fn = [](float frs1, float frs2) { return frs1 * frs2; };
+      auto fn = [this](float frs1, float frs2) {
+        if (is_invalid_fmul(frs1, frs2)) {
+          this->set_fflags(kInvalidOperation);
+          return std::numeric_limits<float>::quiet_NaN();
+        } else {
+          return frs1 * frs2;
+        }
+      };
       set_frd(CanonicalizeFPUOp2<float>(fn));
       break;
     }
     case RO_FDIV_S: {
       // TODO: use rm value (round mode)
-      auto fn = [](float frs1, float frs2) { return frs1 / frs2; };
+      auto fn = [this](float frs1, float frs2) {
+        if (is_invalid_fdiv(frs1, frs2)) {
+          this->set_fflags(kInvalidOperation);
+          return std::numeric_limits<float>::quiet_NaN();
+        } else if (frs2 == 0.0f) {
+          this->set_fflags(kDivideByZero);
+          return (std::signbit(frs1) == std::signbit(frs2)
+                      ? std::numeric_limits<float>::infinity()
+                      : -std::numeric_limits<float>::infinity());
+        } else {
+          return frs1 / frs2;
+        }
+      };
       set_frd(CanonicalizeFPUOp2<float>(fn));
       break;
     }
     case RO_FSQRT_S: {
       if (instr_.Rs2Value() == 0b00000) {
         // TODO: use rm value (round mode)
-        auto fn = [](float frs) { return std::sqrt(frs); };
+        auto fn = [this](float frs) {
+          if (is_invalid_fsqrt(frs)) {
+            this->set_fflags(kInvalidOperation);
+            return std::numeric_limits<float>::quiet_NaN();
+          } else {
+            return std::sqrt(frs);
+          }
+        };
         set_frd(CanonicalizeFPUOp1<float>(fn));
       } else {
         UNSUPPORTED();
@@ -2360,32 +2425,72 @@ void Simulator::DecodeRVRFPType() {
       // TODO: Add macro for RISCV D extension
     case RO_FADD_D: {
       // TODO: use rm value (round mode)
-      auto fn = [](double drs1, double drs2) { return drs1 + drs2; };
+      auto fn = [this](double drs1, double drs2) {
+        if (is_invalid_fadd(drs1, drs2)) {
+          this->set_fflags(kInvalidOperation);
+          return std::numeric_limits<double>::quiet_NaN();
+        } else {
+          return drs1 + drs2;
+        }
+      };
       set_drd(CanonicalizeFPUOp2<double>(fn));
       break;
     }
     case RO_FSUB_D: {
       // TODO: use rm value (round mode)
-      auto fn = [](double drs1, double drs2) { return drs1 - drs2; };
+      auto fn = [this](double drs1, double drs2) {
+        if (is_invalid_fsub(drs1, drs2)) {
+          this->set_fflags(kInvalidOperation);
+          return std::numeric_limits<double>::quiet_NaN();
+        } else {
+          return drs1 - drs2;
+        }
+      };
       set_drd(CanonicalizeFPUOp2<double>(fn));
       break;
     }
     case RO_FMUL_D: {
       // TODO: use rm value (round mode)
-      auto fn = [](double drs1, double drs2) { return drs1 * drs2; };
+      auto fn = [this](double drs1, double drs2) {
+        if (is_invalid_fmul(drs1, drs2)) {
+          this->set_fflags(kInvalidOperation);
+          return std::numeric_limits<double>::quiet_NaN();
+        } else {
+          return drs1 * drs2;
+        }
+      };
       set_drd(CanonicalizeFPUOp2<double>(fn));
       break;
     }
     case RO_FDIV_D: {
       // TODO: use rm value (round mode)
-      auto fn = [](double drs1, double drs2) { return drs1 / drs2; };
+      auto fn = [this](double drs1, double drs2) {
+        if (is_invalid_fdiv(drs1, drs2)) {
+          this->set_fflags(kInvalidOperation);
+          return std::numeric_limits<double>::quiet_NaN();
+        } else if (drs2 == 0.0) {
+          this->set_fflags(kDivideByZero);
+          return (std::signbit(drs1) == std::signbit(drs2)
+                      ? std::numeric_limits<double>::infinity()
+                      : -std::numeric_limits<double>::infinity());
+        } else {
+          return drs1 / drs2;
+        }
+      };
       set_drd(CanonicalizeFPUOp2<double>(fn));
       break;
     }
     case RO_FSQRT_D: {
       if (instr_.Rs2Value() == 0b00000) {
         // TODO: use rm value (round mode)
-        auto fn = [](double drs) { return std::sqrt(drs); };
+        auto fn = [this](double drs) {
+          if (is_invalid_fsqrt(drs)) {
+            this->set_fflags(kInvalidOperation);
+            return std::numeric_limits<double>::quiet_NaN();
+          } else {
+            return std::sqrt(drs);
+          }
+        };
         set_drd(CanonicalizeFPUOp1<double>(fn));
       } else {
         UNSUPPORTED();
@@ -2564,32 +2669,52 @@ void Simulator::DecodeRVR4Type() {
     // TODO: use F Extension macro block
     case RO_FMADD_S: {
       // TODO: use rm value (round mode)
-      auto fn = [](float frs1, float frs2, float frs3) {
-        return frs1 * frs2 + frs3;
+      auto fn = [this](float frs1, float frs2, float frs3) {
+        if (is_invalid_fmul(frs1, frs2) || is_invalid_fadd(frs1 * frs2, frs3)) {
+          this->set_fflags(kInvalidOperation);
+          return std::numeric_limits<float>::quiet_NaN();
+        } else {
+          return frs1 * frs2 + frs3;
+        }
       };
       set_frd(CanonicalizeFPUOp3<float>(fn));
       break;
     }
     case RO_FMSUB_S: {
       // TODO: use rm value (round mode)
-      auto fn = [](float frs1, float frs2, float frs3) {
-        return frs1 * frs2 - frs3;
+      auto fn = [this](float frs1, float frs2, float frs3) {
+        if (is_invalid_fmul(frs1, frs2) || is_invalid_fsub(frs1 * frs2, frs3)) {
+          this->set_fflags(kInvalidOperation);
+          return std::numeric_limits<float>::quiet_NaN();
+        } else {
+          return frs1 * frs2 - frs3;
+        }
       };
       set_frd(CanonicalizeFPUOp3<float>(fn));
       break;
     }
     case RO_FNMSUB_S: {
       // TODO: use rm value (round mode)
-      auto fn = [](float frs1, float frs2, float frs3) {
-        return -(frs1 * frs2) + frs3;
+      auto fn = [this](float frs1, float frs2, float frs3) {
+        if (is_invalid_fmul(frs1, frs2) || is_invalid_fsub(frs3, frs1 * frs2)) {
+          this->set_fflags(kInvalidOperation);
+          return std::numeric_limits<float>::quiet_NaN();
+        } else {
+          return -(frs1 * frs2) + frs3;
+        }
       };
       set_frd(CanonicalizeFPUOp3<float>(fn));
       break;
     }
     case RO_FNMADD_S: {
       // TODO: use rm value (round mode)
-      auto fn = [](float frs1, float frs2, float frs3) {
-        return -(frs1 * frs2) - frs3;
+      auto fn = [this](float frs1, float frs2, float frs3) {
+        if (is_invalid_fmul(frs1, frs2) || is_invalid_fadd(frs1 * frs2, frs3)) {
+          this->set_fflags(kInvalidOperation);
+          return std::numeric_limits<float>::quiet_NaN();
+        } else {
+          return -(frs1 * frs2) - frs3;
+        }
       };
       set_frd(CanonicalizeFPUOp3<float>(fn));
       break;
@@ -2597,32 +2722,52 @@ void Simulator::DecodeRVR4Type() {
     // TODO: use F Extension macro block
     case RO_FMADD_D: {
       // TODO: use rm value (round mode)
-      auto fn = [](double drs1, double drs2, double drs3) {
-        return drs1 * drs2 + drs3;
+      auto fn = [this](double drs1, double drs2, double drs3) {
+        if (is_invalid_fmul(drs1, drs2) || is_invalid_fadd(drs1 * drs2, drs3)) {
+          this->set_fflags(kInvalidOperation);
+          return std::numeric_limits<double>::quiet_NaN();
+        } else {
+          return drs1 * drs2 + drs3;
+        }
       };
       set_drd(CanonicalizeFPUOp3<double>(fn));
       break;
     }
     case RO_FMSUB_D: {
       // TODO: use rm value (round mode)
-      auto fn = [](double drs1, double drs2, double drs3) {
-        return drs1 * drs2 - drs3;
+      auto fn = [this](double drs1, double drs2, double drs3) {
+        if (is_invalid_fmul(drs1, drs2) || is_invalid_fsub(drs1 * drs2, drs3)) {
+          this->set_fflags(kInvalidOperation);
+          return std::numeric_limits<double>::quiet_NaN();
+        } else {
+          return drs1 * drs2 - drs3;
+        }
       };
       set_drd(CanonicalizeFPUOp3<double>(fn));
       break;
     }
     case RO_FNMSUB_D: {
       // TODO: use rm value (round mode)
-      auto fn = [](double drs1, double drs2, double drs3) {
-        return -(drs1 * drs2) + drs3;
+      auto fn = [this](double drs1, double drs2, double drs3) {
+        if (is_invalid_fmul(drs1, drs2) || is_invalid_fsub(drs3, drs1 * drs2)) {
+          this->set_fflags(kInvalidOperation);
+          return std::numeric_limits<double>::quiet_NaN();
+        } else {
+          return -(drs1 * drs2) + drs3;
+        }
       };
       set_drd(CanonicalizeFPUOp3<double>(fn));
       break;
     }
     case RO_FNMADD_D: {
       // TODO: use rm value (round mode)
-      auto fn = [](double drs1, double drs2, double drs3) {
-        return -(drs1 * drs2) - drs3;
+      auto fn = [this](double drs1, double drs2, double drs3) {
+        if (is_invalid_fmul(drs1, drs2) || is_invalid_fadd(drs1 * drs2, drs3)) {
+          this->set_fflags(kInvalidOperation);
+          return std::numeric_limits<double>::quiet_NaN();
+        } else {
+          return -(drs1 * drs2) - drs3;
+        }
       };
       set_drd(CanonicalizeFPUOp3<double>(fn));
       break;
