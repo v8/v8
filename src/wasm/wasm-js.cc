@@ -93,37 +93,48 @@ class WasmStreaming::WasmStreamingImpl {
 };
 
 WasmStreaming::WasmStreaming(std::unique_ptr<WasmStreamingImpl> impl)
-    : impl_(std::move(impl)) {}
+    : impl_(std::move(impl)) {
+  TRACE_EVENT0("v8.wasm", "wasm.InitializeStreaming");
+}
 
 // The destructor is defined here because we have a unique_ptr with forward
 // declaration.
 WasmStreaming::~WasmStreaming() = default;
 
 void WasmStreaming::OnBytesReceived(const uint8_t* bytes, size_t size) {
+  TRACE_EVENT1("v8.wasm", "wasm.OnBytesReceived", "num_bytes", size);
   impl_->OnBytesReceived(bytes, size);
 }
 
-void WasmStreaming::Finish() { impl_->Finish(); }
+void WasmStreaming::Finish() {
+  TRACE_EVENT0("v8.wasm", "wasm.FinishStreaming");
+  impl_->Finish();
+}
 
 void WasmStreaming::Abort(MaybeLocal<Value> exception) {
+  TRACE_EVENT0("v8.wasm", "wasm.AbortStreaming");
   impl_->Abort(exception);
 }
 
 bool WasmStreaming::SetCompiledModuleBytes(const uint8_t* bytes, size_t size) {
+  TRACE_EVENT0("v8.wasm", "wasm.SetCompiledModuleBytes");
   return impl_->SetCompiledModuleBytes(bytes, size);
 }
 
 void WasmStreaming::SetClient(std::shared_ptr<Client> client) {
+  TRACE_EVENT0("v8.wasm", "wasm.WasmStreaming.SetClient");
   impl_->SetClient(client);
 }
 
 void WasmStreaming::SetUrl(const char* url, size_t length) {
+  TRACE_EVENT0("v8.wasm", "wasm.SetUrl");
   impl_->SetUrl(internal::VectorOf(url, length));
 }
 
 // static
 std::shared_ptr<WasmStreaming> WasmStreaming::Unpack(Isolate* isolate,
                                                      Local<Value> value) {
+  TRACE_EVENT0("v8.wasm", "wasm.WasmStreaming.Unpack");
   i::HandleScope scope(reinterpret_cast<i::Isolate*>(isolate));
   auto managed =
       i::Handle<i::Managed<WasmStreaming>>::cast(Utils::OpenHandle(*value));

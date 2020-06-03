@@ -1047,7 +1047,7 @@ bool ExecuteCompilationUnits(
     const std::shared_ptr<BackgroundCompileToken>& token, Counters* counters,
     int task_id, CompileBaselineOnly baseline_only) {
   TRACE_COMPILE("Compiling (task %d)...\n", task_id);
-  TRACE_EVENT0(TRACE_DISABLED_BY_DEFAULT("v8.wasm"), "ExecuteCompilationUnits");
+  TRACE_EVENT0("v8.wasm", "wasm.ExecuteCompilationUnits");
 
   // Execute JS to Wasm wrapper units first, so that they are ready to be
   // finalized by the main thread when the kFinishedBaselineCompilation event is
@@ -1108,8 +1108,9 @@ bool ExecuteCompilationUnits(
 
   auto publish_results = [&results_to_publish](
                              BackgroundCompileScope* compile_scope) {
-    TRACE_EVENT1(TRACE_DISABLED_BY_DEFAULT("v8.wasm"), "PublishResults",
-                 "num_results", results_to_publish.size());
+    TRACE_EVENT1(TRACE_DISABLED_BY_DEFAULT("v8.wasm.detailed"),
+                 "wasm.PublishCompilationResults", "num_results",
+                 results_to_publish.size());
     if (results_to_publish.empty()) return;
     std::vector<std::unique_ptr<WasmCode>> unpublished_code =
         compile_scope->native_module()->AddCompiledCode(
@@ -1512,7 +1513,8 @@ AsyncCompileJob::AsyncCompileJob(
       bytes_copy_(std::move(bytes_copy)),
       wire_bytes_(bytes_copy_.get(), bytes_copy_.get() + length),
       resolver_(std::move(resolver)) {
-  TRACE_EVENT0(TRACE_DISABLED_BY_DEFAULT("v8.wasm"), "new AsyncCompileJob");
+  TRACE_EVENT0(TRACE_DISABLED_BY_DEFAULT("v8.wasm.detailed"),
+               "wasm.AsyncCompileJob");
   CHECK(FLAG_wasm_async_compilation);
   CHECK(!FLAG_jitless);
   v8::Isolate* v8_isolate = reinterpret_cast<v8::Isolate*>(isolate);
@@ -1660,8 +1662,8 @@ void AsyncCompileJob::PrepareRuntimeObjects() {
 // This function assumes that it is executed in a HandleScope, and that a
 // context is set on the isolate.
 void AsyncCompileJob::FinishCompile(bool is_after_cache_hit) {
-  TRACE_EVENT0(TRACE_DISABLED_BY_DEFAULT("v8.wasm"),
-               "AsyncCompileJob::FinishCompile");
+  TRACE_EVENT0(TRACE_DISABLED_BY_DEFAULT("v8.wasm.detailed"),
+               "wasm.FinishAsyncCompile");
   bool is_after_deserialization = !module_object_.is_null();
   auto compilation_state = Impl(native_module_->compilation_state());
   if (!is_after_deserialization) {
@@ -1693,7 +1695,8 @@ void AsyncCompileJob::FinishCompile(bool is_after_cache_hit) {
     script->set_source_mapping_url(*src_map_str.ToHandleChecked());
   }
   {
-    TRACE_EVENT0(TRACE_DISABLED_BY_DEFAULT("v8.wasm"), "Debug::OnAfterCompile");
+    TRACE_EVENT0(TRACE_DISABLED_BY_DEFAULT("v8.wasm.detailed"),
+                 "wasm.Debug.OnAfterCompile");
     isolate_->debug()->OnAfterCompile(script);
   }
 
@@ -1740,8 +1743,8 @@ void AsyncCompileJob::AsyncCompileFailed() {
 }
 
 void AsyncCompileJob::AsyncCompileSucceeded(Handle<WasmModuleObject> result) {
-  TRACE_EVENT0(TRACE_DISABLED_BY_DEFAULT("v8.wasm"),
-               "CompilationResultResolver::OnCompilationSucceeded");
+  TRACE_EVENT0(TRACE_DISABLED_BY_DEFAULT("v8.wasm.detailed"),
+               "wasm.OnCompilationSucceeded");
   resolver_->OnCompilationSucceeded(result);
 }
 
@@ -1938,8 +1941,8 @@ class AsyncCompileJob::DecodeModule : public AsyncCompileJob::CompileStep {
       DisallowHeapAllocation no_allocation;
       // Decode the module bytes.
       TRACE_COMPILE("(1) Decoding module...\n");
-      TRACE_EVENT0(TRACE_DISABLED_BY_DEFAULT("v8.wasm"),
-                   "AsyncCompileJob::DecodeModule");
+      TRACE_EVENT0(TRACE_DISABLED_BY_DEFAULT("v8.wasm.detailed"),
+                   "wasm.DecodeModule");
       auto enabled_features = job->enabled_features_;
       result = DecodeWasmModule(enabled_features, job->wire_bytes_.start(),
                                 job->wire_bytes_.end(), false, kWasmOrigin,
@@ -2446,6 +2449,7 @@ void AsyncStreamingProcessor::OnAbort() {
 
 bool AsyncStreamingProcessor::Deserialize(Vector<const uint8_t> module_bytes,
                                           Vector<const uint8_t> wire_bytes) {
+  TRACE_EVENT0("v8.wasm", "wasm.Deserialize");
   // DeserializeNativeModule and FinishCompile assume that they are executed in
   // a HandleScope, and that a context is set on the isolate.
   HandleScope scope(job_->isolate_);
@@ -2690,8 +2694,9 @@ void CompilationStateImpl::FinalizeJSToWasmWrappers(
   // TODO(6792): Wrappers below are allocated with {Factory::NewCode}. As an
   // optimization we keep the code space unlocked to avoid repeated unlocking
   // because many such wrapper are allocated in sequence below.
-  TRACE_EVENT1(TRACE_DISABLED_BY_DEFAULT("v8.wasm"), "FinalizeJSToWasmWrappers",
-               "num_wrappers", js_to_wasm_wrapper_units_.size());
+  TRACE_EVENT1(TRACE_DISABLED_BY_DEFAULT("v8.wasm.detailed"),
+               "wasm.FinalizeJSToWasmWrappers", "num_wrappers",
+               js_to_wasm_wrapper_units_.size());
   CodeSpaceMemoryModificationScope modification_scope(isolate->heap());
   for (auto& unit : js_to_wasm_wrapper_units_) {
     Handle<Code> code = unit->Finalize(isolate);
@@ -2709,8 +2714,8 @@ CompilationStateImpl::GetNextCompilationUnit(
 }
 
 void CompilationStateImpl::OnFinishedUnits(Vector<WasmCode*> code_vector) {
-  TRACE_EVENT1(TRACE_DISABLED_BY_DEFAULT("v8.wasm"), "OnFinishedUnits",
-               "num_units", code_vector.size());
+  TRACE_EVENT1(TRACE_DISABLED_BY_DEFAULT("v8.wasm.detailed"),
+               "wasm.OnFinishedUnits", "num_units", code_vector.size());
 
   base::MutexGuard guard(&callbacks_mutex_);
 
@@ -2833,13 +2838,13 @@ void CompilationStateImpl::TriggerCallbacks(
 
   for (auto event :
        {std::make_pair(CompilationEvent::kFinishedBaselineCompilation,
-                       "BaselineFinished"),
+                       "wasm.BaselineFinished"),
         std::make_pair(CompilationEvent::kFinishedTopTierCompilation,
-                       "TopTierFinished"),
+                       "wasm.TopTierFinished"),
         std::make_pair(CompilationEvent::kFinishedRecompilation,
-                       "RecompilationFinished")}) {
+                       "wasm.RecompilationFinished")}) {
     if (!triggered_events.contains(event.first)) continue;
-    TRACE_EVENT0(TRACE_DISABLED_BY_DEFAULT("v8.wasm"), event.second);
+    TRACE_EVENT0("v8.wasm", event.second);
     for (auto& callback : callbacks_) {
       callback(event.first);
     }
