@@ -4703,7 +4703,7 @@ v8_executable("cppgc_for_v8_embedders") {
 
   configs = [
     # Note: don't use :internal_config here because this target will get
-    # the :external_config applied to it by virtue of depending on :v8, and
+    # the :external_config applied to it by virtue of depending on :cppgc, and
     # you can't have both applied to the same target.
     ":internal_config_base",
   ]
