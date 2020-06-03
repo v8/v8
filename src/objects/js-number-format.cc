@@ -207,7 +207,7 @@ std::map<const std::string, icu::MeasureUnit> CreateUnitMap() {
 class UnitFactory {
  public:
   UnitFactory() : map_(CreateUnitMap()) {}
-  virtual ~UnitFactory() {}
+  virtual ~UnitFactory() = default;
 
   // ecma402 #sec-issanctionedsimpleunitidentifier
   icu::MeasureUnit create(const std::string& unitIdentifier) {

@@ -1471,7 +1471,7 @@ class Iterator : public icu::Locale::Iterator {
   Iterator(std::vector<std::string>::const_iterator begin,
            std::vector<std::string>::const_iterator end)
       : iter_(begin), end_(end) {}
-  virtual ~Iterator() {}
+  virtual ~Iterator() = default;
 
   UBool hasNext() const override { return iter_ != end_; }
 

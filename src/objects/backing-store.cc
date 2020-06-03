@@ -646,7 +646,7 @@ SharedWasmMemoryData* BackingStore::get_shared_wasm_memory_data() {
 namespace {
 // Implementation details of GlobalBackingStoreRegistry.
 struct GlobalBackingStoreRegistryImpl {
-  GlobalBackingStoreRegistryImpl() {}
+  GlobalBackingStoreRegistryImpl() = default;
   base::Mutex mutex_;
   std::unordered_map<const void*, std::weak_ptr<BackingStore>> map_;
 };

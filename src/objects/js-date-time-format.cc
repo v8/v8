@@ -176,7 +176,7 @@ static std::vector<PatternItem> BuildPatternItems() {
 class PatternItems {
  public:
   PatternItems() : data(BuildPatternItems()) {}
-  virtual ~PatternItems() {}
+  virtual ~PatternItems() = default;
   const std::vector<PatternItem>& Get() const { return data; }
 
  private:
@@ -240,7 +240,7 @@ const std::vector<PatternData> CreateData(const char* digit2,
 class Pattern {
  public:
   Pattern(const char* d1, const char* d2) : data(CreateData(d1, d2)) {}
-  virtual ~Pattern() {}
+  virtual ~Pattern() = default;
   virtual const std::vector<PatternData>& Get() const { return data; }
 
  private:
