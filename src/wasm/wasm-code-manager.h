@@ -72,6 +72,7 @@ struct WasmModule;
   V(WasmThrow)                           \
   V(WasmRethrow)                         \
   V(WasmTraceEnter)                      \
+  V(WasmTraceExit)                       \
   V(WasmTraceMemory)                     \
   V(ArgumentsAdaptorTrampoline)          \
   V(BigIntToI32Pair)                     \

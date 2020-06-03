@@ -950,8 +950,62 @@ RUNTIME_FUNCTION(Runtime_TraceExit) {
 RUNTIME_FUNCTION(Runtime_WasmTraceEnter) {
   SealHandleScope shs(isolate);
   DCHECK_EQ(0, args.length());
-  // TODO(10559): Print more useful info here.
+  // TODO(10559): Print function name and indentation.
   PrintF("Enter function\n");
+  return ReadOnlyRoots(isolate).undefined_value();
+}
+
+RUNTIME_FUNCTION(Runtime_WasmTraceExit) {
+  HandleScope shs(isolate);
+  DCHECK_EQ(1, args.length());
+  CONVERT_ARG_CHECKED(Smi, value_addr_smi, 0);
+
+  // TODO(10559): Print function name and indentation.
+  PrintF("Exit function");
+
+  // Find the caller wasm frame.
+  wasm::WasmCodeRefScope wasm_code_ref_scope;
+  StackTraceFrameIterator it(isolate);
+  DCHECK(!it.done());
+  DCHECK(it.is_wasm());
+  WasmFrame* frame = WasmFrame::cast(it.frame());
+  int func_index = frame->function_index();
+  const wasm::FunctionSig* sig =
+      frame->wasm_instance().module()->functions[func_index].sig;
+
+  size_t num_returns = sig->return_count();
+  if (num_returns == 1) {
+    wasm::ValueType return_type = sig->GetReturn(0);
+    switch (return_type.kind()) {
+      case wasm::ValueType::kI32: {
+        int32_t value = ReadUnalignedValue<int32_t>(value_addr_smi.ptr());
+        PrintF(" -> %d\n", value);
+        break;
+      }
+      case wasm::ValueType::kI64: {
+        int64_t value = ReadUnalignedValue<int64_t>(value_addr_smi.ptr());
+        PrintF(" -> %" PRId64 "\n", value);
+        break;
+      }
+      case wasm::ValueType::kF32: {
+        float_t value = ReadUnalignedValue<float_t>(value_addr_smi.ptr());
+        PrintF(" -> %f\n", value);
+        break;
+      }
+      case wasm::ValueType::kF64: {
+        double_t value = ReadUnalignedValue<double_t>(value_addr_smi.ptr());
+        PrintF(" -> %f\n", value);
+        break;
+      }
+      default:
+        PrintF(" -> Unsupported type\n");
+        break;
+    }
+  } else {
+    // TODO(wasm) Handle multiple return values.
+    PrintF("\n");
+  }
+
   return ReadOnlyRoots(isolate).undefined_value();
 }
 

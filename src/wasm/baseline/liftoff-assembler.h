@@ -284,6 +284,8 @@ class LiftoffAssembler : public TurboAssembler {
   explicit LiftoffAssembler(std::unique_ptr<AssemblerBuffer>);
   ~LiftoffAssembler() override;
 
+  LiftoffRegister LoadToRegister(VarState slot, LiftoffRegList pinned);
+
   LiftoffRegister PopToRegister(LiftoffRegList pinned = {});
 
   // Returns the register which holds the value of stack slot {index}. If the
@@ -1138,7 +1140,6 @@ class LiftoffAssembler : public TurboAssembler {
   }
 
  private:
-  LiftoffRegister LoadToRegister(VarState slot, LiftoffRegList pinned);
   LiftoffRegister LoadI64HalfIntoRegister(VarState slot, RegPairHalf half);
 
   uint32_t num_locals_ = 0;

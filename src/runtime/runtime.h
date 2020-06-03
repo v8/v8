@@ -543,6 +543,7 @@ namespace internal {
   F(WasmTierUpFunction, 2, 1)                 \
   F(WasmTierUpModule, 1, 1)                   \
   F(WasmTraceEnter, 0, 1)                     \
+  F(WasmTraceExit, 1, 1)                      \
   F(WasmTraceMemory, 1, 1)                    \
   I(DeoptimizeNow, 0, 1)
 

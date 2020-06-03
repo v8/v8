@@ -1545,7 +1545,45 @@ class LiftoffCompiler {
     __ cache_state()->stack_state.pop_back();
   }
 
+  void TraceFunctionExit(FullDecoder* decoder) {
+    DEBUG_CODE_COMMENT("trace function exit");
+    // Before making the runtime call, spill all cache registers.
+    __ SpillAllRegisters();
+
+    LiftoffRegList pinned;
+    // Get a register to hold the stack slot for the return value.
+    LiftoffRegister info = pinned.set(__ GetUnusedRegister(kGpReg, pinned));
+    __ AllocateStackSlot(info.gp(), sizeof(int64_t));
+
+    // Store the return value if there is exactly one. Multiple return values
+    // are not handled yet.
+    size_t num_returns = decoder->sig_->return_count();
+    if (num_returns == 1) {
+      ValueType return_type = decoder->sig_->GetReturn(0);
+      LiftoffRegister return_reg =
+          __ LoadToRegister(__ cache_state()->stack_state.back(), pinned);
+      __ Store(info.gp(), no_reg, 0, return_reg,
+               StoreType::ForValueType(return_type), pinned);
+    }
+    // Put the parameter in its place.
+    WasmTraceExitDescriptor descriptor;
+    DCHECK_EQ(0, descriptor.GetStackParameterCount());
+    DCHECK_EQ(1, descriptor.GetRegisterParameterCount());
+    Register param_reg = descriptor.GetRegisterParameter(0);
+    if (info.gp() != param_reg) {
+      __ Move(param_reg, info.gp(), LiftoffAssembler::kWasmIntPtr);
+    }
+
+    source_position_table_builder_.AddPosition(
+        __ pc_offset(), SourcePosition(decoder->position()), false);
+    __ CallRuntimeStub(WasmCode::kWasmTraceExit);
+    safepoint_table_builder_.DefineSafepoint(&asm_, Safepoint::kNoLazyDeopt);
+
+    __ DeallocateStackSlot(sizeof(int64_t));
+  }
+
   void ReturnImpl(FullDecoder* decoder) {
+    if (FLAG_trace_wasm) TraceFunctionExit(decoder);
     size_t num_returns = decoder->sig_->return_count();
     if (num_returns > 0) __ MoveToReturnLocations(decoder->sig_, descriptor_);
     DEBUG_CODE_COMMENT("leave frame");
