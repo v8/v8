@@ -4698,6 +4698,23 @@ if (want_v8_shell) {
   }
 }
 
+v8_executable("cppgc_for_v8_embedders") {
+  sources = [ "samples/cppgc/cppgc-for-v8-embedders.cc" ]
+
+  configs = [
+    # Note: don't use :internal_config here because this target will get
+    # the :external_config applied to it by virtue of depending on :v8, and
+    # you can't have both applied to the same target.
+    ":internal_config_base",
+  ]
+
+  deps = [
+    ":cppgc",
+    ":v8_libplatform",
+    "//build/win:default_exe_manifest",
+  ]
+}
+
 template("v8_fuzzer") {
   name = target_name
   forward_variables_from(invoker, "*")
