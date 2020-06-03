@@ -973,9 +973,9 @@ void Simulator::GetFpArgs(double* x, double* y, int32_t* z) {
   *z = static_cast<int32_t>(get_register(a2));
 }
 
-// The return value is either in a0/a1 or ft0.
+// The return value is in fa0.
 void Simulator::SetFpResult(const double& result) {
-  set_fpu_register_double(0, result);
+  set_fpu_register_double(fa0, result);
 }
 
 // helper functions to read/write/set/clear CRC values/bits
