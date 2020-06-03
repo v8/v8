@@ -344,9 +344,8 @@ struct WasmEngine::IsolateInfo {
   }
 #endif
 
-  // All native modules that are being used by this Isolate (currently only
-  // grows, never shrinks).
-  std::set<NativeModule*> native_modules;
+  // All native modules that are being used by this Isolate.
+  std::unordered_map<NativeModule*, std::weak_ptr<NativeModule>> native_modules;
 
   // Scripts created for each native module in this isolate.
   std::unordered_map<NativeModule*, WeakScriptHandle> scripts;
@@ -621,17 +620,19 @@ void WasmEngine::CompileFunction(Isolate* isolate, NativeModule* native_module,
 }
 
 void WasmEngine::TierDownAllModulesPerIsolate(Isolate* isolate) {
-  std::vector<NativeModule*> native_modules;
+  std::vector<std::shared_ptr<NativeModule>> native_modules;
   {
     base::MutexGuard lock(&mutex_);
     if (isolates_[isolate]->keep_tiered_down) return;
     isolates_[isolate]->keep_tiered_down = true;
-    for (auto* native_module : isolates_[isolate]->native_modules) {
-      native_modules.push_back(native_module);
-      native_module->SetTieringState(kTieredDown);
+    for (auto& entry : isolates_[isolate]->native_modules) {
+      entry.first->SetTieringState(kTieredDown);
+      if (auto shared_ptr = entry.second.lock()) {
+        native_modules.emplace_back(std::move(shared_ptr));
+      }
     }
   }
-  for (auto* native_module : native_modules) {
+  for (auto& native_module : native_modules) {
     native_module->TriggerRecompilation();
   }
 }
@@ -639,7 +640,7 @@ void WasmEngine::TierDownAllModulesPerIsolate(Isolate* isolate) {
 void WasmEngine::TierUpAllModulesPerIsolate(Isolate* isolate) {
   // Only trigger recompilation after releasing the mutex, otherwise we risk
   // deadlocks because of lock inversion.
-  std::vector<NativeModule*> native_modules_to_recompile;
+  std::vector<std::shared_ptr<NativeModule>> native_modules_to_recompile;
   {
     base::MutexGuard lock(&mutex_);
     isolates_[isolate]->keep_tiered_down = false;
@@ -651,16 +652,19 @@ void WasmEngine::TierUpAllModulesPerIsolate(Isolate* isolate) {
       }
       return false;
     };
-    for (auto* native_module : isolates_[isolate]->native_modules) {
+    for (auto& entry : isolates_[isolate]->native_modules) {
+      auto* native_module = entry.first;
       if (!native_module->IsTieredDown()) continue;
       // Only start tier-up if no other isolate needs this modules in tiered
       // down state.
       if (test_keep_tiered_down(native_module)) continue;
       native_module->SetTieringState(kTieredUp);
-      native_modules_to_recompile.push_back(native_module);
+      if (auto shared_ptr = entry.second.lock()) {
+        native_modules_to_recompile.emplace_back(std::move(shared_ptr));
+      }
     }
   }
-  for (auto* native_module : native_modules_to_recompile) {
+  for (auto& native_module : native_modules_to_recompile) {
     native_module->TriggerRecompilation();
   }
 }
@@ -767,11 +771,12 @@ Handle<WasmModuleObject> WasmEngine::ImportNativeModule(
   Handle<FixedArray> export_wrappers;
   CompileJsToWasmWrappers(isolate, native_module->module(), &export_wrappers);
   Handle<WasmModuleObject> module_object = WasmModuleObject::New(
-      isolate, std::move(shared_native_module), script, export_wrappers);
+      isolate, shared_native_module, script, export_wrappers);
   {
     base::MutexGuard lock(&mutex_);
     DCHECK_EQ(1, isolates_.count(isolate));
-    isolates_[isolate]->native_modules.insert(native_module);
+    isolates_[isolate]->native_modules.emplace(native_module,
+                                               std::move(shared_native_module));
     DCHECK_EQ(1, native_modules_.count(native_module));
     native_modules_[native_module]->isolates.insert(isolate);
   }
@@ -890,8 +895,8 @@ void WasmEngine::AddIsolate(Isolate* isolate) {
     WasmEngine* engine = isolate->wasm_engine();
     base::MutexGuard lock(&engine->mutex_);
     DCHECK_EQ(1, engine->isolates_.count(isolate));
-    for (auto* native_module : engine->isolates_[isolate]->native_modules) {
-      native_module->SampleCodeSize(counters, NativeModule::kSampling);
+    for (auto& entry : engine->isolates_[isolate]->native_modules) {
+      entry.first->SampleCodeSize(counters, NativeModule::kSampling);
     }
   };
   isolate->heap()->AddGCEpilogueCallback(callback, v8::kGCTypeMarkSweepCompact,
@@ -915,7 +920,8 @@ void WasmEngine::RemoveIsolate(Isolate* isolate) {
   DCHECK_NE(isolates_.end(), it);
   std::unique_ptr<IsolateInfo> info = std::move(it->second);
   isolates_.erase(it);
-  for (NativeModule* native_module : info->native_modules) {
+  for (auto& entry : info->native_modules) {
+    auto* native_module = entry.first;
     DCHECK_EQ(1, native_modules_.count(native_module));
     DCHECK_EQ(1, native_modules_[native_module]->isolates.count(isolate));
     auto* info = native_modules_[native_module].get();
@@ -1010,7 +1016,7 @@ std::shared_ptr<NativeModule> WasmEngine::NewNativeModule(
   DCHECK(pair.second);  // inserted new entry.
   pair.first->second.get()->isolates.insert(isolate);
   auto& modules_per_isolate = isolates_[isolate]->native_modules;
-  modules_per_isolate.insert(native_module.get());
+  modules_per_isolate.emplace(native_module.get(), native_module);
   if (isolates_[isolate]->keep_tiered_down) {
     native_module->SetTieringState(kTieredDown);
   }
@@ -1033,7 +1039,8 @@ std::shared_ptr<NativeModule> WasmEngine::MaybeGetNativeModule(
       native_module_info = std::make_unique<NativeModuleInfo>();
     }
     native_module_info->isolates.insert(isolate);
-    isolates_[isolate]->native_modules.insert(native_module.get());
+    isolates_[isolate]->native_modules.emplace(native_module.get(),
+                                               native_module);
     if (isolates_[isolate]->keep_tiered_down) {
       native_module->SetTieringState(kTieredDown);
       recompile_module = true;
@@ -1062,7 +1069,8 @@ bool WasmEngine::UpdateNativeModuleCache(
     DCHECK_EQ(1, native_modules_.count(native_module->get()));
     native_modules_[native_module->get()]->isolates.insert(isolate);
     DCHECK_EQ(1, isolates_.count(isolate));
-    isolates_[isolate]->native_modules.insert(native_module->get());
+    isolates_[isolate]->native_modules.emplace(native_module->get(),
+                                               *native_module);
     if (isolates_[isolate]->keep_tiered_down) {
       native_module->get()->SetTieringState(kTieredDown);
       recompile_module = true;
