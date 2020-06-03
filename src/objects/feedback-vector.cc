@@ -235,13 +235,11 @@ Handle<ClosureFeedbackCellArray> ClosureFeedbackCellArray::New(
 // static
 Handle<FeedbackVector> FeedbackVector::New(
     Isolate* isolate, Handle<SharedFunctionInfo> shared,
-    Handle<ClosureFeedbackCellArray> closure_feedback_cell_array) {
+    Handle<ClosureFeedbackCellArray> closure_feedback_cell_array,
+    IsCompiledScope* is_compiled_scope) {
+  DCHECK(is_compiled_scope->is_compiled());
   Factory* factory = isolate->factory();
 
-  // Hold on to bytecode here. The allocation of a new feedback vector could
-  // trigger a GC and flush the bytecode and feedback metadata.
-  IsCompiledScope is_compiled_scope(*shared, isolate);
-  CHECK(is_compiled_scope.is_compiled());
   Handle<FeedbackMetadata> feedback_metadata(shared->feedback_metadata(),
                                              isolate);
   const int slot_count = feedback_metadata->slot_count();
@@ -342,7 +340,9 @@ Handle<FeedbackVector> FeedbackVector::NewWithOneCompareSlotForTesting(
   Handle<ClosureFeedbackCellArray> closure_feedback_cell_array =
       ClosureFeedbackCellArray::New(isolate, shared);
 
-  return FeedbackVector::New(isolate, shared, closure_feedback_cell_array);
+  IsCompiledScope is_compiled_scope(shared->is_compiled_scope());
+  return FeedbackVector::New(isolate, shared, closure_feedback_cell_array,
+                             &is_compiled_scope);
 }
 
 // static

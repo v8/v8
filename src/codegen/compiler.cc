@@ -1595,7 +1595,7 @@ bool Compiler::Compile(Handle<JSFunction> function, ClearExceptionFlag flag,
   Handle<Code> code = handle(shared_info->GetCode(), isolate);
 
   // Initialize the feedback cell for this JSFunction.
-  JSFunction::InitializeFeedbackCell(function);
+  JSFunction::InitializeFeedbackCell(function, is_compiled_scope);
 
   // Optimize now if --always-opt is enabled.
   if (FLAG_always_opt && !function->shared().HasAsmWasmData()) {
@@ -1801,7 +1801,7 @@ MaybeHandle<JSFunction> Compiler::GetFunctionFromEval(
     } else {
       result = isolate->factory()->NewFunctionFromSharedFunctionInfo(
           shared_info, context, AllocationType::kYoung);
-      JSFunction::InitializeFeedbackCell(result);
+      JSFunction::InitializeFeedbackCell(result, &is_compiled_scope);
       if (allow_eval_cache) {
         // Make sure to cache this result.
         Handle<FeedbackCell> new_feedback_cell(result->raw_feedback_cell(),
@@ -1813,7 +1813,7 @@ MaybeHandle<JSFunction> Compiler::GetFunctionFromEval(
   } else {
     result = isolate->factory()->NewFunctionFromSharedFunctionInfo(
         shared_info, context, AllocationType::kYoung);
-    JSFunction::InitializeFeedbackCell(result);
+    JSFunction::InitializeFeedbackCell(result, &is_compiled_scope);
     if (allow_eval_cache) {
       // Add the SharedFunctionInfo and the LiteralsArray to the eval cache if
       // we didn't retrieve from there.
@@ -2764,7 +2764,7 @@ void Compiler::PostInstantiation(Handle<JSFunction> function) {
   // If code is compiled to bytecode (i.e., isn't asm.js), then allocate a
   // feedback and check for optimized code.
   if (is_compiled_scope.is_compiled() && shared->HasBytecodeArray()) {
-    JSFunction::InitializeFeedbackCell(function);
+    JSFunction::InitializeFeedbackCell(function, &is_compiled_scope);
 
     Code code = function->has_feedback_vector()
                     ? function->feedback_vector().optimized_code()
@@ -2779,7 +2779,7 @@ void Compiler::PostInstantiation(Handle<JSFunction> function) {
     if (FLAG_always_opt && shared->allows_lazy_compilation() &&
         !shared->optimization_disabled() && !function->IsOptimized() &&
         !function->HasOptimizedCode()) {
-      JSFunction::EnsureFeedbackVector(function);
+      JSFunction::EnsureFeedbackVector(function, &is_compiled_scope);
       function->MarkForOptimization(ConcurrencyMode::kNotConcurrent);
     }
   }

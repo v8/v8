@@ -323,7 +323,7 @@ RUNTIME_FUNCTION(Runtime_OptimizeFunctionOnNextCall) {
     function->set_code(*BUILTIN_CODE(isolate, InterpreterEntryTrampoline));
   }
 
-  JSFunction::EnsureFeedbackVector(function);
+  JSFunction::EnsureFeedbackVector(function, &is_compiled_scope);
   function->MarkForOptimization(concurrency_mode);
 
   return ReadOnlyRoots(isolate).undefined_value();
@@ -353,7 +353,7 @@ bool EnsureFeedbackVector(Handle<JSFunction> function) {
 
   // Ensure function has a feedback vector to hold type feedback for
   // optimization.
-  JSFunction::EnsureFeedbackVector(function);
+  JSFunction::EnsureFeedbackVector(function, &is_compiled_scope);
   return true;
 }
 
@@ -457,7 +457,8 @@ RUNTIME_FUNCTION(Runtime_OptimizeOsr) {
     function->ShortPrint(scope.file());
     PrintF(scope.file(), " for non-concurrent optimization]\n");
   }
-  JSFunction::EnsureFeedbackVector(function);
+  IsCompiledScope is_compiled_scope(function->shared().is_compiled_scope());
+  JSFunction::EnsureFeedbackVector(function, &is_compiled_scope);
   function->MarkForOptimization(ConcurrencyMode::kNotConcurrent);
 
   // Make the profiler arm all back edges in unoptimized code.

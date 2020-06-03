@@ -4994,9 +4994,10 @@ void JSFunction::EnsureClosureFeedbackCellArray(Handle<JSFunction> function) {
 }
 
 // static
-void JSFunction::EnsureFeedbackVector(Handle<JSFunction> function) {
+void JSFunction::EnsureFeedbackVector(Handle<JSFunction> function,
+                                      IsCompiledScope* is_compiled_scope) {
   Isolate* const isolate = function->GetIsolate();
-  DCHECK(function->shared().is_compiled());
+  DCHECK(is_compiled_scope->is_compiled());
   DCHECK(function->shared().HasFeedbackMetadata());
   if (function->has_feedback_vector()) return;
   if (function->shared().HasAsmWasmData()) return;
@@ -5007,8 +5008,8 @@ void JSFunction::EnsureFeedbackVector(Handle<JSFunction> function) {
   EnsureClosureFeedbackCellArray(function);
   Handle<ClosureFeedbackCellArray> closure_feedback_cell_array =
       handle(function->closure_feedback_cell_array(), isolate);
-  Handle<HeapObject> feedback_vector =
-      FeedbackVector::New(isolate, shared, closure_feedback_cell_array);
+  Handle<HeapObject> feedback_vector = FeedbackVector::New(
+      isolate, shared, closure_feedback_cell_array, is_compiled_scope);
   // EnsureClosureFeedbackCellArray should handle the special case where we need
   // to allocate a new feedback cell. Please look at comment in that function
   // for more details.
@@ -5019,7 +5020,8 @@ void JSFunction::EnsureFeedbackVector(Handle<JSFunction> function) {
 }
 
 // static
-void JSFunction::InitializeFeedbackCell(Handle<JSFunction> function) {
+void JSFunction::InitializeFeedbackCell(Handle<JSFunction> function,
+                                        IsCompiledScope* is_compiled_scope) {
   Isolate* const isolate = function->GetIsolate();
 
   if (function->has_feedback_vector()) {
@@ -5037,7 +5039,7 @@ void JSFunction::InitializeFeedbackCell(Handle<JSFunction> function) {
   if (FLAG_always_opt) needs_feedback_vector = true;
 
   if (needs_feedback_vector) {
-    EnsureFeedbackVector(function);
+    EnsureFeedbackVector(function, is_compiled_scope);
   } else {
     EnsureClosureFeedbackCellArray(function);
   }

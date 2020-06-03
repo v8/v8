@@ -1184,6 +1184,78 @@ TEST(TestBytecodeFlushing) {
   }
 }
 
+HEAP_TEST(Regress10560) {
+  i::FLAG_flush_bytecode = true;
+  i::FLAG_allow_natives_syntax = true;
+  // Disable flags that allocate a feedback vector eagerly.
+  i::FLAG_opt = false;
+  i::FLAG_always_opt = false;
+  i::FLAG_lazy_feedback_allocation = true;
+
+  ManualGCScope manual_gc_scope;
+  CcTest::InitializeVM();
+  v8::Isolate* isolate = CcTest::isolate();
+  Isolate* i_isolate = CcTest::i_isolate();
+  Factory* factory = i_isolate->factory();
+  Heap* heap = i_isolate->heap();
+
+  {
+    v8::HandleScope scope(isolate);
+    const char* source =
+        "function foo() {"
+        "  var x = 42;"
+        "  var y = 42;"
+        "  var z = x + y;"
+        "};"
+        "foo()";
+    Handle<String> foo_name = factory->InternalizeUtf8String("foo");
+    CompileRun(source);
+
+    // Check function is compiled.
+    Handle<Object> func_value =
+        Object::GetProperty(i_isolate, i_isolate->global_object(), foo_name)
+            .ToHandleChecked();
+    CHECK(func_value->IsJSFunction());
+    Handle<JSFunction> function = Handle<JSFunction>::cast(func_value);
+    CHECK(function->shared().is_compiled());
+    CHECK(!function->has_feedback_vector());
+
+    // Pre-age bytecode so it will be flushed on next run.
+    CHECK(function->shared().HasBytecodeArray());
+    const int kAgingThreshold = 6;
+    for (int i = 0; i < kAgingThreshold; i++) {
+      function->shared().GetBytecodeArray().MakeOlder();
+      if (function->shared().GetBytecodeArray().IsOld()) break;
+    }
+
+    CHECK(function->shared().GetBytecodeArray().IsOld());
+
+    heap::SimulateFullSpace(heap->old_space());
+
+    // Just check bytecode isn't flushed still
+    CHECK(function->shared().GetBytecodeArray().IsOld());
+    CHECK(function->shared().is_compiled());
+
+    heap->set_force_oom(true);
+    heap->AddNearHeapLimitCallback(
+        [](void* data, size_t current_heap_limit,
+           size_t initial_heap_limit) -> size_t {
+          Heap* heap = static_cast<Heap*>(data);
+          heap->set_force_oom(false);
+          return 0;
+        },
+        heap);
+
+    // Allocate feedback vector.
+    IsCompiledScope is_compiled_scope(function->shared().is_compiled_scope());
+    JSFunction::EnsureFeedbackVector(function, &is_compiled_scope);
+
+    CHECK(function->has_feedback_vector());
+    CHECK(function->shared().is_compiled());
+    CHECK(function->is_compiled());
+  }
+}
+
 #ifndef V8_LITE_MODE
 
 TEST(TestOptimizeAfterBytecodeFlushingCandidate) {

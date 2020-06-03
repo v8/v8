@@ -262,7 +262,7 @@ i::Handle<i::JSFunction> Optimize(
   }
 
   CHECK(info.shared_info()->HasBytecodeArray());
-  i::JSFunction::EnsureFeedbackVector(function);
+  i::JSFunction::EnsureFeedbackVector(function, &is_compiled_scope);
 
   i::Handle<i::Code> code =
       i::compiler::Pipeline::GenerateCodeForTesting(&info, isolate, out_broker)
