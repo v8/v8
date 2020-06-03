@@ -4158,6 +4158,8 @@ v8_source_set("cppgc_base") {
     "src/heap/cppgc/source-location.cc",
     "src/heap/cppgc/stack.cc",
     "src/heap/cppgc/stack.h",
+    "src/heap/cppgc/stats-collector.cc",
+    "src/heap/cppgc/stats-collector.h",
     "src/heap/cppgc/sweeper.cc",
     "src/heap/cppgc/sweeper.h",
     "src/heap/cppgc/virtual-memory.cc",

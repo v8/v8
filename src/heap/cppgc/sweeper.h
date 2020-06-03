@@ -15,13 +15,14 @@ class Platform;
 
 namespace internal {
 
+class StatsCollector;
 class RawHeap;
 
 class V8_EXPORT_PRIVATE Sweeper final {
  public:
   enum class Config { kAtomic, kIncrementalAndConcurrent };
 
-  explicit Sweeper(RawHeap*, cppgc::Platform*);
+  Sweeper(RawHeap*, cppgc::Platform*, StatsCollector*);
   ~Sweeper();
 
   Sweeper(const Sweeper&) = delete;

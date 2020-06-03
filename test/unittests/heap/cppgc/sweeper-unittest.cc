@@ -16,6 +16,7 @@
 #include "src/heap/cppgc/heap.h"
 #include "src/heap/cppgc/page-memory-inl.h"
 #include "src/heap/cppgc/page-memory.h"
+#include "src/heap/cppgc/stats-collector.h"
 #include "test/unittests/heap/cppgc/tests.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
@@ -60,6 +61,10 @@ class SweeperTest : public testing::TestWithHeap {
     Heap* heap = Heap::From(GetHeap());
     ResetLocalAllocationBuffers(heap);
     Sweeper& sweeper = heap->sweeper();
+    // Pretend do finish marking as StatsCollector verifies that Notify*
+    // methods are called in the right order.
+    heap->stats_collector()->NotifyMarkingStarted();
+    heap->stats_collector()->NotifyMarkingCompleted(0);
     sweeper.Start(Sweeper::Config::kAtomic);
     sweeper.Finish();
   }

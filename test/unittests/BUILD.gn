@@ -63,6 +63,7 @@ v8_source_set("cppgc_unittests_sources") {
     "heap/cppgc/prefinalizer-unittest.cc",
     "heap/cppgc/source-location-unittest.cc",
     "heap/cppgc/stack-unittest.cc",
+    "heap/cppgc/stats-collector-unittest.cc",
     "heap/cppgc/sweeper-unittest.cc",
     "heap/cppgc/test-platform.cc",
     "heap/cppgc/test-platform.h",

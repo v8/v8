@@ -16,6 +16,7 @@
 #include "src/heap/cppgc/heap-visitor.h"
 #include "src/heap/cppgc/page-memory-inl.h"
 #include "src/heap/cppgc/raw-heap.h"
+#include "src/heap/cppgc/stats-collector.h"
 #include "src/heap/cppgc/sweeper.h"
 #include "test/unittests/heap/cppgc/test-platform.h"
 #include "test/unittests/heap/cppgc/tests.h"
@@ -82,6 +83,10 @@ class ConcurrentSweeperTest : public testing::TestWithHeap {
   void StartSweeping() {
     Heap* heap = Heap::From(GetHeap());
     ResetLocalAllocationBuffers(heap);
+    // Pretend do finish marking as StatsCollector verifies that Notify*
+    // methods are called in the right order.
+    heap->stats_collector()->NotifyMarkingStarted();
+    heap->stats_collector()->NotifyMarkingCompleted(0);
     Sweeper& sweeper = heap->sweeper();
     sweeper.Start(Sweeper::Config::kIncrementalAndConcurrent);
   }

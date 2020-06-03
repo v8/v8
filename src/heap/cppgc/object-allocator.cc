@@ -13,6 +13,7 @@
 #include "src/heap/cppgc/object-allocator-inl.h"
 #include "src/heap/cppgc/object-start-bitmap.h"
 #include "src/heap/cppgc/page-memory.h"
+#include "src/heap/cppgc/stats-collector.h"
 #include "src/heap/cppgc/sweeper.h"
 
 namespace cppgc {
@@ -30,10 +31,18 @@ void* AllocateLargeObject(RawHeap* raw_heap, LargePageSpace* space, size_t size,
 
 }  // namespace
 
-ObjectAllocator::ObjectAllocator(RawHeap* heap) : raw_heap_(heap) {}
+ObjectAllocator::ObjectAllocator(RawHeap* heap, StatsCollector* stats_collector)
+    : raw_heap_(heap), stats_collector_(stats_collector) {}
 
 void* ObjectAllocator::OutOfLineAllocate(NormalPageSpace* space, size_t size,
                                          GCInfoIndex gcinfo) {
+  void* memory = OutOfLineAllocateImpl(space, size, gcinfo);
+  stats_collector_->NotifySafePointForConservativeCollection();
+  return memory;
+}
+
+void* ObjectAllocator::OutOfLineAllocateImpl(NormalPageSpace* space,
+                                             size_t size, GCInfoIndex gcinfo) {
   DCHECK_EQ(0, size & kAllocationMask);
   DCHECK_LE(kFreeListEntrySize, size);
 
@@ -74,9 +83,11 @@ void* ObjectAllocator::AllocateFromFreeList(NormalPageSpace* space, size_t size,
   auto& current_lab = space->linear_allocation_buffer();
   if (current_lab.size()) {
     space->AddToFreeList(current_lab.start(), current_lab.size());
+    stats_collector_->NotifyExplicitFree(current_lab.size());
   }
 
   current_lab.Set(static_cast<Address>(entry.address), entry.size);
+  stats_collector_->NotifyAllocation(current_lab.size());
   NormalPage::From(BasePage::FromPayload(current_lab.start()))
       ->object_start_bitmap()
       .ClearBit(current_lab.start());

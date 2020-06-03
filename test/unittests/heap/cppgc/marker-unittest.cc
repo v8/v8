@@ -9,6 +9,7 @@
 #include "include/cppgc/persistent.h"
 #include "src/heap/cppgc/heap-object-header-inl.h"
 #include "src/heap/cppgc/marking-visitor.h"
+#include "src/heap/cppgc/stats-collector.h"
 #include "test/unittests/heap/cppgc/tests.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
@@ -22,10 +23,14 @@ class MarkerTest : public testing::TestWithHeap {
   using MarkingConfig = Marker::MarkingConfig;
 
   void DoMarking(MarkingConfig config) {
-    Marker marker(Heap::From(GetHeap()));
+    auto* heap = Heap::From(GetHeap());
+    Marker marker(heap);
     marker.StartMarking(config);
     marker.FinishMarking(config);
     marker.ProcessWeakness();
+    // Pretend do finish sweeping as StatsCollector verifies that Notify*
+    // methods are called in the right order.
+    heap->stats_collector()->NotifySweepingCompleted();
   }
 };
 

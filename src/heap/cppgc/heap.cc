@@ -15,6 +15,7 @@
 #include "src/heap/cppgc/heap-visitor.h"
 #include "src/heap/cppgc/page-memory.h"
 #include "src/heap/cppgc/stack.h"
+#include "src/heap/cppgc/stats-collector.h"
 #include "src/heap/cppgc/sweeper.h"
 #include "src/heap/cppgc/virtual-memory.h"
 
@@ -132,8 +133,9 @@ Heap::Heap(std::shared_ptr<cppgc::Platform> platform, size_t custom_spaces)
       page_backend_(
           std::make_unique<PageBackend>(platform_->GetPageAllocator())),
 #endif
-      object_allocator_(&raw_heap_),
-      sweeper_(&raw_heap_, platform_.get()),
+      stats_collector_(std::make_unique<StatsCollector>()),
+      object_allocator_(&raw_heap_, stats_collector_.get()),
+      sweeper_(&raw_heap_, platform_.get(), stats_collector_.get()),
       stack_(std::make_unique<Stack>(v8::base::Stack::GetStackStart())),
       prefinalizer_handler_(std::make_unique<PreFinalizerHandler>()) {
 }

@@ -12,9 +12,11 @@
 namespace cppgc {
 namespace internal {
 
+class StatsCollector;
+
 class V8_EXPORT_PRIVATE ObjectAllocator final {
  public:
-  explicit ObjectAllocator(RawHeap* heap);
+  ObjectAllocator(RawHeap* heap, StatsCollector* stats_collector);
 
   inline void* AllocateObject(size_t size, GCInfoIndex gcinfo);
   inline void* AllocateObject(size_t size, GCInfoIndex gcinfo,
@@ -29,9 +31,11 @@ class V8_EXPORT_PRIVATE ObjectAllocator final {
   inline void* AllocateObjectOnSpace(NormalPageSpace* space, size_t size,
                                      GCInfoIndex gcinfo);
   void* OutOfLineAllocate(NormalPageSpace*, size_t, GCInfoIndex);
+  void* OutOfLineAllocateImpl(NormalPageSpace*, size_t, GCInfoIndex);
   void* AllocateFromFreeList(NormalPageSpace*, size_t, GCInfoIndex);
 
   RawHeap* raw_heap_;
+  StatsCollector* stats_collector_;
 };
 
 }  // namespace internal

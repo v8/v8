@@ -9,6 +9,7 @@
 #include "src/heap/cppgc/heap-visitor.h"
 #include "src/heap/cppgc/heap.h"
 #include "src/heap/cppgc/marking-visitor.h"
+#include "src/heap/cppgc/stats-collector.h"
 
 namespace cppgc {
 namespace internal {
@@ -97,6 +98,8 @@ Marker::~Marker() {
 }
 
 void Marker::StartMarking(MarkingConfig config) {
+  heap()->stats_collector()->NotifyMarkingStarted();
+
   config_ = config;
   VisitRoots();
   EnterIncrementalMarkingIfNeeded(config);
@@ -115,6 +118,9 @@ void Marker::FinishMarking(MarkingConfig config) {
     MarkNotFullyConstructedObjects();
   }
   AdvanceMarkingWithDeadline(v8::base::TimeDelta::Max());
+
+  heap()->stats_collector()->NotifyMarkingCompleted(
+      marking_visitor_->marked_bytes());
 }
 
 void Marker::ProcessWeakness() {

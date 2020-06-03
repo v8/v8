@@ -22,6 +22,7 @@
 #include "src/heap/cppgc/object-start-bitmap.h"
 #include "src/heap/cppgc/raw-heap.h"
 #include "src/heap/cppgc/sanitizers.h"
+#include "src/heap/cppgc/stats-collector.h"
 
 namespace cppgc {
 namespace internal {
@@ -466,8 +467,10 @@ class PrepareForSweepVisitor final
 
 class Sweeper::SweeperImpl final {
  public:
-  explicit SweeperImpl(RawHeap* heap, cppgc::Platform* platform)
+  SweeperImpl(RawHeap* heap, cppgc::Platform* platform,
+              StatsCollector* stats_collector)
       : heap_(heap),
+        stats_collector_(stats_collector),
         space_states_(heap->size()),
         platform_(platform),
         foreground_task_runner_(platform_->GetForegroundTaskRunner()) {}
@@ -505,6 +508,8 @@ class Sweeper::SweeperImpl final {
     SynchronizeAndFinalizeConcurrentSweeping();
 
     is_in_progress_ = false;
+
+    stats_collector_->NotifySweepingCompleted();
   }
 
  private:
@@ -597,6 +602,7 @@ class Sweeper::SweeperImpl final {
   }
 
   RawHeap* heap_;
+  StatsCollector* stats_collector_;
   SpaceStates space_states_;
   cppgc::Platform* platform_;
   std::shared_ptr<v8::TaskRunner> foreground_task_runner_;
@@ -605,8 +611,9 @@ class Sweeper::SweeperImpl final {
   bool is_in_progress_ = false;
 };
 
-Sweeper::Sweeper(RawHeap* heap, cppgc::Platform* platform)
-    : impl_(std::make_unique<SweeperImpl>(heap, platform)) {}
+Sweeper::Sweeper(RawHeap* heap, cppgc::Platform* platform,
+                 StatsCollector* stats_collector)
+    : impl_(std::make_unique<SweeperImpl>(heap, platform, stats_collector)) {}
 
 Sweeper::~Sweeper() = default;
 
