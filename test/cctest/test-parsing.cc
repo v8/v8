@@ -1573,6 +1573,7 @@ enum ParserFlag {
   kAllowHarmonyPrivateMethods,
   kAllowHarmonyDynamicImport,
   kAllowHarmonyImportMeta,
+  kAllowHarmonyLogicalAssignment,
 };
 
 enum ParserSyncTestResult {
@@ -1586,6 +1587,8 @@ void SetGlobalFlags(base::EnumSet<ParserFlag> flags) {
   i::FLAG_harmony_private_methods = flags.contains(kAllowHarmonyPrivateMethods);
   i::FLAG_harmony_dynamic_import = flags.contains(kAllowHarmonyDynamicImport);
   i::FLAG_harmony_import_meta = flags.contains(kAllowHarmonyImportMeta);
+  i::FLAG_harmony_logical_assignment =
+      flags.contains(kAllowHarmonyLogicalAssignment);
 }
 
 void SetParserFlags(i::UnoptimizedCompileFlags* compile_flags,
@@ -1597,6 +1600,8 @@ void SetParserFlags(i::UnoptimizedCompileFlags* compile_flags,
       flags.contains(kAllowHarmonyDynamicImport));
   compile_flags->set_allow_harmony_import_meta(
       flags.contains(kAllowHarmonyImportMeta));
+  compile_flags->set_allow_harmony_logical_assignment(
+      flags.contains(kAllowHarmonyLogicalAssignment));
 }
 
 void TestParserSyncWithFlags(i::Handle<i::String> source,
@@ -11739,6 +11744,36 @@ TEST(HashbangSyntaxErrors) {
   SyntaxErrorTest(file_context_data, invalid_hashbang_data);
   SyntaxErrorTest(other_context_data, invalid_hashbang_data);
   SyntaxErrorTest(other_context_data, hashbang_data);
+}
+
+TEST(LogicalAssignmentDestructuringErrors) {
+  // clang-format off
+  const char* context_data[][2] = {
+    { "if (", ") { foo(); }" },
+    { "(", ")" },
+    { "foo(", ")" },
+    { nullptr, nullptr }
+  };
+  const char* error_data[] = {
+    "[ x ] ||= [ 2 ]",
+    "[ x ||= 2 ] = [ 2 ]",
+    "{ x } ||= { x: 2 }",
+    "{ x: x ||= 2 ] = { x: 2 }",
+    "[ x ] &&= [ 2 ]",
+    "[ x &&= 2 ] = [ 2 ]",
+    "{ x } &&= { x: 2 }",
+    "{ x: x &&= 2 ] = { x: 2 }",
+    R"JS([ x ] ??= [ 2 ])JS",
+    R"JS([ x ??= 2 ] = [ 2 ])JS",
+    R"JS({ x } ??= { x: 2 })JS",
+    R"JS({ x: x ??= 2 ] = { x: 2 })JS",
+    nullptr
+  };
+  // clang-format on
+
+  static const ParserFlag flags[] = {kAllowHarmonyLogicalAssignment};
+  RunParserSyncTest(context_data, error_data, kError, nullptr, 0, flags,
+                    arraysize(flags));
 }
 
 }  // namespace test_parsing
