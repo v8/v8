@@ -685,37 +685,36 @@ TEST(OverflowInstructions) {
       __ ld(t0, MemOperand(a0, offsetof(T, lhs)));
       __ ld(t1, MemOperand(a0, offsetof(T, rhs)));
 
-      __ DaddOverflow(t2, t0, Operand(t1), t3);
+      __ DaddOverflow(t2, t0, Operand(t1), a1);
       __ sd(t2, MemOperand(a0, offsetof(T, output_add)));
-      __ sd(t3, MemOperand(a0, offsetof(T, overflow_add)));
-      __ mov(t3, zero_reg);
-      __ DaddOverflow(t0, t0, Operand(t1), t3);
+      __ sd(a1, MemOperand(a0, offsetof(T, overflow_add)));
+      __ mov(a1, zero_reg);
+      __ DaddOverflow(t0, t0, Operand(t1), a1);
       __ sd(t0, MemOperand(a0, offsetof(T, output_add2)));
-      __ sd(t3, MemOperand(a0, offsetof(T, overflow_add2)));
+      __ sd(a1, MemOperand(a0, offsetof(T, overflow_add2)));
 
       __ ld(t0, MemOperand(a0, offsetof(T, lhs)));
       __ ld(t1, MemOperand(a0, offsetof(T, rhs)));
 
-      __ DsubOverflow(t2, t0, Operand(t1), t3);
+      __ DsubOverflow(t2, t0, Operand(t1), a1);
       __ sd(t2, MemOperand(a0, offsetof(T, output_sub)));
-      __ sd(t3, MemOperand(a0, offsetof(T, overflow_sub)));
-      __ mov(t3, zero_reg);
-      __ DsubOverflow(t0, t0, Operand(t1), t3);
+      __ sd(a1, MemOperand(a0, offsetof(T, overflow_sub)));
+      __ mov(a1, zero_reg);
+      __ DsubOverflow(t0, t0, Operand(t1), a1);
       __ sd(t0, MemOperand(a0, offsetof(T, output_sub2)));
-      __ sd(t3, MemOperand(a0, offsetof(T, overflow_sub2)));
+      __ sd(a1, MemOperand(a0, offsetof(T, overflow_sub2)));
 
       __ ld(t0, MemOperand(a0, offsetof(T, lhs)));
       __ ld(t1, MemOperand(a0, offsetof(T, rhs)));
       __ sll(t0, t0, 0);
       __ sll(t1, t1, 0);
-
-      __ MulOverflow(t2, t0, Operand(t1), t3);
+      __ MulOverflow(t2, t0, Operand(t1), a1);
       __ sd(t2, MemOperand(a0, offsetof(T, output_mul)));
-      __ sd(t3, MemOperand(a0, offsetof(T, overflow_mul)));
-      __ mov(t3, zero_reg);
-      __ MulOverflow(t0, t0, Operand(t1), t3);
+      __ sd(a1, MemOperand(a0, offsetof(T, overflow_mul)));
+      __ mov(a1, zero_reg);
+      __ MulOverflow(t0, t0, Operand(t1), a1);
       __ sd(t0, MemOperand(a0, offsetof(T, output_mul2)));
-      __ sd(t3, MemOperand(a0, offsetof(T, overflow_mul2)));
+      __ sd(a1, MemOperand(a0, offsetof(T, overflow_mul2)));
 
       __ RV_jr(ra);
       __ nop();
