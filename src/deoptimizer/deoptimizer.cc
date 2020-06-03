@@ -916,9 +916,19 @@ void Deoptimizer::DoComputeInterpretedFrame(TranslatedFrame* translated_frame,
     frame_writer.PushRawObject(roots.the_hole_value(), "padding\n");
   }
 
+#ifdef V8_REVERSE_JSARGS
+  std::vector<TranslatedFrame::iterator> parameters;
+  for (int i = 0; i < parameters_count; ++i, ++value_iterator) {
+    parameters.push_back(value_iterator);
+  }
+  for (auto& parameter : base::Reversed(parameters)) {
+    frame_writer.PushTranslatedValue(parameter, "stack parameter");
+  }
+#else
   for (int i = 0; i < parameters_count; ++i, ++value_iterator) {
     frame_writer.PushTranslatedValue(value_iterator, "stack parameter");
   }
+#endif
 
   DCHECK_EQ(output_frame->GetLastArgumentSlotOffset(),
             frame_writer.top_offset());
