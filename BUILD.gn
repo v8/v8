@@ -2630,6 +2630,8 @@ v8_source_set("v8_base_without_compiler") {
     "src/logging/log.cc",
     "src/logging/log.h",
     "src/logging/off-thread-logger.h",
+    "src/logging/tracing-flags.cc",
+    "src/logging/tracing-flags.h",
     "src/numbers/bignum-dtoa.cc",
     "src/numbers/bignum-dtoa.h",
     "src/numbers/bignum.cc",
