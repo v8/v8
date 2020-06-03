@@ -433,7 +433,7 @@ static platform::tracing::TraceConfig* CreateTraceConfigFromJSON(
 class ExternalOwningOneByteStringResource
     : public String::ExternalOneByteStringResource {
  public:
-  ExternalOwningOneByteStringResource() {}
+  ExternalOwningOneByteStringResource() = default;
   ExternalOwningOneByteStringResource(
       std::unique_ptr<base::OS::MemoryMappedFile> file)
       : file_(std::move(file)) {}
