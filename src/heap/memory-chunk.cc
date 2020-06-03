@@ -173,11 +173,9 @@ MemoryChunk* MemoryChunk::Initialize(Heap* heap, Address base, size_t size,
                                      VirtualMemory reservation) {
   MemoryChunk* chunk = FromAddress(base);
   DCHECK_EQ(base, chunk->address());
-  new (chunk) BasicMemoryChunk(size, area_start, area_end);
+  BasicMemoryChunk::Initialize(heap, base, size, area_start, area_end, owner,
+                               std::move(reservation));
 
-  chunk->heap_ = heap;
-  chunk->set_owner(owner);
-  chunk->InitializeReservedMemory();
   base::AsAtomicPointer::Release_Store(&chunk->slot_set_[OLD_TO_NEW], nullptr);
   base::AsAtomicPointer::Release_Store(&chunk->slot_set_[OLD_TO_OLD], nullptr);
   base::AsAtomicPointer::Release_Store(&chunk->sweeping_slot_set_, nullptr);
@@ -188,13 +186,10 @@ MemoryChunk* MemoryChunk::Initialize(Heap* heap, Address base, size_t size,
   chunk->invalidated_slots_[OLD_TO_NEW] = nullptr;
   chunk->invalidated_slots_[OLD_TO_OLD] = nullptr;
   chunk->progress_bar_ = 0;
-  chunk->high_water_mark_ = static_cast<intptr_t>(area_start - base);
   chunk->set_concurrent_sweeping_state(ConcurrentSweepingState::kDone);
   chunk->page_protection_change_mutex_ = new base::Mutex();
   chunk->write_unprotect_counter_ = 0;
   chunk->mutex_ = new base::Mutex();
-  chunk->allocated_bytes_ = chunk->area_size();
-  chunk->wasted_memory_ = 0;
   chunk->young_generation_bitmap_ = nullptr;
   chunk->local_tracker_ = nullptr;
 
@@ -222,14 +217,13 @@ MemoryChunk* MemoryChunk::Initialize(Heap* heap, Address base, size_t size,
           heap->code_space_memory_modification_scope_depth();
     } else {
       size_t page_size = MemoryAllocator::GetCommitPageSize();
-      DCHECK(IsAligned(area_start, page_size));
-      size_t area_size = RoundUp(area_end - area_start, page_size);
-      CHECK(reservation.SetPermissions(area_start, area_size,
-                                       DefaultWritableCodePermissions()));
+      DCHECK(IsAligned(chunk->area_start(), page_size));
+      size_t area_size =
+          RoundUp(chunk->area_end() - chunk->area_start(), page_size);
+      CHECK(chunk->reservation_.SetPermissions(
+          chunk->area_start(), area_size, DefaultWritableCodePermissions()));
     }
   }
-
-  chunk->reservation_ = std::move(reservation);
 
   if (owner->identity() == CODE_SPACE) {
     chunk->code_object_registry_ = new CodeObjectRegistry();

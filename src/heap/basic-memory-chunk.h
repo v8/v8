@@ -9,21 +9,24 @@
 
 #include "src/base/atomic-utils.h"
 #include "src/common/globals.h"
+#include "src/flags/flags.h"
 #include "src/heap/marking.h"
+#include "src/utils/allocation.h"
 
 namespace v8 {
 namespace internal {
 
-class MemoryChunk;
-
-enum RememberedSetType {
-  OLD_TO_NEW,
-  OLD_TO_OLD,
-  NUMBER_OF_REMEMBERED_SET_TYPES
-};
+class Space;
 
 class BasicMemoryChunk {
  public:
+  // Use with std data structures.
+  struct Hasher {
+    size_t operator()(BasicMemoryChunk* const chunk) const {
+      return reinterpret_cast<size_t>(chunk) >> kPageSizeBits;
+    }
+  };
+
   enum Flag {
     NO_FLAGS = 0u,
     IS_EXECUTABLE = 1u << 0,
@@ -108,6 +111,27 @@ class BasicMemoryChunk {
 
   Address address() const { return reinterpret_cast<Address>(this); }
 
+  // Returns the offset of a given address to this page.
+  inline size_t Offset(Address a) { return static_cast<size_t>(a - address()); }
+
+  // Returns the address for a given offset to the this page.
+  Address OffsetToAddress(size_t offset) {
+    Address address_in_page = address() + offset;
+    DCHECK_GE(address_in_page, area_start());
+    DCHECK_LT(address_in_page, area_end());
+    return address_in_page;
+  }
+
+  // Some callers rely on the fact that this can operate on both
+  // tagged and aligned object addresses.
+  inline uint32_t AddressToMarkbitIndex(Address addr) const {
+    return static_cast<uint32_t>(addr - this->address()) >> kTaggedSizeLog2;
+  }
+
+  inline Address MarkbitIndexToAddress(uint32_t index) const {
+    return this->address() + (index << kTaggedSizeLog2);
+  }
+
   size_t size() const { return size_; }
   void set_size(size_t size) { size_ = size; }
 
@@ -119,6 +143,16 @@ class BasicMemoryChunk {
   size_t area_size() const {
     return static_cast<size_t>(area_end() - area_start());
   }
+
+  Heap* heap() const {
+    DCHECK_NOT_NULL(heap_);
+    return heap_;
+  }
+
+  // Gets the chunk's owner or null if the space has been detached.
+  Space* owner() const { return owner_; }
+
+  void set_owner(Space* space) { owner_ = space; }
 
   template <AccessMode access_mode = AccessMode::NON_ATOMIC>
   void SetFlag(Flag flag) {
@@ -168,6 +202,14 @@ class BasicMemoryChunk {
 
   void ReleaseMarkingBitmap();
 
+  static BasicMemoryChunk* Initialize(Heap* heap, Address base, size_t size,
+                                      Address area_start, Address area_end,
+                                      Space* owner, VirtualMemory reservation);
+
+  size_t wasted_memory() { return wasted_memory_; }
+  void add_wasted_memory(size_t waste) { wasted_memory_ += waste; }
+  size_t allocated_bytes() { return allocated_bytes_; }
+
   static const intptr_t kSizeOffset = 0;
   static const intptr_t kFlagsOffset = kSizeOffset + kSizetSize;
   static const intptr_t kMarkBitmapOffset = kFlagsOffset + kUIntptrSize;
@@ -176,12 +218,62 @@ class BasicMemoryChunk {
   static const intptr_t kAreaEndOffset = kAreaStartOffset + kSystemPointerSize;
 
   static const size_t kHeaderSize =
-      kSizeOffset + kSizetSize  // size_t size
-      + kUIntptrSize            // uintptr_t flags_
-      + kSystemPointerSize      // Bitmap* marking_bitmap_
-      + kSystemPointerSize      // Heap* heap_
-      + kSystemPointerSize      // Address area_start_
-      + kSystemPointerSize;     // Address area_end_
+      kSizeOffset + kSizetSize   // size_t size
+      + kUIntptrSize             // uintptr_t flags_
+      + kSystemPointerSize       // Bitmap* marking_bitmap_
+      + kSystemPointerSize       // Heap* heap_
+      + kSystemPointerSize       // Address area_start_
+      + kSystemPointerSize       // Address area_end_
+      + kSizetSize               // size_t allocated_bytes_
+      + kSizetSize               // size_t wasted_memory_
+      + kSystemPointerSize       // std::atomic<intptr_t> high_water_mark_
+      + kSystemPointerSize       // Address owner_
+      + 3 * kSystemPointerSize;  // VirtualMemory reservation_
+
+  // Only works if the pointer is in the first kPageSize of the MemoryChunk.
+  static BasicMemoryChunk* FromAddress(Address a) {
+    DCHECK(!V8_ENABLE_THIRD_PARTY_HEAP_BOOL);
+    return reinterpret_cast<BasicMemoryChunk*>(BaseAddress(a));
+  }
+
+  template <AccessMode mode>
+  ConcurrentBitmap<mode>* marking_bitmap() const {
+    return reinterpret_cast<ConcurrentBitmap<mode>*>(marking_bitmap_);
+  }
+
+  Address HighWaterMark() { return address() + high_water_mark_; }
+
+  static inline void UpdateHighWaterMark(Address mark) {
+    if (mark == kNullAddress) return;
+    // Need to subtract one from the mark because when a chunk is full the
+    // top points to the next address after the chunk, which effectively belongs
+    // to another chunk. See the comment to Page::FromAllocationAreaAddress.
+    BasicMemoryChunk* chunk = BasicMemoryChunk::FromAddress(mark - 1);
+    intptr_t new_mark = static_cast<intptr_t>(mark - chunk->address());
+    intptr_t old_mark = chunk->high_water_mark_.load(std::memory_order_relaxed);
+    while ((new_mark > old_mark) &&
+           !chunk->high_water_mark_.compare_exchange_weak(
+               old_mark, new_mark, std::memory_order_acq_rel)) {
+    }
+  }
+
+  VirtualMemory* reserved_memory() { return &reservation_; }
+
+  void ResetAllocationStatistics() {
+    allocated_bytes_ = area_size();
+    wasted_memory_ = 0;
+  }
+
+  void IncreaseAllocatedBytes(size_t bytes) {
+    DCHECK_LE(bytes, area_size());
+    allocated_bytes_ += bytes;
+  }
+
+  void DecreaseAllocatedBytes(size_t bytes) {
+    DCHECK_LE(bytes, area_size());
+    DCHECK_GE(allocated_bytes(), bytes);
+    allocated_bytes_ -= bytes;
+  }
 
  protected:
   // Overall size of the chunk, including the header and guards.
@@ -201,7 +293,31 @@ class BasicMemoryChunk {
   Address area_start_;
   Address area_end_;
 
+  // Byte allocated on the page, which includes all objects on the page and the
+  // linear allocation area.
+  size_t allocated_bytes_;
+  // Freed memory that was not added to the free list.
+  size_t wasted_memory_;
+
+  // Assuming the initial allocation on a page is sequential, count highest
+  // number of bytes ever allocated on the page.
+  std::atomic<intptr_t> high_water_mark_;
+
+  // The space owning this memory chunk.
+  std::atomic<Space*> owner_;
+
+  // If the chunk needs to remember its memory reservation, it is stored here.
+  VirtualMemory reservation_;
+
   friend class BasicMemoryChunkValidator;
+  friend class ConcurrentMarkingState;
+  friend class MajorMarkingState;
+  friend class MajorAtomicMarkingState;
+  friend class MajorNonAtomicMarkingState;
+  friend class MemoryAllocator;
+  friend class MinorMarkingState;
+  friend class MinorNonAtomicMarkingState;
+  friend class PagedSpace;
 };
 
 STATIC_ASSERT(std::is_standard_layout<BasicMemoryChunk>::value);

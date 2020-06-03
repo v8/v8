@@ -10,6 +10,7 @@
 
 #include "include/v8-platform.h"
 #include "src/base/macros.h"
+#include "src/heap/allocation-stats.h"
 #include "src/heap/list.h"
 #include "src/heap/memory-chunk.h"
 #include "src/heap/paged-spaces.h"
