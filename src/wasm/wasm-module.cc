@@ -50,8 +50,11 @@ LazilyGeneratedNames::LookupNameFromImportsAndExports(
     Vector<const WasmImport> import_table,
     Vector<const WasmExport> export_table) const {
   base::MutexGuard lock(&mutex_);
-  DCHECK(kind == kExternalGlobal || kind == kExternalMemory);
-  auto& names = kind == kExternalGlobal ? global_names_ : memory_names_;
+  DCHECK(kind == kExternalGlobal || kind == kExternalMemory ||
+         kind == kExternalTable);
+  auto& names = kind == kExternalGlobal
+                    ? global_names_
+                    : kind == kExternalMemory ? memory_names_ : table_names_;
   if (!names) {
     names.reset(
         new std::unordered_map<uint32_t,

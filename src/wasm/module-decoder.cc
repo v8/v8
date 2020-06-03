@@ -2362,7 +2362,8 @@ void GenerateNamesFromImportsAndExports(
         names) {
   DCHECK_NOT_NULL(names);
   DCHECK(names->empty());
-  DCHECK(kind == kExternalGlobal || kind == kExternalMemory);
+  DCHECK(kind == kExternalGlobal || kind == kExternalMemory ||
+         kind == kExternalTable);
 
   // Extract from import table.
   for (const WasmImport& imp : import_table) {

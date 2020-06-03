@@ -206,7 +206,7 @@ class V8_EXPORT_PRIVATE LazilyGeneratedNames {
   void AddForTesting(int function_index, WireBytesRef name);
 
  private:
-  // {function_names_}, {global_names_} and {memory_names_} are
+  // {function_names_}, {global_names_}, {memory_names_} and {table_names_} are
   // populated lazily after decoding, and therefore need a mutex to protect
   // concurrent modifications from multiple {WasmModuleObject}.
   mutable base::Mutex mutex_;
@@ -218,6 +218,9 @@ class V8_EXPORT_PRIVATE LazilyGeneratedNames {
   mutable std::unique_ptr<
       std::unordered_map<uint32_t, std::pair<WireBytesRef, WireBytesRef>>>
       memory_names_;
+  mutable std::unique_ptr<
+      std::unordered_map<uint32_t, std::pair<WireBytesRef, WireBytesRef>>>
+      table_names_;
 };
 
 class V8_EXPORT_PRIVATE AsmJsOffsetInformation {

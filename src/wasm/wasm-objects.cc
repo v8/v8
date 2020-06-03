@@ -1522,10 +1522,19 @@ MaybeHandle<String> WasmInstanceObject::GetGlobalNameOrNull(
 // static
 MaybeHandle<String> WasmInstanceObject::GetMemoryNameOrNull(
     Isolate* isolate, Handle<WasmInstanceObject> instance,
-    uint32_t global_index) {
+    uint32_t memory_index) {
   return WasmInstanceObject::GetNameFromImportsAndExportsOrNull(
       isolate, instance, wasm::ImportExportKindCode::kExternalMemory,
-      global_index);
+      memory_index);
+}
+
+// static
+MaybeHandle<String> WasmInstanceObject::GetTableNameOrNull(
+    Isolate* isolate, Handle<WasmInstanceObject> instance,
+    uint32_t table_index) {
+  return WasmInstanceObject::GetNameFromImportsAndExportsOrNull(
+      isolate, instance, wasm::ImportExportKindCode::kExternalTable,
+      table_index);
 }
 
 // static
@@ -1533,7 +1542,8 @@ MaybeHandle<String> WasmInstanceObject::GetNameFromImportsAndExportsOrNull(
     Isolate* isolate, Handle<WasmInstanceObject> instance,
     wasm::ImportExportKindCode kind, uint32_t index) {
   DCHECK(kind == wasm::ImportExportKindCode::kExternalGlobal ||
-         kind == wasm::ImportExportKindCode::kExternalMemory);
+         kind == wasm::ImportExportKindCode::kExternalMemory ||
+         kind == wasm::ImportExportKindCode::kExternalTable);
   wasm::ModuleWireBytes wire_bytes(
       instance->module_object().native_module()->wire_bytes());
 

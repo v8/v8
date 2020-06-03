@@ -578,6 +578,11 @@ class WasmInstanceObject : public JSObject {
                                                  Handle<WasmInstanceObject>,
                                                  uint32_t memory_index);
 
+  // Get the name of a table in the given instance by index.
+  static MaybeHandle<String> GetTableNameOrNull(Isolate*,
+                                                Handle<WasmInstanceObject>,
+                                                uint32_t table_index);
+
   OBJECT_CONSTRUCTORS(WasmInstanceObject, JSObject);
 
  private:

@@ -2,6 +2,8 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+// Flags: --experimental-wasm-type-reflection
+
 let {session, contextGroup, Protocol} = InspectorTest.start(
     'Test retrieving scope information from compiled Liftoff frames');
 session.setupScriptMap();
@@ -65,7 +67,7 @@ async function instantiateWasm() {
   // Add a global, memory and exports to populate the module scope.
   builder.addGlobal(kWasmI32, true).exportAs('exported_global');
   builder.addMemory(1,1).exportMemoryAs('exported_memory');
-  builder.addTable(kWasmAnyFunc, 0).exportAs('exported_table');
+  builder.addTable(kWasmAnyFunc, 3).exportAs('exported_table');
 
   // Add two functions without breakpoint, to check that locals and operand
   // stack values are shown correctly in Liftoff code.
@@ -73,7 +75,7 @@ async function instantiateWasm() {
   // function B.
   // Function B has a local with a constant value (not using a register), the
   // parameter will be held in a register.
-  builder.addFunction('A (liftoff)', kSig_v_i)
+  const main = builder.addFunction('A (liftoff)', kSig_v_i)
       .addBody([
         // Call function 'B', forwarding param 0.
         kExprLocalGet, 0, kExprCallFunction, 1
@@ -105,6 +107,9 @@ async function instantiateWasm() {
         kExprI32Const, 47, kExprLocalSet, 1,
       ]);
 
+  // Append function to table to test function table output.
+  builder.appendToTable([main.index]);
+
   var module_bytes = builder.toArray();
   breakpointLocation = func.body_offset;
 
@@ -115,8 +120,17 @@ async function instantiateWasm() {
       view[i] = bytes[i] | 0;
     }
 
+    // Create WasmJS functions to test the function tables output.
+    const js_func = function js_func() { return 7; };
+    const wasmjs_func = new WebAssembly.Function({parameters:[], results:['i32']}, js_func);
+    const wasmjs_anonymous_func = new WebAssembly.Function({parameters:[], results:['i32']}, _ => 7);
+
     var module = new WebAssembly.Module(buffer);
-    return new WebAssembly.Instance(module);
+    const instance =  new WebAssembly.Instance(module);
+
+    instance.exports.exported_table.set(0, wasmjs_func);
+    instance.exports.exported_table.set(1, wasmjs_anonymous_func);
+    return instance;
   }
 
   InspectorTest.log('Installing instantiate code.');
@@ -150,6 +164,7 @@ async function getScopeValues(name, value) {
   if (value.type == 'object') {
     if (value.subtype == 'typedarray') return value.description;
     if (name == 'instance') return dumpInstanceProperties(value);
+    if (name == 'function tables') return dumpTables(value);
 
     let msg = await Protocol.Runtime.getProperties({objectId: value.objectId});
     printIfFailure(msg);
@@ -167,6 +182,38 @@ async function dumpScopeProperties(message) {
     var value_str = await getScopeValues(value.name, value.value);
     InspectorTest.log('   ' + value.name + ': ' + value_str);
   }
+}
+
+function recursiveGetPropertiesWrapper(value, depth) {
+  return recursiveGetProperties({result: {result: [value]}}, depth);
+}
+
+async function recursiveGetProperties(value, depth) {
+  if (depth > 0) {
+    const properties = await Promise.all(value.result.result.map(
+        x => {return Protocol.Runtime.getProperties({objectId: x.value.objectId});}));
+    const recursiveProperties = await Promise.all(properties.map(
+        x => {return recursiveGetProperties(x, depth - 1);}));
+    return recursiveProperties.flat();
+  }
+  return value;
+}
+
+async function dumpTables(tablesObj) {
+  let msg = await Protocol.Runtime.getProperties({objectId: tablesObj.objectId});
+  var tables_str = [];
+  for (var table of msg.result.result) {
+    const func_entries = await recursiveGetPropertiesWrapper(table, 2);
+    var functions = [];
+    for (var func of func_entries) {
+      for (var value of func.result.result) {
+        functions.push(`${value.name}: ${value.value.description}`);
+      }
+    }
+    const functions_str = functions.join(', ');
+    tables_str.push(`      ${table.name}: ${functions_str}`);
+  }
+  return '\n' + tables_str.join('\n');
 }
 
 async function dumpInstanceProperties(instanceObj) {
