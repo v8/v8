@@ -1334,12 +1334,13 @@ void AccessorAssembler::OverwriteExistingFastDataProperty(
           if (do_transitioning_store) {
             StoreMap(object, object_map);
           } else {
-            Label if_mutable(this);
-            GotoIfNot(IsPropertyDetailsConst(details), &if_mutable);
+            Label store_value(this);
+            GotoIfNot(IsPropertyDetailsConst(details), &store_value);
             TNode<Float64T> current_value =
                 LoadObjectField<Float64T>(object, field_offset);
-            BranchIfSameNumberValue(current_value, double_value, &done, slow);
-            BIND(&if_mutable);
+            BranchIfSameNumberValue(current_value, double_value, &store_value,
+                                    slow);
+            BIND(&store_value);
           }
           StoreObjectFieldNoWriteBarrier(object, field_offset, double_value);
         } else {
@@ -1351,11 +1352,12 @@ void AccessorAssembler::OverwriteExistingFastDataProperty(
           } else {
             TNode<HeapNumber> heap_number =
                 CAST(LoadObjectField(object, field_offset));
-            Label if_mutable(this);
-            GotoIfNot(IsPropertyDetailsConst(details), &if_mutable);
+            Label store_value(this);
+            GotoIfNot(IsPropertyDetailsConst(details), &store_value);
             TNode<Float64T> current_value = LoadHeapNumberValue(heap_number);
-            BranchIfSameNumberValue(current_value, double_value, &done, slow);
-            BIND(&if_mutable);
+            BranchIfSameNumberValue(current_value, double_value, &store_value,
+                                    slow);
+            BIND(&store_value);
             StoreHeapNumberValue(heap_number, double_value);
           }
         }
