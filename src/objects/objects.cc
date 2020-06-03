@@ -5802,7 +5802,7 @@ void Dictionary<Derived, Shape>::Print(std::ostream& os) {
     if (!dictionary.ToKey(roots, i, &k)) continue;
     os << "\n   ";
     if (k.IsString()) {
-      String::cast(k).StringPrint(os);
+      String::cast(k).PrintUC16(os);
     } else {
       os << Brief(k);
     }

@@ -194,14 +194,14 @@ void InterpreterCompilationJob::CheckAndPrintBytecodeMismatch(
     MaybeHandle<String> maybe_name = parse_info()->literal()->GetName(isolate);
     Handle<String> name;
     if (maybe_name.ToHandle(&name) && name->length() != 0) {
-      name->StringPrint(std::cerr);
+      name->PrintUC16(std::cerr);
     } else {
       std::cerr << "anonymous";
     }
     Object script_name = script->GetNameOrSourceURL();
     if (script_name.IsString()) {
       std::cerr << " ";
-      String::cast(script_name).StringPrint(std::cerr);
+      String::cast(script_name).PrintUC16(std::cerr);
       std::cerr << ":" << parse_info()->literal()->start_position();
     }
 #endif

@@ -97,19 +97,28 @@ void Object::Print(std::ostream& os) const {  // NOLINT
   }
 }
 
-void HeapObject::PrintHeader(std::ostream& os, const char* id) {  // NOLINT
-  os << reinterpret_cast<void*>(ptr()) << ": [";
+namespace {
+
+void PrintHeapObjectHeaderWithoutMap(HeapObject object, std::ostream& os,
+                                     const char* id) {  // NOLINT
+  os << reinterpret_cast<void*>(object.ptr()) << ": [";
   if (id != nullptr) {
     os << id;
   } else {
-    os << map().instance_type();
+    os << object.map().instance_type();
   }
   os << "]";
-  if (ReadOnlyHeap::Contains(*this)) {
+  if (ReadOnlyHeap::Contains(object)) {
     os << " in ReadOnlySpace";
-  } else if (GetHeapFromWritableObject(*this)->InOldSpace(*this)) {
+  } else if (GetHeapFromWritableObject(object)->InOldSpace(object)) {
     os << " in OldSpace";
   }
+}
+
+}  // namespace
+
+void HeapObject::PrintHeader(std::ostream& os, const char* id) {  // NOLINT
+  PrintHeapObjectHeaderWithoutMap(*this, os, id);
   if (!IsMap()) os << "\n - map: " << Brief(map());
 }
 
@@ -1046,6 +1055,8 @@ void JSMessageObject::JSMessageObjectPrint(std::ostream& os) {  // NOLINT
 }
 
 void String::StringPrint(std::ostream& os) {  // NOLINT
+  PrintHeapObjectHeaderWithoutMap(*this, os, "String");
+  os << ": ";
   os << PrefixForDebugPrint();
   PrintUC16(os, 0, length());
   os << SuffixForDebugPrint();
