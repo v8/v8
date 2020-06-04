@@ -1254,48 +1254,6 @@ STREAM_TEST(TestSetModuleCodeSection) {
   CHECK(tester.IsPromiseFulfilled());
 }
 
-// Test that profiler does not crash when module is only partly compiled.
-STREAM_TEST(TestProfilingMidStreaming) {
-  StreamTester tester;
-  v8::Isolate* isolate = CcTest::isolate();
-  Isolate* i_isolate = CcTest::i_isolate();
-  Zone* zone = tester.zone();
-
-  // Build module with one exported (named) function.
-  ZoneBuffer buffer(zone);
-  {
-    TestSignatures sigs;
-    WasmModuleBuilder builder(zone);
-    WasmFunctionBuilder* f = builder.AddFunction(sigs.v_v());
-    uint8_t code[] = {kExprEnd};
-    f->EmitCode(code, arraysize(code));
-    builder.AddExport(VectorOf("foo", 3), f);
-    builder.WriteTo(&buffer);
-  }
-
-  // Start profiler to force code logging.
-  v8::CpuProfiler* cpu_profiler = v8::CpuProfiler::New(isolate);
-  v8::CpuProfilingOptions profile_options;
-  cpu_profiler->StartProfiling(v8::String::Empty(isolate), profile_options);
-
-  // Send incomplete wire bytes and start compilation.
-  tester.OnBytesReceived(buffer.begin(), buffer.end() - buffer.begin());
-  tester.RunCompilerTasks();
-
-  // Trigger code logging explicitly like the profiler would do.
-  CHECK(WasmCode::ShouldBeLogged(i_isolate));
-  i_isolate->wasm_engine()->LogOutstandingCodesForIsolate(i_isolate);
-  CHECK(tester.IsPromisePending());
-
-  // Finalize stream, stop profiler and clean up.
-  tester.FinishStream();
-  CHECK(tester.IsPromiseFulfilled());
-  v8::CpuProfile* profile =
-      cpu_profiler->StopProfiling(v8::String::Empty(isolate));
-  profile->Delete();
-  cpu_profiler->Dispose();
-}
-
 #undef STREAM_TEST
 
 }  // namespace wasm

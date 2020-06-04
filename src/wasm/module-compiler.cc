@@ -627,10 +627,7 @@ void BackgroundCompileToken::PublishCode(
     NativeModule* native_module, Vector<std::unique_ptr<WasmCode>> code) {
   WasmCodeRefScope code_ref_scope;
   std::vector<WasmCode*> published_code = native_module->PublishCode(code);
-  // Defer logging code until wire bytes were fully received.
-  if (!native_module->wire_bytes().empty()) {
-    native_module->engine()->LogCode(VectorOf(published_code));
-  }
+  native_module->engine()->LogCode(VectorOf(published_code));
 
   Impl(native_module->compilation_state())
       ->OnFinishedUnits(VectorOf(published_code));
@@ -2415,7 +2412,6 @@ void AsyncStreamingProcessor::OnFinishedStream(OwnedVector<uint8_t> bytes) {
   } else {
     job_->native_module_->SetWireBytes(
         {std::move(job_->bytes_copy_), job_->wire_bytes_.length()});
-    job_->native_module_->LogWasmCodes(job_->isolate_);
   }
   const bool needs_finish = job_->DecrementAndCheckFinisherCount();
   DCHECK_IMPLIES(!has_code_section, needs_finish);
