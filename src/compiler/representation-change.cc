@@ -211,6 +211,7 @@ Node* RepresentationChanger::GetRepresentationFor(
       return GetFloat32RepresentationFor(node, output_rep, output_type,
                                          use_info.truncation());
     case MachineRepresentation::kFloat64:
+      DCHECK_NE(TypeCheckKind::kBigInt, use_info.type_check());
       return GetFloat64RepresentationFor(node, output_rep, output_type,
                                          use_node, use_info);
     case MachineRepresentation::kBit:
@@ -403,7 +404,22 @@ Node* RepresentationChanger::GetTaggedPointerRepresentationFor(
     return jsgraph()->graph()->NewNode(
         jsgraph()->common()->DeadValue(MachineRepresentation::kTaggedPointer),
         node);
-  } else if (output_rep == MachineRepresentation::kBit) {
+  }
+
+  if (use_info.type_check() == TypeCheckKind::kBigInt &&
+      !output_type.Is(Type::BigInt())) {
+    // BigInt checks can only be performed on tagged representations. Note that
+    // a corresponding check is inserted down below.
+    if (!CanBeTaggedPointer(output_rep)) {
+      Node* unreachable =
+          InsertUnconditionalDeopt(use_node, DeoptimizeReason::kNotABigInt);
+      return jsgraph()->graph()->NewNode(
+          jsgraph()->common()->DeadValue(MachineRepresentation::kTaggedPointer),
+          unreachable);
+    }
+  }
+
+  if (output_rep == MachineRepresentation::kBit) {
     if (output_type.Is(Type::Boolean())) {
       op = simplified()->ChangeBitToTagged();
     } else {
@@ -428,7 +444,8 @@ Node* RepresentationChanger::GetTaggedPointerRepresentationFor(
       op = machine()->ChangeInt64ToFloat64();
       node = jsgraph()->graph()->NewNode(op, node);
       op = simplified()->ChangeFloat64ToTaggedPointer();
-    } else if (output_type.Is(Type::BigInt())) {
+    } else if (output_type.Is(Type::BigInt()) &&
+               use_info.type_check() == TypeCheckKind::kBigInt) {
       op = simplified()->ChangeUint64ToBigInt();
     } else {
       return TypeError(node, output_rep, output_type,
@@ -1058,12 +1075,14 @@ Node* RepresentationChanger::GetWord64RepresentationFor(
     case IrOpcode::kFloat64Constant:
       UNREACHABLE();
     case IrOpcode::kNumberConstant: {
-      double const fv = OpParameter<double>(node->op());
-      using limits = std::numeric_limits<int64_t>;
-      if (fv <= limits::max() && fv >= limits::min()) {
-        int64_t const iv = static_cast<int64_t>(fv);
-        if (static_cast<double>(iv) == fv) {
-          return jsgraph()->Int64Constant(iv);
+      if (use_info.type_check() != TypeCheckKind::kBigInt) {
+        double const fv = OpParameter<double>(node->op());
+        using limits = std::numeric_limits<int64_t>;
+        if (fv <= limits::max() && fv >= limits::min()) {
+          int64_t const iv = static_cast<int64_t>(fv);
+          if (static_cast<double>(iv) == fv) {
+            return jsgraph()->Int64Constant(iv);
+          }
         }
       }
       break;
@@ -1082,6 +1101,19 @@ Node* RepresentationChanger::GetWord64RepresentationFor(
       break;
   }
 
+  if (use_info.type_check() == TypeCheckKind::kBigInt) {
+    // BigInts are only represented as tagged pointer and word64.
+    if (!CanBeTaggedPointer(output_rep) &&
+        output_rep != MachineRepresentation::kWord64) {
+      DCHECK(!output_type.Is(Type::BigInt()));
+      Node* unreachable =
+          InsertUnconditionalDeopt(use_node, DeoptimizeReason::kNotABigInt);
+      return jsgraph()->graph()->NewNode(
+          jsgraph()->common()->DeadValue(MachineRepresentation::kWord64),
+          unreachable);
+    }
+  }
+
   // Select the correct X -> Word64 operator.
   const Operator* op;
   if (output_type.Is(Type::None())) {
@@ -1092,6 +1124,7 @@ Node* RepresentationChanger::GetWord64RepresentationFor(
     CHECK(output_type.Is(Type::Boolean()));
     CHECK_NE(use_info.type_check(), TypeCheckKind::kNone);
     CHECK_NE(use_info.type_check(), TypeCheckKind::kNumberOrOddball);
+    CHECK_NE(use_info.type_check(), TypeCheckKind::kBigInt);
     Node* unreachable =
         InsertUnconditionalDeopt(use_node, DeoptimizeReason::kNotASmi);
     return jsgraph()->graph()->NewNode(

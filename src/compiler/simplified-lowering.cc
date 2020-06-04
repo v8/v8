@@ -2839,6 +2839,11 @@ class RepresentationSelector {
         return;
       }
       case IrOpcode::kSpeculativeBigIntAdd: {
+        // TODO(nicohartmann@, chromium:1073440): There should be special
+        // handling for trunction.IsUnused() that correctly propagates deadness,
+        // but preserves type checking which may throw exceptions. Until this
+        // is fully supported, we lower to int64 operations but keep pushing
+        // type constraints.
         if (truncation.IsUsedAsWord64()) {
           VisitBinop<T>(
               node, UseInfo::CheckedBigIntTruncatingWord64(FeedbackSource{}),

@@ -38,6 +38,7 @@ namespace internal {
   V(MinusZero, "minus zero")                                                   \
   V(NaN, "NaN")                                                                \
   V(NoCache, "no cache")                                                       \
+  V(NotABigInt, "not a BigInt")                                                \
   V(NotAHeapNumber, "not a heap number")                                       \
   V(NotAJavaScriptObject, "not a JavaScript object")                           \
   V(NotAJavaScriptObjectOrNullOrUndefined,                                     \
