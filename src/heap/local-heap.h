@@ -115,6 +115,19 @@ class ParkedScope {
   LocalHeap* local_heap_;
 };
 
+class ParkedMutexGuard {
+  base::Mutex* guard_;
+
+ public:
+  explicit ParkedMutexGuard(LocalHeap* local_heap, base::Mutex* guard)
+      : guard_(guard) {
+    ParkedScope scope(local_heap);
+    guard_->Lock();
+  }
+
+  ~ParkedMutexGuard() { guard_->Unlock(); }
+};
+
 }  // namespace internal
 }  // namespace v8
 

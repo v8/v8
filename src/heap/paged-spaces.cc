@@ -344,10 +344,10 @@ Page* PagedSpace::Expand() {
   return page;
 }
 
-Page* PagedSpace::ExpandBackground() {
+Page* PagedSpace::ExpandBackground(LocalHeap* local_heap) {
   Page* page = AllocatePage();
   if (page == nullptr) return nullptr;
-  base::MutexGuard guard(&allocation_mutex_);
+  ParkedMutexGuard lock(local_heap, &allocation_mutex_);
   AddPage(page);
   Free(page->area_start(), page->area_size(),
        SpaceAccountingMode::kSpaceAccounted);
@@ -579,7 +579,7 @@ PagedSpace::SlowGetLinearAllocationAreaBackground(LocalHeap* local_heap,
   DCHECK_EQ(origin, AllocationOrigin::kRuntime);
 
   auto result = TryAllocationFromFreeListBackground(
-      min_size_in_bytes, max_size_in_bytes, alignment, origin);
+      local_heap, min_size_in_bytes, max_size_in_bytes, alignment, origin);
   if (result) return result;
 
   MarkCompactCollector* collector = heap()->mark_compact_collector();
@@ -588,13 +588,13 @@ PagedSpace::SlowGetLinearAllocationAreaBackground(LocalHeap* local_heap,
     // First try to refill the free-list, concurrent sweeper threads
     // may have freed some objects in the meantime.
     {
-      base::MutexGuard lock(&allocation_mutex_);
+      ParkedMutexGuard lock(local_heap, &allocation_mutex_);
       RefillFreeList();
     }
 
     // Retry the free list allocation.
     auto result = TryAllocationFromFreeListBackground(
-        min_size_in_bytes, max_size_in_bytes, alignment, origin);
+        local_heap, min_size_in_bytes, max_size_in_bytes, alignment, origin);
     if (result) return result;
 
     Sweeper::FreeSpaceMayContainInvalidatedSlots
@@ -607,24 +607,24 @@ PagedSpace::SlowGetLinearAllocationAreaBackground(LocalHeap* local_heap,
         invalidated_slots_in_free_space);
 
     {
-      base::MutexGuard lock(&allocation_mutex_);
+      ParkedMutexGuard lock(local_heap, &allocation_mutex_);
       RefillFreeList();
     }
 
     if (static_cast<size_t>(max_freed) >= min_size_in_bytes) {
       auto result = TryAllocationFromFreeListBackground(
-          min_size_in_bytes, max_size_in_bytes, alignment, origin);
+          local_heap, min_size_in_bytes, max_size_in_bytes, alignment, origin);
       if (result) return result;
     }
   }
 
   if (heap()->ShouldExpandOldGenerationOnSlowAllocation(local_heap) &&
       heap()->CanExpandOldGenerationBackground(AreaSize()) &&
-      ExpandBackground()) {
+      ExpandBackground(local_heap)) {
     DCHECK((CountTotalPages() > 1) ||
            (min_size_in_bytes <= free_list_->Available()));
     auto result = TryAllocationFromFreeListBackground(
-        min_size_in_bytes, max_size_in_bytes, alignment, origin);
+        local_heap, min_size_in_bytes, max_size_in_bytes, alignment, origin);
     if (result) return result;
   }
 
@@ -634,11 +634,12 @@ PagedSpace::SlowGetLinearAllocationAreaBackground(LocalHeap* local_heap,
 }
 
 base::Optional<std::pair<Address, size_t>>
-PagedSpace::TryAllocationFromFreeListBackground(size_t min_size_in_bytes,
+PagedSpace::TryAllocationFromFreeListBackground(LocalHeap* local_heap,
+                                                size_t min_size_in_bytes,
                                                 size_t max_size_in_bytes,
                                                 AllocationAlignment alignment,
                                                 AllocationOrigin origin) {
-  base::MutexGuard lock(&allocation_mutex_);
+  ParkedMutexGuard lock(local_heap, &allocation_mutex_);
   DCHECK_LE(min_size_in_bytes, max_size_in_bytes);
   DCHECK_EQ(identity(), OLD_SPACE);
 

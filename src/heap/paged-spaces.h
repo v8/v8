@@ -341,7 +341,7 @@ class V8_EXPORT_PRIVATE PagedSpace
   // it cannot allocate requested number of pages from OS, or if the hard heap
   // size limit has been hit.
   Page* Expand();
-  Page* ExpandBackground();
+  Page* ExpandBackground(LocalHeap* local_heap);
   Page* AllocatePage();
 
   // Sets up a linear allocation area that fits the given number of bytes.
@@ -386,7 +386,8 @@ class V8_EXPORT_PRIVATE PagedSpace
       int size_in_bytes, AllocationOrigin origin);
 
   V8_WARN_UNUSED_RESULT base::Optional<std::pair<Address, size_t>>
-  TryAllocationFromFreeListBackground(size_t min_size_in_bytes,
+  TryAllocationFromFreeListBackground(LocalHeap* local_heap,
+                                      size_t min_size_in_bytes,
                                       size_t max_size_in_bytes,
                                       AllocationAlignment alignment,
                                       AllocationOrigin origin);
