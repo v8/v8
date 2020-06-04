@@ -2124,6 +2124,7 @@ void TurboAssembler::BranchFalseF(Register rs, Label* target) {
   }
 }
 
+// move word (src_high) to high-half of dst
 void TurboAssembler::FmoveHigh(FPURegister dst, Register src_high) {
   UseScratchRegisterScope temps(this);
   Register scratch = temps.Acquire();
@@ -2133,8 +2134,8 @@ void TurboAssembler::FmoveHigh(FPURegister dst, Register src_high) {
 
   RV_fmv_x_d(scratch, dst);
   RV_slli(t5, src_high, 32);
-  RV_srli(scratch, scratch, 32);
   RV_slli(scratch, scratch, 32);
+  RV_srli(scratch, scratch, 32);
   RV_or_(scratch, scratch, t5);
   RV_fmv_d_x(dst, scratch);
 }
@@ -3345,13 +3346,9 @@ void TurboAssembler::MovFromFloatParameter(const DoubleRegister dst) {
   Move(dst, fa0);  // Reg fa0 is FP first argument value.
 }
 
-void TurboAssembler::MovToFloatParameter(DoubleRegister src) {
-  Move(fa0, src);
-}
+void TurboAssembler::MovToFloatParameter(DoubleRegister src) { Move(fa0, src); }
 
-void TurboAssembler::MovToFloatResult(DoubleRegister src) {
-  Move(fa0, src);
-}
+void TurboAssembler::MovToFloatResult(DoubleRegister src) { Move(fa0, src); }
 
 void TurboAssembler::MovToFloatParameters(DoubleRegister src1,
                                           DoubleRegister src2) {
