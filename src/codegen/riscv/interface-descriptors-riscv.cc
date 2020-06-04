@@ -22,10 +22,6 @@ void CallInterfaceDescriptor::DefaultInitializePlatformSpecific(
                                    default_stub_registers);
 }
 
-bool CallInterfaceDescriptor::IsValidFloatParameterRegister(Register reg) {
-  return true;
-}
-
 void WasmI32AtomicWaitDescriptor::InitializePlatformSpecific(
     CallInterfaceDescriptorData* data) {
   /* Register t0 correspond to f12 FPU register. */

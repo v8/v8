@@ -426,7 +426,6 @@ class Code : public HeapObject {
 #elif V8_TARGET_ARCH_S390X
   static constexpr int kHeaderPaddingSize = 0;
 #elif V8_TARGET_ARCH_RISCV
-  // FIXME(RISCV): Not confirmed by spec
   static constexpr int kHeaderPaddingSize = 0;
 #else
 #error Unknown architecture.
