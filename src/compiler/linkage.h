@@ -456,7 +456,8 @@ class V8_EXPORT_PRIVATE Linkage : public NON_EXPORTED_BASE(ZoneObject) {
   static CallDescriptor* GetCEntryStubCallDescriptor(
       Zone* zone, int return_count, int js_parameter_count,
       const char* debug_name, Operator::Properties properties,
-      CallDescriptor::Flags flags);
+      CallDescriptor::Flags flags,
+      StackArgumentOrder stack_order = StackArgumentOrder::kDefault);
 
   static CallDescriptor* GetStubCallDescriptor(
       Zone* zone, const CallInterfaceDescriptor& descriptor,

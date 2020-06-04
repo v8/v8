@@ -253,7 +253,7 @@ CallDescriptor* Linkage::GetRuntimeCallDescriptor(
 CallDescriptor* Linkage::GetCEntryStubCallDescriptor(
     Zone* zone, int return_count, int js_parameter_count,
     const char* debug_name, Operator::Properties properties,
-    CallDescriptor::Flags flags) {
+    CallDescriptor::Flags flags, StackArgumentOrder stack_order) {
   const size_t function_count = 1;
   const size_t num_args_count = 1;
   const size_t context_count = 1;
@@ -305,7 +305,8 @@ CallDescriptor* Linkage::GetCEntryStubCallDescriptor(
       kNoCalleeSaved,                   // callee-saved
       kNoCalleeSaved,                   // callee-saved fp
       flags,                            // flags
-      debug_name);                      // debug name
+      debug_name,                       // debug name
+      stack_order);                     // stack order
 }
 
 CallDescriptor* Linkage::GetJSCallDescriptor(Zone* zone, bool is_osr,
