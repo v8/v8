@@ -3906,12 +3906,11 @@ void MacroAssembler::EnterExitFrame(bool save_doubles, int stack_space,
   const int frame_alignment = MacroAssembler::ActivationFrameAlignment();
   if (save_doubles) {
     // The stack is already aligned to 0 modulo 8 for stores with sdc1.
-    int kNumOfSavedRegisters = FPURegister::kNumRegisters / 2;
+    int kNumOfSavedRegisters = FPURegister::kNumRegisters;
     int space = kNumOfSavedRegisters * kDoubleSize;
     Dsubu(sp, sp, Operand(space));
-    // Remember: we only need to save every 2nd double FPU value.
     for (int i = 0; i < kNumOfSavedRegisters; i++) {
-      FPURegister reg = FPURegister::from_code(2 * i);
+      FPURegister reg = FPURegister::from_code(i);
       Sdc1(reg, MemOperand(sp, i * kDoubleSize));
     }
   }
