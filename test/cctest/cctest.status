@@ -363,6 +363,46 @@
 
 ##############################################################################
 ['arch == riscv32  or arch == riscv64', {
+  'test-run-wasm-atomics/*': [SKIP],
+  'test-debug/*': [SKIP],
+  'test-deoptimization/*': [SKIP],
+  'test-cpu-profiler/*': [SKIP],
+  'test-run-deopt/*': [SKIP],
+  'test-regexp/*': [SKIP],
+  'test-bytecode-generator/DoDebugger': [SKIP],
+  'test-heap/*': [SKIP],
+  'test-serialize/*': [SKIP],
+  'test-thread-termination/*': [SKIP],
+  'test-heap-profiler/*': [SKIP],
+  'serializer-tester/*': [SKIP],
+  'test-api-interceptors/*': [SKIP],
+  'test-modules/*': [SKIP],
+  'test-log/*': [SKIP],
+  'test-run-bytecode-graph-builder/*': [SKIP],
+
+  'test-compiler/OptimizedCodeSharing1*': [SKIP],
+  'test-compiler/CompileFunction*': [SKIP],
+  'test-compiler/DeepEagerCompilation': [SKIP],
+  'test-compiler/FeedbackVectorPreservedAcrossRecompiles': [SKIP],
+  'test-compiler/DecideToPretenureDuringCompilation': [SKIP],
+  'test-code-pages/OptimizedCodeWithCodeRange': [SKIP],
+
+  'test-bytecode-generator/StaticClassFields': [SKIP],
+  'test-run-load-store/RunUnalignedLoadStore': [SKIP],
+
+  'test-api/Threading*': [SKIP],
+  'test-api/CallHandlerAsFunctionHasNoSideEffectNotSupported': [SKIP],
+  'test-api/CrossActivationEval': [SKIP],
+  'test-api/FunctionDescriptorException': [SKIP],
+  'test-api/FunctionGetBoundFunction': [SKIP],
+  'test-api/MicrotaskContextShouldBeNativeContext': [SKIP],
+  'test-api/MorphCompositeStringTest': [SKIP],
+  'test-api/RegExp': [SKIP],
+  'test-api/SetCallAsFunctionHandlerConstructor': [SKIP],
+  'test-api/TwoByteStringInOneByteCons': [SKIP],
+  'test-api/TurboAsmDisablesDetach': [SKIP],
+  'test-api/CallAsFunction': [SKIP],
+
   'test-strings/OneByteArrayJoin': [SKIP],
 
   'test-interpreter/InterpreterRegExpLiterals': [SKIP],
@@ -371,16 +411,13 @@
 
   'test-run-machops/RunFloat64InsertHighWord32': [SKIP],
 
-  'test-run-wasm/RunWasmLiftoff_StoreMem_offset_oob': [SKIP],
   'test-run-wasm/RunWasmTurbofan_I32SConvertF32': [SKIP],
   'test-run-wasm/RunWasmTurbofan_I32UConvertF32': [SKIP],
-  'test-run-wasm/RunWasmTurbofan_StoreMem_offset_oob': [SKIP],
 
+  'test-run-wasm/RunWasmLiftoff_StoreMem_offset_oob': [SKIP],
+  'test-run-wasm/RunWasmTurbofan_StoreMem_offset_oob': [SKIP],
   'test-run-wasm-64/RunWasmLiftoff_StoreMem_offset_oob_i64': [SKIP],
   'test-run-wasm-64/RunWasmTurbofan_StoreMem_offset_oob_i64': [SKIP],
-
-  'test-run-wasm-asmjs/RunWasmTurbofan_Int32AsmjsDivS_byzero_const': [SKIP],
-  'test-run-wasm-asmjs/RunWasmTurbofan_Int32AsmjsRemS_byzero_const': [SKIP],
 }],
 
 ##############################################################################
