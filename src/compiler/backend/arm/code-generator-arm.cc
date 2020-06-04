@@ -2086,7 +2086,7 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
     }
     case kArmI64x2Neg: {
       Simd128Register dst = i.OutputSimd128Register();
-      __ vmov(dst, static_cast<uint64_t>(0));
+      __ vmov(dst, uint64_t{0});
       __ vqsub(NeonS64, dst, dst, i.InputSimd128Register(0));
       break;
     }
@@ -2406,8 +2406,8 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       __ vshr(NeonS32, tmp2, src, 31);
       // Set i-th bit of each lane i. When AND with tmp, the lanes that
       // are signed will have i-th bit set, unsigned will be 0.
-      __ vmov(mask.low(), Double((uint64_t)0x0000'0002'0000'0001));
-      __ vmov(mask.high(), Double((uint64_t)0x0000'0008'0000'0004));
+      __ vmov(mask.low(), Double(uint64_t{0x0000'0002'0000'0001}));
+      __ vmov(mask.high(), Double(uint64_t{0x0000'0008'0000'0004}));
       __ vand(tmp2, mask, tmp2);
       __ vpadd(Neon32, tmp2.low(), tmp2.low(), tmp2.high());
       __ vpadd(Neon32, tmp2.low(), tmp2.low(), kDoubleRegZero);
@@ -2583,8 +2583,8 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       __ vshr(NeonS16, tmp2, src, 15);
       // Set i-th bit of each lane i. When AND with tmp, the lanes that
       // are signed will have i-th bit set, unsigned will be 0.
-      __ vmov(mask.low(), Double((uint64_t)0x0008'0004'0002'0001));
-      __ vmov(mask.high(), Double((uint64_t)0x0080'0040'0020'0010));
+      __ vmov(mask.low(), Double(uint64_t{0x0008'0004'0002'0001}));
+      __ vmov(mask.high(), Double(uint64_t{0x0080'0040'0020'0010}));
       __ vand(tmp2, mask, tmp2);
       __ vpadd(Neon16, tmp2.low(), tmp2.low(), tmp2.high());
       __ vpadd(Neon16, tmp2.low(), tmp2.low(), tmp2.low());
@@ -2737,8 +2737,8 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       __ vshr(NeonS8, tmp2, src, 7);
       // Set i-th bit of each lane i. When AND with tmp, the lanes that
       // are signed will have i-th bit set, unsigned will be 0.
-      __ vmov(mask.low(), Double((uint64_t)0x8040'2010'0804'0201));
-      __ vmov(mask.high(), Double((uint64_t)0x8040'2010'0804'0201));
+      __ vmov(mask.low(), Double(uint64_t{0x8040'2010'0804'0201}));
+      __ vmov(mask.high(), Double(uint64_t{0x8040'2010'0804'0201}));
       __ vand(tmp2, mask, tmp2);
       __ vext(mask, tmp2, tmp2, 8);
       __ vzip(Neon8, mask, tmp2);
