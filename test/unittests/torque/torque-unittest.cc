@@ -829,6 +829,17 @@ TEST(Torque, BitFieldLogicalAnd) {
                            HasSubstr(message));
 }
 
+TEST(Torque, FieldAccessOnNonClassType) {
+  ExpectFailingCompilation(
+      R"(
+    @export
+    macro Test(x: Number): Map {
+      return x.map;
+    }
+  )",
+      HasSubstr("map"));
+}
+
 }  // namespace torque
 }  // namespace internal
 }  // namespace v8

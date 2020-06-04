@@ -137,7 +137,7 @@ class LocationReference {
     return *bit_field_;
   }
 
-  const Type* ReferencedType() const {
+  base::Optional<const Type*> ReferencedType() const {
     if (IsHeapReference()) {
       return *TypeOracle::MatchReferenceGeneric(heap_reference().type());
     }
@@ -148,7 +148,10 @@ class LocationReference {
     if (IsBitFieldAccess()) {
       return bit_field_->name_and_type.type;
     }
-    return GetVisitResult().type();
+    if (IsVariableAccess() || IsHeapSlice() || IsTemporary()) {
+      return GetVisitResult().type();
+    }
+    return base::nullopt;
   }
 
   const VisitResult& GetVisitResult() const {

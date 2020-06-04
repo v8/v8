@@ -2033,25 +2033,29 @@ LocationReference ImplementationVisitor::GenerateFieldAccess(
         ProjectStructField(reference.temporary(), fieldname),
         reference.temporary_description());
   }
-  if (reference.ReferencedType()->IsBitFieldStructType()) {
-    const BitFieldStructType* bitfield_struct =
-        BitFieldStructType::cast(reference.ReferencedType());
-    const BitField& field = bitfield_struct->LookupField(fieldname);
-    return LocationReference::BitFieldAccess(reference, field);
-  }
-  if (const auto type_wrapped_in_smi = Type::MatchUnaryGeneric(
-          reference.ReferencedType(), TypeOracle::GetSmiTaggedGeneric())) {
-    const BitFieldStructType* bitfield_struct =
-        BitFieldStructType::DynamicCast(*type_wrapped_in_smi);
-    if (bitfield_struct == nullptr) {
-      ReportError(
-          "When a value of type SmiTagged<T> is used in a field access "
-          "expression, T is expected to be a bitfield struct type. Instead, T "
-          "is ",
-          **type_wrapped_in_smi);
+  if (base::Optional<const Type*> referenced_type =
+          reference.ReferencedType()) {
+    if ((*referenced_type)->IsBitFieldStructType()) {
+      const BitFieldStructType* bitfield_struct =
+          BitFieldStructType::cast(*referenced_type);
+      const BitField& field = bitfield_struct->LookupField(fieldname);
+      return LocationReference::BitFieldAccess(reference, field);
     }
-    const BitField& field = bitfield_struct->LookupField(fieldname);
-    return LocationReference::BitFieldAccess(reference, field);
+    if (const auto type_wrapped_in_smi = Type::MatchUnaryGeneric(
+            (*referenced_type), TypeOracle::GetSmiTaggedGeneric())) {
+      const BitFieldStructType* bitfield_struct =
+          BitFieldStructType::DynamicCast(*type_wrapped_in_smi);
+      if (bitfield_struct == nullptr) {
+        ReportError(
+            "When a value of type SmiTagged<T> is used in a field access "
+            "expression, T is expected to be a bitfield struct type. Instead, "
+            "T "
+            "is ",
+            **type_wrapped_in_smi);
+      }
+      const BitField& field = bitfield_struct->LookupField(fieldname);
+      return LocationReference::BitFieldAccess(reference, field);
+    }
   }
   if (reference.IsHeapReference()) {
     VisitResult ref = reference.heap_reference();
@@ -2216,7 +2220,7 @@ VisitResult ImplementationVisitor::GenerateFetchFromLocation(
   } else if (reference.IsVariableAccess()) {
     return GenerateCopy(reference.variable());
   } else if (reference.IsHeapReference()) {
-    const Type* referenced_type = reference.ReferencedType();
+    const Type* referenced_type = *reference.ReferencedType();
     if (referenced_type == TypeOracle::GetFloat64OrHoleType()) {
       return GenerateCall(QualifiedName({TORQUE_INTERNAL_NAMESPACE_STRING},
                                         "LoadFloat64OrHole"),
@@ -2233,9 +2237,9 @@ VisitResult ImplementationVisitor::GenerateFetchFromLocation(
       return VisitResult(referenced_type, result_range);
     } else {
       GenerateCopy(reference.heap_reference());
-      assembler().Emit(LoadReferenceInstruction{reference.ReferencedType()});
-      DCHECK_EQ(1, LoweredSlotCount(reference.ReferencedType()));
-      return VisitResult(reference.ReferencedType(), assembler().TopRange(1));
+      assembler().Emit(LoadReferenceInstruction{referenced_type});
+      DCHECK_EQ(1, LoweredSlotCount(referenced_type));
+      return VisitResult(referenced_type, assembler().TopRange(1));
     }
   } else if (reference.IsBitFieldAccess()) {
     // First fetch the bitfield struct, then get the bits out of it.
@@ -2243,7 +2247,7 @@ VisitResult ImplementationVisitor::GenerateFetchFromLocation(
         GenerateFetchFromLocation(reference.bit_field_struct_location());
     assembler().Emit(LoadBitFieldInstruction{bit_field_struct.type(),
                                              reference.bit_field()});
-    return VisitResult(reference.ReferencedType(), assembler().TopRange(1));
+    return VisitResult(*reference.ReferencedType(), assembler().TopRange(1));
   } else {
     if (reference.IsHeapSlice()) {
       ReportError(
@@ -2276,7 +2280,7 @@ void ImplementationVisitor::GenerateAssignToLocation(
   } else if (reference.IsHeapSlice()) {
     ReportError("assigning a value directly to an indexed field isn't allowed");
   } else if (reference.IsHeapReference()) {
-    const Type* referenced_type = reference.ReferencedType();
+    const Type* referenced_type = *reference.ReferencedType();
     if (reference.IsConst()) {
       Error("cannot assign to const value of type ", *referenced_type).Throw();
     }
@@ -2318,7 +2322,7 @@ void ImplementationVisitor::GenerateAssignToLocation(
     VisitResult bit_field_struct =
         GenerateFetchFromLocation(reference.bit_field_struct_location());
     VisitResult converted_value =
-        GenerateImplicitConvert(reference.ReferencedType(), assignment_value);
+        GenerateImplicitConvert(*reference.ReferencedType(), assignment_value);
     VisitResult updated_bit_field_struct =
         GenerateSetBitField(bit_field_struct.type(), reference.bit_field(),
                             bit_field_struct, converted_value);
@@ -2729,7 +2733,7 @@ VisitResult ImplementationVisitor::Visit(CallMethodExpression* expr) {
     target = LocationReference::Temporary(result, "this parameter");
   }
   const AggregateType* target_type =
-      AggregateType::DynamicCast(target.ReferencedType());
+      AggregateType::DynamicCast(*target.ReferencedType());
   if (!target_type) {
     ReportError("target of method call not a struct or class type");
   }
