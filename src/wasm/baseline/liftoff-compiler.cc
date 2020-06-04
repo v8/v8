@@ -1943,10 +1943,7 @@ class LiftoffCompiler {
 
     if (statically_oob) {
       __ emit_jump(trap_label);
-      Control* current_block = decoder->control_at(0);
-      if (current_block->reachable()) {
-        current_block->reachability = kSpecOnlyReachable;
-      }
+      decoder->SetSucceedingCodeDynamicallyUnreachable();
       return true;
     }
 

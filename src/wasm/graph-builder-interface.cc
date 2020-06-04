@@ -554,6 +554,7 @@ class WasmGraphBuildingInterface {
 
   void Catch(FullDecoder* decoder, Control* block, Value* exception) {
     DCHECK(block->is_try_catch());
+    DCHECK_EQ(decoder->control_at(0), block);
 
     current_catch_ = block->previous_catch;  // Pop try scope.
 
@@ -561,7 +562,7 @@ class WasmGraphBuildingInterface {
     // exist. We only build a landing pad if some node in the try block can
     // (possibly) throw. Otherwise the catch environments remain empty.
     if (!block->try_info->might_throw()) {
-      block->reachability = kSpecOnlyReachable;
+      decoder->SetSucceedingCodeDynamicallyUnreachable();
       return;
     }
 

@@ -1794,12 +1794,14 @@ class WasmDecoder : public Decoder {
 };
 
 #define CALL_INTERFACE(name, ...) interface_.name(this, ##__VA_ARGS__)
-#define CALL_INTERFACE_IF_REACHABLE(name, ...)                 \
-  do {                                                         \
-    DCHECK(!control_.empty());                                 \
-    if (VALIDATE(this->ok()) && control_.back().reachable()) { \
-      interface_.name(this, ##__VA_ARGS__);                    \
-    }                                                          \
+#define CALL_INTERFACE_IF_REACHABLE(name, ...)            \
+  do {                                                    \
+    DCHECK(!control_.empty());                            \
+    DCHECK_EQ(current_code_reachable_,                    \
+              this->ok() && control_.back().reachable()); \
+    if (current_code_reachable_) {                        \
+      interface_.name(this, ##__VA_ARGS__);               \
+    }                                                     \
   } while (false)
 #define CALL_INTERFACE_IF_PARENT_REACHABLE(name, ...)           \
   do {                                                          \
@@ -1925,6 +1927,14 @@ class WasmFullDecoder : public WasmDecoder<validate> {
     return &*(stack_.end() - depth);
   }
 
+  void SetSucceedingCodeDynamicallyUnreachable() {
+    Control* current = &control_.back();
+    if (current->reachable()) {
+      current->reachability = kSpecOnlyReachable;
+      current_code_reachable_ = false;
+    }
+  }
+
  private:
   Zone* zone_;
 
@@ -1933,6 +1943,9 @@ class WasmFullDecoder : public WasmDecoder<validate> {
   ZoneVector<ValueType> local_type_vec_;  // types of local variables.
   ZoneVector<Value> stack_;               // stack of values.
   ZoneVector<Control> control_;           // stack of blocks, loops, and ifs.
+  // Controls whether code should be generated for the current block (basically
+  // a cache for {ok() && control_.back().reachable()}).
+  bool current_code_reachable_ = true;
 
   static Value UnreachableValue(const uint8_t* pc) {
     return Value{pc, kWasmBottom};
@@ -2084,6 +2097,7 @@ class WasmFullDecoder : public WasmDecoder<validate> {
           FallThruTo(c);
           stack_.erase(stack_.begin() + c->stack_depth, stack_.end());
           c->reachability = control_at(1)->innerReachability();
+          current_code_reachable_ = this->ok() && c->reachable();
           Value* exception = Push(kWasmExnRef);
           CALL_INTERFACE_IF_PARENT_REACHABLE(Catch, c, exception);
           break;
@@ -2235,6 +2249,7 @@ class WasmFullDecoder : public WasmDecoder<validate> {
           if (c->reachable()) c->end_merge.reached = true;
           PushMergeValues(c, &c->start_merge);
           c->reachability = control_at(1)->innerReachability();
+          current_code_reachable_ = this->ok() && c->reachable();
           break;
         }
         case kExprEnd: {
@@ -2380,7 +2395,7 @@ class WasmFullDecoder : public WasmDecoder<validate> {
 
           DCHECK(this->ok());
 
-          if (control_.back().reachable()) {
+          if (current_code_reachable_) {
             CALL_INTERFACE(BrTable, imm, key);
 
             for (int i = 0, e = control_depth(); i < e; ++i) {
@@ -2394,7 +2409,7 @@ class WasmFullDecoder : public WasmDecoder<validate> {
           break;
         }
         case kExprReturn: {
-          if (V8_LIKELY(control_.back().reachable())) {
+          if (V8_LIKELY(current_code_reachable_)) {
             if (!VALIDATE(TypeCheckReturn())) break;
             DoReturn();
           } else {
@@ -2865,6 +2880,7 @@ class WasmFullDecoder : public WasmDecoder<validate> {
     stack_.erase(stack_.begin() + current->stack_depth, stack_.end());
     CALL_INTERFACE_IF_REACHABLE(EndControl, current);
     current->reachability = kUnreachable;
+    current_code_reachable_ = false;
   }
 
   template<typename func>
@@ -2928,6 +2944,7 @@ class WasmFullDecoder : public WasmDecoder<validate> {
         control_.empty() ? kReachable : control_.back().innerReachability();
     control_.emplace_back(kind, locals_count, stack_size(), this->pc_,
                           reachability);
+    current_code_reachable_ = this->ok() && reachability == kReachable;
     return &control_.back();
   }
 
@@ -2943,9 +2960,8 @@ class WasmFullDecoder : public WasmDecoder<validate> {
     control_.pop_back();
     // If the parent block was reachable before, but the popped control does not
     // return to here, this block becomes "spec only reachable".
-    if (!parent_reached && control_.back().reachable()) {
-      control_.back().reachability = kSpecOnlyReachable;
-    }
+    if (!parent_reached) SetSucceedingCodeDynamicallyUnreachable();
+    current_code_reachable_ = control_.back().reachable();
   }
 
   int DecodeLoadMem(LoadType type, int prefix_len = 0) {
@@ -3637,7 +3653,7 @@ class WasmFullDecoder : public WasmDecoder<validate> {
   }
 
   bool TypeCheckFallThru() {
-    static_assert(validate, "Call this function only whithin VALIDATE");
+    static_assert(validate, "Call this function only within VALIDATE");
     Control& c = control_.back();
     if (V8_LIKELY(c.reachable())) {
       uint32_t expected = c.end_merge.arity;
@@ -3742,6 +3758,7 @@ class WasmFullDecoder : public WasmDecoder<validate> {
 
   void onFirstError() override {
     this->end_ = this->pc_;  // Terminate decoding loop.
+    this->current_code_reachable_ = false;
     TRACE(" !%s\n", this->error_.message().c_str());
     CALL_INTERFACE(OnFirstError);
   }
