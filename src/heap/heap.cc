@@ -3357,6 +3357,15 @@ void Heap::CreateFillerForArray(T object, int elements_to_trim,
 
 void Heap::MakeHeapIterable() {
   mark_compact_collector()->EnsureSweepingCompleted();
+
+  MakeLocalHeapLabsIterable();
+}
+
+void Heap::MakeLocalHeapLabsIterable() {
+  if (!FLAG_local_heaps) return;
+  safepoint()->IterateLocalHeaps([](LocalHeap* local_heap) {
+    local_heap->MakeLinearAllocationAreaIterable();
+  });
 }
 
 namespace {
@@ -4194,12 +4203,7 @@ void Heap::Verify() {
   SafepointScope safepoint_scope(this);
   HandleScope scope(isolate());
 
-  if (FLAG_local_heaps) {
-    // Ensure heap is iterable
-    safepoint()->IterateLocalHeaps([](LocalHeap* local_heap) {
-      local_heap->MakeLinearAllocationAreaIterable();
-    });
-  }
+  MakeLocalHeapLabsIterable();
 
   // We have to wait here for the sweeper threads to have an iterable heap.
   mark_compact_collector()->EnsureSweepingCompleted();
@@ -4397,12 +4401,7 @@ void Heap::VerifyRememberedSetFor(HeapObject object) {
 
 #ifdef DEBUG
 void Heap::VerifyCountersAfterSweeping() {
-  if (FLAG_local_heaps) {
-    // Ensure heap is iterable
-    safepoint()->IterateLocalHeaps([](LocalHeap* local_heap) {
-      local_heap->MakeLinearAllocationAreaIterable();
-    });
-  }
+  MakeLocalHeapLabsIterable();
 
   PagedSpaceIterator spaces(this);
   for (PagedSpace* space = spaces.Next(); space != nullptr;

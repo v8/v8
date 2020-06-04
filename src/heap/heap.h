@@ -1644,6 +1644,9 @@ class Heap {
   // over all objects.  May cause a GC.
   void MakeHeapIterable();
 
+  // Ensure that LABs of local heaps are iterable.
+  void MakeLocalHeapLabsIterable();
+
   // Performs garbage collection in a safepoint.
   // Returns the number of freed global handles.
   size_t PerformGarbageCollection(
