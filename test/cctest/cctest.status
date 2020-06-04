@@ -392,7 +392,6 @@
 
   'test-api/Threading*': [SKIP],
   'test-api/CallHandlerAsFunctionHasNoSideEffectNotSupported': [SKIP],
-  'test-api/ConversionNumber': [SKIP],
   'test-api/CrossActivationEval': [SKIP],
   'test-api/FunctionDescriptorException': [SKIP],
   'test-api/FunctionGetBoundFunction': [SKIP],
@@ -402,10 +401,7 @@
   'test-api/SetCallAsFunctionHandlerConstructor': [SKIP],
   'test-api/TwoByteStringInOneByteCons': [SKIP],
   'test-api/TurboAsmDisablesDetach': [SKIP],
-  'test-api/isNumberType': [SKIP],
   'test-api/CallAsFunction': [SKIP],
-
-  'test-macro-assembler-riscv/OverflowInstructions': [SKIP],
 
   'test-strings/OneByteArrayJoin': [SKIP],
 
@@ -422,9 +418,6 @@
   'test-run-wasm/RunWasmTurbofan_StoreMem_offset_oob': [SKIP],
   'test-run-wasm-64/RunWasmLiftoff_StoreMem_offset_oob_i64': [SKIP],
   'test-run-wasm-64/RunWasmTurbofan_StoreMem_offset_oob_i64': [SKIP],
-
-  'test-run-wasm-asmjs/RunWasmTurbofan_Int32AsmjsDivS_byzero_const': [SKIP],
-  'test-run-wasm-asmjs/RunWasmTurbofan_Int32AsmjsRemS_byzero_const': [SKIP],
 }],
 
 ##############################################################################
