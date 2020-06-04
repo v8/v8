@@ -3187,6 +3187,10 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       __ Movmskps(i.OutputRegister(), i.InputSimd128Register(0));
       break;
     }
+    case kX64I32x4DotI16x8S: {
+      __ Pmaddwd(i.OutputSimd128Register(), i.InputSimd128Register(1));
+      break;
+    }
     case kX64S128Zero: {
       XMMRegister dst = i.OutputSimd128Register();
       __ Xorps(dst, dst);
