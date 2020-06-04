@@ -24,7 +24,8 @@ ALL_VARIANT_FLAGS = {
   # independent of JS optimizations, so we can combine those configs.
   "nooptimization": [["--no-opt", "--liftoff", "--no-wasm-tier-up"]],
   "slow_path": [["--force-slow-path"]],
-  "stress": [["--stress-opt", "--no-liftoff", "--stress-lazy-source-positions"]],
+  "stress": [["--stress-opt", "--always-opt", "--no-liftoff",
+              "--stress-lazy-source-positions"]],
   "stress_js_bg_compile_wasm_code_gc": [["--stress-background-compile",
                                          "--stress-wasm-code-gc"]],
   "stress_incremental_marking": [["--stress-incremental-marking"]],
@@ -37,21 +38,6 @@ ALL_VARIANT_FLAGS = {
   "instruction_scheduling": [["--turbo-instruction-scheduling"]],
   "stress_instruction_scheduling": [["--turbo-stress-instruction-scheduling"]],
   "top_level_await": [["--harmony-top-level-await"]],
-}
-
-# Flags that lead to a contradiction with the flags provided by the respective
-# variant. This depends on the flags specified in ALL_VARIANT_FLAGS and on the
-# implications defined in flag-definitions.h
-INCOMPATIBLE_FLAGS_PER_VARIANT = {
-  "assert_types": ["--no-assert-types"],
-  "jitless": ["--opt", "--liftoff", "--track-field-types", "--validate-asm"],
-  "no_wasm_traps": ["--wasm-trap-handler"],
-  "nooptimization": ["--opt", "--no-liftoff", "--predictable", "--wasm-tier-up"],
-  "slow_path": ["--no-force-slow-path"],
-  "stress_incremental_marking": ["--no-stress-incremental-marking"],
-  "stress_js_bg_compile_wasm_code_gc": ["--no-stress-background-compile"],
-  "stress": ["--always-opt", "--liftoff"],
-  "turboprop": ["--turbo-inlining", "--interrupt-budget=*", "--no-turboprop"],
 }
 
 SLOW_VARIANTS = set([
