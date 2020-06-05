@@ -540,12 +540,21 @@ class DebugInfoImpl {
     // hold the mutex while freeing code.
     WasmCodeRefScope wasm_code_ref_scope;
 
+    // Generate additional source positions for current stack frame positions.
+    // These source positions are used to find return addresses in the new code.
+    std::vector<int> stack_frame_positions =
+        StackFramePositions(func_index, isolate);
+
     // Hold the mutex while modifying breakpoints, to ensure consistency when
     // multiple isolates set/remove breakpoints at the same time.
     base::MutexGuard guard(&mutex_);
 
     // offset == 0 indicates flooding and should not happen here.
     DCHECK_NE(0, offset);
+
+    // Get the set of previously set breakpoints, to check later whether a new
+    // breakpoint was actually added.
+    std::vector<int> all_breakpoints = FindAllBreakpoints(func_index);
 
     auto& isolate_data = per_isolate_data_[isolate];
     std::vector<int>& breakpoints =
@@ -558,11 +567,27 @@ class DebugInfoImpl {
     }
     breakpoints.insert(insertion_point, offset);
 
-    // TODO(clemensb): Avoid recompilation if the breakpoint was already set in
-    // another isolate.
-    std::vector<int> all_breakpoints = FindAllBreakpoints(func_index);
-    UpdateBreakpoints(func_index, VectorOf(all_breakpoints), isolate,
-                      isolate_data.stepping_frame);
+    DCHECK(std::is_sorted(all_breakpoints.begin(), all_breakpoints.end()));
+    // Find the insertion position within {all_breakpoints}.
+    insertion_point = std::lower_bound(all_breakpoints.begin(),
+                                       all_breakpoints.end(), offset);
+    bool breakpoint_exists =
+        insertion_point != all_breakpoints.end() && *insertion_point == offset;
+    // If the breakpoint was already set before *and* we don't need any special
+    // positions for OSR, then we can just reuse the old code. Otherwise,
+    // recompile it. In any case, rewrite this isolate's stack to make sure that
+    // it uses up-to-date code containing the breakpoint.
+    WasmCode* new_code;
+    if (breakpoint_exists && stack_frame_positions.empty()) {
+      new_code = native_module_->GetCode(func_index);
+    } else {
+      // Add the new offset to the set of all breakpoints, then recompile.
+      if (!breakpoint_exists) all_breakpoints.insert(insertion_point, offset);
+      new_code =
+          RecompileLiftoffWithBreakpoints(func_index, VectorOf(all_breakpoints),
+                                          VectorOf(stack_frame_positions));
+    }
+    UpdateReturnAddresses(isolate, new_code, isolate_data.stepping_frame);
   }
 
   std::vector<int> FindAllBreakpoints(int func_index) {
