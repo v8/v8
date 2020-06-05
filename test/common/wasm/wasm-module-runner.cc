@@ -127,12 +127,11 @@ bool InterpretWasmModuleForTesting(Isolate* isolate,
   Zone zone(isolate->allocator(), ZONE_NAME);
 
   WasmInterpreter* interpreter = WasmDebugInfo::SetupForTesting(instance);
-  WasmInterpreter::Thread* thread = interpreter->GetThread(0);
-  thread->Reset();
+  interpreter->Reset();
 
-  thread->InitFrame(&instance->module()->functions[function_index],
-                    arguments.get());
-  WasmInterpreter::State interpreter_result = thread->Run(kMaxNumSteps);
+  interpreter->InitFrame(&instance->module()->functions[function_index],
+                         arguments.get());
+  WasmInterpreter::State interpreter_result = interpreter->Run(kMaxNumSteps);
 
   if (isolate->has_pending_exception()) {
     // Stack overflow during interpretation.
@@ -199,25 +198,25 @@ WasmInterpretationResult InterpretWasmModule(
   v8::internal::HandleScope scope(isolate);
 
   WasmInterpreter* interpreter = WasmDebugInfo::SetupForTesting(instance);
-  WasmInterpreter::Thread* thread = interpreter->GetThread(0);
-  thread->Reset();
+  interpreter->Reset();
 
-  thread->InitFrame(&(instance->module()->functions[function_index]), args);
-  WasmInterpreter::State interpreter_result = thread->Run(kMaxNumSteps);
+  interpreter->InitFrame(&instance->module()->functions[function_index], args);
+  WasmInterpreter::State interpreter_result = interpreter->Run(kMaxNumSteps);
 
   bool stack_overflow = isolate->has_pending_exception();
   isolate->clear_pending_exception();
 
   if (stack_overflow) return WasmInterpretationResult::Stopped();
 
-  if (thread->state() == WasmInterpreter::TRAPPED) {
-    return WasmInterpretationResult::Trapped(thread->PossibleNondeterminism());
+  if (interpreter->state() == WasmInterpreter::TRAPPED) {
+    return WasmInterpretationResult::Trapped(
+        interpreter->PossibleNondeterminism());
   }
 
   if (interpreter_result == WasmInterpreter::FINISHED) {
     return WasmInterpretationResult::Finished(
-        thread->GetReturnValue().to<int32_t>(),
-        thread->PossibleNondeterminism());
+        interpreter->GetReturnValue().to<int32_t>(),
+        interpreter->PossibleNondeterminism());
   }
 
   return WasmInterpretationResult::Stopped();

@@ -44,7 +44,7 @@ using ControlTransferMap = ZoneMap<pc_t, ControlTransferEntry>;
 // An interpreter capable of executing WebAssembly.
 class V8_EXPORT_PRIVATE WasmInterpreter {
  public:
-  // State machine for a Thread:
+  // State machine for the interpreter:
   //    +----------------------------------------------------------+
   //    |                    +--------Run()/Step()---------+       |
   //    V                    V                             |       |
@@ -56,49 +56,7 @@ class V8_EXPORT_PRIVATE WasmInterpreter {
   //                        +----------- Finish -------------> FINISHED
   enum State { STOPPED, RUNNING, PAUSED, FINISHED, TRAPPED };
 
-  // Tells a thread to pause after certain instructions.
-  enum BreakFlag : uint8_t {
-    None = 0,
-    AfterReturn = 1 << 0,
-    AfterCall = 1 << 1
-  };
-
-  // Representation of a thread in the interpreter.
-  class V8_EXPORT_PRIVATE Thread {
-   public:
-    // Don't instante Threads; they will be allocated as ThreadImpl in the
-    // interpreter implementation.
-    Thread() = delete;
-    enum ExceptionHandlingResult { HANDLED, UNWOUND };
-
-    // Execution control.
-    State state();
-    void InitFrame(const WasmFunction* function, WasmValue* args);
-    // Pass -1 as num_steps to run till completion, pause or breakpoint.
-    State Run(int num_steps = -1);
-    State Step() { return Run(1); }
-    void Pause();
-    void Reset();
-
-    // Raise an exception in the current activation and unwind the stack
-    // accordingly. Return whether the exception was handled inside wasm:
-    //  - HANDLED: Activation at handler position and in {PAUSED} state.
-    //  - UNWOUND: Frames unwound, exception pending, and in {STOPPED} state.
-    ExceptionHandlingResult RaiseException(Isolate*, Handle<Object> exception);
-
-    // Stack inspection and modification.
-    int GetFrameCount();
-    WasmValue GetReturnValue(int index = 0);
-    TrapReason GetTrapReason();
-
-    // Returns true if the thread executed an instruction which may produce
-    // nondeterministic results, e.g. float div, float sqrt, and float mul,
-    // where the sign bit of a NaN is nondeterministic.
-    bool PossibleNondeterminism();
-
-    // Returns the number of calls / function frames executed on this thread.
-    uint64_t NumInterpretedCalls();
-  };
+  enum ExceptionHandlingResult { HANDLED, UNWOUND };
 
   WasmInterpreter(Isolate* isolate, const WasmModule* module,
                   const ModuleWireBytes& wire_bytes,
@@ -109,14 +67,31 @@ class V8_EXPORT_PRIVATE WasmInterpreter {
   //==========================================================================
   // Execution controls.
   //==========================================================================
-  void Run();
+  State state();
+  void InitFrame(const WasmFunction* function, WasmValue* args);
+  // Pass -1 as num_steps to run till completion, pause or breakpoint.
+  State Run(int num_steps = -1);
+  State Step() { return Run(1); }
   void Pause();
+  void Reset();
 
-  //==========================================================================
-  // Thread iteration and inspection.
-  //==========================================================================
-  int GetThreadCount();
-  Thread* GetThread(int id);
+  // Raise an exception in the current activation and unwind the stack
+  // accordingly. Return whether the exception was handled inside wasm:
+  //  - HANDLED: Activation at handler position and in {PAUSED} state.
+  //  - UNWOUND: Frames unwound, exception pending, and in {STOPPED} state.
+  ExceptionHandlingResult RaiseException(Isolate*, Handle<Object> exception);
+
+  // Stack inspection and modification.
+  WasmValue GetReturnValue(int index = 0);
+  TrapReason GetTrapReason();
+
+  // Returns true if the thread executed an instruction which may produce
+  // nondeterministic results, e.g. float div, float sqrt, and float mul,
+  // where the sign bit of a NaN is nondeterministic.
+  bool PossibleNondeterminism();
+
+  // Returns the number of calls / function frames executed on this thread.
+  uint64_t NumInterpretedCalls();
 
   //==========================================================================
   // Testing functionality.

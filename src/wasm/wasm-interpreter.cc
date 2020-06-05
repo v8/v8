@@ -1102,9 +1102,20 @@ V8_INLINE bool has_nondeterminism<double>(double val) {
 
 }  // namespace
 
-// Responsible for executing code directly.
-class ThreadImpl {
+//============================================================================
+// The implementation details of the interpreter.
+//============================================================================
+class WasmInterpreterInternals {
  public:
+  WasmInterpreterInternals(Zone* zone, const WasmModule* module,
+                           const ModuleWireBytes& wire_bytes,
+                           Handle<WasmInstanceObject> instance_object)
+      : module_bytes_(wire_bytes.start(), wire_bytes.end(), zone),
+        codemap_(module, module_bytes_.data(), zone),
+        isolate_(instance_object->GetIsolate()),
+        instance_object_(instance_object),
+        frames_(zone) {}
+
   // The {ReferenceStackScope} sets up the reference stack in the interpreter.
   // The handle to the reference stack has to be re-initialized everytime we
   // call into the interpreter because there is no HandleScope that could
@@ -1113,7 +1124,7 @@ class ThreadImpl {
   // reference stack and thereby transitively keeps the interpreter alive.
   class ReferenceStackScope {
    public:
-    explicit ReferenceStackScope(ThreadImpl* impl) : impl_(impl) {
+    explicit ReferenceStackScope(WasmInterpreterInternals* impl) : impl_(impl) {
       // The reference stack is already initialized, we don't have to do
       // anything.
       if (!impl_->reference_stack_cell_.is_null()) return;
@@ -1131,26 +1142,16 @@ class ThreadImpl {
     }
 
    private:
-    ThreadImpl* impl_;
+    WasmInterpreterInternals* impl_;
     bool do_reset_stack_ = false;
   };
-
-  ThreadImpl(Zone* zone, CodeMap* codemap,
-             Handle<WasmInstanceObject> instance_object)
-      : codemap_(codemap),
-        isolate_(instance_object->GetIsolate()),
-        instance_object_(instance_object),
-        frames_(zone) {}
-
-  //==========================================================================
-  // Implementation of public interface for WasmInterpreter::Thread.
-  //==========================================================================
 
   WasmInterpreter::State state() { return state_; }
 
   void InitFrame(const WasmFunction* function, WasmValue* args) {
+    ReferenceStackScope stack_scope(this);
     DCHECK(frames_.empty());
-    InterpreterCode* code = codemap()->GetCode(function);
+    InterpreterCode* code = codemap_.GetCode(function);
     size_t num_params = function->sig->parameter_count();
     EnsureStackSpace(num_params);
     Push(args, num_params);
@@ -1158,6 +1159,7 @@ class ThreadImpl {
   }
 
   WasmInterpreter::State Run(int num_steps = -1) {
+    ReferenceStackScope stack_scope(this);
     DCHECK(state_ == WasmInterpreter::STOPPED ||
            state_ == WasmInterpreter::PAUSED);
     DCHECK(num_steps == -1 || num_steps > 0);
@@ -1178,6 +1180,7 @@ class ThreadImpl {
   void Pause() { UNIMPLEMENTED(); }
 
   void Reset() {
+    ReferenceStackScope stack_scope(this);
     TRACE("----- RESET -----\n");
     ResetStack(0);
     frames_.clear();
@@ -1186,12 +1189,8 @@ class ThreadImpl {
     possible_nondeterminism_ = false;
   }
 
-  int GetFrameCount() {
-    DCHECK_GE(kMaxInt, frames_.size());
-    return static_cast<int>(frames_.size());
-  }
-
   WasmValue GetReturnValue(uint32_t index) {
+    ReferenceStackScope stack_scope(this);
     if (state_ == WasmInterpreter::TRAPPED) return WasmValue(0xDEADBEEF);
     DCHECK_EQ(WasmInterpreter::FINISHED, state_);
     return GetStackValue(index);
@@ -1215,23 +1214,27 @@ class ThreadImpl {
 
   Handle<Cell> reference_stack_cell() const { return reference_stack_cell_; }
 
-  WasmInterpreter::Thread::ExceptionHandlingResult RaiseException(
+  WasmInterpreter::ExceptionHandlingResult RaiseException(
       Isolate* isolate, Handle<Object> exception) {
+    ReferenceStackScope stack_scope(this);
     DCHECK_EQ(WasmInterpreter::TRAPPED, state_);
     isolate->Throw(*exception);  // Will check that none is pending.
-    if (HandleException(isolate) == WasmInterpreter::Thread::UNWOUND) {
+    if (HandleException(isolate) == WasmInterpreter::UNWOUND) {
       DCHECK_EQ(WasmInterpreter::STOPPED, state_);
-      return WasmInterpreter::Thread::UNWOUND;
+      return WasmInterpreter::UNWOUND;
     }
     state_ = WasmInterpreter::PAUSED;
-    return WasmInterpreter::Thread::HANDLED;
+    return WasmInterpreter::HANDLED;
   }
 
+  CodeMap* codemap() { return &codemap_; }
+
  private:
+  friend class ReferenceStackScope;
+
   // Handle a thrown exception. Returns whether the exception was handled inside
   // of wasm. Unwinds the interpreted stack accordingly.
-  WasmInterpreter::Thread::ExceptionHandlingResult HandleException(
-      Isolate* isolate) {
+  WasmInterpreter::ExceptionHandlingResult HandleException(Isolate* isolate) {
     DCHECK(isolate->has_pending_exception());
     bool catchable =
         isolate->is_catchable_by_wasm(isolate->pending_exception());
@@ -1245,7 +1248,7 @@ class ThreadImpl {
         frame.pc += JumpToHandlerDelta(code, frame.pc);
         TRACE("  => handler #%zu (#%u @%zu)\n", frames_.size() - 1,
               code->function->func_index, frame.pc);
-        return WasmInterpreter::Thread::HANDLED;
+        return WasmInterpreter::HANDLED;
       }
       TRACE("  => drop frame #%zu (#%u @%zu)\n", frames_.size() - 1,
             code->function->func_index, frame.pc);
@@ -1256,7 +1259,7 @@ class ThreadImpl {
     DCHECK(frames_.empty());
     DCHECK_EQ(sp_, stack_.get());
     state_ = WasmInterpreter::STOPPED;
-    return WasmInterpreter::Thread::UNWOUND;
+    return WasmInterpreter::UNWOUND;
   }
 
   // Entries on the stack of functions being evaluated.
@@ -1279,68 +1282,51 @@ class ThreadImpl {
   class StackValue {
    public:
     StackValue() = default;  // Only needed for resizing the stack.
-    StackValue(WasmValue v, ThreadImpl* thread, sp_t index) : value_(v) {
+    StackValue(WasmValue v, WasmInterpreterInternals* impl, sp_t index)
+        : value_(v) {
       if (IsReferenceValue()) {
         value_ = WasmValue(Handle<Object>::null());
         int ref_index = static_cast<int>(index);
-        thread->reference_stack().set(ref_index, *v.to_anyref());
+        impl->reference_stack().set(ref_index, *v.to_anyref());
       }
     }
 
-    WasmValue ExtractValue(ThreadImpl* thread, sp_t index) {
+    WasmValue ExtractValue(WasmInterpreterInternals* impl, sp_t index) {
       if (!IsReferenceValue()) return value_;
       DCHECK(value_.to_anyref().is_null());
       int ref_index = static_cast<int>(index);
-      Isolate* isolate = thread->isolate_;
-      Handle<Object> ref(thread->reference_stack().get(ref_index), isolate);
+      Isolate* isolate = impl->isolate_;
+      Handle<Object> ref(impl->reference_stack().get(ref_index), isolate);
       DCHECK(!ref->IsTheHole(isolate));
       return WasmValue(ref);
     }
 
     bool IsReferenceValue() const { return value_.type() == kWasmAnyRef; }
 
-    void ClearValue(ThreadImpl* thread, sp_t index) {
+    void ClearValue(WasmInterpreterInternals* impl, sp_t index) {
       if (!IsReferenceValue()) return;
       int ref_index = static_cast<int>(index);
-      Isolate* isolate = thread->isolate_;
-      thread->reference_stack().set_the_hole(isolate, ref_index);
+      Isolate* isolate = impl->isolate_;
+      impl->reference_stack().set_the_hole(isolate, ref_index);
     }
 
-    static void ClearValues(ThreadImpl* thread, sp_t index, int count) {
+    static void ClearValues(WasmInterpreterInternals* impl, sp_t index,
+                            int count) {
       int ref_index = static_cast<int>(index);
-      thread->reference_stack().FillWithHoles(ref_index, ref_index + count);
+      impl->reference_stack().FillWithHoles(ref_index, ref_index + count);
     }
 
-    static bool IsClearedValue(ThreadImpl* thread, sp_t index) {
+    static bool IsClearedValue(WasmInterpreterInternals* impl, sp_t index) {
       int ref_index = static_cast<int>(index);
-      Isolate* isolate = thread->isolate_;
-      return thread->reference_stack().is_the_hole(isolate, ref_index);
+      Isolate* isolate = impl->isolate_;
+      return impl->reference_stack().is_the_hole(isolate, ref_index);
     }
 
    private:
     WasmValue value_;
   };
 
-  friend class ReferenceStackScope;
-
-  CodeMap* codemap_;
-  Isolate* isolate_;
-  Handle<WasmInstanceObject> instance_object_;
-  std::unique_ptr<StackValue[]> stack_;
-  StackValue* stack_limit_ = nullptr;  // End of allocated stack space.
-  StackValue* sp_ = nullptr;           // Current stack pointer.
-  // The reference stack is pointed to by a {Cell} to be able to replace the
-  // underlying {FixedArray} when growing the stack. This avoids having to
-  // recreate or update the global handle keeping this object alive.
-  Handle<Cell> reference_stack_cell_;  // References are on an on-heap stack.
-  ZoneVector<Frame> frames_;
-  WasmInterpreter::State state_ = WasmInterpreter::STOPPED;
-  TrapReason trap_reason_ = kTrapCount;
-  bool possible_nondeterminism_ = false;
-  uint64_t num_interpreted_calls_ = 0;
-
-  CodeMap* codemap() const { return codemap_; }
-  const WasmModule* module() const { return codemap_->module(); }
+  const WasmModule* module() const { return codemap_.module(); }
   FixedArray reference_stack() const {
     return FixedArray::cast(reference_stack_cell_->value());
   }
@@ -2770,7 +2756,7 @@ class ThreadImpl {
     // it to 0 here such that we report the same position as in compiled code.
     frames_.back().pc = 0;
     isolate_->StackOverflow();
-    return HandleException(isolate_) == WasmInterpreter::Thread::HANDLED;
+    return HandleException(isolate_) == WasmInterpreter::HANDLED;
   }
 
   void EncodeI32ExceptionValue(Handle<FixedArray> encoded_values,
@@ -2863,14 +2849,14 @@ class ThreadImpl {
     Drop(static_cast<int>(sig->parameter_count()));
     // Now that the exception is ready, set it as pending.
     isolate_->Throw(*exception_object);
-    return HandleException(isolate_) == WasmInterpreter::Thread::HANDLED;
+    return HandleException(isolate_) == WasmInterpreter::HANDLED;
   }
 
   // Throw a given existing exception. Returns true if the exception is being
   // handled locally by the interpreter, false otherwise (interpreter exits).
   bool DoRethrowException(WasmValue exception) {
     isolate_->ReThrow(*exception.to_anyref());
-    return HandleException(isolate_) == WasmInterpreter::Thread::HANDLED;
+    return HandleException(isolate_) == WasmInterpreter::HANDLED;
   }
 
   // Determines whether the given exception has a tag matching the expected tag
@@ -3022,7 +3008,7 @@ class ThreadImpl {
       // Compute the stack effect of this opcode, and verify later that the
       // stack was modified accordingly.
       std::pair<uint32_t, uint32_t> stack_effect =
-          StackEffect(codemap_->module(), frames_.back().code->function->sig,
+          StackEffect(codemap_.module(), frames_.back().code->function->sig,
                       code->start + pc, code->end);
       sp_t expected_new_stack_height =
           StackHeight() - stack_effect.first + stack_effect.second;
@@ -3232,7 +3218,7 @@ class ThreadImpl {
         case kExprCallFunction: {
           CallFunctionImmediate<Decoder::kNoValidate> imm(&decoder,
                                                           code->at(pc));
-          InterpreterCode* target = codemap()->GetCode(imm.index);
+          InterpreterCode* target = codemap_.GetCode(imm.index);
           CHECK(!target->function->imported);
           // Execute an internal call.
           if (!DoCall(&decoder, target, &pc, &limit)) return;
@@ -3264,7 +3250,7 @@ class ThreadImpl {
         case kExprReturnCall: {
           CallFunctionImmediate<Decoder::kNoValidate> imm(&decoder,
                                                           code->at(pc));
-          InterpreterCode* target = codemap()->GetCode(imm.index);
+          InterpreterCode* target = codemap_.GetCode(imm.index);
 
           CHECK(!target->function->imported);
           // Enter internal found function.
@@ -3815,96 +3801,27 @@ class ThreadImpl {
           instance_object_.is_identical_to(object_ref));
 
     DCHECK_EQ(WasmCode::kFunction, code->kind());
-    return {CallResult::INTERNAL, codemap()->GetCode(code->index())};
+    return {CallResult::INTERNAL, codemap_.GetCode(code->index())};
   }
-};
 
-namespace {
-
-// Converters between WasmInterpreter::Thread and WasmInterpreter::ThreadImpl.
-// Thread* is the public interface, without knowledge of the object layout.
-// This cast is potentially risky, but as long as we always cast it back before
-// accessing any data, it should be fine. UBSan is not complaining.
-WasmInterpreter::Thread* ToThread(ThreadImpl* impl) {
-  return reinterpret_cast<WasmInterpreter::Thread*>(impl);
-}
-ThreadImpl* ToImpl(WasmInterpreter::Thread* thread) {
-  return reinterpret_cast<ThreadImpl*>(thread);
-}
-
-}  // namespace
-
-//============================================================================
-// Implementation of the pimpl idiom for WasmInterpreter::Thread.
-// Instead of placing a pointer to the ThreadImpl inside of the Thread object,
-// we just reinterpret_cast them. ThreadImpls are only allocated inside this
-// translation unit anyway.
-//============================================================================
-WasmInterpreter::State WasmInterpreter::Thread::state() {
-  ThreadImpl* impl = ToImpl(this);
-  ThreadImpl::ReferenceStackScope stack_scope(impl);
-  return impl->state();
-}
-void WasmInterpreter::Thread::InitFrame(const WasmFunction* function,
-                                        WasmValue* args) {
-  ThreadImpl* impl = ToImpl(this);
-  ThreadImpl::ReferenceStackScope stack_scope(impl);
-  impl->InitFrame(function, args);
-}
-WasmInterpreter::State WasmInterpreter::Thread::Run(int num_steps) {
-  ThreadImpl* impl = ToImpl(this);
-  ThreadImpl::ReferenceStackScope stack_scope(impl);
-  return impl->Run(num_steps);
-}
-void WasmInterpreter::Thread::Pause() { return ToImpl(this)->Pause(); }
-void WasmInterpreter::Thread::Reset() {
-  ThreadImpl* impl = ToImpl(this);
-  ThreadImpl::ReferenceStackScope stack_scope(impl);
-  return impl->Reset();
-}
-WasmInterpreter::Thread::ExceptionHandlingResult
-WasmInterpreter::Thread::RaiseException(Isolate* isolate,
-                                        Handle<Object> exception) {
-  ThreadImpl* impl = ToImpl(this);
-  ThreadImpl::ReferenceStackScope stack_scope(impl);
-  return impl->RaiseException(isolate, exception);
-}
-int WasmInterpreter::Thread::GetFrameCount() {
-  return ToImpl(this)->GetFrameCount();
-}
-WasmValue WasmInterpreter::Thread::GetReturnValue(int index) {
-  ThreadImpl* impl = ToImpl(this);
-  ThreadImpl::ReferenceStackScope stack_scope(impl);
-  return impl->GetReturnValue(index);
-}
-TrapReason WasmInterpreter::Thread::GetTrapReason() {
-  return ToImpl(this)->GetTrapReason();
-}
-bool WasmInterpreter::Thread::PossibleNondeterminism() {
-  return ToImpl(this)->PossibleNondeterminism();
-}
-uint64_t WasmInterpreter::Thread::NumInterpretedCalls() {
-  return ToImpl(this)->NumInterpretedCalls();
-}
-
-//============================================================================
-// The implementation details of the interpreter.
-//============================================================================
-class WasmInterpreterInternals {
- public:
   // Create a copy of the module bytes for the interpreter, since the passed
   // pointer might be invalidated after constructing the interpreter.
   const ZoneVector<uint8_t> module_bytes_;
   CodeMap codemap_;
-  std::vector<ThreadImpl> threads_;
-
-  WasmInterpreterInternals(Zone* zone, const WasmModule* module,
-                           const ModuleWireBytes& wire_bytes,
-                           Handle<WasmInstanceObject> instance_object)
-      : module_bytes_(wire_bytes.start(), wire_bytes.end(), zone),
-        codemap_(module, module_bytes_.data(), zone) {
-    threads_.emplace_back(zone, &codemap_, instance_object);
-  }
+  Isolate* isolate_;
+  Handle<WasmInstanceObject> instance_object_;
+  std::unique_ptr<StackValue[]> stack_;
+  StackValue* stack_limit_ = nullptr;  // End of allocated stack space.
+  StackValue* sp_ = nullptr;           // Current stack pointer.
+  // The reference stack is pointed to by a {Cell} to be able to replace the
+  // underlying {FixedArray} when growing the stack. This avoids having to
+  // recreate or update the global handle keeping this object alive.
+  Handle<Cell> reference_stack_cell_;  // References are on an on-heap stack.
+  ZoneVector<Frame> frames_;
+  WasmInterpreter::State state_ = WasmInterpreter::STOPPED;
+  TrapReason trap_reason_ = kTrapCount;
+  bool possible_nondeterminism_ = false;
+  uint64_t num_interpreted_calls_ = 0;
 };
 
 namespace {
@@ -3939,27 +3856,44 @@ WasmInterpreter::WasmInterpreter(Isolate* isolate, const WasmModule* module,
 // used in the {unique_ptr} in the header.
 WasmInterpreter::~WasmInterpreter() = default;
 
-void WasmInterpreter::Run() { internals_->threads_[0].Run(); }
+WasmInterpreter::State WasmInterpreter::state() { return internals_->state(); }
 
-void WasmInterpreter::Pause() { internals_->threads_[0].Pause(); }
-
-int WasmInterpreter::GetThreadCount() {
-  return 1;  // only one thread for now.
+void WasmInterpreter::InitFrame(const WasmFunction* function, WasmValue* args) {
+  internals_->InitFrame(function, args);
 }
 
-WasmInterpreter::Thread* WasmInterpreter::GetThread(int id) {
-  CHECK_EQ(0, id);  // only one thread for now.
-  return ToThread(&internals_->threads_[id]);
+WasmInterpreter::State WasmInterpreter::Run(int num_steps) {
+  return internals_->Run(num_steps);
+}
+
+void WasmInterpreter::Pause() { internals_->Pause(); }
+
+void WasmInterpreter::Reset() { internals_->Reset(); }
+
+WasmValue WasmInterpreter::GetReturnValue(int index) {
+  return internals_->GetReturnValue(index);
+}
+
+TrapReason WasmInterpreter::GetTrapReason() {
+  return internals_->GetTrapReason();
+}
+
+bool WasmInterpreter::PossibleNondeterminism() {
+  return internals_->PossibleNondeterminism();
+}
+
+uint64_t WasmInterpreter::NumInterpretedCalls() {
+  return internals_->NumInterpretedCalls();
 }
 
 void WasmInterpreter::AddFunctionForTesting(const WasmFunction* function) {
-  internals_->codemap_.AddFunction(function, nullptr, nullptr);
+  internals_->codemap()->AddFunction(function, nullptr, nullptr);
 }
 
 void WasmInterpreter::SetFunctionCodeForTesting(const WasmFunction* function,
                                                 const byte* start,
                                                 const byte* end) {
-  internals_->codemap_.SetFunctionCode(function, start, end);
+  internals_->codemap()->SetFunctionCode(function, start, end);
 }
 
 ControlTransferMap WasmInterpreter::ComputeControlTransfersForTesting(

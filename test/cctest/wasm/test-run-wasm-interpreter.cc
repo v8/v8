@@ -282,28 +282,27 @@ TEST(Step_I32Mul) {
   r.Build(code, code + arraysize(code));
 
   WasmInterpreter* interpreter = r.interpreter();
-  WasmInterpreter::Thread* thread = interpreter->GetThread(0);
 
   FOR_UINT32_INPUTS(a) {
     for (uint32_t b = 33; b < 3000000000u; b += 1000000000u) {
-      thread->Reset();
+      interpreter->Reset();
       WasmValue args[] = {WasmValue(a), WasmValue(b)};
-      thread->InitFrame(r.function(), args);
+      interpreter->InitFrame(r.function(), args);
 
       // Run instructions one by one.
       for (int i = 0; i < kTraceLength - 1; i++) {
-        thread->Step();
-        // Check the thread stopped.
-        CHECK_EQ(WasmInterpreter::PAUSED, thread->state());
+        interpreter->Step();
+        // Check the interpreter stopped.
+        CHECK_EQ(WasmInterpreter::PAUSED, interpreter->state());
       }
 
       // Run last instruction.
-      thread->Step();
+      interpreter->Step();
 
-      // Check the thread finished with the right value.
-      CHECK_EQ(WasmInterpreter::FINISHED, thread->state());
+      // Check the interpreter finished with the right value.
+      CHECK_EQ(WasmInterpreter::FINISHED, interpreter->state());
       uint32_t expected = (a) * (b);
-      CHECK_EQ(expected, thread->GetReturnValue().to<uint32_t>());
+      CHECK_EQ(expected, interpreter->GetReturnValue().to<uint32_t>());
     }
   }
 }

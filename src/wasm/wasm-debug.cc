@@ -191,13 +191,12 @@ class InterpreterHandle {
     DCHECK_EQ(sig->return_count(), return_values.size());
 
     WasmCodeRefScope code_ref_scope;
-    WasmInterpreter::Thread* thread = interpreter_.GetThread(0);
-    thread->InitFrame(&module()->functions[func_index],
-                      argument_values.begin());
+    interpreter_.InitFrame(&module()->functions[func_index],
+                           argument_values.begin());
     bool finished = false;
     while (!finished) {
       // TODO(clemensb): Add occasional StackChecks.
-      WasmInterpreter::State state = thread->Run();
+      WasmInterpreter::State state = interpreter_.Run();
       switch (state) {
         case WasmInterpreter::State::PAUSED:
           UNREACHABLE();
@@ -207,16 +206,16 @@ class InterpreterHandle {
           break;
         case WasmInterpreter::State::TRAPPED: {
           MessageTemplate message_id =
-              WasmOpcodes::TrapReasonToMessageId(thread->GetTrapReason());
+              WasmOpcodes::TrapReasonToMessageId(interpreter_.GetTrapReason());
           Handle<JSObject> exception =
               isolate_->factory()->NewWasmRuntimeError(message_id);
           JSObject::AddProperty(isolate_, exception,
                                 isolate_->factory()->wasm_uncatchable_symbol(),
                                 isolate_->factory()->true_value(), NONE);
-          auto result = thread->RaiseException(isolate_, exception);
-          if (result == WasmInterpreter::Thread::HANDLED) break;
+          auto result = interpreter_.RaiseException(isolate_, exception);
+          if (result == WasmInterpreter::HANDLED) break;
           // If no local handler was found, we fall-thru to {STOPPED}.
-          DCHECK_EQ(WasmInterpreter::State::STOPPED, thread->state());
+          DCHECK_EQ(WasmInterpreter::State::STOPPED, interpreter_.state());
           V8_FALLTHROUGH;
         }
         case WasmInterpreter::State::STOPPED:
@@ -239,7 +238,7 @@ class InterpreterHandle {
 #endif
     DCHECK_GE(max_count, sig->return_count());
     for (unsigned i = 0; i < sig->return_count(); ++i) {
-      return_values[i] = thread->GetReturnValue(i);
+      return_values[i] = interpreter_.GetReturnValue(i);
     }
 
     return true;

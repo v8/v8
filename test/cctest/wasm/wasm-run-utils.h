@@ -510,17 +510,16 @@ class WasmRunner : public WasmRunnerBase {
   }
 
   ReturnType CallInterpreter(ParamTypes... p) {
-    WasmInterpreter::Thread* thread = interpreter()->GetThread(0);
-    thread->Reset();
+    interpreter()->Reset();
     std::array<WasmValue, sizeof...(p)> args{{WasmValue(p)...}};
-    thread->InitFrame(function(), args.data());
-    thread->Run();
-    CHECK_GT(thread->NumInterpretedCalls(), 0);
-    if (thread->state() == WasmInterpreter::FINISHED) {
-      WasmValue val = thread->GetReturnValue();
-      possible_nondeterminism_ |= thread->PossibleNondeterminism();
+    interpreter()->InitFrame(function(), args.data());
+    interpreter()->Run();
+    CHECK_GT(interpreter()->NumInterpretedCalls(), 0);
+    if (interpreter()->state() == WasmInterpreter::FINISHED) {
+      WasmValue val = interpreter()->GetReturnValue();
+      possible_nondeterminism_ |= interpreter()->PossibleNondeterminism();
       return val.to<ReturnType>();
-    } else if (thread->state() == WasmInterpreter::TRAPPED) {
+    } else if (interpreter()->state() == WasmInterpreter::TRAPPED) {
       // TODO(titzer): return the correct trap code
       int64_t result = 0xDEADBEEFDEADBEEF;
       return static_cast<ReturnType>(result);
@@ -559,7 +558,7 @@ class WasmRunner : public WasmRunnerBase {
     }
 
     if (builder_.interpret()) {
-      CHECK_GT(builder_.interpreter()->GetThread(0)->NumInterpretedCalls(), 0);
+      CHECK_GT(builder_.interpreter()->NumInterpretedCalls(), 0);
     }
   }
 
