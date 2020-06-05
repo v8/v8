@@ -2657,77 +2657,110 @@ void Isolate::ThreadDataTable::RemoveAllThreads() {
   table_.clear();
 }
 
-class VerboseAccountingAllocator : public AccountingAllocator {
+class TracingAccountingAllocator : public AccountingAllocator {
  public:
-  VerboseAccountingAllocator(Heap* heap, size_t allocation_sample_bytes)
-      : heap_(heap), allocation_sample_bytes_(allocation_sample_bytes) {}
+  explicit TracingAccountingAllocator(Isolate* isolate) : isolate_(isolate) {}
 
-  v8::internal::Segment* AllocateSegment(size_t size) override {
-    v8::internal::Segment* memory = AccountingAllocator::AllocateSegment(size);
-    if (!memory) return nullptr;
-    size_t malloced_current = GetCurrentMemoryUsage();
-
-    if (last_memory_usage_ + allocation_sample_bytes_ < malloced_current) {
-      PrintMemoryJSON(malloced_current);
-      last_memory_usage_ = malloced_current;
-    }
-    return memory;
+ protected:
+  void TraceAllocateSegmentImpl(v8::internal::Segment* segment) override {
+    base::MutexGuard lock(&mutex_);
+    UpdateMemoryTrafficAndReportMemoryUsage(segment->total_size());
   }
 
-  void ReturnSegment(v8::internal::Segment* memory) override {
-    AccountingAllocator::ReturnSegment(memory);
-    size_t malloced_current = GetCurrentMemoryUsage();
-
-    if (malloced_current + allocation_sample_bytes_ < last_memory_usage_) {
-      PrintMemoryJSON(malloced_current);
-      last_memory_usage_ = malloced_current;
-    }
+  void TraceZoneCreationImpl(const Zone* zone) override {
+    base::MutexGuard lock(&mutex_);
+    active_zones_.insert(zone);
+    nesting_depth_++;
   }
 
-  void ZoneCreation(const Zone* zone) override {
-    PrintZoneModificationSample(zone, "zonecreation");
-    nesting_deepth_++;
-  }
-
-  void ZoneDestruction(const Zone* zone) override {
-    nesting_deepth_--;
-    PrintZoneModificationSample(zone, "zonedestruction");
+  void TraceZoneDestructionImpl(const Zone* zone) override {
+    base::MutexGuard lock(&mutex_);
+    UpdateMemoryTrafficAndReportMemoryUsage(zone->segment_bytes_allocated());
+    active_zones_.erase(zone);
+    nesting_depth_--;
   }
 
  private:
-  void PrintZoneModificationSample(const Zone* zone, const char* type) {
-    PrintF(
-        "{"
-        "\"type\": \"%s\", "
-        "\"isolate\": \"%p\", "
-        "\"time\": %f, "
-        "\"ptr\": \"%p\", "
-        "\"name\": \"%s\", "
-        "\"size\": %zu,"
-        "\"nesting\": %zu}\n",
-        type, reinterpret_cast<void*>(heap_->isolate()),
-        heap_->isolate()->time_millis_since_init(),
-        reinterpret_cast<const void*>(zone), zone->name(),
-        zone->allocation_size(), nesting_deepth_.load());
+  void UpdateMemoryTrafficAndReportMemoryUsage(size_t memory_traffic_delta) {
+    memory_traffic_since_last_report_ += memory_traffic_delta;
+    if (memory_traffic_since_last_report_ < FLAG_zone_stats_tolerance) return;
+    memory_traffic_since_last_report_ = 0;
+
+    Dump(buffer_, true);
+
+    {
+      std::string trace_str = buffer_.str();
+
+      if (FLAG_trace_zone_stats) {
+        PrintF(
+            "{"
+            "\"type\": \"v8-zone-trace\", "
+            "\"stats\": %s"
+            "}\n",
+            trace_str.c_str());
+      }
+      if (V8_UNLIKELY(
+              TracingFlags::zone_stats.load(std::memory_order_relaxed) &
+              v8::tracing::TracingCategoryObserver::ENABLED_BY_TRACING)) {
+        TRACE_EVENT_INSTANT1(TRACE_DISABLED_BY_DEFAULT("v8.zone_stats"),
+                             "V8.Zone_Stats", TRACE_EVENT_SCOPE_THREAD, "stats",
+                             TRACE_STR_COPY(trace_str.c_str()));
+      }
+    }
+
+    // Clear the buffer.
+    buffer_.str(std::string());
   }
 
-  void PrintMemoryJSON(size_t malloced) {
-    // Note: Neither isolate, nor heap is locked, so be careful with accesses
+  void Dump(std::ostringstream& out, bool dump_details) {
+    // Note: Neither isolate nor zones are locked, so be careful with accesses
     // as the allocator is potentially used on a concurrent thread.
-    double time = heap_->isolate()->time_millis_since_init();
-    PrintF(
-        "{"
-        "\"type\": \"zone\", "
-        "\"isolate\": \"%p\", "
-        "\"time\": %f, "
-        "\"allocated\": %zu}\n",
-        reinterpret_cast<void*>(heap_->isolate()), time, malloced);
+    double time = isolate_->time_millis_since_init();
+    out << "{"
+        << "\"isolate\": \"" << reinterpret_cast<void*>(isolate_) << "\", "
+        << "\"time\": " << time << ", ";
+    size_t total_segment_bytes_allocated = 0;
+    size_t total_zone_allocation_size = 0;
+
+    if (dump_details) {
+      // Print detailed zone stats if memory usage changes direction.
+      out << "\"zones\": [";
+      bool first = true;
+      for (const Zone* zone : active_zones_) {
+        size_t zone_segment_bytes_allocated = zone->segment_bytes_allocated();
+        size_t zone_allocation_size = zone->allocation_size_for_tracing();
+        if (first) {
+          first = false;
+        } else {
+          out << ", ";
+        }
+        out << "{"
+            << "\"name\": \"" << zone->name() << "\", "
+            << "\"allocated\": " << zone_segment_bytes_allocated << ", "
+            << "\"used\": " << zone_allocation_size << "}";
+        total_segment_bytes_allocated += zone_segment_bytes_allocated;
+        total_zone_allocation_size += zone_allocation_size;
+      }
+      out << "], ";
+    } else {
+      // Just calculate total allocated/used memory values.
+      for (const Zone* zone : active_zones_) {
+        total_segment_bytes_allocated += zone->segment_bytes_allocated();
+        total_zone_allocation_size += zone->allocation_size_for_tracing();
+      }
+    }
+    out << "\"allocated\": " << total_segment_bytes_allocated << ", "
+        << "\"used\": " << total_zone_allocation_size << "}";
   }
 
-  Heap* heap_;
-  std::atomic<size_t> last_memory_usage_{0};
-  std::atomic<size_t> nesting_deepth_{0};
-  size_t allocation_sample_bytes_;
+  Isolate* const isolate_;
+  std::atomic<size_t> nesting_depth_{0};
+
+  base::Mutex mutex_;
+  std::unordered_set<const Zone*> active_zones_;
+  std::ostringstream buffer_;
+  // This value is increased on both allocations and deallocations.
+  size_t memory_traffic_since_last_report_ = 0;
 };
 
 #ifdef DEBUG
@@ -2806,9 +2839,7 @@ Isolate::Isolate(std::unique_ptr<i::IsolateAllocator> isolate_allocator)
     : isolate_data_(this),
       isolate_allocator_(std::move(isolate_allocator)),
       id_(isolate_counter.fetch_add(1, std::memory_order_relaxed)),
-      allocator_(FLAG_trace_zone_stats
-                     ? new VerboseAccountingAllocator(&heap_, 256 * KB)
-                     : new AccountingAllocator()),
+      allocator_(new TracingAccountingAllocator(this)),
       builtins_(this),
       rail_mode_(PERFORMANCE_ANIMATION),
       code_event_dispatcher_(new CodeEventDispatcher()),
