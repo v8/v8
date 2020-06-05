@@ -465,7 +465,7 @@ bool Builtins::CodeObjectIsExecutable(int builtin_index) {
       return true;
     default:
 #if V8_TARGET_ARCH_MIPS || V8_TARGET_ARCH_MIPS64 || V8_TARGET_ARCH_RISCV
-      //FIXME: RISCV Porting decide valude
+      //FIXME(RISCV): Is this correct for RISC-V?
       // TODO(Loongson): Move non-JS linkage builtins code objects into RO_SPACE
       // caused MIPS platform to crash, and we need some time to handle it. Now
       // disable this change temporarily on MIPS platform.

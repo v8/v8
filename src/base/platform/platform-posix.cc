@@ -292,9 +292,8 @@ void* OS::GetRandomMmapAddr() {
   // to fulfill request.
   raw_addr &= uint64_t{0xFFFFFF0000};
 #elif V8_TARGET_ARCH_RISCV
-  // FIXME: RISCV porting fix the raw addr
-  // 42 bits of virtual addressing. Truncate to 40 bits to allow kernel chance
-  // to fulfill request.
+  // FIXME(RISCV): We need more information from the kernel to correctly mask
+  // this address for RISC-V.
   raw_addr &= uint64_t{0xFFFFFF0000};
 #else
   raw_addr &= 0x3FFFF000;

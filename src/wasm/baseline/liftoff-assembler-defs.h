@@ -125,7 +125,6 @@ constexpr Condition kUnsignedGreaterThan = hi;
 constexpr Condition kUnsignedGreaterEqual = hs;
 
 #elif V8_TARGET_ARCH_RISCV
-//FIXME: RISCV porting: use RISCV value
 constexpr Condition kEqual = eq;
 constexpr Condition kUnequal = ne;
 constexpr Condition kSignedLessThan = lt;

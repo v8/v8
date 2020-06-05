@@ -60,7 +60,6 @@ static void FloodWithInc(Isolate* isolate, TestingAssemblerBuffer* buffer) {
     __ agfi(r2, Operand(1));
   }
 #elif V8_TARGET_ARCH_RISCV
-  //FIXME: RISCV Porting use riscv code
   for (int i = 0; i < kNumInstr; ++i) {
     __ Addu(a0, a0, Operand(1));
   }
