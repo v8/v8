@@ -649,14 +649,15 @@ class WasmGraphBuildingInterface {
   }
 
   void StructGet(FullDecoder* decoder, const Value& struct_object,
-                 const FieldIndexImmediate<validate>& field, Value* result) {
+                 const FieldIndexImmediate<validate>& field, bool is_signed,
+                 Value* result) {
     using CheckForNull = compiler::WasmGraphBuilder::CheckForNull;
     CheckForNull null_check = struct_object.type.kind() == ValueType::kRef
                                   ? CheckForNull::kWithoutNullCheck
                                   : CheckForNull::kWithNullCheck;
     result->node =
         BUILD(StructGet, struct_object.node, field.struct_index.struct_type,
-              field.index, null_check, decoder->position());
+              field.index, null_check, is_signed, decoder->position());
   }
 
   void StructSet(FullDecoder* decoder, const Value& struct_object,
@@ -679,9 +680,9 @@ class WasmGraphBuildingInterface {
 
   void ArrayGet(FullDecoder* decoder, const Value& array_obj,
                 const ArrayIndexImmediate<validate>& imm, const Value& index,
-                Value* result) {
+                bool is_signed, Value* result) {
     result->node = BUILD(ArrayGet, array_obj.node, imm.array_type, index.node,
-                         decoder->position());
+                         is_signed, decoder->position());
   }
 
   void ArraySet(FullDecoder* decoder, const Value& array_obj,

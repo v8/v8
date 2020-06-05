@@ -3560,7 +3560,8 @@ class LiftoffCompiler {
     unsupported(decoder, kGC, "struct.new");
   }
   void StructGet(FullDecoder* decoder, const Value& struct_obj,
-                 const FieldIndexImmediate<validate>& field, Value* result) {
+                 const FieldIndexImmediate<validate>& field, bool is_signed,
+                 Value* result) {
     // TODO(7748): Implement.
     unsupported(decoder, kGC, "struct.get");
   }
@@ -3579,7 +3580,7 @@ class LiftoffCompiler {
   }
   void ArrayGet(FullDecoder* decoder, const Value& array_obj,
                 const ArrayIndexImmediate<validate>& imm, const Value& index,
-                Value* result) {
+                bool is_signed, Value* result) {
     // TODO(7748): Implement.
     unsupported(decoder, kGC, "array.get");
   }

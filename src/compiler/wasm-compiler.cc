@@ -5091,9 +5091,10 @@ Node* WasmGraphBuilder::TableFill(uint32_t table_index, Node* start,
 
 namespace {
 
-MachineType FieldType(const wasm::StructType* type, uint32_t field_index) {
+MachineType FieldType(const wasm::StructType* type, uint32_t field_index,
+                      bool is_signed) {
   return MachineType::TypeForRepresentation(
-      type->field(field_index).machine_representation());
+      type->field(field_index).machine_representation(), is_signed);
 }
 
 Node* FieldOffset(MachineGraph* graph, const wasm::StructType* type,
@@ -5103,19 +5104,43 @@ Node* FieldOffset(MachineGraph* graph, const wasm::StructType* type,
   return graph->IntPtrConstant(offset);
 }
 
+// It's guaranteed that struct/array fields are aligned to min(field_size,
+// kTaggedSize), with the latter being 4 or 8 depending on platform and
+// pointer compression. So on our most common configurations, 8-byte types
+// must use unaligned loads/stores.
+Node* LoadWithTaggedAlignment(WasmGraphAssembler* gasm, MachineType type,
+                              Node* base, Node* offset) {
+  if (ElementSizeInBytes(type.representation()) > kTaggedSize) {
+    return gasm->LoadUnaligned(type, base, offset);
+  } else {
+    return gasm->Load(type, base, offset);
+  }
+}
+
+// Same alignment considerations as above.
+Node* StoreWithTaggedAlignment(WasmGraphAssembler* gasm, Node* base,
+                               Node* offset, Node* value,
+                               wasm::ValueType type) {
+  MachineRepresentation rep = type.machine_representation();
+  if (ElementSizeInBytes(rep) > kTaggedSize) {
+    return gasm->StoreUnaligned(rep, base, offset, value);
+  } else {
+    WriteBarrierKind write_barrier =
+        type.IsReferenceType() ? kPointerWriteBarrier : kNoWriteBarrier;
+    StoreRepresentation store_rep(rep, write_barrier);
+    return gasm->Store(store_rep, base, offset, value);
+  }
+}
+
 // Set a field of a struct, without checking if the struct is null.
 // Helper method for StructNew and StructSet.
 Node* StoreStructFieldUnchecked(MachineGraph* graph, WasmGraphAssembler* gasm,
                                 Node* struct_object,
                                 const wasm::StructType* type,
                                 uint32_t field_index, Node* value) {
-  WriteBarrierKind write_barrier = type->field(field_index).IsReferenceType()
-                                       ? kPointerWriteBarrier
-                                       : kNoWriteBarrier;
-  StoreRepresentation rep(type->field(field_index).machine_representation(),
-                          write_barrier);
-  Node* offset = FieldOffset(graph, type, field_index);
-  return gasm->Store(rep, struct_object, offset, value);
+  return StoreWithTaggedAlignment(gasm, struct_object,
+                                  FieldOffset(graph, type, field_index), value,
+                                  type->field(field_index));
 }
 
 Node* ArrayElementOffset(GraphAssembler* gasm, Node* index,
@@ -5179,10 +5204,6 @@ Node* WasmGraphBuilder::ArrayNew(uint32_t array_index,
       graph()->NewNode(mcgraph()->common()->NumberConstant(
           element_type.element_size_bytes())),
       LOAD_INSTANCE_FIELD(NativeContext, MachineType::TaggedPointer()));
-  WriteBarrierKind write_barrier =
-      element_type.IsReferenceType() ? kPointerWriteBarrier : kNoWriteBarrier;
-  StoreRepresentation rep(element_type.machine_representation(), write_barrier);
-
   auto loop = gasm_->MakeLoopLabel(MachineRepresentation::kWord32);
   auto done = gasm_->MakeLabel();
   Node* start_offset =
@@ -5202,7 +5223,8 @@ Node* WasmGraphBuilder::ArrayNew(uint32_t array_index,
     Node* offset = loop.PhiAt(0);
     Node* check = gasm_->Uint32LessThan(offset, end_offset);
     gasm_->GotoIfNot(check, &done);
-    gasm_->Store(rep, a, offset, initial_value);
+    StoreWithTaggedAlignment(gasm_.get(), a, offset, initial_value,
+                             type->element_type());
     offset = gasm_->Int32Add(offset, element_size);
     gasm_->Goto(&loop, offset);
   }
@@ -5213,14 +5235,16 @@ Node* WasmGraphBuilder::ArrayNew(uint32_t array_index,
 Node* WasmGraphBuilder::StructGet(Node* struct_object,
                                   const wasm::StructType* struct_type,
                                   uint32_t field_index, CheckForNull null_check,
+                                  bool is_signed,
                                   wasm::WasmCodePosition position) {
   if (null_check == kWithNullCheck) {
     TrapIfTrue(wasm::kTrapNullDereference,
                gasm_->WordEqual(struct_object, RefNull()), position);
   }
-  MachineType machine_type = FieldType(struct_type, field_index);
+  MachineType machine_type = FieldType(struct_type, field_index, is_signed);
   Node* offset = FieldOffset(mcgraph(), struct_type, field_index);
-  return gasm_->Load(machine_type, struct_object, offset);
+  return LoadWithTaggedAlignment(gasm_.get(), machine_type, struct_object,
+                                 offset);
 }
 
 Node* WasmGraphBuilder::StructSet(Node* struct_object,
@@ -5245,14 +5269,16 @@ void WasmGraphBuilder::BoundsCheck(Node* array, Node* index,
 
 Node* WasmGraphBuilder::ArrayGet(Node* array_object,
                                  const wasm::ArrayType* type, Node* index,
+                                 bool is_signed,
                                  wasm::WasmCodePosition position) {
   TrapIfTrue(wasm::kTrapNullDereference,
              gasm_->WordEqual(array_object, RefNull()), position);
   BoundsCheck(array_object, index, position);
   MachineType machine_type = MachineType::TypeForRepresentation(
-      type->element_type().machine_representation());
+      type->element_type().machine_representation(), is_signed);
   Node* offset = ArrayElementOffset(gasm_.get(), index, type->element_type());
-  return gasm_->Load(machine_type, array_object, offset);
+  return LoadWithTaggedAlignment(gasm_.get(), machine_type, array_object,
+                                 offset);
 }
 
 Node* WasmGraphBuilder::ArraySet(Node* array_object,
@@ -5261,13 +5287,9 @@ Node* WasmGraphBuilder::ArraySet(Node* array_object,
   TrapIfTrue(wasm::kTrapNullDereference,
              gasm_->WordEqual(array_object, RefNull()), position);
   BoundsCheck(array_object, index, position);
-  WriteBarrierKind write_barrier = type->element_type().IsReferenceType()
-                                       ? kPointerWriteBarrier
-                                       : kNoWriteBarrier;
-  StoreRepresentation rep(type->element_type().machine_representation(),
-                          write_barrier);
   Node* offset = ArrayElementOffset(gasm_.get(), index, type->element_type());
-  return gasm_->Store(rep, array_object, offset, value);
+  return StoreWithTaggedAlignment(gasm_.get(), array_object, offset, value,
+                                  type->element_type());
 }
 
 Node* WasmGraphBuilder::ArrayLen(Node* array_object,
