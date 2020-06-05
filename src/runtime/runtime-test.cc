@@ -915,13 +915,12 @@ int StackSize(Isolate* isolate) {
   return n;
 }
 
-void PrintIndentation(Isolate* isolate) {
-  const int nmax = 80;
-  int n = StackSize(isolate);
-  if (n <= nmax) {
-    PrintF("%4d:%*s", n, n, "");
+void PrintIndentation(int stack_size) {
+  const int max_display = 80;
+  if (stack_size <= max_display) {
+    PrintF("%4d:%*s", stack_size, stack_size, "");
   } else {
-    PrintF("%4d:%*s", n, nmax, "...");
+    PrintF("%4d:%*s", stack_size, max_display, "...");
   }
 }
 
@@ -930,7 +929,7 @@ void PrintIndentation(Isolate* isolate) {
 RUNTIME_FUNCTION(Runtime_TraceEnter) {
   SealHandleScope shs(isolate);
   DCHECK_EQ(0, args.length());
-  PrintIndentation(isolate);
+  PrintIndentation(StackSize(isolate));
   JavaScriptFrame::PrintTop(isolate, stdout, true, false);
   PrintF(" {\n");
   return ReadOnlyRoots(isolate).undefined_value();
@@ -940,18 +939,59 @@ RUNTIME_FUNCTION(Runtime_TraceExit) {
   SealHandleScope shs(isolate);
   DCHECK_EQ(1, args.length());
   CONVERT_ARG_CHECKED(Object, obj, 0);
-  PrintIndentation(isolate);
+  PrintIndentation(StackSize(isolate));
   PrintF("} -> ");
   obj.ShortPrint();
   PrintF("\n");
   return obj;  // return TOS
 }
 
+namespace {
+
+int WasmStackSize(Isolate* isolate) {
+  // TODO(wasm): Fix this for mixed JS/Wasm stacks with both --trace and
+  // --trace-wasm.
+  int n = 0;
+  for (StackTraceFrameIterator it(isolate); !it.done(); it.Advance()) {
+    if (it.is_wasm()) n++;
+  }
+  return n;
+}
+
+}  // namespace
+
 RUNTIME_FUNCTION(Runtime_WasmTraceEnter) {
-  SealHandleScope shs(isolate);
+  HandleScope shs(isolate);
   DCHECK_EQ(0, args.length());
-  // TODO(10559): Print function name and indentation.
-  PrintF("Enter function\n");
+  PrintIndentation(WasmStackSize(isolate));
+
+  // Find the caller wasm frame.
+  wasm::WasmCodeRefScope wasm_code_ref_scope;
+  StackTraceFrameIterator it(isolate);
+  DCHECK(!it.done());
+  DCHECK(it.is_wasm());
+  WasmFrame* frame = WasmFrame::cast(it.frame());
+
+  // Find the function name.
+  int func_index = frame->function_index();
+  const wasm::WasmModule* module = frame->wasm_instance().module();
+  wasm::ModuleWireBytes wire_bytes =
+      wasm::ModuleWireBytes(frame->native_module()->wire_bytes());
+  wasm::WireBytesRef name_ref =
+      module->lazily_generated_names.LookupFunctionName(
+          wire_bytes, func_index, VectorOf(module->export_table));
+  wasm::WasmName name = wire_bytes.GetNameOrNull(name_ref);
+
+  wasm::WasmCode* code = frame->wasm_code();
+  PrintF(code->is_liftoff() ? "~" : "*");
+
+  if (name.empty()) {
+    PrintF("wasm-function[%d] {\n", func_index);
+  } else {
+    PrintF("wasm-function[%d] \"%.*s\" {\n", func_index, name.length(),
+           name.begin());
+  }
+
   return ReadOnlyRoots(isolate).undefined_value();
 }
 
@@ -960,8 +1000,8 @@ RUNTIME_FUNCTION(Runtime_WasmTraceExit) {
   DCHECK_EQ(1, args.length());
   CONVERT_ARG_CHECKED(Smi, value_addr_smi, 0);
 
-  // TODO(10559): Print function name and indentation.
-  PrintF("Exit function");
+  PrintIndentation(WasmStackSize(isolate));
+  PrintF("}");
 
   // Find the caller wasm frame.
   wasm::WasmCodeRefScope wasm_code_ref_scope;

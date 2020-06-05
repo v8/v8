@@ -11,10 +11,17 @@ let kRet23Function = builder.addFunction('ret_23', kSig_i_v)
                          .addBody([kExprI32Const, 23])
                          .exportFunc()
                          .index;
+let kCall23Function = builder.addFunction('call_23', kSig_i_v)
+                          .addBody([kExprCallFunction, kRet23Function])
+                          .exportFunc()
+                          .index;
 let kRet57Function = builder.addFunction('ret_57', kSig_l_v)
                          .addBody([kExprI64Const, 57])
                          .exportFunc()
                          .index;
+let kUnnamedFunction = builder.addFunction(undefined, kSig_l_v)
+                           .addBody([kExprCallFunction, kRet57Function])
+                           .index;
 let kRet0Function = builder.addFunction('ret_0', kSig_f_v)
                         .addBody(wasmF32Const(0))
                         .exportFunc()
@@ -25,10 +32,10 @@ let kRet1Function = builder.addFunction('ret_1', kSig_d_v)
                         .index;
 builder.addFunction('main', kSig_v_v)
     .addBody([
-      kExprCallFunction, kRet23Function, kExprDrop,  // -
-      kExprCallFunction, kRet57Function, kExprDrop,  // -
-      kExprCallFunction, kRet0Function, kExprDrop,   // -
-      kExprCallFunction, kRet1Function, kExprDrop    // -
+      kExprCallFunction, kCall23Function, kExprDrop,   // -
+      kExprCallFunction, kUnnamedFunction, kExprDrop,  // -
+      kExprCallFunction, kRet0Function, kExprDrop,     // -
+      kExprCallFunction, kRet1Function, kExprDrop      // -
     ])
     .exportAs('main');
 

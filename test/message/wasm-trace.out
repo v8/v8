@@ -1,10 +1,14 @@
-Enter function
-Enter function
-Exit function -> 23
-Enter function
-Exit function -> 57
-Enter function
-Exit function -> 0.000000
-Enter function
-Exit function -> 1.000000
-Exit function
+   1: ~wasm-function[6] "main" {
+   2:  ~wasm-function[1] "call_23" {
+   3:   ~wasm-function[0] "ret_23" {
+   3:   } -> 23
+   2:  } -> 23
+   2:  ~wasm-function[3] {
+   3:   ~wasm-function[2] "ret_57" {
+   3:   } -> 57
+   2:  } -> 57
+   2:  ~wasm-function[4] "ret_0" {
+   2:  } -> 0.000000
+   2:  ~wasm-function[5] "ret_1" {
+   2:  } -> 1.000000
+   1: }
