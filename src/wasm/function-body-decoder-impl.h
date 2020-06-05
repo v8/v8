@@ -2119,7 +2119,7 @@ class WasmFullDecoder : public WasmDecoder<validate> {
           break;
         }
         case kExprBrOnNull: {
-          CHECK_PROTOTYPE_OPCODE(gc);
+          CHECK_PROTOTYPE_OPCODE(typed_funcref);
           BranchDepthImmediate<validate> imm(this, this->pc_);
           if (!this->Validate(this->pc_, imm, control_.size())) break;
           len = 1 + imm.length;
@@ -2180,7 +2180,8 @@ class WasmFullDecoder : public WasmDecoder<validate> {
           uint32_t locals_count = static_cast<uint32_t>(local_type_vec_.size() -
                                                         current_local_count);
           ArgVector let_local_values =
-              PopArgs(VectorOf(local_type_vec_.data(), locals_count));
+              PopArgs(static_cast<uint32_t>(imm.in_arity()),
+                      VectorOf(local_type_vec_.data(), locals_count));
           ArgVector args = PopArgs(imm.sig);
           Control* let_block = PushControl(kControlLet, locals_count);
           SetBlockType(let_block, imm, args.begin());
@@ -2471,7 +2472,7 @@ class WasmFullDecoder : public WasmDecoder<validate> {
           break;
         }
         case kExprRefAsNonNull: {
-          CHECK_PROTOTYPE_OPCODE(gc);
+          CHECK_PROTOTYPE_OPCODE(typed_funcref);
           Value value = Pop();
           switch (value.type.kind()) {
             case ValueType::kRef: {
@@ -2903,15 +2904,16 @@ class WasmFullDecoder : public WasmDecoder<validate> {
     int count = static_cast<int>(type->field_count());
     ArgVector args(count);
     for (int i = count - 1; i >= 0; i--) {
-      args[i] = Pop(i, type->field(i));
+      args[i] = Pop(i, type->field(i).Unpack());
     }
     return args;
   }
 
-  V8_INLINE ArgVector PopArgs(Vector<ValueType> arg_types) {
+  V8_INLINE ArgVector PopArgs(uint32_t base_index,
+                              Vector<ValueType> arg_types) {
     ArgVector args(arg_types.size());
     for (int i = static_cast<int>(arg_types.size()) - 1; i >= 0; i--) {
-      args[i] = Pop(i, arg_types[i]);
+      args[i] = Pop(base_index + i, arg_types[i]);
     }
     return args;
   }
@@ -3267,14 +3269,13 @@ class WasmFullDecoder : public WasmDecoder<validate> {
         FieldIndexImmediate<validate> field(this, this->pc_ + len);
         if (!this->Validate(this->pc_ + len, field)) break;
         len += field.length;
-        if (!field.struct_index.struct_type->mutability(field.index)) {
+        const StructType* struct_type = field.struct_index.struct_type;
+        if (!struct_type->mutability(field.index)) {
           this->error(this->pc_, "setting immutable struct field");
           break;
         }
-        Value field_value = Pop(
-            0,
-            ValueType(
-                field.struct_index.struct_type->field(field.index).Unpack()));
+        Value field_value =
+            Pop(1, ValueType(struct_type->field(field.index).Unpack()));
         Value struct_obj =
             Pop(0, ValueType(ValueType::kOptRef, field.struct_index.index));
         CALL_INTERFACE_IF_REACHABLE(StructSet, struct_obj, field, field_value);
@@ -3284,8 +3285,8 @@ class WasmFullDecoder : public WasmDecoder<validate> {
         ArrayIndexImmediate<validate> imm(this, this->pc_ + len);
         len += imm.length;
         if (!this->Validate(this->pc_, imm)) break;
-        Value length = Pop(0, kWasmI32);
-        Value initial_value = Pop(0, imm.array_type->element_type());
+        Value length = Pop(1, kWasmI32);
+        Value initial_value = Pop(0, imm.array_type->element_type().Unpack());
         Value* value = Push(ValueType(ValueType::kRef, imm.index));
         CALL_INTERFACE_IF_REACHABLE(ArrayNew, imm, length, initial_value,
                                     value);
@@ -3301,7 +3302,7 @@ class WasmFullDecoder : public WasmDecoder<validate> {
                       "Use array.get_s or array.get_u instead.");
           break;
         }
-        Value index = Pop(0, kWasmI32);
+        Value index = Pop(1, kWasmI32);
         Value array_obj = Pop(0, ValueType(ValueType::kOptRef, imm.index));
         Value* value = Push(imm.array_type->element_type());
         // TODO(7748): Optimize this when array_obj is non-nullable ref.
@@ -3316,8 +3317,8 @@ class WasmFullDecoder : public WasmDecoder<validate> {
           this->error(this->pc_, "setting element of immutable array");
           break;
         }
-        Value value = Pop(0, imm.array_type->element_type().Unpack());
-        Value index = Pop(0, kWasmI32);
+        Value value = Pop(2, imm.array_type->element_type().Unpack());
+        Value index = Pop(1, kWasmI32);
         Value array_obj = Pop(0, ValueType(ValueType::kOptRef, imm.index));
         // TODO(7748): Optimize this when array_obj is non-nullable ref.
         CALL_INTERFACE_IF_REACHABLE(ArraySet, array_obj, imm, index, value);

@@ -58,11 +58,14 @@ static const WasmOpcode kInt32BinopOpcodes[] = {
 
 constexpr size_t kMaxByteSizedLeb128 = 127;
 
+using F = std::pair<ValueType, bool>;
+
 // A helper for tests that require a module environment for functions,
 // globals, or memories.
 class TestModuleBuilder {
  public:
-  explicit TestModuleBuilder(ModuleOrigin origin = kWasmOrigin) {
+  explicit TestModuleBuilder(ModuleOrigin origin = kWasmOrigin)
+      : allocator(), mod(std::make_unique<Zone>(&allocator, "TEST_ZONE")) {
     mod.origin = origin;
   }
   byte AddGlobal(ValueType type, bool mutability = true) {
@@ -110,6 +113,23 @@ class TestModuleBuilder {
     return static_cast<byte>(mod.tables.size() - 1);
   }
 
+  byte AddStruct(std::initializer_list<F> fields) {
+    StructType::Builder type_builder(mod.signature_zone.get(),
+                                     static_cast<uint32_t>(fields.size()));
+    for (F field : fields) {
+      type_builder.AddField(field.first, field.second);
+    }
+    mod.add_struct_type(type_builder.Build());
+    return static_cast<byte>(mod.type_kinds.size() - 1);
+  }
+
+  byte AddArray(ValueType type, bool mutability) {
+    ArrayType* array =
+        new (mod.signature_zone.get()) ArrayType(type, mutability);
+    mod.add_array_type(array);
+    return static_cast<byte>(mod.type_kinds.size() - 1);
+  }
+
   void InitializeMemory() {
     mod.has_memory = true;
     mod.initial_pages = 1;
@@ -149,6 +169,7 @@ class TestModuleBuilder {
   WasmModule* module() { return &mod; }
 
  private:
+  AccountingAllocator allocator;
   WasmModule mod;
 };
 
@@ -3338,6 +3359,31 @@ TEST_F(FunctionBodyDecoderTest, TableInitMultiTable) {
     table_index = 1;
     ExpectValidates(sigs.v_v(), {WASM_TABLE_INIT(table_index, 0, WASM_ZERO,
                                                  WASM_ZERO, WASM_ZERO)});
+  }
+}
+
+TEST_F(FunctionBodyDecoderTest, UnpackPackedTypes) {
+  WASM_FEATURE_SCOPE(anyref);
+  WASM_FEATURE_SCOPE(gc);
+  {
+    TestModuleBuilder builder;
+    byte type_index = builder.AddStruct({F(kWasmI8, true), F(kWasmI16, false)});
+    module = builder.module();
+    ExpectValidates(sigs.v_v(),
+                    {WASM_STRUCT_SET(type_index, 0,
+                                     WASM_STRUCT_NEW(type_index, WASM_I32V(1),
+                                                     WASM_I32V(42)),
+                                     WASM_I32V(-1))});
+  }
+  {
+    TestModuleBuilder builder;
+    byte type_index = builder.AddArray(kWasmI8, true);
+    module = builder.module();
+    ExpectValidates(
+        sigs.v_v(),
+        {WASM_ARRAY_SET(type_index,
+                        WASM_ARRAY_NEW(type_index, WASM_I32V(10), WASM_I32V(5)),
+                        WASM_I32V(3), WASM_I32V(12345678))});
   }
 }
 
