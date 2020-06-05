@@ -193,9 +193,7 @@ class MapProcessor extends LogReader {
   processMapDetails(time, id, string) {
     //TODO(cbruni): fix initial map logging.
     let map = this.getExistingMap(id, time);
-    if (!map.description) {
-      //map.description = string;
-    }
+    if (!map.description) map.description = string;
   }
 
   createMap(id, time) {
