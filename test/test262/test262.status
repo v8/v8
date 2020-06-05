@@ -646,6 +646,17 @@
   'harness/detachArrayBuffer': [SKIP],
   'harness/detachArrayBuffer-host-detachArrayBuffer': [SKIP],
 
+  # Invalid due to a recent spec change (will be updated when we roll test262).
+  # https://bugs.chromium.org/p/v8/issues/detail?id=10578
+  'built-ins/Promise/all/invoke-resolve-get-error-close': [SKIP],
+  'built-ins/Promise/all/resolve-not-callable-close': [SKIP],
+  'built-ins/Promise/allSettled/invoke-resolve-get-error-close': [SKIP],
+  'built-ins/Promise/allSettled/resolve-not-callable-close': [SKIP],
+  'built-ins/Promise/any/invoke-resolve-get-error-close': [SKIP],
+  'built-ins/Promise/any/resolve-not-callable-close': [SKIP],
+  'built-ins/Promise/race/invoke-resolve-get-error-close': [SKIP],
+  'built-ins/Promise/race/resolve-not-callable-close': [SKIP],
+
   ############################ SKIPPED TESTS #############################
 
   # These tests take a looong time to run.

@@ -546,6 +546,8 @@ extern transitioning macro HasProperty_Inline(implicit context: Context)(
 extern builtin LoadIC(
     Context, JSAny, JSAny, TaggedIndex, FeedbackVector): JSAny;
 
+extern macro SetPropertyStrict(Context, Object, Object, Object): Object;
+
 extern macro ThrowRangeError(implicit context: Context)(
     constexpr MessageTemplate): never;
 extern macro ThrowRangeError(implicit context: Context)(
