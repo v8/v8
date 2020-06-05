@@ -522,7 +522,61 @@ void LiftoffAssembler::AtomicCompareExchange(
     Register dst_addr, Register offset_reg, uint32_t offset_imm,
     LiftoffRegister expected, LiftoffRegister new_value, LiftoffRegister result,
     StoreType type) {
-  bailout(kAtomics, "AtomicCompareExchange");
+  LiftoffRegList pinned =
+      LiftoffRegList::ForRegs(dst_addr, offset_reg, expected, new_value);
+
+  Register result_reg = result.gp();
+  if (pinned.has(result)) {
+    result_reg = GetUnusedRegister(kGpReg, pinned).gp();
+  }
+
+  UseScratchRegisterScope temps(this);
+  Register store_result = temps.AcquireW();
+
+  Register actual_addr = liftoff::CalculateActualAddress(
+      this, dst_addr, offset_reg, offset_imm, temps.AcquireX());
+
+  Label retry;
+  Label done;
+  Bind(&retry);
+  switch (type.value()) {
+    case StoreType::kI64Store8:
+    case StoreType::kI32Store8:
+      ldaxrb(result_reg.W(), actual_addr);
+      Cmp(result.gp().W(), Operand(expected.gp().W(), UXTB));
+      B(ne, &done);
+      stlxrb(store_result.W(), new_value.gp().W(), actual_addr);
+      break;
+    case StoreType::kI64Store16:
+    case StoreType::kI32Store16:
+      ldaxrh(result_reg.W(), actual_addr);
+      Cmp(result.gp().W(), Operand(expected.gp().W(), UXTH));
+      B(ne, &done);
+      stlxrh(store_result.W(), new_value.gp().W(), actual_addr);
+      break;
+    case StoreType::kI64Store32:
+    case StoreType::kI32Store:
+      ldaxr(result_reg.W(), actual_addr);
+      Cmp(result.gp().W(), Operand(expected.gp().W(), UXTW));
+      B(ne, &done);
+      stlxr(store_result.W(), new_value.gp().W(), actual_addr);
+      break;
+    case StoreType::kI64Store:
+      ldaxr(result_reg.X(), actual_addr);
+      Cmp(result.gp().X(), Operand(expected.gp().X(), UXTX));
+      B(ne, &done);
+      stlxr(store_result.W(), new_value.gp().X(), actual_addr);
+      break;
+    default:
+      UNREACHABLE();
+  }
+
+  Cbnz(store_result.W(), &retry);
+  Bind(&done);
+
+  if (result_reg != result.gp()) {
+    mov(result.gp(), result_reg);
+  }
 }
 
 void LiftoffAssembler::AtomicFence() { Dmb(InnerShareable, BarrierAll); }
