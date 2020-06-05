@@ -601,18 +601,17 @@ class V8_EXPORT_PRIVATE NativeModule final {
       Vector<WasmCompilationResult>);
 
   // Set a new tiering state, but don't trigger any recompilation yet; use
-  // {TriggerRecompilation} for that. The two steps are split because In some
+  // {RecompileForTiering} for that. The two steps are split because In some
   // scenarios we need to drop locks before triggering recompilation.
   void SetTieringState(TieringState);
 
   // Check whether this modules is tiered down for debugging.
   bool IsTieredDown();
 
-  // Trigger a full recompilation of this module, in the tier set previously via
-  // {SetTieringState}. When tiering down, the calling thread contributes to
-  // compilation and only returns once recompilation is done. Tiering up happens
-  // concurrently, so this method might return before it is complete.
-  void TriggerRecompilation();
+  // Fully recompile this module in the tier set previously via
+  // {SetTieringState}. The calling thread contributes to compilation and only
+  // returns once recompilation is done.
+  void RecompileForTiering();
 
   // Find all functions that need to be recompiled for a new tier. Note that
   // compilation jobs might run concurrently, so this method only considers the

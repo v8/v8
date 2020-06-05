@@ -1469,7 +1469,7 @@ RUNTIME_FUNCTION(Runtime_WasmTierDownModule) {
   CONVERT_ARG_HANDLE_CHECKED(WasmInstanceObject, instance, 0);
   auto* native_module = instance->module_object().native_module();
   native_module->SetTieringState(wasm::kTieredDown);
-  native_module->TriggerRecompilation();
+  native_module->RecompileForTiering();
   CHECK(!native_module->compilation_state()->failed());
   return ReadOnlyRoots(isolate).undefined_value();
 }
@@ -1480,7 +1480,7 @@ RUNTIME_FUNCTION(Runtime_WasmTierUpModule) {
   CONVERT_ARG_HANDLE_CHECKED(WasmInstanceObject, instance, 0);
   auto* native_module = instance->module_object().native_module();
   native_module->SetTieringState(wasm::kTieredUp);
-  native_module->TriggerRecompilation();
+  native_module->RecompileForTiering();
   CHECK(!native_module->compilation_state()->failed());
   return ReadOnlyRoots(isolate).undefined_value();
 }

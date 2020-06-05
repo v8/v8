@@ -222,7 +222,7 @@ class TestingModuleBuilder {
 
   void TierDown() {
     native_module_->SetTieringState(kTieredDown);
-    native_module_->TriggerRecompilation();
+    native_module_->RecompileForTiering();
     execution_tier_ = ExecutionTier::kLiftoff;
   }
 

@@ -1483,21 +1483,17 @@ void RecompileNativeModule(NativeModule* native_module,
         }
       });
 
-  // Always wait for tier down. Tier up usually happens in the background,
-  // except in single-threaded mode.
-  if (tiering_state == kTieredDown || FLAG_single_threaded) {
-    // The main thread contributes to the compilation.
-    constexpr Counters* kNoCounters = nullptr;
-    while (ExecuteCompilationUnits(
-        compilation_state->background_compile_token(), kNoCounters,
-        kMainThreadTaskId, kBaselineOnly)) {
-      // Continue executing compilation units.
-    }
-
-    // Now wait until baseline recompilation finished.
-    recompilation_finished_semaphore->Wait();
-    DCHECK(!compilation_state->failed());
+  // The main thread contributes to the compilation.
+  constexpr Counters* kNoCounters = nullptr;
+  while (ExecuteCompilationUnits(compilation_state->background_compile_token(),
+                                 kNoCounters, kMainThreadTaskId,
+                                 kBaselineOnly)) {
+    // Continue executing compilation units.
   }
+
+  // Now wait until all compilation units finished.
+  recompilation_finished_semaphore->Wait();
+  DCHECK(!compilation_state->failed());
 }
 
 AsyncCompileJob::AsyncCompileJob(
@@ -2420,7 +2416,7 @@ void AsyncStreamingProcessor::OnFinishedStream(OwnedVector<uint8_t> bytes) {
   // compiling via streaming is tricky, we just tier down now, before publishing
   // the module.
   if (job_->native_module_->IsTieredDown()) {
-    job_->native_module_->TriggerRecompilation();
+    job_->native_module_->RecompileForTiering();
   }
   if (needs_finish) {
     const bool failed = job_->native_module_->compilation_state()->failed();

@@ -640,7 +640,7 @@ void WasmEngine::TierDownAllModulesPerIsolate(Isolate* isolate) {
     }
   }
   for (auto& native_module : native_modules) {
-    native_module->TriggerRecompilation();
+    native_module->RecompileForTiering();
   }
 }
 
@@ -672,7 +672,7 @@ void WasmEngine::TierUpAllModulesPerIsolate(Isolate* isolate) {
     }
   }
   for (auto& native_module : native_modules_to_recompile) {
-    native_module->TriggerRecompilation();
+    native_module->RecompileForTiering();
   }
 }
 
@@ -1054,7 +1054,7 @@ std::shared_ptr<NativeModule> WasmEngine::MaybeGetNativeModule(
     }
   }
   // Potentially recompile the module for tier down, after releasing the mutex.
-  if (recompile_module) native_module->TriggerRecompilation();
+  if (recompile_module) native_module->RecompileForTiering();
   return native_module;
 }
 
@@ -1084,7 +1084,7 @@ bool WasmEngine::UpdateNativeModuleCache(
     }
   }
   // Potentially recompile the module for tier down, after releasing the mutex.
-  if (recompile_module) native_module->get()->TriggerRecompilation();
+  if (recompile_module) native_module->get()->RecompileForTiering();
   return false;
 }
 

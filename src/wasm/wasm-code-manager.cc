@@ -1857,7 +1857,7 @@ bool NativeModule::IsTieredDown() {
   return tiering_state_ == kTieredDown;
 }
 
-void NativeModule::TriggerRecompilation() {
+void NativeModule::RecompileForTiering() {
   // Read the tiering state under the lock, then trigger recompilation after
   // releasing the lock. If the tiering state was changed when the triggered
   // compilation units finish, code installation will handle that correctly.
