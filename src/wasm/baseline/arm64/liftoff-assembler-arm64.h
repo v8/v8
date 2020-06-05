@@ -424,6 +424,102 @@ inline Register CalculateActualAddress(LiftoffAssembler* lasm,
   return result_reg;
 }
 
+enum class Binop { kAdd, kSub, kAnd, kOr, kXor, kExchange };
+
+inline void AtomicBinop(LiftoffAssembler* lasm, Register dst_addr,
+                        Register offset_reg, uint32_t offset_imm,
+                        LiftoffRegister value, LiftoffRegister result,
+                        StoreType type, Binop op) {
+  LiftoffRegList pinned =
+      LiftoffRegList::ForRegs(dst_addr, offset_reg, value, result);
+  Register store_result = pinned.set(__ GetUnusedRegister(kGpReg, pinned)).gp();
+
+  // Make sure that {result} is unique.
+  Register result_reg = result.gp();
+  if (result_reg == value.gp() || result_reg == dst_addr ||
+      result_reg == offset_reg) {
+    result_reg = __ GetUnusedRegister(kGpReg, pinned).gp();
+  }
+
+  UseScratchRegisterScope temps(lasm);
+  Register actual_addr = liftoff::CalculateActualAddress(
+      lasm, dst_addr, offset_reg, offset_imm, temps.AcquireX());
+
+  // Allocate an additional {temp} register to hold the result that should be
+  // stored to memory. Note that {temp} and {store_result} are not allowed to be
+  // the same register.
+  Register temp = temps.AcquireX();
+
+  Label retry;
+  __ Bind(&retry);
+  switch (type.value()) {
+    case StoreType::kI64Store8:
+    case StoreType::kI32Store8:
+      __ ldaxrb(result_reg.W(), actual_addr);
+      break;
+    case StoreType::kI64Store16:
+    case StoreType::kI32Store16:
+      __ ldaxrh(result_reg.W(), actual_addr);
+      break;
+    case StoreType::kI64Store32:
+    case StoreType::kI32Store:
+      __ ldaxr(result_reg.W(), actual_addr);
+      break;
+    case StoreType::kI64Store:
+      __ ldaxr(result_reg.X(), actual_addr);
+      break;
+    default:
+      UNREACHABLE();
+  }
+
+  switch (op) {
+    case Binop::kAdd:
+      __ add(temp, result_reg, value.gp());
+      break;
+    case Binop::kSub:
+      __ sub(temp, result_reg, value.gp());
+      break;
+    case Binop::kAnd:
+      __ and_(temp, result_reg, value.gp());
+      break;
+    case Binop::kOr:
+      __ orr(temp, result_reg, value.gp());
+      break;
+    case Binop::kXor:
+      __ eor(temp, result_reg, value.gp());
+      break;
+    case Binop::kExchange:
+      __ mov(temp, value.gp());
+      break;
+  }
+
+  switch (type.value()) {
+    case StoreType::kI64Store8:
+    case StoreType::kI32Store8:
+      __ stlxrb(store_result.W(), temp.W(), actual_addr);
+      break;
+    case StoreType::kI64Store16:
+    case StoreType::kI32Store16:
+      __ stlxrh(store_result.W(), temp.W(), actual_addr);
+      break;
+    case StoreType::kI64Store32:
+    case StoreType::kI32Store:
+      __ stlxr(store_result.W(), temp.W(), actual_addr);
+      break;
+    case StoreType::kI64Store:
+      __ stlxr(store_result.W(), temp.X(), actual_addr);
+      break;
+    default:
+      UNREACHABLE();
+  }
+
+  __ Cbnz(store_result.W(), &retry);
+
+  if (result_reg != result.gp()) {
+    __ mov(result.gp(), result_reg);
+  }
+}
+
 #undef __
 }  // namespace liftoff
 
@@ -484,38 +580,44 @@ void LiftoffAssembler::AtomicStore(Register dst_addr, Register offset_reg,
 void LiftoffAssembler::AtomicAdd(Register dst_addr, Register offset_reg,
                                  uint32_t offset_imm, LiftoffRegister value,
                                  LiftoffRegister result, StoreType type) {
-  bailout(kAtomics, "AtomicAdd");
+  liftoff::AtomicBinop(this, dst_addr, offset_reg, offset_imm, value, result,
+                       type, liftoff::Binop::kAdd);
 }
 
 void LiftoffAssembler::AtomicSub(Register dst_addr, Register offset_reg,
                                  uint32_t offset_imm, LiftoffRegister value,
                                  LiftoffRegister result, StoreType type) {
-  bailout(kAtomics, "AtomicSub");
+  liftoff::AtomicBinop(this, dst_addr, offset_reg, offset_imm, value, result,
+                       type, liftoff::Binop::kSub);
 }
 
 void LiftoffAssembler::AtomicAnd(Register dst_addr, Register offset_reg,
                                  uint32_t offset_imm, LiftoffRegister value,
                                  LiftoffRegister result, StoreType type) {
-  bailout(kAtomics, "AtomicAnd");
+  liftoff::AtomicBinop(this, dst_addr, offset_reg, offset_imm, value, result,
+                       type, liftoff::Binop::kAnd);
 }
 
 void LiftoffAssembler::AtomicOr(Register dst_addr, Register offset_reg,
                                 uint32_t offset_imm, LiftoffRegister value,
                                 LiftoffRegister result, StoreType type) {
-  bailout(kAtomics, "AtomicOr");
+  liftoff::AtomicBinop(this, dst_addr, offset_reg, offset_imm, value, result,
+                       type, liftoff::Binop::kOr);
 }
 
 void LiftoffAssembler::AtomicXor(Register dst_addr, Register offset_reg,
                                  uint32_t offset_imm, LiftoffRegister value,
                                  LiftoffRegister result, StoreType type) {
-  bailout(kAtomics, "AtomicXor");
+  liftoff::AtomicBinop(this, dst_addr, offset_reg, offset_imm, value, result,
+                       type, liftoff::Binop::kXor);
 }
 
 void LiftoffAssembler::AtomicExchange(Register dst_addr, Register offset_reg,
                                       uint32_t offset_imm,
                                       LiftoffRegister value,
                                       LiftoffRegister result, StoreType type) {
-  bailout(kAtomics, "AtomicExchange");
+  liftoff::AtomicBinop(this, dst_addr, offset_reg, offset_imm, value, result,
+                       type, liftoff::Binop::kExchange);
 }
 
 void LiftoffAssembler::AtomicCompareExchange(
