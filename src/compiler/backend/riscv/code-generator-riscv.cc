@@ -974,98 +974,98 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
     case kIeee754Float64Tanh:
       ASSEMBLE_IEEE754_UNOP(tanh);
       break;
-    case kMips64Add:
+    case kRiscvAdd:
       __ Addu(i.OutputRegister(), i.InputRegister(0), i.InputOperand(1));
       break;
-    case kMips64Dadd:
+    case kRiscvDadd:
       __ Daddu(i.OutputRegister(), i.InputRegister(0), i.InputOperand(1));
       break;
-    case kMips64DaddOvf:
+    case kRiscvDaddOvf:
       __ DaddOverflow(i.OutputRegister(), i.InputRegister(0), i.InputOperand(1),
                       kScratchReg);
       break;
-    case kMips64Sub:
+    case kRiscvSub:
       __ Subu(i.OutputRegister(), i.InputRegister(0), i.InputOperand(1));
       break;
-    case kMips64Dsub:
+    case kRiscvDsub:
       __ Dsubu(i.OutputRegister(), i.InputRegister(0), i.InputOperand(1));
       break;
-    case kMips64DsubOvf:
+    case kRiscvDsubOvf:
       __ DsubOverflow(i.OutputRegister(), i.InputRegister(0), i.InputOperand(1),
                       kScratchReg);
       break;
-    case kMips64Mul:
+    case kRiscvMul:
       __ Mul(i.OutputRegister(), i.InputRegister(0), i.InputOperand(1));
       break;
-    case kMips64MulOvf:
+    case kRiscvMulOvf:
       __ MulOverflow(i.OutputRegister(), i.InputRegister(0), i.InputOperand(1),
                      kScratchReg);
       break;
-    case kMips64MulHigh:
+    case kRiscvMulHigh:
       __ Mulh(i.OutputRegister(), i.InputRegister(0), i.InputOperand(1));
       break;
-    case kMips64MulHighU:
+    case kRiscvMulHighU:
       __ Mulhu(i.OutputRegister(), i.InputRegister(0), i.InputOperand(1));
       break;
-    case kMips64DMulHigh:
+    case kRiscvDMulHigh:
       __ Dmulh(i.OutputRegister(), i.InputRegister(0), i.InputOperand(1));
       break;
-    case kMips64Div:
+    case kRiscvDiv:
       __ Div(i.OutputRegister(), i.InputRegister(0), i.InputOperand(1));
       __ Movz(i.OutputRegister(), i.InputRegister(1), i.InputRegister(1));
       break;
-    case kMips64DivU:
+    case kRiscvDivU:
       __ Divu(i.OutputRegister(), i.InputRegister(0), i.InputOperand(1));
       __ Movz(i.OutputRegister(), i.InputRegister(1), i.InputRegister(1));
       break;
-    case kMips64Mod:
+    case kRiscvMod:
       __ Mod(i.OutputRegister(), i.InputRegister(0), i.InputOperand(1));
       break;
-    case kMips64ModU:
+    case kRiscvModU:
       __ Modu(i.OutputRegister(), i.InputRegister(0), i.InputOperand(1));
       break;
-    case kMips64Dmul:
+    case kRiscvDmul:
       __ Dmul(i.OutputRegister(), i.InputRegister(0), i.InputOperand(1));
       break;
-    case kMips64Ddiv:
+    case kRiscvDdiv:
       __ Ddiv(i.OutputRegister(), i.InputRegister(0), i.InputOperand(1));
       __ Movz(i.OutputRegister(), i.InputRegister(1), i.InputRegister(1));
       break;
-    case kMips64DdivU:
+    case kRiscvDdivU:
       __ Ddivu(i.OutputRegister(), i.InputRegister(0), i.InputOperand(1));
       __ Movz(i.OutputRegister(), i.InputRegister(1), i.InputRegister(1));
       break;
-    case kMips64Dmod:
+    case kRiscvDmod:
       __ Dmod(i.OutputRegister(), i.InputRegister(0), i.InputOperand(1));
       break;
-    case kMips64DmodU:
+    case kRiscvDmodU:
       __ Dmodu(i.OutputRegister(), i.InputRegister(0), i.InputOperand(1));
       break;
-    case kMips64Dlsa:
+    case kRiscvDlsa:
       DCHECK(instr->InputAt(2)->IsImmediate());
       __ Dlsa(i.OutputRegister(), i.InputRegister(0), i.InputRegister(1),
               i.InputInt8(2));
       break;
-    case kMips64Lsa:
+    case kRiscvLsa:
       DCHECK(instr->InputAt(2)->IsImmediate());
       __ Lsa(i.OutputRegister(), i.InputRegister(0), i.InputRegister(1),
              i.InputInt8(2));
       break;
-    case kMips64And:
+    case kRiscvAnd:
       __ And(i.OutputRegister(), i.InputRegister(0), i.InputOperand(1));
       break;
-    case kMips64And32:
+    case kRiscvAnd32:
       __ And(i.OutputRegister(), i.InputRegister(0), i.InputOperand(1));
       __ Sll(i.OutputRegister(), i.OutputRegister(), 0x0);
       break;
-    case kMips64Or:
+    case kRiscvOr:
       __ Or(i.OutputRegister(), i.InputRegister(0), i.InputOperand(1));
       break;
-    case kMips64Or32:
+    case kRiscvOr32:
       __ Or(i.OutputRegister(), i.InputRegister(0), i.InputOperand(1));
       __ Sll(i.OutputRegister(), i.OutputRegister(), 0x0);
       break;
-    case kMips64Nor:
+    case kRiscvNor:
       if (instr->InputAt(1)->IsRegister()) {
         __ Nor(i.OutputRegister(), i.InputRegister(0), i.InputOperand(1));
       } else {
@@ -1073,7 +1073,7 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
         __ Nor(i.OutputRegister(), i.InputRegister(0), zero_reg);
       }
       break;
-    case kMips64Nor32:
+    case kRiscvNor32:
       if (instr->InputAt(1)->IsRegister()) {
         __ Nor(i.OutputRegister(), i.InputRegister(0), i.InputOperand(1));
         __ Sll(i.OutputRegister(), i.OutputRegister(), 0x0);
@@ -1083,40 +1083,40 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
         __ Sll(i.OutputRegister(), i.OutputRegister(), 0x0);
       }
       break;
-    case kMips64Xor:
+    case kRiscvXor:
       __ Xor(i.OutputRegister(), i.InputRegister(0), i.InputOperand(1));
       break;
-    case kMips64Xor32:
+    case kRiscvXor32:
       __ Xor(i.OutputRegister(), i.InputRegister(0), i.InputOperand(1));
       __ Sll(i.OutputRegister(), i.OutputRegister(), 0x0);
       break;
-    case kMips64Clz:
+    case kRiscvClz:
       __ Clz(i.OutputRegister(), i.InputRegister(0));
       break;
-    case kMips64Dclz:
+    case kRiscvDclz:
       __ Dclz(i.OutputRegister(), i.InputRegister(0));
       break;
-    case kMips64Ctz: {
+    case kRiscvCtz: {
       Register src = i.InputRegister(0);
       Register dst = i.OutputRegister();
       __ Ctz(dst, src);
     } break;
-    case kMips64Dctz: {
+    case kRiscvDctz: {
       Register src = i.InputRegister(0);
       Register dst = i.OutputRegister();
       __ Dctz(dst, src);
     } break;
-    case kMips64Popcnt: {
+    case kRiscvPopcnt: {
       Register src = i.InputRegister(0);
       Register dst = i.OutputRegister();
       __ Popcnt(dst, src);
     } break;
-    case kMips64Dpopcnt: {
+    case kRiscvDpopcnt: {
       Register src = i.InputRegister(0);
       Register dst = i.OutputRegister();
       __ Dpopcnt(dst, src);
     } break;
-    case kMips64Shl:
+    case kRiscvShl:
       if (instr->InputAt(1)->IsRegister()) {
         __ Sll(i.OutputRegister(), i.InputRegister(0), i.InputRegister(1));
       } else {
@@ -1125,7 +1125,7 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
                static_cast<uint16_t>(imm));
       }
       break;
-    case kMips64Shr:
+    case kRiscvShr:
       if (instr->InputAt(1)->IsRegister()) {
         __ Srl(i.OutputRegister(), i.InputRegister(0), i.InputRegister(1));
       } else {
@@ -1134,7 +1134,7 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
                static_cast<uint16_t>(imm));
       }
       break;
-    case kMips64Sar:
+    case kRiscvSar:
       if (instr->InputAt(1)->IsRegister()) {
         __ Sra(i.OutputRegister(), i.InputRegister(0), i.InputRegister(1));
       } else {
@@ -1143,11 +1143,11 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
                static_cast<uint16_t>(imm));
       }
       break;
-    case kMips64Ext:
+    case kRiscvExt:
       __ Ext(i.OutputRegister(), i.InputRegister(0), i.InputInt8(1),
              i.InputInt8(2));
       break;
-    case kMips64Ins:
+    case kRiscvIns:
       if (instr->InputAt(1)->IsImmediate() && i.InputInt8(1) == 0) {
         __ Ins(i.OutputRegister(), zero_reg, i.InputInt8(1), i.InputInt8(2));
       } else {
@@ -1155,12 +1155,12 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
                i.InputInt8(2));
       }
       break;
-    case kMips64Dext: {
+    case kRiscvDext: {
       __ Dext(i.OutputRegister(), i.InputRegister(0), i.InputInt8(1),
               i.InputInt8(2));
       break;
     }
-    case kMips64Dins:
+    case kRiscvDins:
       if (instr->InputAt(1)->IsImmediate() && i.InputInt8(1) == 0) {
         __ Dins(i.OutputRegister(), zero_reg, i.InputInt8(1), i.InputInt8(2));
       } else {
@@ -1168,29 +1168,29 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
                 i.InputInt8(2));
       }
       break;
-    case kMips64Dshl:
+    case kRiscvDshl:
       __ Dsll(i.OutputRegister(), i.InputRegister(0), i.InputOperand(1));
       break;
-    case kMips64Dshr:
+    case kRiscvDshr:
       __ Dsrl(i.OutputRegister(), i.InputRegister(0), i.InputOperand(1));
       break;
-    case kMips64Dsar:
+    case kRiscvDsar:
       __ Dsra(i.OutputRegister(), i.InputRegister(0), i.InputOperand(1));
       break;
-    case kMips64Ror:
+    case kRiscvRor:
       __ Ror(i.OutputRegister(), i.InputRegister(0), i.InputOperand(1));
       break;
-    case kMips64Dror:
+    case kRiscvDror:
       __ Dror(i.OutputRegister(), i.InputRegister(0), i.InputOperand(1));
       break;
-    case kMips64Tst:
+    case kRiscvTst:
       __ And(kScratchReg, i.InputRegister(0), i.InputOperand(1));
       // Pseudo-instruction used for cmp/branch. No opcode emitted here.
       break;
-    case kMips64Cmp:
+    case kRiscvCmp:
       // Pseudo-instruction used for cmp/branch. No opcode emitted here.
       break;
-    case kMips64Mov:
+    case kRiscvMov:
       // TODO(plind): Should we combine mov/li like this, or use separate instr?
       //    - Also see x64 ASSEMBLE_BINOP & RegisterOrOperandType
       if (HasRegisterInput(instr, 0)) {
@@ -1200,7 +1200,7 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       }
       break;
 
-    case kMips64CmpS: {
+    case kRiscvCmpS: {
       FPURegister left = i.InputOrZeroSingleRegister(0);
       FPURegister right = i.InputOrZeroSingleRegister(1);
       bool predicate;
@@ -1214,25 +1214,25 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       // compare result set to kScratchReg
       __ CompareF32(kScratchReg, cc, left, right);
     } break;
-    case kMips64AddS:
+    case kRiscvAddS:
       // TODO(plind): add special case: combine mult & add.
       __ add_s(i.OutputDoubleRegister(), i.InputDoubleRegister(0),
                i.InputDoubleRegister(1));
       break;
-    case kMips64SubS:
+    case kRiscvSubS:
       __ sub_s(i.OutputDoubleRegister(), i.InputDoubleRegister(0),
                i.InputDoubleRegister(1));
       break;
-    case kMips64MulS:
+    case kRiscvMulS:
       // TODO(plind): add special case: right op is -1.0, see arm port.
       __ mul_s(i.OutputDoubleRegister(), i.InputDoubleRegister(0),
                i.InputDoubleRegister(1));
       break;
-    case kMips64DivS:
+    case kRiscvDivS:
       __ div_s(i.OutputDoubleRegister(), i.InputDoubleRegister(0),
                i.InputDoubleRegister(1));
       break;
-    case kMips64ModS: {
+    case kRiscvModS: {
       // TODO(bmeurer): We should really get rid of this special instruction,
       // and generate a CallAddress instruction instead.
       FrameScope scope(tasm(), StackFrame::MANUAL);
@@ -1245,25 +1245,25 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       __ MovFromFloatResult(i.OutputSingleRegister());
       break;
     }
-    case kMips64AbsS:
+    case kRiscvAbsS:
       __ abs_s(i.OutputSingleRegister(), i.InputSingleRegister(0));
       break;
-    case kMips64NegS:
+    case kRiscvNegS:
       __ Neg_s(i.OutputSingleRegister(), i.InputSingleRegister(0));
       break;
-    case kMips64SqrtS: {
+    case kRiscvSqrtS: {
       __ sqrt_s(i.OutputDoubleRegister(), i.InputDoubleRegister(0));
       break;
     }
-    case kMips64MaxS:
+    case kRiscvMaxS:
       __ max_s(i.OutputDoubleRegister(), i.InputDoubleRegister(0),
                i.InputDoubleRegister(1));
       break;
-    case kMips64MinS:
+    case kRiscvMinS:
       __ min_s(i.OutputDoubleRegister(), i.InputDoubleRegister(0),
                i.InputDoubleRegister(1));
       break;
-    case kMips64CmpD: {
+    case kRiscvCmpD: {
       FPURegister left = i.InputOrZeroDoubleRegister(0);
       FPURegister right = i.InputOrZeroDoubleRegister(1);
       bool predicate;
@@ -1276,25 +1276,25 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       // compare result set to kScratchReg
       __ CompareF64(kScratchReg, cc, left, right);
     } break;
-    case kMips64AddD:
+    case kRiscvAddD:
       // TODO(plind): add special case: combine mult & add.
       __ add_d(i.OutputDoubleRegister(), i.InputDoubleRegister(0),
                i.InputDoubleRegister(1));
       break;
-    case kMips64SubD:
+    case kRiscvSubD:
       __ sub_d(i.OutputDoubleRegister(), i.InputDoubleRegister(0),
                i.InputDoubleRegister(1));
       break;
-    case kMips64MulD:
+    case kRiscvMulD:
       // TODO(plind): add special case: right op is -1.0, see arm port.
       __ mul_d(i.OutputDoubleRegister(), i.InputDoubleRegister(0),
                i.InputDoubleRegister(1));
       break;
-    case kMips64DivD:
+    case kRiscvDivD:
       __ div_d(i.OutputDoubleRegister(), i.InputDoubleRegister(0),
                i.InputDoubleRegister(1));
       break;
-    case kMips64ModD: {
+    case kRiscvModD: {
       // TODO(bmeurer): We should really get rid of this special instruction,
       // and generate a CallAddress instruction instead.
       FrameScope scope(tasm(), StackFrame::MANUAL);
@@ -1306,299 +1306,299 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       __ MovFromFloatResult(i.OutputDoubleRegister());
       break;
     }
-    case kMips64AbsD:
+    case kRiscvAbsD:
       __ abs_d(i.OutputDoubleRegister(), i.InputDoubleRegister(0));
       break;
-    case kMips64NegD:
+    case kRiscvNegD:
       __ Neg_d(i.OutputDoubleRegister(), i.InputDoubleRegister(0));
       break;
-    case kMips64SqrtD: {
+    case kRiscvSqrtD: {
       __ sqrt_d(i.OutputDoubleRegister(), i.InputDoubleRegister(0));
       break;
     }
-    case kMips64MaxD:
+    case kRiscvMaxD:
       __ max_d(i.OutputDoubleRegister(), i.InputDoubleRegister(0),
                i.InputDoubleRegister(1));
       break;
-    case kMips64MinD:
+    case kRiscvMinD:
       __ min_d(i.OutputDoubleRegister(), i.InputDoubleRegister(0),
                i.InputDoubleRegister(1));
       break;
-    case kMips64Float64RoundDown: {
+    case kRiscvFloat64RoundDown: {
       __ Floor_d_d(i.OutputDoubleRegister(), i.InputDoubleRegister(0),
                    kScratchDoubleReg);
       break;
     }
-    case kMips64Float32RoundDown: {
+    case kRiscvFloat32RoundDown: {
       __ Floor_s_s(i.OutputSingleRegister(), i.InputSingleRegister(0),
                    kScratchDoubleReg);
       break;
     }
-    case kMips64Float64RoundTruncate: {
+    case kRiscvFloat64RoundTruncate: {
       __ Trunc_d_d(i.OutputDoubleRegister(), i.InputDoubleRegister(0),
                    kScratchDoubleReg);
       break;
     }
-    case kMips64Float32RoundTruncate: {
+    case kRiscvFloat32RoundTruncate: {
       __ Trunc_s_s(i.OutputSingleRegister(), i.InputSingleRegister(0),
                    kScratchDoubleReg);
       break;
     }
-    case kMips64Float64RoundUp: {
+    case kRiscvFloat64RoundUp: {
       __ Ceil_d_d(i.OutputDoubleRegister(), i.InputDoubleRegister(0),
                   kScratchDoubleReg);
       break;
     }
-    case kMips64Float32RoundUp: {
+    case kRiscvFloat32RoundUp: {
       __ Ceil_s_s(i.OutputSingleRegister(), i.InputSingleRegister(0),
                   kScratchDoubleReg);
       break;
     }
-    case kMips64Float64RoundTiesEven: {
+    case kRiscvFloat64RoundTiesEven: {
       __ Round_d_d(i.OutputDoubleRegister(), i.InputDoubleRegister(0),
                    kScratchDoubleReg);
       break;
     }
-    case kMips64Float32RoundTiesEven: {
+    case kRiscvFloat32RoundTiesEven: {
       __ Round_s_s(i.OutputSingleRegister(), i.InputSingleRegister(0),
                    kScratchDoubleReg);
       break;
     }
-    case kMips64Float32Max: {
+    case kRiscvFloat32Max: {
       __ Float32Max(i.OutputSingleRegister(), i.InputSingleRegister(0),
                     i.InputSingleRegister(1));
       break;
     }
-    case kMips64Float64Max: {
+    case kRiscvFloat64Max: {
       __ Float64Max(i.OutputSingleRegister(), i.InputSingleRegister(0),
                     i.InputSingleRegister(1));
       break;
     }
-    case kMips64Float32Min: {
+    case kRiscvFloat32Min: {
       __ Float32Min(i.OutputSingleRegister(), i.InputSingleRegister(0),
                     i.InputSingleRegister(1));
       break;
     }
-    case kMips64Float64Min: {
+    case kRiscvFloat64Min: {
       __ Float64Min(i.OutputSingleRegister(), i.InputSingleRegister(0),
                     i.InputSingleRegister(1));
       break;
     }
-    case kMips64Float64SilenceNaN:
+    case kRiscvFloat64SilenceNaN:
       __ FPUCanonicalizeNaN(i.OutputDoubleRegister(), i.InputDoubleRegister(0));
       break;
-    case kMips64CvtSD:
+    case kRiscvCvtSD:
       __ cvt_s_d(i.OutputSingleRegister(), i.InputDoubleRegister(0));
       break;
-    case kMips64CvtDS:
+    case kRiscvCvtDS:
       __ cvt_d_s(i.OutputDoubleRegister(), i.InputSingleRegister(0));
       break;
-    case kMips64CvtDW: {
+    case kRiscvCvtDW: {
       __ RV_fcvt_d_w(i.OutputDoubleRegister(), i.InputRegister(0));
       break;
     }
-    case kMips64CvtSW: {
+    case kRiscvCvtSW: {
       __ RV_fcvt_s_w(i.OutputDoubleRegister(), i.InputRegister(0));
       break;
     }
-    case kMips64CvtSUw: {
+    case kRiscvCvtSUw: {
       __ Cvt_s_uw(i.OutputDoubleRegister(), i.InputRegister(0));
       break;
     }
-    case kMips64CvtSL: {
+    case kRiscvCvtSL: {
       __ RV_fcvt_s_l(i.OutputDoubleRegister(), i.InputRegister(0));
       break;
     }
-    case kMips64CvtDL: {
+    case kRiscvCvtDL: {
       __ RV_fcvt_d_l(i.OutputDoubleRegister(), i.InputRegister(0));
       break;
     }
-    case kMips64CvtDUw: {
+    case kRiscvCvtDUw: {
       __ Cvt_d_uw(i.OutputDoubleRegister(), i.InputRegister(0));
       break;
     }
-    case kMips64CvtDUl: {
+    case kRiscvCvtDUl: {
       __ Cvt_d_ul(i.OutputDoubleRegister(), i.InputRegister(0));
       break;
     }
-    case kMips64CvtSUl: {
+    case kRiscvCvtSUl: {
       __ Cvt_s_ul(i.OutputDoubleRegister(), i.InputRegister(0));
       break;
     }
-    case kMips64FloorWD: {
+    case kRiscvFloorWD: {
       Register result = instr->OutputCount() > 1 ? i.OutputRegister(1) : no_reg;
       __ Floor_w_d(i.OutputRegister(), i.InputDoubleRegister(0), result);
       break;
     }
-    case kMips64CeilWD: {
+    case kRiscvCeilWD: {
       Register result = instr->OutputCount() > 1 ? i.OutputRegister(1) : no_reg;
       __ Ceil_w_d(i.OutputRegister(), i.InputDoubleRegister(0), result);
       break;
     }
-    case kMips64RoundWD: {
+    case kRiscvRoundWD: {
       Register result = instr->OutputCount() > 1 ? i.OutputRegister(1) : no_reg;
       __ Round_w_d(i.OutputRegister(), i.InputDoubleRegister(0), result);
       break;
     }
-    case kMips64TruncWD: {
+    case kRiscvTruncWD: {
       Register result = instr->OutputCount() > 1 ? i.OutputRegister(1) : no_reg;
       __ Trunc_w_d(i.OutputRegister(), i.InputDoubleRegister(0), result);
       break;
     }
-    case kMips64FloorWS: {
+    case kRiscvFloorWS: {
       Register result = instr->OutputCount() > 1 ? i.OutputRegister(1) : no_reg;
       __ Floor_w_s(i.OutputRegister(), i.InputDoubleRegister(0), result);
       break;
     }
-    case kMips64CeilWS: {
+    case kRiscvCeilWS: {
       Register result = instr->OutputCount() > 1 ? i.OutputRegister(1) : no_reg;
       __ Ceil_w_s(i.OutputRegister(), i.InputDoubleRegister(0), result);
       break;
     }
-    case kMips64RoundWS: {
+    case kRiscvRoundWS: {
       Register result = instr->OutputCount() > 1 ? i.OutputRegister(1) : no_reg;
       __ Round_w_s(i.OutputRegister(), i.InputDoubleRegister(0), result);
       break;
     }
-    case kMips64TruncWS: {
+    case kRiscvTruncWS: {
       Register result = instr->OutputCount() > 1 ? i.OutputRegister(1) : no_reg;
       __ Trunc_w_s(i.OutputRegister(), i.InputDoubleRegister(0), result);
       break;
     }
-    case kMips64TruncLS: {
+    case kRiscvTruncLS: {
       Register result = instr->OutputCount() > 1 ? i.OutputRegister(1) : no_reg;
       __ Trunc_l_s(i.OutputRegister(), i.InputDoubleRegister(0), result);
       break;
     }
-    case kMips64TruncLD: {
+    case kRiscvTruncLD: {
       Register result = instr->OutputCount() > 1 ? i.OutputRegister(1) : no_reg;
       __ Trunc_l_d(i.OutputRegister(), i.InputDoubleRegister(0), result);
       break;
     }
-    case kMips64TruncUwD: {
+    case kRiscvTruncUwD: {
       Register result = instr->OutputCount() > 1 ? i.OutputRegister(1) : no_reg;
       __ Trunc_uw_d(i.OutputRegister(), i.InputDoubleRegister(0), result);
       break;
     }
-    case kMips64TruncUwS: {
+    case kRiscvTruncUwS: {
       Register result = instr->OutputCount() > 1 ? i.OutputRegister(1) : no_reg;
       __ Trunc_uw_s(i.OutputRegister(), i.InputDoubleRegister(0), result);
       break;
     }
-    case kMips64TruncUlS: {
+    case kRiscvTruncUlS: {
       Register result = instr->OutputCount() > 1 ? i.OutputRegister(1) : no_reg;
       __ Trunc_ul_s(i.OutputRegister(), i.InputDoubleRegister(0), result);
       break;
     }
-    case kMips64TruncUlD: {
+    case kRiscvTruncUlD: {
       Register result = instr->OutputCount() > 1 ? i.OutputRegister(1) : no_reg;
       __ Trunc_ul_d(i.OutputRegister(0), i.InputDoubleRegister(0), result);
       break;
     }
-    case kMips64BitcastDL:
+    case kRiscvBitcastDL:
       __ dmfc1(i.OutputRegister(), i.InputDoubleRegister(0));
       break;
-    case kMips64BitcastLD:
+    case kRiscvBitcastLD:
       __ dmtc1(i.InputRegister(0), i.OutputDoubleRegister());
       break;
-    case kMips64Float64ExtractLowWord32:
+    case kRiscvFloat64ExtractLowWord32:
       __ FmoveLow(i.OutputRegister(), i.InputDoubleRegister(0));
       break;
-    case kMips64Float64ExtractHighWord32:
+    case kRiscvFloat64ExtractHighWord32:
       __ FmoveHigh(i.OutputRegister(), i.InputDoubleRegister(0));
       break;
-    case kMips64Float64InsertLowWord32:
+    case kRiscvFloat64InsertLowWord32:
       __ FmoveLow(i.OutputDoubleRegister(), i.InputRegister(1));
       break;
-    case kMips64Float64InsertHighWord32:
+    case kRiscvFloat64InsertHighWord32:
       __ FmoveHigh(i.OutputDoubleRegister(), i.InputRegister(1));
       break;
       // ... more basic instructions ...
 
-    case kMips64Seb:
+    case kRiscvSeb:
       __ Seb(i.OutputRegister(), i.InputRegister(0));
       break;
-    case kMips64Seh:
+    case kRiscvSeh:
       __ Seh(i.OutputRegister(), i.InputRegister(0));
       break;
-    case kMips64Lbu:
+    case kRiscvLbu:
       __ Lbu(i.OutputRegister(), i.MemoryOperand());
       EmitWordLoadPoisoningIfNeeded(this, opcode, instr, i);
       break;
-    case kMips64Lb:
+    case kRiscvLb:
       __ Lb(i.OutputRegister(), i.MemoryOperand());
       EmitWordLoadPoisoningIfNeeded(this, opcode, instr, i);
       break;
-    case kMips64Sb:
+    case kRiscvSb:
       __ Sb(i.InputOrZeroRegister(2), i.MemoryOperand());
       break;
-    case kMips64Lhu:
+    case kRiscvLhu:
       __ Lhu(i.OutputRegister(), i.MemoryOperand());
       EmitWordLoadPoisoningIfNeeded(this, opcode, instr, i);
       break;
-    case kMips64Ulhu:
+    case kRiscvUlhu:
       __ Ulhu(i.OutputRegister(), i.MemoryOperand());
       EmitWordLoadPoisoningIfNeeded(this, opcode, instr, i);
       break;
-    case kMips64Lh:
+    case kRiscvLh:
       __ Lh(i.OutputRegister(), i.MemoryOperand());
       EmitWordLoadPoisoningIfNeeded(this, opcode, instr, i);
       break;
-    case kMips64Ulh:
+    case kRiscvUlh:
       __ Ulh(i.OutputRegister(), i.MemoryOperand());
       EmitWordLoadPoisoningIfNeeded(this, opcode, instr, i);
       break;
-    case kMips64Sh:
+    case kRiscvSh:
       __ Sh(i.InputOrZeroRegister(2), i.MemoryOperand());
       break;
-    case kMips64Ush:
+    case kRiscvUsh:
       __ Ush(i.InputOrZeroRegister(2), i.MemoryOperand());
       break;
-    case kMips64Lw:
+    case kRiscvLw:
       __ Lw(i.OutputRegister(), i.MemoryOperand());
       EmitWordLoadPoisoningIfNeeded(this, opcode, instr, i);
       break;
-    case kMips64Ulw:
+    case kRiscvUlw:
       __ Ulw(i.OutputRegister(), i.MemoryOperand());
       EmitWordLoadPoisoningIfNeeded(this, opcode, instr, i);
       break;
-    case kMips64Lwu:
+    case kRiscvLwu:
       __ Lwu(i.OutputRegister(), i.MemoryOperand());
       EmitWordLoadPoisoningIfNeeded(this, opcode, instr, i);
       break;
-    case kMips64Ulwu:
+    case kRiscvUlwu:
       __ Ulwu(i.OutputRegister(), i.MemoryOperand());
       EmitWordLoadPoisoningIfNeeded(this, opcode, instr, i);
       break;
-    case kMips64Ld:
+    case kRiscvLd:
       __ Ld(i.OutputRegister(), i.MemoryOperand());
       EmitWordLoadPoisoningIfNeeded(this, opcode, instr, i);
       break;
-    case kMips64Uld:
+    case kRiscvUld:
       __ Uld(i.OutputRegister(), i.MemoryOperand());
       EmitWordLoadPoisoningIfNeeded(this, opcode, instr, i);
       break;
-    case kMips64Sw:
+    case kRiscvSw:
       __ Sw(i.InputOrZeroRegister(2), i.MemoryOperand());
       break;
-    case kMips64Usw:
+    case kRiscvUsw:
       __ Usw(i.InputOrZeroRegister(2), i.MemoryOperand());
       break;
-    case kMips64Sd:
+    case kRiscvSd:
       __ Sd(i.InputOrZeroRegister(2), i.MemoryOperand());
       break;
-    case kMips64Usd:
+    case kRiscvUsd:
       __ Usd(i.InputOrZeroRegister(2), i.MemoryOperand());
       break;
-    case kMips64Lwc1: {
+    case kRiscvLwc1: {
       __ Lwc1(i.OutputSingleRegister(), i.MemoryOperand());
       break;
     }
-    case kMips64Ulwc1: {
+    case kRiscvUlwc1: {
       __ Ulwc1(i.OutputSingleRegister(), i.MemoryOperand(), kScratchReg);
       break;
     }
-    case kMips64Swc1: {
+    case kRiscvSwc1: {
       size_t index = 0;
       MemOperand operand = i.MemoryOperand(&index);
       FPURegister ft = i.InputOrZeroSingleRegister(index);
@@ -1608,7 +1608,7 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       __ Swc1(ft, operand);
       break;
     }
-    case kMips64Uswc1: {
+    case kRiscvUswc1: {
       size_t index = 0;
       MemOperand operand = i.MemoryOperand(&index);
       FPURegister ft = i.InputOrZeroSingleRegister(index);
@@ -1618,13 +1618,13 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       __ Uswc1(ft, operand, kScratchReg);
       break;
     }
-    case kMips64Ldc1:
+    case kRiscvLdc1:
       __ Ldc1(i.OutputDoubleRegister(), i.MemoryOperand());
       break;
-    case kMips64Uldc1:
+    case kRiscvUldc1:
       __ Uldc1(i.OutputDoubleRegister(), i.MemoryOperand(), kScratchReg);
       break;
-    case kMips64Sdc1: {
+    case kRiscvSdc1: {
       FPURegister ft = i.InputOrZeroDoubleRegister(2);
       if (ft == kDoubleRegZero && !__ IsDoubleZeroRegSet()) {
         __ Move(kDoubleRegZero, 0.0);
@@ -1632,7 +1632,7 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       __ Sdc1(ft, i.MemoryOperand());
       break;
     }
-    case kMips64Usdc1: {
+    case kRiscvUsdc1: {
       FPURegister ft = i.InputOrZeroDoubleRegister(2);
       if (ft == kDoubleRegZero && !__ IsDoubleZeroRegSet()) {
         __ Move(kDoubleRegZero, 0.0);
@@ -1640,11 +1640,11 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       __ Usdc1(ft, i.MemoryOperand(), kScratchReg);
       break;
     }
-    case kMips64Sync: {
+    case kRiscvSync: {
       __ sync();
       break;
     }
-    case kMips64Push:
+    case kRiscvPush:
       if (instr->InputAt(0)->IsFPRegister()) {
         __ Sdc1(i.InputDoubleRegister(0), MemOperand(sp, -kDoubleSize));
         __ Subu(sp, sp, Operand(kDoubleSize));
@@ -1654,7 +1654,7 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
         frame_access_state()->IncreaseSPDelta(1);
       }
       break;
-    case kMips64Peek: {
+    case kRiscvPeek: {
       // The incoming value is 0-based, but we need a 1-based value.
       int reverse_slot = i.InputInt32(0) + 1;
       int offset =
@@ -1674,13 +1674,13 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       }
       break;
     }
-    case kMips64StackClaim: {
+    case kRiscvStackClaim: {
       __ Dsubu(sp, sp, Operand(i.InputInt32(0)));
       frame_access_state()->IncreaseSPDelta(i.InputInt32(0) /
                                             kSystemPointerSize);
       break;
     }
-    case kMips64StoreToStackSlot: {
+    case kRiscvStoreToStackSlot: {
       if (instr->InputAt(0)->IsFPRegister()) {
         if (instr->InputAt(0)->IsSimd128Register()) {
           UNREACHABLE();
@@ -1692,11 +1692,11 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       }
       break;
     }
-    case kMips64ByteSwap64: {
+    case kRiscvByteSwap64: {
       __ ByteSwap(i.OutputRegister(0), i.InputRegister(0), 8);
       break;
     }
-    case kMips64ByteSwap32: {
+    case kRiscvByteSwap32: {
       __ ByteSwap(i.OutputRegister(0), i.InputRegister(0), 4);
       break;
     }
@@ -1715,16 +1715,16 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
     case kWord32AtomicLoadWord32:
       ASSEMBLE_ATOMIC_LOAD_INTEGER(Lw);
       break;
-    case kMips64Word64AtomicLoadUint8:
+    case kRiscvWord64AtomicLoadUint8:
       ASSEMBLE_ATOMIC_LOAD_INTEGER(Lbu);
       break;
-    case kMips64Word64AtomicLoadUint16:
+    case kRiscvWord64AtomicLoadUint16:
       ASSEMBLE_ATOMIC_LOAD_INTEGER(Lhu);
       break;
-    case kMips64Word64AtomicLoadUint32:
+    case kRiscvWord64AtomicLoadUint32:
       ASSEMBLE_ATOMIC_LOAD_INTEGER(Lwu);
       break;
-    case kMips64Word64AtomicLoadUint64:
+    case kRiscvWord64AtomicLoadUint64:
       ASSEMBLE_ATOMIC_LOAD_INTEGER(Ld);
       break;
     case kWord32AtomicStoreWord8:
@@ -1736,16 +1736,16 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
     case kWord32AtomicStoreWord32:
       ASSEMBLE_ATOMIC_STORE_INTEGER(Sw);
       break;
-    case kMips64Word64AtomicStoreWord8:
+    case kRiscvWord64AtomicStoreWord8:
       ASSEMBLE_ATOMIC_STORE_INTEGER(Sb);
       break;
-    case kMips64Word64AtomicStoreWord16:
+    case kRiscvWord64AtomicStoreWord16:
       ASSEMBLE_ATOMIC_STORE_INTEGER(Sh);
       break;
-    case kMips64Word64AtomicStoreWord32:
+    case kRiscvWord64AtomicStoreWord32:
       ASSEMBLE_ATOMIC_STORE_INTEGER(Sw);
       break;
-    case kMips64Word64AtomicStoreWord64:
+    case kRiscvWord64AtomicStoreWord64:
       ASSEMBLE_ATOMIC_STORE_INTEGER(Sd);
       break;
     case kWord32AtomicExchangeInt8:
@@ -1763,16 +1763,16 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
     case kWord32AtomicExchangeWord32:
       ASSEMBLE_ATOMIC_EXCHANGE_INTEGER(Ll, Sc);
       break;
-    case kMips64Word64AtomicExchangeUint8:
+    case kRiscvWord64AtomicExchangeUint8:
       ASSEMBLE_ATOMIC_EXCHANGE_INTEGER_EXT(Lld, Scd, false, 8, 64);
       break;
-    case kMips64Word64AtomicExchangeUint16:
+    case kRiscvWord64AtomicExchangeUint16:
       ASSEMBLE_ATOMIC_EXCHANGE_INTEGER_EXT(Lld, Scd, false, 16, 64);
       break;
-    case kMips64Word64AtomicExchangeUint32:
+    case kRiscvWord64AtomicExchangeUint32:
       ASSEMBLE_ATOMIC_EXCHANGE_INTEGER_EXT(Lld, Scd, false, 32, 64);
       break;
-    case kMips64Word64AtomicExchangeUint64:
+    case kRiscvWord64AtomicExchangeUint64:
       ASSEMBLE_ATOMIC_EXCHANGE_INTEGER(Lld, Scd);
       break;
     case kWord32AtomicCompareExchangeInt8:
@@ -1791,16 +1791,16 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       __ Sll(i.InputRegister(2), i.InputRegister(2), 0);
       ASSEMBLE_ATOMIC_COMPARE_EXCHANGE_INTEGER(Ll, Sc);
       break;
-    case kMips64Word64AtomicCompareExchangeUint8:
+    case kRiscvWord64AtomicCompareExchangeUint8:
       ASSEMBLE_ATOMIC_COMPARE_EXCHANGE_INTEGER_EXT(Lld, Scd, false, 8, 64);
       break;
-    case kMips64Word64AtomicCompareExchangeUint16:
+    case kRiscvWord64AtomicCompareExchangeUint16:
       ASSEMBLE_ATOMIC_COMPARE_EXCHANGE_INTEGER_EXT(Lld, Scd, false, 16, 64);
       break;
-    case kMips64Word64AtomicCompareExchangeUint32:
+    case kRiscvWord64AtomicCompareExchangeUint32:
       ASSEMBLE_ATOMIC_COMPARE_EXCHANGE_INTEGER_EXT(Lld, Scd, false, 32, 64);
       break;
-    case kMips64Word64AtomicCompareExchangeUint64:
+    case kRiscvWord64AtomicCompareExchangeUint64:
       ASSEMBLE_ATOMIC_COMPARE_EXCHANGE_INTEGER(Lld, Scd);
       break;
 #define ATOMIC_BINOP_CASE(op, inst)                         \
@@ -1826,16 +1826,16 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       ATOMIC_BINOP_CASE(Xor, Xor)
 #undef ATOMIC_BINOP_CASE
 #define ATOMIC_BINOP_CASE(op, inst)                           \
-  case kMips64Word64Atomic##op##Uint8:                        \
+  case kRiscvWord64Atomic##op##Uint8:                        \
     ASSEMBLE_ATOMIC_BINOP_EXT(Lld, Scd, false, 8, inst, 64);  \
     break;                                                    \
-  case kMips64Word64Atomic##op##Uint16:                       \
+  case kRiscvWord64Atomic##op##Uint16:                       \
     ASSEMBLE_ATOMIC_BINOP_EXT(Lld, Scd, false, 16, inst, 64); \
     break;                                                    \
-  case kMips64Word64Atomic##op##Uint32:                       \
+  case kRiscvWord64Atomic##op##Uint32:                       \
     ASSEMBLE_ATOMIC_BINOP_EXT(Lld, Scd, false, 32, inst, 64); \
     break;                                                    \
-  case kMips64Word64Atomic##op##Uint64:                       \
+  case kRiscvWord64Atomic##op##Uint64:                       \
     ASSEMBLE_ATOMIC_BINOP(Lld, Scd, inst);                    \
     break;
       ATOMIC_BINOP_CASE(Add, Daddu)
@@ -1844,7 +1844,7 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       ATOMIC_BINOP_CASE(Or, Or)
       ATOMIC_BINOP_CASE(Xor, Xor)
 #undef ATOMIC_BINOP_CASE
-    case kMips64AssertEqual:
+    case kRiscvAssertEqual:
       __ Assert(eq, static_cast<AbortReason>(i.InputOperand(2).immediate()),
                 i.InputRegister(0), Operand(i.InputRegister(1)));
       break;
@@ -1875,17 +1875,17 @@ void AssembleBranchToLabels(CodeGenerator* gen, TurboAssembler* tasm,
   // registers to compare pseudo-op are not modified before this branch op, as
   // they are tested here.
 
-  if (instr->arch_opcode() == kMips64Tst) {
+  if (instr->arch_opcode() == kRiscvTst) {
     cc = FlagsConditionToConditionTst(condition);
     __ Branch(tlabel, cc, kScratchReg, Operand(zero_reg));
-  } else if (instr->arch_opcode() == kMips64Dadd ||
-             instr->arch_opcode() == kMips64Dsub) {
+  } else if (instr->arch_opcode() == kRiscvDadd ||
+             instr->arch_opcode() == kRiscvDsub) {
     cc = FlagsConditionToConditionOvf(condition);
     __ Dsra(kScratchReg, i.OutputRegister(), 32);
     __ Dsra(kScratchReg2, i.OutputRegister(), 31);
     __ Branch(tlabel, cc, kScratchReg2, Operand(kScratchReg));
-  } else if (instr->arch_opcode() == kMips64DaddOvf ||
-             instr->arch_opcode() == kMips64DsubOvf) {
+  } else if (instr->arch_opcode() == kRiscvDaddOvf ||
+             instr->arch_opcode() == kRiscvDsubOvf) {
     switch (condition) {
       // Overflow occurs if overflow register is negative
       case kOverflow:
@@ -1898,7 +1898,7 @@ void AssembleBranchToLabels(CodeGenerator* gen, TurboAssembler* tasm,
         UNSUPPORTED_COND(instr->arch_opcode(), condition);
         break;
     }
-  } else if (instr->arch_opcode() == kMips64MulOvf) {
+  } else if (instr->arch_opcode() == kRiscvMulOvf) {
     // Overflow occurs if overflow register is not zero
     switch (condition) {
       case kOverflow:
@@ -1911,7 +1911,7 @@ void AssembleBranchToLabels(CodeGenerator* gen, TurboAssembler* tasm,
         UNSUPPORTED_COND(kMipsMulOvf, condition);
         break;
     }
-  } else if (instr->arch_opcode() == kMips64Cmp) {
+  } else if (instr->arch_opcode() == kRiscvCmp) {
     cc = FlagsConditionToConditionCmp(condition);
     __ Branch(tlabel, cc, i.InputRegister(0), i.InputOperand(1));
   } else if (instr->arch_opcode() == kArchStackPointerGreaterThan) {
@@ -1923,8 +1923,8 @@ void AssembleBranchToLabels(CodeGenerator* gen, TurboAssembler* tasm,
       __ Dsubu(lhs_register, sp, offset);
     }
     __ Branch(tlabel, cc, lhs_register, Operand(i.InputRegister(0)));
-  } else if (instr->arch_opcode() == kMips64CmpS ||
-             instr->arch_opcode() == kMips64CmpD) {
+  } else if (instr->arch_opcode() == kRiscvCmpS ||
+             instr->arch_opcode() == kRiscvCmpD) {
     bool predicate;
     FlagsConditionToConditionCmpFPU(&predicate, condition);
     // floating-point compare result is set in kScratchReg
@@ -1963,13 +1963,13 @@ void CodeGenerator::AssembleBranchPoisoning(FlagsCondition condition,
   condition = NegateFlagsCondition(condition);
 
   switch (instr->arch_opcode()) {
-    case kMips64Cmp: {
+    case kRiscvCmp: {
       __ LoadZeroOnCondition(kSpeculationPoisonRegister, i.InputRegister(0),
                              i.InputOperand(1),
                              FlagsConditionToConditionCmp(condition));
     }
       return;
-    case kMips64Tst: {
+    case kRiscvTst: {
       switch (condition) {
         case kEqual:
           __ LoadZeroIfConditionZero(kSpeculationPoisonRegister, kScratchReg);
@@ -1983,8 +1983,8 @@ void CodeGenerator::AssembleBranchPoisoning(FlagsCondition condition,
       }
     }
       return;
-    case kMips64Dadd:
-    case kMips64Dsub: {
+    case kRiscvDadd:
+    case kRiscvDsub: {
       // Check for overflow creates 1 or 0 for result.
       __ Dsrl(kScratchReg, i.OutputRegister(), 63);
       __ Srl(kScratchReg2, i.OutputRegister(), 31);
@@ -2002,8 +2002,8 @@ void CodeGenerator::AssembleBranchPoisoning(FlagsCondition condition,
       }
     }
       return;
-    case kMips64DaddOvf:
-    case kMips64DsubOvf: {
+    case kRiscvDaddOvf:
+    case kRiscvDsubOvf: {
       // Overflow occurs if overflow register is negative
       __ Slt(kScratchReg2, kScratchReg, zero_reg);
       switch (condition) {
@@ -2019,7 +2019,7 @@ void CodeGenerator::AssembleBranchPoisoning(FlagsCondition condition,
       }
     }
       return;
-    case kMips64MulOvf: {
+    case kRiscvMulOvf: {
       // Overflow occurs if overflow register is not zero
       switch (condition) {
         case kOverflow:
@@ -2034,8 +2034,8 @@ void CodeGenerator::AssembleBranchPoisoning(FlagsCondition condition,
       }
     }
       return;
-    case kMips64CmpS:
-    case kMips64CmpD: {
+    case kRiscvCmpS:
+    case kRiscvCmpD: {
       bool predicate;
       FlagsConditionToConditionCmpFPU(&predicate, condition);
       if (predicate) {
@@ -2127,7 +2127,7 @@ void CodeGenerator::AssembleArchBoolean(Instruction* instr,
   // implemented differently than on the other arch's. The compare operations
   // emit riscv pseudo-instructions, which are checked and handled here.
 
-  if (instr->arch_opcode() == kMips64Tst) {
+  if (instr->arch_opcode() == kRiscvTst) {
     cc = FlagsConditionToConditionTst(condition);
     if (cc == eq) {
       __ Sltu(result, kScratchReg, 1);
@@ -2135,8 +2135,8 @@ void CodeGenerator::AssembleArchBoolean(Instruction* instr,
       __ Sltu(result, zero_reg, kScratchReg);
     }
     return;
-  } else if (instr->arch_opcode() == kMips64Dadd ||
-             instr->arch_opcode() == kMips64Dsub) {
+  } else if (instr->arch_opcode() == kRiscvDadd ||
+             instr->arch_opcode() == kRiscvDsub) {
     cc = FlagsConditionToConditionOvf(condition);
     // Check for overflow creates 1 or 0 for result.
     __ Dsrl(kScratchReg, i.OutputRegister(), 63);
@@ -2145,14 +2145,14 @@ void CodeGenerator::AssembleArchBoolean(Instruction* instr,
     if (cc == eq)  // Toggle result for not overflow.
       __ Xor(result, result, 1);
     return;
-  } else if (instr->arch_opcode() == kMips64DaddOvf ||
-             instr->arch_opcode() == kMips64DsubOvf) {
+  } else if (instr->arch_opcode() == kRiscvDaddOvf ||
+             instr->arch_opcode() == kRiscvDsubOvf) {
     // Overflow occurs if overflow register is negative
     __ Slt(result, kScratchReg, zero_reg);
-  } else if (instr->arch_opcode() == kMips64MulOvf) {
+  } else if (instr->arch_opcode() == kRiscvMulOvf) {
     // Overflow occurs if overflow register is not zero
     __ Sgtu(result, kScratchReg, zero_reg);
-  } else if (instr->arch_opcode() == kMips64Cmp) {
+  } else if (instr->arch_opcode() == kRiscvCmp) {
     cc = FlagsConditionToConditionCmp(condition);
     switch (cc) {
       case eq:
@@ -2237,8 +2237,8 @@ void CodeGenerator::AssembleArchBoolean(Instruction* instr,
         UNREACHABLE();
     }
     return;
-  } else if (instr->arch_opcode() == kMips64CmpD ||
-             instr->arch_opcode() == kMips64CmpS) {
+  } else if (instr->arch_opcode() == kRiscvCmpD ||
+             instr->arch_opcode() == kRiscvCmpS) {
     FPURegister left = i.InputOrZeroDoubleRegister(0);
     FPURegister right = i.InputOrZeroDoubleRegister(1);
     if ((left == kDoubleRegZero || right == kDoubleRegZero) &&

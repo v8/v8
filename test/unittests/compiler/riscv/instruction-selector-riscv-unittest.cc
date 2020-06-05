@@ -41,20 +41,20 @@ struct FPCmp {
 };
 
 const FPCmp kFPCmpInstructions[] = {
-    {{&RawMachineAssembler::Float64Equal, "Float64Equal", kMips64CmpD,
+    {{&RawMachineAssembler::Float64Equal, "Float64Equal", kRiscvCmpD,
       MachineType::Float64()},
      kEqual},
-    {{&RawMachineAssembler::Float64LessThan, "Float64LessThan", kMips64CmpD,
+    {{&RawMachineAssembler::Float64LessThan, "Float64LessThan", kRiscvCmpD,
       MachineType::Float64()},
      kUnsignedLessThan},
     {{&RawMachineAssembler::Float64LessThanOrEqual, "Float64LessThanOrEqual",
-      kMips64CmpD, MachineType::Float64()},
+      kRiscvCmpD, MachineType::Float64()},
      kUnsignedLessThanOrEqual},
     {{&RawMachineAssembler::Float64GreaterThan, "Float64GreaterThan",
-      kMips64CmpD, MachineType::Float64()},
+      kRiscvCmpD, MachineType::Float64()},
      kUnsignedLessThan},
     {{&RawMachineAssembler::Float64GreaterThanOrEqual,
-      "Float64GreaterThanOrEqual", kMips64CmpD, MachineType::Float64()},
+      "Float64GreaterThanOrEqual", kRiscvCmpD, MachineType::Float64()},
      kUnsignedLessThanOrEqual}};
 
 struct Conversion {
@@ -69,17 +69,17 @@ struct Conversion {
 // ----------------------------------------------------------------------------
 
 const MachInst2 kLogicalInstructions[] = {
-    {&RawMachineAssembler::Word32And, "Word32And", kMips64And32,
+    {&RawMachineAssembler::Word32And, "Word32And", kRiscvAnd32,
      MachineType::Int32()},
-    {&RawMachineAssembler::Word64And, "Word64And", kMips64And,
+    {&RawMachineAssembler::Word64And, "Word64And", kRiscvAnd,
      MachineType::Int64()},
-    {&RawMachineAssembler::Word32Or, "Word32Or", kMips64Or32,
+    {&RawMachineAssembler::Word32Or, "Word32Or", kRiscvOr32,
      MachineType::Int32()},
-    {&RawMachineAssembler::Word64Or, "Word64Or", kMips64Or,
+    {&RawMachineAssembler::Word64Or, "Word64Or", kRiscvOr,
      MachineType::Int64()},
-    {&RawMachineAssembler::Word32Xor, "Word32Xor", kMips64Xor32,
+    {&RawMachineAssembler::Word32Xor, "Word32Xor", kRiscvXor32,
      MachineType::Int32()},
-    {&RawMachineAssembler::Word64Xor, "Word64Xor", kMips64Xor,
+    {&RawMachineAssembler::Word64Xor, "Word64Xor", kRiscvXor,
      MachineType::Int64()}};
 
 // ----------------------------------------------------------------------------
@@ -88,21 +88,21 @@ const MachInst2 kLogicalInstructions[] = {
 
 
 const MachInst2 kShiftInstructions[] = {
-    {&RawMachineAssembler::Word32Shl, "Word32Shl", kMips64Shl,
+    {&RawMachineAssembler::Word32Shl, "Word32Shl", kRiscvShl,
      MachineType::Int32()},
-    {&RawMachineAssembler::Word64Shl, "Word64Shl", kMips64Dshl,
+    {&RawMachineAssembler::Word64Shl, "Word64Shl", kRiscvDshl,
      MachineType::Int64()},
-    {&RawMachineAssembler::Word32Shr, "Word32Shr", kMips64Shr,
+    {&RawMachineAssembler::Word32Shr, "Word32Shr", kRiscvShr,
      MachineType::Int32()},
-    {&RawMachineAssembler::Word64Shr, "Word64Shr", kMips64Dshr,
+    {&RawMachineAssembler::Word64Shr, "Word64Shr", kRiscvDshr,
      MachineType::Int64()},
-    {&RawMachineAssembler::Word32Sar, "Word32Sar", kMips64Sar,
+    {&RawMachineAssembler::Word32Sar, "Word32Sar", kRiscvSar,
      MachineType::Int32()},
-    {&RawMachineAssembler::Word64Sar, "Word64Sar", kMips64Dsar,
+    {&RawMachineAssembler::Word64Sar, "Word64Sar", kRiscvDsar,
      MachineType::Int64()},
-    {&RawMachineAssembler::Word32Ror, "Word32Ror", kMips64Ror,
+    {&RawMachineAssembler::Word32Ror, "Word32Ror", kRiscvRor,
      MachineType::Int32()},
-    {&RawMachineAssembler::Word64Ror, "Word64Ror", kMips64Dror,
+    {&RawMachineAssembler::Word64Ror, "Word64Ror", kRiscvDror,
      MachineType::Int64()}};
 
 
@@ -112,21 +112,21 @@ const MachInst2 kShiftInstructions[] = {
 
 
 const MachInst2 kMulDivInstructions[] = {
-    {&RawMachineAssembler::Int32Mul, "Int32Mul", kMips64Mul,
+    {&RawMachineAssembler::Int32Mul, "Int32Mul", kRiscvMul,
      MachineType::Int32()},
-    {&RawMachineAssembler::Int32Div, "Int32Div", kMips64Div,
+    {&RawMachineAssembler::Int32Div, "Int32Div", kRiscvDiv,
      MachineType::Int32()},
-    {&RawMachineAssembler::Uint32Div, "Uint32Div", kMips64DivU,
+    {&RawMachineAssembler::Uint32Div, "Uint32Div", kRiscvDivU,
      MachineType::Uint32()},
-    {&RawMachineAssembler::Int64Mul, "Int64Mul", kMips64Dmul,
+    {&RawMachineAssembler::Int64Mul, "Int64Mul", kRiscvDmul,
      MachineType::Int64()},
-    {&RawMachineAssembler::Int64Div, "Int64Div", kMips64Ddiv,
+    {&RawMachineAssembler::Int64Div, "Int64Div", kRiscvDdiv,
      MachineType::Int64()},
-    {&RawMachineAssembler::Uint64Div, "Uint64Div", kMips64DdivU,
+    {&RawMachineAssembler::Uint64Div, "Uint64Div", kRiscvDdivU,
      MachineType::Uint64()},
-    {&RawMachineAssembler::Float64Mul, "Float64Mul", kMips64MulD,
+    {&RawMachineAssembler::Float64Mul, "Float64Mul", kRiscvMulD,
      MachineType::Float64()},
-    {&RawMachineAssembler::Float64Div, "Float64Div", kMips64DivD,
+    {&RawMachineAssembler::Float64Div, "Float64Div", kRiscvDivD,
      MachineType::Float64()}};
 
 
@@ -136,11 +136,11 @@ const MachInst2 kMulDivInstructions[] = {
 
 
 const MachInst2 kModInstructions[] = {
-    {&RawMachineAssembler::Int32Mod, "Int32Mod", kMips64Mod,
+    {&RawMachineAssembler::Int32Mod, "Int32Mod", kRiscvMod,
      MachineType::Int32()},
-    {&RawMachineAssembler::Uint32Mod, "Uint32Mod", kMips64ModU,
+    {&RawMachineAssembler::Uint32Mod, "Uint32Mod", kRiscvModU,
      MachineType::Int32()},
-    {&RawMachineAssembler::Float64Mod, "Float64Mod", kMips64ModD,
+    {&RawMachineAssembler::Float64Mod, "Float64Mod", kRiscvModD,
      MachineType::Float64()}};
 
 
@@ -150,9 +150,9 @@ const MachInst2 kModInstructions[] = {
 
 
 const MachInst2 kFPArithInstructions[] = {
-    {&RawMachineAssembler::Float64Add, "Float64Add", kMips64AddD,
+    {&RawMachineAssembler::Float64Add, "Float64Add", kRiscvAddD,
      MachineType::Float64()},
-    {&RawMachineAssembler::Float64Sub, "Float64Sub", kMips64SubD,
+    {&RawMachineAssembler::Float64Sub, "Float64Sub", kRiscvSubD,
      MachineType::Float64()}};
 
 
@@ -162,13 +162,13 @@ const MachInst2 kFPArithInstructions[] = {
 
 
 const MachInst2 kAddSubInstructions[] = {
-    {&RawMachineAssembler::Int32Add, "Int32Add", kMips64Add,
+    {&RawMachineAssembler::Int32Add, "Int32Add", kRiscvAdd,
      MachineType::Int32()},
-    {&RawMachineAssembler::Int64Add, "Int64Add", kMips64Dadd,
+    {&RawMachineAssembler::Int64Add, "Int64Add", kRiscvDadd,
      MachineType::Int64()},
-    {&RawMachineAssembler::Int32Sub, "Int32Sub", kMips64Sub,
+    {&RawMachineAssembler::Int32Sub, "Int32Sub", kRiscvSub,
      MachineType::Int32()},
-    {&RawMachineAssembler::Int64Sub, "Int64Sub", kMips64Dsub,
+    {&RawMachineAssembler::Int64Sub, "Int64Sub", kRiscvDsub,
      MachineType::Int64()}};
 
 
@@ -178,9 +178,9 @@ const MachInst2 kAddSubInstructions[] = {
 
 
 const MachInst1 kAddSubOneInstructions[] = {
-    {&RawMachineAssembler::Int32Neg, "Int32Neg", kMips64Sub,
+    {&RawMachineAssembler::Int32Neg, "Int32Neg", kRiscvSub,
      MachineType::Int32()},
-    {&RawMachineAssembler::Int64Neg, "Int64Neg", kMips64Dsub,
+    {&RawMachineAssembler::Int64Neg, "Int64Neg", kRiscvDsub,
      MachineType::Int64()}};
 
 
@@ -190,35 +190,35 @@ const MachInst1 kAddSubOneInstructions[] = {
 
 
 const IntCmp kCmpInstructions[] = {
-    {{&RawMachineAssembler::WordEqual, "WordEqual", kMips64Cmp,
+    {{&RawMachineAssembler::WordEqual, "WordEqual", kRiscvCmp,
       MachineType::Int64()},
      1U},
-    {{&RawMachineAssembler::WordNotEqual, "WordNotEqual", kMips64Cmp,
+    {{&RawMachineAssembler::WordNotEqual, "WordNotEqual", kRiscvCmp,
       MachineType::Int64()},
      1U},
-    {{&RawMachineAssembler::Word32Equal, "Word32Equal", kMips64Cmp,
+    {{&RawMachineAssembler::Word32Equal, "Word32Equal", kRiscvCmp,
       MachineType::Int32()},
      1U},
-    {{&RawMachineAssembler::Word32NotEqual, "Word32NotEqual", kMips64Cmp,
+    {{&RawMachineAssembler::Word32NotEqual, "Word32NotEqual", kRiscvCmp,
       MachineType::Int32()},
      1U},
-    {{&RawMachineAssembler::Int32LessThan, "Int32LessThan", kMips64Cmp,
+    {{&RawMachineAssembler::Int32LessThan, "Int32LessThan", kRiscvCmp,
       MachineType::Int32()},
      1U},
     {{&RawMachineAssembler::Int32LessThanOrEqual, "Int32LessThanOrEqual",
-      kMips64Cmp, MachineType::Int32()},
+      kRiscvCmp, MachineType::Int32()},
      1U},
-    {{&RawMachineAssembler::Int32GreaterThan, "Int32GreaterThan", kMips64Cmp,
+    {{&RawMachineAssembler::Int32GreaterThan, "Int32GreaterThan", kRiscvCmp,
       MachineType::Int32()},
      1U},
     {{&RawMachineAssembler::Int32GreaterThanOrEqual, "Int32GreaterThanOrEqual",
-      kMips64Cmp, MachineType::Int32()},
+      kRiscvCmp, MachineType::Int32()},
      1U},
-    {{&RawMachineAssembler::Uint32LessThan, "Uint32LessThan", kMips64Cmp,
+    {{&RawMachineAssembler::Uint32LessThan, "Uint32LessThan", kRiscvCmp,
       MachineType::Uint32()},
      1U},
     {{&RawMachineAssembler::Uint32LessThanOrEqual, "Uint32LessThanOrEqual",
-      kMips64Cmp, MachineType::Uint32()},
+      kRiscvCmp, MachineType::Uint32()},
      1U}};
 
 
@@ -236,64 +236,64 @@ const Conversion kConversionInstructions[] = {
     // mips instructions:
     // mtc1, cvt.d.w
     {{&RawMachineAssembler::ChangeInt32ToFloat64, "ChangeInt32ToFloat64",
-      kMips64CvtDW, MachineType::Float64()},
+      kRiscvCvtDW, MachineType::Float64()},
      MachineType::Int32()},
 
     // mips instructions:
     // cvt.d.uw
     {{&RawMachineAssembler::ChangeUint32ToFloat64, "ChangeUint32ToFloat64",
-      kMips64CvtDUw, MachineType::Float64()},
+      kRiscvCvtDUw, MachineType::Float64()},
      MachineType::Int32()},
 
     // mips instructions:
     // mfc1, trunc double to word, for more details look at mips macro
     // asm and mips asm file
     {{&RawMachineAssembler::ChangeFloat64ToInt32, "ChangeFloat64ToInt32",
-      kMips64TruncWD, MachineType::Float64()},
+      kRiscvTruncWD, MachineType::Float64()},
      MachineType::Int32()},
 
     // mips instructions:
     // trunc double to unsigned word, for more details look at mips macro
     // asm and mips asm file
     {{&RawMachineAssembler::ChangeFloat64ToUint32, "ChangeFloat64ToUint32",
-      kMips64TruncUwD, MachineType::Float64()},
+      kRiscvTruncUwD, MachineType::Float64()},
      MachineType::Int32()}};
 
 const Conversion kFloat64RoundInstructions[] = {
-    {{&RawMachineAssembler::Float64RoundUp, "Float64RoundUp", kMips64CeilWD,
+    {{&RawMachineAssembler::Float64RoundUp, "Float64RoundUp", kRiscvCeilWD,
       MachineType::Int32()},
      MachineType::Float64()},
     {{&RawMachineAssembler::Float64RoundDown, "Float64RoundDown",
-      kMips64FloorWD, MachineType::Int32()},
+      kRiscvFloorWD, MachineType::Int32()},
      MachineType::Float64()},
     {{&RawMachineAssembler::Float64RoundTiesEven, "Float64RoundTiesEven",
-      kMips64RoundWD, MachineType::Int32()},
+      kRiscvRoundWD, MachineType::Int32()},
      MachineType::Float64()},
     {{&RawMachineAssembler::Float64RoundTruncate, "Float64RoundTruncate",
-      kMips64TruncWD, MachineType::Int32()},
+      kRiscvTruncWD, MachineType::Int32()},
      MachineType::Float64()}};
 
 const Conversion kFloat32RoundInstructions[] = {
-    {{&RawMachineAssembler::Float32RoundUp, "Float32RoundUp", kMips64CeilWS,
+    {{&RawMachineAssembler::Float32RoundUp, "Float32RoundUp", kRiscvCeilWS,
       MachineType::Int32()},
      MachineType::Float32()},
     {{&RawMachineAssembler::Float32RoundDown, "Float32RoundDown",
-      kMips64FloorWS, MachineType::Int32()},
+      kRiscvFloorWS, MachineType::Int32()},
      MachineType::Float32()},
     {{&RawMachineAssembler::Float32RoundTiesEven, "Float32RoundTiesEven",
-      kMips64RoundWS, MachineType::Int32()},
+      kRiscvRoundWS, MachineType::Int32()},
      MachineType::Float32()},
     {{&RawMachineAssembler::Float32RoundTruncate, "Float32RoundTruncate",
-      kMips64TruncWS, MachineType::Int32()},
+      kRiscvTruncWS, MachineType::Int32()},
      MachineType::Float32()}};
 
 // MIPS64 instructions that clear the top 32 bits of the destination.
 const MachInst2 kCanElideChangeUint32ToUint64[] = {
-    {&RawMachineAssembler::Uint32Div, "Uint32Div", kMips64DivU,
+    {&RawMachineAssembler::Uint32Div, "Uint32Div", kRiscvDivU,
      MachineType::Uint32()},
-    {&RawMachineAssembler::Uint32Mod, "Uint32Mod", kMips64ModU,
+    {&RawMachineAssembler::Uint32Mod, "Uint32Mod", kRiscvModU,
      MachineType::Uint32()},
-    {&RawMachineAssembler::Uint32MulHigh, "Uint32MulHigh", kMips64MulHighU,
+    {&RawMachineAssembler::Uint32MulHigh, "Uint32MulHigh", kRiscvMulHighU,
      MachineType::Uint32()}};
 
 }  // namespace
@@ -337,11 +337,11 @@ TEST_P(InstructionSelectorCmpTest, Parameter) {
     EXPECT_EQ(2U, s[0]->InputCount());
     EXPECT_EQ(1U, s[0]->OutputCount());
 
-    EXPECT_EQ(kMips64Dshl, s[1]->arch_opcode());
+    EXPECT_EQ(kRiscvDshl, s[1]->arch_opcode());
     EXPECT_EQ(2U, s[1]->InputCount());
     EXPECT_EQ(1U, s[1]->OutputCount());
 
-    EXPECT_EQ(kMips64Dshl, s[2]->arch_opcode());
+    EXPECT_EQ(kRiscvDshl, s[2]->arch_opcode());
     EXPECT_EQ(2U, s[2]->InputCount());
     EXPECT_EQ(1U, s[2]->OutputCount());
 
@@ -349,7 +349,7 @@ TEST_P(InstructionSelectorCmpTest, Parameter) {
     EXPECT_EQ(2U, s[3]->InputCount());
     EXPECT_EQ(1U, s[3]->OutputCount());
 
-    EXPECT_EQ(kMips64AssertEqual, s[4]->arch_opcode());
+    EXPECT_EQ(kRiscvAssertEqual, s[4]->arch_opcode());
     EXPECT_EQ(3U, s[4]->InputCount());
     EXPECT_EQ(0U, s[4]->OutputCount());
 
@@ -407,7 +407,7 @@ TEST_F(InstructionSelectorTest, Word32ShrWithWord32AndWithImmediate) {
                            m.Int32Constant(shift)));
       Stream s = m.Build();
       ASSERT_EQ(1U, s.size());
-      EXPECT_EQ(kMips64Ext, s[0]->arch_opcode());
+      EXPECT_EQ(kRiscvExt, s[0]->arch_opcode());
       ASSERT_EQ(3U, s[0]->InputCount());
       EXPECT_EQ(lsb, s.ToInt32(s[0]->InputAt(1)));
       EXPECT_EQ(width, s.ToInt32(s[0]->InputAt(2)));
@@ -424,7 +424,7 @@ TEST_F(InstructionSelectorTest, Word32ShrWithWord32AndWithImmediate) {
                            m.Int32Constant(shift)));
       Stream s = m.Build();
       ASSERT_EQ(1U, s.size());
-      EXPECT_EQ(kMips64Ext, s[0]->arch_opcode());
+      EXPECT_EQ(kRiscvExt, s[0]->arch_opcode());
       ASSERT_EQ(3U, s[0]->InputCount());
       EXPECT_EQ(lsb, s.ToInt32(s[0]->InputAt(1)));
       EXPECT_EQ(width, s.ToInt32(s[0]->InputAt(2)));
@@ -448,7 +448,7 @@ TEST_F(InstructionSelectorTest, Word64ShrWithWord64AndWithImmediate) {
                            m.Int64Constant(shift)));
       Stream s = m.Build();
       ASSERT_EQ(1U, s.size());
-      EXPECT_EQ(kMips64Dext, s[0]->arch_opcode());
+      EXPECT_EQ(kRiscvDext, s[0]->arch_opcode());
       ASSERT_EQ(3U, s[0]->InputCount());
       EXPECT_EQ(lsb, s.ToInt64(s[0]->InputAt(1)));
       EXPECT_EQ(width, s.ToInt64(s[0]->InputAt(2)));
@@ -466,7 +466,7 @@ TEST_F(InstructionSelectorTest, Word64ShrWithWord64AndWithImmediate) {
                            m.Int64Constant(shift)));
       Stream s = m.Build();
       ASSERT_EQ(1U, s.size());
-      EXPECT_EQ(kMips64Dext, s[0]->arch_opcode());
+      EXPECT_EQ(kRiscvDext, s[0]->arch_opcode());
       ASSERT_EQ(3U, s[0]->InputCount());
       EXPECT_EQ(lsb, s.ToInt64(s[0]->InputAt(1)));
       EXPECT_EQ(width, s.ToInt64(s[0]->InputAt(2)));
@@ -482,7 +482,7 @@ TEST_F(InstructionSelectorTest, Word32AndToClearBits) {
     m.Return(m.Word32And(m.Parameter(0), m.Int32Constant(mask)));
     Stream s = m.Build();
     ASSERT_EQ(1U, s.size());
-    EXPECT_EQ(kMips64Ins, s[0]->arch_opcode());
+    EXPECT_EQ(kRiscvIns, s[0]->arch_opcode());
     ASSERT_EQ(3U, s[0]->InputCount());
     EXPECT_EQ(0, s.ToInt32(s[0]->InputAt(1)));
     EXPECT_EQ(shift, s.ToInt32(s[0]->InputAt(2)));
@@ -493,7 +493,7 @@ TEST_F(InstructionSelectorTest, Word32AndToClearBits) {
     m.Return(m.Word32And(m.Int32Constant(mask), m.Parameter(0)));
     Stream s = m.Build();
     ASSERT_EQ(1U, s.size());
-    EXPECT_EQ(kMips64Ins, s[0]->arch_opcode());
+    EXPECT_EQ(kRiscvIns, s[0]->arch_opcode());
     ASSERT_EQ(3U, s[0]->InputCount());
     EXPECT_EQ(0, s.ToInt32(s[0]->InputAt(1)));
     EXPECT_EQ(shift, s.ToInt32(s[0]->InputAt(2)));
@@ -508,7 +508,7 @@ TEST_F(InstructionSelectorTest, Word64AndToClearBits) {
     m.Return(m.Word64And(m.Parameter(0), m.Int64Constant(mask)));
     Stream s = m.Build();
     ASSERT_EQ(1U, s.size());
-    EXPECT_EQ(kMips64Dins, s[0]->arch_opcode());
+    EXPECT_EQ(kRiscvDins, s[0]->arch_opcode());
     ASSERT_EQ(3U, s[0]->InputCount());
     EXPECT_EQ(0, s.ToInt32(s[0]->InputAt(1)));
     EXPECT_EQ(shift, s.ToInt32(s[0]->InputAt(2)));
@@ -519,7 +519,7 @@ TEST_F(InstructionSelectorTest, Word64AndToClearBits) {
     m.Return(m.Word64And(m.Int64Constant(mask), m.Parameter(0)));
     Stream s = m.Build();
     ASSERT_EQ(1U, s.size());
-    EXPECT_EQ(kMips64Dins, s[0]->arch_opcode());
+    EXPECT_EQ(kRiscvDins, s[0]->arch_opcode());
     ASSERT_EQ(3U, s[0]->InputCount());
     EXPECT_EQ(0, s.ToInt32(s[0]->InputAt(1)));
     EXPECT_EQ(shift, s.ToInt32(s[0]->InputAt(2)));
@@ -555,7 +555,7 @@ TEST_F(InstructionSelectorTest, Word64XorMinusOneWithParameter) {
     m.Return(m.Word64Xor(m.Parameter(0), m.Int64Constant(-1)));
     Stream s = m.Build();
     ASSERT_EQ(1U, s.size());
-    EXPECT_EQ(kMips64Nor, s[0]->arch_opcode());
+    EXPECT_EQ(kRiscvNor, s[0]->arch_opcode());
     EXPECT_EQ(2U, s[0]->InputCount());
     EXPECT_EQ(1U, s[0]->OutputCount());
   }
@@ -564,7 +564,7 @@ TEST_F(InstructionSelectorTest, Word64XorMinusOneWithParameter) {
     m.Return(m.Word64Xor(m.Int64Constant(-1), m.Parameter(0)));
     Stream s = m.Build();
     ASSERT_EQ(1U, s.size());
-    EXPECT_EQ(kMips64Nor, s[0]->arch_opcode());
+    EXPECT_EQ(kRiscvNor, s[0]->arch_opcode());
     EXPECT_EQ(2U, s[0]->InputCount());
     EXPECT_EQ(1U, s[0]->OutputCount());
   }
@@ -577,7 +577,7 @@ TEST_F(InstructionSelectorTest, Word32XorMinusOneWithParameter) {
     m.Return(m.Word32Xor(m.Parameter(0), m.Int32Constant(-1)));
     Stream s = m.Build();
     ASSERT_EQ(1U, s.size());
-    EXPECT_EQ(kMips64Nor32, s[0]->arch_opcode());
+    EXPECT_EQ(kRiscvNor32, s[0]->arch_opcode());
     EXPECT_EQ(2U, s[0]->InputCount());
     EXPECT_EQ(1U, s[0]->OutputCount());
   }
@@ -586,7 +586,7 @@ TEST_F(InstructionSelectorTest, Word32XorMinusOneWithParameter) {
     m.Return(m.Word32Xor(m.Int32Constant(-1), m.Parameter(0)));
     Stream s = m.Build();
     ASSERT_EQ(1U, s.size());
-    EXPECT_EQ(kMips64Nor32, s[0]->arch_opcode());
+    EXPECT_EQ(kRiscvNor32, s[0]->arch_opcode());
     EXPECT_EQ(2U, s[0]->InputCount());
     EXPECT_EQ(1U, s[0]->OutputCount());
   }
@@ -600,7 +600,7 @@ TEST_F(InstructionSelectorTest, Word64XorMinusOneWithWord64Or) {
                          m.Int64Constant(-1)));
     Stream s = m.Build();
     ASSERT_EQ(1U, s.size());
-    EXPECT_EQ(kMips64Nor, s[0]->arch_opcode());
+    EXPECT_EQ(kRiscvNor, s[0]->arch_opcode());
     EXPECT_EQ(2U, s[0]->InputCount());
     EXPECT_EQ(1U, s[0]->OutputCount());
   }
@@ -610,7 +610,7 @@ TEST_F(InstructionSelectorTest, Word64XorMinusOneWithWord64Or) {
                          m.Word64Or(m.Parameter(0), m.Parameter(0))));
     Stream s = m.Build();
     ASSERT_EQ(1U, s.size());
-    EXPECT_EQ(kMips64Nor, s[0]->arch_opcode());
+    EXPECT_EQ(kRiscvNor, s[0]->arch_opcode());
     EXPECT_EQ(2U, s[0]->InputCount());
     EXPECT_EQ(1U, s[0]->OutputCount());
   }
@@ -624,7 +624,7 @@ TEST_F(InstructionSelectorTest, Word32XorMinusOneWithWord32Or) {
                          m.Int32Constant(-1)));
     Stream s = m.Build();
     ASSERT_EQ(1U, s.size());
-    EXPECT_EQ(kMips64Nor32, s[0]->arch_opcode());
+    EXPECT_EQ(kRiscvNor32, s[0]->arch_opcode());
     EXPECT_EQ(2U, s[0]->InputCount());
     EXPECT_EQ(1U, s[0]->OutputCount());
   }
@@ -634,7 +634,7 @@ TEST_F(InstructionSelectorTest, Word32XorMinusOneWithWord32Or) {
                          m.Word32Or(m.Parameter(0), m.Parameter(0))));
     Stream s = m.Build();
     ASSERT_EQ(1U, s.size());
-    EXPECT_EQ(kMips64Nor32, s[0]->arch_opcode());
+    EXPECT_EQ(kRiscvNor32, s[0]->arch_opcode());
     EXPECT_EQ(2U, s[0]->InputCount());
     EXPECT_EQ(1U, s[0]->OutputCount());
   }
@@ -653,7 +653,7 @@ TEST_F(InstructionSelectorTest, Word32AndWithImmediateWithWord32Shr) {
                            m.Int32Constant(msk)));
       Stream s = m.Build();
       ASSERT_EQ(1U, s.size());
-      EXPECT_EQ(kMips64Ext, s[0]->arch_opcode());
+      EXPECT_EQ(kRiscvExt, s[0]->arch_opcode());
       ASSERT_EQ(3U, s[0]->InputCount());
       EXPECT_EQ(lsb, s.ToInt32(s[0]->InputAt(1)));
       int32_t actual_width = (lsb + width > 32) ? (32 - lsb) : width;
@@ -670,7 +670,7 @@ TEST_F(InstructionSelectorTest, Word32AndWithImmediateWithWord32Shr) {
                       m.Word32Shr(m.Parameter(0), m.Int32Constant(shift))));
       Stream s = m.Build();
       ASSERT_EQ(1U, s.size());
-      EXPECT_EQ(kMips64Ext, s[0]->arch_opcode());
+      EXPECT_EQ(kRiscvExt, s[0]->arch_opcode());
       ASSERT_EQ(3U, s[0]->InputCount());
       EXPECT_EQ(lsb, s.ToInt32(s[0]->InputAt(1)));
       int32_t actual_width = (lsb + width > 32) ? (32 - lsb) : width;
@@ -692,7 +692,7 @@ TEST_F(InstructionSelectorTest, Word64AndWithImmediateWithWord64Shr) {
                            m.Int64Constant(msk)));
       Stream s = m.Build();
       ASSERT_EQ(1U, s.size());
-      EXPECT_EQ(kMips64Dext, s[0]->arch_opcode());
+      EXPECT_EQ(kRiscvDext, s[0]->arch_opcode());
       ASSERT_EQ(3U, s[0]->InputCount());
       EXPECT_EQ(lsb, s.ToInt64(s[0]->InputAt(1)));
       int64_t actual_width = (lsb + width > 64) ? (64 - lsb) : width;
@@ -709,7 +709,7 @@ TEST_F(InstructionSelectorTest, Word64AndWithImmediateWithWord64Shr) {
                       m.Word64Shr(m.Parameter(0), m.Int64Constant(shift))));
       Stream s = m.Build();
       ASSERT_EQ(1U, s.size());
-      EXPECT_EQ(kMips64Dext, s[0]->arch_opcode());
+      EXPECT_EQ(kRiscvDext, s[0]->arch_opcode());
       ASSERT_EQ(3U, s[0]->InputCount());
       EXPECT_EQ(lsb, s.ToInt64(s[0]->InputAt(1)));
       int64_t actual_width = (lsb + width > 64) ? (64 - lsb) : width;
@@ -729,7 +729,7 @@ TEST_F(InstructionSelectorTest, Word32ShlWithWord32And) {
     m.Return(r);
     Stream s = m.Build();
     ASSERT_EQ(1U, s.size());
-    EXPECT_EQ(kMips64Shl, s[0]->arch_opcode());
+    EXPECT_EQ(kRiscvShl, s[0]->arch_opcode());
     ASSERT_EQ(2U, s[0]->InputCount());
     EXPECT_EQ(s.ToVreg(p0), s.ToVreg(s[0]->InputAt(0)));
     ASSERT_EQ(1U, s[0]->OutputCount());
@@ -748,7 +748,7 @@ TEST_F(InstructionSelectorTest, Word64ShlWithWord64And) {
     m.Return(r);
     Stream s = m.Build();
     ASSERT_EQ(1U, s.size());
-    EXPECT_EQ(kMips64Dshl, s[0]->arch_opcode());
+    EXPECT_EQ(kRiscvDshl, s[0]->arch_opcode());
     ASSERT_EQ(2U, s[0]->InputCount());
     EXPECT_EQ(s.ToVreg(p0), s.ToVreg(s[0]->InputAt(0)));
     ASSERT_EQ(1U, s[0]->OutputCount());
@@ -765,7 +765,7 @@ TEST_F(InstructionSelectorTest, Word32SarWithWord32Shl) {
     m.Return(r);
     Stream s = m.Build();
     ASSERT_EQ(1U, s.size());
-    EXPECT_EQ(kMips64Seb, s[0]->arch_opcode());
+    EXPECT_EQ(kRiscvSeb, s[0]->arch_opcode());
     ASSERT_EQ(1U, s[0]->InputCount());
     EXPECT_EQ(s.ToVreg(p0), s.ToVreg(s[0]->InputAt(0)));
     ASSERT_EQ(1U, s[0]->OutputCount());
@@ -779,7 +779,7 @@ TEST_F(InstructionSelectorTest, Word32SarWithWord32Shl) {
     m.Return(r);
     Stream s = m.Build();
     ASSERT_EQ(1U, s.size());
-    EXPECT_EQ(kMips64Seh, s[0]->arch_opcode());
+    EXPECT_EQ(kRiscvSeh, s[0]->arch_opcode());
     ASSERT_EQ(1U, s[0]->InputCount());
     EXPECT_EQ(s.ToVreg(p0), s.ToVreg(s[0]->InputAt(0)));
     ASSERT_EQ(1U, s[0]->OutputCount());
@@ -793,7 +793,7 @@ TEST_F(InstructionSelectorTest, Word32SarWithWord32Shl) {
     m.Return(r);
     Stream s = m.Build();
     ASSERT_EQ(1U, s.size());
-    EXPECT_EQ(kMips64Shl, s[0]->arch_opcode());
+    EXPECT_EQ(kRiscvShl, s[0]->arch_opcode());
     ASSERT_EQ(2U, s[0]->InputCount());
     EXPECT_EQ(s.ToVreg(p0), s.ToVreg(s[0]->InputAt(0)));
     EXPECT_EQ(0, s.ToInt32(s[0]->InputAt(1)));
@@ -935,7 +935,7 @@ TEST_F(InstructionSelectorTest, ChangesFromToSmi) {
         m.Word64Sar(m.Parameter(0), m.Int32Constant(32))));
     Stream s = m.Build();
     ASSERT_EQ(1U, s.size());
-    EXPECT_EQ(kMips64Dsar, s[0]->arch_opcode());
+    EXPECT_EQ(kRiscvDsar, s[0]->arch_opcode());
     EXPECT_EQ(kMode_None, s[0]->addressing_mode());
     ASSERT_EQ(2U, s[0]->InputCount());
     EXPECT_EQ(1U, s[0]->OutputCount());
@@ -946,7 +946,7 @@ TEST_F(InstructionSelectorTest, ChangesFromToSmi) {
         m.Word64Shl(m.ChangeInt32ToInt64(m.Parameter(0)), m.Int32Constant(32)));
     Stream s = m.Build();
     ASSERT_EQ(1U, s.size());
-    EXPECT_EQ(kMips64Dshl, s[0]->arch_opcode());
+    EXPECT_EQ(kRiscvDshl, s[0]->arch_opcode());
     ASSERT_EQ(2U, s[0]->InputCount());
     EXPECT_EQ(1U, s[0]->OutputCount());
   }
@@ -1001,7 +1001,7 @@ TEST_F(InstructionSelectorTest, ChangeFloat64ToInt32OfChangeFloat32ToFloat64) {
     m.Return(m.ChangeFloat64ToInt32(m.ChangeFloat32ToFloat64(m.Parameter(0))));
     Stream s = m.Build();
     ASSERT_EQ(1U, s.size());
-    EXPECT_EQ(kMips64TruncWS, s[0]->arch_opcode());
+    EXPECT_EQ(kRiscvTruncWS, s[0]->arch_opcode());
     EXPECT_EQ(kMode_None, s[0]->addressing_mode());
     ASSERT_EQ(1U, s[0]->InputCount());
     EXPECT_EQ(1U, s[0]->OutputCount());
@@ -1017,7 +1017,7 @@ TEST_F(InstructionSelectorTest,
         m.TruncateFloat64ToFloat32(m.ChangeInt32ToFloat64(m.Parameter(0))));
     Stream s = m.Build();
     ASSERT_EQ(1U, s.size());
-    EXPECT_EQ(kMips64CvtSW, s[0]->arch_opcode());
+    EXPECT_EQ(kRiscvCvtSW, s[0]->arch_opcode());
     EXPECT_EQ(kMode_None, s[0]->addressing_mode());
     ASSERT_EQ(1U, s[0]->InputCount());
     EXPECT_EQ(1U, s[0]->OutputCount());
@@ -1032,7 +1032,7 @@ TEST_F(InstructionSelectorTest, CombineShiftsWithMul) {
                         m.Word64Sar(m.Parameter(0), m.Int32Constant(32))));
     Stream s = m.Build();
     ASSERT_EQ(1U, s.size());
-    EXPECT_EQ(kMips64DMulHigh, s[0]->arch_opcode());
+    EXPECT_EQ(kRiscvDMulHigh, s[0]->arch_opcode());
     EXPECT_EQ(kMode_None, s[0]->addressing_mode());
     ASSERT_EQ(2U, s[0]->InputCount());
     EXPECT_EQ(1U, s[0]->OutputCount());
@@ -1047,7 +1047,7 @@ TEST_F(InstructionSelectorTest, CombineShiftsWithDivMod) {
                         m.Word64Sar(m.Parameter(0), m.Int32Constant(32))));
     Stream s = m.Build();
     ASSERT_EQ(1U, s.size());
-    EXPECT_EQ(kMips64Ddiv, s[0]->arch_opcode());
+    EXPECT_EQ(kRiscvDdiv, s[0]->arch_opcode());
     EXPECT_EQ(kMode_None, s[0]->addressing_mode());
     ASSERT_EQ(2U, s[0]->InputCount());
     EXPECT_EQ(1U, s[0]->OutputCount());
@@ -1058,7 +1058,7 @@ TEST_F(InstructionSelectorTest, CombineShiftsWithDivMod) {
                         m.Word64Sar(m.Parameter(0), m.Int32Constant(32))));
     Stream s = m.Build();
     ASSERT_EQ(1U, s.size());
-    EXPECT_EQ(kMips64Dmod, s[0]->arch_opcode());
+    EXPECT_EQ(kRiscvDmod, s[0]->arch_opcode());
     EXPECT_EQ(kMode_None, s[0]->addressing_mode());
     ASSERT_EQ(2U, s[0]->InputCount());
     EXPECT_EQ(1U, s[0]->OutputCount());
@@ -1076,7 +1076,7 @@ TEST_F(InstructionSelectorTest, ChangeInt32ToInt64AfterLoad) {
         m.Load(MachineType::Uint8(), m.Parameter(0), m.Parameter(1))));
     Stream s = m.Build();
     ASSERT_EQ(2U, s.size());
-    EXPECT_EQ(kMips64Lbu, s[1]->arch_opcode());
+    EXPECT_EQ(kRiscvLbu, s[1]->arch_opcode());
     EXPECT_EQ(kMode_MRI, s[1]->addressing_mode());
     EXPECT_EQ(2U, s[1]->InputCount());
     EXPECT_EQ(1U, s[1]->OutputCount());
@@ -1089,7 +1089,7 @@ TEST_F(InstructionSelectorTest, ChangeInt32ToInt64AfterLoad) {
         m.Load(MachineType::Int8(), m.Parameter(0), m.Parameter(1))));
     Stream s = m.Build();
     ASSERT_EQ(2U, s.size());
-    EXPECT_EQ(kMips64Lb, s[1]->arch_opcode());
+    EXPECT_EQ(kRiscvLb, s[1]->arch_opcode());
     EXPECT_EQ(kMode_MRI, s[1]->addressing_mode());
     EXPECT_EQ(2U, s[1]->InputCount());
     EXPECT_EQ(1U, s[1]->OutputCount());
@@ -1102,7 +1102,7 @@ TEST_F(InstructionSelectorTest, ChangeInt32ToInt64AfterLoad) {
         m.Load(MachineType::Uint16(), m.Parameter(0), m.Parameter(1))));
     Stream s = m.Build();
     ASSERT_EQ(2U, s.size());
-    EXPECT_EQ(kMips64Lhu, s[1]->arch_opcode());
+    EXPECT_EQ(kRiscvLhu, s[1]->arch_opcode());
     EXPECT_EQ(kMode_MRI, s[1]->addressing_mode());
     EXPECT_EQ(2U, s[1]->InputCount());
     EXPECT_EQ(1U, s[1]->OutputCount());
@@ -1115,7 +1115,7 @@ TEST_F(InstructionSelectorTest, ChangeInt32ToInt64AfterLoad) {
         m.Load(MachineType::Int16(), m.Parameter(0), m.Parameter(1))));
     Stream s = m.Build();
     ASSERT_EQ(2U, s.size());
-    EXPECT_EQ(kMips64Lh, s[1]->arch_opcode());
+    EXPECT_EQ(kRiscvLh, s[1]->arch_opcode());
     EXPECT_EQ(kMode_MRI, s[1]->addressing_mode());
     EXPECT_EQ(2U, s[1]->InputCount());
     EXPECT_EQ(1U, s[1]->OutputCount());
@@ -1128,7 +1128,7 @@ TEST_F(InstructionSelectorTest, ChangeInt32ToInt64AfterLoad) {
         m.Load(MachineType::Uint32(), m.Parameter(0), m.Parameter(1))));
     Stream s = m.Build();
     ASSERT_EQ(2U, s.size());
-    EXPECT_EQ(kMips64Lw, s[1]->arch_opcode());
+    EXPECT_EQ(kRiscvLw, s[1]->arch_opcode());
     EXPECT_EQ(kMode_MRI, s[1]->addressing_mode());
     EXPECT_EQ(2U, s[1]->InputCount());
     EXPECT_EQ(1U, s[1]->OutputCount());
@@ -1141,7 +1141,7 @@ TEST_F(InstructionSelectorTest, ChangeInt32ToInt64AfterLoad) {
         m.Load(MachineType::Int32(), m.Parameter(0), m.Parameter(1))));
     Stream s = m.Build();
     ASSERT_EQ(2U, s.size());
-    EXPECT_EQ(kMips64Lw, s[1]->arch_opcode());
+    EXPECT_EQ(kRiscvLw, s[1]->arch_opcode());
     EXPECT_EQ(kMode_MRI, s[1]->addressing_mode());
     EXPECT_EQ(2U, s[1]->InputCount());
     EXPECT_EQ(1U, s[1]->OutputCount());
@@ -1181,11 +1181,11 @@ TEST_F(InstructionSelectorTest, ChangeUint32ToUint64AfterLoad) {
         m.Load(MachineType::Uint8(), m.Parameter(0), m.Parameter(1))));
     Stream s = m.Build();
     ASSERT_EQ(2U, s.size());
-    EXPECT_EQ(kMips64Dadd, s[0]->arch_opcode());
+    EXPECT_EQ(kRiscvDadd, s[0]->arch_opcode());
     EXPECT_EQ(kMode_None, s[0]->addressing_mode());
     EXPECT_EQ(2U, s[0]->InputCount());
     EXPECT_EQ(1U, s[0]->OutputCount());
-    EXPECT_EQ(kMips64Lbu, s[1]->arch_opcode());
+    EXPECT_EQ(kRiscvLbu, s[1]->arch_opcode());
     EXPECT_EQ(kMode_MRI, s[1]->addressing_mode());
     EXPECT_EQ(2U, s[1]->InputCount());
     EXPECT_EQ(1U, s[1]->OutputCount());
@@ -1198,11 +1198,11 @@ TEST_F(InstructionSelectorTest, ChangeUint32ToUint64AfterLoad) {
         m.Load(MachineType::Uint16(), m.Parameter(0), m.Parameter(1))));
     Stream s = m.Build();
     ASSERT_EQ(2U, s.size());
-    EXPECT_EQ(kMips64Dadd, s[0]->arch_opcode());
+    EXPECT_EQ(kRiscvDadd, s[0]->arch_opcode());
     EXPECT_EQ(kMode_None, s[0]->addressing_mode());
     EXPECT_EQ(2U, s[0]->InputCount());
     EXPECT_EQ(1U, s[0]->OutputCount());
-    EXPECT_EQ(kMips64Lhu, s[1]->arch_opcode());
+    EXPECT_EQ(kRiscvLhu, s[1]->arch_opcode());
     EXPECT_EQ(kMode_MRI, s[1]->addressing_mode());
     EXPECT_EQ(2U, s[1]->InputCount());
     EXPECT_EQ(1U, s[1]->OutputCount());
@@ -1215,11 +1215,11 @@ TEST_F(InstructionSelectorTest, ChangeUint32ToUint64AfterLoad) {
         m.Load(MachineType::Uint32(), m.Parameter(0), m.Parameter(1))));
     Stream s = m.Build();
     ASSERT_EQ(2U, s.size());
-    EXPECT_EQ(kMips64Dadd, s[0]->arch_opcode());
+    EXPECT_EQ(kRiscvDadd, s[0]->arch_opcode());
     EXPECT_EQ(kMode_None, s[0]->addressing_mode());
     EXPECT_EQ(2U, s[0]->InputCount());
     EXPECT_EQ(1U, s[0]->OutputCount());
-    EXPECT_EQ(kMips64Lwu, s[1]->arch_opcode());
+    EXPECT_EQ(kRiscvLwu, s[1]->arch_opcode());
     EXPECT_EQ(kMode_MRI, s[1]->addressing_mode());
     EXPECT_EQ(2U, s[1]->InputCount());
     EXPECT_EQ(1U, s[1]->OutputCount());
@@ -1240,14 +1240,14 @@ struct MemoryAccess {
 };
 
 static const MemoryAccess kMemoryAccesses[] = {
-    {MachineType::Int8(), kMips64Lb, kMips64Sb},
-    {MachineType::Uint8(), kMips64Lbu, kMips64Sb},
-    {MachineType::Int16(), kMips64Lh, kMips64Sh},
-    {MachineType::Uint16(), kMips64Lhu, kMips64Sh},
-    {MachineType::Int32(), kMips64Lw, kMips64Sw},
-    {MachineType::Float32(), kMips64Lwc1, kMips64Swc1},
-    {MachineType::Float64(), kMips64Ldc1, kMips64Sdc1},
-    {MachineType::Int64(), kMips64Ld, kMips64Sd}};
+    {MachineType::Int8(), kRiscvLb, kRiscvSb},
+    {MachineType::Uint8(), kRiscvLbu, kRiscvSb},
+    {MachineType::Int16(), kRiscvLh, kRiscvSh},
+    {MachineType::Uint16(), kRiscvLhu, kRiscvSh},
+    {MachineType::Int32(), kRiscvLw, kRiscvSw},
+    {MachineType::Float32(), kRiscvLwc1, kRiscvSwc1},
+    {MachineType::Float64(), kRiscvLdc1, kRiscvSdc1},
+    {MachineType::Int64(), kRiscvLd, kRiscvSd}};
 
 
 struct MemoryAccessImm {
@@ -1299,57 +1299,57 @@ std::ostream& operator<<(std::ostream& os, const MemoryAccessImm2& acc) {
 
 const MemoryAccessImm kMemoryAccessesImm[] = {
     {MachineType::Int8(),
-     kMips64Lb,
-     kMips64Sb,
+     kRiscvLb,
+     kRiscvSb,
      &InstructionSelectorTest::Stream::IsInteger,
      {-4095, -3340, -3231, -3224, -3088, -1758, -1203, -123, -117, -91, -89,
       -87, -86, -82, -44, -23, -3, 0, 7, 10, 39, 52, 69, 71, 91, 92, 107, 109,
       115, 124, 286, 655, 1362, 1569, 2587, 3067, 3096, 3462, 3510, 4095}},
     {MachineType::Uint8(),
-     kMips64Lbu,
-     kMips64Sb,
+     kRiscvLbu,
+     kRiscvSb,
      &InstructionSelectorTest::Stream::IsInteger,
      {-4095, -3340, -3231, -3224, -3088, -1758, -1203, -123, -117, -91, -89,
       -87, -86, -82, -44, -23, -3, 0, 7, 10, 39, 52, 69, 71, 91, 92, 107, 109,
       115, 124, 286, 655, 1362, 1569, 2587, 3067, 3096, 3462, 3510, 4095}},
     {MachineType::Int16(),
-     kMips64Lh,
-     kMips64Sh,
+     kRiscvLh,
+     kRiscvSh,
      &InstructionSelectorTest::Stream::IsInteger,
      {-4095, -3340, -3231, -3224, -3088, -1758, -1203, -123, -117, -91, -89,
       -87, -86, -82, -44, -23, -3, 0, 7, 10, 39, 52, 69, 71, 91, 92, 107, 109,
       115, 124, 286, 655, 1362, 1569, 2587, 3067, 3096, 3462, 3510, 4095}},
     {MachineType::Uint16(),
-     kMips64Lhu,
-     kMips64Sh,
+     kRiscvLhu,
+     kRiscvSh,
      &InstructionSelectorTest::Stream::IsInteger,
      {-4095, -3340, -3231, -3224, -3088, -1758, -1203, -123, -117, -91, -89,
       -87, -86, -82, -44, -23, -3, 0, 7, 10, 39, 52, 69, 71, 91, 92, 107, 109,
       115, 124, 286, 655, 1362, 1569, 2587, 3067, 3096, 3462, 3510, 4095}},
     {MachineType::Int32(),
-     kMips64Lw,
-     kMips64Sw,
+     kRiscvLw,
+     kRiscvSw,
      &InstructionSelectorTest::Stream::IsInteger,
      {-4095, -3340, -3231, -3224, -3088, -1758, -1203, -123, -117, -91, -89,
       -87, -86, -82, -44, -23, -3, 0, 7, 10, 39, 52, 69, 71, 91, 92, 107, 109,
       115, 124, 286, 655, 1362, 1569, 2587, 3067, 3096, 3462, 3510, 4095}},
     {MachineType::Float32(),
-     kMips64Lwc1,
-     kMips64Swc1,
+     kRiscvLwc1,
+     kRiscvSwc1,
      &InstructionSelectorTest::Stream::IsDouble,
      {-4095, -3340, -3231, -3224, -3088, -1758, -1203, -123, -117, -91, -89,
       -87, -86, -82, -44, -23, -3, 0, 7, 10, 39, 52, 69, 71, 91, 92, 107, 109,
       115, 124, 286, 655, 1362, 1569, 2587, 3067, 3096, 3462, 3510, 4095}},
     {MachineType::Float64(),
-     kMips64Ldc1,
-     kMips64Sdc1,
+     kRiscvLdc1,
+     kRiscvSdc1,
      &InstructionSelectorTest::Stream::IsDouble,
      {-4095, -3340, -3231, -3224, -3088, -1758, -1203, -123, -117, -91, -89,
       -87, -86, -82, -44, -23, -3, 0, 7, 10, 39, 52, 69, 71, 91, 92, 107, 109,
       115, 124, 286, 655, 1362, 1569, 2587, 3067, 3096, 3462, 3510, 4095}},
     {MachineType::Int64(),
-     kMips64Ld,
-     kMips64Sd,
+     kRiscvLd,
+     kRiscvSd,
      &InstructionSelectorTest::Stream::IsInteger,
      {-4095, -3340, -3231, -3224, -3088, -1758, -1203, -123, -117, -91, -89,
       -87, -86, -82, -44, -23, -3, 0, 7, 10, 39, 52, 69, 71, 91, 92, 107, 109,
@@ -1357,82 +1357,82 @@ const MemoryAccessImm kMemoryAccessesImm[] = {
 
 const MemoryAccessImm1 kMemoryAccessImmMoreThan16bit[] = {
     {MachineType::Int8(),
-     kMips64Lb,
-     kMips64Sb,
+     kRiscvLb,
+     kRiscvSb,
      &InstructionSelectorTest::Stream::IsInteger,
      {-65000, -55000, 32777, 55000, 65000}},
     {MachineType::Uint8(),
-     kMips64Lbu,
-     kMips64Sb,
+     kRiscvLbu,
+     kRiscvSb,
      &InstructionSelectorTest::Stream::IsInteger,
      {-65000, -55000, 32777, 55000, 65000}},
     {MachineType::Int16(),
-     kMips64Lh,
-     kMips64Sh,
+     kRiscvLh,
+     kRiscvSh,
      &InstructionSelectorTest::Stream::IsInteger,
      {-65000, -55000, 32777, 55000, 65000}},
     {MachineType::Uint16(),
-     kMips64Lhu,
-     kMips64Sh,
+     kRiscvLhu,
+     kRiscvSh,
      &InstructionSelectorTest::Stream::IsInteger,
      {-65000, -55000, 32777, 55000, 65000}},
     {MachineType::Int32(),
-     kMips64Lw,
-     kMips64Sw,
+     kRiscvLw,
+     kRiscvSw,
      &InstructionSelectorTest::Stream::IsInteger,
      {-65000, -55000, 32777, 55000, 65000}},
     {MachineType::Float32(),
-     kMips64Lwc1,
-     kMips64Swc1,
+     kRiscvLwc1,
+     kRiscvSwc1,
      &InstructionSelectorTest::Stream::IsDouble,
      {-65000, -55000, 32777, 55000, 65000}},
     {MachineType::Float64(),
-     kMips64Ldc1,
-     kMips64Sdc1,
+     kRiscvLdc1,
+     kRiscvSdc1,
      &InstructionSelectorTest::Stream::IsDouble,
      {-65000, -55000, 32777, 55000, 65000}},
     {MachineType::Int64(),
-     kMips64Ld,
-     kMips64Sd,
+     kRiscvLd,
+     kRiscvSd,
      &InstructionSelectorTest::Stream::IsInteger,
      {-65000, -55000, 32777, 55000, 65000}}};
 
 const MemoryAccessImm2 kMemoryAccessesImmUnaligned[] = {
     {MachineType::Int16(),
-     kMips64Ush,
-     kMips64Sh,
+     kRiscvUsh,
+     kRiscvSh,
      &InstructionSelectorTest::Stream::IsInteger,
      {-4095, -3340, -3231, -3224, -3088, -1758, -1203, -123, -117, -91,
       -89,   -87,   -86,   -82,   -44,   -23,   -3,    0,    7,    10,
       39,    52,    69,    71,    91,    92,    107,   109,  115,  124,
       286,   655,   1362,  1569,  2587,  3067,  3096,  3462, 3510, 4095}},
     {MachineType::Int32(),
-     kMips64Usw,
-     kMips64Sw,
+     kRiscvUsw,
+     kRiscvSw,
      &InstructionSelectorTest::Stream::IsInteger,
      {-4095, -3340, -3231, -3224, -3088, -1758, -1203, -123, -117, -91,
       -89,   -87,   -86,   -82,   -44,   -23,   -3,    0,    7,    10,
       39,    52,    69,    71,    91,    92,    107,   109,  115,  124,
       286,   655,   1362,  1569,  2587,  3067,  3096,  3462, 3510, 4095}},
     {MachineType::Int64(),
-     kMips64Usd,
-     kMips64Sd,
+     kRiscvUsd,
+     kRiscvSd,
      &InstructionSelectorTest::Stream::IsInteger,
      {-4095, -3340, -3231, -3224, -3088, -1758, -1203, -123, -117, -91,
       -89,   -87,   -86,   -82,   -44,   -23,   -3,    0,    7,    10,
       39,    52,    69,    71,    91,    92,    107,   109,  115,  124,
       286,   655,   1362,  1569,  2587,  3067,  3096,  3462, 3510, 4095}},
     {MachineType::Float32(),
-     kMips64Uswc1,
-     kMips64Swc1,
+     kRiscvUswc1,
+     kRiscvSwc1,
      &InstructionSelectorTest::Stream::IsDouble,
      {-4095, -3340, -3231, -3224, -3088, -1758, -1203, -123, -117, -91,
       -89,   -87,   -86,   -82,   -44,   -23,   -3,    0,    7,    10,
       39,    52,    69,    71,    91,    92,    107,   109,  115,  124,
       286,   655,   1362,  1569,  2587,  3067,  3096,  3462, 3510, 4095}},
     {MachineType::Float64(),
-     kMips64Usdc1,
-     kMips64Sdc1,
+     kRiscvUsdc1,
+     kRiscvSdc1,
      &InstructionSelectorTest::Stream::IsDouble,
      {-4095, -3340, -3231, -3224, -3088, -1758, -1203, -123, -117, -91,
       -89,   -87,   -86,   -82,   -44,   -23,   -3,    0,    7,    10,
@@ -1622,7 +1622,7 @@ INSTANTIATE_TEST_SUITE_P(InstructionSelectorTest,
                          ::testing::ValuesIn(kMemoryAccessImmMoreThan16bit));
 
 // ----------------------------------------------------------------------------
-// kMips64Cmp with zero testing.
+// kRiscvCmp with zero testing.
 // ----------------------------------------------------------------------------
 
 
@@ -1632,7 +1632,7 @@ TEST_F(InstructionSelectorTest, Word32EqualWithZero) {
     m.Return(m.Word32Equal(m.Parameter(0), m.Int32Constant(0)));
     Stream s = m.Build();
     ASSERT_EQ(1U, s.size());
-    EXPECT_EQ(kMips64Cmp, s[0]->arch_opcode());
+    EXPECT_EQ(kRiscvCmp, s[0]->arch_opcode());
     EXPECT_EQ(kMode_None, s[0]->addressing_mode());
     ASSERT_EQ(2U, s[0]->InputCount());
     EXPECT_EQ(1U, s[0]->OutputCount());
@@ -1644,7 +1644,7 @@ TEST_F(InstructionSelectorTest, Word32EqualWithZero) {
     m.Return(m.Word32Equal(m.Int32Constant(0), m.Parameter(0)));
     Stream s = m.Build();
     ASSERT_EQ(1U, s.size());
-    EXPECT_EQ(kMips64Cmp, s[0]->arch_opcode());
+    EXPECT_EQ(kRiscvCmp, s[0]->arch_opcode());
     EXPECT_EQ(kMode_None, s[0]->addressing_mode());
     ASSERT_EQ(2U, s[0]->InputCount());
     EXPECT_EQ(1U, s[0]->OutputCount());
@@ -1660,7 +1660,7 @@ TEST_F(InstructionSelectorTest, Word64EqualWithZero) {
     m.Return(m.Word64Equal(m.Parameter(0), m.Int64Constant(0)));
     Stream s = m.Build();
     ASSERT_EQ(1U, s.size());
-    EXPECT_EQ(kMips64Cmp, s[0]->arch_opcode());
+    EXPECT_EQ(kRiscvCmp, s[0]->arch_opcode());
     EXPECT_EQ(kMode_None, s[0]->addressing_mode());
     ASSERT_EQ(2U, s[0]->InputCount());
     EXPECT_EQ(1U, s[0]->OutputCount());
@@ -1672,7 +1672,7 @@ TEST_F(InstructionSelectorTest, Word64EqualWithZero) {
     m.Return(m.Word64Equal(m.Int32Constant(0), m.Parameter(0)));
     Stream s = m.Build();
     ASSERT_EQ(1U, s.size());
-    EXPECT_EQ(kMips64Cmp, s[0]->arch_opcode());
+    EXPECT_EQ(kRiscvCmp, s[0]->arch_opcode());
     EXPECT_EQ(kMode_None, s[0]->addressing_mode());
     ASSERT_EQ(2U, s[0]->InputCount());
     EXPECT_EQ(1U, s[0]->OutputCount());
@@ -1689,7 +1689,7 @@ TEST_F(InstructionSelectorTest, Word32Clz) {
   m.Return(n);
   Stream s = m.Build();
   ASSERT_EQ(1U, s.size());
-  EXPECT_EQ(kMips64Clz, s[0]->arch_opcode());
+  EXPECT_EQ(kRiscvClz, s[0]->arch_opcode());
   ASSERT_EQ(1U, s[0]->InputCount());
   EXPECT_EQ(s.ToVreg(p0), s.ToVreg(s[0]->InputAt(0)));
   ASSERT_EQ(1U, s[0]->OutputCount());
@@ -1704,7 +1704,7 @@ TEST_F(InstructionSelectorTest, Word64Clz) {
   m.Return(n);
   Stream s = m.Build();
   ASSERT_EQ(1U, s.size());
-  EXPECT_EQ(kMips64Dclz, s[0]->arch_opcode());
+  EXPECT_EQ(kRiscvDclz, s[0]->arch_opcode());
   ASSERT_EQ(1U, s[0]->InputCount());
   EXPECT_EQ(s.ToVreg(p0), s.ToVreg(s[0]->InputAt(0)));
   ASSERT_EQ(1U, s[0]->OutputCount());
@@ -1719,7 +1719,7 @@ TEST_F(InstructionSelectorTest, Float32Abs) {
   m.Return(n);
   Stream s = m.Build();
   ASSERT_EQ(1U, s.size());
-  EXPECT_EQ(kMips64AbsS, s[0]->arch_opcode());
+  EXPECT_EQ(kRiscvAbsS, s[0]->arch_opcode());
   ASSERT_EQ(1U, s[0]->InputCount());
   EXPECT_EQ(s.ToVreg(p0), s.ToVreg(s[0]->InputAt(0)));
   ASSERT_EQ(1U, s[0]->OutputCount());
@@ -1734,7 +1734,7 @@ TEST_F(InstructionSelectorTest, Float64Abs) {
   m.Return(n);
   Stream s = m.Build();
   ASSERT_EQ(1U, s.size());
-  EXPECT_EQ(kMips64AbsD, s[0]->arch_opcode());
+  EXPECT_EQ(kRiscvAbsD, s[0]->arch_opcode());
   ASSERT_EQ(1U, s[0]->InputCount());
   EXPECT_EQ(s.ToVreg(p0), s.ToVreg(s[0]->InputAt(0)));
   ASSERT_EQ(1U, s[0]->OutputCount());
@@ -1751,7 +1751,7 @@ TEST_F(InstructionSelectorTest, Float64Max) {
   m.Return(n);
   Stream s = m.Build();
   ASSERT_EQ(1U, s.size());
-  EXPECT_EQ(kMips64Float64Max, s[0]->arch_opcode());
+  EXPECT_EQ(kRiscvFloat64Max, s[0]->arch_opcode());
   ASSERT_EQ(2U, s[0]->InputCount());
   ASSERT_EQ(1U, s[0]->OutputCount());
   EXPECT_EQ(s.ToVreg(n), s.ToVreg(s[0]->Output()));
@@ -1767,7 +1767,7 @@ TEST_F(InstructionSelectorTest, Float64Min) {
   m.Return(n);
   Stream s = m.Build();
   ASSERT_EQ(1U, s.size());
-  EXPECT_EQ(kMips64Float64Min, s[0]->arch_opcode());
+  EXPECT_EQ(kRiscvFloat64Min, s[0]->arch_opcode());
   ASSERT_EQ(2U, s[0]->InputCount());
   ASSERT_EQ(1U, s[0]->OutputCount());
   EXPECT_EQ(s.ToVreg(n), s.ToVreg(s[0]->Output()));
@@ -1787,7 +1787,7 @@ TEST_F(InstructionSelectorTest, LoadAndShiftRight) {
       m.Return(m.Int64Add(sar, m.Parameter(0)));
       Stream s = m.Build();
       ASSERT_EQ(2U, s.size());
-      EXPECT_EQ(kMips64Lw, s[0]->arch_opcode());
+      EXPECT_EQ(kRiscvLw, s[0]->arch_opcode());
       EXPECT_EQ(kMode_MRI, s[0]->addressing_mode());
       EXPECT_EQ(2U, s[0]->InputCount());
       EXPECT_EQ(s.ToVreg(m.Parameter(0)), s.ToVreg(s[0]->InputAt(0)));
@@ -1809,7 +1809,7 @@ TEST_F(InstructionSelectorTest, Word32ReverseBytes) {
     m.Return(m.Word32ReverseBytes(m.Parameter(0)));
     Stream s = m.Build();
     ASSERT_EQ(1U, s.size());
-    //EXPECT_EQ(kMips64ByteSwap32, s[0]->arch_opcode());
+    //EXPECT_EQ(kRiscvByteSwap32, s[0]->arch_opcode());
     EXPECT_EQ(1U, s[0]->InputCount());
     EXPECT_EQ(1U, s[0]->OutputCount());
   }
@@ -1821,7 +1821,7 @@ TEST_F(InstructionSelectorTest, Word64ReverseBytes) {
     m.Return(m.Word64ReverseBytes(m.Parameter(0)));
     Stream s = m.Build();
     ASSERT_EQ(1U, s.size());
-    EXPECT_EQ(kMips64ByteSwap64, s[0]->arch_opcode());
+    EXPECT_EQ(kRiscvByteSwap64, s[0]->arch_opcode());
     EXPECT_EQ(1U, s[0]->InputCount());
     EXPECT_EQ(1U, s[0]->OutputCount());
   }
