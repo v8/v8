@@ -3281,6 +3281,27 @@ class WasmFullDecoder : public WasmDecoder<validate> {
         CALL_INTERFACE_IF_REACHABLE(StructGet, struct_obj, field, true, value);
         break;
       }
+      case kExprStructGetU:
+      case kExprStructGetS: {
+        FieldIndexImmediate<validate> field(this, this->pc_ + len);
+        if (!this->Validate(this->pc_ + len, field)) break;
+        len += field.length;
+        ValueType field_type =
+            field.struct_index.struct_type->field(field.index);
+        if (!field_type.IsPacked()) {
+          this->errorf(this->pc_,
+                       "%s is only valid for packed struct fields. "
+                       "Use struct.get instead.",
+                       WasmOpcodes::OpcodeName(opcode));
+          break;
+        }
+        Value struct_obj =
+            Pop(0, ValueType(ValueType::kOptRef, field.struct_index.index));
+        Value* value = Push(field_type.Unpack());
+        CALL_INTERFACE_IF_REACHABLE(StructGet, struct_obj, field,
+                                    opcode == kExprStructGetS, value);
+        break;
+      }
       case kExprStructSet: {
         FieldIndexImmediate<validate> field(this, this->pc_ + len);
         if (!this->Validate(this->pc_ + len, field)) break;
@@ -3306,6 +3327,26 @@ class WasmFullDecoder : public WasmDecoder<validate> {
         Value* value = Push(ValueType(ValueType::kRef, imm.index));
         CALL_INTERFACE_IF_REACHABLE(ArrayNew, imm, length, initial_value,
                                     value);
+        break;
+      }
+      case kExprArrayGetS:
+      case kExprArrayGetU: {
+        ArrayIndexImmediate<validate> imm(this, this->pc_ + len);
+        len += imm.length;
+        if (!this->Validate(this->pc_ + len, imm)) break;
+        if (!imm.array_type->element_type().IsPacked()) {
+          this->errorf(this->pc_,
+                       "%s is only valid for packed arrays. "
+                       "Use or array.get instead.",
+                       WasmOpcodes::OpcodeName(opcode));
+          break;
+        }
+        Value index = Pop(1, kWasmI32);
+        Value array_obj = Pop(0, ValueType(ValueType::kOptRef, imm.index));
+        Value* value = Push(imm.array_type->element_type().Unpack());
+        // TODO(7748): Optimize this when array_obj is non-nullable ref.
+        CALL_INTERFACE_IF_REACHABLE(ArrayGet, array_obj, imm, index,
+                                    opcode == kExprArrayGetS, value);
         break;
       }
       case kExprArrayGet: {

@@ -269,6 +269,76 @@ TEST(WasmBasicStruct) {
   tester.CheckResult("n", 0b1001, {});
 }
 
+TEST(WasmPackedStructU) {
+  WasmGCTester tester;
+
+  uint32_t type_index = tester.DefineStruct(
+      {F(kWasmI8, true), F(kWasmI16, true), F(kWasmI32, true)});
+  ValueType struct_type = ValueType(ValueType::kOptRef, type_index);
+
+  uint32_t local_index = 0;
+
+  int32_t expected_output_0 = 0x1234;
+  int32_t expected_output_1 = -1;
+
+  tester.DefineFunction(
+      "f_0", tester.sigs.i_v(), {struct_type},
+      {WASM_SET_LOCAL(local_index,
+                      WASM_STRUCT_NEW(type_index, WASM_I32V(expected_output_0),
+                                      WASM_I32V(expected_output_1),
+                                      WASM_I32V(0x12345678))),
+       WASM_STRUCT_GET_U(type_index, 0, WASM_GET_LOCAL(local_index)),
+       kExprEnd});
+
+  tester.DefineFunction(
+      "f_1", tester.sigs.i_v(), {struct_type},
+      {WASM_SET_LOCAL(local_index,
+                      WASM_STRUCT_NEW(type_index, WASM_I32V(expected_output_0),
+                                      WASM_I32V(expected_output_1),
+                                      WASM_I32V(0x12345678))),
+       WASM_STRUCT_GET_U(type_index, 1, WASM_GET_LOCAL(local_index)),
+       kExprEnd});
+  tester.CompileModule();
+
+  tester.CheckResult("f_0", static_cast<uint8_t>(expected_output_0), {});
+  tester.CheckResult("f_1", static_cast<uint16_t>(expected_output_1), {});
+}
+
+TEST(WasmPackedStructS) {
+  WasmGCTester tester;
+
+  uint32_t type_index = tester.DefineStruct(
+      {F(kWasmI8, true), F(kWasmI16, true), F(kWasmI32, true)});
+  ValueType struct_type = ValueType(ValueType::kOptRef, type_index);
+
+  uint32_t local_index = 0;
+
+  int32_t expected_output_0 = 0x80;
+  int32_t expected_output_1 = 42;
+
+  tester.DefineFunction(
+      "f_0", tester.sigs.i_v(), {struct_type},
+      {WASM_SET_LOCAL(
+           local_index,
+           WASM_STRUCT_NEW(type_index, WASM_I32V(expected_output_0),
+                           WASM_I32V(expected_output_1), WASM_I32V(0))),
+       WASM_STRUCT_GET_S(type_index, 0, WASM_GET_LOCAL(local_index)),
+       kExprEnd});
+
+  tester.DefineFunction(
+      "f_1", tester.sigs.i_v(), {struct_type},
+      {WASM_SET_LOCAL(local_index, WASM_STRUCT_NEW(type_index, WASM_I32V(0x80),
+                                                   WASM_I32V(expected_output_1),
+                                                   WASM_I32V(0))),
+       WASM_STRUCT_GET_S(type_index, 1, WASM_GET_LOCAL(local_index)),
+       kExprEnd});
+
+  tester.CompileModule();
+
+  tester.CheckResult("f_0", static_cast<int8_t>(expected_output_0), {});
+  tester.CheckResult("f_1", static_cast<int16_t>(expected_output_1), {});
+}
+
 TEST(WasmLetInstruction) {
   WasmGCTester tester;
   uint32_t type_index =
@@ -368,6 +438,79 @@ TEST(WasmBasicArray) {
 #if OBJECT_PRINT
   h_result.ToHandleChecked()->Print();
 #endif
+}
+
+TEST(WasmPackedArrayU) {
+  WasmGCTester tester;
+  uint32_t array_index = tester.DefineArray(kWasmI8, true);
+  ValueType array_type = ValueType(ValueType::kOptRef, array_index);
+
+  uint32_t param_index = 0;
+  uint32_t local_index = 1;
+
+  int32_t expected_output_3 = 258;
+
+  tester.DefineFunction(
+      "f", tester.sigs.i_i(), {array_type},
+      {WASM_SET_LOCAL(local_index,
+                      WASM_ARRAY_NEW(array_index, WASM_I32V(0), WASM_I32V(4))),
+       WASM_ARRAY_SET(array_index, WASM_GET_LOCAL(local_index), WASM_I32V(0),
+                      WASM_I32V(1)),
+       WASM_ARRAY_SET(array_index, WASM_GET_LOCAL(local_index), WASM_I32V(1),
+                      WASM_I32V(10)),
+       WASM_ARRAY_SET(array_index, WASM_GET_LOCAL(local_index), WASM_I32V(2),
+                      WASM_I32V(200)),
+       WASM_ARRAY_SET(array_index, WASM_GET_LOCAL(local_index), WASM_I32V(3),
+                      WASM_I32V(expected_output_3)),
+       WASM_ARRAY_GET_U(array_index, WASM_GET_LOCAL(local_index),
+                        WASM_GET_LOCAL(param_index)),
+       kExprEnd});
+
+  tester.CompileModule();
+  tester.CheckResult("f", 1, {Smi::FromInt(0)});
+  tester.CheckResult("f", 10, {Smi::FromInt(1)});
+  tester.CheckResult("f", 200, {Smi::FromInt(2)});
+  // Only the 2 lsb's of 258 should be stored in the array.
+  tester.CheckResult("f", static_cast<uint8_t>(expected_output_3),
+                     {Smi::FromInt(3)});
+}
+
+TEST(WasmPackedArrayS) {
+  WasmGCTester tester;
+  uint32_t array_index = tester.DefineArray(kWasmI16, true);
+  ValueType array_type = ValueType(ValueType::kOptRef, array_index);
+
+  int32_t expected_outputs[] = {0x12345678, 10, 0xFEDC, 0xFF1234};
+
+  uint32_t param_index = 0;
+  uint32_t local_index = 1;
+  tester.DefineFunction(
+      "f", tester.sigs.i_i(), {array_type},
+      {WASM_SET_LOCAL(
+           local_index,
+           WASM_ARRAY_NEW(array_index, WASM_I32V(0x12345678), WASM_I32V(4))),
+       WASM_ARRAY_SET(array_index, WASM_GET_LOCAL(local_index), WASM_I32V(1),
+                      WASM_I32V(10)),
+       WASM_ARRAY_SET(array_index, WASM_GET_LOCAL(local_index), WASM_I32V(2),
+                      WASM_I32V(0xFEDC)),
+       WASM_ARRAY_SET(array_index, WASM_GET_LOCAL(local_index), WASM_I32V(3),
+                      WASM_I32V(0xFF1234)),
+       WASM_ARRAY_GET_S(array_index, WASM_GET_LOCAL(local_index),
+                        WASM_GET_LOCAL(param_index)),
+       kExprEnd});
+
+  tester.CompileModule();
+  // Exactly the 2 lsb's should be stored by array.new.
+  tester.CheckResult("f", static_cast<int16_t>(expected_outputs[0]),
+                     {Smi::FromInt(0)});
+  tester.CheckResult("f", static_cast<int16_t>(expected_outputs[1]),
+                     {Smi::FromInt(1)});
+  // Sign should be extended.
+  tester.CheckResult("f", static_cast<int16_t>(expected_outputs[2]),
+                     {Smi::FromInt(2)});
+  // Exactly the 2 lsb's should be stored by array.set.
+  tester.CheckResult("f", static_cast<int16_t>(expected_outputs[3]),
+                     {Smi::FromInt(3)});
 }
 
 }  // namespace test_gc

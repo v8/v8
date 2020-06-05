@@ -429,6 +429,12 @@ inline WasmOpcode LoadStoreOpcodeOf(MachineType type, bool store) {
 #define WASM_STRUCT_GET(typeidx, fieldidx, struct_obj)                \
   struct_obj, WASM_GC_OP(kExprStructGet), static_cast<byte>(typeidx), \
       static_cast<byte>(fieldidx)
+#define WASM_STRUCT_GET_S(typeidx, fieldidx, struct_obj)               \
+  struct_obj, WASM_GC_OP(kExprStructGetS), static_cast<byte>(typeidx), \
+      static_cast<byte>(fieldidx)
+#define WASM_STRUCT_GET_U(typeidx, fieldidx, struct_obj)               \
+  struct_obj, WASM_GC_OP(kExprStructGetU), static_cast<byte>(typeidx), \
+      static_cast<byte>(fieldidx)
 #define WASM_STRUCT_SET(typeidx, fieldidx, struct_obj, value)                \
   struct_obj, value, WASM_GC_OP(kExprStructSet), static_cast<byte>(typeidx), \
       static_cast<byte>(fieldidx)
@@ -444,6 +450,10 @@ inline WasmOpcode LoadStoreOpcodeOf(MachineType type, bool store) {
   default_value, length, WASM_GC_OP(kExprArrayNew), static_cast<byte>(index)
 #define WASM_ARRAY_GET(typeidx, array, index) \
   array, index, WASM_GC_OP(kExprArrayGet), static_cast<byte>(typeidx)
+#define WASM_ARRAY_GET_U(typeidx, array, index) \
+  array, index, WASM_GC_OP(kExprArrayGetU), static_cast<byte>(typeidx)
+#define WASM_ARRAY_GET_S(typeidx, array, index) \
+  array, index, WASM_GC_OP(kExprArrayGetS), static_cast<byte>(typeidx)
 #define WASM_ARRAY_SET(typeidx, array, index, value) \
   array, index, value, WASM_GC_OP(kExprArraySet), static_cast<byte>(typeidx)
 #define WASM_ARRAY_LEN(typeidx, array) \
