@@ -408,16 +408,77 @@ void LiftoffAssembler::Store(Register dst_addr, Register offset_reg,
   }
 }
 
+namespace liftoff {
+#define __ lasm->
+
+inline Register CalculateActualAddress(LiftoffAssembler* lasm,
+                                       Register addr_reg, Register offset_reg,
+                                       int32_t offset_imm,
+                                       Register result_reg) {
+  DCHECK_NE(offset_reg, no_reg);
+  DCHECK_NE(addr_reg, no_reg);
+  __ Add(result_reg, addr_reg, Operand(offset_reg));
+  if (offset_imm != 0) {
+    __ Add(result_reg, result_reg, Operand(offset_imm));
+  }
+  return result_reg;
+}
+
+#undef __
+}  // namespace liftoff
+
 void LiftoffAssembler::AtomicLoad(LiftoffRegister dst, Register src_addr,
                                   Register offset_reg, uint32_t offset_imm,
                                   LoadType type, LiftoffRegList pinned) {
-  bailout(kAtomics, "AtomicLoad");
+  UseScratchRegisterScope temps(this);
+  Register src_reg = liftoff::CalculateActualAddress(
+      this, src_addr, offset_reg, offset_imm, temps.AcquireX());
+  switch (type.value()) {
+    case LoadType::kI32Load8U:
+    case LoadType::kI64Load8U:
+      Ldarb(dst.gp().W(), src_reg);
+      return;
+    case LoadType::kI32Load16U:
+    case LoadType::kI64Load16U:
+      Ldarh(dst.gp().W(), src_reg);
+      return;
+    case LoadType::kI32Load:
+    case LoadType::kI64Load32U:
+      Ldar(dst.gp().W(), src_reg);
+      return;
+    case LoadType::kI64Load:
+      Ldar(dst.gp().X(), src_reg);
+      return;
+    default:
+      UNREACHABLE();
+  }
 }
 
 void LiftoffAssembler::AtomicStore(Register dst_addr, Register offset_reg,
                                    uint32_t offset_imm, LiftoffRegister src,
                                    StoreType type, LiftoffRegList pinned) {
-  bailout(kAtomics, "AtomicStore");
+  UseScratchRegisterScope temps(this);
+  Register dst_reg = liftoff::CalculateActualAddress(
+      this, dst_addr, offset_reg, offset_imm, temps.AcquireX());
+  switch (type.value()) {
+    case StoreType::kI64Store8:
+    case StoreType::kI32Store8:
+      Stlrb(src.gp().W(), dst_reg);
+      return;
+    case StoreType::kI64Store16:
+    case StoreType::kI32Store16:
+      Stlrh(src.gp().W(), dst_reg);
+      return;
+    case StoreType::kI64Store32:
+    case StoreType::kI32Store:
+      Stlr(src.gp().W(), dst_reg);
+      return;
+    case StoreType::kI64Store:
+      Stlr(src.gp().X(), dst_reg);
+      return;
+    default:
+      UNREACHABLE();
+  }
 }
 
 void LiftoffAssembler::AtomicAdd(Register dst_addr, Register offset_reg,
