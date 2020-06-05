@@ -1548,12 +1548,15 @@ class Heap {
     Heap* heap_;
     base::Mutex mutex_;
     base::ConditionVariable cond_;
-    bool requested_;
+    bool gc_requested_;
+    bool shutdown_requested_;
 
    public:
-    explicit CollectionBarrier(Heap* heap) : heap_(heap), requested_(false) {}
+    explicit CollectionBarrier(Heap* heap)
+        : heap_(heap), gc_requested_(false), shutdown_requested_(false) {}
 
-    void Increment();
+    void CollectionPerformed();
+    void ShutdownRequested();
     void Wait();
   };
 
@@ -1868,6 +1871,8 @@ class Heap {
   bool ShouldExpandOldGenerationOnSlowAllocation(
       LocalHeap* local_heap = nullptr);
   bool IsRetryOfFailedAllocation(LocalHeap* local_heap);
+
+  void AlwaysAllocateAfterTearDownStarted();
 
   HeapGrowingMode CurrentHeapGrowingMode();
 

@@ -1693,7 +1693,7 @@ bool Heap::CollectGarbage(AllocationSpace space,
     isolate()->CountUsage(v8::Isolate::kForcedGC);
   }
 
-  collection_barrier_.Increment();
+  collection_barrier_.CollectionPerformed();
 
   // Start incremental marking for the next cycle. We do this only for scavenger
   // to avoid a loop where mark-compact causes another mark-compact.
@@ -2028,21 +2028,29 @@ void Heap::EnsureFromSpaceIsCommitted() {
   FatalProcessOutOfMemory("Committing semi space failed.");
 }
 
-void Heap::CollectionBarrier::Increment() {
+void Heap::CollectionBarrier::CollectionPerformed() {
   base::MutexGuard guard(&mutex_);
-  requested_ = false;
+  gc_requested_ = false;
+  cond_.NotifyAll();
+}
+
+void Heap::CollectionBarrier::ShutdownRequested() {
+  base::MutexGuard guard(&mutex_);
+  shutdown_requested_ = true;
   cond_.NotifyAll();
 }
 
 void Heap::CollectionBarrier::Wait() {
   base::MutexGuard guard(&mutex_);
 
-  if (!requested_) {
+  if (shutdown_requested_) return;
+
+  if (!gc_requested_) {
     heap_->MemoryPressureNotification(MemoryPressureLevel::kCritical, false);
-    requested_ = true;
+    gc_requested_ = true;
   }
 
-  while (requested_) {
+  while (gc_requested_ && !shutdown_requested_) {
     cond_.Wait(&mutex_);
   }
 }
@@ -4999,6 +5007,11 @@ bool Heap::IsRetryOfFailedAllocation(LocalHeap* local_heap) {
   return local_heap->allocation_failed_;
 }
 
+void Heap::AlwaysAllocateAfterTearDownStarted() {
+  always_allocate_scope_count_++;
+  collection_barrier_.ShutdownRequested();
+}
+
 Heap::HeapGrowingMode Heap::CurrentHeapGrowingMode() {
   if (ShouldReduceMemory() || FLAG_stress_compaction) {
     return Heap::HeapGrowingMode::kMinimal;
@@ -5514,6 +5527,14 @@ void Heap::RegisterExternallyReferencedObject(Address* location) {
 
 void Heap::StartTearDown() {
   SetGCState(TEAR_DOWN);
+
+  // Background threads may allocate and block until GC is performed. However
+  // this might never happen when the main thread tries to quit and doesn't
+  // process the event queue anymore. Avoid this deadlock by allowing all
+  // allocations after tear down was requested to make sure all background
+  // threads finish.
+  AlwaysAllocateAfterTearDownStarted();
+
 #ifdef VERIFY_HEAP
   // {StartTearDown} is called fairly early during Isolate teardown, so it's
   // a good time to run heap verification (if requested), before starting to
