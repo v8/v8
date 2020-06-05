@@ -11131,6 +11131,107 @@ TEST(fcvtzs) {
   CHECK_EQUAL_64(0x8000000000000400UL, x30);
 }
 
+static void FjcvtzsHelper(uint64_t value, uint64_t expected,
+                          uint32_t expected_z) {
+  SETUP();
+  START();
+  __ Fmov(d0, bit_cast<double>(value));
+  __ Fjcvtzs(w0, d0);
+  __ Mrs(x1, NZCV);
+  END();
+  RUN();
+
+  CHECK_EQUAL_64(expected, x0);
+  CHECK_EQUAL_32(expected_z, w1);
+}
+
+TEST(fjcvtzs) {
+  // Simple values.
+  FjcvtzsHelper(0x0000000000000000, 0, ZFlag);   // 0.0
+  FjcvtzsHelper(0x0010000000000000, 0, NoFlag);  // The smallest normal value.
+  FjcvtzsHelper(0x3fdfffffffffffff, 0, NoFlag);  // The value just below 0.5.
+  FjcvtzsHelper(0x3fe0000000000000, 0, NoFlag);  // 0.5
+  FjcvtzsHelper(0x3fe0000000000001, 0, NoFlag);  // The value just above 0.5.
+  FjcvtzsHelper(0x3fefffffffffffff, 0, NoFlag);  // The value just below 1.0.
+  FjcvtzsHelper(0x3ff0000000000000, 1, ZFlag);   // 1.0
+  FjcvtzsHelper(0x3ff0000000000001, 1, NoFlag);  // The value just above 1.0.
+  FjcvtzsHelper(0x3ff8000000000000, 1, NoFlag);  // 1.5
+  FjcvtzsHelper(0x4024000000000000, 10, ZFlag);  // 10
+  FjcvtzsHelper(0x7fefffffffffffff, 0, NoFlag);  // The largest finite value.
+
+  // Infinity.
+  FjcvtzsHelper(0x7ff0000000000000, 0, NoFlag);
+
+  // NaNs.
+  //  - Quiet NaNs
+  FjcvtzsHelper(0x7ff923456789abcd, 0, NoFlag);
+  FjcvtzsHelper(0x7ff8000000000000, 0, NoFlag);
+  //  - Signalling NaNs
+  FjcvtzsHelper(0x7ff123456789abcd, 0, NoFlag);
+  FjcvtzsHelper(0x7ff0000000000001, 0, NoFlag);
+
+  // Subnormals.
+  //  - A recognisable bit pattern.
+  FjcvtzsHelper(0x000123456789abcd, 0, NoFlag);
+  //  - The largest subnormal value.
+  FjcvtzsHelper(0x000fffffffffffff, 0, NoFlag);
+  //  - The smallest subnormal value.
+  FjcvtzsHelper(0x0000000000000001, 0, NoFlag);
+
+  // The same values again, but negated.
+  FjcvtzsHelper(0x8000000000000000, 0, NoFlag);
+  FjcvtzsHelper(0x8010000000000000, 0, NoFlag);
+  FjcvtzsHelper(0xbfdfffffffffffff, 0, NoFlag);
+  FjcvtzsHelper(0xbfe0000000000000, 0, NoFlag);
+  FjcvtzsHelper(0xbfe0000000000001, 0, NoFlag);
+  FjcvtzsHelper(0xbfefffffffffffff, 0, NoFlag);
+  FjcvtzsHelper(0xbff0000000000000, 0xffffffff, ZFlag);
+  FjcvtzsHelper(0xbff0000000000001, 0xffffffff, NoFlag);
+  FjcvtzsHelper(0xbff8000000000000, 0xffffffff, NoFlag);
+  FjcvtzsHelper(0xc024000000000000, 0xfffffff6, ZFlag);
+  FjcvtzsHelper(0xffefffffffffffff, 0, NoFlag);
+  FjcvtzsHelper(0xfff0000000000000, 0, NoFlag);
+  FjcvtzsHelper(0xfff923456789abcd, 0, NoFlag);
+  FjcvtzsHelper(0xfff8000000000000, 0, NoFlag);
+  FjcvtzsHelper(0xfff123456789abcd, 0, NoFlag);
+  FjcvtzsHelper(0xfff0000000000001, 0, NoFlag);
+  FjcvtzsHelper(0x800123456789abcd, 0, NoFlag);
+  FjcvtzsHelper(0x800fffffffffffff, 0, NoFlag);
+  FjcvtzsHelper(0x8000000000000001, 0, NoFlag);
+  // Test floating-point numbers of every possible exponent, most of the
+  // expected values are zero but there is a range of exponents where the
+  // results are shifted parts of this mantissa.
+  uint64_t mantissa = 0x0001234567890abc;
+
+  // Between an exponent of 0 and 52, only some of the top bits of the
+  // mantissa are above the decimal position of doubles so the mantissa is
+  // shifted to the right down to just those top bits. Above 52, all bits
+  // of the mantissa are shifted left above the decimal position until it
+  // reaches 52 + 64 where all the bits are shifted out of the range of 64-bit
+  // integers.
+  int first_exp_boundary = 52;
+  int second_exp_boundary = first_exp_boundary + 64;
+  for (int exponent = 0; exponent < 2048; exponent++) {
+    int e = exponent - 1023;
+
+    uint64_t expected = 0;
+    if (e < 0) {
+      expected = 0;
+    } else if (e <= first_exp_boundary) {
+      expected = (UINT64_C(1) << e) | (mantissa >> (52 - e));
+      expected &= 0xffffffff;
+    } else if (e < second_exp_boundary) {
+      expected = (mantissa << (e - 52)) & 0xffffffff;
+    } else {
+      expected = 0;
+    }
+
+    uint64_t value = (static_cast<uint64_t>(exponent) << 52) | mantissa;
+    FjcvtzsHelper(value, expected, NoFlag);
+    FjcvtzsHelper(value | kDSignMask, (-expected) & 0xffffffff, NoFlag);
+  }
+}
+
 TEST(fcvtzu) {
   INIT_V8();
   SETUP();

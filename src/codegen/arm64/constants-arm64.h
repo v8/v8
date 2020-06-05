@@ -1325,7 +1325,8 @@ enum FPIntegerConvertOp : uint32_t {
   FMOV_xd = FMOV_ws | SixtyFourBits | FP64,
   FMOV_dx = FMOV_sw | SixtyFourBits | FP64,
   FMOV_d1_x = FPIntegerConvertFixed | SixtyFourBits | 0x008F0000,
-  FMOV_x_d1 = FPIntegerConvertFixed | SixtyFourBits | 0x008E0000
+  FMOV_x_d1 = FPIntegerConvertFixed | SixtyFourBits | 0x008E0000,
+  FJCVTZS = FPIntegerConvertFixed | FP64 | 0x001E0000
 };
 
 // Conversion between fixed point and floating point.

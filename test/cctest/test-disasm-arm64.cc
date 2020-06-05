@@ -1802,6 +1802,7 @@ TEST_(fcvt_scvtf_ucvtf) {
   COMPARE(fcvtzs(x4, s3, 15), "fcvtzs x4, s3, #15");
   COMPARE(fcvtzs(w6, d5, 32), "fcvtzs w6, d5, #32");
   COMPARE(fcvtzs(w6, s5, 32), "fcvtzs w6, s5, #32");
+  COMPARE(fjcvtzs(w0, d1), "fjcvtzs w0, d1");
   COMPARE(fcvtzu(w2, d1, 1), "fcvtzu w2, d1, #1");
   COMPARE(fcvtzu(w2, s1, 1), "fcvtzu w2, s1, #1");
   COMPARE(fcvtzu(x4, d3, 15), "fcvtzu x4, d3, #15");

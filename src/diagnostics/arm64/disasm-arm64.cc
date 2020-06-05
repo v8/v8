@@ -1377,6 +1377,10 @@ void DisassemblingDecoder::VisitFPIntegerConvert(Instruction* instr) {
       mnemonic = "ucvtf";
       form = form_fr;
       break;
+    case FJCVTZS:
+      mnemonic = "fjcvtzs";
+      form = form_rf;
+      break;
   }
   Format(instr, mnemonic, form);
 }

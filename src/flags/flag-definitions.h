@@ -1073,7 +1073,7 @@ DEFINE_BOOL(young_generation_large_objects, true,
             "allocates large objects by default in the young generation large "
             "object space")
 
-// assembler-ia32.cc / assembler-arm.cc / assembler-x64.cc
+// assembler-ia32.cc / assembler-arm.cc / assembler-arm64.cc / assembler-x64.cc
 DEFINE_BOOL(debug_code, DEBUG_BOOL,
             "generate extra code (assertions) for debugging")
 DEFINE_BOOL(code_comments, false,
@@ -1102,6 +1102,9 @@ DEFINE_BOOL(force_long_branches, false,
 DEFINE_STRING(mcpu, "auto", "enable optimization for specific cpu")
 DEFINE_BOOL(partial_constant_pool, true,
             "enable use of partial constant pools (X64 only)")
+DEFINE_STRING(sim_arm64_optional_features, "none",
+              "enable optional features on the simulator for testing: none or "
+              "all")
 
 // Controlling source positions for Torque/CSA code.
 DEFINE_BOOL(enable_source_at_csa_bind, false,

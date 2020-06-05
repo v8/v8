@@ -2263,6 +2263,11 @@ void TurboAssembler::TruncateDoubleToI(Isolate* isolate, Zone* zone,
                                        DoubleRegister double_input,
                                        StubCallMode stub_mode,
                                        LinkRegisterStatus lr_status) {
+  if (CpuFeatures::IsSupported(JSCVT)) {
+    Fjcvtzs(result.W(), double_input);
+    return;
+  }
+
   Label done;
 
   // Try to convert the double to an int64. If successful, the bottom 32 bits

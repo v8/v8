@@ -2756,6 +2756,9 @@ void Simulator::VisitFPIntegerConvert(Instruction* instr) {
     case FCVTZU_xd:
       set_xreg(dst, FPToUInt64(dreg(src), FPZero));
       break;
+    case FJCVTZS:
+      set_wreg(dst, FPToFixedJS(dreg(src)));
+      break;
     case FMOV_ws:
       set_wreg(dst, sreg_bits(src));
       break;

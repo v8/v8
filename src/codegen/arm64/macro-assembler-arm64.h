@@ -1009,6 +1009,12 @@ class V8_EXPORT_PRIVATE TurboAssembler : public TurboAssemblerBase {
     fcvtzs(vd, vn, fbits);
   }
 
+  void Fjcvtzs(const Register& rd, const VRegister& vn) {
+    DCHECK(allow_macro_instructions());
+    DCHECK(!rd.IsZero());
+    fjcvtzs(rd, vn);
+  }
+
   inline void Fcvtzu(const Register& rd, const VRegister& fn);
   void Fcvtzu(const VRegister& vd, const VRegister& vn, int fbits = 0) {
     DCHECK(allow_macro_instructions());

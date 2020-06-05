@@ -1750,6 +1750,9 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase {
   // FP convert to signed integer, nearest with ties to even.
   void fcvtns(const Register& rd, const VRegister& vn);
 
+  // FP JavaScript convert to signed integer, rounding toward zero [Armv8.3].
+  void fjcvtzs(const Register& rd, const VRegister& vn);
+
   // FP convert to unsigned integer, nearest with ties to even.
   void fcvtnu(const Register& rd, const VRegister& vn);
 

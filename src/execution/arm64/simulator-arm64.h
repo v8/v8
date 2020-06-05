@@ -2179,6 +2179,7 @@ class Simulator : public DecoderVisitor, public SimulatorBase {
   int64_t FPToInt64(double value, FPRounding rmode);
   uint32_t FPToUInt32(double value, FPRounding rmode);
   uint64_t FPToUInt64(double value, FPRounding rmode);
+  int32_t FPToFixedJS(double value);
 
   template <typename T>
   T FPAdd(T op1, T op2);
