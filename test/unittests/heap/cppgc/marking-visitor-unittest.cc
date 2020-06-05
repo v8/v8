@@ -46,6 +46,11 @@ class GCedWithMixin : public GarbageCollected<GCedWithMixin>, public Mixin {
 
 }  // namespace
 
+TEST_F(MarkingVisitorTest, MarkedBytesAreInitiallyZero) {
+  MutatorThreadMarkingVisitor visitor(GetMarker());
+  EXPECT_EQ(0u, visitor.marked_bytes());
+}
+
 // Strong refernces are marked.
 
 TEST_F(MarkingVisitorTest, MarkMember) {

@@ -58,7 +58,7 @@ class MarkingVisitor : public VisitorBase, public StackVisitor {
   Marker::NotFullyConstructedWorklist::View not_fully_constructed_worklist_;
   Marker::WeakCallbackWorklist::View weak_callback_worklist_;
 
-  size_t marked_bytes_;
+  size_t marked_bytes_ = 0;
 };
 
 class V8_EXPORT_PRIVATE MutatorThreadMarkingVisitor : public MarkingVisitor {
