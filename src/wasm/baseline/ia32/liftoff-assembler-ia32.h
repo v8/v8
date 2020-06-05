@@ -2195,6 +2195,44 @@ void LiftoffAssembler::LoadTransform(LiftoffRegister dst, Register src_addr,
   }
 }
 
+void LiftoffAssembler::emit_s8x16_shuffle(LiftoffRegister dst,
+                                          LiftoffRegister lhs,
+                                          LiftoffRegister rhs,
+                                          const uint8_t shuffle[16]) {
+  LiftoffRegister tmp = GetUnusedRegister(kGpReg, {});
+  // Prepare 16 byte aligned buffer for shuffle control mask.
+  mov(tmp.gp(), esp);
+  and_(esp, -16);
+  movups(liftoff::kScratchDoubleReg, lhs.fp());
+
+  for (int i = 3; i >= 0; i--) {
+    uint32_t mask = 0;
+    for (int j = 3; j >= 0; j--) {
+      uint8_t lane = shuffle[i * 4 + j];
+      mask <<= 8;
+      mask |= lane < kSimd128Size ? lane : 0x80;
+    }
+    push(Immediate(mask));
+  }
+  Pshufb(liftoff::kScratchDoubleReg, Operand(esp, 0));
+
+  for (int i = 3; i >= 0; i--) {
+    uint32_t mask = 0;
+    for (int j = 3; j >= 0; j--) {
+      uint8_t lane = shuffle[i * 4 + j];
+      mask <<= 8;
+      mask |= lane >= kSimd128Size ? (lane & 0x0F) : 0x80;
+    }
+    push(Immediate(mask));
+  }
+  if (dst.fp() != rhs.fp()) {
+    movups(dst.fp(), rhs.fp());
+  }
+  Pshufb(dst.fp(), Operand(esp, 0));
+  Por(dst.fp(), liftoff::kScratchDoubleReg);
+  mov(esp, tmp.gp());
+}
+
 void LiftoffAssembler::emit_s8x16_swizzle(LiftoffRegister dst,
                                           LiftoffRegister lhs,
                                           LiftoffRegister rhs) {

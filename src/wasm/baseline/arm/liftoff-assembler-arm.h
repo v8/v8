@@ -2866,6 +2866,13 @@ void LiftoffAssembler::emit_i16x8_replace_lane(LiftoffRegister dst,
               imm_lane_idx);
 }
 
+void LiftoffAssembler::emit_s8x16_shuffle(LiftoffRegister dst,
+                                          LiftoffRegister lhs,
+                                          LiftoffRegister rhs,
+                                          const uint8_t shuffle[16]) {
+  bailout(kSimd, "s8x16_shuffle");
+}
+
 void LiftoffAssembler::emit_i8x16_splat(LiftoffRegister dst,
                                         LiftoffRegister src) {
   vdup(Neon8, liftoff::GetSimd128Register(dst), src.gp());

@@ -2240,6 +2240,44 @@ void LiftoffAssembler::LoadTransform(LiftoffRegister dst, Register src_addr,
   }
 }
 
+void LiftoffAssembler::emit_s8x16_shuffle(LiftoffRegister dst,
+                                          LiftoffRegister lhs,
+                                          LiftoffRegister rhs,
+                                          const uint8_t shuffle[16]) {
+  LiftoffRegister tmp_simd =
+      GetUnusedRegister(kFpReg, LiftoffRegList::ForRegs(dst, lhs, rhs));
+  Movups(kScratchDoubleReg, lhs.fp());
+
+  uint64_t mask1[2] = {};
+  for (int i = 15; i >= 0; i--) {
+    uint8_t lane = shuffle[i];
+    int j = i >> 3;
+    mask1[j] <<= 8;
+    mask1[j] |= lane < kSimd128Size ? lane : 0x80;
+  }
+  TurboAssembler::Move(tmp_simd.fp(), mask1[0]);
+  movq(kScratchRegister, mask1[1]);
+  Pinsrq(tmp_simd.fp(), kScratchRegister, int8_t{1});
+  Pshufb(kScratchDoubleReg, tmp_simd.fp());
+
+  uint64_t mask2[2] = {};
+  for (int i = 15; i >= 0; i--) {
+    uint8_t lane = shuffle[i];
+    int j = i >> 3;
+    mask2[j] <<= 8;
+    mask2[j] |= lane >= kSimd128Size ? (lane & 0x0F) : 0x80;
+  }
+  TurboAssembler::Move(tmp_simd.fp(), mask2[0]);
+  movq(kScratchRegister, mask2[1]);
+  Pinsrq(tmp_simd.fp(), kScratchRegister, int8_t{1});
+
+  if (dst.fp() != rhs.fp()) {
+    Movups(dst.fp(), rhs.fp());
+  }
+  Pshufb(dst.fp(), tmp_simd.fp());
+  Por(dst.fp(), kScratchDoubleReg);
+}
+
 void LiftoffAssembler::emit_s8x16_swizzle(LiftoffRegister dst,
                                           LiftoffRegister lhs,
                                           LiftoffRegister rhs) {

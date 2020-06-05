@@ -1882,6 +1882,13 @@ void LiftoffAssembler::emit_i16x8_max_u(LiftoffRegister dst,
   Umax(dst.fp().V8H(), lhs.fp().V8H(), rhs.fp().V8H());
 }
 
+void LiftoffAssembler::emit_s8x16_shuffle(LiftoffRegister dst,
+                                          LiftoffRegister lhs,
+                                          LiftoffRegister rhs,
+                                          const uint8_t shuffle[16]) {
+  bailout(kSimd, "s8x16_shuffle");
+}
+
 void LiftoffAssembler::emit_i8x16_splat(LiftoffRegister dst,
                                         LiftoffRegister src) {
   Dup(dst.fp().V16B(), src.gp().W());
