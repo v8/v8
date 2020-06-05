@@ -567,7 +567,9 @@ class V8_EXPORT_PRIVATE NativeModule final {
   UseTrapHandler use_trap_handler() const { return use_trap_handler_; }
   void set_lazy_compile_frozen(bool frozen) { lazy_compile_frozen_ = frozen; }
   bool lazy_compile_frozen() const { return lazy_compile_frozen_; }
-  Vector<const uint8_t> wire_bytes() const { return wire_bytes_->as_vector(); }
+  Vector<const uint8_t> wire_bytes() const {
+    return std::atomic_load(&wire_bytes_)->as_vector();
+  }
   const WasmModule* module() const { return module_.get(); }
   std::shared_ptr<const WasmModule> shared_module() const { return module_; }
   size_t committed_code_space() const {
@@ -575,6 +577,10 @@ class V8_EXPORT_PRIVATE NativeModule final {
   }
   WasmEngine* engine() const { return engine_; }
 
+  bool HasWireBytes() const {
+    auto wire_bytes = std::atomic_load(&wire_bytes_);
+    return wire_bytes && !wire_bytes->empty();
+  }
   void SetWireBytes(OwnedVector<const uint8_t> wire_bytes);
 
   WasmCode* Lookup(Address) const;
