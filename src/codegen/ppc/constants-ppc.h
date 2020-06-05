@@ -1707,8 +1707,6 @@ using Instr = uint32_t;
   V(stvewx, STVEWX, 0x7C00018E)                                               \
   /* Store Vector Indexed Last */                                             \
   V(stvxl, STVXL, 0x7C0003CE)                                                 \
-  /* Vector Minimum Signed Doubleword */                                      \
-  V(vminsd, VMINSD, 0x100003C2)                                               \
   /* Floating Merge Even Word */                                              \
   V(fmrgew, FMRGEW, 0xFC00078C)                                               \
   /* Floating Merge Odd Word */                                               \
@@ -2252,7 +2250,39 @@ using Instr = uint32_t;
   /* Vector Sum across Half Signed Word Saturate */        \
   V(vsum2sws, VSUM2SWS, 0x10000688)                        \
   /* Vector Pack Unsigned Doubleword Unsigned Modulo */    \
-  V(vpkudum, VPKUDUM, 0x1000044E)
+  V(vpkudum, VPKUDUM, 0x1000044E)                          \
+  /* Vector Maximum Signed Byte */                         \
+  V(vmaxsb, VMAXSB, 0x10000102)                            \
+  /* Vector Maximum Unsigned Byte */                       \
+  V(vmaxub, VMAXUB, 0x10000002)                            \
+  /* Vector Maximum Signed Doubleword */                   \
+  V(vmaxsd, VMAXSD, 0x100001C2)                            \
+  /* Vector Maximum Unsigned Doubleword */                 \
+  V(vmaxud, VMAXUD, 0x100000C2)                            \
+  /* Vector Maximum Signed Halfword */                     \
+  V(vmaxsh, VMAXSH, 0x10000142)                            \
+  /* Vector Maximum Unsigned Halfword */                   \
+  V(vmaxuh, VMAXUH, 0x10000042)                            \
+  /* Vector Maximum Signed Word */                         \
+  V(vmaxsw, VMAXSW, 0x10000182)                            \
+  /* Vector Maximum Unsigned Word */                       \
+  V(vmaxuw, VMAXUW, 0x10000082)                            \
+  /* Vector Minimum Signed Byte */                         \
+  V(vminsb, VMINSB, 0x10000302)                            \
+  /* Vector Minimum Unsigned Byte */                       \
+  V(vminub, VMINUB, 0x10000202)                            \
+  /* Vector Minimum Signed Doubleword */                   \
+  V(vminsd, VMINSD, 0x100003C2)                            \
+  /* Vector Minimum Unsigned Doubleword */                 \
+  V(vminud, VMINUD, 0x100002C2)                            \
+  /* Vector Minimum Signed Halfword */                     \
+  V(vminsh, VMINSH, 0x10000342)                            \
+  /* Vector Minimum Unsigned Halfword */                   \
+  V(vminuh, VMINUH, 0x10000242)                            \
+  /* Vector Minimum Signed Word */                         \
+  V(vminsw, VMINSW, 0x10000382)                            \
+  /* Vector Minimum Unsigned Word */                       \
+  V(vminuw, VMINUW, 0x10000282)
 
 #define PPC_VX_OPCODE_UNUSED_LIST(V)                                      \
   /* Decimal Add Modulo */                                                \
@@ -2327,38 +2357,8 @@ using Instr = uint32_t;
   V(vlogefp, VLOGEFP, 0x100001CA)                                         \
   /* Vector Maximum Single-Precision */                                   \
   V(vmaxfp, VMAXFP, 0x1000040A)                                           \
-  /* Vector Maximum Signed Byte */                                        \
-  V(vmaxsb, VMAXSB, 0x10000102)                                           \
-  /* Vector Maximum Signed Doubleword */                                  \
-  V(vmaxsd, VMAXSD, 0x100001C2)                                           \
-  /* Vector Maximum Signed Halfword */                                    \
-  V(vmaxsh, VMAXSH, 0x10000142)                                           \
-  /* Vector Maximum Signed Word */                                        \
-  V(vmaxsw, VMAXSW, 0x10000182)                                           \
-  /* Vector Maximum Unsigned Byte */                                      \
-  V(vmaxub, VMAXUB, 0x10000002)                                           \
-  /* Vector Maximum Unsigned Doubleword */                                \
-  V(vmaxud, VMAXUD, 0x100000C2)                                           \
-  /* Vector Maximum Unsigned Halfword */                                  \
-  V(vmaxuh, VMAXUH, 0x10000042)                                           \
-  /* Vector Maximum Unsigned Word */                                      \
-  V(vmaxuw, VMAXUW, 0x10000082)                                           \
   /* Vector Minimum Single-Precision */                                   \
   V(vminfp, VMINFP, 0x1000044A)                                           \
-  /* Vector Minimum Signed Byte */                                        \
-  V(vminsb, VMINSB, 0x10000302)                                           \
-  /* Vector Minimum Signed Halfword */                                    \
-  V(vminsh, VMINSH, 0x10000342)                                           \
-  /* Vector Minimum Signed Word */                                        \
-  V(vminsw, VMINSW, 0x10000382)                                           \
-  /* Vector Minimum Unsigned Byte */                                      \
-  V(vminub, VMINUB, 0x10000202)                                           \
-  /* Vector Minimum Unsigned Doubleword */                                \
-  V(vminud, VMINUD, 0x100002C2)                                           \
-  /* Vector Minimum Unsigned Halfword */                                  \
-  V(vminuh, VMINUH, 0x10000242)                                           \
-  /* Vector Minimum Unsigned Word */                                      \
-  V(vminuw, VMINUW, 0x10000282)                                           \
   /* Vector Merge High Byte */                                            \
   V(vmrghb, VMRGHB, 0x1000000C)                                           \
   /* Vector Merge High Halfword */                                        \
