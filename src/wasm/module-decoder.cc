@@ -408,7 +408,6 @@ class ModuleDecoderImpl : public Decoder {
 
   void DecodeSection(SectionCode section_code, Vector<const uint8_t> bytes,
                      uint32_t offset, bool verify_functions = true) {
-    VerifyFunctionDeclarations(section_code);
     if (failed()) return;
     Reset(bytes, offset);
     TRACE("Section: %s\n", SectionName(section_code));
@@ -814,8 +813,14 @@ class ModuleDecoderImpl : public Decoder {
           WasmFunction* func = nullptr;
           exp->index =
               consume_func_index(module_.get(), &func, "export function index");
+
+          if (failed()) break;
+          DCHECK_NOT_NULL(func);
+
           module_->num_exported_functions++;
-          if (func) func->exported = true;
+          func->exported = true;
+          // Exported functions are considered "declared".
+          func->declared = true;
           break;
         }
         case kExternalTable: {
@@ -1224,41 +1229,7 @@ class ModuleDecoderImpl : public Decoder {
     return true;
   }
 
-  void VerifyFunctionDeclarations(SectionCode section_code) {
-    // Since we will only know if a function was properly declared after all the
-    // element sections have been parsed, but we need to verify the proper use
-    // within global initialization, we are deferring those checks.
-    if (deferred_funcref_error_offsets_.empty()) {
-      // No verifications to do be done.
-      return;
-    }
-    if (!ok()) {
-      // Previous errors exist.
-      return;
-    }
-    // TODO(ecmziegler): Adjust logic if module order changes (e.g. event
-    // section).
-    if (section_code <= kElementSectionCode &&
-        section_code != kUnknownSectionCode) {
-      // Before the element section and not at end of decoding.
-      return;
-    }
-    for (auto& func_offset : deferred_funcref_error_offsets_) {
-      DCHECK_LT(func_offset.first, module_->functions.size());
-      if (!module_->functions[func_offset.first].declared) {
-        errorf(func_offset.second, "undeclared reference to function #%u",
-               func_offset.first);
-        break;
-      }
-    }
-    deferred_funcref_error_offsets_.clear();
-  }
-
   ModuleResult FinishDecoding(bool verify_functions = true) {
-    // Ensure that function verifications were done even if no section followed
-    // the global section.
-    VerifyFunctionDeclarations(kUnknownSectionCode);
-
     if (ok() && CheckMismatchedCounts()) {
       CalculateGlobalOffsets(module_.get());
     }
@@ -1378,10 +1349,6 @@ class ModuleDecoderImpl : public Decoder {
                     kLastKnownModuleSection,
                 "not enough bits");
   WasmError intermediate_error_;
-  // Map from function index to wire byte offset of first funcref initialization
-  // in global section. Used for deferred checking and proper error reporting if
-  // these were not properly declared in the element section.
-  std::unordered_map<uint32_t, int> deferred_funcref_error_offsets_;
   // Set of type offsets discovered in field types during type section decoding.
   // Since struct types may be recursive, this is used for checking and error
   // reporting once the whole type section is parsed.
@@ -1719,10 +1686,10 @@ class ModuleDecoderImpl : public Decoder {
             errorf(pc() - 1, "invalid function index: %u", imm.index);
             break;
           }
-          // Defer check for declaration of function reference.
-          deferred_funcref_error_offsets_.emplace(imm.index, pc_offset());
           expr.kind = WasmInitExpr::kRefFuncConst;
           expr.val.function_index = imm.index;
+          // Functions referenced in the globals section count as "declared".
+          module->functions[imm.index].declared = true;
           len = imm.length;
           break;
         }

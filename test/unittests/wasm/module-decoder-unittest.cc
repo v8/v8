@@ -2565,25 +2565,6 @@ TEST_F(WasmModuleVerifyTest, DeclarativeElementSegmentWithInvalidIndex) {
   EXPECT_FAILURE_WITH_MSG(data, "element function index 1 out of bounds");
 }
 
-TEST_F(WasmModuleVerifyTest, DeclarativeElementSegmentMissingForGlobal) {
-  WASM_FEATURE_SCOPE(bulk_memory);
-  WASM_FEATURE_SCOPE(anyref);
-  static const byte data[] = {
-      // sig#0 -----------------------------------------------------------------
-      SIGNATURES_SECTION_VOID_VOID,
-      // funcs -----------------------------------------------------------------
-      ONE_EMPTY_FUNCTION(SIG_INDEX(0)),
-      // global definitions ----------------------------------------------------
-      SECTION(Global,                       // section name
-              ENTRY_COUNT(1),               // entry count
-              kLocalFuncRef,                // local type
-              0,                            // immutable
-              WASM_INIT_EXPR_REF_FUNC(0)),  // init
-      // code ------------------------------------------------------------------
-      ONE_EMPTY_BODY};
-  EXPECT_FAILURE_WITH_MSG(data, "undeclared reference to function");
-}
-
 TEST_F(WasmModuleVerifyTest, DataCountSectionCorrectPlacement) {
   static const byte data[] = {SECTION(Element, ENTRY_COUNT(0)),
                               SECTION(DataCount, ENTRY_COUNT(0)),

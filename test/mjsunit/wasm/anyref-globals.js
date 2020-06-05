@@ -559,18 +559,6 @@ function dummy_func() {
       instance.exports.get_anyfunc_global());
 })();
 
-(function TestRefFuncGlobalInitUndeclared() {
-  print(arguments.callee.name);
-  let builder = new WasmModuleBuilder();
-  const global_func = builder.addGlobal(kWasmAnyFunc, true);
-  const func = builder.addFunction('get_anyfunc_global', kSig_v_v).addBody([]);
-  global_func.function_index = func.index;
-
-  assertThrows(
-      () => builder.toModule(), WebAssembly.CompileError,
-      /undeclared reference to function/);
-})();
-
 (function TestRefFuncGlobalInitWithImport() {
   print(arguments.callee.name);
   let builder = new WasmModuleBuilder();

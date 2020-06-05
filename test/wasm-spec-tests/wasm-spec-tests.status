@@ -20,10 +20,8 @@
   'proposals/js-types/globals': [FAIL],
   'proposals/js-types/linking': [FAIL],
 
-  # TODO(v8:10556): Remove sub-typing in the reference-types implementation
+  # This test requires the anyref flag to be disabled.
   'proposals/bulk-memory-operations/imports': [FAIL],
-
-  'proposals/reference-types/ref_func': [FAIL],
 
   # TODO(wasm): This test declares a table larger than allowed by the spec.
   'table': [FAIL],
