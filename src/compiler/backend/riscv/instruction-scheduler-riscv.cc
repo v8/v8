@@ -14,383 +14,383 @@ bool InstructionScheduler::SchedulerSupported() { return true; }
 int InstructionScheduler::GetTargetInstructionFlags(
     const Instruction* instr) const {
   switch (instr->arch_opcode()) {
-    case kMips64AbsD:
-    case kMips64AbsS:
-    case kMips64Add:
-    case kMips64AddD:
-    case kMips64AddS:
-    case kMips64And:
-    case kMips64And32:
-    case kMips64AssertEqual:
-    case kMips64BitcastDL:
-    case kMips64BitcastLD:
-    case kMips64ByteSwap32:
-    case kMips64ByteSwap64:
-    case kMips64CeilWD:
-    case kMips64CeilWS:
-    case kMips64Clz:
-    case kMips64Cmp:
-    case kMips64CmpD:
-    case kMips64CmpS:
-    case kMips64Ctz:
-    case kMips64CvtDL:
-    case kMips64CvtDS:
-    case kMips64CvtDUl:
-    case kMips64CvtDUw:
-    case kMips64CvtDW:
-    case kMips64CvtSD:
-    case kMips64CvtSL:
-    case kMips64CvtSUl:
-    case kMips64CvtSUw:
-    case kMips64CvtSW:
-    case kMips64DMulHigh:
-    case kMips64MulHighU:
-    case kMips64Dadd:
-    case kMips64DaddOvf:
-    case kMips64Dclz:
-    case kMips64Dctz:
-    case kMips64Ddiv:
-    case kMips64DdivU:
-    case kMips64Dext:
-    case kMips64Dins:
-    case kMips64Div:
-    case kMips64DivD:
-    case kMips64DivS:
-    case kMips64DivU:
-    case kMips64Dlsa:
-    case kMips64Dmod:
-    case kMips64DmodU:
-    case kMips64Dmul:
-    case kMips64Dpopcnt:
-    case kMips64Dror:
-    case kMips64Dsar:
-    case kMips64Dshl:
-    case kMips64Dshr:
-    case kMips64Dsub:
-    case kMips64DsubOvf:
-    case kMips64Ext:
-    case kMips64F64x2Abs:
-    case kMips64F64x2Neg:
-    case kMips64F64x2Sqrt:
-    case kMips64F64x2Add:
-    case kMips64F64x2Sub:
-    case kMips64F64x2Mul:
-    case kMips64F64x2Div:
-    case kMips64F64x2Min:
-    case kMips64F64x2Max:
-    case kMips64F64x2Eq:
-    case kMips64F64x2Ne:
-    case kMips64F64x2Lt:
-    case kMips64F64x2Le:
-    case kMips64I64x2Add:
-    case kMips64I64x2Sub:
-    case kMips64I64x2Mul:
-    case kMips64I64x2Neg:
-    case kMips64I64x2Shl:
-    case kMips64I64x2ShrS:
-    case kMips64I64x2ShrU:
-    case kMips64F32x4Abs:
-    case kMips64F32x4Add:
-    case kMips64F32x4AddHoriz:
-    case kMips64F32x4Eq:
-    case kMips64F32x4ExtractLane:
-    case kMips64F32x4Lt:
-    case kMips64F32x4Le:
-    case kMips64F32x4Max:
-    case kMips64F32x4Min:
-    case kMips64F32x4Mul:
-    case kMips64F32x4Div:
-    case kMips64F32x4Ne:
-    case kMips64F32x4Neg:
-    case kMips64F32x4Sqrt:
-    case kMips64F32x4RecipApprox:
-    case kMips64F32x4RecipSqrtApprox:
-    case kMips64F32x4ReplaceLane:
-    case kMips64F32x4SConvertI32x4:
-    case kMips64F32x4Splat:
-    case kMips64F32x4Sub:
-    case kMips64F32x4UConvertI32x4:
-    case kMips64F64x2Splat:
-    case kMips64F64x2ExtractLane:
-    case kMips64F64x2ReplaceLane:
-    case kMips64Float32Max:
-    case kMips64Float32Min:
-    case kMips64Float32RoundDown:
-    case kMips64Float32RoundTiesEven:
-    case kMips64Float32RoundTruncate:
-    case kMips64Float32RoundUp:
-    case kMips64Float64ExtractLowWord32:
-    case kMips64Float64ExtractHighWord32:
-    case kMips64Float64InsertLowWord32:
-    case kMips64Float64InsertHighWord32:
-    case kMips64Float64Max:
-    case kMips64Float64Min:
-    case kMips64Float64RoundDown:
-    case kMips64Float64RoundTiesEven:
-    case kMips64Float64RoundTruncate:
-    case kMips64Float64RoundUp:
-    case kMips64Float64SilenceNaN:
-    case kMips64FloorWD:
-    case kMips64FloorWS:
-    case kMips64I16x8Add:
-    case kMips64I16x8AddHoriz:
-    case kMips64I16x8AddSaturateS:
-    case kMips64I16x8AddSaturateU:
-    case kMips64I16x8Eq:
-    case kMips64I16x8ExtractLaneU:
-    case kMips64I16x8ExtractLaneS:
-    case kMips64I16x8GeS:
-    case kMips64I16x8GeU:
-    case kMips64I16x8GtS:
-    case kMips64I16x8GtU:
-    case kMips64I16x8MaxS:
-    case kMips64I16x8MaxU:
-    case kMips64I16x8MinS:
-    case kMips64I16x8MinU:
-    case kMips64I16x8Mul:
-    case kMips64I16x8Ne:
-    case kMips64I16x8Neg:
-    case kMips64I16x8ReplaceLane:
-    case kMips64I8x16SConvertI16x8:
-    case kMips64I16x8SConvertI32x4:
-    case kMips64I16x8SConvertI8x16High:
-    case kMips64I16x8SConvertI8x16Low:
-    case kMips64I16x8Shl:
-    case kMips64I16x8ShrS:
-    case kMips64I16x8ShrU:
-    case kMips64I16x8Splat:
-    case kMips64I16x8Sub:
-    case kMips64I16x8SubSaturateS:
-    case kMips64I16x8SubSaturateU:
-    case kMips64I8x16UConvertI16x8:
-    case kMips64I16x8UConvertI32x4:
-    case kMips64I16x8UConvertI8x16High:
-    case kMips64I16x8UConvertI8x16Low:
-    case kMips64I16x8RoundingAverageU:
-    case kMips64I32x4Add:
-    case kMips64I32x4AddHoriz:
-    case kMips64I32x4Eq:
-    case kMips64I32x4ExtractLane:
-    case kMips64I32x4GeS:
-    case kMips64I32x4GeU:
-    case kMips64I32x4GtS:
-    case kMips64I32x4GtU:
-    case kMips64I32x4MaxS:
-    case kMips64I32x4MaxU:
-    case kMips64I32x4MinS:
-    case kMips64I32x4MinU:
-    case kMips64I32x4Mul:
-    case kMips64I32x4Ne:
-    case kMips64I32x4Neg:
-    case kMips64I32x4ReplaceLane:
-    case kMips64I32x4SConvertF32x4:
-    case kMips64I32x4SConvertI16x8High:
-    case kMips64I32x4SConvertI16x8Low:
-    case kMips64I32x4Shl:
-    case kMips64I32x4ShrS:
-    case kMips64I32x4ShrU:
-    case kMips64I32x4Splat:
-    case kMips64I32x4Sub:
-    case kMips64I32x4UConvertF32x4:
-    case kMips64I32x4UConvertI16x8High:
-    case kMips64I32x4UConvertI16x8Low:
-    case kMips64I8x16Add:
-    case kMips64I8x16AddSaturateS:
-    case kMips64I8x16AddSaturateU:
-    case kMips64I8x16Eq:
-    case kMips64I8x16ExtractLaneU:
-    case kMips64I8x16ExtractLaneS:
-    case kMips64I8x16GeS:
-    case kMips64I8x16GeU:
-    case kMips64I8x16GtS:
-    case kMips64I8x16GtU:
-    case kMips64I8x16MaxS:
-    case kMips64I8x16MaxU:
-    case kMips64I8x16MinS:
-    case kMips64I8x16MinU:
-    case kMips64I8x16Mul:
-    case kMips64I8x16Ne:
-    case kMips64I8x16Neg:
-    case kMips64I8x16ReplaceLane:
-    case kMips64I8x16Shl:
-    case kMips64I8x16ShrS:
-    case kMips64I8x16ShrU:
-    case kMips64I8x16Splat:
-    case kMips64I8x16Sub:
-    case kMips64I8x16SubSaturateS:
-    case kMips64I8x16SubSaturateU:
-    case kMips64I8x16RoundingAverageU:
-    case kMips64Ins:
-    case kMips64Lsa:
-    case kMips64MaxD:
-    case kMips64MaxS:
-    case kMips64MinD:
-    case kMips64MinS:
-    case kMips64Mod:
-    case kMips64ModU:
-    case kMips64Mov:
-    case kMips64Mul:
-    case kMips64MulD:
-    case kMips64MulHigh:
-    case kMips64MulOvf:
-    case kMips64MulS:
-    case kMips64NegD:
-    case kMips64NegS:
-    case kMips64Nor:
-    case kMips64Nor32:
-    case kMips64Or:
-    case kMips64Or32:
-    case kMips64Popcnt:
-    case kMips64Ror:
-    case kMips64RoundWD:
-    case kMips64RoundWS:
-    case kMips64S128And:
-    case kMips64S128Or:
-    case kMips64S128Not:
-    case kMips64S128Select:
-    case kMips64S128Xor:
-    case kMips64S128Zero:
-    case kMips64S16x8InterleaveEven:
-    case kMips64S16x8InterleaveOdd:
-    case kMips64S16x8InterleaveLeft:
-    case kMips64S16x8InterleaveRight:
-    case kMips64S16x8PackEven:
-    case kMips64S16x8PackOdd:
-    case kMips64S16x2Reverse:
-    case kMips64S16x4Reverse:
-    case kMips64S1x16AllTrue:
-    case kMips64S1x16AnyTrue:
-    case kMips64S1x4AllTrue:
-    case kMips64S1x4AnyTrue:
-    case kMips64S1x8AllTrue:
-    case kMips64S1x8AnyTrue:
-    case kMips64S32x4InterleaveEven:
-    case kMips64S32x4InterleaveOdd:
-    case kMips64S32x4InterleaveLeft:
-    case kMips64S32x4InterleaveRight:
-    case kMips64S32x4PackEven:
-    case kMips64S32x4PackOdd:
-    case kMips64S32x4Shuffle:
-    case kMips64S8x16Concat:
-    case kMips64S8x16InterleaveEven:
-    case kMips64S8x16InterleaveOdd:
-    case kMips64S8x16InterleaveLeft:
-    case kMips64S8x16InterleaveRight:
-    case kMips64S8x16PackEven:
-    case kMips64S8x16PackOdd:
-    case kMips64S8x2Reverse:
-    case kMips64S8x4Reverse:
-    case kMips64S8x8Reverse:
-    case kMips64S8x16Shuffle:
-    case kMips64S8x16Swizzle:
-    case kMips64Sar:
-    case kMips64Seb:
-    case kMips64Seh:
-    case kMips64Shl:
-    case kMips64Shr:
-    case kMips64SqrtD:
-    case kMips64SqrtS:
-    case kMips64Sub:
-    case kMips64SubD:
-    case kMips64SubS:
-    case kMips64TruncLD:
-    case kMips64TruncLS:
-    case kMips64TruncUlD:
-    case kMips64TruncUlS:
-    case kMips64TruncUwD:
-    case kMips64TruncUwS:
-    case kMips64TruncWD:
-    case kMips64TruncWS:
-    case kMips64Tst:
-    case kMips64Xor:
-    case kMips64Xor32:
+    case kRiscvAbsD:
+    case kRiscvAbsS:
+    case kRiscvAdd:
+    case kRiscvAddD:
+    case kRiscvAddS:
+    case kRiscvAnd:
+    case kRiscvAnd32:
+    case kRiscvAssertEqual:
+    case kRiscvBitcastDL:
+    case kRiscvBitcastLD:
+    case kRiscvByteSwap32:
+    case kRiscvByteSwap64:
+    case kRiscvCeilWD:
+    case kRiscvCeilWS:
+    case kRiscvClz:
+    case kRiscvCmp:
+    case kRiscvCmpD:
+    case kRiscvCmpS:
+    case kRiscvCtz:
+    case kRiscvCvtDL:
+    case kRiscvCvtDS:
+    case kRiscvCvtDUl:
+    case kRiscvCvtDUw:
+    case kRiscvCvtDW:
+    case kRiscvCvtSD:
+    case kRiscvCvtSL:
+    case kRiscvCvtSUl:
+    case kRiscvCvtSUw:
+    case kRiscvCvtSW:
+    case kRiscvDMulHigh:
+    case kRiscvMulHighU:
+    case kRiscvDadd:
+    case kRiscvDaddOvf:
+    case kRiscvDclz:
+    case kRiscvDctz:
+    case kRiscvDdiv:
+    case kRiscvDdivU:
+    case kRiscvDext:
+    case kRiscvDins:
+    case kRiscvDiv:
+    case kRiscvDivD:
+    case kRiscvDivS:
+    case kRiscvDivU:
+    case kRiscvDlsa:
+    case kRiscvDmod:
+    case kRiscvDmodU:
+    case kRiscvDmul:
+    case kRiscvDpopcnt:
+    case kRiscvDror:
+    case kRiscvDsar:
+    case kRiscvDshl:
+    case kRiscvDshr:
+    case kRiscvDsub:
+    case kRiscvDsubOvf:
+    case kRiscvExt:
+    case kRiscvF64x2Abs:
+    case kRiscvF64x2Neg:
+    case kRiscvF64x2Sqrt:
+    case kRiscvF64x2Add:
+    case kRiscvF64x2Sub:
+    case kRiscvF64x2Mul:
+    case kRiscvF64x2Div:
+    case kRiscvF64x2Min:
+    case kRiscvF64x2Max:
+    case kRiscvF64x2Eq:
+    case kRiscvF64x2Ne:
+    case kRiscvF64x2Lt:
+    case kRiscvF64x2Le:
+    case kRiscvI64x2Add:
+    case kRiscvI64x2Sub:
+    case kRiscvI64x2Mul:
+    case kRiscvI64x2Neg:
+    case kRiscvI64x2Shl:
+    case kRiscvI64x2ShrS:
+    case kRiscvI64x2ShrU:
+    case kRiscvF32x4Abs:
+    case kRiscvF32x4Add:
+    case kRiscvF32x4AddHoriz:
+    case kRiscvF32x4Eq:
+    case kRiscvF32x4ExtractLane:
+    case kRiscvF32x4Lt:
+    case kRiscvF32x4Le:
+    case kRiscvF32x4Max:
+    case kRiscvF32x4Min:
+    case kRiscvF32x4Mul:
+    case kRiscvF32x4Div:
+    case kRiscvF32x4Ne:
+    case kRiscvF32x4Neg:
+    case kRiscvF32x4Sqrt:
+    case kRiscvF32x4RecipApprox:
+    case kRiscvF32x4RecipSqrtApprox:
+    case kRiscvF32x4ReplaceLane:
+    case kRiscvF32x4SConvertI32x4:
+    case kRiscvF32x4Splat:
+    case kRiscvF32x4Sub:
+    case kRiscvF32x4UConvertI32x4:
+    case kRiscvF64x2Splat:
+    case kRiscvF64x2ExtractLane:
+    case kRiscvF64x2ReplaceLane:
+    case kRiscvFloat32Max:
+    case kRiscvFloat32Min:
+    case kRiscvFloat32RoundDown:
+    case kRiscvFloat32RoundTiesEven:
+    case kRiscvFloat32RoundTruncate:
+    case kRiscvFloat32RoundUp:
+    case kRiscvFloat64ExtractLowWord32:
+    case kRiscvFloat64ExtractHighWord32:
+    case kRiscvFloat64InsertLowWord32:
+    case kRiscvFloat64InsertHighWord32:
+    case kRiscvFloat64Max:
+    case kRiscvFloat64Min:
+    case kRiscvFloat64RoundDown:
+    case kRiscvFloat64RoundTiesEven:
+    case kRiscvFloat64RoundTruncate:
+    case kRiscvFloat64RoundUp:
+    case kRiscvFloat64SilenceNaN:
+    case kRiscvFloorWD:
+    case kRiscvFloorWS:
+    case kRiscvI16x8Add:
+    case kRiscvI16x8AddHoriz:
+    case kRiscvI16x8AddSaturateS:
+    case kRiscvI16x8AddSaturateU:
+    case kRiscvI16x8Eq:
+    case kRiscvI16x8ExtractLaneU:
+    case kRiscvI16x8ExtractLaneS:
+    case kRiscvI16x8GeS:
+    case kRiscvI16x8GeU:
+    case kRiscvI16x8GtS:
+    case kRiscvI16x8GtU:
+    case kRiscvI16x8MaxS:
+    case kRiscvI16x8MaxU:
+    case kRiscvI16x8MinS:
+    case kRiscvI16x8MinU:
+    case kRiscvI16x8Mul:
+    case kRiscvI16x8Ne:
+    case kRiscvI16x8Neg:
+    case kRiscvI16x8ReplaceLane:
+    case kRiscvI8x16SConvertI16x8:
+    case kRiscvI16x8SConvertI32x4:
+    case kRiscvI16x8SConvertI8x16High:
+    case kRiscvI16x8SConvertI8x16Low:
+    case kRiscvI16x8Shl:
+    case kRiscvI16x8ShrS:
+    case kRiscvI16x8ShrU:
+    case kRiscvI16x8Splat:
+    case kRiscvI16x8Sub:
+    case kRiscvI16x8SubSaturateS:
+    case kRiscvI16x8SubSaturateU:
+    case kRiscvI8x16UConvertI16x8:
+    case kRiscvI16x8UConvertI32x4:
+    case kRiscvI16x8UConvertI8x16High:
+    case kRiscvI16x8UConvertI8x16Low:
+    case kRiscvI16x8RoundingAverageU:
+    case kRiscvI32x4Add:
+    case kRiscvI32x4AddHoriz:
+    case kRiscvI32x4Eq:
+    case kRiscvI32x4ExtractLane:
+    case kRiscvI32x4GeS:
+    case kRiscvI32x4GeU:
+    case kRiscvI32x4GtS:
+    case kRiscvI32x4GtU:
+    case kRiscvI32x4MaxS:
+    case kRiscvI32x4MaxU:
+    case kRiscvI32x4MinS:
+    case kRiscvI32x4MinU:
+    case kRiscvI32x4Mul:
+    case kRiscvI32x4Ne:
+    case kRiscvI32x4Neg:
+    case kRiscvI32x4ReplaceLane:
+    case kRiscvI32x4SConvertF32x4:
+    case kRiscvI32x4SConvertI16x8High:
+    case kRiscvI32x4SConvertI16x8Low:
+    case kRiscvI32x4Shl:
+    case kRiscvI32x4ShrS:
+    case kRiscvI32x4ShrU:
+    case kRiscvI32x4Splat:
+    case kRiscvI32x4Sub:
+    case kRiscvI32x4UConvertF32x4:
+    case kRiscvI32x4UConvertI16x8High:
+    case kRiscvI32x4UConvertI16x8Low:
+    case kRiscvI8x16Add:
+    case kRiscvI8x16AddSaturateS:
+    case kRiscvI8x16AddSaturateU:
+    case kRiscvI8x16Eq:
+    case kRiscvI8x16ExtractLaneU:
+    case kRiscvI8x16ExtractLaneS:
+    case kRiscvI8x16GeS:
+    case kRiscvI8x16GeU:
+    case kRiscvI8x16GtS:
+    case kRiscvI8x16GtU:
+    case kRiscvI8x16MaxS:
+    case kRiscvI8x16MaxU:
+    case kRiscvI8x16MinS:
+    case kRiscvI8x16MinU:
+    case kRiscvI8x16Mul:
+    case kRiscvI8x16Ne:
+    case kRiscvI8x16Neg:
+    case kRiscvI8x16ReplaceLane:
+    case kRiscvI8x16Shl:
+    case kRiscvI8x16ShrS:
+    case kRiscvI8x16ShrU:
+    case kRiscvI8x16Splat:
+    case kRiscvI8x16Sub:
+    case kRiscvI8x16SubSaturateS:
+    case kRiscvI8x16SubSaturateU:
+    case kRiscvI8x16RoundingAverageU:
+    case kRiscvIns:
+    case kRiscvLsa:
+    case kRiscvMaxD:
+    case kRiscvMaxS:
+    case kRiscvMinD:
+    case kRiscvMinS:
+    case kRiscvMod:
+    case kRiscvModU:
+    case kRiscvMov:
+    case kRiscvMul:
+    case kRiscvMulD:
+    case kRiscvMulHigh:
+    case kRiscvMulOvf:
+    case kRiscvMulS:
+    case kRiscvNegD:
+    case kRiscvNegS:
+    case kRiscvNor:
+    case kRiscvNor32:
+    case kRiscvOr:
+    case kRiscvOr32:
+    case kRiscvPopcnt:
+    case kRiscvRor:
+    case kRiscvRoundWD:
+    case kRiscvRoundWS:
+    case kRiscvS128And:
+    case kRiscvS128Or:
+    case kRiscvS128Not:
+    case kRiscvS128Select:
+    case kRiscvS128Xor:
+    case kRiscvS128Zero:
+    case kRiscvS16x8InterleaveEven:
+    case kRiscvS16x8InterleaveOdd:
+    case kRiscvS16x8InterleaveLeft:
+    case kRiscvS16x8InterleaveRight:
+    case kRiscvS16x8PackEven:
+    case kRiscvS16x8PackOdd:
+    case kRiscvS16x2Reverse:
+    case kRiscvS16x4Reverse:
+    case kRiscvS1x16AllTrue:
+    case kRiscvS1x16AnyTrue:
+    case kRiscvS1x4AllTrue:
+    case kRiscvS1x4AnyTrue:
+    case kRiscvS1x8AllTrue:
+    case kRiscvS1x8AnyTrue:
+    case kRiscvS32x4InterleaveEven:
+    case kRiscvS32x4InterleaveOdd:
+    case kRiscvS32x4InterleaveLeft:
+    case kRiscvS32x4InterleaveRight:
+    case kRiscvS32x4PackEven:
+    case kRiscvS32x4PackOdd:
+    case kRiscvS32x4Shuffle:
+    case kRiscvS8x16Concat:
+    case kRiscvS8x16InterleaveEven:
+    case kRiscvS8x16InterleaveOdd:
+    case kRiscvS8x16InterleaveLeft:
+    case kRiscvS8x16InterleaveRight:
+    case kRiscvS8x16PackEven:
+    case kRiscvS8x16PackOdd:
+    case kRiscvS8x2Reverse:
+    case kRiscvS8x4Reverse:
+    case kRiscvS8x8Reverse:
+    case kRiscvS8x16Shuffle:
+    case kRiscvS8x16Swizzle:
+    case kRiscvSar:
+    case kRiscvSeb:
+    case kRiscvSeh:
+    case kRiscvShl:
+    case kRiscvShr:
+    case kRiscvSqrtD:
+    case kRiscvSqrtS:
+    case kRiscvSub:
+    case kRiscvSubD:
+    case kRiscvSubS:
+    case kRiscvTruncLD:
+    case kRiscvTruncLS:
+    case kRiscvTruncUlD:
+    case kRiscvTruncUlS:
+    case kRiscvTruncUwD:
+    case kRiscvTruncUwS:
+    case kRiscvTruncWD:
+    case kRiscvTruncWS:
+    case kRiscvTst:
+    case kRiscvXor:
+    case kRiscvXor32:
       return kNoOpcodeFlags;
 
-    case kMips64Lb:
-    case kMips64Lbu:
-    case kMips64Ld:
-    case kMips64Ldc1:
-    case kMips64Lh:
-    case kMips64Lhu:
-    case kMips64Lw:
-    case kMips64Lwc1:
-    case kMips64Lwu:
-    case kMips64MsaLd:
-    case kMips64Peek:
-    case kMips64Uld:
-    case kMips64Uldc1:
-    case kMips64Ulh:
-    case kMips64Ulhu:
-    case kMips64Ulw:
-    case kMips64Ulwu:
-    case kMips64Ulwc1:
-    case kMips64S8x16LoadSplat:
-    case kMips64S16x8LoadSplat:
-    case kMips64S32x4LoadSplat:
-    case kMips64S64x2LoadSplat:
-    case kMips64I16x8Load8x8S:
-    case kMips64I16x8Load8x8U:
-    case kMips64I32x4Load16x4S:
-    case kMips64I32x4Load16x4U:
-    case kMips64I64x2Load32x2S:
-    case kMips64I64x2Load32x2U:
-    case kMips64Word64AtomicLoadUint8:
-    case kMips64Word64AtomicLoadUint16:
-    case kMips64Word64AtomicLoadUint32:
-    case kMips64Word64AtomicLoadUint64:
+    case kRiscvLb:
+    case kRiscvLbu:
+    case kRiscvLd:
+    case kRiscvLdc1:
+    case kRiscvLh:
+    case kRiscvLhu:
+    case kRiscvLw:
+    case kRiscvLwc1:
+    case kRiscvLwu:
+    case kRiscvMsaLd:
+    case kRiscvPeek:
+    case kRiscvUld:
+    case kRiscvUldc1:
+    case kRiscvUlh:
+    case kRiscvUlhu:
+    case kRiscvUlw:
+    case kRiscvUlwu:
+    case kRiscvUlwc1:
+    case kRiscvS8x16LoadSplat:
+    case kRiscvS16x8LoadSplat:
+    case kRiscvS32x4LoadSplat:
+    case kRiscvS64x2LoadSplat:
+    case kRiscvI16x8Load8x8S:
+    case kRiscvI16x8Load8x8U:
+    case kRiscvI32x4Load16x4S:
+    case kRiscvI32x4Load16x4U:
+    case kRiscvI64x2Load32x2S:
+    case kRiscvI64x2Load32x2U:
+    case kRiscvWord64AtomicLoadUint8:
+    case kRiscvWord64AtomicLoadUint16:
+    case kRiscvWord64AtomicLoadUint32:
+    case kRiscvWord64AtomicLoadUint64:
 
       return kIsLoadOperation;
 
-    case kMips64ModD:
-    case kMips64ModS:
-    case kMips64MsaSt:
-    case kMips64Push:
-    case kMips64Sb:
-    case kMips64Sd:
-    case kMips64Sdc1:
-    case kMips64Sh:
-    case kMips64StackClaim:
-    case kMips64StoreToStackSlot:
-    case kMips64Sw:
-    case kMips64Swc1:
-    case kMips64Usd:
-    case kMips64Usdc1:
-    case kMips64Ush:
-    case kMips64Usw:
-    case kMips64Uswc1:
-    case kMips64Sync:
-    case kMips64Word64AtomicStoreWord8:
-    case kMips64Word64AtomicStoreWord16:
-    case kMips64Word64AtomicStoreWord32:
-    case kMips64Word64AtomicStoreWord64:
-    case kMips64Word64AtomicAddUint8:
-    case kMips64Word64AtomicAddUint16:
-    case kMips64Word64AtomicAddUint32:
-    case kMips64Word64AtomicAddUint64:
-    case kMips64Word64AtomicSubUint8:
-    case kMips64Word64AtomicSubUint16:
-    case kMips64Word64AtomicSubUint32:
-    case kMips64Word64AtomicSubUint64:
-    case kMips64Word64AtomicAndUint8:
-    case kMips64Word64AtomicAndUint16:
-    case kMips64Word64AtomicAndUint32:
-    case kMips64Word64AtomicAndUint64:
-    case kMips64Word64AtomicOrUint8:
-    case kMips64Word64AtomicOrUint16:
-    case kMips64Word64AtomicOrUint32:
-    case kMips64Word64AtomicOrUint64:
-    case kMips64Word64AtomicXorUint8:
-    case kMips64Word64AtomicXorUint16:
-    case kMips64Word64AtomicXorUint32:
-    case kMips64Word64AtomicXorUint64:
-    case kMips64Word64AtomicExchangeUint8:
-    case kMips64Word64AtomicExchangeUint16:
-    case kMips64Word64AtomicExchangeUint32:
-    case kMips64Word64AtomicExchangeUint64:
-    case kMips64Word64AtomicCompareExchangeUint8:
-    case kMips64Word64AtomicCompareExchangeUint16:
-    case kMips64Word64AtomicCompareExchangeUint32:
-    case kMips64Word64AtomicCompareExchangeUint64:
+    case kRiscvModD:
+    case kRiscvModS:
+    case kRiscvMsaSt:
+    case kRiscvPush:
+    case kRiscvSb:
+    case kRiscvSd:
+    case kRiscvSdc1:
+    case kRiscvSh:
+    case kRiscvStackClaim:
+    case kRiscvStoreToStackSlot:
+    case kRiscvSw:
+    case kRiscvSwc1:
+    case kRiscvUsd:
+    case kRiscvUsdc1:
+    case kRiscvUsh:
+    case kRiscvUsw:
+    case kRiscvUswc1:
+    case kRiscvSync:
+    case kRiscvWord64AtomicStoreWord8:
+    case kRiscvWord64AtomicStoreWord16:
+    case kRiscvWord64AtomicStoreWord32:
+    case kRiscvWord64AtomicStoreWord64:
+    case kRiscvWord64AtomicAddUint8:
+    case kRiscvWord64AtomicAddUint16:
+    case kRiscvWord64AtomicAddUint32:
+    case kRiscvWord64AtomicAddUint64:
+    case kRiscvWord64AtomicSubUint8:
+    case kRiscvWord64AtomicSubUint16:
+    case kRiscvWord64AtomicSubUint32:
+    case kRiscvWord64AtomicSubUint64:
+    case kRiscvWord64AtomicAndUint8:
+    case kRiscvWord64AtomicAndUint16:
+    case kRiscvWord64AtomicAndUint32:
+    case kRiscvWord64AtomicAndUint64:
+    case kRiscvWord64AtomicOrUint8:
+    case kRiscvWord64AtomicOrUint16:
+    case kRiscvWord64AtomicOrUint32:
+    case kRiscvWord64AtomicOrUint64:
+    case kRiscvWord64AtomicXorUint8:
+    case kRiscvWord64AtomicXorUint16:
+    case kRiscvWord64AtomicXorUint32:
+    case kRiscvWord64AtomicXorUint64:
+    case kRiscvWord64AtomicExchangeUint8:
+    case kRiscvWord64AtomicExchangeUint16:
+    case kRiscvWord64AtomicExchangeUint32:
+    case kRiscvWord64AtomicExchangeUint64:
+    case kRiscvWord64AtomicCompareExchangeUint8:
+    case kRiscvWord64AtomicCompareExchangeUint16:
+    case kRiscvWord64AtomicCompareExchangeUint32:
+    case kRiscvWord64AtomicCompareExchangeUint64:
       return kHasSideEffect;
 
 #define CASE(Name) case k##Name:
@@ -1167,58 +1167,58 @@ int InstructionScheduler::GetInstructionLatency(const Instruction* instr) {
     case kIeee754Float64Tanh:
       return PrepareCallCFunctionLatency() + MovToFloatParametersLatency() +
              CallCFunctionLatency() + MovFromFloatResultLatency();
-    case kMips64Add:
-    case kMips64Dadd:
+    case kRiscvAdd:
+    case kRiscvDadd:
       return DadduLatency(instr->InputAt(1)->IsRegister());
-    case kMips64DaddOvf:
+    case kRiscvDaddOvf:
       return DaddOverflowLatency();
-    case kMips64Sub:
-    case kMips64Dsub:
+    case kRiscvSub:
+    case kRiscvDsub:
       return DsubuLatency(instr->InputAt(1)->IsRegister());
-    case kMips64DsubOvf:
+    case kRiscvDsubOvf:
       return DsubOverflowLatency();
-    case kMips64Mul:
+    case kRiscvMul:
       return MulLatency();
-    case kMips64MulOvf:
+    case kRiscvMulOvf:
       return MulOverflowLatency();
-    case kMips64MulHigh:
+    case kRiscvMulHigh:
       return MulhLatency();
-    case kMips64MulHighU:
+    case kRiscvMulHighU:
       return MulhuLatency();
-    case kMips64DMulHigh:
+    case kRiscvDMulHigh:
       return DMulhLatency();
-    case kMips64Div: {
+    case kRiscvDiv: {
       int latency = DivLatency(instr->InputAt(1)->IsRegister());
       return latency + MovzLatency();
     }
-    case kMips64DivU: {
+    case kRiscvDivU: {
       int latency = DivuLatency(instr->InputAt(1)->IsRegister());
       return latency + MovzLatency();
     }
-    case kMips64Mod:
+    case kRiscvMod:
       return ModLatency();
-    case kMips64ModU:
+    case kRiscvModU:
       return ModuLatency();
-    case kMips64Dmul:
+    case kRiscvDmul:
       return DmulLatency();
-    case kMips64Ddiv: {
+    case kRiscvDdiv: {
       int latency = DdivLatency();
       return latency + MovzLatency();
     }
-    case kMips64DdivU: {
+    case kRiscvDdivU: {
       int latency = DdivuLatency();
       return latency + MovzLatency();
     }
-    case kMips64Dmod:
+    case kRiscvDmod:
       return DmodLatency();
-    case kMips64DmodU:
+    case kRiscvDmodU:
       return DmoduLatency();
-    case kMips64Dlsa:
-    case kMips64Lsa:
+    case kRiscvDlsa:
+    case kRiscvLsa:
       return DlsaLatency();
-    case kMips64And:
+    case kRiscvAnd:
       return AndLatency(instr->InputAt(1)->IsRegister());
-    case kMips64And32: {
+    case kRiscvAnd32: {
       bool is_operand_register = instr->InputAt(1)->IsRegister();
       int latency = AndLatency(is_operand_register);
       if (is_operand_register) {
@@ -1227,9 +1227,9 @@ int InstructionScheduler::GetInstructionLatency(const Instruction* instr) {
         return latency + 1;
       }
     }
-    case kMips64Or:
+    case kRiscvOr:
       return OrLatency(instr->InputAt(1)->IsRegister());
-    case kMips64Or32: {
+    case kRiscvOr32: {
       bool is_operand_register = instr->InputAt(1)->IsRegister();
       int latency = OrLatency(is_operand_register);
       if (is_operand_register) {
@@ -1238,9 +1238,9 @@ int InstructionScheduler::GetInstructionLatency(const Instruction* instr) {
         return latency + 1;
       }
     }
-    case kMips64Nor:
+    case kRiscvNor:
       return NorLatency(instr->InputAt(1)->IsRegister());
-    case kMips64Nor32: {
+    case kRiscvNor32: {
       bool is_operand_register = instr->InputAt(1)->IsRegister();
       int latency = NorLatency(is_operand_register);
       if (is_operand_register) {
@@ -1249,9 +1249,9 @@ int InstructionScheduler::GetInstructionLatency(const Instruction* instr) {
         return latency + 1;
       }
     }
-    case kMips64Xor:
+    case kRiscvXor:
       return XorLatency(instr->InputAt(1)->IsRegister());
-    case kMips64Xor32: {
+    case kRiscvXor32: {
       bool is_operand_register = instr->InputAt(1)->IsRegister();
       int latency = XorLatency(is_operand_register);
       if (is_operand_register) {
@@ -1260,217 +1260,217 @@ int InstructionScheduler::GetInstructionLatency(const Instruction* instr) {
         return latency + 1;
       }
     }
-    case kMips64Clz:
-    case kMips64Dclz:
+    case kRiscvClz:
+    case kRiscvDclz:
       return DclzLatency();
-    case kMips64Ctz:
+    case kRiscvCtz:
       return CtzLatency();
-    case kMips64Dctz:
+    case kRiscvDctz:
       return DctzLatency();
-    case kMips64Popcnt:
+    case kRiscvPopcnt:
       return PopcntLatency();
-    case kMips64Dpopcnt:
+    case kRiscvDpopcnt:
       return DpopcntLatency();
-    case kMips64Shl:
+    case kRiscvShl:
       return 1;
-    case kMips64Shr:
-    case kMips64Sar:
+    case kRiscvShr:
+    case kRiscvSar:
       return 2;
-    case kMips64Ext:
-    case kMips64Ins:
-    case kMips64Dext:
-    case kMips64Dins:
-    case kMips64Dshl:
-    case kMips64Dshr:
-    case kMips64Dsar:
-    case kMips64Ror:
-    case kMips64Dror:
+    case kRiscvExt:
+    case kRiscvIns:
+    case kRiscvDext:
+    case kRiscvDins:
+    case kRiscvDshl:
+    case kRiscvDshr:
+    case kRiscvDsar:
+    case kRiscvRor:
+    case kRiscvDror:
       return 1;
-    case kMips64Tst:
+    case kRiscvTst:
       return AndLatency(instr->InputAt(1)->IsRegister());
-    case kMips64Mov:
+    case kRiscvMov:
       return 1;
-    case kMips64CmpS:
+    case kRiscvCmpS:
       return MoveLatency() + CompareF32Latency();
-    case kMips64AddS:
+    case kRiscvAddS:
       return Latency::ADD_S;
-    case kMips64SubS:
+    case kRiscvSubS:
       return Latency::SUB_S;
-    case kMips64MulS:
+    case kRiscvMulS:
       return Latency::MUL_S;
-    case kMips64DivS:
+    case kRiscvDivS:
       return Latency::DIV_S;
-    case kMips64ModS:
+    case kRiscvModS:
       return PrepareCallCFunctionLatency() + MovToFloatParametersLatency() +
              CallCFunctionLatency() + MovFromFloatResultLatency();
-    case kMips64AbsS:
+    case kRiscvAbsS:
       return Latency::ABS_S;
-    case kMips64NegS:
+    case kRiscvNegS:
       return NegdLatency();
-    case kMips64SqrtS:
+    case kRiscvSqrtS:
       return Latency::SQRT_S;
-    case kMips64MaxS:
+    case kRiscvMaxS:
       return Latency::MAX_S;
-    case kMips64MinS:
+    case kRiscvMinS:
       return Latency::MIN_S;
-    case kMips64CmpD:
+    case kRiscvCmpD:
       return MoveLatency() + CompareF64Latency();
-    case kMips64AddD:
+    case kRiscvAddD:
       return Latency::ADD_D;
-    case kMips64SubD:
+    case kRiscvSubD:
       return Latency::SUB_D;
-    case kMips64MulD:
+    case kRiscvMulD:
       return Latency::MUL_D;
-    case kMips64DivD:
+    case kRiscvDivD:
       return Latency::DIV_D;
-    case kMips64ModD:
+    case kRiscvModD:
       return PrepareCallCFunctionLatency() + MovToFloatParametersLatency() +
              CallCFunctionLatency() + MovFromFloatResultLatency();
-    case kMips64AbsD:
+    case kRiscvAbsD:
       return Latency::ABS_D;
-    case kMips64NegD:
+    case kRiscvNegD:
       return NegdLatency();
-    case kMips64SqrtD:
+    case kRiscvSqrtD:
       return Latency::SQRT_D;
-    case kMips64MaxD:
+    case kRiscvMaxD:
       return Latency::MAX_D;
-    case kMips64MinD:
+    case kRiscvMinD:
       return Latency::MIN_D;
-    case kMips64Float64RoundDown:
-    case kMips64Float64RoundTruncate:
-    case kMips64Float64RoundUp:
-    case kMips64Float64RoundTiesEven:
+    case kRiscvFloat64RoundDown:
+    case kRiscvFloat64RoundTruncate:
+    case kRiscvFloat64RoundUp:
+    case kRiscvFloat64RoundTiesEven:
       return Float64RoundLatency();
-    case kMips64Float32RoundDown:
-    case kMips64Float32RoundTruncate:
-    case kMips64Float32RoundUp:
-    case kMips64Float32RoundTiesEven:
+    case kRiscvFloat32RoundDown:
+    case kRiscvFloat32RoundTruncate:
+    case kRiscvFloat32RoundUp:
+    case kRiscvFloat32RoundTiesEven:
       return Float32RoundLatency();
-    case kMips64Float32Max:
+    case kRiscvFloat32Max:
       return Float32MaxLatency();
-    case kMips64Float64Max:
+    case kRiscvFloat64Max:
       return Float64MaxLatency();
-    case kMips64Float32Min:
+    case kRiscvFloat32Min:
       return Float32MinLatency();
-    case kMips64Float64Min:
+    case kRiscvFloat64Min:
       return Float64MinLatency();
-    case kMips64Float64SilenceNaN:
+    case kRiscvFloat64SilenceNaN:
       return Latency::SUB_D;
-    case kMips64CvtSD:
+    case kRiscvCvtSD:
       return Latency::CVT_S_D;
-    case kMips64CvtDS:
+    case kRiscvCvtDS:
       return Latency::CVT_D_S;
-    case kMips64CvtDW:
+    case kRiscvCvtDW:
       return Latency::MTC1 + Latency::CVT_D_W;
-    case kMips64CvtSW:
+    case kRiscvCvtSW:
       return Latency::MTC1 + Latency::CVT_S_W;
-    case kMips64CvtSUw:
+    case kRiscvCvtSUw:
       return 1 + Latency::DMTC1 + Latency::CVT_S_L;
-    case kMips64CvtSL:
+    case kRiscvCvtSL:
       return Latency::DMTC1 + Latency::CVT_S_L;
-    case kMips64CvtDL:
+    case kRiscvCvtDL:
       return Latency::DMTC1 + Latency::CVT_D_L;
-    case kMips64CvtDUw:
+    case kRiscvCvtDUw:
       return 1 + Latency::DMTC1 + Latency::CVT_D_L;
-    case kMips64CvtDUl:
+    case kRiscvCvtDUl:
       return 2 * Latency::BRANCH + 3 + 2 * Latency::DMTC1 +
              2 * Latency::CVT_D_L + Latency::ADD_D;
-    case kMips64CvtSUl:
+    case kRiscvCvtSUl:
       return 2 * Latency::BRANCH + 3 + 2 * Latency::DMTC1 +
              2 * Latency::CVT_S_L + Latency::ADD_S;
-    case kMips64FloorWD:
+    case kRiscvFloorWD:
       return Latency::FLOOR_W_D + Latency::MFC1;
-    case kMips64CeilWD:
+    case kRiscvCeilWD:
       return Latency::CEIL_W_D + Latency::MFC1;
-    case kMips64RoundWD:
+    case kRiscvRoundWD:
       return Latency::ROUND_W_D + Latency::MFC1;
-    case kMips64TruncWD:
+    case kRiscvTruncWD:
       return Latency::TRUNC_W_D + Latency::MFC1;
-    case kMips64FloorWS:
+    case kRiscvFloorWS:
       return Latency::FLOOR_W_S + Latency::MFC1;
-    case kMips64CeilWS:
+    case kRiscvCeilWS:
       return Latency::CEIL_W_S + Latency::MFC1;
-    case kMips64RoundWS:
+    case kRiscvRoundWS:
       return Latency::ROUND_W_S + Latency::MFC1;
-    case kMips64TruncWS:
+    case kRiscvTruncWS:
       return Latency::TRUNC_W_S + Latency::MFC1 + 2 + MovnLatency();
-    case kMips64TruncLS:
+    case kRiscvTruncLS:
       return TruncLSLatency(instr->OutputCount() > 1);
-    case kMips64TruncLD:
+    case kRiscvTruncLD:
       return TruncLDLatency(instr->OutputCount() > 1);
-    case kMips64TruncUwD:
+    case kRiscvTruncUwD:
       // Estimated max.
       return CompareF64Latency() + 2 * Latency::BRANCH +
              2 * Latency::TRUNC_W_D + Latency::SUB_D + OrLatency() +
              Latency::MTC1 + Latency::MFC1 + Latency::MTHC1 + 1;
-    case kMips64TruncUwS:
+    case kRiscvTruncUwS:
       // Estimated max.
       return CompareF32Latency() + 2 * Latency::BRANCH +
              2 * Latency::TRUNC_W_S + Latency::SUB_S + OrLatency() +
              Latency::MTC1 + 2 * Latency::MFC1 + 2 + MovzLatency();
-    case kMips64TruncUlS:
+    case kRiscvTruncUlS:
       return TruncUlSLatency();
-    case kMips64TruncUlD:
+    case kRiscvTruncUlD:
       return TruncUlDLatency();
-    case kMips64BitcastDL:
+    case kRiscvBitcastDL:
       return Latency::DMFC1;
-    case kMips64BitcastLD:
+    case kRiscvBitcastLD:
       return Latency::DMTC1;
-    case kMips64Float64ExtractLowWord32:
+    case kRiscvFloat64ExtractLowWord32:
       return Latency::MFC1;
-    case kMips64Float64InsertLowWord32:
+    case kRiscvFloat64InsertLowWord32:
       return Latency::MFHC1 + Latency::MTC1 + Latency::MTHC1;
-    case kMips64Float64ExtractHighWord32:
+    case kRiscvFloat64ExtractHighWord32:
       return Latency::MFHC1;
-    case kMips64Float64InsertHighWord32:
+    case kRiscvFloat64InsertHighWord32:
       return Latency::MTHC1;
-    case kMips64Seb:
-    case kMips64Seh:
+    case kRiscvSeb:
+    case kRiscvSeh:
       return 1;
-    case kMips64Lbu:
-    case kMips64Lb:
-    case kMips64Lhu:
-    case kMips64Lh:
-    case kMips64Lwu:
-    case kMips64Lw:
-    case kMips64Ld:
-    case kMips64Sb:
-    case kMips64Sh:
-    case kMips64Sw:
-    case kMips64Sd:
+    case kRiscvLbu:
+    case kRiscvLb:
+    case kRiscvLhu:
+    case kRiscvLh:
+    case kRiscvLwu:
+    case kRiscvLw:
+    case kRiscvLd:
+    case kRiscvSb:
+    case kRiscvSh:
+    case kRiscvSw:
+    case kRiscvSd:
       return AlignedMemoryLatency();
-    case kMips64Lwc1:
+    case kRiscvLwc1:
       return Lwc1Latency();
-    case kMips64Ldc1:
+    case kRiscvLdc1:
       return Ldc1Latency();
-    case kMips64Swc1:
+    case kRiscvSwc1:
       return Swc1Latency();
-    case kMips64Sdc1:
+    case kRiscvSdc1:
       return Sdc1Latency();
-    case kMips64Ulhu:
-    case kMips64Ulh:
+    case kRiscvUlhu:
+    case kRiscvUlh:
       return UlhuLatency();
-    case kMips64Ulwu:
+    case kRiscvUlwu:
       return UlwuLatency();
-    case kMips64Ulw:
+    case kRiscvUlw:
       return UlwLatency();
-    case kMips64Uld:
+    case kRiscvUld:
       return UldLatency();
-    case kMips64Ulwc1:
+    case kRiscvUlwc1:
       return Ulwc1Latency();
-    case kMips64Uldc1:
+    case kRiscvUldc1:
       return Uldc1Latency();
-    case kMips64Ush:
+    case kRiscvUsh:
       return UshLatency();
-    case kMips64Usw:
+    case kRiscvUsw:
       return UswLatency();
-    case kMips64Usd:
+    case kRiscvUsd:
       return UsdLatency();
-    case kMips64Uswc1:
+    case kRiscvUswc1:
       return Uswc1Latency();
-    case kMips64Usdc1:
+    case kRiscvUsdc1:
       return Usdc1Latency();
-    case kMips64Push: {
+    case kRiscvPush: {
       int latency = 0;
       if (instr->InputAt(0)->IsFPRegister()) {
         latency = Sdc1Latency() + DsubuLatency(false);
@@ -1479,7 +1479,7 @@ int InstructionScheduler::GetInstructionLatency(const Instruction* instr) {
       }
       return latency;
     }
-    case kMips64Peek: {
+    case kRiscvPeek: {
       int latency = 0;
       if (instr->OutputAt(0)->IsFPRegister()) {
         auto op = LocationOperand::cast(instr->OutputAt(0));
@@ -1498,9 +1498,9 @@ int InstructionScheduler::GetInstructionLatency(const Instruction* instr) {
       }
       return latency;
     }
-    case kMips64StackClaim:
+    case kRiscvStackClaim:
       return DsubuLatency(false);
-    case kMips64StoreToStackSlot: {
+    case kRiscvStoreToStackSlot: {
       int latency = 0;
       if (instr->InputAt(0)->IsFPRegister()) {
         if (instr->InputAt(0)->IsSimd128Register()) {
@@ -1513,9 +1513,9 @@ int InstructionScheduler::GetInstructionLatency(const Instruction* instr) {
       }
       return latency;
     }
-    case kMips64ByteSwap64:
+    case kRiscvByteSwap64:
       return ByteSwapSignedLatency();
-    case kMips64ByteSwap32:
+    case kRiscvByteSwap32:
       return ByteSwapSignedLatency();
     case kWord32AtomicLoadInt8:
     case kWord32AtomicLoadUint8:
@@ -1548,7 +1548,7 @@ int InstructionScheduler::GetInstructionLatency(const Instruction* instr) {
     case kWord32AtomicCompareExchangeWord32:
       return 3 + LlLatency(0) + BranchShortLatency() + 1 + ScLatency(0) +
              BranchShortLatency() + 1;
-    case kMips64AssertEqual:
+    case kRiscvAssertEqual:
       return AssertLatency();
     default:
       return 1;
