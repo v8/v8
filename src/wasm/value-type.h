@@ -20,20 +20,13 @@ namespace wasm {
 // Type for holding simd values, defined in wasm-value.h.
 class Simd128;
 
-// Type lattice: Given a fixed struct type S, the following lattice
-// defines the subtyping relation among types:
-// For every two types connected by a line, the top type is a
-// (direct) subtype of the bottom type.
+// The subtyping between value types is described by the following rules:
+// - All types are a supertype of bottom.
+// - All reference types, except funcref, are subtypes of eqref.
+// - optref(t1) <: optref(t2) iff t1 <: t2.
+// - ref(t1) <: optref(t2) iff t1 <: t2.
+// = ref(t1) <: ref(t2) iff t1 <: t2.
 //
-//                            AnyRef
-//                           /      \
-//                          /      EqRef
-//                         /       /   \
-//                  FuncRef  ExnRef  OptRef(S)
-//                         \    |   /        \
-// I32  I64  F32  F64        NullRef        Ref(S)
-//   \    \    \    \           |            /
-//    ---------------------- Bottom ---------
 // Format: kind, log2Size, code, machineType, shortName, typeName
 //
 // Some of these types are from proposals that are not standardized yet:
@@ -120,12 +113,12 @@ class ValueType {
 
   // TODO(7748): Extend this with struct and function subtyping.
   //             Keep up to date with funcref vs. anyref subtyping.
-  constexpr bool IsSubTypeOf(ValueType other) const {
+  constexpr bool IsSubtypeOfNoImmediates(ValueType other) const {
+#if V8_HAS_CXX14_CONSTEXPR
+    DCHECK(!has_immediate() && !other.has_immediate());
+#endif
     return (*this == other) ||
-           (other.kind() == kEqRef &&
-            (kind() == kExnRef || kind() == kOptRef || kind() == kRef)) ||
-           (kind() == kRef && other.kind() == kOptRef &&
-            ref_index() == other.ref_index());
+           (other.kind() == kEqRef && (kind() == kExnRef || kind() == kAnyRef));
   }
 
   constexpr bool IsReferenceType() const {
@@ -135,23 +128,6 @@ class ValueType {
   constexpr bool IsNullable() const {
     return kind() == kAnyRef || kind() == kFuncRef || kind() == kExnRef ||
            kind() == kOptRef;
-  }
-
-  // TODO(7748): Extend this with struct and function subtyping.
-  //             Keep up to date with funcref vs. anyref subtyping.
-  static ValueType CommonSubType(ValueType a, ValueType b) {
-    if (a == b) return a;
-    // The only sub type of any value type is {bot}.
-    if (!a.IsReferenceType() || !b.IsReferenceType()) {
-      return ValueType(kBottom);
-    }
-    if (a.IsSubTypeOf(b)) return a;
-    if (b.IsSubTypeOf(a)) return b;
-    // {a} and {b} are not each other's subtype.
-    // If one of them is not nullable, their greatest subtype is bottom,
-    // otherwise null.
-    if (a.kind() == kRef || b.kind() == kRef) return ValueType(kBottom);
-    return ValueType(kNullRef);
   }
 
   constexpr ValueTypeCode value_type_code() const {

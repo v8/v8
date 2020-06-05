@@ -925,7 +925,8 @@ class ModuleDecoderImpl : public Decoder {
           errorf(pos, "out of bounds table index %u", table_index);
           break;
         }
-        if (!type.IsSubTypeOf(module_->tables[table_index].type)) {
+        if (!IsSubtypeOf(type, module_->tables[table_index].type,
+                         this->module_.get())) {
           errorf(pos,
                  "Invalid element segment. Table %u is not a super-type of %s",
                  table_index, type.type_name());
@@ -1671,7 +1672,8 @@ class ModuleDecoderImpl : public Decoder {
           }
           expr.kind = WasmInitExpr::kRefNullConst;
           len = imm.length;
-          if (expected != kWasmStmt && !imm.type.IsSubTypeOf(expected)) {
+          if (expected != kWasmStmt &&
+              !IsSubtypeOf(imm.type, expected, module_.get())) {
             errorf(pos, "type error in init expression, expected %s, got %s",
                    expected.type_name(), imm.type.type_name());
           }

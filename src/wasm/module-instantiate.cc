@@ -16,6 +16,7 @@
 #include "src/wasm/wasm-import-wrapper-cache.h"
 #include "src/wasm/wasm-module.h"
 #include "src/wasm/wasm-objects-inl.h"
+#include "src/wasm/wasm-subtyping.h"
 
 #define TRACE(...)                                      \
   do {                                                  \
@@ -1122,7 +1123,8 @@ bool InstanceBuilder::ProcessImportedWasmGlobalObject(
     return false;
   }
 
-  bool is_sub_type = global_object->type().IsSubTypeOf(global.type);
+  bool is_sub_type =
+      IsSubtypeOf(global_object->type(), global.type, instance->module());
   bool is_same_type = global_object->type() == global.type;
   bool valid_type = global.mutability ? is_same_type : is_sub_type;
 

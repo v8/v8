@@ -18,6 +18,7 @@
 #include "src/wasm/wasm-limits.h"
 #include "src/wasm/wasm-module.h"
 #include "src/wasm/wasm-opcodes.h"
+#include "src/wasm/wasm-subtyping.h"
 
 namespace v8 {
 namespace internal {
@@ -1381,8 +1382,8 @@ class WasmDecoder : public Decoder {
       return false;
     }
     ValueType elem_type = module_->elem_segments[imm.elem_segment_index].type;
-    if (!VALIDATE(
-            elem_type.IsSubTypeOf(module_->tables[imm.table.index].type))) {
+    if (!VALIDATE(IsSubtypeOf(elem_type, module_->tables[imm.table.index].type,
+                              module_))) {
       errorf(pc_ + 2, "table %u is not a super-type of %s", imm.table.index,
              elem_type.type_name());
       return false;
@@ -1402,8 +1403,8 @@ class WasmDecoder : public Decoder {
     if (!Validate(pc_ + 1, imm.table_src)) return false;
     if (!Validate(pc_ + 2, imm.table_dst)) return false;
     ValueType src_type = module_->tables[imm.table_src.index].type;
-    if (!VALIDATE(
-            src_type.IsSubTypeOf(module_->tables[imm.table_dst.index].type))) {
+    if (!VALIDATE(IsSubtypeOf(
+            src_type, module_->tables[imm.table_dst.index].type, module_))) {
       errorf(pc_ + 2, "table %u is not a super-type of %s", imm.table_dst.index,
              src_type.type_name());
       return false;
@@ -3017,7 +3018,7 @@ class WasmFullDecoder : public WasmDecoder<validate> {
         // The expected type is the biggest common sub type of all targets.
         ValueType type = (*result_types)[i];
         (*result_types)[i] =
-            ValueType::CommonSubType((*result_types)[i], (*merge)[i].type);
+            CommonSubtype((*result_types)[i], (*merge)[i].type, this->module_);
         if ((*result_types)[i] == kWasmBottom) {
           this->errorf(pos,
                        "inconsistent type in br_table target %u (previous "
@@ -3057,7 +3058,7 @@ class WasmFullDecoder : public WasmDecoder<validate> {
       // Type-check the topmost br_arity values on the stack.
       for (int i = 0; i < br_arity; ++i) {
         Value& val = stack_values[i];
-        if (!val.type.IsSubTypeOf(result_types[i])) {
+        if (!IsSubtypeOf(val.type, result_types[i], this->module_)) {
           this->errorf(this->pc_,
                        "type error in merge[%u] (expected %s, got %s)", i,
                        result_types[i].type_name(), val.type.type_name());
@@ -3543,8 +3544,8 @@ class WasmFullDecoder : public WasmDecoder<validate> {
 
   V8_INLINE Value Pop(int index, ValueType expected) {
     Value val = Pop();
-    if (!VALIDATE(val.type.IsSubTypeOf(expected) || val.type == kWasmBottom ||
-                  expected == kWasmBottom)) {
+    if (!VALIDATE(IsSubtypeOf(val.type, expected, this->module_) ||
+                  val.type == kWasmBottom || expected == kWasmBottom)) {
       this->errorf(val.pc, "%s[%d] expected type %s, found %s of type %s",
                    SafeOpcodeNameAt(this->pc_), index, expected.type_name(),
                    SafeOpcodeNameAt(val.pc), val.type.type_name());
@@ -3607,7 +3608,7 @@ class WasmFullDecoder : public WasmDecoder<validate> {
     for (uint32_t i = 0; i < merge->arity; ++i) {
       Value& val = stack_values[i];
       Value& old = (*merge)[i];
-      if (!val.type.IsSubTypeOf(old.type)) {
+      if (!IsSubtypeOf(val.type, old.type, this->module_)) {
         this->errorf(this->pc_, "type error in merge[%u] (expected %s, got %s)",
                      i, old.type.type_name(), val.type.type_name());
         return false;
@@ -3624,7 +3625,7 @@ class WasmFullDecoder : public WasmDecoder<validate> {
     for (uint32_t i = 0; i < c->start_merge.arity; ++i) {
       Value& start = c->start_merge[i];
       Value& end = c->end_merge[i];
-      if (!start.type.IsSubTypeOf(end.type)) {
+      if (!IsSubtypeOf(start.type, end.type, this->module_)) {
         this->errorf(this->pc_, "type error in merge[%u] (expected %s, got %s)",
                      i, end.type.type_name(), start.type.type_name());
         return false;
@@ -3728,7 +3729,7 @@ class WasmFullDecoder : public WasmDecoder<validate> {
     for (int i = 0; i < num_returns; ++i) {
       Value& val = stack_values[i];
       ValueType expected_type = this->sig_->GetReturn(i);
-      if (!val.type.IsSubTypeOf(expected_type)) {
+      if (!IsSubtypeOf(val.type, expected_type, this->module_)) {
         this->errorf(this->pc_,
                      "type error in return[%u] (expected %s, got %s)", i,
                      expected_type.type_name(), val.type.type_name());
