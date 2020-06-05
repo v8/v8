@@ -502,8 +502,9 @@ void EmitMaybePoisonedFPLoad(CodeGenerator* codegen, InstructionCode opcode,
       __ asm_imm(i.OutputSimd128Register().format(),                        \
                  i.InputSimd128Register(0).format(), i.InputInt##width(1)); \
     } else {                                                                \
-      VRegister tmp = i.TempSimd128Register(0);                             \
-      Register shift = i.TempRegister(1).gp();                              \
+      UseScratchRegisterScope temps(tasm());                                \
+      VRegister tmp = temps.AcquireQ();                                     \
+      Register shift = temps.Acquire##gp();                                 \
       constexpr int mask = (1 << width) - 1;                                \
       __ And(shift, i.InputRegister32(1), mask);                            \
       __ Dup(tmp.format(), shift);                                          \
@@ -521,8 +522,9 @@ void EmitMaybePoisonedFPLoad(CodeGenerator* codegen, InstructionCode opcode,
       __ asm_imm(i.OutputSimd128Register().format(),                        \
                  i.InputSimd128Register(0).format(), i.InputInt##width(1)); \
     } else {                                                                \
-      VRegister tmp = i.TempSimd128Register(0);                             \
-      Register shift = i.TempRegister(1).gp();                              \
+      UseScratchRegisterScope temps(tasm());                                \
+      VRegister tmp = temps.AcquireQ();                                     \
+      Register shift = temps.Acquire##gp();                                 \
       constexpr int mask = (1 << width) - 1;                                \
       __ And(shift, i.InputRegister32(1), mask);                            \
       __ Dup(tmp.format(), shift);                                          \
