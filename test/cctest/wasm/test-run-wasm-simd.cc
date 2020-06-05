@@ -1645,7 +1645,10 @@ WASM_SIMD_TEST(I16x8ReplaceLane) {
   }
 }
 
+#if V8_TARGET_ARCH_ARM64 || V8_TARGET_ARCH_ARM || V8_TARGET_ARCH_IA32 || \
+    V8_TARGET_ARCH_X64
 WASM_SIMD_TEST_NO_LOWERING(I8x16BitMask) {
+  FLAG_SCOPE(wasm_simd_post_mvp);
   WasmRunner<int32_t, int32_t> r(execution_tier, lower_simd);
   byte value1 = r.AllocateLocal(kWasmS128);
 
@@ -1665,6 +1668,7 @@ WASM_SIMD_TEST_NO_LOWERING(I8x16BitMask) {
 }
 
 WASM_SIMD_TEST_NO_LOWERING(I16x8BitMask) {
+  FLAG_SCOPE(wasm_simd_post_mvp);
   WasmRunner<int32_t, int32_t> r(execution_tier, lower_simd);
   byte value1 = r.AllocateLocal(kWasmS128);
 
@@ -1684,6 +1688,7 @@ WASM_SIMD_TEST_NO_LOWERING(I16x8BitMask) {
 }
 
 WASM_SIMD_TEST_NO_LOWERING(I32x4BitMask) {
+  FLAG_SCOPE(wasm_simd_post_mvp);
   WasmRunner<int32_t, int32_t> r(execution_tier, lower_simd);
   byte value1 = r.AllocateLocal(kWasmS128);
 
@@ -1701,6 +1706,8 @@ WASM_SIMD_TEST_NO_LOWERING(I32x4BitMask) {
     CHECK_EQ(actual, expected);
   }
 }
+#endif  // V8_TARGET_ARCH_ARM64 || V8_TARGET_ARCH_ARM || V8_TARGET_ARCH_IA32 ||
+        // V8_TARGET_ARCH_X64
 
 WASM_SIMD_TEST(I8x16Splat) {
   WasmRunner<int32_t, int32_t> r(execution_tier, lower_simd);
