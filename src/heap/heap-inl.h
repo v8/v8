@@ -241,7 +241,8 @@ AllocationResult Heap::AllocateRaw(int size_in_bytes, AllocationType type,
       DCHECK(!large_object);
       DCHECK(CanAllocateInReadOnlySpace());
       DCHECK_EQ(AllocationOrigin::kRuntime, origin);
-      allocation = read_only_space_->AllocateRaw(size_in_bytes, alignment);
+      allocation =
+          read_only_space_->AllocateRaw(size_in_bytes, alignment, origin);
     } else {
       UNREACHABLE();
     }

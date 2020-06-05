@@ -7,7 +7,6 @@
 
 #include <memory>
 #include <utility>
-#include <vector>
 
 #include "src/base/macros.h"
 #include "src/base/optional.h"
@@ -21,12 +20,10 @@ class SharedMemoryStatistics;
 
 namespace internal {
 
-class BasicMemoryChunk;
 class Isolate;
 class Page;
 class ReadOnlyArtifacts;
 class ReadOnlyDeserializer;
-class ReadOnlyPage;
 class ReadOnlySpace;
 
 // This class transparently manages read-only space, roots and cache creation
@@ -119,7 +116,7 @@ class V8_EXPORT_PRIVATE ReadOnlyHeapObjectIterator {
 
  private:
   ReadOnlySpace* const ro_space_;
-  std::vector<ReadOnlyPage*>::const_iterator current_page_;
+  Page* current_page_;
   Address current_addr_;
 };
 

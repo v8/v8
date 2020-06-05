@@ -7,13 +7,11 @@
 #include <cinttypes>
 
 #include "src/base/address-region.h"
-#include "src/common/globals.h"
 #include "src/execution/isolate.h"
 #include "src/flags/flags.h"
 #include "src/heap/gc-tracer.h"
 #include "src/heap/heap-inl.h"
 #include "src/heap/memory-chunk.h"
-#include "src/heap/read-only-spaces.h"
 #include "src/logging/log.h"
 
 namespace v8 {
@@ -374,9 +372,10 @@ Address MemoryAllocator::AllocateAlignedMemory(
   return base;
 }
 
-V8_EXPORT_PRIVATE BasicMemoryChunk* MemoryAllocator::AllocateBasicChunk(
-    size_t reserve_area_size, size_t commit_area_size, Executability executable,
-    BaseSpace* owner) {
+MemoryChunk* MemoryAllocator::AllocateChunk(size_t reserve_area_size,
+                                            size_t commit_area_size,
+                                            Executability executable,
+                                            Space* owner) {
   DCHECK_LE(commit_area_size, reserve_area_size);
 
   size_t chunk_size;
@@ -484,32 +483,19 @@ V8_EXPORT_PRIVATE BasicMemoryChunk* MemoryAllocator::AllocateBasicChunk(
       size_executable_ -= chunk_size;
     }
     CHECK(last_chunk_.IsReserved());
-    return AllocateBasicChunk(reserve_area_size, commit_area_size, executable,
-                              owner);
+    return AllocateChunk(reserve_area_size, commit_area_size, executable,
+                         owner);
   }
 
-  BasicMemoryChunk* chunk =
-      BasicMemoryChunk::Initialize(heap, base, chunk_size, area_start, area_end,
-                                   owner, std::move(reservation));
-
-  return chunk;
-}
-
-MemoryChunk* MemoryAllocator::AllocateChunk(size_t reserve_area_size,
-                                            size_t commit_area_size,
-                                            Executability executable,
-                                            BaseSpace* owner) {
-  BasicMemoryChunk* basic_chunk = AllocateBasicChunk(
-      reserve_area_size, commit_area_size, executable, owner);
   MemoryChunk* chunk =
-      MemoryChunk::Initialize(basic_chunk, isolate_->heap(), executable);
+      MemoryChunk::Initialize(heap, base, chunk_size, area_start, area_end,
+                              executable, owner, std::move(reservation));
 
   if (chunk->executable()) RegisterExecutableMemoryChunk(chunk);
   return chunk;
 }
 
-void MemoryAllocator::PartialFreeMemory(BasicMemoryChunk* chunk,
-                                        Address start_free,
+void MemoryAllocator::PartialFreeMemory(MemoryChunk* chunk, Address start_free,
                                         size_t bytes_to_free,
                                         Address new_area_end) {
   VirtualMemory* reservation = chunk->reserved_memory();
@@ -533,40 +519,20 @@ void MemoryAllocator::PartialFreeMemory(BasicMemoryChunk* chunk,
   size_ -= released_bytes;
 }
 
-void MemoryAllocator::UnregisterMemory(BasicMemoryChunk* chunk,
-                                       Executability executable) {
+void MemoryAllocator::UnregisterMemory(MemoryChunk* chunk) {
   DCHECK(!chunk->IsFlagSet(MemoryChunk::UNREGISTERED));
   VirtualMemory* reservation = chunk->reserved_memory();
   const size_t size =
       reservation->IsReserved() ? reservation->size() : chunk->size();
   DCHECK_GE(size_, static_cast<size_t>(size));
   size_ -= size;
-  if (executable == EXECUTABLE) {
+  if (chunk->executable() == EXECUTABLE) {
     DCHECK_GE(size_executable_, size);
     size_executable_ -= size;
-    UnregisterExecutableMemoryChunk(static_cast<MemoryChunk*>(chunk));
   }
+
+  if (chunk->executable()) UnregisterExecutableMemoryChunk(chunk);
   chunk->SetFlag(MemoryChunk::UNREGISTERED);
-}
-
-void MemoryAllocator::UnregisterMemory(MemoryChunk* chunk) {
-  UnregisterMemory(chunk, chunk->executable());
-}
-
-void MemoryAllocator::FreeReadOnlyPage(ReadOnlyPage* chunk) {
-  DCHECK(!chunk->IsFlagSet(MemoryChunk::PRE_FREED));
-  LOG(isolate_, DeleteEvent("MemoryChunk", chunk));
-  UnregisterMemory(chunk);
-  chunk->SetFlag(MemoryChunk::PRE_FREED);
-  chunk->ReleaseMarkingBitmap();
-
-  VirtualMemory* reservation = chunk->reserved_memory();
-  if (reservation->IsReserved()) {
-    reservation->Free();
-  } else {
-    // Only read-only pages can have non-initialized reservation object.
-    FreeMemory(page_allocator(NOT_EXECUTABLE), chunk->address(), chunk->size());
-  }
 }
 
 void MemoryAllocator::PreFreeMemory(MemoryChunk* chunk) {
@@ -581,15 +547,20 @@ void MemoryAllocator::PreFreeMemory(MemoryChunk* chunk) {
 void MemoryAllocator::PerformFreeMemory(MemoryChunk* chunk) {
   DCHECK(chunk->IsFlagSet(MemoryChunk::UNREGISTERED));
   DCHECK(chunk->IsFlagSet(MemoryChunk::PRE_FREED));
-  DCHECK(!chunk->InReadOnlySpace());
   chunk->ReleaseAllAllocatedMemory();
 
   VirtualMemory* reservation = chunk->reserved_memory();
   if (chunk->IsFlagSet(MemoryChunk::POOLED)) {
     UncommitMemory(reservation);
   } else {
-    DCHECK(reservation->IsReserved());
-    reservation->Free();
+    if (reservation->IsReserved()) {
+      reservation->Free();
+    } else {
+      // Only read-only pages can have non-initialized reservation object.
+      DCHECK_EQ(RO_SPACE, chunk->owner_identity());
+      FreeMemory(page_allocator(chunk->executable()), chunk->address(),
+                 chunk->size());
+    }
   }
 }
 
@@ -659,16 +630,6 @@ template EXPORT_TEMPLATE_DEFINE(V8_EXPORT_PRIVATE)
     Page* MemoryAllocator::AllocatePage<MemoryAllocator::kPooled, SemiSpace>(
         size_t size, SemiSpace* owner, Executability executable);
 
-ReadOnlyPage* MemoryAllocator::AllocateReadOnlyPage(size_t size,
-                                                    ReadOnlySpace* owner) {
-  BasicMemoryChunk* chunk = nullptr;
-  if (chunk == nullptr) {
-    chunk = AllocateBasicChunk(size, size, NOT_EXECUTABLE, owner);
-  }
-  if (chunk == nullptr) return nullptr;
-  return owner->InitializePage(chunk);
-}
-
 LargePage* MemoryAllocator::AllocateLargePage(size_t size,
                                               LargeObjectSpace* owner,
                                               Executability executable) {
@@ -694,10 +655,8 @@ MemoryChunk* MemoryAllocator::AllocatePagePooled(SpaceType* owner) {
   if (Heap::ShouldZapGarbage()) {
     ZapBlock(start, size, kZapValue);
   }
-  BasicMemoryChunk* basic_chunk =
-      BasicMemoryChunk::Initialize(isolate_->heap(), start, size, area_start,
-                                   area_end, owner, std::move(reservation));
-  MemoryChunk::Initialize(basic_chunk, isolate_->heap(), NOT_EXECUTABLE);
+  MemoryChunk::Initialize(isolate_->heap(), start, size, area_start, area_end,
+                          NOT_EXECUTABLE, owner, std::move(reservation));
   size_ += size;
   return chunk;
 }

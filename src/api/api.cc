@@ -8426,7 +8426,8 @@ void Isolate::GetHeapStatistics(HeapStatistics* heap_statistics) {
   i::ReadOnlySpace* ro_space = heap->read_only_space();
   heap_statistics->total_heap_size_ += ro_space->CommittedMemory();
   heap_statistics->total_physical_size_ += ro_space->CommittedPhysicalMemory();
-  heap_statistics->used_heap_size_ += ro_space->Size();
+  heap_statistics->total_available_size_ += ro_space->Available();
+  heap_statistics->used_heap_size_ += ro_space->SizeOfObjects();
 #endif  // V8_SHARED_RO_HEAP
 
   heap_statistics->total_heap_size_executable_ =
@@ -8460,26 +8461,18 @@ bool Isolate::GetHeapSpaceStatistics(HeapSpaceStatistics* space_statistics,
 
   i::Isolate* isolate = reinterpret_cast<i::Isolate*>(this);
   i::Heap* heap = isolate->heap();
+  i::Space* space = heap->space(static_cast<int>(index));
 
   i::AllocationSpace allocation_space = static_cast<i::AllocationSpace>(index);
   space_statistics->space_name_ = i::Heap::GetSpaceName(allocation_space);
 
-  if (allocation_space == i::RO_SPACE) {
-    if (V8_SHARED_RO_HEAP_BOOL) {
-      // RO_SPACE memory is accounted for elsewhere when ReadOnlyHeap is shared.
-      space_statistics->space_size_ = 0;
-      space_statistics->space_used_size_ = 0;
-      space_statistics->space_available_size_ = 0;
-      space_statistics->physical_space_size_ = 0;
-    } else {
-      i::ReadOnlySpace* space = heap->read_only_space();
-      space_statistics->space_size_ = space->CommittedMemory();
-      space_statistics->space_used_size_ = space->Size();
-      space_statistics->space_available_size_ = 0;
-      space_statistics->physical_space_size_ = space->CommittedPhysicalMemory();
-    }
+  if (allocation_space == i::RO_SPACE && V8_SHARED_RO_HEAP_BOOL) {
+    // RO_SPACE memory is accounted for elsewhere when ReadOnlyHeap is shared.
+    space_statistics->space_size_ = 0;
+    space_statistics->space_used_size_ = 0;
+    space_statistics->space_available_size_ = 0;
+    space_statistics->physical_space_size_ = 0;
   } else {
-    i::Space* space = heap->space(static_cast<int>(index));
     space_statistics->space_size_ = space->CommittedMemory();
     space_statistics->space_used_size_ = space->SizeOfObjects();
     space_statistics->space_available_size_ = space->Available();

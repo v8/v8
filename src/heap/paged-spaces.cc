@@ -49,7 +49,8 @@ PagedSpaceObjectIterator::PagedSpaceObjectIterator(Heap* heap,
   heap->mark_compact_collector()->EnsureSweepingCompleted();
 #ifdef DEBUG
   AllocationSpace owner = page->owner_identity();
-  DCHECK(owner == OLD_SPACE || owner == MAP_SPACE || owner == CODE_SPACE);
+  DCHECK(owner == RO_SPACE || owner == OLD_SPACE || owner == MAP_SPACE ||
+         owner == CODE_SPACE);
 #endif  // DEBUG
 }
 
@@ -113,11 +114,12 @@ void PagedSpace::RefillFreeList() {
   // Any PagedSpace might invoke RefillFreeList. We filter all but our old
   // generation spaces out.
   if (identity() != OLD_SPACE && identity() != CODE_SPACE &&
-      identity() != MAP_SPACE) {
+      identity() != MAP_SPACE && identity() != RO_SPACE) {
     return;
   }
   DCHECK_NE(local_space_kind(), LocalSpaceKind::kOffThreadSpace);
   DCHECK_IMPLIES(is_local_space(), is_compaction_space());
+  DCHECK(!IsDetached());
   MarkCompactCollector* collector = heap()->mark_compact_collector();
   size_t added = 0;
 
@@ -235,7 +237,7 @@ void PagedSpace::MergeLocalSpace(LocalSpace* other) {
 
 size_t PagedSpace::CommittedPhysicalMemory() {
   if (!base::OS::HasLazyCommits()) return CommittedMemory();
-  BasicMemoryChunk::UpdateHighWaterMark(allocation_info_.top());
+  MemoryChunk::UpdateHighWaterMark(allocation_info_.top());
   size_t size = 0;
   for (Page* page : *this) {
     size += page->CommittedPhysicalMemory();
@@ -321,7 +323,7 @@ void PagedSpace::ResetFreeList() {
 
 void PagedSpace::ShrinkImmortalImmovablePages() {
   DCHECK(!heap()->deserialization_complete());
-  BasicMemoryChunk::UpdateHighWaterMark(allocation_info_.top());
+  MemoryChunk::UpdateHighWaterMark(allocation_info_.top());
   FreeLinearAllocationArea();
   ResetFreeList();
   for (Page* page : *this) {
@@ -691,7 +693,15 @@ void PagedSpace::Verify(Isolate* isolate, ObjectVisitor* visitor) {
   }
 
   for (Page* page : *this) {
+#ifdef V8_SHARED_RO_HEAP
+    if (identity() == RO_SPACE) {
+      CHECK_NULL(page->owner());
+    } else {
+      CHECK_EQ(page->owner(), this);
+    }
+#else
     CHECK_EQ(page->owner(), this);
+#endif
 
     for (int i = 0; i < kNumTypes; i++) {
       external_page_bytes[static_cast<ExternalBackingStoreType>(i)] = 0;
@@ -772,6 +782,7 @@ void PagedSpace::Verify(Isolate* isolate, ObjectVisitor* visitor) {
 }
 
 void PagedSpace::VerifyLiveBytes() {
+  DCHECK_NE(identity(), RO_SPACE);
   IncrementalMarking::MarkingState* marking_state =
       heap()->incremental_marking()->marking_state();
   for (Page* page : *this) {

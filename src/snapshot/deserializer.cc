@@ -364,9 +364,12 @@ HeapObject Deserializer::GetBackReferencedObject(SnapshotSpace space) {
       uint32_t chunk_index = source_.GetInt();
       uint32_t chunk_offset = source_.GetInt();
       if (is_off_thread() || isolate()->heap()->deserialization_complete()) {
-        ReadOnlySpace* read_only_space =
+        PagedSpace* read_only_space =
             local_isolate()->heap()->read_only_space();
-        ReadOnlyPage* page = read_only_space->pages()[chunk_index];
+        Page* page = read_only_space->first_page();
+        for (uint32_t i = 0; i < chunk_index; ++i) {
+          page = page->next_page();
+        }
         Address address = page->OffsetToAddress(chunk_offset);
         obj = HeapObject::FromAddress(address);
       } else {

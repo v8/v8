@@ -6,7 +6,6 @@
 #define V8_HEAP_BASIC_MEMORY_CHUNK_H_
 
 #include <type_traits>
-#include <unordered_map>
 
 #include "src/base/atomic-utils.h"
 #include "src/common/globals.h"
@@ -17,7 +16,7 @@
 namespace v8 {
 namespace internal {
 
-class BaseSpace;
+class Space;
 
 class BasicMemoryChunk {
  public:
@@ -151,9 +150,9 @@ class BasicMemoryChunk {
   }
 
   // Gets the chunk's owner or null if the space has been detached.
-  BaseSpace* owner() const { return owner_; }
+  Space* owner() const { return owner_; }
 
-  void set_owner(BaseSpace* space) { owner_ = space; }
+  void set_owner(Space* space) { owner_ = space; }
 
   template <AccessMode access_mode = AccessMode::NON_ATOMIC>
   void SetFlag(Flag flag) {
@@ -205,8 +204,7 @@ class BasicMemoryChunk {
 
   static BasicMemoryChunk* Initialize(Heap* heap, Address base, size_t size,
                                       Address area_start, Address area_end,
-                                      BaseSpace* owner,
-                                      VirtualMemory reservation);
+                                      Space* owner, VirtualMemory reservation);
 
   size_t wasted_memory() { return wasted_memory_; }
   void add_wasted_memory(size_t waste) { wasted_memory_ += waste; }
@@ -306,7 +304,7 @@ class BasicMemoryChunk {
   std::atomic<intptr_t> high_water_mark_;
 
   // The space owning this memory chunk.
-  std::atomic<BaseSpace*> owner_;
+  std::atomic<Space*> owner_;
 
   // If the chunk needs to remember its memory reservation, it is stored here.
   VirtualMemory reservation_;

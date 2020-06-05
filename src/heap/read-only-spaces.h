@@ -10,9 +10,7 @@
 
 #include "include/v8-platform.h"
 #include "src/base/macros.h"
-#include "src/common/globals.h"
 #include "src/heap/allocation-stats.h"
-#include "src/heap/basic-memory-chunk.h"
 #include "src/heap/list.h"
 #include "src/heap/memory-chunk.h"
 #include "src/heap/paged-spaces.h"
@@ -24,13 +22,11 @@ namespace internal {
 class MemoryAllocator;
 class ReadOnlyHeap;
 
-class ReadOnlyPage : public BasicMemoryChunk {
+class ReadOnlyPage : public Page {
  public:
   // Clears any pointers in the header that point out of the page that would
   // otherwise make the header non-relocatable.
   void MakeHeaderRelocatable();
-
-  size_t ShrinkToHighWaterMark();
 
  private:
   friend class ReadOnlySpace;
@@ -52,8 +48,8 @@ class ReadOnlyArtifacts {
     return shared_read_only_space_.get();
   }
 
-  std::vector<ReadOnlyPage*>& pages() { return pages_; }
-  void TransferPages(std::vector<ReadOnlyPage*>&& pages) {
+  heap::List<MemoryChunk>& pages() { return pages_; }
+  void TransferPages(heap::List<MemoryChunk>&& pages) {
     pages_ = std::move(pages);
   }
 
@@ -63,7 +59,7 @@ class ReadOnlyArtifacts {
   ReadOnlyHeap* read_only_heap() { return read_only_heap_.get(); }
 
  private:
-  std::vector<ReadOnlyPage*> pages_;
+  heap::List<MemoryChunk> pages_;
   AllocationStats stats_;
   std::unique_ptr<SharedReadOnlySpace> shared_read_only_space_;
   std::unique_ptr<ReadOnlyHeap> read_only_heap_;
@@ -71,7 +67,7 @@ class ReadOnlyArtifacts {
 
 // -----------------------------------------------------------------------------
 // Read Only space for all Immortal Immovable and Immutable objects
-class ReadOnlySpace : public BaseSpace {
+class ReadOnlySpace : public PagedSpace {
  public:
   explicit ReadOnlySpace(Heap* heap);
 
@@ -80,18 +76,12 @@ class ReadOnlySpace : public BaseSpace {
   void DetachPagesAndAddToArtifacts(
       std::shared_ptr<ReadOnlyArtifacts> artifacts);
 
-  ~ReadOnlySpace() override;
-
-  bool IsDetached() const { return heap_ == nullptr; }
+  ~ReadOnlySpace() override { Unseal(); }
 
   bool writable() const { return !is_marked_read_only_; }
 
   bool Contains(Address a) = delete;
   bool Contains(Object o) = delete;
-
-  V8_EXPORT_PRIVATE
-  AllocationResult AllocateRaw(size_t size_in_bytes,
-                               AllocationAlignment alignment);
 
   V8_EXPORT_PRIVATE void ClearStringPaddingIfNeeded();
 
@@ -103,32 +93,10 @@ class ReadOnlySpace : public BaseSpace {
   void Seal(SealMode ro_mode);
 
   // During boot the free_space_map is created, and afterwards we may need
-  // to write it into the free space nodes that were already created.
-  void RepairFreeSpacesAfterDeserialization();
+  // to write it into the free list nodes that were already created.
+  void RepairFreeListsAfterDeserialization();
 
-  size_t Size() override { return area_size_; }
-  size_t CommittedPhysicalMemory() override;
-
-  const std::vector<ReadOnlyPage*>& pages() const { return pages_; }
-  Address top() const { return top_; }
-  Address limit() const { return limit_; }
-  size_t Capacity() const { return capacity_; }
-
-  bool ContainsSlow(Address addr);
-  void ShrinkPages();
-#ifdef VERIFY_HEAP
-  void Verify(Isolate* isolate);
-#ifdef DEBUG
-  void VerifyCounters(Heap* heap);
-#endif  // DEBUG
-#endif  // VERIFY_HEAP
-
-  // Return size of allocatable area on a page in this space.
-  int AreaSize() { return static_cast<int>(area_size_); }
-
-  ReadOnlyPage* InitializePage(BasicMemoryChunk* chunk);
-
-  Address FirstPageAddress() const { return pages_.front()->address(); }
+  size_t Available() override { return 0; }
 
  protected:
   void SetPermissionsForPages(MemoryAllocator* memory_allocator,
@@ -136,36 +104,16 @@ class ReadOnlySpace : public BaseSpace {
 
   bool is_marked_read_only_ = false;
 
-  // Accounting information for this space.
-  AllocationStats accounting_stats_;
-
-  std::vector<ReadOnlyPage*> pages_;
-
-  Address top_;
-  Address limit_;
-
  private:
-  // Unseal the space after it has been sealed, by making it writable.
+  // Unseal the space after is has been sealed, by making it writable.
+  // TODO(v8:7464): Only possible if the space hasn't been detached.
   void Unseal();
 
-  void DetachFromHeap() { heap_ = nullptr; }
-
-  AllocationResult AllocateRawUnaligned(int size_in_bytes);
-  AllocationResult AllocateRawAligned(int size_in_bytes,
-                                      AllocationAlignment alignment);
-
-  HeapObject TryAllocateLinearlyAligned(int size_in_bytes,
-                                        AllocationAlignment alignment);
-  void EnsureSpaceForAllocation(int size_in_bytes);
-  void FreeLinearAllocationArea();
-
-  // String padding must be cleared just before serialization and therefore
-  // the string padding in the space will already have been cleared if the
-  // space was deserialized.
+  //
+  // String padding must be cleared just before serialization and therefore the
+  // string padding in the space will already have been cleared if the space was
+  // deserialized.
   bool is_string_padding_cleared_;
-
-  size_t capacity_;
-  size_t area_size_;
 };
 
 class SharedReadOnlySpace : public ReadOnlySpace {

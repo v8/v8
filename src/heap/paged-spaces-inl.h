@@ -33,7 +33,9 @@ HeapObject PagedSpaceObjectIterator::FromCurrentPage() {
     DCHECK_LE(cur_addr_, cur_end_);
     if (!obj.IsFreeSpaceOrFiller()) {
       if (obj.IsCode()) {
-        DCHECK_EQ(space_->identity(), CODE_SPACE);
+        DCHECK_IMPLIES(
+            space_->identity() != CODE_SPACE,
+            space_->identity() == RO_SPACE && Code::cast(obj).is_builtin());
         DCHECK_CODEOBJECT_SIZE(obj_size, space_);
       } else {
         DCHECK_OBJECT_SIZE(obj_size);
@@ -125,6 +127,7 @@ HeapObject PagedSpace::TryAllocateLinearlyAligned(
 
 AllocationResult PagedSpace::AllocateRawUnaligned(int size_in_bytes,
                                                   AllocationOrigin origin) {
+  DCHECK_IMPLIES(identity() == RO_SPACE, !IsDetached());
   if (!EnsureLinearAllocationArea(size_in_bytes, origin)) {
     return AllocationResult::Retry(identity());
   }
@@ -142,7 +145,8 @@ AllocationResult PagedSpace::AllocateRawUnaligned(int size_in_bytes,
 AllocationResult PagedSpace::AllocateRawAligned(int size_in_bytes,
                                                 AllocationAlignment alignment,
                                                 AllocationOrigin origin) {
-  DCHECK_EQ(identity(), OLD_SPACE);
+  DCHECK(identity() == OLD_SPACE || identity() == RO_SPACE);
+  DCHECK_IMPLIES(identity() == RO_SPACE, !IsDetached());
   int allocation_size = size_in_bytes;
   HeapObject object = TryAllocateLinearlyAligned(&allocation_size, alignment);
   if (object.is_null()) {
