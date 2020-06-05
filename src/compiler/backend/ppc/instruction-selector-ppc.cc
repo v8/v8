@@ -2212,12 +2212,6 @@ SIMD_BINOP_LIST(SIMD_VISIT_BINOP)
 #undef SIMD_BINOP_LIST
 #undef SIMD_TYPES
 
-void InstructionSelector::VisitI32x4BitMask(Node* node) { UNIMPLEMENTED(); }
-
-void InstructionSelector::VisitI16x8BitMask(Node* node) { UNIMPLEMENTED(); }
-
-void InstructionSelector::VisitI8x16BitMask(Node* node) { UNIMPLEMENTED(); }
-
 void InstructionSelector::VisitI32x4Shl(Node* node) { UNIMPLEMENTED(); }
 
 void InstructionSelector::VisitI32x4ShrS(Node* node) { UNIMPLEMENTED(); }
