@@ -92,11 +92,7 @@ async function printLocalScope(frame) {
     let properties = await Protocol.Runtime.getProperties(
         {'objectId': scope.object.objectId});
     for (let value of properties.result.result) {
-      let msg = await Protocol.Runtime.getProperties(
-          {objectId: value.value.objectId});
-      let prop_str = p => `"${p.name}": ${p.value.value}`;
-      let value_str = msg.result.result.map(prop_str).join(', ');
-      InspectorTest.log(`   ${value.name}: ${value_str}`);
+      InspectorTest.log(`   ${value.name}: ${value.value.value}`);
     }
   }
 }

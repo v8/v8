@@ -15,7 +15,7 @@ at wasm_B (0:56):
  - scope (module):
    instance: exports: "main" (Function)
  - scope (local):
-   locals: "var0": 3 (i32)
+   var0: 3 (i32)
  - scope (wasm-expression-stack):
 at (anonymous) (0:17):
    -- skipped
@@ -40,7 +40,7 @@ at wasm_B (0:56):
  - scope (module):
    instance: exports: "main" (Function)
  - scope (local):
-   locals: "var0": 3 (i32)
+   var0: 3 (i32)
  - scope (wasm-expression-stack):
 at (anonymous) (0:17):
    -- skipped
@@ -51,7 +51,7 @@ at wasm_B (0:45):
  - scope (module):
    instance: exports: "main" (Function)
  - scope (local):
-   locals: "var0": 3 (i32)
+   var0: 3 (i32)
  - scope (wasm-expression-stack):
 at (anonymous) (0:17):
    -- skipped
@@ -62,7 +62,7 @@ at wasm_B (0:47):
  - scope (module):
    instance: exports: "main" (Function)
  - scope (local):
-   locals: "var0": 3 (i32)
+   var0: 3 (i32)
  - scope (wasm-expression-stack):
    0: 3 (i32)
 at (anonymous) (0:17):
@@ -74,7 +74,7 @@ at wasm_B (0:49):
  - scope (module):
    instance: exports: "main" (Function)
  - scope (local):
-   locals: "var0": 3 (i32)
+   var0: 3 (i32)
  - scope (wasm-expression-stack):
 at (anonymous) (0:17):
    -- skipped
@@ -85,7 +85,7 @@ at wasm_B (0:51):
  - scope (module):
    instance: exports: "main" (Function)
  - scope (local):
-   locals: "var0": 3 (i32)
+   var0: 3 (i32)
  - scope (wasm-expression-stack):
    0: 3 (i32)
 at (anonymous) (0:17):
@@ -97,7 +97,7 @@ at wasm_B (0:53):
  - scope (module):
    instance: exports: "main" (Function)
  - scope (local):
-   locals: "var0": 3 (i32)
+   var0: 3 (i32)
  - scope (wasm-expression-stack):
    0: 3 (i32)
    1: 1 (i32)
@@ -110,7 +110,7 @@ at wasm_B (0:54):
  - scope (module):
    instance: exports: "main" (Function)
  - scope (local):
-   locals: "var0": 3 (i32)
+   var0: 3 (i32)
  - scope (wasm-expression-stack):
    0: 2 (i32)
 at (anonymous) (0:17):
@@ -127,7 +127,7 @@ at wasm_B (0:56):
  - scope (module):
    instance: exports: "main" (Function)
  - scope (local):
-   locals: "var0": 2 (i32)
+   var0: 2 (i32)
  - scope (wasm-expression-stack):
 at (anonymous) (0:17):
    -- skipped
@@ -143,7 +143,7 @@ at wasm_B (0:56):
  - scope (module):
    instance: exports: "main" (Function)
  - scope (local):
-   locals: "var0": 2 (i32)
+   var0: 2 (i32)
  - scope (wasm-expression-stack):
 at (anonymous) (0:17):
    -- skipped
@@ -154,7 +154,7 @@ at wasm_B (0:45):
  - scope (module):
    instance: exports: "main" (Function)
  - scope (local):
-   locals: "var0": 2 (i32)
+   var0: 2 (i32)
  - scope (wasm-expression-stack):
 at (anonymous) (0:17):
    -- skipped
@@ -165,7 +165,7 @@ at wasm_B (0:47):
  - scope (module):
    instance: exports: "main" (Function)
  - scope (local):
-   locals: "var0": 2 (i32)
+   var0: 2 (i32)
  - scope (wasm-expression-stack):
    0: 2 (i32)
 at (anonymous) (0:17):
@@ -177,7 +177,7 @@ at wasm_B (0:49):
  - scope (module):
    instance: exports: "main" (Function)
  - scope (local):
-   locals: "var0": 2 (i32)
+   var0: 2 (i32)
  - scope (wasm-expression-stack):
 at (anonymous) (0:17):
    -- skipped
@@ -188,7 +188,7 @@ at wasm_B (0:51):
  - scope (module):
    instance: exports: "main" (Function)
  - scope (local):
-   locals: "var0": 2 (i32)
+   var0: 2 (i32)
  - scope (wasm-expression-stack):
    0: 2 (i32)
 at (anonymous) (0:17):
@@ -200,7 +200,7 @@ at wasm_B (0:53):
  - scope (module):
    instance: exports: "main" (Function)
  - scope (local):
-   locals: "var0": 2 (i32)
+   var0: 2 (i32)
  - scope (wasm-expression-stack):
    0: 2 (i32)
    1: 1 (i32)
@@ -213,7 +213,7 @@ at wasm_B (0:54):
  - scope (module):
    instance: exports: "main" (Function)
  - scope (local):
-   locals: "var0": 2 (i32)
+   var0: 2 (i32)
  - scope (wasm-expression-stack):
    0: 1 (i32)
 at (anonymous) (0:17):
@@ -230,7 +230,7 @@ at wasm_B (0:56):
  - scope (module):
    instance: exports: "main" (Function)
  - scope (local):
-   locals: "var0": 1 (i32)
+   var0: 1 (i32)
  - scope (wasm-expression-stack):
 at (anonymous) (0:17):
    -- skipped
@@ -246,7 +246,7 @@ at wasm_B (0:56):
  - scope (module):
    instance: exports: "main" (Function)
  - scope (local):
-   locals: "var0": 1 (i32)
+   var0: 1 (i32)
  - scope (wasm-expression-stack):
 at (anonymous) (0:17):
    -- skipped
@@ -257,7 +257,7 @@ at wasm_B (0:45):
  - scope (module):
    instance: exports: "main" (Function)
  - scope (local):
-   locals: "var0": 1 (i32)
+   var0: 1 (i32)
  - scope (wasm-expression-stack):
 at (anonymous) (0:17):
    -- skipped
@@ -268,7 +268,7 @@ at wasm_B (0:47):
  - scope (module):
    instance: exports: "main" (Function)
  - scope (local):
-   locals: "var0": 1 (i32)
+   var0: 1 (i32)
  - scope (wasm-expression-stack):
    0: 1 (i32)
 at (anonymous) (0:17):
@@ -280,7 +280,7 @@ at wasm_B (0:49):
  - scope (module):
    instance: exports: "main" (Function)
  - scope (local):
-   locals: "var0": 1 (i32)
+   var0: 1 (i32)
  - scope (wasm-expression-stack):
 at (anonymous) (0:17):
    -- skipped
@@ -291,7 +291,7 @@ at wasm_B (0:51):
  - scope (module):
    instance: exports: "main" (Function)
  - scope (local):
-   locals: "var0": 1 (i32)
+   var0: 1 (i32)
  - scope (wasm-expression-stack):
    0: 1 (i32)
 at (anonymous) (0:17):
@@ -303,7 +303,7 @@ at wasm_B (0:53):
  - scope (module):
    instance: exports: "main" (Function)
  - scope (local):
-   locals: "var0": 1 (i32)
+   var0: 1 (i32)
  - scope (wasm-expression-stack):
    0: 1 (i32)
    1: 1 (i32)
@@ -316,7 +316,7 @@ at wasm_B (0:54):
  - scope (module):
    instance: exports: "main" (Function)
  - scope (local):
-   locals: "var0": 1 (i32)
+   var0: 1 (i32)
  - scope (wasm-expression-stack):
    0: 0 (i32)
 at (anonymous) (0:17):
@@ -333,7 +333,7 @@ at wasm_B (0:56):
  - scope (module):
    instance: exports: "main" (Function)
  - scope (local):
-   locals: "var0": 0 (i32)
+   var0: 0 (i32)
  - scope (wasm-expression-stack):
 at (anonymous) (0:17):
    -- skipped
@@ -349,7 +349,7 @@ at wasm_B (0:56):
  - scope (module):
    instance: exports: "main" (Function)
  - scope (local):
-   locals: "var0": 0 (i32)
+   var0: 0 (i32)
  - scope (wasm-expression-stack):
 at (anonymous) (0:17):
    -- skipped
@@ -360,7 +360,7 @@ at wasm_B (0:45):
  - scope (module):
    instance: exports: "main" (Function)
  - scope (local):
-   locals: "var0": 0 (i32)
+   var0: 0 (i32)
  - scope (wasm-expression-stack):
 at (anonymous) (0:17):
    -- skipped
@@ -371,7 +371,7 @@ at wasm_B (0:47):
  - scope (module):
    instance: exports: "main" (Function)
  - scope (local):
-   locals: "var0": 0 (i32)
+   var0: 0 (i32)
  - scope (wasm-expression-stack):
    0: 0 (i32)
 at (anonymous) (0:17):
@@ -383,7 +383,7 @@ at wasm_B (0:61):
  - scope (module):
    instance: exports: "main" (Function)
  - scope (local):
-   locals: "var0": 0 (i32)
+   var0: 0 (i32)
  - scope (wasm-expression-stack):
 at (anonymous) (0:17):
    -- skipped

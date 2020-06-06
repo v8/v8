@@ -436,33 +436,25 @@ class DebugInfoImpl {
     // Fill parameters and locals.
     int num_locals = static_cast<int>(scope.debug_side_table->num_locals());
     DCHECK_LE(static_cast<int>(function->sig->parameter_count()), num_locals);
-    if (num_locals > 0) {
-      Handle<JSObject> locals_obj =
-          isolate->factory()->NewJSObjectWithNullProto();
-      Handle<String> locals_name =
-          isolate->factory()->InternalizeString(StaticCharVector("locals"));
-      JSObject::AddProperty(isolate, local_scope_object, locals_name,
-                            locals_obj, NONE);
-      for (int i = 0; i < num_locals; ++i) {
-        Handle<Name> name;
-        if (!GetLocalNameString(isolate, native_module_, function->func_index,
-                                i)
-                 .ToHandle(&name)) {
-          name = PrintFToOneByteString<true>(isolate, "var%d", i);
-        }
-        WasmValue value =
-            GetValue(scope.debug_side_table_entry, i, fp, debug_break_fp);
-        Handle<Object> value_obj = WasmValueToValueObject(isolate, value);
-        // {name} can be a string representation of an element index.
-        LookupIterator::Key lookup_key{isolate, name};
-        LookupIterator it(isolate, locals_obj, lookup_key, locals_obj,
-                          LookupIterator::OWN_SKIP_INTERCEPTOR);
-        if (it.IsFound()) continue;
-        Object::AddDataProperty(&it, value_obj, NONE,
-                                Just(ShouldThrow::kThrowOnError),
-                                StoreOrigin::kNamed)
-            .Check();
+    for (int i = 0; i < num_locals; ++i) {
+      Handle<Name> name;
+      if (!GetLocalNameString(isolate, native_module_, function->func_index, i)
+               .ToHandle(&name)) {
+        name = PrintFToOneByteString<true>(isolate, "var%d", i);
       }
+      WasmValue value =
+          GetValue(scope.debug_side_table_entry, i, fp, debug_break_fp);
+      Handle<Object> value_obj = WasmValueToValueObject(isolate, value);
+      // {name} can be a string representation of an element index.
+      LookupIterator::Key lookup_key{isolate, name};
+      LookupIterator it(isolate, local_scope_object, lookup_key,
+                        local_scope_object,
+                        LookupIterator::OWN_SKIP_INTERCEPTOR);
+      if (it.IsFound()) continue;
+      Object::AddDataProperty(&it, value_obj, NONE,
+                              Just(ShouldThrow::kThrowOnError),
+                              StoreOrigin::kNamed)
+          .Check();
     }
     return local_scope_object;
   }

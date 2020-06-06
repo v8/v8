@@ -43,17 +43,8 @@ Protocol.Debugger.onPaused(async msg => {
     if (scope.type == 'module') continue;
     var scope_properties =
         await Protocol.Runtime.getProperties({objectId: scope.object.objectId});
-    if (scope.type == 'local') {
-      for (var value of scope_properties.result.result) {
-        let msg = await Protocol.Runtime.getProperties(
-          {objectId: value.value.objectId});
-        let str = msg.result.result.map(elem => getWasmValue(elem.value)).join(', ');
-        line.push(`${value.name}: [${str}]`);
-      }
-    } else {
-      let str = scope_properties.result.result.map(elem => getWasmValue(elem.value)).join(', ');
-      line.push(`${scope.type}: [${str}]`);
-    }
+    let str = scope_properties.result.result.map(elem => getWasmValue(elem.value)).join(', ');
+    line.push(`${scope.type}: [${str}]`);
   }
   InspectorTest.log(line.join('; '));
   Protocol.Debugger.resume();

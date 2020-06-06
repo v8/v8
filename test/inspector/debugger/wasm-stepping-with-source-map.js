@@ -112,12 +112,7 @@ async function waitForPauseAndStep(stepAction) {
               returnByValue: true
             });
 
-        if (scope.type === 'local') {
-          if (value.locals)
-            InspectorTest.log(`   locals: ${JSON.stringify(value.locals)}`);
-        } else {
-          InspectorTest.log(`   ${JSON.stringify(value)}`);
-        }
+        InspectorTest.log(`   ${JSON.stringify(value)}`);
       }
     }
   }

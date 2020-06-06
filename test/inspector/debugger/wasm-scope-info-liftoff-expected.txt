@@ -20,7 +20,8 @@ at C (interpreted) (0:159):
       exported_table: js_func: function js_func() { [native code] }, anonymous: function () { [native code] }, A (liftoff): function 0() { [native code] }
    globals: "exported_global": 0 (i32)
  - scope (local):
-   locals: "i32_arg": 42 (i32), "i32_local": 0 (i32)
+   i32_arg: 42 (i32)
+   i32_local: 0 (i32)
  - scope (wasm-expression-stack):
 at B (liftoff) (0:150):
  - scope (module):
@@ -30,7 +31,11 @@ at B (liftoff) (0:150):
       exported_table: js_func: function js_func() { [native code] }, anonymous: function () { [native code] }, A (liftoff): function 0() { [native code] }
    globals: "exported_global": 0 (i32)
  - scope (local):
-   locals: "0": 0 (f32), "i32_arg": 42 (i32), "i32_local": 0 (i32), "f32_local": 7.199999809265137 (f32), "var5": 0 (f32)
+   0: 0 (f32)
+   i32_arg: 42 (i32)
+   i32_local: 0 (i32)
+   f32_local: 7.199999809265137 (f32)
+   var5: 0 (f32)
  - scope (wasm-expression-stack):
    0: 42 (i32)
    1: 3 (i32)
@@ -42,7 +47,7 @@ at A (liftoff) (0:128):
       exported_table: js_func: function js_func() { [native code] }, anonymous: function () { [native code] }, A (liftoff): function 0() { [native code] }
    globals: "exported_global": 0 (i32)
  - scope (local):
-   locals: "var0": 42 (i32)
+   var0: 42 (i32)
  - scope (wasm-expression-stack):
 at (anonymous) (0:17):
  - scope (global):
@@ -59,7 +64,8 @@ at C (interpreted) (0:161):
       exported_table: js_func: function js_func() { [native code] }, anonymous: function () { [native code] }, A (liftoff): function 0() { [native code] }
    globals: "exported_global": 0 (i32)
  - scope (local):
-   locals: "i32_arg": 42 (i32), "i32_local": 0 (i32)
+   i32_arg: 42 (i32)
+   i32_local: 0 (i32)
  - scope (wasm-expression-stack):
    0: 42 (i32)
 at B (liftoff) (0:150):
@@ -70,7 +76,11 @@ at B (liftoff) (0:150):
       exported_table: js_func: function js_func() { [native code] }, anonymous: function () { [native code] }, A (liftoff): function 0() { [native code] }
    globals: "exported_global": 0 (i32)
  - scope (local):
-   locals: "0": 0 (f32), "i32_arg": 42 (i32), "i32_local": 0 (i32), "f32_local": 7.199999809265137 (f32), "var5": 0 (f32)
+   0: 0 (f32)
+   i32_arg: 42 (i32)
+   i32_local: 0 (i32)
+   f32_local: 7.199999809265137 (f32)
+   var5: 0 (f32)
  - scope (wasm-expression-stack):
    0: 42 (i32)
    1: 3 (i32)
@@ -82,7 +92,7 @@ at A (liftoff) (0:128):
       exported_table: js_func: function js_func() { [native code] }, anonymous: function () { [native code] }, A (liftoff): function 0() { [native code] }
    globals: "exported_global": 0 (i32)
  - scope (local):
-   locals: "var0": 42 (i32)
+   var0: 42 (i32)
  - scope (wasm-expression-stack):
 at (anonymous) (0:17):
  - scope (global):
@@ -99,7 +109,8 @@ at C (interpreted) (0:163):
       exported_table: js_func: function js_func() { [native code] }, anonymous: function () { [native code] }, A (liftoff): function 0() { [native code] }
    globals: "exported_global": 42 (i32)
  - scope (local):
-   locals: "i32_arg": 42 (i32), "i32_local": 0 (i32)
+   i32_arg: 42 (i32)
+   i32_local: 0 (i32)
  - scope (wasm-expression-stack):
 at B (liftoff) (0:150):
  - scope (module):
@@ -109,7 +120,11 @@ at B (liftoff) (0:150):
       exported_table: js_func: function js_func() { [native code] }, anonymous: function () { [native code] }, A (liftoff): function 0() { [native code] }
    globals: "exported_global": 42 (i32)
  - scope (local):
-   locals: "0": 0 (f32), "i32_arg": 42 (i32), "i32_local": 0 (i32), "f32_local": 7.199999809265137 (f32), "var5": 0 (f32)
+   0: 0 (f32)
+   i32_arg: 42 (i32)
+   i32_local: 0 (i32)
+   f32_local: 7.199999809265137 (f32)
+   var5: 0 (f32)
  - scope (wasm-expression-stack):
    0: 42 (i32)
    1: 3 (i32)
@@ -121,7 +136,7 @@ at A (liftoff) (0:128):
       exported_table: js_func: function js_func() { [native code] }, anonymous: function () { [native code] }, A (liftoff): function 0() { [native code] }
    globals: "exported_global": 42 (i32)
  - scope (local):
-   locals: "var0": 42 (i32)
+   var0: 42 (i32)
  - scope (wasm-expression-stack):
 at (anonymous) (0:17):
  - scope (global):
@@ -138,7 +153,8 @@ at C (interpreted) (0:165):
       exported_table: js_func: function js_func() { [native code] }, anonymous: function () { [native code] }, A (liftoff): function 0() { [native code] }
    globals: "exported_global": 42 (i32)
  - scope (local):
-   locals: "i32_arg": 42 (i32), "i32_local": 0 (i32)
+   i32_arg: 42 (i32)
+   i32_local: 0 (i32)
  - scope (wasm-expression-stack):
    0: 47 (i32)
 at B (liftoff) (0:150):
@@ -149,7 +165,11 @@ at B (liftoff) (0:150):
       exported_table: js_func: function js_func() { [native code] }, anonymous: function () { [native code] }, A (liftoff): function 0() { [native code] }
    globals: "exported_global": 42 (i32)
  - scope (local):
-   locals: "0": 0 (f32), "i32_arg": 42 (i32), "i32_local": 0 (i32), "f32_local": 7.199999809265137 (f32), "var5": 0 (f32)
+   0: 0 (f32)
+   i32_arg: 42 (i32)
+   i32_local: 0 (i32)
+   f32_local: 7.199999809265137 (f32)
+   var5: 0 (f32)
  - scope (wasm-expression-stack):
    0: 42 (i32)
    1: 3 (i32)
@@ -161,7 +181,7 @@ at A (liftoff) (0:128):
       exported_table: js_func: function js_func() { [native code] }, anonymous: function () { [native code] }, A (liftoff): function 0() { [native code] }
    globals: "exported_global": 42 (i32)
  - scope (local):
-   locals: "var0": 42 (i32)
+   var0: 42 (i32)
  - scope (wasm-expression-stack):
 at (anonymous) (0:17):
  - scope (global):
@@ -178,7 +198,8 @@ at C (interpreted) (0:167):
       exported_table: js_func: function js_func() { [native code] }, anonymous: function () { [native code] }, A (liftoff): function 0() { [native code] }
    globals: "exported_global": 42 (i32)
  - scope (local):
-   locals: "i32_arg": 42 (i32), "i32_local": 47 (i32)
+   i32_arg: 42 (i32)
+   i32_local: 47 (i32)
  - scope (wasm-expression-stack):
 at B (liftoff) (0:150):
  - scope (module):
@@ -188,7 +209,11 @@ at B (liftoff) (0:150):
       exported_table: js_func: function js_func() { [native code] }, anonymous: function () { [native code] }, A (liftoff): function 0() { [native code] }
    globals: "exported_global": 42 (i32)
  - scope (local):
-   locals: "0": 0 (f32), "i32_arg": 42 (i32), "i32_local": 0 (i32), "f32_local": 7.199999809265137 (f32), "var5": 0 (f32)
+   0: 0 (f32)
+   i32_arg: 42 (i32)
+   i32_local: 0 (i32)
+   f32_local: 7.199999809265137 (f32)
+   var5: 0 (f32)
  - scope (wasm-expression-stack):
    0: 42 (i32)
    1: 3 (i32)
@@ -200,7 +225,7 @@ at A (liftoff) (0:128):
       exported_table: js_func: function js_func() { [native code] }, anonymous: function () { [native code] }, A (liftoff): function 0() { [native code] }
    globals: "exported_global": 42 (i32)
  - scope (local):
-   locals: "var0": 42 (i32)
+   var0: 42 (i32)
  - scope (wasm-expression-stack):
 at (anonymous) (0:17):
  - scope (global):
@@ -217,7 +242,11 @@ at B (liftoff) (0:152):
       exported_table: js_func: function js_func() { [native code] }, anonymous: function () { [native code] }, A (liftoff): function 0() { [native code] }
    globals: "exported_global": 42 (i32)
  - scope (local):
-   locals: "0": 0 (f32), "i32_arg": 42 (i32), "i32_local": 0 (i32), "f32_local": 7.199999809265137 (f32), "var5": 0 (f32)
+   0: 0 (f32)
+   i32_arg: 42 (i32)
+   i32_local: 0 (i32)
+   f32_local: 7.199999809265137 (f32)
+   var5: 0 (f32)
  - scope (wasm-expression-stack):
    0: 42 (i32)
    1: 3 (i32)
@@ -229,7 +258,7 @@ at A (liftoff) (0:128):
       exported_table: js_func: function js_func() { [native code] }, anonymous: function () { [native code] }, A (liftoff): function 0() { [native code] }
    globals: "exported_global": 42 (i32)
  - scope (local):
-   locals: "var0": 42 (i32)
+   var0: 42 (i32)
  - scope (wasm-expression-stack):
 at (anonymous) (0:17):
  - scope (global):
@@ -246,7 +275,11 @@ at B (liftoff) (0:153):
       exported_table: js_func: function js_func() { [native code] }, anonymous: function () { [native code] }, A (liftoff): function 0() { [native code] }
    globals: "exported_global": 42 (i32)
  - scope (local):
-   locals: "0": 0 (f32), "i32_arg": 42 (i32), "i32_local": 0 (i32), "f32_local": 7.199999809265137 (f32), "var5": 0 (f32)
+   0: 0 (f32)
+   i32_arg: 42 (i32)
+   i32_local: 0 (i32)
+   f32_local: 7.199999809265137 (f32)
+   var5: 0 (f32)
  - scope (wasm-expression-stack):
    0: 42 (i32)
 at A (liftoff) (0:128):
@@ -257,7 +290,7 @@ at A (liftoff) (0:128):
       exported_table: js_func: function js_func() { [native code] }, anonymous: function () { [native code] }, A (liftoff): function 0() { [native code] }
    globals: "exported_global": 42 (i32)
  - scope (local):
-   locals: "var0": 42 (i32)
+   var0: 42 (i32)
  - scope (wasm-expression-stack):
 at (anonymous) (0:17):
  - scope (global):
@@ -274,7 +307,11 @@ at B (liftoff) (0:154):
       exported_table: js_func: function js_func() { [native code] }, anonymous: function () { [native code] }, A (liftoff): function 0() { [native code] }
    globals: "exported_global": 42 (i32)
  - scope (local):
-   locals: "0": 0 (f32), "i32_arg": 42 (i32), "i32_local": 0 (i32), "f32_local": 7.199999809265137 (f32), "var5": 0 (f32)
+   0: 0 (f32)
+   i32_arg: 42 (i32)
+   i32_local: 0 (i32)
+   f32_local: 7.199999809265137 (f32)
+   var5: 0 (f32)
  - scope (wasm-expression-stack):
 at A (liftoff) (0:128):
  - scope (module):
@@ -284,7 +321,7 @@ at A (liftoff) (0:128):
       exported_table: js_func: function js_func() { [native code] }, anonymous: function () { [native code] }, A (liftoff): function 0() { [native code] }
    globals: "exported_global": 42 (i32)
  - scope (local):
-   locals: "var0": 42 (i32)
+   var0: 42 (i32)
  - scope (wasm-expression-stack):
 at (anonymous) (0:17):
  - scope (global):
@@ -301,7 +338,7 @@ at A (liftoff) (0:130):
       exported_table: js_func: function js_func() { [native code] }, anonymous: function () { [native code] }, A (liftoff): function 0() { [native code] }
    globals: "exported_global": 42 (i32)
  - scope (local):
-   locals: "var0": 42 (i32)
+   var0: 42 (i32)
  - scope (wasm-expression-stack):
 at (anonymous) (0:17):
  - scope (global):
