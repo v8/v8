@@ -775,7 +775,7 @@ static int GetCaseIndependentLetters(Isolate* isolate, uc16 character,
       if (in_special_add_set && RegExpCaseFolding::Canonicalize(cu) != canon) {
         continue;
       }
-      letters[items++] = (unibrow::uchar)(cu);
+      letters[items++] = static_cast<unibrow::uchar>(cu);
     }
   }
   DCHECK(ContainsOnlyUtf16CodeUnits(letters, items));

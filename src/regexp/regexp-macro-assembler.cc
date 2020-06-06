@@ -67,7 +67,7 @@ int RegExpMacroAssembler::CaseInsensitiveCompareUnicode(Address byte_offset1,
   DCHECK_EQ(0, byte_length % 2);
 
 #ifdef V8_INTL_SUPPORT
-  int32_t length = (int32_t)(byte_length >> 1);
+  int32_t length = static_cast<int32_t>(byte_length >> 1);
   icu::UnicodeString uni_str_1(reinterpret_cast<const char16_t*>(byte_offset1),
                                length);
   return uni_str_1.caseCompare(reinterpret_cast<const char16_t*>(byte_offset2),
