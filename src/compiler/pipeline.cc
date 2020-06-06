@@ -1020,7 +1020,7 @@ PipelineCompilationJob::PipelineCompilationJob(
   compilation_info_.SetOptimizingForOsr(osr_offset, osr_frame);
 }
 
-PipelineCompilationJob::~PipelineCompilationJob() {}
+PipelineCompilationJob::~PipelineCompilationJob() = default;
 
 namespace {
 // Ensure that the RuntimeStats table is set on the PipelineData for
