@@ -49,7 +49,7 @@ bool operator==(ConstFieldInfo const& lhs, ConstFieldInfo const& rhs) {
 }
 
 size_t hash_value(ConstFieldInfo const& const_field_info) {
-  return (size_t)const_field_info.owner_map.address();
+  return static_cast<size_t>(const_field_info.owner_map.address());
 }
 
 bool operator==(FieldAccess const& lhs, FieldAccess const& rhs) {
