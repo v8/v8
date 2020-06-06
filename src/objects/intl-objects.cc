@@ -1893,8 +1893,8 @@ Maybe<Intl::ResolvedLocale> Intl::ResolveLocale(
 Handle<Managed<icu::UnicodeString>> Intl::SetTextToBreakIterator(
     Isolate* isolate, Handle<String> text, icu::BreakIterator* break_iterator) {
   text = String::Flatten(isolate, text);
-  icu::UnicodeString* u_text =
-      (icu::UnicodeString*)(Intl::ToICUUnicodeString(isolate, text).clone());
+  icu::UnicodeString* u_text = static_cast<icu::UnicodeString*>(
+      Intl::ToICUUnicodeString(isolate, text).clone());
 
   Handle<Managed<icu::UnicodeString>> new_u_text =
       Managed<icu::UnicodeString>::FromRawPtr(isolate, 0, u_text);
