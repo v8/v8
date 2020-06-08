@@ -166,6 +166,12 @@ TEST_F(JSTypedLoweringTest, JSToStringWithBoolean) {
 
 namespace {
 
+FeedbackSource FeedbackSourceWithOneBinarySlot(JSTypedLoweringTest* R) {
+  return FeedbackSource{
+      FeedbackVector::NewWithOneBinarySlotForTesting(R->zone(), R->isolate()),
+      FeedbackSlot{0}};
+}
+
 FeedbackSource FeedbackSourceWithOneCompareSlot(JSTypedLoweringTest* R) {
   return FeedbackSource{
       FeedbackVector::NewWithOneCompareSlotForTesting(R->zone(), R->isolate()),
@@ -212,9 +218,9 @@ TEST_F(JSTypedLoweringTest, JSShiftLeftWithSigned32AndConstant) {
   Node* const effect = graph()->start();
   Node* const control = graph()->start();
   TRACED_FORRANGE(double, rhs, 0, 31) {
-    Reduction r = Reduce(graph()->NewNode(javascript()->ShiftLeft(), lhs,
-                                          NumberConstant(rhs), context,
-                                          EmptyFrameState(), effect, control));
+    Reduction r = Reduce(graph()->NewNode(
+        javascript()->ShiftLeft(FeedbackSourceWithOneBinarySlot(this)), lhs,
+        NumberConstant(rhs), context, EmptyFrameState(), effect, control));
     ASSERT_TRUE(r.Changed());
     EXPECT_THAT(r.replacement(),
                 IsNumberShiftLeft(lhs, IsNumberConstant(BitEq(rhs))));
@@ -227,9 +233,9 @@ TEST_F(JSTypedLoweringTest, JSShiftLeftWithSigned32AndUnsigned32) {
   Node* const context = UndefinedConstant();
   Node* const effect = graph()->start();
   Node* const control = graph()->start();
-  Reduction r =
-      Reduce(graph()->NewNode(javascript()->ShiftLeft(), lhs, rhs, context,
-                              EmptyFrameState(), effect, control));
+  Reduction r = Reduce(graph()->NewNode(
+      javascript()->ShiftLeft(FeedbackSourceWithOneBinarySlot(this)), lhs, rhs,
+      context, EmptyFrameState(), effect, control));
   ASSERT_TRUE(r.Changed());
   EXPECT_THAT(r.replacement(), IsNumberShiftLeft(lhs, rhs));
 }
@@ -245,9 +251,9 @@ TEST_F(JSTypedLoweringTest, JSShiftRightWithSigned32AndConstant) {
   Node* const effect = graph()->start();
   Node* const control = graph()->start();
   TRACED_FORRANGE(double, rhs, 0, 31) {
-    Reduction r = Reduce(graph()->NewNode(javascript()->ShiftRight(), lhs,
-                                          NumberConstant(rhs), context,
-                                          EmptyFrameState(), effect, control));
+    Reduction r = Reduce(graph()->NewNode(
+        javascript()->ShiftRight(FeedbackSourceWithOneBinarySlot(this)), lhs,
+        NumberConstant(rhs), context, EmptyFrameState(), effect, control));
     ASSERT_TRUE(r.Changed());
     EXPECT_THAT(r.replacement(),
                 IsNumberShiftRight(lhs, IsNumberConstant(BitEq(rhs))));
@@ -261,9 +267,9 @@ TEST_F(JSTypedLoweringTest, JSShiftRightWithSigned32AndUnsigned32) {
   Node* const context = UndefinedConstant();
   Node* const effect = graph()->start();
   Node* const control = graph()->start();
-  Reduction r =
-      Reduce(graph()->NewNode(javascript()->ShiftRight(), lhs, rhs, context,
-                              EmptyFrameState(), effect, control));
+  Reduction r = Reduce(graph()->NewNode(
+      javascript()->ShiftRight(FeedbackSourceWithOneBinarySlot(this)), lhs, rhs,
+      context, EmptyFrameState(), effect, control));
   ASSERT_TRUE(r.Changed());
   EXPECT_THAT(r.replacement(), IsNumberShiftRight(lhs, rhs));
 }
@@ -280,9 +286,9 @@ TEST_F(JSTypedLoweringTest,
   Node* const effect = graph()->start();
   Node* const control = graph()->start();
   TRACED_FORRANGE(double, rhs, 0, 31) {
-    Reduction r = Reduce(graph()->NewNode(javascript()->ShiftRightLogical(),
-                                          lhs, NumberConstant(rhs), context,
-                                          EmptyFrameState(), effect, control));
+    Reduction r = Reduce(graph()->NewNode(
+        javascript()->ShiftRightLogical(FeedbackSourceWithOneBinarySlot(this)),
+        lhs, NumberConstant(rhs), context, EmptyFrameState(), effect, control));
     ASSERT_TRUE(r.Changed());
     EXPECT_THAT(r.replacement(),
                 IsNumberShiftRightLogical(lhs, IsNumberConstant(BitEq(rhs))));
@@ -296,9 +302,9 @@ TEST_F(JSTypedLoweringTest, JSShiftRightLogicalWithUnsigned32AndUnsigned32) {
   Node* const context = UndefinedConstant();
   Node* const effect = graph()->start();
   Node* const control = graph()->start();
-  Reduction r =
-      Reduce(graph()->NewNode(javascript()->ShiftRightLogical(), lhs, rhs,
-                              context, EmptyFrameState(), effect, control));
+  Reduction r = Reduce(graph()->NewNode(
+      javascript()->ShiftRightLogical(FeedbackSourceWithOneBinarySlot(this)),
+      lhs, rhs, context, EmptyFrameState(), effect, control));
   ASSERT_TRUE(r.Changed());
   EXPECT_THAT(r.replacement(), IsNumberShiftRightLogical(lhs, rhs));
 }
@@ -396,15 +402,15 @@ TEST_F(JSTypedLoweringTest, JSLoadNamedStringLength) {
 
 
 TEST_F(JSTypedLoweringTest, JSAddWithString) {
-  BinaryOperationHint const hint = BinaryOperationHint::kAny;
   Node* lhs = Parameter(Type::String(), 0);
   Node* rhs = Parameter(Type::String(), 1);
   Node* context = Parameter(Type::Any(), 2);
   Node* frame_state = EmptyFrameState();
   Node* effect = graph()->start();
   Node* control = graph()->start();
-  Reduction r = Reduce(graph()->NewNode(javascript()->Add(hint), lhs, rhs,
-                                        context, frame_state, effect, control));
+  Reduction r = Reduce(
+      graph()->NewNode(javascript()->Add(FeedbackSourceWithOneBinarySlot(this)),
+                       lhs, rhs, context, frame_state, effect, control));
   ASSERT_TRUE(r.Changed());
   EXPECT_THAT(r.replacement(), IsStringConcat(_, lhs, rhs));
 }

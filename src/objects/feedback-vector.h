@@ -266,6 +266,8 @@ class FeedbackVector : public HeapObject {
       IsCompiledScope* is_compiled_scope);
 
   V8_EXPORT_PRIVATE static Handle<FeedbackVector>
+  NewWithOneBinarySlotForTesting(Zone* zone, Isolate* isolate);
+  V8_EXPORT_PRIVATE static Handle<FeedbackVector>
   NewWithOneCompareSlotForTesting(Zone* zone, Isolate* isolate);
 
 #define DEFINE_SLOT_KIND_PREDICATE(Name) \

@@ -784,18 +784,18 @@ class V8_EXPORT_PRIVATE JSOperatorBuilder final
   const Operator* LessThanOrEqual(FeedbackSource const& feedback);
   const Operator* GreaterThanOrEqual(FeedbackSource const& feedback);
 
-  const Operator* BitwiseOr();
-  const Operator* BitwiseXor();
-  const Operator* BitwiseAnd();
-  const Operator* ShiftLeft();
-  const Operator* ShiftRight();
-  const Operator* ShiftRightLogical();
-  const Operator* Add(BinaryOperationHint hint);
-  const Operator* Subtract();
-  const Operator* Multiply();
-  const Operator* Divide();
-  const Operator* Modulus();
-  const Operator* Exponentiate();
+  const Operator* BitwiseOr(FeedbackSource const& feedback);
+  const Operator* BitwiseXor(FeedbackSource const& feedback);
+  const Operator* BitwiseAnd(FeedbackSource const& feedback);
+  const Operator* ShiftLeft(FeedbackSource const& feedback);
+  const Operator* ShiftRight(FeedbackSource const& feedback);
+  const Operator* ShiftRightLogical(FeedbackSource const& feedback);
+  const Operator* Add(FeedbackSource const& feedback);
+  const Operator* Subtract(FeedbackSource const& feedback);
+  const Operator* Multiply(FeedbackSource const& feedback);
+  const Operator* Divide(FeedbackSource const& feedback);
+  const Operator* Modulus(FeedbackSource const& feedback);
+  const Operator* Exponentiate(FeedbackSource const& feedback);
 
   const Operator* BitwiseNot(FeedbackSource const& feedback);
   const Operator* Decrement(FeedbackSource const& feedback);
