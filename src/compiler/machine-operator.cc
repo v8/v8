@@ -339,6 +339,10 @@ ShiftKind ShiftKindOf(Operator const* op) {
   V(F64x2Qfms, Operator::kNoProperties, 3, 0, 1)                           \
   V(F64x2Pmin, Operator::kNoProperties, 2, 0, 1)                           \
   V(F64x2Pmax, Operator::kNoProperties, 2, 0, 1)                           \
+  V(F64x2Ceil, Operator::kNoProperties, 1, 0, 1)                           \
+  V(F64x2Floor, Operator::kNoProperties, 1, 0, 1)                          \
+  V(F64x2Trunc, Operator::kNoProperties, 1, 0, 1)                          \
+  V(F64x2NearestInt, Operator::kNoProperties, 1, 0, 1)                     \
   V(F32x4Splat, Operator::kNoProperties, 1, 0, 1)                          \
   V(F32x4SConvertI32x4, Operator::kNoProperties, 1, 0, 1)                  \
   V(F32x4UConvertI32x4, Operator::kNoProperties, 1, 0, 1)                  \

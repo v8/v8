@@ -1889,6 +1889,14 @@ void InstructionSelector::VisitNode(Node* node) {
       return MarkAsSimd128(node), VisitF64x2Pmin(node);
     case IrOpcode::kF64x2Pmax:
       return MarkAsSimd128(node), VisitF64x2Pmax(node);
+    case IrOpcode::kF64x2Ceil:
+      return MarkAsSimd128(node), VisitF64x2Ceil(node);
+    case IrOpcode::kF64x2Floor:
+      return MarkAsSimd128(node), VisitF64x2Floor(node);
+    case IrOpcode::kF64x2Trunc:
+      return MarkAsSimd128(node), VisitF64x2Trunc(node);
+    case IrOpcode::kF64x2NearestInt:
+      return MarkAsSimd128(node), VisitF64x2NearestInt(node);
     case IrOpcode::kF32x4Splat:
       return MarkAsSimd128(node), VisitF32x4Splat(node);
     case IrOpcode::kF32x4ExtractLane:
@@ -2677,6 +2685,10 @@ void InstructionSelector::VisitF64x2Pmax(Node* node) { UNIMPLEMENTED(); }
 
 #if !V8_TARGET_ARCH_X64
 // TODO(v8:10553) Prototyping floating point rounding instructions.
+void InstructionSelector::VisitF64x2Ceil(Node* node) { UNIMPLEMENTED(); }
+void InstructionSelector::VisitF64x2Floor(Node* node) { UNIMPLEMENTED(); }
+void InstructionSelector::VisitF64x2Trunc(Node* node) { UNIMPLEMENTED(); }
+void InstructionSelector::VisitF64x2NearestInt(Node* node) { UNIMPLEMENTED(); }
 void InstructionSelector::VisitF32x4Ceil(Node* node) { UNIMPLEMENTED(); }
 void InstructionSelector::VisitF32x4Floor(Node* node) { UNIMPLEMENTED(); }
 void InstructionSelector::VisitF32x4Trunc(Node* node) { UNIMPLEMENTED(); }
