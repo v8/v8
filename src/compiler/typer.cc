@@ -61,8 +61,7 @@ class Typer::Visitor : public Reducer {
   explicit Visitor(Typer* typer, LoopVariableOptimizer* induction_vars)
       : typer_(typer),
         induction_vars_(induction_vars),
-        weakened_nodes_(typer->zone()),
-        remembered_types_(typer->zone()) {}
+        weakened_nodes_(typer->zone()) {}
 
   const char* reducer_name() const override { return "Typer"; }
 
@@ -141,8 +140,6 @@ class Typer::Visitor : public Reducer {
   Typer* typer_;
   LoopVariableOptimizer* induction_vars_;
   ZoneSet<NodeId> weakened_nodes_;
-  // TODO(tebbi): remove once chromium:906567 is resolved.
-  ZoneUnorderedMap<std::pair<Node*, int>, Type> remembered_types_;
 
 #define DECLARE_METHOD(x) inline Type Type##x(Node* node);
   DECLARE_METHOD(Start)
@@ -303,47 +300,7 @@ class Typer::Visitor : public Reducer {
         AllowHandleDereference allow;
         std::ostringstream ostream;
         node->Print(ostream);
-
-        if (V8_UNLIKELY(node->opcode() == IrOpcode::kNumberAdd)) {
-          ostream << "Previous UpdateType run (inputs first):";
-          for (int i = 0; i < 3; ++i) {
-            ostream << "  ";
-            if (remembered_types_[{node, i}].IsInvalid()) {
-              ostream << "untyped";
-            } else {
-              remembered_types_[{node, i}].PrintTo(ostream);
-            }
-          }
-
-          ostream << "\nCurrent (output) type:  ";
-          previous.PrintTo(ostream);
-
-          ostream << "\nThis UpdateType run (inputs first):";
-          for (int i = 0; i < 2; ++i) {
-            ostream << "  ";
-            Node* input = NodeProperties::GetValueInput(node, i);
-            if (NodeProperties::IsTyped(input)) {
-              NodeProperties::GetType(input).PrintTo(ostream);
-            } else {
-              ostream << "untyped";
-            }
-          }
-          ostream << "  ";
-          current.PrintTo(ostream);
-          ostream << "\n";
-        }
-
         FATAL("UpdateType error for node %s", ostream.str().c_str());
-      }
-
-      if (V8_UNLIKELY(node->opcode() == IrOpcode::kNumberAdd)) {
-        for (int i = 0; i < 2; ++i) {
-          Node* input = NodeProperties::GetValueInput(node, i);
-          remembered_types_[{node, i}] = NodeProperties::IsTyped(input)
-                                             ? NodeProperties::GetType(input)
-                                             : Type::Invalid();
-        }
-        remembered_types_[{node, 2}] = current;
       }
 
       NodeProperties::SetType(node, current);
@@ -353,16 +310,6 @@ class Typer::Visitor : public Reducer {
       }
       return NoChange();
     } else {
-      if (V8_UNLIKELY(node->opcode() == IrOpcode::kNumberAdd)) {
-        for (int i = 0; i < 2; ++i) {
-          Node* input = NodeProperties::GetValueInput(node, i);
-          remembered_types_[{node, i}] = NodeProperties::IsTyped(input)
-                                             ? NodeProperties::GetType(input)
-                                             : Type::Invalid();
-        }
-        remembered_types_[{node, 2}] = current;
-      }
-
       // No previous type, simply update the type.
       NodeProperties::SetType(node, current);
       return Changed(node);
