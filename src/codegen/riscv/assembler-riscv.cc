@@ -130,8 +130,8 @@ const int RelocInfo::kApplyMask =
 
 bool RelocInfo::IsCodedSpecially() {
   // The deserializer needs to know whether a pointer is specially coded.  Being
-  // specially coded on RISC-V means that it is a lui/addi instruction, and that is
-  // always the case inside code objects.
+  // specially coded on RISC-V means that it is a lui/addi instruction, and that
+  // is always the case inside code objects.
   return true;
 }
 
@@ -2276,15 +2276,28 @@ void Assembler::sd(Register rd, const MemOperand& rs) {
 
 // Break / Trap instructions.
 void Assembler::break_(uint32_t code, bool break_as_stop) {
-  // FIXME(RISCV): There does not seem to be a standard for where to put this
-  // `code`. It should probably go into a register, but this is not defined.
+  // We need to invalidate breaks that could be stops as well because the
+  // simulator expects a char pointer after the stop instruction.
+  // See constants-mips.h for explanation.
+  DCHECK(
+      (break_as_stop && code <= kMaxStopCode && code > kMaxWatchpointCode) ||
+      (!break_as_stop && (code > kMaxStopCode || code <= kMaxWatchpointCode)));
+
+  // since ebreak does not allow additional immediate field, we use the
+  // immediate field of lui instruction immediately following the ebreak to
+  // encode the "code" info
+  //
+  // FIXME: need to check how native debugger gets the "code" information
   RV_ebreak();
+  DCHECK(is_uint20(code));
+  RV_lui(zero_reg, code);
 }
 
 void Assembler::stop(uint32_t code) {
   DCHECK_GT(code, kMaxWatchpointCode);
   DCHECK_LE(code, kMaxStopCode);
 #if defined(V8_HOST_ARCH_RISCV)
+  // FIXME: does RISCV expect a special value?
   break_(0x54321);
 #else  // V8_HOST_ARCH_RISCV
   break_(code, true);

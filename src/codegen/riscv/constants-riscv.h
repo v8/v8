@@ -475,17 +475,6 @@ enum Opcode : uint32_t {
   RO_FCVT_D_LU = OP_FP | (0b1101001 << kFunct7Shift) | (0b00011 << kRs2Shift),
   RO_FMV_D_X = OP_FP | (0b000 << kFunct3Shift) | (0b1111001 << kFunct7Shift) |
                (0b00000 << kRs2Shift),
-
-  // Original MIPS opcodes
-  // FIXME (RISCV): to be cleaned up
-  SPECIAL = 0U << kOpcodeShift,
-};
-
-// FIXME (RISCV): to be cleaned up
-enum SecondaryField : uint32_t {
-  // SPECIAL Encoding of Function Field.
-  SLL = ((0U << 3) + 0),
-  BREAK = ((1U << 3) + 5),
 };
 
 // ----- Emulated conditions.
@@ -649,7 +638,9 @@ inline Hint NegateHint(Hint hint) { return no_hint; }
 // registers and other constants.
 
 // An ECALL instruction, used for redirected real time call
-const Instr rtCallRedirInstr = SYSTEM;  // All other bits are 0s
+const Instr rtCallRedirInstr = SYSTEM;  // All other bits are 0s (i.e., ecall)
+// An EBreak instruction, used for debugging and semi-hosting
+const Instr kBreakInstr = SYSTEM | 1 << kImm12Shift;  // ebreak
 
 constexpr uint8_t kInstrSize = 4;
 constexpr uint8_t kInstrSizeLog2 = 2;
@@ -657,8 +648,8 @@ constexpr uint8_t kInstrSizeLog2 = 2;
 class InstructionBase {
  public:
   enum {
-    // On RISC-V, PC cannot actually be directly accessed. We behave as if PC was
-    // always the value of the current instruction being executed.
+    // On RISC-V, PC cannot actually be directly accessed. We behave as if PC
+    // was always the value of the current instruction being executed.
     kPCReadOffset = 0
   };
 
@@ -724,7 +715,6 @@ class InstructionBase {
     return InstructionBits() & kRs3FieldMask;
   }
 
-  // FIXME (RISCV): to be cleaned up
   inline int32_t ITypeBits() const { return InstructionBits() & kITypeMask; }
 
   // Get the encoding type of the instruction.
@@ -896,7 +886,6 @@ class InstructionGetters : public T {
   // FIXME (RISCV): to be cleaned up
   static bool IsForbiddenAfterBranchInstr(Instr instr);
 
-  // FIXME (RISCV): to be ported
   // Say if the instruction is a break or a trap.
   bool IsTrap() const;
 };
@@ -980,35 +969,16 @@ InstructionBase::Type InstructionBase::InstructionType() const {
 // -----------------------------------------------------------------------------
 // Instructions.
 
-// FIXME (RISCV): to be ported
 template <class P>
 bool InstructionGetters<P>::IsTrap() const {
-  UNIMPLEMENTED();
-  /*
-  if (OpcodeFieldRaw() != SPECIAL) {
-    return false;
-  } else {
-    switch (FunctionFieldRaw()) {
-      case BREAK:
-      case TGE:
-      case TGEU:
-      case TLT:
-      case TLTU:
-      case TEQ:
-      case TNE:
-        return true;
-      default:
-        return false;
-    }
-  }
-  */
+  return (this->InstructionBits() == kBreakInstr);
 }
 
 // FIXME (RISCV): to be cleaned up
 // static
 template <class T>
 bool InstructionGetters<T>::IsForbiddenAfterBranchInstr(Instr instr) {
-  UNREACHABLE();
+  UNIMPLEMENTED();
 }
 }  // namespace internal
 }  // namespace v8
