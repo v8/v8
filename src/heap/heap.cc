@@ -862,6 +862,7 @@ void Heap::GarbageCollectionPrologue() {
   } else {
     maximum_size_scavenges_ = 0;
   }
+  CheckNewSpaceExpansionCriteria();
   UpdateNewSpaceAllocationCounter();
   if (FLAG_track_retaining_path) {
     retainer_.clear();
@@ -869,10 +870,6 @@ void Heap::GarbageCollectionPrologue() {
     retaining_root_.clear();
   }
   memory_allocator()->unmapper()->PrepareForGC();
-}
-
-void Heap::GarbageCollectionPrologueInSafepoint() {
-  CheckNewSpaceExpansionCriteria();
 }
 
 size_t Heap::SizeOfObjects() {
@@ -2093,8 +2090,6 @@ size_t Heap::PerformGarbageCollection(
   }
 #endif
   tracer()->StartInSafepoint();
-
-  GarbageCollectionPrologueInSafepoint();
 
   EnsureFromSpaceIsCommitted();
 
