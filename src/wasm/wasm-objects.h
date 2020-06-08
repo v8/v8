@@ -819,12 +819,12 @@ class WasmJSFunctionData : public Struct {
 
 // Debug info used for wasm debugging in the interpreter. For Liftoff debugging,
 // all information is held off-heap in {wasm::DebugInfo}.
+// TODO(clemensb): Remove this object.
 class WasmDebugInfo : public Struct {
  public:
   NEVER_READ_ONLY_SPACE
   DECL_ACCESSORS(wasm_instance, WasmInstanceObject)
   DECL_ACCESSORS(interpreter_handle, Object)  // Foreign or undefined
-  DECL_ACCESSORS(interpreter_reference_stack, Cell)
   DECL_OPTIONAL_ACCESSORS(c_wasm_entries, FixedArray)
   DECL_OPTIONAL_ACCESSORS(c_wasm_entry_map, Managed<wasm::SignatureMap>)
 

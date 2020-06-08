@@ -1114,42 +1114,17 @@ class WasmInterpreterInternals {
         codemap_(module, module_bytes_.data(), zone),
         isolate_(instance_object->GetIsolate()),
         instance_object_(instance_object),
+        reference_stack_(isolate_->global_handles()->Create(
+            ReadOnlyRoots(isolate_).empty_fixed_array())),
         frames_(zone) {}
 
-  // The {ReferenceStackScope} sets up the reference stack in the interpreter.
-  // The handle to the reference stack has to be re-initialized everytime we
-  // call into the interpreter because there is no HandleScope that could
-  // contain that handle. A global handle is not an option because it can lead
-  // to a memory leak if a reference to the {WasmInstanceObject} is put onto the
-  // reference stack and thereby transitively keeps the interpreter alive.
-  class ReferenceStackScope {
-   public:
-    explicit ReferenceStackScope(WasmInterpreterInternals* impl) : impl_(impl) {
-      // The reference stack is already initialized, we don't have to do
-      // anything.
-      if (!impl_->reference_stack_cell_.is_null()) return;
-      impl_->reference_stack_cell_ = handle(
-          impl_->instance_object_->debug_info().interpreter_reference_stack(),
-          impl_->isolate_);
-      // We initialized the reference stack, so we also have to reset it later.
-      do_reset_stack_ = true;
-    }
-
-    ~ReferenceStackScope() {
-      if (do_reset_stack_) {
-        impl_->reference_stack_cell_ = Handle<Cell>();
-      }
-    }
-
-   private:
-    WasmInterpreterInternals* impl_;
-    bool do_reset_stack_ = false;
-  };
+  ~WasmInterpreterInternals() {
+    isolate_->global_handles()->Destroy(reference_stack_.location());
+  }
 
   WasmInterpreter::State state() { return state_; }
 
   void InitFrame(const WasmFunction* function, WasmValue* args) {
-    ReferenceStackScope stack_scope(this);
     DCHECK(frames_.empty());
     InterpreterCode* code = codemap_.GetCode(function);
     size_t num_params = function->sig->parameter_count();
@@ -1159,7 +1134,6 @@ class WasmInterpreterInternals {
   }
 
   WasmInterpreter::State Run(int num_steps = -1) {
-    ReferenceStackScope stack_scope(this);
     DCHECK(state_ == WasmInterpreter::STOPPED ||
            state_ == WasmInterpreter::PAUSED);
     DCHECK(num_steps == -1 || num_steps > 0);
@@ -1180,7 +1154,6 @@ class WasmInterpreterInternals {
   void Pause() { UNIMPLEMENTED(); }
 
   void Reset() {
-    ReferenceStackScope stack_scope(this);
     TRACE("----- RESET -----\n");
     ResetStack(0);
     frames_.clear();
@@ -1190,7 +1163,6 @@ class WasmInterpreterInternals {
   }
 
   WasmValue GetReturnValue(uint32_t index) {
-    ReferenceStackScope stack_scope(this);
     if (state_ == WasmInterpreter::TRAPPED) return WasmValue(0xDEADBEEF);
     DCHECK_EQ(WasmInterpreter::FINISHED, state_);
     return GetStackValue(index);
@@ -1212,11 +1184,8 @@ class WasmInterpreterInternals {
 
   uint64_t NumInterpretedCalls() { return num_interpreted_calls_; }
 
-  Handle<Cell> reference_stack_cell() const { return reference_stack_cell_; }
-
   WasmInterpreter::ExceptionHandlingResult RaiseException(
       Isolate* isolate, Handle<Object> exception) {
-    ReferenceStackScope stack_scope(this);
     DCHECK_EQ(WasmInterpreter::TRAPPED, state_);
     isolate->Throw(*exception);  // Will check that none is pending.
     if (HandleException(isolate) == WasmInterpreter::UNWOUND) {
@@ -1230,8 +1199,6 @@ class WasmInterpreterInternals {
   CodeMap* codemap() { return &codemap_; }
 
  private:
-  friend class ReferenceStackScope;
-
   // Handle a thrown exception. Returns whether the exception was handled inside
   // of wasm. Unwinds the interpreted stack accordingly.
   WasmInterpreter::ExceptionHandlingResult HandleException(Isolate* isolate) {
@@ -1287,7 +1254,7 @@ class WasmInterpreterInternals {
       if (IsReferenceValue()) {
         value_ = WasmValue(Handle<Object>::null());
         int ref_index = static_cast<int>(index);
-        impl->reference_stack().set(ref_index, *v.to_anyref());
+        impl->reference_stack_->set(ref_index, *v.to_anyref());
       }
     }
 
@@ -1296,7 +1263,7 @@ class WasmInterpreterInternals {
       DCHECK(value_.to_anyref().is_null());
       int ref_index = static_cast<int>(index);
       Isolate* isolate = impl->isolate_;
-      Handle<Object> ref(impl->reference_stack().get(ref_index), isolate);
+      Handle<Object> ref(impl->reference_stack_->get(ref_index), isolate);
       DCHECK(!ref->IsTheHole(isolate));
       return WasmValue(ref);
     }
@@ -1307,19 +1274,19 @@ class WasmInterpreterInternals {
       if (!IsReferenceValue()) return;
       int ref_index = static_cast<int>(index);
       Isolate* isolate = impl->isolate_;
-      impl->reference_stack().set_the_hole(isolate, ref_index);
+      impl->reference_stack_->set_the_hole(isolate, ref_index);
     }
 
     static void ClearValues(WasmInterpreterInternals* impl, sp_t index,
                             int count) {
       int ref_index = static_cast<int>(index);
-      impl->reference_stack().FillWithHoles(ref_index, ref_index + count);
+      impl->reference_stack_->FillWithHoles(ref_index, ref_index + count);
     }
 
     static bool IsClearedValue(WasmInterpreterInternals* impl, sp_t index) {
       int ref_index = static_cast<int>(index);
       Isolate* isolate = impl->isolate_;
-      return impl->reference_stack().is_the_hole(isolate, ref_index);
+      return impl->reference_stack_->is_the_hole(isolate, ref_index);
     }
 
    private:
@@ -1327,9 +1294,6 @@ class WasmInterpreterInternals {
   };
 
   const WasmModule* module() const { return codemap_.module(); }
-  FixedArray reference_stack() const {
-    return FixedArray::cast(reference_stack_cell_->value());
-  }
 
   void DoTrap(TrapReason trap, pc_t pc) {
     TRACE("TRAP: %s\n", WasmOpcodes::TrapReasonMessage(trap));
@@ -1533,7 +1497,7 @@ class WasmInterpreterInternals {
       StackValue* stack = stack_.get();
       memmove(stack + dest, stack + src, arity * sizeof(StackValue));
       // Also move elements on the reference stack accordingly.
-      reference_stack().MoveElements(
+      reference_stack_->MoveElements(
           isolate_, static_cast<int>(dest), static_cast<int>(src),
           static_cast<int>(arity), UPDATE_WRITE_BARRIER);
     }
@@ -3672,12 +3636,12 @@ class WasmInterpreterInternals {
     // Also resize the reference stack to the same size.
     int grow_by = static_cast<int>(new_size - old_size);
     HandleScope handle_scope(isolate_);  // Avoid leaking handles.
-    Handle<FixedArray> old_ref_stack(reference_stack(), isolate_);
     Handle<FixedArray> new_ref_stack =
-        isolate_->factory()->CopyFixedArrayAndGrow(old_ref_stack, grow_by);
+        isolate_->factory()->CopyFixedArrayAndGrow(reference_stack_, grow_by);
     new_ref_stack->FillWithHoles(static_cast<int>(old_size),
                                  static_cast<int>(new_size));
-    reference_stack_cell_->set_value(*new_ref_stack);
+    isolate_->global_handles()->Destroy(reference_stack_.location());
+    reference_stack_ = isolate_->global_handles()->Create(*new_ref_stack);
   }
 
   sp_t StackHeight() { return sp_ - stack_.get(); }
@@ -3813,10 +3777,8 @@ class WasmInterpreterInternals {
   std::unique_ptr<StackValue[]> stack_;
   StackValue* stack_limit_ = nullptr;  // End of allocated stack space.
   StackValue* sp_ = nullptr;           // Current stack pointer.
-  // The reference stack is pointed to by a {Cell} to be able to replace the
-  // underlying {FixedArray} when growing the stack. This avoids having to
-  // recreate or update the global handle keeping this object alive.
-  Handle<Cell> reference_stack_cell_;  // References are on an on-heap stack.
+  // References are on an on-heap stack.
+  Handle<FixedArray> reference_stack_;
   ZoneVector<Frame> frames_;
   WasmInterpreter::State state_ = WasmInterpreter::STOPPED;
   TrapReason trap_reason_ = kTrapCount;
