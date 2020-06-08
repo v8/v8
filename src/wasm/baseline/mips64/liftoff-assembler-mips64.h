@@ -1459,6 +1459,38 @@ void LiftoffAssembler::LoadTransform(LiftoffRegister dst, Register src_addr,
   }
 }
 
+void LiftoffAssembler::emit_s8x16_shuffle(LiftoffRegister dst,
+                                          LiftoffRegister lhs,
+                                          LiftoffRegister rhs,
+                                          const uint8_t shuffle[16]) {
+  MSARegister dst_msa = dst.fp().toW();
+  MSARegister lhs_msa = lhs.fp().toW();
+  MSARegister rhs_msa = rhs.fp().toW();
+
+  uint64_t control_hi = 0;
+  uint64_t control_low = 0;
+  for (int i = 7; i >= 0; i--) {
+    control_hi <<= 8;
+    control_hi |= shuffle[i + 8];
+    control_low <<= 8;
+    control_low |= shuffle[i];
+  }
+
+  if (dst_msa == lhs_msa) {
+    move_v(kSimd128ScratchReg, lhs_msa);
+    lhs_msa = kSimd128ScratchReg;
+  } else if (dst_msa == rhs_msa) {
+    move_v(kSimd128ScratchReg, rhs_msa);
+    rhs_msa = kSimd128ScratchReg;
+  }
+
+  li(kScratchReg, control_low);
+  insert_d(dst_msa, 0, kScratchReg);
+  li(kScratchReg, control_hi);
+  insert_d(dst_msa, 1, kScratchReg);
+  vshf_b(dst_msa, rhs_msa, lhs_msa);
+}
+
 void LiftoffAssembler::emit_s8x16_swizzle(LiftoffRegister dst,
                                           LiftoffRegister lhs,
                                           LiftoffRegister rhs) {
