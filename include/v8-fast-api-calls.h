@@ -379,6 +379,11 @@ class V8_EXPORT CFunction {
     return ArgUnwrap<F*>::Make(func);
   }
 
+  template <typename F>
+  static CFunction Make(F* func, const CFunctionInfo* type_info) {
+    return CFunction(reinterpret_cast<const void*>(func), type_info);
+  }
+
  private:
   const void* address_;
   const CFunctionInfo* type_info_;

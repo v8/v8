@@ -27270,6 +27270,44 @@ void CallWithMoreArguments() {
   // Passing too many arguments should just ignore the extra ones.
   CHECK_EQ(checker.result, ApiNumberChecker<int32_t>::kFastCalled);
 }
+
+class TestCFunctionInfo : public v8::CFunctionInfo {
+  const v8::CTypeInfo& ReturnInfo() const override {
+    static v8::CTypeInfo return_info =
+        v8::CTypeInfo::FromCType(v8::CTypeInfo::Type::kVoid);
+    return return_info;
+  }
+
+  unsigned int ArgumentCount() const override { return 2; }
+
+  const v8::CTypeInfo& ArgumentInfo(unsigned int index) const override {
+    static v8::CTypeInfo type_info0 =
+        v8::CTypeInfo::FromCType(v8::CTypeInfo::Type::kUnwrappedApiObject);
+    static v8::CTypeInfo type_info1 =
+        v8::CTypeInfo::FromCType(v8::CTypeInfo::Type::kBool);
+    switch (index) {
+      case 0:
+        return type_info0;
+      case 1:
+        return type_info1;
+      default:
+        UNREACHABLE();
+    }
+  }
+};
+
+void CheckDynamicTypeInfo() {
+  LocalContext env;
+
+  static TestCFunctionInfo type_info;
+  v8::CFunction c_func =
+      v8::CFunction::Make(ApiNumberChecker<bool>::CheckArgFast, &type_info);
+  CHECK_EQ(c_func.ArgumentCount(), 2);
+  CHECK_EQ(c_func.ArgumentInfo(0).GetType(),
+           v8::CTypeInfo::Type::kUnwrappedApiObject);
+  CHECK_EQ(c_func.ArgumentInfo(1).GetType(), v8::CTypeInfo::Type::kBool);
+  CHECK_EQ(c_func.ReturnInfo().GetType(), v8::CTypeInfo::Type::kVoid);
+}
 }  // namespace
 
 namespace v8 {
@@ -27385,6 +27423,8 @@ TEST(FastApiCalls) {
   // Wrong number of arguments
   CallWithLessArguments();
   CallWithMoreArguments();
+
+  CheckDynamicTypeInfo();
 
   // TODO(mslekova): Add corner cases for 64-bit values.
   // TODO(mslekova): Add main cases for float and double.
