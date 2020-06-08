@@ -156,8 +156,9 @@ class V8_EXPORT_PRIVATE PagedSpace
 
   size_t Free(Address start, size_t size_in_bytes, SpaceAccountingMode mode) {
     if (size_in_bytes == 0) return 0;
-    heap()->CreateFillerObjectAt(start, static_cast<int>(size_in_bytes),
-                                 ClearRecordedSlots::kNo);
+    heap()->CreateFillerObjectAtBackground(
+        start, static_cast<int>(size_in_bytes),
+        ClearFreedMemoryMode::kDontClearFreedMemory);
     if (mode == SpaceAccountingMode::kSpaceAccounted) {
       return AccountedFree(start, size_in_bytes);
     } else {

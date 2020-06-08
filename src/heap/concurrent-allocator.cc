@@ -26,12 +26,13 @@ void StressConcurrentAllocatorTask::RunInternal() {
     Address address = allocator->AllocateOrFail(
         kObjectSize, AllocationAlignment::kWordAligned,
         AllocationOrigin::kRuntime);
-    heap->CreateFillerObjectAt(address, kObjectSize, ClearRecordedSlots::kNo);
+    heap->CreateFillerObjectAtBackground(
+        address, kObjectSize, ClearFreedMemoryMode::kDontClearFreedMemory);
     address = allocator->AllocateOrFail(kLargeObjectSize,
                                         AllocationAlignment::kWordAligned,
                                         AllocationOrigin::kRuntime);
-    heap->CreateFillerObjectAt(address, kLargeObjectSize,
-                               ClearRecordedSlots::kNo);
+    heap->CreateFillerObjectAtBackground(
+        address, kLargeObjectSize, ClearFreedMemoryMode::kDontClearFreedMemory);
     if (i % 10 == 0) {
       local_heap.Safepoint();
     }

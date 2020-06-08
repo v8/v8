@@ -3044,7 +3044,7 @@ HeapObject Heap::CreateFillerObjectAt(ReadOnlyRoots roots, Address addr,
   return filler;
 }
 
-void Heap::CreateFillerObjectFromSweeper(
+void Heap::CreateFillerObjectAtBackground(
     Address addr, int size, ClearFreedMemoryMode clear_memory_mode) {
   CreateFillerObjectAtImpl(ReadOnlyRoots(this), addr, size, clear_memory_mode);
   // Do not verify whether slots are cleared here: the concurrent sweeper is not
