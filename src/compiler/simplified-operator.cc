@@ -1507,15 +1507,16 @@ const Operator* SimplifiedOperatorBuilder::CheckFloat64Hole(
 const Operator* SimplifiedOperatorBuilder::SpeculativeBigIntAdd(
     BigIntOperationHint hint) {
   return new (zone()) Operator1<BigIntOperationHint>(
-      IrOpcode::kSpeculativeBigIntAdd, Operator::kFoldable,
+      IrOpcode::kSpeculativeBigIntAdd, Operator::kFoldable | Operator::kNoThrow,
       "SpeculativeBigIntAdd", 2, 1, 1, 1, 1, 0, hint);
 }
 
 const Operator* SimplifiedOperatorBuilder::SpeculativeBigIntSubtract(
     BigIntOperationHint hint) {
   return new (zone()) Operator1<BigIntOperationHint>(
-      IrOpcode::kSpeculativeBigIntSubtract, Operator::kFoldable,
-      "SpeculativeBigIntSubtract", 2, 1, 1, 1, 1, 0, hint);
+      IrOpcode::kSpeculativeBigIntSubtract,
+      Operator::kFoldable | Operator::kNoThrow, "SpeculativeBigIntSubtract", 2,
+      1, 1, 1, 1, 0, hint);
 }
 
 const Operator* SimplifiedOperatorBuilder::SpeculativeBigIntNegate(
