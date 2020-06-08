@@ -88,7 +88,7 @@ TEST_F(MarkingVisitorTest, MarkPersistent) {
 
   EXPECT_FALSE(header.IsMarked());
 
-  visitor.TraceRoot(object, SourceLocation::Current());
+  visitor.TraceRootForTesting(object, SourceLocation::Current());
 
   EXPECT_TRUE(header.IsMarked());
 }
@@ -102,7 +102,7 @@ TEST_F(MarkingVisitorTest, MarkPersistentMixin) {
 
   EXPECT_FALSE(header.IsMarked());
 
-  visitor.TraceRoot(mixin, SourceLocation::Current());
+  visitor.TraceRootForTesting(mixin, SourceLocation::Current());
 
   EXPECT_TRUE(header.IsMarked());
 }
@@ -144,7 +144,7 @@ TEST_F(MarkingVisitorTest, DontMarkWeakPersistent) {
 
   EXPECT_FALSE(header.IsMarked());
 
-  visitor.TraceRoot(object, SourceLocation::Current());
+  visitor.TraceRootForTesting(object, SourceLocation::Current());
 
   EXPECT_FALSE(header.IsMarked());
 }
@@ -158,7 +158,7 @@ TEST_F(MarkingVisitorTest, DontMarkWeakPersistentMixin) {
 
   EXPECT_FALSE(header.IsMarked());
 
-  visitor.TraceRoot(mixin, SourceLocation::Current());
+  visitor.TraceRootForTesting(mixin, SourceLocation::Current());
 
   EXPECT_FALSE(header.IsMarked());
 }
@@ -248,7 +248,7 @@ TEST_F(MarkingVisitorTest, DontMarkPersistentInConstruction) {
       MakeGarbageCollected<GCedWithInConstructionCallback>(
           GetHeap(), [&visitor](GCedWithInConstructionCallback* obj) {
             Persistent<GCedWithInConstructionCallback> object(obj);
-            visitor.TraceRoot(object, SourceLocation::Current());
+            visitor.TraceRootForTesting(object, SourceLocation::Current());
           });
   EXPECT_FALSE(HeapObjectHeader::FromPayload(gced).IsMarked());
 }
@@ -259,7 +259,7 @@ TEST_F(MarkingVisitorTest, DontMarkPersistentMixinInConstruction) {
       MakeGarbageCollected<GCedWithMixinWithInConstructionCallback>(
           GetHeap(), [&visitor](MixinWithInConstructionCallback* obj) {
             Persistent<MixinWithInConstructionCallback> mixin(obj);
-            visitor.TraceRoot(mixin, SourceLocation::Current());
+            visitor.TraceRootForTesting(mixin, SourceLocation::Current());
           });
   EXPECT_FALSE(HeapObjectHeader::FromPayload(gced).IsMarked());
 }
@@ -270,7 +270,7 @@ TEST_F(MarkingVisitorTest, DontMarkWeakPersistentInConstruction) {
       MakeGarbageCollected<GCedWithInConstructionCallback>(
           GetHeap(), [&visitor](GCedWithInConstructionCallback* obj) {
             WeakPersistent<GCedWithInConstructionCallback> object(obj);
-            visitor.TraceRoot(object, SourceLocation::Current());
+            visitor.TraceRootForTesting(object, SourceLocation::Current());
           });
   EXPECT_FALSE(HeapObjectHeader::FromPayload(gced).IsMarked());
 }
@@ -281,7 +281,7 @@ TEST_F(MarkingVisitorTest, DontMarkWeakPersistentMixinInConstruction) {
       MakeGarbageCollected<GCedWithMixinWithInConstructionCallback>(
           GetHeap(), [&visitor](MixinWithInConstructionCallback* obj) {
             WeakPersistent<MixinWithInConstructionCallback> mixin(obj);
-            visitor.TraceRoot(mixin, SourceLocation::Current());
+            visitor.TraceRootForTesting(mixin, SourceLocation::Current());
           });
   EXPECT_FALSE(HeapObjectHeader::FromPayload(gced).IsMarked());
 }
