@@ -313,6 +313,8 @@ class V8_EXPORT_PRIVATE GraphAssembler {
   Node* TypeGuard(Type type, Node* value);
   Node* Checkpoint(FrameState frame_state);
 
+  TNode<RawPtrT> StackSlot(int size, int alignment);
+
   Node* Store(StoreRepresentation rep, Node* object, Node* offset, Node* value);
   Node* Store(StoreRepresentation rep, Node* object, int offset, Node* value);
   Node* Load(MachineType type, Node* object, Node* offset);

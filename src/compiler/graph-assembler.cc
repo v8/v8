@@ -629,6 +629,11 @@ Node* GraphAssembler::Unreachable() {
       graph()->NewNode(common()->Unreachable(), effect(), control()));
 }
 
+TNode<RawPtrT> GraphAssembler::StackSlot(int size, int alignment) {
+  return AddNode<RawPtrT>(
+      graph()->NewNode(machine()->StackSlot(size, alignment)));
+}
+
 Node* GraphAssembler::Store(StoreRepresentation rep, Node* object, Node* offset,
                             Node* value) {
   return AddNode(graph()->NewNode(machine()->Store(rep), object, offset, value,

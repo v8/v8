@@ -3622,15 +3622,13 @@ Node* WasmGraphBuilder::TraceMemoryOperation(bool is_store,
                                              Node* index, uint32_t offset,
                                              wasm::WasmCodePosition position) {
   int kAlign = 4;  // Ensure that the LSB is 0, such that this looks like a Smi.
-  Node* info = graph()->NewNode(
-      mcgraph()->machine()->StackSlot(sizeof(wasm::MemoryTracingInfo), kAlign));
+  TNode<RawPtrT> info =
+      gasm_->StackSlot(sizeof(wasm::MemoryTracingInfo), kAlign);
 
-  Node* address = graph()->NewNode(mcgraph()->machine()->Int32Add(),
-                                   Int32Constant(offset), index);
+  Node* address = gasm_->Int32Add(Int32Constant(offset), index);
   auto store = [&](int offset, MachineRepresentation rep, Node* data) {
-    SetEffect(graph()->NewNode(
-        mcgraph()->machine()->Store(StoreRepresentation(rep, kNoWriteBarrier)),
-        info, mcgraph()->Int32Constant(offset), data, effect(), control()));
+    gasm_->Store(StoreRepresentation(rep, kNoWriteBarrier), info,
+                 gasm_->Int32Constant(offset), data);
   };
   // Store address, is_store, and mem_rep.
   store(offsetof(wasm::MemoryTracingInfo, address),
@@ -3642,7 +3640,9 @@ Node* WasmGraphBuilder::TraceMemoryOperation(bool is_store,
         MachineRepresentation::kWord8,
         mcgraph()->Int32Constant(static_cast<int>(rep)));
 
-  Node* call = BuildCallToRuntime(Runtime::kWasmTraceMemory, &info, 1);
+  Node* args[] = {info};
+  Node* call =
+      BuildCallToRuntime(Runtime::kWasmTraceMemory, args, arraysize(args));
   SetSourcePosition(call, position);
   return call;
 }
