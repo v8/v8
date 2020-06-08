@@ -9,6 +9,7 @@
 #include "src/base/bounded-page-allocator.h"
 #include "src/base/page-allocator.h"
 #include "src/base/platform/platform.h"
+#include "src/heap/cppgc/gc-invoker.h"
 #include "src/heap/cppgc/heap-object-header-inl.h"
 #include "src/heap/cppgc/heap-object-header.h"
 #include "src/heap/cppgc/heap-page.h"
@@ -41,7 +42,7 @@ std::unique_ptr<Heap> Heap::Create(std::shared_ptr<cppgc::Platform> platform,
   DCHECK(platform.get());
   VerifyCustomSpaces(options.custom_spaces);
   return std::make_unique<internal::Heap>(std::move(platform),
-                                          options.custom_spaces.size());
+                                          std::move(options));
 }
 
 void Heap::ForceGarbageCollectionSlow(const char* source, const char* reason,
@@ -121,8 +122,9 @@ cppgc::LivenessBroker LivenessBrokerFactory::Create() {
   return cppgc::LivenessBroker();
 }
 
-Heap::Heap(std::shared_ptr<cppgc::Platform> platform, size_t custom_spaces)
-    : raw_heap_(this, custom_spaces),
+Heap::Heap(std::shared_ptr<cppgc::Platform> platform,
+           cppgc::Heap::HeapOptions options)
+    : raw_heap_(this, options.custom_spaces.size()),
       platform_(std::move(platform)),
 #if defined(CPPGC_CAGED_HEAP)
       reserved_area_(ReserveCagedHeap(platform_->GetPageAllocator())),
@@ -136,6 +138,9 @@ Heap::Heap(std::shared_ptr<cppgc::Platform> platform, size_t custom_spaces)
       stats_collector_(std::make_unique<StatsCollector>()),
       object_allocator_(&raw_heap_, stats_collector_.get()),
       sweeper_(&raw_heap_, platform_.get(), stats_collector_.get()),
+      gc_invoker_(this, platform_.get(), options.stack_support),
+      growing_(&gc_invoker_, stats_collector_.get(),
+               options.resource_constraints),
       stack_(std::make_unique<Stack>(v8::base::Stack::GetStackStart())),
       prefinalizer_handler_(std::make_unique<PreFinalizerHandler>()) {
 }
@@ -146,7 +151,7 @@ Heap::~Heap() {
   sweeper_.Finish();
 }
 
-void Heap::CollectGarbage(GCConfig config) {
+void Heap::CollectGarbage(Config config) {
   if (in_no_gc_scope()) return;
 
   epoch_++;

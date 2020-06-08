@@ -23,6 +23,7 @@
 #include "src/heap/cppgc/raw-heap.h"
 #include "src/heap/cppgc/sanitizers.h"
 #include "src/heap/cppgc/stats-collector.h"
+#include "src/heap/cppgc/task-handle.h"
 
 namespace cppgc {
 namespace internal {
@@ -515,31 +516,7 @@ class Sweeper::SweeperImpl final {
  private:
   class IncrementalSweepTask : public v8::IdleTask {
    public:
-    struct Handle {
-      Handle() = default;
-
-      void Cancel() {
-        DCHECK(is_cancelled_);
-        *is_cancelled_ = true;
-      }
-
-      bool IsCanceled() const {
-        DCHECK(is_cancelled_);
-        return *is_cancelled_;
-      }
-
-      explicit operator bool() const { return is_cancelled_.get(); }
-
-     private:
-      struct NonEmptyTag {};
-
-      explicit Handle(NonEmptyTag)
-          : is_cancelled_(std::make_shared<bool>(false)) {}
-
-      std::shared_ptr<bool> is_cancelled_;
-
-      friend class IncrementalSweepTask;
-    };
+    using Handle = SingleThreadedHandle;
 
     explicit IncrementalSweepTask(SweeperImpl* sweeper)
         : sweeper_(sweeper), handle_(Handle::NonEmptyTag{}) {}

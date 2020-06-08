@@ -12,9 +12,11 @@ namespace cppgc {
 
 // TODO(v8:10346): Create separate includes for concepts that are not
 // V8-specific.
+using IdleTask = v8::IdleTask;
 using JobHandle = v8::JobHandle;
 using JobTask = v8::JobTask;
 using PageAllocator = v8::PageAllocator;
+using Task = v8::Task;
 using TaskPriority = v8::TaskPriority;
 using TaskRunner = v8::TaskRunner;
 

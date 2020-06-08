@@ -50,6 +50,8 @@ v8_source_set("cppgc_unittests_sources") {
     "heap/cppgc/free-list-unittest.cc",
     "heap/cppgc/garbage-collected-unittest.cc",
     "heap/cppgc/gc-info-unittest.cc",
+    "heap/cppgc/gc-invoker-unittest.cc",
+    "heap/cppgc/heap-growing-unittest.cc",
     "heap/cppgc/heap-object-header-unittest.cc",
     "heap/cppgc/heap-page-unittest.cc",
     "heap/cppgc/heap-unittest.cc",

@@ -14,6 +14,9 @@
 #include "include/cppgc/liveness-broker.h"
 #include "include/cppgc/macros.h"
 #include "src/base/page-allocator.h"
+#include "src/heap/cppgc/garbage-collector.h"
+#include "src/heap/cppgc/gc-invoker.h"
+#include "src/heap/cppgc/heap-growing.h"
 #include "src/heap/cppgc/heap-object-header.h"
 #include "src/heap/cppgc/marker.h"
 #include "src/heap/cppgc/object-allocator.h"
@@ -42,7 +45,8 @@ class V8_EXPORT_PRIVATE LivenessBrokerFactory {
   static LivenessBroker Create();
 };
 
-class V8_EXPORT_PRIVATE Heap final : public cppgc::Heap {
+class V8_EXPORT_PRIVATE Heap final : public cppgc::Heap,
+                                     public GarbageCollector {
  public:
   // NoGCScope allows going over limits and avoids triggering garbage
   // collection triggered through allocations or even explicitly.
@@ -76,29 +80,17 @@ class V8_EXPORT_PRIVATE Heap final : public cppgc::Heap {
     Heap* const heap_;
   };
 
-  struct GCConfig {
-    using StackState = Heap::StackState;
-    using MarkingType = Marker::MarkingConfig::MarkingType;
-    using SweepingType = Sweeper::Config;
-
-    static constexpr GCConfig Default() { return {}; }
-
-    StackState stack_state = StackState::kMayContainHeapPointers;
-    MarkingType marking_type = MarkingType::kAtomic;
-    SweepingType sweeping_type = SweepingType::kAtomic;
-  };
-
   static Heap* From(cppgc::Heap* heap) { return static_cast<Heap*>(heap); }
 
-  explicit Heap(std::shared_ptr<cppgc::Platform> platform,
-                size_t custom_spaces);
+  Heap(std::shared_ptr<cppgc::Platform> platform,
+       cppgc::Heap::HeapOptions options);
   ~Heap() final;
 
   inline void* Allocate(size_t size, GCInfoIndex index);
   inline void* Allocate(size_t size, GCInfoIndex index,
                         CustomSpaceIndex space_index);
 
-  void CollectGarbage(GCConfig config = GCConfig::Default());
+  void CollectGarbage(Config config) final;
 
   PreFinalizerHandler* prefinalizer_handler() {
     return prefinalizer_handler_.get();
@@ -130,9 +122,12 @@ class V8_EXPORT_PRIVATE Heap final : public cppgc::Heap {
   PageBackend* page_backend() { return page_backend_.get(); }
   const PageBackend* page_backend() const { return page_backend_.get(); }
 
+  cppgc::Platform* platform() { return platform_.get(); }
+  const cppgc::Platform* platform() const { return platform_.get(); }
+
   Sweeper& sweeper() { return sweeper_; }
 
-  size_t epoch() const { return epoch_; }
+  size_t epoch() const final { return epoch_; }
 
   size_t ObjectPayloadSize() const;
 
@@ -153,6 +148,8 @@ class V8_EXPORT_PRIVATE Heap final : public cppgc::Heap {
   std::unique_ptr<StatsCollector> stats_collector_;
   ObjectAllocator object_allocator_;
   Sweeper sweeper_;
+  GCInvoker gc_invoker_;
+  HeapGrowing growing_;
 
   std::unique_ptr<Stack> stack_;
   std::unique_ptr<PreFinalizerHandler> prefinalizer_handler_;

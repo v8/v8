@@ -88,7 +88,8 @@ TEST_F(GCHeapTest, ObjectPayloadSize) {
   static constexpr size_t kObjectSizes[] = {1, 32, 64, 128,
                                             2 * kLargeObjectSizeThreshold};
 
-  Heap::From(GetHeap())->CollectGarbage();
+  Heap::From(GetHeap())->CollectGarbage(
+      GarbageCollector::Config::ConservativeAtomicConfig());
 
   for (size_t k = 0; k < kNumberOfObjectsPerArena; ++k) {
     MakeGarbageCollected<GCed<kObjectSizes[0]>>(GetHeap());

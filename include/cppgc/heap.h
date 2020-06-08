@@ -30,6 +30,34 @@ class V8_EXPORT Heap {
   using StackState = EmbedderStackState;
 
   /**
+   * Specifies whether conservative stack scanning is supported.
+   */
+  enum class StackSupport : uint8_t {
+    /**
+     * Conservative stack scan is supported.
+     */
+    kSupportsConservativeStackScan,
+    /**
+     * Conservative stack scan is not supported. Embedders may use this option
+     * when using custom infrastructure that is unsupported by the library.
+     */
+    kNoConservativeStackScan,
+  };
+
+  /**
+   * Constraints for a Heap setup.
+   */
+  struct ResourceConstraints {
+    /**
+     * Allows the heap to grow to some initial size in bytes before triggering
+     * garbage collections. This is useful when it is known that applications
+     * need a certain minimum heap to run to avoid repeatedly invoking the
+     * garbage collector when growing the heap.
+     */
+    size_t initial_heap_size_bytes = 0;
+  };
+
+  /**
    * Options specifying Heap properties (e.g. custom spaces) when initializing a
    * heap through Heap::Create().
    */
@@ -47,6 +75,22 @@ class V8_EXPORT Heap {
      * to the index they reside in the vector.
      */
     std::vector<std::unique_ptr<CustomSpaceBase>> custom_spaces;
+
+    /**
+     * Specifies whether conserative stack scan is supported. When conservative
+     * stack scan is not supported, the collector may try to invoke
+     * garbage collections using non-nestable task, which are guaranteed to have
+     * no interesting stack, through the provided Platform. If such tasks are
+     * not supported by the Platform, the embedder must take care of invoking
+     * the GC through ForceGarbageCollectionSlow().
+     */
+    StackSupport stack_support = StackSupport::kSupportsConservativeStackScan;
+
+    /**
+     * Resource constraints specifying various properties that the internal
+     * GC scheduler follows.
+     */
+    ResourceConstraints resource_constraints;
   };
 
   /**

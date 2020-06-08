@@ -232,7 +232,8 @@ class GCInDestructor final : public GarbageCollected<GCInDestructor> {
   ~GCInDestructor() {
     // Instead of directly calling GC, allocations should be supported here as
     // well.
-    heap_->CollectGarbage(internal::Heap::GCConfig::Default());
+    heap_->CollectGarbage(
+        internal::GarbageCollector::Config::ConservativeAtomicConfig());
   }
   void Trace(Visitor*) const {}
 
