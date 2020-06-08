@@ -26,6 +26,9 @@ function TestEquivalenceClass(eclass) {
       var shouldMatch = Canonicalize(c1) === Canonicalize(c2);
 
       assertEquals(backref.test(cc), shouldMatch);
+
+      //TODO(v8:10591): Update expectations for ΐΐ, ΰΰ, and ﬅﬆ once
+      //case folding is fixed.
       assertEquals(backrefUnicode.test(cc), true);
     }
   }
