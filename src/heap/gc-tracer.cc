@@ -228,10 +228,6 @@ void GCTracer::Start(GarbageCollector collector,
   if (start_counter_ != 1) return;
 
   previous_ = current_;
-  double start_time = heap_->MonotonicallyIncreasingTimeInMs();
-  SampleAllocation(start_time, heap_->NewSpaceAllocationCounter(),
-                   heap_->OldGenerationAllocationCounter(),
-                   heap_->EmbedderAllocationCounter());
 
   switch (collector) {
     case SCAVENGER:
@@ -252,7 +248,7 @@ void GCTracer::Start(GarbageCollector collector,
   }
 
   current_.reduce_memory = heap_->ShouldReduceMemory();
-  current_.start_time = start_time;
+  current_.start_time = heap_->MonotonicallyIncreasingTimeInMs();
   current_.start_object_size = 0;
   current_.start_memory_size = 0;
   current_.start_holes_size = 0;
@@ -281,6 +277,10 @@ void GCTracer::Start(GarbageCollector collector,
 }
 
 void GCTracer::StartInSafepoint() {
+  SampleAllocation(current_.start_time, heap_->NewSpaceAllocationCounter(),
+                   heap_->OldGenerationAllocationCounter(),
+                   heap_->EmbedderAllocationCounter());
+
   current_.start_object_size = heap_->SizeOfObjects();
   current_.start_memory_size = heap_->memory_allocator()->Size();
   current_.start_holes_size = CountTotalHolesSize(heap_);
