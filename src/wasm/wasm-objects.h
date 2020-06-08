@@ -840,13 +840,6 @@ class WasmDebugInfo : public Struct {
 
   static Handle<WasmDebugInfo> New(Handle<WasmInstanceObject>);
 
-  // Setup a WasmDebugInfo with an existing WasmInstance struct.
-  // Returns a pointer to the interpreter instantiated inside this
-  // WasmDebugInfo.
-  // Use for testing only.
-  V8_EXPORT_PRIVATE static wasm::WasmInterpreter* SetupForTesting(
-      Handle<WasmInstanceObject>);
-
   V8_EXPORT_PRIVATE static Handle<Code> GetCWasmEntry(Handle<WasmDebugInfo>,
                                                       const wasm::FunctionSig*);
 

@@ -126,12 +126,13 @@ bool InterpretWasmModuleForTesting(Isolate* isolate,
 
   Zone zone(isolate->allocator(), ZONE_NAME);
 
-  WasmInterpreter* interpreter = WasmDebugInfo::SetupForTesting(instance);
-  interpreter->Reset();
-
-  interpreter->InitFrame(&instance->module()->functions[function_index],
-                         arguments.get());
-  WasmInterpreter::State interpreter_result = interpreter->Run(kMaxNumSteps);
+  WasmInterpreter interpreter{
+      isolate, instance->module(),
+      ModuleWireBytes{instance->module_object().native_module()->wire_bytes()},
+      instance};
+  interpreter.InitFrame(&instance->module()->functions[function_index],
+                        arguments.get());
+  WasmInterpreter::State interpreter_result = interpreter.Run(kMaxNumSteps);
 
   if (isolate->has_pending_exception()) {
     // Stack overflow during interpretation.
@@ -197,26 +198,27 @@ WasmInterpretationResult InterpretWasmModule(
   Zone zone(isolate->allocator(), ZONE_NAME);
   v8::internal::HandleScope scope(isolate);
 
-  WasmInterpreter* interpreter = WasmDebugInfo::SetupForTesting(instance);
-  interpreter->Reset();
-
-  interpreter->InitFrame(&instance->module()->functions[function_index], args);
-  WasmInterpreter::State interpreter_result = interpreter->Run(kMaxNumSteps);
+  WasmInterpreter interpreter{
+      isolate, instance->module(),
+      ModuleWireBytes{instance->module_object().native_module()->wire_bytes()},
+      instance};
+  interpreter.InitFrame(&instance->module()->functions[function_index], args);
+  WasmInterpreter::State interpreter_result = interpreter.Run(kMaxNumSteps);
 
   bool stack_overflow = isolate->has_pending_exception();
   isolate->clear_pending_exception();
 
   if (stack_overflow) return WasmInterpretationResult::Stopped();
 
-  if (interpreter->state() == WasmInterpreter::TRAPPED) {
+  if (interpreter.state() == WasmInterpreter::TRAPPED) {
     return WasmInterpretationResult::Trapped(
-        interpreter->PossibleNondeterminism());
+        interpreter.PossibleNondeterminism());
   }
 
   if (interpreter_result == WasmInterpreter::FINISHED) {
     return WasmInterpretationResult::Finished(
-        interpreter->GetReturnValue().to<int32_t>(),
-        interpreter->PossibleNondeterminism());
+        interpreter.GetReturnValue().to<int32_t>(),
+        interpreter.PossibleNondeterminism());
   }
 
   return WasmInterpretationResult::Stopped();

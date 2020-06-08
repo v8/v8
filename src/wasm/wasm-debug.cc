@@ -1024,21 +1024,6 @@ Handle<WasmDebugInfo> WasmDebugInfo::New(Handle<WasmInstanceObject> instance) {
   return debug_info;
 }
 
-wasm::WasmInterpreter* WasmDebugInfo::SetupForTesting(
-    Handle<WasmInstanceObject> instance_obj) {
-  Handle<WasmDebugInfo> debug_info = WasmDebugInfo::New(instance_obj);
-  Isolate* isolate = instance_obj->GetIsolate();
-  // Use the maximum stack size to estimate the maximum size of the interpreter.
-  // The interpreter keeps its own stack internally, and the size of the stack
-  // should dominate the overall size of the interpreter. We multiply by '2' to
-  // account for the growing strategy for the backing store of the stack.
-  size_t interpreter_size = FLAG_stack_size * KB * 2;
-  auto interp_handle = Managed<wasm::InterpreterHandle>::Allocate(
-      isolate, interpreter_size, isolate, debug_info);
-  debug_info->set_interpreter_handle(*interp_handle);
-  return interp_handle->raw()->interpreter();
-}
-
 // static
 Handle<Code> WasmDebugInfo::GetCWasmEntry(Handle<WasmDebugInfo> debug_info,
                                           const wasm::FunctionSig* sig) {

@@ -204,7 +204,7 @@ class TestingModuleBuilder {
     return &test_module_->functions[index];
   }
 
-  WasmInterpreter* interpreter() const { return interpreter_; }
+  WasmInterpreter* interpreter() const { return interpreter_.get(); }
   bool interpret() const { return interpreter_ != nullptr; }
   LowerSimd lower_simd() const { return lower_simd_; }
   Isolate* isolate() const { return isolate_; }
@@ -243,7 +243,7 @@ class TestingModuleBuilder {
   byte* mem_start_ = nullptr;
   uint32_t mem_size_ = 0;
   alignas(16) byte globals_data_[kMaxGlobalsSize];
-  WasmInterpreter* interpreter_ = nullptr;
+  std::unique_ptr<WasmInterpreter> interpreter_;
   ExecutionTier execution_tier_;
   Handle<WasmInstanceObject> instance_object_;
   NativeModule* native_module_ = nullptr;
