@@ -324,11 +324,13 @@ Handle<FeedbackVector> FeedbackVector::New(
   return result;
 }
 
-namespace {
+// static
+Handle<FeedbackVector> FeedbackVector::NewWithOneCompareSlotForTesting(
+    Zone* zone, Isolate* isolate) {
+  FeedbackVectorSpec one_slot(zone);
+  one_slot.AddCompareICSlot();
 
-Handle<FeedbackVector> NewFeedbackVectorForTesting(
-    Isolate* isolate, const FeedbackVectorSpec* spec) {
-  Handle<FeedbackMetadata> metadata = FeedbackMetadata::New(isolate, spec);
+  Handle<FeedbackMetadata> metadata = FeedbackMetadata::New(isolate, &one_slot);
   Handle<SharedFunctionInfo> shared =
       isolate->factory()->NewSharedFunctionInfoForBuiltin(
           isolate->factory()->empty_string(), Builtins::kIllegal);
@@ -341,24 +343,6 @@ Handle<FeedbackVector> NewFeedbackVectorForTesting(
   IsCompiledScope is_compiled_scope(shared->is_compiled_scope());
   return FeedbackVector::New(isolate, shared, closure_feedback_cell_array,
                              &is_compiled_scope);
-}
-
-}  // namespace
-
-// static
-Handle<FeedbackVector> FeedbackVector::NewWithOneBinarySlotForTesting(
-    Zone* zone, Isolate* isolate) {
-  FeedbackVectorSpec one_slot(zone);
-  one_slot.AddBinaryOpICSlot();
-  return NewFeedbackVectorForTesting(isolate, &one_slot);
-}
-
-// static
-Handle<FeedbackVector> FeedbackVector::NewWithOneCompareSlotForTesting(
-    Zone* zone, Isolate* isolate) {
-  FeedbackVectorSpec one_slot(zone);
-  one_slot.AddCompareICSlot();
-  return NewFeedbackVectorForTesting(isolate, &one_slot);
 }
 
 // static

@@ -61,6 +61,18 @@ Reduction JSGenericLowering::Reduce(Node* node) {
     Callable callable = Builtins::CallableFor(isolate(), Builtins::k##Name); \
     ReplaceWithStubCall(node, callable, flags);                              \
   }
+REPLACE_STUB_CALL(Add)
+REPLACE_STUB_CALL(Subtract)
+REPLACE_STUB_CALL(Multiply)
+REPLACE_STUB_CALL(Divide)
+REPLACE_STUB_CALL(Modulus)
+REPLACE_STUB_CALL(Exponentiate)
+REPLACE_STUB_CALL(BitwiseAnd)
+REPLACE_STUB_CALL(BitwiseOr)
+REPLACE_STUB_CALL(BitwiseXor)
+REPLACE_STUB_CALL(ShiftLeft)
+REPLACE_STUB_CALL(ShiftRight)
+REPLACE_STUB_CALL(ShiftRightLogical)
 REPLACE_STUB_CALL(HasProperty)
 REPLACE_STUB_CALL(ToLength)
 REPLACE_STUB_CALL(ToNumber)
@@ -79,6 +91,8 @@ REPLACE_STUB_CALL(PromiseResolve)
 REPLACE_STUB_CALL(RejectPromise)
 REPLACE_STUB_CALL(ResolvePromise)
 #undef REPLACE_STUB_CALL
+
+// TODO(jgruber): Hook in binary and compare op builtins with feedback.
 
 void JSGenericLowering::ReplaceWithStubCall(Node* node,
                                             Callable callable,
@@ -157,26 +171,14 @@ DEF_UNARY_LOWERING(Increment)
 DEF_UNARY_LOWERING(Negate)
 #undef DEF_UNARY_LOWERING
 
-void JSGenericLowering::ReplaceBinaryOrCompareOpWithBuiltinCall(
+void JSGenericLowering::ReplaceCompareOpWithBuiltinCall(
     Node* node, Builtins::Name builtin_without_feedback,
     Builtins::Name builtin_with_feedback) {
-  DCHECK(node->opcode() == IrOpcode::kJSAdd ||
-         node->opcode() == IrOpcode::kJSBitwiseAnd ||
-         node->opcode() == IrOpcode::kJSBitwiseOr ||
-         node->opcode() == IrOpcode::kJSBitwiseXor ||
-         node->opcode() == IrOpcode::kJSDivide ||
-         node->opcode() == IrOpcode::kJSEqual ||
-         node->opcode() == IrOpcode::kJSExponentiate ||
+  DCHECK(node->opcode() == IrOpcode::kJSEqual ||
          node->opcode() == IrOpcode::kJSGreaterThan ||
          node->opcode() == IrOpcode::kJSGreaterThanOrEqual ||
          node->opcode() == IrOpcode::kJSLessThan ||
-         node->opcode() == IrOpcode::kJSLessThanOrEqual ||
-         node->opcode() == IrOpcode::kJSModulus ||
-         node->opcode() == IrOpcode::kJSMultiply ||
-         node->opcode() == IrOpcode::kJSShiftLeft ||
-         node->opcode() == IrOpcode::kJSShiftRight ||
-         node->opcode() == IrOpcode::kJSShiftRightLogical ||
-         node->opcode() == IrOpcode::kJSSubtract);
+         node->opcode() == IrOpcode::kJSLessThanOrEqual);
   Builtins::Name builtin_id;
   const FeedbackParameter& p = FeedbackParameterOf(node->op());
   if (CollectFeedbackInGenericLowering() && p.feedback().IsValid()) {
@@ -194,31 +196,17 @@ void JSGenericLowering::ReplaceBinaryOrCompareOpWithBuiltinCall(
   ReplaceWithStubCall(node, callable, flags);
 }
 
-#define DEF_BINARY_OR_COMPARE_LOWERING(Name)                                   \
-  void JSGenericLowering::LowerJS##Name(Node* node) {                          \
-    ReplaceBinaryOrCompareOpWithBuiltinCall(node, Builtins::k##Name,           \
-                                            Builtins::k##Name##_WithFeedback); \
+#define DEF_COMPARE_LOWERING(Name)                                     \
+  void JSGenericLowering::LowerJS##Name(Node* node) {                  \
+    ReplaceCompareOpWithBuiltinCall(node, Builtins::k##Name,           \
+                                    Builtins::k##Name##_WithFeedback); \
   }
-// Binary ops.
-DEF_BINARY_OR_COMPARE_LOWERING(Add)
-DEF_BINARY_OR_COMPARE_LOWERING(BitwiseAnd)
-DEF_BINARY_OR_COMPARE_LOWERING(BitwiseOr)
-DEF_BINARY_OR_COMPARE_LOWERING(BitwiseXor)
-DEF_BINARY_OR_COMPARE_LOWERING(Divide)
-DEF_BINARY_OR_COMPARE_LOWERING(Exponentiate)
-DEF_BINARY_OR_COMPARE_LOWERING(Modulus)
-DEF_BINARY_OR_COMPARE_LOWERING(Multiply)
-DEF_BINARY_OR_COMPARE_LOWERING(ShiftLeft)
-DEF_BINARY_OR_COMPARE_LOWERING(ShiftRight)
-DEF_BINARY_OR_COMPARE_LOWERING(ShiftRightLogical)
-DEF_BINARY_OR_COMPARE_LOWERING(Subtract)
-// Compare ops.
-DEF_BINARY_OR_COMPARE_LOWERING(Equal)
-DEF_BINARY_OR_COMPARE_LOWERING(GreaterThan)
-DEF_BINARY_OR_COMPARE_LOWERING(GreaterThanOrEqual)
-DEF_BINARY_OR_COMPARE_LOWERING(LessThan)
-DEF_BINARY_OR_COMPARE_LOWERING(LessThanOrEqual)
-#undef DEF_BINARY_OR_COMPARE_LOWERING
+DEF_COMPARE_LOWERING(Equal)
+DEF_COMPARE_LOWERING(GreaterThan)
+DEF_COMPARE_LOWERING(GreaterThanOrEqual)
+DEF_COMPARE_LOWERING(LessThan)
+DEF_COMPARE_LOWERING(LessThanOrEqual)
+#undef DEF_COMPARE_LOWERING
 
 void JSGenericLowering::LowerJSStrictEqual(Node* node) {
   // The === operator doesn't need the current context.

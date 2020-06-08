@@ -69,7 +69,6 @@ class BytecodeGraphBuilder {
   // Helper function for creating a feedback source containing type feedback
   // vector and a feedback slot.
   FeedbackSource CreateFeedbackSource(int slot_id);
-  FeedbackSource CreateFeedbackSource(FeedbackSlot slot);
 
   void set_environment(Environment* env) { environment_ = env; }
   const Environment* environment() const { return environment_; }
@@ -243,6 +242,10 @@ class BytecodeGraphBuilder {
   // Helper function to create a context extension check.
   Environment* CheckContextExtensionAtDepth(Environment* slow_environment,
                                             uint32_t depth);
+
+  // Helper function to create binary operation hint from the recorded
+  // type feedback.
+  BinaryOperationHint GetBinaryOperationHint(int operand_index);
 
   // Helper function to create for-in mode from the recorded type feedback.
   ForInMode GetForInMode(int operand_index);
@@ -1016,10 +1019,7 @@ Node* BytecodeGraphBuilder::BuildLoadNativeContextField(int index) {
 }
 
 FeedbackSource BytecodeGraphBuilder::CreateFeedbackSource(int slot_id) {
-  return CreateFeedbackSource(FeedbackVector::ToSlot(slot_id));
-}
-
-FeedbackSource BytecodeGraphBuilder::CreateFeedbackSource(FeedbackSlot slot) {
+  FeedbackSlot slot = FeedbackVector::ToSlot(slot_id);
   return FeedbackSource(feedback_vector(), slot);
 }
 
@@ -2749,6 +2749,15 @@ void BytecodeGraphBuilder::BuildBinaryOp(const Operator* op) {
   environment()->BindAccumulator(node, Environment::kAttachFrameState);
 }
 
+// Helper function to create binary operation hint from the recorded type
+// feedback.
+BinaryOperationHint BytecodeGraphBuilder::GetBinaryOperationHint(
+    int operand_index) {
+  FeedbackSlot slot = bytecode_iterator().GetSlotOperand(operand_index);
+  FeedbackSource source(feedback_vector(), slot);
+  return broker()->GetFeedbackForBinaryOperation(source);
+}
+
 // Helper function to create for-in mode from the recorded type feedback.
 ForInMode BytecodeGraphBuilder::GetForInMode(int operand_index) {
   FeedbackSlot slot = bytecode_iterator().GetSlotOperand(operand_index);
@@ -2789,98 +2798,73 @@ SpeculationMode BytecodeGraphBuilder::GetSpeculationMode(int slot_id) const {
 
 void BytecodeGraphBuilder::VisitBitwiseNot() {
   FeedbackSource feedback = CreateFeedbackSource(
-      bytecode_iterator().GetSlotOperand(kUnaryOperationHintIndex));
+      bytecode_iterator().GetSlotOperand(kUnaryOperationHintIndex).ToInt());
   BuildUnaryOp(javascript()->BitwiseNot(feedback));
 }
 
 void BytecodeGraphBuilder::VisitDec() {
   FeedbackSource feedback = CreateFeedbackSource(
-      bytecode_iterator().GetSlotOperand(kUnaryOperationHintIndex));
+      bytecode_iterator().GetSlotOperand(kUnaryOperationHintIndex).ToInt());
   BuildUnaryOp(javascript()->Decrement(feedback));
 }
 
 void BytecodeGraphBuilder::VisitInc() {
   FeedbackSource feedback = CreateFeedbackSource(
-      bytecode_iterator().GetSlotOperand(kUnaryOperationHintIndex));
+      bytecode_iterator().GetSlotOperand(kUnaryOperationHintIndex).ToInt());
   BuildUnaryOp(javascript()->Increment(feedback));
 }
 
 void BytecodeGraphBuilder::VisitNegate() {
   FeedbackSource feedback = CreateFeedbackSource(
-      bytecode_iterator().GetSlotOperand(kUnaryOperationHintIndex));
+      bytecode_iterator().GetSlotOperand(kUnaryOperationHintIndex).ToInt());
   BuildUnaryOp(javascript()->Negate(feedback));
 }
 
 void BytecodeGraphBuilder::VisitAdd() {
-  FeedbackSource feedback = CreateFeedbackSource(
-      bytecode_iterator().GetSlotOperand(kBinaryOperationHintIndex));
-  BuildBinaryOp(javascript()->Add(feedback));
+  BuildBinaryOp(
+      javascript()->Add(GetBinaryOperationHint(kBinaryOperationHintIndex)));
 }
 
 void BytecodeGraphBuilder::VisitSub() {
-  FeedbackSource feedback = CreateFeedbackSource(
-      bytecode_iterator().GetSlotOperand(kBinaryOperationHintIndex));
-  BuildBinaryOp(javascript()->Subtract(feedback));
+  BuildBinaryOp(javascript()->Subtract());
 }
 
 void BytecodeGraphBuilder::VisitMul() {
-  FeedbackSource feedback = CreateFeedbackSource(
-      bytecode_iterator().GetSlotOperand(kBinaryOperationHintIndex));
-  BuildBinaryOp(javascript()->Multiply(feedback));
+  BuildBinaryOp(javascript()->Multiply());
 }
 
-void BytecodeGraphBuilder::VisitDiv() {
-  FeedbackSource feedback = CreateFeedbackSource(
-      bytecode_iterator().GetSlotOperand(kBinaryOperationHintIndex));
-  BuildBinaryOp(javascript()->Divide(feedback));
-}
+void BytecodeGraphBuilder::VisitDiv() { BuildBinaryOp(javascript()->Divide()); }
 
 void BytecodeGraphBuilder::VisitMod() {
-  FeedbackSource feedback = CreateFeedbackSource(
-      bytecode_iterator().GetSlotOperand(kBinaryOperationHintIndex));
-  BuildBinaryOp(javascript()->Modulus(feedback));
+  BuildBinaryOp(javascript()->Modulus());
 }
 
 void BytecodeGraphBuilder::VisitExp() {
-  FeedbackSource feedback = CreateFeedbackSource(
-      bytecode_iterator().GetSlotOperand(kBinaryOperationHintIndex));
-  BuildBinaryOp(javascript()->Exponentiate(feedback));
+  BuildBinaryOp(javascript()->Exponentiate());
 }
 
 void BytecodeGraphBuilder::VisitBitwiseOr() {
-  FeedbackSource feedback = CreateFeedbackSource(
-      bytecode_iterator().GetSlotOperand(kBinaryOperationHintIndex));
-  BuildBinaryOp(javascript()->BitwiseOr(feedback));
+  BuildBinaryOp(javascript()->BitwiseOr());
 }
 
 void BytecodeGraphBuilder::VisitBitwiseXor() {
-  FeedbackSource feedback = CreateFeedbackSource(
-      bytecode_iterator().GetSlotOperand(kBinaryOperationHintIndex));
-  BuildBinaryOp(javascript()->BitwiseXor(feedback));
+  BuildBinaryOp(javascript()->BitwiseXor());
 }
 
 void BytecodeGraphBuilder::VisitBitwiseAnd() {
-  FeedbackSource feedback = CreateFeedbackSource(
-      bytecode_iterator().GetSlotOperand(kBinaryOperationHintIndex));
-  BuildBinaryOp(javascript()->BitwiseAnd(feedback));
+  BuildBinaryOp(javascript()->BitwiseAnd());
 }
 
 void BytecodeGraphBuilder::VisitShiftLeft() {
-  FeedbackSource feedback = CreateFeedbackSource(
-      bytecode_iterator().GetSlotOperand(kBinaryOperationHintIndex));
-  BuildBinaryOp(javascript()->ShiftLeft(feedback));
+  BuildBinaryOp(javascript()->ShiftLeft());
 }
 
 void BytecodeGraphBuilder::VisitShiftRight() {
-  FeedbackSource feedback = CreateFeedbackSource(
-      bytecode_iterator().GetSlotOperand(kBinaryOperationHintIndex));
-  BuildBinaryOp(javascript()->ShiftRight(feedback));
+  BuildBinaryOp(javascript()->ShiftRight());
 }
 
 void BytecodeGraphBuilder::VisitShiftRightLogical() {
-  FeedbackSource feedback = CreateFeedbackSource(
-      bytecode_iterator().GetSlotOperand(kBinaryOperationHintIndex));
-  BuildBinaryOp(javascript()->ShiftRightLogical(feedback));
+  BuildBinaryOp(javascript()->ShiftRightLogical());
 }
 
 void BytecodeGraphBuilder::BuildBinaryOpWithImmediate(const Operator* op) {
@@ -2905,75 +2889,52 @@ void BytecodeGraphBuilder::BuildBinaryOpWithImmediate(const Operator* op) {
 }
 
 void BytecodeGraphBuilder::VisitAddSmi() {
-  FeedbackSource feedback = CreateFeedbackSource(
-      bytecode_iterator().GetSlotOperand(kBinaryOperationSmiHintIndex));
-  BuildBinaryOpWithImmediate(javascript()->Add(feedback));
+  BuildBinaryOpWithImmediate(
+      javascript()->Add(GetBinaryOperationHint(kBinaryOperationSmiHintIndex)));
 }
 
 void BytecodeGraphBuilder::VisitSubSmi() {
-  FeedbackSource feedback = CreateFeedbackSource(
-      bytecode_iterator().GetSlotOperand(kBinaryOperationSmiHintIndex));
-  BuildBinaryOpWithImmediate(javascript()->Subtract(feedback));
+  BuildBinaryOpWithImmediate(javascript()->Subtract());
 }
 
 void BytecodeGraphBuilder::VisitMulSmi() {
-  FeedbackSource feedback = CreateFeedbackSource(
-      bytecode_iterator().GetSlotOperand(kBinaryOperationSmiHintIndex));
-  BuildBinaryOpWithImmediate(javascript()->Multiply(feedback));
+  BuildBinaryOpWithImmediate(javascript()->Multiply());
 }
 
 void BytecodeGraphBuilder::VisitDivSmi() {
-  FeedbackSource feedback = CreateFeedbackSource(
-      bytecode_iterator().GetSlotOperand(kBinaryOperationSmiHintIndex));
-  BuildBinaryOpWithImmediate(javascript()->Divide(feedback));
+  BuildBinaryOpWithImmediate(javascript()->Divide());
 }
 
 void BytecodeGraphBuilder::VisitModSmi() {
-  FeedbackSource feedback = CreateFeedbackSource(
-      bytecode_iterator().GetSlotOperand(kBinaryOperationSmiHintIndex));
-  BuildBinaryOpWithImmediate(javascript()->Modulus(feedback));
+  BuildBinaryOpWithImmediate(javascript()->Modulus());
 }
 
 void BytecodeGraphBuilder::VisitExpSmi() {
-  FeedbackSource feedback = CreateFeedbackSource(
-      bytecode_iterator().GetSlotOperand(kBinaryOperationSmiHintIndex));
-  BuildBinaryOpWithImmediate(javascript()->Exponentiate(feedback));
+  BuildBinaryOpWithImmediate(javascript()->Exponentiate());
 }
 
 void BytecodeGraphBuilder::VisitBitwiseOrSmi() {
-  FeedbackSource feedback = CreateFeedbackSource(
-      bytecode_iterator().GetSlotOperand(kBinaryOperationSmiHintIndex));
-  BuildBinaryOpWithImmediate(javascript()->BitwiseOr(feedback));
+  BuildBinaryOpWithImmediate(javascript()->BitwiseOr());
 }
 
 void BytecodeGraphBuilder::VisitBitwiseXorSmi() {
-  FeedbackSource feedback = CreateFeedbackSource(
-      bytecode_iterator().GetSlotOperand(kBinaryOperationSmiHintIndex));
-  BuildBinaryOpWithImmediate(javascript()->BitwiseXor(feedback));
+  BuildBinaryOpWithImmediate(javascript()->BitwiseXor());
 }
 
 void BytecodeGraphBuilder::VisitBitwiseAndSmi() {
-  FeedbackSource feedback = CreateFeedbackSource(
-      bytecode_iterator().GetSlotOperand(kBinaryOperationSmiHintIndex));
-  BuildBinaryOpWithImmediate(javascript()->BitwiseAnd(feedback));
+  BuildBinaryOpWithImmediate(javascript()->BitwiseAnd());
 }
 
 void BytecodeGraphBuilder::VisitShiftLeftSmi() {
-  FeedbackSource feedback = CreateFeedbackSource(
-      bytecode_iterator().GetSlotOperand(kBinaryOperationSmiHintIndex));
-  BuildBinaryOpWithImmediate(javascript()->ShiftLeft(feedback));
+  BuildBinaryOpWithImmediate(javascript()->ShiftLeft());
 }
 
 void BytecodeGraphBuilder::VisitShiftRightSmi() {
-  FeedbackSource feedback = CreateFeedbackSource(
-      bytecode_iterator().GetSlotOperand(kBinaryOperationSmiHintIndex));
-  BuildBinaryOpWithImmediate(javascript()->ShiftRight(feedback));
+  BuildBinaryOpWithImmediate(javascript()->ShiftRight());
 }
 
 void BytecodeGraphBuilder::VisitShiftRightLogicalSmi() {
-  FeedbackSource feedback = CreateFeedbackSource(
-      bytecode_iterator().GetSlotOperand(kBinaryOperationSmiHintIndex));
-  BuildBinaryOpWithImmediate(javascript()->ShiftRightLogical(feedback));
+  BuildBinaryOpWithImmediate(javascript()->ShiftRightLogical());
 }
 
 void BytecodeGraphBuilder::VisitLogicalNot() {
@@ -3043,37 +3004,37 @@ void BytecodeGraphBuilder::BuildCompareOp(const Operator* op) {
 
 void BytecodeGraphBuilder::VisitTestEqual() {
   FeedbackSource feedback = CreateFeedbackSource(
-      bytecode_iterator().GetSlotOperand(kCompareOperationHintIndex));
+      bytecode_iterator().GetSlotOperand(kCompareOperationHintIndex).ToInt());
   BuildCompareOp(javascript()->Equal(feedback));
 }
 
 void BytecodeGraphBuilder::VisitTestEqualStrict() {
   FeedbackSource feedback = CreateFeedbackSource(
-      bytecode_iterator().GetSlotOperand(kCompareOperationHintIndex));
+      bytecode_iterator().GetSlotOperand(kCompareOperationHintIndex).ToInt());
   BuildCompareOp(javascript()->StrictEqual(feedback));
 }
 
 void BytecodeGraphBuilder::VisitTestLessThan() {
   FeedbackSource feedback = CreateFeedbackSource(
-      bytecode_iterator().GetSlotOperand(kCompareOperationHintIndex));
+      bytecode_iterator().GetSlotOperand(kCompareOperationHintIndex).ToInt());
   BuildCompareOp(javascript()->LessThan(feedback));
 }
 
 void BytecodeGraphBuilder::VisitTestGreaterThan() {
   FeedbackSource feedback = CreateFeedbackSource(
-      bytecode_iterator().GetSlotOperand(kCompareOperationHintIndex));
+      bytecode_iterator().GetSlotOperand(kCompareOperationHintIndex).ToInt());
   BuildCompareOp(javascript()->GreaterThan(feedback));
 }
 
 void BytecodeGraphBuilder::VisitTestLessThanOrEqual() {
   FeedbackSource feedback = CreateFeedbackSource(
-      bytecode_iterator().GetSlotOperand(kCompareOperationHintIndex));
+      bytecode_iterator().GetSlotOperand(kCompareOperationHintIndex).ToInt());
   BuildCompareOp(javascript()->LessThanOrEqual(feedback));
 }
 
 void BytecodeGraphBuilder::VisitTestGreaterThanOrEqual() {
   FeedbackSource feedback = CreateFeedbackSource(
-      bytecode_iterator().GetSlotOperand(kCompareOperationHintIndex));
+      bytecode_iterator().GetSlotOperand(kCompareOperationHintIndex).ToInt());
   BuildCompareOp(javascript()->GreaterThanOrEqual(feedback));
 }
 
