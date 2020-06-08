@@ -37,8 +37,8 @@ class V8_EXPORT MakeGarbageCollectedTraitInternal {
   }
 
   static void* Allocate(cppgc::Heap* heap, size_t size, GCInfoIndex index);
-  static void* Allocate(cppgc::Heap* heapx, size_t size, GCInfoIndex index,
-                        CustomSpaceIndex space_inde);
+  static void* Allocate(cppgc::Heap* heap, size_t size, GCInfoIndex index,
+                        CustomSpaceIndex space_index);
 
   friend class HeapObjectHeader;
 };
