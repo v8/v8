@@ -1248,7 +1248,7 @@ void TurboAssembler::Ulwc1(FPURegister fd, const MemOperand& rs,
 
 void TurboAssembler::Uswc1(FPURegister fd, const MemOperand& rs,
                            Register scratch) {
-  UnalignedFStoreHelper<8>(fd, rs, scratch);
+  UnalignedFStoreHelper<4>(fd, rs, scratch);
 }
 
 void TurboAssembler::Uldc1(FPURegister fd, const MemOperand& rs,

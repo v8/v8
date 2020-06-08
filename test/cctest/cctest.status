@@ -592,7 +592,6 @@
   'test-run-jsexceptions/*': [SKIP],
   'test-run-jsobjects/*': [SKIP],
   'test-run-jsops/*': [SKIP],
-  'test-run-load-store/*': [SKIP],
   'test-run-machops/*': [SKIP],
   'test-run-native-calls/*': [SKIP],
   'test-run-retpoline/*': [SKIP],
