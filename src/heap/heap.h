@@ -1885,7 +1885,7 @@ class Heap {
     return FLAG_global_gc_scheduling && local_embedder_heap_tracer();
   }
 
-  size_t GlobalMemoryAvailable();
+  base::Optional<size_t> GlobalMemoryAvailable();
 
   void RecomputeLimits(GarbageCollector collector);
 

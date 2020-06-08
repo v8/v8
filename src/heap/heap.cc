@@ -1763,10 +1763,12 @@ void Heap::StartIncrementalMarkingIfAllocationLimitIsReachedBackground() {
   }
 
   const size_t old_generation_space_available = OldGenerationSpaceAvailable();
-  const size_t global_memory_available = GlobalMemoryAvailable();
+  const base::Optional<size_t> global_memory_available =
+      GlobalMemoryAvailable();
 
   if (old_generation_space_available < new_space_->Capacity() ||
-      global_memory_available < new_space_->Capacity()) {
+      (global_memory_available &&
+       *global_memory_available < new_space_->Capacity())) {
     incremental_marking()->incremental_marking_job()->ScheduleTask(this);
   }
 }
@@ -5047,12 +5049,15 @@ Heap::HeapGrowingMode Heap::CurrentHeapGrowingMode() {
   return Heap::HeapGrowingMode::kDefault;
 }
 
-size_t Heap::GlobalMemoryAvailable() {
-  return UseGlobalMemoryScheduling()
-             ? GlobalSizeOfObjects() < global_allocation_limit_
-                   ? global_allocation_limit_ - GlobalSizeOfObjects()
-                   : 0
-             : new_space_->Capacity() + 1;
+base::Optional<size_t> Heap::GlobalMemoryAvailable() {
+  if (!UseGlobalMemoryScheduling()) return {};
+
+  size_t global_size = GlobalSizeOfObjects();
+
+  if (global_size < global_allocation_limit_)
+    return global_allocation_limit_ - global_size;
+
+  return 0;
 }
 
 double Heap::PercentToOldGenerationLimit() {
@@ -5135,10 +5140,12 @@ Heap::IncrementalMarkingLimit Heap::IncrementalMarkingLimitReached() {
   }
 
   size_t old_generation_space_available = OldGenerationSpaceAvailable();
-  const size_t global_memory_available = GlobalMemoryAvailable();
+  const base::Optional<size_t> global_memory_available =
+      GlobalMemoryAvailable();
 
   if (old_generation_space_available > new_space_->Capacity() &&
-      (global_memory_available > new_space_->Capacity())) {
+      (!global_memory_available ||
+       global_memory_available > new_space_->Capacity())) {
     return IncrementalMarkingLimit::kNoLimit;
   }
   if (ShouldOptimizeForMemoryUsage()) {
@@ -5150,7 +5157,7 @@ Heap::IncrementalMarkingLimit Heap::IncrementalMarkingLimitReached() {
   if (old_generation_space_available == 0) {
     return IncrementalMarkingLimit::kHardLimit;
   }
-  if (global_memory_available == 0) {
+  if (global_memory_available && *global_memory_available == 0) {
     return IncrementalMarkingLimit::kHardLimit;
   }
   return IncrementalMarkingLimit::kSoftLimit;
