@@ -146,6 +146,7 @@ int InstructionScheduler::GetTargetInstructionFlags(
     case kX64F64x2Qfms:
     case kX64F64x2Pmin:
     case kX64F64x2Pmax:
+    case kX64F64x2Round:
     case kX64F32x4Splat:
     case kX64F32x4ExtractLane:
     case kX64F32x4ReplaceLane:
