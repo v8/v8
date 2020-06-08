@@ -2661,7 +2661,8 @@ void InstructionSelector::VisitI64x2MaxU(Node* node) { UNIMPLEMENTED(); }
 #endif  // !V8_TARGET_ARCH_X64 && !V8_TARGET_ARCH_S390X
 
 #if !V8_TARGET_ARCH_ARM64 && !V8_TARGET_ARCH_ARM && !V8_TARGET_ARCH_IA32 && \
-    !V8_TARGET_ARCH_X64 && !V8_TARGET_ARCH_S390X
+    !V8_TARGET_ARCH_X64 && !V8_TARGET_ARCH_S390X && !V8_TARGET_ARCH_MIPS && \
+    !V8_TARGET_ARCH_MIPS64
 // TODO(v8:10308) Bitmask operations are in prototype now, we can remove these
 // guards when they go into the proposal.
 void InstructionSelector::VisitI8x16BitMask(Node* node) { UNIMPLEMENTED(); }
@@ -2673,7 +2674,8 @@ void InstructionSelector::VisitF32x4Pmax(Node* node) { UNIMPLEMENTED(); }
 void InstructionSelector::VisitF64x2Pmin(Node* node) { UNIMPLEMENTED(); }
 void InstructionSelector::VisitF64x2Pmax(Node* node) { UNIMPLEMENTED(); }
 #endif  // !V8_TARGET_ARCH_ARM64 && !V8_TARGET_ARCH_ARM && !V8_TARGET_ARCH_IA32
-        // && !V8_TARGET_ARCH_X64 && !V8_TARGET_ARCH_S390X
+        // && !V8_TARGET_ARCH_X64 && !V8_TARGET_ARCH_S390X &&
+        // !V8_TARGET_ARCH_MIPS && !V8_TARGET_ARCH_MIPS64
 
 #if !V8_TARGET_ARCH_X64
 // TODO(v8:10553) Prototyping floating point rounding instructions.

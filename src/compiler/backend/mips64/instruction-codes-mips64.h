@@ -203,6 +203,8 @@ namespace compiler {
   V(Mips64F64x2Splat)                        \
   V(Mips64F64x2ExtractLane)                  \
   V(Mips64F64x2ReplaceLane)                  \
+  V(Mips64F64x2Pmin)                         \
+  V(Mips64F64x2Pmax)                         \
   V(Mips64I64x2Splat)                        \
   V(Mips64I64x2ExtractLane)                  \
   V(Mips64I64x2ReplaceLane)                  \
@@ -229,6 +231,8 @@ namespace compiler {
   V(Mips64F32x4Ne)                           \
   V(Mips64F32x4Lt)                           \
   V(Mips64F32x4Le)                           \
+  V(Mips64F32x4Pmin)                         \
+  V(Mips64F32x4Pmax)                         \
   V(Mips64I32x4SConvertF32x4)                \
   V(Mips64I32x4UConvertF32x4)                \
   V(Mips64I32x4Neg)                          \
