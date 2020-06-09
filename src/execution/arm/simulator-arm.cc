@@ -5658,12 +5658,12 @@ void Simulator::DecodeSpecialCondition(Instruction* instr) {
           int32_t address = get_register(Rn);
           int regs = instr->Bit(5) + 1;
           int size = instr->Bits(7, 6);
-          uint32_t q_data[4];
+          uint32_t q_data[2];
           switch (size) {
             case Neon8: {
               uint8_t data = ReadBU(address);
               uint8_t* dst = reinterpret_cast<uint8_t*>(q_data);
-              for (int i = 0; i < 16; i++) {
+              for (int i = 0; i < 8; i++) {
                 dst[i] = data;
               }
               break;
@@ -5671,21 +5671,21 @@ void Simulator::DecodeSpecialCondition(Instruction* instr) {
             case Neon16: {
               uint16_t data = ReadHU(address);
               uint16_t* dst = reinterpret_cast<uint16_t*>(q_data);
-              for (int i = 0; i < 8; i++) {
+              for (int i = 0; i < 4; i++) {
                 dst[i] = data;
               }
               break;
             }
             case Neon32: {
               uint32_t data = ReadW(address);
-              for (int i = 0; i < 4; i++) {
+              for (int i = 0; i < 2; i++) {
                 q_data[i] = data;
               }
               break;
             }
           }
           for (int r = 0; r < regs; r++) {
-            set_neon_register(Vd + r, q_data);
+            set_neon_register<uint32_t, kDoubleSize>(Vd + r, q_data);
           }
           if (Rm != 15) {
             if (Rm == 13) {
