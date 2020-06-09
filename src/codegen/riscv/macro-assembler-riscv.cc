@@ -127,8 +127,10 @@ void TurboAssembler::LoadRoot(Register destination, RootIndex index) {
 void TurboAssembler::LoadRoot(Register destination, RootIndex index,
                               Condition cond, Register src1,
                               const Operand& src2) {
-  Branch(kInstrSize, NegateCondition(cond), src1, src2);
+  Label skip;
+  Branch(&skip, NegateCondition(cond), src1, src2);
   Ld(destination, MemOperand(s6, RootRegisterOffsetForRootIndex(index)));
+  bind(&skip);
 }
 
 void TurboAssembler::PushCommonFrame(Register marker_reg) {
@@ -2946,7 +2948,7 @@ bool TurboAssembler::BranchAndLinkShortHelper(int32_t offset, Label* L,
     offset = GetOffset(offset, L, OffsetSize::kOffset21);
     RV_jal(offset);
   } else {
-    Branch(kInstrSize, NegateCondition(cond), rs,
+    Branch(kInstrSize * 2, NegateCondition(cond), rs,
            Operand(GetRtAsRegisterHelper(rt, scratch)));
     offset = GetOffset(offset, L, OffsetSize::kOffset21);
     RV_jal(offset);
@@ -2999,7 +3001,7 @@ void TurboAssembler::Jump(Register target, Condition cond, Register rs,
     RV_jr(target);
   } else {
     BRANCH_ARGS_CHECK(cond, rs, rt);
-    Branch(kInstrSize, NegateCondition(cond), rs, rt);
+    Branch(kInstrSize * 2, NegateCondition(cond), rs, rt);
     RV_jr(target);
   }
 }
@@ -3065,7 +3067,7 @@ void TurboAssembler::Call(Register target, Condition cond, Register rs,
     RV_jalr(ra, target, 0);
   } else {
     BRANCH_ARGS_CHECK(cond, rs, rt);
-    Branch(kInstrSize, NegateCondition(cond), rs, rt);
+    Branch(kInstrSize * 2, NegateCondition(cond), rs, rt);
     RV_jalr(ra, target, 0);
   }
 }
