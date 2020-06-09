@@ -37,13 +37,18 @@ static NodeVector::iterator FindInsertionPoint(BasicBlock* block) {
   return i;
 }
 
+static const Operator* IntPtrConstant(CommonOperatorBuilder* common,
+                                      intptr_t value) {
+  return kSystemPointerSize == 8
+             ? common->Int64Constant(value)
+             : common->Int32Constant(static_cast<int32_t>(value));
+}
+
 // TODO(dcarney): need to mark code as non-serializable.
 static const Operator* PointerConstant(CommonOperatorBuilder* common,
                                        const void* ptr) {
   intptr_t ptr_as_int = reinterpret_cast<intptr_t>(ptr);
-  return kSystemPointerSize == 8
-             ? common->Int64Constant(ptr_as_int)
-             : common->Int32Constant(static_cast<int32_t>(ptr_as_int));
+  return IntPtrConstant(common, ptr_as_int);
 }
 
 BasicBlockProfilerData* BasicBlockInstrumentor::Instrument(
@@ -102,7 +107,7 @@ BasicBlockProfilerData* BasicBlockInstrumentor::Instrument(
       offset_to_counter_value += ByteArray::kHeaderSize - kHeapObjectTag;
     }
     Node* offset_to_counter =
-        graph->NewNode(common.Int32Constant(offset_to_counter_value));
+        graph->NewNode(IntPtrConstant(&common, offset_to_counter_value));
     Node* load =
         graph->NewNode(machine.Load(MachineType::Uint32()), counters_array,
                        offset_to_counter, graph->start(), graph->start());
