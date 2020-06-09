@@ -1550,7 +1550,7 @@ bool RegExpParser::ParseUnlimitedLengthHexNumber(int max_value, uc32* value) {
   }
   while (d >= 0) {
     x = x * 16 + d;
-    if (x > max_value) {
+    if (x > static_cast<uc32>(max_value)) {
       return false;
     }
     Advance();

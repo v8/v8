@@ -329,7 +329,7 @@ constexpr uint64_t kQuietNaNMask = static_cast<uint64_t>(0xfff) << 51;
 // Code-point values in Unicode 4.0 are 21 bits wide.
 // Code units in UTF-16 are 16 bits wide.
 using uc16 = uint16_t;
-using uc32 = int32_t;
+using uc32 = uint32_t;
 constexpr int kOneByteSize = kCharSize;
 constexpr int kUC16Size = sizeof(uc16);  // NOLINT
 

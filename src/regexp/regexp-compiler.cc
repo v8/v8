@@ -1126,7 +1126,7 @@ static void GenerateBranches(RegExpMacroAssembler* masm, ZoneList<int>* ranges,
     return;
   }
 
-  if ((min_char >> kBits) != (first >> kBits)) {
+  if ((min_char >> kBits) != static_cast<uc32>(first >> kBits)) {
     masm->CheckCharacterLT(first, odd_label);
     GenerateBranches(masm, ranges, start_index + 1, end_index, first, max_char,
                      fall_through, odd_label, even_label);
@@ -1197,7 +1197,7 @@ static void EmitCharClass(RegExpMacroAssembler* macro_assembler,
   int last_valid_range = range_count - 1;
   while (last_valid_range >= 0) {
     CharacterRange& range = ranges->at(last_valid_range);
-    if (range.from() <= max_char) {
+    if (static_cast<int>(range.from()) <= max_char) {
       break;
     }
     last_valid_range--;
@@ -1240,6 +1240,7 @@ static void EmitCharClass(RegExpMacroAssembler* macro_assembler,
   // entry at zero which goes to the failure label, but if there
   // was already one there we fall through for success on that entry.
   // Subsequent entries have alternating meaning (success/failure).
+  // TODO(jgruber,v8:10568): Change `range_boundaries` to a ZoneList<uc32>.
   ZoneList<int>* range_boundaries =
       new (zone) ZoneList<int>(last_valid_range, zone);
 
@@ -1636,7 +1637,7 @@ void TextNode::GetQuickCheckDetails(QuickCheckDetails* details,
         pos->value = 0;
       } else {
         int first_range = 0;
-        while (ranges->at(first_range).from() > char_mask) {
+        while (static_cast<int>(ranges->at(first_range).from()) > char_mask) {
           first_range++;
           if (first_range == ranges->length()) {
             details->set_cannot_match();
@@ -3788,7 +3789,7 @@ void TextNode::FillInBMInfo(Isolate* isolate, int initial_offset, int budget,
       } else {
         for (int k = 0; k < ranges->length(); k++) {
           CharacterRange& range = ranges->at(k);
-          if (range.from() > max_char) continue;
+          if (static_cast<int>(range.from()) > max_char) continue;
           int to = Min(max_char, static_cast<int>(range.to()));
           bm->SetInterval(offset, Interval(range.from(), to));
         }
