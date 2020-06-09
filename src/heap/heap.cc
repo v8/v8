@@ -1664,8 +1664,12 @@ bool Heap::CollectGarbage(AllocationSpace space,
     }
 
     if (collector == MARK_COMPACTOR) {
-      size_t committed_memory_after = CommittedOldGenerationMemory();
+      // Calculate used memory first, then committed memory. Following code
+      // assumes that committed >= used, which might not hold when this is
+      // calculated in the wrong order and background threads allocate
+      // in-between.
       size_t used_memory_after = OldGenerationSizeOfObjects();
+      size_t committed_memory_after = CommittedOldGenerationMemory();
       MemoryReducer::Event event;
       event.type = MemoryReducer::kMarkCompact;
       event.time_ms = MonotonicallyIncreasingTimeInMs();
