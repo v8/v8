@@ -3991,6 +3991,9 @@ void TranslatedState::StoreMaterializedValuesAndDeopt(JavaScriptFrame* frame) {
 
     if (!value.is_identical_to(marker)) {
       if (previously_materialized_objects->get(i) == *marker) {
+        if (value->IsSmi()) {
+          value = isolate()->factory()->NewHeapNumber(value->Number());
+        }
         previously_materialized_objects->set(i, *value);
         value_changed = true;
       } else {
