@@ -1365,7 +1365,15 @@ void InstructionSelector::VisitWord64Ror(Node* node) {
   V(Float64RoundTiesEven, kArm64Float64RoundTiesEven)         \
   V(Float64ExtractLowWord32, kArm64Float64ExtractLowWord32)   \
   V(Float64ExtractHighWord32, kArm64Float64ExtractHighWord32) \
-  V(Float64SilenceNaN, kArm64Float64SilenceNaN)
+  V(Float64SilenceNaN, kArm64Float64SilenceNaN)               \
+  V(F32x4Ceil, kArm64F32x4RoundUp)                            \
+  V(F32x4Floor, kArm64F32x4RoundDown)                         \
+  V(F32x4Trunc, kArm64F32x4RoundTruncate)                     \
+  V(F32x4NearestInt, kArm64F32x4RoundTiesEven)                \
+  V(F64x2Ceil, kArm64F64x2RoundUp)                            \
+  V(F64x2Floor, kArm64F64x2RoundDown)                         \
+  V(F64x2Trunc, kArm64F64x2RoundTruncate)                     \
+  V(F64x2NearestInt, kArm64F64x2RoundTiesEven)
 
 #define RRR_OP_LIST(V)            \
   V(Int32Div, kArm64Idiv32)       \

@@ -691,7 +691,7 @@ WASM_SIMD_TEST(F32x4RecipSqrtApprox) {
 }
 
 // TODO(v8:10553) Prototyping floating-point rounding instructions.
-#if V8_TARGET_ARCH_X64
+#if V8_TARGET_ARCH_X64 || V8_TARGET_ARCH_ARM64
 WASM_SIMD_TEST_NO_LOWERING(F32x4Ceil) {
   FLAG_SCOPE(wasm_simd_post_mvp);
   RunF32x4UnOpTest(execution_tier, lower_simd, kExprF32x4Ceil, ceilf, true);
@@ -712,7 +712,7 @@ WASM_SIMD_TEST_NO_LOWERING(F32x4NearestInt) {
   RunF32x4UnOpTest(execution_tier, lower_simd, kExprF32x4NearestInt, nearbyintf,
                    true);
 }
-#endif  // V8_TARGET_ARCH_X64
+#endif  // V8_TARGET_ARCH_X64 || V8_TARGET_ARCH_ARM64
 
 void RunF32x4BinOpTest(ExecutionTier execution_tier, LowerSimd lower_simd,
                        WasmOpcode opcode, FloatBinOp expected_op) {
@@ -1326,7 +1326,7 @@ WASM_SIMD_TEST_NO_LOWERING(F64x2Sqrt) {
 }
 
 // TODO(v8:10553) Prototyping floating-point rounding instructions.
-#if V8_TARGET_ARCH_X64
+#if V8_TARGET_ARCH_X64 || V8_TARGET_ARCH_ARM64
 WASM_SIMD_TEST_NO_LOWERING(F64x2Ceil) {
   FLAG_SCOPE(wasm_simd_post_mvp);
   RunF64x2UnOpTest(execution_tier, lower_simd, kExprF64x2Ceil, ceil, true);
@@ -1347,7 +1347,7 @@ WASM_SIMD_TEST_NO_LOWERING(F64x2NearestInt) {
   RunF64x2UnOpTest(execution_tier, lower_simd, kExprF64x2NearestInt, nearbyint,
                    true);
 }
-#endif  // V8_TARGET_ARCH_X64
+#endif  // V8_TARGET_ARCH_X64 || V8_TARGET_ARCH_ARM64
 
 void RunF64x2BinOpTest(ExecutionTier execution_tier, LowerSimd lower_simd,
                        WasmOpcode opcode, DoubleBinOp expected_op) {

@@ -1924,6 +1924,22 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       __ Bsl(dst.V16B(), rhs.V16B(), lhs.V16B());
       break;
     }
+    case kArm64F64x2RoundUp:
+      __ Frintp(i.OutputSimd128Register().V2D(),
+                i.InputSimd128Register(0).V2D());
+      break;
+    case kArm64F64x2RoundDown:
+      __ Frintm(i.OutputSimd128Register().V2D(),
+                i.InputSimd128Register(0).V2D());
+      break;
+    case kArm64F64x2RoundTruncate:
+      __ Frintz(i.OutputSimd128Register().V2D(),
+                i.InputSimd128Register(0).V2D());
+      break;
+    case kArm64F64x2RoundTiesEven:
+      __ Frintn(i.OutputSimd128Register().V2D(),
+                i.InputSimd128Register(0).V2D());
+      break;
     case kArm64F32x4Splat: {
       __ Dup(i.OutputSimd128Register().V4S(), i.InputSimd128Register(0).S(), 0);
       break;
@@ -1997,6 +2013,22 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       __ Bsl(dst.V16B(), rhs.V16B(), lhs.V16B());
       break;
     }
+    case kArm64F32x4RoundUp:
+      __ Frintp(i.OutputSimd128Register().V4S(),
+                i.InputSimd128Register(0).V4S());
+      break;
+    case kArm64F32x4RoundDown:
+      __ Frintm(i.OutputSimd128Register().V4S(),
+                i.InputSimd128Register(0).V4S());
+      break;
+    case kArm64F32x4RoundTruncate:
+      __ Frintz(i.OutputSimd128Register().V4S(),
+                i.InputSimd128Register(0).V4S());
+      break;
+    case kArm64F32x4RoundTiesEven:
+      __ Frintn(i.OutputSimd128Register().V4S(),
+                i.InputSimd128Register(0).V4S());
+      break;
     case kArm64I64x2Splat: {
       __ Dup(i.OutputSimd128Register().V2D(), i.InputRegister64(0));
       break;

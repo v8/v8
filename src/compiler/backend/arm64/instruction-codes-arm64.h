@@ -188,6 +188,10 @@ namespace compiler {
   V(Arm64F64x2Qfms)                         \
   V(Arm64F64x2Pmin)                         \
   V(Arm64F64x2Pmax)                         \
+  V(Arm64F64x2RoundUp)                      \
+  V(Arm64F64x2RoundDown)                    \
+  V(Arm64F64x2RoundTruncate)                \
+  V(Arm64F64x2RoundTiesEven)                \
   V(Arm64F32x4Splat)                        \
   V(Arm64F32x4ExtractLane)                  \
   V(Arm64F32x4ReplaceLane)                  \
@@ -213,6 +217,10 @@ namespace compiler {
   V(Arm64F32x4Qfms)                         \
   V(Arm64F32x4Pmin)                         \
   V(Arm64F32x4Pmax)                         \
+  V(Arm64F32x4RoundUp)                      \
+  V(Arm64F32x4RoundDown)                    \
+  V(Arm64F32x4RoundTruncate)                \
+  V(Arm64F32x4RoundTiesEven)                \
   V(Arm64I64x2Splat)                        \
   V(Arm64I64x2ExtractLane)                  \
   V(Arm64I64x2ReplaceLane)                  \

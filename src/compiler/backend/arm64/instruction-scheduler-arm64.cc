@@ -158,6 +158,10 @@ int InstructionScheduler::GetTargetInstructionFlags(
     case kArm64F64x2Qfms:
     case kArm64F64x2Pmin:
     case kArm64F64x2Pmax:
+    case kArm64F64x2RoundUp:
+    case kArm64F64x2RoundDown:
+    case kArm64F64x2RoundTruncate:
+    case kArm64F64x2RoundTiesEven:
     case kArm64F32x4Splat:
     case kArm64F32x4ExtractLane:
     case kArm64F32x4ReplaceLane:
@@ -183,6 +187,10 @@ int InstructionScheduler::GetTargetInstructionFlags(
     case kArm64F32x4Qfms:
     case kArm64F32x4Pmin:
     case kArm64F32x4Pmax:
+    case kArm64F32x4RoundUp:
+    case kArm64F32x4RoundDown:
+    case kArm64F32x4RoundTruncate:
+    case kArm64F32x4RoundTiesEven:
     case kArm64I64x2Splat:
     case kArm64I64x2ExtractLane:
     case kArm64I64x2ReplaceLane:
