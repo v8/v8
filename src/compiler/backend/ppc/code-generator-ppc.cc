@@ -2610,6 +2610,206 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
                 i.InputSimd128Register(1));
       break;
     }
+    case kPPC_F64x2Eq: {
+      __ xvcmpeqdp(i.OutputSimd128Register(), i.InputSimd128Register(0),
+                   i.InputSimd128Register(1));
+      break;
+    }
+    case kPPC_F64x2Ne: {
+      __ xvcmpeqdp(kScratchDoubleReg, i.InputSimd128Register(0),
+                   i.InputSimd128Register(1));
+      __ vnor(i.OutputSimd128Register(), kScratchDoubleReg, kScratchDoubleReg);
+      break;
+    }
+    case kPPC_F64x2Le: {
+      __ xvcmpgedp(i.OutputSimd128Register(), i.InputSimd128Register(1),
+                   i.InputSimd128Register(0));
+      break;
+    }
+    case kPPC_F64x2Lt: {
+      __ xvcmpgtdp(i.OutputSimd128Register(), i.InputSimd128Register(1),
+                   i.InputSimd128Register(0));
+      break;
+    }
+    case kPPC_F32x4Eq: {
+      __ xvcmpeqsp(i.OutputSimd128Register(), i.InputSimd128Register(0),
+                   i.InputSimd128Register(1));
+      break;
+    }
+    case kPPC_I64x2Eq: {
+      __ vcmpequd(i.OutputSimd128Register(), i.InputSimd128Register(0),
+                  i.InputSimd128Register(1));
+      break;
+    }
+    case kPPC_I32x4Eq: {
+      __ vcmpequw(i.OutputSimd128Register(), i.InputSimd128Register(0),
+                  i.InputSimd128Register(1));
+      break;
+    }
+    case kPPC_I16x8Eq: {
+      __ vcmpequh(i.OutputSimd128Register(), i.InputSimd128Register(0),
+                  i.InputSimd128Register(1));
+      break;
+    }
+    case kPPC_I8x16Eq: {
+      __ vcmpequb(i.OutputSimd128Register(), i.InputSimd128Register(0),
+                  i.InputSimd128Register(1));
+      break;
+    }
+    case kPPC_F32x4Ne: {
+      __ xvcmpeqsp(kScratchDoubleReg, i.InputSimd128Register(0),
+                   i.InputSimd128Register(1));
+      __ vnor(i.OutputSimd128Register(), kScratchDoubleReg, kScratchDoubleReg);
+      break;
+    }
+    case kPPC_I64x2Ne: {
+      __ vcmpequd(kScratchDoubleReg, i.InputSimd128Register(0),
+                  i.InputSimd128Register(1));
+      __ vnor(i.OutputSimd128Register(), kScratchDoubleReg, kScratchDoubleReg);
+      break;
+    }
+    case kPPC_I32x4Ne: {
+      __ vcmpequw(kScratchDoubleReg, i.InputSimd128Register(0),
+                  i.InputSimd128Register(1));
+      __ vnor(i.OutputSimd128Register(), kScratchDoubleReg, kScratchDoubleReg);
+      break;
+    }
+    case kPPC_I16x8Ne: {
+      __ vcmpequh(kScratchDoubleReg, i.InputSimd128Register(0),
+                  i.InputSimd128Register(1));
+      __ vnor(i.OutputSimd128Register(), kScratchDoubleReg, kScratchDoubleReg);
+      break;
+    }
+    case kPPC_I8x16Ne: {
+      __ vcmpequb(kScratchDoubleReg, i.InputSimd128Register(0),
+                  i.InputSimd128Register(1));
+      __ vnor(i.OutputSimd128Register(), kScratchDoubleReg, kScratchDoubleReg);
+      break;
+    }
+    case kPPC_F32x4Lt: {
+      __ xvcmpgtsp(i.OutputSimd128Register(), i.InputSimd128Register(1),
+                   i.InputSimd128Register(0));
+      break;
+    }
+    case kPPC_F32x4Le: {
+      __ xvcmpgesp(i.OutputSimd128Register(), i.InputSimd128Register(1),
+                   i.InputSimd128Register(0));
+      break;
+    }
+    case kPPC_I64x2GtS: {
+      __ vcmpgtsd(i.OutputSimd128Register(), i.InputSimd128Register(0),
+                  i.InputSimd128Register(1));
+      break;
+    }
+    case kPPC_I32x4GtS: {
+      __ vcmpgtsw(i.OutputSimd128Register(), i.InputSimd128Register(0),
+                  i.InputSimd128Register(1));
+      break;
+    }
+    case kPPC_I64x2GeS: {
+      __ vcmpequd(kScratchDoubleReg, i.InputSimd128Register(0),
+                  i.InputSimd128Register(1));
+      __ vcmpgtsd(i.OutputSimd128Register(), i.InputSimd128Register(0),
+                  i.InputSimd128Register(1));
+      __ vor(i.OutputSimd128Register(), i.OutputSimd128Register(),
+             kScratchDoubleReg);
+      break;
+    }
+    case kPPC_I32x4GeS: {
+      __ vcmpequw(kScratchDoubleReg, i.InputSimd128Register(0),
+                  i.InputSimd128Register(1));
+      __ vcmpgtsw(i.OutputSimd128Register(), i.InputSimd128Register(0),
+                  i.InputSimd128Register(1));
+      __ vor(i.OutputSimd128Register(), i.OutputSimd128Register(),
+             kScratchDoubleReg);
+      break;
+    }
+    case kPPC_I64x2GtU: {
+      __ vcmpgtud(i.OutputSimd128Register(), i.InputSimd128Register(0),
+                  i.InputSimd128Register(1));
+      break;
+    }
+    case kPPC_I32x4GtU: {
+      __ vcmpgtuw(i.OutputSimd128Register(), i.InputSimd128Register(0),
+                  i.InputSimd128Register(1));
+
+      break;
+    }
+    case kPPC_I64x2GeU: {
+      __ vcmpequd(kScratchDoubleReg, i.InputSimd128Register(0),
+                  i.InputSimd128Register(1));
+      __ vcmpgtud(i.OutputSimd128Register(), i.InputSimd128Register(0),
+                  i.InputSimd128Register(1));
+      __ vor(i.OutputSimd128Register(), i.OutputSimd128Register(),
+             kScratchDoubleReg);
+
+      break;
+    }
+    case kPPC_I32x4GeU: {
+      __ vcmpequw(kScratchDoubleReg, i.InputSimd128Register(0),
+                  i.InputSimd128Register(1));
+      __ vcmpgtuw(i.OutputSimd128Register(), i.InputSimd128Register(0),
+                  i.InputSimd128Register(1));
+      __ vor(i.OutputSimd128Register(), i.OutputSimd128Register(),
+             kScratchDoubleReg);
+      break;
+    }
+    case kPPC_I16x8GtS: {
+      __ vcmpgtsh(i.OutputSimd128Register(), i.InputSimd128Register(0),
+                  i.InputSimd128Register(1));
+      break;
+    }
+    case kPPC_I16x8GeS: {
+      __ vcmpequh(kScratchDoubleReg, i.InputSimd128Register(0),
+                  i.InputSimd128Register(1));
+      __ vcmpgtsh(i.OutputSimd128Register(), i.InputSimd128Register(0),
+                  i.InputSimd128Register(1));
+      __ vor(i.OutputSimd128Register(), i.OutputSimd128Register(),
+             kScratchDoubleReg);
+      break;
+    }
+    case kPPC_I16x8GtU: {
+      __ vcmpgtuh(i.OutputSimd128Register(), i.InputSimd128Register(0),
+                  i.InputSimd128Register(1));
+      break;
+    }
+    case kPPC_I16x8GeU: {
+      __ vcmpequh(kScratchDoubleReg, i.InputSimd128Register(0),
+                  i.InputSimd128Register(1));
+      __ vcmpgtuh(i.OutputSimd128Register(), i.InputSimd128Register(0),
+                  i.InputSimd128Register(1));
+      __ vor(i.OutputSimd128Register(), i.OutputSimd128Register(),
+             kScratchDoubleReg);
+      break;
+    }
+    case kPPC_I8x16GtS: {
+      __ vcmpgtsb(i.OutputSimd128Register(), i.InputSimd128Register(0),
+                  i.InputSimd128Register(1));
+      break;
+    }
+    case kPPC_I8x16GeS: {
+      __ vcmpequb(kScratchDoubleReg, i.InputSimd128Register(0),
+                  i.InputSimd128Register(1));
+      __ vcmpgtsb(i.OutputSimd128Register(), i.InputSimd128Register(0),
+                  i.InputSimd128Register(1));
+      __ vor(i.OutputSimd128Register(), i.OutputSimd128Register(),
+             kScratchDoubleReg);
+      break;
+    }
+    case kPPC_I8x16GtU: {
+      __ vcmpgtub(i.OutputSimd128Register(), i.InputSimd128Register(0),
+                  i.InputSimd128Register(1));
+      break;
+    }
+    case kPPC_I8x16GeU: {
+      __ vcmpequb(kScratchDoubleReg, i.InputSimd128Register(0),
+                  i.InputSimd128Register(1));
+      __ vcmpgtub(i.OutputSimd128Register(), i.InputSimd128Register(0),
+                  i.InputSimd128Register(1));
+      __ vor(i.OutputSimd128Register(), i.OutputSimd128Register(),
+             kScratchDoubleReg);
+      break;
+    }
     case kPPC_StoreCompressTagged: {
       ASSEMBLE_STORE_INTEGER(StoreTaggedField, StoreTaggedFieldX);
       break;

@@ -487,6 +487,21 @@ class Assembler : public AssemblerBase {
   PPC_VA_OPCODE_A_FORM_LIST(DECLARE_PPC_VA_INSTRUCTIONS_A_FORM)
 #undef DECLARE_PPC_VA_INSTRUCTIONS_A_FORM
 
+#define DECLARE_PPC_VC_INSTRUCTIONS(name, instr_name, instr_value)       \
+  inline void name(const Simd128Register rt, const Simd128Register ra,   \
+                   const Simd128Register rb, const RCBit rc = LeaveRC) { \
+    vc_form(instr_name, rt, ra, rb, rc);                                 \
+  }
+
+  inline void vc_form(Instr instr, Simd128Register rt, Simd128Register ra,
+                      Simd128Register rb, int rc) {
+    emit(instr | rt.code() * B21 | ra.code() * B16 | rb.code() * B11 |
+         rc * B10);
+  }
+
+  PPC_VC_OPCODE_LIST(DECLARE_PPC_VC_INSTRUCTIONS)
+#undef DECLARE_PPC_VC_INSTRUCTIONS
+
   RegList* GetScratchRegisterList() { return &scratch_register_list_; }
   // ---------------------------------------------------------------------------
   // Code generation

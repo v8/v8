@@ -196,6 +196,10 @@ namespace compiler {
   V(PPC_F64x2Add)                    \
   V(PPC_F64x2Sub)                    \
   V(PPC_F64x2Mul)                    \
+  V(PPC_F64x2Eq)                     \
+  V(PPC_F64x2Ne)                     \
+  V(PPC_F64x2Le)                     \
+  V(PPC_F64x2Lt)                     \
   V(PPC_F32x4Splat)                  \
   V(PPC_F32x4ExtractLane)            \
   V(PPC_F32x4ReplaceLane)            \
@@ -203,6 +207,10 @@ namespace compiler {
   V(PPC_F32x4AddHoriz)               \
   V(PPC_F32x4Sub)                    \
   V(PPC_F32x4Mul)                    \
+  V(PPC_F32x4Eq)                     \
+  V(PPC_F32x4Ne)                     \
+  V(PPC_F32x4Lt)                     \
+  V(PPC_F32x4Le)                     \
   V(PPC_I64x2Splat)                  \
   V(PPC_I64x2ExtractLane)            \
   V(PPC_I64x2ReplaceLane)            \
@@ -213,6 +221,12 @@ namespace compiler {
   V(PPC_I64x2MinU)                   \
   V(PPC_I64x2MaxS)                   \
   V(PPC_I64x2MaxU)                   \
+  V(PPC_I64x2Eq)                     \
+  V(PPC_I64x2Ne)                     \
+  V(PPC_I64x2GtS)                    \
+  V(PPC_I64x2GtU)                    \
+  V(PPC_I64x2GeU)                    \
+  V(PPC_I64x2GeS)                    \
   V(PPC_I32x4Splat)                  \
   V(PPC_I32x4ExtractLane)            \
   V(PPC_I32x4ReplaceLane)            \
@@ -224,6 +238,12 @@ namespace compiler {
   V(PPC_I32x4MinU)                   \
   V(PPC_I32x4MaxS)                   \
   V(PPC_I32x4MaxU)                   \
+  V(PPC_I32x4Eq)                     \
+  V(PPC_I32x4Ne)                     \
+  V(PPC_I32x4GtS)                    \
+  V(PPC_I32x4GeS)                    \
+  V(PPC_I32x4GtU)                    \
+  V(PPC_I32x4GeU)                    \
   V(PPC_I16x8Splat)                  \
   V(PPC_I16x8ExtractLaneU)           \
   V(PPC_I16x8ExtractLaneS)           \
@@ -236,6 +256,12 @@ namespace compiler {
   V(PPC_I16x8MinU)                   \
   V(PPC_I16x8MaxS)                   \
   V(PPC_I16x8MaxU)                   \
+  V(PPC_I16x8Eq)                     \
+  V(PPC_I16x8Ne)                     \
+  V(PPC_I16x8GtS)                    \
+  V(PPC_I16x8GeS)                    \
+  V(PPC_I16x8GtU)                    \
+  V(PPC_I16x8GeU)                    \
   V(PPC_I8x16Splat)                  \
   V(PPC_I8x16ExtractLaneU)           \
   V(PPC_I8x16ExtractLaneS)           \
@@ -247,6 +273,12 @@ namespace compiler {
   V(PPC_I8x16MinU)                   \
   V(PPC_I8x16MaxS)                   \
   V(PPC_I8x16MaxU)                   \
+  V(PPC_I8x16Eq)                     \
+  V(PPC_I8x16Ne)                     \
+  V(PPC_I8x16GtS)                    \
+  V(PPC_I8x16GeS)                    \
+  V(PPC_I8x16GtU)                    \
+  V(PPC_I8x16GeU)                    \
   V(PPC_StoreCompressTagged)         \
   V(PPC_LoadDecompressTaggedSigned)  \
   V(PPC_LoadDecompressTaggedPointer) \

@@ -119,6 +119,10 @@ int InstructionScheduler::GetTargetInstructionFlags(
     case kPPC_F64x2Add:
     case kPPC_F64x2Sub:
     case kPPC_F64x2Mul:
+    case kPPC_F64x2Eq:
+    case kPPC_F64x2Ne:
+    case kPPC_F64x2Le:
+    case kPPC_F64x2Lt:
     case kPPC_F32x4Splat:
     case kPPC_F32x4ExtractLane:
     case kPPC_F32x4ReplaceLane:
@@ -126,6 +130,10 @@ int InstructionScheduler::GetTargetInstructionFlags(
     case kPPC_F32x4AddHoriz:
     case kPPC_F32x4Sub:
     case kPPC_F32x4Mul:
+    case kPPC_F32x4Eq:
+    case kPPC_F32x4Ne:
+    case kPPC_F32x4Lt:
+    case kPPC_F32x4Le:
     case kPPC_I64x2Splat:
     case kPPC_I64x2ExtractLane:
     case kPPC_I64x2ReplaceLane:
@@ -136,6 +144,12 @@ int InstructionScheduler::GetTargetInstructionFlags(
     case kPPC_I64x2MinU:
     case kPPC_I64x2MaxS:
     case kPPC_I64x2MaxU:
+    case kPPC_I64x2Eq:
+    case kPPC_I64x2Ne:
+    case kPPC_I64x2GtS:
+    case kPPC_I64x2GtU:
+    case kPPC_I64x2GeU:
+    case kPPC_I64x2GeS:
     case kPPC_I32x4Splat:
     case kPPC_I32x4ExtractLane:
     case kPPC_I32x4ReplaceLane:
@@ -147,6 +161,12 @@ int InstructionScheduler::GetTargetInstructionFlags(
     case kPPC_I32x4MinU:
     case kPPC_I32x4MaxS:
     case kPPC_I32x4MaxU:
+    case kPPC_I32x4Eq:
+    case kPPC_I32x4Ne:
+    case kPPC_I32x4GtS:
+    case kPPC_I32x4GeS:
+    case kPPC_I32x4GtU:
+    case kPPC_I32x4GeU:
     case kPPC_I16x8Splat:
     case kPPC_I16x8ExtractLaneU:
     case kPPC_I16x8ExtractLaneS:
@@ -159,6 +179,12 @@ int InstructionScheduler::GetTargetInstructionFlags(
     case kPPC_I16x8MinU:
     case kPPC_I16x8MaxS:
     case kPPC_I16x8MaxU:
+    case kPPC_I16x8Eq:
+    case kPPC_I16x8Ne:
+    case kPPC_I16x8GtS:
+    case kPPC_I16x8GeS:
+    case kPPC_I16x8GtU:
+    case kPPC_I16x8GeU:
     case kPPC_I8x16Splat:
     case kPPC_I8x16ExtractLaneU:
     case kPPC_I8x16ExtractLaneS:
@@ -170,6 +196,12 @@ int InstructionScheduler::GetTargetInstructionFlags(
     case kPPC_I8x16MinU:
     case kPPC_I8x16MaxS:
     case kPPC_I8x16MaxU:
+    case kPPC_I8x16Eq:
+    case kPPC_I8x16Ne:
+    case kPPC_I8x16GtS:
+    case kPPC_I8x16GeS:
+    case kPPC_I8x16GtU:
+    case kPPC_I8x16GeU:
       return kNoOpcodeFlags;
 
     case kPPC_LoadWordS8:
