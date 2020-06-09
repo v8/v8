@@ -1009,7 +1009,7 @@ domain Runtime
         f32
         f64
         v128
-        anyref
+        externref
       # Object class (constructor) name. Specified for `object` type values only.
       optional string className
       # Remote object value in case of primitive values or JSON values (if it was requested).

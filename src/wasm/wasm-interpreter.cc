@@ -1254,13 +1254,13 @@ class WasmInterpreterInternals {
       if (IsReferenceValue()) {
         value_ = WasmValue(Handle<Object>::null());
         int ref_index = static_cast<int>(index);
-        impl->reference_stack_->set(ref_index, *v.to_anyref());
+        impl->reference_stack_->set(ref_index, *v.to_externref());
       }
     }
 
     WasmValue ExtractValue(WasmInterpreterInternals* impl, sp_t index) {
       if (!IsReferenceValue()) return value_;
-      DCHECK(value_.to_anyref().is_null());
+      DCHECK(value_.to_externref().is_null());
       int ref_index = static_cast<int>(index);
       Isolate* isolate = impl->isolate_;
       Handle<Object> ref(impl->reference_stack_->get(ref_index), isolate);
@@ -1268,7 +1268,7 @@ class WasmInterpreterInternals {
       return WasmValue(ref);
     }
 
-    bool IsReferenceValue() const { return value_.type() == kWasmAnyRef; }
+    bool IsReferenceValue() const { return value_.type() == kWasmExternRef; }
 
     void ClearValue(WasmInterpreterInternals* impl, sp_t index) {
       if (!IsReferenceValue()) return;
@@ -1336,7 +1336,7 @@ class WasmInterpreterInternals {
     break;
         FOREACH_WASMVALUE_CTYPES(CASE_TYPE)
 #undef CASE_TYPE
-        case ValueType::kAnyRef:
+        case ValueType::kExternRef:
         case ValueType::kFuncRef:
         case ValueType::kNullRef:
         case ValueType::kExnRef:
@@ -1782,7 +1782,7 @@ class WasmInterpreterInternals {
             WasmTableObject::cast(instance_object_->tables().get(imm.index)),
             isolate_);
         auto delta = Pop().to<uint32_t>();
-        auto value = Pop().to_anyref();
+        auto value = Pop().to_externref();
         int32_t result = WasmTableObject::Grow(isolate_, table, delta, value);
         Push(WasmValue(result));
         *len += imm.length;
@@ -1805,7 +1805,7 @@ class WasmInterpreterInternals {
                                                       code->at(pc + 1));
         HandleScope handle_scope(isolate_);
         auto count = Pop().to<uint32_t>();
-        auto value = Pop().to_anyref();
+        auto value = Pop().to_externref();
         auto start = Pop().to<uint32_t>();
 
         auto table = handle(
@@ -2788,13 +2788,13 @@ class WasmInterpreterInternals {
           EncodeI32ExceptionValue(encoded_values, &encoded_index, s128.val[3]);
           break;
         }
-        case ValueType::kAnyRef:
+        case ValueType::kExternRef:
         case ValueType::kFuncRef:
         case ValueType::kNullRef:
         case ValueType::kExnRef: {
-          Handle<Object> anyref = value.to_anyref();
-          DCHECK_IMPLIES(sig->GetParam(i) == kWasmNullRef, anyref->IsNull());
-          encoded_values->set(encoded_index++, *anyref);
+          Handle<Object> externref = value.to_externref();
+          DCHECK_IMPLIES(sig->GetParam(i) == kWasmNullRef, externref->IsNull());
+          encoded_values->set(encoded_index++, *externref);
           break;
         }
         case ValueType::kRef:
@@ -2819,7 +2819,7 @@ class WasmInterpreterInternals {
   // Throw a given existing exception. Returns true if the exception is being
   // handled locally by the interpreter, false otherwise (interpreter exits).
   bool DoRethrowException(WasmValue exception) {
-    isolate_->ReThrow(*exception.to_anyref());
+    isolate_->ReThrow(*exception.to_externref());
     return HandleException(isolate_) == WasmInterpreter::HANDLED;
   }
 
@@ -2900,13 +2900,14 @@ class WasmInterpreterInternals {
           value = WasmValue(Simd128(s128));
           break;
         }
-        case ValueType::kAnyRef:
+        case ValueType::kExternRef:
         case ValueType::kFuncRef:
         case ValueType::kNullRef:
         case ValueType::kExnRef: {
-          Handle<Object> anyref(encoded_values->get(encoded_index++), isolate_);
-          DCHECK_IMPLIES(sig->GetParam(i) == kWasmNullRef, anyref->IsNull());
-          value = WasmValue(anyref);
+          Handle<Object> externref(encoded_values->get(encoded_index++),
+                                   isolate_);
+          DCHECK_IMPLIES(sig->GetParam(i) == kWasmNullRef, externref->IsNull());
+          value = WasmValue(externref);
           break;
         }
         case ValueType::kRef:
@@ -3022,7 +3023,9 @@ class WasmInterpreterInternals {
         case kExprRethrow: {
           HandleScope handle_scope(isolate_);  // Avoid leaking handles.
           WasmValue ex = Pop();
-          if (ex.to_anyref()->IsNull()) return DoTrap(kTrapRethrowNullRef, pc);
+          if (ex.to_externref()->IsNull()) {
+            return DoTrap(kTrapRethrowNullRef, pc);
+          }
           CommitPc(pc);  // Needed for local unwinding.
           if (!DoRethrowException(ex)) return;
           ReloadFromFrameOnException(&decoder, &code, &pc, &limit);
@@ -3033,7 +3036,7 @@ class WasmInterpreterInternals {
                                                                code->at(pc));
           HandleScope handle_scope(isolate_);  // Avoid leaking handles.
           WasmValue ex = Pop();
-          Handle<Object> exception = ex.to_anyref();
+          Handle<Object> exception = ex.to_externref();
           if (exception->IsNull()) return DoTrap(kTrapBrOnExnNullRef, pc);
           if (MatchingExceptionTag(exception, imm.index.index)) {
             imm.index.exception = &module()->exceptions[imm.index.index];
@@ -3275,7 +3278,7 @@ class WasmInterpreterInternals {
   }
             FOREACH_WASMVALUE_CTYPES(CASE_TYPE)
 #undef CASE_TYPE
-            case ValueType::kAnyRef:
+            case ValueType::kExternRef:
             case ValueType::kFuncRef:
             case ValueType::kNullRef:
             case ValueType::kExnRef:
@@ -3289,7 +3292,7 @@ class WasmInterpreterInternals {
               std::tie(global_buffer, global_index) =
                   WasmInstanceObject::GetGlobalBufferAndIndex(instance_object_,
                                                               global);
-              Handle<Object> ref = Pop().to_anyref();
+              Handle<Object> ref = Pop().to_externref();
               DCHECK_IMPLIES(global.type == kWasmNullRef, ref->IsNull());
               global_buffer->set(global_index, *ref);
               break;
@@ -3327,7 +3330,7 @@ class WasmInterpreterInternals {
               WasmTableObject::cast(instance_object_->tables().get(imm.index)),
               isolate_);
           uint32_t table_size = table->current_length();
-          Handle<Object> value = Pop().to_anyref();
+          Handle<Object> value = Pop().to_externref();
           uint32_t entry_index = Pop().to<uint32_t>();
           if (entry_index >= table_size) {
             return DoTrap(kTrapTableOutOfBounds, pc);
@@ -3476,7 +3479,7 @@ class WasmInterpreterInternals {
                                                      &decoder, code->at(pc));
           len = 1 + imm.length;
           HandleScope handle_scope(isolate_);  // Avoid leaking handles.
-          uint32_t result = Pop().to_anyref()->IsNull() ? 1 : 0;
+          uint32_t result = Pop().to_externref()->IsNull() ? 1 : 0;
           Push(WasmValue(result));
           break;
         }
@@ -3684,8 +3687,8 @@ class WasmInterpreterInternals {
           PrintF("i32x4:%d,%d,%d,%d", s.val[0], s.val[1], s.val[2], s.val[3]);
           break;
         }
-        case ValueType::kAnyRef: {
-          Handle<Object> ref = val.to_anyref();
+        case ValueType::kExternRef: {
+          Handle<Object> ref = val.to_externref();
           if (ref->IsNull()) {
             PrintF("ref:null");
           } else {

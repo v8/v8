@@ -724,7 +724,7 @@ WASM_EXEC_TEST(Select_float_parameters) {
 }
 
 WASM_EXEC_TEST(SelectWithType_float_parameters) {
-  EXPERIMENTAL_FLAG_SCOPE(anyref);
+  EXPERIMENTAL_FLAG_SCOPE(reftypes);
   WasmRunner<float, float, float, int32_t> r(execution_tier);
   BUILD(r,
         WASM_SELECT_F(WASM_GET_LOCAL(0), WASM_GET_LOCAL(1), WASM_GET_LOCAL(2)));
@@ -742,7 +742,7 @@ WASM_EXEC_TEST(Select) {
 }
 
 WASM_EXEC_TEST(SelectWithType) {
-  EXPERIMENTAL_FLAG_SCOPE(anyref);
+  EXPERIMENTAL_FLAG_SCOPE(reftypes);
   WasmRunner<int32_t, int32_t> r(execution_tier);
   // return select(11, 22, a);
   BUILD(r, WASM_SELECT_I(WASM_I32V_1(11), WASM_I32V_1(22), WASM_GET_LOCAL(0)));
@@ -763,7 +763,7 @@ WASM_EXEC_TEST(Select_strict1) {
 }
 
 WASM_EXEC_TEST(SelectWithType_strict1) {
-  EXPERIMENTAL_FLAG_SCOPE(anyref);
+  EXPERIMENTAL_FLAG_SCOPE(reftypes);
   WasmRunner<int32_t, int32_t> r(execution_tier);
   // select(a=0, a=1, a=2); return a
   BUILD(r,
@@ -788,7 +788,7 @@ WASM_EXEC_TEST(Select_strict2) {
 }
 
 WASM_EXEC_TEST(SelectWithType_strict2) {
-  EXPERIMENTAL_FLAG_SCOPE(anyref);
+  EXPERIMENTAL_FLAG_SCOPE(reftypes);
   WasmRunner<int32_t, int32_t> r(execution_tier);
   r.AllocateLocal(kWasmI32);
   r.AllocateLocal(kWasmI32);
@@ -816,7 +816,7 @@ WASM_EXEC_TEST(Select_strict3) {
 }
 
 WASM_EXEC_TEST(SelectWithType_strict3) {
-  EXPERIMENTAL_FLAG_SCOPE(anyref);
+  EXPERIMENTAL_FLAG_SCOPE(reftypes);
   WasmRunner<int32_t, int32_t> r(execution_tier);
   r.AllocateLocal(kWasmI32);
   r.AllocateLocal(kWasmI32);
@@ -1985,9 +1985,9 @@ static void TestBuildGraphForSimpleExpression(WasmOpcode opcode) {
   Isolate* isolate = CcTest::InitIsolateOnce();
   Zone zone(isolate->allocator(), ZONE_NAME);
   HandleScope scope(isolate);
-  // TODO(ahaas): Enable this test for anyref opcodes when code generation for
-  // them is implemented.
-  if (WasmOpcodes::IsAnyRefOpcode(opcode)) return;
+  // TODO(ahaas): Enable this test for externref opcodes when code generation
+  // for them is implemented.
+  if (WasmOpcodes::IsExternRefOpcode(opcode)) return;
   // Enable all optional operators.
   compiler::CommonOperatorBuilder common(&zone);
   compiler::MachineOperatorBuilder machine(

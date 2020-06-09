@@ -31,7 +31,7 @@ class WasmGCTester {
  public:
   WasmGCTester()
       : flag_gc(&v8::internal::FLAG_experimental_wasm_gc, true),
-        flag_reftypes(&v8::internal::FLAG_experimental_wasm_anyref, true),
+        flag_reftypes(&v8::internal::FLAG_experimental_wasm_reftypes, true),
         flag_typedfuns(&v8::internal::FLAG_experimental_wasm_typed_funcref,
                        true),
         allocator(),

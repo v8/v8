@@ -2116,7 +2116,7 @@ Node* WasmGraphBuilder::Throw(uint32_t exception_index,
             values_array, &index,
             graph()->NewNode(m->I32x4ExtractLane(3), value));
         break;
-      case wasm::ValueType::kAnyRef:
+      case wasm::ValueType::kExternRef:
       case wasm::ValueType::kFuncRef:
       case wasm::ValueType::kNullRef:
       case wasm::ValueType::kExnRef:
@@ -2271,7 +2271,7 @@ Node* WasmGraphBuilder::GetExceptionValues(Node* except_obj,
             mcgraph()->machine()->I32x4ReplaceLane(3), value,
             BuildDecodeException32BitValue(values_array, &index));
         break;
-      case wasm::ValueType::kAnyRef:
+      case wasm::ValueType::kExternRef:
       case wasm::ValueType::kFuncRef:
       case wasm::ValueType::kNullRef:
       case wasm::ValueType::kExnRef:
@@ -3261,7 +3261,7 @@ void WasmGraphBuilder::GetGlobalBaseAndOffset(MachineType mem_type,
   }
 }
 
-void WasmGraphBuilder::GetBaseAndOffsetForImportedMutableAnyRefGlobal(
+void WasmGraphBuilder::GetBaseAndOffsetForImportedMutableExternRefGlobal(
     const wasm::WasmGlobal& global, Node** base, Node** offset) {
   // Load the base from the ImportedMutableGlobalsBuffer of the instance.
   Node* buffers = LOAD_INSTANCE_FIELD(ImportedMutableGlobalsBuffers,
@@ -3366,7 +3366,7 @@ Node* WasmGraphBuilder::GlobalGet(uint32_t index) {
     if (global.mutability && global.imported) {
       Node* base = nullptr;
       Node* offset = nullptr;
-      GetBaseAndOffsetForImportedMutableAnyRefGlobal(global, &base, &offset);
+      GetBaseAndOffsetForImportedMutableExternRefGlobal(global, &base, &offset);
       return gasm_->Load(MachineType::AnyTagged(), base, offset);
     }
     Node* globals_buffer =
@@ -3395,7 +3395,7 @@ Node* WasmGraphBuilder::GlobalSet(uint32_t index, Node* val) {
     if (global.mutability && global.imported) {
       Node* base = nullptr;
       Node* offset = nullptr;
-      GetBaseAndOffsetForImportedMutableAnyRefGlobal(global, &base, &offset);
+      GetBaseAndOffsetForImportedMutableExternRefGlobal(global, &base, &offset);
 
       return STORE_RAW_NODE_OFFSET(
           base, offset, val, MachineRepresentation::kTagged, kFullWriteBarrier);
@@ -5556,7 +5556,7 @@ class WasmWrapperGraphBuilder : public WasmGraphBuilder {
         return BuildChangeFloat32ToNumber(node);
       case wasm::ValueType::kF64:
         return BuildChangeFloat64ToNumber(node);
-      case wasm::ValueType::kAnyRef:
+      case wasm::ValueType::kExternRef:
       case wasm::ValueType::kFuncRef:
       case wasm::ValueType::kNullRef:
       case wasm::ValueType::kExnRef:
@@ -5620,7 +5620,7 @@ class WasmWrapperGraphBuilder : public WasmGraphBuilder {
 
   Node* FromJS(Node* input, Node* js_context, wasm::ValueType type) {
     switch (type.kind()) {
-      case wasm::ValueType::kAnyRef:
+      case wasm::ValueType::kExternRef:
       case wasm::ValueType::kExnRef:
         return input;
 

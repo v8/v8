@@ -464,7 +464,7 @@ bool WasmOpcodes::IsBreakable(WasmOpcode opcode) {
   }
 }
 
-bool WasmOpcodes::IsAnyRefOpcode(WasmOpcode opcode) {
+bool WasmOpcodes::IsExternRefOpcode(WasmOpcode opcode) {
   switch (opcode) {
     case kExprRefNull:
     case kExprRefIsNull:

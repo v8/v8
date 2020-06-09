@@ -197,7 +197,7 @@ class InstanceBuilder {
   void WriteGlobalValue(const WasmGlobal& global,
                         Handle<WasmGlobalObject> value);
 
-  void WriteGlobalAnyRef(const WasmGlobal& global, Handle<Object> value);
+  void WriteGlobalExternRef(const WasmGlobal& global, Handle<Object> value);
 
   void SanitizeImports();
 
@@ -803,7 +803,7 @@ void InstanceBuilder::WriteGlobalValue(const WasmGlobal& global,
       TRACE("%lf", num);
       break;
     }
-    case ValueType::kAnyRef:
+    case ValueType::kExternRef:
     case ValueType::kFuncRef:
     case ValueType::kNullRef:
     case ValueType::kExnRef:
@@ -824,8 +824,8 @@ void InstanceBuilder::WriteGlobalValue(const WasmGlobal& global,
   TRACE(", type = %s (from WebAssembly.Global)\n", global.type.type_name());
 }
 
-void InstanceBuilder::WriteGlobalAnyRef(const WasmGlobal& global,
-                                        Handle<Object> value) {
+void InstanceBuilder::WriteGlobalExternRef(const WasmGlobal& global,
+                                           Handle<Object> value) {
   tagged_globals_->set(global.offset, *value, UPDATE_WRITE_BARRIER);
 }
 
@@ -1142,7 +1142,8 @@ bool InstanceBuilder::ProcessImportedWasmGlobalObject(
                     "The offset into the globals buffer does not fit into "
                     "the imported_mutable_globals array");
       buffer = handle(global_object->tagged_buffer(), isolate_);
-      // For anyref globals we use a relative offset, not an absolute address.
+      // For externref globals we use a relative offset, not an absolute
+      // address.
       address_or_offset = static_cast<Address>(global_object->offset());
     } else {
       buffer = handle(global_object->untagged_buffer(), isolate_);
@@ -1231,7 +1232,7 @@ bool InstanceBuilder::ProcessImportedGlobal(Handle<WasmInstanceObject> instance,
         return false;
       }
     }
-    WriteGlobalAnyRef(global, value);
+    WriteGlobalExternRef(global, value);
     return true;
   }
 
@@ -1417,7 +1418,7 @@ void InstanceBuilder::InitGlobals(Handle<WasmInstanceObject> instance) {
                                        global.init.val.f64_const);
         break;
       case WasmInitExpr::kRefNullConst:
-        DCHECK(enabled_.has_anyref() || enabled_.has_eh());
+        DCHECK(enabled_.has_reftypes() || enabled_.has_eh());
         if (global.imported) break;  // We already initialized imported globals.
 
         tagged_globals_->set(global.offset,
@@ -1425,7 +1426,7 @@ void InstanceBuilder::InitGlobals(Handle<WasmInstanceObject> instance) {
                              SKIP_WRITE_BARRIER);
         break;
       case WasmInitExpr::kRefFuncConst: {
-        DCHECK(enabled_.has_anyref());
+        DCHECK(enabled_.has_reftypes());
         auto function = WasmInstanceObject::GetOrCreateWasmExternalFunction(
             isolate_, instance, global.init.val.function_index);
         tagged_globals_->set(global.offset, *function);
@@ -1438,7 +1439,7 @@ void InstanceBuilder::InitGlobals(Handle<WasmInstanceObject> instance) {
             module_->globals[global.init.val.global_index].offset;
         TRACE("init [globals+%u] = [globals+%d]\n", global.offset, old_offset);
         if (global.type.IsReferenceType()) {
-          DCHECK(enabled_.has_anyref() || enabled_.has_eh());
+          DCHECK(enabled_.has_reftypes() || enabled_.has_eh());
           tagged_globals_->set(new_offset, tagged_globals_->get(old_offset));
         } else {
           size_t size = (global.type == kWasmI64 || global.type == kWasmF64)
@@ -1579,7 +1580,7 @@ void InstanceBuilder::ProcessExports(Handle<WasmInstanceObject> instance) {
           if (global.type.IsReferenceType()) {
             tagged_buffer = handle(
                 FixedArray::cast(buffers_array->get(global.index)), isolate_);
-            // For anyref globals we store the relative offset in the
+            // For externref globals we store the relative offset in the
             // imported_mutable_globals array instead of an absolute address.
             Address addr = instance->imported_mutable_globals()[global.index];
             DCHECK_LE(addr, static_cast<Address>(
@@ -1708,9 +1709,9 @@ bool LoadElemSegmentImpl(Isolate* isolate, Handle<WasmInstanceObject> instance,
           .Set(sig_id, instance, func_index);
     }
 
-    // For AnyRef tables, we have to generate the WasmExternalFunction eagerly.
-    // Later we cannot know if an entry is a placeholder or not.
-    if (table_object->type() == kWasmAnyRef) {
+    // For ExternRef tables, we have to generate the WasmExternalFunction
+    // eagerly. Later we cannot know if an entry is a placeholder or not.
+    if (table_object->type() == kWasmExternRef) {
       Handle<WasmExternalFunction> wasm_external_function =
           WasmInstanceObject::GetOrCreateWasmExternalFunction(isolate, instance,
                                                               func_index);

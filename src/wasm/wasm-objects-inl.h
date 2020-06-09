@@ -139,7 +139,7 @@ BIT_FIELD_ACCESSORS(WasmGlobalObject, flags, is_mutable,
 int WasmGlobalObject::type_size() const { return type().element_size_bytes(); }
 
 Address WasmGlobalObject::address() const {
-  DCHECK_NE(type(), wasm::kWasmAnyRef);
+  DCHECK_NE(type(), wasm::kWasmExternRef);
   DCHECK_LE(offset() + type_size(), untagged_buffer().byte_length());
   return Address(untagged_buffer().backing_store()) + offset();
 }
@@ -161,7 +161,7 @@ double WasmGlobalObject::GetF64() {
 }
 
 Handle<Object> WasmGlobalObject::GetRef() {
-  // We use this getter for anyref, funcref, and exnref.
+  // We use this getter for externref, funcref, and exnref.
   DCHECK(type().IsReferenceType());
   return handle(tagged_buffer().get(offset()), GetIsolate());
 }
@@ -182,9 +182,9 @@ void WasmGlobalObject::SetF64(double value) {
   base::WriteLittleEndianValue<double>(address(), value);
 }
 
-void WasmGlobalObject::SetAnyRef(Handle<Object> value) {
-  // We use this getter anyref and exnref.
-  DCHECK(type() == wasm::kWasmAnyRef || type() == wasm::kWasmExnRef);
+void WasmGlobalObject::SetExternRef(Handle<Object> value) {
+  // We use this getter externref and exnref.
+  DCHECK(type() == wasm::kWasmExternRef || type() == wasm::kWasmExnRef);
   tagged_buffer().set(offset(), *value);
 }
 

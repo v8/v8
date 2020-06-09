@@ -2,35 +2,35 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-// Flags: --experimental-wasm-type-reflection --experimental-wasm-anyref
+// Flags: --experimental-wasm-type-reflection --experimental-wasm-reftypes
 
 load('test/mjsunit/wasm/wasm-module-builder.js');
 
 (function TestTableType() {
-  let table = new WebAssembly.Table({initial: 1, element: "anyref"});
+  let table = new WebAssembly.Table({initial: 1, element: "externref"});
   let type = WebAssembly.Table.type(table);
   assertEquals(1, type.minimum);
-  assertEquals("anyref", type.element);
+  assertEquals("externref", type.element);
   assertEquals(2, Object.getOwnPropertyNames(type).length);
 
-  table = new WebAssembly.Table({initial: 2, maximum: 15, element: "anyref"});
+  table = new WebAssembly.Table({initial: 2, maximum: 15, element: "externref"});
   type = WebAssembly.Table.type(table);
   assertEquals(2, type.minimum);
   assertEquals(15, type.maximum);
-  assertEquals("anyref", type.element);
+  assertEquals("externref", type.element);
   assertEquals(3, Object.getOwnPropertyNames(type).length);
 })();
 
 (function TestGlobalType() {
-  let global = new WebAssembly.Global({value: "anyref", mutable: true});
+  let global = new WebAssembly.Global({value: "externref", mutable: true});
   let type = WebAssembly.Global.type(global);
-  assertEquals("anyref", type.value);
+  assertEquals("externref", type.value);
   assertEquals(true, type.mutable);
   assertEquals(2, Object.getOwnPropertyNames(type).length);
 
-  global = new WebAssembly.Global({value: "anyref"});
+  global = new WebAssembly.Global({value: "externref"});
   type = WebAssembly.Global.type(global);
-  assertEquals("anyref", type.value);
+  assertEquals("externref", type.value);
   assertEquals(false, type.mutable);
   assertEquals(2, Object.getOwnPropertyNames(type).length);
 
@@ -74,7 +74,7 @@ load('test/mjsunit/wasm/wasm-module-builder.js');
 })();
 
 // This is an extension of "type-reflection.js/TestFunctionTableSetAndCall" to
-// multiple table indexes. If --experimental-wasm-anyref is enabled by default
+// multiple table indexes. If --experimental-wasm-reftypes is enabled by default
 // this test case can supersede the other one.
 (function TestFunctionMultiTableSetAndCall() {
   let builder = new WasmModuleBuilder();

@@ -2,17 +2,17 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-// Flags: --experimental-wasm-bulk-memory --experimental-wasm-anyref
+// Flags: --experimental-wasm-bulk-memory --experimental-wasm-reftypes
 
 load('test/mjsunit/wasm/wasm-module-builder.js');
 
 let kTableSize = 5;
 
 let table = new WebAssembly.Table(
-    {element: 'anyref', initial: kTableSize, maximum: kTableSize});
+    {element: 'externref', initial: kTableSize, maximum: kTableSize});
 
 let builder = new WasmModuleBuilder();
-builder.addImportedTable('m', 'table', kTableSize, kTableSize, kWasmAnyRef);
+builder.addImportedTable('m', 'table', kTableSize, kTableSize, kWasmExternRef);
 builder.addTable(kWasmAnyFunc, 1000);
 
 builder.addFunction('copy', kSig_v_iii)

@@ -27,7 +27,7 @@ enum ValueTypeCode : uint8_t {
   kLocalF64 = 0x7c,
   kLocalS128 = 0x7b,
   kLocalFuncRef = 0x70,
-  kLocalAnyRef = 0x6f,
+  kLocalExternRef = 0x6f,
   kLocalNullRef = 0x6e,
   kLocalRef = 0x6d,     // GC proposal
   kLocalOptRef = 0x6c,  // GC proposal

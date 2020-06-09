@@ -1670,7 +1670,7 @@ void WasmStruct::WasmStructPrint(std::ostream& os) {  // NOLINT
       case wasm::ValueType::kI8:
       case wasm::ValueType::kI16:
       case wasm::ValueType::kS128:
-      case wasm::ValueType::kAnyRef:
+      case wasm::ValueType::kExternRef:
       case wasm::ValueType::kFuncRef:
       case wasm::ValueType::kNullRef:
       case wasm::ValueType::kExnRef:
@@ -1713,7 +1713,7 @@ void WasmArray::WasmArrayPrint(std::ostream& os) {  // NOLINT
     case wasm::ValueType::kI8:
     case wasm::ValueType::kI16:
     case wasm::ValueType::kS128:
-    case wasm::ValueType::kAnyRef:
+    case wasm::ValueType::kExternRef:
     case wasm::ValueType::kFuncRef:
     case wasm::ValueType::kNullRef:
     case wasm::ValueType::kExnRef:

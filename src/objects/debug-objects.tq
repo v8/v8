@@ -79,6 +79,7 @@ extern class WasmValue extends Struct {
   // Holds the actual value. For example, if this holds a Wasm i32, this will
   // be of length 4, for s128, it will have length 16. These values are
   // represented by the respective C++ types, and memcpy-ed in.
-  // When value_type is a anyref, it holds the object that anyref points to.
+  // When value_type is a externref, it holds the object that externref points
+  // to.
   bytes_or_ref: Object|ByteArray;
 }

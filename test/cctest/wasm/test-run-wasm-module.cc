@@ -945,7 +945,7 @@ TEST(MemoryWithOOBEmptyDataSegment) {
 TEST(GcStructIdsPass) {
   {
     EXPERIMENTAL_FLAG_SCOPE(gc);
-    EXPERIMENTAL_FLAG_SCOPE(anyref);
+    EXPERIMENTAL_FLAG_SCOPE(reftypes);
     Isolate* isolate = CcTest::InitIsolateOnce();
     HandleScope scope(isolate);
     testing::SetupIsolateForWasmModule(isolate);
@@ -994,7 +994,7 @@ TEST(GcStructIdsPass) {
 TEST(GcTypeIdsUndefinedIndex) {
   {
     EXPERIMENTAL_FLAG_SCOPE(gc);
-    EXPERIMENTAL_FLAG_SCOPE(anyref);
+    EXPERIMENTAL_FLAG_SCOPE(reftypes);
     Isolate* isolate = CcTest::InitIsolateOnce();
     HandleScope scope(isolate);
     testing::SetupIsolateForWasmModule(isolate);
@@ -1027,7 +1027,7 @@ TEST(GcTypeIdsUndefinedIndex) {
 TEST(GcTypeIdsIllegalIndex) {
   {
     EXPERIMENTAL_FLAG_SCOPE(gc);
-    EXPERIMENTAL_FLAG_SCOPE(anyref);
+    EXPERIMENTAL_FLAG_SCOPE(reftypes);
     Isolate* isolate = CcTest::InitIsolateOnce();
     HandleScope scope(isolate);
     testing::SetupIsolateForWasmModule(isolate);
@@ -1064,7 +1064,7 @@ TEST(GcTypeIdsIllegalIndex) {
 TEST(GcTypeIdsFunSigIllegalIndex) {
   {
     EXPERIMENTAL_FLAG_SCOPE(gc);
-    EXPERIMENTAL_FLAG_SCOPE(anyref);
+    EXPERIMENTAL_FLAG_SCOPE(reftypes);
     Isolate* isolate = CcTest::InitIsolateOnce();
     HandleScope scope(isolate);
     testing::SetupIsolateForWasmModule(isolate);

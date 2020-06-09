@@ -10340,7 +10340,7 @@ v8::Local<v8::Array> debug::WasmValue::bytes() {
 
 v8::Local<v8::Value> debug::WasmValue::ref() {
   i::Handle<i::WasmValue> obj = Utils::OpenHandle(this);
-  // Should only be called on anyref.
+  // Should only be called on externref.
   DCHECK_EQ(6, obj->value_type());
 
   i::Isolate* isolate = obj->GetIsolate();

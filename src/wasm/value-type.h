@@ -32,7 +32,6 @@ class Simd128;
 // Some of these types are from proposals that are not standardized yet:
 // - "ref" types per https://github.com/WebAssembly/function-references
 // - "optref"/"eqref" per https://github.com/WebAssembly/gc
-
 #define FOREACH_VALUE_TYPE(V)                                                \
   V(Stmt, -1, Void, None, 'v', "<stmt>")                                     \
   V(I32, 2, I32, Int32, 'i', "i32")                                          \
@@ -42,7 +41,8 @@ class Simd128;
   V(S128, 4, S128, Simd128, 's', "s128")                                     \
   V(I8, 0, I8, Int8, 'b', "i8")                                              \
   V(I16, 1, I16, Int16, 'h', "i16")                                          \
-  V(AnyRef, kSystemPointerSizeLog2, AnyRef, TaggedPointer, 'r', "anyref")    \
+  V(ExternRef, kSystemPointerSizeLog2, ExternRef, TaggedPointer, 'r',        \
+    "externref")                                                             \
   V(FuncRef, kSystemPointerSizeLog2, FuncRef, TaggedPointer, 'a', "funcref") \
   V(NullRef, kSystemPointerSizeLog2, NullRef, TaggedPointer, 'n', "nullref") \
   V(ExnRef, kSystemPointerSizeLog2, ExnRef, TaggedPointer, 'e', "exn")       \
@@ -110,21 +110,21 @@ class ValueType {
   }
 
   // TODO(7748): Extend this with struct and function subtyping.
-  //             Keep up to date with funcref vs. anyref subtyping.
+  //             Keep up to date with funcref vs. externref subtyping.
   constexpr bool IsSubtypeOfNoImmediates(ValueType other) const {
 #if V8_HAS_CXX14_CONSTEXPR
     DCHECK(!has_immediate() && !other.has_immediate());
 #endif
-    return (*this == other) ||
-           (other.kind() == kEqRef && (kind() == kExnRef || kind() == kAnyRef));
+    return (*this == other) || (other.kind() == kEqRef &&
+                                (kind() == kExnRef || kind() == kExternRef));
   }
 
   constexpr bool IsReferenceType() const {
-    return kAnyRef <= kind() && kind() <= kEqRef;
+    return kExternRef <= kind() && kind() <= kEqRef;
   }
 
   constexpr bool IsNullable() const {
-    return kind() == kAnyRef || kind() == kFuncRef || kind() == kExnRef ||
+    return kind() == kExternRef || kind() == kFuncRef || kind() == kExnRef ||
            kind() == kOptRef;
   }
 
@@ -174,7 +174,7 @@ class ValueType {
       case MachineRepresentation::kFloat64:
         return ValueType(kF64);
       case MachineRepresentation::kTaggedPointer:
-        return ValueType(kAnyRef);
+        return ValueType(kExternRef);
       case MachineRepresentation::kSimd128:
         return ValueType(kS128);
       default:
@@ -232,7 +232,7 @@ constexpr ValueType kWasmI32 = ValueType(ValueType::kI32);
 constexpr ValueType kWasmI64 = ValueType(ValueType::kI64);
 constexpr ValueType kWasmF32 = ValueType(ValueType::kF32);
 constexpr ValueType kWasmF64 = ValueType(ValueType::kF64);
-constexpr ValueType kWasmAnyRef = ValueType(ValueType::kAnyRef);
+constexpr ValueType kWasmExternRef = ValueType(ValueType::kExternRef);
 constexpr ValueType kWasmEqRef = ValueType(ValueType::kEqRef);
 constexpr ValueType kWasmExnRef = ValueType(ValueType::kExnRef);
 constexpr ValueType kWasmFuncRef = ValueType(ValueType::kFuncRef);

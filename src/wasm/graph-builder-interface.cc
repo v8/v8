@@ -814,7 +814,7 @@ class WasmGraphBuildingInterface {
         return builder_->Float64Constant(0);
       case ValueType::kS128:
         return builder_->S128Zero();
-      case ValueType::kAnyRef:
+      case ValueType::kExternRef:
       case ValueType::kFuncRef:
       case ValueType::kNullRef:
       case ValueType::kExnRef:

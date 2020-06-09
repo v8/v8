@@ -49,11 +49,11 @@
 // be shipped with enough lead time to the next branch to allow for
 // stabilization.
 #define FOREACH_WASM_STAGING_FEATURE_FLAG(V) /*          (force 80 columns) */ \
-  /* Reference Types, a.k.a. anyref proposal. */                               \
+  /* Reference Types, a.k.a. reftypes proposal. */                             \
   /* https://github.com/WebAssembly/reference-types */                         \
   /* V8 side owner: ahaas */                                                   \
   /* Staged in v7.8. */                                                        \
-  V(anyref, "anyref opcodes", false)                                           \
+  V(reftypes, "reference type opcodes", false)                                 \
                                                                                \
   /* JS BitInt to wasm i64 integration. */                                     \
   /* https://github.com/WebAssembly/JS-BigInt-integration */                   \

@@ -89,8 +89,8 @@ const char* ValueTypeToConstantName(ValueType type) {
       return "kWasmF32";
     case ValueType::kF64:
       return "kWasmF64";
-    case ValueType::kAnyRef:
-      return "kWasmAnyRef";
+    case ValueType::kExternRef:
+      return "kWasmExternRef";
     case ValueType::kFuncRef:
       return "kWasmFuncRef";
     case ValueType::kExnRef:

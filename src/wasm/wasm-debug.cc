@@ -129,9 +129,9 @@ Handle<Object> WasmValueToValueObject(Isolate* isolate, WasmValue value) {
       memcpy(bytes->GetDataStartAddress(), &val, sizeof(val));
       break;
     }
-    case ValueType::kAnyRef: {
+    case ValueType::kExternRef: {
       return isolate->factory()->NewWasmValue(
-          static_cast<int32_t>(value.type().kind()), value.to_anyref());
+          static_cast<int32_t>(value.type().kind()), value.to_externref());
     }
     default: {
       UNIMPLEMENTED();

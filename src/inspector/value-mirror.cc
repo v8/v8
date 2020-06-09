@@ -57,7 +57,7 @@ ResultType unpackWasmValue(v8::Local<v8::Context> context,
 // Partial list of Wasm's ValueType, copied here to avoid including internal
 // header. Using an unscoped enumeration here to allow implicit conversions from
 // int. Keep in sync with ValueType::Kind in wasm/value-type.h.
-enum WasmValueType { kStmt, kI32, kI64, kF32, kF64, kS128, kAnyRef };
+enum WasmValueType { kStmt, kI32, kI64, kF32, kF64, kS128, kExternRef };
 
 Response toProtocolValue(v8::Local<v8::Context> context,
                          v8::Local<v8::Value> value, int maxDepth,
@@ -176,12 +176,12 @@ Response toProtocolValue(v8::Local<v8::Context> context,
             unpackWasmValue<double>(context, wasmValue->bytes()));
         break;
       }
-      case kAnyRef: {
-        std::unique_ptr<protocol::Value> anyrefValue;
-        Response response =
-            toProtocolValue(context, wasmValue->ref(), maxDepth, &anyrefValue);
+      case kExternRef: {
+        std::unique_ptr<protocol::Value> externrefValue;
+        Response response = toProtocolValue(context, wasmValue->ref(), maxDepth,
+                                            &externrefValue);
         if (!response.IsSuccess()) return response;
-        *result = std::move(anyrefValue);
+        *result = std::move(externrefValue);
         break;
       }
       default: {
@@ -525,8 +525,8 @@ class WasmValueMirror final : public ValueMirror {
         return RemoteObject::SubtypeEnum::F32;
       case kF64:
         return RemoteObject::SubtypeEnum::F64;
-      case kAnyRef:
-        return RemoteObject::SubtypeEnum::Anyref;
+      case kExternRef:
+        return RemoteObject::SubtypeEnum::Externref;
       default:
         UNREACHABLE();
     }
@@ -553,7 +553,7 @@ class WasmValueMirror final : public ValueMirror {
         return String16::fromDouble(
             unpackWasmValue<double>(context, m_value->bytes()));
       }
-      case kAnyRef: {
+      case kExternRef: {
         return descriptionForObject(context->GetIsolate(),
                                     m_value->ref().As<v8::Object>());
       }

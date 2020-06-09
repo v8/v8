@@ -397,10 +397,10 @@ class LiftoffCompiler {
     switch (type.kind()) {
       case ValueType::kS128:
         return kSimd;
-      case ValueType::kAnyRef:
+      case ValueType::kExternRef:
       case ValueType::kFuncRef:
       case ValueType::kNullRef:
-        return kAnyRef;
+        return kRefTypes;
       case ValueType::kExnRef:
         return kExceptionHandling;
       case ValueType::kBottom:
@@ -1527,15 +1527,15 @@ class LiftoffCompiler {
   }
 
   void RefNull(FullDecoder* decoder, Value* result) {
-    unsupported(decoder, kAnyRef, "ref_null");
+    unsupported(decoder, kRefTypes, "ref_null");
   }
 
   void RefFunc(FullDecoder* decoder, uint32_t function_index, Value* result) {
-    unsupported(decoder, kAnyRef, "func");
+    unsupported(decoder, kRefTypes, "func");
   }
 
   void RefAsNonNull(FullDecoder* decoder, const Value& arg, Value* result) {
-    unsupported(decoder, kAnyRef, "ref.as_non_null");
+    unsupported(decoder, kRefTypes, "ref.as_non_null");
   }
 
   void Drop(FullDecoder* decoder, const Value& value) {
@@ -1725,12 +1725,12 @@ class LiftoffCompiler {
 
   void TableGet(FullDecoder* decoder, const Value& index, Value* result,
                 const TableIndexImmediate<validate>& imm) {
-    unsupported(decoder, kAnyRef, "table_get");
+    unsupported(decoder, kRefTypes, "table_get");
   }
 
   void TableSet(FullDecoder* decoder, const Value& index, const Value& value,
                 const TableIndexImmediate<validate>& imm) {
-    unsupported(decoder, kAnyRef, "table_set");
+    unsupported(decoder, kRefTypes, "table_set");
   }
 
   void Unreachable(FullDecoder* decoder) {
@@ -2299,7 +2299,7 @@ class LiftoffCompiler {
                     const CallIndirectImmediate<validate>& imm,
                     const Value args[], Value returns[]) {
     if (imm.table_index != 0) {
-      return unsupported(decoder, kAnyRef, "table index != 0");
+      return unsupported(decoder, kRefTypes, "table index != 0");
     }
     for (ValueType ret : imm.sig->returns()) {
       if (!CheckSupportedType(decoder, kSupportedTypes, ret, "return")) {
@@ -2441,7 +2441,7 @@ class LiftoffCompiler {
   }
 
   void BrOnNull(FullDecoder* decoder, const Value& ref_object, uint32_t depth) {
-    unsupported(decoder, kAnyRef, "br_on_null");
+    unsupported(decoder, kRefTypes, "br_on_null");
   }
 
   template <ValueType::Kind src_type, ValueType::Kind result_type,
@@ -3547,17 +3547,17 @@ class LiftoffCompiler {
 
   void TableGrow(FullDecoder* decoder, const TableIndexImmediate<validate>& imm,
                  const Value& value, const Value& delta, Value* result) {
-    unsupported(decoder, kAnyRef, "table.grow");
+    unsupported(decoder, kRefTypes, "table.grow");
   }
 
   void TableSize(FullDecoder* decoder, const TableIndexImmediate<validate>& imm,
                  Value* result) {
-    unsupported(decoder, kAnyRef, "table.size");
+    unsupported(decoder, kRefTypes, "table.size");
   }
 
   void TableFill(FullDecoder* decoder, const TableIndexImmediate<validate>& imm,
                  const Value& start, const Value& value, const Value& count) {
-    unsupported(decoder, kAnyRef, "table.fill");
+    unsupported(decoder, kRefTypes, "table.fill");
   }
 
   void StructNew(FullDecoder* decoder,

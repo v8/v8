@@ -347,20 +347,21 @@ TEST(MemoryGrowInvalidSize) {
 TEST(ReferenceTypeLocals) {
   {
     WasmRunner<int32_t> r(ExecutionTier::kInterpreter);
-    BUILD(r, WASM_REF_IS_NULL(kLocalAnyRef, WASM_REF_NULL(kLocalAnyRef)));
+    BUILD(r, WASM_REF_IS_NULL(kLocalExternRef, WASM_REF_NULL(kLocalExternRef)));
     CHECK_EQ(1, r.Call());
   }
   {
     WasmRunner<int32_t> r(ExecutionTier::kInterpreter);
-    r.AllocateLocal(kWasmAnyRef);
-    BUILD(r, WASM_REF_IS_NULL(kLocalAnyRef, WASM_GET_LOCAL(0)));
+    r.AllocateLocal(kWasmExternRef);
+    BUILD(r, WASM_REF_IS_NULL(kLocalExternRef, WASM_GET_LOCAL(0)));
     CHECK_EQ(1, r.Call());
   }
   {
     WasmRunner<int32_t> r(ExecutionTier::kInterpreter);
-    r.AllocateLocal(kWasmAnyRef);
-    BUILD(r, WASM_REF_IS_NULL(kLocalAnyRef,
-                              WASM_TEE_LOCAL(0, WASM_REF_NULL(kLocalAnyRef))));
+    r.AllocateLocal(kWasmExternRef);
+    BUILD(r,
+          WASM_REF_IS_NULL(kLocalExternRef,
+                           WASM_TEE_LOCAL(0, WASM_REF_NULL(kLocalExternRef))));
     CHECK_EQ(1, r.Call());
   }
 }

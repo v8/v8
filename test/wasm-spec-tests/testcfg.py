@@ -9,7 +9,7 @@ from testrunner.objects import testcase
 
 proposal_flags = [{
                     'name': 'reference-types',
-                    'flags': ['--experimental-wasm-anyref',
+                    'flags': ['--experimental-wasm-reftypes',
                               '--wasm-staging']
                   },
                   {

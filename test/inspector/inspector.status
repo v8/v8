@@ -18,7 +18,7 @@
   # https://crbug.com/v8/10356
   # This test worked in the wasm interpreter, but fails when using Liftoff for
   # debugging.
-  'debugger/wasm-anyref-global': [FAIL],
+  'debugger/wasm-externref-global': [FAIL],
 }],  # ALWAYS
 
 ##############################################################################

@@ -73,7 +73,8 @@ ValKind V8ValueTypeToWasm(i::wasm::ValueType v8_valtype) {
       return F64;
     case i::wasm::ValueType::kFuncRef:
       return FUNCREF;
-    case i::wasm::ValueType::kAnyRef:
+    case i::wasm::ValueType::kExternRef:
+      // TODO(7748): Rename this to EXTERNREF if/when third-party API changes
       return ANYREF;
     default:
       // TODO(wasm+): support new value types
@@ -94,7 +95,7 @@ i::wasm::ValueType WasmValKindToV8(ValKind kind) {
     case FUNCREF:
       return i::wasm::kWasmFuncRef;
     case ANYREF:
-      return i::wasm::kWasmAnyRef;
+      return i::wasm::kWasmExternRef;
     default:
       // TODO(wasm+): support new value types
       UNREACHABLE();
@@ -247,7 +248,7 @@ void Engine::operator delete(void* p) { ::operator delete(p); }
 
 auto Engine::make(own<Config>&& config) -> own<Engine> {
   i::FLAG_expose_gc = true;
-  i::FLAG_experimental_wasm_anyref = true;
+  i::FLAG_experimental_wasm_reftypes = true;
   i::FLAG_experimental_wasm_bigint = true;
   i::FLAG_experimental_wasm_mv = true;
   auto engine = new (std::nothrow) EngineImpl;
@@ -370,7 +371,7 @@ ValTypeImpl* valtype_i32 = new ValTypeImpl(I32);
 ValTypeImpl* valtype_i64 = new ValTypeImpl(I64);
 ValTypeImpl* valtype_f32 = new ValTypeImpl(F32);
 ValTypeImpl* valtype_f64 = new ValTypeImpl(F64);
-ValTypeImpl* valtype_anyref = new ValTypeImpl(ANYREF);
+ValTypeImpl* valtype_externref = new ValTypeImpl(ANYREF);
 ValTypeImpl* valtype_funcref = new ValTypeImpl(FUNCREF);
 
 ValType::~ValType() = default;
@@ -393,7 +394,7 @@ own<ValType> ValType::make(ValKind k) {
       valtype = valtype_f64;
       break;
     case ANYREF:
-      valtype = valtype_anyref;
+      valtype = valtype_externref;
       break;
     case FUNCREF:
       valtype = valtype_funcref;
@@ -1404,7 +1405,7 @@ void PushArgs(const i::wasm::FunctionSig* sig, const Val args[],
       case i::wasm::ValueType::kF64:
         packer->Push(args[i].f64());
         break;
-      case i::wasm::ValueType::kAnyRef:
+      case i::wasm::ValueType::kExternRef:
       case i::wasm::ValueType::kFuncRef:
       case i::wasm::ValueType::kNullRef:
         packer->Push(WasmRefToV8(store->i_isolate(), args[i].ref())->ptr());
@@ -1437,7 +1438,7 @@ void PopArgs(const i::wasm::FunctionSig* sig, Val results[],
       case i::wasm::ValueType::kF64:
         results[i] = Val(packer->Pop<double>());
         break;
-      case i::wasm::ValueType::kAnyRef:
+      case i::wasm::ValueType::kExternRef:
       case i::wasm::ValueType::kFuncRef:
       case i::wasm::ValueType::kNullRef: {
         i::Address raw = packer->Pop<i::Address>();
@@ -1697,7 +1698,7 @@ auto Global::get() const -> Val {
       return Val(v8_global->GetF32());
     case i::wasm::ValueType::kF64:
       return Val(v8_global->GetF64());
-    case i::wasm::ValueType::kAnyRef:
+    case i::wasm::ValueType::kExternRef:
     case i::wasm::ValueType::kFuncRef: {
       StoreImpl* store = impl(this)->store();
       i::HandleScope scope(store->i_isolate());
@@ -1721,7 +1722,7 @@ void Global::set(const Val& val) {
     case F64:
       return v8_global->SetF64(val.f64());
     case ANYREF:
-      return v8_global->SetAnyRef(
+      return v8_global->SetExternRef(
           WasmRefToV8(impl(this)->store()->i_isolate(), val.ref()));
     case FUNCREF: {
       i::Isolate* isolate = impl(this)->store()->i_isolate();
@@ -1762,8 +1763,8 @@ auto Table::make(Store* store_abs, const TableType* type, const Ref* ref)
       break;
     case ANYREF:
       // See Engine::make().
-      DCHECK(i::wasm::WasmFeatures::FromFlags().has_anyref());
-      i_type = i::wasm::kWasmAnyRef;
+      DCHECK(i::wasm::WasmFeatures::FromFlags().has_reftypes());
+      i_type = i::wasm::kWasmExternRef;
       break;
     default:
       UNREACHABLE();
@@ -1809,7 +1810,7 @@ auto Table::type() const -> own<TableType> {
     case i::wasm::ValueType::kFuncRef:
       kind = FUNCREF;
       break;
-    case i::wasm::ValueType::kAnyRef:
+    case i::wasm::ValueType::kExternRef:
       kind = ANYREF;
       break;
     default:

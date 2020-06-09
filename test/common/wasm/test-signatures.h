@@ -25,8 +25,8 @@ class TestSignatures {
         sig_i_ff(1, 2, kIntFloatTypes4),
         sig_i_d(1, 1, kIntDoubleTypes4),
         sig_i_dd(1, 2, kIntDoubleTypes4),
-        sig_i_r(1, 1, kIntAnyRefTypes4),
-        sig_i_rr(1, 2, kIntAnyRefTypes4),
+        sig_i_r(1, 1, kIntExternRefTypes4),
+        sig_i_rr(1, 2, kIntExternRefTypes4),
         sig_i_a(1, 1, kIntFuncRefTypes4),
         sig_i_n(1, 1, kIntNullRefTypes4),
         sig_i_s(1, 1, kIntSimd128Types4),
@@ -58,12 +58,12 @@ class TestSignatures {
     for (int i = 0; i < 4; i++) kLongTypes4[i] = kWasmI64;
     for (int i = 0; i < 4; i++) kFloatTypes4[i] = kWasmF32;
     for (int i = 0; i < 4; i++) kDoubleTypes4[i] = kWasmF64;
-    for (int i = 0; i < 4; i++) kRefTypes4[i] = kWasmAnyRef;
+    for (int i = 0; i < 4; i++) kRefTypes4[i] = kWasmExternRef;
     for (int i = 0; i < 4; i++) kFuncTypes4[i] = kWasmFuncRef;
     for (int i = 1; i < 4; i++) kIntLongTypes4[i] = kWasmI64;
     for (int i = 1; i < 4; i++) kIntFloatTypes4[i] = kWasmF32;
     for (int i = 1; i < 4; i++) kIntDoubleTypes4[i] = kWasmF64;
-    for (int i = 1; i < 4; i++) kIntAnyRefTypes4[i] = kWasmAnyRef;
+    for (int i = 1; i < 4; i++) kIntExternRefTypes4[i] = kWasmExternRef;
     for (int i = 1; i < 4; i++) kIntFuncRefTypes4[i] = kWasmFuncRef;
     for (int i = 1; i < 4; i++) kIntNullRefTypes4[i] = kWasmNullRef;
     for (int i = 1; i < 4; i++) kIntSimd128Types4[i] = kWasmS128;
@@ -71,7 +71,7 @@ class TestSignatures {
     kIntLongTypes4[0] = kWasmI32;
     kIntFloatTypes4[0] = kWasmI32;
     kIntDoubleTypes4[0] = kWasmI32;
-    kIntAnyRefTypes4[0] = kWasmI32;
+    kIntExternRefTypes4[0] = kWasmI32;
     kIntFuncRefTypes4[0] = kWasmI32;
     kIntNullRefTypes4[0] = kWasmI32;
     kIntSimd128Types4[0] = kWasmI32;
@@ -140,7 +140,7 @@ class TestSignatures {
   ValueType kIntLongTypes4[4];
   ValueType kIntFloatTypes4[4];
   ValueType kIntDoubleTypes4[4];
-  ValueType kIntAnyRefTypes4[4];
+  ValueType kIntExternRefTypes4[4];
   ValueType kIntFuncRefTypes4[4];
   ValueType kIntNullRefTypes4[4];
   ValueType kIntSimd128Types4[4];

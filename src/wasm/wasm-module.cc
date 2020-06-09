@@ -273,8 +273,8 @@ Handle<String> ToValueTypeString(Isolate* isolate, ValueType type) {
       string = factory->InternalizeUtf8String("f64");
       break;
     }
-    case i::wasm::ValueType::kAnyRef: {
-      string = factory->InternalizeUtf8String("anyref");
+    case i::wasm::ValueType::kExternRef: {
+      string = factory->InternalizeUtf8String("externref");
       break;
     }
     case i::wasm::ValueType::kFuncRef: {
@@ -374,8 +374,8 @@ Handle<JSObject> GetTypeForTable(Isolate* isolate, ValueType type,
     // and then use that constant everywhere.
     element = factory->InternalizeUtf8String("anyfunc");
   } else {
-    DCHECK(WasmFeatures::FromFlags().has_anyref() && type == kWasmAnyRef);
-    element = factory->InternalizeUtf8String("anyref");
+    DCHECK(WasmFeatures::FromFlags().has_reftypes() && type == kWasmExternRef);
+    element = factory->InternalizeUtf8String("externref");
   }
 
   Handle<JSFunction> object_function = isolate->object_function();

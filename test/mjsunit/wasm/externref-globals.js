@@ -2,41 +2,41 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-// Flags: --experimental-wasm-anyref --expose-gc
+// Flags: --experimental-wasm-reftypes --expose-gc
 
 load("test/mjsunit/wasm/wasm-module-builder.js");
 
 (function TestDefaultValue() {
   print(arguments.callee.name);
   let builder = new WasmModuleBuilder();
-  const g_nullref = builder.addGlobal(kWasmAnyRef, true).index;
+  const g_nullref = builder.addGlobal(kWasmExternRef, true).index;
   const g_nullfunc = builder.addGlobal(kWasmAnyFunc, true).index;
-  builder.addFunction("get_anyref_global", kSig_r_v)
+  builder.addFunction("get_externref_global", kSig_r_v)
     .addBody([kExprGlobalGet, g_nullref])
-    .exportAs("get_anyref_global");
+    .exportAs("get_externref_global");
   builder.addFunction("get_anyfunc_global", kSig_a_v)
     .addBody([kExprGlobalGet, g_nullfunc])
     .exportAs("get_anyfunc_global");
 
   const instance = builder.instantiate();
-  assertEquals(null, instance.exports.get_anyref_global());
+  assertEquals(null, instance.exports.get_externref_global());
   assertEquals(null, instance.exports.get_anyfunc_global());
 })();
 
 (function TestDefaultValueSecondGlobal() {
   print(arguments.callee.name);
   let builder = new WasmModuleBuilder();
-  const g_setref = builder.addGlobal(kWasmAnyRef, true);
+  const g_setref = builder.addGlobal(kWasmExternRef, true);
   const g_setfunc = builder.addGlobal(kWasmAnyFunc, true);
-  const g_nullref = builder.addGlobal(kWasmAnyRef, true);
+  const g_nullref = builder.addGlobal(kWasmExternRef, true);
   const g_nullfunc = builder.addGlobal(kWasmAnyFunc, true);
-  builder.addFunction("get_anyref_global", kSig_r_r)
+  builder.addFunction("get_externref_global", kSig_r_r)
     .addBody([
       kExprLocalGet, 0,
       kExprGlobalSet, g_setref.index,
       kExprGlobalGet, g_nullref.index
     ])
-    .exportAs("get_anyref_global");
+    .exportAs("get_externref_global");
   builder.addFunction("get_anyfunc_global", kSig_a_a)
     .addBody([
       kExprLocalGet, 0,
@@ -46,17 +46,17 @@ load("test/mjsunit/wasm/wasm-module-builder.js");
     .exportAs("get_anyfunc_global");
 
   const instance = builder.instantiate();
-  assertEquals(null, instance.exports.get_anyref_global({}));
+  assertEquals(null, instance.exports.get_externref_global({}));
   assertEquals(null, instance.exports.get_anyfunc_global(
-    instance.exports.get_anyref_global));
+    instance.exports.get_externref_global));
 })();
 
-(function TestAnyRefGlobalChangeValue() {
+(function TestExternRefGlobalChangeValue() {
   print(arguments.callee.name);
   let builder = new WasmModuleBuilder();
   // Dummy global for offset.
-  builder.addGlobal(kWasmAnyRef, true);
-  const g = builder.addGlobal(kWasmAnyRef, true);
+  builder.addGlobal(kWasmExternRef, true);
+  const g = builder.addGlobal(kWasmExternRef, true);
   builder.addFunction("main", kSig_r_r)
     .addBody([
       kExprLocalGet, 0,
@@ -96,8 +96,8 @@ load("test/mjsunit/wasm/wasm-module-builder.js");
   let builder = new WasmModuleBuilder();
   const gc_index = builder.addImport("q", "gc", kSig_v_v);
   // Dummy global for offset.
-  builder.addGlobal(kWasmAnyRef, true);
-  const g = builder.addGlobal(kWasmAnyRef, true);
+  builder.addGlobal(kWasmExternRef, true);
+  const g = builder.addGlobal(kWasmExternRef, true);
   builder.addFunction("main", kSig_r_r)
     .addBody([
       kExprLocalGet, 0,
@@ -118,7 +118,7 @@ load("test/mjsunit/wasm/wasm-module-builder.js");
 (function TestGlobalAsRoot() {
   print(arguments.callee.name);
   let builder = new WasmModuleBuilder();
-  const g = builder.addGlobal(kWasmAnyRef, true);
+  const g = builder.addGlobal(kWasmExternRef, true);
   builder.addFunction("get_global", kSig_r_v)
     .addBody([
       kExprGlobalGet, g.index
@@ -144,11 +144,11 @@ load("test/mjsunit/wasm/wasm-module-builder.js");
   assertEquals('world', result.hello);
 })();
 
-(function TestImportedAnyRef() {
+(function TestImportedExternRef() {
   print(arguments.callee.name);
   function Test(obj) {
     let builder = new WasmModuleBuilder();
-    const g = builder.addImportedGlobal('m', 'val', kWasmAnyRef);
+    const g = builder.addImportedGlobal('m', 'val', kWasmExternRef);
     builder.addFunction('main', kSig_r_v)
       .addBody([kExprGlobalGet, g])
       .exportAs('main');
@@ -193,9 +193,9 @@ function dummy_func() {
     WebAssembly.LinkError);
 })();
 
-(function TestAnyRefGlobalObjectDefaultValue() {
+(function TestExternRefGlobalObjectDefaultValue() {
   print(arguments.callee.name);
-  let default_init = new WebAssembly.Global({ value: 'anyref', mutable: true });
+  let default_init = new WebAssembly.Global({ value: 'externref', mutable: true });
   assertSame(null, default_init.value);
   assertSame(null, default_init.valueOf());
 })();
@@ -207,10 +207,10 @@ function dummy_func() {
   assertSame(null, default_init.valueOf());
 })();
 
-(function TestAnyRefGlobalObject() {
+(function TestExternRefGlobalObject() {
   print(arguments.callee.name);
   function TestGlobal(obj) {
-    const global = new WebAssembly.Global({ value: 'anyref' }, obj);
+    const global = new WebAssembly.Global({ value: 'externref' }, obj);
     assertSame(obj, global.value);
     assertSame(obj, global.valueOf());
   }
@@ -238,9 +238,9 @@ function dummy_func() {
   assertThrows(() => new WebAssembly.Global({ value: 'anyfunc' }, {}), TypeError);
 })();
 
-(function TestAnyRefGlobalObjectSetValue() {
+(function TestExternRefGlobalObjectSetValue() {
   print(arguments.callee.name);
-  let global = new WebAssembly.Global({ value: 'anyref', mutable: true });
+  let global = new WebAssembly.Global({ value: 'externref', mutable: true });
 
   function TestGlobal(obj) {
     global.value = obj;
@@ -276,14 +276,14 @@ function dummy_func() {
 (function TestExportMutableRefGlobal() {
   print(arguments.callee.name);
   let builder = new WasmModuleBuilder();
-  const g1 = builder.addGlobal(kWasmAnyRef, true).exportAs("global1");
+  const g1 = builder.addGlobal(kWasmExternRef, true).exportAs("global1");
   const g2 = builder.addGlobal(kWasmAnyFunc, true).exportAs("global2");
   builder.addGlobal(kWasmI32, true); // Dummy.
-  builder.addGlobal(kWasmAnyRef, true); // Dummy.
-  const g3 = builder.addGlobal(kWasmAnyRef, true).exportAs("global3");
+  builder.addGlobal(kWasmExternRef, true); // Dummy.
+  const g3 = builder.addGlobal(kWasmExternRef, true).exportAs("global3");
   const g4 = builder.addGlobal(kWasmAnyFunc, true).exportAs("global4");
   builder.addFunction("main",
-    makeSig([kWasmAnyRef, kWasmAnyFunc, kWasmAnyRef, kWasmAnyFunc], []))
+    makeSig([kWasmExternRef, kWasmAnyFunc, kWasmExternRef, kWasmAnyFunc], []))
     .addBody([
       kExprLocalGet, 0,
       kExprGlobalSet, g1.index,
@@ -308,16 +308,16 @@ function dummy_func() {
   assertSame(func4, instance.exports.global4.value);
 })();
 
-(function TestImportMutableAnyRefGlobal() {
+(function TestImportMutableExternRefGlobal() {
   print(arguments.callee.name);
   function Test(obj) {
     let builder = new WasmModuleBuilder();
-    const g = builder.addImportedGlobal('m', 'val', kWasmAnyRef, true);
+    const g = builder.addImportedGlobal('m', 'val', kWasmExternRef, true);
     builder.addFunction('main', kSig_r_v)
       .addBody([kExprGlobalGet, g])
       .exportAs('main');
 
-    const global = new WebAssembly.Global({ value: 'anyref', mutable: 'true' }, obj);
+    const global = new WebAssembly.Global({ value: 'externref', mutable: 'true' }, obj);
     const instance = builder.instantiate({ m: { val: global } });
     assertSame(obj, instance.exports.main());
   }
@@ -346,15 +346,15 @@ function dummy_func() {
   Test(null);
 })();
 
-(function TestImportMutableAnyRefGlobalFromOtherInstance() {
+(function TestImportMutableExternRefGlobalFromOtherInstance() {
   print(arguments.callee.name);
 
   // Create an instance which exports globals.
   let builder1 = new WasmModuleBuilder();
-  const g3 = builder1.addGlobal(kWasmAnyRef, true).exportAs("e3");
+  const g3 = builder1.addGlobal(kWasmExternRef, true).exportAs("e3");
   builder1.addGlobal(kWasmI32, true).exportAs("e1"); // Dummy.
-  builder1.addGlobal(kWasmAnyRef, true).exportAs("e4"); // Dummy.
-  const g2 = builder1.addGlobal(kWasmAnyRef, true).exportAs("e2");
+  builder1.addGlobal(kWasmExternRef, true).exportAs("e4"); // Dummy.
+  const g2 = builder1.addGlobal(kWasmExternRef, true).exportAs("e2");
 
   builder1.addFunction("set_globals", kSig_v_rr)
     .addBody([
@@ -381,9 +381,9 @@ function dummy_func() {
   // Create an instance which imports the globals of the other instance.
   let builder2 = new WasmModuleBuilder();
   const i1 = builder2.addImportedGlobal('exports', 'e1', kWasmI32, true);
-  const i2 = builder2.addImportedGlobal('exports', 'e2', kWasmAnyRef, true);
-  const i3 = builder2.addImportedGlobal('exports', 'e3', kWasmAnyRef, true);
-  const i4 = builder2.addImportedGlobal('exports', 'e4', kWasmAnyRef, true);
+  const i2 = builder2.addImportedGlobal('exports', 'e2', kWasmExternRef, true);
+  const i3 = builder2.addImportedGlobal('exports', 'e3', kWasmExternRef, true);
+  const i4 = builder2.addImportedGlobal('exports', 'e4', kWasmExternRef, true);
 
   builder2.addExportOfKind("reexport1", kExternalGlobal, i1);
   builder2.addExportOfKind("reexport2", kExternalGlobal, i2);
@@ -529,17 +529,17 @@ function dummy_func() {
   assertEquals(obj3, instance2.exports.reexport3.value);
 })();
 
-(function TestImportMutableAnyFuncGlobalAsAnyRefFails() {
+(function TestImportMutableAnyFuncGlobalAsExternRefFails() {
   print(arguments.callee.name);
   let builder1 = new WasmModuleBuilder();
   const g3 = builder1.addGlobal(kWasmAnyFunc, true).exportAs("e3");
-  builder1.addGlobal(kWasmAnyRef, true).exportAs("e1"); // Dummy.
+  builder1.addGlobal(kWasmExternRef, true).exportAs("e1"); // Dummy.
   builder1.addGlobal(kWasmAnyFunc, true).exportAs("e2"); // Dummy.
   const instance1 = builder1.instantiate();
 
   let builder2 = new WasmModuleBuilder();
-  const i1 = builder2.addImportedGlobal('exports', 'e1', kWasmAnyRef, true);
-  const i2 = builder2.addImportedGlobal('exports', 'e2', kWasmAnyRef, true);
+  const i1 = builder2.addImportedGlobal('exports', 'e1', kWasmExternRef, true);
+  const i2 = builder2.addImportedGlobal('exports', 'e2', kWasmExternRef, true);
   assertThrows(() => builder2.instantiate(instance1), WebAssembly.LinkError);
 })();
 

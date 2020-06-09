@@ -102,7 +102,7 @@ bool InterpretWasmModuleForTesting(Isolate* isolate,
       case ValueType::kF64:
         arguments[i] = WasmValue(0.0);
         break;
-      case ValueType::kAnyRef:
+      case ValueType::kExternRef:
       case ValueType::kFuncRef:
       case ValueType::kNullRef:
       case ValueType::kExnRef:

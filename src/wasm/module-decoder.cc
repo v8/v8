@@ -660,7 +660,7 @@ class ModuleDecoderImpl : public Decoder {
           WasmTable* table = &module_->tables.back();
           table->imported = true;
           ValueType type = consume_reference_type();
-          if (!enabled_features_.has_anyref()) {
+          if (!enabled_features_.has_reftypes()) {
             if (type != kWasmFuncRef) {
               error(pc_ - 1, "invalid table type");
               break;
@@ -746,9 +746,9 @@ class ModuleDecoderImpl : public Decoder {
 
   void DecodeTableSection() {
     // TODO(ahaas): Set the correct limit to {kV8MaxWasmTables} once the
-    // implementation of AnyRef landed.
+    // implementation of ExternRef landed.
     uint32_t max_count =
-        enabled_features_.has_anyref() ? 100000 : kV8MaxWasmTables;
+        enabled_features_.has_reftypes() ? 100000 : kV8MaxWasmTables;
     uint32_t table_count = consume_count("table count", max_count);
 
     for (uint32_t i = 0; ok() && i < table_count; i++) {
@@ -1373,7 +1373,7 @@ class ModuleDecoderImpl : public Decoder {
   }
 
   bool AddTable(WasmModule* module) {
-    if (enabled_features_.has_anyref()) return true;
+    if (enabled_features_.has_reftypes()) return true;
     if (module->tables.size() > 0) {
       error("At most one table is supported");
       return false;
@@ -1666,7 +1666,7 @@ class ModuleDecoderImpl : public Decoder {
         break;
       }
       case kExprRefNull: {
-        if (enabled_features_.has_anyref() || enabled_features_.has_eh()) {
+        if (enabled_features_.has_reftypes() || enabled_features_.has_eh()) {
           RefNullImmediate<Decoder::kValidate> imm(WasmFeatures::All(), this,
                                                    pc() - 1);
           if (!imm.type.IsReferenceType()) {
@@ -1686,7 +1686,7 @@ class ModuleDecoderImpl : public Decoder {
         V8_FALLTHROUGH;
       }
       case kExprRefFunc: {
-        if (enabled_features_.has_anyref()) {
+        if (enabled_features_.has_reftypes()) {
           FunctionIndexImmediate<Decoder::kValidate> imm(this, pc() - 1);
           if (module->functions.size() <= imm.index) {
             errorf(pc() - 1, "invalid function index: %u", imm.index);
@@ -1760,17 +1760,18 @@ class ModuleDecoderImpl : public Decoder {
     switch (t) {
       case kLocalFuncRef:
         return kWasmFuncRef;
-      case kLocalAnyRef:
-        if (!enabled_features_.has_anyref()) {
+      case kLocalExternRef:
+        if (!enabled_features_.has_reftypes()) {
           error(pc_ - 1,
-                "Invalid type. Set --experimental-wasm-anyref to use 'AnyRef'");
+                "Invalid type. Set --experimental-wasm-reftypes to use "
+                "'ExternRef'");
         }
-        return kWasmAnyRef;
+        return kWasmExternRef;
       case kLocalNullRef:
-        if (!enabled_features_.has_anyref()) {
-          error(
-              pc_ - 1,
-              "Invalid type. Set --experimental-wasm-anyref to use 'NullRef'");
+        if (!enabled_features_.has_reftypes()) {
+          error(pc_ - 1,
+                "Invalid type. Set --experimental-wasm-reftypes to use "
+                "'NullRef'");
         }
         return kWasmNullRef;
       case kLocalExnRef:
@@ -1879,15 +1880,16 @@ class ModuleDecoderImpl : public Decoder {
                                       WasmInitExpr* offset) {
     const byte* pos = pc();
     uint8_t flag;
-    if (enabled_features_.has_bulk_memory() || enabled_features_.has_anyref()) {
+    if (enabled_features_.has_bulk_memory() ||
+        enabled_features_.has_reftypes()) {
       flag = consume_u8("flag");
     } else {
       uint32_t table_index = consume_u32v("table index");
-      // The only valid flag value without bulk_memory or anyref is '0'.
+      // The only valid flag value without bulk_memory or externref is '0'.
       if (table_index != 0) {
         error(
             "Element segments with table indices require "
-            "--experimental-wasm-bulk-memory or --experimental-wasm-anyref");
+            "--experimental-wasm-bulk-memory or --experimental-wasm-reftypes");
         return;
       }
       flag = 0;
@@ -1922,8 +1924,9 @@ class ModuleDecoderImpl : public Decoder {
                            *status == WasmElemSegment::kStatusActive;
 
     if (*status == WasmElemSegment::kStatusDeclarative &&
-        !enabled_features_.has_anyref()) {
-      error("Declarative element segments require --experimental-wasm-anyref");
+        !enabled_features_.has_reftypes()) {
+      error(
+          "Declarative element segments require --experimental-wasm-reftypes");
       return;
     }
     if (*status == WasmElemSegment::kStatusPassive &&
@@ -1938,10 +1941,10 @@ class ModuleDecoderImpl : public Decoder {
       return;
     }
     if (flag != 0 && !enabled_features_.has_bulk_memory() &&
-        !enabled_features_.has_anyref()) {
+        !enabled_features_.has_reftypes()) {
       error(
           "Invalid segment flag. Did you forget "
-          "--experimental-wasm-bulk-memory or --experimental-wasm-anyref?");
+          "--experimental-wasm-bulk-memory or --experimental-wasm-reftypes?");
       return;
     }
     if ((flag & kFullMask) != flag) {
@@ -1995,10 +1998,10 @@ class ModuleDecoderImpl : public Decoder {
       }
     } else if (flag == SegmentFlags::kActiveWithIndex) {
       if (!(enabled_features_.has_bulk_memory() ||
-            enabled_features_.has_anyref())) {
+            enabled_features_.has_reftypes())) {
         error(
             "Element segments with table indices require "
-            "--experimental-wasm-bulk-memory or --experimental-wasm-anyref");
+            "--experimental-wasm-bulk-memory or --experimental-wasm-reftypes");
         return;
       }
     } else if (flag != SegmentFlags::kActiveNoIndex) {

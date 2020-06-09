@@ -354,7 +354,7 @@ class WasmGlobalObject : public JSObject {
   inline void SetI64(int64_t value);
   inline void SetF32(float value);
   inline void SetF64(double value);
-  inline void SetAnyRef(Handle<Object> value);
+  inline void SetExternRef(Handle<Object> value);
   inline bool SetNullRef(Handle<Object> value);
   inline bool SetFuncRef(Isolate* isolate, Handle<Object> value);
 

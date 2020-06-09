@@ -154,29 +154,29 @@ ValueType read_value_type(Decoder* decoder, const byte* pc,
       return kWasmF32;
     case kLocalF64:
       return kWasmF64;
-    case kLocalAnyRef:
-      if (enabled.has_anyref()) {
-        return kWasmAnyRef;
+    case kLocalExternRef:
+      if (enabled.has_reftypes()) {
+        return kWasmExternRef;
       }
       decoder->error(pc,
-                     "invalid value type 'anyref', enable with "
-                     "--experimental-wasm-anyref");
+                     "invalid value type 'externref', enable with "
+                     "--experimental-wasm-reftypes");
       return kWasmBottom;
     case kLocalFuncRef:
-      if (enabled.has_anyref()) {
+      if (enabled.has_reftypes()) {
         return kWasmFuncRef;
       }
       decoder->error(pc,
                      "invalid value type 'funcref', enable with "
-                     "--experimental-wasm-anyref");
+                     "--experimental-wasm-reftypes");
       return kWasmBottom;
     case kLocalNullRef:
-      if (enabled.has_anyref()) {
+      if (enabled.has_reftypes()) {
         return kWasmNullRef;
       }
       decoder->error(pc,
                      "invalid value type 'nullref', enable with "
-                     "--experimental-wasm-anyref");
+                     "--experimental-wasm-reftypes");
       return kWasmBottom;
     case kLocalExnRef:
       if (enabled.has_eh()) {
@@ -537,7 +537,7 @@ struct CallIndirectImmediate {
     sig_index = decoder->read_u32v<validate>(pc + 1, &len, "signature index");
     TableIndexImmediate<validate> table(decoder, pc + len);
     if (!VALIDATE((table.index == 0 && table.length == 1) ||
-                  enabled.has_anyref())) {
+                  enabled.has_reftypes())) {
       decoder->errorf(pc + 1 + len, "expected table index 0, found %u",
                       table.index);
     }
@@ -2310,7 +2310,7 @@ class WasmFullDecoder : public WasmDecoder<validate> {
           break;
         }
         case kExprSelectWithType: {
-          CHECK_PROTOTYPE_OPCODE(anyref);
+          CHECK_PROTOTYPE_OPCODE(reftypes);
           SelectTypeImmediate<validate> imm(this->enabled_, this, this->pc_);
           if (this->failed()) break;
           Value cond = Pop(2, kWasmI32);
@@ -2459,7 +2459,7 @@ class WasmFullDecoder : public WasmDecoder<validate> {
           break;
         }
         case kExprRefNull: {
-          CHECK_PROTOTYPE_OPCODE(anyref);
+          CHECK_PROTOTYPE_OPCODE(reftypes);
           RefNullImmediate<validate> imm(this->enabled_, this, this->pc_);
           if (!this->Validate(this->pc_, imm)) break;
           Value* value = Push(imm.type);
@@ -2468,7 +2468,7 @@ class WasmFullDecoder : public WasmDecoder<validate> {
           break;
         }
         case kExprRefIsNull: {
-          CHECK_PROTOTYPE_OPCODE(anyref);
+          CHECK_PROTOTYPE_OPCODE(reftypes);
           RefNullImmediate<validate> imm(this->enabled_, this, this->pc_);
           if (!this->Validate(this->pc_, imm)) break;
           Value value = Pop(0, imm.type);
@@ -2478,7 +2478,7 @@ class WasmFullDecoder : public WasmDecoder<validate> {
           break;
         }
         case kExprRefFunc: {
-          CHECK_PROTOTYPE_OPCODE(anyref);
+          CHECK_PROTOTYPE_OPCODE(reftypes);
           FunctionIndexImmediate<validate> imm(this, this->pc_);
           if (!this->Validate(this->pc_, imm)) break;
           Value* value = Push(kWasmFuncRef);
@@ -2567,7 +2567,7 @@ class WasmFullDecoder : public WasmDecoder<validate> {
           break;
         }
         case kExprTableGet: {
-          CHECK_PROTOTYPE_OPCODE(anyref);
+          CHECK_PROTOTYPE_OPCODE(reftypes);
           TableIndexImmediate<validate> imm(this, this->pc_);
           len = 1 + imm.length;
           if (!this->Validate(this->pc_, imm)) break;
@@ -2577,7 +2577,7 @@ class WasmFullDecoder : public WasmDecoder<validate> {
           break;
         }
         case kExprTableSet: {
-          CHECK_PROTOTYPE_OPCODE(anyref);
+          CHECK_PROTOTYPE_OPCODE(reftypes);
           TableIndexImmediate<validate> imm(this, this->pc_);
           len = 1 + imm.length;
           if (!this->Validate(this->pc_, imm)) break;
@@ -2737,7 +2737,7 @@ class WasmFullDecoder : public WasmDecoder<validate> {
           opcode = static_cast<WasmOpcode>(opcode << 8 | numeric_index);
           if (opcode == kExprTableGrow || opcode == kExprTableSize ||
               opcode == kExprTableFill) {
-            CHECK_PROTOTYPE_OPCODE(anyref);
+            CHECK_PROTOTYPE_OPCODE(reftypes);
           } else if (opcode >= kExprMemoryInit) {
             CHECK_PROTOTYPE_OPCODE(bulk_memory);
           }
@@ -3032,7 +3032,7 @@ class WasmFullDecoder : public WasmDecoder<validate> {
     }
 
     for (int i = 0; i < br_arity; ++i) {
-      if (this->enabled_.has_anyref()) {
+      if (this->enabled_.has_reftypes()) {
         // The expected type is the biggest common sub type of all targets.
         ValueType type = (*result_types)[i];
         (*result_types)[i] =

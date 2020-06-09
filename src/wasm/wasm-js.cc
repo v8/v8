@@ -1079,10 +1079,10 @@ void WebAssemblyTable(const v8::FunctionCallbackInfo<v8::Value>& args) {
     auto enabled_features = i::wasm::WasmFeatures::FromFlags();
     if (string->StringEquals(v8_str(isolate, "anyfunc"))) {
       type = i::wasm::kWasmFuncRef;
-    } else if (enabled_features.has_anyref() &&
-               string->StringEquals(v8_str(isolate, "anyref"))) {
-      type = i::wasm::kWasmAnyRef;
-    } else if (enabled_features.has_anyref() &&
+    } else if (enabled_features.has_reftypes() &&
+               string->StringEquals(v8_str(isolate, "externref"))) {
+      type = i::wasm::kWasmExternRef;
+    } else if (enabled_features.has_reftypes() &&
                string->StringEquals(v8_str(isolate, "nullref"))) {
       type = i::wasm::kWasmNullRef;
     } else {
@@ -1209,13 +1209,13 @@ bool GetValueType(Isolate* isolate, MaybeLocal<Value> maybe,
     *type = i::wasm::kWasmI64;
   } else if (string->StringEquals(v8_str(isolate, "f64"))) {
     *type = i::wasm::kWasmF64;
-  } else if (enabled_features.has_anyref() &&
-             string->StringEquals(v8_str(isolate, "anyref"))) {
-    *type = i::wasm::kWasmAnyRef;
-  } else if (enabled_features.has_anyref() &&
+  } else if (enabled_features.has_reftypes() &&
+             string->StringEquals(v8_str(isolate, "externref"))) {
+    *type = i::wasm::kWasmExternRef;
+  } else if (enabled_features.has_reftypes() &&
              string->StringEquals(v8_str(isolate, "anyfunc"))) {
     *type = i::wasm::kWasmFuncRef;
-  } else if (enabled_features.has_anyref() &&
+  } else if (enabled_features.has_reftypes() &&
              string->StringEquals(v8_str(isolate, "nullref"))) {
     *type = i::wasm::kWasmNullRef;
   } else if (enabled_features.has_eh() &&
@@ -1338,15 +1338,15 @@ void WebAssemblyGlobal(const v8::FunctionCallbackInfo<v8::Value>& args) {
       global_obj->SetF64(f64_value);
       break;
     }
-    case i::wasm::ValueType::kAnyRef:
+    case i::wasm::ValueType::kExternRef:
     case i::wasm::ValueType::kExnRef: {
       if (args.Length() < 2) {
         // When no initial value is provided, we have to use the WebAssembly
         // default value 'null', and not the JS default value 'undefined'.
-        global_obj->SetAnyRef(i_isolate->factory()->null_value());
+        global_obj->SetExternRef(i_isolate->factory()->null_value());
         break;
       }
-      global_obj->SetAnyRef(Utils::OpenHandle(*value));
+      global_obj->SetExternRef(Utils::OpenHandle(*value));
       break;
     }
     case i::wasm::ValueType::kNullRef:
@@ -1834,7 +1834,7 @@ void WebAssemblyGlobalGetValueCommon(
     case i::wasm::ValueType::kF64:
       return_value.Set(receiver->GetF64());
       break;
-    case i::wasm::ValueType::kAnyRef:
+    case i::wasm::ValueType::kExternRef:
     case i::wasm::ValueType::kFuncRef:
     case i::wasm::ValueType::kNullRef:
     case i::wasm::ValueType::kExnRef:
@@ -1916,9 +1916,9 @@ void WebAssemblyGlobalSetValue(
       receiver->SetF64(f64_value);
       break;
     }
-    case i::wasm::ValueType::kAnyRef:
+    case i::wasm::ValueType::kExternRef:
     case i::wasm::ValueType::kExnRef: {
-      receiver->SetAnyRef(Utils::OpenHandle(*args[0]));
+      receiver->SetExternRef(Utils::OpenHandle(*args[0]));
       break;
     }
     case i::wasm::ValueType::kNullRef:

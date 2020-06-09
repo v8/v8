@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-// Flags: --experimental-wasm-eh --experimental-wasm-anyref --allow-natives-syntax
+// Flags: --experimental-wasm-eh --experimental-wasm-reftypes --allow-natives-syntax
 
 load("test/mjsunit/wasm/wasm-module-builder.js");
 load("test/mjsunit/wasm/exceptions-utils.js");
@@ -14,7 +14,7 @@ load("test/mjsunit/wasm/exceptions-utils.js");
   let except = builder.addException(kSig_v_r);
   builder.addFunction("throw_null", kSig_v_v)
       .addBody([
-        kExprRefNull, kWasmAnyRef,
+        kExprRefNull, kWasmExternRef,
         kExprThrow, except,
       ]).exportFunc();
   let instance = builder.instantiate();
@@ -29,11 +29,11 @@ load("test/mjsunit/wasm/exceptions-utils.js");
   let except = builder.addException(kSig_v_r);
   builder.addFunction("throw_catch_null", kSig_i_i)
       .addBody([
-        kExprTry, kWasmAnyRef,
+        kExprTry, kWasmExternRef,
           kExprLocalGet, 0,
           kExprI32Eqz,
-          kExprIf, kWasmAnyRef,
-            kExprRefNull, kWasmAnyRef,
+          kExprIf, kWasmExternRef,
+            kExprRefNull, kWasmExternRef,
             kExprThrow, except,
           kExprElse,
             kExprI32Const, 42,
@@ -43,7 +43,7 @@ load("test/mjsunit/wasm/exceptions-utils.js");
           kExprBrOnExn, 0, except,
           kExprRethrow,
         kExprEnd,
-        kExprRefIsNull, kWasmAnyRef,
+        kExprRefIsNull, kWasmExternRef,
         kExprIf, kWasmI32,
           kExprI32Const, 23,
         kExprElse,
@@ -82,7 +82,7 @@ load("test/mjsunit/wasm/exceptions-utils.js");
   let except = builder.addException(kSig_v_r);
   builder.addFunction("throw_catch_param", kSig_r_r)
       .addBody([
-        kExprTry, kWasmAnyRef,
+        kExprTry, kWasmExternRef,
           kExprLocalGet, 0,
           kExprThrow, except,
         kExprCatch,

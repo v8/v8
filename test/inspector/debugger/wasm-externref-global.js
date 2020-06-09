@@ -2,17 +2,17 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-// Flags: --experimental-wasm-anyref
+// Flags: --experimental-wasm-reftypes
 
 let {session, contextGroup, Protocol} =
-    InspectorTest.start('Test wasm scope information with anyref globals');
+    InspectorTest.start('Test wasm scope information with externref globals');
 
 (async function() {
   try {
     utils.load('test/mjsunit/wasm/wasm-module-builder.js');
 
     let builder = new WasmModuleBuilder();
-    builder.addImportedGlobal('m', 'global', kWasmAnyRef, false);
+    builder.addImportedGlobal('m', 'global', kWasmExternRef, false);
     let func = builder.addFunction('func', kSig_v_v)
         .addBody([
           kExprGlobalGet, 0,  //

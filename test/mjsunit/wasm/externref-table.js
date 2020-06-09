@@ -2,13 +2,13 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-// Flags: --experimental-wasm-anyref --experimental-wasm-bulk-memory
+// Flags: --experimental-wasm-reftypes --experimental-wasm-bulk-memory
 
 load("test/mjsunit/wasm/wasm-module-builder.js");
 
-(function TestAnyRefTableSetWithMultipleTypes() {
+(function TestExternRefTableSetWithMultipleTypes() {
   print(arguments.callee.name);
-  let table = new WebAssembly.Table({element: "anyref", initial: 10});
+  let table = new WebAssembly.Table({element: "externref", initial: 10});
 
   // Table should be initialized with null.
   assertEquals(null, table.get(1));
@@ -30,15 +30,15 @@ load("test/mjsunit/wasm/wasm-module-builder.js");
   assertThrows(() => table.set(12), RangeError);
 })();
 
-(function TestImportAnyRefTable() {
+(function TestImportExternRefTable() {
   print(arguments.callee.name);
 
   const builder = new WasmModuleBuilder();
-  const table_index = builder.addImportedTable("imp", "table", 3, 10, kWasmAnyRef);
+  const table_index = builder.addImportedTable("imp", "table", 3, 10, kWasmExternRef);
   builder.addFunction('get', kSig_r_v)
   .addBody([kExprI32Const, 0, kExprTableGet, table_index]);
 
-  let table_ref = new WebAssembly.Table({element: "anyref", initial: 3, maximum: 10});
+  let table_ref = new WebAssembly.Table({element: "externref", initial: 3, maximum: 10});
   builder.instantiate({imp:{table: table_ref}});
 
   let table_func = new WebAssembly.Table({ element: "anyfunc", initial: 3, maximum: 10 });
@@ -46,7 +46,7 @@ load("test/mjsunit/wasm/wasm-module-builder.js");
     WebAssembly.LinkError, /imported table does not match the expected type/);
 })();
 
-(function TestAnyRefDropDeclarativeElementSegment() {
+(function TestExternRefDropDeclarativeElementSegment() {
   print(arguments.callee.name);
 
   const builder = new WasmModuleBuilder();
@@ -61,7 +61,7 @@ load("test/mjsunit/wasm/wasm-module-builder.js");
   instance.exports.drop();
 })();
 
-(function TestAnyRefTableInitFromDeclarativeElementSegment() {
+(function TestExternRefTableInitFromDeclarativeElementSegment() {
   print(arguments.callee.name);
 
   const builder = new WasmModuleBuilder();

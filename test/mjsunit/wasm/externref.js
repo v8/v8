@@ -2,11 +2,11 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-// Flags: --expose-wasm --experimental-wasm-anyref --expose-gc
+// Flags: --expose-wasm --experimental-wasm-reftypes --expose-gc
 
 load("test/mjsunit/wasm/wasm-module-builder.js");
 
-(function testAnyRefIdentityFunction() {
+(function testExternRefIdentityFunction() {
   print(arguments.callee.name);
   const builder = new WasmModuleBuilder();
   builder.addFunction('main', kSig_r_r)
@@ -25,7 +25,7 @@ load("test/mjsunit/wasm/wasm-module-builder.js");
   assertEquals(print, instance.exports.main(print));
 })();
 
-(function testPassAnyRefToImportedFunction() {
+(function testPassExternRefToImportedFunction() {
   print(arguments.callee.name);
   const builder = new WasmModuleBuilder();
   const sig_index = builder.addType(kSig_v_r);
@@ -44,7 +44,7 @@ load("test/mjsunit/wasm/wasm-module-builder.js");
   instance.exports.main({hello: 'world'});
 })();
 
-(function testPassAnyRefWithGCWithLocals() {
+(function testPassExternRefWithGCWithLocals() {
   print(arguments.callee.name);
   const builder = new WasmModuleBuilder();
   const ref_sig = builder.addType(kSig_v_r);
@@ -53,7 +53,7 @@ load("test/mjsunit/wasm/wasm-module-builder.js");
   const gc_index = builder.addImport("q", "gc", void_sig);
   // First call the gc, then check if the object still exists.
   builder.addFunction('main', ref_sig)
-      .addLocals({anyref_count: 10})
+      .addLocals({externref_count: 10})
       .addBody([
         kExprLocalGet, 0, kExprLocalSet, 1,             // Set local
         kExprLocalGet, 0, kExprLocalSet, 2,             // Set local
@@ -79,7 +79,7 @@ load("test/mjsunit/wasm/wasm-module-builder.js");
   instance.exports.main({hello: 'world'});
 })();
 
-(function testPassAnyRefWithGC() {
+(function testPassExternRefWithGC() {
   print(arguments.callee.name);
   const builder = new WasmModuleBuilder();
   const ref_sig = builder.addType(kSig_v_r);
@@ -103,13 +103,13 @@ load("test/mjsunit/wasm/wasm-module-builder.js");
   instance.exports.main({hello: 'world'});
 })();
 
-(function testPassAnyRefWithGCWithStackParameters() {
+(function testPassExternRefWithGCWithStackParameters() {
   print(arguments.callee.name);
   const num_params = 15;
   for (let index = 0; index < num_params; index++) {
     const builder = new WasmModuleBuilder();
-    // Make a signature with {num_params} many anyref parameters.
-    const mysig = makeSig(Array(num_params).fill(kWasmAnyRef), []);
+    // Make a signature with {num_params} many externref parameters.
+    const mysig = makeSig(Array(num_params).fill(kWasmExternRef), []);
     const main_sig = builder.addType(mysig);
     const ref_sig = builder.addType(kSig_v_r);
     const void_sig = builder.addType(kSig_v_v);
@@ -139,10 +139,10 @@ load("test/mjsunit/wasm/wasm-module-builder.js");
   }
 })();
 
-(function testPassAnyRefWithGCInWrapper() {
+(function testPassExternRefWithGCInWrapper() {
   print(arguments.callee.name);
   const builder = new WasmModuleBuilder();
-  const kSig_r_iri = makeSig([kWasmI32, kWasmAnyRef, kWasmI32], [kWasmAnyRef]);
+  const kSig_r_iri = makeSig([kWasmI32, kWasmExternRef, kWasmI32], [kWasmExternRef]);
   const sig_index = builder.addType(kSig_r_iri);
   builder.addFunction('main', sig_index)
       .addBody([kExprLocalGet, 1])
@@ -161,11 +161,11 @@ load("test/mjsunit/wasm/wasm-module-builder.js");
   assertEquals('world', result.hello);
 })();
 
-(function testAnyRefNull() {
+(function testExternRefNull() {
   print(arguments.callee.name);
   const builder = new WasmModuleBuilder();
   builder.addFunction('main', kSig_r_v)
-      .addBody([kExprRefNull, kWasmAnyRef])
+      .addBody([kExprRefNull, kWasmExternRef])
       .exportFunc();
 
   const instance = builder.instantiate();
@@ -173,11 +173,11 @@ load("test/mjsunit/wasm/wasm-module-builder.js");
   assertEquals(null, instance.exports.main());
 })();
 
-(function testAnyRefIsNull() {
+(function testExternRefIsNull() {
   print(arguments.callee.name);
   const builder = new WasmModuleBuilder();
   builder.addFunction('main', kSig_i_r)
-      .addBody([kExprLocalGet, 0, kExprRefIsNull, kWasmAnyRef])
+      .addBody([kExprLocalGet, 0, kExprRefIsNull, kWasmExternRef])
       .exportFunc();
 
   const instance = builder.instantiate();
@@ -191,14 +191,14 @@ load("test/mjsunit/wasm/wasm-module-builder.js");
   assertEquals(0, instance.exports.main(print));
 })();
 
-(function testAnyRefNullIsNull() {
+(function testExternRefNullIsNull() {
   print(arguments.callee.name);
 
   const builder = new WasmModuleBuilder();
   builder.addFunction('main', kSig_i_v)
       .addBody([
-        kExprRefNull, kWasmAnyRef,   // --
-        kExprRefIsNull, kWasmAnyRef  // --
+        kExprRefNull, kWasmExternRef,   // --
+        kExprRefIsNull, kWasmExternRef  // --
       ])
       .exportFunc();
 
@@ -207,12 +207,12 @@ load("test/mjsunit/wasm/wasm-module-builder.js");
   assertEquals(1, instance.exports.main());
 })();
 
-(function testAnyRefLocalDefaultValue() {
+(function testExternRefLocalDefaultValue() {
   print(arguments.callee.name);
   const builder = new WasmModuleBuilder();
   builder.addFunction('main', kSig_r_v)
       .addBody([kExprLocalGet, 0])
-      .addLocals({anyref_count: 1})
+      .addLocals({externref_count: 1})
       .exportFunc();
 
   const instance = builder.instantiate();
@@ -220,24 +220,24 @@ load("test/mjsunit/wasm/wasm-module-builder.js");
   assertEquals(null, instance.exports.main());
 })();
 
-(function testImplicitReturnNullRefAsAnyRef() {
+(function testImplicitReturnNullRefAsExternRef() {
   print(arguments.callee.name);
   const builder = new WasmModuleBuilder();
   const sig_index = builder.addType(kSig_r_v);
   builder.addFunction('main', sig_index)
-      .addBody([kExprRefNull, kWasmAnyRef])
+      .addBody([kExprRefNull, kWasmExternRef])
       .exportFunc();
 
   const main = builder.instantiate().exports.main;
   assertEquals(null, main());
 })();
 
-(function testExplicitReturnNullRefAsAnyRef() {
+(function testExplicitReturnNullRefAsExternRef() {
   print(arguments.callee.name);
   const builder = new WasmModuleBuilder();
   const sig_index = builder.addType(kSig_r_v);
   builder.addFunction('main', sig_index)
-      .addBody([kExprRefNull, kWasmAnyRef, kExprReturn])
+      .addBody([kExprRefNull, kWasmExternRef, kExprReturn])
       .exportFunc();
 
   const main = builder.instantiate().exports.main;
