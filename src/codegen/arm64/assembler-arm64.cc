@@ -41,6 +41,9 @@
 namespace v8 {
 namespace internal {
 
+namespace {
+
+#ifdef USE_SIMULATOR
 static unsigned SimulatorFeaturesFromCommandLine() {
   if (strcmp(FLAG_sim_arm64_optional_features, "none") == 0) {
     return 0;
@@ -57,6 +60,7 @@ static unsigned SimulatorFeaturesFromCommandLine() {
           "                       all\n");
   FATAL("sim-arm64-optional-features");
 }
+#endif  // USE_SIMULATOR
 
 static constexpr unsigned CpuFeaturesFromCompiler() {
   unsigned features = 0;
@@ -65,6 +69,8 @@ static constexpr unsigned CpuFeaturesFromCompiler() {
 #endif
   return features;
 }
+
+}  // namespace
 
 // -----------------------------------------------------------------------------
 // CpuFeatures implementation.
