@@ -855,13 +855,13 @@ WasmCode* NativeModule::AddCodeForTesting(Handle<Code> code) {
       code->is_off_heap_trampoline() ? 0 : code->relocation_size();
   OwnedVector<byte> reloc_info;
   if (relocation_size > 0) {
-    reloc_info = OwnedVector<byte>::New(relocation_size);
-    memcpy(reloc_info.start(), code->relocation_start(), relocation_size);
+    reloc_info = OwnedVector<byte>::Of(
+        Vector<byte>{code->relocation_start(), relocation_size});
   }
   Handle<ByteArray> source_pos_table(code->SourcePositionTable(),
                                      code->GetIsolate());
   OwnedVector<byte> source_pos =
-      OwnedVector<byte>::New(source_pos_table->length());
+      OwnedVector<byte>::NewForOverwrite(source_pos_table->length());
   if (source_pos_table->length() > 0) {
     source_pos_table->copy_out(0, source_pos.start(),
                                source_pos_table->length());

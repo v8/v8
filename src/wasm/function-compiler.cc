@@ -48,7 +48,7 @@ class WasmInstructionBufferImpl {
       DCHECK_LT(size(), new_size);
 
       holder_->old_buffer_ = std::move(holder_->buffer_);
-      holder_->buffer_ = OwnedVector<uint8_t>::New(new_size);
+      holder_->buffer_ = OwnedVector<uint8_t>::NewForOverwrite(new_size);
       return std::make_unique<View>(holder_->buffer_.as_vector(), holder_);
     }
 
@@ -58,7 +58,7 @@ class WasmInstructionBufferImpl {
   };
 
   explicit WasmInstructionBufferImpl(size_t size)
-      : buffer_(OwnedVector<uint8_t>::New(size)) {}
+      : buffer_(OwnedVector<uint8_t>::NewForOverwrite(size)) {}
 
   std::unique_ptr<AssemblerBuffer> CreateView() {
     DCHECK_NOT_NULL(buffer_);

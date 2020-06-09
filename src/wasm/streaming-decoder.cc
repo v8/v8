@@ -56,8 +56,8 @@ class V8_EXPORT_PRIVATE AsyncStreamingDecoder : public StreamingDecoder {
                   Vector<const uint8_t> length_bytes)
         :  // ID + length + payload
           module_offset_(module_offset),
-          bytes_(OwnedVector<uint8_t>::New(1 + length_bytes.length() +
-                                           payload_length)),
+          bytes_(OwnedVector<uint8_t>::NewForOverwrite(
+              1 + length_bytes.length() + payload_length)),
           payload_offset_(1 + length_bytes.length()) {
       bytes_.start()[0] = id;
       memcpy(bytes_.start() + 1, &length_bytes.first(), length_bytes.length());
@@ -278,7 +278,8 @@ void AsyncStreamingDecoder::Finish() {
     return;
   }
 
-  OwnedVector<uint8_t> bytes = OwnedVector<uint8_t>::New(total_size_);
+  OwnedVector<uint8_t> bytes =
+      OwnedVector<uint8_t>::NewForOverwrite(total_size_);
   uint8_t* cursor = bytes.start();
   {
 #define BYTES(x) (x & 0xFF), (x >> 8) & 0xFF, (x >> 16) & 0xFF, (x >> 24) & 0xFF

@@ -163,6 +163,7 @@ class OwnedVector {
       : data_(std::move(data)), length_(length) {
     DCHECK_IMPLIES(length_ > 0, data_ != nullptr);
   }
+
   // Implicit conversion from {OwnedVector<U>} to {OwnedVector<T>}, instantiable
   // if {std::unique_ptr<U>} can be converted to {std::unique_ptr<T>}.
   // Can be used to convert {OwnedVector<T>} to {OwnedVector<const T>}.
@@ -207,9 +208,18 @@ class OwnedVector {
   }
 
   // Allocates a new vector of the specified size via the default allocator.
+  // Elements in the new vector are value-initialized.
   static OwnedVector<T> New(size_t size) {
     if (size == 0) return {};
     return OwnedVector<T>(std::make_unique<T[]>(size), size);
+  }
+
+  // Allocates a new vector of the specified size via the default allocator.
+  // Elements in the new vector are default-initialized.
+  static OwnedVector<T> NewForOverwrite(size_t size) {
+    if (size == 0) return {};
+    // TODO(v8): Use {std::make_unique_for_overwrite} once we allow C++20.
+    return OwnedVector<T>(std::unique_ptr<T[]>(new T[size]), size);
   }
 
   // Allocates a new vector containing the specified collection of values.
@@ -222,7 +232,8 @@ class OwnedVector {
     Iterator begin = std::begin(collection);
     Iterator end = std::end(collection);
     using non_const_t = typename std::remove_const<T>::type;
-    auto vec = OwnedVector<non_const_t>::New(std::distance(begin, end));
+    auto vec =
+        OwnedVector<non_const_t>::NewForOverwrite(std::distance(begin, end));
     std::copy(begin, end, vec.start());
     return vec;
   }
