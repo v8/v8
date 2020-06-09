@@ -61,7 +61,6 @@ class TyperTest : public TypedGraphTest {
   Types types_;
   JSOperatorBuilder javascript_;
   SimplifiedOperatorBuilder simplified_;
-  BinaryOperationHint const hints_ = BinaryOperationHint::kAny;
   Node* context_node_;
   v8::base::RandomNumberGenerator* rng_;
   std::vector<double> integers;
@@ -313,6 +312,18 @@ int32_t bit_xor(int32_t x, int32_t y) { return x ^ y; }
 double divide_double_double(double x, double y) { return base::Divide(x, y); }
 double modulo_double_double(double x, double y) { return Modulo(x, y); }
 
+FeedbackSource FeedbackSourceWithOneBinarySlot(TyperTest* R) {
+  return FeedbackSource{
+      FeedbackVector::NewWithOneBinarySlotForTesting(R->zone(), R->isolate()),
+      FeedbackSlot{0}};
+}
+
+FeedbackSource FeedbackSourceWithOneCompareSlot(TyperTest* R) {
+  return FeedbackSource{
+      FeedbackVector::NewWithOneCompareSlotForTesting(R->zone(), R->isolate()),
+      FeedbackSlot{0}};
+}
+
 }  // namespace
 
 
@@ -323,54 +334,54 @@ double modulo_double_double(double x, double y) { return Modulo(x, y); }
 //   to ranges as input types.
 
 TEST_F(TyperTest, TypeJSAdd) {
-  TestBinaryArithOp(javascript_.Add(hints_), std::plus<double>());
+  TestBinaryArithOp(javascript_.Add(FeedbackSourceWithOneBinarySlot(this)),
+                    std::plus<double>());
 }
 
 TEST_F(TyperTest, TypeJSSubtract) {
-  TestBinaryArithOp(javascript_.Subtract(), std::minus<double>());
+  TestBinaryArithOp(javascript_.Subtract(FeedbackSourceWithOneBinarySlot(this)),
+                    std::minus<double>());
 }
 
 TEST_F(TyperTest, TypeJSMultiply) {
-  TestBinaryArithOp(javascript_.Multiply(), std::multiplies<double>());
+  TestBinaryArithOp(javascript_.Multiply(FeedbackSourceWithOneBinarySlot(this)),
+                    std::multiplies<double>());
 }
 
 TEST_F(TyperTest, TypeJSDivide) {
-  TestBinaryArithOp(javascript_.Divide(), divide_double_double);
+  TestBinaryArithOp(javascript_.Divide(FeedbackSourceWithOneBinarySlot(this)),
+                    divide_double_double);
 }
 
 TEST_F(TyperTest, TypeJSModulus) {
-  TestBinaryArithOp(javascript_.Modulus(), modulo_double_double);
+  TestBinaryArithOp(javascript_.Modulus(FeedbackSourceWithOneBinarySlot(this)),
+                    modulo_double_double);
 }
 
 TEST_F(TyperTest, TypeJSBitwiseOr) {
-  TestBinaryBitOp(javascript_.BitwiseOr(), bit_or);
+  TestBinaryBitOp(javascript_.BitwiseOr(FeedbackSourceWithOneBinarySlot(this)),
+                  bit_or);
 }
 
 TEST_F(TyperTest, TypeJSBitwiseAnd) {
-  TestBinaryBitOp(javascript_.BitwiseAnd(), bit_and);
+  TestBinaryBitOp(javascript_.BitwiseAnd(FeedbackSourceWithOneBinarySlot(this)),
+                  bit_and);
 }
 
 TEST_F(TyperTest, TypeJSBitwiseXor) {
-  TestBinaryBitOp(javascript_.BitwiseXor(), bit_xor);
+  TestBinaryBitOp(javascript_.BitwiseXor(FeedbackSourceWithOneBinarySlot(this)),
+                  bit_xor);
 }
 
 TEST_F(TyperTest, TypeJSShiftLeft) {
-  TestBinaryBitOp(javascript_.ShiftLeft(), shift_left);
+  TestBinaryBitOp(javascript_.ShiftLeft(FeedbackSourceWithOneBinarySlot(this)),
+                  shift_left);
 }
 
 TEST_F(TyperTest, TypeJSShiftRight) {
-  TestBinaryBitOp(javascript_.ShiftRight(), shift_right);
+  TestBinaryBitOp(javascript_.ShiftRight(FeedbackSourceWithOneBinarySlot(this)),
+                  shift_right);
 }
-
-namespace {
-
-FeedbackSource FeedbackSourceWithOneCompareSlot(TyperTest* R) {
-  return FeedbackSource{
-      FeedbackVector::NewWithOneCompareSlotForTesting(R->zone(), R->isolate()),
-      FeedbackSlot{0}};
-}
-
-}  // namespace
 
 TEST_F(TyperTest, TypeJSLessThan) {
   TestBinaryCompareOp(
@@ -455,7 +466,7 @@ TEST_MONOTONICITY(ToObject)
 TEST_MONOTONICITY(ToString)
 #undef TEST_MONOTONICITY
 
-// JS BINOPs with CompareOperationHint
+// JS compare ops.
 #define TEST_MONOTONICITY(name)                                    \
   TEST_F(TyperTest, Monotonicity_##name) {                         \
     TestBinaryMonotonicity(                                        \
@@ -469,35 +480,32 @@ TEST_MONOTONICITY(LessThanOrEqual)
 TEST_MONOTONICITY(GreaterThanOrEqual)
 #undef TEST_MONOTONICITY
 
-// JS BINOPs with BinaryOperationHint
-#define TEST_MONOTONICITY(name)                                          \
-  TEST_F(TyperTest, Monotonicity_##name) {                               \
-    TestBinaryMonotonicity(javascript_.name(BinaryOperationHint::kAny)); \
+// JS binary ops.
+#define TEST_MONOTONICITY(name)                                   \
+  TEST_F(TyperTest, Monotonicity_##name) {                        \
+    TestBinaryMonotonicity(                                       \
+        javascript_.name(FeedbackSourceWithOneBinarySlot(this))); \
   }
 TEST_MONOTONICITY(Add)
+TEST_MONOTONICITY(BitwiseAnd)
+TEST_MONOTONICITY(BitwiseOr)
+TEST_MONOTONICITY(BitwiseXor)
+TEST_MONOTONICITY(Divide)
+TEST_MONOTONICITY(Modulus)
+TEST_MONOTONICITY(Multiply)
+TEST_MONOTONICITY(ShiftLeft)
+TEST_MONOTONICITY(ShiftRight)
+TEST_MONOTONICITY(ShiftRightLogical)
+TEST_MONOTONICITY(Subtract)
 #undef TEST_MONOTONICITY
 
 TEST_F(TyperTest, Monotonicity_InstanceOf) {
   TestBinaryMonotonicity(javascript_.InstanceOf(FeedbackSource()));
 }
 
-// JS BINOPS without hint
-#define TEST_MONOTONICITY(name)                 \
-  TEST_F(TyperTest, Monotonicity_##name) {      \
-    TestBinaryMonotonicity(javascript_.name()); \
-  }
-TEST_MONOTONICITY(BitwiseOr)
-TEST_MONOTONICITY(BitwiseXor)
-TEST_MONOTONICITY(BitwiseAnd)
-TEST_MONOTONICITY(ShiftLeft)
-TEST_MONOTONICITY(ShiftRight)
-TEST_MONOTONICITY(ShiftRightLogical)
-TEST_MONOTONICITY(Subtract)
-TEST_MONOTONICITY(Multiply)
-TEST_MONOTONICITY(Divide)
-TEST_MONOTONICITY(Modulus)
-TEST_MONOTONICITY(OrdinaryHasInstance)
-#undef TEST_MONOTONICITY
+TEST_F(TyperTest, Monotonicity_OrdinaryHasInstance) {
+  TestBinaryMonotonicity(javascript_.OrdinaryHasInstance());
+}
 
 // SIMPLIFIED UNOPs without hint
 #define TEST_MONOTONICITY(name)                \

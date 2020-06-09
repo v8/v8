@@ -55,7 +55,6 @@ class JSTypedLoweringTester : public HandleAndZoneScope {
   Graph graph;
   Typer typer;
   Node* context_node;
-  BinaryOperationHint const binop_hints = BinaryOperationHint::kAny;
 
   Node* Parameter(Type t, int32_t index = 0) {
     Node* n = graph.NewNode(common.Parameter(index), graph.start());
@@ -218,6 +217,21 @@ static IrOpcode::Value NumberToI32(bool is_signed) {
   return is_signed ? IrOpcode::kNumberToInt32 : IrOpcode::kNumberToUint32;
 }
 
+namespace {
+
+FeedbackSource FeedbackSourceWithOneBinarySlot(JSTypedLoweringTester* R) {
+  return FeedbackSource{FeedbackVector::NewWithOneBinarySlotForTesting(
+                            R->main_zone(), R->main_isolate()),
+                        FeedbackSlot{0}};
+}
+
+FeedbackSource FeedbackSourceWithOneCompareSlot(JSTypedLoweringTester* R) {
+  return FeedbackSource{FeedbackVector::NewWithOneCompareSlotForTesting(
+                            R->main_zone(), R->main_isolate()),
+                        FeedbackSlot{0}};
+}
+
+}  // namespace
 
 TEST(StringBinops) {
   JSTypedLoweringTester R;
@@ -228,7 +242,8 @@ TEST(StringBinops) {
     for (size_t j = 0; j < arraysize(kStringTypes); ++j) {
       Node* p1 = R.Parameter(kStringTypes[j], 1);
 
-      Node* add = R.Binop(R.javascript.Add(BinaryOperationHint::kAny), p0, p1);
+      Node* add = R.Binop(R.javascript.Add(FeedbackSourceWithOneBinarySlot(&R)),
+                          p0, p1);
       Node* r = R.reduce(add);
 
       R.CheckBinop(IrOpcode::kStringConcat, r);
@@ -243,7 +258,8 @@ TEST(AddNumber1) {
   for (size_t i = 0; i < arraysize(kNumberTypes); ++i) {
     Node* p0 = R.Parameter(kNumberTypes[i], 0);
     Node* p1 = R.Parameter(kNumberTypes[i], 1);
-    Node* add = R.Binop(R.javascript.Add(BinaryOperationHint::kAny), p0, p1);
+    Node* add =
+        R.Binop(R.javascript.Add(FeedbackSourceWithOneBinarySlot(&R)), p0, p1);
     Node* r = R.reduce(add);
 
     R.CheckBinop(IrOpcode::kNumberAdd, r);
@@ -254,12 +270,13 @@ TEST(AddNumber1) {
 
 TEST(NumberBinops) {
   JSTypedLoweringTester R;
+  FeedbackSource feedback_source = FeedbackSourceWithOneBinarySlot(&R);
   const Operator* ops[] = {
-      R.javascript.Add(R.binop_hints), R.simplified.NumberAdd(),
-      R.javascript.Subtract(),         R.simplified.NumberSubtract(),
-      R.javascript.Multiply(),         R.simplified.NumberMultiply(),
-      R.javascript.Divide(),           R.simplified.NumberDivide(),
-      R.javascript.Modulus(),          R.simplified.NumberModulus(),
+      R.javascript.Add(feedback_source),      R.simplified.NumberAdd(),
+      R.javascript.Subtract(feedback_source), R.simplified.NumberSubtract(),
+      R.javascript.Multiply(feedback_source), R.simplified.NumberMultiply(),
+      R.javascript.Divide(feedback_source),   R.simplified.NumberDivide(),
+      R.javascript.Modulus(feedback_source),  R.simplified.NumberModulus(),
   };
 
   for (size_t i = 0; i < arraysize(kNumberTypes); ++i) {
@@ -301,11 +318,12 @@ class JSBitwiseShiftTypedLoweringTester : public JSTypedLoweringTester {
  public:
   JSBitwiseShiftTypedLoweringTester() : JSTypedLoweringTester() {
     int i = 0;
-    set(i++, javascript.ShiftLeft(), true);
+    FeedbackSource feedback_source = FeedbackSourceWithOneBinarySlot(this);
+    set(i++, javascript.ShiftLeft(feedback_source), true);
     set(i++, simplified.NumberShiftLeft(), false);
-    set(i++, javascript.ShiftRight(), true);
+    set(i++, javascript.ShiftRight(feedback_source), true);
     set(i++, simplified.NumberShiftRight(), false);
-    set(i++, javascript.ShiftRightLogical(), false);
+    set(i++, javascript.ShiftRightLogical(feedback_source), false);
     set(i++, simplified.NumberShiftRightLogical(), false);
   }
   static const int kNumberOps = 6;
@@ -357,11 +375,12 @@ class JSBitwiseTypedLoweringTester : public JSTypedLoweringTester {
  public:
   JSBitwiseTypedLoweringTester() : JSTypedLoweringTester() {
     int i = 0;
-    set(i++, javascript.BitwiseOr(), true);
+    FeedbackSource feedback_source = FeedbackSourceWithOneBinarySlot(this);
+    set(i++, javascript.BitwiseOr(feedback_source), true);
     set(i++, simplified.NumberBitwiseOr(), true);
-    set(i++, javascript.BitwiseXor(), true);
+    set(i++, javascript.BitwiseXor(feedback_source), true);
     set(i++, simplified.NumberBitwiseXor(), true);
-    set(i++, javascript.BitwiseAnd(), true);
+    set(i++, javascript.BitwiseAnd(feedback_source), true);
     set(i++, simplified.NumberBitwiseAnd(), true);
   }
   static const int kNumberOps = 6;
@@ -566,16 +585,6 @@ TEST(JSToString_replacement) {
   }
 }
 
-namespace {
-
-FeedbackSource FeedbackSourceWithOneCompareSlot(JSTypedLoweringTester* R) {
-  return FeedbackSource{FeedbackVector::NewWithOneCompareSlotForTesting(
-                            R->main_zone(), R->main_isolate()),
-                        FeedbackSlot{0}};
-}
-
-}  // namespace
-
 TEST(StringComparison) {
   JSTypedLoweringTester R;
   FeedbackSource feedback_source = FeedbackSourceWithOneCompareSlot(&R);
@@ -693,6 +702,7 @@ TEST(MixedComparison1) {
 TEST(RemoveToNumberEffects) {
   JSTypedLoweringTester R;
 
+  FeedbackSource feedback_source = FeedbackSourceWithOneBinarySlot(&R);
   Node* effect_use = nullptr;
   Node* zero = R.graph.NewNode(R.common.NumberConstant(0));
   for (int i = 0; i < 10; i++) {
@@ -718,11 +728,12 @@ TEST(RemoveToNumberEffects) {
         effect_use = R.graph.NewNode(R.common.EffectPhi(1), ton, R.start());
         break;
       case 3:
-        effect_use = R.graph.NewNode(R.javascript.Add(R.binop_hints), ton, ton,
-                                     R.context(), frame_state, ton, R.start());
+        effect_use =
+            R.graph.NewNode(R.javascript.Add(feedback_source), ton, ton,
+                            R.context(), frame_state, ton, R.start());
         break;
       case 4:
-        effect_use = R.graph.NewNode(R.javascript.Add(R.binop_hints), p0, p0,
+        effect_use = R.graph.NewNode(R.javascript.Add(feedback_source), p0, p0,
                                      R.context(), frame_state, ton, R.start());
         break;
       case 5:
@@ -882,24 +893,25 @@ TEST(StringEquality) {
 
 TEST(RemovePureNumberBinopEffects) {
   JSTypedLoweringTester R;
-  FeedbackSource feedback_source = FeedbackSourceWithOneCompareSlot(&R);
+  FeedbackSource binary_source = FeedbackSourceWithOneBinarySlot(&R);
+  FeedbackSource compare_source = FeedbackSourceWithOneCompareSlot(&R);
 
   const Operator* ops[] = {
-      R.javascript.Equal(feedback_source),
+      R.javascript.Equal(compare_source),
       R.simplified.NumberEqual(),
-      R.javascript.Add(R.binop_hints),
+      R.javascript.Add(binary_source),
       R.simplified.NumberAdd(),
-      R.javascript.Subtract(),
+      R.javascript.Subtract(binary_source),
       R.simplified.NumberSubtract(),
-      R.javascript.Multiply(),
+      R.javascript.Multiply(binary_source),
       R.simplified.NumberMultiply(),
-      R.javascript.Divide(),
+      R.javascript.Divide(binary_source),
       R.simplified.NumberDivide(),
-      R.javascript.Modulus(),
+      R.javascript.Modulus(binary_source),
       R.simplified.NumberModulus(),
-      R.javascript.LessThan(feedback_source),
+      R.javascript.LessThan(compare_source),
       R.simplified.NumberLessThan(),
-      R.javascript.LessThanOrEqual(feedback_source),
+      R.javascript.LessThanOrEqual(compare_source),
       R.simplified.NumberLessThanOrEqual(),
   };
 
