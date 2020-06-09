@@ -474,7 +474,7 @@ extern macro Print(Object);
 extern macro DebugBreak();
 
 // ES6 7.1.4 ToInteger ( argument )
-transitioning macro ToIntegerImpl(implicit context: Context)(input: Object):
+transitioning macro ToIntegerImpl(implicit context: Context)(input: JSAny):
     Number {
   let input = input;
 
@@ -493,28 +493,28 @@ transitioning macro ToIntegerImpl(implicit context: Context)(input: Object):
         assert(IsNumberNormalized(result));
         return result;
       }
-      case (ho: HeapObject): {
-        input = math::NonNumberToNumber(ho);
+      case (a: JSAnyNotNumber): {
+        input = conversion::NonNumberToNumber(a);
       }
     }
   }
   unreachable;
 }
 
-transitioning builtin ToInteger(implicit context: Context)(input: Object):
+transitioning builtin ToInteger(implicit context: Context)(input: JSAny):
     Number {
   return ToIntegerImpl(input);
 }
 
 @export
-transitioning macro ToInteger_Inline(implicit context: Context)(input: Object):
+transitioning macro ToInteger_Inline(implicit context: Context)(input: JSAny):
     Number {
   typeswitch (input) {
     case (s: Smi): {
       return s;
     }
-    case (ho: HeapObject): {
-      return ToInteger(ho);
+    case (JSAny): {
+      return ToInteger(input);
     }
   }
 }
