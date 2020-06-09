@@ -29,7 +29,6 @@ class RootVisitor;
 class StackFrameIteratorBase;
 class StringStream;
 class ThreadLocalTop;
-class WasmDebugInfo;
 class WasmInstanceObject;
 class WasmModuleObject;
 

@@ -1175,16 +1175,6 @@ const WasmModule* WasmInstanceObject::module() {
   return module_object().module();
 }
 
-Handle<WasmDebugInfo> WasmInstanceObject::GetOrCreateDebugInfo(
-    Handle<WasmInstanceObject> instance) {
-  if (instance->has_debug_info()) {
-    return handle(instance->debug_info(), instance->GetIsolate());
-  }
-  Handle<WasmDebugInfo> new_info = WasmDebugInfo::New(instance);
-  DCHECK(instance->has_debug_info());
-  return new_info;
-}
-
 Handle<WasmInstanceObject> WasmInstanceObject::New(
     Isolate* isolate, Handle<WasmModuleObject> module_object) {
   Handle<JSFunction> instance_cons(

@@ -40,9 +40,8 @@ class CWasmEntryArgTester {
     runner_.Build(code.data(), code.data() + code.size());
     wasm_code_ = runner_.builder().GetFunctionCode(0);
     Handle<WasmInstanceObject> instance(runner_.builder().instance_object());
-    Handle<WasmDebugInfo> debug_info =
-        WasmInstanceObject::GetOrCreateDebugInfo(instance);
-    c_wasm_entry_ = WasmDebugInfo::GetCWasmEntry(debug_info, sig_);
+    c_wasm_entry_ =
+        compiler::CompileCWasmEntry(isolate_, sig_).ToHandleChecked();
   }
 
   template <typename... Rest>

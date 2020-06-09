@@ -1426,8 +1426,6 @@ void ObjectBoilerplateDescription::ObjectBoilerplateDescriptionVerify(
 
 USE_TORQUE_VERIFIER(AsmWasmData)
 
-USE_TORQUE_VERIFIER(WasmDebugInfo)
-
 void WasmInstanceObject::WasmInstanceObjectVerify(Isolate* isolate) {
   JSObjectVerify(isolate);
   CHECK(IsWasmInstanceObject());

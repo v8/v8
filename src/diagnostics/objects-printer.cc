@@ -1728,12 +1728,6 @@ void WasmArray::WasmArrayPrint(std::ostream& os) {  // NOLINT
   os << "\n";
 }
 
-void WasmDebugInfo::WasmDebugInfoPrint(std::ostream& os) {  // NOLINT
-  PrintHeader(os, "WasmDebugInfo");
-  os << "\n - wasm_instance: " << Brief(wasm_instance());
-  os << "\n";
-}
-
 void WasmExceptionTag::WasmExceptionTagPrint(std::ostream& os) {  // NOLINT
   PrintHeader(os, "WasmExceptionTag");
   os << "\n - index: " << index();
@@ -1757,9 +1751,6 @@ void WasmInstanceObject::WasmInstanceObjectPrint(std::ostream& os) {  // NOLINT
   if (has_imported_mutable_globals_buffers()) {
     os << "\n - imported_mutable_globals_buffers: "
        << Brief(imported_mutable_globals_buffers());
-  }
-  if (has_debug_info()) {
-    os << "\n - debug_info: " << Brief(debug_info());
   }
   for (int i = 0; i < tables().length(); i++) {
     os << "\n - table " << i << ": " << Brief(tables().get(i));

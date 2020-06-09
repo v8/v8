@@ -9,6 +9,7 @@
 
 #include "src/api/api-inl.h"
 #include "src/codegen/machine-type.h"
+#include "src/compiler/wasm-compiler.h"
 #include "src/execution/frames-inl.h"
 #include "src/wasm/value-type.h"
 #include "src/wasm/wasm-arguments.h"
@@ -350,10 +351,11 @@ Maybe<std::string> DebugEvaluateImpl(
   Handle<WasmExportedFunction> entry_point =
       Handle<WasmExportedFunction>::cast(entry_point_obj);
 
-  Handle<WasmDebugInfo> debug_info =
-      WasmInstanceObject::GetOrCreateDebugInfo(evaluator_instance);
+  // TODO(wasm): Cache this code.
   Handle<Code> wasm_entry =
-      WasmDebugInfo::GetCWasmEntry(debug_info, entry_point->sig());
+      compiler::CompileCWasmEntry(isolate, entry_point->sig())
+          .ToHandleChecked();
+
   CWasmArgumentsPacker packer(4 /* uint32_t return value, no parameters. */);
   Execution::CallWasm(isolate, wasm_entry, entry_point->GetWasmCallTarget(),
                       evaluator_instance, packer.argv());
