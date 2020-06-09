@@ -443,7 +443,7 @@ class V8_EXPORT_PRIVATE TurboAssembler : public TurboAssemblerBase {
   void Move(Register dst, Address ptr, RelocInfo::Mode rmode) {
     // This method must not be used with heap object references. The stored
     // address is not GC safe. Use the handle version instead.
-    DCHECK(rmode > RelocInfo::LAST_GCED_ENUM);
+    DCHECK(rmode == RelocInfo::NONE || rmode > RelocInfo::LAST_GCED_ENUM);
     movq(dst, Immediate64(ptr, rmode));
   }
 
