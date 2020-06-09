@@ -174,7 +174,6 @@ namespace compiler {
   V(X64F64x2Qfms)                         \
   V(X64F64x2Pmin)                         \
   V(X64F64x2Pmax)                         \
-  V(X64F64x2Round)                        \
   V(X64F32x4Splat)                        \
   V(X64F32x4ExtractLane)                  \
   V(X64F32x4ReplaceLane)                  \

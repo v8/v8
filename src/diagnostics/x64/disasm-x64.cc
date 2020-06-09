@@ -952,11 +952,6 @@ int DisassemblerX64::AVXInstruction(byte* data) {
         current += PrintRightXMMOperand(current);
         AppendToBuffer(",0x%x", *current++);
         break;
-      case 0x09:
-        AppendToBuffer("vroundpd %s,", NameOfXMMRegister(regop));
-        current += PrintRightXMMOperand(current);
-        AppendToBuffer(",0x%x", *current++);
-        break;
       case 0x0A:
         AppendToBuffer("vroundss %s,%s,", NameOfXMMRegister(regop),
                        NameOfXMMRegister(vvvv));
@@ -1853,12 +1848,6 @@ int DisassemblerX64::TwoByteOpcodeInstruction(byte* data) {
       } else if (third_byte == 0x08) {
         get_modrm(*current, &mod, &regop, &rm);
         AppendToBuffer("roundps %s,", NameOfXMMRegister(regop));
-        current += PrintRightXMMOperand(current);
-        AppendToBuffer(",0x%x", (*current) & 3);
-        current += 1;
-      } else if (third_byte == 0x09) {
-        get_modrm(*current, &mod, &regop, &rm);
-        AppendToBuffer("roundpd %s,", NameOfXMMRegister(regop));
         current += PrintRightXMMOperand(current);
         AppendToBuffer(",0x%x", (*current) & 3);
         current += 1;

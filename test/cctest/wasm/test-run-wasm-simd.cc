@@ -1323,30 +1323,6 @@ WASM_SIMD_TEST_NO_LOWERING(F64x2Sqrt) {
   RunF64x2UnOpTest(execution_tier, lower_simd, kExprF64x2Sqrt, Sqrt);
 }
 
-// TODO(v8:10553) Prototyping floating-point rounding instructions.
-#if V8_TARGET_ARCH_X64
-WASM_SIMD_TEST_NO_LOWERING(F64x2Ceil) {
-  FLAG_SCOPE(wasm_simd_post_mvp);
-  RunF64x2UnOpTest(execution_tier, lower_simd, kExprF64x2Ceil, ceil, true);
-}
-
-WASM_SIMD_TEST_NO_LOWERING(F64x2Floor) {
-  FLAG_SCOPE(wasm_simd_post_mvp);
-  RunF64x2UnOpTest(execution_tier, lower_simd, kExprF64x2Floor, floor, true);
-}
-
-WASM_SIMD_TEST_NO_LOWERING(F64x2Trunc) {
-  FLAG_SCOPE(wasm_simd_post_mvp);
-  RunF64x2UnOpTest(execution_tier, lower_simd, kExprF64x2Trunc, trunc, true);
-}
-
-WASM_SIMD_TEST_NO_LOWERING(F64x2NearestInt) {
-  FLAG_SCOPE(wasm_simd_post_mvp);
-  RunF64x2UnOpTest(execution_tier, lower_simd, kExprF64x2NearestInt, nearbyint,
-                   true);
-}
-#endif  // V8_TARGET_ARCH_X64
-
 void RunF64x2BinOpTest(ExecutionTier execution_tier, LowerSimd lower_simd,
                        WasmOpcode opcode, DoubleBinOp expected_op) {
   WasmRunner<int32_t, double, double> r(execution_tier, lower_simd);

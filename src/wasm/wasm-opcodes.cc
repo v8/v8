@@ -330,10 +330,6 @@ const char* WasmOpcodes::OpcodeName(WasmOpcode opcode) {
     CASE_F32x4_OP(Floor, "floor")
     CASE_F32x4_OP(Trunc, "trunc")
     CASE_F32x4_OP(NearestInt, "nearest")
-    CASE_F64x2_OP(Ceil, "ceil")
-    CASE_F64x2_OP(Floor, "floor")
-    CASE_F64x2_OP(Trunc, "trunc")
-    CASE_F64x2_OP(NearestInt, "nearest")
 
     // Atomic operations.
     CASE_OP(AtomicNotify, "atomic.notify")

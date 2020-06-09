@@ -282,7 +282,6 @@ class V8_EXPORT_PRIVATE TurboAssembler : public TurboAssemblerBase {
   AVX_OP_SSE4_1(Pmovzxdq, pmovzxdq)
   AVX_OP_SSE4_1(Pextrq, pextrq)
   AVX_OP_SSE4_1(Roundps, roundps)
-  AVX_OP_SSE4_1(Roundpd, roundpd)
   AVX_OP_SSE4_1(Roundss, roundss)
   AVX_OP_SSE4_1(Roundsd, roundsd)
   AVX_OP_SSE4_2(Pcmpgtq, pcmpgtq)

@@ -765,10 +765,6 @@
   V(F64x2Qfms)                  \
   V(F64x2Pmin)                  \
   V(F64x2Pmax)                  \
-  V(F64x2Ceil)                  \
-  V(F64x2Floor)                 \
-  V(F64x2Trunc)                 \
-  V(F64x2NearestInt)            \
   V(F32x4Splat)                 \
   V(F32x4ExtractLane)           \
   V(F32x4ReplaceLane)           \

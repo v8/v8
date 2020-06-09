@@ -2707,12 +2707,6 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       __ Roundps(i.OutputSimd128Register(), i.InputSimd128Register(0), mode);
       break;
     }
-    case kX64F64x2Round: {
-      RoundingMode const mode =
-          static_cast<RoundingMode>(MiscField::decode(instr->opcode()));
-      __ Roundpd(i.OutputSimd128Register(), i.InputSimd128Register(0), mode);
-      break;
-    }
     case kX64F64x2Pmin: {
       XMMRegister dst = i.OutputSimd128Register();
       DCHECK_EQ(dst, i.InputSimd128Register(0));
