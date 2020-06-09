@@ -1193,8 +1193,9 @@
   # Deserialization fails due to read-only snapshot checksum verification.
   # https://crbug.com/v8/10491
   '*': [SKIP],
-}],
+}],  # variant == stress_snapshot and arch != x64
 
+##############################################################################
 ['variant == stress_snapshot and arch == x64', {
   # Crashes the serializer due to recursion.
   'deep-recursion': [SKIP],
@@ -1254,6 +1255,14 @@
   'regress/regress-813440': [SKIP],
   # Investigate (segfault).
   'regress/regress-crbug-397662': [SKIP],
-}],  # variant == stress_snapshot
+}],  # variant == stress_snapshot and arch == x64
+
+##############################################################################
+['variant == slow_path', {
+  # This tests creates a pretty big array and calls Array.prototype.slice on
+  # it. In the slow path, this results in one runtime call per element, which
+  # takes several minutes overall.
+  'regress/wasm/regress-9017': [SKIP],
+}],  # variant == slow_path
 
 ]
