@@ -286,7 +286,16 @@ class LiftoffAssembler : public TurboAssembler {
 
   LiftoffRegister LoadToRegister(VarState slot, LiftoffRegList pinned);
 
-  LiftoffRegister PopToRegister(LiftoffRegList pinned = {});
+  LiftoffRegister PopToRegister(LiftoffRegList pinned = {}) {
+    DCHECK(!cache_state_.stack_state.empty());
+    VarState slot = cache_state_.stack_state.back();
+    cache_state_.stack_state.pop_back();
+    if (slot.is_reg()) {
+      cache_state_.dec_used(slot.reg());
+      return slot.reg();
+    }
+    return LoadToRegister(slot, pinned);
+  }
 
   // Returns the register which holds the value of stack slot {index}. If the
   // value is not stored in a register yet, a register is allocated for it. The
@@ -1158,8 +1167,8 @@ class LiftoffAssembler : public TurboAssembler {
   LiftoffBailoutReason bailout_reason_ = kSuccess;
   const char* bailout_detail_ = nullptr;
 
-  LiftoffRegister SpillOneRegister(LiftoffRegList candidates,
-                                   LiftoffRegList pinned);
+  V8_NOINLINE LiftoffRegister SpillOneRegister(LiftoffRegList candidates,
+                                               LiftoffRegList pinned);
   // Spill one or two fp registers to get a pair of adjacent fp registers.
   LiftoffRegister SpillAdjacentFpRegisters(LiftoffRegList pinned);
 };

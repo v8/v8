@@ -510,24 +510,15 @@ LiftoffAssembler::~LiftoffAssembler() {
 
 LiftoffRegister LiftoffAssembler::LoadToRegister(VarState slot,
                                                  LiftoffRegList pinned) {
-  switch (slot.loc()) {
-    case VarState::kStack: {
-      LiftoffRegister reg =
-          GetUnusedRegister(reg_class_for(slot.type()), pinned);
-      Fill(reg, slot.offset(), slot.type());
-      return reg;
-    }
-    case VarState::kRegister:
-      return slot.reg();
-    case VarState::kIntConst: {
-      RegClass rc =
-          kNeedI64RegPair && slot.type() == kWasmI64 ? kGpRegPair : kGpReg;
-      LiftoffRegister reg = GetUnusedRegister(rc, pinned);
-      LoadConstant(reg, slot.constant());
-      return reg;
-    }
+  if (slot.is_reg()) return slot.reg();
+  LiftoffRegister reg = GetUnusedRegister(reg_class_for(slot.type()), pinned);
+  if (slot.is_const()) {
+    LoadConstant(reg, slot.constant());
+  } else {
+    DCHECK(slot.is_stack());
+    Fill(reg, slot.offset(), slot.type());
   }
-  UNREACHABLE();
+  return reg;
 }
 
 LiftoffRegister LiftoffAssembler::LoadI64HalfIntoRegister(VarState slot,
@@ -548,23 +539,16 @@ LiftoffRegister LiftoffAssembler::LoadI64HalfIntoRegister(VarState slot,
   return dst;
 }
 
-LiftoffRegister LiftoffAssembler::PopToRegister(LiftoffRegList pinned) {
-  DCHECK(!cache_state_.stack_state.empty());
-  VarState slot = cache_state_.stack_state.back();
-  if (slot.is_reg()) cache_state_.dec_used(slot.reg());
-  cache_state_.stack_state.pop_back();
-  return LoadToRegister(slot, pinned);
-}
-
 LiftoffRegister LiftoffAssembler::PeekToRegister(int index,
                                                  LiftoffRegList pinned) {
   DCHECK_LT(index, cache_state_.stack_state.size());
   VarState& slot = cache_state_.stack_state.end()[-1 - index];
-  if (slot.is_reg()) cache_state_.dec_used(slot.reg());
-  LiftoffRegister reg = LoadToRegister(slot, pinned);
-  if (!slot.is_reg()) {
-    slot.MakeRegister(reg);
+  if (slot.is_reg()) {
+    cache_state_.dec_used(slot.reg());
+    return slot.reg();
   }
+  LiftoffRegister reg = LoadToRegister(slot, pinned);
+  slot.MakeRegister(reg);
   return reg;
 }
 
