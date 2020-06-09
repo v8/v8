@@ -71,6 +71,56 @@ void MockUseCounterCallback(v8::Isolate* isolate,
 
 }  // namespace
 
+// Helpers for parsing and checking that the result has no error, implemented as
+// macros to report the correct test error location.
+#define FAIL_WITH_PENDING_PARSER_ERROR(info, script, isolate)              \
+  do {                                                                     \
+    (info)->pending_error_handler()->PrepareErrors(                        \
+        (isolate), (info)->ast_value_factory());                           \
+    (info)->pending_error_handler()->ReportErrors((isolate), (script));    \
+                                                                           \
+    i::Handle<i::JSObject> exception_handle(                               \
+        i::JSObject::cast((isolate)->pending_exception()), (isolate));     \
+    i::Handle<i::String> message_string = i::Handle<i::String>::cast(      \
+        i::JSReceiver::GetProperty((isolate), exception_handle, "message") \
+            .ToHandleChecked());                                           \
+    (isolate)->clear_pending_exception();                                  \
+                                                                           \
+    String source = String::cast((script)->source());                      \
+                                                                           \
+    FATAL(                                                                 \
+        "Parser failed on:\n"                                              \
+        "\t%s\n"                                                           \
+        "with error:\n"                                                    \
+        "\t%s\n"                                                           \
+        "However, we expected no error.",                                  \
+        source.ToCString().get(), message_string->ToCString().get());      \
+  } while (false)
+
+#define CHECK_PARSE_PROGRAM(info, script, isolate)                        \
+  do {                                                                    \
+    if (!i::parsing::ParseProgram((info), script, (isolate),              \
+                                  parsing::ReportStatisticsMode::kYes)) { \
+      FAIL_WITH_PENDING_PARSER_ERROR((info), (script), (isolate));        \
+    }                                                                     \
+                                                                          \
+    CHECK(!(info)->pending_error_handler()->has_pending_error());         \
+    CHECK_NOT_NULL((info)->literal());                                    \
+  } while (false)
+
+#define CHECK_PARSE_FUNCTION(info, shared, isolate)                        \
+  do {                                                                     \
+    if (!i::parsing::ParseFunction((info), (shared), (isolate),            \
+                                   parsing::ReportStatisticsMode::kYes)) { \
+      FAIL_WITH_PENDING_PARSER_ERROR(                                      \
+          (info), handle(Script::cast((shared)->script()), (isolate)),     \
+          (isolate));                                                      \
+    }                                                                      \
+                                                                           \
+    CHECK(!(info)->pending_error_handler()->has_pending_error());          \
+    CHECK_NOT_NULL((info)->literal());                                     \
+  } while (false)
+
 bool TokenIsAutoSemicolon(Token::Value token) {
   switch (token) {
     case Token::SEMICOLON:
@@ -1081,7 +1131,7 @@ TEST(ScopeUsesArgumentsSuperThis) {
       // The information we're checking is only produced when eager parsing.
       flags.set_allow_lazy_parsing(false);
       i::ParseInfo info(isolate, flags, &compile_state);
-      CHECK(i::parsing::ParseProgram(&info, script, isolate));
+      CHECK_PARSE_PROGRAM(&info, script, isolate);
       i::DeclarationScope::AllocateScopeInfos(&info, isolate);
       CHECK_NOT_NULL(info.literal());
 
@@ -1147,7 +1197,7 @@ static void CheckParsesToNumber(const char* source) {
   flags.set_is_toplevel(true);
   i::ParseInfo info(isolate, flags, &compile_state);
 
-  CHECK(i::parsing::ParseProgram(&info, script, isolate));
+  CHECK_PARSE_PROGRAM(&info, script, isolate);
 
   CHECK_EQ(1, info.scope()->declarations()->LengthForTest());
   i::Declaration* decl = info.scope()->declarations()->AtForTest(0);
@@ -1459,8 +1509,7 @@ TEST(ScopePositions) {
         i::UnoptimizedCompileFlags::ForScriptCompile(isolate, *script);
     flags.set_outer_language_mode(source_data[i].language_mode);
     i::ParseInfo info(isolate, flags, &compile_state);
-    i::parsing::ParseProgram(&info, script, isolate);
-    CHECK_NOT_NULL(info.literal());
+    CHECK_PARSE_PROGRAM(&info, script, isolate);
 
     // Check scope types and positions.
     i::Scope* scope = info.literal()->scope();
@@ -1507,7 +1556,7 @@ TEST(DiscardFunctionBody) {
     i::UnoptimizedCompileFlags flags =
         i::UnoptimizedCompileFlags::ForScriptCompile(isolate, *script);
     i::ParseInfo info(isolate, flags, &compile_state);
-    i::parsing::ParseProgram(&info, script, isolate);
+    CHECK_PARSE_PROGRAM(&info, script, isolate);
     function = info.literal();
     CHECK_NOT_NULL(function);
     // The rewriter will rewrite this to
@@ -1645,7 +1694,14 @@ void TestParserSyncWithFlags(i::Handle<i::String> source,
     i::Handle<i::Script> script =
         factory->NewScriptWithId(source, compile_flags.script_id());
     i::ParseInfo info(isolate, compile_flags, &compile_state);
-    i::parsing::ParseProgram(&info, script, isolate);
+    if (!i::parsing::ParseProgram(&info, script, isolate,
+                                  parsing::ReportStatisticsMode::kYes)) {
+      info.pending_error_handler()->PrepareErrors(isolate,
+                                                  info.ast_value_factory());
+      info.pending_error_handler()->ReportErrors(isolate, script);
+    } else {
+      CHECK(!info.pending_error_handler()->has_pending_error());
+    }
     function = info.literal();
   }
 
@@ -3525,7 +3581,7 @@ TEST(InnerAssignment) {
           i::UnoptimizedCompileFlags flags =
               i::UnoptimizedCompileFlags::ForFunctionCompile(isolate, *shared);
           info = std::make_unique<i::ParseInfo>(isolate, flags, &compile_state);
-          CHECK(i::parsing::ParseFunction(info.get(), shared, isolate));
+          CHECK_PARSE_FUNCTION(info.get(), shared, isolate);
         } else {
           i::Handle<i::String> source =
               factory->InternalizeUtf8String(program.begin());
@@ -3536,9 +3592,8 @@ TEST(InnerAssignment) {
               i::UnoptimizedCompileFlags::ForScriptCompile(isolate, *script);
           flags.set_allow_lazy_parsing(false);
           info = std::make_unique<i::ParseInfo>(isolate, flags, &compile_state);
-          CHECK(i::parsing::ParseProgram(info.get(), script, isolate));
+          CHECK_PARSE_PROGRAM(info.get(), script, isolate);
         }
-        CHECK_NOT_NULL(info->literal());
 
         i::Scope* scope = info->literal()->scope();
         if (!lazy) {
@@ -3646,8 +3701,7 @@ TEST(MaybeAssignedParameters) {
           i::UnoptimizedCompileFlags::ForFunctionCompile(isolate, *shared);
       flags.set_allow_lazy_parsing(allow_lazy);
       info = std::make_unique<i::ParseInfo>(isolate, flags, &state);
-      CHECK(i::parsing::ParseFunction(info.get(), shared, isolate));
-      CHECK_NOT_NULL(info->literal());
+      CHECK_PARSE_FUNCTION(info.get(), shared, isolate);
 
       i::Scope* scope = info->literal()->scope();
       CHECK(!scope->AsDeclarationScope()->was_lazily_parsed());
@@ -3687,9 +3741,8 @@ static void TestMaybeAssigned(Input input, const char* variable, bool module,
   std::unique_ptr<i::ParseInfo> info =
       std::make_unique<i::ParseInfo>(isolate, flags, &state);
 
-  CHECK(i::parsing::ParseProgram(info.get(), script, isolate));
+  CHECK_PARSE_PROGRAM(info.get(), script, isolate);
 
-  CHECK_NOT_NULL(info->literal());
   i::Scope* scope = info->literal()->scope();
   CHECK(!scope->AsDeclarationScope()->was_lazily_parsed());
   CHECK_NULL(scope->sibling());
@@ -7442,22 +7495,7 @@ TEST(BasicImportExportParsing) {
           i::UnoptimizedCompileFlags::ForScriptCompile(isolate, *script);
       flags.set_is_module(true);
       i::ParseInfo info(isolate, flags, &compile_state);
-      if (!i::parsing::ParseProgram(&info, script, isolate)) {
-        i::Handle<i::JSObject> exception_handle(
-            i::JSObject::cast(isolate->pending_exception()), isolate);
-        i::Handle<i::String> message_string = i::Handle<i::String>::cast(
-            i::JSReceiver::GetProperty(isolate, exception_handle, "message")
-                .ToHandleChecked());
-        isolate->clear_pending_exception();
-
-        FATAL(
-            "Parser failed on:\n"
-            "\t%s\n"
-            "with error:\n"
-            "\t%s\n"
-            "However, we expected no error.",
-            source->ToCString().get(), message_string->ToCString().get());
-      }
+      CHECK_PARSE_PROGRAM(&info, script, isolate);
     }
 
     // And that parsing a script does not.
@@ -7467,8 +7505,9 @@ TEST(BasicImportExportParsing) {
       i::UnoptimizedCompileFlags flags =
           i::UnoptimizedCompileFlags::ForScriptCompile(isolate, *script);
       i::ParseInfo info(isolate, flags, &compile_state);
-      CHECK(!i::parsing::ParseProgram(&info, script, isolate));
-      isolate->clear_pending_exception();
+      CHECK(!i::parsing::ParseProgram(&info, script, isolate,
+                                      parsing::ReportStatisticsMode::kYes));
+      CHECK(info.pending_error_handler()->has_pending_error());
     }
   }
 }
@@ -7508,7 +7547,7 @@ TEST(NamespaceExportParsing) {
         i::UnoptimizedCompileFlags::ForScriptCompile(isolate, *script);
     flags.set_is_module(true);
     i::ParseInfo info(isolate, flags, &compile_state);
-    CHECK(i::parsing::ParseProgram(&info, script, isolate));
+    CHECK_PARSE_PROGRAM(&info, script, isolate);
   }
 }
 
@@ -7606,8 +7645,9 @@ TEST(ImportExportParsingErrors) {
         i::UnoptimizedCompileFlags::ForScriptCompile(isolate, *script);
     flags.set_is_module(true);
     i::ParseInfo info(isolate, flags, &compile_state);
-    CHECK(!i::parsing::ParseProgram(&info, script, isolate));
-    isolate->clear_pending_exception();
+    CHECK(!i::parsing::ParseProgram(&info, script, isolate,
+                                    parsing::ReportStatisticsMode::kYes));
+    CHECK(info.pending_error_handler()->has_pending_error());
   }
 }
 
@@ -7645,8 +7685,9 @@ TEST(ModuleTopLevelFunctionDecl) {
         i::UnoptimizedCompileFlags::ForScriptCompile(isolate, *script);
     flags.set_is_module(true);
     i::ParseInfo info(isolate, flags, &compile_state);
-    CHECK(!i::parsing::ParseProgram(&info, script, isolate));
-    isolate->clear_pending_exception();
+    CHECK(!i::parsing::ParseProgram(&info, script, isolate,
+                                    parsing::ReportStatisticsMode::kYes));
+    CHECK(info.pending_error_handler()->has_pending_error());
   }
 }
 
@@ -7845,7 +7886,8 @@ TEST(ModuleParsingInternals) {
       i::UnoptimizedCompileFlags::ForScriptCompile(isolate, *script);
   flags.set_is_module(true);
   i::ParseInfo info(isolate, flags, &compile_state);
-  CHECK(i::parsing::ParseProgram(&info, script, isolate));
+  CHECK_PARSE_PROGRAM(&info, script, isolate);
+
   i::FunctionLiteral* func = info.literal();
   i::ModuleScope* module_scope = func->scope()->AsModuleScope();
   i::Scope* outer_scope = module_scope->outer_scope();
@@ -8089,8 +8131,8 @@ void TestLanguageMode(const char* source,
   i::UnoptimizedCompileFlags flags =
       i::UnoptimizedCompileFlags::ForScriptCompile(isolate, *script);
   i::ParseInfo info(isolate, flags, &compile_state);
-  i::parsing::ParseProgram(&info, script, isolate);
-  CHECK_NOT_NULL(info.literal());
+  CHECK_PARSE_PROGRAM(&info, script, isolate);
+
   CHECK_EQ(expected_language_mode, info.literal()->language_mode());
 }
 
@@ -10874,8 +10916,7 @@ TEST(NoPessimisticContextAllocation) {
           i::UnoptimizedCompileFlags::ForScriptCompile(isolate, *script);
       i::ParseInfo info(isolate, flags, &compile_state);
 
-      CHECK(i::parsing::ParseProgram(&info, script, isolate));
-      CHECK_NOT_NULL(info.literal());
+      CHECK_PARSE_PROGRAM(&info, script, isolate);
 
       i::Scope* scope = info.literal()->scope()->inner_scope();
       DCHECK_NOT_NULL(scope);
@@ -11436,7 +11477,8 @@ TEST(LexicalLoopVariable) {
         i::UnoptimizedCompileFlags::ForScriptCompile(isolate, *script);
     flags.set_allow_lazy_parsing(false);
     i::ParseInfo info(isolate, flags, &compile_state);
-    CHECK(i::parsing::ParseProgram(&info, script, isolate));
+    CHECK_PARSE_PROGRAM(&info, script, isolate);
+
     i::DeclarationScope::AllocateScopeInfos(&info, isolate);
     CHECK_NOT_NULL(info.literal());
 

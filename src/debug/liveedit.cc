@@ -757,7 +757,14 @@ bool ParseScript(Isolate* isolate, Handle<Script> script, ParseInfo* parse_info,
     success = Compiler::CompileForLiveEdit(parse_info, script, isolate)
                   .ToHandle(&shared);
   } else {
-    success = parsing::ParseProgram(parse_info, script, isolate);
+    success = parsing::ParseProgram(parse_info, script, isolate,
+                                    parsing::ReportStatisticsMode::kYes);
+    if (!success) {
+      // Throw the parser error.
+      parse_info->pending_error_handler()->PrepareErrors(
+          isolate, parse_info->ast_value_factory());
+      parse_info->pending_error_handler()->ReportErrors(isolate, script);
+    }
   }
   if (!success) {
     isolate->OptionalRescheduleException(false);

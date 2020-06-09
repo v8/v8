@@ -269,8 +269,9 @@ void ScopeIterator::TryParseAndRetrieveScopes(ReparseStrategy strategy) {
   const bool parse_result =
       flags.is_toplevel()
           ? parsing::ParseProgram(info_.get(), script, maybe_outer_scope,
-                                  isolate_)
-          : parsing::ParseFunction(info_.get(), shared_info, isolate_);
+                                  isolate_, parsing::ReportStatisticsMode::kNo)
+          : parsing::ParseFunction(info_.get(), shared_info, isolate_,
+                                   parsing::ReportStatisticsMode::kNo);
 
   if (parse_result) {
     DeclarationScope* literal_scope = info_->literal()->scope();
@@ -300,14 +301,13 @@ void ScopeIterator::TryParseAndRetrieveScopes(ReparseStrategy strategy) {
     UnwrapEvaluationContext();
   } else {
     // A failed reparse indicates that the preparser has diverged from the
-    // parser or that the preparse data given to the initial parse has been
-    // faulty. We fail in debug mode but in release mode we only provide the
-    // information we get from the context chain but nothing about
-    // completely stack allocated scopes or stack allocated locals.
-    // Or it could be due to stack overflow.
+    // parser, that the preparse data given to the initial parse was faulty, or
+    // a stack overflow.
+    // TODO(leszeks): This error is pretty unexpected, so we could report the
+    // error in debug mode. Better to not fail in release though, in case it's
+    // just a stack overflow.
+
     // Silently fail by presenting an empty context chain.
-    CHECK(isolate_->has_pending_exception());
-    isolate_->clear_pending_exception();
     context_ = Handle<Context>();
   }
 }

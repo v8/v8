@@ -584,7 +584,12 @@ bool Shell::ExecuteString(Isolate* isolate, Local<String> source,
 
     i::Handle<i::Script> script = parse_info.CreateScript(
         i_isolate, str, i::kNullMaybeHandle, ScriptOriginOptions());
-    if (!i::parsing::ParseProgram(&parse_info, script, i_isolate)) {
+    if (!i::parsing::ParseProgram(&parse_info, script, i_isolate,
+                                  i::parsing::ReportStatisticsMode::kYes)) {
+      parse_info.pending_error_handler()->PrepareErrors(
+          i_isolate, parse_info.ast_value_factory());
+      parse_info.pending_error_handler()->ReportErrors(i_isolate, script);
+
       fprintf(stderr, "Failed parsing\n");
       return false;
     }

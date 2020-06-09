@@ -170,10 +170,10 @@ class V8_EXPORT_PRIVATE Parser : public NON_EXPORTED_BASE(ParserBase<Parser>) {
   friend class i::ArrowHeadParsingScope<ParserTypes<Parser>>;
   friend bool v8::internal::parsing::ParseProgram(
       ParseInfo*, Handle<Script>, MaybeHandle<ScopeInfo> maybe_outer_scope_info,
-      Isolate*, parsing::ReportErrorsAndStatisticsMode stats_mode);
+      Isolate*, parsing::ReportStatisticsMode stats_mode);
   friend bool v8::internal::parsing::ParseFunction(
       ParseInfo*, Handle<SharedFunctionInfo> shared_info, Isolate*,
-      parsing::ReportErrorsAndStatisticsMode stats_mode);
+      parsing::ReportStatisticsMode stats_mode);
 
   bool AllowsLazyParsingWithoutUnresolvedVariables() const {
     return !MaybeParsingArrowhead() &&

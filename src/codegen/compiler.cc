@@ -1090,7 +1090,9 @@ MaybeHandle<SharedFunctionInfo> CompileToplevel(
   VMState<BYTECODE_COMPILER> state(isolate);
   if (parse_info->literal() == nullptr &&
       !parsing::ParseProgram(parse_info, script, maybe_outer_scope_info,
-                             isolate)) {
+                             isolate, parsing::ReportStatisticsMode::kYes)) {
+    FailWithPendingException(isolate, script, parse_info,
+                             Compiler::ClearExceptionFlag::KEEP_EXCEPTION);
     return MaybeHandle<SharedFunctionInfo>();
   }
   // Measure how long it takes to do the compilation; only take the
@@ -1456,7 +1458,7 @@ bool Compiler::CollectSourcePositions(Isolate* isolate,
   // Parse and update ParseInfo with the results. Don't update parsing
   // statistics since we've already parsed the code before.
   if (!parsing::ParseAny(&parse_info, shared_info, isolate,
-                         parsing::ReportErrorsAndStatisticsMode::kNo)) {
+                         parsing::ReportStatisticsMode::kNo)) {
     // Parsing failed probably as a result of stack exhaustion.
     bytecode->SetSourcePositionsFailedToCollect();
     return FailAndClearPendingException(isolate);
@@ -1548,7 +1550,8 @@ bool Compiler::Compile(Handle<SharedFunctionInfo> shared_info,
   }
 
   // Parse and update ParseInfo with the results.
-  if (!parsing::ParseAny(&parse_info, shared_info, isolate)) {
+  if (!parsing::ParseAny(&parse_info, shared_info, isolate,
+                         parsing::ReportStatisticsMode::kYes)) {
     return FailWithPendingException(isolate, script, &parse_info, flag);
   }
 

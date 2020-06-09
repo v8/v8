@@ -1261,14 +1261,13 @@ Handle<String> RenderCallSite(Isolate* isolate, Handle<Object> object,
         isolate, *location->shared());
     UnoptimizedCompileState compile_state(isolate);
     ParseInfo info(isolate, flags, &compile_state);
-    if (parsing::ParseAny(&info, location->shared(), isolate)) {
+    if (parsing::ParseAny(&info, location->shared(), isolate,
+                          parsing::ReportStatisticsMode::kNo)) {
       info.ast_value_factory()->Internalize(isolate);
       CallPrinter printer(isolate, location->shared()->IsUserJavaScript());
       Handle<String> str = printer.Print(info.literal(), location->start_pos());
       *hint = printer.GetErrorHint();
       if (str->length() > 0) return str;
-    } else {
-      isolate->clear_pending_exception();
     }
   }
   return BuildDefaultCallSite(isolate, object);
@@ -1322,7 +1321,8 @@ Object ErrorUtils::ThrowSpreadArgError(Isolate* isolate, MessageTemplate id,
         isolate, *location.shared());
     UnoptimizedCompileState compile_state(isolate);
     ParseInfo info(isolate, flags, &compile_state);
-    if (parsing::ParseAny(&info, location.shared(), isolate)) {
+    if (parsing::ParseAny(&info, location.shared(), isolate,
+                          parsing::ReportStatisticsMode::kNo)) {
       info.ast_value_factory()->Internalize(isolate);
       CallPrinter printer(isolate, location.shared()->IsUserJavaScript(),
                           CallPrinter::SpreadErrorInArgsHint::kErrorInArgs);
@@ -1337,7 +1337,6 @@ Object ErrorUtils::ThrowSpreadArgError(Isolate* isolate, MessageTemplate id,
             MessageLocation(location.script(), pos, pos + 1, location.shared());
       }
     } else {
-      isolate->clear_pending_exception();
       callsite = BuildDefaultCallSite(isolate, object);
     }
   }
@@ -1399,7 +1398,8 @@ Object ErrorUtils::ThrowLoadFromNullOrUndefined(Isolate* isolate,
         isolate, *location.shared());
     UnoptimizedCompileState compile_state(isolate);
     ParseInfo info(isolate, flags, &compile_state);
-    if (parsing::ParseAny(&info, location.shared(), isolate)) {
+    if (parsing::ParseAny(&info, location.shared(), isolate,
+                          parsing::ReportStatisticsMode::kNo)) {
       info.ast_value_factory()->Internalize(isolate);
       CallPrinter printer(isolate, location.shared()->IsUserJavaScript());
       Handle<String> str = printer.Print(info.literal(), location.start_pos());
@@ -1434,8 +1434,6 @@ Object ErrorUtils::ThrowLoadFromNullOrUndefined(Isolate* isolate,
       }
 
       if (str->length() > 0) callsite = str;
-    } else {
-      isolate->clear_pending_exception();
     }
   }
 
