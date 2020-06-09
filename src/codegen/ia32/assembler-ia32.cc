@@ -691,6 +691,29 @@ void Assembler::stos() {
   EMIT(0xAB);
 }
 
+void Assembler::xadd(Operand dst, Register src) {
+  EnsureSpace ensure_space(this);
+  EMIT(0x0F);
+  EMIT(0xC1);
+  emit_operand(src, dst);
+}
+
+void Assembler::xadd_b(Operand dst, Register src) {
+  DCHECK(src.is_byte_register());
+  EnsureSpace ensure_space(this);
+  EMIT(0x0F);
+  EMIT(0xC0);
+  emit_operand(src, dst);
+}
+
+void Assembler::xadd_w(Operand dst, Register src) {
+  EnsureSpace ensure_space(this);
+  EMIT(0x66);
+  EMIT(0x0F);
+  EMIT(0xC1);
+  emit_operand(src, dst);
+}
+
 void Assembler::xchg(Register dst, Register src) {
   EnsureSpace ensure_space(this);
   if (src == eax || dst == eax) {  // Single-byte encoding.

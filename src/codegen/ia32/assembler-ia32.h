@@ -528,6 +528,10 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase {
   void rep_stos();
   void stos();
 
+  void xadd(Operand dst, Register src);
+  void xadd_b(Operand dst, Register src);
+  void xadd_w(Operand dst, Register src);
+
   // Exchange
   void xchg(Register dst, Register src);
   void xchg(Register dst, Operand src);

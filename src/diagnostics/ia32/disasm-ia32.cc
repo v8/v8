@@ -1847,6 +1847,12 @@ int DisassemblerIA32::InstructionDecode(v8::internal::Vector<char> out_buffer,
           AppendToBuffer("movmskps %s,%s", NameOfCPURegister(regop),
                          NameOfXMMRegister(rm));
           data++;
+        } else if (f0byte == 0xC0) {
+          data += 2;
+          data += PrintOperands("xadd_b", OPER_REG_OP_ORDER, data);
+        } else if (f0byte == 0xC1) {
+          data += 2;
+          data += PrintOperands("xadd", OPER_REG_OP_ORDER, data);
         } else if (f0byte == 0xC2) {
           data += 2;
           int mod, regop, rm;
@@ -2318,6 +2324,9 @@ int DisassemblerIA32::InstructionDecode(v8::internal::Vector<char> out_buffer,
             AppendToBuffer("movd ");
             data += PrintRightOperand(data);
             AppendToBuffer(",%s", NameOfXMMRegister(regop));
+          } else if (*data == 0xC1) {
+            data += 2;
+            data += PrintOperands("xadd_w", OPER_REG_OP_ORDER, data);
           } else if (*data == 0xC2) {
             data++;
             int mod, regop, rm;
