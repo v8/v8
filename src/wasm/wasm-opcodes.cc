@@ -335,8 +335,6 @@ const char* WasmOpcodes::OpcodeName(WasmOpcode opcode) {
     CASE_F64x2_OP(Trunc, "trunc")
     CASE_F64x2_OP(NearestInt, "nearest")
 
-    CASE_I32x4_OP(DotI16x8S, "dot_i16x8_s")
-
     // Atomic operations.
     CASE_OP(AtomicNotify, "atomic.notify")
     CASE_INT_OP(AtomicWait, "atomic.wait")

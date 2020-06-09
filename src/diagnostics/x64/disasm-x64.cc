@@ -2133,8 +2133,6 @@ int DisassemblerX64::TwoByteOpcodeInstruction(byte* data) {
           mnemonic = "psllq";
         } else if (opcode == 0xF4) {
           mnemonic = "pmuludq";
-        } else if (opcode == 0xF5) {
-          mnemonic = "pmaddwd";
         } else if (opcode == 0xF8) {
           mnemonic = "psubb";
         } else if (opcode == 0xF9) {

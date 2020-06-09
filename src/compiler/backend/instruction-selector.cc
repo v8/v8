@@ -2057,8 +2057,6 @@ void InstructionSelector::VisitNode(Node* node) {
       return MarkAsSimd128(node), VisitI32x4Abs(node);
     case IrOpcode::kI32x4BitMask:
       return MarkAsWord32(node), VisitI32x4BitMask(node);
-    case IrOpcode::kI32x4DotI16x8S:
-      return MarkAsSimd128(node), VisitI32x4DotI16x8S(node);
     case IrOpcode::kI16x8Splat:
       return MarkAsSimd128(node), VisitI16x8Splat(node);
     case IrOpcode::kI16x8ExtractLaneU:
@@ -2695,11 +2693,6 @@ void InstructionSelector::VisitF32x4Ceil(Node* node) { UNIMPLEMENTED(); }
 void InstructionSelector::VisitF32x4Floor(Node* node) { UNIMPLEMENTED(); }
 void InstructionSelector::VisitF32x4Trunc(Node* node) { UNIMPLEMENTED(); }
 void InstructionSelector::VisitF32x4NearestInt(Node* node) { UNIMPLEMENTED(); }
-#endif  // !V8_TARGET_ARCH_X64
-
-#if !V8_TARGET_ARCH_X64
-// TODO(v8:10583) Prototype i32x4.dot_i16x8_s
-void InstructionSelector::VisitI32x4DotI16x8S(Node* node) { UNIMPLEMENTED(); }
 #endif  // !V8_TARGET_ARCH_X64
 
 void InstructionSelector::VisitFinishRegion(Node* node) { EmitIdentity(node); }

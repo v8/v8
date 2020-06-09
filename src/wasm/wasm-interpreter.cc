@@ -2587,19 +2587,6 @@ class WasmInterpreterInternals {
         ADD_HORIZ_CASE(F32x4AddHoriz, f32x4, float4, 4)
         ADD_HORIZ_CASE(I16x8AddHoriz, i16x8, int8, 8)
 #undef ADD_HORIZ_CASE
-      case kExprI32x4DotI16x8S: {
-        int8 v2 = Pop().to_s128().to_i16x8();
-        int8 v1 = Pop().to_s128().to_i16x8();
-        int4 res;
-        for (size_t i = 0; i < 4; i++) {
-          int32_t lo = (v1.val[LANE(i * 2, v1)] * v2.val[LANE(i * 2, v2)]);
-          int32_t hi =
-              (v1.val[LANE(i * 2 + 1, v1)] * v2.val[LANE(i * 2 + 1, v2)]);
-          res.val[LANE(i, res)] = lo + hi;
-        }
-        Push(WasmValue(Simd128(res)));
-        return true;
-      }
       case kExprS8x16Swizzle: {
         int16 v2 = Pop().to_s128().to_i8x16();
         int16 v1 = Pop().to_s128().to_i8x16();

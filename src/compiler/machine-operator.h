@@ -664,7 +664,6 @@ class V8_EXPORT_PRIVATE MachineOperatorBuilder final
   const Operator* I32x4GeU();
   const Operator* I32x4Abs();
   const Operator* I32x4BitMask();
-  const Operator* I32x4DotI16x8S();
 
   const Operator* I16x8Splat();
   const Operator* I16x8ExtractLaneU(int32_t);

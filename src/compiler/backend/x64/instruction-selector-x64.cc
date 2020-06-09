@@ -2700,7 +2700,6 @@ VISIT_ATOMIC_BINOP(Xor)
   V(I32x4MinU)             \
   V(I32x4MaxU)             \
   V(I32x4GeU)              \
-  V(I32x4DotI16x8S)        \
   V(I16x8SConvertI32x4)    \
   V(I16x8Add)              \
   V(I16x8AddSaturateS)     \
