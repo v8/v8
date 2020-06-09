@@ -2717,8 +2717,6 @@ static inline SlotCallbackResult UpdateStrongSlot(TSlot slot) {
 // It does not expect to encounter pointers to dead objects.
 class PointersUpdatingVisitor : public ObjectVisitor, public RootVisitor {
  public:
-  PointersUpdatingVisitor() {}
-
   void VisitPointer(HeapObject host, ObjectSlot p) override {
     UpdateStrongSlotInternal(p);
   }
