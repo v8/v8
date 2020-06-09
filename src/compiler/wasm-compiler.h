@@ -250,6 +250,10 @@ class WasmGraphBuilder {
     Node* arr[] = {fst, more...};
     return Return(ArrayVector(arr));
   }
+
+  Node* TraceFunctionEntry(wasm::WasmCodePosition position);
+  Node* TraceFunctionExit(Vector<Node*> vals, wasm::WasmCodePosition position);
+
   Node* Trap(wasm::TrapReason reason, wasm::WasmCodePosition position);
 
   Node* CallDirect(uint32_t index, Vector<Node*> args, Vector<Node*> rets,

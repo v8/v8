@@ -142,6 +142,8 @@ class WasmGraphBuildingInterface {
     }
     SetEnv(ssa_env);
     LoadContextIntoSsa(ssa_env);
+
+    if (FLAG_trace_wasm) BUILD(TraceFunctionEntry, decoder->position());
   }
 
   // Reload the instance cache entries into the Ssa Environment.
@@ -277,6 +279,9 @@ class WasmGraphBuildingInterface {
   void DoReturn(FullDecoder* decoder, Vector<Value> values) {
     base::SmallVector<TFNode*, 8> nodes(values.size());
     GetNodes(nodes.begin(), values);
+    if (FLAG_trace_wasm) {
+      BUILD(TraceFunctionExit, VectorOf(nodes), decoder->position());
+    }
     BUILD(Return, VectorOf(nodes));
   }
 

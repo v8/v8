@@ -3617,6 +3617,31 @@ const Operator* WasmGraphBuilder::GetSafeStoreOperator(int offset,
   return mcgraph()->machine()->UnalignedStore(store_rep);
 }
 
+Node* WasmGraphBuilder::TraceFunctionEntry(wasm::WasmCodePosition position) {
+  Node* call = BuildCallToRuntime(Runtime::kWasmTraceEnter, nullptr, 0);
+  SetSourcePosition(call, position);
+  return call;
+}
+
+Node* WasmGraphBuilder::TraceFunctionExit(Vector<Node*> vals,
+                                          wasm::WasmCodePosition position) {
+  Node* info = gasm_->IntPtrConstant(0);
+  size_t num_returns = vals.size();
+  if (num_returns == 1) {
+    wasm::ValueType return_type = sig_->GetReturn(0);
+    MachineRepresentation rep = return_type.machine_representation();
+    int size = ElementSizeInBytes(rep);
+    info = gasm_->StackSlot(size, size);
+
+    gasm_->Store(StoreRepresentation(rep, kNoWriteBarrier), info,
+                 gasm_->Int32Constant(0), vals[0]);
+  }
+
+  Node* call = BuildCallToRuntime(Runtime::kWasmTraceExit, &info, 1);
+  SetSourcePosition(call, position);
+  return call;
+}
+
 Node* WasmGraphBuilder::TraceMemoryOperation(bool is_store,
                                              MachineRepresentation rep,
                                              Node* index, uint32_t offset,
