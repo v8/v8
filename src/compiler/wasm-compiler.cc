@@ -6790,8 +6790,7 @@ MaybeHandle<Code> CompileJSToJSWrapper(Isolate* isolate,
   return code;
 }
 
-MaybeHandle<Code> CompileCWasmEntry(Isolate* isolate,
-                                    const wasm::FunctionSig* sig) {
+Handle<Code> CompileCWasmEntry(Isolate* isolate, const wasm::FunctionSig* sig) {
   std::unique_ptr<Zone> zone =
       std::make_unique<Zone>(isolate->allocator(), ZONE_NAME);
   Graph* graph = new (zone.get()) Graph(zone.get());
@@ -6836,14 +6835,11 @@ MaybeHandle<Code> CompileCWasmEntry(Isolate* isolate,
           Code::C_WASM_ENTRY, std::move(name_buffer),
           AssemblerOptions::Default(isolate)));
 
-  if (job->ExecuteJob(isolate->counters()->runtime_call_stats()) ==
-          CompilationJob::FAILED ||
-      job->FinalizeJob(isolate) == CompilationJob::FAILED) {
-    return {};
-  }
-  Handle<Code> code = job->compilation_info()->code();
+  CHECK_NE(job->ExecuteJob(isolate->counters()->runtime_call_stats()),
+           CompilationJob::FAILED);
+  CHECK_NE(job->FinalizeJob(isolate), CompilationJob::FAILED);
 
-  return code;
+  return job->compilation_info()->code();
 }
 
 namespace {

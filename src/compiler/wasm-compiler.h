@@ -138,8 +138,8 @@ enum CWasmEntryParameters {
 
 // Compiles a stub with C++ linkage, to be called from Execution::CallWasm,
 // which knows how to feed it its parameters.
-V8_EXPORT_PRIVATE MaybeHandle<Code> CompileCWasmEntry(Isolate*,
-                                                      const wasm::FunctionSig*);
+V8_EXPORT_PRIVATE Handle<Code> CompileCWasmEntry(Isolate*,
+                                                 const wasm::FunctionSig*);
 
 // Values from the instance object are cached between Wasm-level function calls.
 // This struct allows the SSA environment handling this cache to be defined

@@ -353,8 +353,7 @@ Maybe<std::string> DebugEvaluateImpl(
 
   // TODO(wasm): Cache this code.
   Handle<Code> wasm_entry =
-      compiler::CompileCWasmEntry(isolate, entry_point->sig())
-          .ToHandleChecked();
+      compiler::CompileCWasmEntry(isolate, entry_point->sig());
 
   CWasmArgumentsPacker packer(4 /* uint32_t return value, no parameters. */);
   Execution::CallWasm(isolate, wasm_entry, entry_point->GetWasmCallTarget(),

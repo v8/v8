@@ -1375,7 +1375,7 @@ void PrepareFunctionData(i::Isolate* isolate,
   if (!function_data->c_wrapper_code().IsSmi()) return;
   // Compile wrapper code.
   i::Handle<i::Code> wrapper_code =
-      i::compiler::CompileCWasmEntry(isolate, sig).ToHandleChecked();
+      i::compiler::CompileCWasmEntry(isolate, sig);
   function_data->set_c_wrapper_code(*wrapper_code);
   // Compute packed args size.
   function_data->set_packed_args_size(
