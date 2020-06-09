@@ -991,7 +991,7 @@ TEST(GcStructIdsPass) {
   Cleanup();
 }
 
-TEST(GcStructIdsUndefinedIndex) {
+TEST(GcTypeIdsUndefinedIndex) {
   {
     EXPERIMENTAL_FLAG_SCOPE(gc);
     EXPERIMENTAL_FLAG_SCOPE(anyref);
@@ -999,7 +999,7 @@ TEST(GcStructIdsUndefinedIndex) {
     HandleScope scope(isolate);
     testing::SetupIsolateForWasmModule(isolate);
 
-    ErrorThrower thrower(isolate, "GcStructIdsUndefinedIndex");
+    ErrorThrower thrower(isolate, "GcTypeIdsUndefinedIndex");
 
     const byte data[] = {
         WASM_MODULE_HEADER,   // --
@@ -1024,7 +1024,7 @@ TEST(GcStructIdsUndefinedIndex) {
   Cleanup();
 }
 
-TEST(GcStructIdsIllegalIndex) {
+TEST(GcTypeIdsIllegalIndex) {
   {
     EXPERIMENTAL_FLAG_SCOPE(gc);
     EXPERIMENTAL_FLAG_SCOPE(anyref);
@@ -1032,7 +1032,7 @@ TEST(GcStructIdsIllegalIndex) {
     HandleScope scope(isolate);
     testing::SetupIsolateForWasmModule(isolate);
 
-    ErrorThrower thrower(isolate, "GcStructIdsIllegalIndex");
+    ErrorThrower thrower(isolate, "GcTypeIdsIllegalIndex");
 
     const byte data[] = {
         WASM_MODULE_HEADER,     // --
@@ -1055,8 +1055,40 @@ TEST(GcStructIdsIllegalIndex) {
     // There should be an error reflecting an invalid index.
     CHECK(thrower.error());
     CHECK_NE(std::string(thrower.error_msg())
-                 .find("array element type or struct "
-                       "field references non-type index"),
+                 .find("cannot build reference to function type index"),
+             std::string::npos);
+  }
+  Cleanup();
+}
+
+TEST(GcTypeIdsFunSigIllegalIndex) {
+  {
+    EXPERIMENTAL_FLAG_SCOPE(gc);
+    EXPERIMENTAL_FLAG_SCOPE(anyref);
+    Isolate* isolate = CcTest::InitIsolateOnce();
+    HandleScope scope(isolate);
+    testing::SetupIsolateForWasmModule(isolate);
+
+    ErrorThrower thrower(isolate, "GcTypeIdsFumSigIllegalIndex");
+
+    const byte data[] = {
+        WASM_MODULE_HEADER,     // --
+        kTypeSectionCode,       // --
+        U32V_1(7),              // Section size
+        U32V_1(1),              // type count
+        kWasmFunctionTypeCode,  // index 1 = int32 -> int32
+        U32V_1(1),              // param count
+        kLocalI32,              // param 0
+        U32V_1(1),              // returns count
+        kLocalRef,              // return 0
+        U32V_1(0)               // --
+    };
+    CompileAndInstantiateForTesting(
+        isolate, &thrower, ModuleWireBytes(data, data + arraysize(data)));
+    // There should be an error reflecting an invalid index.
+    CHECK(thrower.error());
+    CHECK_NE(std::string(thrower.error_msg())
+                 .find("cannot build reference to function type index"),
              std::string::npos);
   }
   Cleanup();

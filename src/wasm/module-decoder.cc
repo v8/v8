@@ -560,7 +560,8 @@ class ModuleDecoderImpl : public Decoder {
       uint8_t kind = consume_u8("type kind");
       switch (kind) {
         case kWasmFunctionTypeCode: {
-          const FunctionSig* s = consume_sig(module_->signature_zone.get());
+          const FunctionSig* s = consume_sig(module_->signature_zone.get(),
+                                             DeferIndexCheckMode::kDeferCheck);
           module_->add_signature(s);
           break;
         }
@@ -593,19 +594,21 @@ class ModuleDecoderImpl : public Decoder {
     VerifyDeferredTypeOffsets();
   }
 
+  // TODO(7748): When typed function references are allowed, this should be
+  // deleted altogether and replaced by an inline in-bounds check.
   void VerifyDeferredTypeOffsets() {
-    for (auto& struct_offset : deferred_struct_field_type_offsets_) {
-      if (struct_offset.first >= module_->type_kinds.size()) {
-        errorf(struct_offset.second, "reference to undeclared struct/array #%u",
-               struct_offset.first);
+    for (auto& type_offset : deferred_check_type_index_) {
+      uint32_t type_index = type_offset.first;
+      uint32_t code_offset = type_offset.second;
+      if (type_index >= module_->type_kinds.size()) {
+        errorf(code_offset, "reference to undeclared struct/array #%u",
+               type_index);
         break;
       }
-      uint8_t type = module_->type_kinds[struct_offset.first];
-      if (type != kWasmStructTypeCode && type != kWasmArrayTypeCode) {
-        errorf(struct_offset.second,
-               "array element type or struct field "
-               "references non-type index #%u",
-               struct_offset.first);
+      uint8_t type = module_->type_kinds[type_index];
+      if (type == kWasmFunctionTypeCode) {
+        errorf(code_offset, "cannot build reference to function type index #%u",
+               type_index);
         break;
       }
     }
@@ -1291,7 +1294,7 @@ class ModuleDecoderImpl : public Decoder {
     pc_ = start_;
     expect_u8("type form", kWasmFunctionTypeCode);
     if (!ok()) return FunctionResult{std::move(intermediate_error_)};
-    function->sig = consume_sig(zone);
+    function->sig = consume_sig(zone, DeferIndexCheckMode::kNoCheck);
     function->code = {off(pc_), static_cast<uint32_t>(end_ - pc_)};
 
     if (ok())
@@ -1309,7 +1312,8 @@ class ModuleDecoderImpl : public Decoder {
   const FunctionSig* DecodeFunctionSignature(Zone* zone, const byte* start) {
     pc_ = start;
     if (!expect_u8("type form", kWasmFunctionTypeCode)) return nullptr;
-    const FunctionSig* result = consume_sig(zone);
+    const FunctionSig* result =
+        consume_sig(zone, DeferIndexCheckMode::kNoCheck);
     return ok() ? result : nullptr;
   }
 
@@ -1353,7 +1357,7 @@ class ModuleDecoderImpl : public Decoder {
   // Set of type offsets discovered in field types during type section decoding.
   // Since struct types may be recursive, this is used for checking and error
   // reporting once the whole type section is parsed.
-  std::unordered_map<uint32_t, int> deferred_struct_field_type_offsets_;
+  std::unordered_map<uint32_t, int> deferred_check_type_index_;
   ModuleOrigin origin_;
 
   bool has_seen_unordered_section(SectionCode section_code) {
@@ -1782,7 +1786,15 @@ class ModuleDecoderImpl : public Decoder {
     return kWasmStmt;
   }
 
-  const FunctionSig* consume_sig(Zone* zone) {
+  enum DeferIndexCheckMode { kNoCheck, kDeferCheck };
+
+  void defer_index_check(ValueType type) {
+    if (type.has_immediate()) {
+      deferred_check_type_index_.emplace(type.ref_index(), pc_offset());
+    }
+  }
+
+  const FunctionSig* consume_sig(Zone* zone, DeferIndexCheckMode defer_check) {
     // Parse parameter types.
     uint32_t param_count =
         consume_count("param count", kV8MaxWasmFunctionParams);
@@ -1790,6 +1802,9 @@ class ModuleDecoderImpl : public Decoder {
     std::vector<ValueType> params;
     for (uint32_t i = 0; ok() && i < param_count; ++i) {
       ValueType param = consume_value_type();
+      if (defer_check == DeferIndexCheckMode::kDeferCheck) {
+        defer_index_check(param);
+      }
       params.push_back(param);
     }
     std::vector<ValueType> returns;
@@ -1801,6 +1816,9 @@ class ModuleDecoderImpl : public Decoder {
     if (failed()) return nullptr;
     for (uint32_t i = 0; ok() && i < return_count; ++i) {
       ValueType ret = consume_value_type();
+      if (defer_check == DeferIndexCheckMode::kDeferCheck) {
+        defer_index_check(ret);
+      }
       returns.push_back(ret);
     }
 
@@ -1823,10 +1841,7 @@ class ModuleDecoderImpl : public Decoder {
     bool* mutabilities = zone->NewArray<bool>(field_count);
     for (uint32_t i = 0; ok() && i < field_count; ++i) {
       ValueType field = consume_storage_type();
-      if (field.has_immediate()) {
-        deferred_struct_field_type_offsets_.emplace(field.ref_index(),
-                                                    pc_offset());
-      }
+      defer_index_check(field);
       fields[i] = field;
       bool mutability = consume_mutability();
       mutabilities[i] = mutability;
@@ -1839,10 +1854,7 @@ class ModuleDecoderImpl : public Decoder {
   const ArrayType* consume_array(Zone* zone) {
     ValueType field = consume_storage_type();
     if (failed()) return nullptr;
-    if (field.has_immediate()) {
-      deferred_struct_field_type_offsets_.emplace(field.ref_index(),
-                                                  pc_offset());
-    }
+    defer_index_check(field);
     bool mutability = consume_mutability();
     if (!mutability) {
       error(this->pc() - 1, "immutable arrays are not supported yet");
