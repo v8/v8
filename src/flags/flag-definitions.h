@@ -663,6 +663,8 @@ DEFINE_BOOL(turbo_nci_as_highest_tier, false,
             "purposes.")
 DEFINE_BOOL(print_nci_code, false, "print native context independent code.")
 DEFINE_BOOL(trace_turbo_nci, false, "trace native context independent code.")
+DEFINE_BOOL(turbo_collect_feedback_in_generic_lowering, false,
+            "enable experimental feedback collection in generic lowering.")
 
 // Favor memory over execution speed.
 DEFINE_BOOL(optimize_for_size, false,
