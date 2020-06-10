@@ -177,7 +177,6 @@ struct ValueTypePair {
     {kLocalF64, kWasmF64},              // --
     {kLocalFuncRef, kWasmFuncRef},      // --
     {kLocalExternRef, kWasmExternRef},  // --
-    {kLocalNullRef, kWasmNullRef}       // --
 };
 
 class WasmModuleVerifyTest : public TestWithIsolateAndZone {
@@ -404,7 +403,7 @@ TEST_F(WasmModuleVerifyTest, ExternRefGlobalWithGlobalInit) {
   }
 }
 
-TEST_F(WasmModuleVerifyTest, NullRefGlobalWithGlobalInit) {
+TEST_F(WasmModuleVerifyTest, NullGlobalWithGlobalInit) {
   WASM_FEATURE_SCOPE(reftypes);
   static const byte data[] = {
       SECTION(Import,           // --
@@ -412,12 +411,12 @@ TEST_F(WasmModuleVerifyTest, NullRefGlobalWithGlobalInit) {
               ADD_COUNT('m'),   // module name
               ADD_COUNT('n'),   // global name
               kExternalGlobal,  // import kind
-              kLocalNullRef,    // type
+              kLocalExternRef,  // type
               0),               // mutability
       SECTION(Global,           // --
               ENTRY_COUNT(1),
-              kLocalNullRef,  // local type
-              0,              // immutable
+              kLocalExternRef,  // local type
+              0,                // immutable
               WASM_INIT_EXPR_GLOBAL(0)),
   };
 
@@ -432,7 +431,7 @@ TEST_F(WasmModuleVerifyTest, NullRefGlobalWithGlobalInit) {
 
     const WasmGlobal* global = &result.value()->globals.back();
 
-    EXPECT_EQ(kWasmNullRef, global->type);
+    EXPECT_EQ(kWasmExternRef, global->type);
     EXPECT_FALSE(global->mutability);
     EXPECT_EQ(WasmInitExpr::kGlobalIndex, global->init.kind);
   }
@@ -1616,7 +1615,7 @@ TEST_F(WasmSignatureDecodeTest, Fail_off_end) {
 TEST_F(WasmSignatureDecodeTest, Fail_externref_without_flag) {
   // Disable ExternRef support and check that decoding fails.
   WASM_FEATURE_SCOPE_VAL(reftypes, false);
-  byte ref_types[] = {kLocalFuncRef, kLocalExternRef, kLocalNullRef};
+  byte ref_types[] = {kLocalFuncRef, kLocalExternRef};
   for (byte invalid_type : ref_types) {
     for (size_t i = 0;; i++) {
       byte data[] = {SIG_ENTRY_x_xx(kLocalI32, kLocalI32, kLocalI32)};

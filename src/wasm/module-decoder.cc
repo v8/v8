@@ -1767,13 +1767,6 @@ class ModuleDecoderImpl : public Decoder {
                 "'ExternRef'");
         }
         return kWasmExternRef;
-      case kLocalNullRef:
-        if (!enabled_features_.has_reftypes()) {
-          error(pc_ - 1,
-                "Invalid type. Set --experimental-wasm-reftypes to use "
-                "'NullRef'");
-        }
-        return kWasmNullRef;
       case kLocalExnRef:
         if (!enabled_features_.has_eh()) {
           error(pc_ - 1,

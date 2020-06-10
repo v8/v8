@@ -1338,7 +1338,6 @@ class WasmInterpreterInternals {
 #undef CASE_TYPE
         case ValueType::kExternRef:
         case ValueType::kFuncRef:
-        case ValueType::kNullRef:
         case ValueType::kExnRef:
         case ValueType::kRef:
         case ValueType::kOptRef:
@@ -2790,10 +2789,8 @@ class WasmInterpreterInternals {
         }
         case ValueType::kExternRef:
         case ValueType::kFuncRef:
-        case ValueType::kNullRef:
         case ValueType::kExnRef: {
           Handle<Object> externref = value.to_externref();
-          DCHECK_IMPLIES(sig->GetParam(i) == kWasmNullRef, externref->IsNull());
           encoded_values->set(encoded_index++, *externref);
           break;
         }
@@ -2902,11 +2899,9 @@ class WasmInterpreterInternals {
         }
         case ValueType::kExternRef:
         case ValueType::kFuncRef:
-        case ValueType::kNullRef:
         case ValueType::kExnRef: {
           Handle<Object> externref(encoded_values->get(encoded_index++),
                                    isolate_);
-          DCHECK_IMPLIES(sig->GetParam(i) == kWasmNullRef, externref->IsNull());
           value = WasmValue(externref);
           break;
         }
@@ -3024,7 +3019,7 @@ class WasmInterpreterInternals {
           HandleScope handle_scope(isolate_);  // Avoid leaking handles.
           WasmValue ex = Pop();
           if (ex.to_externref()->IsNull()) {
-            return DoTrap(kTrapRethrowNullRef, pc);
+            return DoTrap(kTrapRethrowNull, pc);
           }
           CommitPc(pc);  // Needed for local unwinding.
           if (!DoRethrowException(ex)) return;
@@ -3037,7 +3032,7 @@ class WasmInterpreterInternals {
           HandleScope handle_scope(isolate_);  // Avoid leaking handles.
           WasmValue ex = Pop();
           Handle<Object> exception = ex.to_externref();
-          if (exception->IsNull()) return DoTrap(kTrapBrOnExnNullRef, pc);
+          if (exception->IsNull()) return DoTrap(kTrapBrOnExnNull, pc);
           if (MatchingExceptionTag(exception, imm.index.index)) {
             imm.index.exception = &module()->exceptions[imm.index.index];
             DoUnpackException(imm.index.exception, exception);
@@ -3280,7 +3275,6 @@ class WasmInterpreterInternals {
 #undef CASE_TYPE
             case ValueType::kExternRef:
             case ValueType::kFuncRef:
-            case ValueType::kNullRef:
             case ValueType::kExnRef:
             case ValueType::kRef:
             case ValueType::kOptRef:
@@ -3293,7 +3287,6 @@ class WasmInterpreterInternals {
                   WasmInstanceObject::GetGlobalBufferAndIndex(instance_object_,
                                                               global);
               Handle<Object> ref = Pop().to_externref();
-              DCHECK_IMPLIES(global.type == kWasmNullRef, ref->IsNull());
               global_buffer->set(global_index, *ref);
               break;
             }
@@ -3701,7 +3694,6 @@ class WasmInterpreterInternals {
           break;
         case ValueType::kFuncRef:
         case ValueType::kExnRef:
-        case ValueType::kNullRef:
         case ValueType::kRef:
         case ValueType::kOptRef:
         case ValueType::kEqRef:

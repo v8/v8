@@ -1082,9 +1082,6 @@ void WebAssemblyTable(const v8::FunctionCallbackInfo<v8::Value>& args) {
     } else if (enabled_features.has_reftypes() &&
                string->StringEquals(v8_str(isolate, "externref"))) {
       type = i::wasm::kWasmExternRef;
-    } else if (enabled_features.has_reftypes() &&
-               string->StringEquals(v8_str(isolate, "nullref"))) {
-      type = i::wasm::kWasmNullRef;
     } else {
       thrower.TypeError("Descriptor property 'element' must be 'anyfunc'");
       return;
@@ -1215,9 +1212,6 @@ bool GetValueType(Isolate* isolate, MaybeLocal<Value> maybe,
   } else if (enabled_features.has_reftypes() &&
              string->StringEquals(v8_str(isolate, "anyfunc"))) {
     *type = i::wasm::kWasmFuncRef;
-  } else if (enabled_features.has_reftypes() &&
-             string->StringEquals(v8_str(isolate, "nullref"))) {
-    *type = i::wasm::kWasmNullRef;
   } else if (enabled_features.has_eh() &&
              string->StringEquals(v8_str(isolate, "exnref"))) {
     *type = i::wasm::kWasmExnRef;
@@ -1349,17 +1343,6 @@ void WebAssemblyGlobal(const v8::FunctionCallbackInfo<v8::Value>& args) {
       global_obj->SetExternRef(Utils::OpenHandle(*value));
       break;
     }
-    case i::wasm::ValueType::kNullRef:
-      if (args.Length() < 2) {
-        // When no initial value is provided, we have to use the WebAssembly
-        // default value 'null', and not the JS default value 'undefined'.
-        global_obj->SetNullRef(i_isolate->factory()->null_value());
-        break;
-      }
-      if (!global_obj->SetNullRef(Utils::OpenHandle(*value))) {
-        thrower.TypeError("The value of nullref globals must be null");
-      }
-      break;
     case i::wasm::ValueType::kFuncRef: {
       if (args.Length() < 2) {
         // When no initial value is provided, we have to use the WebAssembly
@@ -1836,10 +1819,7 @@ void WebAssemblyGlobalGetValueCommon(
       break;
     case i::wasm::ValueType::kExternRef:
     case i::wasm::ValueType::kFuncRef:
-    case i::wasm::ValueType::kNullRef:
     case i::wasm::ValueType::kExnRef:
-      DCHECK_IMPLIES(receiver->type() == i::wasm::kWasmNullRef,
-                     receiver->GetRef()->IsNull());
       return_value.Set(Utils::ToLocal(receiver->GetRef()));
       break;
     case i::wasm::ValueType::kRef:
@@ -1921,11 +1901,6 @@ void WebAssemblyGlobalSetValue(
       receiver->SetExternRef(Utils::OpenHandle(*args[0]));
       break;
     }
-    case i::wasm::ValueType::kNullRef:
-      if (!receiver->SetNullRef(Utils::OpenHandle(*args[0]))) {
-        thrower.TypeError("The value of nullref must be null");
-      }
-      break;
     case i::wasm::ValueType::kFuncRef: {
       if (!receiver->SetFuncRef(i_isolate, Utils::OpenHandle(*args[0]))) {
         thrower.TypeError(

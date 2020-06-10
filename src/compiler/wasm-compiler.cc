@@ -2118,7 +2118,6 @@ Node* WasmGraphBuilder::Throw(uint32_t exception_index,
         break;
       case wasm::ValueType::kExternRef:
       case wasm::ValueType::kFuncRef:
-      case wasm::ValueType::kNullRef:
       case wasm::ValueType::kExnRef:
       case wasm::ValueType::kRef:
       case wasm::ValueType::kOptRef:
@@ -2216,7 +2215,7 @@ Node* WasmGraphBuilder::LoadExceptionTagFromTable(uint32_t exception_index) {
 
 Node* WasmGraphBuilder::GetExceptionTag(Node* except_obj,
                                         wasm::WasmCodePosition position) {
-  TrapIfTrue(wasm::kTrapBrOnExnNullRef, gasm_->WordEqual(RefNull(), except_obj),
+  TrapIfTrue(wasm::kTrapBrOnExnNull, gasm_->WordEqual(RefNull(), except_obj),
              position);
   return CALL_BUILTIN(
       WasmGetOwnProperty, except_obj,
@@ -2273,7 +2272,6 @@ Node* WasmGraphBuilder::GetExceptionValues(Node* except_obj,
         break;
       case wasm::ValueType::kExternRef:
       case wasm::ValueType::kFuncRef:
-      case wasm::ValueType::kNullRef:
       case wasm::ValueType::kExnRef:
       case wasm::ValueType::kRef:
       case wasm::ValueType::kOptRef:
@@ -5558,7 +5556,6 @@ class WasmWrapperGraphBuilder : public WasmGraphBuilder {
         return BuildChangeFloat64ToNumber(node);
       case wasm::ValueType::kExternRef:
       case wasm::ValueType::kFuncRef:
-      case wasm::ValueType::kNullRef:
       case wasm::ValueType::kExnRef:
         return node;
       case wasm::ValueType::kRef:
@@ -5623,25 +5620,6 @@ class WasmWrapperGraphBuilder : public WasmGraphBuilder {
       case wasm::ValueType::kExternRef:
       case wasm::ValueType::kExnRef:
         return input;
-
-      case wasm::ValueType::kNullRef: {
-        Node* check = graph()->NewNode(mcgraph()->machine()->WordEqual(), input,
-                                       RefNull());
-
-        Diamond null_check(graph(), mcgraph()->common(), check,
-                           BranchHint::kTrue);
-        null_check.Chain(control());
-        SetControl(null_check.if_false);
-
-        Node* old_effect = effect();
-        BuildCallToRuntimeWithContext(Runtime::kWasmThrowTypeError, js_context,
-                                      nullptr, 0);
-
-        SetEffectControl(null_check.EffectPhi(old_effect, effect()),
-                         null_check.merge);
-
-        return input;
-      }
 
       case wasm::ValueType::kFuncRef: {
         Node* check =

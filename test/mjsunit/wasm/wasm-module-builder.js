@@ -101,7 +101,6 @@ let kWasmF64 = 0x7c;
 let kWasmS128 = 0x7b;
 let kWasmExternRef = 0x6f;
 let kWasmAnyFunc = 0x70;
-let kWasmNullRef = 0x6e;
 let kWasmExnRef = 0x68;
 
 let kExternalFunction = 0;
@@ -506,8 +505,8 @@ let kTrapUnalignedAccess      = 9;
 let kTrapDataSegmentDropped   = 10;
 let kTrapElemSegmentDropped   = 11;
 let kTrapTableOutOfBounds     = 12;
-let kTrapBrOnExnNullRef       = 13;
-let kTrapRethrowNullRef       = 14;
+let kTrapBrOnExnNull          = 13;
+let kTrapRethrowNull          = 14;
 
 let kTrapMsgs = [
   "unreachable",
@@ -523,8 +522,8 @@ let kTrapMsgs = [
   "data segment has been dropped",
   "element segment has been dropped",
   "table access out of bounds",
-  "br_on_exn on nullref value",
-  "rethrowing nullref value"
+  "br_on_exn on null value",
+  "rethrowing null value"
 ];
 
 function assertTraps(trap, code) {
@@ -817,9 +816,9 @@ class WasmModuleBuilder {
   }
 
   addTable(type, initial_size, max_size = undefined) {
-    if (type != kWasmExternRef && type != kWasmAnyFunc && type != kWasmNullRef && type != kWasmExnRef) {
+    if (type != kWasmExternRef && type != kWasmAnyFunc && type != kWasmExnRef) {
       throw new Error(
-          'Tables must be of type kWasmExternRef, kWasmAnyFunc, kWasmNullRef or kWasmExnRef');
+          'Tables must be of type kWasmExternRef, kWasmAnyFunc or kWasmExnRef');
     }
     let table = new WasmTableBuilder(this, type, initial_size, max_size);
     table.index = this.tables.length + this.num_imported_tables;
@@ -1319,9 +1318,6 @@ class WasmModuleBuilder {
             }
             if (l.anyfunc_count > 0) {
               local_decls.push({count: l.anyfunc_count, type: kWasmAnyFunc});
-            }
-            if (l.nullref_count > 0) {
-              local_decls.push({count: l.nullref_count, type: kWasmNullRef});
             }
             if (l.except_count > 0) {
               local_decls.push({count: l.except_count, type: kWasmExnRef});

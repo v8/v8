@@ -170,14 +170,6 @@ ValueType read_value_type(Decoder* decoder, const byte* pc,
                      "invalid value type 'funcref', enable with "
                      "--experimental-wasm-reftypes");
       return kWasmBottom;
-    case kLocalNullRef:
-      if (enabled.has_reftypes()) {
-        return kWasmNullRef;
-      }
-      decoder->error(pc,
-                     "invalid value type 'nullref', enable with "
-                     "--experimental-wasm-reftypes");
-      return kWasmBottom;
     case kLocalExnRef:
       if (enabled.has_eh()) {
         return kWasmExnRef;
@@ -2160,15 +2152,6 @@ class WasmFullDecoder : public WasmDecoder<validate> {
                 c->br_merge()->reached = true;
                 break;
               }
-              case ValueType::kNullRef:
-                if (imm.depth == control_.size() - 1) {
-                  DoReturn();
-                } else {
-                  CALL_INTERFACE(Br, c);
-                  c->br_merge()->reached = true;
-                }
-                EndControl();
-                break;
               default:
                 this->error(this->pc_,
                             "invalid agrument type to ref.as_non_null");
@@ -2502,12 +2485,6 @@ class WasmFullDecoder : public WasmDecoder<validate> {
               CALL_INTERFACE_IF_REACHABLE(RefAsNonNull, value, result);
               break;
             }
-            case ValueType::kNullRef:
-              // TODO(7748): Fix this once the standard clears up (see
-              // https://github.com/WebAssembly/function-references/issues/21).
-              CALL_INTERFACE_IF_REACHABLE(Unreachable);
-              EndControl();
-              break;
             default:
               this->error(this->pc_ + 1,
                           "invalid agrument type to ref.as_non_null");

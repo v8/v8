@@ -605,7 +605,6 @@ void WasmModuleBuilder::WriteTo(ZoneBuffer* buffer) const {
             case ValueType::kBottom:
             case ValueType::kRef:
             case ValueType::kExternRef:
-            case ValueType::kNullRef:
               UNREACHABLE();
           }
         }

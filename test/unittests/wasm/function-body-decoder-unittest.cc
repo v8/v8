@@ -39,8 +39,8 @@ static const byte kCodeGetLocal1[] = {kExprLocalGet, 1};
 static const byte kCodeSetLocal0[] = {WASM_SET_LOCAL(0, WASM_ZERO)};
 static const byte kCodeTeeLocal0[] = {WASM_TEE_LOCAL(0, WASM_ZERO)};
 
-static const ValueType kValueTypes[] = {kWasmI32, kWasmI64,       kWasmF32,
-                                        kWasmF64, kWasmExternRef, kWasmNullRef};
+static const ValueType kValueTypes[] = {kWasmI32, kWasmI64, kWasmF32, kWasmF64,
+                                        kWasmExternRef};
 static const MachineType machineTypes[] = {
     MachineType::Int8(),   MachineType::Uint8(),  MachineType::Int16(),
     MachineType::Uint16(), MachineType::Int32(),  MachineType::Uint32(),
@@ -103,8 +103,7 @@ class TestModuleBuilder {
 
   byte AddTable(ValueType type, uint32_t initial_size, bool has_maximum_size,
                 uint32_t maximum_size) {
-    CHECK(type == kWasmExternRef || type == kWasmFuncRef ||
-          type == kWasmNullRef);
+    CHECK(type == kWasmExternRef || type == kWasmFuncRef);
     mod.tables.emplace_back();
     WasmTable& table = mod.tables.back();
     table.type = type;
@@ -2618,7 +2617,7 @@ TEST_F(FunctionBodyDecoderTest, Select_fail2) {
     ValueType type = kValueTypes[i];
     if (type == kWasmI32) continue;
     // Select without specified type is only allowed for number types.
-    if (type == kWasmExternRef || type == kWasmNullRef) continue;
+    if (type == kWasmExternRef) continue;
 
     ValueType types[] = {type, kWasmI32, type};
     FunctionSig sig(1, 2, types);

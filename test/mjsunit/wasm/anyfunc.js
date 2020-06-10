@@ -147,7 +147,7 @@ load('test/mjsunit/wasm/wasm-module-builder.js');
   assertEquals(null, main());
 })();
 
-(function testAssignNullRefToAnyFuncLocal() {
+(function testAssignNullToAnyFuncLocal() {
   print(arguments.callee.name);
   const builder = new WasmModuleBuilder();
   const sig_index = builder.addType(kSig_a_a);
@@ -159,7 +159,7 @@ load('test/mjsunit/wasm/wasm-module-builder.js');
   assertEquals(null, main(main));
 })();
 
-(function testImplicitReturnNullRefAsAnyFunc() {
+(function testImplicitReturnNullAsAnyFunc() {
   print(arguments.callee.name);
   const builder = new WasmModuleBuilder();
   const sig_index = builder.addType(kSig_a_v);
@@ -171,7 +171,7 @@ load('test/mjsunit/wasm/wasm-module-builder.js');
   assertEquals(null, main());
 })();
 
-(function testExplicitReturnNullRefAsAnyFunc() {
+(function testExplicitReturnNullAsAnyFunc() {
   print(arguments.callee.name);
   const builder = new WasmModuleBuilder();
   const sig_index = builder.addType(kSig_a_v);

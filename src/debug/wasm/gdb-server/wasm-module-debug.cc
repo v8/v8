@@ -373,7 +373,6 @@ bool WasmModuleDebug::GetWasmValue(const wasm::WasmValue& wasm_value,
     case wasm::kWasmStmt.kind():
     case wasm::kWasmExternRef.kind():
     case wasm::kWasmFuncRef.kind():
-    case wasm::kWasmNullRef.kind():
     case wasm::kWasmExnRef.kind():
     case wasm::kWasmBottom.kind():
     default:

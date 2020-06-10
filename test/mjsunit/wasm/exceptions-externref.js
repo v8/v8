@@ -185,11 +185,11 @@ load("test/mjsunit/wasm/exceptions-utils.js");
 })();
 
 // 'br_on_exn' on a null-ref value should trap.
-(function TestBrOnExnNullRefSimple() {
+(function TestBrOnExnNullSimple() {
   print(arguments.callee.name);
   let builder = new WasmModuleBuilder();
   let except = builder.addException(kSig_v_r);
-  builder.addFunction('br_on_exn_nullref', kSig_v_v)
+  builder.addFunction('br_on_exn_null', kSig_v_v)
       .addBody([
         kExprRefNull, kWasmExnRef,
         kExprBrOnExn, 0, except,
@@ -197,10 +197,10 @@ load("test/mjsunit/wasm/exceptions-utils.js");
       ]).exportFunc();
   let instance = builder.instantiate();
 
-  assertTraps(kTrapBrOnExnNullRef, () => instance.exports.br_on_exn_nullref());
+  assertTraps(kTrapBrOnExnNull, () => instance.exports.br_on_exn_null());
 })();
 
-(function TestBrOnExnNullRefFromJS() {
+(function TestBrOnExnNullFromJS() {
   print(arguments.callee.name);
   let builder = new WasmModuleBuilder();
   let except = builder.addException(kSig_v_i);
@@ -229,26 +229,26 @@ load("test/mjsunit/wasm/exceptions-utils.js");
 
   assertEquals(kConstant0, instance.exports.call_import(0));
   assertEquals(kNoMatch, instance.exports.call_import(1));
-  assertTraps(kTrapBrOnExnNullRef, () => instance.exports.call_import(2));
+  assertTraps(kTrapBrOnExnNull, () => instance.exports.call_import(2));
   assertEquals(kNoMatch, instance.exports.call_import(3));
 })();
 
 // 'rethrow' on a null-ref value should trap.
-(function TestRethrowNullRefSimple() {
+(function TestRethrowNullSimple() {
   print(arguments.callee.name);
   let builder = new WasmModuleBuilder();
   let except = builder.addException(kSig_v_r);
-  builder.addFunction('rethrow_nullref', kSig_v_v)
+  builder.addFunction('rethrow_null', kSig_v_v)
       .addBody([
         kExprRefNull, kWasmExnRef,
         kExprRethrow
       ]).exportFunc();
   let instance = builder.instantiate();
 
-  assertTraps(kTrapRethrowNullRef, () => instance.exports.rethrow_nullref());
+  assertTraps(kTrapRethrowNull, () => instance.exports.rethrow_null());
 })();
 
-(function TestRethrowNullRefFromJS() {
+(function TestRethrowNullFromJS() {
   print(arguments.callee.name);
   let builder = new WasmModuleBuilder();
   let except = builder.addException(kSig_v_i);
@@ -274,6 +274,6 @@ load("test/mjsunit/wasm/exceptions-utils.js");
 
   assertEquals(kSuccess, instance.exports.call_import(0));
   assertThrows(() => instance.exports.call_import(1), Error, '1');
-  assertTraps(kTrapRethrowNullRef, () => instance.exports.call_import(2));
+  assertTraps(kTrapRethrowNull, () => instance.exports.call_import(2));
   assertThrowsEquals(() => instance.exports.call_import(3), undefined);
 })();

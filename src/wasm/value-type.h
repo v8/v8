@@ -44,7 +44,6 @@ class Simd128;
   V(ExternRef, kSystemPointerSizeLog2, ExternRef, TaggedPointer, 'r',        \
     "externref")                                                             \
   V(FuncRef, kSystemPointerSizeLog2, FuncRef, TaggedPointer, 'a', "funcref") \
-  V(NullRef, kSystemPointerSizeLog2, NullRef, TaggedPointer, 'n', "nullref") \
   V(ExnRef, kSystemPointerSizeLog2, ExnRef, TaggedPointer, 'e', "exn")       \
   V(Ref, kSystemPointerSizeLog2, Ref, TaggedPointer, '*', "ref")             \
   V(OptRef, kSystemPointerSizeLog2, OptRef, TaggedPointer, 'o', "optref")    \
@@ -236,7 +235,6 @@ constexpr ValueType kWasmExternRef = ValueType(ValueType::kExternRef);
 constexpr ValueType kWasmEqRef = ValueType(ValueType::kEqRef);
 constexpr ValueType kWasmExnRef = ValueType(ValueType::kExnRef);
 constexpr ValueType kWasmFuncRef = ValueType(ValueType::kFuncRef);
-constexpr ValueType kWasmNullRef = ValueType(ValueType::kNullRef);
 constexpr ValueType kWasmS128 = ValueType(ValueType::kS128);
 constexpr ValueType kWasmI8 = ValueType(ValueType::kI8);
 constexpr ValueType kWasmI16 = ValueType(ValueType::kI16);

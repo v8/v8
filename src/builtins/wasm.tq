@@ -196,7 +196,7 @@ builtin WasmThrow(exception: Object): JSAny {
 }
 
 builtin WasmRethrow(exception: Object): JSAny {
-  if (exception == Null) tail ThrowWasmTrapRethrowNullRef();
+  if (exception == Null) tail ThrowWasmTrapRethrowNull();
   tail runtime::ReThrow(LoadContextFromFrame(), exception);
 }
 
@@ -368,12 +368,12 @@ builtin ThrowWasmTrapTableOutOfBounds(): JSAny {
   tail WasmTrap(SmiConstant(MessageTemplate::kWasmTrapTableOutOfBounds));
 }
 
-builtin ThrowWasmTrapBrOnExnNullRef(): JSAny {
-  tail WasmTrap(SmiConstant(MessageTemplate::kWasmTrapBrOnExnNullRef));
+builtin ThrowWasmTrapBrOnExnNull(): JSAny {
+  tail WasmTrap(SmiConstant(MessageTemplate::kWasmTrapBrOnExnNull));
 }
 
-builtin ThrowWasmTrapRethrowNullRef(): JSAny {
-  tail WasmTrap(SmiConstant(MessageTemplate::kWasmTrapRethrowNullRef));
+builtin ThrowWasmTrapRethrowNull(): JSAny {
+  tail WasmTrap(SmiConstant(MessageTemplate::kWasmTrapRethrowNull));
 }
 
 builtin ThrowWasmTrapNullDereference(): JSAny {

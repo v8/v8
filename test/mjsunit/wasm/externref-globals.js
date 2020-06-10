@@ -9,10 +9,10 @@ load("test/mjsunit/wasm/wasm-module-builder.js");
 (function TestDefaultValue() {
   print(arguments.callee.name);
   let builder = new WasmModuleBuilder();
-  const g_nullref = builder.addGlobal(kWasmExternRef, true).index;
+  const g_null = builder.addGlobal(kWasmExternRef, true).index;
   const g_nullfunc = builder.addGlobal(kWasmAnyFunc, true).index;
   builder.addFunction("get_externref_global", kSig_r_v)
-    .addBody([kExprGlobalGet, g_nullref])
+    .addBody([kExprGlobalGet, g_null])
     .exportAs("get_externref_global");
   builder.addFunction("get_anyfunc_global", kSig_a_v)
     .addBody([kExprGlobalGet, g_nullfunc])
@@ -28,13 +28,13 @@ load("test/mjsunit/wasm/wasm-module-builder.js");
   let builder = new WasmModuleBuilder();
   const g_setref = builder.addGlobal(kWasmExternRef, true);
   const g_setfunc = builder.addGlobal(kWasmAnyFunc, true);
-  const g_nullref = builder.addGlobal(kWasmExternRef, true);
+  const g_null = builder.addGlobal(kWasmExternRef, true);
   const g_nullfunc = builder.addGlobal(kWasmAnyFunc, true);
   builder.addFunction("get_externref_global", kSig_r_r)
     .addBody([
       kExprLocalGet, 0,
       kExprGlobalSet, g_setref.index,
-      kExprGlobalGet, g_nullref.index
+      kExprGlobalGet, g_null.index
     ])
     .exportAs("get_externref_global");
   builder.addFunction("get_anyfunc_global", kSig_a_a)

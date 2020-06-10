@@ -184,15 +184,6 @@ void WasmGlobalObject::SetExternRef(Handle<Object> value) {
   tagged_buffer().set(offset(), *value);
 }
 
-bool WasmGlobalObject::SetNullRef(Handle<Object> value) {
-  DCHECK_EQ(type(), wasm::kWasmNullRef);
-  if (!value->IsNull()) {
-    return false;
-  }
-  tagged_buffer().set(offset(), *value);
-  return true;
-}
-
 bool WasmGlobalObject::SetFuncRef(Isolate* isolate, Handle<Object> value) {
   DCHECK_EQ(type(), wasm::kWasmFuncRef);
   if (!value->IsNull(isolate) &&

@@ -281,10 +281,6 @@ Handle<String> ToValueTypeString(Isolate* isolate, ValueType type) {
       string = factory->InternalizeUtf8String("anyfunc");
       break;
     }
-    case i::wasm::ValueType::kNullRef: {
-      string = factory->InternalizeUtf8String("nullref");
-      break;
-    }
     case i::wasm::ValueType::kExnRef: {
       string = factory->InternalizeUtf8String("exnref");
       break;

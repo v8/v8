@@ -220,7 +220,7 @@ load("test/mjsunit/wasm/wasm-module-builder.js");
   assertEquals(null, instance.exports.main());
 })();
 
-(function testImplicitReturnNullRefAsExternRef() {
+(function testImplicitReturnNullAsExternRef() {
   print(arguments.callee.name);
   const builder = new WasmModuleBuilder();
   const sig_index = builder.addType(kSig_r_v);
@@ -232,7 +232,7 @@ load("test/mjsunit/wasm/wasm-module-builder.js");
   assertEquals(null, main());
 })();
 
-(function testExplicitReturnNullRefAsExternRef() {
+(function testExplicitReturnNullAsExternRef() {
   print(arguments.callee.name);
   const builder = new WasmModuleBuilder();
   const sig_index = builder.addType(kSig_r_v);

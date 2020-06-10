@@ -1609,8 +1609,8 @@ enum class LoadSensitivity {
   V(TrapDataSegmentDropped)        \
   V(TrapElemSegmentDropped)        \
   V(TrapTableOutOfBounds)          \
-  V(TrapBrOnExnNullRef)            \
-  V(TrapRethrowNullRef)            \
+  V(TrapBrOnExnNull)               \
+  V(TrapRethrowNull)               \
   V(TrapNullDereference)           \
   V(TrapIllegalCast)               \
   V(TrapArrayOutOfBounds)

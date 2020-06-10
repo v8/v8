@@ -104,7 +104,6 @@ bool InterpretWasmModuleForTesting(Isolate* isolate,
         break;
       case ValueType::kExternRef:
       case ValueType::kFuncRef:
-      case ValueType::kNullRef:
       case ValueType::kExnRef:
       case ValueType::kRef:
       case ValueType::kOptRef:

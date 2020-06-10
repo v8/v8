@@ -1407,7 +1407,6 @@ void PushArgs(const i::wasm::FunctionSig* sig, const Val args[],
         break;
       case i::wasm::ValueType::kExternRef:
       case i::wasm::ValueType::kFuncRef:
-      case i::wasm::ValueType::kNullRef:
         packer->Push(WasmRefToV8(store->i_isolate(), args[i].ref())->ptr());
         break;
       case i::wasm::ValueType::kExnRef:
@@ -1439,11 +1438,9 @@ void PopArgs(const i::wasm::FunctionSig* sig, Val results[],
         results[i] = Val(packer->Pop<double>());
         break;
       case i::wasm::ValueType::kExternRef:
-      case i::wasm::ValueType::kFuncRef:
-      case i::wasm::ValueType::kNullRef: {
+      case i::wasm::ValueType::kFuncRef: {
         i::Address raw = packer->Pop<i::Address>();
         i::Handle<i::Object> obj(i::Object(raw), store->i_isolate());
-        DCHECK_IMPLIES(type == i::wasm::kWasmNullRef, obj->IsNull());
         results[i] = Val(V8RefValueToWasm(store, obj));
         break;
       }

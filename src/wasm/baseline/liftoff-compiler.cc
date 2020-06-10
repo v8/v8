@@ -399,7 +399,6 @@ class LiftoffCompiler {
         return kSimd;
       case ValueType::kExternRef:
       case ValueType::kFuncRef:
-      case ValueType::kNullRef:
         return kRefTypes;
       case ValueType::kExnRef:
         return kExceptionHandling;
