@@ -5161,8 +5161,16 @@ void JSFunction::EnsureHasInitialMap(Handle<JSFunction> function) {
   if (function->has_initial_map()) return;
   Isolate* isolate = function->GetIsolate();
 
-  // First create a new map with the size and number of in-object properties
-  // suggested by the function.
+  int expected_nof_properties =
+      CalculateExpectedNofProperties(isolate, function);
+
+  // {CalculateExpectedNofProperties} can have had the side effect of creating
+  // the initial map (e.g. it could have triggered an optimized compilation
+  // whose dependency installation reentered {EnsureHasInitialMap}).
+  if (function->has_initial_map()) return;
+
+  // Create a new map with the size and number of in-object properties suggested
+  // by the function.
   InstanceType instance_type;
   if (IsResumableFunction(function->shared().kind())) {
     instance_type = IsAsyncGeneratorFunction(function->shared().kind())
@@ -5174,8 +5182,6 @@ void JSFunction::EnsureHasInitialMap(Handle<JSFunction> function) {
 
   int instance_size;
   int inobject_properties;
-  int expected_nof_properties =
-      CalculateExpectedNofProperties(isolate, function);
   CalculateInstanceSizeHelper(instance_type, false, 0, expected_nof_properties,
                               &instance_size, &inobject_properties);
 

@@ -1136,6 +1136,7 @@ class JSFunction : public JSFunctionOrBoundFunction {
   DECL_CAST(JSFunction)
 
   // Calculate the instance size and in-object properties count.
+  // {CalculateExpectedNofProperties} can trigger compilation.
   static V8_WARN_UNUSED_RESULT int CalculateExpectedNofProperties(
       Isolate* isolate, Handle<JSFunction> function);
   static void CalculateInstanceSizeHelper(InstanceType instance_type,
