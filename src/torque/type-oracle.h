@@ -300,10 +300,6 @@ class TypeOracle : public ContextualClass<TypeOracle> {
     return Get().GetBuiltinType(CONTEXT_TYPE_STRING);
   }
 
-  static const Type* GetNoContextType() {
-    return Get().GetBuiltinType(NO_CONTEXT_TYPE_STRING);
-  }
-
   static const Type* GetNativeContextType() {
     return Get().GetBuiltinType(NATIVE_CONTEXT_TYPE_STRING);
   }

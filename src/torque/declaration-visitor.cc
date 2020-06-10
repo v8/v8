@@ -122,12 +122,11 @@ void DeclarationVisitor::Visit(ExternalRuntimeDeclaration* decl) {
         "Missing parameters for runtime function, at least the context "
         "parameter is required.");
   }
-  if (!(signature.parameter_types.types[0] == TypeOracle::GetContextType() ||
-        signature.parameter_types.types[0] == TypeOracle::GetNoContextType())) {
+  if (!(signature.parameter_types.types[0] == TypeOracle::GetContextType())) {
     ReportError(
         "first parameter to runtime functions has to be the context and have "
-        "type Context or NoContext, but found type ",
-        *signature.parameter_types.types[0]);
+        "type Context, but found type ",
+        signature.parameter_types.types[0]);
   }
   if (!(signature.return_type->IsSubtypeOf(TypeOracle::GetObjectType()) ||
         signature.return_type == TypeOracle::GetVoidType() ||
