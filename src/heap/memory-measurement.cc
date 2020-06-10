@@ -95,7 +95,7 @@ class V8_EXPORT_PRIVATE MeasureMemoryDelegate
  public:
   MeasureMemoryDelegate(Isolate* isolate, Handle<NativeContext> context,
                         Handle<JSPromise> promise, v8::MeasureMemoryMode mode);
-  ~MeasureMemoryDelegate();
+  ~MeasureMemoryDelegate() override;
 
   // v8::MeasureMemoryDelegate overrides:
   bool ShouldMeasure(v8::Local<v8::Context> context) override;
