@@ -415,9 +415,11 @@ class DebugInfoImpl {
 
     ForDebugging for_debugging =
         offsets.size() == 1 && offsets[0] == 0 ? kForStepping : kForDebugging;
+    Counters* counters = nullptr;
+    WasmFeatures unused_detected;
     WasmCompilationResult result = ExecuteLiftoffCompilation(
         native_module_->engine()->allocator(), &env, body, func_index,
-        for_debugging, nullptr, nullptr, offsets, &debug_sidetable,
+        for_debugging, counters, &unused_detected, offsets, &debug_sidetable,
         extra_source_positions);
     // Liftoff compilation failure is a FATAL error. We rely on complete Liftoff
     // support for debugging.
