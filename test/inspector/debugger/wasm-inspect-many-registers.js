@@ -6,6 +6,7 @@ const {session, contextGroup, Protocol} =
     InspectorTest.start('Test inspecting register values in Liftoff.');
 
 utils.load('test/mjsunit/wasm/wasm-module-builder.js');
+utils.load('test/inspector/wasm-inspector-test.js');
 
 const num_locals = 10;
 const configs = {
@@ -29,11 +30,6 @@ function instantiate(bytes) {
 const evalWithUrl = (code, url) => Protocol.Runtime.evaluate(
     {'expression': code + '\n//# sourceURL=v8://test/' + url});
 
-function getWasmValue(value) {
-  return typeof (value.value) === 'undefined' ? value.unserializableValue :
-                                                value.value;
-}
-
 Protocol.Debugger.onPaused(async msg => {
   let loc = msg.params.callFrames[0].location;
   let line = [`Paused at offset ${loc.columnNumber}`];
@@ -43,7 +39,8 @@ Protocol.Debugger.onPaused(async msg => {
     if (scope.type == 'module') continue;
     var scope_properties =
         await Protocol.Runtime.getProperties({objectId: scope.object.objectId});
-    let str = scope_properties.result.result.map(elem => getWasmValue(elem.value)).join(', ');
+    let str = scope_properties.result.result.map(
+        elem => WasmInspectorTest.getWasmValue(elem.value)).join(', ');
     line.push(`${scope.type}: [${str}]`);
   }
   InspectorTest.log(line.join('; '));

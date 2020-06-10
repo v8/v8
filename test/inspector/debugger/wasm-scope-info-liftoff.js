@@ -4,6 +4,8 @@
 
 // Flags: --experimental-wasm-type-reflection
 
+utils.load('test/inspector/wasm-inspector-test.js');
+
 let {session, contextGroup, Protocol} = InspectorTest.start(
     'Test retrieving scope information from compiled Liftoff frames');
 session.setupScriptMap();
@@ -53,7 +55,7 @@ async function printPauseLocationsAndContinue(msg) {
       }
       var properties = await Protocol.Runtime.getProperties(
           {'objectId': scope.object.objectId});
-      await dumpScopeProperties(properties);
+      await WasmInspectorTest.dumpScopeProperties(properties);
     }
   }
   InspectorTest.log();
@@ -158,89 +160,4 @@ async function waitForWasmScripts() {
     }
   }
   return wasm_script_ids;
-}
-
-async function getScopeValues(name, value) {
-  if (value.type == 'object') {
-    if (value.subtype == 'typedarray') return value.description;
-    if (name == 'instance') return dumpInstanceProperties(value);
-    if (name == 'function tables') return dumpTables(value);
-
-    let msg = await Protocol.Runtime.getProperties({objectId: value.objectId});
-    printIfFailure(msg);
-    const printProperty = function(elem) {
-      return `"${elem.name}": ${getWasmValue(elem.value)} (${elem.value.subtype})`;
-    }
-    return msg.result.result.map(printProperty).join(', ');
-  }
-  return getWasmValue(value) + ' (' + value.subtype + ')';
-}
-
-async function dumpScopeProperties(message) {
-  printIfFailure(message);
-  for (var value of message.result.result) {
-    var value_str = await getScopeValues(value.name, value.value);
-    InspectorTest.log('   ' + value.name + ': ' + value_str);
-  }
-}
-
-function recursiveGetPropertiesWrapper(value, depth) {
-  return recursiveGetProperties({result: {result: [value]}}, depth);
-}
-
-async function recursiveGetProperties(value, depth) {
-  if (depth > 0) {
-    const properties = await Promise.all(value.result.result.map(
-        x => {return Protocol.Runtime.getProperties({objectId: x.value.objectId});}));
-    const recursiveProperties = await Promise.all(properties.map(
-        x => {return recursiveGetProperties(x, depth - 1);}));
-    return recursiveProperties.flat();
-  }
-  return value;
-}
-
-async function dumpTables(tablesObj) {
-  let msg = await Protocol.Runtime.getProperties({objectId: tablesObj.objectId});
-  var tables_str = [];
-  for (var table of msg.result.result) {
-    const func_entries = await recursiveGetPropertiesWrapper(table, 2);
-    var functions = [];
-    for (var func of func_entries) {
-      for (var value of func.result.result) {
-        functions.push(`${value.name}: ${value.value.description}`);
-      }
-    }
-    const functions_str = functions.join(', ');
-    tables_str.push(`      ${table.name}: ${functions_str}`);
-  }
-  return '\n' + tables_str.join('\n');
-}
-
-async function dumpInstanceProperties(instanceObj) {
-  function invokeGetter(property) {
-    return this[JSON.parse(property)];
-  }
-
-  const exportsName = 'exports';
-  let exportsObj = await Protocol.Runtime.callFunctionOn(
-      {objectId: instanceObj.objectId,
-       functionDeclaration: invokeGetter.toString(),
-       arguments: [{value: JSON.stringify(exportsName)}]
-  });
-  printIfFailure(exportsObj);
-  let exports = await Protocol.Runtime.getProperties(
-      {objectId: exportsObj.result.result.objectId});
-  printIfFailure(exports);
-
-  const printExports = function(value) {
-    return `"${value.name}" (${value.value.className})`;
-  }
-  const formattedExports = exports.result.result.map(printExports).join(', ');
-  return `${exportsName}: ${formattedExports}`
-}
-
-function getWasmValue(wasmValue) {
-  return typeof (wasmValue.value) === 'undefined' ?
-      wasmValue.unserializableValue :
-      wasmValue.value;
 }
