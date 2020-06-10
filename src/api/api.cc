@@ -107,6 +107,7 @@
 #include "src/utils/detachable-vector.h"
 #include "src/utils/version.h"
 #include "src/wasm/streaming-decoder.h"
+#include "src/wasm/value-type.h"
 #include "src/wasm/wasm-engine.h"
 #include "src/wasm/wasm-objects-inl.h"
 #include "src/wasm/wasm-result.h"
@@ -10316,9 +10317,11 @@ int debug::WasmValue::value_type() {
 
 v8::Local<v8::Array> debug::WasmValue::bytes() {
   i::Handle<i::WasmValue> obj = Utils::OpenHandle(this);
-  // Should only be called on i32, i64, f32, f64, s128.
-  DCHECK_LE(1, obj->value_type());
-  DCHECK_GE(5, obj->value_type());
+  DCHECK(i::wasm::ValueType::Kind::kI32 == obj->value_type() ||
+         i::wasm::ValueType::Kind::kI64 == obj->value_type() ||
+         i::wasm::ValueType::Kind::kF32 == obj->value_type() ||
+         i::wasm::ValueType::Kind::kF64 == obj->value_type() ||
+         i::wasm::ValueType::Kind::kS128 == obj->value_type());
 
   i::Isolate* isolate = obj->GetIsolate();
   i::Handle<i::Object> bytes_or_ref(obj->bytes_or_ref(), isolate);
@@ -10340,8 +10343,7 @@ v8::Local<v8::Array> debug::WasmValue::bytes() {
 
 v8::Local<v8::Value> debug::WasmValue::ref() {
   i::Handle<i::WasmValue> obj = Utils::OpenHandle(this);
-  // Should only be called on externref.
-  DCHECK_EQ(6, obj->value_type());
+  DCHECK_EQ(i::wasm::ValueType::Kind::kExternRef, obj->value_type());
 
   i::Isolate* isolate = obj->GetIsolate();
   i::Handle<i::Object> bytes_or_ref(obj->bytes_or_ref(), isolate);
