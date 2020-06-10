@@ -1191,6 +1191,9 @@ class WasmDecoder : public Decoder {
   inline bool Complete(const byte* pc, CallFunctionImmediate<validate>& imm) {
     if (!VALIDATE(imm.index < module_->functions.size())) return false;
     imm.sig = module_->functions[imm.index].sig;
+    if (imm.sig->return_count() > 1) {
+      this->detected_->Add(kFeature_mv);
+    }
     return true;
   }
 
@@ -1205,6 +1208,9 @@ class WasmDecoder : public Decoder {
   inline bool Complete(const byte* pc, CallIndirectImmediate<validate>& imm) {
     if (!VALIDATE(module_->has_signature(imm.sig_index))) return false;
     imm.sig = module_->signature(imm.sig_index);
+    if (imm.sig->return_count() > 1) {
+      this->detected_->Add(kFeature_mv);
+    }
     return true;
   }
 
@@ -1299,6 +1305,9 @@ class WasmDecoder : public Decoder {
     if (imm.type != kWasmBottom) return true;
     if (!VALIDATE(module_->has_signature(imm.sig_index))) return false;
     imm.sig = module_->signature(imm.sig_index);
+    if (imm.sig->return_count() > 1) {
+      this->detected_->Add(kFeature_mv);
+    }
     return true;
   }
 
@@ -3539,6 +3548,9 @@ class WasmFullDecoder : public WasmDecoder<validate> {
 
   void DoReturn() {
     size_t return_count = this->sig_->return_count();
+    if (return_count > 1) {
+      this->detected_->Add(kFeature_mv);
+    }
     DCHECK_GE(stack_.size(), return_count);
     Vector<Value> return_values =
         return_count == 0

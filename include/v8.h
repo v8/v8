@@ -8447,6 +8447,9 @@ class V8_EXPORT Isolate {
     kInvalidatedTypedArraySpeciesLookupChainProtector = 105,
     kWasmSimdOpcodes = 106,
     kVarRedeclaredCatchBinding = 107,
+    kWasmRefTypes = 108,
+    kWasmBulkMemory = 109,
+    kWasmMultiValue = 110,
 
     // If you add new values here, you'll also need to update Chromium's:
     // web_feature.mojom, use_counter_callback.cc, and enums.xml. V8 changes to
