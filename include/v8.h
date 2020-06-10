@@ -10811,8 +10811,15 @@ V8_INLINE void PersistentBase<T>::SetWeak(
     P* parameter, typename WeakCallbackInfo<P>::Callback callback,
     WeakCallbackType type) {
   typedef typename WeakCallbackInfo<void>::Callback Callback;
+#if (__GNUC__ >= 8) && !defined(__clang__)
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wcast-function-type"
+#endif
   V8::MakeWeak(reinterpret_cast<internal::Address*>(this->val_), parameter,
                reinterpret_cast<Callback>(callback), type);
+#if (__GNUC__ >= 8) && !defined(__clang__)
+#pragma GCC diagnostic pop
+#endif
 }
 
 template <class T>
