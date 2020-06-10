@@ -2282,7 +2282,31 @@ using Instr = uint32_t;
   /* Vector Minimum Signed Word */                         \
   V(vminsw, VMINSW, 0x10000382)                            \
   /* Vector Minimum Unsigned Word */                       \
-  V(vminuw, VMINUW, 0x10000282)
+  V(vminuw, VMINUW, 0x10000282)                            \
+  /* Vector Shift Left Byte */                             \
+  V(vslb, VSLB, 0x10000104)                                \
+  /* Vector Shift Left Word */                             \
+  V(vslw, VSLW, 0x10000184)                                \
+  /* Vector Shift Left Halfword */                         \
+  V(vslh, VSLH, 0x10000144)                                \
+  /* Vector Shift Left Doubleword */                       \
+  V(vsld, VSLD, 0x100005C4)                                \
+  /* Vector Shift Right Byte */                            \
+  V(vsrb, VSRB, 0x10000204)                                \
+  /* Vector Shift Right Word */                            \
+  V(vsrw, VSRW, 0x10000284)                                \
+  /* Vector Shift Right Halfword */                        \
+  V(vsrh, VSRH, 0x10000244)                                \
+  /* Vector Shift Right Doubleword */                      \
+  V(vsrd, VSRD, 0x100006C4)                                \
+  /* Vector Shift Right Algebraic Byte */                  \
+  V(vsrab, VSRAB, 0x10000304)                              \
+  /* Vector Shift Right Algebraic Word */                  \
+  V(vsraw, VSRAW, 0x10000384)                              \
+  /* Vector Shift Right Algebraic Halfword */              \
+  V(vsrah, VSRAH, 0x10000344)                              \
+  /* Vector Shift Right Algebraic Doubleword */            \
+  V(vsrad, VSRAD, 0x100003C4)
 
 #define PPC_VX_OPCODE_UNUSED_LIST(V)                                      \
   /* Decimal Add Modulo */                                                \
@@ -2453,14 +2477,6 @@ using Instr = uint32_t;
   V(vrsqrtefp, VRSQRTEFP, 0x1000014A)                                     \
   /* Vector Shift Left */                                                 \
   V(vsl, VSL, 0x100001C4)                                                 \
-  /* Vector Shift Left Byte */                                            \
-  V(vslb, VSLB, 0x10000104)                                               \
-  /* Vector Shift Left Doubleword */                                      \
-  V(vsld, VSLD, 0x100005C4)                                               \
-  /* Vector Shift Left Halfword */                                        \
-  V(vslh, VSLH, 0x10000144)                                               \
-  /* Vector Shift Left Word */                                            \
-  V(vslw, VSLW, 0x10000184)                                               \
   /* Vector Splat Immediate Signed Byte */                                \
   V(vspltisb, VSPLTISB, 0x1000030C)                                       \
   /* Vector Splat Immediate Signed Halfword */                            \
@@ -2469,22 +2485,6 @@ using Instr = uint32_t;
   V(vspltisw, VSPLTISW, 0x1000038C)                                       \
   /* Vector Shift Right */                                                \
   V(vsr, VSR, 0x100002C4)                                                 \
-  /* Vector Shift Right Algebraic Byte */                                 \
-  V(vsrab, VSRAB, 0x10000304)                                             \
-  /* Vector Shift Right Algebraic Doubleword */                           \
-  V(vsrad, VSRAD, 0x100003C4)                                             \
-  /* Vector Shift Right Algebraic Halfword */                             \
-  V(vsrah, VSRAH, 0x10000344)                                             \
-  /* Vector Shift Right Algebraic Word */                                 \
-  V(vsraw, VSRAW, 0x10000384)                                             \
-  /* Vector Shift Right Byte */                                           \
-  V(vsrb, VSRB, 0x10000204)                                               \
-  /* Vector Shift Right Doubleword */                                     \
-  V(vsrd, VSRD, 0x100006C4)                                               \
-  /* Vector Shift Right Halfword */                                       \
-  V(vsrh, VSRH, 0x10000244)                                               \
-  /* Vector Shift Right Word */                                           \
-  V(vsrw, VSRW, 0x10000284)                                               \
   /* Vector Subtract & write Carry Unsigned Quadword */                   \
   V(vsubcuq, VSUBCUQ, 0x10000540)                                         \
   /* Vector Subtract and Write Carry-Out Unsigned Word */                 \

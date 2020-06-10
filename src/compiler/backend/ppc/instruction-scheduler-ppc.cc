@@ -150,6 +150,9 @@ int InstructionScheduler::GetTargetInstructionFlags(
     case kPPC_I64x2GtU:
     case kPPC_I64x2GeU:
     case kPPC_I64x2GeS:
+    case kPPC_I64x2Shl:
+    case kPPC_I64x2ShrS:
+    case kPPC_I64x2ShrU:
     case kPPC_I32x4Splat:
     case kPPC_I32x4ExtractLane:
     case kPPC_I32x4ReplaceLane:
@@ -167,6 +170,9 @@ int InstructionScheduler::GetTargetInstructionFlags(
     case kPPC_I32x4GeS:
     case kPPC_I32x4GtU:
     case kPPC_I32x4GeU:
+    case kPPC_I32x4Shl:
+    case kPPC_I32x4ShrS:
+    case kPPC_I32x4ShrU:
     case kPPC_I16x8Splat:
     case kPPC_I16x8ExtractLaneU:
     case kPPC_I16x8ExtractLaneS:
@@ -185,6 +191,9 @@ int InstructionScheduler::GetTargetInstructionFlags(
     case kPPC_I16x8GeS:
     case kPPC_I16x8GtU:
     case kPPC_I16x8GeU:
+    case kPPC_I16x8Shl:
+    case kPPC_I16x8ShrS:
+    case kPPC_I16x8ShrU:
     case kPPC_I8x16Splat:
     case kPPC_I8x16ExtractLaneU:
     case kPPC_I8x16ExtractLaneS:
@@ -202,6 +211,9 @@ int InstructionScheduler::GetTargetInstructionFlags(
     case kPPC_I8x16GeS:
     case kPPC_I8x16GtU:
     case kPPC_I8x16GeU:
+    case kPPC_I8x16Shl:
+    case kPPC_I8x16ShrS:
+    case kPPC_I8x16ShrU:
       return kNoOpcodeFlags;
 
     case kPPC_LoadWordS8:

@@ -2810,6 +2810,62 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
              kScratchDoubleReg);
       break;
     }
+#define VECTOR_SHIFT(op)                                         \
+  {                                                              \
+    __ mtvsrd(kScratchDoubleReg, i.InputRegister(1));            \
+    __ vspltb(kScratchDoubleReg, kScratchDoubleReg, Operand(7)); \
+    __ op(i.OutputSimd128Register(), i.InputSimd128Register(0),  \
+          kScratchDoubleReg);                                    \
+  }
+    case kPPC_I64x2Shl: {
+      VECTOR_SHIFT(vsld)
+      break;
+    }
+    case kPPC_I64x2ShrS: {
+      VECTOR_SHIFT(vsrad)
+      break;
+    }
+    case kPPC_I64x2ShrU: {
+      VECTOR_SHIFT(vsrd)
+      break;
+    }
+    case kPPC_I32x4Shl: {
+      VECTOR_SHIFT(vslw)
+      break;
+    }
+    case kPPC_I32x4ShrS: {
+      VECTOR_SHIFT(vsraw)
+      break;
+    }
+    case kPPC_I32x4ShrU: {
+      VECTOR_SHIFT(vsrw)
+      break;
+    }
+    case kPPC_I16x8Shl: {
+      VECTOR_SHIFT(vslh)
+      break;
+    }
+    case kPPC_I16x8ShrS: {
+      VECTOR_SHIFT(vsrah)
+      break;
+    }
+    case kPPC_I16x8ShrU: {
+      VECTOR_SHIFT(vsrh)
+      break;
+    }
+    case kPPC_I8x16Shl: {
+      VECTOR_SHIFT(vslb)
+      break;
+    }
+    case kPPC_I8x16ShrS: {
+      VECTOR_SHIFT(vsrab)
+      break;
+    }
+    case kPPC_I8x16ShrU: {
+      VECTOR_SHIFT(vsrb)
+      break;
+    }
+#undef VECTOR_SHIFT
     case kPPC_StoreCompressTagged: {
       ASSEMBLE_STORE_INTEGER(StoreTaggedField, StoreTaggedFieldX);
       break;

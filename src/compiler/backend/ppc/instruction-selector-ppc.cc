@@ -2188,6 +2188,20 @@ void InstructionSelector::VisitInt64AbsWithOverflow(Node* node) {
   V(I8x16GtU)              \
   V(I8x16GeU)
 
+#define SIMD_SHIFT_LIST(V) \
+  V(I64x2Shl)              \
+  V(I64x2ShrS)             \
+  V(I64x2ShrU)             \
+  V(I32x4Shl)              \
+  V(I32x4ShrS)             \
+  V(I32x4ShrU)             \
+  V(I16x8Shl)              \
+  V(I16x8ShrS)             \
+  V(I16x8ShrU)             \
+  V(I8x16Shl)              \
+  V(I8x16ShrS)             \
+  V(I8x16ShrU)
+
 #define SIMD_VISIT_SPLAT(Type)                               \
   void InstructionSelector::Visit##Type##Splat(Node* node) { \
     PPCOperandGenerator g(this);                             \
@@ -2236,21 +2250,20 @@ SIMD_TYPES(SIMD_VISIT_REPLACE_LANE)
 SIMD_BINOP_LIST(SIMD_VISIT_BINOP)
 #undef SIMD_VISIT_BINOP
 #undef SIMD_BINOP_LIST
+
+#define SIMD_VISIT_SHIFT(Opcode)                        \
+  void InstructionSelector::Visit##Opcode(Node* node) { \
+    PPCOperandGenerator g(this);                        \
+    Emit(kPPC_##Opcode, g.DefineAsRegister(node),       \
+         g.UseUniqueRegister(node->InputAt(0)),         \
+         g.UseUniqueRegister(node->InputAt(1)));        \
+  }
+SIMD_SHIFT_LIST(SIMD_VISIT_SHIFT)
+#undef SIMD_VISIT_SHIFT
+#undef SIMD_SHIFT_LIST
 #undef SIMD_TYPES
 
-void InstructionSelector::VisitI32x4Shl(Node* node) { UNIMPLEMENTED(); }
-
-void InstructionSelector::VisitI32x4ShrS(Node* node) { UNIMPLEMENTED(); }
-
-void InstructionSelector::VisitI32x4ShrU(Node* node) { UNIMPLEMENTED(); }
-
 void InstructionSelector::VisitI32x4Neg(Node* node) { UNIMPLEMENTED(); }
-
-void InstructionSelector::VisitI16x8Shl(Node* node) { UNIMPLEMENTED(); }
-
-void InstructionSelector::VisitI16x8ShrS(Node* node) { UNIMPLEMENTED(); }
-
-void InstructionSelector::VisitI16x8ShrU(Node* node) { UNIMPLEMENTED(); }
 
 void InstructionSelector::VisitI16x8AddSaturateS(Node* node) {
   UNIMPLEMENTED();
@@ -2426,12 +2439,6 @@ void InstructionSelector::VisitV8x16AnyTrue(Node* node) { UNIMPLEMENTED(); }
 
 void InstructionSelector::VisitV8x16AllTrue(Node* node) { UNIMPLEMENTED(); }
 
-void InstructionSelector::VisitI8x16Shl(Node* node) { UNIMPLEMENTED(); }
-
-void InstructionSelector::VisitI8x16ShrS(Node* node) { UNIMPLEMENTED(); }
-
-void InstructionSelector::VisitI8x16ShrU(Node* node) { UNIMPLEMENTED(); }
-
 void InstructionSelector::VisitS8x16Shuffle(Node* node) { UNIMPLEMENTED(); }
 
 void InstructionSelector::VisitS8x16Swizzle(Node* node) { UNIMPLEMENTED(); }
@@ -2445,12 +2452,6 @@ void InstructionSelector::VisitF64x2Sqrt(Node* node) { UNIMPLEMENTED(); }
 void InstructionSelector::VisitF64x2Div(Node* node) { UNIMPLEMENTED(); }
 
 void InstructionSelector::VisitI64x2Neg(Node* node) { UNIMPLEMENTED(); }
-
-void InstructionSelector::VisitI64x2Shl(Node* node) { UNIMPLEMENTED(); }
-
-void InstructionSelector::VisitI64x2ShrS(Node* node) { UNIMPLEMENTED(); }
-
-void InstructionSelector::VisitI64x2ShrU(Node* node) { UNIMPLEMENTED(); }
 
 void InstructionSelector::VisitF64x2Min(Node* node) { UNIMPLEMENTED(); }
 
