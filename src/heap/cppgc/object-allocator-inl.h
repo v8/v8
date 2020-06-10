@@ -20,6 +20,7 @@ namespace cppgc {
 namespace internal {
 
 void* ObjectAllocator::AllocateObject(size_t size, GCInfoIndex gcinfo) {
+  DCHECK(is_allocation_allowed());
   const size_t allocation_size =
       RoundUp<kAllocationGranularity>(size + sizeof(HeapObjectHeader));
   const RawHeap::RegularSpaceType type =
@@ -30,6 +31,7 @@ void* ObjectAllocator::AllocateObject(size_t size, GCInfoIndex gcinfo) {
 
 void* ObjectAllocator::AllocateObject(size_t size, GCInfoIndex gcinfo,
                                       CustomSpaceIndex space_index) {
+  DCHECK(is_allocation_allowed());
   const size_t allocation_size =
       RoundUp<kAllocationGranularity>(size + sizeof(HeapObjectHeader));
   return AllocateObjectOnSpace(

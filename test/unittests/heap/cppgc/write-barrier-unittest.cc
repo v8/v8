@@ -170,8 +170,8 @@ TEST_F(WriteBarrierTest, EnableDisableIncrementalMarking) {
 }
 
 TEST_F(WriteBarrierTest, TriggersWhenMarkingIsOn) {
-  auto* object1 = MakeGarbageCollected<GCed>(GetHeap());
-  auto* object2 = MakeGarbageCollected<GCed>(GetHeap());
+  auto* object1 = MakeGarbageCollected<GCed>(GetAllocationHandle());
+  auto* object2 = MakeGarbageCollected<GCed>(GetAllocationHandle());
   {
     ExpectWriteBarrierFires scope(marker(), {object1});
     EXPECT_FALSE(object1->IsMarked());
@@ -181,16 +181,16 @@ TEST_F(WriteBarrierTest, TriggersWhenMarkingIsOn) {
 }
 
 TEST_F(WriteBarrierTest, BailoutWhenMarkingIsOff) {
-  auto* object1 = MakeGarbageCollected<GCed>(GetHeap());
-  auto* object2 = MakeGarbageCollected<GCed>(GetHeap());
+  auto* object1 = MakeGarbageCollected<GCed>(GetAllocationHandle());
+  auto* object2 = MakeGarbageCollected<GCed>(GetAllocationHandle());
   EXPECT_FALSE(object1->IsMarked());
   object2->set_next(object1);
   EXPECT_FALSE(object1->IsMarked());
 }
 
 TEST_F(WriteBarrierTest, BailoutIfMarked) {
-  auto* object1 = MakeGarbageCollected<GCed>(GetHeap());
-  auto* object2 = MakeGarbageCollected<GCed>(GetHeap());
+  auto* object1 = MakeGarbageCollected<GCed>(GetAllocationHandle());
+  auto* object2 = MakeGarbageCollected<GCed>(GetAllocationHandle());
   EXPECT_TRUE(HeapObjectHeader::FromPayload(object1).TryMarkAtomic());
   {
     ExpectNoWriteBarrierFires scope(marker(), {object1});
@@ -199,18 +199,18 @@ TEST_F(WriteBarrierTest, BailoutIfMarked) {
 }
 
 TEST_F(WriteBarrierTest, MemberInitializingStoreNoBarrier) {
-  auto* object1 = MakeGarbageCollected<GCed>(GetHeap());
+  auto* object1 = MakeGarbageCollected<GCed>(GetAllocationHandle());
   {
     ExpectNoWriteBarrierFires scope(marker(), {object1});
-    auto* object2 = MakeGarbageCollected<GCed>(GetHeap(), object1);
+    auto* object2 = MakeGarbageCollected<GCed>(GetAllocationHandle(), object1);
     HeapObjectHeader& object2_header = HeapObjectHeader::FromPayload(object2);
     EXPECT_FALSE(object2_header.IsMarked());
   }
 }
 
 TEST_F(WriteBarrierTest, MemberReferenceAssignMember) {
-  auto* obj = MakeGarbageCollected<GCed>(GetHeap());
-  auto* ref_obj = MakeGarbageCollected<GCed>(GetHeap());
+  auto* obj = MakeGarbageCollected<GCed>(GetAllocationHandle());
+  auto* ref_obj = MakeGarbageCollected<GCed>(GetAllocationHandle());
   Member<GCed>& m2 = ref_obj->next_ref();
   Member<GCed> m3(obj);
   {
@@ -220,7 +220,7 @@ TEST_F(WriteBarrierTest, MemberReferenceAssignMember) {
 }
 
 TEST_F(WriteBarrierTest, MemberSetSentinelValueNoBarrier) {
-  auto* obj = MakeGarbageCollected<GCed>(GetHeap());
+  auto* obj = MakeGarbageCollected<GCed>(GetAllocationHandle());
   Member<GCed>& m = obj->next_ref();
   {
     ExpectNoWriteBarrierFires scope(marker(), {});
@@ -229,12 +229,12 @@ TEST_F(WriteBarrierTest, MemberSetSentinelValueNoBarrier) {
 }
 
 TEST_F(WriteBarrierTest, MemberCopySentinelValueNoBarrier) {
-  auto* obj1 = MakeGarbageCollected<GCed>(GetHeap());
+  auto* obj1 = MakeGarbageCollected<GCed>(GetAllocationHandle());
   Member<GCed>& m1 = obj1->next_ref();
   m1 = kSentinelPointer;
   {
     ExpectNoWriteBarrierFires scope(marker(), {});
-    auto* obj2 = MakeGarbageCollected<GCed>(GetHeap());
+    auto* obj2 = MakeGarbageCollected<GCed>(GetAllocationHandle());
     obj2->next_ref() = m1;
   }
 }
@@ -291,8 +291,8 @@ class ParentWithMixinPointer : public GarbageCollected<ParentWithMixinPointer> {
 
 TEST_F(WriteBarrierTest, WriteBarrierOnUnmarkedMixinApplication) {
   ParentWithMixinPointer* parent =
-      MakeGarbageCollected<ParentWithMixinPointer>(GetHeap());
-  auto* child = MakeGarbageCollected<Child>(GetHeap());
+      MakeGarbageCollected<ParentWithMixinPointer>(GetAllocationHandle());
+  auto* child = MakeGarbageCollected<Child>(GetAllocationHandle());
   Mixin* mixin = static_cast<Mixin*>(child);
   EXPECT_NE(static_cast<void*>(child), static_cast<void*>(mixin));
   {
@@ -303,8 +303,8 @@ TEST_F(WriteBarrierTest, WriteBarrierOnUnmarkedMixinApplication) {
 
 TEST_F(WriteBarrierTest, NoWriteBarrierOnMarkedMixinApplication) {
   ParentWithMixinPointer* parent =
-      MakeGarbageCollected<ParentWithMixinPointer>(GetHeap());
-  auto* child = MakeGarbageCollected<Child>(GetHeap());
+      MakeGarbageCollected<ParentWithMixinPointer>(GetAllocationHandle());
+  auto* child = MakeGarbageCollected<Child>(GetAllocationHandle());
   EXPECT_TRUE(HeapObjectHeader::FromPayload(child).TryMarkAtomic());
   Mixin* mixin = static_cast<Mixin*>(child);
   EXPECT_NE(static_cast<void*>(child), static_cast<void*>(mixin));

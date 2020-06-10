@@ -58,7 +58,7 @@ V8_NOINLINE T access(volatile const T& t) {
 }  // namespace
 
 TEST_F(MarkerTest, PersistentIsMarked) {
-  Persistent<GCed> object = MakeGarbageCollected<GCed>(GetHeap());
+  Persistent<GCed> object = MakeGarbageCollected<GCed>(GetAllocationHandle());
   HeapObjectHeader& header = HeapObjectHeader::FromPayload(object);
   EXPECT_FALSE(header.IsMarked());
   DoMarking({MarkingConfig::StackState::kNoHeapPointers});
@@ -66,8 +66,8 @@ TEST_F(MarkerTest, PersistentIsMarked) {
 }
 
 TEST_F(MarkerTest, ReachableMemberIsMarked) {
-  Persistent<GCed> parent = MakeGarbageCollected<GCed>(GetHeap());
-  parent->SetChild(MakeGarbageCollected<GCed>(GetHeap()));
+  Persistent<GCed> parent = MakeGarbageCollected<GCed>(GetAllocationHandle());
+  parent->SetChild(MakeGarbageCollected<GCed>(GetAllocationHandle()));
   HeapObjectHeader& header = HeapObjectHeader::FromPayload(parent->child());
   EXPECT_FALSE(header.IsMarked());
   DoMarking({MarkingConfig::StackState::kNoHeapPointers});
@@ -75,7 +75,7 @@ TEST_F(MarkerTest, ReachableMemberIsMarked) {
 }
 
 TEST_F(MarkerTest, UnreachableMemberIsNotMarked) {
-  Member<GCed> object = MakeGarbageCollected<GCed>(GetHeap());
+  Member<GCed> object = MakeGarbageCollected<GCed>(GetAllocationHandle());
   HeapObjectHeader& header = HeapObjectHeader::FromPayload(object);
   EXPECT_FALSE(header.IsMarked());
   DoMarking({MarkingConfig::StackState::kNoHeapPointers});
@@ -83,7 +83,7 @@ TEST_F(MarkerTest, UnreachableMemberIsNotMarked) {
 }
 
 TEST_F(MarkerTest, ObjectReachableFromStackIsMarked) {
-  GCed* object = MakeGarbageCollected<GCed>(GetHeap());
+  GCed* object = MakeGarbageCollected<GCed>(GetAllocationHandle());
   EXPECT_FALSE(HeapObjectHeader::FromPayload(object).IsMarked());
   DoMarking({MarkingConfig::StackState::kMayContainHeapPointers});
   EXPECT_TRUE(HeapObjectHeader::FromPayload(object).IsMarked());
@@ -91,7 +91,7 @@ TEST_F(MarkerTest, ObjectReachableFromStackIsMarked) {
 }
 
 TEST_F(MarkerTest, ObjectReachableOnlyFromStackIsNotMarkedIfStackIsEmpty) {
-  GCed* object = MakeGarbageCollected<GCed>(GetHeap());
+  GCed* object = MakeGarbageCollected<GCed>(GetAllocationHandle());
   HeapObjectHeader& header = HeapObjectHeader::FromPayload(object);
   EXPECT_FALSE(header.IsMarked());
   DoMarking({MarkingConfig::StackState::kNoHeapPointers});
@@ -101,14 +101,15 @@ TEST_F(MarkerTest, ObjectReachableOnlyFromStackIsNotMarkedIfStackIsEmpty) {
 
 TEST_F(MarkerTest, WeakReferenceToUnreachableObjectIsCleared) {
   {
-    WeakPersistent<GCed> weak_object = MakeGarbageCollected<GCed>(GetHeap());
+    WeakPersistent<GCed> weak_object =
+        MakeGarbageCollected<GCed>(GetAllocationHandle());
     EXPECT_TRUE(weak_object);
     DoMarking({MarkingConfig::StackState::kNoHeapPointers});
     EXPECT_FALSE(weak_object);
   }
   {
-    Persistent<GCed> parent = MakeGarbageCollected<GCed>(GetHeap());
-    parent->SetWeakChild(MakeGarbageCollected<GCed>(GetHeap()));
+    Persistent<GCed> parent = MakeGarbageCollected<GCed>(GetAllocationHandle());
+    parent->SetWeakChild(MakeGarbageCollected<GCed>(GetAllocationHandle()));
     EXPECT_TRUE(parent->weak_child());
     DoMarking({MarkingConfig::StackState::kNoHeapPointers});
     EXPECT_FALSE(parent->weak_child());
@@ -118,15 +119,15 @@ TEST_F(MarkerTest, WeakReferenceToUnreachableObjectIsCleared) {
 TEST_F(MarkerTest, WeakReferenceToReachableObjectIsNotCleared) {
   // Reachable from Persistent
   {
-    Persistent<GCed> object = MakeGarbageCollected<GCed>(GetHeap());
+    Persistent<GCed> object = MakeGarbageCollected<GCed>(GetAllocationHandle());
     WeakPersistent<GCed> weak_object(object);
     EXPECT_TRUE(weak_object);
     DoMarking({MarkingConfig::StackState::kNoHeapPointers});
     EXPECT_TRUE(weak_object);
   }
   {
-    Persistent<GCed> object = MakeGarbageCollected<GCed>(GetHeap());
-    Persistent<GCed> parent = MakeGarbageCollected<GCed>(GetHeap());
+    Persistent<GCed> object = MakeGarbageCollected<GCed>(GetAllocationHandle());
+    Persistent<GCed> parent = MakeGarbageCollected<GCed>(GetAllocationHandle());
     parent->SetWeakChild(object);
     EXPECT_TRUE(parent->weak_child());
     DoMarking({MarkingConfig::StackState::kNoHeapPointers});
@@ -134,16 +135,17 @@ TEST_F(MarkerTest, WeakReferenceToReachableObjectIsNotCleared) {
   }
   // Reachable from Member
   {
-    Persistent<GCed> parent = MakeGarbageCollected<GCed>(GetHeap());
-    WeakPersistent<GCed> weak_object(MakeGarbageCollected<GCed>(GetHeap()));
+    Persistent<GCed> parent = MakeGarbageCollected<GCed>(GetAllocationHandle());
+    WeakPersistent<GCed> weak_object(
+        MakeGarbageCollected<GCed>(GetAllocationHandle()));
     parent->SetChild(weak_object);
     EXPECT_TRUE(weak_object);
     DoMarking({MarkingConfig::StackState::kNoHeapPointers});
     EXPECT_TRUE(weak_object);
   }
   {
-    Persistent<GCed> parent = MakeGarbageCollected<GCed>(GetHeap());
-    parent->SetChild(MakeGarbageCollected<GCed>(GetHeap()));
+    Persistent<GCed> parent = MakeGarbageCollected<GCed>(GetAllocationHandle());
+    parent->SetChild(MakeGarbageCollected<GCed>(GetAllocationHandle()));
     parent->SetWeakChild(parent->child());
     EXPECT_TRUE(parent->weak_child());
     DoMarking({MarkingConfig::StackState::kNoHeapPointers});
@@ -151,7 +153,7 @@ TEST_F(MarkerTest, WeakReferenceToReachableObjectIsNotCleared) {
   }
   // Reachable from stack
   {
-    GCed* object = MakeGarbageCollected<GCed>(GetHeap());
+    GCed* object = MakeGarbageCollected<GCed>(GetAllocationHandle());
     WeakPersistent<GCed> weak_object(object);
     EXPECT_TRUE(weak_object);
     DoMarking({MarkingConfig::StackState::kMayContainHeapPointers});
@@ -159,8 +161,8 @@ TEST_F(MarkerTest, WeakReferenceToReachableObjectIsNotCleared) {
     access(object);
   }
   {
-    GCed* object = MakeGarbageCollected<GCed>(GetHeap());
-    Persistent<GCed> parent = MakeGarbageCollected<GCed>(GetHeap());
+    GCed* object = MakeGarbageCollected<GCed>(GetAllocationHandle());
+    Persistent<GCed> parent = MakeGarbageCollected<GCed>(GetAllocationHandle());
     parent->SetWeakChild(object);
     EXPECT_TRUE(parent->weak_child());
     DoMarking({MarkingConfig::StackState::kMayContainHeapPointers});
@@ -171,10 +173,10 @@ TEST_F(MarkerTest, WeakReferenceToReachableObjectIsNotCleared) {
 
 TEST_F(MarkerTest, DeepHierarchyIsMarked) {
   static constexpr int kHierarchyDepth = 10;
-  Persistent<GCed> root = MakeGarbageCollected<GCed>(GetHeap());
+  Persistent<GCed> root = MakeGarbageCollected<GCed>(GetAllocationHandle());
   GCed* parent = root;
   for (int i = 0; i < kHierarchyDepth; ++i) {
-    parent->SetChild(MakeGarbageCollected<GCed>(GetHeap()));
+    parent->SetChild(MakeGarbageCollected<GCed>(GetAllocationHandle()));
     parent->SetWeakChild(parent->child());
     parent = parent->child();
   }
@@ -189,9 +191,9 @@ TEST_F(MarkerTest, DeepHierarchyIsMarked) {
 }
 
 TEST_F(MarkerTest, NestedObjectsOnStackAreMarked) {
-  GCed* root = MakeGarbageCollected<GCed>(GetHeap());
-  root->SetChild(MakeGarbageCollected<GCed>(GetHeap()));
-  root->child()->SetChild(MakeGarbageCollected<GCed>(GetHeap()));
+  GCed* root = MakeGarbageCollected<GCed>(GetAllocationHandle());
+  root->SetChild(MakeGarbageCollected<GCed>(GetAllocationHandle()));
+  root->child()->SetChild(MakeGarbageCollected<GCed>(GetAllocationHandle()));
   DoMarking({MarkingConfig::StackState::kMayContainHeapPointers});
   EXPECT_TRUE(HeapObjectHeader::FromPayload(root).IsMarked());
   EXPECT_TRUE(HeapObjectHeader::FromPayload(root->child()).IsMarked());
@@ -214,7 +216,7 @@ TEST_F(MarkerTest, InConstructionObjectIsEventuallyMarkedEmptyStack) {
   Marker marker(Heap::From(GetHeap()));
   marker.StartMarking({MarkingConfig::StackState::kMayContainHeapPointers});
   GCedWithCallback* object = MakeGarbageCollected<GCedWithCallback>(
-      GetHeap(), [&marker](GCedWithCallback* obj) {
+      GetAllocationHandle(), [&marker](GCedWithCallback* obj) {
         Member<GCedWithCallback> member(obj);
         marker.GetMarkingVisitorForTesting()->Trace(member);
       });
@@ -226,14 +228,15 @@ TEST_F(MarkerTest, InConstructionObjectIsEventuallyMarkedEmptyStack) {
 TEST_F(MarkerTest, InConstructionObjectIsEventuallyMarkedNonEmptyStack) {
   Marker marker(Heap::From(GetHeap()));
   marker.StartMarking({MarkingConfig::StackState::kMayContainHeapPointers});
-  MakeGarbageCollected<GCedWithCallback>(GetHeap(), [&marker](
-                                                        GCedWithCallback* obj) {
-    Member<GCedWithCallback> member(obj);
-    marker.GetMarkingVisitorForTesting()->Trace(member);
-    EXPECT_FALSE(HeapObjectHeader::FromPayload(obj).IsMarked());
-    marker.FinishMarking({MarkingConfig::StackState::kMayContainHeapPointers});
-    EXPECT_TRUE(HeapObjectHeader::FromPayload(obj).IsMarked());
-  });
+  MakeGarbageCollected<GCedWithCallback>(
+      GetAllocationHandle(), [&marker](GCedWithCallback* obj) {
+        Member<GCedWithCallback> member(obj);
+        marker.GetMarkingVisitorForTesting()->Trace(member);
+        EXPECT_FALSE(HeapObjectHeader::FromPayload(obj).IsMarked());
+        marker.FinishMarking(
+            {MarkingConfig::StackState::kMayContainHeapPointers});
+        EXPECT_TRUE(HeapObjectHeader::FromPayload(obj).IsMarked());
+      });
 }
 
 }  // namespace internal

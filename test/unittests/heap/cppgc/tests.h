@@ -37,6 +37,10 @@ class TestWithHeap : public TestWithPlatform {
 
   cppgc::Heap* GetHeap() const { return heap_.get(); }
 
+  cppgc::AllocationHandle& GetAllocationHandle() const {
+    return allocation_handle_;
+  }
+
   std::unique_ptr<Marker>& GetMarkerRef() {
     return Heap::From(GetHeap())->marker_;
   }
@@ -45,6 +49,7 @@ class TestWithHeap : public TestWithPlatform {
 
  private:
   std::unique_ptr<cppgc::Heap> heap_;
+  cppgc::AllocationHandle& allocation_handle_;
 };
 
 // Restrictive test fixture that supports allocation but will make sure no

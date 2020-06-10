@@ -68,7 +68,7 @@ TEST_F(SweeperTest, SweepUnmarkedNormalObject) {
   constexpr size_t kObjectSize = 8;
   using Type = GCed<kObjectSize>;
 
-  MakeGarbageCollected<Type>(GetHeap());
+  MakeGarbageCollected<Type>(GetAllocationHandle());
 
   EXPECT_EQ(0u, g_destructor_callcount);
 
@@ -81,7 +81,7 @@ TEST_F(SweeperTest, DontSweepMarkedNormalObject) {
   constexpr size_t kObjectSize = 8;
   using Type = GCed<kObjectSize>;
 
-  auto* object = MakeGarbageCollected<Type>(GetHeap());
+  auto* object = MakeGarbageCollected<Type>(GetAllocationHandle());
   MarkObject(object);
   BasePage* page = BasePage::FromPayload(object);
   BaseSpace* space = page->space();
@@ -100,7 +100,7 @@ TEST_F(SweeperTest, SweepUnmarkedLargeObject) {
   constexpr size_t kObjectSize = kLargeObjectSizeThreshold * 2;
   using Type = GCed<kObjectSize>;
 
-  auto* object = MakeGarbageCollected<Type>(GetHeap());
+  auto* object = MakeGarbageCollected<Type>(GetAllocationHandle());
   BasePage* page = BasePage::FromPayload(object);
   BaseSpace* space = page->space();
 
@@ -118,7 +118,7 @@ TEST_F(SweeperTest, DontSweepMarkedLargeObject) {
   constexpr size_t kObjectSize = kLargeObjectSizeThreshold * 2;
   using Type = GCed<kObjectSize>;
 
-  auto* object = MakeGarbageCollected<Type>(GetHeap());
+  auto* object = MakeGarbageCollected<Type>(GetAllocationHandle());
   MarkObject(object);
   BasePage* page = BasePage::FromPayload(object);
   BaseSpace* space = page->space();
@@ -140,7 +140,7 @@ TEST_F(SweeperTest, SweepMultipleObjectsOnPage) {
       NormalPage::PayloadSize() / (sizeof(Type) + sizeof(HeapObjectHeader));
 
   for (size_t i = 0; i < kNumberOfObjects; ++i) {
-    MakeGarbageCollected<Type>(GetHeap());
+    MakeGarbageCollected<Type>(GetAllocationHandle());
   }
 
   EXPECT_EQ(0u, g_destructor_callcount);
@@ -151,11 +151,12 @@ TEST_F(SweeperTest, SweepMultipleObjectsOnPage) {
 }
 
 TEST_F(SweeperTest, SweepObjectsOnAllArenas) {
-  MakeGarbageCollected<GCed<1>>(GetHeap());
-  MakeGarbageCollected<GCed<32>>(GetHeap());
-  MakeGarbageCollected<GCed<64>>(GetHeap());
-  MakeGarbageCollected<GCed<128>>(GetHeap());
-  MakeGarbageCollected<GCed<2 * kLargeObjectSizeThreshold>>(GetHeap());
+  MakeGarbageCollected<GCed<1>>(GetAllocationHandle());
+  MakeGarbageCollected<GCed<32>>(GetAllocationHandle());
+  MakeGarbageCollected<GCed<64>>(GetAllocationHandle());
+  MakeGarbageCollected<GCed<128>>(GetAllocationHandle());
+  MakeGarbageCollected<GCed<2 * kLargeObjectSizeThreshold>>(
+      GetAllocationHandle());
 
   EXPECT_EQ(0u, g_destructor_callcount);
 
@@ -165,9 +166,12 @@ TEST_F(SweeperTest, SweepObjectsOnAllArenas) {
 }
 
 TEST_F(SweeperTest, SweepMultiplePagesInSingleSpace) {
-  MakeGarbageCollected<GCed<2 * kLargeObjectSizeThreshold>>(GetHeap());
-  MakeGarbageCollected<GCed<2 * kLargeObjectSizeThreshold>>(GetHeap());
-  MakeGarbageCollected<GCed<2 * kLargeObjectSizeThreshold>>(GetHeap());
+  MakeGarbageCollected<GCed<2 * kLargeObjectSizeThreshold>>(
+      GetAllocationHandle());
+  MakeGarbageCollected<GCed<2 * kLargeObjectSizeThreshold>>(
+      GetAllocationHandle());
+  MakeGarbageCollected<GCed<2 * kLargeObjectSizeThreshold>>(
+      GetAllocationHandle());
 
   EXPECT_EQ(0u, g_destructor_callcount);
 
@@ -180,10 +184,10 @@ TEST_F(SweeperTest, CoalesceFreeListEntries) {
   constexpr size_t kObjectSize = 32;
   using Type = GCed<kObjectSize>;
 
-  auto* object1 = MakeGarbageCollected<Type>(GetHeap());
-  auto* object2 = MakeGarbageCollected<Type>(GetHeap());
-  auto* object3 = MakeGarbageCollected<Type>(GetHeap());
-  auto* object4 = MakeGarbageCollected<Type>(GetHeap());
+  auto* object1 = MakeGarbageCollected<Type>(GetAllocationHandle());
+  auto* object2 = MakeGarbageCollected<Type>(GetAllocationHandle());
+  auto* object3 = MakeGarbageCollected<Type>(GetAllocationHandle());
+  auto* object4 = MakeGarbageCollected<Type>(GetAllocationHandle());
 
   MarkObject(object1);
   MarkObject(object4);
@@ -231,15 +235,16 @@ class GCInDestructor final : public GarbageCollected<GCInDestructor> {
 TEST_F(SweeperTest, SweepDoesNotTriggerRecursiveGC) {
   auto* internal_heap = internal::Heap::From(GetHeap());
   size_t saved_epoch = internal_heap->epoch();
-  MakeGarbageCollected<GCInDestructor>(GetHeap(), internal_heap);
+  MakeGarbageCollected<GCInDestructor>(GetAllocationHandle(), internal_heap);
   PreciseGC();
   EXPECT_EQ(saved_epoch + 1, internal_heap->epoch());
 }
 
 TEST_F(SweeperTest, UnmarkObjects) {
-  auto* normal_object = MakeGarbageCollected<GCed<32>>(GetHeap());
+  auto* normal_object = MakeGarbageCollected<GCed<32>>(GetAllocationHandle());
   auto* large_object =
-      MakeGarbageCollected<GCed<kLargeObjectSizeThreshold * 2>>(GetHeap());
+      MakeGarbageCollected<GCed<kLargeObjectSizeThreshold * 2>>(
+          GetAllocationHandle());
 
   auto& normal_object_header = HeapObjectHeader::FromPayload(normal_object);
   auto& large_object_header = HeapObjectHeader::FromPayload(large_object);

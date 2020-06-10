@@ -28,7 +28,9 @@ void TestWithPlatform::TearDownTestSuite() {
   platform_.reset();
 }
 
-TestWithHeap::TestWithHeap() : heap_(Heap::Create(platform_)) {}
+TestWithHeap::TestWithHeap()
+    : heap_(Heap::Create(platform_)),
+      allocation_handle_(heap_->GetAllocationHandle()) {}
 
 void TestWithHeap::ResetLinearAllocationBuffers() {
   Heap::From(GetHeap())->object_allocator().ResetLinearAllocationBuffers();

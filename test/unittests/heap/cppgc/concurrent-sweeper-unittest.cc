@@ -132,8 +132,8 @@ TEST_F(ConcurrentSweeperTest, BackgroundSweepOfNormalPage) {
   // Non finalizable objects are swept right away.
   using GCedType = NormalNonFinalizable;
 
-  auto* unmarked_object = MakeGarbageCollected<GCedType>(GetHeap());
-  auto* marked_object = MakeGarbageCollected<GCedType>(GetHeap());
+  auto* unmarked_object = MakeGarbageCollected<GCedType>(GetAllocationHandle());
+  auto* marked_object = MakeGarbageCollected<GCedType>(GetAllocationHandle());
   HeapObjectHeader::FromPayload(marked_object).TryMarkAtomic();
 
   auto* page = BasePage::FromPayload(unmarked_object);
@@ -166,8 +166,8 @@ TEST_F(ConcurrentSweeperTest, BackgroundSweepOfLargePage) {
   // Non finalizable objects are swept right away.
   using GCedType = LargeNonFinalizable;
 
-  auto* unmarked_object = MakeGarbageCollected<GCedType>(GetHeap());
-  auto* marked_object = MakeGarbageCollected<GCedType>(GetHeap());
+  auto* unmarked_object = MakeGarbageCollected<GCedType>(GetAllocationHandle());
+  auto* marked_object = MakeGarbageCollected<GCedType>(GetAllocationHandle());
   HeapObjectHeader::FromPayload(marked_object).TryMarkAtomic();
 
   auto* unmarked_page = BasePage::FromPayload(unmarked_object);
@@ -204,7 +204,7 @@ TEST_F(ConcurrentSweeperTest, DeferredFinalizationOfNormalPage) {
 
   BaseSpace* space = nullptr;
   for (size_t i = 0; i < kNumberOfObjects; ++i) {
-    auto* object = MakeGarbageCollected<GCedType>(GetHeap());
+    auto* object = MakeGarbageCollected<GCedType>(GetAllocationHandle());
     objects.push_back(object);
     auto* page = BasePage::FromPayload(object);
     pages.insert(page);
@@ -238,7 +238,7 @@ TEST_F(ConcurrentSweeperTest, DeferredFinalizationOfNormalPage) {
 TEST_F(ConcurrentSweeperTest, DeferredFinalizationOfLargePage) {
   using GCedType = LargeFinalizable;
 
-  auto* object = MakeGarbageCollected<GCedType>(GetHeap());
+  auto* object = MakeGarbageCollected<GCedType>(GetAllocationHandle());
 
   auto* page = BasePage::FromPayload(object);
   auto* space = page->space();
@@ -268,13 +268,14 @@ TEST_F(ConcurrentSweeperTest, IncrementalSweeping) {
   auto task_runner = GetPlatform().GetForegroundTaskRunner();
 
   // Create two unmarked objects.
-  MakeGarbageCollected<NormalFinalizable>(GetHeap());
-  MakeGarbageCollected<LargeFinalizable>(GetHeap());
+  MakeGarbageCollected<NormalFinalizable>(GetAllocationHandle());
+  MakeGarbageCollected<LargeFinalizable>(GetAllocationHandle());
 
   // Create two marked objects.
   auto* marked_normal_object =
-      MakeGarbageCollected<NormalFinalizable>(GetHeap());
-  auto* marked_large_object = MakeGarbageCollected<LargeFinalizable>(GetHeap());
+      MakeGarbageCollected<NormalFinalizable>(GetAllocationHandle());
+  auto* marked_large_object =
+      MakeGarbageCollected<LargeFinalizable>(GetAllocationHandle());
 
   auto& marked_normal_header =
       HeapObjectHeader::FromPayload(marked_normal_object);

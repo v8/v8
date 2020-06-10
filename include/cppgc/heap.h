@@ -18,6 +18,8 @@
  */
 namespace cppgc {
 
+class AllocationHandle;
+
 namespace internal {
 class Heap;
 }  // namespace internal
@@ -118,6 +120,8 @@ class V8_EXPORT Heap {
   void ForceGarbageCollectionSlow(
       const char* source, const char* reason,
       StackState stack_state = StackState::kMayContainHeapPointers);
+
+  AllocationHandle& GetAllocationHandle();
 
  private:
   Heap() = default;

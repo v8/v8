@@ -149,5 +149,15 @@ void ObjectAllocator::ResetLinearAllocationBuffers() {
   visitor.Traverse(raw_heap_);
 }
 
+ObjectAllocator::NoAllocationScope::NoAllocationScope(
+    ObjectAllocator& allocator)
+    : allocator_(allocator) {
+  allocator.no_allocation_scope_++;
+}
+
+ObjectAllocator::NoAllocationScope::~NoAllocationScope() {
+  allocator_.no_allocation_scope_--;
+}
+
 }  // namespace internal
 }  // namespace cppgc

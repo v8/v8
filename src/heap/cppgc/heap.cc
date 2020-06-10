@@ -50,6 +50,10 @@ void Heap::ForceGarbageCollectionSlow(const char* source, const char* reason,
   internal::Heap::From(this)->CollectGarbage({stack_state});
 }
 
+AllocationHandle& Heap::GetAllocationHandle() {
+  return internal::Heap::From(this)->GetObjectAllocator();
+}
+
 namespace internal {
 
 namespace {
@@ -166,7 +170,7 @@ void Heap::CollectGarbage(Config config) {
   // "Sweeping and finalization".
   {
     // Pre finalizers are forbidden from allocating objects
-    NoAllocationScope no_allocation_scope_(this);
+    ObjectAllocator::NoAllocationScope no_allocation_scope_(object_allocator_);
     marker_->ProcessWeakness();
     prefinalizer_handler_->InvokePreFinalizers();
   }
@@ -184,11 +188,6 @@ size_t Heap::ObjectPayloadSize() const {
 Heap::NoGCScope::NoGCScope(Heap* heap) : heap_(heap) { heap_->no_gc_scope_++; }
 
 Heap::NoGCScope::~NoGCScope() { heap_->no_gc_scope_--; }
-
-Heap::NoAllocationScope::NoAllocationScope(Heap* heap) : heap_(heap) {
-  heap_->no_allocation_scope_++;
-}
-Heap::NoAllocationScope::~NoAllocationScope() { heap_->no_allocation_scope_--; }
 
 }  // namespace internal
 }  // namespace cppgc

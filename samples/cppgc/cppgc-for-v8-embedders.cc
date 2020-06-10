@@ -94,8 +94,8 @@ int main(int argc, char* argv[]) {
   std::unique_ptr<cppgc::Heap> heap = cppgc::Heap::Create(cppgc_platform);
   // Allocate a string rope on the managed heap.
   auto* greeting = cppgc::MakeGarbageCollected<Rope>(
-      heap.get(), "Hello ",
-      cppgc::MakeGarbageCollected<Rope>(heap.get(), "World!"));
+      heap->GetAllocationHandle(), "Hello ",
+      cppgc::MakeGarbageCollected<Rope>(heap->GetAllocationHandle(), "World!"));
   // Manually trigger garbage collection. The object greeting is held alive
   // through conservative stack scanning.
   heap->ForceGarbageCollectionSlow("V8 embedders example", "Testing");

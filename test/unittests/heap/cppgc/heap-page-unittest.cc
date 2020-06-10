@@ -42,7 +42,7 @@ class GCed : public GarbageCollected<GCed<Size>> {
 }  // namespace
 
 TEST_F(PageTest, GetHeapForAllocatedObject) {
-  auto* gced = MakeGarbageCollected<GCed<1>>(GetHeap());
+  auto* gced = MakeGarbageCollected<GCed<1>>(GetAllocationHandle());
   EXPECT_EQ(GetHeap(), GetHeapFromPayload(gced));
 }
 
@@ -61,36 +61,36 @@ TEST_F(PageTest, PredefinedSpaces) {
   using SpaceType = RawHeap::RegularSpaceType;
   RawHeap& heap = GetRawHeap();
   {
-    auto* gced = MakeGarbageCollected<GCed<1>>(GetHeap());
+    auto* gced = MakeGarbageCollected<GCed<1>>(GetAllocationHandle());
     BaseSpace* space = NormalPage::FromPayload(gced)->space();
     EXPECT_EQ(heap.Space(SpaceType::kNormal1), space);
     EXPECT_EQ(0u, space->index());
     EXPECT_FALSE(space->is_large());
   }
   {
-    auto* gced = MakeGarbageCollected<GCed<32>>(GetHeap());
+    auto* gced = MakeGarbageCollected<GCed<32>>(GetAllocationHandle());
     BaseSpace* space = NormalPage::FromPayload(gced)->space();
     EXPECT_EQ(heap.Space(SpaceType::kNormal2), space);
     EXPECT_EQ(1u, space->index());
     EXPECT_FALSE(space->is_large());
   }
   {
-    auto* gced = MakeGarbageCollected<GCed<64>>(GetHeap());
+    auto* gced = MakeGarbageCollected<GCed<64>>(GetAllocationHandle());
     BaseSpace* space = NormalPage::FromPayload(gced)->space();
     EXPECT_EQ(heap.Space(SpaceType::kNormal3), space);
     EXPECT_EQ(2u, space->index());
     EXPECT_FALSE(space->is_large());
   }
   {
-    auto* gced = MakeGarbageCollected<GCed<128>>(GetHeap());
+    auto* gced = MakeGarbageCollected<GCed<128>>(GetAllocationHandle());
     BaseSpace* space = NormalPage::FromPayload(gced)->space();
     EXPECT_EQ(heap.Space(SpaceType::kNormal4), space);
     EXPECT_EQ(3u, space->index());
     EXPECT_FALSE(space->is_large());
   }
   {
-    auto* gced =
-        MakeGarbageCollected<GCed<2 * kLargeObjectSizeThreshold>>(GetHeap());
+    auto* gced = MakeGarbageCollected<GCed<2 * kLargeObjectSizeThreshold>>(
+        GetAllocationHandle());
     BaseSpace* space = NormalPage::FromPayload(gced)->space();
     EXPECT_EQ(heap.Space(SpaceType::kLarge), space);
     EXPECT_EQ(4u, space->index());
@@ -110,7 +110,7 @@ TEST_F(PageTest, NormalPageIndexing) {
 
   std::vector<Persistent<Type>> persistents(kNumberOfObjects);
   for (auto& p : persistents) {
-    p = MakeGarbageCollected<Type>(GetHeap());
+    p = MakeGarbageCollected<Type>(GetAllocationHandle());
   }
 
   const RawHeap& heap = GetRawHeap();
@@ -135,7 +135,7 @@ TEST_F(PageTest, LargePageIndexing) {
 
   std::vector<Persistent<Type>> persistents(kNumberOfObjects);
   for (auto& p : persistents) {
-    p = MakeGarbageCollected<Type>(GetHeap());
+    p = MakeGarbageCollected<Type>(GetAllocationHandle());
   }
 
   const RawHeap& heap = GetRawHeap();
@@ -160,7 +160,7 @@ TEST_F(PageTest, HeapObjectHeaderOnBasePageIndexing) {
 
   std::vector<Persistent<Type>> persistents(kNumberOfObjects);
   for (auto& p : persistents) {
-    p = MakeGarbageCollected<Type>(GetHeap());
+    p = MakeGarbageCollected<Type>(GetAllocationHandle());
   }
 
   const auto* page =
@@ -180,7 +180,7 @@ TEST_F(PageTest, HeapObjectHeaderOnBasePageIndexing) {
 TEST_F(PageTest, HeapObjectHeaderOnLargePageIndexing) {
   constexpr size_t kObjectSize = 2 * kLargeObjectSizeThreshold;
   using Type = GCed<kObjectSize>;
-  auto* gced = MakeGarbageCollected<Type>(GetHeap());
+  auto* gced = MakeGarbageCollected<Type>(GetAllocationHandle());
 
   const auto* page = static_cast<LargePage*>(BasePage::FromPayload(gced));
   const size_t expected_payload_size =
@@ -260,7 +260,7 @@ TEST_F(PageTest, UnsweptPageDestruction) {
 
 TEST_F(PageTest, ObjectHeaderFromInnerAddress) {
   {
-    auto* object = MakeGarbageCollected<GCed<64>>(GetHeap());
+    auto* object = MakeGarbageCollected<GCed<64>>(GetAllocationHandle());
     const HeapObjectHeader& expected = HeapObjectHeader::FromPayload(object);
 
     for (auto* inner_ptr = reinterpret_cast<ConstAddress>(object);
@@ -272,8 +272,8 @@ TEST_F(PageTest, ObjectHeaderFromInnerAddress) {
     }
   }
   {
-    auto* object =
-        MakeGarbageCollected<GCed<2 * kLargeObjectSizeThreshold>>(GetHeap());
+    auto* object = MakeGarbageCollected<GCed<2 * kLargeObjectSizeThreshold>>(
+        GetAllocationHandle());
     const HeapObjectHeader& expected = HeapObjectHeader::FromPayload(object);
 
     const HeapObjectHeader& hoh =

@@ -68,31 +68,14 @@ class V8_EXPORT_PRIVATE Heap final : public cppgc::Heap,
     Heap* const heap_;
   };
 
-  // NoAllocationScope is used in debug mode to catch unwanted allocations. E.g.
-  // allocations during GC.
-  class V8_EXPORT_PRIVATE NoAllocationScope final {
-    CPPGC_STACK_ALLOCATED();
-
-   public:
-    explicit NoAllocationScope(Heap* heap);
-    ~NoAllocationScope();
-
-    NoAllocationScope(const NoAllocationScope&) = delete;
-    NoAllocationScope& operator=(const NoAllocationScope&) = delete;
-
-   private:
-    Heap* const heap_;
-  };
-
   static Heap* From(cppgc::Heap* heap) { return static_cast<Heap*>(heap); }
+  static const Heap* From(const cppgc::Heap* heap) {
+    return static_cast<const Heap*>(heap);
+  }
 
   Heap(std::shared_ptr<cppgc::Platform> platform,
        cppgc::Heap::HeapOptions options);
   ~Heap() final;
-
-  inline void* Allocate(size_t size, GCInfoIndex index);
-  inline void* Allocate(size_t size, GCInfoIndex index,
-                        CustomSpaceIndex space_index);
 
   void CollectGarbage(Config config) final;
 
@@ -136,9 +119,10 @@ class V8_EXPORT_PRIVATE Heap final : public cppgc::Heap,
 
   size_t ObjectPayloadSize() const;
 
+  ObjectAllocator& GetObjectAllocator() { return object_allocator_; }
+
  private:
   bool in_no_gc_scope() const { return no_gc_scope_ > 0; }
-  bool is_allocation_allowed() const { return no_allocation_scope_ == 0; }
 
   RawHeap raw_heap_;
 
@@ -166,7 +150,6 @@ class V8_EXPORT_PRIVATE Heap final : public cppgc::Heap,
   size_t epoch_ = 0;
 
   size_t no_gc_scope_ = 0;
-  size_t no_allocation_scope_ = 0;
 
   friend class WriteBarrier;
   friend class testing::TestWithHeap;

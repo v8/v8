@@ -99,9 +99,12 @@ struct SpaceTrait<
 namespace internal {
 
 TEST_F(TestWithHeapWithCustomSpaces, AllocateOnCustomSpaces) {
-  auto* regular = MakeGarbageCollected<RegularGCed>(GetHeap());
-  auto* custom1 = MakeGarbageCollected<CustomGCed1>(GetHeap());
-  auto* custom2 = MakeGarbageCollected<CustomGCed2>(GetHeap());
+  auto* regular =
+      MakeGarbageCollected<RegularGCed>(GetHeap()->GetAllocationHandle());
+  auto* custom1 =
+      MakeGarbageCollected<CustomGCed1>(GetHeap()->GetAllocationHandle());
+  auto* custom2 =
+      MakeGarbageCollected<CustomGCed2>(GetHeap()->GetAllocationHandle());
   EXPECT_EQ(RawHeap::kNumberOfRegularSpaces,
             NormalPage::FromPayload(custom1)->space()->index());
   EXPECT_EQ(RawHeap::kNumberOfRegularSpaces + 1,
@@ -112,9 +115,12 @@ TEST_F(TestWithHeapWithCustomSpaces, AllocateOnCustomSpaces) {
 
 TEST_F(TestWithHeapWithCustomSpaces,
        AllocateOnCustomSpacesSpecifiedThroughBase) {
-  auto* regular = MakeGarbageCollected<RegularGCed>(GetHeap());
-  auto* custom1 = MakeGarbageCollected<CustomGCedFinal1>(GetHeap());
-  auto* custom2 = MakeGarbageCollected<CustomGCedFinal2>(GetHeap());
+  auto* regular =
+      MakeGarbageCollected<RegularGCed>(GetHeap()->GetAllocationHandle());
+  auto* custom1 =
+      MakeGarbageCollected<CustomGCedFinal1>(GetHeap()->GetAllocationHandle());
+  auto* custom2 =
+      MakeGarbageCollected<CustomGCedFinal2>(GetHeap()->GetAllocationHandle());
   EXPECT_EQ(RawHeap::kNumberOfRegularSpaces,
             NormalPage::FromPayload(custom1)->space()->index());
   EXPECT_EQ(RawHeap::kNumberOfRegularSpaces,
@@ -124,10 +130,10 @@ TEST_F(TestWithHeapWithCustomSpaces,
 }
 
 TEST_F(TestWithHeapWithCustomSpaces, SweepCustomSpace) {
-  MakeGarbageCollected<CustomGCedFinal1>(GetHeap());
-  MakeGarbageCollected<CustomGCedFinal2>(GetHeap());
-  MakeGarbageCollected<CustomGCed1>(GetHeap());
-  MakeGarbageCollected<CustomGCed2>(GetHeap());
+  MakeGarbageCollected<CustomGCedFinal1>(GetHeap()->GetAllocationHandle());
+  MakeGarbageCollected<CustomGCedFinal2>(GetHeap()->GetAllocationHandle());
+  MakeGarbageCollected<CustomGCed1>(GetHeap()->GetAllocationHandle());
+  MakeGarbageCollected<CustomGCed2>(GetHeap()->GetAllocationHandle());
   EXPECT_EQ(0u, g_destructor_callcount);
   PreciseGC();
   EXPECT_EQ(4u, g_destructor_callcount);
