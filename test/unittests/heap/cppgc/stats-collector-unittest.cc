@@ -103,9 +103,9 @@ TEST_F(StatsCollectorTest, AllocatedObjectSizeAllocateAfterMarking) {
 
 class MockAllocationObserver : public StatsCollector::AllocationObserver {
  public:
-  MOCK_METHOD1(AllocatedObjectSizeIncreased, void(size_t));
-  MOCK_METHOD1(AllocatedObjectSizeDecreased, void(size_t));
-  MOCK_METHOD1(ResetAllocatedObjectSize, void(size_t));
+  MOCK_METHOD(void, AllocatedObjectSizeIncreased, (size_t), (override));
+  MOCK_METHOD(void, AllocatedObjectSizeDecreased, (size_t), (override));
+  MOCK_METHOD(void, ResetAllocatedObjectSize, (size_t), (override));
 };
 
 TEST_F(StatsCollectorTest, RegisterUnregisterObserver) {
@@ -161,8 +161,8 @@ class AllocationObserverTriggeringGC final
   }
 
   // // Mock out the rest to trigger warnings if used.
-  MOCK_METHOD1(AllocatedObjectSizeDecreased, void(size_t));
-  MOCK_METHOD1(ResetAllocatedObjectSize, void(size_t));
+  MOCK_METHOD(void, AllocatedObjectSizeDecreased, (size_t), (override));
+  MOCK_METHOD(void, ResetAllocatedObjectSize, (size_t), (override));
 
   size_t increase_call_count = 0;
   size_t increased_size_bytes = 0;

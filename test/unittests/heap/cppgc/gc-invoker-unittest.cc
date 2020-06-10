@@ -17,22 +17,25 @@ namespace {
 
 class MockGarbageCollector : public GarbageCollector {
  public:
-  MOCK_METHOD1(CollectGarbage, void(GarbageCollector::Config));
-  MOCK_CONST_METHOD0(epoch, size_t());
+  MOCK_METHOD(void, CollectGarbage, (GarbageCollector::Config), (override));
+  MOCK_METHOD(size_t, epoch, (), (const, override));
 };
 
 class MockTaskRunner : public cppgc::TaskRunner {
  public:
-  MOCK_METHOD1(PostTask, void(std::unique_ptr<cppgc::Task>));
-  MOCK_METHOD1(PostNonNestableTask, void(std::unique_ptr<cppgc::Task>));
-  MOCK_METHOD2(PostDelayedTask, void(std::unique_ptr<cppgc::Task>, double));
-  MOCK_METHOD2(PostNonNestableDelayedTask,
-               void(std::unique_ptr<cppgc::Task>, double));
-  MOCK_METHOD1(PostIdleTask, void(std::unique_ptr<cppgc::IdleTask>));
+  MOCK_METHOD(void, PostTask, (std::unique_ptr<cppgc::Task>), (override));
+  MOCK_METHOD(void, PostNonNestableTask, (std::unique_ptr<cppgc::Task>),
+              (override));
+  MOCK_METHOD(void, PostDelayedTask, (std::unique_ptr<cppgc::Task>, double),
+              (override));
+  MOCK_METHOD(void, PostNonNestableDelayedTask,
+              (std::unique_ptr<cppgc::Task>, double), (override));
+  MOCK_METHOD(void, PostIdleTask, (std::unique_ptr<cppgc::IdleTask>),
+              (override));
 
-  virtual bool IdleTasksEnabled() { return true; }               // NOLINT
-  virtual bool NonNestableTasksEnabled() const { return true; }  // NOLINT
-  virtual bool NonNestableDelayedTasksEnabled() const {          // NOLINT
+  virtual bool IdleTasksEnabled() override { return true; }       // NOLINT
+  bool NonNestableTasksEnabled() const override { return true; }  // NOLINT
+  virtual bool NonNestableDelayedTasksEnabled() const override {  // NOLINT
     return true;
   }
 };

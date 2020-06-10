@@ -39,8 +39,8 @@ class FakeGarbageCollector : public GarbageCollector {
 
 class MockGarbageCollector : public GarbageCollector {
  public:
-  MOCK_METHOD1(CollectGarbage, void(GarbageCollector::Config));
-  MOCK_CONST_METHOD0(epoch, size_t());
+  MOCK_METHOD(void, CollectGarbage, (GarbageCollector::Config), (override));
+  MOCK_METHOD(size_t, epoch, (), (const, override));
 };
 
 void FakeAllocate(StatsCollector* stats_collector, size_t bytes) {
