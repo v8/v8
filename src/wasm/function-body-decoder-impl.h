@@ -1294,7 +1294,7 @@ class WasmDecoder : public Decoder {
       max_lane = std::max(max_lane, imm.shuffle[i]);
     }
     // Shuffle indices must be in [0..31] for a 16 lane shuffle.
-    if (!VALIDATE(max_lane <= 2 * kSimd128Size)) {
+    if (!VALIDATE(max_lane < 2 * kSimd128Size)) {
       error(pc_ + 2, "invalid shuffle mask");
       return false;
     }
