@@ -1005,7 +1005,13 @@ void FeedbackNexus::Print(std::ostream& os) {  // NOLINT
 }
 
 void Oddball::OddballPrint(std::ostream& os) {  // NOLINT
-  to_string().Print(os);
+  PrintHeapObjectHeaderWithoutMap(*this, os, "Oddball");
+  os << ": ";
+  String s = to_string();
+  os << s.PrefixForDebugPrint();
+  s.PrintUC16(os);
+  os << s.SuffixForDebugPrint();
+  os << std::endl;
 }
 
 void JSAsyncFunctionObject::JSAsyncFunctionObjectPrint(
