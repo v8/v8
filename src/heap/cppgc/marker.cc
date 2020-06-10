@@ -15,20 +15,6 @@ namespace cppgc {
 namespace internal {
 
 namespace {
-class ResetLocalAllocationBufferVisitor final
-    : public HeapVisitor<ResetLocalAllocationBufferVisitor> {
- public:
-  bool VisitLargePageSpace(LargePageSpace*) { return true; }
-  bool VisitNormalPageSpace(NormalPageSpace* space) {
-    space->ResetLinearAllocationBuffer();
-    return true;
-  }
-};
-
-void ResetLocalAllocationBuffers(Heap* heap) {
-  ResetLocalAllocationBufferVisitor visitor;
-  visitor.Traverse(&heap->raw_heap());
-}
 
 void EnterIncrementalMarkingIfNeeded(Marker::MarkingConfig config) {
   if (config.marking_type == Marker::MarkingConfig::MarkingType::kIncremental ||
@@ -111,7 +97,7 @@ void Marker::FinishMarking(MarkingConfig config) {
 
   // Reset LABs before trying to conservatively mark in-construction objects.
   // This is also needed in preparation for sweeping.
-  ResetLocalAllocationBuffers(heap_);
+  heap_->object_allocator().ResetLinearAllocationBuffers();
   if (config_.stack_state == MarkingConfig::StackState::kNoHeapPointers) {
     FlushNotFullyConstructedObjects();
   } else {
@@ -140,7 +126,7 @@ void Marker::ProcessWeakness() {
 void Marker::VisitRoots() {
   // Reset LABs before scanning roots. LABs are cleared to allow
   // ObjectStartBitmap handling without considering LABs.
-  ResetLocalAllocationBuffers(heap_);
+  heap_->object_allocator().ResetLinearAllocationBuffers();
 
   heap_->GetStrongPersistentRegion().Trace(marking_visitor_.get());
   if (config_.stack_state != MarkingConfig::StackState::kNoHeapPointers)

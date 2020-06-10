@@ -6,6 +6,7 @@
 
 #include <memory>
 
+#include "src/heap/cppgc/object-allocator.h"
 #include "test/unittests/heap/cppgc/test-platform.h"
 
 namespace cppgc {
@@ -28,6 +29,10 @@ void TestWithPlatform::TearDownTestSuite() {
 }
 
 TestWithHeap::TestWithHeap() : heap_(Heap::Create(platform_)) {}
+
+void TestWithHeap::ResetLinearAllocationBuffers() {
+  Heap::From(GetHeap())->object_allocator().ResetLinearAllocationBuffers();
+}
 
 TestSupportingAllocationOnly::TestSupportingAllocationOnly()
     : no_gc_scope_(internal::Heap::From(GetHeap())) {}

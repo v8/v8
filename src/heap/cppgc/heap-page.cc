@@ -135,14 +135,12 @@ BasePage::BasePage(Heap* heap, BaseSpace* space, PageType type)
 }
 
 // static
-NormalPage* NormalPage::Create(NormalPageSpace* space) {
-  DCHECK(space);
-  Heap* heap = space->raw_heap()->heap();
-  DCHECK(heap);
-  void* memory = heap->page_backend()->AllocateNormalPageMemory(space->index());
-  auto* normal_page = new (memory) NormalPage(heap, space);
-  space->AddPage(normal_page);
-  space->AddToFreeList(normal_page->PayloadStart(), normal_page->PayloadSize());
+NormalPage* NormalPage::Create(PageBackend* page_backend,
+                               NormalPageSpace* space) {
+  DCHECK_NOT_NULL(page_backend);
+  DCHECK_NOT_NULL(space);
+  void* memory = page_backend->AllocateNormalPageMemory(space->index());
+  auto* normal_page = new (memory) NormalPage(space->raw_heap()->heap(), space);
   return normal_page;
 }
 
@@ -207,17 +205,19 @@ LargePage::LargePage(Heap* heap, BaseSpace* space, size_t size)
 LargePage::~LargePage() = default;
 
 // static
-LargePage* LargePage::Create(LargePageSpace* space, size_t size) {
-  DCHECK(space);
+LargePage* LargePage::Create(PageBackend* page_backend, LargePageSpace* space,
+                             size_t size) {
+  DCHECK_NOT_NULL(page_backend);
+  DCHECK_NOT_NULL(space);
   DCHECK_LE(kLargeObjectSizeThreshold, size);
+
   const size_t page_header_size =
       RoundUp(sizeof(LargePage), kAllocationGranularity);
   const size_t allocation_size = page_header_size + size;
 
   Heap* heap = space->raw_heap()->heap();
-  void* memory = heap->page_backend()->AllocateLargePageMemory(allocation_size);
+  void* memory = page_backend->AllocateLargePageMemory(allocation_size);
   LargePage* page = new (memory) LargePage(heap, space, size);
-  space->AddPage(page);
   return page;
 }
 

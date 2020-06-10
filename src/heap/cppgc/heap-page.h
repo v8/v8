@@ -111,8 +111,8 @@ class V8_EXPORT_PRIVATE NormalPage final : public BasePage {
   using iterator = IteratorImpl<HeapObjectHeader>;
   using const_iterator = IteratorImpl<const HeapObjectHeader>;
 
-  // Allocates a new page.
-  static NormalPage* Create(NormalPageSpace*);
+  // Allocates a new page in the detached state.
+  static NormalPage* Create(PageBackend*, NormalPageSpace*);
   // Destroys and frees the page. The page must be detached from the
   // corresponding space (i.e. be swept when called).
   static void Destroy(NormalPage*);
@@ -161,8 +161,8 @@ class V8_EXPORT_PRIVATE NormalPage final : public BasePage {
 
 class V8_EXPORT_PRIVATE LargePage final : public BasePage {
  public:
-  // Allocates a new page.
-  static LargePage* Create(LargePageSpace*, size_t);
+  // Allocates a new page in the detached state.
+  static LargePage* Create(PageBackend*, LargePageSpace*, size_t);
   // Destroys and frees the page. The page must be detached from the
   // corresponding space (i.e. be swept when called).
   static void Destroy(LargePage*);

@@ -41,6 +41,8 @@ class TestWithHeap : public TestWithPlatform {
     return Heap::From(GetHeap())->marker_;
   }
 
+  void ResetLinearAllocationBuffers();
+
  private:
   std::unique_ptr<cppgc::Heap> heap_;
 };

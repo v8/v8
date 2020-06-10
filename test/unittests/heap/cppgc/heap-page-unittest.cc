@@ -14,6 +14,7 @@
 #include "src/heap/cppgc/heap-object-header-inl.h"
 #include "src/heap/cppgc/heap-object-header.h"
 #include "src/heap/cppgc/page-memory-inl.h"
+#include "src/heap/cppgc/page-memory.h"
 #include "src/heap/cppgc/raw-heap.h"
 #include "test/unittests/heap/cppgc/tests.h"
 #include "testing/gtest/include/gtest/gtest.h"
@@ -26,6 +27,9 @@ namespace {
 class PageTest : public testing::TestWithHeap {
  public:
   RawHeap& GetRawHeap() { return Heap::From(GetHeap())->raw_heap(); }
+  PageBackend* GetPageBackend() {
+    return Heap::From(GetHeap())->page_backend();
+  }
 };
 
 template <size_t Size>
@@ -192,11 +196,15 @@ TEST_F(PageTest, NormalPageCreationDestruction) {
   const PageBackend* backend = Heap::From(GetHeap())->page_backend();
   auto* space = static_cast<NormalPageSpace*>(
       heap.Space(RawHeap::RegularSpaceType::kNormal1));
-  auto* page = NormalPage::Create(space);
+  auto* page = NormalPage::Create(GetPageBackend(), space);
+  EXPECT_NE(nullptr, backend->Lookup(page->PayloadStart()));
+
+  space->AddPage(page);
   EXPECT_NE(space->end(), std::find(space->begin(), space->end(), page));
+
+  space->free_list().Add({page->PayloadStart(), page->PayloadSize()});
   EXPECT_TRUE(
       space->free_list().Contains({page->PayloadStart(), page->PayloadSize()}));
-  EXPECT_NE(nullptr, backend->Lookup(page->PayloadStart()));
 
   space->free_list().Clear();
   EXPECT_FALSE(
@@ -213,9 +221,11 @@ TEST_F(PageTest, LargePageCreationDestruction) {
   const PageBackend* backend = Heap::From(GetHeap())->page_backend();
   auto* space = static_cast<LargePageSpace*>(
       heap.Space(RawHeap::RegularSpaceType::kLarge));
-  auto* page = LargePage::Create(space, kObjectSize);
-  EXPECT_NE(space->end(), std::find(space->begin(), space->end(), page));
+  auto* page = LargePage::Create(GetPageBackend(), space, kObjectSize);
   EXPECT_NE(nullptr, backend->Lookup(page->PayloadStart()));
+
+  space->AddPage(page);
+  EXPECT_NE(space->end(), std::find(space->begin(), space->end(), page));
 
   space->RemovePage(page);
   EXPECT_EQ(space->end(), std::find(space->begin(), space->end(), page));
@@ -229,13 +239,16 @@ TEST_F(PageTest, UnsweptPageDestruction) {
   {
     auto* space = static_cast<NormalPageSpace*>(
         heap.Space(RawHeap::RegularSpaceType::kNormal1));
-    auto* page = NormalPage::Create(space);
+    auto* page = NormalPage::Create(GetPageBackend(), space);
+    space->AddPage(page);
     EXPECT_DEATH_IF_SUPPORTED(NormalPage::Destroy(page), "");
   }
   {
     auto* space = static_cast<LargePageSpace*>(
         heap.Space(RawHeap::RegularSpaceType::kLarge));
-    auto* page = LargePage::Create(space, 2 * kLargeObjectSizeThreshold);
+    auto* page = LargePage::Create(GetPageBackend(), space,
+                                   2 * kLargeObjectSizeThreshold);
+    space->AddPage(page);
     EXPECT_DEATH_IF_SUPPORTED(LargePage::Destroy(page), "");
     // Detach page and really destroy page in the parent process so that sweeper
     // doesn't consider it.

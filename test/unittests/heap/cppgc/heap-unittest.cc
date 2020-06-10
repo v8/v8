@@ -91,6 +91,8 @@ TEST_F(GCHeapTest, ObjectPayloadSize) {
   Heap::From(GetHeap())->CollectGarbage(
       GarbageCollector::Config::ConservativeAtomicConfig());
 
+  Heap::NoGCScope no_gc_scope(Heap::From(GetHeap()));
+
   for (size_t k = 0; k < kNumberOfObjectsPerArena; ++k) {
     MakeGarbageCollected<GCed<kObjectSizes[0]>>(GetHeap());
     MakeGarbageCollected<GCed<kObjectSizes[1]>>(GetHeap());

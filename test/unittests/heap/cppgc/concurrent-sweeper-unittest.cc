@@ -27,21 +27,6 @@ namespace internal {
 
 namespace {
 
-class ResetLocalAllocationBufferVisitor final
-    : public HeapVisitor<ResetLocalAllocationBufferVisitor> {
- public:
-  bool VisitLargePageSpace(LargePageSpace*) { return true; }
-  bool VisitNormalPageSpace(NormalPageSpace* space) {
-    space->ResetLinearAllocationBuffer();
-    return true;
-  }
-};
-
-void ResetLocalAllocationBuffers(Heap* heap) {
-  ResetLocalAllocationBufferVisitor visitor;
-  visitor.Traverse(&heap->raw_heap());
-}
-
 size_t g_destructor_callcount;
 
 template <size_t Size>
@@ -82,7 +67,7 @@ class ConcurrentSweeperTest : public testing::TestWithHeap {
 
   void StartSweeping() {
     Heap* heap = Heap::From(GetHeap());
-    ResetLocalAllocationBuffers(heap);
+    ResetLinearAllocationBuffers();
     // Pretend do finish marking as StatsCollector verifies that Notify*
     // methods are called in the right order.
     heap->stats_collector()->NotifyMarkingStarted();

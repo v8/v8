@@ -27,7 +27,11 @@
 #include "src/heap/cppgc/virtual-memory.h"
 
 #if defined(CPPGC_CAGED_HEAP)
-#include "src/base/bounded-page-allocator.h"
+namespace v8 {
+namespace base {
+class BoundedPageAllocator;
+}
+}  // namespace v8
 #endif
 
 namespace cppgc {
@@ -125,6 +129,7 @@ class V8_EXPORT_PRIVATE Heap final : public cppgc::Heap,
   cppgc::Platform* platform() { return platform_.get(); }
   const cppgc::Platform* platform() const { return platform_.get(); }
 
+  ObjectAllocator& object_allocator() { return object_allocator_; }
   Sweeper& sweeper() { return sweeper_; }
 
   size_t epoch() const final { return epoch_; }

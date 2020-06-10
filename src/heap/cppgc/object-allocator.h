@@ -13,14 +13,18 @@ namespace cppgc {
 namespace internal {
 
 class StatsCollector;
+class PageBackend;
 
 class V8_EXPORT_PRIVATE ObjectAllocator final {
  public:
-  ObjectAllocator(RawHeap* heap, StatsCollector* stats_collector);
+  ObjectAllocator(RawHeap* heap, PageBackend* page_backend,
+                  StatsCollector* stats_collector);
 
   inline void* AllocateObject(size_t size, GCInfoIndex gcinfo);
   inline void* AllocateObject(size_t size, GCInfoIndex gcinfo,
                               CustomSpaceIndex space_index);
+
+  void ResetLinearAllocationBuffers();
 
  private:
   // Returns the initially tried SpaceType to allocate an object of |size| bytes
@@ -35,6 +39,7 @@ class V8_EXPORT_PRIVATE ObjectAllocator final {
   void* AllocateFromFreeList(NormalPageSpace*, size_t, GCInfoIndex);
 
   RawHeap* raw_heap_;
+  PageBackend* page_backend_;
   StatsCollector* stats_collector_;
 };
 
