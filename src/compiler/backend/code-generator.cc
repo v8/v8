@@ -162,7 +162,7 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleDeoptimizerCall(
   DeoptimizeReason deoptimization_reason = exit->reason();
   Address deopt_entry =
       Deoptimizer::GetDeoptimizationEntry(tasm()->isolate(), deopt_kind);
-  if (info()->is_source_positions_enabled()) {
+  if (info()->source_positions()) {
     tasm()->RecordDeoptReason(deoptimization_reason, exit->pos(),
                               deoptimization_id);
   }
@@ -192,7 +192,7 @@ void CodeGenerator::AssembleCode() {
   // the frame (that is done in AssemblePrologue).
   FrameScope frame_scope(tasm(), StackFrame::MANUAL);
 
-  if (info->is_source_positions_enabled()) {
+  if (info->source_positions()) {
     AssembleSourcePosition(start_source_position());
   }
   offsets_info_.code_start_register_check = tasm()->pc_offset();
@@ -243,7 +243,7 @@ void CodeGenerator::AssembleCode() {
   unwinding_info_writer_.SetNumberOfInstructionBlocks(
       instructions()->InstructionBlockCount());
 
-  if (info->trace_turbo_json_enabled()) {
+  if (info->trace_turbo_json()) {
     block_starts_.assign(instructions()->instruction_blocks().size(), -1);
     instr_starts_.assign(instructions()->instructions().size(), {});
   }
@@ -254,7 +254,7 @@ void CodeGenerator::AssembleCode() {
     if (block->ShouldAlign() && !tasm()->jump_optimization_info()) {
       tasm()->CodeTargetAlign();
     }
-    if (info->trace_turbo_json_enabled()) {
+    if (info->trace_turbo_json()) {
       block_starts_[block->rpo_number().ToInt()] = tasm()->pc_offset();
     }
     // Bind a label for a block.
@@ -723,7 +723,7 @@ RpoNumber CodeGenerator::ComputeBranchInfo(BranchInfo* branch,
 CodeGenerator::CodeGenResult CodeGenerator::AssembleInstruction(
     int instruction_index, const InstructionBlock* block) {
   Instruction* instr = instructions()->InstructionAt(instruction_index);
-  if (info()->trace_turbo_json_enabled()) {
+  if (info()->trace_turbo_json()) {
     instr_starts_[instruction_index].gap_pc_offset = tasm()->pc_offset();
   }
   int first_unused_stack_slot;
@@ -743,14 +743,14 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleInstruction(
   if (instr->IsJump() && block->must_deconstruct_frame()) {
     AssembleDeconstructFrame();
   }
-  if (info()->trace_turbo_json_enabled()) {
+  if (info()->trace_turbo_json()) {
     instr_starts_[instruction_index].arch_instr_pc_offset = tasm()->pc_offset();
   }
   // Assemble architecture-specific code for the instruction.
   CodeGenResult result = AssembleArchInstruction(instr);
   if (result != kSuccess) return result;
 
-  if (info()->trace_turbo_json_enabled()) {
+  if (info()->trace_turbo_json()) {
     instr_starts_[instruction_index].condition_pc_offset = tasm()->pc_offset();
   }
 
@@ -834,7 +834,7 @@ void CodeGenerator::AssembleSourcePosition(SourcePosition source_position) {
     buffer << "-- ";
     // Turbolizer only needs the source position, as it can reconstruct
     // the inlining stack from other information.
-    if (info->trace_turbo_json_enabled() || !tasm()->isolate() ||
+    if (info->trace_turbo_json() || !tasm()->isolate() ||
         tasm()->isolate()->concurrent_recompilation_enabled()) {
       buffer << source_position;
     } else {
@@ -1331,7 +1331,7 @@ void CodeGenerator::InitializeSpeculationPoison() {
   if (info()->called_with_code_start_register()) {
     tasm()->RecordComment("-- Prologue: generate speculation poison --");
     GenerateSpeculationPoisonFromCodeStartRegister();
-    if (info()->is_poisoning_register_arguments()) {
+    if (info()->poison_register_arguments()) {
       AssembleRegisterArgumentPoisoning();
     }
   } else {

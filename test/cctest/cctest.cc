@@ -257,8 +257,8 @@ i::Handle<i::JSFunction> Optimize(
 
   i::OptimizedCompilationInfo info(zone, isolate, shared, function);
 
-  if (flags & i::OptimizedCompilationInfo::kInliningEnabled) {
-    info.MarkAsInliningEnabled();
+  if (flags & i::OptimizedCompilationInfo::kInlining) {
+    info.set_inlining();
   }
 
   CHECK(info.shared_info()->HasBytecodeArray());

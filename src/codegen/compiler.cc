@@ -751,7 +751,7 @@ void InsertCodeIntoOptimizedCodeCache(
 
   // Function context specialization folds-in the function context,
   // so no sharing can occur.
-  if (compilation_info->is_function_context_specializing()) {
+  if (compilation_info->function_context_specializing()) {
     // Native context specialized code is not shared, so make sure the optimized
     // code cache is clear.
     ClearOptimizedCodeCache(compilation_info);

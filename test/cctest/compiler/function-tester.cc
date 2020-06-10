@@ -25,7 +25,7 @@ FunctionTester::FunctionTester(const char* source, uint32_t flags)
       function((FLAG_allow_natives_syntax = true, NewFunction(source))),
       flags_(flags) {
   Compile(function);
-  const uint32_t supported_flags = OptimizedCompilationInfo::kInliningEnabled;
+  const uint32_t supported_flags = OptimizedCompilationInfo::kInlining;
   CHECK_EQ(0u, flags_ & ~supported_flags);
 }
 

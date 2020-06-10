@@ -6894,18 +6894,17 @@ wasm::WasmCompilationResult ExecuteTurbofanWasmCompilation(
   OptimizedCompilationInfo info(GetDebugName(&zone, func_index), &zone,
                                 Code::WASM_FUNCTION);
   if (env->runtime_exception_support) {
-    info.SetWasmRuntimeExceptionSupport();
+    info.set_wasm_runtime_exception_support();
   }
 
-  if (info.trace_turbo_json_enabled()) {
+  if (info.trace_turbo_json()) {
     TurboCfgFile tcf;
     tcf << AsC1VCompilation(&info);
   }
 
-  NodeOriginTable* node_origins = info.trace_turbo_json_enabled()
-                                      ? new (&zone)
-                                            NodeOriginTable(mcgraph->graph())
-                                      : nullptr;
+  NodeOriginTable* node_origins =
+      info.trace_turbo_json() ? new (&zone) NodeOriginTable(mcgraph->graph())
+                              : nullptr;
   SourcePositionTable* source_positions =
       new (mcgraph->zone()) SourcePositionTable(mcgraph->graph());
   if (!BuildGraphForWasmFunction(wasm_engine->allocator(), env, func_body,
