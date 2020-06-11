@@ -21,7 +21,9 @@ build:
 cctests:
   stage: test
   script:
-    - tools/run-tests.py --outdir=out.gn/riscv64_debug
-        unittests
-        cctest
-        
+    - tools/run-tests.py --outdir=out.gn/riscv64_debug cctest
+
+unittests:
+  stage: test
+  script:
+    - tools/run-tests.py --outdir=out.gn/riscv64_debug unittests
