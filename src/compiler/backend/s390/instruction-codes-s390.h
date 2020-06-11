@@ -217,6 +217,10 @@ namespace compiler {
   V(S390_F64x2Qfms)                         \
   V(S390_F64x2Pmin)                         \
   V(S390_F64x2Pmax)                         \
+  V(S390_F64x2Ceil)                         \
+  V(S390_F64x2Floor)                        \
+  V(S390_F64x2Trunc)                        \
+  V(S390_F64x2NearestInt)                   \
   V(S390_F32x4Splat)                        \
   V(S390_F32x4ExtractLane)                  \
   V(S390_F32x4ReplaceLane)                  \
@@ -242,6 +246,10 @@ namespace compiler {
   V(S390_F32x4Qfms)                         \
   V(S390_F32x4Pmin)                         \
   V(S390_F32x4Pmax)                         \
+  V(S390_F32x4Ceil)                         \
+  V(S390_F32x4Floor)                        \
+  V(S390_F32x4Trunc)                        \
+  V(S390_F32x4NearestInt)                   \
   V(S390_I64x2Neg)                          \
   V(S390_I64x2Add)                          \
   V(S390_I64x2Sub)                          \

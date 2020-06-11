@@ -4252,24 +4252,39 @@ EVALUATE(VFSQ) {
   return length;
 }
 
+#define ROUNDING_SWITCH(type)                                   \
+  switch (m5) {                                                 \
+    case 4:                                                     \
+      set_simd_register_by_lane<type>(r1, i, nearbyint(value)); \
+      break;                                                    \
+    case 5:                                                     \
+      set_simd_register_by_lane<type>(r1, i, trunc(value));     \
+      break;                                                    \
+    case 6:                                                     \
+      set_simd_register_by_lane<type>(r1, i, ceil(value));      \
+      break;                                                    \
+    case 7:                                                     \
+      set_simd_register_by_lane<type>(r1, i, floor(value));     \
+      break;                                                    \
+    default:                                                    \
+      UNREACHABLE();                                            \
+  }
 EVALUATE(VFI) {
   DCHECK_OPCODE(VFI);
   DECODE_VRR_A_INSTRUCTION(r1, r2, m5, m4, m3);
   USE(m4);
-  USE(m5);
-  DCHECK_EQ(m5, 5);
   switch (m3) {
     case 2:
       DCHECK(CpuFeatures::IsSupported(VECTOR_ENHANCE_FACILITY_1));
       for (int i = 0; i < 4; i++) {
         float value = get_simd_register_by_lane<float>(r2, i);
-        set_simd_register_by_lane<float>(r1, i, trunc(value));
+        ROUNDING_SWITCH(float)
       }
       break;
     case 3:
       for (int i = 0; i < 2; i++) {
         double value = get_simd_register_by_lane<double>(r2, i);
-        set_simd_register_by_lane<double>(r1, i, trunc(value));
+        ROUNDING_SWITCH(double)
       }
       break;
     default:
@@ -4277,6 +4292,7 @@ EVALUATE(VFI) {
   }
   return length;
 }
+#undef ROUNDING_SWITCH
 
 EVALUATE(DUMY) {
   DCHECK_OPCODE(DUMY);

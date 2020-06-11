@@ -4258,6 +4258,46 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
                Condition(3));
       break;
     }
+    case kS390_F64x2Ceil: {
+      __ vfi(i.OutputSimd128Register(), i.InputSimd128Register(0), Condition(6),
+             Condition(0), Condition(3));
+      break;
+    }
+    case kS390_F64x2Floor: {
+      __ vfi(i.OutputSimd128Register(), i.InputSimd128Register(0), Condition(7),
+             Condition(0), Condition(3));
+      break;
+    }
+    case kS390_F64x2Trunc: {
+      __ vfi(i.OutputSimd128Register(), i.InputSimd128Register(0), Condition(5),
+             Condition(0), Condition(3));
+      break;
+    }
+    case kS390_F64x2NearestInt: {
+      __ vfi(i.OutputSimd128Register(), i.InputSimd128Register(0), Condition(4),
+             Condition(0), Condition(3));
+      break;
+    }
+    case kS390_F32x4Ceil: {
+      __ vfi(i.OutputSimd128Register(), i.InputSimd128Register(0), Condition(6),
+             Condition(0), Condition(2));
+      break;
+    }
+    case kS390_F32x4Floor: {
+      __ vfi(i.OutputSimd128Register(), i.InputSimd128Register(0), Condition(7),
+             Condition(0), Condition(2));
+      break;
+    }
+    case kS390_F32x4Trunc: {
+      __ vfi(i.OutputSimd128Register(), i.InputSimd128Register(0), Condition(5),
+             Condition(0), Condition(2));
+      break;
+    }
+    case kS390_F32x4NearestInt: {
+      __ vfi(i.OutputSimd128Register(), i.InputSimd128Register(0), Condition(4),
+             Condition(0), Condition(2));
+      break;
+    }
     case kS390_StoreCompressTagged: {
       CHECK(!instr->HasOutput());
       size_t index = 0;
