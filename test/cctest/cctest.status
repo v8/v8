@@ -364,31 +364,17 @@
 ##############################################################################
 ['arch == riscv32  or arch == riscv64', {
   'test-run-wasm-atomics/*': [SKIP],
-
-  'test-regexp/*': [SKIP],
-  
-  'test-thread-termination/*': [SKIP],
+ 
+  'test-cpu-profiler/CrossScriptInliningCallerLineNumbers2 ': [SKIP],
 
   'test-serialize/PartialSerializerCustomContext': [SKIP],
-  'test-serialize/CustomSnapshotDataBlobWithIrregexpCodeClearCode': [SKIP],
-  'test-serialize/CustomSnapshotDataBlobWithIrregexpCodeKeepCode': [SKIP],
-
+  
   'test-modules/ModuleEvaluationTopLevelAwaitDynamicImportError': [SKIP],
   'test-modules/ModuleEvaluationCompletion1': [SKIP],
 
-  'test-run-bytecode-graph-builder/BytecodeGraphBuilderRegExpLiterals': [SKIP],
-
   'test-bytecode-generator/StaticClassFields': [SKIP],
 
-  # test-api seems to always get stuck at running the 568th test
-  'test-api/Threading*': [SKIP],
-  'test-api/MorphCompositeStringTest': [SKIP],
-  'test-api/RegExp': [SKIP],
-  'test-api/TwoByteStringInOneByteCons': [SKIP],
   'test-api/TurboAsmDisablesDetach': [SKIP],
-  'test-api/CallAsFunction': [SKIP],
-
-  'test-interpreter/InterpreterRegExpLiterals': [SKIP],
 
   'test-run-wasm/RunWasmTurbofan_I32SConvertF32': [SKIP],
   'test-run-wasm/RunWasmTurbofan_I32UConvertF32': [SKIP],
