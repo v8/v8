@@ -7,7 +7,7 @@
 #include "include/cppgc/internal/pointer-policies.h"
 #include "src/heap/cppgc/heap-object-header-inl.h"
 #include "src/heap/cppgc/heap-object-header.h"
-#include "src/heap/cppgc/heap-page.h"
+#include "src/heap/cppgc/heap-page-inl.h"
 #include "src/heap/cppgc/heap.h"
 #include "src/heap/cppgc/marker.h"
 #include "src/heap/cppgc/marking-visitor.h"

@@ -7,12 +7,12 @@
 #include <algorithm>
 
 #include "include/cppgc/allocation.h"
-#include "include/cppgc/internal/accessors.h"
 #include "include/cppgc/persistent.h"
 #include "src/base/macros.h"
 #include "src/heap/cppgc/globals.h"
 #include "src/heap/cppgc/heap-object-header-inl.h"
 #include "src/heap/cppgc/heap-object-header.h"
+#include "src/heap/cppgc/heap-page-inl.h"
 #include "src/heap/cppgc/page-memory-inl.h"
 #include "src/heap/cppgc/page-memory.h"
 #include "src/heap/cppgc/raw-heap.h"
@@ -40,11 +40,6 @@ class GCed : public GarbageCollected<GCed<Size>> {
 };
 
 }  // namespace
-
-TEST_F(PageTest, GetHeapForAllocatedObject) {
-  auto* gced = MakeGarbageCollected<GCed<1>>(GetAllocationHandle());
-  EXPECT_EQ(GetHeap(), GetHeapFromPayload(gced));
-}
 
 TEST_F(PageTest, SpaceIndexing) {
   RawHeap& heap = GetRawHeap();

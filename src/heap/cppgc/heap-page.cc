@@ -44,22 +44,6 @@ const HeapObjectHeader* ObjectHeaderFromInnerAddressImpl(const BasePage* page,
 
 }  // namespace
 
-STATIC_ASSERT(kPageSize == api_constants::kPageAlignment);
-
-// static
-BasePage* BasePage::FromPayload(void* payload) {
-  return reinterpret_cast<BasePage*>(
-      (reinterpret_cast<uintptr_t>(payload) & kPageBaseMask) + kGuardPageSize);
-}
-
-// static
-const BasePage* BasePage::FromPayload(const void* payload) {
-  return reinterpret_cast<const BasePage*>(
-      (reinterpret_cast<uintptr_t>(const_cast<void*>(payload)) &
-       kPageBaseMask) +
-      kGuardPageSize);
-}
-
 // static
 BasePage* BasePage::FromInnerAddress(const Heap* heap, void* address) {
   return const_cast<BasePage*>(
@@ -129,8 +113,6 @@ BasePage::BasePage(Heap* heap, BaseSpace* space, PageType type)
     : heap_(heap), space_(space), type_(type) {
   DCHECK_EQ(0u, (reinterpret_cast<uintptr_t>(this) - kGuardPageSize) &
                     kPageOffsetMask);
-  DCHECK_EQ(reinterpret_cast<void*>(&heap_),
-            FromPayload(this) + api_constants::kHeapOffset);
   DCHECK_EQ(&heap_->raw_heap(), space_->raw_heap());
 }
 

@@ -12,7 +12,7 @@
 #include "src/heap/cppgc/gc-invoker.h"
 #include "src/heap/cppgc/heap-object-header-inl.h"
 #include "src/heap/cppgc/heap-object-header.h"
-#include "src/heap/cppgc/heap-page.h"
+#include "src/heap/cppgc/heap-page-inl.h"
 #include "src/heap/cppgc/heap-visitor.h"
 #include "src/heap/cppgc/page-memory.h"
 #include "src/heap/cppgc/stack.h"

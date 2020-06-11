@@ -22,8 +22,8 @@ class PageBackend;
 
 class V8_EXPORT_PRIVATE BasePage {
  public:
-  static BasePage* FromPayload(void*);
-  static const BasePage* FromPayload(const void*);
+  static inline BasePage* FromPayload(void*);
+  static inline const BasePage* FromPayload(const void*);
 
   static BasePage* FromInnerAddress(const Heap*, void*);
   static const BasePage* FromInnerAddress(const Heap*, const void*);

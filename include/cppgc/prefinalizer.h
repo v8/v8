@@ -5,7 +5,6 @@
 #ifndef INCLUDE_CPPGC_PREFINALIZER_H_
 #define INCLUDE_CPPGC_PREFINALIZER_H_
 
-#include "cppgc/internal/accessors.h"
 #include "cppgc/internal/compiler-specific.h"
 #include "cppgc/internal/prefinalizer-handler.h"
 #include "cppgc/liveness-broker.h"
@@ -22,7 +21,7 @@ class PrefinalizerRegistration final {
                   "USING_PRE_FINALIZER(T) must be defined.");
 
     cppgc::internal::PreFinalizerRegistrationDispatcher::RegisterPrefinalizer(
-        internal::GetHeapFromPayload(self), {self, T::InvokePreFinalizer});
+        {self, T::InvokePreFinalizer});
   }
 
   void* operator new(size_t, void* location) = delete;

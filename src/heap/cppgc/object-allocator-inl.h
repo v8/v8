@@ -10,7 +10,7 @@
 #include "src/base/logging.h"
 #include "src/heap/cppgc/heap-object-header-inl.h"
 #include "src/heap/cppgc/heap-object-header.h"
-#include "src/heap/cppgc/heap-page.h"
+#include "src/heap/cppgc/heap-page-inl.h"
 #include "src/heap/cppgc/object-allocator.h"
 #include "src/heap/cppgc/object-start-bitmap-inl.h"
 #include "src/heap/cppgc/object-start-bitmap.h"
