@@ -16,7 +16,7 @@ class V8_EXPORT_PRIVATE RegExpMacroAssemblerRISCV
     : public NativeRegExpMacroAssembler {
  public:
   RegExpMacroAssemblerRISCV(Isolate* isolate, Zone* zone, Mode mode,
-                           int registers_to_save);
+                            int registers_to_save);
   virtual ~RegExpMacroAssemblerRISCV();
   virtual int stack_limit_slack();
   virtual void AdvanceCurrentPosition(int by);
@@ -25,8 +25,7 @@ class V8_EXPORT_PRIVATE RegExpMacroAssemblerRISCV
   virtual void Bind(Label* label);
   virtual void CheckAtStart(int cp_offset, Label* on_at_start);
   virtual void CheckCharacter(uint32_t c, Label* on_equal);
-  virtual void CheckCharacterAfterAnd(uint32_t c,
-                                      uint32_t mask,
+  virtual void CheckCharacterAfterAnd(uint32_t c, uint32_t mask,
                                       Label* on_equal);
   virtual void CheckCharacterGT(uc16 limit, Label* on_greater);
   virtual void CheckCharacterLT(uc16 limit, Label* on_less);
@@ -40,26 +39,19 @@ class V8_EXPORT_PRIVATE RegExpMacroAssemblerRISCV
                                                bool read_backward, bool unicode,
                                                Label* on_no_match);
   virtual void CheckNotCharacter(uint32_t c, Label* on_not_equal);
-  virtual void CheckNotCharacterAfterAnd(uint32_t c,
-                                         uint32_t mask,
+  virtual void CheckNotCharacterAfterAnd(uint32_t c, uint32_t mask,
                                          Label* on_not_equal);
-  virtual void CheckNotCharacterAfterMinusAnd(uc16 c,
-                                              uc16 minus,
-                                              uc16 mask,
+  virtual void CheckNotCharacterAfterMinusAnd(uc16 c, uc16 minus, uc16 mask,
                                               Label* on_not_equal);
-  virtual void CheckCharacterInRange(uc16 from,
-                                     uc16 to,
-                                     Label* on_in_range);
-  virtual void CheckCharacterNotInRange(uc16 from,
-                                        uc16 to,
+  virtual void CheckCharacterInRange(uc16 from, uc16 to, Label* on_in_range);
+  virtual void CheckCharacterNotInRange(uc16 from, uc16 to,
                                         Label* on_not_in_range);
   virtual void CheckBitInTable(Handle<ByteArray> table, Label* on_bit_set);
 
   // Checks whether the given offset from the current position is before
   // the end of the string.
   virtual void CheckPosition(int cp_offset, Label* on_outside_input);
-  virtual bool CheckSpecialCharacterClass(uc16 type,
-                                          Label* on_no_match);
+  virtual bool CheckSpecialCharacterClass(uc16 type, Label* on_no_match);
   virtual void Fail();
   virtual Handle<HeapObject> GetCode(Handle<String> source);
   virtual void GoTo(Label* label);
@@ -100,13 +92,15 @@ class V8_EXPORT_PRIVATE RegExpMacroAssemblerRISCV
   static const int kFramePointer = 0;
 
   // Above the frame pointer - Stored registers and stack passed parameters.
-  // Registers s0 to s7, fp, and ra.
+  // Registers s1 to s8, fp, and ra.
   static const int kStoredRegisters = kFramePointer;
   // Return address (stored from link register, read into pc on return).
 
-  // TODO(plind): This 9 - is 8 s-regs (s0..s7) plus fp.
+  // This 9 is 8 s-regs (s1..s8) plus fp.
+  static const int kNumCalleeRegsToRetain = 9;
+  static const int kReturnAddress =
+      kStoredRegisters + kNumCalleeRegsToRetain * kPointerSize;
 
-  static const int kReturnAddress = kStoredRegisters + 9 * kPointerSize;
   // Stack frame header.
   static const int kStackFrameHeader = kReturnAddress;
   // Stack parameters placed by caller.
@@ -143,7 +137,6 @@ class V8_EXPORT_PRIVATE RegExpMacroAssemblerRISCV
   // Check whether we are exceeding the stack limit on the backtrack stack.
   void CheckStackLimit();
 
-
   // Generate a call to CheckStackGuardState.
   void CallCheckStackGuardState(Register scratch);
 
@@ -176,16 +169,12 @@ class V8_EXPORT_PRIVATE RegExpMacroAssemblerRISCV
 
   // Equivalent to a conditional branch to the label, unless the label
   // is nullptr, in which case it is a conditional Backtrack.
-  void BranchOrBacktrack(Label* to,
-                         Condition condition,
-                         Register rs,
+  void BranchOrBacktrack(Label* to, Condition condition, Register rs,
                          const Operand& rt);
 
   // Call and return internally in the generated code in a way that
   // is GC-safe (i.e., doesn't leave absolute code addresses on the stack)
-  inline void SafeCall(Label* to,
-                       Condition cond,
-                       Register rs,
+  inline void SafeCall(Label* to, Condition cond, Register rs,
                        const Operand& rt);
   inline void SafeReturn();
   inline void SafeCallTarget(Label* name);
