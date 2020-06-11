@@ -24,6 +24,8 @@ vars = {
 
   'checkout_instrumented_libraries': False,
   'checkout_ittapi': False,
+  # Fetch clang-tidy into the same bin/ directory as our clang binary.
+  'checkout_clang_tidy': False,
   'chromium_url': 'https://chromium.googlesource.com',
   'android_url': 'https://android.googlesource.com',
   'download_gcmole': False,
@@ -484,6 +486,13 @@ hooks = [
     # clang not supported on aix
     'condition': 'host_os != "aix"',
     'action': ['python', 'v8/tools/clang/scripts/update.py'],
+  },
+  {
+    'name': 'clang_tidy',
+    'pattern': '.',
+    'condition': 'checkout_clang_tidy',
+    'action': ['python', 'v8/tools/clang/scripts/update.py',
+               '--package=clang-tidy'],
   },
   {
     # Update LASTCHANGE.
