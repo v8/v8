@@ -1720,8 +1720,8 @@ TEST_F(FunctionBodyDecoderTest, MultiReturnType) {
 
           ExpectValidates(&sig_cd_v, {WASM_CALL_FUNCTION0(0)});
 
-          if (kValueTypes[c].IsSubtypeOfNoImmediates(kValueTypes[a]) &&
-              kValueTypes[d].IsSubtypeOfNoImmediates(kValueTypes[b])) {
+          if (IsSubtypeOf(kValueTypes[c], kValueTypes[a], module) &&
+              IsSubtypeOf(kValueTypes[d], kValueTypes[b], module)) {
             ExpectValidates(&sig_ab_v, {WASM_CALL_FUNCTION0(0)});
           } else {
             ExpectFailure(&sig_ab_v, {WASM_CALL_FUNCTION0(0)});
@@ -1937,7 +1937,7 @@ TEST_F(FunctionBodyDecoderTest, AllGetGlobalCombinations) {
       TestModuleBuilder builder;
       module = builder.module();
       builder.AddGlobal(global_type);
-      Validate(global_type.IsSubtypeOfNoImmediates(local_type), &sig,
+      Validate(IsSubtypeOf(global_type, local_type, module), &sig,
                {WASM_GET_GLOBAL(0)});
     }
   }
@@ -1952,7 +1952,7 @@ TEST_F(FunctionBodyDecoderTest, AllSetGlobalCombinations) {
       TestModuleBuilder builder;
       module = builder.module();
       builder.AddGlobal(global_type);
-      Validate(local_type.IsSubtypeOfNoImmediates(global_type), &sig,
+      Validate(IsSubtypeOf(local_type, global_type, module), &sig,
                {WASM_SET_GLOBAL(0, WASM_GET_LOCAL(0))});
     }
   }
@@ -2306,8 +2306,7 @@ TEST_F(FunctionBodyDecoderTest, Break_TypeCheckAll1) {
           sig.GetReturn(), WASM_IF(WASM_ZERO, WASM_BRV(0, WASM_GET_LOCAL(0))),
           WASM_GET_LOCAL(1))};
 
-      Validate(kValueTypes[j].IsSubtypeOfNoImmediates(kValueTypes[i]), &sig,
-               code);
+      Validate(IsSubtypeOf(kValueTypes[j], kValueTypes[i], module), &sig, code);
     }
   }
 }
@@ -2322,8 +2321,7 @@ TEST_F(FunctionBodyDecoderTest, Break_TypeCheckAll2) {
                                     WASM_BRV_IF_ZERO(0, WASM_GET_LOCAL(0)),
                                     WASM_GET_LOCAL(1))};
 
-      Validate(kValueTypes[j].IsSubtypeOfNoImmediates(kValueTypes[i]), &sig,
-               code);
+      Validate(IsSubtypeOf(kValueTypes[j], kValueTypes[i], module), &sig, code);
     }
   }
 }
@@ -2338,8 +2336,7 @@ TEST_F(FunctionBodyDecoderTest, Break_TypeCheckAll3) {
                                     WASM_GET_LOCAL(1),
                                     WASM_BRV_IF_ZERO(0, WASM_GET_LOCAL(0)))};
 
-      Validate(kValueTypes[j].IsSubtypeOfNoImmediates(kValueTypes[i]), &sig,
-               code);
+      Validate(IsSubtypeOf(kValueTypes[j], kValueTypes[i], module), &sig, code);
     }
   }
 }
@@ -2385,8 +2382,7 @@ TEST_F(FunctionBodyDecoderTest, BreakIf_val_type) {
           types[1], WASM_BRV_IF(0, WASM_GET_LOCAL(1), WASM_GET_LOCAL(2)),
           WASM_DROP, WASM_GET_LOCAL(0))};
 
-      Validate(kValueTypes[j].IsSubtypeOfNoImmediates(kValueTypes[i]), &sig,
-               code);
+      Validate(IsSubtypeOf(kValueTypes[j], kValueTypes[i], module), &sig, code);
     }
   }
 }

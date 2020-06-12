@@ -108,15 +108,6 @@ class ValueType {
     return bit_field_ != other.bit_field_;
   }
 
-  // TODO(7748): Extend this with struct and function subtyping.
-  //             Keep up to date with funcref vs. externref subtyping.
-  constexpr bool IsSubtypeOfNoImmediates(ValueType other) const {
-#if V8_HAS_CXX14_CONSTEXPR
-    DCHECK(!has_immediate() && !other.has_immediate());
-#endif
-    return (*this == other) || (other.kind() == kEqRef &&
-                                (kind() == kExnRef || kind() == kExternRef));
-  }
 
   constexpr bool IsReferenceType() const {
     return kExternRef <= kind() && kind() <= kEqRef;
