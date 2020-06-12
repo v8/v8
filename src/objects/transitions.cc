@@ -36,6 +36,7 @@ bool TransitionsAccessor::HasSimpleTransitionTo(Map map) {
 void TransitionsAccessor::Insert(Handle<Name> name, Handle<Map> target,
                                  SimpleTransitionFlag flag) {
   DCHECK(!map_handle_.is_null());
+  DCHECK_NE(kPrototypeInfo, encoding());
   target->SetBackPointer(map_);
 
   // If the map doesn't have any transitions at all yet, install the new one.
@@ -49,12 +50,14 @@ void TransitionsAccessor::Insert(Handle<Name> name, Handle<Map> target,
         isolate_->factory()->NewTransitionArray(0, 1);
     ReplaceTransitions(MaybeObject::FromObject(*result));
     Reload();
+    DCHECK_EQ(kFullTransitionArray, encoding());
   }
 
   bool is_special_transition = flag == SPECIAL_TRANSITION;
   // If the map has a simple transition, check if it should be overwritten.
   Map simple_transition = GetSimpleTransition();
   if (!simple_transition.is_null()) {
+    DCHECK_EQ(kWeakRef, encoding());
     Name key = GetSimpleTransitionKey(simple_transition);
     PropertyDetails old_details = GetSimpleTargetDetails(simple_transition);
     PropertyDetails new_details = is_special_transition
@@ -75,12 +78,9 @@ void TransitionsAccessor::Insert(Handle<Name> name, Handle<Map> target,
     simple_transition = GetSimpleTransition();
     if (!simple_transition.is_null()) {
       DCHECK_EQ(*map, simple_transition);
-      if (encoding_ == kWeakRef) {
-        result->Set(0, GetSimpleTransitionKey(simple_transition),
-                    HeapObjectReference::Weak(simple_transition));
-      } else {
-        UNREACHABLE();
-      }
+      DCHECK_EQ(kWeakRef, encoding());
+      result->Set(0, GetSimpleTransitionKey(simple_transition),
+                  HeapObjectReference::Weak(simple_transition));
     } else {
       result->SetNumberOfTransitions(0);
     }
