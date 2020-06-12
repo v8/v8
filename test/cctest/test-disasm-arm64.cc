@@ -1919,10 +1919,10 @@ TEST_(bti) {
 TEST(system_pauth) {
   SET_UP_ASM();
 
-  COMPARE(pacia1716(), "pacia1716");
-  COMPARE(paciasp(), "paciasp");
-  COMPARE(autia1716(), "autia1716");
-  COMPARE(autiasp(), "autiasp");
+  COMPARE(pacib1716(), "pacib1716");
+  COMPARE(pacibsp(), "pacibsp");
+  COMPARE(autib1716(), "autib1716");
+  COMPARE(autibsp(), "autibsp");
 
   CLEANUP();
 }

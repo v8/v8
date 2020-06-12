@@ -1423,10 +1423,10 @@ void DisassemblingDecoder::VisitFPFixedPointConvert(Instruction* instr) {
 
 // clang-format off
 #define PAUTH_SYSTEM_MNEMONICS(V) \
-  V(PACIA1716, "pacia1716")       \
-  V(AUTIA1716, "autia1716")       \
-  V(PACIASP,   "paciasp")         \
-  V(AUTIASP,   "autiasp")
+  V(PACIB1716, "pacib1716")       \
+  V(AUTIB1716, "autib1716")       \
+  V(PACIBSP,   "pacibsp")         \
+  V(AUTIBSP,   "autibsp")
 // clang-format on
 
 void DisassemblingDecoder::VisitSystem(Instruction* instr) {

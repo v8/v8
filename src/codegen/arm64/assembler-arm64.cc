@@ -1162,10 +1162,10 @@ void Assembler::cls(const Register& rd, const Register& rn) {
   DataProcessing1Source(rd, rn, CLS);
 }
 
-void Assembler::pacia1716() { Emit(PACIA1716); }
-void Assembler::autia1716() { Emit(AUTIA1716); }
-void Assembler::paciasp() { Emit(PACIASP); }
-void Assembler::autiasp() { Emit(AUTIASP); }
+void Assembler::pacib1716() { Emit(PACIB1716); }
+void Assembler::autib1716() { Emit(AUTIB1716); }
+void Assembler::pacibsp() { Emit(PACIBSP); }
+void Assembler::autibsp() { Emit(AUTIBSP); }
 
 void Assembler::bti(BranchTargetIdentifier id) {
   SystemHint op;
@@ -1183,9 +1183,9 @@ void Assembler::bti(BranchTargetIdentifier id) {
       op = BTI_jc;
       break;
     case BranchTargetIdentifier::kNone:
-    case BranchTargetIdentifier::kPaciasp:
+    case BranchTargetIdentifier::kPacibsp:
       // We always want to generate a BTI instruction here, so disallow
-      // skipping its generation or generating a PACIASP instead.
+      // skipping its generation or generating a PACIBSP instead.
       UNREACHABLE();
   }
   hint(op);

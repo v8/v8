@@ -1197,7 +1197,7 @@ void MacroAssembler::PeekPair(const CPURegister& dst1, const CPURegister& dst2,
 
 void MacroAssembler::PushCalleeSavedRegisters() {
 #ifdef V8_ENABLE_CONTROL_FLOW_INTEGRITY
-  Paciasp();
+  Pacibsp();
 #endif
 
   {
@@ -1249,7 +1249,7 @@ void MacroAssembler::PopCalleeSavedRegisters() {
   }
 
 #ifdef V8_ENABLE_CONTROL_FLOW_INTEGRITY
-  Autiasp();
+  Autibsp();
 #endif
 }
 
@@ -1971,7 +1971,7 @@ void TurboAssembler::StoreReturnAddressAndCall(Register target) {
   Adr(x17, &return_location);
 #ifdef V8_ENABLE_CONTROL_FLOW_INTEGRITY
   Add(x16, sp, kSystemPointerSize);
-  Pacia1716();
+  Pacib1716();
 #endif
   Poke(x17, 0);
 
@@ -3248,7 +3248,7 @@ void TurboAssembler::RestoreFPAndLR() {
   // We can load the return address directly into x17.
   Add(x16, fp, StandardFrameConstants::kCallerSPOffset);
   Ldp(fp, x17, MemOperand(fp, StandardFrameConstants::kCallerFPOffset));
-  Autia1716();
+  Autib1716();
   Mov(lr, x17);
 #else
   Ldp(fp, lr, MemOperand(fp, StandardFrameConstants::kCallerFPOffset));
@@ -3261,7 +3261,7 @@ void TurboAssembler::StoreReturnAddressInWasmExitFrame(Label* return_location) {
   Adr(x17, return_location);
 #ifdef V8_ENABLE_CONTROL_FLOW_INTEGRITY
   Add(x16, fp, WasmExitFrameConstants::kCallingPCOffset + kSystemPointerSize);
-  Pacia1716();
+  Pacib1716();
 #endif
   Str(x17, MemOperand(fp, WasmExitFrameConstants::kCallingPCOffset));
 }

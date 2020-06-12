@@ -1878,24 +1878,41 @@ TEST(branch_to_reg) {
 static void BtiHelper(Register ipreg) {
   SETUP();
 
-  Label jump_target, jump_call_target, call_target, done;
+  Label jump_target, jump_call_target, call_target, test_pacibsp,
+      pacibsp_target, done;
   START();
   UseScratchRegisterScope temps(&masm);
   temps.Exclude(ipreg);
+
   __ Adr(x0, &jump_target);
   __ Br(x0);
   __ Nop();
+
   __ Bind(&jump_target, BranchTargetIdentifier::kBtiJump);
   __ Adr(x0, &call_target);
   __ Blr(x0);
+
   __ Adr(ipreg, &jump_call_target);
+  __ Blr(ipreg);
+  __ Adr(lr, &test_pacibsp);  // Make Ret return to test_pacibsp.
+  __ Br(ipreg);
+
+  __ Bind(&test_pacibsp, BranchTargetIdentifier::kNone);
+  __ Adr(ipreg, &pacibsp_target);
   __ Blr(ipreg);
   __ Adr(lr, &done);  // Make Ret return to done label.
   __ Br(ipreg);
+
   __ Bind(&call_target, BranchTargetIdentifier::kBtiCall);
   __ Ret();
+
   __ Bind(&jump_call_target, BranchTargetIdentifier::kBtiJumpCall);
   __ Ret();
+
+  __ Bind(&pacibsp_target, BranchTargetIdentifier::kPacibsp);
+  __ Autibsp();
+  __ Ret();
+
   __ Bind(&done);
   END();
 
@@ -11763,12 +11780,12 @@ TEST(system_msr) {
   CHECK_EQUAL_64(0, x10);
 }
 
-TEST(system_pauth_a) {
+TEST(system_pauth_b) {
   SETUP();
   START();
 
   // Exclude x16 and x17 from the scratch register list so we can use
-  // Pac/Autia1716 safely.
+  // Pac/Autib1716 safely.
   UseScratchRegisterScope temps(&masm);
   temps.Exclude(x16, x17);
   temps.Include(x10, x11);
@@ -11782,29 +11799,29 @@ TEST(system_pauth_a) {
 
   // Generate PACs using the 3 system instructions.
   __ Mov(x17, 0x0000000012345678);
-  __ Pacia1716();
+  __ Pacib1716();
   __ Mov(x0, x17);
 
   __ Mov(lr, 0x0000000012345678);
-  __ Paciasp();
+  __ Pacibsp();
   __ Mov(x2, lr);
 
   // Authenticate the pointers above.
   __ Mov(x17, x0);
-  __ Autia1716();
+  __ Autib1716();
   __ Mov(x3, x17);
 
   __ Mov(lr, x2);
-  __ Autiasp();
+  __ Autibsp();
   __ Mov(x5, lr);
 
   // Attempt to authenticate incorrect pointers.
   __ Mov(x17, x2);
-  __ Autia1716();
+  __ Autib1716();
   __ Mov(x6, x17);
 
   __ Mov(lr, x0);
-  __ Autiasp();
+  __ Autibsp();
   __ Mov(x8, lr);
 
   // Restore stack pointer.
@@ -11830,8 +11847,8 @@ TEST(system_pauth_a) {
   CHECK_EQUAL_64(0x0000000012345678, x5);
 
   // Pointers corrupted after failing to authenticate.
-  CHECK_EQUAL_64(0x0020000012345678, x6);
-  CHECK_EQUAL_64(0x0020000012345678, x8);
+  CHECK_EQUAL_64(0x0040000012345678, x6);
+  CHECK_EQUAL_64(0x0040000012345678, x8);
 
 #endif  // USE_SIMULATOR
 }
