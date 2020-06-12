@@ -618,8 +618,9 @@ class V8_EXPORT_PRIVATE LiveRange : public NON_EXPORTED_BASE(ZoneObject) {
   LiveRange* SplitAt(LifetimePosition position, Zone* zone);
 
   // Returns nullptr when no register is hinted, otherwise sets register_index.
-  UsePosition* FirstHintPosition(int* register_index) const;
-  UsePosition* FirstHintPosition() const {
+  // Uses {current_hint_position_} as a cache, and tries to update it.
+  UsePosition* FirstHintPosition(int* register_index);
+  UsePosition* FirstHintPosition() {
     int register_index;
     return FirstHintPosition(&register_index);
   }
@@ -655,6 +656,7 @@ class V8_EXPORT_PRIVATE LiveRange : public NON_EXPORTED_BASE(ZoneObject) {
                             const InstructionOperand& spill_op);
   void SetUseHints(int register_index);
   void UnsetUseHints() { SetUseHints(kUnassignedRegister); }
+  void ResetCurrentHintPosition() { current_hint_position_ = first_pos_; }
 
   void Print(const RegisterConfiguration* config, bool with_children) const;
   void Print(bool with_children) const;
@@ -702,8 +704,7 @@ class V8_EXPORT_PRIVATE LiveRange : public NON_EXPORTED_BASE(ZoneObject) {
   mutable UsePosition* last_processed_use_;
   // Cache the last position splintering stopped at.
   mutable UsePosition* splitting_pointer_;
-  // This is used as a cache in BuildLiveRanges, and to quickly check for the
-  // absence of hints during register allocation.
+  // This is used as a cache in BuildLiveRanges and during register allocation.
   UsePosition* current_hint_position_;
   LiveRangeBundle* bundle_ = nullptr;
   // Next interval start, relative to the current linear scan position.
