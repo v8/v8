@@ -320,7 +320,7 @@ namespace internal {
     "a location, got %")                                                       \
   T(InvalidArrayBufferLength, "Invalid array buffer length")                   \
   T(ArrayBufferAllocationFailed, "Array buffer allocation failed")             \
-  T(Invalid, "Invalid %s : %")                                                 \
+  T(Invalid, "Invalid % : %")                                                  \
   T(InvalidArrayLength, "Invalid array length")                                \
   T(InvalidAtomicAccessIndex, "Invalid atomic access index")                   \
   T(InvalidCodePoint, "Invalid code point %")                                  \

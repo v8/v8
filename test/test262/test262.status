@@ -602,6 +602,10 @@
   'built-ins/Atomics/waitAsync/true-for-timeout-agent': [SKIP],
   'built-ins/Atomics/waitAsync/value-not-equal-agent': [SKIP],
 
+  # https://github.com/tc39/test262/pull/2659
+  'intl402/DateTimeFormat/prototype/resolvedOptions/order-style': [FAIL],
+  'intl402/DateTimeFormat/constructor-options-order-timedate-style': [FAIL],
+
   ######################## NEEDS INVESTIGATION ###########################
 
   # https://bugs.chromium.org/p/v8/issues/detail?id=7833
