@@ -3983,24 +3983,30 @@ void TranslatedState::StoreMaterializedValuesAndDeopt(JavaScriptFrame* frame) {
 
     CHECK(value_info->IsMaterializedObject());
 
-    // Skip duplicate objects (i.e., those that point to some
-    // other object id).
+    // Skip duplicate objects (i.e., those that point to some other object id).
     if (value_info->object_index() != i) continue;
 
+    Handle<Object> previous_value(previously_materialized_objects->get(i),
+                                  isolate_);
     Handle<Object> value(value_info->GetRawValue(), isolate_);
 
-    if (!value.is_identical_to(marker)) {
-      if (previously_materialized_objects->get(i) == *marker) {
+    if (value.is_identical_to(marker)) {
+      DCHECK_EQ(*previous_value, *marker);
+    } else {
+      if (*previous_value == *marker) {
         if (value->IsSmi()) {
           value = isolate()->factory()->NewHeapNumber(value->Number());
         }
         previously_materialized_objects->set(i, *value);
         value_changed = true;
       } else {
-        CHECK(previously_materialized_objects->get(i) == *value);
+        CHECK(*previous_value == *value ||
+              (previous_value->IsHeapNumber() && value->IsSmi() &&
+               previous_value->Number() == value->Number()));
       }
     }
   }
+
   if (new_store && value_changed) {
     materialized_store->Set(stack_frame_pointer_,
                             previously_materialized_objects);
