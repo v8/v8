@@ -122,6 +122,70 @@ TEST(LinearSearchFlatObject) {
   thread->Join();
 }
 
+// Uses linear search on a flat object, which has more than 8 elements.
+TEST(LinearSearchFlatObject_ManyElements) {
+  CcTest::InitializeVM();
+  FLAG_local_heaps = true;
+  Isolate* isolate = CcTest::i_isolate();
+
+  std::unique_ptr<PersistentHandles> ph = isolate->NewPersistentHandles();
+  std::vector<Handle<JSObject>> handles;
+
+  auto factory = isolate->factory();
+  HandleScope handle_scope(isolate);
+
+  Handle<JSFunction> function =
+      factory->NewFunctionForTest(factory->empty_string());
+  Handle<JSObject> js_object = factory->NewJSObject(function);
+  Handle<String> name = CcTest::MakeString("property");
+  Handle<Object> value = CcTest::MakeString("dummy_value");
+  // For the default constructor function no in-object properties are reserved
+  // hence adding a single property will initialize the property-array.
+  JSObject::DefinePropertyOrElementIgnoreAttributes(js_object, name, value,
+                                                    NONE)
+      .Check();
+
+  // If we have more than 8 properties we would do a binary search. However,
+  // since we are going search in a background thread, we force a linear search
+  // that is safe to do in the background.
+  for (int i = 0; i < 10; ++i) {
+    Handle<String> filler_name = CcTest::MakeName("filler_property_", i);
+    Handle<Object> filler_value = CcTest::MakeString("dummy_value");
+    JSObject::DefinePropertyOrElementIgnoreAttributes(js_object, filler_name,
+                                                      filler_value, NONE)
+        .Check();
+  }
+  CHECK_GT(js_object->map().NumberOfOwnDescriptors(), 8);
+
+  Address object = js_object->ptr();
+  for (int i = 0; i < kNumHandles; i++) {
+    handles.push_back(Handle<JSObject>::cast(ph->NewHandle(object)));
+  }
+
+  Handle<Name> persistent_name = Handle<Name>::cast(ph->NewHandle(name->ptr()));
+
+  base::Semaphore sema_started(0);
+
+  // Pass persistent handles to background thread.
+  std::unique_ptr<PersistentHandlesThread> thread(new PersistentHandlesThread(
+      isolate->heap(), std::move(handles), std::move(ph), persistent_name,
+      &sema_started));
+  CHECK(thread->Start());
+
+  sema_started.Wait();
+
+  // Exercise descriptor in main thread too.
+  for (int i = 10; i < 20; ++i) {
+    Handle<String> filler_name = CcTest::MakeName("filler_property_", i);
+    Handle<Object> filler_value = CcTest::MakeString("dummy_value");
+    JSObject::DefinePropertyOrElementIgnoreAttributes(js_object, filler_name,
+                                                      filler_value, NONE)
+        .Check();
+  }
+
+  thread->Join();
+}
+
 }  // anonymous namespace
 
 }  // namespace internal
