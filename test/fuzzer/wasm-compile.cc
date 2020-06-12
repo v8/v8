@@ -897,8 +897,11 @@ void WasmGenerator::Generate<ValueType::kI32>(DataRange* data) {
                                 ValueType::kI32>,
 
       &WasmGenerator::op_with_prefix<kExprV8x16AnyTrue, ValueType::kS128>,
+      &WasmGenerator::op_with_prefix<kExprV8x16AllTrue, ValueType::kS128>,
       &WasmGenerator::op_with_prefix<kExprV16x8AnyTrue, ValueType::kS128>,
+      &WasmGenerator::op_with_prefix<kExprV16x8AllTrue, ValueType::kS128>,
       &WasmGenerator::op_with_prefix<kExprV32x4AnyTrue, ValueType::kS128>,
+      &WasmGenerator::op_with_prefix<kExprV32x4AllTrue, ValueType::kS128>,
       &WasmGenerator::simd_lane_op<kExprI8x16ExtractLaneS, 16,
                                    ValueType::kS128>,
       &WasmGenerator::simd_lane_op<kExprI8x16ExtractLaneU, 16,
