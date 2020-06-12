@@ -7,6 +7,7 @@
 #include "src/execution/vm-state-inl.h"
 #include "src/heap/array-buffer-tracker-inl.h"
 #include "src/heap/code-object-registry.h"
+#include "src/heap/free-list-inl.h"
 #include "src/heap/gc-tracer.h"
 #include "src/heap/invalidated-slots-inl.h"
 #include "src/heap/mark-compact-inl.h"
