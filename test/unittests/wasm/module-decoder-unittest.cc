@@ -120,7 +120,7 @@ struct CheckLEB1 : std::integral_constant<size_t, num> {
 #define EXPECT_VERIFIES(data)                                      \
   do {                                                             \
     ModuleResult result = DecodeModule(data, data + sizeof(data)); \
-    EXPECT_TRUE(result.ok());                                      \
+    EXPECT_OK(result);                                             \
   } while (false)
 
 #define EXPECT_FAILURE_LEN(data, length)                     \
@@ -146,10 +146,12 @@ struct CheckLEB1 : std::integral_constant<size_t, num> {
     }                                                               \
   } while (false)
 
-#define EXPECT_OK(result)     \
-  do {                        \
-    EXPECT_TRUE(result.ok()); \
-    if (!result.ok()) return; \
+#define EXPECT_OK(result)                                        \
+  do {                                                           \
+    if (!result.ok()) {                                          \
+      GTEST_NONFATAL_FAILURE_(result.error().message().c_str()); \
+      return;                                                    \
+    }                                                            \
   } while (false)
 
 #define EXPECT_NOT_OK(result, msg)                         \
