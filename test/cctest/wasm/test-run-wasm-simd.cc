@@ -2310,6 +2310,36 @@ WASM_SIMD_TEST(I16x8RoundingAverageU) {
                               base::RoundingAverageUnsigned);
 }
 
+// TODO(v8:10583) Prototype i32x4.dot_i16x8_s
+#if V8_TARGET_ARCH_X64
+WASM_SIMD_TEST_NO_LOWERING(I32x4DotI16x8S) {
+  FLAG_SCOPE(wasm_simd_post_mvp);
+
+  WasmRunner<int32_t, int16_t, int16_t> r(execution_tier, lower_simd);
+  int32_t* g = r.builder().template AddGlobal<int32_t>(kWasmS128);
+  byte value1 = 0, value2 = 1;
+  byte temp1 = r.AllocateLocal(kWasmS128);
+  byte temp2 = r.AllocateLocal(kWasmS128);
+  BUILD(r, WASM_SET_LOCAL(temp1, WASM_SIMD_I16x8_SPLAT(WASM_GET_LOCAL(value1))),
+        WASM_SET_LOCAL(temp2, WASM_SIMD_I16x8_SPLAT(WASM_GET_LOCAL(value2))),
+        WASM_SET_GLOBAL(
+            0, WASM_SIMD_BINOP(kExprI32x4DotI16x8S, WASM_GET_LOCAL(temp1),
+                               WASM_GET_LOCAL(temp2))),
+        WASM_ONE);
+
+  for (int16_t x : compiler::ValueHelper::GetVector<int16_t>()) {
+    for (int16_t y : compiler::ValueHelper::GetVector<int16_t>()) {
+      r.Call(x, y);
+      // x * y * 2 can overflow (0x8000), the behavior is to wraparound.
+      int32_t expected = base::MulWithWraparound(x * y, 2);
+      for (int i = 0; i < 4; i++) {
+        CHECK_EQ(expected, ReadLittleEndianValue<int32_t>(&g[i]));
+      }
+    }
+  }
+}
+#endif  // V8_TARGET_ARCH_X64
+
 void RunI16x8ShiftOpTest(ExecutionTier execution_tier, LowerSimd lower_simd,
                          WasmOpcode opcode, Int16ShiftOp expected_op) {
   // Intentionally shift by 16, should be no-op.

@@ -855,6 +855,7 @@
   V(I32x4GeU)                   \
   V(I32x4Abs)                   \
   V(I32x4BitMask)               \
+  V(I32x4DotI16x8S)             \
   V(I16x8Splat)                 \
   V(I16x8ExtractLaneU)          \
   V(I16x8ExtractLaneS)          \
