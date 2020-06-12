@@ -943,13 +943,6 @@ assertInstantiateSuccess(
   assertTrue(instance instanceof Instance);
 })();
 
-(function TestPassBigIntInGlobalWhenNotEnabled() {
-  assertThrows(() => new WebAssembly.Global({ value: "i64" }, 1), TypeError,
-               /Can't set the value/);
-  assertThrows(() => new WebAssembly.Global({ value: "i64" }, 1n), TypeError,
-               /Can't set the value/);
-})();
-
 (function TestAccessorFunctions() {
   function testAccessorFunction(obj, prop, accessor) {
     var desc = Object.getOwnPropertyDescriptor(obj, prop);
