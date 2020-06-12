@@ -53,22 +53,22 @@ void TransitionsAccessor::Insert(Handle<Name> name, Handle<Map> target,
     DCHECK_EQ(kFullTransitionArray, encoding());
   }
 
-  bool is_special_transition = flag == SPECIAL_TRANSITION;
   // If the map has a simple transition, check if it should be overwritten.
   Map simple_transition = GetSimpleTransition();
   if (!simple_transition.is_null()) {
     DCHECK_EQ(kWeakRef, encoding());
-    Name key = GetSimpleTransitionKey(simple_transition);
-    PropertyDetails old_details = GetSimpleTargetDetails(simple_transition);
-    PropertyDetails new_details = is_special_transition
-                                      ? PropertyDetails::Empty()
-                                      : GetTargetDetails(*name, *target);
-    if (flag == SIMPLE_PROPERTY_TRANSITION && key.Equals(*name) &&
-        old_details.kind() == new_details.kind() &&
-        old_details.attributes() == new_details.attributes()) {
-      ReplaceTransitions(HeapObjectReference::Weak(*target));
-      return;
+
+    if (flag == SIMPLE_PROPERTY_TRANSITION) {
+      Name key = GetSimpleTransitionKey(simple_transition);
+      PropertyDetails old_details = GetSimpleTargetDetails(simple_transition);
+      PropertyDetails new_details = GetTargetDetails(*name, *target);
+      if (key.Equals(*name) && old_details.kind() == new_details.kind() &&
+          old_details.attributes() == new_details.attributes()) {
+        ReplaceTransitions(HeapObjectReference::Weak(*target));
+        return;
+      }
     }
+
     // Otherwise allocate a full TransitionArray with slack for a new entry.
     Handle<Map> map(simple_transition, isolate_);
     Handle<TransitionArray> result =
@@ -94,6 +94,7 @@ void TransitionsAccessor::Insert(Handle<Name> name, Handle<Map> target,
   int number_of_transitions = 0;
   int new_nof = 0;
   int insertion_index = kNotFound;
+  const bool is_special_transition = flag == SPECIAL_TRANSITION;
   DCHECK_EQ(is_special_transition,
             IsSpecialTransition(ReadOnlyRoots(isolate_), *name));
   PropertyDetails details = is_special_transition
