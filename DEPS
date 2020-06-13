@@ -72,11 +72,11 @@ vars = {
 
 deps = {
   'v8/build':
-    Var('chromium_url') + '/chromium/src/build.git' + '@' + '8038ef2827d0bc23ac85450a91b0a2a413944a24',
+    Var('chromium_url') + '/chromium/src/build.git' + '@' + '6fbfa225700424b73d240cc4961412e2ab8c82e2',
   'v8/third_party/depot_tools':
-    Var('chromium_url') + '/chromium/tools/depot_tools.git' + '@' + '44de5e3f654c60d04f7572f700afa556247f544a',
+    Var('chromium_url') + '/chromium/tools/depot_tools.git' + '@' + '03705f60de6cc7b06ddaabe9649c14fb70b62c4e',
   'v8/third_party/icu':
-    Var('chromium_url') + '/chromium/deps/icu.git' + '@' + '46f53dfc09c520b7c520a089ca473bb0ee29c07e',
+    Var('chromium_url') + '/chromium/deps/icu.git' + '@' + '9e7dae8c9a3f3b41afdf1a9f5e78f0299fb93e4e',
   'v8/third_party/instrumented_libraries':
     Var('chromium_url') + '/chromium/src/third_party/instrumented_libraries.git' + '@' + 'bb3f1802c237dd19105dd0f7919f99e536a39d10',
   'v8/buildtools':
@@ -168,7 +168,7 @@ deps = {
       'dep_type': 'cipd',
   },
   'v8/third_party/catapult': {
-    'url': Var('chromium_url') + '/catapult.git' + '@' + 'd3a5699b3ce304c7092a56c016465363c7e32588',
+    'url': Var('chromium_url') + '/catapult.git' + '@' + 'b919b0064c9225d234b07d9ed28be10716ab6ae3',
     'condition': 'checkout_android',
   },
   'v8/third_party/colorama/src': {
@@ -219,7 +219,7 @@ deps = {
       'packages': [
           {
               'package': 'fuchsia/third_party/aemu/linux-amd64',
-              'version': '57_eaFwoIK_Q_ctYaumI8hKikv527lQj5R7ctUOZBz4C'
+              'version': 'VTMne1aEixrBYfQxsfnRBgzudRPhjV-iUQeXgznyNqgC'
           },
       ],
       'condition': 'host_os == "linux" and checkout_fuchsia',
@@ -270,7 +270,7 @@ deps = {
   'v8/third_party/protobuf':
     Var('chromium_url') + '/external/github.com/google/protobuf'+ '@' + 'b68a347f56137b4b1a746e8c7438495a6ac1bd91',
   'v8/third_party/zlib':
-    Var('chromium_url') + '/chromium/src/third_party/zlib.git'+ '@' + 'a68151fd9b9f5ad11b96a3765f706361ff22dbc8',
+    Var('chromium_url') + '/chromium/src/third_party/zlib.git'+ '@' + 'eaf99a4e2009b0e5759e6070ad1760ac1dd75461',
   'v8/third_party/jsoncpp/source':
     Var('chromium_url') + '/external/github.com/open-source-parsers/jsoncpp.git'+ '@' + '645250b6690785be60ab6780ce4b58698d884d11',
   'v8/third_party/ittapi': {
