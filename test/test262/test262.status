@@ -455,17 +455,6 @@
   # https://bugs.chromium.org/p/v8/issues/detail?id=7472
   'intl402/NumberFormat/currency-digits': [FAIL],
 
-  # http://crbug/v8/10554
-  'intl402/Collator/instance-class': [FAIL],
-  'intl402/Collator/prototype/builtin': [FAIL],
-  'intl402/DateTimeFormat/prototype/builtin': [FAIL],
-  'intl402/DateTimeFormat/instance-class': [FAIL],
-  'intl402/NumberFormat/prototype/builtin': [FAIL],
-  'intl402/NumberFormat/instance-class': [FAIL],
-  'intl402/NumberFormat/prototype/toStringTag/configurable': [FAIL],
-  'intl402/NumberFormat/prototype/toStringTag/prop-desc': [FAIL],
-  'intl402/PluralRules/prototype/builtins': [FAIL],
-
   # https://bugs.chromium.org/p/v8/issues/detail?id=7831
   'language/statements/generators/generator-created-after-decl-inst': [FAIL],
   'language/expressions/generators/generator-created-after-decl-inst': [FAIL],
@@ -536,6 +525,10 @@
   'intl402/RelativeTimeFormat/prototype/formatToParts/pl-pl-style-narrow': [FAIL],
   'intl402/RelativeTimeFormat/prototype/formatToParts/pl-pl-style-short': [FAIL],
 
+  # http://crbug/v8/6891
+  'intl402/Segmenter/prototype/segment/segment-tostring': [FAIL],
+  'intl402/Segmenter/prototype/segment/segment-word-iterable': [FAIL],
+
   # https://bugs.chromium.org/p/v8/issues/detail?id=9818
   'built-ins/AsyncFunction/proto-from-ctor-realm': [FAIL],
 
@@ -552,9 +545,55 @@
   # https://bugs.chromium.org/p/v8/issues/detail?id=10395
   'built-ins/AsyncFromSyncIteratorPrototype/next/absent-value-not-passed': [FAIL],
   'built-ins/AsyncFromSyncIteratorPrototype/return/absent-value-not-passed': [FAIL],
+  'built-ins/AsyncFromSyncIteratorPrototype/return/return-null': [FAIL],
+  'built-ins/AsyncFromSyncIteratorPrototype/throw/throw-null': [FAIL],
 
   # http://crbug/v8/10449
   'built-ins/Atomics/waitAsync/bad-range': [FAIL],
+  'built-ins/Atomics/waitAsync/bigint/bad-range': [FAIL],
+  'built-ins/Atomics/waitAsync/bigint/false-for-timeout': [FAIL],
+  'built-ins/Atomics/waitAsync/bigint/false-for-timeout-agent': [FAIL],
+  'built-ins/Atomics/waitAsync/bigint/good-views': [FAIL],
+  'built-ins/Atomics/waitAsync/bigint/nan-for-timeout-agent': [FAIL],
+  'built-ins/Atomics/waitAsync/bigint/negative-index-throws': [FAIL],
+  'built-ins/Atomics/waitAsync/bigint/negative-timeout': [FAIL],
+  'built-ins/Atomics/waitAsync/bigint/negative-timeout-agent': [FAIL],
+  'built-ins/Atomics/waitAsync/bigint/no-spurious-wakeup-no-operation': [FAIL],
+  'built-ins/Atomics/waitAsync/bigint/no-spurious-wakeup-on-add': [FAIL],
+  'built-ins/Atomics/waitAsync/bigint/no-spurious-wakeup-on-and': [FAIL],
+  'built-ins/Atomics/waitAsync/bigint/no-spurious-wakeup-on-compareExchange': [FAIL],
+  'built-ins/Atomics/waitAsync/bigint/no-spurious-wakeup-on-exchange': [FAIL],
+  'built-ins/Atomics/waitAsync/bigint/no-spurious-wakeup-on-or': [FAIL],
+  'built-ins/Atomics/waitAsync/bigint/no-spurious-wakeup-on-store': [FAIL],
+  'built-ins/Atomics/waitAsync/bigint/no-spurious-wakeup-on-sub': [FAIL],
+  'built-ins/Atomics/waitAsync/bigint/no-spurious-wakeup-on-xor': [FAIL],
+  'built-ins/Atomics/waitAsync/bigint/non-bigint64-typedarray-throws': [FAIL],
+  'built-ins/Atomics/waitAsync/bigint/non-shared-bufferdata-throws': [FAIL],
+  'built-ins/Atomics/waitAsync/bigint/not-a-typedarray-throws': [FAIL],
+  'built-ins/Atomics/waitAsync/bigint/not-an-object-throws': [FAIL],
+  'built-ins/Atomics/waitAsync/bigint/null-bufferdata-throws': [FAIL],
+  'built-ins/Atomics/waitAsync/bigint/null-for-timeout': [FAIL],
+  'built-ins/Atomics/waitAsync/bigint/null-for-timeout-agent': [FAIL],
+  'built-ins/Atomics/waitAsync/bigint/object-for-timeout': [FAIL],
+  'built-ins/Atomics/waitAsync/bigint/object-for-timeout-agent': [FAIL],
+  'built-ins/Atomics/waitAsync/bigint/out-of-range-index-throws': [FAIL],
+  'built-ins/Atomics/waitAsync/bigint/poisoned-object-for-timeout-throws': [FAIL],
+  'built-ins/Atomics/waitAsync/bigint/poisoned-object-for-timeout-throws-agent': [FAIL],
+  'built-ins/Atomics/waitAsync/bigint/symbol-for-index-throws': [FAIL],
+  'built-ins/Atomics/waitAsync/bigint/symbol-for-index-throws-agent': [FAIL],
+  'built-ins/Atomics/waitAsync/bigint/symbol-for-timeout-throws': [FAIL],
+  'built-ins/Atomics/waitAsync/bigint/symbol-for-timeout-throws-agent': [FAIL],
+  'built-ins/Atomics/waitAsync/bigint/symbol-for-value-throws': [FAIL],
+  'built-ins/Atomics/waitAsync/bigint/symbol-for-value-throws-agent': [FAIL],
+  'built-ins/Atomics/waitAsync/bigint/true-for-timeout': [FAIL],
+  'built-ins/Atomics/waitAsync/bigint/true-for-timeout-agent': [FAIL],
+  'built-ins/Atomics/waitAsync/bigint/undefined-for-timeout': [FAIL],
+  'built-ins/Atomics/waitAsync/bigint/undefined-for-timeout-agent': [FAIL],
+  'built-ins/Atomics/waitAsync/bigint/undefined-index-defaults-to-zero-agent': [FAIL],
+  'built-ins/Atomics/waitAsync/bigint/value-not-equal': [FAIL],
+  'built-ins/Atomics/waitAsync/bigint/value-not-equal-agent': [FAIL],
+  'built-ins/Atomics/waitAsync/bigint/waiterlist-block-indexedposition-wake': [FAIL],
+  'built-ins/Atomics/waitAsync/bigint/was-woken-before-timeout': [FAIL],
   'built-ins/Atomics/waitAsync/descriptor': [FAIL],
   'built-ins/Atomics/waitAsync/false-for-timeout': [FAIL],
   'built-ins/Atomics/waitAsync/is-function': [FAIL],
@@ -563,8 +602,14 @@
   'built-ins/Atomics/waitAsync/nan-for-timeout-agent': [FAIL],
   'built-ins/Atomics/waitAsync/negative-index-throws': [FAIL],
   'built-ins/Atomics/waitAsync/negative-timeout': [FAIL],
+  'built-ins/Atomics/waitAsync/non-int32-typedarray-throws': [FAIL],
+  'built-ins/Atomics/waitAsync/non-shared-bufferdata-throws': [FAIL],
+  'built-ins/Atomics/waitAsync/not-a-typedarray-throws': [FAIL],
+  'built-ins/Atomics/waitAsync/not-an-object-throws': [FAIL],
+  'built-ins/Atomics/waitAsync/null-bufferdata-throws': [FAIL],
   'built-ins/Atomics/waitAsync/null-for-timeout': [FAIL],
   'built-ins/Atomics/waitAsync/object-for-timeout': [FAIL],
+  'built-ins/Atomics/waitAsync/out-of-range-index-throws': [FAIL],
   'built-ins/Atomics/waitAsync/poisoned-object-for-timeout-throws-agent': [FAIL],
   'built-ins/Atomics/waitAsync/returns-result-object-value-is-promise-resolves-to-ok': [FAIL],
   'built-ins/Atomics/waitAsync/returns-result-object-value-is-promise-resolves-to-timed-out': [FAIL],
@@ -646,17 +691,6 @@
   # Test against internals of harness; we plug in differently
   'harness/detachArrayBuffer': [SKIP],
   'harness/detachArrayBuffer-host-detachArrayBuffer': [SKIP],
-
-  # Invalid due to a recent spec change (will be updated when we roll test262).
-  # https://bugs.chromium.org/p/v8/issues/detail?id=10578
-  'built-ins/Promise/all/invoke-resolve-get-error-close': [SKIP],
-  'built-ins/Promise/all/resolve-not-callable-close': [SKIP],
-  'built-ins/Promise/allSettled/invoke-resolve-get-error-close': [SKIP],
-  'built-ins/Promise/allSettled/resolve-not-callable-close': [SKIP],
-  'built-ins/Promise/any/invoke-resolve-get-error-close': [SKIP],
-  'built-ins/Promise/any/resolve-not-callable-close': [SKIP],
-  'built-ins/Promise/race/invoke-resolve-get-error-close': [SKIP],
-  'built-ins/Promise/race/resolve-not-callable-close': [SKIP],
 
   ############################ SKIPPED TESTS #############################
 
