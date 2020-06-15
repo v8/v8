@@ -536,6 +536,9 @@ class V8_EXPORT_PRIVATE TurboAssembler : public TurboAssemblerBase {
   }
   void Cvttsd2ui(Register dst, Operand src, XMMRegister tmp);
 
+  void Roundps(XMMRegister dst, XMMRegister src, RoundingMode mode);
+  void Roundpd(XMMRegister dst, XMMRegister src, RoundingMode mode);
+
   void Push(Register src) { push(src); }
   void Push(Operand src) { push(src); }
   void Push(Immediate value);

@@ -136,6 +136,7 @@ namespace compiler {
   V(IA32F64x2Le)                   \
   V(IA32F64x2Pmin)                 \
   V(IA32F64x2Pmax)                 \
+  V(IA32F64x2Round)                \
   V(IA32I64x2SplatI32Pair)         \
   V(IA32I64x2ReplaceLaneI32Pair)   \
   V(IA32I64x2Neg)                  \
@@ -186,6 +187,7 @@ namespace compiler {
   V(AVXF32x4Le)                    \
   V(IA32F32x4Pmin)                 \
   V(IA32F32x4Pmax)                 \
+  V(IA32F32x4Round)                \
   V(IA32I32x4Splat)                \
   V(IA32I32x4ExtractLane)          \
   V(SSEI32x4ReplaceLane)           \
