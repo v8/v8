@@ -291,6 +291,12 @@ namespace compiler {
   V(PPC_I8x16Shl)                    \
   V(PPC_I8x16ShrS)                   \
   V(PPC_I8x16ShrU)                   \
+  V(PPC_S128And)                     \
+  V(PPC_S128Or)                      \
+  V(PPC_S128Xor)                     \
+  V(PPC_S128Zero)                    \
+  V(PPC_S128Not)                     \
+  V(PPC_S128Select)                  \
   V(PPC_StoreCompressTagged)         \
   V(PPC_LoadDecompressTaggedSigned)  \
   V(PPC_LoadDecompressTaggedPointer) \

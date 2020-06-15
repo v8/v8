@@ -214,6 +214,12 @@ int InstructionScheduler::GetTargetInstructionFlags(
     case kPPC_I8x16Shl:
     case kPPC_I8x16ShrS:
     case kPPC_I8x16ShrU:
+    case kPPC_S128And:
+    case kPPC_S128Or:
+    case kPPC_S128Xor:
+    case kPPC_S128Zero:
+    case kPPC_S128Not:
+    case kPPC_S128Select:
       return kNoOpcodeFlags;
 
     case kPPC_LoadWordS8:

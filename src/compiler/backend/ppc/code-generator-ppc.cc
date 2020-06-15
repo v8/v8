@@ -2876,6 +2876,43 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       break;
     }
 #undef VECTOR_SHIFT
+    case kPPC_S128And: {
+      Simd128Register dst = i.OutputSimd128Register();
+      Simd128Register src = i.InputSimd128Register(1);
+      __ vand(dst, i.InputSimd128Register(0), src);
+      break;
+    }
+    case kPPC_S128Or: {
+      Simd128Register dst = i.OutputSimd128Register();
+      Simd128Register src = i.InputSimd128Register(1);
+      __ vor(dst, i.InputSimd128Register(0), src);
+      break;
+    }
+    case kPPC_S128Xor: {
+      Simd128Register dst = i.OutputSimd128Register();
+      Simd128Register src = i.InputSimd128Register(1);
+      __ vxor(dst, i.InputSimd128Register(0), src);
+      break;
+    }
+    case kPPC_S128Zero: {
+      Simd128Register dst = i.OutputSimd128Register();
+      __ vxor(dst, dst, dst);
+      break;
+    }
+    case kPPC_S128Not: {
+      Simd128Register dst = i.OutputSimd128Register();
+      Simd128Register src = i.InputSimd128Register(1);
+      __ vnor(dst, i.InputSimd128Register(0), src);
+      break;
+    }
+    case kPPC_S128Select: {
+      Simd128Register dst = i.OutputSimd128Register();
+      Simd128Register mask = i.InputSimd128Register(0);
+      Simd128Register src1 = i.InputSimd128Register(1);
+      Simd128Register src2 = i.InputSimd128Register(2);
+      __ vsel(dst, src2, src1, mask);
+      break;
+    }
     case kPPC_StoreCompressTagged: {
       ASSEMBLE_STORE_INTEGER(StoreTaggedField, StoreTaggedFieldX);
       break;

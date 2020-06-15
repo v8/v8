@@ -1922,7 +1922,9 @@ using Instr = uint32_t;
   /* Vector Permute */                                   \
   V(vperm, VPERM, 0x1000002B)                            \
   /* Vector Multiply-Low-Add Unsigned Halfword Modulo */ \
-  V(vmladduhm, VMLADDUHM, 0x10000022)
+  V(vmladduhm, VMLADDUHM, 0x10000022)                    \
+  /* Vector Select */                                    \
+  V(vsel, VSEL, 0x1000002A)
 
 #define PPC_VA_OPCODE_UNUSED_LIST(V)                             \
   /* Vector Add Extended & write Carry Unsigned Quadword */      \
@@ -1949,8 +1951,6 @@ using Instr = uint32_t;
   V(vmsumuhs, VMSUMUHS, 0x10000027)                              \
   /* Vector Negative Multiply-Subtract Single-Precision */       \
   V(vnmsubfp, VNMSUBFP, 0x1000002F)                              \
-  /* Vector Select */                                            \
-  V(vsel, VSEL, 0x1000002A)                                      \
   /* Vector Shift Left Double by Octet Immediate */              \
   V(vsldoi, VSLDOI, 0x1000002C)                                  \
   /* Vector Subtract Extended & write Carry Unsigned Quadword */ \
@@ -2306,7 +2306,9 @@ using Instr = uint32_t;
   /* Vector Shift Right Algebraic Halfword */              \
   V(vsrah, VSRAH, 0x10000344)                              \
   /* Vector Shift Right Algebraic Doubleword */            \
-  V(vsrad, VSRAD, 0x100003C4)
+  V(vsrad, VSRAD, 0x100003C4)                              \
+  /* Vector Logical AND */                                 \
+  V(vand, VAND, 0x10000404)
 
 #define PPC_VX_OPCODE_UNUSED_LIST(V)                                      \
   /* Decimal Add Modulo */                                                \
@@ -2335,8 +2337,6 @@ using Instr = uint32_t;
   V(vadduqm, VADDUQM, 0x10000100)                                         \
   /* Vector Add Unsigned Word Saturate */                                 \
   V(vadduws, VADDUWS, 0x10000280)                                         \
-  /* Vector Logical AND */                                                \
-  V(vand, VAND, 0x10000404)                                               \
   /* Vector Logical AND with Complement */                                \
   V(vandc, VANDC, 0x10000444)                                             \
   /* Vector Average Signed Byte */                                        \

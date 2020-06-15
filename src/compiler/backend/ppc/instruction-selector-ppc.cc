@@ -2186,7 +2186,12 @@ void InstructionSelector::VisitInt64AbsWithOverflow(Node* node) {
   V(I8x16GtS)              \
   V(I8x16GeS)              \
   V(I8x16GtU)              \
-  V(I8x16GeU)
+  V(I8x16GeU)              \
+  V(S128And)               \
+  V(S128Or)                \
+  V(S128Xor)
+
+#define SIMD_UNOP_LIST(V) V(S128Not)
 
 #define SIMD_SHIFT_LIST(V) \
   V(I64x2Shl)              \
@@ -2251,6 +2256,16 @@ SIMD_BINOP_LIST(SIMD_VISIT_BINOP)
 #undef SIMD_VISIT_BINOP
 #undef SIMD_BINOP_LIST
 
+#define SIMD_VISIT_UNOP(Opcode)                         \
+  void InstructionSelector::Visit##Opcode(Node* node) { \
+    PPCOperandGenerator g(this);                        \
+    Emit(kPPC_##Opcode, g.DefineAsRegister(node),       \
+         g.UseRegister(node->InputAt(0)));              \
+  }
+SIMD_UNOP_LIST(SIMD_VISIT_UNOP)
+#undef SIMD_VISIT_UNOP
+#undef SIMD_UNOP_LIST
+
 #define SIMD_VISIT_SHIFT(Opcode)                        \
   void InstructionSelector::Visit##Opcode(Node* node) { \
     PPCOperandGenerator g(this);                        \
@@ -2262,6 +2277,18 @@ SIMD_SHIFT_LIST(SIMD_VISIT_SHIFT)
 #undef SIMD_VISIT_SHIFT
 #undef SIMD_SHIFT_LIST
 #undef SIMD_TYPES
+
+void InstructionSelector::VisitS128Zero(Node* node) {
+  PPCOperandGenerator g(this);
+  Emit(kPPC_S128Zero, g.DefineAsRegister(node));
+}
+
+void InstructionSelector::VisitS128Select(Node* node) {
+  PPCOperandGenerator g(this);
+  Emit(kPPC_S128Select, g.DefineAsRegister(node),
+       g.UseRegister(node->InputAt(0)), g.UseRegister(node->InputAt(1)),
+       g.UseRegister(node->InputAt(2)));
+}
 
 void InstructionSelector::VisitI32x4Neg(Node* node) { UNIMPLEMENTED(); }
 
@@ -2309,17 +2336,7 @@ void InstructionSelector::VisitI8x16SubSaturateU(Node* node) {
   UNIMPLEMENTED();
 }
 
-void InstructionSelector::VisitS128And(Node* node) { UNIMPLEMENTED(); }
-
-void InstructionSelector::VisitS128Or(Node* node) { UNIMPLEMENTED(); }
-
-void InstructionSelector::VisitS128Xor(Node* node) { UNIMPLEMENTED(); }
-
-void InstructionSelector::VisitS128Not(Node* node) { UNIMPLEMENTED(); }
-
 void InstructionSelector::VisitS128AndNot(Node* node) { UNIMPLEMENTED(); }
-
-void InstructionSelector::VisitS128Zero(Node* node) { UNIMPLEMENTED(); }
 
 void InstructionSelector::EmitPrepareResults(
     ZoneVector<PushParameter>* results, const CallDescriptor* call_descriptor,
@@ -2351,8 +2368,6 @@ void InstructionSelector::VisitF32x4Div(Node* node) { UNIMPLEMENTED(); }
 void InstructionSelector::VisitF32x4Min(Node* node) { UNIMPLEMENTED(); }
 
 void InstructionSelector::VisitF32x4Max(Node* node) { UNIMPLEMENTED(); }
-
-void InstructionSelector::VisitS128Select(Node* node) { UNIMPLEMENTED(); }
 
 void InstructionSelector::VisitF32x4Neg(Node* node) { UNIMPLEMENTED(); }
 
