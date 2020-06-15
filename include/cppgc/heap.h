@@ -20,6 +20,11 @@ namespace cppgc {
 
 class AllocationHandle;
 
+/**
+ * Implementation details of cppgc. Those details are considered internal and
+ * may change at any point in time without notice. Users should never rely on
+ * the contents of this namespace.
+ */
 namespace internal {
 class Heap;
 }  // namespace internal

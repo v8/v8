@@ -76,7 +76,7 @@ void MarkingVisitor::VisitWeakRoot(const void* object, TraceDescriptor desc,
     // construction, then it should be reachable from the stack.
     return;
   }
-  // Since weak roots arev only traced at the end of marking, we can execute
+  // Since weak roots are only traced at the end of marking, we can execute
   // the callback instead of registering it.
   weak_callback(LivenessBrokerFactory::Create(), weak_root);
 }

@@ -61,6 +61,9 @@ class V8_EXPORT_PRIVATE HeapBase {
   HeapBase(std::shared_ptr<cppgc::Platform> platform, size_t custom_spaces);
   virtual ~HeapBase();
 
+  HeapBase(const HeapBase&) = delete;
+  HeapBase& operator=(const HeapBase&) = delete;
+
   RawHeap& raw_heap() { return raw_heap_; }
   const RawHeap& raw_heap() const { return raw_heap_; }
 
