@@ -22,11 +22,11 @@ class GCHeapTest : public testing::TestWithHeap {
  public:
   void ConservativeGC() {
     internal::Heap::From(GetHeap())->CollectGarbage(
-        {Heap::StackState::kMayContainHeapPointers});
+        Heap::Config::ConservativeAtomicConfig());
   }
   void PreciseGC() {
     internal::Heap::From(GetHeap())->CollectGarbage(
-        {Heap::StackState::kNoHeapPointers});
+        Heap::Config::PreciseAtomicConfig());
   }
 };
 
@@ -67,7 +67,7 @@ namespace {
 const void* ConservativeGCReturningObject(cppgc::Heap* heap,
                                           const void* volatile object) {
   internal::Heap::From(heap)->CollectGarbage(
-      {Heap::StackState::kMayContainHeapPointers});
+      Heap::Config::ConservativeAtomicConfig());
   return object;
 }
 

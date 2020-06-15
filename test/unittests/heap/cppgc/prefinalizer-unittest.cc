@@ -6,6 +6,7 @@
 
 #include "include/cppgc/allocation.h"
 #include "include/cppgc/garbage-collected.h"
+#include "include/cppgc/persistent.h"
 #include "src/heap/cppgc/heap-object-header-inl.h"
 #include "src/heap/cppgc/heap.h"
 #include "test/unittests/heap/cppgc/tests.h"
@@ -44,11 +45,12 @@ TEST_F(PrefinalizerTest, PrefinalizerCalledOnDeadObject) {
 
 TEST_F(PrefinalizerTest, PrefinalizerNotCalledOnLiveObject) {
   GCed::prefinalizer_callcount = 0;
-  auto* object = MakeGarbageCollected<GCed>(GetAllocationHandle());
-  HeapObjectHeader::FromPayload(object).TryMarkAtomic();
-  EXPECT_EQ(0u, GCed::prefinalizer_callcount);
-  PreciseGC();
-  EXPECT_EQ(0u, GCed::prefinalizer_callcount);
+  {
+    Persistent<GCed> object = MakeGarbageCollected<GCed>(GetAllocationHandle());
+    EXPECT_EQ(0u, GCed::prefinalizer_callcount);
+    PreciseGC();
+    EXPECT_EQ(0u, GCed::prefinalizer_callcount);
+  }
   PreciseGC();
   EXPECT_EQ(1u, GCed::prefinalizer_callcount);
 }
@@ -84,11 +86,13 @@ TEST_F(PrefinalizerTest, PrefinalizerCalledOnDeadMixinObject) {
 
 TEST_F(PrefinalizerTest, PrefinalizerNotCalledOnLiveMixinObject) {
   Mixin::prefinalizer_callcount = 0;
-  auto* object = MakeGarbageCollected<GCedWithMixin>(GetAllocationHandle());
-  HeapObjectHeader::FromPayload(object).TryMarkAtomic();
-  EXPECT_EQ(0u, Mixin::prefinalizer_callcount);
-  PreciseGC();
-  EXPECT_EQ(0u, Mixin::prefinalizer_callcount);
+  {
+    Persistent<GCedWithMixin> object =
+        MakeGarbageCollected<GCedWithMixin>(GetAllocationHandle());
+    EXPECT_EQ(0u, Mixin::prefinalizer_callcount);
+    PreciseGC();
+    EXPECT_EQ(0u, Mixin::prefinalizer_callcount);
+  }
   PreciseGC();
   EXPECT_EQ(1u, Mixin::prefinalizer_callcount);
 }
