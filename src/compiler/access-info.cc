@@ -506,7 +506,8 @@ PropertyAccessInfo AccessInfoFactory::ComputePropertyAccessInfo(
   while (true) {
     // Lookup the named property on the {map}.
     Handle<DescriptorArray> descriptors(map->instance_descriptors(), isolate());
-    InternalIndex const number = descriptors->Search(*name, *map);
+    InternalIndex const number =
+        descriptors->Search(*name, *map, broker()->is_concurrent_inlining());
     if (number.is_found()) {
       PropertyDetails const details = descriptors->GetDetails(number);
       if (access_mode == AccessMode::kStore ||
