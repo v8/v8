@@ -244,6 +244,8 @@ HandleAndZoneScope::HandleAndZoneScope()
 
 HandleAndZoneScope::~HandleAndZoneScope() = default;
 
+static constexpr bool kNativeContextDependent = false;
+
 i::Handle<i::JSFunction> Optimize(
     i::Handle<i::JSFunction> function, i::Zone* zone, i::Isolate* isolate,
     uint32_t flags, std::unique_ptr<i::compiler::JSHeapBroker>* out_broker) {
@@ -255,7 +257,8 @@ i::Handle<i::JSFunction> Optimize(
 
   CHECK_NOT_NULL(zone);
 
-  i::OptimizedCompilationInfo info(zone, isolate, shared, function);
+  i::OptimizedCompilationInfo info(zone, isolate, shared, function,
+                                   kNativeContextDependent);
 
   if (flags & i::OptimizedCompilationInfo::kInlining) {
     info.set_inlining();

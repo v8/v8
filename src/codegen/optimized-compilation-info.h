@@ -67,7 +67,8 @@ class V8_EXPORT_PRIVATE OptimizedCompilationInfo final {
   V(WasmRuntimeExceptionSupport, wasm_runtime_exception_support, 18)          \
   V(TurboControlFlowAwareAllocation, turbo_control_flow_aware_allocation, 19) \
   V(TurboPreprocessRanges, turbo_preprocess_ranges, 20)                       \
-  V(ConcurrentInlining, concurrent_inlining, 21)
+  V(ConcurrentInlining, concurrent_inlining, 21)                              \
+  V(NativeContextIndependent, native_context_independent, 22)
 
   enum Flag {
 #define DEF_ENUM(Camel, Lower, Bit) k##Camel = 1 << Bit,
@@ -99,7 +100,8 @@ class V8_EXPORT_PRIVATE OptimizedCompilationInfo final {
   // Construct a compilation info for optimized compilation.
   OptimizedCompilationInfo(Zone* zone, Isolate* isolate,
                            Handle<SharedFunctionInfo> shared,
-                           Handle<JSFunction> closure);
+                           Handle<JSFunction> closure,
+                           bool native_context_independent);
   // Construct a compilation info for stub compilation, Wasm, and testing.
   OptimizedCompilationInfo(Vector<const char> debug_name, Zone* zone,
                            Code::Kind code_kind);

@@ -150,9 +150,9 @@ class PipelineData {
         instruction_zone_(instruction_zone_scope_.zone()),
         codegen_zone_scope_(zone_stats_, kCodegenZoneName),
         codegen_zone_(codegen_zone_scope_.zone()),
-        broker_(new JSHeapBroker(isolate_, info_->zone(),
-                                 info_->trace_heap_broker(),
-                                 is_concurrent_inlining)),
+        broker_(new JSHeapBroker(
+            isolate_, info_->zone(), info_->trace_heap_broker(),
+            is_concurrent_inlining, info->native_context_independent())),
         register_allocation_zone_scope_(zone_stats_,
                                         kRegisterAllocationZoneName),
         register_allocation_zone_(register_allocation_zone_scope_.zone()),
@@ -1008,7 +1008,8 @@ PipelineCompilationJob::PipelineCompilationJob(
       zone_(function->GetIsolate()->allocator(),
             kPipelineCompilationJobZoneName),
       zone_stats_(function->GetIsolate()->allocator()),
-      compilation_info_(&zone_, function->GetIsolate(), shared_info, function),
+      compilation_info_(&zone_, function->GetIsolate(), shared_info, function,
+                        FLAG_turbo_nci),
       pipeline_statistics_(CreatePipelineStatistics(
           handle(Script::cast(shared_info->script()), isolate),
           compilation_info(), function->GetIsolate(), &zone_stats_)),
@@ -1051,13 +1052,14 @@ PipelineCompilationJob::Status PipelineCompilationJob::PrepareJobImpl(
     return AbortOptimization(BailoutReason::kFunctionTooBig);
   }
 
-  if (!FLAG_always_opt) {
+  if (!FLAG_always_opt && !compilation_info()->native_context_independent()) {
     compilation_info()->set_bailout_on_uninitialized();
   }
   if (FLAG_turbo_loop_peeling) {
     compilation_info()->set_loop_peeling();
   }
-  if (FLAG_turbo_inlining) {
+  if (FLAG_turbo_inlining &&
+      !compilation_info()->native_context_independent()) {
     compilation_info()->set_inlining();
   }
 
@@ -1340,6 +1342,9 @@ struct GraphBuilderPhase {
     if (data->info()->bailout_on_uninitialized()) {
       flags |= BytecodeGraphBuilderFlag::kBailoutOnUninitialized;
     }
+    if (data->info()->native_context_independent()) {
+      flags |= BytecodeGraphBuilderFlag::kNativeContextIndependent;
+    }
 
     JSFunctionRef closure(data->broker(), data->info()->closure());
     CallFrequency frequency(1.0f);
@@ -1397,8 +1402,10 @@ struct InliningPhase {
     AddReducer(data, &graph_reducer, &dead_code_elimination);
     AddReducer(data, &graph_reducer, &checkpoint_elimination);
     AddReducer(data, &graph_reducer, &common_reducer);
-    AddReducer(data, &graph_reducer, &native_context_specialization);
-    AddReducer(data, &graph_reducer, &context_specialization);
+    if (!data->info()->native_context_independent()) {
+      AddReducer(data, &graph_reducer, &native_context_specialization);
+      AddReducer(data, &graph_reducer, &context_specialization);
+    }
     AddReducer(data, &graph_reducer, &intrinsic_lowering);
     AddReducer(data, &graph_reducer, &call_reducer);
     if (data->info()->inlining()) {
@@ -1538,7 +1545,9 @@ struct TypedLoweringPhase {
                                          data->broker(), data->common(),
                                          data->machine(), temp_zone);
     AddReducer(data, &graph_reducer, &dead_code_elimination);
-    AddReducer(data, &graph_reducer, &create_lowering);
+    if (!data->info()->native_context_independent()) {
+      AddReducer(data, &graph_reducer, &create_lowering);
+    }
     AddReducer(data, &graph_reducer, &constant_folding_reducer);
     AddReducer(data, &graph_reducer, &typed_lowering);
     AddReducer(data, &graph_reducer, &typed_optimization);

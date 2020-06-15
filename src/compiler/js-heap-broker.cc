@@ -2385,7 +2385,8 @@ base::Optional<ObjectRef> ContextRef::get(int index,
 }
 
 JSHeapBroker::JSHeapBroker(Isolate* isolate, Zone* broker_zone,
-                           bool tracing_enabled, bool is_concurrent_inlining)
+                           bool tracing_enabled, bool is_concurrent_inlining,
+                           bool is_native_context_independent)
     : isolate_(isolate),
       zone_(broker_zone),
       refs_(new (zone())
@@ -2394,6 +2395,7 @@ JSHeapBroker::JSHeapBroker(Isolate* isolate, Zone* broker_zone,
       array_and_object_prototypes_(zone()),
       tracing_enabled_(tracing_enabled),
       is_concurrent_inlining_(is_concurrent_inlining),
+      is_native_context_independent_(is_native_context_independent),
       feedback_(zone()),
       bytecode_analyses_(zone()),
       property_access_infos_(zone()),

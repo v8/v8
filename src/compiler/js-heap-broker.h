@@ -74,7 +74,13 @@ struct PropertyAccessTarget {
 class V8_EXPORT_PRIVATE JSHeapBroker {
  public:
   JSHeapBroker(Isolate* isolate, Zone* broker_zone, bool tracing_enabled,
-               bool is_concurrent_inlining);
+               bool is_concurrent_inlining, bool is_native_context_independent);
+
+  // For use only in tests, sets default values for some arguments. Avoids
+  // churn when new flags are added.
+  JSHeapBroker(Isolate* isolate, Zone* broker_zone)
+      : JSHeapBroker(isolate, broker_zone, FLAG_trace_heap_broker, false,
+                     false) {}
 
   // The compilation target's native context. We need the setter because at
   // broker construction time we don't yet have the canonical handle.
@@ -89,6 +95,9 @@ class V8_EXPORT_PRIVATE JSHeapBroker {
   Zone* zone() const { return zone_; }
   bool tracing_enabled() const { return tracing_enabled_; }
   bool is_concurrent_inlining() const { return is_concurrent_inlining_; }
+  bool is_native_context_independent() const {
+    return is_native_context_independent_;
+  }
 
   enum BrokerMode { kDisabled, kSerializing, kSerialized, kRetired };
   BrokerMode mode() const { return mode_; }
@@ -242,6 +251,7 @@ class V8_EXPORT_PRIVATE JSHeapBroker {
   BrokerMode mode_ = kDisabled;
   bool const tracing_enabled_;
   bool const is_concurrent_inlining_;
+  bool const is_native_context_independent_;
   unsigned trace_indentation_ = 0;
   PerIsolateCompilerCache* compiler_cache_ = nullptr;
   ZoneUnorderedMap<FeedbackSource, ProcessedFeedback const*,

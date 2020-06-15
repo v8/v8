@@ -19,7 +19,7 @@ namespace internal {
 
 OptimizedCompilationInfo::OptimizedCompilationInfo(
     Zone* zone, Isolate* isolate, Handle<SharedFunctionInfo> shared,
-    Handle<JSFunction> closure)
+    Handle<JSFunction> closure, bool native_context_independent)
     : OptimizedCompilationInfo(Code::OPTIMIZED_FUNCTION, zone) {
   DCHECK_EQ(*shared, closure->shared());
   DCHECK(shared->is_compiled());
@@ -35,6 +35,7 @@ OptimizedCompilationInfo::OptimizedCompilationInfo(
     set_source_positions();
   }
 
+  if (native_context_independent) set_native_context_independent();
   SetTracingFlags(shared->PassesFilter(FLAG_trace_turbo_filter));
 }
 
