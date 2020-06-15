@@ -17,7 +17,7 @@ namespace internal {
 class BaseSpace;
 class NormalPageSpace;
 class LargePageSpace;
-class Heap;
+class HeapBase;
 class PageBackend;
 
 class V8_EXPORT_PRIVATE BasePage {
@@ -25,16 +25,16 @@ class V8_EXPORT_PRIVATE BasePage {
   static inline BasePage* FromPayload(void*);
   static inline const BasePage* FromPayload(const void*);
 
-  static BasePage* FromInnerAddress(const Heap*, void*);
-  static const BasePage* FromInnerAddress(const Heap*, const void*);
+  static BasePage* FromInnerAddress(const HeapBase*, void*);
+  static const BasePage* FromInnerAddress(const HeapBase*, const void*);
 
   static void Destroy(BasePage*);
 
   BasePage(const BasePage&) = delete;
   BasePage& operator=(const BasePage&) = delete;
 
-  Heap* heap() { return heap_; }
-  const Heap* heap() const { return heap_; }
+  HeapBase* heap() { return heap_; }
+  const HeapBase* heap() const { return heap_; }
 
   BaseSpace* space() { return space_; }
   const BaseSpace* space() const { return space_; }
@@ -56,10 +56,10 @@ class V8_EXPORT_PRIVATE BasePage {
 
  protected:
   enum class PageType { kNormal, kLarge };
-  BasePage(Heap*, BaseSpace*, PageType);
+  BasePage(HeapBase*, BaseSpace*, PageType);
 
  private:
-  Heap* heap_;
+  HeapBase* heap_;
   BaseSpace* space_;
   PageType type_;
 };
@@ -153,7 +153,7 @@ class V8_EXPORT_PRIVATE NormalPage final : public BasePage {
   }
 
  private:
-  NormalPage(Heap* heap, BaseSpace* space);
+  NormalPage(HeapBase* heap, BaseSpace* space);
   ~NormalPage();
 
   ObjectStartBitmap object_start_bitmap_;
@@ -190,7 +190,7 @@ class V8_EXPORT_PRIVATE LargePage final : public BasePage {
   }
 
  private:
-  LargePage(Heap* heap, BaseSpace* space, size_t);
+  LargePage(HeapBase* heap, BaseSpace* space, size_t);
   ~LargePage();
 
   size_t payload_size_;

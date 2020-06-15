@@ -45,13 +45,13 @@ const HeapObjectHeader* ObjectHeaderFromInnerAddressImpl(const BasePage* page,
 }  // namespace
 
 // static
-BasePage* BasePage::FromInnerAddress(const Heap* heap, void* address) {
+BasePage* BasePage::FromInnerAddress(const HeapBase* heap, void* address) {
   return const_cast<BasePage*>(
       FromInnerAddress(heap, const_cast<const void*>(address)));
 }
 
 // static
-const BasePage* BasePage::FromInnerAddress(const Heap* heap,
+const BasePage* BasePage::FromInnerAddress(const HeapBase* heap,
                                            const void* address) {
   return reinterpret_cast<const BasePage*>(
       heap->page_backend()->Lookup(static_cast<ConstAddress>(address)));
@@ -109,7 +109,7 @@ const HeapObjectHeader* BasePage::TryObjectHeaderFromInnerAddress(
   return header;
 }
 
-BasePage::BasePage(Heap* heap, BaseSpace* space, PageType type)
+BasePage::BasePage(HeapBase* heap, BaseSpace* space, PageType type)
     : heap_(heap), space_(space), type_(type) {
   DCHECK_EQ(0u, (reinterpret_cast<uintptr_t>(this) - kGuardPageSize) &
                     kPageOffsetMask);
@@ -137,7 +137,7 @@ void NormalPage::Destroy(NormalPage* page) {
                                 reinterpret_cast<Address>(page));
 }
 
-NormalPage::NormalPage(Heap* heap, BaseSpace* space)
+NormalPage::NormalPage(HeapBase* heap, BaseSpace* space)
     : BasePage(heap, space, PageType::kNormal),
       object_start_bitmap_(PayloadStart()) {
   DCHECK_LT(kLargeObjectSizeThreshold,
@@ -181,7 +181,7 @@ size_t NormalPage::PayloadSize() {
   return kPageSize - 2 * kGuardPageSize - header_size;
 }
 
-LargePage::LargePage(Heap* heap, BaseSpace* space, size_t size)
+LargePage::LargePage(HeapBase* heap, BaseSpace* space, size_t size)
     : BasePage(heap, space, PageType::kLarge), payload_size_(size) {}
 
 LargePage::~LargePage() = default;
@@ -197,7 +197,7 @@ LargePage* LargePage::Create(PageBackend* page_backend, LargePageSpace* space,
       RoundUp(sizeof(LargePage), kAllocationGranularity);
   const size_t allocation_size = page_header_size + size;
 
-  Heap* heap = space->raw_heap()->heap();
+  auto* heap = space->raw_heap()->heap();
   void* memory = page_backend->AllocateLargePageMemory(allocation_size);
   LargePage* page = new (memory) LargePage(heap, space, size);
   return page;

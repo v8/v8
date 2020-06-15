@@ -37,7 +37,7 @@ void TestWithHeap::ResetLinearAllocationBuffers() {
 }
 
 TestSupportingAllocationOnly::TestSupportingAllocationOnly()
-    : no_gc_scope_(internal::Heap::From(GetHeap())) {}
+    : no_gc_scope_(*internal::Heap::From(GetHeap())) {}
 
 }  // namespace testing
 }  // namespace internal

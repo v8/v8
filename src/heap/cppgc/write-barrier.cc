@@ -45,13 +45,13 @@ void WriteBarrier::MarkingBarrierSlow(const void*, const void* value) {
   if (!value || value == kSentinelPointer) return;
 
   const BasePage* page = BasePage::FromPayload(value);
-  const Heap* heap = page->heap();
+  const auto* heap = page->heap();
 
   // Marker being not set up means that no incremental/concurrent marking is in
   // progress.
-  if (!heap->marker_) return;
+  if (!heap->marker()) return;
 
-  MarkValue(page, heap->marker_.get(), value);
+  MarkValue(page, heap->marker(), value);
 }
 
 }  // namespace internal

@@ -4133,6 +4133,8 @@ v8_source_set("cppgc_base") {
     "src/heap/cppgc/gc-info.cc",
     "src/heap/cppgc/gc-invoker.cc",
     "src/heap/cppgc/gc-invoker.h",
+    "src/heap/cppgc/heap-base.cc",
+    "src/heap/cppgc/heap-base.h",
     "src/heap/cppgc/heap-growing.cc",
     "src/heap/cppgc/heap-growing.h",
     "src/heap/cppgc/heap-object-header-inl.h",
