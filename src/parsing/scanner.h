@@ -544,7 +544,8 @@ class V8_EXPORT_PRIVATE Scanner {
   }
 
   void PushBack(uc32 ch) {
-    DCHECK_LE(c0_, static_cast<uc32>(unibrow::Utf16::kMaxNonSurrogateCharCode));
+    DCHECK(IsInvalid(c0_) ||
+           base::IsInRange(c0_, 0u, unibrow::Utf16::kMaxNonSurrogateCharCode));
     source_->Back();
     c0_ = ch;
   }
