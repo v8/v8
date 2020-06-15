@@ -162,6 +162,8 @@ let kSig_r_v = makeSig([], [kWasmExternRef]);
 let kSig_a_v = makeSig([], [kWasmAnyFunc]);
 let kSig_a_i = makeSig([kWasmI32], [kWasmAnyFunc]);
 let kSig_e_v = makeSig([], [kWasmExnRef]);
+let kSig_s_i = makeSig([kWasmI32], [kWasmS128]);
+let kSig_i_s = makeSig([kWasmS128], [kWasmI32]);
 
 function makeSig(params, results) {
   return {params: params, results: results};
@@ -473,6 +475,7 @@ let kExprI8x16Splat = 0x0f;
 let kExprI16x8Splat = 0x10;
 let kExprI32x4Splat = 0x11;
 let kExprF32x4Splat = 0x13;
+let kExprI32x4ExtractLane = 0x15;
 let kExprI8x16LtU = 0x26;
 let kExprI8x16LeU = 0x2a;
 let kExprI32x4Eq = 0x37;

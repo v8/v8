@@ -1817,6 +1817,9 @@ void WebAssemblyGlobalGetValueCommon(
     case i::wasm::ValueType::kF64:
       return_value.Set(receiver->GetF64());
       break;
+    case i::wasm::ValueType::kS128:
+      thrower.TypeError("Can't get the value of s128 WebAssembly.Global");
+      break;
     case i::wasm::ValueType::kExternRef:
     case i::wasm::ValueType::kFuncRef:
     case i::wasm::ValueType::kExnRef:
@@ -1831,7 +1834,6 @@ void WebAssemblyGlobalGetValueCommon(
     case i::wasm::ValueType::kI16:
     case i::wasm::ValueType::kBottom:
     case i::wasm::ValueType::kStmt:
-    case i::wasm::ValueType::kS128:
       UNREACHABLE();
   }
 }
@@ -1896,6 +1898,9 @@ void WebAssemblyGlobalSetValue(
       receiver->SetF64(f64_value);
       break;
     }
+    case i::wasm::ValueType::kS128:
+      thrower.TypeError("Can't set the value of s128 WebAssembly.Global");
+      break;
     case i::wasm::ValueType::kExternRef:
     case i::wasm::ValueType::kExnRef: {
       receiver->SetExternRef(Utils::OpenHandle(*args[0]));
@@ -1918,7 +1923,6 @@ void WebAssemblyGlobalSetValue(
     case i::wasm::ValueType::kI16:
     case i::wasm::ValueType::kBottom:
     case i::wasm::ValueType::kStmt:
-    case i::wasm::ValueType::kS128:
       UNREACHABLE();
   }
 }
