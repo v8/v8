@@ -526,6 +526,7 @@ class LiftoffCompiler {
 
   void TraceFunctionEntry(FullDecoder* decoder) {
     DEBUG_CODE_COMMENT("trace function entry");
+    __ SpillAllRegisters();
     source_position_table_builder_.AddPosition(
         __ pc_offset(), SourcePosition(decoder->position()), false);
     __ CallRuntimeStub(WasmCode::kWasmTraceEnter);
@@ -1548,7 +1549,6 @@ class LiftoffCompiler {
     DEBUG_CODE_COMMENT("trace function exit");
     // Before making the runtime call, spill all cache registers.
     __ SpillAllRegisters();
-
     LiftoffRegList pinned;
     // Get a register to hold the stack slot for the return value.
     LiftoffRegister info = pinned.set(__ GetUnusedRegister(kGpReg, pinned));

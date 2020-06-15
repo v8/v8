@@ -30,12 +30,24 @@ let kRet1Function = builder.addFunction('ret_1', kSig_d_v)
                         .addBody(wasmF64Const(1))
                         .exportFunc()
                         .index;
+let kIdentityFunction = builder.addFunction('identity', kSig_i_i)
+                            .addBody([kExprLocalGet, 0])
+                            .exportFunc()
+                            .index;
+let kCallIdentityFunction = builder.addFunction('call_identity', kSig_i_v)
+                                .addBody([
+                                  kExprI32Const, 42,                    // -
+                                  kExprCallFunction, kIdentityFunction  // -
+                                ])
+                                .exportFunc()
+                                .index;
 builder.addFunction('main', kSig_v_v)
     .addBody([
-      kExprCallFunction, kCall23Function, kExprDrop,   // -
-      kExprCallFunction, kUnnamedFunction, kExprDrop,  // -
-      kExprCallFunction, kRet0Function, kExprDrop,     // -
-      kExprCallFunction, kRet1Function, kExprDrop      // -
+      kExprCallFunction, kCall23Function, kExprDrop,       // -
+      kExprCallFunction, kUnnamedFunction, kExprDrop,      // -
+      kExprCallFunction, kRet0Function, kExprDrop,         // -
+      kExprCallFunction, kRet1Function, kExprDrop,         // -
+      kExprCallFunction, kCallIdentityFunction, kExprDrop  // -
     ])
     .exportAs('main');
 
