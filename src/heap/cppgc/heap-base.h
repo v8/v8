@@ -13,14 +13,9 @@
 #include "src/heap/cppgc/object-allocator.h"
 #include "src/heap/cppgc/raw-heap.h"
 #include "src/heap/cppgc/sweeper.h"
-#include "src/heap/cppgc/virtual-memory.h"
 
 #if defined(CPPGC_CAGED_HEAP)
-namespace v8 {
-namespace base {
-class BoundedPageAllocator;
-}
-}  // namespace v8
+#include "src/heap/cppgc/caged-heap.h"
 #endif
 
 namespace cppgc {
@@ -78,6 +73,11 @@ class V8_EXPORT_PRIVATE HeapBase {
     return stats_collector_.get();
   }
 
+#if defined(CPPGC_CAGED_HEAP)
+  CagedHeap& caged_heap() { return caged_heap_; }
+  const CagedHeap& caged_heap() const { return caged_heap_; }
+#endif
+
   Stack* stack() { return stack_.get(); }
 
   PreFinalizerHandler* prefinalizer_handler() {
@@ -111,10 +111,7 @@ class V8_EXPORT_PRIVATE HeapBase {
   RawHeap raw_heap_;
   std::shared_ptr<cppgc::Platform> platform_;
 #if defined(CPPGC_CAGED_HEAP)
-  // The order is important: page_backend_ must be destroyed before
-  // reserved_area_ is freed.
-  VirtualMemory reserved_area_;
-  std::unique_ptr<v8::base::BoundedPageAllocator> bounded_allocator_;
+  CagedHeap caged_heap_;
 #endif
   std::unique_ptr<PageBackend> page_backend_;
 

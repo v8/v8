@@ -50,38 +50,6 @@ class ObjectSizeCounter : private HeapVisitor<ObjectSizeCounter> {
   size_t accumulated_size_ = 0;
 };
 
-#if defined(CPPGC_CAGED_HEAP)
-VirtualMemory ReserveCagedHeap(v8::PageAllocator* platform_allocator) {
-  DCHECK_EQ(0u,
-            kCagedHeapReservationSize % platform_allocator->AllocatePageSize());
-
-  static constexpr size_t kAllocationTries = 4;
-  for (size_t i = 0; i < kAllocationTries; ++i) {
-    void* hint = reinterpret_cast<void*>(RoundDown(
-        reinterpret_cast<uintptr_t>(platform_allocator->GetRandomMmapAddr()),
-        kCagedHeapReservationAlignment));
-
-    VirtualMemory memory(platform_allocator, kCagedHeapReservationSize,
-                         kCagedHeapReservationAlignment, hint);
-    if (memory.IsReserved()) return memory;
-  }
-
-  FATAL("Fatal process out of memory: Failed to reserve memory for caged heap");
-  UNREACHABLE();
-}
-
-std::unique_ptr<v8::base::BoundedPageAllocator> CreateBoundedAllocator(
-    v8::PageAllocator* platform_allocator, void* caged_heap_start) {
-  DCHECK(caged_heap_start);
-
-  auto start = reinterpret_cast<v8::base::BoundedPageAllocator::Address>(
-      caged_heap_start);
-
-  return std::make_unique<v8::base::BoundedPageAllocator>(
-      platform_allocator, start, kCagedHeapReservationSize, kPageSize);
-}
-#endif
-
 }  // namespace
 
 HeapBase::HeapBase(std::shared_ptr<cppgc::Platform> platform,
@@ -89,10 +57,8 @@ HeapBase::HeapBase(std::shared_ptr<cppgc::Platform> platform,
     : raw_heap_(this, custom_spaces),
       platform_(std::move(platform)),
 #if defined(CPPGC_CAGED_HEAP)
-      reserved_area_(ReserveCagedHeap(platform_->GetPageAllocator())),
-      bounded_allocator_(CreateBoundedAllocator(platform_->GetPageAllocator(),
-                                                reserved_area_.address())),
-      page_backend_(std::make_unique<PageBackend>(bounded_allocator_.get())),
+      caged_heap_(platform_->GetPageAllocator()),
+      page_backend_(std::make_unique<PageBackend>(&caged_heap_.allocator())),
 #else
       page_backend_(
           std::make_unique<PageBackend>(platform_->GetPageAllocator())),

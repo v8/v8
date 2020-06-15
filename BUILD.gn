@@ -4186,6 +4186,14 @@ v8_source_set("cppgc_base") {
     "src/heap/cppgc/write-barrier.cc",
   ]
 
+  if (cppgc_enable_caged_heap) {
+    sources += [
+      "include/cppgc/internal/caged-heap-local-data.h",
+      "src/heap/cppgc/caged-heap.cc",
+      "src/heap/cppgc/caged-heap.h",
+    ]
+  }
+
   if (is_clang || !is_win) {
     if (target_cpu == "x64") {
       sources += [ "src/heap/cppgc/asm/x64/push_registers_asm.cc" ]

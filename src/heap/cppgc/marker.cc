@@ -12,25 +12,35 @@
 #include "src/heap/cppgc/marking-visitor.h"
 #include "src/heap/cppgc/stats-collector.h"
 
+#if defined(CPPGC_CAGED_HEAP)
+#include "include/cppgc/internal/caged-heap-local-data.h"
+#endif
+
 namespace cppgc {
 namespace internal {
 
 namespace {
 
-void EnterIncrementalMarkingIfNeeded(Marker::MarkingConfig config) {
+void EnterIncrementalMarkingIfNeeded(Marker::MarkingConfig config, Heap* heap) {
   if (config.marking_type == Marker::MarkingConfig::MarkingType::kIncremental ||
       config.marking_type ==
           Marker::MarkingConfig::MarkingType::kIncrementalAndConcurrent) {
     ProcessHeap::EnterIncrementalOrConcurrentMarking();
   }
+#if defined(CPPGC_CAGED_HEAP)
+  heap->caged_heap().local_data().is_marking_in_progress = true;
+#endif
 }
 
-void ExitIncrementalMarkingIfNeeded(Marker::MarkingConfig config) {
+void ExitIncrementalMarkingIfNeeded(Marker::MarkingConfig config, Heap* heap) {
   if (config.marking_type == Marker::MarkingConfig::MarkingType::kIncremental ||
       config.marking_type ==
           Marker::MarkingConfig::MarkingType::kIncrementalAndConcurrent) {
     ProcessHeap::ExitIncrementalOrConcurrentMarking();
   }
+#if defined(CPPGC_CAGED_HEAP)
+  heap->caged_heap().local_data().is_marking_in_progress = false;
+#endif
 }
 
 template <typename Worklist, typename Callback>
@@ -86,11 +96,11 @@ void Marker::StartMarking(MarkingConfig config) {
 
   config_ = config;
   VisitRoots();
-  EnterIncrementalMarkingIfNeeded(config);
+  EnterIncrementalMarkingIfNeeded(config, heap());
 }
 
 void Marker::FinishMarking(MarkingConfig config) {
-  ExitIncrementalMarkingIfNeeded(config_);
+  ExitIncrementalMarkingIfNeeded(config_, heap());
   config_ = config;
 
   // Reset LABs before trying to conservatively mark in-construction objects.

@@ -5,6 +5,7 @@
 #include "include/cppgc/internal/write-barrier.h"
 
 #include "include/cppgc/internal/pointer-policies.h"
+#include "src/heap/cppgc/globals.h"
 #include "src/heap/cppgc/heap-object-header-inl.h"
 #include "src/heap/cppgc/heap-object-header.h"
 #include "src/heap/cppgc/heap-page-inl.h"
@@ -12,12 +13,22 @@
 #include "src/heap/cppgc/marker.h"
 #include "src/heap/cppgc/marking-visitor.h"
 
+#if defined(CPPGC_CAGED_HEAP)
+#include "include/cppgc/internal/caged-heap-local-data.h"
+#endif
+
 namespace cppgc {
 namespace internal {
 
 namespace {
 
 void MarkValue(const BasePage* page, Marker* marker, const void* value) {
+#if defined(CPPGC_CAGED_HEAP)
+  DCHECK(reinterpret_cast<CagedHeapLocalData*>(
+             reinterpret_cast<uintptr_t>(value) &
+             ~(kCagedHeapReservationAlignment - 1))
+             ->is_marking_in_progress);
+#endif
   auto& header =
       const_cast<HeapObjectHeader&>(page->ObjectHeaderFromInnerAddress(value));
   if (!header.TryMarkAtomic()) return;
@@ -41,9 +52,13 @@ void MarkValue(const BasePage* page, Marker* marker, const void* value) {
 
 }  // namespace
 
-void WriteBarrier::MarkingBarrierSlow(const void*, const void* value) {
+void WriteBarrier::MarkingBarrierSlowWithSentinelCheck(const void* value) {
   if (!value || value == kSentinelPointer) return;
 
+  MarkingBarrierSlow(value);
+}
+
+void WriteBarrier::MarkingBarrierSlow(const void* value) {
   const BasePage* page = BasePage::FromPayload(value);
   const auto* heap = page->heap();
 
