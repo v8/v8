@@ -1429,9 +1429,15 @@ std::shared_ptr<NativeModule> CompileToNativeModule(
     std::shared_ptr<const WasmModule> module, const ModuleWireBytes& wire_bytes,
     Handle<FixedArray>* export_wrappers_out) {
   const WasmModule* wasm_module = module.get();
+  OwnedVector<uint8_t> wire_bytes_copy =
+      OwnedVector<uint8_t>::Of(wire_bytes.module_bytes());
+  // Prefer {wire_bytes_copy} to {wire_bytes.module_bytes()} for the temporary
+  // cache key. When we eventually install the module in the cache, the wire
+  // bytes of the temporary key and the new key have the same base pointer and
+  // we can skip the full bytes comparison.
   std::shared_ptr<NativeModule> native_module =
       isolate->wasm_engine()->MaybeGetNativeModule(
-          wasm_module->origin, wire_bytes.module_bytes(), isolate);
+          wasm_module->origin, wire_bytes_copy.as_vector(), isolate);
   if (native_module) {
     // TODO(thibaudm): Look into sharing export wrappers.
     CompileJsToWasmWrappers(isolate, wasm_module, export_wrappers_out);
@@ -1445,8 +1451,6 @@ std::shared_ptr<NativeModule> CompileToNativeModule(
   if (wasm_module->has_shared_memory) {
     isolate->CountUsage(v8::Isolate::UseCounterFeature::kWasmSharedMemory);
   }
-  OwnedVector<uint8_t> wire_bytes_copy =
-      OwnedVector<uint8_t>::Of(wire_bytes.module_bytes());
 
   // Create a new {NativeModule} first.
   const bool uses_liftoff = module->origin == kWasmOrigin && FLAG_liftoff;
