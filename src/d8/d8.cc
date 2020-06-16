@@ -1416,8 +1416,10 @@ void Shell::RealmEval(const v8::FunctionCallbackInfo<v8::Value>& args) {
     Throw(args.GetIsolate(), "Invalid argument");
     return;
   }
+  ScriptOrigin origin(String::NewFromUtf8Literal(isolate, "(d8)",
+                                                 NewStringType::kInternalized));
   ScriptCompiler::Source script_source(
-      args[1]->ToString(isolate->GetCurrentContext()).ToLocalChecked());
+      args[1]->ToString(isolate->GetCurrentContext()).ToLocalChecked(), origin);
   Local<UnboundScript> script;
   if (!ScriptCompiler::CompileUnboundScript(isolate, &script_source)
            .ToLocal(&script)) {
