@@ -182,7 +182,7 @@ class ValueType {
     return kShortName[kind()];
   }
 
-  constexpr const char* type_name() const {
+  const std::string type_name() const {
     constexpr const char* kTypeName[] = {
 #define TYPE_NAME(kind, log2Size, code, machineType, shortName, typeName, ...) \
   typeName,
@@ -190,7 +190,7 @@ class ValueType {
 #undef TYPE_NAME
     };
 
-    return kTypeName[kind()];
+    return std::string(kTypeName[kind()]);
   }
 
   constexpr bool IsPacked() const { return kind() == kI8 || kind() == kI16; }

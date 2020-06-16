@@ -743,7 +743,7 @@ void InstanceBuilder::LoadDataSegments(Handle<WasmInstanceObject> instance) {
 void InstanceBuilder::WriteGlobalValue(const WasmGlobal& global, double num) {
   TRACE("init [globals_start=%p + %u] = %lf, type = %s\n",
         raw_buffer_ptr(untagged_globals_, 0), global.offset, num,
-        global.type.type_name());
+        global.type.type_name().c_str());
   switch (global.type.kind()) {
     case ValueType::kI32:
       WriteLittleEndianValue<int32_t>(GetRawGlobalPtr<int32_t>(global),
@@ -769,7 +769,7 @@ void InstanceBuilder::WriteGlobalValue(const WasmGlobal& global, double num) {
 void InstanceBuilder::WriteGlobalValue(const WasmGlobal& global, int64_t num) {
   TRACE("init [globals_start=%p + %u] = %" PRId64 ", type = %s\n",
         raw_buffer_ptr(untagged_globals_, 0), global.offset, num,
-        global.type.type_name());
+        global.type.type_name().c_str());
   DCHECK_EQ(kWasmI64, global.type);
   WriteLittleEndianValue<int64_t>(GetRawGlobalPtr<int64_t>(global), num);
 }
@@ -819,7 +819,8 @@ void InstanceBuilder::WriteGlobalValue(const WasmGlobal& global,
     case ValueType::kI16:
       UNREACHABLE();
   }
-  TRACE(", type = %s (from WebAssembly.Global)\n", global.type.type_name());
+  TRACE(", type = %s (from WebAssembly.Global)\n",
+        global.type.type_name().c_str());
 }
 
 void InstanceBuilder::WriteGlobalExternRef(const WasmGlobal& global,

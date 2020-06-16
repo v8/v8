@@ -926,7 +926,7 @@ class ModuleDecoderImpl : public Decoder {
                          this->module_.get())) {
           errorf(pos,
                  "Invalid element segment. Table %u is not a super-type of %s",
-                 table_index, type.type_name());
+                 table_index, type.type_name().c_str());
           break;
         }
       }
@@ -1404,8 +1404,8 @@ class ModuleDecoderImpl : public Decoder {
         errorf(pos,
                "type mismatch in global initialization "
                "(from global #%u), expected %s, got %s",
-               other_index, global->type.type_name(),
-               module->globals[other_index].type.type_name());
+               other_index, global->type.type_name().c_str(),
+               module->globals[other_index].type.type_name().c_str());
       }
     }
   }
@@ -1665,7 +1665,7 @@ class ModuleDecoderImpl : public Decoder {
                                                    pc() - 1);
           if (!imm.type.IsReferenceType()) {
             errorf(pc() - 1, "ref.null is not supported for %s",
-                   imm.type.type_name());
+                   imm.type.type_name().c_str());
             break;
           }
           expr.kind = WasmInitExpr::kRefNullConst;
@@ -1673,7 +1673,7 @@ class ModuleDecoderImpl : public Decoder {
           if (expected != kWasmStmt &&
               !IsSubtypeOf(imm.type, expected, module_.get())) {
             errorf(pos, "type error in init expression, expected %s, got %s",
-                   expected.type_name(), imm.type.type_name());
+                   expected.type_name().c_str(), imm.type.type_name().c_str());
           }
           break;
         }
@@ -1710,7 +1710,8 @@ class ModuleDecoderImpl : public Decoder {
     if (expected != kWasmStmt && opcode != kExprRefNull &&
         TypeOf(module, expr) != expected) {
       errorf(pos, "type error in init expression, expected %s, got %s",
-             expected.type_name(), TypeOf(module, expr).type_name());
+             expected.type_name().c_str(),
+             TypeOf(module, expr).type_name().c_str());
     }
     return expr;
   }

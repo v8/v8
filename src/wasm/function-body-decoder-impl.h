@@ -1117,7 +1117,8 @@ class WasmDecoder : public Decoder {
 
   inline bool Validate(const byte* pc, RefNullImmediate<validate>& imm) {
     if (!VALIDATE(imm.type.IsNullable())) {
-      errorf(pc + 1, "ref.null does not exist for %s", imm.type.type_name());
+      errorf(pc + 1, "ref.null does not exist for %s",
+             imm.type.type_name().c_str());
       return false;
     }
     return true;
@@ -1386,7 +1387,7 @@ class WasmDecoder : public Decoder {
     if (!VALIDATE(IsSubtypeOf(elem_type, module_->tables[imm.table.index].type,
                               module_))) {
       errorf(pc_ + 2, "table %u is not a super-type of %s", imm.table.index,
-             elem_type.type_name());
+             elem_type.type_name().c_str());
       return false;
     }
     return true;
@@ -1407,7 +1408,7 @@ class WasmDecoder : public Decoder {
     if (!VALIDATE(IsSubtypeOf(
             src_type, module_->tables[imm.table_dst.index].type, module_))) {
       errorf(pc_ + 2, "table %u is not a super-type of %s", imm.table_dst.index,
-             src_type.type_name());
+             src_type.type_name().c_str());
       return false;
     }
     return true;
@@ -3027,7 +3028,8 @@ class WasmFullDecoder : public WasmDecoder<validate> {
           this->errorf(pos,
                        "inconsistent type in br_table target %u (previous "
                        "was %s, this one is %s)",
-                       index, type.type_name(), (*merge)[i].type.type_name());
+                       index, type.type_name().c_str(),
+                       (*merge)[i].type.type_name().c_str());
           return false;
         }
       } else {
@@ -3036,8 +3038,8 @@ class WasmFullDecoder : public WasmDecoder<validate> {
           this->errorf(pos,
                        "inconsistent type in br_table target %u (previous "
                        "was %s, this one is %s)",
-                       index, (*result_types)[i].type_name(),
-                       (*merge)[i].type.type_name());
+                       index, (*result_types)[i].type_name().c_str(),
+                       (*merge)[i].type.type_name().c_str());
           return false;
         }
       }
@@ -3065,7 +3067,8 @@ class WasmFullDecoder : public WasmDecoder<validate> {
         if (!IsSubtypeOf(val.type, result_types[i], this->module_)) {
           this->errorf(this->pc_,
                        "type error in merge[%u] (expected %s, got %s)", i,
-                       result_types[i].type_name(), val.type.type_name());
+                       result_types[i].type_name().c_str(),
+                       val.type.type_name().c_str());
           return false;
         }
       }
@@ -3595,8 +3598,9 @@ class WasmFullDecoder : public WasmDecoder<validate> {
     if (!VALIDATE(IsSubtypeOf(val.type, expected, this->module_) ||
                   val.type == kWasmBottom || expected == kWasmBottom)) {
       this->errorf(val.pc, "%s[%d] expected type %s, found %s of type %s",
-                   SafeOpcodeNameAt(this->pc_), index, expected.type_name(),
-                   SafeOpcodeNameAt(val.pc), val.type.type_name());
+                   SafeOpcodeNameAt(this->pc_), index,
+                   expected.type_name().c_str(), SafeOpcodeNameAt(val.pc),
+                   val.type.type_name().c_str());
     }
     return val;
   }
@@ -3658,7 +3662,8 @@ class WasmFullDecoder : public WasmDecoder<validate> {
       Value& old = (*merge)[i];
       if (!IsSubtypeOf(val.type, old.type, this->module_)) {
         this->errorf(this->pc_, "type error in merge[%u] (expected %s, got %s)",
-                     i, old.type.type_name(), val.type.type_name());
+                     i, old.type.type_name().c_str(),
+                     val.type.type_name().c_str());
         return false;
       }
     }
@@ -3675,7 +3680,8 @@ class WasmFullDecoder : public WasmDecoder<validate> {
       Value& end = c->end_merge[i];
       if (!IsSubtypeOf(start.type, end.type, this->module_)) {
         this->errorf(this->pc_, "type error in merge[%u] (expected %s, got %s)",
-                     i, end.type.type_name(), start.type.type_name());
+                     i, end.type.type_name().c_str(),
+                     start.type.type_name().c_str());
         return false;
       }
     }
@@ -3778,9 +3784,9 @@ class WasmFullDecoder : public WasmDecoder<validate> {
       Value& val = stack_values[i];
       ValueType expected_type = this->sig_->GetReturn(i);
       if (!IsSubtypeOf(val.type, expected_type, this->module_)) {
-        this->errorf(this->pc_,
-                     "type error in return[%u] (expected %s, got %s)", i,
-                     expected_type.type_name(), val.type.type_name());
+        this->errorf(
+            this->pc_, "type error in return[%u] (expected %s, got %s)", i,
+            expected_type.type_name().c_str(), val.type.type_name().c_str());
         return false;
       }
     }
