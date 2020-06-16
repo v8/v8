@@ -11156,10 +11156,13 @@ static void FjcvtzsHelper(uint64_t value, uint64_t expected,
   __ Fjcvtzs(w0, d0);
   __ Mrs(x1, NZCV);
   END();
-  RUN();
 
-  CHECK_EQUAL_64(expected, x0);
-  CHECK_EQUAL_32(expected_z, w1);
+  if (CpuFeatures::IsSupported(JSCVT)) {
+    RUN();
+
+    CHECK_EQUAL_64(expected, x0);
+    CHECK_EQUAL_32(expected_z, w1);
+  }
 }
 
 TEST(fjcvtzs) {
