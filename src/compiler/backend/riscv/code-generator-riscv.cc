@@ -26,7 +26,7 @@ namespace compiler {
   PrintF("code_gen: \'%s\' in function %s at line %d\n", msg, __FUNCTION__, \
          __LINE__)
 
-#define TRACE_UNIMPL()                                                       \
+#define TRACE_UNIMPL()                                                        \
   PrintF("UNIMPLEMENTED code_generator_riscv: %s at line %d\n", __FUNCTION__, \
          __LINE__)
 
@@ -625,6 +625,7 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       break;
     }
     case kArchCallWasmFunction: {
+      // FIXME (RISCV): isnt this test deadcode?
       if (arch_opcode == kArchTailCallCodeObjectFromJSFunction) {
         AssemblePopArgumentsAdaptorFrame(kJavaScriptCallArgCountRegister,
                                          i.TempRegister(0), i.TempRegister(1),
@@ -1826,16 +1827,16 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       ATOMIC_BINOP_CASE(Xor, Xor)
 #undef ATOMIC_BINOP_CASE
 #define ATOMIC_BINOP_CASE(op, inst)                           \
-  case kRiscvWord64Atomic##op##Uint8:                        \
+  case kRiscvWord64Atomic##op##Uint8:                         \
     ASSEMBLE_ATOMIC_BINOP_EXT(Lld, Scd, false, 8, inst, 64);  \
     break;                                                    \
-  case kRiscvWord64Atomic##op##Uint16:                       \
+  case kRiscvWord64Atomic##op##Uint16:                        \
     ASSEMBLE_ATOMIC_BINOP_EXT(Lld, Scd, false, 16, inst, 64); \
     break;                                                    \
-  case kRiscvWord64Atomic##op##Uint32:                       \
+  case kRiscvWord64Atomic##op##Uint32:                        \
     ASSEMBLE_ATOMIC_BINOP_EXT(Lld, Scd, false, 32, inst, 64); \
     break;                                                    \
-  case kRiscvWord64Atomic##op##Uint64:                       \
+  case kRiscvWord64Atomic##op##Uint64:                        \
     ASSEMBLE_ATOMIC_BINOP(Lld, Scd, inst);                    \
     break;
       ATOMIC_BINOP_CASE(Add, Daddu)

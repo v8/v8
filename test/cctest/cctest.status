@@ -374,8 +374,6 @@
 
   'test-bytecode-generator/StaticClassFields': [SKIP],
 
-  'test-api/TurboAsmDisablesDetach': [SKIP],
-
   'test-run-wasm/RunWasmTurbofan_I32SConvertF32': [SKIP],
   'test-run-wasm/RunWasmTurbofan_I32UConvertF32': [SKIP],
 }],
