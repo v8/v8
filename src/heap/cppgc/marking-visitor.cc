@@ -8,8 +8,6 @@
 #include "src/heap/cppgc/heap-object-header-inl.h"
 #include "src/heap/cppgc/heap-page-inl.h"
 #include "src/heap/cppgc/heap.h"
-#include "src/heap/cppgc/page-memory-inl.h"
-#include "src/heap/cppgc/sanitizers.h"
 
 namespace cppgc {
 namespace internal {
@@ -19,13 +17,14 @@ bool MarkingVisitor::IsInConstruction(const HeapObjectHeader& header) {
   return header.IsInConstruction<HeapObjectHeader::AccessMode::kNonAtomic>();
 }
 
-MarkingVisitor::MarkingVisitor(Marker* marking_handler, int task_id)
-    : marker_(marking_handler),
-      marking_worklist_(marking_handler->marking_worklist(), task_id),
-      not_fully_constructed_worklist_(
-          marking_handler->not_fully_constructed_worklist(), task_id),
-      weak_callback_worklist_(marking_handler->weak_callback_worklist(),
-                              task_id) {}
+MarkingVisitor::MarkingVisitor(
+    HeapBase& heap, Marker::MarkingWorklist* marking_worklist,
+    Marker::NotFullyConstructedWorklist* not_fully_constructed_worklist,
+    Marker::WeakCallbackWorklist* weak_callback_worklist, int task_id)
+    : ConservativeTracingVisitor(heap, *heap.page_backend()),
+      marking_worklist_(marking_worklist, task_id),
+      not_fully_constructed_worklist_(not_fully_constructed_worklist, task_id),
+      weak_callback_worklist_(weak_callback_worklist, task_id) {}
 
 void MarkingVisitor::AccountMarkedBytes(const HeapObjectHeader& header) {
   marked_bytes_ +=
@@ -81,6 +80,17 @@ void MarkingVisitor::VisitWeakRoot(const void* object, TraceDescriptor desc,
   weak_callback(LivenessBrokerFactory::Create(), weak_root);
 }
 
+void MarkingVisitor::VisitPointer(const void* address) {
+  TraceConservativelyIfNeeded(address);
+}
+
+void MarkingVisitor::VisitConservatively(HeapObjectHeader& header,
+                                         TraceConservativelyCallback callback) {
+  MarkHeaderNoTracing(&header);
+  callback(this, header);
+  AccountMarkedBytes(header);
+}
+
 void MarkingVisitor::MarkHeader(HeapObjectHeader* header,
                                 TraceDescriptor desc) {
   DCHECK(header);
@@ -96,7 +106,7 @@ void MarkingVisitor::MarkHeader(HeapObjectHeader* header,
 bool MarkingVisitor::MarkHeaderNoTracing(HeapObjectHeader* header) {
   DCHECK(header);
   // A GC should only mark the objects that belong in its heap.
-  DCHECK_EQ(marker_->heap(), BasePage::FromPayload(header)->heap());
+  DCHECK_EQ(&heap_, BasePage::FromPayload(header)->heap());
   // Never mark free space objects. This would e.g. hint to marking a promptly
   // freed backing store.
   DCHECK(!header->IsFree());
@@ -127,68 +137,11 @@ void MarkingVisitor::DynamicallyMarkAddress(ConstAddress address) {
   }
 }
 
-void MarkingVisitor::ConservativelyMarkAddress(const BasePage* page,
-                                               ConstAddress address) {
-  HeapObjectHeader* const header =
-      page->TryObjectHeaderFromInnerAddress(const_cast<Address>(address));
-
-  if (!header || header->IsMarked()) return;
-
-  // Simple case for fully constructed objects. This just adds the object to the
-  // regular marking worklist.
-  if (!IsInConstruction(*header)) {
-    MarkHeader(
-        header,
-        {header->Payload(),
-         GlobalGCInfoTable::GCInfoFromIndex(header->GetGCInfoIndex()).trace});
-    return;
-  }
-
-  // This case is reached for not-fully-constructed objects with vtables.
-  // We can differentiate multiple cases:
-  // 1. No vtable set up. Example:
-  //      class A : public GarbageCollected<A> { virtual void f() = 0; };
-  //      class B : public A { B() : A(foo()) {}; };
-  //    The vtable for A is not set up if foo() allocates and triggers a GC.
-  //
-  // 2. Vtables properly set up (non-mixin case).
-  // 3. Vtables not properly set up (mixin) if GC is allowed during mixin
-  //    construction.
-  //
-  // We use a simple conservative approach for these cases as they are not
-  // performance critical.
-  MarkHeaderNoTracing(header);
-  Address* payload = reinterpret_cast<Address*>(header->Payload());
-  const size_t payload_size = header->GetSize();
-  for (size_t i = 0; i < (payload_size / sizeof(Address)); ++i) {
-    Address maybe_ptr = payload[i];
-#if defined(MEMORY_SANITIZER)
-    // |payload| may be uninitialized by design or just contain padding bytes.
-    // Copy into a local variable that is unpoisoned for conservative marking.
-    // Copy into a temporary variable to maintain the original MSAN state.
-    MSAN_UNPOISON(&maybe_ptr, sizeof(maybe_ptr));
-#endif
-    if (maybe_ptr) VisitPointer(maybe_ptr);
-  }
-  AccountMarkedBytes(*header);
-}
-
-void MarkingVisitor::VisitPointer(const void* address) {
-  // TODO(chromium:1056170): Add page bloom filter
-
-  const BasePage* page =
-      reinterpret_cast<const BasePage*>(marker_->heap()->page_backend()->Lookup(
-          static_cast<ConstAddress>(address)));
-
-  if (!page) return;
-
-  DCHECK_EQ(marker_->heap(), page->heap());
-
-  ConservativelyMarkAddress(page, reinterpret_cast<ConstAddress>(address));
-}
-
 MutatorThreadMarkingVisitor::MutatorThreadMarkingVisitor(Marker* marker)
-    : MarkingVisitor(marker, Marker::kMutatorThreadId) {}
+    : MarkingVisitor(marker->heap(), marker->marking_worklist(),
+                     marker->not_fully_constructed_worklist(),
+                     marker->weak_callback_worklist(),
+                     Marker::kMutatorThreadId) {}
 
 }  // namespace internal
 }  // namespace cppgc

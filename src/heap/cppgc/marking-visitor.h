@@ -8,6 +8,7 @@
 #include "include/cppgc/source-location.h"
 #include "include/cppgc/trace-trait.h"
 #include "include/v8config.h"
+#include "src/base/macros.h"
 #include "src/heap/cppgc/globals.h"
 #include "src/heap/cppgc/heap.h"
 #include "src/heap/cppgc/marker.h"
@@ -20,9 +21,11 @@ namespace internal {
 class BasePage;
 class HeapObjectHeader;
 
-class MarkingVisitor : public VisitorBase, public StackVisitor {
+class MarkingVisitor : public ConservativeTracingVisitor, public StackVisitor {
  public:
-  MarkingVisitor(Marker*, int);
+  MarkingVisitor(HeapBase&, Marker::MarkingWorklist*,
+                 Marker::NotFullyConstructedWorklist*,
+                 Marker::WeakCallbackWorklist*, int);
   virtual ~MarkingVisitor() = default;
 
   MarkingVisitor(const MarkingVisitor&) = delete;
@@ -31,7 +34,6 @@ class MarkingVisitor : public VisitorBase, public StackVisitor {
   void FlushWorklists();
 
   void DynamicallyMarkAddress(ConstAddress);
-  void ConservativelyMarkAddress(const BasePage*, ConstAddress);
 
   void AccountMarkedBytes(const HeapObjectHeader&);
   size_t marked_bytes() const { return marked_bytes_; }
@@ -45,7 +47,10 @@ class MarkingVisitor : public VisitorBase, public StackVisitor {
   void VisitRoot(const void*, TraceDescriptor) override;
   void VisitWeakRoot(const void*, TraceDescriptor, WeakCallback,
                      const void*) override;
+  void VisitConservatively(HeapObjectHeader&,
+                           TraceConservativelyCallback) override;
 
+  // StackMarker interface.
   void VisitPointer(const void*) override;
 
  private:
@@ -53,7 +58,6 @@ class MarkingVisitor : public VisitorBase, public StackVisitor {
   bool MarkHeaderNoTracing(HeapObjectHeader*);
   void RegisterWeakCallback(WeakCallback, const void*) override;
 
-  Marker* const marker_;
   Marker::MarkingWorklist::View marking_worklist_;
   Marker::NotFullyConstructedWorklist::View not_fully_constructed_worklist_;
   Marker::WeakCallbackWorklist::View weak_callback_worklist_;

@@ -24,7 +24,7 @@ class MarkerTest : public testing::TestWithHeap {
 
   void DoMarking(MarkingConfig config) {
     auto* heap = Heap::From(GetHeap());
-    Marker marker(heap);
+    Marker marker(heap->AsBase());
     marker.StartMarking(config);
     marker.FinishMarking(config);
     marker.ProcessWeakness();
@@ -213,7 +213,7 @@ class GCedWithCallback : public GarbageCollected<GCedWithCallback> {
 }  // namespace
 
 TEST_F(MarkerTest, InConstructionObjectIsEventuallyMarkedEmptyStack) {
-  Marker marker(Heap::From(GetHeap()));
+  Marker marker(Heap::From(GetHeap())->AsBase());
   marker.StartMarking({MarkingConfig::StackState::kMayContainHeapPointers});
   GCedWithCallback* object = MakeGarbageCollected<GCedWithCallback>(
       GetAllocationHandle(), [&marker](GCedWithCallback* obj) {
@@ -226,7 +226,7 @@ TEST_F(MarkerTest, InConstructionObjectIsEventuallyMarkedEmptyStack) {
 }
 
 TEST_F(MarkerTest, InConstructionObjectIsEventuallyMarkedNonEmptyStack) {
-  Marker marker(Heap::From(GetHeap()));
+  Marker marker(Heap::From(GetHeap())->AsBase());
   marker.StartMarking({MarkingConfig::StackState::kMayContainHeapPointers});
   MakeGarbageCollected<GCedWithCallback>(
       GetAllocationHandle(), [&marker](GCedWithCallback* obj) {

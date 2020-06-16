@@ -22,7 +22,7 @@ namespace {
 class MarkingVisitorTest : public testing::TestWithHeap {
  public:
   MarkingVisitorTest()
-      : marker_(std::make_unique<Marker>(Heap::From(GetHeap()))) {}
+      : marker_(std::make_unique<Marker>(Heap::From(GetHeap())->AsBase())) {}
   ~MarkingVisitorTest() { marker_->ClearAllWorklistsForTesting(); }
 
   Marker* GetMarker() { return marker_.get(); }
