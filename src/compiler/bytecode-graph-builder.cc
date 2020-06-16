@@ -2176,8 +2176,7 @@ void BytecodeGraphBuilder::VisitCreateObjectLiteral() {
 }
 
 void BytecodeGraphBuilder::VisitCreateEmptyObjectLiteral() {
-  Node* literal =
-      NewNode(javascript()->CreateEmptyLiteralObject(), GetFunctionClosure());
+  Node* literal = NewNode(javascript()->CreateEmptyLiteralObject());
   environment()->BindAccumulator(literal);
 }
 

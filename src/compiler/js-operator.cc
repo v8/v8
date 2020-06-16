@@ -1273,7 +1273,7 @@ const Operator* JSOperatorBuilder::CreateEmptyLiteralObject() {
       IrOpcode::kJSCreateEmptyLiteralObject,  // opcode
       Operator::kNoProperties,                // properties
       "JSCreateEmptyLiteralObject",           // name
-      1, 1, 1, 1, 1, 2);                      // counts
+      0, 1, 1, 1, 1, 2);                      // counts
 }
 
 const Operator* JSOperatorBuilder::CreateLiteralRegExp(

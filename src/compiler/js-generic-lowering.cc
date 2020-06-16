@@ -761,11 +761,10 @@ void JSGenericLowering::LowerJSCloneObject(Node* node) {
 }
 
 void JSGenericLowering::LowerJSCreateEmptyLiteralObject(Node* node) {
-  CallDescriptor::Flags flags = FrameStateFlagForCall(node);
-  Callable callable =
-      Builtins::CallableFor(isolate(), Builtins::kCreateEmptyLiteralObject);
-  node->RemoveInput(0);  // The closure.
-  ReplaceWithStubCall(node, callable, flags);
+  ReplaceWithStubCall(
+      node,
+      Builtins::CallableFor(isolate(), Builtins::kCreateEmptyLiteralObject),
+      FrameStateFlagForCall(node));
 }
 
 void JSGenericLowering::LowerJSCreateLiteralRegExp(Node* node) {
