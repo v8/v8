@@ -918,13 +918,14 @@ void Genesis::CreateAsyncIteratorMaps(Handle<JSFunction> empty) {
   Handle<JSObject> async_from_sync_iterator_prototype = factory()->NewJSObject(
       isolate()->object_function(), AllocationType::kOld);
   SimpleInstallFunction(isolate(), async_from_sync_iterator_prototype, "next",
-                        Builtins::kAsyncFromSyncIteratorPrototypeNext, 1, true);
+                        Builtins::kAsyncFromSyncIteratorPrototypeNext, 1,
+                        false);
   SimpleInstallFunction(isolate(), async_from_sync_iterator_prototype, "return",
                         Builtins::kAsyncFromSyncIteratorPrototypeReturn, 1,
-                        true);
+                        false);
   SimpleInstallFunction(isolate(), async_from_sync_iterator_prototype, "throw",
                         Builtins::kAsyncFromSyncIteratorPrototypeThrow, 1,
-                        true);
+                        false);
 
   InstallToStringTag(isolate(), async_from_sync_iterator_prototype,
                      "Async-from-Sync Iterator");

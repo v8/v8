@@ -877,11 +877,11 @@ namespace internal {
   /* %AsyncFromSyncIteratorPrototype% */                                       \
   /* See tc39.github.io/proposal-async-iteration/ */                           \
   /* #sec-%asyncfromsynciteratorprototype%-object) */                          \
-  TFJ(AsyncFromSyncIteratorPrototypeNext, 1, kReceiver, kValue)                \
+  TFJ(AsyncFromSyncIteratorPrototypeNext, kDontAdaptArgumentsSentinel)         \
   /* #sec-%asyncfromsynciteratorprototype%.throw */                            \
-  TFJ(AsyncFromSyncIteratorPrototypeThrow, 1, kReceiver, kReason)              \
+  TFJ(AsyncFromSyncIteratorPrototypeThrow, kDontAdaptArgumentsSentinel)        \
   /* #sec-%asyncfromsynciteratorprototype%.return */                           \
-  TFJ(AsyncFromSyncIteratorPrototypeReturn, 1, kReceiver, kValue)              \
+  TFJ(AsyncFromSyncIteratorPrototypeReturn, kDontAdaptArgumentsSentinel)       \
   /* #sec-async-iterator-value-unwrap-functions */                             \
   TFJ(AsyncIteratorValueUnwrap, 1, kReceiver, kValue)                          \
                                                                                \

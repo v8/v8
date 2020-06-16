@@ -535,8 +535,6 @@
   'built-ins/RegExp/prototype/Symbol.replace/fn-invoke-args-empty-result': [FAIL],
 
   # https://bugs.chromium.org/p/v8/issues/detail?id=10395
-  'built-ins/AsyncFromSyncIteratorPrototype/next/absent-value-not-passed': [FAIL],
-  'built-ins/AsyncFromSyncIteratorPrototype/return/absent-value-not-passed': [FAIL],
   'built-ins/AsyncFromSyncIteratorPrototype/return/return-null': [FAIL],
   'built-ins/AsyncFromSyncIteratorPrototype/throw/throw-null': [FAIL],
 
