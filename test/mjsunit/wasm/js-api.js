@@ -582,13 +582,13 @@ assertThrows(
 assertThrows(
     () => new Table(1), TypeError, 'WebAssembly.Module(): Argument 0 must be a table descriptor');
 assertThrows(
-    () => new Table({initial: 1, element: 1}), TypeError, /must be 'anyfunc'/);
+    () => new Table({initial: 1, element: 1}), TypeError, /must be a WebAssembly reference type/);
 assertThrows(
     () => new Table({initial: 1, element: 'any'}), TypeError,
-    /must be 'anyfunc'/);
+    /must be a WebAssembly reference type/);
 assertThrows(
     () => new Table({initial: 1, element: {valueOf() { return 'anyfunc' }}}),
-    TypeError, /must be 'anyfunc'/);
+    TypeError, /must be a WebAssembly reference type/);
 assertThrows(
     () => new Table(
         {initial: {valueOf() { throw new Error('here') }}, element: 'anyfunc'}),

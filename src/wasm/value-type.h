@@ -44,7 +44,7 @@ class Simd128;
   V(ExternRef, kSystemPointerSizeLog2, ExternRef, TaggedPointer, 'r',        \
     "externref")                                                             \
   V(FuncRef, kSystemPointerSizeLog2, FuncRef, TaggedPointer, 'a', "funcref") \
-  V(ExnRef, kSystemPointerSizeLog2, ExnRef, TaggedPointer, 'e', "exn")       \
+  V(ExnRef, kSystemPointerSizeLog2, ExnRef, TaggedPointer, 'e', "exnref")    \
   V(Ref, kSystemPointerSizeLog2, Ref, TaggedPointer, '*', "ref")             \
   V(OptRef, kSystemPointerSizeLog2, OptRef, TaggedPointer, 'o', "optref")    \
   V(EqRef, kSystemPointerSizeLog2, EqRef, TaggedPointer, 'q', "eqref")       \
