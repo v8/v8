@@ -660,12 +660,6 @@ class ModuleDecoderImpl : public Decoder {
           WasmTable* table = &module_->tables.back();
           table->imported = true;
           ValueType type = consume_reference_type();
-          if (!enabled_features_.has_reftypes()) {
-            if (type != kWasmFuncRef) {
-              error(pc_ - 1, "invalid table type");
-              break;
-            }
-          }
           table->type = type;
           uint8_t flags = validate_table_flags("element count");
           consume_resizable_limits(
@@ -1753,31 +1747,25 @@ class ModuleDecoderImpl : public Decoder {
     }
   }
 
-  // Reads a single 8-bit integer, interpreting it as a reference type.
+  // Reads a reference type for tables and element segment headers.
+  // Note that, unless extensions are enabled, only funcref is allowed.
   ValueType consume_reference_type() {
-    byte val = consume_u8("reference type");
-    ValueTypeCode t = static_cast<ValueTypeCode>(val);
-    switch (t) {
-      case kLocalFuncRef:
-        return kWasmFuncRef;
-      case kLocalExternRef:
-        if (!enabled_features_.has_reftypes()) {
-          error(pc_ - 1,
-                "Invalid type. Set --experimental-wasm-reftypes to use "
-                "'ExternRef'");
-        }
-        return kWasmExternRef;
-      case kLocalExnRef:
-        if (!enabled_features_.has_eh()) {
-          error(pc_ - 1,
-                "Invalid type. Set --experimental-wasm-eh to use 'ExnRef'");
-        }
-        return kWasmExnRef;
-      default:
-        break;
+    if (!enabled_features_.has_reftypes()) {
+      uint8_t ref_type = consume_u8("reference type");
+      if (ref_type != kLocalFuncRef) {
+        error(pc_ - 1,
+              "invalid table type. Consider using experimental flags.");
+        return kWasmBottom;
+      }
+      return kWasmFuncRef;
+    } else {
+      const byte* position = pc();
+      ValueType result = consume_value_type();
+      if (!result.IsReferenceType()) {
+        error(position, "expected reference type");
+      }
+      return result;
     }
-    error(pc_ - 1, "invalid reference type");
-    return kWasmStmt;
   }
 
   enum DeferIndexCheckMode { kNoCheck, kDeferCheck };
