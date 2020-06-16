@@ -1,5 +1,4 @@
 Tests stepping through wasm scripts with source maps
-Installing code an global variable and instantiate.
 Got wasm script: wasm://wasm/9b4bf87e
 Script sourceMapURL: abc
 Requesting source for wasm://wasm/9b4bf87e...

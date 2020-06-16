@@ -4,13 +4,13 @@
 
 // Flags: --experimental-wasm-reftypes
 
+utils.load('test/inspector/wasm-inspector-test.js');
+
 let {session, contextGroup, Protocol} =
     InspectorTest.start('Test wasm scope information with externref globals');
 
 (async function() {
   try {
-    utils.load('test/mjsunit/wasm/wasm-module-builder.js');
-
     let builder = new WasmModuleBuilder();
     builder.addImportedGlobal('m', 'global', kWasmExternRef, false);
     let func = builder.addFunction('func', kSig_v_v)

@@ -1,5 +1,4 @@
 Test inspecting register values in Liftoff.
-Installing instantiate function.
 Testing i32.
 Waiting for wasm script.
 Setting 20 breakpoints.

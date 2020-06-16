@@ -12,8 +12,6 @@ session.setupScriptMap();
 Protocol.Debugger.enable();
 Protocol.Debugger.onPaused(printPauseLocationsAndContinue);
 
-let evaluate = code => Protocol.Runtime.evaluate({expression: code});
-
 let breakpointLocation = undefined;  // Will be set by {instantiateWasm}.
 
 (async function test() {
@@ -35,7 +33,7 @@ let breakpointLocation = undefined;  // Will be set by {instantiateWasm}.
   InspectorTest.logMessage(breakpoint.result.actualLocation);
 
   // Now run the wasm code.
-  await evaluate('instance.exports.main(4)');
+  await WasmInspectorTest.evalWithUrl('instance.exports.main(4)', 'runWasm');
   InspectorTest.log('exports.main returned. Test finished.');
   InspectorTest.completeTest();
 })();
@@ -68,8 +66,6 @@ async function printPauseLocationsAndContinue(msg) {
 }
 
 async function instantiateWasm() {
-  utils.load('test/mjsunit/wasm/wasm-module-builder.js');
-
   var builder = new WasmModuleBuilder();
   // Add a global, memory and exports to populate the module scope.
   builder.addGlobal(kWasmI32, true).exportAs('exported_global');
@@ -115,28 +111,19 @@ async function instantiateWasm() {
   let moduleBytes = builder.toArray();
   breakpointLocation = func.body_offset;
 
-  function instantiate(bytes) {
-    var buffer = new ArrayBuffer(bytes.length);
-    var view = new Uint8Array(buffer);
-    for (var i = 0; i < bytes.length; ++i) {
-      view[i] = bytes[i] | 0;
-    }
-
+  function addWasmJSToTable() {
     // Create WasmJS functions to test the function tables output.
     const js_func = function js_func() { return 7; };
     const wasmjs_func = new WebAssembly.Function({parameters:[], results:['i32']}, js_func);
     const wasmjs_anonymous_func = new WebAssembly.Function({parameters:[], results:['i32']}, _ => 7);
 
-    var module = new WebAssembly.Module(buffer);
-    const instance =  new WebAssembly.Instance(module);
-
     instance.exports.exported_table.set(0, wasmjs_func);
     instance.exports.exported_table.set(1, wasmjs_anonymous_func);
-    return instance;
   }
 
   InspectorTest.log('Calling instantiate function.');
-  evaluate(`var instance = (${instantiate})(${JSON.stringify(moduleBytes)})`);
+  await WasmInspectorTest.instantiate(moduleBytes);
+  await WasmInspectorTest.evalWithUrl(`(${addWasmJSToTable})()`, 'populateTable');
 }
 
 function printIfFailure(message) {

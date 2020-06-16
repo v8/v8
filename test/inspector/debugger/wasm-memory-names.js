@@ -2,10 +2,10 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+utils.load('test/inspector/wasm-inspector-test.js');
+
 let {session, contextGroup, Protocol} =
     InspectorTest.start('Test wasm memory names');
-
-utils.load('test/mjsunit/wasm/wasm-module-builder.js');
 
 let func;
 

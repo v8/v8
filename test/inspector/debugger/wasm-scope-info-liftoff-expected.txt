@@ -1,7 +1,6 @@
 Test retrieving scope information from compiled Liftoff frames
-Installing instantiate code.
-Waiting for wasm script to be parsed.
 Calling instantiate function.
+Waiting for wasm script to be parsed.
 Got wasm script!
 Setting breakpoint on line 2 (first instruction) of third function
 {
@@ -345,10 +344,10 @@ at (anonymous) (0:17):
    -- skipped globals
 
 Paused:
-instance.exports.main(42)#
+instance.exports.main(42)
 
 Scope:
-at (anonymous) (0:25):
+at (anonymous) (1:31):
  - scope (global):
    -- skipped globals
 
