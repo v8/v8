@@ -1039,7 +1039,7 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
           linkage()->GetIncomingDescriptor()->IsWasmCapiFunction();
       int offset = (FLAG_enable_embedded_constant_pool ? 20 : 23) * kInstrSize;
 
-#if defined(_AIX)
+#if ABI_USES_FUNCTION_DESCRIPTORS
       // AIX/PPC64BE Linux uses a function descriptor
       int kNumParametersMask = kHasFunctionDescriptorBitMask - 1;
       num_parameters = kNumParametersMask & misc_field;
