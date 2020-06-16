@@ -633,10 +633,10 @@ extern macro StringFromSingleCharCode(int32): String;
 
 extern macro NumberToString(Number): String;
 extern macro StringToNumber(String): Number;
-extern macro NonNumberToNumber(implicit context: Context)(JSAnyNotNumber):
-    Number;
-extern macro NonNumberToNumeric(implicit context: Context)(JSAnyNotNumber):
-    Numeric;
+extern transitioning macro NonNumberToNumber(implicit context: Context)(
+    JSAnyNotNumber): Number;
+extern transitioning macro NonNumberToNumeric(implicit context: Context)(
+    JSAnyNotNumber): Numeric;
 
 extern macro Equal(JSAny, JSAny, Context): Boolean;
 macro Equal(implicit context: Context)(left: JSAny, right: JSAny): Boolean {

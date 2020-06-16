@@ -17,17 +17,18 @@ builtin StringToNumber(implicit context: Context)(input: String): Number {
   return ::StringToNumber(input);
 }
 
-builtin NonNumberToNumber(implicit context: Context)(input: JSAnyNotNumber):
-    Number {
+transitioning builtin NonNumberToNumber(implicit context: Context)(
+    input: JSAnyNotNumber): Number {
   return ::NonNumberToNumber(input);
 }
 
-builtin NonNumberToNumeric(implicit context: Context)(input: JSAnyNotNumber):
-    Numeric {
+transitioning builtin NonNumberToNumeric(implicit context: Context)(
+    input: JSAnyNotNumber): Numeric {
   return ::NonNumberToNumeric(input);
 }
 
-builtin ToNumeric(implicit context: Context)(input: JSAny): Numeric {
+transitioning builtin ToNumeric(implicit context: Context)(input: JSAny):
+    Numeric {
   typeswitch (input) {
     case (n: Number): {
       return n;
@@ -49,7 +50,8 @@ builtin ToBoolean(implicit context: Context)(input: JSAny): Boolean {
       return FalseConstant();
 }
 
-builtin ToLength(implicit context: Context)(input: JSAny): Number {
+transitioning builtin ToLength(implicit context: Context)(input: JSAny):
+    Number {
   // We might need to loop once for ToNumber conversion.
   let x: JSAny = input;
   while (true) {
