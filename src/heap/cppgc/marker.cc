@@ -107,9 +107,8 @@ void Marker::EnterAtomicPause(MarkingConfig config) {
   ExitIncrementalMarkingIfNeeded(config_, heap());
   config_ = config;
 
-  // Reset LABs before trying to conservatively mark in-construction objects.
-  // This is also needed in preparation for sweeping.
-  heap().object_allocator().ResetLinearAllocationBuffers();
+  // VisitRoots also resets the LABs.
+  VisitRoots();
   if (config_.stack_state == MarkingConfig::StackState::kNoHeapPointers) {
     FlushNotFullyConstructedObjects();
   } else {

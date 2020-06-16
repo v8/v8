@@ -238,6 +238,7 @@ v8_source_set("unittests_sources") {
     "heap/gc-tracer-unittest.cc",
     "heap/heap-controller-unittest.cc",
     "heap/heap-unittest.cc",
+    "heap/heap-utils.h",
     "heap/item-parallel-job-unittest.cc",
     "heap/list-unittest.cc",
     "heap/local-heap-unittest.cc",
@@ -249,6 +250,7 @@ v8_source_set("unittests_sources") {
     "heap/safepoint-unittest.cc",
     "heap/slot-set-unittest.cc",
     "heap/spaces-unittest.cc",
+    "heap/unified-heap-unittest.cc",
     "heap/unmapper-unittest.cc",
     "heap/worklist-unittest.cc",
     "interpreter/bytecode-array-builder-unittest.cc",
@@ -379,6 +381,7 @@ v8_source_set("unittests_sources") {
   }
 
   configs = [
+    "../..:cppgc_base_config",
     "../..:external_config",
     "../..:internal_config_base",
   ]
