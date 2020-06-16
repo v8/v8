@@ -218,7 +218,7 @@ void Marker::MarkNotFullyConstructedObjects() {
   NotFullyConstructedWorklist::View view(&not_fully_constructed_worklist_,
                                          kMutatorThreadId);
   while (view.Pop(&item)) {
-    heap().stack()->IteratePointers(marking_visitor_.get());
+    marking_visitor_->TraceConservativelyIfNeeded(item);
   }
 }
 
