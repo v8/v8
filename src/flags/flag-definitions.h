@@ -658,6 +658,9 @@ DEFINE_INT(reuse_opt_code_count, 0,
 // Native context independent (NCI) code.
 DEFINE_BOOL(turbo_nci, false,
             "enable experimental native context independent code.")
+// TODO(v8:8888): Temporary until NCI caching is implemented or
+// feedback collection is made unconditional.
+DEFINE_IMPLICATION(turbo_nci, turbo_collect_feedback_in_generic_lowering)
 DEFINE_BOOL(turbo_nci_as_highest_tier, false,
             "replace default TF with NCI code as the highest tier for testing "
             "purposes.")
