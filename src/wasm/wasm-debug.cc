@@ -633,8 +633,10 @@ class DebugInfoImpl {
     base::MutexGuard guard(&mutex_);
     auto per_isolate_data_it = per_isolate_data_.find(isolate);
     if (per_isolate_data_it == per_isolate_data_.end()) return;
-    std::unordered_map<int, std::vector<int>> removed_per_function;
-    for (auto& entry : per_isolate_data_it->second.breakpoints_per_function) {
+    std::unordered_map<int, std::vector<int>> removed_per_function =
+        std::move(per_isolate_data_it->second.breakpoints_per_function);
+    per_isolate_data_.erase(per_isolate_data_it);
+    for (auto& entry : removed_per_function) {
       int func_index = entry.first;
       std::vector<int>& removed = entry.second;
       std::vector<int> remaining = FindAllBreakpoints(func_index);
@@ -642,7 +644,6 @@ class DebugInfoImpl {
         RecompileLiftoffWithBreakpoints(func_index, VectorOf(remaining), {});
       }
     }
-    per_isolate_data_.erase(per_isolate_data_it);
   }
 
  private:
