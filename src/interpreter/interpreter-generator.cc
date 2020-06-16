@@ -2409,10 +2409,9 @@ IGNITION_HANDLER(CloneObject, InterpreterAssembler) {
   TNode<HeapObject> maybe_feedback_vector = LoadFeedbackVector();
   TNode<Context> context = GetContext();
 
-  TVARIABLE(Object, var_result);
-  var_result = CallBuiltin(Builtins::kCloneObjectIC, context, source, smi_flags,
-                           slot, maybe_feedback_vector);
-  SetAccumulator(var_result.value());
+  TNode<Object> result = CallBuiltin(Builtins::kCloneObjectIC, context, source,
+                                     smi_flags, slot, maybe_feedback_vector);
+  SetAccumulator(result);
   Dispatch();
 }
 
@@ -2422,41 +2421,18 @@ IGNITION_HANDLER(CloneObject, InterpreterAssembler) {
 // accumulator, creating and caching the site object on-demand as per the
 // specification.
 IGNITION_HANDLER(GetTemplateObject, InterpreterAssembler) {
-  TNode<HeapObject> maybe_feedback_vector = LoadFeedbackVector();
+  TNode<Context> context = GetContext();
+  TNode<JSFunction> closure = CAST(LoadRegister(Register::function_closure()));
+  TNode<SharedFunctionInfo> shared_info = LoadObjectField<SharedFunctionInfo>(
+      closure, JSFunction::kSharedFunctionInfoOffset);
+  TNode<Object> description = LoadConstantPoolEntryAtOperandIndex(0);
   TNode<UintPtrT> slot = BytecodeOperandIdx(1);
-
-  Label call_runtime(this, Label::kDeferred);
-  GotoIf(IsUndefined(maybe_feedback_vector), &call_runtime);
-
-  TNode<Object> cached_value =
-      CAST(LoadFeedbackVectorSlot(CAST(maybe_feedback_vector), slot));
-
-  GotoIf(TaggedEqual(cached_value, SmiConstant(0)), &call_runtime);
-
-  SetAccumulator(cached_value);
+  TNode<HeapObject> maybe_feedback_vector = LoadFeedbackVector();
+  TNode<Object> result =
+      CallBuiltin(Builtins::kGetTemplateObject, context, shared_info,
+                  description, slot, maybe_feedback_vector);
+  SetAccumulator(result);
   Dispatch();
-
-  BIND(&call_runtime);
-  {
-    TNode<Object> description = LoadConstantPoolEntryAtOperandIndex(0);
-    TNode<Smi> slot_smi = SmiTag(Signed(slot));
-    TNode<JSFunction> closure =
-        CAST(LoadRegister(Register::function_closure()));
-    TNode<SharedFunctionInfo> shared_info = LoadObjectField<SharedFunctionInfo>(
-        closure, JSFunction::kSharedFunctionInfoOffset);
-    TNode<Context> context = GetContext();
-    TNode<Object> result = CallRuntime(Runtime::kGetTemplateObject, context,
-                                       description, shared_info, slot_smi);
-
-    Label end(this);
-    GotoIf(IsUndefined(maybe_feedback_vector), &end);
-    StoreFeedbackVectorSlot(CAST(maybe_feedback_vector), slot, result);
-    Goto(&end);
-
-    Bind(&end);
-    SetAccumulator(result);
-    Dispatch();
-  }
 }
 
 // CreateClosure <index> <slot> <flags>

@@ -637,4 +637,14 @@
   '*': [SKIP],  # only relevant for mjsunit tests.
 }],
 
+################################################################################
+['variant == nci', {
+  # Optimizes and deopts differently than TurboFan.
+  'test-cpu-profiler/Deopt*': [SKIP],
+  'test-cpu-profiler/DetailedSourcePositionAPI_Inlining': [SKIP],
+  'test-heap/EnsureAllocationSiteDependentCodesProcessed': [SKIP],
+  'test-heap/OptimizedPretenuring*': [SKIP],
+  'test-heap-profiler/SamplingHeapProfilerPretenuredInlineAllocations': [SKIP],
+}],  # variant == nci
+
 ]

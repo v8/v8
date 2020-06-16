@@ -1083,6 +1083,7 @@ torque_files = [
   "src/builtins/ic-callable.tq",
   "src/builtins/ic.tq",
   "src/builtins/internal-coverage.tq",
+  "src/builtins/internal.tq",
   "src/builtins/iterator.tq",
   "src/builtins/math.tq",
   "src/builtins/number.tq",

@@ -96,6 +96,7 @@ namespace internal {
   TFS(FastNewClosure, kSharedFunctionInfo, kFeedbackCell)                      \
   TFC(FastNewFunctionContextEval, FastNewFunctionContext)                      \
   TFC(FastNewFunctionContextFunction, FastNewFunctionContext)                  \
+  TFS(CreateEmptyLiteralObject)                                                \
   TFS(CreateRegExpLiteral, kFeedbackVector, kSlot, kPattern, kFlags)           \
   TFS(CreateEmptyArrayLiteral, kFeedbackVector, kSlot)                         \
   TFS(CreateShallowArrayLiteral, kFeedbackVector, kSlot, kConstantElements)    \

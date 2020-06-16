@@ -6093,6 +6093,10 @@ Reduction JSCallReducer::ReduceStringFromCodePoint(Node* node) {
 }
 
 Reduction JSCallReducer::ReduceStringPrototypeIterator(Node* node) {
+  // TODO(jgruber): We could reduce here when generating native context
+  // independent code, if LowerJSCreateStringIterator were implemented in
+  // generic lowering.
+  if (broker()->is_native_context_independent()) return NoChange();
   CallParameters const& p = CallParametersOf(node->op());
   if (p.speculation_mode() == SpeculationMode::kDisallowSpeculation) {
     return NoChange();
@@ -6218,6 +6222,11 @@ Reduction JSCallReducer::ReduceStringPrototypeConcat(Node* node) {
 }
 
 Reduction JSCallReducer::ReducePromiseConstructor(Node* node) {
+  // TODO(jgruber): We could reduce here when generating native context
+  // independent code, if LowerJSCreatePromise were implemented in generic
+  // lowering.
+  if (broker()->is_native_context_independent()) return NoChange();
+
   DisallowHeapAccessIf no_heap_access(should_disallow_heap_access());
   PromiseBuiltinReducerAssembler a(jsgraph(), temp_zone(), node, broker());
 

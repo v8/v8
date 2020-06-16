@@ -765,6 +765,11 @@ TF_BUILTIN(ObjectConstructor, ConstructorBuiltinsAssembler) {
   args.PopAndReturn(var_result.value());
 }
 
+TF_BUILTIN(CreateEmptyLiteralObject, ConstructorBuiltinsAssembler) {
+  TNode<Context> context = CAST(Parameter(Descriptor::kContext));
+  Return(EmitCreateEmptyObjectLiteral(context));
+}
+
 // ES #sec-number-constructor
 TF_BUILTIN(NumberConstructor, ConstructorBuiltinsAssembler) {
   TNode<Context> context = CAST(Parameter(Descriptor::kContext));

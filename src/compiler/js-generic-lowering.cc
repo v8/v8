@@ -18,6 +18,7 @@
 #include "src/objects/feedback-cell.h"
 #include "src/objects/feedback-vector.h"
 #include "src/objects/scope-info.h"
+#include "src/objects/template-objects-inl.h"
 
 namespace v8 {
 namespace internal {
@@ -336,13 +337,28 @@ void JSGenericLowering::LowerJSLoadGlobal(Node* node) {
 void JSGenericLowering::LowerJSGetIterator(Node* node) {
   // TODO(v8:9625): Currently, the GetIterator operator is desugared in the
   // native context specialization phase. Thus, the following generic lowering
-  // would never be reachable. We can add a check in native context
-  // specialization to avoid desugaring the GetIterator operator when in the
-  // case of megamorphic feedback and here, add a call to the
-  // 'GetIteratorWithFeedback' builtin. This would reduce the size of the
-  // compiled code as it would insert 1 call to the builtin instead of 2 calls
-  // resulting from the generic lowering of the LoadNamed and Call operators.
-  UNREACHABLE();
+  // is not reachable unless that phase is disabled (e.g. for
+  // native-context-independent code).
+  // We can add a check in native context specialization to avoid desugaring
+  // the GetIterator operator when feedback is megamorphic. This would reduce
+  // the size of the compiled code as it would insert 1 call to the builtin
+  // instead of 2 calls resulting from the generic lowering of the LoadNamed
+  // and Call operators.
+
+  GetIteratorParameters const& p = GetIteratorParametersOf(node->op());
+  Node* load_slot =
+      jsgraph()->TaggedIndexConstant(p.loadFeedback().slot.ToInt());
+  Node* call_slot =
+      jsgraph()->TaggedIndexConstant(p.callFeedback().slot.ToInt());
+  Node* feedback = jsgraph()->HeapConstant(p.callFeedback().vector);
+  node->InsertInput(zone(), 1, load_slot);
+  node->InsertInput(zone(), 2, call_slot);
+  node->InsertInput(zone(), 3, feedback);
+
+  CallDescriptor::Flags flags = FrameStateFlagForCall(node);
+  Callable callable =
+      Builtins::CallableFor(isolate(), Builtins::kGetIteratorWithFeedback);
+  ReplaceWithStubCall(node, callable, flags);
 }
 
 void JSGenericLowering::LowerJSStoreProperty(Node* node) {
@@ -627,7 +643,10 @@ void JSGenericLowering::LowerJSCreateGeneratorObject(Node* node) {
 }
 
 void JSGenericLowering::LowerJSCreateIterResultObject(Node* node) {
-  UNREACHABLE();  // Eliminated in typed lowering.
+  CallDescriptor::Flags flags = FrameStateFlagForCall(node);
+  Callable callable =
+      Builtins::CallableFor(isolate(), Builtins::kCreateIterResultObject);
+  ReplaceWithStubCall(node, callable, flags);
 }
 
 void JSGenericLowering::LowerJSCreateStringIterator(Node* node) {
@@ -671,7 +690,21 @@ void JSGenericLowering::LowerJSCreateLiteralArray(Node* node) {
 }
 
 void JSGenericLowering::LowerJSGetTemplateObject(Node* node) {
-  UNREACHABLE();  // Eliminated in native context specialization.
+  GetTemplateObjectParameters const& p =
+      GetTemplateObjectParametersOf(node->op());
+  SharedFunctionInfoRef shared(broker(), p.shared());
+  TemplateObjectDescriptionRef description(broker(), p.description());
+
+  node->InsertInput(zone(), 0, jsgraph()->Constant(shared));
+  node->InsertInput(zone(), 1, jsgraph()->Constant(description));
+  node->InsertInput(zone(), 2,
+                    jsgraph()->UintPtrConstant(p.feedback().index()));
+  node->InsertInput(zone(), 3, jsgraph()->HeapConstant(p.feedback().vector));
+  node->RemoveInput(6);  // control
+
+  ReplaceWithStubCall(
+      node, Builtins::CallableFor(isolate(), Builtins::kGetTemplateObject),
+      FrameStateFlagForCall(node));
 }
 
 void JSGenericLowering::LowerJSCreateEmptyLiteralArray(Node* node) {
@@ -728,7 +761,11 @@ void JSGenericLowering::LowerJSCloneObject(Node* node) {
 }
 
 void JSGenericLowering::LowerJSCreateEmptyLiteralObject(Node* node) {
-  UNREACHABLE();  // Eliminated in typed lowering.
+  CallDescriptor::Flags flags = FrameStateFlagForCall(node);
+  Callable callable =
+      Builtins::CallableFor(isolate(), Builtins::kCreateEmptyLiteralObject);
+  node->RemoveInput(0);  // The closure.
+  ReplaceWithStubCall(node, callable, flags);
 }
 
 void JSGenericLowering::LowerJSCreateLiteralRegExp(Node* node) {
@@ -746,11 +783,15 @@ void JSGenericLowering::LowerJSCreateLiteralRegExp(Node* node) {
 
 
 void JSGenericLowering::LowerJSCreateCatchContext(Node* node) {
-  UNREACHABLE();  // Eliminated in typed lowering.
+  Handle<ScopeInfo> scope_info = ScopeInfoOf(node->op());
+  node->InsertInput(zone(), 1, jsgraph()->HeapConstant(scope_info));
+  ReplaceWithRuntimeCall(node, Runtime::kPushCatchContext);
 }
 
 void JSGenericLowering::LowerJSCreateWithContext(Node* node) {
-  UNREACHABLE();  // Eliminated in typed lowering.
+  Handle<ScopeInfo> scope_info = ScopeInfoOf(node->op());
+  node->InsertInput(zone(), 1, jsgraph()->HeapConstant(scope_info));
+  ReplaceWithRuntimeCall(node, Runtime::kPushWithContext);
 }
 
 void JSGenericLowering::LowerJSCreateBlockContext(Node* node) {

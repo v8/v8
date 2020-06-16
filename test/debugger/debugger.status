@@ -136,7 +136,7 @@
 }], # lite_mode or variant == jitless
 
 ##############################################################################
-['variant == turboprop', {
+['variant == turboprop or variant == nci', {
   # Deopts differently than TurboFan.
   'debug/debug-optimize': [SKIP],
 }],  # variant == turboprop
