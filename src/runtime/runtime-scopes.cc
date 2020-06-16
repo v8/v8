@@ -612,40 +612,35 @@ RUNTIME_FUNCTION(Runtime_NewFunctionContext) {
   return *isolate->factory()->NewFunctionContext(outer, scope_info);
 }
 
+// TODO(jgruber): Rename these functions to 'New...Context'.
 RUNTIME_FUNCTION(Runtime_PushWithContext) {
   HandleScope scope(isolate);
   DCHECK_EQ(2, args.length());
   CONVERT_ARG_HANDLE_CHECKED(JSReceiver, extension_object, 0);
   CONVERT_ARG_HANDLE_CHECKED(ScopeInfo, scope_info, 1);
   Handle<Context> current(isolate->context(), isolate);
-  Handle<Context> context =
-      isolate->factory()->NewWithContext(current, scope_info, extension_object);
-  isolate->set_context(*context);
-  return *context;
+  return *isolate->factory()->NewWithContext(current, scope_info,
+                                             extension_object);
 }
 
+// TODO(jgruber): Rename these functions to 'New...Context'.
 RUNTIME_FUNCTION(Runtime_PushCatchContext) {
   HandleScope scope(isolate);
   DCHECK_EQ(2, args.length());
   CONVERT_ARG_HANDLE_CHECKED(Object, thrown_object, 0);
   CONVERT_ARG_HANDLE_CHECKED(ScopeInfo, scope_info, 1);
   Handle<Context> current(isolate->context(), isolate);
-  Handle<Context> context =
-      isolate->factory()->NewCatchContext(current, scope_info, thrown_object);
-  isolate->set_context(*context);
-  return *context;
+  return *isolate->factory()->NewCatchContext(current, scope_info,
+                                              thrown_object);
 }
 
-
+// TODO(jgruber): Rename these functions to 'New...Context'.
 RUNTIME_FUNCTION(Runtime_PushBlockContext) {
   HandleScope scope(isolate);
   DCHECK_EQ(1, args.length());
   CONVERT_ARG_HANDLE_CHECKED(ScopeInfo, scope_info, 0);
   Handle<Context> current(isolate->context(), isolate);
-  Handle<Context> context =
-      isolate->factory()->NewBlockContext(current, scope_info);
-  isolate->set_context(*context);
-  return *context;
+  return *isolate->factory()->NewBlockContext(current, scope_info);
 }
 
 
