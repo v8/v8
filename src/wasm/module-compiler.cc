@@ -2928,15 +2928,12 @@ void CompilationStateImpl::RestartBackgroundTasks() {
     }
   }
 
-  if (baseline_compilation_finished() && recompilation_finished()) {
-    for (auto& task : new_tasks) {
-      V8::GetCurrentPlatform()->CallLowPriorityTaskOnWorkerThread(
-          std::move(task));
-    }
-  } else {
-    for (auto& task : new_tasks) {
-      V8::GetCurrentPlatform()->CallOnWorkerThread(std::move(task));
-    }
+  // Spawn all tasts with default priority (avoid
+  // {CallLowPriorityTaskOnWorkerThread}) even for tier up, because low priority
+  // tasks will be severely delayed even if background threads are idle (see
+  // https://crbug.com/1094928).
+  for (auto& task : new_tasks) {
+    V8::GetCurrentPlatform()->CallOnWorkerThread(std::move(task));
   }
 }
 
