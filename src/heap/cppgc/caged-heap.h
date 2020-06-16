@@ -16,12 +16,13 @@ namespace cppgc {
 namespace internal {
 
 struct CagedHeapLocalData;
+class HeapBase;
 
 class CagedHeap final {
  public:
   using AllocatorType = v8::base::BoundedPageAllocator;
 
-  explicit CagedHeap(PageAllocator* platform_allocator);
+  CagedHeap(HeapBase* heap, PageAllocator* platform_allocator);
 
   CagedHeap(const CagedHeap&) = delete;
   CagedHeap& operator=(const CagedHeap&) = delete;
@@ -34,6 +35,11 @@ class CagedHeap final {
   }
   const CagedHeapLocalData& local_data() const {
     return *static_cast<CagedHeapLocalData*>(reserved_area_.address());
+  }
+
+  static uintptr_t OffsetFromAddress(void* address) {
+    return reinterpret_cast<uintptr_t>(address) &
+           (kCagedHeapReservationAlignment - 1);
   }
 
  private:

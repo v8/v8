@@ -10,14 +10,21 @@
 
 #include "include/cppgc/internal/caged-heap-local-data.h"
 #include "src/base/bounded-page-allocator.h"
+#include "src/base/logging.h"
 #include "src/heap/cppgc/globals.h"
 
 namespace cppgc {
 namespace internal {
 
+STATIC_ASSERT(api_constants::kCagedHeapReservationSize ==
+              kCagedHeapReservationSize);
+STATIC_ASSERT(api_constants::kCagedHeapReservationAlignment ==
+              kCagedHeapReservationAlignment);
+
 namespace {
 
 VirtualMemory ReserveCagedHeap(PageAllocator* platform_allocator) {
+  DCHECK_NOT_NULL(platform_allocator);
   DCHECK_EQ(0u,
             kCagedHeapReservationSize % platform_allocator->AllocatePageSize());
 
@@ -49,15 +56,23 @@ std::unique_ptr<CagedHeap::AllocatorType> CreateBoundedAllocator(
 
 }  // namespace
 
-CagedHeap::CagedHeap(PageAllocator* platform_allocator)
+CagedHeap::CagedHeap(HeapBase* heap_base, PageAllocator* platform_allocator)
     : reserved_area_(ReserveCagedHeap(platform_allocator)) {
+  DCHECK_NOT_NULL(heap_base);
+
   void* caged_heap_start = reserved_area_.address();
   CHECK(platform_allocator->SetPermissions(
       reserved_area_.address(),
       RoundUp(sizeof(CagedHeapLocalData), platform_allocator->CommitPageSize()),
       PageAllocator::kReadWrite));
 
-  new (reserved_area_.address()) CagedHeapLocalData;
+  auto* local_data =
+      new (reserved_area_.address()) CagedHeapLocalData(heap_base);
+#if defined(CPPGC_YOUNG_GENERATION)
+  local_data->age_table.Reset(platform_allocator);
+#endif
+  USE(local_data);
+
   caged_heap_start = reinterpret_cast<void*>(
       RoundUp(reinterpret_cast<uintptr_t>(caged_heap_start) +
                   sizeof(CagedHeapLocalData),

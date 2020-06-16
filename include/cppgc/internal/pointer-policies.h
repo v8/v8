@@ -117,7 +117,7 @@ class BasicMember;
 struct SentinelPointer {
   template <typename T>
   operator T*() const {  // NOLINT
-    static constexpr intptr_t kSentinelValue = -1;
+    static constexpr intptr_t kSentinelValue = 1;
     return reinterpret_cast<T*>(kSentinelValue);
   }
   // Hidden friends.

@@ -5,16 +5,18 @@
 #ifndef INCLUDE_CPPGC_MACROS_H_
 #define INCLUDE_CPPGC_MACROS_H_
 
+#include "cppgc/internal/compiler-specific.h"
+
 namespace cppgc {
 
 // Use if the object is only stack allocated.
-#define CPPGC_STACK_ALLOCATED()               \
- public:                                      \
-  using IsStackAllocatedTypeMarker = int;     \
-                                              \
- private:                                     \
-  void* operator new(size_t) = delete;        \
-  void* operator new(size_t, void*) = delete; \
+#define CPPGC_STACK_ALLOCATED()                        \
+ public:                                               \
+  using IsStackAllocatedTypeMarker CPPGC_UNUSED = int; \
+                                                       \
+ private:                                              \
+  void* operator new(size_t) = delete;                 \
+  void* operator new(size_t, void*) = delete;          \
   static_assert(true, "Force semicolon.")
 
 }  // namespace cppgc

@@ -66,6 +66,24 @@ void BasePage::Destroy(BasePage* page) {
   }
 }
 
+Address BasePage::PayloadStart() {
+  return is_large() ? LargePage::From(this)->PayloadStart()
+                    : NormalPage::From(this)->PayloadStart();
+}
+
+ConstAddress BasePage::PayloadStart() const {
+  return const_cast<BasePage*>(this)->PayloadStart();
+}
+
+Address BasePage::PayloadEnd() {
+  return is_large() ? LargePage::From(this)->PayloadEnd()
+                    : NormalPage::From(this)->PayloadEnd();
+}
+
+ConstAddress BasePage::PayloadEnd() const {
+  return const_cast<BasePage*>(this)->PayloadEnd();
+}
+
 HeapObjectHeader& BasePage::ObjectHeaderFromInnerAddress(void* address) const {
   return const_cast<HeapObjectHeader&>(
       ObjectHeaderFromInnerAddress(const_cast<const void*>(address)));

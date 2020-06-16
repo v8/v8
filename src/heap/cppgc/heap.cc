@@ -4,7 +4,10 @@
 
 #include "src/heap/cppgc/heap.h"
 
+#include "src/heap/cppgc/garbage-collector.h"
 #include "src/heap/cppgc/gc-invoker.h"
+#include "src/heap/cppgc/heap-object-header-inl.h"
+#include "src/heap/cppgc/heap-visitor.h"
 #include "src/heap/cppgc/marker.h"
 #include "src/heap/cppgc/prefinalizer-handler.h"
 #include "src/heap/cppgc/stack.h"
@@ -36,7 +39,9 @@ std::unique_ptr<Heap> Heap::Create(std::shared_ptr<cppgc::Platform> platform,
 
 void Heap::ForceGarbageCollectionSlow(const char* source, const char* reason,
                                       Heap::StackState stack_state) {
-  internal::Heap::From(this)->CollectGarbage({stack_state});
+  internal::Heap::From(this)->CollectGarbage(
+      {internal::GarbageCollector::Config::CollectionType::kMajor,
+       stack_state});
 }
 
 AllocationHandle& Heap::GetAllocationHandle() {
@@ -44,6 +49,30 @@ AllocationHandle& Heap::GetAllocationHandle() {
 }
 
 namespace internal {
+
+namespace {
+
+class Unmarker final : private HeapVisitor<Unmarker> {
+  friend class HeapVisitor<Unmarker>;
+
+ public:
+  explicit Unmarker(RawHeap* heap) { Traverse(heap); }
+
+ private:
+  bool VisitHeapObjectHeader(HeapObjectHeader* header) {
+    if (header->IsMarked()) header->Unmark();
+    return true;
+  }
+};
+
+void CheckConfig(Heap::Config config) {
+  CHECK_WITH_MSG(
+      (config.collection_type != Heap::Config::CollectionType::kMinor) ||
+          (config.stack_state == Heap::Config::StackState::kNoHeapPointers),
+      "Minor GCs with stack is currently not supported");
+}
+
+}  // namespace
 
 // static
 cppgc::LivenessBroker LivenessBrokerFactory::Create() {
@@ -64,14 +93,21 @@ Heap::~Heap() {
 }
 
 void Heap::CollectGarbage(Config config) {
+  CheckConfig(config);
+
   if (in_no_gc_scope()) return;
 
   epoch_++;
 
+#if defined(CPPGC_YOUNG_GENERATION)
+  if (config.collection_type == Config::CollectionType::kMajor)
+    Unmarker unmarker(&raw_heap());
+#endif
+
   // "Marking".
   marker_ = std::make_unique<Marker>(AsBase());
-  const Marker::MarkingConfig marking_config{config.stack_state,
-                                             config.marking_type};
+  const Marker::MarkingConfig marking_config{
+      config.collection_type, config.stack_state, config.marking_type};
   marker_->StartMarking(marking_config);
   marker_->FinishMarking(marking_config);
   // "Sweeping and finalization".

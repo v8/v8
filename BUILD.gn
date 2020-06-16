@@ -239,6 +239,9 @@ declare_args() {
   # Enable heap reservation of size 4GB. Only possible for 64bit archs.
   cppgc_enable_caged_heap = v8_current_cpu == "x64" || v8_current_cpu == "arm64"
 
+  # Enable young generation in cppgc.
+  cppgc_enable_young_generation = false
+
   # Enable V8 heap sandbox experimental feature.
   # Sets -DV8_HEAP_SANDBOX.
   v8_enable_heap_sandbox = ""
@@ -320,6 +323,9 @@ assert(!cppgc_enable_caged_heap || v8_current_cpu == "x64" ||
            v8_current_cpu == "arm64",
        "CppGC caged heap requires 64bit platforms")
 
+assert(!cppgc_enable_young_generation || cppgc_enable_caged_heap,
+       "Young generation in CppGC requires caged heap")
+
 v8_random_seed = "314159265"
 v8_toolset_for_shell = "host"
 
@@ -392,6 +398,9 @@ config("cppgc_base_config") {
   }
   if (cppgc_enable_caged_heap) {
     defines += [ "CPPGC_CAGED_HEAP" ]
+  }
+  if (cppgc_enable_young_generation) {
+    defines += [ "CPPGC_YOUNG_GENERATION" ]
   }
 }
 
@@ -4189,6 +4198,7 @@ v8_source_set("cppgc_base") {
   if (cppgc_enable_caged_heap) {
     sources += [
       "include/cppgc/internal/caged-heap-local-data.h",
+      "src/heap/cppgc/caged-heap-local-data.cc",
       "src/heap/cppgc/caged-heap.cc",
       "src/heap/cppgc/caged-heap.h",
     ]

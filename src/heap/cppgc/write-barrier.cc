@@ -69,5 +69,16 @@ void WriteBarrier::MarkingBarrierSlow(const void* value) {
   MarkValue(page, heap->marker(), value);
 }
 
+#if defined(CPPGC_YOUNG_GENERATION)
+void WriteBarrier::GenerationalBarrierSlow(CagedHeapLocalData* local_data,
+                                           const AgeTable& age_table,
+                                           const void* slot,
+                                           uintptr_t value_offset) {
+  if (age_table[value_offset] == AgeTable::Age::kOld) return;
+  // Record slot.
+  local_data->heap_base->remembered_slots().insert(const_cast<void*>(slot));
+}
+#endif
+
 }  // namespace internal
 }  // namespace cppgc

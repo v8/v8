@@ -113,6 +113,13 @@ struct SpaceState {
 
 using SpaceStates = std::vector<SpaceState>;
 
+void StickyUnmark(HeapObjectHeader* header) {
+  // Young generation in Oilpan uses sticky mark bits.
+#if !defined(CPPGC_YOUNG_GENERATION)
+  header->Unmark<HeapObjectHeader::AccessMode::kAtomic>();
+#endif
+}
+
 // Builder that finalizes objects and adds freelist entries right away.
 class InlinedFinalizationBuilder final {
  public:
@@ -203,7 +210,7 @@ typename FinalizationBuilder::ResultType SweepNormalPage(NormalPage* page) {
           start_of_gap, static_cast<size_t>(header_address - start_of_gap));
       bitmap.SetBit(start_of_gap);
     }
-    header->Unmark<kAtomicAccess>();
+    StickyUnmark(header);
     bitmap.SetBit(begin);
     begin += size;
     start_of_gap = begin;
@@ -366,7 +373,7 @@ class MutatorThreadSweeper final : private HeapVisitor<MutatorThreadSweeper> {
   bool VisitLargePage(LargePage* page) {
     HeapObjectHeader* header = page->ObjectHeader();
     if (header->IsMarked()) {
-      header->Unmark();
+      StickyUnmark(header);
       page->space()->AddPage(page);
     } else {
       header->Finalize();
@@ -414,7 +421,7 @@ class ConcurrentSweepTask final : public v8::JobTask,
   bool VisitLargePage(LargePage* page) {
     HeapObjectHeader* header = page->ObjectHeader();
     if (header->IsMarked()) {
-      header->Unmark();
+      StickyUnmark(header);
       page->space()->AddPage(page);
       return true;
     }

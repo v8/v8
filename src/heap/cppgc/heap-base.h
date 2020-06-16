@@ -6,6 +6,7 @@
 #define V8_HEAP_CPPGC_HEAP_BASE_H_
 
 #include <memory>
+#include <set>
 
 #include "include/cppgc/internal/persistent-node.h"
 #include "include/cppgc/macros.h"
@@ -103,6 +104,10 @@ class V8_EXPORT_PRIVATE HeapBase {
     return weak_persistent_region_;
   }
 
+#if defined(CPPGC_YOUNG_GENERATION)
+  std::set<void*>& remembered_slots() { return remembered_slots_; }
+#endif
+
   size_t ObjectPayloadSize() const;
 
  protected:
@@ -125,6 +130,10 @@ class V8_EXPORT_PRIVATE HeapBase {
 
   PersistentRegion strong_persistent_region_;
   PersistentRegion weak_persistent_region_;
+
+#if defined(CPPGC_YOUNG_GENERATION)
+  std::set<void*> remembered_slots_;
+#endif
 
   size_t no_gc_scope_ = 0;
 

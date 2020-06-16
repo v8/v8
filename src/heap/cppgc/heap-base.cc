@@ -57,7 +57,7 @@ HeapBase::HeapBase(std::shared_ptr<cppgc::Platform> platform,
     : raw_heap_(this, custom_spaces),
       platform_(std::move(platform)),
 #if defined(CPPGC_CAGED_HEAP)
-      caged_heap_(platform_->GetPageAllocator()),
+      caged_heap_(this, platform_->GetPageAllocator()),
       page_backend_(std::make_unique<PageBackend>(&caged_heap_.allocator())),
 #else
       page_backend_(

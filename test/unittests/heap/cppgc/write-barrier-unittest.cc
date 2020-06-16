@@ -32,6 +32,7 @@ class IncrementalMarkingScope {
 
  private:
   static constexpr Marker::MarkingConfig kIncrementalConfig{
+      Marker::MarkingConfig::CollectionType::kMajor,
       Marker::MarkingConfig::StackState::kNoHeapPointers,
       Marker::MarkingConfig::MarkingType::kIncremental};
 

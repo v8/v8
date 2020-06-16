@@ -16,20 +16,27 @@ namespace internal {
 class GarbageCollector {
  public:
   struct Config {
+    using CollectionType = Marker::MarkingConfig::CollectionType;
     using StackState = cppgc::Heap::StackState;
     using MarkingType = Marker::MarkingConfig::MarkingType;
     using SweepingType = Sweeper::Config;
 
     static constexpr Config ConservativeAtomicConfig() {
-      return {StackState::kMayContainHeapPointers, MarkingType::kAtomic,
-              SweepingType::kAtomic};
+      return {CollectionType::kMajor, StackState::kMayContainHeapPointers,
+              MarkingType::kAtomic, SweepingType::kAtomic};
     }
 
     static constexpr Config PreciseAtomicConfig() {
-      return {StackState::kNoHeapPointers, MarkingType::kAtomic,
-              SweepingType::kAtomic};
+      return {CollectionType::kMajor, StackState::kNoHeapPointers,
+              MarkingType::kAtomic, SweepingType::kAtomic};
     }
 
+    static constexpr Config MinorPreciseAtomicConfig() {
+      return {CollectionType::kMinor, StackState::kNoHeapPointers,
+              MarkingType::kAtomic, SweepingType::kAtomic};
+    }
+
+    CollectionType collection_type = CollectionType::kMajor;
     StackState stack_state = StackState::kMayContainHeapPointers;
     MarkingType marking_type = MarkingType::kAtomic;
     SweepingType sweeping_type = SweepingType::kAtomic;

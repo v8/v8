@@ -55,6 +55,10 @@ class V8_EXPORT_PRIVATE Marker {
       Worklist<HeapObjectHeader*, 64 /*local entries */, kNumMarkers>;
 
   struct MarkingConfig {
+    enum class CollectionType : uint8_t {
+      kMinor,
+      kMajor,
+    };
     using StackState = cppgc::Heap::StackState;
     enum MarkingType : uint8_t {
       kAtomic,
@@ -64,6 +68,7 @@ class V8_EXPORT_PRIVATE Marker {
 
     static constexpr MarkingConfig Default() { return {}; }
 
+    CollectionType collection_type = CollectionType::kMajor;
     StackState stack_state = StackState::kMayContainHeapPointers;
     MarkingType marking_type = MarkingType::kAtomic;
   };

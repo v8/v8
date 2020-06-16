@@ -47,6 +47,35 @@ void ExitIncrementalMarkingIfNeeded(
 #endif
 }
 
+// Visit remembered set that was recorded in the generational barrier.
+void VisitRememberedSlots(
+    HeapBase& heap, MarkingVisitor* visitor) {  // NOLINT(runtime/references)
+#if defined(CPPGC_YOUNG_GENERATION)
+  for (void* slot : heap.remembered_slots()) {
+    auto& slot_header = BasePage::FromInnerAddress(&heap, slot)
+                            ->ObjectHeaderFromInnerAddress(slot);
+    if (slot_header.IsYoung()) continue;
+    // The design of young generation requires collections to be executed at the
+    // top level (with the guarantee that no objects are currently being in
+    // construction). This can be ensured by running young GCs from safe points
+    // or by reintroducing nested allocation scopes that avoid finalization.
+    DCHECK(!MarkingVisitor::IsInConstruction(slot_header));
+
+    void* value = *reinterpret_cast<void**>(slot);
+    visitor->DynamicallyMarkAddress(static_cast<Address>(value));
+  }
+#endif
+}
+
+// Assumes that all spaces have their LABs reset.
+void ResetRememberedSet(HeapBase& heap) {  // NOLINT(runtime/references)
+#if defined(CPPGC_YOUNG_GENERATION)
+  auto& local_data = heap.caged_heap().local_data();
+  local_data.age_table.Reset(&heap.caged_heap().allocator());
+  heap.remembered_slots().clear();
+#endif
+}
+
 template <typename Worklist, typename Callback>
 bool DrainWorklistWithDeadline(v8::base::TimeTicks deadline, Worklist* worklist,
                                Callback callback, int task_id) {
@@ -66,6 +95,7 @@ bool DrainWorklistWithDeadline(v8::base::TimeTicks deadline, Worklist* worklist,
   }
   return true;
 }
+
 }  // namespace
 
 constexpr int Marker::kMutatorThreadId;
@@ -118,6 +148,7 @@ void Marker::EnterAtomicPause(MarkingConfig config) {
 }
 
 void Marker::LeaveAtomicPause() {
+  ResetRememberedSet(heap());
   heap().stats_collector()->NotifyMarkingCompleted(
       marking_visitor_->marked_bytes());
 }
@@ -150,6 +181,9 @@ void Marker::VisitRoots() {
   heap().GetStrongPersistentRegion().Trace(marking_visitor_.get());
   if (config_.stack_state != MarkingConfig::StackState::kNoHeapPointers) {
     heap().stack()->IteratePointers(marking_visitor_.get());
+  }
+  if (config_.collection_type == MarkingConfig::CollectionType::kMinor) {
+    VisitRememberedSlots(heap(), marking_visitor_.get());
   }
 }
 

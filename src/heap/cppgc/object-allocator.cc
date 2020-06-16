@@ -24,6 +24,37 @@ namespace cppgc {
 namespace internal {
 namespace {
 
+void MarkRangeAsYoung(BasePage* page, Address begin, Address end) {
+#if defined(CPPGC_YOUNG_GENERATION)
+  DCHECK_LT(begin, end);
+
+  static constexpr auto kEntrySize = AgeTable::kEntrySizeInBytes;
+
+  const uintptr_t offset_begin = CagedHeap::OffsetFromAddress(begin);
+  const uintptr_t offset_end = CagedHeap::OffsetFromAddress(end);
+
+  const uintptr_t young_offset_begin = (begin == page->PayloadStart())
+                                           ? RoundDown(offset_begin, kEntrySize)
+                                           : RoundUp(offset_begin, kEntrySize);
+  const uintptr_t young_offset_end = (end == page->PayloadEnd())
+                                         ? RoundUp(offset_end, kEntrySize)
+                                         : RoundDown(offset_end, kEntrySize);
+
+  auto& age_table = page->heap()->caged_heap().local_data().age_table;
+  for (auto offset = young_offset_begin; offset < young_offset_end;
+       offset += AgeTable::kEntrySizeInBytes) {
+    age_table[offset] = AgeTable::Age::kYoung;
+  }
+
+  // Set to kUnknown the first and the last regions of the newly allocated
+  // linear buffer.
+  if (begin != page->PayloadStart() && !IsAligned(offset_begin, kEntrySize))
+    age_table[offset_begin] = AgeTable::Age::kUnknown;
+  if (end != page->PayloadEnd() && !IsAligned(offset_end, kEntrySize))
+    age_table[offset_end] = AgeTable::Age::kUnknown;
+#endif
+}
+
 void AddToFreeList(NormalPageSpace* space, Address start, size_t size) {
   auto& free_list = space->free_list();
   free_list.Add({start, size});
@@ -48,9 +79,9 @@ void ReplaceLinearAllocationBuffer(NormalPageSpace* space,
   if (new_size) {
     DCHECK_NOT_NULL(new_buffer);
     stats_collector->NotifyAllocation(new_size);
-    NormalPage::From(BasePage::FromPayload(new_buffer))
-        ->object_start_bitmap()
-        .ClearBit(new_buffer);
+    auto* page = NormalPage::From(BasePage::FromPayload(new_buffer));
+    page->object_start_bitmap().ClearBit(new_buffer);
+    MarkRangeAsYoung(page, new_buffer, new_buffer + new_size);
   }
 }
 
@@ -64,6 +95,8 @@ void* AllocateLargeObject(PageBackend* page_backend, LargePageSpace* space,
       HeapObjectHeader(HeapObjectHeader::kLargeObjectSizeInHeader, gcinfo);
 
   stats_collector->NotifyAllocation(size);
+  MarkRangeAsYoung(page, page->PayloadStart(), page->PayloadEnd());
+
   return header->Payload();
 }
 
@@ -110,11 +143,15 @@ void* ObjectAllocator::OutOfLineAllocateImpl(NormalPageSpace* space,
   // 5. Add a new page to this heap.
   auto* new_page = NormalPage::Create(page_backend_, space);
   space->AddPage(new_page);
-  AddToFreeList(space, new_page->PayloadStart(), new_page->PayloadSize());
 
-  // 6. Try to allocate from the freelist. This allocation must succeed.
-  void* result = AllocateFromFreeList(space, size, gcinfo);
-  CPPGC_CHECK(result);
+  // 6. Set linear allocation buffer to new page.
+  ReplaceLinearAllocationBuffer(space, stats_collector_,
+                                new_page->PayloadStart(),
+                                new_page->PayloadSize());
+
+  // 7. Allocate from it. The allocation must succeed.
+  void* result = AllocateObjectOnSpace(space, size, gcinfo);
+  CHECK(result);
 
   return result;
 }

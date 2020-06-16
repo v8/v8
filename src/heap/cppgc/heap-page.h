@@ -42,6 +42,11 @@ class V8_EXPORT_PRIVATE BasePage {
 
   bool is_large() const { return type_ == PageType::kLarge; }
 
+  Address PayloadStart();
+  ConstAddress PayloadStart() const;
+  Address PayloadEnd();
+  ConstAddress PayloadEnd() const;
+
   // |address| must refer to real object.
   HeapObjectHeader& ObjectHeaderFromInnerAddress(void* address) const;
   const HeapObjectHeader& ObjectHeaderFromInnerAddress(
