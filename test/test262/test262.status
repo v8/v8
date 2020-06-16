@@ -517,14 +517,6 @@
   # https://github.com/tc39/test262/pull/2349
   'intl402/Locale/constructor-options-region-valid': [FAIL],
 
-  # http://crbug/v8/10443
-  'intl402/RelativeTimeFormat/prototype/format/pl-pl-style-long': [FAIL],
-  'intl402/RelativeTimeFormat/prototype/format/pl-pl-style-narrow': [FAIL],
-  'intl402/RelativeTimeFormat/prototype/format/pl-pl-style-short': [FAIL],
-  'intl402/RelativeTimeFormat/prototype/formatToParts/pl-pl-style-long': [FAIL],
-  'intl402/RelativeTimeFormat/prototype/formatToParts/pl-pl-style-narrow': [FAIL],
-  'intl402/RelativeTimeFormat/prototype/formatToParts/pl-pl-style-short': [FAIL],
-
   # http://crbug/v8/6891
   'intl402/Segmenter/prototype/segment/segment-tostring': [FAIL],
   'intl402/Segmenter/prototype/segment/segment-word-iterable': [FAIL],
