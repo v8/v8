@@ -31,7 +31,7 @@ vars = {
   'check_v8_header_includes': False,
 
   # GN CIPD package version.
-  'gn_version': 'git_revision:9a0496a74efd13c1bb2abd866d8a227404615068',
+  'gn_version': 'git_revision:fbe7aec770944d17c9f3006f6cbb5c19e8cd43ea',
 
   # luci-go CIPD package version.
   'luci_go': 'git_revision:56ae79476e3caf14da59d75118408aa778637936',
@@ -72,15 +72,15 @@ vars = {
 
 deps = {
   'v8/build':
-    Var('chromium_url') + '/chromium/src/build.git' + '@' + '908ea81374add4a90badc005c5c85fed5b0e6798',
+    Var('chromium_url') + '/chromium/src/build.git' + '@' + 'a980f85fdc0b6eee68b3470dc3b6c2a909f3bb1c',
   'v8/third_party/depot_tools':
-    Var('chromium_url') + '/chromium/tools/depot_tools.git' + '@' + '03705f60de6cc7b06ddaabe9649c14fb70b62c4e',
+    Var('chromium_url') + '/chromium/tools/depot_tools.git' + '@' + 'e364dd820b29ab33721f12c448f7454092295ef6',
   'v8/third_party/icu':
     Var('chromium_url') + '/chromium/deps/icu.git' + '@' + '9e7dae8c9a3f3b41afdf1a9f5e78f0299fb93e4e',
   'v8/third_party/instrumented_libraries':
     Var('chromium_url') + '/chromium/src/third_party/instrumented_libraries.git' + '@' + 'bb3f1802c237dd19105dd0f7919f99e536a39d10',
   'v8/buildtools':
-    Var('chromium_url') + '/chromium/src/buildtools.git' + '@' + '574cbd5df82c6ae48805b2aa8d75e0ef76aa15aa',
+    Var('chromium_url') + '/chromium/src/buildtools.git' + '@' + '3200e0f147c59e57507a26afd098de801bd96777',
   'v8/buildtools/clang_format/script':
     Var('chromium_url') + '/chromium/llvm-project/cfe/tools/clang-format.git' + '@' + '96636aa0e9f047f17447f2d45a094d0b59ed7917',
   'v8/buildtools/linux64': {
@@ -168,7 +168,7 @@ deps = {
       'dep_type': 'cipd',
   },
   'v8/third_party/catapult': {
-    'url': Var('chromium_url') + '/catapult.git' + '@' + 'b919b0064c9225d234b07d9ed28be10716ab6ae3',
+    'url': Var('chromium_url') + '/catapult.git' + '@' + '9253b254e24be0e953c5562420167c6d63277672',
     'condition': 'checkout_android',
   },
   'v8/third_party/colorama/src': {
@@ -219,7 +219,7 @@ deps = {
       'packages': [
           {
               'package': 'fuchsia/third_party/aemu/linux-amd64',
-              'version': 'VTMne1aEixrBYfQxsfnRBgzudRPhjV-iUQeXgznyNqgC'
+              'version': 'T98d0T9VlsHV98PPahwzBa8kF94z5dghLKOTUDCTmwYC'
           },
       ],
       'condition': 'host_os == "linux" and checkout_fuchsia',
@@ -236,7 +236,7 @@ deps = {
       'dep_type': 'cipd',
   },
   'v8/tools/clang':
-    Var('chromium_url') + '/chromium/src/tools/clang.git' + '@' + '79a04200ec76e8027caee51ed69f02961743f92f',
+    Var('chromium_url') + '/chromium/src/tools/clang.git' + '@' + '0d67b22eb5a41adfe6da73749a39e3ec56aa39fe',
   'v8/tools/luci-go': {
       'packages': [
         {
