@@ -1988,7 +1988,39 @@ void LiftoffAssembler::emit_s8x16_shuffle(LiftoffRegister dst,
                                           LiftoffRegister lhs,
                                           LiftoffRegister rhs,
                                           const uint8_t shuffle[16]) {
-  bailout(kSimd, "s8x16_shuffle");
+  VRegister src1 = lhs.fp();
+  VRegister src2 = rhs.fp();
+  VRegister temp = dst.fp();
+  if (dst == lhs || dst == rhs) {
+    // dst overlaps with lhs or rhs, so we need a temporary.
+    temp = GetUnusedRegister(kFpReg, LiftoffRegList::ForRegs(lhs, rhs)).fp();
+  }
+
+  UseScratchRegisterScope scope(this);
+
+  if (src1 != src2 && !AreConsecutive(src1, src2)) {
+    // Tbl needs consecutive registers, which our scratch registers are.
+    src1 = scope.AcquireV(kFormat16B);
+    src2 = scope.AcquireV(kFormat16B);
+    DCHECK(AreConsecutive(src1, src2));
+    Mov(src1.Q(), lhs.fp().Q());
+    Mov(src2.Q(), rhs.fp().Q());
+  }
+
+  uint8_t mask = lhs == rhs ? 0x0F : 0x1F;
+  int64_t imms[2] = {0, 0};
+  for (int i = 7; i >= 0; i--) {
+    imms[0] = (imms[0] << 8) | (shuffle[i] & mask);
+    imms[1] = (imms[1] << 8) | (shuffle[i + 8] & mask);
+  }
+
+  Movi(temp.V16B(), imms[1], imms[0]);
+
+  if (src1 == src2) {
+    Tbl(dst.fp().V16B(), src1.V16B(), temp.V16B());
+  } else {
+    Tbl(dst.fp().V16B(), src1.V16B(), src2.V16B(), temp.V16B());
+  }
 }
 
 void LiftoffAssembler::emit_i8x16_splat(LiftoffRegister dst,
