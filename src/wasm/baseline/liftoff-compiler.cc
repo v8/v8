@@ -709,9 +709,10 @@ class LiftoffCompiler {
     asm_.AbortCompilation();
   }
 
-  void NextInstruction(FullDecoder* decoder, WasmOpcode opcode) {
+  V8_NOINLINE void EmitDebuggingInfo(FullDecoder* decoder, WasmOpcode opcode) {
+    DCHECK(V8_UNLIKELY(for_debugging_));
     bool breakpoint = false;
-    if (V8_UNLIKELY(next_breakpoint_ptr_)) {
+    if (next_breakpoint_ptr_) {
       if (*next_breakpoint_ptr_ == 0) {
         // A single breakpoint at offset 0 indicates stepping.
         DCHECK_EQ(next_breakpoint_ptr_ + 1, next_breakpoint_end_);
@@ -736,6 +737,12 @@ class LiftoffCompiler {
     }
     // Potentially generate the source position to OSR to this instruction.
     MaybeGenerateExtraSourcePos(decoder, !breakpoint);
+  }
+
+  void NextInstruction(FullDecoder* decoder, WasmOpcode opcode) {
+    // Add a single check, so that the fast path can be inlined while
+    // {EmitDebuggingInfo} stays outlined.
+    if (V8_UNLIKELY(for_debugging_)) EmitDebuggingInfo(decoder, opcode);
     TraceCacheState(decoder);
 #ifdef DEBUG
     SLOW_DCHECK(__ ValidateCacheState());
