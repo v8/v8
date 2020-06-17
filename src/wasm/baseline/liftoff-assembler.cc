@@ -82,35 +82,31 @@ class StackTransferRecipe {
     DCHECK(load_dst_regs_.is_empty());
   }
 
-  void TransferStackSlot(const VarState& dst, const VarState& src) {
+  V8_INLINE void TransferStackSlot(const VarState& dst, const VarState& src) {
     DCHECK_EQ(dst.type(), src.type());
-    switch (dst.loc()) {
+    if (dst == src) return;
+    if (dst.is_reg()) {
+      LoadIntoRegister(dst.reg(), src, src.offset());
+      return;
+    }
+    DCHECK(dst.is_stack());
+    switch (src.loc()) {
       case VarState::kStack:
-        switch (src.loc()) {
-          case VarState::kStack:
-            if (src.offset() == dst.offset()) break;
-            asm_->MoveStackValue(dst.offset(), src.offset(), src.type());
-            break;
-          case VarState::kRegister:
-            asm_->Spill(dst.offset(), src.reg(), src.type());
-            break;
-          case VarState::kIntConst:
-            asm_->Spill(dst.offset(), src.constant());
-            break;
-        }
+        DCHECK_NE(src.offset(), dst.offset());
+        asm_->MoveStackValue(dst.offset(), src.offset(), src.type());
         break;
       case VarState::kRegister:
-        LoadIntoRegister(dst.reg(), src, src.offset());
+        asm_->Spill(dst.offset(), src.reg(), src.type());
         break;
       case VarState::kIntConst:
-        DCHECK_EQ(dst, src);
+        asm_->Spill(dst.offset(), src.constant());
         break;
     }
   }
 
-  void LoadIntoRegister(LiftoffRegister dst,
-                        const LiftoffAssembler::VarState& src,
-                        uint32_t src_offset) {
+  V8_INLINE void LoadIntoRegister(LiftoffRegister dst,
+                                  const LiftoffAssembler::VarState& src,
+                                  uint32_t src_offset) {
     switch (src.loc()) {
       case VarState::kStack:
         LoadStackSlot(dst, src_offset, src.type());
