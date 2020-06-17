@@ -401,6 +401,20 @@ void float64_pow_wrapper(Address data) {
   WriteUnalignedValue<double>(data, base::ieee754::pow(x, y));
 }
 
+template <typename T, T (*float_round_op)(T)>
+void simd_float_round_wrapper(Address data) {
+  constexpr int n = kSimd128Size / sizeof(T);
+  for (int i = 0; i < n; i++) {
+    WriteUnalignedValue<T>(
+        data + (i * sizeof(T)),
+        float_round_op(ReadUnalignedValue<T>(data + (i * sizeof(T)))));
+  }
+}
+
+void f32x4_ceil_wrapper(Address data) {
+  simd_float_round_wrapper<float, &ceilf>(data);
+}
+
 namespace {
 class ThreadNotInWasmScope {
 // Asan on Windows triggers exceptions to allocate shadow memory lazily. When

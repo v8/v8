@@ -5442,6 +5442,33 @@ void Simulator::DecodeSpecialCondition(Instruction* instr) {
               UNIMPLEMENTED();
               break;
           }
+        } else if (instr->Bits(17, 16) == 0x2 && instr->Bit(10) == 1) {
+          // vrint<q>.<dt> <Dd>, <Dm>
+          // vrint<q>.<dt> <Qd>, <Qm>
+          // See F6.1.205
+          int regs = instr->Bit(6) + 1;
+          int rounding_mode = instr->Bits(9, 7);
+          float (*fproundint)(float) = nullptr;
+          switch (rounding_mode) {
+            case 7:
+              fproundint = &ceilf;
+              break;
+            default:
+              UNIMPLEMENTED();
+          }
+          int vm = instr->VFPMRegValue(kDoublePrecision);
+          int vd = instr->VFPDRegValue(kDoublePrecision);
+
+          float floats[2];
+          for (int r = 0; r < regs; r++) {
+            // We cannot simply use GetVFPSingleValue since our Q registers
+            // might not map to any S registers at all.
+            get_neon_register<float, kDoubleSize>(vm + r, floats);
+            for (int e = 0; e < 2; e++) {
+              floats[e] = canonicalizeNaN(fproundint(floats[e]));
+            }
+            set_neon_register<float, kDoubleSize>(vd + r, floats);
+          }
         } else {
           UNIMPLEMENTED();
         }

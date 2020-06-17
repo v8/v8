@@ -4040,6 +4040,12 @@ Node* WasmGraphBuilder::BuildAsmjsStoreMem(MachineType type, Node* index,
   return val;
 }
 
+Node* WasmGraphBuilder::BuildF32x4Ceil(Node* input) {
+  MachineType type = MachineType::Simd128();
+  ExternalReference ref = ExternalReference::wasm_f32x4_ceil();
+  return BuildCFuncInstruction(ref, type, input);
+}
+
 void WasmGraphBuilder::PrintDebugName(Node* node) {
   PrintF("#%d:%s", node->id(), node->op()->mnemonic());
 }
@@ -4281,6 +4287,9 @@ Node* WasmGraphBuilder::SimdOp(wasm::WasmOpcode opcode, Node* const* inputs) {
       return graph()->NewNode(mcgraph()->machine()->F32x4Pmax(), inputs[0],
                               inputs[1]);
     case wasm::kExprF32x4Ceil:
+      // Architecture support for F32x4Ceil and Float32RoundUp is the same.
+      if (!mcgraph()->machine()->Float32RoundUp().IsSupported())
+        return BuildF32x4Ceil(inputs[0]);
       return graph()->NewNode(mcgraph()->machine()->F32x4Ceil(), inputs[0]);
     case wasm::kExprF32x4Floor:
       return graph()->NewNode(mcgraph()->machine()->F32x4Floor(), inputs[0]);

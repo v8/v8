@@ -553,6 +553,9 @@ class WasmGraphBuilder {
   Node* BuildAsmjsLoadMem(MachineType type, Node* index);
   Node* BuildAsmjsStoreMem(MachineType type, Node* index, Node* val);
 
+  // Wasm SIMD.
+  Node* BuildF32x4Ceil(Node* input);
+
   void BuildEncodeException32BitValue(Node* values_array, uint32_t* index,
                                       Node* value);
   Node* BuildDecodeException32BitValue(Node* values_array, uint32_t* index);

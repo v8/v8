@@ -3596,6 +3596,23 @@ void Assembler::vrintp(const DwVfpRegister dst, const DwVfpRegister src) {
        vd * B12 | 0x5 * B9 | B8 | B6 | m * B5 | vm);
 }
 
+void Assembler::vrintp(NeonDataType dt, const QwNeonRegister dst,
+                       const QwNeonRegister src) {
+  // cond=kSpecialCondition(31-28) | 00111(27-23)| D(22) | 11(21-20) |
+  // size(19-18) | 10(17-16) | Vd(15-12) | 01(11-10) | 7(9-7) | 1(6) | M(5) |
+  // 0(4) | Vm(3-0)
+  DCHECK(IsEnabled(ARMv8));
+  int vd, d;
+  dst.split_code(&vd, &d);
+  int vm, m;
+  src.split_code(&vm, &m);
+  int size = NeonSz(dt);
+  // Only F32 is implemented for now.
+  DCHECK_EQ(0x2, dt);
+  emit(kSpecialCondition | 0x7 * B23 | d * B22 | 0x3 * B20 | size * B18 |
+       0x2 * B16 | vd * B12 | 0x1 * B10 | 0x7 * B7 | B6 | m * B5 | vm);
+}
+
 void Assembler::vrintm(const SwVfpRegister dst, const SwVfpRegister src) {
   // cond=kSpecialCondition(31-28) | 11101(27-23)| D(22) | 11(21-20) |
   // 10(19-18) | RM=11(17-16) |  Vd(15-12) | 101(11-9) | sz=0(8) | 01(7-6) |

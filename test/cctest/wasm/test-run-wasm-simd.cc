@@ -692,12 +692,15 @@ WASM_SIMD_TEST(F32x4RecipSqrtApprox) {
 
 // TODO(v8:10553) Prototyping floating-point rounding instructions.
 #if V8_TARGET_ARCH_X64 || V8_TARGET_ARCH_ARM64 || V8_TARGET_ARCH_S390X || \
-    V8_TARGET_ARCH_IA32
+    V8_TARGET_ARCH_IA32 || V8_TARGET_ARCH_ARM
 WASM_SIMD_TEST_NO_LOWERING(F32x4Ceil) {
   FLAG_SCOPE(wasm_simd_post_mvp);
   RunF32x4UnOpTest(execution_tier, lower_simd, kExprF32x4Ceil, ceilf, true);
 }
 
+// TODO(zhin): Temporary convoluted way to exclude running these tests on ARM as
+// we are implementing each opcode one at a time.
+#if !V8_TARGET_ARCH_ARM
 WASM_SIMD_TEST_NO_LOWERING(F32x4Floor) {
   FLAG_SCOPE(wasm_simd_post_mvp);
   RunF32x4UnOpTest(execution_tier, lower_simd, kExprF32x4Floor, floorf, true);
@@ -713,8 +716,9 @@ WASM_SIMD_TEST_NO_LOWERING(F32x4NearestInt) {
   RunF32x4UnOpTest(execution_tier, lower_simd, kExprF32x4NearestInt, nearbyintf,
                    true);
 }
+#endif  // !V8_TARGET_ARCH_ARM
 #endif  // V8_TARGET_ARCH_X64 || V8_TARGET_ARCH_ARM64 || V8_TARGET_ARCH_S390X ||
-        // V8_TARGET_ARCH_IA32
+        // V8_TARGET_ARCH_IA32 || V8_TARGET_ARCH_ARM
 
 void RunF32x4BinOpTest(ExecutionTier execution_tier, LowerSimd lower_simd,
                        WasmOpcode opcode, FloatBinOp expected_op) {
