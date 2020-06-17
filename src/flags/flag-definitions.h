@@ -1270,15 +1270,11 @@ DEFINE_IMPLICATION(trace_maps, log_code)
 
 // parser.cc
 DEFINE_BOOL(allow_natives_syntax, false, "allow natives syntax")
-DEFINE_BOOL(allow_natives_for_fuzzing, false,
-            "allow only natives explicitly whitelisted for fuzzers")
 DEFINE_BOOL(allow_natives_for_differential_fuzzing, false,
             "allow only natives explicitly whitelisted for differential "
             "fuzzers")
 DEFINE_IMPLICATION(allow_natives_for_differential_fuzzing, allow_natives_syntax)
-DEFINE_IMPLICATION(allow_natives_for_fuzzing, allow_natives_syntax)
-DEFINE_IMPLICATION(allow_natives_for_differential_fuzzing,
-                   allow_natives_for_fuzzing)
+DEFINE_IMPLICATION(allow_natives_for_differential_fuzzing, fuzzing)
 DEFINE_BOOL(parse_only, false, "only parse the sources")
 
 // simulator-arm.cc, simulator-arm64.cc and simulator-mips.cc

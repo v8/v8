@@ -193,7 +193,7 @@ bool Runtime::MayAllocate(FunctionId id) {
 }
 
 bool Runtime::IsWhitelistedForFuzzing(FunctionId id) {
-  CHECK(FLAG_allow_natives_for_fuzzing);
+  CHECK(FLAG_fuzzing);
   switch (id) {
     // Runtime functions whitelisted for all fuzzers. Only add functions that
     // help increase coverage.
