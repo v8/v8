@@ -311,6 +311,7 @@ def print_difference(
   else:
     first_stdout = first_config_output.stdout.decode('utf-8', 'replace')
     second_stdout = second_config_output.stdout.decode('utf-8', 'replace')
+    difference = difference.decode('utf-8', 'replace')
 
   text = (FAILURE_TEMPLATE % dict(
       configs='%s:%s' % (first_config_label, second_config_label),
