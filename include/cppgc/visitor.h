@@ -136,11 +136,12 @@ class Visitor {
   template <typename PointerType>
   static void HandleWeak(const LivenessBroker& info, const void* object) {
     const PointerType* weak = static_cast<const PointerType*>(object);
-    // Sentinel values are preserved for weak pointers.
-    if (*weak == kSentinelPointer) return;
     const auto* raw = weak->Get();
-    if (!info.IsHeapObjectAlive(raw)) {
-      weak->ClearFromGC();
+    if (raw && !info.IsHeapObjectAlive(raw)) {
+      // Object is passed down through the marker as const. Alternatives are
+      // - non-const Trace method;
+      // - mutable pointer in MemberBase;
+      const_cast<PointerType*>(weak)->Clear();
     }
   }
 

@@ -5,7 +5,6 @@
 #include "src/heap/cppgc/marker.h"
 
 #include "include/cppgc/allocation.h"
-#include "include/cppgc/internal/pointer-policies.h"
 #include "include/cppgc/member.h"
 #include "include/cppgc/persistent.h"
 #include "src/heap/cppgc/heap-object-header-inl.h"
@@ -244,21 +243,6 @@ TEST_F(MarkerTest, InConstructionObjectIsEventuallyMarkedNonEmptyStack) {
         marker.FinishMarking(config);
         EXPECT_TRUE(HeapObjectHeader::FromPayload(obj).IsMarked());
       });
-}
-
-TEST_F(MarkerTest, SentinelNotClearedOnWeakPersistentHandling) {
-  Marker marker(Heap::From(GetHeap())->AsBase());
-  Persistent<GCed> root = MakeGarbageCollected<GCed>(GetAllocationHandle());
-  auto* tmp = MakeGarbageCollected<GCed>(GetAllocationHandle());
-  root->SetWeakChild(tmp);
-  static const Marker::MarkingConfig config = {
-      MarkingConfig::CollectionType::kMajor,
-      MarkingConfig::StackState::kNoHeapPointers};
-  marker.StartMarking(config);
-  marker.FinishMarking(config);
-  root->SetWeakChild(kSentinelPointer);
-  marker.ProcessWeakness();
-  EXPECT_EQ(kSentinelPointer, root->weak_child());
 }
 
 }  // namespace internal
