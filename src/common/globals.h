@@ -68,10 +68,13 @@ constexpr int GB = MB * 1024;
 #define V8_EMBEDDED_CONSTANT_POOL false
 #endif
 
-#ifdef V8_TARGET_ARCH_ARM
-// Set stack limit lower for ARM than for other architectures because
-// stack allocating MacroAssembler takes 120K bytes.
-// See issue crbug.com/405338
+#if V8_TARGET_ARCH_ARM || V8_TARGET_ARCH_ARM64
+// Set stack limit lower for ARM and ARM64 than for other architectures because:
+//  - on Arm stack allocating MacroAssembler takes 120K bytes.
+//    See issue crbug.com/405338
+//  - on Arm64 when running in single-process mode for Android WebView, when
+//    initializing V8 we already have a large stack and so have to set the
+//    limit lower. See issue crbug.com/v8/10575
 #define V8_DEFAULT_STACK_SIZE_KB 864
 #else
 // Slightly less than 1MB, since Windows' default stack size for
