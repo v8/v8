@@ -17,7 +17,7 @@ namespace internal {
 // SemiSpace
 
 bool SemiSpace::Contains(HeapObject o) const {
-  MemoryChunk* memory_chunk = MemoryChunk::FromHeapObject(o);
+  BasicMemoryChunk* memory_chunk = BasicMemoryChunk::FromHeapObject(o);
   if (memory_chunk->IsLargePage()) return false;
   return id_ == kToSpace ? memory_chunk->IsToPage()
                          : memory_chunk->IsFromPage();
@@ -29,7 +29,7 @@ bool SemiSpace::Contains(Object o) const {
 
 bool SemiSpace::ContainsSlow(Address a) const {
   for (const Page* p : *this) {
-    if (p == MemoryChunk::FromAddress(a)) return true;
+    if (p == BasicMemoryChunk::FromAddress(a)) return true;
   }
   return false;
 }
@@ -42,7 +42,7 @@ bool NewSpace::Contains(Object o) const {
 }
 
 bool NewSpace::Contains(HeapObject o) const {
-  return MemoryChunk::FromHeapObject(o)->InNewSpace();
+  return BasicMemoryChunk::FromHeapObject(o)->InNewSpace();
 }
 
 bool NewSpace::ContainsSlow(Address a) const {

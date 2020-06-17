@@ -731,7 +731,7 @@ void PagedSpace::Verify(Isolate* isolate, ObjectVisitor* visitor) {
       // The object itself should look OK.
       object.ObjectVerify(isolate);
 
-      if (!FLAG_verify_heap_skip_remembered_set) {
+      if (identity() != RO_SPACE && !FLAG_verify_heap_skip_remembered_set) {
         isolate->heap()->VerifyRememberedSetFor(object);
       }
 

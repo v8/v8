@@ -2,8 +2,9 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#include "src/common/globals.h"
+#include "src/heap/basic-memory-chunk.h"
 #include "src/heap/heap-inl.h"
-#include "src/heap/memory-chunk-inl.h"
 #include "src/objects/cell.h"
 #include "src/objects/feedback-cell.h"
 #include "src/objects/script.h"
@@ -16,8 +17,10 @@ namespace internal {
 namespace {
 AllocationSpace GetSpaceFromObject(Object object) {
   DCHECK(object.IsHeapObject());
-  return MemoryChunk::FromHeapObject(HeapObject::cast(object))
-      ->owner_identity();
+  BasicMemoryChunk* chunk =
+      BasicMemoryChunk::FromHeapObject(HeapObject::cast(object));
+  if (chunk->InReadOnlySpace()) return RO_SPACE;
+  return chunk->owner()->identity();
 }
 }  // namespace
 

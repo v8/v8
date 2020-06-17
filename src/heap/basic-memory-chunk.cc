@@ -58,5 +58,21 @@ BasicMemoryChunk* BasicMemoryChunk::Initialize(Heap* heap, Address base,
   return chunk;
 }
 
+bool BasicMemoryChunk::InOldSpace() const {
+  return owner()->identity() == OLD_SPACE;
+}
+
+bool BasicMemoryChunk::InLargeObjectSpace() const {
+  return owner()->identity() == LO_SPACE;
+}
+
+#ifdef THREAD_SANITIZER
+void BasicMemoryChunk::SynchronizedHeapLoad() {
+  CHECK(reinterpret_cast<Heap*>(base::Acquire_Load(
+            reinterpret_cast<base::AtomicWord*>(&heap_))) != nullptr ||
+        InReadOnlySpace());
+}
+#endif
+
 }  // namespace internal
 }  // namespace v8

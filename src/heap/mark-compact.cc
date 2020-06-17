@@ -1232,7 +1232,7 @@ class RecordMigratedSlotVisitor : public ObjectVisitor {
   inline virtual void RecordMigratedSlot(HeapObject host, MaybeObject value,
                                          Address slot) {
     if (value->IsStrongOrWeak()) {
-      MemoryChunk* p = MemoryChunk::FromAddress(value.ptr());
+      BasicMemoryChunk* p = BasicMemoryChunk::FromAddress(value.ptr());
       if (p->InYoungGeneration()) {
         DCHECK_IMPLIES(
             p->IsToPage(),
@@ -4412,7 +4412,7 @@ class YoungGenerationRecordMigratedSlotVisitor final
   inline void RecordMigratedSlot(HeapObject host, MaybeObject value,
                                  Address slot) final {
     if (value->IsStrongOrWeak()) {
-      MemoryChunk* p = MemoryChunk::FromAddress(value.ptr());
+      BasicMemoryChunk* p = BasicMemoryChunk::FromAddress(value.ptr());
       if (p->InYoungGeneration()) {
         DCHECK_IMPLIES(
             p->IsToPage(),

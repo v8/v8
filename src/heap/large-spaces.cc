@@ -164,7 +164,7 @@ size_t LargeObjectSpace::CommittedPhysicalMemory() {
 }
 
 LargePage* CodeLargeObjectSpace::FindPage(Address a) {
-  const Address key = MemoryChunk::FromAddress(a)->address();
+  const Address key = BasicMemoryChunk::FromAddress(a)->address();
   auto it = chunk_map_.find(key);
   if (it != chunk_map_.end()) {
     LargePage* page = it->second;
@@ -275,7 +275,7 @@ void LargeObjectSpace::FreeUnmarkedObjects() {
 }
 
 bool LargeObjectSpace::Contains(HeapObject object) {
-  MemoryChunk* chunk = MemoryChunk::FromHeapObject(object);
+  BasicMemoryChunk* chunk = BasicMemoryChunk::FromHeapObject(object);
 
   bool owned = (chunk->owner() == this);
 

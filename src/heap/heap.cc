@@ -3029,7 +3029,7 @@ HeapObject CreateFillerObjectAtImpl(ReadOnlyRoots roots, Address addr, int size,
 
 #ifdef DEBUG
 void VerifyNoNeedToClearSlots(Address start, Address end) {
-  MemoryChunk* chunk = MemoryChunk::FromAddress(start);
+  BasicMemoryChunk* chunk = BasicMemoryChunk::FromAddress(start);
   // TODO(ulan): Support verification of large pages.
   if (chunk->InYoungGeneration() || chunk->IsLargePage()) return;
   Space* space = chunk->owner();
@@ -3095,7 +3095,7 @@ bool Heap::InOffThreadSpace(HeapObject heap_object) {
 #ifdef V8_ENABLE_THIRD_PARTY_HEAP
   return false;  // currently unsupported
 #else
-  Space* owner = MemoryChunk::FromHeapObject(heap_object)->owner();
+  Space* owner = BasicMemoryChunk::FromHeapObject(heap_object)->owner();
   if (owner->identity() == OLD_SPACE) {
     // TODO(leszeks): Should we exclude compaction spaces here?
     return static_cast<PagedSpace*>(owner)->is_off_thread_space();
@@ -3114,12 +3114,12 @@ bool Heap::IsImmovable(HeapObject object) {
     return true;
   }
 
-  MemoryChunk* chunk = MemoryChunk::FromHeapObject(object);
+  BasicMemoryChunk* chunk = BasicMemoryChunk::FromHeapObject(object);
   return chunk->NeverEvacuate() || IsLargeObject(object);
 }
 
 bool Heap::IsLargeObject(HeapObject object) {
-  return MemoryChunk::FromHeapObject(object)->IsLargePage();
+  return BasicMemoryChunk::FromHeapObject(object)->IsLargePage();
 }
 
 #ifdef ENABLE_SLOW_DCHECKS
@@ -3148,7 +3148,8 @@ class LeftTrimmerVerifierRootVisitor : public RootVisitor {
 namespace {
 bool MayContainRecordedSlots(HeapObject object) {
   // New space object do not have recorded slots.
-  if (MemoryChunk::FromHeapObject(object)->InYoungGeneration()) return false;
+  if (BasicMemoryChunk::FromHeapObject(object)->InYoungGeneration())
+    return false;
   // Whitelist objects that definitely do not have pointers.
   if (object.IsByteArray() || object.IsFixedDoubleArray()) return false;
   // Conservatively return true for other objects.
@@ -5209,7 +5210,7 @@ HeapObject Heap::EnsureImmovableCode(HeapObject heap_object, int object_size) {
   if (!Heap::IsImmovable(heap_object)) {
     if (isolate()->serializer_enabled() ||
         code_space_->first_page()->Contains(heap_object.address())) {
-      MemoryChunk::FromHeapObject(heap_object)->MarkNeverEvacuate();
+      BasicMemoryChunk::FromHeapObject(heap_object)->MarkNeverEvacuate();
     } else {
       // Discard the first code allocation, which was on a page where it could
       // be moved.
@@ -5993,14 +5994,14 @@ class UnreachableObjectsFilter : public HeapObjectsFilter {
 
   bool SkipObject(HeapObject object) override {
     if (object.IsFreeSpaceOrFiller()) return true;
-    MemoryChunk* chunk = MemoryChunk::FromHeapObject(object);
+    BasicMemoryChunk* chunk = BasicMemoryChunk::FromHeapObject(object);
     if (reachable_.count(chunk) == 0) return true;
     return reachable_[chunk]->count(object) == 0;
   }
 
  private:
   bool MarkAsReachable(HeapObject object) {
-    MemoryChunk* chunk = MemoryChunk::FromHeapObject(object);
+    BasicMemoryChunk* chunk = BasicMemoryChunk::FromHeapObject(object);
     if (reachable_.count(chunk) == 0) {
       reachable_[chunk] = new std::unordered_set<HeapObject, Object::Hasher>();
     }
@@ -6082,7 +6083,7 @@ class UnreachableObjectsFilter : public HeapObjectsFilter {
 
   Heap* heap_;
   DisallowHeapAllocation no_allocation_;
-  std::unordered_map<MemoryChunk*,
+  std::unordered_map<BasicMemoryChunk*,
                      std::unordered_set<HeapObject, Object::Hasher>*>
       reachable_;
 };
@@ -6869,7 +6870,7 @@ bool Heap::PageFlagsAreConsistent(HeapObject object) {
   if (V8_ENABLE_THIRD_PARTY_HEAP_BOOL) {
     return true;
   }
-  MemoryChunk* chunk = MemoryChunk::FromHeapObject(object);
+  BasicMemoryChunk* chunk = BasicMemoryChunk::FromHeapObject(object);
   heap_internals::MemoryChunk* slim_chunk =
       heap_internals::MemoryChunk::FromHeapObject(object);
 
@@ -6878,7 +6879,7 @@ bool Heap::PageFlagsAreConsistent(HeapObject object) {
   CHECK_EQ(chunk->IsFlagSet(MemoryChunk::INCREMENTAL_MARKING),
            slim_chunk->IsMarking());
 
-  AllocationSpace identity = chunk->owner_identity();
+  AllocationSpace identity = chunk->owner()->identity();
 
   // Generation consistency.
   CHECK_EQ(identity == NEW_SPACE || identity == NEW_LO_SPACE,

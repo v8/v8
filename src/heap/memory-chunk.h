@@ -49,23 +49,6 @@ enum RememberedSetType {
 // any heap object.
 class MemoryChunk : public BasicMemoryChunk {
  public:
-  using Flags = uintptr_t;
-
-  static const Flags kPointersToHereAreInterestingMask =
-      POINTERS_TO_HERE_ARE_INTERESTING;
-
-  static const Flags kPointersFromHereAreInterestingMask =
-      POINTERS_FROM_HERE_ARE_INTERESTING;
-
-  static const Flags kEvacuationCandidateMask = EVACUATION_CANDIDATE;
-
-  static const Flags kIsInYoungGenerationMask = FROM_PAGE | TO_PAGE;
-
-  static const Flags kIsLargePageMask = LARGE_PAGE;
-
-  static const Flags kSkipEvacuationSlotsRecordingMask =
-      kEvacuationCandidateMask | kIsInYoungGenerationMask;
-
   // |kDone|: The page state when sweeping is complete or sweeping must not be
   //   performed on that page. Sweeper threads that are done with their work
   //   will set this value and not touch the page anymore.
@@ -112,13 +95,23 @@ class MemoryChunk : public BasicMemoryChunk {
 
   // Only works if the pointer is in the first kPageSize of the MemoryChunk.
   static MemoryChunk* FromAddress(Address a) {
-    return reinterpret_cast<MemoryChunk*>(BasicMemoryChunk::FromAddress(a));
+    return cast(BasicMemoryChunk::FromAddress(a));
   }
 
   // Only works if the object is in the first kPageSize of the MemoryChunk.
   static MemoryChunk* FromHeapObject(HeapObject o) {
     DCHECK(!V8_ENABLE_THIRD_PARTY_HEAP_BOOL);
-    return reinterpret_cast<MemoryChunk*>(BaseAddress(o.ptr()));
+    return cast(BasicMemoryChunk::FromHeapObject(o));
+  }
+
+  static MemoryChunk* cast(BasicMemoryChunk* chunk) {
+    SLOW_DCHECK(!chunk->InReadOnlySpace());
+    return static_cast<MemoryChunk*>(chunk);
+  }
+
+  static const MemoryChunk* cast(const BasicMemoryChunk* chunk) {
+    SLOW_DCHECK(!chunk->InReadOnlySpace());
+    return static_cast<const MemoryChunk*>(chunk);
   }
 
   size_t buckets() const { return SlotSet::BucketsForSize(size()); }
@@ -145,13 +138,6 @@ class MemoryChunk : public BasicMemoryChunk {
   bool SweepingDone() {
     return concurrent_sweeping_ == ConcurrentSweepingState::kDone;
   }
-
-#ifdef THREAD_SANITIZER
-  // Perform a dummy acquire load to tell TSAN that there is no data race in
-  // mark-bit initialization. See MemoryChunk::Initialize for the corresponding
-  // release store.
-  void SynchronizedHeapLoad();
-#endif
 
   template <RememberedSetType type>
   bool ContainsSlots() {
@@ -245,56 +231,6 @@ class MemoryChunk : public BasicMemoryChunk {
 
   size_t ExternalBackingStoreBytes(ExternalBackingStoreType type) {
     return external_backing_store_bytes_[type];
-  }
-
-  bool NeverEvacuate() { return IsFlagSet(NEVER_EVACUATE); }
-
-  void MarkNeverEvacuate() { SetFlag(NEVER_EVACUATE); }
-
-  bool CanAllocate() {
-    return !IsEvacuationCandidate() && !IsFlagSet(NEVER_ALLOCATE_ON_PAGE);
-  }
-
-  template <AccessMode access_mode = AccessMode::NON_ATOMIC>
-  bool IsEvacuationCandidate() {
-    DCHECK(!(IsFlagSet<access_mode>(NEVER_EVACUATE) &&
-             IsFlagSet<access_mode>(EVACUATION_CANDIDATE)));
-    return IsFlagSet<access_mode>(EVACUATION_CANDIDATE);
-  }
-
-  template <AccessMode access_mode = AccessMode::NON_ATOMIC>
-  bool ShouldSkipEvacuationSlotRecording() {
-    uintptr_t flags = GetFlags<access_mode>();
-    return ((flags & kSkipEvacuationSlotsRecordingMask) != 0) &&
-           ((flags & COMPACTION_WAS_ABORTED) == 0);
-  }
-
-  Executability executable() {
-    return IsFlagSet(IS_EXECUTABLE) ? EXECUTABLE : NOT_EXECUTABLE;
-  }
-
-  bool IsFromPage() const { return IsFlagSet(FROM_PAGE); }
-  bool IsToPage() const { return IsFlagSet(TO_PAGE); }
-  bool IsLargePage() const { return IsFlagSet(LARGE_PAGE); }
-  bool InYoungGeneration() const {
-    return (GetFlags() & kIsInYoungGenerationMask) != 0;
-  }
-  bool InNewSpace() const { return InYoungGeneration() && !IsLargePage(); }
-  bool InNewLargeObjectSpace() const {
-    return InYoungGeneration() && IsLargePage();
-  }
-  bool InOldSpace() const;
-  V8_EXPORT_PRIVATE bool InLargeObjectSpace() const;
-
-  // Gets the chunk's owner or null if the space has been detached.
-  Space* owner() const { return owner_; }
-
-  void set_owner(Space* space) { owner_ = space; }
-
-  bool IsWritable() const {
-    // If this is a read-only space chunk but heap_ is non-null, it has not yet
-    // been sealed and can be written to.
-    return !InReadOnlySpace() || heap_ != nullptr;
   }
 
   // Gets the chunk's allocation space, potentially dealing with a null owner_

@@ -445,6 +445,8 @@ void CopyDictionaryToDoubleElements(Isolate* isolate, FixedArrayBase from_base,
 
 void SortIndices(Isolate* isolate, Handle<FixedArray> indices,
                  uint32_t sort_size) {
+  if (sort_size == 0) return;
+
   // Use AtomicSlot wrapper to ensure that std::sort uses atomic load and
   // store operations that are safe for concurrent marking.
   AtomicSlot start(indices->GetFirstElementAddress());

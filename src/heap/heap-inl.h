@@ -401,7 +401,8 @@ bool Heap::InYoungGeneration(MaybeObject object) {
 // static
 bool Heap::InYoungGeneration(HeapObject heap_object) {
   if (V8_ENABLE_THIRD_PARTY_HEAP_BOOL) return false;
-  bool result = MemoryChunk::FromHeapObject(heap_object)->InYoungGeneration();
+  bool result =
+      BasicMemoryChunk::FromHeapObject(heap_object)->InYoungGeneration();
 #ifdef DEBUG
   // If in the young generation, then check we're either not in the middle of
   // GC or the object is in to-space.
@@ -429,7 +430,7 @@ bool Heap::InFromPage(MaybeObject object) {
 
 // static
 bool Heap::InFromPage(HeapObject heap_object) {
-  return MemoryChunk::FromHeapObject(heap_object)->IsFromPage();
+  return BasicMemoryChunk::FromHeapObject(heap_object)->IsFromPage();
 }
 
 // static
@@ -446,7 +447,7 @@ bool Heap::InToPage(MaybeObject object) {
 
 // static
 bool Heap::InToPage(HeapObject heap_object) {
-  return MemoryChunk::FromHeapObject(heap_object)->IsToPage();
+  return BasicMemoryChunk::FromHeapObject(heap_object)->IsToPage();
 }
 
 bool Heap::InOldSpace(Object object) { return old_space_->Contains(object); }
@@ -456,7 +457,7 @@ Heap* Heap::FromWritableHeapObject(HeapObject obj) {
   if (V8_ENABLE_THIRD_PARTY_HEAP_BOOL) {
     return Heap::GetIsolateFromWritableObject(obj)->heap();
   }
-  MemoryChunk* chunk = MemoryChunk::FromHeapObject(obj);
+  BasicMemoryChunk* chunk = BasicMemoryChunk::FromHeapObject(obj);
   // RO_SPACE can be shared between heaps, so we can't use RO_SPACE objects to
   // find a heap. The exception is when the ReadOnlySpace is writeable, during
   // bootstrapping, so explicitly allow this case.
@@ -544,7 +545,7 @@ void Heap::UpdateAllocationSite(Map map, HeapObject object,
                                 PretenuringFeedbackMap* pretenuring_feedback) {
   DCHECK_NE(pretenuring_feedback, &global_pretenuring_feedback_);
 #ifdef DEBUG
-  MemoryChunk* chunk = MemoryChunk::FromHeapObject(object);
+  BasicMemoryChunk* chunk = BasicMemoryChunk::FromHeapObject(object);
   DCHECK_IMPLIES(chunk->IsToPage(),
                  chunk->IsFlagSet(MemoryChunk::PAGE_NEW_NEW_PROMOTION));
   DCHECK_IMPLIES(!chunk->InYoungGeneration(),
@@ -713,24 +714,24 @@ CodePageMemoryModificationScope::CodePageMemoryModificationScope(Code code)
     : chunk_(nullptr), scope_active_(false) {}
 #else
 CodePageMemoryModificationScope::CodePageMemoryModificationScope(Code code)
-    : CodePageMemoryModificationScope(MemoryChunk::FromHeapObject(code)) {}
+    : CodePageMemoryModificationScope(BasicMemoryChunk::FromHeapObject(code)) {}
 #endif
 
 CodePageMemoryModificationScope::CodePageMemoryModificationScope(
-    MemoryChunk* chunk)
+    BasicMemoryChunk* chunk)
     : chunk_(chunk),
       scope_active_(chunk_->heap()->write_protect_code_memory() &&
                     chunk_->IsFlagSet(MemoryChunk::IS_EXECUTABLE)) {
   if (scope_active_) {
-    DCHECK(chunk_->owner_identity() == CODE_SPACE ||
-           (chunk_->owner_identity() == CODE_LO_SPACE));
-    chunk_->SetReadAndWritable();
+    DCHECK(chunk_->owner()->identity() == CODE_SPACE ||
+           (chunk_->owner()->identity() == CODE_LO_SPACE));
+    MemoryChunk::cast(chunk_)->SetReadAndWritable();
   }
 }
 
 CodePageMemoryModificationScope::~CodePageMemoryModificationScope() {
   if (scope_active_) {
-    chunk_->SetDefaultCodePermissions();
+    MemoryChunk::cast(chunk_)->SetDefaultCodePermissions();
   }
 }
 

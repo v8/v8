@@ -525,7 +525,7 @@ void Scavenger::IterateAndScavengePromotedObject(HeapObject target, Map map,
   target.IterateBodyFast(map, size, &visitor);
 
   if (map.IsJSArrayBufferMap()) {
-    DCHECK(!MemoryChunk::FromHeapObject(target)->IsLargePage());
+    DCHECK(!BasicMemoryChunk::FromHeapObject(target)->IsLargePage());
     JSArrayBuffer::cast(target).YoungMarkExtensionPromoted();
   }
 }

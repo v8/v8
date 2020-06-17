@@ -82,14 +82,6 @@ size_t MemoryChunkLayout::AllocatableMemoryInMemoryChunk(
   return AllocatableMemoryInDataPage();
 }
 
-#ifdef THREAD_SANITIZER
-void MemoryChunk::SynchronizedHeapLoad() {
-  CHECK(reinterpret_cast<Heap*>(base::Acquire_Load(
-            reinterpret_cast<base::AtomicWord*>(&heap_))) != nullptr ||
-        InReadOnlySpace());
-}
-#endif
-
 void MemoryChunk::InitializationMemoryFence() {
   base::SeqCst_MemoryFence();
 #ifdef THREAD_SANITIZER
@@ -171,7 +163,7 @@ MemoryChunk* MemoryChunk::Initialize(Heap* heap, Address base, size_t size,
                                      Address area_start, Address area_end,
                                      Executability executable, Space* owner,
                                      VirtualMemory reservation) {
-  MemoryChunk* chunk = FromAddress(base);
+  MemoryChunk* chunk = reinterpret_cast<MemoryChunk*>(base);
   DCHECK_EQ(base, chunk->address());
   BasicMemoryChunk::Initialize(heap, base, size, area_start, area_end, owner,
                                std::move(reservation));
@@ -240,12 +232,6 @@ size_t MemoryChunk::CommittedPhysicalMemory() {
   if (!base::OS::HasLazyCommits() || owner_identity() == LO_SPACE)
     return size();
   return high_water_mark_;
-}
-
-bool MemoryChunk::InOldSpace() const { return owner_identity() == OLD_SPACE; }
-
-bool MemoryChunk::InLargeObjectSpace() const {
-  return owner_identity() == LO_SPACE;
 }
 
 void MemoryChunk::SetOldGenerationPageFlags(bool is_marking) {

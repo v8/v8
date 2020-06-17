@@ -11,6 +11,7 @@
 #include "src/common/globals.h"
 #include "src/flags/flags.h"
 #include "src/heap/marking.h"
+#include "src/objects/heap-object.h"
 #include "src/utils/allocation.h"
 
 namespace v8 {
@@ -186,9 +187,69 @@ class BasicMemoryChunk {
     }
   }
 
+  using Flags = uintptr_t;
+
+  static const Flags kPointersToHereAreInterestingMask =
+      POINTERS_TO_HERE_ARE_INTERESTING;
+
+  static const Flags kPointersFromHereAreInterestingMask =
+      POINTERS_FROM_HERE_ARE_INTERESTING;
+
+  static const Flags kEvacuationCandidateMask = EVACUATION_CANDIDATE;
+
+  static const Flags kIsInYoungGenerationMask = FROM_PAGE | TO_PAGE;
+
+  static const Flags kIsLargePageMask = LARGE_PAGE;
+
+  static const Flags kSkipEvacuationSlotsRecordingMask =
+      kEvacuationCandidateMask | kIsInYoungGenerationMask;
+
   bool InReadOnlySpace() const { return IsFlagSet(READ_ONLY_HEAP); }
 
-  // TODO(v8:7464): Add methods for down casting to MemoryChunk.
+  bool NeverEvacuate() { return IsFlagSet(NEVER_EVACUATE); }
+
+  void MarkNeverEvacuate() { SetFlag(NEVER_EVACUATE); }
+
+  bool CanAllocate() {
+    return !IsEvacuationCandidate() && !IsFlagSet(NEVER_ALLOCATE_ON_PAGE);
+  }
+
+  template <AccessMode access_mode = AccessMode::NON_ATOMIC>
+  bool IsEvacuationCandidate() {
+    DCHECK(!(IsFlagSet<access_mode>(NEVER_EVACUATE) &&
+             IsFlagSet<access_mode>(EVACUATION_CANDIDATE)));
+    return IsFlagSet<access_mode>(EVACUATION_CANDIDATE);
+  }
+
+  template <AccessMode access_mode = AccessMode::NON_ATOMIC>
+  bool ShouldSkipEvacuationSlotRecording() {
+    uintptr_t flags = GetFlags<access_mode>();
+    return ((flags & kSkipEvacuationSlotsRecordingMask) != 0) &&
+           ((flags & COMPACTION_WAS_ABORTED) == 0);
+  }
+
+  Executability executable() {
+    return IsFlagSet(IS_EXECUTABLE) ? EXECUTABLE : NOT_EXECUTABLE;
+  }
+
+  bool IsFromPage() const { return IsFlagSet(FROM_PAGE); }
+  bool IsToPage() const { return IsFlagSet(TO_PAGE); }
+  bool IsLargePage() const { return IsFlagSet(LARGE_PAGE); }
+  bool InYoungGeneration() const {
+    return (GetFlags() & kIsInYoungGenerationMask) != 0;
+  }
+  bool InNewSpace() const { return InYoungGeneration() && !IsLargePage(); }
+  bool InNewLargeObjectSpace() const {
+    return InYoungGeneration() && IsLargePage();
+  }
+  bool InOldSpace() const;
+  V8_EXPORT_PRIVATE bool InLargeObjectSpace() const;
+
+  bool IsWritable() const {
+    // If this is a read-only space chunk but heap_ is non-null, it has not yet
+    // been sealed and can be written to.
+    return !InReadOnlySpace() || heap_ != nullptr;
+  }
 
   bool Contains(Address addr) const {
     return addr >= area_start() && addr < area_end();
@@ -236,6 +297,12 @@ class BasicMemoryChunk {
     return reinterpret_cast<BasicMemoryChunk*>(BaseAddress(a));
   }
 
+  // Only works if the object is in the first kPageSize of the MemoryChunk.
+  static BasicMemoryChunk* FromHeapObject(HeapObject o) {
+    DCHECK(!V8_ENABLE_THIRD_PARTY_HEAP_BOOL);
+    return reinterpret_cast<BasicMemoryChunk*>(BaseAddress(o.ptr()));
+  }
+
   template <AccessMode mode>
   ConcurrentBitmap<mode>* marking_bitmap() const {
     return reinterpret_cast<ConcurrentBitmap<mode>*>(marking_bitmap_);
@@ -274,6 +341,13 @@ class BasicMemoryChunk {
     DCHECK_GE(allocated_bytes(), bytes);
     allocated_bytes_ -= bytes;
   }
+
+#ifdef THREAD_SANITIZER
+  // Perform a dummy acquire load to tell TSAN that there is no data race in
+  // mark-bit initialization. See MemoryChunk::Initialize for the corresponding
+  // release store.
+  void SynchronizedHeapLoad();
+#endif
 
  protected:
   // Overall size of the chunk, including the header and guards.

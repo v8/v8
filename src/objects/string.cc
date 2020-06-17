@@ -420,9 +420,9 @@ int32_t String::ToArrayIndex(Address addr) {
 bool String::LooksValid() {
   // TODO(leszeks): Maybe remove this check entirely, Heap::Contains uses
   // basically the same logic as the way we access the heap in the first place.
-  MemoryChunk* chunk = MemoryChunk::FromHeapObject(*this);
   // RO_SPACE objects should always be valid.
   if (ReadOnlyHeap::Contains(*this)) return true;
+  BasicMemoryChunk* chunk = BasicMemoryChunk::FromHeapObject(*this);
   if (chunk->heap() == nullptr) return false;
   return chunk->heap()->Contains(*this);
 }
