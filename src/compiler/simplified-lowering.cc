@@ -341,10 +341,6 @@ class RepresentationSelector {
   bool UpdateFeedbackType(Node* node) {
     if (node->op()->ValueOutputCount() == 0) return false;
 
-    NodeInfo* info = GetInfo(node);
-    Type type = info->feedback_type();
-    Type new_type = type;
-
     // For any non-phi node just wait until we get all inputs typed. We only
     // allow untyped inputs for phi nodes because phis are the only places
     // where cycles need to be broken.
@@ -355,6 +351,10 @@ class RepresentationSelector {
         }
       }
     }
+
+    NodeInfo* info = GetInfo(node);
+    Type type = info->feedback_type();
+    Type new_type = NodeProperties::GetType(node);
 
     // We preload these values here to avoid increasing the binary size too
     // much, which happens if we inline the calls into the macros below.
@@ -566,6 +566,40 @@ class RepresentationSelector {
     }
   }
 
+  void PushNodeToRevisitIfVisited(Node* node) {
+    NodeInfo* info = GetInfo(node);
+    if (info->visited()) {
+      TRACE(" QUEUEING #%d: %s\n", node->id(), node->op()->mnemonic());
+      info->set_queued();
+      revisit_queue_.push(node);
+    }
+  }
+
+  // Tries to update the feedback type of the node, as well as setting its
+  // machine representation (in VisitNode). Returns true iff updating the
+  // feedback type is successful.
+  bool RetypeNode(Node* node) {
+    NodeInfo* info = GetInfo(node);
+    info->set_visited();
+    bool updated = UpdateFeedbackType(node);
+    TRACE(" visit #%d: %s\n", node->id(), node->op()->mnemonic());
+    VisitNode<RETYPE>(node, info->truncation(), nullptr);
+    TRACE("  ==> output %s\n", MachineReprToString(info->representation()));
+    return updated;
+  }
+
+  // Visits the node and marks it as visited. Inside of VisitNode, we might
+  // change the truncation of one of our inputs (see EnqueueInput<PROPAGATE> for
+  // this). If we change the truncation of an already visited node, we will add
+  // it to the revisit queue.
+  void PropagateTruncation(Node* node) {
+    NodeInfo* info = GetInfo(node);
+    info->set_visited();
+    TRACE(" visit #%d: %s (trunc: %s)\n", node->id(), node->op()->mnemonic(),
+          info->truncation().description());
+    VisitNode<PROPAGATE>(node, info->truncation(), nullptr);
+  }
+
   // Backward propagation of truncations to a fixpoint.
   void RunPropagatePhase() {
     TRACE("--{Propagate phase}--\n");
@@ -575,23 +609,12 @@ class RepresentationSelector {
     // Process nodes in reverse post order, with End as the root.
     for (auto it = traversal_nodes_.crbegin(); it != traversal_nodes_.crend();
          ++it) {
-      Node* node = *it;
-      NodeInfo* info = GetInfo(node);
-      info->set_visited();
-      TRACE(" visit #%d: %s (trunc: %s)\n", node->id(), node->op()->mnemonic(),
-            info->truncation().description());
-      VisitNode<PROPAGATE>(node, info->truncation(), nullptr);
+      PropagateTruncation(*it);
 
-      // Revisit queue
       while (!revisit_queue_.empty()) {
-        Node* revisit_node = revisit_queue_.front();
-        NodeInfo* revisit_info = GetInfo(revisit_node);
+        Node* node = revisit_queue_.front();
         revisit_queue_.pop();
-        revisit_info->set_visited();
-        TRACE(" visit #%d: %s (trunc: %s)\n", revisit_node->id(),
-              revisit_node->op()->mnemonic(),
-              revisit_info->truncation().description());
-        VisitNode<PROPAGATE>(revisit_node, revisit_info->truncation(), nullptr);
+        PropagateTruncation(node);
       }
     }
   }
@@ -605,52 +628,25 @@ class RepresentationSelector {
     for (auto it = traversal_nodes_.cbegin(); it != traversal_nodes_.cend();
          ++it) {
       Node* node = *it;
-      NodeInfo* info = GetInfo(node);
-      info->set_visited();
-      bool updated = UpdateFeedbackType(node);
-      TRACE(" visit #%d: %s\n", node->id(), node->op()->mnemonic());
-      VisitNode<RETYPE>(node, info->truncation(), nullptr);
-      TRACE("  ==> output ");
-      PrintOutputInfo(info);
-      TRACE("\n");
-      if (updated) {
-        auto revisit_it = might_need_revisit_.find(node);
-        if (revisit_it == might_need_revisit_.end()) continue;
+      if (!RetypeNode(node)) continue;
 
-        for (Node* const user : revisit_it->second) {
-          if (GetInfo(user)->visited()) {
-            TRACE(" QUEUEING #%d: %s\n", user->id(), user->op()->mnemonic());
-            GetInfo(user)->set_queued();
-            revisit_queue_.push(user);
-          }
-        }
+      auto revisit_it = might_need_revisit_.find(node);
+      if (revisit_it == might_need_revisit_.end()) continue;
 
-        // Process the revisit queue.
-        while (!revisit_queue_.empty()) {
-          Node* revisit_node = revisit_queue_.front();
-          revisit_queue_.pop();
-          NodeInfo* revisit_info = GetInfo(revisit_node);
-          revisit_info->set_visited();
-          bool updated = UpdateFeedbackType(revisit_node);
-          TRACE(" revisit #%d: %s\n", revisit_node->id(),
-                revisit_node->op()->mnemonic());
-          VisitNode<RETYPE>(revisit_node, revisit_info->truncation(), nullptr);
-          TRACE("  ==> output ");
-          PrintOutputInfo(revisit_info);
-          TRACE("\n");
-          if (updated) {
-            // Here we need to check all uses since we can't easily know which
-            // nodes will need to be revisited due to having an input which was
-            // a revisited node.
-            for (Node* const user : revisit_node->uses()) {
-              if (GetInfo(user)->visited()) {
-                TRACE(" QUEUEING #%d: %s\n", user->id(),
-                      user->op()->mnemonic());
-                GetInfo(user)->set_queued();
-                revisit_queue_.push(user);
-              }
-            }
-          }
+      for (Node* const user : revisit_it->second) {
+        PushNodeToRevisitIfVisited(user);
+      }
+
+      // Process the revisit queue.
+      while (!revisit_queue_.empty()) {
+        Node* revisit_node = revisit_queue_.front();
+        revisit_queue_.pop();
+        if (!RetypeNode(revisit_node)) continue;
+        // Here we need to check all uses since we can't easily know which
+        // nodes will need to be revisited due to having an input which was
+        // a revisited node.
+        for (Node* const user : revisit_node->uses()) {
+          PushNodeToRevisitIfVisited(user);
         }
       }
     }
@@ -836,11 +832,10 @@ class RepresentationSelector {
       // Output representation doesn't match usage.
       TRACE("  change: #%d:%s(@%d #%d:%s) ", node->id(), node->op()->mnemonic(),
             index, input->id(), input->op()->mnemonic());
-      TRACE(" from ");
-      PrintOutputInfo(input_info);
-      TRACE(" to ");
-      PrintUseInfo(use);
-      TRACE("\n");
+      TRACE("from %s to %s:%s\n",
+            MachineReprToString(input_info->representation()),
+            MachineReprToString(use.representation()),
+            use.truncation().description());
       if (input_type.IsInvalid()) {
         input_type = TypeOf(input);
       }
@@ -3799,25 +3794,6 @@ class RepresentationSelector {
     node->NullAllInputs();  // The {node} is now dead.
   }
 
-  void PrintOutputInfo(NodeInfo* info) {
-    if (FLAG_trace_representation) {
-      StdoutStream{} << info->representation();
-    }
-  }
-
-  void PrintTruncation(Truncation truncation) {
-    if (FLAG_trace_representation) {
-      StdoutStream{} << truncation.description() << std::endl;
-    }
-  }
-
-  void PrintUseInfo(UseInfo info) {
-    if (FLAG_trace_representation) {
-      StdoutStream{} << info.representation() << ":"
-                     << info.truncation().description();
-    }
-  }
-
  private:
   JSGraph* jsgraph_;
   Zone* zone_;                      // Temporary zone.
@@ -3872,26 +3848,21 @@ void RepresentationSelector::EnqueueInput<PROPAGATE>(Node* use_node, int index,
                                                          use_info);
 #endif  // DEBUG
   if (info->unvisited()) {
-    // First visit of this node.
-    info->set_queued();
-    TRACE("  initial #%i: ", node->id());
     info->AddUse(use_info);
-    PrintTruncation(info->truncation());
+    TRACE("  initial #%i: %s\n", node->id(), info->truncation().description());
     return;
   }
-  TRACE("   queue #%i?: ", node->id());
-  PrintTruncation(info->truncation());
+  TRACE("   queue #%i?: %s\n", node->id(), info->truncation().description());
   if (info->AddUse(use_info)) {
     // New usage information for the node is available.
     if (!info->queued()) {
       DCHECK(info->visited());
       revisit_queue_.push(node);
       info->set_queued();
-      TRACE("   added: ");
+      TRACE("   added: %s\n", info->truncation().description());
     } else {
-      TRACE(" inqueue: ");
+      TRACE(" inqueue: %s\n", info->truncation().description());
     }
-    PrintTruncation(info->truncation());
   }
 }
 
