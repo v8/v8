@@ -107,9 +107,12 @@ constexpr DoubleRegister kFpReturnRegisters[] = {d0, d2};
 // ===========================================================================
 // == riscv64 =================================================================
 // ===========================================================================
+// If these are modified, need to change Builtins::Generate_WasmCompileLazy in
+// builtins-riscv.cc too
 constexpr Register kGpParamRegisters[] = {a0, a2, a3, a4, a5, a6, a7};
 constexpr Register kGpReturnRegisters[] = {a0, a1};
-constexpr DoubleRegister kFpParamRegisters[] = {fa0, fa1, fa2, fa3, fa4, fa5, fa6};
+constexpr DoubleRegister kFpParamRegisters[] = {fa0, fa1, fa2, fa3,
+                                                fa4, fa5, fa6};
 constexpr DoubleRegister kFpReturnRegisters[] = {fa0, fa1};
 
 #else
