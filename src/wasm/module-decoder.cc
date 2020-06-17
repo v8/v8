@@ -33,7 +33,7 @@ constexpr char kNameString[] = "name";
 constexpr char kSourceMappingURLString[] = "sourceMappingURL";
 constexpr char kCompilationHintsString[] = "compilationHints";
 constexpr char kDebugInfoString[] = ".debug_info";
-constexpr char kExternalDebugInfoString[] = ".external_debug_info";
+constexpr char kExternalDebugInfoString[] = "external_debug_info";
 
 const char* ExternalKindName(ImportExportKindCode kind) {
   switch (kind) {
@@ -448,7 +448,7 @@ class ModuleDecoderImpl : public Decoder {
         // if produced by compiler. Its presence likely means that Wasm was
         // built in a debug mode.
       case kExternalDebugInfoSectionCode:
-        // .external_debug_info is a custom section containing a reference to an
+        // external_debug_info is a custom section containing a reference to an
         // external symbol file.
       case kCompilationHintsSectionCode:
         // TODO(frgossen): report out of place compilation hints section as a

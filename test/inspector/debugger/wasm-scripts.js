@@ -59,7 +59,7 @@ const embeddedDWARFSection = {
 
 // Sample external_debug_info section set to "abc".
 const externalDWARFSection = {
-  name: '.external_debug_info',
+  name: 'external_debug_info',
   value: [3, 97, 98, 99]
 };
 
