@@ -220,6 +220,11 @@ class StackFrame {
 
   inline Address pc() const;
 
+  // Skip authentication of the PC, when using CFI. Used in the profiler, where
+  // in certain corner-cases we do not use an address on the stack, which would
+  // be signed, as the PC of the frame.
+  inline Address unauthenticated_pc() const;
+
   Address constant_pool() const { return *constant_pool_address(); }
   void set_constant_pool(Address constant_pool) {
     *constant_pool_address() = constant_pool;

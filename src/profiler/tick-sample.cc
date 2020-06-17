@@ -337,7 +337,10 @@ bool TickSample::GetStackSample(Isolate* v8_isolate, RegisterState* regs,
         continue;
       }
     }
-    frames[i++] = reinterpret_cast<void*>(it.frame()->pc());
+    // For arm64, the PC for the frame sometimes doesn't come from the stack,
+    // but from the link register instead. For this reason, we skip
+    // authenticating it.
+    frames[i++] = reinterpret_cast<void*>(it.frame()->unauthenticated_pc());
   }
   sample_info->frames_count = i;
   return true;
