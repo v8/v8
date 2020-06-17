@@ -137,6 +137,13 @@ void MarkingVisitor::DynamicallyMarkAddress(ConstAddress address) {
   }
 }
 
+void MarkingVisitor::MarkObject(HeapObjectHeader& header) {
+  MarkHeader(
+      &header,
+      {header.Payload(),
+       GlobalGCInfoTable::GCInfoFromIndex(header.GetGCInfoIndex()).trace});
+}
+
 MutatorThreadMarkingVisitor::MutatorThreadMarkingVisitor(Marker* marker)
     : MarkingVisitor(marker->heap(), marker->marking_worklist(),
                      marker->not_fully_constructed_worklist(),

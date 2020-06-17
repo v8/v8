@@ -1065,7 +1065,7 @@ class Heap {
     return local_embedder_heap_tracer_.get();
   }
 
-  void SetEmbedderHeapTracer(EmbedderHeapTracer* tracer);
+  V8_EXPORT_PRIVATE void SetEmbedderHeapTracer(EmbedderHeapTracer* tracer);
   EmbedderHeapTracer* GetEmbedderHeapTracer() const;
 
   void RegisterExternallyReferencedObject(Address* location);
