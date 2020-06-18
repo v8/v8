@@ -283,7 +283,9 @@ Handle<WasmTableObject> WasmTableObject::New(Isolate* isolate,
   table_obj->set_entries(*backing_store);
   table_obj->set_current_length(initial);
   table_obj->set_maximum_length(*max);
-  table_obj->set_raw_type(static_cast<int>(type.kind()));
+  // TODO(7748): Make this work with other table types.
+  CHECK(type.is_nullable());
+  table_obj->set_raw_type(static_cast<int>(type.heap_type()));
 
   table_obj->set_dispatch_tables(ReadOnlyRoots(isolate).empty_fixed_array());
   if (entries != nullptr) {
@@ -384,8 +386,8 @@ bool WasmTableObject::IsValidElement(Isolate* isolate,
                                      Handle<WasmTableObject> table,
                                      Handle<Object> entry) {
   // Anyref and exnref tables take everything.
-  if (table->type() == wasm::kWasmExternRef ||
-      table->type() == wasm::kWasmExnRef) {
+  if (table->type().heap_type() == wasm::kHeapExtern ||
+      table->type().heap_type() == wasm::kHeapExn) {
     return true;
   }
   // FuncRef tables can store {null}, {WasmExportedFunction}, {WasmJSFunction},
@@ -405,8 +407,8 @@ void WasmTableObject::Set(Isolate* isolate, Handle<WasmTableObject> table,
   Handle<FixedArray> entries(table->entries(), isolate);
   // The FixedArray is addressed with int's.
   int entry_index = static_cast<int>(index);
-  if (table->type() == wasm::kWasmExternRef ||
-      table->type() == wasm::kWasmExnRef) {
+  if (table->type().heap_type() == wasm::kHeapExtern ||
+      table->type().heap_type() == wasm::kHeapExn) {
     entries->set(entry_index, *entry);
     return;
   }
@@ -451,8 +453,8 @@ Handle<Object> WasmTableObject::Get(Isolate* isolate,
   Handle<Object> entry(entries->get(entry_index), isolate);
 
   // First we handle the easy externref and exnref table case.
-  if (table->type() == wasm::kWasmExternRef ||
-      table->type() == wasm::kWasmExnRef) {
+  if (table->type().heap_type() == wasm::kHeapExtern ||
+      table->type().heap_type() == wasm::kHeapExn) {
     return entry;
   }
 
@@ -630,7 +632,7 @@ void WasmTableObject::GetFunctionTableEntry(
     Isolate* isolate, Handle<WasmTableObject> table, int entry_index,
     bool* is_valid, bool* is_null, MaybeHandle<WasmInstanceObject>* instance,
     int* function_index, MaybeHandle<WasmJSFunction>* maybe_js_function) {
-  DCHECK_EQ(table->type(), wasm::kWasmFuncRef);
+  DCHECK_EQ(table->type().heap_type(), wasm::kHeapFunc);
   DCHECK_LT(entry_index, table->current_length());
   // We initialize {is_valid} with {true}. We may change it later.
   *is_valid = true;
@@ -947,13 +949,13 @@ MaybeHandle<WasmGlobalObject> WasmGlobalObject::New(
     // Disallow GC until all fields have acceptable types.
     DisallowHeapAllocation no_gc;
 
-    global_obj->set_flags(0);
+    global_obj->set_raw_type(0);
     global_obj->set_type(type);
     global_obj->set_offset(offset);
     global_obj->set_is_mutable(is_mutable);
   }
 
-  if (type.IsReferenceType()) {
+  if (type.is_reference_type()) {
     DCHECK(maybe_untagged_buffer.is_null());
     Handle<FixedArray> tagged_buffer;
     if (!maybe_tagged_buffer.ToHandle(&tagged_buffer)) {
@@ -1469,7 +1471,7 @@ void WasmInstanceObject::ImportWasmJSFunctionIntoTable(
 // static
 uint8_t* WasmInstanceObject::GetGlobalStorage(
     Handle<WasmInstanceObject> instance, const wasm::WasmGlobal& global) {
-  DCHECK(!global.type.IsReferenceType());
+  DCHECK(!global.type.is_reference_type());
   if (global.mutability && global.imported) {
     return reinterpret_cast<byte*>(
         instance->imported_mutable_globals()[global.index]);
@@ -1482,7 +1484,7 @@ uint8_t* WasmInstanceObject::GetGlobalStorage(
 std::pair<Handle<FixedArray>, uint32_t>
 WasmInstanceObject::GetGlobalBufferAndIndex(Handle<WasmInstanceObject> instance,
                                             const wasm::WasmGlobal& global) {
-  DCHECK(global.type.IsReferenceType());
+  DCHECK(global.type.is_reference_type());
   Isolate* isolate = instance->GetIsolate();
   if (global.mutability && global.imported) {
     Handle<FixedArray> buffer(
@@ -1558,7 +1560,7 @@ MaybeHandle<String> WasmInstanceObject::GetNameFromImportsAndExportsOrNull(
 wasm::WasmValue WasmInstanceObject::GetGlobalValue(
     Handle<WasmInstanceObject> instance, const wasm::WasmGlobal& global) {
   Isolate* isolate = instance->GetIsolate();
-  if (global.type.IsReferenceType()) {
+  if (global.type.is_reference_type()) {
     Handle<FixedArray> global_buffer;  // The buffer of the global.
     uint32_t global_index = 0;         // The index into the buffer.
     std::tie(global_buffer, global_index) =
@@ -1723,14 +1725,11 @@ uint32_t WasmExceptionPackage::GetEncodedSize(
         DCHECK_EQ(8, ComputeEncodedElementSize(sig->GetParam(i)));
         encoded_size += 8;
         break;
-      case wasm::ValueType::kExternRef:
-      case wasm::ValueType::kFuncRef:
-      case wasm::ValueType::kExnRef:
       case wasm::ValueType::kRef:
       case wasm::ValueType::kOptRef:
-      case wasm::ValueType::kEqRef:
         encoded_size += 1;
         break;
+      case wasm::ValueType::kRtt:
       case wasm::ValueType::kStmt:
       case wasm::ValueType::kBottom:
       case wasm::ValueType::kI8:

@@ -139,13 +139,20 @@ class WasmGCTester {
   ErrorThrower thrower;
 };
 
+ValueType ref(uint32_t type_index) {
+  return ValueType::Ref(static_cast<HeapType>(type_index), kNonNullable);
+}
+ValueType optref(uint32_t type_index) {
+  return ValueType::Ref(static_cast<HeapType>(type_index), kNullable);
+}
+
 // TODO(7748): Use WASM_EXEC_TEST once interpreter and liftoff are supported
 TEST(WasmBasicStruct) {
   WasmGCTester tester;
   uint32_t type_index =
       tester.DefineStruct({F(kWasmI32, true), F(kWasmI32, true)});
-  ValueType kRefTypes[] = {ValueType(ValueType::kRef, type_index)};
-  ValueType kOptRefType = ValueType(ValueType::kOptRef, type_index);
+  ValueType kRefTypes[] = {ref(type_index)};
+  ValueType kOptRefType = optref(type_index);
   FunctionSig sig_q_v(1, 0, kRefTypes);
 
   // Test struct.new and struct.get.
@@ -274,7 +281,7 @@ TEST(WasmPackedStructU) {
 
   uint32_t type_index = tester.DefineStruct(
       {F(kWasmI8, true), F(kWasmI16, true), F(kWasmI32, true)});
-  ValueType struct_type = ValueType(ValueType::kOptRef, type_index);
+  ValueType struct_type = optref(type_index);
 
   uint32_t local_index = 0;
 
@@ -309,7 +316,7 @@ TEST(WasmPackedStructS) {
 
   uint32_t type_index = tester.DefineStruct(
       {F(kWasmI8, true), F(kWasmI16, true), F(kWasmI32, true)});
-  ValueType struct_type = ValueType(ValueType::kOptRef, type_index);
+  ValueType struct_type = optref(type_index);
 
   uint32_t local_index = 0;
 
@@ -396,9 +403,9 @@ TEST(WasmLetInstruction) {
 TEST(WasmBasicArray) {
   WasmGCTester tester;
   uint32_t type_index = tester.DefineArray(wasm::kWasmI32, true);
-  ValueType kRefTypes[] = {ValueType(ValueType::kRef, type_index)};
+  ValueType kRefTypes[] = {ref(type_index)};
   FunctionSig sig_q_v(1, 0, kRefTypes);
-  ValueType kOptRefType = ValueType(ValueType::kOptRef, type_index);
+  ValueType kOptRefType = optref(type_index);
 
   // f: a = [12, 12, 12]; a[1] = 42; return a[arg0]
   uint32_t local_index = 1;
@@ -443,7 +450,7 @@ TEST(WasmBasicArray) {
 TEST(WasmPackedArrayU) {
   WasmGCTester tester;
   uint32_t array_index = tester.DefineArray(kWasmI8, true);
-  ValueType array_type = ValueType(ValueType::kOptRef, array_index);
+  ValueType array_type = optref(array_index);
 
   uint32_t param_index = 0;
   uint32_t local_index = 1;
@@ -478,7 +485,7 @@ TEST(WasmPackedArrayU) {
 TEST(WasmPackedArrayS) {
   WasmGCTester tester;
   uint32_t array_index = tester.DefineArray(kWasmI16, true);
-  ValueType array_type = ValueType(ValueType::kOptRef, array_index);
+  ValueType array_type = optref(array_index);
 
   int32_t expected_outputs[] = {0x12345678, 10, 0xFEDC, 0xFF1234};
 

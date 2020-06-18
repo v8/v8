@@ -26,16 +26,22 @@ enum ValueTypeCode : uint8_t {
   kLocalF32 = 0x7d,
   kLocalF64 = 0x7c,
   kLocalS128 = 0x7b,
+
+  kLocalI8 = 0x7a,   // GC proposal placeholder
+  kLocalI16 = 0x79,  // GC proposal placeholder
+  kLocalRtt = 0x78,  // GC proposal placeholder
+
   kLocalFuncRef = 0x70,
   kLocalExternRef = 0x6f,
-  kLocalRef = 0x6d,     // GC proposal
-  kLocalOptRef = 0x6c,  // GC proposal
-  kLocalEqRef = 0x6b,   // GC proposal
-  kLocalI31Ref = 0x6a,  // GC proposal
-  kLocalRttRef = 0x69,  // GC proposal
+  kLocalEqRef = 0x69,  // GC proposal placeholder
   kLocalExnRef = 0x68,
-  kLocalI8 = 0x7a,  // GC proposal
-  kLocalI16 = 0x79  // GC proposal
+  kLocalIndexedRef = 0x67,  // GC proposal placeholder
+
+  kLocalFuncStrictRef = 0x66,     // GC proposal placeholder
+  kLocalExternStrictRef = 0x65,   // GC proposal placeholder
+  kLocalEqStrictRef = 0x64,       // GC proposal placeholder
+  kLocalExnStrictRef = 0x63,      // GC proposal placeholder
+  kLocalIndexedStrictRef = 0x62,  // GC proposal placeholder
 };
 // Binary encoding of other types.
 constexpr uint8_t kWasmFunctionTypeCode = 0x60;

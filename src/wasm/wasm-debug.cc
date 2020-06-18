@@ -60,7 +60,7 @@ MaybeHandle<JSObject> CreateFunctionTablesObject(
   for (int table_index = 0; table_index < tables.length(); ++table_index) {
     auto func_table =
         handle(WasmTableObject::cast(tables.get(table_index)), isolate);
-    if (func_table->type() != kWasmFuncRef) continue;
+    if (func_table->type().heap_type() != kHeapFunc) continue;
 
     Handle<String> table_name;
     if (!WasmInstanceObject::GetTableNameOrNull(isolate, instance, table_index)
@@ -129,13 +129,18 @@ Handle<Object> WasmValueToValueObject(Isolate* isolate, WasmValue value) {
       memcpy(bytes->GetDataStartAddress(), &val, sizeof(val));
       break;
     }
-    case ValueType::kExternRef: {
-      return isolate->factory()->NewWasmValue(
-          static_cast<int32_t>(value.type().kind()), value.to_externref());
+    case ValueType::kOptRef: {
+      if (value.type().heap_type() == kHeapExtern) {
+        return isolate->factory()->NewWasmValue(
+            static_cast<int32_t>(kHeapExtern), value.to_externref());
+      } else {
+        // TODO(7748): Implement.
+        UNIMPLEMENTED();
+      }
     }
     default: {
+      // TODO(7748): Implement.
       UNIMPLEMENTED();
-      return isolate->factory()->undefined_value();
     }
   }
   return isolate->factory()->NewWasmValue(

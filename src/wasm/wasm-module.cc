@@ -329,12 +329,13 @@ Handle<JSObject> GetTypeForTable(Isolate* isolate, ValueType type,
   Factory* factory = isolate->factory();
 
   Handle<String> element;
-  if (type == kWasmFuncRef) {
+  if (type.is_reference_to(kHeapFunc)) {
     // TODO(wasm): We should define the "anyfunc" string in one central
     // place and then use that constant everywhere.
     element = factory->InternalizeUtf8String("anyfunc");
   } else {
-    DCHECK(WasmFeatures::FromFlags().has_reftypes() && type == kWasmExternRef);
+    DCHECK(WasmFeatures::FromFlags().has_reftypes() &&
+           type.is_reference_to(kHeapExtern));
     element = factory->InternalizeUtf8String("externref");
   }
 

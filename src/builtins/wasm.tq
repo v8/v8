@@ -38,7 +38,7 @@ extern macro Allocate(intptr): HeapObject;
 
 namespace wasm {
 const kFuncTableType:
-    constexpr int31 generates 'wasm::ValueType::Kind::kFuncRef';
+    constexpr int31 generates 'wasm::HeapType::kHeapFunc';
 
 extern macro WasmBuiltinsAssembler::LoadInstanceFromFrame(): WasmInstanceObject;
 

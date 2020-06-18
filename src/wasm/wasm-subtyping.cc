@@ -125,35 +125,27 @@ bool IsArraySubtype(uint32_t subtype_index, uint32_t supertype_index,
 }
 }  // namespace
 
-// TODO(7748): Extend this with function subtyping.
-V8_EXPORT_PRIVATE bool IsSubtypeOfRef(ValueType subtype, ValueType supertype,
-                                      const WasmModule* module) {
-  DCHECK(subtype != supertype && subtype.IsReferenceType() &&
-         supertype.IsReferenceType());
-
-  // eqref is a supertype of all reference types except funcref.
-  if (supertype == kWasmEqRef) {
-    return subtype != kWasmFuncRef;
+// TODO(7748): Extend this with function and any-heap subtyping.
+V8_EXPORT_PRIVATE bool IsSubtypeOfHeap(HeapType subtype, HeapType supertype,
+                                       const WasmModule* module) {
+  DCHECK(!module->has_signature(subtype) && !module->has_signature(supertype));
+  if (subtype == supertype) {
+    return true;
   }
-
-  // No other subtyping is possible except between ref and optref.
-  if (!((subtype.kind() == ValueType::kRef &&
-         supertype.kind() == ValueType::kRef) ||
-        (subtype.kind() == ValueType::kRef &&
-         supertype.kind() == ValueType::kOptRef) ||
-        (subtype.kind() == ValueType::kOptRef &&
-         supertype.kind() == ValueType::kOptRef))) {
+  // eqref is a supertype of all reference types except funcref.
+  if (supertype == kHeapEq) {
+    return subtype != kHeapFunc;
+  }
+  // At the moment, generic heap types are not subtyping-related otherwise.
+  if (is_generic_heap_type(subtype) || is_generic_heap_type(supertype)) {
     return false;
   }
 
-  if (subtype.ref_index() == supertype.ref_index()) {
+  if (module->is_cached_subtype(subtype, supertype)) {
     return true;
   }
-  if (module->is_cached_subtype(subtype.ref_index(), supertype.ref_index())) {
-    return true;
-  }
-  return IsStructSubtype(subtype.ref_index(), supertype.ref_index(), module) ||
-         IsArraySubtype(subtype.ref_index(), supertype.ref_index(), module);
+  return IsStructSubtype(subtype, supertype, module) ||
+         IsArraySubtype(subtype, supertype, module);
 }
 
 // TODO(7748): Extend this with function subtyping.

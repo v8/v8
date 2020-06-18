@@ -1334,36 +1334,45 @@ void WebAssemblyGlobal(const v8::FunctionCallbackInfo<v8::Value>& args) {
       global_obj->SetF64(f64_value);
       break;
     }
-    case i::wasm::ValueType::kExternRef:
-    case i::wasm::ValueType::kExnRef: {
-      if (args.Length() < 2) {
-        // When no initial value is provided, we have to use the WebAssembly
-        // default value 'null', and not the JS default value 'undefined'.
-        global_obj->SetExternRef(i_isolate->factory()->null_value());
-        break;
-      }
-      global_obj->SetExternRef(Utils::OpenHandle(*value));
-      break;
-    }
-    case i::wasm::ValueType::kFuncRef: {
-      if (args.Length() < 2) {
-        // When no initial value is provided, we have to use the WebAssembly
-        // default value 'null', and not the JS default value 'undefined'.
-        global_obj->SetFuncRef(i_isolate, i_isolate->factory()->null_value());
-        break;
-      }
-
-      if (!global_obj->SetFuncRef(i_isolate, Utils::OpenHandle(*value))) {
-        thrower.TypeError(
-            "The value of anyfunc globals must be null or an "
-            "exported function");
-      }
-      break;
-    }
     case i::wasm::ValueType::kRef:
-    case i::wasm::ValueType::kOptRef:
-    case i::wasm::ValueType::kEqRef:
-      // TODO(7748): Implement these.
+    case i::wasm::ValueType::kOptRef: {
+      switch (type.heap_type()) {
+        case i::wasm::kHeapExtern:
+        case i::wasm::kHeapExn: {
+          if (args.Length() < 2) {
+            // When no initial value is provided, we have to use the WebAssembly
+            // default value 'null', and not the JS default value 'undefined'.
+            global_obj->SetExternRef(i_isolate->factory()->null_value());
+            break;
+          }
+          global_obj->SetExternRef(Utils::OpenHandle(*value));
+          break;
+        }
+        case i::wasm::kHeapFunc: {
+          if (args.Length() < 2) {
+            // When no initial value is provided, we have to use the WebAssembly
+            // default value 'null', and not the JS default value 'undefined'.
+            global_obj->SetFuncRef(i_isolate,
+                                   i_isolate->factory()->null_value());
+            break;
+          }
+
+          if (!global_obj->SetFuncRef(i_isolate, Utils::OpenHandle(*value))) {
+            thrower.TypeError(
+                "The value of funcref globals must be null or an "
+                "exported function");
+          }
+          break;
+        }
+        case i::wasm::kHeapEq:
+        default:
+          // TODO(7748): Implement these.
+          UNIMPLEMENTED();
+      }
+      break;
+    }
+    case i::wasm::ValueType::kRtt:
+      // TODO(7748): Implement.
       UNIMPLEMENTED();
     case i::wasm::ValueType::kI8:
     case i::wasm::ValueType::kI16:
@@ -1822,16 +1831,22 @@ void WebAssemblyGlobalGetValueCommon(
     case i::wasm::ValueType::kS128:
       thrower.TypeError("Can't get the value of s128 WebAssembly.Global");
       break;
-    case i::wasm::ValueType::kExternRef:
-    case i::wasm::ValueType::kFuncRef:
-    case i::wasm::ValueType::kExnRef:
-      return_value.Set(Utils::ToLocal(receiver->GetRef()));
-      break;
     case i::wasm::ValueType::kRef:
     case i::wasm::ValueType::kOptRef:
-    case i::wasm::ValueType::kEqRef:
-      // TODO(7748): Implement these.
-      UNIMPLEMENTED();
+      switch (receiver->type().heap_type()) {
+        case i::wasm::kHeapExtern:
+        case i::wasm::kHeapFunc:
+        case i::wasm::kHeapExn:
+          return_value.Set(Utils::ToLocal(receiver->GetRef()));
+          break;
+        case i::wasm::kHeapEq:
+        default:
+          // TODO(7748): Implement these.
+          UNIMPLEMENTED();
+          break;
+      }
+      break;
+    case i::wasm::ValueType::kRtt:
     case i::wasm::ValueType::kI8:
     case i::wasm::ValueType::kI16:
     case i::wasm::ValueType::kBottom:
@@ -1903,24 +1918,33 @@ void WebAssemblyGlobalSetValue(
     case i::wasm::ValueType::kS128:
       thrower.TypeError("Can't set the value of s128 WebAssembly.Global");
       break;
-    case i::wasm::ValueType::kExternRef:
-    case i::wasm::ValueType::kExnRef: {
-      receiver->SetExternRef(Utils::OpenHandle(*args[0]));
-      break;
-    }
-    case i::wasm::ValueType::kFuncRef: {
-      if (!receiver->SetFuncRef(i_isolate, Utils::OpenHandle(*args[0]))) {
-        thrower.TypeError(
-            "value of an anyfunc reference must be either null or an "
-            "exported function");
-      }
-      break;
-    }
     case i::wasm::ValueType::kRef:
     case i::wasm::ValueType::kOptRef:
-    case i::wasm::ValueType::kEqRef:
-      // TODO(7748): Implement these.
+      switch (receiver->type().heap_type()) {
+        case i::wasm::kHeapExtern:
+        case i::wasm::kHeapExn:
+          receiver->SetExternRef(Utils::OpenHandle(*args[0]));
+          break;
+        case i::wasm::kHeapFunc: {
+          if (!receiver->SetFuncRef(i_isolate, Utils::OpenHandle(*args[0]))) {
+            thrower.TypeError(
+                "value of an funcref reference must be either null or an "
+                "exported function");
+          }
+          break;
+        }
+
+        case i::wasm::kHeapEq:
+        default:
+          // TODO(7748): Implement these.
+          UNIMPLEMENTED();
+          break;
+      }
+      break;
+    case i::wasm::ValueType::kRtt:
+      // TODO(7748): Implement.
       UNIMPLEMENTED();
+      break;
     case i::wasm::ValueType::kI8:
     case i::wasm::ValueType::kI16:
     case i::wasm::ValueType::kBottom:

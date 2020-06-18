@@ -49,7 +49,7 @@ class TestCode {
         code_(code),
         locals_(static_cast<uint32_t>(locals.size())) {
     for (ValueType::Kind T : locals) {
-      compiler_->AllocateLocal(ValueType(T));
+      compiler_->AllocateLocal(ValueType::Primitive(T));
     }
     compiler_->Build(code.begin(), code.end());
   }

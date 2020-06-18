@@ -123,7 +123,7 @@ ValueType TypeOf(const WasmModule* module, const WasmInitExpr& expr) {
     case WasmInitExpr::kF64Const:
       return kWasmF64;
     case WasmInitExpr::kRefFuncConst:
-      return kWasmFuncRef;
+      return ValueType::Ref(kHeapFunc, kNonNullable);
     case WasmInitExpr::kRefNullConst:
       // It is not possible to retrieve the full {ValueType} of a {WasmInitExpr}
       // of kind {kRefNullConst}. As WasmInitExpr of kind {krefNullConst} is
@@ -1418,7 +1418,7 @@ class ModuleDecoderImpl : public Decoder {
     for (WasmGlobal& global : module->globals) {
       if (global.mutability && global.imported) {
         global.index = num_imported_mutable_globals++;
-      } else if (global.type.IsReferenceType()) {
+      } else if (global.type.is_reference_type()) {
         global.offset = tagged_offset;
         // All entries in the tagged_globals_buffer have size 1.
         tagged_offset++;
@@ -1663,7 +1663,7 @@ class ModuleDecoderImpl : public Decoder {
         if (enabled_features_.has_reftypes() || enabled_features_.has_eh()) {
           RefNullImmediate<Decoder::kValidate> imm(WasmFeatures::All(), this,
                                                    pc() - 1);
-          if (!imm.type.IsReferenceType()) {
+          if (!imm.type.is_reference_type()) {
             errorf(pc() - 1, "ref.null is not supported for %s",
                    imm.type.type_name().c_str());
             break;
@@ -1708,7 +1708,7 @@ class ModuleDecoderImpl : public Decoder {
 
     // The type check of ref.null is special, and already done above.
     if (expected != kWasmStmt && opcode != kExprRefNull &&
-        TypeOf(module, expr) != expected) {
+        !IsSubtypeOf(TypeOf(module, expr), expected, module_.get())) {
       errorf(pos, "type error in init expression, expected %s, got %s",
              expected.type_name().c_str(),
              TypeOf(module, expr).type_name().c_str());
@@ -1762,7 +1762,7 @@ class ModuleDecoderImpl : public Decoder {
     } else {
       const byte* position = pc();
       ValueType result = consume_value_type();
-      if (!result.IsReferenceType()) {
+      if (!result.is_reference_type()) {
         error(position, "expected reference type");
       }
       return result;
@@ -1772,7 +1772,7 @@ class ModuleDecoderImpl : public Decoder {
   enum DeferIndexCheckMode { kNoCheck, kDeferCheck };
 
   void defer_index_check(ValueType type) {
-    if (type.has_immediate()) {
+    if (type.has_index()) {
       deferred_check_type_index_.emplace(type.ref_index(), pc_offset());
     }
   }

@@ -414,7 +414,10 @@ void WasmModuleBuilder::SetHasSharedMemory() { has_shared_memory_ = true; }
 namespace {
 void WriteValueType(ZoneBuffer* buffer, const ValueType& type) {
   buffer->write_u8(type.value_type_code());
-  if (type.has_immediate()) {
+  if (type.has_depth()) {
+    buffer->write_u8(type.depth());
+  }
+  if (type.has_index()) {
     buffer->write_u32v(type.ref_index());
   }
 }
@@ -593,10 +596,10 @@ void WasmModuleBuilder::WriteTo(ZoneBuffer* buffer) const {
               buffer->write_f64(0.);
               break;
             case ValueType::kOptRef:
-            case ValueType::kFuncRef:
-            case ValueType::kExnRef:
-            case ValueType::kEqRef:
               buffer->write_u8(kExprRefNull);
+              break;
+            case ValueType::kRtt:
+              // TODO(7748): Implement.
               break;
             case ValueType::kI8:
             case ValueType::kI16:
@@ -604,7 +607,6 @@ void WasmModuleBuilder::WriteTo(ZoneBuffer* buffer) const {
             case ValueType::kS128:
             case ValueType::kBottom:
             case ValueType::kRef:
-            case ValueType::kExternRef:
               UNREACHABLE();
           }
         }

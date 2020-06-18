@@ -1055,10 +1055,10 @@ inline void EmitShiftOperation(LiftoffAssembler* assm, Register dst,
                                void (Assembler::*emit_shift)(Register)) {
   // If dst is rcx, compute into the scratch register first, then move to rcx.
   if (dst == rcx) {
-    assm->Move(kScratchRegister, src, ValueType(type));
-    if (amount != rcx) assm->Move(rcx, amount, ValueType(type));
+    assm->Move(kScratchRegister, src, ValueType::Primitive(type));
+    if (amount != rcx) assm->Move(rcx, amount, ValueType::Primitive(type));
     (assm->*emit_shift)(kScratchRegister);
-    assm->Move(rcx, kScratchRegister, ValueType(type));
+    assm->Move(rcx, kScratchRegister, ValueType::Primitive(type));
     return;
   }
 
@@ -1070,11 +1070,11 @@ inline void EmitShiftOperation(LiftoffAssembler* assm, Register dst,
         src == rcx || assm->cache_state()->is_used(LiftoffRegister(rcx));
     if (use_scratch) assm->movq(kScratchRegister, rcx);
     if (src == rcx) src = kScratchRegister;
-    assm->Move(rcx, amount, ValueType(type));
+    assm->Move(rcx, amount, ValueType::Primitive(type));
   }
 
   // Do the actual shift.
-  if (dst != src) assm->Move(dst, src, ValueType(type));
+  if (dst != src) assm->Move(dst, src, ValueType::Primitive(type));
   (assm->*emit_shift)(dst);
 
   // Restore rcx if needed.

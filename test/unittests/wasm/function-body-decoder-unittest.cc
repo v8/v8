@@ -3636,8 +3636,8 @@ TEST_F(WasmOpcodeLengthTest, SimdExpressions) {
 }
 
 TEST_F(WasmOpcodeLengthTest, IllegalRefIndices) {
-  ExpectFailure(kExprBlock, kLocalRef, U32V_3(kV8MaxWasmTypes + 1));
-  ExpectFailure(kExprBlock, kLocalRef, U32V_4(0x01000000));
+  ExpectFailure(kExprBlock, kLocalIndexedRef, U32V_3(kV8MaxWasmTypes + 1));
+  ExpectFailure(kExprBlock, kLocalIndexedRef, U32V_4(0x01000000));
 }
 
 using TypesOfLocals = ZoneVector<ValueType>;

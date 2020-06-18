@@ -122,15 +122,17 @@ ACCESSORS(WasmGlobalObject, untagged_buffer, JSArrayBuffer,
           kUntaggedBufferOffset)
 ACCESSORS(WasmGlobalObject, tagged_buffer, FixedArray, kTaggedBufferOffset)
 SMI_ACCESSORS(WasmGlobalObject, offset, kOffsetOffset)
-SMI_ACCESSORS(WasmGlobalObject, flags, kFlagsOffset)
+// TODO(7748): This will not suffice to hold the 32-bit encoding of a ValueType.
+// We need to devise and encoding that does, and also encodes is_mutable.
+SMI_ACCESSORS(WasmGlobalObject, raw_type, kRawTypeOffset)
+SMI_ACCESSORS(WasmGlobalObject, is_mutable, kIsMutableOffset)
+
 wasm::ValueType WasmGlobalObject::type() const {
-  return wasm::ValueType(TypeBits::decode(flags()));
+  return wasm::ValueType::FromRawBitField(raw_type());
 }
 void WasmGlobalObject::set_type(wasm::ValueType value) {
-  set_flags(TypeBits::update(flags(), value.kind()));
+  set_raw_type(static_cast<int>(value.raw_bit_field()));
 }
-BIT_FIELD_ACCESSORS(WasmGlobalObject, flags, is_mutable,
-                    WasmGlobalObject::IsMutableBit)
 
 int WasmGlobalObject::type_size() const { return type().element_size_bytes(); }
 
@@ -158,7 +160,7 @@ double WasmGlobalObject::GetF64() {
 
 Handle<Object> WasmGlobalObject::GetRef() {
   // We use this getter for externref, funcref, and exnref.
-  DCHECK(type().IsReferenceType());
+  DCHECK(type().is_reference_type());
   return handle(tagged_buffer().get(offset()), GetIsolate());
 }
 
@@ -180,7 +182,8 @@ void WasmGlobalObject::SetF64(double value) {
 
 void WasmGlobalObject::SetExternRef(Handle<Object> value) {
   // We use this getter externref and exnref.
-  DCHECK(type() == wasm::kWasmExternRef || type() == wasm::kWasmExnRef);
+  DCHECK(type().is_reference_to(wasm::kHeapExtern) ||
+         type().is_reference_to(wasm::kHeapExn));
   tagged_buffer().set(offset(), *value);
 }
 
@@ -382,7 +385,9 @@ ACCESSORS(WasmIndirectFunctionTable, refs, FixedArray, kRefsOffset)
 #undef PRIMITIVE_ACCESSORS
 
 wasm::ValueType WasmTableObject::type() {
-  return wasm::ValueType(static_cast<wasm::ValueType::Kind>(raw_type()));
+  // TODO(7748): Support non-nullable tables?
+  return wasm::ValueType::Ref(static_cast<wasm::HeapType>(raw_type()),
+                              wasm::kNullable);
 }
 
 bool WasmMemoryObject::has_maximum_pages() { return maximum_pages() >= 0; }

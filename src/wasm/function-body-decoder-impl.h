@@ -154,31 +154,40 @@ ValueType read_value_type(Decoder* decoder, const byte* pc,
       return kWasmF32;
     case kLocalF64:
       return kWasmF64;
-    case kLocalExternRef:
-      if (enabled.has_reftypes()) {
-        return kWasmExternRef;
-      }
-      decoder->error(pc,
-                     "invalid value type 'externref', enable with "
-                     "--experimental-wasm-reftypes");
-      return kWasmBottom;
-    case kLocalFuncRef:
-      if (enabled.has_reftypes()) {
-        return kWasmFuncRef;
-      }
-      decoder->error(pc,
-                     "invalid value type 'funcref', enable with "
-                     "--experimental-wasm-reftypes");
-      return kWasmBottom;
-    case kLocalExnRef:
-      if (enabled.has_eh()) {
-        return kWasmExnRef;
-      }
-      decoder->error(pc,
-                     "invalid value type 'exception ref', enable with "
-                     "--experimental-wasm-eh");
-      return kWasmBottom;
-    case kLocalRef:
+
+#define REF_TYPE_CASE(heap_type, strict_str, nullable, feature)            \
+  case kLocal##heap_type##strict_str##Ref: {                               \
+    ValueType result = ValueType::Ref(kHeap##heap_type, k##nullable);      \
+    if (enabled.has_##feature()) {                                         \
+      return result;                                                       \
+    }                                                                      \
+    decoder->errorf(                                                       \
+        pc, "invalid value type '%s', enable with --experimental-wasm-%s", \
+        result.type_name().c_str(), #feature);                             \
+    return kWasmBottom;                                                    \
+  }
+
+#define NULLABLE_CASE(heap_type, feature) \
+  REF_TYPE_CASE(heap_type, , Nullable, feature)
+#define NON_NULLABLE_CASE(heap_type, feature) \
+  REF_TYPE_CASE(heap_type, Strict, NonNullable, feature)
+
+      NULLABLE_CASE(Func, reftypes)
+      NULLABLE_CASE(Extern, reftypes)
+      NULLABLE_CASE(Eq, gc)
+      NULLABLE_CASE(Exn, eh)
+      NON_NULLABLE_CASE(Func, typed_funcref)
+      NON_NULLABLE_CASE(Extern, typed_funcref)
+      NON_NULLABLE_CASE(Eq, gc)
+      NON_NULLABLE_CASE(Exn, eh)
+#undef REF_TYPE_CASE
+#undef NULLABLE_CASE
+#undef NON_NULLABLE_CASE
+
+    case kLocalIndexedStrictRef:
+    case kLocalIndexedRef: {
+      Nullability nullability =
+          code == kLocalIndexedRef ? kNullable : kNonNullable;
       if (enabled.has_gc()) {
         uint32_t type_index =
             decoder->read_u32v<validate>(pc + 1, length, "type index");
@@ -190,65 +199,30 @@ ValueType read_value_type(Decoder* decoder, const byte* pc,
                           type_index, kV8MaxWasmTypes);
           return kWasmBottom;
         } else {
-          return ValueType(ValueType::kRef, type_index);
+          return ValueType::Ref(static_cast<HeapType>(type_index), nullability);
         }
       }
-      decoder->error(pc,
-                     "invalid value type 'ref', enable with "
-                     "--experimental-wasm-gc");
+      decoder->errorf(
+          pc,
+          "invalid value type '(ref%s $t)', enable with --experimental-wasm-gc",
+          nullability ? " null" : "");
       return kWasmBottom;
-    case kLocalOptRef:
-      if (enabled.has_gc()) {
-        uint32_t type_index =
-            decoder->read_u32v<validate>(pc + 1, length, "type index");
-        (*length)++;
-        if (!VALIDATE(type_index < kV8MaxWasmTypes)) {
-          decoder->errorf(pc,
-                          "Type index %u is greater than the maximum "
-                          "number %zu of type definitions supported by V8",
-                          type_index, kV8MaxWasmTypes);
-          return kWasmBottom;
-        } else {
-          return ValueType(ValueType::kOptRef, type_index);
-        }
-      }
-      decoder->error(pc,
-                     "invalid value type 'optref', enable with "
-                     "--experimental-wasm-gc");
-      return kWasmBottom;
-    case kLocalEqRef:
-      if (enabled.has_gc()) {
-        return kWasmEqRef;
-      }
-      decoder->error(pc,
-                     "invalid value type 'eqref', enable with "
-                     "--experimental-wasm-simd");
-      return kWasmBottom;
-    case kLocalI31Ref:
+    }
+    case kLocalRtt:
       if (enabled.has_gc()) {
         // TODO(7748): Implement
-        decoder->error(pc, "'i31ref' is unimplemented");
+        decoder->error(pc, "'rtt' is unimplemented");
       }
-      decoder->error(pc,
-                     "invalid value type 'i31ref', enable with "
-                     "--experimental-wasm-simd");
-      return kWasmBottom;
-    case kLocalRttRef:
-      if (enabled.has_gc()) {
-        // TODO(7748): Implement
-        decoder->error(pc, "'rttref' is unimplemented");
-      }
-      decoder->error(pc,
-                     "invalid value type 'rttref', enable with "
-                     "--experimental-wasm-simd");
+      decoder->error(
+          pc, "invalid value type 'rtt', enable with --experimental-wasm-gc");
       return kWasmBottom;
     case kLocalS128:
       if (enabled.has_simd()) {
         return kWasmS128;
       }
-      decoder->error(pc,
-                     "invalid value type 'Simd128', enable with "
-                     "--experimental-wasm-simd");
+      decoder->error(
+          pc,
+          "invalid value type 'Simd128', enable with --experimental-wasm-simd");
       return kWasmBottom;
     case kLocalVoid:
     case kLocalI8:
@@ -1116,7 +1090,7 @@ class WasmDecoder : public Decoder {
   }
 
   inline bool Validate(const byte* pc, RefNullImmediate<validate>& imm) {
-    if (!VALIDATE(imm.type.IsNullable())) {
+    if (!VALIDATE(imm.type.is_nullable())) {
       errorf(pc + 1, "ref.null does not exist for %s",
              imm.type.type_name().c_str());
       return false;
@@ -2134,8 +2108,7 @@ class WasmFullDecoder : public WasmDecoder<validate> {
         if (V8_LIKELY(check_result == kReachableBranch)) {
           switch (ref_object.type.kind()) {
             case ValueType::kRef: {
-              Value* result =
-                  Push(ValueType(ValueType::kRef, ref_object.type.ref_index()));
+              Value* result = Push(ref_object.type);
               CALL_INTERFACE(PassThrough, ref_object, result);
               break;
             }
@@ -2144,8 +2117,8 @@ class WasmFullDecoder : public WasmDecoder<validate> {
               // the interface. Therefore we must sync the ref_object and
               // result nodes afterwards (in PassThrough).
               CALL_INTERFACE(BrOnNull, ref_object, imm.depth);
-              Value* result =
-                  Push(ValueType(ValueType::kRef, ref_object.type.ref_index()));
+              Value* result = Push(
+                  ValueType::Ref(ref_object.type.heap_type(), kNonNullable));
               CALL_INTERFACE(PassThrough, ref_object, result);
               c->br_merge()->reached = true;
               break;
@@ -2279,7 +2252,7 @@ class WasmFullDecoder : public WasmDecoder<validate> {
         Value fval = Pop();
         Value tval = Pop(0, fval.type);
         ValueType type = tval.type == kWasmBottom ? fval.type : tval.type;
-        if (type.IsReferenceType()) {
+        if (type.is_reference_type()) {
           this->error(
               "select without type is only valid for value type inputs");
           break;
@@ -2460,7 +2433,7 @@ class WasmFullDecoder : public WasmDecoder<validate> {
         CHECK_PROTOTYPE_OPCODE(reftypes);
         FunctionIndexImmediate<validate> imm(this, this->pc_);
         if (!this->Validate(this->pc_, imm)) break;
-        Value* value = Push(kWasmFuncRef);
+        Value* value = Push(ValueType::Ref(kHeapFunc, kNonNullable));
         CALL_INTERFACE_IF_REACHABLE(RefFunc, imm.index, value);
         len = 1 + imm.length;
         break;
@@ -2470,14 +2443,13 @@ class WasmFullDecoder : public WasmDecoder<validate> {
         Value value = Pop();
         switch (value.type.kind()) {
           case ValueType::kRef: {
-            Value* result =
-                Push(ValueType(ValueType::kRef, value.type.ref_index()));
+            Value* result = Push(value.type);
             CALL_INTERFACE_IF_REACHABLE(PassThrough, value, result);
             break;
           }
           case ValueType::kOptRef: {
             Value* result =
-                Push(ValueType(ValueType::kRef, value.type.ref_index()));
+                Push(ValueType::Ref(value.type.heap_type(), kNonNullable));
             CALL_INTERFACE_IF_REACHABLE(RefAsNonNull, value, result);
             break;
           }
@@ -2901,7 +2873,7 @@ class WasmFullDecoder : public WasmDecoder<validate> {
     current_code_reachable_ = false;
   }
 
-  template<typename func>
+  template <typename func>
   void InitMerge(Merge<Value>* merge, uint32_t arity, func get_val) {
     merge->arity = arity;
     if (arity == 1) {
@@ -2938,7 +2910,7 @@ class WasmFullDecoder : public WasmDecoder<validate> {
     int count = static_cast<int>(type->field_count());
     ArgVector args(count);
     for (int i = count - 1; i >= 0; i--) {
-      args[i] = Pop(i, type->field(i).Unpack());
+      args[i] = Pop(i, type->field(i).Unpacked());
     }
     return args;
   }
@@ -3279,7 +3251,8 @@ class WasmFullDecoder : public WasmDecoder<validate> {
         len += imm.length;
         if (!this->Validate(this->pc_, imm)) break;
         ArgVector args = PopArgs(imm.struct_type);
-        Value* value = Push(ValueType(ValueType::kRef, imm.index));
+        Value* value = Push(
+            ValueType::Ref(static_cast<HeapType>(imm.index), kNonNullable));
         CALL_INTERFACE_IF_REACHABLE(StructNew, imm, args.begin(), value);
         break;
       }
@@ -3288,15 +3261,16 @@ class WasmFullDecoder : public WasmDecoder<validate> {
         if (!this->Validate(this->pc_ + len, field)) break;
         ValueType field_type =
             field.struct_index.struct_type->field(field.index);
-        if (field_type.IsPacked()) {
+        if (field_type.is_packed()) {
           this->error(this->pc_,
                       "struct.get used with a field of packed type. "
                       "Use struct.get_s or struct.get_u instead.");
           break;
         }
         len += field.length;
-        Value struct_obj =
-            Pop(0, ValueType(ValueType::kOptRef, field.struct_index.index));
+        Value struct_obj = Pop(
+            0, ValueType::Ref(static_cast<HeapType>(field.struct_index.index),
+                              kNullable));
         Value* value = Push(field_type);
         CALL_INTERFACE_IF_REACHABLE(StructGet, struct_obj, field, true, value);
         break;
@@ -3308,16 +3282,17 @@ class WasmFullDecoder : public WasmDecoder<validate> {
         len += field.length;
         ValueType field_type =
             field.struct_index.struct_type->field(field.index);
-        if (!field_type.IsPacked()) {
+        if (!field_type.is_packed()) {
           this->errorf(this->pc_,
                        "%s is only valid for packed struct fields. "
                        "Use struct.get instead.",
                        WasmOpcodes::OpcodeName(opcode));
           break;
         }
-        Value struct_obj =
-            Pop(0, ValueType(ValueType::kOptRef, field.struct_index.index));
-        Value* value = Push(field_type.Unpack());
+        Value struct_obj = Pop(
+            0, ValueType::Ref(static_cast<HeapType>(field.struct_index.index),
+                              kNullable));
+        Value* value = Push(field_type.Unpacked());
         CALL_INTERFACE_IF_REACHABLE(StructGet, struct_obj, field,
                                     opcode == kExprStructGetS, value);
         break;
@@ -3331,10 +3306,10 @@ class WasmFullDecoder : public WasmDecoder<validate> {
           this->error(this->pc_, "setting immutable struct field");
           break;
         }
-        Value field_value =
-            Pop(1, ValueType(struct_type->field(field.index).Unpack()));
-        Value struct_obj =
-            Pop(0, ValueType(ValueType::kOptRef, field.struct_index.index));
+        Value field_value = Pop(1, struct_type->field(field.index).Unpacked());
+        Value struct_obj = Pop(
+            0, ValueType::Ref(static_cast<HeapType>(field.struct_index.index),
+                              kNullable));
         CALL_INTERFACE_IF_REACHABLE(StructSet, struct_obj, field, field_value);
         break;
       }
@@ -3343,8 +3318,9 @@ class WasmFullDecoder : public WasmDecoder<validate> {
         len += imm.length;
         if (!this->Validate(this->pc_, imm)) break;
         Value length = Pop(1, kWasmI32);
-        Value initial_value = Pop(0, imm.array_type->element_type().Unpack());
-        Value* value = Push(ValueType(ValueType::kRef, imm.index));
+        Value initial_value = Pop(0, imm.array_type->element_type().Unpacked());
+        Value* value = Push(
+            ValueType::Ref(static_cast<HeapType>(imm.index), kNonNullable));
         CALL_INTERFACE_IF_REACHABLE(ArrayNew, imm, length, initial_value,
                                     value);
         break;
@@ -3354,7 +3330,7 @@ class WasmFullDecoder : public WasmDecoder<validate> {
         ArrayIndexImmediate<validate> imm(this, this->pc_ + len);
         len += imm.length;
         if (!this->Validate(this->pc_ + len, imm)) break;
-        if (!imm.array_type->element_type().IsPacked()) {
+        if (!imm.array_type->element_type().is_packed()) {
           this->errorf(this->pc_,
                        "%s is only valid for packed arrays. "
                        "Use or array.get instead.",
@@ -3362,8 +3338,9 @@ class WasmFullDecoder : public WasmDecoder<validate> {
           break;
         }
         Value index = Pop(1, kWasmI32);
-        Value array_obj = Pop(0, ValueType(ValueType::kOptRef, imm.index));
-        Value* value = Push(imm.array_type->element_type().Unpack());
+        Value array_obj =
+            Pop(0, ValueType::Ref(static_cast<HeapType>(imm.index), kNullable));
+        Value* value = Push(imm.array_type->element_type().Unpacked());
         // TODO(7748): Optimize this when array_obj is non-nullable ref.
         CALL_INTERFACE_IF_REACHABLE(ArrayGet, array_obj, imm, index,
                                     opcode == kExprArrayGetS, value);
@@ -3373,14 +3350,15 @@ class WasmFullDecoder : public WasmDecoder<validate> {
         ArrayIndexImmediate<validate> imm(this, this->pc_ + len);
         len += imm.length;
         if (!this->Validate(this->pc_ + len, imm)) break;
-        if (imm.array_type->element_type().IsPacked()) {
+        if (imm.array_type->element_type().is_packed()) {
           this->error(this->pc_,
                       "array.get used with a field of packed type. "
                       "Use array.get_s or array.get_u instead.");
           break;
         }
         Value index = Pop(1, kWasmI32);
-        Value array_obj = Pop(0, ValueType(ValueType::kOptRef, imm.index));
+        Value array_obj =
+            Pop(0, ValueType::Ref(static_cast<HeapType>(imm.index), kNullable));
         Value* value = Push(imm.array_type->element_type());
         // TODO(7748): Optimize this when array_obj is non-nullable ref.
         CALL_INTERFACE_IF_REACHABLE(ArrayGet, array_obj, imm, index, true,
@@ -3395,9 +3373,10 @@ class WasmFullDecoder : public WasmDecoder<validate> {
           this->error(this->pc_, "setting element of immutable array");
           break;
         }
-        Value value = Pop(2, imm.array_type->element_type().Unpack());
+        Value value = Pop(2, imm.array_type->element_type().Unpacked());
         Value index = Pop(1, kWasmI32);
-        Value array_obj = Pop(0, ValueType(ValueType::kOptRef, imm.index));
+        Value array_obj =
+            Pop(0, ValueType::Ref(static_cast<HeapType>(imm.index), kNullable));
         // TODO(7748): Optimize this when array_obj is non-nullable ref.
         CALL_INTERFACE_IF_REACHABLE(ArraySet, array_obj, imm, index, value);
         break;
@@ -3406,7 +3385,8 @@ class WasmFullDecoder : public WasmDecoder<validate> {
         ArrayIndexImmediate<validate> imm(this, this->pc_ + len);
         len += imm.length;
         if (!this->Validate(this->pc_ + len, imm)) break;
-        Value array_obj = Pop(0, ValueType(ValueType::kOptRef, imm.index));
+        Value array_obj =
+            Pop(0, ValueType::Ref(static_cast<HeapType>(imm.index), kNullable));
         Value* value = Push(kWasmI32);
         CALL_INTERFACE_IF_REACHABLE(ArrayLen, array_obj, value);
         break;

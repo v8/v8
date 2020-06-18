@@ -1676,12 +1676,9 @@ void WasmStruct::WasmStructPrint(std::ostream& os) {  // NOLINT
       case wasm::ValueType::kI8:
       case wasm::ValueType::kI16:
       case wasm::ValueType::kS128:
-      case wasm::ValueType::kExternRef:
-      case wasm::ValueType::kFuncRef:
-      case wasm::ValueType::kExnRef:
       case wasm::ValueType::kRef:
       case wasm::ValueType::kOptRef:
-      case wasm::ValueType::kEqRef:
+      case wasm::ValueType::kRtt:
       case wasm::ValueType::kBottom:
       case wasm::ValueType::kStmt:
         UNIMPLEMENTED();  // TODO(7748): Implement.
@@ -1718,12 +1715,9 @@ void WasmArray::WasmArrayPrint(std::ostream& os) {  // NOLINT
     case wasm::ValueType::kI8:
     case wasm::ValueType::kI16:
     case wasm::ValueType::kS128:
-    case wasm::ValueType::kExternRef:
-    case wasm::ValueType::kFuncRef:
-    case wasm::ValueType::kExnRef:
     case wasm::ValueType::kRef:
     case wasm::ValueType::kOptRef:
-    case wasm::ValueType::kEqRef:
+    case wasm::ValueType::kRtt:
     case wasm::ValueType::kBottom:
     case wasm::ValueType::kStmt:
       UNIMPLEMENTED();  // TODO(7748): Implement.
@@ -1824,7 +1818,8 @@ void WasmGlobalObject::WasmGlobalObjectPrint(std::ostream& os) {  // NOLINT
   os << "\n - untagged_buffer: " << Brief(untagged_buffer());
   os << "\n - tagged_buffer: " << Brief(tagged_buffer());
   os << "\n - offset: " << offset();
-  os << "\n - flags: " << flags();
+  os << "\n - raw_type: " << raw_type();
+  os << "\n - is_mutable: " << is_mutable();
   os << "\n - type: " << type().kind();
   os << "\n - is_mutable: " << is_mutable();
   os << "\n";

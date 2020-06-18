@@ -74,6 +74,7 @@ extern class CoverageInfo extends HeapObject {
 @generateCppClass
 @generatePrint
 extern class WasmValue extends Struct {
+  // TODO(7748): Name and comment are outdated.
   // The type, should map to ValueType::Kind values in value-type.h.
   value_type: SmiTagged<WasmValueType>;
   // Holds the actual value. For example, if this holds a Wasm i32, this will

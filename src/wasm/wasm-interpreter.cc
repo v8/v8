@@ -1268,7 +1268,9 @@ class WasmInterpreterInternals {
       return WasmValue(ref);
     }
 
-    bool IsReferenceValue() const { return value_.type() == kWasmExternRef; }
+    bool IsReferenceValue() const {
+      return value_.type().is_reference_to(kHeapExtern);
+    }
 
     void ClearValue(WasmInterpreterInternals* impl, sp_t index) {
       if (!IsReferenceValue()) return;
@@ -1336,15 +1338,12 @@ class WasmInterpreterInternals {
     break;
         FOREACH_WASMVALUE_CTYPES(CASE_TYPE)
 #undef CASE_TYPE
-        case ValueType::kExternRef:
-        case ValueType::kFuncRef:
-        case ValueType::kExnRef:
-        case ValueType::kRef:
-        case ValueType::kOptRef:
-        case ValueType::kEqRef: {
+        case ValueType::kOptRef: {
           val = WasmValue(isolate_->factory()->null_value());
           break;
         }
+        case ValueType::kRef:
+        case ValueType::kRtt:  // TODO(7748): Implement.
         case ValueType::kStmt:
         case ValueType::kBottom:
         case ValueType::kI8:
@@ -2804,18 +2803,24 @@ class WasmInterpreterInternals {
           EncodeI32ExceptionValue(encoded_values, &encoded_index, s128.val[3]);
           break;
         }
-        case ValueType::kExternRef:
-        case ValueType::kFuncRef:
-        case ValueType::kExnRef: {
-          Handle<Object> externref = value.to_externref();
-          encoded_values->set(encoded_index++, *externref);
+        case ValueType::kRef:
+        case ValueType::kOptRef: {
+          switch (sig->GetParam(i).heap_type()) {
+            case kHeapExtern:
+            case kHeapExn:
+            case kHeapFunc: {
+              Handle<Object> externref = value.to_externref();
+              encoded_values->set(encoded_index++, *externref);
+              break;
+            }
+            default:
+              // TODO(7748): Implement these.
+              UNIMPLEMENTED();
+              break;
+          }
           break;
         }
-        case ValueType::kRef:
-        case ValueType::kOptRef:
-        case ValueType::kEqRef:
-          // TODO(7748): Implement these.
-          UNIMPLEMENTED();
+        case ValueType::kRtt:  // TODO(7748): Implement.
         case ValueType::kI8:
         case ValueType::kI16:
         case ValueType::kStmt:
@@ -2914,19 +2919,25 @@ class WasmInterpreterInternals {
           value = WasmValue(Simd128(s128));
           break;
         }
-        case ValueType::kExternRef:
-        case ValueType::kFuncRef:
-        case ValueType::kExnRef: {
-          Handle<Object> externref(encoded_values->get(encoded_index++),
-                                   isolate_);
-          value = WasmValue(externref);
+        case ValueType::kRef:
+        case ValueType::kOptRef: {
+          switch (sig->GetParam(i).heap_type()) {
+            case kHeapExtern:
+            case kHeapExn:
+            case kHeapFunc: {
+              Handle<Object> externref(encoded_values->get(encoded_index++),
+                                       isolate_);
+              value = WasmValue(externref);
+              break;
+            }
+            default:
+              // TODO(7748): Implement these.
+              UNIMPLEMENTED();
+              break;
+          }
           break;
         }
-        case ValueType::kRef:
-        case ValueType::kOptRef:
-        case ValueType::kEqRef:
-          // TODO(7748): Implement these.
-          UNIMPLEMENTED();
+        case ValueType::kRtt:  // TODO(7748): Implement.
         case ValueType::kI8:
         case ValueType::kI16:
         case ValueType::kStmt:
@@ -3290,12 +3301,8 @@ class WasmInterpreterInternals {
   }
             FOREACH_WASMVALUE_CTYPES(CASE_TYPE)
 #undef CASE_TYPE
-            case ValueType::kExternRef:
-            case ValueType::kFuncRef:
-            case ValueType::kExnRef:
             case ValueType::kRef:
-            case ValueType::kOptRef:
-            case ValueType::kEqRef: {
+            case ValueType::kOptRef: {
               // TODO(7748): Type checks or DCHECKs for ref types?
               HandleScope handle_scope(isolate_);  // Avoid leaking handles.
               Handle<FixedArray> global_buffer;    // The buffer of the global.
@@ -3307,6 +3314,7 @@ class WasmInterpreterInternals {
               global_buffer->set(global_index, *ref);
               break;
             }
+            case ValueType::kRtt:  // TODO(7748): Implement.
             case ValueType::kI8:
             case ValueType::kI16:
             case ValueType::kStmt:
@@ -3697,24 +3705,27 @@ class WasmInterpreterInternals {
           PrintF("i32x4:%d,%d,%d,%d", s.val[0], s.val[1], s.val[2], s.val[3]);
           break;
         }
-        case ValueType::kExternRef: {
-          Handle<Object> ref = val.to_externref();
-          if (ref->IsNull()) {
-            PrintF("ref:null");
-          } else {
-            PrintF("ref:0x%" V8PRIxPTR, ref->ptr());
-          }
-          break;
-        }
         case ValueType::kStmt:
           PrintF("void");
           break;
-        case ValueType::kFuncRef:
-        case ValueType::kExnRef:
         case ValueType::kRef:
-        case ValueType::kOptRef:
-        case ValueType::kEqRef:
-          PrintF("(func|null|exn|opt|eq|)ref:unimplemented");
+        case ValueType::kOptRef: {
+          if (val.type().heap_type() == kHeapExtern) {
+            Handle<Object> ref = val.to_externref();
+            if (ref->IsNull()) {
+              PrintF("ref:null");
+            } else {
+              PrintF("ref:0x%" V8PRIxPTR, ref->ptr());
+            }
+          } else {
+            // TODO(7748): Implement this properly.
+            PrintF("ref/ref null");
+          }
+          break;
+        }
+        case ValueType::kRtt:
+          // TODO(7748): Implement properly.
+          PrintF("ref/ref null/rtt");
           break;
         case ValueType::kI8:
         case ValueType::kI16:

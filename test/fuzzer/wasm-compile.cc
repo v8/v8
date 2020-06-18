@@ -164,7 +164,7 @@ class WasmGenerator {
 
   template <ValueType::Kind T>
   void block(DataRange* data) {
-    block({}, {ValueType(T)}, data);
+    block({}, {ValueType::Primitive(T)}, data);
   }
 
   void loop(const std::vector<ValueType>& param_types,
@@ -176,7 +176,7 @@ class WasmGenerator {
 
   template <ValueType::Kind T>
   void loop(DataRange* data) {
-    loop({}, {ValueType(T)}, data);
+    loop({}, {ValueType::Primitive(T)}, data);
   }
 
   enum IfType { kIf, kIfElse };
@@ -202,7 +202,7 @@ class WasmGenerator {
                   "if without else cannot produce a value");
     auto return_type = T == ValueType::kStmt
                            ? std::vector<ValueType>{}
-                           : std::vector<ValueType>{ValueType(T)};
+                           : std::vector<ValueType>{ValueType::Primitive(T)};
     if_({}, return_type, type, data);
   }
 
@@ -250,9 +250,10 @@ class WasmGenerator {
     Generate(kWasmI32, data);
     builder_->EmitWithI32V(
         kExprBrIf, static_cast<uint32_t>(blocks_.size()) - 1 - target_block);
-    auto return_type = wanted_type == ValueType::kStmt
-                           ? std::vector<ValueType>{}
-                           : std::vector<ValueType>{ValueType(wanted_type)};
+    auto return_type =
+        wanted_type == ValueType::kStmt
+            ? std::vector<ValueType>{}
+            : std::vector<ValueType>{ValueType::Primitive(wanted_type)};
     ConsumeAndGenerate(break_types, return_type, data);
   }
 
@@ -425,7 +426,7 @@ class WasmGenerator {
 
   template <ValueType::Kind wanted_type>
   void call(DataRange* data) {
-    call(data, ValueType(wanted_type));
+    call(data, ValueType::Primitive(wanted_type));
   }
 
   void Convert(ValueType src, ValueType dst) {
@@ -528,7 +529,7 @@ class WasmGenerator {
     if (opcode != kExprLocalGet) Generate(local.type, data);
     builder_->EmitWithU32V(opcode, local.index);
     if (wanted_type != ValueType::kStmt && local.type.kind() != wanted_type) {
-      Convert(local.type, ValueType(wanted_type));
+      Convert(local.type, ValueType::Primitive(wanted_type));
     }
   }
 
@@ -585,7 +586,7 @@ class WasmGenerator {
     builder_->EmitWithU32V(is_set ? kExprGlobalSet : kExprGlobalGet,
                            global.index);
     if (!is_set && global.type.kind() != wanted_type) {
-      Convert(global.type, ValueType(wanted_type));
+      Convert(global.type, ValueType::Primitive(wanted_type));
     }
   }
 
@@ -602,7 +603,7 @@ class WasmGenerator {
     // num_types is always 1.
     uint8_t num_types = 1;
     builder_->EmitWithU8U8(kExprSelectWithType, num_types,
-                           ValueType(select_type).value_type_code());
+                           ValueType::Primitive(select_type).value_type_code());
   }
 
   void set_global(DataRange* data) { global_op<ValueType::kStmt>(data); }

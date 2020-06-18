@@ -474,7 +474,7 @@ MaybeHandle<WasmInstanceObject> InstanceBuilder::Build() {
     // iteration below.
     for (int i = 1; i < table_count; ++i) {
       const WasmTable& table = module_->tables[i];
-      if (table.type == kWasmFuncRef) {
+      if (table.type.heap_type() == kHeapFunc) {
         Handle<WasmIndirectFunctionTable> table_obj =
             WasmIndirectFunctionTable::New(isolate_, table.initial_size);
         tables->set(i, *table_obj);
@@ -803,12 +803,9 @@ void InstanceBuilder::WriteGlobalValue(const WasmGlobal& global,
       TRACE("%lf", num);
       break;
     }
-    case ValueType::kExternRef:
-    case ValueType::kFuncRef:
-    case ValueType::kExnRef:
+    case ValueType::kRtt:
     case ValueType::kRef:
-    case ValueType::kOptRef:
-    case ValueType::kEqRef: {
+    case ValueType::kOptRef: {
       tagged_globals_->set(global.offset, *value->GetRef());
       break;
     }
@@ -1049,7 +1046,7 @@ bool InstanceBuilder::ProcessImportedTable(Handle<WasmInstanceObject> instance,
     return false;
   }
 
-  if (table.type == kWasmFuncRef &&
+  if (table.type.heap_type() == kHeapFunc &&
       !InitializeImportedIndirectFunctionTable(instance, table_index,
                                                import_index, table_object)) {
     return false;
@@ -1116,7 +1113,7 @@ bool InstanceBuilder::ProcessImportedWasmGlobalObject(
     Handle<WasmInstanceObject> instance, int import_index,
     Handle<String> module_name, Handle<String> import_name,
     const WasmGlobal& global, Handle<WasmGlobalObject> global_object) {
-  if (global_object->is_mutable() != global.mutability) {
+  if (static_cast<bool>(global_object->is_mutable()) != global.mutability) {
     ReportLinkError("imported global does not match the expected mutability",
                     import_index, module_name, import_name);
     return false;
@@ -1136,7 +1133,7 @@ bool InstanceBuilder::ProcessImportedWasmGlobalObject(
     DCHECK_LT(global.index, module_->num_imported_mutable_globals);
     Handle<Object> buffer;
     Address address_or_offset;
-    if (global.type.IsReferenceType()) {
+    if (global.type.is_reference_type()) {
       static_assert(sizeof(global_object->offset()) <= sizeof(Address),
                     "The offset into the globals buffer does not fit into "
                     "the imported_mutable_globals array");
@@ -1215,8 +1212,8 @@ bool InstanceBuilder::ProcessImportedGlobal(Handle<WasmInstanceObject> instance,
     return false;
   }
 
-  if (global.type.IsReferenceType()) {
-    if (global.type == kWasmFuncRef) {
+  if (global.type.is_reference_type()) {
+    if (global.type.heap_type() == kHeapFunc) {
       if (!value->IsNull(isolate_) &&
           !WasmExportedFunction::IsWasmExportedFunction(*value)) {
         ReportLinkError(
@@ -1431,7 +1428,7 @@ void InstanceBuilder::InitGlobals(Handle<WasmInstanceObject> instance) {
         uint32_t old_offset =
             module_->globals[global.init.val.global_index].offset;
         TRACE("init [globals+%u] = [globals+%d]\n", global.offset, old_offset);
-        if (global.type.IsReferenceType()) {
+        if (global.type.is_reference_type()) {
           DCHECK(enabled_.has_reftypes() || enabled_.has_eh());
           tagged_globals_->set(new_offset, tagged_globals_->get(old_offset));
         } else {
@@ -1482,7 +1479,7 @@ bool InstanceBuilder::AllocateMemory() {
 bool InstanceBuilder::NeedsWrappers() const {
   if (module_->num_exported_functions > 0) return true;
   for (auto& table : module_->tables) {
-    if (table.type == kWasmFuncRef) return true;
+    if (table.type.heap_type() == kHeapFunc) return true;
   }
   return false;
 }
@@ -1570,7 +1567,7 @@ void InstanceBuilder::ProcessExports(Handle<WasmInstanceObject> instance) {
         if (global.mutability && global.imported) {
           Handle<FixedArray> buffers_array(
               instance->imported_mutable_globals_buffers(), isolate_);
-          if (global.type.IsReferenceType()) {
+          if (global.type.is_reference_type()) {
             tagged_buffer = handle(
                 FixedArray::cast(buffers_array->get(global.index)), isolate_);
             // For externref globals we store the relative offset in the
@@ -1594,7 +1591,7 @@ void InstanceBuilder::ProcessExports(Handle<WasmInstanceObject> instance) {
             offset = static_cast<uint32_t>(global_addr - backing_store);
           }
         } else {
-          if (global.type.IsReferenceType()) {
+          if (global.type.is_reference_type()) {
             tagged_buffer = handle(instance->tagged_globals_buffer(), isolate_);
           } else {
             untagged_buffer =
@@ -1655,7 +1652,7 @@ void InstanceBuilder::InitializeIndirectFunctionTables(
   for (int i = 0; i < static_cast<int>(module_->tables.size()); ++i) {
     const WasmTable& table = module_->tables[i];
 
-    if (table.type == kWasmFuncRef) {
+    if (table.type.heap_type() == kHeapFunc) {
       WasmInstanceObject::EnsureIndirectFunctionTableWithMinimumSize(
           instance, i, table.initial_size);
     }
@@ -1685,7 +1682,7 @@ bool LoadElemSegmentImpl(Isolate* isolate, Handle<WasmInstanceObject> instance,
     int entry_index = static_cast<int>(dst + i);
 
     if (func_index == WasmElemSegment::kNullIndex) {
-      if (table_object->type() == kWasmFuncRef) {
+      if (table_object->type().heap_type() == kHeapFunc) {
         IndirectFunctionTableEntry(instance, table_index, entry_index).clear();
       }
       WasmTableObject::Set(isolate, table_object, entry_index,
@@ -1696,7 +1693,7 @@ bool LoadElemSegmentImpl(Isolate* isolate, Handle<WasmInstanceObject> instance,
     const WasmFunction* function = &module->functions[func_index];
 
     // Update the local dispatch table first if necessary.
-    if (table_object->type() == kWasmFuncRef) {
+    if (table_object->type().heap_type() == kHeapFunc) {
       uint32_t sig_id = module->signature_ids[function->sig_index];
       IndirectFunctionTableEntry(instance, table_index, entry_index)
           .Set(sig_id, instance, func_index);
@@ -1704,7 +1701,7 @@ bool LoadElemSegmentImpl(Isolate* isolate, Handle<WasmInstanceObject> instance,
 
     // For ExternRef tables, we have to generate the WasmExternalFunction
     // eagerly. Later we cannot know if an entry is a placeholder or not.
-    if (table_object->type() == kWasmExternRef) {
+    if (table_object->type().heap_type() == kHeapFunc) {
       Handle<WasmExternalFunction> wasm_external_function =
           WasmInstanceObject::GetOrCreateWasmExternalFunction(isolate, instance,
                                                               func_index);
@@ -1771,7 +1768,7 @@ void InstanceBuilder::LoadTableSegments(Handle<WasmInstanceObject> instance) {
 
   int table_count = static_cast<int>(module_->tables.size());
   for (int index = 0; index < table_count; ++index) {
-    if (module_->tables[index].type == kWasmFuncRef) {
+    if (module_->tables[index].type.heap_type() == kHeapFunc) {
       auto table_object = handle(
           WasmTableObject::cast(instance->tables().get(index)), isolate_);
 

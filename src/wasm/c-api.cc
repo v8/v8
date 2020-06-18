@@ -71,11 +71,19 @@ ValKind V8ValueTypeToWasm(i::wasm::ValueType v8_valtype) {
       return F32;
     case i::wasm::ValueType::kF64:
       return F64;
-    case i::wasm::ValueType::kFuncRef:
-      return FUNCREF;
-    case i::wasm::ValueType::kExternRef:
-      // TODO(7748): Rename this to EXTERNREF if/when third-party API changes
-      return ANYREF;
+    case i::wasm::ValueType::kRef:
+    case i::wasm::ValueType::kOptRef:
+      switch (v8_valtype.heap_type()) {
+        case i::wasm::kHeapFunc:
+          return FUNCREF;
+        case i::wasm::kHeapExtern:
+          // TODO(7748): Rename this to EXTERNREF if/when third-party API
+          // changes.
+          return ANYREF;
+        default:
+          // TODO(wasm+): support new value types
+          UNREACHABLE();
+      }
     default:
       // TODO(wasm+): support new value types
       UNREACHABLE();
@@ -1405,15 +1413,13 @@ void PushArgs(const i::wasm::FunctionSig* sig, const Val args[],
       case i::wasm::ValueType::kF64:
         packer->Push(args[i].f64());
         break;
-      case i::wasm::ValueType::kExternRef:
-      case i::wasm::ValueType::kFuncRef:
+      case i::wasm::ValueType::kRef:
+      case i::wasm::ValueType::kOptRef:
+        // TODO(7748): Make sure this works for all types.
         packer->Push(WasmRefToV8(store->i_isolate(), args[i].ref())->ptr());
         break;
-      case i::wasm::ValueType::kExnRef:
-        // TODO(jkummerow): Implement these.
-        UNIMPLEMENTED();
-        break;
       default:
+        // TODO(7748): Implement these.
         UNIMPLEMENTED();
     }
   }
@@ -1437,18 +1443,23 @@ void PopArgs(const i::wasm::FunctionSig* sig, Val results[],
       case i::wasm::ValueType::kF64:
         results[i] = Val(packer->Pop<double>());
         break;
-      case i::wasm::ValueType::kExternRef:
-      case i::wasm::ValueType::kFuncRef: {
-        i::Address raw = packer->Pop<i::Address>();
-        i::Handle<i::Object> obj(i::Object(raw), store->i_isolate());
-        results[i] = Val(V8RefValueToWasm(store, obj));
-        break;
-      }
-      case i::wasm::ValueType::kExnRef:
-        // TODO(jkummerow): Implement these.
-        UNIMPLEMENTED();
+      case i::wasm::ValueType::kRef:
+      case i::wasm::ValueType::kOptRef:
+        switch (type.heap_type()) {
+          case i::wasm::kHeapExtern:
+          case i::wasm::kHeapFunc: {
+            i::Address raw = packer->Pop<i::Address>();
+            i::Handle<i::Object> obj(i::Object(raw), store->i_isolate());
+            results[i] = Val(V8RefValueToWasm(store, obj));
+            break;
+          }
+          default:
+            // TODO(jkummerow): Implement these.
+            UNIMPLEMENTED();
+        }
         break;
       default:
+        // TODO(7748): Implement these.
         UNIMPLEMENTED();
     }
   }
@@ -1695,14 +1706,21 @@ auto Global::get() const -> Val {
       return Val(v8_global->GetF32());
     case i::wasm::ValueType::kF64:
       return Val(v8_global->GetF64());
-    case i::wasm::ValueType::kExternRef:
-    case i::wasm::ValueType::kFuncRef: {
-      StoreImpl* store = impl(this)->store();
-      i::HandleScope scope(store->i_isolate());
-      return Val(V8RefValueToWasm(store, v8_global->GetRef()));
-    }
+    case i::wasm::ValueType::kRef:
+    case i::wasm::ValueType::kOptRef:
+      switch (v8_global->type().heap_type()) {
+        case i::wasm::kHeapExtern:
+        case i::wasm::kHeapFunc: {
+          StoreImpl* store = impl(this)->store();
+          i::HandleScope scope(store->i_isolate());
+          return Val(V8RefValueToWasm(store, v8_global->GetRef()));
+        }
+        default:
+          // TODO(wasm+): Support new value types.
+          UNREACHABLE();
+      }
     default:
-      // TODO(wasm+): support new value types
+      // TODO(7748): Implement these.
       UNREACHABLE();
   }
 }
@@ -1803,11 +1821,11 @@ auto Table::type() const -> own<TableType> {
   uint32_t max;
   if (!table->maximum_length().ToUint32(&max)) max = 0xFFFFFFFFu;
   ValKind kind;
-  switch (table->type().kind()) {
-    case i::wasm::ValueType::kFuncRef:
+  switch (table->type().heap_type()) {
+    case i::wasm::kHeapFunc:
       kind = FUNCREF;
       break;
-    case i::wasm::ValueType::kExternRef:
+    case i::wasm::kHeapExtern:
       kind = ANYREF;
       break;
     default:

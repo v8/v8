@@ -323,15 +323,15 @@ class WasmGlobalObject : public JSObject {
   DECL_ACCESSORS(untagged_buffer, JSArrayBuffer)
   DECL_ACCESSORS(tagged_buffer, FixedArray)
   DECL_INT32_ACCESSORS(offset)
-  DECL_INT_ACCESSORS(flags)
+  DECL_INT_ACCESSORS(raw_type)
   DECL_PRIMITIVE_ACCESSORS(type, wasm::ValueType)
-  DECL_BOOLEAN_ACCESSORS(is_mutable)
+  // TODO(7748): Once we improve the encoding of mutability/type, turn this back
+  // into a boolean accessor.
+  DECL_INT_ACCESSORS(is_mutable)
 
   // Dispatched behavior.
   DECL_PRINTER(WasmGlobalObject)
   DECL_VERIFIER(WasmGlobalObject)
-
-  DEFINE_TORQUE_GENERATED_WASM_GLOBAL_OBJECT_FLAGS()
 
   DEFINE_FIELD_OFFSET_CONSTANTS(JSObject::kHeaderSize,
                                 TORQUE_GENERATED_WASM_GLOBAL_OBJECT_FIELDS)
