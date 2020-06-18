@@ -234,6 +234,7 @@ namespace compiler {
   V(AVXI32x4GeU)                   \
   V(IA32I32x4Abs)                  \
   V(IA32I32x4BitMask)              \
+  V(IA32I32x4DotI16x8S)            \
   V(IA32I16x8Splat)                \
   V(IA32I16x8ExtractLaneU)         \
   V(IA32I16x8ExtractLaneS)         \
