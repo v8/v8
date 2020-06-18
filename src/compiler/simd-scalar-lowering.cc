@@ -147,7 +147,8 @@ void SimdScalarLowering::LowerGraph() {
   V(V16x8AnyTrue)                 \
   V(V16x8AllTrue)                 \
   V(V8x16AnyTrue)                 \
-  V(V8x16AllTrue)
+  V(V8x16AllTrue)                 \
+  V(I32x4BitMask)
 
 #define FOREACH_FLOAT64X2_OPCODE(V) V(F64x2Splat)
 
@@ -212,7 +213,8 @@ void SimdScalarLowering::LowerGraph() {
   V(I16x8LtU)                     \
   V(I16x8LeU)                     \
   V(I16x8RoundingAverageU)        \
-  V(I16x8Abs)
+  V(I16x8Abs)                     \
+  V(I16x8BitMask)
 
 #define FOREACH_INT8X16_OPCODE(V) \
   V(I8x16Splat)                   \
@@ -245,7 +247,8 @@ void SimdScalarLowering::LowerGraph() {
   V(S8x16Swizzle)                 \
   V(S8x16Shuffle)                 \
   V(I8x16RoundingAverageU)        \
-  V(I8x16Abs)
+  V(I8x16Abs)                     \
+  V(I8x16BitMask)
 
 MachineType SimdScalarLowering::MachineTypeFrom(SimdType simdType) {
   switch (simdType) {
@@ -1025,6 +1028,44 @@ void SimdScalarLowering::LowerNotEqual(Node* node, SimdType input_rep_type,
   ReplaceNode(node, rep_node, num_lanes);
 }
 
+void SimdScalarLowering::LowerBitMaskOp(Node* node, SimdType rep_type,
+                                        int msb_index) {
+  Node** reps = GetReplacementsWithType(node->InputAt(0), rep_type);
+  int num_lanes = NumLanes(rep_type);
+  Node** rep_node = zone()->NewArray<Node*>(1);
+  Node* result = mcgraph_->Int32Constant(0);
+  uint32_t mask = 1 << msb_index;
+
+  for (int i = 0; i < num_lanes; ++i) {
+    // Lane i should end up at bit i in the final result.
+    // +-----------------------------------------------------------------+
+    // |       | msb_index |   (i < msb_index)    |    (i > msb_index)   |
+    // +-------+-----------+----------------------+----------------------+
+    // | i8x16 |     7     | msb >> (msb_index-i) | msb << (i-msb_index) |
+    // | i16x8 |    15     | msb >> (msb_index-i) |         n/a          |
+    // | i32x4 |    31     | msb >> (msb_index-i) |         n/a          |
+    // +-------+-----------+----------------------+----------------------+
+    Node* msb = Mask(reps[i], mask);
+
+    if (i < msb_index) {
+      int shift = msb_index - i;
+      Node* shifted = graph()->NewNode(machine()->Word32Shr(), msb,
+                                       mcgraph_->Int32Constant(shift));
+      result = graph()->NewNode(machine()->Word32Or(), shifted, result);
+    } else if (i > msb_index) {
+      int shift = i - msb_index;
+      Node* shifted = graph()->NewNode(machine()->Word32Shl(), msb,
+                                       mcgraph_->Int32Constant(shift));
+      result = graph()->NewNode(machine()->Word32Or(), shifted, result);
+    } else {
+      result = graph()->NewNode(machine()->Word32Or(), msb, result);
+    }
+  }
+
+  rep_node[0] = result;
+  ReplaceNode(node, rep_node, 1);
+}
+
 void SimdScalarLowering::LowerNode(Node* node) {
   SimdType rep_type = ReplacementType(node);
   int num_lanes = NumLanes(rep_type);
@@ -1675,6 +1716,18 @@ void SimdScalarLowering::LowerNode(Node* node) {
       ReplaceNode(node, rep_node, num_lanes);
       break;
     }
+    case IrOpcode::kI8x16BitMask: {
+      LowerBitMaskOp(node, rep_type, 7);
+      break;
+    }
+    case IrOpcode::kI16x8BitMask: {
+      LowerBitMaskOp(node, rep_type, 15);
+      break;
+    }
+    case IrOpcode::kI32x4BitMask: {
+      LowerBitMaskOp(node, rep_type, 31);
+      break;
+    }
     case IrOpcode::kI8x16RoundingAverageU:
     case IrOpcode::kI16x8RoundingAverageU: {
       DCHECK_EQ(2, node->InputCount());
@@ -1707,7 +1760,7 @@ bool SimdScalarLowering::DefaultLowering(Node* node) {
       something_changed = true;
       node->ReplaceInput(i, GetReplacements(input)[0]);
     }
-    if (HasReplacement(1, input)) {
+    if (ReplacementCount(input) > 1 && HasReplacement(1, input)) {
       something_changed = true;
       for (int j = 1; j < ReplacementCount(input); ++j) {
         node->InsertInput(zone(), i + j, GetReplacements(input)[j]);
