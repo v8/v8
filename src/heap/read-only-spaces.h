@@ -12,11 +12,10 @@
 #include "src/base/macros.h"
 #include "src/common/globals.h"
 #include "src/heap/allocation-stats.h"
+#include "src/heap/base-space.h"
 #include "src/heap/basic-memory-chunk.h"
 #include "src/heap/list.h"
 #include "src/heap/memory-chunk.h"
-#include "src/heap/paged-spaces.h"
-#include "src/heap/spaces.h"
 
 namespace v8 {
 namespace internal {

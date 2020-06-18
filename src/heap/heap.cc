@@ -643,7 +643,8 @@ void Heap::DumpJSONHeapStatistics(std::stringstream& stream) {
     std::stringstream stream;
     stream << DICT(
       MEMBER("name")
-        << ESCAPE(GetSpaceName(static_cast<AllocationSpace>(space_index)))
+        << ESCAPE(BaseSpace::GetSpaceName(
+              static_cast<AllocationSpace>(space_index)))
         << ","
       MEMBER("size") << space_stats.space_size() << ","
       MEMBER("used_size") << space_stats.space_used_size() << ","
@@ -889,29 +890,6 @@ size_t Heap::TotalGlobalHandlesSize() {
 
 size_t Heap::UsedGlobalHandlesSize() {
   return isolate_->global_handles()->UsedSize();
-}
-
-// static
-const char* Heap::GetSpaceName(AllocationSpace space) {
-  switch (space) {
-    case NEW_SPACE:
-      return "new_space";
-    case OLD_SPACE:
-      return "old_space";
-    case MAP_SPACE:
-      return "map_space";
-    case CODE_SPACE:
-      return "code_space";
-    case LO_SPACE:
-      return "large_object_space";
-    case NEW_LO_SPACE:
-      return "new_large_object_space";
-    case CODE_LO_SPACE:
-      return "code_large_object_space";
-    case RO_SPACE:
-      return "read_only_space";
-  }
-  UNREACHABLE();
 }
 
 void Heap::MergeAllocationSitePretenuringFeedback(

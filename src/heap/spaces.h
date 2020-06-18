@@ -7,12 +7,12 @@
 
 #include <atomic>
 #include <memory>
-#include <unordered_map>
 #include <vector>
 
 #include "src/base/iterator.h"
 #include "src/base/macros.h"
 #include "src/common/globals.h"
+#include "src/heap/base-space.h"
 #include "src/heap/basic-memory-chunk.h"
 #include "src/heap/free-list.h"
 #include "src/heap/heap.h"
@@ -103,63 +103,6 @@ class SemiSpace;
 
 #define DCHECK_CODEOBJECT_SIZE(size, code_space) \
   DCHECK((0 < size) && (size <= code_space->AreaSize()))
-
-// ----------------------------------------------------------------------------
-// BaseSpace is the abstract superclass for all allocation spaces.
-class V8_EXPORT_PRIVATE BaseSpace : public Malloced {
- public:
-  Heap* heap() const {
-    DCHECK_NOT_NULL(heap_);
-    return heap_;
-  }
-
-  AllocationSpace identity() { return id_; }
-
-  const char* name() { return Heap::GetSpaceName(id_); }
-
-  void AccountCommitted(size_t bytes) {
-    DCHECK_GE(committed_ + bytes, committed_);
-    committed_ += bytes;
-    if (committed_ > max_committed_) {
-      max_committed_ = committed_;
-    }
-  }
-
-  void AccountUncommitted(size_t bytes) {
-    DCHECK_GE(committed_, committed_ - bytes);
-    committed_ -= bytes;
-  }
-
-  // Return the total amount committed memory for this space, i.e., allocatable
-  // memory and page headers.
-  virtual size_t CommittedMemory() { return committed_; }
-
-  virtual size_t MaximumCommittedMemory() { return max_committed_; }
-
-  // Approximate amount of physical memory committed for this space.
-  virtual size_t CommittedPhysicalMemory() = 0;
-
-  // Returns allocated size.
-  virtual size_t Size() = 0;
-
- protected:
-  BaseSpace(Heap* heap, AllocationSpace id)
-      : heap_(heap), id_(id), committed_(0), max_committed_(0) {}
-
-  // Even though this has no virtual functions, this ensures that pointers are
-  // stable through casting.
-  virtual ~BaseSpace() = default;
-
- protected:
-  Heap* heap_;
-  AllocationSpace id_;
-
-  // Keeps track of committed memory in a space.
-  std::atomic<size_t> committed_;
-  size_t max_committed_;
-
-  DISALLOW_COPY_AND_ASSIGN(BaseSpace);
-};
 
 // ----------------------------------------------------------------------------
 // Space is the abstract superclass for all allocation spaces that are not

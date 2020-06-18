@@ -139,13 +139,15 @@ static int DumpHeapConstants(FILE* out, const char* argv0) {
       for (i::HeapObject object = ro_iterator.Next(); !object.is_null();
            object = ro_iterator.Next()) {
         if (!object.IsMap()) continue;
-        DumpKnownMap(out, heap, i::Heap::GetSpaceName(i::RO_SPACE), object);
+        DumpKnownMap(out, heap, i::BaseSpace::GetSpaceName(i::RO_SPACE),
+                     object);
       }
       i::PagedSpaceObjectIterator iterator(heap, heap->map_space());
       for (i::HeapObject object = iterator.Next(); !object.is_null();
            object = iterator.Next()) {
         if (!object.IsMap()) continue;
-        DumpKnownMap(out, heap, i::Heap::GetSpaceName(i::MAP_SPACE), object);
+        DumpKnownMap(out, heap, i::BaseSpace::GetSpaceName(i::MAP_SPACE),
+                     object);
       }
       i::PrintF(out, "}\n");
     }
@@ -159,7 +161,8 @@ static int DumpHeapConstants(FILE* out, const char* argv0) {
            object = ro_iterator.Next()) {
         // Skip read-only heap maps, they will be reported elsewhere.
         if (object.IsMap()) continue;
-        DumpKnownObject(out, heap, i::Heap::GetSpaceName(i::RO_SPACE), object);
+        DumpKnownObject(out, heap, i::BaseSpace::GetSpaceName(i::RO_SPACE),
+                        object);
       }
 
       i::PagedSpaceIterator spit(heap);
