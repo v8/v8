@@ -369,8 +369,9 @@ RUNTIME_FUNCTION(Runtime_EnsureFeedbackVectorForFunction) {
 
 RUNTIME_FUNCTION(Runtime_PrepareFunctionForOptimization) {
   HandleScope scope(isolate);
-  DCHECK(args.length() == 1 || args.length() == 2);
-  if (!args[0].IsJSFunction()) return CrashUnlessFuzzing(isolate);
+  if ((args.length() != 1 && args.length() != 2) || !args[0].IsJSFunction()) {
+    return CrashUnlessFuzzing(isolate);
+  }
   CONVERT_ARG_HANDLE_CHECKED(JSFunction, function, 0);
 
   bool allow_heuristic_optimization = false;
