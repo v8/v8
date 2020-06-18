@@ -10,12 +10,15 @@ Uses Goma by default if it is detected (at output directory setup time).
 Expects to be run from the root of a V8 checkout.
 
 Usage:
-    gm.py [<arch>].[<mode>[-<suffix>]].[<target>] [testname...]
+    gm.py [<arch>].[<mode>[-<suffix>]].[<target>] [testname...] [--flag]
 
 All arguments are optional. Most combinations should work, e.g.:
     gm.py ia32.debug x64.release x64.release-my-custom-opts d8
-    gm.py android_arm.release.check
+    gm.py android_arm.release.check --progress=verbose
     gm.py x64 mjsunit/foo cctest/test-bar/*
+
+Flags are passed unchanged to the test runner. They must start with -- and must
+not contain spaces.
 """
 # See HELP below for additional documentation.
 # Note on Python3 compatibility: gm.py itself is Python3 compatible, but
@@ -224,11 +227,12 @@ def PrepareMksnapshotCmdline(orig_cmdline, path):
   return result
 
 class Config(object):
-  def __init__(self, arch, mode, targets, tests=[]):
+  def __init__(self, arch, mode, targets, tests=[], testrunner_args=[]):
     self.arch = arch
     self.mode = mode
     self.targets = set(targets)
     self.tests = set(tests)
+    self.testrunner_args = testrunner_args
 
   def Extend(self, targets, tests=[]):
     self.targets.update(targets)
@@ -303,7 +307,9 @@ class Config(object):
       tests = " ".join(self.tests)
     return _Call('"%s" ' % sys.executable +
                  os.path.join("tools", "run-tests.py") +
-                 " --outdir=%s %s" % (GetPath(self.arch, self.mode), tests))
+                 " --outdir=%s %s %s" % (
+                     GetPath(self.arch, self.mode), tests,
+                     " ".join(self.testrunner_args)))
 
 def GetTestBinary(argstring):
   for suite in TESTSUITES_TARGETS:
@@ -316,13 +322,15 @@ class ArgumentParser(object):
     self.global_tests = set()
     self.global_actions = set()
     self.configs = {}
+    self.testrunner_args = []
 
   def PopulateConfigs(self, arches, modes, targets, tests):
     for a in arches:
       for m in modes:
         path = GetPath(a, m)
         if path not in self.configs:
-          self.configs[path] = Config(a, m, targets, tests)
+          self.configs[path] = Config(a, m, targets, tests,
+                  self.testrunner_args)
         else:
           self.configs[path].Extend(targets, tests)
 
@@ -348,6 +356,10 @@ class ArgumentParser(object):
     # tests have names like "S15.4.4.7_A4_T1", don't split these.
     if argstring.startswith("unittests/") or argstring.startswith("test262/"):
       words = [argstring]
+    elif argstring.startswith("--"):
+      # Pass all other flags to test runner.
+      self.testrunner_args.append(argstring)
+      return
     else:
       # Assume it's a word like "x64.release" -> split at the dot.
       words = argstring.split('.')
