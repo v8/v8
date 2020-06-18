@@ -483,8 +483,7 @@ void Heap::PrintShortHeapStatistics() {
                "Read-only space,        used: %6zu KB"
                ", available: %6zu KB"
                ", committed: %6zu KB\n",
-               read_only_space_->Size() / KB,
-               read_only_space_->Available() / KB,
+               read_only_space_->Size() / KB, size_t{0},
                read_only_space_->CommittedMemory() / KB);
   PrintIsolate(isolate_,
                "New space,              used: %6zu KB"
@@ -535,8 +534,8 @@ void Heap::PrintShortHeapStatistics() {
                "All spaces,             used: %6zu KB"
                ", available: %6zu KB"
                ", committed: %6zu KB\n",
-               (this->SizeOfObjects() + ro_space->SizeOfObjects()) / KB,
-               (this->Available() + ro_space->Available()) / KB,
+               (this->SizeOfObjects() + ro_space->Size()) / KB,
+               (this->Available()) / KB,
                (this->CommittedMemory() + ro_space->CommittedMemory()) / KB);
   PrintIsolate(isolate_,
                "Unmapper buffering %zu chunks of committed: %6zu KB\n",
@@ -1977,6 +1976,9 @@ bool Heap::ReserveSpace(Reservation* reservations, std::vector<Address>* maps) {
 #else
           if (space == NEW_SPACE) {
             allocation = new_space()->AllocateRawUnaligned(size);
+          } else if (space == RO_SPACE) {
+            allocation = read_only_space()->AllocateRaw(
+                size, AllocationAlignment::kWordAligned);
           } else {
             // The deserializer will update the skip list.
             allocation = paged_space(space)->AllocateRawUnaligned(size);
@@ -3029,10 +3031,12 @@ HeapObject CreateFillerObjectAtImpl(ReadOnlyRoots roots, Address addr, int size,
 
 #ifdef DEBUG
 void VerifyNoNeedToClearSlots(Address start, Address end) {
-  BasicMemoryChunk* chunk = BasicMemoryChunk::FromAddress(start);
+  BasicMemoryChunk* basic_chunk = BasicMemoryChunk::FromAddress(start);
+  if (basic_chunk->InReadOnlySpace()) return;
+  MemoryChunk* chunk = static_cast<MemoryChunk*>(basic_chunk);
   // TODO(ulan): Support verification of large pages.
   if (chunk->InYoungGeneration() || chunk->IsLargePage()) return;
-  Space* space = chunk->owner();
+  BaseSpace* space = chunk->owner();
   if (static_cast<PagedSpace*>(space)->is_off_thread_space()) return;
   space->heap()->VerifySlotRangeHasNoRecordedSlots(start, end);
 }
@@ -3095,7 +3099,7 @@ bool Heap::InOffThreadSpace(HeapObject heap_object) {
 #ifdef V8_ENABLE_THIRD_PARTY_HEAP
   return false;  // currently unsupported
 #else
-  Space* owner = BasicMemoryChunk::FromHeapObject(heap_object)->owner();
+  BaseSpace* owner = BasicMemoryChunk::FromHeapObject(heap_object)->owner();
   if (owner->identity() == OLD_SPACE) {
     // TODO(leszeks): Should we exclude compaction spaces here?
     return static_cast<PagedSpace*>(owner)->is_off_thread_space();
@@ -4214,28 +4218,6 @@ bool Heap::IsValidAllocationSpace(AllocationSpace space) {
 }
 
 #ifdef VERIFY_HEAP
-class VerifyReadOnlyPointersVisitor : public VerifyPointersVisitor {
- public:
-  explicit VerifyReadOnlyPointersVisitor(Heap* heap)
-      : VerifyPointersVisitor(heap) {}
-
- protected:
-  void VerifyPointers(HeapObject host, MaybeObjectSlot start,
-                      MaybeObjectSlot end) override {
-    if (!host.is_null()) {
-      CHECK(ReadOnlyHeap::Contains(host.map()));
-    }
-    VerifyPointersVisitor::VerifyPointers(host, start, end);
-
-    for (MaybeObjectSlot current = start; current < end; ++current) {
-      HeapObject heap_object;
-      if ((*current)->GetHeapObject(&heap_object)) {
-        CHECK(ReadOnlyHeap::Contains(heap_object));
-      }
-    }
-  }
-};
-
 void Heap::Verify() {
   CHECK(HasBeenSetUp());
   SafepointScope safepoint_scope(this);
@@ -4275,8 +4257,7 @@ void Heap::Verify() {
 
 void Heap::VerifyReadOnlyHeap() {
   CHECK(!read_only_space_->writable());
-  VerifyReadOnlyPointersVisitor read_only_visitor(this);
-  read_only_space_->Verify(isolate(), &read_only_visitor);
+  read_only_space_->Verify(isolate());
 }
 
 class SlotVerifyingVisitor : public ObjectVisitor {
@@ -5353,13 +5334,15 @@ void Heap::SetUpFromReadOnlyHeap(ReadOnlyHeap* ro_heap) {
   DCHECK_NOT_NULL(ro_heap);
   DCHECK_IMPLIES(read_only_space_ != nullptr,
                  read_only_space_ == ro_heap->read_only_space());
-  space_[RO_SPACE] = read_only_space_ = ro_heap->read_only_space();
+  space_[RO_SPACE] = nullptr;
+  read_only_space_ = ro_heap->read_only_space();
 }
 
 void Heap::ReplaceReadOnlySpace(SharedReadOnlySpace* space) {
   CHECK(V8_SHARED_RO_HEAP_BOOL);
   delete read_only_space_;
-  space_[RO_SPACE] = read_only_space_ = space;
+
+  read_only_space_ = space;
 }
 
 void Heap::SetUpSpaces() {
@@ -5660,7 +5643,7 @@ void Heap::TearDown() {
   tracer_.reset();
 
   isolate()->read_only_heap()->OnHeapTearDown();
-  space_[RO_SPACE] = read_only_space_ = nullptr;
+  read_only_space_ = nullptr;
   for (int i = FIRST_MUTABLE_SPACE; i <= LAST_MUTABLE_SPACE; i++) {
     delete space_[i];
     space_[i] = nullptr;

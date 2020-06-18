@@ -318,7 +318,7 @@ class V8_EXPORT_PRIVATE PagedSpace
   void SetTopAndLimit(Address top, Address limit) {
     DCHECK(top == limit ||
            Page::FromAddress(top) == Page::FromAddress(limit - 1));
-    MemoryChunk::UpdateHighWaterMark(allocation_info_.top());
+    BasicMemoryChunk::UpdateHighWaterMark(allocation_info_.top());
     allocation_info_.Reset(top, limit);
   }
   void DecreaseLimit(Address new_limit);

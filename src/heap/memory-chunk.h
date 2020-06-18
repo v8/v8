@@ -233,6 +233,10 @@ class MemoryChunk : public BasicMemoryChunk {
     return external_backing_store_bytes_[type];
   }
 
+  Space* owner() const {
+    return reinterpret_cast<Space*>(BasicMemoryChunk::owner());
+  }
+
   // Gets the chunk's allocation space, potentially dealing with a null owner_
   // (like read-only chunks have).
   inline AllocationSpace owner_identity() const;
@@ -267,10 +271,8 @@ class MemoryChunk : public BasicMemoryChunk {
   void ReleaseAllocatedMemoryNeededForWritableChunk();
 
  protected:
-  static MemoryChunk* Initialize(Heap* heap, Address base, size_t size,
-                                 Address area_start, Address area_end,
-                                 Executability executable, Space* owner,
-                                 VirtualMemory reservation);
+  static MemoryChunk* Initialize(BasicMemoryChunk* basic_chunk, Heap* heap,
+                                 Executability executable);
 
   // Release all memory allocated by the chunk. Should be called when memory
   // chunk is about to be freed.

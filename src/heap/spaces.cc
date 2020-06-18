@@ -130,11 +130,6 @@ void Page::MergeOldToNewRememberedSets() {
   sweeping_slot_set_ = nullptr;
 }
 
-void Page::ResetAllocationStatistics() {
-  allocated_bytes_ = area_size();
-  wasted_memory_ = 0;
-}
-
 void Page::AllocateLocalTracker() {
   DCHECK_NULL(local_tracker_);
   local_tracker_ = new LocalArrayBufferTracker(this);

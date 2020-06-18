@@ -3291,15 +3291,15 @@ void Isolate::AddCrashKeysForIsolateAndHeapPointers() {
                           AddressToString(isolate_address));
 
   const uintptr_t ro_space_firstpage_address =
-      reinterpret_cast<uintptr_t>(heap()->read_only_space()->first_page());
+      heap()->read_only_space()->FirstPageAddress();
   add_crash_key_callback_(v8::CrashKeyId::kReadonlySpaceFirstPageAddress,
                           AddressToString(ro_space_firstpage_address));
   const uintptr_t map_space_firstpage_address =
-      reinterpret_cast<uintptr_t>(heap()->map_space()->first_page());
+      heap()->map_space()->FirstPageAddress();
   add_crash_key_callback_(v8::CrashKeyId::kMapSpaceFirstPageAddress,
                           AddressToString(map_space_firstpage_address));
   const uintptr_t code_space_firstpage_address =
-      reinterpret_cast<uintptr_t>(heap()->code_space()->first_page());
+      heap()->code_space()->FirstPageAddress();
   add_crash_key_callback_(v8::CrashKeyId::kCodeSpaceFirstPageAddress,
                           AddressToString(code_space_firstpage_address));
 }

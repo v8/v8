@@ -159,14 +159,9 @@ PageAllocator::Permission DefaultWritableCodePermissions() {
 
 }  // namespace
 
-MemoryChunk* MemoryChunk::Initialize(Heap* heap, Address base, size_t size,
-                                     Address area_start, Address area_end,
-                                     Executability executable, Space* owner,
-                                     VirtualMemory reservation) {
-  MemoryChunk* chunk = reinterpret_cast<MemoryChunk*>(base);
-  DCHECK_EQ(base, chunk->address());
-  BasicMemoryChunk::Initialize(heap, base, size, area_start, area_end, owner,
-                               std::move(reservation));
+MemoryChunk* MemoryChunk::Initialize(BasicMemoryChunk* basic_chunk, Heap* heap,
+                                     Executability executable) {
+  MemoryChunk* chunk = static_cast<MemoryChunk*>(basic_chunk);
 
   base::AsAtomicPointer::Release_Store(&chunk->slot_set_[OLD_TO_NEW], nullptr);
   base::AsAtomicPointer::Release_Store(&chunk->slot_set_[OLD_TO_OLD], nullptr);
@@ -194,14 +189,6 @@ MemoryChunk* MemoryChunk::Initialize(Heap* heap, Address base, size_t size,
 
   heap->incremental_marking()->non_atomic_marking_state()->SetLiveBytes(chunk,
                                                                         0);
-  if (owner->identity() == RO_SPACE) {
-    heap->incremental_marking()
-        ->non_atomic_marking_state()
-        ->bitmap(chunk)
-        ->MarkAllBits();
-    chunk->SetFlag(READ_ONLY_HEAP);
-  }
-
   if (executable == EXECUTABLE) {
     chunk->SetFlag(IS_EXECUTABLE);
     if (heap->write_protect_code_memory()) {
@@ -217,7 +204,7 @@ MemoryChunk* MemoryChunk::Initialize(Heap* heap, Address base, size_t size,
     }
   }
 
-  if (owner->identity() == CODE_SPACE) {
+  if (chunk->owner()->identity() == CODE_SPACE) {
     chunk->code_object_registry_ = new CodeObjectRegistry();
   } else {
     chunk->code_object_registry_ = nullptr;

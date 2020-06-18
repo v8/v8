@@ -95,12 +95,18 @@ static void DumpKnownObject(FILE* out, i::Heap* heap, const char* space_name,
 #undef RO_ROOT_LIST_CASE
 }
 
-static void DumpSpaceFirstPageAddress(FILE* out, i::PagedSpace* space) {
+static void DumpSpaceFirstPageAddress(FILE* out, i::BaseSpace* space,
+                                      i::Address first_page) {
   const char* name = space->name();
-  i::Address first_page = reinterpret_cast<i::Address>(space->first_page());
   i::Tagged_t compressed = i::CompressTagged(first_page);
   uintptr_t unsigned_compressed = static_cast<uint32_t>(compressed);
   i::PrintF(out, "  0x%08" V8PRIxPTR ": \"%s\",\n", unsigned_compressed, name);
+}
+
+template <typename SpaceT>
+static void DumpSpaceFirstPageAddress(FILE* out, SpaceT* space) {
+  i::Address first_page = space->FirstPageAddress();
+  DumpSpaceFirstPageAddress(out, space, first_page);
 }
 
 static int DumpHeapConstants(FILE* out, const char* argv0) {
