@@ -337,8 +337,15 @@ code is governed by a BSD-style license that can be found in the LICENSE file.
       details.style.display = display;
     }
 
+    function removeOptions(selectElement) {
+      while(selectElement.options.length > 0) {
+          selectElement.remove(0);
+      }
+    }
+
     function initGroupKeySelect() {
       let select = document.getElementById("group-key");
+      removeOptions(select);
       for (let i in properties) {
         let option = document.createElement("option");
         option.text = properties[i];
