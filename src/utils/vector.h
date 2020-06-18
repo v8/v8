@@ -113,9 +113,7 @@ class Vector {
   }
 
   // Implicit conversion from Vector<T> to Vector<const T>.
-  inline operator Vector<const T>() const {
-    return Vector<const T>::cast(*this);
-  }
+  operator Vector<const T>() const { return {start_, length_}; }
 
   template <typename S>
   static Vector<T> cast(Vector<S> input) {
@@ -296,6 +294,14 @@ template <typename Container>
 inline constexpr auto VectorOf(Container&& c)
     -> decltype(VectorOf(c.data(), c.size())) {
   return VectorOf(c.data(), c.size());
+}
+
+// Construct a Vector from an initializer list. The vector can obviously only be
+// used as long as the initializer list is live. Valid uses include direct use
+// in parameter lists: F(VectorOf({1, 2, 3}));
+template <typename T>
+inline constexpr Vector<const T> VectorOf(std::initializer_list<T> list) {
+  return VectorOf(list.begin(), list.size());
 }
 
 template <typename T, size_t kSize>
