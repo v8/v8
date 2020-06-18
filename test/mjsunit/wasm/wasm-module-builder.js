@@ -482,7 +482,7 @@ let kExprI32x4Eq = 0x37;
 let kExprV8x16AnyTrue = 0x62;
 let kExprV8x16AllTrue = 0x63;
 let kExprI8x16Add = 0x6e;
-let kExprI16x8ShrS = [0x8c, 01];
+let kExprI16x8ShrS = [0x8c, 0x01];
 let kExprV32x4AnyTrue = 0xa2;
 let kExprF32x4Min = 0xe8;
 
