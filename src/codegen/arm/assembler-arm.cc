@@ -3596,23 +3596,6 @@ void Assembler::vrintp(const DwVfpRegister dst, const DwVfpRegister src) {
        vd * B12 | 0x5 * B9 | B8 | B6 | m * B5 | vm);
 }
 
-void Assembler::vrintp(NeonDataType dt, const QwNeonRegister dst,
-                       const QwNeonRegister src) {
-  // cond=kSpecialCondition(31-28) | 00111(27-23)| D(22) | 11(21-20) |
-  // size(19-18) | 10(17-16) | Vd(15-12) | 01(11-10) | 7(9-7) | 1(6) | M(5) |
-  // 0(4) | Vm(3-0)
-  DCHECK(IsEnabled(ARMv8));
-  int vd, d;
-  dst.split_code(&vd, &d);
-  int vm, m;
-  src.split_code(&vm, &m);
-  int size = NeonSz(dt);
-  // Only F32 is implemented for now.
-  DCHECK_EQ(0x2, dt);
-  emit(kSpecialCondition | 0x7 * B23 | d * B22 | 0x3 * B20 | size * B18 |
-       0x2 * B16 | vd * B12 | 0x1 * B10 | 0x7 * B7 | B6 | m * B5 | vm);
-}
-
 void Assembler::vrintm(const SwVfpRegister dst, const SwVfpRegister src) {
   // cond=kSpecialCondition(31-28) | 11101(27-23)| D(22) | 11(21-20) |
   // 10(19-18) | RM=11(17-16) |  Vd(15-12) | 101(11-9) | sz=0(8) | 01(7-6) |
@@ -3909,7 +3892,7 @@ void Assembler::vcvt_u32_f32(QwNeonRegister dst, QwNeonRegister src) {
   emit(EncodeNeonVCVT(U32, dst, F32, src));
 }
 
-enum UnaryOp { VMVN, VSWP, VABS, VABSF, VNEG, VNEGF };
+enum UnaryOp { VMVN, VSWP, VABS, VABSF, VNEG, VNEGF, VRINTP };
 
 static Instr EncodeNeonUnaryOp(UnaryOp op, NeonRegType reg_type, NeonSize size,
                                int dst_code, int src_code) {
@@ -3936,6 +3919,9 @@ static Instr EncodeNeonUnaryOp(UnaryOp op, NeonRegType reg_type, NeonSize size,
     case VNEGF:
       DCHECK_EQ(Neon32, size);
       op_encoding = B16 | B10 | 0x7 * B7;
+      break;
+    case VRINTP:
+      op_encoding = B17 | 0xF * B7;
       break;
     default:
       UNREACHABLE();
@@ -4590,6 +4576,14 @@ void Assembler::vpmax(NeonDataType dt, DwVfpRegister dst, DwVfpRegister src1,
   // Dd = vpmax(Dn, Dm) SIMD integer pairwise MAX.
   // Instruction details available in ARM DDI 0406C.b, A8-986.
   emit(EncodeNeonPairwiseOp(VPMAX, dt, dst, src1, src2));
+}
+
+void Assembler::vrintp(NeonDataType dt, const QwNeonRegister dst,
+                       const QwNeonRegister src) {
+  // SIMD vector round floating-point to integer towards +Infinity.
+  // See ARM DDI 0487F.b, F6-5501
+  DCHECK(IsEnabled(ARMv8));
+  emit(EncodeNeonUnaryOp(VRINTP, NEON_Q, NeonSize(dt), dst.code(), src.code()));
 }
 
 void Assembler::vtst(NeonSize size, QwNeonRegister dst, QwNeonRegister src1,
