@@ -1168,6 +1168,15 @@ FieldAccess AccessBuilder::ForDictionaryObjectHashIndex() {
   return access;
 }
 
+// static
+FieldAccess AccessBuilder::ForFeedbackCellValue() {
+  FieldAccess access = {kTaggedBase,      FeedbackCell::kValueOffset,
+                        Handle<Name>(),   MaybeHandle<Map>(),
+                        Type::Any(),      MachineType::TaggedPointer(),
+                        kFullWriteBarrier};
+  return access;
+}
+
 }  // namespace compiler
 }  // namespace internal
 }  // namespace v8

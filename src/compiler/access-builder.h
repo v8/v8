@@ -327,6 +327,9 @@ class V8_EXPORT_PRIVATE AccessBuilder final
   static FieldAccess ForDictionaryNextEnumerationIndex();
   static FieldAccess ForDictionaryObjectHashIndex();
 
+  // Provides access to a FeedbackCell's value.
+  static FieldAccess ForFeedbackCellValue();
+
  private:
   DISALLOW_IMPLICIT_CONSTRUCTORS(AccessBuilder);
 };

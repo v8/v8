@@ -63,6 +63,23 @@ class BytecodeGraphBuilder {
   // Get or create the node that represents the outer function closure.
   Node* GetFunctionClosure();
 
+  bool native_context_independent() const {
+    return native_context_independent_;
+  }
+
+  // The node representing the current feedback vector is generated once prior
+  // to visiting bytecodes, and is later passed as input to other nodes that
+  // may need it.
+  // TODO(jgruber): Remove feedback_vector() and rename feedback_vector_node()
+  // to feedback_vector() once all uses of the direct heap object reference
+  // have been replaced with a Node* reference.
+  void CreateFeedbackVectorNode();
+  Node* BuildLoadFeedbackVector();
+  Node* feedback_vector_node() const {
+    DCHECK_NOT_NULL(feedback_vector_node_);
+    return feedback_vector_node_;
+  }
+
   // Builder for loading the a native context field.
   Node* BuildLoadNativeContextField(int index);
 
@@ -415,6 +432,9 @@ class BytecodeGraphBuilder {
   // Temporary storage for building node input lists.
   int input_buffer_size_;
   Node** input_buffer_;
+
+  const bool native_context_independent_;
+  Node* feedback_vector_node_;
 
   // Optimization to only create checkpoints when the current position in the
   // control-flow is not effect-dominated by another checkpoint already. All
@@ -978,6 +998,9 @@ BytecodeGraphBuilder::BytecodeGraphBuilder(
       current_exception_handler_(0),
       input_buffer_size_(0),
       input_buffer_(nullptr),
+      native_context_independent_(
+          flags & BytecodeGraphBuilderFlag::kNativeContextIndependent),
+      feedback_vector_node_(nullptr),
       needs_eager_checkpoint_(true),
       exit_controls_(local_zone),
       state_values_cache_(jsgraph),
@@ -1006,6 +1029,36 @@ Node* BytecodeGraphBuilder::GetFunctionClosure() {
     function_closure_.set(node);
   }
   return function_closure_.get();
+}
+
+void BytecodeGraphBuilder::CreateFeedbackVectorNode() {
+  DCHECK_NULL(feedback_vector_node_);
+  feedback_vector_node_ = native_context_independent()
+                              ? BuildLoadFeedbackVector()
+                              : jsgraph()->Constant(feedback_vector());
+}
+
+Node* BytecodeGraphBuilder::BuildLoadFeedbackVector() {
+  DCHECK(native_context_independent());
+  DCHECK_NULL(feedback_vector_node_);
+
+  // The feedback vector must exist and remain live while the generated code
+  // lives. Specifically that means it must be created when NCI code is
+  // installed, and must not be flushed.
+
+  Environment* env = environment();
+  Node* control = env->GetControlDependency();
+  Node* effect = env->GetEffectDependency();
+
+  Node* feedback_cell = effect = graph()->NewNode(
+      simplified()->LoadField(AccessBuilder::ForJSFunctionFeedbackCell()),
+      GetFunctionClosure(), effect, control);
+  Node* vector = effect = graph()->NewNode(
+      simplified()->LoadField(AccessBuilder::ForFeedbackCellValue()),
+      feedback_cell, effect, control);
+
+  env->UpdateEffectDependency(effect);
+  return vector;
 }
 
 Node* BytecodeGraphBuilder::BuildLoadNativeContextField(int index) {
@@ -1039,6 +1092,7 @@ void BytecodeGraphBuilder::CreateGraph() {
                   graph()->start());
   set_environment(&env);
 
+  CreateFeedbackVectorNode();
   VisitBytecodes();
 
   // Finish the basic structure of the graph.
@@ -2719,7 +2773,7 @@ void BytecodeGraphBuilder::BuildUnaryOp(const Operator* op) {
     node = lowering.value();
   } else {
     DCHECK(!lowering.Changed());
-    node = NewNode(op, operand);
+    node = NewNode(op, operand, feedback_vector_node());
   }
 
   environment()->BindAccumulator(node, Environment::kAttachFrameState);

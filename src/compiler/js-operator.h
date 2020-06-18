@@ -8,6 +8,8 @@
 #include "src/base/compiler-specific.h"
 #include "src/compiler/feedback-source.h"
 #include "src/compiler/globals.h"
+#include "src/compiler/node.h"
+#include "src/compiler/opcodes.h"
 #include "src/handles/maybe-handles.h"
 #include "src/objects/type-hints.h"
 #include "src/runtime/runtime.h"
@@ -26,6 +28,26 @@ namespace compiler {
 // Forward declarations.
 class Operator;
 struct JSOperatorGlobalCache;
+
+// Node wrappers.
+
+class JSUnaryOpNode final : public NodeWrapper {
+ public:
+  explicit constexpr JSUnaryOpNode(Node* node) : NodeWrapper(node) {
+    CONSTEXPR_DCHECK(node->opcode() == IrOpcode::kJSBitwiseNot ||
+                     node->opcode() == IrOpcode::kJSDecrement ||
+                     node->opcode() == IrOpcode::kJSIncrement ||
+                     node->opcode() == IrOpcode::kJSNegate);
+  }
+
+  static constexpr int ValueIndex() { return 0; }
+  static constexpr int FeedbackVectorIndex() { return 1; }
+};
+
+using JSBitwiseNotNode = JSUnaryOpNode;
+using JSDecrementNode = JSUnaryOpNode;
+using JSIncrementNode = JSUnaryOpNode;
+using JSNegateNode = JSUnaryOpNode;
 
 // Defines the frequency a given Call/Construct site was executed. For some
 // call sites the frequency is not known.

@@ -7,7 +7,6 @@
 #include <limits>
 
 #include "src/base/lazy-instance.h"
-#include "src/compiler/opcodes.h"
 #include "src/compiler/operator.h"
 #include "src/handles/handles-inl.h"
 #include "src/objects/objects-inl.h"
@@ -737,7 +736,7 @@ CACHED_OP_LIST(CACHED_OP)
   const Operator* JSOperatorBuilder::Name(FeedbackSource const& feedback) {   \
     FeedbackParameter parameters(feedback);                                   \
     return new (zone()) Operator1<FeedbackParameter>(                         \
-        IrOpcode::kJS##Name, Operator::kNoProperties, "JS" #Name, 1, 1, 1, 1, \
+        IrOpcode::kJS##Name, Operator::kNoProperties, "JS" #Name, 2, 1, 1, 1, \
         1, 2, parameters);                                                    \
   }
 UNARY_OP_LIST(UNARY_OP)

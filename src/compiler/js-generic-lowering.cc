@@ -130,7 +130,6 @@ void JSGenericLowering::ReplaceUnaryOpWithBuiltinCall(
   const FeedbackParameter& p = FeedbackParameterOf(node->op());
   if (CollectFeedbackInGenericLowering() && p.feedback().IsValid()) {
     Callable callable = Builtins::CallableFor(isolate(), builtin_with_feedback);
-    Node* feedback_vector = jsgraph()->HeapConstant(p.feedback().vector);
     Node* slot = jsgraph()->UintPtrConstant(p.feedback().slot.ToInt());
     const CallInterfaceDescriptor& descriptor = callable.descriptor();
     CallDescriptor::Flags flags = FrameStateFlagForCall(node);
@@ -138,11 +137,14 @@ void JSGenericLowering::ReplaceUnaryOpWithBuiltinCall(
         zone(), descriptor, descriptor.GetStackParameterCount(), flags,
         node->op()->properties());
     Node* stub_code = jsgraph()->HeapConstant(callable.code());
+    STATIC_ASSERT(JSUnaryOpNode::ValueIndex() == 0);
+    STATIC_ASSERT(JSUnaryOpNode::FeedbackVectorIndex() == 1);
+    DCHECK_EQ(node->op()->ValueInputCount(), 2);
     node->InsertInput(zone(), 0, stub_code);
     node->InsertInput(zone(), 2, slot);
-    node->InsertInput(zone(), 3, feedback_vector);
     NodeProperties::ChangeOp(node, common()->Call(call_descriptor));
   } else {
+    node->RemoveInput(JSUnaryOpNode::FeedbackVectorIndex());
     ReplaceWithBuiltinCall(node, builtin_without_feedback);
   }
 }

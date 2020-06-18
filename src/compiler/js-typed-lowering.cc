@@ -455,6 +455,7 @@ Reduction JSTypedLowering::ReduceJSBitwiseNot(Node* node) {
   if (input_type.Is(Type::PlainPrimitive())) {
     // JSBitwiseNot(x) => NumberBitwiseXor(ToInt32(x), -1)
     const FeedbackParameter& p = FeedbackParameterOf(node->op());
+    node->RemoveInput(JSBitwiseNotNode::FeedbackVectorIndex());
     node->InsertInput(graph()->zone(), 1, jsgraph()->SmiConstant(-1));
     NodeProperties::ChangeOp(node, javascript()->BitwiseXor(p.feedback()));
     JSBinopReduction r(this, node);
@@ -471,6 +472,7 @@ Reduction JSTypedLowering::ReduceJSDecrement(Node* node) {
   if (input_type.Is(Type::PlainPrimitive())) {
     // JSDecrement(x) => NumberSubtract(ToNumber(x), 1)
     const FeedbackParameter& p = FeedbackParameterOf(node->op());
+    node->RemoveInput(JSDecrementNode::FeedbackVectorIndex());
     node->InsertInput(graph()->zone(), 1, jsgraph()->OneConstant());
     NodeProperties::ChangeOp(node, javascript()->Subtract(p.feedback()));
     JSBinopReduction r(this, node);
@@ -487,6 +489,7 @@ Reduction JSTypedLowering::ReduceJSIncrement(Node* node) {
   if (input_type.Is(Type::PlainPrimitive())) {
     // JSIncrement(x) => NumberAdd(ToNumber(x), 1)
     const FeedbackParameter& p = FeedbackParameterOf(node->op());
+    node->RemoveInput(JSIncrementNode::FeedbackVectorIndex());
     node->InsertInput(graph()->zone(), 1, jsgraph()->OneConstant());
     NodeProperties::ChangeOp(node, javascript()->Add(p.feedback()));
     JSBinopReduction r(this, node);
@@ -503,6 +506,7 @@ Reduction JSTypedLowering::ReduceJSNegate(Node* node) {
   if (input_type.Is(Type::PlainPrimitive())) {
     // JSNegate(x) => NumberMultiply(ToNumber(x), -1)
     const FeedbackParameter& p = FeedbackParameterOf(node->op());
+    node->RemoveInput(JSNegateNode::FeedbackVectorIndex());
     node->InsertInput(graph()->zone(), 1, jsgraph()->SmiConstant(-1));
     NodeProperties::ChangeOp(node, javascript()->Multiply(p.feedback()));
     JSBinopReduction r(this, node);
