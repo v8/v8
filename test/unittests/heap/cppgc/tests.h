@@ -22,6 +22,8 @@ class TestWithPlatform : public ::testing::Test {
 
   TestPlatform& GetPlatform() const { return *platform_; }
 
+  std::shared_ptr<TestPlatform> GetPlatformHandle() const { return platform_; }
+
  protected:
   static std::shared_ptr<TestPlatform> platform_;
 };

@@ -8,6 +8,7 @@
 
 #include "include/cppgc/allocation.h"
 #include "include/cppgc/garbage-collected.h"
+#include "include/cppgc/internal/pointer-policies.h"
 #include "include/cppgc/member.h"
 #include "include/cppgc/type-traits.h"
 #include "src/heap/cppgc/heap.h"
@@ -70,6 +71,7 @@ class RootVisitor final : public VisitorBase {
  private:
   std::vector<std::pair<WeakCallback, const void*>> weak_callbacks_;
 };
+
 class PersistentTest : public testing::TestSupportingAllocationOnly {};
 
 }  // namespace
@@ -615,6 +617,25 @@ TEST_F(PersistentTest, TraceWeak) {
     EXPECT_EQ(nullptr, p.Get());
   }
   EXPECT_EQ(0u, GetRegion<WeakPersistent>(heap).NodesInUse());
+}
+
+TEST_F(PersistentTest, ClearOnHeapDestruction) {
+  Persistent<GCed> persistent;
+  WeakPersistent<GCed> weak_persistent;
+
+  // Create another heap that can be destroyed during the test.
+  auto heap = Heap::Create(GetPlatformHandle());
+  persistent = MakeGarbageCollected<GCed>(heap->GetAllocationHandle());
+  weak_persistent = MakeGarbageCollected<GCed>(heap->GetAllocationHandle());
+  const Persistent<GCed> persistent_sentinel(kSentinelPointer);
+  const WeakPersistent<GCed> weak_persistent_sentinel(kSentinelPointer);
+  heap.reset();
+
+  EXPECT_EQ(nullptr, persistent);
+  EXPECT_EQ(nullptr, weak_persistent);
+  // Sentinel values survive as they do not represent actual heap objects.
+  EXPECT_EQ(kSentinelPointer, persistent_sentinel);
+  EXPECT_EQ(kSentinelPointer, weak_persistent_sentinel);
 }
 
 #if CPPGC_SUPPORTS_SOURCE_LOCATION
