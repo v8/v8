@@ -505,7 +505,8 @@ PropertyAccessInfo AccessInfoFactory::ComputePropertyAccessInfo(
   MaybeHandle<JSObject> holder;
   while (true) {
     // Lookup the named property on the {map}.
-    Handle<DescriptorArray> descriptors(map->instance_descriptors(), isolate());
+    Handle<DescriptorArray> descriptors(
+        map->synchronized_instance_descriptors(), isolate());
     InternalIndex const number =
         descriptors->Search(*name, *map, broker()->is_concurrent_inlining());
     if (number.is_found()) {
