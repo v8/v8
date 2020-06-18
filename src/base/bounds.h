@@ -15,9 +15,7 @@ namespace base {
 // branch.
 template <typename T, typename U>
 inline constexpr bool IsInRange(T value, U lower_limit, U higher_limit) {
-#if V8_HAS_CXX14_CONSTEXPR
-  DCHECK_LE(lower_limit, higher_limit);
-#endif
+  CONSTEXPR_DCHECK(lower_limit <= higher_limit);
   STATIC_ASSERT(sizeof(U) <= sizeof(T));
   using unsigned_T = typename std::make_unsigned<T>::type;
   // Use static_cast to support enum classes.

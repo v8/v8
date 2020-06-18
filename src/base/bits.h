@@ -145,9 +145,7 @@ constexpr inline bool IsPowerOfTwo(T value) {
 template <typename T,
           typename = typename std::enable_if<std::is_integral<T>::value>::type>
 inline constexpr int WhichPowerOfTwo(T value) {
-#if V8_HAS_CXX14_CONSTEXPR
-  DCHECK(IsPowerOfTwo(value));
-#endif
+  CONSTEXPR_DCHECK(IsPowerOfTwo(value));
 #if V8_HAS_BUILTIN_CTZ
   STATIC_ASSERT(sizeof(T) <= 8);
   return sizeof(T) == 8 ? __builtin_ctzll(static_cast<uint64_t>(value))

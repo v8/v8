@@ -65,30 +65,22 @@ class ValueType {
   constexpr ValueType() : bit_field_(KindField::encode(kStmt)) {}
   explicit constexpr ValueType(Kind kind)
       : bit_field_(KindField::encode(kind)) {
-#if V8_HAS_CXX14_CONSTEXPR
-    DCHECK(!has_immediate());
-#endif
+    CONSTEXPR_DCHECK(!has_immediate());
   }
   constexpr ValueType(Kind kind, uint32_t ref_index)
       : bit_field_(KindField::encode(kind) | RefIndexField::encode(ref_index)) {
-#if V8_HAS_CXX14_CONSTEXPR
-    DCHECK(has_immediate());
-#endif
+    CONSTEXPR_DCHECK(has_immediate());
   }
 
   constexpr Kind kind() const { return KindField::decode(bit_field_); }
   constexpr uint32_t ref_index() const {
-#if V8_HAS_CXX14_CONSTEXPR
-    DCHECK(has_immediate());
-#endif
+    CONSTEXPR_DCHECK(has_immediate());
     return RefIndexField::decode(bit_field_);
   }
 
   constexpr int element_size_log2() const {
-#if V8_HAS_CXX14_CONSTEXPR
-    DCHECK_NE(kStmt, kind());
-    DCHECK_NE(kBottom, kind());
-#endif
+    CONSTEXPR_DCHECK(kStmt != kind());
+    CONSTEXPR_DCHECK(kBottom != kind());
 
     constexpr int kElementSizeLog2[] = {
 #define ELEM_SIZE_LOG2(kind, log2Size, ...) log2Size,
@@ -119,9 +111,7 @@ class ValueType {
   }
 
   constexpr ValueTypeCode value_type_code() const {
-#if V8_HAS_CXX14_CONSTEXPR
-    DCHECK_NE(kBottom, kind());
-#endif
+    CONSTEXPR_DCHECK(kBottom != kind());
 
     constexpr ValueTypeCode kValueTypeCode[] = {
 #define TYPE_CODE(kind, log2Size, code, ...) kLocal##code,
@@ -133,9 +123,7 @@ class ValueType {
   }
 
   constexpr MachineType machine_type() const {
-#if V8_HAS_CXX14_CONSTEXPR
-    DCHECK_NE(kBottom, kind());
-#endif
+    CONSTEXPR_DCHECK(kBottom != kind());
 
     constexpr MachineType kMachineType[] = {
 #define MACH_TYPE(kind, log2Size, code, machineType, ...) \
