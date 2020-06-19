@@ -2317,7 +2317,7 @@ WASM_SIMD_TEST(I16x8RoundingAverageU) {
 }
 
 // TODO(v8:10583) Prototype i32x4.dot_i16x8_s
-#if V8_TARGET_ARCH_X64 || V8_TARGET_ARCH_IA32
+#if V8_TARGET_ARCH_X64 || V8_TARGET_ARCH_IA32 || V8_TARGET_ARCH_ARM64
 WASM_SIMD_TEST_NO_LOWERING(I32x4DotI16x8S) {
   FLAG_SCOPE(wasm_simd_post_mvp);
 
@@ -2344,7 +2344,7 @@ WASM_SIMD_TEST_NO_LOWERING(I32x4DotI16x8S) {
     }
   }
 }
-#endif  // V8_TARGET_ARCH_X64 || V8_TARGET_ARCH_IA32
+#endif  // V8_TARGET_ARCH_X64 || V8_TARGET_ARCH_IA32 || V8_TARGET_ARCH_ARM64
 
 void RunI16x8ShiftOpTest(ExecutionTier execution_tier, LowerSimd lower_simd,
                          WasmOpcode opcode, Int16ShiftOp expected_op) {

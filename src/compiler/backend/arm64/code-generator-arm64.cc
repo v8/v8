@@ -2208,6 +2208,17 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       __ Mov(dst.W(), tmp.V4S(), 0);
       break;
     }
+    case kArm64I32x4DotI16x8S: {
+      UseScratchRegisterScope scope(tasm());
+      VRegister lhs = i.InputSimd128Register(0);
+      VRegister rhs = i.InputSimd128Register(1);
+      VRegister tmp1 = scope.AcquireV(kFormat4S);
+      VRegister tmp2 = scope.AcquireV(kFormat4S);
+      __ Smull(tmp1, lhs.V4H(), rhs.V4H());
+      __ Smull2(tmp2, lhs.V8H(), rhs.V8H());
+      __ Addp(i.OutputSimd128Register().V4S(), tmp1, tmp2);
+      break;
+    }
     case kArm64I16x8Splat: {
       __ Dup(i.OutputSimd128Register().V8H(), i.InputRegister32(0));
       break;

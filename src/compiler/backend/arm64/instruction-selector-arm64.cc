@@ -3262,6 +3262,7 @@ void InstructionSelector::VisitInt64AbsWithOverflow(Node* node) {
   V(I32x4MaxU, kArm64I32x4MaxU)                         \
   V(I32x4GtU, kArm64I32x4GtU)                           \
   V(I32x4GeU, kArm64I32x4GeU)                           \
+  V(I32x4DotI16x8S, kArm64I32x4DotI16x8S)               \
   V(I16x8SConvertI32x4, kArm64I16x8SConvertI32x4)       \
   V(I16x8AddSaturateS, kArm64I16x8AddSaturateS)         \
   V(I16x8AddHoriz, kArm64I16x8AddHoriz)                 \
