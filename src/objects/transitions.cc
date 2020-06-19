@@ -406,26 +406,14 @@ Map TransitionsAccessor::GetMigrationTarget() {
   return Map();
 }
 
-void TransitionArray::Zap(Isolate* isolate) {
-  MemsetTagged(ObjectSlot(RawFieldOfElementAt(kPrototypeTransitionsIndex)),
-               ReadOnlyRoots(isolate).the_hole_value(),
-               length() - kPrototypeTransitionsIndex);
-  SetNumberOfTransitions(0);
-}
-
 void TransitionsAccessor::ReplaceTransitions(MaybeObject new_transitions) {
   if (encoding() == kFullTransitionArray) {
-    TransitionArray old_transitions = transitions();
 #if DEBUG
+    TransitionArray old_transitions = transitions();
     CheckNewTransitionsAreConsistent(
         old_transitions, new_transitions->GetHeapObjectAssumeStrong());
     DCHECK(old_transitions != new_transitions->GetHeapObjectAssumeStrong());
 #endif
-    // Transition arrays are not shared. When one is replaced, it should not
-    // keep referenced objects alive, so we zap it.
-    // When there is another reference to the array somewhere (e.g. a handle),
-    // not zapping turns from a waste of memory into a source of crashes.
-    old_transitions.Zap(isolate_);
   }
   map_.set_raw_transitions(new_transitions);
   MarkNeedsReload();

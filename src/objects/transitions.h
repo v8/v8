@@ -338,8 +338,6 @@ class TransitionArray : public WeakFixedArray {
 
   inline void Set(int transition_number, Name key, MaybeObject target);
 
-  void Zap(Isolate* isolate);
-
   OBJECT_CONSTRUCTORS(TransitionArray, WeakFixedArray);
 };
 
