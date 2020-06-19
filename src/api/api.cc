@@ -2246,6 +2246,28 @@ Local<UnboundModuleScript> Module::GetUnboundModuleScript() {
       self->GetIsolate()));
 }
 
+int Module::ScriptId() {
+  i::Handle<i::Module> self = Utils::OpenHandle(this);
+  Utils::ApiCheck(self->IsSourceTextModule(), "v8::Module::ScriptId",
+                  "v8::Module::ScriptId must be used on an SourceTextModule");
+
+  // The SharedFunctionInfo is not available for errored modules.
+  Utils::ApiCheck(GetStatus() != kErrored, "v8::Module::ScriptId",
+                  "v8::Module::ScriptId must not be used on an errored module");
+  i::Handle<i::SharedFunctionInfo> sfi(
+      i::Handle<i::SourceTextModule>::cast(self)->GetSharedFunctionInfo(),
+      self->GetIsolate());
+  return ToApiHandle<UnboundScript>(sfi)->GetId();
+}
+
+bool Module::IsSourceTextModule() const {
+  return Utils::OpenHandle(this)->IsSourceTextModule();
+}
+
+bool Module::IsSyntheticModule() const {
+  return Utils::OpenHandle(this)->IsSyntheticModule();
+}
+
 int Module::GetIdentityHash() const { return Utils::OpenHandle(this)->hash(); }
 
 Maybe<bool> Module::InstantiateModule(Local<Context> context,
