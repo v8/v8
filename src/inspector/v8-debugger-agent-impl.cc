@@ -1840,7 +1840,6 @@ void V8DebuggerAgentImpl::reset() {
   m_scripts.clear();
   m_cachedScriptIds.clear();
   m_cachedScriptSize = 0;
-  m_breakpointIdToDebuggerBreakpointIds.clear();
 }
 
 void V8DebuggerAgentImpl::ScriptCollected(const V8DebuggerScript* script) {
