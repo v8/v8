@@ -65,6 +65,12 @@ bool IsStructTypeEquivalent(uint32_t type_index_1, uint32_t type_index_2,
 bool IsEquivalent(ValueType type1, ValueType type2, const WasmModule* module) {
   if (type1 == type2) return true;
   if (type1.kind() != type2.kind()) return false;
+  // At this point, the types can only be both rtts, refs, or optrefs,
+  // but with different indexed types.
+
+  // Rtts need to have the same depth.
+  if (type1.has_depth() && type1.depth() != type2.depth()) return false;
+  // In all three cases, the indexed types have to be equivalent.
   if (module->is_cached_equivalent_type(type1.ref_index(), type2.ref_index())) {
     return true;
   }
