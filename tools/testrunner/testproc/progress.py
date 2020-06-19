@@ -4,6 +4,7 @@
 
 # for py2/py3 compatibility
 from __future__ import print_function
+from __future__ import absolute_import
 
 import datetime
 import json
@@ -12,7 +13,7 @@ import platform
 import subprocess
 import sys
 import time
-import util
+from . import util
 
 from . import base
 
