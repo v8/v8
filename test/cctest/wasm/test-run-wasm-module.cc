@@ -961,22 +961,22 @@ TEST(GcStructIdsPass) {
         U32V_1(3),            // field count
         kLocalI32,            // field 0
         U32V_1(1),            // mutability
-        kLocalIndexedRef,     // field 1
+        kLocalOptRef,         // field 1
         U32V_1(0),            // --
         U32V_1(1),            // mutability
-        kLocalIndexedRef,     // field 2
+        kLocalOptRef,         // field 2
         U32V_1(1),            // --
         U32V_1(1),            // mutability
         kWasmStructTypeCode,  // index 1 = struct(type(0), type(2))
         U32V_1(2),            // field count
-        kLocalIndexedRef,     // field 0
+        kLocalOptRef,         // field 0
         U32V_1(0),            // --
         U32V_1(1),            // mutability
-        kLocalIndexedRef,     // field 1
+        kLocalOptRef,         // field 1
         U32V_1(2),            // --
         U32V_1(1),            // mutability
         kWasmArrayTypeCode,   // index 2 = array(type(0))
-        kLocalIndexedRef,     // element type
+        kLocalOptRef,         // element type
         U32V_1(0),            // --
         U32V_1(1)             // mutability
     };
@@ -1008,7 +1008,7 @@ TEST(GcTypeIdsUndefinedIndex) {
         U32V_1(1),            // type count
         kWasmStructTypeCode,  // index 0 = struct(type(1))
         U32V_1(1),            // field count
-        kLocalIndexedRef,     // field 0
+        kLocalOptRef,         // field 0
         U32V_1(1),            // --
         U32V_1(1)             // mutability
     };
@@ -1041,7 +1041,7 @@ TEST(GcTypeIdsIllegalIndex) {
         U32V_1(2),              // type count
         kWasmStructTypeCode,    // index 0 = struct(type(1))
         U32V_1(1),              // field count
-        kLocalIndexedRef,       // field 0
+        kLocalOptRef,           // field 0
         U32V_1(1),              // --
         U32V_1(1),              // mutability
         kWasmFunctionTypeCode,  // index 1 = int32 -> int32
@@ -1080,7 +1080,7 @@ TEST(GcTypeIdsFunSigIllegalIndex) {
         U32V_1(1),              // param count
         kLocalI32,              // param 0
         U32V_1(1),              // returns count
-        kLocalIndexedRef,       // return 0
+        kLocalOptRef,           // return 0
         U32V_1(0)               // --
     };
     CompileAndInstantiateForTesting(

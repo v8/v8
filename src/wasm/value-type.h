@@ -79,7 +79,7 @@ class ValueType {
   }
 
   constexpr bool has_index() const {
-    return is_reference_type() && heap_type() < kV8MaxWasmTypes;
+    return is_reference_type() && !is_generic_heap_type(heap_type());
   }
   constexpr bool has_depth() const { return kind() == kRtt; }
 
@@ -174,25 +174,35 @@ class ValueType {
           case kHeapExn:
             return kLocalExnRef;
           default:
-            return kLocalIndexedRef;
+            return kLocalOptRef;
         }
       case kRef:
-        switch (heap_type()) {
-          case kHeapFunc:
-            return kLocalFuncStrictRef;
-          case kHeapExtern:
-            return kLocalExternStrictRef;
-          case kHeapEq:
-            return kLocalEqStrictRef;
-          case kHeapExn:
-            return kLocalExnStrictRef;
-          default:
-            return kLocalIndexedStrictRef;
-        }
+        return kLocalRef;
       case kStmt:
         return kLocalVoid;
       default:
         return static_cast<ValueTypeCode>(kLocalI32 - (kind() - kI32));
+    }
+  }
+
+  constexpr bool encoding_needs_heap_type() const {
+    return kind() == kRef || kind() == kRtt ||
+           (kind() == kOptRef && !is_generic_heap_type(heap_type()));
+  }
+
+  constexpr uint32_t heap_type_code() const {
+    CONSTEXPR_DCHECK(encoding_needs_heap_type());
+    switch (heap_type()) {
+      case kHeapFunc:
+        return kLocalFuncRef;
+      case kHeapExn:
+        return kLocalExnRef;
+      case kHeapExtern:
+        return kLocalExternRef;
+      case kHeapEq:
+        return kLocalEqRef;
+      default:
+        return static_cast<uint32_t>(heap_type());
     }
   }
 

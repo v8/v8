@@ -417,8 +417,8 @@ void WriteValueType(ZoneBuffer* buffer, const ValueType& type) {
   if (type.has_depth()) {
     buffer->write_u8(type.depth());
   }
-  if (type.has_index()) {
-    buffer->write_u32v(type.ref_index());
+  if (type.encoding_needs_heap_type()) {
+    buffer->write_u32v(type.heap_type_code());
   }
 }
 

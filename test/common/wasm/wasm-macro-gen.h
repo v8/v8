@@ -440,7 +440,7 @@ inline WasmOpcode LoadStoreOpcodeOf(MachineType type, bool store) {
       static_cast<byte>(fieldidx)
 #define WASM_REF_NULL(type) kExprRefNull, static_cast<byte>(type)
 #define WASM_REF_NULL_GC(type) \
-  kExprRefNull, kLocalIndexedRef, static_cast<byte>(type)
+  kExprRefNull, kLocalOptRef, static_cast<byte>(type)
 #define WASM_REF_FUNC(val) kExprRefFunc, val
 #define WASM_REF_IS_NULL(type, val) val, kExprRefIsNull, static_cast<byte>(type)
 #define WASM_REF_AS_NON_NULL(val) val, kExprRefAsNonNull
@@ -470,7 +470,7 @@ inline WasmOpcode LoadStoreOpcodeOf(MachineType type, bool store) {
 #define WASM_RETURN_CALL_INDIRECT(sig_index, ...) \
   __VA_ARGS__, kExprReturnCallIndirect, static_cast<byte>(sig_index), TABLE_ZERO
 
-#define WASM_REF_TYPE(typeidx) kLocalIndexedRef, U32V_1(typeidx)
+#define WASM_REF_TYPE(typeidx) kLocalOptRef, U32V_1(typeidx)
 
 // shift locals by 1; let (locals[0]: local_type) = value in ...
 #define WASM_LET_1_V(local_type, value, ...)                                  \

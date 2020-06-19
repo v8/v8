@@ -145,19 +145,10 @@ ValueType read_value_type(Decoder* decoder, const byte* pc,
   }
 
   ValueTypeCode code = static_cast<ValueTypeCode>(val);
-  switch (code) {
-    case kLocalI32:
-      return kWasmI32;
-    case kLocalI64:
-      return kWasmI64;
-    case kLocalF32:
-      return kWasmF32;
-    case kLocalF64:
-      return kWasmF64;
 
-#define REF_TYPE_CASE(heap_type, strict_str, nullable, feature)            \
-  case kLocal##heap_type##strict_str##Ref: {                               \
-    ValueType result = ValueType::Ref(kHeap##heap_type, k##nullable);      \
+#define REF_TYPE_CASE(heap_type, nullable, feature)                        \
+  case kLocal##heap_type##Ref: {                                           \
+    ValueType result = ValueType::Ref(kHeap##heap_type, nullable);         \
     if (enabled.has_##feature()) {                                         \
       return result;                                                       \
     }                                                                      \
@@ -167,40 +158,50 @@ ValueType read_value_type(Decoder* decoder, const byte* pc,
     return kWasmBottom;                                                    \
   }
 
-#define NULLABLE_CASE(heap_type, feature) \
-  REF_TYPE_CASE(heap_type, , Nullable, feature)
-#define NON_NULLABLE_CASE(heap_type, feature) \
-  REF_TYPE_CASE(heap_type, Strict, NonNullable, feature)
+  switch (code) {
+    REF_TYPE_CASE(Func, kNullable, reftypes)
+    REF_TYPE_CASE(Extern, kNullable, reftypes)
+    REF_TYPE_CASE(Eq, kNullable, gc)
+    REF_TYPE_CASE(Exn, kNullable, eh)
+    case kLocalI32:
+      return kWasmI32;
+    case kLocalI64:
+      return kWasmI64;
+    case kLocalF32:
+      return kWasmF32;
+    case kLocalF64:
+      return kWasmF64;
+    case kLocalRef:
+    case kLocalOptRef: {
+      // Set length for the macro-defined cases:
+      *length += 1;
+      Nullability nullability = code == kLocalOptRef ? kNullable : kNonNullable;
+      uint8_t heap_index = decoder->read_u8<validate>(pc + 1, "heap type");
+      switch (static_cast<ValueTypeCode>(heap_index)) {
+        REF_TYPE_CASE(Func, nullability, typed_funcref)
+        REF_TYPE_CASE(Extern, nullability, typed_funcref)
+        REF_TYPE_CASE(Eq, nullability, gc)
+        REF_TYPE_CASE(Exn, nullability, eh)
+        default:
+          uint32_t type_index =
+              decoder->read_u32v<validate>(pc + 1, length, "type index");
+          *length += 1;
+          if (!enabled.has_gc()) {
+            decoder->error(
+                pc,
+                "invalid value type '(ref [null] (type $t))', enable with "
+                "--experimental-wasm-typed-gc");
+            return kWasmBottom;
+          }
 
-      NULLABLE_CASE(Func, reftypes)
-      NULLABLE_CASE(Extern, reftypes)
-      NULLABLE_CASE(Eq, gc)
-      NULLABLE_CASE(Exn, eh)
-      NON_NULLABLE_CASE(Func, typed_funcref)
-      NON_NULLABLE_CASE(Extern, typed_funcref)
-      NON_NULLABLE_CASE(Eq, gc)
-      NON_NULLABLE_CASE(Exn, eh)
-#undef REF_TYPE_CASE
-#undef NULLABLE_CASE
-#undef NON_NULLABLE_CASE
-
-    case kLocalIndexedStrictRef:
-    case kLocalIndexedRef: {
-      Nullability nullability =
-          code == kLocalIndexedRef ? kNullable : kNonNullable;
-      if (enabled.has_gc()) {
-        uint32_t type_index =
-            decoder->read_u32v<validate>(pc + 1, length, "type index");
-        (*length)++;
-        if (!VALIDATE(type_index < kV8MaxWasmTypes)) {
-          decoder->errorf(pc,
-                          "Type index %u is greater than the maximum "
-                          "number %zu of type definitions supported by V8",
-                          type_index, kV8MaxWasmTypes);
-          return kWasmBottom;
-        } else {
+          if (!VALIDATE(type_index < kV8MaxWasmTypes)) {
+            decoder->errorf(pc + 1,
+                            "Type index %u is greater than the maximum "
+                            "number %zu of type definitions supported by V8",
+                            type_index, kV8MaxWasmTypes);
+            return kWasmBottom;
+          }
           return ValueType::Ref(static_cast<HeapType>(type_index), nullability);
-        }
       }
       decoder->errorf(
           pc,
@@ -208,6 +209,7 @@ ValueType read_value_type(Decoder* decoder, const byte* pc,
           nullability ? " null" : "");
       return kWasmBottom;
     }
+#undef REF_TYPE_CASE
     case kLocalRtt:
       if (enabled.has_gc()) {
         // TODO(7748): Implement
