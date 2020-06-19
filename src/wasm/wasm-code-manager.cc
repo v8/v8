@@ -83,7 +83,7 @@ base::AddressRegion DisjointAllocationPool::Merge(
 
   auto below = above;
   --below;
-  // Sanity check:
+  // Consistency check:
   DCHECK(above == regions_.end() || below->end() < above->begin());
 
   // Adjacent to {below}: merge and done.

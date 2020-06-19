@@ -462,7 +462,7 @@ void LiftoffAssembler::CacheState::InitMerge(const CacheState& source,
   // they do not move). Try to keep register in registers, but avoid duplicates.
   InitMergeRegion(this, source_begin, target_begin, num_locals, kKeepStackSlots,
                   kConstantsNotAllowed, kNoReuseRegisters, used_regs);
-  // Sanity check: All the {used_regs} are really in use now.
+  // Consistency check: All the {used_regs} are really in use now.
   DCHECK_EQ(used_regs, used_registers & used_regs);
 
   // Last, initialize the section in between. Here, constants are allowed, but

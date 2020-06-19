@@ -2165,7 +2165,7 @@ AsmJsOffsetsResult DecodeAsmJsOffsets(Vector<const uint8_t> encoded_offsets) {
 
   Decoder decoder(encoded_offsets);
   uint32_t functions_count = decoder.consume_u32v("functions count");
-  // Sanity check.
+  // Consistency check.
   DCHECK_GE(encoded_offsets.size(), functions_count);
   functions.reserve(functions_count);
 
