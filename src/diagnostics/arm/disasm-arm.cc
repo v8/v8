@@ -2265,19 +2265,30 @@ void Decoder::DecodeSpecialCondition(Instruction* instr) {
               SNPrintF(out_buffer_ + out_buffer_pos_, "%s.%c%i d%d, q%d", name,
                        type, size, Vd, Vm);
         } else if (instr->Bits(17, 16) == 0x2 && instr->Bit(10) == 1) {
-          // vrintp
+          // NEON vrintm, vrintp
           int Vd = instr->VFPDRegValue(kSimd128Precision);
           int Vm = instr->VFPMRegValue(kSimd128Precision);
           bool dp_op = instr->Bit(6) == 0;
           int rounding_mode = instr->Bits(9, 7);
-          if (rounding_mode != 7) {
-            UNIMPLEMENTED();
-          }
-          if (dp_op) {
-            Format(instr, "vrintp.f32.f32 'Dd, 'Dm");
-          } else {
-            out_buffer_pos_ += SNPrintF(out_buffer_ + out_buffer_pos_,
-                                        "vrintp.f32.f32 q%d, q%d", Vd, Vm);
+          switch (rounding_mode) {
+            case 5:
+              if (dp_op) {
+                Format(instr, "vrintm.f32 'Dd, 'Dm");
+              } else {
+                out_buffer_pos_ += SNPrintF(out_buffer_ + out_buffer_pos_,
+                                            "vrintm.f32 q%d, q%d", Vd, Vm);
+              }
+              break;
+            case 7:
+              if (dp_op) {
+                Format(instr, "vrintp.f32 'Dd, 'Dm");
+              } else {
+                out_buffer_pos_ += SNPrintF(out_buffer_ + out_buffer_pos_,
+                                            "vrintp.f32 q%d, q%d", Vd, Vm);
+              }
+              break;
+            default:
+              UNIMPLEMENTED();
           }
         } else {
           int Vd, Vm;

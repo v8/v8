@@ -415,6 +415,10 @@ void f32x4_ceil_wrapper(Address data) {
   simd_float_round_wrapper<float, &ceilf>(data);
 }
 
+void f32x4_floor_wrapper(Address data) {
+  simd_float_round_wrapper<float, &floorf>(data);
+}
+
 namespace {
 class ThreadNotInWasmScope {
 // Asan on Windows triggers exceptions to allocate shadow memory lazily. When

@@ -910,6 +910,8 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase {
              DwVfpRegister src2);
 
   // ARMv8 rounding instructions (NEON).
+  void vrintm(NeonDataType dt, const QwNeonRegister dst,
+              const QwNeonRegister src);
   void vrintp(NeonDataType dt, const QwNeonRegister dst,
               const QwNeonRegister src);
 

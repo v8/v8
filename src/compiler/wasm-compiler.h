@@ -555,6 +555,7 @@ class WasmGraphBuilder {
 
   // Wasm SIMD.
   Node* BuildF32x4Ceil(Node* input);
+  Node* BuildF32x4Floor(Node* input);
 
   void BuildEncodeException32BitValue(Node* values_array, uint32_t* index,
                                       Node* value);

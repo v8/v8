@@ -918,7 +918,8 @@ TEST(ARMv8_vrintX_disasm) {
     COMPARE(vrintz(d2, d3, ne), "1eb62bc3       vrintzne.f64.f64 d2, d3");
 
     // Advanced SIMD
-    COMPARE(vrintp(NeonS32, q0, q3), "f3ba07c6       vrintp.f32.f32 q0, q3");
+    COMPARE(vrintm(NeonS32, q0, q3), "f3ba06c6       vrintm.f32 q0, q3");
+    COMPARE(vrintp(NeonS32, q0, q3), "f3ba07c6       vrintp.f32 q0, q3");
   }
 
   VERIFY_RUN();
