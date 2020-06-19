@@ -46,6 +46,7 @@
 namespace {
 
 bool g_tracing_enabled = false;
+bool g_dead_vars_analysis = false;
 
 #define TRACE(str)                   \
   do {                               \
@@ -61,9 +62,11 @@ bool g_tracing_enabled = false;
     }                                                             \
   } while (false)
 
+// Node: The following is used when tracing --dead-vars
+// to provide extra info for the GC suspect.
 #define TRACE_LLVM_DECL(str, decl)   \
   do {                               \
-    if (g_tracing_enabled) {         \
+    if (g_dead_vars_analysis) {      \
       std::cout << str << std::endl; \
       decl->dump();                  \
     }                                \
@@ -678,8 +681,7 @@ class FunctionAnalyzer {
                    clang::CXXRecordDecl* smi_decl,
                    clang::CXXRecordDecl* no_gc_decl,
                    clang::CXXRecordDecl* no_heap_access_decl,
-                   clang::DiagnosticsEngine& d, clang::SourceManager& sm,
-                   bool dead_vars_analysis)
+                   clang::DiagnosticsEngine& d, clang::SourceManager& sm)
       : ctx_(ctx),
         object_decl_(object_decl),
         maybe_object_decl_(maybe_object_decl),
@@ -688,8 +690,7 @@ class FunctionAnalyzer {
         no_heap_access_decl_(no_heap_access_decl),
         d_(d),
         sm_(sm),
-        block_(NULL),
-        dead_vars_analysis_(dead_vars_analysis) {}
+        block_(NULL) {}
 
   // --------------------------------------------------------------------------
   // Expressions
@@ -985,7 +986,7 @@ class FunctionAnalyzer {
       // pointers produces too many false positives in the dead variable
       // analysis.
       if (IsInternalPointerType(var_type) && !env.IsAlive(var_name) &&
-          !HasActiveGuard() && dead_vars_analysis_) {
+          !HasActiveGuard() && g_dead_vars_analysis) {
         ReportUnsafe(parent, DEAD_VAR_MSG);
       }
       return ExprEffect::RawUse();
@@ -1491,7 +1492,6 @@ class FunctionAnalyzer {
   clang::SourceManager& sm_;
 
   Block* block_;
-  bool dead_vars_analysis_;
 
   struct GCGuard {
     clang::CompoundStmt* stmt = NULL;
@@ -1508,10 +1508,10 @@ class ProblemsFinder : public clang::ASTConsumer,
  public:
   ProblemsFinder(clang::DiagnosticsEngine& d, clang::SourceManager& sm,
                  const std::vector<std::string>& args)
-      : d_(d), sm_(sm), dead_vars_analysis_(false) {
+      : d_(d), sm_(sm) {
     for (unsigned i = 0; i < args.size(); ++i) {
       if (args[i] == "--dead-vars") {
-        dead_vars_analysis_ = true;
+        g_dead_vars_analysis = true;
       }
       if (args[i] == "--verbose") {
         g_tracing_enabled = true;
@@ -1559,10 +1559,10 @@ class ProblemsFinder : public clang::ASTConsumer,
       no_heap_access_decl = no_heap_access_decl->getDefinition();
 
     if (object_decl != NULL && smi_decl != NULL && maybe_object_decl != NULL) {
-      function_analyzer_ = new FunctionAnalyzer(
-          clang::ItaniumMangleContext::create(ctx, d_), object_decl,
-          maybe_object_decl, smi_decl, no_gc_decl, no_heap_access_decl, d_, sm_,
-          dead_vars_analysis_);
+      function_analyzer_ =
+          new FunctionAnalyzer(clang::ItaniumMangleContext::create(ctx, d_),
+                               object_decl, maybe_object_decl, smi_decl,
+                               no_gc_decl, no_heap_access_decl, d_, sm_);
       TraverseDecl(ctx.getTranslationUnitDecl());
     } else {
       if (object_decl == NULL) {
@@ -1595,7 +1595,6 @@ class ProblemsFinder : public clang::ASTConsumer,
  private:
   clang::DiagnosticsEngine& d_;
   clang::SourceManager& sm_;
-  bool dead_vars_analysis_;
 
   FunctionAnalyzer* function_analyzer_;
 };
