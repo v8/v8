@@ -41,10 +41,10 @@ class Simd128;
   V(Bottom, -1, Void, None, '*', "<bot>")
 
 enum HeapType : uint32_t {
-  kHeapFunc = kV8MaxWasmTypes,
-  kHeapExtern,
-  kHeapEq,
-  kHeapExn
+  kHeapFunc = kV8MaxWasmTypes,  // shorthand: c
+  kHeapExtern,                  // shorthand: e
+  kHeapEq,                      // shorthand: q
+  kHeapExn                      // shorthand: x
 };
 enum Nullability : bool { kNonNullable, kNullable };
 

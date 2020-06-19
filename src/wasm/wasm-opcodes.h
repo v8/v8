@@ -231,8 +231,7 @@ bool IsJSCompatibleSignature(const FunctionSig* sig, const WasmFeatures&);
   V(I64SExtendI16, 0xc3, l_l)     \
   V(I64SExtendI32, 0xc4, l_l)
 
-#define FOREACH_SIMPLE_PROTOTYPE_OPCODE(V) \
-  V(RefEq, 0xd5, i_rr)  // made-up opcode, guessing future spec (GC)
+#define FOREACH_SIMPLE_PROTOTYPE_OPCODE(V) V(RefEq, 0xd5, i_qq)
 
 // For compatibility with Asm.js.
 // These opcodes are not spec'ed (or visible) externally; the idea is
@@ -505,26 +504,28 @@ bool IsJSCompatibleSignature(const FunctionSig* sig, const WasmFeatures&);
   FOREACH_SIMD_1_OPERAND_1_PARAM_OPCODE(V) \
   FOREACH_SIMD_1_OPERAND_2_PARAM_OPCODE(V)
 
-#define FOREACH_NUMERIC_OPCODE(V)                       \
-  V(I32SConvertSatF32, 0xfc00, i_f)                     \
-  V(I32UConvertSatF32, 0xfc01, i_f)                     \
-  V(I32SConvertSatF64, 0xfc02, i_d)                     \
-  V(I32UConvertSatF64, 0xfc03, i_d)                     \
-  V(I64SConvertSatF32, 0xfc04, l_f)                     \
-  V(I64UConvertSatF32, 0xfc05, l_f)                     \
-  V(I64SConvertSatF64, 0xfc06, l_d)                     \
-  V(I64UConvertSatF64, 0xfc07, l_d)                     \
-  V(MemoryInit, 0xfc08, v_iii)                          \
-  V(DataDrop, 0xfc09, v_v)                              \
-  V(MemoryCopy, 0xfc0a, v_iii)                          \
-  V(MemoryFill, 0xfc0b, v_iii)                          \
-  V(TableInit, 0xfc0c, v_iii)                           \
-  V(ElemDrop, 0xfc0d, v_v)                              \
-  V(TableCopy, 0xfc0e, v_iii)                           \
-  V(TableGrow, 0xfc0f, i_ai)                            \
-  V(TableSize, 0xfc10, i_v)                             \
-  /* TableFill is polymorph in the second parameter. */ \
-  /* It's externref or funcref. */                      \
+#define FOREACH_NUMERIC_OPCODE(V)                         \
+  V(I32SConvertSatF32, 0xfc00, i_f)                       \
+  V(I32UConvertSatF32, 0xfc01, i_f)                       \
+  V(I32SConvertSatF64, 0xfc02, i_d)                       \
+  V(I32UConvertSatF64, 0xfc03, i_d)                       \
+  V(I64SConvertSatF32, 0xfc04, l_f)                       \
+  V(I64UConvertSatF32, 0xfc05, l_f)                       \
+  V(I64SConvertSatF64, 0xfc06, l_d)                       \
+  V(I64UConvertSatF64, 0xfc07, l_d)                       \
+  V(MemoryInit, 0xfc08, v_iii)                            \
+  V(DataDrop, 0xfc09, v_v)                                \
+  V(MemoryCopy, 0xfc0a, v_iii)                            \
+  V(MemoryFill, 0xfc0b, v_iii)                            \
+  V(TableInit, 0xfc0c, v_iii)                             \
+  V(ElemDrop, 0xfc0d, v_v)                                \
+  V(TableCopy, 0xfc0e, v_iii)                             \
+  /* TableGrow is polymorphic in the first parameter. */  \
+  /* It's whatever the table type is. */                  \
+  V(TableGrow, 0xfc0f, i_ci)                              \
+  V(TableSize, 0xfc10, i_v)                               \
+  /* TableFill is polymorphic in the second parameter. */ \
+  /* It's whatever the table type is. */                  \
   V(TableFill, 0xfc11, v_iii)
 
 #define FOREACH_ATOMIC_OPCODE(V)                \
@@ -685,9 +686,9 @@ bool IsJSCompatibleSignature(const FunctionSig* sig, const WasmFeatures&);
   V(l_ill, kWasmI64, kWasmI32, kWasmI64, kWasmI64)  \
   V(i_iil, kWasmI32, kWasmI32, kWasmI32, kWasmI64)  \
   V(i_ill, kWasmI32, kWasmI32, kWasmI64, kWasmI64)  \
-  V(i_r, kWasmI32, kWasmExternRef)                  \
-  V(i_ai, kWasmI32, kWasmFuncRef, kWasmI32)         \
-  V(i_rr, kWasmI32, kWasmEqRef, kWasmEqRef)
+  V(i_e, kWasmI32, kWasmExternRef)                  \
+  V(i_ci, kWasmI32, kWasmFuncRef, kWasmI32)         \
+  V(i_qq, kWasmI32, kWasmEqRef, kWasmEqRef)
 
 #define FOREACH_SIMD_SIGNATURE(V)          \
   V(s_s, kWasmS128, kWasmS128)             \
