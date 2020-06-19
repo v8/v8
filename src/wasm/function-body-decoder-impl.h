@@ -3822,24 +3822,13 @@ class WasmFullDecoder : public WasmDecoder<validate> {
   }
 
   void BuildSimpleOperator(WasmOpcode opcode, const FunctionSig* sig) {
-    switch (sig->parameter_count()) {
-      case 1: {
-        Value val = Pop(0, sig->GetParam(0));
-        Value* ret =
-            sig->return_count() == 0 ? nullptr : Push(sig->GetReturn(0));
-        CALL_INTERFACE_IF_REACHABLE(UnOp, opcode, val, ret);
-        break;
-      }
-      case 2: {
-        Value rval = Pop(1, sig->GetParam(1));
-        Value lval = Pop(0, sig->GetParam(0));
-        Value* ret =
-            sig->return_count() == 0 ? nullptr : Push(sig->GetReturn(0));
-        CALL_INTERFACE_IF_REACHABLE(BinOp, opcode, lval, rval, ret);
-        break;
-      }
-      default:
-        UNREACHABLE();
+    DCHECK_GE(1, sig->return_count());
+    ValueType ret = sig->return_count() == 0 ? kWasmStmt : sig->GetReturn(0);
+    if (sig->parameter_count() == 1) {
+      BuildSimpleOperator(opcode, ret, sig->GetParam(0));
+    } else {
+      DCHECK_EQ(2, sig->parameter_count());
+      BuildSimpleOperator(opcode, ret, sig->GetParam(0), sig->GetParam(1));
     }
   }
 
