@@ -236,6 +236,7 @@
       'v8_linux64_sanitizer_coverage_rel':
           'release_x64_asan_minimal_symbols_coverage',
       'v8_linux64_tsan_rel': 'release_x64_tsan_minimal_symbols',
+      'v8_linux64_tsan_rel_ng': 'release_x64_tsan_minimal_symbols',
       'v8_linux64_tsan_isolates_rel_ng':
           'release_x64_tsan_minimal_symbols',
       'v8_linux64_ubsan_rel_ng': 'release_x64_ubsan_minimal_symbols',
