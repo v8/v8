@@ -607,6 +607,15 @@
       {'name': 'v8testing', 'shards': 4},
     ],
   },
+  'v8_mac64_asan_rel_ng_triggered': {
+    'swarming_dimensions' : {
+      'cpu': 'x86-64',
+      'os': 'Mac-10.13',
+    },
+    'tests': [
+      {'name': 'v8testing', 'shards': 4},
+    ],
+  },
   'v8_mac64_dbg_ng_triggered': {
     'swarming_dimensions' : {
       'cpu': 'x86-64',
@@ -620,6 +629,15 @@
     ],
   },
   'v8_mac64_gc_stress_dbg': {
+    'swarming_dimensions' : {
+      'cpu': 'x86-64',
+      'os': 'Mac-10.13',
+    },
+    'tests': [
+      {'name': 'd8testing', 'test_args': ['--gc-stress'], 'shards': 4},
+    ],
+  },
+  'v8_mac64_gc_stress_dbg_ng_triggered': {
     'swarming_dimensions' : {
       'cpu': 'x86-64',
       'os': 'Mac-10.13',
