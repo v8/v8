@@ -151,6 +151,41 @@ WASM_SIMD_LIFTOFF_TEST(S8x16Shuffle) {
   CHECK_EQ(31, ReadLittleEndianValue<byte>(&output[15]));
 }
 
+// Exercise logic in Liftoff's implementation of shuffle when inputs to the
+// shuffle are the same register.
+WASM_SIMD_LIFTOFF_TEST(S8x16Shuffle_SingleOperand) {
+  WasmRunner<int32_t> r(ExecutionTier::kLiftoff, kNoLowerSimd);
+  byte local0 = r.AllocateLocal(kWasmS128);
+
+  byte* g0 = r.builder().AddGlobal<byte>(kWasmS128);
+  for (int i = 0; i < 16; i++) {
+    WriteLittleEndianValue<byte>(&g0[i], i);
+  }
+
+  byte* output = r.builder().AddGlobal<byte>(kWasmS128);
+
+  // This pattern reverses first operand. 31 should select the last lane of
+  // the second operand, but since the operands are the same, the effect is that
+  // the first operand is reversed.
+  std::array<byte, 16> pattern = {
+      {31, 14, 13, 12, 11, 10, 9, 8, 7, 6, 5, 4, 3, 2, 1, 0}};
+
+  // Set up locals so shuffle is called with non-adjacent registers v2 and v0.
+  BUILD(r, WASM_SET_LOCAL(local0, WASM_GET_GLOBAL(0)), WASM_GET_LOCAL(local0),
+        WASM_GET_LOCAL(local0),
+        WASM_SET_GLOBAL(1, WASM_SIMD_S8x16_SHUFFLE_OP(
+                               kExprS8x16Shuffle, pattern, WASM_NOP, WASM_NOP)),
+        WASM_ONE);
+
+  r.Call();
+
+  for (int i = 0; i < 16; i++) {
+    // Check that the output is the reverse of input.
+    byte actual = ReadLittleEndianValue<byte>(&output[i]);
+    CHECK_EQ(15 - i, actual);
+  }
+}
+
 #undef WASM_SIMD_LIFTOFF_TEST
 
 }  // namespace test_run_wasm_simd_liftoff

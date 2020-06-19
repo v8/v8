@@ -2870,7 +2870,54 @@ void LiftoffAssembler::emit_s8x16_shuffle(LiftoffRegister dst,
                                           LiftoffRegister lhs,
                                           LiftoffRegister rhs,
                                           const uint8_t shuffle[16]) {
-  bailout(kSimd, "s8x16_shuffle");
+  Simd128Register dest = liftoff::GetSimd128Register(dst);
+  Simd128Register src1 = liftoff::GetSimd128Register(lhs);
+  Simd128Register src2 = liftoff::GetSimd128Register(rhs);
+  UseScratchRegisterScope temps(this);
+  Simd128Register scratch = temps.AcquireQ();
+  if ((src1 != src2) && src1.code() + 1 != src2.code()) {
+    // vtbl requires the operands to be consecutive or the same.
+    // If they are the same, we build a smaller list operand (table_size = 2).
+    // If they are not the same, and not consecutive, we move the src1 and src2
+    // to q14 and q15, which will be unused since they are not allocatable in
+    // Liftoff. If the operands are the same, then we build a smaller list
+    // operand below.
+    static_assert(!(kLiftoffAssemblerFpCacheRegs &
+                    (d28.bit() | d29.bit() | d30.bit() | d31.bit())),
+                  "This only works if q14-q15 (d28-d31) are not used.");
+    vmov(q14, src1);
+    src1 = q14;
+    vmov(q15, src2);
+    src2 = q15;
+  }
+
+  int table_size = src1 == src2 ? 2 : 4;
+  uint32_t mask = table_size == 2 ? 0x0F0F0F0F : 0x1F1F1F1F;
+
+  int scratch_s_base = scratch.code() * 4;
+  for (int j = 0; j < 4; j++) {
+    uint32_t imm = 0;
+    for (int i = 3; i >= 0; i--) {
+      imm = (imm << 8) | shuffle[j * 4 + i];
+    }
+    uint32_t four_lanes = imm;
+    // Ensure indices are in [0,15] if table_size is 2, or [0,31] if 4.
+    four_lanes &= mask;
+    vmov(SwVfpRegister::from_code(scratch_s_base + j),
+         Float32::FromBits(four_lanes));
+  }
+
+  DwVfpRegister table_base = src1.low();
+  NeonListOperand table(table_base, table_size);
+
+  if (dest != src1 && dest != src2) {
+    vtbl(dest.low(), table, scratch.low());
+    vtbl(dest.high(), table, scratch.high());
+  } else {
+    vtbl(scratch.low(), table, scratch.low());
+    vtbl(scratch.high(), table, scratch.high());
+    vmov(dest, scratch);
+  }
 }
 
 void LiftoffAssembler::emit_i8x16_splat(LiftoffRegister dst,
