@@ -80,7 +80,11 @@ else {
 
 // Test that DataView has the same NaN patterns with optimized and
 // unoptimized code.
-testSameOptimized([4213246272,405619796,61503,0,3675212096,32831], () => {
+var expected_array = [4213246272,405619796,61503,0,3675212096,32831];
+if (isBigEndian){
+  expected_array = [1074340347,1413754136,1072693248,0,1078530011,1065353216];
+}
+testSameOptimized(expected_array, () => {
   const array = new Uint32Array(6);
   const view = new DataView(array.buffer);
   view.setFloat64(0, Math.PI);
