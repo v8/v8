@@ -152,6 +152,8 @@ class MockPlatform : public TestPlatform {
 
   void PerformTask() { mock_task_runner_->PerformTask(); }
 
+  bool TaskPosted() { return mock_task_runner_->TaskPosted(); }
+
  private:
   class MockTaskRunner : public v8::TaskRunner {
    public:
@@ -175,6 +177,8 @@ class MockPlatform : public TestPlatform {
       std::unique_ptr<Task> task = std::move(task_);
       task->Run();
     }
+
+    bool TaskPosted() { return task_.get(); }
 
    private:
     double delay_ = -1;
@@ -210,6 +214,15 @@ TEST(RandomizedTimeout) {
   }
   std::sort(delays.begin(), delays.end());
   CHECK_LT(delays[0], delays.back());
+}
+
+TEST(LazyMemoryMeasurement) {
+  CcTest::InitializeVM();
+  MockPlatform platform;
+  CcTest::isolate()->MeasureMemory(
+      std::make_unique<MockMeasureMemoryDelegate>(),
+      v8::MeasureMemoryExecution::kLazy);
+  CHECK(!platform.TaskPosted());
 }
 
 }  // namespace heap
