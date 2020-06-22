@@ -245,6 +245,22 @@ class V8LocalValueProperty
    IModelObject* /*p_value*/);
 };
 
+// The implemention of the "NodeId" getter for v8::internal::compiler::Node
+// type.
+class V8InternalCompilerNodeIdProperty
+    : public WRL::RuntimeClass<
+          WRL::RuntimeClassFlags<WRL::RuntimeClassType::ClassicCom>,
+          IModelPropertyAccessor> {
+ public:
+  IFACEMETHOD(GetValue)
+  (PCWSTR pwsz_key, IModelObject* p_v8_object_instance,
+   IModelObject** pp_value);
+
+  IFACEMETHOD(SetValue)
+  (PCWSTR /*pwsz_key*/, IModelObject* /*p_process_instance*/,
+   IModelObject* /*p_value*/);
+};
+
 // A way that someone can directly inspect a tagged value, even if that value
 // isn't in memory (from a register, or the user's imagination, etc.).
 class InspectV8ObjectMethod

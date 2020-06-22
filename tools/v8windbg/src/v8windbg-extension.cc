@@ -215,7 +215,8 @@ HRESULT Extension::Initialize() {
         &sp_object_type_signature));
     RETURN_IF_FAIL(sp_data_model_manager->RegisterModelForTypeSignature(
         sp_object_type_signature.Get(), sp_object_data_model_.Get()));
-    registered_object_types_.push_back(sp_object_type_signature);
+    registered_types_.push_back(
+        {sp_object_type_signature.Get(), sp_object_data_model_.Get()});
   }
 
   // Create an instance of the DataModel parent for custom iterable fields.
@@ -244,7 +245,7 @@ HRESULT Extension::Initialize() {
         sp_debug_host_symbols->CreateTypeSignature(name, nullptr, &signature));
     RETURN_IF_FAIL(sp_data_model_manager->RegisterModelForTypeSignature(
         signature.Get(), sp_local_data_model_.Get()));
-    registered_handle_types_.push_back(signature);
+    registered_types_.push_back({signature.Get(), sp_local_data_model_.Get()});
   }
 
   // Add the 'Value' property to the parent model.
@@ -278,6 +279,32 @@ HRESULT Extension::Initialize() {
                                       /*is_parameters=*/false));
   RETURN_IF_FAIL(OverrideLocalsGetter(stack_frame.Get(), L"Parameters",
                                       /*is_parameters=*/true));
+
+  /* v8::internal::compiler::Node */
+  // Create an instance of the DataModel parent class for
+  // v8::internal::compiler::Node type.
+  auto compiler_node_data_model{WRL::Make<V8LocalDataModel>()};
+  RETURN_IF_FAIL(sp_data_model_manager->CreateDataModelObject(
+      compiler_node_data_model.Get(), &sp_compiler_node_data_model_));
+
+  // Register that parent model for v8::internal::compiler::Node.
+  const wchar_t* compiler_node_class_name = L"v8::internal::compiler::Node";
+  WRL::ComPtr<IDebugHostTypeSignature> compiler_node_class_signature;
+  RETURN_IF_FAIL(sp_debug_host_symbols->CreateTypeSignature(
+      compiler_node_class_name, nullptr, &compiler_node_class_signature));
+  RETURN_IF_FAIL(sp_data_model_manager->RegisterModelForTypeSignature(
+      compiler_node_class_signature.Get(), sp_compiler_node_data_model_.Get()));
+  registered_types_.push_back({compiler_node_class_signature.Get(),
+                               sp_compiler_node_data_model_.Get()});
+
+  // Add the 'node_id' property to the parent model.
+  auto node_id_property{WRL::Make<V8InternalCompilerNodeIdProperty>()};
+  WRL::ComPtr<IModelObject> sp_node_id_property_model;
+  RETURN_IF_FAIL(CreateProperty(sp_data_model_manager.Get(),
+                                node_id_property.Get(),
+                                &sp_node_id_property_model));
+  RETURN_IF_FAIL(sp_compiler_node_data_model_->SetKey(
+      L"node_id", sp_node_id_property_model.Get(), nullptr));
 
   return S_OK;
 }
@@ -318,18 +345,24 @@ Extension::PropertyOverride::PropertyOverride(const PropertyOverride&) =
 Extension::PropertyOverride& Extension::PropertyOverride::operator=(
     const PropertyOverride&) = default;
 
+Extension::RegistrationType::RegistrationType() = default;
+Extension::RegistrationType::RegistrationType(
+    IDebugHostTypeSignature* sp_signature, IModelObject* sp_data_model)
+    : sp_signature(sp_signature), sp_data_model(sp_data_model) {}
+Extension::RegistrationType::~RegistrationType() = default;
+Extension::RegistrationType::RegistrationType(const RegistrationType&) =
+    default;
+Extension::RegistrationType& Extension::RegistrationType::operator=(
+    const RegistrationType&) = default;
+
 Extension::~Extension() {
   sp_debug_host_extensibility->DestroyFunctionAlias(pcur_isolate);
   sp_debug_host_extensibility->DestroyFunctionAlias(plist_chunks);
   sp_debug_host_extensibility->DestroyFunctionAlias(pv8_object);
 
-  for (const auto& registered : registered_object_types_) {
+  for (const auto& registered : registered_types_) {
     sp_data_model_manager->UnregisterModelForTypeSignature(
-        sp_object_data_model_.Get(), registered.Get());
-  }
-  for (const auto& registered : registered_handle_types_) {
-    sp_data_model_manager->UnregisterModelForTypeSignature(
-        sp_local_data_model_.Get(), registered.Get());
+        registered.sp_data_model.Get(), registered.sp_signature.Get());
   }
 
   for (const auto& override : overridden_properties_) {

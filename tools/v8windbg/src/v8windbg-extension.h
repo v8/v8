@@ -62,20 +62,31 @@ class Extension {
     WRL::ComPtr<IKeyStore> original_metadata;
   };
 
+  struct RegistrationType {
+    RegistrationType();
+    RegistrationType(IDebugHostTypeSignature* sp_signature,
+                     IModelObject* sp_data_model);
+    ~RegistrationType();
+    RegistrationType(const RegistrationType&);
+    RegistrationType& operator=(const RegistrationType&);
+
+    WRL::ComPtr<IDebugHostTypeSignature> sp_signature;
+    WRL::ComPtr<IModelObject> sp_data_model;
+  };
+
   static std::unique_ptr<Extension> current_extension_;
 
   WRL::ComPtr<IModelObject> sp_object_data_model_;
   WRL::ComPtr<IModelObject> sp_local_data_model_;
+  WRL::ComPtr<IModelObject> sp_compiler_node_data_model_;
   WRL::ComPtr<IModelObject> sp_indexed_field_model_;
 
   WRL::ComPtr<IDebugHostModule> sp_v8_module_;
   std::unordered_map<std::u16string, WRL::ComPtr<IDebugHostType>>
       cached_v8_module_types_;
-  std::vector<WRL::ComPtr<IDebugHostTypeSignature>> registered_object_types_;
-  std::vector<WRL::ComPtr<IDebugHostTypeSignature>> registered_handle_types_;
+  std::vector<RegistrationType> registered_types_;
   std::vector<PropertyOverride> overridden_properties_;
   WRL::ComPtr<IDebugHostContext> sp_v8_module_ctx_;
   ULONG v8_module_proc_id_;
 };
-
 #endif  // V8_TOOLS_V8WINDBG_SRC_V8WINDBG_EXTENSION_H_
