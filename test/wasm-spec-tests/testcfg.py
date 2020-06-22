@@ -51,8 +51,7 @@ class TestCase(testcase.D8TestCase):
     for proposal in proposal_flags:
       if os.sep.join(['proposals', proposal['name']]) in self.path:
         return proposal['flags']
-    # TODO(thibaudm): Remove the flag once multi-value is shipped in V8.
-    return ['--experimental-wasm-mv']
+    return []
 
 
 def GetSuite(*args, **kwargs):
