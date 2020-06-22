@@ -44,16 +44,6 @@
 
 ##############################################################################
 ['arch == riscv32 or arch == riscv64', {
-  'MicrotaskQueueTest.PromiseHandlerContext': [SKIP],
-  
-  'TestWithNativeContext.EvictDeoptedEntriesCompact': [SKIP],
-  'TestWithNativeContext.FindCachedEntry': [SKIP],
-  'TestWithNativeContext.GrowCodeCache': [SKIP],
-  'TestWithNativeContext.EvictDeoptedEntriesNoCompact': [SKIP],
-  'TestWithNativeContext.ReuseClearedEntry': [SKIP],
-  'TestWithNativeContext.MaxCapacityCache': [SKIP],
-  'TestWithNativeContext.AddCodeToEmptyCache': [SKIP],
-  
   'ValueSerializerTest.RoundTripTypedArray': [SKIP],
 }],  # arch == riscv
 
