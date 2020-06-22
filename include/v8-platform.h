@@ -80,6 +80,14 @@ class TaskRunner {
    * implementation takes ownership of |task|. The |task| cannot be nested
    * within other task executions.
    *
+   * Tasks which shouldn't be interleaved with JS execution must be posted with
+   * |PostNonNestableTask| or |PostNonNestableDelayedTask|. This is because the
+   * embedder may process tasks in a callback which is called during JS
+   * execution.
+   *
+   * In particular, tasks which execute JS must be non-nestable, since JS
+   * execution is not allowed to nest.
+   *
    * Requires that |TaskRunner::NonNestableTasksEnabled()| is true.
    */
   virtual void PostNonNestableTask(std::unique_ptr<Task> task) {}
@@ -97,6 +105,14 @@ class TaskRunner {
    * after the given number of seconds |delay_in_seconds|. The TaskRunner
    * implementation takes ownership of |task|. The |task| cannot be nested
    * within other task executions.
+   *
+   * Tasks which shouldn't be interleaved with JS execution must be posted with
+   * |PostNonNestableTask| or |PostNonNestableDelayedTask|. This is because the
+   * embedder may process tasks in a callback which is called during JS
+   * execution.
+   *
+   * In particular, tasks which execute JS must be non-nestable, since JS
+   * execution is not allowed to nest.
    *
    * Requires that |TaskRunner::NonNestableDelayedTasksEnabled()| is true.
    */
