@@ -422,7 +422,7 @@ void ScopeIterator::AdvanceContext() {
   // While advancing one context, we need to advance at least one
   // scope, but until we hit the next scope that actually requires
   // a context. All the locals collected along the way build the
-  // blacklist for debug-evaluate for this context.
+  // blocklist for debug-evaluate for this context.
   locals_ = StringSet::New(isolate_);
   do {
     if (!current_scope_ || !current_scope_->outer_scope()) break;
@@ -463,7 +463,7 @@ void ScopeIterator::Next() {
     if (leaving_closure) {
       DCHECK(current_scope_ != closure_scope_);
       // Edge case when we just go past {closure_scope_}. This case
-      // already needs to start collecting locals for the blacklist.
+      // already needs to start collecting locals for the blocklist.
       locals_ = StringSet::New(isolate_);
       CollectLocalsFromCurrentScope();
     }

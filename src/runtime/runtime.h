@@ -721,9 +721,9 @@ class Runtime : public AllStatic {
   // allocation.
   static bool MayAllocate(FunctionId id);
 
-  // Check if a runtime function with the given {id} is whitelisted for
+  // Check if a runtime function with the given {id} is allowlisted for
   // using it with fuzzers.
-  static bool IsWhitelistedForFuzzing(FunctionId id);
+  static bool IsAllowListedForFuzzing(FunctionId id);
 
   // Get the intrinsic function with the given name.
   static const Function* FunctionForName(const unsigned char* name, int length);

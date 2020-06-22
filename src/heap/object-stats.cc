@@ -426,7 +426,7 @@ class ObjectStatsCollectorImpl {
   bool CanRecordFixedArray(FixedArrayBase array);
   bool IsCowArray(FixedArrayBase array);
 
-  // Blacklist for objects that should not be recorded using
+  // Blocklist for objects that should not be recorded using
   // VirtualObjectStats and RecordSimpleVirtualObjectStats. For recording those
   // objects dispatch to the low level ObjectStats::RecordObjectStats manually.
   bool ShouldRecordObject(HeapObject object, CowMode check_cow_array);

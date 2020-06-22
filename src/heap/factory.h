@@ -347,7 +347,7 @@ class V8_EXPORT_PRIVATE Factory : public FactoryBase<Factory> {
                                           Handle<ScopeInfo> scope_info,
                                           Handle<JSReceiver> extension,
                                           Handle<Context> wrapped,
-                                          Handle<StringSet> whitelist);
+                                          Handle<StringSet> blocklist);
 
   // Create a block context.
   Handle<Context> NewBlockContext(Handle<Context> previous,

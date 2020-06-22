@@ -180,7 +180,7 @@ bool Linkage::NeedsFrameStateInput(Runtime::FunctionId function) {
   switch (function) {
     // Most runtime functions need a FrameState. A few chosen ones that we know
     // not to call into arbitrary JavaScript, not to throw, and not to lazily
-    // deoptimize are whitelisted here and can be called without a FrameState.
+    // deoptimize are allowlisted here and can be called without a FrameState.
     case Runtime::kAbort:
     case Runtime::kAllocateInOldGeneration:
     case Runtime::kCreateIterResultObject:
@@ -218,7 +218,7 @@ bool Linkage::NeedsFrameStateInput(Runtime::FunctionId function) {
       break;
   }
 
-  // For safety, default to needing a FrameState unless whitelisted.
+  // For safety, default to needing a FrameState unless allowlisted.
   return true;
 }
 

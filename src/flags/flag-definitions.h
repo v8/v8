@@ -1272,7 +1272,7 @@ DEFINE_IMPLICATION(trace_maps, log_code)
 // parser.cc
 DEFINE_BOOL(allow_natives_syntax, false, "allow natives syntax")
 DEFINE_BOOL(allow_natives_for_differential_fuzzing, false,
-            "allow only natives explicitly whitelisted for differential "
+            "allow only natives explicitly allowlisted for differential "
             "fuzzers")
 DEFINE_IMPLICATION(allow_natives_for_differential_fuzzing, allow_natives_syntax)
 DEFINE_IMPLICATION(allow_natives_for_differential_fuzzing, fuzzing)

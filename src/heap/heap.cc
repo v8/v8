@@ -3132,7 +3132,7 @@ bool MayContainRecordedSlots(HeapObject object) {
   // New space object do not have recorded slots.
   if (BasicMemoryChunk::FromHeapObject(object)->InYoungGeneration())
     return false;
-  // Whitelist objects that definitely do not have pointers.
+  // Allowlist objects that definitely do not have pointers.
   if (object.IsByteArray() || object.IsFixedDoubleArray()) return false;
   // Conservatively return true for other objects.
   return true;

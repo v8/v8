@@ -445,7 +445,7 @@ using SimulatorRuntimeDirectGetterCall = void (*)(int64_t arg0, int64_t arg1);
 using SimulatorRuntimeProfilingGetterCall = void (*)(int64_t arg0, int64_t arg1,
                                                      void* arg2);
 
-// Separate for fine-grained UBSan blacklisting. Casting any given C++
+// Separate for fine-grained UBSan blocklisting. Casting any given C++
 // function to {SimulatorRuntimeCall} is undefined behavior; but since
 // the target function can indeed be any function that's exposed via
 // the "fast C call" mechanism, we can't reconstruct its signature here.

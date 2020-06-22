@@ -4,21 +4,21 @@
 
 // Flags: --allow-natives-syntax --fuzzing
 
-// Test whitelisted/blacklisted intrinsics in the context of fuzzing.
+// Test allow/block-listed intrinsics in the context of fuzzing.
 
-// Blacklisted intrinsics are replaced with undefined.
+// Blocklisted intrinsics are replaced with undefined.
 assertEquals(undefined, %ConstructConsString("a", "b"));
 
-// Blacklisted intrinsics can have wrong arguments.
+// Blocklisted intrinsics can have wrong arguments.
 assertEquals(undefined, %ConstructConsString(1, 2, 3, 4));
 
 // We don't care if an intrinsic actually exists.
 assertEquals(undefined, %FooBar());
 
-// Check whitelisted intrinsic.
+// Check allowlisted intrinsic.
 assertNotEquals(undefined, %IsBeingInterpreted());
 
-// Whitelisted runtime functions with too few args are ignored.
+// Allowlisted runtime functions with too few args are ignored.
 assertEquals(undefined, %DeoptimizeFunction());
 
 // Superfluous arguments are ignored.

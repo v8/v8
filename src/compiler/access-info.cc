@@ -36,7 +36,7 @@ bool CanInlinePropertyAccess(Handle<Map> map) {
   if (map->instance_type() < LAST_PRIMITIVE_HEAP_OBJECT_TYPE) return true;
   return map->IsJSObjectMap() && !map->is_dictionary_map() &&
          !map->has_named_interceptor() &&
-         // TODO(verwaest): Whitelist contexts to which we have access.
+         // TODO(verwaest): Allowlist contexts to which we have access.
          !map->is_access_check_needed();
 }
 

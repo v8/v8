@@ -509,7 +509,7 @@ class Context : public HeapObject {
 
     // These slots hold values in debug evaluate contexts.
     WRAPPED_CONTEXT_INDEX = MIN_CONTEXT_EXTENDED_SLOTS,
-    BLACK_LIST_INDEX = MIN_CONTEXT_EXTENDED_SLOTS + 1
+    BLOCK_LIST_INDEX = MIN_CONTEXT_EXTENDED_SLOTS + 1
   };
 
   static const int kExtensionSize =

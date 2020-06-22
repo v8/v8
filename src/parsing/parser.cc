@@ -394,11 +394,11 @@ Expression* Parser::NewV8RuntimeFunctionForFuzzing(
     int pos) {
   CHECK(FLAG_fuzzing);
 
-  // Intrinsics are not supported for fuzzing. Only allow whitelisted runtime
+  // Intrinsics are not supported for fuzzing. Only allow allowlisted runtime
   // functions. Also prevent later errors due to too few arguments and just
   // ignore this call.
   if (function == nullptr ||
-      !Runtime::IsWhitelistedForFuzzing(function->function_id) ||
+      !Runtime::IsAllowListedForFuzzing(function->function_id) ||
       function->nargs > args.length()) {
     return factory()->NewUndefinedLiteral(kNoSourcePosition);
   }

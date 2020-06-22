@@ -786,7 +786,7 @@ class ParserBase {
   // should automatically use scope() as parent, and be fine with
   // NewScope(ScopeType) above.
   Scope* NewScopeWithParent(Scope* parent, ScopeType scope_type) const {
-    // Must always use the specific constructors for the blacklisted scope
+    // Must always use the specific constructors for the blocklisted scope
     // types.
     DCHECK_NE(FUNCTION_SCOPE, scope_type);
     DCHECK_NE(SCRIPT_SCOPE, scope_type);

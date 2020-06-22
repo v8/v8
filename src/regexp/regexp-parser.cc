@@ -1301,7 +1301,7 @@ bool LookupSpecialPropertyValueName(const char* name,
   return true;
 }
 
-// Explicitly whitelist supported binary properties. The spec forbids supporting
+// Explicitly allowlist supported binary properties. The spec forbids supporting
 // properties outside of this set to ensure interoperability.
 bool IsSupportedBinaryProperty(UProperty property) {
   switch (property) {

@@ -3616,11 +3616,11 @@ enum PropertyFilter {
 
 /**
  * Options for marking whether callbacks may trigger JS-observable side effects.
- * Side-effect-free callbacks are whitelisted during debug evaluation with
+ * Side-effect-free callbacks are allowlisted during debug evaluation with
  * throwOnSideEffect. It applies when calling a Function, FunctionTemplate,
  * or an Accessor callback. For Interceptors, please see
  * PropertyHandlerFlags's kHasNoSideEffect.
- * Callbacks that only cause side effects to the receiver are whitelisted if
+ * Callbacks that only cause side effects to the receiver are allowlisted if
  * invoked on receiver objects that are created within the same debug-evaluate
  * call, as these objects are temporary and the side effect does not escape.
  */

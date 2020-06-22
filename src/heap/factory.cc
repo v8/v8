@@ -1184,8 +1184,8 @@ Handle<Context> Factory::NewDebugEvaluateContext(Handle<Context> previous,
                                                  Handle<ScopeInfo> scope_info,
                                                  Handle<JSReceiver> extension,
                                                  Handle<Context> wrapped,
-                                                 Handle<StringSet> blacklist) {
-  STATIC_ASSERT(Context::BLACK_LIST_INDEX ==
+                                                 Handle<StringSet> blocklist) {
+  STATIC_ASSERT(Context::BLOCK_LIST_INDEX ==
                 Context::MIN_CONTEXT_EXTENDED_SLOTS + 1);
   DCHECK(scope_info->IsDebugEvaluateScope());
   Handle<HeapObject> ext = extension.is_null()
@@ -1200,7 +1200,7 @@ Handle<Context> Factory::NewDebugEvaluateContext(Handle<Context> previous,
   c->set_previous(*previous);
   c->set_extension(*ext);
   if (!wrapped.is_null()) c->set(Context::WRAPPED_CONTEXT_INDEX, *wrapped);
-  if (!blacklist.is_null()) c->set(Context::BLACK_LIST_INDEX, *blacklist);
+  if (!blocklist.is_null()) c->set(Context::BLOCK_LIST_INDEX, *blocklist);
   return c;
 }
 

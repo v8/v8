@@ -55,7 +55,7 @@ ACCESSORS_CHECKED(Map, prototype_info, Object,
 
 // |bit_field| fields.
 // Concurrent access to |has_prototype_slot| and |has_non_instance_prototype|
-// is explicitly whitelisted here. The former is never modified after the map
+// is explicitly allowlisted here. The former is never modified after the map
 // is setup but it's being read by concurrent marker when pointer compression
 // is enabled. The latter bit can be modified on a live objects.
 BIT_FIELD_ACCESSORS(Map, relaxed_bit_field, has_non_instance_prototype,
