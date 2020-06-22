@@ -19,6 +19,12 @@
 #include "src/heap/cppgc/caged-heap.h"
 #endif
 
+namespace heap {
+namespace base {
+class Stack;
+}  // namespace base
+}  // namespace heap
+
 namespace cppgc {
 
 class Platform;
@@ -32,7 +38,6 @@ class TestWithHeap;
 class Marker;
 class PageBackend;
 class PreFinalizerHandler;
-class Stack;
 class StatsCollector;
 
 // Base class for heap implementations.
@@ -79,7 +84,7 @@ class V8_EXPORT_PRIVATE HeapBase {
   const CagedHeap& caged_heap() const { return caged_heap_; }
 #endif
 
-  Stack* stack() { return stack_.get(); }
+  heap::base::Stack* stack() { return stack_.get(); }
 
   PreFinalizerHandler* prefinalizer_handler() {
     return prefinalizer_handler_.get();
@@ -121,7 +126,7 @@ class V8_EXPORT_PRIVATE HeapBase {
   std::unique_ptr<PageBackend> page_backend_;
 
   std::unique_ptr<StatsCollector> stats_collector_;
-  std::unique_ptr<Stack> stack_;
+  std::unique_ptr<heap::base::Stack> stack_;
   std::unique_ptr<PreFinalizerHandler> prefinalizer_handler_;
   std::unique_ptr<Marker> marker_;
 

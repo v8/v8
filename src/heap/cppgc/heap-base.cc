@@ -6,6 +6,7 @@
 
 #include "src/base/bounded-page-allocator.h"
 #include "src/base/platform/platform.h"
+#include "src/heap/base/stack.h"
 #include "src/heap/cppgc/globals.h"
 #include "src/heap/cppgc/heap-object-header-inl.h"
 #include "src/heap/cppgc/heap-page-inl.h"
@@ -13,7 +14,6 @@
 #include "src/heap/cppgc/marker.h"
 #include "src/heap/cppgc/page-memory.h"
 #include "src/heap/cppgc/prefinalizer-handler.h"
-#include "src/heap/cppgc/stack.h"
 #include "src/heap/cppgc/stats-collector.h"
 
 namespace cppgc {
@@ -64,7 +64,8 @@ HeapBase::HeapBase(std::shared_ptr<cppgc::Platform> platform,
           std::make_unique<PageBackend>(platform_->GetPageAllocator())),
 #endif
       stats_collector_(std::make_unique<StatsCollector>()),
-      stack_(std::make_unique<Stack>(v8::base::Stack::GetStackStart())),
+      stack_(std::make_unique<heap::base::Stack>(
+          v8::base::Stack::GetStackStart())),
       prefinalizer_handler_(std::make_unique<PreFinalizerHandler>()),
       object_allocator_(&raw_heap_, page_backend_.get(),
                         stats_collector_.get()),

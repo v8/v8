@@ -2,13 +2,13 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#ifndef V8_HEAP_CPPGC_STACK_H_
-#define V8_HEAP_CPPGC_STACK_H_
+#ifndef V8_HEAP_BASE_STACK_H_
+#define V8_HEAP_BASE_STACK_H_
 
 #include "src/base/macros.h"
 
-namespace cppgc {
-namespace internal {
+namespace heap {
+namespace base {
 
 class StackVisitor {
  public:
@@ -37,7 +37,7 @@ class V8_EXPORT_PRIVATE Stack final {
   const void* stack_start_;
 };
 
-}  // namespace internal
-}  // namespace cppgc
+}  // namespace base
+}  // namespace heap
 
-#endif  // V8_HEAP_CPPGC_STACK_H_
+#endif  // V8_HEAP_BASE_STACK_H_

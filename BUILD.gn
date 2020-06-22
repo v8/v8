@@ -4111,6 +4111,45 @@ v8_source_set("fuzzer_support") {
   ]
 }
 
+v8_source_set("v8_cppgc_shared") {
+  sources = [
+    "src/heap/base/stack.cc",
+    "src/heap/base/stack.h",
+  ]
+
+  if (is_clang || !is_win) {
+    if (current_cpu == "x64") {
+      sources += [ "src/heap/base/asm/x64/push_registers_asm.cc" ]
+    } else if (current_cpu == "x86") {
+      sources += [ "src/heap/base/asm/ia32/push_registers_asm.cc" ]
+    } else if (current_cpu == "arm") {
+      sources += [ "src/heap/base/asm/arm/push_registers_asm.cc" ]
+    } else if (current_cpu == "arm64") {
+      sources += [ "src/heap/base/asm/arm64/push_registers_asm.cc" ]
+    } else if (current_cpu == "ppc64") {
+      sources += [ "src/heap/base/asm/ppc/push_registers_asm.cc" ]
+    } else if (current_cpu == "s390x") {
+      sources += [ "src/heap/base/asm/s390/push_registers_asm.cc" ]
+    } else if (current_cpu == "mipsel") {
+      sources += [ "src/heap/base/asm/mips/push_registers_asm.cc" ]
+    } else if (current_cpu == "mips64el") {
+      sources += [ "src/heap/base/asm/mips64/push_registers_asm.cc" ]
+    }
+  } else if (is_win) {
+    if (current_cpu == "x64") {
+      sources += [ "src/heap/base/asm/x64/push_registers_masm.S" ]
+    } else if (current_cpu == "x86") {
+      sources += [ "src/heap/base/asm/ia32/push_registers_masm.S" ]
+    } else if (current_cpu == "arm64") {
+      sources += [ "src/heap/base/asm/arm64/push_registers_masm.S" ]
+    }
+  }
+
+  configs = [ ":internal_config" ]
+
+  public_deps = [ ":v8_libbase" ]
+}
+
 v8_source_set("cppgc_base") {
   visibility = [ ":*" ]
 
@@ -4190,8 +4229,6 @@ v8_source_set("cppgc_base") {
     "src/heap/cppgc/raw-heap.h",
     "src/heap/cppgc/sanitizers.h",
     "src/heap/cppgc/source-location.cc",
-    "src/heap/cppgc/stack.cc",
-    "src/heap/cppgc/stack.h",
     "src/heap/cppgc/stats-collector.cc",
     "src/heap/cppgc/stats-collector.h",
     "src/heap/cppgc/sweeper.cc",
@@ -4213,40 +4250,15 @@ v8_source_set("cppgc_base") {
     ]
   }
 
-  if (is_clang || !is_win) {
-    if (current_cpu == "x64") {
-      sources += [ "src/heap/cppgc/asm/x64/push_registers_asm.cc" ]
-    } else if (current_cpu == "x86") {
-      sources += [ "src/heap/cppgc/asm/ia32/push_registers_asm.cc" ]
-    } else if (current_cpu == "arm") {
-      sources += [ "src/heap/cppgc/asm/arm/push_registers_asm.cc" ]
-    } else if (current_cpu == "arm64") {
-      sources += [ "src/heap/cppgc/asm/arm64/push_registers_asm.cc" ]
-    } else if (current_cpu == "ppc64") {
-      sources += [ "src/heap/cppgc/asm/ppc/push_registers_asm.cc" ]
-    } else if (current_cpu == "s390x") {
-      sources += [ "src/heap/cppgc/asm/s390/push_registers_asm.cc" ]
-    } else if (current_cpu == "mipsel") {
-      sources += [ "src/heap/cppgc/asm/mips/push_registers_asm.cc" ]
-    } else if (current_cpu == "mips64el") {
-      sources += [ "src/heap/cppgc/asm/mips64/push_registers_asm.cc" ]
-    }
-  } else if (is_win) {
-    if (current_cpu == "x64") {
-      sources += [ "src/heap/cppgc/asm/x64/push_registers_masm.S" ]
-    } else if (current_cpu == "x86") {
-      sources += [ "src/heap/cppgc/asm/ia32/push_registers_masm.S" ]
-    } else if (current_cpu == "arm64") {
-      sources += [ "src/heap/cppgc/asm/arm64/push_registers_masm.S" ]
-    }
-  }
-
   configs = [
     ":internal_config",
     ":cppgc_base_config",
   ]
 
-  public_deps = [ ":v8_libbase" ]
+  public_deps = [
+    ":v8_cppgc_shared",
+    ":v8_libbase",
+  ]
 }
 
 ###############################################################################

@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#include "src/heap/cppgc/stack.h"
+#include "src/heap/base/stack.h"
 
 #include <limits>
 
@@ -10,8 +10,8 @@
 #include "src/heap/cppgc/globals.h"
 #include "src/heap/cppgc/sanitizers.h"
 
-namespace cppgc {
-namespace internal {
+namespace heap {
+namespace base {
 
 using IterateStackCallback = void (*)(const Stack*, StackVisitor*, intptr_t*);
 extern "C" void PushAllRegistersAndIterateStack(const Stack*, StackVisitor*,
@@ -125,5 +125,5 @@ void Stack::IteratePointers(StackVisitor* visitor) const {
   IterateSafeStackIfNecessary(visitor);
 }
 
-}  // namespace internal
-}  // namespace cppgc
+}  // namespace base
+}  // namespace heap

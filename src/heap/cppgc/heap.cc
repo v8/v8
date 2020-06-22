@@ -4,13 +4,13 @@
 
 #include "src/heap/cppgc/heap.h"
 
+#include "src/heap/base/stack.h"
 #include "src/heap/cppgc/garbage-collector.h"
 #include "src/heap/cppgc/gc-invoker.h"
 #include "src/heap/cppgc/heap-object-header-inl.h"
 #include "src/heap/cppgc/heap-visitor.h"
 #include "src/heap/cppgc/marker.h"
 #include "src/heap/cppgc/prefinalizer-handler.h"
-#include "src/heap/cppgc/stack.h"
 
 namespace cppgc {
 
