@@ -936,7 +936,8 @@ DEFINE_BOOL(stress_concurrent_allocation, false,
             "start background threads that allocate memory")
 DEFINE_IMPLICATION(stress_concurrent_allocation, concurrent_allocation)
 DEFINE_IMPLICATION(stress_concurrent_allocation, local_heaps)
-DEFINE_BOOL(parallel_marking, true, "use parallel marking in atomic pause")
+DEFINE_BOOL(parallel_marking, V8_CONCURRENT_MARKING_BOOL,
+            "use parallel marking in atomic pause")
 DEFINE_INT(ephemeron_fixpoint_iterations, 10,
            "number of fixpoint iterations it takes to switch to linear "
            "ephemeron algorithm")
