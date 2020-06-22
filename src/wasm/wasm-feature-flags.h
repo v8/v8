@@ -55,12 +55,6 @@
   /* Staged in v7.8. */                                                        \
   V(reftypes, "reference type opcodes", false)                                 \
                                                                                \
-  /* JS BitInt to wasm i64 integration. */                                     \
-  /* https://github.com/WebAssembly/JS-BigInt-integration */                   \
-  /* V8 side owner: ahaas, ssauleau@igalia.com */                              \
-  /* Staged in v7.9. */                                                        \
-  V(bigint, "JS BigInt support", false)                                        \
-                                                                               \
   /* Multi-value proposal. */                                                  \
   /* https://github.com/WebAssembly/multi-value */                             \
   /* V8 side owner: thibaudm */                                                \
@@ -85,6 +79,14 @@
 // Shipped features (enabled by default). Remove the feature flag once they hit
 // stable and are expected to stay enabled.
 #define FOREACH_WASM_SHIPPED_FEATURE_FLAG(V) /*          (force 80 columns) */ \
+  /* JS BigInt to wasm i64 integration. */                                     \
+  /* https://github.com/WebAssembly/JS-BigInt-integration */                   \
+  /* V8 side owner: ahaas, ssauleau@igalia.com */                              \
+  /* Shipped in v8.5. */                                                       \
+  /* ITS: https://groups.google.com/a/chromium.org/g/blink-dev/c/           */ \
+  /*              g4QKRUQV1-0/m/jdWjD1uZAAAJ                                */ \
+  V(bigint, "JS BigInt support", true)                                         \
+                                                                               \
   /* Bulk memory operations. */                                                \
   /* https://github.com/webassembly/bulk-memory-operations */                  \
   /* V8 side owner: binji */                                                   \
