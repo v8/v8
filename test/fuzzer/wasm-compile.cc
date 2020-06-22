@@ -1554,7 +1554,7 @@ void WasmGenerator::Generate(Vector<const ValueType> types, DataRange* data) {
   size_t split_index = data->get<uint8_t>() % (types.size() - 1) + 1;
   Vector<const ValueType> lower_half = types.SubVector(0, split_index);
   Vector<const ValueType> upper_half =
-      types.SubVector(split_index, types.size() - split_index);
+      types.SubVector(split_index, types.size());
   DataRange first_range = data->split();
   Generate(lower_half, &first_range);
   Generate(upper_half, data);
