@@ -157,65 +157,71 @@ DEF_UNARY_LOWERING(Increment)
 DEF_UNARY_LOWERING(Negate)
 #undef DEF_UNARY_LOWERING
 
-void JSGenericLowering::ReplaceBinaryOrCompareOpWithBuiltinCall(
+void JSGenericLowering::ReplaceBinaryOpWithBuiltinCall(
     Node* node, Builtins::Name builtin_without_feedback,
     Builtins::Name builtin_with_feedback) {
   DCHECK(JSOperator::IsBinaryWithFeedback(node->opcode()));
   Builtins::Name builtin_id;
   const FeedbackParameter& p = FeedbackParameterOf(node->op());
   if (CollectFeedbackInGenericLowering() && p.feedback().IsValid()) {
-    Node* feedback_vector = jsgraph()->HeapConstant(p.feedback().vector);
     Node* slot = jsgraph()->UintPtrConstant(p.feedback().slot.ToInt());
+    STATIC_ASSERT(JSBinaryOpNode::LeftIndex() == 0);
+    STATIC_ASSERT(JSBinaryOpNode::RightIndex() == 1);
+    STATIC_ASSERT(JSBinaryOpNode::FeedbackVectorIndex() == 2);
+    DCHECK_EQ(node->op()->ValueInputCount(), 3);
     node->InsertInput(zone(), 2, slot);
-    node->InsertInput(zone(), 3, feedback_vector);
     builtin_id = builtin_with_feedback;
   } else {
+    node->RemoveInput(JSBinaryOpNode::FeedbackVectorIndex());
     builtin_id = builtin_without_feedback;
   }
 
   ReplaceWithBuiltinCall(node, builtin_id);
 }
 
-#define DEF_BINARY_OR_COMPARE_LOWERING(Name)                                   \
-  void JSGenericLowering::LowerJS##Name(Node* node) {                          \
-    ReplaceBinaryOrCompareOpWithBuiltinCall(node, Builtins::k##Name,           \
-                                            Builtins::k##Name##_WithFeedback); \
+#define DEF_BINARY_LOWERING(Name)                                     \
+  void JSGenericLowering::LowerJS##Name(Node* node) {                 \
+    ReplaceBinaryOpWithBuiltinCall(node, Builtins::k##Name,           \
+                                   Builtins::k##Name##_WithFeedback); \
   }
 // Binary ops.
-DEF_BINARY_OR_COMPARE_LOWERING(Add)
-DEF_BINARY_OR_COMPARE_LOWERING(BitwiseAnd)
-DEF_BINARY_OR_COMPARE_LOWERING(BitwiseOr)
-DEF_BINARY_OR_COMPARE_LOWERING(BitwiseXor)
-DEF_BINARY_OR_COMPARE_LOWERING(Divide)
-DEF_BINARY_OR_COMPARE_LOWERING(Exponentiate)
-DEF_BINARY_OR_COMPARE_LOWERING(Modulus)
-DEF_BINARY_OR_COMPARE_LOWERING(Multiply)
-DEF_BINARY_OR_COMPARE_LOWERING(ShiftLeft)
-DEF_BINARY_OR_COMPARE_LOWERING(ShiftRight)
-DEF_BINARY_OR_COMPARE_LOWERING(ShiftRightLogical)
-DEF_BINARY_OR_COMPARE_LOWERING(Subtract)
+DEF_BINARY_LOWERING(Add)
+DEF_BINARY_LOWERING(BitwiseAnd)
+DEF_BINARY_LOWERING(BitwiseOr)
+DEF_BINARY_LOWERING(BitwiseXor)
+DEF_BINARY_LOWERING(Divide)
+DEF_BINARY_LOWERING(Exponentiate)
+DEF_BINARY_LOWERING(Modulus)
+DEF_BINARY_LOWERING(Multiply)
+DEF_BINARY_LOWERING(ShiftLeft)
+DEF_BINARY_LOWERING(ShiftRight)
+DEF_BINARY_LOWERING(ShiftRightLogical)
+DEF_BINARY_LOWERING(Subtract)
 // Compare ops.
-DEF_BINARY_OR_COMPARE_LOWERING(Equal)
-DEF_BINARY_OR_COMPARE_LOWERING(GreaterThan)
-DEF_BINARY_OR_COMPARE_LOWERING(GreaterThanOrEqual)
-DEF_BINARY_OR_COMPARE_LOWERING(LessThan)
-DEF_BINARY_OR_COMPARE_LOWERING(LessThanOrEqual)
-#undef DEF_BINARY_OR_COMPARE_LOWERING
+DEF_BINARY_LOWERING(Equal)
+DEF_BINARY_LOWERING(GreaterThan)
+DEF_BINARY_LOWERING(GreaterThanOrEqual)
+DEF_BINARY_LOWERING(LessThan)
+DEF_BINARY_LOWERING(LessThanOrEqual)
+#undef DEF_BINARY_LOWERING
 
 void JSGenericLowering::LowerJSStrictEqual(Node* node) {
   // The === operator doesn't need the current context.
   NodeProperties::ReplaceContextInput(node, jsgraph()->NoContextConstant());
-  node->RemoveInput(4);  // control
+  node->RemoveInput(NodeProperties::FirstControlIndex(node));
 
   Builtins::Name builtin_id;
   const FeedbackParameter& p = FeedbackParameterOf(node->op());
   if (CollectFeedbackInGenericLowering() && p.feedback().IsValid()) {
-    Node* feedback_vector = jsgraph()->HeapConstant(p.feedback().vector);
     Node* slot = jsgraph()->UintPtrConstant(p.feedback().slot.ToInt());
+    STATIC_ASSERT(JSStrictEqualNode::LeftIndex() == 0);
+    STATIC_ASSERT(JSStrictEqualNode::RightIndex() == 1);
+    STATIC_ASSERT(JSStrictEqualNode::FeedbackVectorIndex() == 2);
+    DCHECK_EQ(node->op()->ValueInputCount(), 3);
     node->InsertInput(zone(), 2, slot);
-    node->InsertInput(zone(), 3, feedback_vector);
     builtin_id = Builtins::kStrictEqual_WithFeedback;
   } else {
+    node->RemoveInput(JSStrictEqualNode::FeedbackVectorIndex());
     builtin_id = Builtins::kStrictEqual;
   }
 
@@ -432,6 +438,7 @@ void JSGenericLowering::LowerJSHasInPrototypeChain(Node* node) {
 }
 
 void JSGenericLowering::LowerJSInstanceOf(Node* node) {
+  // TODO(jgruber, v8:8888): Collect feedback.
   ReplaceWithBuiltinCall(node, Builtins::kInstanceOf);
 }
 

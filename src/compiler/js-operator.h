@@ -81,10 +81,24 @@ class JSUnaryOpNode final : public NodeWrapper {
   static constexpr int FeedbackVectorIndex() { return 1; }
 };
 
-using JSBitwiseNotNode = JSUnaryOpNode;
-using JSDecrementNode = JSUnaryOpNode;
-using JSIncrementNode = JSUnaryOpNode;
-using JSNegateNode = JSUnaryOpNode;
+#define V(JSName, ...) using JSName##Node = JSUnaryOpNode;
+JS_UNOP_WITH_FEEDBACK(V)
+#undef V
+
+class JSBinaryOpNode final : public NodeWrapper {
+ public:
+  explicit constexpr JSBinaryOpNode(Node* node) : NodeWrapper(node) {
+    CONSTEXPR_DCHECK(JSOperator::IsBinaryWithFeedback(node->opcode()));
+  }
+
+  static constexpr int LeftIndex() { return 0; }
+  static constexpr int RightIndex() { return 1; }
+  static constexpr int FeedbackVectorIndex() { return 2; }
+};
+
+#define V(JSName, ...) using JSName##Node = JSBinaryOpNode;
+JS_BINOP_WITH_FEEDBACK(V)
+#undef V
 
 // Defines the frequency a given Call/Construct site was executed. For some
 // call sites the frequency is not known.

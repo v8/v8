@@ -209,6 +209,7 @@ class BytecodeGraphBuilder {
   void BuildUnaryOp(const Operator* op);
   void BuildBinaryOp(const Operator* op);
   void BuildBinaryOpWithImmediate(const Operator* op);
+  void BuildInstanceOf(const Operator* op);
   void BuildCompareOp(const Operator* op);
   void BuildDelete(LanguageMode language_mode);
   void BuildCastOperator(const Operator* op);
@@ -2759,6 +2760,7 @@ void BytecodeGraphBuilder::VisitThrowSuperAlreadyCalledIfNotHole() {
 }
 
 void BytecodeGraphBuilder::BuildUnaryOp(const Operator* op) {
+  DCHECK(JSOperator::IsUnaryWithFeedback(op->opcode()));
   PrepareEagerCheckpoint();
   Node* operand = environment()->LookupAccumulator();
 
@@ -2780,6 +2782,7 @@ void BytecodeGraphBuilder::BuildUnaryOp(const Operator* op) {
 }
 
 void BytecodeGraphBuilder::BuildBinaryOp(const Operator* op) {
+  DCHECK(JSOperator::IsBinaryWithFeedback(op->opcode()));
   PrepareEagerCheckpoint();
   Node* left =
       environment()->LookupRegister(bytecode_iterator().GetRegisterOperand(0));
@@ -2796,7 +2799,7 @@ void BytecodeGraphBuilder::BuildBinaryOp(const Operator* op) {
     node = lowering.value();
   } else {
     DCHECK(!lowering.Changed());
-    node = NewNode(op, left, right);
+    node = NewNode(op, left, right, feedback_vector_node());
   }
 
   environment()->BindAccumulator(node, Environment::kAttachFrameState);
@@ -2937,6 +2940,7 @@ void BytecodeGraphBuilder::VisitShiftRightLogical() {
 }
 
 void BytecodeGraphBuilder::BuildBinaryOpWithImmediate(const Operator* op) {
+  DCHECK(JSOperator::IsBinaryWithFeedback(op->opcode()));
   PrepareEagerCheckpoint();
   Node* left = environment()->LookupAccumulator();
   Node* right = jsgraph()->Constant(bytecode_iterator().GetImmediateOperand(0));
@@ -2952,7 +2956,7 @@ void BytecodeGraphBuilder::BuildBinaryOpWithImmediate(const Operator* op) {
     node = lowering.value();
   } else {
     DCHECK(!lowering.Changed());
-    node = NewNode(op, left, right);
+    node = NewNode(op, left, right, feedback_vector_node());
   }
   environment()->BindAccumulator(node, Environment::kAttachFrameState);
 }
@@ -3073,7 +3077,9 @@ void BytecodeGraphBuilder::VisitGetSuperConstructor() {
                               Environment::kAttachFrameState);
 }
 
-void BytecodeGraphBuilder::BuildCompareOp(const Operator* op) {
+void BytecodeGraphBuilder::BuildInstanceOf(const Operator* op) {
+  // TODO(jgruber, v8:8888): Treat InstanceOf like other compare ops.
+  DCHECK_EQ(op->opcode(), IrOpcode::kJSInstanceOf);
   PrepareEagerCheckpoint();
   Node* left =
       environment()->LookupRegister(bytecode_iterator().GetRegisterOperand(0));
@@ -3090,6 +3096,28 @@ void BytecodeGraphBuilder::BuildCompareOp(const Operator* op) {
   } else {
     DCHECK(!lowering.Changed());
     node = NewNode(op, left, right);
+  }
+  environment()->BindAccumulator(node, Environment::kAttachFrameState);
+}
+
+void BytecodeGraphBuilder::BuildCompareOp(const Operator* op) {
+  DCHECK(JSOperator::IsBinaryWithFeedback(op->opcode()));
+  PrepareEagerCheckpoint();
+  Node* left =
+      environment()->LookupRegister(bytecode_iterator().GetRegisterOperand(0));
+  Node* right = environment()->LookupAccumulator();
+
+  FeedbackSlot slot = bytecode_iterator().GetSlotOperand(1);
+  JSTypeHintLowering::LoweringResult lowering =
+      TryBuildSimplifiedBinaryOp(op, left, right, slot);
+  if (lowering.IsExit()) return;
+
+  Node* node = nullptr;
+  if (lowering.IsSideEffectFree()) {
+    node = lowering.value();
+  } else {
+    DCHECK(!lowering.Changed());
+    node = NewNode(op, left, right, feedback_vector_node());
   }
   environment()->BindAccumulator(node, Environment::kAttachFrameState);
 }
@@ -3151,7 +3179,7 @@ void BytecodeGraphBuilder::VisitTestIn() {
 
 void BytecodeGraphBuilder::VisitTestInstanceOf() {
   int const slot_index = bytecode_iterator().GetIndexOperand(1);
-  BuildCompareOp(javascript()->InstanceOf(CreateFeedbackSource(slot_index)));
+  BuildInstanceOf(javascript()->InstanceOf(CreateFeedbackSource(slot_index)));
 }
 
 void BytecodeGraphBuilder::VisitTestUndetectable() {

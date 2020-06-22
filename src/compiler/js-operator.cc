@@ -725,7 +725,7 @@ JS_UNOP_WITH_FEEDBACK(UNARY_OP)
     static constexpr auto kProperties = BinopProperties(IrOpcode::k##JSName); \
     FeedbackParameter parameters(feedback);                                   \
     return new (zone()) Operator1<FeedbackParameter>(                         \
-        IrOpcode::k##JSName, kProperties, #JSName, 2, 1, 1, 1, 1,             \
+        IrOpcode::k##JSName, kProperties, #JSName, 3, 1, 1, 1, 1,             \
         Operator::ZeroIfNoThrow(kProperties), parameters);                    \
   }
 JS_BINOP_WITH_FEEDBACK(BINARY_OP)

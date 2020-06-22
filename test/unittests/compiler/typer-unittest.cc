@@ -88,6 +88,11 @@ class TyperTest : public TypedGraphTest {
     return NodeProperties::GetType(n);
   }
 
+  Node* UndefinedConstant() {
+    Handle<HeapObject> value = isolate()->factory()->undefined_value();
+    return graph()->NewNode(common()->HeapConstant(value));
+  }
+
   Type TypeBinaryOp(const Operator* op, Type lhs, Type rhs) {
     Node* p0 = Parameter(0);
     Node* p1 = Parameter(1);
@@ -96,6 +101,9 @@ class TyperTest : public TypedGraphTest {
     std::vector<Node*> inputs;
     inputs.push_back(p0);
     inputs.push_back(p1);
+    if (JSOperator::IsBinaryWithFeedback(op->opcode())) {
+      inputs.push_back(UndefinedConstant());  // Feedback vector.
+    }
     if (OperatorProperties::HasContextInput(op)) {
       inputs.push_back(context_node_);
     }

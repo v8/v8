@@ -270,6 +270,10 @@ class JSBinopReduction final {
     }
     // Remove the inputs corresponding to context, effect, and control.
     NodeProperties::RemoveNonValueInputs(node_);
+    // Remove the feedback vector input, if applicable.
+    if (JSOperator::IsBinaryWithFeedback(node_->opcode())) {
+      node_->RemoveInput(JSBinaryOpNode::FeedbackVectorIndex());
+    }
     // Finally, update the operator to the new one.
     NodeProperties::ChangeOp(node_, op);
 
@@ -293,7 +297,6 @@ class JSBinopReduction final {
     DCHECK_EQ(1, node_->op()->EffectInputCount());
     DCHECK_EQ(1, node_->op()->EffectOutputCount());
     DCHECK_EQ(1, node_->op()->ControlInputCount());
-    DCHECK_EQ(2, node_->op()->ValueInputCount());
 
     // Reconnect the control output to bypass the IfSuccess node and
     // possibly disconnect from the IfException node.
@@ -305,6 +308,11 @@ class JSBinopReduction final {
     }
     node_->RemoveInput(NodeProperties::FirstContextIndex(node_));
 
+    // Remove the feedback vector input, if applicable.
+    if (JSOperator::IsBinaryWithFeedback(node_->opcode())) {
+      node_->RemoveInput(JSBinaryOpNode::FeedbackVectorIndex());
+    }
+    // Finally, update the operator to the new one.
     NodeProperties::ChangeOp(node_, op);
 
     // Update the type to number.
@@ -455,7 +463,6 @@ Reduction JSTypedLowering::ReduceJSBitwiseNot(Node* node) {
   if (input_type.Is(Type::PlainPrimitive())) {
     // JSBitwiseNot(x) => NumberBitwiseXor(ToInt32(x), -1)
     const FeedbackParameter& p = FeedbackParameterOf(node->op());
-    node->RemoveInput(JSBitwiseNotNode::FeedbackVectorIndex());
     node->InsertInput(graph()->zone(), 1, jsgraph()->SmiConstant(-1));
     NodeProperties::ChangeOp(node, javascript()->BitwiseXor(p.feedback()));
     JSBinopReduction r(this, node);
@@ -472,7 +479,6 @@ Reduction JSTypedLowering::ReduceJSDecrement(Node* node) {
   if (input_type.Is(Type::PlainPrimitive())) {
     // JSDecrement(x) => NumberSubtract(ToNumber(x), 1)
     const FeedbackParameter& p = FeedbackParameterOf(node->op());
-    node->RemoveInput(JSDecrementNode::FeedbackVectorIndex());
     node->InsertInput(graph()->zone(), 1, jsgraph()->OneConstant());
     NodeProperties::ChangeOp(node, javascript()->Subtract(p.feedback()));
     JSBinopReduction r(this, node);
@@ -489,7 +495,6 @@ Reduction JSTypedLowering::ReduceJSIncrement(Node* node) {
   if (input_type.Is(Type::PlainPrimitive())) {
     // JSIncrement(x) => NumberAdd(ToNumber(x), 1)
     const FeedbackParameter& p = FeedbackParameterOf(node->op());
-    node->RemoveInput(JSIncrementNode::FeedbackVectorIndex());
     node->InsertInput(graph()->zone(), 1, jsgraph()->OneConstant());
     NodeProperties::ChangeOp(node, javascript()->Add(p.feedback()));
     JSBinopReduction r(this, node);
@@ -506,7 +511,6 @@ Reduction JSTypedLowering::ReduceJSNegate(Node* node) {
   if (input_type.Is(Type::PlainPrimitive())) {
     // JSNegate(x) => NumberMultiply(ToNumber(x), -1)
     const FeedbackParameter& p = FeedbackParameterOf(node->op());
-    node->RemoveInput(JSNegateNode::FeedbackVectorIndex());
     node->InsertInput(graph()->zone(), 1, jsgraph()->SmiConstant(-1));
     NodeProperties::ChangeOp(node, javascript()->Multiply(p.feedback()));
     JSBinopReduction r(this, node);
@@ -672,6 +676,7 @@ Reduction JSTypedLowering::ReduceJSAdd(Node* node) {
         callable.descriptor().GetStackParameterCount(),
         CallDescriptor::kNeedsFrameState, properties);
     DCHECK_EQ(1, OperatorProperties::GetFrameStateInputCount(node->op()));
+    node->RemoveInput(JSAddNode::FeedbackVectorIndex());
     node->InsertInput(graph()->zone(), 0,
                       jsgraph()->HeapConstant(callable.code()));
     NodeProperties::ChangeOp(node, common()->Call(call_descriptor));

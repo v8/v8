@@ -48,9 +48,9 @@ class JSGenericLowering final : public AdvancedReducer {
   void ReplaceUnaryOpWithBuiltinCall(Node* node,
                                      Builtins::Name builtin_without_feedback,
                                      Builtins::Name builtin_with_feedback);
-  void ReplaceBinaryOrCompareOpWithBuiltinCall(
-      Node* node, Builtins::Name builtin_without_feedback,
-      Builtins::Name builtin_with_feedback);
+  void ReplaceBinaryOpWithBuiltinCall(Node* node,
+                                      Builtins::Name builtin_without_feedback,
+                                      Builtins::Name builtin_with_feedback);
 
   Zone* zone() const;
   Isolate* isolate() const;
