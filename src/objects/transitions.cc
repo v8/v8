@@ -105,7 +105,6 @@ void TransitionsAccessor::Insert(Handle<Name> name, Handle<Map> target,
     DisallowHeapAllocation no_gc;
     TransitionArray array = transitions();
     number_of_transitions = array.number_of_transitions();
-    new_nof = number_of_transitions;
 
     int index = is_special_transition
                     ? array.SearchSpecial(Symbol::cast(*name), &insertion_index)
@@ -117,19 +116,20 @@ void TransitionsAccessor::Insert(Handle<Name> name, Handle<Map> target,
       return;
     }
 
-    ++new_nof;
+    new_nof = number_of_transitions + 1;
     CHECK_LE(new_nof, kMaxNumberOfTransitions);
-    DCHECK(insertion_index >= 0 && insertion_index <= number_of_transitions);
+    DCHECK_GE(insertion_index, 0);
+    DCHECK_LE(insertion_index, number_of_transitions);
 
     // If there is enough capacity, insert new entry into the existing array.
     if (new_nof <= array.Capacity()) {
       array.SetNumberOfTransitions(new_nof);
-      for (index = number_of_transitions; index > insertion_index; --index) {
-        array.SetKey(index, array.GetKey(index - 1));
-        array.SetRawTarget(index, array.GetRawTarget(index - 1));
+      for (int i = number_of_transitions; i > insertion_index; --i) {
+        array.SetKey(i, array.GetKey(i - 1));
+        array.SetRawTarget(i, array.GetRawTarget(i - 1));
       }
-      array.SetKey(index, *name);
-      array.SetRawTarget(index, HeapObjectReference::Weak(*target));
+      array.SetKey(insertion_index, *name);
+      array.SetRawTarget(insertion_index, HeapObjectReference::Weak(*target));
       SLOW_DCHECK(array.IsSortedNoDuplicates());
       return;
     }
@@ -147,23 +147,19 @@ void TransitionsAccessor::Insert(Handle<Name> name, Handle<Map> target,
   DisallowHeapAllocation no_gc;
   TransitionArray array = transitions();
   if (array.number_of_transitions() != number_of_transitions) {
-    DCHECK(array.number_of_transitions() < number_of_transitions);
+    DCHECK_LT(array.number_of_transitions(), number_of_transitions);
 
-    number_of_transitions = array.number_of_transitions();
-    new_nof = number_of_transitions;
-
-    insertion_index = kNotFound;
     int index = is_special_transition
                     ? array.SearchSpecial(Symbol::cast(*name), &insertion_index)
                     : array.Search(details.kind(), *name, details.attributes(),
                                    &insertion_index);
-    if (index == kNotFound) {
-      ++new_nof;
-    } else {
-      insertion_index = index;
-    }
-    DCHECK(insertion_index >= 0 && insertion_index <= number_of_transitions);
+    CHECK_EQ(index, kNotFound);
+    USE(index);
+    DCHECK_GE(insertion_index, 0);
+    DCHECK_LE(insertion_index, number_of_transitions);
 
+    number_of_transitions = array.number_of_transitions();
+    new_nof = number_of_transitions + 1;
     result->SetNumberOfTransitions(new_nof);
   }
 
