@@ -73,7 +73,7 @@ class V8_EXPORT_PRIVATE Marker {
     MarkingType marking_type = MarkingType::kAtomic;
   };
 
-  explicit Marker(HeapBase& heap);  // NOLINT(runtime/references)
+  explicit Marker(HeapBase& heap);
   virtual ~Marker();
 
   Marker(const Marker&) = delete;

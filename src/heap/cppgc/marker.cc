@@ -21,9 +21,8 @@ namespace internal {
 
 namespace {
 
-void EnterIncrementalMarkingIfNeeded(
-    Marker::MarkingConfig config,
-    HeapBase& heap) {  // NOLINT(runtime/references)
+void EnterIncrementalMarkingIfNeeded(Marker::MarkingConfig config,
+                                     HeapBase& heap) {
   if (config.marking_type == Marker::MarkingConfig::MarkingType::kIncremental ||
       config.marking_type ==
           Marker::MarkingConfig::MarkingType::kIncrementalAndConcurrent) {
@@ -34,9 +33,8 @@ void EnterIncrementalMarkingIfNeeded(
 #endif
 }
 
-void ExitIncrementalMarkingIfNeeded(
-    Marker::MarkingConfig config,
-    HeapBase& heap) {  // NOLINT(runtime/references)
+void ExitIncrementalMarkingIfNeeded(Marker::MarkingConfig config,
+                                    HeapBase& heap) {
   if (config.marking_type == Marker::MarkingConfig::MarkingType::kIncremental ||
       config.marking_type ==
           Marker::MarkingConfig::MarkingType::kIncrementalAndConcurrent) {
@@ -48,8 +46,7 @@ void ExitIncrementalMarkingIfNeeded(
 }
 
 // Visit remembered set that was recorded in the generational barrier.
-void VisitRememberedSlots(
-    HeapBase& heap, MarkingVisitor* visitor) {  // NOLINT(runtime/references)
+void VisitRememberedSlots(HeapBase& heap, MarkingVisitor* visitor) {
 #if defined(CPPGC_YOUNG_GENERATION)
   for (void* slot : heap.remembered_slots()) {
     auto& slot_header = BasePage::FromInnerAddress(&heap, slot)
@@ -68,7 +65,7 @@ void VisitRememberedSlots(
 }
 
 // Assumes that all spaces have their LABs reset.
-void ResetRememberedSet(HeapBase& heap) {  // NOLINT(runtime/references)
+void ResetRememberedSet(HeapBase& heap) {
 #if defined(CPPGC_YOUNG_GENERATION)
   auto& local_data = heap.caged_heap().local_data();
   local_data.age_table.Reset(&heap.caged_heap().allocator());

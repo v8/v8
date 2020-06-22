@@ -44,7 +44,7 @@ class V8_EXPORT_PRIVATE HeapBase {
     CPPGC_STACK_ALLOCATED();
 
    public:
-    explicit NoGCScope(HeapBase& heap);  // NOLINT(runtime/references)
+    explicit NoGCScope(HeapBase& heap);
     ~NoGCScope();
 
     NoGCScope(const NoGCScope&) = delete;

@@ -60,8 +60,7 @@ class CppgcPlatformAdapter final : public cppgc::Platform {
 
 class UnifiedHeapMarker : public cppgc::internal::Marker {
  public:
-  explicit UnifiedHeapMarker(
-      cppgc::internal::HeapBase& heap);  // NOLINT(runtime/references)
+  explicit UnifiedHeapMarker(cppgc::internal::HeapBase& heap);
 
   void AddObject(void*);
 
