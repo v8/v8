@@ -1519,7 +1519,29 @@ class ProblemsFinder : public clang::ASTConsumer,
     }
   }
 
+  bool TranslationUnitIgnored() {
+    if (!ignored_files_loaded_) {
+      std::ifstream fin("tools/gcmole/ignored_files");
+      std::string s;
+      while (fin >> s) ignored_files_.insert(s);
+      ignored_files_loaded_ = true;
+    }
+
+    clang::FileID main_file_id = sm_.getMainFileID();
+    std::string filename = sm_.getFileEntryForID(main_file_id)->getName().str();
+
+    bool result = ignored_files_.find(filename) != ignored_files_.end();
+    if (result) {
+      llvm::outs() << "Ignoring file " << filename << "\n";
+    }
+    return result;
+  }
+
   virtual void HandleTranslationUnit(clang::ASTContext &ctx) {
+    if (TranslationUnitIgnored()) {
+      return;
+    }
+
     Resolver r(ctx);
 
     // It is a valid situation that no_gc_decl == NULL when the
@@ -1595,6 +1617,9 @@ class ProblemsFinder : public clang::ASTConsumer,
  private:
   clang::DiagnosticsEngine& d_;
   clang::SourceManager& sm_;
+
+  bool ignored_files_loaded_ = false;
+  std::set<std::string> ignored_files_;
 
   FunctionAnalyzer* function_analyzer_;
 };
