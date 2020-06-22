@@ -173,14 +173,14 @@ def _CallWithOutput(cmd):
   print("# %s" % cmd)
   # The following trickery is required so that the 'cmd' thinks it's running
   # in a real terminal, while this script gets to intercept its output.
-  master, slave = pty.openpty()
-  p = subprocess.Popen(cmd, shell=True, stdin=slave, stdout=slave, stderr=slave)
-  os.close(slave)
+  parent, child = pty.openpty()
+  p = subprocess.Popen(cmd, shell=True, stdin=child, stdout=child, stderr=child)
+  os.close(child)
   output = []
   try:
     while True:
       try:
-        data = os.read(master, 512).decode('utf-8')
+        data = os.read(parent, 512).decode('utf-8')
       except OSError as e:
         if e.errno != errno.EIO: raise
         break # EIO means EOF on some systems
@@ -191,7 +191,7 @@ def _CallWithOutput(cmd):
         sys.stdout.flush()
         output.append(data)
   finally:
-    os.close(master)
+    os.close(parent)
     p.wait()
   return p.returncode, "".join(output)
 
