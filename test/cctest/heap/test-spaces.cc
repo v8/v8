@@ -27,6 +27,7 @@
 
 #include <stdlib.h>
 
+#include "include/v8-platform.h"
 #include "src/base/bounded-page-allocator.h"
 #include "src/base/platform/platform.h"
 #include "src/heap/factory.h"
@@ -50,11 +51,15 @@ namespace heap {
 class TestMemoryAllocatorScope {
  public:
   TestMemoryAllocatorScope(Isolate* isolate, size_t max_capacity,
-                           size_t code_range_size)
+                           size_t code_range_size,
+                           PageAllocator* page_allocator = nullptr)
       : isolate_(isolate),
         old_allocator_(std::move(isolate->heap()->memory_allocator_)) {
     isolate->heap()->memory_allocator_.reset(
         new MemoryAllocator(isolate, max_capacity, code_range_size));
+    if (page_allocator != nullptr) {
+      isolate->heap()->memory_allocator_->data_page_allocator_ = page_allocator;
+    }
   }
 
   MemoryAllocator* allocator() { return isolate_->heap()->memory_allocator(); }
@@ -743,6 +748,47 @@ TEST(ShrinkPageToHighWaterMarkTwoWordFiller) {
 
   size_t shrunk = old_space->ShrinkPageToHighWaterMark(page);
   CHECK_EQ(0u, shrunk);
+}
+
+namespace {
+// PageAllocator that always fails.
+class FailingPageAllocator : public v8::PageAllocator {
+ public:
+  size_t AllocatePageSize() override { return 1024; }
+  size_t CommitPageSize() override { return 1024; }
+  void SetRandomMmapSeed(int64_t seed) override {}
+  void* GetRandomMmapAddr() override { return nullptr; }
+  void* AllocatePages(void* address, size_t length, size_t alignment,
+                      Permission permissions) override {
+    return nullptr;
+  }
+  bool FreePages(void* address, size_t length) override { return false; }
+  bool ReleasePages(void* address, size_t length, size_t new_length) override {
+    return false;
+  }
+  bool SetPermissions(void* address, size_t length,
+                      Permission permissions) override {
+    return false;
+  }
+};
+
+}  // namespace
+
+TEST(NoMemoryForNewPage) {
+  Isolate* isolate = CcTest::i_isolate();
+  Heap* heap = isolate->heap();
+
+  // Memory allocator that will fail to allocate any pages.
+  FailingPageAllocator failing_allocator;
+  TestMemoryAllocatorScope test_allocator_scope(isolate, 0, 0,
+                                                &failing_allocator);
+  MemoryAllocator* memory_allocator = test_allocator_scope.allocator();
+  OldSpace faked_space(heap);
+  Page* page = memory_allocator->AllocatePage(
+      faked_space.AreaSize(), static_cast<PagedSpace*>(&faked_space),
+      NOT_EXECUTABLE);
+
+  CHECK_NULL(page);
 }
 
 }  // namespace heap

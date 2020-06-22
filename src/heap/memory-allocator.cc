@@ -501,6 +501,9 @@ MemoryChunk* MemoryAllocator::AllocateChunk(size_t reserve_area_size,
                                             BaseSpace* owner) {
   BasicMemoryChunk* basic_chunk = AllocateBasicChunk(
       reserve_area_size, commit_area_size, executable, owner);
+
+  if (basic_chunk == nullptr) return nullptr;
+
   MemoryChunk* chunk =
       MemoryChunk::Initialize(basic_chunk, isolate_->heap(), executable);
 

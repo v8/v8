@@ -417,6 +417,7 @@ class MemoryAllocator {
   base::Mutex executable_memory_mutex_;
 
   friend class heap::TestCodePageAllocatorScope;
+  friend class heap::TestMemoryAllocatorScope;
 
   DISALLOW_IMPLICIT_CONSTRUCTORS(MemoryAllocator);
 };
