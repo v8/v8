@@ -209,14 +209,11 @@ RUNTIME_FUNCTION(Runtime_WasmCompileLazy) {
 }
 
 // Should be called from within a handle scope
-Handle<JSArrayBuffer> GetSharedArrayBuffer(Handle<WasmInstanceObject> instance,
-                                           Isolate* isolate, uint32_t address) {
+Handle<JSArrayBuffer> GetArrayBuffer(Handle<WasmInstanceObject> instance,
+                                     Isolate* isolate, uint32_t address) {
   DCHECK(instance->has_memory_object());
   Handle<JSArrayBuffer> array_buffer(instance->memory_object().array_buffer(),
                                      isolate);
-
-  // Validation should have failed if the memory was not shared.
-  DCHECK(array_buffer->is_shared());
 
   // Should have trapped if address was OOB
   DCHECK_LT(address, array_buffer->byte_length());
@@ -231,8 +228,12 @@ RUNTIME_FUNCTION(Runtime_WasmAtomicNotify) {
   CONVERT_NUMBER_CHECKED(uint32_t, address, Uint32, args[1]);
   CONVERT_NUMBER_CHECKED(uint32_t, count, Uint32, args[2]);
   Handle<JSArrayBuffer> array_buffer =
-      GetSharedArrayBuffer(instance, isolate, address);
-  return FutexEmulation::Wake(array_buffer, address, count);
+      GetArrayBuffer(instance, isolate, address);
+  if (array_buffer->is_shared()) {
+    return FutexEmulation::Wake(array_buffer, address, count);
+  } else {
+    return Smi::FromInt(0);
+  }
 }
 
 RUNTIME_FUNCTION(Runtime_WasmI32AtomicWait) {
@@ -245,7 +246,12 @@ RUNTIME_FUNCTION(Runtime_WasmI32AtomicWait) {
   CONVERT_ARG_HANDLE_CHECKED(BigInt, timeout_ns, 3);
 
   Handle<JSArrayBuffer> array_buffer =
-      GetSharedArrayBuffer(instance, isolate, address);
+      GetArrayBuffer(instance, isolate, address);
+
+  // Trap if memory is not shared
+  if (!array_buffer->is_shared()) {
+    return ThrowWasmError(isolate, MessageTemplate::kAtomicsWaitNotAllowed);
+  }
   return FutexEmulation::WaitWasm32(isolate, array_buffer, address,
                                     expected_value, timeout_ns->AsInt64());
 }
@@ -260,7 +266,12 @@ RUNTIME_FUNCTION(Runtime_WasmI64AtomicWait) {
   CONVERT_ARG_HANDLE_CHECKED(BigInt, timeout_ns, 3);
 
   Handle<JSArrayBuffer> array_buffer =
-      GetSharedArrayBuffer(instance, isolate, address);
+      GetArrayBuffer(instance, isolate, address);
+
+  // Trap if memory is not shared
+  if (!array_buffer->is_shared()) {
+    return ThrowWasmError(isolate, MessageTemplate::kAtomicsWaitNotAllowed);
+  }
   return FutexEmulation::WaitWasm64(isolate, array_buffer, address,
                                     expected_value->AsInt64(),
                                     timeout_ns->AsInt64());
