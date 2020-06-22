@@ -1119,14 +1119,10 @@ class WasmModuleBuilder {
               section.emit_u64v(global.init);
               break;
             case kWasmF32:
-              section.emit_u8(kExprF32Const);
-              data_view.setFloat32(0, global.init, true);
-              section.emit_bytes(byte_view.subarray(0, 4));
+              section.emit_bytes(wasmF32Const(global.init));
               break;
             case kWasmF64:
-              section.emit_u8(kExprF64Const);
-              data_view.setFloat64(0, global.init, true);
-              section.emit_bytes(byte_view);
+              section.emit_bytes(wasmF64Const(global.init));
               break;
             case kWasmExternRef:
               section.emit_u8(kExprRefNull);
