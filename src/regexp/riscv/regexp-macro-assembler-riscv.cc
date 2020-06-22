@@ -621,11 +621,6 @@ Handle<HeapObject> RegExpMacroAssemblerRISCV::GetCode(Handle<String> source) {
         s6.bit() | s7.bit() | s8.bit() /*| s9.bit() | s10.bit() | s11.bit()*/;
     DCHECK(NumRegs(registers_to_retain) == kNumCalleeRegsToRetain);
 
-    // Push ra, fp, s8, ..., s1 onto the stack (Note: ra, fp are processed
-    // specially in MultiPush so that they are pushed first; the rest of the
-    // registers are pushed onto the stack in decreasing register number)
-    __ MultiPush(registers_to_retain | ra.bit());
-
     // The remaining arguments are passed in registers, e.g.by calling the code
     // entry as cast to a function with the signature:
     //
@@ -641,11 +636,9 @@ Handle<HeapObject> RegExpMacroAssemblerRISCV::GetCode(Handle<String> source) {
     RegList argument_registers = a0.bit() | a1.bit() | a2.bit() | a3.bit() |
                                  a4.bit() | a5.bit() | a6.bit() | a7.bit();
 
-    // Push argument_registers in decreasing register numbers: a7,..., a0
-    // Note that argument_register and registers_to_retain cannot be combined
-    // into one MultiPush because registers are numbered as s1,a0...a7,s2...s7,
-    // so a single multipush will store s1,a0,...,a7 to wrong slots
-    __ MultiPush(argument_registers);
+    // According to MultiPush implementation, registers will be pushed in the
+    // order of ra, fp, then s8, ..., s1, and finally a7,...a0
+    __ MultiPush(ra.bit() | registers_to_retain | argument_registers);
 
     // Set frame pointer in space for it if this is not a direct call
     // from generated code.

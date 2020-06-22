@@ -1496,63 +1496,94 @@ void TurboAssembler::li(Register rd, Operand j, LiFlags mode) {
   }
 }
 
+static RegList t_regs = Register::ListOf(t0, t1, t2, t3, t4, t5, t6);
+static RegList a_regs = Register::ListOf(a0, a1, a2, a3, a4, a5, a6, a7);
+static RegList s_regs =
+    Register::ListOf(s1, s2, s3, s4, s5, s6, s7, s8, s9, s10, s11);
+
 void TurboAssembler::MultiPush(RegList regs) {
   int16_t num_to_push = base::bits::CountPopulation(regs);
   int16_t stack_offset = num_to_push * kPointerSize;
 
+#define TEST_AND_PUSH_REG(reg)             \
+  if ((regs & reg.bit()) != 0) {           \
+    stack_offset -= kPointerSize;          \
+    Sd(reg, MemOperand(sp, stack_offset)); \
+    regs &= ~reg.bit();                    \
+  }
+
+#define T_REGS(V) V(t6) V(t5) V(t4) V(t3) V(t2) V(t1) V(t0)
+#define A_REGS(V) V(a7) V(a6) V(a5) V(a4) V(a3) V(a2) V(a1) V(a0)
+#define S_REGS(V) \
+  V(s11) V(s10) V(s9) V(s8) V(s7) V(s6) V(s5) V(s4) V(s3) V(s2) V(s1)
+
   Dsubu(sp, sp, Operand(stack_offset));
-  // GPRs are pushed onto the stack iframe in the following order: ra (if bit
-  // set), fp (if bit set), other GPRs (if bit set) in decreasing register
-  // numbers (e.g., a4, a3, a2, a1)
 
-  // On RISCV, ra and fp have lower register numbers than other GPRs (unlike
-  // MIPS) but need to be pushed first, so they are handled separately from the
-  // loop below
-  if ((regs & ra.bit()) != 0) {
-    stack_offset -= kPointerSize;
-    Sd(ra, MemOperand(sp, stack_offset));
+  // Certain usage of MultiPush requires that registers are pushed onto the
+  // stack in a particular: ra, fp, sp, gp, .... (basically in the decreasing
+  // order of register numbers according to MIPS register numbers)
+  TEST_AND_PUSH_REG(ra);
+  TEST_AND_PUSH_REG(fp);
+  TEST_AND_PUSH_REG(sp);
+  TEST_AND_PUSH_REG(gp);
+  TEST_AND_PUSH_REG(tp);
+  if ((regs & s_regs) != 0) {
+    S_REGS(TEST_AND_PUSH_REG)
   }
-  if ((regs & fp.bit()) != 0) {
-    stack_offset -= kPointerSize;
-    Sd(fp, MemOperand(sp, stack_offset));
+  if ((regs & a_regs) != 0) {
+    A_REGS(TEST_AND_PUSH_REG)
+  }
+  if ((regs & t_regs) != 0) {
+    T_REGS(TEST_AND_PUSH_REG)
   }
 
-  // push the rest of the GPRs in decreasing register numbers
-  regs &= (~(ra.bit() | fp.bit()));
-  for (int16_t i = kNumRegisters - 1; i >= 0; i--) {
-    if ((regs & (1 << i)) != 0) {
-      stack_offset -= kPointerSize;
-      Sd(ToRegister(i), MemOperand(sp, stack_offset));
-    }
-  }
+  DCHECK(regs == 0);
+
+#undef TEST_AND_PUSH_REG
+#undef T_REGS
+#undef A_REGS
+#undef S_REGS
 }
 
 void TurboAssembler::MultiPop(RegList regs) {
   int16_t stack_offset = 0;
 
-  // GPRs are popped from the stack frame in the following order: other GPRs (if
-  // bit set) in increasing register numbers (e.g., a0, a1, a2, a3), fp (if bit
-  // set), ra (if bit set)
-  RegList original = regs;
+#define TEST_AND_POP_REG(reg)              \
+  if ((regs & reg.bit()) != 0) {           \
+    Ld(reg, MemOperand(sp, stack_offset)); \
+    stack_offset += kPointerSize;          \
+    regs &= ~reg.bit();                    \
+  }
 
-  // On RISCV, fp and ra have lower register numbers from other GPRs but they
-  // need to be popped last, so they are handled separately
-  regs &= ~(ra.bit() | fp.bit());
-  for (int16_t i = 0; i < kNumRegisters; i++) {
-    if ((regs & (1 << i)) != 0) {
-      Ld(ToRegister(i), MemOperand(sp, stack_offset));
-      stack_offset += kPointerSize;
-    }
+#define T_REGS(V) V(t0) V(t1) V(t2) V(t3) V(t4) V(t5) V(t6)
+#define A_REGS(V) V(a0) V(a1) V(a2) V(a3) V(a4) V(a5) V(a6) V(a7)
+#define S_REGS(V) \
+  V(s1) V(s2) V(s3) V(s4) V(s5) V(s6) V(s7) V(s8) V(s9) V(s10) V(s11)
+
+  // MultiPop pops from the stack in reverse order as MultiPush
+  if ((regs & t_regs) != 0) {
+    T_REGS(TEST_AND_POP_REG)
   }
-  if ((original & fp.bit()) != 0) {
-    Ld(fp, MemOperand(sp, stack_offset));
-    stack_offset += kPointerSize;
+  if ((regs & a_regs) != 0) {
+    A_REGS(TEST_AND_POP_REG)
   }
-  if ((original & ra.bit()) != 0) {
-    Ld(ra, MemOperand(sp, stack_offset));
-    stack_offset += kPointerSize;
+  if ((regs & s_regs) != 0) {
+    S_REGS(TEST_AND_POP_REG)
   }
+  TEST_AND_POP_REG(tp);
+  TEST_AND_POP_REG(gp);
+  TEST_AND_POP_REG(sp);
+  TEST_AND_POP_REG(fp);
+  TEST_AND_POP_REG(ra);
+
+  DCHECK(regs == 0);
+
   RV_addi(sp, sp, stack_offset);
+
+#undef TEST_AND_POP_REG
+#undef T_REGS
+#undef S_REGS
+#undef A_REGS
 }
 
 void TurboAssembler::MultiPushFPU(RegList regs) {
