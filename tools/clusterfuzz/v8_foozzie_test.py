@@ -51,8 +51,8 @@ class ConfigTest(unittest.TestCase):
     assert all(map(lambda x: x[3] in KNOWN_BUILDS, EXPERIMENTS))
     # Ensure we compare different configs and same d8, or same config
     # to different d8.
-    is_sane_comparison = lambda x: (x[1] == x[2]) == ('d8' != x[3])
-    assert all(map(is_sane_comparison, EXPERIMENTS))
+    is_valid_comparison = lambda x: (x[1] == x[2]) == ('d8' != x[3])
+    assert all(map(is_valid_comparison, EXPERIMENTS))
     # All flags have a probability.
     first_is_float = lambda x: type(x[0]) == float
     assert all(map(first_is_float, FLAGS))

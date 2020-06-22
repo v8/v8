@@ -10892,7 +10892,7 @@ THREADED_TEST(SetPrototypeThrows) {
 
   CHECK(o0->SetPrototype(context.local(), o1).FromJust());
   // If setting the prototype leads to the cycle, SetPrototype should
-  // return false and keep VM in sane state.
+  // return false, because cyclic prototype chains would be invalid.
   v8::TryCatch try_catch(isolate);
   CHECK(o1->SetPrototype(context.local(), o0).IsNothing());
   CHECK(!try_catch.HasCaught());

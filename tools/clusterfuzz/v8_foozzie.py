@@ -248,7 +248,7 @@ def parse_args():
   options.first = first_config_arguments.make_options(options)
   options.second = second_config_arguments.make_options(options)
 
-  # Ensure we make a sane comparison.
+  # Ensure we make a valid comparison.
   if (options.first.d8 == options.second.d8 and
       options.first.config == options.second.config):
     parser.error('Need either executable or config difference.')

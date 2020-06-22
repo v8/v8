@@ -1819,9 +1819,8 @@ class RepresentationSelector {
     // Note: We must not do this for constants, as they are cached and we
     // would thus kill the cached {node} during lowering (i.e. replace all
     // uses with Dead), but at that point some node lowering might have
-    // already taken the constant {node} from the cache (while it was in
-    // a sane state still) and we would afterwards replace that use with
-    // Dead as well.
+    // already taken the constant {node} from the cache (while it was not
+    // yet killed) and we would afterwards replace that use with Dead as well.
     if (node->op()->ValueInputCount() > 0 &&
         node->op()->HasProperty(Operator::kPure) && truncation.IsUnused()) {
       return VisitUnused<T>(node);
