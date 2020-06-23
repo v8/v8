@@ -633,6 +633,31 @@ IFACEMETHODIMP V8InternalCompilerNodeIdProperty::SetValue(
   return E_NOTIMPL;
 }
 
+IFACEMETHODIMP V8InternalCompilerBitsetNameProperty::GetValue(
+    PCWSTR pwsz_key, IModelObject* p_v8_compiler_type_instance,
+    IModelObject** pp_value) noexcept {
+  WRL::ComPtr<IModelObject> sp_payload;
+  RETURN_IF_FAIL(p_v8_compiler_type_instance->GetRawValue(
+      SymbolKind::SymbolField, L"payload_", RawSearchNone, &sp_payload));
+
+  uint64_t payload_value;
+  RETURN_IF_FAIL(
+      UnboxULong64(sp_payload.Get(), &payload_value, true /*convert*/));
+
+  const char* bitset_name = ::BitsetName(payload_value);
+  if (!bitset_name) return E_FAIL;
+  std::string name(bitset_name);
+  RETURN_IF_FAIL(CreateString(ConvertToU16String(name), pp_value));
+
+  return S_OK;
+}
+
+IFACEMETHODIMP V8InternalCompilerBitsetNameProperty::SetValue(
+    PCWSTR /*pwsz_key*/, IModelObject* /*p_process_instance*/,
+    IModelObject* /*p_value*/) noexcept {
+  return E_NOTIMPL;
+}
+
 constexpr wchar_t usage[] =
     LR"(Invalid arguments.
 First argument should be a uint64 representing the tagged value to investigate.

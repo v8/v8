@@ -46,6 +46,11 @@ class Extension {
   HRESULT OverrideLocalsGetter(IModelObject* parent, const wchar_t* key_name,
                                bool is_parameters);
 
+  template <class PropertyClass>
+  HRESULT RegisterAndAddPropertyForClass(
+      const wchar_t* class_name, const wchar_t* property_name,
+      WRL::ComPtr<IModelObject> sp_data_model);
+
   // A property that has been overridden by this extension. The original value
   // must be put back in place during ~Extension.
   struct PropertyOverride {
@@ -79,6 +84,7 @@ class Extension {
   WRL::ComPtr<IModelObject> sp_object_data_model_;
   WRL::ComPtr<IModelObject> sp_local_data_model_;
   WRL::ComPtr<IModelObject> sp_compiler_node_data_model_;
+  WRL::ComPtr<IModelObject> sp_compiler_type_data_model_;
   WRL::ComPtr<IModelObject> sp_indexed_field_model_;
 
   WRL::ComPtr<IDebugHostModule> sp_v8_module_;

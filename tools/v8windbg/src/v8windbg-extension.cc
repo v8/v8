@@ -280,31 +280,45 @@ HRESULT Extension::Initialize() {
   RETURN_IF_FAIL(OverrideLocalsGetter(stack_frame.Get(), L"Parameters",
                                       /*is_parameters=*/true));
 
-  /* v8::internal::compiler::Node */
-  // Create an instance of the DataModel parent class for
-  // v8::internal::compiler::Node type.
-  auto compiler_node_data_model{WRL::Make<V8LocalDataModel>()};
+  // Add node_id property for v8::internal::compiler::Node.
+  RETURN_IF_FAIL(
+      RegisterAndAddPropertyForClass<V8InternalCompilerNodeIdProperty>(
+          L"v8::internal::compiler::Node", L"node_id",
+          sp_compiler_node_data_model_));
+
+  // Add bitset_name property for v8::internal::compiler::Type.
+  RETURN_IF_FAIL(
+      RegisterAndAddPropertyForClass<V8InternalCompilerBitsetNameProperty>(
+          L"v8::internal::compiler::Type", L"bitset_name",
+          sp_compiler_type_data_model_));
+
+  return S_OK;
+}
+
+template <class PropertyClass>
+HRESULT Extension::RegisterAndAddPropertyForClass(
+    const wchar_t* class_name, const wchar_t* property_name,
+    WRL::ComPtr<IModelObject> sp_data_model) {
+  // Create an instance of the DataModel parent class.
+  auto instance_data_model{WRL::Make<V8LocalDataModel>()};
   RETURN_IF_FAIL(sp_data_model_manager->CreateDataModelObject(
-      compiler_node_data_model.Get(), &sp_compiler_node_data_model_));
+      instance_data_model.Get(), &sp_data_model));
 
-  // Register that parent model for v8::internal::compiler::Node.
-  const wchar_t* compiler_node_class_name = L"v8::internal::compiler::Node";
-  WRL::ComPtr<IDebugHostTypeSignature> compiler_node_class_signature;
-  RETURN_IF_FAIL(sp_debug_host_symbols->CreateTypeSignature(
-      compiler_node_class_name, nullptr, &compiler_node_class_signature));
+  // Register that parent model.
+  WRL::ComPtr<IDebugHostTypeSignature> class_signature;
+  RETURN_IF_FAIL(sp_debug_host_symbols->CreateTypeSignature(class_name, nullptr,
+                                                            &class_signature));
   RETURN_IF_FAIL(sp_data_model_manager->RegisterModelForTypeSignature(
-      compiler_node_class_signature.Get(), sp_compiler_node_data_model_.Get()));
-  registered_types_.push_back({compiler_node_class_signature.Get(),
-                               sp_compiler_node_data_model_.Get()});
+      class_signature.Get(), sp_data_model.Get()));
+  registered_types_.push_back({class_signature.Get(), sp_data_model.Get()});
 
-  // Add the 'node_id' property to the parent model.
-  auto node_id_property{WRL::Make<V8InternalCompilerNodeIdProperty>()};
-  WRL::ComPtr<IModelObject> sp_node_id_property_model;
-  RETURN_IF_FAIL(CreateProperty(sp_data_model_manager.Get(),
-                                node_id_property.Get(),
-                                &sp_node_id_property_model));
-  RETURN_IF_FAIL(sp_compiler_node_data_model_->SetKey(
-      L"node_id", sp_node_id_property_model.Get(), nullptr));
+  // Add the property to the parent model.
+  auto property{WRL::Make<PropertyClass>()};
+  WRL::ComPtr<IModelObject> sp_property_model;
+  RETURN_IF_FAIL(CreateProperty(sp_data_model_manager.Get(), property.Get(),
+                                &sp_property_model));
+  RETURN_IF_FAIL(
+      sp_data_model->SetKey(property_name, sp_property_model.Get(), nullptr));
 
   return S_OK;
 }
