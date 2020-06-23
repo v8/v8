@@ -1847,6 +1847,8 @@ void WebAssemblyGlobalGetValueCommon(
       }
       break;
     case i::wasm::ValueType::kRtt:
+      UNIMPLEMENTED();  // TODO(7748): Implement.
+      break;
     case i::wasm::ValueType::kI8:
     case i::wasm::ValueType::kI16:
     case i::wasm::ValueType::kBottom:

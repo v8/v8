@@ -34,12 +34,10 @@ class WasmGCTester {
         flag_reftypes(&v8::internal::FLAG_experimental_wasm_reftypes, true),
         flag_typedfuns(&v8::internal::FLAG_experimental_wasm_typed_funcref,
                        true),
-        allocator(),
         zone(&allocator, ZONE_NAME),
         builder(&zone),
         isolate(CcTest::InitIsolateOnce()),
         scope(isolate),
-        instance(),
         thrower(isolate, "Test wasm GC") {
     testing::SetupIsolateForWasmModule(isolate);
   }
@@ -80,7 +78,7 @@ class WasmGCTester {
         testing::CompileAndInstantiateForTesting(
             isolate, &thrower, ModuleWireBytes(buffer.begin(), buffer.end()));
     if (thrower.error()) FATAL("%s", thrower.error_msg());
-    instance = maybe_instance.ToHandleChecked();
+    instance_ = maybe_instance.ToHandleChecked();
   }
 
   void CheckResult(const char* function, int32_t expected,
@@ -91,7 +89,7 @@ class WasmGCTester {
       argv[i++] = handle(arg, isolate);
     }
     CHECK_EQ(expected, testing::CallWasmFunctionForTesting(
-                           isolate, instance, &thrower, function,
+                           isolate, instance_, &thrower, function,
                            static_cast<uint32_t>(args.size()), argv));
   }
 
@@ -106,7 +104,7 @@ class WasmGCTester {
       argv[i++] = handle(arg, isolate);
     }
     Handle<WasmExportedFunction> exported =
-        testing::GetExportedFunction(isolate, instance, function)
+        testing::GetExportedFunction(isolate, instance_, function)
             .ToHandleChecked();
     return Execution::Call(isolate, exported,
                            isolate->factory()->undefined_value(),
@@ -122,6 +120,8 @@ class WasmGCTester {
     isolate->clear_pending_exception();
   }
 
+  Handle<WasmInstanceObject> instance() { return instance_; }
+
   TestSignatures sigs;
 
  private:
@@ -135,7 +135,7 @@ class WasmGCTester {
 
   Isolate* const isolate;
   const HandleScope scope;
-  Handle<WasmInstanceObject> instance;
+  Handle<WasmInstanceObject> instance_;
   ErrorThrower thrower;
 };
 
@@ -542,6 +542,28 @@ TEST(WasmPackedArrayS) {
   // Exactly the 2 lsb's should be stored by array.set.
   tester.CheckResult("f", static_cast<int16_t>(expected_outputs[3]),
                      {Smi::FromInt(3)});
+}
+
+TEST(BasicRTT) {
+  WasmGCTester tester;
+  uint32_t type_index = tester.DefineStruct({F(wasm::kWasmI32, true)});
+  ValueType kRttTypes[] = {
+      ValueType::Rtt(static_cast<HeapType>(type_index), 1)};
+  FunctionSig sig_t_v(1, 0, kRttTypes);
+
+  tester.DefineFunction("f", &sig_t_v, {},
+                        {WASM_RTT_CANON(type_index), kExprEnd});
+
+  tester.CompileModule();
+
+  Handle<Object> ref_result = tester.GetJSResult("f", {}).ToHandleChecked();
+
+  CHECK(ref_result->IsMap());
+  Handle<Map> map = Handle<Map>::cast(ref_result);
+  CHECK(map->IsWasmStructMap());
+  CHECK_EQ(reinterpret_cast<Address>(
+               tester.instance()->module()->struct_type(type_index)),
+           map->wasm_type_info().foreign_address());
 }
 
 }  // namespace test_gc

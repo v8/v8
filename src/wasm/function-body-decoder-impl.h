@@ -212,8 +212,30 @@ ValueType read_value_type(Decoder* decoder, const byte* pc,
 #undef REF_TYPE_CASE
     case kLocalRtt:
       if (enabled.has_gc()) {
-        // TODO(7748): Implement
-        decoder->error(pc, "'rtt' is unimplemented");
+        uint32_t depth_length;
+        uint32_t depth =
+            decoder->read_u32v<validate>(pc + 1, &depth_length, "depth");
+        // TODO(7748): Introduce a proper limit.
+        const uint32_t kMaxRttSubtypingDepth = 7;
+        if (!VALIDATE(depth <= kMaxRttSubtypingDepth)) {
+          decoder->errorf(pc,
+                          "subtyping depth %u is greater than the maximum "
+                          "depth %u supported by V8",
+                          depth, kMaxRttSubtypingDepth);
+          return kWasmBottom;
+        }
+        uint32_t type_index = decoder->read_u32v<validate>(
+            pc + 1 + depth_length, length, "type index");
+        if (!VALIDATE(type_index < kV8MaxWasmTypes)) {
+          decoder->errorf(pc,
+                          "Type index %u is greater than the maximum "
+                          "number %zu of type definitions supported by V8",
+                          type_index, kV8MaxWasmTypes);
+          return kWasmBottom;
+        }
+        *length += 1 + depth_length;
+        return ValueType::Rtt(static_cast<HeapType>(type_index),
+                              static_cast<uint8_t>(depth));
       }
       decoder->error(
           pc, "invalid value type 'rtt', enable with --experimental-wasm-gc");
@@ -490,6 +512,17 @@ struct ArrayIndexImmediate {
   const ArrayType* array_type = nullptr;
   inline ArrayIndexImmediate(Decoder* decoder, const byte* pc) {
     index = decoder->read_u32v<validate>(pc, &length, "array index");
+  }
+};
+
+// TODO(jkummerow): Make this a superclass of StructIndexImmediate and
+// ArrayIndexImmediate? Maybe even FunctionIndexImmediate too?
+template <Decoder::ValidateFlag validate>
+struct TypeIndexImmediate {
+  uint32_t index = 0;
+  uint32_t length = 0;
+  inline TypeIndexImmediate(Decoder* decoder, const byte* pc) {
+    index = decoder->read_u32v<validate>(pc, &length, "type index");
   }
 };
 
@@ -924,6 +957,7 @@ struct ControlBase {
     const ArrayIndexImmediate<validate>& imm, const Value& index,              \
     const Value& value)                                                        \
   F(ArrayLen, const Value& array_obj, Value* result)                           \
+  F(RttCanon, const TypeIndexImmediate<validate>& imm, Value* result)          \
   F(PassThrough, const Value& from, Value* to)
 
 // Generic Wasm bytecode decoder with utilities for decoding immediates,
@@ -1153,6 +1187,15 @@ class WasmDecoder : public Decoder {
     if (Complete(pc, imm)) return true;
     errorf(pc, "invalid array index: %u", imm.index);
     return false;
+  }
+
+  inline bool Validate(const byte* pc, TypeIndexImmediate<validate>& imm) {
+    if (!VALIDATE(module_ != nullptr && (module_->has_struct(imm.index) ||
+                                         module_->has_array(imm.index)))) {
+      errorf(pc, "invalid type index: %u", imm.index);
+      return false;
+    }
+    return true;
   }
 
   inline bool CanReturnCall(const FunctionSig* target_sig) {
@@ -1639,10 +1682,14 @@ class WasmDecoder : public Decoder {
             BranchDepthImmediate<validate> imm(decoder, pc + 2);
             return 2 + imm.length;
           }
-          case kExprRttGet:
+          case kExprRttCanon: {
+            // TODO(7748): Introduce "HeapTypeImmediate" and use it here.
+            TypeIndexImmediate<validate> heaptype(decoder, pc + 2);
+            return 2 + heaptype.length;
+          }
           case kExprRttSub: {
             // TODO(7748): Implement.
-            decoder->error(pc, "rtt opcodes not implemented yet");
+            decoder->error(pc, "rtt.sub not implemented yet");
             return 2;
           }
 
@@ -3401,6 +3448,16 @@ class WasmFullDecoder : public WasmDecoder<validate> {
             Pop(0, ValueType::Ref(static_cast<HeapType>(imm.index), kNullable));
         Value* value = Push(kWasmI32);
         CALL_INTERFACE_IF_REACHABLE(ArrayLen, array_obj, value);
+        break;
+      }
+      case kExprRttCanon: {
+        // TODO(7748): Introduce HeapTypeImmediate and use that here.
+        TypeIndexImmediate<validate> imm(this, this->pc_ + len);
+        len += imm.length;
+        if (!this->Validate(this->pc_ + len, imm)) break;
+        Value* value =
+            Push(ValueType::Rtt(static_cast<HeapType>(imm.index), 1));
+        CALL_INTERFACE_IF_REACHABLE(RttCanon, imm, value);
         break;
       }
       default:

@@ -701,6 +701,11 @@ class WasmGraphBuildingInterface {
     result->node = BUILD(ArrayLen, array_obj.node, decoder->position());
   }
 
+  void RttCanon(FullDecoder* decoder, const TypeIndexImmediate<validate>& imm,
+                Value* result) {
+    result->node = BUILD(RttCanon, imm.index);
+  }
+
   void PassThrough(FullDecoder* decoder, const Value& from, Value* to) {
     to->node = from.node;
   }

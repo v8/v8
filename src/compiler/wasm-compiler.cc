@@ -5279,6 +5279,22 @@ Node* WasmGraphBuilder::ArrayNew(uint32_t array_index,
   return a;
 }
 
+Node* WasmGraphBuilder::RttCanon(uint32_t type_index) {
+  // This logic is duplicated from module-instantiate.cc.
+  // TODO(jkummerow): Find a nicer solution.
+  int map_index = 0;
+  const std::vector<uint8_t>& type_kinds = env_->module->type_kinds;
+  for (uint32_t i = 0; i < type_index; i++) {
+    if (type_kinds[i] == wasm::kWasmStructTypeCode ||
+        type_kinds[i] == wasm::kWasmArrayTypeCode) {
+      map_index++;
+    }
+  }
+  Node* maps_list =
+      LOAD_INSTANCE_FIELD(ManagedObjectMaps, MachineType::TaggedPointer());
+  return LOAD_FIXED_ARRAY_SLOT_PTR(maps_list, type_index);
+}
+
 Node* WasmGraphBuilder::StructGet(Node* struct_object,
                                   const wasm::StructType* struct_type,
                                   uint32_t field_index, CheckForNull null_check,
@@ -5580,10 +5596,11 @@ class WasmWrapperGraphBuilder : public WasmGraphBuilder {
         return BuildChangeFloat64ToNumber(node);
       case wasm::ValueType::kRef:
       case wasm::ValueType::kOptRef:
-        // TODO(7748): Implement properly for arrays and structs.
+      case wasm::ValueType::kRtt:
+        // TODO(7748): Implement properly for arrays and structs, figure
+        // out what to do for RTTs.
         // For now, we just expose the raw object for testing.
         return node;
-      case wasm::ValueType::kRtt:
       case wasm::ValueType::kI8:
       case wasm::ValueType::kI16:
         UNIMPLEMENTED();

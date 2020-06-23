@@ -370,7 +370,7 @@ const char* WasmOpcodes::OpcodeName(WasmOpcode opcode) {
     CASE_OP(I31New, "i31.new")
     CASE_OP(I31GetS, "i31.get_s")
     CASE_OP(I31GetU, "i31.get_u")
-    CASE_OP(RttGet, "rtt.get")
+    CASE_OP(RttCanon, "rtt.canon")
     CASE_OP(RttSub, "rtt.sub")
     CASE_OP(RefTest, "ref.test")
     CASE_OP(RefCast, "ref.cast")

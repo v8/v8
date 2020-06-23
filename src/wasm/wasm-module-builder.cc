@@ -415,7 +415,7 @@ namespace {
 void WriteValueType(ZoneBuffer* buffer, const ValueType& type) {
   buffer->write_u8(type.value_type_code());
   if (type.has_depth()) {
-    buffer->write_u8(type.depth());
+    buffer->write_u32v(type.depth());
   }
   if (type.encoding_needs_heap_type()) {
     buffer->write_u32v(type.heap_type_code());
@@ -598,15 +598,13 @@ void WasmModuleBuilder::WriteTo(ZoneBuffer* buffer) const {
             case ValueType::kOptRef:
               buffer->write_u8(kExprRefNull);
               break;
-            case ValueType::kRtt:
-              // TODO(7748): Implement.
-              break;
             case ValueType::kI8:
             case ValueType::kI16:
             case ValueType::kStmt:
             case ValueType::kS128:
             case ValueType::kBottom:
             case ValueType::kRef:
+            case ValueType::kRtt:
               UNREACHABLE();
           }
         }

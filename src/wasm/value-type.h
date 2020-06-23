@@ -180,6 +180,8 @@ class ValueType {
         return kLocalRef;
       case kStmt:
         return kLocalVoid;
+      case kRtt:
+        return kLocalRtt;
       default:
         return static_cast<ValueTypeCode>(kLocalI32 - (kind() - kI32));
     }

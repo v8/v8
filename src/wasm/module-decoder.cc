@@ -1729,7 +1729,7 @@ class ModuleDecoderImpl : public Decoder {
         this, this->pc(), &type_length,
         origin_ == kWasmOrigin ? enabled_features_ : WasmFeatures::None());
     if (result == kWasmBottom) error(pc_, "invalid value type");
-    consume_bytes(type_length);
+    consume_bytes(type_length, "value type");
     return result;
   }
 
@@ -1737,10 +1737,10 @@ class ModuleDecoderImpl : public Decoder {
     uint8_t opcode = read_u8<kValidate>(this->pc());
     switch (opcode) {
       case kLocalI8:
-        consume_bytes(1);
+        consume_bytes(1, "i8");
         return kWasmI8;
       case kLocalI16:
-        consume_bytes(1);
+        consume_bytes(1, "i16");
         return kWasmI16;
       default:
         // It is not a packed type, so it has to be a value type.

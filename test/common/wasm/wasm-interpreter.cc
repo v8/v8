@@ -3723,7 +3723,7 @@ class WasmInterpreterInternals {
         }
         case ValueType::kRtt:
           // TODO(7748): Implement properly.
-          PrintF("ref/ref null/rtt");
+          PrintF("rtt");
           break;
         case ValueType::kI8:
         case ValueType::kI16:

@@ -617,7 +617,7 @@ bool IsJSCompatibleSignature(const FunctionSig* sig, const WasmFeatures&);
   V(I31New, 0xfb20, _)           \
   V(I31GetS, 0xfb21, _)          \
   V(I31GetU, 0xfb22, _)          \
-  V(RttGet, 0xfb30, _)           \
+  V(RttCanon, 0xfb30, _)         \
   V(RttSub, 0xfb31, _)           \
   V(RefTest, 0xfb40, _)          \
   V(RefCast, 0xfb41, _)          \

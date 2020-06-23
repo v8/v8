@@ -397,6 +397,7 @@ class WasmGraphBuilder {
   Node* ArraySet(Node* array_object, const wasm::ArrayType* type, Node* index,
                  Node* value, wasm::WasmCodePosition position);
   Node* ArrayLen(Node* array_object, wasm::WasmCodePosition position);
+  Node* RttCanon(uint32_t type_index);
 
   bool has_simd() const { return has_simd_; }
 
