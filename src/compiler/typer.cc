@@ -72,8 +72,8 @@ class Typer::Visitor : public Reducer {
 
   Type TypeNode(Node* node) {
     switch (node->opcode()) {
-#define DECLARE_UNARY_CASE(x) \
-  case IrOpcode::k##x:        \
+#define DECLARE_UNARY_CASE(x, ...) \
+  case IrOpcode::k##x:             \
     return Type##x(Operand(node, 0));
       JS_SIMPLE_UNOP_LIST(DECLARE_UNARY_CASE)
       SIMPLIFIED_NUMBER_UNOP_LIST(DECLARE_UNARY_CASE)
@@ -81,8 +81,8 @@ class Typer::Visitor : public Reducer {
       SIMPLIFIED_SPECULATIVE_NUMBER_UNOP_LIST(DECLARE_UNARY_CASE)
       SIMPLIFIED_SPECULATIVE_BIGINT_UNOP_LIST(DECLARE_UNARY_CASE)
 #undef DECLARE_UNARY_CASE
-#define DECLARE_BINARY_CASE(x) \
-  case IrOpcode::k##x:         \
+#define DECLARE_BINARY_CASE(x, ...) \
+  case IrOpcode::k##x:              \
     return Type##x(Operand(node, 0), Operand(node, 1));
       JS_SIMPLE_BINOP_LIST(DECLARE_BINARY_CASE)
       SIMPLIFIED_NUMBER_BINOP_LIST(DECLARE_BINARY_CASE)
@@ -90,8 +90,8 @@ class Typer::Visitor : public Reducer {
       SIMPLIFIED_SPECULATIVE_NUMBER_BINOP_LIST(DECLARE_BINARY_CASE)
       SIMPLIFIED_SPECULATIVE_BIGINT_BINOP_LIST(DECLARE_BINARY_CASE)
 #undef DECLARE_BINARY_CASE
-#define DECLARE_OTHER_CASE(x) \
-  case IrOpcode::k##x:        \
+#define DECLARE_OTHER_CASE(x, ...) \
+  case IrOpcode::k##x:             \
     return Type##x(node);
       DECLARE_OTHER_CASE(Start)
       DECLARE_OTHER_CASE(IfException)
@@ -102,7 +102,7 @@ class Typer::Visitor : public Reducer {
       JS_CONTEXT_OP_LIST(DECLARE_OTHER_CASE)
       JS_OTHER_OP_LIST(DECLARE_OTHER_CASE)
 #undef DECLARE_OTHER_CASE
-#define DECLARE_IMPOSSIBLE_CASE(x) case IrOpcode::k##x:
+#define DECLARE_IMPOSSIBLE_CASE(x, ...) case IrOpcode::k##x:
       DECLARE_IMPOSSIBLE_CASE(Loop)
       DECLARE_IMPOSSIBLE_CASE(Branch)
       DECLARE_IMPOSSIBLE_CASE(IfTrue)
@@ -141,7 +141,7 @@ class Typer::Visitor : public Reducer {
   LoopVariableOptimizer* induction_vars_;
   ZoneSet<NodeId> weakened_nodes_;
 
-#define DECLARE_METHOD(x) inline Type Type##x(Node* node);
+#define DECLARE_METHOD(x, ...) inline Type Type##x(Node* node);
   DECLARE_METHOD(Start)
   DECLARE_METHOD(IfException)
   COMMON_OP_LIST(DECLARE_METHOD)
@@ -151,7 +151,7 @@ class Typer::Visitor : public Reducer {
   JS_CONTEXT_OP_LIST(DECLARE_METHOD)
   JS_OTHER_OP_LIST(DECLARE_METHOD)
 #undef DECLARE_METHOD
-#define DECLARE_METHOD(x) inline Type Type##x(Type input);
+#define DECLARE_METHOD(x, ...) inline Type Type##x(Type input);
   JS_SIMPLE_UNOP_LIST(DECLARE_METHOD)
 #undef DECLARE_METHOD
 
@@ -229,13 +229,13 @@ class Typer::Visitor : public Reducer {
   SIMPLIFIED_SPECULATIVE_NUMBER_BINOP_LIST(DECLARE_METHOD)
   SIMPLIFIED_SPECULATIVE_BIGINT_BINOP_LIST(DECLARE_METHOD)
 #undef DECLARE_METHOD
-#define DECLARE_METHOD(Name)                       \
+#define DECLARE_METHOD(Name, ...)                  \
   inline Type Type##Name(Type left, Type right) {  \
     return TypeBinaryOp(left, right, Name##Typer); \
   }
   JS_SIMPLE_BINOP_LIST(DECLARE_METHOD)
 #undef DECLARE_METHOD
-#define DECLARE_METHOD(Name)                      \
+#define DECLARE_METHOD(Name, ...)                 \
   inline Type Type##Name(Type left, Type right) { \
     return TypeBinaryOp(left, right, Name);       \
   }
@@ -244,7 +244,7 @@ class Typer::Visitor : public Reducer {
   SIMPLIFIED_SPECULATIVE_NUMBER_BINOP_LIST(DECLARE_METHOD)
   SIMPLIFIED_SPECULATIVE_BIGINT_BINOP_LIST(DECLARE_METHOD)
 #undef DECLARE_METHOD
-#define DECLARE_METHOD(Name) \
+#define DECLARE_METHOD(Name, ...) \
   inline Type Type##Name(Type input) { return TypeUnaryOp(input, Name); }
   SIMPLIFIED_NUMBER_UNOP_LIST(DECLARE_METHOD)
   SIMPLIFIED_BIGINT_UNOP_LIST(DECLARE_METHOD)
@@ -271,7 +271,7 @@ class Typer::Visitor : public Reducer {
   static ComparisonOutcome JSCompareTyper(Type, Type, Typer*);
   static ComparisonOutcome NumberCompareTyper(Type, Type, Typer*);
 
-#define DECLARE_METHOD(x) static Type x##Typer(Type, Type, Typer*);
+#define DECLARE_METHOD(x, ...) static Type x##Typer(Type, Type, Typer*);
   JS_SIMPLE_BINOP_LIST(DECLARE_METHOD)
 #undef DECLARE_METHOD
 

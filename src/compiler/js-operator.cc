@@ -16,6 +16,17 @@ namespace v8 {
 namespace internal {
 namespace compiler {
 
+namespace {
+
+// Returns properties for the given binary op.
+constexpr Operator::Properties BinopProperties(Operator::Opcode opcode) {
+  CONSTEXPR_DCHECK(JSOperator::IsBinaryWithFeedback(opcode));
+  return opcode == IrOpcode::kJSStrictEqual ? Operator::kPure
+                                            : Operator::kNoProperties;
+}
+
+}  // namespace
+
 std::ostream& operator<<(std::ostream& os, CallFrequency const& f) {
   if (f.IsUnknown()) return os << "unknown";
   return os << f.value();
@@ -224,46 +235,13 @@ std::ostream& operator<<(std::ostream& os, FeedbackParameter const& p) {
   return os << p.feedback();
 }
 
-#define UNARY_OP_LIST(V) \
-  V(BitwiseNot)          \
-  V(Decrement)           \
-  V(Increment)           \
-  V(Negate)
-
-#define BINARY_OP_LIST(V) \
-  V(Add)                  \
-  V(Subtract)             \
-  V(Multiply)             \
-  V(Divide)               \
-  V(Modulus)              \
-  V(Exponentiate)         \
-  V(BitwiseOr)            \
-  V(BitwiseXor)           \
-  V(BitwiseAnd)           \
-  V(ShiftLeft)            \
-  V(ShiftRight)           \
-  V(ShiftRightLogical)
-
-#define COMPARE_OP_LIST(V)                    \
-  V(Equal, Operator::kNoProperties)           \
-  V(StrictEqual, Operator::kPure)             \
-  V(LessThan, Operator::kNoProperties)        \
-  V(GreaterThan, Operator::kNoProperties)     \
-  V(LessThanOrEqual, Operator::kNoProperties) \
-  V(GreaterThanOrEqual, Operator::kNoProperties)
-
 FeedbackParameter const& FeedbackParameterOf(const Operator* op) {
-#define V(Name, ...) op->opcode() == IrOpcode::kJS##Name ||
-  // clang-format off
-  DCHECK(UNARY_OP_LIST(V)
-         BINARY_OP_LIST(V)
-         COMPARE_OP_LIST(V)
+  DCHECK(JSOperator::IsUnaryWithFeedback(op->opcode()) ||
+         JSOperator::IsBinaryWithFeedback(op->opcode()) ||
          op->opcode() == IrOpcode::kJSCreateEmptyLiteralArray ||
          op->opcode() == IrOpcode::kJSInstanceOf ||
          op->opcode() == IrOpcode::kJSStoreDataPropertyInLiteral ||
          op->opcode() == IrOpcode::kJSStoreInArrayLiteral);
-  // clang-format on
-#undef V
   return OpParameter<FeedbackParameter>(op);
 }
 
@@ -732,35 +710,26 @@ JSOperatorBuilder::JSOperatorBuilder(Zone* zone)
 CACHED_OP_LIST(CACHED_OP)
 #undef CACHED_OP
 
-#define UNARY_OP(Name)                                                        \
+#define UNARY_OP(JSName, Name)                                                \
   const Operator* JSOperatorBuilder::Name(FeedbackSource const& feedback) {   \
     FeedbackParameter parameters(feedback);                                   \
     return new (zone()) Operator1<FeedbackParameter>(                         \
-        IrOpcode::kJS##Name, Operator::kNoProperties, "JS" #Name, 2, 1, 1, 1, \
-        1, 2, parameters);                                                    \
+        IrOpcode::k##JSName, Operator::kNoProperties, #JSName, 2, 1, 1, 1, 1, \
+        2, parameters);                                                       \
   }
-UNARY_OP_LIST(UNARY_OP)
+JS_UNOP_WITH_FEEDBACK(UNARY_OP)
 #undef UNARY_OP
 
-#define BINARY_OP(Name)                                                       \
+#define BINARY_OP(JSName, Name)                                               \
   const Operator* JSOperatorBuilder::Name(FeedbackSource const& feedback) {   \
+    static constexpr auto kProperties = BinopProperties(IrOpcode::k##JSName); \
     FeedbackParameter parameters(feedback);                                   \
     return new (zone()) Operator1<FeedbackParameter>(                         \
-        IrOpcode::kJS##Name, Operator::kNoProperties, "JS" #Name, 2, 1, 1, 1, \
-        1, 2, parameters);                                                    \
+        IrOpcode::k##JSName, kProperties, #JSName, 2, 1, 1, 1, 1,             \
+        Operator::ZeroIfNoThrow(kProperties), parameters);                    \
   }
-BINARY_OP_LIST(BINARY_OP)
+JS_BINOP_WITH_FEEDBACK(BINARY_OP)
 #undef BINARY_OP
-
-#define COMPARE_OP(Name, Properties)                                        \
-  const Operator* JSOperatorBuilder::Name(FeedbackSource const& feedback) { \
-    FeedbackParameter parameters(feedback);                                 \
-    return new (zone()) Operator1<FeedbackParameter>(                       \
-        IrOpcode::kJS##Name, Properties, "JS" #Name, 2, 1, 1, 1, 1,         \
-        Operator::ZeroIfNoThrow(Properties), parameters);                   \
-  }
-COMPARE_OP_LIST(COMPARE_OP)
-#undef COMPARE_OP
 
 const Operator* JSOperatorBuilder::StoreDataPropertyInLiteral(
     const FeedbackSource& feedback) {
@@ -1333,10 +1302,7 @@ Handle<ScopeInfo> ScopeInfoOf(const Operator* op) {
   return OpParameter<Handle<ScopeInfo>>(op);
 }
 
-#undef UNARY_OP_LIST
-#undef BINARY_OP_LIST
 #undef CACHED_OP_LIST
-#undef COMPARE_OP_LIST
 
 }  // namespace compiler
 }  // namespace internal

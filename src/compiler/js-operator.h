@@ -29,15 +29,52 @@ namespace compiler {
 class Operator;
 struct JSOperatorGlobalCache;
 
+// Macro lists.
+#define JS_UNOP_WITH_FEEDBACK(V) \
+  JS_BITWISE_UNOP_LIST(V)        \
+  JS_ARITH_UNOP_LIST(V)
+
+#define JS_BINOP_WITH_FEEDBACK(V) \
+  JS_ARITH_BINOP_LIST(V)          \
+  JS_BITWISE_BINOP_LIST(V)        \
+  JS_COMPARE_BINOP_LIST(V)
+
+// Predicates.
+class JSOperator final : public AllStatic {
+ public:
+  static constexpr bool IsUnaryWithFeedback(Operator::Opcode opcode) {
+#define CASE(Name, ...)   \
+  case IrOpcode::k##Name: \
+    return true;
+    switch (opcode) {
+      JS_UNOP_WITH_FEEDBACK(CASE);
+      default:
+        return false;
+    }
+#undef CASE
+    return false;
+  }
+
+  static constexpr bool IsBinaryWithFeedback(Operator::Opcode opcode) {
+#define CASE(Name, ...)   \
+  case IrOpcode::k##Name: \
+    return true;
+    switch (opcode) {
+      JS_BINOP_WITH_FEEDBACK(CASE);
+      default:
+        return false;
+    }
+#undef CASE
+    return false;
+  }
+};
+
 // Node wrappers.
 
 class JSUnaryOpNode final : public NodeWrapper {
  public:
   explicit constexpr JSUnaryOpNode(Node* node) : NodeWrapper(node) {
-    CONSTEXPR_DCHECK(node->opcode() == IrOpcode::kJSBitwiseNot ||
-                     node->opcode() == IrOpcode::kJSDecrement ||
-                     node->opcode() == IrOpcode::kJSIncrement ||
-                     node->opcode() == IrOpcode::kJSNegate);
+    CONSTEXPR_DCHECK(JSOperator::IsUnaryWithFeedback(node->opcode()));
   }
 
   static constexpr int ValueIndex() { return 0; }

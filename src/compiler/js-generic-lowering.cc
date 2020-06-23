@@ -43,10 +43,10 @@ JSGenericLowering::~JSGenericLowering() = default;
 
 Reduction JSGenericLowering::Reduce(Node* node) {
   switch (node->opcode()) {
-#define DECLARE_CASE(x)  \
-    case IrOpcode::k##x: \
-      Lower##x(node);    \
-      break;
+#define DECLARE_CASE(x, ...) \
+  case IrOpcode::k##x:       \
+    Lower##x(node);          \
+    break;
     JS_OP_LIST(DECLARE_CASE)
 #undef DECLARE_CASE
     default:
@@ -123,10 +123,7 @@ void JSGenericLowering::ReplaceWithRuntimeCall(Node* node,
 void JSGenericLowering::ReplaceUnaryOpWithBuiltinCall(
     Node* node, Builtins::Name builtin_without_feedback,
     Builtins::Name builtin_with_feedback) {
-  DCHECK(node->opcode() == IrOpcode::kJSBitwiseNot ||
-         node->opcode() == IrOpcode::kJSDecrement ||
-         node->opcode() == IrOpcode::kJSIncrement ||
-         node->opcode() == IrOpcode::kJSNegate);
+  DCHECK(JSOperator::IsUnaryWithFeedback(node->opcode()));
   const FeedbackParameter& p = FeedbackParameterOf(node->op());
   if (CollectFeedbackInGenericLowering() && p.feedback().IsValid()) {
     Callable callable = Builtins::CallableFor(isolate(), builtin_with_feedback);
@@ -163,23 +160,7 @@ DEF_UNARY_LOWERING(Negate)
 void JSGenericLowering::ReplaceBinaryOrCompareOpWithBuiltinCall(
     Node* node, Builtins::Name builtin_without_feedback,
     Builtins::Name builtin_with_feedback) {
-  DCHECK(node->opcode() == IrOpcode::kJSAdd ||
-         node->opcode() == IrOpcode::kJSBitwiseAnd ||
-         node->opcode() == IrOpcode::kJSBitwiseOr ||
-         node->opcode() == IrOpcode::kJSBitwiseXor ||
-         node->opcode() == IrOpcode::kJSDivide ||
-         node->opcode() == IrOpcode::kJSEqual ||
-         node->opcode() == IrOpcode::kJSExponentiate ||
-         node->opcode() == IrOpcode::kJSGreaterThan ||
-         node->opcode() == IrOpcode::kJSGreaterThanOrEqual ||
-         node->opcode() == IrOpcode::kJSLessThan ||
-         node->opcode() == IrOpcode::kJSLessThanOrEqual ||
-         node->opcode() == IrOpcode::kJSModulus ||
-         node->opcode() == IrOpcode::kJSMultiply ||
-         node->opcode() == IrOpcode::kJSShiftLeft ||
-         node->opcode() == IrOpcode::kJSShiftRight ||
-         node->opcode() == IrOpcode::kJSShiftRightLogical ||
-         node->opcode() == IrOpcode::kJSSubtract);
+  DCHECK(JSOperator::IsBinaryWithFeedback(node->opcode()));
   Builtins::Name builtin_id;
   const FeedbackParameter& p = FeedbackParameterOf(node->op());
   if (CollectFeedbackInGenericLowering() && p.feedback().IsValid()) {
