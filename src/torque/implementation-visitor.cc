@@ -2403,6 +2403,29 @@ void ImplementationVisitor::AddCallParameter(
   }
 }
 
+namespace {
+std::pair<std::string, std::string> GetClassInstanceTypeRange(
+    const ClassType* class_type) {
+  std::pair<std::string, std::string> result;
+  if (class_type->InstanceTypeRange()) {
+    auto instance_type_range = *class_type->InstanceTypeRange();
+    std::string instance_type_string_first =
+        "static_cast<InstanceType>(" +
+        std::to_string(instance_type_range.first) + ")";
+    std::string instance_type_string_second =
+        "static_cast<InstanceType>(" +
+        std::to_string(instance_type_range.second) + ")";
+    result =
+        std::make_pair(instance_type_string_first, instance_type_string_second);
+  } else {
+    ReportError(
+        "%Min/MaxInstanceType must take a class type that is either a string "
+        "or has a generated instance type range");
+  }
+  return result;
+}
+}  // namespace
+
 VisitResult ImplementationVisitor::GenerateCall(
     Callable* callable, base::Optional<LocationReference> this_reference,
     Arguments arguments, const TypeVector& specialization_types,
@@ -2633,6 +2656,48 @@ VisitResult ImplementationVisitor::GenerateCall(
         Error("size of ", *type, " is not known.");
       }
       return VisitResult(return_type, size_string);
+    } else if (intrinsic->ExternalName() == "%ClassHasMapConstant") {
+      const Type* type = specialization_types[0];
+      const ClassType* class_type = ClassType::DynamicCast(type);
+      if (!class_type) {
+        ReportError("%ClassHasMapConstant must take a class type parameter");
+      }
+      // If the class isn't actually used as the parameter to a TNode,
+      // then we can't rely on the class existing in C++ or being of the same
+      // type (e.g. it could be a template), so don't use the template CSA
+      // machinery for accessing the class' map.
+      if (class_type->name() != class_type->GetGeneratedTNodeTypeName()) {
+        return VisitResult(return_type, std::string("false"));
+      } else {
+        return VisitResult(
+            return_type,
+            std::string("CodeStubAssembler(state_).ClassHasMapConstant<") +
+                class_type->name() + ">()");
+      }
+    } else if (intrinsic->ExternalName() == "%MinInstanceType") {
+      if (specialization_types.size() != 1) {
+        ReportError("%MinInstanceType must take a single type parameter");
+      }
+      const Type* type = specialization_types[0];
+      const ClassType* class_type = ClassType::DynamicCast(type);
+      if (!class_type) {
+        ReportError("%MinInstanceType must take a class type parameter");
+      }
+      std::pair<std::string, std::string> instance_types =
+          GetClassInstanceTypeRange(class_type);
+      return VisitResult(return_type, instance_types.first);
+    } else if (intrinsic->ExternalName() == "%MaxInstanceType") {
+      if (specialization_types.size() != 1) {
+        ReportError("%MaxInstanceType must take a single type parameter");
+      }
+      const Type* type = specialization_types[0];
+      const ClassType* class_type = ClassType::DynamicCast(type);
+      if (!class_type) {
+        ReportError("%MaxInstanceType must take a class type parameter");
+      }
+      std::pair<std::string, std::string> instance_types =
+          GetClassInstanceTypeRange(class_type);
+      return VisitResult(return_type, instance_types.second);
     } else if (intrinsic->ExternalName() == "%RawConstexprCast") {
       if (intrinsic->signature().parameter_types.types.size() != 1 ||
           constexpr_arguments.size() != 1) {
@@ -4080,7 +4145,7 @@ void ImplementationVisitor::GenerateClassDefinitions(
           structs_used_in_classes.insert(*field_as_struct);
         }
       }
-      if (type->ShouldExport()) {
+      if (type->ShouldExport() && !type->IsAbstract()) {
         factory_header << type->HandlifiedCppTypeName() << " New"
                        << type->name() << "(";
         factory_impl << type->HandlifiedCppTypeName() << " Factory::New"

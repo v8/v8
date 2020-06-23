@@ -29,6 +29,13 @@ namespace torque_internal {
   type MutableReference<T : type> extends ConstReference<T>;
 
   type UninitializedHeapObject extends HeapObject;
+  macro DownCastForTorqueClass<T : type extends HeapObject>(o: HeapObject):
+      T labels _CastError {
+    return %RawDownCast<T>(o);
+  }
+  macro IsWithContext<T : type extends HeapObject>(o: HeapObject): bool {
+    return false;
+  }
 }
 
 type Tagged generates 'TNode<MaybeObject>' constexpr 'MaybeObject';
@@ -128,6 +135,8 @@ macro Cast<A : type extends Object>(implicit context: Context)(o: Object): A
   return Cast<A>(TaggedToHeapObject(o) otherwise CastError)
       otherwise CastError;
 }
+macro Cast<A : type extends HeapObject>(o: HeapObject): A
+    labels CastError;
 Cast<Smi>(o: Object): Smi
     labels CastError {
   return TaggedToSmi(o) otherwise CastError;

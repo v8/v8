@@ -660,6 +660,9 @@ class ClassType final : public AggregateType {
     if (IsAbstract()) return false;
     return flags_ & ClassFlag::kGenerateBodyDescriptor || !IsExtern();
   }
+  bool DoNotGenerateCast() const {
+    return flags_ & ClassFlag::kDoNotGenerateCast;
+  }
   bool IsTransient() const override { return flags_ & ClassFlag::kTransient; }
   bool IsAbstract() const { return flags_ & ClassFlag::kAbstract; }
   bool HasSameInstanceTypeAsParent() const {

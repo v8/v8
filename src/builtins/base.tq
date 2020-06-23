@@ -135,6 +135,7 @@ const kDoubleHole: float64_or_hole = float64_or_hole{is_hole: true, value: 0};
 // The HashTable inheritance hierarchy doesn't actually look like this in C++
 // because it uses some class templates that we can't yet (and may never)
 // express in Torque, but this is the expected organization of instance types.
+@doNotGenerateCast
 extern class HashTable extends FixedArray generates 'TNode<FixedArray>';
 extern class OrderedHashMap extends HashTable;
 extern class OrderedHashSet extends HashTable;
@@ -805,6 +806,8 @@ extern operator '+' macro ConstexprInt31Add(
     constexpr int31, constexpr int31): constexpr int31;
 extern operator '*' macro ConstexprInt31Mul(
     constexpr int31, constexpr int31): constexpr int31;
+extern operator '-' macro Int32Sub(int16, int16): int32;
+extern operator '-' macro Int32Sub(uint16, uint16): int32;
 extern operator '-' macro Int32Sub(int32, int32): int32;
 extern operator '*' macro Int32Mul(int32, int32): int32;
 extern operator '/' macro Int32Div(int32, int32): int32;
@@ -877,6 +880,12 @@ extern macro UintPtrMin(uintptr, uintptr): uintptr;
 extern operator '!' macro ConstexprBoolNot(constexpr bool): constexpr bool;
 extern operator '!' macro Word32BinaryNot(bool): bool;
 extern operator '!' macro IsFalse(Boolean): bool;
+
+extern operator '==' macro
+ConstexprInt31Equal(
+    constexpr InstanceType, constexpr InstanceType): constexpr bool;
+extern operator '-' macro ConstexprUint32Sub(
+    constexpr InstanceType, constexpr InstanceType): constexpr int32;
 
 extern operator '.instanceType' macro LoadInstanceType(HeapObject):
     InstanceType;
@@ -969,6 +978,7 @@ extern macro NumberConstant(constexpr int32): Number;
 extern macro NumberConstant(constexpr uint32): Number;
 extern macro IntPtrConstant(constexpr int31): intptr;
 extern macro IntPtrConstant(constexpr int32): intptr;
+extern macro Uint16Constant(constexpr uint16): uint16;
 extern macro Int32Constant(constexpr int31): int31;
 extern macro Int32Constant(constexpr int32): int32;
 extern macro Float64Constant(constexpr int31): float64;
@@ -992,22 +1002,6 @@ extern macro BitcastWordToTagged(intptr): Object;
 extern macro BitcastWordToTagged(uintptr): Object;
 extern macro BitcastTaggedToWord(Tagged): intptr;
 extern macro BitcastTaggedToWordForTagAndSmiBits(Tagged): intptr;
-
-macro Is<A : type extends Object, B : type extends Object>(
-    implicit context: Context)(o: B): bool {
-  Cast<A>(o) otherwise return false;
-  return true;
-}
-
-macro UnsafeCast<A : type extends Object>(implicit context: Context)(o: Object):
-    A {
-  assert(Is<A>(o));
-  return %RawDownCast<A>(o);
-}
-
-macro UnsafeConstCast<T: type>(r: const &T):&T {
-  return %RawDownCast<&T>(r);
-}
 
 extern macro FixedArrayMapConstant(): Map;
 extern macro FixedDoubleArrayMapConstant(): Map;

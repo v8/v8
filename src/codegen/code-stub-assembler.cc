@@ -6111,11 +6111,6 @@ TNode<BoolT> CodeStubAssembler::IsAccessorPair(SloppyTNode<HeapObject> object) {
   return IsAccessorPairMap(LoadMap(object));
 }
 
-TNode<BoolT> CodeStubAssembler::IsAllocationSite(
-    SloppyTNode<HeapObject> object) {
-  return IsAllocationSiteInstanceType(LoadInstanceType(object));
-}
-
 TNode<BoolT> CodeStubAssembler::IsHeapNumber(SloppyTNode<HeapObject> object) {
   return IsHeapNumberMap(LoadMap(object));
 }
@@ -6294,11 +6289,6 @@ TNode<BoolT> CodeStubAssembler::IsJSGeneratorObject(TNode<HeapObject> object) {
 TNode<BoolT> CodeStubAssembler::IsJSFunctionInstanceType(
     SloppyTNode<Int32T> instance_type) {
   return InstanceTypeEqual(instance_type, JS_FUNCTION_TYPE);
-}
-
-TNode<BoolT> CodeStubAssembler::IsAllocationSiteInstanceType(
-    SloppyTNode<Int32T> instance_type) {
-  return InstanceTypeEqual(instance_type, ALLOCATION_SITE_TYPE);
 }
 
 TNode<BoolT> CodeStubAssembler::IsJSFunction(SloppyTNode<HeapObject> object) {

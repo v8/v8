@@ -36,11 +36,13 @@ extern class ByteArray extends FixedArrayBase {
 
 @hasSameInstanceTypeAsParent
 @generateCppClass
+@doNotGenerateCast
 extern class ArrayList extends FixedArray {
 }
 
 @hasSameInstanceTypeAsParent
 @generateCppClass
+@doNotGenerateCast
 extern class TemplateList extends FixedArray {
 }
 

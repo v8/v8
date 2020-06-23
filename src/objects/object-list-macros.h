@@ -236,7 +236,7 @@ class ZoneForwardList;
   V(WeakFixedArray)                            \
   V(WeakArrayList)                             \
   V(WeakCell)                                  \
-  TORQUE_INTERNAL_CLASS_LIST(V)
+  TORQUE_DEFINED_CLASS_LIST(V)
 
 #ifdef V8_INTL_SUPPORT
 #define HEAP_OBJECT_ORDINARY_TYPE_LIST(V) \

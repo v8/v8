@@ -91,7 +91,7 @@ Map Map::GetInstanceTypeMap(ReadOnlyRoots roots, InstanceType type) {
   case TYPE:                        \
     map = roots.name##_map();       \
     break;
-    TORQUE_INTERNAL_INSTANCE_TYPE_LIST(MAKE_CASE)
+    TORQUE_DEFINED_INSTANCE_TYPE_LIST(MAKE_CASE)
 #undef MAKE_CASE
     default:
       UNREACHABLE();

@@ -1265,4 +1265,43 @@ macro TestFullyGeneratedClassFromCpp(): ExportedSubClass {
   return new
   ExportedSubClass{a: Null, b: Null, c_field: 7, d_field: 8, e_field: 9};
 }
+
+@export
+class ExportedSubClass2 extends ExportedSubClassBase {
+  x_field: int32;
+  y_field: int32;
+  z_field: Smi;
+}
+
+@export
+macro TestGeneratedCastOperators(implicit context: Context)() {
+  const a = new
+  ExportedSubClass{a: Null, b: Null, c_field: 3, d_field: 4, e_field: 5};
+  const b = new ExportedSubClassBase{a: Undefined, b: Null};
+  const c = new
+  ExportedSubClass2{a: Null, b: Null, x_field: 3, y_field: 4, z_field: 5};
+  const aO: Object = a;
+  const bO: Object = b;
+  const cO: Object = c;
+  assert(Is<ExportedSubClassBase>(aO));
+  assert(Is<ExportedSubClass>(aO));
+  assert(!Is<ExportedSubClass2>(aO));
+  assert(Is<ExportedSubClassBase>(bO));
+  assert(!Is<ExportedSubClass>(bO));
+  assert(Is<ExportedSubClassBase>(cO));
+  assert(!Is<ExportedSubClass>(cO));
+  assert(Is<ExportedSubClass2>(cO));
+
+  const nativeContext = LoadNativeContext(context);
+  const jsf: JSFunction = UnsafeCast<JSFunction>(
+      nativeContext[NativeContextSlot::REGEXP_FUNCTION_INDEX]);
+  assert(!Is<JSSloppyArgumentsObject>(jsf));
+
+  const parameterValues = NewFixedArray(0, ConstantIterator(TheHole));
+  const elements = NewSloppyArgumentsElements(
+      0, context, parameterValues, ConstantIterator(TheHole));
+  const fastArgs = arguments::NewJSFastAliasedArgumentsObject(
+      elements, Convert<Smi>(0), jsf);
+  assert(Is<JSArgumentsObject>(fastArgs));
+}
 }

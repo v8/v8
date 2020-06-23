@@ -29,11 +29,3 @@ extern class PrototypeInfo extends Struct {
 
   bit_field: SmiTagged<PrototypeInfoFlags>;
 }
-
-extern macro PrototypeInfoMapConstant(): Map;
-const kPrototypeInfoMap: Map = PrototypeInfoMapConstant();
-
-Cast<PrototypeInfo>(o: HeapObject): PrototypeInfo labels CastError {
-  if (o.map != kPrototypeInfoMap) goto CastError;
-  return %RawDownCast<PrototypeInfo>(o);
-}

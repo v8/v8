@@ -418,7 +418,7 @@ macro LoadJoinStack(implicit context: Context)(): FixedArray
   const stack: HeapObject = UnsafeCast<HeapObject>(
       nativeContext[NativeContextSlot::ARRAY_JOIN_STACK_INDEX]);
   if (stack == Undefined) goto IfUninitialized;
-  assert(IsFixedArray(stack));
+  assert(Is<FixedArray>(stack));
   return UnsafeCast<FixedArray>(stack);
 }
 

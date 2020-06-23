@@ -107,6 +107,10 @@ enum class PrimitiveType { kBoolean, kNumber, kString, kSymbol };
   V(TypedArraySpeciesProtector, typed_array_species_protector,                 \
     TypedArraySpeciesProtector)
 
+#define UNIQUE_INSTANCE_TYPE_IMMUTABLE_IMMOVABLE_MAP_ADAPTER( \
+    V, rootIndexName, rootAccessorName, class_name)           \
+  V(rootIndexName, rootAccessorName, class_name##Map)
+
 #define HEAP_IMMUTABLE_IMMOVABLE_OBJECT_LIST(V)                                \
   V(AccessorInfoMap, accessor_info_map, AccessorInfoMap)                       \
   V(AccessorPairMap, accessor_pair_map, AccessorPairMap)                       \
@@ -232,7 +236,8 @@ enum class PrimitiveType { kBoolean, kNumber, kString, kSymbol };
   V(valueOf_string, valueOf_string, ValueOfString)                             \
   V(WeakFixedArrayMap, weak_fixed_array_map, WeakFixedArrayMap)                \
   V(zero_string, zero_string, ZeroString)                                      \
-  TORQUE_INTERNAL_MAP_CSA_LIST(V)
+  UNIQUE_INSTANCE_TYPE_MAP_LIST_GENERATOR(                                     \
+      UNIQUE_INSTANCE_TYPE_IMMUTABLE_IMMOVABLE_MAP_ADAPTER, V)
 
 #define HEAP_IMMOVABLE_OBJECT_LIST(V)   \
   HEAP_MUTABLE_IMMOVABLE_OBJECT_LIST(V) \
@@ -470,16 +475,8 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
     return UncheckedCast<HeapObject>(value);
   }
 
-  TNode<JSArray> HeapObjectToJSArray(TNode<HeapObject> heap_object,
-                                     Label* fail) {
-    GotoIfNot(IsJSArray(heap_object), fail);
-    return UncheckedCast<JSArray>(heap_object);
-  }
-
-  TNode<JSArrayBuffer> HeapObjectToJSArrayBuffer(TNode<HeapObject> heap_object,
-                                                 Label* fail) {
-    GotoIfNot(IsJSArrayBuffer(heap_object), fail);
-    return UncheckedCast<JSArrayBuffer>(heap_object);
+  TNode<Uint16T> Uint16Constant(uint16_t t) {
+    return UncheckedCast<Uint16T>(Int32Constant(t));
   }
 
   TNode<JSArray> TaggedToFastJSArray(TNode<Context> context,
@@ -2178,15 +2175,19 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
     return UncheckedCast<FixedDoubleArray>(base);
   }
 
-  TNode<SloppyArgumentsElements> HeapObjectToSloppyArgumentsElements(
-      TNode<HeapObject> base, Label* cast_fail) {
-    GotoIf(TaggedNotEqual(LoadMap(base), SloppyArgumentsElementsMapConstant()),
-           cast_fail);
-    return UncheckedCast<SloppyArgumentsElements>(base);
-  }
-
   TNode<Int32T> ConvertElementsKindToInt(TNode<Int32T> elements_kind) {
     return UncheckedCast<Int32T>(elements_kind);
+  }
+
+  template <typename T>
+  bool ClassHasMapConstant() {
+    return false;
+  }
+
+  template <typename T>
+  TNode<Map> GetClassMapConstant() {
+    UNREACHABLE();
+    return TNode<Map>();
   }
 
   enum class ExtractFixedArrayFlag {
@@ -2525,7 +2526,6 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
   TNode<BoolT> InstanceTypeEqual(SloppyTNode<Int32T> instance_type, int type);
   TNode<BoolT> IsAccessorInfo(SloppyTNode<HeapObject> object);
   TNode<BoolT> IsAccessorPair(SloppyTNode<HeapObject> object);
-  TNode<BoolT> IsAllocationSite(SloppyTNode<HeapObject> object);
   TNode<BoolT> IsNoElementsProtectorCellInvalid();
   TNode<BoolT> IsArrayIteratorProtectorCellInvalid();
   TNode<BoolT> IsBigIntInstanceType(SloppyTNode<Int32T> instance_type);
@@ -2573,7 +2573,6 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
   TNode<BoolT> IsJSArrayIterator(SloppyTNode<HeapObject> object);
   TNode<BoolT> IsJSAsyncGeneratorObject(SloppyTNode<HeapObject> object);
   TNode<BoolT> IsJSFunctionInstanceType(SloppyTNode<Int32T> instance_type);
-  TNode<BoolT> IsAllocationSiteInstanceType(SloppyTNode<Int32T> instance_type);
   TNode<BoolT> IsJSFunctionMap(SloppyTNode<Map> map);
   TNode<BoolT> IsJSFunction(SloppyTNode<HeapObject> object);
   TNode<BoolT> IsJSBoundFunction(SloppyTNode<HeapObject> object);
@@ -3720,6 +3719,7 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
   bool ConstexprInt32NotEqual(int32_t a, int32_t b) { return a != b; }
   bool ConstexprInt32GreaterThanEqual(int32_t a, int32_t b) { return a >= b; }
   uint32_t ConstexprUint32Add(uint32_t a, uint32_t b) { return a + b; }
+  int32_t ConstexprUint32Sub(uint32_t a, uint32_t b) { return a - b; }
   int31_t ConstexprInt31Add(int31_t a, int31_t b) {
     int32_t val;
     CHECK(!base::bits::SignedAddOverflow32(a, b, &val));
@@ -4130,6 +4130,19 @@ class PrototypeCheckAssembler : public CodeStubAssembler {
 };
 
 DEFINE_OPERATORS_FOR_FLAGS(CodeStubAssembler::AllocationFlags)
+
+#define CLASS_MAP_CONSTANT_ADAPTER(V, rootIndexName, rootAccessorName,     \
+                                   class_name)                             \
+  template <>                                                              \
+  inline bool CodeStubAssembler::ClassHasMapConstant<class_name>() {       \
+    return true;                                                           \
+  }                                                                        \
+  template <>                                                              \
+  inline TNode<Map> CodeStubAssembler::GetClassMapConstant<class_name>() { \
+    return class_name##MapConstant();                                      \
+  }
+
+UNIQUE_INSTANCE_TYPE_MAP_LIST_GENERATOR(CLASS_MAP_CONSTANT_ADAPTER, _)
 
 }  // namespace internal
 }  // namespace v8

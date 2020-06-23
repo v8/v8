@@ -274,6 +274,31 @@ void CSAGenerator::EmitInstruction(const CallIntrinsicInstruction& instruction,
               << return_type->GetGeneratedTNodeTypeName() << ">";
       }
     }
+  } else if (instruction.intrinsic->ExternalName() == "%GetClassMapConstant") {
+    if (parameter_types.size() != 0) {
+      ReportError("%GetClassMapConstant must not take parameters");
+    }
+    if (instruction.specialization_types.size() != 1) {
+      ReportError(
+          "%GetClassMapConstant must take a single class as specialization "
+          "parameter");
+    }
+    const ClassType* class_type =
+        ClassType::DynamicCast(instruction.specialization_types[0]);
+    if (!class_type) {
+      ReportError("%GetClassMapConstant must take a class type parameter");
+    }
+    // If the class isn't actually used as the parameter to a TNode,
+    // then we can't rely on the class existing in C++ or being of the same
+    // type (e.g. it could be a template), so don't use the template CSA
+    // machinery for accessing the class' map.
+    std::string class_name =
+        class_type->name() != class_type->GetGeneratedTNodeTypeName()
+            ? std::string("void")
+            : class_type->name();
+
+    out() << std::string("CodeStubAssembler(state_).GetClassMapConstant<") +
+                 class_name + ">";
   } else if (instruction.intrinsic->ExternalName() == "%FromConstexpr") {
     if (parameter_types.size() != 1 || !parameter_types[0]->IsConstexpr()) {
       ReportError(

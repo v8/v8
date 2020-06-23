@@ -94,6 +94,10 @@ FromConstexpr<PromiseState, constexpr PromiseState>(c: constexpr PromiseState):
     PromiseState {
   return %RawDownCast<PromiseState>(Int32Constant(c));
 }
+FromConstexpr<InstanceType, constexpr InstanceType>(c: constexpr InstanceType):
+    InstanceType {
+  return %RawDownCast<InstanceType>(Uint16Constant(c));
+}
 
 FromConstexpr<IterationKind, constexpr IterationKind>(
     c: constexpr IterationKind): IterationKind {
