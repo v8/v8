@@ -4772,6 +4772,10 @@ void Heap::ConfigureHeap(const v8::ResourceConstraints& constraints) {
         RoundDown<Page::kPageSize>(initial_semispace_size_);
   }
 
+  if (FLAG_lazy_new_space_shrinking) {
+    initial_semispace_size_ = max_semi_space_size_;
+  }
+
   // Initialize initial_old_space_size_.
   {
     initial_old_generation_size_ = kMaxInitialOldGenerationSize;

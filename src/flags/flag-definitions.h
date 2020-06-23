@@ -830,6 +830,8 @@ DEFINE_INT(stress_sampling_allocation_profiler, 0,
            "Enables sampling allocation profiler with X as a sample interval")
 
 // Garbage collections flags.
+DEFINE_BOOL(lazy_new_space_shrinking, false,
+            "Enables the lazy new space shrinking strategy")
 DEFINE_SIZE_T(min_semi_space_size, 0,
               "min size of a semi-space (in MBytes), the new space consists of "
               "two semi-spaces")
