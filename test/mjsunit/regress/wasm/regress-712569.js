@@ -9,7 +9,9 @@ Object.defineProperty(v11.__proto__, 0, {
   },
   set: function() {
     try {
-      WebAssembly.instantiate();
+      WebAssembly.instantiate().then(
+          () => assertUnreachable(),
+          () => { /* ignore */ });
       v11[0] = 0;
     } catch (e) {
       assertTrue(e instanceof RangeError);

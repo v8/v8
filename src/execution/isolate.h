@@ -733,6 +733,7 @@ class V8_EXPORT_PRIVATE Isolate final : private HiddenFactory {
 
   void SetCaptureStackTraceForUncaughtExceptions(
       bool capture, int frame_limit, StackTrace::StackTraceOptions options);
+  bool get_capture_stack_trace_for_uncaught_exceptions() const;
 
   void SetAbortOnUncaughtExceptionCallback(
       v8::Isolate::AbortOnUncaughtExceptionCallback callback);

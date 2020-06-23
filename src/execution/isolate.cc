@@ -2516,6 +2516,10 @@ void Isolate::SetCaptureStackTraceForUncaughtExceptions(
   stack_trace_for_uncaught_exceptions_options_ = options;
 }
 
+bool Isolate::get_capture_stack_trace_for_uncaught_exceptions() const {
+  return capture_stack_trace_for_uncaught_exceptions_;
+}
+
 void Isolate::SetAbortOnUncaughtExceptionCallback(
     v8::Isolate::AbortOnUncaughtExceptionCallback callback) {
   abort_on_uncaught_exception_callback_ = callback;

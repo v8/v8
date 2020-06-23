@@ -234,6 +234,12 @@ class PerIsolateData {
 
   AsyncHooks* GetAsyncHooks() { return async_hooks_wrapper_; }
 
+  void RemoveUnhandledPromise(Local<Promise> promise);
+  void AddUnhandledPromise(Local<Promise> promise, Local<Message> message,
+                           Local<Value> exception);
+  int HandleUnhandledPromiseRejections();
+  size_t GetUnhandledPromiseCount();
+
  private:
   friend class Shell;
   friend class RealmScope;
@@ -245,6 +251,8 @@ class PerIsolateData {
   Global<Value> realm_shared_;
   std::queue<Global<Function>> set_timeout_callbacks_;
   std::queue<Global<Context>> set_timeout_contexts_;
+  std::vector<std::tuple<Global<Promise>, Global<Message>, Global<Value>>>
+      unhandled_promises_;
   AsyncHooks* async_hooks_wrapper_;
 
   int RealmIndexOrThrow(const v8::FunctionCallbackInfo<v8::Value>& args,
@@ -272,6 +280,7 @@ class ShellOptions {
   bool interactive_shell = false;
   bool test_shell = false;
   bool expected_to_throw = false;
+  bool ignore_unhandled_promises = false;
   bool mock_arraybuffer_allocator = false;
   size_t mock_arraybuffer_allocator_limit = 0;
   bool multi_mapped_mock_allocator = false;
@@ -331,6 +340,8 @@ class Shell : public i::AllStatic {
   static void CollectGarbage(Isolate* isolate);
   static bool EmptyMessageQueues(Isolate* isolate);
   static bool CompleteMessageLoop(Isolate* isolate);
+
+  static bool HandleUnhandledPromiseRejections(Isolate* isolate);
 
   static void PostForegroundTask(Isolate* isolate, std::unique_ptr<Task> task);
   static void PostBlockingBackgroundTask(std::unique_ptr<Task> task);
@@ -472,6 +483,8 @@ class Shell : public i::AllStatic {
   static void Initialize(Isolate* isolate, D8Console* console,
                          bool isOnMainThread = true);
 
+  static void PromiseRejectCallback(v8::PromiseRejectMessage reject_message);
+
  private:
   static Global<Context> evaluation_context_;
   static base::OnceType quit_once_;
@@ -521,6 +534,7 @@ class Shell : public i::AllStatic {
   static base::LazyMutex cached_code_mutex_;
   static std::map<std::string, std::unique_ptr<ScriptCompiler::CachedData>>
       cached_code_map_;
+  static std::atomic<int> unhandled_promise_rejections_;
 };
 
 }  // namespace v8

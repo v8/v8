@@ -12,6 +12,7 @@
 #include <iomanip>
 #include <iterator>
 #include <string>
+#include <tuple>
 #include <unordered_map>
 #include <utility>
 #include <vector>
@@ -464,6 +465,7 @@ std::map<v8::Isolate*, int> Shell::isolate_running_streaming_tasks_;
 base::LazyMutex Shell::cached_code_mutex_;
 std::map<std::string, std::unique_ptr<ScriptCompiler::CachedData>>
     Shell::cached_code_map_;
+std::atomic<int> Shell::unhandled_promise_rejections_{0};
 
 Global<Context> Shell::evaluation_context_;
 ArrayBuffer::Allocator* Shell::array_buffer_allocator;
@@ -665,7 +667,10 @@ bool Shell::ExecuteString(Isolate* isolate, Local<String> source,
       StoreInCodeCache(isolate, source, cached_data);
       delete cached_data;
     }
-    if (process_message_queue && !EmptyMessageQueues(isolate)) success = false;
+    if (process_message_queue) {
+      if (!EmptyMessageQueues(isolate)) success = false;
+      if (!HandleUnhandledPromiseRejections(isolate)) success = false;
+    }
     data->realm_current_ = data->realm_switch_;
   }
   Local<Value> result;
@@ -1159,6 +1164,45 @@ MaybeLocal<Context> PerIsolateData::GetTimeoutContext() {
   Local<Context> result = set_timeout_contexts_.front().Get(isolate_);
   set_timeout_contexts_.pop();
   return result;
+}
+
+void PerIsolateData::RemoveUnhandledPromise(Local<Promise> promise) {
+  // Remove handled promises from the list
+  DCHECK_EQ(promise->GetIsolate(), isolate_);
+  for (auto it = unhandled_promises_.begin(); it != unhandled_promises_.end();
+       ++it) {
+    v8::Local<v8::Promise> unhandled_promise = std::get<0>(*it).Get(isolate_);
+    if (unhandled_promise == promise) {
+      unhandled_promises_.erase(it--);
+    }
+  }
+}
+
+void PerIsolateData::AddUnhandledPromise(Local<Promise> promise,
+                                         Local<Message> message,
+                                         Local<Value> exception) {
+  DCHECK_EQ(promise->GetIsolate(), isolate_);
+  unhandled_promises_.push_back(
+      std::make_tuple(v8::Global<v8::Promise>(isolate_, promise),
+                      v8::Global<v8::Message>(isolate_, message),
+                      v8::Global<v8::Value>(isolate_, exception)));
+}
+
+size_t PerIsolateData::GetUnhandledPromiseCount() {
+  return unhandled_promises_.size();
+}
+
+int PerIsolateData::HandleUnhandledPromiseRejections() {
+  int unhandled_promises_count = 0;
+  v8::HandleScope scope(isolate_);
+  for (auto& tuple : unhandled_promises_) {
+    Local<v8::Message> message = std::get<1>(tuple).Get(isolate_);
+    Local<v8::Value> value = std::get<2>(tuple).Get(isolate_);
+    Shell::ReportException(isolate_, message, value);
+    unhandled_promises_count++;
+  }
+  unhandled_promises_.clear();
+  return unhandled_promises_count;
 }
 
 PerIsolateData::RealmScope::RealmScope(PerIsolateData* data) : data_(data) {
@@ -2159,8 +2203,50 @@ static void PrintMessageCallback(Local<Message> message, Local<Value> error) {
   printf("%s:%i: %s\n", filename_string, linenum, msg_string);
 }
 
+void Shell::PromiseRejectCallback(v8::PromiseRejectMessage data) {
+  if (options.ignore_unhandled_promises) return;
+  if (data.GetEvent() == v8::kPromiseRejectAfterResolved ||
+      data.GetEvent() == v8::kPromiseResolveAfterResolved) {
+    // Ignore reject/resolve after resolved.
+    return;
+  }
+  v8::Local<v8::Promise> promise = data.GetPromise();
+  v8::Isolate* isolate = promise->GetIsolate();
+  PerIsolateData* isolate_data = PerIsolateData::Get(isolate);
+
+  if (data.GetEvent() == v8::kPromiseHandlerAddedAfterReject) {
+    isolate_data->RemoveUnhandledPromise(promise);
+    return;
+  }
+
+  i::Isolate* i_isolate = reinterpret_cast<i::Isolate*>(isolate);
+  bool capture_exceptions =
+      i_isolate->get_capture_stack_trace_for_uncaught_exceptions();
+  isolate->SetCaptureStackTraceForUncaughtExceptions(true);
+  v8::Local<Value> exception = data.GetValue();
+  v8::Local<Message> message;
+  // Assume that all objects are stack-traces.
+  if (exception->IsObject()) {
+    message = v8::Exception::CreateMessage(isolate, exception);
+  }
+  if (!exception->IsNativeError() &&
+      (message.IsEmpty() || message->GetStackTrace().IsEmpty())) {
+    // If there is no real Error object, manually throw and catch a stack trace.
+    v8::TryCatch try_catch(isolate);
+    try_catch.SetVerbose(true);
+    isolate->ThrowException(v8::Exception::Error(
+        v8::String::NewFromUtf8Literal(isolate, "Unhandled Promise.")));
+    message = try_catch.Message();
+    exception = try_catch.Exception();
+  }
+  isolate->SetCaptureStackTraceForUncaughtExceptions(capture_exceptions);
+
+  isolate_data->AddUnhandledPromise(promise, message, exception);
+}
+
 void Shell::Initialize(Isolate* isolate, D8Console* console,
                        bool isOnMainThread) {
+  isolate->SetPromiseRejectCallback(PromiseRejectCallback);
   if (isOnMainThread) {
     // Set up counters
     if (i::FLAG_map_counters[0] != '\0') {
@@ -2968,9 +3054,7 @@ void Worker::ExecuteInThread() {
               in_semaphore_.Wait();
               std::unique_ptr<SerializationData> data;
               if (!in_queue_.Dequeue(&data)) continue;
-              if (!data) {
-                break;
-              }
+              if (!data) break;
               v8::TryCatch try_catch(isolate);
               try_catch.SetVerbose(true);
               HandleScope scope(isolate);
@@ -2983,6 +3067,7 @@ void Worker::ExecuteInThread() {
                 USE(result);
               }
             }
+            // TODO(cbruni): Check for unhandled promises here.
           }
         }
       }
@@ -3083,6 +3168,9 @@ bool Shell::SetOptions(int argc, char* argv[]) {
       // Ignore any -f flags for compatibility with other stand-alone
       // JavaScript engines.
       continue;
+    } else if (strcmp(argv[i], "--ignore-unhandled-promises") == 0) {
+      options.ignore_unhandled_promises = true;
+      argv[i] = nullptr;
     } else if (strcmp(argv[i], "--isolate") == 0) {
       options.num_isolates++;
     } else if (strcmp(argv[i], "--throws") == 0) {
@@ -3240,6 +3328,7 @@ int Shell::RunMain(Isolate* isolate, bool last_run) {
       PerIsolateData::RealmScope realm_scope(PerIsolateData::Get(isolate));
       if (!options.isolate_sources[0].Execute(isolate)) success = false;
       if (!CompleteMessageLoop(isolate)) success = false;
+      if (!HandleUnhandledPromiseRejections(isolate)) success = false;
     }
     if (!use_existing_context) {
       DisposeModuleEmbedderData(context);
@@ -3267,6 +3356,11 @@ int Shell::RunMain(Isolate* isolate, bool last_run) {
     }
   }
   WaitForRunningWorkers();
+  if (Shell::unhandled_promise_rejections_.load() > 0) {
+    printf("%i pending unhandled Promise rejection(s) detected.\n",
+           Shell::unhandled_promise_rejections_.load());
+    success = false;
+  }
   // In order to finish successfully, success must be != expected_to_throw.
   return success == Shell::options.expected_to_throw ? 1 : 0;
 }
@@ -3387,6 +3481,15 @@ void Shell::PostForegroundTask(Isolate* isolate, std::unique_ptr<Task> task) {
 
 void Shell::PostBlockingBackgroundTask(std::unique_ptr<Task> task) {
   g_default_platform->CallBlockingTaskOnWorkerThread(std::move(task));
+}
+
+bool Shell::HandleUnhandledPromiseRejections(Isolate* isolate) {
+  if (options.ignore_unhandled_promises) return true;
+  PerIsolateData* data = PerIsolateData::Get(isolate);
+  int count = data->HandleUnhandledPromiseRejections();
+  Shell::unhandled_promise_rejections_.store(
+      Shell::unhandled_promise_rejections_.load() + count);
+  return count == 0;
 }
 
 class Serializer : public ValueSerializer::Delegate {
