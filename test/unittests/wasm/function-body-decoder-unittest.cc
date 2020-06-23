@@ -2976,6 +2976,15 @@ TEST_F(FunctionBodyDecoderTest, IfParam) {
                    WASM_I32_ADD(WASM_NOP, WASM_NOP)});
 }
 
+TEST_F(FunctionBodyDecoderTest, RefIsNull) {
+  WASM_FEATURE_SCOPE(reftypes);
+  ExpectValidates(sigs.i_i(),
+                  {WASM_REF_IS_NULL(WASM_REF_NULL(kLocalExternRef))});
+  ExpectFailure(
+      sigs.i_i(), {WASM_REF_IS_NULL(WASM_GET_LOCAL(0))}, kAppendEnd,
+      "invalid argument type to ref.is_null. Expected reference type, got i32");
+}
+
 TEST_F(FunctionBodyDecoderTest, Regression709741) {
   AddLocals(kWasmI32, kV8MaxWasmFunctionLocals - 1);
   ExpectValidates(sigs.v_v(), {WASM_NOP});

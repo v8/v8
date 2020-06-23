@@ -177,7 +177,7 @@ load("test/mjsunit/wasm/wasm-module-builder.js");
   print(arguments.callee.name);
   const builder = new WasmModuleBuilder();
   builder.addFunction('main', kSig_i_r)
-      .addBody([kExprLocalGet, 0, kExprRefIsNull, kWasmExternRef])
+      .addBody([kExprLocalGet, 0, kExprRefIsNull])
       .exportFunc();
 
   const instance = builder.instantiate();
@@ -196,10 +196,7 @@ load("test/mjsunit/wasm/wasm-module-builder.js");
 
   const builder = new WasmModuleBuilder();
   builder.addFunction('main', kSig_i_v)
-      .addBody([
-        kExprRefNull, kWasmExternRef,   // --
-        kExprRefIsNull, kWasmExternRef  // --
-      ])
+      .addBody([kExprRefNull, kWasmExternRef, kExprRefIsNull])
       .exportFunc();
 
   const instance = builder.instantiate();

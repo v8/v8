@@ -14,7 +14,7 @@ function create_builder(i) {
   const builder = new WasmModuleBuilder();
   builder.addFunction('main', kSig_i_r)
       .addBody([
-        kExprLocalGet, 0, kExprRefIsNull, kWasmExternRef, ...wasmI32Const(i),
+        kExprLocalGet, 0, kExprRefIsNull, ...wasmI32Const(i),
         kExprI32Add
       ])
       .exportFunc();

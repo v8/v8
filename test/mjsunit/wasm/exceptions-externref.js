@@ -43,7 +43,7 @@ load("test/mjsunit/wasm/exceptions-utils.js");
           kExprBrOnExn, 0, except,
           kExprRethrow,
         kExprEnd,
-        kExprRefIsNull, kWasmExternRef,
+        kExprRefIsNull,
         kExprIf, kWasmI32,
           kExprI32Const, 23,
         kExprElse,

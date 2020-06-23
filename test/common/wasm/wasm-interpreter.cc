@@ -3493,9 +3493,7 @@ class WasmInterpreterInternals {
           SIGN_EXTENSION_CASE(I64SExtendI32, int64_t, int32_t);
 #undef SIGN_EXTENSION_CASE
         case kExprRefIsNull: {
-          RefNullImmediate<Decoder::kNoValidate> imm(WasmFeatures::All(),
-                                                     &decoder, code->at(pc));
-          len = 1 + imm.length;
+          len = 1;
           HandleScope handle_scope(isolate_);  // Avoid leaking handles.
           uint32_t result = Pop().to_externref()->IsNull() ? 1 : 0;
           Push(WasmValue(result));

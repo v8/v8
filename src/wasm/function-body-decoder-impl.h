@@ -1487,8 +1487,7 @@ class WasmDecoder : public Decoder {
         return 1 + imm.length;
       }
       case kExprRefIsNull: {
-        RefNullImmediate<validate> imm(WasmFeatures::All(), decoder, pc);
-        return 1 + imm.length;
+        return 1;
       }
       case kExprRefFunc: {
         FunctionIndexImmediate<validate> imm(decoder, pc);
@@ -2424,12 +2423,22 @@ class WasmFullDecoder : public WasmDecoder<validate> {
       }
       case kExprRefIsNull: {
         CHECK_PROTOTYPE_OPCODE(reftypes);
-        RefNullImmediate<validate> imm(this->enabled_, this, this->pc_);
-        if (!this->Validate(this->pc_, imm)) break;
-        Value value = Pop(0, imm.type);
+        Value value = Pop();
         Value* result = Push(kWasmI32);
-        CALL_INTERFACE_IF_REACHABLE(UnOp, opcode, value, result);
-        len = 1 + imm.length;
+        len = 1;
+        if (value.type.is_nullable()) {
+          CALL_INTERFACE_IF_REACHABLE(UnOp, opcode, value, result);
+          break;
+        }
+        if (value.type.is_reference_type()) {
+          // Due to the check above, we know that the value is not null.
+          CALL_INTERFACE_IF_REACHABLE(I32Const, result, 0);
+          break;
+        }
+        this->errorf(this->pc_,
+                     "invalid argument type to ref.is_null. Expected "
+                     "reference type, got %s",
+                     value.type.type_name().c_str());
         break;
       }
       case kExprRefFunc: {
