@@ -136,4 +136,23 @@ test().then(r => r.bar());                // 0350
  {"start":152,"end":253,"count":1},
  {"start":362,"end":374,"count":1}]);
 
+// Documents the open bug that causes trailing space after `finally`
+// not to be removed by SourceRangeAstVisitor.
+TestCoverage(
+"https://crbug.com/v8/10628",
+`
+async function abc() {                    // 0000
+ try {                                    // 0050
+  return 'abc';                           // 0100
+ } finally {                              // 0150
+  console.log('in finally');              // 0200
+ }                                        // 0250
+}                                         // 0300
+abc();                                    // 0350
+%PerformMicrotaskCheckpoint();            // 0400
+`,
+[{"start":0,"end":449,"count":1},
+ {"start":0,"end":301,"count":1},
+ {"start":252,"end":300,"count":0}]);
+
 %DebugToggleBlockCoverage(false);
