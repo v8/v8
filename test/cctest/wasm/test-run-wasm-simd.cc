@@ -703,14 +703,14 @@ WASM_SIMD_TEST_NO_LOWERING(F32x4Floor) {
   RunF32x4UnOpTest(execution_tier, lower_simd, kExprF32x4Floor, floorf, true);
 }
 
-// TODO(zhin): Temporary convoluted way to exclude running these tests on ARM as
-// we are implementing each opcode one at a time.
-#if !V8_TARGET_ARCH_ARM
 WASM_SIMD_TEST_NO_LOWERING(F32x4Trunc) {
   FLAG_SCOPE(wasm_simd_post_mvp);
   RunF32x4UnOpTest(execution_tier, lower_simd, kExprF32x4Trunc, truncf, true);
 }
 
+// TODO(zhin): Temporary convoluted way to exclude running these tests on ARM as
+// we are implementing each opcode one at a time.
+#if !V8_TARGET_ARCH_ARM
 WASM_SIMD_TEST_NO_LOWERING(F32x4NearestInt) {
   FLAG_SCOPE(wasm_simd_post_mvp);
   RunF32x4UnOpTest(execution_tier, lower_simd, kExprF32x4NearestInt, nearbyintf,

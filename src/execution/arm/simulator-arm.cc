@@ -5375,7 +5375,8 @@ void Simulator::DecodeSpecialCondition(Instruction* instr) {
           } else {
             UNIMPLEMENTED();
           }
-        } else if (instr->Bits(19, 18) == 0x2 && instr->Bits(11, 8) == 0x5) {
+        } else if (instr->Bits(19, 18) == 0x2 && instr->Bits(17, 16) == 0x3 &&
+                   instr->Bits(11, 8) == 0x5) {
           // vrecpe/vrsqrte.f32 Qd, Qm.
           int Vd = instr->VFPDRegValue(kSimd128Precision);
           int Vm = instr->VFPMRegValue(kSimd128Precision);
@@ -5450,6 +5451,9 @@ void Simulator::DecodeSpecialCondition(Instruction* instr) {
           int rounding_mode = instr->Bits(9, 7);
           float (*fproundint)(float) = nullptr;
           switch (rounding_mode) {
+            case 3:
+              fproundint = &truncf;
+              break;
             case 5:
               fproundint = &floorf;
               break;

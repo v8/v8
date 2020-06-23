@@ -1486,7 +1486,12 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
     }
     case kArmVrintzF32: {
       CpuFeatureScope scope(tasm(), ARMv8);
-      __ vrintz(i.OutputFloatRegister(), i.InputFloatRegister(0));
+      if (instr->InputAt(0)->IsSimd128Register()) {
+        __ vrintz(NeonS32, i.OutputSimd128Register(),
+                  i.InputSimd128Register(0));
+      } else {
+        __ vrintz(i.OutputFloatRegister(), i.InputFloatRegister(0));
+      }
       break;
     }
     case kArmVrintzF64: {

@@ -3892,7 +3892,7 @@ void Assembler::vcvt_u32_f32(QwNeonRegister dst, QwNeonRegister src) {
   emit(EncodeNeonVCVT(U32, dst, F32, src));
 }
 
-enum UnaryOp { VMVN, VSWP, VABS, VABSF, VNEG, VNEGF, VRINTM, VRINTP };
+enum UnaryOp { VMVN, VSWP, VABS, VABSF, VNEG, VNEGF, VRINTM, VRINTP, VRINTZ };
 
 static Instr EncodeNeonUnaryOp(UnaryOp op, NeonRegType reg_type, NeonSize size,
                                int dst_code, int src_code) {
@@ -3925,6 +3925,9 @@ static Instr EncodeNeonUnaryOp(UnaryOp op, NeonRegType reg_type, NeonSize size,
       break;
     case VRINTP:
       op_encoding = B17 | 0xF * B7;
+      break;
+    case VRINTZ:
+      op_encoding = B17 | 0xB * B7;
       break;
     default:
       UNREACHABLE();
@@ -4584,7 +4587,7 @@ void Assembler::vpmax(NeonDataType dt, DwVfpRegister dst, DwVfpRegister src1,
 void Assembler::vrintm(NeonDataType dt, const QwNeonRegister dst,
                        const QwNeonRegister src) {
   // SIMD vector round floating-point to integer towards -Infinity.
-  // See ARM DDI 0487F.b, F6-5493
+  // See ARM DDI 0487F.b, F6-5493.
   DCHECK(IsEnabled(ARMv8));
   emit(EncodeNeonUnaryOp(VRINTM, NEON_Q, NeonSize(dt), dst.code(), src.code()));
 }
@@ -4592,9 +4595,17 @@ void Assembler::vrintm(NeonDataType dt, const QwNeonRegister dst,
 void Assembler::vrintp(NeonDataType dt, const QwNeonRegister dst,
                        const QwNeonRegister src) {
   // SIMD vector round floating-point to integer towards +Infinity.
-  // See ARM DDI 0487F.b, F6-5501
+  // See ARM DDI 0487F.b, F6-5501.
   DCHECK(IsEnabled(ARMv8));
   emit(EncodeNeonUnaryOp(VRINTP, NEON_Q, NeonSize(dt), dst.code(), src.code()));
+}
+
+void Assembler::vrintz(NeonDataType dt, const QwNeonRegister dst,
+                       const QwNeonRegister src) {
+  // SIMD vector round floating-point to integer towards Zero.
+  // See ARM DDI 0487F.b, F6-5511.
+  DCHECK(IsEnabled(ARMv8));
+  emit(EncodeNeonUnaryOp(VRINTZ, NEON_Q, NeonSize(dt), dst.code(), src.code()));
 }
 
 void Assembler::vtst(NeonSize size, QwNeonRegister dst, QwNeonRegister src1,

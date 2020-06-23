@@ -914,6 +914,8 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase {
               const QwNeonRegister src);
   void vrintp(NeonDataType dt, const QwNeonRegister dst,
               const QwNeonRegister src);
+  void vrintz(NeonDataType dt, const QwNeonRegister dst,
+              const QwNeonRegister src);
 
   void vshl(NeonDataType dt, QwNeonRegister dst, QwNeonRegister src, int shift);
   void vshl(NeonDataType dt, QwNeonRegister dst, QwNeonRegister src,

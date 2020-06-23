@@ -2275,10 +2275,17 @@ void Decoder::DecodeSpecialCondition(Instruction* instr) {
               SNPrintF(out_buffer_ + out_buffer_pos_, "%s.%c%i d%d, q%d", name,
                        type, size, Vd, Vm);
         } else if (instr->Bits(17, 16) == 0x2 && instr->Bit(10) == 1) {
-          // NEON vrintm, vrintp
+          // NEON vrintm, vrintp, vrintz
           bool dp_op = instr->Bit(6) == 0;
           int rounding_mode = instr->Bits(9, 7);
           switch (rounding_mode) {
+            case 3:
+              if (dp_op) {
+                Format(instr, "vrintz.f32 'Dd, 'Dm");
+              } else {
+                Format(instr, "vrintz.f32 'Qd, 'Qm");
+              }
+              break;
             case 5:
               if (dp_op) {
                 Format(instr, "vrintm.f32 'Dd, 'Dm");
