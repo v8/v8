@@ -28,6 +28,7 @@ ReadOnlySpace::ReadOnlySpace(Heap* heap)
       top_(kNullAddress),
       limit_(kNullAddress),
       is_string_padding_cleared_(heap->isolate()->initialized_from_snapshot()),
+      capacity_(0),
       area_size_(MemoryChunkLayout::AllocatableMemoryInMemoryChunk(RO_SPACE)) {}
 
 ReadOnlySpace::~ReadOnlySpace() {
@@ -362,6 +363,7 @@ void ReadOnlySpace::EnsureSpaceForAllocation(int size_in_bytes) {
 
   BasicMemoryChunk* chunk =
       heap()->memory_allocator()->AllocateReadOnlyPage(AreaSize(), this);
+  capacity_ += AreaSize();
 
   accounting_stats_.IncreaseCapacity(chunk->area_size());
   AccountCommitted(chunk->size());
@@ -491,7 +493,6 @@ size_t ReadOnlyPage::ShrinkToHighWaterMark() {
 }
 
 void ReadOnlySpace::ShrinkPages() {
-  DCHECK(!heap()->deserialization_complete());
   BasicMemoryChunk::UpdateHighWaterMark(top_);
   heap()->CreateFillerObjectAt(top_, static_cast<int>(limit_ - top_),
                                ClearRecordedSlots::kNo);
@@ -499,6 +500,7 @@ void ReadOnlySpace::ShrinkPages() {
   for (ReadOnlyPage* chunk : pages_) {
     DCHECK(chunk->IsFlagSet(Page::NEVER_EVACUATE));
     size_t unused = chunk->ShrinkToHighWaterMark();
+    capacity_ -= unused;
     accounting_stats_.DecreaseCapacity(static_cast<intptr_t>(unused));
     AccountUncommitted(unused);
   }

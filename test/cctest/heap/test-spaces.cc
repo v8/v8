@@ -29,7 +29,9 @@
 
 #include "include/v8-platform.h"
 #include "src/base/bounded-page-allocator.h"
+#include "src/base/macros.h"
 #include "src/base/platform/platform.h"
+#include "src/common/globals.h"
 #include "src/heap/factory.h"
 #include "src/heap/large-spaces.h"
 #include "src/heap/memory-allocator.h"
@@ -771,7 +773,6 @@ class FailingPageAllocator : public v8::PageAllocator {
     return false;
   }
 };
-
 }  // namespace
 
 TEST(NoMemoryForNewPage) {
@@ -789,6 +790,92 @@ TEST(NoMemoryForNewPage) {
       NOT_EXECUTABLE);
 
   CHECK_NULL(page);
+}
+
+TEST(ReadOnlySpaceMetrics_OnePage) {
+  Isolate* isolate = CcTest::i_isolate();
+  Heap* heap = isolate->heap();
+
+  // Create a read-only space and allocate some memory, shrink the pages and
+  // check the allocated object size is as expected.
+
+  ReadOnlySpace faked_space(heap);
+
+  // Initially no memory.
+  CHECK_EQ(faked_space.Size(), 0);
+  CHECK_EQ(faked_space.Capacity(), 0);
+  CHECK_EQ(faked_space.CommittedMemory(), 0);
+  CHECK_EQ(faked_space.CommittedPhysicalMemory(), 0);
+
+  faked_space.AllocateRaw(16, kWordAligned);
+
+  faked_space.ShrinkPages();
+  faked_space.Seal(ReadOnlySpace::SealMode::kDoNotDetachFromHeap);
+
+  MemoryAllocator* allocator = heap->memory_allocator();
+
+  // Allocated objects size.
+  CHECK_EQ(faked_space.Size(), 16);
+
+  // Capacity will be one OS page minus the page header.
+  CHECK_EQ(faked_space.Capacity(),
+           allocator->GetCommitPageSize() -
+               MemoryChunkLayout::ObjectStartOffsetInDataPage());
+
+  // Amount of OS allocated memory.
+  CHECK_EQ(faked_space.CommittedMemory(), allocator->GetCommitPageSize());
+  CHECK_EQ(faked_space.CommittedPhysicalMemory(),
+           allocator->GetCommitPageSize());
+}
+
+TEST(ReadOnlySpaceMetrics_TwoPages) {
+  Isolate* isolate = CcTest::i_isolate();
+  Heap* heap = isolate->heap();
+
+  // Create a read-only space and allocate some memory, shrink the pages and
+  // check the allocated object size is as expected.
+
+  ReadOnlySpace faked_space(heap);
+
+  // Initially no memory.
+  CHECK_EQ(faked_space.Size(), 0);
+  CHECK_EQ(faked_space.Capacity(), 0);
+  CHECK_EQ(faked_space.CommittedMemory(), 0);
+  CHECK_EQ(faked_space.CommittedPhysicalMemory(), 0);
+
+  MemoryAllocator* allocator = heap->memory_allocator();
+
+  // Allocate an object that's too big to have more than one on a page.
+  size_t object_size =
+      MemoryChunkLayout::AllocatableMemoryInMemoryChunk(RO_SPACE) / 2 + 16;
+  CHECK_GT(object_size * 2,
+           MemoryChunkLayout::AllocatableMemoryInMemoryChunk(RO_SPACE));
+  faked_space.AllocateRaw(object_size, kWordAligned);
+
+  // Then allocate another so it expands the space to two pages.
+  faked_space.AllocateRaw(object_size, kWordAligned);
+
+  faked_space.ShrinkPages();
+  faked_space.Seal(ReadOnlySpace::SealMode::kDoNotDetachFromHeap);
+
+  // Allocated objects size.
+  CHECK_EQ(faked_space.Size(), object_size * 2);
+
+  // Amount of OS allocated memory.
+  size_t committed_memory_per_page =
+      RoundUp(MemoryChunkLayout::ObjectStartOffsetInDataPage() + object_size,
+              allocator->GetCommitPageSize());
+  CHECK_EQ(faked_space.CommittedMemory(), 2 * committed_memory_per_page);
+  CHECK_EQ(faked_space.CommittedPhysicalMemory(),
+           2 * committed_memory_per_page);
+
+  // Capacity will be the space up to the amount of committed memory minus the
+  // page headers.
+  size_t capacity_per_page =
+      RoundUp(MemoryChunkLayout::ObjectStartOffsetInDataPage() + object_size,
+              allocator->GetCommitPageSize()) -
+      MemoryChunkLayout::ObjectStartOffsetInDataPage();
+  CHECK_EQ(faked_space.Capacity(), 2 * capacity_per_page);
 }
 
 }  // namespace heap

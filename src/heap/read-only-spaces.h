@@ -72,14 +72,14 @@ class ReadOnlyArtifacts {
 // Read Only space for all Immortal Immovable and Immutable objects
 class ReadOnlySpace : public BaseSpace {
  public:
-  explicit ReadOnlySpace(Heap* heap);
+  V8_EXPORT_PRIVATE explicit ReadOnlySpace(Heap* heap);
 
   // Detach the pages and them to artifacts for using in creating a
   // SharedReadOnlySpace.
   void DetachPagesAndAddToArtifacts(
       std::shared_ptr<ReadOnlyArtifacts> artifacts);
 
-  ~ReadOnlySpace() override;
+  V8_EXPORT_PRIVATE ~ReadOnlySpace() override;
 
   bool IsDetached() const { return heap_ == nullptr; }
 
@@ -99,14 +99,14 @@ class ReadOnlySpace : public BaseSpace {
   // Seal the space by marking it read-only, optionally detaching it
   // from the heap and forgetting it for memory bookkeeping purposes (e.g.
   // prevent space's memory from registering as leaked).
-  void Seal(SealMode ro_mode);
+  V8_EXPORT_PRIVATE void Seal(SealMode ro_mode);
 
   // During boot the free_space_map is created, and afterwards we may need
   // to write it into the free space nodes that were already created.
   void RepairFreeSpacesAfterDeserialization();
 
-  size_t Size() override { return area_size_; }
-  size_t CommittedPhysicalMemory() override;
+  size_t Size() override { return accounting_stats_.Size(); }
+  V8_EXPORT_PRIVATE size_t CommittedPhysicalMemory() override;
 
   const std::vector<ReadOnlyPage*>& pages() const { return pages_; }
   Address top() const { return top_; }
@@ -114,7 +114,7 @@ class ReadOnlySpace : public BaseSpace {
   size_t Capacity() const { return capacity_; }
 
   bool ContainsSlow(Address addr);
-  void ShrinkPages();
+  V8_EXPORT_PRIVATE void ShrinkPages();
 #ifdef VERIFY_HEAP
   void Verify(Isolate* isolate);
 #ifdef DEBUG
@@ -164,7 +164,7 @@ class ReadOnlySpace : public BaseSpace {
   bool is_string_padding_cleared_;
 
   size_t capacity_;
-  size_t area_size_;
+  const size_t area_size_;
 };
 
 class SharedReadOnlySpace : public ReadOnlySpace {

@@ -62,8 +62,6 @@ class V8_EXPORT_PRIVATE BaseSpace : public Malloced {
   BaseSpace(Heap* heap, AllocationSpace id)
       : heap_(heap), id_(id), committed_(0), max_committed_(0) {}
 
-  // Even though this has no virtual functions, this ensures that pointers are
-  // stable through casting.
   virtual ~BaseSpace() = default;
 
  protected:
