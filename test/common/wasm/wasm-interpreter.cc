@@ -3735,28 +3735,6 @@ class WasmInterpreterInternals {
 #endif  // DEBUG
   }
 
-  static WasmCode* GetTargetCode(Isolate* isolate, Address target) {
-    WasmCodeManager* code_manager = isolate->wasm_engine()->code_manager();
-    NativeModule* native_module = code_manager->LookupNativeModule(target);
-    WasmCode* code = native_module->Lookup(target);
-    if (code->kind() == WasmCode::kJumpTable) {
-      uint32_t func_index =
-          native_module->GetFunctionIndexFromJumpTableSlot(target);
-
-      if (!native_module->HasCode(func_index)) {
-        bool success = CompileLazy(isolate, native_module, func_index);
-        if (!success) {
-          DCHECK(isolate->has_pending_exception());
-          return nullptr;
-        }
-      }
-
-      return native_module->GetCode(func_index);
-    }
-    DCHECK_EQ(code->instruction_start(), target);
-    return code;
-  }
-
   CallResult CallIndirectFunction(uint32_t table_index, uint32_t entry_index,
                                   uint32_t sig_index) {
     HandleScope handle_scope(isolate_);  // Avoid leaking handles.
@@ -3778,15 +3756,20 @@ class WasmInterpreterInternals {
     }
 
     Handle<Object> object_ref = handle(entry.object_ref(), isolate_);
-    WasmCode* code = GetTargetCode(isolate_, entry.target());
-    CHECK_NOT_NULL(code);
-
     // Check that this is an internal call (within the same instance).
     CHECK(object_ref->IsWasmInstanceObject() &&
           instance_object_.is_identical_to(object_ref));
 
-    DCHECK_EQ(WasmCode::kFunction, code->kind());
-    return {CallResult::INTERNAL, codemap_.GetCode(code->index())};
+    NativeModule* native_module =
+        instance_object_->module_object().native_module();
+    DCHECK_EQ(native_module,
+              native_module->Lookup(entry.target())->native_module());
+    DCHECK_EQ(WasmCode::kJumpTable,
+              native_module->Lookup(entry.target())->kind());
+    uint32_t func_index =
+        native_module->GetFunctionIndexFromJumpTableSlot(entry.target());
+
+    return {CallResult::INTERNAL, codemap_.GetCode(func_index)};
   }
 
   // Create a copy of the module bytes for the interpreter, since the passed
