@@ -127,7 +127,7 @@ void AsyncFromSyncBuiltinsAssembler::Generate_AsyncFromSyncIteratorMethod(
   if (if_method_undefined) {
     Label if_isnotundefined(this);
 
-    GotoIfNot(IsUndefined(method), &if_isnotundefined);
+    GotoIfNot(IsNullOrUndefined(method), &if_isnotundefined);
     if_method_undefined(native_context, promise, &reject_promise);
 
     BIND(&if_isnotundefined);

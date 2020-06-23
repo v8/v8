@@ -536,10 +536,6 @@
   # https://bugs.chromium.org/p/v8/issues/detail?id=10383
   'built-ins/RegExp/prototype/Symbol.replace/fn-invoke-args-empty-result': [FAIL],
 
-  # https://bugs.chromium.org/p/v8/issues/detail?id=10395
-  'built-ins/AsyncFromSyncIteratorPrototype/return/return-null': [FAIL],
-  'built-ins/AsyncFromSyncIteratorPrototype/throw/throw-null': [FAIL],
-
   # http://crbug/v8/10449
   'built-ins/Atomics/waitAsync/bad-range': [FAIL],
   'built-ins/Atomics/waitAsync/bigint/bad-range': [FAIL],
