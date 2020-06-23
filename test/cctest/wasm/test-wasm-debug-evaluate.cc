@@ -23,7 +23,6 @@
 #include "src/wasm/wasm-constants.h"
 #include "src/wasm/wasm-debug-evaluate.h"
 #include "src/wasm/wasm-debug.h"
-#include "src/wasm/wasm-interpreter.h"
 #include "src/wasm/wasm-module-builder.h"
 #include "src/wasm/wasm-module.h"
 #include "src/wasm/wasm-objects-inl.h"

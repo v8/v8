@@ -3197,8 +3197,6 @@ v8_source_set("v8_base_without_compiler") {
     "src/wasm/wasm-features.h",
     "src/wasm/wasm-import-wrapper-cache.cc",
     "src/wasm/wasm-import-wrapper-cache.h",
-    "src/wasm/wasm-interpreter.cc",
-    "src/wasm/wasm-interpreter.h",
     "src/wasm/wasm-js.cc",
     "src/wasm/wasm-js.h",
     "src/wasm/wasm-limits.h",
@@ -4862,8 +4860,10 @@ v8_source_set("regexp_fuzzer") {
 v8_fuzzer("regexp_fuzzer") {
 }
 
-v8_source_set("wasm_module_runner") {
+v8_source_set("wasm_test_common") {
   sources = [
+    "test/common/wasm/wasm-interpreter.cc",
+    "test/common/wasm/wasm-interpreter.h",
     "test/common/wasm/wasm-module-runner.cc",
     "test/common/wasm/wasm-module-runner.h",
   ]
@@ -4888,7 +4888,7 @@ v8_source_set("wasm_fuzzer") {
   deps = [
     ":fuzzer_support",
     ":lib_wasm_fuzzer_common",
-    ":wasm_module_runner",
+    ":wasm_test_common",
   ]
 
   configs = [
@@ -4906,7 +4906,7 @@ v8_source_set("wasm_async_fuzzer") {
   deps = [
     ":fuzzer_support",
     ":lib_wasm_fuzzer_common",
-    ":wasm_module_runner",
+    ":wasm_test_common",
   ]
 
   configs = [
@@ -4927,7 +4927,7 @@ v8_source_set("wasm_code_fuzzer") {
   deps = [
     ":fuzzer_support",
     ":lib_wasm_fuzzer_common",
-    ":wasm_module_runner",
+    ":wasm_test_common",
   ]
 
   configs = [
@@ -4968,7 +4968,7 @@ v8_source_set("wasm_compile_fuzzer") {
   deps = [
     ":fuzzer_support",
     ":lib_wasm_fuzzer_common",
-    ":wasm_module_runner",
+    ":wasm_test_common",
   ]
 
   configs = [

@@ -42,7 +42,7 @@ struct ControlTransferEntry {
 using ControlTransferMap = ZoneMap<pc_t, ControlTransferEntry>;
 
 // An interpreter capable of executing WebAssembly.
-class V8_EXPORT_PRIVATE WasmInterpreter {
+class WasmInterpreter {
  public:
   // State machine for the interpreter:
   //    +----------------------------------------------------------+

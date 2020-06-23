@@ -11,11 +11,11 @@
 #include "src/objects/property-descriptor.h"
 #include "src/wasm/module-decoder.h"
 #include "src/wasm/wasm-engine.h"
-#include "src/wasm/wasm-interpreter.h"
 #include "src/wasm/wasm-js.h"
 #include "src/wasm/wasm-module.h"
 #include "src/wasm/wasm-objects.h"
 #include "src/wasm/wasm-result.h"
+#include "test/common/wasm/wasm-interpreter.h"
 
 namespace v8 {
 namespace internal {

@@ -66,7 +66,7 @@ class Managed;
 // - object = target instance, if a Wasm function, tuple if imported
 // - sig_id = signature id of function
 // - target = entrypoint to Wasm code or import wrapper code
-class IndirectFunctionTableEntry {
+class V8_EXPORT_PRIVATE IndirectFunctionTableEntry {
  public:
   inline IndirectFunctionTableEntry(Handle<WasmInstanceObject>, int table_index,
                                     int entry_index);
@@ -75,9 +75,8 @@ class IndirectFunctionTableEntry {
                                     int entry_index);
 
   void clear();
-  V8_EXPORT_PRIVATE void Set(int sig_id,
-                             Handle<WasmInstanceObject> target_instance,
-                             int target_func_index);
+  void Set(int sig_id, Handle<WasmInstanceObject> target_instance,
+           int target_func_index);
   void Set(int sig_id, Address call_target, Object ref);
 
   Object object_ref() const;
@@ -366,7 +365,7 @@ class WasmGlobalObject : public JSObject {
 };
 
 // Representation of a WebAssembly.Instance JavaScript-level object.
-class WasmInstanceObject : public JSObject {
+class V8_EXPORT_PRIVATE WasmInstanceObject : public JSObject {
  public:
   DECL_CAST(WasmInstanceObject)
 
@@ -483,16 +482,15 @@ class WasmInstanceObject : public JSObject {
       kWasmExternalFunctionsOffset,
       kManagedObjectMapsOffset};
 
-  V8_EXPORT_PRIVATE const wasm::WasmModule* module();
+  const wasm::WasmModule* module();
 
-  V8_EXPORT_PRIVATE static bool EnsureIndirectFunctionTableWithMinimumSize(
+  static bool EnsureIndirectFunctionTableWithMinimumSize(
       Handle<WasmInstanceObject> instance, int table_index,
       uint32_t minimum_size);
 
-  V8_EXPORT_PRIVATE void SetRawMemory(byte* mem_start, size_t mem_size);
+  void SetRawMemory(byte* mem_start, size_t mem_size);
 
-  V8_EXPORT_PRIVATE static Handle<WasmInstanceObject> New(
-      Isolate*, Handle<WasmModuleObject>);
+  static Handle<WasmInstanceObject> New(Isolate*, Handle<WasmModuleObject>);
 
   Address GetCallTarget(uint32_t func_index);
 
@@ -526,10 +524,9 @@ class WasmInstanceObject : public JSObject {
   // cache of the given {instance}, or creates a new {WasmExportedFunction} if
   // it does not exist yet. The new {WasmExportedFunction} is added to the
   // cache of the {instance} immediately.
-  V8_EXPORT_PRIVATE static Handle<WasmExternalFunction>
-  GetOrCreateWasmExternalFunction(Isolate* isolate,
-                                  Handle<WasmInstanceObject> instance,
-                                  int function_index);
+  static Handle<WasmExternalFunction> GetOrCreateWasmExternalFunction(
+      Isolate* isolate, Handle<WasmInstanceObject> instance,
+      int function_index);
 
   static void SetWasmExternalFunction(Isolate* isolate,
                                       Handle<WasmInstanceObject> instance,
@@ -614,7 +611,7 @@ class WasmExceptionObject : public JSObject {
 };
 
 // A Wasm exception that has been thrown out of Wasm code.
-class WasmExceptionPackage : public JSReceiver {
+class V8_EXPORT_PRIVATE WasmExceptionPackage : public JSReceiver {
  public:
   static Handle<WasmExceptionPackage> New(
       Isolate* isolate, Handle<WasmExceptionTag> exception_tag,

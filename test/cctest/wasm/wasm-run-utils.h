@@ -9,6 +9,7 @@
 #include <stdint.h>
 #include <stdlib.h>
 #include <string.h>
+
 #include <array>
 #include <memory>
 
@@ -27,7 +28,6 @@
 #include "src/wasm/local-decl-encoder.h"
 #include "src/wasm/wasm-code-manager.h"
 #include "src/wasm/wasm-external-refs.h"
-#include "src/wasm/wasm-interpreter.h"
 #include "src/wasm/wasm-js.h"
 #include "src/wasm/wasm-module.h"
 #include "src/wasm/wasm-objects-inl.h"
@@ -36,12 +36,12 @@
 #include "src/wasm/wasm-tier.h"
 #include "src/zone/accounting-allocator.h"
 #include "src/zone/zone.h"
-
 #include "test/cctest/cctest.h"
 #include "test/cctest/compiler/call-tester.h"
 #include "test/cctest/compiler/graph-and-builders.h"
 #include "test/cctest/compiler/value-helper.h"
 #include "test/common/wasm/flag-utils.h"
+#include "test/common/wasm/wasm-interpreter.h"
 
 namespace v8 {
 namespace internal {

@@ -2,10 +2,10 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#include "test/common/wasm/wasm-interpreter.h"
+
 #include <atomic>
 #include <type_traits>
-
-#include "src/wasm/wasm-interpreter.h"
 
 #include "src/base/overflowing-math.h"
 #include "src/codegen/assembler-inl.h"
