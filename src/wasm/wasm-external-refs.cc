@@ -500,13 +500,13 @@ int32_t memory_init_wrapper(Address data) {
   uint32_t dst = ReadAndIncrementOffset<uint32_t>(data, &offset);
   uint32_t src = ReadAndIncrementOffset<uint32_t>(data, &offset);
   uint32_t seg_index = ReadAndIncrementOffset<uint32_t>(data, &offset);
-  size_t size = ReadAndIncrementOffset<uint32_t>(data, &offset);
+  uint32_t size = ReadAndIncrementOffset<uint32_t>(data, &offset);
 
-  size_t mem_size = instance.memory_size();
-  if (!base::IsInBounds(dst, size, mem_size)) return kOutOfBounds;
+  uint64_t mem_size = instance.memory_size();
+  if (!base::IsInBounds<uint64_t>(dst, size, mem_size)) return kOutOfBounds;
 
-  size_t seg_size = instance.data_segment_sizes()[seg_index];
-  if (!base::IsInBounds(src, size, seg_size)) return kOutOfBounds;
+  uint32_t seg_size = instance.data_segment_sizes()[seg_index];
+  if (!base::IsInBounds<uint32_t>(src, size, seg_size)) return kOutOfBounds;
 
   byte* seg_start =
       reinterpret_cast<byte*>(instance.data_segment_starts()[seg_index]);
@@ -525,11 +525,11 @@ int32_t memory_copy_wrapper(Address data) {
   WasmInstanceObject instance = WasmInstanceObject::cast(raw_instance);
   uint32_t dst = ReadAndIncrementOffset<uint32_t>(data, &offset);
   uint32_t src = ReadAndIncrementOffset<uint32_t>(data, &offset);
-  size_t size = ReadAndIncrementOffset<uint32_t>(data, &offset);
+  uint32_t size = ReadAndIncrementOffset<uint32_t>(data, &offset);
 
-  size_t mem_size = instance.memory_size();
-  if (!base::IsInBounds(dst, size, mem_size)) return kOutOfBounds;
-  if (!base::IsInBounds(src, size, mem_size)) return kOutOfBounds;
+  uint64_t mem_size = instance.memory_size();
+  if (!base::IsInBounds<uint64_t>(dst, size, mem_size)) return kOutOfBounds;
+  if (!base::IsInBounds<uint64_t>(src, size, mem_size)) return kOutOfBounds;
 
   // Use std::memmove, because the ranges can overlap.
   std::memmove(EffectiveAddress(instance, dst), EffectiveAddress(instance, src),
@@ -550,10 +550,10 @@ int32_t memory_fill_wrapper(Address data) {
   uint32_t dst = ReadAndIncrementOffset<uint32_t>(data, &offset);
   uint8_t value =
       static_cast<uint8_t>(ReadAndIncrementOffset<uint32_t>(data, &offset));
-  size_t size = ReadAndIncrementOffset<uint32_t>(data, &offset);
+  uint32_t size = ReadAndIncrementOffset<uint32_t>(data, &offset);
 
-  size_t mem_size = instance.memory_size();
-  if (!base::IsInBounds(dst, size, mem_size)) return kOutOfBounds;
+  uint64_t mem_size = instance.memory_size();
+  if (!base::IsInBounds<uint64_t>(dst, size, mem_size)) return kOutOfBounds;
 
   std::memset(EffectiveAddress(instance, dst), value, size);
   return kSuccess;

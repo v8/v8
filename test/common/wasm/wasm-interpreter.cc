@@ -1515,8 +1515,8 @@ class WasmInterpreterInternals {
     if (effective_index < index) {
       return kNullAddress;  // wraparound => oob
     }
-    if (!base::IsInBounds(effective_index, sizeof(mtype),
-                          instance_object_->memory_size())) {
+    if (!base::IsInBounds<uint64_t>(effective_index, sizeof(mtype),
+                                    instance_object_->memory_size())) {
       return kNullAddress;  // oob
     }
     return EffectiveAddress(effective_index);

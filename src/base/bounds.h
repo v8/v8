@@ -27,7 +27,9 @@ inline constexpr bool IsInRange(T value, U lower_limit, U higher_limit) {
 
 // Checks if [index, index+length) is in range [0, max). Note that this check
 // works even if {index+length} would wrap around.
-inline constexpr bool IsInBounds(size_t index, size_t length, size_t max) {
+template <typename T,
+          typename = typename std::enable_if<std::is_unsigned<T>::value>::type>
+inline constexpr bool IsInBounds(T index, T length, T max) {
   return length <= max && index <= (max - length);
 }
 

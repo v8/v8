@@ -526,8 +526,10 @@ MaybeHandle<WasmInstanceObject> InstanceBuilder::Build() {
       auto table_object = handle(WasmTableObject::cast(instance->tables().get(
                                      elem_segment.table_index)),
                                  isolate_);
-      size_t table_size = table_object->current_length();
-      if (!base::IsInBounds(base, elem_segment.entries.size(), table_size)) {
+      uint32_t table_size = table_object->current_length();
+      if (!base::IsInBounds<uint32_t>(
+              base, static_cast<uint32_t>(elem_segment.entries.size()),
+              table_size)) {
         thrower_->LinkError("table initializer is out of bounds");
         return {};
       }
@@ -539,8 +541,8 @@ MaybeHandle<WasmInstanceObject> InstanceBuilder::Build() {
     for (const WasmDataSegment& seg : module_->data_segments) {
       if (!seg.active) continue;
       uint32_t base = EvalUint32InitExpr(instance, seg.dest_addr);
-      if (!base::IsInBounds(base, seg.source.length(),
-                            instance->memory_size())) {
+      if (!base::IsInBounds<uint64_t>(base, seg.source.length(),
+                                      instance->memory_size())) {
         thrower_->LinkError("data segment is out of bounds");
         return {};
       }
@@ -732,7 +734,8 @@ void InstanceBuilder::LoadDataSegments(Handle<WasmInstanceObject> instance) {
       if (size == 0) continue;
 
       uint32_t dest_offset = EvalUint32InitExpr(instance, segment.dest_addr);
-      DCHECK(base::IsInBounds(dest_offset, size, instance->memory_size()));
+      DCHECK(base::IsInBounds<uint64_t>(dest_offset, size,
+                                        instance->memory_size()));
       byte* dest = instance->memory_start() + dest_offset;
       const byte* src = wire_bytes.begin() + segment.source.offset();
       memcpy(dest, src, size);
@@ -1668,11 +1671,12 @@ bool LoadElemSegmentImpl(Isolate* isolate, Handle<WasmInstanceObject> instance,
   // TODO(wasm): Move this functionality into wasm-objects, since it is used
   // for both instantiation and in the implementation of the table.init
   // instruction.
-  if (!base::IsInBounds(dst, count, table_object->current_length()) ||
-      !base::IsInBounds(src, count,
-                        instance->dropped_elem_segments()[segment_index] == 0
-                            ? elem_segment.entries.size()
-                            : 0)) {
+  if (!base::IsInBounds<uint64_t>(dst, count, table_object->current_length()) ||
+      !base::IsInBounds<uint64_t>(
+          src, count,
+          instance->dropped_elem_segments()[segment_index] == 0
+              ? elem_segment.entries.size()
+              : 0)) {
     return false;
   }
 

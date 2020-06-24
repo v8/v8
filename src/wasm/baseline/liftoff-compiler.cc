@@ -1934,7 +1934,7 @@ class LiftoffCompiler {
                       uint32_t offset, Register index, LiftoffRegList pinned,
                       ForceCheck force_check) {
     const bool statically_oob =
-        !base::IsInBounds(offset, access_size, env_->max_memory_size);
+        !base::IsInBounds<uint64_t>(offset, access_size, env_->max_memory_size);
 
     if (!force_check && !statically_oob &&
         (!FLAG_wasm_bounds_checks || env_->use_trap_handler)) {
