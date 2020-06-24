@@ -564,7 +564,8 @@ PropertyAccessInfo AccessInfoFactory::ComputePropertyAccessInfo(
 
     // Walk up the prototype chain.
     MapRef(broker(), map).SerializePrototype();
-    if (!map->prototype().IsJSObject()) {
+    Handle<HeapObject> map_prototype(map->prototype(), isolate());
+    if (!map_prototype->IsJSObject()) {
       // Perform the implicit ToObject for primitives here.
       // Implemented according to ES6 section 7.3.2 GetV (V, P).
       Handle<JSFunction> constructor;
@@ -572,8 +573,9 @@ PropertyAccessInfo AccessInfoFactory::ComputePropertyAccessInfo(
               map, broker()->target_native_context().object())
               .ToHandle(&constructor)) {
         map = handle(constructor->initial_map(), isolate());
-        DCHECK(map->prototype().IsJSObject());
-      } else if (map->prototype().IsNull(isolate())) {
+        map_prototype = handle(map->prototype(), isolate());
+        DCHECK(map_prototype->IsJSObject());
+      } else if (map_prototype->IsNull(isolate())) {
         // Store to property not found on the receiver or any prototype, we need
         // to transition to a new data property.
         // Implemented according to ES6 section 9.1.9 [[Set]] (P, V, Receiver)
@@ -588,10 +590,9 @@ PropertyAccessInfo AccessInfoFactory::ComputePropertyAccessInfo(
         return PropertyAccessInfo::Invalid(zone());
       }
     }
-    Handle<JSObject> map_prototype(JSObject::cast(map->prototype()), isolate());
-    CHECK(!map_prototype->map().is_deprecated());
-    map = handle(map_prototype->map(), isolate());
-    holder = map_prototype;
+    map = handle(map_prototype->synchronized_map(), isolate());
+    CHECK(!map->is_deprecated());
+    holder = Handle<JSObject>::cast(map_prototype);
 
     if (!CanInlinePropertyAccess(map)) {
       return PropertyAccessInfo::Invalid(zone());
