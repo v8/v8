@@ -51,14 +51,14 @@ Handle<String> PrintFToOneByteString(Isolate* isolate, const char* format,
 MaybeHandle<JSObject> CreateFunctionTablesObject(
     Handle<WasmInstanceObject> instance) {
   Isolate* isolate = instance->GetIsolate();
-  auto tables = instance->tables();
-  if (tables.length() == 0) return MaybeHandle<JSObject>();
+  auto tables = handle(instance->tables(), isolate);
+  if (tables->length() == 0) return MaybeHandle<JSObject>();
 
   const char* table_label = "table%d";
   Handle<JSObject> tables_obj = isolate->factory()->NewJSObjectWithNullProto();
-  for (int table_index = 0; table_index < tables.length(); ++table_index) {
+  for (int table_index = 0; table_index < tables->length(); ++table_index) {
     auto func_table =
-        handle(WasmTableObject::cast(tables.get(table_index)), isolate);
+        handle(WasmTableObject::cast(tables->get(table_index)), isolate);
     if (func_table->type().heap_type() != kHeapFunc) continue;
 
     Handle<String> table_name;

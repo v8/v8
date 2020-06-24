@@ -64,12 +64,12 @@ bool g_dead_vars_analysis = false;
 
 // Node: The following is used when tracing --dead-vars
 // to provide extra info for the GC suspect.
-#define TRACE_LLVM_DECL(str, decl)   \
-  do {                               \
-    if (g_dead_vars_analysis) {      \
-      std::cout << str << std::endl; \
-      decl->dump();                  \
-    }                                \
+#define TRACE_LLVM_DECL(str, decl)                   \
+  do {                                               \
+    if (g_tracing_enabled && g_dead_vars_analysis) { \
+      std::cout << str << std::endl;                 \
+      decl->dump();                                  \
+    }                                                \
   } while (false)
 
 typedef std::string MangledName;
@@ -367,6 +367,11 @@ static bool KnownToCauseGC(clang::MangleContext* ctx,
   LoadGCSuspects();
 
   if (!InV8Namespace(decl)) return false;
+
+  if (suspects_whitelist.find(decl->getNameAsString()) !=
+      suspects_whitelist.end()) {
+    return false;
+  }
 
   MangledName name;
   if (GetMangledName(ctx, decl, &name)) {
@@ -1358,15 +1363,6 @@ class FunctionAnalyzer {
   }
 
   bool IsInternalPointerType(clang::QualType qtype) {
-    // Not yet assigned pointers can't get moved by the GC.
-    if (qtype.isNull()) {
-      return false;
-    }
-    // nullptr can't get moved by the GC.
-    if (qtype->isNullPtrType()) {
-      return false;
-    }
-
     const clang::CXXRecordDecl* record = qtype->getAsCXXRecordDecl();
     bool result = IsDerivedFromInternalPointer(record);
     TRACE_LLVM_TYPE("is internal " << result, qtype);
@@ -1376,6 +1372,15 @@ class FunctionAnalyzer {
   // Returns weather the given type is a raw pointer or a wrapper around
   // such. For V8 that means Object and MaybeObject instances.
   bool RepresentsRawPointerType(clang::QualType qtype) {
+    // Not yet assigned pointers can't get moved by the GC.
+    if (qtype.isNull()) {
+      return false;
+    }
+    // nullptr can't get moved by the GC.
+    if (qtype->isNullPtrType()) {
+      return false;
+    }
+
     const clang::PointerType* pointer_type =
         llvm::dyn_cast_or_null<clang::PointerType>(qtype.getTypePtrOrNull());
     if (pointer_type != NULL) {

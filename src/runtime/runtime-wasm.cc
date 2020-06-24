@@ -457,14 +457,13 @@ RUNTIME_FUNCTION(Runtime_WasmDebugBreak) {
   // Enter the debugger.
   DebugScope debug_scope(isolate->debug());
 
-  const auto undefined = ReadOnlyRoots(isolate).undefined_value();
   WasmFrame* frame = frame_finder.frame();
   auto* debug_info = frame->native_module()->GetDebugInfo();
   if (debug_info->IsStepping(frame)) {
     debug_info->ClearStepping(isolate);
     isolate->debug()->ClearStepping();
     isolate->debug()->OnDebugBreak(isolate->factory()->empty_fixed_array());
-    return undefined;
+    return ReadOnlyRoots(isolate).undefined_value();
   }
 
   // Check whether we hit a breakpoint.
@@ -491,7 +490,7 @@ RUNTIME_FUNCTION(Runtime_WasmDebugBreak) {
     debug_info->RemoveBreakpoint(frame->function_index(), position, isolate);
   }
 
-  return undefined;
+  return ReadOnlyRoots(isolate).undefined_value();
 }
 
 }  // namespace internal
