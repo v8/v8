@@ -393,9 +393,11 @@ class WasmGraphBuilder {
                  Node* length, Node* initial_value);
   void BoundsCheck(Node* array, Node* index, wasm::WasmCodePosition position);
   Node* ArrayGet(Node* array_object, const wasm::ArrayType* type, Node* index,
-                 bool is_signed, wasm::WasmCodePosition position);
+                 CheckForNull null_check, bool is_signed,
+                 wasm::WasmCodePosition position);
   Node* ArraySet(Node* array_object, const wasm::ArrayType* type, Node* index,
-                 Node* value, wasm::WasmCodePosition position);
+                 Node* value, CheckForNull null_check,
+                 wasm::WasmCodePosition position);
   Node* ArrayLen(Node* array_object, wasm::WasmCodePosition position);
   Node* RttCanon(wasm::HeapType type);
 

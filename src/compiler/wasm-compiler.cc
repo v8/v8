@@ -5347,10 +5347,12 @@ void WasmGraphBuilder::BoundsCheck(Node* array, Node* index,
 
 Node* WasmGraphBuilder::ArrayGet(Node* array_object,
                                  const wasm::ArrayType* type, Node* index,
-                                 bool is_signed,
+                                 CheckForNull null_check, bool is_signed,
                                  wasm::WasmCodePosition position) {
-  TrapIfTrue(wasm::kTrapNullDereference,
-             gasm_->WordEqual(array_object, RefNull()), position);
+  if (null_check == kWithNullCheck) {
+    TrapIfTrue(wasm::kTrapNullDereference,
+               gasm_->WordEqual(array_object, RefNull()), position);
+  }
   BoundsCheck(array_object, index, position);
   MachineType machine_type = MachineType::TypeForRepresentation(
       type->element_type().machine_representation(), is_signed);
@@ -5361,9 +5363,12 @@ Node* WasmGraphBuilder::ArrayGet(Node* array_object,
 
 Node* WasmGraphBuilder::ArraySet(Node* array_object,
                                  const wasm::ArrayType* type, Node* index,
-                                 Node* value, wasm::WasmCodePosition position) {
-  TrapIfTrue(wasm::kTrapNullDereference,
-             gasm_->WordEqual(array_object, RefNull()), position);
+                                 Node* value, CheckForNull null_check,
+                                 wasm::WasmCodePosition position) {
+  if (null_check == kWithNullCheck) {
+    TrapIfTrue(wasm::kTrapNullDereference,
+               gasm_->WordEqual(array_object, RefNull()), position);
+  }
   BoundsCheck(array_object, index, position);
   Node* offset = ArrayElementOffset(gasm_.get(), index, type->element_type());
   return StoreWithTaggedAlignment(gasm_.get(), array_object, offset, value,

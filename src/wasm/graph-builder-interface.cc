@@ -657,9 +657,9 @@ class WasmGraphBuildingInterface {
                  const FieldIndexImmediate<validate>& field, bool is_signed,
                  Value* result) {
     using CheckForNull = compiler::WasmGraphBuilder::CheckForNull;
-    CheckForNull null_check = struct_object.type.kind() == ValueType::kRef
-                                  ? CheckForNull::kWithoutNullCheck
-                                  : CheckForNull::kWithNullCheck;
+    CheckForNull null_check = struct_object.type.is_nullable()
+                                  ? CheckForNull::kWithNullCheck
+                                  : CheckForNull::kWithoutNullCheck;
     result->node =
         BUILD(StructGet, struct_object.node, field.struct_index.struct_type,
               field.index, null_check, is_signed, decoder->position());
@@ -669,9 +669,9 @@ class WasmGraphBuildingInterface {
                  const FieldIndexImmediate<validate>& field,
                  const Value& field_value) {
     using CheckForNull = compiler::WasmGraphBuilder::CheckForNull;
-    CheckForNull null_check = struct_object.type.kind() == ValueType::kRef
-                                  ? CheckForNull::kWithoutNullCheck
-                                  : CheckForNull::kWithNullCheck;
+    CheckForNull null_check = struct_object.type.is_nullable()
+                                  ? CheckForNull::kWithNullCheck
+                                  : CheckForNull::kWithoutNullCheck;
     BUILD(StructSet, struct_object.node, field.struct_index.struct_type,
           field.index, field_value.node, null_check, decoder->position());
   }
@@ -686,15 +686,23 @@ class WasmGraphBuildingInterface {
   void ArrayGet(FullDecoder* decoder, const Value& array_obj,
                 const ArrayIndexImmediate<validate>& imm, const Value& index,
                 bool is_signed, Value* result) {
+    using CheckForNull = compiler::WasmGraphBuilder::CheckForNull;
+    CheckForNull null_check = array_obj.type.is_nullable()
+                                  ? CheckForNull::kWithNullCheck
+                                  : CheckForNull::kWithoutNullCheck;
     result->node = BUILD(ArrayGet, array_obj.node, imm.array_type, index.node,
-                         is_signed, decoder->position());
+                         null_check, is_signed, decoder->position());
   }
 
   void ArraySet(FullDecoder* decoder, const Value& array_obj,
                 const ArrayIndexImmediate<validate>& imm, const Value& index,
                 const Value& value) {
+    using CheckForNull = compiler::WasmGraphBuilder::CheckForNull;
+    CheckForNull null_check = array_obj.type.is_nullable()
+                                  ? CheckForNull::kWithNullCheck
+                                  : CheckForNull::kWithoutNullCheck;
     BUILD(ArraySet, array_obj.node, imm.array_type, index.node, value.node,
-          decoder->position());
+          null_check, decoder->position());
   }
 
   void ArrayLen(FullDecoder* decoder, const Value& array_obj, Value* result) {
