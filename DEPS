@@ -254,7 +254,7 @@ deps = {
           'version': Var('luci_go'),
         },
       ],
-      'condition': 'host_cpu != "s390"',
+      'condition': 'host_cpu != "s390" and host_os != "aix"',
       'dep_type': 'cipd',
   },
   'v8/tools/clang/dsymutil': {
