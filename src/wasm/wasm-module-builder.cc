@@ -569,7 +569,7 @@ void WasmModuleBuilder::WriteTo(ZoneBuffer* buffer) const {
           break;
         case WasmInitExpr::kRefNullConst:
           buffer->write_u8(kExprRefNull);
-          WriteValueType(buffer, global.type);
+          buffer->write_u32v(global.type.heap_type_code());
           break;
         case WasmInitExpr::kRefFuncConst:
           UNIMPLEMENTED();

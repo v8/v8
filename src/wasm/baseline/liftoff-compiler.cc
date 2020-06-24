@@ -3609,7 +3609,7 @@ class LiftoffCompiler {
     unsupported(decoder, kGC, "array.len");
   }
 
-  void RttCanon(FullDecoder* decoder, const TypeIndexImmediate<validate>& imm,
+  void RttCanon(FullDecoder* decoder, const HeapTypeImmediate<validate>& imm,
                 Value* result) {
     // TODO(7748): Implement.
     unsupported(decoder, kGC, "rtt.canon");

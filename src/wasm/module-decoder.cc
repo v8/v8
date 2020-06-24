@@ -1661,19 +1661,15 @@ class ModuleDecoderImpl : public Decoder {
       }
       case kExprRefNull: {
         if (enabled_features_.has_reftypes() || enabled_features_.has_eh()) {
-          RefNullImmediate<Decoder::kValidate> imm(WasmFeatures::All(), this,
-                                                   pc() - 1);
-          if (!imm.type.is_reference_type()) {
-            errorf(pc() - 1, "ref.null is not supported for %s",
-                   imm.type.type_name().c_str());
-            break;
-          }
+          HeapTypeImmediate<Decoder::kValidate> imm(WasmFeatures::All(), this,
+                                                    pc() - 1);
           expr.kind = WasmInitExpr::kRefNullConst;
           len = imm.length;
+          ValueType type = ValueType::Ref(imm.type, kNullable);
           if (expected != kWasmStmt &&
-              !IsSubtypeOf(imm.type, expected, module_.get())) {
+              !IsSubtypeOf(type, expected, module_.get())) {
             errorf(pos, "type error in init expression, expected %s, got %s",
-                   expected.type_name().c_str(), imm.type.type_name().c_str());
+                   expected.type_name().c_str(), type.type_name().c_str());
           }
           break;
         }
@@ -2027,8 +2023,8 @@ class ModuleDecoderImpl : public Decoder {
     if (failed()) return index;
     switch (opcode) {
       case kExprRefNull: {
-        RefNullImmediate<kValidate> imm(WasmFeatures::All(), this,
-                                        this->pc() - 1);
+        HeapTypeImmediate<kValidate> imm(WasmFeatures::All(), this,
+                                         this->pc() - 1);
         consume_bytes(imm.length, "ref.null immediate");
         index = WasmElemSegment::kNullIndex;
         break;

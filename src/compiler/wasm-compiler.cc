@@ -5289,7 +5289,12 @@ Node* WasmGraphBuilder::ArrayNew(uint32_t array_index,
   return a;
 }
 
-Node* WasmGraphBuilder::RttCanon(uint32_t type_index) {
+Node* WasmGraphBuilder::RttCanon(wasm::HeapType type) {
+  if (is_generic_heap_type(type)) {
+    // TODO(7748): Implement this.
+    UNIMPLEMENTED();
+  }
+  uint32_t type_index = static_cast<uint32_t>(type);
   // This logic is duplicated from module-instantiate.cc.
   // TODO(jkummerow): Find a nicer solution.
   int map_index = 0;

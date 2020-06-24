@@ -219,7 +219,7 @@ TEST(WasmRefAsNonNull) {
            type_index, k_field_index,
            WASM_REF_AS_NON_NULL(WASM_IF_ELSE_R(kOptRefType, WASM_I32V(1),
                                                WASM_GET_GLOBAL(k_global_index),
-                                               WASM_REF_NULL_GC(type_index)))),
+                                               WASM_REF_NULL(type_index)))),
        kExprEnd});
 
   tester.CompileModule();
@@ -288,11 +288,11 @@ TEST(WasmRefEq) {
                             WASM_I32V(1)),
                WASM_I32_ADD(WASM_I32_SHL(  // false
                                 WASM_REF_EQ(WASM_GET_LOCAL(n_local_index),
-                                            WASM_REF_NULL_GC(type_index)),
+                                            WASM_REF_NULL(type_index)),
                                 WASM_I32V(2)),
                             WASM_I32_SHL(WASM_REF_EQ(  // true
-                                             WASM_REF_NULL_GC(type_index),
-                                             WASM_REF_NULL_GC(type_index)),
+                                             WASM_REF_NULL(type_index),
+                                             WASM_REF_NULL(type_index)),
                                          WASM_I32V(3))))),
        kExprEnd});
 

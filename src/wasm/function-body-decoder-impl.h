@@ -255,6 +255,8 @@ ValueType read_value_type(Decoder* decoder, const byte* pc,
 }  // namespace value_type_reader
 
 // Helpers for decoding different kinds of immediates which follow bytecodes.
+// TODO(manoskouk): Some Immediates look at current pc and some introduce an
+// offset. Clear up this situation.
 template <Decoder::ValidateFlag validate>
 struct LocalIndexImmediate {
   uint32_t index;
@@ -316,17 +318,6 @@ struct ImmF64Immediate {
     // Avoid bit_cast because it might not preserve the signalling bit of a NaN.
     uint64_t tmp = decoder->read_u64<validate>(pc + 1, "immf64");
     memcpy(&value, &tmp, sizeof(value));
-  }
-};
-
-template <Decoder::ValidateFlag validate>
-struct RefNullImmediate {
-  ValueType type;
-  uint32_t length = 1;
-  inline RefNullImmediate(const WasmFeatures& enabled, Decoder* decoder,
-                          const byte* pc) {
-    type = value_type_reader::read_value_type<validate>(decoder, pc + 1,
-                                                        &length, enabled);
   }
 };
 
@@ -475,6 +466,8 @@ struct TableIndexImmediate {
   }
 };
 
+// TODO(jkummerow): Introduce a common superclass for StructIndexImmediate and
+// ArrayIndexImmediate? Maybe even FunctionIndexImmediate too?
 template <Decoder::ValidateFlag validate>
 struct StructIndexImmediate {
   uint32_t index = 0;
@@ -505,17 +498,6 @@ struct ArrayIndexImmediate {
   const ArrayType* array_type = nullptr;
   inline ArrayIndexImmediate(Decoder* decoder, const byte* pc) {
     index = decoder->read_u32v<validate>(pc, &length, "array index");
-  }
-};
-
-// TODO(jkummerow): Make this a superclass of StructIndexImmediate and
-// ArrayIndexImmediate? Maybe even FunctionIndexImmediate too?
-template <Decoder::ValidateFlag validate>
-struct TypeIndexImmediate {
-  uint32_t index = 0;
-  uint32_t length = 0;
-  inline TypeIndexImmediate(Decoder* decoder, const byte* pc) {
-    index = decoder->read_u32v<validate>(pc, &length, "type index");
   }
 };
 
@@ -735,6 +717,54 @@ struct TableCopyImmediate {
   }
 };
 
+template <Decoder::ValidateFlag validate>
+struct HeapTypeImmediate {
+  uint32_t length = 1;
+  HeapType type = static_cast<HeapType>(kHeapFunc - 1);
+  inline HeapTypeImmediate(const WasmFeatures& enabled, Decoder* decoder,
+                           const byte* pc) {
+    // Check for negative 1-byte value first, e.g. -0x10 == funcref. If there's
+    // no match, we'll read a uint32 from the same offset later.
+    uint8_t heap_index =
+        decoder->read_u8<validate>(pc + 1, "heap type immediate");
+    switch (static_cast<ValueTypeCode>(heap_index)) {
+#define REF_TYPE_CASE(heap_type, feature)                                   \
+  case kLocal##heap_type##Ref: {                                            \
+    type = kHeap##heap_type;                                                \
+    if (!VALIDATE(enabled.has_##feature())) {                               \
+      decoder->errorf(                                                      \
+          pc, "invalid heap type '%s', enable with --experimental-wasm-%s", \
+          ValueType::heap_name(kHeap##heap_type).c_str(), #feature);        \
+    }                                                                       \
+    break;                                                                  \
+  }
+      REF_TYPE_CASE(Func, reftypes)
+      REF_TYPE_CASE(Extern, reftypes)
+      REF_TYPE_CASE(Eq, gc)
+      REF_TYPE_CASE(Exn, eh)
+#undef REF_TYPE_CASE
+      default:
+        uint32_t type_index = decoder->read_u32v<validate>(
+            pc + 1, &length, "heap type immediate");
+        if (!VALIDATE(type_index < kV8MaxWasmTypes)) {
+          decoder->errorf(pc + 1,
+                          "Type index %u is greater than the maximum number "
+                          "%zu of type definitions supported by V8",
+                          type_index, kV8MaxWasmTypes);
+          break;
+        }
+        type = static_cast<HeapType>(type_index);
+        if (!VALIDATE(enabled.has_typed_funcref())) {
+          decoder->errorf(pc,
+                          "invalid heap type %d, enable with "
+                          "--experimental-wasm-typed-funcref",
+                          type_index);
+        }
+        break;
+    }
+  }
+};
+
 // An entry on the value stack.
 struct ValueBase {
   const byte* pc = nullptr;
@@ -950,7 +980,7 @@ struct ControlBase {
     const ArrayIndexImmediate<validate>& imm, const Value& index,              \
     const Value& value)                                                        \
   F(ArrayLen, const Value& array_obj, Value* result)                           \
-  F(RttCanon, const TypeIndexImmediate<validate>& imm, Value* result)          \
+  F(RttCanon, const HeapTypeImmediate<validate>& imm, Value* result)           \
   F(PassThrough, const Value& from, Value* to)
 
 // Generic Wasm bytecode decoder with utilities for decoding immediates,
@@ -1118,15 +1148,6 @@ class WasmDecoder : public Decoder {
     return true;
   }
 
-  inline bool Validate(const byte* pc, RefNullImmediate<validate>& imm) {
-    if (!VALIDATE(imm.type.is_nullable())) {
-      errorf(pc + 1, "ref.null does not exist for %s",
-             imm.type.type_name().c_str());
-      return false;
-    }
-    return true;
-  }
-
   inline bool Complete(const byte* pc, ExceptionIndexImmediate<validate>& imm) {
     if (!VALIDATE(imm.index < module_->exceptions.size())) return false;
     imm.exception = &module_->exceptions[imm.index];
@@ -1182,15 +1203,6 @@ class WasmDecoder : public Decoder {
   inline bool Validate(const byte* pc, ArrayIndexImmediate<validate>& imm) {
     if (!Complete(pc, imm)) {
       errorf(pc, "invalid array index: %u", imm.index);
-      return false;
-    }
-    return true;
-  }
-
-  inline bool Validate(const byte* pc, TypeIndexImmediate<validate>& imm) {
-    if (!VALIDATE(module_ != nullptr && (module_->has_struct(imm.index) ||
-                                         module_->has_array(imm.index)))) {
-      errorf(pc, "invalid type index: %u", imm.index);
       return false;
     }
     return true;
@@ -1431,6 +1443,19 @@ class WasmDecoder : public Decoder {
     return true;
   }
 
+  inline bool Validate(const byte* pc, HeapTypeImmediate<validate>& imm) {
+    if (!VALIDATE(is_generic_heap_type(imm.type) ||
+                  module_->has_array(static_cast<uint32_t>(imm.type)) ||
+                  module_->has_struct(static_cast<uint32_t>(imm.type)))) {
+      errorf(
+          pc,
+          "Type index %u does not refer to a struct or array type definition",
+          imm.type);
+      return false;
+    }
+    return true;
+  }
+
   static uint32_t OpcodeLength(WasmDecoder* decoder, const byte* pc) {
     WasmOpcode opcode = static_cast<WasmOpcode>(*pc);
     switch (opcode) {
@@ -1524,7 +1549,7 @@ class WasmDecoder : public Decoder {
         return 1 + imm.length;
       }
       case kExprRefNull: {
-        RefNullImmediate<validate> imm(WasmFeatures::All(), decoder, pc);
+        HeapTypeImmediate<validate> imm(WasmFeatures::All(), decoder, pc);
         return 1 + imm.length;
       }
       case kExprRefIsNull: {
@@ -1681,9 +1706,9 @@ class WasmDecoder : public Decoder {
             return 2 + imm.length;
           }
           case kExprRttCanon: {
-            // TODO(7748): Introduce "HeapTypeImmediate" and use it here.
-            TypeIndexImmediate<validate> heaptype(decoder, pc + 2);
-            return 2 + heaptype.length;
+            HeapTypeImmediate<validate> imm(WasmFeatures::All(), decoder,
+                                            pc + 2);
+            return 2 + imm.length;
           }
           case kExprRttSub:
             // TODO(7748): Implement.
@@ -2533,9 +2558,9 @@ class WasmFullDecoder : public WasmDecoder<validate> {
       }
       case kExprRefNull: {
         CHECK_PROTOTYPE_OPCODE(reftypes);
-        RefNullImmediate<validate> imm(this->enabled_, this, this->pc_);
+        HeapTypeImmediate<validate> imm(this->enabled_, this, this->pc_);
         if (!this->Validate(this->pc_, imm)) break;
-        Value* value = Push(imm.type);
+        Value* value = Push(ValueType::Ref(imm.type, kNullable));
         CALL_INTERFACE_IF_REACHABLE(RefNull, value);
         len = 1 + imm.length;
         break;
@@ -3457,12 +3482,10 @@ class WasmFullDecoder : public WasmDecoder<validate> {
         break;
       }
       case kExprRttCanon: {
-        // TODO(7748): Introduce HeapTypeImmediate and use that here.
-        TypeIndexImmediate<validate> imm(this, this->pc_ + len);
+        HeapTypeImmediate<validate> imm(this->enabled_, this, this->pc_ + 1);
         len += imm.length;
         if (!this->Validate(this->pc_ + len, imm)) break;
-        Value* value =
-            Push(ValueType::Rtt(static_cast<HeapType>(imm.index), 1));
+        Value* value = Push(ValueType::Rtt(imm.type, 1));
         CALL_INTERFACE_IF_REACHABLE(RttCanon, imm, value);
         break;
       }

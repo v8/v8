@@ -3159,8 +3159,8 @@ class WasmInterpreterInternals {
           break;
         }
         case kExprRefNull: {
-          RefNullImmediate<Decoder::kNoValidate> imm(WasmFeatures::All(),
-                                                     &decoder, code->at(pc));
+          HeapTypeImmediate<Decoder::kNoValidate> imm(WasmFeatures::All(),
+                                                      &decoder, code->at(pc));
           len = 1 + imm.length;
           Push(WasmValue(isolate_->factory()->null_value()));
           break;
