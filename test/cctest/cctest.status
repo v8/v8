@@ -372,8 +372,6 @@
   'test-modules/ModuleEvaluationTopLevelAwaitDynamicImportError': [SKIP],
   'test-modules/ModuleEvaluationCompletion1': [SKIP],
 
-  'test-bytecode-generator/StaticClassFields': [SKIP],
-
   'test-run-wasm/RunWasmTurbofan_I32SConvertF32': [SKIP],
   'test-run-wasm/RunWasmTurbofan_I32UConvertF32': [SKIP],
 }],
