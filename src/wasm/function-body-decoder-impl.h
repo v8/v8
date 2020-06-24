@@ -36,10 +36,10 @@ struct WasmException;
 
 // Return the evaluation of `condition` if validate==true, DCHECK that it's
 // true and always return true otherwise.
-#define VALIDATE(condition)       \
-  (validate ? (condition) : [&] { \
-    DCHECK(condition);            \
-    return true;                  \
+#define VALIDATE(condition)                \
+  (validate ? V8_LIKELY(condition) : [&] { \
+    DCHECK(condition);                     \
+    return true;                           \
   }())
 
 #define CHECK_PROTOTYPE_OPCODE_GEN(feat, opt_break)                            \

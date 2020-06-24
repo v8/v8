@@ -374,7 +374,7 @@ class Decoder {
     constexpr bool is_last_byte = byte_index == kMaxLength - 1;
     const bool at_end = validate && pc >= end_;
     byte b = 0;
-    if (!at_end) {
+    if (V8_LIKELY(!at_end)) {
       DCHECK_LT(pc, end_);
       b = *pc;
       TRACE_IF(trace, "%02x ", b);
@@ -392,7 +392,7 @@ class Decoder {
     }
     if (advance_pc) pc_ = pc + (at_end ? 0 : 1);
     *length = byte_index + (at_end ? 0 : 1);
-    if (validate && (at_end || (b & 0x80))) {
+    if (validate && V8_UNLIKELY(at_end || (b & 0x80))) {
       TRACE_IF(trace, at_end ? "<end> " : "<length overflow> ");
       errorf(pc, "expected %s", name);
       result = 0;
@@ -413,7 +413,7 @@ class Decoder {
           (is_signed && checked_bits == kSignExtendedExtraBits);
       if (!validate) {
         DCHECK(valid_extra_bits);
-      } else if (!valid_extra_bits) {
+      } else if (V8_UNLIKELY(!valid_extra_bits)) {
         error(pc, "extra bits in varint");
         result = 0;
       }
