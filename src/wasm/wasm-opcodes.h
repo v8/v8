@@ -728,21 +728,21 @@ enum TrapReason {
 // A collection of opcode-related static methods.
 class V8_EXPORT_PRIVATE WasmOpcodes {
  public:
-  static const char* OpcodeName(WasmOpcode);
-  static const FunctionSig* Signature(WasmOpcode);
-  static const FunctionSig* AsmjsSignature(WasmOpcode);
-  static bool IsPrefixOpcode(WasmOpcode);
-  static bool IsControlOpcode(WasmOpcode);
-  static bool IsExternRefOpcode(WasmOpcode);
-  static bool IsThrowingOpcode(WasmOpcode);
-  static bool IsSimdPostMvpOpcode(WasmOpcode);
+  static constexpr const char* OpcodeName(WasmOpcode);
+  static constexpr const FunctionSig* Signature(WasmOpcode);
+  static constexpr const FunctionSig* AsmjsSignature(WasmOpcode);
+  static constexpr bool IsPrefixOpcode(WasmOpcode);
+  static constexpr bool IsControlOpcode(WasmOpcode);
+  static constexpr bool IsExternRefOpcode(WasmOpcode);
+  static constexpr bool IsThrowingOpcode(WasmOpcode);
+  static constexpr bool IsSimdPostMvpOpcode(WasmOpcode);
   // Check whether the given opcode always jumps, i.e. all instructions after
   // this one in the current block are dead. Returns false for |end|.
-  static bool IsUnconditionalJump(WasmOpcode);
-  static bool IsBreakable(WasmOpcode);
+  static constexpr bool IsUnconditionalJump(WasmOpcode);
+  static constexpr bool IsBreakable(WasmOpcode);
 
-  static MessageTemplate TrapReasonToMessageId(TrapReason);
-  static const char* TrapReasonMessage(TrapReason);
+  static constexpr MessageTemplate TrapReasonToMessageId(TrapReason);
+  static inline const char* TrapReasonMessage(TrapReason);
 };
 
 // Representation of an initializer expression.

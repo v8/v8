@@ -2,24 +2,23 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#include "src/wasm/leb-helper.h"
-#include "test/unittests/test-utils.h"
+#include "src/wasm/function-body-decoder.h"
 
 #include "src/init/v8.h"
 #include "src/objects/objects-inl.h"
 #include "src/objects/objects.h"
 #include "src/utils/ostreams.h"
 #include "src/wasm/function-body-decoder-impl.h"
-#include "src/wasm/function-body-decoder.h"
+#include "src/wasm/leb-helper.h"
 #include "src/wasm/local-decl-encoder.h"
 #include "src/wasm/signature-map.h"
 #include "src/wasm/wasm-limits.h"
 #include "src/wasm/wasm-module.h"
-#include "src/wasm/wasm-opcodes.h"
-
+#include "src/wasm/wasm-opcodes-inl.h"
 #include "test/common/wasm/flag-utils.h"
 #include "test/common/wasm/test-signatures.h"
 #include "test/common/wasm/wasm-macro-gen.h"
+#include "test/unittests/test-utils.h"
 #include "testing/gmock-support.h"
 
 namespace v8 {
