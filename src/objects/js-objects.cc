@@ -4395,24 +4395,36 @@ void InvalidateOnePrototypeValidityCellInternal(Map map) {
 }
 
 void InvalidatePrototypeChainsInternal(Map map) {
-  InvalidateOnePrototypeValidityCellInternal(map);
+  // We handle linear prototype chains by looping, and multiple children
+  // by recursion, in order to reduce the likelihood of running into stack
+  // overflows. So, conceptually, the outer loop iterates the depth of the
+  // prototype tree, and the inner loop iterates the breadth of a node.
+  Map next_map;
+  for (; !map.is_null(); map = next_map, next_map = Map()) {
+    InvalidateOnePrototypeValidityCellInternal(map);
 
-  Object maybe_proto_info = map.prototype_info();
-  if (!maybe_proto_info.IsPrototypeInfo()) return;
-  PrototypeInfo proto_info = PrototypeInfo::cast(maybe_proto_info);
-  if (!proto_info.prototype_users().IsWeakArrayList()) {
-    return;
-  }
-  WeakArrayList prototype_users =
-      WeakArrayList::cast(proto_info.prototype_users());
-  // For now, only maps register themselves as users.
-  for (int i = PrototypeUsers::kFirstIndex; i < prototype_users.length(); ++i) {
-    HeapObject heap_object;
-    if (prototype_users.Get(i)->GetHeapObjectIfWeak(&heap_object) &&
-        heap_object.IsMap()) {
-      // Walk the prototype chain (backwards, towards leaf objects) if
-      // necessary.
-      InvalidatePrototypeChainsInternal(Map::cast(heap_object));
+    Object maybe_proto_info = map.prototype_info();
+    if (!maybe_proto_info.IsPrototypeInfo()) return;
+    PrototypeInfo proto_info = PrototypeInfo::cast(maybe_proto_info);
+    if (!proto_info.prototype_users().IsWeakArrayList()) {
+      return;
+    }
+    WeakArrayList prototype_users =
+        WeakArrayList::cast(proto_info.prototype_users());
+    // For now, only maps register themselves as users.
+    for (int i = PrototypeUsers::kFirstIndex; i < prototype_users.length();
+         ++i) {
+      HeapObject heap_object;
+      if (prototype_users.Get(i)->GetHeapObjectIfWeak(&heap_object) &&
+          heap_object.IsMap()) {
+        // Walk the prototype chain (backwards, towards leaf objects) if
+        // necessary.
+        if (next_map.is_null()) {
+          next_map = Map::cast(heap_object);
+        } else {
+          InvalidatePrototypeChainsInternal(Map::cast(heap_object));
+        }
+      }
     }
   }
 }
