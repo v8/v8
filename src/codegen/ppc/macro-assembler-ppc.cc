@@ -1318,7 +1318,7 @@ void MacroAssembler::InvokePrologue(Register expected_parameter_count,
 
   // The code below is made a lot easier because the calling code already sets
   // up actual and expected registers according to the contract.
-  // ARM has some sanity checks as per below, considering add them for PPC
+  // ARM has some checks as per below, considering add them for PPC
   // DCHECK_EQ(actual_parameter_count, r3);
   // DCHECK_EQ(expected_parameter_count, r5);
 

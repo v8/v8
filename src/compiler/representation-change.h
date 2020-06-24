@@ -325,7 +325,7 @@ class V8_EXPORT_PRIVATE RepresentationChanger final {
   RepresentationChanger(JSGraph* jsgraph, JSHeapBroker* broker);
 
   // Changes representation from {output_type} to {use_rep}. The {truncation}
-  // parameter is only used for sanity checking - if the changer cannot figure
+  // parameter is only used for checking - if the changer cannot figure
   // out signedness for the word32->float64 conversion, then we check that the
   // uses truncate to word32 (so they do not care about signedness).
   Node* GetRepresentationFor(Node* node, MachineRepresentation output_rep,

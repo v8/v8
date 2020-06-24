@@ -387,7 +387,7 @@ UnobservablesSet RedundantStoreFinder::RecomputeUseIntersection(Node* node) {
     IrOpcode::Value opcode = node->opcode();
     // List of opcodes that may end this effect chain. The opcodes are not
     // important to the soundness of this optimization; this serves as a
-    // general sanity check. Add opcodes to this list as it suits you.
+    // general check. Add opcodes to this list as it suits you.
     //
     // Everything is observable after these opcodes; return the empty set.
     DCHECK_EXTRA(

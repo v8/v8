@@ -402,7 +402,7 @@ void Node::RemoveUse(Use* use) {
 
 #if DEBUG
 void Node::Verify() {
-  // Check basic sanity of input data structures.
+  // Check basic validity of input data structures.
   fflush(stdout);
   int count = this->InputCount();
   // Avoid quadratic explosion for mega nodes; only verify if the input

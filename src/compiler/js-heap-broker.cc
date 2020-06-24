@@ -2210,7 +2210,7 @@ void JSObjectData::SerializeRecursiveAsBoilerplate(JSHeapBroker* broker,
   Handle<JSObject> boilerplate = Handle<JSObject>::cast(object());
 
   // We only serialize boilerplates that pass the IsInlinableFastLiteral
-  // check, so we only do a sanity check on the depth here.
+  // check, so we only do a check on the depth here.
   CHECK_GT(depth, 0);
   CHECK(!boilerplate->map().is_deprecated());
 
