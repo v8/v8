@@ -7,6 +7,7 @@
 [ALWAYS, {
   # TODO(v8:10556): Remove sub-typing in the reference-types implementation
   'constructor/instantiate': [FAIL],
+  'instance/constructor-caching': [FAIL],
   'instance/constructor': [FAIL],
   'proposals/js-types/constructor/instantiate': [FAIL],
   'proposals/js-types/global/constructor': [FAIL],

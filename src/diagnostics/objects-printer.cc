@@ -1815,11 +1815,8 @@ void WasmTableObject::WasmTableObjectPrint(std::ostream& os) {  // NOLINT
 
 void WasmGlobalObject::WasmGlobalObjectPrint(std::ostream& os) {  // NOLINT
   PrintHeader(os, "WasmGlobalObject");
-  if (type().is_reference_type()) {
-    os << "\n - tagged_buffer: " << Brief(tagged_buffer());
-  } else {
-    os << "\n - untagged_buffer: " << Brief(untagged_buffer());
-  }
+  os << "\n - untagged_buffer: " << Brief(untagged_buffer());
+  os << "\n - tagged_buffer: " << Brief(tagged_buffer());
   os << "\n - offset: " << offset();
   os << "\n - raw_type: " << raw_type();
   os << "\n - is_mutable: " << is_mutable();
