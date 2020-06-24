@@ -1328,12 +1328,15 @@ WASM_SIMD_TEST_NO_LOWERING(F64x2Sqrt) {
 }
 
 // TODO(v8:10553) Prototyping floating-point rounding instructions.
-#if V8_TARGET_ARCH_X64 || V8_TARGET_ARCH_ARM64 || V8_TARGET_ARCH_S390X
+#if V8_TARGET_ARCH_X64 || V8_TARGET_ARCH_ARM64 || V8_TARGET_ARCH_S390X || \
+    V8_TARGET_ARCH_ARM
 WASM_SIMD_TEST_NO_LOWERING(F64x2Ceil) {
   FLAG_SCOPE(wasm_simd_post_mvp);
   RunF64x2UnOpTest(execution_tier, lower_simd, kExprF64x2Ceil, ceil, true);
 }
-
+#endif  // V8_TARGET_ARCH_X64 || V8_TARGET_ARCH_ARM64 || V8_TARGET_ARCH_S390X ||
+        // V8_TARGET_ARCH_ARM
+#if V8_TARGET_ARCH_X64 || V8_TARGET_ARCH_ARM64 || V8_TARGET_ARCH_S390X
 WASM_SIMD_TEST_NO_LOWERING(F64x2Floor) {
   FLAG_SCOPE(wasm_simd_post_mvp);
   RunF64x2UnOpTest(execution_tier, lower_simd, kExprF64x2Floor, floor, true);

@@ -411,6 +411,10 @@ void simd_float_round_wrapper(Address data) {
   }
 }
 
+void f64x2_ceil_wrapper(Address data) {
+  simd_float_round_wrapper<double, &ceil>(data);
+}
+
 void f32x4_ceil_wrapper(Address data) {
   simd_float_round_wrapper<float, &ceilf>(data);
 }

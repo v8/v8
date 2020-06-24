@@ -79,6 +79,8 @@ V8_EXPORT_PRIVATE void word64_ror_wrapper(Address data);
 
 V8_EXPORT_PRIVATE void float64_pow_wrapper(Address data);
 
+V8_EXPORT_PRIVATE void f64x2_ceil_wrapper(Address data);
+
 V8_EXPORT_PRIVATE void f32x4_ceil_wrapper(Address data);
 
 V8_EXPORT_PRIVATE void f32x4_floor_wrapper(Address data);

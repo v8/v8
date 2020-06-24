@@ -557,6 +557,7 @@ class WasmGraphBuilder {
   Node* BuildAsmjsStoreMem(MachineType type, Node* index, Node* val);
 
   // Wasm SIMD.
+  Node* BuildF64x2Ceil(Node* input);
   Node* BuildF32x4Ceil(Node* input);
   Node* BuildF32x4Floor(Node* input);
   Node* BuildF32x4Trunc(Node* input);

@@ -206,6 +206,7 @@ class StatsCounter;
   V(wasm_word64_ror, "wasm::word64_ror")                                      \
   V(wasm_word64_ctz, "wasm::word64_ctz")                                      \
   V(wasm_word64_popcnt, "wasm::word64_popcnt")                                \
+  V(wasm_f64x2_ceil, "wasm::f64x2_ceil_wrapper")                              \
   V(wasm_f32x4_ceil, "wasm::f32x4_ceil_wrapper")                              \
   V(wasm_f32x4_floor, "wasm::f32x4_floor_wrapper")                            \
   V(wasm_f32x4_trunc, "wasm::f32x4_trunc_wrapper")                            \

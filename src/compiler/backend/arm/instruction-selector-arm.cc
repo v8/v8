@@ -1496,6 +1496,7 @@ void InstructionSelector::VisitUint32Mod(Node* node) {
   V(Float64RoundTiesAway, kArmVrintaF64) \
   V(Float32RoundTiesEven, kArmVrintnF32) \
   V(Float64RoundTiesEven, kArmVrintnF64) \
+  V(F64x2Ceil, kArmF64x2Ceil)            \
   V(F32x4Ceil, kArmVrintpF32)            \
   V(F32x4Floor, kArmVrintmF32)           \
   V(F32x4Trunc, kArmVrintzF32)           \

@@ -2693,12 +2693,12 @@ void InstructionSelector::VisitF64x2Pmax(Node* node) { UNIMPLEMENTED(); }
 // TODO(zhin): Temporary convoluted way to for unimplemented opcodes on ARM as
 // we are implementing them one at a time.
 #if !V8_TARGET_ARCH_ARM
+void InstructionSelector::VisitF64x2Ceil(Node* node) { UNIMPLEMENTED(); }
 void InstructionSelector::VisitF32x4Ceil(Node* node) { UNIMPLEMENTED(); }
 void InstructionSelector::VisitF32x4Floor(Node* node) { UNIMPLEMENTED(); }
 void InstructionSelector::VisitF32x4Trunc(Node* node) { UNIMPLEMENTED(); }
 void InstructionSelector::VisitF32x4NearestInt(Node* node) { UNIMPLEMENTED(); }
 #endif  // !V8_TARGET_ARCH_ARM
-void InstructionSelector::VisitF64x2Ceil(Node* node) { UNIMPLEMENTED(); }
 void InstructionSelector::VisitF64x2Floor(Node* node) { UNIMPLEMENTED(); }
 void InstructionSelector::VisitF64x2Trunc(Node* node) { UNIMPLEMENTED(); }
 void InstructionSelector::VisitF64x2NearestInt(Node* node) { UNIMPLEMENTED(); }
