@@ -94,6 +94,10 @@ RETURN_FAIL = 2
 BASE_PATH = os.path.dirname(os.path.abspath(__file__))
 SANITY_CHECKS = os.path.join(BASE_PATH, 'v8_sanity_checks.js')
 
+# Timeout for one d8 run.
+SANITY_CHECK_TIMEOUT_SEC = 1
+TEST_TIMEOUT_SEC = 3
+
 SUPPORTED_ARCHS = ['ia32', 'x64', 'arm', 'arm64']
 
 # Output for suppressed failure case.
@@ -387,8 +391,20 @@ def main():
   # Sanity checks. Run both configurations with the sanity-checks file only and
   # bail out early if different.
   if not options.skip_sanity_checks:
-    first_config_output = first_cmd.run(SANITY_CHECKS)
-    second_config_output = second_cmd.run(SANITY_CHECKS)
+    first_config_output = first_cmd.run(
+        SANITY_CHECKS, timeout=SANITY_CHECK_TIMEOUT_SEC)
+
+    # Early bailout if first run was a timeout.
+    if timeout_bailout(first_config_output, 1):
+      return RETURN_PASS
+
+    second_config_output = second_cmd.run(
+        SANITY_CHECKS, timeout=SANITY_CHECK_TIMEOUT_SEC)
+
+    # Bailout if second run was a timeout.
+    if timeout_bailout(second_config_output, 2):
+      return RETURN_PASS
+
     difference, _ = suppress.diff(first_config_output, second_config_output)
     if difference:
       # Special source key for sanity checks so that clusterfuzz dedupes all
@@ -399,13 +415,15 @@ def main():
           first_config_output, second_config_output, difference)
       return RETURN_FAIL
 
-  first_config_output = first_cmd.run(options.testcase, verbose=True)
+  first_config_output = first_cmd.run(
+      options.testcase, timeout=TEST_TIMEOUT_SEC, verbose=True)
 
   # Early bailout if first run was a timeout.
   if timeout_bailout(first_config_output, 1):
     return RETURN_PASS
 
-  second_config_output = second_cmd.run(options.testcase, verbose=True)
+  second_config_output = second_cmd.run(
+      options.testcase, timeout=TEST_TIMEOUT_SEC, verbose=True)
 
   # Bailout if second run was a timeout.
   if timeout_bailout(second_config_output, 2):
