@@ -676,6 +676,7 @@ class BaseTestRunner(object):
       "arch": self.build_config.arch,
       "asan": self.build_config.asan,
       "byteorder": sys.byteorder,
+      "cfi_vptr": self.build_config.cfi_vptr,
       "dcheck_always_on": self.build_config.dcheck_always_on,
       "deopt_fuzzer": False,
       "endurance_fuzzer": False,
