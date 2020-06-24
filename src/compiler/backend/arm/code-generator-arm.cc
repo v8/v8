@@ -2434,6 +2434,19 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       __ VmovLow(dst, tmp2.low());
       break;
     }
+    case kArmI32x4DotI16x8S: {
+      Simd128Register dst = i.OutputSimd128Register();
+      Simd128Register lhs = i.InputSimd128Register(0);
+      Simd128Register rhs = i.InputSimd128Register(1);
+      Simd128Register tmp1 = i.TempSimd128Register(0);
+      UseScratchRegisterScope temps(tasm());
+      Simd128Register scratch = temps.AcquireQ();
+      __ vmull(NeonS16, tmp1, lhs.low(), rhs.low());
+      __ vmull(NeonS16, scratch, lhs.high(), rhs.high());
+      __ vpadd(Neon32, dst.low(), tmp1.low(), tmp1.high());
+      __ vpadd(Neon32, dst.high(), scratch.low(), scratch.high());
+      break;
+    }
     case kArmI16x8Splat: {
       __ vdup(Neon16, i.OutputSimd128Register(), i.InputRegister(0));
       break;

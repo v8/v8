@@ -4338,7 +4338,6 @@ void Assembler::vmull(NeonDataType dt, QwNeonRegister dst, DwVfpRegister src1,
   src2.split_code(&vm, &m);
   int size = NeonSz(dt);
   int u = NeonU(dt);
-  if (!u) UNIMPLEMENTED();
   emit(0xFU * B28 | B25 | u * B24 | B23 | d * B22 | size * B20 | vn * B16 |
        vd * B12 | 0xC * B8 | n * B7 | m * B5 | vm);
 }

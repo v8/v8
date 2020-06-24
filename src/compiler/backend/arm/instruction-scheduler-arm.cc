@@ -187,6 +187,7 @@ int InstructionScheduler::GetTargetInstructionFlags(
     case kArmI32x4GeU:
     case kArmI32x4Abs:
     case kArmI32x4BitMask:
+    case kArmI32x4DotI16x8S:
     case kArmI16x8Splat:
     case kArmI16x8ExtractLaneS:
     case kArmI16x8ReplaceLane:

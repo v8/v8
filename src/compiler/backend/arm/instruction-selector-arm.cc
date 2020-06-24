@@ -2633,6 +2633,14 @@ void InstructionSelector::VisitWord32AtomicPairCompareExchange(Node* node) {
   V(S128Xor, kArmS128Xor)                             \
   V(S128AndNot, kArmS128AndNot)
 
+void InstructionSelector::VisitI32x4DotI16x8S(Node* node) {
+  ArmOperandGenerator g(this);
+  InstructionOperand temps[] = {g.TempSimd128Register()};
+  Emit(kArmI32x4DotI16x8S, g.DefineAsRegister(node),
+       g.UseUniqueRegister(node->InputAt(0)),
+       g.UseUniqueRegister(node->InputAt(1)), arraysize(temps), temps);
+}
+
 void InstructionSelector::VisitS128Zero(Node* node) {
   ArmOperandGenerator g(this);
   Emit(kArmS128Zero, g.DefineAsRegister(node));

@@ -207,6 +207,7 @@ namespace compiler {
   V(ArmI32x4GeU)                   \
   V(ArmI32x4Abs)                   \
   V(ArmI32x4BitMask)               \
+  V(ArmI32x4DotI16x8S)             \
   V(ArmI16x8Splat)                 \
   V(ArmI16x8ExtractLaneS)          \
   V(ArmI16x8ReplaceLane)           \
