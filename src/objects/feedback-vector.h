@@ -756,8 +756,8 @@ class V8_EXPORT_PRIVATE FeedbackNexus final {
   inline void SetFeedbackExtra(MaybeObject feedback_extra,
                                WriteBarrierMode mode = UPDATE_WRITE_BARRIER);
 
-  Handle<WeakFixedArray> EnsureArrayOfSize(int length);
-  Handle<WeakFixedArray> EnsureExtraArrayOfSize(int length);
+  // Create an array. The caller must install it in a feedback vector slot.
+  Handle<WeakFixedArray> CreateArrayOfSize(int length);
 
  private:
   // The reason for having a vector handle and a raw pointer is that we can and

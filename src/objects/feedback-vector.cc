@@ -453,29 +453,9 @@ void FeedbackVector::AssertNoLegacyTypes(MaybeObject object) {
 #endif
 }
 
-Handle<WeakFixedArray> FeedbackNexus::EnsureArrayOfSize(int length) {
+Handle<WeakFixedArray> FeedbackNexus::CreateArrayOfSize(int length) {
   Isolate* isolate = GetIsolate();
-  HeapObject heap_object;
-  if (GetFeedback()->GetHeapObjectIfStrong(&heap_object) &&
-      heap_object.IsWeakFixedArray() &&
-      WeakFixedArray::cast(heap_object).length() == length) {
-    return handle(WeakFixedArray::cast(heap_object), isolate);
-  }
   Handle<WeakFixedArray> array = isolate->factory()->NewWeakFixedArray(length);
-  SetFeedback(*array);
-  return array;
-}
-
-Handle<WeakFixedArray> FeedbackNexus::EnsureExtraArrayOfSize(int length) {
-  Isolate* isolate = GetIsolate();
-  HeapObject heap_object;
-  if (GetFeedbackExtra()->GetHeapObjectIfStrong(&heap_object) &&
-      heap_object.IsWeakFixedArray() &&
-      WeakFixedArray::cast(heap_object).length() == length) {
-    return handle(WeakFixedArray::cast(heap_object), isolate);
-  }
-  Handle<WeakFixedArray> array = isolate->factory()->NewWeakFixedArray(length);
-  SetFeedbackExtra(*array);
   return array;
 }
 
@@ -845,11 +825,12 @@ void FeedbackNexus::ConfigureCloneObject(Handle<Map> source_map,
       } else {
         // Transition to POLYMORPHIC.
         Handle<WeakFixedArray> array =
-            EnsureArrayOfSize(2 * kCloneObjectPolymorphicEntrySize);
+            CreateArrayOfSize(2 * kCloneObjectPolymorphicEntrySize);
         array->Set(0, HeapObjectReference::Weak(*feedback));
         array->Set(1, GetFeedbackExtra());
         array->Set(2, HeapObjectReference::Weak(*source_map));
         array->Set(3, MaybeObject::FromObject(*result_map));
+        SetFeedback(*array);
         SetFeedbackExtra(HeapObjectReference::ClearedValue(isolate));
       }
       break;
@@ -879,11 +860,12 @@ void FeedbackNexus::ConfigureCloneObject(Handle<Map> source_map,
         }
 
         // Grow polymorphic feedback array.
-        Handle<WeakFixedArray> new_array = EnsureArrayOfSize(
+        Handle<WeakFixedArray> new_array = CreateArrayOfSize(
             array->length() + kCloneObjectPolymorphicEntrySize);
         for (int j = 0; j < array->length(); ++j) {
           new_array->Set(j, array->Get(j));
         }
+        SetFeedback(*new_array);
         array = new_array;
       }
 
@@ -949,10 +931,11 @@ void FeedbackNexus::ConfigureMonomorphic(Handle<Name> name,
       SetFeedback(HeapObjectReference::Weak(*receiver_map));
       SetFeedbackExtra(*handler);
     } else {
-      Handle<WeakFixedArray> array = EnsureExtraArrayOfSize(2);
+      Handle<WeakFixedArray> array = CreateArrayOfSize(2);
       SetFeedback(*name);
       array->Set(0, HeapObjectReference::Weak(*receiver_map));
       array->Set(1, *handler);
+      SetFeedbackExtra(*array);
     }
   }
 }
@@ -961,15 +944,7 @@ void FeedbackNexus::ConfigurePolymorphic(
     Handle<Name> name, std::vector<MapAndHandler> const& maps_and_handlers) {
   int receiver_count = static_cast<int>(maps_and_handlers.size());
   DCHECK_GT(receiver_count, 1);
-  Handle<WeakFixedArray> array;
-  if (name.is_null()) {
-    array = EnsureArrayOfSize(receiver_count * 2);
-    SetFeedbackExtra(*FeedbackVector::UninitializedSentinel(GetIsolate()),
-                     SKIP_WRITE_BARRIER);
-  } else {
-    array = EnsureExtraArrayOfSize(receiver_count * 2);
-    SetFeedback(*name);
-  }
+  Handle<WeakFixedArray> array = CreateArrayOfSize(receiver_count * 2);
 
   for (int current = 0; current < receiver_count; ++current) {
     Handle<Map> map = maps_and_handlers[current].first;
@@ -977,6 +952,14 @@ void FeedbackNexus::ConfigurePolymorphic(
     MaybeObjectHandle handler = maps_and_handlers[current].second;
     DCHECK(IC::IsHandler(*handler));
     array->Set(current * 2 + 1, *handler);
+  }
+  if (name.is_null()) {
+    SetFeedback(*array);
+    SetFeedbackExtra(*FeedbackVector::UninitializedSentinel(GetIsolate()),
+                     SKIP_WRITE_BARRIER);
+  } else {
+    SetFeedback(*name);
+    SetFeedbackExtra(*array);
   }
 }
 
