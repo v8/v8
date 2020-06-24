@@ -1989,11 +1989,14 @@ class WasmFullDecoder : public WasmDecoder<validate> {
     return true;
   }
 
+#ifdef DEBUG
   class TraceLine {
    public:
-    static constexpr int kMaxLen = 512;
+    explicit TraceLine(WasmFullDecoder* decoder) : decoder_(decoder) {}
+
     ~TraceLine() {
       if (!FLAG_trace_wasm_decoder) return;
+      AppendStackState();
       PrintF("%.*s\n", len_, buffer_);
     }
 
@@ -2011,9 +2014,87 @@ class WasmFullDecoder : public WasmDecoder<validate> {
     }
 
    private:
+    void AppendStackState() {
+      DCHECK(FLAG_trace_wasm_decoder);
+      Append(" ");
+      for (Control& c : decoder_->control_) {
+        switch (c.kind) {
+          case kControlIf:
+            Append("I");
+            break;
+          case kControlBlock:
+            Append("B");
+            break;
+          case kControlLoop:
+            Append("L");
+            break;
+          case kControlTry:
+            Append("T");
+            break;
+          case kControlIfElse:
+          case kControlTryCatch:
+          case kControlLet:  // TODO(7748): Implement
+            break;
+        }
+        if (c.start_merge.arity) Append("%u-", c.start_merge.arity);
+        Append("%u", c.end_merge.arity);
+        if (!c.reachable()) Append("%c", c.unreachable() ? '*' : '#');
+      }
+      Append(" | ");
+      for (size_t i = 0; i < decoder_->stack_.size(); ++i) {
+        Value& val = decoder_->stack_[i];
+        WasmOpcode val_opcode = static_cast<WasmOpcode>(*val.pc);
+        if (WasmOpcodes::IsPrefixOpcode(val_opcode)) {
+          val_opcode =
+              decoder_->template read_prefixed_opcode<Decoder::kNoValidate>(
+                  val.pc);
+        }
+        Append(" %c@%d:%s", val.type.short_name(),
+               static_cast<int>(val.pc - decoder_->start_),
+               WasmOpcodes::OpcodeName(val_opcode));
+        // If the decoder failed, don't try to decode the immediates, as this
+        // can trigger a DCHECK failure.
+        if (decoder_->failed()) continue;
+        switch (val_opcode) {
+          case kExprI32Const: {
+            ImmI32Immediate<Decoder::kNoValidate> imm(decoder_, val.pc);
+            Append("[%d]", imm.value);
+            break;
+          }
+          case kExprLocalGet:
+          case kExprLocalSet:
+          case kExprLocalTee: {
+            LocalIndexImmediate<Decoder::kNoValidate> imm(decoder_, val.pc);
+            Append("[%u]", imm.index);
+            break;
+          }
+          case kExprGlobalGet:
+          case kExprGlobalSet: {
+            GlobalIndexImmediate<Decoder::kNoValidate> imm(decoder_, val.pc);
+            Append("[%u]", imm.index);
+            break;
+          }
+          default:
+            break;
+        }
+      }
+    }
+
+    static constexpr int kMaxLen = 512;
+
     char buffer_[kMaxLen];
     int len_ = 0;
+    WasmFullDecoder* const decoder_;
   };
+#else
+  class TraceLine {
+   public:
+    explicit TraceLine(WasmFullDecoder*) {}
+
+    PRINTF_FORMAT(2, 3)
+    void Append(const char* format, ...) {}
+  };
+#endif
 
   // Helper to avoid calling member methods (which are more expensive to call
   // indirectly).
@@ -2024,16 +2105,11 @@ class WasmFullDecoder : public WasmDecoder<validate> {
 
   template <WasmOpcode opcode>
   int DecodeOp() {
-#if DEBUG
-    TraceLine trace_msg;
-#define TRACE_PART(...) trace_msg.Append(__VA_ARGS__)
+    TraceLine trace_msg(this);
     if (!WasmOpcodes::IsPrefixOpcode(opcode)) {
-      TRACE_PART(TRACE_INST_FORMAT, startrel(this->pc_),
-                 WasmOpcodes::OpcodeName(opcode));
+      trace_msg.Append(TRACE_INST_FORMAT, startrel(this->pc_),
+                       WasmOpcodes::OpcodeName(opcode));
     }
-#else
-#define TRACE_PART(...)
-#endif
 
     int len = 1;
 
@@ -2283,8 +2359,8 @@ class WasmFullDecoder : public WasmDecoder<validate> {
             break;
           }
           // The result of the block is the return value.
-          TRACE_PART("\n" TRACE_INST_FORMAT, startrel(this->pc_),
-                     "(implicit) return");
+          trace_msg.Append("\n" TRACE_INST_FORMAT, startrel(this->pc_),
+                           "(implicit) return");
           DoReturn();
           control_.clear();
           break;
@@ -2744,8 +2820,8 @@ class WasmFullDecoder : public WasmDecoder<validate> {
         } else if (full_opcode >= kExprMemoryInit) {
           CHECK_PROTOTYPE_OPCODE(bulk_memory);
         }
-        TRACE_PART(TRACE_INST_FORMAT, startrel(this->pc_),
-                   WasmOpcodes::OpcodeName(full_opcode));
+        trace_msg.Append(TRACE_INST_FORMAT, startrel(this->pc_),
+                         WasmOpcodes::OpcodeName(full_opcode));
         len += DecodeNumericOpcode(full_opcode);
         break;
       }
@@ -2757,8 +2833,8 @@ class WasmFullDecoder : public WasmDecoder<validate> {
         if (!VALIDATE(this->ok())) break;
         len += length;
 
-        TRACE_PART(TRACE_INST_FORMAT, startrel(this->pc_),
-                   WasmOpcodes::OpcodeName(full_opcode));
+        trace_msg.Append(TRACE_INST_FORMAT, startrel(this->pc_),
+                         WasmOpcodes::OpcodeName(full_opcode));
         len += DecodeSimdOpcode(full_opcode, length);
         break;
       }
@@ -2769,8 +2845,8 @@ class WasmFullDecoder : public WasmDecoder<validate> {
             this->template read_u8<validate>(this->pc_ + 1, "atomic index");
         WasmOpcode full_opcode =
             static_cast<WasmOpcode>(opcode << 8 | atomic_index);
-        TRACE_PART(TRACE_INST_FORMAT, startrel(this->pc_),
-                   WasmOpcodes::OpcodeName(full_opcode));
+        trace_msg.Append(TRACE_INST_FORMAT, startrel(this->pc_),
+                         WasmOpcodes::OpcodeName(full_opcode));
         len += DecodeAtomicOpcode(full_opcode);
         break;
       }
@@ -2780,8 +2856,8 @@ class WasmFullDecoder : public WasmDecoder<validate> {
             this->template read_u8<validate>(this->pc_ + 1, "gc index");
         WasmOpcode full_opcode =
             static_cast<WasmOpcode>(opcode << 8 | gc_index);
-        TRACE_PART(TRACE_INST_FORMAT, startrel(this->pc_),
-                   WasmOpcodes::OpcodeName(full_opcode));
+        trace_msg.Append(TRACE_INST_FORMAT, startrel(this->pc_),
+                         WasmOpcodes::OpcodeName(full_opcode));
         len = DecodeGCOpcode(full_opcode);
         break;
       }
@@ -2804,71 +2880,6 @@ class WasmFullDecoder : public WasmDecoder<validate> {
       }
     }
 
-#if DEBUG
-    if (FLAG_trace_wasm_decoder) {
-      TRACE_PART(" ");
-      for (Control& c : control_) {
-        switch (c.kind) {
-          case kControlIf:
-            TRACE_PART("I");
-            break;
-          case kControlBlock:
-            TRACE_PART("B");
-            break;
-          case kControlLoop:
-            TRACE_PART("L");
-            break;
-          case kControlTry:
-            TRACE_PART("T");
-            break;
-          case kControlIfElse:
-          case kControlTryCatch:
-          case kControlLet:  // TODO(7748): Implement
-            break;
-        }
-        if (c.start_merge.arity) TRACE_PART("%u-", c.start_merge.arity);
-        TRACE_PART("%u", c.end_merge.arity);
-        if (!c.reachable()) TRACE_PART("%c", c.unreachable() ? '*' : '#');
-      }
-      TRACE_PART(" | ");
-      for (size_t i = 0; i < stack_.size(); ++i) {
-        Value& val = stack_[i];
-        WasmOpcode val_opcode = static_cast<WasmOpcode>(*val.pc);
-        if (WasmOpcodes::IsPrefixOpcode(val_opcode)) {
-          val_opcode =
-              this->template read_prefixed_opcode<Decoder::kNoValidate>(val.pc);
-        }
-        TRACE_PART(" %c@%d:%s", val.type.short_name(),
-                   static_cast<int>(val.pc - this->start_),
-                   WasmOpcodes::OpcodeName(val_opcode));
-        // If the decoder failed, don't try to decode the immediates, as this
-        // can trigger a DCHECK failure.
-        if (this->failed()) continue;
-        switch (val_opcode) {
-          case kExprI32Const: {
-            ImmI32Immediate<Decoder::kNoValidate> imm(this, val.pc);
-            TRACE_PART("[%d]", imm.value);
-            break;
-          }
-          case kExprLocalGet:
-          case kExprLocalSet:
-          case kExprLocalTee: {
-            LocalIndexImmediate<Decoder::kNoValidate> imm(this, val.pc);
-            TRACE_PART("[%u]", imm.index);
-            break;
-          }
-          case kExprGlobalGet:
-          case kExprGlobalSet: {
-            GlobalIndexImmediate<Decoder::kNoValidate> imm(this, val.pc);
-            TRACE_PART("[%u]", imm.index);
-            break;
-          }
-          default:
-            break;
-        }
-      }
-    }
-#endif
     return len;
   }
 
