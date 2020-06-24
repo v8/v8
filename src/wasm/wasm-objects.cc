@@ -261,6 +261,9 @@ Handle<WasmTableObject> WasmTableObject::New(Isolate* isolate,
                                              uint32_t initial, bool has_maximum,
                                              uint32_t maximum,
                                              Handle<FixedArray>* entries) {
+  // TODO(7748): Make this work with other types when spec clears up.
+  CHECK(type.is_nullable());
+
   Handle<FixedArray> backing_store = isolate->factory()->NewFixedArray(initial);
   Object null = ReadOnlyRoots(isolate).null_value();
   for (int i = 0; i < static_cast<int>(initial); ++i) {
@@ -283,8 +286,6 @@ Handle<WasmTableObject> WasmTableObject::New(Isolate* isolate,
   table_obj->set_entries(*backing_store);
   table_obj->set_current_length(initial);
   table_obj->set_maximum_length(*max);
-  // TODO(7748): Make this work with other table types.
-  CHECK(type.is_nullable());
   table_obj->set_raw_type(static_cast<int>(type.heap_type()));
 
   table_obj->set_dispatch_tables(ReadOnlyRoots(isolate).empty_fixed_array());

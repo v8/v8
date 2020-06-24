@@ -385,7 +385,7 @@ ACCESSORS(WasmIndirectFunctionTable, refs, FixedArray, kRefsOffset)
 #undef PRIMITIVE_ACCESSORS
 
 wasm::ValueType WasmTableObject::type() {
-  // TODO(7748): Support non-nullable tables?
+  // TODO(7748): Support other table types? Wait for spec to clear up.
   return wasm::ValueType::Ref(static_cast<wasm::HeapType>(raw_type()),
                               wasm::kNullable);
 }

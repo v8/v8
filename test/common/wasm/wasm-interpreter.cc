@@ -2813,6 +2813,7 @@ class WasmInterpreterInternals {
               encoded_values->set(encoded_index++, *externref);
               break;
             }
+            case kHeapEq:
             default:
               // TODO(7748): Implement these.
               UNIMPLEMENTED();

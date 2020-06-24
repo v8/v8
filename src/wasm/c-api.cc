@@ -1415,12 +1415,19 @@ void PushArgs(const i::wasm::FunctionSig* sig, const Val args[],
         break;
       case i::wasm::ValueType::kRef:
       case i::wasm::ValueType::kOptRef:
-        // TODO(7748): Make sure this works for all types.
+        // TODO(7748): Make sure this works for all heap types.
         packer->Push(WasmRefToV8(store->i_isolate(), args[i].ref())->ptr());
         break;
-      default:
-        // TODO(7748): Implement these.
+      case i::wasm::ValueType::kRtt:
+      case i::wasm::ValueType::kS128:
+        // TODO(7748): Implement.
         UNIMPLEMENTED();
+      case i::wasm::ValueType::kI8:
+      case i::wasm::ValueType::kI16:
+      case i::wasm::ValueType::kStmt:
+      case i::wasm::ValueType::kBottom:
+        UNREACHABLE();
+        break;
     }
   }
 }
@@ -1444,23 +1451,23 @@ void PopArgs(const i::wasm::FunctionSig* sig, Val results[],
         results[i] = Val(packer->Pop<double>());
         break;
       case i::wasm::ValueType::kRef:
-      case i::wasm::ValueType::kOptRef:
-        switch (type.heap_type()) {
-          case i::wasm::kHeapExtern:
-          case i::wasm::kHeapFunc: {
-            i::Address raw = packer->Pop<i::Address>();
-            i::Handle<i::Object> obj(i::Object(raw), store->i_isolate());
-            results[i] = Val(V8RefValueToWasm(store, obj));
-            break;
-          }
-          default:
-            // TODO(jkummerow): Implement these.
-            UNIMPLEMENTED();
-        }
+      case i::wasm::ValueType::kOptRef: {
+        // TODO(7748): Make sure this works for all heap types.
+        i::Address raw = packer->Pop<i::Address>();
+        i::Handle<i::Object> obj(i::Object(raw), store->i_isolate());
+        results[i] = Val(V8RefValueToWasm(store, obj));
         break;
-      default:
-        // TODO(7748): Implement these.
+      }
+      case i::wasm::ValueType::kRtt:
+      case i::wasm::ValueType::kS128:
+        // TODO(7748): Implement.
         UNIMPLEMENTED();
+      case i::wasm::ValueType::kI8:
+      case i::wasm::ValueType::kI16:
+      case i::wasm::ValueType::kStmt:
+      case i::wasm::ValueType::kBottom:
+        UNREACHABLE();
+        break;
     }
   }
 }
@@ -1707,20 +1714,20 @@ auto Global::get() const -> Val {
     case i::wasm::ValueType::kF64:
       return Val(v8_global->GetF64());
     case i::wasm::ValueType::kRef:
-    case i::wasm::ValueType::kOptRef:
-      switch (v8_global->type().heap_type()) {
-        case i::wasm::kHeapExtern:
-        case i::wasm::kHeapFunc: {
-          StoreImpl* store = impl(this)->store();
-          i::HandleScope scope(store->i_isolate());
-          return Val(V8RefValueToWasm(store, v8_global->GetRef()));
-        }
-        default:
-          // TODO(wasm+): Support new value types.
-          UNREACHABLE();
-      }
-    default:
+    case i::wasm::ValueType::kOptRef: {
+      // TODO(7748): Make sure this works for all heap types.
+      StoreImpl* store = impl(this)->store();
+      i::HandleScope scope(store->i_isolate());
+      return Val(V8RefValueToWasm(store, v8_global->GetRef()));
+    }
+    case i::wasm::ValueType::kRtt:
+    case i::wasm::ValueType::kS128:
       // TODO(7748): Implement these.
+      UNIMPLEMENTED();
+    case i::wasm::ValueType::kI8:
+    case i::wasm::ValueType::kI16:
+    case i::wasm::ValueType::kStmt:
+    case i::wasm::ValueType::kBottom:
       UNREACHABLE();
   }
 }

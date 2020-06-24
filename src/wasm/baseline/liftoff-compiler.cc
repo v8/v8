@@ -399,8 +399,11 @@ class LiftoffCompiler {
         return kSimd;
       case ValueType::kOptRef:
       case ValueType::kRef:
-        // TODO(7748): Refine this.
-        return kRefTypes;
+        if (type.heap_type() == kHeapExn) {
+          return kExceptionHandling;
+        } else {
+          return kRefTypes;
+        }
       case ValueType::kBottom:
         return kMultiValue;
       default:

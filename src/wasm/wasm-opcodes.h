@@ -21,24 +21,24 @@ std::ostream& operator<<(std::ostream& os, const FunctionSig& function);
 bool IsJSCompatibleSignature(const FunctionSig* sig, const WasmFeatures&);
 
 // Control expressions and blocks.
-#define FOREACH_CONTROL_OPCODE(V)        \
-  V(Unreachable, 0x00, _)                \
-  V(Nop, 0x01, _)                        \
-  V(Block, 0x02, _)                      \
-  V(Loop, 0x03, _)                       \
-  V(If, 0x04, _)                         \
-  V(Else, 0x05, _)                       \
-  V(Try, 0x06, _ /* eh_prototype */)     \
-  V(Catch, 0x07, _ /* eh_prototype */)   \
-  V(Throw, 0x08, _ /* eh_prototype */)   \
-  V(Rethrow, 0x09, _ /* eh_prototype */) \
-  V(BrOnExn, 0x0a, _ /* eh prototype */) \
-  V(End, 0x0b, _)                        \
-  V(Br, 0x0c, _)                         \
-  V(BrIf, 0x0d, _)                       \
-  V(BrTable, 0x0e, _)                    \
-  V(Return, 0x0f, _)                     \
-  V(Let, 0x17, _ /* gc prototype */)     \
+#define FOREACH_CONTROL_OPCODE(V)               \
+  V(Unreachable, 0x00, _)                       \
+  V(Nop, 0x01, _)                               \
+  V(Block, 0x02, _)                             \
+  V(Loop, 0x03, _)                              \
+  V(If, 0x04, _)                                \
+  V(Else, 0x05, _)                              \
+  V(Try, 0x06, _ /* eh_prototype */)            \
+  V(Catch, 0x07, _ /* eh_prototype */)          \
+  V(Throw, 0x08, _ /* eh_prototype */)          \
+  V(Rethrow, 0x09, _ /* eh_prototype */)        \
+  V(BrOnExn, 0x0a, _ /* eh prototype */)        \
+  V(End, 0x0b, _)                               \
+  V(Br, 0x0c, _)                                \
+  V(BrIf, 0x0d, _)                              \
+  V(BrTable, 0x0e, _)                           \
+  V(Return, 0x0f, _)                            \
+  V(Let, 0x17, _ /* typed_funcref prototype */) \
   V(BrOnNull, 0xd4, _ /* gc prototype */)
 
 // Constants, locals, globals, and calls.
@@ -64,7 +64,7 @@ bool IsJSCompatibleSignature(const FunctionSig* sig, const WasmFeatures&);
   V(RefNull, 0xd0, _)            \
   V(RefIsNull, 0xd1, _)          \
   V(RefFunc, 0xd2, _)            \
-  V(RefAsNonNull, 0xd3, _)
+  V(RefAsNonNull, 0xd3, _ /* typed_funcref prototype */)
 
 // Load memory expressions.
 #define FOREACH_LOAD_MEM_OPCODE(V) \
@@ -596,8 +596,6 @@ bool IsJSCompatibleSignature(const FunctionSig* sig, const WasmFeatures&);
   V(I64AtomicCompareExchange16U, 0xfe4d, l_ill) \
   V(I64AtomicCompareExchange32U, 0xfe4e, l_ill)
 
-// Opcode values are guesswork for now, see:
-// https://docs.google.com/document/d/1DklC3qVuOdLHSXB5UXghM_syCh-4cMinQ50ICiXnK3Q/edit
 #define FOREACH_GC_OPCODE(V)     \
   V(StructNew, 0xfb00, _)        \
   V(StructNewSub, 0xfb01, _)     \
