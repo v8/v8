@@ -423,6 +423,10 @@ void f32x4_trunc_wrapper(Address data) {
   simd_float_round_wrapper<float, &truncf>(data);
 }
 
+void f32x4_nearest_int_wrapper(Address data) {
+  simd_float_round_wrapper<float, &nearbyintf>(data);
+}
+
 namespace {
 class ThreadNotInWasmScope {
 // Asan on Windows triggers exceptions to allocate shadow memory lazily. When

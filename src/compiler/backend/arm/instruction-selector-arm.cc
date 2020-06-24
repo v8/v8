@@ -1498,7 +1498,8 @@ void InstructionSelector::VisitUint32Mod(Node* node) {
   V(Float64RoundTiesEven, kArmVrintnF64) \
   V(F32x4Ceil, kArmVrintpF32)            \
   V(F32x4Floor, kArmVrintmF32)           \
-  V(F32x4Trunc, kArmVrintzF32)
+  V(F32x4Trunc, kArmVrintzF32)           \
+  V(F32x4NearestInt, kArmVrintnF32)
 
 #define RRR_OP_LIST(V)          \
   V(Int32MulHigh, kArmSmmul)    \

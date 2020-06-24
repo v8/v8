@@ -5451,6 +5451,9 @@ void Simulator::DecodeSpecialCondition(Instruction* instr) {
           int rounding_mode = instr->Bits(9, 7);
           float (*fproundint)(float) = nullptr;
           switch (rounding_mode) {
+            case 0:
+              fproundint = &nearbyintf;
+              break;
             case 3:
               fproundint = &truncf;
               break;

@@ -85,6 +85,8 @@ V8_EXPORT_PRIVATE void f32x4_floor_wrapper(Address data);
 
 V8_EXPORT_PRIVATE void f32x4_trunc_wrapper(Address data);
 
+V8_EXPORT_PRIVATE void f32x4_nearest_int_wrapper(Address data);
+
 // The return type is {int32_t} instead of {bool} to enforce the compiler to
 // zero-extend the result in the return register.
 int32_t memory_init_wrapper(Address data);

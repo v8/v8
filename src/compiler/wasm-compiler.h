@@ -560,6 +560,7 @@ class WasmGraphBuilder {
   Node* BuildF32x4Ceil(Node* input);
   Node* BuildF32x4Floor(Node* input);
   Node* BuildF32x4Trunc(Node* input);
+  Node* BuildF32x4NearestInt(Node* input);
 
   void BuildEncodeException32BitValue(Node* values_array, uint32_t* index,
                                       Node* value);
