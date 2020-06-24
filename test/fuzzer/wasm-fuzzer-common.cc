@@ -277,6 +277,10 @@ void WasmExecutionFuzzer::FuzzWasmModule(Vector<const uint8_t> data,
 #undef ENABLE_STAGED_FEATURES
   // SIMD is not included in staging yet, so we enable it here for fuzzing.
   EXPERIMENTAL_FLAG_SCOPE(simd);
+  // TODO(v8:10308): Bitmask was merged into proposal after 84 cut, so it was
+  // left gated by this flag. In order to fuzz it, we need this flag. This
+  // should be removed once we move bitmask out of post mvp.
+  FLAG_SCOPE(wasm_simd_post_mvp);
 
   // Strictly enforce the input size limit. Note that setting "max_len" on the
   // fuzzer target is not enough, since different fuzzers are used and not all
