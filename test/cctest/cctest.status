@@ -97,6 +97,9 @@
   # BUG(3742).
   'test-mark-compact/MarkCompactCollector': [PASS, ['arch==arm', NO_VARIANTS]],
 
+  # BUG(10637).
+  'test-concurrent-allocation/ConcurrentAllocationInOldSpace': [SKIP],
+
   # Test that serialization with unknown external reference fails.
   'test-serialize/SnapshotCreatorUnknownExternalReferences': [FAIL],
   'test-serialize/SnapshotCreatorUnknownHandles': [FAIL],
