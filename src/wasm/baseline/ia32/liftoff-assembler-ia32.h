@@ -490,9 +490,10 @@ void LiftoffAssembler::AtomicStore(Register dst_addr, Register offset_reg,
 namespace liftoff {
 #define __ lasm->
 
-enum class AddOrSub { kAdd, kSub };
+enum AddOrSubOrExchange { kAdd, kSub, kExchange };
 
-inline void AtomicAddOrSub32(LiftoffAssembler* lasm, AddOrSub add_or_sub,
+inline void AtomicAddOrSub32(LiftoffAssembler* lasm,
+                             AddOrSubOrExchange add_or_sub_or_exchange,
                              Register dst_addr, Register offset_reg,
                              uint32_t offset_imm, LiftoffRegister value,
                              LiftoffRegister result, StoreType type) {
@@ -516,24 +517,38 @@ inline void AtomicAddOrSub32(LiftoffAssembler* lasm, AddOrSub add_or_sub,
   }
 
   Operand dst_op = Operand(dst_addr, offset_reg, times_1, offset_imm);
-  if (add_or_sub == AddOrSub::kSub) {
+  if (add_or_sub_or_exchange == kSub) {
     __ neg(value_reg);
   }
-  __ lock();
+  if (add_or_sub_or_exchange != kExchange) {
+    __ lock();
+  }
   switch (type.value()) {
     case StoreType::kI64Store8:
     case StoreType::kI32Store8:
-      __ xadd_b(dst_op, value_reg);
+      if (add_or_sub_or_exchange == kExchange) {
+        __ xchg_b(value_reg, dst_op);
+      } else {
+        __ xadd_b(dst_op, value_reg);
+      }
       __ movzx_b(result_reg, value_reg);
       break;
     case StoreType::kI64Store16:
     case StoreType::kI32Store16:
-      __ xadd_w(dst_op, value_reg);
+      if (add_or_sub_or_exchange == kExchange) {
+        __ xchg_w(value_reg, dst_op);
+      } else {
+        __ xadd_w(dst_op, value_reg);
+      }
       __ movzx_w(result_reg, value_reg);
       break;
     case StoreType::kI64Store32:
     case StoreType::kI32Store:
-      __ xadd(dst_op, value_reg);
+      if (add_or_sub_or_exchange == kExchange) {
+        __ xchg(value_reg, dst_op);
+      } else {
+        __ xadd(dst_op, value_reg);
+      }
       if (value_reg != result_reg) {
         __ mov(result_reg, value_reg);
       }
@@ -556,7 +571,7 @@ void LiftoffAssembler::AtomicAdd(Register dst_addr, Register offset_reg,
     return;
   }
 
-  liftoff::AtomicAddOrSub32(this, liftoff::AddOrSub::kAdd, dst_addr, offset_reg,
+  liftoff::AtomicAddOrSub32(this, liftoff::kAdd, dst_addr, offset_reg,
                             offset_imm, value, result, type);
 }
 
@@ -567,7 +582,7 @@ void LiftoffAssembler::AtomicSub(Register dst_addr, Register offset_reg,
     bailout(kAtomics, "AtomicSub");
     return;
   }
-  liftoff::AtomicAddOrSub32(this, liftoff::AddOrSub::kSub, dst_addr, offset_reg,
+  liftoff::AtomicAddOrSub32(this, liftoff::kSub, dst_addr, offset_reg,
                             offset_imm, value, result, type);
 }
 
@@ -593,7 +608,12 @@ void LiftoffAssembler::AtomicExchange(Register dst_addr, Register offset_reg,
                                       uint32_t offset_imm,
                                       LiftoffRegister value,
                                       LiftoffRegister result, StoreType type) {
-  bailout(kAtomics, "AtomicExchange");
+  if (type.value() == StoreType::kI64Store) {
+    bailout(kAtomics, "AtomicExchange");
+    return;
+  }
+  liftoff::AtomicAddOrSub32(this, liftoff::kExchange, dst_addr, offset_reg,
+                            offset_imm, value, result, type);
 }
 
 void LiftoffAssembler::AtomicCompareExchange(
