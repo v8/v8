@@ -817,15 +817,68 @@ TEST(ReadOnlySpaceMetrics_OnePage) {
   // Allocated objects size.
   CHECK_EQ(faked_space.Size(), 16);
 
-  // Capacity will be one OS page minus the page header.
-  CHECK_EQ(faked_space.Capacity(),
-           allocator->GetCommitPageSize() -
-               MemoryChunkLayout::ObjectStartOffsetInDataPage());
-
   // Amount of OS allocated memory.
   CHECK_EQ(faked_space.CommittedMemory(), allocator->GetCommitPageSize());
   CHECK_EQ(faked_space.CommittedPhysicalMemory(),
            allocator->GetCommitPageSize());
+
+  // Capacity will be one OS page minus the page header.
+  CHECK_EQ(faked_space.Capacity(),
+           allocator->GetCommitPageSize() -
+               MemoryChunkLayout::ObjectStartOffsetInDataPage());
+}
+
+TEST(ReadOnlySpaceMetrics_AlignedAllocations) {
+  Isolate* isolate = CcTest::i_isolate();
+  Heap* heap = isolate->heap();
+
+  // Create a read-only space and allocate some memory, shrink the pages and
+  // check the allocated object size is as expected.
+
+  ReadOnlySpace faked_space(heap);
+
+  // Initially no memory.
+  CHECK_EQ(faked_space.Size(), 0);
+  CHECK_EQ(faked_space.Capacity(), 0);
+  CHECK_EQ(faked_space.CommittedMemory(), 0);
+  CHECK_EQ(faked_space.CommittedPhysicalMemory(), 0);
+
+  MemoryAllocator* allocator = heap->memory_allocator();
+  // Allocate an object just under an OS page in size.
+  int object_size =
+      static_cast<int>(allocator->GetCommitPageSize() - kApiTaggedSize);
+
+// TODO(v8:8875): Pointer compression does not enable aligned memory allocation
+// yet.
+#ifdef V8_COMPRESS_POINTERS
+  int alignment = kInt32Size;
+#else
+  int alignment = kDoubleSize;
+#endif
+
+  HeapObject object =
+      faked_space.AllocateRaw(object_size, kDoubleAligned).ToObjectChecked();
+  CHECK_EQ(object.address() % alignment, 0);
+  object =
+      faked_space.AllocateRaw(object_size, kDoubleAligned).ToObjectChecked();
+  CHECK_EQ(object.address() % alignment, 0);
+
+  faked_space.ShrinkPages();
+  faked_space.Seal(ReadOnlySpace::SealMode::kDoNotDetachFromHeap);
+
+  // Allocated objects size may will contain 4 bytes of padding on 32-bit or
+  // with pointer compression.
+  CHECK_EQ(faked_space.Size(), object_size + RoundUp(object_size, alignment));
+
+  // Amount of OS allocated memory will be 3 OS pages.
+  CHECK_EQ(faked_space.CommittedMemory(), 3 * allocator->GetCommitPageSize());
+  CHECK_EQ(faked_space.CommittedPhysicalMemory(),
+           3 * allocator->GetCommitPageSize());
+
+  // Capacity will be 3 OS pages minus the page header.
+  CHECK_EQ(faked_space.Capacity(),
+           3 * allocator->GetCommitPageSize() -
+               MemoryChunkLayout::ObjectStartOffsetInDataPage());
 }
 
 TEST(ReadOnlySpaceMetrics_TwoPages) {
@@ -846,8 +899,9 @@ TEST(ReadOnlySpaceMetrics_TwoPages) {
   MemoryAllocator* allocator = heap->memory_allocator();
 
   // Allocate an object that's too big to have more than one on a page.
-  size_t object_size =
-      MemoryChunkLayout::AllocatableMemoryInMemoryChunk(RO_SPACE) / 2 + 16;
+
+  int object_size = static_cast<int>(
+      MemoryChunkLayout::AllocatableMemoryInMemoryChunk(RO_SPACE) / 2 + 16);
   CHECK_GT(object_size * 2,
            MemoryChunkLayout::AllocatableMemoryInMemoryChunk(RO_SPACE));
   faked_space.AllocateRaw(object_size, kWordAligned);

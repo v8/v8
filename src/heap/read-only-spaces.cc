@@ -387,18 +387,18 @@ HeapObject ReadOnlySpace::TryAllocateLinearlyAligned(
   Address new_top = current_top + filler_size + size_in_bytes;
   if (new_top > limit_) return HeapObject();
 
+  // Allocation always occurs in the last chunk for RO_SPACE.
+  BasicMemoryChunk* chunk = pages_.back();
+  int allocated_size = filler_size + size_in_bytes;
+  accounting_stats_.IncreaseAllocatedBytes(allocated_size, chunk);
+  chunk->IncreaseAllocatedBytes(allocated_size);
+
   top_ = new_top;
   if (filler_size > 0) {
     return Heap::PrecedeWithFiller(ReadOnlyRoots(heap()),
                                    HeapObject::FromAddress(current_top),
                                    filler_size);
   }
-
-  // Allocation always occurs in the last chunk for RO_SPACE.
-  BasicMemoryChunk* chunk = pages_.back();
-  int allocated_size = filler_size + size_in_bytes;
-  accounting_stats_.IncreaseAllocatedBytes(allocated_size, chunk);
-  chunk->IncreaseAllocatedBytes(allocated_size);
 
   return HeapObject::FromAddress(current_top);
 }
@@ -443,15 +443,14 @@ AllocationResult ReadOnlySpace::AllocateRawUnaligned(int size_in_bytes) {
   return object;
 }
 
-AllocationResult ReadOnlySpace::AllocateRaw(size_t size_in_bytes,
+AllocationResult ReadOnlySpace::AllocateRaw(int size_in_bytes,
                                             AllocationAlignment alignment) {
 #ifdef V8_HOST_ARCH_32_BIT
   AllocationResult result = alignment != kWordAligned
                                 ? AllocateRawAligned(size_in_bytes, alignment)
                                 : AllocateRawUnaligned(size_in_bytes);
 #else
-  AllocationResult result =
-      AllocateRawUnaligned(static_cast<int>(size_in_bytes));
+  AllocationResult result = AllocateRawUnaligned(size_in_bytes);
 #endif
   HeapObject heap_obj;
   if (!result.IsRetry() && result.To(&heap_obj)) {

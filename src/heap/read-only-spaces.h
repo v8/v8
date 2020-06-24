@@ -89,7 +89,7 @@ class ReadOnlySpace : public BaseSpace {
   bool Contains(Object o) = delete;
 
   V8_EXPORT_PRIVATE
-  AllocationResult AllocateRaw(size_t size_in_bytes,
+  AllocationResult AllocateRaw(int size_in_bytes,
                                AllocationAlignment alignment);
 
   V8_EXPORT_PRIVATE void ClearStringPaddingIfNeeded();
