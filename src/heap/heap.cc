@@ -862,7 +862,6 @@ void Heap::GarbageCollectionPrologue() {
   } else {
     maximum_size_scavenges_ = 0;
   }
-  UpdateNewSpaceAllocationCounter();
   if (FLAG_track_retaining_path) {
     retainer_.clear();
     ephemeron_retainer_.clear();
@@ -872,6 +871,7 @@ void Heap::GarbageCollectionPrologue() {
 }
 
 void Heap::GarbageCollectionPrologueInSafepoint() {
+  UpdateNewSpaceAllocationCounter();
   CheckNewSpaceExpansionCriteria();
 }
 
