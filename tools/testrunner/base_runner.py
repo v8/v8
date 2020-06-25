@@ -168,6 +168,7 @@ PROGRESS_INDICATORS = {
   'dots': progress.DotsProgressIndicator,
   'color': progress.ColorProgressIndicator,
   'mono': progress.MonochromeProgressIndicator,
+  'stream': progress.StreamProgressIndicator,
 }
 
 class TestRunnerError(Exception):

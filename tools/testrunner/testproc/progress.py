@@ -113,6 +113,28 @@ class SimpleProgressIndicator(ProgressIndicator):
       print("===")
 
 
+class StreamProgressIndicator(ProgressIndicator):
+  def __init__(self):
+    super(StreamProgressIndicator, self).__init__()
+    self._requirement = base.DROP_PASS_OUTPUT
+
+  def _on_result_for(self, test, result):
+      if not result.has_unexpected_output:
+        self.print('PASS', test)
+      elif result.output.HasCrashed():
+        self.print("CRASH", test)
+      elif result.output.HasTimedOut():
+        self.print("TIMEOUT", test)
+      else:
+        if test.is_fail:
+          self.print("UNEXPECTED PASS", test)
+        else:
+          self.print("FAIL", test)
+
+  def print(self, prefix, test):
+    print('%s: %ss' % (prefix, test))
+    sys.stdout.flush()
+
 class VerboseProgressIndicator(SimpleProgressIndicator):
   def __init__(self):
     super(VerboseProgressIndicator, self).__init__()
