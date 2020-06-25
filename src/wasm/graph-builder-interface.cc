@@ -133,9 +133,9 @@ class WasmGraphBuildingInterface {
       ssa_env->locals[index] = builder_->Param(index + 1);
     }
     while (index < num_locals) {
-      ValueType type = decoder->GetLocalType(index);
+      ValueType type = decoder->local_type(index);
       TFNode* node = DefaultValue(type);
-      while (index < num_locals && decoder->GetLocalType(index) == type) {
+      while (index < num_locals && decoder->local_type(index) == type) {
         // Do a whole run of like-typed locals at a time.
         ssa_env->locals[index++] = node;
       }
@@ -900,7 +900,7 @@ class WasmGraphBuildingInterface {
           TFNode* b = ssa_env_->locals[i];
           if (a != b) {
             TFNode* inputs[] = {a, b, merge};
-            to->locals[i] = builder_->Phi(decoder->GetLocalType(i), 2, inputs);
+            to->locals[i] = builder_->Phi(decoder->local_type(i), 2, inputs);
           }
         }
         // Start a new merge from the instance cache.
@@ -918,7 +918,7 @@ class WasmGraphBuildingInterface {
         // Merge locals.
         for (int i = decoder->num_locals() - 1; i >= 0; i--) {
           to->locals[i] = builder_->CreateOrMergeIntoPhi(
-              decoder->GetLocalType(i).machine_representation(), merge,
+              decoder->local_type(i).machine_representation(), merge,
               to->locals[i], ssa_env_->locals[i]);
         }
         // Merge the instance caches.
@@ -941,16 +941,15 @@ class WasmGraphBuildingInterface {
     builder_->TerminateLoop(effect(), control());
     // The '+ 1' here is to be able to set the instance cache as assigned.
     BitVector* assigned = WasmDecoder<validate>::AnalyzeLoopAssignment(
-        decoder, decoder->pc(), decoder->total_locals() + 1, decoder->zone());
+        decoder, decoder->pc(), decoder->num_locals() + 1, decoder->zone());
     if (decoder->failed()) return;
     if (assigned != nullptr) {
       // Only introduce phis for variables assigned in this loop.
-      int instance_cache_index = decoder->total_locals();
+      int instance_cache_index = decoder->num_locals();
       for (int i = decoder->num_locals() - 1; i >= 0; i--) {
         if (!assigned->Contains(i)) continue;
         TFNode* inputs[] = {ssa_env_->locals[i], control()};
-        ssa_env_->locals[i] =
-            builder_->Phi(decoder->GetLocalType(i), 1, inputs);
+        ssa_env_->locals[i] = builder_->Phi(decoder->local_type(i), 1, inputs);
       }
       // Introduce phis for instance cache pointers if necessary.
       if (assigned->Contains(instance_cache_index)) {
@@ -966,7 +965,7 @@ class WasmGraphBuildingInterface {
     // Conservatively introduce phis for all local variables.
     for (int i = decoder->num_locals() - 1; i >= 0; i--) {
       TFNode* inputs[] = {ssa_env_->locals[i], control()};
-      ssa_env_->locals[i] = builder_->Phi(decoder->GetLocalType(i), 1, inputs);
+      ssa_env_->locals[i] = builder_->Phi(decoder->local_type(i), 1, inputs);
     }
 
     // Conservatively introduce phis for instance cache.

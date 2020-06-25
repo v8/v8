@@ -3500,9 +3500,9 @@ class WasmOpcodeLengthTest : public TestWithZone {
   void ExpectFailure(Bytes... bytes) {
     const byte code[] = {bytes..., 0, 0, 0, 0, 0, 0, 0, 0};
     WasmFeatures no_features = WasmFeatures::None();
-    WasmDecoder<Decoder::kValidate> decoder(nullptr, no_features, &no_features,
-                                            nullptr, code, code + sizeof(code),
-                                            0);
+    WasmDecoder<Decoder::kValidate> decoder(this->zone(), nullptr, no_features,
+                                            &no_features, nullptr, code,
+                                            code + sizeof(code), 0);
     WasmDecoder<Decoder::kValidate>::OpcodeLength(&decoder, code);
     EXPECT_EQ(decoder.failed(), true);
   }

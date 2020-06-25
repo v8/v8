@@ -460,7 +460,7 @@ class LiftoffCompiler {
     int num_locals = decoder->num_locals();
     __ set_num_locals(num_locals);
     for (int i = 0; i < num_locals; ++i) {
-      ValueType type = decoder->GetLocalType(i);
+      ValueType type = decoder->local_type(i);
       __ set_local_type(i, type);
     }
   }
@@ -520,7 +520,7 @@ class LiftoffCompiler {
     // because other types cannot be initialized to constants.
     for (uint32_t param_idx = num_params; param_idx < __ num_locals();
          ++param_idx) {
-      ValueType type = decoder->GetLocalType(param_idx);
+      ValueType type = decoder->local_type(param_idx);
       if (type != kWasmI32 && type != kWasmI64) return true;
     }
     return false;
@@ -586,7 +586,7 @@ class LiftoffCompiler {
     if (SpillLocalsInitially(decoder, num_params)) {
       for (uint32_t param_idx = num_params; param_idx < __ num_locals();
            ++param_idx) {
-        ValueType type = decoder->GetLocalType(param_idx);
+        ValueType type = decoder->local_type(param_idx);
         __ PushStack(type);
       }
       int spill_size = __ TopSpillOffset() - params_size;
@@ -594,7 +594,7 @@ class LiftoffCompiler {
     } else {
       for (uint32_t param_idx = num_params; param_idx < __ num_locals();
            ++param_idx) {
-        ValueType type = decoder->GetLocalType(param_idx);
+        ValueType type = decoder->local_type(param_idx);
         __ PushConstant(type, int32_t{0});
       }
     }

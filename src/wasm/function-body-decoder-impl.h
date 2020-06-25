@@ -988,33 +988,28 @@ struct ControlBase {
 template <Decoder::ValidateFlag validate>
 class WasmDecoder : public Decoder {
  public:
-  WasmDecoder(const WasmModule* module, const WasmFeatures& enabled,
+  WasmDecoder(Zone* zone, const WasmModule* module, const WasmFeatures& enabled,
               WasmFeatures* detected, const FunctionSig* sig, const byte* start,
               const byte* end, uint32_t buffer_offset = 0)
       : Decoder(start, end, buffer_offset),
+        local_types_(zone),
         module_(module),
         enabled_(enabled),
         detected_(detected),
-        sig_(sig),
-        local_types_(nullptr) {}
-  const WasmModule* module_;
-  const WasmFeatures enabled_;
-  WasmFeatures* detected_;
-  const FunctionSig* sig_;
+        sig_(sig) {}
 
-  ZoneVector<ValueType>* local_types_;
+  Zone* zone() const { return local_types_.get_allocator().zone(); }
 
-  uint32_t total_locals() const {
-    return local_types_ == nullptr
-               ? 0
-               : static_cast<uint32_t>(local_types_->size());
+  uint32_t num_locals() const {
+    return static_cast<uint32_t>(local_types_.size());
   }
 
+  ValueType local_type(uint32_t index) const { return local_types_[index]; }
+
   void InitializeLocalsFromSig() {
-    if (sig_ != nullptr) {
-      local_types_->assign(sig_->parameters().begin(),
-                           sig_->parameters().end());
-    }
+    DCHECK_NOT_NULL(sig_);
+    DCHECK_EQ(0, this->local_types_.size());
+    local_types_.assign(sig_->parameters().begin(), sig_->parameters().end());
   }
 
   // Decodes local definitions in the current decoder.
@@ -1028,16 +1023,14 @@ class WasmDecoder : public Decoder {
   // error.
   bool DecodeLocals(const byte* pc, uint32_t* total_length,
                     const base::Optional<uint32_t> insert_position) {
-    DCHECK_NOT_NULL(local_types_);
-
     uint32_t length;
     *total_length = 0;
 
     // The 'else' value is useless, we pass it for convenience.
     ZoneVector<ValueType>::iterator insert_iterator =
         insert_position.has_value()
-            ? local_types_->begin() + insert_position.value()
-            : local_types_->begin();
+            ? local_types_.begin() + insert_position.value()
+            : local_types_.begin();
 
     // Decode local declarations, if any.
     uint32_t entries = read_u32v<kValidate>(pc, &length, "local decls count");
@@ -1060,8 +1053,8 @@ class WasmDecoder : public Decoder {
         error(pc + *total_length, "invalid local count");
         return false;
       }
-      DCHECK_LE(local_types_->size(), kV8MaxWasmFunctionLocals);
-      if (!VALIDATE(count <= kV8MaxWasmFunctionLocals - local_types_->size())) {
+      DCHECK_LE(local_types_.size(), kV8MaxWasmFunctionLocals);
+      if (!VALIDATE(count <= kV8MaxWasmFunctionLocals - local_types_.size())) {
         error(pc + *total_length, "local count too large");
         return false;
       }
@@ -1077,7 +1070,7 @@ class WasmDecoder : public Decoder {
       if (insert_position.has_value()) {
         // Move the insertion iterator to the end of the newly inserted locals.
         insert_iterator =
-            local_types_->insert(insert_iterator, count, type) + count;
+            local_types_.insert(insert_iterator, count, type) + count;
       }
     }
     DCHECK(ok());
@@ -1140,11 +1133,11 @@ class WasmDecoder : public Decoder {
   }
 
   inline bool Validate(const byte* pc, LocalIndexImmediate<validate>& imm) {
-    if (!VALIDATE(imm.index < total_locals())) {
+    if (!VALIDATE(imm.index < num_locals())) {
       errorf(pc + 1, "invalid local index: %u", imm.index);
       return false;
     }
-    imm.type = local_types_ ? local_types_->at(imm.index) : kWasmStmt;
+    imm.type = this->local_type(imm.index);
     return true;
   }
 
@@ -1838,6 +1831,16 @@ class WasmDecoder : public Decoder {
 #undef DECLARE_OPCODE_CASE
     // clang-format on
   }
+
+  // The {Zone} is implicitly stored in the {ZoneAllocator} which is part of
+  // this {ZoneVector}. Hence save one field and just get it from there if
+  // needed (see {zone()} accessor below).
+  ZoneVector<ValueType> local_types_;
+
+  const WasmModule* module_;
+  const WasmFeatures enabled_;
+  WasmFeatures* detected_;
+  const FunctionSig* sig_;
 };
 
 #define CALL_INTERFACE(name, ...) interface_.name(this, ##__VA_ARGS__)
@@ -1874,15 +1877,11 @@ class WasmFullDecoder : public WasmDecoder<validate> {
   WasmFullDecoder(Zone* zone, const WasmModule* module,
                   const WasmFeatures& enabled, WasmFeatures* detected,
                   const FunctionBody& body, InterfaceArgs&&... interface_args)
-      : WasmDecoder<validate>(module, enabled, detected, body.sig, body.start,
-                              body.end, body.offset),
-        zone_(zone),
+      : WasmDecoder<validate>(zone, module, enabled, detected, body.sig,
+                              body.start, body.end, body.offset),
         interface_(std::forward<InterfaceArgs>(interface_args)...),
-        local_type_vec_(zone),
         stack_(zone),
-        control_(zone) {
-    this->local_types_ = &local_type_vec_;
-  }
+        control_(zone) {}
 
   Interface& interface() { return interface_; }
 
@@ -1892,11 +1891,9 @@ class WasmFullDecoder : public WasmDecoder<validate> {
 
     DCHECK_LE(this->pc_, this->end_);
 
-    DCHECK_EQ(0, this->local_types_->size());
     this->InitializeLocalsFromSig();
     uint32_t locals_length;
-    this->DecodeLocals(this->pc(), &locals_length,
-                       static_cast<uint32_t>(this->local_types_->size()));
+    this->DecodeLocals(this->pc(), &locals_length, this->num_locals());
     this->consume_bytes(locals_length);
 
     CALL_INTERFACE(StartFunction);
@@ -1937,16 +1934,6 @@ class WasmFullDecoder : public WasmDecoder<validate> {
     return WasmOpcodes::OpcodeName(opcode);
   }
 
-  inline Zone* zone() const { return zone_; }
-
-  inline uint32_t num_locals() const {
-    return static_cast<uint32_t>(local_type_vec_.size());
-  }
-
-  inline ValueType GetLocalType(uint32_t index) {
-    return local_type_vec_[index];
-  }
-
   inline WasmCodePosition position() {
     int offset = static_cast<int>(this->pc_ - this->start_);
     DCHECK_EQ(this->pc_ - this->start_, offset);  // overflows cannot happen
@@ -1982,13 +1969,10 @@ class WasmFullDecoder : public WasmDecoder<validate> {
   }
 
  private:
-  Zone* zone_;
-
   Interface interface_;
 
-  ZoneVector<ValueType> local_type_vec_;  // types of local variables.
-  ZoneVector<Value> stack_;               // stack of values.
-  ZoneVector<Control> control_;           // stack of blocks, loops, and ifs.
+  ZoneVector<Value> stack_;      // stack of values.
+  ZoneVector<Control> control_;  // stack of blocks, loops, and ifs.
   // Controls whether code should be generated for the current block (basically
   // a cache for {ok() && control_.back().reachable()}).
   bool current_code_reachable_ = true;
@@ -2281,8 +2265,7 @@ class WasmFullDecoder : public WasmDecoder<validate> {
         CHECK_PROTOTYPE_OPCODE(typed_funcref);
         BlockTypeImmediate<validate> imm(this->enabled_, this, this->pc_);
         if (!this->Validate(imm)) break;
-        uint32_t current_local_count =
-            static_cast<uint32_t>(local_type_vec_.size());
+        uint32_t old_local_count = this->num_locals();
         // Temporarily add the let-defined values
         // to the beginning of the function locals.
         uint32_t locals_length;
@@ -2291,13 +2274,12 @@ class WasmFullDecoder : public WasmDecoder<validate> {
           break;
         }
         len = 1 + imm.length + locals_length;
-        uint32_t locals_count =
-            static_cast<uint32_t>(local_type_vec_.size() - current_local_count);
+        uint32_t num_added_locals = this->num_locals() - old_local_count;
         ArgVector let_local_values =
             PopArgs(static_cast<uint32_t>(imm.in_arity()),
-                    VectorOf(local_type_vec_.data(), locals_count));
+                    VectorOf(this->local_types_.data(), num_added_locals));
         ArgVector args = PopArgs(imm.sig);
-        Control* let_block = PushControl(kControlLet, locals_count);
+        Control* let_block = PushControl(kControlLet, num_added_locals);
         SetBlockType(let_block, imm, args.begin());
         CALL_INTERFACE_IF_REACHABLE(Block, let_block);
         PushMergeValues(let_block, &let_block->start_merge);
@@ -2370,9 +2352,9 @@ class WasmFullDecoder : public WasmDecoder<validate> {
           if (!TypeCheckOneArmedIf(c)) break;
         }
         if (c->is_let()) {
-          this->local_types_->erase(
-              this->local_types_->begin(),
-              this->local_types_->begin() + c->locals_count);
+          this->local_types_.erase(
+              this->local_types_.begin(),
+              this->local_types_.begin() + c->locals_count);
           CALL_INTERFACE_IF_REACHABLE(DeallocateLocals, c->locals_count);
         }
         if (!TypeCheckFallThru()) break;
@@ -2627,7 +2609,7 @@ class WasmFullDecoder : public WasmDecoder<validate> {
       case kExprLocalSet: {
         LocalIndexImmediate<validate> imm(this, this->pc_);
         if (!this->Validate(this->pc_, imm)) break;
-        Value value = Pop(0, local_type_vec_[imm.index]);
+        Value value = Pop(0, this->local_type(imm.index));
         CALL_INTERFACE_IF_REACHABLE(LocalSet, value, imm);
         len = 1 + imm.length;
         break;
@@ -2635,7 +2617,7 @@ class WasmFullDecoder : public WasmDecoder<validate> {
       case kExprLocalTee: {
         LocalIndexImmediate<validate> imm(this, this->pc_);
         if (!this->Validate(this->pc_, imm)) break;
-        Value value = Pop(0, local_type_vec_[imm.index]);
+        Value value = Pop(0, this->local_type(imm.index));
         Value* result = Push(value.type);
         CALL_INTERFACE_IF_REACHABLE(LocalTee, value, result, imm);
         len = 1 + imm.length;
@@ -2969,7 +2951,7 @@ class WasmFullDecoder : public WasmDecoder<validate> {
     if (arity == 1) {
       merge->vals.first = get_val(0);
     } else if (arity > 1) {
-      merge->vals.array = zone_->NewArray<Value>(arity);
+      merge->vals.array = this->zone()->template NewArray<Value>(arity);
       for (uint32_t i = 0; i < arity; i++) {
         merge->vals.array[i] = get_val(i);
       }
