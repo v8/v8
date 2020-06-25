@@ -260,7 +260,6 @@ ValueType read_value_type(Decoder* decoder, const byte* pc,
 template <Decoder::ValidateFlag validate>
 struct LocalIndexImmediate {
   uint32_t index;
-  ValueType type = kWasmStmt;
   uint32_t length;
 
   inline LocalIndexImmediate(Decoder* decoder, const byte* pc) {
@@ -1137,7 +1136,6 @@ class WasmDecoder : public Decoder {
       errorf(pc + 1, "invalid local index: %u", imm.index);
       return false;
     }
-    imm.type = this->local_type(imm.index);
     return true;
   }
 
@@ -2601,7 +2599,7 @@ class WasmFullDecoder : public WasmDecoder<validate> {
       case kExprLocalGet: {
         LocalIndexImmediate<validate> imm(this, this->pc_);
         if (!this->Validate(this->pc_, imm)) break;
-        Value* value = Push(imm.type);
+        Value* value = Push(this->local_type(imm.index));
         CALL_INTERFACE_IF_REACHABLE(LocalGet, value, imm);
         len = 1 + imm.length;
         break;
