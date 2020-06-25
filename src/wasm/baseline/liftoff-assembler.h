@@ -541,6 +541,7 @@ class LiftoffAssembler : public TurboAssembler {
                                   ValueType);
   inline void StoreCallerFrameSlot(LiftoffRegister, uint32_t caller_slot_idx,
                                    ValueType);
+  inline void LoadReturnStackSlot(LiftoffRegister, int offset, ValueType);
   inline void MoveStackValue(uint32_t dst_offset, uint32_t src_offset,
                              ValueType);
 

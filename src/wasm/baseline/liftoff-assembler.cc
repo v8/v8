@@ -828,7 +828,7 @@ void LiftoffAssembler::FinishCall(const FunctionSig* sig,
       } else {
         DCHECK(loc.IsCallerFrameSlot());
         reg_pair[pair_idx] = GetUnusedRegister(rc, pinned);
-        Fill(reg_pair[pair_idx], -return_offset, lowered_type);
+        LoadReturnStackSlot(reg_pair[pair_idx], return_offset, lowered_type);
         const int type_size = lowered_type.element_size_bytes();
         const int slot_size = RoundUp<kSystemPointerSize>(type_size);
         return_offset += slot_size;
@@ -877,6 +877,29 @@ void LiftoffAssembler::ParallelRegisterMove(
 
 void LiftoffAssembler::MoveToReturnLocations(
     const FunctionSig* sig, compiler::CallDescriptor* descriptor) {
+  StackTransferRecipe stack_transfers(this);
+  if (sig->return_count() == 1) {
+    ValueType return_type = sig->GetReturn(0);
+    // Defaults to a gp reg, will be set below if return type is not gp.
+    LiftoffRegister return_reg = LiftoffRegister(kGpReturnRegisters[0]);
+
+    if (needs_gp_reg_pair(return_type)) {
+      return_reg = LiftoffRegister::ForPair(kGpReturnRegisters[0],
+                                            kGpReturnRegisters[1]);
+    } else if (needs_fp_reg_pair(return_type)) {
+      return_reg = LiftoffRegister::ForFpPair(kFpReturnRegisters[0]);
+    } else if (reg_class_for(return_type) == kFpReg) {
+      return_reg = LiftoffRegister(kFpReturnRegisters[0]);
+    } else {
+      DCHECK_EQ(kGpReg, reg_class_for(return_type));
+    }
+    stack_transfers.LoadIntoRegister(return_reg,
+                                     cache_state_.stack_state.back(),
+                                     cache_state_.stack_state.back().offset());
+    return;
+  }
+
+  // Slow path for multi-return.
   int call_desc_return_idx = 0;
   DCHECK_LE(sig->return_count(), cache_state_.stack_height());
   VarState* slots = cache_state_.stack_state.end() - sig->return_count();
@@ -902,7 +925,6 @@ void LiftoffAssembler::MoveToReturnLocations(
   }
   // Prepare and execute stack transfers.
   call_desc_return_idx = 0;
-  StackTransferRecipe stack_transfers(this);
   for (size_t i = 0; i < sig->return_count(); ++i) {
     ValueType return_type = sig->GetReturn(i);
     bool needs_gp_pair = needs_gp_reg_pair(return_type);

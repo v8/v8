@@ -45,9 +45,7 @@ constexpr int kInstanceOffset = 2 * kSystemPointerSize;
 constexpr int32_t kPatchInstructionsRequired = 3;
 constexpr int kHalfStackSlotSize = LiftoffAssembler::kStackSlotSize >> 1;
 
-inline MemOperand GetStackSlot(int offset) {
-  return MemOperand(offset > 0 ? fp : sp, -offset);
-}
+inline MemOperand GetStackSlot(int offset) { return MemOperand(fp, -offset); }
 
 inline MemOperand GetHalfStackSlot(int offset, RegPairHalf half) {
   int32_t half_offset =
@@ -1226,6 +1224,12 @@ void LiftoffAssembler::StoreCallerFrameSlot(LiftoffRegister src,
                                             ValueType type) {
   MemOperand dst(fp, (caller_slot_idx + 1) * kSystemPointerSize);
   liftoff::Store(this, src, dst, type);
+}
+
+void LiftoffAssembler::LoadReturnStackSlot(LiftoffRegister dst, int offset,
+                                           ValueType type) {
+  MemOperand src(sp, offset);
+  liftoff::Load(this, dst, src, type);
 }
 
 void LiftoffAssembler::MoveStackValue(uint32_t dst_offset, uint32_t src_offset,

@@ -35,9 +35,7 @@ static_assert((kLiftoffAssemblerFpCacheRegs &
 // rbp-8 holds the stack marker, rbp-16 is the instance parameter.
 constexpr int kInstanceOffset = 16;
 
-inline Operand GetStackSlot(int offset) {
-  return Operand(offset > 0 ? rbp : rsp, -offset);
-}
+inline Operand GetStackSlot(int offset) { return Operand(rbp, -offset); }
 
 // TODO(clemensb): Make this a constexpr variable once Operand is constexpr.
 inline Operand GetInstanceOperand() { return GetStackSlot(kInstanceOffset); }
@@ -699,6 +697,12 @@ void LiftoffAssembler::StoreCallerFrameSlot(LiftoffRegister src,
   liftoff::Store(this, dst, src, type);
 }
 
+void LiftoffAssembler::LoadReturnStackSlot(LiftoffRegister reg, int offset,
+                                           ValueType type) {
+  Operand src(rsp, offset);
+  liftoff::Load(this, reg, src, type);
+}
+
 void LiftoffAssembler::MoveStackValue(uint32_t dst_offset, uint32_t src_offset,
                                       ValueType type) {
   DCHECK_NE(dst_offset, src_offset);
@@ -789,26 +793,7 @@ void LiftoffAssembler::Spill(int offset, WasmValue value) {
 }
 
 void LiftoffAssembler::Fill(LiftoffRegister reg, int offset, ValueType type) {
-  Operand src = liftoff::GetStackSlot(offset);
-  switch (type.kind()) {
-    case ValueType::kI32:
-      movl(reg.gp(), src);
-      break;
-    case ValueType::kI64:
-      movq(reg.gp(), src);
-      break;
-    case ValueType::kF32:
-      Movss(reg.fp(), src);
-      break;
-    case ValueType::kF64:
-      Movsd(reg.fp(), src);
-      break;
-    case ValueType::kS128:
-      Movdqu(reg.fp(), src);
-      break;
-    default:
-      UNREACHABLE();
-  }
+  liftoff::Load(this, reg, liftoff::GetStackSlot(offset), type);
 }
 
 void LiftoffAssembler::FillI64Half(Register, int offset, RegPairHalf) {
