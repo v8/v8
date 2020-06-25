@@ -22,10 +22,6 @@ namespace internal {
 namespace wasm {
 namespace testing {
 
-uint32_t GetInitialMemSize(const WasmModule* module) {
-  return kWasmPageSize * module->initial_pages;
-}
-
 MaybeHandle<WasmModuleObject> CompileForTesting(Isolate* isolate,
                                                 ErrorThrower* thrower,
                                                 const ModuleWireBytes& bytes) {
@@ -43,25 +39,6 @@ MaybeHandle<WasmInstanceObject> CompileAndInstantiateForTesting(
   if (module.is_null()) return {};
   return isolate->wasm_engine()->SyncInstantiate(
       isolate, thrower, module.ToHandleChecked(), {}, {});
-}
-
-std::shared_ptr<WasmModule> DecodeWasmModuleForTesting(
-    Isolate* isolate, ErrorThrower* thrower, const byte* module_start,
-    const byte* module_end, ModuleOrigin origin, bool verify_functions) {
-  // Decode the module, but don't verify function bodies, since we'll
-  // be compiling them anyway.
-  auto enabled_features = WasmFeatures::FromIsolate(isolate);
-  ModuleResult decoding_result = DecodeWasmModule(
-      enabled_features, module_start, module_end, verify_functions, origin,
-      isolate->counters(), isolate->wasm_engine()->allocator());
-
-  if (decoding_result.failed()) {
-    // Module verification failed. throw.
-    thrower->CompileError("DecodeWasmModule failed: %s",
-                          decoding_result.error().message().c_str());
-  }
-
-  return std::move(decoding_result).value();
 }
 
 bool InterpretWasmModuleForTesting(Isolate* isolate,
@@ -160,31 +137,6 @@ int32_t CompileAndRunWasmModule(Isolate* isolate, const byte* module_start,
                                  nullptr);
 }
 
-int32_t CompileAndRunAsmWasmModule(Isolate* isolate, const byte* module_start,
-                                   const byte* module_end) {
-  HandleScope scope(isolate);
-  ErrorThrower thrower(isolate, "CompileAndRunAsmWasmModule");
-  MaybeHandle<AsmWasmData> data =
-      isolate->wasm_engine()->SyncCompileTranslatedAsmJs(
-          isolate, &thrower, ModuleWireBytes(module_start, module_end),
-          Vector<const byte>(), Handle<HeapNumber>(), LanguageMode::kSloppy);
-  DCHECK_EQ(thrower.error(), data.is_null());
-  if (data.is_null()) return -1;
-
-  MaybeHandle<WasmModuleObject> module =
-      isolate->wasm_engine()->FinalizeTranslatedAsmJs(
-          isolate, data.ToHandleChecked(), Handle<Script>::null());
-
-  MaybeHandle<WasmInstanceObject> instance =
-      isolate->wasm_engine()->SyncInstantiate(
-          isolate, &thrower, module.ToHandleChecked(),
-          Handle<JSReceiver>::null(), Handle<JSArrayBuffer>::null());
-  DCHECK_EQ(thrower.error(), instance.is_null());
-  if (instance.is_null()) return -1;
-
-  return RunWasmModuleForTesting(isolate, instance.ToHandleChecked(), 0,
-                                 nullptr);
-}
 WasmInterpretationResult InterpretWasmModule(
     Isolate* isolate, Handle<WasmInstanceObject> instance,
     int32_t function_index, WasmValue* args) {
