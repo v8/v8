@@ -1954,7 +1954,10 @@ void BytecodeGraphBuilder::VisitLdaKeyedProperty() {
     node = lowering.value();
   } else {
     DCHECK(!lowering.Changed());
-    node = NewNode(op, object, key);
+    STATIC_ASSERT(JSLoadPropertyNode::ObjectIndex() == 0);
+    STATIC_ASSERT(JSLoadPropertyNode::KeyIndex() == 1);
+    STATIC_ASSERT(JSLoadPropertyNode::FeedbackVectorIndex() == 2);
+    node = NewNode(op, object, key, feedback_vector_node());
   }
   environment()->BindAccumulator(node, Environment::kAttachFrameState);
 }
@@ -2041,7 +2044,11 @@ void BytecodeGraphBuilder::VisitStaKeyedProperty() {
     node = lowering.value();
   } else {
     DCHECK(!lowering.Changed());
-    node = NewNode(op, object, key, value);
+    STATIC_ASSERT(JSStorePropertyNode::ObjectIndex() == 0);
+    STATIC_ASSERT(JSStorePropertyNode::KeyIndex() == 1);
+    STATIC_ASSERT(JSStorePropertyNode::ValueIndex() == 2);
+    STATIC_ASSERT(JSStorePropertyNode::FeedbackVectorIndex() == 3);
+    node = NewNode(op, object, key, value, feedback_vector_node());
   }
 
   environment()->RecordAfterState(node, Environment::kAttachFrameState);
@@ -2177,8 +2184,10 @@ void BytecodeGraphBuilder::VisitCreateRegExpLiteral() {
   int const slot_id = bytecode_iterator().GetIndexOperand(1);
   FeedbackSource pair = CreateFeedbackSource(slot_id);
   int literal_flags = bytecode_iterator().GetFlagOperand(2);
+  STATIC_ASSERT(JSCreateLiteralRegExpNode::FeedbackVectorIndex() == 0);
   Node* literal = NewNode(javascript()->CreateLiteralRegExp(
-      constant_pattern.object(), pair, literal_flags));
+                              constant_pattern.object(), pair, literal_flags),
+                          feedback_vector_node());
   environment()->BindAccumulator(literal, Environment::kAttachFrameState);
 }
 
@@ -2197,9 +2206,11 @@ void BytecodeGraphBuilder::VisitCreateArrayLiteral() {
   literal_flags |= ArrayLiteral::kDisableMementos;
   int number_of_elements =
       array_boilerplate_description.constants_elements_length();
-  Node* literal = NewNode(javascript()->CreateLiteralArray(
-      array_boilerplate_description.object(), pair, literal_flags,
-      number_of_elements));
+  STATIC_ASSERT(JSCreateLiteralArrayNode::FeedbackVectorIndex() == 0);
+  Node* literal = NewNode(
+      javascript()->CreateLiteralArray(array_boilerplate_description.object(),
+                                       pair, literal_flags, number_of_elements),
+      feedback_vector_node());
   environment()->BindAccumulator(literal, Environment::kAttachFrameState);
 }
 
@@ -2225,8 +2236,11 @@ void BytecodeGraphBuilder::VisitCreateObjectLiteral() {
   int literal_flags =
       interpreter::CreateObjectLiteralFlags::FlagsBits::decode(bytecode_flags);
   int number_of_properties = constant_properties.size();
-  Node* literal = NewNode(javascript()->CreateLiteralObject(
-      constant_properties.object(), pair, literal_flags, number_of_properties));
+  STATIC_ASSERT(JSCreateLiteralObjectNode::FeedbackVectorIndex() == 0);
+  Node* literal = NewNode(
+      javascript()->CreateLiteralObject(constant_properties.object(), pair,
+                                        literal_flags, number_of_properties),
+      feedback_vector_node());
   environment()->BindAccumulator(literal, Environment::kAttachFrameState);
 }
 
@@ -2243,7 +2257,9 @@ void BytecodeGraphBuilder::VisitCloneObject() {
   int slot = bytecode_iterator().GetIndexOperand(2);
   const Operator* op =
       javascript()->CloneObject(CreateFeedbackSource(slot), flags);
-  Node* value = NewNode(op, source);
+  STATIC_ASSERT(JSCloneObjectNode::SourceIndex() == 0);
+  STATIC_ASSERT(JSCloneObjectNode::FeedbackVectorIndex() == 1);
+  Node* value = NewNode(op, source, feedback_vector_node());
   environment()->BindAccumulator(value, Environment::kAttachFrameState);
 }
 
@@ -2253,8 +2269,11 @@ void BytecodeGraphBuilder::VisitGetTemplateObject() {
       CreateFeedbackSource(bytecode_iterator().GetIndexOperand(1));
   TemplateObjectDescriptionRef description(
       broker(), bytecode_iterator().GetConstantForIndexOperand(0, isolate()));
-  Node* template_object = NewNode(javascript()->GetTemplateObject(
-      description.object(), shared_info().object(), source));
+  STATIC_ASSERT(JSGetTemplateObjectNode::FeedbackVectorIndex() == 0);
+  Node* template_object =
+      NewNode(javascript()->GetTemplateObject(description.object(),
+                                              shared_info().object(), source),
+              feedback_vector_node());
   environment()->BindAccumulator(template_object);
 }
 
@@ -3173,7 +3192,11 @@ void BytecodeGraphBuilder::VisitTestIn() {
       environment()->LookupRegister(bytecode_iterator().GetRegisterOperand(0));
   FeedbackSource feedback =
       CreateFeedbackSource(bytecode_iterator().GetIndexOperand(1));
-  Node* node = NewNode(javascript()->HasProperty(feedback), object, key);
+  STATIC_ASSERT(JSHasPropertyNode::ObjectIndex() == 0);
+  STATIC_ASSERT(JSHasPropertyNode::KeyIndex() == 1);
+  STATIC_ASSERT(JSHasPropertyNode::FeedbackVectorIndex() == 2);
+  Node* node = NewNode(javascript()->HasProperty(feedback), object, key,
+                       feedback_vector_node());
   environment()->BindAccumulator(node, Environment::kAttachFrameState);
 }
 
@@ -3548,7 +3571,9 @@ void BytecodeGraphBuilder::VisitGetIterator() {
   if (lowering.IsExit()) return;
 
   DCHECK(!lowering.Changed());
-  Node* iterator = NewNode(op, receiver);
+  STATIC_ASSERT(JSGetIteratorNode::ReceiverIndex() == 0);
+  STATIC_ASSERT(JSGetIteratorNode::FeedbackVectorIndex() == 1);
+  Node* iterator = NewNode(op, receiver, feedback_vector_node());
   environment()->BindAccumulator(iterator, Environment::kAttachFrameState);
 }
 

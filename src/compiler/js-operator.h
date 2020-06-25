@@ -6,8 +6,10 @@
 #define V8_COMPILER_JS_OPERATOR_H_
 
 #include "src/base/compiler-specific.h"
+#include "src/codegen/tnode.h"
 #include "src/compiler/feedback-source.h"
 #include "src/compiler/globals.h"
+#include "src/compiler/node-properties.h"
 #include "src/compiler/node.h"
 #include "src/compiler/opcodes.h"
 #include "src/handles/maybe-handles.h"
@@ -68,37 +70,6 @@ class JSOperator final : public AllStatic {
     return false;
   }
 };
-
-// Node wrappers.
-
-class JSUnaryOpNode final : public NodeWrapper {
- public:
-  explicit constexpr JSUnaryOpNode(Node* node) : NodeWrapper(node) {
-    CONSTEXPR_DCHECK(JSOperator::IsUnaryWithFeedback(node->opcode()));
-  }
-
-  static constexpr int ValueIndex() { return 0; }
-  static constexpr int FeedbackVectorIndex() { return 1; }
-};
-
-#define V(JSName, ...) using JSName##Node = JSUnaryOpNode;
-JS_UNOP_WITH_FEEDBACK(V)
-#undef V
-
-class JSBinaryOpNode final : public NodeWrapper {
- public:
-  explicit constexpr JSBinaryOpNode(Node* node) : NodeWrapper(node) {
-    CONSTEXPR_DCHECK(JSOperator::IsBinaryWithFeedback(node->opcode()));
-  }
-
-  static constexpr int LeftIndex() { return 0; }
-  static constexpr int RightIndex() { return 1; }
-  static constexpr int FeedbackVectorIndex() { return 2; }
-};
-
-#define V(JSName, ...) using JSName##Node = JSBinaryOpNode;
-JS_BINOP_WITH_FEEDBACK(V)
-#undef V
 
 // Defines the frequency a given Call/Construct site was executed. For some
 // call sites the frequency is not known.
@@ -1042,6 +1013,208 @@ class V8_EXPORT_PRIVATE JSOperatorBuilder final
 
   DISALLOW_COPY_AND_ASSIGN(JSOperatorBuilder);
 };
+
+// Node wrappers.
+
+class JSNodeWrapperBase : public NodeWrapper {
+ public:
+  explicit constexpr JSNodeWrapperBase(Node* node) : NodeWrapper(node) {}
+
+  // Valid iff this node has a context input.
+  TNode<Object> context() const {
+    // Could be a Context or NoContextConstant.
+    return TNode<Object>::UncheckedCast(
+        NodeProperties::GetContextInput(node()));
+  }
+
+  // Valid iff this node has exactly one effect input.
+  Effect effect() const {
+    DCHECK_EQ(node()->op()->EffectInputCount(), 1);
+    return Effect{NodeProperties::GetEffectInput(node())};
+  }
+
+  // Valid iff this node has exactly one control input.
+  Control control() const {
+    DCHECK_EQ(node()->op()->ControlInputCount(), 1);
+    return Control{NodeProperties::GetControlInput(node())};
+  }
+
+  // Valid iff this node has a frame state input.
+  FrameState frame_state() const {
+    return FrameState{NodeProperties::GetFrameStateInput(node())};
+  }
+};
+
+#define DEFINE_INPUT_ACCESSORS(Name, name, TheIndex, Type) \
+  static constexpr int Name##Index() { return TheIndex; }  \
+  TNode<Type> name() const {                               \
+    return TNode<Type>::UncheckedCast(                     \
+        NodeProperties::GetValueInput(node(), TheIndex));  \
+  }
+
+class JSUnaryOpNode final : public JSNodeWrapperBase {
+ public:
+  explicit constexpr JSUnaryOpNode(Node* node) : JSNodeWrapperBase(node) {
+    CONSTEXPR_DCHECK(JSOperator::IsUnaryWithFeedback(node->opcode()));
+  }
+
+#define INPUTS(V)            \
+  V(Value, value, 0, Object) \
+  V(FeedbackVector, feedback_vector, 1, HeapObject)
+  INPUTS(DEFINE_INPUT_ACCESSORS)
+#undef INPUTS
+};
+
+#define V(JSName, ...) using JSName##Node = JSUnaryOpNode;
+JS_UNOP_WITH_FEEDBACK(V)
+#undef V
+
+class JSBinaryOpNode final : public JSNodeWrapperBase {
+ public:
+  explicit constexpr JSBinaryOpNode(Node* node) : JSNodeWrapperBase(node) {
+    CONSTEXPR_DCHECK(JSOperator::IsBinaryWithFeedback(node->opcode()));
+  }
+
+#define INPUTS(V)            \
+  V(Left, left, 0, Object)   \
+  V(Right, right, 1, Object) \
+  V(FeedbackVector, feedback_vector, 2, HeapObject)
+  INPUTS(DEFINE_INPUT_ACCESSORS)
+#undef INPUTS
+};
+
+#define V(JSName, ...) using JSName##Node = JSBinaryOpNode;
+JS_BINOP_WITH_FEEDBACK(V)
+#undef V
+
+class JSGetIteratorNode final : public JSNodeWrapperBase {
+ public:
+  explicit constexpr JSGetIteratorNode(Node* node) : JSNodeWrapperBase(node) {
+    CONSTEXPR_DCHECK(node->opcode() == IrOpcode::kJSGetIterator);
+  }
+
+  const GetIteratorParameters& Parameters() const {
+    return GetIteratorParametersOf(node()->op());
+  }
+
+#define INPUTS(V)                  \
+  V(Receiver, receiver, 0, Object) \
+  V(FeedbackVector, feedback_vector, 1, HeapObject)
+  INPUTS(DEFINE_INPUT_ACCESSORS)
+#undef INPUTS
+};
+
+class JSCloneObjectNode final : public JSNodeWrapperBase {
+ public:
+  explicit constexpr JSCloneObjectNode(Node* node) : JSNodeWrapperBase(node) {
+    CONSTEXPR_DCHECK(node->opcode() == IrOpcode::kJSCloneObject);
+  }
+
+  const CloneObjectParameters& Parameters() const {
+    return CloneObjectParametersOf(node()->op());
+  }
+
+#define INPUTS(V)              \
+  V(Source, source, 0, Object) \
+  V(FeedbackVector, feedback_vector, 1, HeapObject)
+  INPUTS(DEFINE_INPUT_ACCESSORS)
+#undef INPUTS
+};
+
+class JSGetTemplateObjectNode final : public JSNodeWrapperBase {
+ public:
+  explicit constexpr JSGetTemplateObjectNode(Node* node)
+      : JSNodeWrapperBase(node) {
+    CONSTEXPR_DCHECK(node->opcode() == IrOpcode::kJSGetTemplateObject);
+  }
+
+  const GetTemplateObjectParameters& Parameters() const {
+    return GetTemplateObjectParametersOf(node()->op());
+  }
+
+#define INPUTS(V) V(FeedbackVector, feedback_vector, 0, HeapObject)
+  INPUTS(DEFINE_INPUT_ACCESSORS)
+#undef INPUTS
+};
+
+class JSCreateLiteralOpNode final : public JSNodeWrapperBase {
+ public:
+  explicit constexpr JSCreateLiteralOpNode(Node* node)
+      : JSNodeWrapperBase(node) {
+    CONSTEXPR_DCHECK(node->opcode() == IrOpcode::kJSCreateLiteralArray ||
+                     node->opcode() == IrOpcode::kJSCreateLiteralObject ||
+                     node->opcode() == IrOpcode::kJSCreateLiteralRegExp);
+  }
+
+  const CreateLiteralParameters& Parameters() const {
+    return CreateLiteralParametersOf(node()->op());
+  }
+
+#define INPUTS(V) V(FeedbackVector, feedback_vector, 0, HeapObject)
+  INPUTS(DEFINE_INPUT_ACCESSORS)
+#undef INPUTS
+};
+
+using JSCreateLiteralArrayNode = JSCreateLiteralOpNode;
+using JSCreateLiteralObjectNode = JSCreateLiteralOpNode;
+using JSCreateLiteralRegExpNode = JSCreateLiteralOpNode;
+
+class JSHasPropertyNode final : public JSNodeWrapperBase {
+ public:
+  explicit constexpr JSHasPropertyNode(Node* node) : JSNodeWrapperBase(node) {
+    CONSTEXPR_DCHECK(node->opcode() == IrOpcode::kJSHasProperty);
+  }
+
+  const PropertyAccess& Parameters() const {
+    return PropertyAccessOf(node()->op());
+  }
+
+#define INPUTS(V)              \
+  V(Object, object, 0, Object) \
+  V(Key, key, 1, Object)       \
+  V(FeedbackVector, feedback_vector, 2, HeapObject)
+  INPUTS(DEFINE_INPUT_ACCESSORS)
+#undef INPUTS
+};
+
+class JSLoadPropertyNode final : public JSNodeWrapperBase {
+ public:
+  explicit constexpr JSLoadPropertyNode(Node* node) : JSNodeWrapperBase(node) {
+    CONSTEXPR_DCHECK(node->opcode() == IrOpcode::kJSLoadProperty);
+  }
+
+  const PropertyAccess& Parameters() const {
+    return PropertyAccessOf(node()->op());
+  }
+
+#define INPUTS(V)              \
+  V(Object, object, 0, Object) \
+  V(Key, key, 1, Object)       \
+  V(FeedbackVector, feedback_vector, 2, HeapObject)
+  INPUTS(DEFINE_INPUT_ACCESSORS)
+#undef INPUTS
+};
+
+class JSStorePropertyNode final : public JSNodeWrapperBase {
+ public:
+  explicit constexpr JSStorePropertyNode(Node* node) : JSNodeWrapperBase(node) {
+    CONSTEXPR_DCHECK(node->opcode() == IrOpcode::kJSStoreProperty);
+  }
+
+  const PropertyAccess& Parameters() const {
+    return PropertyAccessOf(node()->op());
+  }
+
+#define INPUTS(V)              \
+  V(Object, object, 0, Object) \
+  V(Key, key, 1, Object)       \
+  V(Value, value, 2, Object)   \
+  V(FeedbackVector, feedback_vector, 3, HeapObject)
+  INPUTS(DEFINE_INPUT_ACCESSORS)
+#undef INPUTS
+};
+
+#undef DEFINE_INPUT_ACCESSORS
 
 }  // namespace compiler
 }  // namespace internal

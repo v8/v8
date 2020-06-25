@@ -130,37 +130,6 @@ class BasicBlock;
 
 class GraphAssembler;
 
-// Wrapper classes for special node/edge types (effect, control, frame states)
-// that otherwise don't fit into the type system.
-
-class Effect : public NodeWrapper {
- public:
-  explicit constexpr Effect(Node* node) : NodeWrapper(node) {
-    // TODO(jgruber): Remove the End special case.
-    SLOW_DCHECK(node == nullptr || node->op()->opcode() == IrOpcode::kEnd ||
-                node->op()->EffectOutputCount() > 0);
-  }
-};
-
-class Control : public NodeWrapper {
- public:
-  explicit constexpr Control(Node* node) : NodeWrapper(node) {
-    // TODO(jgruber): Remove the End special case.
-    SLOW_DCHECK(node == nullptr || node->opcode() == IrOpcode::kEnd ||
-                node->op()->ControlOutputCount() > 0);
-  }
-};
-
-class FrameState : public NodeWrapper {
- public:
-  explicit constexpr FrameState(Node* node) : NodeWrapper(node) {
-    // TODO(jgruber): Disallow kStart (needed for PromiseConstructorBasic unit
-    // test, among others).
-    SLOW_DCHECK(node->opcode() == IrOpcode::kFrameState ||
-                node->opcode() == IrOpcode::kStart);
-  }
-};
-
 enum class GraphAssemblerLabelType { kDeferred, kNonDeferred, kLoop };
 
 // Label with statically known count of incoming branches and phis.

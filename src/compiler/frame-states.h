@@ -140,13 +140,13 @@ size_t hash_value(FrameStateInfo const&);
 
 std::ostream& operator<<(std::ostream&, FrameStateInfo const&);
 
-static const int kFrameStateParametersInput = 0;
-static const int kFrameStateLocalsInput = 1;
-static const int kFrameStateStackInput = 2;
-static const int kFrameStateContextInput = 3;
-static const int kFrameStateFunctionInput = 4;
-static const int kFrameStateOuterStateInput = 5;
-static const int kFrameStateInputCount = kFrameStateOuterStateInput + 1;
+static constexpr int kFrameStateParametersInput = 0;
+static constexpr int kFrameStateLocalsInput = 1;
+static constexpr int kFrameStateStackInput = 2;
+static constexpr int kFrameStateContextInput = 3;
+static constexpr int kFrameStateFunctionInput = 4;
+static constexpr int kFrameStateOuterStateInput = 5;
+static constexpr int kFrameStateInputCount = kFrameStateOuterStateInput + 1;
 
 enum class ContinuationFrameStateMode { EAGER, LAZY, LAZY_WITH_CATCH };
 

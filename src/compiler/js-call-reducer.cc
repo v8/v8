@@ -3089,9 +3089,9 @@ Reduction JSCallReducer::ReduceReflectHas(Node* node) {
   Node* vtrue;
   {
     // TODO(magardn): collect feedback so this can be optimized
-    vtrue = etrue = if_true =
-        graph()->NewNode(javascript()->HasProperty(FeedbackSource()), target,
-                         key, context, frame_state, etrue, if_true);
+    vtrue = etrue = if_true = graph()->NewNode(
+        javascript()->HasProperty(FeedbackSource()), target, key,
+        jsgraph()->UndefinedConstant(), context, frame_state, etrue, if_true);
   }
 
   // Rewire potential exception edges.

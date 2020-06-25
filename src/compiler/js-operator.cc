@@ -890,7 +890,7 @@ const Operator* JSOperatorBuilder::LoadProperty(
   return new (zone()) Operator1<PropertyAccess>(           // --
       IrOpcode::kJSLoadProperty, Operator::kNoProperties,  // opcode
       "JSLoadProperty",                                    // name
-      2, 1, 1, 1, 1, 2,                                    // counts
+      3, 1, 1, 1, 1, 2,                                    // counts
       access);                                             // parameter
 }
 
@@ -900,7 +900,7 @@ const Operator* JSOperatorBuilder::GetIterator(
   return new (zone()) Operator1<GetIteratorParameters>(   // --
       IrOpcode::kJSGetIterator, Operator::kNoProperties,  // opcode
       "JSGetIterator",                                    // name
-      1, 1, 1, 1, 1, 2,                                   // counts
+      2, 1, 1, 1, 1, 2,                                   // counts
       access);                                            // parameter
 }
 
@@ -909,7 +909,7 @@ const Operator* JSOperatorBuilder::HasProperty(FeedbackSource const& feedback) {
   return new (zone()) Operator1<PropertyAccess>(          // --
       IrOpcode::kJSHasProperty, Operator::kNoProperties,  // opcode
       "JSHasProperty",                                    // name
-      2, 1, 1, 1, 1, 2,                                   // counts
+      3, 1, 1, 1, 1, 2,                                   // counts
       access);                                            // parameter
 }
 
@@ -987,7 +987,7 @@ const Operator* JSOperatorBuilder::StoreProperty(
   return new (zone()) Operator1<PropertyAccess>(            // --
       IrOpcode::kJSStoreProperty, Operator::kNoProperties,  // opcode
       "JSStoreProperty",                                    // name
-      3, 1, 1, 0, 1, 2,                                     // counts
+      4, 1, 1, 0, 1, 2,                                     // counts
       access);                                              // parameter
 }
 
@@ -1167,7 +1167,7 @@ const Operator* JSOperatorBuilder::CreateLiteralArray(
       IrOpcode::kJSCreateLiteralArray,                     // opcode
       Operator::kNoProperties,                             // properties
       "JSCreateLiteralArray",                              // name
-      0, 1, 1, 1, 1, 2,                                    // counts
+      1, 1, 1, 1, 1, 2,                                    // counts
       parameters);                                         // parameter
 }
 
@@ -1200,7 +1200,7 @@ const Operator* JSOperatorBuilder::CreateLiteralObject(
       IrOpcode::kJSCreateLiteralObject,                    // opcode
       Operator::kNoProperties,                             // properties
       "JSCreateLiteralObject",                             // name
-      0, 1, 1, 1, 1, 2,                                    // counts
+      1, 1, 1, 1, 1, 2,                                    // counts
       parameters);                                         // parameter
 }
 
@@ -1212,7 +1212,7 @@ const Operator* JSOperatorBuilder::GetTemplateObject(
       IrOpcode::kJSGetTemplateObject,                          // opcode
       Operator::kEliminatable,                                 // properties
       "JSGetTemplateObject",                                   // name
-      0, 1, 1, 1, 1, 0,                                        // counts
+      1, 1, 1, 1, 1, 0,                                        // counts
       parameters);                                             // parameter
 }
 
@@ -1223,7 +1223,7 @@ const Operator* JSOperatorBuilder::CloneObject(FeedbackSource const& feedback,
       IrOpcode::kJSCloneObject,                          // opcode
       Operator::kNoProperties,                           // properties
       "JSCloneObject",                                   // name
-      1, 1, 1, 1, 1, 2,                                  // counts
+      2, 1, 1, 1, 1, 2,                                  // counts
       parameters);                                       // parameter
 }
 
@@ -1253,7 +1253,7 @@ const Operator* JSOperatorBuilder::CreateLiteralRegExp(
       IrOpcode::kJSCreateLiteralRegExp,                    // opcode
       Operator::kNoProperties,                             // properties
       "JSCreateLiteralRegExp",                             // name
-      0, 1, 1, 1, 1, 2,                                    // counts
+      1, 1, 1, 1, 1, 2,                                    // counts
       parameters);                                         // parameter
 }
 

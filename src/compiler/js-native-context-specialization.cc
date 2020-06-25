@@ -1358,14 +1358,14 @@ Reduction JSNativeContextSpecialization::ReduceJSLoadNamed(Node* node) {
 }
 
 Reduction JSNativeContextSpecialization::ReduceJSGetIterator(Node* node) {
-  DCHECK_EQ(IrOpcode::kJSGetIterator, node->opcode());
-  GetIteratorParameters const& p = GetIteratorParametersOf(node->op());
+  JSGetIteratorNode n(node);
+  GetIteratorParameters const& p = n.Parameters();
 
-  Node* receiver = NodeProperties::GetValueInput(node, 0);
-  Node* context = NodeProperties::GetContextInput(node);
-  Node* frame_state = NodeProperties::GetFrameStateInput(node);
-  Node* effect = NodeProperties::GetEffectInput(node);
-  Node* control = NodeProperties::GetControlInput(node);
+  TNode<Object> receiver = n.receiver();
+  TNode<Object> context = n.context();
+  FrameState frame_state = n.frame_state();
+  Effect effect = n.effect();
+  Control control = n.control();
 
   // Load iterator property operator
   Handle<Name> iterator_symbol = factory()->iterator_symbol();
@@ -1895,13 +1895,11 @@ Reduction JSNativeContextSpecialization::ReduceSoftDeoptimize(
 }
 
 Reduction JSNativeContextSpecialization::ReduceJSHasProperty(Node* node) {
-  DCHECK_EQ(IrOpcode::kJSHasProperty, node->opcode());
-  PropertyAccess const& p = PropertyAccessOf(node->op());
-  Node* key = NodeProperties::GetValueInput(node, 1);
+  JSHasPropertyNode n(node);
+  PropertyAccess const& p = n.Parameters();
   Node* value = jsgraph()->Dead();
-
   if (!p.feedback().IsValid()) return NoChange();
-  return ReducePropertyAccess(node, key, base::nullopt, value,
+  return ReducePropertyAccess(node, n.key(), base::nullopt, value,
                               FeedbackSource(p.feedback()), AccessMode::kHas);
 }
 
@@ -2012,9 +2010,9 @@ Reduction JSNativeContextSpecialization::ReduceJSLoadPropertyWithEnumeratedKey(
 }
 
 Reduction JSNativeContextSpecialization::ReduceJSLoadProperty(Node* node) {
-  DCHECK_EQ(IrOpcode::kJSLoadProperty, node->opcode());
-  PropertyAccess const& p = PropertyAccessOf(node->op());
-  Node* name = NodeProperties::GetValueInput(node, 1);
+  JSLoadPropertyNode n(node);
+  PropertyAccess const& p = n.Parameters();
+  Node* name = n.key();
 
   if (name->opcode() == IrOpcode::kJSForInNext) {
     Reduction reduction = ReduceJSLoadPropertyWithEnumeratedKey(node);
@@ -2028,13 +2026,10 @@ Reduction JSNativeContextSpecialization::ReduceJSLoadProperty(Node* node) {
 }
 
 Reduction JSNativeContextSpecialization::ReduceJSStoreProperty(Node* node) {
-  DCHECK_EQ(IrOpcode::kJSStoreProperty, node->opcode());
-  PropertyAccess const& p = PropertyAccessOf(node->op());
-  Node* const key = NodeProperties::GetValueInput(node, 1);
-  Node* const value = NodeProperties::GetValueInput(node, 2);
-
+  JSStorePropertyNode n(node);
+  PropertyAccess const& p = n.Parameters();
   if (!p.feedback().IsValid()) return NoChange();
-  return ReducePropertyAccess(node, key, base::nullopt, value,
+  return ReducePropertyAccess(node, n.key(), base::nullopt, n.value(),
                               FeedbackSource(p.feedback()), AccessMode::kStore);
 }
 

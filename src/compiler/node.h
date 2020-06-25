@@ -310,8 +310,68 @@ class NodeWrapper {
   operator Node*() const { return node_; }
   Node* operator->() const { return node_; }
 
+ protected:
+  Node* node() const { return node_; }
+  void set_node(Node* node) {
+    DCHECK_NOT_NULL(node);
+    node_ = node;
+  }
+
  private:
   Node* node_;
+};
+
+// Wrapper classes for special node/edge types (effect, control, frame states).
+
+class Effect : public NodeWrapper {
+ public:
+  explicit constexpr Effect(Node* node) : NodeWrapper(node) {
+    // TODO(jgruber): Remove the End special case.
+    SLOW_DCHECK(node == nullptr || node->op()->opcode() == IrOpcode::kEnd ||
+                node->op()->EffectOutputCount() > 0);
+  }
+
+  // Support the common `Node* x = effect = ...` pattern.
+  Node* operator=(Node* value) {
+    DCHECK_GT(value->op()->EffectOutputCount(), 0);
+    set_node(value);
+    return value;
+  }
+};
+
+class Control : public NodeWrapper {
+ public:
+  explicit constexpr Control(Node* node) : NodeWrapper(node) {
+    // TODO(jgruber): Remove the End special case.
+    SLOW_DCHECK(node == nullptr || node->opcode() == IrOpcode::kEnd ||
+                node->op()->ControlOutputCount() > 0);
+  }
+
+  // Support the common `Node* x = control = ...` pattern.
+  Node* operator=(Node* value) {
+    DCHECK_GT(value->op()->ControlOutputCount(), 0);
+    set_node(value);
+    return value;
+  }
+};
+
+class FrameState : public NodeWrapper {
+ public:
+  explicit constexpr FrameState(Node* node) : NodeWrapper(node) {
+    // TODO(jgruber): Disallow kStart (needed for PromiseConstructorBasic unit
+    // test, among others).
+    SLOW_DCHECK(node->opcode() == IrOpcode::kFrameState ||
+                node->opcode() == IrOpcode::kStart);
+  }
+
+  // Duplicating here from frame-states.h for ease of access and to keep
+  // header include-balls small. Equality of the two constants is
+  // static-asserted elsewhere.
+  static constexpr int kFrameStateOuterStateInput = 5;
+
+  FrameState outer_frame_state() const {
+    return FrameState{node()->InputAt(kFrameStateOuterStateInput)};
+  }
 };
 
 // Typedefs to shorten commonly used Node containers.

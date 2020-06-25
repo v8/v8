@@ -1088,9 +1088,10 @@ Reduction JSCreateLowering::ReduceJSCreatePromise(Node* node) {
 Reduction JSCreateLowering::ReduceJSCreateLiteralArrayOrObject(Node* node) {
   DCHECK(node->opcode() == IrOpcode::kJSCreateLiteralArray ||
          node->opcode() == IrOpcode::kJSCreateLiteralObject);
-  CreateLiteralParameters const& p = CreateLiteralParametersOf(node->op());
-  Node* effect = NodeProperties::GetEffectInput(node);
-  Node* control = NodeProperties::GetControlInput(node);
+  JSCreateLiteralOpNode n(node);
+  CreateLiteralParameters const& p = n.Parameters();
+  Effect effect = n.effect();
+  Control control = n.control();
   ProcessedFeedback const& feedback =
       broker()->GetFeedbackForArrayOrObjectLiteral(p.feedback());
   if (!feedback.IsInsufficient()) {
@@ -1168,10 +1169,10 @@ Reduction JSCreateLowering::ReduceJSCreateEmptyLiteralObject(Node* node) {
 }
 
 Reduction JSCreateLowering::ReduceJSCreateLiteralRegExp(Node* node) {
-  DCHECK_EQ(IrOpcode::kJSCreateLiteralRegExp, node->opcode());
-  CreateLiteralParameters const& p = CreateLiteralParametersOf(node->op());
-  Node* effect = NodeProperties::GetEffectInput(node);
-  Node* control = NodeProperties::GetControlInput(node);
+  JSCreateLiteralRegExpNode n(node);
+  CreateLiteralParameters const& p = n.Parameters();
+  Effect effect = n.effect();
+  Control control = n.control();
   ProcessedFeedback const& feedback =
       broker()->GetFeedbackForRegExpLiteral(p.feedback());
   if (!feedback.IsInsufficient()) {
@@ -1184,9 +1185,8 @@ Reduction JSCreateLowering::ReduceJSCreateLiteralRegExp(Node* node) {
 }
 
 Reduction JSCreateLowering::ReduceJSGetTemplateObject(Node* node) {
-  DCHECK_EQ(IrOpcode::kJSGetTemplateObject, node->opcode());
-  GetTemplateObjectParameters const& parameters =
-      GetTemplateObjectParametersOf(node->op());
+  JSGetTemplateObjectNode n(node);
+  GetTemplateObjectParameters const& parameters = n.Parameters();
   SharedFunctionInfoRef shared(broker(), parameters.shared());
   JSArrayRef template_object = shared.GetTemplateObject(
       TemplateObjectDescriptionRef(broker(), parameters.description()),
