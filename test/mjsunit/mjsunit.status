@@ -307,6 +307,9 @@
 
   # BUG(v8:10035)
   'compiler/deopt-array-builtins': [SKIP],
+
+  # BUG(v8:9506): times out.
+  'harmony/sharedarraybuffer-worker-gc-stress': [SKIP],
 }],  # 'gc_stress'
 
 ##############################################################################
