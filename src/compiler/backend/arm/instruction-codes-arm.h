@@ -147,6 +147,7 @@ namespace compiler {
   V(ArmF64x2Pmin)                  \
   V(ArmF64x2Pmax)                  \
   V(ArmF64x2Ceil)                  \
+  V(ArmF64x2Floor)                 \
   V(ArmF32x4Splat)                 \
   V(ArmF32x4ExtractLane)           \
   V(ArmF32x4ReplaceLane)           \

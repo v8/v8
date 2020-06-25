@@ -4046,6 +4046,12 @@ Node* WasmGraphBuilder::BuildF64x2Ceil(Node* input) {
   return BuildCFuncInstruction(ref, type, input);
 }
 
+Node* WasmGraphBuilder::BuildF64x2Floor(Node* input) {
+  MachineType type = MachineType::Simd128();
+  ExternalReference ref = ExternalReference::wasm_f64x2_floor();
+  return BuildCFuncInstruction(ref, type, input);
+}
+
 Node* WasmGraphBuilder::BuildF32x4Ceil(Node* input) {
   MachineType type = MachineType::Simd128();
   ExternalReference ref = ExternalReference::wasm_f32x4_ceil();
@@ -4236,6 +4242,9 @@ Node* WasmGraphBuilder::SimdOp(wasm::WasmOpcode opcode, Node* const* inputs) {
         return BuildF64x2Ceil(inputs[0]);
       return graph()->NewNode(mcgraph()->machine()->F64x2Ceil(), inputs[0]);
     case wasm::kExprF64x2Floor:
+      // Architecture support for F64x2Floor and Float64RoundDown is the same.
+      if (!mcgraph()->machine()->Float64RoundDown().IsSupported())
+        return BuildF64x2Floor(inputs[0]);
       return graph()->NewNode(mcgraph()->machine()->F64x2Floor(), inputs[0]);
     case wasm::kExprF64x2Trunc:
       return graph()->NewNode(mcgraph()->machine()->F64x2Trunc(), inputs[0]);
