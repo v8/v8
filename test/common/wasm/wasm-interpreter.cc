@@ -1184,18 +1184,6 @@ class WasmInterpreterInternals {
 
   uint64_t NumInterpretedCalls() { return num_interpreted_calls_; }
 
-  WasmInterpreter::ExceptionHandlingResult RaiseException(
-      Isolate* isolate, Handle<Object> exception) {
-    DCHECK_EQ(WasmInterpreter::TRAPPED, state_);
-    isolate->Throw(*exception);  // Will check that none is pending.
-    if (HandleException(isolate) == WasmInterpreter::UNWOUND) {
-      DCHECK_EQ(WasmInterpreter::STOPPED, state_);
-      return WasmInterpreter::UNWOUND;
-    }
-    state_ = WasmInterpreter::PAUSED;
-    return WasmInterpreter::HANDLED;
-  }
-
   CodeMap* codemap() { return &codemap_; }
 
  private:

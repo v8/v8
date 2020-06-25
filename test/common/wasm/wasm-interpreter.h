@@ -49,10 +49,9 @@ class WasmInterpreter {
   //    |                    +--------Run()/Step()---------+       |
   //    V                    V                             |       |
   // STOPPED ---Run()-->  RUNNING  ------Pause()-----+-> PAUSED <--+
-  //    ^                 | | | |                   /              |
-  //    +--- Exception ---+ | | +--- Breakpoint ---+       RaiseException() <--+
-  //                        | |                                                |
-  //                        | +---------- Trap --------------> TRAPPED --------+
+  //    ^                 | | | |                   /
+  //    +--- Exception ---+ | | +--- Breakpoint ---+
+  //                        | +---------- Trap --------------> TRAPPED
   //                        +----------- Finish -------------> FINISHED
   enum State { STOPPED, RUNNING, PAUSED, FINISHED, TRAPPED };
 
@@ -74,12 +73,6 @@ class WasmInterpreter {
   State Step() { return Run(1); }
   void Pause();
   void Reset();
-
-  // Raise an exception in the current activation and unwind the stack
-  // accordingly. Return whether the exception was handled inside wasm:
-  //  - HANDLED: Activation at handler position and in {PAUSED} state.
-  //  - UNWOUND: Frames unwound, exception pending, and in {STOPPED} state.
-  ExceptionHandlingResult RaiseException(Isolate*, Handle<Object> exception);
 
   // Stack inspection and modification.
   WasmValue GetReturnValue(int index = 0);
