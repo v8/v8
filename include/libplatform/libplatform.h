@@ -79,6 +79,17 @@ V8_PLATFORM_EXPORT void SetTracingController(
     v8::Platform* platform,
     v8::platform::tracing::TracingController* tracing_controller);
 
+/**
+ * Notifies the given platform about the Isolate getting deleted soon. Has to be
+ * called for all Isolates which are deleted - unless we're shutting down the
+ * platform.
+ *
+ * The |platform| has to be created using |NewDefaultPlatform|.
+ *
+ */
+V8_PLATFORM_EXPORT void NotifyIsolateShutdown(v8::Platform* platform,
+                                              Isolate* isolate);
+
 }  // namespace platform
 }  // namespace v8
 

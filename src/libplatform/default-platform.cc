@@ -64,6 +64,10 @@ void SetTracingController(
       std::unique_ptr<v8::TracingController>(tracing_controller));
 }
 
+void NotifyIsolateShutdown(v8::Platform* platform, Isolate* isolate) {
+  static_cast<DefaultPlatform*>(platform)->NotifyIsolateShutdown(isolate);
+}
+
 namespace {
 constexpr int kMaxThreadPoolSize = 16;
 
@@ -245,6 +249,15 @@ Platform::StackTracePrinter DefaultPlatform::GetStackTracePrinter() {
 
 v8::PageAllocator* DefaultPlatform::GetPageAllocator() {
   return page_allocator_.get();
+}
+
+void DefaultPlatform::NotifyIsolateShutdown(Isolate* isolate) {
+  base::MutexGuard guard(&lock_);
+  auto it = foreground_task_runner_map_.find(isolate);
+  if (it != foreground_task_runner_map_.end()) {
+    it->second->Terminate();
+    foreground_task_runner_map_.erase(it);
+  }
 }
 
 }  // namespace platform
