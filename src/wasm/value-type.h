@@ -122,19 +122,29 @@ class ValueType {
   constexpr uint32_t raw_bit_field() const { return bit_field_; }
 
   constexpr int element_size_log2() const {
-    CONSTEXPR_DCHECK(kStmt != kind());
-    CONSTEXPR_DCHECK(kBottom != kind());
-
-    constexpr int kElementSizeLog2[] = {
+    constexpr int8_t kElementSizeLog2[] = {
 #define ELEM_SIZE_LOG2(kind, log2Size, ...) log2Size,
         FOREACH_VALUE_TYPE(ELEM_SIZE_LOG2)
 #undef ELEM_SIZE_LOG2
     };
 
-    return kElementSizeLog2[kind()];
+    int size_log_2 = kElementSizeLog2[kind()];
+    CONSTEXPR_DCHECK(size_log_2 >= 0);
+    return size_log_2;
   }
 
-  constexpr int element_size_bytes() const { return 1 << element_size_log2(); }
+  constexpr int element_size_bytes() const {
+    constexpr int8_t kElementSize[] = {
+#define ELEM_SIZE_LOG2(kind, log2Size, ...) \
+  log2Size == -1 ? -1 : (1 << std::max(0, log2Size)),
+        FOREACH_VALUE_TYPE(ELEM_SIZE_LOG2)
+#undef ELEM_SIZE_LOG2
+    };
+
+    int size = kElementSize[kind()];
+    CONSTEXPR_DCHECK(size > 0);
+    return size;
+  }
 
   constexpr bool operator==(ValueType other) const {
     return bit_field_ == other.bit_field_;
