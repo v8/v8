@@ -745,7 +745,11 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       bool isWasmCapiFunction =
           linkage()->GetIncomingDescriptor()->IsWasmCapiFunction();
       // from start_call to return address.
-      int offset = 48;  // FIXME(RISC-V): This offset may be incorrect
+      // FIXME (RISC_V): is the same number of instructions generated from
+      // &start_call to after __CallCFunction()? This code seems quite brittle.
+      // Better to use label and PC-relative addressing to generate the return
+      // address
+      int offset = 52;
 #if V8_HOST_ARCH_RISCV
       if (__ emit_debug_code()) {
         offset += 16;
