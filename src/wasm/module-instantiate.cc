@@ -259,9 +259,6 @@ class InstanceBuilder {
   // Process initialization of globals.
   void InitGlobals(Handle<WasmInstanceObject> instance);
 
-
-  bool NeedsWrappers() const;
-
   // Process the exports, creating wrappers for functions, tables, memories,
   // and globals.
   void ProcessExports(Handle<WasmInstanceObject> instance);
@@ -1479,31 +1476,29 @@ bool InstanceBuilder::AllocateMemory() {
   return true;
 }
 
-bool InstanceBuilder::NeedsWrappers() const {
-  if (module_->num_exported_functions > 0) return true;
-  for (auto& table : module_->tables) {
-    if (table.type.heap_type() == kHeapFunc) return true;
-  }
-  return false;
-}
-
 // Process the exports, creating wrappers for functions, tables, memories,
 // globals, and exceptions.
 void InstanceBuilder::ProcessExports(Handle<WasmInstanceObject> instance) {
-  if (NeedsWrappers()) {
-    // If an imported WebAssembly function gets exported, the exported function
-    // has to be identical to to imported function. Therefore we cache all
-    // imported WebAssembly functions in the instance.
-    for (int index = 0, end = static_cast<int>(module_->import_table.size());
-         index < end; ++index) {
-      const WasmImport& import = module_->import_table[index];
-      if (import.kind == kExternalFunction) {
-        Handle<Object> value = sanitized_imports_[index].value;
-        if (WasmExternalFunction::IsWasmExternalFunction(*value)) {
-          WasmInstanceObject::SetWasmExternalFunction(
-              isolate_, instance, import.index,
-              Handle<WasmExternalFunction>::cast(value));
-        }
+  std::unordered_map<int, Handle<Object>> imported_globals;
+
+  // If an imported WebAssembly function or global gets exported, the export
+  // has to be identical to to import. Therefore we cache all imported
+  // WebAssembly functions in the instance, and all imported globals in a map
+  // here.
+  for (int index = 0, end = static_cast<int>(module_->import_table.size());
+       index < end; ++index) {
+    const WasmImport& import = module_->import_table[index];
+    if (import.kind == kExternalFunction) {
+      Handle<Object> value = sanitized_imports_[index].value;
+      if (WasmExternalFunction::IsWasmExternalFunction(*value)) {
+        WasmInstanceObject::SetWasmExternalFunction(
+            isolate_, instance, import.index,
+            Handle<WasmExternalFunction>::cast(value));
+      }
+    } else if (import.kind == kExternalGlobal) {
+      Handle<Object> value = sanitized_imports_[index].value;
+      if (value->IsWasmGlobalObject()) {
+        imported_globals[import.index] = value;
       }
     }
   }
@@ -1563,6 +1558,13 @@ void InstanceBuilder::ProcessExports(Handle<WasmInstanceObject> instance) {
       }
       case kExternalGlobal: {
         const WasmGlobal& global = module_->globals[exp.index];
+        if (global.imported) {
+          auto cached_global = imported_globals.find(exp.index);
+          if (cached_global != imported_globals.end()) {
+            desc.set_value(cached_global->second);
+            break;
+          }
+        }
         Handle<JSArrayBuffer> untagged_buffer;
         Handle<FixedArray> tagged_buffer;
         uint32_t offset;
