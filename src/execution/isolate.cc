@@ -25,6 +25,7 @@
 #include "src/builtins/constants-table-builder.h"
 #include "src/codegen/assembler-inl.h"
 #include "src/codegen/compilation-cache.h"
+#include "src/codegen/flush-instruction-cache.h"
 #include "src/common/ptr-compr.h"
 #include "src/compiler-dispatcher/compiler-dispatcher.h"
 #include "src/compiler-dispatcher/optimizing-compile-dispatcher.h"
@@ -239,6 +240,10 @@ void Isolate::SetEmbeddedBlob(const uint8_t* blob, uint32_t blob_size) {
         "cause is a debugging breakpoint set within builtin code.");
   }
 #endif  // DEBUG
+
+  if (FLAG_experimental_flush_embedded_blob_icache) {
+    FlushInstructionCache(const_cast<uint8_t*>(blob), blob_size);
+  }
 }
 
 void Isolate::ClearEmbeddedBlob() {

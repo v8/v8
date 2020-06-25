@@ -1337,6 +1337,8 @@ DEFINE_BOOL(
     "includes arguments for each function call in the error stack frames array")
 DEFINE_BOOL(adjust_os_scheduling_parameters, true,
             "adjust OS specific scheduling params for the isolate")
+DEFINE_BOOL(experimental_flush_embedded_blob_icache, false,
+            "Used in an experiment to evaluate icache flushing on certain CPUs")
 
 // runtime.cc
 DEFINE_BOOL(runtime_call_stats, false, "report runtime call counts and times")
