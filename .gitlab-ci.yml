@@ -27,3 +27,13 @@ unittests:
   stage: test
   script:
     - tools/run-tests.py --outdir=out.gn/riscv64_debug unittests
+
+misc_tests:
+  stage: test
+  script:
+    - tools/run-tests.py --outdir=out.gn/riscv64_debug wasm-js wasm-api-tests
+
+misc_tests:
+  stage: test
+  script:
+    - tools/run-tests.py --outdir=out.gn/riscv64_debug intl
