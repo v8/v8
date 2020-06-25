@@ -823,6 +823,9 @@ DEFINE_BOOL(stress_wasm_code_gc, false,
 DEFINE_INT(wasm_max_initial_code_space_reservation, 0,
            "maximum size of the initial wasm code space reservation (in MB)")
 
+DEFINE_BOOL(experimental_wasm_allow_huge_modules, false,
+            "allow wasm modules bigger than 1GB, but below ~2GB")
+
 // Profiler flags.
 DEFINE_INT(frame_count, 1, "number of stack frames inspected by the profiler")
 

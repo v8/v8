@@ -2049,9 +2049,10 @@ ModuleResult DecodeWasmModule(const WasmFeatures& enabled,
                               AccountingAllocator* allocator) {
   size_t size = module_end - module_start;
   CHECK_LE(module_start, module_end);
-  if (size >= kV8MaxWasmModuleSize) {
-    return ModuleResult{WasmError{0, "size > maximum module size (%zu): %zu",
-                                  kV8MaxWasmModuleSize, size}};
+  size_t max_size = max_module_size();
+  if (size > max_size) {
+    return ModuleResult{
+        WasmError{0, "size > maximum module size (%zu): %zu", max_size, size}};
   }
   // TODO(bradnelson): Improve histogram handling of size_t.
   auto size_counter =

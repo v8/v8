@@ -65,6 +65,7 @@ constexpr uint64_t kWasmMaxHeapOffset =
 V8_EXPORT_PRIVATE uint32_t max_initial_mem_pages();
 V8_EXPORT_PRIVATE uint32_t max_maximum_mem_pages();
 uint32_t max_table_init_entries();
+size_t max_module_size();
 
 inline uint64_t max_mem_bytes() {
   return uint64_t{max_maximum_mem_pages()} * kWasmPageSize;

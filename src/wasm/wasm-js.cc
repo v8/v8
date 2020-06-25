@@ -214,9 +214,10 @@ i::wasm::ModuleWireBytes GetFirstArgumentAsBytes(
   if (length == 0) {
     thrower->CompileError("BufferSource argument is empty");
   }
-  if (length > i::wasm::kV8MaxWasmModuleSize) {
+  size_t max_length = i::wasm::max_module_size();
+  if (length > max_length) {
     thrower->RangeError("buffer source exceeds maximum size of %zu (is %zu)",
-                        i::wasm::kV8MaxWasmModuleSize, length);
+                        max_length, length);
   }
   if (thrower->error()) return i::wasm::ModuleWireBytes(nullptr, nullptr);
   return i::wasm::ModuleWireBytes(start, start + length);

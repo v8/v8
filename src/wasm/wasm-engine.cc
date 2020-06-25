@@ -1417,6 +1417,13 @@ uint32_t max_table_init_entries() {
                   FLAG_wasm_max_table_size);
 }
 
+// {max_module_size} is declared in wasm-limits.h.
+size_t max_module_size() {
+  return FLAG_experimental_wasm_allow_huge_modules
+             ? RoundDown<kSystemPointerSize>(size_t{kMaxInt})
+             : kV8MaxWasmModuleSize;
+}
+
 #undef TRACE_CODE_GC
 
 }  // namespace wasm

@@ -410,7 +410,7 @@ class AsyncStreamingDecoder::DecodeSectionID : public DecodingState {
 class AsyncStreamingDecoder::DecodeSectionLength : public DecodeVarInt32 {
  public:
   explicit DecodeSectionLength(uint8_t id, uint32_t module_offset)
-      : DecodeVarInt32(kV8MaxWasmModuleSize, "section length"),
+      : DecodeVarInt32(max_module_size(), "section length"),
         section_id_(id),
         module_offset_(module_offset) {}
 
