@@ -3379,7 +3379,7 @@ void TurboAssembler::FPUCanonicalizeNaN(const DoubleRegister dst,
   RV_fmv_d(dst, src);
   RV_feq_d(scratch, src, src);
   RV_bne(scratch, zero_reg, &NotNaN);
-  RV_li(scratch, std::numeric_limits<double>::quiet_NaN());
+  RV_li(scratch, 0x7ff8000000000000ULL); // This is the canonical NaN
   RV_fmv_d_x(dst, scratch);
   bind(&NotNaN);
 }
