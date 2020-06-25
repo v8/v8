@@ -30,11 +30,6 @@ proposal_flags = [{
                               '--no-experimental-wasm-bulk-memory',
                               '--wasm-staging']
                   },
-                  {
-                    'name': 'JS-BigInt-integration',
-                    'flags': ['--experimental-wasm-bigint',
-                              '--wasm-staging']
-                  },
                   ]
 
 
