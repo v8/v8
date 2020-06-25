@@ -104,8 +104,14 @@ class LiftoffAssembler : public TurboAssembler {
     void MakeStack() { loc_ = kStack; }
 
     void MakeRegister(LiftoffRegister r) {
-      reg_ = r;
       loc_ = kRegister;
+      reg_ = r;
+    }
+
+    void MakeConstant(int32_t i32_const) {
+      DCHECK(type_ == kWasmI32 || type_ == kWasmI64);
+      loc_ = kIntConst;
+      i32_const_ = i32_const;
     }
 
     // Copy src to this, except for offset, since src and this could have been

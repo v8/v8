@@ -1608,21 +1608,22 @@ class LiftoffCompiler {
 
   void LocalGet(FullDecoder* decoder, Value* result,
                 const LocalIndexImmediate<validate>& imm) {
-    auto& slot = __ cache_state()->stack_state[imm.index];
-    switch (slot.loc()) {
-      case kRegister:
-        __ PushRegister(slot.type(), slot.reg());
-        break;
-      case kIntConst:
-        __ PushConstant(slot.type(), slot.i32_const());
-        break;
-      case kStack: {
-        auto rc = reg_class_for(slot.type());
-        LiftoffRegister reg = __ GetUnusedRegister(rc, {});
-        __ Fill(reg, slot.offset(), slot.type());
-        __ PushRegister(slot.type(), reg);
-        break;
-      }
+    auto local_slot = __ cache_state()->stack_state[imm.index];
+    __ cache_state()->stack_state.emplace_back(
+        local_slot.type(), __ NextSpillOffset(local_slot.type()));
+    auto* slot = &__ cache_state()->stack_state.back();
+    if (local_slot.is_reg()) {
+      __ cache_state()->inc_used(local_slot.reg());
+      slot->MakeRegister(local_slot.reg());
+    } else if (local_slot.is_const()) {
+      slot->MakeConstant(local_slot.i32_const());
+    } else {
+      DCHECK(local_slot.is_stack());
+      auto rc = reg_class_for(local_slot.type());
+      LiftoffRegister reg = __ GetUnusedRegister(rc, {});
+      __ cache_state()->inc_used(reg);
+      slot->MakeRegister(reg);
+      __ Fill(reg, local_slot.offset(), local_slot.type());
     }
   }
 
