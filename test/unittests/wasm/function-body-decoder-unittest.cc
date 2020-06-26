@@ -33,6 +33,14 @@ namespace function_body_decoder_unittest {
 #define WASM_IF_OP kExprIf, kLocalVoid
 #define WASM_LOOP_OP kExprLoop, kLocalVoid
 
+#define EXPECT_OK(result)                                        \
+  do {                                                           \
+    if (!result.ok()) {                                          \
+      GTEST_NONFATAL_FAILURE_(result.error().message().c_str()); \
+      return;                                                    \
+    }                                                            \
+  } while (false)
+
 static const byte kCodeGetLocal0[] = {kExprLocalGet, 0};
 static const byte kCodeGetLocal1[] = {kExprLocalGet, 1};
 static const byte kCodeSetLocal0[] = {WASM_SET_LOCAL(0, WASM_ZERO)};
@@ -3398,14 +3406,14 @@ class BranchTableIteratorTest : public TestWithZone {
   BranchTableIteratorTest() : TestWithZone() {}
   void CheckBrTableSize(const byte* start, const byte* end) {
     Decoder decoder(start, end);
-    BranchTableImmediate<Decoder::kValidate> operand(&decoder, start);
+    BranchTableImmediate<Decoder::kValidate> operand(&decoder, start + 1);
     BranchTableIterator<Decoder::kValidate> iterator(&decoder, operand);
     EXPECT_EQ(end - start - 1u, iterator.length());
-    EXPECT_TRUE(decoder.ok());
+    EXPECT_OK(decoder);
   }
   void CheckBrTableError(const byte* start, const byte* end) {
     Decoder decoder(start, end);
-    BranchTableImmediate<Decoder::kValidate> operand(&decoder, start);
+    BranchTableImmediate<Decoder::kValidate> operand(&decoder, start + 1);
     BranchTableIterator<Decoder::kValidate> iterator(&decoder, operand);
     iterator.length();
     EXPECT_FALSE(decoder.ok());
@@ -3872,6 +3880,7 @@ TEST_F(BytecodeIteratorTest, WithLocalDecls) {
 #undef WASM_IF_OP
 #undef WASM_LOOP_OP
 #undef WASM_BRV_IF_ZERO
+#undef EXPECT_OK
 
 }  // namespace function_body_decoder_unittest
 }  // namespace wasm

@@ -1610,7 +1610,7 @@ class ModuleDecoderImpl : public Decoder {
     uint32_t len = 0;
     switch (opcode) {
       case kExprGlobalGet: {
-        GlobalIndexImmediate<Decoder::kValidate> imm(this, pc() - 1);
+        GlobalIndexImmediate<Decoder::kValidate> imm(this, pc());
         if (module->globals.size() <= imm.index) {
           error("global index is out of bounds");
           expr.kind = WasmInitExpr::kNone;
@@ -1632,28 +1632,28 @@ class ModuleDecoderImpl : public Decoder {
         break;
       }
       case kExprI32Const: {
-        ImmI32Immediate<Decoder::kValidate> imm(this, pc() - 1);
+        ImmI32Immediate<Decoder::kValidate> imm(this, pc());
         expr.kind = WasmInitExpr::kI32Const;
         expr.val.i32_const = imm.value;
         len = imm.length;
         break;
       }
       case kExprF32Const: {
-        ImmF32Immediate<Decoder::kValidate> imm(this, pc() - 1);
+        ImmF32Immediate<Decoder::kValidate> imm(this, pc());
         expr.kind = WasmInitExpr::kF32Const;
         expr.val.f32_const = imm.value;
         len = imm.length;
         break;
       }
       case kExprI64Const: {
-        ImmI64Immediate<Decoder::kValidate> imm(this, pc() - 1);
+        ImmI64Immediate<Decoder::kValidate> imm(this, pc());
         expr.kind = WasmInitExpr::kI64Const;
         expr.val.i64_const = imm.value;
         len = imm.length;
         break;
       }
       case kExprF64Const: {
-        ImmF64Immediate<Decoder::kValidate> imm(this, pc() - 1);
+        ImmF64Immediate<Decoder::kValidate> imm(this, pc());
         expr.kind = WasmInitExpr::kF64Const;
         expr.val.f64_const = imm.value;
         len = imm.length;
@@ -1662,7 +1662,7 @@ class ModuleDecoderImpl : public Decoder {
       case kExprRefNull: {
         if (enabled_features_.has_reftypes() || enabled_features_.has_eh()) {
           HeapTypeImmediate<Decoder::kValidate> imm(WasmFeatures::All(), this,
-                                                    pc() - 1);
+                                                    pc());
           expr.kind = WasmInitExpr::kRefNullConst;
           len = imm.length;
           ValueType type = ValueType::Ref(imm.type, kNullable);
@@ -1677,7 +1677,7 @@ class ModuleDecoderImpl : public Decoder {
       }
       case kExprRefFunc: {
         if (enabled_features_.has_reftypes()) {
-          FunctionIndexImmediate<Decoder::kValidate> imm(this, pc() - 1);
+          FunctionIndexImmediate<Decoder::kValidate> imm(this, pc());
           if (module->functions.size() <= imm.index) {
             errorf(pc() - 1, "invalid function index: %u", imm.index);
             break;
@@ -2023,8 +2023,7 @@ class ModuleDecoderImpl : public Decoder {
     if (failed()) return index;
     switch (opcode) {
       case kExprRefNull: {
-        HeapTypeImmediate<kValidate> imm(WasmFeatures::All(), this,
-                                         this->pc() - 1);
+        HeapTypeImmediate<kValidate> imm(WasmFeatures::All(), this, this->pc());
         consume_bytes(imm.length, "ref.null immediate");
         index = WasmElemSegment::kNullIndex;
         break;

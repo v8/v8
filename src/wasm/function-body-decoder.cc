@@ -244,7 +244,7 @@ bool PrintRawWasmCode(AccountingAllocator* allocator, const FunctionBody& body,
       case kExprBlock:
       case kExprTry: {
         BlockTypeImmediate<Decoder::kNoValidate> imm(WasmFeatures::All(), &i,
-                                                     i.pc());
+                                                     i.pc() + 1);
         os << " @" << i.pc_offset();
         if (decoder.Complete(imm)) {
           for (uint32_t i = 0; i < imm.out_arity(); i++) {
@@ -259,33 +259,33 @@ bool PrintRawWasmCode(AccountingAllocator* allocator, const FunctionBody& body,
         control_depth--;
         break;
       case kExprBr: {
-        BranchDepthImmediate<Decoder::kNoValidate> imm(&i, i.pc());
+        BranchDepthImmediate<Decoder::kNoValidate> imm(&i, i.pc() + 1);
         os << " depth=" << imm.depth;
         break;
       }
       case kExprBrIf: {
-        BranchDepthImmediate<Decoder::kNoValidate> imm(&i, i.pc());
+        BranchDepthImmediate<Decoder::kNoValidate> imm(&i, i.pc() + 1);
         os << " depth=" << imm.depth;
         break;
       }
       case kExprBrTable: {
-        BranchTableImmediate<Decoder::kNoValidate> imm(&i, i.pc());
+        BranchTableImmediate<Decoder::kNoValidate> imm(&i, i.pc() + 1);
         os << " entries=" << imm.table_count;
         break;
       }
       case kExprCallIndirect: {
         CallIndirectImmediate<Decoder::kNoValidate> imm(WasmFeatures::All(), &i,
-                                                        i.pc());
+                                                        i.pc() + 1);
         os << " sig #" << imm.sig_index;
-        if (decoder.Complete(i.pc(), imm)) {
+        if (decoder.Complete(imm)) {
           os << ": " << *imm.sig;
         }
         break;
       }
       case kExprCallFunction: {
-        CallFunctionImmediate<Decoder::kNoValidate> imm(&i, i.pc());
+        CallFunctionImmediate<Decoder::kNoValidate> imm(&i, i.pc() + 1);
         os << " function #" << imm.index;
-        if (decoder.Complete(i.pc(), imm)) {
+        if (decoder.Complete(imm)) {
           os << ": " << *imm.sig;
         }
         break;
