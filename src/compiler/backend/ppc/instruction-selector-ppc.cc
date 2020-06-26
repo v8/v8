@@ -2191,7 +2191,23 @@ void InstructionSelector::VisitInt64AbsWithOverflow(Node* node) {
   V(S128Or)                \
   V(S128Xor)
 
-#define SIMD_UNOP_LIST(V) V(S128Not)
+#define SIMD_UNOP_LIST(V) \
+  V(F64x2Abs)             \
+  V(F64x2Neg)             \
+  V(F64x2Sqrt)            \
+  V(F32x4Abs)             \
+  V(F32x4Neg)             \
+  V(F32x4RecipApprox)     \
+  V(F32x4RecipSqrtApprox) \
+  V(F32x4Sqrt)            \
+  V(I64x2Neg)             \
+  V(I32x4Neg)             \
+  V(I32x4Abs)             \
+  V(I16x8Neg)             \
+  V(I16x8Abs)             \
+  V(I8x16Neg)             \
+  V(I8x16Abs)             \
+  V(S128Not)
 
 #define SIMD_SHIFT_LIST(V) \
   V(I64x2Shl)              \
@@ -2256,11 +2272,12 @@ SIMD_BINOP_LIST(SIMD_VISIT_BINOP)
 #undef SIMD_VISIT_BINOP
 #undef SIMD_BINOP_LIST
 
-#define SIMD_VISIT_UNOP(Opcode)                         \
-  void InstructionSelector::Visit##Opcode(Node* node) { \
-    PPCOperandGenerator g(this);                        \
-    Emit(kPPC_##Opcode, g.DefineAsRegister(node),       \
-         g.UseRegister(node->InputAt(0)));              \
+#define SIMD_VISIT_UNOP(Opcode)                                     \
+  void InstructionSelector::Visit##Opcode(Node* node) {             \
+    PPCOperandGenerator g(this);                                    \
+    InstructionOperand temps[] = {g.TempSimd128Register()};         \
+    Emit(kPPC_##Opcode, g.DefineAsRegister(node),                   \
+         g.UseRegister(node->InputAt(0)), arraysize(temps), temps); \
   }
 SIMD_UNOP_LIST(SIMD_VISIT_UNOP)
 #undef SIMD_VISIT_UNOP
@@ -2290,8 +2307,6 @@ void InstructionSelector::VisitS128Select(Node* node) {
        g.UseRegister(node->InputAt(2)));
 }
 
-void InstructionSelector::VisitI32x4Neg(Node* node) { UNIMPLEMENTED(); }
-
 void InstructionSelector::VisitI16x8AddSaturateS(Node* node) {
   UNIMPLEMENTED();
 }
@@ -2308,8 +2323,6 @@ void InstructionSelector::VisitI16x8SubSaturateU(Node* node) {
   UNIMPLEMENTED();
 }
 
-void InstructionSelector::VisitI16x8Neg(Node* node) { UNIMPLEMENTED(); }
-
 void InstructionSelector::VisitI16x8RoundingAverageU(Node* node) {
   UNIMPLEMENTED();
 }
@@ -2317,8 +2330,6 @@ void InstructionSelector::VisitI16x8RoundingAverageU(Node* node) {
 void InstructionSelector::VisitI8x16RoundingAverageU(Node* node) {
   UNIMPLEMENTED();
 }
-
-void InstructionSelector::VisitI8x16Neg(Node* node) { UNIMPLEMENTED(); }
 
 void InstructionSelector::VisitI8x16AddSaturateS(Node* node) {
   UNIMPLEMENTED();
@@ -2361,23 +2372,11 @@ void InstructionSelector::EmitPrepareResults(
   }
 }
 
-void InstructionSelector::VisitF32x4Sqrt(Node* node) { UNIMPLEMENTED(); }
-
 void InstructionSelector::VisitF32x4Div(Node* node) { UNIMPLEMENTED(); }
 
 void InstructionSelector::VisitF32x4Min(Node* node) { UNIMPLEMENTED(); }
 
 void InstructionSelector::VisitF32x4Max(Node* node) { UNIMPLEMENTED(); }
-
-void InstructionSelector::VisitF32x4Neg(Node* node) { UNIMPLEMENTED(); }
-
-void InstructionSelector::VisitF32x4Abs(Node* node) { UNIMPLEMENTED(); }
-
-void InstructionSelector::VisitF32x4RecipSqrtApprox(Node* node) {
-  UNIMPLEMENTED();
-}
-
-void InstructionSelector::VisitF32x4RecipApprox(Node* node) { UNIMPLEMENTED(); }
 
 void InstructionSelector::VisitF32x4SConvertI32x4(Node* node) {
   UNIMPLEMENTED();
@@ -2458,27 +2457,13 @@ void InstructionSelector::VisitS8x16Shuffle(Node* node) { UNIMPLEMENTED(); }
 
 void InstructionSelector::VisitS8x16Swizzle(Node* node) { UNIMPLEMENTED(); }
 
-void InstructionSelector::VisitF64x2Abs(Node* node) { UNIMPLEMENTED(); }
-
-void InstructionSelector::VisitF64x2Neg(Node* node) { UNIMPLEMENTED(); }
-
-void InstructionSelector::VisitF64x2Sqrt(Node* node) { UNIMPLEMENTED(); }
-
 void InstructionSelector::VisitF64x2Div(Node* node) { UNIMPLEMENTED(); }
-
-void InstructionSelector::VisitI64x2Neg(Node* node) { UNIMPLEMENTED(); }
 
 void InstructionSelector::VisitF64x2Min(Node* node) { UNIMPLEMENTED(); }
 
 void InstructionSelector::VisitF64x2Max(Node* node) { UNIMPLEMENTED(); }
 
 void InstructionSelector::VisitLoadTransform(Node* node) { UNIMPLEMENTED(); }
-
-void InstructionSelector::VisitI8x16Abs(Node* node) { UNIMPLEMENTED(); }
-
-void InstructionSelector::VisitI16x8Abs(Node* node) { UNIMPLEMENTED(); }
-
-void InstructionSelector::VisitI32x4Abs(Node* node) { UNIMPLEMENTED(); }
 
 // static
 MachineOperatorBuilder::Flags

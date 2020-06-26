@@ -2913,6 +2913,116 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       __ vsel(dst, src2, src1, mask);
       break;
     }
+    case kPPC_F64x2Abs: {
+      __ xvabsdp(i.OutputSimd128Register(), i.InputSimd128Register(0));
+      break;
+    }
+    case kPPC_F64x2Neg: {
+      __ xvnegdp(i.OutputSimd128Register(), i.InputSimd128Register(0));
+      break;
+    }
+    case kPPC_F64x2Sqrt: {
+      __ xvsqrtdp(i.OutputSimd128Register(), i.InputSimd128Register(0));
+      break;
+    }
+    case kPPC_F32x4Abs: {
+      __ xvabssp(i.OutputSimd128Register(), i.InputSimd128Register(0));
+      break;
+    }
+    case kPPC_F32x4Neg: {
+      __ xvnegsp(i.OutputSimd128Register(), i.InputSimd128Register(0));
+      break;
+    }
+    case kPPC_F32x4RecipApprox: {
+      __ xvresp(i.OutputSimd128Register(), i.InputSimd128Register(0));
+      break;
+    }
+    case kPPC_F32x4RecipSqrtApprox: {
+      __ xvrsqrtesp(i.OutputSimd128Register(), i.InputSimd128Register(0));
+      break;
+    }
+    case kPPC_F32x4Sqrt: {
+      __ xvsqrtsp(i.OutputSimd128Register(), i.InputSimd128Register(0));
+      break;
+    }
+    case kPPC_I64x2Neg: {
+      Simd128Register tempFPReg1 = i.ToSimd128Register(instr->TempAt(0));
+      __ li(ip, Operand(1));
+      // Need to maintain 16 byte alignment for lvx.
+      __ addi(sp, sp, Operand(-24));
+      __ StoreP(ip, MemOperand(sp, 0));
+      __ StoreP(ip, MemOperand(sp, 8));
+      __ li(r0, Operand(0));
+      __ lvx(kScratchDoubleReg, MemOperand(sp, r0));
+      __ addi(sp, sp, Operand(24));
+      // Perform negation.
+      __ vnor(tempFPReg1, i.InputSimd128Register(0), i.InputSimd128Register(0));
+      __ vaddudm(i.OutputSimd128Register(), tempFPReg1, kScratchDoubleReg);
+      break;
+    }
+    case kPPC_I32x4Neg: {
+      Simd128Register tempFPReg1 = i.ToSimd128Register(instr->TempAt(0));
+      __ li(ip, Operand(1));
+      __ mtvsrd(kScratchDoubleReg, ip);
+      __ vspltw(kScratchDoubleReg, kScratchDoubleReg, Operand(1));
+      __ vnor(tempFPReg1, i.InputSimd128Register(0), i.InputSimd128Register(0));
+      __ vadduwm(i.OutputSimd128Register(), kScratchDoubleReg, tempFPReg1);
+      break;
+    }
+    case kPPC_I32x4Abs: {
+      Simd128Register tempFPReg1 = i.ToSimd128Register(instr->TempAt(0));
+      Simd128Register src = i.InputSimd128Register(0);
+      constexpr int shift_bits = 31;
+      __ li(ip, Operand(shift_bits));
+      __ mtvsrd(kScratchDoubleReg, ip);
+      __ vspltb(kScratchDoubleReg, kScratchDoubleReg, Operand(7));
+      __ vsraw(kScratchDoubleReg, src, kScratchDoubleReg);
+      __ vxor(tempFPReg1, src, kScratchDoubleReg);
+      __ vsubuwm(i.OutputSimd128Register(), tempFPReg1, kScratchDoubleReg);
+      break;
+    }
+    case kPPC_I16x8Neg: {
+      Simd128Register tempFPReg1 = i.ToSimd128Register(instr->TempAt(0));
+      __ li(ip, Operand(1));
+      __ mtvsrd(kScratchDoubleReg, ip);
+      __ vsplth(kScratchDoubleReg, kScratchDoubleReg, Operand(3));
+      __ vnor(tempFPReg1, i.InputSimd128Register(0), i.InputSimd128Register(0));
+      __ vadduhm(i.OutputSimd128Register(), kScratchDoubleReg, tempFPReg1);
+      break;
+    }
+    case kPPC_I16x8Abs: {
+      Simd128Register tempFPReg1 = i.ToSimd128Register(instr->TempAt(0));
+      Simd128Register src = i.InputSimd128Register(0);
+      constexpr int shift_bits = 15;
+      __ li(ip, Operand(shift_bits));
+      __ mtvsrd(kScratchDoubleReg, ip);
+      __ vspltb(kScratchDoubleReg, kScratchDoubleReg, Operand(7));
+      __ vsrah(kScratchDoubleReg, src, kScratchDoubleReg);
+      __ vxor(tempFPReg1, src, kScratchDoubleReg);
+      __ vsubuhm(i.OutputSimd128Register(), tempFPReg1, kScratchDoubleReg);
+      break;
+    }
+    case kPPC_I8x16Neg: {
+      Simd128Register tempFPReg1 = i.ToSimd128Register(instr->TempAt(0));
+      __ li(ip, Operand(1));
+      __ mtvsrd(kScratchDoubleReg, ip);
+      __ vspltb(kScratchDoubleReg, kScratchDoubleReg, Operand(7));
+      __ vnor(tempFPReg1, i.InputSimd128Register(0), i.InputSimd128Register(0));
+      __ vaddubm(i.OutputSimd128Register(), kScratchDoubleReg, tempFPReg1);
+      break;
+    }
+    case kPPC_I8x16Abs: {
+      Simd128Register tempFPReg1 = i.ToSimd128Register(instr->TempAt(0));
+      Simd128Register src = i.InputSimd128Register(0);
+      constexpr int shift_bits = 7;
+      __ li(ip, Operand(shift_bits));
+      __ mtvsrd(kScratchDoubleReg, ip);
+      __ vspltb(kScratchDoubleReg, kScratchDoubleReg, Operand(7));
+      __ vsrab(kScratchDoubleReg, src, kScratchDoubleReg);
+      __ vxor(tempFPReg1, src, kScratchDoubleReg);
+      __ vsububm(i.OutputSimd128Register(), tempFPReg1, kScratchDoubleReg);
+      break;
+    }
     case kPPC_StoreCompressTagged: {
       ASSEMBLE_STORE_INTEGER(StoreTaggedField, StoreTaggedFieldX);
       break;

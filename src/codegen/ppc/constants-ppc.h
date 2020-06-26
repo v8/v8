@@ -194,8 +194,6 @@ using Instr = uint32_t;
   V(xsnmsubmsp, XSNMSUBMSP, 0xF00004C8)                                       \
   /* VSX Scalar Reciprocal Estimate Double-Precision */                       \
   V(xsredp, XSREDP, 0xF0000168)                                               \
-  /* VSX Scalar Reciprocal Estimate Single-Precision */                       \
-  V(xsresp, XSRESP, 0xF0000068)                                               \
   /* VSX Scalar Subtract Double-Precision */                                  \
   V(xssubdp, XSSUBDP, 0xF0000140)                                             \
   /* VSX Scalar Subtract Single-Precision */                                  \
@@ -286,8 +284,6 @@ using Instr = uint32_t;
   V(xvnmsubmsp, XVNMSUBMSP, 0xF00006C8)                                       \
   /* VSX Vector Reciprocal Estimate Double-Precision */                       \
   V(xvredp, XVREDP, 0xF0000368)                                               \
-  /* VSX Vector Reciprocal Estimate Single-Precision */                       \
-  V(xvresp, XVRESP, 0xF0000268)                                               \
   /* VSX Vector Subtract Double-Precision */                                  \
   V(xvsubdp, XVSUBDP, 0xF0000340)                                             \
   /* VSX Vector Subtract Single-Precision */                                  \
@@ -363,7 +359,33 @@ using Instr = uint32_t;
   /* Decimal Floating Test Data Group Quad */                   \
   V(dtstdgq, DTSTDGQ, 0xFC0001C4)
 
-#define PPC_XX2_OPCODE_LIST(V)                                               \
+#define PPC_XX2_OPCODE_A_FORM_LIST(V)                               \
+  /* VSX Vector Absolute Value Double-Precision */                  \
+  V(xvabsdp, XVABSDP, 0xF0000764)                                   \
+  /* VSX Vector Negate Double-Precision */                          \
+  V(xvnegdp, XVNEGDP, 0xF00007E4)                                   \
+  /* VSX Vector Square Root Double-Precision */                     \
+  V(xvsqrtdp, XVSQRTDP, 0xF000032C)                                 \
+  /* VSX Vector Absolute Value Single-Precision */                  \
+  V(xvabssp, XVABSSP, 0xF0000664)                                   \
+  /* VSX Vector Negate Single-Precision */                          \
+  V(xvnegsp, XVNEGSP, 0xF00006E4)                                   \
+  /* VSX Vector Reciprocal Estimate Single-Precision */             \
+  V(xvresp, XVRESP, 0xF0000268)                                     \
+  /* VSX Vector Reciprocal Square Root Estimate Single-Precision */ \
+  V(xvrsqrtesp, XVRSQRTESP, 0xF0000228)                             \
+  /* VSX Vector Square Root Single-Precision */                     \
+  V(xvsqrtsp, XVSQRTSP, 0xF000022C)
+
+#define PPC_XX2_OPCODE_UNUSED_LIST(V)                                        \
+  /* VSX Scalar Square Root Double-Precision */                              \
+  V(xssqrtdp, XSSQRTDP, 0xF000012C)                                          \
+  /* VSX Scalar Reciprocal Estimate Single-Precision */                      \
+  V(xsresp, XSRESP, 0xF0000068)                                              \
+  /* VSX Scalar Reciprocal Square Root Estimate Single-Precision */          \
+  V(xsrsqrtesp, XSRSQRTESP, 0xF0000028)                                      \
+  /* VSX Scalar Square Root Single-Precision */                              \
+  V(xssqrtsp, XSSQRTSP, 0xF000002C)                                          \
   /* Move To VSR Doubleword */                                               \
   V(mtvsrd, MTVSRD, 0x7C000166)                                              \
   /* Move To VSR Word Algebraic */                                           \
@@ -423,18 +445,8 @@ using Instr = uint32_t;
   V(xsrsp, XSRSP, 0xF0000464)                                                \
   /* VSX Scalar Reciprocal Square Root Estimate Double-Precision */          \
   V(xsrsqrtedp, XSRSQRTEDP, 0xF0000128)                                      \
-  /* VSX Scalar Reciprocal Square Root Estimate Single-Precision */          \
-  V(xsrsqrtesp, XSRSQRTESP, 0xF0000028)                                      \
-  /* VSX Scalar Square Root Double-Precision */                              \
-  V(xssqrtdp, XSSQRTDP, 0xF000012C)                                          \
-  /* VSX Scalar Square Root Single-Precision */                              \
-  V(xssqrtsp, XSSQRTSP, 0xF000002C)                                          \
   /* VSX Scalar Test for software Square Root Double-Precision */            \
   V(xstsqrtdp, XSTSQRTDP, 0xF00001A8)                                        \
-  /* VSX Vector Absolute Value Double-Precision */                           \
-  V(xvabsdp, XVABSDP, 0xF0000764)                                            \
-  /* VSX Vector Absolute Value Single-Precision */                           \
-  V(xvabssp, XVABSSP, 0xF0000664)                                            \
   /* VSX Vector Convert Double-Precision to Single-Precision */              \
   V(xvcvdpsp, XVCVDPSP, 0xF0000624)                                          \
   /* VSX Vector Convert Double-Precision to Signed Fixed-Point Doubleword */ \
@@ -485,10 +497,6 @@ using Instr = uint32_t;
   V(xvnabsdp, XVNABSDP, 0xF00007A4)                                          \
   /* VSX Vector Negative Absolute Value Single-Precision */                  \
   V(xvnabssp, XVNABSSP, 0xF00006A4)                                          \
-  /* VSX Vector Negate Double-Precision */                                   \
-  V(xvnegdp, XVNEGDP, 0xF00007E4)                                            \
-  /* VSX Vector Negate Single-Precision */                                   \
-  V(xvnegsp, XVNEGSP, 0xF00006E4)                                            \
   /* VSX Vector Round to Double-Precision Integer */                         \
   V(xvrdpi, XVRDPI, 0xF0000324)                                              \
   /* VSX Vector Round to Double-Precision Integer using Current rounding */  \
@@ -513,16 +521,14 @@ using Instr = uint32_t;
   V(xvrspiz, XVRSPIZ, 0xF0000264)                                            \
   /* VSX Vector Reciprocal Square Root Estimate Double-Precision */          \
   V(xvrsqrtedp, XVRSQRTEDP, 0xF0000328)                                      \
-  /* VSX Vector Reciprocal Square Root Estimate Single-Precision */          \
-  V(xvrsqrtesp, XVRSQRTESP, 0xF0000228)                                      \
-  /* VSX Vector Square Root Double-Precision */                              \
-  V(xvsqrtdp, XVSQRTDP, 0xF000032C)                                          \
-  /* VSX Vector Square Root Single-Precision */                              \
-  V(xvsqrtsp, XVSQRTSP, 0xF000022C)                                          \
   /* VSX Vector Test for software Square Root Double-Precision */            \
   V(xvtsqrtdp, XVTSQRTDP, 0xF00003A8)                                        \
   /* VSX Vector Test for software Square Root Single-Precision */            \
   V(xvtsqrtsp, XVTSQRTSP, 0xF00002A8)
+
+#define PPC_XX2_OPCODE_LIST(V)  \
+  PPC_XX2_OPCODE_A_FORM_LIST(V) \
+  PPC_XX2_OPCODE_UNUSED_LIST(V)
 
 #define PPC_EVX_OPCODE_LIST(V)                                                \
   /* Vector Load Double Word into Double Word by External PID Indexed */      \
