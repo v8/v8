@@ -564,8 +564,11 @@ PropertyAccessInfo AccessInfoFactory::ComputePropertyAccessInfo(
 
     // Walk up the prototype chain.
     MapRef(broker(), map).SerializePrototype();
-    Handle<HeapObject> map_prototype(map->prototype(), isolate());
-    if (!map_prototype->IsJSObject()) {
+    // Acquire synchronously the map's prototype's map to guarantee that every
+    // time we use it, we use the same Map.
+    Handle<Map> map_prototype_map(map->prototype().synchronized_map(),
+                                  isolate());
+    if (!map_prototype_map->IsJSObjectMap()) {
       // Perform the implicit ToObject for primitives here.
       // Implemented according to ES6 section 7.3.2 GetV (V, P).
       Handle<JSFunction> constructor;
@@ -573,9 +576,10 @@ PropertyAccessInfo AccessInfoFactory::ComputePropertyAccessInfo(
               map, broker()->target_native_context().object())
               .ToHandle(&constructor)) {
         map = handle(constructor->initial_map(), isolate());
-        map_prototype = handle(map->prototype(), isolate());
-        DCHECK(map_prototype->IsJSObject());
-      } else if (map_prototype->IsNull(isolate())) {
+        map_prototype_map =
+            handle(map->prototype().synchronized_map(), isolate());
+        DCHECK(map_prototype_map->IsJSObjectMap());
+      } else if (map->prototype().IsNull()) {
         // Store to property not found on the receiver or any prototype, we need
         // to transition to a new data property.
         // Implemented according to ES6 section 9.1.9 [[Set]] (P, V, Receiver)
@@ -590,9 +594,10 @@ PropertyAccessInfo AccessInfoFactory::ComputePropertyAccessInfo(
         return PropertyAccessInfo::Invalid(zone());
       }
     }
-    map = handle(map_prototype->synchronized_map(), isolate());
+
+    holder = handle(JSObject::cast(map->prototype()), isolate());
+    map = map_prototype_map;
     CHECK(!map->is_deprecated());
-    holder = Handle<JSObject>::cast(map_prototype);
 
     if (!CanInlinePropertyAccess(map)) {
       return PropertyAccessInfo::Invalid(zone());
