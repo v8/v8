@@ -299,6 +299,7 @@ namespace compiler {
   V(S390_I32x4UConvertI16x8High)            \
   V(S390_I32x4Abs)                          \
   V(S390_I32x4BitMask)                      \
+  V(S390_I32x4DotI16x8S)                    \
   V(S390_I16x8Splat)                        \
   V(S390_I16x8ExtractLaneU)                 \
   V(S390_I16x8ExtractLaneS)                 \

@@ -4298,6 +4298,17 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
              Condition(0), Condition(2));
       break;
     }
+    case kS390_I32x4DotI16x8S: {
+      Simd128Register tempFPReg1 = i.ToSimd128Register(instr->TempAt(0));
+      __ vme(kScratchDoubleReg, i.InputSimd128Register(0),
+             i.InputSimd128Register(1), Condition(0), Condition(0),
+             Condition(1));
+      __ vmo(tempFPReg1, i.InputSimd128Register(0), i.InputSimd128Register(1),
+             Condition(0), Condition(0), Condition(1));
+      __ va(i.OutputSimd128Register(), kScratchDoubleReg, tempFPReg1,
+            Condition(0), Condition(0), Condition(2));
+      break;
+    }
     case kS390_StoreCompressTagged: {
       CHECK(!instr->HasOutput());
       size_t index = 0;
