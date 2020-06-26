@@ -93,11 +93,6 @@ extern class AsmWasmData extends Struct {
 }
 
 @generateCppClass
-extern class WasmTypeInfo extends Foreign {
-  parent: Map;
-}
-
-@generateCppClass
 extern class WasmStruct extends HeapObject {
 }
 

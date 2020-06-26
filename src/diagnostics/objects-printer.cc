@@ -220,9 +220,6 @@ void HeapObject::HeapObjectPrint(std::ostream& os) {  // NOLINT
       TORQUE_INSTANCE_CHECKERS_MULTIPLE_FULLY_DEFINED(MAKE_TORQUE_CASE)
 #undef MAKE_TORQUE_CASE
 
-    case FOREIGN_TYPE:
-      Foreign::cast(*this).ForeignPrint(os);
-      break;
     case ALLOCATION_SITE_TYPE:
       AllocationSite::cast(*this).AllocationSitePrint(os);
       break;
@@ -1651,13 +1648,6 @@ void AsmWasmData::AsmWasmDataPrint(std::ostream& os) {  // NOLINT
   os << "\n - native module: " << Brief(managed_native_module());
   os << "\n - export_wrappers: " << Brief(export_wrappers());
   os << "\n - uses bitset: " << uses_bitset().value();
-  os << "\n";
-}
-
-void WasmTypeInfo::WasmTypeInfoPrint(std::ostream& os) {  // NOLINT
-  PrintHeader(os, "WasmTypeInfo");
-  os << "\n - type address: " << reinterpret_cast<void*>(foreign_address());
-  os << "\n - parent: " << Brief(parent());
   os << "\n";
 }
 

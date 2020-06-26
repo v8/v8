@@ -966,8 +966,6 @@ struct ControlBase {
     const Value& value)                                                        \
   F(ArrayLen, const Value& array_obj, Value* result)                           \
   F(RttCanon, const HeapTypeImmediate<validate>& imm, Value* result)           \
-  F(RttSub, const HeapTypeImmediate<validate>& imm, const Value& parent,       \
-    Value* result)                                                             \
   F(PassThrough, const Value& from, Value* to)
 
 // Generic Wasm bytecode decoder with utilities for decoding immediates,
@@ -1690,14 +1688,15 @@ class WasmDecoder : public Decoder {
             BranchDepthImmediate<validate> imm(decoder, pc + 2);
             return 2 + imm.length;
           }
-          case kExprRttCanon:
-          case kExprRttSub: {
-            // TODO(7748): Account for rtt.sub's additional immediates if
-            // they stick.
+          case kExprRttCanon: {
             HeapTypeImmediate<validate> imm(WasmFeatures::All(), decoder,
                                             pc + 2);
             return 2 + imm.length;
           }
+          case kExprRttSub:
+            // TODO(7748): Implement.
+            decoder->error(pc, "rtt.sub not implemented yet");
+            return 2;
 
           case kExprI31New:
           case kExprI31GetS:
@@ -3457,31 +3456,6 @@ class WasmFullDecoder : public WasmDecoder<validate> {
         if (!this->Validate(this->pc_ + 2, imm)) break;
         Value* value = Push(ValueType::Rtt(imm.type, 1));
         CALL_INTERFACE_IF_REACHABLE(RttCanon, imm, value);
-        break;
-      }
-      case kExprRttSub: {
-        // TODO(7748): The proposal currently includes additional immediates
-        // here: the subtyping depth <n> and the "parent type", see:
-        // https://github.com/WebAssembly/gc/commit/20a80e34 .
-        // If these immediates don't get dropped (in the spirit of
-        // https://github.com/WebAssembly/function-references/pull/31 ),
-        // implement them here.
-        HeapTypeImmediate<validate> imm(this->enabled_, this, this->pc_ + 2);
-        len += imm.length;
-        if (!this->Validate(this->pc_ + 2, imm)) break;
-        Value parent = Pop();
-        // TODO(7748): Consider exposing "IsSubtypeOfHeap(HeapType t1, t2)" so
-        // we can avoid creating (ref heaptype) wrappers here.
-        if (!VALIDATE(parent.type.kind() == ValueType::kRtt &&
-                      IsSubtypeOf(
-                          ValueType::Ref(imm.type, kNonNullable),
-                          ValueType::Ref(parent.type.heap_type(), kNonNullable),
-                          this->module_))) {
-          this->error(this->pc_, "rtt.sub requires a supertype rtt on stack");
-          break;
-        }
-        Value* value = Push(ValueType::Rtt(imm.type, parent.type.depth() + 1));
-        CALL_INTERFACE_IF_REACHABLE(RttSub, imm, parent, value);
         break;
       }
       default:

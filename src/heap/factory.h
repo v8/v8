@@ -553,8 +553,7 @@ class V8_EXPORT_PRIVATE Factory : public FactoryBase<Factory> {
 
   Handle<JSModuleNamespace> NewJSModuleNamespace();
 
-  Handle<WasmTypeInfo> NewWasmTypeInfo(Address type_address,
-                                       Handle<Map> parent);
+  Handle<WasmStruct> NewWasmStruct(Handle<Map> map);
 
   Handle<SourceTextModule> NewSourceTextModule(Handle<SharedFunctionInfo> code);
   Handle<SyntheticModule> NewSyntheticModule(

@@ -400,7 +400,6 @@ class WasmGraphBuilder {
                  wasm::WasmCodePosition position);
   Node* ArrayLen(Node* array_object, wasm::WasmCodePosition position);
   Node* RttCanon(wasm::HeapType type);
-  Node* RttSub(wasm::HeapType type, Node* parent_rtt);
 
   bool has_simd() const { return has_simd_; }
 

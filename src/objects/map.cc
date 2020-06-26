@@ -368,8 +368,6 @@ VisitorId Map::GetVisitorId(Map map) {
       return kVisitWasmArray;
     case WASM_STRUCT_TYPE:
       return kVisitWasmStruct;
-    case WASM_TYPE_INFO_TYPE:
-      return kVisitWasmTypeInfo;
 
 #define MAKE_TQ_CASE(TYPE, Name) \
   case TYPE:                     \

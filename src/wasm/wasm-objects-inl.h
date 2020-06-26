@@ -36,7 +36,6 @@ OBJECT_CONSTRUCTORS_IMPL(WasmMemoryObject, JSObject)
 OBJECT_CONSTRUCTORS_IMPL(WasmModuleObject, JSObject)
 OBJECT_CONSTRUCTORS_IMPL(WasmTableObject, JSObject)
 OBJECT_CONSTRUCTORS_IMPL(AsmWasmData, Struct)
-TQ_OBJECT_CONSTRUCTORS_IMPL(WasmTypeInfo)
 TQ_OBJECT_CONSTRUCTORS_IMPL(WasmStruct)
 TQ_OBJECT_CONSTRUCTORS_IMPL(WasmArray)
 
@@ -48,7 +47,6 @@ CAST_ACCESSOR(WasmMemoryObject)
 CAST_ACCESSOR(WasmModuleObject)
 CAST_ACCESSOR(WasmTableObject)
 CAST_ACCESSOR(AsmWasmData)
-CAST_ACCESSOR(WasmTypeInfo)
 CAST_ACCESSOR(WasmStruct)
 CAST_ACCESSOR(WasmArray)
 
@@ -401,8 +399,8 @@ ACCESSORS(AsmWasmData, export_wrappers, FixedArray, kExportWrappersOffset)
 ACCESSORS(AsmWasmData, uses_bitset, HeapNumber, kUsesBitsetOffset)
 
 wasm::StructType* WasmStruct::type(Map map) {
-  WasmTypeInfo type_info = map.wasm_type_info();
-  return reinterpret_cast<wasm::StructType*>(type_info.foreign_address());
+  Foreign foreign = map.wasm_type_info();
+  return reinterpret_cast<wasm::StructType*>(foreign.foreign_address());
 }
 
 wasm::StructType* WasmStruct::GcSafeType(Map map) {
@@ -424,8 +422,8 @@ ObjectSlot WasmStruct::RawField(int raw_offset) {
 
 wasm::ArrayType* WasmArray::type(Map map) {
   DCHECK_EQ(WASM_ARRAY_TYPE, map.instance_type());
-  WasmTypeInfo type_info = map.wasm_type_info();
-  return reinterpret_cast<wasm::ArrayType*>(type_info.foreign_address());
+  Foreign foreign = map.wasm_type_info();
+  return reinterpret_cast<wasm::ArrayType*>(foreign.foreign_address());
 }
 
 wasm::ArrayType* WasmArray::GcSafeType(Map map) {
