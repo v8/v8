@@ -844,6 +844,9 @@
   # Tier down/up Wasm NativeModule in debugging is non-deterministic with
   # multiple isolates (https://crbug.com/v8/10099).
   'wasm/tier-down-to-liftoff': [SKIP],
+
+  # https://crbug.com/v8/10647
+  'wasm/compare-exchange64-stress': [SKIP],
 }],  # 'isolates'
 
 ##############################################################################
