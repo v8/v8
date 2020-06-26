@@ -63,6 +63,17 @@ static const char kDebuggerNotPaused[] =
 static const size_t kBreakpointHintMaxLength = 128;
 static const intptr_t kBreakpointHintMaxSearchOffset = 80 * 10;
 
+// TODO(1099680): getScriptSource and getWasmBytecode return Wasm wire bytes
+// as protocol::Binary, which is encoded as JSON string in the communication
+// to the DevTools front-end and hence leads to either crashing the renderer
+// that is being debugged or the renderer that's running the front-end if we
+// allow arbitrarily big Wasm byte sequences here. Ideally we would find a
+// different way to transfer the wire bytes (middle- to long-term), but as a
+// short-term solution, we should at least not crash.
+static const size_t kWasmBytecodeMaxLength = (v8::String::kMaxLength / 4) * 3;
+static const char kWasmBytecodeExceedsTransferLimit[] =
+    "WebAssembly bytecode exceeds the transfer limit";
+
 namespace {
 
 enum class BreakpointType {
@@ -978,6 +989,9 @@ Response V8DebuggerAgentImpl::getScriptSource(
   *scriptSource = it->second->source(0);
   v8::MemorySpan<const uint8_t> span;
   if (it->second->wasmBytecode().To(&span)) {
+    if (span.size() > kWasmBytecodeMaxLength) {
+      return Response::ServerError(kWasmBytecodeExceedsTransferLimit);
+    }
     *bytecode = protocol::Binary::fromSpan(span.data(), span.size());
   }
   return Response::Success();
@@ -993,6 +1007,9 @@ Response V8DebuggerAgentImpl::getWasmBytecode(const String16& scriptId,
   if (!it->second->wasmBytecode().To(&span))
     return Response::ServerError("Script with id " + scriptId.utf8() +
                                  " is not WebAssembly");
+  if (span.size() > kWasmBytecodeMaxLength) {
+    return Response::ServerError(kWasmBytecodeExceedsTransferLimit);
+  }
   *bytecode = protocol::Binary::fromSpan(span.data(), span.size());
   return Response::Success();
 }
