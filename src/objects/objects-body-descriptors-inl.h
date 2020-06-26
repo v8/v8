@@ -601,6 +601,23 @@ class Foreign::BodyDescriptor final : public BodyDescriptorBase {
   static inline int SizeOf(Map map, HeapObject object) { return kSize; }
 };
 
+class WasmTypeInfo::BodyDescriptor final : public BodyDescriptorBase {
+ public:
+  static bool IsValidSlot(Map map, HeapObject obj, int offset) {
+    UNREACHABLE();
+  }
+
+  template <typename ObjectVisitor>
+  static inline void IterateBody(Map map, HeapObject obj, int object_size,
+                                 ObjectVisitor* v) {
+    Foreign::BodyDescriptor::IterateBody<ObjectVisitor>(map, obj, object_size,
+                                                        v);
+    IteratePointer(obj, kParentOffset, v);
+  }
+
+  static inline int SizeOf(Map map, HeapObject object) { return kSize; }
+};
+
 class ExternalOneByteString::BodyDescriptor final : public BodyDescriptorBase {
  public:
   static bool IsValidSlot(Map map, HeapObject obj, int offset) { return false; }
@@ -970,6 +987,8 @@ ReturnType BodyDescriptorApply(InstanceType type, T1 p1, T2 p2, T3 p3, T4 p4) {
       return Op::template apply<WasmArray::BodyDescriptor>(p1, p2, p3, p4);
     case WASM_STRUCT_TYPE:
       return Op::template apply<WasmStruct::BodyDescriptor>(p1, p2, p3, p4);
+    case WASM_TYPE_INFO_TYPE:
+      return Op::template apply<WasmTypeInfo::BodyDescriptor>(p1, p2, p3, p4);
     case JS_OBJECT_TYPE:
     case JS_ERROR_TYPE:
     case JS_ARGUMENTS_OBJECT_TYPE:

@@ -3617,6 +3617,11 @@ class LiftoffCompiler {
     // TODO(7748): Implement.
     unsupported(decoder, kGC, "rtt.canon");
   }
+  void RttSub(FullDecoder* decoder, const HeapTypeImmediate<validate>& imm,
+              const Value& parent, Value* result) {
+    // TODO(7748): Implement.
+    unsupported(decoder, kGC, "rtt.sub");
+  }
 
   void PassThrough(FullDecoder* decoder, const Value& from, Value* to) {
     // TODO(7748): Implement.

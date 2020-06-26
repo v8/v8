@@ -77,6 +77,7 @@ enum InstanceType : uint16_t;
   V(WasmInstanceObject)                \
   V(WasmArray)                         \
   V(WasmStruct)                        \
+  V(WasmTypeInfo)                      \
   V(WeakCell)
 
 #define TORQUE_VISITOR_ID_LIST(V)     \
@@ -578,7 +579,7 @@ class Map : public HeapObject {
   // and with the Wasm type info for WebAssembly object maps.
   DECL_ACCESSORS(constructor_or_backpointer, Object)
   DECL_ACCESSORS(native_context, NativeContext)
-  DECL_ACCESSORS(wasm_type_info, Foreign)
+  DECL_ACCESSORS(wasm_type_info, WasmTypeInfo)
   DECL_GETTER(GetConstructor, Object)
   DECL_GETTER(GetFunctionTemplateInfo, FunctionTemplateInfo)
   inline void SetConstructor(Object constructor,

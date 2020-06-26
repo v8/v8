@@ -5329,6 +5329,18 @@ Node* WasmGraphBuilder::RttCanon(wasm::HeapType type) {
   return LOAD_FIXED_ARRAY_SLOT_PTR(maps_list, type_index);
 }
 
+Node* WasmGraphBuilder::RttSub(wasm::HeapType type, Node* parent_rtt) {
+  if (is_generic_heap_type(type)) {
+    // TODO(7748): Implement this. {type} could be eqref, with {parent_rtt}
+    // being (rtt.canon anyref).
+    UNIMPLEMENTED();
+  }
+  return CALL_BUILTIN(
+      WasmAllocateRtt,
+      graph()->NewNode(mcgraph()->common()->NumberConstant(type)), parent_rtt,
+      LOAD_INSTANCE_FIELD(NativeContext, MachineType::TaggedPointer()));
+}
+
 Node* WasmGraphBuilder::StructGet(Node* struct_object,
                                   const wasm::StructType* struct_type,
                                   uint32_t field_index, CheckForNull null_check,

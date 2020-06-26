@@ -714,6 +714,11 @@ class WasmGraphBuildingInterface {
     result->node = BUILD(RttCanon, imm.type);
   }
 
+  void RttSub(FullDecoder* decoder, const HeapTypeImmediate<validate>& imm,
+              const Value& parent, Value* result) {
+    result->node = BUILD(RttSub, imm.type, parent.node);
+  }
+
   void PassThrough(FullDecoder* decoder, const Value& from, Value* to) {
     to->node = from.node;
   }

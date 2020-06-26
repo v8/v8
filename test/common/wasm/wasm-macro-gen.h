@@ -459,6 +459,8 @@ inline WasmOpcode LoadStoreOpcodeOf(MachineType type, bool store) {
 
 #define WASM_RTT_CANON(typeidx) \
   WASM_GC_OP(kExprRttCanon), static_cast<byte>(typeidx)
+#define WASM_RTT_SUB(typeidx) \
+  WASM_GC_OP(kExprRttSub), static_cast<byte>(typeidx)
 
 #define WASM_BR_ON_NULL(depth, ref_object) \
   ref_object, kExprBrOnNull, static_cast<byte>(depth)

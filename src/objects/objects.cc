@@ -5190,7 +5190,8 @@ bool SharedFunctionInfo::PassesFilter(const char* raw_filter) {
 bool SharedFunctionInfo::HasSourceCode() const {
   ReadOnlyRoots roots = GetReadOnlyRoots();
   return !script().IsUndefined(roots) &&
-         !Script::cast(script()).source().IsUndefined(roots);
+         !Script::cast(script()).source().IsUndefined(roots) &&
+         String::cast(Script::cast(script()).source()).length() > 0;
 }
 
 void SharedFunctionInfo::DiscardCompiledMetadata(
