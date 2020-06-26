@@ -719,19 +719,19 @@ void Decoder::DecodeRFPType(Instruction* instr) {
       switch (instr->Funct3Value()) {
         case 0b000:  // RO_FSGNJ_S
           if (instr->Rs1Value() == instr->Rs2Value())
-            Format(instr, "fmv.s   'fd, 'fs1");
+            Format(instr, "fmv.s     'fd, 'fs1");
           else
             Format(instr, "fsgnj.s   'fd, 'fs1, 'fs2");
           break;
         case 0b001:  // RO_FSGNJN_S
           if (instr->Rs1Value() == instr->Rs2Value())
-            Format(instr, "fneg.s  'fd, 'fs1");
+            Format(instr, "fneg.s    'fd, 'fs1");
           else
             Format(instr, "fsgnjn.s  'fd, 'fs1, 'fs2");
           break;
         case 0b010:  // RO_FSGNJX_S
           if (instr->Rs1Value() == instr->Rs2Value())
-            Format(instr, "fabs.s  'fd, 'fs1");
+            Format(instr, "fabs.s    'fd, 'fs1");
           else
             Format(instr, "fsgnjx.s  'fd, 'fs1, 'fs2");
           break;
@@ -861,19 +861,19 @@ void Decoder::DecodeRFPType(Instruction* instr) {
       switch (instr->Funct3Value()) {
         case 0b000:  // RO_FSGNJ_D
           if (instr->Rs1Value() == instr->Rs2Value())
-            Format(instr, "fmv.d   'fd, 'fs1");
+            Format(instr, "fmv.d     'fd, 'fs1");
           else
             Format(instr, "fsgnj.d   'fd, 'fs1, 'fs2");
           break;
         case 0b001:  // RO_FSGNJN_D
           if (instr->Rs1Value() == instr->Rs2Value())
-            Format(instr, "fneg.d   'fd, 'fs1");
+            Format(instr, "fneg.d    'fd, 'fs1");
           else
             Format(instr, "fsgnjn.d  'fd, 'fs1, 'fs2");
           break;
         case 0b010:  // RO_FSGNJX_D
           if (instr->Rs1Value() == instr->Rs2Value())
-            Format(instr, "fabs.d   'fd, 'fs1");
+            Format(instr, "fabs.d    'fd, 'fs1");
           else
             Format(instr, "fsgnjx.d  'fd, 'fs1, 'fs2");
           break;

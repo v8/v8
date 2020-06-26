@@ -2025,16 +2025,18 @@ void Simulator::DecodeRVRAType() {
   // Memory address lock or other synchronizaiton behaviors.
   switch (instr_.InstructionBits() & kRATypeMask) {
     case RO_LR_W: {
-      int64_t addr = rs1();
-      auto val = RV_ReadMem<int32_t>(addr, instr_.instr());
-      set_rd(sext32(val), false);
-      TraceMemRd(addr, val, get_register(RV_rd_reg()));
-      break;
+      UNIMPLEMENTED();
+      // int64_t addr = rs1();
+      // auto val = RV_ReadMem<int32_t>(addr, instr_.instr());
+      // set_rd(sext32(val), false);
+      // TraceMemRd(addr, val, get_register(RV_rd_reg()));
+      // break;
     }
     case RO_SC_W: {
-      RV_WriteMem<int32_t>(rs1(), (int32_t)rs2(), instr_.instr());
-      set_rd(0, false);  // Always success in simulator
-      break;
+      UNIMPLEMENTED();
+      // RV_WriteMem<int32_t>(rs1(), (int32_t)rs2(), instr_.instr());
+      // set_rd(0, false);  // Always success in simulator
+      // break;
     }
     case RO_AMOSWAP_W: {
       set_rd(sext32(RV_amo<uint32_t>(
@@ -2092,16 +2094,18 @@ void Simulator::DecodeRVRAType() {
     }
 #ifdef V8_TARGET_ARCH_64_BIT
     case RO_LR_D: {
-      int64_t addr = rs1();
-      auto val = RV_ReadMem<int64_t>(addr, instr_.instr());
-      set_rd(val, false);
-      TraceMemRd(addr, val, get_register(RV_rd_reg()));
-      break;
+      UNIMPLEMENTED();
+      // int64_t addr = rs1();
+      // auto val = RV_ReadMem<int64_t>(addr, instr_.instr());
+      // set_rd(val, false);
+      // TraceMemRd(addr, val, get_register(RV_rd_reg()));
+      // break;
     }
     case RO_SC_D: {
-      RV_WriteMem<int64_t>(rs1(), rs2(), instr_.instr());
-      set_rd(0, false);  // Always success in simulator
-      break;
+      UNIMPLEMENTED();
+      // RV_WriteMem<int64_t>(rs1(), rs2(), instr_.instr());
+      // set_rd(0, false);  // Always success in simulator
+      // break;
     }
     case RO_AMOSWAP_D: {
       set_rd(RV_amo<int64_t>(

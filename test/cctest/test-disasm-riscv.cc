@@ -407,12 +407,12 @@ TEST(PSEUDO) {
   COMPARE(RV_sltz(a0, t5), "000f2533       sltz      a0, t5");
   COMPARE(RV_sgtz(a1, t4), "01d025b3       sgtz      a1, t4");
 
-  COMPARE(RV_fmv_s(fa0, fs4), "214a0553       fmv.s   fa0, fs4");
-  COMPARE(RV_fabs_s(fa1, fs3), "2139a5d3       fabs.s  fa1, fs3");
-  COMPARE(RV_fneg_s(fa2, fs5), "215a9653       fneg.s  fa2, fs5");
-  COMPARE(RV_fmv_d(fa3, fs2), "232906d3       fmv.d   fa3, fs2");
-  COMPARE(RV_fabs_d(fs0, fs2), "23292453       fabs.d   fs0, fs2");
-  COMPARE(RV_fneg_d(fs1, fs1), "229494d3       fneg.d   fs1, fs1");
+  COMPARE(RV_fmv_s(fa0, fs4), "214a0553       fmv.s     fa0, fs4");
+  COMPARE(RV_fabs_s(fa1, fs3), "2139a5d3       fabs.s    fa1, fs3");
+  COMPARE(RV_fneg_s(fa2, fs5), "215a9653       fneg.s    fa2, fs5");
+  COMPARE(RV_fmv_d(fa3, fs2), "232906d3       fmv.d     fa3, fs2");
+  COMPARE(RV_fabs_d(fs0, fs2), "23292453       fabs.d    fs0, fs2");
+  COMPARE(RV_fneg_d(fs1, fs1), "229494d3       fneg.d    fs1, fs1");
 
   COMPARE(RV_j(-1024), "c01ff06f       j         -1024");
   COMPARE(RV_jal(32), "020000ef       jal       32");
