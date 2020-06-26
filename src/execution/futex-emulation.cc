@@ -205,9 +205,9 @@ Object FutexEmulation::Wait(Isolate* isolate,
     // still holding the lock).
     ResetWaitingOnScopeExit reset_waiting(node);
 
-    T* p = reinterpret_cast<T*>(
+    std::atomic<T>* p = reinterpret_cast<std::atomic<T>*>(
         static_cast<int8_t*>(backing_store->buffer_start()) + addr);
-    if (*p != value) {
+    if (p->load() != value) {
       result = handle(Smi::FromInt(WaitReturnValue::kNotEqual), isolate);
       callback_result = AtomicsWaitEvent::kNotEqual;
       break;
