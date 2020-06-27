@@ -134,19 +134,19 @@ class UnitTest(unittest.TestCase):
     diff = None, None
     self.assertEqual(diff, diff_fun(one, two))
 
-    # Ignore line before caret, caret position and error message.
+    # Ignore line before caret and caret position.
     one = """
 undefined
 weird stuff
       ^
-somefile.js: TypeError: undefined is not a function
+somefile.js: TypeError: suppressed message
   undefined
 """
     two = """
 undefined
 other weird stuff
             ^
-somefile.js: TypeError: baz is not a function
+somefile.js: TypeError: suppressed message
   undefined
 """
     diff = None, None
@@ -187,15 +187,16 @@ otherfile.js: TypeError: undefined is not a constructor
     # Test that skipping suppressions works.
     one = """
 v8-foozzie source: foo
-23:TypeError: bar is not a function
+weird stuff
+      ^
 """
     two = """
 v8-foozzie source: foo
-42:TypeError: baz is not a function
+other weird stuff
+            ^
 """
     self.assertEqual((None, 'foo'), diff_fun(one, two))
-    diff = """- 23:TypeError: bar is not a function
-+ 42:TypeError: baz is not a function""", 'foo'
+    diff = ('-       ^\n+             ^', 'foo')
     self.assertEqual(diff, diff_fun(one, two, skip=True))
 
   def testOutputCapping(self):

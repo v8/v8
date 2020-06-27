@@ -73,26 +73,6 @@ IGNORE_OUTPUT = {
 ALLOWED_LINE_DIFFS = [
   # Ignore caret position in stack traces.
   r'^\s*\^\s*$',
-
-  # Ignore some stack trace headers as messages might not match.
-  r'^(.*)TypeError: .* is not a function$',
-  r'^(.*)TypeError: .* is not a constructor$',
-  r'^(.*)TypeError: (.*) is not .*$',
-  r'^(.*):\d+: TypeError: Message suppressed for fuzzers.*$',
-  r'^(.*)ReferenceError: .* is not defined$',
-  r'^(.*):\d+: ReferenceError: .* is not defined$',
-
-  # These are rarely needed. It includes some cases above.
-  r'^\w*Error: .* is not .*$',
-  r'^(.*) \w*Error: .* is not .*$',
-  r'^(.*):\d+: \w*Error: .* is not .*$',
-
-  # Some test cases just print the message.
-  r'^.* is not a function(.*)$',
-  r'^(.*) is not a .*$',
-
-  # crbug.com/680064. This subsumes one of the above expressions.
-  r'^(.*)TypeError: .* function$',
 ]
 
 # Lines matching any of the following regular expressions will be ignored.
