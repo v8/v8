@@ -370,13 +370,7 @@ def run_sanity_checks(options, suppress, first_cmd, second_cmd):
 
 def main():
   options = parse_args()
-
-  # Suppressions are architecture and configuration specific.
-  suppress = v8_suppressions.get_suppression(
-      options.first.arch, options.first.config,
-      options.second.arch, options.second.config,
-      options.skip_suppressions,
-  )
+  suppress = v8_suppressions.get_suppression(options.skip_suppressions)
 
   # Static bailout based on test case content or metadata.
   kwargs = {}
@@ -409,8 +403,8 @@ def main():
     # Only bail out due to suppressed output if there was a difference. If a
     # suppression doesn't show up anymore in the statistics, we might want to
     # remove it.
-    fail_bailout(first_config_output, suppress.ignore_by_output1)
-    fail_bailout(second_config_output, suppress.ignore_by_output2)
+    fail_bailout(first_config_output, suppress.ignore_by_output)
+    fail_bailout(second_config_output, suppress.ignore_by_output)
 
     source_key = cluster_failures(source)
     raise FailException(format_difference(

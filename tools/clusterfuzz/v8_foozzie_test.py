@@ -120,8 +120,7 @@ class UnitTest(unittest.TestCase):
 
   def testDiff(self):
     def diff_fun(one, two, skip=False):
-      suppress = v8_suppressions.get_suppression(
-          'x64', 'ignition', 'x64', 'ignition_turbo', skip)
+      suppress = v8_suppressions.get_suppression(skip)
       return suppress.diff_lines(one.splitlines(), two.splitlines())
 
     one = ''
