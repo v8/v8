@@ -22,7 +22,7 @@ import traceback
 
 from collections import namedtuple
 
-import v8_commands
+from v8_commands import Command, FailException, PassException
 import v8_suppressions
 
 PYTHON3 = sys.version_info >= (3, 0)
@@ -274,33 +274,19 @@ def content_bailout(content, ignore_fun):
   """Print failure state and return if ignore_fun matches content."""
   bug = (ignore_fun(content) or '').strip()
   if bug:
-    print(FAILURE_HEADER_TEMPLATE % dict(
+    raise FailException(FAILURE_HEADER_TEMPLATE % dict(
         configs='', source_key='', suppression=bug))
-    return True
-  return False
-
-
-def timeout_bailout(output, step_number):
-  """Print info and return if in timeout pass state."""
-  if output.HasTimedOut():
-    # Dashed output, so that no other clusterfuzz tools can match the
-    # words timeout or crash.
-    print('# V8 correctness - T-I-M-E-O-U-T %d' % step_number)
-    return True
-  return False
 
 
 def fail_bailout(output, ignore_by_output_fun):
   """Print failure state and return if ignore_by_output_fun matches output."""
   bug = (ignore_by_output_fun(output.stdout) or '').strip()
   if bug:
-    print(FAILURE_HEADER_TEMPLATE % dict(
+    raise FailException(FAILURE_HEADER_TEMPLATE % dict(
         configs='', source_key='', suppression=bug))
-    return True
-  return False
 
 
-def print_difference(
+def format_difference(
     options, source_key, first_command, second_command,
     first_config_output, second_config_output, difference, source=None):
   # The first three entries will be parsed by clusterfuzz. Format changes
@@ -332,9 +318,9 @@ def print_difference(
       difference=difference,
   ))
   if PYTHON3:
-    print(text)
+    return text
   else:
-    print(text.encode('utf-8', 'replace'))
+    return text.encode('utf-8', 'replace')
 
 
 def cluster_failures(source, known_failures=None):
@@ -362,6 +348,26 @@ def cluster_failures(source, known_failures=None):
   return long_key[:ORIGINAL_SOURCE_HASH_LENGTH]
 
 
+def run_sanity_checks(options, suppress, first_cmd, second_cmd):
+  """Run some fixed smoke tests in all configs to ensure nothing
+  is fundamentally wrong, in order to prevent bug flooding.
+  """
+  first_config_output = first_cmd.run(
+      SANITY_CHECKS, timeout=SANITY_CHECK_TIMEOUT_SEC)
+
+  second_config_output = second_cmd.run(
+      SANITY_CHECKS, timeout=SANITY_CHECK_TIMEOUT_SEC)
+
+  difference, _ = suppress.diff(first_config_output, second_config_output)
+  if difference:
+    # Special source key for sanity checks so that clusterfuzz dedupes all
+    # cases on this in case it's hit.
+    source_key = 'sanity check failed'
+    raise FailException(format_difference(
+        options, source_key, first_cmd, second_cmd,
+        first_config_output, second_config_output, difference))
+
+
 def main():
   options = parse_args()
 
@@ -378,56 +384,24 @@ def main():
     kwargs['encoding'] = 'utf-8'
   with open(options.testcase, 'r', **kwargs) as f:
     content = f.read()
-  if content_bailout(get_meta_data(content), suppress.ignore_by_metadata):
-    return RETURN_FAIL
-  if content_bailout(content, suppress.ignore_by_content):
-    return RETURN_FAIL
+  content_bailout(get_meta_data(content), suppress.ignore_by_metadata)
+  content_bailout(content, suppress.ignore_by_content)
 
-  first_cmd = v8_commands.Command(
-      options,'first', options.first.d8, options.first.flags)
-  second_cmd = v8_commands.Command(
+  first_cmd = Command(
+      options, 'first', options.first.d8, options.first.flags)
+  second_cmd = Command(
       options, 'second', options.second.d8, options.second.flags)
 
   # Sanity checks. Run both configurations with the sanity-checks file only and
   # bail out early if different.
   if not options.skip_sanity_checks:
-    first_config_output = first_cmd.run(
-        SANITY_CHECKS, timeout=SANITY_CHECK_TIMEOUT_SEC)
-
-    # Early bailout if first run was a timeout.
-    if timeout_bailout(first_config_output, 1):
-      return RETURN_PASS
-
-    second_config_output = second_cmd.run(
-        SANITY_CHECKS, timeout=SANITY_CHECK_TIMEOUT_SEC)
-
-    # Bailout if second run was a timeout.
-    if timeout_bailout(second_config_output, 2):
-      return RETURN_PASS
-
-    difference, _ = suppress.diff(first_config_output, second_config_output)
-    if difference:
-      # Special source key for sanity checks so that clusterfuzz dedupes all
-      # cases on this in case it's hit.
-      source_key = 'sanity check failed'
-      print_difference(
-          options, source_key, first_cmd, second_cmd,
-          first_config_output, second_config_output, difference)
-      return RETURN_FAIL
+    run_sanity_checks(options, suppress, first_cmd, second_cmd)
 
   first_config_output = first_cmd.run(
       options.testcase, timeout=TEST_TIMEOUT_SEC, verbose=True)
 
-  # Early bailout if first run was a timeout.
-  if timeout_bailout(first_config_output, 1):
-    return RETURN_PASS
-
   second_config_output = second_cmd.run(
       options.testcase, timeout=TEST_TIMEOUT_SEC, verbose=True)
-
-  # Bailout if second run was a timeout.
-  if timeout_bailout(second_config_output, 2):
-    return RETURN_PASS
 
   difference, source = suppress.diff(first_config_output, second_config_output)
 
@@ -435,23 +409,18 @@ def main():
     # Only bail out due to suppressed output if there was a difference. If a
     # suppression doesn't show up anymore in the statistics, we might want to
     # remove it.
-    if fail_bailout(first_config_output, suppress.ignore_by_output1):
-      return RETURN_FAIL
-    if fail_bailout(second_config_output, suppress.ignore_by_output2):
-      return RETURN_FAIL
+    fail_bailout(first_config_output, suppress.ignore_by_output1)
+    fail_bailout(second_config_output, suppress.ignore_by_output2)
 
     source_key = cluster_failures(source)
-    print_difference(
+    raise FailException(format_difference(
         options, source_key, first_cmd, second_cmd,
-        first_config_output, second_config_output, difference, source)
-    return RETURN_FAIL
+        first_config_output, second_config_output, difference, source))
 
   # Show if a crash has happened in one of the runs and no difference was
   # detected.
-  if first_config_output.HasCrashed():
-    print('# V8 correctness - C-R-A-S-H 1')
-  elif second_config_output.HasCrashed():
-    print('# V8 correctness - C-R-A-S-H 2')
+  if first_config_output.HasCrashed() or second_config_output.HasCrashed():
+    print('# V8 correctness - C-R-A-S-H')
   else:
     # TODO(machenbach): Figure out if we could also return a bug in case
     # there's no difference, but one of the line suppressions has matched -
@@ -464,6 +433,12 @@ def main():
 if __name__ == "__main__":
   try:
     result = main()
+  except FailException as e:
+    print(e.message)
+    result = RETURN_FAIL
+  except PassException as e:
+    print(e.message)
+    result = RETURN_PASS
   except SystemExit:
     # Make sure clusterfuzz reports internal errors and wrong usage.
     # Use one label for all internal and usage errors.

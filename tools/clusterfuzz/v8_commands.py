@@ -54,6 +54,22 @@ def _startup_files(options):
   return files
 
 
+class BaseException(Exception):
+  """Used to abort the comparison workflow and print the given message."""
+  def __init__(self, message):
+    self.message = message
+
+
+class PassException(BaseException):
+  """Represents an early abort making the overall run pass."""
+  pass
+
+
+class FailException(BaseException):
+  """Represents an early abort making the overall run fail."""
+  pass
+
+
 class Command(object):
   """Represents a configuration for running V8 multiple times with certain
   flags and files.
@@ -88,21 +104,14 @@ class Command(object):
 
 
 class Output(object):
-  def __init__(self, exit_code, timed_out, stdout, pid):
+  def __init__(self, exit_code, stdout, pid):
     self.exit_code = exit_code
-    self.timed_out = timed_out
     self.stdout = stdout
     self.pid = pid
 
   def HasCrashed(self):
-    # Timed out tests will have exit_code -signal.SIGTERM.
-    if self.timed_out:
-      return False
     return (self.exit_code < 0 and
             self.exit_code != -signal.SIGABRT)
-
-  def HasTimedOut(self):
-    return self.timed_out
 
 
 def Execute(args, cwd, timeout=None):
@@ -136,9 +145,11 @@ def Execute(args, cwd, timeout=None):
   stdout, _ = process.communicate()
   timer.cancel()
 
+  if timeout_event.is_set():
+    raise PassException('# V8 correctness - T-I-M-E-O-U-T')
+
   return Output(
       process.returncode,
-      timeout_event.is_set(),
       stdout,
       process.pid,
   )

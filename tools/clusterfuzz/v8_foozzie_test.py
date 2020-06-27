@@ -201,8 +201,7 @@ v8-foozzie source: foo
   def testOutputCapping(self):
     def output(stdout, is_crash):
       exit_code = -1 if is_crash else 0
-      return v8_commands.Output(
-          exit_code=exit_code, timed_out=False, stdout=stdout, pid=0)
+      return v8_commands.Output(exit_code=exit_code, stdout=stdout, pid=0)
 
     def check(stdout1, stdout2, is_crash1, is_crash2, capped_lines1,
               capped_lines2):
