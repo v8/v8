@@ -647,7 +647,7 @@
     },
 
     'ios_simulator': {
-      'gn_args': 'target_cpu="x64" target_os="ios"',
+      'gn_args': 'target_cpu="x64" target_os="ios" ios_use_goma_rbe=true',
     },
 
     'lsan': {
