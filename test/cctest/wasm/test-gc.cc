@@ -140,10 +140,10 @@ class WasmGCTester {
 };
 
 ValueType ref(uint32_t type_index) {
-  return ValueType::Ref(static_cast<HeapType>(type_index), kNonNullable);
+  return ValueType::Ref(type_index, kNonNullable);
 }
 ValueType optref(uint32_t type_index) {
-  return ValueType::Ref(static_cast<HeapType>(type_index), kNullable);
+  return ValueType::Ref(type_index, kNullable);
 }
 
 // TODO(7748): Use WASM_EXEC_TEST once interpreter and liftoff are supported
@@ -547,8 +547,7 @@ TEST(WasmPackedArrayS) {
 TEST(BasicRTT) {
   WasmGCTester tester;
   uint32_t type_index = tester.DefineStruct({F(wasm::kWasmI32, true)});
-  ValueType kRttTypes[] = {
-      ValueType::Rtt(static_cast<HeapType>(type_index), 1)};
+  ValueType kRttTypes[] = {ValueType::Rtt(type_index, 1)};
   FunctionSig sig_t_v(1, 0, kRttTypes);
 
   tester.DefineFunction("f", &sig_t_v, {},

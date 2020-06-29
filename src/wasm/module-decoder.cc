@@ -123,7 +123,7 @@ ValueType TypeOf(const WasmModule* module, const WasmInitExpr& expr) {
     case WasmInitExpr::kF64Const:
       return kWasmF64;
     case WasmInitExpr::kRefFuncConst:
-      return ValueType::Ref(kHeapFunc, kNonNullable);
+      return ValueType::Ref(HeapType::kFunc, kNonNullable);
     case WasmInitExpr::kRefNullConst:
       // It is not possible to retrieve the full {ValueType} of a {WasmInitExpr}
       // of kind {kRefNullConst}. As WasmInitExpr of kind {krefNullConst} is

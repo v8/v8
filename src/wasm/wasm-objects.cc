@@ -286,7 +286,7 @@ Handle<WasmTableObject> WasmTableObject::New(Isolate* isolate,
   table_obj->set_entries(*backing_store);
   table_obj->set_current_length(initial);
   table_obj->set_maximum_length(*max);
-  table_obj->set_raw_type(static_cast<int>(type.heap_type()));
+  table_obj->set_raw_type(static_cast<int>(type.heap()));
 
   table_obj->set_dispatch_tables(ReadOnlyRoots(isolate).empty_fixed_array());
   if (entries != nullptr) {
@@ -387,8 +387,8 @@ bool WasmTableObject::IsValidElement(Isolate* isolate,
                                      Handle<WasmTableObject> table,
                                      Handle<Object> entry) {
   // Anyref and exnref tables take everything.
-  if (table->type().heap_type() == wasm::kHeapExtern ||
-      table->type().heap_type() == wasm::kHeapExn) {
+  if (table->type().is_reference_to(wasm::HeapType::kExtern) ||
+      table->type().is_reference_to(wasm::HeapType::kExn)) {
     return true;
   }
   // FuncRef tables can store {null}, {WasmExportedFunction}, {WasmJSFunction},
@@ -408,8 +408,8 @@ void WasmTableObject::Set(Isolate* isolate, Handle<WasmTableObject> table,
   Handle<FixedArray> entries(table->entries(), isolate);
   // The FixedArray is addressed with int's.
   int entry_index = static_cast<int>(index);
-  if (table->type().heap_type() == wasm::kHeapExtern ||
-      table->type().heap_type() == wasm::kHeapExn) {
+  if (table->type().is_reference_to(wasm::HeapType::kExtern) ||
+      table->type().is_reference_to(wasm::HeapType::kExn)) {
     entries->set(entry_index, *entry);
     return;
   }
@@ -454,8 +454,8 @@ Handle<Object> WasmTableObject::Get(Isolate* isolate,
   Handle<Object> entry(entries->get(entry_index), isolate);
 
   // First we handle the easy externref and exnref table case.
-  if (table->type().heap_type() == wasm::kHeapExtern ||
-      table->type().heap_type() == wasm::kHeapExn) {
+  if (table->type().is_reference_to(wasm::HeapType::kExtern) ||
+      table->type().is_reference_to(wasm::HeapType::kExn)) {
     return entry;
   }
 
@@ -633,7 +633,7 @@ void WasmTableObject::GetFunctionTableEntry(
     Isolate* isolate, Handle<WasmTableObject> table, int entry_index,
     bool* is_valid, bool* is_null, MaybeHandle<WasmInstanceObject>* instance,
     int* function_index, MaybeHandle<WasmJSFunction>* maybe_js_function) {
-  DCHECK_EQ(table->type().heap_type(), wasm::kHeapFunc);
+  DCHECK(table->type().is_reference_to(wasm::HeapType::kFunc));
   DCHECK_LT(entry_index, table->current_length());
   // We initialize {is_valid} with {true}. We may change it later.
   *is_valid = true;

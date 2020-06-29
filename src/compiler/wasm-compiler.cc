@@ -5309,16 +5309,15 @@ Node* WasmGraphBuilder::ArrayNew(uint32_t array_index,
 }
 
 Node* WasmGraphBuilder::RttCanon(wasm::HeapType type) {
-  if (is_generic_heap_type(type)) {
+  if (type.is_generic()) {
     // TODO(7748): Implement this.
     UNIMPLEMENTED();
   }
-  uint32_t type_index = static_cast<uint32_t>(type);
   // This logic is duplicated from module-instantiate.cc.
   // TODO(jkummerow): Find a nicer solution.
   int map_index = 0;
   const std::vector<uint8_t>& type_kinds = env_->module->type_kinds;
-  for (uint32_t i = 0; i < type_index; i++) {
+  for (uint32_t i = 0; i < type.ref_index(); i++) {
     if (type_kinds[i] == wasm::kWasmStructTypeCode ||
         type_kinds[i] == wasm::kWasmArrayTypeCode) {
       map_index++;
@@ -5326,7 +5325,7 @@ Node* WasmGraphBuilder::RttCanon(wasm::HeapType type) {
   }
   Node* maps_list =
       LOAD_INSTANCE_FIELD(ManagedObjectMaps, MachineType::TaggedPointer());
-  return LOAD_FIXED_ARRAY_SLOT_PTR(maps_list, type_index);
+  return LOAD_FIXED_ARRAY_SLOT_PTR(maps_list, type.ref_index());
 }
 
 Node* WasmGraphBuilder::StructGet(Node* struct_object,
@@ -5695,11 +5694,11 @@ class WasmWrapperGraphBuilder : public WasmGraphBuilder {
     switch (type.kind()) {
       case wasm::ValueType::kRef:
       case wasm::ValueType::kOptRef: {
-        switch (type.heap_type()) {
-          case wasm::kHeapExtern:
-          case wasm::kHeapExn:
+        switch (type.heap()) {
+          case wasm::HeapType::kExtern:
+          case wasm::HeapType::kExn:
             return input;
-          case wasm::kHeapFunc: {
+          case wasm::HeapType::kFunc: {
             Node* check =
                 BuildChangeSmiToInt32(SetEffect(BuildCallToRuntimeWithContext(
                     Runtime::kWasmIsValidFuncRefValue, js_context, &input, 1)));

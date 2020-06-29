@@ -1257,7 +1257,7 @@ class WasmInterpreterInternals {
     }
 
     bool IsReferenceValue() const {
-      return value_.type().is_reference_to(kHeapExtern);
+      return value_.type().is_reference_to(HeapType::kExtern);
     }
 
     void ClearValue(WasmInterpreterInternals* impl, sp_t index) {
@@ -2792,15 +2792,15 @@ class WasmInterpreterInternals {
         }
         case ValueType::kRef:
         case ValueType::kOptRef: {
-          switch (sig->GetParam(i).heap_type()) {
-            case kHeapExtern:
-            case kHeapExn:
-            case kHeapFunc: {
+          switch (sig->GetParam(i).heap()) {
+            case HeapType::kExtern:
+            case HeapType::kExn:
+            case HeapType::kFunc: {
               Handle<Object> externref = value.to_externref();
               encoded_values->set(encoded_index++, *externref);
               break;
             }
-            case kHeapEq:
+            case HeapType::kEq:
             default:
               // TODO(7748): Implement these.
               UNIMPLEMENTED();
@@ -2909,10 +2909,10 @@ class WasmInterpreterInternals {
         }
         case ValueType::kRef:
         case ValueType::kOptRef: {
-          switch (sig->GetParam(i).heap_type()) {
-            case kHeapExtern:
-            case kHeapExn:
-            case kHeapFunc: {
+          switch (sig->GetParam(i).heap()) {
+            case HeapType::kExtern:
+            case HeapType::kExn:
+            case HeapType::kFunc: {
               Handle<Object> externref(encoded_values->get(encoded_index++),
                                        isolate_);
               value = WasmValue(externref);
@@ -3700,7 +3700,7 @@ class WasmInterpreterInternals {
           break;
         case ValueType::kRef:
         case ValueType::kOptRef: {
-          if (val.type().heap_type() == kHeapExtern) {
+          if (val.type().is_reference_to(HeapType::kExtern)) {
             Handle<Object> ref = val.to_externref();
             if (ref->IsNull()) {
               PrintF("ref:null");

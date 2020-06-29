@@ -60,7 +60,7 @@ MaybeHandle<JSObject> CreateFunctionTablesObject(
   for (int table_index = 0; table_index < tables->length(); ++table_index) {
     auto func_table =
         handle(WasmTableObject::cast(tables->get(table_index)), isolate);
-    if (func_table->type().heap_type() != kHeapFunc) continue;
+    if (!func_table->type().is_reference_to(HeapType::kFunc)) continue;
 
     Handle<String> table_name;
     if (!WasmInstanceObject::GetTableNameOrNull(isolate, instance, table_index)
@@ -130,9 +130,9 @@ Handle<Object> WasmValueToValueObject(Isolate* isolate, WasmValue value) {
       break;
     }
     case ValueType::kOptRef: {
-      if (value.type().heap_type() == kHeapExtern) {
+      if (value.type().is_reference_to(HeapType::kExtern)) {
         return isolate->factory()->NewWasmValue(
-            static_cast<int32_t>(kHeapExtern), value.to_externref());
+            static_cast<int32_t>(HeapType::kExtern), value.to_externref());
       } else {
         // TODO(7748): Implement.
         UNIMPLEMENTED();

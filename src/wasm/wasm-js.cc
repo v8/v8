@@ -1337,9 +1337,9 @@ void WebAssemblyGlobal(const v8::FunctionCallbackInfo<v8::Value>& args) {
     }
     case i::wasm::ValueType::kRef:
     case i::wasm::ValueType::kOptRef: {
-      switch (type.heap_type()) {
-        case i::wasm::kHeapExtern:
-        case i::wasm::kHeapExn: {
+      switch (type.heap()) {
+        case i::wasm::HeapType::kExtern:
+        case i::wasm::HeapType::kExn: {
           if (args.Length() < 2) {
             // When no initial value is provided, we have to use the WebAssembly
             // default value 'null', and not the JS default value 'undefined'.
@@ -1349,7 +1349,7 @@ void WebAssemblyGlobal(const v8::FunctionCallbackInfo<v8::Value>& args) {
           global_obj->SetExternRef(Utils::OpenHandle(*value));
           break;
         }
-        case i::wasm::kHeapFunc: {
+        case i::wasm::HeapType::kFunc: {
           if (args.Length() < 2) {
             // When no initial value is provided, we have to use the WebAssembly
             // default value 'null', and not the JS default value 'undefined'.
@@ -1365,7 +1365,7 @@ void WebAssemblyGlobal(const v8::FunctionCallbackInfo<v8::Value>& args) {
           }
           break;
         }
-        case i::wasm::kHeapEq:
+        case i::wasm::HeapType::kEq:
         default:
           // TODO(7748): Implement these.
           UNIMPLEMENTED();
@@ -1834,13 +1834,13 @@ void WebAssemblyGlobalGetValueCommon(
       break;
     case i::wasm::ValueType::kRef:
     case i::wasm::ValueType::kOptRef:
-      switch (receiver->type().heap_type()) {
-        case i::wasm::kHeapExtern:
-        case i::wasm::kHeapFunc:
-        case i::wasm::kHeapExn:
+      switch (receiver->type().heap()) {
+        case i::wasm::HeapType::kExtern:
+        case i::wasm::HeapType::kFunc:
+        case i::wasm::HeapType::kExn:
           return_value.Set(Utils::ToLocal(receiver->GetRef()));
           break;
-        case i::wasm::kHeapEq:
+        case i::wasm::HeapType::kEq:
         default:
           // TODO(7748): Implement these.
           UNIMPLEMENTED();
@@ -1923,12 +1923,12 @@ void WebAssemblyGlobalSetValue(
       break;
     case i::wasm::ValueType::kRef:
     case i::wasm::ValueType::kOptRef:
-      switch (receiver->type().heap_type()) {
-        case i::wasm::kHeapExtern:
-        case i::wasm::kHeapExn:
+      switch (receiver->type().heap()) {
+        case i::wasm::HeapType::kExtern:
+        case i::wasm::HeapType::kExn:
           receiver->SetExternRef(Utils::OpenHandle(*args[0]));
           break;
-        case i::wasm::kHeapFunc: {
+        case i::wasm::HeapType::kFunc: {
           if (!receiver->SetFuncRef(i_isolate, Utils::OpenHandle(*args[0]))) {
             thrower.TypeError(
                 "value of an funcref reference must be either null or an "
@@ -1937,7 +1937,7 @@ void WebAssemblyGlobalSetValue(
           break;
         }
 
-        case i::wasm::kHeapEq:
+        case i::wasm::HeapType::kEq:
         default:
           // TODO(7748): Implement these.
           UNIMPLEMENTED();

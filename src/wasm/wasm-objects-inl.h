@@ -182,8 +182,8 @@ void WasmGlobalObject::SetF64(double value) {
 
 void WasmGlobalObject::SetExternRef(Handle<Object> value) {
   // We use this getter externref and exnref.
-  DCHECK(type().is_reference_to(wasm::kHeapExtern) ||
-         type().is_reference_to(wasm::kHeapExn));
+  DCHECK(type().is_reference_to(wasm::HeapType::kExtern) ||
+         type().is_reference_to(wasm::HeapType::kExn));
   tagged_buffer().set(offset(), *value);
 }
 
@@ -386,8 +386,7 @@ ACCESSORS(WasmIndirectFunctionTable, refs, FixedArray, kRefsOffset)
 
 wasm::ValueType WasmTableObject::type() {
   // TODO(7748): Support other table types? Wait for spec to clear up.
-  return wasm::ValueType::Ref(static_cast<wasm::HeapType>(raw_type()),
-                              wasm::kNullable);
+  return wasm::ValueType::Ref(raw_type(), wasm::kNullable);
 }
 
 bool WasmMemoryObject::has_maximum_pages() { return maximum_pages() >= 0; }

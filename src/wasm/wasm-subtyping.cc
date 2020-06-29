@@ -144,26 +144,27 @@ V8_NOINLINE V8_EXPORT_PRIVATE bool IsSubtypeOfImpl(ValueType subtype,
 
   HeapType sub_heap = subtype.heap_type();
   HeapType super_heap = supertype.heap_type();
-  DCHECK(!module->has_signature(sub_heap) &&
-         !module->has_signature(super_heap));
+  DCHECK(!module->has_signature(sub_heap.type()) &&
+         !module->has_signature(super_heap.type()));
 
   if (sub_heap == super_heap) {
     return true;
   }
   // eqref is a supertype of all reference types except funcref.
-  if (super_heap == kHeapEq) {
-    return sub_heap != kHeapFunc;
+  if (super_heap.type() == HeapType::kEq) {
+    return sub_heap.type() != HeapType::kFunc;
   }
   // At the moment, generic heap types are not subtyping-related otherwise.
-  if (is_generic_heap_type(sub_heap) || is_generic_heap_type(super_heap)) {
+  if (sub_heap.is_generic() || super_heap.is_generic()) {
     return false;
   }
 
-  if (module->is_cached_subtype(sub_heap, super_heap)) {
+  if (module->is_cached_subtype(sub_heap.ref_index(), super_heap.ref_index())) {
     return true;
   }
-  return IsStructSubtype(sub_heap, super_heap, module) ||
-         IsArraySubtype(sub_heap, super_heap, module);
+  return IsStructSubtype(sub_heap.ref_index(), super_heap.ref_index(),
+                         module) ||
+         IsArraySubtype(sub_heap.ref_index(), super_heap.ref_index(), module);
 }
 
 // TODO(7748): Extend this with function subtyping.

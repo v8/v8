@@ -10372,7 +10372,7 @@ v8::Local<v8::Array> debug::WasmValue::bytes() {
 
 v8::Local<v8::Value> debug::WasmValue::ref() {
   i::Handle<i::WasmValue> obj = Utils::OpenHandle(this);
-  DCHECK_EQ(i::wasm::kHeapExtern, obj->value_type());
+  DCHECK_EQ(i::wasm::HeapType::kExtern, obj->value_type());
 
   i::Isolate* isolate = obj->GetIsolate();
   i::Handle<i::Object> bytes_or_ref(obj->bytes_or_ref(), isolate);

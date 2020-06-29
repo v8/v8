@@ -399,7 +399,7 @@ class LiftoffCompiler {
         return kSimd;
       case ValueType::kOptRef:
       case ValueType::kRef:
-        if (type.heap_type() == kHeapExn) {
+        if (type.is_reference_to(HeapType::kExn)) {
           return kExceptionHandling;
         } else {
           return kRefTypes;

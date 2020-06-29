@@ -73,10 +73,10 @@ ValKind V8ValueTypeToWasm(i::wasm::ValueType v8_valtype) {
       return F64;
     case i::wasm::ValueType::kRef:
     case i::wasm::ValueType::kOptRef:
-      switch (v8_valtype.heap_type()) {
-        case i::wasm::kHeapFunc:
+      switch (v8_valtype.heap()) {
+        case i::wasm::HeapType::kFunc:
           return FUNCREF;
-        case i::wasm::kHeapExtern:
+        case i::wasm::HeapType::kExtern:
           // TODO(7748): Rename this to EXTERNREF if/when third-party API
           // changes.
           return ANYREF;
@@ -1828,11 +1828,11 @@ auto Table::type() const -> own<TableType> {
   uint32_t max;
   if (!table->maximum_length().ToUint32(&max)) max = 0xFFFFFFFFu;
   ValKind kind;
-  switch (table->type().heap_type()) {
-    case i::wasm::kHeapFunc:
+  switch (table->type().heap()) {
+    case i::wasm::HeapType::kFunc:
       kind = FUNCREF;
       break;
-    case i::wasm::kHeapExtern:
+    case i::wasm::HeapType::kExtern:
       kind = ANYREF;
       break;
     default:
