@@ -5,7 +5,6 @@
 #include "src/heap/cppgc/page-memory.h"
 
 #include "src/base/macros.h"
-#include "src/heap/cppgc/page-memory-inl.h"
 
 namespace cppgc {
 namespace internal {

@@ -8,7 +8,7 @@
 #include "include/cppgc/internal/pointer-policies.h"
 #include "include/cppgc/member.h"
 #include "include/cppgc/persistent.h"
-#include "src/heap/cppgc/heap-object-header-inl.h"
+#include "src/heap/cppgc/heap-object-header.h"
 #include "src/heap/cppgc/marking-visitor.h"
 #include "src/heap/cppgc/stats-collector.h"
 #include "test/unittests/heap/cppgc/tests.h"

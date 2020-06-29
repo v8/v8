@@ -201,6 +201,20 @@ class V8_EXPORT_PRIVATE LargePage final : public BasePage {
   size_t payload_size_;
 };
 
+// static
+BasePage* BasePage::FromPayload(void* payload) {
+  return reinterpret_cast<BasePage*>(
+      (reinterpret_cast<uintptr_t>(payload) & kPageBaseMask) + kGuardPageSize);
+}
+
+// static
+const BasePage* BasePage::FromPayload(const void* payload) {
+  return reinterpret_cast<const BasePage*>(
+      (reinterpret_cast<uintptr_t>(const_cast<void*>(payload)) &
+       kPageBaseMask) +
+      kGuardPageSize);
+}
+
 }  // namespace internal
 }  // namespace cppgc
 

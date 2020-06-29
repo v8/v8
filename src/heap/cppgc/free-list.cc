@@ -9,7 +9,7 @@
 #include "include/cppgc/internal/logging.h"
 #include "src/base/bits.h"
 #include "src/heap/cppgc/globals.h"
-#include "src/heap/cppgc/heap-object-header-inl.h"
+#include "src/heap/cppgc/heap-object-header.h"
 #include "src/heap/cppgc/sanitizers.h"
 
 namespace cppgc {

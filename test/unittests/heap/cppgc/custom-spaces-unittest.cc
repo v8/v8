@@ -4,7 +4,7 @@
 
 #include "include/cppgc/allocation.h"
 #include "include/cppgc/custom-space.h"
-#include "src/heap/cppgc/heap-page-inl.h"
+#include "src/heap/cppgc/heap-page.h"
 #include "src/heap/cppgc/raw-heap.h"
 #include "test/unittests/heap/cppgc/tests.h"
 

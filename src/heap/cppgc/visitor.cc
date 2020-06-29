@@ -5,9 +5,9 @@
 #include "src/heap/cppgc/visitor.h"
 
 #include "src/heap/cppgc/gc-info-table.h"
-#include "src/heap/cppgc/heap-object-header-inl.h"
+#include "src/heap/cppgc/heap-object-header.h"
 #include "src/heap/cppgc/heap-page.h"
-#include "src/heap/cppgc/page-memory-inl.h"
+#include "src/heap/cppgc/page-memory.h"
 #include "src/heap/cppgc/sanitizers.h"
 
 namespace cppgc {

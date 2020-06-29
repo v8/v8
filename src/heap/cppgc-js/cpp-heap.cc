@@ -12,7 +12,7 @@
 #include "src/flags/flags.h"
 #include "src/heap/cppgc/gc-info-table.h"
 #include "src/heap/cppgc/heap-base.h"
-#include "src/heap/cppgc/heap-object-header-inl.h"
+#include "src/heap/cppgc/heap-object-header.h"
 #include "src/heap/cppgc/marker.h"
 #include "src/heap/cppgc/marking-visitor.h"
 #include "src/heap/cppgc/object-allocator.h"

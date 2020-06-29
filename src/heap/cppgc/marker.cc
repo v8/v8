@@ -5,8 +5,8 @@
 #include "src/heap/cppgc/marker.h"
 
 #include "include/cppgc/internal/process-heap.h"
-#include "src/heap/cppgc/heap-object-header-inl.h"
-#include "src/heap/cppgc/heap-page-inl.h"
+#include "src/heap/cppgc/heap-object-header.h"
+#include "src/heap/cppgc/heap-page.h"
 #include "src/heap/cppgc/heap-visitor.h"
 #include "src/heap/cppgc/heap.h"
 #include "src/heap/cppgc/liveness-broker.h"

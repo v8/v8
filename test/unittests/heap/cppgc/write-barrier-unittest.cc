@@ -9,7 +9,6 @@
 #include <vector>
 
 #include "include/cppgc/internal/pointer-policies.h"
-#include "src/heap/cppgc/heap-object-header-inl.h"
 #include "src/heap/cppgc/heap-object-header.h"
 #include "src/heap/cppgc/marker.h"
 #include "test/unittests/heap/cppgc/tests.h"
