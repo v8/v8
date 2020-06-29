@@ -2856,6 +2856,19 @@ class Evacuator : public Malloced {
     kPageNewToNew,
   };
 
+  static const char* EvacuationModeName(EvacuationMode mode) {
+    switch (mode) {
+      case kObjectsNewToOld:
+        return "objects-new-to-old";
+      case kPageNewToOld:
+        return "page-new-to-old";
+      case kObjectsOldToOld:
+        return "objects-old-to-old";
+      case kPageNewToNew:
+        return "page-new-to-new";
+    }
+  }
+
   static inline EvacuationMode ComputeEvacuationMode(MemoryChunk* chunk) {
     // Note: The order of checks is important in this function.
     if (chunk->IsFlagSet(MemoryChunk::PAGE_NEW_OLD_PROMOTION))
@@ -3029,12 +3042,12 @@ class FullEvacuator : public Evacuator {
 
 void FullEvacuator::RawEvacuatePage(MemoryChunk* chunk, intptr_t* live_bytes) {
   const EvacuationMode evacuation_mode = ComputeEvacuationMode(chunk);
-  TRACE_EVENT1(TRACE_DISABLED_BY_DEFAULT("v8.gc"),
-               "FullEvacuator::RawEvacuatePage", "evacuation_mode",
-               evacuation_mode);
   MarkCompactCollector::NonAtomicMarkingState* marking_state =
       collector_->non_atomic_marking_state();
   *live_bytes = marking_state->live_bytes(chunk);
+  TRACE_EVENT2(TRACE_DISABLED_BY_DEFAULT("v8.gc"),
+               "FullEvacuator::RawEvacuatePage", "evacuation_mode",
+               EvacuationModeName(evacuation_mode), "live_bytes", *live_bytes);
   HeapObject failed_object;
   switch (evacuation_mode) {
     case kObjectsNewToOld:
@@ -3216,6 +3229,10 @@ void MarkCompactCollector::EvacuatePagesInParallel() {
   }
 
   if (evacuation_job.NumberOfItems() == 0) return;
+
+  TRACE_EVENT1(TRACE_DISABLED_BY_DEFAULT("v8.gc"),
+               "MarkCompactCollector::EvacuatePagesInParallel", "pages",
+               evacuation_job.NumberOfItems());
 
   CreateAndExecuteEvacuationTasks<FullEvacuator>(this, &evacuation_job, nullptr,
                                                  live_bytes);
