@@ -57,4 +57,11 @@
   '*': [SKIP],  # only relevant for mjsunit tests.
 }],
 
+##############################################################################
+# Failing on s390x as this fix is not included in branch 8.5:
+# https://github.com/WebAssembly/spec/pull/1214
+['arch == s390x', {
+  'constructor/multi-value': [SKIP],
+}],
+
 ]
