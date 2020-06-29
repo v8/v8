@@ -208,11 +208,11 @@ class ExecutionArgumentsConfig(object):
         'default: bundled in the directory of this script',
         default=DEFAULT_D8)
 
-  def make_options(self, options):
+  def make_options(self, options, default_config=None):
     def get(name):
       return getattr(options, '%s_%s' % (self.label, name))
 
-    config = get('config')
+    config = default_config or get('config')
     assert config in CONFIGS
 
     d8 = get('d8')
@@ -270,6 +270,8 @@ def parse_args():
 
   options.first = first_config_arguments.make_options(options)
   options.second = second_config_arguments.make_options(options)
+  options.default = second_config_arguments.make_options(
+      options, DEFAULT_CONFIG)
 
   # Ensure we make a valid comparison.
   if (options.first.d8 == options.second.d8 and
@@ -367,14 +369,14 @@ def cluster_failures(source, known_failures=None):
   return long_key[:ORIGINAL_SOURCE_HASH_LENGTH]
 
 
-def run_comparisons(suppress, first_config, second_config, test_case, timeout,
+def run_comparisons(suppress, execution_configs, test_case, timeout,
                     verbose=True, ignore_crashes=True, source_key=None):
-  """Runs two configurations and bails out on output difference.
+  """Runs different configurations and bails out on output difference.
 
   Args:
     suppress: The helper object for textual suppressions.
-    first_config: The baseline configuration to run and compare.
-    second_config: The secondary configuration to run and compare.
+    execution_configs: Two or more configurations to run. The first one will be
+        used as baseline to compare all others to.
     test_case: The test case to run.
     timeout: Timeout in seconds for one run.
     verbose: Prints the executed commands.
@@ -384,27 +386,33 @@ def run_comparisons(suppress, first_config, second_config, test_case, timeout,
     source_key: A fixed source key. If not given, it will be inferred from the
         output.
   """
-  first_config_output = first_config.command.run(
+  run_test_case = lambda config: config.command.run(
       test_case, timeout=timeout, verbose=verbose)
 
-  second_config_output = second_config.command.run(
-      test_case, timeout=timeout, verbose=verbose)
+  # Run the baseline configuration.
+  baseline_config = execution_configs[0]
+  baseline_output = run_test_case(baseline_config)
+  has_crashed = baseline_output.HasCrashed()
 
-  difference, source = suppress.diff(first_config_output, second_config_output)
+  # Iterate over the remaining configurations, run and compare.
+  for comparison_config in execution_configs[1:]:
+    comparison_output = run_test_case(comparison_config)
+    has_crashed = has_crashed or comparison_output.HasCrashed()
+    difference, source = suppress.diff(baseline_output, comparison_output)
 
-  if difference:
-    # Only bail out due to suppressed output if there was a difference. If a
-    # suppression doesn't show up anymore in the statistics, we might want to
-    # remove it.
-    fail_bailout(first_config_output, suppress.ignore_by_output)
-    fail_bailout(second_config_output, suppress.ignore_by_output)
+    if difference:
+      # Only bail out due to suppressed output if there was a difference. If a
+      # suppression doesn't show up anymore in the statistics, we might want to
+      # remove it.
+      fail_bailout(baseline_output, suppress.ignore_by_output)
+      fail_bailout(comparison_output, suppress.ignore_by_output)
 
-    source_key = source_key or cluster_failures(source)
-    raise FailException(format_difference(
-        source_key, first_config, second_config,
-        first_config_output, second_config_output, difference, source))
+      source_key = source_key or cluster_failures(source)
+      raise FailException(format_difference(
+          source_key, baseline_config, comparison_config,
+          baseline_output, comparison_output, difference, source))
 
-  if first_config_output.HasCrashed() or second_config_output.HasCrashed():
+  if has_crashed:
     if ignore_crashes:
       # Show if a crash has happened in one of the runs and no difference was
       # detected. This is only for the statistics during experiments.
@@ -429,14 +437,20 @@ def main():
   content_bailout(get_meta_data(content), suppress.ignore_by_metadata)
   content_bailout(content, suppress.ignore_by_content)
 
-  first_config = ExecutionConfig(options, 'first')
-  second_config = ExecutionConfig(options, 'second')
+  # Prepare the baseline, default and a secondary configuration to compare to.
+  # The baseline (turbofan) takes precedence as many of the secondary configs
+  # are based on the turbofan config with additional parameters.
+  execution_configs = [
+    ExecutionConfig(options, 'first'),
+    ExecutionConfig(options, 'default'),
+    ExecutionConfig(options, 'second'),
+  ]
 
   # First, run some fixed smoke tests in all configs to ensure nothing
   # is fundamentally wrong, in order to prevent bug flooding.
   if not options.skip_sanity_checks:
     run_comparisons(
-        suppress, first_config, second_config,
+        suppress, execution_configs,
         test_case=SANITY_CHECKS,
         timeout=SANITY_CHECK_TIMEOUT_SEC,
         verbose=False,
@@ -450,7 +464,7 @@ def main():
 
   # Second, run all configs against the fuzz test case.
   run_comparisons(
-      suppress, first_config, second_config,
+      suppress, execution_configs,
       test_case=options.testcase,
       timeout=TEST_TIMEOUT_SEC,
   )
