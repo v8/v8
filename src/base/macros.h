@@ -176,14 +176,7 @@ V8_INLINE Dest bit_cast(Source const& source) {
 
 // DISABLE_CFI_ICALL -- Disable Control Flow Integrity indirect call checks,
 // useful because calls into JITed code can not be CFI verified.
-#ifdef V8_OS_WIN
-// On Windows, also needs __declspec(guard(nocf)) for CFG.
-#define DISABLE_CFI_ICALL           \
-  V8_CLANG_NO_SANITIZE("cfi-icall") \
-  __declspec(guard(nocf))
-#else
 #define DISABLE_CFI_ICALL V8_CLANG_NO_SANITIZE("cfi-icall")
-#endif
 
 #if V8_CC_GNU
 #define V8_IMMEDIATE_CRASH() __builtin_trap()
