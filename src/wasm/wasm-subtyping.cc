@@ -4,6 +4,7 @@
 
 #include "src/wasm/wasm-subtyping.h"
 
+#include "src/base/platform/mutex.h"
 #include "src/wasm/wasm-module.h"
 
 namespace v8 {
@@ -159,6 +160,9 @@ V8_NOINLINE V8_EXPORT_PRIVATE bool IsSubtypeOfImpl(ValueType subtype,
     return false;
   }
 
+  // Accessing the caches for subtyping and equivalence from multiple background
+  // threads is protected by a lock.
+  base::RecursiveMutexGuard type_cache_access(module->type_cache_mutex());
   if (module->is_cached_subtype(sub_heap.ref_index(), super_heap.ref_index())) {
     return true;
   }

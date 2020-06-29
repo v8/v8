@@ -331,6 +331,7 @@ struct V8_EXPORT_PRIVATE WasmModule {
   bool has_array(uint32_t index) const {
     return index < types.size() && type_kinds[index] == kWasmArrayTypeCode;
   }
+  base::RecursiveMutex* type_cache_mutex() const { return &type_cache_mutex_; }
   bool is_cached_subtype(uint32_t subtype, uint32_t supertype) const {
     return subtyping_cache->count(std::make_pair(subtype, supertype)) == 1;
   }
@@ -381,6 +382,9 @@ struct V8_EXPORT_PRIVATE WasmModule {
   // Indexes are stored in increasing order.
   std::unique_ptr<ZoneUnorderedSet<std::pair<uint32_t, uint32_t>>>
       type_equivalence_cache;
+  // The above two caches are used from background compile jobs, so they
+  // must be protected from concurrent modifications:
+  mutable base::RecursiveMutex type_cache_mutex_;
 
   DISALLOW_COPY_AND_ASSIGN(WasmModule);
 };
