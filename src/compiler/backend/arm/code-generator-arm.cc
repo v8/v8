@@ -2051,6 +2051,14 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       __ vrintm(dst.high(), src.high());
       break;
     }
+    case kArmF64x2Trunc: {
+      CpuFeatureScope scope(tasm(), ARMv8);
+      Simd128Register dst = i.OutputSimd128Register();
+      Simd128Register src = i.InputSimd128Register(0);
+      __ vrintz(dst.low(), src.low());
+      __ vrintz(dst.high(), src.high());
+      break;
+    }
     case kArmI64x2SplatI32Pair: {
       Simd128Register dst = i.OutputSimd128Register();
       __ vdup(Neon32, dst, i.InputRegister(0));

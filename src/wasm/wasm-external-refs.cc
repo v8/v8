@@ -419,6 +419,10 @@ void f64x2_floor_wrapper(Address data) {
   simd_float_round_wrapper<double, &floor>(data);
 }
 
+void f64x2_trunc_wrapper(Address data) {
+  simd_float_round_wrapper<double, &trunc>(data);
+}
+
 void f32x4_ceil_wrapper(Address data) {
   simd_float_round_wrapper<float, &ceilf>(data);
 }

@@ -1339,14 +1339,14 @@ WASM_SIMD_TEST_NO_LOWERING(F64x2Floor) {
   FLAG_SCOPE(wasm_simd_post_mvp);
   RunF64x2UnOpTest(execution_tier, lower_simd, kExprF64x2Floor, floor, true);
 }
-#endif  // V8_TARGET_ARCH_X64 || V8_TARGET_ARCH_ARM64 || V8_TARGET_ARCH_S390X ||
-        // V8_TARGET_ARCH_ARM
-#if V8_TARGET_ARCH_X64 || V8_TARGET_ARCH_ARM64 || V8_TARGET_ARCH_S390X
+
 WASM_SIMD_TEST_NO_LOWERING(F64x2Trunc) {
   FLAG_SCOPE(wasm_simd_post_mvp);
   RunF64x2UnOpTest(execution_tier, lower_simd, kExprF64x2Trunc, trunc, true);
 }
-
+#endif  // V8_TARGET_ARCH_X64 || V8_TARGET_ARCH_ARM64 || V8_TARGET_ARCH_S390X ||
+        // V8_TARGET_ARCH_ARM
+#if V8_TARGET_ARCH_X64 || V8_TARGET_ARCH_ARM64 || V8_TARGET_ARCH_S390X
 WASM_SIMD_TEST_NO_LOWERING(F64x2NearestInt) {
   FLAG_SCOPE(wasm_simd_post_mvp);
   RunF64x2UnOpTest(execution_tier, lower_simd, kExprF64x2NearestInt, nearbyint,
