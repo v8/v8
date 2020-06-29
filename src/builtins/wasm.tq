@@ -29,6 +29,7 @@ extern runtime WasmI32AtomicWait(
     Context, WasmInstanceObject, Number, Number, BigInt): Smi;
 extern runtime WasmI64AtomicWait(
     Context, WasmInstanceObject, Number, BigInt, BigInt): Smi;
+extern runtime WasmAllocateRtt(Context, Smi, Map): Map;
 }
 
 namespace unsafe {
@@ -234,6 +235,11 @@ builtin WasmAllocateStruct(implicit context: Context)(mapIndex: Smi):
   const result: HeapObject = unsafe::Allocate(instanceSize);
   * UnsafeConstCast(& result.map) = map;
   return result;
+}
+
+builtin WasmAllocateRtt(implicit context: Context)(
+    typeIndex: Smi, parent: Map): Map {
+  tail runtime::WasmAllocateRtt(context, typeIndex, parent);
 }
 
 builtin WasmInt32ToNumber(value: int32): Number {

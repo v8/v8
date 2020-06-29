@@ -86,8 +86,11 @@ class CompileImportWrapperTask final : public CancelableTask {
   WasmImportWrapperCache::ModificationScope* const cache_scope_;
 };
 
+}  // namespace
+
+// TODO(jkummerow): Move these elsewhere.
 Handle<Map> CreateStructMap(Isolate* isolate, const WasmModule* module,
-                            int struct_index) {
+                            int struct_index, Handle<Map> rtt_parent) {
   const wasm::StructType* type = module->struct_type(struct_index);
   int inobject_properties = 0;
   DCHECK_LE(type->total_fields_size(), kMaxInt - WasmStruct::kHeaderSize);
@@ -96,8 +99,8 @@ Handle<Map> CreateStructMap(Isolate* isolate, const WasmModule* module,
   InstanceType instance_type = WASM_STRUCT_TYPE;
   // TODO(jkummerow): If NO_ELEMENTS were supported, we could use that here.
   ElementsKind elements_kind = TERMINAL_FAST_ELEMENTS_KIND;
-  Handle<Foreign> type_info =
-      isolate->factory()->NewForeign(reinterpret_cast<Address>(type));
+  Handle<WasmTypeInfo> type_info = isolate->factory()->NewWasmTypeInfo(
+      reinterpret_cast<Address>(type), rtt_parent);
   Handle<Map> map = isolate->factory()->NewMap(
       instance_type, instance_size, elements_kind, inobject_properties);
   map->set_wasm_type_info(*type_info);
@@ -105,21 +108,19 @@ Handle<Map> CreateStructMap(Isolate* isolate, const WasmModule* module,
 }
 
 Handle<Map> CreateArrayMap(Isolate* isolate, const WasmModule* module,
-                           int array_index) {
+                           int array_index, Handle<Map> rtt_parent) {
   const wasm::ArrayType* type = module->array_type(array_index);
   int inobject_properties = 0;
   int instance_size = kVariableSizeSentinel;
   InstanceType instance_type = WASM_ARRAY_TYPE;
   ElementsKind elements_kind = TERMINAL_FAST_ELEMENTS_KIND;
-  Handle<Foreign> type_info =
-      isolate->factory()->NewForeign(reinterpret_cast<Address>(type));
+  Handle<WasmTypeInfo> type_info = isolate->factory()->NewWasmTypeInfo(
+      reinterpret_cast<Address>(type), rtt_parent);
   Handle<Map> map = isolate->factory()->NewMap(
       instance_type, instance_size, elements_kind, inobject_properties);
   map->set_wasm_type_info(*type_info);
   return map;
 }
-
-}  // namespace
 
 // A helper class to simplify instantiating a module from a module object.
 // It closes over the {Isolate}, the {ErrorThrower}, etc.
@@ -580,15 +581,19 @@ MaybeHandle<WasmInstanceObject> InstanceBuilder::Build() {
     }
     Handle<FixedArray> maps =
         isolate_->factory()->NewUninitializedFixedArray(count);
+    // TODO(7748): Do we want a different sentinel here?
+    Handle<Map> anyref_sentinel_map = isolate_->factory()->null_map();
+    int map_index = 0;
     for (int i = 0; i < static_cast<int>(module_->type_kinds.size()); i++) {
-      int index = 0;
       if (module_->type_kinds[i] == kWasmStructTypeCode) {
-        Handle<Map> map = CreateStructMap(isolate_, module_, i);
-        maps->set(index++, *map);
+        Handle<Map> map =
+            CreateStructMap(isolate_, module_, i, anyref_sentinel_map);
+        maps->set(map_index++, *map);
       }
       if (module_->type_kinds[i] == kWasmArrayTypeCode) {
-        Handle<Map> map = CreateArrayMap(isolate_, module_, i);
-        maps->set(index++, *map);
+        Handle<Map> map =
+            CreateArrayMap(isolate_, module_, i, anyref_sentinel_map);
+        maps->set(map_index++, *map);
       }
     }
     instance->set_managed_object_maps(*maps);

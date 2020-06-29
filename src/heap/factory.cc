@@ -1347,6 +1347,17 @@ Handle<Foreign> Factory::NewForeign(Address addr) {
   return foreign;
 }
 
+Handle<WasmTypeInfo> Factory::NewWasmTypeInfo(Address type_address,
+                                              Handle<Map> parent) {
+  Map map = *wasm_type_info_map();
+  HeapObject result = AllocateRawWithImmortalMap(map.instance_size(),
+                                                 AllocationType::kYoung, map);
+  Handle<WasmTypeInfo> info(WasmTypeInfo::cast(result), isolate());
+  info->set_foreign_address(isolate(), type_address);
+  info->set_parent(*parent);
+  return info;
+}
+
 Handle<Cell> Factory::NewCell(Handle<Object> value) {
   STATIC_ASSERT(Cell::kSize <= kMaxRegularHeapObjectSize);
   HeapObject result = AllocateRawWithImmortalMap(
@@ -2486,13 +2497,6 @@ Handle<JSGeneratorObject> Factory::NewJSGeneratorObject(
          map->instance_type() == JS_ASYNC_GENERATOR_OBJECT_TYPE);
 
   return Handle<JSGeneratorObject>::cast(NewJSObjectFromMap(map));
-}
-
-Handle<WasmStruct> Factory::NewWasmStruct(Handle<Map> map) {
-  int size = map->instance_size();
-  HeapObject result = AllocateRaw(size, AllocationType::kYoung);
-  result.set_map_after_allocation(*map);
-  return handle(WasmStruct::cast(result), isolate());
 }
 
 Handle<SourceTextModule> Factory::NewSourceTextModule(

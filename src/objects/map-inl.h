@@ -5,8 +5,6 @@
 #ifndef V8_OBJECTS_MAP_INL_H_
 #define V8_OBJECTS_MAP_INL_H_
 
-#include "src/objects/map.h"
-
 #include "src/heap/heap-write-barrier-inl.h"
 #include "src/objects/api-callbacks-inl.h"
 #include "src/objects/cell-inl.h"
@@ -14,12 +12,14 @@
 #include "src/objects/field-type.h"
 #include "src/objects/instance-type-inl.h"
 #include "src/objects/layout-descriptor-inl.h"
+#include "src/objects/map.h"
 #include "src/objects/objects-inl.h"
 #include "src/objects/property.h"
 #include "src/objects/prototype-info-inl.h"
 #include "src/objects/shared-function-info.h"
 #include "src/objects/templates-inl.h"
 #include "src/objects/transitions-inl.h"
+#include "src/wasm/wasm-objects-inl.h"
 
 // Has to be the last include (doesn't have include guards):
 #include "src/objects/object-macros.h"
@@ -754,7 +754,7 @@ ACCESSORS_CHECKED2(Map, constructor_or_backpointer, Object,
 ACCESSORS_CHECKED(Map, native_context, NativeContext,
                   kConstructorOrBackPointerOrNativeContextOffset,
                   IsContextMap())
-ACCESSORS_CHECKED(Map, wasm_type_info, Foreign,
+ACCESSORS_CHECKED(Map, wasm_type_info, WasmTypeInfo,
                   kConstructorOrBackPointerOrNativeContextOffset,
                   IsWasmStructMap() || IsWasmArrayMap())
 

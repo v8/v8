@@ -493,5 +493,25 @@ RUNTIME_FUNCTION(Runtime_WasmDebugBreak) {
   return ReadOnlyRoots(isolate).undefined_value();
 }
 
+RUNTIME_FUNCTION(Runtime_WasmAllocateRtt) {
+  ClearThreadInWasmScope flag_scope;
+  HandleScope scope(isolate);
+  DCHECK_EQ(2, args.length());
+  CONVERT_UINT32_ARG_CHECKED(type_index, 0);
+  CONVERT_ARG_HANDLE_CHECKED(Map, parent, 1);
+  Handle<WasmInstanceObject> instance(GetWasmInstanceOnStackTop(isolate),
+                                      isolate);
+  const wasm::WasmModule* module = instance->module();
+  Handle<Map> rtt;
+  if (module->has_struct(type_index)) {
+    rtt = wasm::CreateStructMap(isolate, module, type_index, parent);
+  } else if (module->has_array(type_index)) {
+    rtt = wasm::CreateArrayMap(isolate, module, type_index, parent);
+  } else {
+    UNREACHABLE();
+  }
+  return *rtt;
+}
+
 }  // namespace internal
 }  // namespace v8

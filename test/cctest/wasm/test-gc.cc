@@ -547,11 +547,19 @@ TEST(WasmPackedArrayS) {
 TEST(BasicRTT) {
   WasmGCTester tester;
   uint32_t type_index = tester.DefineStruct({F(wasm::kWasmI32, true)});
+  uint32_t subtype_index =
+      tester.DefineStruct({F(wasm::kWasmI32, true), F(wasm::kWasmF64, true)});
   ValueType kRttTypes[] = {ValueType::Rtt(type_index, 1)};
   FunctionSig sig_t_v(1, 0, kRttTypes);
+  ValueType kRttSubtypes[] = {
+      ValueType::Rtt(static_cast<HeapType>(subtype_index), 2)};
+  FunctionSig sig_t2_v(1, 0, kRttSubtypes);
 
   tester.DefineFunction("f", &sig_t_v, {},
                         {WASM_RTT_CANON(type_index), kExprEnd});
+  tester.DefineFunction(
+      "g", &sig_t2_v, {},
+      {WASM_RTT_CANON(type_index), WASM_RTT_SUB(subtype_index), kExprEnd});
 
   tester.CompileModule();
 
@@ -563,6 +571,14 @@ TEST(BasicRTT) {
   CHECK_EQ(reinterpret_cast<Address>(
                tester.instance()->module()->struct_type(type_index)),
            map->wasm_type_info().foreign_address());
+
+  Handle<Object> subref_result = tester.GetJSResult("g", {}).ToHandleChecked();
+  CHECK(subref_result->IsMap());
+  Handle<Map> submap = Handle<Map>::cast(subref_result);
+  CHECK_EQ(*map, submap->wasm_type_info().parent());
+  CHECK_EQ(reinterpret_cast<Address>(
+               tester.instance()->module()->struct_type(subtype_index)),
+           submap->wasm_type_info().foreign_address());
 }
 
 }  // namespace test_gc

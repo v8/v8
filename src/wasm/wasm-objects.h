@@ -894,6 +894,16 @@ class AsmWasmData : public Struct {
   OBJECT_CONSTRUCTORS(AsmWasmData, Struct);
 };
 
+class WasmTypeInfo : public TorqueGeneratedWasmTypeInfo<WasmTypeInfo, Foreign> {
+ public:
+  DECL_CAST(WasmTypeInfo)
+  DECL_PRINTER(WasmTypeInfo)
+
+  class BodyDescriptor;
+
+  TQ_OBJECT_CONSTRUCTORS(WasmTypeInfo)
+};
+
 class WasmStruct : public TorqueGeneratedWasmStruct<WasmStruct, HeapObject> {
  public:
   static inline wasm::StructType* type(Map map);
@@ -927,6 +937,15 @@ class WasmArray : public TorqueGeneratedWasmArray<WasmArray, HeapObject> {
 };
 
 #undef DECL_OPTIONAL_ACCESSORS
+
+namespace wasm {
+
+Handle<Map> CreateStructMap(Isolate* isolate, const WasmModule* module,
+                            int struct_index, Handle<Map> rtt_parent);
+Handle<Map> CreateArrayMap(Isolate* isolate, const WasmModule* module,
+                           int array_index, Handle<Map> rtt_parent);
+
+}  // namespace wasm
 
 }  // namespace internal
 }  // namespace v8
