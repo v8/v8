@@ -87,6 +87,10 @@ CONFIGS = dict(
   ],
 )
 
+BASELINE_CONFIG = 'ignition'
+DEFAULT_CONFIG = 'ignition_turbo'
+DEFAULT_D8 = 'd8'
+
 # Return codes.
 RETURN_PASS = 0
 RETURN_FAIL = 2
@@ -202,7 +206,7 @@ class ExecutionArgumentsConfig(object):
         '--%s-d8',
         'optional path to %s d8 executable, '
         'default: bundled in the directory of this script',
-        default='d8')
+        default=DEFAULT_D8)
 
   def make_options(self, options):
     def get(name):
@@ -222,6 +226,21 @@ class ExecutionArgumentsConfig(object):
     return RunOptions(infer_arch(d8), config, d8, flags)
 
 
+class ExecutionConfig(object):
+  def __init__(self, options, label):
+    self.options = options
+    self.label = label
+    self.arch = getattr(options, label).arch
+    self.config = getattr(options, label).config
+    d8 = getattr(options, label).d8
+    flags = getattr(options, label).flags
+    self.command = Command(options, label, d8, flags)
+
+  @property
+  def flags(self):
+    return self.command.flags
+
+
 def parse_args():
   first_config_arguments = ExecutionArgumentsConfig('first')
   second_config_arguments = ExecutionArgumentsConfig('second')
@@ -238,8 +257,8 @@ def parse_args():
       help='skip suppressions to reproduce known issues')
 
   # Add arguments for each run configuration.
-  first_config_arguments.add_arguments(parser, 'ignition')
-  second_config_arguments.add_arguments(parser, 'ignition_turbo')
+  first_config_arguments.add_arguments(parser, BASELINE_CONFIG)
+  second_config_arguments.add_arguments(parser, DEFAULT_CONFIG)
 
   parser.add_argument('testcase', help='path to test case')
   options = parser.parse_args()
@@ -287,12 +306,12 @@ def fail_bailout(output, ignore_by_output_fun):
 
 
 def format_difference(
-    options, source_key, first_command, second_command,
+    source_key, first_config, second_config,
     first_config_output, second_config_output, difference, source=None):
   # The first three entries will be parsed by clusterfuzz. Format changes
   # will require changes on the clusterfuzz side.
-  first_config_label = '%s,%s' % (options.first.arch, options.first.config)
-  second_config_label = '%s,%s' % (options.second.arch, options.second.config)
+  first_config_label = '%s,%s' % (first_config.arch, first_config.config)
+  second_config_label = '%s,%s' % (second_config.arch, second_config.config)
   source_file_text = SOURCE_FILE_TEMPLATE % source if source else ''
 
   if PYTHON3:
@@ -310,8 +329,8 @@ def format_difference(
       suppression='', # We can't tie bugs to differences.
       first_config_label=first_config_label,
       second_config_label=second_config_label,
-      first_config_flags=' '.join(first_command.flags),
-      second_config_flags=' '.join(second_command.flags),
+      first_config_flags=' '.join(first_config.flags),
+      second_config_flags=' '.join(second_config.flags),
       first_config_output=first_stdout,
       second_config_output=second_stdout,
       source=source,
@@ -348,14 +367,14 @@ def cluster_failures(source, known_failures=None):
   return long_key[:ORIGINAL_SOURCE_HASH_LENGTH]
 
 
-def run_sanity_checks(options, suppress, first_cmd, second_cmd):
+def run_sanity_checks(suppress, first_config, second_config):
   """Run some fixed smoke tests in all configs to ensure nothing
   is fundamentally wrong, in order to prevent bug flooding.
   """
-  first_config_output = first_cmd.run(
+  first_config_output = first_config.command.run(
       SANITY_CHECKS, timeout=SANITY_CHECK_TIMEOUT_SEC)
 
-  second_config_output = second_cmd.run(
+  second_config_output = second_config.command.run(
       SANITY_CHECKS, timeout=SANITY_CHECK_TIMEOUT_SEC)
 
   difference, _ = suppress.diff(first_config_output, second_config_output)
@@ -364,7 +383,7 @@ def run_sanity_checks(options, suppress, first_cmd, second_cmd):
     # cases on this in case it's hit.
     source_key = 'sanity check failed'
     raise FailException(format_difference(
-        options, source_key, first_cmd, second_cmd,
+        source_key, first_config, second_config,
         first_config_output, second_config_output, difference))
 
 
@@ -381,20 +400,18 @@ def main():
   content_bailout(get_meta_data(content), suppress.ignore_by_metadata)
   content_bailout(content, suppress.ignore_by_content)
 
-  first_cmd = Command(
-      options, 'first', options.first.d8, options.first.flags)
-  second_cmd = Command(
-      options, 'second', options.second.d8, options.second.flags)
+  first_config = ExecutionConfig(options, 'first')
+  second_config = ExecutionConfig(options, 'second')
 
   # Sanity checks. Run both configurations with the sanity-checks file only and
   # bail out early if different.
   if not options.skip_sanity_checks:
-    run_sanity_checks(options, suppress, first_cmd, second_cmd)
+    run_sanity_checks(suppress, first_config, second_config)
 
-  first_config_output = first_cmd.run(
+  first_config_output = first_config.command.run(
       options.testcase, timeout=TEST_TIMEOUT_SEC, verbose=True)
 
-  second_config_output = second_cmd.run(
+  second_config_output = second_config.command.run(
       options.testcase, timeout=TEST_TIMEOUT_SEC, verbose=True)
 
   difference, source = suppress.diff(first_config_output, second_config_output)
@@ -408,7 +425,7 @@ def main():
 
     source_key = cluster_failures(source)
     raise FailException(format_difference(
-        options, source_key, first_cmd, second_cmd,
+        source_key, first_config, second_config,
         first_config_output, second_config_output, difference, source))
 
   # Show if a crash has happened in one of the runs and no difference was
