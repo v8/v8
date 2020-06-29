@@ -149,6 +149,7 @@ namespace compiler {
   V(ArmF64x2Ceil)                  \
   V(ArmF64x2Floor)                 \
   V(ArmF64x2Trunc)                 \
+  V(ArmF64x2NearestInt)            \
   V(ArmF32x4Splat)                 \
   V(ArmF32x4ExtractLane)           \
   V(ArmF32x4ReplaceLane)           \

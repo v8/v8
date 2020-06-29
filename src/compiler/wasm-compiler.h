@@ -564,6 +564,7 @@ class WasmGraphBuilder {
   Node* BuildF64x2Ceil(Node* input);
   Node* BuildF64x2Floor(Node* input);
   Node* BuildF64x2Trunc(Node* input);
+  Node* BuildF64x2NearestInt(Node* input);
   Node* BuildF32x4Ceil(Node* input);
   Node* BuildF32x4Floor(Node* input);
   Node* BuildF32x4Trunc(Node* input);

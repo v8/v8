@@ -4058,6 +4058,12 @@ Node* WasmGraphBuilder::BuildF64x2Trunc(Node* input) {
   return BuildCFuncInstruction(ref, type, input);
 }
 
+Node* WasmGraphBuilder::BuildF64x2NearestInt(Node* input) {
+  MachineType type = MachineType::Simd128();
+  ExternalReference ref = ExternalReference::wasm_f64x2_nearest_int();
+  return BuildCFuncInstruction(ref, type, input);
+}
+
 Node* WasmGraphBuilder::BuildF32x4Ceil(Node* input) {
   MachineType type = MachineType::Simd128();
   ExternalReference ref = ExternalReference::wasm_f32x4_ceil();
@@ -4259,6 +4265,10 @@ Node* WasmGraphBuilder::SimdOp(wasm::WasmOpcode opcode, Node* const* inputs) {
         return BuildF64x2Trunc(inputs[0]);
       return graph()->NewNode(mcgraph()->machine()->F64x2Trunc(), inputs[0]);
     case wasm::kExprF64x2NearestInt:
+      // Architecture support for F64x2NearestInt and Float64RoundTiesEven is
+      // the same.
+      if (!mcgraph()->machine()->Float64RoundTiesEven().IsSupported())
+        return BuildF64x2NearestInt(inputs[0]);
       return graph()->NewNode(mcgraph()->machine()->F64x2NearestInt(),
                               inputs[0]);
     case wasm::kExprF32x4Splat:

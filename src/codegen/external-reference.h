@@ -209,6 +209,7 @@ class StatsCounter;
   V(wasm_f64x2_ceil, "wasm::f64x2_ceil_wrapper")                              \
   V(wasm_f64x2_floor, "wasm::f64x2_floor_wrapper")                            \
   V(wasm_f64x2_trunc, "wasm::f64x2_trunc_wrapper")                            \
+  V(wasm_f64x2_nearest_int, "wasm::f64x2_nearest_int_wrapper")                \
   V(wasm_f32x4_ceil, "wasm::f32x4_ceil_wrapper")                              \
   V(wasm_f32x4_floor, "wasm::f32x4_floor_wrapper")                            \
   V(wasm_f32x4_trunc, "wasm::f32x4_trunc_wrapper")                            \

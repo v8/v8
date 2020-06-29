@@ -85,6 +85,8 @@ V8_EXPORT_PRIVATE void f64x2_floor_wrapper(Address data);
 
 V8_EXPORT_PRIVATE void f64x2_trunc_wrapper(Address data);
 
+V8_EXPORT_PRIVATE void f64x2_nearest_int_wrapper(Address data);
+
 V8_EXPORT_PRIVATE void f32x4_ceil_wrapper(Address data);
 
 V8_EXPORT_PRIVATE void f32x4_floor_wrapper(Address data);

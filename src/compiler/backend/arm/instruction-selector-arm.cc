@@ -1486,22 +1486,23 @@ void InstructionSelector::VisitUint32Mod(Node* node) {
   V(Float32Sqrt, kArmVsqrtF32)                       \
   V(Float64Sqrt, kArmVsqrtF64)
 
-#define RR_OP_LIST_V8(V)                 \
-  V(Float32RoundDown, kArmVrintmF32)     \
-  V(Float64RoundDown, kArmVrintmF64)     \
-  V(Float32RoundUp, kArmVrintpF32)       \
-  V(Float64RoundUp, kArmVrintpF64)       \
-  V(Float32RoundTruncate, kArmVrintzF32) \
-  V(Float64RoundTruncate, kArmVrintzF64) \
-  V(Float64RoundTiesAway, kArmVrintaF64) \
-  V(Float32RoundTiesEven, kArmVrintnF32) \
-  V(Float64RoundTiesEven, kArmVrintnF64) \
-  V(F64x2Ceil, kArmF64x2Ceil)            \
-  V(F64x2Floor, kArmF64x2Floor)          \
-  V(F64x2Trunc, kArmF64x2Trunc)          \
-  V(F32x4Ceil, kArmVrintpF32)            \
-  V(F32x4Floor, kArmVrintmF32)           \
-  V(F32x4Trunc, kArmVrintzF32)           \
+#define RR_OP_LIST_V8(V)                  \
+  V(Float32RoundDown, kArmVrintmF32)      \
+  V(Float64RoundDown, kArmVrintmF64)      \
+  V(Float32RoundUp, kArmVrintpF32)        \
+  V(Float64RoundUp, kArmVrintpF64)        \
+  V(Float32RoundTruncate, kArmVrintzF32)  \
+  V(Float64RoundTruncate, kArmVrintzF64)  \
+  V(Float64RoundTiesAway, kArmVrintaF64)  \
+  V(Float32RoundTiesEven, kArmVrintnF32)  \
+  V(Float64RoundTiesEven, kArmVrintnF64)  \
+  V(F64x2Ceil, kArmF64x2Ceil)             \
+  V(F64x2Floor, kArmF64x2Floor)           \
+  V(F64x2Trunc, kArmF64x2Trunc)           \
+  V(F64x2NearestInt, kArmF64x2NearestInt) \
+  V(F32x4Ceil, kArmVrintpF32)             \
+  V(F32x4Floor, kArmVrintmF32)            \
+  V(F32x4Trunc, kArmVrintzF32)            \
   V(F32x4NearestInt, kArmVrintnF32)
 
 #define RRR_OP_LIST(V)          \
