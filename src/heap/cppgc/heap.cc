@@ -74,11 +74,6 @@ void CheckConfig(Heap::Config config) {
 
 }  // namespace
 
-// static
-cppgc::LivenessBroker LivenessBrokerFactory::Create() {
-  return cppgc::LivenessBroker();
-}
-
 Heap::Heap(std::shared_ptr<cppgc::Platform> platform,
            cppgc::Heap::HeapOptions options)
     : HeapBase(platform, options.custom_spaces.size()),

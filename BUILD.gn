@@ -4197,6 +4197,7 @@ v8_source_set("cppgc_base") {
     "src/heap/cppgc/heap.cc",
     "src/heap/cppgc/heap.h",
     "src/heap/cppgc/liveness-broker.cc",
+    "src/heap/cppgc/liveness-broker.h",
     "src/heap/cppgc/logging.cc",
     "src/heap/cppgc/marker.cc",
     "src/heap/cppgc/marker.h",

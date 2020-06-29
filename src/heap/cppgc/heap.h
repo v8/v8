@@ -16,11 +16,6 @@
 namespace cppgc {
 namespace internal {
 
-class V8_EXPORT_PRIVATE LivenessBrokerFactory {
- public:
-  static LivenessBroker Create();
-};
-
 class V8_EXPORT_PRIVATE Heap final : public HeapBase,
                                      public cppgc::Heap,
                                      public GarbageCollector {

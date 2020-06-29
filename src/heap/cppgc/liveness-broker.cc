@@ -5,11 +5,21 @@
 #include "include/cppgc/liveness-broker.h"
 
 #include "src/heap/cppgc/heap-object-header-inl.h"
+#include "src/heap/cppgc/liveness-broker.h"
 
 namespace cppgc {
 
 bool LivenessBroker::IsHeapObjectAliveImpl(const void* payload) const {
   return internal::HeapObjectHeader::FromPayload(payload).IsMarked();
 }
+
+namespace internal {
+
+// static
+cppgc::LivenessBroker LivenessBrokerFactory::Create() {
+  return cppgc::LivenessBroker();
+}
+
+}  // namespace internal
 
 }  // namespace cppgc

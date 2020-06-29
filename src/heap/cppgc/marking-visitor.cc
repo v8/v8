@@ -8,6 +8,7 @@
 #include "src/heap/cppgc/heap-object-header-inl.h"
 #include "src/heap/cppgc/heap-page-inl.h"
 #include "src/heap/cppgc/heap.h"
+#include "src/heap/cppgc/liveness-broker.h"
 
 namespace cppgc {
 namespace internal {

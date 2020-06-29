@@ -12,6 +12,7 @@
 #include "include/cppgc/member.h"
 #include "include/cppgc/type-traits.h"
 #include "src/heap/cppgc/heap.h"
+#include "src/heap/cppgc/liveness-broker.h"
 #include "src/heap/cppgc/visitor.h"
 #include "test/unittests/heap/cppgc/tests.h"
 #include "testing/gtest/include/gtest/gtest.h"
