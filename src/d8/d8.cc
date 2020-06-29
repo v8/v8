@@ -1184,10 +1184,9 @@ void PerIsolateData::AddUnhandledPromise(Local<Promise> promise,
                                          Local<Message> message,
                                          Local<Value> exception) {
   DCHECK_EQ(promise->GetIsolate(), isolate_);
-  unhandled_promises_.push_back(
-      std::make_tuple(v8::Global<v8::Promise>(isolate_, promise),
-                      v8::Global<v8::Message>(isolate_, message),
-                      v8::Global<v8::Value>(isolate_, exception)));
+  unhandled_promises_.emplace_back(v8::Global<v8::Promise>(isolate_, promise),
+                                   v8::Global<v8::Message>(isolate_, message),
+                                   v8::Global<v8::Value>(isolate_, exception));
 }
 
 size_t PerIsolateData::GetUnhandledPromiseCount() {
@@ -1195,16 +1194,17 @@ size_t PerIsolateData::GetUnhandledPromiseCount() {
 }
 
 int PerIsolateData::HandleUnhandledPromiseRejections() {
-  int unhandled_promises_count = 0;
   v8::HandleScope scope(isolate_);
-  for (auto& tuple : unhandled_promises_) {
+  // Ignore promises that get added during error reporting.
+  size_t unhandled_promises_count = unhandled_promises_.size();
+  for (size_t i = 0; i < unhandled_promises_count; i++) {
+    const auto& tuple = unhandled_promises_[i];
     Local<v8::Message> message = std::get<1>(tuple).Get(isolate_);
     Local<v8::Value> value = std::get<2>(tuple).Get(isolate_);
     Shell::ReportException(isolate_, message, value);
-    unhandled_promises_count++;
   }
   unhandled_promises_.clear();
-  return unhandled_promises_count;
+  return static_cast<int>(unhandled_promises_count);
 }
 
 PerIsolateData::RealmScope::RealmScope(PerIsolateData* data) : data_(data) {
