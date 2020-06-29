@@ -1,0 +1,97 @@
+<!-- Copyright 2020 the V8 project authors. All rights reserved.
+Use of this source code is governed by a BSD-style license that can be
+found in the LICENSE file. -->
+
+<style>
+.ic-panel {
+	background-color: #355EC2;
+	padding: 20px 20px  20px 20px ;
+	margin: auto;
+}
+#ic-panel {
+	background-color: #232323;
+	padding: 10px 10px  10px 10px ;
+	margin: auto;
+	overflow-x: scroll;
+}
+
+.count {
+	text-align: right;
+	width: 5em;
+}
+
+.percentage {
+	text-align: right;
+	width: 5em;
+}
+
+.key {
+	padding-left: 1em;
+}
+
+.drilldown-group-title {
+	font-weight: bold;
+	padding: 0.5em 0 0.2em 0;
+}
+.entry-details {
+}
+
+.entry-details TD {
+}
+
+.details {
+	width: 0.1em;
+}
+
+.details span {
+	padding: 0 0.4em 0 0.4em;
+	background-color: black;
+	color: white;
+	border-radius: 25px;
+	text-align: center;
+	cursor: -webkit-zoom-in;
+}
+
+#legend {
+	padding-right: 20px;
+}
+</style>
+
+
+<div class="ic-panel">
+	<section id="ic-panel">
+		<h1>IC Explorer</h1>
+
+		<div id="legend">
+			<div style="float:right;  border-style: solid; border-width: 1px; padding:20px">
+					0 uninitialized<br>
+					X no feedback<br>
+					1 monomorphic<br>
+					^ recompute handler<br>
+					P polymorphic<br>
+					N megamorphic<br>
+					G generic
+			</div>
+		</div>
+
+		<h2>Data</h2>
+
+		<p>Trace Count: <span id="count">0</span></p>
+
+		<h2>Result</h2>
+		<p>
+		Group-Key:
+		<select id="group-key"></select>
+		</p>
+		Filter number of items
+		<br></br>
+		<input type="search" id="filter-input" placeholder="Number of items"></input>
+		<button id="filterICBtn">Filter</button>
+		<p>
+			<table id="table" width="100%">
+				<tbody id="table-body">
+				</tbody>
+			</table>
+		</p>
+	</section>
+</div>

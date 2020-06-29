@@ -1,0 +1,222 @@
+<!DOCTYPE html>
+<!-- Copyright 2020 the V8 project authors. All rights reserved.
+Use of this source code is governed by a BSD-style license that can be
+found in the LICENSE file. -->
+
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8">
+  <title>Indicium</title>
+  <link href='https://fonts.googleapis.com/css?family=Roboto' rel='stylesheet'>
+  <!-- <link rel="icon" type="image/png" href="/images/favicon.png"/> -->
+  <!-- <script type="module" src="index.js"></script> -->
+  <script src="helper.js"></script>
+  <script type="module" src="log-file-reader.mjs"></script>
+  <script type="module" src="map-panel.mjs"></script>
+  <script type="module" src="timeline-panel.mjs"></script>
+  <script type="module" src="ic-panel.mjs"></script>
+  <script src="../splaytree.js"></script>
+  <script src="../codemap.js"></script>
+  <script src="../csvparser.js"></script>
+  <script src="../consarray.js"></script>
+  <script src="../profile.js"></script>
+  <script src="../profile_view.js"></script>
+  <script src="../logreader.js"></script>
+  <script src="../arguments.js"></script>
+  <script src="../SourceMap.js"></script>
+  <script src="./map-processor.js"></script>
+  <script src="./ic-processor.js"></script>
+  <script src="./map-model.js"></script>
+  <style>
+  body {
+    font-family: 'Roboto', sans-serif;
+    color: white;
+    margin-left: 5%;
+    margin-right: 5%;
+    background-color: #041531;
+  }
+  .colorbox {
+  width: 10px;
+  height: 10px;
+  border: 1px black solid;
+  }
+  #instructions {
+    padding: 10px 10px  60px 10px ;
+    margin: auto;
+  }
+  #stats {
+    display: flex;
+    height: 250px;
+
+    background-color: #232323;
+    padding: 10px 10px  10px 10px ;
+    margin: auto;
+  }
+  .stats-panel {
+        background-color: #355EC2;
+        padding: 20px 20px  20px 20px ;
+        margin: auto;
+  }
+  #stats table {
+    flex: 1;
+    padding-right: 50px;
+    max-height: 250px;
+    display: inline-block;
+    overflow-y: scroll;
+  }
+  #stats table td {
+    cursor: pointer;
+  }
+  #stats .transitionTable {
+    overflow-y: scroll;
+  }
+  #stats .transitionTable tr {
+    max-width: 200px;
+
+  }
+  #stats .transitionType {
+    text-align: right;
+    max-width: 380px;
+  }
+  #stats .transitionType tr td:nth-child(2) {
+    text-align: left;
+  }
+  #stats table thead td {
+    border-bottom: 1px black dotted;
+  }
+  /*
+  .indicium-logo  {
+    width: 380px;
+    height: 165px;
+    background-image: url(./images/indicium-logo.png);
+    background-size: cover;
+    margin-top: 35px;
+  }
+  */
+</style>
+<script>
+'use strict';
+
+// Event handlers
+document.onkeydown = handleKeyDown;
+function handleKeyDown(event) {
+  stateGlobal.navigation = document.state.navigation;
+  let nav = document.state.navigation;
+  switch(event.key) {
+    case "ArrowUp":
+      event.preventDefault();
+      if (event.shiftKey) {
+        nav.selectPrevEdge();
+      } else {
+        nav.moveInChunk(-1);
+      }
+      return false;
+    case "ArrowDown":
+      event.preventDefault();
+      if (event.shiftKey) {
+        nav.selectNextEdge();
+      } else {
+        nav.moveInChunk(1);
+      }
+      return false;
+    case "ArrowLeft":
+      nav.moveInChunks(false);
+      break;
+    case "ArrowRight":
+      nav.moveInChunks(true);
+      break;
+    case "+":
+      nav.increaseTimelineResolution();
+      break;
+    case "-":
+      nav.decreaseTimelineResolution();
+      break;
+  }
+}
+
+// Update application state
+function updateDocumentState(){
+    document.state = stateGlobal.state;
+    try {
+      document.state.timeline = stateGlobal.timeline;
+    } catch (error) {
+      console.log(error);
+      console.log("cannot assign timeline to state!");
+    }
+}
+
+// Map event log processing
+function handleLoadTextMapProcessor(text) {
+    let mapProcessor = new MapProcessor();
+    return mapProcessor.processString(text);
+}
+
+// IC event file reading and log processing
+
+function loadFileIC(file) {
+  let reader = new FileReader();
+  reader.onload = function(evt) {
+    let icProcessor = new CustomIcProcessor();
+    icProcessor.processString(this.result);
+    entries = icProcessor.entries;
+    $("ic-panel").countSelect.innerHTML = entries.length;
+    $("ic-panel").updateTable(entries);
+  }
+  reader.readAsText(file);
+  $("ic-panel").initGroupKeySelect();
+}
+
+
+function $(id) { return document.querySelector(id); }
+
+// holds the state of the application
+let stateGlobal = Object.create(null);
+
+// call when a new file uploaded
+function globalDataUpload(e) {
+  stateGlobal.timeline = e.detail;
+  if(!e.detail) return;
+  // instantiate the app logic
+  stateGlobal.fileData = e.detail;
+  stateGlobal.state = new State();
+  stateGlobal.timeline = handleLoadTextMapProcessor(stateGlobal.fileData.chunk);
+  updateDocumentState();
+  // process the IC explorer
+  loadFileIC(stateGlobal.fileData.file);
+}
+
+function globalSearchBarEvent(e) {
+  if(!e.detail.isValidMap) return;
+  document.state.map = e.detail.map;
+}
+</script>
+</head>
+<body>
+  <!-- <div class="indicium-logo"></div> -->
+  <div id="content">
+    <section id="file-reader">
+      <br></br>
+      <log-file-reader id="log-file-reader" onchange="globalDataUpload(event)"></log-file-reader>
+      <br></br>
+    </section>
+    <div class="stats-panel">
+      <section id="stats"><h2>Stats</h2></section>
+    </div>
+    <timeline-panel id="timeline-panel" onchange="globalDataChanged(event)"></timeline-panel>
+    <map-panel id="map-panel" onclick="globalSearchBarEvent(event)"></map-panel>
+    <ic-panel id="ic-panel" onchange="globalDataChanged(event)"></ic-panel>
+  </div>
+
+  <div id="instructions">
+    <h2>Instructions</h2>
+    <p>Unified web interface for analyzing the trace information of the Maps/ICs</p>
+    <ul>
+      <li> Visualize Map trees that have gathered</li>
+      <li><code> /path/to/d8 --trace-maps $FILE</code></li>
+      <li> Visualize IC events that have gathered</li>
+      <li><code> /path/to/d8 --trace_ic $FILE (your_script.js) </code></li>
+    </ul>
+  </div>
+</body>
+</html>
