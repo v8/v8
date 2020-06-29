@@ -32,6 +32,8 @@ vars = {
   'download_jsfunfuzz': False,
   'check_v8_header_includes': False,
 
+  'mac_xcode_version': 'default',
+
   # GN CIPD package version.
   'gn_version': 'git_revision:7d7e8deea36d126397bda2cf924682504271f0e1',
 
