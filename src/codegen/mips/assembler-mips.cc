@@ -3655,8 +3655,12 @@ void Assembler::CheckTrampolinePool() {
           }
         }
       }
-      bind(&after_pool);
+      // If unbound_labels_count_ is big enough, label after_pool will
+      // need a trampoline too, so we must create the trampoline before
+      // the bind operation to make sure function 'bind' can get this
+      // information.
       trampoline_ = Trampoline(pool_start, unbound_labels_count_);
+      bind(&after_pool);
 
       trampoline_emitted_ = true;
       // As we are only going to emit trampoline once, we need to prevent any
@@ -3797,6 +3801,7 @@ void Assembler::GenPCRelativeJumpAndLink(Register t, int32_t imm32,
   addu(t, ra, t);
   jalr(t);
   if (bdslot == PROTECT) nop();
+  set_last_call_pc_(pc_);
 }
 
 UseScratchRegisterScope::UseScratchRegisterScope(Assembler* assembler)

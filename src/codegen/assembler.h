@@ -257,6 +257,15 @@ class V8_EXPORT_PRIVATE AssemblerBase : public Malloced {
 
   int pc_offset() const { return static_cast<int>(pc_ - buffer_start_); }
 
+  int pc_offset_for_safepoint() {
+#if defined(V8_TARGET_ARCH_MIPS) || defined(V8_TARGET_ARCH_MIPS64)
+    // Mips needs it's own implementation to avoid trampoline's influence.
+    UNREACHABLE();
+#else
+    return pc_offset();
+#endif
+  }
+
   byte* buffer_start() const { return buffer_->start(); }
   int buffer_size() const { return buffer_->size(); }
   int instruction_size() const { return pc_offset(); }

@@ -4235,6 +4235,7 @@ void TurboAssembler::Call(Register target, Condition cond, Register rs,
     // Emit a nop in the branch delay slot if required.
     if (bd == PROTECT) nop();
   }
+  set_last_call_pc_(pc_);
 }
 
 void MacroAssembler::JumpIfIsInRange(Register value, unsigned lower_limit,
