@@ -4,6 +4,7 @@
 
 gclient_gn_args_file = 'v8/build/config/gclient_args.gni'
 gclient_gn_args = [
+  'mac_xcode_version',
 ]
 
 vars = {
