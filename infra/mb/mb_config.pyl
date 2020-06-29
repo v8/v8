@@ -453,7 +453,7 @@
     'release_x64_fuchsia_trybot': [
       'release_trybot', 'x64', 'fuchsia'],
     'release_x64_gcc_coverage': [
-      'release_bot', 'x64', 'coverage', 'gcc', 'no_custom_libcxx',
+      'release_bot_no_goma', 'x64', 'coverage', 'gcc', 'no_custom_libcxx',
       'no_sysroot'],
     'release_x64_ios_simulator': [
       'release_bot', 'x64', 'ios_simulator'],
@@ -503,7 +503,7 @@
     'debug_x64_fuchsia': [
       'debug_bot', 'x64', 'fuchsia'],
     'debug_x64_gcc': [
-      'debug_bot', 'x64', 'gcc', 'v8_check_header_includes'],
+      'debug_bot_no_goma', 'x64', 'gcc', 'v8_check_header_includes'],
     'debug_x64_header_includes': [
       'debug_bot', 'x64', 'v8_check_header_includes'],
     'debug_x64_minimal_symbols': [
@@ -535,9 +535,9 @@
     'release_x86': [
       'release_bot', 'x86'],
     'release_x86_gcc': [
-      'release_bot', 'x86', 'gcc', 'v8_check_header_includes'],
+      'release_bot_no_goma', 'x86', 'gcc', 'v8_check_header_includes'],
     'release_x86_gcc_minimal_symbols': [
-      'release_bot', 'x86', 'gcc', 'minimal_symbols',
+      'release_bot_no_goma', 'x86', 'gcc', 'minimal_symbols',
       'v8_check_header_includes'],
     'release_x86_gcmole': [
       'release_bot', 'x86', 'gcmole'],
@@ -619,6 +619,12 @@
     'debug_bot': {
       'mixins': [
         'debug', 'shared', 'goma', 'v8_enable_slow_dchecks',
+        'v8_optimized_debug'],
+    },
+
+    'debug_bot_no_goma': {
+      'mixins': [
+        'debug', 'shared', 'no_goma', 'v8_enable_slow_dchecks',
         'v8_optimized_debug'],
     },
 
