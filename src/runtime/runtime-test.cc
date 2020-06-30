@@ -740,12 +740,7 @@ RUNTIME_FUNCTION(Runtime_SimulateNewspaceFull) {
   return ReadOnlyRoots(isolate).undefined_value();
 }
 
-RUNTIME_FUNCTION(Runtime_DebugPrint) {
-  SealHandleScope shs(isolate);
-  DCHECK_EQ(1, args.length());
-
-  MaybeObject maybe_object(*args.address_of_arg_at(0));
-
+static void DebugPrintImpl(MaybeObject maybe_object) {
   StdoutStream os;
   if (maybe_object->IsCleared()) {
     os << "[weak cleared]";
@@ -767,7 +762,32 @@ RUNTIME_FUNCTION(Runtime_DebugPrint) {
 #endif
   }
   os << std::endl;
+}
 
+RUNTIME_FUNCTION(Runtime_DebugPrint) {
+  SealHandleScope shs(isolate);
+  DCHECK_EQ(1, args.length());
+
+  MaybeObject maybe_object(*args.address_of_arg_at(0));
+  DebugPrintImpl(maybe_object);
+  return args[0];
+}
+
+RUNTIME_FUNCTION(Runtime_DebugPrintPtr) {
+  SealHandleScope shs(isolate);
+  StdoutStream os;
+  DCHECK_EQ(1, args.length());
+
+  MaybeObject maybe_object(*args.address_of_arg_at(0));
+  if (!maybe_object.IsCleared()) {
+    Object object = maybe_object.GetHeapObjectOrSmi();
+    size_t pointer;
+    if (object.ToIntegerIndex(&pointer)) {
+      MaybeObject from_pointer(static_cast<Address>(pointer));
+      DebugPrintImpl(from_pointer);
+    }
+  }
+  // We don't allow the converted pointer to leak out to JavaScript.
   return args[0];
 }
 
