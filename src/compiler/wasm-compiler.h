@@ -383,6 +383,8 @@ class WasmGraphBuilder {
 
   Node* StructNew(uint32_t struct_index, const wasm::StructType* type,
                   Vector<Node*> fields);
+  Node* StructNewWithRtt(uint32_t struct_index, const wasm::StructType* type,
+                         Node* rtt, Vector<Node*> fields);
   Node* StructGet(Node* struct_object, const wasm::StructType* struct_type,
                   uint32_t field_index, CheckForNull null_check, bool is_signed,
                   wasm::WasmCodePosition position);

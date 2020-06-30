@@ -953,6 +953,8 @@ struct ControlBase {
     const Value& value, const Value& count)                                    \
   F(StructNew, const StructIndexImmediate<validate>& imm, const Value args[],  \
     Value* result)                                                             \
+  F(StructNewWithRtt, const StructIndexImmediate<validate>& imm,               \
+    const Value& rtt, const Value args[], Value* result)                       \
   F(StructGet, const Value& struct_object,                                     \
     const FieldIndexImmediate<validate>& field, bool is_signed, Value* result) \
   F(StructSet, const Value& struct_object,                                     \
@@ -1667,7 +1669,7 @@ class WasmDecoder : public Decoder {
         WasmOpcode opcode = static_cast<WasmOpcode>(kGCPrefix << 8 | gc_index);
         switch (opcode) {
           case kExprStructNew:
-          case kExprStructNewSub:
+          case kExprStructNewWithRtt:
           case kExprStructNewDefault: {
             StructIndexImmediate<validate> imm(decoder, pc + 2);
             return 2 + imm.length;
@@ -3332,6 +3334,33 @@ class WasmFullDecoder : public WasmDecoder<validate> {
         ArgVector args = PopArgs(imm.struct_type);
         Value* value = Push(ValueType::Ref(imm.index, kNonNullable));
         CALL_INTERFACE_IF_REACHABLE(StructNew, imm, args.begin(), value);
+        break;
+      }
+      case kExprStructNewWithRtt: {
+        StructIndexImmediate<validate> imm(this, this->pc_ + len);
+        len += imm.length;
+        if (!this->Validate(this->pc_, imm)) break;
+        Value rtt = Pop();
+        if (!VALIDATE(rtt.type.kind() == ValueType::kRtt)) {
+          this->errorf(
+              this->pc_ + len,
+              "struct.new_with_rtt expected type rtt, found %s of type %s",
+              SafeOpcodeNameAt(rtt.pc), rtt.type.type_name().c_str());
+          break;
+        }
+        // TODO(7748): Drop this check if {imm} is dropped from the proposal
+        // à la https://github.com/WebAssembly/function-references/pull/31.
+        if (!VALIDATE(rtt.type.heap() == imm.index)) {
+          this->errorf(this->pc_ + len,
+                       "struct.new_with_rtt expected rtt for type %d, found "
+                       "rtt for type %s",
+                       imm.index, rtt.type.heap_type().name().c_str());
+          break;
+        }
+        ArgVector args = PopArgs(imm.struct_type);
+        Value* value = Push(ValueType::Ref(imm.index, kNonNullable));
+        CALL_INTERFACE_IF_REACHABLE(StructNewWithRtt, imm, rtt, args.begin(),
+                                    value);
         break;
       }
       case kExprStructGet: {

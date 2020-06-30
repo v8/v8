@@ -3576,6 +3576,12 @@ class LiftoffCompiler {
     // TODO(7748): Implement.
     unsupported(decoder, kGC, "struct.new");
   }
+  void StructNewWithRtt(FullDecoder* decoder,
+                        const StructIndexImmediate<validate>& imm,
+                        const Value& rtt, const Value args[], Value* result) {
+    // TODO(7748): Implement.
+    unsupported(decoder, kGC, "struct.new_with_rtt");
+  }
   void StructGet(FullDecoder* decoder, const Value& struct_obj,
                  const FieldIndexImmediate<validate>& field, bool is_signed,
                  Value* result) {

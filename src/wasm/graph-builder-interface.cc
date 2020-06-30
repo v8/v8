@@ -653,6 +653,18 @@ class WasmGraphBuildingInterface {
         BUILD(StructNew, imm.index, imm.struct_type, VectorOf(arg_nodes));
   }
 
+  void StructNewWithRtt(FullDecoder* decoder,
+                        const StructIndexImmediate<validate>& imm,
+                        const Value& rtt, const Value args[], Value* result) {
+    uint32_t field_count = imm.struct_type->field_count();
+    base::SmallVector<TFNode*, 16> arg_nodes(field_count);
+    for (uint32_t i = 0; i < field_count; i++) {
+      arg_nodes[i] = args[i].node;
+    }
+    result->node = BUILD(StructNewWithRtt, imm.index, imm.struct_type, rtt.node,
+                         VectorOf(arg_nodes));
+  }
+
   void StructGet(FullDecoder* decoder, const Value& struct_object,
                  const FieldIndexImmediate<validate>& field, bool is_signed,
                  Value* result) {

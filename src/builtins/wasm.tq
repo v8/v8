@@ -242,6 +242,15 @@ builtin WasmAllocateRtt(implicit context: Context)(
   tail runtime::WasmAllocateRtt(context, typeIndex, parent);
 }
 
+builtin WasmAllocateStructWithRtt(implicit context: Context)(rtt: Map):
+    HeapObject {
+  const instanceSize: intptr =
+      unsafe::TimesTaggedSize(Convert<intptr>(rtt.instance_size_in_words));
+  const result: HeapObject = unsafe::Allocate(instanceSize);
+  * UnsafeConstCast(& result.map) = rtt;
+  return result;
+}
+
 builtin WasmInt32ToNumber(value: int32): Number {
   return ChangeInt32ToTagged(value);
 }

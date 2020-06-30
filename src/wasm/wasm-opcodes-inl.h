@@ -355,7 +355,7 @@ constexpr const char* WasmOpcodes::OpcodeName(WasmOpcode opcode) {
 
     // GC operations.
     CASE_OP(StructNew, "struct.new")
-    CASE_OP(StructNewSub, "struct.new_sub")
+    CASE_OP(StructNewWithRtt, "struct.new_with_rtt")
     CASE_OP(StructNewDefault, "struct.new_default")
     CASE_OP(StructGet, "struct.get")
     CASE_OP(StructGetS, "struct.get_s")

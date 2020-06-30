@@ -598,7 +598,7 @@ bool IsJSCompatibleSignature(const FunctionSig* sig, const WasmFeatures&);
 
 #define FOREACH_GC_OPCODE(V)     \
   V(StructNew, 0xfb00, _)        \
-  V(StructNewSub, 0xfb01, _)     \
+  V(StructNewWithRtt, 0xfb01, _) \
   V(StructNewDefault, 0xfb02, _) \
   V(StructGet, 0xfb03, _)        \
   V(StructGetS, 0xfb04, _)       \

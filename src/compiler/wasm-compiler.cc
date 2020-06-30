@@ -5287,6 +5287,18 @@ Node* WasmGraphBuilder::StructNew(uint32_t struct_index,
   return s;
 }
 
+Node* WasmGraphBuilder::StructNewWithRtt(uint32_t struct_index,
+                                         const wasm::StructType* type,
+                                         Node* rtt, Vector<Node*> fields) {
+  Node* s = CALL_BUILTIN(
+      WasmAllocateStructWithRtt, rtt,
+      LOAD_INSTANCE_FIELD(NativeContext, MachineType::TaggedPointer()));
+  for (uint32_t i = 0; i < type->field_count(); i++) {
+    StoreStructFieldUnchecked(mcgraph(), gasm_.get(), s, type, i, fields[i]);
+  }
+  return s;
+}
+
 Node* WasmGraphBuilder::ArrayNew(uint32_t array_index,
                                  const wasm::ArrayType* type, Node* length,
                                  Node* initial_value) {

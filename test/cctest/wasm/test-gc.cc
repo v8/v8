@@ -555,12 +555,19 @@ TEST(BasicRTT) {
   ValueType kRttSubtypes[] = {
       ValueType::Rtt(static_cast<HeapType>(subtype_index), 2)};
   FunctionSig sig_t2_v(1, 0, kRttSubtypes);
+  ValueType kRefTypes[] = {
+      ValueType::Ref(static_cast<HeapType>(type_index), kNonNullable)};
+  FunctionSig sig_q_v(1, 0, kRefTypes);
 
   tester.DefineFunction("f", &sig_t_v, {},
                         {WASM_RTT_CANON(type_index), kExprEnd});
   tester.DefineFunction(
       "g", &sig_t2_v, {},
       {WASM_RTT_CANON(type_index), WASM_RTT_SUB(subtype_index), kExprEnd});
+  tester.DefineFunction("h", &sig_q_v, {},
+                        {WASM_STRUCT_NEW_WITH_RTT(type_index, WASM_I32V(42),
+                                                  WASM_RTT_CANON(type_index)),
+                         kExprEnd});
 
   tester.CompileModule();
 
@@ -580,6 +587,10 @@ TEST(BasicRTT) {
   CHECK_EQ(reinterpret_cast<Address>(
                tester.instance()->module()->struct_type(subtype_index)),
            submap->wasm_type_info().foreign_address());
+
+  Handle<Object> s = tester.GetJSResult("h", {}).ToHandleChecked();
+  CHECK(s->IsWasmStruct());
+  CHECK_EQ(Handle<WasmStruct>::cast(s)->map(), *map);
 }
 
 TEST(BasicI31) {

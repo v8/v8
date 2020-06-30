@@ -426,6 +426,8 @@ inline WasmOpcode LoadStoreOpcodeOf(MachineType type, bool store) {
 #define WASM_GC_OP(op) kGCPrefix, static_cast<byte>(op)
 #define WASM_STRUCT_NEW(index, ...) \
   __VA_ARGS__, WASM_GC_OP(kExprStructNew), static_cast<byte>(index)
+#define WASM_STRUCT_NEW_WITH_RTT(index, ...) \
+  __VA_ARGS__, WASM_GC_OP(kExprStructNewWithRtt), static_cast<byte>(index)
 #define WASM_STRUCT_GET(typeidx, fieldidx, struct_obj)                \
   struct_obj, WASM_GC_OP(kExprStructGet), static_cast<byte>(typeidx), \
       static_cast<byte>(fieldidx)
