@@ -36,4 +36,4 @@ misc_tests:
 misc_tests:
   stage: test
   script:
-    - tools/run-tests.py --outdir=out.gn/riscv64_debug intl
+    - tools/run-tests.py --outdir=out.gn/riscv64_debug intl message debugger
