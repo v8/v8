@@ -111,132 +111,96 @@ enum class PrimitiveType { kBoolean, kNumber, kString, kSymbol };
     V, rootIndexName, rootAccessorName, class_name)           \
   V(rootIndexName, rootAccessorName, class_name##Map)
 
-#define HEAP_IMMUTABLE_IMMOVABLE_OBJECT_LIST(V)                                \
-  V(AccessorInfoMap, accessor_info_map, AccessorInfoMap)                       \
-  V(AccessorPairMap, accessor_pair_map, AccessorPairMap)                       \
-  V(AllocationMementoMap, allocation_memento_map, AllocationMementoMap)        \
-  V(AllocationSiteWithoutWeakNextMap, allocation_site_without_weaknext_map,    \
-    AllocationSiteWithoutWeakNextMap)                                          \
-  V(AllocationSiteWithWeakNextMap, allocation_site_map, AllocationSiteMap)     \
-  V(arguments_to_string, arguments_to_string, ArgumentsToString)               \
-  V(ArrayBoilerplateDescriptionMap, array_boilerplate_description_map,         \
-    ArrayBoilerplateDescriptionMap)                                            \
-  V(Array_string, Array_string, ArrayString)                                   \
-  V(array_to_string, array_to_string, ArrayToString)                           \
-  V(BooleanMap, boolean_map, BooleanMap)                                       \
-  V(boolean_to_string, boolean_to_string, BooleanToString)                     \
-  V(CellMap, cell_map, CellMap)                                                \
-  V(CodeMap, code_map, CodeMap)                                                \
-  V(ConsOneByteStringMap, cons_one_byte_string_map, ConsOneByteStringMap)      \
-  V(ConsStringMap, cons_string_map, ConsStringMap)                             \
-  V(constructor_string, constructor_string, ConstructorString)                 \
-  V(CoverageInfoMap, coverage_info_map, CoverageInfoMap)                       \
-  V(date_to_string, date_to_string, DateToString)                              \
-  V(default_string, default_string, DefaultString)                             \
-  V(EmptyByteArray, empty_byte_array, EmptyByteArray)                          \
-  V(EmptyFixedArray, empty_fixed_array, EmptyFixedArray)                       \
-  V(EmptyPropertyDictionary, empty_property_dictionary,                        \
-    EmptyPropertyDictionary)                                                   \
-  V(EmptySlowElementDictionary, empty_slow_element_dictionary,                 \
-    EmptySlowElementDictionary)                                                \
-  V(empty_string, empty_string, EmptyString)                                   \
-  V(error_to_string, error_to_string, ErrorToString)                           \
-  V(errors_string, errors_string, ErrorsString)                                \
-  V(FalseValue, false_value, False)                                            \
-  V(FeedbackVectorMap, feedback_vector_map, FeedbackVectorMap)                 \
-  V(FixedArrayMap, fixed_array_map, FixedArrayMap)                             \
-  V(FixedCOWArrayMap, fixed_cow_array_map, FixedCOWArrayMap)                   \
-  V(FixedDoubleArrayMap, fixed_double_array_map, FixedDoubleArrayMap)          \
-  V(Function_string, function_string, FunctionString)                          \
-  V(FunctionTemplateInfoMap, function_template_info_map,                       \
-    FunctionTemplateInfoMap)                                                   \
-  V(function_to_string, function_to_string, FunctionToString)                  \
-  V(GlobalPropertyCellMap, global_property_cell_map, PropertyCellMap)          \
-  V(has_instance_symbol, has_instance_symbol, HasInstanceSymbol)               \
-  V(HeapNumberMap, heap_number_map, HeapNumberMap)                             \
-  V(Infinity_string, Infinity_string, InfinityString)                          \
-  V(is_concat_spreadable_symbol, is_concat_spreadable_symbol,                  \
-    IsConcatSpreadableSymbol)                                                  \
-  V(iterator_symbol, iterator_symbol, IteratorSymbol)                          \
-  V(length_string, length_string, LengthString)                                \
-  V(ManyClosuresCellMap, many_closures_cell_map, ManyClosuresCellMap)          \
-  V(match_symbol, match_symbol, MatchSymbol)                                   \
-  V(megamorphic_symbol, megamorphic_symbol, MegamorphicSymbol)                 \
-  V(message_string, message_string, MessageString)                             \
-  V(MetaMap, meta_map, MetaMap)                                                \
-  V(minus_Infinity_string, minus_Infinity_string, MinusInfinityString)         \
-  V(MinusZeroValue, minus_zero_value, MinusZero)                               \
-  V(name_string, name_string, NameString)                                      \
-  V(NanValue, nan_value, Nan)                                                  \
-  V(NaN_string, NaN_string, NaNString)                                         \
-  V(next_string, next_string, NextString)                                      \
-  V(NoClosuresCellMap, no_closures_cell_map, NoClosuresCellMap)                \
-  V(null_to_string, null_to_string, NullToString)                              \
-  V(NullValue, null_value, Null)                                               \
-  V(number_string, number_string, NumberString)                                \
-  V(number_to_string, number_to_string, NumberToString)                        \
-  V(Object_string, Object_string, ObjectString)                                \
-  V(object_to_string, object_to_string, ObjectToString)                        \
-  V(OneByteStringMap, one_byte_string_map, OneByteStringMap)                   \
-  V(OneClosureCellMap, one_closure_cell_map, OneClosureCellMap)                \
-  V(OnePointerFillerMap, one_pointer_filler_map, OnePointerFillerMap)          \
-  V(PreparseDataMap, preparse_data_map, PreparseDataMap)                       \
-  V(PromiseCapabilityMap, promise_capability_map, PromiseCapabilityMap)        \
-  V(promise_forwarding_handler_symbol, promise_forwarding_handler_symbol,      \
-    PromiseForwardingHandlerSymbol)                                            \
-  V(PromiseFulfillReactionJobTaskMap, promise_fulfill_reaction_job_task_map,   \
-    PromiseFulfillReactionJobTaskMap)                                          \
-  V(promise_handled_by_symbol, promise_handled_by_symbol,                      \
-    PromiseHandledBySymbol)                                                    \
-  V(PromiseReactionMap, promise_reaction_map, PromiseReactionMap)              \
-  V(PromiseRejectReactionJobTaskMap, promise_reject_reaction_job_task_map,     \
-    PromiseRejectReactionJobTaskMap)                                           \
-  V(PromiseResolveThenableJobTaskMap, promise_resolve_thenable_job_task_map,   \
-    PromiseResolveThenableJobTaskMap)                                          \
-  V(prototype_string, prototype_string, PrototypeString)                       \
-  V(PrototypeInfoMap, prototype_info_map, PrototypeInfoMap)                    \
-  V(replace_symbol, replace_symbol, ReplaceSymbol)                             \
-  V(regexp_to_string, regexp_to_string, RegexpToString)                        \
-  V(resolve_string, resolve_string, ResolveString)                             \
-  V(return_string, return_string, ReturnString)                                \
-  V(SharedFunctionInfoMap, shared_function_info_map, SharedFunctionInfoMap)    \
-  V(SmallOrderedHashSetMap, small_ordered_hash_set_map,                        \
-    SmallOrderedHashSetMap)                                                    \
-  V(SmallOrderedHashMapMap, small_ordered_hash_map_map,                        \
-    SmallOrderedHashMapMap)                                                    \
-  V(SmallOrderedNameDictionaryMap, small_ordered_name_dictionary_map,          \
-    SmallOrderedNameDictionaryMap)                                             \
-  V(species_symbol, species_symbol, SpeciesSymbol)                             \
-  V(StaleRegister, stale_register, StaleRegister)                              \
-  V(StoreHandler0Map, store_handler0_map, StoreHandler0Map)                    \
-  V(string_string, string_string, StringString)                                \
-  V(string_to_string, string_to_string, StringToString)                        \
-  V(StringMap, string_map, StringMap)                                          \
-  V(SymbolMap, symbol_map, SymbolMap)                                          \
-  V(TheHoleValue, the_hole_value, TheHole)                                     \
-  V(then_string, then_string, ThenString)                                      \
-  V(toString_string, toString_string, ToStringString)                          \
-  V(to_primitive_symbol, to_primitive_symbol, ToPrimitiveSymbol)               \
-  V(to_string_tag_symbol, to_string_tag_symbol, ToStringTagSymbol)             \
-  V(TransitionArrayMap, transition_array_map, TransitionArrayMap)              \
-  V(TrueValue, true_value, True)                                               \
-  V(Tuple2Map, tuple2_map, Tuple2Map)                                          \
-  V(BreakPointMap, break_point_map, BreakPointMap)                             \
-  V(BreakPointInfoMap, break_point_info_map, BreakPointInfoMap)                \
-  V(CachedTemplateObjectMap, cached_template_object_map,                       \
-    CachedTemplateObjectMap)                                                   \
-  V(UncompiledDataWithoutPreparseDataMap,                                      \
-    uncompiled_data_without_preparse_data_map,                                 \
-    UncompiledDataWithoutPreparseDataMap)                                      \
-  V(UncompiledDataWithPreparseDataMap, uncompiled_data_with_preparse_data_map, \
-    UncompiledDataWithPreparseDataMap)                                         \
-  V(undefined_to_string, undefined_to_string, UndefinedToString)               \
-  V(UndefinedValue, undefined_value, Undefined)                                \
-  V(uninitialized_symbol, uninitialized_symbol, UninitializedSymbol)           \
-  V(valueOf_string, valueOf_string, ValueOfString)                             \
-  V(WeakFixedArrayMap, weak_fixed_array_map, WeakFixedArrayMap)                \
-  V(zero_string, zero_string, ZeroString)                                      \
-  UNIQUE_INSTANCE_TYPE_MAP_LIST_GENERATOR(                                     \
+#define HEAP_IMMUTABLE_IMMOVABLE_OBJECT_LIST(V)                              \
+  V(AllocationSiteWithoutWeakNextMap, allocation_site_without_weaknext_map,  \
+    AllocationSiteWithoutWeakNextMap)                                        \
+  V(AllocationSiteWithWeakNextMap, allocation_site_map, AllocationSiteMap)   \
+  V(arguments_to_string, arguments_to_string, ArgumentsToString)             \
+  V(Array_string, Array_string, ArrayString)                                 \
+  V(array_to_string, array_to_string, ArrayToString)                         \
+  V(BooleanMap, boolean_map, BooleanMap)                                     \
+  V(boolean_to_string, boolean_to_string, BooleanToString)                   \
+  V(ConsOneByteStringMap, cons_one_byte_string_map, ConsOneByteStringMap)    \
+  V(ConsStringMap, cons_string_map, ConsStringMap)                           \
+  V(constructor_string, constructor_string, ConstructorString)               \
+  V(date_to_string, date_to_string, DateToString)                            \
+  V(default_string, default_string, DefaultString)                           \
+  V(EmptyByteArray, empty_byte_array, EmptyByteArray)                        \
+  V(EmptyFixedArray, empty_fixed_array, EmptyFixedArray)                     \
+  V(EmptyPropertyDictionary, empty_property_dictionary,                      \
+    EmptyPropertyDictionary)                                                 \
+  V(EmptySlowElementDictionary, empty_slow_element_dictionary,               \
+    EmptySlowElementDictionary)                                              \
+  V(empty_string, empty_string, EmptyString)                                 \
+  V(error_to_string, error_to_string, ErrorToString)                         \
+  V(errors_string, errors_string, ErrorsString)                              \
+  V(FalseValue, false_value, False)                                          \
+  V(FixedArrayMap, fixed_array_map, FixedArrayMap)                           \
+  V(FixedCOWArrayMap, fixed_cow_array_map, FixedCOWArrayMap)                 \
+  V(Function_string, function_string, FunctionString)                        \
+  V(function_to_string, function_to_string, FunctionToString)                \
+  V(GlobalPropertyCellMap, global_property_cell_map, PropertyCellMap)        \
+  V(has_instance_symbol, has_instance_symbol, HasInstanceSymbol)             \
+  V(Infinity_string, Infinity_string, InfinityString)                        \
+  V(is_concat_spreadable_symbol, is_concat_spreadable_symbol,                \
+    IsConcatSpreadableSymbol)                                                \
+  V(iterator_symbol, iterator_symbol, IteratorSymbol)                        \
+  V(length_string, length_string, LengthString)                              \
+  V(ManyClosuresCellMap, many_closures_cell_map, ManyClosuresCellMap)        \
+  V(match_symbol, match_symbol, MatchSymbol)                                 \
+  V(megamorphic_symbol, megamorphic_symbol, MegamorphicSymbol)               \
+  V(message_string, message_string, MessageString)                           \
+  V(minus_Infinity_string, minus_Infinity_string, MinusInfinityString)       \
+  V(MinusZeroValue, minus_zero_value, MinusZero)                             \
+  V(name_string, name_string, NameString)                                    \
+  V(NanValue, nan_value, Nan)                                                \
+  V(NaN_string, NaN_string, NaNString)                                       \
+  V(next_string, next_string, NextString)                                    \
+  V(NoClosuresCellMap, no_closures_cell_map, NoClosuresCellMap)              \
+  V(null_to_string, null_to_string, NullToString)                            \
+  V(NullValue, null_value, Null)                                             \
+  V(number_string, number_string, NumberString)                              \
+  V(number_to_string, number_to_string, NumberToString)                      \
+  V(Object_string, Object_string, ObjectString)                              \
+  V(object_to_string, object_to_string, ObjectToString)                      \
+  V(OneByteStringMap, one_byte_string_map, OneByteStringMap)                 \
+  V(OneClosureCellMap, one_closure_cell_map, OneClosureCellMap)              \
+  V(OnePointerFillerMap, one_pointer_filler_map, OnePointerFillerMap)        \
+  V(PromiseCapabilityMap, promise_capability_map, PromiseCapabilityMap)      \
+  V(promise_forwarding_handler_symbol, promise_forwarding_handler_symbol,    \
+    PromiseForwardingHandlerSymbol)                                          \
+  V(PromiseFulfillReactionJobTaskMap, promise_fulfill_reaction_job_task_map, \
+    PromiseFulfillReactionJobTaskMap)                                        \
+  V(promise_handled_by_symbol, promise_handled_by_symbol,                    \
+    PromiseHandledBySymbol)                                                  \
+  V(PromiseReactionMap, promise_reaction_map, PromiseReactionMap)            \
+  V(PromiseRejectReactionJobTaskMap, promise_reject_reaction_job_task_map,   \
+    PromiseRejectReactionJobTaskMap)                                         \
+  V(PromiseResolveThenableJobTaskMap, promise_resolve_thenable_job_task_map, \
+    PromiseResolveThenableJobTaskMap)                                        \
+  V(prototype_string, prototype_string, PrototypeString)                     \
+  V(replace_symbol, replace_symbol, ReplaceSymbol)                           \
+  V(regexp_to_string, regexp_to_string, RegexpToString)                      \
+  V(resolve_string, resolve_string, ResolveString)                           \
+  V(return_string, return_string, ReturnString)                              \
+  V(species_symbol, species_symbol, SpeciesSymbol)                           \
+  V(StaleRegister, stale_register, StaleRegister)                            \
+  V(StoreHandler0Map, store_handler0_map, StoreHandler0Map)                  \
+  V(string_string, string_string, StringString)                              \
+  V(string_to_string, string_to_string, StringToString)                      \
+  V(StringMap, string_map, StringMap)                                        \
+  V(TheHoleValue, the_hole_value, TheHole)                                   \
+  V(then_string, then_string, ThenString)                                    \
+  V(toString_string, toString_string, ToStringString)                        \
+  V(to_primitive_symbol, to_primitive_symbol, ToPrimitiveSymbol)             \
+  V(to_string_tag_symbol, to_string_tag_symbol, ToStringTagSymbol)           \
+  V(TrueValue, true_value, True)                                             \
+  V(undefined_to_string, undefined_to_string, UndefinedToString)             \
+  V(UndefinedValue, undefined_value, Undefined)                              \
+  V(uninitialized_symbol, uninitialized_symbol, UninitializedSymbol)         \
+  V(valueOf_string, valueOf_string, ValueOfString)                           \
+  V(zero_string, zero_string, ZeroString)                                    \
+  UNIQUE_INSTANCE_TYPE_MAP_LIST_GENERATOR(                                   \
       UNIQUE_INSTANCE_TYPE_IMMUTABLE_IMMOVABLE_MAP_ADAPTER, V)
 
 #define HEAP_IMMOVABLE_OBJECT_LIST(V)   \
@@ -464,11 +428,6 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
   }
 
   TNode<String> TaggedToDirectString(TNode<Object> value, Label* fail);
-
-  TNode<Number> TaggedToNumber(TNode<Object> value, Label* fail) {
-    GotoIfNot(IsNumber(value), fail);
-    return UncheckedCast<Number>(value);
-  }
 
   TNode<HeapObject> TaggedToHeapObject(TNode<Object> value, Label* fail) {
     GotoIf(TaggedIsSmi(value), fail);
@@ -2524,8 +2483,6 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
   // Check whether the map is for an object with special properties, such as a
   // JSProxy or an object with interceptors.
   TNode<BoolT> InstanceTypeEqual(SloppyTNode<Int32T> instance_type, int type);
-  TNode<BoolT> IsAccessorInfo(SloppyTNode<HeapObject> object);
-  TNode<BoolT> IsAccessorPair(SloppyTNode<HeapObject> object);
   TNode<BoolT> IsNoElementsProtectorCellInvalid();
   TNode<BoolT> IsArrayIteratorProtectorCellInvalid();
   TNode<BoolT> IsBigIntInstanceType(SloppyTNode<Int32T> instance_type);
@@ -2534,33 +2491,24 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
   TNode<BoolT> IsCallableMap(SloppyTNode<Map> map);
   TNode<BoolT> IsCallable(SloppyTNode<HeapObject> object);
   TNode<BoolT> TaggedIsCallable(TNode<Object> object);
-  TNode<BoolT> IsCell(SloppyTNode<HeapObject> object);
-  TNode<BoolT> IsCode(SloppyTNode<HeapObject> object);
   TNode<BoolT> IsConsStringInstanceType(SloppyTNode<Int32T> instance_type);
   TNode<BoolT> IsConstructorMap(SloppyTNode<Map> map);
   TNode<BoolT> IsConstructor(SloppyTNode<HeapObject> object);
-  TNode<BoolT> IsCoverageInfo(TNode<HeapObject> object);
-  TNode<BoolT> IsDebugInfo(TNode<HeapObject> object);
   TNode<BoolT> IsDeprecatedMap(SloppyTNode<Map> map);
   TNode<BoolT> IsNameDictionary(SloppyTNode<HeapObject> object);
   TNode<BoolT> IsGlobalDictionary(SloppyTNode<HeapObject> object);
   TNode<BoolT> IsExtensibleMap(SloppyTNode<Map> map);
   TNode<BoolT> IsExtensibleNonPrototypeMap(TNode<Map> map);
   TNode<BoolT> IsExternalStringInstanceType(SloppyTNode<Int32T> instance_type);
-  TNode<BoolT> IsFeedbackCell(SloppyTNode<HeapObject> object);
-  TNode<BoolT> IsFeedbackVector(SloppyTNode<HeapObject> object);
-  TNode<BoolT> IsContext(SloppyTNode<HeapObject> object);
   TNode<BoolT> IsFixedArray(SloppyTNode<HeapObject> object);
   TNode<BoolT> IsFixedArraySubclass(SloppyTNode<HeapObject> object);
   TNode<BoolT> IsFixedArrayWithKind(SloppyTNode<HeapObject> object,
                                     ElementsKind kind);
   TNode<BoolT> IsFixedArrayWithKindOrEmpty(SloppyTNode<FixedArrayBase> object,
                                            ElementsKind kind);
-  TNode<BoolT> IsFixedDoubleArray(SloppyTNode<HeapObject> object);
   TNode<BoolT> IsFunctionWithPrototypeSlotMap(SloppyTNode<Map> map);
   TNode<BoolT> IsHashTable(SloppyTNode<HeapObject> object);
   TNode<BoolT> IsEphemeronHashTable(SloppyTNode<HeapObject> object);
-  TNode<BoolT> IsHeapNumber(SloppyTNode<HeapObject> object);
   TNode<BoolT> IsHeapNumberInstanceType(SloppyTNode<Int32T> instance_type);
   TNode<BoolT> IsOddball(SloppyTNode<HeapObject> object);
   TNode<BoolT> IsOddballInstanceType(SloppyTNode<Int32T> instance_type);
@@ -2605,21 +2553,15 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
   TNode<BoolT> IsMap(SloppyTNode<HeapObject> object);
   TNode<BoolT> IsName(SloppyTNode<HeapObject> object);
   TNode<BoolT> IsNameInstanceType(SloppyTNode<Int32T> instance_type);
-  TNode<BoolT> IsNativeContext(SloppyTNode<HeapObject> object);
   TNode<BoolT> IsNullOrJSReceiver(SloppyTNode<HeapObject> object);
   TNode<BoolT> IsNullOrUndefined(SloppyTNode<Object> object);
   TNode<BoolT> IsNumberDictionary(SloppyTNode<HeapObject> object);
   TNode<BoolT> IsOneByteStringInstanceType(TNode<Int32T> instance_type);
   TNode<BoolT> IsPrimitiveInstanceType(SloppyTNode<Int32T> instance_type);
-  TNode<BoolT> IsPrivateSymbol(SloppyTNode<HeapObject> object);
   TNode<BoolT> IsPrivateName(SloppyTNode<Symbol> symbol);
-  TNode<BoolT> IsPromiseCapability(SloppyTNode<HeapObject> object);
   TNode<BoolT> IsPropertyArray(SloppyTNode<HeapObject> object);
   TNode<BoolT> IsPropertyCell(SloppyTNode<HeapObject> object);
-  TNode<BoolT> IsPromiseReaction(SloppyTNode<HeapObject> object);
   TNode<BoolT> IsPromiseReactionJobTask(TNode<HeapObject> object);
-  TNode<BoolT> IsPromiseRejectReactionJobTask(SloppyTNode<HeapObject> object);
-  TNode<BoolT> IsPromiseFulfillReactionJobTask(SloppyTNode<HeapObject> object);
   TNode<BoolT> IsPrototypeInitialArrayPrototype(SloppyTNode<Context> context,
                                                 SloppyTNode<Map> map);
   TNode<BoolT> IsPrototypeTypedArrayPrototype(SloppyTNode<Context> context,
@@ -2643,7 +2585,6 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
   TNode<BoolT> IsStringInstanceType(SloppyTNode<Int32T> instance_type);
   TNode<BoolT> IsString(SloppyTNode<HeapObject> object);
   TNode<BoolT> IsSymbolInstanceType(SloppyTNode<Int32T> instance_type);
-  TNode<BoolT> IsSymbol(SloppyTNode<HeapObject> object);
   TNode<BoolT> IsInternalizedStringInstanceType(TNode<Int32T> instance_type);
   TNode<BoolT> IsUniqueName(TNode<HeapObject> object);
   TNode<BoolT> IsUniqueNameNoIndex(TNode<HeapObject> object);
@@ -2651,10 +2592,6 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
   TNode<BoolT> IsUndetectableMap(SloppyTNode<Map> map);
   TNode<BoolT> IsNotWeakFixedArraySubclass(SloppyTNode<HeapObject> object);
   TNode<BoolT> IsZeroOrContext(SloppyTNode<Object> object);
-
-  inline TNode<BoolT> IsSharedFunctionInfo(TNode<HeapObject> object) {
-    return IsSharedFunctionInfoMap(LoadMap(object));
-  }
 
   TNode<BoolT> IsPromiseResolveProtectorCellInvalid();
   TNode<BoolT> IsPromiseThenProtectorCellInvalid();
@@ -2672,8 +2609,6 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
                           Int32Constant(0));
   }
 
-  // True iff |object| is a Smi or a HeapNumber.
-  TNode<BoolT> IsNumber(SloppyTNode<Object> object);
   // True iff |object| is a Smi or a HeapNumber or a BigInt.
   TNode<BoolT> IsNumeric(SloppyTNode<Object> object);
 
@@ -2704,6 +2639,8 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
   TNode<BoolT> FixedArraySizeDoesntFitInNewSpace(
       Node* element_count, int base_size = FixedArray::kHeaderSize,
       ParameterMode mode = INTPTR_PARAMETERS);
+
+  TNode<BoolT> IsMetaMap(TNode<HeapObject> o) { return IsMapMap(o); }
 
   // ElementsKind helpers:
   TNode<BoolT> ElementsKindEqual(TNode<Int32T> a, TNode<Int32T> b) {

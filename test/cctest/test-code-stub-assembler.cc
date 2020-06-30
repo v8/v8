@@ -2418,7 +2418,7 @@ TEST(IsSymbol) {
   CodeAssemblerTester asm_tester(isolate, kNumParams);
   CodeStubAssembler m(asm_tester.state());
 
-  Node* const symbol = m.Parameter(0);
+  TNode<HeapObject> const symbol = m.CAST(m.Parameter(0));
   m.Return(m.SelectBooleanConstant(m.IsSymbol(symbol)));
 
   FunctionTester ft(asm_tester.GenerateCode(), kNumParams);
@@ -2437,7 +2437,7 @@ TEST(IsPrivateSymbol) {
   CodeAssemblerTester asm_tester(isolate, kNumParams);
   CodeStubAssembler m(asm_tester.state());
 
-  Node* const symbol = m.Parameter(0);
+  TNode<HeapObject> const symbol = m.CAST(m.Parameter(0));
   m.Return(m.SelectBooleanConstant(m.IsPrivateSymbol(symbol)));
 
   FunctionTester ft(asm_tester.GenerateCode(), kNumParams);

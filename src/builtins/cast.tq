@@ -4,24 +4,114 @@
 
 extern macro IsBigInt(HeapObject): bool;
 extern macro IsConstructor(HeapObject): bool;
-extern macro IsContext(HeapObject): bool;
 extern macro IsCustomElementsReceiverInstanceType(int32): bool;
 extern macro IsExtensibleMap(Map): bool;
-extern macro IsFixedArray(HeapObject): bool;
-extern macro IsHeapNumber(HeapObject): bool;
-extern macro IsJSArrayMap(Map): bool;
-extern macro IsJSProxy(HeapObject): bool;
-extern macro IsName(HeapObject): bool;
-extern macro IsNativeContext(HeapObject): bool;
 extern macro IsNumberNormalized(Number): bool;
-extern macro IsNumber(Object): bool;
-extern macro IsPrivateSymbol(HeapObject): bool;
 extern macro IsSafeInteger(Object): bool;
 
 @export
+macro IsAccessorInfo(o: HeapObject): bool {
+  return Is<AccessorInfo>(o);
+}
+
+@export
+macro IsAccessorPair(o: HeapObject): bool {
+  return Is<AccessorPair>(o);
+}
+
+@export
 macro IsAllocationSite(o: HeapObject): bool {
-  Cast<AllocationSite>(o) otherwise return false;
-  return true;
+  return Is<AllocationSite>(o);
+}
+
+@export
+macro IsCell(o: HeapObject): bool {
+  return Is<Cell>(o);
+}
+
+@export
+macro IsCode(o: HeapObject): bool {
+  return Is<Code>(o);
+}
+
+@export
+macro IsContext(o: HeapObject): bool {
+  return Is<Context>(o);
+}
+
+@export
+macro IsCoverageInfo(o: HeapObject): bool {
+  return Is<CoverageInfo>(o);
+}
+
+@export
+macro IsDebugInfo(o: HeapObject): bool {
+  return Is<DebugInfo>(o);
+}
+
+@export
+macro IsFixedDoubleArray(o: HeapObject): bool {
+  return Is<FixedDoubleArray>(o);
+}
+
+@export
+macro IsFeedbackCell(o: HeapObject): bool {
+  return Is<FeedbackCell>(o);
+}
+
+@export
+macro IsFeedbackVector(o: HeapObject): bool {
+  return Is<FeedbackVector>(o);
+}
+
+@export
+macro IsHeapNumber(o: HeapObject): bool {
+  return Is<HeapNumber>(o);
+}
+
+@export
+macro IsNativeContext(o: HeapObject): bool {
+  return Is<NativeContext>(o);
+}
+
+@export
+macro IsNumber(o: Object): bool {
+  return Is<Number>(o);
+}
+
+@export
+macro IsPrivateSymbol(o: HeapObject): bool {
+  return Is<PrivateSymbol>(o);
+}
+
+@export
+macro IsPromiseCapability(o: HeapObject): bool {
+  return Is<PromiseCapability>(o);
+}
+
+@export
+macro IsPromiseFulfillReactionJobTask(o: HeapObject): bool {
+  return Is<PromiseFulfillReactionJobTask>(o);
+}
+
+@export
+macro IsPromiseReaction(o: HeapObject): bool {
+  return Is<PromiseReaction>(o);
+}
+
+@export
+macro IsPromiseRejectReactionJobTask(o: HeapObject): bool {
+  return Is<PromiseRejectReactionJobTask>(o);
+}
+
+@export
+macro IsSharedFunctionInfo(o: HeapObject): bool {
+  return Is<SharedFunctionInfo>(o);
+}
+
+@export
+macro IsSymbol(o: HeapObject): bool {
+  return Is<Symbol>(o);
 }
 
 extern macro TaggedToHeapObject(Object): HeapObject
@@ -38,8 +128,6 @@ extern macro HeapObjectToConstructor(HeapObject): Constructor
     labels CastError;
 extern macro HeapObjectToJSFunctionWithPrototypeSlot(HeapObject):
     JSFunctionWithPrototypeSlot
-    labels CastError;
-extern macro TaggedToNumber(Object): Number
     labels CastError;
 
 macro Cast<A : type extends WeakHeapObject>(o: A|Object): A labels CastError {
@@ -87,7 +175,17 @@ Cast<Zero>(o: Object): Zero labels CastError {
 
 Cast<Number>(o: Object): Number
     labels CastError {
-  return TaggedToNumber(o) otherwise CastError;
+  typeswitch (o) {
+    case (s: Smi): {
+      return s;
+    }
+    case (n: HeapNumber): {
+      return n;
+    }
+    case (Object): {
+      goto CastError;
+    }
+  }
 }
 
 Cast<Undefined>(o: Object): Undefined
@@ -288,24 +386,21 @@ Cast<Undefined|Callable>(o: HeapObject): Undefined|Callable
 }
 
 macro Cast<T : type extends Symbol>(o: Symbol): T labels CastError;
-Cast<PublicSymbol>(o: Symbol): PublicSymbol labels CastError {
-  if (IsPrivateSymbol(o)) goto CastError;
-  return %RawDownCast<PublicSymbol>(o);
+Cast<PublicSymbol>(s: Symbol): PublicSymbol labels CastError {
+  if (s.flags.is_private) goto CastError;
+  return %RawDownCast<PublicSymbol>(s);
 }
-Cast<PrivateSymbol>(o: Symbol): PrivateSymbol labels CastError {
-  if (IsPrivateSymbol(o)) {
-    return %RawDownCast<PrivateSymbol>(o);
-  }
+Cast<PrivateSymbol>(s: Symbol): PrivateSymbol labels CastError {
+  if (s.flags.is_private) return %RawDownCast<PrivateSymbol>(s);
   goto CastError;
 }
-
 Cast<PublicSymbol>(o: HeapObject): PublicSymbol labels CastError {
-  const o = Cast<Symbol>(o) otherwise CastError;
-  return Cast<PublicSymbol>(o) otherwise CastError;
+  const s = Cast<Symbol>(o) otherwise CastError;
+  return Cast<PublicSymbol>(s) otherwise CastError;
 }
 Cast<PrivateSymbol>(o: HeapObject): PrivateSymbol labels CastError {
-  const o = Cast<Symbol>(o) otherwise CastError;
-  return Cast<PrivateSymbol>(o) otherwise CastError;
+  const s = Cast<Symbol>(o) otherwise CastError;
+  return Cast<PrivateSymbol>(s) otherwise CastError;
 }
 
 Cast<DirectString>(o: HeapObject): DirectString
@@ -385,10 +480,10 @@ Cast<FastJSArray>(implicit context: Context)(o: HeapObject): FastJSArray
     labels CastError {
   if (IsForceSlowPath()) goto CastError;
 
-  const map: Map = o.map;
-  if (!IsJSArrayMap(map)) goto CastError;
+  if (!Is<JSArray>(o)) goto CastError;
 
   // Bailout if receiver has slow elements.
+  const map: Map = o.map;
   const elementsKind: ElementsKind = LoadMapElementsKind(map);
   if (!IsFastElementsKind(elementsKind)) goto CastError;
 
@@ -402,10 +497,10 @@ Cast<FastJSArray>(implicit context: Context)(o: HeapObject): FastJSArray
 Cast<FastJSArrayForRead>(implicit context: Context)(o: HeapObject):
     FastJSArrayForRead
     labels CastError {
-  const map: Map = o.map;
-  if (!IsJSArrayMap(map)) goto CastError;
+  if (!Is<JSArray>(o)) goto CastError;
 
   // Bailout if receiver has slow elements.
+  const map: Map = o.map;
   const elementsKind: ElementsKind = LoadMapElementsKind(map);
   if (!IsElementsKindLessThanOrEqual(
           elementsKind, ElementsKind::LAST_ANY_NONEXTENSIBLE_ELEMENTS_KIND))

@@ -5635,14 +5635,6 @@ TNode<BoolT> CodeStubAssembler::IsCallableMap(SloppyTNode<Map> map) {
   return IsSetWord32<Map::Bits1::IsCallableBit>(LoadMapBitField(map));
 }
 
-TNode<BoolT> CodeStubAssembler::IsCoverageInfo(TNode<HeapObject> object) {
-  return IsCoverageInfoMap(LoadMap(object));
-}
-
-TNode<BoolT> CodeStubAssembler::IsDebugInfo(TNode<HeapObject> object) {
-  return HasInstanceType(object, DEBUG_INFO_TYPE);
-}
-
 TNode<BoolT> CodeStubAssembler::IsDeprecatedMap(SloppyTNode<Map> map) {
   CSA_ASSERT(this, IsMap(map));
   return IsSetWord32<Map::Bits3::IsDeprecatedBit>(LoadMapBitField3(map));
@@ -5772,14 +5764,6 @@ TNode<BoolT> CodeStubAssembler::TaggedIsCallable(TNode<Object> object) {
 
 TNode<BoolT> CodeStubAssembler::IsCallable(SloppyTNode<HeapObject> object) {
   return IsCallableMap(LoadMap(object));
-}
-
-TNode<BoolT> CodeStubAssembler::IsCell(SloppyTNode<HeapObject> object) {
-  return TaggedEqual(LoadMap(object), CellMapConstant());
-}
-
-TNode<BoolT> CodeStubAssembler::IsCode(SloppyTNode<HeapObject> object) {
-  return HasInstanceType(object, CODE_TYPE);
 }
 
 TNode<BoolT> CodeStubAssembler::IsConstructorMap(SloppyTNode<Map> map) {
@@ -5996,13 +5980,6 @@ TNode<BoolT> CodeStubAssembler::IsJSAsyncGeneratorObject(
   return HasInstanceType(object, JS_ASYNC_GENERATOR_OBJECT_TYPE);
 }
 
-TNode<BoolT> CodeStubAssembler::IsContext(SloppyTNode<HeapObject> object) {
-  TNode<Uint16T> instance_type = LoadInstanceType(object);
-  return UncheckedCast<BoolT>(Word32And(
-      Int32GreaterThanOrEqual(instance_type, Int32Constant(FIRST_CONTEXT_TYPE)),
-      Int32LessThanOrEqual(instance_type, Int32Constant(LAST_CONTEXT_TYPE))));
-}
-
 TNode<BoolT> CodeStubAssembler::IsFixedArray(SloppyTNode<HeapObject> object) {
   return HasInstanceType(object, FIXED_ARRAY_TYPE);
 }
@@ -6026,19 +6003,9 @@ TNode<BoolT> CodeStubAssembler::IsNotWeakFixedArraySubclass(
                        Int32Constant(LAST_WEAK_FIXED_ARRAY_TYPE))));
 }
 
-TNode<BoolT> CodeStubAssembler::IsPromiseCapability(
-    SloppyTNode<HeapObject> object) {
-  return HasInstanceType(object, PROMISE_CAPABILITY_TYPE);
-}
-
 TNode<BoolT> CodeStubAssembler::IsPropertyArray(
     SloppyTNode<HeapObject> object) {
   return HasInstanceType(object, PROPERTY_ARRAY_TYPE);
-}
-
-TNode<BoolT> CodeStubAssembler::IsPromiseReaction(
-    SloppyTNode<HeapObject> object) {
-  return HasInstanceType(object, PROMISE_REACTION_TYPE);
 }
 
 TNode<BoolT> CodeStubAssembler::IsPromiseReactionJobTask(
@@ -6046,16 +6013,6 @@ TNode<BoolT> CodeStubAssembler::IsPromiseReactionJobTask(
   TNode<Uint16T> instance_type = LoadInstanceType(object);
   return IsInRange(instance_type, FIRST_PROMISE_REACTION_JOB_TASK_TYPE,
                    LAST_PROMISE_REACTION_JOB_TASK_TYPE);
-}
-
-TNode<BoolT> CodeStubAssembler::IsPromiseRejectReactionJobTask(
-    SloppyTNode<HeapObject> object) {
-  return HasInstanceType(object, PROMISE_REJECT_REACTION_JOB_TASK_TYPE);
-}
-
-TNode<BoolT> CodeStubAssembler::IsPromiseFulfillReactionJobTask(
-    SloppyTNode<HeapObject> object) {
-  return HasInstanceType(object, PROMISE_FULFILL_REACTION_JOB_TASK_TYPE);
 }
 
 // This complicated check is due to elements oddities. If a smi array is empty
@@ -6103,18 +6060,6 @@ TNode<BoolT> CodeStubAssembler::IsPropertyCell(SloppyTNode<HeapObject> object) {
   return IsPropertyCellMap(LoadMap(object));
 }
 
-TNode<BoolT> CodeStubAssembler::IsAccessorInfo(SloppyTNode<HeapObject> object) {
-  return IsAccessorInfoMap(LoadMap(object));
-}
-
-TNode<BoolT> CodeStubAssembler::IsAccessorPair(SloppyTNode<HeapObject> object) {
-  return IsAccessorPairMap(LoadMap(object));
-}
-
-TNode<BoolT> CodeStubAssembler::IsHeapNumber(SloppyTNode<HeapObject> object) {
-  return IsHeapNumberMap(LoadMap(object));
-}
-
 TNode<BoolT> CodeStubAssembler::IsHeapNumberInstanceType(
     SloppyTNode<Int32T> instance_type) {
   return InstanceTypeEqual(instance_type, HEAP_NUMBER_TYPE);
@@ -6127,15 +6072,6 @@ TNode<BoolT> CodeStubAssembler::IsOddball(SloppyTNode<HeapObject> object) {
 TNode<BoolT> CodeStubAssembler::IsOddballInstanceType(
     SloppyTNode<Int32T> instance_type) {
   return InstanceTypeEqual(instance_type, ODDBALL_TYPE);
-}
-
-TNode<BoolT> CodeStubAssembler::IsFeedbackCell(SloppyTNode<HeapObject> object) {
-  return HasInstanceType(object, FEEDBACK_CELL_TYPE);
-}
-
-TNode<BoolT> CodeStubAssembler::IsFeedbackVector(
-    SloppyTNode<HeapObject> object) {
-  return IsFeedbackVectorMap(LoadMap(object));
 }
 
 TNode<BoolT> CodeStubAssembler::IsName(SloppyTNode<HeapObject> object) {
@@ -6154,10 +6090,6 @@ TNode<BoolT> CodeStubAssembler::IsString(SloppyTNode<HeapObject> object) {
 TNode<BoolT> CodeStubAssembler::IsSymbolInstanceType(
     SloppyTNode<Int32T> instance_type) {
   return InstanceTypeEqual(instance_type, SYMBOL_TYPE);
-}
-
-TNode<BoolT> CodeStubAssembler::IsSymbol(SloppyTNode<HeapObject> object) {
-  return IsSymbolMap(LoadMap(object));
 }
 
 TNode<BoolT> CodeStubAssembler::IsInternalizedStringInstanceType(
@@ -6225,32 +6157,9 @@ TNode<BoolT> CodeStubAssembler::IsPrimitiveInstanceType(
                               Int32Constant(LAST_PRIMITIVE_HEAP_OBJECT_TYPE));
 }
 
-TNode<BoolT> CodeStubAssembler::IsPrivateSymbol(
-    SloppyTNode<HeapObject> object) {
-  return Select<BoolT>(
-      IsSymbol(object),
-      [=] {
-        TNode<Symbol> symbol = CAST(object);
-        TNode<Uint32T> flags =
-            LoadObjectField<Uint32T>(symbol, Symbol::kFlagsOffset);
-        return IsSetWord32<Symbol::IsPrivateBit>(flags);
-      },
-      [=] { return Int32FalseConstant(); });
-}
-
 TNode<BoolT> CodeStubAssembler::IsPrivateName(SloppyTNode<Symbol> symbol) {
   TNode<Uint32T> flags = LoadObjectField<Uint32T>(symbol, Symbol::kFlagsOffset);
   return IsSetWord32<Symbol::IsPrivateNameBit>(flags);
-}
-
-TNode<BoolT> CodeStubAssembler::IsNativeContext(
-    SloppyTNode<HeapObject> object) {
-  return HasInstanceType(object, NATIVE_CONTEXT_TYPE);
-}
-
-TNode<BoolT> CodeStubAssembler::IsFixedDoubleArray(
-    SloppyTNode<HeapObject> object) {
-  return TaggedEqual(LoadMap(object), FixedDoubleArrayMapConstant());
 }
 
 TNode<BoolT> CodeStubAssembler::IsHashTable(SloppyTNode<HeapObject> object) {
@@ -6328,12 +6237,6 @@ TNode<BoolT> CodeStubAssembler::IsJSDataView(TNode<HeapObject> object) {
 
 TNode<BoolT> CodeStubAssembler::IsJSRegExp(SloppyTNode<HeapObject> object) {
   return HasInstanceType(object, JS_REG_EXP_TYPE);
-}
-
-TNode<BoolT> CodeStubAssembler::IsNumber(SloppyTNode<Object> object) {
-  return Select<BoolT>(
-      TaggedIsSmi(object), [=] { return Int32TrueConstant(); },
-      [=] { return IsHeapNumber(CAST(object)); });
 }
 
 TNode<BoolT> CodeStubAssembler::IsNumeric(SloppyTNode<Object> object) {
@@ -9663,7 +9566,7 @@ Node* CodeStubAssembler::PrepareValueForWriteToTypedArray(
   // We can handle both HeapNumber and Oddball here, since Oddball has the
   // same layout as the HeapNumber for the HeapNumber::value field. This
   // way we can also properly optimize stores of oddballs to typed arrays.
-  GotoIf(IsHeapNumber(var_input.value()), &if_heapnumber_or_oddball);
+  GotoIf(IsHeapNumber(CAST(var_input.value())), &if_heapnumber_or_oddball);
   STATIC_ASSERT_FIELD_OFFSETS_EQUAL(HeapNumber::kValueOffset,
                                     Oddball::kToNumberRawOffset);
   Branch(HasInstanceType(var_input.value(), ODDBALL_TYPE),
