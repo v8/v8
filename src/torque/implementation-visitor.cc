@@ -2391,10 +2391,16 @@ VisitResult ImplementationVisitor::GeneratePointerCall(
 void ImplementationVisitor::AddCallParameter(
     Callable* callable, VisitResult parameter, const Type* parameter_type,
     std::vector<VisitResult>* converted_arguments, StackRange* argument_range,
-    std::vector<std::string>* constexpr_arguments) {
-  VisitResult converted = GenerateImplicitConvert(parameter_type, parameter);
+    std::vector<std::string>* constexpr_arguments, bool inline_macro) {
+  VisitResult converted;
+  if ((converted_arguments->size() < callable->signature().implicit_count) &&
+      parameter.type()->IsTopType()) {
+    converted = GenerateCopy(parameter);
+  } else {
+    converted = GenerateImplicitConvert(parameter_type, parameter);
+  }
   converted_arguments->push_back(converted);
-  if (!callable->ShouldBeInlined()) {
+  if (!inline_macro) {
     if (converted.IsOnStack()) {
       argument_range->Extend(converted.stack_range());
     } else {
@@ -2444,18 +2450,33 @@ VisitResult ImplementationVisitor::GenerateCall(
     }
   }
 
+  bool inline_macro = callable->ShouldBeInlined();
   std::vector<VisitResult> implicit_arguments;
   for (size_t i = 0; i < callable->signature().implicit_count; ++i) {
     std::string implicit_name = callable->signature().parameter_names[i]->value;
     base::Optional<Binding<LocalValue>*> val =
         TryLookupLocalValue(implicit_name);
-    if (!val) {
-      ReportError("implicit parameter '", implicit_name,
-                  "' required for call to '", callable->ReadableName(),
-                  "' is not defined");
+    if (val) {
+      implicit_arguments.push_back(
+          GenerateFetchFromLocation((*val)->GetLocationReference(*val)));
+    } else {
+      VisitResult unititialized = VisitResult::TopTypeResult(
+          "implicit parameter '" + implicit_name +
+              "' is not defined when invoking " + callable->ReadableName() +
+              " at " + PositionAsString(CurrentSourcePosition::Get()),
+          callable->signature().parameter_types.types[i]);
+      implicit_arguments.push_back(unititialized);
     }
-    implicit_arguments.push_back(
-        GenerateFetchFromLocation((*val)->GetLocationReference(*val)));
+    const Type* type = implicit_arguments.back().type();
+    if (const TopType* top_type = TopType::DynamicCast(type)) {
+      if (!callable->IsMacro() || callable->IsExternal()) {
+        ReportError(
+            "unititialized implicit parameters can only be passed to "
+            "Torque-defined macros: the ",
+            top_type->reason());
+      }
+      inline_macro = true;
+    }
   }
 
   std::vector<VisitResult> converted_arguments;
@@ -2467,7 +2488,7 @@ VisitResult ImplementationVisitor::GenerateCall(
     AddCallParameter(callable, implicit_arguments[current],
                      callable->signature().parameter_types.types[current],
                      &converted_arguments, &argument_range,
-                     &constexpr_arguments);
+                     &constexpr_arguments, inline_macro);
   }
 
   if (this_reference) {
@@ -2476,7 +2497,7 @@ VisitResult ImplementationVisitor::GenerateCall(
     // By now, the this reference should either be a variable, a temporary or
     // a Slice. In either case the fetch of the VisitResult should succeed.
     VisitResult this_value = this_reference->GetVisitResult();
-    if (method->ShouldBeInlined()) {
+    if (inline_macro) {
       if (!this_value.type()->IsSubtypeOf(method->aggregate_type())) {
         ReportError("this parameter must be a subtype of ",
                     *method->aggregate_type(), " but it is of type ",
@@ -2485,7 +2506,7 @@ VisitResult ImplementationVisitor::GenerateCall(
     } else {
       AddCallParameter(callable, this_value, method->aggregate_type(),
                        &converted_arguments, &argument_range,
-                       &constexpr_arguments);
+                       &constexpr_arguments, inline_macro);
     }
     ++current;
   }
@@ -2495,7 +2516,7 @@ VisitResult ImplementationVisitor::GenerateCall(
                               ? TypeOracle::GetObjectType()
                               : callable->signature().types()[current++];
     AddCallParameter(callable, arg, to_type, &converted_arguments,
-                     &argument_range, &constexpr_arguments);
+                     &argument_range, &constexpr_arguments, inline_macro);
   }
 
   size_t label_count = callable->signature().labels.size();
@@ -2559,7 +2580,7 @@ VisitResult ImplementationVisitor::GenerateCall(
       }
       result << "))";
       return VisitResult(return_type, result.str());
-    } else if (macro->ShouldBeInlined()) {
+    } else if (inline_macro) {
       std::vector<Block*> label_blocks;
       for (Binding<LocalLabel>* label : arguments.labels) {
         label_blocks.push_back(label->block);
@@ -2874,8 +2895,13 @@ VisitResult ImplementationVisitor::GenerateImplicitConvert(
     return scope.Yield(GenerateCopy(source));
   } else {
     std::stringstream s;
-    s << "cannot use expression of type " << *source.type()
-      << " as a value of type " << *destination_type;
+    if (const TopType* top_type = TopType::DynamicCast(source.type())) {
+      s << "undefined expression of type " << *destination_type << ": the "
+        << top_type->reason();
+    } else {
+      s << "cannot use expression of type " << *source.type()
+        << " as a value of type " << *destination_type;
+    }
     ReportError(s.str());
   }
 }

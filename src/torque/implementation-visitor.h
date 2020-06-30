@@ -693,7 +693,8 @@ class ImplementationVisitor {
                         const Type* parameter_type,
                         std::vector<VisitResult>* converted_arguments,
                         StackRange* argument_range,
-                        std::vector<std::string>* constexpr_arguments);
+                        std::vector<std::string>* constexpr_arguments,
+                        bool inline_macro);
 
   VisitResult GenerateCall(Callable* callable,
                            base::Optional<LocationReference> this_parameter,

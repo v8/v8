@@ -849,6 +849,55 @@ TEST(Torque, FieldAccessOnNonClassType) {
       HasSubstr("map"));
 }
 
+TEST(Torque, UnusedImplicit) {
+  ExpectSuccessfulCompilation(R"(
+    @export
+    macro Test1(implicit c: Smi)(a: Object): Object { return a; }
+    @export
+    macro Test2(b: Object) { Test1(b);  }
+  )");
+
+  ExpectFailingCompilation(
+      R"(
+    macro Test1(implicit c: Smi)(_a: Object): Smi { return c; }
+    @export
+    macro Test2(b: Smi) { Test1(b);  }
+  )",
+      HasSubstr("undefined expression of type Smi: the implicit "
+                "parameter 'c' is not defined when invoking Test1 at"));
+
+  ExpectFailingCompilation(
+      R"(
+    extern macro Test3(implicit c: Smi)(Object): Smi;
+    @export
+    macro Test4(b: Smi) { Test3(b);  }
+  )",
+      HasSubstr("unititialized implicit parameters can only be passed to "
+                "Torque-defined macros: the implicit parameter 'c' is not "
+                "defined when invoking Test3"));
+  ExpectSuccessfulCompilation(
+      R"(
+    macro Test7<T: type>(implicit c: Smi)(o: T): Smi;
+    Test7<Smi>(implicit c: Smi)(o: Smi): Smi { return o; }
+    @export
+    macro Test8(b: Smi) { Test7(b); }
+  )");
+
+  ExpectFailingCompilation(
+      R"(
+    macro Test6<T: type>(_o: T): T;
+    macro Test6<T: type>(implicit c: T)(_o: T): T {
+      return c;
+    }
+    macro Test7<T: type>(o: T): Smi;
+    Test7<Smi>(o: Smi): Smi { return Test6<Smi>(o); }
+    @export
+    macro Test8(b: Smi) { Test7(b); }
+  )",
+      HasSubstr("\nambiguous callable : \n  Test6(Smi)\ncandidates are:\n  "
+                "Test6(Smi): Smi\n  Test6(implicit Smi)(Smi): Smi"));
+}
+
 }  // namespace torque
 }  // namespace internal
 }  // namespace v8

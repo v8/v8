@@ -756,6 +756,8 @@ class VisitResult {
     DCHECK(type->IsConstexpr());
   }
   static VisitResult NeverResult();
+  static VisitResult TopTypeResult(std::string top_reason,
+                                   const Type* from_type);
   VisitResult(const Type* type, StackRange stack_range)
       : type_(type), stack_range_(stack_range) {
     DCHECK(!type->IsConstexpr());
