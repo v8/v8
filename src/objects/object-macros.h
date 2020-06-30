@@ -311,6 +311,9 @@
 
 #ifdef V8_DISABLE_WRITE_BARRIERS
 #define EPHEMERON_KEY_WRITE_BARRIER(object, offset, value)
+#elif V8_ENABLE_UNCONDITIONAL_WRITE_BARRIERS
+#define EPHEMERON_KEY_WRITE_BARRIER(object, offset, value) \
+  WRITE_BARRIER(object, offset, value)
 #else
 #define EPHEMERON_KEY_WRITE_BARRIER(object, offset, value)                    \
   do {                                                                        \
@@ -323,6 +326,9 @@
 
 #ifdef V8_DISABLE_WRITE_BARRIERS
 #define CONDITIONAL_WRITE_BARRIER(object, offset, value, mode)
+#elif V8_ENABLE_UNCONDITIONAL_WRITE_BARRIERS
+#define CONDITIONAL_WRITE_BARRIER(object, offset, value, mode) \
+  WRITE_BARRIER(object, offset, value)
 #else
 #define CONDITIONAL_WRITE_BARRIER(object, offset, value, mode)       \
   do {                                                               \
@@ -339,6 +345,9 @@
 
 #ifdef V8_DISABLE_WRITE_BARRIERS
 #define CONDITIONAL_WEAK_WRITE_BARRIER(object, offset, value, mode)
+#elif V8_ENABLE_UNCONDITIONAL_WRITE_BARRIERS
+#define CONDITIONAL_WEAK_WRITE_BARRIER(object, offset, value, mode) \
+  WRITE_BARRIER(object, offset, value)
 #else
 #define CONDITIONAL_WEAK_WRITE_BARRIER(object, offset, value, mode)           \
   do {                                                                        \

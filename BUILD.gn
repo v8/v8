@@ -214,6 +214,10 @@ declare_args() {
   # heap has single generation.
   v8_disable_write_barriers = false
 
+  # Ensure that write barriers are always used.
+  # Useful for debugging purposes.
+  v8_enable_unconditional_write_barriers = false
+
   # Redirect allocation in young generation so that there will be
   # only one single generation.
   v8_enable_single_generation = ""
@@ -319,12 +323,21 @@ assert(
 assert(!v8_enable_heap_sandbox || v8_enable_pointer_compression,
        "V8 Heap Sandbox requires pointer compression")
 
+assert(!v8_enable_unconditional_write_barriers || !v8_disable_write_barriers,
+       "Write barriers can't be both enabled and disabled")
+
 assert(!cppgc_enable_caged_heap || v8_current_cpu == "x64" ||
            v8_current_cpu == "arm64",
        "CppGC caged heap requires 64bit platforms")
 
 assert(!cppgc_enable_young_generation || cppgc_enable_caged_heap,
        "Young generation in CppGC requires caged heap")
+
+if (v8_enable_single_generation == true) {
+  assert(
+      v8_enable_unconditional_write_barriers || v8_disable_write_barriers,
+      "Requires unconditional write barriers or none (which disables incremental marking)")
+}
 
 v8_random_seed = "314159265"
 v8_toolset_for_shell = "host"

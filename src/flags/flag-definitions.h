@@ -350,6 +350,16 @@ DEFINE_BOOL_READONLY(disable_write_barriers, V8_DISABLE_WRITE_BARRIERS_BOOL,
 // Disable incremental marking barriers
 DEFINE_NEG_IMPLICATION(disable_write_barriers, incremental_marking)
 
+#ifdef V8_ENABLE_UNCONDITIONAL_WRITE_BARRIERS
+#define V8_ENABLE_UNCONDITIONAL_WRITE_BARRIERS_BOOL true
+#else
+#define V8_ENABLE_UNCONDITIONAL_WRITE_BARRIERS_BOOL false
+#endif
+
+DEFINE_BOOL_READONLY(enable_unconditional_write_barriers,
+                     V8_ENABLE_UNCONDITIONAL_WRITE_BARRIERS_BOOL,
+                     "always use full write barriers")
+
 #ifdef V8_ENABLE_SINGLE_GENERATION
 #define V8_GENERATION_BOOL true
 #else

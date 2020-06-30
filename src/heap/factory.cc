@@ -1543,11 +1543,16 @@ Handle<JSObject> Factory::CopyJSObjectWithAllocationSite(
 
   DCHECK(Heap::InYoungGeneration(raw_clone) || FLAG_single_generation);
 
-  // Since we know the clone is allocated in new space, we can copy
-  // the contents without worrying about updating the write barrier.
   Heap::CopyBlock(raw_clone.address(), source->address(), object_size);
   Handle<JSObject> clone(JSObject::cast(raw_clone), isolate());
 
+  if (FLAG_enable_unconditional_write_barriers) {
+    // By default, we shouldn't need to update the write barrier here, as the
+    // clone will be allocated in new space.
+    const ObjectSlot start(raw_clone.address());
+    const ObjectSlot end(raw_clone.address() + object_size);
+    isolate()->heap()->WriteBarrierForRange(raw_clone, start, end);
+  }
   if (!site.is_null()) {
     AllocationMemento alloc_memento = AllocationMemento::unchecked_cast(
         Object(raw_clone.ptr() + object_size));
