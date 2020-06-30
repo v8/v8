@@ -282,7 +282,7 @@ void InterpreterPushArgsThenConstructDescriptor::InitializePlatformSpecific(
 void ResumeGeneratorDescriptor::InitializePlatformSpecific(
     CallInterfaceDescriptorData* data) {
   Register registers[] = {
-      t0,  // the value to pass to the generator
+      a0,  // the value to pass to the generator
       a1   // the JSGeneratorObject to resume
   };
   data->InitializePlatformSpecific(arraysize(registers), registers);
