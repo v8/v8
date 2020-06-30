@@ -488,13 +488,13 @@ void LiftoffAssembler::AtomicStore(Register dst_addr, Register offset_reg,
 namespace liftoff {
 #define __ lasm->
 
-enum AddOrSubOrExchange { kAdd, kSub, kExchange };
+enum Binop { kAdd, kSub, kAnd, kOr, kXor, kExchange };
 
-inline void AtomicAddOrSub32(LiftoffAssembler* lasm,
-                             AddOrSubOrExchange add_or_sub_or_exchange,
-                             Register dst_addr, Register offset_reg,
-                             uint32_t offset_imm, LiftoffRegister value,
-                             LiftoffRegister result, StoreType type) {
+inline void AtomicAddOrSubOrExchange32(LiftoffAssembler* lasm, Binop binop,
+                                       Register dst_addr, Register offset_reg,
+                                       uint32_t offset_imm,
+                                       LiftoffRegister value,
+                                       LiftoffRegister result, StoreType type) {
   DCHECK_EQ(value, result);
   DCHECK(!__ cache_state()->is_used(result));
   bool is_64_bit_op = type.value_type() == kWasmI64;
@@ -515,16 +515,16 @@ inline void AtomicAddOrSub32(LiftoffAssembler* lasm,
   }
 
   Operand dst_op = Operand(dst_addr, offset_reg, times_1, offset_imm);
-  if (add_or_sub_or_exchange == kSub) {
+  if (binop == kSub) {
     __ neg(value_reg);
   }
-  if (add_or_sub_or_exchange != kExchange) {
+  if (binop != kExchange) {
     __ lock();
   }
   switch (type.value()) {
     case StoreType::kI64Store8:
     case StoreType::kI32Store8:
-      if (add_or_sub_or_exchange == kExchange) {
+      if (binop == kExchange) {
         __ xchg_b(value_reg, dst_op);
       } else {
         __ xadd_b(dst_op, value_reg);
@@ -533,7 +533,7 @@ inline void AtomicAddOrSub32(LiftoffAssembler* lasm,
       break;
     case StoreType::kI64Store16:
     case StoreType::kI32Store16:
-      if (add_or_sub_or_exchange == kExchange) {
+      if (binop == kExchange) {
         __ xchg_w(value_reg, dst_op);
       } else {
         __ xadd_w(dst_op, value_reg);
@@ -542,7 +542,7 @@ inline void AtomicAddOrSub32(LiftoffAssembler* lasm,
       break;
     case StoreType::kI64Store32:
     case StoreType::kI32Store:
-      if (add_or_sub_or_exchange == kExchange) {
+      if (binop == kExchange) {
         __ xchg(value_reg, dst_op);
       } else {
         __ xadd(dst_op, value_reg);
@@ -558,8 +558,6 @@ inline void AtomicAddOrSub32(LiftoffAssembler* lasm,
     __ xor_(result.high_gp(), result.high_gp());
   }
 }
-
-enum Binop { kAnd, kOr, kXor };
 
 inline void AtomicBinop32(LiftoffAssembler* lasm, Binop op, Register dst_addr,
                           Register offset_reg, uint32_t offset_imm,
@@ -636,6 +634,8 @@ inline void AtomicBinop32(LiftoffAssembler* lasm, Binop op, Register dst_addr,
       __ xor_(scratch, value_reg);
       break;
     }
+    default:
+      UNREACHABLE();
   }
 
   __ lock();
@@ -671,6 +671,102 @@ inline void AtomicBinop32(LiftoffAssembler* lasm, Binop op, Register dst_addr,
     __ xor_(result.high_gp(), result.high_gp());
   }
 }
+
+inline void AtomicBinop64(LiftoffAssembler* lasm, Binop op, Register dst_addr,
+                          Register offset_reg, uint32_t offset_imm,
+                          LiftoffRegister value, LiftoffRegister result) {
+  // We need {ebx} here, which is the root register. As the root register it
+  // needs special treatment. As we use {ebx} directly in the code below, we
+  // have to make sure here that the root register is actually {ebx}.
+  static_assert(kRootRegister == ebx,
+                "The following code assumes that kRootRegister == ebx");
+  __ push(ebx);
+
+  // Store the value on the stack, so that we can use it for retries.
+  __ AllocateStackSpace(8);
+  Operand value_op_hi = Operand(esp, 0);
+  Operand value_op_lo = Operand(esp, 4);
+  __ mov(value_op_lo, value.low_gp());
+  __ mov(value_op_hi, value.high_gp());
+
+  // We want to use the compare-exchange instruction here. It uses registers
+  // as follows: old-value = EDX:EAX; new-value = ECX:EBX.
+  Register old_hi = edx;
+  Register old_lo = eax;
+  Register new_hi = ecx;
+  Register new_lo = ebx;
+  // Base and offset need separate registers that do not alias with the
+  // ones above.
+  Register base = esi;
+  Register offset = edi;
+
+  // Swap base and offset register if necessary to avoid unnecessary
+  // moves.
+  if (dst_addr == offset || offset_reg == base) {
+    std::swap(dst_addr, offset_reg);
+  }
+  // Spill all these registers if they are still holding other values.
+  liftoff::SpillRegisters(lasm, old_hi, old_lo, new_hi, base, offset);
+  {
+    LiftoffAssembler::ParallelRegisterMoveTuple reg_moves[]{
+        {LiftoffRegister::ForPair(base, offset),
+         LiftoffRegister::ForPair(dst_addr, offset_reg), kWasmI64}};
+    __ ParallelRegisterMove(ArrayVector(reg_moves));
+  }
+
+  Operand dst_op_lo = Operand(base, offset, times_1, offset_imm);
+  Operand dst_op_hi = Operand(base, offset, times_1, offset_imm + 4);
+
+  // Load the old value from memory.
+  __ mov(old_lo, dst_op_lo);
+  __ mov(old_hi, dst_op_hi);
+  Label retry;
+  __ bind(&retry);
+  __ mov(new_lo, old_lo);
+  __ mov(new_hi, old_hi);
+  switch (op) {
+    case kAdd:
+      __ add(new_lo, value_op_lo);
+      __ adc(new_hi, value_op_hi);
+      break;
+    case kSub:
+      __ sub(new_lo, value_op_lo);
+      __ sbb(new_hi, value_op_hi);
+      break;
+    case kAnd:
+      __ and_(new_lo, value_op_lo);
+      __ and_(new_hi, value_op_hi);
+      break;
+    case kOr:
+      __ or_(new_lo, value_op_lo);
+      __ or_(new_hi, value_op_hi);
+      break;
+    case kXor:
+      __ xor_(new_lo, value_op_lo);
+      __ xor_(new_hi, value_op_hi);
+      break;
+    case kExchange:
+      __ mov(new_lo, value_op_lo);
+      __ mov(new_hi, value_op_hi);
+      break;
+  }
+  __ lock();
+  __ cmpxchg8b(dst_op_lo);
+  __ j(not_equal, &retry);
+
+  // Deallocate the stack space again.
+  __ add(esp, Immediate(8));
+  // Restore the root register, and we are done.
+  __ pop(kRootRegister);
+
+  {
+    // Move the result into the correct registers.
+    LiftoffAssembler::ParallelRegisterMoveTuple reg_moves[]{
+        {result, LiftoffRegister::ForPair(old_lo, old_hi), kWasmI64}};
+    __ ParallelRegisterMove(ArrayVector(reg_moves));
+  }
+}
+
 #undef __
 }  // namespace liftoff
 
@@ -678,30 +774,33 @@ void LiftoffAssembler::AtomicAdd(Register dst_addr, Register offset_reg,
                                  uint32_t offset_imm, LiftoffRegister value,
                                  LiftoffRegister result, StoreType type) {
   if (type.value() == StoreType::kI64Store) {
-    bailout(kAtomics, "AtomicAdd");
+    liftoff::AtomicBinop64(this, liftoff::kAdd, dst_addr, offset_reg,
+                           offset_imm, value, result);
     return;
   }
 
-  liftoff::AtomicAddOrSub32(this, liftoff::kAdd, dst_addr, offset_reg,
-                            offset_imm, value, result, type);
+  liftoff::AtomicAddOrSubOrExchange32(this, liftoff::kAdd, dst_addr, offset_reg,
+                                      offset_imm, value, result, type);
 }
 
 void LiftoffAssembler::AtomicSub(Register dst_addr, Register offset_reg,
                                  uint32_t offset_imm, LiftoffRegister value,
                                  LiftoffRegister result, StoreType type) {
   if (type.value() == StoreType::kI64Store) {
-    bailout(kAtomics, "AtomicSub");
+    liftoff::AtomicBinop64(this, liftoff::kSub, dst_addr, offset_reg,
+                           offset_imm, value, result);
     return;
   }
-  liftoff::AtomicAddOrSub32(this, liftoff::kSub, dst_addr, offset_reg,
-                            offset_imm, value, result, type);
+  liftoff::AtomicAddOrSubOrExchange32(this, liftoff::kSub, dst_addr, offset_reg,
+                                      offset_imm, value, result, type);
 }
 
 void LiftoffAssembler::AtomicAnd(Register dst_addr, Register offset_reg,
                                  uint32_t offset_imm, LiftoffRegister value,
                                  LiftoffRegister result, StoreType type) {
   if (type.value() == StoreType::kI64Store) {
-    bailout(kAtomics, "AtomicAnd");
+    liftoff::AtomicBinop64(this, liftoff::kAnd, dst_addr, offset_reg,
+                           offset_imm, value, result);
     return;
   }
 
@@ -713,7 +812,8 @@ void LiftoffAssembler::AtomicOr(Register dst_addr, Register offset_reg,
                                 uint32_t offset_imm, LiftoffRegister value,
                                 LiftoffRegister result, StoreType type) {
   if (type.value() == StoreType::kI64Store) {
-    bailout(kAtomics, "AtomicOr");
+    liftoff::AtomicBinop64(this, liftoff::kOr, dst_addr, offset_reg, offset_imm,
+                           value, result);
     return;
   }
 
@@ -725,7 +825,8 @@ void LiftoffAssembler::AtomicXor(Register dst_addr, Register offset_reg,
                                  uint32_t offset_imm, LiftoffRegister value,
                                  LiftoffRegister result, StoreType type) {
   if (type.value() == StoreType::kI64Store) {
-    bailout(kAtomics, "AtomicXor");
+    liftoff::AtomicBinop64(this, liftoff::kXor, dst_addr, offset_reg,
+                           offset_imm, value, result);
     return;
   }
 
@@ -738,11 +839,13 @@ void LiftoffAssembler::AtomicExchange(Register dst_addr, Register offset_reg,
                                       LiftoffRegister value,
                                       LiftoffRegister result, StoreType type) {
   if (type.value() == StoreType::kI64Store) {
-    bailout(kAtomics, "AtomicExchange");
+    liftoff::AtomicBinop64(this, liftoff::kExchange, dst_addr, offset_reg,
+                           offset_imm, value, result);
     return;
   }
-  liftoff::AtomicAddOrSub32(this, liftoff::kExchange, dst_addr, offset_reg,
-                            offset_imm, value, result, type);
+  liftoff::AtomicAddOrSubOrExchange32(this, liftoff::kExchange, dst_addr,
+                                      offset_reg, offset_imm, value, result,
+                                      type);
 }
 
 void LiftoffAssembler::AtomicCompareExchange(
