@@ -26,15 +26,18 @@ class Simd128;
 // - "ref"/"optref" (a.k.a. "ref null") per
 //   https://github.com/WebAssembly/function-references
 // - "rtt" per https://github.com/WebAssembly/gc
+#define FOREACH_NUMERIC_VALUE_TYPE(V)    \
+  V(I32, 2, I32, Int32, 'i', "i32")      \
+  V(I64, 3, I64, Int64, 'l', "i64")      \
+  V(F32, 2, F32, Float32, 'f', "f32")    \
+  V(F64, 3, F64, Float64, 'd', "f64")    \
+  V(S128, 4, S128, Simd128, 's', "s128") \
+  V(I8, 0, I8, Int8, 'b', "i8")          \
+  V(I16, 1, I16, Int16, 'h', "i16")
+
 #define FOREACH_VALUE_TYPE(V)                                               \
   V(Stmt, -1, Void, None, 'v', "<stmt>")                                    \
-  V(I32, 2, I32, Int32, 'i', "i32")                                         \
-  V(I64, 3, I64, Int64, 'l', "i64")                                         \
-  V(F32, 2, F32, Float32, 'f', "f32")                                       \
-  V(F64, 3, F64, Float64, 'd', "f64")                                       \
-  V(S128, 4, S128, Simd128, 's', "s128")                                    \
-  V(I8, 0, I8, Int8, 'b', "i8")                                             \
-  V(I16, 1, I16, Int16, 'h', "i16")                                         \
+  FOREACH_NUMERIC_VALUE_TYPE(V)                                             \
   V(Rtt, kSystemPointerSizeLog2, Rtt, TaggedPointer, 't', "rtt")            \
   V(Ref, kSystemPointerSizeLog2, Ref, TaggedPointer, 'r', "ref")            \
   V(OptRef, kSystemPointerSizeLog2, OptRef, TaggedPointer, 'n', "ref null") \
@@ -259,8 +262,14 @@ class ValueType {
         return kLocalVoid;
       case kRtt:
         return kLocalRtt;
-      default:
-        return static_cast<ValueTypeCode>(kLocalI32 - (kind() - kI32));
+#define NUMERIC_TYPE_CASE(kind, ...) \
+  case k##kind:                      \
+    return kLocal##kind;
+        FOREACH_NUMERIC_VALUE_TYPE(NUMERIC_TYPE_CASE)
+#undef NUMERIC_TYPE_CASE
+      case kBottom:
+        // Unreachable code
+        return kLocalVoid;
     }
   }
 
