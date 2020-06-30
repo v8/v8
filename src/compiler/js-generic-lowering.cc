@@ -935,9 +935,13 @@ void JSGenericLowering::LowerJSCallForwardVarargs(Node* node) {
 }
 
 void JSGenericLowering::LowerJSCall(Node* node) {
-  CallParameters const& p = CallParametersOf(node->op());
+  JSCallNode n(node);
+  CallParameters const& p = n.Parameters();
   int const arg_count = p.arity_without_implicit_args();
   ConvertReceiverMode const mode = p.convert_mode();
+
+  Node* feedback_vector = n.feedback_vector();
+  node->RemoveInput(n.FeedbackVectorIndex());
 
   if (CollectFeedbackInGenericLowering() && p.feedback().IsValid()) {
     Callable callable = CodeFactory::Call_WithFeedback(isolate(), mode);
@@ -946,7 +950,6 @@ void JSGenericLowering::LowerJSCall(Node* node) {
         zone(), callable.descriptor(), arg_count + 1, flags);
     Node* stub_code = jsgraph()->HeapConstant(callable.code());
     Node* stub_arity = jsgraph()->Int32Constant(arg_count);
-    Node* feedback_vector = jsgraph()->HeapConstant(p.feedback().vector);
     Node* slot = jsgraph()->Int32Constant(p.feedback().index());
     node->InsertInput(zone(), 0, stub_code);
     node->InsertInput(zone(), 2, stub_arity);

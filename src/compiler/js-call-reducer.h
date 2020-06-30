@@ -216,7 +216,8 @@ class V8_EXPORT_PRIVATE JSCallReducer final : public AdvancedReducer {
 
   void CheckIfElementsKind(Node* receiver_elements_kind, ElementsKind kind,
                            Node* control, Node** if_true, Node** if_false);
-  Node* LoadReceiverElementsKind(Node* receiver, Node** effect, Node** control);
+  Node* LoadReceiverElementsKind(Node* receiver, Effect* effect,
+                                 Control control);
 
   bool IsBuiltinOrApiFunction(JSFunctionRef target_ref) const;
 

@@ -116,9 +116,10 @@ class JSCallReducerTest : public TypedGraphTest {
     Handle<FeedbackVector> vector = FeedbackVector::New(
         isolate(), shared, closure_feedback_cell_array, &is_compiled_scope);
     FeedbackSource feedback(vector, FeedbackSlot(0));
-    return javascript()->Call(
-        arity, CallFrequency(), feedback, ConvertReceiverMode::kAny,
-        SpeculationMode::kAllowSpeculation, CallFeedbackRelation::kRelated);
+    return javascript()->Call(JSCallNode::ArityForArgc(arity), CallFrequency(),
+                              feedback, ConvertReceiverMode::kAny,
+                              SpeculationMode::kAllowSpeculation,
+                              CallFeedbackRelation::kRelated);
   }
 
  private:
@@ -223,8 +224,10 @@ TEST_F(JSCallReducerTest, MathUnaryWithNumber) {
     Node* frame_state = graph()->start();
     Node* jsfunction = MathFunction(fnc);
     Node* p0 = Parameter(Type::Any(), 0);
-    Node* call = graph()->NewNode(Call(3), jsfunction, UndefinedConstant(), p0,
-                                  context, frame_state, effect, control);
+    Node* feedback = UndefinedConstant();
+    Node* call =
+        graph()->NewNode(Call(1), jsfunction, UndefinedConstant(), p0, feedback,
+                         context, frame_state, effect, control);
     Reduction r = Reduce(call);
     ASSERT_TRUE(r.Changed());
     EXPECT_THAT(std::string(IrOpcode::Mnemonic(r.replacement()->opcode())),
@@ -251,8 +254,10 @@ TEST_F(JSCallReducerTest, MathBinaryWithNumber) {
     Node* frame_state = graph()->start();
     Node* p0 = Parameter(Type::Any(), 0);
     Node* p1 = Parameter(Type::Any(), 0);
-    Node* call = graph()->NewNode(Call(4), jsfunction, UndefinedConstant(), p0,
-                                  p1, context, frame_state, effect, control);
+    Node* feedback = UndefinedConstant();
+    Node* call =
+        graph()->NewNode(Call(2), jsfunction, UndefinedConstant(), p0, p1,
+                         feedback, context, frame_state, effect, control);
     Reduction r = Reduce(call);
 
     ASSERT_TRUE(r.Changed());
@@ -272,8 +277,10 @@ TEST_F(JSCallReducerTest, MathClz32WithUnsigned32) {
   Node* frame_state = graph()->start();
 
   Node* p0 = Parameter(Type::Unsigned32(), 0);
-  Node* call = graph()->NewNode(Call(3), jsfunction, UndefinedConstant(), p0,
-                                context, frame_state, effect, control);
+  Node* feedback = UndefinedConstant();
+  Node* call =
+      graph()->NewNode(Call(1), jsfunction, UndefinedConstant(), p0, feedback,
+                       context, frame_state, effect, control);
   Reduction r = Reduce(call);
 
   ASSERT_TRUE(r.Changed());
@@ -288,8 +295,10 @@ TEST_F(JSCallReducerTest, MathClz32WithUnsigned32NoArg) {
   Node* context = UndefinedConstant();
   Node* frame_state = graph()->start();
 
-  Node* call = graph()->NewNode(Call(2), jsfunction, UndefinedConstant(),
-                                context, frame_state, effect, control);
+  Node* feedback = UndefinedConstant();
+  Node* call =
+      graph()->NewNode(Call(0), jsfunction, UndefinedConstant(), feedback,
+                       context, frame_state, effect, control);
   Reduction r = Reduce(call);
 
   ASSERT_TRUE(r.Changed());
@@ -308,8 +317,10 @@ TEST_F(JSCallReducerTest, MathImulWithUnsigned32) {
   Node* frame_state = graph()->start();
   Node* p0 = Parameter(Type::Unsigned32(), 0);
   Node* p1 = Parameter(Type::Unsigned32(), 1);
-  Node* call = graph()->NewNode(Call(4), jsfunction, UndefinedConstant(), p0,
-                                p1, context, frame_state, effect, control);
+  Node* feedback = UndefinedConstant();
+  Node* call =
+      graph()->NewNode(Call(2), jsfunction, UndefinedConstant(), p0, p1,
+                       feedback, context, frame_state, effect, control);
   Reduction r = Reduce(call);
 
   ASSERT_TRUE(r.Changed());
@@ -326,8 +337,10 @@ TEST_F(JSCallReducerTest, MathMinWithNoArguments) {
   Node* control = graph()->start();
   Node* context = UndefinedConstant();
   Node* frame_state = graph()->start();
-  Node* call = graph()->NewNode(Call(2), jsfunction, UndefinedConstant(),
-                                context, frame_state, effect, control);
+  Node* feedback = UndefinedConstant();
+  Node* call =
+      graph()->NewNode(Call(0), jsfunction, UndefinedConstant(), feedback,
+                       context, frame_state, effect, control);
   Reduction r = Reduce(call);
 
   ASSERT_TRUE(r.Changed());
@@ -341,8 +354,10 @@ TEST_F(JSCallReducerTest, MathMinWithNumber) {
   Node* context = UndefinedConstant();
   Node* frame_state = graph()->start();
   Node* p0 = Parameter(Type::Any(), 0);
-  Node* call = graph()->NewNode(Call(3), jsfunction, UndefinedConstant(), p0,
-                                context, frame_state, effect, control);
+  Node* feedback = UndefinedConstant();
+  Node* call =
+      graph()->NewNode(Call(1), jsfunction, UndefinedConstant(), p0, feedback,
+                       context, frame_state, effect, control);
   Reduction r = Reduce(call);
 
   ASSERT_TRUE(r.Changed());
@@ -357,8 +372,10 @@ TEST_F(JSCallReducerTest, MathMinWithTwoArguments) {
   Node* frame_state = graph()->start();
   Node* p0 = Parameter(Type::Any(), 0);
   Node* p1 = Parameter(Type::Any(), 1);
-  Node* call = graph()->NewNode(Call(4), jsfunction, UndefinedConstant(), p0,
-                                p1, context, frame_state, effect, control);
+  Node* feedback = UndefinedConstant();
+  Node* call =
+      graph()->NewNode(Call(2), jsfunction, UndefinedConstant(), p0, p1,
+                       feedback, context, frame_state, effect, control);
   Reduction r = Reduce(call);
 
   ASSERT_TRUE(r.Changed());
@@ -376,8 +393,10 @@ TEST_F(JSCallReducerTest, MathMaxWithNoArguments) {
   Node* control = graph()->start();
   Node* context = UndefinedConstant();
   Node* frame_state = graph()->start();
-  Node* call = graph()->NewNode(Call(2), jsfunction, UndefinedConstant(),
-                                context, frame_state, effect, control);
+  Node* feedback = UndefinedConstant();
+  Node* call =
+      graph()->NewNode(Call(0), jsfunction, UndefinedConstant(), feedback,
+                       context, frame_state, effect, control);
   Reduction r = Reduce(call);
 
   ASSERT_TRUE(r.Changed());
@@ -391,8 +410,10 @@ TEST_F(JSCallReducerTest, MathMaxWithNumber) {
   Node* context = UndefinedConstant();
   Node* frame_state = graph()->start();
   Node* p0 = Parameter(Type::Any(), 0);
-  Node* call = graph()->NewNode(Call(3), jsfunction, UndefinedConstant(), p0,
-                                context, frame_state, effect, control);
+  Node* feedback = UndefinedConstant();
+  Node* call =
+      graph()->NewNode(Call(1), jsfunction, UndefinedConstant(), p0, feedback,
+                       context, frame_state, effect, control);
   Reduction r = Reduce(call);
 
   ASSERT_TRUE(r.Changed());
@@ -408,8 +429,10 @@ TEST_F(JSCallReducerTest, MathMaxWithTwoArguments) {
   Node* frame_state = graph()->start();
   Node* p0 = Parameter(Type::Any(), 0);
   Node* p1 = Parameter(Type::Any(), 1);
-  Node* call = graph()->NewNode(Call(4), jsfunction, UndefinedConstant(), p0,
-                                p1, context, frame_state, effect, control);
+  Node* feedback = UndefinedConstant();
+  Node* call =
+      graph()->NewNode(Call(2), jsfunction, UndefinedConstant(), p0, p1,
+                       feedback, context, frame_state, effect, control);
   Reduction r = Reduce(call);
 
   ASSERT_TRUE(r.Changed());
@@ -428,8 +451,10 @@ TEST_F(JSCallReducerTest, StringFromSingleCharCodeWithNumber) {
   Node* context = UndefinedConstant();
   Node* frame_state = graph()->start();
   Node* p0 = Parameter(Type::Any(), 0);
-  Node* call = graph()->NewNode(Call(3), function, UndefinedConstant(), p0,
-                                context, frame_state, effect, control);
+  Node* feedback = UndefinedConstant();
+  Node* call =
+      graph()->NewNode(Call(1), function, UndefinedConstant(), p0, feedback,
+                       context, frame_state, effect, control);
   Reduction r = Reduce(call);
 
   ASSERT_TRUE(r.Changed());
@@ -445,8 +470,10 @@ TEST_F(JSCallReducerTest, StringFromSingleCharCodeWithPlainPrimitive) {
   Node* context = UndefinedConstant();
   Node* frame_state = graph()->start();
   Node* p0 = Parameter(Type::PlainPrimitive(), 0);
-  Node* call = graph()->NewNode(Call(3), function, UndefinedConstant(), p0,
-                                context, frame_state, effect, control);
+  Node* feedback = UndefinedConstant();
+  Node* call =
+      graph()->NewNode(Call(1), function, UndefinedConstant(), p0, feedback,
+                       context, frame_state, effect, control);
   Reduction r = Reduce(call);
 
   ASSERT_TRUE(r.Changed());
@@ -465,8 +492,10 @@ TEST_F(JSCallReducerTest, NumberIsFinite) {
   Node* context = UndefinedConstant();
   Node* frame_state = graph()->start();
   Node* p0 = Parameter(Type::Any(), 0);
-  Node* call = graph()->NewNode(Call(3), function, UndefinedConstant(), p0,
-                                context, frame_state, effect, control);
+  Node* feedback = UndefinedConstant();
+  Node* call =
+      graph()->NewNode(Call(1), function, UndefinedConstant(), p0, feedback,
+                       context, frame_state, effect, control);
   Reduction r = Reduce(call);
 
   ASSERT_TRUE(r.Changed());
@@ -484,8 +513,9 @@ TEST_F(JSCallReducerTest, NumberIsIntegerWithNumber) {
   Node* context = UndefinedConstant();
   Node* frame_state = graph()->start();
   Node* p0 = Parameter(Type::Any(), 0);
+  Node* feedback = UndefinedConstant();
   Node* call =
-      graph()->NewNode(javascript()->Call(3), function, UndefinedConstant(), p0,
+      graph()->NewNode(Call(1), function, UndefinedConstant(), p0, feedback,
                        context, frame_state, effect, control);
   Reduction r = Reduce(call);
 
@@ -504,8 +534,9 @@ TEST_F(JSCallReducerTest, NumberIsNaNWithNumber) {
   Node* context = UndefinedConstant();
   Node* frame_state = graph()->start();
   Node* p0 = Parameter(Type::Any(), 0);
+  Node* feedback = UndefinedConstant();
   Node* call =
-      graph()->NewNode(javascript()->Call(3), function, UndefinedConstant(), p0,
+      graph()->NewNode(Call(1), function, UndefinedConstant(), p0, feedback,
                        context, frame_state, effect, control);
   Reduction r = Reduce(call);
 
@@ -524,8 +555,9 @@ TEST_F(JSCallReducerTest, NumberIsSafeIntegerWithIntegral32) {
   Node* context = UndefinedConstant();
   Node* frame_state = graph()->start();
   Node* p0 = Parameter(Type::Any(), 0);
+  Node* feedback = UndefinedConstant();
   Node* call =
-      graph()->NewNode(javascript()->Call(3), function, UndefinedConstant(), p0,
+      graph()->NewNode(Call(1), function, UndefinedConstant(), p0, feedback,
                        context, frame_state, effect, control);
   Reduction r = Reduce(call);
 
@@ -544,8 +576,10 @@ TEST_F(JSCallReducerTest, GlobalIsFiniteWithNumber) {
   Node* context = UndefinedConstant();
   Node* frame_state = graph()->start();
   Node* p0 = Parameter(Type::Any(), 0);
-  Node* call = graph()->NewNode(Call(3), function, UndefinedConstant(), p0,
-                                context, frame_state, effect, control);
+  Node* feedback = UndefinedConstant();
+  Node* call =
+      graph()->NewNode(Call(1), function, UndefinedConstant(), p0, feedback,
+                       context, frame_state, effect, control);
   Reduction r = Reduce(call);
 
   ASSERT_TRUE(r.Changed());
@@ -563,8 +597,10 @@ TEST_F(JSCallReducerTest, GlobalIsNaN) {
   Node* context = UndefinedConstant();
   Node* frame_state = graph()->start();
   Node* p0 = Parameter(Type::Any(), 0);
-  Node* call = graph()->NewNode(Call(3), function, UndefinedConstant(), p0,
-                                context, frame_state, effect, control);
+  Node* feedback = UndefinedConstant();
+  Node* call =
+      graph()->NewNode(Call(1), function, UndefinedConstant(), p0, feedback,
+                       context, frame_state, effect, control);
   Reduction r = Reduce(call);
 
   ASSERT_TRUE(r.Changed());
@@ -583,8 +619,10 @@ TEST_F(JSCallReducerTest, NumberParseInt) {
   Node* frame_state = graph()->start();
   Node* p0 = Parameter(Type::Any(), 0);
   Node* p1 = Parameter(Type::Any(), 1);
-  Node* call = graph()->NewNode(Call(4), function, UndefinedConstant(), p0, p1,
-                                context, frame_state, effect, control);
+  Node* feedback = UndefinedConstant();
+  Node* call =
+      graph()->NewNode(Call(2), function, UndefinedConstant(), p0, p1, feedback,
+                       context, frame_state, effect, control);
   Reduction r = Reduce(call);
 
   ASSERT_TRUE(r.Changed());

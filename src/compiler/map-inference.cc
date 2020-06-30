@@ -98,8 +98,8 @@ bool MapInference::Is(Handle<Map> expected_map) {
   return maps[0].equals(expected_map);
 }
 
-void MapInference::InsertMapChecks(JSGraph* jsgraph, Node** effect,
-                                   Node* control,
+void MapInference::InsertMapChecks(JSGraph* jsgraph, Effect* effect,
+                                   Control control,
                                    const FeedbackSource& feedback) {
   CHECK(HaveMaps());
   CHECK(feedback.IsValid());
@@ -114,7 +114,7 @@ void MapInference::InsertMapChecks(JSGraph* jsgraph, Node** effect,
 bool MapInference::RelyOnMapsViaStability(
     CompilationDependencies* dependencies) {
   CHECK(HaveMaps());
-  return RelyOnMapsHelper(dependencies, nullptr, nullptr, nullptr, {});
+  return RelyOnMapsHelper(dependencies, nullptr, nullptr, Control{nullptr}, {});
 }
 
 bool MapInference::RelyOnMapsPreferStability(
@@ -123,13 +123,16 @@ bool MapInference::RelyOnMapsPreferStability(
   CHECK(HaveMaps());
   if (Safe()) return false;
   if (RelyOnMapsViaStability(dependencies)) return true;
-  CHECK(RelyOnMapsHelper(nullptr, jsgraph, effect, control, feedback));
+  // TODO(jgruber): Change this to take (typed) Effect and Control parameters.
+  Effect e{*effect};
+  CHECK(RelyOnMapsHelper(nullptr, jsgraph, &e, Control{control}, feedback));
+  *effect = e;
   return false;
 }
 
 bool MapInference::RelyOnMapsHelper(CompilationDependencies* dependencies,
-                                    JSGraph* jsgraph, Node** effect,
-                                    Node* control,
+                                    JSGraph* jsgraph, Effect* effect,
+                                    Control control,
                                     const FeedbackSource& feedback) {
   if (Safe()) return true;
 

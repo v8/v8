@@ -92,6 +92,8 @@ class V8_EXPORT_PRIVATE Node final {
   void RemoveInput(int index);
   void NullAllInputs();
   void TrimInputCount(int new_input_count);
+  // Can trim, extend by appending new inputs, or do nothing.
+  void EnsureInputCount(Zone* zone, int new_input_count);
 
   int UseCount() const;
   void ReplaceUses(Node* replace_to);

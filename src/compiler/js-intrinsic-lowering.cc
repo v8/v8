@@ -330,8 +330,14 @@ Reduction JSIntrinsicLowering::ReduceToString(Node* node) {
 
 
 Reduction JSIntrinsicLowering::ReduceCall(Node* node) {
-  size_t const arity = CallRuntimeParametersOf(node->op()).arity();
-  NodeProperties::ChangeOp(node, javascript()->Call(arity));
+  int const arity =
+      static_cast<int>(CallRuntimeParametersOf(node->op()).arity());
+  static constexpr int kTargetAndReceiver = 2;
+  Node* feedback = jsgraph()->UndefinedConstant();
+  node->InsertInput(graph()->zone(), arity, feedback);
+  NodeProperties::ChangeOp(
+      node,
+      javascript()->Call(JSCallNode::ArityForArgc(arity - kTargetAndReceiver)));
   return Changed(node);
 }
 

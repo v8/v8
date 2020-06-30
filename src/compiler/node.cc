@@ -258,6 +258,19 @@ void Node::TrimInputCount(int new_input_count) {
   }
 }
 
+void Node::EnsureInputCount(Zone* zone, int new_input_count) {
+  int current_count = InputCount();
+  DCHECK_NE(current_count, 0);
+  if (current_count > new_input_count) {
+    TrimInputCount(new_input_count);
+  } else if (current_count < new_input_count) {
+    Node* dummy = InputAt(current_count - 1);
+    do {
+      AppendInput(zone, dummy);
+      current_count++;
+    } while (current_count < new_input_count);
+  }
+}
 
 int Node::UseCount() const {
   int use_count = 0;

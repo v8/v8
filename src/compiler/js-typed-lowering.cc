@@ -1710,16 +1710,16 @@ Reduction JSTypedLowering::ReduceJSCallForwardVarargs(Node* node) {
 }
 
 Reduction JSTypedLowering::ReduceJSCall(Node* node) {
-  DCHECK_EQ(IrOpcode::kJSCall, node->opcode());
-  CallParameters const& p = CallParametersOf(node->op());
+  JSCallNode n(node);
+  CallParameters const& p = n.Parameters();
   int arity = p.arity_without_implicit_args();
   ConvertReceiverMode convert_mode = p.convert_mode();
-  Node* target = NodeProperties::GetValueInput(node, 0);
+  Node* target = n.target();
   Type target_type = NodeProperties::GetType(target);
-  Node* receiver = NodeProperties::GetValueInput(node, 1);
+  Node* receiver = n.receiver();
   Type receiver_type = NodeProperties::GetType(receiver);
-  Node* effect = NodeProperties::GetEffectInput(node);
-  Node* control = NodeProperties::GetControlInput(node);
+  Effect effect = n.effect();
+  Control control = n.control();
 
   // Try to infer receiver {convert_mode} from {receiver} type.
   if (receiver_type.Is(Type::NullOrUndefined())) {
@@ -1786,6 +1786,9 @@ Reduction JSTypedLowering::ReduceJSCall(Node* node) {
     // Compute flags for the call.
     CallDescriptor::Flags flags = CallDescriptor::kNeedsFrameState;
     Node* new_target = jsgraph()->UndefinedConstant();
+
+    // The node will change operators, remove the feedback vector.
+    node->RemoveInput(n.FeedbackVectorIndex());
 
     if (NeedsArgumentAdaptorFrame(*shared, arity)) {
       // Check if it's safe to skip the arguments adaptor for {shared},
@@ -1865,6 +1868,8 @@ Reduction JSTypedLowering::ReduceJSCall(Node* node) {
 
   // Check if {target} is a JSFunction.
   if (target_type.Is(Type::Function())) {
+    // The node will change operators, remove the feedback vector.
+    node->RemoveInput(n.FeedbackVectorIndex());
     // Compute flags for the call.
     CallDescriptor::Flags flags = CallDescriptor::kNeedsFrameState;
     // Patch {node} to an indirect call via the CallFunction builtin.

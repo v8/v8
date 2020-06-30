@@ -7,6 +7,7 @@
 #include <limits>
 
 #include "src/base/lazy-instance.h"
+#include "src/compiler/js-graph.h"
 #include "src/compiler/operator.h"
 #include "src/handles/handles-inl.h"
 #include "src/objects/objects-inl.h"
@@ -26,6 +27,10 @@ constexpr Operator::Properties BinopProperties(Operator::Opcode opcode) {
 }
 
 }  // namespace
+
+TNode<Object> JSCallNode::ArgumentOrUndefined(int i, JSGraph* jsgraph) const {
+  return ArgumentOr(i, jsgraph->UndefinedConstant());
+}
 
 std::ostream& operator<<(std::ostream& os, CallFrequency const& f) {
   if (f.IsUnknown()) return os << "unknown";
@@ -768,7 +773,7 @@ const Operator* JSOperatorBuilder::Call(
     FeedbackSource const& feedback, ConvertReceiverMode convert_mode,
     SpeculationMode speculation_mode, CallFeedbackRelation feedback_relation) {
   CallParameters parameters(arity, frequency, feedback, convert_mode,
-                            speculation_mode, feedback_relation);
+                            speculation_mode, feedback_relation, true);
   return new (zone()) Operator1<CallParameters>(   // --
       IrOpcode::kJSCall, Operator::kNoProperties,  // opcode
       "JSCall",                                    // name
@@ -780,7 +785,7 @@ const Operator* JSOperatorBuilder::CallWithArrayLike(
     const CallFrequency& frequency, const FeedbackSource& feedback,
     SpeculationMode speculation_mode, CallFeedbackRelation feedback_relation) {
   CallParameters parameters(2, frequency, feedback, ConvertReceiverMode::kAny,
-                            speculation_mode, feedback_relation);
+                            speculation_mode, feedback_relation, false);
   return new (zone()) Operator1<CallParameters>(                // --
       IrOpcode::kJSCallWithArrayLike, Operator::kNoProperties,  // opcode
       "JSCallWithArrayLike",                                    // name
@@ -796,7 +801,7 @@ const Operator* JSOperatorBuilder::CallWithSpread(
                  feedback.IsValid());
   CallParameters parameters(arity, frequency, feedback,
                             ConvertReceiverMode::kAny, speculation_mode,
-                            feedback_relation);
+                            feedback_relation, false);
   return new (zone()) Operator1<CallParameters>(             // --
       IrOpcode::kJSCallWithSpread, Operator::kNoProperties,  // opcode
       "JSCallWithSpread",                                    // name

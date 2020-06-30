@@ -482,13 +482,20 @@ Reduction JSNativeContextSpecialization::ReduceJSInstanceOf(Node* node) {
 
     // Call the @@hasInstance handler.
     Node* target = jsgraph()->Constant(*constant);
-    node->InsertInput(graph()->zone(), 0, target);
-    node->ReplaceInput(1, constructor);
-    node->ReplaceInput(2, object);
-    node->ReplaceInput(4, continuation_frame_state);
-    node->ReplaceInput(5, effect);
+    Node* feedback = jsgraph()->UndefinedConstant();
+    // Value inputs plus context, frame state, effect, control.
+    STATIC_ASSERT(JSCallNode::ArityForArgc(1) + 4 == 8);
+    node->EnsureInputCount(graph()->zone(), 8);
+    node->ReplaceInput(JSCallNode::TargetIndex(), target);
+    node->ReplaceInput(JSCallNode::ReceiverIndex(), constructor);
+    node->ReplaceInput(JSCallNode::ArgumentIndex(0), object);
+    node->ReplaceInput(3, feedback);
+    node->ReplaceInput(4, context);
+    node->ReplaceInput(5, continuation_frame_state);
+    node->ReplaceInput(6, effect);
+    node->ReplaceInput(7, control);
     NodeProperties::ChangeOp(
-        node, javascript()->Call(1 + kTargetAndReceiver, CallFrequency(),
+        node, javascript()->Call(JSCallNode::ArityForArgc(1), CallFrequency(),
                                  FeedbackSource(),
                                  ConvertReceiverMode::kNotNullOrUndefined));
 
@@ -1430,11 +1437,12 @@ Reduction JSNativeContextSpecialization::ReduceJSGetIterator(Node* node) {
                              ? SpeculationMode::kDisallowSpeculation
                              : feedback.AsCall().speculation_mode();
   const Operator* call_op = javascript()->Call(
-      0 + kTargetAndReceiver, CallFrequency(), p.callFeedback(),
+      JSCallNode::ArityForArgc(0), CallFrequency(), p.callFeedback(),
       ConvertReceiverMode::kNotNullOrUndefined, mode,
       CallFeedbackRelation::kRelated);
-  Node* call_property = graph()->NewNode(call_op, load_property, receiver,
-                                         context, frame_state, effect, control);
+  Node* call_property =
+      graph()->NewNode(call_op, load_property, receiver, n.feedback_vector(),
+                       context, frame_state, effect, control);
 
   return Replace(call_property);
 }
@@ -2043,11 +2051,12 @@ Node* JSNativeContextSpecialization::InlinePropertyGetterCall(
   // Introduce the call to the getter function.
   Node* value;
   if (constant.IsJSFunction()) {
+    Node* feedback = jsgraph()->UndefinedConstant();
     value = *effect = *control = graph()->NewNode(
-        jsgraph()->javascript()->Call(0 + kTargetAndReceiver, CallFrequency(),
-                                      FeedbackSource(),
+        jsgraph()->javascript()->Call(JSCallNode::ArityForArgc(0),
+                                      CallFrequency(), FeedbackSource(),
                                       ConvertReceiverMode::kNotNullOrUndefined),
-        target, receiver, context, frame_state, *effect, *control);
+        target, receiver, feedback, context, frame_state, *effect, *control);
   } else {
     Node* holder = access_info.holder().is_null()
                        ? receiver
@@ -2081,11 +2090,13 @@ void JSNativeContextSpecialization::InlinePropertySetterCall(
   FrameStateInfo const& frame_info = FrameStateInfoOf(frame_state->op());
   // Introduce the call to the setter function.
   if (constant.IsJSFunction()) {
+    Node* feedback = jsgraph()->UndefinedConstant();
     *effect = *control = graph()->NewNode(
-        jsgraph()->javascript()->Call(1 + kTargetAndReceiver, CallFrequency(),
-                                      FeedbackSource(),
+        jsgraph()->javascript()->Call(JSCallNode::ArityForArgc(1),
+                                      CallFrequency(), FeedbackSource(),
                                       ConvertReceiverMode::kNotNullOrUndefined),
-        target, receiver, value, context, frame_state, *effect, *control);
+        target, receiver, value, feedback, context, frame_state, *effect,
+        *control);
   } else {
     Node* holder = access_info.holder().is_null()
                        ? receiver
