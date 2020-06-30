@@ -736,7 +736,10 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
         __ Jump(wasm_code, constant.rmode());
       } else {
         Register target = i.InputRegister(0);
-        __ Jump(target);
+        UseScratchRegisterScope temps(tasm());
+        temps.Exclude(x17);
+        __ Mov(x17, target);
+        __ Jump(x17);
       }
       unwinding_info_writer_.MarkBlockWillExit();
       frame_access_state()->ClearSPDelta();
@@ -749,7 +752,10 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       DCHECK_IMPLIES(
           HasCallDescriptorFlag(instr, CallDescriptor::kFixedTargetRegister),
           reg == kJavaScriptCallCodeStartRegister);
-      __ Jump(reg);
+      UseScratchRegisterScope temps(tasm());
+      temps.Exclude(x17);
+      __ Mov(x17, reg);
+      __ Jump(x17);
       unwinding_info_writer_.MarkBlockWillExit();
       frame_access_state()->ClearSPDelta();
       frame_access_state()->SetFrameAccessToDefault();

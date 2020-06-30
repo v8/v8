@@ -1064,7 +1064,13 @@ static void TailCallOptimizedCodeSlot(MacroAssembler* masm,
   ReplaceClosureCodeWithOptimizedCode(masm, optimized_code_entry, closure);
   static_assert(kJavaScriptCallCodeStartRegister == x2, "ABI mismatch");
   __ LoadCodeObjectEntry(x2, optimized_code_entry);
-  __ Jump(x2);
+
+  {
+    UseScratchRegisterScope temps(masm);
+    temps.Exclude(x17);
+    __ Mov(x17, x2);
+    __ Jump(x17);
+  }
 
   // Optimized code slot contains deoptimized code, evict it and re-enter the
   // closure's code.
@@ -1673,7 +1679,11 @@ static void Generate_InterpreterEnterBytecode(MacroAssembler* masm) {
   __ Mov(x1, Operand(x23, LSL, kSystemPointerSizeLog2));
   __ Ldr(kJavaScriptCallCodeStartRegister,
          MemOperand(kInterpreterDispatchTableRegister, x1));
-  __ Jump(kJavaScriptCallCodeStartRegister);
+
+  UseScratchRegisterScope temps(masm);
+  temps.Exclude(x17);
+  __ Mov(x17, kJavaScriptCallCodeStartRegister);
+  __ Jump(x17);
 }
 
 void Builtins::Generate_InterpreterEnterBytecodeAdvance(MacroAssembler* masm) {
@@ -3353,6 +3363,8 @@ void Builtins::Generate_WasmCompileLazy(MacroAssembler* masm) {
           kWasmCompileLazyFuncIndexRegister.W());
   __ SmiTag(kWasmCompileLazyFuncIndexRegister,
             kWasmCompileLazyFuncIndexRegister);
+
+  UseScratchRegisterScope temps(masm);
   {
     HardAbortScope hard_abort(masm);  // Avoid calls to Abort.
     FrameScope scope(masm, StackFrame::WASM_COMPILE_LAZY);
@@ -3374,15 +3386,19 @@ void Builtins::Generate_WasmCompileLazy(MacroAssembler* masm) {
     // set the current context on the isolate.
     __ Mov(cp, Smi::zero());
     __ CallRuntime(Runtime::kWasmCompileLazy, 2);
+
+    // Exclude x17 from the scope, there are hardcoded uses of it below.
+    temps.Exclude(x17);
+
     // The entrypoint address is the return value.
-    __ mov(x8, kReturnRegister0);
+    __ Mov(x17, kReturnRegister0);
 
     // Restore registers.
     __ PopDRegList(fp_regs);
     __ PopXRegList(gp_regs);
   }
   // Finally, jump to the entrypoint.
-  __ Jump(x8);
+  __ Jump(x17);
 }
 
 void Builtins::Generate_WasmDebugBreak(MacroAssembler* masm) {
@@ -3605,10 +3621,15 @@ void Builtins::Generate_CEntry(MacroAssembler* masm, int result_size,
   // underlying register is caller-saved and can be arbitrarily clobbered.
   __ ResetSpeculationPoisonRegister();
 
-  // Compute the handler entry address and jump to it.
-  __ Mov(x10, pending_handler_entrypoint_address);
-  __ Ldr(x10, MemOperand(x10));
-  __ Br(x10);
+  // Compute the handler entry address and jump to it. We use x17 here for the
+  // jump target, as this jump can occasionally end up at the start of
+  // InterpreterEnterBytecodeDispatch, which when CFI is enabled starts with
+  // a "BTI c".
+  UseScratchRegisterScope temps(masm);
+  temps.Exclude(x17);
+  __ Mov(x17, pending_handler_entrypoint_address);
+  __ Ldr(x17, MemOperand(x17));
+  __ Br(x17);
 }
 
 void Builtins::Generate_DoubleToI(MacroAssembler* masm) {

@@ -326,15 +326,7 @@ void TurboAssembler::Bind(Label* label, BranchTargetIdentifier id) {
   }
 }
 
-void TurboAssembler::CodeEntry() {
-  // Since `kJavaScriptCallCodeStartRegister` is the target register for tail
-  // calls, we have to allow for jumps too, with "BTI jc". We also allow the
-  // register allocator to pick the target register for calls made from
-  // WebAssembly.
-  // TODO(v8:10026): Consider changing this so that we can use CallTarget(),
-  // which maps to "BTI c", here instead.
-  JumpOrCallTarget();
-}
+void TurboAssembler::CodeEntry() { CallTarget(); }
 
 void TurboAssembler::ExceptionHandler() { JumpTarget(); }
 

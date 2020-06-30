@@ -1953,7 +1953,13 @@ void TurboAssembler::CallCodeObject(Register code_object) {
 
 void TurboAssembler::JumpCodeObject(Register code_object) {
   LoadCodeObjectEntry(code_object, code_object);
-  Jump(code_object);
+
+  UseScratchRegisterScope temps(this);
+  if (code_object != x17) {
+    temps.Exclude(x17);
+    Mov(x17, code_object);
+  }
+  Jump(x17);
 }
 
 void TurboAssembler::StoreReturnAddressAndCall(Register target) {
