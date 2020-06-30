@@ -1018,10 +1018,9 @@ class WasmDecoder : public Decoder {
     *total_length = 0;
 
     // The 'else' value is useless, we pass it for convenience.
-    ZoneVector<ValueType>::iterator insert_iterator =
-        insert_position.has_value()
-            ? local_types_.begin() + insert_position.value()
-            : local_types_.begin();
+    auto insert_iterator = insert_position.has_value()
+                               ? local_types_.begin() + insert_position.value()
+                               : local_types_.begin();
 
     // Decode local declarations, if any.
     uint32_t entries = read_u32v<kValidate>(pc, &length, "local decls count");
@@ -1058,6 +1057,7 @@ class WasmDecoder : public Decoder {
         return false;
       }
       *total_length += length;
+
       if (insert_position.has_value()) {
         // Move the insertion iterator to the end of the newly inserted locals.
         insert_iterator =
@@ -1883,12 +1883,21 @@ class WasmFullDecoder : public WasmDecoder<validate> {
   bool Decode() {
     DCHECK(stack_.empty());
     DCHECK(control_.empty());
-
     DCHECK_LE(this->pc_, this->end_);
+    DCHECK_EQ(this->num_locals(), 0);
 
     this->InitializeLocalsFromSig();
+    uint32_t params_count = static_cast<uint32_t>(this->num_locals());
     uint32_t locals_length;
-    this->DecodeLocals(this->pc(), &locals_length, this->num_locals());
+    this->DecodeLocals(this->pc(), &locals_length, params_count);
+    for (uint32_t index = params_count; index < this->num_locals(); index++) {
+      if (!VALIDATE(this->local_type(index).is_defaultable())) {
+        this->errorf(
+            this->pc(),
+            "Cannot define function-level local of non-defaultable type %s",
+            this->local_type(index).type_name().c_str());
+      }
+    }
     this->consume_bytes(locals_length);
 
     CALL_INTERFACE(StartFunction);

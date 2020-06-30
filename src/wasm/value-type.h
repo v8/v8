@@ -137,6 +137,11 @@ class ValueType {
     return (kind() == kRef || kind() == kOptRef) && heap() == htype;
   }
 
+  constexpr bool is_defaultable() const {
+    CONSTEXPR_DCHECK(kind() != kBottom && kind() != kStmt);
+    return kind() != kRef && kind() != kRtt;
+  }
+
   constexpr ValueType Unpacked() const {
     return is_packed() ? Primitive(kI32) : *this;
   }
