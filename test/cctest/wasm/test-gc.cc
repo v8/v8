@@ -36,10 +36,10 @@ class WasmGCTester {
                        true),
         zone(&allocator, ZONE_NAME),
         builder(&zone),
-        isolate(CcTest::InitIsolateOnce()),
-        scope(isolate),
-        thrower(isolate, "Test wasm GC") {
-    testing::SetupIsolateForWasmModule(isolate);
+        isolate_(CcTest::InitIsolateOnce()),
+        scope(isolate_),
+        thrower(isolate_, "Test wasm GC") {
+    testing::SetupIsolateForWasmModule(isolate_);
   }
 
   uint32_t AddGlobal(ValueType type, bool mutability, WasmInitExpr init) {
@@ -76,7 +76,7 @@ class WasmGCTester {
     builder.WriteTo(&buffer);
     MaybeHandle<WasmInstanceObject> maybe_instance =
         testing::CompileAndInstantiateForTesting(
-            isolate, &thrower, ModuleWireBytes(buffer.begin(), buffer.end()));
+            isolate_, &thrower, ModuleWireBytes(buffer.begin(), buffer.end()));
     if (thrower.error()) FATAL("%s", thrower.error_msg());
     instance_ = maybe_instance.ToHandleChecked();
   }
@@ -86,10 +86,10 @@ class WasmGCTester {
     Handle<Object>* argv = zone.NewArray<Handle<Object>>(args.size());
     int i = 0;
     for (Object arg : args) {
-      argv[i++] = handle(arg, isolate);
+      argv[i++] = handle(arg, isolate_);
     }
     CHECK_EQ(expected, testing::CallWasmFunctionForTesting(
-                           isolate, instance_, &thrower, function,
+                           isolate_, instance_, &thrower, function,
                            static_cast<uint32_t>(args.size()), argv));
   }
 
@@ -101,26 +101,27 @@ class WasmGCTester {
     Handle<Object>* argv = zone.NewArray<Handle<Object>>(args.size());
     int i = 0;
     for (Object arg : args) {
-      argv[i++] = handle(arg, isolate);
+      argv[i++] = handle(arg, isolate_);
     }
     Handle<WasmExportedFunction> exported =
-        testing::GetExportedFunction(isolate, instance_, function)
+        testing::GetExportedFunction(isolate_, instance_, function)
             .ToHandleChecked();
-    return Execution::Call(isolate, exported,
-                           isolate->factory()->undefined_value(),
+    return Execution::Call(isolate_, exported,
+                           isolate_->factory()->undefined_value(),
                            static_cast<uint32_t>(args.size()), argv);
   }
 
   void CheckHasThrown(const char* function,
                       std::initializer_list<Object> args) {
-    TryCatch try_catch(reinterpret_cast<v8::Isolate*>(isolate));
+    TryCatch try_catch(reinterpret_cast<v8::Isolate*>(isolate_));
     MaybeHandle<Object> result = GetJSResult(function, args);
     CHECK(result.is_null());
     CHECK(try_catch.HasCaught());
-    isolate->clear_pending_exception();
+    isolate_->clear_pending_exception();
   }
 
   Handle<WasmInstanceObject> instance() { return instance_; }
+  Isolate* isolate() { return isolate_; }
 
   TestSignatures sigs;
 
@@ -133,7 +134,7 @@ class WasmGCTester {
   Zone zone;
   WasmModuleBuilder builder;
 
-  Isolate* const isolate;
+  Isolate* const isolate_;
   const HandleScope scope;
   Handle<WasmInstanceObject> instance_;
   ErrorThrower thrower;
@@ -579,6 +580,34 @@ TEST(BasicRTT) {
   CHECK_EQ(reinterpret_cast<Address>(
                tester.instance()->module()->struct_type(subtype_index)),
            submap->wasm_type_info().foreign_address());
+}
+
+TEST(BasicI31) {
+  WasmGCTester tester;
+  tester.DefineFunction(
+      "f", tester.sigs.i_i(), {},
+      {WASM_I31_GET_S(WASM_I31_NEW(WASM_GET_LOCAL(0))), kExprEnd});
+  tester.DefineFunction(
+      "g", tester.sigs.i_i(), {},
+      {WASM_I31_GET_U(WASM_I31_NEW(WASM_GET_LOCAL(0))), kExprEnd});
+  // TODO(7748): Support (rtt.canon i31), and add a test like:
+  // (ref.test (i31.new ...) (rtt.canon i31)).
+  tester.CompileModule();
+  tester.CheckResult("f", 123, {Smi::FromInt(123)});
+  tester.CheckResult("g", 123, {Smi::FromInt(123)});
+  // Truncation:
+  tester.CheckResult(
+      "f", 0x1234,
+      {*tester.isolate()->factory()->NewNumberFromUint(0x80001234)});
+  tester.CheckResult(
+      "g", 0x1234,
+      {*tester.isolate()->factory()->NewNumberFromUint(0x80001234)});
+  // Sign/zero extension:
+  tester.CheckResult(
+      "f", -1, {*tester.isolate()->factory()->NewNumberFromUint(0x7FFFFFFF)});
+  tester.CheckResult(
+      "g", 0x7FFFFFFF,
+      {*tester.isolate()->factory()->NewNumberFromUint(0x7FFFFFFF)});
 }
 
 }  // namespace test_gc

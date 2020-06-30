@@ -399,6 +399,9 @@ class WasmGraphBuilder {
                  Node* value, CheckForNull null_check,
                  wasm::WasmCodePosition position);
   Node* ArrayLen(Node* array_object, wasm::WasmCodePosition position);
+  Node* I31New(Node* input);
+  Node* I31GetS(Node* input);
+  Node* I31GetU(Node* input);
   Node* RttCanon(wasm::HeapType type);
   Node* RttSub(wasm::HeapType type, Node* parent_rtt);
 

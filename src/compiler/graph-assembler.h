@@ -94,6 +94,7 @@ class BasicBlock;
   V(WordSar)                              \
   V(WordSarShiftOutZeros)                 \
   V(WordShl)                              \
+  V(WordShr)                              \
   V(WordXor)
 
 #define CHECKED_ASSEMBLER_MACH_BINOP_LIST(V) \

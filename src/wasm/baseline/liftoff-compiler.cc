@@ -3612,6 +3612,19 @@ class LiftoffCompiler {
     unsupported(decoder, kGC, "array.len");
   }
 
+  void I31New(FullDecoder* decoder, const Value& input, Value* result) {
+    // TODO(7748): Implement.
+    unsupported(decoder, kGC, "i31.new");
+  }
+  void I31GetS(FullDecoder* decoder, const Value& input, Value* result) {
+    // TODO(7748): Implement.
+    unsupported(decoder, kGC, "i31.get_s");
+  }
+  void I31GetU(FullDecoder* decoder, const Value& input, Value* result) {
+    // TODO(7748): Implement.
+    unsupported(decoder, kGC, "i31.get_u");
+  }
+
   void RttCanon(FullDecoder* decoder, const HeapTypeImmediate<validate>& imm,
                 Value* result) {
     // TODO(7748): Implement.

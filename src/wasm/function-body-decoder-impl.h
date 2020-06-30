@@ -159,6 +159,7 @@ ValueType read_value_type(Decoder* decoder, const byte* pc,
     REF_TYPE_CASE(Extern, kNullable, reftypes)
     REF_TYPE_CASE(Eq, kNullable, gc)
     REF_TYPE_CASE(Exn, kNullable, eh)
+    REF_TYPE_CASE(I31, kNonNullable, gc)
     case kLocalI32:
       return kWasmI32;
     case kLocalI64:
@@ -178,6 +179,7 @@ ValueType read_value_type(Decoder* decoder, const byte* pc,
         REF_TYPE_CASE(Extern, nullability, typed_funcref)
         REF_TYPE_CASE(Eq, nullability, gc)
         REF_TYPE_CASE(Exn, nullability, eh)
+        REF_TYPE_CASE(I31, nullability, gc)
         default:
           uint32_t type_index =
               decoder->read_u32v<validate>(pc + 1, length, "type index");
@@ -964,6 +966,9 @@ struct ControlBase {
     const ArrayIndexImmediate<validate>& imm, const Value& index,              \
     const Value& value)                                                        \
   F(ArrayLen, const Value& array_obj, Value* result)                           \
+  F(I31New, const Value& input, Value* result)                                 \
+  F(I31GetS, const Value& input, Value* result)                                \
+  F(I31GetU, const Value& input, Value* result)                                \
   F(RttCanon, const HeapTypeImmediate<validate>& imm, Value* result)           \
   F(RttSub, const HeapTypeImmediate<validate>& imm, const Value& parent,       \
     Value* result)                                                             \
@@ -3445,6 +3450,24 @@ class WasmFullDecoder : public WasmDecoder<validate> {
         Value array_obj = Pop(0, ValueType::Ref(imm.index, kNullable));
         Value* value = Push(kWasmI32);
         CALL_INTERFACE_IF_REACHABLE(ArrayLen, array_obj, value);
+        break;
+      }
+      case kExprI31New: {
+        Value input = Pop(0, kWasmI32);
+        Value* value = Push(kWasmI31Ref);
+        CALL_INTERFACE_IF_REACHABLE(I31New, input, value);
+        break;
+      }
+      case kExprI31GetS: {
+        Value i31 = Pop(0, kWasmI31Ref);
+        Value* value = Push(kWasmI32);
+        CALL_INTERFACE_IF_REACHABLE(I31GetS, i31, value);
+        break;
+      }
+      case kExprI31GetU: {
+        Value i31 = Pop(0, kWasmI31Ref);
+        Value* value = Push(kWasmI32);
+        CALL_INTERFACE_IF_REACHABLE(I31GetU, i31, value);
         break;
       }
       case kExprRttCanon: {

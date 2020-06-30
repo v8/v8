@@ -37,7 +37,7 @@ enum ValueTypeCode : uint8_t {
   kLocalEqRef = 0x6d,
   kLocalOptRef = 0x6c,
   kLocalRef = 0x6b,
-  // kLocalI31 = 0x6a, // TODO(7748): Implement
+  kLocalI31Ref = 0x6a,
   kLocalRtt = 0x69,
   // Exception handling proposal
   kLocalExnRef = 0x68,

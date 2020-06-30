@@ -462,6 +462,10 @@ inline WasmOpcode LoadStoreOpcodeOf(MachineType type, bool store) {
 #define WASM_RTT_SUB(typeidx) \
   WASM_GC_OP(kExprRttSub), static_cast<byte>(typeidx)
 
+#define WASM_I31_NEW(val) val, WASM_GC_OP(kExprI31New)
+#define WASM_I31_GET_S(val) val, WASM_GC_OP(kExprI31GetS)
+#define WASM_I31_GET_U(val) val, WASM_GC_OP(kExprI31GetU)
+
 #define WASM_BR_ON_NULL(depth, ref_object) \
   ref_object, kExprBrOnNull, static_cast<byte>(depth)
 // Pass: sig_index, ...args, func_index

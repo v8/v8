@@ -709,6 +709,18 @@ class WasmGraphBuildingInterface {
     result->node = BUILD(ArrayLen, array_obj.node, decoder->position());
   }
 
+  void I31New(FullDecoder* decoder, const Value& input, Value* result) {
+    result->node = BUILD(I31New, input.node);
+  }
+
+  void I31GetS(FullDecoder* decoder, const Value& input, Value* result) {
+    result->node = BUILD(I31GetS, input.node);
+  }
+
+  void I31GetU(FullDecoder* decoder, const Value& input, Value* result) {
+    result->node = BUILD(I31GetU, input.node);
+  }
+
   void RttCanon(FullDecoder* decoder, const HeapTypeImmediate<validate>& imm,
                 Value* result) {
     result->node = BUILD(RttCanon, imm.type);

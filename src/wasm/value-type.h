@@ -49,6 +49,11 @@ class HeapType {
   static const uint32_t kExtern = kFunc + 1;      // shorthand: e
   static const uint32_t kEq = kFunc + 2;          // shorthand: q
   static const uint32_t kExn = kFunc + 3;         // shorthand: x
+  static const uint32_t kI31 = kFunc + 4;         // shorthand: j
+  // Internal use only; defined in the public section to make it easy to
+  // check that they are defined correctly:
+  static const uint32_t kFirstSentinel = kFunc;
+  static const uint32_t kLastSentinel = kI31;
 
   explicit constexpr HeapType(uint32_t type) : type_(type) {
     CONSTEXPR_DCHECK(is_valid());
@@ -67,10 +72,7 @@ class HeapType {
     return type_;
   }
 
-  constexpr bool is_generic() {
-    STATIC_ASSERT(kExtern >= kFunc && kEq >= kFunc && kExn >= kFunc);
-    return type_ >= kFunc;
-  }
+  constexpr bool is_generic() { return type_ >= kFirstSentinel; }
 
   constexpr bool is_index() { return !is_generic(); }
 
@@ -84,6 +86,8 @@ class HeapType {
         return std::string("eq");
       case kExn:
         return std::string("exn");
+      case kI31:
+        return std::string("i31");
       default:
         return std::to_string(type_);
     }
@@ -99,6 +103,8 @@ class HeapType {
         return kLocalExternRef;
       case kEq:
         return kLocalEqRef;
+      case kI31:
+        return kLocalI31Ref;
       default:
         return type_;
     }
@@ -107,10 +113,7 @@ class HeapType {
  private:
   friend class ValueType;
   uint32_t type_;
-  constexpr bool is_valid() const {
-    STATIC_ASSERT(kFunc <= kExn && kExtern <= kExn && kEq <= kExn);
-    return type_ <= kExn;
-  }
+  constexpr bool is_valid() const { return type_ <= kLastSentinel; }
 };
 enum Nullability : bool { kNonNullable, kNullable };
 
@@ -257,6 +260,7 @@ class ValueType {
             return kLocalOptRef;
         }
       case kRef:
+        if (heap() == HeapType::kI31) return kLocalI31Ref;
         return kLocalRef;
       case kStmt:
         return kLocalVoid;
@@ -274,8 +278,9 @@ class ValueType {
   }
 
   constexpr bool encoding_needs_heap_type() const {
-    return kind() == kRef || kind() == kRtt ||
-           (kind() == kOptRef && !heap_type().is_generic());
+    return (kind() == kRef && heap() != HeapType::kI31) || kind() == kRtt ||
+           (kind() == kOptRef &&
+            (!heap_type().is_generic() || heap() == HeapType::kI31));
   }
 
   static ValueType For(MachineType type) {
@@ -313,7 +318,11 @@ class ValueType {
     std::ostringstream buf;
     switch (kind()) {
       case kRef:
-        buf << "(ref " << heap_type().name() << ")";
+        if (heap() == HeapType::kI31) {
+          buf << "i31ref";
+        } else {
+          buf << "(ref " << heap_type().name() << ")";
+        }
         break;
       case kOptRef:
         if (heap_type().is_generic()) {
@@ -381,6 +390,7 @@ constexpr ValueType kWasmExnRef = ValueType::Ref(HeapType::kExn, kNullable);
 constexpr ValueType kWasmExternRef =
     ValueType::Ref(HeapType::kExtern, kNullable);
 constexpr ValueType kWasmEqRef = ValueType::Ref(HeapType::kEq, kNullable);
+constexpr ValueType kWasmI31Ref = ValueType::Ref(HeapType::kI31, kNonNullable);
 
 #define FOREACH_WASMVALUE_CTYPES(V) \
   V(kI32, int32_t)                  \

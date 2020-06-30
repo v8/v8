@@ -5432,6 +5432,38 @@ Node* WasmGraphBuilder::ArrayLen(Node* array_object,
   return ArrayLength(gasm_.get(), array_object);
 }
 
+// 1 bit V8 Smi tag, 31 bits V8 Smi shift, 1 bit i31ref high-bit truncation.
+constexpr int kI31To32BitSmiShift = 33;
+
+Node* WasmGraphBuilder::I31New(Node* input) {
+  if (SmiValuesAre31Bits()) {
+    return gasm_->Word32Shl(input, BuildSmiShiftBitsConstant32());
+  }
+  DCHECK(SmiValuesAre32Bits());
+  input = BuildChangeInt32ToIntPtr(input);
+  return gasm_->WordShl(input, gasm_->IntPtrConstant(kI31To32BitSmiShift));
+}
+
+Node* WasmGraphBuilder::I31GetS(Node* input) {
+  if (SmiValuesAre31Bits()) {
+    input = BuildTruncateIntPtrToInt32(input);
+    return gasm_->Word32SarShiftOutZeros(input, BuildSmiShiftBitsConstant32());
+  }
+  DCHECK(SmiValuesAre32Bits());
+  return BuildTruncateIntPtrToInt32(
+      gasm_->WordSar(input, gasm_->IntPtrConstant(kI31To32BitSmiShift)));
+}
+
+Node* WasmGraphBuilder::I31GetU(Node* input) {
+  if (SmiValuesAre31Bits()) {
+    input = BuildTruncateIntPtrToInt32(input);
+    return gasm_->Word32Shr(input, BuildSmiShiftBitsConstant32());
+  }
+  DCHECK(SmiValuesAre32Bits());
+  return BuildTruncateIntPtrToInt32(
+      gasm_->WordShr(input, gasm_->IntPtrConstant(kI31To32BitSmiShift)));
+}
+
 class WasmDecorator final : public GraphDecorator {
  public:
   explicit WasmDecorator(NodeOriginTable* origins, wasm::Decoder* decoder)
