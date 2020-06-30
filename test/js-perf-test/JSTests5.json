@@ -19,7 +19,7 @@
         "baseline-babel-es2017.js",
         "baseline-naive-promises.js"
       ],
-      "flags": ["--allow-natives-syntax"],
+      "flags": ["--allow-natives-syntax", "--ignore-unhandled-promises"],
       "results_regexp": "^%s\\-AsyncAwait\\(Score\\): (.+)$",
       "tests": [
         {"name": "BaselineES2017"},
