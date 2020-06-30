@@ -65,7 +65,7 @@ class FrameWriter {
   void PushCallerPc(intptr_t pc) {
     top_offset_ -= kPCOnStackSize;
     frame_->SetCallerPc(top_offset_, pc);
-    DebugPrintOutputValue(pc, "caller's pc\n");
+    DebugPrintOutputPc(pc, "caller's pc\n");
   }
 
   void PushCallerFp(intptr_t fp) {
@@ -112,6 +112,20 @@ class FrameWriter {
              "    " V8PRIxPTR_FMT ": [top + %3d] <- " V8PRIxPTR_FMT " ;  %s",
              output_address(top_offset_), top_offset_, value, debug_hint);
     }
+  }
+
+  void DebugPrintOutputPc(intptr_t value, const char* debug_hint = "") {
+#ifdef V8_ENABLE_CONTROL_FLOW_INTEGRITY
+    if (trace_scope_ != nullptr) {
+      PrintF(trace_scope_->file(),
+             "    " V8PRIxPTR_FMT ": [top + %3d] <- " V8PRIxPTR_FMT
+             " (signed) " V8PRIxPTR_FMT " (unsigned) ;  %s",
+             output_address(top_offset_), top_offset_, value,
+             PointerAuthentication::StripPAC(value), debug_hint);
+    }
+#else
+    DebugPrintOutputValue(value, debug_hint);
+#endif
   }
 
   void DebugPrintOutputObject(Object obj, unsigned output_offset,
@@ -840,9 +854,10 @@ void Deoptimizer::DoComputeOutputFrames() {
            MessageFor(deopt_kind_));
     PrintFunctionName();
     PrintF(trace_scope_->file(),
-           " @%d => node=%d, pc=" V8PRIxPTR_FMT ", caller sp=" V8PRIxPTR_FMT
-           ", took %0.3f ms]\n",
-           bailout_id_, node_id.ToInt(), output_[index]->GetPc(),
+           " @%d => node=%d, pc=" V8PRIxPTR_FMT
+           " (unsigned), caller sp=" V8PRIxPTR_FMT ", took %0.3f ms]\n",
+           bailout_id_, node_id.ToInt(),
+           PointerAuthentication::StripPAC(output_[index]->GetPc()),
            caller_frame_top_, ms);
   }
 
