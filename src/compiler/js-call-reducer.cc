@@ -3204,8 +3204,8 @@ class IteratingArrayBuiltinHelper {
 
   bool can_reduce() const { return can_reduce_; }
   bool has_stability_dependency() const { return has_stability_dependency_; }
-  Node* effect() const { return effect_; }
-  Node* control() const { return control_; }
+  Effect effect() const { return effect_; }
+  Control control() const { return control_; }
   MapInference* inference() { return &inference_; }
   ElementsKind elements_kind() const { return elements_kind_; }
 
@@ -3213,8 +3213,8 @@ class IteratingArrayBuiltinHelper {
   bool can_reduce_ = false;
   bool has_stability_dependency_ = false;
   Node* receiver_;
-  Node* effect_;
-  Node* control_;
+  Effect effect_;
+  Control control_;
   MapInference inference_;
   ElementsKind elements_kind_;
 };
@@ -6273,15 +6273,15 @@ bool JSCallReducer::DoPromiseChecks(MapInference* inference) {
 
 // ES section #sec-promise.prototype.catch
 Reduction JSCallReducer::ReducePromisePrototypeCatch(Node* node) {
-  DCHECK_EQ(IrOpcode::kJSCall, node->opcode());
-  CallParameters const& p = CallParametersOf(node->op());
+  JSCallNode n(node);
+  CallParameters const& p = n.Parameters();
   if (p.speculation_mode() == SpeculationMode::kDisallowSpeculation) {
     return NoChange();
   }
   int arity = p.arity_without_implicit_args();
-  Node* receiver = NodeProperties::GetValueInput(node, 1);
-  Node* effect = NodeProperties::GetEffectInput(node);
-  Node* control = NodeProperties::GetControlInput(node);
+  Node* receiver = n.receiver();
+  Effect effect = n.effect();
+  Control control = n.control();
 
   MapInference inference(broker(), receiver, effect);
   if (!DoPromiseChecks(&inference)) return inference.NoChange();
@@ -6845,16 +6845,16 @@ Reduction JSCallReducer::ReduceCollectionIteratorPrototypeNext(
     Node* node, int entry_size, Handle<HeapObject> empty_collection,
     InstanceType collection_iterator_instance_type_first,
     InstanceType collection_iterator_instance_type_last) {
-  DCHECK_EQ(IrOpcode::kJSCall, node->opcode());
-  CallParameters const& p = CallParametersOf(node->op());
+  JSCallNode n(node);
+  CallParameters const& p = n.Parameters();
   if (p.speculation_mode() == SpeculationMode::kDisallowSpeculation) {
     return NoChange();
   }
 
-  Node* receiver = NodeProperties::GetValueInput(node, 1);
-  Node* context = NodeProperties::GetContextInput(node);
-  Node* effect = NodeProperties::GetEffectInput(node);
-  Node* control = NodeProperties::GetControlInput(node);
+  Node* receiver = n.receiver();
+  Node* context = n.context();
+  Effect effect = n.effect();
+  Control control = n.control();
 
   // A word of warning to begin with: This whole method might look a bit
   // strange at times, but that's mostly because it was carefully handcrafted

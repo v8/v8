@@ -118,15 +118,12 @@ bool MapInference::RelyOnMapsViaStability(
 }
 
 bool MapInference::RelyOnMapsPreferStability(
-    CompilationDependencies* dependencies, JSGraph* jsgraph, Node** effect,
-    Node* control, const FeedbackSource& feedback) {
+    CompilationDependencies* dependencies, JSGraph* jsgraph, Effect* effect,
+    Control control, const FeedbackSource& feedback) {
   CHECK(HaveMaps());
   if (Safe()) return false;
   if (RelyOnMapsViaStability(dependencies)) return true;
-  // TODO(jgruber): Change this to take (typed) Effect and Control parameters.
-  Effect e{*effect};
-  CHECK(RelyOnMapsHelper(nullptr, jsgraph, &e, Control{control}, feedback));
-  *effect = e;
+  CHECK(RelyOnMapsHelper(nullptr, jsgraph, effect, control, feedback));
   return false;
 }
 

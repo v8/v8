@@ -67,20 +67,9 @@ class MapInference {
   // checks. Does nothing if maps were already reliable. Returns true iff
   // dependencies were taken.
   bool RelyOnMapsPreferStability(CompilationDependencies* dependencies,
-                                 JSGraph* jsgraph, Node** effect, Node* control,
-                                 const FeedbackSource& feedback);
-  // TODO(jgruber): Once all callsites pass Effect/Control types,
-  // remove the untyped version above.
-  bool RelyOnMapsPreferStability(CompilationDependencies* dependencies,
                                  JSGraph* jsgraph, Effect* effect,
                                  Control control,
-                                 const FeedbackSource& feedback) {
-    Node* effect_node = *effect;
-    bool result = RelyOnMapsPreferStability(dependencies, jsgraph, &effect_node,
-                                            control, feedback);
-    *effect = effect_node;
-    return result;
-  }
+                                 const FeedbackSource& feedback);
   // Inserts map checks even if maps were already reliable.
   void InsertMapChecks(JSGraph* jsgraph, Effect* effect, Control control,
                        const FeedbackSource& feedback);
