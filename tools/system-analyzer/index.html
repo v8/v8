@@ -179,7 +179,7 @@ function globalDataUpload(e) {
   if(!e.detail) return;
   // instantiate the app logic
   stateGlobal.fileData = e.detail;
-  stateGlobal.state = new State();
+  stateGlobal.state = new State('#map-panel', '#stats', '#timeline-panel');
   stateGlobal.timeline = handleLoadTextMapProcessor(stateGlobal.fileData.chunk);
   updateDocumentState();
   // process the IC explorer
@@ -203,9 +203,9 @@ function globalSearchBarEvent(e) {
     <div class="stats-panel">
       <section id="stats"><h2>Stats</h2></section>
     </div>
-    <timeline-panel id="timeline-panel" onchange="globalDataChanged(event)"></timeline-panel>
+    <timeline-panel id="timeline-panel"></timeline-panel>
     <map-panel id="map-panel" onclick="globalSearchBarEvent(event)"></map-panel>
-    <ic-panel id="ic-panel" onchange="globalDataChanged(event)"></ic-panel>
+    <ic-panel id="ic-panel"></ic-panel>
   </div>
 
   <div id="instructions">

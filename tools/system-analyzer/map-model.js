@@ -7,12 +7,12 @@
 // const kChunkWidth = 10;
 
 class State {
-  constructor() {
+  constructor(mapPanelId, statPanelId, timelinePanelId) {
     this._nofChunks = 400;
     this._map = undefined;
     this._timeline = undefined;
     this._chunks = undefined;
-    this._view = new View(this);
+    this._view = new View(this, mapPanelId, statPanelId, timelinePanelId);
     this._navigation = new Navigation(this, this.view);
   }
   get timeline() {
@@ -64,7 +64,7 @@ class State {
 // =========================================================================
 // DOM Helper
 function $(id) {
-  return document.getElementById(id)
+  return document.querySelector(id)
 }
 
 function removeAllChildren(node) {
@@ -192,13 +192,16 @@ class Navigation {
 }
 
 class View {
-  constructor(state) {
+  constructor(state, mapPanelId, statPanelId, timelinePanelId) {
+    this.mapPanel_ = $(mapPanelId);
+    this.statPanel_ = $(statPanelId);
+    this.timelinePanel_ = $(timelinePanelId);
     this.state = state;
-    setInterval(this.updateOverviewWindow, 50);
+    setInterval(this.updateOverviewWindow(timelinePanelId), 50);
     this.backgroundCanvas = document.createElement('canvas');
     this.transitionView =
-        new TransitionView(state, $('map-panel').transitionViewSelect);
-    this.statsView = new StatsView(state, $('#stats'));
+        new TransitionView(state, this.mapPanel_.transitionViewSelect);
+    this.statsView = new StatsView(state, this.statPanel_);
     this.isLocked = false;
   }
   get chunks() {
@@ -222,12 +225,12 @@ class View {
       details += '\nSource location: ' + this.map.filePosition;
       details += '\n' + this.map.description;
     }
-    $('map-panel').mapDetailsSelect.innerText = details;
+    this.mapPanel_.mapDetailsSelect.innerText = details;
     this.transitionView.showMap(this.map);
   }
 
   updateTimeline() {
-    let chunksNode = $('timeline-panel').timelineChunksSelect;
+    let chunksNode = this.timelinePanel_.timelineChunksSelect;
     removeAllChildren(chunksNode);
     let chunks = this.chunks;
     let max = chunks.max(each => each.size());
@@ -346,14 +349,14 @@ class View {
     node.style.backgroundImage = 'url(' + imageData + ')';
   }
 
-  updateOverviewWindow() {
-    let indicator = $('timeline-panel').timelineOverviewIndicatorSelect;
+  updateOverviewWindow(timelinePanelId) {
+    let indicator = this.timelinePanel_.timelineOverviewIndicatorSelect;
     let totalIndicatorWidth =
-        $('timeline-panel').timelineOverviewSelect.offsetWidth;
-    let div = $('timeline-panel').timelineSelect;
+        this.timelinePanel_.timelineOverviewSelect.offsetWidth;
+    let div = this.timelinePanel_.timelineSelect;
     let timelineTotalWidth =
-        $('timeline-panel').timelineCanvasSelect.offsetWidth;
-    let factor = $('timeline-panel').timelineOverviewSelect.offsetWidth /
+        this.timelinePanel_.timelineCanvasSelect.offsetWidth;
+    let factor = this.timelinePanel_.timelineOverviewSelect.offsetWidth /
         timelineTotalWidth;
     let width = div.offsetWidth * factor;
     let left = div.scrollLeft * factor;
@@ -385,12 +388,12 @@ class View {
     ctx.closePath();
     ctx.fill();
     let imageData = canvas.toDataURL('image/webp', 0.2);
-    $('timeline-panel').timelineOverviewSelect.style.backgroundImage =
+    this.timelinePanel_.timelineOverviewSelect.style.backgroundImage =
         'url(' + imageData + ')';
   }
 
   redraw() {
-    let canvas = $('timeline-panel').timelineCanvasSelect;
+    let canvas = this.timelinePanel_.timelineCanvasSelect;
     canvas.width = (this.chunks.length + 1) * kChunkWidth;
     canvas.height = kChunkHeight;
     let ctx = canvas.getContext('2d');
