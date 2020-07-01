@@ -16,7 +16,6 @@ namespace internal {
 
 // Forward declarations.
 class Factory;
-class FeedbackNexus;
 class JSGlobalObject;
 class JSGlobalProxy;
 class StringConstantBase;

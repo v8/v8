@@ -4155,7 +4155,7 @@ bool TranslatedState::DoUpdateFeedback() {
   if (!feedback_vector_handle_.is_null()) {
     CHECK(!feedback_slot_.IsInvalid());
     isolate()->CountUsage(v8::Isolate::kDeoptimizerDisableSpeculation);
-    FeedbackNexus nexus(feedback_vector_handle_, feedback_slot_);
+    FeedbackNexus nexus(feedback_vector_handle_, feedback_slot_, isolate());
     nexus.SetSpeculationMode(SpeculationMode::kDisallowSpeculation);
     return true;
   }

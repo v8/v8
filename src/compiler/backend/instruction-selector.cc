@@ -3080,6 +3080,7 @@ void InstructionSelector::VisitUnreachable(Node* node) {
 }
 
 void InstructionSelector::VisitStaticAssert(Node* node) {
+  AllowHandleDereference allow_dereference;  // For printing.
   Node* asserted = node->InputAt(0);
   asserted->Print(4);
   FATAL("Expected turbofan static assert to hold, but got non-true input!\n");

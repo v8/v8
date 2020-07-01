@@ -960,11 +960,12 @@ void FeedbackVector::FeedbackVectorPrint(std::ostream& os) {  // NOLINT
 
 void FeedbackVector::FeedbackSlotPrint(std::ostream& os,
                                        FeedbackSlot slot) {  // NOLINT
-  FeedbackNexus nexus(*this, slot);
+  FeedbackNexusNoHandle nexus(MainThreadNoHandleConfig(*this, slot));
   nexus.Print(os);
 }
 
-void FeedbackNexus::Print(std::ostream& os) {  // NOLINT
+template <class T>
+void FeedbackNexusImpl<T>::Print(std::ostream& os) {  // NOLINT
   switch (kind()) {
     case FeedbackSlotKind::kCall:
     case FeedbackSlotKind::kCloneObject:

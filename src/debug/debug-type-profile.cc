@@ -51,7 +51,7 @@ std::unique_ptr<TypeProfile> TypeProfile::Collect(Isolate* isolate) {
         continue;
       }
       FeedbackSlot slot = vector.GetTypeProfileSlot();
-      FeedbackNexus nexus(vector, slot);
+      FeedbackNexusNoHandle nexus(MainThreadNoHandleConfig(vector, slot));
       Handle<String> name(info.DebugName(), isolate);
       std::vector<int> source_positions = nexus.GetSourcePositions();
       for (int position : source_positions) {
@@ -99,7 +99,7 @@ void TypeProfile::SelectMode(Isolate* isolate, debug::TypeProfileMode mode) {
         DCHECK(info.IsSubjectToDebugging());
         if (info.feedback_metadata().HasTypeProfileSlot()) {
           FeedbackSlot slot = vector.GetTypeProfileSlot();
-          FeedbackNexus nexus(vector, slot);
+          FeedbackNexusNoHandle nexus(MainThreadNoHandleConfig(vector, slot));
           nexus.ResetTypeProfile();
         }
       }

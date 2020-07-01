@@ -14,7 +14,6 @@ namespace v8 {
 namespace internal {
 
 // Forward declarations.
-class FeedbackNexus;
 class FeedbackSlot;
 
 namespace compiler {

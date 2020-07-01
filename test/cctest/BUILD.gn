@@ -201,6 +201,7 @@ v8_source_set("cctest_sources") {
     "test-concurrent-prototype.cc",
     "test-concurrent-script-context-table.cc",
     "test-concurrent-transition-array.cc",
+    "test-concurrent-vector.cc",
     "test-constantpool.cc",
     "test-conversions.cc",
     "test-cpu-profiler.cc",

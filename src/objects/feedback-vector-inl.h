@@ -323,51 +323,74 @@ int FeedbackMetadataIterator::entry_size() const {
   return FeedbackMetadata::GetSlotSize(kind());
 }
 
-MaybeObject FeedbackNexus::GetFeedback() const {
-  MaybeObject feedback = vector().Get(slot());
+template <class T>
+MaybeObject FeedbackNexusImpl<T>::GetFeedback() const {
+  MaybeObject feedback = g_.GetFeedback();
   FeedbackVector::AssertNoLegacyTypes(feedback);
   return feedback;
 }
 
-MaybeObject FeedbackNexus::GetFeedbackExtra() const {
-#ifdef DEBUG
-  FeedbackSlotKind kind = vector().GetKind(slot());
-  DCHECK_LT(1, FeedbackMetadata::GetSlotSize(kind));
-#endif
-  int extra_index = vector().GetIndex(slot()) + 1;
-  return vector().get(extra_index);
+template <class T>
+void FeedbackNexusImpl<T>::SetFeedback(Object feedback, WriteBarrierMode mode) {
+  g_.SetFeedback(MaybeObject::FromObject(feedback), mode);
 }
 
-void FeedbackNexus::SetFeedback(Object feedback, WriteBarrierMode mode) {
-  SetFeedback(MaybeObject::FromObject(feedback));
-}
-
-void FeedbackNexus::SetFeedback(MaybeObject feedback, WriteBarrierMode mode) {
+template <class T>
+void FeedbackNexusImpl<T>::SetFeedback(MaybeObject feedback,
+                                       WriteBarrierMode mode) {
   FeedbackVector::AssertNoLegacyTypes(feedback);
-  vector().Set(slot(), feedback, mode);
+  g_.SetFeedback(feedback, mode);
 }
 
-void FeedbackNexus::SetFeedbackExtra(Object feedback_extra,
-                                     WriteBarrierMode mode) {
-#ifdef DEBUG
-  FeedbackSlotKind kind = vector().GetKind(slot());
-  DCHECK_LT(1, FeedbackMetadata::GetSlotSize(kind));
-  FeedbackVector::AssertNoLegacyTypes(MaybeObject::FromObject(feedback_extra));
-#endif
-  int index = vector().GetIndex(slot()) + 1;
-  vector().set(index, MaybeObject::FromObject(feedback_extra), mode);
+template <class T>
+void FeedbackNexusImpl<T>::SetFeedback(Object feedback, WriteBarrierMode mode,
+                                       Object feedback_extra,
+                                       WriteBarrierMode mode_extra) {
+  g_.SetFeedbackPair(MaybeObject::FromObject(feedback), mode,
+                     MaybeObject::FromObject(feedback_extra), mode_extra);
 }
 
-void FeedbackNexus::SetFeedbackExtra(MaybeObject feedback_extra,
-                                     WriteBarrierMode mode) {
+template <class T>
+void FeedbackNexusImpl<T>::SetFeedback(Object feedback, WriteBarrierMode mode,
+                                       MaybeObject feedback_extra,
+                                       WriteBarrierMode mode_extra) {
+  g_.SetFeedbackPair(MaybeObject::FromObject(feedback), mode, feedback_extra,
+                     mode_extra);
+}
+
+template <class T>
+void FeedbackNexusImpl<T>::SetFeedback(MaybeObject feedback,
+                                       WriteBarrierMode mode,
+                                       Object feedback_extra,
+                                       WriteBarrierMode mode_extra) {
+  g_.SetFeedbackPair(feedback, mode, MaybeObject::FromObject(feedback_extra),
+                     mode_extra);
+}
+
+template <class T>
+void FeedbackNexusImpl<T>::SetFeedback(MaybeObject feedback,
+                                       WriteBarrierMode mode,
+                                       MaybeObject feedback_extra,
+                                       WriteBarrierMode mode_extra) {
+  FeedbackVector::AssertNoLegacyTypes(feedback);
 #ifdef DEBUG
   FeedbackVector::AssertNoLegacyTypes(feedback_extra);
 #endif
-  int index = vector().GetIndex(slot()) + 1;
-  vector().set(index, feedback_extra, mode);
+  g_.SetFeedbackPair(feedback, mode, feedback_extra, mode_extra);
 }
 
-Isolate* FeedbackNexus::GetIsolate() const { return vector().GetIsolate(); }
+template <class T>
+bool FeedbackNexusImpl<T>::vector_needs_update() const {
+  DCHECK_LT(1, FeedbackMetadata::GetSlotSize(kind()));
+  // TODO(mvstanton): This is a bizarre request.
+  std::pair<MaybeObject, MaybeObject> pair = g_.GetFeedbackPair();
+  return pair.second.ToSmi().value() != ELEMENT;
+}
+
+template <class T>
+Isolate* FeedbackNexusImpl<T>::GetIsolate() const {
+  return g_.vector().GetIsolate();
+}
 }  // namespace internal
 }  // namespace v8
 

@@ -3223,7 +3223,7 @@ static void CheckVectorIC(Handle<JSFunction> f, int slot_index,
       Handle<FeedbackVector>(f->feedback_vector(), f->GetIsolate());
   FeedbackVectorHelper helper(vector);
   FeedbackSlot slot = helper.slot(slot_index);
-  FeedbackNexus nexus(vector, slot);
+  FeedbackNexus nexus(vector, slot, f->GetIsolate());
   CHECK(nexus.ic_state() == desired_state);
 }
 
@@ -4754,7 +4754,7 @@ void CheckIC(Handle<JSFunction> function, int slot_index,
              InlineCacheState state) {
   FeedbackVector vector = function->feedback_vector();
   FeedbackSlot slot(slot_index);
-  FeedbackNexus nexus(vector, slot);
+  FeedbackNexusNoHandle nexus(MainThreadNoHandleConfig(vector, slot));
   CHECK_EQ(nexus.ic_state(), state);
 }
 

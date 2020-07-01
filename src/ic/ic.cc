@@ -168,7 +168,7 @@ IC::IC(Isolate* isolate, Handle<FeedbackVector> vector, FeedbackSlot slot,
       kind_(kind),
       target_maps_set_(false),
       slow_stub_reason_(nullptr),
-      nexus_(vector, slot) {
+      nexus_(vector, slot, isolate) {
   DCHECK_IMPLIES(!vector.is_null(), kind_ == nexus_.kind());
   state_ = (vector.is_null()) ? NO_FEEDBACK : nexus_.ic_state();
   old_state_ = state_;
@@ -1822,7 +1822,9 @@ void KeyedStoreIC::UpdateStoreElement(Handle<Map> receiver_map,
                                       KeyedAccessStoreMode store_mode,
                                       Handle<Map> new_receiver_map) {
   std::vector<MapAndHandler> target_maps_and_handlers;
-  nexus()->ExtractMapsAndHandlers(&target_maps_and_handlers, true);
+  nexus()->ExtractMapsAndHandlers(
+      &target_maps_and_handlers,
+      [this](Handle<Map> map) { return Map::TryUpdate(isolate(), map); });
   if (target_maps_and_handlers.empty()) {
     Handle<Map> monomorphic_map = receiver_map;
     // If we transitioned to a map that is a more general map than incoming
@@ -2739,7 +2741,8 @@ RUNTIME_FUNCTION(Runtime_CloneObjectIC_Miss) {
     FeedbackSlot slot = FeedbackVector::ToSlot(index);
     Handle<HeapObject> maybe_vector = args.at<HeapObject>(3);
     if (maybe_vector->IsFeedbackVector()) {
-      FeedbackNexus nexus(Handle<FeedbackVector>::cast(maybe_vector), slot);
+      FeedbackNexus nexus(Handle<FeedbackVector>::cast(maybe_vector), slot,
+                          isolate);
       if (!source->IsSmi() && !nexus.IsMegamorphic()) {
         Handle<Map> source_map(Handle<HeapObject>::cast(source)->map(),
                                isolate);

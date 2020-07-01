@@ -10633,7 +10633,8 @@ THREADED_TEST(ShadowObjectAndDataProperty) {
                                  .ToLocalChecked())));
   CHECK(foo->has_feedback_vector());
   i::FeedbackSlot slot = i::FeedbackVector::ToSlot(0);
-  i::FeedbackNexus nexus(foo->feedback_vector(), slot);
+  i::FeedbackNexusNoHandle nexus(
+      i::MainThreadNoHandleConfig(foo->feedback_vector(), slot));
   CHECK_EQ(i::FeedbackSlotKind::kStoreGlobalSloppy, nexus.kind());
   CompileRun("foo(1)");
   CHECK_EQ(i::MONOMORPHIC, nexus.ic_state());
@@ -10683,7 +10684,8 @@ THREADED_TEST(ShadowObjectAndDataPropertyTurbo) {
                                  .ToLocalChecked())));
   CHECK(foo->has_feedback_vector());
   i::FeedbackSlot slot = i::FeedbackVector::ToSlot(0);
-  i::FeedbackNexus nexus(foo->feedback_vector(), slot);
+  i::FeedbackNexusNoHandle nexus(
+      i::MainThreadNoHandleConfig(foo->feedback_vector(), slot));
   CHECK_EQ(i::FeedbackSlotKind::kStoreGlobalSloppy, nexus.kind());
   CompileRun("%OptimizeFunctionOnNextCall(foo); foo(1)");
   CHECK_EQ(i::MONOMORPHIC, nexus.ic_state());
