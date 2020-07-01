@@ -445,6 +445,12 @@ inline WasmOpcode LoadStoreOpcodeOf(MachineType type, bool store) {
 #define WASM_REF_IS_NULL(val) val, kExprRefIsNull
 #define WASM_REF_AS_NON_NULL(val) val, kExprRefAsNonNull
 #define WASM_REF_EQ(lhs, rhs) lhs, rhs, kExprRefEq
+#define WASM_REF_TEST(obj_type, rtt_type, ref, rtt)                \
+  ref, rtt, WASM_GC_OP(kExprRefTest), static_cast<byte>(obj_type), \
+      static_cast<byte>(rtt_type)
+#define WASM_REF_CAST(obj_type, rtt_type, ref, rtt)                \
+  ref, rtt, WASM_GC_OP(kExprRefCast), static_cast<byte>(obj_type), \
+      static_cast<byte>(rtt_type)
 
 #define WASM_ARRAY_NEW(index, default_value, length) \
   default_value, length, WASM_GC_OP(kExprArrayNew), static_cast<byte>(index)
@@ -480,6 +486,7 @@ inline WasmOpcode LoadStoreOpcodeOf(MachineType type, bool store) {
   __VA_ARGS__, kExprReturnCallIndirect, static_cast<byte>(sig_index), TABLE_ZERO
 
 #define WASM_REF_TYPE(typeidx) kLocalOptRef, U32V_1(typeidx)
+#define WASM_RTT(depth, typeidx) kLocalRtt, U32V_1(depth), U32V_1(typeidx)
 
 // shift locals by 1; let (locals[0]: local_type) = value in ...
 #define WASM_LET_1_V(local_type, value, ...)                                  \
