@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#include "src/execution/riscv/simulator-riscv.h"
+#include "src/execution/riscv64/simulator-riscv64.h"
 
 // Only build the simulator if not compiling for real RISCV hardware.
 #if defined(USE_SIMULATOR)
@@ -17,7 +17,7 @@
 #include "src/base/bits.h"
 #include "src/codegen/assembler-inl.h"
 #include "src/codegen/macro-assembler.h"
-#include "src/codegen/riscv/constants-riscv.h"
+#include "src/codegen/riscv64/constants-riscv64.h"
 #include "src/diagnostics/disasm.h"
 #include "src/heap/combined-heap.h"
 #include "src/runtime/runtime-utils.h"

@@ -62,7 +62,7 @@ static int get_num_allocatable_double_registers() {
       kMaxAllocatableDoubleRegisterCount;
 #elif V8_TARGET_ARCH_S390
       kMaxAllocatableDoubleRegisterCount;
-#elif V8_TARGET_ARCH_RISCV
+#elif V8_TARGET_ARCH_RISCV64 || V8_TARGET_ARCH_RISCV32
       kMaxAllocatableDoubleRegisterCount;
 #else
 #error Unsupported target architecture.

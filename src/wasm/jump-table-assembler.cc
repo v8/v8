@@ -295,7 +295,7 @@ void JumpTableAssembler::NopBytes(int bytes) {
   }
 }
 
-#elif V8_TARGET_ARCH_RISCV
+#elif V8_TARGET_ARCH_RISCV64
 void JumpTableAssembler::EmitLazyCompileJumpSlot(uint32_t func_index,
                                                  Address lazy_compile_target) {
   int start = pc_offset();

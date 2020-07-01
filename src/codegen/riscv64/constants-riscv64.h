@@ -634,7 +634,7 @@ inline Hint NegateHint(Hint hint) { return no_hint; }
 
 // -----------------------------------------------------------------------------
 // Specific instructions, constants, and masks.
-// These constants are declared in assembler-riscv.cc, as they use named
+// These constants are declared in assembler-riscv64.cc, as they use named
 // registers and other constants.
 
 // An ECALL instruction, used for redirected real time call

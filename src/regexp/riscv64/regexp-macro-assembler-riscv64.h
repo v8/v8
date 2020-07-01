@@ -6,7 +6,7 @@
 #define V8_REGEXP_RISCV_REGEXP_MACRO_ASSEMBLER_RISCV_H_
 
 #include "src/codegen/macro-assembler.h"
-#include "src/codegen/riscv/assembler-riscv.h"
+#include "src/codegen/riscv64/assembler-riscv64.h"
 #include "src/regexp/regexp-macro-assembler.h"
 
 namespace v8 {

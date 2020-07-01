@@ -10,7 +10,7 @@
 #define V8_CODEGEN_RISCV_MACRO_ASSEMBLER_RISCV_H_
 
 #include "src/codegen/assembler.h"
-#include "src/codegen/riscv/assembler-riscv.h"
+#include "src/codegen/riscv64/assembler-riscv64.h"
 #include "src/common/globals.h"
 
 namespace v8 {

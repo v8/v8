@@ -32,12 +32,11 @@
 // modified significantly by Google Inc.
 // Copyright 2012 the V8 project authors. All rights reserved.
 
-#include "src/codegen/riscv/assembler-riscv.h"
-
-#if V8_TARGET_ARCH_RISCV
+#if V8_TARGET_ARCH_RISCV64
 
 #include "src/base/cpu.h"
-#include "src/codegen/riscv/assembler-riscv-inl.h"
+#include "src/codegen/riscv64/assembler-riscv64-inl.h"
+#include "src/codegen/riscv64/assembler-riscv64.h"
 #include "src/codegen/safepoint-table.h"
 #include "src/codegen/string-constants.h"
 #include "src/deoptimizer/deoptimizer.h"
@@ -145,7 +144,7 @@ uint32_t RelocInfo::wasm_call_tag() const {
 
 // -----------------------------------------------------------------------------
 // Implementation of Operand and MemOperand.
-// See assembler-riscv-inl.h for inlined constructors.
+// See assembler-riscv64-inl.h for inlined constructors.
 
 Operand::Operand(Handle<HeapObject> handle)
     : rm_(no_reg), rmode_(RelocInfo::FULL_EMBEDDED_OBJECT) {
@@ -2296,10 +2295,10 @@ void Assembler::break_(uint32_t code, bool break_as_stop) {
 void Assembler::stop(uint32_t code) {
   DCHECK_GT(code, kMaxWatchpointCode);
   DCHECK_LE(code, kMaxStopCode);
-#if defined(V8_HOST_ARCH_RISCV)
+#if defined(V8_HOST_ARCH_RISCV64)
   // FIXME: does RISCV expect a special value?
   break_(0x54321);
-#else  // V8_HOST_ARCH_RISCV
+#else  // V8_HOST_ARCH_RISCV64
   break_(code, true);
 #endif
 }
@@ -2742,4 +2741,4 @@ bool UseScratchRegisterScope::hasAvailable() const { return *available_ != 0; }
 }  // namespace internal
 }  // namespace v8
 
-#endif  // V8_TARGET_ARCH_RISCV
+#endif  // V8_TARGET_ARCH_RISCV64

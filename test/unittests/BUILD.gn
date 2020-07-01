@@ -275,10 +275,15 @@ v8_source_set("unittests_sources") {
       "assembler/turbo-assembler-mips64-unittest.cc",
       "compiler/mips64/instruction-selector-mips64-unittest.cc",
     ]
-  } else if (v8_current_cpu == "riscv64" || v8_current_cpu == "riscv") {
+  } else if (v8_current_cpu == "riscv64") {
     sources += [
-      "assembler/turbo-assembler-riscv-unittest.cc",
-      "compiler/riscv/instruction-selector-riscv-unittest.cc",
+      "assembler/turbo-assembler-riscv64-unittest.cc",
+      "compiler/riscv64/instruction-selector-riscv64-unittest.cc",
+    ]
+  } else if (v8_current_cpu == "riscv32") {
+    sources += [
+      "assembler/turbo-assembler-riscv32-unittest.cc",
+      "compiler/riscv32/instruction-selector-riscv32-unittest.cc",
     ]
   } else if (v8_current_cpu == "x64") {
     sources += [

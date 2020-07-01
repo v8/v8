@@ -6,7 +6,7 @@
 #include "src/codegen/callable.h"
 #include "src/codegen/macro-assembler.h"
 #include "src/codegen/optimized-compilation-info.h"
-#include "src/codegen/riscv/constants-riscv.h"
+#include "src/codegen/riscv64/constants-riscv64.h"
 #include "src/compiler/backend/code-generator-impl.h"
 #include "src/compiler/backend/code-generator.h"
 #include "src/compiler/backend/gap-resolver.h"
@@ -26,9 +26,9 @@ namespace compiler {
   PrintF("code_gen: \'%s\' in function %s at line %d\n", msg, __FUNCTION__, \
          __LINE__)
 
-#define TRACE_UNIMPL()                                                        \
-  PrintF("UNIMPLEMENTED code_generator_riscv: %s at line %d\n", __FUNCTION__, \
-         __LINE__)
+#define TRACE_UNIMPL()                                            \
+  PrintF("UNIMPLEMENTED code_generator_riscv64: %s at line %d\n", \
+         __FUNCTION__, __LINE__)
 
 // Adds RISC-V-specific methods to convert InstructionOperands.
 class RiscvOperandConverter final : public InstructionOperandConverter {
@@ -750,7 +750,7 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       // Better to use label and PC-relative addressing to generate the return
       // address
       int offset = 52;
-#if V8_HOST_ARCH_RISCV
+#if V8_HOST_ARCH_RISCV64
       if (__ emit_debug_code()) {
         offset += 16;
       }
@@ -1875,7 +1875,7 @@ void AssembleBranchToLabels(CodeGenerator* gen, TurboAssembler* tasm,
   Condition cc = kNoCondition;
   // RISC-V does not have condition code flags, so compare and branch are
   // implemented differently than on the other arch's. The compare operations
-  // emit riscv pseudo-instructions, which are handled here by branch
+  // emit riscv64 pseudo-instructions, which are handled here by branch
   // instructions that do the actual comparison. Essential that the input
   // registers to compare pseudo-op are not modified before this branch op, as
   // they are tested here.
@@ -2130,7 +2130,7 @@ void CodeGenerator::AssembleArchBoolean(Instruction* instr,
   Condition cc = kNoCondition;
   // RISC-V does not have condition code flags, so compare and branch are
   // implemented differently than on the other arch's. The compare operations
-  // emit riscv pseudo-instructions, which are checked and handled here.
+  // emit riscv64 pseudo-instructions, which are checked and handled here.
 
   if (instr->arch_opcode() == kRiscvTst) {
     cc = FlagsConditionToConditionTst(condition);

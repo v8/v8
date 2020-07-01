@@ -45,7 +45,7 @@
 ##############################################################################
 ['arch == riscv32 or arch == riscv64', {
   'ValueSerializerTest.RoundTripTypedArray': [SKIP],
-}],  # arch == riscv
+}],  # arch == riscv32 or riscv64
 
 ##############################################################################
 ['not pointer_compression', {

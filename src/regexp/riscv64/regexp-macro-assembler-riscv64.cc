@@ -2,9 +2,9 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#if V8_TARGET_ARCH_RISCV
+#if V8_TARGET_ARCH_RISCV64
 
-#include "src/regexp/riscv/regexp-macro-assembler-riscv.h"
+#include "src/regexp/riscv64/regexp-macro-assembler-riscv64.h"
 
 #include "src/codegen/assembler-inl.h"
 #include "src/codegen/macro-assembler.h"
@@ -1278,4 +1278,4 @@ void RegExpMacroAssemblerRISCV::LoadCurrentCharacterUnchecked(int cp_offset,
 }  // namespace internal
 }  // namespace v8
 
-#endif  // V8_TARGET_ARCH_RISCV
+#endif  // V8_TARGET_ARCH_RISCV64
