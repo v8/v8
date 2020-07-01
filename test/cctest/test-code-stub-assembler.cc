@@ -2491,7 +2491,7 @@ TEST(CreatePromiseResolvingFunctionsContext) {
       ft.Call(isolate->factory()->undefined_value()).ToHandleChecked();
   CHECK(result->IsContext());
   Handle<Context> context_js = Handle<Context>::cast(result);
-  CHECK_EQ(isolate->native_context()->scope_info(), context_js->scope_info());
+  CHECK_EQ(isolate->root(RootIndex::kEmptyScopeInfo), context_js->scope_info());
   CHECK_EQ(*isolate->native_context(), context_js->native_context());
   CHECK(context_js->get(PromiseBuiltins::kPromiseSlot).IsJSPromise());
   CHECK_EQ(ReadOnlyRoots(isolate).false_value(),
@@ -2649,7 +2649,7 @@ TEST(CreatePromiseGetCapabilitiesExecutorContext) {
   CHECK(result_obj->IsContext());
   Handle<Context> context_js = Handle<Context>::cast(result_obj);
   CHECK_EQ(PromiseBuiltins::kCapabilitiesContextLength, context_js->length());
-  CHECK_EQ(isolate->native_context()->scope_info(), context_js->scope_info());
+  CHECK_EQ(isolate->root(RootIndex::kEmptyScopeInfo), context_js->scope_info());
   CHECK_EQ(*isolate->native_context(), context_js->native_context());
   CHECK(
       context_js->get(PromiseBuiltins::kCapabilitySlot).IsPromiseCapability());
@@ -2698,7 +2698,8 @@ TEST(NewPromiseCapability) {
 
     for (auto&& callback : callbacks) {
       Handle<Context> context(Context::cast(callback->context()), isolate);
-      CHECK_EQ(isolate->native_context()->scope_info(), context->scope_info());
+      CHECK_EQ(isolate->root(RootIndex::kEmptyScopeInfo),
+               context->scope_info());
       CHECK_EQ(*isolate->native_context(), context->native_context());
       CHECK_EQ(PromiseBuiltins::kPromiseContextLength, context->length());
       CHECK_EQ(context->get(PromiseBuiltins::kPromiseSlot), result->promise());
