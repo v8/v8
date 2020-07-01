@@ -27,11 +27,11 @@
 #include <stdio.h>
 #include <string.h>
 
-#if V8_TARGET_ARCH_RISCV
+#if V8_TARGET_ARCH_RISCV64
 
 #include "src/base/platform/platform.h"
 #include "src/codegen/macro-assembler.h"
-#include "src/codegen/riscv/constants-riscv.h"
+#include "src/codegen/riscv64/constants-riscv64.h"
 #include "src/diagnostics/disasm.h"
 
 namespace v8 {
@@ -1444,4 +1444,4 @@ void Disassembler::Disassemble(FILE* f, byte* begin, byte* end,
 
 }  // namespace disasm
 
-#endif  // V8_TARGET_ARCH_RISCV
+#endif  // V8_TARGET_ARCH_RISCV64

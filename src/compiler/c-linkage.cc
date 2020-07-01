@@ -128,9 +128,9 @@ namespace {
   d8.bit() | d9.bit() | d10.bit() | d11.bit() | d12.bit() | d13.bit() | \
       d14.bit() | d15.bit()
 
-#elif V8_TARGET_ARCH_RISCV
+#elif V8_TARGET_ARCH_RISCV64
 // ===========================================================================
-// == riscv =================================================================
+// == riscv64 =================================================================
 // ===========================================================================
 #define PARAM_REGISTERS a0, a1, a2, a3, a4, a5, a6, a7
 // fp is not part of CALLEE_SAVE_REGISTERS (similar to how MIPS64 or PPC defines

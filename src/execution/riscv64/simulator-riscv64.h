@@ -36,7 +36,7 @@ T Nabs(T a) {
 
 #include "src/base/hashmap.h"
 #include "src/codegen/assembler.h"
-#include "src/codegen/riscv/constants-riscv.h"
+#include "src/codegen/riscv64/constants-riscv64.h"
 #include "src/execution/simulator-base.h"
 #include "src/utils/allocation.h"
 

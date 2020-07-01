@@ -42,8 +42,8 @@
 #include "src/codegen/assembler.h"
 #include "src/codegen/external-reference.h"
 #include "src/codegen/label.h"
-#include "src/codegen/riscv/constants-riscv.h"
-#include "src/codegen/riscv/register-riscv.h"
+#include "src/codegen/riscv64/constants-riscv64.h"
+#include "src/codegen/riscv64/register-riscv64.h"
 #include "src/objects/contexts.h"
 #include "src/objects/smi.h"
 

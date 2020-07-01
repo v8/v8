@@ -3,7 +3,7 @@
 // found in the LICENSE file.
 
 #include "src/codegen/macro-assembler.h"
-#include "src/codegen/riscv/assembler-riscv-inl.h"
+#include "src/codegen/riscv64/assembler-riscv64-inl.h"
 #include "src/execution/simulator.h"
 #include "test/common/assembler-tester.h"
 #include "test/unittests/test-utils.h"

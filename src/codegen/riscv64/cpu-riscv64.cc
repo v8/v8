@@ -7,7 +7,7 @@
 #include <sys/syscall.h>
 #include <unistd.h>
 
-#if V8_TARGET_ARCH_RISCV
+#if V8_TARGET_ARCH_RISCV64
 
 #include "src/codegen/cpu-features.h"
 
@@ -28,7 +28,7 @@ void CpuFeatures::FlushICache(void* start, size_t size) {
              0);
 #else   // ANDROID
   long res;  // NOLINT(runtime/int)
-  //FIXME: RISCV porting
+  // FIXME: RISCV porting
   res = 0;
   if (res) FATAL("Failed to flush the instruction cache");
 #endif  // ANDROID
@@ -38,4 +38,4 @@ void CpuFeatures::FlushICache(void* start, size_t size) {
 }  // namespace internal
 }  // namespace v8
 
-#endif  // V8_TARGET_ARCH_RISCV
+#endif  // V8_TARGET_ARCH_RISCV64

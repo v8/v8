@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#if V8_TARGET_ARCH_RISCV
+#if V8_TARGET_ARCH_RISCV64
 
 #include "src/debug/debug.h"
 
@@ -46,7 +46,6 @@ void DebugCodegen::GenerateFrameDropperTrampoline(MacroAssembler* masm) {
   __ InvokeFunction(a1, a2, a0, JUMP_FUNCTION);
 }
 
-
 const bool LiveEdit::kFrameDropperSupported = true;
 
 #undef __
@@ -54,4 +53,4 @@ const bool LiveEdit::kFrameDropperSupported = true;
 }  // namespace internal
 }  // namespace v8
 
-#endif  // V8_TARGET_ARCH_RISCV
+#endif  // V8_TARGET_ARCH_RISCV64

@@ -30,7 +30,6 @@ class Sample {
   v8::internal::EmbeddedVector<void*, kFramesLimit> data_;
 };
 
-
 #if defined(USE_SIMULATOR)
 class SimulatorHelper {
  public:
@@ -84,7 +83,7 @@ class SimulatorHelper {
         simulator_->get_register(v8::internal::Simulator::fp));
     state->lr = reinterpret_cast<void*>(
         simulator_->get_register(v8::internal::Simulator::ra));
-#elif V8_TARGET_ARCH_RISCV
+#elif V8_TARGET_ARCH_RISCV64 || V8_TARGET_ARCH_RISCV32
     state->pc = reinterpret_cast<void*>(simulator_->get_pc());
     state->sp = reinterpret_cast<void*>(
         simulator_->get_register(v8::internal::Simulator::sp));
@@ -97,7 +96,6 @@ class SimulatorHelper {
   v8::internal::Simulator* simulator_;
 };
 #endif  // USE_SIMULATOR
-
 
 class SamplingTestHelper {
  public:
@@ -210,7 +208,6 @@ SamplingTestHelper* SamplingTestHelper::instance_;
 
 }  // namespace
 
-
 // A JavaScript function which takes stack depth
 // (minimum value 2) as an argument.
 // When at the bottom of the recursion,
@@ -222,18 +219,15 @@ static const char* test_function =
     "  else return func(depth - 1);"
     "}";
 
-
 TEST(StackDepthIsConsistent) {
   SamplingTestHelper helper(std::string(test_function) + "func(8);");
   CHECK_EQ(8, helper.sample().size());
 }
 
-
 TEST(StackDepthDoesNotExceedMaxValue) {
   SamplingTestHelper helper(std::string(test_function) + "func(300);");
   CHECK_EQ(Sample::kFramesLimit, helper.sample().size());
 }
-
 
 // The captured sample should have three pc values.
 // They should fall in the range where the compiled code resides.

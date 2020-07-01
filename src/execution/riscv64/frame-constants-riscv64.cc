@@ -2,13 +2,13 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#if V8_TARGET_ARCH_RISCV
+#if V8_TARGET_ARCH_RISCV64
 
-#include "src/codegen/riscv/assembler-riscv-inl.h"
+#include "src/codegen/riscv64/assembler-riscv64-inl.h"
 #include "src/execution/frame-constants.h"
 #include "src/execution/frames.h"
 
-#include "src/execution/riscv/frame-constants-riscv.h"
+#include "src/execution/riscv64/frame-constants-riscv64.h"
 
 namespace v8 {
 namespace internal {
@@ -29,4 +29,4 @@ int BuiltinContinuationFrameConstants::PaddingSlotCount(int register_count) {
 }  // namespace internal
 }  // namespace v8
 
-#endif  // V8_TARGET_ARCH_RISCV
+#endif  // V8_TARGET_ARCH_RISCV64

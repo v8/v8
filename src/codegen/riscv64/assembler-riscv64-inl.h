@@ -36,7 +36,7 @@
 #ifndef V8_CODEGEN_RISCV_ASSEMBLER_RISCV_INL_H_
 #define V8_CODEGEN_RISCV_ASSEMBLER_RISCV_INL_H_
 
-#include "src/codegen/riscv/assembler-riscv.h"
+#include "src/codegen/riscv64/assembler-riscv64.h"
 
 #include "src/codegen/assembler.h"
 #include "src/debug/debug.h"

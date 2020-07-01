@@ -4,7 +4,7 @@
 
 #include <limits.h>  // For LONG_MIN, LONG_MAX.
 
-#if V8_TARGET_ARCH_RISCV
+#if V8_TARGET_ARCH_RISCV64
 
 #include "src/base/bits.h"
 #include "src/base/division-by-constant.h"
@@ -28,7 +28,7 @@
 // Satisfy cpplint check, but don't include platform-specific header. It is
 // included recursively via macro-assembler.h.
 #if 0
-#include "src/codegen/riscv/macro-assembler-riscv.h"
+#include "src/codegen/riscv64/macro-assembler-riscv64.h"
 #endif
 
 namespace v8 {
@@ -3090,7 +3090,8 @@ void TurboAssembler::Jump(const ExternalReference& reference) {
   Jump(t6);
 }
 
-// Note: To call gcc-compiled C code on riscv, you must call through t6.
+// FIXME (RISCV): the comment does not make sense, where is t6 used?
+// Note: To call gcc-compiled C code on riscv64, you must call through t6.
 void TurboAssembler::Call(Register target, Condition cond, Register rs,
                           const Operand& rt) {
   BlockTrampolinePoolScope block_trampoline_pool(this);
@@ -3379,7 +3380,7 @@ void TurboAssembler::FPUCanonicalizeNaN(const DoubleRegister dst,
   RV_fmv_d(dst, src);
   RV_feq_d(scratch, src, src);
   RV_bne(scratch, zero_reg, &NotNaN);
-  RV_li(scratch, 0x7ff8000000000000ULL); // This is the canonical NaN
+  RV_li(scratch, 0x7ff8000000000000ULL);  // This is the canonical NaN
   RV_fmv_d_x(dst, scratch);
   bind(&NotNaN);
 }
@@ -4030,19 +4031,19 @@ void MacroAssembler::LeaveExitFrame(bool save_doubles, Register argument_count,
 }
 
 int TurboAssembler::ActivationFrameAlignment() {
-#if V8_HOST_ARCH_RISCV
+#if V8_HOST_ARCH_RISCV64
   // Running on the real platform. Use the alignment as mandated by the local
   // environment.
   // Note: This will break if we ever start generating snapshots on one RISC-V
   // platform for another RISC-V platform with a different alignment.
   return base::OS::ActivationFrameAlignment();
-#else   // V8_HOST_ARCH_RISCV
+#else   // V8_HOST_ARCH_RISCV64
   // If we are using the simulator then we should always align to the expected
   // alignment. As the simulator is used to generate snapshots we do not know
   // if the target platform will need alignment, so this is controlled from a
   // flag.
   return FLAG_sim_stack_alignment;
-#endif  // V8_HOST_ARCH_RISCV
+#endif  // V8_HOST_ARCH_RISCV64
 }
 
 void MacroAssembler::AssertStackIsAligned() {
@@ -4348,7 +4349,7 @@ void TurboAssembler::CallCFunctionHelper(Register function,
   // FIXME(RISC-V): The MIPS ABI requires a C function must be called via t9,
   //                does RISC-V have a similar requirement? We currently use t6
 
-#if V8_HOST_ARCH_RISCV
+#if V8_HOST_ARCH_RISCV64
   if (emit_debug_code()) {
     int frame_alignment = base::OS::ActivationFrameAlignment();
     int frame_alignment_mask = frame_alignment - 1;
@@ -4367,7 +4368,7 @@ void TurboAssembler::CallCFunctionHelper(Register function,
       bind(&alignment_as_expected);
     }
   }
-#endif  // V8_HOST_ARCH_RISCV
+#endif  // V8_HOST_ARCH_RISCV64
 
   // Just call directly. The function called cannot cause a GC, or
   // allow preemption, so the return address in the link register
@@ -4484,4 +4485,4 @@ void TurboAssembler::CallForDeoptimization(Address target, int deopt_id) {
 }  // namespace internal
 }  // namespace v8
 
-#endif  // V8_TARGET_ARCH_RISCV
+#endif  // V8_TARGET_ARCH_RISCV64
