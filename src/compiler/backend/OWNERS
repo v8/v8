@@ -3,4 +3,6 @@ gdeepti@chromium.org
 
 # Plus src/compiler owners.
 
+per-file register-allocator*=thibaudm@chromium.org
+
 # COMPONENT: Blink>JavaScript>Compiler
