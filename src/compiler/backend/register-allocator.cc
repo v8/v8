@@ -3081,15 +3081,12 @@ LifetimePosition RegisterAllocator::FindOptimalSpillingPos(
           (range->TopLevel()->Start() == loop_start &&
            range->TopLevel()->SpillAtLoopHeaderNotBeneficial()))
         return pos;
-      auto& loop_header_state =
-          data()->GetSpillState(loop_header->rpo_number());
-      for (LiveRange* live_at_header : loop_header_state) {
-        if (live_at_header->TopLevel() != range->TopLevel() ||
-            !live_at_header->Covers(loop_start) || live_at_header->spilled()) {
-          continue;
-        }
-        LiveRange* check_use = live_at_header;
-        for (; check_use != nullptr && check_use->Start() < pos;
+
+      LiveRange* live_at_header = range->TopLevel()->GetChildCovers(loop_start);
+
+      if (live_at_header != nullptr && !live_at_header->spilled()) {
+        for (LiveRange* check_use = live_at_header;
+             check_use != nullptr && check_use->Start() < pos;
              check_use = check_use->next()) {
           // If we find a use for which spilling is detrimental, don't spill
           // at the loop header
@@ -3104,7 +3101,6 @@ LifetimePosition RegisterAllocator::FindOptimalSpillingPos(
         // No register beneficial use inside the loop before the pos.
         *begin_spill_out = live_at_header;
         pos = loop_start;
-        break;
       }
 
       // Try hoisting out to an outer loop.
