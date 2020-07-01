@@ -18,6 +18,7 @@ namespace internal {
 
 class HeapBase;
 class HeapObjectHeader;
+class MarkingState;
 class MutatorThreadMarkingVisitor;
 
 // Marking algorithm. Example for a valid call sequence creating the marking
@@ -115,6 +116,7 @@ class V8_EXPORT_PRIVATE Marker {
   WeakCallbackWorklist* weak_callback_worklist() {
     return &weak_callback_worklist_;
   }
+  MarkingState& marking_state() const { return *mutator_marking_state_.get(); }
 
   void ClearAllWorklistsForTesting();
 
@@ -134,6 +136,7 @@ class V8_EXPORT_PRIVATE Marker {
   HeapBase& heap_;
   MarkingConfig config_ = MarkingConfig::Default();
 
+  std::unique_ptr<MarkingState> mutator_marking_state_;
   std::unique_ptr<MutatorThreadMarkingVisitor> marking_visitor_;
 
   MarkingWorklist marking_worklist_;

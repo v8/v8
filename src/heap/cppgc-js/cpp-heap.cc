@@ -14,6 +14,7 @@
 #include "src/heap/cppgc/heap-base.h"
 #include "src/heap/cppgc/heap-object-header.h"
 #include "src/heap/cppgc/marker.h"
+#include "src/heap/cppgc/marking-state.h"
 #include "src/heap/cppgc/marking-visitor.h"
 #include "src/heap/cppgc/object-allocator.h"
 #include "src/heap/cppgc/prefinalizer-handler.h"
@@ -72,8 +73,8 @@ UnifiedHeapMarker::UnifiedHeapMarker(cppgc::internal::HeapBase& heap)
     : cppgc::internal::Marker(heap) {}
 
 void UnifiedHeapMarker::AddObject(void* object) {
-  auto& header = cppgc::internal::HeapObjectHeader::FromPayload(object);
-  marking_visitor_->MarkObject(header);
+  mutator_marking_state_->MarkAndPush(
+      cppgc::internal::HeapObjectHeader::FromPayload(object));
 }
 
 }  // namespace

@@ -4,12 +4,15 @@
 
 #include "src/heap/cppgc/marker.h"
 
+#include <memory>
+
 #include "include/cppgc/internal/process-heap.h"
 #include "src/heap/cppgc/heap-object-header.h"
 #include "src/heap/cppgc/heap-page.h"
 #include "src/heap/cppgc/heap-visitor.h"
 #include "src/heap/cppgc/heap.h"
 #include "src/heap/cppgc/liveness-broker.h"
+#include "src/heap/cppgc/marking-state.h"
 #include "src/heap/cppgc/marking-visitor.h"
 #include "src/heap/cppgc/stats-collector.h"
 
@@ -99,7 +102,11 @@ bool DrainWorklistWithDeadline(v8::base::TimeTicks deadline, Worklist* worklist,
 constexpr int Marker::kMutatorThreadId;
 
 Marker::Marker(HeapBase& heap)
-    : heap_(heap), marking_visitor_(CreateMutatorThreadMarkingVisitor()) {}
+    : heap_(heap),
+      mutator_marking_state_(std::make_unique<MarkingState>(
+          heap, &marking_worklist_, &not_fully_constructed_worklist_,
+          &weak_callback_worklist_, Marker::kMutatorThreadId)),
+      marking_visitor_(CreateMutatorThreadMarkingVisitor()) {}
 
 Marker::~Marker() {
   // The fixed point iteration may have found not-fully-constructed objects.
@@ -147,7 +154,7 @@ void Marker::EnterAtomicPause(MarkingConfig config) {
 void Marker::LeaveAtomicPause() {
   ResetRememberedSet(heap());
   heap().stats_collector()->NotifyMarkingCompleted(
-      marking_visitor_->marked_bytes());
+      mutator_marking_state_->marked_bytes());
 }
 
 void Marker::FinishMarking(MarkingConfig config) {
@@ -199,8 +206,8 @@ bool Marker::AdvanceMarkingWithDeadline(v8::base::TimeDelta duration) {
     // callbacks.
     if (!DrainWorklistWithDeadline(
             deadline, &previously_not_fully_constructed_worklist_,
-            [visitor](NotFullyConstructedItem& item) {
-              visitor->DynamicallyMarkAddress(
+            [this](NotFullyConstructedItem& item) {
+              mutator_marking_state_->DynamicallyMarkAddress(
                   reinterpret_cast<ConstAddress>(item));
             },
             kMutatorThreadId))
@@ -208,25 +215,27 @@ bool Marker::AdvanceMarkingWithDeadline(v8::base::TimeDelta duration) {
 
     if (!DrainWorklistWithDeadline(
             deadline, &marking_worklist_,
-            [visitor](const MarkingItem& item) {
+            [this, visitor](const MarkingItem& item) {
               const HeapObjectHeader& header =
                   HeapObjectHeader::FromPayload(item.base_object_payload);
-              DCHECK(!MutatorThreadMarkingVisitor::IsInConstruction(header));
+              DCHECK(!header.IsInConstruction<
+                      HeapObjectHeader::AccessMode::kNonAtomic>());
               item.callback(visitor, item.base_object_payload);
-              visitor->AccountMarkedBytes(header);
+              mutator_marking_state_->AccountMarkedBytes(header);
             },
             kMutatorThreadId))
       return false;
 
     if (!DrainWorklistWithDeadline(
             deadline, &write_barrier_worklist_,
-            [visitor](HeapObjectHeader* header) {
+            [this, visitor](HeapObjectHeader* header) {
               DCHECK(header);
-              DCHECK(!MutatorThreadMarkingVisitor::IsInConstruction(*header));
+              DCHECK(!header->IsInConstruction<
+                      HeapObjectHeader::AccessMode::kNonAtomic>());
               const GCInfo& gcinfo =
                   GlobalGCInfoTable::GCInfoFromIndex(header->GetGCInfoIndex());
               gcinfo.trace(visitor, header->Payload());
-              visitor->AccountMarkedBytes(*header);
+              mutator_marking_state_->AccountMarkedBytes(*header);
             },
             kMutatorThreadId))
       return false;

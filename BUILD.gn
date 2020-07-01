@@ -4212,6 +4212,7 @@ v8_source_set("cppgc_base") {
     "src/heap/cppgc/logging.cc",
     "src/heap/cppgc/marker.cc",
     "src/heap/cppgc/marker.h",
+    "src/heap/cppgc/marking-state.h",
     "src/heap/cppgc/marking-visitor.cc",
     "src/heap/cppgc/marking-visitor.h",
     "src/heap/cppgc/object-allocator.cc",

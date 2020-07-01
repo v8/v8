@@ -11,6 +11,7 @@
 #include "src/heap/cppgc/globals.h"
 #include "src/heap/cppgc/heap-object-header.h"
 #include "src/heap/cppgc/marker.h"
+#include "src/heap/cppgc/marking-state.h"
 #include "test/unittests/heap/cppgc/tests.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
@@ -47,11 +48,10 @@ class GCedWithMixin : public GarbageCollected<GCedWithMixin>, public Mixin {
 }  // namespace
 
 TEST_F(MarkingVisitorTest, MarkedBytesAreInitiallyZero) {
-  MutatorThreadMarkingVisitor visitor(GetMarker());
-  EXPECT_EQ(0u, visitor.marked_bytes());
+  EXPECT_EQ(0u, GetMarker()->marking_state().marked_bytes());
 }
 
-// Strong refernces are marked.
+// Strong references are marked.
 
 TEST_F(MarkingVisitorTest, MarkMember) {
   Member<GCed> object(MakeGarbageCollected<GCed>(GetAllocationHandle()));

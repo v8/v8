@@ -34,7 +34,9 @@ void MarkValue(const BasePage* page, Marker* marker, const void* value) {
 
   DCHECK(marker);
 
-  if (V8_UNLIKELY(MutatorThreadMarkingVisitor::IsInConstruction(header))) {
+  if (V8_UNLIKELY(
+          header
+              .IsInConstruction<HeapObjectHeader::AccessMode::kNonAtomic>())) {
     // It is assumed that objects on not_fully_constructed_worklist_ are not
     // marked.
     header.Unmark();
