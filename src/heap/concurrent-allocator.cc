@@ -98,23 +98,55 @@ void ConcurrentAllocator::UnmarkLinearAllocationArea() {
   }
 }
 
+AllocationResult ConcurrentAllocator::AllocateInLabSlow(
+    int object_size, AllocationAlignment alignment, AllocationOrigin origin) {
+  if (!EnsureLab(origin)) {
+    return AllocationResult::Retry(OLD_SPACE);
+  }
+
+  AllocationResult allocation = lab_.AllocateRawAligned(object_size, alignment);
+  DCHECK(!allocation.IsRetry());
+
+  return allocation;
+}
+
+bool ConcurrentAllocator::EnsureLab(AllocationOrigin origin) {
+  auto result = space_->SlowGetLinearAllocationAreaBackground(
+      local_heap_, kLabSize, kMaxLabSize, kWordAligned, origin);
+
+  if (!result) return false;
+
+  if (local_heap_->heap()->incremental_marking()->black_allocation()) {
+    Address top = result->first;
+    Address limit = top + result->second;
+    Page::FromAllocationAreaAddress(top)->CreateBlackAreaBackground(top, limit);
+  }
+
+  HeapObject object = HeapObject::FromAddress(result->first);
+  LocalAllocationBuffer saved_lab = std::move(lab_);
+  lab_ = LocalAllocationBuffer::FromResult(
+      local_heap_->heap(), AllocationResult(object), result->second);
+  DCHECK(lab_.IsValid());
+  if (!lab_.TryMerge(&saved_lab)) {
+    saved_lab.CloseAndMakeIterable();
+  }
+  return true;
+}
+
 AllocationResult ConcurrentAllocator::AllocateOutsideLab(
     int object_size, AllocationAlignment alignment, AllocationOrigin origin) {
   auto result = space_->SlowGetLinearAllocationAreaBackground(
       local_heap_, object_size, object_size, alignment, origin);
+  if (!result) return AllocationResult::Retry(OLD_SPACE);
 
-  if (result) {
-    HeapObject object = HeapObject::FromAddress(result->first);
+  HeapObject object = HeapObject::FromAddress(result->first);
 
-    if (local_heap_->heap()->incremental_marking()->black_allocation()) {
-      local_heap_->heap()->incremental_marking()->MarkBlackBackground(
-          object, object_size);
-    }
-
-    return AllocationResult(object);
-  } else {
-    return AllocationResult::Retry(OLD_SPACE);
+  if (local_heap_->heap()->incremental_marking()->black_allocation()) {
+    local_heap_->heap()->incremental_marking()->MarkBlackBackground(
+        object, object_size);
   }
+
+  return AllocationResult(object);
 }
 
 }  // namespace internal

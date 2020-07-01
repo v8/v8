@@ -55,7 +55,10 @@ class ConcurrentAllocator {
   void UnmarkLinearAllocationArea();
 
  private:
-  inline bool EnsureLab(AllocationOrigin origin);
+  V8_EXPORT_PRIVATE AllocationResult AllocateInLabSlow(
+      int object_size, AllocationAlignment alignment, AllocationOrigin origin);
+  bool EnsureLab(AllocationOrigin origin);
+
   inline AllocationResult AllocateInLab(int object_size,
                                         AllocationAlignment alignment,
                                         AllocationOrigin origin);

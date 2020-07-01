@@ -194,6 +194,7 @@ class AllocationResult {
 
   inline bool IsRetry() { return object_.IsSmi(); }
   inline HeapObject ToObjectChecked();
+  inline HeapObject ToObject();
   inline AllocationSpace RetrySpace();
 
   template <typename T>
