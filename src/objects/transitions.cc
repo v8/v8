@@ -35,6 +35,7 @@ bool TransitionsAccessor::HasSimpleTransitionTo(Map map) {
 
 void TransitionsAccessor::Insert(Handle<Name> name, Handle<Map> target,
                                  SimpleTransitionFlag flag) {
+  DCHECK(!concurrent_access_);
   DCHECK(!map_handle_.is_null());
   DCHECK_NE(kPrototypeInfo, encoding());
   target->SetBackPointer(map_);
@@ -47,16 +48,17 @@ void TransitionsAccessor::Insert(Handle<Name> name, Handle<Map> target,
     }
     // If the flag requires a full TransitionArray, allocate one.
     Handle<TransitionArray> result =
-        isolate_->factory()->NewTransitionArray(0, 1);
+        isolate_->factory()->NewTransitionArray(1, 0);
+    result->Set(0, *name, HeapObjectReference::Weak(*target));
     ReplaceTransitions(MaybeObject::FromObject(*result));
     Reload();
     DCHECK_EQ(kFullTransitionArray, encoding());
+    return;
   }
 
-  // If the map has a simple transition, check if it should be overwritten.
-  Map simple_transition = GetSimpleTransition();
-  if (!simple_transition.is_null()) {
-    DCHECK_EQ(kWeakRef, encoding());
+  if (encoding() == kWeakRef) {
+    Map simple_transition = GetSimpleTransition();
+    DCHECK(!simple_transition.is_null());
 
     if (flag == SIMPLE_PROPERTY_TRANSITION) {
       Name key = GetSimpleTransitionKey(simple_transition);
@@ -76,16 +78,46 @@ void TransitionsAccessor::Insert(Handle<Name> name, Handle<Map> target,
     // Reload state; allocations might have caused it to be cleared.
     Reload();
     simple_transition = GetSimpleTransition();
-    if (!simple_transition.is_null()) {
-      DCHECK_EQ(*map, simple_transition);
-      DCHECK_EQ(kWeakRef, encoding());
-      result->Set(0, GetSimpleTransitionKey(simple_transition),
-                  HeapObjectReference::Weak(simple_transition));
-    } else {
-      result->SetNumberOfTransitions(0);
+    if (simple_transition.is_null()) {
+      result->Set(0, *name, HeapObjectReference::Weak(*target));
+      ReplaceTransitions(MaybeObject::FromObject(*result));
+      Reload();
+      DCHECK_EQ(kFullTransitionArray, encoding());
+      return;
     }
+
+    // Insert the original transition in index 0.
+    result->Set(0, GetSimpleTransitionKey(simple_transition),
+                HeapObjectReference::Weak(simple_transition));
+
+    // Search for the correct index to insert the new transition.
+    int insertion_index;
+    int index;
+    if (flag == SPECIAL_TRANSITION) {
+      index = result->SearchSpecial(Symbol::cast(*name), &insertion_index);
+    } else {
+      PropertyDetails details = GetTargetDetails(*name, *target);
+      index = result->Search(details.kind(), *name, details.attributes(),
+                             &insertion_index);
+    }
+    DCHECK_EQ(index, kNotFound);
+    USE(index);
+
+    result->SetNumberOfTransitions(2);
+    if (insertion_index == 0) {
+      // If the new transition will be inserted in index 0, move the original
+      // transition to index 1.
+      result->Set(1, GetSimpleTransitionKey(simple_transition),
+                  HeapObjectReference::Weak(simple_transition));
+    }
+    result->SetKey(insertion_index, *name);
+    result->SetRawTarget(insertion_index, HeapObjectReference::Weak(*target));
+
+    SLOW_DCHECK(result->IsSortedNoDuplicates());
     ReplaceTransitions(MaybeObject::FromObject(*result));
     Reload();
+    DCHECK_EQ(kFullTransitionArray, encoding());
+    return;
   }
 
   // At this point, we know that the map has a full TransitionArray.
@@ -112,6 +144,8 @@ void TransitionsAccessor::Insert(Handle<Name> name, Handle<Map> target,
                                    &insertion_index);
     // If an existing entry was found, overwrite it and return.
     if (index != kNotFound) {
+      base::SharedMutexGuard<base::kExclusive> shared_mutex_guard(
+          isolate_->transition_array_access());
       array.SetRawTarget(index, HeapObjectReference::Weak(*target));
       return;
     }
@@ -123,6 +157,8 @@ void TransitionsAccessor::Insert(Handle<Name> name, Handle<Map> target,
 
     // If there is enough capacity, insert new entry into the existing array.
     if (new_nof <= array.Capacity()) {
+      base::SharedMutexGuard<base::kExclusive> shared_mutex_guard(
+          isolate_->transition_array_access());
       array.SetNumberOfTransitions(new_nof);
       for (int i = number_of_transitions; i > insertion_index; --i) {
         array.SetKey(i, array.GetKey(i - 1));
@@ -194,7 +230,11 @@ Map TransitionsAccessor::SearchTransition(Name name, PropertyKind kind,
       return map;
     }
     case kFullTransitionArray: {
-      return transitions().SearchAndGetTarget(kind, name, attributes);
+      if (concurrent_access_) isolate_->transition_array_access()->LockShared();
+      Map result = transitions().SearchAndGetTarget(kind, name, attributes);
+      if (concurrent_access_)
+        isolate_->transition_array_access()->UnlockShared();
+      return result;
     }
   }
   UNREACHABLE();

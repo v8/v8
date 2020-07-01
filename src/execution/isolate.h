@@ -608,6 +608,11 @@ class V8_EXPORT_PRIVATE Isolate final : private HiddenFactory {
   // Mutex for serializing access to break control structures.
   base::RecursiveMutex* break_access() { return &break_access_; }
 
+  // Shared mutex for allowing concurrent read/writes to TransitionArrays.
+  base::SharedMutex* transition_array_access() {
+    return &transition_array_access_;
+  }
+
   Address get_address_from_id(IsolateAddressId id);
 
   // Access to top context (where the current function object was created).
@@ -1640,6 +1645,7 @@ class V8_EXPORT_PRIVATE Isolate final : private HiddenFactory {
   CompilationCache* compilation_cache_ = nullptr;
   std::shared_ptr<Counters> async_counters_;
   base::RecursiveMutex break_access_;
+  base::SharedMutex transition_array_access_;
   Logger* logger_ = nullptr;
   StubCache* load_stub_cache_ = nullptr;
   StubCache* store_stub_cache_ = nullptr;

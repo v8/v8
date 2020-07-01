@@ -196,6 +196,27 @@
 #define WEAK_ACCESSORS(holder, name, offset) \
   WEAK_ACCESSORS_CHECKED(holder, name, offset, true)
 
+#define SYNCHRONIZED_WEAK_ACCESSORS_CHECKED2(holder, name, offset,         \
+                                             get_condition, set_condition) \
+  DEF_GETTER(holder, name, MaybeObject) {                                  \
+    MaybeObject value =                                                    \
+        TaggedField<MaybeObject, offset>::Acquire_Load(isolate, *this);    \
+    DCHECK(get_condition);                                                 \
+    return value;                                                          \
+  }                                                                        \
+  void holder::set_##name(MaybeObject value, WriteBarrierMode mode) {      \
+    DCHECK(set_condition);                                                 \
+    TaggedField<MaybeObject, offset>::Release_Store(*this, value);         \
+    CONDITIONAL_WEAK_WRITE_BARRIER(*this, offset, value, mode);            \
+  }
+
+#define SYNCHRONIZED_WEAK_ACCESSORS_CHECKED(holder, name, offset, condition) \
+  SYNCHRONIZED_WEAK_ACCESSORS_CHECKED2(holder, name, offset, condition,      \
+                                       condition)
+
+#define SYNCHRONIZED_WEAK_ACCESSORS(holder, name, offset) \
+  SYNCHRONIZED_WEAK_ACCESSORS_CHECKED(holder, name, offset, true)
+
 // Getter that returns a Smi as an int and writes an int as a Smi.
 #define SMI_ACCESSORS_CHECKED(holder, name, offset, condition)   \
   int holder::name() const {                                     \

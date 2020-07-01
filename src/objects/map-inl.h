@@ -45,7 +45,8 @@ SYNCHRONIZED_ACCESSORS(Map, synchronized_instance_descriptors, DescriptorArray,
 SYNCHRONIZED_ACCESSORS_CHECKED(Map, layout_descriptor, LayoutDescriptor,
                                kLayoutDescriptorOffset,
                                FLAG_unbox_double_fields)
-WEAK_ACCESSORS(Map, raw_transitions, kTransitionsOrPrototypeInfoOffset)
+SYNCHRONIZED_WEAK_ACCESSORS(Map, raw_transitions,
+                            kTransitionsOrPrototypeInfoOffset)
 
 ACCESSORS_CHECKED2(Map, prototype, HeapObject, kPrototypeOffset, true,
                    value.IsNull() || value.IsJSReceiver())

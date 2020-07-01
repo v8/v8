@@ -38,9 +38,14 @@ namespace internal {
 // cleared when the map they refer to is not otherwise reachable.
 class V8_EXPORT_PRIVATE TransitionsAccessor {
  public:
+  // For concurrent access, use the other constructor.
   inline TransitionsAccessor(Isolate* isolate, Map map,
                              DisallowHeapAllocation* no_gc);
-  inline TransitionsAccessor(Isolate* isolate, Handle<Map> map);
+  // {concurrent_access} signals that the TransitionsAccessor will only be used
+  // in background threads. It acquires a reader lock for critical paths, as
+  // well as blocking the accessor from modifying the TransitionsArray.
+  inline TransitionsAccessor(Isolate* isolate, Handle<Map> map,
+                             bool concurrent_access = false);
   // Insert a new transition into |map|'s transition array, extending it
   // as necessary.
   // Requires the constructor that takes a Handle<Map> to have been used.
@@ -182,6 +187,7 @@ class V8_EXPORT_PRIVATE TransitionsAccessor {
   Map map_;
   MaybeObject raw_transitions_;
   Encoding encoding_;
+  bool concurrent_access_;
 #if DEBUG
   bool needs_reload_;
 #endif
