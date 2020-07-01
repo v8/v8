@@ -777,8 +777,9 @@ PropertyAccessInfo AccessInfoFactory::LookupTransition(
 
   Handle<Map> transition_map(transition, isolate());
   InternalIndex const number = transition_map->LastAdded();
-  PropertyDetails const details =
-      transition_map->synchronized_instance_descriptors().GetDetails(number);
+  Handle<DescriptorArray> descriptors(
+      transition_map->synchronized_instance_descriptors(), isolate());
+  PropertyDetails const details = descriptors->GetDetails(number);
   // Don't bother optimizing stores to read-only properties.
   if (details.IsReadOnly()) {
     return PropertyAccessInfo::Invalid(zone());
@@ -812,10 +813,8 @@ PropertyAccessInfo AccessInfoFactory::LookupTransition(
   } else if (details_representation.IsHeapObject()) {
     // Extract the field type from the property details (make sure its
     // representation is TaggedPointer to reflect the heap object case).
-    Handle<FieldType> descriptors_field_type(
-        transition_map->synchronized_instance_descriptors().GetFieldType(
-            number),
-        isolate());
+    Handle<FieldType> descriptors_field_type(descriptors->GetFieldType(number),
+                                             isolate());
     if (descriptors_field_type->IsNone()) {
       // Store is not safe if the field type was cleared.
       return PropertyAccessInfo::Invalid(zone());
