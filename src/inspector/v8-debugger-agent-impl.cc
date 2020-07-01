@@ -1552,10 +1552,9 @@ void V8DebuggerAgentImpl::didParseSource(
   String16 scriptId = script->scriptId();
   String16 scriptURL = script->sourceURL();
   String16 scriptLanguage = getScriptLanguage(*script);
-  Maybe<int> codeOffset =
-      script->getLanguage() == V8DebuggerScript::Language::JavaScript
-          ? Maybe<int>()
-          : script->codeOffset();
+  Maybe<int> codeOffset;
+  if (script->getLanguage() == V8DebuggerScript::Language::WebAssembly)
+    codeOffset = script->codeOffset();
   std::unique_ptr<protocol::Debugger::DebugSymbols> debugSymbols =
       getDebugSymbols(*script);
 
@@ -1727,10 +1726,11 @@ void V8DebuggerAgentImpl::didPause(
                                  WrapMode::kNoPreview, &obj);
       std::unique_ptr<protocol::DictionaryValue> breakAuxData;
       if (obj) {
-        breakAuxData = obj->toValue();
+        std::vector<uint8_t> serialized;
+        obj->AppendSerialized(&serialized);
+        breakAuxData = protocol::DictionaryValue::cast(
+            protocol::Value::parseBinary(serialized.data(), serialized.size()));
         breakAuxData->setBoolean("uncaught", isUncaught);
-      } else {
-        breakAuxData = nullptr;
       }
       hitReasons.push_back(
           std::make_pair(breakReason, std::move(breakAuxData)));
