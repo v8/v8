@@ -890,72 +890,74 @@ class FastApiCallReducerAssembler : public JSCallReducerAssembler {
   }
 
   TNode<Object> ReduceFastApiCall() {
-    int c_arg_count = c_signature_->ArgumentCount();
-    Node* function_node =
-        ExternalConstant(ExternalReference::Create(c_function_));
-    base::SmallVector<Node*, kInlineSize + kExtraInputsCount> inputs(0);
-    inputs.emplace_back(function_node);
-    int wrapper_object_index = isolate()->embedder_wrapper_object_index();
-    CHECK_GE(wrapper_object_index, 0);
+    // C arguments include the receiver at index 0. Thus C index 1 corresponds
+    // to the JS argument 0, etc.
+    static constexpr int kReceiver = 1;
+    const int c_argument_count =
+        static_cast<int>(c_signature_->ArgumentCount());
+    const bool c_arguments_contain_receiver = c_argument_count > 0;
 
-    const int value_input_count_without_vector =
-        node_ptr()->op()->ValueInputCount() -
-        JSCallNode::kFeedbackVectorInputCount;
+    int cursor = 0;
+    base::SmallVector<Node*, kInlineSize + kExtraInputsCount> inputs(
+        c_argument_count + kExtraInputsCount);
+    inputs[cursor++] = ExternalConstant(ExternalReference::Create(c_function_));
 
-    for (int i = 0; i < c_arg_count; ++i) {
-      if (i + kFunctionArgCount < value_input_count_without_vector) {
-        inputs.emplace_back(ConvertArgumentIfJSWrapper(
-            c_signature_->ArgumentInfo(i).GetType(),
-            NodeProperties::GetValueInput(node_ptr(), i + kFunctionArgCount),
-            wrapper_object_index));
+    if (c_arguments_contain_receiver) {
+      inputs[cursor++] = MaybeUnwrapApiObject(
+          c_signature_->ArgumentInfo(0).GetType(), ReceiverInput());
+    }
+
+    // TODO(jgruber,mslekova): Consider refactoring CFunctionInfo to distinguish
+    // between receiver and arguments, simplifying this (and related) spots.
+    for (int i = 0; i < c_argument_count - kReceiver; ++i) {
+      if (i < ArgumentCount()) {
+        CTypeInfo::Type type =
+            c_signature_->ArgumentInfo(i + kReceiver).GetType();
+        inputs[cursor++] = MaybeUnwrapApiObject(type, Argument(i));
       } else {
-        inputs.emplace_back(UndefinedConstant());
+        inputs[cursor++] = UndefinedConstant();
       }
     }
-    inputs.emplace_back(effect());
-    inputs.emplace_back(control());
 
-    return FastApiCall(inputs);
+    inputs[cursor++] = effect();
+    inputs[cursor++] = control();
+    DCHECK_EQ(cursor, c_argument_count + kExtraInputsCount);
+
+    return FastApiCall(inputs.begin(), inputs.size());
   }
 
  private:
-  static constexpr int kFunctionArgCount = 1;
-  static constexpr int kExtraInputsCount =
-      kFunctionArgCount + 2;  // effect, control
+  static constexpr int kTargetEffectAndControl = 3;
+  static constexpr int kExtraInputsCount = kTargetEffectAndControl;
   static constexpr int kInlineSize = 10;
 
-  TNode<Object> FastApiCall(
-      base::SmallVector<Node*, kInlineSize + kExtraInputsCount> const& inputs) {
+  TNode<Object> FastApiCall(Node** inputs, size_t inputs_size) {
     return AddNode<Object>(
         graph()->NewNode(simplified()->FastApiCall(c_signature_, feedback()),
-                         static_cast<int>(inputs.size()), inputs.begin()));
+                         static_cast<int>(inputs_size), inputs));
   }
 
-  TNode<RawPtrT> UnwrapApiObject(TNode<JSObject> node,
-                                 int wrapper_object_index) {
-    const int offset =
-        Internals::kJSObjectHeaderSize +
-        (Internals::kEmbedderDataSlotSize * wrapper_object_index);
+  TNode<RawPtrT> UnwrapApiObject(TNode<JSObject> node) {
+    CHECK_GE(isolate()->embedder_wrapper_object_index(), 0);
+    const int offset = Internals::kJSObjectHeaderSize +
+                       (Internals::kEmbedderDataSlotSize *
+                        isolate()->embedder_wrapper_object_index());
 
     FieldAccess access(
         kTaggedBase, offset, MaybeHandle<Name>(), MaybeHandle<Map>(),
         V8_HEAP_SANDBOX_BOOL ? Type::SandboxedExternalPointer() : Type::Any(),
         MachineType::Pointer(), WriteBarrierKind::kNoWriteBarrier);
-    TNode<RawPtrT> load = AddNode<RawPtrT>(graph()->NewNode(
-        simplified()->LoadField(access), node, effect(), control()));
-    return load;
+    return LoadField<RawPtrT>(access, node);
   }
 
-  Node* ConvertArgumentIfJSWrapper(CTypeInfo::Type type, Node* node,
-                                   int wrapper_object_index) {
+  Node* MaybeUnwrapApiObject(CTypeInfo::Type type, TNode<Object> node) {
     switch (type) {
       case CTypeInfo::Type::kUnwrappedApiObject:
         // This call assumes that {node} is a JSObject with an internal field
         // set to a C pointer. It should fail in all other cases.
         // TODO(mslekova): Implement instanceOf check for the C pointer type.
         // TODO(mslekova): Introduce a GraphAssembler primitive for safe cast.
-        return UnwrapApiObject(TNode<JSObject>::UncheckedCast(node),
-                               wrapper_object_index);
+        return UnwrapApiObject(TNode<JSObject>::UncheckedCast(node));
       default:
         return node;
     }
