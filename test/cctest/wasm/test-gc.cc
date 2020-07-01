@@ -549,13 +549,14 @@ TEST(BasicRTT) {
   WasmGCTester tester;
   uint32_t type_index = tester.DefineStruct({F(wasm::kWasmI32, true)});
   uint32_t subtype_index =
-      tester.DefineStruct({F(wasm::kWasmI32, true), F(wasm::kWasmI32, true)});
+      tester.DefineStruct({F(wasm::kWasmI32, true), F(wasm::kWasmF64, true)});
   ValueType kRttTypes[] = {ValueType::Rtt(type_index, 1)};
   FunctionSig sig_t_v(1, 0, kRttTypes);
   ValueType kRttSubtypes[] = {
       ValueType::Rtt(static_cast<HeapType>(subtype_index), 2)};
   FunctionSig sig_t2_v(1, 0, kRttSubtypes);
-  ValueType kRefTypes[] = {ref(type_index)};
+  ValueType kRefTypes[] = {
+      ValueType::Ref(static_cast<HeapType>(type_index), kNonNullable)};
   FunctionSig sig_q_v(1, 0, kRefTypes);
 
   tester.DefineFunction("f", &sig_t_v, {},
@@ -567,36 +568,6 @@ TEST(BasicRTT) {
                         {WASM_STRUCT_NEW_WITH_RTT(type_index, WASM_I32V(42),
                                                   WASM_RTT_CANON(type_index)),
                          kExprEnd});
-  const int kFieldIndex = 1;
-  const int kLocalStructIndex = 1;  // Shifted in 'let' block.
-  const int kLocalRttIndex = 0;     // Let-bound, hence first local.
-  // This implements the following function:
-  //   var local_struct: type0;
-  //   let (local_rtt = rtt.sub(rtt.canon(type0), type1) in {
-  //     local_struct = new type1 with rtt 'local_rtt';
-  //     return (ref.test local_struct local_rtt) +
-  //            ((ref.cast local_struct local_rtt)[field0]);
-  //   }
-  // The expected return value is 1+42 = 43.
-  tester.DefineFunction(
-      "i", tester.sigs.i_v(), {optref(type_index)},
-      /* TODO(jkummerow): The macro order here is a bit of a hack. */
-      {WASM_RTT_CANON(type_index),
-       WASM_LET_1_I(
-           WASM_RTT(2, subtype_index), WASM_RTT_SUB(subtype_index),
-           WASM_SET_LOCAL(kLocalStructIndex,
-                          WASM_STRUCT_NEW_WITH_RTT(
-                              subtype_index, WASM_I32V(11), WASM_I32V(42),
-                              WASM_GET_LOCAL(kLocalRttIndex))),
-           WASM_I32_ADD(
-               WASM_REF_TEST(type_index, subtype_index,
-                             WASM_GET_LOCAL(kLocalStructIndex),
-                             WASM_GET_LOCAL(kLocalRttIndex)),
-               WASM_STRUCT_GET(subtype_index, kFieldIndex,
-                               WASM_REF_CAST(type_index, subtype_index,
-                                             WASM_GET_LOCAL(kLocalStructIndex),
-                                             WASM_GET_LOCAL(kLocalRttIndex)))),
-           kExprEnd)});
 
   tester.CompileModule();
 

@@ -970,8 +970,6 @@ struct ControlBase {
   F(RttCanon, const HeapTypeImmediate<validate>& imm, Value* result)           \
   F(RttSub, const HeapTypeImmediate<validate>& imm, const Value& parent,       \
     Value* result)                                                             \
-  F(RefTest, const Value& obj, const Value& rtt, Value* result)                \
-  F(RefCast, const Value& obj, const Value& rtt, Value* result)                \
   F(PassThrough, const Value& from, Value* to)
 
 // Generic Wasm bytecode decoder with utilities for decoding immediates,
@@ -1706,15 +1704,9 @@ class WasmDecoder : public Decoder {
           case kExprI31New:
           case kExprI31GetS:
           case kExprI31GetU:
-            return 2;
           case kExprRefTest:
-          case kExprRefCast: {
-            HeapTypeImmediate<validate> ht1(WasmFeatures::All(), decoder,
-                                            pc + 2);
-            HeapTypeImmediate<validate> ht2(WasmFeatures::All(), decoder,
-                                            pc + 2 + ht1.length);
-            return 2 + ht1.length + ht2.length;
-          }
+          case kExprRefCast:
+            return 2;
 
           default:
             // This is unreachable except for malformed modules.
@@ -3435,66 +3427,6 @@ class WasmFullDecoder : public WasmDecoder<validate> {
         Value* value = Push(ValueType::Rtt(imm.type, parent.type.depth() + 1));
         CALL_INTERFACE_IF_REACHABLE(RttSub, imm, parent, value);
         return 2 + imm.length;
-      }
-      case kExprRefTest: {
-        // "Tests whether {obj}'s runtime type is a runtime subtype of {rtt}."
-        HeapTypeImmediate<validate> obj_type(this->enabled_, this,
-                                             this->pc_ + len);
-        if (!this->Validate(this->pc_ + len, obj_type)) break;
-        len += obj_type.length;
-        HeapTypeImmediate<validate> rtt_type(this->enabled_, this,
-                                             this->pc_ + len);
-        if (!this->Validate(this->pc_ + len, rtt_type)) break;
-        len += rtt_type.length;
-        // The static type of {obj} must be a supertype of the {rtt}'s type.
-        if (!VALIDATE(IsSubtypeOf(ValueType::Ref(rtt_type.type, kNonNullable),
-                                  ValueType::Ref(obj_type.type, kNonNullable),
-                                  this->module_))) {
-          this->errorf(this->pc_,
-                       "ref.test: rtt type must be subtype of object type");
-          break;
-        }
-        Value rtt = Pop();
-        if (!VALIDATE(rtt.type.kind() == ValueType::kRtt &&
-                      rtt.type.heap_type() == rtt_type.type)) {
-          this->errorf(
-              this->pc_ + len, "ref.test: expected rtt for type %s but got %s",
-              rtt_type.type.name().c_str(), rtt.type.type_name().c_str());
-          break;
-        }
-        Value obj = Pop(0, ValueType::Ref(obj_type.type, kNullable));
-        Value* value = Push(kWasmI32);
-        CALL_INTERFACE_IF_REACHABLE(RefTest, obj, rtt, value);
-        break;
-      }
-      case kExprRefCast: {
-        HeapTypeImmediate<validate> obj_type(this->enabled_, this,
-                                             this->pc_ + len);
-        len += obj_type.length;
-        if (!this->Validate(this->pc_ + len, obj_type)) break;
-        HeapTypeImmediate<validate> rtt_type(this->enabled_, this,
-                                             this->pc_ + len);
-        len += rtt_type.length;
-        if (!this->Validate(this->pc_ + len, rtt_type)) break;
-        if (!VALIDATE(IsSubtypeOf(ValueType::Ref(rtt_type.type, kNonNullable),
-                                  ValueType::Ref(obj_type.type, kNonNullable),
-                                  this->module_))) {
-          this->errorf(this->pc_,
-                       "ret.cast: rtt type must be subtype of object type");
-          break;
-        }
-        Value rtt = Pop();
-        if (!VALIDATE(rtt.type.kind() == ValueType::kRtt &&
-                      rtt.type.heap_type() == rtt_type.type)) {
-          this->errorf(
-              this->pc_ + len, "ref.cast: expected rtt for type %s but got %s",
-              rtt_type.type.name().c_str(), rtt.type.type_name().c_str());
-          break;
-        }
-        Value obj = Pop(0, ValueType::Ref(obj_type.type, kNullable));
-        Value* value = Push(ValueType::Ref(rtt_type.type, kNonNullable));
-        CALL_INTERFACE_IF_REACHABLE(RefCast, obj, rtt, value);
-        break;
       }
       default:
         this->error("invalid gc opcode");

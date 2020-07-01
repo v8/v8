@@ -5383,27 +5383,6 @@ Node* WasmGraphBuilder::RttSub(wasm::HeapType type, Node* parent_rtt) {
       LOAD_INSTANCE_FIELD(NativeContext, MachineType::TaggedPointer()));
 }
 
-Node* WasmGraphBuilder::RefTest(Node* object, Node* rtt) {
-  Node* map =
-      gasm_->Load(MachineType::TaggedPointer(), object, HeapObject::kMapOffset);
-  // TODO(7748): Add a fast path for map == rtt.
-  return BuildChangeSmiToInt32(CALL_BUILTIN(
-      WasmIsRttSubtype, map, rtt,
-      LOAD_INSTANCE_FIELD(NativeContext, MachineType::TaggedPointer())));
-}
-
-Node* WasmGraphBuilder::RefCast(Node* object, Node* rtt,
-                                wasm::WasmCodePosition position) {
-  Node* map =
-      gasm_->Load(MachineType::TaggedPointer(), object, HeapObject::kMapOffset);
-  // TODO(7748): Add a fast path for map == rtt.
-  Node* check_result = CALL_BUILTIN(
-      WasmIsRttSubtype, map, rtt,
-      LOAD_INSTANCE_FIELD(NativeContext, MachineType::TaggedPointer()));
-  TrapIfFalse(wasm::kTrapIllegalCast, check_result, position);
-  return object;
-}
-
 Node* WasmGraphBuilder::StructGet(Node* struct_object,
                                   const wasm::StructType* struct_type,
                                   uint32_t field_index, CheckForNull null_check,

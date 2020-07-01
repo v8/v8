@@ -743,16 +743,6 @@ class WasmGraphBuildingInterface {
     result->node = BUILD(RttSub, imm.type, parent.node);
   }
 
-  void RefTest(FullDecoder* decoder, const Value& object, const Value& rtt,
-               Value* result) {
-    result->node = BUILD(RefTest, object.node, rtt.node);
-  }
-
-  void RefCast(FullDecoder* decoder, const Value& object, const Value& rtt,
-               Value* result) {
-    result->node = BUILD(RefCast, object.node, rtt.node, decoder->position());
-  }
-
   void PassThrough(FullDecoder* decoder, const Value& from, Value* to) {
     to->node = from.node;
   }

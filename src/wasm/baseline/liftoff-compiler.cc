@@ -3642,17 +3642,6 @@ class LiftoffCompiler {
     unsupported(decoder, kGC, "rtt.sub");
   }
 
-  void RefTest(FullDecoder* decoder, const Value& obj, const Value& rtt,
-               Value* result) {
-    // TODO(7748): Implement.
-    unsupported(decoder, kGC, "ref.test");
-  }
-  void RefCast(FullDecoder* decoder, const Value& obj, const Value& rtt,
-               Value* result) {
-    // TODO(7748): Implement.
-    unsupported(decoder, kGC, "ref.cast");
-  }
-
   void PassThrough(FullDecoder* decoder, const Value& from, Value* to) {
     // TODO(7748): Implement.
     unsupported(decoder, kGC, "");
