@@ -251,6 +251,22 @@ builtin WasmAllocateStructWithRtt(implicit context: Context)(rtt: Map):
   return result;
 }
 
+builtin WasmIsRttSubtype(implicit context: Context)(sub: Map, super: Map): Smi {
+  let map = sub;
+  while (true) {
+    if (map == super) return SmiConstant(1);  // "true"
+    // This code relies on the fact that we use a non-WasmObject map as the
+    // end of the chain, e.g. for "rtt any", which then doesn't have a
+    // WasmTypeInfo.
+    // TODO(7748): Use a more explicit sentinel mechanism?
+    const maybeTypeInfo = map.constructor_or_back_pointer_or_native_context;
+    if (!Is<WasmTypeInfo>(maybeTypeInfo)) return SmiConstant(0);  // "false"
+    const typeInfo = %RawDownCast<WasmTypeInfo>(maybeTypeInfo);
+    map = typeInfo.parent;
+  }
+  unreachable;
+}
+
 builtin WasmInt32ToNumber(value: int32): Number {
   return ChangeInt32ToTagged(value);
 }
