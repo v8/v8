@@ -59,6 +59,10 @@ int InstructionScheduler::GetTargetInstructionFlags(
     case kMipsF64x2ReplaceLane:
     case kMipsF64x2Pmin:
     case kMipsF64x2Pmax:
+    case kMipsF64x2Ceil:
+    case kMipsF64x2Floor:
+    case kMipsF64x2Trunc:
+    case kMipsF64x2NearestInt:
     case kMipsI64x2Add:
     case kMipsI64x2Sub:
     case kMipsI64x2Mul:
@@ -89,6 +93,10 @@ int InstructionScheduler::GetTargetInstructionFlags(
     case kMipsF32x4UConvertI32x4:
     case kMipsF32x4Pmin:
     case kMipsF32x4Pmax:
+    case kMipsF32x4Ceil:
+    case kMipsF32x4Floor:
+    case kMipsF32x4Trunc:
+    case kMipsF32x4NearestInt:
     case kMipsFloat32Max:
     case kMipsFloat32Min:
     case kMipsFloat32RoundDown:

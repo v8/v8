@@ -3596,7 +3596,7 @@ void Assembler::insve_d(MSARegister wd, uint32_t n, MSARegister ws) {
 }
 
 void Assembler::move_v(MSARegister wd, MSARegister ws) {
-  DCHECK((kArchVariant == kMips64r6) && IsEnabled(MIPS_SIMD));
+  DCHECK(IsEnabled(MIPS_SIMD));
   DCHECK(ws.is_valid() && wd.is_valid());
   Instr instr = MSA | MOVE_V | (ws.code() << kWsShift) |
                 (wd.code() << kWdShift) | MSA_ELM_MINOR;
@@ -3604,7 +3604,7 @@ void Assembler::move_v(MSARegister wd, MSARegister ws) {
 }
 
 void Assembler::ctcmsa(MSAControlRegister cd, Register rs) {
-  DCHECK((kArchVariant == kMips64r6) && IsEnabled(MIPS_SIMD));
+  DCHECK(IsEnabled(MIPS_SIMD));
   DCHECK(cd.is_valid() && rs.is_valid());
   Instr instr = MSA | CTCMSA | (rs.code() << kWsShift) |
                 (cd.code() << kWdShift) | MSA_ELM_MINOR;
@@ -3612,7 +3612,7 @@ void Assembler::ctcmsa(MSAControlRegister cd, Register rs) {
 }
 
 void Assembler::cfcmsa(Register rd, MSAControlRegister cs) {
-  DCHECK((kArchVariant == kMips64r6) && IsEnabled(MIPS_SIMD));
+  DCHECK(IsEnabled(MIPS_SIMD));
   DCHECK(rd.is_valid() && cs.is_valid());
   Instr instr = MSA | CFCMSA | (cs.code() << kWsShift) |
                 (rd.code() << kWdShift) | MSA_ELM_MINOR;

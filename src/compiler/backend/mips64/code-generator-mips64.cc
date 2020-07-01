@@ -2285,6 +2285,42 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       __ bsel_v(dst, lhs, rhs);
       break;
     }
+    case kMips64F64x2Ceil: {
+      CpuFeatureScope msa_scope(tasm(), MIPS_SIMD);
+      __ cfcmsa(kScratchReg, MSACSR);
+      __ li(kScratchReg2, kRoundToPlusInf);
+      __ ctcmsa(MSACSR, kScratchReg2);
+      __ frint_d(i.OutputSimd128Register(), i.InputSimd128Register(0));
+      __ ctcmsa(MSACSR, kScratchReg);
+      break;
+    }
+    case kMips64F64x2Floor: {
+      CpuFeatureScope msa_scope(tasm(), MIPS_SIMD);
+      __ cfcmsa(kScratchReg, MSACSR);
+      __ li(kScratchReg2, kRoundToMinusInf);
+      __ ctcmsa(MSACSR, kScratchReg2);
+      __ frint_d(i.OutputSimd128Register(), i.InputSimd128Register(0));
+      __ ctcmsa(MSACSR, kScratchReg);
+      break;
+    }
+    case kMips64F64x2Trunc: {
+      CpuFeatureScope msa_scope(tasm(), MIPS_SIMD);
+      __ cfcmsa(kScratchReg, MSACSR);
+      __ li(kScratchReg2, kRoundToZero);
+      __ ctcmsa(MSACSR, kScratchReg2);
+      __ frint_d(i.OutputSimd128Register(), i.InputSimd128Register(0));
+      __ ctcmsa(MSACSR, kScratchReg);
+      break;
+    }
+    case kMips64F64x2NearestInt: {
+      CpuFeatureScope msa_scope(tasm(), MIPS_SIMD);
+      __ cfcmsa(kScratchReg, MSACSR);
+      // kRoundToNearest == 0
+      __ ctcmsa(MSACSR, zero_reg);
+      __ frint_d(i.OutputSimd128Register(), i.InputSimd128Register(0));
+      __ ctcmsa(MSACSR, kScratchReg);
+      break;
+    }
     case kMips64I64x2ReplaceLane: {
       CpuFeatureScope msa_scope(tasm(), MIPS_SIMD);
       Simd128Register src = i.InputSimd128Register(0);
@@ -2619,6 +2655,42 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       // dst = lhs < rhs ? rhs : lhs
       __ fclt_w(dst, lhs, rhs);
       __ bsel_v(dst, lhs, rhs);
+      break;
+    }
+    case kMips64F32x4Ceil: {
+      CpuFeatureScope msa_scope(tasm(), MIPS_SIMD);
+      __ cfcmsa(kScratchReg, MSACSR);
+      __ li(kScratchReg2, kRoundToPlusInf);
+      __ ctcmsa(MSACSR, kScratchReg2);
+      __ frint_w(i.OutputSimd128Register(), i.InputSimd128Register(0));
+      __ ctcmsa(MSACSR, kScratchReg);
+      break;
+    }
+    case kMips64F32x4Floor: {
+      CpuFeatureScope msa_scope(tasm(), MIPS_SIMD);
+      __ cfcmsa(kScratchReg, MSACSR);
+      __ li(kScratchReg2, kRoundToMinusInf);
+      __ ctcmsa(MSACSR, kScratchReg2);
+      __ frint_w(i.OutputSimd128Register(), i.InputSimd128Register(0));
+      __ ctcmsa(MSACSR, kScratchReg);
+      break;
+    }
+    case kMips64F32x4Trunc: {
+      CpuFeatureScope msa_scope(tasm(), MIPS_SIMD);
+      __ cfcmsa(kScratchReg, MSACSR);
+      __ li(kScratchReg2, kRoundToZero);
+      __ ctcmsa(MSACSR, kScratchReg2);
+      __ frint_w(i.OutputSimd128Register(), i.InputSimd128Register(0));
+      __ ctcmsa(MSACSR, kScratchReg);
+      break;
+    }
+    case kMips64F32x4NearestInt: {
+      CpuFeatureScope msa_scope(tasm(), MIPS_SIMD);
+      __ cfcmsa(kScratchReg, MSACSR);
+      // kRoundToNearest == 0
+      __ ctcmsa(MSACSR, zero_reg);
+      __ frint_w(i.OutputSimd128Register(), i.InputSimd128Register(0));
+      __ ctcmsa(MSACSR, kScratchReg);
       break;
     }
     case kMips64I32x4SConvertF32x4: {

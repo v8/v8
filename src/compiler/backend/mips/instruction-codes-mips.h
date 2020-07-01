@@ -157,6 +157,10 @@ namespace compiler {
   V(MipsF64x2Le)                   \
   V(MipsF64x2Pmin)                 \
   V(MipsF64x2Pmax)                 \
+  V(MipsF64x2Ceil)                 \
+  V(MipsF64x2Floor)                \
+  V(MipsF64x2Trunc)                \
+  V(MipsF64x2NearestInt)           \
   V(MipsI64x2Add)                  \
   V(MipsI64x2Sub)                  \
   V(MipsI64x2Mul)                  \
@@ -200,6 +204,10 @@ namespace compiler {
   V(MipsF32x4Le)                   \
   V(MipsF32x4Pmin)                 \
   V(MipsF32x4Pmax)                 \
+  V(MipsF32x4Ceil)                 \
+  V(MipsF32x4Floor)                \
+  V(MipsF32x4Trunc)                \
+  V(MipsF32x4NearestInt)           \
   V(MipsI32x4SConvertF32x4)        \
   V(MipsI32x4UConvertF32x4)        \
   V(MipsI32x4Neg)                  \

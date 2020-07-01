@@ -2101,6 +2101,10 @@ void InstructionSelector::VisitInt64AbsWithOverflow(Node* node) {
   V(F64x2Abs, kMipsF64x2Abs)                             \
   V(F64x2Neg, kMipsF64x2Neg)                             \
   V(F64x2Sqrt, kMipsF64x2Sqrt)                           \
+  V(F64x2Ceil, kMipsF64x2Ceil)                           \
+  V(F64x2Floor, kMipsF64x2Floor)                         \
+  V(F64x2Trunc, kMipsF64x2Trunc)                         \
+  V(F64x2NearestInt, kMipsF64x2NearestInt)               \
   V(I64x2Neg, kMipsI64x2Neg)                             \
   V(F32x4SConvertI32x4, kMipsF32x4SConvertI32x4)         \
   V(F32x4UConvertI32x4, kMipsF32x4UConvertI32x4)         \
@@ -2109,6 +2113,10 @@ void InstructionSelector::VisitInt64AbsWithOverflow(Node* node) {
   V(F32x4Sqrt, kMipsF32x4Sqrt)                           \
   V(F32x4RecipApprox, kMipsF32x4RecipApprox)             \
   V(F32x4RecipSqrtApprox, kMipsF32x4RecipSqrtApprox)     \
+  V(F32x4Ceil, kMipsF32x4Ceil)                           \
+  V(F32x4Floor, kMipsF32x4Floor)                         \
+  V(F32x4Trunc, kMipsF32x4Trunc)                         \
+  V(F32x4NearestInt, kMipsF32x4NearestInt)               \
   V(I32x4SConvertF32x4, kMipsI32x4SConvertF32x4)         \
   V(I32x4UConvertF32x4, kMipsI32x4UConvertF32x4)         \
   V(I32x4Neg, kMipsI32x4Neg)                             \
