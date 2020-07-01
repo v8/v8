@@ -945,6 +945,7 @@ TEST(MemoryWithOOBEmptyDataSegment) {
 TEST(GcStructIdsPass) {
   {
     EXPERIMENTAL_FLAG_SCOPE(gc);
+    EXPERIMENTAL_FLAG_SCOPE(typed_funcref);
     EXPERIMENTAL_FLAG_SCOPE(reftypes);
     Isolate* isolate = CcTest::InitIsolateOnce();
     HandleScope scope(isolate);
@@ -994,6 +995,7 @@ TEST(GcStructIdsPass) {
 TEST(GcTypeIdsUndefinedIndex) {
   {
     EXPERIMENTAL_FLAG_SCOPE(gc);
+    EXPERIMENTAL_FLAG_SCOPE(typed_funcref);
     EXPERIMENTAL_FLAG_SCOPE(reftypes);
     Isolate* isolate = CcTest::InitIsolateOnce();
     HandleScope scope(isolate);
@@ -1027,6 +1029,7 @@ TEST(GcTypeIdsUndefinedIndex) {
 TEST(GcTypeIdsIllegalIndex) {
   {
     EXPERIMENTAL_FLAG_SCOPE(gc);
+    EXPERIMENTAL_FLAG_SCOPE(typed_funcref);
     EXPERIMENTAL_FLAG_SCOPE(reftypes);
     Isolate* isolate = CcTest::InitIsolateOnce();
     HandleScope scope(isolate);
@@ -1064,6 +1067,7 @@ TEST(GcTypeIdsIllegalIndex) {
 TEST(GcTypeIdsFunSigIllegalIndex) {
   {
     EXPERIMENTAL_FLAG_SCOPE(gc);
+    EXPERIMENTAL_FLAG_SCOPE(typed_funcref);
     EXPERIMENTAL_FLAG_SCOPE(reftypes);
     Isolate* isolate = CcTest::InitIsolateOnce();
     HandleScope scope(isolate);
@@ -1076,7 +1080,7 @@ TEST(GcTypeIdsFunSigIllegalIndex) {
         kTypeSectionCode,       // --
         U32V_1(7),              // Section size
         U32V_1(1),              // type count
-        kWasmFunctionTypeCode,  // index 0 = int32 -> int32
+        kWasmFunctionTypeCode,  // index 0 = int32 -> (ref null 0)
         U32V_1(1),              // param count
         kLocalI32,              // param 0
         U32V_1(1),              // returns count

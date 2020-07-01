@@ -73,7 +73,7 @@ ValKind V8ValueTypeToWasm(i::wasm::ValueType v8_valtype) {
       return F64;
     case i::wasm::ValueType::kRef:
     case i::wasm::ValueType::kOptRef:
-      switch (v8_valtype.heap()) {
+      switch (v8_valtype.heap_representation()) {
         case i::wasm::HeapType::kFunc:
           return FUNCREF;
         case i::wasm::HeapType::kExtern:
@@ -1828,7 +1828,7 @@ auto Table::type() const -> own<TableType> {
   uint32_t max;
   if (!table->maximum_length().ToUint32(&max)) max = 0xFFFFFFFFu;
   ValKind kind;
-  switch (table->type().heap()) {
+  switch (table->type().heap_representation()) {
     case i::wasm::HeapType::kFunc:
       kind = FUNCREF;
       break;

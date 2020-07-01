@@ -418,7 +418,7 @@ void WriteValueType(ZoneBuffer* buffer, const ValueType& type) {
     buffer->write_u32v(type.depth());
   }
   if (type.encoding_needs_heap_type()) {
-    buffer->write_u32v(type.heap_type().code());
+    buffer->write_i32v(type.heap_type().code());
   }
 }
 
@@ -569,7 +569,7 @@ void WasmModuleBuilder::WriteTo(ZoneBuffer* buffer) const {
           break;
         case WasmInitExpr::kRefNullConst:
           buffer->write_u8(kExprRefNull);
-          buffer->write_u32v(global.type.heap_type().code());
+          buffer->write_i32v(global.type.heap_type().code());
           break;
         case WasmInitExpr::kRefFuncConst:
           UNIMPLEMENTED();

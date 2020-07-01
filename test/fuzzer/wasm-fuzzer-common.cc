@@ -90,7 +90,7 @@ const char* ValueTypeToConstantName(ValueType type) {
     case ValueType::kF64:
       return "kWasmF64";
     case ValueType::kOptRef:
-      switch (type.heap()) {
+      switch (type.heap_representation()) {
         case HeapType::kExtern:
           return "kWasmExternRef";
         case HeapType::kFunc:

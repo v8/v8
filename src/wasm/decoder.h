@@ -127,6 +127,14 @@ class Decoder {
                                                                name);
   }
 
+  // Reads a variable-length 33-bit signed integer (little endian).
+  template <ValidateFlag validate>
+  int64_t read_i33v(const byte* pc, uint32_t* length,
+                    const char* name = "signed LEB33") {
+    return read_leb<int64_t, validate, kNoAdvancePc, kNoTrace, 33>(pc, length,
+                                                                   name);
+  }
+
   // Reads a prefixed-opcode, possibly with variable-length index.
   // The length param is set to the number of bytes this index is encoded with.
   // For most cases (non variable-length), it will be 1.
@@ -354,21 +362,23 @@ class Decoder {
   }
 
   template <typename IntType, ValidateFlag validate, AdvancePCFlag advance_pc,
-            TraceFlag trace>
+            TraceFlag trace, size_t size_in_bits = 8 * sizeof(IntType)>
   inline IntType read_leb(const byte* pc, uint32_t* length,
                           const char* name = "varint") {
     DCHECK_IMPLIES(advance_pc, pc == pc_);
+    static_assert(size_in_bits <= 8 * sizeof(IntType),
+                  "leb does not fit in type");
     TRACE_IF(trace, "  +%u  %-20s: ", pc_offset(), name);
-    return read_leb_tail<IntType, validate, advance_pc, trace, 0>(pc, length,
-                                                                  name, 0);
+    return read_leb_tail<IntType, validate, advance_pc, trace, size_in_bits, 0>(
+        pc, length, name, 0);
   }
 
   template <typename IntType, ValidateFlag validate, AdvancePCFlag advance_pc,
-            TraceFlag trace, int byte_index>
+            TraceFlag trace, size_t size_in_bits, int byte_index>
   IntType read_leb_tail(const byte* pc, uint32_t* length, const char* name,
                         IntType result) {
     constexpr bool is_signed = std::is_signed<IntType>::value;
-    constexpr int kMaxLength = (sizeof(IntType) * 8 + 6) / 7;
+    constexpr int kMaxLength = (size_in_bits + 6) / 7;
     static_assert(byte_index < kMaxLength, "invalid template instantiation");
     constexpr int shift = byte_index * 7;
     constexpr bool is_last_byte = byte_index == kMaxLength - 1;
@@ -387,7 +397,7 @@ class Decoder {
       // Compilers are not smart enough to figure out statically that the
       // following call is unreachable if is_last_byte is false.
       constexpr int next_byte_index = byte_index + (is_last_byte ? 0 : 1);
-      return read_leb_tail<IntType, validate, advance_pc, trace,
+      return read_leb_tail<IntType, validate, advance_pc, trace, size_in_bits,
                            next_byte_index>(pc + 1, length, name, result);
     }
     if (advance_pc) pc_ = pc + (at_end ? 0 : 1);
@@ -404,11 +414,11 @@ class Decoder {
       // For unsigned values, the extra bits must be all zero.
       // For signed values, the extra bits *plus* the most significant bit must
       // either be 0, or all ones.
-      constexpr int kExtraBits = (sizeof(IntType) * 8) - ((kMaxLength - 1) * 7);
+      constexpr int kExtraBits = size_in_bits - ((kMaxLength - 1) * 7);
       constexpr int kSignExtBits = kExtraBits - (is_signed ? 1 : 0);
       const byte checked_bits = b & (0xFF << kSignExtBits);
       constexpr byte kSignExtendedExtraBits = 0x7f & (0xFF << kSignExtBits);
-      bool valid_extra_bits =
+      const bool valid_extra_bits =
           checked_bits == 0 ||
           (is_signed && checked_bits == kSignExtendedExtraBits);
       if (!validate) {

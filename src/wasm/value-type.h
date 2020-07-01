@@ -45,39 +45,67 @@ class Simd128;
 
 class HeapType {
  public:
-  static const uint32_t kFunc = kV8MaxWasmTypes;  // shorthand: c
-  static const uint32_t kExtern = kFunc + 1;      // shorthand: e
-  static const uint32_t kEq = kFunc + 2;          // shorthand: q
-  static const uint32_t kExn = kFunc + 3;         // shorthand: x
-  static const uint32_t kI31 = kFunc + 4;         // shorthand: j
+  enum Representation : uint32_t {
+    kFunc = kV8MaxWasmTypes,  // shorthand: c
+    kExtern,                  // shorthand: e
+    kEq,                      // shorthand: q
+    kExn,                     // shorthand: x
+    kI31,                     // shorthand: j
+    // This code is used to represent failures in the parsing of heap types and
+    // does not correspond to a wasm heap type.
+    kBottom
+  };
   // Internal use only; defined in the public section to make it easy to
   // check that they are defined correctly:
-  static const uint32_t kFirstSentinel = kFunc;
-  static const uint32_t kLastSentinel = kI31;
+  static constexpr Representation kFirstSentinel = kFunc;
+  static constexpr Representation kLastSentinel = kBottom;
 
-  explicit constexpr HeapType(uint32_t type) : type_(type) {
+  static constexpr HeapType from_code(uint8_t code) {
+    switch (code) {
+      case ValueTypeCode::kLocalFuncRef:
+        return HeapType(kFunc);
+      case ValueTypeCode::kLocalExternRef:
+        return HeapType(kExtern);
+      case ValueTypeCode::kLocalEqRef:
+        return HeapType(kEq);
+      case ValueTypeCode::kLocalExnRef:
+        return HeapType(kExn);
+      case ValueTypeCode::kLocalI31Ref:
+        return HeapType(kI31);
+      default:
+        return HeapType(kBottom);
+    }
+  }
+
+  explicit constexpr HeapType(Representation repr) : representation_(repr) {
     CONSTEXPR_DCHECK(is_valid());
   }
+  explicit constexpr HeapType(uint32_t repr)
+      : HeapType(static_cast<Representation>(repr)) {}
 
   constexpr bool operator==(HeapType other) const {
-    return type_ == other.type_;
+    return representation_ == other.representation_;
   }
   constexpr bool operator!=(HeapType other) const {
-    return type_ != other.type_;
+    return representation_ != other.representation_;
   }
 
-  constexpr uint32_t type() { return type_; }
-  constexpr uint32_t ref_index() {
+  constexpr uint32_t representation() const { return representation_; }
+  constexpr uint32_t ref_index() const {
     CONSTEXPR_DCHECK(is_index());
-    return type_;
+    return representation_;
   }
 
-  constexpr bool is_generic() { return type_ >= kFirstSentinel; }
+  constexpr bool is_generic() const {
+    return representation_ >= kFirstSentinel;
+  }
 
-  constexpr bool is_index() { return !is_generic(); }
+  constexpr bool is_index() const { return !is_generic(); }
 
-  std::string name() {
-    switch (type_) {
+  constexpr bool is_bottom() const { return representation_ == kBottom; }
+
+  std::string name() const {
+    switch (representation_) {
       case kFunc:
         return std::string("func");
       case kExtern:
@@ -89,31 +117,34 @@ class HeapType {
       case kI31:
         return std::string("i31");
       default:
-        return std::to_string(type_);
+        return std::to_string(representation_);
     }
   }
 
-  constexpr uint32_t code() {
-    switch (type_) {
+  constexpr int32_t code() const {
+    // kLocal* codes represent the first byte of the LEB128 encoding. To get the
+    // int32 represented by a code, we need to sign-extend it from 7 to 32 bits.
+    int32_t mask = 0xFFFFFF80;
+    switch (representation_) {
       case kFunc:
-        return kLocalFuncRef;
+        return mask | kLocalFuncRef;
       case kExn:
-        return kLocalExnRef;
+        return mask | kLocalExnRef;
       case kExtern:
-        return kLocalExternRef;
+        return mask | kLocalExternRef;
       case kEq:
-        return kLocalEqRef;
+        return mask | kLocalEqRef;
       case kI31:
-        return kLocalI31Ref;
+        return mask | kLocalI31Ref;
       default:
-        return type_;
+        return static_cast<int32_t>(representation_);
     }
   }
 
  private:
   friend class ValueType;
-  uint32_t type_;
-  constexpr bool is_valid() const { return type_ <= kLastSentinel; }
+  Representation representation_;
+  constexpr bool is_valid() const { return representation_ <= kLastSentinel; }
 };
 enum Nullability : bool { kNonNullable, kNullable };
 
@@ -134,7 +165,8 @@ class ValueType {
   constexpr bool is_nullable() const { return kind() == kOptRef; }
 
   constexpr bool is_reference_to(uint32_t htype) const {
-    return (kind() == kRef || kind() == kOptRef) && heap() == htype;
+    return (kind() == kRef || kind() == kOptRef) &&
+           heap_representation() == htype;
   }
 
   constexpr bool is_defaultable() const {
@@ -157,25 +189,27 @@ class ValueType {
     return ValueType(KindField::encode(kind));
   }
   static constexpr ValueType Ref(uint32_t heap_type, Nullability nullability) {
-    CONSTEXPR_DCHECK(HeapType(heap_type).is_valid());
+    CONSTEXPR_DCHECK(heap_type != HeapType::kBottom &&
+                     HeapType(heap_type).is_valid());
     return ValueType(
         KindField::encode(nullability == kNullable ? kOptRef : kRef) |
         HeapTypeField::encode(heap_type));
   }
   static constexpr ValueType Ref(HeapType heap_type, Nullability nullability) {
-    return Ref(heap_type.type(), nullability);
+    return Ref(heap_type.representation(), nullability);
   }
 
   static constexpr ValueType Rtt(uint32_t heap_type,
                                  uint8_t inheritance_depth) {
-    CONSTEXPR_DCHECK(HeapType(heap_type).is_valid());
+    CONSTEXPR_DCHECK(heap_type != HeapType::kBottom &&
+                     HeapType(heap_type).is_valid());
     return ValueType(KindField::encode(kRtt) |
                      HeapTypeField::encode(heap_type) |
                      DepthField::encode(inheritance_depth));
   }
   static constexpr ValueType Rtt(HeapType heap_type,
                                  uint8_t inheritance_depth) {
-    return Rtt(heap_type.type(), inheritance_depth);
+    return Rtt(heap_type.representation(), inheritance_depth);
   }
 
   static constexpr ValueType FromRawBitField(uint32_t bit_field) {
@@ -183,11 +217,13 @@ class ValueType {
   }
 
   constexpr Kind kind() const { return KindField::decode(bit_field_); }
-  constexpr uint32_t heap() const {
+  constexpr uint32_t heap_representation() const {
     CONSTEXPR_DCHECK(is_reference_type());
     return HeapTypeField::decode(bit_field_);
   }
-  constexpr HeapType heap_type() const { return HeapType(heap()); }
+  constexpr HeapType heap_type() const {
+    return HeapType(heap_representation());
+  }
   constexpr uint8_t depth() const {
     CONSTEXPR_DCHECK(has_depth());
     return DepthField::decode(bit_field_);
@@ -252,7 +288,7 @@ class ValueType {
     CONSTEXPR_DCHECK(kind() != kBottom);
     switch (kind()) {
       case kOptRef:
-        switch (heap()) {
+        switch (heap_representation()) {
           case HeapType::kFunc:
             return kLocalFuncRef;
           case HeapType::kExtern:
@@ -265,7 +301,7 @@ class ValueType {
             return kLocalOptRef;
         }
       case kRef:
-        if (heap() == HeapType::kI31) return kLocalI31Ref;
+        if (heap_representation() == HeapType::kI31) return kLocalI31Ref;
         return kLocalRef;
       case kStmt:
         return kLocalVoid;
@@ -283,9 +319,10 @@ class ValueType {
   }
 
   constexpr bool encoding_needs_heap_type() const {
-    return (kind() == kRef && heap() != HeapType::kI31) || kind() == kRtt ||
-           (kind() == kOptRef &&
-            (!heap_type().is_generic() || heap() == HeapType::kI31));
+    return (kind() == kRef && heap_representation() != HeapType::kI31) ||
+           kind() == kRtt ||
+           (kind() == kOptRef && (!heap_type().is_generic() ||
+                                  heap_representation() == HeapType::kI31));
   }
 
   static ValueType For(MachineType type) {
@@ -323,14 +360,15 @@ class ValueType {
     std::ostringstream buf;
     switch (kind()) {
       case kRef:
-        if (heap() == HeapType::kI31) {
+        if (heap_representation() == HeapType::kI31) {
           buf << "i31ref";
         } else {
           buf << "(ref " << heap_type().name() << ")";
         }
         break;
       case kOptRef:
-        if (heap_type().is_generic()) {
+        if (heap_type().is_generic() &&
+            heap_representation() != HeapType::kI31) {
           // We prefer the shorthand to be backwards-compatible with previous
           // proposals.
           buf << heap_type().name() << "ref";

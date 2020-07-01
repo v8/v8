@@ -145,15 +145,15 @@ V8_NOINLINE V8_EXPORT_PRIVATE bool IsSubtypeOfImpl(ValueType subtype,
 
   HeapType sub_heap = subtype.heap_type();
   HeapType super_heap = supertype.heap_type();
-  DCHECK(!module->has_signature(sub_heap.type()) &&
-         !module->has_signature(super_heap.type()));
+  DCHECK(!module->has_signature(sub_heap.representation()) &&
+         !module->has_signature(super_heap.representation()));
 
   if (sub_heap == super_heap) {
     return true;
   }
   // eqref is a supertype of all reference types except funcref.
-  if (super_heap.type() == HeapType::kEq) {
-    return sub_heap.type() != HeapType::kFunc;
+  if (super_heap.representation() == HeapType::kEq) {
+    return sub_heap.representation() != HeapType::kFunc;
   }
   // At the moment, generic heap types are not subtyping-related otherwise.
   if (sub_heap.is_generic() || super_heap.is_generic()) {

@@ -8,6 +8,8 @@
 // Do only include this header for implementing new Interface of the
 // WasmFullDecoder.
 
+#include <inttypes.h>
+
 #include "src/base/platform/elapsed-timer.h"
 #include "src/base/small-vector.h"
 #include "src/utils/bit-vector.h"
@@ -127,6 +129,69 @@ struct WasmException;
 
 namespace value_type_reader {
 
+V8_INLINE WasmFeature feature_for_heap_type(HeapType heap_type) {
+  switch (heap_type.representation()) {
+    case HeapType::kFunc:
+    case HeapType::kExtern:
+      return WasmFeature::kFeature_reftypes;
+    case HeapType::kExn:
+      return WasmFeature::kFeature_eh;
+    case HeapType::kEq:
+    case HeapType::kI31:
+      return WasmFeature::kFeature_gc;
+    default:
+      UNREACHABLE();
+  }
+}
+
+template <Decoder::ValidateFlag validate>
+HeapType read_heap_type(Decoder* decoder, const byte* pc,
+                        uint32_t* const length, const WasmFeatures& enabled) {
+  int64_t heap_index = decoder->read_i33v<validate>(pc, length, "heap type");
+  if (heap_index < 0) {
+    uint8_t uint_7_mask = 0x7F;
+    uint8_t code = static_cast<ValueTypeCode>(heap_index) & uint_7_mask;
+    switch (code) {
+      case kLocalFuncRef:
+      case kLocalExnRef:
+      case kLocalEqRef:
+      case kLocalExternRef:
+      case kLocalI31Ref: {
+        HeapType result = HeapType::from_code(code);
+        if (!VALIDATE(enabled.contains(feature_for_heap_type(result)))) {
+          decoder->errorf(
+              pc, "invalid heap type '%s', enable with --experimental-wasm-%s",
+              result.name().c_str(),
+              WasmFeatures::name_for_feature(feature_for_heap_type(result)));
+          return HeapType(HeapType::kBottom);
+        }
+        return result;
+      }
+      default:
+        if (validate)
+          decoder->errorf(pc, "Unknown heap type %" PRId64, heap_index);
+        return HeapType(HeapType::kBottom);
+    }
+    UNREACHABLE();
+  } else {
+    if (!VALIDATE(enabled.has_typed_funcref())) {
+      decoder->error(pc,
+                     "Invalid indexed heap type, enable with "
+                     "--experimental-wasm-typed-funcref");
+      return HeapType(HeapType::kBottom);
+    }
+    uint32_t type_index = static_cast<uint32_t>(heap_index);
+    if (!VALIDATE(type_index < kV8MaxWasmTypes)) {
+      decoder->errorf(pc,
+                      "Type index %u is greater than the maximum number %zu "
+                      "of type definitions supported by V8",
+                      type_index, kV8MaxWasmTypes);
+      return HeapType(HeapType::kBottom);
+    }
+    return HeapType(type_index);
+  }
+}
+
 // Read a value type starting at address 'pc' in 'decoder'.
 // No bytes are consumed. The result is written into the 'result' parameter.
 // Returns the amount of bytes read, or 0 if decoding failed.
@@ -139,27 +204,24 @@ ValueType read_value_type(Decoder* decoder, const byte* pc,
   if (decoder->failed()) {
     return kWasmBottom;
   }
-
   ValueTypeCode code = static_cast<ValueTypeCode>(val);
-
-#define REF_TYPE_CASE(heap_type, nullable, feature)                          \
-  case kLocal##heap_type##Ref: {                                             \
-    ValueType result = ValueType::Ref(HeapType::k##heap_type, nullable);     \
-    if (!VALIDATE(enabled.has_##feature())) {                                \
-      decoder->errorf(                                                       \
-          pc, "invalid value type '%s', enable with --experimental-wasm-%s", \
-          result.type_name().c_str(), #feature);                             \
-      return kWasmBottom;                                                    \
-    }                                                                        \
-    return result;                                                           \
-  }
-
   switch (code) {
-    REF_TYPE_CASE(Func, kNullable, reftypes)
-    REF_TYPE_CASE(Extern, kNullable, reftypes)
-    REF_TYPE_CASE(Eq, kNullable, gc)
-    REF_TYPE_CASE(Exn, kNullable, eh)
-    REF_TYPE_CASE(I31, kNonNullable, gc)
+    case kLocalFuncRef:
+    case kLocalExnRef:
+    case kLocalEqRef:
+    case kLocalExternRef:
+    case kLocalI31Ref: {
+      HeapType heap_type = HeapType::from_code(code);
+      ValueType result = ValueType::Ref(heap_type, kNullable);
+      if (!VALIDATE(enabled.contains(feature_for_heap_type(heap_type)))) {
+        decoder->errorf(
+            pc, "invalid value type '%s', enable with --experimental-wasm-%s",
+            result.type_name().c_str(),
+            WasmFeatures::name_for_feature(feature_for_heap_type(heap_type)));
+        return kWasmBottom;
+      }
+      return result;
+    }
     case kLocalI32:
       return kWasmI32;
     case kLocalI64:
@@ -170,40 +232,20 @@ ValueType read_value_type(Decoder* decoder, const byte* pc,
       return kWasmF64;
     case kLocalRef:
     case kLocalOptRef: {
-      // Set length for the macro-defined cases:
-      *length += 1;
       Nullability nullability = code == kLocalOptRef ? kNullable : kNonNullable;
-      uint8_t heap_index = decoder->read_u8<validate>(pc + 1, "heap type");
-      switch (static_cast<ValueTypeCode>(heap_index)) {
-        REF_TYPE_CASE(Func, nullability, typed_funcref)
-        REF_TYPE_CASE(Extern, nullability, typed_funcref)
-        REF_TYPE_CASE(Eq, nullability, gc)
-        REF_TYPE_CASE(Exn, nullability, eh)
-        REF_TYPE_CASE(I31, nullability, gc)
-        default:
-          uint32_t type_index =
-              decoder->read_u32v<validate>(pc + 1, length, "type index");
-          *length += 1;
-          if (!VALIDATE(enabled.has_gc())) {
-            decoder->error(
-                pc,
-                "invalid value type '(ref [null] (type $t))', enable with "
-                "--experimental-wasm-typed-gc");
-            return kWasmBottom;
-          }
-
-          if (!VALIDATE(type_index < kV8MaxWasmTypes)) {
-            decoder->errorf(pc + 1,
-                            "Type index %u is greater than the maximum "
-                            "number %zu of type definitions supported by V8",
-                            type_index, kV8MaxWasmTypes);
-            return kWasmBottom;
-          }
-          return ValueType::Ref(type_index, nullability);
+      if (!VALIDATE(enabled.has_typed_funcref())) {
+        decoder->errorf(pc,
+                        "Invalid type 'ref%s', enable with "
+                        "--experimental-wasm-typed-funcref",
+                        nullability == kNullable ? " null" : "");
+        return kWasmBottom;
       }
-      UNREACHABLE();
+      HeapType heap_type =
+          read_heap_type<validate>(decoder, pc + 1, length, enabled);
+      *length += 1;
+      return heap_type.is_bottom() ? kWasmBottom
+                                   : ValueType::Ref(heap_type, nullability);
     }
-#undef REF_TYPE_CASE
     case kLocalRtt: {
       if (!VALIDATE(enabled.has_gc())) {
         decoder->error(
@@ -217,22 +259,21 @@ ValueType read_value_type(Decoder* decoder, const byte* pc,
       const uint32_t kMaxRttSubtypingDepth = 7;
       if (!VALIDATE(depth <= kMaxRttSubtypingDepth)) {
         decoder->errorf(pc,
-                        "subtyping depth %u is greater than the maximum "
-                        "depth %u supported by V8",
+                        "subtyping depth %u is greater than the maximum depth "
+                        "%u supported by V8",
                         depth, kMaxRttSubtypingDepth);
         return kWasmBottom;
       }
-      uint32_t type_index = decoder->read_u32v<validate>(pc + 1 + depth_length,
-                                                         length, "type index");
-      if (!VALIDATE(type_index < kV8MaxWasmTypes)) {
-        decoder->errorf(pc,
-                        "Type index %u is greater than the maximum "
-                        "number %zu of type definitions supported by V8",
-                        type_index, kV8MaxWasmTypes);
+      HeapType heap_type = read_heap_type<validate>(
+          decoder, pc + depth_length + 1, length, enabled);
+      // TODO(7748): Support RTTs for generic types.
+      if (heap_type.is_generic()) {
+        decoder->error(pc, "UNIMPLEMENTED");
         return kWasmBottom;
       }
-      *length += 1 + depth_length;
-      return ValueType::Rtt(type_index, static_cast<uint8_t>(depth));
+      *length += depth_length + 1;
+      return heap_type.is_bottom() ? kWasmBottom
+                                   : ValueType::Rtt(heap_type, depth);
     }
     case kLocalS128:
       if (!VALIDATE(enabled.has_simd())) {
@@ -364,30 +405,26 @@ struct BlockTypeImmediate {
 
   inline BlockTypeImmediate(const WasmFeatures& enabled, Decoder* decoder,
                             const byte* pc) {
-    if (decoder->read_u8<validate>(pc, "block type") == kLocalVoid) {
-      // 1st case: void block. Struct fields stay at default values.
-      return;
+    int64_t block_type =
+        decoder->read_i33v<validate>(pc, &length, "block type");
+    if (block_type < 0) {
+      if ((static_cast<uint8_t>(block_type) & byte{0x7f}) == kLocalVoid) return;
+      type = value_type_reader::read_value_type<validate>(decoder, pc, &length,
+                                                          enabled);
+      if (!VALIDATE(type != kWasmBottom)) {
+        decoder->errorf(pc, "Invalid block type %" PRId64, block_type);
+      }
+    } else {
+      if (!VALIDATE(enabled.has_mv())) {
+        decoder->errorf(pc,
+                        "invalid block type %" PRId64
+                        ", enable with --experimental-wasm-mv",
+                        block_type);
+        return;
+      }
+      type = kWasmBottom;
+      sig_index = static_cast<uint32_t>(block_type);
     }
-    type = value_type_reader::read_value_type<validate>(decoder, pc, &length,
-                                                        enabled);
-    if (type != kWasmBottom) {
-      // 2nd case: block with val type immediate.
-      return;
-    }
-    // It has to be the 3rd case: multi-value block,
-    // which is represented by a type index.
-    if (!VALIDATE(enabled.has_mv())) {
-      decoder->error(pc, "invalid block type");
-      return;
-    }
-    if (!VALIDATE(decoder->ok())) return;
-    int32_t index =
-        decoder->read_i32v<validate>(pc, &length, "block type index");
-    if (!VALIDATE(length > 0 && index >= 0)) {
-      decoder->error(pc, "invalid block type index");
-      return;
-    }
-    sig_index = static_cast<uint32_t>(index);
   }
 
   uint32_t in_arity() const {
@@ -707,47 +744,11 @@ struct TableCopyImmediate {
 template <Decoder::ValidateFlag validate>
 struct HeapTypeImmediate {
   uint32_t length = 1;
-  HeapType type = HeapType(HeapType::kFunc - 1);
+  HeapType type = HeapType(HeapType::kBottom);
   inline HeapTypeImmediate(const WasmFeatures& enabled, Decoder* decoder,
                            const byte* pc) {
-    // Check for negative 1-byte value first, e.g. -0x10 == funcref. If there's
-    // no match, we'll read a uint32 from the same offset later.
-    uint8_t heap_index = decoder->read_u8<validate>(pc, "heap type immediate");
-    switch (static_cast<ValueTypeCode>(heap_index)) {
-#define REF_TYPE_CASE(heap_type, feature)                                   \
-  case kLocal##heap_type##Ref: {                                            \
-    type = HeapType(HeapType::k##heap_type);                                \
-    if (!VALIDATE(enabled.has_##feature())) {                               \
-      decoder->errorf(                                                      \
-          pc, "invalid heap type '%s', enable with --experimental-wasm-%s", \
-          type.name().c_str(), #feature);                                   \
-    }                                                                       \
-    break;                                                                  \
-  }
-      REF_TYPE_CASE(Func, reftypes)
-      REF_TYPE_CASE(Extern, reftypes)
-      REF_TYPE_CASE(Eq, gc)
-      REF_TYPE_CASE(Exn, eh)
-#undef REF_TYPE_CASE
-      default:
-        uint32_t type_index =
-            decoder->read_u32v<validate>(pc, &length, "heap type immediate");
-        if (!VALIDATE(type_index < kV8MaxWasmTypes)) {
-          decoder->errorf(pc,
-                          "Type index %u is greater than the maximum number "
-                          "%zu of type definitions supported by V8",
-                          type_index, kV8MaxWasmTypes);
-          break;
-        }
-        type = HeapType(type_index);
-        if (!VALIDATE(enabled.has_typed_funcref())) {
-          decoder->errorf(pc,
-                          "invalid heap type %d, enable with "
-                          "--experimental-wasm-typed-funcref",
-                          type_index);
-        }
-        break;
-    }
+    type = value_type_reader::read_heap_type<validate>(decoder, pc, &length,
+                                                       enabled);
   }
 };
 
@@ -3350,7 +3351,7 @@ class WasmFullDecoder : public WasmDecoder<validate> {
         }
         // TODO(7748): Drop this check if {imm} is dropped from the proposal
         // à la https://github.com/WebAssembly/function-references/pull/31.
-        if (!VALIDATE(rtt.type.heap() == imm.index)) {
+        if (!VALIDATE(rtt.type.heap_representation() == imm.index)) {
           this->errorf(this->pc_ + len,
                        "struct.new_with_rtt expected rtt for type %d, found "
                        "rtt for type %s",

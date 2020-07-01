@@ -2792,7 +2792,7 @@ class WasmInterpreterInternals {
         }
         case ValueType::kRef:
         case ValueType::kOptRef: {
-          switch (sig->GetParam(i).heap()) {
+          switch (sig->GetParam(i).heap_representation()) {
             case HeapType::kExtern:
             case HeapType::kExn:
             case HeapType::kFunc: {
@@ -2909,7 +2909,7 @@ class WasmInterpreterInternals {
         }
         case ValueType::kRef:
         case ValueType::kOptRef: {
-          switch (sig->GetParam(i).heap()) {
+          switch (sig->GetParam(i).heap_representation()) {
             case HeapType::kExtern:
             case HeapType::kExn:
             case HeapType::kFunc: {
