@@ -176,7 +176,7 @@ Code Deoptimizer::FindDeoptimizingCode(Address addr) {
     Object element = native_context.DeoptimizedCodeListHead();
     while (!element.IsUndefined(isolate)) {
       Code code = Code::cast(element);
-      CHECK(code.kind() == Code::OPTIMIZED_FUNCTION);
+      CHECK_EQ(code.kind(), Code::OPTIMIZED_FUNCTION);
       if (code.contains(addr)) return code;
       element = code.next_code_link();
     }
@@ -528,13 +528,13 @@ Deoptimizer::Deoptimizer(Isolate* isolate, JSFunction function,
   DCHECK(AllowHeapAllocation::IsAllowed());
   disallow_heap_allocation_ = new DisallowHeapAllocation();
 #endif  // DEBUG
-  if ((compiled_code_.kind() != Code::OPTIMIZED_FUNCTION ||
-       !compiled_code_.deopt_already_counted()) &&
+  CHECK_EQ(compiled_code_.kind(), Code::OPTIMIZED_FUNCTION);
+  if (!compiled_code_.deopt_already_counted() &&
       deopt_kind_ == DeoptimizeKind::kSoft) {
     isolate->counters()->soft_deopts_executed()->Increment();
   }
-  if (compiled_code_.kind() == Code::OPTIMIZED_FUNCTION) {
-    compiled_code_.set_deopt_already_counted(true);
+  compiled_code_.set_deopt_already_counted(true);
+  {
     HandleScope scope(isolate_);
     PROFILE(isolate_, CodeDeoptEvent(handle(compiled_code_, isolate_), kind,
                                      from_, fp_to_sp_delta_));
@@ -665,7 +665,7 @@ int Deoptimizer::GetDeoptimizedCodeCount(Isolate* isolate) {
     Object element = native_context.DeoptimizedCodeListHead();
     while (!element.IsUndefined(isolate)) {
       Code code = Code::cast(element);
-      DCHECK(code.kind() == Code::OPTIMIZED_FUNCTION);
+      DCHECK_EQ(code.kind(), Code::OPTIMIZED_FUNCTION);
       if (!code.marked_for_deoptimization()) {
         length++;
       }
@@ -1819,14 +1819,13 @@ unsigned Deoptimizer::ComputeInputFrameSize() const {
   // function into account so we have to avoid double counting them.
   unsigned fixed_size_above_fp = ComputeInputFrameAboveFpFixedSize();
   unsigned result = fixed_size_above_fp + fp_to_sp_delta_;
-  if (compiled_code_.kind() == Code::OPTIMIZED_FUNCTION) {
-    unsigned stack_slots = compiled_code_.stack_slots();
-    unsigned outgoing_size = 0;
-    //        ComputeOutgoingArgumentSize(compiled_code_, bailout_id_);
-    CHECK_EQ(fixed_size_above_fp + (stack_slots * kSystemPointerSize) -
-                 CommonFrameConstants::kFixedFrameSizeAboveFp + outgoing_size,
-             result);
-  }
+  DCHECK_EQ(compiled_code_.kind(), Code::OPTIMIZED_FUNCTION);
+  unsigned stack_slots = compiled_code_.stack_slots();
+  unsigned outgoing_size = 0;
+  //        ComputeOutgoingArgumentSize(compiled_code_, bailout_id_);
+  CHECK_EQ(fixed_size_above_fp + (stack_slots * kSystemPointerSize) -
+               CommonFrameConstants::kFixedFrameSizeAboveFp + outgoing_size,
+           result);
   return result;
 }
 

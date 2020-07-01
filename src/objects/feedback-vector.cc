@@ -411,7 +411,7 @@ void FeedbackVector::EvictOptimizedCodeMarkedForDeoptimization(
     if (FLAG_trace_deopt) {
       CodeTracer::Scope scope(GetIsolate()->GetCodeTracer());
       PrintF(scope.file(),
-             "[evicting optimizing code marked for deoptimization (%s) for ",
+             "[evicting optimized code marked for deoptimization (%s) for ",
              reason);
       shared.ShortPrint(scope.file());
       PrintF(scope.file(), "]\n");
