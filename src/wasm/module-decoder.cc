@@ -749,7 +749,13 @@ class ModuleDecoderImpl : public Decoder {
       if (!AddTable(module_.get())) break;
       module_->tables.emplace_back();
       WasmTable* table = &module_->tables.back();
+      const byte* type_position = pc();
       table->type = consume_reference_type();
+      if (table->type.kind() != ValueType::kOptRef) {
+        // TODO(7748): Implement other table types.
+        error(type_position,
+              "Currently, only nullable references are allowed as table types");
+      }
       uint8_t flags = validate_table_flags("table elements");
       consume_resizable_limits(
           "table elements", "elements", FLAG_wasm_max_table_size,
