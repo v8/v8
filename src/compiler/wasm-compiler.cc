@@ -976,6 +976,11 @@ Node* WasmGraphBuilder::Float64Constant(double value) {
   return mcgraph()->Float64Constant(value);
 }
 
+Node* WasmGraphBuilder::Simd128Constant(const uint8_t value[16]) {
+  has_simd_ = true;
+  return graph()->NewNode(mcgraph()->machine()->S128Const(value));
+}
+
 namespace {
 Node* Branch(MachineGraph* mcgraph, Node* cond, Node** true_node,
              Node** false_node, Node* control, BranchHint hint) {

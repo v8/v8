@@ -2947,8 +2947,13 @@ class LiftoffCompiler {
     }
   }
 
+  void S128Const(FullDecoder* decoder, const Simd128Immediate<validate>& imm,
+                 Value* result) {
+    unsupported(decoder, kSimd, "simd");
+  }
+
   void Simd8x16ShuffleOp(FullDecoder* decoder,
-                         const Simd8x16ShuffleImmediate<validate>& imm,
+                         const Simd128Immediate<validate>& imm,
                          const Value& input0, const Value& input1,
                          Value* result) {
     static constexpr RegClass result_rc = reg_class_for(ValueType::kS128);
@@ -2956,7 +2961,7 @@ class LiftoffCompiler {
     LiftoffRegister lhs = __ PopToRegister(LiftoffRegList::ForRegs(rhs));
     LiftoffRegister dst = __ GetUnusedRegister(result_rc, {lhs, rhs}, {});
 
-    __ LiftoffAssembler::emit_s8x16_shuffle(dst, lhs, rhs, imm.shuffle);
+    __ LiftoffAssembler::emit_s8x16_shuffle(dst, lhs, rhs, imm.value);
     __ PushRegister(kWasmS128, dst);
   }
 

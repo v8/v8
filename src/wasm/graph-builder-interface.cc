@@ -262,6 +262,11 @@ class WasmGraphBuildingInterface {
     result->node = builder_->Float64Constant(value);
   }
 
+  void S128Const(FullDecoder* decoder, const Simd128Immediate<validate>& imm,
+                 Value* result) {
+    result->node = builder_->Simd128Constant(imm.value);
+  }
+
   void RefNull(FullDecoder* decoder, Value* result) {
     result->node = builder_->RefNull();
   }
@@ -502,11 +507,11 @@ class WasmGraphBuildingInterface {
   }
 
   void Simd8x16ShuffleOp(FullDecoder* decoder,
-                         const Simd8x16ShuffleImmediate<validate>& imm,
+                         const Simd128Immediate<validate>& imm,
                          const Value& input0, const Value& input1,
                          Value* result) {
     TFNode* input_nodes[] = {input0.node, input1.node};
-    result->node = BUILD(Simd8x16ShuffleOp, imm.shuffle, input_nodes);
+    result->node = BUILD(Simd8x16ShuffleOp, imm.value, input_nodes);
   }
 
   void Throw(FullDecoder* decoder, const ExceptionIndexImmediate<validate>& imm,

@@ -649,12 +649,12 @@ struct SimdLaneImmediate {
 
 // Immediate for SIMD S8x16 shuffle operations.
 template <Decoder::ValidateFlag validate>
-struct Simd8x16ShuffleImmediate {
-  uint8_t shuffle[kSimd128Size] = {0};
+struct Simd128Immediate {
+  uint8_t value[kSimd128Size] = {0};
 
-  inline Simd8x16ShuffleImmediate(Decoder* decoder, const byte* pc) {
+  inline Simd128Immediate(Decoder* decoder, const byte* pc) {
     for (uint32_t i = 0; i < kSimd128Size; ++i) {
-      shuffle[i] = decoder->read_u8<validate>(pc + i, "shuffle");
+      value[i] = decoder->read_u8<validate>(pc + i, "value");
     }
   }
 };
@@ -921,7 +921,8 @@ struct ControlBase {
   F(SimdOp, WasmOpcode opcode, Vector<Value> args, Value* result)              \
   F(SimdLaneOp, WasmOpcode opcode, const SimdLaneImmediate<validate>& imm,     \
     const Vector<Value> inputs, Value* result)                                 \
-  F(Simd8x16ShuffleOp, const Simd8x16ShuffleImmediate<validate>& imm,          \
+  F(S128Const, const Simd128Immediate<validate>& imm, Value* result)           \
+  F(Simd8x16ShuffleOp, const Simd128Immediate<validate>& imm,                  \
     const Value& input0, const Value& input1, Value* result)                   \
   F(Throw, const ExceptionIndexImmediate<validate>& imm,                       \
     const Vector<Value>& args)                                                 \
@@ -1307,11 +1308,10 @@ class WasmDecoder : public Decoder {
     }
   }
 
-  inline bool Validate(const byte* pc,
-                       Simd8x16ShuffleImmediate<validate>& imm) {
+  inline bool Validate(const byte* pc, Simd128Immediate<validate>& imm) {
     uint8_t max_lane = 0;
     for (uint32_t i = 0; i < kSimd128Size; ++i) {
-      max_lane = std::max(max_lane, imm.shuffle[i]);
+      max_lane = std::max(max_lane, imm.value[i]);
     }
     // Shuffle indices must be in [0..31] for a 16 lane shuffle.
     if (!VALIDATE(max_lane < 2 * kSimd128Size)) {
@@ -1632,6 +1632,7 @@ class WasmDecoder : public Decoder {
             return 1 + length + imm.length;
           }
           // Shuffles require a byte per lane, or 16 immediate bytes.
+          case kExprS128Const:
           case kExprS8x16Shuffle:
             return 1 + length + kSimd128Size;
           default:
@@ -1815,6 +1816,8 @@ class WasmDecoder : public Decoder {
           FOREACH_SIMD_1_OPERAND_2_PARAM_OPCODE(DECLARE_OPCODE_CASE)
           FOREACH_SIMD_MASK_OPERAND_OPCODE(DECLARE_OPCODE_CASE)
             return {2, 1};
+          FOREACH_SIMD_CONST_OPCODE(DECLARE_OPCODE_CASE)
+            return {0, 1};
           default: {
             sig = WasmOpcodes::Signature(opcode);
             if (sig) {
@@ -3102,6 +3105,13 @@ class WasmFullDecoder : public WasmDecoder<validate> {
     return this->ok();
   }
 
+  uint32_t SimdConstOp(uint32_t opcode_length) {
+    Simd128Immediate<validate> imm(this, this->pc_ + opcode_length);
+    auto* result = Push(kWasmS128);
+    CALL_INTERFACE_IF_REACHABLE(S128Const, imm, result);
+    return opcode_length + kSimd128Size;
+  }
+
   uint32_t SimdExtractLane(WasmOpcode opcode, ValueType type,
                            uint32_t opcode_length) {
     SimdLaneImmediate<validate> imm(this, this->pc_ + opcode_length);
@@ -3130,7 +3140,7 @@ class WasmFullDecoder : public WasmDecoder<validate> {
   }
 
   uint32_t Simd8x16ShuffleOp(uint32_t opcode_length) {
-    Simd8x16ShuffleImmediate<validate> imm(this, this->pc_ + opcode_length);
+    Simd128Immediate<validate> imm(this, this->pc_ + opcode_length);
     if (this->Validate(this->pc_ + opcode_length, imm)) {
       Value input1 = Pop(1, kWasmS128);
       Value input0 = Pop(0, kWasmS128);
@@ -3211,6 +3221,8 @@ class WasmFullDecoder : public WasmDecoder<validate> {
         return DecodeLoadTransformMem(LoadType::kI64Load32U,
                                       LoadTransformationKind::kExtend,
                                       opcode_length);
+      case kExprS128Const:
+        return SimdConstOp(opcode_length);
       default: {
         if (!FLAG_wasm_simd_post_mvp &&
             WasmOpcodes::IsSimdPostMvpOpcode(opcode)) {

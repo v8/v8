@@ -3677,6 +3677,47 @@ WASM_SIMD_TEST(BitSelect) {
   DCHECK_EQ(0x01020304, r.Call(0xFFFFFFFF));
 }
 
+void RunSimdConstTest(ExecutionTier execution_tier, LowerSimd lower_simd,
+                      const std::array<uint8_t, kSimd128Size>& expected) {
+  WasmRunner<uint32_t> r(execution_tier, lower_simd);
+  byte temp1 = r.AllocateLocal(kWasmS128);
+  uint8_t* src0 = r.builder().AddGlobal<uint8_t>(kWasmS128);
+  BUILD(r, WASM_SET_GLOBAL(temp1, WASM_SIMD_CONSTANT(expected)), WASM_ONE);
+  CHECK_EQ(1, r.Call());
+  for (size_t i = 0; i < expected.size(); i++) {
+    CHECK_EQ(ReadLittleEndianValue<uint8_t>(&src0[i]), expected[i]);
+  }
+}
+
+#if V8_TARGET_ARCH_X64 || V8_TARGET_ARCH_ARM64
+WASM_SIMD_TEST_NO_LOWERING(S128Const) {
+  std::array<uint8_t, kSimd128Size> expected;
+  // Test for generic constant
+  for (int i = 0; i < kSimd128Size; i++) {
+    expected[i] = i;
+  }
+  RunSimdConstTest(execution_tier, lower_simd, expected);
+}
+
+WASM_SIMD_TEST_NO_LOWERING(S128ConstAllZero) {
+  std::array<uint8_t, kSimd128Size> expected;
+  // Test for generic constant
+  for (int i = 0; i < kSimd128Size; i++) {
+    expected[i] = 0;
+  }
+  RunSimdConstTest(execution_tier, lower_simd, expected);
+}
+
+WASM_SIMD_TEST_NO_LOWERING(S128ConstAllOnes) {
+  std::array<uint8_t, kSimd128Size> expected;
+  // Test for generic constant
+  for (int i = 0; i < kSimd128Size; i++) {
+    expected[i] = 0xff;
+  }
+  RunSimdConstTest(execution_tier, lower_simd, expected);
+}
+#endif  // V8_TARGET_ARCH_X64 || V8_TARGET_ARCH_ARM64
+
 void RunI8x16MixedRelationalOpTest(ExecutionTier execution_tier,
                                    LowerSimd lower_simd, WasmOpcode opcode,
                                    Int8BinOp expected_op) {

@@ -316,7 +316,9 @@ namespace compiler {
   V(X64I8x16RoundingAverageU)             \
   V(X64I8x16Abs)                          \
   V(X64I8x16BitMask)                      \
+  V(X64S128Const)                         \
   V(X64S128Zero)                          \
+  V(X64S128AllOnes)                       \
   V(X64S128Not)                           \
   V(X64S128And)                           \
   V(X64S128Or)                            \

@@ -757,13 +757,13 @@ void AdjustStackPointerForTailCall(TurboAssembler* assembler,
   }
 }
 
-void SetupShuffleMaskInTempRegister(TurboAssembler* assembler, uint32_t* mask,
-                                    XMMRegister tmp) {
-  uint64_t shuffle_mask = (mask[0]) | (uint64_t{mask[1]} << 32);
-  assembler->Move(tmp, shuffle_mask);
-  shuffle_mask = (mask[2]) | (uint64_t{mask[3]} << 32);
-  assembler->movq(kScratchRegister, shuffle_mask);
-  assembler->Pinsrq(tmp, kScratchRegister, int8_t{1});
+void SetupSimdImmediateInRegister(TurboAssembler* assembler, uint32_t* imms,
+                                  XMMRegister reg) {
+  uint64_t value = (imms[0]) | (uint64_t{imms[1]} << 32);
+  assembler->Move(reg, value);
+  value = (imms[2]) | (uint64_t{imms[3]} << 32);
+  assembler->movq(kScratchRegister, value);
+  assembler->Pinsrq(reg, kScratchRegister, int8_t{1});
 }
 
 }  // namespace
@@ -3191,9 +3191,25 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       __ Pmaddwd(i.OutputSimd128Register(), i.InputSimd128Register(1));
       break;
     }
+    case kX64S128Const: {
+      // Emit code for generic constants as all zeros, or ones cases will be
+      // handled separately by the selector.
+      XMMRegister dst = i.OutputSimd128Register();
+      uint32_t imm[4] = {};
+      for (int j = 0; j < 4; j++) {
+        imm[j] = i.InputUint32(j);
+      }
+      SetupSimdImmediateInRegister(tasm(), imm, dst);
+      break;
+    }
     case kX64S128Zero: {
       XMMRegister dst = i.OutputSimd128Register();
       __ Xorps(dst, dst);
+      break;
+    }
+    case kX64S128AllOnes: {
+      XMMRegister dst = i.OutputSimd128Register();
+      __ Pcmpeqd(dst, dst);
       break;
     }
     case kX64I16x8Splat: {
@@ -3728,7 +3744,7 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
           mask[j - 1] = i.InputUint32(j);
         }
 
-        SetupShuffleMaskInTempRegister(tasm(), mask, tmp_simd);
+        SetupSimdImmediateInRegister(tasm(), mask, tmp_simd);
         __ Pshufb(dst, tmp_simd);
       } else {  // two input operands
         DCHECK_EQ(6, instr->InputCount());
@@ -3741,7 +3757,7 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
             mask1[j - 2] |= (lane < kSimd128Size ? lane : 0x80) << k;
           }
         }
-        SetupShuffleMaskInTempRegister(tasm(), mask1, tmp_simd);
+        SetupSimdImmediateInRegister(tasm(), mask1, tmp_simd);
         __ Pshufb(kScratchDoubleReg, tmp_simd);
         uint32_t mask2[4] = {};
         if (instr->InputAt(1)->IsSimd128Register()) {
@@ -3757,7 +3773,7 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
             mask2[j - 2] |= (lane >= kSimd128Size ? (lane & 0x0F) : 0x80) << k;
           }
         }
-        SetupShuffleMaskInTempRegister(tasm(), mask2, tmp_simd);
+        SetupSimdImmediateInRegister(tasm(), mask2, tmp_simd);
         __ Pshufb(dst, tmp_simd);
         __ Por(dst, kScratchDoubleReg);
       }

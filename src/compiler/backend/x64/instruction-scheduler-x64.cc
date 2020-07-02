@@ -293,7 +293,9 @@ int InstructionScheduler::GetTargetInstructionFlags(
     case kX64S128Xor:
     case kX64S128Not:
     case kX64S128Select:
+    case kX64S128Const:
     case kX64S128Zero:
+    case kX64S128AllOnes:
     case kX64S128AndNot:
     case kX64V64x2AnyTrue:
     case kX64V64x2AllTrue:

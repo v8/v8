@@ -1499,21 +1499,21 @@ const Operator* MachineOperatorBuilder::I64x2ReplaceLaneI32Pair(
                          "Replace lane", 3, 0, 0, 1, 0, 0, lane_index);
 }
 
-bool operator==(S8x16ShuffleParameter const& lhs,
-                S8x16ShuffleParameter const& rhs) {
-  return (lhs.shuffle() == rhs.shuffle());
+bool operator==(S128ImmediateParameter const& lhs,
+                S128ImmediateParameter const& rhs) {
+  return (lhs.immediate() == rhs.immediate());
 }
 
-bool operator!=(S8x16ShuffleParameter const& lhs,
-                S8x16ShuffleParameter const& rhs) {
+bool operator!=(S128ImmediateParameter const& lhs,
+                S128ImmediateParameter const& rhs) {
   return !(lhs == rhs);
 }
 
-size_t hash_value(S8x16ShuffleParameter const& p) {
-  return base::hash_range(p.shuffle().begin(), p.shuffle().end());
+size_t hash_value(S128ImmediateParameter const& p) {
+  return base::hash_range(p.immediate().begin(), p.immediate().end());
 }
 
-std::ostream& operator<<(std::ostream& os, S8x16ShuffleParameter const& p) {
+std::ostream& operator<<(std::ostream& os, S128ImmediateParameter const& p) {
   for (int i = 0; i < 16; i++) {
     const char* separator = (i < 15) ? "," : "";
     os << static_cast<uint32_t>(p[i]) << separator;
@@ -1521,16 +1521,23 @@ std::ostream& operator<<(std::ostream& os, S8x16ShuffleParameter const& p) {
   return os;
 }
 
-S8x16ShuffleParameter const& S8x16ShuffleParameterOf(Operator const* op) {
-  DCHECK_EQ(IrOpcode::kS8x16Shuffle, op->opcode());
-  return OpParameter<S8x16ShuffleParameter>(op);
+S128ImmediateParameter const& S128ImmediateParameterOf(Operator const* op) {
+  DCHECK(IrOpcode::kS8x16Shuffle == op->opcode() ||
+         IrOpcode::kS128Const == op->opcode());
+  return OpParameter<S128ImmediateParameter>(op);
+}
+
+const Operator* MachineOperatorBuilder::S128Const(const uint8_t value[16]) {
+  return new (zone_) Operator1<S128ImmediateParameter>(
+      IrOpcode::kS128Const, Operator::kPure, "Immediate", 0, 0, 0, 1, 0, 0,
+      S128ImmediateParameter(value));
 }
 
 const Operator* MachineOperatorBuilder::S8x16Shuffle(
     const uint8_t shuffle[16]) {
-  return new (zone_) Operator1<S8x16ShuffleParameter>(
+  return new (zone_) Operator1<S128ImmediateParameter>(
       IrOpcode::kS8x16Shuffle, Operator::kPure, "Shuffle", 2, 0, 0, 1, 0, 0,
-      S8x16ShuffleParameter(shuffle));
+      S128ImmediateParameter(shuffle));
 }
 
 StackCheckKind StackCheckKindOf(Operator const* op) {

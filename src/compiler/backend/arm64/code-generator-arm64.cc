@@ -2445,8 +2445,17 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       __ Mov(dst.W(), tmp.V8H(), 0);
       break;
     }
+    case kArm64S128Const: {
+      uint64_t imm1 =
+          i.InputInt32(0) | (static_cast<uint64_t>(i.InputInt32(1)) << 32);
+      uint64_t imm2 =
+          i.InputInt32(2) | (static_cast<uint64_t>(i.InputInt32(3)) << 32);
+      __ Movi(i.OutputSimd128Register().V16B(), imm2, imm1);
+      break;
+    }
     case kArm64S128Zero: {
-      __ Movi(i.OutputSimd128Register().V16B(), 0);
+      VRegister dst = i.OutputSimd128Register().V16B();
+      __ Eor(dst, dst, dst);
       break;
     }
       SIMD_BINOP_CASE(kArm64S128And, And, 16B);

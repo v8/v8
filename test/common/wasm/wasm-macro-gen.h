@@ -792,6 +792,12 @@ inline WasmOpcode LoadStoreOpcodeOf(MachineType type, bool store) {
 #define WASM_SIMD_CONCAT_OP(op, bytes, x, y) \
   x, y, WASM_SIMD_OP(op), TO_BYTE(bytes)
 #define WASM_SIMD_SELECT(format, x, y, z) x, y, z, WASM_SIMD_OP(kExprS128Select)
+#define WASM_SIMD_CONSTANT(v)                                                \
+  WASM_SIMD_OP(kExprS128Const), TO_BYTE(v[0]), TO_BYTE(v[1]), TO_BYTE(v[2]), \
+      TO_BYTE(v[3]), TO_BYTE(v[4]), TO_BYTE(v[5]), TO_BYTE(v[6]),            \
+      TO_BYTE(v[7]), TO_BYTE(v[8]), TO_BYTE(v[9]), TO_BYTE(v[10]),           \
+      TO_BYTE(v[11]), TO_BYTE(v[12]), TO_BYTE(v[13]), TO_BYTE(v[14]),        \
+      TO_BYTE(v[15])
 
 #define WASM_SIMD_F64x2_SPLAT(x) WASM_SIMD_SPLAT(F64x2, x)
 #define WASM_SIMD_F64x2_EXTRACT_LANE(lane, x) \

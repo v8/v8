@@ -2549,6 +2549,17 @@ class WasmInterpreterInternals {
         Push(WasmValue(Simd128(res)));
         return true;
       }
+      case kExprS128Const: {
+        Simd128Immediate<Decoder::kNoValidate> imm(decoder,
+                                                   code->at(pc + *len));
+        int16 res;
+        for (size_t i = 0; i < kSimd128Size; ++i) {
+          res.val[LANE(i, res)] = imm.value[i];
+        }
+        Push(WasmValue(Simd128(res)));
+        *len += 16;
+        return true;
+      }
       case kExprS8x16Swizzle: {
         int16 v2 = Pop().to_s128().to_i8x16();
         int16 v1 = Pop().to_s128().to_i8x16();
@@ -2562,14 +2573,14 @@ class WasmInterpreterInternals {
         return true;
       }
       case kExprS8x16Shuffle: {
-        Simd8x16ShuffleImmediate<Decoder::kNoValidate> imm(decoder,
-                                                           code->at(pc + *len));
+        Simd128Immediate<Decoder::kNoValidate> imm(decoder,
+                                                   code->at(pc + *len));
         *len += 16;
         int16 v2 = Pop().to_s128().to_i8x16();
         int16 v1 = Pop().to_s128().to_i8x16();
         int16 res;
         for (size_t i = 0; i < kSimd128Size; ++i) {
-          int lane = imm.shuffle[i];
+          int lane = imm.value[i];
           res.val[LANE(i, v1)] = lane < kSimd128Size
                                      ? v1.val[LANE(lane, v1)]
                                      : v2.val[LANE(lane - kSimd128Size, v1)];

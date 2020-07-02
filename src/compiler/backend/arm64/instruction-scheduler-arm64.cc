@@ -308,6 +308,7 @@ int InstructionScheduler::GetTargetInstructionFlags(
     case kArm64I8x16RoundingAverageU:
     case kArm64I8x16Abs:
     case kArm64I8x16BitMask:
+    case kArm64S128Const:
     case kArm64S128Zero:
     case kArm64S128Dup:
     case kArm64S128And:

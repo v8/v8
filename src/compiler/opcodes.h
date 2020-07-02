@@ -939,6 +939,7 @@
   V(S128Load)                   \
   V(S128Store)                  \
   V(S128Zero)                   \
+  V(S128Const)                  \
   V(S128Not)                    \
   V(S128And)                    \
   V(S128Or)                     \
