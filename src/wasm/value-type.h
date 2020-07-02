@@ -78,7 +78,7 @@ class HeapType {
   }
 
   explicit constexpr HeapType(Representation repr) : representation_(repr) {
-    CONSTEXPR_DCHECK(is_valid());
+    CONSTEXPR_DCHECK(is_bottom() || is_valid());
   }
   explicit constexpr HeapType(uint32_t repr)
       : HeapType(static_cast<Representation>(repr)) {}
@@ -97,10 +97,10 @@ class HeapType {
   }
 
   constexpr bool is_generic() const {
-    return representation_ >= kFirstSentinel;
+    return !is_bottom() && representation_ >= kFirstSentinel;
   }
 
-  constexpr bool is_index() const { return !is_generic(); }
+  constexpr bool is_index() const { return !is_bottom() && !is_generic(); }
 
   constexpr bool is_bottom() const { return representation_ == kBottom; }
 
@@ -144,7 +144,9 @@ class HeapType {
  private:
   friend class ValueType;
   Representation representation_;
-  constexpr bool is_valid() const { return representation_ <= kLastSentinel; }
+  constexpr bool is_valid() const {
+    return !is_bottom() && representation_ <= kLastSentinel;
+  }
 };
 enum Nullability : bool { kNonNullable, kNullable };
 

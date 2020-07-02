@@ -163,8 +163,9 @@ HeapType read_heap_type(Decoder* decoder, const byte* pc,
         return result;
       }
       default:
-        if (validate)
+        if (validate) {
           decoder->errorf(pc, "Unknown heap type %" PRId64, heap_index);
+        }
         return HeapType(HeapType::kBottom);
     }
     UNREACHABLE();
@@ -1432,6 +1433,10 @@ class WasmDecoder : public Decoder {
   }
 
   inline bool Validate(const byte* pc, HeapTypeImmediate<validate>& imm) {
+    if (!VALIDATE(!imm.type.is_bottom())) {
+      error(pc, "invalid heap type");
+      return false;
+    }
     if (!VALIDATE(imm.type.is_generic() ||
                   module_->has_array(imm.type.ref_index()) ||
                   module_->has_struct(imm.type.ref_index()))) {
