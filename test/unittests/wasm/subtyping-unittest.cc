@@ -10,7 +10,7 @@ namespace internal {
 namespace wasm {
 namespace subtyping_unittest {
 
-class WasmSubtypingTest : public TestWithZone {};
+class WasmSubtypingTest : public ::testing::Test {};
 using FieldInit = std::pair<ValueType, bool>;
 
 ValueType ref(uint32_t index) { return ValueType::Ref(index, kNonNullable); }
@@ -35,8 +35,7 @@ void DefineArray(WasmModule* module, FieldInit element_type) {
 
 TEST_F(WasmSubtypingTest, Subtyping) {
   v8::internal::AccountingAllocator allocator;
-
-  WasmModule module_(std::make_unique<Zone>(*(zone())));
+  WasmModule module_(std::make_unique<Zone>(&allocator, ZONE_NAME));
 
   WasmModule* module = &module_;
 

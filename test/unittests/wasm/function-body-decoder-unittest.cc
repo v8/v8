@@ -72,7 +72,7 @@ using F = std::pair<ValueType, bool>;
 class TestModuleBuilder {
  public:
   explicit TestModuleBuilder(ModuleOrigin origin = kWasmOrigin)
-      : allocator(), mod(std::make_unique<Zone>(&allocator, "TEST_ZONE")) {
+      : allocator(), mod(std::make_unique<Zone>(&allocator, ZONE_NAME)) {
     mod.origin = origin;
   }
   byte AddGlobal(ValueType type, bool mutability = true) {
