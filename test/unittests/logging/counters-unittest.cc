@@ -838,7 +838,7 @@ TEST_F(SnapshotNativeCounterTest, SubStringNative) {
 TEST_F(SnapshotNativeCounterTest, WriteBarrier) {
   RunJS("let o = {a: 42};");
 
-  if (SupportsNativeCounters()) {
+  if (!FLAG_single_generation && SupportsNativeCounters()) {
     EXPECT_NE(0, write_barriers());
   } else {
     EXPECT_EQ(0, write_barriers());

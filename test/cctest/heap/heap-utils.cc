@@ -225,6 +225,11 @@ void ForceEvacuationCandidate(Page* page) {
   }
 }
 
+bool InCorrectGeneration(HeapObject object) {
+  return FLAG_single_generation ? !i::Heap::InYoungGeneration(object)
+                                : i::Heap::InYoungGeneration(object);
+}
+
 }  // namespace heap
 }  // namespace internal
 }  // namespace v8

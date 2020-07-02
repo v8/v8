@@ -55,6 +55,7 @@ Page* FindLastPageInNewSpace(const std::vector<Handle<FixedArray>>& handles) {
 }  // namespace
 
 UNINITIALIZED_TEST(PagePromotion_NewToOld) {
+  if (i::FLAG_single_generation) return;
   if (!i::FLAG_incremental_marking) return;
   if (!i::FLAG_page_promotion) return;
   ManualGCScope manual_gc_scope;
@@ -129,7 +130,9 @@ UNINITIALIZED_TEST(PagePromotion_NewToNew) {
 }
 
 UNINITIALIZED_TEST(PagePromotion_NewToNewJSArrayBuffer) {
-  if (!i::FLAG_page_promotion || FLAG_always_promote_young_mc) return;
+  if (!i::FLAG_page_promotion || FLAG_always_promote_young_mc ||
+      i::FLAG_single_generation)
+    return;
 
   // Test makes sure JSArrayBuffer backing stores are still tracked after
   // new-to-new promotion.
@@ -174,6 +177,7 @@ UNINITIALIZED_TEST(PagePromotion_NewToNewJSArrayBuffer) {
 }
 
 UNINITIALIZED_TEST(PagePromotion_NewToOldJSArrayBuffer) {
+  if (i::FLAG_single_generation) return;
   if (!i::FLAG_page_promotion) return;
 
   // Test makes sure JSArrayBuffer backing stores are still tracked after

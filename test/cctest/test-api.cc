@@ -618,9 +618,11 @@ TEST(MakingExternalStringConditions) {
   LocalContext env;
   v8::HandleScope scope(env->GetIsolate());
 
-  // Free some space in the new space so that we can check freshness.
-  CcTest::CollectGarbage(i::NEW_SPACE);
-  CcTest::CollectGarbage(i::NEW_SPACE);
+  if (!v8::internal::FLAG_single_generation) {
+    // Free some space in the new space so that we can check freshness.
+    CcTest::CollectGarbage(i::NEW_SPACE);
+    CcTest::CollectGarbage(i::NEW_SPACE);
+  }
 
   uint16_t* two_byte_string = AsciiToTwoByteString("s1");
   Local<String> tiny_local_string =
@@ -634,11 +636,13 @@ TEST(MakingExternalStringConditions) {
           .ToLocalChecked();
   i::DeleteArray(two_byte_string);
 
-  // We should refuse to externalize new space strings.
-  CHECK(!local_string->CanMakeExternal());
-  // Trigger GCs so that the newly allocated string moves to old gen.
-  CcTest::CollectGarbage(i::NEW_SPACE);  // in survivor space now
-  CcTest::CollectGarbage(i::NEW_SPACE);  // in old gen now
+  if (!v8::internal::FLAG_single_generation) {
+    // We should refuse to externalize new space strings.
+    CHECK(!local_string->CanMakeExternal());
+    // Trigger GCs so that the newly allocated string moves to old gen.
+    CcTest::CollectGarbage(i::NEW_SPACE);  // in survivor space now
+    CcTest::CollectGarbage(i::NEW_SPACE);  // in old gen now
+  }
   // Old space strings should be accepted.
   CHECK(local_string->CanMakeExternal());
 
@@ -653,17 +657,22 @@ TEST(MakingExternalOneByteStringConditions) {
   LocalContext env;
   v8::HandleScope scope(env->GetIsolate());
 
-  // Free some space in the new space so that we can check freshness.
-  CcTest::CollectGarbage(i::NEW_SPACE);
-  CcTest::CollectGarbage(i::NEW_SPACE);
+  if (!v8::internal::FLAG_single_generation) {
+    // Free some space in the new space so that we can check freshness.
+    CcTest::CollectGarbage(i::NEW_SPACE);
+    CcTest::CollectGarbage(i::NEW_SPACE);
+  }
 
   Local<String> tiny_local_string = v8_str("s");
   Local<String> local_string = v8_str("s1234");
-  // We should refuse to externalize new space strings.
-  CHECK(!local_string->CanMakeExternal());
-  // Trigger GCs so that the newly allocated string moves to old gen.
-  CcTest::CollectGarbage(i::NEW_SPACE);  // in survivor space now
-  CcTest::CollectGarbage(i::NEW_SPACE);  // in old gen now
+
+  if (!v8::internal::FLAG_single_generation) {
+    // We should refuse to externalize new space strings.
+    CHECK(!local_string->CanMakeExternal());
+    // Trigger GCs so that the newly allocated string moves to old gen.
+    CcTest::CollectGarbage(i::NEW_SPACE);  // in survivor space now
+    CcTest::CollectGarbage(i::NEW_SPACE);  // in old gen now
+  }
   // Old space strings should be accepted.
   CHECK(local_string->CanMakeExternal());
 
@@ -7609,7 +7618,7 @@ static void IndependentWeakHandle(bool global_gc, bool interlinked) {
       a->Set(context, v8_str("x"), b).FromJust();
       b->Set(context, v8_str("x"), a).FromJust();
     }
-    if (global_gc) {
+    if (v8::internal::FLAG_single_generation || global_gc) {
       CcTest::CollectAllGarbage();
     } else {
       CcTest::CollectGarbage(i::NEW_SPACE);
@@ -7631,7 +7640,7 @@ static void IndependentWeakHandle(bool global_gc, bool interlinked) {
                           v8::WeakCallbackType::kParameter);
   object_b.handle.SetWeak(&object_b, &SetFlag,
                           v8::WeakCallbackType::kParameter);
-  if (global_gc) {
+  if (v8::internal::FLAG_single_generation || global_gc) {
     CcTest::CollectAllGarbage();
   } else {
     CcTest::CollectGarbage(i::NEW_SPACE);
@@ -7724,7 +7733,7 @@ void InternalFieldCallback(bool global_gc) {
     handle.SetWeak<v8::Persistent<v8::Object>>(
         &handle, CheckInternalFields, v8::WeakCallbackType::kInternalFields);
   }
-  if (global_gc) {
+  if (v8::internal::FLAG_single_generation || global_gc) {
     CcTest::CollectAllGarbage();
   } else {
     CcTest::CollectGarbage(i::NEW_SPACE);
@@ -7768,7 +7777,7 @@ void v8::internal::heap::HeapTester::ResetWeakHandle(bool global_gc) {
     Local<Object> b(v8::Object::New(iso));
     object_a.handle.Reset(iso, a);
     object_b.handle.Reset(iso, b);
-    if (global_gc) {
+    if (global_gc || FLAG_single_generation) {
       CcTest::PreciseCollectAllGarbage();
     } else {
       CcTest::CollectGarbage(i::NEW_SPACE);
@@ -7781,7 +7790,7 @@ void v8::internal::heap::HeapTester::ResetWeakHandle(bool global_gc) {
                           v8::WeakCallbackType::kParameter);
   object_b.handle.SetWeak(&object_b, &ResetUseValueAndSetFlag,
                           v8::WeakCallbackType::kParameter);
-  if (global_gc) {
+  if (global_gc || FLAG_single_generation) {
     CcTest::PreciseCollectAllGarbage();
   } else {
     CcTest::CollectGarbage(i::NEW_SPACE);
@@ -7829,6 +7838,21 @@ THREADED_TEST(GCFromWeakCallbacks) {
   v8::HandleScope scope(isolate);
   v8::Local<Context> context = Context::New(isolate);
   Context::Scope context_scope(context);
+
+  if (v8::internal::FLAG_single_generation) {
+    FlagAndPersistent object;
+    {
+      v8::HandleScope handle_scope(isolate);
+      object.handle.Reset(isolate, v8::Object::New(isolate));
+    }
+    object.flag = false;
+    object.handle.SetWeak(&object, &ForceMarkSweep1,
+                          v8::WeakCallbackType::kParameter);
+    InvokeMarkSweep();
+    EmptyMessageQueues(isolate);
+    CHECK(object.flag);
+    return;
+  }
 
   static const int kNumberOfGCTypes = 2;
   using Callback = v8::WeakCallbackInfo<FlagAndPersistent>::Callback;
@@ -17722,8 +17746,10 @@ void PrologueCallbackAlloc(v8::Isolate* isolate,
   CHECK_EQ(gc_callbacks_isolate, isolate);
   ++prologue_call_count_alloc;
 
-  // Simulate full heap to see if we will reenter this callback
-  i::heap::SimulateFullSpace(CcTest::heap()->new_space());
+  if (!v8::internal::FLAG_single_generation) {
+    // Simulate full heap to see if we will reenter this callback
+    i::heap::SimulateFullSpace(CcTest::heap()->new_space());
+  }
 
   Local<Object> obj = Object::New(isolate);
   CHECK(!obj.IsEmpty());
@@ -17741,8 +17767,10 @@ void EpilogueCallbackAlloc(v8::Isolate* isolate,
   CHECK_EQ(gc_callbacks_isolate, isolate);
   ++epilogue_call_count_alloc;
 
-  // Simulate full heap to see if we will reenter this callback
-  i::heap::SimulateFullSpace(CcTest::heap()->new_space());
+  if (!v8::internal::FLAG_single_generation) {
+    // Simulate full heap to see if we will reenter this callback
+    i::heap::SimulateFullSpace(CcTest::heap()->new_space());
+  }
 
   Local<Object> obj = Object::New(isolate);
   CHECK(!obj.IsEmpty());

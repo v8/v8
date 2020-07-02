@@ -52,6 +52,7 @@ namespace internal {
 namespace heap {
 
 TEST(Promotion) {
+  if (FLAG_single_generation) return;
   CcTest::InitializeVM();
   Isolate* isolate = CcTest::i_isolate();
   {
@@ -145,16 +146,18 @@ HEAP_TEST(MarkCompactCollector) {
   // call mark-compact when heap is empty
   CcTest::CollectGarbage(OLD_SPACE);
 
-  // keep allocating garbage in new space until it fails
-  const int arraysize = 100;
   AllocationResult allocation;
-  do {
-    allocation =
-        AllocateFixedArrayForTest(heap, arraysize, AllocationType::kYoung);
-  } while (!allocation.IsRetry());
-  CcTest::CollectGarbage(NEW_SPACE);
-  AllocateFixedArrayForTest(heap, arraysize, AllocationType::kYoung)
-      .ToObjectChecked();
+  if (!FLAG_single_generation) {
+    // keep allocating garbage in new space until it fails
+    const int arraysize = 100;
+    do {
+      allocation =
+          AllocateFixedArrayForTest(heap, arraysize, AllocationType::kYoung);
+    } while (!allocation.IsRetry());
+    CcTest::CollectGarbage(NEW_SPACE);
+    AllocateFixedArrayForTest(heap, arraysize, AllocationType::kYoung)
+        .ToObjectChecked();
+  }
 
   // keep allocating maps until it fails
   do {

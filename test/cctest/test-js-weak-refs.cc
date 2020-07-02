@@ -877,7 +877,7 @@ TEST(TestRemoveUnregisterToken) {
 
 TEST(JSWeakRefScavengedInWorklist) {
   FLAG_harmony_weak_refs = true;
-  if (!FLAG_incremental_marking) {
+  if (!FLAG_incremental_marking || FLAG_single_generation) {
     return;
   }
 
@@ -922,7 +922,7 @@ TEST(JSWeakRefScavengedInWorklist) {
 
 TEST(JSWeakRefTenuredInWorklist) {
   FLAG_harmony_weak_refs = true;
-  if (!FLAG_incremental_marking) {
+  if (!FLAG_incremental_marking || FLAG_single_generation) {
     return;
   }
 

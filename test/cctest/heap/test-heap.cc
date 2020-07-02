@@ -188,6 +188,7 @@ void CheckEmbeddedObjectsAreEqual(Handle<Code> lhs, Handle<Code> rhs) {
 }
 
 HEAP_TEST(TestNewSpaceRefsInCopiedCode) {
+  if (FLAG_single_generation) return;
   CcTest::InitializeVM();
   Isolate* isolate = CcTest::i_isolate();
   Factory* factory = isolate->factory();
@@ -532,7 +533,8 @@ TEST(WeakGlobalUnmodifiedApiHandlesScavenge) {
       h2.location(), reinterpret_cast<void*>(&handle_and_id),
       &TestWeakGlobalHandleCallback, v8::WeakCallbackType::kParameter);
 
-  CcTest::CollectGarbage(NEW_SPACE);
+  FLAG_single_generation ? CcTest::CollectGarbage(OLD_SPACE)
+                         : CcTest::CollectGarbage(NEW_SPACE);
   CHECK((*h1).IsHeapNumber());
   CHECK(WeakPointerCleared);
   GlobalHandles::Destroy(h1.location());
@@ -1863,12 +1865,14 @@ TEST(HeapNumberAlignment) {
       Heap::GetMaximumFillToAlign(required_alignment);
 
   for (int offset = 0; offset <= maximum_misalignment; offset += kTaggedSize) {
-    AlignNewSpace(required_alignment, offset);
-    Handle<Object> number_new = factory->NewNumber(1.000123);
-    CHECK(number_new->IsHeapNumber());
-    CHECK(Heap::InYoungGeneration(*number_new));
-    CHECK_EQ(0, Heap::GetFillToAlign(HeapObject::cast(*number_new).address(),
-                                     required_alignment));
+    if (!FLAG_single_generation) {
+      AlignNewSpace(required_alignment, offset);
+      Handle<Object> number_new = factory->NewNumber(1.000123);
+      CHECK(number_new->IsHeapNumber());
+      CHECK(Heap::InYoungGeneration(*number_new));
+      CHECK_EQ(0, Heap::GetFillToAlign(HeapObject::cast(*number_new).address(),
+                                       required_alignment));
+    }
 
     AlignOldSpace(required_alignment, offset);
     Handle<Object> number_old =
@@ -1917,6 +1921,7 @@ TEST(TestSizeOfObjectsVsHeapObjectIteratorPrecision) {
 }
 
 TEST(GrowAndShrinkNewSpace) {
+  if (FLAG_single_generation) return;
   // Avoid shrinking new space in GC epilogue. This can happen if allocation
   // throughput samples have been taken while executing the benchmark.
   FLAG_predictable = true;
@@ -1975,6 +1980,7 @@ TEST(GrowAndShrinkNewSpace) {
 }
 
 TEST(CollectingAllAvailableGarbageShrinksNewSpace) {
+  if (FLAG_single_generation) return;
   CcTest::InitializeVM();
   Heap* heap = CcTest::heap();
   if (heap->MaxSemiSpaceSize() == heap->InitialSemiSpaceSize()) {
@@ -2302,6 +2308,7 @@ HEAP_TEST(GCFlags) {
 }
 
 HEAP_TEST(Regress845060) {
+  if (FLAG_single_generation) return;
   // Regression test for crbug.com/845060, where a raw pointer to a string's
   // data was kept across an allocation. If the allocation causes GC and
   // moves the string, such raw pointers become invalid.
@@ -2366,6 +2373,7 @@ TEST(IdleNotificationFinishMarking) {
 
 // Test that HAllocateObject will always return an object in new-space.
 TEST(OptimizedAllocationAlwaysInNewSpace) {
+  if (FLAG_single_generation) return;
   FLAG_allow_natives_syntax = true;
   CcTest::InitializeVM();
   if (!CcTest::i_isolate()->use_optimizer() || FLAG_always_opt) return;
@@ -2503,7 +2511,7 @@ TEST(OptimizedPretenuringNestedInObjectProperties) {
   CcTest::InitializeVM();
   if (!CcTest::i_isolate()->use_optimizer() || FLAG_always_opt) return;
   if (FLAG_gc_global || FLAG_stress_compaction ||
-      FLAG_stress_incremental_marking) {
+      FLAG_stress_incremental_marking || FLAG_single_generation) {
     return;
   }
   v8::HandleScope scope(CcTest::isolate());
@@ -2872,7 +2880,7 @@ TEST(OptimizedAllocationArrayLiterals) {
   i::Handle<JSObject> o = Handle<JSObject>::cast(
       v8::Utils::OpenHandle(*v8::Local<v8::Object>::Cast(res)));
 
-  CHECK(Heap::InYoungGeneration(o->elements()));
+  CHECK(InCorrectGeneration(o->elements()));
 }
 
 static int CountMapTransitions(i::Isolate* isolate, Map map) {
@@ -3607,7 +3615,7 @@ TEST(Regress169928) {
   // Some flags turn Scavenge collections into Mark-sweep collections
   // and hence are incompatible with this test case.
   if (FLAG_gc_global || FLAG_stress_compaction ||
-      FLAG_stress_incremental_marking)
+      FLAG_stress_incremental_marking || FLAG_single_generation)
     return;
 
   // Prepare the environment
@@ -3794,10 +3802,12 @@ static void TestFillersFromDeferredHandles(bool promote) {
 }
 
 TEST(DoNotEvacuateFillersFromDeferredHandles) {
+  if (FLAG_single_generation) return;
   TestFillersFromDeferredHandles(false /*promote*/);
 }
 
 TEST(DoNotPromoteFillersFromDeferredHandles) {
+  if (FLAG_single_generation) return;
   TestFillersFromDeferredHandles(true /*promote*/);
 }
 
@@ -4229,7 +4239,7 @@ TEST(ObjectsInOptimizedCodeAreWeak) {
 }
 
 TEST(NewSpaceObjectsInOptimizedCode) {
-  if (FLAG_always_opt || !FLAG_opt) return;
+  if (FLAG_always_opt || !FLAG_opt || FLAG_single_generation) return;
   FLAG_allow_natives_syntax = true;
   CcTest::InitializeVM();
   Isolate* isolate = CcTest::i_isolate();
@@ -4963,8 +4973,8 @@ TEST(Regress507979) {
 
   Handle<FixedArray> o1 = isolate->factory()->NewFixedArray(kFixedArrayLen);
   Handle<FixedArray> o2 = isolate->factory()->NewFixedArray(kFixedArrayLen);
-  CHECK(Heap::InYoungGeneration(*o1));
-  CHECK(Heap::InYoungGeneration(*o2));
+  CHECK(InCorrectGeneration(*o1));
+  CHECK(InCorrectGeneration(*o2));
 
   HeapObjectIterator it(isolate->heap(),
                         i::HeapObjectIterator::kFilterUnreachable);
@@ -5254,6 +5264,7 @@ void AllocateInSpace(Isolate* isolate, size_t bytes, AllocationSpace space) {
 
 
 TEST(NewSpaceAllocationCounter) {
+  if (FLAG_single_generation) return;
   CcTest::InitializeVM();
   v8::HandleScope scope(CcTest::isolate());
   Isolate* isolate = CcTest::i_isolate();
@@ -5455,6 +5466,7 @@ bool HeapTester::CodeEnsureLinearAllocationArea(Heap* heap, int size_in_bytes) {
 }
 
 HEAP_TEST(Regress587004) {
+  if (FLAG_single_generation) return;
   ManualGCScope manual_gc_scope;
 #ifdef VERIFY_HEAP
   FLAG_verify_heap = false;
@@ -6168,6 +6180,7 @@ static size_t GetRememberedSetSize(HeapObject obj) {
 }
 
 TEST(RememberedSet_InsertOnWriteBarrier) {
+  if (FLAG_single_generation) return;
   CcTest::InitializeVM();
   Isolate* isolate = CcTest::i_isolate();
   Factory* factory = isolate->factory();
@@ -6194,6 +6207,7 @@ TEST(RememberedSet_InsertOnWriteBarrier) {
 }
 
 TEST(RememberedSet_InsertInLargePage) {
+  if (FLAG_single_generation) return;
   CcTest::InitializeVM();
   Isolate* isolate = CcTest::i_isolate();
   Factory* factory = isolate->factory();
@@ -6219,6 +6233,7 @@ TEST(RememberedSet_InsertInLargePage) {
 }
 
 TEST(RememberedSet_InsertOnPromotingObjectToOld) {
+  if (FLAG_single_generation) return;
   CcTest::InitializeVM();
   Isolate* isolate = CcTest::i_isolate();
   Factory* factory = isolate->factory();
@@ -6247,6 +6262,7 @@ TEST(RememberedSet_InsertOnPromotingObjectToOld) {
 }
 
 TEST(RememberedSet_RemoveStaleOnScavenge) {
+  if (FLAG_single_generation) return;
   CcTest::InitializeVM();
   Isolate* isolate = CcTest::i_isolate();
   Factory* factory = isolate->factory();
@@ -6675,6 +6691,7 @@ HEAP_TEST(Regress779503) {
   // over invalid slots. More specific, the Scavenger should not sweep a page
   // that it currently processes because it might allocate over the currently
   // processed slot.
+  if (FLAG_single_generation) return;
   const int kArraySize = 2048;
   CcTest::InitializeVM();
   Isolate* isolate = CcTest::i_isolate();
@@ -7051,6 +7068,7 @@ TEST(NoCodeRangeInJitlessMode) {
 
 TEST(Regress978156) {
   if (!FLAG_incremental_marking) return;
+  if (FLAG_single_generation) return;
   ManualGCScope manual_gc_scope;
   CcTest::InitializeVM();
 

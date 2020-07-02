@@ -135,7 +135,7 @@ void WeakHandleTest(v8::Isolate* isolate, ConstructFunction construct_function,
 
   FlagAndGlobal fp;
   construct_function(isolate, context, &fp);
-  CHECK(heap::InYoungGeneration(isolate, fp.handle));
+  CHECK(heap::InCorrectGeneration(isolate, fp.handle));
   fp.handle.SetWeak(&fp, &ResetHandleAndSetFlag,
                     v8::WeakCallbackType::kParameter);
   fp.flag = false;
@@ -160,7 +160,7 @@ void TracedGlobalTest(v8::Isolate* isolate,
 
   TracedGlobalWrapper fp;
   construct_function(isolate, context, &fp);
-  CHECK(heap::InYoungGeneration(isolate, fp.handle));
+  CHECK(heap::InCorrectGeneration(isolate, fp.handle));
   modifier_function(&fp);
   gc_function();
   CHECK_IMPLIES(survives == SurvivalMode::kSurvives, !fp.handle.IsEmpty());
@@ -330,6 +330,7 @@ TEST(PhatomHandlesWithoutCallbacks) {
 }
 
 TEST(WeakHandleToUnmodifiedJSObjectDiesOnScavenge) {
+  if (FLAG_single_generation) return;
   CcTest::InitializeVM();
   WeakHandleTest(
       CcTest::isolate(), &ConstructJSObject<FlagAndGlobal>,
@@ -338,6 +339,7 @@ TEST(WeakHandleToUnmodifiedJSObjectDiesOnScavenge) {
 }
 
 TEST(TracedGlobalToUnmodifiedJSObjectSurvivesScavenge) {
+  if (FLAG_single_generation) return;
   ManualGCScope manual_gc;
   CcTest::InitializeVM();
   TracedGlobalTest(
@@ -367,6 +369,7 @@ TEST(WeakHandleToUnmodifiedJSObjectSurvivesMarkCompactWhenInHandle) {
 }
 
 TEST(WeakHandleToUnmodifiedJSApiObjectDiesOnScavenge) {
+  if (FLAG_single_generation) return;
   CcTest::InitializeVM();
   WeakHandleTest(
       CcTest::isolate(), &ConstructJSApiObject<FlagAndGlobal>,
@@ -375,6 +378,7 @@ TEST(WeakHandleToUnmodifiedJSApiObjectDiesOnScavenge) {
 }
 
 TEST(TracedGlobalToUnmodifiedJSApiObjectDiesOnScavenge) {
+  if (FLAG_single_generation) return;
   ManualGCScope manual_gc;
   CcTest::InitializeVM();
   TracedGlobalTest(
@@ -404,6 +408,7 @@ TEST(TracedGlobalToJSApiObjectWithIdentityHashSurvivesScavenge) {
 }
 
 TEST(WeakHandleToUnmodifiedJSApiObjectSurvivesScavengeWhenInHandle) {
+  if (FLAG_single_generation) return;
   CcTest::InitializeVM();
   WeakHandleTest(
       CcTest::isolate(), &ConstructJSApiObject<FlagAndGlobal>,
@@ -587,6 +592,18 @@ TEST(GCFromWeakCallbacks) {
   v8::HandleScope scope(isolate);
   v8::Local<v8::Context> context = v8::Context::New(isolate);
   v8::Context::Scope context_scope(context);
+
+  if (FLAG_single_generation) {
+    FlagAndGlobal fp;
+    ConstructJSApiObject(isolate, context, &fp);
+    CHECK(!heap::InYoungGeneration(isolate, fp.handle));
+    fp.flag = false;
+    fp.handle.SetWeak(&fp, &ForceMarkSweep1, v8::WeakCallbackType::kParameter);
+    InvokeMarkSweep();
+    EmptyMessageQueues(isolate);
+    CHECK(fp.flag);
+    return;
+  }
 
   static const int kNumberOfGCTypes = 2;
   using Callback = v8::WeakCallbackInfo<FlagAndGlobal>::Callback;

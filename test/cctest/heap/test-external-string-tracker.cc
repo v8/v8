@@ -171,6 +171,7 @@ TEST(ExternalString_ExternalBackingStoreSizeIncreasesAfterExternalization) {
 }
 
 TEST(ExternalString_PromotedThinString) {
+  if (FLAG_single_generation) return;
   ManualGCScope manual_gc_scope;
   CcTest::InitializeVM();
   LocalContext env;

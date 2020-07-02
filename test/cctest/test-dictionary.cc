@@ -280,7 +280,9 @@ static void TestHashMapDoesNotCauseGC(Handle<HashMap> table) {
 
   // Even though we simulate a full heap, generating an identity hash
   // code in subsequent calls will not request GC.
-  heap::SimulateFullSpace(CcTest::heap()->new_space());
+  if (!FLAG_single_generation) {
+    heap::SimulateFullSpace(CcTest::heap()->new_space());
+  }
   heap::SimulateFullSpace(CcTest::heap()->old_space());
 
   // Calling Lookup() should not cause GC ever.

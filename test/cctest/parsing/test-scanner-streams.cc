@@ -746,6 +746,8 @@ TEST(TestOverlongAndInvalidSequences) {
 }
 
 TEST(RelocatingCharacterStream) {
+  // This test relies on the invariant that the scavenger will move objects
+  if (i::FLAG_single_generation) return;
   ManualGCScope manual_gc_scope;
   CcTest::InitializeVM();
   i::Isolate* i_isolate = CcTest::i_isolate();
@@ -777,6 +779,8 @@ TEST(RelocatingCharacterStream) {
 }
 
 TEST(RelocatingUnbufferedCharacterStream) {
+  // This test relies on the invariant that the scavenger will move objects
+  if (i::FLAG_single_generation) return;
   ManualGCScope manual_gc_scope;
   CcTest::InitializeVM();
   i::Isolate* i_isolate = CcTest::i_isolate();

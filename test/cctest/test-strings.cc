@@ -1814,9 +1814,13 @@ TEST(ExternalStringIndexOf) {
             ->NewStringFromOneByte(Vector<const uint8_t>(                      \
                 reinterpret_cast<const uint8_t*>(buf), len))                   \
             .ToHandleChecked();                                                \
-    CHECK(Heap::InYoungGeneration(*main_string));                              \
-    /* Next allocation will cause GC. */                                       \
-    heap::SimulateFullSpace(CcTest::i_isolate()->heap()->new_space());         \
+    if (FLAG_single_generation) {                                              \
+      CHECK(!Heap::InYoungGeneration(*main_string));                           \
+      heap::SimulateFullSpace(CcTest::i_isolate()->heap()->old_space());       \
+    } else {                                                                   \
+      CHECK(Heap::InYoungGeneration(*main_string));                            \
+      heap::SimulateFullSpace(CcTest::i_isolate()->heap()->new_space());       \
+    }                                                                          \
     /* Offset by two to check substring-ing. */                                \
     Handle<String> s = factory                                                 \
                            ->NewStringFromUtf8SubString(                       \
@@ -1964,6 +1968,8 @@ class OneByteStringResource : public v8::String::ExternalOneByteStringResource {
 };
 
 TEST(Regress876759) {
+  // Thin strings are used in conjunction with young gen
+  if (FLAG_single_generation) return;
   v8::V8::Initialize();
   Isolate* isolate = CcTest::i_isolate();
   Factory* factory = isolate->factory();

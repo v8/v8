@@ -101,7 +101,8 @@ TEST(ArrayBuffer_OnlyMC_Extension) {
     Local<v8::ArrayBuffer> ab = v8::ArrayBuffer::New(isolate, 100);
     Handle<JSArrayBuffer> buf = v8::Utils::OpenHandle(*ab);
     extension = buf->extension();
-    CHECK(IsTrackedYoung(heap, extension));
+    CHECK(FLAG_single_generation ? IsTrackedOld(heap, extension)
+                                 : IsTrackedYoung(heap, extension));
     heap::GcAndSweep(heap, OLD_SPACE);
     CHECK(IsTrackedOld(heap, extension));
     heap::GcAndSweep(heap, OLD_SPACE);
@@ -144,6 +145,7 @@ TEST(ArrayBuffer_OnlyScavenge) {
 
 TEST(ArrayBuffer_OnlyScavenge_Extension) {
   if (!V8_ARRAY_BUFFER_EXTENSION_BOOL) return;
+  if (FLAG_single_generation) return;
   FLAG_concurrent_array_buffer_sweeping = false;
 
   ManualGCScope manual_gc_scope;
@@ -204,7 +206,7 @@ TEST(ArrayBuffer_ScavengeAndMC) {
 }
 
 TEST(ArrayBuffer_ScavengeAndMC_Extension) {
-  if (!V8_ARRAY_BUFFER_EXTENSION_BOOL) return;
+  if (!V8_ARRAY_BUFFER_EXTENSION_BOOL || FLAG_single_generation) return;
   FLAG_concurrent_array_buffer_sweeping = false;
 
   ManualGCScope manual_gc_scope;
@@ -420,7 +422,9 @@ TEST(ArrayBuffer_SemiSpaceCopyThenPagePromotion) {
 }
 
 TEST(ArrayBuffer_PagePromotion_Extension) {
-  if (!i::FLAG_incremental_marking || !V8_ARRAY_BUFFER_EXTENSION_BOOL) return;
+  if (!i::FLAG_incremental_marking || !V8_ARRAY_BUFFER_EXTENSION_BOOL ||
+      i::FLAG_single_generation)
+    return;
   i::FLAG_always_promote_young_mc = true;
   i::FLAG_concurrent_array_buffer_sweeping = false;
 
@@ -456,7 +460,7 @@ TEST(ArrayBuffer_PagePromotion_Extension) {
 }
 
 UNINITIALIZED_TEST(ArrayBuffer_SemiSpaceCopyMultipleTasks) {
-  if (FLAG_optimize_for_size) return;
+  if (FLAG_optimize_for_size || FLAG_single_generation) return;
   ManualGCScope manual_gc_scope;
   // Test allocates JSArrayBuffer on different pages before triggering a
   // full GC that performs the semispace copy. If parallelized, this test
