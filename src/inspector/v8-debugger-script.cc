@@ -174,7 +174,9 @@ class ActualScript : public V8DebuggerScript {
       result->message = scope.Escape(result->message);
       return;
     }
-    if (preview) return;
+    // NOP if preview or unchanged source (diffs.empty() in PatchScript)
+    if (preview || result->script.IsEmpty()) return;
+
     m_hash = String16();
     Initialize(scope.Escape(result->script));
   }
