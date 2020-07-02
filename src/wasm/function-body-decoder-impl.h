@@ -1827,10 +1827,53 @@ class WasmDecoder : public Decoder {
             sig = WasmOpcodes::Signature(opcode);
             if (sig) {
               return {sig->parameter_count(), sig->return_count()};
+            } else {
+              UNREACHABLE();
             }
           }
         }
-        V8_FALLTHROUGH;
+      }
+      case kGCPrefix: {
+        opcode = this->read_prefixed_opcode<validate>(pc);
+        switch (opcode) {
+          case kExprStructGet:
+          case kExprStructGetS:
+          case kExprStructGetU:
+          case kExprI31New:
+          case kExprI31GetS:
+          case kExprI31GetU:
+          case kExprArrayLen:
+          case kExprRttSub:
+            return {1, 1};
+          case kExprStructSet:
+            return {2, 0};
+          case kExprArrayNew:
+          case kExprArrayGet:
+          case kExprArrayGetS:
+          case kExprArrayGetU:
+          case kExprRefTest:
+          case kExprRefCast:
+          case kExprBrOnCast:
+            return {2, 1};
+          case kExprArraySet:
+            return {3, 0};
+          case kExprRttCanon:
+            return {0, 1};
+          case kExprArrayNewSub:
+            return {3, 1};
+          case kExprStructNew: {
+            StructIndexImmediate<validate> imm(this, this->pc_ + 2);
+            this->Complete(imm);
+            return {imm.struct_type->field_count(), 1};
+          }
+          case kExprStructNewWithRtt: {
+            StructIndexImmediate<validate> imm(this, this->pc_ + 2);
+            this->Complete(imm);
+            return {imm.struct_type->field_count() + 1, 1};
+          }
+          default:
+            UNREACHABLE();
+        }
       }
       default:
         FATAL("unimplemented opcode: %x (%s)", opcode,
