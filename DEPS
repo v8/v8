@@ -36,7 +36,7 @@ vars = {
   'mac_xcode_version': 'default',
 
   # GN CIPD package version.
-  'gn_version': 'git_revision:7d7e8deea36d126397bda2cf924682504271f0e1',
+  'gn_version': 'git_revision:cd3869be2477f7ee1aa3f27f43ee934e74722dfb',
 
   # luci-go CIPD package version.
   'luci_go': 'git_revision:56ae79476e3caf14da59d75118408aa778637936',
@@ -77,15 +77,15 @@ vars = {
 
 deps = {
   'v8/build':
-    Var('chromium_url') + '/chromium/src/build.git' + '@' + '29bc35230592af4e72fe38d4f36d3969471a2447',
+    Var('chromium_url') + '/chromium/src/build.git' + '@' + 'cee6c15d0d8d2e92de1a6c1291cb9dfe984820b5',
   'v8/third_party/depot_tools':
-    Var('chromium_url') + '/chromium/tools/depot_tools.git' + '@' + 'fdd2cd6e5fc0c1e5584fc1136043f9509615f817',
+    Var('chromium_url') + '/chromium/tools/depot_tools.git' + '@' + '95099f475463caa66801dd1b22ee851fe8bc05be',
   'v8/third_party/icu':
     Var('chromium_url') + '/chromium/deps/icu.git' + '@' + '79326efe26e5440f530963704c3c0ff965b3a4ac',
   'v8/third_party/instrumented_libraries':
     Var('chromium_url') + '/chromium/src/third_party/instrumented_libraries.git' + '@' + 'bb3f1802c237dd19105dd0f7919f99e536a39d10',
   'v8/buildtools':
-    Var('chromium_url') + '/chromium/src/buildtools.git' + '@' + '6099f101844843c71117a888e8b405cff450d367',
+    Var('chromium_url') + '/chromium/src/buildtools.git' + '@' + '6b2a302b65baf729e0dc026bf2f0bfdb593a2366',
   'v8/buildtools/clang_format/script':
     Var('chromium_url') + '/chromium/llvm-project/cfe/tools/clang-format.git' + '@' + '96636aa0e9f047f17447f2d45a094d0b59ed7917',
   'v8/buildtools/linux64': {
@@ -173,7 +173,7 @@ deps = {
       'dep_type': 'cipd',
   },
   'v8/third_party/catapult': {
-    'url': Var('chromium_url') + '/catapult.git' + '@' + '3f5d1ca9a8eb611d496100cbee237e44ace7bba2',
+    'url': Var('chromium_url') + '/catapult.git' + '@' + '7bb44abccf03d2c092ad485f896abe27dc9a31c3',
     'condition': 'checkout_android',
   },
   'v8/third_party/colorama/src': {
@@ -224,7 +224,7 @@ deps = {
       'packages': [
           {
               'package': 'fuchsia/third_party/aemu/linux-amd64',
-              'version': 'OQ8c-S6dNd0LdVeElhAYBgsHeiiM4xyJ8E6hy3pRIUMC'
+              'version': 'NwKjfDOL_ugbEGGNcm2u6NzakaOJ9ad36bFd7bUVpXIC'
           },
       ],
       'condition': 'host_os == "linux" and checkout_fuchsia',
