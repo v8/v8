@@ -3321,6 +3321,14 @@ void Isolate::InitializeCodeRanges() {
   SetCodePages(&code_pages_buffer1_);
 }
 
+namespace {
+
+// Some global counters.
+uint64_t load_from_stack_count = 0;
+uint64_t store_to_stack_count = 0;
+
+}  // namespace
+
 bool Isolate::Init(ReadOnlyDeserializer* read_only_deserializer,
                    StartupDeserializer* startup_deserializer) {
   TRACE_ISOLATE(init);
@@ -3655,6 +3663,13 @@ std::unique_ptr<PersistentHandles> Isolate::NewPersistentHandles() {
 }
 
 void Isolate::DumpAndResetStats() {
+  if (FLAG_trace_turbo_stack_accesses) {
+    StdoutStream os;
+    os << "=== Load from stack counter: " << load_from_stack_count << std::endl;
+    os << "=== Store to stack counter: " << store_to_stack_count << std::endl;
+    load_from_stack_count = 0;
+    store_to_stack_count = 0;
+  }
   if (turbo_statistics() != nullptr) {
     DCHECK(FLAG_turbo_stats || FLAG_turbo_stats_nvp);
     StdoutStream os;
@@ -4546,6 +4561,16 @@ void Isolate::RemoveCodeMemoryChunk(MemoryChunk* chunk) {
 }
 
 #undef TRACE_ISOLATE
+
+// static
+Address Isolate::load_from_stack_count_address() {
+  return reinterpret_cast<Address>(&load_from_stack_count);
+}
+
+// static
+Address Isolate::store_to_stack_count_address() {
+  return reinterpret_cast<Address>(&store_to_stack_count);
+}
 
 }  // namespace internal
 }  // namespace v8

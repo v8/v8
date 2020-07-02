@@ -573,6 +573,9 @@ DEFINE_BOOL(trace_turbo_loop, false, "trace TurboFan's loop optimizations")
 DEFINE_BOOL(trace_turbo_alloc, false, "trace TurboFan's register allocator")
 DEFINE_BOOL(trace_all_uses, false, "trace all use positions")
 DEFINE_BOOL(trace_representation, false, "trace representation types")
+DEFINE_BOOL(
+    trace_turbo_stack_accesses, false,
+    "trace stack load/store counters for optimized code in run-time (x64 only)")
 DEFINE_BOOL(turbo_verify, DEBUG_BOOL, "verify TurboFan graphs at each phase")
 DEFINE_STRING(turbo_verify_machine_graph, nullptr,
               "verify TurboFan machine graph before instruction selection")

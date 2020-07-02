@@ -354,6 +354,9 @@ class V8_EXPORT_PRIVATE CodeGenerator final : public GapResolver::Assembler {
   void FinishCode();
   void MaybeEmitOutOfLineConstantPool();
 
+  void IncrementStackAccessCounter(InstructionOperand* source,
+                                   InstructionOperand* destination);
+
   // ===========================================================================
   // ============== Architecture-specific gap resolver methods. ================
   // ===========================================================================

@@ -4670,6 +4670,20 @@ void CodeGenerator::FinishCode() { tasm()->PatchConstPool(); }
 
 void CodeGenerator::PrepareForDeoptimizationExits(int deopt_count) {}
 
+void CodeGenerator::IncrementStackAccessCounter(
+    InstructionOperand* source, InstructionOperand* destination) {
+  DCHECK(FLAG_trace_turbo_stack_accesses);
+  auto IncrementCounter = [&](ExternalReference counter) {
+    __ incl(__ ExternalReferenceAsOperand(counter));
+  };
+  if (source->IsAnyStackSlot()) {
+    IncrementCounter(ExternalReference::address_of_load_from_stack_count());
+  }
+  if (destination->IsAnyStackSlot()) {
+    IncrementCounter(ExternalReference::address_of_store_to_stack_count());
+  }
+}
+
 void CodeGenerator::AssembleMove(InstructionOperand* source,
                                  InstructionOperand* destination) {
   X64OperandConverter g(this, nullptr);
@@ -4752,6 +4766,11 @@ void CodeGenerator::AssembleMove(InstructionOperand* source,
     MoveConstantToRegister(kScratchRegister, src);
     __ movq(dst, kScratchRegister);
   };
+
+  if (FLAG_trace_turbo_stack_accesses) {
+    IncrementStackAccessCounter(source, destination);
+  }
+
   // Dispatch on the source and destination operand kinds.
   switch (MoveType::InferMove(source, destination)) {
     case MoveType::kRegisterToRegister:
@@ -4858,6 +4877,11 @@ void CodeGenerator::AssembleMove(InstructionOperand* source,
 
 void CodeGenerator::AssembleSwap(InstructionOperand* source,
                                  InstructionOperand* destination) {
+  if (FLAG_trace_turbo_stack_accesses) {
+    IncrementStackAccessCounter(source, destination);
+    IncrementStackAccessCounter(destination, source);
+  }
+
   X64OperandConverter g(this, nullptr);
   // Dispatch on the source and destination operand kinds.  Not all
   // combinations are possible.
