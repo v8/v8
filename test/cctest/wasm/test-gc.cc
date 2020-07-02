@@ -208,19 +208,18 @@ TEST(WasmRefAsNonNull) {
   ValueType kOptRefType = optref(type_index);
   FunctionSig sig_q_v(1, 0, kRefTypes);
 
-  uint32_t k_global_index = tester.AddGlobal(
+  uint32_t global_index = tester.AddGlobal(
       kOptRefType, true, WasmInitExpr(WasmInitExpr::kRefNullConst));
-  uint32_t k_field_index = 0;
+  uint32_t field_index = 0;
   tester.DefineFunction(
       "f", tester.sigs.i_v(), {},
-      {WASM_SET_GLOBAL(
-           k_global_index,
-           WASM_STRUCT_NEW(type_index, WASM_I32V(55), WASM_I32V(66))),
+      {WASM_SET_GLOBAL(global_index, WASM_STRUCT_NEW(type_index, WASM_I32V(55),
+                                                     WASM_I32V(66))),
        WASM_STRUCT_GET(
-           type_index, k_field_index,
-           WASM_REF_AS_NON_NULL(WASM_IF_ELSE_R(kOptRefType, WASM_I32V(1),
-                                               WASM_GET_GLOBAL(k_global_index),
-                                               WASM_REF_NULL(type_index)))),
+           type_index, field_index,
+           WASM_REF_AS_NON_NULL(WASM_IF_ELSE_R(
+               kOptRefType, WASM_I32V(1), WASM_GET_GLOBAL(global_index),
+               WASM_REF_NULL(static_cast<byte>(type_index))))),
        kExprEnd});
 
   tester.CompileModule();
@@ -265,30 +264,30 @@ TEST(WasmBrOnNull) {
 
 TEST(WasmRefEq) {
   WasmGCTester tester;
-  uint32_t type_index =
-      tester.DefineStruct({F(kWasmI32, true), F(kWasmI32, true)});
+  byte type_index = static_cast<byte>(
+      tester.DefineStruct({F(kWasmI32, true), F(kWasmI32, true)}));
   ValueType kRefTypes[] = {ref(type_index)};
   ValueType kOptRefType = optref(type_index);
   FunctionSig sig_q_v(1, 0, kRefTypes);
 
-  uint32_t n_local_index = 0;
+  byte local_index = 0;
   tester.DefineFunction(
       "f", tester.sigs.i_v(), {kOptRefType},
-      {WASM_SET_LOCAL(n_local_index, WASM_STRUCT_NEW(type_index, WASM_I32V(55),
-                                                     WASM_I32V(66))),
+      {WASM_SET_LOCAL(local_index, WASM_STRUCT_NEW(type_index, WASM_I32V(55),
+                                                   WASM_I32V(66))),
        WASM_I32_ADD(
-           WASM_I32_SHL(WASM_REF_EQ(  // true
-                            WASM_GET_LOCAL(n_local_index),
-                            WASM_GET_LOCAL(n_local_index)),
-                        WASM_I32V(0)),
+           WASM_I32_SHL(
+               WASM_REF_EQ(  // true
+                   WASM_GET_LOCAL(local_index), WASM_GET_LOCAL(local_index)),
+               WASM_I32V(0)),
            WASM_I32_ADD(
                WASM_I32_SHL(WASM_REF_EQ(  // false
-                                WASM_GET_LOCAL(n_local_index),
+                                WASM_GET_LOCAL(local_index),
                                 WASM_STRUCT_NEW(type_index, WASM_I32V(55),
                                                 WASM_I32V(66))),
                             WASM_I32V(1)),
                WASM_I32_ADD(WASM_I32_SHL(  // false
-                                WASM_REF_EQ(WASM_GET_LOCAL(n_local_index),
+                                WASM_REF_EQ(WASM_GET_LOCAL(local_index),
                                             WASM_REF_NULL(type_index)),
                                 WASM_I32V(2)),
                             WASM_I32_SHL(WASM_REF_EQ(  // true
@@ -380,7 +379,7 @@ TEST(WasmLetInstruction) {
   uint32_t let_field_index = 0;
   tester.DefineFunction(
       "let_test_1", tester.sigs.i_v(), {},
-      {WASM_LET_1_I(WASM_REF_TYPE(type_index),
+      {WASM_LET_1_I(WASM_SEQ(kLocalRef, static_cast<byte>(type_index)),
                     WASM_STRUCT_NEW(type_index, WASM_I32V(42), WASM_I32V(52)),
                     WASM_STRUCT_GET(type_index, let_field_index,
                                     WASM_GET_LOCAL(let_local_index))),
@@ -390,7 +389,7 @@ TEST(WasmLetInstruction) {
   tester.DefineFunction(
       "let_test_2", tester.sigs.i_v(), {},
       {WASM_LET_2_I(kLocalI32, WASM_I32_ADD(WASM_I32V(42), WASM_I32V(-32)),
-                    WASM_REF_TYPE(type_index),
+                    WASM_SEQ(kLocalRef, static_cast<byte>(type_index)),
                     WASM_STRUCT_NEW(type_index, WASM_I32V(42), WASM_I32V(52)),
                     WASM_I32_MUL(WASM_STRUCT_GET(type_index, let_2_field_index,
                                                  WASM_GET_LOCAL(1)),

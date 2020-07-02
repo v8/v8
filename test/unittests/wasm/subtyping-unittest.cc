@@ -13,12 +13,8 @@ namespace subtyping_unittest {
 class WasmSubtypingTest : public TestWithZone {};
 using FieldInit = std::pair<ValueType, bool>;
 
-ValueType ref(uint32_t index) {
-  return ValueType::Ref(static_cast<HeapType>(index), kNonNullable);
-}
-ValueType optRef(uint32_t index) {
-  return ValueType::Ref(static_cast<HeapType>(index), kNullable);
-}
+ValueType ref(uint32_t index) { return ValueType::Ref(index, kNonNullable); }
+ValueType optRef(uint32_t index) { return ValueType::Ref(index, kNullable); }
 
 FieldInit mut(ValueType type) { return FieldInit(type, true); }
 FieldInit immut(ValueType type) { return FieldInit(type, false); }
