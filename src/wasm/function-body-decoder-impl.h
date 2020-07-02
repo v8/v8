@@ -2282,7 +2282,7 @@ class WasmFullDecoder : public WasmDecoder<validate> {
         } else if (check_result == kInvalidStack) {
           return 0;
         }
-        for (size_t i = 0; i < value_count; ++i) Pop();
+        for (int i = static_cast<int>(value_count) - 1; i >= 0; i--) Pop(i);
         Value* pexception = Push(kWasmExnRef);
         *pexception = exception;
         return 1 + imm.length;
@@ -2291,7 +2291,7 @@ class WasmFullDecoder : public WasmDecoder<validate> {
         CHECK_PROTOTYPE_OPCODE(typed_funcref);
         BranchDepthImmediate<validate> imm(this, this->pc_ + 1);
         if (!this->Validate(this->pc_ + 1, imm, control_.size())) return 0;
-        Value ref_object = Pop();
+        Value ref_object = Pop(0);
         if (this->failed()) return 0;
         Control* c = control_at(imm.depth);
         TypeCheckBranchResult check_result = TypeCheckBranch(c, true);
@@ -2434,7 +2434,7 @@ class WasmFullDecoder : public WasmDecoder<validate> {
       }
       case kExprSelect: {
         Value cond = Pop(2, kWasmI32);
-        Value fval = Pop();
+        Value fval = Pop(1);
         Value tval = Pop(0, fval.type);
         ValueType type = tval.type == kWasmBottom ? fval.type : tval.type;
         if (!VALIDATE(!type.is_reference_type())) {
@@ -2597,7 +2597,7 @@ class WasmFullDecoder : public WasmDecoder<validate> {
       }
       case kExprRefIsNull: {
         CHECK_PROTOTYPE_OPCODE(reftypes);
-        Value value = Pop();
+        Value value = Pop(0);
         Value* result = Push(kWasmI32);
         switch (value.type.kind()) {
           case ValueType::kOptRef:
@@ -2628,7 +2628,7 @@ class WasmFullDecoder : public WasmDecoder<validate> {
       }
       case kExprRefAsNonNull: {
         CHECK_PROTOTYPE_OPCODE(typed_funcref);
-        Value value = Pop();
+        Value value = Pop(0);
         switch (value.type.kind()) {
           case ValueType::kRef: {
             Value* result = Push(value.type);
@@ -2674,7 +2674,7 @@ class WasmFullDecoder : public WasmDecoder<validate> {
         return 1 + imm.length;
       }
       case kExprDrop: {
-        Value value = Pop();
+        Value value = Pop(0);
         CALL_INTERFACE_IF_REACHABLE(Drop, value);
         return 1;
       }
@@ -3308,7 +3308,7 @@ class WasmFullDecoder : public WasmDecoder<validate> {
       case kExprStructNewWithRtt: {
         StructIndexImmediate<validate> imm(this, this->pc_ + 2);
         if (!this->Validate(this->pc_, imm)) return 0;
-        Value rtt = Pop();
+        Value rtt = Pop(imm.struct_type->field_count());
         if (!VALIDATE(rtt.type.kind() == ValueType::kRtt)) {
           this->errorf(
               this->pc_ + 2,
@@ -3484,7 +3484,7 @@ class WasmFullDecoder : public WasmDecoder<validate> {
         // implement them here.
         HeapTypeImmediate<validate> imm(this->enabled_, this, this->pc_ + 2);
         if (!this->Validate(this->pc_ + 2, imm)) return 0;
-        Value parent = Pop();
+        Value parent = Pop(0);
         // TODO(7748): Consider exposing "IsSubtypeOfHeap(HeapType t1, t2)" so
         // we can avoid creating (ref heaptype) wrappers here.
         if (!VALIDATE(parent.type.kind() == ValueType::kRtt &&
@@ -3517,7 +3517,7 @@ class WasmFullDecoder : public WasmDecoder<validate> {
                        "ref.test: rtt type must be subtype of object type");
           return 0;
         }
-        Value rtt = Pop();
+        Value rtt = Pop(1);
         if (!VALIDATE(rtt.type.kind() == ValueType::kRtt &&
                       rtt.type.heap_type() == rtt_type.type)) {
           this->errorf(
@@ -3546,7 +3546,7 @@ class WasmFullDecoder : public WasmDecoder<validate> {
                        "ret.cast: rtt type must be subtype of object type");
           return 0;
         }
-        Value rtt = Pop();
+        Value rtt = Pop(1);
         if (!VALIDATE(rtt.type.kind() == ValueType::kRtt &&
                       rtt.type.heap_type() == rtt_type.type)) {
           this->errorf(
@@ -3757,7 +3757,7 @@ class WasmFullDecoder : public WasmDecoder<validate> {
   }
 
   V8_INLINE Value Pop(int index, ValueType expected) {
-    Value val = Pop();
+    Value val = Pop(index);
     if (!VALIDATE(IsSubtypeOf(val.type, expected, this->module_) ||
                   val.type == kWasmBottom || expected == kWasmBottom)) {
       this->errorf(val.pc, "%s[%d] expected type %s, found %s of type %s",
@@ -3768,14 +3768,16 @@ class WasmFullDecoder : public WasmDecoder<validate> {
     return val;
   }
 
-  V8_INLINE Value Pop() {
+  V8_INLINE Value Pop(int index) {
     DCHECK(!control_.empty());
     uint32_t limit = control_.back().stack_depth;
     if (stack_.size() <= limit) {
       // Popping past the current control start in reachable code.
       if (!VALIDATE(control_.back().unreachable())) {
-        this->errorf(this->pc_, "%s found empty stack",
-                     SafeOpcodeNameAt(this->pc_));
+        this->errorf(
+            this->pc_,
+            "not enough arguments on the stack for %s, expected %d more",
+            SafeOpcodeNameAt(this->pc_), index + 1);
       }
       return UnreachableValue(this->pc_);
     }
