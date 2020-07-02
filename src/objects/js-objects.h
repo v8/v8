@@ -238,7 +238,7 @@ class JSReceiver : public HeapObject {
       LookupIterator* it);
 
   // Set the object's prototype (only JSReceiver and null are allowed values).
-  V8_WARN_UNUSED_RESULT static Maybe<bool> SetPrototype(
+  V8_EXPORT_PRIVATE V8_WARN_UNUSED_RESULT static Maybe<bool> SetPrototype(
       Handle<JSReceiver> object, Handle<Object> value, bool from_javascript,
       ShouldThrow should_throw);
 
