@@ -20,7 +20,12 @@ proposal_flags = [{
                   {
                     'name': 'js-types',
                     'flags': ['--experimental-wasm-type-reflection',
-                              '--no-experimental-wasm-bulk-memory']
+                              '--wasm-staging']
+                  },
+                  {
+                    'name': 'tail-call',
+                    'flags': ['--experimental-wasm-return-call',
+                              '--wasm-staging']
                   },
                   ]
 

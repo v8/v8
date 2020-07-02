@@ -20,6 +20,16 @@
   'proposals/js-types/globals': [FAIL],
   'proposals/js-types/linking': [FAIL],
 
+  # TODO(wasm): Roll newest tests into "tail-call" repository.
+  'proposals/tail-call/data': [FAIL],
+  'proposals/tail-call/elem': [FAIL],
+  'proposals/tail-call/exports': [FAIL],
+  'proposals/tail-call/func': [FAIL],
+  'proposals/tail-call/globals': [FAIL],
+  'proposals/tail-call/imports': [FAIL],
+  'proposals/tail-call/linking': [FAIL],
+  'proposals/tail-call/type': [FAIL],
+
   # This test requires the reftypes flag to be disabled.
   'proposals/bulk-memory-operations/imports': [FAIL],
 
@@ -51,6 +61,12 @@
   'proposals/reference-types/f64': [SKIP],
   'proposals/bulk-memory-operations/float_misc': [SKIP],
   'proposals/reference-types/float_misc': [SKIP],
+  'proposals/tail-call/f32': [SKIP],
+  'proposals/tail-call/f32_bitwise': [SKIP],
+  'proposals/tail-call/f64': [SKIP],
+  'proposals/tail-call/f64_bitwise': [SKIP],
+  'proposals/tail-call/float_exprs': [SKIP],
+  'proposals/tail-call/conversions': [SKIP],
 }],  # 'arch == mipsel or arch == mips64el or arch == mips or arch == mips64'
 
 ['(arch == mipsel or arch == mips64el or arch == mips or arch == mips64) and not simulator_run', {
@@ -69,11 +85,14 @@
   'proposals/bulk-memory-operations/f64': [SKIP],
   'proposals/reference-types/f32': [SKIP],
   'proposals/reference-types/f64': [SKIP],
+  'proposals/tail-call/f32': [SKIP],
+  'proposals/tail-call/f64': [SKIP],
   # This test fails because ppc float to double doesn't convert sNaN to qNaN.
   'conversions': [SKIP],
   'proposals/js-types/conversions': [SKIP],
   'proposals/bulk-memory-operations/conversions': [SKIP],
   'proposals/reference-types/conversions':  [SKIP],
+  'proposals/tail-call/conversions':  [SKIP],
 }],  # 'arch == ppc or arch == ppc64'
 
 ['arch == s390 or arch == s390x', {
@@ -86,6 +105,8 @@
   'proposals/bulk-memory-operations/f64': [SKIP],
   'proposals/reference-types/f32': [SKIP],
   'proposals/reference-types/f64': [SKIP],
+  'proposals/tail-call/f32': [SKIP],
+  'proposals/tail-call/f64': [SKIP],
 }],  # 'arch == s390 or arch == s390x'
 
 ##############################################################################
