@@ -4,6 +4,7 @@
 
 gclient_gn_args_file = 'v8/build/config/gclient_args.gni'
 gclient_gn_args = [
+  'checkout_google_benchmark',
   'mac_xcode_version',
 ]
 
@@ -32,6 +33,8 @@ vars = {
   'download_gcmole': False,
   'download_jsfunfuzz': False,
   'check_v8_header_includes': False,
+
+  'checkout_google_benchmark' : False,
 
   'mac_xcode_version': 'default',
 
@@ -186,6 +189,10 @@ deps = {
   },
   'v8/third_party/googletest/src':
     Var('chromium_url') + '/external/github.com/google/googletest.git' + '@' + '4fe018038f87675c083d0cfb6a6b57c274fb1753',
+  'v8/third_party/google_benchmark/src': {
+    'url': Var('chromium_url') + '/external/github.com/google/benchmark.git' + '@' + '7f27afe83b82f3a98baf58ef595814b9d42a5b2b',
+    'condition': 'checkout_google_benchmark',
+  },
   'v8/third_party/jinja2':
     Var('chromium_url') + '/chromium/src/third_party/jinja2.git' + '@' + '3f90fa05c85718505e28c9c3426c1ba52843b9b7',
   'v8/third_party/markupsafe':

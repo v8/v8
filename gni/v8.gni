@@ -2,6 +2,7 @@
 # Use of this source code is governed by a BSD-style license that can be
 # found in the LICENSE file.
 
+import("//build/config/gclient_args.gni")
 import("//build/config/sanitizers/sanitizers.gni")
 import("//build/config/v8_target_cpu.gni")
 import("split_static_library.gni")
@@ -65,6 +66,8 @@ declare_args() {
 
   # Add fuzzilli fuzzer support.
   v8_fuzzilli = false
+
+  v8_enable_google_benchmark = checkout_google_benchmark
 }
 
 if (v8_use_external_startup_data == "") {

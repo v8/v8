@@ -33,6 +33,7 @@ group("gn_all") {
   if (host_os != "mac" || !is_android) {
     # These items don't compile for Android on Mac.
     deps += [
+      "benchmarks/cpp:gn_all",
       "cctest:cctest",
       "cctest:generate-bytecode-expectations",
       "unittests:unittests",
