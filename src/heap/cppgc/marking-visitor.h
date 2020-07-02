@@ -18,14 +18,10 @@ class HeapObjectHeader;
 class Marker;
 class MarkingState;
 
-class MarkingVisitor : public ConservativeTracingVisitor,
-                       public heap::base::StackVisitor {
+class MarkingVisitor : public VisitorBase {
  public:
   MarkingVisitor(HeapBase&, MarkingState&);
-  virtual ~MarkingVisitor() = default;
-
-  MarkingVisitor(const MarkingVisitor&) = delete;
-  MarkingVisitor& operator=(const MarkingVisitor&) = delete;
+  ~MarkingVisitor() override = default;
 
  private:
   void Visit(const void*, TraceDescriptor) final;
@@ -33,11 +29,20 @@ class MarkingVisitor : public ConservativeTracingVisitor,
   void VisitRoot(const void*, TraceDescriptor) final;
   void VisitWeakRoot(const void*, TraceDescriptor, WeakCallback,
                      const void*) final;
-  void VisitConservatively(HeapObjectHeader&,
-                           TraceConservativelyCallback) final;
   void RegisterWeakCallback(WeakCallback, const void*) final;
 
-  // StackMarker interface.
+  MarkingState& marking_state_;
+};
+
+class ConservativeMarkingVisitor : public ConservativeTracingVisitor,
+                                   public heap::base::StackVisitor {
+ public:
+  ConservativeMarkingVisitor(HeapBase&, MarkingState&, cppgc::Visitor&);
+  ~ConservativeMarkingVisitor() override = default;
+
+ private:
+  void VisitConservatively(HeapObjectHeader&,
+                           TraceConservativelyCallback) final;
   void VisitPointer(const void*) override;
 
   MarkingState& marking_state_;

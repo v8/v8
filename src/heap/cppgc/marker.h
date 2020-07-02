@@ -11,6 +11,7 @@
 #include "include/cppgc/trace-trait.h"
 #include "include/cppgc/visitor.h"
 #include "src/base/platform/time.h"
+#include "src/heap/cppgc/marking-visitor.h"
 #include "src/heap/cppgc/worklist.h"
 
 namespace cppgc {
@@ -138,6 +139,7 @@ class V8_EXPORT_PRIVATE Marker {
 
   std::unique_ptr<MarkingState> mutator_marking_state_;
   std::unique_ptr<MutatorThreadMarkingVisitor> marking_visitor_;
+  std::unique_ptr<ConservativeMarkingVisitor> conservative_marking_visitor_;
 
   MarkingWorklist marking_worklist_;
   NotFullyConstructedWorklist not_fully_constructed_worklist_;

@@ -15,8 +15,7 @@ namespace cppgc {
 namespace internal {
 
 MarkingVisitor::MarkingVisitor(HeapBase& heap, MarkingState& marking_state)
-    : ConservativeTracingVisitor(heap, *heap.page_backend()),
-      marking_state_(marking_state) {}
+    : marking_state_(marking_state) {}
 
 void MarkingVisitor::Visit(const void* object, TraceDescriptor desc) {
   marking_state_.MarkAndPush(object, desc);
@@ -40,20 +39,25 @@ void MarkingVisitor::VisitWeakRoot(const void* object, TraceDescriptor desc,
                                                  weak_root);
 }
 
-void MarkingVisitor::VisitPointer(const void* address) {
-  TraceConservativelyIfNeeded(address);
+void MarkingVisitor::RegisterWeakCallback(WeakCallback callback,
+                                          const void* object) {
+  marking_state_.RegisterWeakCallback(callback, object);
 }
 
-void MarkingVisitor::VisitConservatively(HeapObjectHeader& header,
-                                         TraceConservativelyCallback callback) {
+ConservativeMarkingVisitor::ConservativeMarkingVisitor(
+    HeapBase& heap, MarkingState& marking_state, cppgc::Visitor& visitor)
+    : ConservativeTracingVisitor(heap, *heap.page_backend(), visitor),
+      marking_state_(marking_state) {}
+
+void ConservativeMarkingVisitor::VisitConservatively(
+    HeapObjectHeader& header, TraceConservativelyCallback callback) {
   marking_state_.MarkNoPush(header);
   callback(this, header);
   marking_state_.AccountMarkedBytes(header);
 }
 
-void MarkingVisitor::RegisterWeakCallback(WeakCallback callback,
-                                          const void* object) {
-  marking_state_.RegisterWeakCallback(callback, object);
+void ConservativeMarkingVisitor::VisitPointer(const void* address) {
+  TraceConservativelyIfNeeded(address);
 }
 
 MutatorThreadMarkingVisitor::MutatorThreadMarkingVisitor(Marker* marker)

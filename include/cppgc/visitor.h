@@ -19,6 +19,7 @@ namespace internal {
 template <typename T, typename WeaknessPolicy, typename LocationPolicy,
           typename CheckingPolicy>
 class BasicPersistent;
+class ConservativeTracingVisitor;
 class VisitorBase;
 }  // namespace internal
 
@@ -43,6 +44,8 @@ using WeakCallback = void (*)(const LivenessBroker&, const void*);
  */
 class Visitor {
  public:
+  virtual ~Visitor() = default;
+
   /**
    * Trace method for Member.
    *
@@ -194,6 +197,7 @@ class Visitor {
   template <typename T, typename WeaknessPolicy, typename LocationPolicy,
             typename CheckingPolicy>
   friend class internal::BasicPersistent;
+  friend class internal::ConservativeTracingVisitor;
 };
 
 }  // namespace cppgc

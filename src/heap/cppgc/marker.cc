@@ -106,7 +106,10 @@ Marker::Marker(HeapBase& heap)
       mutator_marking_state_(std::make_unique<MarkingState>(
           heap, &marking_worklist_, &not_fully_constructed_worklist_,
           &weak_callback_worklist_, Marker::kMutatorThreadId)),
-      marking_visitor_(CreateMutatorThreadMarkingVisitor()) {}
+      marking_visitor_(CreateMutatorThreadMarkingVisitor()),
+      conservative_marking_visitor_(
+          std::make_unique<ConservativeMarkingVisitor>(
+              heap, *mutator_marking_state_.get(), *marking_visitor_.get())) {}
 
 Marker::~Marker() {
   // The fixed point iteration may have found not-fully-constructed objects.
@@ -184,7 +187,7 @@ void Marker::VisitRoots() {
 
   heap().GetStrongPersistentRegion().Trace(marking_visitor_.get());
   if (config_.stack_state != MarkingConfig::StackState::kNoHeapPointers) {
-    heap().stack()->IteratePointers(marking_visitor_.get());
+    heap().stack()->IteratePointers(conservative_marking_visitor_.get());
   }
   if (config_.collection_type == MarkingConfig::CollectionType::kMinor) {
     VisitRememberedSlots(heap(), marking_visitor_.get());
@@ -258,7 +261,7 @@ void Marker::MarkNotFullyConstructedObjects() {
   NotFullyConstructedWorklist::View view(&not_fully_constructed_worklist_,
                                          kMutatorThreadId);
   while (view.Pop(&item)) {
-    marking_visitor_->TraceConservativelyIfNeeded(item);
+    conservative_marking_visitor_->TraceConservativelyIfNeeded(item);
   }
 }
 

@@ -22,12 +22,12 @@ void Visitor::CheckObjectNotInConstruction(const void* address) {
 namespace internal {
 
 ConservativeTracingVisitor::ConservativeTracingVisitor(
-    HeapBase& heap, PageBackend& page_backend)
-    : heap_(heap), page_backend_(page_backend) {}
+    HeapBase& heap, PageBackend& page_backend, cppgc::Visitor& visitor)
+    : heap_(heap), page_backend_(page_backend), visitor_(visitor) {}
 
 namespace {
 
-void TraceConservatively(ConservativeTracingVisitor* visitor,
+void TraceConservatively(ConservativeTracingVisitor* conservative_visitor,
                          const HeapObjectHeader& header) {
   Address* payload = reinterpret_cast<Address*>(header.Payload());
   const size_t payload_size = header.GetSize();
@@ -40,7 +40,7 @@ void TraceConservatively(ConservativeTracingVisitor* visitor,
     MSAN_UNPOISON(&maybe_ptr, sizeof(maybe_ptr));
 #endif
     if (maybe_ptr) {
-      visitor->TraceConservativelyIfNeeded(maybe_ptr);
+      conservative_visitor->TraceConservativelyIfNeeded(maybe_ptr);
     }
   }
 }
@@ -64,9 +64,10 @@ void ConservativeTracingVisitor::TraceConservativelyIfNeeded(
   if (!header) return;
 
   if (!header->IsInConstruction<HeapObjectHeader::AccessMode::kNonAtomic>()) {
-    Visit(header->Payload(),
-          {header->Payload(),
-           GlobalGCInfoTable::GCInfoFromIndex(header->GetGCInfoIndex()).trace});
+    visitor_.Visit(
+        header->Payload(),
+        {header->Payload(),
+         GlobalGCInfoTable::GCInfoFromIndex(header->GetGCInfoIndex()).trace});
   } else {
     VisitConservatively(*header, TraceConservatively);
   }

@@ -21,6 +21,10 @@ class PageBackend;
 class VisitorBase : public cppgc::Visitor {
  public:
   VisitorBase() = default;
+  ~VisitorBase() override = default;
+
+  VisitorBase(const VisitorBase&) = delete;
+  VisitorBase& operator=(const VisitorBase&) = delete;
 
   template <typename T>
   void TraceRootForTesting(const Persistent<T>& p, const SourceLocation& loc) {
@@ -35,9 +39,14 @@ class VisitorBase : public cppgc::Visitor {
 };
 
 // Regular visitor that additionally allows for conservative tracing.
-class ConservativeTracingVisitor : public VisitorBase {
+class ConservativeTracingVisitor {
  public:
-  ConservativeTracingVisitor(HeapBase&, PageBackend&);
+  ConservativeTracingVisitor(HeapBase&, PageBackend&, cppgc::Visitor&);
+  virtual ~ConservativeTracingVisitor() = default;
+
+  ConservativeTracingVisitor(const ConservativeTracingVisitor&) = delete;
+  ConservativeTracingVisitor& operator=(const ConservativeTracingVisitor&) =
+      delete;
 
   void TraceConservativelyIfNeeded(const void*);
 
@@ -49,6 +58,7 @@ class ConservativeTracingVisitor : public VisitorBase {
 
   HeapBase& heap_;
   PageBackend& page_backend_;
+  cppgc::Visitor& visitor_;
 };
 
 }  // namespace internal
