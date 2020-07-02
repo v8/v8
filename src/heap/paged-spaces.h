@@ -327,6 +327,11 @@ class V8_EXPORT_PRIVATE PagedSpace
     return identity() == OLD_SPACE && !is_local_space();
   }
 
+  // Slow path of allocation function
+  V8_WARN_UNUSED_RESULT AllocationResult
+  AllocateRawSlow(int size_in_bytes, AllocationAlignment alignment,
+                  AllocationOrigin origin);
+
  protected:
   // PagedSpaces that should be included in snapshots have different, i.e.,
   // smaller, initial pages.
@@ -352,13 +357,13 @@ class V8_EXPORT_PRIVATE PagedSpace
                                          AllocationOrigin origin);
   // Allocates an object from the linear allocation area. Assumes that the
   // linear allocation area is large enought to fit the object.
-  inline HeapObject AllocateLinearly(int size_in_bytes);
+  inline AllocationResult AllocateLinearly(int size_in_bytes);
   // Tries to allocate an aligned object from the linear allocation area.
   // Returns nullptr if the linear allocation area does not fit the object.
   // Otherwise, returns the object pointer and writes the allocation size
   // (object size + alignment filler size) to the size_in_bytes.
-  inline HeapObject TryAllocateLinearlyAligned(int* size_in_bytes,
-                                               AllocationAlignment alignment);
+  inline AllocationResult TryAllocateLinearlyAligned(
+      int* size_in_bytes, AllocationAlignment alignment);
 
   V8_WARN_UNUSED_RESULT bool RefillLinearAllocationAreaFromFreeList(
       size_t size_in_bytes, AllocationOrigin origin);
