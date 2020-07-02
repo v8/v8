@@ -4,6 +4,7 @@
 
 #include "protocol_core.h"
 
+#include <algorithm>
 #include <cassert>
 #include <string>
 
