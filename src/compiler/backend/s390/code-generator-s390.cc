@@ -3918,6 +3918,21 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
             Condition(0));
       break;
     }
+    case kS390_S128Const: {
+#ifdef V8_TARGET_BIG_ENDIAN
+      for (int index = 0, j = 0; index < 2; index++, j = +2) {
+        __ lgfi(index < 1 ? ip : r0, Operand(i.InputInt32(j)));
+        __ iihf(index < 1 ? ip : r0, Operand(i.InputInt32(j + 1)));
+      }
+#else
+      for (int index = 0, j = 0; index < 2; index++, j = +2) {
+        __ lgfi(index < 1 ? r0 : ip, Operand(i.InputInt32(j)));
+        __ iihf(index < 1 ? r0 : ip, Operand(i.InputInt32(j + 1)));
+      }
+#endif
+      __ vlvgp(i.OutputSimd128Register(), r0, ip);
+      break;
+    }
     case kS390_S128Zero: {
       Simd128Register dst = i.OutputSimd128Register();
       __ vx(dst, dst, dst, Condition(0), Condition(0), Condition(0));

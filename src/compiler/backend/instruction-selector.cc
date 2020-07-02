@@ -2712,9 +2712,9 @@ void InstructionSelector::VisitI32x4DotI16x8S(Node* node) { UNIMPLEMENTED(); }
 #endif  // !V8_TARGET_ARCH_X64 && !V8_TARGET_ARCH_IA32 && !V8_TARGET_ARCH_ARM64
         // && !V8_TARGET_ARCH_ARM
 
-#if !V8_TARGET_ARCH_X64 && !V8_TARGET_ARCH_ARM64
+#if !V8_TARGET_ARCH_X64 && !V8_TARGET_ARCH_ARM64 && !V8_TARGET_ARCH_S390X
 void InstructionSelector::VisitS128Const(Node* node) { UNIMPLEMENTED(); }
-#endif  // !V8_TARGET_ARCH_X64 && !V8_TARGET_ARCH_ARM64
+#endif  // !V8_TARGET_ARCH_X64 && !V8_TARGET_ARCH_ARM64 && !V8_TARGET_ARCH_S390X
 
 void InstructionSelector::VisitFinishRegion(Node* node) { EmitIdentity(node); }
 

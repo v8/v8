@@ -378,6 +378,7 @@ namespace compiler {
   V(S390_S128And)                           \
   V(S390_S128Or)                            \
   V(S390_S128Xor)                           \
+  V(S390_S128Const)                         \
   V(S390_S128Zero)                          \
   V(S390_S128Not)                           \
   V(S390_S128Select)                        \

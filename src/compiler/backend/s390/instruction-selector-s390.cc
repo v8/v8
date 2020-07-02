@@ -2876,6 +2876,28 @@ void InstructionSelector::VisitS8x16Swizzle(Node* node) {
        g.UseUniqueRegister(node->InputAt(1)));
 }
 
+void InstructionSelector::VisitS128Const(Node* node) {
+  S390OperandGenerator g(this);
+  static const int kUint32Immediates = 4;
+  uint32_t val[kUint32Immediates];
+  STATIC_ASSERT(sizeof(val) == kSimd128Size);
+  memcpy(val, S128ImmediateParameterOf(node->op()).data(), kSimd128Size);
+  // If all bytes are zeros, avoid emitting code for generic constants
+  bool all_zeros = !(val[0] && val[1] && val[2] && val[3]);
+  InstructionOperand dst = g.DefineAsRegister(node);
+  if (all_zeros) {
+    Emit(kS390_S128Zero, dst);
+  } else {
+    // We have to use Pack4Lanes to reverse the bytes (lanes) on BE,
+    // Which in this case is ineffective on LE.
+    Emit(kS390_S128Const, g.DefineAsRegister(node),
+         g.UseImmediate(Pack4Lanes(reinterpret_cast<uint8_t*>(val))),
+         g.UseImmediate(Pack4Lanes(reinterpret_cast<uint8_t*>(val) + 4)),
+         g.UseImmediate(Pack4Lanes(reinterpret_cast<uint8_t*>(val) + 8)),
+         g.UseImmediate(Pack4Lanes(reinterpret_cast<uint8_t*>(val) + 12)));
+  }
+}
+
 void InstructionSelector::VisitS128Zero(Node* node) {
   S390OperandGenerator g(this);
   Emit(kS390_S128Zero, g.DefineAsRegister(node));
