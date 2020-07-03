@@ -48,6 +48,8 @@
 #include "src/heap/local-heap.h"
 #include "src/heap/mark-compact-inl.h"
 #include "src/heap/mark-compact.h"
+#include "src/heap/marking-barrier-inl.h"
+#include "src/heap/marking-barrier.h"
 #include "src/heap/memory-chunk-inl.h"
 #include "src/heap/memory-measurement.h"
 #include "src/heap/memory-reducer.h"
@@ -111,35 +113,13 @@ void Heap_GenerationalBarrierSlow(HeapObject object, Address slot,
   Heap::GenerationalBarrierSlow(object, slot, value);
 }
 
-void Heap_MarkingBarrierSlow(HeapObject object, Address slot,
-                             HeapObject value) {
-  Heap::MarkingBarrierSlow(object, slot, value);
-}
-
 void Heap_WriteBarrierForCodeSlow(Code host) {
   Heap::WriteBarrierForCodeSlow(host);
-}
-
-void Heap_MarkingBarrierForArrayBufferExtensionSlow(
-    HeapObject object, ArrayBufferExtension* extension) {
-  Heap::MarkingBarrierForArrayBufferExtensionSlow(object, extension);
 }
 
 void Heap_GenerationalBarrierForCodeSlow(Code host, RelocInfo* rinfo,
                                          HeapObject object) {
   Heap::GenerationalBarrierForCodeSlow(host, rinfo, object);
-}
-
-void Heap_MarkingBarrierForCodeSlow(Code host, RelocInfo* rinfo,
-                                    HeapObject object) {
-  Heap::MarkingBarrierForCodeSlow(host, rinfo, object);
-}
-
-void Heap_MarkingBarrierForDescriptorArraySlow(Heap* heap, HeapObject host,
-                                               HeapObject descriptor_array,
-                                               int number_of_own_descriptors) {
-  Heap::MarkingBarrierForDescriptorArraySlow(heap, host, descriptor_array,
-                                             number_of_own_descriptors);
 }
 
 void Heap_GenerationalEphemeronKeyBarrierSlow(Heap* heap,
@@ -5306,6 +5286,9 @@ void Heap::SetUp() {
     concurrent_marking_.reset(new ConcurrentMarking(this, nullptr, nullptr));
   }
 
+  marking_barrier_.reset(new MarkingBarrier(this, mark_compact_collector(),
+                                            incremental_marking()));
+
   for (int i = FIRST_SPACE; i <= LAST_SPACE; i++) {
     space_[i] = nullptr;
   }
@@ -6636,18 +6619,8 @@ void Heap::WriteBarrierForCodeSlow(Code code) {
   for (RelocIterator it(code, RelocInfo::EmbeddedObjectModeMask()); !it.done();
        it.next()) {
     GenerationalBarrierForCode(code, it.rinfo(), it.rinfo()->target_object());
-    MarkingBarrierForCode(code, it.rinfo(), it.rinfo()->target_object());
+    WriteBarrier::Marking(code, it.rinfo(), it.rinfo()->target_object());
   }
-}
-
-void Heap::MarkingBarrierForArrayBufferExtensionSlow(
-    HeapObject object, ArrayBufferExtension* extension) {
-  if (V8_CONCURRENT_MARKING_BOOL || GetIsolateFromWritableObject(object)
-                                        ->heap()
-                                        ->incremental_marking()
-                                        ->marking_state()
-                                        ->IsBlack(object))
-    extension->Mark();
 }
 
 void Heap::GenerationalBarrierSlow(HeapObject object, Address slot,
@@ -6676,8 +6649,7 @@ void Heap::EphemeronKeyWriteBarrierFromCode(Address raw_object,
   if (!ObjectInYoungGeneration(table) && ObjectInYoungGeneration(key)) {
     isolate->heap()->RecordEphemeronKeyWrite(table, key_slot_address);
   }
-  isolate->heap()->incremental_marking()->RecordWrite(table, key_slot,
-                                                      maybe_key);
+  WriteBarrier::Marking(table, key_slot, maybe_key);
 }
 
 enum RangeWriteBarrierMode {
@@ -6695,7 +6667,7 @@ void Heap::WriteBarrierForRangeImpl(MemoryChunk* source_page, HeapObject object,
   STATIC_ASSERT(!(kModeMask & kDoEvacuationSlotRecording) ||
                 (kModeMask & kDoMarking));
 
-  IncrementalMarking* incremental_marking = this->incremental_marking();
+  MarkingBarrier* marking_barrier = this->marking_barrier();
   MarkCompactCollector* collector = this->mark_compact_collector();
 
   for (TSlot slot = start_slot; slot < end_slot; ++slot) {
@@ -6710,7 +6682,7 @@ void Heap::WriteBarrierForRangeImpl(MemoryChunk* source_page, HeapObject object,
     }
 
     if ((kModeMask & kDoMarking) &&
-        incremental_marking->BaseRecordWrite(object, value_heap_object)) {
+        marking_barrier->MarkValue(object, value_heap_object)) {
       if (kModeMask & kDoEvacuationSlotRecording) {
         collector->RecordSlot(source_page, HeapObjectSlot(slot),
                               value_heap_object);
@@ -6799,35 +6771,6 @@ void Heap::GenerationalBarrierForCodeSlow(Code host, RelocInfo* rinfo,
   DCHECK_LT(offset, static_cast<uintptr_t>(TypedSlotSet::kMaxOffset));
   RememberedSet<OLD_TO_NEW>::InsertTyped(source_page, slot_type,
                                          static_cast<uint32_t>(offset));
-}
-
-void Heap::MarkingBarrierSlow(HeapObject object, Address slot,
-                              HeapObject value) {
-  Heap* heap = Heap::FromWritableHeapObject(object);
-  heap->incremental_marking()->RecordWriteSlow(object, HeapObjectSlot(slot),
-                                               value);
-}
-
-void Heap::MarkingBarrierForCodeSlow(Code host, RelocInfo* rinfo,
-                                     HeapObject object) {
-  Heap* heap = Heap::FromWritableHeapObject(host);
-  DCHECK(heap->incremental_marking()->IsMarking());
-  heap->incremental_marking()->RecordWriteIntoCode(host, rinfo, object);
-}
-
-void Heap::MarkingBarrierForDescriptorArraySlow(Heap* heap, HeapObject host,
-                                                HeapObject raw_descriptor_array,
-                                                int number_of_own_descriptors) {
-  DCHECK(heap->incremental_marking()->IsMarking());
-  DescriptorArray descriptor_array =
-      DescriptorArray::cast(raw_descriptor_array);
-  int16_t raw_marked = descriptor_array.raw_number_of_marked_descriptors();
-  if (NumberOfMarkedDescriptors::decode(heap->mark_compact_collector()->epoch(),
-                                        raw_marked) <
-      number_of_own_descriptors) {
-    heap->mark_compact_collector()->MarkDescriptorArrayFromWriteBarrier(
-        host, descriptor_array, number_of_own_descriptors);
-  }
 }
 
 bool Heap::PageFlagsAreConsistent(HeapObject object) {

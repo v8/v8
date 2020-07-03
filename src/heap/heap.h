@@ -77,6 +77,7 @@ class Isolate;
 class JSFinalizationRegistry;
 class LocalEmbedderHeapTracer;
 class LocalHeap;
+class MarkingBarrier;
 class MemoryAllocator;
 class MemoryChunk;
 class MemoryMeasurement;
@@ -419,9 +420,6 @@ class Heap {
 
   V8_EXPORT_PRIVATE static void WriteBarrierForCodeSlow(Code host);
 
-  V8_EXPORT_PRIVATE static void MarkingBarrierForArrayBufferExtensionSlow(
-      HeapObject object, ArrayBufferExtension* extension);
-
   V8_EXPORT_PRIVATE static void GenerationalBarrierSlow(HeapObject object,
                                                         Address slot,
                                                         HeapObject value);
@@ -431,19 +429,6 @@ class Heap {
       Address raw_object, Address address, Isolate* isolate);
   V8_EXPORT_PRIVATE static void GenerationalBarrierForCodeSlow(
       Code host, RelocInfo* rinfo, HeapObject value);
-  V8_EXPORT_PRIVATE static void MarkingBarrierSlow(HeapObject object,
-                                                   Address slot,
-                                                   HeapObject value);
-  V8_EXPORT_PRIVATE static void MarkingBarrierForCodeSlow(Code host,
-                                                          RelocInfo* rinfo,
-                                                          HeapObject value);
-
-  static void MarkingBarrierForArrayBufferExtension(
-      JSArrayBuffer object, ArrayBufferExtension* extension);
-
-  V8_EXPORT_PRIVATE static void MarkingBarrierForDescriptorArraySlow(
-      Heap* heap, HeapObject host, HeapObject descriptor_array,
-      int number_of_own_descriptors);
   V8_EXPORT_PRIVATE static bool PageFlagsAreConsistent(HeapObject object);
 
   // Notifies the heap that is ok to start marking or other activities that
@@ -1013,6 +998,8 @@ class Heap {
   IncrementalMarking* incremental_marking() {
     return incremental_marking_.get();
   }
+
+  MarkingBarrier* marking_barrier() { return marking_barrier_.get(); }
 
   // ===========================================================================
   // Concurrent marking API. ===================================================
@@ -2180,6 +2167,7 @@ class Heap {
   std::unique_ptr<ScavengeJob> scavenge_job_;
   std::unique_ptr<AllocationObserver> scavenge_task_observer_;
   std::unique_ptr<LocalEmbedderHeapTracer> local_embedder_heap_tracer_;
+  std::unique_ptr<MarkingBarrier> marking_barrier_;
   StrongRootsList* strong_roots_list_ = nullptr;
 
   // This counter is increased before each GC and never reset.

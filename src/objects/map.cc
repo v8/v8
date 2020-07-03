@@ -638,8 +638,8 @@ void Map::ReplaceDescriptors(Isolate* isolate, DescriptorArray new_descriptors,
   // all its elements.
   Map current = *this;
 #ifndef V8_DISABLE_WRITE_BARRIERS
-  MarkingBarrierForDescriptorArray(isolate->heap(), current, to_replace,
-                                   to_replace.number_of_descriptors());
+  WriteBarrier::Marking(current, to_replace,
+                        to_replace.number_of_descriptors());
 #endif
   while (current.instance_descriptors(isolate) == to_replace) {
     Object next = current.GetBackPointer(isolate);
@@ -1136,8 +1136,8 @@ void Map::EnsureDescriptorSlack(Isolate* isolate, Handle<Map> map, int slack) {
   // descriptors will not be trimmed in the mark-compactor, we need to mark
   // all its elements.
 #ifndef V8_DISABLE_WRITE_BARRIERS
-  MarkingBarrierForDescriptorArray(isolate->heap(), *map, *descriptors,
-                                   descriptors->number_of_descriptors());
+  WriteBarrier::Marking(*map, *descriptors,
+                        descriptors->number_of_descriptors());
 #endif
 
   Map current = *map;
@@ -2580,8 +2580,7 @@ void Map::SetInstanceDescriptors(Isolate* isolate, DescriptorArray descriptors,
   set_synchronized_instance_descriptors(descriptors);
   SetNumberOfOwnDescriptors(number_of_own_descriptors);
 #ifndef V8_DISABLE_WRITE_BARRIERS
-  MarkingBarrierForDescriptorArray(isolate->heap(), *this, descriptors,
-                                   number_of_own_descriptors);
+  WriteBarrier::Marking(*this, descriptors, number_of_own_descriptors);
 #endif
 }
 

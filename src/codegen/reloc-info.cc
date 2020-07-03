@@ -369,7 +369,7 @@ void RelocInfo::set_target_address(Address target,
   if (write_barrier_mode == UPDATE_WRITE_BARRIER && !host().is_null() &&
       IsCodeTargetMode(rmode_) && !FLAG_disable_write_barriers) {
     Code target_code = Code::GetCodeFromTargetAddress(target);
-    MarkingBarrierForCode(host(), this, target_code);
+    WriteBarrier::Marking(host(), this, target_code);
   }
 }
 

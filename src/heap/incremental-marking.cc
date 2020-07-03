@@ -14,6 +14,7 @@
 #include "src/heap/heap-inl.h"
 #include "src/heap/incremental-marking-inl.h"
 #include "src/heap/mark-compact-inl.h"
+#include "src/heap/marking-barrier.h"
 #include "src/heap/marking-visitor-inl.h"
 #include "src/heap/marking-visitor.h"
 #include "src/heap/memory-chunk.h"
@@ -56,33 +57,6 @@ IncrementalMarking::IncrementalMarking(Heap* heap,
       new_generation_observer_(this, kYoungGenerationAllocatedThreshold),
       old_generation_observer_(this, kOldGenerationAllocatedThreshold) {
   SetState(STOPPED);
-}
-
-void IncrementalMarking::RecordWriteSlow(HeapObject obj, HeapObjectSlot slot,
-                                         HeapObject value) {
-  if (BaseRecordWrite(obj, value) && slot.address() != kNullAddress) {
-    // Object is not going to be rescanned we need to record the slot.
-    collector_->RecordSlot(obj, slot, value);
-  }
-}
-
-int IncrementalMarking::RecordWriteFromCode(Address raw_obj,
-                                            Address slot_address,
-                                            Isolate* isolate) {
-  HeapObject obj = HeapObject::cast(Object(raw_obj));
-  MaybeObjectSlot slot(slot_address);
-  isolate->heap()->incremental_marking()->RecordWrite(obj, slot, *slot);
-  // Called by RecordWriteCodeStubAssembler, which doesnt accept void type
-  return 0;
-}
-
-void IncrementalMarking::RecordWriteIntoCode(Code host, RelocInfo* rinfo,
-                                             HeapObject value) {
-  DCHECK(IsMarking());
-  if (BaseRecordWrite(host, value)) {
-    // Object is not going to be rescanned.  We need to record the slot.
-    collector_->RecordRelocSlot(host, rinfo, value);
-  }
 }
 
 void IncrementalMarking::MarkBlackAndVisitObjectDueToLayoutChange(
@@ -155,77 +129,6 @@ class IncrementalMarkingRootMarkingVisitor : public RootVisitor {
   Heap* heap_;
 };
 
-void IncrementalMarking::DeactivateIncrementalWriteBarrierForSpace(
-    PagedSpace* space) {
-  for (Page* p : *space) {
-    p->SetOldGenerationPageFlags(false);
-  }
-}
-
-
-void IncrementalMarking::DeactivateIncrementalWriteBarrierForSpace(
-    NewSpace* space) {
-  for (Page* p : *space) {
-    p->SetYoungGenerationPageFlags(false);
-  }
-}
-
-
-void IncrementalMarking::DeactivateIncrementalWriteBarrier() {
-  DeactivateIncrementalWriteBarrierForSpace(heap_->old_space());
-  DeactivateIncrementalWriteBarrierForSpace(heap_->map_space());
-  DeactivateIncrementalWriteBarrierForSpace(heap_->code_space());
-  DeactivateIncrementalWriteBarrierForSpace(heap_->new_space());
-
-  for (LargePage* p : *heap_->new_lo_space()) {
-    p->SetYoungGenerationPageFlags(false);
-    DCHECK(p->IsLargePage());
-  }
-
-  for (LargePage* p : *heap_->lo_space()) {
-    p->SetOldGenerationPageFlags(false);
-  }
-
-  for (LargePage* p : *heap_->code_lo_space()) {
-    p->SetOldGenerationPageFlags(false);
-  }
-}
-
-
-void IncrementalMarking::ActivateIncrementalWriteBarrier(PagedSpace* space) {
-  for (Page* p : *space) {
-    p->SetOldGenerationPageFlags(true);
-  }
-}
-
-
-void IncrementalMarking::ActivateIncrementalWriteBarrier(NewSpace* space) {
-  for (Page* p : *space) {
-    p->SetYoungGenerationPageFlags(true);
-  }
-}
-
-
-void IncrementalMarking::ActivateIncrementalWriteBarrier() {
-  ActivateIncrementalWriteBarrier(heap_->old_space());
-  ActivateIncrementalWriteBarrier(heap_->map_space());
-  ActivateIncrementalWriteBarrier(heap_->code_space());
-  ActivateIncrementalWriteBarrier(heap_->new_space());
-
-  for (LargePage* p : *heap_->new_lo_space()) {
-    p->SetYoungGenerationPageFlags(true);
-    DCHECK(p->IsLargePage());
-  }
-
-  for (LargePage* p : *heap_->lo_space()) {
-    p->SetOldGenerationPageFlags(true);
-  }
-
-  for (LargePage* p : *heap_->code_lo_space()) {
-    p->SetOldGenerationPageFlags(true);
-  }
-}
-
 
 bool IncrementalMarking::WasActivated() { return was_activated_; }
 
@@ -242,10 +145,6 @@ bool IncrementalMarking::CanBeActivated() {
 bool IncrementalMarking::IsBelowActivationThresholds() const {
   return heap_->OldGenerationSizeOfObjects() <= kV8ActivationThreshold &&
          heap_->GlobalSizeOfObjects() <= kGlobalActivationThreshold;
-}
-
-void IncrementalMarking::Deactivate() {
-  DeactivateIncrementalWriteBarrier();
 }
 
 void IncrementalMarking::Start(GarbageCollectionReason gc_reason) {
@@ -338,7 +237,7 @@ void IncrementalMarking::StartMarking() {
 
   SetState(MARKING);
 
-  ActivateIncrementalWriteBarrier();
+  heap_->marking_barrier()->Activate(is_compacting_);
 
   heap_->isolate()->compilation_cache()->MarkCompactPrologue();
 

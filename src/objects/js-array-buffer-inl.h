@@ -103,7 +103,7 @@ void JSArrayBuffer::set_extension(ArrayBufferExtension* extension) {
 #else
     base::AsAtomicPointer::Release_Store(extension_location(), extension);
 #endif
-    MarkingBarrierForArrayBufferExtension(*this, extension);
+    WriteBarrier::Marking(*this, extension);
   } else {
     CHECK_EQ(extension, nullptr);
   }

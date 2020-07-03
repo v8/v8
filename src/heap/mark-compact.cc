@@ -24,6 +24,7 @@
 #include "src/heap/large-spaces.h"
 #include "src/heap/local-allocator-inl.h"
 #include "src/heap/mark-compact-inl.h"
+#include "src/heap/marking-barrier.h"
 #include "src/heap/marking-visitor-inl.h"
 #include "src/heap/marking-visitor.h"
 #include "src/heap/memory-measurement-inl.h"
@@ -2065,7 +2066,7 @@ void MarkCompactCollector::MarkLiveObjects() {
   }
 
   if (was_marked_incrementally_) {
-    heap()->incremental_marking()->Deactivate();
+    heap()->marking_barrier()->Deactivate();
   }
 
   epoch_++;

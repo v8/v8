@@ -311,22 +311,22 @@
 #ifdef V8_DISABLE_WRITE_BARRIERS
 #define WRITE_BARRIER(object, offset, value)
 #else
-#define WRITE_BARRIER(object, offset, value)                       \
-  do {                                                             \
-    DCHECK_NOT_NULL(GetHeapFromWritableObject(object));            \
-    MarkingBarrier(object, (object).RawField(offset), value);      \
-    GenerationalBarrier(object, (object).RawField(offset), value); \
+#define WRITE_BARRIER(object, offset, value)                         \
+  do {                                                               \
+    DCHECK_NOT_NULL(GetHeapFromWritableObject(object));              \
+    WriteBarrier::Marking(object, (object).RawField(offset), value); \
+    GenerationalBarrier(object, (object).RawField(offset), value);   \
   } while (false)
 #endif
 
 #ifdef V8_DISABLE_WRITE_BARRIERS
 #define WEAK_WRITE_BARRIER(object, offset, value)
 #else
-#define WEAK_WRITE_BARRIER(object, offset, value)                           \
-  do {                                                                      \
-    DCHECK_NOT_NULL(GetHeapFromWritableObject(object));                     \
-    MarkingBarrier(object, (object).RawMaybeWeakField(offset), value);      \
-    GenerationalBarrier(object, (object).RawMaybeWeakField(offset), value); \
+#define WEAK_WRITE_BARRIER(object, offset, value)                             \
+  do {                                                                        \
+    DCHECK_NOT_NULL(GetHeapFromWritableObject(object));                       \
+    WriteBarrier::Marking(object, (object).RawMaybeWeakField(offset), value); \
+    GenerationalBarrier(object, (object).RawMaybeWeakField(offset), value);   \
   } while (false)
 #endif
 
@@ -340,7 +340,7 @@
   do {                                                                        \
     DCHECK_NOT_NULL(GetHeapFromWritableObject(object));                       \
     EphemeronHashTable table = EphemeronHashTable::cast(object);              \
-    MarkingBarrier(object, (object).RawField(offset), value);                 \
+    WriteBarrier::Marking(object, (object).RawField(offset), value);          \
     GenerationalEphemeronKeyBarrier(table, (object).RawField(offset), value); \
   } while (false)
 #endif
@@ -351,16 +351,16 @@
 #define CONDITIONAL_WRITE_BARRIER(object, offset, value, mode) \
   WRITE_BARRIER(object, offset, value)
 #else
-#define CONDITIONAL_WRITE_BARRIER(object, offset, value, mode)       \
-  do {                                                               \
-    DCHECK_NOT_NULL(GetHeapFromWritableObject(object));              \
-    DCHECK_NE(mode, UPDATE_EPHEMERON_KEY_WRITE_BARRIER);             \
-    if (mode != SKIP_WRITE_BARRIER) {                                \
-      if (mode == UPDATE_WRITE_BARRIER) {                            \
-        MarkingBarrier(object, (object).RawField(offset), value);    \
-      }                                                              \
-      GenerationalBarrier(object, (object).RawField(offset), value); \
-    }                                                                \
+#define CONDITIONAL_WRITE_BARRIER(object, offset, value, mode)           \
+  do {                                                                   \
+    DCHECK_NOT_NULL(GetHeapFromWritableObject(object));                  \
+    DCHECK_NE(mode, UPDATE_EPHEMERON_KEY_WRITE_BARRIER);                 \
+    if (mode != SKIP_WRITE_BARRIER) {                                    \
+      if (mode == UPDATE_WRITE_BARRIER) {                                \
+        WriteBarrier::Marking(object, (object).RawField(offset), value); \
+      }                                                                  \
+      GenerationalBarrier(object, (object).RawField(offset), value);     \
+    }                                                                    \
   } while (false)
 #endif
 
@@ -376,7 +376,8 @@
     DCHECK_NE(mode, UPDATE_EPHEMERON_KEY_WRITE_BARRIER);                      \
     if (mode != SKIP_WRITE_BARRIER) {                                         \
       if (mode == UPDATE_WRITE_BARRIER) {                                     \
-        MarkingBarrier(object, (object).RawMaybeWeakField(offset), value);    \
+        WriteBarrier::Marking(object, (object).RawMaybeWeakField(offset),     \
+                              value);                                         \
       }                                                                       \
       GenerationalBarrier(object, (object).RawMaybeWeakField(offset), value); \
     }                                                                         \
@@ -393,7 +394,7 @@
     EphemeronHashTable table = EphemeronHashTable::cast(object);             \
     if (mode != SKIP_WRITE_BARRIER) {                                        \
       if (mode == UPDATE_WRITE_BARRIER) {                                    \
-        MarkingBarrier(object, (object).RawField(offset), value);            \
+        WriteBarrier::Marking(object, (object).RawField(offset), value);     \
       }                                                                      \
       GenerationalEphemeronKeyBarrier(table, (object).RawField(offset),      \
                                       value);                                \

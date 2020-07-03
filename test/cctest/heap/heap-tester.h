@@ -59,6 +59,8 @@
   V(Regress791582)                                          \
   V(Regress845060)                                          \
   V(RegressMissingWriteBarrierInAllocate)                   \
+  V(WriteBarrier_Marking)                                   \
+  V(WriteBarrier_MarkingExtension)                          \
   V(WriteBarriersInCopyJSObject)
 
 #define HEAP_TEST(Name)                                                   \

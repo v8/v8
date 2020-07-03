@@ -16,7 +16,6 @@
 #include "src/numbers/hash-seed-inl.h"
 #include "src/objects/elements.h"
 #include "src/objects/ordered-hash-table.h"
-// For IncrementalMarking::RecordWriteFromCode. TODO(jkummerow): Drop.
 #include "src/execution/isolate.h"
 #include "src/execution/microtask-queue.h"
 #include "src/execution/simulator-base.h"
@@ -214,8 +213,8 @@ struct IsValidExternalReferenceType<Result (Class::*)(Args...)> {
     return ExternalReference(Redirect(FUNCTION_ADDR(Target), Type));       \
   }
 
-FUNCTION_REFERENCE(incremental_marking_record_write_function,
-                   IncrementalMarking::RecordWriteFromCode)
+FUNCTION_REFERENCE(write_barrier_marking_from_code_function,
+                   WriteBarrier::MarkingFromCode)
 
 FUNCTION_REFERENCE(insert_remembered_set_function,
                    Heap::InsertIntoRememberedSetFromCode)

@@ -148,6 +148,7 @@ v8_source_set("cctest_sources") {
     "heap/test-spaces.cc",
     "heap/test-unmapper.cc",
     "heap/test-weak-references.cc",
+    "heap/test-write-barrier.cc",
     "interpreter/bytecode-expectations-printer.cc",
     "interpreter/bytecode-expectations-printer.h",
     "interpreter/interpreter-tester.cc",

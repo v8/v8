@@ -549,7 +549,7 @@ void JSFunction::set_code(Code value) {
   DCHECK(!ObjectInYoungGeneration(value));
   RELAXED_WRITE_FIELD(*this, kCodeOffset, value);
 #ifndef V8_DISABLE_WRITE_BARRIERS
-  MarkingBarrier(*this, RawField(kCodeOffset), value);
+  WriteBarrier::Marking(*this, RawField(kCodeOffset), value);
 #endif
 }
 
