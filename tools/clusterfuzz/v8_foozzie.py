@@ -163,9 +163,10 @@ ORIGINAL_SOURCE_CRASHTESTS = 'placeholder for CrashTests'
 # failures from CrashTests, as those by default map to the placeholder above.
 KNOWN_FAILURES = {
   # Foo.caller with asm.js: https://crbug.com/1042556
-  'CrashTests/5712410200899584/04483.js': '.caller',
+  'CrashTests/5637524389167104/01457.js': '.caller',
   'CrashTests/5703451898085376/02176.js': '.caller',
   'CrashTests/4846282433495040/04342.js': '.caller',
+  'CrashTests/5712410200899584/04483.js': '.caller',
   # Flaky issue that almost never repros.
   'CrashTests/5694376231632896/1033966.js': 'flaky',
 }
