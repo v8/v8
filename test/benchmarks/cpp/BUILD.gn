@@ -10,7 +10,10 @@ group("gn_all") {
   deps = []
 
   if (v8_enable_google_benchmark) {
-    deps += [ ":empty_benchmark" ]
+    deps += [
+      ":empty_benchmark",
+      "cppgc:gn_all",
+    ]
   }
 }
 
