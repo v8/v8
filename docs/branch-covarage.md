@@ -5,13 +5,11 @@ This is a description of V8 infrastructure for Beta and Stable branches.
 
 Builder coverage for Beta/Stable branches is organised in the following consoles that reflect the same schema used for the master branch:
  - [beta.main](https://ci.chromium.org/p/v8/g/br.beta/console)
- - [beta.fyi](https://ci.chromium.org/p/v8/g/br.beta.fyi/console)
  - [beta.ports](https://ci.chromium.org/p/v8/g/br.beta.ports/console)
  - [stable.main](https://ci.chromium.org/p/v8/g/br.stable/console)
- - [stable.fyi](https://ci.chromium.org/p/v8/g/br.stable.fyi/console)
  - [stable.ports](https://ci.chromium.org/p/v8/g/br.stable.ports/console)
 
-These consoles are the beta/stable branch counterparts of the [main](https://ci.chromium.org/p/v8/g/main/console), [fyi](https://ci.chromium.org/p/v8/g/fyi/console) and [ports](https://ci.chromium.org/p/v8/g/ports/console) consoles for the main branch.
+These consoles are the beta/stable branch counterparts of the [main](https://ci.chromium.org/p/v8/g/main/console) and [ports](https://ci.chromium.org/p/v8/g/ports/console) consoles for the main branch.
 
 
 Monitoring
@@ -25,10 +23,8 @@ Updating the Beta/Stable branch references
 To update branch references the folowing locations in infra/config files need to be update:
  - [luci-milo.cfg](https://chromium.googlesource.com/v8/v8/+/refs/heads/infra/config/luci-milo.cfg)
    - consoles[id: "br.beta"]/refs
-   - consoles[id: "br.beta.fyi"]/refs
    - consoles[id: "br.beta.ports"]/refs
    - consoles[id: "br.stable"]/refs
-   - consoles[id: "br.stable.fyi"]/refs
    - consoles[id: "br.stable.ports"]/refs
  - [luci-scheduler.cfg](https://chromium.googlesource.com/v8/v8/+/refs/heads/infra/config/luci-scheduler.cfg)
    - trigger[id: "v8-trigger-br-beta"]/gitiles/refs
@@ -38,7 +34,7 @@ To update branch references the folowing locations in infra/config files need to
 Adding new builders
 ======================
 
-To propagate a new builder addition under main/fyi/ports consoles you need to:
+To propagate a new builder addition under main/ports consoles you need to:
  - add a builder definition in beta and stable buckets in [cr-buildbucket.cfg](https://chromium.googlesource.com/v8/v8/+/refs/heads/infra/config/cr-buildbucket.cfg)
    - buckets[name: "luci.v8.ci.br.beta"]
    - buckets[name: "luci.v8.ci.br.stable"]
@@ -57,4 +53,4 @@ To propagate a new builder addition under main/fyi/ports consoles you need to:
 Developer branches
 ======================
 
-On this foundation for branch builder coverage it is possible to cover more than just Beta/Stable branches. Developer branches might require full or partial (no fyi/no ports) builder coverage. To achieve that, one needs to replicate the Beta/Stable configuration in infra/config branch.
+On this foundation for branch builder coverage it is possible to cover more than just Beta/Stable branches. Developer branches might require full or partial (no ports) builder coverage. To achieve that, one needs to replicate the Beta/Stable configuration in infra/config branch.
