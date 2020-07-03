@@ -259,8 +259,9 @@ void MarkerBase::ClearAllWorklistsForTesting() {
 
 Marker::Marker(HeapBase& heap)
     : MarkerBase(heap),
-      marking_visitor_(heap, marking_state()),
-      conservative_marking_visitor_(heap, marking_state(), marking_visitor_) {}
+      marking_visitor_(heap, mutator_marking_state_),
+      conservative_marking_visitor_(heap, mutator_marking_state_,
+                                    marking_visitor_) {}
 
 }  // namespace internal
 }  // namespace cppgc

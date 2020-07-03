@@ -82,8 +82,9 @@ class UnifiedHeapMarker : public cppgc::internal::MarkerBase {
 
 UnifiedHeapMarker::UnifiedHeapMarker(cppgc::internal::HeapBase& heap)
     : cppgc::internal::MarkerBase(heap),
-      marking_visitor_(heap, marking_state()),
-      conservative_marking_visitor_(heap, marking_state(), marking_visitor_) {}
+      marking_visitor_(heap, mutator_marking_state_),
+      conservative_marking_visitor_(heap, mutator_marking_state_,
+                                    marking_visitor_) {}
 
 void UnifiedHeapMarker::AddObject(void* object) {
   mutator_marking_state_.MarkAndPush(

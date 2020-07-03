@@ -18,7 +18,7 @@ class HeapObjectHeader;
 class Marker;
 class MarkingState;
 
-class MarkingVisitor : public VisitorBase {
+class V8_EXPORT_PRIVATE MarkingVisitor : public VisitorBase {
  public:
   MarkingVisitor(HeapBase&, MarkingState&);
   ~MarkingVisitor() override = default;
@@ -43,14 +43,9 @@ class ConservativeMarkingVisitor : public ConservativeTracingVisitor,
  private:
   void VisitConservatively(HeapObjectHeader&,
                            TraceConservativelyCallback) final;
-  void VisitPointer(const void*) override;
+  void VisitPointer(const void*) final;
 
   MarkingState& marking_state_;
-};
-
-class V8_EXPORT_PRIVATE MutatorThreadMarkingVisitor : public MarkingVisitor {
- public:
-  explicit MutatorThreadMarkingVisitor(Marker*);
 };
 
 }  // namespace internal

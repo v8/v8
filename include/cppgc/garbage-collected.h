@@ -176,9 +176,9 @@ class GarbageCollectedMixin : public internal::GarbageCollectedBase {
  */
 #define MERGE_GARBAGE_COLLECTED_MIXINS()                \
  public:                                                \
-  /* When using multiple mixins the methods become  */  \
-  /* ambigous. Providing additional implementations */  \
-  /* disambiguate them again.                       */  \
+  /* When using multiple mixins the methods become   */ \
+  /* ambiguous. Providing additional implementations */ \
+  /* disambiguate them again.                        */ \
   TraceDescriptor GetTraceDescriptor() const override { \
     return {kNotFullyConstructedObject, nullptr};       \
   }                                                     \

@@ -4,11 +4,7 @@
 
 #include "src/heap/cppgc/marking-visitor.h"
 
-#include "include/cppgc/garbage-collected.h"
-#include "src/heap/cppgc/heap-object-header.h"
-#include "src/heap/cppgc/heap-page.h"
 #include "src/heap/cppgc/heap.h"
-#include "src/heap/cppgc/liveness-broker.h"
 #include "src/heap/cppgc/marking-state.h"
 
 namespace cppgc {
@@ -59,9 +55,6 @@ void ConservativeMarkingVisitor::VisitConservatively(
 void ConservativeMarkingVisitor::VisitPointer(const void* address) {
   TraceConservativelyIfNeeded(address);
 }
-
-MutatorThreadMarkingVisitor::MutatorThreadMarkingVisitor(Marker* marker)
-    : MarkingVisitor(marker->heap(), marker->marking_state()) {}
 
 }  // namespace internal
 }  // namespace cppgc

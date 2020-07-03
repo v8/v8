@@ -40,18 +40,11 @@ void MarkValue(const BasePage* page, MarkerBase* marker, const void* value) {
     // It is assumed that objects on not_fully_constructed_worklist_ are not
     // marked.
     header.Unmark();
-    MarkingWorklists::NotFullyConstructedWorklist::View
-        not_fully_constructed_worklist(
-            marker->marking_worklists().not_fully_constructed_worklist(),
-            MarkingWorklists::kMutatorThreadId);
-    not_fully_constructed_worklist.Push(header.Payload());
+    marker->WriteBarrierForInConstructionObject(header.Payload());
     return;
   }
 
-  MarkingWorklists::WriteBarrierWorklist::View write_barrier_worklist(
-      marker->marking_worklists().write_barrier_worklist(),
-      MarkingWorklists::kMutatorThreadId);
-  write_barrier_worklist.Push(&header);
+  marker->WriteBarrierForObject(header);
 }
 
 }  // namespace

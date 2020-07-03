@@ -45,10 +45,11 @@ class ExpectWriteBarrierFires final : private IncrementalMarkingScope {
   ExpectWriteBarrierFires(MarkerBase* marker,
                           std::initializer_list<void*> objects)
       : IncrementalMarkingScope(marker),
-        marking_worklist_(marker->marking_worklists().marking_worklist(),
-                          MarkingWorklists::kMutatorThreadId),
+        marking_worklist_(
+            marker->MarkingWorklistsForTesting().marking_worklist(),
+            MarkingWorklists::kMutatorThreadId),
         write_barrier_worklist_(
-            marker->marking_worklists().write_barrier_worklist(),
+            marker->MarkingWorklistsForTesting().write_barrier_worklist(),
             MarkingWorklists::kMutatorThreadId),
         objects_(objects) {
     EXPECT_TRUE(marking_worklist_.IsGlobalPoolEmpty());
@@ -96,10 +97,11 @@ class ExpectNoWriteBarrierFires final : private IncrementalMarkingScope {
   ExpectNoWriteBarrierFires(MarkerBase* marker,
                             std::initializer_list<void*> objects)
       : IncrementalMarkingScope(marker),
-        marking_worklist_(marker->marking_worklists().marking_worklist(),
-                          MarkingWorklists::kMutatorThreadId),
+        marking_worklist_(
+            marker->MarkingWorklistsForTesting().marking_worklist(),
+            MarkingWorklists::kMutatorThreadId),
         write_barrier_worklist_(
-            marker->marking_worklists().write_barrier_worklist(),
+            marker->MarkingWorklistsForTesting().write_barrier_worklist(),
             MarkingWorklists::kMutatorThreadId) {
     EXPECT_TRUE(marking_worklist_.IsGlobalPoolEmpty());
     EXPECT_TRUE(write_barrier_worklist_.IsGlobalPoolEmpty());

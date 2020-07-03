@@ -8,10 +8,10 @@
 #include <memory>
 
 #include "include/cppgc/heap.h"
-#include "include/cppgc/trace-trait.h"
 #include "include/cppgc/visitor.h"
 #include "src/base/macros.h"
 #include "src/base/platform/time.h"
+#include "src/heap/cppgc/globals.h"
 #include "src/heap/cppgc/marking-state.h"
 #include "src/heap/cppgc/marking-visitor.h"
 #include "src/heap/cppgc/marking-worklists.h"
@@ -82,10 +82,13 @@ class V8_EXPORT_PRIVATE MarkerBase {
 
   void ProcessWeakness();
 
-  HeapBase& heap() { return heap_; }
-  MarkingState& marking_state() { return mutator_marking_state_; }
-  MarkingWorklists& marking_worklists() { return marking_worklists_; }
+  inline void WriteBarrierForInConstructionObject(ConstAddress);
+  inline void WriteBarrierForObject(HeapObjectHeader&);
 
+  HeapBase& heap() { return heap_; }
+
+  MarkingWorklists& MarkingWorklistsForTesting() { return marking_worklists_; }
+  MarkingState& MarkingStateForTesting() { return mutator_marking_state_; }
   cppgc::Visitor& VisitorForTesting() { return visitor(); }
   void ClearAllWorklistsForTesting();
 
@@ -124,6 +127,21 @@ class V8_EXPORT_PRIVATE Marker final : public MarkerBase {
   MarkingVisitor marking_visitor_;
   ConservativeMarkingVisitor conservative_marking_visitor_;
 };
+
+void MarkerBase::WriteBarrierForInConstructionObject(ConstAddress payload) {
+  MarkingWorklists::NotFullyConstructedWorklist::View
+      not_fully_constructed_worklist(
+          marking_worklists_.not_fully_constructed_worklist(),
+          MarkingWorklists::kMutatorThreadId);
+  not_fully_constructed_worklist.Push(payload);
+}
+
+void MarkerBase::WriteBarrierForObject(HeapObjectHeader& header) {
+  MarkingWorklists::WriteBarrierWorklist::View write_barrier_worklist(
+      marking_worklists_.write_barrier_worklist(),
+      MarkingWorklists::kMutatorThreadId);
+  write_barrier_worklist.Push(&header);
+}
 
 }  // namespace internal
 }  // namespace cppgc
