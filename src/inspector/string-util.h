@@ -30,7 +30,7 @@ class StringUtil {
   }
 
   static String fromUTF16LE(const uint16_t* data, size_t length) {
-    return String16::fromUTF16(data, length);
+    return String16::fromUTF16LE(data, length);
   }
 
   static const uint8_t* CharactersLatin1(const String& s) { return nullptr; }
