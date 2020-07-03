@@ -21,12 +21,15 @@ macro CreatePromiseAllResolveElementContext(implicit context: Context)(
   const resolveContext = AllocateSyntheticFunctionContext(
       nativeContext,
       PromiseAllResolveElementContextSlots::kPromiseAllResolveElementLength);
-  resolveContext[PromiseAllResolveElementContextSlots::
-                     kPromiseAllResolveElementRemainingSlot] = SmiConstant(1);
-  resolveContext[PromiseAllResolveElementContextSlots::
-                     kPromiseAllResolveElementCapabilitySlot] = capability;
-  resolveContext[PromiseAllResolveElementContextSlots::
-                     kPromiseAllResolveElementValuesSlot] = kEmptyFixedArray;
+  resolveContext.elements[PromiseAllResolveElementContextSlots::
+                              kPromiseAllResolveElementRemainingSlot] =
+      SmiConstant(1);
+  resolveContext.elements[PromiseAllResolveElementContextSlots::
+                              kPromiseAllResolveElementCapabilitySlot] =
+      capability;
+  resolveContext.elements[PromiseAllResolveElementContextSlots::
+                              kPromiseAllResolveElementValuesSlot] =
+      kEmptyFixedArray;
   return resolveContext;
 }
 
@@ -37,7 +40,7 @@ macro CreatePromiseAllResolveElementFunction(implicit context: Context)(
   assert(index < kPropertyArrayHashFieldMax);
 
   const map = UnsafeCast<Map>(
-      nativeContext
+      nativeContext.elements
           [NativeContextSlot::STRICT_FUNCTION_WITHOUT_PROTOTYPE_MAP_INDEX]);
   const resolve = AllocateFunctionWithMapAndContext(
       map, resolveFunction, resolveElementContext);
@@ -53,9 +56,9 @@ macro CreatePromiseResolvingFunctionsContext(implicit context: Context)(
     Context {
   const resolveContext = AllocateSyntheticFunctionContext(
       nativeContext, kPromiseBuiltinsPromiseContextLength);
-  resolveContext[kPromiseBuiltinsPromiseSlot] = promise;
-  resolveContext[kPromiseBuiltinsAlreadyResolvedSlot] = False;
-  resolveContext[kPromiseBuiltinsDebugEventSlot] = debugEvent;
+  resolveContext.elements[kPromiseBuiltinsPromiseSlot] = promise;
+  resolveContext.elements[kPromiseBuiltinsAlreadyResolvedSlot] = False;
+  resolveContext.elements[kPromiseBuiltinsDebugEventSlot] = debugEvent;
   return resolveContext;
 }
 
@@ -64,7 +67,7 @@ macro IsPromiseThenLookupChainIntact(implicit context: Context)(
   if (IsForceSlowPath()) return false;
   if (!IsJSPromiseMap(receiverMap)) return false;
   if (receiverMap.prototype !=
-      nativeContext[NativeContextSlot::PROMISE_PROTOTYPE_INDEX])
+      nativeContext.elements[NativeContextSlot::PROMISE_PROTOTYPE_INDEX])
     return false;
   return !IsPromiseThenProtectorCellInvalid();
 }
@@ -131,7 +134,7 @@ Reject(Object) {
 
   try {
     const fastIteratorResultMap = UnsafeCast<Map>(
-        nativeContext[NativeContextSlot::ITERATOR_RESULT_MAP_INDEX]);
+        nativeContext.elements[NativeContextSlot::ITERATOR_RESULT_MAP_INDEX]);
     while (true) {
       let nextValue: JSAny;
       try {
@@ -167,10 +170,12 @@ Reject(Object) {
       // Set remainingElementsCount.[[Value]] to
       //     remainingElementsCount.[[Value]] + 1.
       const remainingElementsCount = UnsafeCast<Smi>(
-          resolveElementContext[PromiseAllResolveElementContextSlots::
-                                    kPromiseAllResolveElementRemainingSlot]);
-      resolveElementContext[PromiseAllResolveElementContextSlots::
-                                kPromiseAllResolveElementRemainingSlot] =
+          resolveElementContext
+              .elements[PromiseAllResolveElementContextSlots::
+                            kPromiseAllResolveElementRemainingSlot]);
+      resolveElementContext
+          .elements[PromiseAllResolveElementContextSlots::
+                        kPromiseAllResolveElementRemainingSlot] =
           remainingElementsCount + 1;
 
       // Let resolveElement be CreateBuiltinFunction(steps,
@@ -248,19 +253,21 @@ Reject(Object) {
   // Set remainingElementsCount.[[Value]] to
   //    remainingElementsCount.[[Value]] - 1.
   let remainingElementsCount = UnsafeCast<Smi>(
-      resolveElementContext[PromiseAllResolveElementContextSlots::
-                                kPromiseAllResolveElementRemainingSlot]);
+      resolveElementContext
+          .elements[PromiseAllResolveElementContextSlots::
+                        kPromiseAllResolveElementRemainingSlot]);
   remainingElementsCount -= 1;
-  resolveElementContext[PromiseAllResolveElementContextSlots::
-                            kPromiseAllResolveElementRemainingSlot] =
+  resolveElementContext.elements[PromiseAllResolveElementContextSlots::
+                                     kPromiseAllResolveElementRemainingSlot] =
       remainingElementsCount;
   if (remainingElementsCount > 0) {
     // Pre-allocate the backing store for the {values} to the desired
     // capacity. We may already have elements in "values" - this happens
     // when the Thenable calls the resolve callback immediately.
     let values = UnsafeCast<FixedArray>(
-        resolveElementContext[PromiseAllResolveElementContextSlots::
-                                  kPromiseAllResolveElementValuesSlot]);
+        resolveElementContext
+            .elements[PromiseAllResolveElementContextSlots::
+                          kPromiseAllResolveElementValuesSlot]);
     // 'index' is a 1-based index and incremented after every Promise. Later we
     // use 'values' as a 0-based array, so capacity 'index - 1' is enough.
     const newCapacity = SmiUntag(index) - 1;
@@ -268,8 +275,9 @@ Reject(Object) {
     const oldCapacity = values.length_intptr;
     if (oldCapacity < newCapacity) {
       values = ExtractFixedArray(values, 0, oldCapacity, newCapacity);
-      resolveElementContext[PromiseAllResolveElementContextSlots::
-                                kPromiseAllResolveElementValuesSlot] = values;
+      resolveElementContext.elements[PromiseAllResolveElementContextSlots::
+                                         kPromiseAllResolveElementValuesSlot] =
+          values;
     }
   } else
     deferred {
@@ -280,10 +288,12 @@ Reject(Object) {
       //                    « valuesArray »).
 
       const values = UnsafeCast<FixedArray>(
-          resolveElementContext[PromiseAllResolveElementContextSlots::
-                                    kPromiseAllResolveElementValuesSlot]);
+          resolveElementContext
+              .elements[PromiseAllResolveElementContextSlots::
+                            kPromiseAllResolveElementValuesSlot]);
       const arrayMap = UnsafeCast<Map>(
-          nativeContext[NativeContextSlot::JS_ARRAY_PACKED_ELEMENTS_MAP_INDEX]);
+          nativeContext
+              .elements[NativeContextSlot::JS_ARRAY_PACKED_ELEMENTS_MAP_INDEX]);
       const valuesArray = NewJSArray(arrayMap, values);
       Call(nativeContext, UnsafeCast<JSAny>(resolve), Undefined, valuesArray);
     }

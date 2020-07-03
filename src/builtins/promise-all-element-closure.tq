@@ -22,7 +22,7 @@ struct PromiseAllSettledWrapResultAsFulfilledFunctor {
     // prevent transitions here.
     // 9. Let obj be ! ObjectCreate(%ObjectPrototype%).
     const objectFunction = UnsafeCast<JSFunction>(
-        nativeContext[NativeContextSlot::OBJECT_FUNCTION_INDEX]);
+        nativeContext.elements[NativeContextSlot::OBJECT_FUNCTION_INDEX]);
     const objectFunctionMap =
         UnsafeCast<Map>(objectFunction.prototype_or_initial_map);
     const obj = AllocateJSObjectFromMap(objectFunctionMap);
@@ -45,7 +45,7 @@ struct PromiseAllSettledWrapResultAsRejectedFunctor {
     // prevent transitions here.
     // 9. Let obj be ! ObjectCreate(%ObjectPrototype%).
     const objectFunction = UnsafeCast<JSFunction>(
-        nativeContext[NativeContextSlot::OBJECT_FUNCTION_INDEX]);
+        nativeContext.elements[NativeContextSlot::OBJECT_FUNCTION_INDEX]);
     const objectFunctionMap =
         UnsafeCast<Map>(objectFunction.prototype_or_initial_map);
     const obj = AllocateJSObjectFromMap(objectFunctionMap);
@@ -109,32 +109,34 @@ transitioning macro PromiseAllResolveElementClosure<F: type>(
   assert(identityHash > 0);
   const index = identityHash - 1;
 
-  let remainingElementsCount =
-      UnsafeCast<Smi>(context[PromiseAllResolveElementContextSlots::
-                                  kPromiseAllResolveElementRemainingSlot]);
+  let remainingElementsCount = UnsafeCast<Smi>(
+      context.elements[PromiseAllResolveElementContextSlots::
+                           kPromiseAllResolveElementRemainingSlot]);
 
-  let values =
-      UnsafeCast<FixedArray>(context[PromiseAllResolveElementContextSlots::
-                                         kPromiseAllResolveElementValuesSlot]);
+  let values = UnsafeCast<FixedArray>(
+      context.elements[PromiseAllResolveElementContextSlots::
+                           kPromiseAllResolveElementValuesSlot]);
   const newCapacity = index + 1;
   if (newCapacity > values.length_intptr) deferred {
       // This happens only when the promises are resolved during iteration.
       values = ExtractFixedArray(values, 0, values.length_intptr, newCapacity);
-      context[PromiseAllResolveElementContextSlots::
-                  kPromiseAllResolveElementValuesSlot] = values;
+      context.elements[PromiseAllResolveElementContextSlots::
+                           kPromiseAllResolveElementValuesSlot] = values;
     }
   values.objects[index] = updatedValue;
 
   remainingElementsCount = remainingElementsCount - 1;
-  context[PromiseAllResolveElementContextSlots::
-              kPromiseAllResolveElementRemainingSlot] = remainingElementsCount;
+  context.elements[PromiseAllResolveElementContextSlots::
+                       kPromiseAllResolveElementRemainingSlot] =
+      remainingElementsCount;
   if (remainingElementsCount == 0) {
     const capability = UnsafeCast<PromiseCapability>(
-        context[PromiseAllResolveElementContextSlots::
-                    kPromiseAllResolveElementCapabilitySlot]);
+        context.elements[PromiseAllResolveElementContextSlots::
+                             kPromiseAllResolveElementCapabilitySlot]);
     const resolve = UnsafeCast<JSAny>(capability.resolve);
     const arrayMap = UnsafeCast<Map>(
-        nativeContext[NativeContextSlot::JS_ARRAY_PACKED_ELEMENTS_MAP_INDEX]);
+        nativeContext
+            .elements[NativeContextSlot::JS_ARRAY_PACKED_ELEMENTS_MAP_INDEX]);
     const valuesArray = NewJSArray(arrayMap, values);
     Call(context, resolve, Undefined, valuesArray);
   }

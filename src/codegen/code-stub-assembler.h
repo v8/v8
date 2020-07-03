@@ -1517,17 +1517,6 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
   TNode<BoolT> LoadScopeInfoHasExtensionField(TNode<ScopeInfo> scope_info);
 
   // Context manipulation:
-  TNode<Object> LoadContextElement(SloppyTNode<Context> context,
-                                   int slot_index);
-  TNode<Object> LoadContextElement(SloppyTNode<Context> context,
-                                   SloppyTNode<IntPtrT> slot_index);
-  TNode<Object> LoadContextElement(TNode<Context> context,
-                                   TNode<Smi> slot_index);
-  void StoreContextElement(SloppyTNode<Context> context, int slot_index,
-                           SloppyTNode<Object> value);
-  void StoreContextElement(SloppyTNode<Context> context,
-                           SloppyTNode<IntPtrT> slot_index,
-                           SloppyTNode<Object> value);
   void StoreContextElementNoWriteBarrier(SloppyTNode<Context> context,
                                          int slot_index,
                                          SloppyTNode<Object> value);

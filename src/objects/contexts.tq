@@ -4,10 +4,13 @@
 
 @abstract
 extern class Context extends HeapObject {
-  length: Smi;
-  scope_info: ScopeInfo;
-  previous: Context|Zero|Undefined;
+  macro GetScopeInfo(): ScopeInfo {
+    return UnsafeCast<ScopeInfo>(this.elements[0]);
+  }
+  const length: Smi;
+  elements[length]: Object;
 }
+
 extern class AwaitContext extends Context generates 'TNode<Context>';
 extern class BlockContext extends Context generates 'TNode<Context>';
 extern class CatchContext extends Context generates 'TNode<Context>';
@@ -60,20 +63,40 @@ extern enum NativeContextSlot extends intptr constexpr 'Context::Field' {
   ...
 }
 
-extern operator '[]' macro LoadContextElement(
-    NativeContext, NativeContextSlot): Object;
-extern operator '[]=' macro StoreContextElement(
-    NativeContext, NativeContextSlot, Object): void;
-
-type ContextSlot generates 'TNode<IntPtrT>' constexpr 'int32_t';
+type ContextSlot extends intptr
+    generates 'TNode<IntPtrT>' constexpr 'int32_t';
 const PROXY_SLOT: constexpr ContextSlot
     generates 'Context::MIN_CONTEXT_SLOTS';
-extern operator '[]' macro LoadContextElement(Context, ContextSlot): Object;
-extern operator '[]=' macro StoreContextElement(
-    Context, ContextSlot, Object): void;
 
-extern operator '[]' macro LoadContextElement(Context, intptr): Object;
-extern operator '[]' macro LoadContextElement(Context, Smi): Object;
+@export
+macro LoadContextElement(c: Context, i: intptr): Object {
+  return c.elements[i];
+}
+
+@export
+macro LoadContextElement(c: Context, i: Smi): Object {
+  return c.elements[i];
+}
+
+@export
+macro LoadContextElement(c: Context, i: constexpr int32): Object {
+  return c.elements[i];
+}
+
+@export
+macro StoreContextElement(c: Context, i: intptr, o: Object) {
+  c.elements[i] = o;
+}
+
+@export
+macro StoreContextElement(c: Context, i: Smi, o: Object) {
+  c.elements[i] = o;
+}
+
+@export
+macro StoreContextElement(c: Context, i: constexpr int32, o: Object) {
+  c.elements[i] = o;
+}
 
 // A dummy used instead of a context constant for runtime calls that don't need
 // a context.

@@ -440,6 +440,8 @@ class Context : public HeapObject {
 
   DEFINE_FIELD_OFFSET_CONSTANTS(HeapObject::kHeaderSize,
                                 TORQUE_GENERATED_CONTEXT_FIELDS)
+  static const int kScopeInfoOffset = kHeaderSize;
+  static const int kPreviousOffset = kScopeInfoOffset + kTaggedSize;
 
   // TODO(v8:8989): [torque] Support marker constants
   /* TODO(ishell): remove this fixedArray-like header size. */
@@ -448,10 +450,10 @@ class Context : public HeapObject {
   /* Header size. */                                                  \
   /* TODO(ishell): use this as header size once MIN_CONTEXT_SLOTS */  \
   /* is removed in favour of offset-based access to common fields. */ \
-  static const int kTodoHeaderSize = kHeaderSize;
+  static const int kTodoHeaderSize = kPreviousOffset + kTaggedSize;
 
   // If the extension slot exists, it is the first slot after the header.
-  static const int kExtensionOffset = kHeaderSize;
+  static const int kExtensionOffset = kTodoHeaderSize;
 
   // Garbage collection support.
   V8_INLINE static constexpr int SizeFor(int length) {
@@ -514,7 +516,7 @@ class Context : public HeapObject {
 
   static const int kExtensionSize =
       (MIN_CONTEXT_EXTENDED_SLOTS - MIN_CONTEXT_SLOTS) * kTaggedSize;
-  static const int kExtendedHeaderSize = kHeaderSize + kExtensionSize;
+  static const int kExtendedHeaderSize = kTodoHeaderSize + kExtensionSize;
 
   // A region of native context entries containing maps for functions created
   // by Builtins::kFastNewClosure.

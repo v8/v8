@@ -11,7 +11,7 @@ namespace proxy {
 transitioning javascript builtin
 ProxyRevoke(js-implicit context: NativeContext)(): Undefined {
   // 1. Let p be F.[[RevocableProxy]].
-  const proxyObject: Object = context[PROXY_SLOT];
+  const proxyObject: Object = context.elements[PROXY_SLOT];
 
   // 2. If p is null, return undefined
   if (proxyObject == Null) {
@@ -19,7 +19,7 @@ ProxyRevoke(js-implicit context: NativeContext)(): Undefined {
   }
 
   // 3. Set F.[[RevocableProxy]] to null.
-  context[PROXY_SLOT] = Null;
+  context.elements[PROXY_SLOT] = Null;
 
   // 4. Assert: p is a Proxy object.
   const proxy: JSProxy = UnsafeCast<JSProxy>(proxyObject);

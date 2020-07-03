@@ -1294,7 +1294,7 @@ macro TestGeneratedCastOperators(implicit context: Context)() {
 
   const nativeContext = LoadNativeContext(context);
   const jsf: JSFunction = UnsafeCast<JSFunction>(
-      nativeContext[NativeContextSlot::REGEXP_FUNCTION_INDEX]);
+      nativeContext.elements[NativeContextSlot::REGEXP_FUNCTION_INDEX]);
   assert(!Is<JSSloppyArgumentsObject>(jsf));
 
   const parameterValues = NewFixedArray(0, ConstantIterator(TheHole));

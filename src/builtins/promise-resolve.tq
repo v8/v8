@@ -30,7 +30,8 @@ transitioning builtin
 PromiseResolve(implicit context: Context)(
     constructor: JSReceiver, value: JSAny): JSAny {
   const nativeContext = LoadNativeContext(context);
-  const promiseFun = nativeContext[NativeContextSlot::PROMISE_FUNCTION_INDEX];
+  const promiseFun =
+      nativeContext.elements[NativeContextSlot::PROMISE_FUNCTION_INDEX];
   try {
     // Check if {value} is a JSPromise.
     const value = Cast<JSPromise>(value) otherwise NeedToAllocate;
@@ -40,7 +41,7 @@ PromiseResolve(implicit context: Context)(
     // intact, as that guards the lookup path for "constructor" on
     // JSPromise instances which have the (initial) Promise.prototype.
     const promisePrototype =
-        nativeContext[NativeContextSlot::PROMISE_PROTOTYPE_INDEX];
+        nativeContext.elements[NativeContextSlot::PROMISE_PROTOTYPE_INDEX];
     if (value.map.prototype != promisePrototype) {
       goto SlowConstructor;
     }
@@ -137,7 +138,8 @@ ResolvePromise(implicit context: Context)(
       assert(IsJSReceiverMap(resolutionMap));
       assert(!IsPromiseThenProtectorCellInvalid());
       if (resolutionMap ==
-          nativeContext[NativeContextSlot::ITERATOR_RESULT_MAP_INDEX]) {
+          nativeContext
+              .elements[NativeContextSlot::ITERATOR_RESULT_MAP_INDEX]) {
         return FulfillPromise(promise, resolution);
       } else {
         goto Slow;
@@ -145,10 +147,10 @@ ResolvePromise(implicit context: Context)(
     }
 
     const promisePrototype =
-        nativeContext[NativeContextSlot::PROMISE_PROTOTYPE_INDEX];
+        nativeContext.elements[NativeContextSlot::PROMISE_PROTOTYPE_INDEX];
     if (resolutionMap.prototype == promisePrototype) {
       // The {resolution} is a native Promise in this case.
-      then = nativeContext[NativeContextSlot::PROMISE_THEN_INDEX];
+      then = nativeContext.elements[NativeContextSlot::PROMISE_THEN_INDEX];
       goto Enqueue;
     }
     goto Slow;

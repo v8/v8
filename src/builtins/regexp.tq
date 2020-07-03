@@ -158,7 +158,7 @@ transitioning macro RegExpPrototypeExecBody(implicit context: Context)(
 macro LoadRegExpFunction(implicit context: Context)(
     nativeContext: NativeContext): JSFunction {
   return UnsafeCast<JSFunction>(
-      nativeContext[NativeContextSlot::REGEXP_FUNCTION_INDEX]);
+      nativeContext.elements[NativeContextSlot::REGEXP_FUNCTION_INDEX]);
 }
 
 // Note this doesn't guarantee const-ness of object properties, just

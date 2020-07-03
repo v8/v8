@@ -416,7 +416,7 @@ macro LoadJoinStack(implicit context: Context)(): FixedArray
     labels IfUninitialized {
   const nativeContext: NativeContext = LoadNativeContext(context);
   const stack: HeapObject = UnsafeCast<HeapObject>(
-      nativeContext[NativeContextSlot::ARRAY_JOIN_STACK_INDEX]);
+      nativeContext.elements[NativeContextSlot::ARRAY_JOIN_STACK_INDEX]);
   if (stack == Undefined) goto IfUninitialized;
   assert(Is<FixedArray>(stack));
   return UnsafeCast<FixedArray>(stack);
@@ -424,7 +424,7 @@ macro LoadJoinStack(implicit context: Context)(): FixedArray
 
 macro SetJoinStack(implicit context: Context)(stack: FixedArray): void {
   const nativeContext: NativeContext = LoadNativeContext(context);
-  nativeContext[NativeContextSlot::ARRAY_JOIN_STACK_INDEX] = stack;
+  nativeContext.elements[NativeContextSlot::ARRAY_JOIN_STACK_INDEX] = stack;
 }
 
 // Adds a receiver to the stack. The FixedArray will automatically grow to

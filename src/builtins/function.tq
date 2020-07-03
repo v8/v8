@@ -68,10 +68,12 @@ FastFunctionPrototypeBind(
 
         const boundFunctionMap: Map = UnsafeCast<Map>(
             IsConstructor(fn) ?
-                context[NativeContextSlot::
-                            BOUND_FUNCTION_WITH_CONSTRUCTOR_MAP_INDEX] :
-                context[NativeContextSlot::
-                            BOUND_FUNCTION_WITHOUT_CONSTRUCTOR_MAP_INDEX]);
+                context
+                    .elements[NativeContextSlot::
+                                  BOUND_FUNCTION_WITH_CONSTRUCTOR_MAP_INDEX] :
+                context.elements
+                    [NativeContextSlot::
+                         BOUND_FUNCTION_WITHOUT_CONSTRUCTOR_MAP_INDEX]);
 
         // Verify that prototype matches that of the target bound function.
 

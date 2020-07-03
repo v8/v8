@@ -53,7 +53,7 @@ extern shape JSStrictArgumentsObject extends JSArgumentsObject {
 // entry has been deleted fron the arguments object, and value is looked up in
 // the unmapped arguments array, as described above. Otherwise, t is a Smi
 // index into the context array specified at elements.context, and the return
-// value is elements.context[t].
+// value is elements.context.
 //
 // A graphic representation of a SloppyArgumentsElements object and a
 // corresponding unmapped arguments FixedArray:
@@ -149,7 +149,7 @@ struct ParameterMapIterator {
 macro NewParameterMapIterator(
     context: Context, formalParameterCount: intptr,
     mappedCount: intptr): ParameterMapIterator {
-  const flags = context.scope_info.flags;
+  const flags = context.GetScopeInfo().flags;
   let contextHeaderSize: intptr = MIN_CONTEXT_SLOTS;
   if (flags.has_context_extension_slot) ++contextHeaderSize;
   // Copy the parameter slots and the holes in the arguments.

@@ -51,7 +51,7 @@ PromiseRace(
     // Let result be PerformPromiseRace(iteratorRecord, C, promiseCapability).
     try {
       const fastIteratorResultMap = UnsafeCast<Map>(
-          nativeContext[NativeContextSlot::ITERATOR_RESULT_MAP_INDEX]);
+          nativeContext.elements[NativeContextSlot::ITERATOR_RESULT_MAP_INDEX]);
       while (true) {
         let nextValue: JSAny;
         try {

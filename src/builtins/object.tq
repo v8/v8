@@ -100,14 +100,14 @@ transitioning builtin CreateObjectWithoutProperties(implicit context: Context)(
     typeswitch (prototype) {
       case (Null): {
         map = UnsafeCast<Map>(
-            nativeContext
+            nativeContext.elements
                 [NativeContextSlot::SLOW_OBJECT_WITH_NULL_PROTOTYPE_MAP]);
         properties = AllocateNameDictionary(kNameDictionaryInitialCapacity);
       }
       case (prototype: JSReceiver): {
         properties = kEmptyFixedArray;
         const objectFunction = UnsafeCast<JSFunction>(
-            nativeContext[NativeContextSlot::OBJECT_FUNCTION_INDEX]);
+            nativeContext.elements[NativeContextSlot::OBJECT_FUNCTION_INDEX]);
         map = UnsafeCast<Map>(objectFunction.prototype_or_initial_map);
         if (prototype != map.prototype) {
           const prototypeInfo = prototype.map.PrototypeInfo() otherwise Runtime;

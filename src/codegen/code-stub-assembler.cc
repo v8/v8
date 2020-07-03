@@ -2513,41 +2513,6 @@ TNode<BoolT> CodeStubAssembler::LoadScopeInfoHasExtensionField(
   return IsSetWord<ScopeInfo::HasContextExtensionSlotBit>(value);
 }
 
-TNode<Object> CodeStubAssembler::LoadContextElement(
-    SloppyTNode<Context> context, int slot_index) {
-  int offset = Context::SlotOffset(slot_index);
-  return Load<Object>(context, IntPtrConstant(offset));
-}
-
-TNode<Object> CodeStubAssembler::LoadContextElement(
-    SloppyTNode<Context> context, SloppyTNode<IntPtrT> slot_index) {
-  TNode<IntPtrT> offset = ElementOffsetFromIndex(slot_index, PACKED_ELEMENTS,
-                                                 Context::SlotOffset(0));
-  return Load<Object>(context, offset);
-}
-
-TNode<Object> CodeStubAssembler::LoadContextElement(TNode<Context> context,
-                                                    TNode<Smi> slot_index) {
-  TNode<IntPtrT> offset = ElementOffsetFromIndex(slot_index, PACKED_ELEMENTS,
-                                                 Context::SlotOffset(0));
-  return Load<Object>(context, offset);
-}
-
-void CodeStubAssembler::StoreContextElement(SloppyTNode<Context> context,
-                                            int slot_index,
-                                            SloppyTNode<Object> value) {
-  int offset = Context::SlotOffset(slot_index);
-  Store(context, IntPtrConstant(offset), value);
-}
-
-void CodeStubAssembler::StoreContextElement(SloppyTNode<Context> context,
-                                            SloppyTNode<IntPtrT> slot_index,
-                                            SloppyTNode<Object> value) {
-  TNode<IntPtrT> offset = IntPtrAdd(TimesTaggedSize(slot_index),
-                                    IntPtrConstant(Context::SlotOffset(0)));
-  Store(context, offset, value);
-}
-
 void CodeStubAssembler::StoreContextElementNoWriteBarrier(
     SloppyTNode<Context> context, int slot_index, SloppyTNode<Object> value) {
   int offset = Context::SlotOffset(slot_index);

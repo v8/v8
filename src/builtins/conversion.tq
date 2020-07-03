@@ -126,7 +126,8 @@ transitioning builtin ToObject(implicit context: Context)(input: JSAny):
     }
   } label WrapPrimitive(constructorIndex: intptr) {
     const nativeContext = LoadNativeContext(context);
-    const constructor = UnsafeCast<JSFunction>(nativeContext[constructorIndex]);
+    const constructor =
+        UnsafeCast<JSFunction>(nativeContext.elements[constructorIndex]);
     const map: Map = UnsafeCast<Map>(constructor.prototype_or_initial_map);
     const wrapper =
         UnsafeCast<JSPrimitiveWrapper>(AllocateFastOrSlowJSObjectFromMap(map));

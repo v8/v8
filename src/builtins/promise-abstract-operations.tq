@@ -269,7 +269,7 @@ macro CreatePromiseCapabilitiesExecutorContext(
   const executorContext = AllocateSyntheticFunctionContext(
       nativeContext, kPromiseBuiltinsCapabilitiesContextLength);
 
-  executorContext[kPromiseBuiltinsCapabilitySlot] = capability;
+  executorContext.elements[kPromiseBuiltinsCapabilitySlot] = capability;
   return executorContext;
 }
 
@@ -298,7 +298,7 @@ macro CreatePromiseResolvingFunctions(implicit context: Context)(
   const promiseContext = CreatePromiseResolvingFunctionsContext(
       promise, debugEvent, nativeContext);
   const map = UnsafeCast<Map>(
-      nativeContext
+      nativeContext.elements
           [NativeContextSlot::STRICT_FUNCTION_WITHOUT_PROTOTYPE_MAP_INDEX]);
   const resolveInfo = PromiseCapabilityDefaultResolveSharedFunConstant();
 
@@ -316,7 +316,7 @@ InnerNewPromiseCapability(implicit context: Context)(
   const nativeContext = LoadNativeContext(context);
   if (TaggedEqual(
           constructor,
-          nativeContext[NativeContextSlot::PROMISE_FUNCTION_INDEX])) {
+          nativeContext.elements[NativeContextSlot::PROMISE_FUNCTION_INDEX])) {
     const promise = NewJSPromise();
 
     const pair =
@@ -332,7 +332,7 @@ InnerNewPromiseCapability(implicit context: Context)(
 
     const executorInfo = PromiseGetCapabilitiesExecutorSharedFunConstant();
     const functionMap = UnsafeCast<Map>(
-        nativeContext
+        nativeContext.elements
             [NativeContextSlot::STRICT_FUNCTION_WITHOUT_PROTOTYPE_MAP_INDEX]);
     const executor = AllocateFunctionWithMapAndContext(
         functionMap, executorInfo, executorContext);
@@ -370,11 +370,12 @@ transitioning javascript builtin
 PromiseCapabilityDefaultReject(
     js-implicit context: NativeContext, receiver: JSAny)(reason: JSAny): JSAny {
   // 2. Let promise be F.[[Promise]].
-  const promise = UnsafeCast<JSPromise>(context[kPromiseBuiltinsPromiseSlot]);
+  const promise =
+      UnsafeCast<JSPromise>(context.elements[kPromiseBuiltinsPromiseSlot]);
 
   // 3. Let alreadyResolved be F.[[AlreadyResolved]].
-  const alreadyResolved =
-      UnsafeCast<Boolean>(context[kPromiseBuiltinsAlreadyResolvedSlot]);
+  const alreadyResolved = UnsafeCast<Boolean>(
+      context.elements[kPromiseBuiltinsAlreadyResolvedSlot]);
 
   // 4. If alreadyResolved.[[Value]] is true, return undefined.
   if (alreadyResolved == True) {
@@ -382,11 +383,11 @@ PromiseCapabilityDefaultReject(
   }
 
   // 5. Set alreadyResolved.[[Value]] to true.
-  context[kPromiseBuiltinsAlreadyResolvedSlot] = True;
+  context.elements[kPromiseBuiltinsAlreadyResolvedSlot] = True;
 
   // 6. Return RejectPromise(promise, reason).
   const debugEvent =
-      UnsafeCast<Boolean>(context[kPromiseBuiltinsDebugEventSlot]);
+      UnsafeCast<Boolean>(context.elements[kPromiseBuiltinsDebugEventSlot]);
   return RejectPromise(promise, reason, debugEvent);
 }
 
@@ -396,11 +397,12 @@ PromiseCapabilityDefaultResolve(
     js-implicit context: NativeContext,
     receiver: JSAny)(resolution: JSAny): JSAny {
   // 2. Let promise be F.[[Promise]].
-  const promise = UnsafeCast<JSPromise>(context[kPromiseBuiltinsPromiseSlot]);
+  const promise =
+      UnsafeCast<JSPromise>(context.elements[kPromiseBuiltinsPromiseSlot]);
 
   // 3. Let alreadyResolved be F.[[AlreadyResolved]].
-  const alreadyResolved =
-      UnsafeCast<Boolean>(context[kPromiseBuiltinsAlreadyResolvedSlot]);
+  const alreadyResolved = UnsafeCast<Boolean>(
+      context.elements[kPromiseBuiltinsAlreadyResolvedSlot]);
 
   // 4. If alreadyResolved.[[Value]] is true, return undefined.
   if (alreadyResolved == True) {
@@ -408,7 +410,7 @@ PromiseCapabilityDefaultResolve(
   }
 
   // 5. Set alreadyResolved.[[Value]] to true.
-  context[kPromiseBuiltinsAlreadyResolvedSlot] = True;
+  context.elements[kPromiseBuiltinsAlreadyResolvedSlot] = True;
 
   // The rest of the logic (and the catch prediction) is
   // encapsulated in the dedicated ResolvePromise builtin.
@@ -475,7 +477,8 @@ PromiseReject(
   const receiver = Cast<JSReceiver>(receiver) otherwise
   ThrowTypeError(MessageTemplate::kCalledOnNonObject, 'PromiseReject');
 
-  const promiseFun = context[NativeContextSlot::PROMISE_FUNCTION_INDEX];
+  const promiseFun =
+      context.elements[NativeContextSlot::PROMISE_FUNCTION_INDEX];
   if (promiseFun == receiver) {
     const promise = NewJSPromise(PromiseState::kRejected, reason);
     runtime::PromiseRejectEventFromStack(promise, reason);
@@ -501,8 +504,8 @@ transitioning javascript builtin
 PromiseGetCapabilitiesExecutor(
     js-implicit context: NativeContext, receiver: JSAny)(
     resolve: JSAny, reject: JSAny): JSAny {
-  const capability =
-      UnsafeCast<PromiseCapability>(context[kPromiseBuiltinsCapabilitySlot]);
+  const capability = UnsafeCast<PromiseCapability>(
+      context.elements[kPromiseBuiltinsCapabilitySlot]);
   if (capability.resolve != Undefined || capability.reject != Undefined)
     deferred {
       ThrowTypeError(kPromiseExecutorAlreadyInvoked);
@@ -517,7 +520,7 @@ macro IsPromiseResolveLookupChainIntact(implicit context: Context)(
     nativeContext: NativeContext, constructor: JSReceiver): bool {
   if (IsForceSlowPath()) return false;
   const promiseFun = UnsafeCast<JSFunction>(
-      nativeContext[NativeContextSlot::PROMISE_FUNCTION_INDEX]);
+      nativeContext.elements[NativeContextSlot::PROMISE_FUNCTION_INDEX]);
   return promiseFun == constructor && !IsPromiseResolveProtectorCellInvalid();
 }
 
