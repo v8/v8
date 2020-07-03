@@ -527,6 +527,10 @@ void ConcurrentMarking::ScheduleTasks() {
     // thread.
     total_task_count_ = Max(1, Min(kMaxTasks, num_cores - 2));
 #endif  // defined(OS_MACOSX)
+    if (FLAG_gc_experiment_reduce_concurrent_marking_tasks) {
+      // Use at most half of the cores in the experiment.
+      total_task_count_ = Max(1, Min(kMaxTasks, (num_cores / 2) - 1));
+    }
     DCHECK_LE(total_task_count_, kMaxTasks);
     // One task is for the main thread.
     STATIC_ASSERT(kMaxTasks + 1 <= MarkingWorklist::kMaxNumTasks);
