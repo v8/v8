@@ -10,7 +10,7 @@ group("gn_all") {
   deps = []
 
   if (v8_enable_google_benchmark) {
-    deps += [ ":cppgc_allocation_benchmark" ]
+    deps += [ ":cppgc_basic_benchmarks" ]
   }
 }
 
@@ -34,7 +34,7 @@ if (v8_enable_google_benchmark) {
     ]
   }
 
-  v8_executable("cppgc_allocation_benchmark") {
+  v8_executable("cppgc_basic_benchmarks") {
     testonly = true
 
     configs = [
@@ -42,7 +42,10 @@ if (v8_enable_google_benchmark) {
       "../../../..:internal_config_base",
       "../../../..:cppgc_base_config",
     ]
-    sources = [ "allocation_perf.cc" ]
+    sources = [
+      "allocation_perf.cc",
+      "trace_perf.cc",
+    ]
     deps = [
       ":cppgc_benchmark_support",
       "../../../..:cppgc_for_testing",
