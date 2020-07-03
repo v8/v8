@@ -65,7 +65,7 @@ ReadOnlyRoots::ReadOnlyRoots(Heap* heap)
 ReadOnlyRoots::ReadOnlyRoots(OffThreadHeap* heap)
     : ReadOnlyRoots(OffThreadIsolate::FromHeap(heap)) {}
 
-ReadOnlyRoots::ReadOnlyRoots(Isolate* isolate)
+ReadOnlyRoots::ReadOnlyRoots(const Isolate* isolate)
     : read_only_roots_(reinterpret_cast<Address*>(
           isolate->roots_table().read_only_roots_begin().address())) {}
 

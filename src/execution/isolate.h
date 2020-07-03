@@ -950,6 +950,7 @@ class V8_EXPORT_PRIVATE Isolate final : private HiddenFactory {
   }
 
   RootsTable& roots_table() { return isolate_data()->roots(); }
+  const RootsTable& roots_table() const { return isolate_data()->roots(); }
 
   // A sub-region of the Isolate object that has "predictable" layout which
   // depends only on the pointer size and therefore it's guaranteed that there

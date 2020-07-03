@@ -465,42 +465,42 @@ class RootsTable {
   }
 
   // Used for iterating over all of the read-only and mutable strong roots.
-  FullObjectSlot strong_or_read_only_roots_begin() {
+  FullObjectSlot strong_or_read_only_roots_begin() const {
     STATIC_ASSERT(static_cast<size_t>(RootIndex::kLastReadOnlyRoot) ==
                   static_cast<size_t>(RootIndex::kFirstStrongRoot) - 1);
     return FullObjectSlot(
         &roots_[static_cast<size_t>(RootIndex::kFirstStrongOrReadOnlyRoot)]);
   }
-  FullObjectSlot strong_or_read_only_roots_end() {
+  FullObjectSlot strong_or_read_only_roots_end() const {
     return FullObjectSlot(
         &roots_[static_cast<size_t>(RootIndex::kLastStrongOrReadOnlyRoot) + 1]);
   }
 
   // The read-only, strong and Smi roots as defined by these accessors are all
   // disjoint.
-  FullObjectSlot read_only_roots_begin() {
+  FullObjectSlot read_only_roots_begin() const {
     return FullObjectSlot(
         &roots_[static_cast<size_t>(RootIndex::kFirstReadOnlyRoot)]);
   }
-  FullObjectSlot read_only_roots_end() {
+  FullObjectSlot read_only_roots_end() const {
     return FullObjectSlot(
         &roots_[static_cast<size_t>(RootIndex::kLastReadOnlyRoot) + 1]);
   }
 
-  FullObjectSlot strong_roots_begin() {
+  FullObjectSlot strong_roots_begin() const {
     return FullObjectSlot(
         &roots_[static_cast<size_t>(RootIndex::kFirstStrongRoot)]);
   }
-  FullObjectSlot strong_roots_end() {
+  FullObjectSlot strong_roots_end() const {
     return FullObjectSlot(
         &roots_[static_cast<size_t>(RootIndex::kLastStrongRoot) + 1]);
   }
 
-  FullObjectSlot smi_roots_begin() {
+  FullObjectSlot smi_roots_begin() const {
     return FullObjectSlot(
         &roots_[static_cast<size_t>(RootIndex::kFirstSmiRoot)]);
   }
-  FullObjectSlot smi_roots_end() {
+  FullObjectSlot smi_roots_end() const {
     return FullObjectSlot(
         &roots_[static_cast<size_t>(RootIndex::kLastSmiRoot) + 1]);
   }
@@ -529,7 +529,7 @@ class ReadOnlyRoots {
 
   V8_INLINE explicit ReadOnlyRoots(Heap* heap);
   V8_INLINE explicit ReadOnlyRoots(OffThreadHeap* heap);
-  V8_INLINE explicit ReadOnlyRoots(Isolate* isolate);
+  V8_INLINE explicit ReadOnlyRoots(const Isolate* isolate);
   V8_INLINE explicit ReadOnlyRoots(OffThreadIsolate* isolate);
   V8_INLINE explicit ReadOnlyRoots(LocalIsolateWrapper wrapper);
   V8_INLINE explicit ReadOnlyRoots(LocalHeapWrapper wrapper);
