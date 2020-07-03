@@ -43,7 +43,7 @@ class TestWithHeap : public TestWithPlatform {
     return allocation_handle_;
   }
 
-  std::unique_ptr<Marker>& GetMarkerRef() {
+  std::unique_ptr<MarkerBase>& GetMarkerRef() {
     return Heap::From(GetHeap())->marker_;
   }
 

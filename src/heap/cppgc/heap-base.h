@@ -35,7 +35,7 @@ namespace testing {
 class TestWithHeap;
 }
 
-class Marker;
+class MarkerBase;
 class PageBackend;
 class PreFinalizerHandler;
 class StatsCollector;
@@ -90,7 +90,7 @@ class V8_EXPORT_PRIVATE HeapBase {
     return prefinalizer_handler_.get();
   }
 
-  Marker* marker() const { return marker_.get(); }
+  MarkerBase* marker() const { return marker_.get(); }
 
   ObjectAllocator& object_allocator() { return object_allocator_; }
 
@@ -128,7 +128,7 @@ class V8_EXPORT_PRIVATE HeapBase {
   std::unique_ptr<StatsCollector> stats_collector_;
   std::unique_ptr<heap::base::Stack> stack_;
   std::unique_ptr<PreFinalizerHandler> prefinalizer_handler_;
-  std::unique_ptr<Marker> marker_;
+  std::unique_ptr<MarkerBase> marker_;
 
   ObjectAllocator object_allocator_;
   Sweeper sweeper_;

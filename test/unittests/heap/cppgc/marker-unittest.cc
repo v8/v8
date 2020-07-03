@@ -222,7 +222,7 @@ TEST_F(MarkerTest, InConstructionObjectIsEventuallyMarkedEmptyStack) {
   GCedWithCallback* object = MakeGarbageCollected<GCedWithCallback>(
       GetAllocationHandle(), [&marker](GCedWithCallback* obj) {
         Member<GCedWithCallback> member(obj);
-        marker.GetMarkingVisitorForTesting()->Trace(member);
+        marker.VisitorForTesting().Trace(member);
       });
   EXPECT_FALSE(HeapObjectHeader::FromPayload(object).IsMarked());
   marker.FinishMarking({MarkingConfig::CollectionType::kMajor,
@@ -239,7 +239,7 @@ TEST_F(MarkerTest, InConstructionObjectIsEventuallyMarkedNonEmptyStack) {
   MakeGarbageCollected<GCedWithCallback>(
       GetAllocationHandle(), [&marker](GCedWithCallback* obj) {
         Member<GCedWithCallback> member(obj);
-        marker.GetMarkingVisitorForTesting()->Trace(member);
+        marker.VisitorForTesting().Trace(member);
         EXPECT_FALSE(HeapObjectHeader::FromPayload(obj).IsMarked());
         marker.FinishMarking(config);
         EXPECT_TRUE(HeapObjectHeader::FromPayload(obj).IsMarked());

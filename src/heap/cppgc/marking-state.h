@@ -10,7 +10,7 @@
 #include "src/heap/cppgc/heap-object-header.h"
 #include "src/heap/cppgc/heap-page.h"
 #include "src/heap/cppgc/liveness-broker.h"
-#include "src/heap/cppgc/marker.h"
+#include "src/heap/cppgc/marking-worklists.h"
 
 namespace cppgc {
 namespace internal {
@@ -18,9 +18,9 @@ namespace internal {
 // C++ marking implementation.
 class MarkingState {
  public:
-  inline MarkingState(HeapBase& heap, Marker::MarkingWorklist*,
-                      Marker::NotFullyConstructedWorklist*,
-                      Marker::WeakCallbackWorklist*, int);
+  inline MarkingState(HeapBase& heap, MarkingWorklists::MarkingWorklist*,
+                      MarkingWorklists::NotFullyConstructedWorklist*,
+                      MarkingWorklists::WeakCallbackWorklist*, int);
 
   MarkingState(const MarkingState&) = delete;
   MarkingState& operator=(const MarkingState&) = delete;
@@ -47,17 +47,19 @@ class MarkingState {
   HeapBase& heap_;
 #endif  // DEBUG
 
-  Marker::MarkingWorklist::View marking_worklist_;
-  Marker::NotFullyConstructedWorklist::View not_fully_constructed_worklist_;
-  Marker::WeakCallbackWorklist::View weak_callback_worklist_;
+  MarkingWorklists::MarkingWorklist::View marking_worklist_;
+  MarkingWorklists::NotFullyConstructedWorklist::View
+      not_fully_constructed_worklist_;
+  MarkingWorklists::WeakCallbackWorklist::View weak_callback_worklist_;
 
   size_t marked_bytes_ = 0;
 };
 
 MarkingState::MarkingState(
-    HeapBase& heap, Marker::MarkingWorklist* marking_worklist,
-    Marker::NotFullyConstructedWorklist* not_fully_constructed_worklist,
-    Marker::WeakCallbackWorklist* weak_callback_worklist, int task_id)
+    HeapBase& heap, MarkingWorklists::MarkingWorklist* marking_worklist,
+    MarkingWorklists::NotFullyConstructedWorklist*
+        not_fully_constructed_worklist,
+    MarkingWorklists::WeakCallbackWorklist* weak_callback_worklist, int task_id)
     :
 #ifdef DEBUG
       heap_(heap),

@@ -21,7 +21,7 @@ namespace internal {
 
 namespace {
 
-void MarkValue(const BasePage* page, Marker* marker, const void* value) {
+void MarkValue(const BasePage* page, MarkerBase* marker, const void* value) {
 #if defined(CPPGC_CAGED_HEAP)
   DCHECK(reinterpret_cast<CagedHeapLocalData*>(
              reinterpret_cast<uintptr_t>(value) &
@@ -40,14 +40,17 @@ void MarkValue(const BasePage* page, Marker* marker, const void* value) {
     // It is assumed that objects on not_fully_constructed_worklist_ are not
     // marked.
     header.Unmark();
-    Marker::NotFullyConstructedWorklist::View not_fully_constructed_worklist(
-        marker->not_fully_constructed_worklist(), Marker::kMutatorThreadId);
+    MarkingWorklists::NotFullyConstructedWorklist::View
+        not_fully_constructed_worklist(
+            marker->marking_worklists().not_fully_constructed_worklist(),
+            MarkingWorklists::kMutatorThreadId);
     not_fully_constructed_worklist.Push(header.Payload());
     return;
   }
 
-  Marker::WriteBarrierWorklist::View write_barrier_worklist(
-      marker->write_barrier_worklist(), Marker::kMutatorThreadId);
+  MarkingWorklists::WriteBarrierWorklist::View write_barrier_worklist(
+      marker->marking_worklists().write_barrier_worklist(),
+      MarkingWorklists::kMutatorThreadId);
   write_barrier_worklist.Push(&header);
 }
 

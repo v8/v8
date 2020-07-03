@@ -10,17 +10,17 @@
 #include "include/cppgc/heap.h"
 #include "include/cppgc/trace-trait.h"
 #include "include/cppgc/visitor.h"
+#include "src/base/macros.h"
 #include "src/base/platform/time.h"
+#include "src/heap/cppgc/marking-state.h"
 #include "src/heap/cppgc/marking-visitor.h"
+#include "src/heap/cppgc/marking-worklists.h"
 #include "src/heap/cppgc/worklist.h"
 
 namespace cppgc {
 namespace internal {
 
 class HeapBase;
-class HeapObjectHeader;
-class MarkingState;
-class MutatorThreadMarkingVisitor;
 
 // Marking algorithm. Example for a valid call sequence creating the marking
 // phase:
@@ -31,31 +31,8 @@ class MutatorThreadMarkingVisitor;
 // 5. LeaveAtomicPause()
 //
 // Alternatively, FinishMarking combines steps 3.-5.
-class V8_EXPORT_PRIVATE Marker {
-  static constexpr int kNumConcurrentMarkers = 0;
-  static constexpr int kNumMarkers = 1 + kNumConcurrentMarkers;
-
+class V8_EXPORT_PRIVATE MarkerBase {
  public:
-  static constexpr int kMutatorThreadId = 0;
-
-  using MarkingItem = cppgc::TraceDescriptor;
-  using NotFullyConstructedItem = const void*;
-  struct WeakCallbackItem {
-    cppgc::WeakCallback callback;
-    const void* parameter;
-  };
-
-  // Segment size of 512 entries necessary to avoid throughput regressions.
-  // Since the work list is currently a temporary object this is not a problem.
-  using MarkingWorklist =
-      Worklist<MarkingItem, 512 /* local entries */, kNumMarkers>;
-  using NotFullyConstructedWorklist =
-      Worklist<NotFullyConstructedItem, 16 /* local entries */, kNumMarkers>;
-  using WeakCallbackWorklist =
-      Worklist<WeakCallbackItem, 64 /* local entries */, kNumMarkers>;
-  using WriteBarrierWorklist =
-      Worklist<HeapObjectHeader*, 64 /*local entries */, kNumMarkers>;
-
   struct MarkingConfig {
     enum class CollectionType : uint8_t {
       kMinor,
@@ -75,11 +52,10 @@ class V8_EXPORT_PRIVATE Marker {
     MarkingType marking_type = MarkingType::kAtomic;
   };
 
-  explicit Marker(HeapBase& heap);
-  virtual ~Marker();
+  virtual ~MarkerBase();
 
-  Marker(const Marker&) = delete;
-  Marker& operator=(const Marker&) = delete;
+  MarkerBase(const MarkerBase&) = delete;
+  MarkerBase& operator=(const MarkerBase&) = delete;
 
   // Initialize marking according to the given config. This method will
   // trigger incremental/concurrent marking if needed.
@@ -107,45 +83,46 @@ class V8_EXPORT_PRIVATE Marker {
   void ProcessWeakness();
 
   HeapBase& heap() { return heap_; }
-  MarkingWorklist* marking_worklist() { return &marking_worklist_; }
-  NotFullyConstructedWorklist* not_fully_constructed_worklist() {
-    return &not_fully_constructed_worklist_;
-  }
-  WriteBarrierWorklist* write_barrier_worklist() {
-    return &write_barrier_worklist_;
-  }
-  WeakCallbackWorklist* weak_callback_worklist() {
-    return &weak_callback_worklist_;
-  }
-  MarkingState& marking_state() const { return *mutator_marking_state_.get(); }
+  MarkingState& marking_state() { return mutator_marking_state_; }
+  MarkingWorklists& marking_worklists() { return marking_worklists_; }
 
+  cppgc::Visitor& VisitorForTesting() { return visitor(); }
   void ClearAllWorklistsForTesting();
 
-  MutatorThreadMarkingVisitor* GetMarkingVisitorForTesting() {
-    return marking_visitor_.get();
-  }
-
  protected:
-  virtual std::unique_ptr<MutatorThreadMarkingVisitor>
-  CreateMutatorThreadMarkingVisitor();
+  explicit MarkerBase(HeapBase& heap);
+
+  virtual cppgc::Visitor& visitor() = 0;
+  virtual ConservativeTracingVisitor& conservative_visitor() = 0;
+  virtual heap::base::StackVisitor& stack_visitor() = 0;
 
   void VisitRoots();
 
-  void FlushNotFullyConstructedObjects();
   void MarkNotFullyConstructedObjects();
 
   HeapBase& heap_;
   MarkingConfig config_ = MarkingConfig::Default();
 
-  std::unique_ptr<MarkingState> mutator_marking_state_;
-  std::unique_ptr<MutatorThreadMarkingVisitor> marking_visitor_;
-  std::unique_ptr<ConservativeMarkingVisitor> conservative_marking_visitor_;
+  MarkingWorklists marking_worklists_;
+  MarkingState mutator_marking_state_;
+};
 
-  MarkingWorklist marking_worklist_;
-  NotFullyConstructedWorklist not_fully_constructed_worklist_;
-  NotFullyConstructedWorklist previously_not_fully_constructed_worklist_;
-  WriteBarrierWorklist write_barrier_worklist_;
-  WeakCallbackWorklist weak_callback_worklist_;
+class V8_EXPORT_PRIVATE Marker final : public MarkerBase {
+ public:
+  explicit Marker(HeapBase&);
+
+ protected:
+  cppgc::Visitor& visitor() final { return marking_visitor_; }
+  ConservativeTracingVisitor& conservative_visitor() final {
+    return conservative_marking_visitor_;
+  }
+  heap::base::StackVisitor& stack_visitor() final {
+    return conservative_marking_visitor_;
+  }
+
+ private:
+  MarkingVisitor marking_visitor_;
+  ConservativeMarkingVisitor conservative_marking_visitor_;
 };
 
 }  // namespace internal
