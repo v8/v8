@@ -253,7 +253,7 @@ class FunctionBodyDecoderTest : public TestWithZone {
       str << "Verification failed: pc = +" << result.error().offset()
           << ", msg = " << result.error().message();
     } else {
-      str << "Verification successed, expected failure";
+      str << "Verification succeeded, expected failure";
     }
     EXPECT_EQ(result.ok(), expected_success) << str.str();
     if (result.failed() && message) {
@@ -330,11 +330,6 @@ TEST_F(FunctionBodyDecoderTest, Int32Const1) {
     code[1] = static_cast<byte>(i & 0x7F);
     ExpectValidates(sigs.i_i(), code);
   }
-}
-
-TEST_F(FunctionBodyDecoderTest, RefNull) {
-  WASM_FEATURE_SCOPE(reftypes);
-  ExpectValidates(sigs.e_v(), {kExprRefNull, kLocalExternRef});
 }
 
 TEST_F(FunctionBodyDecoderTest, RefFunc) {
@@ -2983,15 +2978,6 @@ TEST_F(FunctionBodyDecoderTest, IfParam) {
                    WASM_I32_ADD(WASM_NOP, WASM_NOP)});
 }
 
-TEST_F(FunctionBodyDecoderTest, RefIsNull) {
-  WASM_FEATURE_SCOPE(reftypes);
-  ExpectValidates(sigs.i_i(),
-                  {WASM_REF_IS_NULL(WASM_REF_NULL(kLocalExternRef))});
-  ExpectFailure(
-      sigs.i_i(), {WASM_REF_IS_NULL(WASM_GET_LOCAL(0))}, kAppendEnd,
-      "invalid argument type to ref.is_null. Expected reference type, got i32");
-}
-
 TEST_F(FunctionBodyDecoderTest, Regression709741) {
   AddLocals(kWasmI32, kV8MaxWasmFunctionLocals - 1);
   ExpectValidates(sigs.v_v(), {WASM_NOP});
@@ -3399,6 +3385,124 @@ TEST_F(FunctionBodyDecoderTest, UnpackPackedTypes) {
                         WASM_ARRAY_NEW(type_index, WASM_I32V(10), WASM_I32V(5)),
                         WASM_I32V(3), WASM_I32V(12345678))});
   }
+}
+
+ValueType ref(byte type_index) {
+  return ValueType::Ref(type_index, kNonNullable);
+}
+ValueType optref(byte type_index) {
+  return ValueType::Ref(type_index, kNullable);
+}
+
+TEST_F(FunctionBodyDecoderTest, RefAsNonNull) {
+  WASM_FEATURE_SCOPE(reftypes);
+  WASM_FEATURE_SCOPE(eh);
+  WASM_FEATURE_SCOPE(typed_funcref);
+  WASM_FEATURE_SCOPE(simd);
+  WASM_FEATURE_SCOPE(gc);
+
+  TestModuleBuilder builder;
+  module = builder.module();
+  byte struct_type_index = builder.AddStruct({F(kWasmI32, true)});
+  byte array_type_index = builder.AddArray(kWasmI32, true);
+  uint32_t heap_types[] = {
+      struct_type_index, array_type_index,  HeapType::kExn, HeapType::kFunc,
+      HeapType::kEq,     HeapType::kExtern, HeapType::kI31};
+
+  ValueType non_compatible_types[] = {kWasmI32, kWasmI64, kWasmF32, kWasmF64,
+                                      kWasmS128};
+
+  // It works with nullable types.
+  for (uint32_t heap_type : heap_types) {
+    ValueType reprs[] = {ValueType::Ref(heap_type, kNonNullable),
+                         ValueType::Ref(heap_type, kNullable)};
+    FunctionSig sig(1, 1, reprs);
+    ExpectValidates(&sig, {WASM_REF_AS_NON_NULL(WASM_GET_LOCAL(0))});
+  }
+
+  // It works with non-nullable types.
+  for (uint32_t heap_type : heap_types) {
+    ValueType reprs[] = {ValueType::Ref(heap_type, kNonNullable),
+                         ValueType::Ref(heap_type, kNonNullable)};
+    FunctionSig sig(1, 1, reprs);
+    ExpectValidates(&sig, {WASM_REF_AS_NON_NULL(WASM_GET_LOCAL(0))});
+  }
+
+  // It fails with other types.
+  for (ValueType type : non_compatible_types) {
+    FunctionSig sig(0, 1, &type);
+    ExpectFailure(
+        &sig, {WASM_REF_AS_NON_NULL(WASM_GET_LOCAL(0)), kExprDrop}, kAppendEnd,
+        "invalid agrument type to ref.as_non_null: Expected reference type, "
+        "got");
+  }
+}
+
+TEST_F(FunctionBodyDecoderTest, RefNull) {
+  WASM_FEATURE_SCOPE(reftypes);
+  WASM_FEATURE_SCOPE(eh);
+  WASM_FEATURE_SCOPE(typed_funcref);
+  WASM_FEATURE_SCOPE(gc);
+
+  TestModuleBuilder builder;
+  module = builder.module();
+  byte struct_type_index = builder.AddStruct({F(kWasmI32, true)});
+  byte array_type_index = builder.AddArray(kWasmI32, true);
+  byte func_index = builder.AddSignature(sigs.i_i());
+  uint32_t type_reprs[] = {
+      struct_type_index, array_type_index,  HeapType::kExn, HeapType::kFunc,
+      HeapType::kEq,     HeapType::kExtern, HeapType::kI31};
+  // It works with heap types.
+  for (uint32_t type_repr : type_reprs) {
+    const ValueType type = ValueType::Ref(type_repr, kNullable);
+    const FunctionSig sig(1, 0, &type);
+    ExpectValidates(&sig, {WASM_REF_NULL(WASM_HEAP_TYPE(HeapType(type_repr)))});
+  }
+  // It fails for undeclared types.
+  ExpectFailure(
+      sigs.v_v(), {WASM_REF_NULL(42), kExprDrop}, kAppendEnd,
+      "Type index 42 does not refer to a struct or array type definition");
+  // It fails for user-defined function types.
+  // TODO(7748): This will go once function types are fully implemented.
+  ExpectFailure(
+      sigs.v_v(), {WASM_REF_NULL(func_index), kExprDrop}, kAppendEnd,
+      "Type index 2 does not refer to a struct or array type definition");
+}
+
+TEST_F(FunctionBodyDecoderTest, RefIsNull) {
+  WASM_FEATURE_SCOPE(reftypes);
+  WASM_FEATURE_SCOPE(eh);
+  WASM_FEATURE_SCOPE(typed_funcref);
+  WASM_FEATURE_SCOPE(gc);
+
+  ExpectValidates(sigs.i_i(),
+                  {WASM_REF_IS_NULL(WASM_REF_NULL(kLocalExternRef))});
+  ExpectFailure(
+      sigs.i_i(), {WASM_REF_IS_NULL(WASM_GET_LOCAL(0))}, kAppendEnd,
+      "invalid argument type to ref.is_null. Expected reference type, got i32");
+
+  TestModuleBuilder builder;
+  module = builder.module();
+  byte struct_type_index = builder.AddStruct({F(kWasmI32, true)});
+  byte array_type_index = builder.AddArray(kWasmI32, true);
+  uint32_t heap_types[] = {
+      struct_type_index, array_type_index,  HeapType::kExn, HeapType::kFunc,
+      HeapType::kEq,     HeapType::kExtern, HeapType::kI31};
+
+  for (uint32_t heap_type : heap_types) {
+    const ValueType types[] = {kWasmI32, ValueType::Ref(heap_type, kNullable)};
+    const FunctionSig sig(1, 1, types);
+    // It works for nullable references.
+    ExpectValidates(&sig, {WASM_REF_IS_NULL(WASM_GET_LOCAL(0))});
+    // It works for non-nullable references.
+    ExpectValidates(
+        &sig, {WASM_REF_IS_NULL(WASM_REF_AS_NON_NULL(WASM_GET_LOCAL(0)))});
+  }
+
+  // It fails if the argument type is not a reference type.
+  ExpectFailure(
+      sigs.v_v(), {WASM_REF_IS_NULL(WASM_I32V(0)), kExprDrop}, kAppendEnd,
+      "invalid argument type to ref.is_null. Expected reference type, got ");
 }
 
 class BranchTableIteratorTest : public TestWithZone {
