@@ -39,7 +39,7 @@ vars = {
   'mac_xcode_version': 'default',
 
   # GN CIPD package version.
-  'gn_version': 'git_revision:cd3869be2477f7ee1aa3f27f43ee934e74722dfb',
+  'gn_version': 'git_revision:b6203d186bff6b39ac25af6c1e80e1d3f96c949a',
 
   # luci-go CIPD package version.
   'luci_go': 'git_revision:56ae79476e3caf14da59d75118408aa778637936',
@@ -80,7 +80,7 @@ vars = {
 
 deps = {
   'v8/build':
-    Var('chromium_url') + '/chromium/src/build.git' + '@' + 'a0f6c1bdcf3527c74b42006c2834a43a62aaa018',
+    Var('chromium_url') + '/chromium/src/build.git' + '@' + 'd602f57725bc5e7394b8a012757a082f081321be',
   'v8/third_party/depot_tools':
     Var('chromium_url') + '/chromium/tools/depot_tools.git' + '@' + '95099f475463caa66801dd1b22ee851fe8bc05be',
   'v8/third_party/icu':
@@ -88,7 +88,7 @@ deps = {
   'v8/third_party/instrumented_libraries':
     Var('chromium_url') + '/chromium/src/third_party/instrumented_libraries.git' + '@' + 'bb3f1802c237dd19105dd0f7919f99e536a39d10',
   'v8/buildtools':
-    Var('chromium_url') + '/chromium/src/buildtools.git' + '@' + '6b2a302b65baf729e0dc026bf2f0bfdb593a2366',
+    Var('chromium_url') + '/chromium/src/buildtools.git' + '@' + '6b951673d17662ea2510995700922657d30f3542',
   'v8/buildtools/clang_format/script':
     Var('chromium_url') + '/chromium/llvm-project/cfe/tools/clang-format.git' + '@' + '96636aa0e9f047f17447f2d45a094d0b59ed7917',
   'v8/buildtools/linux64': {
@@ -176,7 +176,7 @@ deps = {
       'dep_type': 'cipd',
   },
   'v8/third_party/catapult': {
-    'url': Var('chromium_url') + '/catapult.git' + '@' + '447d8353e0c09db7dce132ceb3521bc51c4fc1c9',
+    'url': Var('chromium_url') + '/catapult.git' + '@' + '5f3007bf80a7c889413ce90203810968e81241c4',
     'condition': 'checkout_android',
   },
   'v8/third_party/colorama/src': {
@@ -231,7 +231,7 @@ deps = {
       'packages': [
           {
               'package': 'fuchsia/third_party/aemu/linux-amd64',
-              'version': 'sKz_Oq5M4tmZVE7eggzuhtTiKK3JNyylo9pt0tGLCg4C'
+              'version': 'LQ_bftKUbwaforl6s7QhdVirfTBttP4-yogIN0A6CcoC'
           },
       ],
       'condition': 'host_os == "linux" and checkout_fuchsia',
