@@ -3394,6 +3394,70 @@ ValueType optref(byte type_index) {
   return ValueType::Ref(type_index, kNullable);
 }
 
+TEST_F(FunctionBodyDecoderTest, DefaultableLocal) {
+  WASM_FEATURE_SCOPE(typed_funcref);
+  WASM_FEATURE_SCOPE(reftypes);
+  AddLocals(kWasmExternRef, 1);
+  ExpectValidates(sigs.v_v(), {});
+}
+
+TEST_F(FunctionBodyDecoderTest, NonDefaultableLocal) {
+  WASM_FEATURE_SCOPE(typed_funcref);
+  WASM_FEATURE_SCOPE(reftypes);
+  AddLocals(ValueType::Ref(HeapType::kExtern, kNonNullable), 1);
+  ExpectFailure(sigs.v_v(), {});
+}
+
+TEST_F(FunctionBodyDecoderTest, RefEq) {
+  WASM_FEATURE_SCOPE(reftypes);
+  WASM_FEATURE_SCOPE(eh);
+  WASM_FEATURE_SCOPE(typed_funcref);
+  WASM_FEATURE_SCOPE(simd);
+  WASM_FEATURE_SCOPE(gc);
+
+  TestModuleBuilder builder;
+  module = builder.module();
+  byte struct_type_index = builder.AddStruct({F(kWasmI32, true)});
+  ValueType eqref_subtypes[] = {kWasmExnRef,
+                                kWasmExternRef,
+                                kWasmEqRef,
+                                kWasmI31Ref,
+                                ValueType::Ref(HeapType::kExn, kNonNullable),
+                                ValueType::Ref(HeapType::kExtern, kNonNullable),
+                                ValueType::Ref(HeapType::kEq, kNonNullable),
+                                ValueType::Ref(HeapType::kI31, kNullable),
+                                ref(struct_type_index),
+                                optref(struct_type_index)};
+  ValueType non_eqref_subtypes[] = {
+      kWasmI32,
+      kWasmI64,
+      kWasmF32,
+      kWasmF64,
+      kWasmS128,
+      kWasmFuncRef,
+      ValueType::Ref(HeapType::kFunc, kNonNullable)};
+
+  for (ValueType type1 : eqref_subtypes) {
+    for (ValueType type2 : eqref_subtypes) {
+      ValueType reps[] = {kWasmI32, type1, type2};
+      FunctionSig sig(1, 2, reps);
+      ExpectValidates(&sig,
+                      {WASM_REF_EQ(WASM_GET_LOCAL(0), WASM_GET_LOCAL(1))});
+    }
+  }
+
+  for (ValueType type1 : eqref_subtypes) {
+    for (ValueType type2 : non_eqref_subtypes) {
+      ValueType reps[] = {kWasmI32, type1, type2};
+      FunctionSig sig(1, 2, reps);
+      ExpectFailure(&sig, {WASM_REF_EQ(WASM_GET_LOCAL(0), WASM_GET_LOCAL(1))},
+                    kAppendEnd, "expected type eqref, found local.get of type");
+      ExpectFailure(&sig, {WASM_REF_EQ(WASM_GET_LOCAL(1), WASM_GET_LOCAL(0))},
+                    kAppendEnd, "expected type eqref, found local.get of type");
+    }
+  }
+}
+
 TEST_F(FunctionBodyDecoderTest, RefAsNonNull) {
   WASM_FEATURE_SCOPE(reftypes);
   WASM_FEATURE_SCOPE(eh);
@@ -3503,6 +3567,28 @@ TEST_F(FunctionBodyDecoderTest, RefIsNull) {
   ExpectFailure(
       sigs.v_v(), {WASM_REF_IS_NULL(WASM_I32V(0)), kExprDrop}, kAppendEnd,
       "invalid argument type to ref.is_null. Expected reference type, got ");
+}
+
+TEST_F(FunctionBodyDecoderTest, BrOnNull) {
+  WASM_FEATURE_SCOPE(reftypes);
+  WASM_FEATURE_SCOPE(typed_funcref);
+  WASM_FEATURE_SCOPE(gc);
+
+  const ValueType reps[] = {ValueType::Ref(HeapType::kFunc, kNonNullable),
+                            ValueType::Ref(HeapType::kFunc, kNullable)};
+  const FunctionSig sig(1, 1, reps);
+  ExpectValidates(
+      &sig, {WASM_BLOCK_R(reps[0], WASM_REF_AS_NON_NULL(WASM_GET_LOCAL(0)),
+                          WASM_BR_ON_NULL(0, WASM_GET_LOCAL(0)), WASM_I32V(0),
+                          kExprSelectWithType, 1, WASM_REF_TYPE(reps[0]))});
+
+  // Should have block return value on stack before calling br_on_null.
+  ExpectFailure(&sig,
+                {WASM_BLOCK_R(reps[0], WASM_BR_ON_NULL(0, WASM_GET_LOCAL(0)),
+                              WASM_I32V(0), kExprSelectWithType, 1,
+                              WASM_REF_TYPE(reps[0]))},
+                kAppendEnd,
+                "expected 1 elements on the stack for br to @1, found 0");
 }
 
 class BranchTableIteratorTest : public TestWithZone {
