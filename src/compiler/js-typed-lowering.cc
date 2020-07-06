@@ -1526,20 +1526,23 @@ void ReduceBuiltin(JSGraph* jsgraph, Node* node, int builtin_index, int arity,
   // The logic contained here is mirrored in Builtins::Generate_Adaptor.
   // Keep these in sync.
 
-  STATIC_ASSERT(JSCallNode::TargetIndex() == JSConstructNode::TargetIndex());
-  Node* target = node->InputAt(JSCallNode::TargetIndex());
+  Node* target = node->InputAt(JSCallOrConstructNode::TargetIndex());
 
+  // Unify representations between construct and call nodes. For construct
+  // nodes, the receiver is undefined. For call nodes, the new_target is
+  // undefined.
   Node* new_target;
   Zone* zone = jsgraph->zone();
   if (node->opcode() == IrOpcode::kJSConstruct) {
-    // Unify representations between construct and call nodes.
-    // Remove new target and add receiver.
-    STATIC_ASSERT(JSConstructNode::kNewTargetIsLastInput);
-    new_target = node->RemoveInput(JSConstructNode{node}.NewTargetIndex());
-    node->InsertInput(zone, JSCallNode::ReceiverIndex(),
-                      jsgraph->UndefinedConstant());
+    STATIC_ASSERT(JSCallNode::ReceiverIndex() ==
+                  JSConstructNode::NewTargetIndex());
+    new_target = JSConstructNode{node}.new_target();
+    node->ReplaceInput(JSConstructNode::NewTargetIndex(),
+                       jsgraph->UndefinedConstant());
+    node->RemoveInput(JSConstructNode{node}.FeedbackVectorIndex());
   } else {
     new_target = jsgraph->UndefinedConstant();
+    node->RemoveInput(JSCallNode{node}.FeedbackVectorIndex());
   }
 
   // CPP builtins are implemented in C++, and we can inline it.
@@ -1603,7 +1606,6 @@ Reduction JSTypedLowering::ReduceJSConstructForwardVarargs(Node* node) {
   int const start_index = static_cast<int>(p.start_index());
   Node* target = NodeProperties::GetValueInput(node, 0);
   Type target_type = NodeProperties::GetType(target);
-  Node* new_target = NodeProperties::GetValueInput(node, arity + 1);
 
   // Check if {target} is a JSFunction.
   if (target_type.IsHeapConstant() &&
@@ -1613,10 +1615,8 @@ Reduction JSTypedLowering::ReduceJSConstructForwardVarargs(Node* node) {
     if (!function.map().is_constructor()) return NoChange();
     // Patch {node} to an indirect call via ConstructFunctionForwardVarargs.
     Callable callable = CodeFactory::ConstructFunctionForwardVarargs(isolate());
-    node->RemoveInput(arity + 1);
     node->InsertInput(graph()->zone(), 0,
                       jsgraph()->HeapConstant(callable.code()));
-    node->InsertInput(graph()->zone(), 2, new_target);
     node->InsertInput(graph()->zone(), 3, jsgraph()->Constant(arity));
     node->InsertInput(graph()->zone(), 4, jsgraph()->Constant(start_index));
     node->InsertInput(graph()->zone(), 5, jsgraph()->UndefinedConstant());
@@ -1636,7 +1636,6 @@ Reduction JSTypedLowering::ReduceJSConstruct(Node* node) {
   int const arity = p.arity_without_implicit_args();
   Node* target = n.target();
   Type target_type = NodeProperties::GetType(target);
-  Node* new_target = n.new_target();
 
   // Check if {target} is a known JSFunction.
   if (target_type.IsHeapConstant() &&
@@ -1657,10 +1656,10 @@ Reduction JSTypedLowering::ReduceJSConstruct(Node* node) {
                  use_builtin_construct_stub
                      ? BUILTIN_CODE(isolate(), JSBuiltinsConstructStub)
                      : BUILTIN_CODE(isolate(), JSConstructStubGeneric));
-    STATIC_ASSERT(JSConstructNode::kNewTargetIsLastInput);
-    node->RemoveInput(n.NewTargetIndex());
+    STATIC_ASSERT(JSConstructNode::TargetIndex() == 0);
+    STATIC_ASSERT(JSConstructNode::NewTargetIndex() == 1);
+    node->RemoveInput(n.FeedbackVectorIndex());
     node->InsertInput(graph()->zone(), 0, jsgraph()->Constant(code));
-    node->InsertInput(graph()->zone(), 2, new_target);
     node->InsertInput(graph()->zone(), 3, jsgraph()->Constant(arity));
     node->InsertInput(graph()->zone(), 4, jsgraph()->UndefinedConstant());
     node->InsertInput(graph()->zone(), 5, jsgraph()->UndefinedConstant());
@@ -1780,10 +1779,9 @@ Reduction JSTypedLowering::ReduceJSCall(Node* node) {
     CallDescriptor::Flags flags = CallDescriptor::kNeedsFrameState;
     Node* new_target = jsgraph()->UndefinedConstant();
 
-    // The node will change operators, remove the feedback vector.
-    node->RemoveInput(n.FeedbackVectorIndex());
-
     if (NeedsArgumentAdaptorFrame(*shared, arity)) {
+      node->RemoveInput(n.FeedbackVectorIndex());
+
       // Check if it's safe to skip the arguments adaptor for {shared},
       // that is whether the target function anyways cannot observe the
       // actual arguments. Details can be found in this document at
@@ -1843,12 +1841,14 @@ Reduction JSTypedLowering::ReduceJSCall(Node* node) {
       auto call_descriptor = Linkage::GetStubCallDescriptor(
           graph()->zone(), descriptor, 1 + arity, flags);
       Node* stub_code = jsgraph()->HeapConstant(callable.code());
+      node->RemoveInput(n.FeedbackVectorIndex());
       node->InsertInput(graph()->zone(), 0, stub_code);  // Code object.
       node->InsertInput(graph()->zone(), 2, new_target);
       node->InsertInput(graph()->zone(), 3, jsgraph()->Constant(arity));
       NodeProperties::ChangeOp(node, common()->Call(call_descriptor));
     } else {
       // Patch {node} to a direct call.
+      node->RemoveInput(n.FeedbackVectorIndex());
       node->InsertInput(graph()->zone(), arity + 2, new_target);
       node->InsertInput(graph()->zone(), arity + 3, jsgraph()->Constant(arity));
       NodeProperties::ChangeOp(node,

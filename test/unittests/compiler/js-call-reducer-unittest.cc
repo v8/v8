@@ -134,10 +134,11 @@ TEST_F(JSCallReducerTest, PromiseConstructorNoArgs) {
   Node* control = graph()->start();
   Node* context = UndefinedConstant();
   Node* frame_state = graph()->start();
+  Node* feedback = UndefinedConstant();
 
-  Node* construct =
-      graph()->NewNode(javascript()->Construct(2), promise, promise, context,
-                       frame_state, effect, control);
+  Node* construct = graph()->NewNode(
+      javascript()->Construct(JSConstructNode::ArityForArgc(0)), promise,
+      promise, feedback, context, frame_state, effect, control);
 
   Reduction r = Reduce(construct);
 
@@ -153,11 +154,12 @@ TEST_F(JSCallReducerTest, PromiseConstructorSubclass) {
   Node* control = graph()->start();
   Node* context = UndefinedConstant();
   Node* frame_state = graph()->start();
+  Node* feedback = UndefinedConstant();
 
   Node* executor = UndefinedConstant();
-  Node* construct =
-      graph()->NewNode(javascript()->Construct(3), promise, executor,
-                       new_target, context, frame_state, effect, control);
+  Node* construct = graph()->NewNode(
+      javascript()->Construct(JSConstructNode::ArityForArgc(1)), promise,
+      new_target, executor, feedback, context, frame_state, effect, control);
 
   Reduction r = Reduce(construct);
 
@@ -171,11 +173,12 @@ TEST_F(JSCallReducerTest, PromiseConstructorBasic) {
   Node* control = graph()->start();
   Node* context = UndefinedConstant();
   Node* frame_state = graph()->start();
+  Node* feedback = UndefinedConstant();
 
   Node* executor = UndefinedConstant();
-  Node* construct =
-      graph()->NewNode(javascript()->Construct(3), promise, executor, promise,
-                       context, frame_state, effect, control);
+  Node* construct = graph()->NewNode(
+      javascript()->Construct(JSConstructNode::ArityForArgc(1)), promise,
+      promise, executor, feedback, context, frame_state, effect, control);
 
   Reduction r = Reduce(construct);
   ASSERT_TRUE(r.Changed());
@@ -190,11 +193,12 @@ TEST_F(JSCallReducerTest, PromiseConstructorWithHook) {
   Node* control = graph()->start();
   Node* context = UndefinedConstant();
   Node* frame_state = graph()->start();
+  Node* feedback = UndefinedConstant();
 
   Node* executor = UndefinedConstant();
-  Node* construct =
-      graph()->NewNode(javascript()->Construct(3), promise, executor, promise,
-                       context, frame_state, effect, control);
+  Node* construct = graph()->NewNode(
+      javascript()->Construct(JSConstructNode::ArityForArgc(1)), promise,
+      promise, executor, feedback, context, frame_state, effect, control);
 
   Protectors::InvalidatePromiseHook(isolate());
 

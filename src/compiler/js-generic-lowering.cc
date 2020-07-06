@@ -737,6 +737,7 @@ bool CollectCallAndConstructFeedback(JSHeapBroker* broker) {
 
 }  // namespace
 
+// TODO(jgruber,v8:8888): Should this collect feedback?
 void JSGenericLowering::LowerJSConstructForwardVarargs(Node* node) {
   ConstructForwardVarargsParameters p =
       ConstructForwardVarargsParametersOf(node->op());
@@ -748,11 +749,8 @@ void JSGenericLowering::LowerJSConstructForwardVarargs(Node* node) {
   Node* stub_code = jsgraph()->HeapConstant(callable.code());
   Node* stub_arity = jsgraph()->Int32Constant(arg_count);
   Node* start_index = jsgraph()->Uint32Constant(p.start_index());
-  Node* new_target = node->InputAt(arg_count + 1);
   Node* receiver = jsgraph()->UndefinedConstant();
-  node->RemoveInput(arg_count + 1);  // Drop new target.
   node->InsertInput(zone(), 0, stub_code);
-  node->InsertInput(zone(), 2, new_target);
   node->InsertInput(zone(), 3, stub_arity);
   node->InsertInput(zone(), 4, start_index);
   node->InsertInput(zone(), 5, receiver);
@@ -776,22 +774,16 @@ void JSGenericLowering::LowerJSConstruct(Node* node) {
         Builtins::CallableFor(isolate(), Builtins::kConstruct_WithFeedback);
     auto call_descriptor = Linkage::GetStubCallDescriptor(
         zone(), callable.descriptor(), stack_argument_count, flags);
-    STATIC_ASSERT(JSConstructNode::kNewTargetIsLastInput);
-    Node* feedback_vector = jsgraph()->HeapConstant(p.feedback().vector);
     Node* stub_code = jsgraph()->HeapConstant(callable.code());
-    Node* new_target = n.new_target();
     Node* stub_arity = jsgraph()->Int32Constant(arg_count);
     Node* slot = jsgraph()->Int32Constant(p.feedback().index());
     Node* receiver = jsgraph()->UndefinedConstant();
-    node->RemoveInput(n.NewTargetIndex());
     // Register argument inputs are followed by stack argument inputs (such as
     // feedback_vector). Both are listed in ascending order. Note that
     // the receiver is implicitly placed on the stack and is thus inserted
     // between explicitly-specified register and stack arguments.
     // TODO(jgruber): Implement a simpler way to specify these mutations.
-    node->InsertInput(zone(), arg_count + 1, feedback_vector);
     node->InsertInput(zone(), 0, stub_code);
-    node->InsertInput(zone(), 2, new_target);
     node->InsertInput(zone(), 3, stub_arity);
     node->InsertInput(zone(), 4, slot);
     node->InsertInput(zone(), 5, receiver);
@@ -807,11 +799,9 @@ void JSGenericLowering::LowerJSConstruct(Node* node) {
         zone(), callable.descriptor(), stack_argument_count, flags);
     Node* stub_code = jsgraph()->HeapConstant(callable.code());
     Node* stub_arity = jsgraph()->Int32Constant(arg_count);
-    Node* new_target = n.new_target();
     Node* receiver = jsgraph()->UndefinedConstant();
-    node->RemoveInput(n.NewTargetIndex());
+    node->RemoveInput(n.FeedbackVectorIndex());
     node->InsertInput(zone(), 0, stub_code);
-    node->InsertInput(zone(), 2, new_target);
     node->InsertInput(zone(), 3, stub_arity);
     node->InsertInput(zone(), 4, receiver);
 
@@ -842,23 +832,16 @@ void JSGenericLowering::LowerJSConstructWithArrayLike(Node* node) {
         zone(), callable.descriptor(), stack_argument_count, flags);
     Node* stub_code = jsgraph()->HeapConstant(callable.code());
     Node* receiver = jsgraph()->UndefinedConstant();
-    Node* arguments_list = n.Argument(0);
-    Node* new_target = n.new_target();
-    STATIC_ASSERT(JSConstructNode::kNewTargetIsLastInput);
-    Node* feedback_vector = jsgraph()->HeapConstant(p.feedback().vector);
     Node* slot = jsgraph()->Int32Constant(p.feedback().index());
 
-    node->InsertInput(zone(), 0, stub_code);
-    node->ReplaceInput(2, new_target);
-    node->ReplaceInput(3, arguments_list);
     // Register argument inputs are followed by stack argument inputs (such as
     // feedback_vector). Both are listed in ascending order. Note that
     // the receiver is implicitly placed on the stack and is thus inserted
     // between explicitly-specified register and stack arguments.
     // TODO(jgruber): Implement a simpler way to specify these mutations.
+    node->InsertInput(zone(), 0, stub_code);
     node->InsertInput(zone(), 4, slot);
     node->InsertInput(zone(), 5, receiver);
-    node->InsertInput(zone(), 6, feedback_vector);
 
     // After: {code, target, new_target, arguments_list, slot, receiver,
     // vector}.
@@ -872,11 +855,8 @@ void JSGenericLowering::LowerJSConstructWithArrayLike(Node* node) {
         zone(), callable.descriptor(), stack_argument_count, flags);
     Node* stub_code = jsgraph()->HeapConstant(callable.code());
     Node* receiver = jsgraph()->UndefinedConstant();
-    Node* arguments_list = n.Argument(0);
-    Node* new_target = n.new_target();
+    node->RemoveInput(n.FeedbackVectorIndex());
     node->InsertInput(zone(), 0, stub_code);
-    node->ReplaceInput(2, new_target);
-    node->ReplaceInput(3, arguments_list);
     node->InsertInput(zone(), 4, receiver);
 
     // After: {code, target, new_target, arguments_list, receiver}.
@@ -905,14 +885,11 @@ void JSGenericLowering::LowerJSConstructWithSpread(Node* node) {
     auto call_descriptor = Linkage::GetStubCallDescriptor(
         zone(), callable.descriptor(), stack_argument_count, flags);
     Node* stub_code = jsgraph()->HeapConstant(callable.code());
-    STATIC_ASSERT(JSConstructNode::kNewTargetIsLastInput);
-    Node* feedback_vector = jsgraph()->HeapConstant(p.feedback().vector);
     Node* slot = jsgraph()->Int32Constant(p.feedback().index());
 
     // The single available register is needed for `slot`, thus `spread` remains
     // on the stack here.
     Node* stub_arity = jsgraph()->Int32Constant(arg_count - kTheSpread);
-    Node* new_target = node->RemoveInput(n.NewTargetIndex());
     Node* receiver = jsgraph()->UndefinedConstant();
 
     // Register argument inputs are followed by stack argument inputs (such as
@@ -920,9 +897,7 @@ void JSGenericLowering::LowerJSConstructWithSpread(Node* node) {
     // the receiver is implicitly placed on the stack and is thus inserted
     // between explicitly-specified register and stack arguments.
     // TODO(jgruber): Implement a simpler way to specify these mutations.
-    node->InsertInput(zone(), arg_count + 1, feedback_vector);
     node->InsertInput(zone(), 0, stub_code);
-    node->InsertInput(zone(), 2, new_target);
     node->InsertInput(zone(), 3, stub_arity);
     node->InsertInput(zone(), 4, slot);
     node->InsertInput(zone(), 5, receiver);
@@ -941,13 +916,11 @@ void JSGenericLowering::LowerJSConstructWithSpread(Node* node) {
     // We pass the spread in a register, not on the stack.
     Node* stub_arity = jsgraph()->Int32Constant(arg_count - kTheSpread);
     Node* receiver = jsgraph()->UndefinedConstant();
-    STATIC_ASSERT(JSConstructNode::kNewTargetIsLastInput);
-    DCHECK(n.NewTargetIndex() > n.LastArgumentIndex());
-    Node* new_target = node->RemoveInput(n.NewTargetIndex());
+    DCHECK(n.FeedbackVectorIndex() > n.LastArgumentIndex());
+    node->RemoveInput(n.FeedbackVectorIndex());
     Node* spread = node->RemoveInput(n.LastArgumentIndex());
 
     node->InsertInput(zone(), 0, stub_code);
-    node->InsertInput(zone(), 2, new_target);
     node->InsertInput(zone(), 3, stub_arity);
     node->InsertInput(zone(), 4, spread);
     node->InsertInput(zone(), 5, receiver);

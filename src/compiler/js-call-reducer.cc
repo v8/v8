@@ -839,32 +839,32 @@ class PromiseBuiltinReducerAssembler : public JSCallReducerAssembler {
 
   void CallPromiseExecutor(TNode<Object> executor, TNode<JSFunction> resolve,
                            TNode<JSFunction> reject, FrameState frame_state) {
-    const ConstructParameters& p = ConstructParametersOf(node_ptr()->op());
+    JSConstructNode n(node_ptr());
+    const ConstructParameters& p = n.Parameters();
     FeedbackSource no_feedback_source{};
-    STATIC_ASSERT(JSConstructNode::kNewTargetIsLastInput);
-    Node* feedback = UndefinedConstant();
+    Node* no_feedback = UndefinedConstant();
     MayThrow(_ {
       return AddNode<Object>(graph()->NewNode(
           javascript()->Call(JSCallNode::ArityForArgc(2), p.frequency(),
                              no_feedback_source,
                              ConvertReceiverMode::kNullOrUndefined),
-          executor, UndefinedConstant(), resolve, reject, feedback,
-          ContextInput(), frame_state, effect(), control()));
+          executor, UndefinedConstant(), resolve, reject, no_feedback,
+          n.context(), frame_state, effect(), control()));
     });
   }
 
   void CallPromiseReject(TNode<JSFunction> reject, TNode<Object> exception,
                          FrameState frame_state) {
-    const ConstructParameters& p = ConstructParametersOf(node_ptr()->op());
+    JSConstructNode n(node_ptr());
+    const ConstructParameters& p = n.Parameters();
     FeedbackSource no_feedback_source{};
-    STATIC_ASSERT(JSConstructNode::kNewTargetIsLastInput);
-    Node* feedback = UndefinedConstant();
+    Node* no_feedback = UndefinedConstant();
     MayThrow(_ {
       return AddNode<Object>(graph()->NewNode(
           javascript()->Call(JSCallNode::ArityForArgc(1), p.frequency(),
                              no_feedback_source,
                              ConvertReceiverMode::kNullOrUndefined),
-          reject, UndefinedConstant(), exception, feedback, ContextInput(),
+          reject, UndefinedConstant(), exception, no_feedback, n.context(),
           frame_state, effect(), control()));
     });
   }
@@ -2084,11 +2084,11 @@ TNode<Object> PromiseBuiltinReducerAssembler::ReducePromiseConstructor(
     const NativeContextRef& native_context) {
   DCHECK_GE(ConstructArity(), 1);
 
+  JSConstructNode n(node_ptr());
   FrameState outer_frame_state = FrameStateInput();
   TNode<Context> context = ContextInput();
   TNode<Object> target = TargetInput();
-  TNode<Object> executor = TNode<Object>::UncheckedCast(
-      NodeProperties::GetValueInput(node_ptr(), 1));
+  TNode<Object> executor = n.Argument(0);
   DCHECK_EQ(target, NewTargetInput());
 
   SharedFunctionInfoRef promise_shared =
@@ -2938,22 +2938,31 @@ Reduction JSCallReducer::ReduceReflectConstruct(Node* node) {
   CallParameters const& p = n.Parameters();
   int arity = p.arity_without_implicit_args();
   // Massage value inputs appropriately.
-  STATIC_ASSERT(JSConstructNode::kNewTargetIsLastInput);
-  node->RemoveInput(n.FeedbackVectorIndex());
+  Node* arg_target = n.ArgumentOrUndefined(0, jsgraph());
+  Node* arg_argument_list = n.ArgumentOrUndefined(1, jsgraph());
+  Node* arg_new_target = n.ArgumentOr(2, arg_target);
+
   STATIC_ASSERT(n.ReceiverIndex() > n.TargetIndex());
   node->RemoveInput(n.ReceiverIndex());
   node->RemoveInput(n.TargetIndex());
-  while (arity < 2) {
+
+  // TODO(jgruber): This pattern essentially ensures that we have the correct
+  // number of inputs for a given argument count. Wrap it in a helper function.
+  STATIC_ASSERT(JSConstructNode::FirstArgumentIndex() == 2);
+  while (arity < 3) {
     node->InsertInput(graph()->zone(), arity++, jsgraph()->UndefinedConstant());
-  }
-  if (arity < 3) {
-    node->InsertInput(
-        graph()->zone(), arity++,
-        node->InputAt(JSConstructWithArrayLikeNode::TargetIndex()));
   }
   while (arity-- > 3) {
     node->RemoveInput(arity);
   }
+
+  STATIC_ASSERT(JSConstructNode::TargetIndex() == 0);
+  STATIC_ASSERT(JSConstructNode::NewTargetIndex() == 1);
+  STATIC_ASSERT(JSConstructNode::kFeedbackVectorIsLastInput);
+  node->ReplaceInput(JSConstructNode::TargetIndex(), arg_target);
+  node->ReplaceInput(JSConstructNode::NewTargetIndex(), arg_new_target);
+  node->ReplaceInput(JSConstructNode::ArgumentIndex(0), arg_argument_list);
+
   NodeProperties::ChangeOp(
       node, javascript()->ConstructWithArrayLike(p.frequency(), p.feedback()));
   return Changed(node).FollowedBy(ReduceJSConstructWithArrayLike(node));
@@ -3760,36 +3769,25 @@ Reduction JSCallReducer::ReduceCallOrConstructWithArrayLikeOrSpread(
 
   // Remove the {arguments_list} input from the {node}.
   node->RemoveInput(arraylike_or_spread_index);
-  // {arity} is now
-  // - call nodes:      argc_without_arraylike + 1;
-  //                or: last_argument_index
-  // - construct nodes: argc_without_arraylike.
-  //                or: last_argument_index
-  // TODO(jgruber): Clarify {arity} arithmetic once node wrappers are complete.
-  STATIC_ASSERT(JSConstructNode::kNewTargetIsLastInput);
-  int arity = arraylike_or_spread_index - 1;
+
+  // After removing the arraylike or spread object, the argument count is:
+  int argc =
+      arraylike_or_spread_index - JSCallOrConstructNode::FirstArgumentIndex();
   // Check if are spreading to inlined arguments or to the arguments of
   // the outermost function.
   Node* outer_state = frame_state->InputAt(kFrameStateOuterStateInput);
   if (outer_state->opcode() != IrOpcode::kFrameState) {
     Operator const* op;
     if (IsCallWithArrayLikeOrSpread(node)) {
-      op = javascript()->CallForwardVarargs(arity + 1, start_index);
-      // Remove the feedback vector input before changing the operator.
-      // TODO(jgruber): Update once CallForwardVarargs has a vector input.
-      STATIC_ASSERT(JSCallWithArrayLikeNode::FirstArgumentIndex() ==
-                    JSCallWithSpreadNode::FirstArgumentIndex());
-      // The argument count after removing the arraylike object.
-      const int argc = arraylike_or_spread_index -
-                       JSCallWithArrayLikeNode::FirstArgumentIndex();
-      DCHECK_EQ(JSCallWithArrayLikeNode::FeedbackVectorIndexForArgc(argc),
-                JSCallWithSpreadNode::FeedbackVectorIndexForArgc(argc));
-      node->RemoveInput(
-          JSCallWithArrayLikeNode::FeedbackVectorIndexForArgc(argc));
+      static constexpr int kTargetAndReceiver = 2;
+      op = javascript()->CallForwardVarargs(argc + kTargetAndReceiver,
+                                            start_index);
     } else {
-      // TODO(jgruber): Update once construct nodes have a vector input.
-      op = javascript()->ConstructForwardVarargs(arity + 2, start_index);
+      static constexpr int kTargetAndNewTarget = 2;
+      op = javascript()->ConstructForwardVarargs(argc + kTargetAndNewTarget,
+                                                 start_index);
     }
+    node->RemoveInput(JSCallOrConstructNode::FeedbackVectorIndexForArgc(argc));
     NodeProperties::ChangeOp(node, op);
     return Changed(node);
   }
@@ -3804,14 +3802,12 @@ Reduction JSCallReducer::ReduceCallOrConstructWithArrayLikeOrSpread(
   // Add the actual parameters to the {node}, skipping the receiver.
   Node* const parameters = frame_state->InputAt(kFrameStateParametersInput);
   for (int i = start_index + 1; i < parameters->InputCount(); ++i) {
-    node->InsertInput(graph()->zone(), static_cast<int>(++arity),
+    node->InsertInput(graph()->zone(),
+                      JSCallOrConstructNode::ArgumentIndex(argc++),
                       parameters->InputAt(i));
   }
 
   if (IsCallWithArrayLikeOrSpread(node)) {
-    // At this point, {arity} is the index of the last argument.
-    DCHECK_GE(arity + 1, JSCallNode::FirstArgumentIndex());
-    const int argc = arity + 1 - JSCallNode::FirstArgumentIndex();
     NodeProperties::ChangeOp(
         node,
         javascript()->Call(JSCallNode::ArityForArgc(argc), frequency, feedback,
@@ -3819,9 +3815,6 @@ Reduction JSCallReducer::ReduceCallOrConstructWithArrayLikeOrSpread(
                            CallFeedbackRelation::kUnrelated));
     return Changed(node).FollowedBy(ReduceJSCall(node));
   } else {
-    // At this point, {arity} is the index of the last argument.
-    DCHECK_GE(arity + 1, JSConstructNode::FirstArgumentIndex());
-    const int argc = arity + 1 - JSConstructNode::FirstArgumentIndex();
     NodeProperties::ChangeOp(
         node, javascript()->Construct(JSConstructNode::ArityForArgc(argc),
                                       frequency, feedback));
@@ -4521,9 +4514,9 @@ Reduction JSCallReducer::ReduceJSConstruct(Node* node) {
 
       // Turn the {node} into a {JSCreateArray} call.
       NodeProperties::ReplaceEffectInput(node, effect);
-      STATIC_ASSERT(JSConstructNode::kNewTargetIsLastInput);
-      node->RemoveInput(n.NewTargetIndex());
-      node->InsertInput(graph()->zone(), 1, array_function);
+      STATIC_ASSERT(JSConstructNode::NewTargetIndex() == 1);
+      node->ReplaceInput(n.NewTargetIndex(), array_function);
+      node->RemoveInput(n.FeedbackVectorIndex());
       NodeProperties::ChangeOp(
           node, javascript()->CreateArray(
                     arity, feedback_target->AsAllocationSite().object()));
@@ -4590,9 +4583,9 @@ Reduction JSCallReducer::ReduceJSConstruct(Node* node) {
         case Builtins::kArrayConstructor: {
           // TODO(bmeurer): Deal with Array subclasses here.
           // Turn the {node} into a {JSCreateArray} call.
-          STATIC_ASSERT(JSConstructNode::kNewTargetIsLastInput);
-          node->RemoveInput(n.NewTargetIndex());
-          node->InsertInput(graph()->zone(), 1, new_target);
+          STATIC_ASSERT(JSConstructNode::NewTargetIndex() == 1);
+          node->ReplaceInput(n.NewTargetIndex(), new_target);
+          node->RemoveInput(n.FeedbackVectorIndex());
           NodeProperties::ChangeOp(
               node, javascript()->CreateArray(arity, Handle<AllocationSite>()));
           return Changed(node);
@@ -4601,7 +4594,7 @@ Reduction JSCallReducer::ReduceJSConstruct(Node* node) {
           // If no value is passed, we can immediately lower to a simple
           // JSCreate and don't need to do any massaging of the {node}.
           if (arity == 0) {
-            STATIC_ASSERT(JSConstructNode::kNewTargetIsLastInput);
+            node->RemoveInput(n.FeedbackVectorIndex());
             NodeProperties::ChangeOp(node, javascript()->Create());
             return Changed(node);
           }
@@ -4613,8 +4606,10 @@ Reduction JSCallReducer::ReduceJSConstruct(Node* node) {
           if (mnew_target.HasValue() &&
               !mnew_target.Ref(broker()).equals(function)) {
             // Drop the value inputs.
-            STATIC_ASSERT(JSConstructNode::kNewTargetIsLastInput);
-            for (int i = arity; i > 0; --i) node->RemoveInput(i);
+            node->RemoveInput(n.FeedbackVectorIndex());
+            for (int i = n.ArgumentCount() - 1; i >= 0; i--) {
+              node->RemoveInput(n.ArgumentIndex(i));
+            }
             NodeProperties::ChangeOp(node, javascript()->Create());
             return Changed(node);
           }

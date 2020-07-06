@@ -2587,10 +2587,12 @@ Node* const* BytecodeGraphBuilder::GetConstructArgumentsFromRegister(
   int cursor = 0;
 
   STATIC_ASSERT(JSConstructNode::TargetIndex() == 0);
-  STATIC_ASSERT(JSConstructNode::FirstArgumentIndex() == 1);
-  STATIC_ASSERT(JSConstructNode::kNewTargetIsLastInput);
+  STATIC_ASSERT(JSConstructNode::NewTargetIndex() == 1);
+  STATIC_ASSERT(JSConstructNode::FirstArgumentIndex() == 2);
+  STATIC_ASSERT(JSConstructNode::kFeedbackVectorIsLastInput);
 
   all[cursor++] = target;
+  all[cursor++] = new_target;
 
   // The function arguments are in consecutive registers.
   int arg_base = first_arg.index();
@@ -2599,7 +2601,7 @@ Node* const* BytecodeGraphBuilder::GetConstructArgumentsFromRegister(
         environment()->LookupRegister(interpreter::Register(arg_base + i));
   }
 
-  all[cursor++] = new_target;
+  all[cursor++] = feedback_vector_node();
 
   DCHECK_EQ(cursor, arity);
   return all;

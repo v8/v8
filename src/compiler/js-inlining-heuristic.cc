@@ -629,6 +629,8 @@ void JSInliningHeuristic::CreateOrReuseDispatch(Node* node, Node* callee,
     return;
   }
 
+  STATIC_ASSERT(JSCallOrConstructNode::kHaveIdenticalLayouts);
+
   Node* fallthrough_control = NodeProperties::GetControlInput(node);
   int const num_calls = candidate.num_functions;
 
@@ -655,15 +657,13 @@ void JSInliningHeuristic::CreateOrReuseDispatch(Node* node, Node* callee,
     // to the same node as the {node}'s target input, so that we can later
     // properly inline the JSCreate operations.
     if (node->opcode() == IrOpcode::kJSConstruct) {
-      UNREACHABLE();  // https://crbug.com/v8/10675.
+      // TODO(jgruber, v8:10675): This branch seems unreachable.
+      JSConstructNode n(node);
+      if (inputs[n.TargetIndex()] == inputs[n.NewTargetIndex()]) {
+        inputs[n.NewTargetIndex()] = target;
+      }
     }
-    if (node->opcode() == IrOpcode::kJSConstruct && inputs[0] == inputs[1]) {
-      // TODO(jgruber): Is this correct? JSConstruct nodes have the new_target
-      // at the last index, not at index 1.
-      STATIC_ASSERT(JSConstructNode::kNewTargetIsLastInput);
-      inputs[1] = target;
-    }
-    inputs[0] = target;
+    inputs[JSCallOrConstructNode::TargetIndex()] = target;
     inputs[input_count - 1] = if_successes[i];
     calls[i] = if_successes[i] =
         graph()->NewNode(node->op(), input_count, inputs);

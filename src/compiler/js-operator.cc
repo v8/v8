@@ -864,8 +864,10 @@ const Operator* JSOperatorBuilder::Construct(uint32_t arity,
 
 const Operator* JSOperatorBuilder::ConstructWithArrayLike(
     CallFrequency const& frequency, FeedbackSource const& feedback) {
-  static constexpr uint32_t arity = 3;
-  ConstructParameters parameters(arity, frequency, feedback);
+  static constexpr int kTheArrayLikeObject = 1;
+  ConstructParameters parameters(
+      JSConstructWithArrayLikeNode::ArityForArgc(kTheArrayLikeObject),
+      frequency, feedback);
   return new (zone()) Operator1<ConstructParameters>(  // --
       IrOpcode::kJSConstructWithArrayLike,             // opcode
       Operator::kNoProperties,                         // properties
