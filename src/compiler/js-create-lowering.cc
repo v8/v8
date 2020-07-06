@@ -1119,8 +1119,8 @@ Reduction JSCreateLowering::ReduceJSCreateLiteralArrayOrObject(Node* node) {
 }
 
 Reduction JSCreateLowering::ReduceJSCreateEmptyLiteralArray(Node* node) {
-  DCHECK_EQ(IrOpcode::kJSCreateEmptyLiteralArray, node->opcode());
-  FeedbackParameter const& p = FeedbackParameterOf(node->op());
+  JSCreateEmptyLiteralArrayNode n(node);
+  FeedbackParameter const& p = n.Parameters();
   ProcessedFeedback const& feedback =
       broker()->GetFeedbackForArrayOrObjectLiteral(p.feedback());
   if (!feedback.IsInsufficient()) {

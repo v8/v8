@@ -97,29 +97,9 @@ class BytecodeGraphBuilder {
     return MakeNode(op, 0, static_cast<Node**>(nullptr), incomplete);
   }
 
-  Node* NewNode(const Operator* op, Node* n1) {
-    Node* buffer[] = {n1};
-    return MakeNode(op, arraysize(buffer), buffer);
-  }
-
-  Node* NewNode(const Operator* op, Node* n1, Node* n2) {
-    Node* buffer[] = {n1, n2};
-    return MakeNode(op, arraysize(buffer), buffer);
-  }
-
-  Node* NewNode(const Operator* op, Node* n1, Node* n2, Node* n3) {
-    Node* buffer[] = {n1, n2, n3};
-    return MakeNode(op, arraysize(buffer), buffer);
-  }
-
-  Node* NewNode(const Operator* op, Node* n1, Node* n2, Node* n3, Node* n4) {
-    Node* buffer[] = {n1, n2, n3, n4};
-    return MakeNode(op, arraysize(buffer), buffer);
-  }
-
-  Node* NewNode(const Operator* op, Node* n1, Node* n2, Node* n3, Node* n4,
-                Node* n5, Node* n6) {
-    Node* buffer[] = {n1, n2, n3, n4, n5, n6};
+  template <class... Args>
+  Node* NewNode(const Operator* op, Node* n0, Args... nodes) {
+    Node* buffer[] = {n0, nodes...};
     return MakeNode(op, arraysize(buffer), buffer);
   }
 
@@ -1474,7 +1454,7 @@ Node* BytecodeGraphBuilder::BuildLoadGlobal(NameRef name,
   DCHECK(IsLoadGlobalICKind(broker()->GetFeedbackSlotKind(feedback)));
   const Operator* op =
       javascript()->LoadGlobal(name.object(), feedback, typeof_mode);
-  return NewNode(op);
+  return NewNode(op, feedback_vector_node());
 }
 
 void BytecodeGraphBuilder::VisitLdaGlobal() {
@@ -1509,7 +1489,7 @@ void BytecodeGraphBuilder::VisitStaGlobal() {
       GetLanguageModeFromSlotKind(broker()->GetFeedbackSlotKind(feedback));
   const Operator* op =
       javascript()->StoreGlobal(language_mode, name.object(), feedback);
-  Node* node = NewNode(op, value);
+  Node* node = NewNode(op, value, feedback_vector_node());
   environment()->RecordAfterState(node, Environment::kAttachFrameState);
 }
 
@@ -1533,7 +1513,7 @@ void BytecodeGraphBuilder::VisitStaInArrayLiteral() {
     node = lowering.value();
   } else {
     DCHECK(!lowering.Changed());
-    node = NewNode(op, array, index, value);
+    node = NewNode(op, array, index, value, feedback_vector_node());
   }
 
   environment()->RecordAfterState(node, Environment::kAttachFrameState);
@@ -1561,7 +1541,8 @@ void BytecodeGraphBuilder::VisitStaDataPropertyInLiteral() {
     node = lowering.value();
   } else {
     DCHECK(!lowering.Changed());
-    node = NewNode(op, object, name, value, jsgraph()->Constant(flags));
+    node = NewNode(op, object, name, value, jsgraph()->Constant(flags),
+                   feedback_vector_node());
   }
 
   environment()->RecordAfterState(node, Environment::kAttachFrameState);
@@ -1914,7 +1895,7 @@ void BytecodeGraphBuilder::VisitLdaNamedProperty() {
     node = lowering.value();
   } else {
     DCHECK(!lowering.Changed());
-    node = NewNode(op, object);
+    node = NewNode(op, object, feedback_vector_node());
   }
   environment()->BindAccumulator(node, Environment::kAttachFrameState);
 }
@@ -1926,7 +1907,7 @@ void BytecodeGraphBuilder::VisitLdaNamedPropertyNoFeedback() {
   NameRef name(broker(),
                bytecode_iterator().GetConstantForIndexOperand(1, isolate()));
   const Operator* op = javascript()->LoadNamed(name.object(), FeedbackSource());
-  Node* node = NewNode(op, object);
+  Node* node = NewNode(op, object, feedback_vector_node());
   environment()->BindAccumulator(node, Environment::kAttachFrameState);
 }
 
@@ -1988,7 +1969,7 @@ void BytecodeGraphBuilder::BuildNamedStore(StoreMode store_mode) {
     node = lowering.value();
   } else {
     DCHECK(!lowering.Changed());
-    node = NewNode(op, object, value);
+    node = NewNode(op, object, value, feedback_vector_node());
   }
   environment()->RecordAfterState(node, Environment::kAttachFrameState);
 }
@@ -2008,7 +1989,7 @@ void BytecodeGraphBuilder::VisitStaNamedPropertyNoFeedback() {
       static_cast<LanguageMode>(bytecode_iterator().GetFlagOperand(2));
   const Operator* op =
       javascript()->StoreNamed(language_mode, name.object(), FeedbackSource());
-  Node* node = NewNode(op, object, value);
+  Node* node = NewNode(op, object, value, feedback_vector_node());
   environment()->RecordAfterState(node, Environment::kAttachFrameState);
 }
 
@@ -2211,7 +2192,8 @@ void BytecodeGraphBuilder::VisitCreateArrayLiteral() {
 void BytecodeGraphBuilder::VisitCreateEmptyArrayLiteral() {
   int const slot_id = bytecode_iterator().GetIndexOperand(0);
   FeedbackSource pair = CreateFeedbackSource(slot_id);
-  Node* literal = NewNode(javascript()->CreateEmptyLiteralArray(pair));
+  Node* literal = NewNode(javascript()->CreateEmptyLiteralArray(pair),
+                          feedback_vector_node());
   environment()->BindAccumulator(literal);
 }
 

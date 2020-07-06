@@ -742,23 +742,35 @@ JS_BINOP_WITH_FEEDBACK(BINARY_OP)
 
 const Operator* JSOperatorBuilder::StoreDataPropertyInLiteral(
     const FeedbackSource& feedback) {
+  static constexpr int kObject = 1;
+  static constexpr int kName = 1;
+  static constexpr int kValue = 1;
+  static constexpr int kFlags = 1;
+  static constexpr int kFeedbackVector = 1;
+  static constexpr int kArity =
+      kObject + kName + kValue + kFlags + kFeedbackVector;
   FeedbackParameter parameters(feedback);
   return new (zone()) Operator1<FeedbackParameter>(  // --
       IrOpcode::kJSStoreDataPropertyInLiteral,
       Operator::kNoThrow,              // opcode
       "JSStoreDataPropertyInLiteral",  // name
-      4, 1, 1, 0, 1, 1,                // counts
+      kArity, 1, 1, 0, 1, 1,           // counts
       parameters);                     // parameter
 }
 
 const Operator* JSOperatorBuilder::StoreInArrayLiteral(
     const FeedbackSource& feedback) {
+  static constexpr int kArray = 1;
+  static constexpr int kIndex = 1;
+  static constexpr int kValue = 1;
+  static constexpr int kFeedbackVector = 1;
+  static constexpr int kArity = kArray + kIndex + kValue + kFeedbackVector;
   FeedbackParameter parameters(feedback);
   return new (zone()) Operator1<FeedbackParameter>(  // --
       IrOpcode::kJSStoreInArrayLiteral,
       Operator::kNoThrow,       // opcode
       "JSStoreInArrayLiteral",  // name
-      3, 1, 1, 0, 1, 1,         // counts
+      kArity, 1, 1, 0, 1, 1,    // counts
       parameters);              // parameter
 }
 
@@ -889,11 +901,14 @@ const Operator* JSOperatorBuilder::ConstructWithSpread(
 
 const Operator* JSOperatorBuilder::LoadNamed(Handle<Name> name,
                                              const FeedbackSource& feedback) {
+  static constexpr int kObject = 1;
+  static constexpr int kFeedbackVector = 1;
+  static constexpr int kArity = kObject + kFeedbackVector;
   NamedAccess access(LanguageMode::kSloppy, name, feedback);
   return new (zone()) Operator1<NamedAccess>(           // --
       IrOpcode::kJSLoadNamed, Operator::kNoProperties,  // opcode
       "JSLoadNamed",                                    // name
-      1, 1, 1, 1, 1, 2,                                 // counts
+      kArity, 1, 1, 1, 1, 2,                            // counts
       access);                                          // parameter
 }
 
@@ -986,11 +1001,15 @@ int RestoreRegisterIndexOf(const Operator* op) {
 const Operator* JSOperatorBuilder::StoreNamed(LanguageMode language_mode,
                                               Handle<Name> name,
                                               FeedbackSource const& feedback) {
+  static constexpr int kObject = 1;
+  static constexpr int kValue = 1;
+  static constexpr int kFeedbackVector = 1;
+  static constexpr int kArity = kObject + kValue + kFeedbackVector;
   NamedAccess access(language_mode, name, feedback);
   return new (zone()) Operator1<NamedAccess>(            // --
       IrOpcode::kJSStoreNamed, Operator::kNoProperties,  // opcode
       "JSStoreNamed",                                    // name
-      2, 1, 1, 0, 1, 2,                                  // counts
+      kArity, 1, 1, 0, 1, 2,                             // counts
       access);                                           // parameter
 }
 
@@ -1006,11 +1025,15 @@ const Operator* JSOperatorBuilder::StoreProperty(
 
 const Operator* JSOperatorBuilder::StoreNamedOwn(
     Handle<Name> name, FeedbackSource const& feedback) {
+  static constexpr int kObject = 1;
+  static constexpr int kValue = 1;
+  static constexpr int kFeedbackVector = 1;
+  static constexpr int kArity = kObject + kValue + kFeedbackVector;
   StoreNamedOwnParameters parameters(name, feedback);
   return new (zone()) Operator1<StoreNamedOwnParameters>(   // --
       IrOpcode::kJSStoreNamedOwn, Operator::kNoProperties,  // opcode
       "JSStoreNamedOwn",                                    // name
-      2, 1, 1, 0, 1, 2,                                     // counts
+      kArity, 1, 1, 0, 1, 2,                                // counts
       parameters);                                          // parameter
 }
 
@@ -1031,22 +1054,27 @@ const Operator* JSOperatorBuilder::CreateGeneratorObject() {
 const Operator* JSOperatorBuilder::LoadGlobal(const Handle<Name>& name,
                                               const FeedbackSource& feedback,
                                               TypeofMode typeof_mode) {
+  static constexpr int kFeedbackVector = 1;
+  static constexpr int kArity = kFeedbackVector;
   LoadGlobalParameters parameters(name, feedback, typeof_mode);
   return new (zone()) Operator1<LoadGlobalParameters>(   // --
       IrOpcode::kJSLoadGlobal, Operator::kNoProperties,  // opcode
       "JSLoadGlobal",                                    // name
-      0, 1, 1, 1, 1, 2,                                  // counts
+      kArity, 1, 1, 1, 1, 2,                             // counts
       parameters);                                       // parameter
 }
 
 const Operator* JSOperatorBuilder::StoreGlobal(LanguageMode language_mode,
                                                const Handle<Name>& name,
                                                const FeedbackSource& feedback) {
+  static constexpr int kValue = 1;
+  static constexpr int kFeedbackVector = 1;
+  static constexpr int kArity = kValue + kFeedbackVector;
   StoreGlobalParameters parameters(language_mode, feedback, name);
   return new (zone()) Operator1<StoreGlobalParameters>(   // --
       IrOpcode::kJSStoreGlobal, Operator::kNoProperties,  // opcode
       "JSStoreGlobal",                                    // name
-      1, 1, 1, 0, 1, 2,                                   // counts
+      kArity, 1, 1, 0, 1, 2,                              // counts
       parameters);                                        // parameter
 }
 
@@ -1186,12 +1214,14 @@ const Operator* JSOperatorBuilder::CreateLiteralArray(
 
 const Operator* JSOperatorBuilder::CreateEmptyLiteralArray(
     FeedbackSource const& feedback) {
+  static constexpr int kFeedbackVector = 1;
+  static constexpr int kArity = kFeedbackVector;
   FeedbackParameter parameters(feedback);
   return new (zone()) Operator1<FeedbackParameter>(  // --
       IrOpcode::kJSCreateEmptyLiteralArray,          // opcode
       Operator::kEliminatable,                       // properties
       "JSCreateEmptyLiteralArray",                   // name
-      0, 1, 1, 1, 1, 0,                              // counts
+      kArity, 1, 1, 1, 1, 0,                         // counts
       parameters);                                   // parameter
 }
 

@@ -398,15 +398,15 @@ TEST_F(JSTypedLoweringTest, JSStoreContext) {
 
 
 TEST_F(JSTypedLoweringTest, JSLoadNamedStringLength) {
-  FeedbackSource feedback;
   Handle<Name> name = factory()->length_string();
   Node* const receiver = Parameter(Type::String(), 0);
+  Node* const feedback = UndefinedConstant();
   Node* const context = UndefinedConstant();
   Node* const effect = graph()->start();
   Node* const control = graph()->start();
-  Reduction const r =
-      Reduce(graph()->NewNode(javascript()->LoadNamed(name, feedback), receiver,
-                              context, EmptyFrameState(), effect, control));
+  Reduction const r = Reduce(graph()->NewNode(
+      javascript()->LoadNamed(name, FeedbackSource{}), receiver, feedback,
+      context, EmptyFrameState(), effect, control));
   ASSERT_TRUE(r.Changed());
   EXPECT_THAT(r.replacement(), IsStringLength(receiver));
 }

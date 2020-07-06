@@ -1374,6 +1374,144 @@ using JSConstructWithSpreadNode =
 using JSConstructWithArrayLikeNode =
     JSConstructNodeBase<IrOpcode::kJSConstructWithArrayLike>;
 
+class JSLoadNamedNode final : public JSNodeWrapperBase {
+ public:
+  explicit constexpr JSLoadNamedNode(Node* node) : JSNodeWrapperBase(node) {
+    CONSTEXPR_DCHECK(node->opcode() == IrOpcode::kJSLoadNamed);
+  }
+
+  const NamedAccess& Parameters() const { return NamedAccessOf(node()->op()); }
+
+#define INPUTS(V)              \
+  V(Object, object, 0, Object) \
+  V(FeedbackVector, feedback_vector, 1, HeapObject)
+  INPUTS(DEFINE_INPUT_ACCESSORS)
+#undef INPUTS
+};
+
+class JSStoreNamedNode final : public JSNodeWrapperBase {
+ public:
+  explicit constexpr JSStoreNamedNode(Node* node) : JSNodeWrapperBase(node) {
+    CONSTEXPR_DCHECK(node->opcode() == IrOpcode::kJSStoreNamed);
+  }
+
+  const NamedAccess& Parameters() const { return NamedAccessOf(node()->op()); }
+
+#define INPUTS(V)              \
+  V(Object, object, 0, Object) \
+  V(Value, value, 1, Object)   \
+  V(FeedbackVector, feedback_vector, 2, HeapObject)
+  INPUTS(DEFINE_INPUT_ACCESSORS)
+#undef INPUTS
+};
+
+class JSStoreNamedOwnNode final : public JSNodeWrapperBase {
+ public:
+  explicit constexpr JSStoreNamedOwnNode(Node* node) : JSNodeWrapperBase(node) {
+    CONSTEXPR_DCHECK(node->opcode() == IrOpcode::kJSStoreNamedOwn);
+  }
+
+  const StoreNamedOwnParameters& Parameters() const {
+    return StoreNamedOwnParametersOf(node()->op());
+  }
+
+#define INPUTS(V)              \
+  V(Object, object, 0, Object) \
+  V(Value, value, 1, Object)   \
+  V(FeedbackVector, feedback_vector, 2, HeapObject)
+  INPUTS(DEFINE_INPUT_ACCESSORS)
+#undef INPUTS
+};
+
+class JSStoreGlobalNode final : public JSNodeWrapperBase {
+ public:
+  explicit constexpr JSStoreGlobalNode(Node* node) : JSNodeWrapperBase(node) {
+    CONSTEXPR_DCHECK(node->opcode() == IrOpcode::kJSStoreGlobal);
+  }
+
+  const StoreGlobalParameters& Parameters() const {
+    return StoreGlobalParametersOf(node()->op());
+  }
+
+#define INPUTS(V)            \
+  V(Value, value, 0, Object) \
+  V(FeedbackVector, feedback_vector, 1, HeapObject)
+  INPUTS(DEFINE_INPUT_ACCESSORS)
+#undef INPUTS
+};
+
+class JSLoadGlobalNode final : public JSNodeWrapperBase {
+ public:
+  explicit constexpr JSLoadGlobalNode(Node* node) : JSNodeWrapperBase(node) {
+    CONSTEXPR_DCHECK(node->opcode() == IrOpcode::kJSLoadGlobal);
+  }
+
+  const LoadGlobalParameters& Parameters() const {
+    return LoadGlobalParametersOf(node()->op());
+  }
+
+#define INPUTS(V) V(FeedbackVector, feedback_vector, 0, HeapObject)
+  INPUTS(DEFINE_INPUT_ACCESSORS)
+#undef INPUTS
+};
+
+class JSCreateEmptyLiteralArrayNode final : public JSNodeWrapperBase {
+ public:
+  explicit constexpr JSCreateEmptyLiteralArrayNode(Node* node)
+      : JSNodeWrapperBase(node) {
+    CONSTEXPR_DCHECK(node->opcode() == IrOpcode::kJSCreateEmptyLiteralArray);
+  }
+
+  const FeedbackParameter& Parameters() const {
+    return FeedbackParameterOf(node()->op());
+  }
+
+#define INPUTS(V) V(FeedbackVector, feedback_vector, 0, HeapObject)
+  INPUTS(DEFINE_INPUT_ACCESSORS)
+#undef INPUTS
+};
+
+class JSStoreDataPropertyInLiteralNode final : public JSNodeWrapperBase {
+ public:
+  explicit constexpr JSStoreDataPropertyInLiteralNode(Node* node)
+      : JSNodeWrapperBase(node) {
+    CONSTEXPR_DCHECK(node->opcode() == IrOpcode::kJSStoreDataPropertyInLiteral);
+  }
+
+  const FeedbackParameter& Parameters() const {
+    return FeedbackParameterOf(node()->op());
+  }
+
+#define INPUTS(V)              \
+  V(Object, object, 0, Object) \
+  V(Name, name, 1, Object)     \
+  V(Value, value, 2, Object)   \
+  V(Flags, flags, 3, Object)   \
+  V(FeedbackVector, feedback_vector, 4, HeapObject)
+  INPUTS(DEFINE_INPUT_ACCESSORS)
+#undef INPUTS
+};
+
+class JSStoreInArrayLiteralNode final : public JSNodeWrapperBase {
+ public:
+  explicit constexpr JSStoreInArrayLiteralNode(Node* node)
+      : JSNodeWrapperBase(node) {
+    CONSTEXPR_DCHECK(node->opcode() == IrOpcode::kJSStoreInArrayLiteral);
+  }
+
+  const FeedbackParameter& Parameters() const {
+    return FeedbackParameterOf(node()->op());
+  }
+
+#define INPUTS(V)            \
+  V(Array, array, 0, Object) \
+  V(Index, index, 1, Object) \
+  V(Value, value, 2, Object) \
+  V(FeedbackVector, feedback_vector, 3, HeapObject)
+  INPUTS(DEFINE_INPUT_ACCESSORS)
+#undef INPUTS
+};
+
 #undef DEFINE_INPUT_ACCESSORS
 
 }  // namespace compiler
