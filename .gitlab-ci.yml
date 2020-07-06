@@ -28,12 +28,17 @@ unittests:
   script:
     - tools/run-tests.py --outdir=out.gn/riscv64_debug unittests
 
-misc_tests:
+wasm_tests:
   stage: test
   script:
     - tools/run-tests.py --outdir=out.gn/riscv64_debug wasm-js wasm-api-tests
 
+mjsunit_tests:
+  stage: test
+  script:
+    - tools/run-tests.py --outdir=out.gn/riscv64_debug  mjsunit
+
 misc_tests:
   stage: test
   script:
-    - tools/run-tests.py --outdir=out.gn/riscv64_debug intl message debugger
+    - tools/run-tests.py --outdir=out.gn/riscv64_debug intl message debugger inspector mkgrokdump
