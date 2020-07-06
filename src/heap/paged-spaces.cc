@@ -432,24 +432,17 @@ void PagedSpace::FreeLinearAllocationArea() {
     return;
   }
 
-  if (!is_off_thread_space() &&
-      heap()->incremental_marking()->black_allocation()) {
-    Page* page = Page::FromAllocationAreaAddress(current_top);
-
-    // Clear the bits in the unused black area.
-    if (current_top != current_limit) {
-      IncrementalMarking::MarkingState* marking_state =
-          heap()->incremental_marking()->marking_state();
-      marking_state->bitmap(page)->ClearRange(
-          page->AddressToMarkbitIndex(current_top),
-          page->AddressToMarkbitIndex(current_limit));
-      marking_state->IncrementLiveBytes(
-          page, -static_cast<int>(current_limit - current_top));
-    }
+  if (!is_local_space()) {
+    // This can start incremental marking and mark the current
+    // linear allocation area as black. Thus destroying of the black
+    // area needs to happen afterwards.
+    InlineAllocationStep(current_top, kNullAddress, kNullAddress, 0);
   }
 
-  if (!is_local_space()) {
-    InlineAllocationStep(current_top, kNullAddress, kNullAddress, 0);
+  if (current_top != current_limit && !is_off_thread_space() &&
+      heap()->incremental_marking()->black_allocation()) {
+    Page::FromAddress(current_top)
+        ->DestroyBlackArea(current_top, current_limit);
   }
 
   SetTopAndLimit(kNullAddress, kNullAddress);
@@ -461,6 +454,11 @@ void PagedSpace::FreeLinearAllocationArea() {
     heap()->UnprotectAndRegisterMemoryChunk(
         MemoryChunk::FromAddress(current_top));
   }
+
+  DCHECK_IMPLIES(
+      current_limit - current_top >= 2 * kTaggedSize,
+      heap()->incremental_marking()->non_atomic_marking_state()->IsWhite(
+          HeapObject::FromAddress(current_top)));
   Free(current_top, current_limit - current_top,
        SpaceAccountingMode::kSpaceAccounted);
 }
