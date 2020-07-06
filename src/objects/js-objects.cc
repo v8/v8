@@ -5589,7 +5589,7 @@ int JSFunction::CalculateExpectedNofProperties(Isolate* isolate,
     // The super constructor should be compiled for the number of expected
     // properties to be available.
     Handle<SharedFunctionInfo> shared(func->shared(), isolate);
-    IsCompiledScope is_compiled_scope(shared->is_compiled_scope());
+    IsCompiledScope is_compiled_scope(shared->is_compiled_scope(isolate));
     if (is_compiled_scope.is_compiled() ||
         Compiler::Compile(func, Compiler::CLEAR_EXCEPTION,
                           &is_compiled_scope)) {

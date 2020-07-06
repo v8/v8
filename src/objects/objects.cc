@@ -7226,7 +7226,7 @@ InfoCellPair CompilationCacheTable::LookupEval(
   if (obj.IsSharedFunctionInfo()) {
     FeedbackCell feedback_cell =
         SearchLiteralsMap(*table, index + 2, *native_context);
-    return InfoCellPair(SharedFunctionInfo::cast(obj), feedback_cell);
+    return InfoCellPair(isolate, SharedFunctionInfo::cast(obj), feedback_cell);
   }
   return empty_result;
 }

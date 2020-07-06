@@ -71,9 +71,9 @@ uint32_t CompilationCacheShape::HashForObject(ReadOnlyRoots roots,
                     Smi::cast(val.get(JSRegExp::kFlagsIndex)));
 }
 
-InfoCellPair::InfoCellPair(SharedFunctionInfo shared,
+InfoCellPair::InfoCellPair(Isolate* isolate, SharedFunctionInfo shared,
                            FeedbackCell feedback_cell)
-    : is_compiled_scope_(!shared.is_null() ? shared.is_compiled_scope()
+    : is_compiled_scope_(!shared.is_null() ? shared.is_compiled_scope(isolate)
                                            : IsCompiledScope()),
       shared_(shared),
       feedback_cell_(feedback_cell) {}

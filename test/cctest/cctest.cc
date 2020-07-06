@@ -250,7 +250,7 @@ i::Handle<i::JSFunction> Optimize(
     i::Handle<i::JSFunction> function, i::Zone* zone, i::Isolate* isolate,
     uint32_t flags, std::unique_ptr<i::compiler::JSHeapBroker>* out_broker) {
   i::Handle<i::SharedFunctionInfo> shared(function->shared(), isolate);
-  i::IsCompiledScope is_compiled_scope(shared->is_compiled_scope());
+  i::IsCompiledScope is_compiled_scope(shared->is_compiled_scope(isolate));
   CHECK(is_compiled_scope.is_compiled() ||
         i::Compiler::Compile(function, i::Compiler::CLEAR_EXCEPTION,
                              &is_compiled_scope));

@@ -260,7 +260,7 @@ class SharedFunctionInfo : public HeapObject {
   // Returns an IsCompiledScope which reports whether the function is compiled,
   // and if compiled, will avoid the function becoming uncompiled while it is
   // held.
-  inline IsCompiledScope is_compiled_scope() const;
+  inline IsCompiledScope is_compiled_scope(Isolate* isolate) const;
 
   // [length]: The function length - usually the number of declared parameters.
   // Use up to 2^16-2 parameters (16 bits of values, where one is reserved for

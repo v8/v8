@@ -112,7 +112,7 @@ class JSCallReducerTest : public TypedGraphTest {
     shared->set_raw_outer_scope_info_or_feedback_metadata(*metadata);
     Handle<ClosureFeedbackCellArray> closure_feedback_cell_array =
         ClosureFeedbackCellArray::New(isolate(), shared);
-    IsCompiledScope is_compiled_scope(shared->is_compiled_scope());
+    IsCompiledScope is_compiled_scope(shared->is_compiled_scope(isolate()));
     Handle<FeedbackVector> vector = FeedbackVector::New(
         isolate(), shared, closure_feedback_cell_array, &is_compiled_scope);
     FeedbackSource feedback(vector, FeedbackSlot(0));

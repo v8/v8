@@ -414,8 +414,8 @@ bool SharedFunctionInfo::is_compiled() const {
          !data.IsUncompiledData();
 }
 
-IsCompiledScope SharedFunctionInfo::is_compiled_scope() const {
-  return IsCompiledScope(*this, GetIsolate());
+IsCompiledScope SharedFunctionInfo::is_compiled_scope(Isolate* isolate) const {
+  return IsCompiledScope(*this, isolate);
 }
 
 IsCompiledScope::IsCompiledScope(const SharedFunctionInfo shared,

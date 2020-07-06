@@ -1154,7 +1154,7 @@ void LiveEdit::PatchScript(Isolate* isolate, Handle<Script> script,
           *isolate->factory()->many_closures_cell());
       if (!js_function->is_compiled()) continue;
       IsCompiledScope is_compiled_scope(
-          js_function->shared().is_compiled_scope());
+          js_function->shared().is_compiled_scope(isolate));
       JSFunction::EnsureFeedbackVector(js_function, &is_compiled_scope);
     }
 
@@ -1197,7 +1197,7 @@ void LiveEdit::PatchScript(Isolate* isolate, Handle<Script> script,
           *isolate->factory()->many_closures_cell());
       if (!js_function->is_compiled()) continue;
       IsCompiledScope is_compiled_scope(
-          js_function->shared().is_compiled_scope());
+          js_function->shared().is_compiled_scope(isolate));
       JSFunction::EnsureFeedbackVector(js_function, &is_compiled_scope);
     }
   }

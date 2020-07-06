@@ -338,7 +338,7 @@ Handle<FeedbackVector> NewFeedbackVectorForTesting(
   Handle<ClosureFeedbackCellArray> closure_feedback_cell_array =
       ClosureFeedbackCellArray::New(isolate, shared);
 
-  IsCompiledScope is_compiled_scope(shared->is_compiled_scope());
+  IsCompiledScope is_compiled_scope(shared->is_compiled_scope(isolate));
   return FeedbackVector::New(isolate, shared, closure_feedback_cell_array,
                              &is_compiled_scope);
 }

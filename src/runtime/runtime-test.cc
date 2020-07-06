@@ -269,7 +269,8 @@ RUNTIME_FUNCTION(Runtime_OptimizeFunctionOnNextCall) {
   }
 
   // If function isn't compiled, compile it now.
-  IsCompiledScope is_compiled_scope(function->shared().is_compiled_scope());
+  IsCompiledScope is_compiled_scope(
+      function->shared().is_compiled_scope(isolate));
   if (!is_compiled_scope.is_compiled() &&
       !Compiler::Compile(function, Compiler::CLEAR_EXCEPTION,
                          &is_compiled_scope)) {
@@ -338,7 +339,8 @@ bool EnsureFeedbackVector(Handle<JSFunction> function) {
   if (function->has_feedback_vector()) return true;
 
   // If function isn't compiled, compile it now.
-  IsCompiledScope is_compiled_scope(function->shared().is_compiled_scope());
+  IsCompiledScope is_compiled_scope(
+      function->shared().is_compiled_scope(function->GetIsolate()));
   // If the JSFunction isn't compiled but it has a initialized feedback cell
   // then no need to compile. CompileLazy builtin would handle these cases by
   // installing the code from SFI. Calling compile here may cause another
@@ -458,7 +460,8 @@ RUNTIME_FUNCTION(Runtime_OptimizeOsr) {
     function->ShortPrint(scope.file());
     PrintF(scope.file(), " for non-concurrent optimization]\n");
   }
-  IsCompiledScope is_compiled_scope(function->shared().is_compiled_scope());
+  IsCompiledScope is_compiled_scope(
+      function->shared().is_compiled_scope(isolate));
   JSFunction::EnsureFeedbackVector(function, &is_compiled_scope);
   function->MarkForOptimization(ConcurrencyMode::kNotConcurrent);
 

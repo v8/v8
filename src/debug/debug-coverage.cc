@@ -793,7 +793,8 @@ void Coverage::SelectMode(Isolate* isolate, debug::CoverageMode mode) {
       }
 
       for (Handle<JSFunction> func : funcs_needing_feedback_vector) {
-        IsCompiledScope is_compiled_scope(func->shared().is_compiled_scope());
+        IsCompiledScope is_compiled_scope(
+            func->shared().is_compiled_scope(isolate));
         CHECK(is_compiled_scope.is_compiled());
         JSFunction::EnsureFeedbackVector(func, &is_compiled_scope);
       }

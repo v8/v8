@@ -137,7 +137,7 @@ class InterpreterTester {
                                     ->Get(context, v8_str(kFunctionName))
                                     .ToLocalChecked());
       function = Handle<JSFunction>::cast(v8::Utils::OpenHandle(*api_function));
-      is_compiled_scope = function->shared().is_compiled_scope();
+      is_compiled_scope = function->shared().is_compiled_scope(isolate_);
     } else {
       int arg_count = sizeof...(A);
       std::string source("(function " + function_name() + "(");
@@ -148,12 +148,12 @@ class InterpreterTester {
       function = Handle<JSFunction>::cast(v8::Utils::OpenHandle(
           *v8::Local<v8::Function>::Cast(CompileRun(source.c_str()))));
       function->set_code(*BUILTIN_CODE(isolate_, InterpreterEntryTrampoline));
-      is_compiled_scope = function->shared().is_compiled_scope();
+      is_compiled_scope = function->shared().is_compiled_scope(isolate_);
     }
 
     if (!bytecode_.is_null()) {
       function->shared().set_function_data(*bytecode_.ToHandleChecked());
-      is_compiled_scope = function->shared().is_compiled_scope();
+      is_compiled_scope = function->shared().is_compiled_scope(isolate_);
     }
     if (HasFeedbackMetadata()) {
       function->set_raw_feedback_cell(isolate_->heap()->many_closures_cell());
