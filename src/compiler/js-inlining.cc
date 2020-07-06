@@ -51,44 +51,30 @@ class JSCallAccessor {
   }
 
   Node* target() const {
-    // Both, {JSCall} and {JSConstruct}, have same layout here.
-    return call_->InputAt(0);
+    STATIC_ASSERT(JSCallNode::TargetIndex() == JSConstructNode::TargetIndex());
+    return call_->InputAt(JSCallNode::TargetIndex());
   }
 
   Node* receiver() const {
-    DCHECK_EQ(IrOpcode::kJSCall, call_->opcode());
     return JSCallNode{call_}.receiver();
   }
 
-  Node* new_target() const {
-    DCHECK_EQ(IrOpcode::kJSConstruct, call_->opcode());
-    return call_->InputAt(formal_arguments() + 1);
-  }
-
-  Node* argument(int i) const {
-    // Both, {JSCall} and {JSConstruct}, have same layout here.
-    static constexpr int kFirstArgumentIndex = 2;
-    STATIC_ASSERT(kFirstArgumentIndex == JSCallNode::FirstArgumentIndex());
-    return call_->InputAt(kFirstArgumentIndex + i);
-  }
+  Node* new_target() const { return JSConstructNode{call_}.new_target(); }
 
   Node* frame_state() const {
-    // Both, {JSCall} and {JSConstruct}, have frame state.
     return NodeProperties::GetFrameStateInput(call_);
   }
 
   int formal_arguments() const {
-    // TODO(jgruber): Remove once the JSConstructNode wrapper is
-    // implemented.
     return (call_->opcode() == IrOpcode::kJSCall)
                ? JSCallNode{call_}.ArgumentCount()
-               : call_->op()->ValueInputCount() - kTargetAndNewTarget;
+               : JSConstructNode{call_}.ArgumentCount();
   }
 
   CallFrequency const& frequency() const {
     return (call_->opcode() == IrOpcode::kJSCall)
                ? JSCallNode{call_}.Parameters().frequency()
-               : ConstructParametersOf(call_->op()).frequency();
+               : JSConstructNode{call_}.Parameters().frequency();
   }
 
  private:
@@ -115,7 +101,8 @@ Reduction JSInliner::InlineCall(Node* call, Node* new_target, Node* context,
   // {inliner_inputs} counts JSFunction, receiver, arguments, but not
   // new target value, argument count, context, effect or control.
   // TODO(jgruber): Refactor this once JSConstructNode is implemented.
-  STATIC_ASSERT(kTargetAndNewTarget == 2);
+  STATIC_ASSERT(JSConstructNode::kNewTargetIsLastInput);
+  STATIC_ASSERT(JSConstructNode::kExtraInputCount == 2);
   const bool inliner_is_call = call->opcode() == IrOpcode::kJSCall;
   const int inliner_inputs = inliner_is_call
                                  ? call->op()->ValueInputCount() -
@@ -139,7 +126,7 @@ Reduction JSInliner::InlineCall(Node* call, Node* new_target, Node* context,
           // The projection is requesting the number of arguments.
           STATIC_ASSERT(JSCallNode::kExtraInputCount ==
                         JSCallNode::kFeedbackVectorInputCount + 2);
-          STATIC_ASSERT(kTargetAndNewTarget == 2);
+          STATIC_ASSERT(JSConstructNode::kExtraInputCount == 2);
           Replace(use, jsgraph()->Constant(inliner_inputs - 2));
         } else if (index == inlinee_context_index) {
           // The projection is requesting the inlinee function context.
@@ -274,18 +261,19 @@ Node* JSInliner::CreateArtificialFrameState(Node* node, Node* outer_frame_state,
   // `new_target` has been put into the receiver slot.
   // TODO(jgruber): Either unify the layout of these two nodes, or
   // refactor this to be more expected in some way.
-  JSCallAccessor call(node);
+  STATIC_ASSERT(JSConstructNode::kNewTargetIsLastInput);
   NodeVector params(local_zone_);
   params.push_back(node->InputAt(JSCallNode::ReceiverIndex()));
   for (int i = 0; i < parameter_count; i++) {
-    params.push_back(call.argument(i));
+    params.push_back(node->InputAt(JSCallNode::ArgumentIndex(i)));
   }
   const Operator* op_param = common()->StateValues(
       static_cast<int>(params.size()), SparseInputMask::Dense());
   Node* params_node = graph()->NewNode(
       op_param, static_cast<int>(params.size()), &params.front());
   if (context == nullptr) context = jsgraph()->UndefinedConstant();
-  return graph()->NewNode(op, params_node, node0, node0, context, call.target(),
+  return graph()->NewNode(op, params_node, node0, node0, context,
+                          node->InputAt(JSCallNode::TargetIndex()),
                           outer_frame_state);
 }
 
@@ -311,6 +299,7 @@ base::Optional<SharedFunctionInfoRef> JSInliner::DetermineCallTarget(
   // calls whenever the target is a constant function object, as follows:
   //  - JSCall(target:constant, receiver, args...)
   //  - JSConstruct(target:constant, args..., new.target)
+  STATIC_ASSERT(JSConstructNode::kNewTargetIsLastInput);
   if (match.HasValue() && match.Ref(broker()).IsJSFunction()) {
     JSFunctionRef function = match.Ref(broker()).AsJSFunction();
 
@@ -338,6 +327,7 @@ base::Optional<SharedFunctionInfoRef> JSInliner::DetermineCallTarget(
   // be the result of a closure instantiation operation, as follows:
   //  - JSCall(JSCreateClosure[shared](context), receiver, args...)
   //  - JSConstruct(JSCreateClosure[shared](context), args..., new.target)
+  STATIC_ASSERT(JSConstructNode::kNewTargetIsLastInput);
   if (match.IsJSCreateClosure()) {
     CreateClosureParameters const& p = CreateClosureParametersOf(match.op());
     FeedbackCellRef cell(broker(), p.feedback_cell());
@@ -525,13 +515,12 @@ Reduction JSInliner::ReduceJSCall(Node* node) {
 
   // Inline {JSConstruct} requires some additional magic.
   if (node->opcode() == IrOpcode::kJSConstruct) {
+    JSConstructNode n(node);
     // Swizzle the inputs of the {JSConstruct} node to look like inputs to a
     // normal {JSCall} node so that the rest of the inlining machinery
     // behaves as if we were dealing with a regular function invocation.
-    new_target = call.new_target();  // Retrieve new target value input.
-    // TODO(jgruber,v8:8888): Update when JSConstruct nodes also gain a
-    // feedback vector input.
-    node->RemoveInput(call.formal_arguments() + 1);  // Drop new target.
+    STATIC_ASSERT(JSConstructNode::kNewTargetIsLastInput);
+    new_target = node->RemoveInput(n.NewTargetIndex());
     node->InsertInput(graph()->zone(), JSCallNode::ReceiverIndex(), new_target);
 
     // Insert nodes around the call that model the behavior required for a
@@ -545,10 +534,10 @@ Reduction JSInliner::ReduceJSCall(Node* node) {
     Node* receiver = jsgraph()->TheHoleConstant();  // Implicit receiver.
     Node* context = NodeProperties::GetContextInput(node);
     if (NeedsImplicitReceiver(*shared_info)) {
-      Node* effect = NodeProperties::GetEffectInput(node);
-      Node* control = NodeProperties::GetControlInput(node);
+      Effect effect = n.effect();
+      Control control = n.control();
       Node* frame_state_inside = CreateArtificialFrameState(
-          node, frame_state, call.formal_arguments(),
+          node, frame_state, n.ArgumentCount(),
           BailoutId::ConstructStubCreate(), FrameStateType::kConstructStub,
           *shared_info, context);
       Node* create =
@@ -603,9 +592,8 @@ Reduction JSInliner::ReduceJSCall(Node* node) {
     // Insert a construct stub frame into the chain of frame states. This will
     // reconstruct the proper frame when deoptimizing within the constructor.
     frame_state = CreateArtificialFrameState(
-        node, frame_state, call.formal_arguments(),
-        BailoutId::ConstructStubInvoke(), FrameStateType::kConstructStub,
-        *shared_info, context);
+        node, frame_state, n.ArgumentCount(), BailoutId::ConstructStubInvoke(),
+        FrameStateType::kConstructStub, *shared_info, context);
   }
 
   // Insert a JSConvertReceiver node for sloppy callees. Note that the context

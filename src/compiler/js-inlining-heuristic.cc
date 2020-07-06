@@ -654,7 +654,13 @@ void JSInliningHeuristic::CreateOrReuseDispatch(Node* node, Node* callee,
     // We also specialize the new.target of JSConstruct {node}s if it refers
     // to the same node as the {node}'s target input, so that we can later
     // properly inline the JSCreate operations.
+    if (node->opcode() == IrOpcode::kJSConstruct) {
+      UNREACHABLE();  // https://crbug.com/v8/10675.
+    }
     if (node->opcode() == IrOpcode::kJSConstruct && inputs[0] == inputs[1]) {
+      // TODO(jgruber): Is this correct? JSConstruct nodes have the new_target
+      // at the last index, not at index 1.
+      STATIC_ASSERT(JSConstructNode::kNewTargetIsLastInput);
       inputs[1] = target;
     }
     inputs[0] = target;

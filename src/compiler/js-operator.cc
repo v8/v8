@@ -28,15 +28,13 @@ constexpr Operator::Properties BinopProperties(Operator::Opcode opcode) {
 
 }  // namespace
 
-template <int kOpcode>
-TNode<Object> JSCallNodeBase<kOpcode>::ArgumentOrUndefined(
-    int i, JSGraph* jsgraph) const {
-  return ArgumentOr(i, jsgraph->UndefinedConstant());
+namespace js_node_wrapper_utils {
+
+TNode<Oddball> UndefinedConstant(JSGraph* jsgraph) {
+  return TNode<Oddball>::UncheckedCast(jsgraph->UndefinedConstant());
 }
 
-template class JSCallNodeBase<IrOpcode::kJSCall>;
-template class JSCallNodeBase<IrOpcode::kJSCallWithSpread>;
-template class JSCallNodeBase<IrOpcode::kJSCallWithArrayLike>;
+}  // namespace js_node_wrapper_utils
 
 std::ostream& operator<<(std::ostream& os, CallFrequency const& f) {
   if (f.IsUnknown()) return os << "unknown";

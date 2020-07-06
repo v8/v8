@@ -106,7 +106,7 @@ uint8_t DeoptimizerParameterCountFor(ContinuationFrameStateMode mode) {
   UNREACHABLE();
 }
 
-Node* CreateBuiltinContinuationFrameStateCommon(
+FrameState CreateBuiltinContinuationFrameStateCommon(
     JSGraph* jsgraph, FrameStateType frame_type, Builtins::Name name,
     Node* closure, Node* context, Node** parameters, int parameter_count,
     Node* outer_frame_state,
@@ -124,14 +124,14 @@ Node* CreateBuiltinContinuationFrameStateCommon(
                                            shared);
   const Operator* op = common->FrameState(
       bailout_id, OutputFrameStateCombine::Ignore(), state_info);
-  return graph->NewNode(op, params_node, jsgraph->EmptyStateValues(),
-                        jsgraph->EmptyStateValues(), context, closure,
-                        outer_frame_state);
+  return FrameState(graph->NewNode(op, params_node, jsgraph->EmptyStateValues(),
+                                   jsgraph->EmptyStateValues(), context,
+                                   closure, outer_frame_state));
 }
 
 }  // namespace
 
-Node* CreateStubBuiltinContinuationFrameState(
+FrameState CreateStubBuiltinContinuationFrameState(
     JSGraph* jsgraph, Builtins::Name name, Node* context,
     Node* const* parameters, int parameter_count, Node* outer_frame_state,
     ContinuationFrameStateMode mode) {
@@ -169,7 +169,7 @@ Node* CreateStubBuiltinContinuationFrameState(
       static_cast<int>(actual_parameters.size()), outer_frame_state);
 }
 
-Node* CreateJavaScriptBuiltinContinuationFrameState(
+FrameState CreateJavaScriptBuiltinContinuationFrameState(
     JSGraph* jsgraph, const SharedFunctionInfoRef& shared, Builtins::Name name,
     Node* target, Node* context, Node* const* stack_parameters,
     int stack_parameter_count, Node* outer_frame_state,
@@ -207,7 +207,7 @@ Node* CreateJavaScriptBuiltinContinuationFrameState(
       shared.object());
 }
 
-Node* CreateGenericLazyDeoptContinuationFrameState(
+FrameState CreateGenericLazyDeoptContinuationFrameState(
     JSGraph* graph, const SharedFunctionInfoRef& shared, Node* target,
     Node* context, Node* receiver, Node* outer_frame_state) {
   Node* stack_parameters[]{receiver};

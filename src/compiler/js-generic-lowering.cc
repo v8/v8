@@ -760,13 +760,11 @@ void JSGenericLowering::LowerJSConstructForwardVarargs(Node* node) {
 }
 
 void JSGenericLowering::LowerJSConstruct(Node* node) {
-  ConstructParameters const& p = ConstructParametersOf(node->op());
+  JSConstructNode n(node);
+  ConstructParameters const& p = n.Parameters();
   int const arg_count = p.arity_without_implicit_args();
   CallDescriptor::Flags flags = FrameStateFlagForCall(node);
 
-  // TODO(jgruber): Understand and document how stack_argument_count is
-  // calculated. I've made some educated guesses below but they should be
-  // verified and documented in other lowerings as well.
   static constexpr int kReceiver = 1;
   static constexpr int kMaybeFeedbackVector = 1;
 
@@ -778,13 +776,14 @@ void JSGenericLowering::LowerJSConstruct(Node* node) {
         Builtins::CallableFor(isolate(), Builtins::kConstruct_WithFeedback);
     auto call_descriptor = Linkage::GetStubCallDescriptor(
         zone(), callable.descriptor(), stack_argument_count, flags);
+    STATIC_ASSERT(JSConstructNode::kNewTargetIsLastInput);
     Node* feedback_vector = jsgraph()->HeapConstant(p.feedback().vector);
     Node* stub_code = jsgraph()->HeapConstant(callable.code());
-    Node* new_target = node->InputAt(arg_count + 1);
+    Node* new_target = n.new_target();
     Node* stub_arity = jsgraph()->Int32Constant(arg_count);
     Node* slot = jsgraph()->Int32Constant(p.feedback().index());
     Node* receiver = jsgraph()->UndefinedConstant();
-    node->RemoveInput(arg_count + 1);  // Drop new target.
+    node->RemoveInput(n.NewTargetIndex());
     // Register argument inputs are followed by stack argument inputs (such as
     // feedback_vector). Both are listed in ascending order. Note that
     // the receiver is implicitly placed on the stack and is thus inserted
@@ -796,6 +795,10 @@ void JSGenericLowering::LowerJSConstruct(Node* node) {
     node->InsertInput(zone(), 3, stub_arity);
     node->InsertInput(zone(), 4, slot);
     node->InsertInput(zone(), 5, receiver);
+
+    // After: {code, target, new_target, arity, slot, receiver, ...args,
+    // vector}.
+
     NodeProperties::ChangeOp(node, common()->Call(call_descriptor));
   } else {
     const int stack_argument_count = arg_count + kReceiver;
@@ -804,19 +807,23 @@ void JSGenericLowering::LowerJSConstruct(Node* node) {
         zone(), callable.descriptor(), stack_argument_count, flags);
     Node* stub_code = jsgraph()->HeapConstant(callable.code());
     Node* stub_arity = jsgraph()->Int32Constant(arg_count);
-    Node* new_target = node->InputAt(arg_count + 1);
+    Node* new_target = n.new_target();
     Node* receiver = jsgraph()->UndefinedConstant();
-    node->RemoveInput(arg_count + 1);  // Drop new target.
+    node->RemoveInput(n.NewTargetIndex());
     node->InsertInput(zone(), 0, stub_code);
     node->InsertInput(zone(), 2, new_target);
     node->InsertInput(zone(), 3, stub_arity);
     node->InsertInput(zone(), 4, receiver);
+
+    // After: {code, target, new_target, arity, receiver, ...args}.
+
     NodeProperties::ChangeOp(node, common()->Call(call_descriptor));
   }
 }
 
 void JSGenericLowering::LowerJSConstructWithArrayLike(Node* node) {
-  ConstructParameters const& p = ConstructParametersOf(node->op());
+  JSConstructWithArrayLikeNode n(node);
+  ConstructParameters const& p = n.Parameters();
   CallDescriptor::Flags flags = FrameStateFlagForCall(node);
   const int arg_count = p.arity_without_implicit_args();
   DCHECK_EQ(arg_count, 1);
@@ -835,8 +842,9 @@ void JSGenericLowering::LowerJSConstructWithArrayLike(Node* node) {
         zone(), callable.descriptor(), stack_argument_count, flags);
     Node* stub_code = jsgraph()->HeapConstant(callable.code());
     Node* receiver = jsgraph()->UndefinedConstant();
-    Node* arguments_list = node->InputAt(1);
-    Node* new_target = node->InputAt(2);
+    Node* arguments_list = n.Argument(0);
+    Node* new_target = n.new_target();
+    STATIC_ASSERT(JSConstructNode::kNewTargetIsLastInput);
     Node* feedback_vector = jsgraph()->HeapConstant(p.feedback().vector);
     Node* slot = jsgraph()->Int32Constant(p.feedback().index());
 
@@ -852,6 +860,9 @@ void JSGenericLowering::LowerJSConstructWithArrayLike(Node* node) {
     node->InsertInput(zone(), 5, receiver);
     node->InsertInput(zone(), 6, feedback_vector);
 
+    // After: {code, target, new_target, arguments_list, slot, receiver,
+    // vector}.
+
     NodeProperties::ChangeOp(node, common()->Call(call_descriptor));
   } else {
     const int stack_argument_count = arg_count - kArgumentList + kReceiver;
@@ -861,21 +872,24 @@ void JSGenericLowering::LowerJSConstructWithArrayLike(Node* node) {
         zone(), callable.descriptor(), stack_argument_count, flags);
     Node* stub_code = jsgraph()->HeapConstant(callable.code());
     Node* receiver = jsgraph()->UndefinedConstant();
-    Node* arguments_list = node->InputAt(1);
-    Node* new_target = node->InputAt(2);
+    Node* arguments_list = n.Argument(0);
+    Node* new_target = n.new_target();
     node->InsertInput(zone(), 0, stub_code);
     node->ReplaceInput(2, new_target);
     node->ReplaceInput(3, arguments_list);
     node->InsertInput(zone(), 4, receiver);
+
+    // After: {code, target, new_target, arguments_list, receiver}.
+
     NodeProperties::ChangeOp(node, common()->Call(call_descriptor));
   }
 }
 
 void JSGenericLowering::LowerJSConstructWithSpread(Node* node) {
-  ConstructParameters const& p = ConstructParametersOf(node->op());
+  JSConstructWithSpreadNode n(node);
+  ConstructParameters const& p = n.Parameters();
   int const arg_count = p.arity_without_implicit_args();
-  int const spread_index = arg_count;
-  int const new_target_index = arg_count + 1;
+  DCHECK_GE(arg_count, 1);
   CallDescriptor::Flags flags = FrameStateFlagForCall(node);
 
   static constexpr int kReceiver = 1;
@@ -891,15 +905,15 @@ void JSGenericLowering::LowerJSConstructWithSpread(Node* node) {
     auto call_descriptor = Linkage::GetStubCallDescriptor(
         zone(), callable.descriptor(), stack_argument_count, flags);
     Node* stub_code = jsgraph()->HeapConstant(callable.code());
+    STATIC_ASSERT(JSConstructNode::kNewTargetIsLastInput);
     Node* feedback_vector = jsgraph()->HeapConstant(p.feedback().vector);
     Node* slot = jsgraph()->Int32Constant(p.feedback().index());
 
     // The single available register is needed for `slot`, thus `spread` remains
     // on the stack here.
     Node* stub_arity = jsgraph()->Int32Constant(arg_count - kTheSpread);
-    Node* new_target = node->InputAt(new_target_index);
+    Node* new_target = node->RemoveInput(n.NewTargetIndex());
     Node* receiver = jsgraph()->UndefinedConstant();
-    node->RemoveInput(new_target_index);
 
     // Register argument inputs are followed by stack argument inputs (such as
     // feedback_vector). Both are listed in ascending order. Note that
@@ -912,6 +926,10 @@ void JSGenericLowering::LowerJSConstructWithSpread(Node* node) {
     node->InsertInput(zone(), 3, stub_arity);
     node->InsertInput(zone(), 4, slot);
     node->InsertInput(zone(), 5, receiver);
+
+    // After: {code, target, new_target, arity, slot, receiver, ...args, spread,
+    // vector}.
+
     NodeProperties::ChangeOp(node, common()->Call(call_descriptor));
   } else {
     const int stack_argument_count = arg_count + kReceiver - kTheSpread;
@@ -922,18 +940,20 @@ void JSGenericLowering::LowerJSConstructWithSpread(Node* node) {
 
     // We pass the spread in a register, not on the stack.
     Node* stub_arity = jsgraph()->Int32Constant(arg_count - kTheSpread);
-    Node* new_target = node->InputAt(new_target_index);
-    Node* spread = node->InputAt(spread_index);
     Node* receiver = jsgraph()->UndefinedConstant();
-    DCHECK(new_target_index > spread_index);
-    node->RemoveInput(new_target_index);
-    node->RemoveInput(spread_index);
+    STATIC_ASSERT(JSConstructNode::kNewTargetIsLastInput);
+    DCHECK(n.NewTargetIndex() > n.LastArgumentIndex());
+    Node* new_target = node->RemoveInput(n.NewTargetIndex());
+    Node* spread = node->RemoveInput(n.LastArgumentIndex());
 
     node->InsertInput(zone(), 0, stub_code);
     node->InsertInput(zone(), 2, new_target);
     node->InsertInput(zone(), 3, stub_arity);
     node->InsertInput(zone(), 4, spread);
     node->InsertInput(zone(), 5, receiver);
+
+    // After: {code, target, new_target, arity, spread, receiver, ...args}.
+
     NodeProperties::ChangeOp(node, common()->Call(call_descriptor));
   }
 }
@@ -998,12 +1018,12 @@ void JSGenericLowering::LowerJSCallWithArrayLike(Node* node) {
   DCHECK_EQ(arg_count, 1);  // The arraylike object.
   CallDescriptor::Flags flags = FrameStateFlagForCall(node);
 
-  static constexpr int kArrayLikeObject = 1;
+  static constexpr int kArgumentsList = 1;
   static constexpr int kReceiver = 1;
 
   if (CollectFeedbackInGenericLowering() &&
       CollectCallAndConstructFeedback(broker()) && p.feedback().IsValid()) {
-    const int stack_argument_count = arg_count - kArrayLikeObject + kReceiver;
+    const int stack_argument_count = arg_count - kArgumentsList + kReceiver;
     Callable callable = Builtins::CallableFor(
         isolate(), Builtins::kCallWithArrayLike_WithFeedback);
     auto call_descriptor = Linkage::GetStubCallDescriptor(
@@ -1030,7 +1050,7 @@ void JSGenericLowering::LowerJSCallWithArrayLike(Node* node) {
 
     NodeProperties::ChangeOp(node, common()->Call(call_descriptor));
   } else {
-    const int stack_argument_count = arg_count - kArrayLikeObject + kReceiver;
+    const int stack_argument_count = arg_count - kArgumentsList + kReceiver;
     Callable callable = CodeFactory::CallWithArrayLike(isolate());
     auto call_descriptor = Linkage::GetStubCallDescriptor(
         zone(), callable.descriptor(), stack_argument_count, flags);

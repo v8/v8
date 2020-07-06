@@ -793,21 +793,15 @@ class PromiseBuiltinReducerAssembler : public JSCallReducerAssembler {
       const NativeContextRef& native_context);
 
   int ConstructArity() const {
-    DCHECK_EQ(IrOpcode::kJSConstruct, node_ptr()->opcode());
-    ConstructParameters const& p = ConstructParametersOf(node_ptr()->op());
-    return p.arity_without_implicit_args();
+    return JSConstructNode{node_ptr()}.ArgumentCount();
   }
 
   TNode<Object> TargetInput() const {
-    return TNode<Object>::UncheckedCast(
-        NodeProperties::GetValueInput(node_ptr(), 0));
+    return JSConstructNode{node_ptr()}.target();
   }
 
   TNode<Object> NewTargetInput() const {
-    // new_target is the last input (after target and all other args).
-    static constexpr int kTarget = 1;
-    return TNode<Object>::UncheckedCast(
-        NodeProperties::GetValueInput(node_ptr(), ConstructArity() + kTarget));
+    return JSConstructNode{node_ptr()}.new_target();
   }
 
  private:
@@ -847,6 +841,7 @@ class PromiseBuiltinReducerAssembler : public JSCallReducerAssembler {
                            TNode<JSFunction> reject, FrameState frame_state) {
     const ConstructParameters& p = ConstructParametersOf(node_ptr()->op());
     FeedbackSource no_feedback_source{};
+    STATIC_ASSERT(JSConstructNode::kNewTargetIsLastInput);
     Node* feedback = UndefinedConstant();
     MayThrow(_ {
       return AddNode<Object>(graph()->NewNode(
@@ -862,6 +857,7 @@ class PromiseBuiltinReducerAssembler : public JSCallReducerAssembler {
                          FrameState frame_state) {
     const ConstructParameters& p = ConstructParametersOf(node_ptr()->op());
     FeedbackSource no_feedback_source{};
+    STATIC_ASSERT(JSConstructNode::kNewTargetIsLastInput);
     Node* feedback = UndefinedConstant();
     MayThrow(_ {
       return AddNode<Object>(graph()->NewNode(
@@ -1196,10 +1192,10 @@ FrameState ForEachLoopLazyFrameState(const ForEachFrameStateParams& params,
   Builtins::Name builtin = Builtins::kArrayForEachLoopLazyDeoptContinuation;
   Node* checkpoint_params[] = {params.receiver, params.callback,
                                params.this_arg, k, params.original_length};
-  return FrameState(CreateJavaScriptBuiltinContinuationFrameState(
+  return CreateJavaScriptBuiltinContinuationFrameState(
       params.jsgraph, params.shared, builtin, params.target, params.context,
       checkpoint_params, arraysize(checkpoint_params), params.outer_frame_state,
-      ContinuationFrameStateMode::LAZY));
+      ContinuationFrameStateMode::LAZY);
 }
 
 FrameState ForEachLoopEagerFrameState(const ForEachFrameStateParams& params,
@@ -1207,10 +1203,10 @@ FrameState ForEachLoopEagerFrameState(const ForEachFrameStateParams& params,
   Builtins::Name builtin = Builtins::kArrayForEachLoopEagerDeoptContinuation;
   Node* checkpoint_params[] = {params.receiver, params.callback,
                                params.this_arg, k, params.original_length};
-  return FrameState(CreateJavaScriptBuiltinContinuationFrameState(
+  return CreateJavaScriptBuiltinContinuationFrameState(
       params.jsgraph, params.shared, builtin, params.target, params.context,
       checkpoint_params, arraysize(checkpoint_params), params.outer_frame_state,
-      ContinuationFrameStateMode::EAGER));
+      ContinuationFrameStateMode::EAGER);
 }
 
 }  // namespace
@@ -1278,10 +1274,10 @@ FrameState ReducePreLoopLazyFrameState(const ReduceFrameStateParams& params,
           ? Builtins::kArrayReduceLoopLazyDeoptContinuation
           : Builtins::kArrayReduceRightLoopLazyDeoptContinuation;
   Node* checkpoint_params[] = {receiver, callback, k, original_length};
-  return FrameState(CreateJavaScriptBuiltinContinuationFrameState(
+  return CreateJavaScriptBuiltinContinuationFrameState(
       params.jsgraph, params.shared, builtin, params.target, params.context,
       checkpoint_params, arraysize(checkpoint_params), params.outer_frame_state,
-      ContinuationFrameStateMode::LAZY));
+      ContinuationFrameStateMode::LAZY);
 }
 
 FrameState ReducePreLoopEagerFrameState(const ReduceFrameStateParams& params,
@@ -1293,10 +1289,10 @@ FrameState ReducePreLoopEagerFrameState(const ReduceFrameStateParams& params,
           ? Builtins::kArrayReducePreLoopEagerDeoptContinuation
           : Builtins::kArrayReduceRightPreLoopEagerDeoptContinuation;
   Node* checkpoint_params[] = {receiver, callback, original_length};
-  return FrameState(CreateJavaScriptBuiltinContinuationFrameState(
+  return CreateJavaScriptBuiltinContinuationFrameState(
       params.jsgraph, params.shared, builtin, params.target, params.context,
       checkpoint_params, arraysize(checkpoint_params), params.outer_frame_state,
-      ContinuationFrameStateMode::EAGER));
+      ContinuationFrameStateMode::EAGER);
 }
 
 FrameState ReduceLoopLazyFrameState(const ReduceFrameStateParams& params,
@@ -1308,10 +1304,10 @@ FrameState ReduceLoopLazyFrameState(const ReduceFrameStateParams& params,
           ? Builtins::kArrayReduceLoopLazyDeoptContinuation
           : Builtins::kArrayReduceRightLoopLazyDeoptContinuation;
   Node* checkpoint_params[] = {receiver, callback, k, original_length};
-  return FrameState(CreateJavaScriptBuiltinContinuationFrameState(
+  return CreateJavaScriptBuiltinContinuationFrameState(
       params.jsgraph, params.shared, builtin, params.target, params.context,
       checkpoint_params, arraysize(checkpoint_params), params.outer_frame_state,
-      ContinuationFrameStateMode::LAZY));
+      ContinuationFrameStateMode::LAZY);
 }
 
 FrameState ReduceLoopEagerFrameState(const ReduceFrameStateParams& params,
@@ -1325,10 +1321,10 @@ FrameState ReduceLoopEagerFrameState(const ReduceFrameStateParams& params,
           : Builtins::kArrayReduceRightLoopEagerDeoptContinuation;
   Node* checkpoint_params[] = {receiver, callback, k, original_length,
                                accumulator};
-  return FrameState(CreateJavaScriptBuiltinContinuationFrameState(
+  return CreateJavaScriptBuiltinContinuationFrameState(
       params.jsgraph, params.shared, builtin, params.target, params.context,
       checkpoint_params, arraysize(checkpoint_params), params.outer_frame_state,
-      ContinuationFrameStateMode::EAGER));
+      ContinuationFrameStateMode::EAGER);
 }
 
 }  // namespace
@@ -1457,11 +1453,11 @@ FrameState MapLoopLazyFrameState(const MapFrameStateParams& params,
   Node* checkpoint_params[] = {
       params.receiver,       params.callback, params.this_arg, params.a, k,
       params.original_length};
-  return FrameState(CreateJavaScriptBuiltinContinuationFrameState(
+  return CreateJavaScriptBuiltinContinuationFrameState(
       params.jsgraph, params.shared,
       Builtins::kArrayMapLoopLazyDeoptContinuation, params.target,
       params.context, checkpoint_params, arraysize(checkpoint_params),
-      params.outer_frame_state, ContinuationFrameStateMode::LAZY));
+      params.outer_frame_state, ContinuationFrameStateMode::LAZY);
 }
 
 FrameState MapLoopEagerFrameState(const MapFrameStateParams& params,
@@ -1469,11 +1465,11 @@ FrameState MapLoopEagerFrameState(const MapFrameStateParams& params,
   Node* checkpoint_params[] = {
       params.receiver,       params.callback, params.this_arg, params.a, k,
       params.original_length};
-  return FrameState(CreateJavaScriptBuiltinContinuationFrameState(
+  return CreateJavaScriptBuiltinContinuationFrameState(
       params.jsgraph, params.shared,
       Builtins::kArrayMapLoopEagerDeoptContinuation, params.target,
       params.context, checkpoint_params, arraysize(checkpoint_params),
-      params.outer_frame_state, ContinuationFrameStateMode::EAGER));
+      params.outer_frame_state, ContinuationFrameStateMode::EAGER);
 }
 
 }  // namespace
@@ -1565,11 +1561,11 @@ FrameState FilterLoopLazyFrameState(const FilterFrameStateParams& params,
                                params.original_length,
                                element,
                                to};
-  return FrameState(CreateJavaScriptBuiltinContinuationFrameState(
+  return CreateJavaScriptBuiltinContinuationFrameState(
       params.jsgraph, params.shared,
       Builtins::kArrayFilterLoopLazyDeoptContinuation, params.target,
       params.context, checkpoint_params, arraysize(checkpoint_params),
-      params.outer_frame_state, ContinuationFrameStateMode::LAZY));
+      params.outer_frame_state, ContinuationFrameStateMode::LAZY);
 }
 
 FrameState FilterLoopEagerPostCallbackFrameState(
@@ -1588,11 +1584,11 @@ FrameState FilterLoopEagerPostCallbackFrameState(
                                element,
                                to,
                                callback_value};
-  return FrameState(CreateJavaScriptBuiltinContinuationFrameState(
+  return CreateJavaScriptBuiltinContinuationFrameState(
       params.jsgraph, params.shared,
       Builtins::kArrayFilterLoopLazyDeoptContinuation, params.target,
       params.context, checkpoint_params, arraysize(checkpoint_params),
-      params.outer_frame_state, ContinuationFrameStateMode::EAGER));
+      params.outer_frame_state, ContinuationFrameStateMode::EAGER);
 }
 
 FrameState FilterLoopEagerFrameState(const FilterFrameStateParams& params,
@@ -1604,11 +1600,11 @@ FrameState FilterLoopEagerFrameState(const FilterFrameStateParams& params,
                                k,
                                params.original_length,
                                to};
-  return FrameState(CreateJavaScriptBuiltinContinuationFrameState(
+  return CreateJavaScriptBuiltinContinuationFrameState(
       params.jsgraph, params.shared,
       Builtins::kArrayFilterLoopEagerDeoptContinuation, params.target,
       params.context, checkpoint_params, arraysize(checkpoint_params),
-      params.outer_frame_state, ContinuationFrameStateMode::EAGER));
+      params.outer_frame_state, ContinuationFrameStateMode::EAGER);
 }
 
 }  // namespace
@@ -1714,10 +1710,10 @@ FrameState FindLoopLazyFrameState(const FindFrameStateParams& params,
           : Builtins::kArrayFindIndexLoopLazyDeoptContinuation;
   Node* checkpoint_params[] = {params.receiver, params.callback,
                                params.this_arg, k, params.original_length};
-  return FrameState(CreateJavaScriptBuiltinContinuationFrameState(
+  return CreateJavaScriptBuiltinContinuationFrameState(
       params.jsgraph, params.shared, builtin, params.target, params.context,
       checkpoint_params, arraysize(checkpoint_params), params.outer_frame_state,
-      ContinuationFrameStateMode::LAZY));
+      ContinuationFrameStateMode::LAZY);
 }
 
 FrameState FindLoopEagerFrameState(const FindFrameStateParams& params,
@@ -1728,10 +1724,10 @@ FrameState FindLoopEagerFrameState(const FindFrameStateParams& params,
           : Builtins::kArrayFindIndexLoopEagerDeoptContinuation;
   Node* checkpoint_params[] = {params.receiver, params.callback,
                                params.this_arg, k, params.original_length};
-  return FrameState(CreateJavaScriptBuiltinContinuationFrameState(
+  return CreateJavaScriptBuiltinContinuationFrameState(
       params.jsgraph, params.shared, builtin, params.target, params.context,
       checkpoint_params, arraysize(checkpoint_params), params.outer_frame_state,
-      ContinuationFrameStateMode::EAGER));
+      ContinuationFrameStateMode::EAGER);
 }
 
 FrameState FindLoopAfterCallbackLazyFrameState(
@@ -1744,10 +1740,10 @@ FrameState FindLoopAfterCallbackLazyFrameState(
   Node* checkpoint_params[] = {params.receiver,        params.callback,
                                params.this_arg,        next_k,
                                params.original_length, if_found_value};
-  return FrameState(CreateJavaScriptBuiltinContinuationFrameState(
+  return CreateJavaScriptBuiltinContinuationFrameState(
       params.jsgraph, params.shared, builtin, params.target, params.context,
       checkpoint_params, arraysize(checkpoint_params), params.outer_frame_state,
-      ContinuationFrameStateMode::LAZY));
+      ContinuationFrameStateMode::LAZY);
 }
 
 }  // namespace
@@ -1831,10 +1827,10 @@ FrameState EverySomeLoopLazyFrameState(const EverySomeFrameStateParams& params,
                                : Builtins::kArraySomeLoopLazyDeoptContinuation;
   Node* checkpoint_params[] = {params.receiver, params.callback,
                                params.this_arg, k, params.original_length};
-  return FrameState(CreateJavaScriptBuiltinContinuationFrameState(
+  return CreateJavaScriptBuiltinContinuationFrameState(
       params.jsgraph, params.shared, builtin, params.target, params.context,
       checkpoint_params, arraysize(checkpoint_params), params.outer_frame_state,
-      ContinuationFrameStateMode::LAZY));
+      ContinuationFrameStateMode::LAZY);
 }
 
 FrameState EverySomeLoopEagerFrameState(const EverySomeFrameStateParams& params,
@@ -1845,10 +1841,10 @@ FrameState EverySomeLoopEagerFrameState(const EverySomeFrameStateParams& params,
                                : Builtins::kArraySomeLoopEagerDeoptContinuation;
   Node* checkpoint_params[] = {params.receiver, params.callback,
                                params.this_arg, k, params.original_length};
-  return FrameState(CreateJavaScriptBuiltinContinuationFrameState(
+  return CreateJavaScriptBuiltinContinuationFrameState(
       params.jsgraph, params.shared, builtin, params.target, params.context,
       checkpoint_params, arraysize(checkpoint_params), params.outer_frame_state,
-      ContinuationFrameStateMode::EAGER));
+      ContinuationFrameStateMode::EAGER);
 }
 
 }  // namespace
@@ -2003,12 +1999,13 @@ struct PromiseCtorFrameStateParams {
 
 // Remnant of old-style JSCallReducer code. Could be ported to graph assembler,
 // but probably not worth the effort.
-Node* CreateArtificialFrameState(Node* node, Node* outer_frame_state,
-                                 int parameter_count, BailoutId bailout_id,
-                                 FrameStateType frame_state_type,
-                                 const SharedFunctionInfoRef& shared,
-                                 Node* context, CommonOperatorBuilder* common,
-                                 Graph* graph) {
+FrameState CreateArtificialFrameState(Node* node, Node* outer_frame_state,
+                                      int parameter_count, BailoutId bailout_id,
+                                      FrameStateType frame_state_type,
+                                      const SharedFunctionInfoRef& shared,
+                                      Node* context,
+                                      CommonOperatorBuilder* common,
+                                      Graph* graph) {
   const FrameStateFunctionInfo* state_info =
       common->CreateFrameStateFunctionInfo(
           frame_state_type, parameter_count + 1, 0, shared.object());
@@ -2031,18 +2028,19 @@ Node* CreateArtificialFrameState(Node* node, Node* outer_frame_state,
   Node* params_node = graph->NewNode(op_param, static_cast<int>(params.size()),
                                      &params.front());
   DCHECK(context);
-  return graph->NewNode(op, params_node, node0, node0, context,
-                        node->InputAt(kTargetInputIndex), outer_frame_state);
+  return FrameState(graph->NewNode(op, params_node, node0, node0, context,
+                                   node->InputAt(kTargetInputIndex),
+                                   outer_frame_state));
 }
 
 FrameState PromiseConstructorFrameState(
     const PromiseCtorFrameStateParams& params, CommonOperatorBuilder* common,
     Graph* graph) {
   DCHECK_EQ(1, params.shared.internal_formal_parameter_count());
-  return FrameState(CreateArtificialFrameState(
+  return CreateArtificialFrameState(
       params.node_ptr, params.outer_frame_state, 1,
       BailoutId::ConstructStubInvoke(), FrameStateType::kConstructStub,
-      params.shared, params.context, common, graph));
+      params.shared, params.context, common, graph);
 }
 
 FrameState PromiseConstructorLazyFrameState(
@@ -2057,11 +2055,11 @@ FrameState PromiseConstructorLazyFrameState(
       jsgraph->UndefinedConstant(), /* reject function */
       jsgraph->TheHoleConstant()    /* exception */
   };
-  return FrameState(CreateJavaScriptBuiltinContinuationFrameState(
+  return CreateJavaScriptBuiltinContinuationFrameState(
       jsgraph, params.shared,
       Builtins::kPromiseConstructorLazyDeoptContinuation, params.target,
       params.context, checkpoint_params, arraysize(checkpoint_params),
-      constructor_frame_state, ContinuationFrameStateMode::LAZY));
+      constructor_frame_state, ContinuationFrameStateMode::LAZY);
 }
 
 FrameState PromiseConstructorLazyWithCatchFrameState(
@@ -2073,11 +2071,11 @@ FrameState PromiseConstructorLazyWithCatchFrameState(
   Node* checkpoint_params[] = {
       params.jsgraph->UndefinedConstant(), /* receiver */
       promise, reject};
-  return FrameState(CreateJavaScriptBuiltinContinuationFrameState(
+  return CreateJavaScriptBuiltinContinuationFrameState(
       params.jsgraph, params.shared,
       Builtins::kPromiseConstructorLazyDeoptContinuation, params.target,
       params.context, checkpoint_params, arraysize(checkpoint_params),
-      constructor_frame_state, ContinuationFrameStateMode::LAZY_WITH_CATCH));
+      constructor_frame_state, ContinuationFrameStateMode::LAZY_WITH_CATCH);
 }
 
 }  // namespace
@@ -2940,14 +2938,18 @@ Reduction JSCallReducer::ReduceReflectConstruct(Node* node) {
   CallParameters const& p = n.Parameters();
   int arity = p.arity_without_implicit_args();
   // Massage value inputs appropriately.
+  STATIC_ASSERT(JSConstructNode::kNewTargetIsLastInput);
   node->RemoveInput(n.FeedbackVectorIndex());
-  node->RemoveInput(1);
-  node->RemoveInput(0);
+  STATIC_ASSERT(n.ReceiverIndex() > n.TargetIndex());
+  node->RemoveInput(n.ReceiverIndex());
+  node->RemoveInput(n.TargetIndex());
   while (arity < 2) {
     node->InsertInput(graph()->zone(), arity++, jsgraph()->UndefinedConstant());
   }
   if (arity < 3) {
-    node->InsertInput(graph()->zone(), arity++, node->InputAt(0));
+    node->InsertInput(
+        graph()->zone(), arity++,
+        node->InputAt(JSConstructWithArrayLikeNode::TargetIndex()));
   }
   while (arity-- > 3) {
     node->RemoveInput(arity);
@@ -3690,10 +3692,12 @@ Reduction JSCallReducer::ReduceCallOrConstructWithArrayLikeOrSpread(
         if (n.Argument(0) == arguments_list) continue;
         break;
       }
-      case IrOpcode::kJSConstructWithArrayLike:
+      case IrOpcode::kJSConstructWithArrayLike: {
         // Ignore uses as argumentsList input to calls with array like.
-        if (user->InputAt(1) == arguments_list) continue;
+        JSConstructWithArrayLikeNode n(user);
+        if (n.Argument(0) == arguments_list) continue;
         break;
+      }
       case IrOpcode::kJSCallWithSpread: {
         // Ignore uses as spread input to calls with spread.
         JSCallWithSpreadNode n(user);
@@ -3702,9 +3706,8 @@ Reduction JSCallReducer::ReduceCallOrConstructWithArrayLikeOrSpread(
       }
       case IrOpcode::kJSConstructWithSpread: {
         // Ignore uses as spread input to construct with spread.
-        ConstructParameters p = ConstructParametersOf(user->op());
-        int const arity = p.arity_without_implicit_args();
-        if (user->InputAt(arity) == arguments_list) continue;
+        JSConstructWithSpreadNode n(user);
+        if (n.LastArgument() == arguments_list) continue;
         break;
       }
       default:
@@ -3763,6 +3766,7 @@ Reduction JSCallReducer::ReduceCallOrConstructWithArrayLikeOrSpread(
   // - construct nodes: argc_without_arraylike.
   //                or: last_argument_index
   // TODO(jgruber): Clarify {arity} arithmetic once node wrappers are complete.
+  STATIC_ASSERT(JSConstructNode::kNewTargetIsLastInput);
   int arity = arraylike_or_spread_index - 1;
   // Check if are spreading to inlined arguments or to the arguments of
   // the outermost function.
@@ -3815,14 +3819,19 @@ Reduction JSCallReducer::ReduceCallOrConstructWithArrayLikeOrSpread(
                            CallFeedbackRelation::kUnrelated));
     return Changed(node).FollowedBy(ReduceJSCall(node));
   } else {
+    // At this point, {arity} is the index of the last argument.
+    DCHECK_GE(arity + 1, JSConstructNode::FirstArgumentIndex());
+    const int argc = arity + 1 - JSConstructNode::FirstArgumentIndex();
     NodeProperties::ChangeOp(
-        node, javascript()->Construct(arity + kTargetAndNewTarget, frequency,
-                                      feedback));
-    Node* new_target = NodeProperties::GetValueInput(node, arity + 1);
-    Node* frame_state = NodeProperties::GetFrameStateInput(node);
-    Node* context = NodeProperties::GetContextInput(node);
-    Node* effect = NodeProperties::GetEffectInput(node);
-    Node* control = NodeProperties::GetControlInput(node);
+        node, javascript()->Construct(JSConstructNode::ArityForArgc(argc),
+                                      frequency, feedback));
+
+    JSConstructNode n(node);
+    Node* new_target = n.new_target();
+    FrameState frame_state = n.frame_state();
+    Node* context = n.context();
+    Effect effect = n.effect();
+    Control control = n.control();
 
     // Check whether the given new target value is a constructor function. The
     // replacement {JSConstruct} operator only checks the passed target value
@@ -4477,13 +4486,13 @@ Reduction JSCallReducer::ReduceJSCallWithSpread(Node* node) {
 }
 
 Reduction JSCallReducer::ReduceJSConstruct(Node* node) {
-  DCHECK_EQ(IrOpcode::kJSConstruct, node->opcode());
-  ConstructParameters const& p = ConstructParametersOf(node->op());
+  JSConstructNode n(node);
+  ConstructParameters const& p = n.Parameters();
   int arity = p.arity_without_implicit_args();
-  Node* target = NodeProperties::GetValueInput(node, 0);
-  Node* new_target = NodeProperties::GetValueInput(node, arity + 1);
-  Node* effect = NodeProperties::GetEffectInput(node);
-  Node* control = NodeProperties::GetControlInput(node);
+  Node* target = n.target();
+  Node* new_target = n.new_target();
+  Effect effect = n.effect();
+  Control control = n.control();
 
   if (p.feedback().IsValid()) {
     ProcessedFeedback const& feedback =
@@ -4512,11 +4521,9 @@ Reduction JSCallReducer::ReduceJSConstruct(Node* node) {
 
       // Turn the {node} into a {JSCreateArray} call.
       NodeProperties::ReplaceEffectInput(node, effect);
-      for (int i = arity; i > 0; --i) {
-        NodeProperties::ReplaceValueInput(
-            node, NodeProperties::GetValueInput(node, i), i + 1);
-      }
-      NodeProperties::ReplaceValueInput(node, array_function, 1);
+      STATIC_ASSERT(JSConstructNode::kNewTargetIsLastInput);
+      node->RemoveInput(n.NewTargetIndex());
+      node->InsertInput(graph()->zone(), 1, array_function);
       NodeProperties::ChangeOp(
           node, javascript()->CreateArray(
                     arity, feedback_target->AsAllocationSite().object()));
@@ -4534,10 +4541,10 @@ Reduction JSCallReducer::ReduceJSConstruct(Node* node) {
           effect, control);
 
       // Specialize the JSConstruct node to the {new_target_feedback}.
-      NodeProperties::ReplaceValueInput(node, new_target_feedback, arity + 1);
+      node->ReplaceInput(n.NewTargetIndex(), new_target_feedback);
       NodeProperties::ReplaceEffectInput(node, effect);
       if (target == new_target) {
-        NodeProperties::ReplaceValueInput(node, new_target_feedback, 0);
+        node->ReplaceInput(n.TargetIndex(), new_target_feedback);
       }
 
       // Try to further reduce the JSConstruct {node}.
@@ -4583,11 +4590,9 @@ Reduction JSCallReducer::ReduceJSConstruct(Node* node) {
         case Builtins::kArrayConstructor: {
           // TODO(bmeurer): Deal with Array subclasses here.
           // Turn the {node} into a {JSCreateArray} call.
-          for (int i = arity; i > 0; --i) {
-            NodeProperties::ReplaceValueInput(
-                node, NodeProperties::GetValueInput(node, i), i + 1);
-          }
-          NodeProperties::ReplaceValueInput(node, new_target, 1);
+          STATIC_ASSERT(JSConstructNode::kNewTargetIsLastInput);
+          node->RemoveInput(n.NewTargetIndex());
+          node->InsertInput(graph()->zone(), 1, new_target);
           NodeProperties::ChangeOp(
               node, javascript()->CreateArray(arity, Handle<AllocationSite>()));
           return Changed(node);
@@ -4596,6 +4601,7 @@ Reduction JSCallReducer::ReduceJSConstruct(Node* node) {
           // If no value is passed, we can immediately lower to a simple
           // JSCreate and don't need to do any massaging of the {node}.
           if (arity == 0) {
+            STATIC_ASSERT(JSConstructNode::kNewTargetIsLastInput);
             NodeProperties::ChangeOp(node, javascript()->Create());
             return Changed(node);
           }
@@ -4607,6 +4613,7 @@ Reduction JSCallReducer::ReduceJSConstruct(Node* node) {
           if (mnew_target.HasValue() &&
               !mnew_target.Ref(broker()).equals(function)) {
             // Drop the value inputs.
+            STATIC_ASSERT(JSConstructNode::kNewTargetIsLastInput);
             for (int i = arity; i > 0; --i) node->RemoveInput(i);
             NodeProperties::ChangeOp(node, javascript()->Create());
             return Changed(node);
@@ -4632,30 +4639,29 @@ Reduction JSCallReducer::ReduceJSConstruct(Node* node) {
       FixedArrayRef bound_arguments = function.bound_arguments();
 
       // Patch {node} to use [[BoundTargetFunction]].
-      NodeProperties::ReplaceValueInput(
-          node, jsgraph()->Constant(bound_target_function), 0);
+      node->ReplaceInput(n.TargetIndex(),
+                         jsgraph()->Constant(bound_target_function));
 
       // Patch {node} to use [[BoundTargetFunction]]
       // as new.target if {new_target} equals {target}.
-      NodeProperties::ReplaceValueInput(
-          node,
+      node->ReplaceInput(
+          n.NewTargetIndex(),
           graph()->NewNode(common()->Select(MachineRepresentation::kTagged),
                            graph()->NewNode(simplified()->ReferenceEqual(),
                                             target, new_target),
                            jsgraph()->Constant(bound_target_function),
-                           new_target),
-          arity + 1);
+                           new_target));
 
       // Insert the [[BoundArguments]] for {node}.
       for (int i = 0; i < bound_arguments.length(); ++i) {
-        node->InsertInput(graph()->zone(), i + 1,
+        node->InsertInput(graph()->zone(), n.ArgumentIndex(i),
                           jsgraph()->Constant(bound_arguments.get(i)));
         arity++;
       }
 
       // Update the JSConstruct operator on {node}.
       NodeProperties::ChangeOp(
-          node, javascript()->Construct(arity + kTargetAndNewTarget,
+          node, javascript()->Construct(JSConstructNode::ArityForArgc(arity),
                                         p.frequency(), FeedbackSource()));
 
       // Try to further reduce the JSConstruct {node}.
@@ -4674,28 +4680,27 @@ Reduction JSCallReducer::ReduceJSConstruct(Node* node) {
         static_cast<int>(CreateBoundFunctionParametersOf(target->op()).arity());
 
     // Patch the {node} to use [[BoundTargetFunction]].
-    NodeProperties::ReplaceValueInput(node, bound_target_function, 0);
+    node->ReplaceInput(n.TargetIndex(), bound_target_function);
 
     // Patch {node} to use [[BoundTargetFunction]]
     // as new.target if {new_target} equals {target}.
-    NodeProperties::ReplaceValueInput(
-        node,
+    node->ReplaceInput(
+        n.NewTargetIndex(),
         graph()->NewNode(common()->Select(MachineRepresentation::kTagged),
                          graph()->NewNode(simplified()->ReferenceEqual(),
                                           target, new_target),
-                         bound_target_function, new_target),
-        arity + 1);
+                         bound_target_function, new_target));
 
     // Insert the [[BoundArguments]] for {node}.
     for (int i = 0; i < bound_arguments_length; ++i) {
       Node* value = NodeProperties::GetValueInput(target, 2 + i);
-      node->InsertInput(graph()->zone(), 1 + i, value);
+      node->InsertInput(graph()->zone(), n.ArgumentIndex(i), value);
       arity++;
     }
 
     // Update the JSConstruct operator on {node}.
     NodeProperties::ChangeOp(
-        node, javascript()->Construct(arity + kTargetAndNewTarget,
+        node, javascript()->Construct(JSConstructNode::ArityForArgc(arity),
                                       p.frequency(), FeedbackSource()));
 
     // Try to further reduce the JSConstruct {node}.
@@ -4875,20 +4880,20 @@ Reduction JSCallReducer::ReduceStringPrototypeSubstr(Node* node) {
 }
 
 Reduction JSCallReducer::ReduceJSConstructWithArrayLike(Node* node) {
-  DCHECK_EQ(IrOpcode::kJSConstructWithArrayLike, node->opcode());
-  ConstructParameters const& p = ConstructParametersOf(node->op());
-  const int arraylike_index = p.arity_without_implicit_args();
-  DCHECK_EQ(arraylike_index, 1);  // The arraylike object.
+  JSConstructWithArrayLikeNode n(node);
+  ConstructParameters const& p = n.Parameters();
+  const int arraylike_index = n.LastArgumentIndex();
+  DCHECK_EQ(n.ArgumentCount(), 1);  // The arraylike object.
   return ReduceCallOrConstructWithArrayLikeOrSpread(
       node, arraylike_index, p.frequency(), p.feedback(),
       SpeculationMode::kDisallowSpeculation, CallFeedbackRelation::kRelated);
 }
 
 Reduction JSCallReducer::ReduceJSConstructWithSpread(Node* node) {
-  DCHECK_EQ(IrOpcode::kJSConstructWithSpread, node->opcode());
-  ConstructParameters const& p = ConstructParametersOf(node->op());
-  int spread_index = p.arity_without_implicit_args();
-  DCHECK_GE(spread_index, 1);  // At least the spread.
+  JSConstructWithSpreadNode n(node);
+  ConstructParameters const& p = n.Parameters();
+  const int spread_index = n.LastArgumentIndex();
+  DCHECK_GE(n.ArgumentCount(), 1);  // At least the spread.
   return ReduceCallOrConstructWithArrayLikeOrSpread(
       node, spread_index, p.frequency(), p.feedback(),
       SpeculationMode::kDisallowSpeculation, CallFeedbackRelation::kRelated);
@@ -6568,21 +6573,18 @@ Reduction JSCallReducer::ReducePromiseResolveTrampoline(Node* node) {
 // ES #sec-typedarray-constructors
 Reduction JSCallReducer::ReduceTypedArrayConstructor(
     Node* node, const SharedFunctionInfoRef& shared) {
-  DCHECK_EQ(IrOpcode::kJSConstruct, node->opcode());
-  ConstructParameters const& p = ConstructParametersOf(node->op());
+  JSConstructNode n(node);
+  ConstructParameters const& p = n.Parameters();
   int arity = p.arity_without_implicit_args();
-  Node* target = NodeProperties::GetValueInput(node, 0);
-  Node* arg1 = (arity >= 1) ? NodeProperties::GetValueInput(node, 1)
-                            : jsgraph()->UndefinedConstant();
-  Node* arg2 = (arity >= 2) ? NodeProperties::GetValueInput(node, 2)
-                            : jsgraph()->UndefinedConstant();
-  Node* arg3 = (arity >= 3) ? NodeProperties::GetValueInput(node, 3)
-                            : jsgraph()->UndefinedConstant();
-  Node* new_target = NodeProperties::GetValueInput(node, arity + 1);
-  Node* context = NodeProperties::GetContextInput(node);
-  Node* frame_state = NodeProperties::GetFrameStateInput(node);
-  Node* effect = NodeProperties::GetEffectInput(node);
-  Node* control = NodeProperties::GetControlInput(node);
+  Node* target = n.target();
+  Node* arg0 = n.ArgumentOrUndefined(0, jsgraph());
+  Node* arg1 = n.ArgumentOrUndefined(1, jsgraph());
+  Node* arg2 = n.ArgumentOrUndefined(2, jsgraph());
+  Node* new_target = n.new_target();
+  Node* context = n.context();
+  FrameState frame_state = n.frame_state();
+  Effect effect = n.effect();
+  Control control = n.control();
 
   // Insert a construct stub frame into the chain of frame states. This will
   // reconstruct the proper frame when deoptimizing within the constructor.
@@ -6602,7 +6604,7 @@ Reduction JSCallReducer::ReduceTypedArrayConstructor(
 
   Node* result =
       graph()->NewNode(javascript()->CreateTypedArray(), target, new_target,
-                       arg1, arg2, arg3, context, frame_state, effect, control);
+                       arg0, arg1, arg2, context, frame_state, effect, control);
   return Replace(result);
 }
 

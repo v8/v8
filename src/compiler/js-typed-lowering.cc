@@ -1526,12 +1526,21 @@ void ReduceBuiltin(JSGraph* jsgraph, Node* node, int builtin_index, int arity,
   // The logic contained here is mirrored in Builtins::Generate_Adaptor.
   // Keep these in sync.
 
-  const bool is_construct = (node->opcode() == IrOpcode::kJSConstruct);
+  STATIC_ASSERT(JSCallNode::TargetIndex() == JSConstructNode::TargetIndex());
+  Node* target = node->InputAt(JSCallNode::TargetIndex());
 
-  Node* target = NodeProperties::GetValueInput(node, 0);
-  Node* new_target = is_construct
-                         ? NodeProperties::GetValueInput(node, arity + 1)
-                         : jsgraph->UndefinedConstant();
+  Node* new_target;
+  Zone* zone = jsgraph->zone();
+  if (node->opcode() == IrOpcode::kJSConstruct) {
+    // Unify representations between construct and call nodes.
+    // Remove new target and add receiver.
+    STATIC_ASSERT(JSConstructNode::kNewTargetIsLastInput);
+    new_target = node->RemoveInput(JSConstructNode{node}.NewTargetIndex());
+    node->InsertInput(zone, JSCallNode::ReceiverIndex(),
+                      jsgraph->UndefinedConstant());
+  } else {
+    new_target = jsgraph->UndefinedConstant();
+  }
 
   // CPP builtins are implemented in C++, and we can inline it.
   // CPP builtins create a builtin exit frame.
@@ -1542,7 +1551,6 @@ void ReduceBuiltin(JSGraph* jsgraph, Node* node, int builtin_index, int arity,
                                            has_builtin_exit_frame);
   node->ReplaceInput(0, stub);
 
-  Zone* zone = jsgraph->zone();
   const int argc = arity + BuiltinArguments::kNumExtraArgsWithReceiver;
   Node* argc_node = jsgraph->Constant(argc);
 
@@ -1552,24 +1560,8 @@ void ReduceBuiltin(JSGraph* jsgraph, Node* node, int builtin_index, int arity,
   node->InsertInput(zone, 2, target);
   node->InsertInput(zone, 3, argc_node);
   node->InsertInput(zone, 4, jsgraph->PaddingConstant());
-
-  if (is_construct) {
-    // Unify representations between construct and call nodes.
-    // Remove new target and add receiver as a stack parameter.
-    Node* receiver = jsgraph->UndefinedConstant();
-    node->RemoveInput(argc);
-    node->InsertInput(zone, 5, receiver);
-  }
   int cursor = arity + kStubAndReceiver + BuiltinArguments::kNumExtraArgs;
 #else
-  if (is_construct) {
-    // Unify representations between construct and call nodes.
-    // Remove new target and add receiver as a stack parameter.
-    Node* receiver = jsgraph->UndefinedConstant();
-    node->RemoveInput(arity + 1);
-    node->InsertInput(zone, 1, receiver);
-  }
-
   int cursor = arity + kStubAndReceiver;
   node->InsertInput(zone, cursor++, jsgraph->PaddingConstant());
   node->InsertInput(zone, cursor++, argc_node);
@@ -1639,12 +1631,12 @@ Reduction JSTypedLowering::ReduceJSConstructForwardVarargs(Node* node) {
 }
 
 Reduction JSTypedLowering::ReduceJSConstruct(Node* node) {
-  DCHECK_EQ(IrOpcode::kJSConstruct, node->opcode());
-  ConstructParameters const& p = ConstructParametersOf(node->op());
+  JSConstructNode n(node);
+  ConstructParameters const& p = n.Parameters();
   int const arity = p.arity_without_implicit_args();
-  Node* target = NodeProperties::GetValueInput(node, 0);
+  Node* target = n.target();
   Type target_type = NodeProperties::GetType(target);
-  Node* new_target = NodeProperties::GetValueInput(node, arity + 1);
+  Node* new_target = n.new_target();
 
   // Check if {target} is a known JSFunction.
   if (target_type.IsHeapConstant() &&
@@ -1665,7 +1657,8 @@ Reduction JSTypedLowering::ReduceJSConstruct(Node* node) {
                  use_builtin_construct_stub
                      ? BUILTIN_CODE(isolate(), JSBuiltinsConstructStub)
                      : BUILTIN_CODE(isolate(), JSConstructStubGeneric));
-    node->RemoveInput(arity + 1);
+    STATIC_ASSERT(JSConstructNode::kNewTargetIsLastInput);
+    node->RemoveInput(n.NewTargetIndex());
     node->InsertInput(graph()->zone(), 0, jsgraph()->Constant(code));
     node->InsertInput(graph()->zone(), 2, new_target);
     node->InsertInput(graph()->zone(), 3, jsgraph()->Constant(arity));

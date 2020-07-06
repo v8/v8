@@ -2582,15 +2582,26 @@ void BytecodeGraphBuilder::VisitCallRuntimeForPair() {
 Node* const* BytecodeGraphBuilder::GetConstructArgumentsFromRegister(
     Node* target, Node* new_target, interpreter::Register first_arg,
     int arg_count) {
-  int arity = kTargetAndNewTarget + arg_count;
+  const int arity = JSConstructNode::ArityForArgc(arg_count);
   Node** all = local_zone()->NewArray<Node*>(static_cast<size_t>(arity));
-  all[0] = target;
-  int first_arg_index = first_arg.index();
+  int cursor = 0;
+
+  STATIC_ASSERT(JSConstructNode::TargetIndex() == 0);
+  STATIC_ASSERT(JSConstructNode::FirstArgumentIndex() == 1);
+  STATIC_ASSERT(JSConstructNode::kNewTargetIsLastInput);
+
+  all[cursor++] = target;
+
+  // The function arguments are in consecutive registers.
+  int arg_base = first_arg.index();
   for (int i = 0; i < arg_count; ++i) {
-    all[1 + i] = environment()->LookupRegister(
-        interpreter::Register(first_arg_index + i));
+    all[cursor++] =
+        environment()->LookupRegister(interpreter::Register(arg_base + i));
   }
-  all[arity - 1] = new_target;
+
+  all[cursor++] = new_target;
+
+  DCHECK_EQ(cursor, arity);
   return all;
 }
 
@@ -2607,9 +2618,8 @@ void BytecodeGraphBuilder::VisitConstruct() {
 
   CallFrequency frequency = ComputeCallFrequency(slot_id);
   const uint32_t arg_count = static_cast<uint32_t>(reg_count);
-  const uint32_t arg_count_with_extra_args = kTargetAndNewTarget + arg_count;
-  const Operator* op =
-      javascript()->Construct(arg_count_with_extra_args, frequency, feedback);
+  const uint32_t arity = JSConstructNode::ArityForArgc(arg_count);
+  const Operator* op = javascript()->Construct(arity, frequency, feedback);
   Node* const* args = GetConstructArgumentsFromRegister(callee, new_target,
                                                         first_reg, arg_count);
   JSTypeHintLowering::LoweringResult lowering = TryBuildSimplifiedConstruct(
@@ -2621,7 +2631,7 @@ void BytecodeGraphBuilder::VisitConstruct() {
     node = lowering.value();
   } else {
     DCHECK(!lowering.Changed());
-    node = MakeNode(op, arg_count_with_extra_args, args);
+    node = MakeNode(op, arity, args);
   }
   environment()->BindAccumulator(node, Environment::kAttachFrameState);
 }
@@ -2639,9 +2649,9 @@ void BytecodeGraphBuilder::VisitConstructWithSpread() {
 
   CallFrequency frequency = ComputeCallFrequency(slot_id);
   const uint32_t arg_count = static_cast<uint32_t>(reg_count);
-  const uint32_t arg_count_with_extra_args = kTargetAndNewTarget + arg_count;
-  const Operator* op = javascript()->ConstructWithSpread(
-      arg_count_with_extra_args, frequency, feedback);
+  const uint32_t arity = JSConstructNode::ArityForArgc(arg_count);
+  const Operator* op =
+      javascript()->ConstructWithSpread(arity, frequency, feedback);
   Node* const* args = GetConstructArgumentsFromRegister(callee, new_target,
                                                         first_reg, arg_count);
   JSTypeHintLowering::LoweringResult lowering = TryBuildSimplifiedConstruct(
@@ -2653,7 +2663,7 @@ void BytecodeGraphBuilder::VisitConstructWithSpread() {
     node = lowering.value();
   } else {
     DCHECK(!lowering.Changed());
-    node = MakeNode(op, arg_count_with_extra_args, args);
+    node = MakeNode(op, arity, args);
   }
   environment()->BindAccumulator(node, Environment::kAttachFrameState);
 }

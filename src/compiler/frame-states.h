@@ -6,6 +6,7 @@
 #define V8_COMPILER_FRAME_STATES_H_
 
 #include "src/builtins/builtins.h"
+#include "src/compiler/node.h"
 #include "src/handles/handles.h"
 #include "src/objects/shared-function-info.h"
 #include "src/utils/utils.h"
@@ -150,18 +151,18 @@ static constexpr int kFrameStateInputCount = kFrameStateOuterStateInput + 1;
 
 enum class ContinuationFrameStateMode { EAGER, LAZY, LAZY_WITH_CATCH };
 
-Node* CreateStubBuiltinContinuationFrameState(
+FrameState CreateStubBuiltinContinuationFrameState(
     JSGraph* graph, Builtins::Name name, Node* context, Node* const* parameters,
     int parameter_count, Node* outer_frame_state,
     ContinuationFrameStateMode mode);
 
-Node* CreateJavaScriptBuiltinContinuationFrameState(
+FrameState CreateJavaScriptBuiltinContinuationFrameState(
     JSGraph* graph, const SharedFunctionInfoRef& shared, Builtins::Name name,
     Node* target, Node* context, Node* const* stack_parameters,
     int stack_parameter_count, Node* outer_frame_state,
     ContinuationFrameStateMode mode);
 
-Node* CreateGenericLazyDeoptContinuationFrameState(
+FrameState CreateGenericLazyDeoptContinuationFrameState(
     JSGraph* graph, const SharedFunctionInfoRef& shared, Node* target,
     Node* context, Node* receiver, Node* outer_frame_state);
 

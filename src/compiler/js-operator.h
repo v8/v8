@@ -140,18 +140,19 @@ std::ostream& operator<<(std::ostream&,
 ConstructForwardVarargsParameters const& ConstructForwardVarargsParametersOf(
     Operator const*) V8_WARN_UNUSED_RESULT;
 
-// Part of ConstructParameters::arity.
-static constexpr int kTargetAndNewTarget = 2;
-
 // Defines the arity (parameters plus the target and new target) and the
 // feedback for a JavaScript constructor call. This is used as a parameter by
 // JSConstruct, JSConstructWithArrayLike, and JSConstructWithSpread operators.
 class ConstructParameters final {
  public:
+  // A separate declaration to get around circular declaration dependencies.
+  // Checked to equal JSConstructNode::kExtraInputCount below.
+  static constexpr int kExtraConstructInputCount = 2;
+
   ConstructParameters(uint32_t arity, CallFrequency const& frequency,
                       FeedbackSource const& feedback)
       : arity_(arity), frequency_(frequency), feedback_(feedback) {
-    DCHECK_GE(arity, kTargetAndNewTarget);
+    DCHECK_GE(arity, kExtraConstructInputCount);
     DCHECK(is_int32(arity));
   }
 
@@ -163,7 +164,7 @@ class ConstructParameters final {
   // that expect `arity()` to include extra args.
   uint32_t arity() const { return arity_; }
   int arity_without_implicit_args() const {
-    return static_cast<int>(arity_ - kTargetAndNewTarget);
+    return static_cast<int>(arity_ - kExtraConstructInputCount);
   }
 
   CallFrequency const& frequency() const { return frequency_; }
@@ -1216,6 +1217,11 @@ class JSStorePropertyNode final : public JSNodeWrapperBase {
 #undef INPUTS
 };
 
+namespace js_node_wrapper_utils {
+// Avoids template definitions in the .cc file.
+TNode<Oddball> UndefinedConstant(JSGraph* jsgraph);
+}  // namespace js_node_wrapper_utils
+
 template <int kOpcode>
 class JSCallNodeBase final : public JSNodeWrapperBase {
  public:
@@ -1271,7 +1277,9 @@ class JSCallNodeBase final : public JSNodeWrapperBase {
     return i < ArgumentCount() ? Argument(i)
                                : TNode<Object>::UncheckedCast(default_value);
   }
-  TNode<Object> ArgumentOrUndefined(int i, JSGraph* jsgraph) const;
+  TNode<Object> ArgumentOrUndefined(int i, JSGraph* jsgraph) const {
+    return ArgumentOr(i, js_node_wrapper_utils::UndefinedConstant(jsgraph));
+  }
   int ArgumentCount() const {
     // Note: The count reported by this function depends only on the parameter,
     // thus adding/removing inputs will not affect it.
@@ -1294,6 +1302,85 @@ class JSCallNodeBase final : public JSNodeWrapperBase {
 using JSCallNode = JSCallNodeBase<IrOpcode::kJSCall>;
 using JSCallWithSpreadNode = JSCallNodeBase<IrOpcode::kJSCallWithSpread>;
 using JSCallWithArrayLikeNode = JSCallNodeBase<IrOpcode::kJSCallWithArrayLike>;
+
+template <int kOpcode>
+class JSConstructNodeBase final : public JSNodeWrapperBase {
+ public:
+  explicit constexpr JSConstructNodeBase(Node* node) : JSNodeWrapperBase(node) {
+    CONSTEXPR_DCHECK(node->opcode() == kOpcode);
+  }
+
+  const ConstructParameters& Parameters() const {
+    return ConstructParametersOf(node()->op());
+  }
+
+#define INPUTS(V) V(Target, target, 0, Object)
+  INPUTS(DEFINE_INPUT_ACCESSORS)
+#undef INPUTS
+
+  // Besides actual arguments, JSConstruct nodes (and variants) also take the
+  // following. Note that we rely on the fact that all variants (JSConstruct,
+  // JSConstructWithArrayLike, JSConstructWithSpread) have the same underlying
+  // node layout.
+  static constexpr int kTargetInputCount = 1;
+  static constexpr int kNewTargetInputCount = 1;
+  static constexpr int kExtraInputCount =
+      kTargetInputCount + kNewTargetInputCount;
+  STATIC_ASSERT(kExtraInputCount ==
+                ConstructParameters::kExtraConstructInputCount);
+
+  // Just for static asserts for spots that rely on node layout.
+  static constexpr bool kNewTargetIsLastInput = true;
+
+  // This is the arity fed into ConstructArguments.
+  static constexpr int ArityForArgc(int parameters) {
+    return parameters + kExtraInputCount;
+  }
+
+  static constexpr int FirstArgumentIndex() { return TargetIndex() + 1; }
+  static constexpr int ArgumentIndex(int i) { return FirstArgumentIndex() + i; }
+  TNode<Object> Argument(int i) const {
+    DCHECK_LT(i, ArgumentCount());
+    return TNode<Object>::UncheckedCast(
+        NodeProperties::GetValueInput(node(), ArgumentIndex(i)));
+  }
+  int LastArgumentIndex() const {
+    DCHECK_GT(ArgumentCount(), 0);
+    return ArgumentIndex(ArgumentCount() - 1);
+  }
+  TNode<Object> LastArgument() const {
+    DCHECK_GT(ArgumentCount(), 0);
+    return Argument(ArgumentCount() - 1);
+  }
+  TNode<Object> ArgumentOr(int i, Node* default_value) const {
+    return i < ArgumentCount() ? Argument(i)
+                               : TNode<Object>::UncheckedCast(default_value);
+  }
+  TNode<Object> ArgumentOrUndefined(int i, JSGraph* jsgraph) const {
+    return ArgumentOr(i, js_node_wrapper_utils::UndefinedConstant(jsgraph));
+  }
+  int ArgumentCount() const {
+    // Note: The count reported by this function remains static even if the node
+    // is currently being modified.
+    return Parameters().arity_without_implicit_args();
+  }
+
+  static int NewTargetIndexForArgc(int argc) {
+    STATIC_ASSERT(kNewTargetIsLastInput);
+    return ArgumentIndex(argc - 1) + 1;
+  }
+  int NewTargetIndex() const { return NewTargetIndexForArgc(ArgumentCount()); }
+  TNode<Object> new_target() const {
+    return TNode<Object>::UncheckedCast(
+        NodeProperties::GetValueInput(node(), NewTargetIndex()));
+  }
+};
+
+using JSConstructNode = JSConstructNodeBase<IrOpcode::kJSConstruct>;
+using JSConstructWithSpreadNode =
+    JSConstructNodeBase<IrOpcode::kJSConstructWithSpread>;
+using JSConstructWithArrayLikeNode =
+    JSConstructNodeBase<IrOpcode::kJSConstructWithArrayLike>;
 
 #undef DEFINE_INPUT_ACCESSORS
 
