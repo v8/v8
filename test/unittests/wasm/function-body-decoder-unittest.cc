@@ -3591,6 +3591,118 @@ TEST_F(FunctionBodyDecoderTest, BrOnNull) {
                 "expected 1 elements on the stack for br to @1, found 0");
 }
 
+TEST_F(FunctionBodyDecoderTest, GCStruct) {
+  WASM_FEATURE_SCOPE(reftypes);
+  WASM_FEATURE_SCOPE(typed_funcref);
+  WASM_FEATURE_SCOPE(gc);
+
+  TestModuleBuilder builder;
+  module = builder.module();
+  byte struct_type_index = builder.AddStruct({F(kWasmI32, true)});
+  byte array_type_index = builder.AddArray(kWasmI32, true);
+  byte immutable_struct_type_index = builder.AddStruct({F(kWasmI32, false)});
+  byte field_index = 0;
+
+  ValueType struct_type = ValueType::Ref(struct_type_index, kNonNullable);
+  ValueType reps_i_r[] = {kWasmI32, struct_type};
+  ValueType reps_f_r[] = {kWasmF32, struct_type};
+  const FunctionSig sig_i_r(1, 1, reps_i_r);
+  const FunctionSig sig_v_r(0, 1, &struct_type);
+  const FunctionSig sig_r_v(1, 0, &struct_type);
+  const FunctionSig sig_f_r(1, 1, reps_f_r);
+
+  /** struct.new **/
+  ExpectValidates(&sig_r_v, {WASM_STRUCT_NEW(struct_type_index, WASM_I32V(0))});
+  // Too few arguments.
+  ExpectFailure(
+      &sig_r_v, {WASM_GC_OP(kExprStructNew), struct_type_index}, kAppendEnd,
+      "not enough arguments on the stack for struct.new, expected 1 more");
+  // Too many arguments.
+  ExpectFailure(
+      &sig_r_v,
+      {WASM_STRUCT_NEW(struct_type_index, WASM_I32V(0), WASM_I32V(1))},
+      kAppendEnd,
+      "expected 1 elements on the stack for fallthru to @1, found 2");
+  // Mistyped arguments.
+  ExpectFailure(
+      &sig_v_r, {WASM_STRUCT_NEW(struct_type_index, WASM_GET_LOCAL(0))},
+      kAppendEnd,
+      "struct.new[0] expected type i32, found local.get of type (ref 0)");
+  // Wrongly typed index.
+  ExpectFailure(sigs.v_v(),
+                {WASM_STRUCT_NEW(array_type_index, WASM_I32V(0)), kExprDrop},
+                kAppendEnd, "invalid struct index: 1");
+  // Out-of-bounds index.
+  ExpectFailure(sigs.v_v(), {WASM_STRUCT_NEW(42, WASM_I32V(0)), kExprDrop},
+                kAppendEnd, "invalid struct index: 42");
+
+  /** struct.get **/
+  ExpectValidates(&sig_i_r, {WASM_STRUCT_GET(struct_type_index, field_index,
+                                             WASM_GET_LOCAL(0))});
+  // With non-nullable struct.
+  ExpectValidates(&sig_i_r,
+                  {WASM_STRUCT_GET(struct_type_index, field_index,
+                                   WASM_REF_AS_NON_NULL(WASM_GET_LOCAL(0)))});
+  // Wrong index.
+  ExpectFailure(
+      &sig_v_r,
+      {WASM_STRUCT_GET(struct_type_index, field_index + 1, WASM_GET_LOCAL(0)),
+       kExprDrop},
+      kAppendEnd, "invalid field index: 1");
+  // Mistyped expected type.
+  ExpectFailure(
+      &sig_f_r,
+      {WASM_STRUCT_GET(struct_type_index, field_index, WASM_GET_LOCAL(0))},
+      kAppendEnd, "type error in merge[0] (expected f32, got i32)");
+
+  /** struct.set **/
+  ExpectValidates(&sig_v_r, {WASM_STRUCT_SET(struct_type_index, field_index,
+                                             WASM_GET_LOCAL(0), WASM_I32V(0))});
+  // Non-nullable struct.
+  ExpectValidates(
+      &sig_v_r,
+      {WASM_STRUCT_SET(struct_type_index, field_index,
+                       WASM_REF_AS_NON_NULL(WASM_GET_LOCAL(0)), WASM_I32V(0))});
+  // Wrong index.
+  ExpectFailure(&sig_v_r,
+                {WASM_STRUCT_SET(struct_type_index, field_index + 1,
+                                 WASM_GET_LOCAL(0), WASM_I32V(0))},
+                kAppendEnd, "invalid field index: 1");
+  // Mistyped input.
+  ExpectFailure(&sig_v_r,
+                {WASM_STRUCT_SET(struct_type_index, field_index,
+                                 WASM_GET_LOCAL(0), WASM_I64V(0))},
+                kAppendEnd,
+                "struct.set[1] expected type i32, found i64.const of type i64");
+  // Expecting output.
+  ExpectFailure(&sig_i_r,
+                {WASM_STRUCT_SET(struct_type_index, field_index,
+                                 WASM_GET_LOCAL(0), WASM_I32V(0))},
+                kAppendEnd,
+                "expected 1 elements on the stack for fallthru to @1, found 0");
+  // Setting immutable field.
+  ExpectFailure(sigs.v_v(),
+                {WASM_STRUCT_SET(
+                    immutable_struct_type_index, field_index,
+                    WASM_STRUCT_NEW(immutable_struct_type_index, WASM_I32V(42)),
+                    WASM_I32V(0))},
+                kAppendEnd, "setting immutable struct field");
+
+  // struct.get_s/u fail
+  ExpectFailure(
+      &sig_i_r,
+      {WASM_STRUCT_GET_S(struct_type_index, field_index, WASM_GET_LOCAL(0))},
+      kAppendEnd,
+      "struct.get_s is only valid for packed struct fields. Use struct.get "
+      "instead.");
+  ExpectFailure(
+      &sig_i_r,
+      {WASM_STRUCT_GET_U(struct_type_index, field_index, WASM_GET_LOCAL(0))},
+      kAppendEnd,
+      "struct.get_u is only valid for packed struct fields. Use struct.get "
+      "instead.");
+}
+
 class BranchTableIteratorTest : public TestWithZone {
  public:
   BranchTableIteratorTest() : TestWithZone() {}
