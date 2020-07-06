@@ -114,7 +114,7 @@ class V8_EXPORT_PRIVATE JSCallReducer final : public AdvancedReducer {
                                         IterationKind kind);
 
   Reduction ReduceCallOrConstructWithArrayLikeOrSpread(
-      Node* node, int arity, CallFrequency const& frequency,
+      Node* node, int arraylike_or_spread_index, CallFrequency const& frequency,
       FeedbackSource const& feedback, SpeculationMode speculation_mode,
       CallFeedbackRelation feedback_relation);
   Reduction ReduceJSConstruct(Node* node);

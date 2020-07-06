@@ -217,16 +217,17 @@ void Node::InsertInputs(Zone* zone, int index, int count) {
   Verify();
 }
 
-void Node::RemoveInput(int index) {
+Node* Node::RemoveInput(int index) {
   DCHECK_LE(0, index);
   DCHECK_LT(index, InputCount());
+  Node* result = InputAt(index);
   for (; index < InputCount() - 1; ++index) {
     ReplaceInput(index, InputAt(index + 1));
   }
   TrimInputCount(InputCount() - 1);
   Verify();
+  return result;
 }
-
 
 void Node::ClearInputs(int start, int count) {
   Node** input_ptr = GetInputPtr(start);

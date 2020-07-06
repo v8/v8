@@ -2436,7 +2436,6 @@ Reduction JSCallReducer::ReduceFunctionPrototypeApply(Node* node) {
     if (!NodeProperties::CanBeNullOrUndefined(broker(), arguments_list,
                                               effect)) {
       // Massage the value inputs appropriately.
-      node->RemoveInput(n.FeedbackVectorIndex());
       node->ReplaceInput(n.TargetIndex(), target);
       node->ReplaceInput(n.ReceiverIndex(), this_argument);
       node->ReplaceInput(n.ArgumentIndex(0), arguments_list);
@@ -2475,8 +2474,8 @@ Reduction JSCallReducer::ReduceFunctionPrototypeApply(Node* node) {
           javascript()->CallWithArrayLike(p.frequency(), p.feedback(),
                                           p.speculation_mode(),
                                           CallFeedbackRelation::kUnrelated),
-          target, this_argument, arguments_list, context, frame_state, effect0,
-          control0);
+          target, this_argument, arguments_list, n.feedback_vector(), context,
+          frame_state, effect0, control0);
 
       // Lower to {JSCall} if {arguments_list} is either null or undefined.
       Node* effect1 = effect;
@@ -2919,9 +2918,9 @@ Reduction JSCallReducer::ReduceReflectApply(Node* node) {
   CallParameters const& p = n.Parameters();
   int arity = p.arity_without_implicit_args();
   // Massage value inputs appropriately.
-  node->RemoveInput(n.FeedbackVectorIndex());
-  node->RemoveInput(1);
-  node->RemoveInput(0);
+  STATIC_ASSERT(n.ReceiverIndex() > n.TargetIndex());
+  node->RemoveInput(n.ReceiverIndex());
+  node->RemoveInput(n.TargetIndex());
   while (arity < 3) {
     node->InsertInput(graph()->zone(), arity++, jsgraph()->UndefinedConstant());
   }
@@ -3620,23 +3619,36 @@ bool IsSafeArgumentsElements(Node* node) {
   return true;
 }
 
+#ifdef DEBUG
+bool IsCallOrConstructWithArrayLike(Node* node) {
+  return node->opcode() == IrOpcode::kJSCallWithArrayLike ||
+         node->opcode() == IrOpcode::kJSConstructWithArrayLike;
+}
+#endif
+
+bool IsCallOrConstructWithSpread(Node* node) {
+  return node->opcode() == IrOpcode::kJSCallWithSpread ||
+         node->opcode() == IrOpcode::kJSConstructWithSpread;
+}
+
+bool IsCallWithArrayLikeOrSpread(Node* node) {
+  return node->opcode() == IrOpcode::kJSCallWithArrayLike ||
+         node->opcode() == IrOpcode::kJSCallWithSpread;
+}
+
 }  // namespace
 
 Reduction JSCallReducer::ReduceCallOrConstructWithArrayLikeOrSpread(
-    Node* node, int arity, CallFrequency const& frequency,
+    Node* node, int arraylike_or_spread_index, CallFrequency const& frequency,
     FeedbackSource const& feedback, SpeculationMode speculation_mode,
     CallFeedbackRelation feedback_relation) {
-  DCHECK(node->opcode() == IrOpcode::kJSCallWithArrayLike ||
-         node->opcode() == IrOpcode::kJSCallWithSpread ||
-         node->opcode() == IrOpcode::kJSConstructWithArrayLike ||
-         node->opcode() == IrOpcode::kJSConstructWithSpread);
+  DCHECK(IsCallOrConstructWithArrayLike(node) ||
+         IsCallOrConstructWithSpread(node));
   DCHECK_IMPLIES(speculation_mode == SpeculationMode::kAllowSpeculation,
                  feedback.IsValid());
 
-  // TODO(jgruber): The `arity` arg is confusing; for Call variants, it includes
-  // kTargetAndReceiver, for Construct variants it doesn't. Understand it.
-
-  Node* arguments_list = NodeProperties::GetValueInput(node, arity);
+  Node* arguments_list =
+      NodeProperties::GetValueInput(node, arraylike_or_spread_index);
   if (arguments_list->opcode() != IrOpcode::kJSCreateArguments) {
     return NoChange();
   }
@@ -3672,19 +3684,20 @@ Reduction JSCallReducer::ReduceCallOrConstructWithArrayLikeOrSpread(
         }
         break;
       }
-      case IrOpcode::kJSCallWithArrayLike:
+      case IrOpcode::kJSCallWithArrayLike: {
         // Ignore uses as argumentsList input to calls with array like.
-        if (user->InputAt(2) == arguments_list) continue;
+        JSCallWithArrayLikeNode n(user);
+        if (n.Argument(0) == arguments_list) continue;
         break;
+      }
       case IrOpcode::kJSConstructWithArrayLike:
         // Ignore uses as argumentsList input to calls with array like.
         if (user->InputAt(1) == arguments_list) continue;
         break;
       case IrOpcode::kJSCallWithSpread: {
         // Ignore uses as spread input to calls with spread.
-        CallParameters p = CallParametersOf(user->op());
-        int const arity = p.arity_without_implicit_args();
-        if (user->InputAt(arity + 1) == arguments_list) continue;
+        JSCallWithSpreadNode n(user);
+        if (n.LastArgument() == arguments_list) continue;
         break;
       }
       case IrOpcode::kJSConstructWithSpread: {
@@ -3738,22 +3751,41 @@ Reduction JSCallReducer::ReduceCallOrConstructWithArrayLikeOrSpread(
   // For call/construct with spread, we need to also install a code
   // dependency on the array iterator lookup protector cell to ensure
   // that no one messed with the %ArrayIteratorPrototype%.next method.
-  if (node->opcode() == IrOpcode::kJSCallWithSpread ||
-      node->opcode() == IrOpcode::kJSConstructWithSpread) {
+  if (IsCallOrConstructWithSpread(node)) {
     if (!dependencies()->DependOnArrayIteratorProtector()) return NoChange();
   }
 
   // Remove the {arguments_list} input from the {node}.
-  node->RemoveInput(arity--);
+  node->RemoveInput(arraylike_or_spread_index);
+  // {arity} is now
+  // - call nodes:      argc_without_arraylike + 1;
+  //                or: last_argument_index
+  // - construct nodes: argc_without_arraylike.
+  //                or: last_argument_index
+  // TODO(jgruber): Clarify {arity} arithmetic once node wrappers are complete.
+  int arity = arraylike_or_spread_index - 1;
   // Check if are spreading to inlined arguments or to the arguments of
   // the outermost function.
   Node* outer_state = frame_state->InputAt(kFrameStateOuterStateInput);
   if (outer_state->opcode() != IrOpcode::kFrameState) {
-    Operator const* op =
-        (node->opcode() == IrOpcode::kJSCallWithArrayLike ||
-         node->opcode() == IrOpcode::kJSCallWithSpread)
-            ? javascript()->CallForwardVarargs(arity + 1, start_index)
-            : javascript()->ConstructForwardVarargs(arity + 2, start_index);
+    Operator const* op;
+    if (IsCallWithArrayLikeOrSpread(node)) {
+      op = javascript()->CallForwardVarargs(arity + 1, start_index);
+      // Remove the feedback vector input before changing the operator.
+      // TODO(jgruber): Update once CallForwardVarargs has a vector input.
+      STATIC_ASSERT(JSCallWithArrayLikeNode::FirstArgumentIndex() ==
+                    JSCallWithSpreadNode::FirstArgumentIndex());
+      // The argument count after removing the arraylike object.
+      const int argc = arraylike_or_spread_index -
+                       JSCallWithArrayLikeNode::FirstArgumentIndex();
+      DCHECK_EQ(JSCallWithArrayLikeNode::FeedbackVectorIndexForArgc(argc),
+                JSCallWithSpreadNode::FeedbackVectorIndexForArgc(argc));
+      node->RemoveInput(
+          JSCallWithArrayLikeNode::FeedbackVectorIndexForArgc(argc));
+    } else {
+      // TODO(jgruber): Update once construct nodes have a vector input.
+      op = javascript()->ConstructForwardVarargs(arity + 2, start_index);
+    }
     NodeProperties::ChangeOp(node, op);
     return Changed(node);
   }
@@ -3772,17 +3804,15 @@ Reduction JSCallReducer::ReduceCallOrConstructWithArrayLikeOrSpread(
                       parameters->InputAt(i));
   }
 
-  if (node->opcode() == IrOpcode::kJSCallWithArrayLike ||
-      node->opcode() == IrOpcode::kJSCallWithSpread) {
-    // TODO(jgruber): Clarify arity. Why `- 2`?
-    // TODO(jgruber): Use the non-HeapConstant vector input once it exists.
-    node->InsertInput(graph()->zone(), static_cast<int>(++arity),
-                      jsgraph()->HeapConstant(feedback.vector));
+  if (IsCallWithArrayLikeOrSpread(node)) {
+    // At this point, {arity} is the index of the last argument.
+    DCHECK_GE(arity + 1, JSCallNode::FirstArgumentIndex());
+    const int argc = arity + 1 - JSCallNode::FirstArgumentIndex();
     NodeProperties::ChangeOp(
         node,
-        javascript()->Call(JSCallNode::ArityForArgc(arity - 2), frequency,
-                           feedback, ConvertReceiverMode::kAny,
-                           speculation_mode, CallFeedbackRelation::kUnrelated));
+        javascript()->Call(JSCallNode::ArityForArgc(argc), frequency, feedback,
+                           ConvertReceiverMode::kAny, speculation_mode,
+                           CallFeedbackRelation::kUnrelated));
     return Changed(node).FollowedBy(ReduceJSCall(node));
   } else {
     NodeProperties::ChangeOp(
@@ -4429,22 +4459,20 @@ Reduction JSCallReducer::ReduceJSCall(Node* node,
 }
 
 Reduction JSCallReducer::ReduceJSCallWithArrayLike(Node* node) {
-  DCHECK_EQ(IrOpcode::kJSCallWithArrayLike, node->opcode());
-  const CallParameters& p = CallParametersOf(node->op());
-  int arity = p.arity_without_implicit_args();
-  DCHECK_EQ(arity, 0);
+  JSCallWithArrayLikeNode n(node);
+  CallParameters const& p = n.Parameters();
+  DCHECK_EQ(p.arity_without_implicit_args(), 1);  // The arraylike object.
   return ReduceCallOrConstructWithArrayLikeOrSpread(
-      node, arity + kTargetAndReceiver, p.frequency(), p.feedback(),
+      node, n.LastArgumentIndex(), p.frequency(), p.feedback(),
       p.speculation_mode(), p.feedback_relation());
 }
 
 Reduction JSCallReducer::ReduceJSCallWithSpread(Node* node) {
-  DCHECK_EQ(IrOpcode::kJSCallWithSpread, node->opcode());
-  CallParameters const& p = CallParametersOf(node->op());
-  int arity = p.arity_without_implicit_args();
-  DCHECK_GE(p.arity(), 1);
+  JSCallWithSpreadNode n(node);
+  CallParameters const& p = n.Parameters();
+  DCHECK_GE(p.arity_without_implicit_args(), 1);  // At least the spread.
   return ReduceCallOrConstructWithArrayLikeOrSpread(
-      node, arity + kTargetAndReceiver - 1, p.frequency(), p.feedback(),
+      node, n.LastArgumentIndex(), p.frequency(), p.feedback(),
       p.speculation_mode(), p.feedback_relation());
 }
 
@@ -4849,23 +4877,21 @@ Reduction JSCallReducer::ReduceStringPrototypeSubstr(Node* node) {
 Reduction JSCallReducer::ReduceJSConstructWithArrayLike(Node* node) {
   DCHECK_EQ(IrOpcode::kJSConstructWithArrayLike, node->opcode());
   ConstructParameters const& p = ConstructParametersOf(node->op());
-  const int arity = p.arity_without_implicit_args();
-  DCHECK_EQ(arity, 1);
+  const int arraylike_index = p.arity_without_implicit_args();
+  DCHECK_EQ(arraylike_index, 1);  // The arraylike object.
   return ReduceCallOrConstructWithArrayLikeOrSpread(
-      node, arity, p.frequency(), p.feedback(),
+      node, arraylike_index, p.frequency(), p.feedback(),
       SpeculationMode::kDisallowSpeculation, CallFeedbackRelation::kRelated);
 }
 
 Reduction JSCallReducer::ReduceJSConstructWithSpread(Node* node) {
   DCHECK_EQ(IrOpcode::kJSConstructWithSpread, node->opcode());
   ConstructParameters const& p = ConstructParametersOf(node->op());
-  int arity = p.arity_without_implicit_args();
-  DCHECK_LE(1u, arity);
-  CallFrequency frequency = p.frequency();
-  FeedbackSource feedback = p.feedback();
+  int spread_index = p.arity_without_implicit_args();
+  DCHECK_GE(spread_index, 1);  // At least the spread.
   return ReduceCallOrConstructWithArrayLikeOrSpread(
-      node, arity, frequency, feedback, SpeculationMode::kDisallowSpeculation,
-      CallFeedbackRelation::kRelated);
+      node, spread_index, p.frequency(), p.feedback(),
+      SpeculationMode::kDisallowSpeculation, CallFeedbackRelation::kRelated);
 }
 
 Reduction JSCallReducer::ReduceReturnReceiver(Node* node) {

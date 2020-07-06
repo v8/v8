@@ -155,11 +155,6 @@ class BytecodeGraphBuilder {
   Node** EnsureInputBufferSize(int size);
 
   Node* const* GetCallArgumentsFromRegisters(Node* callee, Node* receiver,
-                                             interpreter::Register first_arg,
-                                             int arg_count);
-  // Same as above, but for call nodes that take a feedback vector input.
-  // TODO(jgruber): Merge with the above.
-  Node* const* GetCallArgumentsFromRegisters1(Node* callee, Node* receiver,
                                               interpreter::Register first_arg,
                                               int arg_count);
   Node* const* ProcessCallVarArgs(ConvertReceiverMode receiver_mode,
@@ -2279,28 +2274,14 @@ void BytecodeGraphBuilder::VisitGetTemplateObject() {
 Node* const* BytecodeGraphBuilder::GetCallArgumentsFromRegisters(
     Node* callee, Node* receiver, interpreter::Register first_arg,
     int arg_count) {
-  int arity = kTargetAndReceiver + arg_count;
-  Node** all = local_zone()->NewArray<Node*>(static_cast<size_t>(arity));
-
-  all[0] = callee;
-  all[1] = receiver;
-
-  // The function arguments are in consecutive registers.
-  int arg_base = first_arg.index();
-  for (int i = 0; i < arg_count; ++i) {
-    all[kTargetAndReceiver + i] =
-        environment()->LookupRegister(interpreter::Register(arg_base + i));
-  }
-
-  return all;
-}
-
-Node* const* BytecodeGraphBuilder::GetCallArgumentsFromRegisters1(
-    Node* callee, Node* receiver, interpreter::Register first_arg,
-    int arg_count) {
   const int arity = JSCallNode::ArityForArgc(arg_count);
   Node** all = local_zone()->NewArray<Node*>(static_cast<size_t>(arity));
   int cursor = 0;
+
+  STATIC_ASSERT(JSCallNode::TargetIndex() == 0);
+  STATIC_ASSERT(JSCallNode::ReceiverIndex() == 1);
+  STATIC_ASSERT(JSCallNode::FirstArgumentIndex() == 2);
+  STATIC_ASSERT(JSCallNode::kFeedbackVectorIsLastInput);
 
   all[cursor++] = callee;
   all[cursor++] = receiver;
@@ -2366,8 +2347,8 @@ Node* const* BytecodeGraphBuilder::ProcessCallVarArgs(
     first_arg = interpreter::Register(first_reg.index() + 1);
   }
 
-  Node* const* call_args = GetCallArgumentsFromRegisters1(callee, receiver_node,
-                                                          first_arg, arg_count);
+  Node* const* call_args = GetCallArgumentsFromRegisters(callee, receiver_node,
+                                                         first_arg, arg_count);
   return call_args;
 }
 
@@ -2515,7 +2496,8 @@ void BytecodeGraphBuilder::VisitCallWithSpread() {
   CallFrequency frequency = ComputeCallFrequency(slot_id);
   SpeculationMode speculation_mode = GetSpeculationMode(slot_id);
   const Operator* op = javascript()->CallWithSpread(
-      static_cast<int>(reg_count + 1), frequency, feedback, speculation_mode);
+      JSCallWithSpreadNode::ArityForArgc(arg_count), frequency, feedback,
+      speculation_mode);
 
   JSTypeHintLowering::LoweringResult lowering = TryBuildSimplifiedCall(
       op, args, static_cast<int>(arg_count), feedback.slot);
@@ -2526,7 +2508,7 @@ void BytecodeGraphBuilder::VisitCallWithSpread() {
     node = lowering.value();
   } else {
     DCHECK(!lowering.Changed());
-    node = MakeNode(op, kTargetAndReceiver + arg_count, args);
+    node = MakeNode(op, JSCallWithSpreadNode::ArityForArgc(arg_count), args);
   }
   environment()->BindAccumulator(node, Environment::kAttachFrameState);
 }

@@ -28,9 +28,15 @@ constexpr Operator::Properties BinopProperties(Operator::Opcode opcode) {
 
 }  // namespace
 
-TNode<Object> JSCallNode::ArgumentOrUndefined(int i, JSGraph* jsgraph) const {
+template <int kOpcode>
+TNode<Object> JSCallNodeBase<kOpcode>::ArgumentOrUndefined(
+    int i, JSGraph* jsgraph) const {
   return ArgumentOr(i, jsgraph->UndefinedConstant());
 }
+
+template class JSCallNodeBase<IrOpcode::kJSCall>;
+template class JSCallNodeBase<IrOpcode::kJSCallWithSpread>;
+template class JSCallNodeBase<IrOpcode::kJSCallWithArrayLike>;
 
 std::ostream& operator<<(std::ostream& os, CallFrequency const& f) {
   if (f.IsUnknown()) return os << "unknown";
@@ -773,7 +779,7 @@ const Operator* JSOperatorBuilder::Call(
     FeedbackSource const& feedback, ConvertReceiverMode convert_mode,
     SpeculationMode speculation_mode, CallFeedbackRelation feedback_relation) {
   CallParameters parameters(arity, frequency, feedback, convert_mode,
-                            speculation_mode, feedback_relation, true);
+                            speculation_mode, feedback_relation);
   return new (zone()) Operator1<CallParameters>(   // --
       IrOpcode::kJSCall, Operator::kNoProperties,  // opcode
       "JSCall",                                    // name
@@ -784,12 +790,14 @@ const Operator* JSOperatorBuilder::Call(
 const Operator* JSOperatorBuilder::CallWithArrayLike(
     const CallFrequency& frequency, const FeedbackSource& feedback,
     SpeculationMode speculation_mode, CallFeedbackRelation feedback_relation) {
-  CallParameters parameters(2, frequency, feedback, ConvertReceiverMode::kAny,
-                            speculation_mode, feedback_relation, false);
+  static constexpr int kTheArrayLikeObject = 1;
+  CallParameters parameters(
+      JSCallWithArrayLikeNode::ArityForArgc(kTheArrayLikeObject), frequency,
+      feedback, ConvertReceiverMode::kAny, speculation_mode, feedback_relation);
   return new (zone()) Operator1<CallParameters>(                // --
       IrOpcode::kJSCallWithArrayLike, Operator::kNoProperties,  // opcode
       "JSCallWithArrayLike",                                    // name
-      3, 1, 1, 1, 1, 2,                                         // counts
+      parameters.arity(), 1, 1, 1, 1, 2,                        // counts
       parameters);                                              // parameter
 }
 
@@ -801,7 +809,7 @@ const Operator* JSOperatorBuilder::CallWithSpread(
                  feedback.IsValid());
   CallParameters parameters(arity, frequency, feedback,
                             ConvertReceiverMode::kAny, speculation_mode,
-                            feedback_relation, false);
+                            feedback_relation);
   return new (zone()) Operator1<CallParameters>(             // --
       IrOpcode::kJSCallWithSpread, Operator::kNoProperties,  // opcode
       "JSCallWithSpread",                                    // name
