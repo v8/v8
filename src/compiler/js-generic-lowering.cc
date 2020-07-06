@@ -720,6 +720,23 @@ void JSGenericLowering::LowerJSCreateBlockContext(Node* node) {
   ReplaceWithRuntimeCall(node, Runtime::kPushBlockContext);
 }
 
+namespace {
+
+bool CollectCallAndConstructFeedback(JSHeapBroker* broker) {
+  // Call and construct feedback is a special case. Besides shape feedback, we
+  // also increment the call count, which is later used to make inlining
+  // decisions.  The call count is only comparable/reliable if it is incremented
+  // for all calls inside a function. This is not the case in default turbofan
+  // mode, in which many calls may be inlined and will thus never reach generic
+  // lowering (where we insert the feedback-collecting builtin call).
+  // Therefore it should only be collected in native context independent code,
+  // where we 1. know every call will reach generic lowering, and 2. we must
+  // collect full feedback to properly tier up later.
+  return broker->is_native_context_independent();
+}
+
+}  // namespace
+
 void JSGenericLowering::LowerJSConstructForwardVarargs(Node* node) {
   ConstructForwardVarargsParameters p =
       ConstructForwardVarargsParametersOf(node->op());
@@ -753,7 +770,8 @@ void JSGenericLowering::LowerJSConstruct(Node* node) {
   static constexpr int kReceiver = 1;
   static constexpr int kMaybeFeedbackVector = 1;
 
-  if (CollectFeedbackInGenericLowering() && p.feedback().IsValid()) {
+  if (CollectFeedbackInGenericLowering() &&
+      CollectCallAndConstructFeedback(broker()) && p.feedback().IsValid()) {
     const int stack_argument_count =
         arg_count + kReceiver + kMaybeFeedbackVector;
     Callable callable =
@@ -807,7 +825,8 @@ void JSGenericLowering::LowerJSConstructWithArrayLike(Node* node) {
   static constexpr int kArgumentList = 1;
   static constexpr int kMaybeFeedbackVector = 1;
 
-  if (CollectFeedbackInGenericLowering() && p.feedback().IsValid()) {
+  if (CollectFeedbackInGenericLowering() &&
+      CollectCallAndConstructFeedback(broker()) && p.feedback().IsValid()) {
     const int stack_argument_count =
         arg_count - kArgumentList + kReceiver + kMaybeFeedbackVector;
     Callable callable = Builtins::CallableFor(
@@ -863,7 +882,8 @@ void JSGenericLowering::LowerJSConstructWithSpread(Node* node) {
   static constexpr int kTheSpread = 1;  // Included in `arg_count`.
   static constexpr int kMaybeFeedbackVector = 1;
 
-  if (CollectFeedbackInGenericLowering() && p.feedback().IsValid()) {
+  if (CollectFeedbackInGenericLowering() &&
+      CollectCallAndConstructFeedback(broker()) && p.feedback().IsValid()) {
     const int stack_argument_count =
         arg_count + kReceiver + kMaybeFeedbackVector;
     Callable callable = Builtins::CallableFor(
@@ -944,7 +964,8 @@ void JSGenericLowering::LowerJSCall(Node* node) {
   Node* feedback_vector = n.feedback_vector();
   node->RemoveInput(n.FeedbackVectorIndex());
 
-  if (CollectFeedbackInGenericLowering() && p.feedback().IsValid()) {
+  if (CollectFeedbackInGenericLowering() &&
+      CollectCallAndConstructFeedback(broker()) && p.feedback().IsValid()) {
     Callable callable = CodeFactory::Call_WithFeedback(isolate(), mode);
     CallDescriptor::Flags flags = FrameStateFlagForCall(node);
     auto call_descriptor = Linkage::GetStubCallDescriptor(
@@ -980,7 +1001,8 @@ void JSGenericLowering::LowerJSCallWithArrayLike(Node* node) {
   static constexpr int kArrayLikeObject = 1;
   static constexpr int kReceiver = 1;
 
-  if (CollectFeedbackInGenericLowering() && p.feedback().IsValid()) {
+  if (CollectFeedbackInGenericLowering() &&
+      CollectCallAndConstructFeedback(broker()) && p.feedback().IsValid()) {
     const int stack_argument_count = arg_count - kArrayLikeObject + kReceiver;
     Callable callable = Builtins::CallableFor(
         isolate(), Builtins::kCallWithArrayLike_WithFeedback);
@@ -1041,7 +1063,8 @@ void JSGenericLowering::LowerJSCallWithSpread(Node* node) {
   static constexpr int kTheSpread = 1;
   static constexpr int kMaybeFeedbackVector = 1;
 
-  if (CollectFeedbackInGenericLowering() && p.feedback().IsValid()) {
+  if (CollectFeedbackInGenericLowering() &&
+      CollectCallAndConstructFeedback(broker()) && p.feedback().IsValid()) {
     const int stack_argument_count =
         arg_count - kTheSpread + kReceiver + kMaybeFeedbackVector;
     Callable callable = Builtins::CallableFor(
