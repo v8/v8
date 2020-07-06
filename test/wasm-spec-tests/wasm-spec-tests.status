@@ -66,6 +66,7 @@
   'proposals/tail-call/f64': [SKIP],
   'proposals/tail-call/f64_bitwise': [SKIP],
   'proposals/tail-call/float_exprs': [SKIP],
+  'proposals/tail-call/float_misc': [SKIP],
   'proposals/tail-call/conversions': [SKIP],
 }],  # 'arch == mipsel or arch == mips64el or arch == mips or arch == mips64'
 
