@@ -3826,6 +3826,93 @@ TEST_F(FunctionBodyDecoderTest, GCArray1) {
                 kAppendEnd, "invalid array index: 1");
 }
 
+TEST_F(FunctionBodyDecoderTest, PackedFields) {
+  WASM_FEATURE_SCOPE(reftypes);
+  WASM_FEATURE_SCOPE(typed_funcref);
+  WASM_FEATURE_SCOPE(gc);
+
+  TestModuleBuilder builder;
+  module = builder.module();
+  byte array_type_index = builder.AddArray(kWasmI8, true);
+  byte struct_type_index = builder.AddStruct({F(kWasmI16, true)});
+  byte field_index = 0;
+
+  // *.new with packed fields works.
+  ExpectValidates(sigs.v_v(),
+                  {WASM_ARRAY_NEW(array_type_index, WASM_I32V(0), WASM_I32V(5)),
+                   kExprDrop});
+  ExpectValidates(
+      sigs.v_v(),
+      {WASM_STRUCT_NEW(struct_type_index, WASM_I32V(42)), kExprDrop});
+  // It can't unpack types other that i32.
+  ExpectFailure(
+      sigs.v_v(),
+      {WASM_ARRAY_NEW(array_type_index, WASM_I64V(0), WASM_I32V(5)), kExprDrop},
+      kAppendEnd,
+      "array.new[0] expected type i32, found i64.const of type i64");
+  ExpectFailure(sigs.v_v(),
+                {WASM_STRUCT_NEW(struct_type_index, WASM_I64V(42)), kExprDrop},
+                kAppendEnd,
+                "struct.new[0] expected type i32, found i64.const of type i64");
+
+  // *.set with packed fields works.
+  ExpectValidates(sigs.v_v(), {WASM_ARRAY_SET(array_type_index,
+                                              WASM_REF_NULL(array_type_index),
+                                              WASM_I32V(0), WASM_I32V(5))});
+  ExpectValidates(sigs.v_v(), {WASM_STRUCT_SET(struct_type_index, field_index,
+                                               WASM_REF_NULL(struct_type_index),
+                                               WASM_I32V(42))});
+  // It can't unpack into types other that i32.
+  ExpectFailure(
+      sigs.v_v(),
+      {WASM_ARRAY_SET(array_type_index, WASM_REF_NULL(array_type_index),
+                      WASM_I32V(0), WASM_I64V(5))},
+      kAppendEnd,
+      "array.set[2] expected type i32, found i64.const of type i64");
+  ExpectFailure(
+      sigs.v_v(),
+      {WASM_STRUCT_NEW(struct_type_index, field_index,
+                       WASM_REF_NULL(struct_type_index), WASM_I64V(42))},
+      kAppendEnd,
+      "struct.new[0] expected type i32, found i64.const of type i64");
+
+  // *.get_s/u works.
+  ExpectValidates(sigs.i_v(), {WASM_ARRAY_GET_S(array_type_index,
+                                                WASM_REF_NULL(array_type_index),
+                                                WASM_I32V(0))});
+  ExpectValidates(sigs.i_v(), {WASM_ARRAY_GET_U(array_type_index,
+                                                WASM_REF_NULL(array_type_index),
+                                                WASM_I32V(0))});
+  ExpectValidates(sigs.i_v(),
+                  {WASM_STRUCT_GET_S(struct_type_index, field_index,
+                                     WASM_REF_NULL(struct_type_index))});
+  ExpectValidates(sigs.i_v(),
+                  {WASM_STRUCT_GET_U(struct_type_index, field_index,
+                                     WASM_REF_NULL(struct_type_index))});
+
+  // *.get fails.
+  ExpectFailure(sigs.i_v(),
+                {WASM_ARRAY_GET(array_type_index,
+                                WASM_REF_NULL(array_type_index), WASM_I32V(0))},
+                kAppendEnd,
+                "array.get used with a field of packed type. Use array.get_s "
+                "or array.get_u instead.");
+  ExpectFailure(sigs.i_v(),
+                {WASM_STRUCT_GET(struct_type_index, field_index,
+                                 WASM_REF_NULL(struct_type_index))},
+                kAppendEnd,
+                "struct.get used with a field of packed type. Use struct.get_s "
+                "or struct.get_u instead.");
+}
+
+TEST_F(FunctionBodyDecoderTest, PackedTypesAsLocals) {
+  WASM_FEATURE_SCOPE(reftypes);
+  WASM_FEATURE_SCOPE(typed_funcref);
+  WASM_FEATURE_SCOPE(gc);
+  AddLocals(kWasmI8, 1);
+  ExpectFailure(sigs.v_v(), {}, kAppendEnd, "invalid local type");
+}
+
 class BranchTableIteratorTest : public TestWithZone {
  public:
   BranchTableIteratorTest() : TestWithZone() {}
