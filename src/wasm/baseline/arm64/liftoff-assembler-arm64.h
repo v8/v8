@@ -488,13 +488,21 @@ void LiftoffAssembler::FillI64Half(Register, int offset, RegPairHalf) {
 }
 
 void LiftoffAssembler::FillStackSlotsWithZero(int start, int size) {
+  // Zero 'size' bytes *below* start, byte at offset 'start' is untouched.
+  DCHECK_LE(0, start);
   DCHECK_LT(0, size);
   DCHECK_EQ(0, size % 4);
   RecordUsedSpillOffset(start + size);
 
   int max_stp_offset = -start - size;
+  // We check IsImmLSUnscaled(-start-12) because str only allows for unscaled
+  // 9-bit immediate offset [-256,256]. If start is large enough, which can
+  // happen when a function has many params (>=32 i64), str cannot be encoded
+  // properly. We can use Str, which will generate more instructions, so
+  // fallback to the general case below.
   if (size <= 12 * kStackSlotSize &&
-      IsImmLSPair(max_stp_offset, kXRegSizeLog2)) {
+      IsImmLSPair(max_stp_offset, kXRegSizeLog2) &&
+      IsImmLSUnscaled(-start - 12)) {
     // Special straight-line code for up to 12 slots. Generates one
     // instruction per two slots (<= 7 instructions total).
     STATIC_ASSERT(kStackSlotSize == kSystemPointerSize);
