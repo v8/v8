@@ -3703,6 +3703,129 @@ TEST_F(FunctionBodyDecoderTest, GCStruct) {
       "instead.");
 }
 
+TEST_F(FunctionBodyDecoderTest, GCArray1) {
+  WASM_FEATURE_SCOPE(reftypes);
+  WASM_FEATURE_SCOPE(typed_funcref);
+  WASM_FEATURE_SCOPE(gc);
+
+  TestModuleBuilder builder;
+  module = builder.module();
+  byte array_type_index = builder.AddArray(kWasmFuncRef, true);
+  byte struct_type_index = builder.AddStruct({F(kWasmI32, false)});
+
+  ValueType array_type = ValueType::Ref(array_type_index, kNonNullable);
+  ValueType reps_c_r[] = {kWasmFuncRef, array_type};
+  ValueType reps_f_r[] = {kWasmF32, array_type};
+  ValueType reps_i_r[] = {kWasmI32, array_type};
+  const FunctionSig sig_c_r(1, 1, reps_c_r);
+  const FunctionSig sig_v_r(0, 1, &array_type);
+  const FunctionSig sig_r_v(1, 0, &array_type);
+  const FunctionSig sig_f_r(1, 1, reps_f_r);
+  const FunctionSig sig_v_cr(0, 2, reps_c_r);
+  const FunctionSig sig_i_r(1, 1, reps_i_r);
+
+  /** array.new **/
+  ExpectValidates(
+      &sig_r_v, {WASM_ARRAY_NEW(array_type_index, WASM_REF_NULL(kLocalFuncRef),
+                                WASM_I32V(10))});
+  // Too few arguments.
+  ExpectFailure(
+      &sig_r_v, {WASM_I32V(10), WASM_GC_OP(kExprArrayNew), array_type_index},
+      kAppendEnd,
+      "not enough arguments on the stack for array.new, expected 1 more");
+  // Mistyped initializer.
+  ExpectFailure(
+      &sig_r_v,
+      {WASM_ARRAY_NEW(array_type_index, WASM_REF_NULL(kLocalExternRef),
+                      WASM_I32V(10))},
+      kAppendEnd,
+      "array.new[0] expected type funcref, found ref.null of type externref");
+  // Mistyped length.
+  ExpectFailure(&sig_r_v,
+                {WASM_ARRAY_NEW(array_type_index, WASM_REF_NULL(kLocalFuncRef),
+                                WASM_I64V(5))},
+                kAppendEnd,
+                "array.new[1] expected type i32, found i64.const of type i64");
+  // Wrong type index.
+  ExpectFailure(sigs.v_v(),
+                {WASM_ARRAY_NEW(struct_type_index, WASM_REF_NULL(kLocalFuncRef),
+                                WASM_I32V(10)),
+                 kExprDrop},
+                kAppendEnd, "invalid array index: 1");
+
+  /** array.get **/
+  ExpectValidates(&sig_c_r, {WASM_ARRAY_GET(array_type_index, WASM_GET_LOCAL(0),
+                                            WASM_I32V(5))});
+  // With non-nullable array type.
+  ExpectValidates(
+      &sig_c_r,
+      {WASM_ARRAY_GET(array_type_index, WASM_REF_AS_NON_NULL(WASM_GET_LOCAL(0)),
+                      WASM_I32V(5))});
+  // Wrongly typed index.
+  ExpectFailure(
+      &sig_v_r,
+      {WASM_ARRAY_GET(array_type_index, WASM_GET_LOCAL(0), WASM_I64V(5)),
+       kExprDrop},
+      kAppendEnd,
+      "array.get[1] expected type i32, found i64.const of type i64");
+  // Mistyped expected type.
+  ExpectFailure(
+      &sig_f_r,
+      {WASM_ARRAY_GET(array_type_index, WASM_GET_LOCAL(0), WASM_I32V(5))},
+      kAppendEnd, "type error in merge[0] (expected f32, got funcref)");
+
+  // array.get_s/u fail.
+  ExpectFailure(
+      &sig_c_r,
+      {WASM_ARRAY_GET_S(array_type_index, WASM_GET_LOCAL(0), WASM_I32V(5))},
+      kAppendEnd,
+      "array.get_s is only valid for packed arrays. Use or array.get instead.");
+  ExpectFailure(
+      &sig_c_r,
+      {WASM_ARRAY_GET_U(array_type_index, WASM_GET_LOCAL(0), WASM_I32V(5))},
+      kAppendEnd,
+      "array.get_u is only valid for packed arrays. Use or array.get instead.");
+
+  /** array.set **/
+  ExpectValidates(
+      &sig_v_r, {WASM_ARRAY_SET(array_type_index, WASM_GET_LOCAL(0),
+                                WASM_I32V(42), WASM_REF_NULL(kLocalFuncRef))});
+  // With non-nullable array type.
+  ExpectValidates(
+      &sig_v_cr,
+      {WASM_ARRAY_SET(array_type_index, WASM_GET_LOCAL(1), WASM_I32V(42),
+                      WASM_REF_AS_NON_NULL(WASM_GET_LOCAL(0)))});
+  // Non-array type index.
+  ExpectFailure(&sig_v_cr,
+                {WASM_ARRAY_SET(struct_type_index, WASM_GET_LOCAL(1),
+                                WASM_I32V(42), WASM_GET_LOCAL(0))},
+                kAppendEnd, "invalid array index: 1");
+  // Wrongly typed index.
+  ExpectFailure(&sig_v_cr,
+                {WASM_ARRAY_SET(array_type_index, WASM_GET_LOCAL(1),
+                                WASM_I64V(42), WASM_GET_LOCAL(0))},
+                kAppendEnd,
+                "array.set[1] expected type i32, found i64.const of type i64");
+  // Wrongly typed value.
+  ExpectFailure(
+      &sig_v_cr,
+      {WASM_ARRAY_SET(array_type_index, WASM_GET_LOCAL(1), WASM_I32V(42),
+                      WASM_I64V(0))},
+      kAppendEnd,
+      "array.set[2] expected type funcref, found i64.const of type i64");
+
+  /** array.len **/
+  ExpectValidates(&sig_i_r,
+                  {WASM_ARRAY_LEN(array_type_index, WASM_GET_LOCAL(0))});
+  // Wrong return type.
+  ExpectFailure(&sig_f_r, {WASM_ARRAY_LEN(array_type_index, WASM_GET_LOCAL(0))},
+                kAppendEnd, "type error in merge[0] (expected f32, got i32)");
+  // Non-array type index.
+  ExpectFailure(&sig_i_r,
+                {WASM_ARRAY_LEN(struct_type_index, WASM_GET_LOCAL(0))},
+                kAppendEnd, "invalid array index: 1");
+}
+
 class BranchTableIteratorTest : public TestWithZone {
  public:
   BranchTableIteratorTest() : TestWithZone() {}
