@@ -1349,12 +1349,14 @@ Handle<Foreign> Factory::NewForeign(Address addr) {
 
 Handle<WasmTypeInfo> Factory::NewWasmTypeInfo(Address type_address,
                                               Handle<Map> parent) {
+  Handle<ArrayList> subtypes = ArrayList::New(isolate(), 0);
   Map map = *wasm_type_info_map();
   HeapObject result = AllocateRawWithImmortalMap(map.instance_size(),
                                                  AllocationType::kYoung, map);
   Handle<WasmTypeInfo> info(WasmTypeInfo::cast(result), isolate());
   info->set_foreign_address(isolate(), type_address);
   info->set_parent(*parent);
+  info->set_subtypes(*subtypes);
   return info;
 }
 
