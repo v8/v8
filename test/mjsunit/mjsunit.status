@@ -856,13 +856,6 @@
   'wasm/float-constant-folding': [SKIP],
   'wasm/grow-memory': [SKIP],
   'wasm/import-memory': [SKIP],
-  
-  # atomics
-  'wasm/compare-exchange-stress': [SKIP],
-  'wasm/compare-exchange64-stress': [SKIP],
-  'wasm/shared-memory': [SKIP],
-  'wasm/atomics': [SKIP],
-
 }],  # 'arch == riscv64 or arch == riscv32'
 
 ##############################################################################
