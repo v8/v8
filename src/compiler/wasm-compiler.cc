@@ -5389,8 +5389,8 @@ Node* WasmGraphBuilder::RttSub(wasm::HeapType type, Node* parent_rtt) {
 }
 
 Node* WasmGraphBuilder::RefTest(Node* object, Node* rtt) {
-  Node* map =
-      gasm_->Load(MachineType::TaggedPointer(), object, HeapObject::kMapOffset);
+  Node* map = gasm_->Load(MachineType::TaggedPointer(), object,
+                          HeapObject::kMapOffset - kHeapObjectTag);
   // TODO(7748): Add a fast path for map == rtt.
   return BuildChangeSmiToInt32(CALL_BUILTIN(
       WasmIsRttSubtype, map, rtt,
@@ -5399,12 +5399,12 @@ Node* WasmGraphBuilder::RefTest(Node* object, Node* rtt) {
 
 Node* WasmGraphBuilder::RefCast(Node* object, Node* rtt,
                                 wasm::WasmCodePosition position) {
-  Node* map =
-      gasm_->Load(MachineType::TaggedPointer(), object, HeapObject::kMapOffset);
+  Node* map = gasm_->Load(MachineType::TaggedPointer(), object,
+                          HeapObject::kMapOffset - kHeapObjectTag);
   // TODO(7748): Add a fast path for map == rtt.
-  Node* check_result = CALL_BUILTIN(
+  Node* check_result = BuildChangeSmiToInt32(CALL_BUILTIN(
       WasmIsRttSubtype, map, rtt,
-      LOAD_INSTANCE_FIELD(NativeContext, MachineType::TaggedPointer()));
+      LOAD_INSTANCE_FIELD(NativeContext, MachineType::TaggedPointer())));
   TrapIfFalse(wasm::kTrapIllegalCast, check_result, position);
   return object;
 }
@@ -5746,15 +5746,22 @@ class WasmWrapperGraphBuilder : public WasmGraphBuilder {
       case wasm::ValueType::kF64:
         return BuildChangeFloat64ToNumber(node);
       case wasm::ValueType::kRef:
-      case wasm::ValueType::kOptRef:
+      case wasm::ValueType::kOptRef: {
+        uint32_t representation = type.heap_representation();
+        if (representation == wasm::HeapType::kExtern ||
+            representation == wasm::HeapType::kExn ||
+            representation == wasm::HeapType::kFunc) {
+          return node;
+        }
+        // TODO(7748): Figure out a JS interop story for arrays and structs.
+        // If this is reached, then IsJSCompatibleSignature() is too permissive.
+        UNREACHABLE();
+      }
       case wasm::ValueType::kRtt:
-        // TODO(7748): Implement properly for arrays and structs, figure
-        // out what to do for RTTs.
-        // For now, we just expose the raw object for testing.
-        return node;
+        // TODO(7748): Figure out what to do for RTTs.
+        UNIMPLEMENTED();
       case wasm::ValueType::kI8:
       case wasm::ValueType::kI16:
-        UNIMPLEMENTED();
       case wasm::ValueType::kStmt:
       case wasm::ValueType::kBottom:
         UNREACHABLE();
@@ -5831,6 +5838,8 @@ class WasmWrapperGraphBuilder : public WasmGraphBuilder {
             return input;
           }
           default:
+            // If this is reached, then IsJSCompatibleSignature() is too
+            // permissive.
             UNREACHABLE();
         }
       }
