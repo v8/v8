@@ -419,8 +419,7 @@ TEST(FixedArrayAccessSmiIndex) {
   Handle<FixedArray> array = isolate->factory()->NewFixedArray(5);
   array->set(4, Smi::FromInt(733));
   m.Return(m.LoadFixedArrayElement(m.HeapConstant(array),
-                                   m.SmiTag(m.IntPtrConstant(4)), 0,
-                                   CodeStubAssembler::SMI_PARAMETERS));
+                                   m.SmiTag(m.IntPtrConstant(4)), 0));
   FunctionTester ft(asm_tester.GenerateCode());
   MaybeHandle<Object> result = ft.Call();
   CHECK_EQ(733, Handle<Smi>::cast(result.ToHandleChecked())->value());

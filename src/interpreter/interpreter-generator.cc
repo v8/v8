@@ -2877,7 +2877,7 @@ IGNITION_HANDLER(ForInPrepare, InterpreterAssembler) {
 // Returns the next enumerable property in the the accumulator.
 IGNITION_HANDLER(ForInNext, InterpreterAssembler) {
   TNode<HeapObject> receiver = CAST(LoadRegisterAtOperandIndex(0));
-  TNode<Object> index = LoadRegisterAtOperandIndex(1);
+  TNode<Smi> index = CAST(LoadRegisterAtOperandIndex(1));
   TNode<Object> cache_type;
   TNode<Object> cache_array;
   std::tie(cache_type, cache_array) = LoadRegisterPairAtOperandIndex(2);
@@ -2885,8 +2885,7 @@ IGNITION_HANDLER(ForInNext, InterpreterAssembler) {
   TNode<HeapObject> maybe_feedback_vector = LoadFeedbackVector();
 
   // Load the next key from the enumeration array.
-  TNode<Object> key = LoadFixedArrayElement(CAST(cache_array), index, 0,
-                                            CodeStubAssembler::SMI_PARAMETERS);
+  TNode<Object> key = LoadFixedArrayElement(CAST(cache_array), index, 0);
 
   // Check if we can use the for-in fast path potentially using the enum cache.
   Label if_fast(this), if_slow(this, Label::kDeferred);

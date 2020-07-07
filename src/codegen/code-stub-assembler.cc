@@ -1977,6 +1977,43 @@ CodeStubAssembler::LoadArrayElement<DescriptorArray>(TNode<DescriptorArray>,
                                                      ParameterMode,
                                                      LoadSensitivity);
 
+template <typename TIndex>
+TNode<Object> CodeStubAssembler::LoadFixedArrayElement(
+    TNode<FixedArray> object, TNode<TIndex> index, int additional_offset,
+    LoadSensitivity needs_poisoning, CheckBounds check_bounds) {
+  // TODO(v8:9708): Do we want to keep both IntPtrT and UintPtrT variants?
+  static_assert(std::is_same<TIndex, Smi>::value ||
+                    std::is_same<TIndex, UintPtrT>::value ||
+                    std::is_same<TIndex, IntPtrT>::value,
+                "Only Smi, UintPtrT or IntPtrT indexes are allowed");
+  CSA_ASSERT(this, IsFixedArraySubclass(object));
+  CSA_ASSERT(this, IsNotWeakFixedArraySubclass(object));
+
+  ParameterMode parameter_mode =
+      std::is_same<TIndex, Smi>::value ? SMI_PARAMETERS : INTPTR_PARAMETERS;
+  if (NeedsBoundsCheck(check_bounds)) {
+    FixedArrayBoundsCheck(object, index, additional_offset, parameter_mode);
+  }
+  TNode<MaybeObject> element =
+      LoadArrayElement(object, FixedArray::kHeaderSize, index,
+                       additional_offset, parameter_mode, needs_poisoning);
+  return CAST(element);
+}
+
+template V8_EXPORT_PRIVATE TNode<Object>
+CodeStubAssembler::LoadFixedArrayElement<Smi>(TNode<FixedArray>, TNode<Smi>,
+                                              int, LoadSensitivity,
+                                              CheckBounds);
+template V8_EXPORT_PRIVATE TNode<Object>
+CodeStubAssembler::LoadFixedArrayElement<UintPtrT>(TNode<FixedArray>,
+                                                   TNode<UintPtrT>, int,
+                                                   LoadSensitivity,
+                                                   CheckBounds);
+template V8_EXPORT_PRIVATE TNode<Object>
+CodeStubAssembler::LoadFixedArrayElement<IntPtrT>(TNode<FixedArray>,
+                                                  TNode<IntPtrT>, int,
+                                                  LoadSensitivity, CheckBounds);
+
 void CodeStubAssembler::FixedArrayBoundsCheck(TNode<FixedArrayBase> array,
                                               Node* index,
                                               int additional_offset,
@@ -2005,22 +2042,6 @@ void CodeStubAssembler::FixedArrayBoundsCheck(TNode<FixedArrayBase> array,
     CSA_CHECK(this, UintPtrLessThan(effective_index,
                                     LoadAndUntagFixedArrayBaseLength(array)));
   }
-}
-
-TNode<Object> CodeStubAssembler::LoadFixedArrayElement(
-    TNode<FixedArray> object, Node* index_node, int additional_offset,
-    ParameterMode parameter_mode, LoadSensitivity needs_poisoning,
-    CheckBounds check_bounds) {
-  CSA_ASSERT(this, IsFixedArraySubclass(object));
-  CSA_ASSERT(this, IsNotWeakFixedArraySubclass(object));
-  if (NeedsBoundsCheck(check_bounds)) {
-    FixedArrayBoundsCheck(object, index_node, additional_offset,
-                          parameter_mode);
-  }
-  TNode<MaybeObject> element =
-      LoadArrayElement(object, FixedArray::kHeaderSize, index_node,
-                       additional_offset, parameter_mode, needs_poisoning);
-  return CAST(element);
 }
 
 TNode<Object> CodeStubAssembler::LoadPropertyArrayElement(

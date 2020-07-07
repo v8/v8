@@ -1356,9 +1356,9 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
       ParameterMode parameter_mode = INTPTR_PARAMETERS,
       LoadSensitivity needs_poisoning = LoadSensitivity::kSafe);
 
+  template <typename TIndex>
   TNode<Object> LoadFixedArrayElement(
-      TNode<FixedArray> object, Node* index, int additional_offset = 0,
-      ParameterMode parameter_mode = INTPTR_PARAMETERS,
+      TNode<FixedArray> object, TNode<TIndex> index, int additional_offset = 0,
       LoadSensitivity needs_poisoning = LoadSensitivity::kSafe,
       CheckBounds check_bounds = CheckBounds::kAlways);
 
@@ -1368,31 +1368,14 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
       TNode<FixedArray> object, TNode<IntPtrT> index, int additional_offset = 0,
       LoadSensitivity needs_poisoning = LoadSensitivity::kSafe) {
     return LoadFixedArrayElement(object, index, additional_offset,
-                                 INTPTR_PARAMETERS, needs_poisoning,
-                                 CheckBounds::kDebugOnly);
-  }
-
-  TNode<Object> LoadFixedArrayElement(
-      TNode<FixedArray> object, TNode<IntPtrT> index,
-      LoadSensitivity needs_poisoning,
-      CheckBounds check_bounds = CheckBounds::kAlways) {
-    return LoadFixedArrayElement(object, index, 0, INTPTR_PARAMETERS,
-                                 needs_poisoning, check_bounds);
-  }
-
-  TNode<Object> LoadFixedArrayElement(
-      TNode<FixedArray> object, TNode<IntPtrT> index, int additional_offset = 0,
-      LoadSensitivity needs_poisoning = LoadSensitivity::kSafe) {
-    return LoadFixedArrayElement(object, index, additional_offset,
-                                 INTPTR_PARAMETERS, needs_poisoning);
+                                 needs_poisoning, CheckBounds::kDebugOnly);
   }
 
   TNode<Object> LoadFixedArrayElement(
       TNode<FixedArray> object, int index, int additional_offset = 0,
       LoadSensitivity needs_poisoning = LoadSensitivity::kSafe) {
     return LoadFixedArrayElement(object, IntPtrConstant(index),
-                                 additional_offset, INTPTR_PARAMETERS,
-                                 needs_poisoning);
+                                 additional_offset, needs_poisoning);
   }
   // This doesn't emit a bounds-check. As part of the security-performance
   // tradeoff, only use it if it is performance critical.
@@ -1400,12 +1383,8 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
       TNode<FixedArray> object, int index, int additional_offset = 0,
       LoadSensitivity needs_poisoning = LoadSensitivity::kSafe) {
     return LoadFixedArrayElement(object, IntPtrConstant(index),
-                                 additional_offset, INTPTR_PARAMETERS,
-                                 needs_poisoning, CheckBounds::kDebugOnly);
-  }
-  TNode<Object> LoadFixedArrayElement(TNode<FixedArray> object,
-                                      TNode<Smi> index) {
-    return LoadFixedArrayElement(object, index, 0, SMI_PARAMETERS);
+                                 additional_offset, needs_poisoning,
+                                 CheckBounds::kDebugOnly);
   }
 
   TNode<Object> LoadPropertyArrayElement(TNode<PropertyArray> object,
