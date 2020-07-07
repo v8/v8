@@ -14,6 +14,12 @@
 namespace v8 {
 namespace internal {
 
+namespace {
+thread_local LocalHeap* current_local_heap = nullptr;
+}  // namespace
+
+LocalHeap* LocalHeap::Current() { return current_local_heap; }
+
 LocalHeap::LocalHeap(Heap* heap,
                      std::unique_ptr<PersistentHandles> persistent_handles)
     : heap_(heap),
@@ -29,6 +35,8 @@ LocalHeap::LocalHeap(Heap* heap,
   if (persistent_handles_) {
     persistent_handles_->Attach(this);
   }
+  DCHECK_NULL(current_local_heap);
+  current_local_heap = this;
 }
 
 LocalHeap::~LocalHeap() {
@@ -39,6 +47,9 @@ LocalHeap::~LocalHeap() {
   EnsureParkedBeforeDestruction();
 
   heap_->safepoint()->RemoveLocalHeap(this);
+
+  DCHECK_EQ(current_local_heap, this);
+  current_local_heap = nullptr;
 }
 
 Handle<Object> LocalHeap::NewPersistentHandle(Address value) {
