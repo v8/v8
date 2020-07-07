@@ -20,6 +20,7 @@ asm(
 #if defined(__APPLE__)
     ".globl _PushAllRegistersAndIterateStack            \n"
     ".private_extern _PushAllRegistersAndIterateStack   \n"
+    ".p2align 2                                         \n"
     "_PushAllRegistersAndIterateStack:                  \n"
 #else  // !defined(__APPLE__)
     ".globl PushAllRegistersAndIterateStack             \n"
@@ -27,6 +28,7 @@ asm(
     ".type PushAllRegistersAndIterateStack, %function   \n"
     ".hidden PushAllRegistersAndIterateStack            \n"
 #endif  // !defined(_WIN64)
+    ".p2align 2                                         \n"
     "PushAllRegistersAndIterateStack:                   \n"
 #endif  // !defined(__APPLE__)
     // x19-x29 are callee-saved.
