@@ -260,7 +260,7 @@ static void PrintRelocInfo(StringBuilder* out, Isolate* isolate,
     DeoptimizeKind type;
     if (Deoptimizer::IsDeoptimizationEntry(isolate, addr, &type)) {
       out->AddFormatted("    ;; %s deoptimization bailout",
-                        Deoptimizer::MessageFor(type));
+                        Deoptimizer::MessageFor(type, false));
     } else {
       out->AddFormatted("    ;; %s", RelocInfo::RelocModeName(rmode));
     }

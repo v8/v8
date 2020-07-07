@@ -466,14 +466,16 @@ void Deoptimizer::ComputeOutputFrames(Deoptimizer* deoptimizer) {
   deoptimizer->DoComputeOutputFrames();
 }
 
-const char* Deoptimizer::MessageFor(DeoptimizeKind kind) {
+const char* Deoptimizer::MessageFor(DeoptimizeKind kind, bool reuse_code) {
   switch (kind) {
     case DeoptimizeKind::kEager:
-      return "eager";
+      DCHECK(!reuse_code);
+      return "deopt-eager";
     case DeoptimizeKind::kSoft:
-      return "soft";
+      return reuse_code ? "bailout-soft" : "deopt-soft";
     case DeoptimizeKind::kLazy:
-      return "lazy";
+      DCHECK(!reuse_code);
+      return "deopt-lazy";
   }
   FATAL("Unsupported deopt kind");
   return nullptr;
@@ -536,8 +538,9 @@ Deoptimizer::Deoptimizer(Isolate* isolate, JSFunction function,
   compiled_code_.set_deopt_already_counted(true);
   {
     HandleScope scope(isolate_);
-    PROFILE(isolate_, CodeDeoptEvent(handle(compiled_code_, isolate_), kind,
-                                     from_, fp_to_sp_delta_));
+    PROFILE(isolate_,
+            CodeDeoptEvent(handle(compiled_code_, isolate_), kind, from_,
+                           fp_to_sp_delta_, should_reuse_code()));
   }
   unsigned size = ComputeInputFrameSize();
   const int parameter_count =
@@ -598,6 +601,12 @@ Handle<JSFunction> Deoptimizer::function() const {
 }
 Handle<Code> Deoptimizer::compiled_code() const {
   return Handle<Code>(compiled_code_, isolate());
+}
+
+bool Deoptimizer::should_reuse_code() const {
+  int count = compiled_code_.deoptimization_count();
+  return deopt_kind_ == DeoptimizeKind::kSoft &&
+         count < FLAG_reuse_opt_code_count;
 }
 
 Deoptimizer::~Deoptimizer() {
@@ -748,8 +757,8 @@ void Deoptimizer::DoComputeOutputFrames() {
 
   if (trace_scope_ != nullptr) {
     timer.Start();
-    PrintF(trace_scope_->file(), "[deoptimizing (DEOPT %s): begin ",
-           MessageFor(deopt_kind_));
+    PrintF(trace_scope_->file(), "[bailout (kind: %s): begin ",
+           MessageFor(deopt_kind_, should_reuse_code()));
     PrintFunctionName();
     PrintF(trace_scope_->file(),
            " (opt #%d) @%d, FP to SP delta: %d, caller sp: " V8PRIxPTR_FMT
@@ -850,8 +859,8 @@ void Deoptimizer::DoComputeOutputFrames() {
   if (trace_scope_ != nullptr) {
     double ms = timer.Elapsed().InMillisecondsF();
     int index = output_count_ - 1;  // Index of the topmost frame.
-    PrintF(trace_scope_->file(), "[deoptimizing (%s): end ",
-           MessageFor(deopt_kind_));
+    PrintF(trace_scope_->file(), "[bailout (kind: %s): end ",
+           MessageFor(deopt_kind_, should_reuse_code()));
     PrintFunctionName();
     PrintF(trace_scope_->file(),
            " @%d => node=%d, pc=" V8PRIxPTR_FMT

@@ -157,6 +157,7 @@ RUNTIME_FUNCTION(Runtime_NotifyDeoptimized) {
   // code object from deoptimizer.
   Handle<Code> optimized_code = deoptimizer->compiled_code();
   DeoptimizeKind type = deoptimizer->deopt_kind();
+  bool should_reuse_code = deoptimizer->should_reuse_code();
 
   // TODO(turbofan): We currently need the native context to materialize
   // the arguments object, but only to get to its map.
@@ -171,8 +172,7 @@ RUNTIME_FUNCTION(Runtime_NotifyDeoptimized) {
   JavaScriptFrame* top_frame = top_it.frame();
   isolate->set_context(Context::cast(top_frame->context()));
 
-  int count = optimized_code->deoptimization_count();
-  if (type == DeoptimizeKind::kSoft && count < FLAG_reuse_opt_code_count) {
+  if (should_reuse_code) {
     optimized_code->increment_deoptimization_count();
     return ReadOnlyRoots(isolate).undefined_value();
   }

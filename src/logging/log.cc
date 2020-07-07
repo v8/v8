@@ -1401,10 +1401,11 @@ void Logger::ProcessDeoptEvent(Handle<Code> code, SourcePosition position,
 }
 
 void Logger::CodeDeoptEvent(Handle<Code> code, DeoptimizeKind kind, Address pc,
-                            int fp_to_sp_delta) {
+                            int fp_to_sp_delta, bool reuse_code) {
   if (!log_->IsEnabled()) return;
   Deoptimizer::DeoptInfo info = Deoptimizer::GetDeoptInfo(*code, pc);
-  ProcessDeoptEvent(code, info.position, Deoptimizer::MessageFor(kind),
+  ProcessDeoptEvent(code, info.position,
+                    Deoptimizer::MessageFor(kind, reuse_code),
                     DeoptimizeReasonToString(info.deopt_reason));
 }
 

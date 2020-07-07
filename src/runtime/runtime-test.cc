@@ -1587,7 +1587,7 @@ RUNTIME_FUNCTION(Runtime_EnableCodeLoggingForTesting) {
     void CodeDisableOptEvent(Handle<AbstractCode> code,
                              Handle<SharedFunctionInfo> shared) final {}
     void CodeDeoptEvent(Handle<Code> code, DeoptimizeKind kind, Address pc,
-                        int fp_to_sp_delta) final {}
+                        int fp_to_sp_delta, bool reuse_code) final {}
     void CodeDependencyChangeEvent(Handle<Code> code,
                                    Handle<SharedFunctionInfo> shared,
                                    const char* reason) final {}
