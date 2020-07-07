@@ -357,23 +357,8 @@
 
 ##############################################################################
 ['arch == riscv32  or arch == riscv64', {
-  # TODO(mips-team): Implement I64Atomic operations on MIPS
-  'test-run-wasm-atomics64/*': [SKIP],
-}],  # 'arch == mipsel or arch == mips64el or arch == mips or arch == mips64'
-
-##############################################################################
-['arch == riscv32  or arch == riscv64', {
-  'test-run-wasm-atomics/*': [SKIP],
- 
-  'test-cpu-profiler/CrossScriptInliningCallerLineNumbers2 ': [SKIP],
-
-  'test-serialize/PartialSerializerCustomContext': [SKIP],
-  
-  'test-modules/ModuleEvaluationTopLevelAwaitDynamicImportError': [SKIP],
-  'test-modules/ModuleEvaluationCompletion1': [SKIP],
-
-  'test-run-wasm/RunWasmTurbofan_I32SConvertF32': [SKIP],
-  'test-run-wasm/RunWasmTurbofan_I32UConvertF32': [SKIP],
+  # this test is unstable, sometimes fail when running w/ other tests
+  'test-cpu-profiler/CrossScriptInliningCallerLineNumbers2': [SKIP],
 }],
 
 ##############################################################################

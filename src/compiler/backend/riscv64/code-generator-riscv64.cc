@@ -1468,6 +1468,21 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
     case kRiscvTruncWS: {
       Register result = instr->OutputCount() > 1 ? i.OutputRegister(1) : no_reg;
       __ Trunc_w_s(i.OutputRegister(), i.InputDoubleRegister(0), result);
+
+      // On RISCV, if the input value exceeds INT32_MAX, the result of fcvt
+      // is INT32_MAX. Note that, since INT32_MAX means the lower 31-bits are
+      // all 1s, INT32_MAX cannot be represented precisely as a float, so an
+      // fcvt result of INT32_MAX always indicate overflow.
+      //
+      // In wasm_compiler, to detect overflow in converting a FP value, fval, to
+      // integer, V8 checks whether I2F(F2I(fval)) equals fval. However, if fval
+      // == INT32_MAX+1, the value of I2F(F2I(fval)) happens to be fval. So,
+      // INT32_MAX is not a good value to indicate overflow. Instead, we will
+      // use INT32_MIN as the converted result of an out-of-range FP value,
+      // exploiting the fact that INT32_MAX+1 is INT32_MIN.
+      __ Addu(kScratchReg, i.OutputRegister(), 1);
+      __ Slt(kScratchReg2, kScratchReg, i.OutputRegister());
+      __ Movn(i.OutputRegister(), kScratchReg, kScratchReg2);
       break;
     }
     case kRiscvTruncLS: {
@@ -1488,6 +1503,20 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
     case kRiscvTruncUwS: {
       Register result = instr->OutputCount() > 1 ? i.OutputRegister(1) : no_reg;
       __ Trunc_uw_s(i.OutputRegister(), i.InputDoubleRegister(0), result);
+
+      // On RISCV, if the input value exceeds UINT32_MAX, the result of fcvt
+      // is UINT32_MAX. Note that, since UINT32_MAX means all 32-bits are 1s,
+      // UINT32_MAX cannot be represented precisely as float, so an fcvt result
+      // of UINT32_MAX always indicates overflow.
+      //
+      // In wasm_compiler.cc, to detect overflow in converting a FP value, fval,
+      // to integer, V8 checks whether I2F(F2I(fval)) equals fval. However, if
+      // fval == UINT32_MAX+1, the value of I2F(F2I(fval)) happens to be fval.
+      // So, UINT32_MAX is not a good value to indicate overflow. Instead, we
+      // will use 0 as the converted result of an out-of-range FP value,
+      // exploiting the fact that UINT32_MAX+1 is 0.
+      __ Addu(kScratchReg, i.OutputRegister(), 1);
+      __ Movz(i.OutputRegister(), zero_reg, kScratchReg);
       break;
     }
     case kRiscvTruncUlS: {

@@ -926,14 +926,6 @@ class V8_EXPORT_PRIVATE MacroAssembler : public TurboAssembler {
   void LoadWordPair(Register rd, const MemOperand& rs, Register scratch = t3);
   void StoreWordPair(Register rd, const MemOperand& rs, Register scratch = t3);
 
-  void Round_l_d(FPURegister fd, FPURegister fs);
-  void Floor_l_d(FPURegister fd, FPURegister fs);
-  void Ceil_l_d(FPURegister fd, FPURegister fs);
-
-  void Round_w_d(FPURegister fd, FPURegister fs);
-  void Floor_w_d(FPURegister fd, FPURegister fs);
-  void Ceil_w_d(FPURegister fd, FPURegister fs);
-
   void Madd_s(FPURegister fd, FPURegister fr, FPURegister fs, FPURegister ft);
   void Madd_d(FPURegister fd, FPURegister fr, FPURegister fs, FPURegister ft);
   void Msub_s(FPURegister fd, FPURegister fr, FPURegister fs, FPURegister ft);

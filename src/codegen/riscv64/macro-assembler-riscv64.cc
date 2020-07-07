@@ -1752,12 +1752,12 @@ template <typename CvtFunc>
 void TurboAssembler::RoundFloatingPointToInteger(Register rd, FPURegister fs,
                                                  Register result,
                                                  CvtFunc fcvt_generator) {
+  // Save csr_fflags to scratch & clear exception flags
   if (result.is_valid()) {
     BlockTrampolinePoolScope block_trampoline_pool(this);
     UseScratchRegisterScope temps(this);
     Register scratch = temps.hasAvailable() ? temps.Acquire() : t5;
 
-    // Save csr_fflags to scratch & clear exception flags
     int exception_flags = kInvalidOperation;
     RV_csrrci(scratch, csr_fflags, exception_flags);
 
@@ -1776,48 +1776,6 @@ void TurboAssembler::RoundFloatingPointToInteger(Register rd, FPURegister fs,
     // actual conversion instruction
     fcvt_generator(this, rd, fs);
   }
-}
-
-void MacroAssembler::Round_l_d(FPURegister fd, FPURegister fs) {
-  UseScratchRegisterScope temps(this);
-  Register scratch = temps.Acquire();
-  RV_fcvt_l_d(scratch, fs, RNE);
-  RV_fmv_d_x(fd, scratch);
-}
-
-void MacroAssembler::Floor_l_d(FPURegister fd, FPURegister fs) {
-  UseScratchRegisterScope temps(this);
-  Register scratch = temps.Acquire();
-  RV_fcvt_l_d(scratch, fs, RDN);
-  RV_fmv_d_x(fd, scratch);
-}
-
-void MacroAssembler::Ceil_l_d(FPURegister fd, FPURegister fs) {
-  UseScratchRegisterScope temps(this);
-  Register scratch = temps.Acquire();
-  RV_fcvt_l_d(scratch, fs, RUP);
-  RV_fmv_d_x(fd, scratch);
-}
-
-void MacroAssembler::Round_w_d(FPURegister fd, FPURegister fs) {
-  UseScratchRegisterScope temps(this);
-  Register scratch = temps.Acquire();
-  RV_fcvt_w_d(scratch, fs, RNE);
-  RV_fmv_w_x(fd, scratch);
-}
-
-void MacroAssembler::Floor_w_d(FPURegister fd, FPURegister fs) {
-  UseScratchRegisterScope temps(this);
-  Register scratch = temps.Acquire();
-  RV_fcvt_w_d(scratch, fs, RDN);
-  RV_fmv_w_x(fd, scratch);
-}
-
-void MacroAssembler::Ceil_w_d(FPURegister fd, FPURegister fs) {
-  UseScratchRegisterScope temps(this);
-  Register scratch = temps.Acquire();
-  RV_fcvt_w_d(scratch, fs, RUP);
-  RV_fmv_w_x(fd, scratch);
 }
 
 void TurboAssembler::Trunc_uw_d(Register rd, FPURegister fs, Register result) {
