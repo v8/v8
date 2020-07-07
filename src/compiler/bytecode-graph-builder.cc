@@ -3623,8 +3623,7 @@ void BytecodeGraphBuilder::VisitSuspendGenerator() {
   // Store the parameters.
   for (int i = 0; i < parameter_count_without_receiver; i++) {
     value_inputs[3 + count_written++] =
-        environment()->LookupRegister(interpreter::Register::FromParameterIndex(
-            i, parameter_count_without_receiver));
+        environment()->LookupRegister(bytecode_iterator().GetParameter(i));
   }
 
   // Store the registers.

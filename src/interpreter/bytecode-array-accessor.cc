@@ -190,6 +190,18 @@ FeedbackSlot BytecodeArrayAccessor::GetSlotOperand(int operand_index) const {
   return FeedbackVector::ToSlot(index);
 }
 
+Register BytecodeArrayAccessor::GetReceiver() const {
+  return Register::FromParameterIndex(0, bytecode_array()->parameter_count());
+}
+
+Register BytecodeArrayAccessor::GetParameter(int parameter_index) const {
+  DCHECK_GE(parameter_index, 0);
+  // The parameter indices are shifted by 1 (receiver is the
+  // first entry).
+  return Register::FromParameterIndex(parameter_index + 1,
+                                      bytecode_array()->parameter_count());
+}
+
 Register BytecodeArrayAccessor::GetRegisterOperand(int operand_index) const {
   OperandType operand_type =
       Bytecodes::GetOperandType(current_bytecode(), operand_index);
