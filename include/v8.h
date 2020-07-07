@@ -10089,8 +10089,6 @@ class V8_EXPORT TryCatch {
   /**
    * Returns the exception caught by this try/catch block.  If no exception has
    * been caught an empty handle is returned.
-   *
-   * The returned handle is valid until this TryCatch block has been destroyed.
    */
   Local<Value> Exception() const;
 
@@ -10112,9 +10110,6 @@ class V8_EXPORT TryCatch {
   /**
    * Returns the message associated with this exception.  If there is
    * no message associated an empty handle is returned.
-   *
-   * The returned handle is valid until this TryCatch block has been
-   * destroyed.
    */
   Local<v8::Message> Message() const;
 
