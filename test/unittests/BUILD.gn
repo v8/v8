@@ -241,6 +241,7 @@ v8_source_set("unittests_sources") {
     "heap/heap-unittest.cc",
     "heap/heap-utils.h",
     "heap/item-parallel-job-unittest.cc",
+    "heap/js-visitor-unittest.cc",
     "heap/list-unittest.cc",
     "heap/local-heap-unittest.cc",
     "heap/marking-unittest.cc",

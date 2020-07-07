@@ -1837,6 +1837,7 @@ v8_header_set("v8_headers") {
   public_configs = [ ":v8_header_features" ]
 
   sources = [
+    "include/v8-cppgc.h",
     "include/v8-fast-api-calls.h",
     "include/v8-internal.h",
     "include/v8.h",
@@ -2173,6 +2174,7 @@ v8_source_set("v8_base_without_compiler") {
     ### gcmole(all) ###
     "$target_gen_dir/builtins-generated/bytecodes-builtins-list.h",
     "include/cppgc/common.h",
+    "include/v8-cppgc.h",
     "include/v8-fast-api-calls.h",
     "include/v8-inspector-protocol.h",
     "include/v8-inspector.h",

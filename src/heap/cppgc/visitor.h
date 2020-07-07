@@ -16,11 +16,16 @@ class HeapBase;
 class HeapObjectHeader;
 class PageBackend;
 
+class VisitorFactory {
+ public:
+  static constexpr Visitor::Key CreateKey() { return {}; }
+};
+
 // Base visitor that is allowed to create a public cppgc::Visitor object and
 // use its internals.
 class VisitorBase : public cppgc::Visitor {
  public:
-  VisitorBase() = default;
+  VisitorBase() : cppgc::Visitor(VisitorFactory::CreateKey()) {}
   ~VisitorBase() override = default;
 
   VisitorBase(const VisitorBase&) = delete;

@@ -21,6 +21,8 @@ template <typename T, typename WeaknessPolicy, typename LocationPolicy,
 class BasicPersistent;
 class ConservativeTracingVisitor;
 class VisitorBase;
+class VisitorFactory;
+
 }  // namespace internal
 
 using WeakCallback = void (*)(const LivenessBroker&, const void*);
@@ -44,6 +46,14 @@ using WeakCallback = void (*)(const LivenessBroker&, const void*);
  */
 class Visitor {
  public:
+  class Key {
+   private:
+    Key() = default;
+    friend class internal::VisitorFactory;
+  };
+
+  explicit Visitor(Key) {}
+
   virtual ~Visitor() = default;
 
   /**
@@ -147,8 +157,6 @@ class Visitor {
     }
   }
 
-  Visitor() = default;
-
   template <typename Persistent,
             std::enable_if_t<Persistent::IsStrongPersistent::value>* = nullptr>
   void TraceRoot(const Persistent& p, const SourceLocation& loc) {
@@ -193,11 +201,11 @@ class Visitor {
   V8_EXPORT void CheckObjectNotInConstruction(const void* address);
 #endif  // V8_ENABLE_CHECKS
 
-  friend class internal::VisitorBase;
   template <typename T, typename WeaknessPolicy, typename LocationPolicy,
             typename CheckingPolicy>
   friend class internal::BasicPersistent;
   friend class internal::ConservativeTracingVisitor;
+  friend class internal::VisitorBase;
 };
 
 }  // namespace cppgc
