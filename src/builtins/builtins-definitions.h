@@ -671,6 +671,7 @@ namespace internal {
   /* instanceof */                                                             \
   TFC(OrdinaryHasInstance, Compare)                                            \
   TFC(InstanceOf, Compare)                                                     \
+  TFC(InstanceOf_WithFeedback, Compare_WithFeedback)                           \
                                                                                \
   /* for-in */                                                                 \
   TFS(ForInEnumerate, kReceiver)                                               \

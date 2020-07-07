@@ -9,6 +9,7 @@
 
 #include "src/codegen/machine-type.h"
 #include "src/compiler/js-heap-broker.h"
+#include "src/compiler/node.h"
 #include "src/handles/handles.h"
 #include "src/objects/map.h"
 #include "src/zone/zone-containers.h"
@@ -22,7 +23,6 @@ class CompilationDependencies;
 class Graph;
 class JSGraph;
 class JSHeapBroker;
-class Node;
 class PropertyAccessInfo;
 class SimplifiedOperatorBuilder;
 
@@ -42,9 +42,18 @@ class PropertyAccessBuilder {
                            ZoneVector<Handle<Map>> const& maps, Node** receiver,
                            Node** effect, Node* control);
 
+  // TODO(jgruber): Remove the untyped version once all uses are
+  // updated.
   void BuildCheckMaps(Node* receiver, Node** effect, Node* control,
                       ZoneVector<Handle<Map>> const& receiver_maps);
-  Node* BuildCheckValue(Node* receiver, Node** effect, Node* control,
+  void BuildCheckMaps(Node* receiver, Effect* effect, Control control,
+                      ZoneVector<Handle<Map>> const& receiver_maps) {
+    Node* e = *effect;
+    Node* c = control;
+    BuildCheckMaps(receiver, &e, c, receiver_maps);
+    *effect = e;
+  }
+  Node* BuildCheckValue(Node* receiver, Effect* effect, Control control,
                         Handle<HeapObject> value);
 
   // Builds the actual load for data-field and data-constant-field

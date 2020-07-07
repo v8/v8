@@ -109,8 +109,8 @@ void PropertyAccessBuilder::BuildCheckMaps(
                              *effect, control);
 }
 
-Node* PropertyAccessBuilder::BuildCheckValue(Node* receiver, Node** effect,
-                                             Node* control,
+Node* PropertyAccessBuilder::BuildCheckValue(Node* receiver, Effect* effect,
+                                             Control control,
                                              Handle<HeapObject> value) {
   HeapObjectMatcher m(receiver);
   if (m.Is(value)) return receiver;

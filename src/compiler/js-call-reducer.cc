@@ -828,13 +828,13 @@ class PromiseBuiltinReducerAssembler : public JSCallReducerAssembler {
   TNode<JSFunction> CreateClosureFromBuiltinSharedFunctionInfo(
       SharedFunctionInfoRef shared, TNode<Context> context) {
     DCHECK(shared.HasBuiltinId());
+    Handle<FeedbackCell> feedback_cell =
+        isolate()->factory()->many_closures_cell();
     Callable const callable = Builtins::CallableFor(
         isolate(), static_cast<Builtins::Name>(shared.builtin_id()));
     return AddNode<JSFunction>(graph()->NewNode(
-        javascript()->CreateClosure(shared.object(),
-                                    isolate()->factory()->many_closures_cell(),
-                                    callable.code()),
-        context, effect(), control()));
+        javascript()->CreateClosure(shared.object(), callable.code()),
+        HeapConstant(feedback_cell), context, effect(), control()));
   }
 
   void CallPromiseExecutor(TNode<Object> executor, TNode<JSFunction> resolve,
@@ -3987,7 +3987,7 @@ Reduction JSCallReducer::ReduceJSCall(Node* node) {
   // the {target} must have the same native context as the call site.
   // Same if the {target} is the result of a CheckClosure operation.
   if (target->opcode() == IrOpcode::kJSCreateClosure) {
-    CreateClosureParameters const& p = CreateClosureParametersOf(target->op());
+    CreateClosureParameters const& p = JSCreateClosureNode{target}.Parameters();
     return ReduceJSCall(node, SharedFunctionInfoRef(broker(), p.shared_info()));
   } else if (target->opcode() == IrOpcode::kCheckClosure) {
     FeedbackCellRef cell(broker(), FeedbackCellOf(target->op()));
@@ -4495,8 +4495,12 @@ Reduction JSCallReducer::ReduceJSConstruct(Node* node) {
           node, DeoptimizeReason::kInsufficientTypeFeedbackForConstruct);
     }
 
+    // TODO(jgruber,v8:8888): Remove the special case for native context
+    // independent codegen below once we control available feedback through
+    // this flag.
     base::Optional<HeapObjectRef> feedback_target = feedback.AsCall().target();
-    if (feedback_target.has_value() && feedback_target->IsAllocationSite()) {
+    if (feedback_target.has_value() && feedback_target->IsAllocationSite() &&
+        !broker()->is_native_context_independent()) {
       // The feedback is an AllocationSite, which means we have called the
       // Array function and collected transition (and pretenuring) feedback
       // for the resulting arrays.  This has to be kept in sync with the
@@ -6341,12 +6345,13 @@ Reduction JSCallReducer::ReducePromisePrototypeCatch(Node* node) {
 Node* JSCallReducer::CreateClosureFromBuiltinSharedFunctionInfo(
     SharedFunctionInfoRef shared, Node* context, Node* effect, Node* control) {
   DCHECK(shared.HasBuiltinId());
+  Handle<FeedbackCell> feedback_cell =
+      isolate()->factory()->many_closures_cell();
   Callable const callable = Builtins::CallableFor(
       isolate(), static_cast<Builtins::Name>(shared.builtin_id()));
   return graph()->NewNode(
-      javascript()->CreateClosure(
-          shared.object(), factory()->many_closures_cell(), callable.code()),
-      context, effect, control);
+      javascript()->CreateClosure(shared.object(), callable.code()),
+      jsgraph()->HeapConstant(feedback_cell), context, effect, control);
 }
 
 // ES section #sec-promise.prototype.finally

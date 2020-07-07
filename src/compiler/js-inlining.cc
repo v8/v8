@@ -280,7 +280,8 @@ bool NeedsImplicitReceiver(SharedFunctionInfoRef shared_info) {
 base::Optional<SharedFunctionInfoRef> JSInliner::DetermineCallTarget(
     Node* node) {
   DCHECK(IrOpcode::IsInlineeOpcode(node->opcode()));
-  HeapObjectMatcher match(node->InputAt(JSCallOrConstructNode::TargetIndex()));
+  Node* target = node->InputAt(JSCallOrConstructNode::TargetIndex());
+  HeapObjectMatcher match(target);
 
   // This reducer can handle both normal function calls as well a constructor
   // calls whenever the target is a constant function object, as follows:
@@ -315,8 +316,8 @@ base::Optional<SharedFunctionInfoRef> JSInliner::DetermineCallTarget(
   //  - JSConstruct(JSCreateClosure[shared](context),
   //                new.target, args..., vector)
   if (match.IsJSCreateClosure()) {
-    CreateClosureParameters const& p = CreateClosureParametersOf(match.op());
-    FeedbackCellRef cell(broker(), p.feedback_cell());
+    JSCreateClosureNode n(target);
+    FeedbackCellRef cell = n.GetFeedbackCellRefChecked(broker());
     return cell.shared_function_info();
   } else if (match.IsCheckClosure()) {
     FeedbackCellRef cell(broker(), FeedbackCellOf(match.op()));
@@ -334,7 +335,8 @@ base::Optional<SharedFunctionInfoRef> JSInliner::DetermineCallTarget(
 FeedbackVectorRef JSInliner::DetermineCallContext(Node* node,
                                                   Node** context_out) {
   DCHECK(IrOpcode::IsInlineeOpcode(node->opcode()));
-  HeapObjectMatcher match(node->InputAt(JSCallOrConstructNode::TargetIndex()));
+  Node* target = node->InputAt(JSCallOrConstructNode::TargetIndex());
+  HeapObjectMatcher match(target);
 
   if (match.HasValue() && match.Ref(broker()).IsJSFunction()) {
     JSFunctionRef function = match.Ref(broker()).AsJSFunction();
@@ -347,11 +349,10 @@ FeedbackVectorRef JSInliner::DetermineCallContext(Node* node,
   }
 
   if (match.IsJSCreateClosure()) {
-    CreateClosureParameters const& p = CreateClosureParametersOf(match.op());
-
     // Load the feedback vector of the target by looking up its vector cell at
     // the instantiation site (we only decide to inline if it's populated).
-    FeedbackCellRef cell(broker(), p.feedback_cell());
+    JSCreateClosureNode n(target);
+    FeedbackCellRef cell = n.GetFeedbackCellRefChecked(broker());
 
     // The inlinee uses the locally provided context at instantiation.
     *context_out = NodeProperties::GetContextInput(match.node());

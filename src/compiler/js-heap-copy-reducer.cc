@@ -74,7 +74,6 @@ Reduction JSHeapCopyReducer::Reduce(Node* node) {
     case IrOpcode::kJSCreateClosure: {
       CreateClosureParameters const& p = CreateClosureParametersOf(node->op());
       SharedFunctionInfoRef(broker(), p.shared_info());
-      FeedbackCellRef(broker(), p.feedback_cell());
       HeapObjectRef(broker(), p.code());
       break;
     }

@@ -330,6 +330,9 @@ class V8_EXPORT_PRIVATE AccessBuilder final
   // Provides access to a FeedbackCell's value.
   static FieldAccess ForFeedbackCellValue();
 
+  // Provides access to a FeedbackVector fields.
+  static FieldAccess ForFeedbackVectorClosureFeedbackCellArray();
+
  private:
   DISALLOW_IMPLICIT_CONSTRUCTORS(AccessBuilder);
 };

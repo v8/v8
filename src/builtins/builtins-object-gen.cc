@@ -1156,6 +1156,18 @@ TF_BUILTIN(InstanceOf, ObjectBuiltinsAssembler) {
   Return(InstanceOf(object, callable, context));
 }
 
+TF_BUILTIN(InstanceOf_WithFeedback, ObjectBuiltinsAssembler) {
+  TNode<Object> object = CAST(Parameter(Descriptor::kLeft));
+  TNode<Object> callable = CAST(Parameter(Descriptor::kRight));
+  TNode<Context> context = CAST(Parameter(Descriptor::kContext));
+  TNode<HeapObject> maybe_feedback_vector =
+      CAST(Parameter(Descriptor::kMaybeFeedbackVector));
+  TNode<UintPtrT> slot = UncheckedCast<UintPtrT>(Parameter(Descriptor::kSlot));
+
+  CollectInstanceOfFeedback(callable, context, maybe_feedback_vector, slot);
+  Return(InstanceOf(object, callable, context));
+}
+
 // ES6 section 7.3.19 OrdinaryHasInstance ( C, O )
 TF_BUILTIN(OrdinaryHasInstance, ObjectBuiltinsAssembler) {
   TNode<Object> constructor = CAST(Parameter(Descriptor::kLeft));

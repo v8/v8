@@ -200,6 +200,7 @@ DEF_BINARY_LOWERING(Subtract)
 DEF_BINARY_LOWERING(Equal)
 DEF_BINARY_LOWERING(GreaterThan)
 DEF_BINARY_LOWERING(GreaterThanOrEqual)
+DEF_BINARY_LOWERING(InstanceOf)
 DEF_BINARY_LOWERING(LessThan)
 DEF_BINARY_LOWERING(LessThanOrEqual)
 #undef DEF_BINARY_LOWERING
@@ -247,9 +248,17 @@ bool ShouldUseMegamorphicLoadBuiltin(FeedbackSource const& source,
 }  // namespace
 
 void JSGenericLowering::LowerJSHasProperty(Node* node) {
-  // TODO(jgruber,v8:8888): Collect feedback.
-  node->RemoveInput(JSHasPropertyNode::FeedbackVectorIndex());
-  ReplaceWithBuiltinCall(node, Builtins::kHasProperty);
+  JSHasPropertyNode n(node);
+  const PropertyAccess& p = n.Parameters();
+  if (!p.feedback().IsValid()) {
+    node->RemoveInput(JSHasPropertyNode::FeedbackVectorIndex());
+    ReplaceWithBuiltinCall(node, Builtins::kHasProperty);
+  } else {
+    STATIC_ASSERT(n.FeedbackVectorIndex() == 2);
+    n->InsertInput(zone(), 2,
+                   jsgraph()->TaggedIndexConstant(p.feedback().index()));
+    ReplaceWithBuiltinCall(node, Builtins::kKeyedHasIC);
+  }
 }
 
 void JSGenericLowering::LowerJSLoadProperty(Node* node) {
@@ -471,11 +480,6 @@ void JSGenericLowering::LowerJSHasInPrototypeChain(Node* node) {
   ReplaceWithRuntimeCall(node, Runtime::kHasInPrototypeChain);
 }
 
-void JSGenericLowering::LowerJSInstanceOf(Node* node) {
-  // TODO(jgruber, v8:8888): Collect feedback.
-  ReplaceWithBuiltinCall(node, Builtins::kInstanceOf);
-}
-
 void JSGenericLowering::LowerJSOrdinaryHasInstance(Node* node) {
   ReplaceWithBuiltinCall(node, Builtins::kOrdinaryHasInstance);
 }
@@ -570,12 +574,11 @@ void JSGenericLowering::LowerJSRegExpTest(Node* node) {
 }
 
 void JSGenericLowering::LowerJSCreateClosure(Node* node) {
-  // TODO(jgruber,v8:8888): Load the feedback cell instead of embedding a
-  // (context-dependent) constant.
-  CreateClosureParameters const& p = CreateClosureParametersOf(node->op());
+  JSCreateClosureNode n(node);
+  CreateClosureParameters const& p = n.Parameters();
   Handle<SharedFunctionInfo> const shared_info = p.shared_info();
+  STATIC_ASSERT(n.FeedbackCellIndex() == 0);
   node->InsertInput(zone(), 0, jsgraph()->HeapConstant(shared_info));
-  node->InsertInput(zone(), 1, jsgraph()->HeapConstant(p.feedback_cell()));
   node->RemoveInput(4);  // control
 
   // Use the FastNewClosure builtin only for functions allocated in new space.
@@ -585,7 +588,6 @@ void JSGenericLowering::LowerJSCreateClosure(Node* node) {
     ReplaceWithRuntimeCall(node, Runtime::kNewClosure_Tenured);
   }
 }
-
 
 void JSGenericLowering::LowerJSCreateFunctionContext(Node* node) {
   const CreateFunctionContextParameters& parameters =

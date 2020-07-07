@@ -40,7 +40,8 @@ struct JSOperatorGlobalCache;
 #define JS_BINOP_WITH_FEEDBACK(V) \
   JS_ARITH_BINOP_LIST(V)          \
   JS_BITWISE_BINOP_LIST(V)        \
-  JS_COMPARE_BINOP_LIST(V)
+  JS_COMPARE_BINOP_LIST(V)        \
+  V(JSInstanceOf, InstanceOf)
 
 // Predicates.
 class JSOperator final : public AllStatic {
@@ -657,21 +658,15 @@ const CreateBoundFunctionParameters& CreateBoundFunctionParametersOf(
 class CreateClosureParameters final {
  public:
   CreateClosureParameters(Handle<SharedFunctionInfo> shared_info,
-                          Handle<FeedbackCell> feedback_cell, Handle<Code> code,
-                          AllocationType allocation)
-      : shared_info_(shared_info),
-        feedback_cell_(feedback_cell),
-        code_(code),
-        allocation_(allocation) {}
+                          Handle<Code> code, AllocationType allocation)
+      : shared_info_(shared_info), code_(code), allocation_(allocation) {}
 
   Handle<SharedFunctionInfo> shared_info() const { return shared_info_; }
-  Handle<FeedbackCell> feedback_cell() const { return feedback_cell_; }
   Handle<Code> code() const { return code_; }
   AllocationType allocation() const { return allocation_; }
 
  private:
   Handle<SharedFunctionInfo> const shared_info_;
-  Handle<FeedbackCell> const feedback_cell_;
   Handle<Code> const code_;
   AllocationType const allocation_;
 };
@@ -863,8 +858,7 @@ class V8_EXPORT_PRIVATE JSOperatorBuilder final
   const Operator* CreateCollectionIterator(CollectionKind, IterationKind);
   const Operator* CreateBoundFunction(size_t arity, Handle<Map> map);
   const Operator* CreateClosure(
-      Handle<SharedFunctionInfo> shared_info,
-      Handle<FeedbackCell> feedback_cell, Handle<Code> code,
+      Handle<SharedFunctionInfo> shared_info, Handle<Code> code,
       AllocationType allocation = AllocationType::kYoung);
   const Operator* CreateIterResultObject();
   const Operator* CreateStringIterator();
@@ -1076,6 +1070,10 @@ class JSBinaryOpNode final : public JSNodeWrapperBase {
  public:
   explicit constexpr JSBinaryOpNode(Node* node) : JSNodeWrapperBase(node) {
     CONSTEXPR_DCHECK(JSOperator::IsBinaryWithFeedback(node->opcode()));
+  }
+
+  const FeedbackParameter& Parameters() const {
+    return FeedbackParameterOf(node()->op());
   }
 
 #define INPUTS(V)            \
@@ -1510,6 +1508,23 @@ class JSStoreInArrayLiteralNode final : public JSNodeWrapperBase {
   V(FeedbackVector, feedback_vector, 3, HeapObject)
   INPUTS(DEFINE_INPUT_ACCESSORS)
 #undef INPUTS
+};
+
+class JSCreateClosureNode final : public JSNodeWrapperBase {
+ public:
+  explicit constexpr JSCreateClosureNode(Node* node) : JSNodeWrapperBase(node) {
+    CONSTEXPR_DCHECK(node->opcode() == IrOpcode::kJSCreateClosure);
+  }
+
+  const CreateClosureParameters& Parameters() const {
+    return CreateClosureParametersOf(node()->op());
+  }
+
+#define INPUTS(V) V(FeedbackCell, feedback_cell, 0, FeedbackCell)
+  INPUTS(DEFINE_INPUT_ACCESSORS)
+#undef INPUTS
+
+  FeedbackCellRef GetFeedbackCellRefChecked(JSHeapBroker* broker) const;
 };
 
 #undef DEFINE_INPUT_ACCESSORS

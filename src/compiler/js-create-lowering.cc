@@ -924,14 +924,14 @@ Reduction JSCreateLowering::ReduceJSCreateBoundFunction(Node* node) {
 }
 
 Reduction JSCreateLowering::ReduceJSCreateClosure(Node* node) {
-  DCHECK_EQ(IrOpcode::kJSCreateClosure, node->opcode());
-  CreateClosureParameters const& p = CreateClosureParametersOf(node->op());
+  JSCreateClosureNode n(node);
+  CreateClosureParameters const& p = n.Parameters();
   SharedFunctionInfoRef shared(broker(), p.shared_info());
-  FeedbackCellRef feedback_cell(broker(), p.feedback_cell());
+  FeedbackCellRef feedback_cell = n.GetFeedbackCellRefChecked(broker());
   HeapObjectRef code(broker(), p.code());
-  Node* effect = NodeProperties::GetEffectInput(node);
-  Node* control = NodeProperties::GetControlInput(node);
-  Node* context = NodeProperties::GetContextInput(node);
+  Effect effect = n.effect();
+  Control control = n.control();
+  Node* context = n.context();
 
   // Use inline allocation of closures only for instantiation sites that have
   // seen more than one instantiation, this simplifies the generated code and

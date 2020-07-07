@@ -80,6 +80,8 @@ class BytecodeGraphBuilder {
     return feedback_vector_node_;
   }
 
+  Node* BuildLoadFeedbackCell(int index);
+
   // Builder for loading the a native context field.
   Node* BuildLoadNativeContextField(int index);
 
@@ -183,7 +185,6 @@ class BytecodeGraphBuilder {
   void BuildUnaryOp(const Operator* op);
   void BuildBinaryOp(const Operator* op);
   void BuildBinaryOpWithImmediate(const Operator* op);
-  void BuildInstanceOf(const Operator* op);
   void BuildCompareOp(const Operator* op);
   void BuildDelete(LanguageMode language_mode);
   void BuildCastOperator(const Operator* op);
@@ -1034,6 +1035,30 @@ Node* BytecodeGraphBuilder::BuildLoadFeedbackVector() {
 
   env->UpdateEffectDependency(effect);
   return vector;
+}
+
+Node* BytecodeGraphBuilder::BuildLoadFeedbackCell(int index) {
+  if (native_context_independent()) {
+    Environment* env = environment();
+    Node* control = env->GetControlDependency();
+    Node* effect = env->GetEffectDependency();
+
+    // TODO(jgruber,v8:8888): Assumes that the feedback vector has been
+    // allocated.
+    Node* closure_feedback_cell_array = effect = graph()->NewNode(
+        simplified()->LoadField(
+            AccessBuilder::ForFeedbackVectorClosureFeedbackCellArray()),
+        feedback_vector_node(), effect, control);
+
+    Node* feedback_cell = effect = graph()->NewNode(
+        simplified()->LoadField(AccessBuilder::ForFixedArraySlot(index)),
+        closure_feedback_cell_array, effect, control);
+
+    env->UpdateEffectDependency(effect);
+    return feedback_cell;
+  } else {
+    return jsgraph()->Constant(feedback_vector().GetClosureFeedbackCell(index));
+  }
 }
 
 Node* BytecodeGraphBuilder::BuildLoadNativeContextField(int index) {
@@ -2071,12 +2096,10 @@ void BytecodeGraphBuilder::VisitCreateClosure() {
 
   const Operator* op = javascript()->CreateClosure(
       shared_info.object(),
-      feedback_vector()
-          .GetClosureFeedbackCell(bytecode_iterator().GetIndexOperand(1))
-          .object(),
       jsgraph()->isolate()->builtins()->builtin_handle(Builtins::kCompileLazy),
       allocation);
-  Node* closure = NewNode(op);
+  Node* closure = NewNode(
+      op, BuildLoadFeedbackCell(bytecode_iterator().GetIndexOperand(1)));
   environment()->BindAccumulator(closure);
 }
 
@@ -3067,29 +3090,6 @@ void BytecodeGraphBuilder::VisitGetSuperConstructor() {
                               Environment::kAttachFrameState);
 }
 
-void BytecodeGraphBuilder::BuildInstanceOf(const Operator* op) {
-  // TODO(jgruber, v8:8888): Treat InstanceOf like other compare ops.
-  DCHECK_EQ(op->opcode(), IrOpcode::kJSInstanceOf);
-  PrepareEagerCheckpoint();
-  Node* left =
-      environment()->LookupRegister(bytecode_iterator().GetRegisterOperand(0));
-  Node* right = environment()->LookupAccumulator();
-
-  FeedbackSlot slot = bytecode_iterator().GetSlotOperand(1);
-  JSTypeHintLowering::LoweringResult lowering =
-      TryBuildSimplifiedBinaryOp(op, left, right, slot);
-  if (lowering.IsExit()) return;
-
-  Node* node = nullptr;
-  if (lowering.IsSideEffectFree()) {
-    node = lowering.value();
-  } else {
-    DCHECK(!lowering.Changed());
-    node = NewNode(op, left, right);
-  }
-  environment()->BindAccumulator(node, Environment::kAttachFrameState);
-}
-
 void BytecodeGraphBuilder::BuildCompareOp(const Operator* op) {
   DCHECK(JSOperator::IsBinaryWithFeedback(op->opcode()));
   PrepareEagerCheckpoint();
@@ -3172,8 +3172,9 @@ void BytecodeGraphBuilder::VisitTestIn() {
 }
 
 void BytecodeGraphBuilder::VisitTestInstanceOf() {
-  int const slot_index = bytecode_iterator().GetIndexOperand(1);
-  BuildInstanceOf(javascript()->InstanceOf(CreateFeedbackSource(slot_index)));
+  FeedbackSource feedback = CreateFeedbackSource(
+      bytecode_iterator().GetSlotOperand(kCompareOperationHintIndex));
+  BuildCompareOp(javascript()->InstanceOf(feedback));
 }
 
 void BytecodeGraphBuilder::VisitTestUndetectable() {

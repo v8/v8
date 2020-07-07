@@ -124,8 +124,9 @@ JSInliningHeuristic::Candidate JSInliningHeuristic::CollectFunctions(
   }
   if (m.IsJSCreateClosure()) {
     DCHECK(!out.functions[0].has_value());
-    CreateClosureParameters const& p = CreateClosureParametersOf(m.op());
-    FeedbackCellRef feedback_cell(broker(), p.feedback_cell());
+    JSCreateClosureNode n(callee);
+    CreateClosureParameters const& p = n.Parameters();
+    FeedbackCellRef feedback_cell = n.GetFeedbackCellRefChecked(broker());
     SharedFunctionInfoRef shared_info(broker(), p.shared_info());
     out.shared_info = shared_info;
     if (feedback_cell.value().IsFeedbackVector() &&

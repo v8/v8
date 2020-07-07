@@ -1735,7 +1735,7 @@ Reduction JSTypedLowering::ReduceJSCall(Node* node) {
     shared = function->shared();
   } else if (target->opcode() == IrOpcode::kJSCreateClosure) {
     CreateClosureParameters const& ccp =
-        CreateClosureParametersOf(target->op());
+        JSCreateClosureNode{target}.Parameters();
     shared = SharedFunctionInfoRef(broker(), ccp.shared_info());
   } else if (target->opcode() == IrOpcode::kCheckClosure) {
     FeedbackCellRef cell(broker(), FeedbackCellOf(target->op()));

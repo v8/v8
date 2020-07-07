@@ -8,6 +8,7 @@
 
 #include "src/base/lazy-instance.h"
 #include "src/compiler/js-graph.h"
+#include "src/compiler/node-matchers.h"
 #include "src/compiler/operator.h"
 #include "src/handles/handles-inl.h"
 #include "src/objects/objects-inl.h"
@@ -35,6 +36,13 @@ TNode<Oddball> UndefinedConstant(JSGraph* jsgraph) {
 }
 
 }  // namespace js_node_wrapper_utils
+
+FeedbackCellRef JSCreateClosureNode::GetFeedbackCellRefChecked(
+    JSHeapBroker* broker) const {
+  HeapObjectMatcher m(feedback_cell());
+  CHECK(m.HasValue());
+  return FeedbackCellRef(broker, m.Value());
+}
 
 std::ostream& operator<<(std::ostream& os, CallFrequency const& f) {
   if (f.IsUnknown()) return os << "unknown";
@@ -523,7 +531,6 @@ bool operator==(CreateClosureParameters const& lhs,
                 CreateClosureParameters const& rhs) {
   return lhs.allocation() == rhs.allocation() &&
          lhs.code().location() == rhs.code().location() &&
-         lhs.feedback_cell().location() == rhs.feedback_cell().location() &&
          lhs.shared_info().location() == rhs.shared_info().location();
 }
 
@@ -535,14 +542,13 @@ bool operator!=(CreateClosureParameters const& lhs,
 
 
 size_t hash_value(CreateClosureParameters const& p) {
-  return base::hash_combine(p.allocation(), p.shared_info().location(),
-                            p.feedback_cell().location());
+  return base::hash_combine(p.allocation(), p.shared_info().location());
 }
 
 
 std::ostream& operator<<(std::ostream& os, CreateClosureParameters const& p) {
   return os << p.allocation() << ", " << Brief(*p.shared_info()) << ", "
-            << Brief(*p.feedback_cell()) << ", " << Brief(*p.code());
+            << Brief(*p.code());
 }
 
 
@@ -941,15 +947,6 @@ const Operator* JSOperatorBuilder::HasProperty(FeedbackSource const& feedback) {
       access);                                            // parameter
 }
 
-const Operator* JSOperatorBuilder::InstanceOf(FeedbackSource const& feedback) {
-  FeedbackParameter parameter(feedback);
-  return new (zone()) Operator1<FeedbackParameter>(      // --
-      IrOpcode::kJSInstanceOf, Operator::kNoProperties,  // opcode
-      "JSInstanceOf",                                    // name
-      2, 1, 1, 1, 1, 2,                                  // counts
-      parameter);                                        // parameter
-}
-
 const Operator* JSOperatorBuilder::ForInNext(ForInMode mode) {
   return new (zone()) Operator1<ForInMode>(             // --
       IrOpcode::kJSForInNext, Operator::kNoProperties,  // opcode
@@ -1188,14 +1185,15 @@ const Operator* JSOperatorBuilder::CreateBoundFunction(size_t arity,
 }
 
 const Operator* JSOperatorBuilder::CreateClosure(
-    Handle<SharedFunctionInfo> shared_info, Handle<FeedbackCell> feedback_cell,
-    Handle<Code> code, AllocationType allocation) {
-  CreateClosureParameters parameters(shared_info, feedback_cell, code,
-                                     allocation);
+    Handle<SharedFunctionInfo> shared_info, Handle<Code> code,
+    AllocationType allocation) {
+  static constexpr int kFeedbackCell = 1;
+  static constexpr int kArity = kFeedbackCell;
+  CreateClosureParameters parameters(shared_info, code, allocation);
   return new (zone()) Operator1<CreateClosureParameters>(   // --
       IrOpcode::kJSCreateClosure, Operator::kEliminatable,  // opcode
       "JSCreateClosure",                                    // name
-      0, 1, 1, 1, 1, 0,                                     // counts
+      kArity, 1, 1, 1, 1, 0,                                // counts
       parameters);                                          // parameter
 }
 
