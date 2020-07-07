@@ -9514,11 +9514,11 @@ TNode<Uint8T> CodeStubAssembler::Float64ToUint8Clamped(
   return UncheckedCast<Uint8T>(var_value.value());
 }
 
-Node* CodeStubAssembler::PrepareValueForWriteToTypedArray(
+template <>
+TNode<Word32T> CodeStubAssembler::PrepareValueForWriteToTypedArray<Word32T>(
     TNode<Object> input, ElementsKind elements_kind, TNode<Context> context) {
   DCHECK(IsTypedArrayElementsKind(elements_kind));
 
-  MachineRepresentation rep;
   switch (elements_kind) {
     case UINT8_ELEMENTS:
     case INT8_ELEMENTS:
@@ -9527,22 +9527,12 @@ Node* CodeStubAssembler::PrepareValueForWriteToTypedArray(
     case UINT32_ELEMENTS:
     case INT32_ELEMENTS:
     case UINT8_CLAMPED_ELEMENTS:
-      rep = MachineRepresentation::kWord32;
       break;
-    case FLOAT32_ELEMENTS:
-      rep = MachineRepresentation::kFloat32;
-      break;
-    case FLOAT64_ELEMENTS:
-      rep = MachineRepresentation::kFloat64;
-      break;
-    case BIGINT64_ELEMENTS:
-    case BIGUINT64_ELEMENTS:
-      return ToBigInt(context, input);
     default:
       UNREACHABLE();
   }
 
-  VARIABLE(var_result, rep);
+  TVARIABLE(Word32T, var_result);
   TVARIABLE(Object, var_input, input);
   Label done(this, &var_result), if_smi(this), if_heapnumber_or_oddball(this),
       convert(this), loop(this, &var_input);
@@ -9563,36 +9553,70 @@ Node* CodeStubAssembler::PrepareValueForWriteToTypedArray(
   {
     TNode<Float64T> value =
         LoadObjectField<Float64T>(heap_object, HeapNumber::kValueOffset);
-    if (rep == MachineRepresentation::kWord32) {
       if (elements_kind == UINT8_CLAMPED_ELEMENTS) {
-        var_result.Bind(Float64ToUint8Clamped(value));
+        var_result = Float64ToUint8Clamped(value);
       } else {
-        var_result.Bind(TruncateFloat64ToWord32(value));
+        var_result = TruncateFloat64ToWord32(value);
       }
-    } else if (rep == MachineRepresentation::kFloat32) {
-      var_result.Bind(TruncateFloat64ToFloat32(value));
-    } else {
-      DCHECK_EQ(MachineRepresentation::kFloat64, rep);
-      var_result.Bind(value);
-    }
     Goto(&done);
   }
 
   BIND(&if_smi);
   {
     TNode<Int32T> value = SmiToInt32(CAST(var_input.value()));
-    if (rep == MachineRepresentation::kFloat32) {
-      var_result.Bind(RoundInt32ToFloat32(value));
-    } else if (rep == MachineRepresentation::kFloat64) {
-      var_result.Bind(ChangeInt32ToFloat64(value));
-    } else {
-      DCHECK_EQ(MachineRepresentation::kWord32, rep);
       if (elements_kind == UINT8_CLAMPED_ELEMENTS) {
-        var_result.Bind(Int32ToUint8Clamped(value));
+        var_result = Int32ToUint8Clamped(value);
       } else {
-        var_result.Bind(value);
+        var_result = value;
       }
-    }
+      Goto(&done);
+  }
+
+  BIND(&convert);
+  {
+    var_input = CallBuiltin(Builtins::kNonNumberToNumber, context, input);
+    Goto(&loop);
+  }
+
+  BIND(&done);
+  return var_result.value();
+}
+
+template <>
+TNode<Float32T> CodeStubAssembler::PrepareValueForWriteToTypedArray<Float32T>(
+    TNode<Object> input, ElementsKind elements_kind, TNode<Context> context) {
+  DCHECK(IsTypedArrayElementsKind(elements_kind));
+  CHECK_EQ(elements_kind, FLOAT32_ELEMENTS);
+
+  TVARIABLE(Float32T, var_result);
+  TVARIABLE(Object, var_input, input);
+  Label done(this, &var_result), if_smi(this), if_heapnumber_or_oddball(this),
+      convert(this), loop(this, &var_input);
+  Goto(&loop);
+  BIND(&loop);
+  GotoIf(TaggedIsSmi(var_input.value()), &if_smi);
+  // We can handle both HeapNumber and Oddball here, since Oddball has the
+  // same layout as the HeapNumber for the HeapNumber::value field. This
+  // way we can also properly optimize stores of oddballs to typed arrays.
+  TNode<HeapObject> heap_object = CAST(var_input.value());
+  GotoIf(IsHeapNumber(heap_object), &if_heapnumber_or_oddball);
+  STATIC_ASSERT_FIELD_OFFSETS_EQUAL(HeapNumber::kValueOffset,
+                                    Oddball::kToNumberRawOffset);
+  Branch(HasInstanceType(heap_object, ODDBALL_TYPE), &if_heapnumber_or_oddball,
+         &convert);
+
+  BIND(&if_heapnumber_or_oddball);
+  {
+    TNode<Float64T> value =
+        LoadObjectField<Float64T>(heap_object, HeapNumber::kValueOffset);
+    var_result = TruncateFloat64ToFloat32(value);
+    Goto(&done);
+  }
+
+  BIND(&if_smi);
+  {
+    TNode<Int32T> value = SmiToInt32(CAST(var_input.value()));
+    var_result = RoundInt32ToFloat32(value);
     Goto(&done);
   }
 
@@ -9604,6 +9628,81 @@ Node* CodeStubAssembler::PrepareValueForWriteToTypedArray(
 
   BIND(&done);
   return var_result.value();
+}
+
+template <>
+TNode<Float64T> CodeStubAssembler::PrepareValueForWriteToTypedArray<Float64T>(
+    TNode<Object> input, ElementsKind elements_kind, TNode<Context> context) {
+  DCHECK(IsTypedArrayElementsKind(elements_kind));
+  CHECK_EQ(elements_kind, FLOAT64_ELEMENTS);
+
+  TVARIABLE(Float64T, var_result);
+  TVARIABLE(Object, var_input, input);
+  Label done(this, &var_result), if_smi(this), if_heapnumber_or_oddball(this),
+      convert(this), loop(this, &var_input);
+  Goto(&loop);
+  BIND(&loop);
+  GotoIf(TaggedIsSmi(var_input.value()), &if_smi);
+  // We can handle both HeapNumber and Oddball here, since Oddball has the
+  // same layout as the HeapNumber for the HeapNumber::value field. This
+  // way we can also properly optimize stores of oddballs to typed arrays.
+  TNode<HeapObject> heap_object = CAST(var_input.value());
+  GotoIf(IsHeapNumber(heap_object), &if_heapnumber_or_oddball);
+  STATIC_ASSERT_FIELD_OFFSETS_EQUAL(HeapNumber::kValueOffset,
+                                    Oddball::kToNumberRawOffset);
+  Branch(HasInstanceType(heap_object, ODDBALL_TYPE), &if_heapnumber_or_oddball,
+         &convert);
+
+  BIND(&if_heapnumber_or_oddball);
+  {
+    var_result =
+        LoadObjectField<Float64T>(heap_object, HeapNumber::kValueOffset);
+    Goto(&done);
+  }
+
+  BIND(&if_smi);
+  {
+    TNode<Int32T> value = SmiToInt32(CAST(var_input.value()));
+    var_result = ChangeInt32ToFloat64(value);
+    Goto(&done);
+  }
+
+  BIND(&convert);
+  {
+    var_input = CallBuiltin(Builtins::kNonNumberToNumber, context, input);
+    Goto(&loop);
+  }
+
+  BIND(&done);
+  return var_result.value();
+}
+
+Node* CodeStubAssembler::PrepareValueForWriteToTypedArray(
+    TNode<Object> input, ElementsKind elements_kind, TNode<Context> context) {
+  DCHECK(IsTypedArrayElementsKind(elements_kind));
+
+  switch (elements_kind) {
+    case UINT8_ELEMENTS:
+    case INT8_ELEMENTS:
+    case UINT16_ELEMENTS:
+    case INT16_ELEMENTS:
+    case UINT32_ELEMENTS:
+    case INT32_ELEMENTS:
+    case UINT8_CLAMPED_ELEMENTS:
+      return PrepareValueForWriteToTypedArray<Word32T>(input, elements_kind,
+                                                       context);
+    case FLOAT32_ELEMENTS:
+      return PrepareValueForWriteToTypedArray<Float32T>(input, elements_kind,
+                                                        context);
+    case FLOAT64_ELEMENTS:
+      return PrepareValueForWriteToTypedArray<Float64T>(input, elements_kind,
+                                                        context);
+    case BIGINT64_ELEMENTS:
+    case BIGUINT64_ELEMENTS:
+      return ToBigInt(context, input);
+    default:
+      UNREACHABLE();
+  }
 }
 
 void CodeStubAssembler::BigIntToRawBytes(TNode<BigInt> bigint,
