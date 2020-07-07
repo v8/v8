@@ -39,7 +39,7 @@ vars = {
   'mac_xcode_version': 'default',
 
   # GN CIPD package version.
-  'gn_version': 'git_revision:b6203d186bff6b39ac25af6c1e80e1d3f96c949a',
+  'gn_version': 'git_revision:d585128cdaf3e6ff7bfd58641965e60c12618eb1',
 
   # luci-go CIPD package version.
   'luci_go': 'git_revision:56ae79476e3caf14da59d75118408aa778637936',
@@ -80,15 +80,15 @@ vars = {
 
 deps = {
   'v8/build':
-    Var('chromium_url') + '/chromium/src/build.git' + '@' + '96a67839bb93f187f3e68ff0786728925a56d9db',
+    Var('chromium_url') + '/chromium/src/build.git' + '@' + '89943b987516e1dfb38c897e5195233226980fd7',
   'v8/third_party/depot_tools':
-    Var('chromium_url') + '/chromium/tools/depot_tools.git' + '@' + '49735e227c7e1ae863f40e3502bb1bc76fd610f7',
+    Var('chromium_url') + '/chromium/tools/depot_tools.git' + '@' + '81923d6d2cc6d3b6fdb9a6c98d50d209576ebf5b',
   'v8/third_party/icu':
     Var('chromium_url') + '/chromium/deps/icu.git' + '@' + '79326efe26e5440f530963704c3c0ff965b3a4ac',
   'v8/third_party/instrumented_libraries':
     Var('chromium_url') + '/chromium/src/third_party/instrumented_libraries.git' + '@' + 'bb3f1802c237dd19105dd0f7919f99e536a39d10',
   'v8/buildtools':
-    Var('chromium_url') + '/chromium/src/buildtools.git' + '@' + '6b951673d17662ea2510995700922657d30f3542',
+    Var('chromium_url') + '/chromium/src/buildtools.git' + '@' + 'eb3987ec709b39469423100c1e77f0446890e059',
   'v8/buildtools/clang_format/script':
     Var('chromium_url') + '/chromium/llvm-project/cfe/tools/clang-format.git' + '@' + '96636aa0e9f047f17447f2d45a094d0b59ed7917',
   'v8/buildtools/linux64': {
@@ -176,7 +176,7 @@ deps = {
       'dep_type': 'cipd',
   },
   'v8/third_party/catapult': {
-    'url': Var('chromium_url') + '/catapult.git' + '@' + '5f3007bf80a7c889413ce90203810968e81241c4',
+    'url': Var('chromium_url') + '/catapult.git' + '@' + '9ef36d0c0fe8213efd4c8019aeac87182eac6972',
     'condition': 'checkout_android',
   },
   'v8/third_party/colorama/src': {
@@ -282,7 +282,7 @@ deps = {
   'v8/third_party/protobuf':
     Var('chromium_url') + '/external/github.com/google/protobuf'+ '@' + 'b68a347f56137b4b1a746e8c7438495a6ac1bd91',
   'v8/third_party/zlib':
-    Var('chromium_url') + '/chromium/src/third_party/zlib.git'+ '@' + '8603eee37c4f4dd3e033d06fa18ea34ed9b41f41',
+    Var('chromium_url') + '/chromium/src/third_party/zlib.git'+ '@' + '89bddfee9cf8fde3ab1212ed63bf03d76baf8914',
   'v8/third_party/jsoncpp/source':
     Var('chromium_url') + '/external/github.com/open-source-parsers/jsoncpp.git'+ '@' + '645250b6690785be60ab6780ce4b58698d884d11',
   'v8/third_party/ittapi': {
