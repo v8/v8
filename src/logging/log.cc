@@ -1377,31 +1377,43 @@ void Logger::CodeDisableOptEvent(Handle<AbstractCode> code,
   msg.WriteToLogFile();
 }
 
-void Logger::CodeDeoptEvent(Handle<Code> code, DeoptimizeKind kind, Address pc,
-                            int fp_to_sp_delta) {
-  if (!log_->IsEnabled()) return;
-  Deoptimizer::DeoptInfo info = Deoptimizer::GetDeoptInfo(*code, pc);
+void Logger::ProcessDeoptEvent(Handle<Code> code, SourcePosition position,
+                               const char* kind, const char* reason) {
   Log::MessageBuilder msg(log_.get());
   msg << "code-deopt" << kNext << timer_.Elapsed().InMicroseconds() << kNext
       << code->CodeSize() << kNext
       << reinterpret_cast<void*>(code->InstructionStart());
 
-  // Deoptimization position.
   std::ostringstream deopt_location;
   int inlining_id = -1;
   int script_offset = -1;
-  if (info.position.IsKnown()) {
-    info.position.Print(deopt_location, *code);
-    inlining_id = info.position.InliningId();
-    script_offset = info.position.ScriptOffset();
+  if (position.IsKnown()) {
+    position.Print(deopt_location, *code);
+    inlining_id = position.InliningId();
+    script_offset = position.ScriptOffset();
   } else {
     deopt_location << "<unknown>";
   }
   msg << kNext << inlining_id << kNext << script_offset << kNext;
-  msg << Deoptimizer::MessageFor(kind) << kNext;
-  msg << deopt_location.str().c_str() << kNext
-      << DeoptimizeReasonToString(info.deopt_reason);
+  msg << kind << kNext;
+  msg << deopt_location.str().c_str() << kNext << reason;
   msg.WriteToLogFile();
+}
+
+void Logger::CodeDeoptEvent(Handle<Code> code, DeoptimizeKind kind, Address pc,
+                            int fp_to_sp_delta) {
+  if (!log_->IsEnabled()) return;
+  Deoptimizer::DeoptInfo info = Deoptimizer::GetDeoptInfo(*code, pc);
+  ProcessDeoptEvent(code, info.position, Deoptimizer::MessageFor(kind),
+                    DeoptimizeReasonToString(info.deopt_reason));
+}
+
+void Logger::CodeDependencyChangeEvent(Handle<Code> code,
+                                       Handle<SharedFunctionInfo> sfi,
+                                       const char* reason) {
+  if (!log_->IsEnabled()) return;
+  SourcePosition position(sfi->StartPosition(), -1);
+  ProcessDeoptEvent(code, position, "dependency-change", reason);
 }
 
 namespace {

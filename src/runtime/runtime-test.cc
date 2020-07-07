@@ -1588,6 +1588,9 @@ RUNTIME_FUNCTION(Runtime_EnableCodeLoggingForTesting) {
                              Handle<SharedFunctionInfo> shared) final {}
     void CodeDeoptEvent(Handle<Code> code, DeoptimizeKind kind, Address pc,
                         int fp_to_sp_delta) final {}
+    void CodeDependencyChangeEvent(Handle<Code> code,
+                                   Handle<SharedFunctionInfo> shared,
+                                   const char* reason) final {}
 
     bool is_listening_to_code_events() final { return true; }
   };

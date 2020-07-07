@@ -1011,11 +1011,22 @@ void Code::SetMarkedForDeoptimization(const char* reason) {
       (deoptimization_data() != GetReadOnlyRoots().empty_fixed_array())) {
     DeoptimizationData deopt_data =
         DeoptimizationData::cast(deoptimization_data());
-    CodeTracer::Scope scope(GetIsolate()->GetCodeTracer());
-    PrintF(scope.file(),
-           "[marking dependent code " V8PRIxPTR_FMT
-           " (opt #%d) for deoptimization, reason: %s]\n",
-           ptr(), deopt_data.OptimizationId().value(), reason);
+    auto isolate = GetIsolate();
+    CodeTracer::Scope scope(isolate->GetCodeTracer());
+    PrintF(scope.file(), "[marking dependent code " V8PRIxPTR_FMT " ", ptr());
+    deopt_data.SharedFunctionInfo().ShortPrint(scope.file());
+    PrintF(" (opt #%d) for deoptimization, reason: %s]\n",
+           deopt_data.OptimizationId().value(), reason);
+    {
+      HandleScope scope(isolate);
+      PROFILE(
+          isolate,
+          CodeDependencyChangeEvent(
+              handle(*this, isolate),
+              handle(SharedFunctionInfo::cast(deopt_data.SharedFunctionInfo()),
+                     isolate),
+              reason));
+    }
   }
 }
 
