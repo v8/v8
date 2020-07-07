@@ -46,7 +46,7 @@ class TestCode {
            std::initializer_list<ValueType::Kind> locals = {})
       : compiler_(&runner->NewFunction<FunctionArgsT...>()),
         code_(code),
-        locals_(static_cast<uint32_t>(locals.size())) {
+        locals_(static_cast<int32_t>(locals.size())) {
     for (ValueType::Kind T : locals) {
       compiler_->AllocateLocal(ValueType::Primitive(T));
     }
@@ -55,7 +55,10 @@ class TestCode {
 
   Handle<BreakPoint> BreakOnReturn(WasmRunnerBase* runner) {
     runner->TierDown();
-    uint32_t return_offset_in_function = locals_ + FindReturn();
+    uint32_t return_idx = FindReturn();
+    uint32_t return_offset_in_function =
+        static_cast<uint32_t>(LEBHelper::sizeof_i32v(locals_)) + 2 * locals_ +
+        return_idx;
 
     int function_index = compiler_->function_index();
     int function_offset =
@@ -69,8 +72,13 @@ class TestCode {
     Handle<BreakPoint> break_point =
         runner->main_isolate()->factory()->NewBreakPoint(
             break_index++, runner->main_isolate()->factory()->empty_string());
+
+    int expected_breakpoint_position = return_offset_in_module;
     CHECK(WasmScript::SetBreakPoint(script, &return_offset_in_module,
                                     break_point));
+    // Check that the breakpoint doesn't slide
+    DCHECK_EQ(expected_breakpoint_position, return_offset_in_module);
+    USE(expected_breakpoint_position);
     return break_point;
   }
 
@@ -95,7 +103,7 @@ class TestCode {
 
   WasmFunctionCompiler* compiler_;
   std::vector<byte> code_;
-  uint32_t locals_;
+  int32_t locals_;
 };
 
 class WasmEvaluatorBuilder {
@@ -108,6 +116,10 @@ class WasmEvaluatorBuilder {
         CStrVector("__getMemory"));
     get_local_function_index =
         AddImport<void, uint32_t, uint32_t>(CStrVector("__getLocal"));
+    get_global_function_index =
+        AddImport<void, uint32_t, uint32_t>(CStrVector("__getGlobal"));
+    get_operand_function_index =
+        AddImport<void, uint32_t, uint32_t>(CStrVector("__getOperand"));
     sbrk_function_index = AddImport<uint32_t, uint32_t>(CStrVector("__sbrk"));
     wasm_format_function =
         builder_.AddFunction(WasmRunnerBase::CreateSig<uint32_t>(&zone_));
@@ -134,6 +146,16 @@ class WasmEvaluatorBuilder {
     push_back({WASM_CALL_FUNCTION0(sbrk_function_index)});
   }
 
+  void CallGetOperand(std::initializer_list<byte> args) {
+    push_back(args);
+    push_back({WASM_CALL_FUNCTION0(get_operand_function_index)});
+  }
+
+  void CallGetGlobal(std::initializer_list<byte> args) {
+    push_back(args);
+    push_back({WASM_CALL_FUNCTION0(get_global_function_index)});
+  }
+
   void CallGetLocal(std::initializer_list<byte> args) {
     push_back(args);
     push_back({WASM_CALL_FUNCTION0(get_local_function_index)});
@@ -156,6 +178,8 @@ class WasmEvaluatorBuilder {
   WasmModuleBuilder builder_;
   uint32_t get_memory_function_index = 0;
   uint32_t get_local_function_index = 0;
+  uint32_t get_global_function_index = 0;
+  uint32_t get_operand_function_index = 0;
   uint32_t sbrk_function_index = 0;
   WasmFunctionBuilder* wasm_format_function = nullptr;
 };
@@ -371,6 +395,58 @@ WASM_COMPILED_EXEC_TEST(WasmDebugEvaluate_Locals) {
       break_handler.result().ToChecked();
   CHECK(result.error.IsNothing());
   CHECK_EQ(result.result.ToChecked(), "A");
+}
+
+WASM_COMPILED_EXEC_TEST(WasmDebugEvaluate_Globals) {
+  WasmRunner<int> runner(execution_tier);
+  runner.builder().AddMemoryElems<int32_t>(64);
+  runner.builder().AddGlobal<int32_t>();
+  runner.builder().AddGlobal<int32_t>();
+
+  TestCode<void> code(&runner,
+                      {WASM_SET_GLOBAL(0, WASM_I32V_1('4')),
+                       WASM_SET_GLOBAL(1, WASM_I32V_1('5')), WASM_RETURN0},
+                      {});
+  code.BreakOnReturn(&runner);
+
+  WasmEvaluatorBuilder evaluator(execution_tier);
+  evaluator.CallGetGlobal({WASM_I32V_1(0), WASM_I32V_1(33)});
+  evaluator.CallGetGlobal({WASM_I32V_1(1), WASM_I32V_1(34)});
+  evaluator.push_back({WASM_RETURN1(WASM_I32V_1(33)), WASM_END});
+
+  Isolate* isolate = runner.main_isolate();
+  WasmBreakHandler break_handler(isolate, evaluator.bytes());
+  CHECK(!code.Run(&runner).is_null());
+
+  WasmBreakHandler::EvaluationResult result =
+      break_handler.result().ToChecked();
+  CHECK(result.error.IsNothing());
+  CHECK_EQ(result.result.ToChecked(), "45");
+}
+
+WASM_COMPILED_EXEC_TEST(WasmDebugEvaluate_Operands) {
+  WasmRunner<int> runner(execution_tier);
+  runner.builder().AddMemoryElems<int32_t>(64);
+
+  TestCode<int> code(&runner,
+                     {WASM_SET_LOCAL(0, WASM_I32V_1('4')), WASM_GET_LOCAL(0),
+                      WASM_RETURN1(WASM_I32V_1('5'))},
+                     {ValueType::kI32});
+  code.BreakOnReturn(&runner);
+
+  WasmEvaluatorBuilder evaluator(execution_tier);
+  evaluator.CallGetOperand({WASM_I32V_1(0), WASM_I32V_1(33)});
+  evaluator.CallGetOperand({WASM_I32V_1(1), WASM_I32V_1(34)});
+  evaluator.push_back({WASM_RETURN1(WASM_I32V_1(33)), WASM_END});
+
+  Isolate* isolate = runner.main_isolate();
+  WasmBreakHandler break_handler(isolate, evaluator.bytes());
+  CHECK(!code.Run(&runner).is_null());
+
+  WasmBreakHandler::EvaluationResult result =
+      break_handler.result().ToChecked();
+  CHECK(result.error.IsNothing());
+  CHECK_EQ(result.result.ToChecked(), "45");
 }
 
 }  // namespace
