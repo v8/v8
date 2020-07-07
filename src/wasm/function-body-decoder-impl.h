@@ -3397,16 +3397,15 @@ class WasmFullDecoder : public WasmDecoder<validate> {
         ArrayIndexImmediate<validate> imm(this, this->pc_ + 2);
         if (!this->Validate(this->pc_ + 2, imm)) return 0;
         if (!VALIDATE(imm.array_type->element_type().is_packed())) {
-          this->errorf(this->pc_,
-                       "%s is only valid for packed arrays. "
-                       "Use or array.get instead.",
-                       WasmOpcodes::OpcodeName(opcode));
+          this->errorf(
+              this->pc_,
+              "%s is only valid for packed arrays. Use array.get instead.",
+              WasmOpcodes::OpcodeName(opcode));
           return 0;
         }
         Value index = Pop(1, kWasmI32);
         Value array_obj = Pop(0, ValueType::Ref(imm.index, kNullable));
         Value* value = Push(imm.array_type->element_type().Unpacked());
-        // TODO(7748): Optimize this when array_obj is non-nullable ref.
         CALL_INTERFACE_IF_REACHABLE(ArrayGet, array_obj, imm, index,
                                     opcode == kExprArrayGetS, value);
         return 2 + imm.length;
@@ -3423,7 +3422,6 @@ class WasmFullDecoder : public WasmDecoder<validate> {
         Value index = Pop(1, kWasmI32);
         Value array_obj = Pop(0, ValueType::Ref(imm.index, kNullable));
         Value* value = Push(imm.array_type->element_type());
-        // TODO(7748): Optimize this when array_obj is non-nullable ref.
         CALL_INTERFACE_IF_REACHABLE(ArrayGet, array_obj, imm, index, true,
                                     value);
         return 2 + imm.length;
@@ -3438,7 +3436,6 @@ class WasmFullDecoder : public WasmDecoder<validate> {
         Value value = Pop(2, imm.array_type->element_type().Unpacked());
         Value index = Pop(1, kWasmI32);
         Value array_obj = Pop(0, ValueType::Ref(imm.index, kNullable));
-        // TODO(7748): Optimize this when array_obj is non-nullable ref.
         CALL_INTERFACE_IF_REACHABLE(ArraySet, array_obj, imm, index, value);
         return 2 + imm.length;
       }

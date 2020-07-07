@@ -50,10 +50,11 @@ TEST_F(WasmSubtypingTest, Subtyping) {
   /* 8 */ DefineStruct(module, {mut(kWasmI32), immut(optRef(8))});
   /* 9 */ DefineStruct(module, {mut(kWasmI32), immut(optRef(8))});
 
-  ValueType numeric_types[] = {kWasmI32, kWasmI64, kWasmF32, kWasmF64};
+  ValueType numeric_types[] = {kWasmI32, kWasmI64, kWasmF32, kWasmF64,
+                               kWasmS128};
   ValueType ref_types[] = {kWasmExternRef, kWasmFuncRef, kWasmExnRef,
-                           kWasmEqRef,     optRef(0),    ref(0),
-                           optRef(2),      ref(2)};
+                           kWasmEqRef,     kWasmI31Ref,  optRef(0),
+                           ref(0),         optRef(2),    ref(2)};
 
   // Value types are unrelated, except if they are equal.
   for (ValueType subtype : numeric_types) {
@@ -78,8 +79,11 @@ TEST_F(WasmSubtypingTest, Subtyping) {
     CHECK(IsSubtypeOf(ref_type, ref_type, module));
   }
 
-  for (ValueType type_1 : {kWasmExternRef, kWasmFuncRef, kWasmExnRef}) {
-    for (ValueType type_2 : {kWasmExternRef, kWasmFuncRef, kWasmExnRef}) {
+  // The rest of ref. types are unrelated.
+  for (ValueType type_1 :
+       {kWasmExternRef, kWasmFuncRef, kWasmExnRef, kWasmI31Ref}) {
+    for (ValueType type_2 :
+         {kWasmExternRef, kWasmFuncRef, kWasmExnRef, kWasmI31Ref}) {
       CHECK_EQ(IsSubtypeOf(type_1, type_2, module), type_1 == type_2);
     }
   }

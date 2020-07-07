@@ -3779,12 +3779,12 @@ TEST_F(FunctionBodyDecoderTest, GCArray1) {
       &sig_c_r,
       {WASM_ARRAY_GET_S(array_type_index, WASM_GET_LOCAL(0), WASM_I32V(5))},
       kAppendEnd,
-      "array.get_s is only valid for packed arrays. Use or array.get instead.");
+      "array.get_s is only valid for packed arrays. Use array.get instead.");
   ExpectFailure(
       &sig_c_r,
       {WASM_ARRAY_GET_U(array_type_index, WASM_GET_LOCAL(0), WASM_I32V(5))},
       kAppendEnd,
-      "array.get_u is only valid for packed arrays. Use or array.get instead.");
+      "array.get_u is only valid for packed arrays. Use array.get instead.");
 
   /** array.set **/
   ExpectValidates(
