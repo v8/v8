@@ -1690,14 +1690,24 @@ void TurboAssembler::ExtractBits(Register dest, Register source, Register pos,
 
 void TurboAssembler::InsertBits(Register dest, Register source, Register pos,
                                 int size) {
-  Dror(dest, dest, pos);
-  Dins(dest, source, 0, size);
-  {
-    UseScratchRegisterScope temps(this);
-    Register scratch = temps.Acquire();
-    Dsubu(scratch, zero_reg, pos);
-    Dror(dest, dest, scratch);
-  }
+  DCHECK(size < 64);
+  UseScratchRegisterScope temps(this);
+  Register mask = temps.Acquire();
+  BlockTrampolinePoolScope block_trampoline_pool(this);
+  Register source_ = temps.hasAvailable() ? temps.Acquire() : t5;
+  // Create a mask of the length=size.
+  li(mask, 1);
+  RV_slli(mask, mask, size);
+  RV_addi(mask, mask, -1);
+  RV_and_(source_, mask, source);
+  RV_sll(source_, source_, pos);
+  // Make a mask containing 0's. 0's start at "pos" with length=size.
+  RV_sll(mask, mask, pos);
+  RV_not(mask, mask);
+  // cut area for insertion of source.
+  RV_and_(dest, mask, dest);
+  // insert source
+  RV_or_(dest, dest, source_);
 }
 
 void TurboAssembler::Neg_s(FPURegister fd, FPURegister fs) {
