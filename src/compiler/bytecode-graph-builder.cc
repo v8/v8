@@ -80,6 +80,14 @@ class BytecodeGraphBuilder {
     return feedback_vector_node_;
   }
 
+  // Same as above for the feedback vector node.
+  void CreateNativeContextNode();
+  Node* BuildLoadNativeContext();
+  Node* native_context_node() const {
+    DCHECK_NOT_NULL(native_context_node_);
+    return native_context_node_;
+  }
+
   Node* BuildLoadFeedbackCell(int index);
 
   // Builder for loading the a native context field.
@@ -411,6 +419,7 @@ class BytecodeGraphBuilder {
 
   const bool native_context_independent_;
   Node* feedback_vector_node_;
+  Node* native_context_node_;
 
   // Optimization to only create checkpoints when the current position in the
   // control-flow is not effect-dominated by another checkpoint already. All
@@ -977,6 +986,7 @@ BytecodeGraphBuilder::BytecodeGraphBuilder(
       native_context_independent_(
           flags & BytecodeGraphBuilderFlag::kNativeContextIndependent),
       feedback_vector_node_(nullptr),
+      native_context_node_(nullptr),
       needs_eager_checkpoint_(true),
       exit_controls_(local_zone),
       state_values_cache_(jsgraph),
@@ -1061,10 +1071,36 @@ Node* BytecodeGraphBuilder::BuildLoadFeedbackCell(int index) {
   }
 }
 
+void BytecodeGraphBuilder::CreateNativeContextNode() {
+  DCHECK_NULL(native_context_node_);
+  native_context_node_ = native_context_independent()
+                             ? BuildLoadNativeContext()
+                             : jsgraph()->Constant(native_context());
+}
+
+Node* BytecodeGraphBuilder::BuildLoadNativeContext() {
+  DCHECK(native_context_independent());
+  DCHECK_NULL(native_context_node_);
+
+  Environment* env = environment();
+  Node* control = env->GetControlDependency();
+  Node* effect = env->GetEffectDependency();
+  Node* context = env->Context();
+
+  Node* context_map = effect =
+      graph()->NewNode(simplified()->LoadField(AccessBuilder::ForMap()),
+                       context, effect, control);
+  Node* native_context = effect = graph()->NewNode(
+      simplified()->LoadField(AccessBuilder::ForMapNativeContext()),
+      context_map, effect, control);
+
+  env->UpdateEffectDependency(effect);
+  return native_context;
+}
+
 Node* BytecodeGraphBuilder::BuildLoadNativeContextField(int index) {
   Node* result = NewNode(javascript()->LoadContext(0, index, true));
-  NodeProperties::ReplaceContextInput(result,
-                                      jsgraph()->Constant(native_context()));
+  NodeProperties::ReplaceContextInput(result, native_context_node());
   return result;
 }
 
@@ -1093,6 +1129,7 @@ void BytecodeGraphBuilder::CreateGraph() {
   set_environment(&env);
 
   CreateFeedbackVectorNode();
+  CreateNativeContextNode();
   VisitBytecodes();
 
   // Finish the basic structure of the graph.
@@ -4160,7 +4197,7 @@ Node* BytecodeGraphBuilder::MakeNode(const Operator* op, int value_input_count,
     if (has_context) {
       *current_input++ = OperatorProperties::NeedsExactContext(op)
                              ? environment()->Context()
-                             : jsgraph()->Constant(native_context());
+                             : native_context_node();
     }
     if (has_frame_state) {
       // The frame state will be inserted later. Here we misuse the {Dead} node

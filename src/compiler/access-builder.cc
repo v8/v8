@@ -625,6 +625,16 @@ FieldAccess AccessBuilder::ForMapPrototype() {
 }
 
 // static
+FieldAccess AccessBuilder::ForMapNativeContext() {
+  FieldAccess access = {
+      kTaggedBase,         Map::kConstructorOrBackPointerOrNativeContextOffset,
+      Handle<Name>(),      MaybeHandle<Map>(),
+      Type::Any(),         MachineType::TaggedPointer(),
+      kPointerWriteBarrier};
+  return access;
+}
+
+// static
 FieldAccess AccessBuilder::ForModuleRegularExports() {
   FieldAccess access = {
       kTaggedBase,           SourceTextModule::kRegularExportsOffset,

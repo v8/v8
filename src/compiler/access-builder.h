@@ -209,6 +209,9 @@ class V8_EXPORT_PRIVATE AccessBuilder final
   // Provides access to Map::prototype() field.
   static FieldAccess ForMapPrototype();
 
+  // Provides access to Map::native_context() field.
+  static FieldAccess ForMapNativeContext();
+
   // Provides access to Module::regular_exports() field.
   static FieldAccess ForModuleRegularExports();
 
