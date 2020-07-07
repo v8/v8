@@ -6995,7 +6995,7 @@ TNode<Number> CodeStubAssembler::ToUint32(SloppyTNode<Context> context,
 
   Label out(this);
 
-  VARIABLE(var_result, MachineRepresentation::kTagged, input);
+  TVARIABLE(Object, var_result, input);
 
   // Early exit for positive smis.
   {
@@ -7007,7 +7007,7 @@ TNode<Number> CodeStubAssembler::ToUint32(SloppyTNode<Context> context,
   }
 
   const TNode<Number> number = ToNumber(context, input);
-  var_result.Bind(number);
+  var_result = number;
 
   // Perhaps we have a positive smi now.
   {
@@ -7023,7 +7023,7 @@ TNode<Number> CodeStubAssembler::ToUint32(SloppyTNode<Context> context,
   {
     const TNode<Int32T> uint32_value = SmiToInt32(CAST(number));
     TNode<Float64T> float64_value = ChangeUint32ToFloat64(uint32_value);
-    var_result.Bind(AllocateHeapNumberWithValue(float64_value));
+    var_result = AllocateHeapNumberWithValue(float64_value);
     Goto(&out);
   }
 
@@ -7075,13 +7075,13 @@ TNode<Number> CodeStubAssembler::ToUint32(SloppyTNode<Context> context,
       x = Float64Mod(x, float_two_32);
 
       const TNode<Number> result = ChangeFloat64ToTagged(x);
-      var_result.Bind(result);
+      var_result = result;
       Goto(&out);
     }
 
     BIND(&return_zero);
     {
-      var_result.Bind(SmiConstant(0));
+      var_result = SmiConstant(0);
       Goto(&out);
     }
   }
@@ -7092,14 +7092,14 @@ TNode<Number> CodeStubAssembler::ToUint32(SloppyTNode<Context> context,
 
 TNode<String> CodeStubAssembler::ToString_Inline(SloppyTNode<Context> context,
                                                  SloppyTNode<Object> input) {
-  VARIABLE(var_result, MachineRepresentation::kTagged, input);
+  TVARIABLE(Object, var_result, input);
   Label stub_call(this, Label::kDeferred), out(this);
 
   GotoIf(TaggedIsSmi(input), &stub_call);
   Branch(IsString(CAST(input)), &out, &stub_call);
 
   BIND(&stub_call);
-  var_result.Bind(CallBuiltin(Builtins::kToString, context, input));
+  var_result = CallBuiltin(Builtins::kToString, context, input);
   Goto(&out);
 
   BIND(&out);
@@ -9543,7 +9543,7 @@ Node* CodeStubAssembler::PrepareValueForWriteToTypedArray(
   }
 
   VARIABLE(var_result, rep);
-  VARIABLE(var_input, MachineRepresentation::kTagged, input);
+  TVARIABLE(Object, var_input, input);
   Label done(this, &var_result), if_smi(this), if_heapnumber_or_oddball(this),
       convert(this), loop(this, &var_input);
   Goto(&loop);
@@ -9552,16 +9552,17 @@ Node* CodeStubAssembler::PrepareValueForWriteToTypedArray(
   // We can handle both HeapNumber and Oddball here, since Oddball has the
   // same layout as the HeapNumber for the HeapNumber::value field. This
   // way we can also properly optimize stores of oddballs to typed arrays.
-  GotoIf(IsHeapNumber(CAST(var_input.value())), &if_heapnumber_or_oddball);
+  TNode<HeapObject> heap_object = CAST(var_input.value());
+  GotoIf(IsHeapNumber(heap_object), &if_heapnumber_or_oddball);
   STATIC_ASSERT_FIELD_OFFSETS_EQUAL(HeapNumber::kValueOffset,
                                     Oddball::kToNumberRawOffset);
-  Branch(HasInstanceType(var_input.value(), ODDBALL_TYPE),
-         &if_heapnumber_or_oddball, &convert);
+  Branch(HasInstanceType(heap_object, ODDBALL_TYPE), &if_heapnumber_or_oddball,
+         &convert);
 
   BIND(&if_heapnumber_or_oddball);
   {
-    TNode<Float64T> value = UncheckedCast<Float64T>(LoadObjectField(
-        var_input.value(), HeapNumber::kValueOffset, MachineType::Float64()));
+    TNode<Float64T> value =
+        LoadObjectField<Float64T>(heap_object, HeapNumber::kValueOffset);
     if (rep == MachineRepresentation::kWord32) {
       if (elements_kind == UINT8_CLAMPED_ELEMENTS) {
         var_result.Bind(Float64ToUint8Clamped(value));
@@ -9579,7 +9580,7 @@ Node* CodeStubAssembler::PrepareValueForWriteToTypedArray(
 
   BIND(&if_smi);
   {
-    TNode<Int32T> value = SmiToInt32(var_input.value());
+    TNode<Int32T> value = SmiToInt32(CAST(var_input.value()));
     if (rep == MachineRepresentation::kFloat32) {
       var_result.Bind(RoundInt32ToFloat32(value));
     } else if (rep == MachineRepresentation::kFloat64) {
@@ -9597,7 +9598,7 @@ Node* CodeStubAssembler::PrepareValueForWriteToTypedArray(
 
   BIND(&convert);
   {
-    var_input.Bind(CallBuiltin(Builtins::kNonNumberToNumber, context, input));
+    var_input = CallBuiltin(Builtins::kNonNumberToNumber, context, input);
     Goto(&loop);
   }
 
@@ -9794,8 +9795,8 @@ void CodeStubAssembler::EmitElementStore(
   if (IsGrowStoreMode(store_mode) &&
       !(IsSealedElementsKind(elements_kind) ||
         IsNonextensibleElementsKind(elements_kind))) {
-    elements = CAST(CheckForCapacityGrow(object, elements, elements_kind,
-                                         length, intptr_key, bailout));
+    elements = CheckForCapacityGrow(object, elements, elements_kind, length,
+                                    intptr_key, bailout);
   } else {
     GotoIfNot(UintPtrLessThan(Unsigned(intptr_key), length), bailout);
   }
@@ -9824,11 +9825,11 @@ void CodeStubAssembler::EmitElementStore(
                parameter_mode);
 }
 
-Node* CodeStubAssembler::CheckForCapacityGrow(
+TNode<FixedArrayBase> CodeStubAssembler::CheckForCapacityGrow(
     TNode<JSObject> object, TNode<FixedArrayBase> elements, ElementsKind kind,
     TNode<UintPtrT> length, TNode<IntPtrT> key, Label* bailout) {
   DCHECK(IsFastElementsKind(kind));
-  VARIABLE(checked_elements, MachineRepresentation::kTagged);
+  TVARIABLE(FixedArrayBase, checked_elements);
   Label grow_case(this), no_grow_case(this), done(this),
       grow_bailout(this, Label::kDeferred);
 
@@ -9845,15 +9846,15 @@ Node* CodeStubAssembler::CheckForCapacityGrow(
   {
     TNode<IntPtrT> current_capacity =
         SmiUntag(LoadFixedArrayBaseLength(elements));
-    checked_elements.Bind(elements);
+    checked_elements = elements;
     Label fits_capacity(this);
     // If key is negative, we will notice in Runtime::kGrowArrayElements.
     GotoIf(UintPtrLessThan(key, current_capacity), &fits_capacity);
 
     {
-      Node* new_elements = TryGrowElementsCapacity(
+      TNode<FixedArrayBase> new_elements = TryGrowElementsCapacity(
           object, elements, kind, key, current_capacity, &grow_bailout);
-      checked_elements.Bind(new_elements);
+      checked_elements = new_elements;
       Goto(&fits_capacity);
     }
 
@@ -9864,8 +9865,9 @@ Node* CodeStubAssembler::CheckForCapacityGrow(
       TNode<Object> maybe_elements = CallRuntime(
           Runtime::kGrowArrayElements, NoContextConstant(), object, tagged_key);
       GotoIf(TaggedIsSmi(maybe_elements), bailout);
-      CSA_ASSERT(this, IsFixedArrayWithKind(CAST(maybe_elements), kind));
-      checked_elements.Bind(maybe_elements);
+      TNode<FixedArrayBase> new_elements = CAST(maybe_elements);
+      CSA_ASSERT(this, IsFixedArrayWithKind(new_elements, kind));
+      checked_elements = new_elements;
       Goto(&fits_capacity);
     }
 
@@ -9881,7 +9883,7 @@ Node* CodeStubAssembler::CheckForCapacityGrow(
   BIND(&no_grow_case);
   {
     GotoIfNot(UintPtrLessThan(key, length), bailout);
-    checked_elements.Bind(elements);
+    checked_elements = elements;
     Goto(&done);
   }
 

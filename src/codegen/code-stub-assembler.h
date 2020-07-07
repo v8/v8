@@ -3317,10 +3317,9 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
                         TNode<Context> context,
                         TVariable<Object>* maybe_converted_value = nullptr);
 
-  Node* CheckForCapacityGrow(TNode<JSObject> object,
-                             TNode<FixedArrayBase> elements, ElementsKind kind,
-                             TNode<UintPtrT> length, TNode<IntPtrT> key,
-                             Label* bailout);
+  TNode<FixedArrayBase> CheckForCapacityGrow(
+      TNode<JSObject> object, TNode<FixedArrayBase> elements, ElementsKind kind,
+      TNode<UintPtrT> length, TNode<IntPtrT> key, Label* bailout);
 
   TNode<FixedArrayBase> CopyElementsOnWrite(TNode<HeapObject> object,
                                             TNode<FixedArrayBase> elements,
