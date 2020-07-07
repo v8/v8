@@ -2723,6 +2723,19 @@ TEST_F(WasmModuleVerifyTest, GcTypeIdsFunSigIllegalIndex) {
   EXPECT_NOT_OK(result, "cannot build reference to function type index");
 }
 
+TEST_F(WasmModuleVerifyTest, IllegalPackedFields) {
+  WASM_FEATURE_SCOPE(gc);
+  WASM_FEATURE_SCOPE(typed_funcref);
+  WASM_FEATURE_SCOPE(reftypes);
+
+  static const byte data[] = {
+      SECTION(Global, ENTRY_COUNT(1), kLocalI16, 0, WASM_INIT_EXPR_I32V_1(13))};
+
+  ModuleResult result = DecodeModule(data, data + sizeof(data));
+
+  EXPECT_NOT_OK(result, "invalid value type");
+}
+
 #undef EXPECT_INIT_EXPR
 #undef EXPECT_INIT_EXPR_FAIL
 #undef WASM_INIT_EXPR_I32V_1
