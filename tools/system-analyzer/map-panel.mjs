@@ -59,10 +59,10 @@ defineCustomElement('map-panel', (templateText) =>
     if(selectedMap){
       dataModel.isValidMap = true;
       dataModel.map = selectedMap;
-      searchBar.className = "green";
+      searchBar.className = "success";
     } else {
       dataModel.isValidMap = false;
-      searchBar.className = "red";
+      searchBar.className = "failure";
     }
     this.dispatchEvent(new CustomEvent(
       'click', {bubbles: true, composed: true, detail: dataModel}));

@@ -3,35 +3,47 @@ Use of this source code is governed by a BSD-style license that can be
 found in the LICENSE file. -->
 
 <style>
+  h2 {
+  background-color: #BB86FC;
+  box-shadow: 0 4px 8px 0 rgba(0,0,0,0.2);
+  transition: 0.3s;
+  color: black;
+  padding: 15px 25px;
+  text-align: center;
+  text-decoration: none;
+  display: inline-block;
+}
 .ic-panel {
-	background-color: #355EC2;
-	padding: 20px 20px  20px 20px ;
-	margin: auto;
+  background-color: #232323;
+  padding: 20px 20px  20px 20px ;
+  margin: auto;
 }
 #ic-panel {
-	background-color: #232323;
-	padding: 10px 10px  10px 10px ;
-	margin: auto;
-	overflow-x: scroll;
+  box-shadow: 0 4px 8px 0 rgba(0,0,0,0.2);
+  transition: 0.3s;
+  background-color: #121212;
+  padding: 10px 10px  10px 10px ;
+  margin: auto;
+  overflow-x: scroll;
 }
 
 .count {
-	text-align: right;
-	width: 5em;
+  text-align: right;
+  width: 5em;
 }
 
 .percentage {
-	text-align: right;
-	width: 5em;
+  text-align: right;
+  width: 5em;
 }
 
 .key {
-	padding-left: 1em;
+  padding-left: 1em;
 }
 
 .drilldown-group-title {
-	font-weight: bold;
-	padding: 0.5em 0 0.2em 0;
+  font-weight: bold;
+  padding: 0.5em 0 0.2em 0;
 }
 .entry-details {
 }
@@ -40,58 +52,58 @@ found in the LICENSE file. -->
 }
 
 .details {
-	width: 0.1em;
+  width: 0.1em;
 }
 
 .details span {
-	padding: 0 0.4em 0 0.4em;
-	background-color: black;
-	color: white;
-	border-radius: 25px;
-	text-align: center;
-	cursor: -webkit-zoom-in;
+  padding: 0 0.4em 0 0.4em;
+  background-color: black;
+  color: white;
+  border-radius: 25px;
+  text-align: center;
+  cursor: -webkit-zoom-in;
 }
 
 #legend {
-	padding-right: 20px;
+  padding-right: 20px;
 }
 </style>
 
 
 <div class="ic-panel">
-	<section id="ic-panel">
-		<h1>IC Explorer</h1>
+  <section id="ic-panel">
+    <h2>IC Panel</h2>
+    <h3>IC Explorer</h3>
+    <div id="legend">
+      <div style="float:right;  border-style: solid; border-width: 1px; padding:20px">
+          0 uninitialized<br>
+          X no feedback<br>
+          1 monomorphic<br>
+          ^ recompute handler<br>
+          P polymorphic<br>
+          N megamorphic<br>
+          G generic
+      </div>
+    </div>
 
-		<div id="legend">
-			<div style="float:right;  border-style: solid; border-width: 1px; padding:20px">
-					0 uninitialized<br>
-					X no feedback<br>
-					1 monomorphic<br>
-					^ recompute handler<br>
-					P polymorphic<br>
-					N megamorphic<br>
-					G generic
-			</div>
-		</div>
+    <h3>Data</h3>
 
-		<h2>Data</h2>
+    <p>Trace Count: <span id="count">0</span></p>
 
-		<p>Trace Count: <span id="count">0</span></p>
-
-		<h2>Result</h2>
-		<p>
-		Group-Key:
-		<select id="group-key"></select>
-		</p>
-		Filter number of items
-		<br></br>
-		<input type="search" id="filter-input" placeholder="Number of items"></input>
-		<button id="filterICBtn">Filter</button>
-		<p>
-			<table id="table" width="100%">
-				<tbody id="table-body">
-				</tbody>
-			</table>
-		</p>
-	</section>
+    <h3>Result</h3>
+    <p>
+    Group-Key:
+    <select id="group-key"></select>
+    </p>
+    Filter number of items
+    <br></br>
+    <input type="search" id="filter-input" placeholder="Number of items"></input>
+    <button id="filterICBtn">Filter</button>
+    <p>
+      <table id="table" width="100%">
+        <tbody id="table-body">
+        </tbody>
+      </table>
+    </p>
+  </section>
 </div>
