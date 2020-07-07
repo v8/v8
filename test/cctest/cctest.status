@@ -638,11 +638,17 @@
 ################################################################################
 ['variant == nci', {
   # Optimizes and deopts differently than TurboFan.
+  'test-api/FastApiCalls': [SKIP],
   'test-cpu-profiler/Deopt*': [SKIP],
   'test-cpu-profiler/DetailedSourcePositionAPI_Inlining': [SKIP],
+  'test-heap/CellsInOptimizedCodeAreWeak': [SKIP],
   'test-heap/EnsureAllocationSiteDependentCodesProcessed': [SKIP],
+  'test-heap/NewSpaceObjectsInOptimizedCode': [SKIP],
+  'test-heap/ObjectsInEagerlyDeoptimizedCodeAreWeak': [SKIP],
+  'test-heap/ObjectsInOptimizedCodeAreWeak': [SKIP],
   'test-heap/OptimizedPretenuring*': [SKIP],
   'test-heap-profiler/SamplingHeapProfilerPretenuredInlineAllocations': [SKIP],
+  'test-log/LogAll': [SKIP],
 }],  # variant == nci
 
 ]

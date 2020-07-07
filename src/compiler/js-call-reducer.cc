@@ -4495,12 +4495,8 @@ Reduction JSCallReducer::ReduceJSConstruct(Node* node) {
           node, DeoptimizeReason::kInsufficientTypeFeedbackForConstruct);
     }
 
-    // TODO(jgruber,v8:8888): Remove the special case for native context
-    // independent codegen below once we control available feedback through
-    // this flag.
     base::Optional<HeapObjectRef> feedback_target = feedback.AsCall().target();
-    if (feedback_target.has_value() && feedback_target->IsAllocationSite() &&
-        !broker()->is_native_context_independent()) {
+    if (feedback_target.has_value() && feedback_target->IsAllocationSite()) {
       // The feedback is an AllocationSite, which means we have called the
       // Array function and collected transition (and pretenuring) feedback
       // for the resulting arrays.  This has to be kept in sync with the

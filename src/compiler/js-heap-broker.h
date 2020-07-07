@@ -213,15 +213,20 @@ class V8_EXPORT_PRIVATE JSHeapBroker {
   friend class ObjectRef;
   friend class ObjectData;
 
+  bool CanUseFeedback(const FeedbackNexus& nexus) const;
+  const ProcessedFeedback& NewInsufficientFeedback(FeedbackSlotKind kind) const;
+
   // Bottleneck FeedbackNexus access here, for storage in the broker
   // or on-the-fly usage elsewhere in the compiler.
-  ForInHint ReadFeedbackForForIn(FeedbackSource const& source) const;
-  CompareOperationHint ReadFeedbackForCompareOperation(
+  ProcessedFeedback const& ReadFeedbackForArrayOrObjectLiteral(
+      FeedbackSource const& source);
+  ProcessedFeedback const& ReadFeedbackForBinaryOperation(
       FeedbackSource const& source) const;
-  BinaryOperationHint ReadFeedbackForBinaryOperation(
-      FeedbackSource const& source) const;
-
   ProcessedFeedback const& ReadFeedbackForCall(FeedbackSource const& source);
+  ProcessedFeedback const& ReadFeedbackForCompareOperation(
+      FeedbackSource const& source) const;
+  ProcessedFeedback const& ReadFeedbackForForIn(
+      FeedbackSource const& source) const;
   ProcessedFeedback const& ReadFeedbackForGlobalAccess(
       FeedbackSource const& source);
   ProcessedFeedback const& ReadFeedbackForInstanceOf(
@@ -229,8 +234,6 @@ class V8_EXPORT_PRIVATE JSHeapBroker {
   ProcessedFeedback const& ReadFeedbackForPropertyAccess(
       FeedbackSource const& source, AccessMode mode,
       base::Optional<NameRef> static_name);
-  ProcessedFeedback const& ReadFeedbackForArrayOrObjectLiteral(
-      FeedbackSource const& source);
   ProcessedFeedback const& ReadFeedbackForRegExpLiteral(
       FeedbackSource const& source);
   ProcessedFeedback const& ReadFeedbackForTemplateObject(
