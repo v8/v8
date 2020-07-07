@@ -2811,9 +2811,8 @@ VISIT_ATOMIC_BINOP(Xor)
 
 void InstructionSelector::VisitS128Const(Node* node) {
   X64OperandGenerator g(this);
-  static const int kUint32Immediates = 4;
+  static const int kUint32Immediates = kSimd128Size / sizeof(uint32_t);
   uint32_t val[kUint32Immediates];
-  STATIC_ASSERT(sizeof(val) == kSimd128Size);
   memcpy(val, S128ImmediateParameterOf(node->op()).data(), kSimd128Size);
   // If all bytes are zeros or ones, avoid emitting code for generic constants
   bool all_zeros = !(val[0] && val[1] && val[2] && val[3]);
@@ -2825,12 +2824,8 @@ void InstructionSelector::VisitS128Const(Node* node) {
   } else if (all_ones) {
     Emit(kX64S128AllOnes, dst);
   } else {
-    InstructionOperand inputs[kUint32Immediates];
-    for (int i = 0; i < kUint32Immediates; ++i) {
-      inputs[i] = g.UseImmediate(val[i]);
-    }
-    InstructionOperand temp(g.TempSimd128Register());
-    Emit(kX64S128Const, 1, &dst, kUint32Immediates, inputs, 1, &temp);
+    Emit(kX64S128Const, dst, g.UseImmediate(val[0]), g.UseImmediate(val[1]),
+         g.UseImmediate(val[2]), g.UseImmediate(val[3]));
   }
 }
 

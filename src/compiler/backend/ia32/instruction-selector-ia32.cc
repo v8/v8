@@ -2181,6 +2181,30 @@ void InstructionSelector::VisitWord32AtomicPairCompareExchange(Node* node) {
   V(I16x8ShrS)                               \
   V(I16x8ShrU)
 
+void InstructionSelector::VisitS128Const(Node* node) {
+  IA32OperandGenerator g(this);
+  static const int kUint32Immediates = kSimd128Size / sizeof(uint32_t);
+  uint32_t val[kUint32Immediates];
+  memcpy(val, S128ImmediateParameterOf(node->op()).data(), kSimd128Size);
+  // If all bytes are zeros or ones, avoid emitting code for generic constants
+  bool all_zeros = !(val[0] && val[1] && val[2] && val[3]);
+  bool all_ones = val[0] == UINT32_MAX && val[1] == UINT32_MAX &&
+                  val[2] == UINT32_MAX && val[3] == UINT32_MAX;
+  InstructionOperand dst = g.DefineAsRegister(node);
+  if (all_zeros) {
+    Emit(kIA32S128Zero, dst);
+  } else if (all_ones) {
+    Emit(kIA32S128AllOnes, dst);
+  } else {
+    InstructionOperand inputs[kUint32Immediates];
+    for (int i = 0; i < kUint32Immediates; ++i) {
+      inputs[i] = g.UseImmediate(val[i]);
+    }
+    InstructionOperand temp(g.TempRegister());
+    Emit(kIA32S128Const, 1, &dst, kUint32Immediates, inputs, 1, &temp);
+  }
+}
+
 void InstructionSelector::VisitF64x2Min(Node* node) {
   IA32OperandGenerator g(this);
   InstructionOperand temps[] = {g.TempSimd128Register()};

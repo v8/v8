@@ -341,7 +341,9 @@ namespace compiler {
   V(IA32I8x16RoundingAverageU)     \
   V(IA32I8x16Abs)                  \
   V(IA32I8x16BitMask)              \
+  V(IA32S128Const)                 \
   V(IA32S128Zero)                  \
+  V(IA32S128AllOnes)               \
   V(SSES128Not)                    \
   V(AVXS128Not)                    \
   V(SSES128And)                    \

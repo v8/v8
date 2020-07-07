@@ -3689,7 +3689,8 @@ void RunSimdConstTest(ExecutionTier execution_tier, LowerSimd lower_simd,
   }
 }
 
-#if V8_TARGET_ARCH_X64 || V8_TARGET_ARCH_ARM64 || V8_TARGET_ARCH_S390X
+#if V8_TARGET_ARCH_X64 || V8_TARGET_ARCH_ARM64 || V8_TARGET_ARCH_S390X || \
+    V8_TARGET_ARCH_IA32
 WASM_SIMD_TEST_NO_LOWERING(S128Const) {
   std::array<uint8_t, kSimd128Size> expected;
   // Test for generic constant
@@ -3716,7 +3717,8 @@ WASM_SIMD_TEST_NO_LOWERING(S128ConstAllOnes) {
   }
   RunSimdConstTest(execution_tier, lower_simd, expected);
 }
-#endif  // V8_TARGET_ARCH_X64 || V8_TARGET_ARCH_ARM64 || V8_TARGET_ARCH_S390X
+#endif  // V8_TARGET_ARCH_X64 || V8_TARGET_ARCH_ARM64 || V8_TARGET_ARCH_S390X ||
+        // V8_TARGET_ARCH_IA32
 
 void RunI8x16MixedRelationalOpTest(ExecutionTier execution_tier,
                                    LowerSimd lower_simd, WasmOpcode opcode,

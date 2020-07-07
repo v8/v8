@@ -3613,9 +3613,26 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       __ Pmovmskb(i.OutputRegister(), i.InputSimd128Register(0));
       break;
     }
+    case kIA32S128Const: {
+      XMMRegister dst = i.OutputSimd128Register();
+      Register tmp = i.TempRegister(0);
+      uint64_t low_qword =
+          i.InputUint32(0) | (uint64_t{i.InputUint32(1)} << 32);
+      __ Move(dst, low_qword);
+      __ Move(tmp, Immediate(i.InputUint32(2)));
+      __ Pinsrd(dst, tmp, 2);
+      __ Move(tmp, Immediate(i.InputUint32(3)));
+      __ Pinsrd(dst, tmp, 3);
+      break;
+    }
     case kIA32S128Zero: {
       XMMRegister dst = i.OutputSimd128Register();
       __ Pxor(dst, dst);
+      break;
+    }
+    case kIA32S128AllOnes: {
+      XMMRegister dst = i.OutputSimd128Register();
+      __ Pcmpeqd(dst, dst);
       break;
     }
     case kSSES128Not: {
