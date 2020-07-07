@@ -2025,18 +2025,29 @@ void Simulator::DecodeRVRAType() {
   // Memory address lock or other synchronizaiton behaviors.
   switch (instr_.InstructionBits() & kRATypeMask) {
     case RO_LR_W: {
-      UNIMPLEMENTED();
-      // int64_t addr = rs1();
-      // auto val = RV_ReadMem<int32_t>(addr, instr_.instr());
-      // set_rd(sext32(val), false);
-      // TraceMemRd(addr, val, get_register(RV_rd_reg()));
-      // break;
+      base::MutexGuard lock_guard(&GlobalMonitor::Get()->mutex);
+      int64_t addr = rs1();
+      auto val = RV_ReadMem<int32_t>(addr, instr_.instr());
+      set_rd(sext32(val), false);
+      TraceMemRd(addr, val, get_register(RV_rd_reg()));
+      local_monitor_.NotifyLoadLinked(addr, TransactionSize::Word);
+      GlobalMonitor::Get()->NotifyLoadLinked_Locked(addr,
+                                                    &global_monitor_thread_);
+      break;
     }
     case RO_SC_W: {
-      UNIMPLEMENTED();
-      // RV_WriteMem<int32_t>(rs1(), (int32_t)rs2(), instr_.instr());
-      // set_rd(0, false);  // Always success in simulator
-      // break;
+      int64_t addr = rs1();
+      if (local_monitor_.NotifyStoreConditional(addr, TransactionSize::Word) &&
+          GlobalMonitor::Get()->NotifyStoreConditional_Locked(
+              addr, &global_monitor_thread_)) {
+        local_monitor_.NotifyStore();
+        GlobalMonitor::Get()->NotifyStore_Locked(&global_monitor_thread_);
+        RV_WriteMem<int32_t>(rs1(), (int32_t)rs2(), instr_.instr());
+        set_rd(1, false);
+      } else {
+        set_rd(0, false);
+      }
+      break;
     }
     case RO_AMOSWAP_W: {
       set_rd(sext32(RV_amo<uint32_t>(
@@ -2094,18 +2105,30 @@ void Simulator::DecodeRVRAType() {
     }
 #ifdef V8_TARGET_ARCH_64_BIT
     case RO_LR_D: {
-      UNIMPLEMENTED();
-      // int64_t addr = rs1();
-      // auto val = RV_ReadMem<int64_t>(addr, instr_.instr());
-      // set_rd(val, false);
-      // TraceMemRd(addr, val, get_register(RV_rd_reg()));
-      // break;
+      base::MutexGuard lock_guard(&GlobalMonitor::Get()->mutex);
+      int64_t addr = rs1();
+      auto val = RV_ReadMem<int64_t>(addr, instr_.instr());
+      set_rd(val, false);
+      TraceMemRd(addr, val, get_register(RV_rd_reg()));
+      local_monitor_.NotifyLoadLinked(addr, TransactionSize::DoubleWord);
+      GlobalMonitor::Get()->NotifyLoadLinked_Locked(addr,
+                                                    &global_monitor_thread_);
+      break;
     }
     case RO_SC_D: {
-      UNIMPLEMENTED();
-      // RV_WriteMem<int64_t>(rs1(), rs2(), instr_.instr());
-      // set_rd(0, false);  // Always success in simulator
-      // break;
+      int64_t addr = rs1();
+      base::MutexGuard lock_guard(&GlobalMonitor::Get()->mutex);
+      if (local_monitor_.NotifyStoreConditional(addr,
+                                                TransactionSize::DoubleWord) &&
+          (GlobalMonitor::Get()->NotifyStoreConditional_Locked(
+              addr, &global_monitor_thread_))) {
+        GlobalMonitor::Get()->NotifyStore_Locked(&global_monitor_thread_);
+        RV_WriteMem<int64_t>(rs1(), rs2(), instr_.instr());
+        set_rd(1, false);
+      } else {
+        set_rd(0, false);
+      }
+      break;
     }
     case RO_AMOSWAP_D: {
       set_rd(RV_amo<int64_t>(
