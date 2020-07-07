@@ -117,6 +117,15 @@ struct CheckLEB1 : std::integral_constant<size_t, num> {
 
 #define EXCEPTION_ENTRY(sig_index) U32V_1(kExceptionAttribute), sig_index
 
+#define FIELD_COUNT(count) U32V_1(count)
+#define STRUCT_FIELD(type, mutability) type, (mutability ? 1 : 0)
+#define WASM_REF(index) kLocalRef, index
+#define WASM_OPT_REF(index) kLocalOptRef, index
+#define WASM_STRUCT_DEF(...) kWasmStructTypeCode, __VA_ARGS__
+#define WASM_ARRAY_DEF(type, mutability) \
+  kWasmArrayTypeCode, type, (mutability ? 1 : 0)
+#define WASM_FUNCTION_DEF(...) kWasmFunctionTypeCode, __VA_ARGS__
+
 #define EXPECT_VERIFIES(data)                                      \
   do {                                                             \
     ModuleResult result = DecodeModule(data, data + sizeof(data)); \
@@ -2659,6 +2668,61 @@ TEST_F(WasmModuleVerifyTest, DataCountSegmentCount_omitted) {
   EXPECT_NOT_OK(result, "data segments count 0 mismatch (1 expected)");
 }
 
+TEST_F(WasmModuleVerifyTest, GcStructIdsPass) {
+  WASM_FEATURE_SCOPE(gc);
+  WASM_FEATURE_SCOPE(typed_funcref);
+  WASM_FEATURE_SCOPE(reftypes);
+
+  static const byte data[] = {SECTION(
+      Type, ENTRY_COUNT(3),
+      WASM_STRUCT_DEF(FIELD_COUNT(3), STRUCT_FIELD(kLocalI32, true),
+                      STRUCT_FIELD(WASM_OPT_REF(0), true),
+                      STRUCT_FIELD(WASM_OPT_REF(1), true)),
+      WASM_STRUCT_DEF(FIELD_COUNT(2), STRUCT_FIELD(WASM_OPT_REF(0), true),
+                      STRUCT_FIELD(WASM_OPT_REF(2), true)),
+      WASM_ARRAY_DEF(WASM_OPT_REF(0), true))};
+  ModuleResult result = DecodeModule(data, data + sizeof(data));
+  EXPECT_OK(result);
+}
+
+TEST_F(WasmModuleVerifyTest, GcTypeIdsUndefinedIndex) {
+  WASM_FEATURE_SCOPE(gc);
+  WASM_FEATURE_SCOPE(typed_funcref);
+  WASM_FEATURE_SCOPE(reftypes);
+
+  static const byte data[] = {SECTION(
+      Type, ENTRY_COUNT(1),
+      WASM_STRUCT_DEF(FIELD_COUNT(1), STRUCT_FIELD(WASM_OPT_REF(1), true)))};
+  ModuleResult result = DecodeModule(data, data + sizeof(data));
+  EXPECT_NOT_OK(result, "reference to undeclared struct/array");
+}
+
+TEST_F(WasmModuleVerifyTest, GcTypeIdsIllegalIndex) {
+  WASM_FEATURE_SCOPE(gc);
+  WASM_FEATURE_SCOPE(typed_funcref);
+  WASM_FEATURE_SCOPE(reftypes);
+
+  static const byte data[] = {SECTION(
+      Type, ENTRY_COUNT(2),
+      WASM_STRUCT_DEF(FIELD_COUNT(1), STRUCT_FIELD(WASM_OPT_REF(1), true)),
+      WASM_FUNCTION_DEF(ENTRY_COUNT(1), kLocalI32, ENTRY_COUNT(1), kLocalI32))};
+  ModuleResult result = DecodeModule(data, data + sizeof(data));
+  EXPECT_NOT_OK(result, "cannot build reference to function type index");
+}
+
+TEST_F(WasmModuleVerifyTest, GcTypeIdsFunSigIllegalIndex) {
+  WASM_FEATURE_SCOPE(gc);
+  WASM_FEATURE_SCOPE(typed_funcref);
+  WASM_FEATURE_SCOPE(reftypes);
+
+  static const byte data[] = {SECTION(
+      Type, ENTRY_COUNT(1),
+      WASM_FUNCTION_DEF(U32V_1(1), kLocalI32, U32V_1(1), WASM_OPT_REF(0)))};
+  ModuleResult result = DecodeModule(data, data + sizeof(data));
+
+  EXPECT_NOT_OK(result, "cannot build reference to function type index");
+}
+
 #undef EXPECT_INIT_EXPR
 #undef EXPECT_INIT_EXPR_FAIL
 #undef WASM_INIT_EXPR_I32V_1
@@ -2709,6 +2773,14 @@ TEST_F(WasmModuleVerifyTest, DataCountSegmentCount_omitted) {
 #undef FOUR_EMPTY_BODIES
 #undef SIGNATURES_SECTION_VOID_VOID
 #undef LINEAR_MEMORY_INDEX_0
+
+#undef FIELD_COUNT
+#undef STRUCT_FIELD
+#undef WASM_REF
+#undef WASM_OPT_REF
+#undef WASM_STRUCT_DEF
+#undef WASM_ARRAY_DEF
+#undef WASM_FUNCTION_DEF
 #undef EXCEPTION_ENTRY
 #undef EXPECT_VERIFIES
 #undef EXPECT_FAILURE_LEN
