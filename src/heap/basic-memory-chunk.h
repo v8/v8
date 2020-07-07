@@ -24,7 +24,7 @@ class BasicMemoryChunk {
  public:
   // Use with std data structures.
   struct Hasher {
-    size_t operator()(BasicMemoryChunk* const chunk) const {
+    size_t operator()(const BasicMemoryChunk* const chunk) const {
       return reinterpret_cast<size_t>(chunk) >> kPageSizeBits;
     }
   };
@@ -115,14 +115,6 @@ class BasicMemoryChunk {
 
   // Returns the offset of a given address to this page.
   inline size_t Offset(Address a) { return static_cast<size_t>(a - address()); }
-
-  // Returns the address for a given offset to the this page.
-  Address OffsetToAddress(size_t offset) {
-    Address address_in_page = address() + offset;
-    DCHECK_GE(address_in_page, area_start());
-    DCHECK_LT(address_in_page, area_end());
-    return address_in_page;
-  }
 
   // Some callers rely on the fact that this can operate on both
   // tagged and aligned object addresses.
@@ -269,9 +261,9 @@ class BasicMemoryChunk {
                                       BaseSpace* owner,
                                       VirtualMemory reservation);
 
-  size_t wasted_memory() { return wasted_memory_; }
+  size_t wasted_memory() const { return wasted_memory_; }
   void add_wasted_memory(size_t waste) { wasted_memory_ += waste; }
-  size_t allocated_bytes() { return allocated_bytes_; }
+  size_t allocated_bytes() const { return allocated_bytes_; }
 
   static const intptr_t kSizeOffset = 0;
   static const intptr_t kFlagsOffset = kSizeOffset + kSizetSize;

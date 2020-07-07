@@ -31,6 +31,21 @@ class ReadOnlyPage : public BasicMemoryChunk {
 
   size_t ShrinkToHighWaterMark();
 
+  // Returns the address for a given offset in this page.
+  Address OffsetToAddress(size_t offset) const {
+    Address address_in_page = address() + offset;
+    if (V8_SHARED_RO_HEAP_BOOL && COMPRESS_POINTERS_BOOL) {
+      // Pointer compression with share ReadOnlyPages means that the area_start
+      // and area_end cannot be defined since they are stored within the pages
+      // which can be mapped at multiple memory addresses.
+      DCHECK_LT(offset, size());
+    } else {
+      DCHECK_GE(address_in_page, area_start());
+      DCHECK_LT(address_in_page, area_end());
+    }
+    return address_in_page;
+  }
+
  private:
   friend class ReadOnlySpace;
 };
@@ -123,7 +138,7 @@ class ReadOnlySpace : public BaseSpace {
 #endif  // VERIFY_HEAP
 
   // Return size of allocatable area on a page in this space.
-  int AreaSize() { return static_cast<int>(area_size_); }
+  int AreaSize() const { return static_cast<int>(area_size_); }
 
   ReadOnlyPage* InitializePage(BasicMemoryChunk* chunk);
 

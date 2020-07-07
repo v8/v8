@@ -49,16 +49,16 @@ class AllocationStats {
   }
 
   // Accessors for the allocation statistics.
-  size_t Capacity() { return capacity_; }
-  size_t MaxCapacity() { return max_capacity_; }
-  size_t Size() { return size_; }
+  size_t Capacity() const { return capacity_; }
+  size_t MaxCapacity() const { return max_capacity_; }
+  size_t Size() const { return size_; }
 #ifdef DEBUG
-  size_t AllocatedOnPage(BasicMemoryChunk* page) {
-    return allocated_on_page_[page];
+  size_t AllocatedOnPage(const BasicMemoryChunk* page) const {
+    return allocated_on_page_.at(page);
   }
 #endif
 
-  void IncreaseAllocatedBytes(size_t bytes, BasicMemoryChunk* page) {
+  void IncreaseAllocatedBytes(size_t bytes, const BasicMemoryChunk* page) {
 #ifdef DEBUG
     size_t size = size_;
     DCHECK_GE(size + bytes, size);
@@ -69,7 +69,7 @@ class AllocationStats {
 #endif
   }
 
-  void DecreaseAllocatedBytes(size_t bytes, BasicMemoryChunk* page) {
+  void DecreaseAllocatedBytes(size_t bytes, const BasicMemoryChunk* page) {
     DCHECK_GE(size_, bytes);
     size_.fetch_sub(bytes);
 #ifdef DEBUG
@@ -106,7 +106,7 @@ class AllocationStats {
   std::atomic<size_t> size_;
 
 #ifdef DEBUG
-  std::unordered_map<BasicMemoryChunk*, size_t, BasicMemoryChunk::Hasher>
+  std::unordered_map<const BasicMemoryChunk*, size_t, BasicMemoryChunk::Hasher>
       allocated_on_page_;
 #endif
 };
