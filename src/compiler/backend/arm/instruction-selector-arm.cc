@@ -2650,6 +2650,25 @@ void InstructionSelector::VisitI32x4DotI16x8S(Node* node) {
        g.UseUniqueRegister(node->InputAt(1)), arraysize(temps), temps);
 }
 
+void InstructionSelector::VisitS128Const(Node* node) {
+  ArmOperandGenerator g(this);
+  uint32_t val[kSimd128Size / sizeof(uint32_t)];
+  memcpy(val, S128ImmediateParameterOf(node->op()).data(), kSimd128Size);
+  // If all bytes are zeros, avoid emitting code for generic constants.
+  bool all_zeros = !(val[0] || val[1] || val[2] || val[3]);
+  bool all_ones = val[0] == UINT32_MAX && val[1] == UINT32_MAX &&
+                  val[2] == UINT32_MAX && val[3] == UINT32_MAX;
+  InstructionOperand dst = g.DefineAsRegister(node);
+  if (all_zeros) {
+    Emit(kArmS128Zero, dst);
+  } else if (all_ones) {
+    Emit(kArmS128AllOnes, dst);
+  } else {
+    Emit(kArmS128Const, dst, g.UseImmediate(val[0]), g.UseImmediate(val[1]),
+         g.UseImmediate(val[2]), g.UseImmediate(val[3]));
+  }
+}
+
 void InstructionSelector::VisitS128Zero(Node* node) {
   ArmOperandGenerator g(this);
   Emit(kArmS128Zero, g.DefineAsRegister(node));

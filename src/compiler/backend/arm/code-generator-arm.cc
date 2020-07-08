@@ -2813,8 +2813,23 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       __ vmov(NeonU16, dst, tmp2.low(), 0);
       break;
     }
+    case kArmS128Const: {
+      QwNeonRegister dst = i.OutputSimd128Register();
+      uint64_t imm1 =
+          i.InputInt32(0) | (static_cast<uint64_t>(i.InputInt32(1)) << 32);
+      uint64_t imm2 =
+          i.InputInt32(2) | (static_cast<uint64_t>(i.InputInt32(3)) << 32);
+      __ vmov(dst.low(), Double(imm1));
+      __ vmov(dst.high(), Double(imm2));
+      break;
+    }
     case kArmS128Zero: {
       __ veor(i.OutputSimd128Register(), i.OutputSimd128Register(),
+              i.OutputSimd128Register());
+      break;
+    }
+    case kArmS128AllOnes: {
+      __ vceq(i.OutputSimd128Register(), i.OutputSimd128Register(),
               i.OutputSimd128Register());
       break;
     }
