@@ -16,6 +16,7 @@ found in the LICENSE file. -->
   <script type="module" src="map-panel.mjs"></script>
   <script type="module" src="timeline-panel.mjs"></script>
   <script type="module" src="ic-panel.mjs"></script>
+
   <script src="../splaytree.js"></script>
   <script src="../codemap.js"></script>
   <script src="../csvparser.js"></script>
@@ -177,6 +178,7 @@ let stateGlobal = Object.create(null);
 function globalDataUpload(e) {
   stateGlobal.timeline = e.detail;
   if(!e.detail) return;
+  $('#container').style.display = 'block';
   // instantiate the app logic
   stateGlobal.fileData = e.detail;
   stateGlobal.state = new State('#map-panel', '#stats', '#timeline-panel');
@@ -200,12 +202,14 @@ function globalSearchBarEvent(e) {
       <log-file-reader id="log-file-reader" onchange="globalDataUpload(event)"></log-file-reader>
       <br></br>
     </section>
-    <div class="stats-panel">
-      <section id="stats"><h2>Stats</h2></section>
+    <div id="container" style="display: none;">
+      <div class="stats-panel">
+        <section id="stats"><h2>Stats</h2></section>
+      </div>
+      <timeline-panel id="timeline-panel"></timeline-panel>
+      <map-panel id="map-panel" onclick="globalSearchBarEvent(event)"></map-panel>
+      <ic-panel id="ic-panel"></ic-panel>
     </div>
-    <timeline-panel id="timeline-panel"></timeline-panel>
-    <map-panel id="map-panel" onclick="globalSearchBarEvent(event)"></map-panel>
-    <ic-panel id="ic-panel"></ic-panel>
   </div>
 
   <div id="instructions">
