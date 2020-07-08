@@ -39,6 +39,9 @@ class V8_EXPORT_PRIVATE LocalHeap {
 
   Handle<Object> NewPersistentHandle(Address value);
   std::unique_ptr<PersistentHandles> DetachPersistentHandles();
+#ifdef DEBUG
+  bool ContainsPersistentHandle(Address* location);
+#endif
 
   bool IsParked();
 

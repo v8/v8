@@ -65,6 +65,12 @@ std::unique_ptr<PersistentHandles> LocalHeap::DetachPersistentHandles() {
   return std::move(persistent_handles_);
 }
 
+#ifdef DEBUG
+bool LocalHeap::ContainsPersistentHandle(Address* location) {
+  return persistent_handles_ ? persistent_handles_->Contains(location) : false;
+}
+#endif
+
 bool LocalHeap::IsParked() {
   base::MutexGuard guard(&state_mutex_);
   return state_ == ThreadState::Parked;

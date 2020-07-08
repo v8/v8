@@ -33,6 +33,10 @@ class PersistentHandles {
 
   V8_EXPORT_PRIVATE Handle<Object> NewHandle(Address value);
 
+#ifdef DEBUG
+  bool Contains(Address* location);
+#endif
+
  private:
   void AddBlock();
   Address* GetHandle(Address value);
@@ -57,6 +61,10 @@ class PersistentHandles {
 
   PersistentHandles* prev_;
   PersistentHandles* next_;
+
+#ifdef DEBUG
+  std::set<Address*> ordered_blocks_;
+#endif
 
   friend class PersistentHandlesList;
   friend class LocalHeap;

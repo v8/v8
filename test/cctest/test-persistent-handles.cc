@@ -112,6 +112,26 @@ TEST(CreatePersistentHandles) {
   ph->NewHandle(number->ptr());
 }
 
+TEST(DereferencePersistentHandle) {
+  CcTest::InitializeVM();
+  FLAG_local_heaps = true;
+  Isolate* isolate = CcTest::i_isolate();
+
+  std::unique_ptr<PersistentHandles> phs = isolate->NewPersistentHandles();
+  Handle<HeapNumber> ph;
+  {
+    HandleScope handle_scope(isolate);
+    Handle<HeapNumber> number = isolate->factory()->NewHeapNumber(42.0);
+    ph = Handle<HeapNumber>::cast(phs->NewHandle(number->ptr()));
+  }
+  {
+    LocalHeap local_heap(isolate->heap(), std::move(phs));
+    CHECK_EQ(42, ph->value());
+    DisallowHandleDereference disallow_scope;
+    CHECK_EQ(42, ph->value());
+  }
+}
+
 }  // anonymous namespace
 
 }  // namespace internal

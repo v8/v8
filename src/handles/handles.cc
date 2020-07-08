@@ -35,6 +35,13 @@ bool HandleBase::IsDereferenceAllowed() const {
   HeapObject heap_object = HeapObject::cast(object);
   if (IsReadOnlyHeapObject(heap_object)) return true;
   if (Heap::InOffThreadSpace(heap_object)) return true;
+  LocalHeap* local_heap = LocalHeap::Current();
+  if (V8_UNLIKELY(local_heap)) {
+    if (local_heap->ContainsPersistentHandle(location_)) {
+      // The current thread owns the handle and thus can dereference it.
+      return true;
+    }
+  }
 
   Isolate* isolate = GetIsolateFromWritableObject(heap_object);
   RootIndex root_index;
