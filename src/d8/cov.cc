@@ -24,10 +24,13 @@ struct shmem_data {
 
 struct shmem_data* shmem;
 
-uint32_t *__edges_start, *__edges_stop;
-void __sanitizer_cov_reset_edgeguards() {
+uint32_t *edges_start, *edges_stop;
+uint32_t builtins_start;
+uint32_t builtins_edge_count;
+
+void sanitizer_cov_reset_edgeguards() {
   uint32_t N = 0;
-  for (uint32_t* x = __edges_start; x < __edges_stop && N < MAX_EDGES; x++)
+  for (uint32_t* x = edges_start; x < edges_stop && N < MAX_EDGES; x++)
     *x = ++N;
 }
 
@@ -53,13 +56,25 @@ extern "C" void __sanitizer_cov_trace_pc_guard_init(uint32_t* start,
     }
   }
 
-  __edges_start = start;
-  __edges_stop = stop;
-  __sanitizer_cov_reset_edgeguards();
+  edges_start = start;
+  edges_stop = stop;
+  sanitizer_cov_reset_edgeguards();
 
   shmem->num_edges = static_cast<uint32_t>(stop - start);
+  builtins_start = 1 + shmem->num_edges;
   printf("[COV] edge counters initialized. Shared memory: %s with %u edges\n",
          shm_key, shmem->num_edges);
+}
+
+uint32_t sanitizer_cov_count_discovered_edges() {
+  uint32_t on_edges_counter = 0;
+  for (uint32_t i = 1; i < builtins_start; ++i) {
+    // TODO(ralbovsky): Can be optimized for fewer divisions.
+    if (shmem->edges[i / 8] & (1 << (i % 8))) {
+      ++on_edges_counter;
+    }
+  }
+  return on_edges_counter;
 }
 
 extern "C" void __sanitizer_cov_trace_pc_guard(uint32_t* guard) {
@@ -71,4 +86,35 @@ extern "C" void __sanitizer_cov_trace_pc_guard(uint32_t* guard) {
   uint32_t index = *guard;
   shmem->edges[index / 8] |= 1 << (index % 8);
   *guard = 0;
+}
+
+void cov_init_builtins_edges(uint32_t num_edges) {
+  if (num_edges + shmem->num_edges > MAX_EDGES) {
+    printf(
+        "[COV] Error: Insufficient amount of edges left for builtins "
+        "coverage.\n");
+    exit(-1);
+  }
+  builtins_edge_count = num_edges;
+  builtins_start = 1 + shmem->num_edges;
+  shmem->num_edges += builtins_edge_count;
+  printf("[COV] Additional %d edges for builtins initialized.\n", num_edges);
+}
+
+// This function is ran once per REPRL loop. In case of crash the coverage of
+// crash will not be stored in shared memory. Therefore, it would be useful, if
+// we could store these coverage information into shared memory in real time.
+void cov_update_builtins_basic_block_coverage(
+    const std::vector<bool>& cov_map) {
+  if (cov_map.size() != builtins_edge_count) {
+    printf("[COV] Error: Size of builtins cov map changed.\n");
+    exit(-1);
+  }
+  for (uint32_t i = 0; i < cov_map.size(); ++i) {
+    if (cov_map[i]) {
+      // TODO(ralbovsky): Can be optimized for fewer divisions.
+      shmem->edges[(i + builtins_start) / 8] |=
+          (1 << ((i + builtins_start) % 8));
+    }
+  }
 }

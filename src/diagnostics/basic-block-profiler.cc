@@ -78,6 +78,22 @@ BasicBlockProfilerData::BasicBlockProfilerData(
   CHECK_EQ(block_rpo_numbers_.size(), counts_.size());
 }
 
+BasicBlockProfilerData::BasicBlockProfilerData(
+    OnHeapBasicBlockProfilerData js_heap_data) {
+  function_name_ = js_heap_data.name().ToCString().get();
+  schedule_ = js_heap_data.schedule().ToCString().get();
+  code_ = js_heap_data.code().ToCString().get();
+  ByteArray counts(js_heap_data.counts());
+  for (int i = 0; i < counts.length() / kBasicBlockSlotSize; ++i) {
+    counts_.push_back(counts.get_uint32(i));
+  }
+  ByteArray rpo_numbers(js_heap_data.block_rpo_numbers());
+  for (int i = 0; i < rpo_numbers.length() / kBasicBlockSlotSize; ++i) {
+    block_rpo_numbers_.push_back(rpo_numbers.get_int(i));
+  }
+  CHECK_EQ(block_rpo_numbers_.size(), counts_.size());
+}
+
 Handle<OnHeapBasicBlockProfilerData> BasicBlockProfilerData::CopyToJSHeap(
     Isolate* isolate) {
   int array_size_in_bytes = static_cast<int>(n_blocks() * kBasicBlockSlotSize);
@@ -138,6 +154,21 @@ void BasicBlockProfiler::Print(std::ostream& os, Isolate* isolate) {
     os << data;
   }
   os << "---- End Profiling Data ----" << std::endl;
+}
+
+std::vector<bool> BasicBlockProfiler::GetCoverageBitmap(Isolate* isolate) {
+  DisallowHeapAllocation no_gc;
+  ArrayList list(isolate->heap()->basic_block_profiling_data());
+  std::vector<bool> out;
+  int list_length = list.Length();
+  for (int i = 0; i < list_length; ++i) {
+    BasicBlockProfilerData data(
+        OnHeapBasicBlockProfilerData::cast(list.Get(i)));
+    for (size_t i = 0; i < data.n_blocks(); ++i) {
+      out.push_back(data.counts_[i] > 0);
+    }
+  }
+  return out;
 }
 
 std::ostream& operator<<(std::ostream& os, const BasicBlockProfilerData& d) {

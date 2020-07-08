@@ -24,6 +24,8 @@ class BasicBlockProfilerData {
   explicit BasicBlockProfilerData(size_t n_blocks);
   V8_EXPORT_PRIVATE BasicBlockProfilerData(
       Handle<OnHeapBasicBlockProfilerData> js_heap_data, Isolate* isolate);
+  V8_EXPORT_PRIVATE BasicBlockProfilerData(
+      OnHeapBasicBlockProfilerData js_heap_data);
 
   size_t n_blocks() const {
     DCHECK_EQ(block_rpo_numbers_.size(), counts_.size());
@@ -68,6 +70,11 @@ class BasicBlockProfiler {
   V8_EXPORT_PRIVATE void ResetCounts(Isolate* isolate);
   V8_EXPORT_PRIVATE bool HasData(Isolate* isolate);
   V8_EXPORT_PRIVATE void Print(std::ostream& os, Isolate* isolate);
+
+  // Coverage bitmap in this context includes only on heap BasicBlockProfiler
+  // data It is used to export coverage of builtins function loaded from
+  // snapshot.
+  V8_EXPORT_PRIVATE std::vector<bool> GetCoverageBitmap(Isolate* isolate);
 
   const DataList* data_list() { return &data_list_; }
 

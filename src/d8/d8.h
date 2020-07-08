@@ -292,6 +292,8 @@ class ShellOptions {
 
   ~ShellOptions() { delete[] isolate_sources; }
 
+  bool fuzzilli_coverage_statistics = false;
+  bool fuzzilli_enable_builtins_coverage = true;
   bool send_idle_notification = false;
   bool invoke_weak_callbacks = false;
   bool omit_quit = false;

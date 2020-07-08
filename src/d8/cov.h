@@ -10,6 +10,11 @@
 // memory
 // https://clang.llvm.org/docs/SanitizerCoverage.html
 
-void __sanitizer_cov_reset_edgeguards();
+#include <vector>
+
+void sanitizer_cov_reset_edgeguards();
+uint32_t sanitizer_cov_count_discovered_edges();
+void cov_init_builtins_edges(uint32_t num_edges);
+void cov_update_builtins_basic_block_coverage(const std::vector<bool>& cov_map);
 
 #endif  // V8_D8_COV_H_

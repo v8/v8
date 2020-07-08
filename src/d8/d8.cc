@@ -36,6 +36,7 @@
 #include "src/d8/d8.h"
 #include "src/debug/debug-interface.h"
 #include "src/deoptimizer/deoptimizer.h"
+#include "src/diagnostics/basic-block-profiler.h"
 #include "src/execution/vm-state-inl.h"
 #include "src/handles/maybe-handles.h"
 #include "src/init/v8.h"
@@ -2272,6 +2273,12 @@ void Shell::Initialize(Isolate* isolate, D8Console* console,
 
 #ifdef V8_FUZZILLI
   // Let the parent process (Fuzzilli) know we are ready.
+  if (options.fuzzilli_enable_builtins_coverage) {
+    cov_init_builtins_edges(static_cast<uint32_t>(
+        i::BasicBlockProfiler::Get()
+            ->GetCoverageBitmap(reinterpret_cast<i::Isolate*>(isolate))
+            .size()));
+  }
   char helo[] = "HELO";
   if (write(REPRL_CWFD, helo, 4) != 4 || read(REPRL_CRFD, helo, 4) != 4) {
     fuzzilli_reprl = false;
@@ -3362,6 +3369,14 @@ bool Shell::SetOptions(int argc, char* argv[]) {
       options.cpu_profiler = true;
       options.cpu_profiler_print = true;
       argv[i] = nullptr;
+#ifdef V8_FUZZILLI
+    } else if (strcmp(argv[i], "--no-fuzzilli-enable-builtins-coverage") == 0) {
+      options.fuzzilli_enable_builtins_coverage = false;
+      argv[i] = nullptr;
+    } else if (strcmp(argv[i], "--fuzzilli-coverage-statistics") == 0) {
+      options.fuzzilli_coverage_statistics = true;
+      argv[i] = nullptr;
+#endif
     } else if (strcmp(argv[i], "--fuzzy-module-file-extensions") == 0) {
       options.fuzzy_module_file_extensions = true;
       argv[i] = nullptr;
@@ -4156,13 +4171,34 @@ int Shell::Main(int argc, char* argv[]) {
       evaluation_context_.Reset();
       stringify_function_.Reset();
       CollectGarbage(isolate);
-
 #ifdef V8_FUZZILLI
       // Send result to parent (fuzzilli) and reset edge guards.
       if (fuzzilli_reprl) {
         int status = result << 8;
+        std::vector<bool> bitmap;
+        if (options.fuzzilli_enable_builtins_coverage) {
+          bitmap = i::BasicBlockProfiler::Get()->GetCoverageBitmap(
+              reinterpret_cast<i::Isolate*>(isolate));
+          cov_update_builtins_basic_block_coverage(bitmap);
+        }
+        if (options.fuzzilli_coverage_statistics) {
+          int tot = 0;
+          for (bool b : bitmap) {
+            if (b) tot++;
+          }
+          static int iteration_counter = 0;
+          std::ofstream covlog("covlog.txt", std::ios::app);
+          covlog << iteration_counter << "\t" << tot << "\t"
+                 << sanitizer_cov_count_discovered_edges() << "\t"
+                 << bitmap.size() << std::endl;
+          iteration_counter++;
+        }
         CHECK_EQ(write(REPRL_CWFD, &status, 4), 4);
-        __sanitizer_cov_reset_edgeguards();
+        sanitizer_cov_reset_edgeguards();
+        if (options.fuzzilli_enable_builtins_coverage) {
+          i::BasicBlockProfiler::Get()->ResetCounts(
+              reinterpret_cast<i::Isolate*>(isolate));
+        }
       }
 #endif  // V8_FUZZILLI
     } while (fuzzilli_reprl);
