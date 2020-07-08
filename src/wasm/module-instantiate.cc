@@ -1712,7 +1712,7 @@ bool LoadElemSegmentImpl(Isolate* isolate, Handle<WasmInstanceObject> instance,
 
     // For ExternRef tables, we have to generate the WasmExternalFunction
     // eagerly. Later we cannot know if an entry is a placeholder or not.
-    if (table_object->type().is_reference_to(HeapType::kFunc)) {
+    if (table_object->type().is_reference_to(HeapType::kExtern)) {
       Handle<WasmExternalFunction> wasm_external_function =
           WasmInstanceObject::GetOrCreateWasmExternalFunction(isolate, instance,
                                                               func_index);
