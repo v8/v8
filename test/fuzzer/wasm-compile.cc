@@ -402,6 +402,13 @@ class WasmGenerator {
     builder_->EmitWithPrefix(Op);
   }
 
+  void simd_const(DataRange* data) {
+    builder_->EmitWithPrefix(kExprS128Const);
+    for (int i = 0; i < kSimd128Size; i++) {
+      builder_->EmitByte(data->get<byte>());
+    }
+  }
+
   template <WasmOpcode Op, int lanes, ValueType::Kind... Args>
   void simd_lane_op(DataRange* data) {
     Generate<Args...>(data);
@@ -1192,6 +1199,7 @@ void WasmGenerator::Generate<ValueType::kS128>(DataRange* data) {
   }
 
   constexpr GenerateFn alternatives[] = {
+      &WasmGenerator::simd_const,
       &WasmGenerator::simd_lane_op<kExprI8x16ReplaceLane, 16, ValueType::kS128,
                                    ValueType::kI32>,
       &WasmGenerator::simd_lane_op<kExprI16x8ReplaceLane, 8, ValueType::kS128,
