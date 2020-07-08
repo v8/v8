@@ -78,6 +78,39 @@ FinalizationRegistryCleanupLoop(implicit context: Context)(
 }
 
 transitioning javascript builtin
+FinalizationRegistryConstructor(
+    js-implicit context: NativeContext, receiver: JSAny, newTarget: JSAny,
+    target: JSFunction)(cleanupCallback: JSAny): JSFinalizationRegistry {
+  // 1. If NewTarget is undefined, throw a TypeError exception.
+  if (newTarget == Undefined) {
+    ThrowTypeError(
+        MessageTemplate::kConstructorNotFunction, 'FinalizationRegistry');
+  }
+  // 2. If IsCallable(cleanupCallback) is false, throw a TypeError exception.
+  const cleanupCallback = Cast<Callable>(cleanupCallback) otherwise
+  ThrowTypeError(MessageTemplate::kWeakRefsCleanupMustBeCallable);
+  // 3. Let finalizationRegistry be ? OrdinaryCreateFromConstructor(NewTarget,
+  // "%FinalizationRegistryPrototype%", « [[Realm]], [[CleanupCallback]],
+  // [[Cells]] »).
+  const map = GetDerivedMap(target, UnsafeCast<JSReceiver>(newTarget));
+  const finalizationRegistry = UnsafeCast<JSFinalizationRegistry>(
+      AllocateFastOrSlowJSObjectFromMap(map));
+  // 4. Let fn be the active function object.
+  // 5. Set finalizationRegistry.[[Realm]] to fn.[[Realm]].
+  finalizationRegistry.native_context = context;
+  // 6. Set finalizationRegistry.[[CleanupCallback]] to cleanupCallback.
+  finalizationRegistry.cleanup = cleanupCallback;
+  finalizationRegistry.flags =
+      SmiTag(FinalizationRegistryFlags{scheduled_for_cleanup: false});
+  // 7. Set finalizationRegistry.[[Cells]] to be an empty List.
+  assert(finalizationRegistry.active_cells == Undefined);
+  assert(finalizationRegistry.cleared_cells == Undefined);
+  assert(finalizationRegistry.key_map == Undefined);
+  // 8. Return finalizationRegistry.
+  return finalizationRegistry;
+}
+
+transitioning javascript builtin
 FinalizationRegistryPrototypeCleanupSome(
     js-implicit context: NativeContext, receiver: JSAny)(...arguments): JSAny {
   // 1. Let finalizationRegistry be the this value.

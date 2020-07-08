@@ -918,11 +918,8 @@ namespace internal {
   CPP(Trace)                                                                   \
                                                                                \
   /* Weak refs */                                                              \
-  CPP(FinalizationRegistryConstructor)                                         \
   CPP(FinalizationRegistryRegister)                                            \
   CPP(FinalizationRegistryUnregister)                                          \
-  CPP(WeakRefConstructor)                                                      \
-  CPP(WeakRefDeref)                                                            \
                                                                                \
   /* Async modules */                                                          \
   TFJ(AsyncModuleEvaluate, kDontAdaptArgumentsSentinel)                        \

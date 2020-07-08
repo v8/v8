@@ -579,6 +579,7 @@ namespace internal {
   F(WasmAllocateRtt, 2, 1)
 
 #define FOR_EACH_INTRINSIC_WEAKREF(F, I) \
+  F(JSWeakRefAddToKeptObjects, 1, 1)     \
   F(ShrinkFinalizationRegistryUnregisterTokenMap, 1, 1)
 
 #define FOR_EACH_INTRINSIC_RETURN_PAIR_IMPL(F, I) \

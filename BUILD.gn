@@ -1168,6 +1168,7 @@ torque_files = [
   "src/builtins/typed-array-values.tq",
   "src/builtins/typed-array.tq",
   "src/builtins/wasm.tq",
+  "src/builtins/weak-ref.tq",
   "src/ic/handler-configuration.tq",
   "src/objects/allocation-site.tq",
   "src/objects/api-callbacks.tq",
