@@ -485,9 +485,6 @@
   'language/expressions/prefix-increment/eval': [SKIP],
   'language/expressions/prefix-increment/eval-nostrict': [SKIP],
 
-  # https://bugs.chromium.org/p/v8/issues/detail?id=9047
-  'annexB/built-ins/Function/createdynfn-no-line-terminator-html-close-comment-body': [FAIL],
-
   # https://bugs.chromium.org/p/v8/issues/detail?id=9049
   'language/comments/hashbang/use-strict': [SKIP],
 
@@ -536,7 +533,7 @@
   # https://bugs.chromium.org/p/v8/issues/detail?id=10383
   'built-ins/RegExp/prototype/Symbol.replace/fn-invoke-args-empty-result': [FAIL],
 
-  # http://crbug/v8/10449
+  # http://crbug/v8/10239
   'built-ins/Atomics/waitAsync/bad-range': [FAIL],
   'built-ins/Atomics/waitAsync/bigint/bad-range': [FAIL],
   'built-ins/Atomics/waitAsync/bigint/false-for-timeout': [FAIL],
@@ -598,6 +595,7 @@
   'built-ins/Atomics/waitAsync/null-for-timeout': [FAIL],
   'built-ins/Atomics/waitAsync/object-for-timeout': [FAIL],
   'built-ins/Atomics/waitAsync/out-of-range-index-throws': [FAIL],
+  'built-ins/Atomics/waitAsync/poisoned-object-for-timeout-throws': [FAIL],
   'built-ins/Atomics/waitAsync/poisoned-object-for-timeout-throws-agent': [FAIL],
   'built-ins/Atomics/waitAsync/returns-result-object-value-is-promise-resolves-to-ok': [FAIL],
   'built-ins/Atomics/waitAsync/returns-result-object-value-is-promise-resolves-to-timed-out': [FAIL],
@@ -613,6 +611,9 @@
   'built-ins/Atomics/waitAsync/undefined-for-timeout-agent': [FAIL],
   'built-ins/Atomics/waitAsync/undefined-for-timeout': [FAIL],
   'built-ins/Atomics/waitAsync/undefined-index-defaults-to-zero-agent': [FAIL],
+  'built-ins/Atomics/waitAsync/validate-arraytype-before-index-coercion': [FAIL],
+  'built-ins/Atomics/waitAsync/validate-arraytype-before-timeout-coercion': [FAIL],
+  'built-ins/Atomics/waitAsync/validate-arraytype-before-value-coercion': [FAIL],
   'built-ins/Atomics/waitAsync/value-not-equal': [FAIL],
   'built-ins/Atomics/waitAsync/waiterlist-block-indexedposition-wake': [FAIL],
   'built-ins/Atomics/waitAsync/was-woken-before-timeout': [FAIL],
@@ -634,6 +635,46 @@
   'built-ins/Atomics/waitAsync/object-for-timeout-agent': [SKIP],
   'built-ins/Atomics/waitAsync/true-for-timeout-agent': [SKIP],
   'built-ins/Atomics/waitAsync/value-not-equal-agent': [SKIP],
+
+  # https://crbug.com/v8/10687
+  'built-ins/Atomics/add/bigint/non-shared-bufferdata': [FAIL],
+  'built-ins/Atomics/add/non-shared-bufferdata': [FAIL],
+  'built-ins/Atomics/and/bigint/non-shared-bufferdata': [FAIL],
+  'built-ins/Atomics/and/non-shared-bufferdata': [FAIL],
+  'built-ins/Atomics/compareExchange/bigint/non-shared-bufferdata': [FAIL],
+  'built-ins/Atomics/compareExchange/non-shared-bufferdata': [FAIL],
+  'built-ins/Atomics/exchange/bigint/non-shared-bufferdata': [FAIL],
+  'built-ins/Atomics/exchange/non-shared-bufferdata': [FAIL],
+  'built-ins/Atomics/load/bigint/non-shared-bufferdata': [FAIL],
+  'built-ins/Atomics/load/non-shared-bufferdata': [FAIL],
+  'built-ins/Atomics/notify/bigint/non-shared-bufferdata-count-evaluation-throws': [FAIL],
+  'built-ins/Atomics/notify/bigint/non-shared-bufferdata-index-evaluation-throws': [FAIL],
+  'built-ins/Atomics/notify/bigint/non-shared-bufferdata-returns-0': [FAIL],
+  'built-ins/Atomics/notify/non-shared-bufferdata-count-evaluation-throws': [FAIL],
+  'built-ins/Atomics/notify/non-shared-bufferdata-index-evaluation-throws': [FAIL],
+  'built-ins/Atomics/notify/non-shared-bufferdata-returns-0': [FAIL],
+  'built-ins/Atomics/or/bigint/non-shared-bufferdata': [FAIL],
+  'built-ins/Atomics/or/non-shared-bufferdata': [FAIL],
+  'built-ins/Atomics/store/bigint/non-shared-bufferdata': [FAIL],
+  'built-ins/Atomics/store/non-shared-bufferdata': [FAIL],
+  'built-ins/Atomics/sub/bigint/non-shared-bufferdata': [FAIL],
+  'built-ins/Atomics/sub/non-shared-bufferdata': [FAIL],
+  'built-ins/Atomics/xor/bigint/non-shared-bufferdata': [FAIL],
+  'built-ins/Atomics/xor/non-shared-bufferdata': [FAIL],
+
+  # https://crbug.com/v8/10688
+  'language/expressions/optional-chaining/eval-optional-call': [FAIL],
+
+  # https://crbug.com/v8/10686
+  'intl402/DateTimeFormat/constructor-options-fractionalSecondDigits-valid': [FAIL],
+
+  # https://crbug.com/v8/10681
+  'intl402/DateTimeFormat/prototype/formatRange/date-undefined-throws': [FAIL],
+  'intl402/DateTimeFormat/prototype/formatRangeToParts/date-undefined-throws': [FAIL],
+
+  # https://crbug.com/v8/10684
+  'intl402/NumberFormat/constructor-order': [FAIL],
+  'intl402/NumberFormat/constructor-unit': [FAIL],
 
   ######################## NEEDS INVESTIGATION ###########################
 
