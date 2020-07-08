@@ -6,6 +6,7 @@
 
 #include "src/api/api-inl.h"
 #include "src/api/api-natives.h"
+#include "src/base/hashmap.h"
 #include "src/base/ieee754.h"
 #include "src/builtins/accessors.h"
 #include "src/codegen/compiler.h"
@@ -59,6 +60,7 @@
 #include "src/objects/templates.h"
 #include "src/snapshot/snapshot.h"
 #include "src/wasm/wasm-js.h"
+#include "src/zone/zone-hashmap.h"
 
 namespace v8 {
 namespace internal {

@@ -11,6 +11,7 @@
 #include "src/handles/handles.h"
 #include "src/handles/maybe-handles.h"
 #include "src/utils/vector.h"
+#include "src/zone/scoped-list.h"
 #include "src/zone/zone-chunk-list.h"
 #include "src/zone/zone-containers.h"
 

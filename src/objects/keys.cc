@@ -18,6 +18,7 @@
 #include "src/objects/property-descriptor.h"
 #include "src/objects/prototype.h"
 #include "src/utils/identity-map.h"
+#include "src/zone/zone-hashmap.h"
 
 namespace v8 {
 namespace internal {

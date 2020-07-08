@@ -5,11 +5,10 @@
 #ifndef V8_ZONE_ZONE_LIST_INL_H_
 #define V8_ZONE_ZONE_LIST_INL_H_
 
-#include "src/zone/zone.h"
-
 #include "src/base/macros.h"
 #include "src/base/platform/platform.h"
 #include "src/utils/memcopy.h"
+#include "src/zone/zone-list.h"
 
 namespace v8 {
 namespace internal {

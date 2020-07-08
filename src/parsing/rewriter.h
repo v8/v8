@@ -7,7 +7,7 @@
 
 #include "src/base/macros.h"
 #include "src/base/optional.h"
-#include "src/zone/zone.h"
+#include "src/zone/zone-fwd.h"
 
 namespace v8 {
 namespace internal {

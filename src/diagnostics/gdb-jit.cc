@@ -10,6 +10,7 @@
 
 #include "src/api/api-inl.h"
 #include "src/base/bits.h"
+#include "src/base/hashmap.h"
 #include "src/base/platform/platform.h"
 #include "src/execution/frames-inl.h"
 #include "src/execution/frames.h"

@@ -21,6 +21,7 @@
 #include "src/objects/smi.h"
 #include "src/parsing/token.h"
 #include "src/runtime/runtime.h"
+#include "src/zone/zone-list.h"
 
 namespace v8 {
 namespace internal {

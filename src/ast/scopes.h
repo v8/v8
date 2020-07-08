@@ -6,6 +6,7 @@
 #define V8_AST_SCOPES_H_
 
 #include <numeric>
+
 #include "src/ast/ast.h"
 #include "src/base/compiler-specific.h"
 #include "src/base/hashmap.h"
@@ -15,6 +16,7 @@
 #include "src/objects/objects.h"
 #include "src/utils/pointer-with-payload.h"
 #include "src/utils/utils.h"
+#include "src/zone/zone-hashmap.h"
 #include "src/zone/zone.h"
 
 namespace v8 {

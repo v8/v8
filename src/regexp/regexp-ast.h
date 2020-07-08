@@ -10,6 +10,7 @@
 #include "src/objects/string.h"
 #include "src/utils/utils.h"
 #include "src/zone/zone-containers.h"
+#include "src/zone/zone-list.h"
 #include "src/zone/zone.h"
 
 namespace v8 {
