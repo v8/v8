@@ -2740,30 +2740,39 @@ class WasmFullDecoder : public WasmDecoder<validate> {
     return 1 + imm.length;
   }
 
-  // TODO(clemensb): Combine memory operations into one method.
-  DECODE(I32LoadMem8S) { return DecodeLoadMem(LoadType::kI32Load8S); }
-  DECODE(I32LoadMem8U) { return DecodeLoadMem(LoadType::kI32Load8U); }
-  DECODE(I32LoadMem16S) { return DecodeLoadMem(LoadType::kI32Load16S); }
-  DECODE(I32LoadMem16U) { return DecodeLoadMem(LoadType::kI32Load16U); }
-  DECODE(I32LoadMem) { return DecodeLoadMem(LoadType::kI32Load); }
-  DECODE(I64LoadMem8S) { return DecodeLoadMem(LoadType::kI64Load8S); }
-  DECODE(I64LoadMem8U) { return DecodeLoadMem(LoadType::kI64Load8U); }
-  DECODE(I64LoadMem16S) { return DecodeLoadMem(LoadType::kI64Load16S); }
-  DECODE(I64LoadMem16U) { return DecodeLoadMem(LoadType::kI64Load16U); }
-  DECODE(I64LoadMem32S) { return DecodeLoadMem(LoadType::kI64Load32S); }
-  DECODE(I64LoadMem32U) { return DecodeLoadMem(LoadType::kI64Load32U); }
-  DECODE(I64LoadMem) { return DecodeLoadMem(LoadType::kI64Load); }
-  DECODE(F32LoadMem) { return DecodeLoadMem(LoadType::kF32Load); }
-  DECODE(F64LoadMem) { return DecodeLoadMem(LoadType::kF64Load); }
-  DECODE(I32StoreMem8) { return DecodeStoreMem(StoreType::kI32Store8); }
-  DECODE(I32StoreMem16) { return DecodeStoreMem(StoreType::kI32Store16); }
-  DECODE(I32StoreMem) { return DecodeStoreMem(StoreType::kI32Store); }
-  DECODE(I64StoreMem8) { return DecodeStoreMem(StoreType::kI64Store8); }
-  DECODE(I64StoreMem16) { return DecodeStoreMem(StoreType::kI64Store16); }
-  DECODE(I64StoreMem32) { return DecodeStoreMem(StoreType::kI64Store32); }
-  DECODE(I64StoreMem) { return DecodeStoreMem(StoreType::kI64Store); }
-  DECODE(F32StoreMem) { return DecodeStoreMem(StoreType::kF32Store); }
-  DECODE(F64StoreMem) { return DecodeStoreMem(StoreType::kF64Store); }
+  DECODE(LoadMem) {
+    // Hard-code the list of load types. The opcodes are highly unlikely to
+    // ever change, and we have some checks here to guard against that.
+    static_assert(sizeof(LoadType) == sizeof(uint8_t), "LoadType is compact");
+    static constexpr uint8_t kMinOpcode = kExprI32LoadMem;
+    static constexpr uint8_t kMaxOpcode = kExprI64LoadMem32U;
+    static constexpr LoadType kLoadTypes[] = {
+        LoadType::kI32Load,    LoadType::kI64Load,    LoadType::kF32Load,
+        LoadType::kF64Load,    LoadType::kI32Load8S,  LoadType::kI32Load8U,
+        LoadType::kI32Load16S, LoadType::kI32Load16U, LoadType::kI64Load8S,
+        LoadType::kI64Load8U,  LoadType::kI64Load16S, LoadType::kI64Load16U,
+        LoadType::kI64Load32S, LoadType::kI64Load32U};
+    STATIC_ASSERT(arraysize(kLoadTypes) == kMaxOpcode - kMinOpcode + 1);
+    DCHECK_LE(kMinOpcode, opcode);
+    DCHECK_GE(kMaxOpcode, opcode);
+    return DecodeLoadMem(kLoadTypes[opcode - kMinOpcode]);
+  }
+
+  DECODE(StoreMem) {
+    // Hard-code the list of store types. The opcodes are highly unlikely to
+    // ever change, and we have some checks here to guard against that.
+    static_assert(sizeof(StoreType) == sizeof(uint8_t), "StoreType is compact");
+    static constexpr uint8_t kMinOpcode = kExprI32StoreMem;
+    static constexpr uint8_t kMaxOpcode = kExprI64StoreMem32;
+    static constexpr StoreType kStoreTypes[] = {
+        StoreType::kI32Store,  StoreType::kI64Store,   StoreType::kF32Store,
+        StoreType::kF64Store,  StoreType::kI32Store8,  StoreType::kI32Store16,
+        StoreType::kI64Store8, StoreType::kI64Store16, StoreType::kI64Store32};
+    STATIC_ASSERT(arraysize(kStoreTypes) == kMaxOpcode - kMinOpcode + 1);
+    DCHECK_LE(kMinOpcode, opcode);
+    DCHECK_GE(kMaxOpcode, opcode);
+    return DecodeStoreMem(kStoreTypes[opcode - kMinOpcode]);
+  }
 
   DECODE(MemoryGrow) {
     if (!CheckHasMemory()) return 0;
@@ -2952,29 +2961,12 @@ class WasmFullDecoder : public WasmDecoder<validate> {
     DECODE_IMPL(GlobalSet);
     DECODE_IMPL(TableGet);
     DECODE_IMPL(TableSet);
-    DECODE_IMPL(I32LoadMem8S);
-    DECODE_IMPL(I32LoadMem8U);
-    DECODE_IMPL(I32LoadMem16S);
-    DECODE_IMPL(I32LoadMem16U);
-    DECODE_IMPL(I32LoadMem);
-    DECODE_IMPL(I64LoadMem8S);
-    DECODE_IMPL(I64LoadMem8U);
-    DECODE_IMPL(I64LoadMem16S);
-    DECODE_IMPL(I64LoadMem16U);
-    DECODE_IMPL(I64LoadMem32S);
-    DECODE_IMPL(I64LoadMem32U);
-    DECODE_IMPL(I64LoadMem);
-    DECODE_IMPL(F32LoadMem);
-    DECODE_IMPL(F64LoadMem);
-    DECODE_IMPL(I32StoreMem8);
-    DECODE_IMPL(I32StoreMem16);
-    DECODE_IMPL(I32StoreMem);
-    DECODE_IMPL(I64StoreMem8);
-    DECODE_IMPL(I64StoreMem16);
-    DECODE_IMPL(I64StoreMem32);
-    DECODE_IMPL(I64StoreMem);
-    DECODE_IMPL(F32StoreMem);
-    DECODE_IMPL(F64StoreMem);
+#define DECODE_LOAD_MEM(op, ...) DECODE_IMPL2(kExpr##op, LoadMem);
+    FOREACH_LOAD_MEM_OPCODE(DECODE_LOAD_MEM)
+#undef DECODE_LOAD_MEM
+#define DECODE_STORE_MEM(op, ...) DECODE_IMPL2(kExpr##op, StoreMem);
+    FOREACH_STORE_MEM_OPCODE(DECODE_STORE_MEM)
+#undef DECODE_LOAD_MEM
     DECODE_IMPL(MemoryGrow);
     DECODE_IMPL(MemorySize);
     DECODE_IMPL(CallFunction);
