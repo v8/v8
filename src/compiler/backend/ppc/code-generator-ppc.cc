@@ -3015,6 +3015,48 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       __ vsububm(i.OutputSimd128Register(), tempFPReg1, kScratchDoubleReg);
       break;
     }
+    case kPPC_V64x2AnyTrue:
+    case kPPC_V32x4AnyTrue:
+    case kPPC_V16x8AnyTrue:
+    case kPPC_V8x16AnyTrue: {
+      Simd128Register src = i.InputSimd128Register(0);
+      Register dst = i.OutputRegister();
+      constexpr int bit_number = 24;
+      __ li(r0, Operand(0));
+      __ li(ip, Operand(-1));
+      // Check if both lanes are 0, if so then return false.
+      __ vxor(kScratchDoubleReg, kScratchDoubleReg, kScratchDoubleReg);
+      __ vcmpequd(kScratchDoubleReg, src, kScratchDoubleReg, SetRC);
+      __ isel(dst, r0, ip, bit_number);
+      break;
+    }
+#define SIMD_ALL_TRUE(opcode)                                       \
+  Simd128Register src = i.InputSimd128Register(0);                  \
+  Register dst = i.OutputRegister();                                \
+  constexpr int bit_number = 24;                                    \
+  __ li(r0, Operand(0));                                            \
+  __ li(ip, Operand(-1));                                           \
+  /* Check if all lanes > 0, if not then return false.*/            \
+  __ vxor(kScratchDoubleReg, kScratchDoubleReg, kScratchDoubleReg); \
+  __ opcode(kScratchDoubleReg, src, kScratchDoubleReg, SetRC);      \
+  __ isel(dst, ip, r0, bit_number);
+    case kPPC_V64x2AllTrue: {
+      SIMD_ALL_TRUE(vcmpgtud)
+      break;
+    }
+    case kPPC_V32x4AllTrue: {
+      SIMD_ALL_TRUE(vcmpgtuw)
+      break;
+    }
+    case kPPC_V16x8AllTrue: {
+      SIMD_ALL_TRUE(vcmpgtuh)
+      break;
+    }
+    case kPPC_V8x16AllTrue: {
+      SIMD_ALL_TRUE(vcmpgtub)
+      break;
+    }
+#undef SIMD_ALL_TRUE
     case kPPC_StoreCompressTagged: {
       ASSEMBLE_STORE_INTEGER(StoreTaggedField, StoreTaggedFieldX);
       break;

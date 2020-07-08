@@ -306,6 +306,14 @@ namespace compiler {
   V(PPC_I8x16ShrU)                   \
   V(PPC_I8x16Neg)                    \
   V(PPC_I8x16Abs)                    \
+  V(PPC_V64x2AnyTrue)                \
+  V(PPC_V32x4AnyTrue)                \
+  V(PPC_V16x8AnyTrue)                \
+  V(PPC_V8x16AnyTrue)                \
+  V(PPC_V64x2AllTrue)                \
+  V(PPC_V32x4AllTrue)                \
+  V(PPC_V16x8AllTrue)                \
+  V(PPC_V8x16AllTrue)                \
   V(PPC_S128And)                     \
   V(PPC_S128Or)                      \
   V(PPC_S128Xor)                     \

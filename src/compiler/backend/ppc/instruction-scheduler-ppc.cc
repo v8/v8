@@ -229,6 +229,14 @@ int InstructionScheduler::GetTargetInstructionFlags(
     case kPPC_I8x16ShrU:
     case kPPC_I8x16Neg:
     case kPPC_I8x16Abs:
+    case kPPC_V64x2AnyTrue:
+    case kPPC_V32x4AnyTrue:
+    case kPPC_V16x8AnyTrue:
+    case kPPC_V8x16AnyTrue:
+    case kPPC_V64x2AllTrue:
+    case kPPC_V32x4AllTrue:
+    case kPPC_V16x8AllTrue:
+    case kPPC_V8x16AllTrue:
     case kPPC_S128And:
     case kPPC_S128Or:
     case kPPC_S128Xor:
