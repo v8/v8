@@ -668,10 +668,6 @@
   # https://crbug.com/v8/10686
   'intl402/DateTimeFormat/constructor-options-fractionalSecondDigits-valid': [FAIL],
 
-  # https://crbug.com/v8/10681
-  'intl402/DateTimeFormat/prototype/formatRange/date-undefined-throws': [FAIL],
-  'intl402/DateTimeFormat/prototype/formatRangeToParts/date-undefined-throws': [FAIL],
-
   ######################## NEEDS INVESTIGATION ###########################
 
   # https://bugs.chromium.org/p/v8/issues/detail?id=7833

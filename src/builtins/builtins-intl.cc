@@ -176,13 +176,13 @@ V8_WARN_UNUSED_RESULT Object DateTimeFormatRange(
   Handle<JSDateTimeFormat> dtf =
       Handle<JSDateTimeFormat>::cast(date_format_holder);
 
-  // 4. If startDate is undefined or endDate is undefined, throw a RangeError
+  // 4. If startDate is undefined or endDate is undefined, throw a TypeError
   // exception.
   Handle<Object> start_date = args.atOrUndefined(isolate, 1);
   Handle<Object> end_date = args.atOrUndefined(isolate, 2);
   if (start_date->IsUndefined(isolate) || end_date->IsUndefined(isolate)) {
     THROW_NEW_ERROR_RETURN_FAILURE(
-        isolate, NewRangeError(MessageTemplate::kInvalidTimeValue));
+        isolate, NewTypeError(MessageTemplate::kInvalidTimeValue));
   }
   // 5. Let x be ? ToNumber(startDate).
   ASSIGN_RETURN_FAILURE_ON_EXCEPTION(isolate, start_date,
