@@ -326,6 +326,7 @@ int InstructionScheduler::GetTargetInstructionFlags(
     case kS390_S128Xor:
     case kS390_S128Const:
     case kS390_S128Zero:
+    case kS390_S128AllOnes:
     case kS390_S128Not:
     case kS390_S128Select:
     case kS390_S128AndNot:

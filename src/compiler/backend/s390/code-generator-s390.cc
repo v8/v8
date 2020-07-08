@@ -3938,6 +3938,11 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       __ vx(dst, dst, dst, Condition(0), Condition(0), Condition(0));
       break;
     }
+    case kS390_S128AllOnes: {
+      Simd128Register dst = i.OutputSimd128Register();
+      __ vceq(dst, dst, dst, Condition(0), Condition(3));
+      break;
+    }
     case kS390_S128Select: {
       Simd128Register dst = i.OutputSimd128Register();
       Simd128Register mask = i.InputSimd128Register(0);
