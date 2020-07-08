@@ -8,6 +8,20 @@ import struct
 import subprocess
 import time
 import xml.etree.ElementTree
+import sys
+
+# Python2 has both int and long, Python3 only has int, which is the same as
+# Python2 long.
+try:
+  long
+except NameError:
+  long = int
+
+# Python2 has xrange and range. Python3 range is Python2 xrange.
+try:
+  xrange
+except NameError:
+  xrange = range
 
 SOCKET_ADDR = ('localhost', 8765)
 
