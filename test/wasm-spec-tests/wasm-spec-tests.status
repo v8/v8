@@ -63,6 +63,27 @@
   'conversions': [SKIP],
 }],  # '(arch == mipsel or arch == mips64el or arch == mips or arch == mips64) and not simulator_run'
 
+['arch == riscv32 or arch == riscv64', {
+  'conversions': [SKIP],
+  'proposals/JS-BigInt-integration/conversions': [SKIP],
+  'proposals/bulk-memory-operations/conversions': [SKIP],
+  'proposals/js-types/conversions': [SKIP],
+  'f32': [SKIP],
+  'f64': [SKIP],
+  'proposals/multi-value/f64': [SKIP],
+  'proposals/multi-value/conversions': [SKIP],
+  'proposals/JS-BigInt-integration/f64': [SKIP],
+  'proposals/JS-BigInt-integration/f32': [SKIP],
+  'proposals/bulk-memory-operations/f32': [SKIP],
+  'proposals/reference-types/conversions': [SKIP],
+  'proposals/bulk-memory-operations/f64': [SKIP],
+  'proposals/js-types/f32': [SKIP],
+  'proposals/js-types/f64': [SKIP],
+  'proposals/multi-value/f32': [SKIP],
+  'proposals/reference-types/f32': [SKIP],
+  'proposals/reference-types/f64': [SKIP],
+}],  # 'arch == riscv or arch == riscv64
+
 ['arch == ppc or arch == ppc64', {
   # These tests fail because ppc float min and max doesn't convert sNaN to qNaN.
   'f32': [SKIP],
