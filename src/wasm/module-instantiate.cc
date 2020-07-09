@@ -92,13 +92,13 @@ class CompileImportWrapperTask final : public CancelableTask {
 Handle<Map> CreateStructMap(Isolate* isolate, const WasmModule* module,
                             int struct_index, Handle<Map> rtt_parent) {
   const wasm::StructType* type = module->struct_type(struct_index);
-  int inobject_properties = 0;
+  const int inobject_properties = 0;
   DCHECK_LE(type->total_fields_size(), kMaxInt - WasmStruct::kHeaderSize);
-  int instance_size =
+  const int instance_size =
       WasmStruct::kHeaderSize + static_cast<int>(type->total_fields_size());
-  InstanceType instance_type = WASM_STRUCT_TYPE;
+  const InstanceType instance_type = WASM_STRUCT_TYPE;
   // TODO(jkummerow): If NO_ELEMENTS were supported, we could use that here.
-  ElementsKind elements_kind = TERMINAL_FAST_ELEMENTS_KIND;
+  const ElementsKind elements_kind = TERMINAL_FAST_ELEMENTS_KIND;
   Handle<WasmTypeInfo> type_info = isolate->factory()->NewWasmTypeInfo(
       reinterpret_cast<Address>(type), rtt_parent);
   Handle<Map> map = isolate->factory()->NewMap(
@@ -110,12 +110,26 @@ Handle<Map> CreateStructMap(Isolate* isolate, const WasmModule* module,
 Handle<Map> CreateArrayMap(Isolate* isolate, const WasmModule* module,
                            int array_index, Handle<Map> rtt_parent) {
   const wasm::ArrayType* type = module->array_type(array_index);
-  int inobject_properties = 0;
-  int instance_size = kVariableSizeSentinel;
-  InstanceType instance_type = WASM_ARRAY_TYPE;
-  ElementsKind elements_kind = TERMINAL_FAST_ELEMENTS_KIND;
+  const int inobject_properties = 0;
+  const int instance_size = kVariableSizeSentinel;
+  const InstanceType instance_type = WASM_ARRAY_TYPE;
+  const ElementsKind elements_kind = TERMINAL_FAST_ELEMENTS_KIND;
   Handle<WasmTypeInfo> type_info = isolate->factory()->NewWasmTypeInfo(
       reinterpret_cast<Address>(type), rtt_parent);
+  Handle<Map> map = isolate->factory()->NewMap(
+      instance_type, instance_size, elements_kind, inobject_properties);
+  map->set_wasm_type_info(*type_info);
+  return map;
+}
+
+Handle<Map> CreateGenericRtt(Isolate* isolate, const WasmModule* module,
+                             Handle<Map> rtt_parent) {
+  const int inobject_properties = 0;
+  const int instance_size = 0;
+  const InstanceType instance_type = WASM_STRUCT_TYPE;  // Fake; good enough.
+  const ElementsKind elements_kind = TERMINAL_FAST_ELEMENTS_KIND;
+  Handle<WasmTypeInfo> type_info =
+      isolate->factory()->NewWasmTypeInfo(0, rtt_parent);
   Handle<Map> map = isolate->factory()->NewMap(
       instance_type, instance_size, elements_kind, inobject_properties);
   map->set_wasm_type_info(*type_info);

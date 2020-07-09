@@ -444,6 +444,10 @@ int WasmArray::SizeFor(Map map, int length) {
   return kHeaderSize + RoundUp(element_size * length, kTaggedSize);
 }
 
+void WasmTypeInfo::clear_foreign_address(Isolate* isolate) {
+  set_foreign_address(isolate, 0);
+}
+
 #include "src/objects/object-macros-undef.h"
 
 }  // namespace internal

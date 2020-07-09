@@ -896,6 +896,8 @@ class AsmWasmData : public Struct {
 
 class WasmTypeInfo : public TorqueGeneratedWasmTypeInfo<WasmTypeInfo, Foreign> {
  public:
+  inline void clear_foreign_address(Isolate* isolate);
+
   DECL_CAST(WasmTypeInfo)
   DECL_PRINTER(WasmTypeInfo)
 
@@ -944,6 +946,8 @@ Handle<Map> CreateStructMap(Isolate* isolate, const WasmModule* module,
                             int struct_index, Handle<Map> rtt_parent);
 Handle<Map> CreateArrayMap(Isolate* isolate, const WasmModule* module,
                            int array_index, Handle<Map> rtt_parent);
+Handle<Map> CreateGenericRtt(Isolate* isolate, const WasmModule* module,
+                             Handle<Map> rtt_parent);
 
 }  // namespace wasm
 

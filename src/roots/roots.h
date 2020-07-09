@@ -208,6 +208,10 @@ class Symbol;
   /* Maps */                                                                   \
   V(Map, external_map, ExternalMap)                                            \
   V(Map, message_object_map, JSMessageObjectMap)                               \
+  V(Map, wasm_rttcanon_eqref_map, WasmRttEqrefMap)                             \
+  V(Map, wasm_rttcanon_externref_map, WasmRttExternrefMap)                     \
+  V(Map, wasm_rttcanon_funcref_map, WasmRttFuncrefMap)                         \
+  V(Map, wasm_rttcanon_i31ref_map, WasmRttI31refMap)                           \
   /* Canonical empty values */                                                 \
   V(Script, empty_script, EmptyScript)                                         \
   V(FeedbackCell, many_closures_cell, ManyClosuresCell)                        \

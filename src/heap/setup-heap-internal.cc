@@ -128,16 +128,19 @@ AllocationResult Heap::AllocateMap(InstanceType instance_type,
                                    int inobject_properties) {
   STATIC_ASSERT(LAST_JS_OBJECT_TYPE == LAST_TYPE);
   bool is_js_object = InstanceTypeChecker::IsJSObject(instance_type);
+  bool is_wasm_object =
+      (instance_type == WASM_STRUCT_TYPE || instance_type == WASM_ARRAY_TYPE);
   DCHECK_IMPLIES(is_js_object &&
                      !Map::CanHaveFastTransitionableElementsKind(instance_type),
                  IsDictionaryElementsKind(elements_kind) ||
                      IsTerminalElementsKind(elements_kind));
   HeapObject result;
   // JSObjects have maps with a mutable prototype_validity_cell, so they cannot
-  // go in RO_SPACE.
+  // go in RO_SPACE. Maps for managed Wasm objects have mutable subtype lists.
+  bool is_mutable = is_js_object || is_wasm_object;
   AllocationResult allocation =
-      AllocateRaw(Map::kSize, is_js_object ? AllocationType::kMap
-                                           : AllocationType::kReadOnly);
+      AllocateRaw(Map::kSize, is_mutable ? AllocationType::kMap
+                                         : AllocationType::kReadOnly);
   if (!allocation.To(&result)) return allocation;
 
   result.set_map_after_allocation(ReadOnlyRoots(this).meta_map(),
@@ -505,6 +508,13 @@ bool Heap::CreateInitialMaps() {
     ALLOCATE_MAP(CODE_DATA_CONTAINER_TYPE, CodeDataContainer::kSize,
                  code_data_container)
 
+    // The wasm_rttcanon_* maps are never used for real objects, only as
+    // sentinels. They are maps so that they fit in with their subtype maps
+    // (which are real maps).
+    ALLOCATE_MAP(WASM_STRUCT_TYPE, 0, wasm_rttcanon_eqref)
+    ALLOCATE_MAP(WASM_STRUCT_TYPE, 0, wasm_rttcanon_externref)
+    ALLOCATE_MAP(WASM_STRUCT_TYPE, 0, wasm_rttcanon_funcref)
+    ALLOCATE_MAP(WASM_STRUCT_TYPE, 0, wasm_rttcanon_i31ref)
     ALLOCATE_MAP(WASM_TYPE_INFO_TYPE, WasmTypeInfo::kSize, wasm_type_info)
 
     ALLOCATE_MAP(WEAK_CELL_TYPE, WeakCell::kSize, weak_cell)
@@ -603,6 +613,36 @@ bool Heap::CreateInitialMaps() {
     FixedArray::cast(obj).set_length(0);
     set_empty_closure_feedback_cell_array(ClosureFeedbackCellArray::cast(obj));
   }
+
+  // Set up the WasmTypeInfo objects for built-in generic Wasm RTTs.
+#define ALLOCATE_TYPE_INFO(which)                                           \
+  {                                                                         \
+    int slot_count = ArrayList::kHeaderFields;                              \
+    if (!AllocateRaw(ArrayList::SizeFor(slot_count), AllocationType::kOld)  \
+             .To(&obj)) {                                                   \
+      return false;                                                         \
+    }                                                                       \
+    obj.set_map_after_allocation(roots.array_list_map());                   \
+    ArrayList subtypes = ArrayList::cast(obj);                              \
+    subtypes.set_length(slot_count);                                        \
+    subtypes.SetLength(0);                                                  \
+    if (!AllocateRaw(WasmTypeInfo::kSize, AllocationType::kOld).To(&obj)) { \
+      return false;                                                         \
+    }                                                                       \
+    obj.set_map_after_allocation(roots.wasm_type_info_map(),                \
+                                 SKIP_WRITE_BARRIER);                       \
+    WasmTypeInfo type_info = WasmTypeInfo::cast(obj);                       \
+    type_info.set_subtypes(subtypes);                                       \
+    type_info.set_parent(roots.null_map());                                 \
+    type_info.clear_foreign_address(isolate());                             \
+    wasm_rttcanon_##which##_map().set_wasm_type_info(type_info);            \
+  }
+
+  ALLOCATE_TYPE_INFO(eqref)
+  ALLOCATE_TYPE_INFO(externref)
+  ALLOCATE_TYPE_INFO(funcref)
+  ALLOCATE_TYPE_INFO(i31ref)
+#undef ALLOCATE_TYPE_INFO
 
   DCHECK(!InYoungGeneration(roots.empty_fixed_array()));
 

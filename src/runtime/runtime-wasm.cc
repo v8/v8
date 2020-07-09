@@ -513,8 +513,8 @@ class RttSubtypes : public ArrayList {
     // here, if empirical data indicates that that would be worthwhile.
     int count = array->Length();
     for (int i = 0; i < count; i += 2) {
-      if (Smi::cast(array->get(i)).value() == static_cast<int>(type_index)) {
-        return Map::cast(array->get(i + 1));
+      if (Smi::cast(array->Get(i)).value() == static_cast<int>(type_index)) {
+        return Map::cast(array->Get(i + 1));
       }
     }
     return {};
@@ -530,7 +530,6 @@ RUNTIME_FUNCTION(Runtime_WasmAllocateRtt) {
   CONVERT_UINT32_ARG_CHECKED(type_index, 0);
   CONVERT_ARG_HANDLE_CHECKED(Map, parent, 1);
   // Check for an existing RTT first.
-  // TODO(7748): Support {parent} RTTs for generic heap types ("eqref" etc).
   DCHECK(parent->IsWasmStructMap() || parent->IsWasmArrayMap());
   Handle<ArrayList> cache(parent->wasm_type_info().subtypes(), isolate);
   Map maybe_cached = RttSubtypes::SearchSubtype(cache, type_index);
@@ -541,7 +540,9 @@ RUNTIME_FUNCTION(Runtime_WasmAllocateRtt) {
                                       isolate);
   const wasm::WasmModule* module = instance->module();
   Handle<Map> rtt;
-  if (module->has_struct(type_index)) {
+  if (wasm::HeapType(type_index).is_generic()) {
+    rtt = wasm::CreateGenericRtt(isolate, module, parent);
+  } else if (module->has_struct(type_index)) {
     rtt = wasm::CreateStructMap(isolate, module, type_index, parent);
   } else if (module->has_array(type_index)) {
     rtt = wasm::CreateArrayMap(isolate, module, type_index, parent);

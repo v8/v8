@@ -5356,8 +5356,26 @@ Node* WasmGraphBuilder::ArrayNew(uint32_t array_index,
 
 Node* WasmGraphBuilder::RttCanon(wasm::HeapType type) {
   if (type.is_generic()) {
-    // TODO(7748): Implement this.
-    UNIMPLEMENTED();
+    switch (type.representation()) {
+      case wasm::HeapType::kEq:
+        return LOAD_FULL_POINTER(
+            BuildLoadIsolateRoot(),
+            IsolateData::root_slot_offset(RootIndex::kWasmRttEqrefMap));
+      case wasm::HeapType::kExtern:
+        return LOAD_FULL_POINTER(
+            BuildLoadIsolateRoot(),
+            IsolateData::root_slot_offset(RootIndex::kWasmRttExternrefMap));
+      case wasm::HeapType::kFunc:
+        return LOAD_FULL_POINTER(
+            BuildLoadIsolateRoot(),
+            IsolateData::root_slot_offset(RootIndex::kWasmRttFuncrefMap));
+      case wasm::HeapType::kI31:
+        return LOAD_FULL_POINTER(
+            BuildLoadIsolateRoot(),
+            IsolateData::root_slot_offset(RootIndex::kWasmRttI31refMap));
+      default:
+        UNREACHABLE();
+    }
   }
   // This logic is duplicated from module-instantiate.cc.
   // TODO(jkummerow): Find a nicer solution.
@@ -5375,11 +5393,6 @@ Node* WasmGraphBuilder::RttCanon(wasm::HeapType type) {
 }
 
 Node* WasmGraphBuilder::RttSub(wasm::HeapType type, Node* parent_rtt) {
-  if (type.is_generic()) {
-    // TODO(7748): Implement this. {type} could be eqref, with {parent_rtt}
-    // being (rtt.canon anyref).
-    UNIMPLEMENTED();
-  }
   return CALL_BUILTIN(
       WasmAllocateRtt,
       graph()->NewNode(
@@ -5389,6 +5402,8 @@ Node* WasmGraphBuilder::RttSub(wasm::HeapType type, Node* parent_rtt) {
 }
 
 Node* WasmGraphBuilder::RefTest(Node* object, Node* rtt) {
+  // TODO(7748): Check if {object} is null.
+  // TODO(7748): Check if {object} is an i31ref.
   Node* map = gasm_->Load(MachineType::TaggedPointer(), object,
                           HeapObject::kMapOffset - kHeapObjectTag);
   // TODO(7748): Add a fast path for map == rtt.
@@ -5399,6 +5414,8 @@ Node* WasmGraphBuilder::RefTest(Node* object, Node* rtt) {
 
 Node* WasmGraphBuilder::RefCast(Node* object, Node* rtt,
                                 wasm::WasmCodePosition position) {
+  // TODO(7748): Check if {object} is null.
+  // TODO(7748): Check if {object} is an i31ref.
   Node* map = gasm_->Load(MachineType::TaggedPointer(), object,
                           HeapObject::kMapOffset - kHeapObjectTag);
   // TODO(7748): Add a fast path for map == rtt.
