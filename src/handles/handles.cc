@@ -35,20 +35,24 @@ bool HandleBase::IsDereferenceAllowed() const {
   HeapObject heap_object = HeapObject::cast(object);
   if (IsReadOnlyHeapObject(heap_object)) return true;
   if (Heap::InOffThreadSpace(heap_object)) return true;
-  LocalHeap* local_heap = LocalHeap::Current();
-  if (V8_UNLIKELY(local_heap)) {
-    if (local_heap->ContainsPersistentHandle(location_)) {
-      // The current thread owns the handle and thus can dereference it.
-      return true;
-    }
-  }
-
   Isolate* isolate = GetIsolateFromWritableObject(heap_object);
   RootIndex root_index;
   if (isolate->roots_table().IsRootHandleLocation(location_, &root_index) &&
       RootsTable::IsImmortalImmovable(root_index)) {
     return true;
   }
+
+  LocalHeap* local_heap = LocalHeap::Current();
+  if (V8_UNLIKELY(local_heap)) {
+    // Local heap can't access handles when parked
+    if (!local_heap->IsHandleDereferenceAllowed()) return false;
+
+    if (local_heap->ContainsPersistentHandle(location_)) {
+      // The current thread owns the handle and thus can dereference it.
+      return true;
+    }
+  }
+
   return AllowHandleDereference::IsAllowed();
 }
 #endif

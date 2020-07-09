@@ -69,6 +69,11 @@ std::unique_ptr<PersistentHandles> LocalHeap::DetachPersistentHandles() {
 bool LocalHeap::ContainsPersistentHandle(Address* location) {
   return persistent_handles_ ? persistent_handles_->Contains(location) : false;
 }
+
+bool LocalHeap::IsHandleDereferenceAllowed() {
+  DCHECK_EQ(LocalHeap::Current(), this);
+  return state_ == ThreadState::Running;
+}
 #endif
 
 bool LocalHeap::IsParked() {
