@@ -206,7 +206,7 @@ void JumpThreading::ApplyForwarding(Zone* local_zone,
     if (constant.type() == Constant::kRpoNumber) {
       RpoNumber rpo = constant.ToRpoNumber();
       RpoNumber fw = result[rpo.ToInt()];
-      if (!(fw == rpo)) immediates[i] = Constant(fw);
+      if (fw != rpo) immediates[i] = Constant(fw);
     }
   }
 
