@@ -39,9 +39,15 @@ class V8_EXPORT_PRIVATE Zone final {
   Zone(AccountingAllocator* allocator, const char* name);
   ~Zone();
 
-  // Allocate 'size' bytes of memory in the Zone; expands the Zone by
-  // allocating new segments of memory on demand using malloc().
-  void* New(size_t size) {
+  // TODO(v8:10689): Remove once all allocation sites are migrated.
+  void* New(size_t size) { return Allocate<void>(size); }
+
+  // Allocate 'size' bytes of uninitialized memory in the Zone; expands the Zone
+  // by allocating new segments of memory on demand using AccountingAllocator
+  // (see AccountingAllocator::AllocateSegment()).
+  // TODO(v8:10689): account allocated bytes with the provided TypeTag type.
+  template <typename TypeTag>
+  void* Allocate(size_t size) {
 #ifdef V8_USE_ADDRESS_SANITIZER
     return AsanNew(size);
 #else
@@ -55,12 +61,25 @@ class V8_EXPORT_PRIVATE Zone final {
     return reinterpret_cast<void*>(result);
 #endif
   }
-  void* AsanNew(size_t size);
 
-  template <typename T>
+  // Allocates memory for T instance and constructs object by calling respective
+  // Args... constructor.
+  // TODO(v8:10689): account allocated bytes with the T type.
+  template <typename T, typename... Args>
+  T* New(Args&&... args) {
+    size_t size = RoundUp(sizeof(T), kAlignmentInBytes);
+    void* memory = Allocate<T>(size);
+    return new (memory) T(std::forward<Args>(args)...);
+  }
+
+  // Allocates uninitialized memory for 'length' number of T instances.
+  // TODO(v8:10689): account allocated bytes with the provided TypeTag type.
+  // It might be useful to tag buffer allocations with meaningful names to make
+  // buffer allocation sites distinguishable between each other.
+  template <typename T, typename TypeTag = T[]>
   T* NewArray(size_t length) {
     DCHECK_LT(length, std::numeric_limits<size_t>::max() / sizeof(T));
-    return static_cast<T*>(New(length * sizeof(T)));
+    return static_cast<T*>(Allocate<TypeTag>(length * sizeof(T)));
   }
 
   template <typename T>
@@ -106,6 +125,8 @@ class V8_EXPORT_PRIVATE Zone final {
   AccountingAllocator* allocator() const { return allocator_; }
 
  private:
+  void* AsanNew(size_t size);
+
   // Deletes all objects and free all memory allocated in the Zone.
   void DeleteAll();
 
@@ -154,6 +175,8 @@ class ZoneObject {
  public:
   // Allocate a new ZoneObject of 'size' bytes in the Zone.
   void* operator new(size_t size, Zone* zone) { return zone->New(size); }
+  // Allow non-allocating placement new.
+  void* operator new(size_t size, void* ptr) { return ptr; }
 
   // Ideally, the delete operator should be private instead of
   // public, but unfortunately the compiler sometimes synthesizes

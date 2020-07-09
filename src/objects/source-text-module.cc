@@ -185,8 +185,7 @@ MaybeHandle<Cell> SourceTextModule::ResolveExport(
     if (result.second) {
       // |module| wasn't in the map previously, so allocate a new name set.
       Zone* zone = resolve_set->zone();
-      name_set =
-          new (zone->New(sizeof(UnorderedStringSet))) UnorderedStringSet(zone);
+      name_set = zone->New<UnorderedStringSet>(zone);
     } else if (name_set->count(export_name)) {
       // Cycle detected.
       if (must_resolve) {

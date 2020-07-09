@@ -121,9 +121,7 @@ class V8_EXPORT_PRIVATE OffThreadIsolate final
 
   Address* NewHandle(Address object) {
     DCHECK_NOT_NULL(handle_zone_);
-    Address* location =
-        static_cast<Address*>(handle_zone_->New(sizeof(Address)));
-    *location = object;
+    Address* location = handle_zone_->New<Address>(object);
     return location;
   }
 

@@ -316,7 +316,7 @@ class GrowableBitVector {
   class Iterator {
    public:
     Iterator(const GrowableBitVector* target, Zone* zone)
-        : it_(target->bits_ == nullptr ? new (zone) BitVector(1, zone)
+        : it_(target->bits_ == nullptr ? zone->New<BitVector>(1, zone)
                                        : target->bits_) {}
     bool Done() const { return it_.Done(); }
     void Advance() { it_.Advance(); }
@@ -328,7 +328,7 @@ class GrowableBitVector {
 
   GrowableBitVector() : bits_(nullptr) {}
   GrowableBitVector(int length, Zone* zone)
-      : bits_(new (zone) BitVector(length, zone)) {}
+      : bits_(zone->New<BitVector>(length, zone)) {}
 
   bool Contains(int value) const {
     if (!InBitsRange(value)) return false;
@@ -363,7 +363,7 @@ class GrowableBitVector {
     while (new_length <= value) new_length *= 2;
 
     if (bits_ == nullptr) {
-      bits_ = new (zone) BitVector(new_length, zone);
+      bits_ = zone->New<BitVector>(new_length, zone);
     } else {
       bits_->Resize(new_length, zone);
     }
