@@ -529,7 +529,7 @@ class ReadOnlyRoots {
 
   V8_INLINE explicit ReadOnlyRoots(Heap* heap);
   V8_INLINE explicit ReadOnlyRoots(OffThreadHeap* heap);
-  V8_INLINE explicit ReadOnlyRoots(const Isolate* isolate);
+  V8_INLINE explicit ReadOnlyRoots(Isolate* isolate);
   V8_INLINE explicit ReadOnlyRoots(OffThreadIsolate* isolate);
   V8_INLINE explicit ReadOnlyRoots(LocalIsolateWrapper wrapper);
   V8_INLINE explicit ReadOnlyRoots(LocalHeapWrapper wrapper);

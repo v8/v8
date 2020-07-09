@@ -1365,7 +1365,7 @@ class DictionaryElementsAccessor
           // Find last non-deletable element in range of elements to be
           // deleted and adjust range accordingly.
           for (InternalIndex entry : dict->IterateEntries()) {
-            Object index = dict->KeyAt(entry);
+            Object index = dict->KeyAt(isolate, entry);
             if (dict->IsKey(roots, index)) {
               uint32_t number = static_cast<uint32_t>(index.Number());
               if (length <= number && number < old_length) {
@@ -1383,7 +1383,7 @@ class DictionaryElementsAccessor
           // Remove elements that should be deleted.
           int removed_entries = 0;
           for (InternalIndex entry : dict->IterateEntries()) {
-            Object index = dict->KeyAt(entry);
+            Object index = dict->KeyAt(isolate, entry);
             if (dict->IsKey(roots, index)) {
               uint32_t number = static_cast<uint32_t>(index.Number());
               if (length <= number && number < old_length) {
@@ -1423,9 +1423,10 @@ class DictionaryElementsAccessor
     DisallowHeapAllocation no_gc;
     NumberDictionary dict = NumberDictionary::cast(backing_store);
     if (!dict.requires_slow_elements()) return false;
-    ReadOnlyRoots roots = holder.GetReadOnlyRoots();
+    const Isolate* isolate = GetIsolateForPtrCompr(holder);
+    ReadOnlyRoots roots = holder.GetReadOnlyRoots(isolate);
     for (InternalIndex i : dict.IterateEntries()) {
-      Object key = dict.KeyAt(i);
+      Object key = dict.KeyAt(isolate, i);
       if (!dict.IsKey(roots, key)) continue;
       PropertyDetails details = dict.DetailsAt(i);
       if (details.kind() == kAccessor) return true;
@@ -1488,7 +1489,7 @@ class DictionaryElementsAccessor
                            InternalIndex entry) {
     DisallowHeapAllocation no_gc;
     NumberDictionary dict = NumberDictionary::cast(store);
-    Object index = dict.KeyAt(entry);
+    Object index = dict.KeyAt(isolate, entry);
     return !index.IsTheHole(isolate);
   }
 
@@ -1535,7 +1536,7 @@ class DictionaryElementsAccessor
                                      InternalIndex entry,
                                      PropertyFilter filter) {
     DisallowHeapAllocation no_gc;
-    Object raw_key = dictionary->KeyAt(entry);
+    Object raw_key = dictionary->KeyAt(isolate, entry);
     if (!dictionary->IsKey(ReadOnlyRoots(isolate), raw_key)) return kMaxUInt32;
     return FilterKey(dictionary, entry, raw_key, filter);
   }
@@ -1554,7 +1555,7 @@ class DictionaryElementsAccessor
     ReadOnlyRoots roots(isolate);
     for (InternalIndex i : dictionary->IterateEntries()) {
       AllowHeapAllocation allow_gc;
-      Object raw_key = dictionary->KeyAt(i);
+      Object raw_key = dictionary->KeyAt(isolate, i);
       if (!dictionary->IsKey(roots, raw_key)) continue;
       uint32_t key = FilterKey(dictionary, i, raw_key, filter);
       if (key == kMaxUInt32) {
@@ -1601,9 +1602,9 @@ class DictionaryElementsAccessor
         NumberDictionary::cast(receiver->elements()), isolate);
     ReadOnlyRoots roots(isolate);
     for (InternalIndex i : dictionary->IterateEntries()) {
-      Object k = dictionary->KeyAt(i);
+      Object k = dictionary->KeyAt(isolate, i);
       if (!dictionary->IsKey(roots, k)) continue;
-      Object value = dictionary->ValueAt(i);
+      Object value = dictionary->ValueAt(isolate, i);
       DCHECK(!value.IsTheHole(isolate));
       DCHECK(!value.IsAccessorPair());
       DCHECK(!value.IsAccessorInfo());
@@ -1624,7 +1625,7 @@ class DictionaryElementsAccessor
     // must be accessed in order via the slow path.
     bool found = false;
     for (InternalIndex i : dictionary.IterateEntries()) {
-      Object k = dictionary.KeyAt(i);
+      Object k = dictionary.KeyAt(isolate, i);
       if (k == the_hole) continue;
       if (k == undefined) continue;
 
@@ -1638,7 +1639,7 @@ class DictionaryElementsAccessor
         // access getters out of order
         return false;
       } else if (!found) {
-        Object element_k = dictionary.ValueAt(i);
+        Object element_k = dictionary.ValueAt(isolate, i);
         if (value->SameValueZero(element_k)) found = true;
       }
     }

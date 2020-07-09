@@ -140,12 +140,14 @@ class EXPORT_TEMPLATE_DECLARE(V8_EXPORT_PRIVATE) HashTable
   void IterateElements(ObjectVisitor* visitor);
 
   // Find entry for key otherwise return kNotFound.
-  inline InternalIndex FindEntry(ReadOnlyRoots roots, Key key, int32_t hash);
-  inline InternalIndex FindEntry(ReadOnlyRoots roots, Key key);
-  inline InternalIndex FindEntry(Isolate* isolate, Key key);
+  template <typename LocalIsolate>
+  inline InternalIndex FindEntry(const LocalIsolate* isolate,
+                                 ReadOnlyRoots roots, Key key, int32_t hash);
+  template <typename LocalIsolate>
+  inline InternalIndex FindEntry(LocalIsolate* isolate, Key key);
 
   // Rehashes the table in-place.
-  void Rehash(ReadOnlyRoots roots);
+  void Rehash(const Isolate* isolate);
 
   // Returns whether k is a real key.  The hole and undefined are not allowed as
   // keys and can be used to indicate missing or deleted elements.
@@ -154,11 +156,12 @@ class EXPORT_TEMPLATE_DECLARE(V8_EXPORT_PRIVATE) HashTable
   }
 
   inline bool ToKey(ReadOnlyRoots roots, InternalIndex entry, Object* out_k);
-  inline bool ToKey(Isolate* isolate, InternalIndex entry, Object* out_k);
+  inline bool ToKey(const Isolate* isolate, InternalIndex entry, Object* out_k);
 
   // Returns the key at entry.
   inline Object KeyAt(InternalIndex entry);
-  inline Object KeyAt(const Isolate* isolate, InternalIndex entry);
+  template <typename LocalIsolate>
+  inline Object KeyAt(const LocalIsolate* isolate, InternalIndex entry);
 
   static const int kElementsStartIndex = kPrefixStartIndex + Shape::kPrefixSize;
   static const int kEntrySize = Shape::kEntrySize;
@@ -210,7 +213,9 @@ class EXPORT_TEMPLATE_DECLARE(V8_EXPORT_PRIVATE) HashTable
 
   // Find the entry at which to insert element with the given key that
   // has the given hash value.
-  InternalIndex FindInsertionEntry(uint32_t hash);
+  InternalIndex FindInsertionEntry(const Isolate* isolate, ReadOnlyRoots roots,
+                                   uint32_t hash);
+  InternalIndex FindInsertionEntry(Isolate* isolate, uint32_t hash);
 
   // Attempt to shrink hash table after removal of key.
   V8_WARN_UNUSED_RESULT static Handle<Derived> Shrink(
@@ -242,7 +247,7 @@ class EXPORT_TEMPLATE_DECLARE(V8_EXPORT_PRIVATE) HashTable
   void Swap(InternalIndex entry1, InternalIndex entry2, WriteBarrierMode mode);
 
   // Rehashes this hash-table into the new table.
-  void Rehash(ReadOnlyRoots roots, Derived new_table);
+  void Rehash(const Isolate* isolate, Derived new_table);
 
   OBJECT_CONSTRUCTORS(HashTable, HashTableBase);
 };
@@ -308,7 +313,7 @@ class EXPORT_TEMPLATE_DECLARE(V8_EXPORT_PRIVATE) ObjectHashTableBase
   // returned in case the key is not present.
   Object Lookup(Handle<Object> key);
   Object Lookup(Handle<Object> key, int32_t hash);
-  Object Lookup(ReadOnlyRoots roots, Handle<Object> key, int32_t hash);
+  Object Lookup(const Isolate* isolate, Handle<Object> key, int32_t hash);
 
   // Returns the value at entry.
   Object ValueAt(InternalIndex entry);

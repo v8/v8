@@ -5,10 +5,10 @@
 #ifndef V8_EXECUTION_ISOLATE_UTILS_INL_H_
 #define V8_EXECUTION_ISOLATE_UTILS_INL_H_
 
-#include "src/execution/isolate-utils.h"
-
 #include "src/common/ptr-compr-inl.h"
+#include "src/execution/isolate-utils.h"
 #include "src/execution/isolate.h"
+#include "src/execution/local-isolate-wrapper.h"
 #include "src/heap/heap-write-barrier-inl.h"
 
 namespace v8 {
@@ -17,6 +17,31 @@ namespace internal {
 inline const Isolate* GetIsolateForPtrCompr(HeapObject object) {
 #ifdef V8_COMPRESS_POINTERS
   return Isolate::FromRoot(GetIsolateRoot(object.ptr()));
+#else
+  return nullptr;
+#endif  // V8_COMPRESS_POINTERS
+}
+
+inline const Isolate* GetIsolateForPtrCompr(const Isolate* isolate) {
+#ifdef V8_COMPRESS_POINTERS
+  return isolate;
+#else
+  return nullptr;
+#endif  // V8_COMPRESS_POINTERS
+}
+
+inline const Isolate* GetIsolateForPtrCompr(const OffThreadIsolate* isolate) {
+#ifdef V8_COMPRESS_POINTERS
+  return isolate->GetIsolateForPtrCompr();
+#else
+  return nullptr;
+#endif  // V8_COMPRESS_POINTERS
+}
+
+inline const Isolate* GetIsolateForPtrCompr(LocalIsolateWrapper isolate) {
+#ifdef V8_COMPRESS_POINTERS
+  return isolate.is_main_thread() ? isolate.main_thread()
+                                  : GetIsolateForPtrCompr(isolate.off_thread());
 #else
   return nullptr;
 #endif  // V8_COMPRESS_POINTERS

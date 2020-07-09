@@ -428,10 +428,9 @@ PropertyAccessInfo AccessInfoFactory::ComputeAccessorDescriptorAccessInfo(
                                      isolate());
     Handle<JSModuleNamespace> module_namespace(
         JSModuleNamespace::cast(proto_info->module_namespace()), isolate());
-    Handle<Cell> cell(
-        Cell::cast(module_namespace->module().exports().Lookup(
-            ReadOnlyRoots(isolate()), name, Smi::ToInt(name->GetHash()))),
-        isolate());
+    Handle<Cell> cell(Cell::cast(module_namespace->module().exports().Lookup(
+                          isolate(), name, Smi::ToInt(name->GetHash()))),
+                      isolate());
     if (cell->value().IsTheHole(isolate())) {
       // This module has not been fully initialized yet.
       return PropertyAccessInfo::Invalid(zone());

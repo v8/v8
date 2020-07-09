@@ -133,7 +133,7 @@ void AddToDictionaryTemplate(LocalIsolate* isolate,
                              int key_index,
                              ClassBoilerplate::ValueKind value_kind,
                              Smi value) {
-  InternalIndex entry = dictionary->FindEntry(ReadOnlyRoots(isolate), key);
+  InternalIndex entry = dictionary->FindEntry(isolate, key);
 
   if (entry.is_not_found()) {
     // Entry not found, add new one.

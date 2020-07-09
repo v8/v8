@@ -89,6 +89,8 @@ class V8_EXPORT_PRIVATE OffThreadIsolate final
   inline ReadOnlyHeap* read_only_heap();
   inline Object root(RootIndex index);
 
+  const Isolate* GetIsolateForPtrCompr() const { return isolate_; }
+
   v8::internal::OffThreadFactory* factory() {
     // Upcast to the privately inherited base-class using c-style casts to avoid
     // undefined behavior (as static_cast cannot cast across private bases).
