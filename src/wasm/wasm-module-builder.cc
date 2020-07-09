@@ -422,6 +422,75 @@ void WriteValueType(ZoneBuffer* buffer, const ValueType& type) {
   }
 }
 
+void WriteGlobalInitializer(ZoneBuffer* buffer, const WasmInitExpr& init,
+                            ValueType type) {
+  switch (init.kind()) {
+    case WasmInitExpr::kI32Const:
+      buffer->write_u8(kExprI32Const);
+      buffer->write_i32v(init.immediate().i32_const);
+      break;
+    case WasmInitExpr::kI64Const:
+      buffer->write_u8(kExprI64Const);
+      buffer->write_i64v(init.immediate().i64_const);
+      break;
+    case WasmInitExpr::kF32Const:
+      buffer->write_u8(kExprF32Const);
+      buffer->write_f32(init.immediate().f32_const);
+      break;
+    case WasmInitExpr::kF64Const:
+      buffer->write_u8(kExprF64Const);
+      buffer->write_f64(init.immediate().f64_const);
+      break;
+    case WasmInitExpr::kGlobalGet:
+      buffer->write_u8(kExprGlobalGet);
+      buffer->write_u32v(init.immediate().index);
+      break;
+    case WasmInitExpr::kRefNullConst:
+      buffer->write_u8(kExprRefNull);
+      buffer->write_i32v(HeapType(init.immediate().heap_type).code());
+      break;
+    case WasmInitExpr::kRefFuncConst:
+      buffer->write_u8(kExprRefFunc);
+      buffer->write_u32v(init.immediate().index);
+      break;
+    case WasmInitExpr::kNone: {
+      // No initializer, emit a default value.
+      switch (type.kind()) {
+        case ValueType::kI32:
+          buffer->write_u8(kExprI32Const);
+          // LEB encoding of 0.
+          buffer->write_u8(0);
+          break;
+        case ValueType::kI64:
+          buffer->write_u8(kExprI64Const);
+          // LEB encoding of 0.
+          buffer->write_u8(0);
+          break;
+        case ValueType::kF32:
+          buffer->write_u8(kExprF32Const);
+          buffer->write_f32(0.f);
+          break;
+        case ValueType::kF64:
+          buffer->write_u8(kExprF64Const);
+          buffer->write_f64(0.);
+          break;
+        case ValueType::kOptRef:
+          buffer->write_u8(kExprRefNull);
+          break;
+        case ValueType::kI8:
+        case ValueType::kI16:
+        case ValueType::kStmt:
+        case ValueType::kS128:
+        case ValueType::kBottom:
+        case ValueType::kRef:
+        case ValueType::kRtt:
+          UNREACHABLE();
+      }
+      break;
+    }
+  }
+}
+
 }  // namespace
 
 void WasmModuleBuilder::WriteTo(ZoneBuffer* buffer) const {
@@ -542,75 +611,7 @@ void WasmModuleBuilder::WriteTo(ZoneBuffer* buffer) const {
     for (const WasmGlobal& global : globals_) {
       WriteValueType(buffer, global.type);
       buffer->write_u8(global.mutability ? 1 : 0);
-      switch (global.init.kind()) {
-        case WasmInitExpr::kI32Const:
-          DCHECK_EQ(kWasmI32, global.type);
-          buffer->write_u8(kExprI32Const);
-          buffer->write_i32v(global.init.immediate().i32_const);
-          break;
-        case WasmInitExpr::kI64Const:
-          DCHECK_EQ(kWasmI64, global.type);
-          buffer->write_u8(kExprI64Const);
-          buffer->write_i64v(global.init.immediate().i64_const);
-          break;
-        case WasmInitExpr::kF32Const:
-          DCHECK_EQ(kWasmF32, global.type);
-          buffer->write_u8(kExprF32Const);
-          buffer->write_f32(global.init.immediate().f32_const);
-          break;
-        case WasmInitExpr::kF64Const:
-          DCHECK_EQ(kWasmF64, global.type);
-          buffer->write_u8(kExprF64Const);
-          buffer->write_f64(global.init.immediate().f64_const);
-          break;
-        case WasmInitExpr::kGlobalGet:
-          buffer->write_u8(kExprGlobalGet);
-          buffer->write_u32v(global.init.immediate().index);
-          break;
-        case WasmInitExpr::kRefNullConst:
-          buffer->write_u8(kExprRefNull);
-          buffer->write_i32v(
-              HeapType(global.init.immediate().heap_type).code());
-          break;
-        case WasmInitExpr::kRefFuncConst:
-          UNIMPLEMENTED();
-          break;
-        case WasmInitExpr::kNone: {
-          // No initializer, emit a default value.
-          switch (global.type.kind()) {
-            case ValueType::kI32:
-              buffer->write_u8(kExprI32Const);
-              // LEB encoding of 0.
-              buffer->write_u8(0);
-              break;
-            case ValueType::kI64:
-              buffer->write_u8(kExprI64Const);
-              // LEB encoding of 0.
-              buffer->write_u8(0);
-              break;
-            case ValueType::kF32:
-              buffer->write_u8(kExprF32Const);
-              buffer->write_f32(0.f);
-              break;
-            case ValueType::kF64:
-              buffer->write_u8(kExprF64Const);
-              buffer->write_f64(0.);
-              break;
-            case ValueType::kOptRef:
-              buffer->write_u8(kExprRefNull);
-              break;
-            case ValueType::kI8:
-            case ValueType::kI16:
-            case ValueType::kStmt:
-            case ValueType::kS128:
-            case ValueType::kBottom:
-            case ValueType::kRef:
-            case ValueType::kRtt:
-              UNREACHABLE();
-          }
-          break;
-        }
-      }
+      WriteGlobalInitializer(buffer, global.init, global.type);
       buffer->write_u8(kExprEnd);
     }
     FixupSection(buffer, start);

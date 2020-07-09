@@ -595,6 +595,36 @@ TEST_F(WasmModuleVerifyTest, TwoGlobals) {
   EXPECT_OFF_END_FAILURE(data, 1);
 }
 
+TEST_F(WasmModuleVerifyTest, RefNullGlobal) {
+  WASM_FEATURE_SCOPE(reftypes);
+  static const byte data[] = {SECTION(Global, ENTRY_COUNT(1), kLocalFuncRef, 1,
+                                      WASM_REF_NULL(kLocalFuncRef), kExprEnd)};
+  ModuleResult result = DecodeModule(data, data + sizeof(data));
+  EXPECT_OK(result);
+}
+
+TEST_F(WasmModuleVerifyTest, RefNullGlobalInvalid1) {
+  WASM_FEATURE_SCOPE(reftypes);
+  WASM_FEATURE_SCOPE(typed_funcref);
+  static const byte data[] = {SECTION(Global, ENTRY_COUNT(1), kLocalOptRef, 0,
+                                      1, WASM_REF_NULL(0), kExprEnd)};
+  ModuleResult result = DecodeModule(data, data + sizeof(data));
+  EXPECT_NOT_OK(
+      result,
+      "Type index 0 does not refer to a struct or array type definition");
+}
+
+TEST_F(WasmModuleVerifyTest, RefNullGlobalInvalid2) {
+  WASM_FEATURE_SCOPE(reftypes);
+  WASM_FEATURE_SCOPE(typed_funcref);
+  static const byte data[] = {SECTION(Global, ENTRY_COUNT(1), kLocalFuncRef, 1,
+                                      kExprRefNull, U32V_5(1000001), kExprEnd)};
+  ModuleResult result = DecodeModule(data, data + sizeof(data));
+  EXPECT_NOT_OK(result,
+                "Type index 1000001 is greater than the maximum number 1000000 "
+                "of type definitions supported by V8");
+}
+
 TEST_F(WasmModuleVerifyTest, ZeroExceptions) {
   static const byte data[] = {SECTION(Exception, ENTRY_COUNT(0))};
   FAIL_IF_NO_EXPERIMENTAL_EH(data);

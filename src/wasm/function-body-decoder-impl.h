@@ -262,11 +262,6 @@ ValueType read_value_type(Decoder* decoder, const byte* pc,
       }
       HeapType heap_type = read_heap_type<validate>(
           decoder, pc + depth_length + 1, length, enabled);
-      // TODO(7748): Support RTTs for generic types.
-      if (heap_type.is_generic()) {
-        decoder->error(pc, "UNIMPLEMENTED");
-        return kWasmBottom;
-      }
       *length += depth_length + 1;
       return heap_type.is_bottom() ? kWasmBottom
                                    : ValueType::Rtt(heap_type, depth);

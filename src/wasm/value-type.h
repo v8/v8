@@ -381,7 +381,8 @@ class ValueType {
         }
         break;
       case kRtt:
-        buf << "(rtt " << depth() << " " << heap_type().name() + ")";
+        buf << "(rtt " << static_cast<uint32_t>(depth()) << " "
+            << heap_type().name() + ")";
         break;
       default:
         buf << kind_name();

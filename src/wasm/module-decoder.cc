@@ -1605,6 +1605,25 @@ class ModuleDecoderImpl : public Decoder {
     return true;
   }
 
+  // TODO(manoskouk): This is copy-modified from function-body-decoder-impl.h.
+  // We should find a way to share this code.
+  V8_INLINE bool Validate(const byte* pc, HeapTypeImmediate<kValidate>& imm) {
+    if (V8_UNLIKELY(imm.type.is_bottom())) {
+      error(pc, "invalid heap type");
+      return false;
+    }
+    if (V8_UNLIKELY(!(imm.type.is_generic() ||
+                      module_->has_array(imm.type.ref_index()) ||
+                      module_->has_struct(imm.type.ref_index())))) {
+      errorf(
+          pc,
+          "Type index %u does not refer to a struct or array type definition",
+          imm.type.ref_index());
+      return false;
+    }
+    return true;
+  }
+
   WasmInitExpr consume_init_expr(WasmModule* module, ValueType expected) {
     constexpr Decoder::ValidateFlag validate = Decoder::kValidate;
     WasmOpcode opcode = kExprNop;
@@ -1665,9 +1684,10 @@ class ModuleDecoderImpl : public Decoder {
           }
           HeapTypeImmediate<Decoder::kValidate> imm(enabled_features_, this,
                                                     pc() + 1);
+          len = 1 + imm.length;
+          if (!Validate(pc() + 1, imm)) break;
           stack.push_back(
               WasmInitExpr::RefNullConst(imm.type.representation()));
-          len = 1 + imm.length;
           break;
         }
         case kExprRefFunc: {
