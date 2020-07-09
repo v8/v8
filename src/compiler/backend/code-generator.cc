@@ -513,6 +513,11 @@ MaybeHandle<Code> CodeGenerator::FinalizeCode() {
     return MaybeHandle<Code>();
   }
 
+  // TODO(jgruber,v8:8888): Turn this into a DCHECK once confidence is
+  // high that the implementation is complete.
+  CHECK_IMPLIES(info()->native_context_independent(),
+                code->IsNativeContextIndependent(isolate()));
+
   isolate()->counters()->total_compiled_code_size()->Increment(
       code->raw_instruction_size());
 

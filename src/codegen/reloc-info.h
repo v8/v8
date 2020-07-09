@@ -328,6 +328,13 @@ class RelocInfo {
 
   static const int kApplyMask;  // Modes affected by apply.  Depends on arch.
 
+  static constexpr int AllRealModesMask() {
+    constexpr Mode kFirstUnrealRelocMode =
+        static_cast<Mode>(RelocInfo::LAST_REAL_RELOC_MODE + 1);
+    return (ModeMask(kFirstUnrealRelocMode) - 1) &
+           ~(ModeMask(RelocInfo::FIRST_REAL_RELOC_MODE) - 1);
+  }
+
   static int EmbeddedObjectModeMask() {
     return ModeMask(RelocInfo::FULL_EMBEDDED_OBJECT) |
            ModeMask(RelocInfo::COMPRESSED_EMBEDDED_OBJECT);

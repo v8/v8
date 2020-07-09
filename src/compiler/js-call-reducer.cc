@@ -3760,6 +3760,10 @@ Reduction JSCallReducer::ReduceCallOrConstructWithArrayLikeOrSpread(
     start_index = formal_parameter_count;
   }
 
+  // TODO(jgruber,v8:8888): Attempt to remove this restriction. The reason it
+  // currently exists is because we cannot create code dependencies in NCI code.
+  if (broker()->is_native_context_independent()) return NoChange();
+
   // For call/construct with spread, we need to also install a code
   // dependency on the array iterator lookup protector cell to ensure
   // that no one messed with the %ArrayIteratorPrototype%.next method.

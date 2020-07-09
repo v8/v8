@@ -505,6 +505,12 @@ bool CompilationDependencies::AreValid() const {
 }
 
 bool CompilationDependencies::Commit(Handle<Code> code) {
+  // Dependencies are context-dependent. In the future it may be possible to
+  // restore them in the consumer native context, but for now they are
+  // disabled.
+  CHECK_IMPLIES(broker_->is_native_context_independent(),
+                dependencies_.empty());
+
   for (auto dep : dependencies_) {
     if (!dep->IsValid()) {
       dependencies_.clear();
