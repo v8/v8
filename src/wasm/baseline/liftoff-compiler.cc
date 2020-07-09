@@ -1083,6 +1083,22 @@ class LiftoffCompiler {
       CASE_I64_UNOP(I64SExtendI32, i64_signextend_i32)
       CASE_I64_UNOP(I64Clz, i64_clz)
       CASE_I64_UNOP(I64Ctz, i64_ctz)
+      CASE_TYPE_CONVERSION(I32SConvertSatF32, I32, F32, nullptr, kNoTrap)
+      CASE_TYPE_CONVERSION(I32UConvertSatF32, I32, F32, nullptr, kNoTrap)
+      CASE_TYPE_CONVERSION(I32SConvertSatF64, I32, F64, nullptr, kNoTrap)
+      CASE_TYPE_CONVERSION(I32UConvertSatF64, I32, F64, nullptr, kNoTrap)
+      CASE_TYPE_CONVERSION(I64SConvertSatF32, I64, F32,
+                           &ExternalReference::wasm_float32_to_int64_sat,
+                           kNoTrap)
+      CASE_TYPE_CONVERSION(I64UConvertSatF32, I64, F32,
+                           &ExternalReference::wasm_float32_to_uint64_sat,
+                           kNoTrap)
+      CASE_TYPE_CONVERSION(I64SConvertSatF64, I64, F64,
+                           &ExternalReference::wasm_float64_to_int64_sat,
+                           kNoTrap)
+      CASE_TYPE_CONVERSION(I64UConvertSatF64, I64, F64,
+                           &ExternalReference::wasm_float64_to_uint64_sat,
+                           kNoTrap)
       case kExprI32Eqz:
         DCHECK(decoder->lookahead(0, kExprI32Eqz));
         if (decoder->lookahead(1, kExprBrIf)) {
@@ -1116,24 +1132,6 @@ class LiftoffCompiler {
               __ emit_type_conversion(kExprI64UConvertI32, dst, c_call_dst,
                                       nullptr);
             });
-        CASE_TYPE_CONVERSION(I32SConvertSatF32, I32, F32, nullptr, kNoTrap)
-        CASE_TYPE_CONVERSION(I32UConvertSatF32, I32, F32, nullptr, kNoTrap)
-        CASE_TYPE_CONVERSION(I32SConvertSatF64, I32, F64, nullptr, kNoTrap)
-        CASE_TYPE_CONVERSION(I32UConvertSatF64, I32, F64, nullptr, kNoTrap)
-        CASE_TYPE_CONVERSION(I64SConvertSatF32, I64, F32,
-                             &ExternalReference::wasm_float32_to_int64_sat,
-                             kNoTrap)
-        CASE_TYPE_CONVERSION(I64UConvertSatF32, I64, F32,
-                             &ExternalReference::wasm_float32_to_uint64_sat,
-                             kNoTrap)
-        CASE_TYPE_CONVERSION(I64SConvertSatF64, I64, F64,
-                             &ExternalReference::wasm_float64_to_int64_sat,
-                             kNoTrap)
-        CASE_TYPE_CONVERSION(I64UConvertSatF64, I64, F64,
-                             &ExternalReference::wasm_float64_to_uint64_sat,
-                             kNoTrap)
-        return unsupported(decoder, kNonTrappingFloatToInt,
-                           WasmOpcodes::OpcodeName(opcode));
       default:
         UNREACHABLE();
     }
