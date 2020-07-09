@@ -177,7 +177,7 @@ Object GlobalDictionaryShape::Unwrap(Object object) {
   return PropertyCell::cast(object).name();
 }
 
-Handle<Map> GlobalDictionaryShape::GetMap(ReadOnlyRoots roots) {
+Handle<Map> GlobalDictionary::GetMap(ReadOnlyRoots roots) {
   return roots.global_dictionary_map_handle();
 }
 
@@ -190,7 +190,7 @@ Name NameDictionary::NameAt(const Isolate* isolate, InternalIndex entry) {
   return Name::cast(KeyAt(isolate, entry));
 }
 
-Handle<Map> NameDictionaryShape::GetMap(ReadOnlyRoots roots) {
+Handle<Map> NameDictionary::GetMap(ReadOnlyRoots roots) {
   return roots.name_dictionary_map_handle();
 }
 
@@ -269,11 +269,11 @@ Handle<Object> NumberDictionaryBaseShape::AsHandle(OffThreadIsolate* isolate,
   return isolate->factory()->NewNumberFromUint<AllocationType::kOld>(key);
 }
 
-Handle<Map> NumberDictionaryShape::GetMap(ReadOnlyRoots roots) {
+Handle<Map> NumberDictionary::GetMap(ReadOnlyRoots roots) {
   return roots.number_dictionary_map_handle();
 }
 
-Handle<Map> SimpleNumberDictionaryShape::GetMap(ReadOnlyRoots roots) {
+Handle<Map> SimpleNumberDictionary::GetMap(ReadOnlyRoots roots) {
   return roots.simple_number_dictionary_map_handle();
 }
 

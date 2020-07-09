@@ -2511,7 +2511,7 @@ TNode<HeapObject> WeakCollectionsBuiltinsAssembler::AllocateTable(
       AllocateFixedArray(HOLEY_ELEMENTS, length, kAllowLargeObjectAllocation));
 
   TNode<Map> map =
-      HeapConstant(EphemeronHashTableShape::GetMap(ReadOnlyRoots(isolate())));
+      HeapConstant(EphemeronHashTable::GetMap(ReadOnlyRoots(isolate())));
   StoreMapNoWriteBarrier(table, map);
   StoreFixedArrayElement(table, EphemeronHashTable::kNumberOfElementsIndex,
                          SmiConstant(0), SKIP_WRITE_BARRIER);
@@ -2695,7 +2695,7 @@ TNode<Word32T> WeakCollectionsBuiltinsAssembler::ShouldShrink(
 TNode<IntPtrT> WeakCollectionsBuiltinsAssembler::ValueIndexFromKeyIndex(
     TNode<IntPtrT> key_index) {
   return IntPtrAdd(key_index,
-                   IntPtrConstant(EphemeronHashTableShape::kEntryValueIndex -
+                   IntPtrConstant(EphemeronHashTable::ShapeT::kEntryValueIndex -
                                   EphemeronHashTable::kEntryKeyIndex));
 }
 

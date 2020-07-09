@@ -6641,7 +6641,7 @@ Handle<Derived> HashTable<Derived, Shape>::NewInternal(
   auto* factory = isolate->factory();
   int length = EntryToIndex(InternalIndex(capacity));
   Handle<FixedArray> array = factory->NewFixedArrayWithMap(
-      Shape::GetMap(ReadOnlyRoots(isolate)), length, allocation);
+      Derived::GetMap(ReadOnlyRoots(isolate)), length, allocation);
   Handle<Derived> table = Handle<Derived>::cast(array);
 
   table->SetNumberOfElements(0);
@@ -8358,8 +8358,7 @@ EXTERN_DEFINE_HASH_TABLE(CompilationCacheTable, CompilationCacheShape)
 EXTERN_DEFINE_HASH_TABLE(ObjectHashSet, ObjectHashSetShape)
 
 EXTERN_DEFINE_OBJECT_BASE_HASH_TABLE(ObjectHashTable, ObjectHashTableShape)
-EXTERN_DEFINE_OBJECT_BASE_HASH_TABLE(EphemeronHashTable,
-                                     EphemeronHashTableShape)
+EXTERN_DEFINE_OBJECT_BASE_HASH_TABLE(EphemeronHashTable, ObjectHashTableShape)
 
 EXTERN_DEFINE_DICTIONARY(SimpleNumberDictionary, SimpleNumberDictionaryShape)
 EXTERN_DEFINE_DICTIONARY(NumberDictionary, NumberDictionaryShape)

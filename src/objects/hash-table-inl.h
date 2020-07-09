@@ -36,7 +36,7 @@ ObjectHashTable::ObjectHashTable(Address ptr)
 }
 
 EphemeronHashTable::EphemeronHashTable(Address ptr)
-    : ObjectHashTableBase<EphemeronHashTable, EphemeronHashTableShape>(ptr) {
+    : ObjectHashTableBase<EphemeronHashTable, ObjectHashTableShape>(ptr) {
   SLOW_DCHECK(IsEphemeronHashTable());
 }
 
@@ -121,12 +121,14 @@ void HashTableBase::SetNumberOfDeletedElements(int nod) {
   set(kNumberOfDeletedElementsIndex, Smi::FromInt(nod));
 }
 
-template <typename Key>
-Handle<Map> BaseShape<Key>::GetMap(ReadOnlyRoots roots) {
+// static
+template <typename Derived, typename Shape>
+Handle<Map> HashTable<Derived, Shape>::GetMap(ReadOnlyRoots roots) {
   return roots.hash_table_map_handle();
 }
 
-Handle<Map> EphemeronHashTableShape::GetMap(ReadOnlyRoots roots) {
+// static
+Handle<Map> EphemeronHashTable::GetMap(ReadOnlyRoots roots) {
   return roots.ephemeron_hash_table_map_handle();
 }
 

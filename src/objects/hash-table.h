@@ -60,7 +60,6 @@ template <typename KeyT>
 class V8_EXPORT_PRIVATE BaseShape {
  public:
   using Key = KeyT;
-  static inline Handle<Map> GetMap(ReadOnlyRoots roots);
   static const bool kNeedsHoleCheck = true;
   static Object Unwrap(Object key) { return key; }
   static inline bool IsKey(ReadOnlyRoots roots, Object key);
@@ -134,6 +133,8 @@ class EXPORT_TEMPLATE_DECLARE(V8_EXPORT_PRIVATE) HashTable
       LocalIsolate* isolate, int at_least_space_for,
       AllocationType allocation = AllocationType::kYoung,
       MinimumCapacity capacity_option = USE_DEFAULT_MINIMUM_CAPACITY);
+
+  static inline Handle<Map> GetMap(ReadOnlyRoots roots);
 
   // Garbage collection support.
   void IteratePrefix(ObjectVisitor* visitor);
@@ -368,21 +369,17 @@ class V8_EXPORT_PRIVATE ObjectHashTable
       ObjectHashTableBase<ObjectHashTable, ObjectHashTableShape>);
 };
 
-class EphemeronHashTableShape : public ObjectHashTableShape {
- public:
-  static inline Handle<Map> GetMap(ReadOnlyRoots roots);
-};
-
-EXTERN_DECLARE_OBJECT_BASE_HASH_TABLE(EphemeronHashTable,
-                                      EphemeronHashTableShape)
+EXTERN_DECLARE_OBJECT_BASE_HASH_TABLE(EphemeronHashTable, ObjectHashTableShape)
 
 // EphemeronHashTable is similar to ObjectHashTable but gets special treatment
 // by the GC. The GC treats its entries as ephemerons: both key and value are
 // weak references, however if the key is strongly reachable its corresponding
 // value is also kept alive.
 class V8_EXPORT_PRIVATE EphemeronHashTable
-    : public ObjectHashTableBase<EphemeronHashTable, EphemeronHashTableShape> {
+    : public ObjectHashTableBase<EphemeronHashTable, ObjectHashTableShape> {
  public:
+  static inline Handle<Map> GetMap(ReadOnlyRoots roots);
+
   DECL_CAST(EphemeronHashTable)
   DECL_PRINTER(EphemeronHashTable)
   class BodyDescriptor;
@@ -390,14 +387,14 @@ class V8_EXPORT_PRIVATE EphemeronHashTable
  protected:
   friend class MarkCompactCollector;
   friend class ScavengerCollector;
-  friend class HashTable<EphemeronHashTable, EphemeronHashTableShape>;
-  friend class ObjectHashTableBase<EphemeronHashTable, EphemeronHashTableShape>;
+  friend class HashTable<EphemeronHashTable, ObjectHashTableShape>;
+  friend class ObjectHashTableBase<EphemeronHashTable, ObjectHashTableShape>;
   inline void set_key(int index, Object value);
   inline void set_key(int index, Object value, WriteBarrierMode mode);
 
   OBJECT_CONSTRUCTORS(
       EphemeronHashTable,
-      ObjectHashTableBase<EphemeronHashTable, EphemeronHashTableShape>);
+      ObjectHashTableBase<EphemeronHashTable, ObjectHashTableShape>);
 };
 
 class ObjectHashSetShape : public ObjectHashTableShape {

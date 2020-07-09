@@ -114,7 +114,6 @@ class NameDictionaryShape : public BaseDictionaryShape<Handle<Name>> {
   static inline Handle<Object> AsHandle(Isolate* isolate, Handle<Name> key);
   static inline Handle<Object> AsHandle(OffThreadIsolate* isolate,
                                         Handle<Name> key);
-  static inline Handle<Map> GetMap(ReadOnlyRoots roots);
   static const int kPrefixSize = 2;
   static const int kEntrySize = 3;
   static const int kEntryValueIndex = 1;
@@ -189,6 +188,8 @@ EXTERN_DECLARE_BASE_NAME_DICTIONARY(NameDictionary, NameDictionaryShape)
 class V8_EXPORT_PRIVATE NameDictionary
     : public BaseNameDictionary<NameDictionary, NameDictionaryShape> {
  public:
+  static inline Handle<Map> GetMap(ReadOnlyRoots roots);
+
   DECL_CAST(NameDictionary)
 
   static const int kEntryValueIndex = 1;
@@ -222,7 +223,6 @@ class V8_EXPORT_PRIVATE GlobalDictionaryShape : public NameDictionaryShape {
   static inline Object Unwrap(Object key);
   static inline bool IsKey(ReadOnlyRoots roots, Object k);
   static inline bool IsLive(ReadOnlyRoots roots, Object key);
-  static inline Handle<Map> GetMap(ReadOnlyRoots roots);
 };
 
 EXTERN_DECLARE_BASE_NAME_DICTIONARY(GlobalDictionary, GlobalDictionaryShape)
@@ -230,6 +230,8 @@ EXTERN_DECLARE_BASE_NAME_DICTIONARY(GlobalDictionary, GlobalDictionaryShape)
 class V8_EXPORT_PRIVATE GlobalDictionary
     : public BaseNameDictionary<GlobalDictionary, GlobalDictionaryShape> {
  public:
+  static inline Handle<Map> GetMap(ReadOnlyRoots roots);
+
   DECL_CAST(GlobalDictionary)
 
   inline Object ValueAt(InternalIndex entry);
@@ -262,8 +264,6 @@ class NumberDictionaryShape : public NumberDictionaryBaseShape {
  public:
   static const int kPrefixSize = 1;
   static const int kEntrySize = 3;
-
-  static inline Handle<Map> GetMap(ReadOnlyRoots roots);
 };
 
 class SimpleNumberDictionaryShape : public NumberDictionaryBaseShape {
@@ -283,8 +283,6 @@ class SimpleNumberDictionaryShape : public NumberDictionaryBaseShape {
                                   PropertyDetails value) {
     UNREACHABLE();
   }
-
-  static inline Handle<Map> GetMap(ReadOnlyRoots roots);
 };
 
 EXTERN_DECLARE_DICTIONARY(SimpleNumberDictionary, SimpleNumberDictionaryShape)
@@ -293,6 +291,8 @@ EXTERN_DECLARE_DICTIONARY(SimpleNumberDictionary, SimpleNumberDictionaryShape)
 class SimpleNumberDictionary
     : public Dictionary<SimpleNumberDictionary, SimpleNumberDictionaryShape> {
  public:
+  static inline Handle<Map> GetMap(ReadOnlyRoots roots);
+
   DECL_CAST(SimpleNumberDictionary)
   // Type specific at put (default NONE attributes is used when adding).
   V8_EXPORT_PRIVATE V8_WARN_UNUSED_RESULT static Handle<SimpleNumberDictionary>
@@ -313,6 +313,8 @@ EXTERN_DECLARE_DICTIONARY(NumberDictionary, NumberDictionaryShape)
 class NumberDictionary
     : public Dictionary<NumberDictionary, NumberDictionaryShape> {
  public:
+  static inline Handle<Map> GetMap(ReadOnlyRoots roots);
+
   DECL_CAST(NumberDictionary)
   DECL_PRINTER(NumberDictionary)
 
