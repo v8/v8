@@ -63,6 +63,18 @@ class V8_EXPORT_PRIVATE Zone final {
     return static_cast<T*>(New(length * sizeof(T)));
   }
 
+  template <typename T>
+  void DeleteArray(T* pointer, size_t length) {
+    DCHECK_NOT_NULL(pointer);
+    DCHECK_NE(length, 0);
+    // TODO(v8:10572): implement accounting for reusable zone memory
+#ifdef DEBUG
+    size_t size = RoundUp(length * sizeof(T), kAlignmentInBytes);
+    static const unsigned char kZapDeadByte = 0xcd;
+    memset(pointer, kZapDeadByte, size);
+#endif
+  }
+
   // Seals the zone to prevent any further allocation.
   void Seal() { sealed_ = true; }
 

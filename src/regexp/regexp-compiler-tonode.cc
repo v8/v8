@@ -391,7 +391,8 @@ void AddUnicodeCaseEquivalents(ZoneList<CharacterRange>* ranges, Zone* zone) {
   for (int i = 0; i < ranges->length(); i++) {
     set.add(ranges->at(i).from(), ranges->at(i).to());
   }
-  ranges->Clear();
+  // Clear the ranges list without freeing the backing store.
+  ranges->Rewind(0);
   set.closeOver(USET_CASE_INSENSITIVE);
   // Full case mapping map single characters to multiple characters.
   // Those are represented as strings in the set. Remove them so that

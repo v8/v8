@@ -1514,7 +1514,7 @@ void DeclarationScope::ResetAfterPreparsing(AstValueFactory* ast_value_factory,
   DCHECK(is_function_scope());
 
   // Reset all non-trivial members.
-  params_.Clear();
+  params_.DropAndClear();
   decls_.Clear();
   locals_.Clear();
   inner_scope_ = nullptr;
