@@ -423,7 +423,7 @@ class WasmOutOfLineTrap : public OutOfLineCode {
       // is added to the native module and copied into wasm code space.
       __ near_call(static_cast<Address>(trap_id), RelocInfo::WASM_STUB_CALL);
       ReferenceMap* reference_map =
-          new (gen_->zone()) ReferenceMap(gen_->zone());
+          gen_->zone()->New<ReferenceMap>(gen_->zone());
       gen_->RecordSafepoint(reference_map, Safepoint::kNoLazyDeopt);
       __ AssertUnreachable(AbortReason::kUnexpectedReturnFromWasmTrap);
     }
@@ -452,7 +452,7 @@ void EmitOOLTrapIfNeeded(Zone* zone, CodeGenerator* codegen,
   const MemoryAccessMode access_mode =
       static_cast<MemoryAccessMode>(MiscField::decode(opcode));
   if (access_mode == kMemoryAccessProtected) {
-    new (zone) WasmProtectedInstructionTrap(codegen, pc, instr);
+    zone->New<WasmProtectedInstructionTrap>(codegen, pc, instr);
   }
 }
 
@@ -1148,7 +1148,7 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
     case kArchTruncateDoubleToI: {
       auto result = i.OutputRegister();
       auto input = i.InputDoubleRegister(0);
-      auto ool = new (zone()) OutOfLineTruncateDoubleToI(
+      auto ool = zone()->New<OutOfLineTruncateDoubleToI>(
           this, result, input, DetermineStubCallMode(),
           &unwinding_info_writer_);
       // We use Cvttsd2siq instead of Cvttsd2si due to performance reasons. The
@@ -1169,9 +1169,9 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       Register value = i.InputRegister(index);
       Register scratch0 = i.TempRegister(0);
       Register scratch1 = i.TempRegister(1);
-      auto ool = new (zone())
-          OutOfLineRecordWrite(this, object, operand, value, scratch0, scratch1,
-                               mode, DetermineStubCallMode());
+      auto ool = zone()->New<OutOfLineRecordWrite>(this, object, operand, value,
+                                                   scratch0, scratch1, mode,
+                                                   DetermineStubCallMode());
       __ StoreTaggedField(operand, value);
       __ CheckPageFlag(object, scratch0,
                        MemoryChunk::kPointersFromHereAreInterestingMask,
@@ -1567,7 +1567,7 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
         __ Ucomiss(i.InputDoubleRegister(0), i.InputOperand(1));
       }
       auto ool =
-          new (zone()) OutOfLineLoadFloat32NaN(this, i.OutputDoubleRegister());
+          zone()->New<OutOfLineLoadFloat32NaN>(this, i.OutputDoubleRegister());
       __ j(parity_even, ool->entry());
       __ j(above, &done_compare, Label::kNear);
       __ j(below, &compare_swap, Label::kNear);
@@ -1592,7 +1592,7 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
         __ Ucomiss(i.InputDoubleRegister(0), i.InputOperand(1));
       }
       auto ool =
-          new (zone()) OutOfLineLoadFloat32NaN(this, i.OutputDoubleRegister());
+          zone()->New<OutOfLineLoadFloat32NaN>(this, i.OutputDoubleRegister());
       __ j(parity_even, ool->entry());
       __ j(below, &done_compare, Label::kNear);
       __ j(above, &compare_swap, Label::kNear);
@@ -1622,7 +1622,7 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
         __ Ucomisd(i.InputDoubleRegister(0), i.InputOperand(1));
       }
       auto ool =
-          new (zone()) OutOfLineLoadFloat64NaN(this, i.OutputDoubleRegister());
+          zone()->New<OutOfLineLoadFloat64NaN>(this, i.OutputDoubleRegister());
       __ j(parity_even, ool->entry());
       __ j(above, &done_compare, Label::kNear);
       __ j(below, &compare_swap, Label::kNear);
@@ -1647,7 +1647,7 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
         __ Ucomisd(i.InputDoubleRegister(0), i.InputOperand(1));
       }
       auto ool =
-          new (zone()) OutOfLineLoadFloat64NaN(this, i.OutputDoubleRegister());
+          zone()->New<OutOfLineLoadFloat64NaN>(this, i.OutputDoubleRegister());
       __ j(parity_even, ool->entry());
       __ j(below, &done_compare, Label::kNear);
       __ j(above, &compare_swap, Label::kNear);
@@ -2425,7 +2425,7 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       // Most likely there is no difference and we're done.
       __ Xorpd(kScratchDoubleReg, dst);
       __ Ptest(kScratchDoubleReg, kScratchDoubleReg);
-      auto ool = new (zone()) OutOfLineF64x2Min(this, dst, kScratchDoubleReg);
+      auto ool = zone()->New<OutOfLineF64x2Min>(this, dst, kScratchDoubleReg);
       __ j(not_zero, ool->entry());
       __ bind(ool->exit());
       break;
@@ -2443,7 +2443,7 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       // Most likely there is no difference and we're done.
       __ Xorpd(kScratchDoubleReg, dst);
       __ Ptest(kScratchDoubleReg, kScratchDoubleReg);
-      auto ool = new (zone()) OutOfLineF64x2Max(this, dst, kScratchDoubleReg);
+      auto ool = zone()->New<OutOfLineF64x2Max>(this, dst, kScratchDoubleReg);
       __ j(not_zero, ool->entry());
       __ bind(ool->exit());
       break;
@@ -2618,7 +2618,7 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       // Most likely there is no difference and we're done.
       __ Xorps(kScratchDoubleReg, dst);
       __ Ptest(kScratchDoubleReg, kScratchDoubleReg);
-      auto ool = new (zone()) OutOfLineF32x4Min(this, dst, kScratchDoubleReg);
+      auto ool = zone()->New<OutOfLineF32x4Min>(this, dst, kScratchDoubleReg);
       __ j(not_zero, ool->entry());
       __ bind(ool->exit());
       break;
@@ -2636,7 +2636,7 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       // Most likely there is no difference and we're done.
       __ Xorps(kScratchDoubleReg, dst);
       __ Ptest(kScratchDoubleReg, kScratchDoubleReg);
-      auto ool = new (zone()) OutOfLineF32x4Max(this, dst, kScratchDoubleReg);
+      auto ool = zone()->New<OutOfLineF32x4Max>(this, dst, kScratchDoubleReg);
       __ j(not_zero, ool->entry());
       __ bind(ool->exit());
       break;
@@ -4370,7 +4370,7 @@ void CodeGenerator::AssembleArchJump(RpoNumber target) {
 
 void CodeGenerator::AssembleArchTrap(Instruction* instr,
                                      FlagsCondition condition) {
-  auto ool = new (zone()) WasmOutOfLineTrap(this, instr);
+  auto ool = zone()->New<WasmOutOfLineTrap>(this, instr);
   Label* tlabel = ool->entry();
   Label end;
   if (condition == kUnorderedEqual) {
@@ -4553,7 +4553,7 @@ void CodeGenerator::AssembleConstructFrame() {
 
       __ near_call(wasm::WasmCode::kWasmStackOverflow,
                    RelocInfo::WASM_STUB_CALL);
-      ReferenceMap* reference_map = new (zone()) ReferenceMap(zone());
+      ReferenceMap* reference_map = zone()->New<ReferenceMap>(zone());
       RecordSafepoint(reference_map, Safepoint::kNoLazyDeopt);
       __ AssertUnreachable(AbortReason::kUnexpectedReturnFromWasmTrap);
       __ bind(&done);

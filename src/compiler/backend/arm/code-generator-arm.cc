@@ -1027,7 +1027,7 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
         offset = Operand(reg);
         __ str(value, MemOperand(object, reg));
       }
-      auto ool = new (zone()) OutOfLineRecordWrite(
+      auto ool = zone()->New<OutOfLineRecordWrite>(
           this, object, offset, value, mode, DetermineStubCallMode(),
           &unwinding_info_writer_);
       __ CheckPageFlag(object, MemoryChunk::kPointersFromHereAreInterestingMask,
@@ -1731,7 +1731,7 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       if (left == right) {
         __ Move(result, left);
       } else {
-        auto ool = new (zone()) OutOfLineFloat32Max(this, result, left, right);
+        auto ool = zone()->New<OutOfLineFloat32Max>(this, result, left, right);
         __ FloatMax(result, left, right, ool->entry());
         __ bind(ool->exit());
       }
@@ -1745,7 +1745,7 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       if (left == right) {
         __ Move(result, left);
       } else {
-        auto ool = new (zone()) OutOfLineFloat64Max(this, result, left, right);
+        auto ool = zone()->New<OutOfLineFloat64Max>(this, result, left, right);
         __ FloatMax(result, left, right, ool->entry());
         __ bind(ool->exit());
       }
@@ -1759,7 +1759,7 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       if (left == right) {
         __ Move(result, left);
       } else {
-        auto ool = new (zone()) OutOfLineFloat32Min(this, result, left, right);
+        auto ool = zone()->New<OutOfLineFloat32Min>(this, result, left, right);
         __ FloatMin(result, left, right, ool->entry());
         __ bind(ool->exit());
       }
@@ -1773,7 +1773,7 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       if (left == right) {
         __ Move(result, left);
       } else {
-        auto ool = new (zone()) OutOfLineFloat64Min(this, result, left, right);
+        auto ool = zone()->New<OutOfLineFloat64Min>(this, result, left, right);
         __ FloatMin(result, left, right, ool->entry());
         __ bind(ool->exit());
       }
@@ -1911,10 +1911,10 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       if (left == right) {
         __ Move(result, left);
       } else {
-        auto ool_low = new (zone())
-            OutOfLineFloat64Min(this, result.low(), left.low(), right.low());
-        auto ool_high = new (zone())
-            OutOfLineFloat64Min(this, result.high(), left.high(), right.high());
+        auto ool_low = zone()->New<OutOfLineFloat64Min>(
+            this, result.low(), left.low(), right.low());
+        auto ool_high = zone()->New<OutOfLineFloat64Min>(
+            this, result.high(), left.high(), right.high());
         __ FloatMin(result.low(), left.low(), right.low(), ool_low->entry());
         __ bind(ool_low->exit());
         __ FloatMin(result.high(), left.high(), right.high(),
@@ -1931,10 +1931,10 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       if (left == right) {
         __ Move(result, left);
       } else {
-        auto ool_low = new (zone())
-            OutOfLineFloat64Max(this, result.low(), left.low(), right.low());
-        auto ool_high = new (zone())
-            OutOfLineFloat64Max(this, result.high(), left.high(), right.high());
+        auto ool_low = zone()->New<OutOfLineFloat64Max>(
+            this, result.low(), left.low(), right.low());
+        auto ool_high = zone()->New<OutOfLineFloat64Max>(
+            this, result.high(), left.high(), right.high());
         __ FloatMax(result.low(), left.low(), right.low(), ool_low->entry());
         __ bind(ool_low->exit());
         __ FloatMax(result.high(), left.high(), right.high(),
@@ -3544,7 +3544,7 @@ void CodeGenerator::AssembleArchTrap(Instruction* instr,
         // is added to the native module and copied into wasm code space.
         __ Call(static_cast<Address>(trap_id), RelocInfo::WASM_STUB_CALL);
         ReferenceMap* reference_map =
-            new (gen_->zone()) ReferenceMap(gen_->zone());
+            gen_->zone()->New<ReferenceMap>(gen_->zone());
         gen_->RecordSafepoint(reference_map, Safepoint::kNoLazyDeopt);
         if (FLAG_debug_code) {
           __ stop();
@@ -3555,7 +3555,7 @@ void CodeGenerator::AssembleArchTrap(Instruction* instr,
     Instruction* instr_;
     CodeGenerator* gen_;
   };
-  auto ool = new (zone()) OutOfLineTrap(this, instr);
+  auto ool = zone()->New<OutOfLineTrap>(this, instr);
   Label* tlabel = ool->entry();
   Condition cc = FlagsConditionToCondition(condition);
   __ b(cc, tlabel);
@@ -3714,7 +3714,7 @@ void CodeGenerator::AssembleConstructFrame() {
 
       __ Call(wasm::WasmCode::kWasmStackOverflow, RelocInfo::WASM_STUB_CALL);
       // We come from WebAssembly, there are no references for the GC.
-      ReferenceMap* reference_map = new (zone()) ReferenceMap(zone());
+      ReferenceMap* reference_map = zone()->New<ReferenceMap>(zone());
       RecordSafepoint(reference_map, Safepoint::kNoLazyDeopt);
       if (FLAG_debug_code) {
         __ stop();

@@ -97,7 +97,7 @@ bool InstructionSelector::SelectInstructions() {
 
   // Schedule the selected instructions.
   if (UseInstructionScheduling()) {
-    scheduler_ = new (zone()) InstructionScheduler(zone(), sequence());
+    scheduler_ = zone()->New<InstructionScheduler>(zone(), sequence());
   }
 
   for (auto const block : *blocks) {
@@ -2750,9 +2750,9 @@ void InstructionSelector::VisitOsrValue(Node* node) {
 void InstructionSelector::VisitPhi(Node* node) {
   const int input_count = node->op()->ValueInputCount();
   DCHECK_EQ(input_count, current_block_->PredecessorCount());
-  PhiInstruction* phi = new (instruction_zone())
-      PhiInstruction(instruction_zone(), GetVirtualRegister(node),
-                     static_cast<size_t>(input_count));
+  PhiInstruction* phi = instruction_zone()->New<PhiInstruction>(
+      instruction_zone(), GetVirtualRegister(node),
+      static_cast<size_t>(input_count));
   sequence()
       ->InstructionBlockAt(RpoNumber::FromInt(current_block_->rpo_number()))
       ->AddPhi(phi);
@@ -3136,10 +3136,10 @@ FrameStateDescriptor* GetFrameStateDescriptorInternal(Zone* zone, Node* state) {
     outer_state = GetFrameStateDescriptorInternal(zone, outer_node);
   }
 
-  return new (zone)
-      FrameStateDescriptor(zone, state_info.type(), state_info.bailout_id(),
-                           state_info.state_combine(), parameters, locals,
-                           stack, state_info.shared_info(), outer_state);
+  return zone->New<FrameStateDescriptor>(
+      zone, state_info.type(), state_info.bailout_id(),
+      state_info.state_combine(), parameters, locals, stack,
+      state_info.shared_info(), outer_state);
 }
 
 }  // namespace

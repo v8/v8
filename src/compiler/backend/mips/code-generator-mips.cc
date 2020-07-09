@@ -903,9 +903,9 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       Register value = i.InputRegister(2);
       Register scratch0 = i.TempRegister(0);
       Register scratch1 = i.TempRegister(1);
-      auto ool = new (zone())
-          OutOfLineRecordWrite(this, object, index, value, scratch0, scratch1,
-                               mode, DetermineStubCallMode());
+      auto ool = zone()->New<OutOfLineRecordWrite>(this, object, index, value,
+                                                   scratch0, scratch1, mode,
+                                                   DetermineStubCallMode());
       __ Addu(kScratchReg, object, index);
       __ sw(value, MemOperand(kScratchReg));
       __ CheckPageFlag(object, scratch0,
@@ -1387,7 +1387,7 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       FPURegister dst = i.OutputSingleRegister();
       FPURegister src1 = i.InputSingleRegister(0);
       FPURegister src2 = i.InputSingleRegister(1);
-      auto ool = new (zone()) OutOfLineFloat32Max(this, dst, src1, src2);
+      auto ool = zone()->New<OutOfLineFloat32Max>(this, dst, src1, src2);
       __ Float32Max(dst, src1, src2, ool->entry());
       __ bind(ool->exit());
       break;
@@ -1396,7 +1396,7 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       DoubleRegister dst = i.OutputDoubleRegister();
       DoubleRegister src1 = i.InputDoubleRegister(0);
       DoubleRegister src2 = i.InputDoubleRegister(1);
-      auto ool = new (zone()) OutOfLineFloat64Max(this, dst, src1, src2);
+      auto ool = zone()->New<OutOfLineFloat64Max>(this, dst, src1, src2);
       __ Float64Max(dst, src1, src2, ool->entry());
       __ bind(ool->exit());
       break;
@@ -1405,7 +1405,7 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       FPURegister dst = i.OutputSingleRegister();
       FPURegister src1 = i.InputSingleRegister(0);
       FPURegister src2 = i.InputSingleRegister(1);
-      auto ool = new (zone()) OutOfLineFloat32Min(this, dst, src1, src2);
+      auto ool = zone()->New<OutOfLineFloat32Min>(this, dst, src1, src2);
       __ Float32Min(dst, src1, src2, ool->entry());
       __ bind(ool->exit());
       break;
@@ -1414,7 +1414,7 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       DoubleRegister dst = i.OutputDoubleRegister();
       DoubleRegister src1 = i.InputDoubleRegister(0);
       DoubleRegister src2 = i.InputDoubleRegister(1);
-      auto ool = new (zone()) OutOfLineFloat64Min(this, dst, src1, src2);
+      auto ool = zone()->New<OutOfLineFloat64Min>(this, dst, src1, src2);
       __ Float64Min(dst, src1, src2, ool->entry());
       __ bind(ool->exit());
       break;
@@ -3683,7 +3683,7 @@ void CodeGenerator::AssembleArchTrap(Instruction* instr,
         // is added to the native module and copied into wasm code space.
         __ Call(static_cast<Address>(trap_id), RelocInfo::WASM_STUB_CALL);
         ReferenceMap* reference_map =
-            new (gen_->zone()) ReferenceMap(gen_->zone());
+            gen_->zone()->New<ReferenceMap>(gen_->zone());
         gen_->RecordSafepoint(reference_map, Safepoint::kNoLazyDeopt);
         if (FLAG_debug_code) {
           __ stop();
@@ -3694,7 +3694,7 @@ void CodeGenerator::AssembleArchTrap(Instruction* instr,
     Instruction* instr_;
     CodeGenerator* gen_;
   };
-  auto ool = new (zone()) OutOfLineTrap(this, instr);
+  auto ool = zone()->New<OutOfLineTrap>(this, instr);
   Label* tlabel = ool->entry();
   AssembleBranchToLabels(this, tasm(), instr, condition, tlabel, nullptr, true);
 }
@@ -3976,7 +3976,7 @@ void CodeGenerator::AssembleConstructFrame() {
 
       __ Call(wasm::WasmCode::kWasmStackOverflow, RelocInfo::WASM_STUB_CALL);
       // We come from WebAssembly, there are no references for the GC.
-      ReferenceMap* reference_map = new (zone()) ReferenceMap(zone());
+      ReferenceMap* reference_map = zone()->New<ReferenceMap>(zone());
       RecordSafepoint(reference_map, Safepoint::kNoLazyDeopt);
       if (FLAG_debug_code) {
         __ stop();

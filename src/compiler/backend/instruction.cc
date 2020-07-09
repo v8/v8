@@ -611,9 +611,9 @@ static InstructionBlock* InstructionBlockFor(Zone* zone,
                                              const BasicBlock* block) {
   bool is_handler =
       !block->empty() && block->front()->opcode() == IrOpcode::kIfException;
-  InstructionBlock* instr_block = new (zone)
-      InstructionBlock(zone, GetRpo(block), GetRpo(block->loop_header()),
-                       GetLoopEndRpo(block), block->deferred(), is_handler);
+  InstructionBlock* instr_block = zone->New<InstructionBlock>(
+      zone, GetRpo(block), GetRpo(block->loop_header()), GetLoopEndRpo(block),
+      block->deferred(), is_handler);
   // Map successors and precessors
   instr_block->successors().reserve(block->SuccessorCount());
   for (BasicBlock* successor : block->successors()) {
@@ -863,7 +863,7 @@ int InstructionSequence::AddInstruction(Instruction* instr) {
   instructions_.push_back(instr);
   if (instr->NeedsReferenceMap()) {
     DCHECK_NULL(instr->reference_map());
-    ReferenceMap* reference_map = new (zone()) ReferenceMap(zone());
+    ReferenceMap* reference_map = zone()->New<ReferenceMap>(zone());
     reference_map->set_instruction_position(index);
     instr->set_reference_map(reference_map);
     reference_maps_.push_back(reference_map);

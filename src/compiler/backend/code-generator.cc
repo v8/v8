@@ -114,7 +114,7 @@ void CodeGenerator::AddProtectedInstructionLanding(uint32_t instr_offset,
 
 void CodeGenerator::CreateFrameAccessState(Frame* frame) {
   FinishFrame(frame);
-  frame_access_state_ = new (zone()) FrameAccessState(frame);
+  frame_access_state_ = zone()->New<FrameAccessState>(frame);
 }
 
 bool CodeGenerator::ShouldApplyOffsetToStackCheck(Instruction* instr,
@@ -971,7 +971,7 @@ Handle<DeoptimizationData> CodeGenerator::GenerateDeoptimizationData() {
 }
 
 Label* CodeGenerator::AddJumpTable(Label** targets, size_t target_count) {
-  jump_tables_ = new (zone()) JumpTable(jump_tables_, targets, target_count);
+  jump_tables_ = zone()->New<JumpTable>(jump_tables_, targets, target_count);
   return jump_tables_->label();
 }
 
@@ -1163,7 +1163,7 @@ DeoptimizationExit* CodeGenerator::BuildTranslation(
   BuildTranslationForFrameStateDescriptor(descriptor, &iter, &translation,
                                           state_combine);
 
-  DeoptimizationExit* const exit = new (zone()) DeoptimizationExit(
+  DeoptimizationExit* const exit = zone()->New<DeoptimizationExit>(
       current_source_position_, descriptor->bailout_id(), translation.index(),
       pc_offset, entry.kind(), entry.reason());
 

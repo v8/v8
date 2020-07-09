@@ -193,7 +193,7 @@ class SafepointTableBuilder {
         : pc(pc),
           deopt_index(Safepoint::kNoDeoptimizationIndex),
           trampoline(-1),
-          indexes(new (zone) ZoneChunkList<int>(
+          indexes(zone->New<ZoneChunkList<int>>(
               zone, ZoneChunkList<int>::StartMode::kSmall)) {}
   };
 

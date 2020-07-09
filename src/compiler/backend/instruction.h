@@ -90,8 +90,7 @@ class V8_EXPORT_PRIVATE InstructionOperand {
 
   template <typename SubKindOperand>
   static SubKindOperand* New(Zone* zone, const SubKindOperand& op) {
-    void* buffer = zone->New(sizeof(op));
-    return new (buffer) SubKindOperand(op);
+    return zone->New<SubKindOperand>(op);
   }
 
   static void ReplaceWith(InstructionOperand* dest,
@@ -704,7 +703,7 @@ class V8_EXPORT_PRIVATE ParallelMove final
                         const InstructionOperand& to,
                         Zone* operand_allocation_zone) {
     if (from.EqualsCanonicalized(to)) return nullptr;
-    MoveOperands* move = new (operand_allocation_zone) MoveOperands(from, to);
+    MoveOperands* move = operand_allocation_zone->New<MoveOperands>(from, to);
     if (empty()) reserve(4);
     push_back(move);
     return move;
@@ -817,7 +816,7 @@ class V8_EXPORT_PRIVATE Instruction final {
     int size = static_cast<int>(
         RoundUp(sizeof(Instruction), sizeof(InstructionOperand)) +
         total_extra_ops * sizeof(InstructionOperand));
-    return new (zone->New(size)) Instruction(
+    return new (zone->Allocate<Instruction>(size)) Instruction(
         opcode, output_count, outputs, input_count, inputs, temp_count, temps);
   }
 
@@ -876,7 +875,7 @@ class V8_EXPORT_PRIVATE Instruction final {
 
   ParallelMove* GetOrCreateParallelMove(GapPosition pos, Zone* zone) {
     if (parallel_moves_[pos] == nullptr) {
-      parallel_moves_[pos] = new (zone) ParallelMove(zone);
+      parallel_moves_[pos] = zone->New<ParallelMove>(zone);
     }
     return parallel_moves_[pos];
   }
@@ -1195,8 +1194,7 @@ class StateValueList {
 
   StateValueList* PushRecursiveField(Zone* zone, size_t id) {
     fields_.push_back(StateValueDescriptor::Recursive(id));
-    StateValueList* nested =
-        new (zone->New(sizeof(StateValueList))) StateValueList(zone);
+    StateValueList* nested = zone->New<StateValueList>(zone);
     nested_.push_back(nested);
     return nested;
   }
