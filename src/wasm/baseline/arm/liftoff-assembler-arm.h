@@ -3269,6 +3269,11 @@ void LiftoffAssembler::emit_f64x2_le(LiftoffRegister dst, LiftoffRegister lhs,
   liftoff::F64x2Compare(this, dst, lhs, rhs, le);
 }
 
+void LiftoffAssembler::emit_s128_const(LiftoffRegister dst,
+                                       const uint8_t imms[16]) {
+  bailout(kSimd, "s128.const");
+}
+
 void LiftoffAssembler::emit_s128_not(LiftoffRegister dst, LiftoffRegister src) {
   vmvn(liftoff::GetSimd128Register(dst), liftoff::GetSimd128Register(src));
 }

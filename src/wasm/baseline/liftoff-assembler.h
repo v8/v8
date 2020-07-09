@@ -818,6 +818,7 @@ class LiftoffAssembler : public TurboAssembler {
                             LiftoffRegister rhs);
   inline void emit_f64x2_le(LiftoffRegister dst, LiftoffRegister lhs,
                             LiftoffRegister rhs);
+  inline void emit_s128_const(LiftoffRegister dst, const uint8_t imms[16]);
   inline void emit_s128_not(LiftoffRegister dst, LiftoffRegister src);
   inline void emit_s128_and(LiftoffRegister dst, LiftoffRegister lhs,
                             LiftoffRegister rhs);

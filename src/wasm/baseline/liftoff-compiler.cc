@@ -2949,7 +2949,21 @@ class LiftoffCompiler {
 
   void S128Const(FullDecoder* decoder, const Simd128Immediate<validate>& imm,
                  Value* result) {
-    unsupported(decoder, kSimd, "simd");
+    constexpr RegClass result_rc = reg_class_for(ValueType::kS128);
+    LiftoffRegister dst = __ GetUnusedRegister(result_rc, {});
+    bool all_zeroes = std::all_of(std::begin(imm.value), std::end(imm.value),
+                                  [](uint8_t v) { return v == 0; });
+    bool all_ones = std::all_of(std::begin(imm.value), std::end(imm.value),
+                                [](uint8_t v) { return v == 0xff; });
+    if (all_zeroes) {
+      __ LiftoffAssembler::emit_s128_xor(dst, dst, dst);
+    } else if (all_ones) {
+      // Any SIMD eq will work, i32x4 is efficient on all archs.
+      __ LiftoffAssembler::emit_i32x4_eq(dst, dst, dst);
+    } else {
+      __ LiftoffAssembler::emit_s128_const(dst, imm.value);
+    }
+    __ PushRegister(kWasmS128, dst);
   }
 
   void Simd8x16ShuffleOp(FullDecoder* decoder,

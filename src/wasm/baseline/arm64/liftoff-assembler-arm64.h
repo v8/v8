@@ -2331,6 +2331,11 @@ void LiftoffAssembler::emit_f64x2_le(LiftoffRegister dst, LiftoffRegister lhs,
   Fcmge(dst.fp().V2D(), rhs.fp().V2D(), lhs.fp().V2D());
 }
 
+void LiftoffAssembler::emit_s128_const(LiftoffRegister dst,
+                                       const uint8_t imms[16]) {
+  bailout(kSimd, "s128.const");
+}
+
 void LiftoffAssembler::emit_s128_not(LiftoffRegister dst, LiftoffRegister src) {
   Mvn(dst.fp().V16B(), src.fp().V16B());
 }
