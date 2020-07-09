@@ -347,7 +347,7 @@ Page* PagedSpace::Expand() {
 Page* PagedSpace::ExpandBackground(LocalHeap* local_heap) {
   Page* page = AllocatePage();
   if (page == nullptr) return nullptr;
-  ParkedMutexGuard lock(local_heap, &allocation_mutex_);
+  base::MutexGuard lock(&allocation_mutex_);
   AddPage(page);
   Free(page->area_start(), page->area_size(),
        SpaceAccountingMode::kSpaceAccounted);
@@ -580,7 +580,7 @@ PagedSpace::SlowGetLinearAllocationAreaBackground(LocalHeap* local_heap,
     // First try to refill the free-list, concurrent sweeper threads
     // may have freed some objects in the meantime.
     {
-      ParkedMutexGuard lock(local_heap, &allocation_mutex_);
+      base::MutexGuard lock(&allocation_mutex_);
       RefillFreeList();
     }
 
@@ -599,7 +599,7 @@ PagedSpace::SlowGetLinearAllocationAreaBackground(LocalHeap* local_heap,
         invalidated_slots_in_free_space);
 
     {
-      ParkedMutexGuard lock(local_heap, &allocation_mutex_);
+      base::MutexGuard lock(&allocation_mutex_);
       RefillFreeList();
     }
 
@@ -631,7 +631,7 @@ PagedSpace::TryAllocationFromFreeListBackground(LocalHeap* local_heap,
                                                 size_t max_size_in_bytes,
                                                 AllocationAlignment alignment,
                                                 AllocationOrigin origin) {
-  ParkedMutexGuard lock(local_heap, &allocation_mutex_);
+  base::MutexGuard lock(&allocation_mutex_);
   DCHECK_LE(min_size_in_bytes, max_size_in_bytes);
   DCHECK_EQ(identity(), OLD_SPACE);
 
