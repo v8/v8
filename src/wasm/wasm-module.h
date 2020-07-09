@@ -91,7 +91,7 @@ struct WasmException {
 struct WasmDataSegment {
   // Construct an active segment.
   explicit WasmDataSegment(WasmInitExpr dest_addr)
-      : dest_addr(dest_addr), active(true) {}
+      : dest_addr(std::move(dest_addr)), active(true) {}
 
   // Construct a passive segment, which has no dest_addr.
   WasmDataSegment() : active(false) {}
@@ -120,7 +120,7 @@ struct WasmElemSegment {
   WasmElemSegment(uint32_t table_index, WasmInitExpr offset)
       : type(ValueType::Ref(HeapType::kFunc, kNullable)),
         table_index(table_index),
-        offset(offset),
+        offset(std::move(offset)),
         status(kStatusActive) {}
 
   // Construct a passive or declarative segment, which has no table index or

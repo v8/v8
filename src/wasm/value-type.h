@@ -51,7 +51,7 @@ class HeapType {
     kEq,                      // shorthand: q
     kExn,                     // shorthand: x
     kI31,                     // shorthand: j
-    // This code is used to represent failures in the parsing of heap types and
+    // This value is used to represent failures in the parsing of heap types and
     // does not correspond to a wasm heap type.
     kBottom
   };
@@ -90,7 +90,7 @@ class HeapType {
     return representation_ != other.representation_;
   }
 
-  constexpr uint32_t representation() const { return representation_; }
+  constexpr Representation representation() const { return representation_; }
   constexpr uint32_t ref_index() const {
     CONSTEXPR_DCHECK(is_index());
     return representation_;
@@ -183,7 +183,8 @@ class ValueType {
   constexpr bool has_index() const {
     return is_reference_type() && heap_type().is_index();
   }
-  constexpr bool has_depth() const { return kind() == kRtt; }
+  constexpr bool is_rtt() const { return kind() == kRtt; }
+  constexpr bool has_depth() const { return is_rtt(); }
 
   constexpr ValueType() : bit_field_(KindField::encode(kStmt)) {}
   static constexpr ValueType Primitive(Kind kind) {
@@ -219,9 +220,10 @@ class ValueType {
   }
 
   constexpr Kind kind() const { return KindField::decode(bit_field_); }
-  constexpr uint32_t heap_representation() const {
+  constexpr HeapType::Representation heap_representation() const {
     CONSTEXPR_DCHECK(is_reference_type());
-    return HeapTypeField::decode(bit_field_);
+    return static_cast<HeapType::Representation>(
+        HeapTypeField::decode(bit_field_));
   }
   constexpr HeapType heap_type() const {
     return HeapType(heap_representation());

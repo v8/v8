@@ -37,12 +37,12 @@ byte* raw_buffer_ptr(MaybeHandle<JSArrayBuffer> buffer, int offset) {
 
 uint32_t EvalUint32InitExpr(Handle<WasmInstanceObject> instance,
                             const WasmInitExpr& expr) {
-  switch (expr.kind) {
+  switch (expr.kind()) {
     case WasmInitExpr::kI32Const:
-      return expr.val.i32_const;
-    case WasmInitExpr::kGlobalIndex: {
+      return expr.immediate().i32_const;
+    case WasmInitExpr::kGlobalGet: {
       uint32_t offset =
-          instance->module()->globals[expr.val.global_index].offset;
+          instance->module()->globals[expr.immediate().index].offset;
       auto raw_addr = reinterpret_cast<Address>(
                           instance->untagged_globals_buffer().backing_store()) +
                       offset;
@@ -1404,27 +1404,27 @@ T* InstanceBuilder::GetRawGlobalPtr(const WasmGlobal& global) {
 
 // Process initialization of globals.
 void InstanceBuilder::InitGlobals(Handle<WasmInstanceObject> instance) {
-  for (auto global : module_->globals) {
+  for (const WasmGlobal& global : module_->globals) {
     if (global.mutability && global.imported) {
       continue;
     }
 
-    switch (global.init.kind) {
+    switch (global.init.kind()) {
       case WasmInitExpr::kI32Const:
         WriteLittleEndianValue<int32_t>(GetRawGlobalPtr<int32_t>(global),
-                                        global.init.val.i32_const);
+                                        global.init.immediate().i32_const);
         break;
       case WasmInitExpr::kI64Const:
         WriteLittleEndianValue<int64_t>(GetRawGlobalPtr<int64_t>(global),
-                                        global.init.val.i64_const);
+                                        global.init.immediate().i64_const);
         break;
       case WasmInitExpr::kF32Const:
         WriteLittleEndianValue<float>(GetRawGlobalPtr<float>(global),
-                                      global.init.val.f32_const);
+                                      global.init.immediate().f32_const);
         break;
       case WasmInitExpr::kF64Const:
         WriteLittleEndianValue<double>(GetRawGlobalPtr<double>(global),
-                                       global.init.val.f64_const);
+                                       global.init.immediate().f64_const);
         break;
       case WasmInitExpr::kRefNullConst:
         DCHECK(enabled_.has_reftypes() || enabled_.has_eh());
@@ -1437,15 +1437,15 @@ void InstanceBuilder::InitGlobals(Handle<WasmInstanceObject> instance) {
       case WasmInitExpr::kRefFuncConst: {
         DCHECK(enabled_.has_reftypes());
         auto function = WasmInstanceObject::GetOrCreateWasmExternalFunction(
-            isolate_, instance, global.init.val.function_index);
+            isolate_, instance, global.init.immediate().index);
         tagged_globals_->set(global.offset, *function);
         break;
       }
-      case WasmInitExpr::kGlobalIndex: {
+      case WasmInitExpr::kGlobalGet: {
         // Initialize with another global.
         uint32_t new_offset = global.offset;
         uint32_t old_offset =
-            module_->globals[global.init.val.global_index].offset;
+            module_->globals[global.init.immediate().index].offset;
         TRACE("init [globals+%u] = [globals+%d]\n", global.offset, old_offset);
         if (global.type.is_reference_type()) {
           DCHECK(enabled_.has_reftypes() || enabled_.has_eh());

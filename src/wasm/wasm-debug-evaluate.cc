@@ -144,7 +144,7 @@ class DebugEvaluatorProxy {
   void GetGlobal(uint32_t global, uint32_t result_offset) {
     DCHECK(frame_->is_wasm());
 
-    WasmGlobal global_variable =
+    const WasmGlobal& global_variable =
         WasmFrame::cast(frame_)->native_module()->module()->globals.at(global);
 
     Handle<WasmInstanceObject> instance(

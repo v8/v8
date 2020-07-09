@@ -44,7 +44,7 @@ class WasmGCTester {
   }
 
   uint32_t AddGlobal(ValueType type, bool mutability, WasmInitExpr init) {
-    return builder_.AddGlobal(type, mutability, init);
+    return builder_.AddGlobal(type, mutability, std::move(init));
   }
 
   uint32_t DefineFunction(FunctionSig* sig,
@@ -220,8 +220,10 @@ TEST(WasmRefAsNonNull) {
   ValueType kOptRefType = optref(type_index);
   FunctionSig sig_q_v(1, 0, kRefTypes);
 
-  uint32_t global_index = tester.AddGlobal(
-      kOptRefType, true, WasmInitExpr(WasmInitExpr::kRefNullConst));
+  uint32_t global_index =
+      tester.AddGlobal(kOptRefType, true,
+                       WasmInitExpr::RefNullConst(
+                           static_cast<HeapType::Representation>(type_index)));
   uint32_t field_index = 0;
   const uint32_t kFunc = tester.DefineFunction(
       tester.sigs.i_v(), {},

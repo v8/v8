@@ -204,12 +204,12 @@ void GenerateTestCase(Isolate* isolate, ModuleWireBytes wire_bytes,
   for (const WasmElemSegment& elem_segment : module->elem_segments) {
     os << "builder.addElementSegment(";
     os << elem_segment.table_index << ", ";
-    switch (elem_segment.offset.kind) {
-      case WasmInitExpr::kGlobalIndex:
-        os << elem_segment.offset.val.global_index << ", true";
+    switch (elem_segment.offset.kind()) {
+      case WasmInitExpr::kGlobalGet:
+        os << elem_segment.offset.immediate().index << ", true";
         break;
       case WasmInitExpr::kI32Const:
-        os << elem_segment.offset.val.i32_const << ", false";
+        os << elem_segment.offset.immediate().i32_const << ", false";
         break;
       default:
         UNREACHABLE();

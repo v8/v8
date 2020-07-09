@@ -261,8 +261,8 @@ TEST_F(WasmModuleVerifyTest, OneGlobal) {
     EXPECT_EQ(kWasmI32, global->type);
     EXPECT_EQ(0u, global->offset);
     EXPECT_FALSE(global->mutability);
-    EXPECT_EQ(WasmInitExpr::kI32Const, global->init.kind);
-    EXPECT_EQ(13, global->init.val.i32_const);
+    EXPECT_EQ(WasmInitExpr::kI32Const, global->init.kind());
+    EXPECT_EQ(13, global->init.immediate().i32_const);
   }
 
   EXPECT_OFF_END_FAILURE(data, 1);
@@ -307,13 +307,13 @@ TEST_F(WasmModuleVerifyTest, ExternRefGlobal) {
     const WasmGlobal* global = &result.value()->globals[0];
     EXPECT_EQ(kWasmExternRef, global->type);
     EXPECT_FALSE(global->mutability);
-    EXPECT_EQ(WasmInitExpr::kRefNullConst, global->init.kind);
+    EXPECT_EQ(WasmInitExpr::kRefNullConst, global->init.kind());
 
     global = &result.value()->globals[1];
     EXPECT_EQ(kWasmFuncRef, global->type);
     EXPECT_FALSE(global->mutability);
-    EXPECT_EQ(WasmInitExpr::kRefFuncConst, global->init.kind);
-    EXPECT_EQ(uint32_t{1}, global->init.val.function_index);
+    EXPECT_EQ(WasmInitExpr::kRefFuncConst, global->init.kind());
+    EXPECT_EQ(uint32_t{1}, global->init.immediate().index);
   }
 }
 
@@ -355,13 +355,13 @@ TEST_F(WasmModuleVerifyTest, FuncRefGlobal) {
     const WasmGlobal* global = &result.value()->globals[0];
     EXPECT_EQ(kWasmFuncRef, global->type);
     EXPECT_FALSE(global->mutability);
-    EXPECT_EQ(WasmInitExpr::kRefNullConst, global->init.kind);
+    EXPECT_EQ(WasmInitExpr::kRefNullConst, global->init.kind());
 
     global = &result.value()->globals[1];
     EXPECT_EQ(kWasmFuncRef, global->type);
     EXPECT_FALSE(global->mutability);
-    EXPECT_EQ(WasmInitExpr::kRefFuncConst, global->init.kind);
-    EXPECT_EQ(uint32_t{1}, global->init.val.function_index);
+    EXPECT_EQ(WasmInitExpr::kRefFuncConst, global->init.kind());
+    EXPECT_EQ(uint32_t{1}, global->init.immediate().index);
   }
 }
 
@@ -410,7 +410,7 @@ TEST_F(WasmModuleVerifyTest, ExternRefGlobalWithGlobalInit) {
 
     EXPECT_EQ(kWasmExternRef, global->type);
     EXPECT_FALSE(global->mutability);
-    EXPECT_EQ(WasmInitExpr::kGlobalIndex, global->init.kind);
+    EXPECT_EQ(WasmInitExpr::kGlobalGet, global->init.kind());
   }
 }
 
@@ -444,7 +444,7 @@ TEST_F(WasmModuleVerifyTest, NullGlobalWithGlobalInit) {
 
     EXPECT_EQ(kWasmExternRef, global->type);
     EXPECT_FALSE(global->mutability);
-    EXPECT_EQ(WasmInitExpr::kGlobalIndex, global->init.kind);
+    EXPECT_EQ(WasmInitExpr::kGlobalGet, global->init.kind());
   }
 }
 
@@ -582,14 +582,14 @@ TEST_F(WasmModuleVerifyTest, TwoGlobals) {
     EXPECT_EQ(kWasmF32, g0->type);
     EXPECT_EQ(0u, g0->offset);
     EXPECT_FALSE(g0->mutability);
-    EXPECT_EQ(WasmInitExpr::kF32Const, g0->init.kind);
+    EXPECT_EQ(WasmInitExpr::kF32Const, g0->init.kind());
 
     const WasmGlobal* g1 = &result.value()->globals[1];
 
     EXPECT_EQ(kWasmF64, g1->type);
     EXPECT_EQ(8u, g1->offset);
     EXPECT_TRUE(g1->mutability);
-    EXPECT_EQ(WasmInitExpr::kF64Const, g1->init.kind);
+    EXPECT_EQ(WasmInitExpr::kF64Const, g1->init.kind());
   }
 
   EXPECT_OFF_END_FAILURE(data, 1);
@@ -826,9 +826,9 @@ TEST_F(WasmModuleVerifyTest, DataSegmentWithImmutableImportedGlobal) {
   };
   ModuleResult result = DecodeModule(data, data + sizeof(data));
   EXPECT_OK(result);
-  WasmInitExpr expr = result.value()->data_segments.back().dest_addr;
-  EXPECT_EQ(WasmInitExpr::kGlobalIndex, expr.kind);
-  EXPECT_EQ(1u, expr.val.global_index);
+  WasmInitExpr expr = std::move(result.value()->data_segments.back()).dest_addr;
+  EXPECT_EQ(WasmInitExpr::kGlobalGet, expr.kind());
+  EXPECT_EQ(1u, expr.immediate().index);
 }
 
 TEST_F(WasmModuleVerifyTest, DataSegmentWithMutableImportedGlobal) {
@@ -885,8 +885,8 @@ TEST_F(WasmModuleVerifyTest, OneDataSegment) {
 
     const WasmDataSegment* segment = &result.value()->data_segments.back();
 
-    EXPECT_EQ(WasmInitExpr::kI32Const, segment->dest_addr.kind);
-    EXPECT_EQ(0x9BBAA, segment->dest_addr.val.i32_const);
+    EXPECT_EQ(WasmInitExpr::kI32Const, segment->dest_addr.kind());
+    EXPECT_EQ(0x9BBAA, segment->dest_addr.immediate().i32_const);
     EXPECT_EQ(kDataSegmentSourceOffset, segment->source.offset());
     EXPECT_EQ(3u, segment->source.length());
   }
@@ -922,13 +922,13 @@ TEST_F(WasmModuleVerifyTest, TwoDataSegments) {
     const WasmDataSegment* s0 = &result.value()->data_segments[0];
     const WasmDataSegment* s1 = &result.value()->data_segments[1];
 
-    EXPECT_EQ(WasmInitExpr::kI32Const, s0->dest_addr.kind);
-    EXPECT_EQ(0x7FFEE, s0->dest_addr.val.i32_const);
+    EXPECT_EQ(WasmInitExpr::kI32Const, s0->dest_addr.kind());
+    EXPECT_EQ(0x7FFEE, s0->dest_addr.immediate().i32_const);
     EXPECT_EQ(kDataSegment0SourceOffset, s0->source.offset());
     EXPECT_EQ(4u, s0->source.length());
 
-    EXPECT_EQ(WasmInitExpr::kI32Const, s1->dest_addr.kind);
-    EXPECT_EQ(0x6DDCC, s1->dest_addr.val.i32_const);
+    EXPECT_EQ(WasmInitExpr::kI32Const, s1->dest_addr.kind());
+    EXPECT_EQ(0x6DDCC, s1->dest_addr.immediate().i32_const);
     EXPECT_EQ(kDataSegment1SourceOffset, s1->source.offset());
     EXPECT_EQ(10u, s1->source.length());
   }
@@ -2259,15 +2259,15 @@ class WasmInitExprDecodeTest : public TestWithZone {
   {                                                                \
     static const byte data[] = {__VA_ARGS__, kExprEnd};            \
     WasmInitExpr expr = DecodeInitExpr(data, data + sizeof(data)); \
-    EXPECT_EQ(WasmInitExpr::k##Type##Const, expr.kind);            \
-    EXPECT_EQ(value, expr.val.type##_const);                       \
+    EXPECT_EQ(WasmInitExpr::k##Type##Const, expr.kind());          \
+    EXPECT_EQ(value, expr.immediate().type##_const);               \
   }
 
 #define EXPECT_INIT_EXPR_FAIL(...)                                 \
   {                                                                \
     static const byte data[] = {__VA_ARGS__, kExprEnd};            \
     WasmInitExpr expr = DecodeInitExpr(data, data + sizeof(data)); \
-    EXPECT_EQ(WasmInitExpr::kNone, expr.kind);                     \
+    EXPECT_EQ(WasmInitExpr::kNone, expr.kind());                   \
   }
 
 TEST_F(WasmInitExprDecodeTest, InitExpr_i32) {
@@ -2302,7 +2302,7 @@ TEST_F(WasmInitExprDecodeTest, InitExpr_ExternRef) {
   WASM_FEATURE_SCOPE(reftypes);
   static const byte data[] = {kExprRefNull, kLocalExternRef, kExprEnd};
   WasmInitExpr expr = DecodeInitExpr(data, data + sizeof(data));
-  EXPECT_EQ(WasmInitExpr::kRefNullConst, expr.kind);
+  EXPECT_EQ(WasmInitExpr::kRefNullConst, expr.kind());
 }
 
 TEST_F(WasmInitExprDecodeTest, InitExpr_illegal) {

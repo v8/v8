@@ -3809,7 +3809,7 @@ class WasmFullDecoder : public WasmDecoder<validate> {
     CALL_INTERFACE_IF_REACHABLE(DoReturn, return_values);
   }
 
-  inline Value* Push(ValueType type) {
+  V8_INLINE Value* Push(ValueType type) {
     DCHECK_NE(kWasmStmt, type);
     stack_.emplace_back(this->pc_, type);
     return &stack_.back();

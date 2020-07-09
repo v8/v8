@@ -238,7 +238,7 @@ class V8_EXPORT_PRIVATE WasmModuleBuilder : public ZoneObject {
                      Vector<const char> module = {});
   WasmFunctionBuilder* AddFunction(FunctionSig* sig = nullptr);
   uint32_t AddGlobal(ValueType type, bool mutability = true,
-                     const WasmInitExpr& init = WasmInitExpr());
+                     WasmInitExpr init = WasmInitExpr());
   uint32_t AddGlobalImport(Vector<const char> name, ValueType type,
                            bool mutability, Vector<const char> module = {});
   void AddDataSegment(const byte* data, uint32_t size, uint32_t dest);
@@ -259,8 +259,8 @@ class V8_EXPORT_PRIVATE WasmModuleBuilder : public ZoneObject {
   void AddExport(Vector<const char> name, WasmFunctionBuilder* builder) {
     AddExport(name, kExternalFunction, builder->func_index());
   }
-  uint32_t AddExportedGlobal(ValueType type, bool mutability,
-                             const WasmInitExpr& init, Vector<const char> name);
+  uint32_t AddExportedGlobal(ValueType type, bool mutability, WasmInitExpr init,
+                             Vector<const char> name);
   void ExportImportedFunction(Vector<const char> name, int import_index);
   void SetMinMemorySize(uint32_t value);
   void SetMaxMemorySize(uint32_t value);
@@ -314,6 +314,8 @@ class V8_EXPORT_PRIVATE WasmModuleBuilder : public ZoneObject {
   };
 
   struct WasmGlobal {
+    MOVE_ONLY_NO_DEFAULT_CONSTRUCTOR(WasmGlobal);
+
     ValueType type;
     bool mutability;
     WasmInitExpr init;

@@ -747,47 +747,71 @@ class V8_EXPORT_PRIVATE WasmOpcodes {
 };
 
 // Representation of an initializer expression.
-struct WasmInitExpr {
-  enum WasmInitKind {
+class WasmInitExpr {
+ public:
+  enum Operator {
     kNone,
-    kGlobalIndex,
+    kGlobalGet,
     kI32Const,
     kI64Const,
     kF32Const,
     kF64Const,
     kRefNullConst,
-    kRefFuncConst,
-  } kind;
+    kRefFuncConst
+  };
 
-  union {
+  union Immediate {
     int32_t i32_const;
     int64_t i64_const;
     float f32_const;
     double f64_const;
-    uint32_t global_index;
-    uint32_t function_index;
-  } val;
+    uint32_t index;
+    HeapType::Representation heap_type;
+  };
 
-  WasmInitExpr() : kind(kNone) {}
-  explicit WasmInitExpr(int32_t v) : kind(kI32Const) { val.i32_const = v; }
-  explicit WasmInitExpr(int64_t v) : kind(kI64Const) { val.i64_const = v; }
-  explicit WasmInitExpr(float v) : kind(kF32Const) { val.f32_const = v; }
-  explicit WasmInitExpr(double v) : kind(kF64Const) { val.f64_const = v; }
-
-  explicit WasmInitExpr(WasmInitKind kind) : kind(kind) {
-    DCHECK_EQ(kind, kRefNullConst);
+  WasmInitExpr() : kind_(kNone) { immediate_.i32_const = 0; }
+  explicit WasmInitExpr(int32_t v) : kind_(kI32Const) {
+    immediate_.i32_const = v;
+  }
+  explicit WasmInitExpr(int64_t v) : kind_(kI64Const) {
+    immediate_.i64_const = v;
+  }
+  explicit WasmInitExpr(float v) : kind_(kF32Const) {
+    immediate_.f32_const = v;
+  }
+  explicit WasmInitExpr(double v) : kind_(kF64Const) {
+    immediate_.f64_const = v;
   }
 
-  WasmInitExpr(WasmInitKind kind, uint32_t index) : kind(kind) {
-    if (kind == kGlobalIndex) {
-      val.global_index = index;
-    } else if (kind == kRefFuncConst) {
-      val.function_index = index;
-    } else {
-      // For the other types, the other initializers should be used.
-      UNREACHABLE();
-    }
+  MOVE_ONLY_NO_DEFAULT_CONSTRUCTOR(WasmInitExpr);
+
+  static WasmInitExpr GlobalGet(uint32_t index) {
+    WasmInitExpr expr;
+    expr.kind_ = kGlobalGet;
+    expr.immediate_.index = index;
+    return expr;
   }
+
+  static WasmInitExpr RefFuncConst(uint32_t index) {
+    WasmInitExpr expr;
+    expr.kind_ = kRefFuncConst;
+    expr.immediate_.index = index;
+    return expr;
+  }
+
+  static WasmInitExpr RefNullConst(HeapType::Representation heap_type) {
+    WasmInitExpr expr;
+    expr.kind_ = kRefNullConst;
+    expr.immediate_.heap_type = heap_type;
+    return expr;
+  }
+
+  Immediate immediate() const { return immediate_; }
+  Operator kind() const { return kind_; }
+
+ private:
+  Immediate immediate_;
+  Operator kind_;
 };
 
 }  // namespace wasm

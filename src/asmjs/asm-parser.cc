@@ -250,10 +250,10 @@ void AsmJsParser::AddGlobalImport(Vector<const char> name, AsmType* type,
 
 void AsmJsParser::DeclareGlobal(VarInfo* info, bool mutable_variable,
                                 AsmType* type, ValueType vtype,
-                                const WasmInitExpr& init) {
+                                WasmInitExpr init) {
   info->kind = VarKind::kGlobal;
   info->type = type;
-  info->index = module_builder_->AddGlobal(vtype, true, init);
+  info->index = module_builder_->AddGlobal(vtype, true, std::move(init));
   info->mutable_variable = mutable_variable;
 }
 

@@ -313,8 +313,7 @@ class AsmJsParser {
   VarInfo* GetVarInfo(AsmJsScanner::token_t token);
   uint32_t VarIndex(VarInfo* info);
   void DeclareGlobal(VarInfo* info, bool mutable_variable, AsmType* type,
-                     ValueType vtype,
-                     const WasmInitExpr& init = WasmInitExpr());
+                     ValueType vtype, WasmInitExpr init = WasmInitExpr());
   void DeclareStdlibFunc(VarInfo* info, VarKind kind, AsmType* type);
   void AddGlobalImport(Vector<const char> name, AsmType* type, ValueType vtype,
                        bool mutable_variable, VarInfo* info);

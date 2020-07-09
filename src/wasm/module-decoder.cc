@@ -107,12 +107,12 @@ bool validate_utf8(Decoder* decoder, WireBytesRef string) {
 }
 
 ValueType TypeOf(const WasmModule* module, const WasmInitExpr& expr) {
-  switch (expr.kind) {
+  switch (expr.kind()) {
     case WasmInitExpr::kNone:
       return kWasmStmt;
-    case WasmInitExpr::kGlobalIndex:
-      return expr.val.global_index < module->globals.size()
-                 ? module->globals[expr.val.global_index].type
+    case WasmInitExpr::kGlobalGet:
+      return expr.immediate().index < module->globals.size()
+                 ? module->globals[expr.immediate().index].type
                  : kWasmStmt;
     case WasmInitExpr::kI32Const:
       return kWasmI32;
@@ -125,11 +125,7 @@ ValueType TypeOf(const WasmModule* module, const WasmInitExpr& expr) {
     case WasmInitExpr::kRefFuncConst:
       return ValueType::Ref(HeapType::kFunc, kNonNullable);
     case WasmInitExpr::kRefNullConst:
-      // It is not possible to retrieve the full {ValueType} of a {WasmInitExpr}
-      // of kind {kRefNullConst}. As WasmInitExpr of kind {krefNullConst} is
-      // only valid in globals, the {ValueType} has to be retrieved from the
-      // global definition itself.
-      UNREACHABLE();
+      return ValueType::Ref(expr.immediate().heap_type, kNullable);
   }
 }
 
@@ -940,7 +936,7 @@ class ModuleDecoderImpl : public Decoder {
       uint32_t num_elem =
           consume_count("number of elements", max_table_init_entries());
       if (status == WasmElemSegment::kStatusActive) {
-        module_->elem_segments.emplace_back(table_index, offset);
+        module_->elem_segments.emplace_back(table_index, std::move(offset));
       } else {
         module_->elem_segments.emplace_back(
             status == WasmElemSegment::kStatusDeclarative);
@@ -1043,7 +1039,7 @@ class ModuleDecoderImpl : public Decoder {
       uint32_t source_offset = pc_offset();
 
       if (is_active) {
-        module_->data_segments.emplace_back(dest_addr);
+        module_->data_segments.emplace_back(std::move(dest_addr));
       } else {
         module_->data_segments.emplace_back();
       }
@@ -1399,8 +1395,8 @@ class ModuleDecoderImpl : public Decoder {
     global->mutability = consume_mutability();
     const byte* pos = pc();
     global->init = consume_init_expr(module, global->type);
-    if (global->init.kind == WasmInitExpr::kGlobalIndex) {
-      uint32_t other_index = global->init.val.global_index;
+    if (global->init.kind() == WasmInitExpr::kGlobalGet) {
+      uint32_t other_index = global->init.immediate().index;
       if (other_index >= index) {
         errorf(pos,
                "invalid global index in init expression, "
@@ -1610,108 +1606,118 @@ class ModuleDecoderImpl : public Decoder {
   }
 
   WasmInitExpr consume_init_expr(WasmModule* module, ValueType expected) {
-    const byte* pos = pc();
-    uint8_t opcode = consume_u8("opcode");
-    WasmInitExpr expr;
-    uint32_t len = 0;
-    switch (opcode) {
-      case kExprGlobalGet: {
-        GlobalIndexImmediate<Decoder::kValidate> imm(this, pc());
-        if (module->globals.size() <= imm.index) {
-          error("global index is out of bounds");
-          expr.kind = WasmInitExpr::kNone;
-          expr.val.i32_const = 0;
-          break;
-        }
-        WasmGlobal* global = &module->globals[imm.index];
-        if (global->mutability || !global->imported) {
-          error(
-              "only immutable imported globals can be used in initializer "
-              "expressions");
-          expr.kind = WasmInitExpr::kNone;
-          expr.val.i32_const = 0;
-          break;
-        }
-        expr.kind = WasmInitExpr::kGlobalIndex;
-        expr.val.global_index = imm.index;
-        len = imm.length;
-        break;
-      }
-      case kExprI32Const: {
-        ImmI32Immediate<Decoder::kValidate> imm(this, pc());
-        expr.kind = WasmInitExpr::kI32Const;
-        expr.val.i32_const = imm.value;
-        len = imm.length;
-        break;
-      }
-      case kExprF32Const: {
-        ImmF32Immediate<Decoder::kValidate> imm(this, pc());
-        expr.kind = WasmInitExpr::kF32Const;
-        expr.val.f32_const = imm.value;
-        len = imm.length;
-        break;
-      }
-      case kExprI64Const: {
-        ImmI64Immediate<Decoder::kValidate> imm(this, pc());
-        expr.kind = WasmInitExpr::kI64Const;
-        expr.val.i64_const = imm.value;
-        len = imm.length;
-        break;
-      }
-      case kExprF64Const: {
-        ImmF64Immediate<Decoder::kValidate> imm(this, pc());
-        expr.kind = WasmInitExpr::kF64Const;
-        expr.val.f64_const = imm.value;
-        len = imm.length;
-        break;
-      }
-      case kExprRefNull: {
-        if (enabled_features_.has_reftypes() || enabled_features_.has_eh()) {
-          HeapTypeImmediate<Decoder::kValidate> imm(WasmFeatures::All(), this,
-                                                    pc());
-          expr.kind = WasmInitExpr::kRefNullConst;
-          len = imm.length;
-          ValueType type = ValueType::Ref(imm.type, kNullable);
-          if (expected != kWasmStmt &&
-              !IsSubtypeOf(type, expected, module_.get())) {
-            errorf(pos, "type error in init expression, expected %s, got %s",
-                   expected.type_name().c_str(), type.type_name().c_str());
-          }
-          break;
-        }
-        V8_FALLTHROUGH;
-      }
-      case kExprRefFunc: {
-        if (enabled_features_.has_reftypes()) {
-          FunctionIndexImmediate<Decoder::kValidate> imm(this, pc());
-          if (module->functions.size() <= imm.index) {
-            errorf(pc() - 1, "invalid function index: %u", imm.index);
+    constexpr Decoder::ValidateFlag validate = Decoder::kValidate;
+    WasmOpcode opcode = kExprNop;
+    std::vector<WasmInitExpr> stack;
+    while (pc() < end() && opcode != kExprEnd) {
+      uint32_t len = 1;
+      opcode = static_cast<WasmOpcode>(read_u8<validate>(pc(), "opcode"));
+      switch (opcode) {
+        case kExprGlobalGet: {
+          GlobalIndexImmediate<validate> imm(this, pc() + 1);
+          len = 1 + imm.length;
+          if (V8_UNLIKELY(module->globals.size() <= imm.index)) {
+            error(pc() + 1, "global index is out of bounds");
             break;
           }
-          expr.kind = WasmInitExpr::kRefFuncConst;
-          expr.val.function_index = imm.index;
-          // Functions referenced in the globals section count as "declared".
-          module->functions[imm.index].declared = true;
-          len = imm.length;
+          WasmGlobal* global = &module->globals[imm.index];
+          if (V8_UNLIKELY(global->mutability || !global->imported)) {
+            error(pc() + 1,
+                  "only immutable imported globals can be used in initializer "
+                  "expressions");
+            break;
+          }
+          stack.push_back(WasmInitExpr::GlobalGet(imm.index));
           break;
         }
-        V8_FALLTHROUGH;
+        case kExprI32Const: {
+          ImmI32Immediate<Decoder::kValidate> imm(this, pc() + 1);
+          stack.emplace_back(imm.value);
+          len = 1 + imm.length;
+          break;
+        }
+        case kExprF32Const: {
+          ImmF32Immediate<Decoder::kValidate> imm(this, pc() + 1);
+          stack.emplace_back(imm.value);
+          len = 1 + imm.length;
+          break;
+        }
+        case kExprI64Const: {
+          ImmI64Immediate<Decoder::kValidate> imm(this, pc() + 1);
+          stack.emplace_back(imm.value);
+          len = 1 + imm.length;
+          break;
+        }
+        case kExprF64Const: {
+          ImmF64Immediate<Decoder::kValidate> imm(this, pc() + 1);
+          stack.emplace_back(imm.value);
+          len = 1 + imm.length;
+          break;
+        }
+        case kExprRefNull: {
+          if (V8_UNLIKELY(!enabled_features_.has_reftypes() &&
+                          !enabled_features_.has_eh())) {
+            errorf(pc(),
+                   "invalid opcode 0x%x in global initializer, enable with "
+                   "--experimental-wasm-reftypes or --experimental-wasm-eh",
+                   kExprRefNull);
+            break;
+          }
+          HeapTypeImmediate<Decoder::kValidate> imm(enabled_features_, this,
+                                                    pc() + 1);
+          stack.push_back(
+              WasmInitExpr::RefNullConst(imm.type.representation()));
+          len = 1 + imm.length;
+          break;
+        }
+        case kExprRefFunc: {
+          if (V8_UNLIKELY(!enabled_features_.has_reftypes())) {
+            errorf(pc(),
+                   "invalid opcode 0x%x in global initializer, enable with "
+                   "--experimental-wasm-reftypes",
+                   kExprRefFunc);
+            break;
+          }
+
+          FunctionIndexImmediate<Decoder::kValidate> imm(this, pc() + 1);
+          len = 1 + imm.length;
+          if (V8_UNLIKELY(module->functions.size() <= imm.index)) {
+            errorf(pc(), "invalid function index: %u", imm.index);
+            break;
+          }
+          stack.push_back(WasmInitExpr::RefFuncConst(imm.index));
+          // Functions referenced in the globals section count as "declared".
+          module->functions[imm.index].declared = true;
+          break;
+        }
+        case kExprEnd:
+          if (V8_UNLIKELY(stack.size() != 1)) {
+            errorf(pc(),
+                   "Found 'end' in global initalizer, but %s expressions were "
+                   "found on the stack",
+                   stack.size() > 1 ? "more than one" : "no");
+          }
+          break;
+        default: {
+          errorf(pc(), "invalid opcode 0x%x in global initializer", opcode);
+          return {};
+        }
       }
-      default: {
-        error("invalid opcode in initialization expression");
-        expr.kind = WasmInitExpr::kNone;
-        expr.val.i32_const = 0;
-      }
-    }
-    consume_bytes(len, "init code");
-    if (!expect_u8("end opcode", kExprEnd)) {
-      expr.kind = WasmInitExpr::kNone;
+      pc_ += len;
     }
 
-    // The type check of ref.null is special, and already done above.
-    if (expected != kWasmStmt && opcode != kExprRefNull &&
-        !IsSubtypeOf(TypeOf(module, expr), expected, module_.get())) {
-      errorf(pos, "type error in init expression, expected %s, got %s",
+    if (V8_UNLIKELY(pc() > end())) {
+      error(end(), "Global initializer extending beyond code end");
+      return {};
+    }
+    if (V8_UNLIKELY(this->failed())) return {};
+
+    DCHECK_EQ(stack.size(), 1);
+
+    WasmInitExpr expr = std::move(stack.back());
+    if (expected != kWasmStmt &&
+        !IsSubtypeOf(TypeOf(module, expr), expected, module)) {
+      errorf(pc(), "type error in init expression, expected %s, got %s",
              expected.type_name().c_str(),
              TypeOf(module, expr).type_name().c_str());
     }
@@ -1927,8 +1933,8 @@ class ModuleDecoderImpl : public Decoder {
     if (flag != 0 && !enabled_features_.has_bulk_memory() &&
         !enabled_features_.has_reftypes()) {
       error(
-          "Invalid segment flag. Did you forget "
-          "--experimental-wasm-bulk-memory or --experimental-wasm-reftypes?");
+          "Invalid segment flag. Enable with --experimental-wasm-bulk-memory "
+          "or --experimental-wasm-reftypes");
       return;
     }
     if ((flag & kFullMask) != flag) {

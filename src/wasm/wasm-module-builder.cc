@@ -376,9 +376,9 @@ void WasmModuleBuilder::AddExport(Vector<const char> name,
 }
 
 uint32_t WasmModuleBuilder::AddExportedGlobal(ValueType type, bool mutability,
-                                              const WasmInitExpr& init,
+                                              WasmInitExpr init,
                                               Vector<const char> name) {
-  uint32_t index = AddGlobal(type, mutability, init);
+  uint32_t index = AddGlobal(type, mutability, std::move(init));
   AddExport(name, kExternalGlobal, index);
   return index;
 }
@@ -395,8 +395,8 @@ void WasmModuleBuilder::ExportImportedFunction(Vector<const char> name,
 }
 
 uint32_t WasmModuleBuilder::AddGlobal(ValueType type, bool mutability,
-                                      const WasmInitExpr& init) {
-  globals_.push_back({type, mutability, init});
+                                      WasmInitExpr init) {
+  globals_.push_back({type, mutability, std::move(init)});
   return static_cast<uint32_t>(globals_.size() - 1);
 }
 
@@ -542,34 +542,35 @@ void WasmModuleBuilder::WriteTo(ZoneBuffer* buffer) const {
     for (const WasmGlobal& global : globals_) {
       WriteValueType(buffer, global.type);
       buffer->write_u8(global.mutability ? 1 : 0);
-      switch (global.init.kind) {
+      switch (global.init.kind()) {
         case WasmInitExpr::kI32Const:
           DCHECK_EQ(kWasmI32, global.type);
           buffer->write_u8(kExprI32Const);
-          buffer->write_i32v(global.init.val.i32_const);
+          buffer->write_i32v(global.init.immediate().i32_const);
           break;
         case WasmInitExpr::kI64Const:
           DCHECK_EQ(kWasmI64, global.type);
           buffer->write_u8(kExprI64Const);
-          buffer->write_i64v(global.init.val.i64_const);
+          buffer->write_i64v(global.init.immediate().i64_const);
           break;
         case WasmInitExpr::kF32Const:
           DCHECK_EQ(kWasmF32, global.type);
           buffer->write_u8(kExprF32Const);
-          buffer->write_f32(global.init.val.f32_const);
+          buffer->write_f32(global.init.immediate().f32_const);
           break;
         case WasmInitExpr::kF64Const:
           DCHECK_EQ(kWasmF64, global.type);
           buffer->write_u8(kExprF64Const);
-          buffer->write_f64(global.init.val.f64_const);
+          buffer->write_f64(global.init.immediate().f64_const);
           break;
-        case WasmInitExpr::kGlobalIndex:
+        case WasmInitExpr::kGlobalGet:
           buffer->write_u8(kExprGlobalGet);
-          buffer->write_u32v(global.init.val.global_index);
+          buffer->write_u32v(global.init.immediate().index);
           break;
         case WasmInitExpr::kRefNullConst:
           buffer->write_u8(kExprRefNull);
-          buffer->write_i32v(global.type.heap_type().code());
+          buffer->write_i32v(
+              HeapType(global.init.immediate().heap_type).code());
           break;
         case WasmInitExpr::kRefFuncConst:
           UNIMPLEMENTED();
@@ -607,6 +608,7 @@ void WasmModuleBuilder::WriteTo(ZoneBuffer* buffer) const {
             case ValueType::kRtt:
               UNREACHABLE();
           }
+          break;
         }
       }
       buffer->write_u8(kExprEnd);
