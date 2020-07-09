@@ -78,9 +78,9 @@ constexpr RegList kLiftoffAssemblerFpCacheRegs =
     DoubleRegister::ListOf(ft0, ft1, ft2, ft3, ft4, ft5, ft6, ft7, fa0, fa1,
                            fa2, fa3, fa4, fa5, fa6, fa7, ft8, ft9, ft10, ft11);
 
-#elif V8_TARGET_ARCH_RISCV32
+#elif V8_TARGET_ARCH_RISCV
 
-#error Unsupported architecture
+#error RISCV (32) architecture not supported yet
 
 #else
 
@@ -129,7 +129,7 @@ constexpr Condition kUnsignedLessEqual = ls;
 constexpr Condition kUnsignedGreaterThan = hi;
 constexpr Condition kUnsignedGreaterEqual = hs;
 
-#elif V8_TARGET_ARCH_RISCV64 || V8_TARGET_ARCH_RISCV32
+#elif V8_TARGET_ARCH_RISCV64 || V8_TARGET_ARCH_RISCV
 constexpr Condition kEqual = eq;
 constexpr Condition kUnequal = ne;
 constexpr Condition kSignedLessThan = lt;

@@ -115,9 +115,9 @@ constexpr DoubleRegister kFpParamRegisters[] = {fa0, fa1, fa2, fa3,
                                                 fa4, fa5, fa6};
 constexpr DoubleRegister kFpReturnRegisters[] = {fa0, fa1};
 
-#elif V8_TARGET_ARCH_RISCV32
+#elif V8_TARGET_ARCH_RISCV
 
-#error RISCV32 architecture not supported
+#error RISCV(32) architecture not supported
 
 #else
 // ===========================================================================

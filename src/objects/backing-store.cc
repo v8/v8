@@ -39,8 +39,8 @@ constexpr size_t kAddressSpaceLimit = 0x10100000000L;  // 1 TiB + 4 GiB
 constexpr size_t kAddressSpaceLimit = 0xC0000000;  // 3 GiB
 #endif
 
-#if V8_TARGET_ARCH_RISCV32
-#erro unsupported architecture
+#if V8_TARGET_ARCH_RISCV
+#erro RISCV(32) architecture not supported
 #endif
 
 constexpr uint64_t kOneGiB = 1024 * 1024 * 1024;

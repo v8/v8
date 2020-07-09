@@ -52,7 +52,7 @@
 #define V8_HOST_ARCH_RISCV64 1
 #define V8_HOST_ARCH_64_BIT 1
 #elif __riscv_xlen == 32
-#define V8_HOST_ARCH_RISCV32 1
+#define V8_HOST_ARCH_RISCV 1
 #define V8_HOST_ARCH_32_BIT 1
 #else
 #error "Cannot detect Riscv's bitwidth"
@@ -87,7 +87,7 @@
 #if !V8_TARGET_ARCH_X64 && !V8_TARGET_ARCH_IA32 && !V8_TARGET_ARCH_ARM &&      \
     !V8_TARGET_ARCH_ARM64 && !V8_TARGET_ARCH_MIPS && !V8_TARGET_ARCH_MIPS64 && \
     !V8_TARGET_ARCH_PPC && !V8_TARGET_ARCH_S390 && !V8_TARGET_ARCH_RISCV64 &&  \
-    !V8_TARGET_ARCH_RISCV32
+    !V8_TARGET_ARCH_RISCV
 #if defined(_M_X64) || defined(__x86_64__)
 #define V8_TARGET_ARCH_X64 1
 #elif defined(_M_IX86) || defined(__i386__)
@@ -106,7 +106,7 @@
 #if __riscv_xlen == 64
 #define V8_TARGET_ARCH_RISCV64 1
 #elif __riscv_xlen == 32
-#define V8_TARGET_ARCH_RISCV32 1
+#define V8_TARGET_ARCH_RISCV 1
 #endif
 #else
 #error Target architecture was not detected as supported by v8
@@ -146,7 +146,7 @@
 #endif
 #elif V8_TARGET_ARCH_RISCV64
 #define V8_TARGET_ARCH_64_BIT 1
-#elif V8_TARGET_ARCH_RISCV32
+#elif V8_TARGET_ARCH_RISCV
 #define V8_TARGET_ARCH_32_BIT 1
 #else
 #error Unknown target architecture pointer size
@@ -179,9 +179,9 @@
 #if (V8_TARGET_ARCH_RISCV64 && !(V8_HOST_ARCH_X64 || V8_HOST_ARCH_RISCV64))
 #error Target architecture riscv64 is only supported on riscv64 and x64 host
 #endif
-#if (V8_TARGET_ARCH_RISCV32 && \
-     !(V8_HOST_ARCH_X64 || V8_HOST_ARCH_RISCV32 || V8_HOST_ARCH_RISCV64))
-#error Target architecture riscv32 is only supported on riscv32, riscv64, and x64 host
+#if (V8_TARGET_ARCH_RISCV && \
+     !(V8_HOST_ARCH_X64 || V8_HOST_ARCH_RISCV || V8_HOST_ARCH_RISCV64))
+#error Target architecture riscv (32) is only supported on riscv(32), riscv64, and x64 host
 #endif
 
 // Determine architecture endianness.
@@ -217,7 +217,7 @@
 #else
 #define V8_TARGET_BIG_ENDIAN 1
 #endif
-#elif V8_TARGET_ARCH_RISCV64 || V8_TARGET_ARCH_RISCV32
+#elif V8_TARGET_ARCH_RISCV64 || V8_TARGET_ARCH_RISCV
 #define V8_TARGET_LITTLE_ENDIAN 1
 #else
 #error Unknown target architecture endianness

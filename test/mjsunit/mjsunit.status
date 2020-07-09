@@ -142,10 +142,10 @@
   'wasm/compare-exchange64-stress': [PASS, SLOW, NO_VARIANTS],
 
   # Very slow on ARM and MIPS, contains no architecture dependent code.
-  'unicode-case-overoptimization': [PASS, NO_VARIANTS, ['arch in (arm, arm64, mipsel, mips64el, mips64, mips, riscv32, riscv64)', SKIP]],
-  'regress/regress-3976': [PASS, NO_VARIANTS, ['arch in (arm, arm64, mipsel, mips64el, mips64, mips, riscv32, riscv64)', SKIP]],
-  'regress/regress-crbug-482998': [PASS, NO_VARIANTS, ['arch in (arm, arm64, mipsel, mips64el, mips, riscv32, riscv64)', SKIP]],
-  'regress/regress-740784': [PASS, NO_VARIANTS, ['arch in (arm, arm64, mipsel, mips64el, mips, riscv32, riscv64)', SKIP]],
+  'unicode-case-overoptimization': [PASS, NO_VARIANTS, ['arch in (arm, arm64, mipsel, mips64el, mips64, mips, riscv, riscv64)', SKIP]],
+  'regress/regress-3976': [PASS, NO_VARIANTS, ['arch in (arm, arm64, mipsel, mips64el, mips64, mips, riscv, riscv64)', SKIP]],
+  'regress/regress-crbug-482998': [PASS, NO_VARIANTS, ['arch in (arm, arm64, mipsel, mips64el, mips, riscv, riscv64)', SKIP]],
+  'regress/regress-740784': [PASS, NO_VARIANTS, ['arch in (arm, arm64, mipsel, mips64el, mips, riscv, riscv64)', SKIP]],
 
   # TODO(bmeurer): Flaky timeouts (sometimes <1s, sometimes >3m).
   'unicodelctest': [PASS, NO_VARIANTS],
@@ -202,7 +202,7 @@
 
 ##############################################################################
 # TODO(ahaas): Port multiple return values to MIPS, S390 and PPC
-['arch in (mips, mips64, mipsel, mips64el, s390, s390x, ppc, ppc64, riscv32, riscv64)', {
+['arch in (mips, mips64, mipsel, mips64el, s390, s390x, ppc, ppc64, riscv, riscv64)', {
   'wasm/multi-value': [SKIP],
 }],
 
@@ -760,7 +760,7 @@
 
 ##############################################################################
 # copied from mips
-['arch == riscv64 or arch == riscv32', {
+['arch == riscv64 or arch == riscv', {
 
   # Slow tests which times out in debug mode.
   'try': [PASS, ['mode == debug', SKIP]],
@@ -792,10 +792,10 @@
   'regress/regress-752764': [SKIP],
   'regress/regress-779407': [SKIP],
   'harmony/bigint/regressions': [SKIP],
-}],  # 'arch == riscv64 or arch == riscv32'
+}],  # 'arch == riscv64 or arch == riscv'
 
 # copied from mips
-['arch == riscv64 or arch == riscv32', {
+['arch == riscv64 or arch == riscv', {
 
   # Slow tests which times out in debug mode.
   'try': [PASS, ['mode == debug', SKIP]],
@@ -827,10 +827,10 @@
   'regress/regress-752764': [SKIP],
   'regress/regress-779407': [SKIP],
   'harmony/bigint/regressions': [SKIP],
-}],  # 'arch == riscv64 or arch == riscv32'
+}],  # 'arch == riscv64 or arch == riscv'
 
 
-['arch == riscv64 or arch == riscv32', {
+['arch == riscv64 or arch == riscv', {
   'regress/wasm/regress-1032753': [SKIP], #issue 149
   'regress/regress-6196': [SKIP], #issue 131
   'es6/block-conflicts-sloppy': [SKIP], #issue 137
@@ -856,7 +856,7 @@
   'wasm/float-constant-folding': [SKIP],
   'wasm/grow-memory': [SKIP],
   'wasm/import-memory': [SKIP],
-}],  # 'arch == riscv64 or arch == riscv32'
+}],  # 'arch == riscv64 or arch == riscv'
 
 ##############################################################################
 ['system == windows', {

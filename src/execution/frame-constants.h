@@ -386,8 +386,8 @@ inline static int FrameSlotToFPOffset(int slot) {
 #include "src/execution/s390/frame-constants-s390.h"  // NOLINT
 #elif V8_TARGET_ARCH_RISCV64
 #include "src/execution/riscv64/frame-constants-riscv64.h"  // NOLINT
-#elif V8_TARGET_ARCH_RISCV32
-#include "src/execution/riscv32/frame-constants-riscv32.h"  // NOLINT
+#elif V8_TARGET_ARCH_RISCV
+#include "src/execution/riscv/frame-constants-riscv.h"  // NOLINT
 #else
 #error Unsupported target architecture.
 #endif

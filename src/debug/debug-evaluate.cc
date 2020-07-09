@@ -1068,7 +1068,7 @@ void DebugEvaluate::VerifyTransitiveBuiltins(Isolate* isolate) {
   CHECK(!failed);
   // FIXME (RISCV): does RISCV need this?
 #if defined(V8_TARGET_ARCH_PPC) || defined(V8_TARGET_ARCH_MIPS64) || \
-    defined(V8_TARGET_ARCH_RISCV64) || defined(V8_TARGET_ARCH_RISCV32)
+    defined(V8_TARGET_ARCH_RISCV64) || defined(V8_TARGET_ARCH_RISCV)
   // Isolate-independent builtin calls and jumps do not emit reloc infos
   // on PPC. We try to avoid using PC relative code due to performance
   // issue with especially older hardwares.

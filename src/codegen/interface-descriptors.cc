@@ -402,7 +402,7 @@ void WasmAtomicNotifyDescriptor::InitializePlatformSpecific(
 
 // FIXME(RISCV): Review this once atomics are added
 #if !defined(V8_TARGET_ARCH_MIPS) && !defined(V8_TARGET_ARCH_MIPS64) && \
-    !defined(V8_TARGET_ARCH_RISCV64) && !defined(V8_TARGET_ARCH_RISCV32)
+    !defined(V8_TARGET_ARCH_RISCV64) && !defined(V8_TARGET_ARCH_RISCV)
 void WasmI32AtomicWaitDescriptor::InitializePlatformSpecific(
     CallInterfaceDescriptorData* data) {
   DefaultInitializePlatformSpecific(data, kParameterCount);

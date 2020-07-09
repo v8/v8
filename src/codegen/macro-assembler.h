@@ -55,9 +55,9 @@ enum AllocationFlags {
 #elif V8_TARGET_ARCH_RISCV64
 #include "src/codegen/riscv64/constants-riscv64.h"
 #include "src/codegen/riscv64/macro-assembler-riscv64.h"
-#elif V8_TARGET_ARCH_RISCV32
-#include "src/codegen/riscv32/constants-riscv32.h"
-#include "src/codegen/riscv32/macro-assembler-riscv32.h"
+#elif V8_TARGET_ARCH_RISCV
+#include "src/codegen/riscv/constants-riscv.h"
+#include "src/codegen/riscv/macro-assembler-riscv.h"
 #else
 #error Unsupported target architecture.
 #endif

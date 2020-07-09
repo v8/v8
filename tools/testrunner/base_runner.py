@@ -112,7 +112,7 @@ SLOW_ARCHS = [
   "mips64el",
   "s390",
   "s390x",
-  "riscv32",
+  "riscv",
   "riscv64"
 ]
 
@@ -667,7 +667,7 @@ class BaseTestRunner(object):
 
     # FIXME (RISCV): add sim_riscv flags in base_runner.py
     simd_riscv = False 
-      # (self.build_config.arch in ['riscv32', 'riscv64'] and
+      # (self.build_config.arch in ['riscv', 'riscv64'] and
       # self.build_config.riscv_use_simd)
 
     mips_arch_variant = (

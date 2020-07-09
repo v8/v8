@@ -90,7 +90,7 @@ class SimulatorBase {
 #if V8_TARGET_ARCH_MIPS64 || V8_TARGET_ARCH_RISCV64
     // The MIPS64 and RISCV64 calling convention is to sign extend all values,
     // even unsigned ones.
-    // FIXME (RISCV32): what about RISCV32 calling contention?
+    // FIXME (RISCV): what about RISCV calling contention?
     using signed_t = typename std::make_signed<T>::type;
     return static_cast<intptr_t>(static_cast<signed_t>(arg));
 #else
