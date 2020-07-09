@@ -524,7 +524,7 @@ class LoopFinderImpl {
 LoopTree* LoopFinder::BuildLoopTree(Graph* graph, TickCounter* tick_counter,
                                     Zone* zone) {
   LoopTree* loop_tree =
-      new (graph->zone()) LoopTree(graph->NodeCount(), graph->zone());
+      graph->zone()->New<LoopTree>(graph->NodeCount(), graph->zone());
   LoopFinderImpl finder(graph, loop_tree, tick_counter, zone);
   finder.Run();
   if (FLAG_trace_turbo_loop) {

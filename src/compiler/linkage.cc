@@ -74,7 +74,7 @@ MachineSignature* CallDescriptor::GetMachineSignature(Zone* zone) const {
   for (size_t i = 0; i < param_count; ++i) {
     types[current++] = GetParameterType(i);
   }
-  return new (zone) MachineSignature(return_count, param_count, types);
+  return zone->New<MachineSignature>(return_count, param_count, types);
 }
 
 int CallDescriptor::GetFirstUnusedStackSlot() const {
@@ -295,7 +295,7 @@ CallDescriptor* Linkage::GetCEntryStubCallDescriptor(
   MachineType target_type = MachineType::AnyTagged();
   LinkageLocation target_loc =
       LinkageLocation::ForAnyRegister(MachineType::AnyTagged());
-  return new (zone) CallDescriptor(     // --
+  return zone->New<CallDescriptor>(     // --
       CallDescriptor::kCallCodeObject,  // kind
       target_type,                      // target MachineType
       target_loc,                       // target location
@@ -353,7 +353,7 @@ CallDescriptor* Linkage::GetJSCallDescriptor(Zone* zone, bool is_osr,
   LinkageLocation target_loc =
       is_osr ? LinkageLocation::ForSavedCallerFunction()
              : regloc(kJSFunctionRegister, MachineType::AnyTagged());
-  return new (zone) CallDescriptor(     // --
+  return zone->New<CallDescriptor>(     // --
       CallDescriptor::kCallJSFunction,  // kind
       target_type,                      // target MachineType
       target_loc,                       // target location
@@ -452,7 +452,7 @@ CallDescriptor* Linkage::GetStubCallDescriptor(
   }
 
   LinkageLocation target_loc = LinkageLocation::ForAnyRegister(target_type);
-  return new (zone) CallDescriptor(          // --
+  return zone->New<CallDescriptor>(          // --
       kind,                                  // kind
       target_type,                           // target MachineType
       target_loc,                            // target location
@@ -499,7 +499,7 @@ CallDescriptor* Linkage::GetBytecodeDispatchCallDescriptor(
   LinkageLocation target_loc = LinkageLocation::ForAnyRegister(target_type);
   const CallDescriptor::Flags kFlags =
       CallDescriptor::kCanUseRoots | CallDescriptor::kFixedTargetRegister;
-  return new (zone) CallDescriptor(  // --
+  return zone->New<CallDescriptor>(  // --
       CallDescriptor::kCallAddress,  // kind
       target_type,                   // target MachineType
       target_loc,                    // target location

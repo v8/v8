@@ -77,7 +77,7 @@ CodeAssemblerState::CodeAssemblerState(Isolate* isolate, Zone* zone,
                                        PoisoningMitigationLevel poisoning_level,
                                        int32_t builtin_index)
     : raw_assembler_(new RawMachineAssembler(
-          isolate, new (zone) Graph(zone), call_descriptor,
+          isolate, zone->New<Graph>(zone), call_descriptor,
           MachineType::PointerRepresentation(),
           InstructionSelector::SupportedMachineOperatorFlags(),
           InstructionSelector::AlignmentRequirements(), poisoning_level)),
@@ -86,9 +86,9 @@ CodeAssemblerState::CodeAssemblerState(Isolate* isolate, Zone* zone,
       builtin_index_(builtin_index),
       code_generated_(false),
       variables_(zone),
-      jsgraph_(new (zone) JSGraph(
+      jsgraph_(zone->New<JSGraph>(
           isolate, raw_assembler_->graph(), raw_assembler_->common(),
-          new (zone) JSOperatorBuilder(zone), raw_assembler_->simplified(),
+          zone->New<JSOperatorBuilder>(zone), raw_assembler_->simplified(),
           raw_assembler_->machine())) {}
 
 CodeAssemblerState::~CodeAssemblerState() = default;
@@ -135,7 +135,7 @@ void CodeAssembler::BreakOnNode(int node_id) {
   Graph* graph = raw_assembler()->graph();
   Zone* zone = graph->zone();
   GraphDecorator* decorator =
-      new (zone) BreakOnNodeDecorator(static_cast<NodeId>(node_id));
+      zone->New<BreakOnNodeDecorator>(static_cast<NodeId>(node_id));
   graph->AddDecorator(decorator);
 }
 
@@ -1199,9 +1199,7 @@ void CodeAssembler::Branch(TNode<BoolT> condition,
 void CodeAssembler::Switch(Node* index, Label* default_label,
                            const int32_t* case_values, Label** case_labels,
                            size_t case_count) {
-  RawMachineLabel** labels =
-      new (zone()->New(sizeof(RawMachineLabel*) * case_count))
-          RawMachineLabel*[case_count];
+  RawMachineLabel** labels = zone()->NewArray<RawMachineLabel*>(case_count);
   for (size_t i = 0; i < case_count; ++i) {
     labels[i] = case_labels[i]->label_;
     case_labels[i]->MergeVariables();
@@ -1275,8 +1273,8 @@ bool CodeAssemblerVariable::ImplComparator::operator()(
 
 CodeAssemblerVariable::CodeAssemblerVariable(CodeAssembler* assembler,
                                              MachineRepresentation rep)
-    : impl_(new (assembler->zone())
-                Impl(rep, assembler->state()->NextVariableId())),
+    : impl_(assembler->zone()->New<Impl>(rep,
+                                         assembler->state()->NextVariableId())),
       state_(assembler->state()) {
   state_->variables_.insert(impl_);
 }
@@ -1292,8 +1290,8 @@ CodeAssemblerVariable::CodeAssemblerVariable(CodeAssembler* assembler,
 CodeAssemblerVariable::CodeAssemblerVariable(CodeAssembler* assembler,
                                              AssemblerDebugInfo debug_info,
                                              MachineRepresentation rep)
-    : impl_(new (assembler->zone())
-                Impl(rep, assembler->state()->NextVariableId())),
+    : impl_(assembler->zone()->New<Impl>(rep,
+                                         assembler->state()->NextVariableId())),
       state_(assembler->state()) {
   impl_->set_debug_info(debug_info);
   state_->variables_.insert(impl_);
@@ -1361,10 +1359,9 @@ CodeAssemblerLabel::CodeAssemblerLabel(CodeAssembler* assembler,
       merge_count_(0),
       state_(assembler->state()),
       label_(nullptr) {
-  void* buffer = assembler->zone()->New(sizeof(RawMachineLabel));
-  label_ = new (buffer)
-      RawMachineLabel(type == kDeferred ? RawMachineLabel::kDeferred
-                                        : RawMachineLabel::kNonDeferred);
+  label_ = assembler->zone()->New<RawMachineLabel>(
+      type == kDeferred ? RawMachineLabel::kDeferred
+                        : RawMachineLabel::kNonDeferred);
   for (size_t i = 0; i < vars_count; ++i) {
     variable_phis_[vars[i]->impl_] = nullptr;
   }

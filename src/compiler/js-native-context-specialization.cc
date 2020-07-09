@@ -170,7 +170,7 @@ Reduction JSNativeContextSpecialization::ReduceJSToString(Node* node) {
   NumberMatcher number_matcher(input);
   if (number_matcher.HasValue()) {
     const StringConstantBase* base =
-        new (shared_zone()) NumberToStringConstant(number_matcher.Value());
+        shared_zone()->New<NumberToStringConstant>(number_matcher.Value());
     reduction =
         Replace(graph()->NewNode(common()->DelayedStringConstant(base)));
     ReplaceWithValue(node, reduction.replacement());
@@ -187,13 +187,13 @@ JSNativeContextSpecialization::CreateDelayedStringConstant(Node* node) {
   } else {
     NumberMatcher number_matcher(node);
     if (number_matcher.HasValue()) {
-      return new (shared_zone()) NumberToStringConstant(number_matcher.Value());
+      return shared_zone()->New<NumberToStringConstant>(number_matcher.Value());
     } else {
       HeapObjectMatcher matcher(node);
       if (matcher.HasValue() && matcher.Ref(broker()).IsString()) {
         StringRef s = matcher.Ref(broker()).AsString();
-        return new (shared_zone())
-            StringLiteral(s.object(), static_cast<size_t>(s.length()));
+        return shared_zone()->New<StringLiteral>(
+            s.object(), static_cast<size_t>(s.length()));
       } else {
         UNREACHABLE();
       }
@@ -335,7 +335,7 @@ Reduction JSNativeContextSpecialization::ReduceJSAdd(Node* node) {
     const StringConstantBase* left = CreateDelayedStringConstant(lhs);
     const StringConstantBase* right = CreateDelayedStringConstant(rhs);
     const StringConstantBase* cons =
-        new (shared_zone()) StringCons(left, right);
+        shared_zone()->New<StringCons>(left, right);
 
     Node* reduced = graph()->NewNode(common()->DelayedStringConstant(cons));
     ReplaceWithValue(node, reduced);

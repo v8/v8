@@ -266,8 +266,8 @@ class EscapeAnalysisTracker : public ZoneObject {
 
   VirtualObject* NewVirtualObject(int size) {
     if (next_object_id_ >= kMaxTrackedObjects) return nullptr;
-    return new (zone_)
-        VirtualObject(&variable_states_, next_object_id_++, size);
+    return zone_->New<VirtualObject>(&variable_states_, next_object_id_++,
+                                     size);
   }
 
   SparseSidetable<VirtualObject*> virtual_objects_;
@@ -829,7 +829,7 @@ EscapeAnalysis::EscapeAnalysis(JSGraph* jsgraph, TickCounter* tick_counter,
           jsgraph->graph(),
           [this](Node* node, Reduction* reduction) { Reduce(node, reduction); },
           tick_counter, zone),
-      tracker_(new (zone) EscapeAnalysisTracker(jsgraph, this, zone)),
+      tracker_(zone->New<EscapeAnalysisTracker>(jsgraph, this, zone)),
       jsgraph_(jsgraph) {}
 
 Node* EscapeAnalysisResult::GetReplacementOf(Node* node) {
