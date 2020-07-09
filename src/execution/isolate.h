@@ -1528,8 +1528,8 @@ class V8_EXPORT_PRIVATE Isolate final : private HiddenFactory {
 
   bool RequiresCodeRange() const;
 
-  static Address load_from_stack_count_address();
-  static Address store_to_stack_count_address();
+  static Address load_from_stack_count_address(const char* function_name);
+  static Address store_to_stack_count_address(const char* function_name);
 
  private:
   explicit Isolate(std::unique_ptr<IsolateAllocator> isolate_allocator);

@@ -49,7 +49,8 @@ CodeGenerator::CodeGenerator(
     int start_source_position, JumpOptimizationInfo* jump_opt,
     PoisoningMitigationLevel poisoning_level, const AssemblerOptions& options,
     int32_t builtin_index, size_t max_unoptimized_frame_height,
-    size_t max_pushed_argument_count, std::unique_ptr<AssemblerBuffer> buffer)
+    size_t max_pushed_argument_count, std::unique_ptr<AssemblerBuffer> buffer,
+    const char* debug_name)
     : zone_(codegen_zone),
       isolate_(isolate),
       frame_access_state_(nullptr),
@@ -83,7 +84,8 @@ CodeGenerator::CodeGenerator(
       result_(kSuccess),
       poisoning_level_(poisoning_level),
       block_starts_(codegen_zone),
-      instr_starts_(codegen_zone) {
+      instr_starts_(codegen_zone),
+      debug_name_(debug_name) {
   for (int i = 0; i < instructions->InstructionBlockCount(); ++i) {
     new (&labels_[i]) Label;
   }

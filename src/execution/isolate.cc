@@ -3323,10 +3323,12 @@ void Isolate::InitializeCodeRanges() {
 
 namespace {
 
-// Some global counters.
-uint64_t load_from_stack_count = 0;
-uint64_t store_to_stack_count = 0;
-
+// This global counter contains number of stack loads/stores per optimized/wasm
+// function.
+using MapOfLoadsAndStoresPerFunction =
+    std::map<std::string /* function_name */,
+             std::pair<uint64_t /* loads */, uint64_t /* stores */>>;
+MapOfLoadsAndStoresPerFunction* stack_access_count_map = nullptr;
 }  // namespace
 
 bool Isolate::Init(ReadOnlyDeserializer* read_only_deserializer,
@@ -3665,10 +3667,28 @@ std::unique_ptr<PersistentHandles> Isolate::NewPersistentHandles() {
 void Isolate::DumpAndResetStats() {
   if (FLAG_trace_turbo_stack_accesses) {
     StdoutStream os;
-    os << "=== Load from stack counter: " << load_from_stack_count << std::endl;
-    os << "=== Store to stack counter: " << store_to_stack_count << std::endl;
-    load_from_stack_count = 0;
-    store_to_stack_count = 0;
+    uint64_t total_loads = 0;
+    uint64_t total_stores = 0;
+    os << "=== Stack access counters === " << std::endl;
+    if (!stack_access_count_map) {
+      os << "No stack accesses in optimized/wasm functions found.";
+    } else {
+      DCHECK_NOT_NULL(stack_access_count_map);
+      os << "Number of optimized/wasm stack-access functions: "
+         << stack_access_count_map->size() << std::endl;
+      for (auto it = stack_access_count_map->cbegin();
+           it != stack_access_count_map->cend(); it++) {
+        std::string function_name((*it).first);
+        std::pair<uint64_t, uint64_t> per_func_count = (*it).second;
+        os << "Name: " << function_name << ", Loads: " << per_func_count.first
+           << ", Stores: " << per_func_count.second << std::endl;
+        total_loads += per_func_count.first;
+        total_stores += per_func_count.second;
+      }
+      os << "Total Loads: " << total_loads << ", Total Stores: " << total_stores
+         << std::endl;
+      stack_access_count_map = nullptr;
+    }
   }
   if (turbo_statistics() != nullptr) {
     DCHECK(FLAG_turbo_stats || FLAG_turbo_stats_nvp);
@@ -4563,13 +4583,29 @@ void Isolate::RemoveCodeMemoryChunk(MemoryChunk* chunk) {
 #undef TRACE_ISOLATE
 
 // static
-Address Isolate::load_from_stack_count_address() {
-  return reinterpret_cast<Address>(&load_from_stack_count);
+Address Isolate::load_from_stack_count_address(const char* function_name) {
+  DCHECK_NOT_NULL(function_name);
+  if (!stack_access_count_map) {
+    stack_access_count_map = new MapOfLoadsAndStoresPerFunction{};
+  }
+  auto& map = *stack_access_count_map;
+  std::string name(function_name);
+  // It is safe to return the address of std::map values.
+  // Only iterators and references to the erased elements are invalidated.
+  return reinterpret_cast<Address>(&map[name].first);
 }
 
 // static
-Address Isolate::store_to_stack_count_address() {
-  return reinterpret_cast<Address>(&store_to_stack_count);
+Address Isolate::store_to_stack_count_address(const char* function_name) {
+  DCHECK_NOT_NULL(function_name);
+  if (!stack_access_count_map) {
+    stack_access_count_map = new MapOfLoadsAndStoresPerFunction{};
+  }
+  auto& map = *stack_access_count_map;
+  std::string name(function_name);
+  // It is safe to return the address of std::map values.
+  // Only iterators and references to the erased elements are invalidated.
+  return reinterpret_cast<Address>(&map[name].second);
 }
 
 }  // namespace internal

@@ -98,8 +98,6 @@ class StatsCounter;
     "FLAG_mock_arraybuffer_allocator")                                         \
   V(address_of_one_half, "LDoubleConstant::one_half")                          \
   V(address_of_runtime_stats_flag, "TracingFlags::runtime_stats")              \
-  V(address_of_load_from_stack_count, "load_from_stack_count")                 \
-  V(address_of_store_to_stack_count, "store_to_stack_count")                   \
   V(address_of_the_hole_nan, "the_hole_nan")                                   \
   V(address_of_uint32_bias, "uint32_bias")                                     \
   V(bytecode_size_table_address, "Bytecodes::bytecode_size_table_address")     \
@@ -325,6 +323,11 @@ class ExternalReference {
 
   V8_EXPORT_PRIVATE V8_NOINLINE static ExternalReference
   runtime_function_table_address_for_unittests(Isolate* isolate);
+
+  static V8_EXPORT_PRIVATE ExternalReference
+  address_of_load_from_stack_count(const char* function_name);
+  static V8_EXPORT_PRIVATE ExternalReference
+  address_of_store_to_stack_count(const char* function_name);
 
   Address address() const { return address_; }
 

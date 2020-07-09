@@ -423,12 +423,16 @@ ExternalReference ExternalReference::address_of_runtime_stats_flag() {
   return ExternalReference(&TracingFlags::runtime_stats);
 }
 
-ExternalReference ExternalReference::address_of_load_from_stack_count() {
-  return ExternalReference(Isolate::load_from_stack_count_address());
+ExternalReference ExternalReference::address_of_load_from_stack_count(
+    const char* function_name) {
+  return ExternalReference(
+      Isolate::load_from_stack_count_address(function_name));
 }
 
-ExternalReference ExternalReference::address_of_store_to_stack_count() {
-  return ExternalReference(Isolate::store_to_stack_count_address());
+ExternalReference ExternalReference::address_of_store_to_stack_count(
+    const char* function_name) {
+  return ExternalReference(
+      Isolate::store_to_stack_count_address(function_name));
 }
 
 ExternalReference ExternalReference::address_of_one_half() {
