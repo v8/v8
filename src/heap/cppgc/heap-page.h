@@ -152,8 +152,10 @@ class V8_EXPORT_PRIVATE NormalPage final : public BasePage {
     return (PayloadStart() <= address) && (address < PayloadEnd());
   }
 
-  ObjectStartBitmap& object_start_bitmap() { return object_start_bitmap_; }
-  const ObjectStartBitmap& object_start_bitmap() const {
+  PlatformAwareObjectStartBitmap& object_start_bitmap() {
+    return object_start_bitmap_;
+  }
+  const PlatformAwareObjectStartBitmap& object_start_bitmap() const {
     return object_start_bitmap_;
   }
 
@@ -161,7 +163,7 @@ class V8_EXPORT_PRIVATE NormalPage final : public BasePage {
   NormalPage(HeapBase* heap, BaseSpace* space);
   ~NormalPage();
 
-  ObjectStartBitmap object_start_bitmap_;
+  PlatformAwareObjectStartBitmap object_start_bitmap_;
 };
 
 class V8_EXPORT_PRIVATE LargePage final : public BasePage {

@@ -31,7 +31,7 @@ const HeapObjectHeader* ObjectHeaderFromInnerAddressImpl(const BasePage* page,
   if (page->is_large()) {
     return LargePage::From(page)->ObjectHeader();
   }
-  const ObjectStartBitmap& bitmap =
+  const PlatformAwareObjectStartBitmap& bitmap =
       NormalPage::From(page)->object_start_bitmap();
   const HeapObjectHeader* header =
       bitmap.FindHeader(static_cast<ConstAddress>(address));

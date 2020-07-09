@@ -57,7 +57,7 @@ class ObjectStartBitmapVerifier
     return true;
   }
 
-  ObjectStartBitmap* bitmap_ = nullptr;
+  PlatformAwareObjectStartBitmap* bitmap_ = nullptr;
   HeapObjectHeader* prev_ = nullptr;
 };
 
@@ -181,7 +181,7 @@ typename FinalizationBuilder::ResultType SweepNormalPage(NormalPage* page) {
   constexpr auto kAtomicAccess = HeapObjectHeader::AccessMode::kAtomic;
   FinalizationBuilder builder(page);
 
-  ObjectStartBitmap& bitmap = page->object_start_bitmap();
+  PlatformAwareObjectStartBitmap& bitmap = page->object_start_bitmap();
   bitmap.Clear();
 
   Address start_of_gap = page->PayloadStart();
