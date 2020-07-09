@@ -255,7 +255,7 @@ RegExpCompiler::RegExpCompiler(Isolate* isolate, Zone* zone, int capture_count,
       frequency_collator_(),
       isolate_(isolate),
       zone_(zone) {
-  accept_ = new (zone) EndNode(EndNode::ACCEPT, zone);
+  accept_ = zone->New<EndNode>(EndNode::ACCEPT, zone);
   DCHECK_GE(RegExpMacroAssembler::kMaxRegister, next_register_ - 1);
 }
 
@@ -343,7 +343,7 @@ class DynamicBitSet : public ZoneObject {
       first_ |= (1 << value);
     } else {
       if (remaining_ == nullptr)
-        remaining_ = new (zone) ZoneList<unsigned>(1, zone);
+        remaining_ = zone->New<ZoneList<unsigned>>(1, zone);
       if (remaining_->is_empty() || !remaining_->Contains(value))
         remaining_->Add(value, zone);
     }
@@ -631,14 +631,14 @@ void EndNode::Emit(RegExpCompiler* compiler, Trace* trace) {
 }
 
 void GuardedAlternative::AddGuard(Guard* guard, Zone* zone) {
-  if (guards_ == nullptr) guards_ = new (zone) ZoneList<Guard*>(1, zone);
+  if (guards_ == nullptr) guards_ = zone->New<ZoneList<Guard*>>(1, zone);
   guards_->Add(guard, zone);
 }
 
 ActionNode* ActionNode::SetRegisterForLoop(int reg, int val,
                                            RegExpNode* on_success) {
   ActionNode* result =
-      new (on_success->zone()) ActionNode(SET_REGISTER_FOR_LOOP, on_success);
+      on_success->zone()->New<ActionNode>(SET_REGISTER_FOR_LOOP, on_success);
   result->data_.u_store_register.reg = reg;
   result->data_.u_store_register.value = val;
   return result;
@@ -646,7 +646,7 @@ ActionNode* ActionNode::SetRegisterForLoop(int reg, int val,
 
 ActionNode* ActionNode::IncrementRegister(int reg, RegExpNode* on_success) {
   ActionNode* result =
-      new (on_success->zone()) ActionNode(INCREMENT_REGISTER, on_success);
+      on_success->zone()->New<ActionNode>(INCREMENT_REGISTER, on_success);
   result->data_.u_increment_register.reg = reg;
   return result;
 }
@@ -654,7 +654,7 @@ ActionNode* ActionNode::IncrementRegister(int reg, RegExpNode* on_success) {
 ActionNode* ActionNode::StorePosition(int reg, bool is_capture,
                                       RegExpNode* on_success) {
   ActionNode* result =
-      new (on_success->zone()) ActionNode(STORE_POSITION, on_success);
+      on_success->zone()->New<ActionNode>(STORE_POSITION, on_success);
   result->data_.u_position_register.reg = reg;
   result->data_.u_position_register.is_capture = is_capture;
   return result;
@@ -662,7 +662,7 @@ ActionNode* ActionNode::StorePosition(int reg, bool is_capture,
 
 ActionNode* ActionNode::ClearCaptures(Interval range, RegExpNode* on_success) {
   ActionNode* result =
-      new (on_success->zone()) ActionNode(CLEAR_CAPTURES, on_success);
+      on_success->zone()->New<ActionNode>(CLEAR_CAPTURES, on_success);
   result->data_.u_clear_captures.range_from = range.from();
   result->data_.u_clear_captures.range_to = range.to();
   return result;
@@ -671,7 +671,7 @@ ActionNode* ActionNode::ClearCaptures(Interval range, RegExpNode* on_success) {
 ActionNode* ActionNode::BeginSubmatch(int stack_reg, int position_reg,
                                       RegExpNode* on_success) {
   ActionNode* result =
-      new (on_success->zone()) ActionNode(BEGIN_SUBMATCH, on_success);
+      on_success->zone()->New<ActionNode>(BEGIN_SUBMATCH, on_success);
   result->data_.u_submatch.stack_pointer_register = stack_reg;
   result->data_.u_submatch.current_position_register = position_reg;
   return result;
@@ -681,8 +681,8 @@ ActionNode* ActionNode::PositiveSubmatchSuccess(int stack_reg, int position_reg,
                                                 int clear_register_count,
                                                 int clear_register_from,
                                                 RegExpNode* on_success) {
-  ActionNode* result = new (on_success->zone())
-      ActionNode(POSITIVE_SUBMATCH_SUCCESS, on_success);
+  ActionNode* result = on_success->zone()->New<ActionNode>(
+      POSITIVE_SUBMATCH_SUCCESS, on_success);
   result->data_.u_submatch.stack_pointer_register = stack_reg;
   result->data_.u_submatch.current_position_register = position_reg;
   result->data_.u_submatch.clear_register_count = clear_register_count;
@@ -695,7 +695,7 @@ ActionNode* ActionNode::EmptyMatchCheck(int start_register,
                                         int repetition_limit,
                                         RegExpNode* on_success) {
   ActionNode* result =
-      new (on_success->zone()) ActionNode(EMPTY_MATCH_CHECK, on_success);
+      on_success->zone()->New<ActionNode>(EMPTY_MATCH_CHECK, on_success);
   result->data_.u_empty_match_check.start_register = start_register;
   result->data_.u_empty_match_check.repetition_register = repetition_register;
   result->data_.u_empty_match_check.repetition_limit = repetition_limit;
@@ -1262,7 +1262,7 @@ static void EmitCharClass(RegExpMacroAssembler* macro_assembler,
   // Subsequent entries have alternating meaning (success/failure).
   // TODO(jgruber,v8:10568): Change `range_boundaries` to a ZoneList<uc32>.
   ZoneList<int>* range_boundaries =
-      new (zone) ZoneList<int>(last_valid_range, zone);
+      zone->New<ZoneList<int>>(last_valid_range, zone);
 
   bool zeroth_entry_is_failure = !cc->is_negated();
 
@@ -1933,7 +1933,7 @@ RegExpNode* ChoiceNode::FilterOneByte(int depth) {
   // Only some of the nodes survived the filtering.  We need to rebuild the
   // alternatives list.
   ZoneList<GuardedAlternative>* new_alternatives =
-      new (zone()) ZoneList<GuardedAlternative>(surviving, zone());
+      zone()->New<ZoneList<GuardedAlternative>>(surviving, zone());
   for (int i = 0; i < choice_count; i++) {
     RegExpNode* replacement =
         alternatives_->at(i).node()->FilterOneByte(depth - 1);
@@ -2124,7 +2124,7 @@ void AssertionNode::EmitBoundaryCheck(RegExpCompiler* compiler, Trace* trace) {
         Min(kMaxLookaheadForBoyerMoore, EatsAtLeast(not_at_start));
     if (eats_at_least >= 1) {
       BoyerMooreLookahead* bm =
-          new (zone()) BoyerMooreLookahead(eats_at_least, compiler, zone());
+          zone()->New<BoyerMooreLookahead>(eats_at_least, compiler, zone());
       FillInBMInfo(isolate, 0, kRecursionBudget, bm, not_at_start);
       if (bm->at(0)->is_non_word()) next_is_word_character = Trace::FALSE_VALUE;
       if (bm->at(0)->is_word()) next_is_word_character = Trace::TRUE_VALUE;
@@ -2376,11 +2376,11 @@ TextNode* TextNode::CreateForCharacterRanges(Zone* zone,
                                              RegExpNode* on_success,
                                              JSRegExp::Flags flags) {
   DCHECK_NOT_NULL(ranges);
-  ZoneList<TextElement>* elms = new (zone) ZoneList<TextElement>(1, zone);
+  ZoneList<TextElement>* elms = zone->New<ZoneList<TextElement>>(1, zone);
   elms->Add(TextElement::CharClass(
-                new (zone) RegExpCharacterClass(zone, ranges, flags)),
+                zone->New<RegExpCharacterClass>(zone, ranges, flags)),
             zone);
-  return new (zone) TextNode(elms, read_backward, on_success);
+  return zone->New<TextNode>(elms, read_backward, on_success);
 }
 
 TextNode* TextNode::CreateForSurrogatePair(Zone* zone, CharacterRange lead,
@@ -2390,14 +2390,14 @@ TextNode* TextNode::CreateForSurrogatePair(Zone* zone, CharacterRange lead,
                                            JSRegExp::Flags flags) {
   ZoneList<CharacterRange>* lead_ranges = CharacterRange::List(zone, lead);
   ZoneList<CharacterRange>* trail_ranges = CharacterRange::List(zone, trail);
-  ZoneList<TextElement>* elms = new (zone) ZoneList<TextElement>(2, zone);
+  ZoneList<TextElement>* elms = zone->New<ZoneList<TextElement>>(2, zone);
   elms->Add(TextElement::CharClass(
-                new (zone) RegExpCharacterClass(zone, lead_ranges, flags)),
+                zone->New<RegExpCharacterClass>(zone, lead_ranges, flags)),
             zone);
   elms->Add(TextElement::CharClass(
-                new (zone) RegExpCharacterClass(zone, trail_ranges, flags)),
+                zone->New<RegExpCharacterClass>(zone, trail_ranges, flags)),
             zone);
-  return new (zone) TextNode(elms, read_backward, on_success);
+  return zone->New<TextNode>(elms, read_backward, on_success);
 }
 
 // This generates the code to match a text node.  A text node can contain
@@ -2721,9 +2721,9 @@ BoyerMooreLookahead::BoyerMooreLookahead(int length, RegExpCompiler* compiler,
     : length_(length),
       compiler_(compiler),
       max_char_(MaxCodeUnit(compiler->one_byte())) {
-  bitmaps_ = new (zone) ZoneList<BoyerMoorePositionInfo*>(length, zone);
+  bitmaps_ = zone->New<ZoneList<BoyerMoorePositionInfo*>>(length, zone);
   for (int i = 0; i < length; i++) {
-    bitmaps_->Add(new (zone) BoyerMoorePositionInfo(), zone);
+    bitmaps_->Add(zone->New<BoyerMoorePositionInfo>(), zone);
   }
 }
 
@@ -3150,7 +3150,7 @@ int ChoiceNode::EmitOptimizedUnanchoredSearch(RegExpCompiler* compiler,
   if (bm == nullptr) {
     eats_at_least = Min(kMaxLookaheadForBoyerMoore, EatsAtLeast(false));
     if (eats_at_least >= 1) {
-      bm = new (zone()) BoyerMooreLookahead(eats_at_least, compiler, zone());
+      bm = zone()->New<BoyerMooreLookahead>(eats_at_least, compiler, zone());
       GuardedAlternative alt0 = alternatives_->at(0);
       alt0.node()->FillInBMInfo(isolate, 0, kRecursionBudget, bm, false);
     }
@@ -3809,7 +3809,7 @@ RegExpNode* RegExpCompiler::OptionallyStepBackToLeadSurrogate(
   ZoneList<CharacterRange>* trail_surrogates = CharacterRange::List(
       zone(), CharacterRange::Range(kTrailSurrogateStart, kTrailSurrogateEnd));
 
-  ChoiceNode* optional_step_back = new (zone()) ChoiceNode(2, zone());
+  ChoiceNode* optional_step_back = zone()->New<ChoiceNode>(2, zone());
 
   int stack_register = UnicodeLookaroundStackRegister();
   int position_register = UnicodeLookaroundPositionRegister();
@@ -3840,16 +3840,16 @@ RegExpNode* RegExpCompiler::PreprocessRegExp(RegExpCompileData* data,
     JSRegExp::Flags default_flags = JSRegExp::Flags();
     RegExpNode* loop_node = RegExpQuantifier::ToNode(
         0, RegExpTree::kInfinity, false,
-        new (zone()) RegExpCharacterClass('*', default_flags), this,
+        zone()->New<RegExpCharacterClass>('*', default_flags), this,
         captured_body, data->contains_anchor);
 
     if (data->contains_anchor) {
       // Unroll loop once, to take care of the case that might start
       // at the start of input.
-      ChoiceNode* first_step_node = new (zone()) ChoiceNode(2, zone());
+      ChoiceNode* first_step_node = zone()->New<ChoiceNode>(2, zone());
       first_step_node->AddAlternative(GuardedAlternative(captured_body));
-      first_step_node->AddAlternative(GuardedAlternative(new (zone()) TextNode(
-          new (zone()) RegExpCharacterClass('*', default_flags), false,
+      first_step_node->AddAlternative(GuardedAlternative(zone()->New<TextNode>(
+          zone()->New<RegExpCharacterClass>('*', default_flags), false,
           loop_node)));
       node = first_step_node;
     } else {
@@ -3867,7 +3867,7 @@ RegExpNode* RegExpCompiler::PreprocessRegExp(RegExpCompileData* data,
     node = OptionallyStepBackToLeadSurrogate(node, flags);
   }
 
-  if (node == nullptr) node = new (zone()) EndNode(EndNode::BACKTRACK, zone());
+  if (node == nullptr) node = zone()->New<EndNode>(EndNode::BACKTRACK, zone());
   return node;
 }
 

@@ -508,7 +508,7 @@ static bool NotWord(uc16 c) {
 static void TestCharacterClassEscapes(uc16 c, bool (pred)(uc16 c)) {
   Zone zone(CcTest::i_isolate()->allocator(), ZONE_NAME);
   ZoneList<CharacterRange>* ranges =
-      new(&zone) ZoneList<CharacterRange>(2, &zone);
+      zone.New<ZoneList<CharacterRange>>(2, &zone);
   CharacterRange::AddClassEscape(c, ranges, &zone);
   for (uc32 i = 0; i < (1 << 16); i++) {
     bool in_class = false;
@@ -1415,7 +1415,7 @@ static void TestRangeCaseIndependence(Isolate* isolate, CharacterRange input,
   Zone zone(CcTest::i_isolate()->allocator(), ZONE_NAME);
   int count = expected.length();
   ZoneList<CharacterRange>* list =
-      new(&zone) ZoneList<CharacterRange>(count, &zone);
+      zone.New<ZoneList<CharacterRange>>(count, &zone);
   list->Add(input, &zone);
   CharacterRange::AddCaseEquivalents(isolate, &zone, list, false);
   list->Remove(0);  // Remove the input before checking results.
@@ -1486,8 +1486,7 @@ static bool InClass(uc32 c,
 
 TEST(UnicodeRangeSplitter) {
   Zone zone(CcTest::i_isolate()->allocator(), ZONE_NAME);
-  ZoneList<CharacterRange>* base =
-      new(&zone) ZoneList<CharacterRange>(1, &zone);
+  ZoneList<CharacterRange>* base = zone.New<ZoneList<CharacterRange>>(1, &zone);
   base->Add(CharacterRange::Everything(), &zone);
   UnicodeRangeSplitter splitter(base);
   // BMP
@@ -1530,8 +1529,7 @@ TEST(UnicodeRangeSplitter) {
 
 TEST(CanonicalizeCharacterSets) {
   Zone zone(CcTest::i_isolate()->allocator(), ZONE_NAME);
-  ZoneList<CharacterRange>* list =
-      new(&zone) ZoneList<CharacterRange>(4, &zone);
+  ZoneList<CharacterRange>* list = zone.New<ZoneList<CharacterRange>>(4, &zone);
   CharacterSet set(list);
 
   list->Add(CharacterRange::Range(10, 20), &zone);

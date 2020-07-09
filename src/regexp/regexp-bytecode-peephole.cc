@@ -166,6 +166,10 @@ class BytecodeSequenceNode {
   Zone* zone_;
 };
 
+// These definitions are here in order to please the linker, which in debug mode
+// sometimes requires static constants to be defined in .cc files.
+constexpr int BytecodeSequenceNode::kDummyBytecode;
+
 class RegExpBytecodePeephole {
  public:
   RegExpBytecodePeephole(Zone* zone, size_t buffer_size,
@@ -281,12 +285,9 @@ BytecodeSequenceNode::BytecodeSequenceNode(int bytecode, Zone* zone)
       start_offset_(0),
       parent_(nullptr),
       children_(ZoneUnorderedMap<int, BytecodeSequenceNode*>(zone)),
-      argument_mapping_(new (zone->New(sizeof(*argument_mapping_)))
-                            ZoneVector<BytecodeArgumentMapping>(zone)),
-      argument_check_(new (zone->New(sizeof(*argument_check_)))
-                          ZoneLinkedList<BytecodeArgumentCheck>(zone)),
-      argument_ignored_(new (zone->New(sizeof(*argument_ignored_)))
-                            ZoneLinkedList<BytecodeArgument>(zone)),
+      argument_mapping_(zone->New<ZoneVector<BytecodeArgumentMapping>>(zone)),
+      argument_check_(zone->New<ZoneLinkedList<BytecodeArgumentCheck>>(zone)),
+      argument_ignored_(zone->New<ZoneLinkedList<BytecodeArgument>>(zone)),
       zone_(zone) {}
 
 BytecodeSequenceNode& BytecodeSequenceNode::FollowedBy(int bytecode) {
@@ -294,8 +295,7 @@ BytecodeSequenceNode& BytecodeSequenceNode::FollowedBy(int bytecode) {
 
   if (children_.find(bytecode) == children_.end()) {
     BytecodeSequenceNode* new_node =
-        new (zone()->New(sizeof(BytecodeSequenceNode)))
-            BytecodeSequenceNode(bytecode, zone());
+        zone()->New<BytecodeSequenceNode>(bytecode, zone());
     // If node is not the first in the sequence, set offsets and parent.
     if (bytecode_ != kDummyBytecode) {
       new_node->start_offset_ = start_offset_ + RegExpBytecodeLength(bytecode_);
@@ -478,7 +478,7 @@ RegExpBytecodePeephole::RegExpBytecodePeephole(
     Zone* zone, size_t buffer_size,
     const ZoneUnorderedMap<int, int>& jump_edges)
     : optimized_bytecode_buffer_(zone),
-      sequences_(new (zone->New(sizeof(*sequences_))) BytecodeSequenceNode(
+      sequences_(zone->New<BytecodeSequenceNode>(
           BytecodeSequenceNode::kDummyBytecode, zone)),
       jump_edges_(zone),
       jump_edges_mapped_(zone),
