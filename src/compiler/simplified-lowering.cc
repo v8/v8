@@ -1199,8 +1199,7 @@ class RepresentationSelector {
     } else if (lower<T>()) {
       Zone* zone = jsgraph_->zone();
       ZoneVector<MachineType>* types =
-          new (zone->New(sizeof(ZoneVector<MachineType>)))
-              ZoneVector<MachineType>(node->InputCount(), zone);
+          zone->New<ZoneVector<MachineType>>(node->InputCount(), zone);
       for (int i = 0; i < node->InputCount(); i++) {
         Node* input = node->InputAt(i);
         // TODO(nicohartmann): Remove, once the deoptimizer can rematerialize
@@ -1250,8 +1249,7 @@ class RepresentationSelector {
         node->ReplaceInput(2, jsgraph_->SingleDeadTypedStateValues());
       } else {
         ZoneVector<MachineType>* types =
-            new (zone->New(sizeof(ZoneVector<MachineType>)))
-                ZoneVector<MachineType>(1, zone);
+            zone->New<ZoneVector<MachineType>>(1, zone);
         (*types)[0] = DeoptMachineTypeOf(GetInfo(accumulator)->representation(),
                                          TypeOf(accumulator));
 
@@ -1283,8 +1281,7 @@ class RepresentationSelector {
     } else if (lower<T>()) {
       Zone* zone = jsgraph_->zone();
       ZoneVector<MachineType>* types =
-          new (zone->New(sizeof(ZoneVector<MachineType>)))
-              ZoneVector<MachineType>(node->InputCount(), zone);
+          zone->New<ZoneVector<MachineType>>(node->InputCount(), zone);
       for (int i = 0; i < node->InputCount(); i++) {
         Node* input = node->InputAt(i);
         (*types)[i] =

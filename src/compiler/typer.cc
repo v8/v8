@@ -47,7 +47,7 @@ Typer::Typer(JSHeapBroker* broker, Flags flags, Graph* graph,
   singleton_false_ = operation_typer_.singleton_false();
   singleton_true_ = operation_typer_.singleton_true();
 
-  decorator_ = new (zone()) Decorator(this);
+  decorator_ = zone()->New<Decorator>(this);
   graph_->AddDecorator(decorator_);
 }
 

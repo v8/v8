@@ -143,8 +143,7 @@ class UnobservablesSet final {
   explicit UnobservablesSet(const SetT* set) : set_(set) {}
 
   static SetT* NewSet(Zone* zone) {
-    return new (zone->New(sizeof(UnobservablesSet::SetT)))
-        UnobservablesSet::SetT(zone, kNotPresent);
+    return zone->New<UnobservablesSet::SetT>(zone, kNotPresent);
   }
 
   static void SetAdd(SetT* set, const KeyT& key) { set->Set(key, kPresent); }
@@ -154,6 +153,11 @@ class UnobservablesSet final {
 
   const SetT* set_ = nullptr;
 };
+
+// These definitions are here in order to please the linker, which in debug mode
+// sometimes requires static constants to be defined in .cc files.
+constexpr UnobservablesSet::ValueT UnobservablesSet::kNotPresent;
+constexpr UnobservablesSet::ValueT UnobservablesSet::kPresent;
 
 class RedundantStoreFinder final {
  public:

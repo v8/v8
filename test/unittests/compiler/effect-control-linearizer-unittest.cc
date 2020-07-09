@@ -32,8 +32,8 @@ class EffectControlLinearizerTest : public GraphTest {
         simplified_(zone()),
         jsgraph_(isolate(), graph(), common(), &javascript_, &simplified_,
                  &machine_) {
-    source_positions_ = new (zone()) SourcePositionTable(graph());
-    node_origins_ = new (zone()) NodeOriginTable(graph());
+    source_positions_ = zone()->New<SourcePositionTable>(graph());
+    node_origins_ = zone()->New<NodeOriginTable>(graph());
   }
 
   JSGraph* jsgraph() { return &jsgraph_; }

@@ -48,8 +48,8 @@ class InstructionTester : public HandleAndZoneScope {
     }
     InstructionBlocks* instruction_blocks =
         TestInstrSeq::InstructionBlocksFor(main_zone(), &schedule);
-    code = new (main_zone())
-        TestInstrSeq(main_isolate(), main_zone(), instruction_blocks);
+    code = main_zone()->New<TestInstrSeq>(main_isolate(), main_zone(),
+                                          instruction_blocks);
   }
 
   Node* Int32Constant(int32_t val) {

@@ -22,8 +22,8 @@ RawMachineAssembler::RawMachineAssembler(
     PoisoningMitigationLevel poisoning_level)
     : isolate_(isolate),
       graph_(graph),
-      schedule_(new (zone()) Schedule(zone())),
-      source_positions_(new (zone()) SourcePositionTable(graph)),
+      schedule_(zone()->New<Schedule>(zone())),
+      source_positions_(zone()->New<SourcePositionTable>(graph)),
       machine_(zone(), word, flags, alignment_requirements),
       common_(zone()),
       simplified_(zone()),
@@ -810,8 +810,7 @@ BasicBlock* RawMachineAssembler::CurrentBlock() {
 
 Node* RawMachineAssembler::Phi(MachineRepresentation rep, int input_count,
                                Node* const* inputs) {
-  Node** buffer = new (zone()->New(sizeof(Node*) * (input_count + 1)))
-      Node*[input_count + 1];
+  Node** buffer = zone()->NewArray<Node*>(input_count + 1);
   std::copy(inputs, inputs + input_count, buffer);
   buffer[input_count] = graph()->start();
   return AddNode(common()->Phi(rep, input_count), input_count + 1, buffer);

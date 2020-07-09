@@ -1084,7 +1084,7 @@ const Operator* MachineOperatorBuilder::StackSlot(int size, int alignment) {
   STACK_SLOT_CACHED_SIZES_ALIGNMENTS_LIST(CASE_CACHED_SIZE)
 
 #undef CASE_CACHED_SIZE
-  return new (zone_) StackSlotOperator(size, alignment);
+  return zone_->New<StackSlotOperator>(size, alignment);
 }
 
 const Operator* MachineOperatorBuilder::StackSlot(MachineRepresentation rep,
@@ -1187,7 +1187,7 @@ const Operator* MachineOperatorBuilder::DebugBreak() {
 }
 
 const Operator* MachineOperatorBuilder::Comment(const char* msg) {
-  return new (zone_) CommentOperator(msg);
+  return zone_->New<CommentOperator>(msg);
 }
 
 const Operator* MachineOperatorBuilder::MemBarrier() {
@@ -1466,7 +1466,7 @@ const Operator* MachineOperatorBuilder::Word64PoisonOnSpeculation() {
   const Operator* MachineOperatorBuilder::Type##ExtractLane##Sign(             \
       int32_t lane_index) {                                                    \
     DCHECK(0 <= lane_index && lane_index < lane_count);                        \
-    return new (zone_) Operator1<int32_t>(                                     \
+    return zone_->New<Operator1<int32_t>>(                                     \
         IrOpcode::k##Type##ExtractLane##Sign, Operator::kPure, "Extract lane", \
         1, 0, 0, 1, 0, 0, lane_index);                                         \
   }
@@ -1480,13 +1480,13 @@ EXTRACT_LANE_OP(I8x16, U, 16)
 EXTRACT_LANE_OP(I8x16, S, 16)
 #undef EXTRACT_LANE_OP
 
-#define REPLACE_LANE_OP(Type, lane_count)                                   \
-  const Operator* MachineOperatorBuilder::Type##ReplaceLane(                \
-      int32_t lane_index) {                                                 \
-    DCHECK(0 <= lane_index && lane_index < lane_count);                     \
-    return new (zone_)                                                      \
-        Operator1<int32_t>(IrOpcode::k##Type##ReplaceLane, Operator::kPure, \
-                           "Replace lane", 2, 0, 0, 1, 0, 0, lane_index);   \
+#define REPLACE_LANE_OP(Type, lane_count)                                     \
+  const Operator* MachineOperatorBuilder::Type##ReplaceLane(                  \
+      int32_t lane_index) {                                                   \
+    DCHECK(0 <= lane_index && lane_index < lane_count);                       \
+    return zone_->New<Operator1<int32_t>>(IrOpcode::k##Type##ReplaceLane,     \
+                                          Operator::kPure, "Replace lane", 2, \
+                                          0, 0, 1, 0, 0, lane_index);         \
   }
 SIMD_LANE_OP_LIST(REPLACE_LANE_OP)
 #undef REPLACE_LANE_OP
@@ -1494,9 +1494,9 @@ SIMD_LANE_OP_LIST(REPLACE_LANE_OP)
 const Operator* MachineOperatorBuilder::I64x2ReplaceLaneI32Pair(
     int32_t lane_index) {
   DCHECK(0 <= lane_index && lane_index < 2);
-  return new (zone_)
-      Operator1<int32_t>(IrOpcode::kI64x2ReplaceLaneI32Pair, Operator::kPure,
-                         "Replace lane", 3, 0, 0, 1, 0, 0, lane_index);
+  return zone_->New<Operator1<int32_t>>(IrOpcode::kI64x2ReplaceLaneI32Pair,
+                                        Operator::kPure, "Replace lane", 3, 0,
+                                        0, 1, 0, 0, lane_index);
 }
 
 bool operator==(S128ImmediateParameter const& lhs,
@@ -1528,14 +1528,14 @@ S128ImmediateParameter const& S128ImmediateParameterOf(Operator const* op) {
 }
 
 const Operator* MachineOperatorBuilder::S128Const(const uint8_t value[16]) {
-  return new (zone_) Operator1<S128ImmediateParameter>(
+  return zone_->New<Operator1<S128ImmediateParameter>>(
       IrOpcode::kS128Const, Operator::kPure, "Immediate", 0, 0, 0, 1, 0, 0,
       S128ImmediateParameter(value));
 }
 
 const Operator* MachineOperatorBuilder::S8x16Shuffle(
     const uint8_t shuffle[16]) {
-  return new (zone_) Operator1<S128ImmediateParameter>(
+  return zone_->New<Operator1<S128ImmediateParameter>>(
       IrOpcode::kS8x16Shuffle, Operator::kPure, "Shuffle", 2, 0, 0, 1, 0, 0,
       S128ImmediateParameter(shuffle));
 }

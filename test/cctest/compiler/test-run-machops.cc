@@ -1210,8 +1210,7 @@ TEST(RunSwitch4) {
   Node* results[kNumValues];
   for (size_t i = 0; i < kNumCases; ++i) {
     case_values[i] = static_cast<int32_t>(i);
-    case_labels[i] =
-        new (m.main_zone()->New(sizeof(RawMachineLabel))) RawMachineLabel;
+    case_labels[i] = m.main_zone()->New<RawMachineLabel>();
   }
   m.Switch(m.Parameter(0), &def, case_values, case_labels,
            arraysize(case_labels));
@@ -6859,7 +6858,7 @@ TEST(RunComputedCodeObject) {
   CallDescriptor* c = Linkage::GetSimplifiedCDescriptor(r.zone(), &sig);
   LinkageLocation ret[] = {c->GetReturnLocation(0)};
   Signature<LinkageLocation> loc(1, 0, ret);
-  auto call_descriptor = new (r.zone()) CallDescriptor(  // --
+  auto call_descriptor = r.zone()->New<CallDescriptor>(  // --
       CallDescriptor::kCallCodeObject,                   // kind
       MachineType::AnyTagged(),                          // target_type
       c->GetInputLocation(0),                            // target_loc

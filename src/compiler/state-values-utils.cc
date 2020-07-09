@@ -127,7 +127,7 @@ Node* StateValuesCache::GetValuesNodeFromCache(Node** nodes, size_t count,
     int node_count = static_cast<int>(count);
     node = graph()->NewNode(common()->StateValues(node_count, mask), node_count,
                             nodes);
-    NodeKey* new_key = new (zone()->New(sizeof(NodeKey))) NodeKey(node);
+    NodeKey* new_key = zone()->New<NodeKey>(node);
     lookup->key = new_key;
     lookup->value = node;
   } else {

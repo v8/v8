@@ -563,17 +563,17 @@ class TestEnvironment : public HandleAndZoneScope {
     test_signature.AddReturn(LinkageLocation::ForRegister(
         kReturnRegister0.code(), MachineType::AnyTagged()));
 
-    test_descriptor_ = new (main_zone())
-        CallDescriptor(CallDescriptor::kCallCodeObject,  // kind
-                       MachineType::AnyTagged(),         // target MachineType
-                       LinkageLocation::ForAnyRegister(
-                           MachineType::AnyTagged()),  // target location
-                       test_signature.Build(),         // location_sig
-                       kTotalStackParameterCount,      // stack_parameter_count
-                       Operator::kNoProperties,        // properties
-                       kNoCalleeSaved,                 // callee-saved registers
-                       kNoCalleeSaved,                 // callee-saved fp
-                       CallDescriptor::kNoFlags);      // flags
+    test_descriptor_ = main_zone()->New<CallDescriptor>(
+        CallDescriptor::kCallCodeObject,  // kind
+        MachineType::AnyTagged(),         // target MachineType
+        LinkageLocation::ForAnyRegister(
+            MachineType::AnyTagged()),  // target location
+        test_signature.Build(),         // location_sig
+        kTotalStackParameterCount,      // stack_parameter_count
+        Operator::kNoProperties,        // properties
+        kNoCalleeSaved,                 // callee-saved registers
+        kNoCalleeSaved,                 // callee-saved fp
+        CallDescriptor::kNoFlags);      // flags
   }
 
   int AllocateConstant(Constant constant) {
@@ -834,7 +834,7 @@ class TestEnvironment : public HandleAndZoneScope {
   // Generate parallel moves at random. Note that they may not be compatible
   // between each other as this doesn't matter to the code generator.
   ParallelMove* GenerateRandomMoves(int size) {
-    ParallelMove* parallel_move = new (main_zone()) ParallelMove(main_zone());
+    ParallelMove* parallel_move = main_zone()->New<ParallelMove>(main_zone());
 
     for (int i = 0; i < size;) {
       MachineRepresentation rep = CreateRandomMachineRepresentation();
@@ -852,7 +852,7 @@ class TestEnvironment : public HandleAndZoneScope {
   }
 
   ParallelMove* GenerateRandomSwaps(int size) {
-    ParallelMove* parallel_move = new (main_zone()) ParallelMove(main_zone());
+    ParallelMove* parallel_move = main_zone()->New<ParallelMove>(main_zone());
 
     for (int i = 0; i < size;) {
       MachineRepresentation rep = CreateRandomMachineRepresentation();
@@ -916,7 +916,7 @@ class TestEnvironment : public HandleAndZoneScope {
   }
 
   static InstructionBlock* NewBlock(Zone* zone, RpoNumber rpo) {
-    return new (zone) InstructionBlock(zone, rpo, RpoNumber::Invalid(),
+    return zone->New<InstructionBlock>(zone, rpo, RpoNumber::Invalid(),
                                        RpoNumber::Invalid(), false, false);
   }
 

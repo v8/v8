@@ -52,7 +52,7 @@ Schedule* Scheduler::ComputeSchedule(Zone* zone, Graph* graph, Flags flags,
   size_t node_count_hint = node_hint_multiplier * graph->NodeCount();
 
   Schedule* schedule =
-      new (schedule_zone) Schedule(schedule_zone, node_count_hint);
+      schedule_zone->New<Schedule>(schedule_zone, node_count_hint);
   Scheduler scheduler(zone, graph, schedule, flags, node_count_hint,
                       tick_counter);
 
@@ -614,11 +614,11 @@ void Scheduler::BuildCFG() {
   TRACE("--- CREATING CFG -------------------------------------------\n");
 
   // Instantiate a new control equivalence algorithm for the graph.
-  equivalence_ = new (zone_) ControlEquivalence(zone_, graph_);
+  equivalence_ = zone_->New<ControlEquivalence>(zone_, graph_);
 
   // Build a control-flow graph for the main control-connected component that
   // is being spanned by the graph's start and end nodes.
-  control_flow_builder_ = new (zone_) CFGBuilder(zone_, this);
+  control_flow_builder_ = zone_->New<CFGBuilder>(zone_, this);
   control_flow_builder_->Run();
 
   // Initialize per-block data.
@@ -724,8 +724,7 @@ class SpecialRPONumberer : public ZoneObject {
 
     void AddOutgoing(Zone* zone, BasicBlock* block) {
       if (outgoing == nullptr) {
-        outgoing = new (zone->New(sizeof(ZoneVector<BasicBlock*>)))
-            ZoneVector<BasicBlock*>(zone);
+        outgoing = zone->New<ZoneVector<BasicBlock*>>(zone);
       }
       outgoing->push_back(block);
     }
@@ -759,7 +758,7 @@ class SpecialRPONumberer : public ZoneObject {
   BasicBlock* BeyondEndSentinel() {
     if (beyond_end_ == nullptr) {
       BasicBlock::Id id = BasicBlock::Id::FromInt(-1);
-      beyond_end_ = new (schedule_->zone()) BasicBlock(schedule_->zone(), id);
+      beyond_end_ = schedule_->zone()->New<BasicBlock>(schedule_->zone(), id);
     }
     return beyond_end_;
   }
@@ -978,8 +977,8 @@ class SpecialRPONumberer : public ZoneObject {
       size_t loop_num = GetLoopNumber(header);
       if (loops_[loop_num].header == nullptr) {
         loops_[loop_num].header = header;
-        loops_[loop_num].members = new (zone_)
-            BitVector(static_cast<int>(schedule_->BasicBlockCount()), zone_);
+        loops_[loop_num].members = zone_->New<BitVector>(
+            static_cast<int>(schedule_->BasicBlockCount()), zone_);
       }
 
       int queue_length = 0;
@@ -1135,7 +1134,7 @@ void Scheduler::ComputeSpecialRPONumbering() {
   TRACE("--- COMPUTING SPECIAL RPO ----------------------------------\n");
 
   // Compute the special reverse-post-order for basic blocks.
-  special_rpo_ = new (zone_) SpecialRPONumberer(zone_, schedule_);
+  special_rpo_ = zone_->New<SpecialRPONumberer>(zone_, schedule_);
   special_rpo_->ComputeSpecialRPO();
 }
 
@@ -1671,8 +1670,7 @@ class ScheduleLateNodeVisitor {
     schedule_->PlanNode(block, node);
     size_t block_id = block->id().ToSize();
     if (!scheduler_->scheduled_nodes_[block_id]) {
-      scheduler_->scheduled_nodes_[block_id] =
-          new (zone_->New(sizeof(NodeVector))) NodeVector(zone_);
+      scheduler_->scheduled_nodes_[block_id] = zone_->New<NodeVector>(zone_);
     }
     scheduler_->scheduled_nodes_[block_id]->push_back(node);
     scheduler_->UpdatePlacement(node, Scheduler::kScheduled);

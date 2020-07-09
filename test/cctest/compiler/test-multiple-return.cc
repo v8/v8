@@ -146,7 +146,7 @@ void TestReturnMultipleValues(MachineType type) {
       HandleAndZoneScope handles;
       RawMachineAssembler m(
           handles.main_isolate(),
-          new (handles.main_zone()) Graph(handles.main_zone()), desc,
+          handles.main_zone()->New<Graph>(handles.main_zone()), desc,
           MachineType::PointerRepresentation(),
           InstructionSelector::SupportedMachineOperatorFlags());
 
@@ -255,7 +255,7 @@ void ReturnLastValue(MachineType type) {
 
     HandleAndZoneScope handles;
     RawMachineAssembler m(handles.main_isolate(),
-                          new (handles.main_zone()) Graph(handles.main_zone()),
+                          handles.main_zone()->New<Graph>(handles.main_zone()),
                           desc, MachineType::PointerRepresentation(),
                           InstructionSelector::SupportedMachineOperatorFlags());
 
@@ -318,7 +318,7 @@ void ReturnSumOfReturns(MachineType type) {
 
     HandleAndZoneScope handles;
     RawMachineAssembler m(handles.main_isolate(),
-                          new (handles.main_zone()) Graph(handles.main_zone()),
+                          handles.main_zone()->New<Graph>(handles.main_zone()),
                           desc, MachineType::PointerRepresentation(),
                           InstructionSelector::SupportedMachineOperatorFlags());
 

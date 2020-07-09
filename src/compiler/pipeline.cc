@@ -158,22 +158,22 @@ class PipelineData {
         register_allocation_zone_(register_allocation_zone_scope_.zone()),
         assembler_options_(AssemblerOptions::Default(isolate)) {
     PhaseScope scope(pipeline_statistics, "V8.TFInitPipelineData");
-    graph_ = new (graph_zone_) Graph(graph_zone_);
-    source_positions_ = new (graph_zone_) SourcePositionTable(graph_);
-    node_origins_ = info->trace_turbo_json() ? new (graph_zone_)
-                                                   NodeOriginTable(graph_)
-                                             : nullptr;
-    simplified_ = new (graph_zone_) SimplifiedOperatorBuilder(graph_zone_);
-    machine_ = new (graph_zone_) MachineOperatorBuilder(
+    graph_ = graph_zone_->New<Graph>(graph_zone_);
+    source_positions_ = graph_zone_->New<SourcePositionTable>(graph_);
+    node_origins_ = info->trace_turbo_json()
+                        ? graph_zone_->New<NodeOriginTable>(graph_)
+                        : nullptr;
+    simplified_ = graph_zone_->New<SimplifiedOperatorBuilder>(graph_zone_);
+    machine_ = graph_zone_->New<MachineOperatorBuilder>(
         graph_zone_, MachineType::PointerRepresentation(),
         InstructionSelector::SupportedMachineOperatorFlags(),
         InstructionSelector::AlignmentRequirements());
-    common_ = new (graph_zone_) CommonOperatorBuilder(graph_zone_);
-    javascript_ = new (graph_zone_) JSOperatorBuilder(graph_zone_);
-    jsgraph_ = new (graph_zone_)
-        JSGraph(isolate_, graph_, common_, javascript_, simplified_, machine_);
+    common_ = graph_zone_->New<CommonOperatorBuilder>(graph_zone_);
+    javascript_ = graph_zone_->New<JSOperatorBuilder>(graph_zone_);
+    jsgraph_ = graph_zone_->New<JSGraph>(isolate_, graph_, common_, javascript_,
+                                         simplified_, machine_);
     dependencies_ =
-        new (info_->zone()) CompilationDependencies(broker_, info_->zone());
+        info_->zone()->New<CompilationDependencies>(broker_, info_->zone());
   }
 
   // For WebAssembly compile entry point.
@@ -243,14 +243,14 @@ class PipelineData {
       common_ = jsgraph->common();
       javascript_ = jsgraph->javascript();
     } else {
-      simplified_ = new (graph_zone_) SimplifiedOperatorBuilder(graph_zone_);
-      machine_ = new (graph_zone_) MachineOperatorBuilder(
+      simplified_ = graph_zone_->New<SimplifiedOperatorBuilder>(graph_zone_);
+      machine_ = graph_zone_->New<MachineOperatorBuilder>(
           graph_zone_, MachineType::PointerRepresentation(),
           InstructionSelector::SupportedMachineOperatorFlags(),
           InstructionSelector::AlignmentRequirements());
-      common_ = new (graph_zone_) CommonOperatorBuilder(graph_zone_);
-      javascript_ = new (graph_zone_) JSOperatorBuilder(graph_zone_);
-      jsgraph_ = new (graph_zone_) JSGraph(isolate_, graph_, common_,
+      common_ = graph_zone_->New<CommonOperatorBuilder>(graph_zone_);
+      javascript_ = graph_zone_->New<JSOperatorBuilder>(graph_zone_);
+      jsgraph_ = graph_zone_->New<JSGraph>(isolate_, graph_, common_,
                                            javascript_, simplified_, machine_);
     }
   }
@@ -458,8 +458,8 @@ class PipelineData {
     InstructionBlocks* instruction_blocks =
         InstructionSequence::InstructionBlocksFor(instruction_zone(),
                                                   schedule());
-    sequence_ = new (instruction_zone())
-        InstructionSequence(isolate(), instruction_zone(), instruction_blocks);
+    sequence_ = instruction_zone()->New<InstructionSequence>(
+        isolate(), instruction_zone(), instruction_blocks);
     if (call_descriptor && call_descriptor->RequiresFrameAsIncoming()) {
       sequence_->instruction_blocks()[0]->mark_needs_frame();
     } else {
@@ -475,17 +475,17 @@ class PipelineData {
       fixed_frame_size =
           call_descriptor->CalculateFixedFrameSize(info()->code_kind());
     }
-    frame_ = new (codegen_zone()) Frame(fixed_frame_size);
+    frame_ = codegen_zone()->New<Frame>(fixed_frame_size);
   }
 
   void InitializeRegisterAllocationData(const RegisterConfiguration* config,
                                         CallDescriptor* call_descriptor,
                                         RegisterAllocationFlags flags) {
     DCHECK_NULL(register_allocation_data_);
-    register_allocation_data_ = new (register_allocation_zone())
-        RegisterAllocationData(config, register_allocation_zone(), frame(),
-                               sequence(), flags, &info()->tick_counter(),
-                               debug_name());
+    register_allocation_data_ =
+        register_allocation_zone()->New<RegisterAllocationData>(
+            config, register_allocation_zone(), frame(), sequence(), flags,
+            &info()->tick_counter(), debug_name());
   }
 
   void InitializeOsrHelper() {
@@ -860,15 +860,15 @@ class NodeOriginsWrapper final : public Reducer {
 void AddReducer(PipelineData* data, GraphReducer* graph_reducer,
                 Reducer* reducer) {
   if (data->info()->source_positions()) {
-    void* const buffer = data->graph_zone()->New(sizeof(SourcePositionWrapper));
     SourcePositionWrapper* const wrapper =
-        new (buffer) SourcePositionWrapper(reducer, data->source_positions());
+        data->graph_zone()->New<SourcePositionWrapper>(
+            reducer, data->source_positions());
     reducer = wrapper;
   }
   if (data->info()->trace_turbo_json()) {
-    void* const buffer = data->graph_zone()->New(sizeof(NodeOriginsWrapper));
     NodeOriginsWrapper* const wrapper =
-        new (buffer) NodeOriginsWrapper(reducer, data->node_origins());
+        data->graph_zone()->New<NodeOriginsWrapper>(reducer,
+                                                    data->node_origins());
     reducer = wrapper;
   }
 
@@ -1099,7 +1099,7 @@ PipelineCompilationJob::Status PipelineCompilationJob::PrepareJobImpl(
   data_.set_start_source_position(
       compilation_info()->shared_info()->StartPosition());
 
-  linkage_ = new (compilation_info()->zone()) Linkage(
+  linkage_ = compilation_info()->zone()->New<Linkage>(
       Linkage::ComputeIncoming(compilation_info()->zone(), compilation_info()));
 
   if (compilation_info()->is_osr()) data_.InitializeOsrHelper();
@@ -1217,7 +1217,7 @@ class WasmHeapStubCompilationJob final : public OptimizedCompilationJob {
         graph_(graph),
         data_(&zone_stats_, &info_, isolate, wasm_engine->allocator(), graph_,
               nullptr, nullptr, source_positions,
-              new (zone_.get()) NodeOriginTable(graph_), nullptr, options),
+              zone_->New<NodeOriginTable>(graph_), nullptr, options),
         pipeline_(&data_),
         wasm_engine_(wasm_engine) {}
 
@@ -2726,7 +2726,7 @@ wasm::WasmCompilationResult Pipeline::GenerateCodeForWasmNativeStub(
   OptimizedCompilationInfo info(CStrVector(debug_name), graph->zone(), kind);
   // Construct a pipeline for scheduling and code generation.
   ZoneStats zone_stats(wasm_engine->allocator());
-  NodeOriginTable* node_positions = new (graph->zone()) NodeOriginTable(graph);
+  NodeOriginTable* node_positions = graph->zone()->New<NodeOriginTable>(graph);
   // {instruction_buffer} must live longer than {PipelineData}, since
   // {PipelineData} will reference the {instruction_buffer} via the
   // {AssemblerBuffer} of the {Assembler} contained in the {CodeGenerator}.
@@ -2851,7 +2851,7 @@ MaybeHandle<Code> Pipeline::GenerateCodeForTesting(
     const AssemblerOptions& options, Schedule* schedule) {
   // Construct a pipeline for scheduling and code generation.
   ZoneStats zone_stats(isolate->allocator());
-  NodeOriginTable* node_positions = new (info->zone()) NodeOriginTable(graph);
+  NodeOriginTable* node_positions = info->zone()->New<NodeOriginTable>(graph);
   PipelineData data(&zone_stats, info, isolate, isolate->allocator(), graph,
                     nullptr, schedule, nullptr, node_positions, nullptr,
                     options);
@@ -3365,7 +3365,7 @@ void PipelineImpl::AllocateRegisters(const RegisterConfiguration* config,
   if (run_verifier) {
     verifier_zone.reset(
         new Zone(data->allocator(), kRegisterAllocatorVerifierZoneName));
-    verifier = new (verifier_zone.get()) RegisterAllocatorVerifier(
+    verifier = verifier_zone->New<RegisterAllocatorVerifier>(
         verifier_zone.get(), config, data->sequence(), data->frame());
   }
 

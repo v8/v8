@@ -90,9 +90,9 @@ class TestCode : public HandleAndZoneScope {
   }
   void Start(bool deferred = false) {
     if (current_ == nullptr) {
-      current_ = new (main_zone())
-          InstructionBlock(main_zone(), rpo_number_, RpoNumber::Invalid(),
-                           RpoNumber::Invalid(), deferred, false);
+      current_ = main_zone()->New<InstructionBlock>(
+          main_zone(), rpo_number_, RpoNumber::Invalid(), RpoNumber::Invalid(),
+          deferred, false);
       blocks_.push_back(current_);
       sequence_.StartBlock(rpo_number_);
     }

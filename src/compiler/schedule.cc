@@ -191,8 +191,8 @@ bool Schedule::SameBasicBlock(Node* a, Node* b) const {
 }
 
 BasicBlock* Schedule::NewBasicBlock() {
-  BasicBlock* block = new (zone_)
-      BasicBlock(zone_, BasicBlock::Id::FromSize(all_blocks_.size()));
+  BasicBlock* block = zone_->New<BasicBlock>(
+      zone_, BasicBlock::Id::FromSize(all_blocks_.size()));
   all_blocks_.push_back(block);
   return block;
 }

@@ -77,7 +77,7 @@ TEST_F(ValueNumberingReducerTest, OperatorEqualityNotIdentity) {
   for (size_t i = 0; i < arraysize(inputs); ++i) {
     Operator::Opcode opcode = static_cast<Operator::Opcode>(kMaxInputCount + i);
     inputs[i] = graph()->NewNode(
-        new (zone()) TestOperator(opcode, Operator::kIdempotent, 0, 1));
+        zone()->New<TestOperator>(opcode, Operator::kIdempotent, 0, 1));
   }
   TRACED_FORRANGE(size_t, input_count, 0, arraysize(inputs)) {
     const TestOperator op1(static_cast<Operator::Opcode>(input_count),
@@ -102,7 +102,7 @@ TEST_F(ValueNumberingReducerTest, SubsequentReductionsYieldTheSameNode) {
   for (size_t i = 0; i < arraysize(inputs); ++i) {
     Operator::Opcode opcode = static_cast<Operator::Opcode>(2 + i);
     inputs[i] = graph()->NewNode(
-        new (zone()) TestOperator(opcode, Operator::kIdempotent, 0, 1));
+        zone()->New<TestOperator>(opcode, Operator::kIdempotent, 0, 1));
   }
   TRACED_FORRANGE(size_t, input_count, 0, arraysize(inputs)) {
     const TestOperator op1(1, Operator::kIdempotent, input_count, 1);

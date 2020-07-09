@@ -188,7 +188,7 @@ class RegisterConfig {
     MachineType target_type = MachineType::AnyTagged();
     LinkageLocation target_loc = LinkageLocation::ForAnyRegister();
     int stack_param_count = params.stack_offset();
-    return new (zone) CallDescriptor(       // --
+    return zone->New<CallDescriptor>(       // --
         CallDescriptor::kCallCodeObject,    // kind
         target_type,                        // target MachineType
         target_loc,                         // target location
