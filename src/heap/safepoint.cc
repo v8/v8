@@ -23,17 +23,25 @@ void GlobalSafepoint::EnterSafepointScope() {
   if (!FLAG_local_heaps) return;
 
   if (++active_safepoint_scopes_ > 1) return;
+
   local_heaps_mutex_.Lock();
+  local_heap_of_this_thread_ = LocalHeap::Current();
 
   barrier_.Arm();
 
   for (LocalHeap* current = local_heaps_head_; current;
        current = current->next_) {
+    if (current == local_heap_of_this_thread_) {
+      continue;
+    }
     current->RequestSafepoint();
   }
 
   for (LocalHeap* current = local_heaps_head_; current;
        current = current->next_) {
+    if (current == local_heap_of_this_thread_) {
+      continue;
+    }
     current->state_mutex_.Lock();
 
     while (current->state_ == LocalHeap::ThreadState::Running) {
@@ -48,13 +56,19 @@ void GlobalSafepoint::LeaveSafepointScope() {
   DCHECK_GT(active_safepoint_scopes_, 0);
   if (--active_safepoint_scopes_ > 0) return;
 
+  DCHECK_EQ(local_heap_of_this_thread_, LocalHeap::Current());
+
   for (LocalHeap* current = local_heaps_head_; current;
        current = current->next_) {
+    if (current == local_heap_of_this_thread_) {
+      continue;
+    }
     current->state_mutex_.Unlock();
   }
 
   barrier_.Disarm();
 
+  local_heap_of_this_thread_ = nullptr;
   local_heaps_mutex_.Unlock();
 }
 

@@ -7141,6 +7141,22 @@ HEAP_TEST(GCDuringOffThreadMergeWithTransferHandle) {
   CHECK_EQ(transfer_handle.ToHandle()->length(), 10);
 }
 
+TEST(GarbageCollectionWithLocalHeap) {
+  FLAG_local_heaps = true;
+  ManualGCScope manual_gc_scope;
+  CcTest::InitializeVM();
+
+  Heap* heap = CcTest::i_isolate()->heap();
+
+  LocalHeap local_heap(heap);
+  CcTest::CollectGarbage(OLD_SPACE);
+  {
+    ParkedScope parked_scope(&local_heap);
+    CcTest::CollectGarbage(OLD_SPACE);
+  }
+  CcTest::CollectGarbage(OLD_SPACE);
+}
+
 }  // namespace heap
 }  // namespace internal
 }  // namespace v8
