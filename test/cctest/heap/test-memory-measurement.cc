@@ -134,14 +134,10 @@ namespace {
 
 class MockPlatform : public TestPlatform {
  public:
-  MockPlatform()
-      : old_platform_(i::V8::GetCurrentPlatform()),
-        mock_task_runner_(new MockTaskRunner()) {
+  MockPlatform() : TestPlatform(), mock_task_runner_(new MockTaskRunner()) {
     // Now that it's completely constructed, make this the current platform.
     i::V8::SetPlatformForTesting(this);
   }
-
-  ~MockPlatform() override { i::V8::SetPlatformForTesting(old_platform_); }
 
   std::shared_ptr<v8::TaskRunner> GetForegroundTaskRunner(
       v8::Isolate*) override {
@@ -169,6 +165,10 @@ class MockPlatform : public TestPlatform {
       UNREACHABLE();
     }
 
+    bool NonNestableTasksEnabled() const override { return true; }
+
+    bool NonNestableDelayedTasksEnabled() const override { return true; }
+
     bool IdleTasksEnabled() override { return false; }
 
     double Delay() { return delay_; }
@@ -184,7 +184,6 @@ class MockPlatform : public TestPlatform {
     double delay_ = -1;
     std::unique_ptr<Task> task_;
   };
-  v8::Platform* old_platform_;
   std::shared_ptr<MockTaskRunner> mock_task_runner_;
 };
 
@@ -203,16 +202,21 @@ class MockMeasureMemoryDelegate : public v8::MeasureMemoryDelegate {
 }  // namespace
 
 TEST(RandomizedTimeout) {
-  CcTest::InitializeVM();
   MockPlatform platform;
+  v8::Isolate::CreateParams create_params;
+  create_params.array_buffer_allocator = CcTest::array_buffer_allocator();
+  // We have to create the isolate manually here. Using CcTest::isolate() would
+  // lead to the situation when the isolate outlives MockPlatform which may lead
+  // to UAF on the background thread.
+  v8::Isolate* isolate = v8::Isolate::New(create_params);
   std::vector<double> delays;
   for (int i = 0; i < 10; i++) {
-    CcTest::isolate()->MeasureMemory(
-        std::make_unique<MockMeasureMemoryDelegate>());
+    isolate->MeasureMemory(std::make_unique<MockMeasureMemoryDelegate>());
     delays.push_back(platform.Delay());
     platform.PerformTask();
   }
   std::sort(delays.begin(), delays.end());
+  isolate->Dispose();
   CHECK_LT(delays[0], delays.back());
 }
 
