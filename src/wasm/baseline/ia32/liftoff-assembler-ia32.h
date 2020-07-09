@@ -707,12 +707,9 @@ inline void AtomicBinop64(LiftoffAssembler* lasm, Binop op, Register dst_addr,
   }
   // Spill all these registers if they are still holding other values.
   liftoff::SpillRegisters(lasm, old_hi, old_lo, new_hi, base, offset);
-  {
-    LiftoffAssembler::ParallelRegisterMoveTuple reg_moves[]{
-        {LiftoffRegister::ForPair(base, offset),
-         LiftoffRegister::ForPair(dst_addr, offset_reg), kWasmI64}};
-    __ ParallelRegisterMove(ArrayVector(reg_moves));
-  }
+  __ ParallelRegisterMove(
+      {{LiftoffRegister::ForPair(base, offset),
+        LiftoffRegister::ForPair(dst_addr, offset_reg), kWasmI64}});
 
   Operand dst_op_lo = Operand(base, offset, times_1, offset_imm);
   Operand dst_op_hi = Operand(base, offset, times_1, offset_imm + 4);
@@ -759,12 +756,9 @@ inline void AtomicBinop64(LiftoffAssembler* lasm, Binop op, Register dst_addr,
   // Restore the root register, and we are done.
   __ pop(kRootRegister);
 
-  {
-    // Move the result into the correct registers.
-    LiftoffAssembler::ParallelRegisterMoveTuple reg_moves[]{
-        {result, LiftoffRegister::ForPair(old_lo, old_hi), kWasmI64}};
-    __ ParallelRegisterMove(ArrayVector(reg_moves));
-  }
+  // Move the result into the correct registers.
+  __ ParallelRegisterMove(
+      {{result, LiftoffRegister::ForPair(old_lo, old_hi), kWasmI64}});
 }
 
 #undef __
@@ -1346,10 +1340,9 @@ void LiftoffAssembler::emit_i64_mul(LiftoffRegister dst, LiftoffRegister lhs,
   liftoff::SpillRegisters(this, dst_hi, dst_lo, lhs_hi, rhs_lo);
 
   // Move lhs and rhs into the respective registers.
-  ParallelRegisterMoveTuple reg_moves[]{
-      {LiftoffRegister::ForPair(lhs_lo, lhs_hi), lhs, kWasmI64},
-      {LiftoffRegister::ForPair(rhs_lo, rhs_hi), rhs, kWasmI64}};
-  ParallelRegisterMove(ArrayVector(reg_moves));
+  ParallelRegisterMove(
+      {{LiftoffRegister::ForPair(lhs_lo, lhs_hi), lhs, kWasmI64},
+       {LiftoffRegister::ForPair(rhs_lo, rhs_hi), rhs, kWasmI64}});
 
   // First mul: lhs_hi' = lhs_hi * rhs_lo.
   imul(lhs_hi, rhs_lo);

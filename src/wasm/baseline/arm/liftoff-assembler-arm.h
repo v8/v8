@@ -949,9 +949,8 @@ void LiftoffAssembler::AtomicLoad(LiftoffRegister dst, Register src_addr,
   ldrexd(dst_low, dst_high, actual_addr);
   dmb(ISH);
 
-  LiftoffAssembler::ParallelRegisterMoveTuple reg_moves[]{
-      {dst, LiftoffRegister::ForPair(dst_low, dst_high), kWasmI64}};
-  ParallelRegisterMove(ArrayVector(reg_moves));
+  ParallelRegisterMove(
+      {{dst, LiftoffRegister::ForPair(dst_low, dst_high), kWasmI64}});
 }
 
 void LiftoffAssembler::AtomicStore(Register dst_addr, Register offset_reg,
@@ -1071,15 +1070,13 @@ inline void AtomicI64CompareExchange(LiftoffAssembler* lasm,
   __ SpillRegisters(dst_addr, offset, result_low, result_high, new_value_low,
                     new_value_high, store_result, expected_low, expected_high);
 
-  LiftoffAssembler::ParallelRegisterMoveTuple reg_moves[]{
-      {LiftoffRegister::ForPair(new_value_low, new_value_high), new_value,
-       kWasmI64},
-      {LiftoffRegister::ForPair(expected_low, expected_high), expected,
-       kWasmI64},
-      {LiftoffRegister(dst_addr), LiftoffRegister(dst_addr_reg), kWasmI32},
-      {LiftoffRegister(offset),
-       LiftoffRegister(offset_reg != no_reg ? offset_reg : offset), kWasmI32}};
-  __ ParallelRegisterMove(ArrayVector(reg_moves));
+  __ ParallelRegisterMove(
+      {{LiftoffRegister::ForPair(new_value_low, new_value_high), new_value,
+        kWasmI64},
+       {LiftoffRegister::ForPair(expected_low, expected_high), expected,
+        kWasmI64},
+       {dst_addr, dst_addr_reg, kWasmI32},
+       {offset, offset_reg != no_reg ? offset_reg : offset, kWasmI32}});
 
   {
     UseScratchRegisterScope temps(lasm);
@@ -1106,9 +1103,8 @@ inline void AtomicI64CompareExchange(LiftoffAssembler* lasm,
   __ dmb(ISH);
   __ bind(&done);
 
-  LiftoffAssembler::ParallelRegisterMoveTuple reg_moves_result[]{
-      {result, LiftoffRegister::ForPair(result_low, result_high), kWasmI64}};
-  __ ParallelRegisterMove(ArrayVector(reg_moves_result));
+  __ ParallelRegisterMove(
+      {{result, LiftoffRegister::ForPair(result_low, result_high), kWasmI64}});
 }
 #undef __
 }  // namespace liftoff

@@ -452,7 +452,13 @@ class LiftoffAssembler : public TurboAssembler {
     ParallelRegisterMoveTuple(Dst dst, Src src, ValueType type)
         : dst(dst), src(src), type(type) {}
   };
-  void ParallelRegisterMove(Vector<ParallelRegisterMoveTuple>);
+
+  void ParallelRegisterMove(Vector<const ParallelRegisterMoveTuple>);
+
+  void ParallelRegisterMove(
+      std::initializer_list<ParallelRegisterMoveTuple> moves) {
+    ParallelRegisterMove(VectorOf(moves));
+  }
 
   void MoveToReturnLocations(const FunctionSig*,
                              compiler::CallDescriptor* descriptor);

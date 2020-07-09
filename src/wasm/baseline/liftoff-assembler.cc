@@ -867,7 +867,7 @@ void LiftoffAssembler::Move(LiftoffRegister dst, LiftoffRegister src,
 }
 
 void LiftoffAssembler::ParallelRegisterMove(
-    Vector<ParallelRegisterMoveTuple> tuples) {
+    Vector<const ParallelRegisterMoveTuple> tuples) {
   StackTransferRecipe stack_transfers(this);
   for (auto tuple : tuples) {
     if (tuple.dst == tuple.src) continue;

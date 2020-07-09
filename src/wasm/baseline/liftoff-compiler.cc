@@ -3216,11 +3216,9 @@ class LiftoffCompiler {
     WasmAtomicNotifyDescriptor descriptor;
     DCHECK_EQ(0, descriptor.GetStackParameterCount());
     DCHECK_EQ(2, descriptor.GetRegisterParameterCount());
-    LiftoffAssembler::ParallelRegisterMoveTuple reg_moves[]{
-        {LiftoffRegister(descriptor.GetRegisterParameter(0)),
-         LiftoffRegister(index), kWasmI32},
-        {LiftoffRegister(descriptor.GetRegisterParameter(1)), count, kWasmI32}};
-    __ ParallelRegisterMove(ArrayVector(reg_moves));
+    __ ParallelRegisterMove(
+        {{descriptor.GetRegisterParameter(0), index, kWasmI32},
+         {descriptor.GetRegisterParameter(1), count, kWasmI32}});
 
     __ CallRuntimeStub(WasmCode::kWasmAtomicNotify);
     RegisterDebugSideTableEntry(DebugSideTableBuilder::kDidSpill);
