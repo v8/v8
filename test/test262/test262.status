@@ -665,9 +665,6 @@
   # https://crbug.com/v8/10688
   'language/expressions/optional-chaining/eval-optional-call': [FAIL],
 
-  # https://crbug.com/v8/10686
-  'intl402/DateTimeFormat/constructor-options-fractionalSecondDigits-valid': [FAIL],
-
   ######################## NEEDS INVESTIGATION ###########################
 
   # https://bugs.chromium.org/p/v8/issues/detail?id=7833

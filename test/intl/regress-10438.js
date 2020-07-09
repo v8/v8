@@ -5,7 +5,7 @@
 // Flags: --harmony_intl_dateformat_fractional_second_digits
 
 assertEquals(
-    0,
+    undefined,
     (new Intl.DateTimeFormat("en", {fractionalSecondDigits: 0}))
         .resolvedOptions().fractionalSecondDigits);
 
@@ -25,14 +25,14 @@ assertEquals(
         .resolvedOptions().fractionalSecondDigits);
 
 // When timeStyle and dateStyle is not present, GetNumberOption will fallback
-// to 0 as default regardless fractionalSecondDigits is present in the option or
+// to undefined as default regardless fractionalSecondDigits is present in the option or
 // not.
 assertEquals(
-    0,
+    undefined,
     (new Intl.DateTimeFormat()).resolvedOptions().fractionalSecondDigits);
 
 assertEquals(
-    0,
+    undefined,
     (new Intl.DateTimeFormat("en", {fractionalSecondDigits: undefined}))
         .resolvedOptions().fractionalSecondDigits);
 

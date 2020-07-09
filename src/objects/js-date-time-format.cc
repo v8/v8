@@ -650,10 +650,12 @@ MaybeHandle<JSObject> JSDateTimeFormat::ResolvedOptions(
     }
     if (FLAG_harmony_intl_dateformat_fractional_second_digits) {
       int fsd = FractionalSecondDigitsFromPattern(pattern);
-      CHECK(JSReceiver::CreateDataProperty(
-                isolate, options, factory->fractionalSecondDigits_string(),
-                factory->NewNumberFromInt(fsd), Just(kDontThrow))
-                .FromJust());
+      if (fsd > 0) {
+        CHECK(JSReceiver::CreateDataProperty(
+                  isolate, options, factory->fractionalSecondDigits_string(),
+                  factory->NewNumberFromInt(fsd), Just(kDontThrow))
+                  .FromJust());
+      }
     }
   }
 
