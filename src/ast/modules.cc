@@ -32,7 +32,7 @@ void SourceTextModuleDescriptor::AddImport(
     const AstRawString* import_name, const AstRawString* local_name,
     const AstRawString* module_request, const Scanner::Location loc,
     const Scanner::Location specifier_loc, Zone* zone) {
-  Entry* entry = new (zone) Entry(loc);
+  Entry* entry = zone->New<Entry>(loc);
   entry->local_name = local_name;
   entry->import_name = import_name;
   entry->module_request = AddModuleRequest(module_request, specifier_loc);
@@ -43,7 +43,7 @@ void SourceTextModuleDescriptor::AddStarImport(
     const AstRawString* local_name, const AstRawString* module_request,
     const Scanner::Location loc, const Scanner::Location specifier_loc,
     Zone* zone) {
-  Entry* entry = new (zone) Entry(loc);
+  Entry* entry = zone->New<Entry>(loc);
   entry->local_name = local_name;
   entry->module_request = AddModuleRequest(module_request, specifier_loc);
   AddNamespaceImport(entry, zone);
@@ -57,7 +57,7 @@ void SourceTextModuleDescriptor::AddEmptyImport(
 void SourceTextModuleDescriptor::AddExport(const AstRawString* local_name,
                                            const AstRawString* export_name,
                                            Scanner::Location loc, Zone* zone) {
-  Entry* entry = new (zone) Entry(loc);
+  Entry* entry = zone->New<Entry>(loc);
   entry->export_name = export_name;
   entry->local_name = local_name;
   AddRegularExport(entry);
@@ -69,7 +69,7 @@ void SourceTextModuleDescriptor::AddExport(
     const Scanner::Location specifier_loc, Zone* zone) {
   DCHECK_NOT_NULL(import_name);
   DCHECK_NOT_NULL(export_name);
-  Entry* entry = new (zone) Entry(loc);
+  Entry* entry = zone->New<Entry>(loc);
   entry->export_name = export_name;
   entry->import_name = import_name;
   entry->module_request = AddModuleRequest(module_request, specifier_loc);
@@ -79,7 +79,7 @@ void SourceTextModuleDescriptor::AddExport(
 void SourceTextModuleDescriptor::AddStarExport(
     const AstRawString* module_request, const Scanner::Location loc,
     const Scanner::Location specifier_loc, Zone* zone) {
-  Entry* entry = new (zone) Entry(loc);
+  Entry* entry = zone->New<Entry>(loc);
   entry->module_request = AddModuleRequest(module_request, specifier_loc);
   AddSpecialExport(entry, zone);
 }

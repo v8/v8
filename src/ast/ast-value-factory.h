@@ -83,6 +83,7 @@ class AstRawString final : public ZoneObject {
   friend class AstRawStringInternalizationKey;
   friend class AstStringConstants;
   friend class AstValueFactory;
+  friend Zone;
 
   // Members accessed only by the AstValueFactory & related classes:
   static bool Compare(void* a, void* b);
@@ -133,8 +134,7 @@ class AstConsString final : public ZoneObject {
     if (!IsEmpty()) {
       // We're putting the new string to the head of the list, meaning
       // the string segments will be in reverse order.
-      Segment* tmp = new (zone->New(sizeof(Segment))) Segment;
-      *tmp = segment_;
+      Segment* tmp = zone->New<Segment>(segment_);
       segment_.next = tmp;
     }
     segment_.string = s;
@@ -163,6 +163,7 @@ class AstConsString final : public ZoneObject {
 
  private:
   friend class AstValueFactory;
+  friend Zone;
 
   AstConsString() : string_(), segment_({nullptr, nullptr}) {}
 

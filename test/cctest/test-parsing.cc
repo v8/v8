@@ -3375,7 +3375,7 @@ TEST(SerializationOfMaybeAssignmentFlag) {
   i::Handle<i::String> str = name->string();
   CHECK(str->IsInternalizedString());
   i::DeclarationScope* script_scope =
-      new (&zone) i::DeclarationScope(&zone, &avf);
+      zone.New<i::DeclarationScope>(&zone, &avf);
   i::Scope* s = i::Scope::DeserializeScopeChain(
       isolate, &zone, context->scope_info(), script_scope, &avf,
       i::Scope::DeserializationMode::kIncludingVariables);
@@ -3424,7 +3424,7 @@ TEST(IfArgumentsArrayAccessedThenParametersMaybeAssigned) {
   avf.Internalize(isolate);
 
   i::DeclarationScope* script_scope =
-      new (&zone) i::DeclarationScope(&zone, &avf);
+      zone.New<i::DeclarationScope>(&zone, &avf);
   i::Scope* s = i::Scope::DeserializeScopeChain(
       isolate, &zone, context->scope_info(), script_scope, &avf,
       i::Scope::DeserializationMode::kIncludingVariables);
@@ -4349,7 +4349,7 @@ i::Scope* DeserializeFunctionScope(i::Isolate* isolate, i::Zone* zone,
   i::Handle<i::JSFunction> f = i::Handle<i::JSFunction>::cast(
       i::JSReceiver::GetProperty(isolate, m, name).ToHandleChecked());
   i::DeclarationScope* script_scope =
-      new (zone) i::DeclarationScope(zone, &avf);
+      zone->New<i::DeclarationScope>(zone, &avf);
   i::Scope* s = i::Scope::DeserializeScopeChain(
       isolate, zone, f->context().scope_info(), script_scope, &avf,
       i::Scope::DeserializationMode::kIncludingVariables);
