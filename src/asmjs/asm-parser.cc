@@ -74,7 +74,7 @@ AsmJsParser::AsmJsParser(Zone* zone, uintptr_t stack_limit,
                          Utf16CharacterStream* stream)
     : zone_(zone),
       scanner_(stream),
-      module_builder_(new (zone) WasmModuleBuilder(zone)),
+      module_builder_(zone->New<WasmModuleBuilder>(zone)),
       return_type_(nullptr),
       stack_limit_(stack_limit),
       global_var_info_(zone),
@@ -564,8 +564,7 @@ void AsmJsParser::ValidateModuleVarImport(VarInfo* info,
       AddGlobalImport(name, AsmType::Int(), kWasmI32, mutable_variable, info);
     } else {
       info->kind = VarKind::kImportedFunction;
-      info->import = new (zone()->New(sizeof(FunctionImportInfo)))
-          FunctionImportInfo(name, zone());
+      info->import = zone()->New<FunctionImportInfo>(name, zone());
       info->mutable_variable = false;
     }
   }
