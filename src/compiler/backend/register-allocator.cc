@@ -1149,10 +1149,22 @@ void TopLevelLiveRange::VerifyChildrenInOrder() const {
 
 LiveRange* TopLevelLiveRange::GetChildCovers(LifetimePosition pos) {
   LiveRange* child = last_child_covers_;
+  DCHECK_NE(child, nullptr);
+  if (pos < child->Start()) {
+    // Cached value has advanced too far; start from the top.
+    child = this;
+  }
+  LiveRange* previous_child = nullptr;
   while (child != nullptr && child->End() <= pos) {
+    previous_child = child;
     child = child->next();
   }
-  last_child_covers_ = child;
+
+  // If we've walked past the end, cache the last child instead. This allows
+  // future calls that are also past the end to be fast, since they will know
+  // that there is no need to reset the search to the beginning.
+  last_child_covers_ = child == nullptr ? previous_child : child;
+
   return !child || !child->Covers(pos) ? nullptr : child;
 }
 

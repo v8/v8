@@ -952,7 +952,13 @@ class V8_EXPORT_PRIVATE TopLevelLiveRange final : public LiveRange {
 
   void Verify() const;
   void VerifyChildrenInOrder() const;
+
+  // Returns the LiveRange covering the given position, or nullptr if no such
+  // range exists. Uses a linear search through child ranges. The range at the
+  // previously requested position is cached, so this function will be very fast
+  // if you call it with a non-decreasing sequence of positions.
   LiveRange* GetChildCovers(LifetimePosition pos);
+
   int GetNextChildId() {
     return IsSplinter() ? splintered_from()->GetNextChildId()
                         : ++last_child_id_;
