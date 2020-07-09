@@ -1007,7 +1007,7 @@ class AccessorTable
   Accessors<PropertyT>* LookupOrInsert(Literal* key) {
     auto it = this->find(key, true, ZoneAllocationPolicy(zone_));
     if (it->second == nullptr) {
-      it->second = new (zone_) Accessors<PropertyT>();
+      it->second = zone_->New<Accessors<PropertyT>>();
       ordered_accessors_.push_back({key, it->second});
     }
     return it->second;
@@ -1052,8 +1052,8 @@ BytecodeGenerator::BytecodeGenerator(
       closure_scope_(info->scope()),
       current_scope_(info->scope()),
       eager_inner_literals_(eager_inner_literals),
-      feedback_slot_cache_(new (zone()) FeedbackSlotCache(zone())),
-      top_level_builder_(new (zone()) TopLevelDeclarationsBuilder()),
+      feedback_slot_cache_(zone()->New<FeedbackSlotCache>(zone())),
+      top_level_builder_(zone()->New<TopLevelDeclarationsBuilder>()),
       block_coverage_builder_(nullptr),
       function_literals_(0, zone()),
       native_function_literals_(0, zone()),
@@ -1074,8 +1074,8 @@ BytecodeGenerator::BytecodeGenerator(
       catch_prediction_(HandlerTable::UNCAUGHT) {
   DCHECK_EQ(closure_scope(), closure_scope()->GetClosureScope());
   if (info->has_source_range_map()) {
-    block_coverage_builder_ = new (zone())
-        BlockCoverageBuilder(zone(), builder(), info->source_range_map());
+    block_coverage_builder_ = zone()->New<BlockCoverageBuilder>(
+        zone(), builder(), info->source_range_map());
   }
 }
 

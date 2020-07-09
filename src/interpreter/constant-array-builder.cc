@@ -140,10 +140,10 @@ ConstantArrayBuilder::ConstantArrayBuilder(Zone* zone)
 #undef INIT_SINGLETON_ENTRY_FIELD
           zone_(zone) {
   idx_slice_[0] =
-      new (zone) ConstantArraySlice(zone, 0, k8BitCapacity, OperandSize::kByte);
-  idx_slice_[1] = new (zone) ConstantArraySlice(
+      zone->New<ConstantArraySlice>(zone, 0, k8BitCapacity, OperandSize::kByte);
+  idx_slice_[1] = zone->New<ConstantArraySlice>(
       zone, k8BitCapacity, k16BitCapacity, OperandSize::kShort);
-  idx_slice_[2] = new (zone) ConstantArraySlice(
+  idx_slice_[2] = zone->New<ConstantArraySlice>(
       zone, k8BitCapacity + k16BitCapacity, k32BitCapacity, OperandSize::kQuad);
 }
 

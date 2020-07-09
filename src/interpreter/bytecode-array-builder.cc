@@ -59,9 +59,9 @@ BytecodeArrayBuilder::BytecodeArrayBuilder(
   DCHECK_GE(local_register_count_, 0);
 
   if (FLAG_ignition_reo) {
-    register_optimizer_ = new (zone) BytecodeRegisterOptimizer(
+    register_optimizer_ = zone->New<BytecodeRegisterOptimizer>(
         zone, &register_allocator_, fixed_register_count(), parameter_count,
-        new (zone) RegisterTransferWriter(this));
+        zone->New<RegisterTransferWriter>(this));
   }
 }
 
@@ -1554,8 +1554,8 @@ BytecodeJumpTable* BytecodeArrayBuilder::AllocateJumpTable(
 
   size_t constant_pool_index = constant_array_builder()->InsertJumpTable(size);
 
-  return new (zone())
-      BytecodeJumpTable(constant_pool_index, size, case_value_base, zone());
+  return zone()->New<BytecodeJumpTable>(constant_pool_index, size,
+                                        case_value_base, zone());
 }
 
 size_t BytecodeArrayBuilder::AllocateDeferredConstantPoolEntry() {
