@@ -561,7 +561,6 @@ void MemoryAllocator::FreeReadOnlyPage(ReadOnlyPage* chunk) {
   LOG(isolate_, DeleteEvent("MemoryChunk", chunk));
   UnregisterMemory(chunk);
   chunk->SetFlag(MemoryChunk::PRE_FREED);
-  chunk->ReleaseMarkingBitmap();
 
   VirtualMemory* reservation = chunk->reserved_memory();
   if (reservation->IsReserved()) {

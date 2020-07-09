@@ -298,9 +298,6 @@ class MajorMarkingState final
  public:
   ConcurrentBitmap<AccessMode::ATOMIC>* bitmap(
       const BasicMemoryChunk* chunk) const {
-    DCHECK_EQ(reinterpret_cast<intptr_t>(&chunk->marking_bitmap_) -
-                  reinterpret_cast<intptr_t>(chunk),
-              BasicMemoryChunk::kMarkBitmapOffset);
     return chunk->marking_bitmap<AccessMode::ATOMIC>();
   }
 
@@ -326,9 +323,6 @@ class MajorAtomicMarkingState final
  public:
   ConcurrentBitmap<AccessMode::ATOMIC>* bitmap(
       const BasicMemoryChunk* chunk) const {
-    DCHECK_EQ(reinterpret_cast<intptr_t>(&chunk->marking_bitmap_) -
-                  reinterpret_cast<intptr_t>(chunk),
-              BasicMemoryChunk::kMarkBitmapOffset);
     return chunk->marking_bitmap<AccessMode::ATOMIC>();
   }
 
@@ -343,9 +337,6 @@ class MajorNonAtomicMarkingState final
  public:
   ConcurrentBitmap<AccessMode::NON_ATOMIC>* bitmap(
       const BasicMemoryChunk* chunk) const {
-    DCHECK_EQ(reinterpret_cast<intptr_t>(&chunk->marking_bitmap_) -
-                  reinterpret_cast<intptr_t>(chunk),
-              BasicMemoryChunk::kMarkBitmapOffset);
     return chunk->marking_bitmap<AccessMode::NON_ATOMIC>();
   }
 

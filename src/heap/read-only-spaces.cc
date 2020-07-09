@@ -85,9 +85,6 @@ void ReadOnlySpace::DetachPagesAndAddToArtifacts(
 }
 
 void ReadOnlyPage::MakeHeaderRelocatable() {
-  // Detached read-only space needs to have a valid marking bitmap. Instruct
-  // Lsan to ignore it if required.
-  LSAN_IGNORE_OBJECT(marking_bitmap_);
   heap_ = nullptr;
   owner_ = nullptr;
 }

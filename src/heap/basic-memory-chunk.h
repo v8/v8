@@ -12,6 +12,7 @@
 #include "src/common/globals.h"
 #include "src/flags/flags.h"
 #include "src/heap/marking.h"
+#include "src/heap/memory-chunk-layout.h"
 #include "src/objects/heap-object.h"
 #include "src/utils/allocation.h"
 
@@ -254,8 +255,6 @@ class BasicMemoryChunk {
     return addr >= area_start() && addr <= area_end();
   }
 
-  void ReleaseMarkingBitmap();
-
   static BasicMemoryChunk* Initialize(Heap* heap, Address base, size_t size,
                                       Address area_start, Address area_end,
                                       BaseSpace* owner,
@@ -265,25 +264,15 @@ class BasicMemoryChunk {
   void add_wasted_memory(size_t waste) { wasted_memory_ += waste; }
   size_t allocated_bytes() const { return allocated_bytes_; }
 
-  static const intptr_t kSizeOffset = 0;
-  static const intptr_t kFlagsOffset = kSizeOffset + kSizetSize;
-  static const intptr_t kMarkBitmapOffset = kFlagsOffset + kUIntptrSize;
-  static const intptr_t kHeapOffset = kMarkBitmapOffset + kSystemPointerSize;
-  static const intptr_t kAreaStartOffset = kHeapOffset + kSystemPointerSize;
-  static const intptr_t kAreaEndOffset = kAreaStartOffset + kSystemPointerSize;
-
+  static const intptr_t kSizeOffset = MemoryChunkLayout::kSizeOffset;
+  static const intptr_t kFlagsOffset = MemoryChunkLayout::kFlagsOffset;
+  static const intptr_t kHeapOffset = MemoryChunkLayout::kHeapOffset;
+  static const intptr_t kAreaStartOffset = MemoryChunkLayout::kAreaStartOffset;
+  static const intptr_t kAreaEndOffset = MemoryChunkLayout::kAreaEndOffset;
+  static const intptr_t kMarkingBitmapOffset =
+      MemoryChunkLayout::kMarkingBitmapOffset;
   static const size_t kHeaderSize =
-      kSizeOffset + kSizetSize   // size_t size
-      + kUIntptrSize             // uintptr_t flags_
-      + kSystemPointerSize       // Bitmap* marking_bitmap_
-      + kSystemPointerSize       // Heap* heap_
-      + kSystemPointerSize       // Address area_start_
-      + kSystemPointerSize       // Address area_end_
-      + kSizetSize               // size_t allocated_bytes_
-      + kSizetSize               // size_t wasted_memory_
-      + kSystemPointerSize       // std::atomic<intptr_t> high_water_mark_
-      + kSystemPointerSize       // Address owner_
-      + 3 * kSystemPointerSize;  // VirtualMemory reservation_
+      MemoryChunkLayout::kBasicMemoryChunkHeaderSize;
 
   // Only works if the pointer is in the first kPageSize of the MemoryChunk.
   static BasicMemoryChunk* FromAddress(Address a) {
@@ -299,7 +288,8 @@ class BasicMemoryChunk {
 
   template <AccessMode mode>
   ConcurrentBitmap<mode>* marking_bitmap() const {
-    return reinterpret_cast<ConcurrentBitmap<mode>*>(marking_bitmap_);
+    return static_cast<ConcurrentBitmap<mode>*>(
+        Bitmap::FromAddress(address() + kMarkingBitmapOffset));
   }
 
   Address HighWaterMark() { return address() + high_water_mark_; }
@@ -349,8 +339,6 @@ class BasicMemoryChunk {
 
   uintptr_t flags_ = NO_FLAGS;
 
-  Bitmap* marking_bitmap_ = nullptr;
-
   // TODO(v8:7464): Find a way to remove this.
   // This goes against the spirit for the BasicMemoryChunk, but until C++14/17
   // is the default it needs to live here because MemoryChunk is not standard
@@ -389,18 +377,6 @@ class BasicMemoryChunk {
 };
 
 STATIC_ASSERT(std::is_standard_layout<BasicMemoryChunk>::value);
-
-class BasicMemoryChunkValidator {
-  // Computed offsets should match the compiler generated ones.
-  STATIC_ASSERT(BasicMemoryChunk::kSizeOffset ==
-                offsetof(BasicMemoryChunk, size_));
-  STATIC_ASSERT(BasicMemoryChunk::kFlagsOffset ==
-                offsetof(BasicMemoryChunk, flags_));
-  STATIC_ASSERT(BasicMemoryChunk::kMarkBitmapOffset ==
-                offsetof(BasicMemoryChunk, marking_bitmap_));
-  STATIC_ASSERT(BasicMemoryChunk::kHeapOffset ==
-                offsetof(BasicMemoryChunk, heap_));
-};
 
 }  // namespace internal
 }  // namespace v8

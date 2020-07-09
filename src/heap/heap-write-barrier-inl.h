@@ -41,8 +41,7 @@ namespace heap_internals {
 
 struct MemoryChunk {
   static constexpr uintptr_t kFlagsOffset = kSizetSize;
-  static constexpr uintptr_t kHeapOffset =
-      kSizetSize + kUIntptrSize + kSystemPointerSize;
+  static constexpr uintptr_t kHeapOffset = kSizetSize + kUIntptrSize;
   static constexpr uintptr_t kMarkingBit = uintptr_t{1} << 18;
   static constexpr uintptr_t kFromPageBit = uintptr_t{1} << 3;
   static constexpr uintptr_t kToPageBit = uintptr_t{1} << 4;

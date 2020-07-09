@@ -817,15 +817,17 @@ TEST(ReadOnlySpaceMetrics_OnePage) {
   // Allocated objects size.
   CHECK_EQ(faked_space.Size(), 16);
 
+  size_t committed_memory = RoundUp(
+      MemoryChunkLayout::ObjectStartOffsetInDataPage() + faked_space.Size(),
+      allocator->GetCommitPageSize());
+
   // Amount of OS allocated memory.
-  CHECK_EQ(faked_space.CommittedMemory(), allocator->GetCommitPageSize());
-  CHECK_EQ(faked_space.CommittedPhysicalMemory(),
-           allocator->GetCommitPageSize());
+  CHECK_EQ(faked_space.CommittedMemory(), committed_memory);
+  CHECK_EQ(faked_space.CommittedPhysicalMemory(), committed_memory);
 
   // Capacity will be one OS page minus the page header.
   CHECK_EQ(faked_space.Capacity(),
-           allocator->GetCommitPageSize() -
-               MemoryChunkLayout::ObjectStartOffsetInDataPage());
+           committed_memory - MemoryChunkLayout::ObjectStartOffsetInDataPage());
 }
 
 TEST(ReadOnlySpaceMetrics_AlignedAllocations) {
@@ -870,15 +872,16 @@ TEST(ReadOnlySpaceMetrics_AlignedAllocations) {
   // with pointer compression.
   CHECK_EQ(faked_space.Size(), object_size + RoundUp(object_size, alignment));
 
-  // Amount of OS allocated memory will be 3 OS pages.
-  CHECK_EQ(faked_space.CommittedMemory(), 3 * allocator->GetCommitPageSize());
-  CHECK_EQ(faked_space.CommittedPhysicalMemory(),
-           3 * allocator->GetCommitPageSize());
+  size_t committed_memory = RoundUp(
+      MemoryChunkLayout::ObjectStartOffsetInDataPage() + faked_space.Size(),
+      allocator->GetCommitPageSize());
+
+  CHECK_EQ(faked_space.CommittedMemory(), committed_memory);
+  CHECK_EQ(faked_space.CommittedPhysicalMemory(), committed_memory);
 
   // Capacity will be 3 OS pages minus the page header.
   CHECK_EQ(faked_space.Capacity(),
-           3 * allocator->GetCommitPageSize() -
-               MemoryChunkLayout::ObjectStartOffsetInDataPage());
+           committed_memory - MemoryChunkLayout::ObjectStartOffsetInDataPage());
 }
 
 TEST(ReadOnlySpaceMetrics_TwoPages) {
@@ -900,8 +903,10 @@ TEST(ReadOnlySpaceMetrics_TwoPages) {
 
   // Allocate an object that's too big to have more than one on a page.
 
-  int object_size = static_cast<int>(
-      MemoryChunkLayout::AllocatableMemoryInMemoryChunk(RO_SPACE) / 2 + 16);
+  int object_size = RoundUp(
+      static_cast<int>(
+          MemoryChunkLayout::AllocatableMemoryInMemoryChunk(RO_SPACE) / 2 + 16),
+      kTaggedSize);
   CHECK_GT(object_size * 2,
            MemoryChunkLayout::AllocatableMemoryInMemoryChunk(RO_SPACE));
   faked_space.AllocateRaw(object_size, kWordAligned);

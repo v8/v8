@@ -42,9 +42,6 @@ class ConcurrentMarkingState final
       : memory_chunk_data_(memory_chunk_data) {}
 
   ConcurrentBitmap<AccessMode::ATOMIC>* bitmap(const BasicMemoryChunk* chunk) {
-    DCHECK_EQ(reinterpret_cast<intptr_t>(&chunk->marking_bitmap_) -
-                  reinterpret_cast<intptr_t>(chunk),
-              BasicMemoryChunk::kMarkBitmapOffset);
     return chunk->marking_bitmap<AccessMode::ATOMIC>();
   }
 

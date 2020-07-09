@@ -238,8 +238,8 @@ class RecordWriteCodeStubAssembler : public CodeStubAssembler {
   void GetMarkBit(TNode<IntPtrT> object, TNode<IntPtrT>* cell,
                   TNode<IntPtrT>* mask) {
     TNode<IntPtrT> page = PageFromAddress(object);
-    TNode<IntPtrT> bitmap = Load<IntPtrT>(
-        page, IntPtrConstant(BasicMemoryChunk::kMarkBitmapOffset));
+    TNode<IntPtrT> bitmap =
+        IntPtrAdd(page, IntPtrConstant(MemoryChunk::kMarkingBitmapOffset));
 
     {
       // Temp variable to calculate cell offset in bitmap.

@@ -15,6 +15,7 @@
 #include "src/heap/invalidated-slots.h"
 #include "src/heap/list.h"
 #include "src/heap/marking.h"
+#include "src/heap/memory-chunk-layout.h"
 #include "src/heap/slot-set.h"
 
 namespace v8 {
@@ -23,25 +24,6 @@ namespace internal {
 class CodeObjectRegistry;
 class FreeListCategory;
 class LocalArrayBufferTracker;
-
-class V8_EXPORT_PRIVATE MemoryChunkLayout {
- public:
-  static size_t CodePageGuardStartOffset();
-  static size_t CodePageGuardSize();
-  static intptr_t ObjectStartOffsetInCodePage();
-  static intptr_t ObjectEndOffsetInCodePage();
-  static size_t AllocatableMemoryInCodePage();
-  static intptr_t ObjectStartOffsetInDataPage();
-  static size_t AllocatableMemoryInDataPage();
-  static size_t ObjectStartOffsetInMemoryChunk(AllocationSpace space);
-  static size_t AllocatableMemoryInMemoryChunk(AllocationSpace space);
-};
-
-enum RememberedSetType {
-  OLD_TO_NEW,
-  OLD_TO_OLD,
-  NUMBER_OF_REMEMBERED_SET_TYPES
-};
 
 // MemoryChunk represents a memory region owned by a specific space.
 // It is divided into the header and the body. Chunk start is always
@@ -60,32 +42,10 @@ class MemoryChunk : public BasicMemoryChunk {
     kInProgress,
   };
 
-  static const size_t kHeaderSize =
-      BasicMemoryChunk::kHeaderSize                          // Parent size.
-      + kSystemPointerSize * NUMBER_OF_REMEMBERED_SET_TYPES  // SlotSet* array
-      + kSizetSize              // size_t progress_bar_
-      + kIntptrSize             // intptr_t live_byte_count_
-      + kSystemPointerSize      // SlotSet* sweeping_slot_set_
-      + kSystemPointerSize *
-            NUMBER_OF_REMEMBERED_SET_TYPES  // TypedSlotSet* array
-      + kSystemPointerSize *
-            NUMBER_OF_REMEMBERED_SET_TYPES  // InvalidatedSlots* array
-      + kSystemPointerSize  // base::Mutex* mutex_
-      + kSystemPointerSize  // std::atomic<ConcurrentSweepingState>
-                            // concurrent_sweeping_
-      + kSystemPointerSize  // base::Mutex* page_protection_change_mutex_
-      + kSystemPointerSize  // unitptr_t write_unprotect_counter_
-      + kSizetSize * ExternalBackingStoreType::kNumTypes
-      // std::atomic<size_t> external_backing_store_bytes_
-      + kSystemPointerSize * 2  // heap::ListNode
-      + kSystemPointerSize      // FreeListCategory** categories__
-      + kSystemPointerSize      // LocalArrayBufferTracker* local_tracker_
-      + kIntptrSize  // std::atomic<intptr_t> young_generation_live_byte_count_
-      + kSystemPointerSize   // Bitmap* young_generation_bitmap_
-      + kSystemPointerSize   // CodeObjectRegistry* code_object_registry_
-      + kSystemPointerSize;  // PossiblyEmptyBuckets possibly_empty_buckets_
+  static const size_t kHeaderSize = MemoryChunkLayout::kMemoryChunkHeaderSize;
 
-  static const intptr_t kOldToNewSlotSetOffset = BasicMemoryChunk::kHeaderSize;
+  static const intptr_t kOldToNewSlotSetOffset =
+      MemoryChunkLayout::kSlotSetOffset;
 
   // Page size in bytes.  This must be a multiple of the OS page size.
   static const int kPageSize = 1 << kPageSizeBits;
@@ -287,6 +247,9 @@ class MemoryChunk : public BasicMemoryChunk {
   ConcurrentBitmap<mode>* young_generation_bitmap() const {
     return reinterpret_cast<ConcurrentBitmap<mode>*>(young_generation_bitmap_);
   }
+#ifdef DEBUG
+  static void ValidateOffsets(MemoryChunk* chunk);
+#endif
 
   // A single slot set for small pages (of size kPageSize) or an array of slot
   // set for large pages. In the latter case the number of entries in the array
@@ -349,6 +312,7 @@ class MemoryChunk : public BasicMemoryChunk {
   friend class MajorAtomicMarkingState;
   friend class MajorNonAtomicMarkingState;
   friend class MemoryAllocator;
+  friend class MemoryChunkValidator;
   friend class MinorMarkingState;
   friend class MinorNonAtomicMarkingState;
   friend class PagedSpace;

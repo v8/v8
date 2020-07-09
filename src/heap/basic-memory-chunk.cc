@@ -28,15 +28,8 @@ STATIC_ASSERT(BasicMemoryChunk::kHeapOffset ==
 BasicMemoryChunk::BasicMemoryChunk(size_t size, Address area_start,
                                    Address area_end) {
   size_ = size;
-  marking_bitmap_ = static_cast<Bitmap*>(calloc(1, Bitmap::kSize));
   area_start_ = area_start;
   area_end_ = area_end;
-}
-
-void BasicMemoryChunk::ReleaseMarkingBitmap() {
-  DCHECK_NOT_NULL(marking_bitmap_);
-  free(marking_bitmap_);
-  marking_bitmap_ = nullptr;
 }
 
 // static
@@ -55,6 +48,7 @@ BasicMemoryChunk* BasicMemoryChunk::Initialize(Heap* heap, Address base,
   chunk->high_water_mark_ = static_cast<intptr_t>(area_start - base);
   chunk->allocated_bytes_ = chunk->area_size();
   chunk->wasted_memory_ = 0;
+  chunk->marking_bitmap<AccessMode::NON_ATOMIC>()->Clear();
 
   return chunk;
 }
@@ -74,6 +68,36 @@ void BasicMemoryChunk::SynchronizedHeapLoad() {
         InReadOnlySpace());
 }
 #endif
+
+class BasicMemoryChunkValidator {
+  // Computed offsets should match the compiler generated ones.
+  STATIC_ASSERT(BasicMemoryChunk::kSizeOffset ==
+                offsetof(BasicMemoryChunk, size_));
+  STATIC_ASSERT(BasicMemoryChunk::kFlagsOffset ==
+                offsetof(BasicMemoryChunk, flags_));
+  STATIC_ASSERT(BasicMemoryChunk::kHeapOffset ==
+                offsetof(BasicMemoryChunk, heap_));
+  STATIC_ASSERT(offsetof(BasicMemoryChunk, size_) ==
+                MemoryChunkLayout::kSizeOffset);
+  STATIC_ASSERT(offsetof(BasicMemoryChunk, flags_) ==
+                MemoryChunkLayout::kFlagsOffset);
+  STATIC_ASSERT(offsetof(BasicMemoryChunk, heap_) ==
+                MemoryChunkLayout::kHeapOffset);
+  STATIC_ASSERT(offsetof(BasicMemoryChunk, area_start_) ==
+                MemoryChunkLayout::kAreaStartOffset);
+  STATIC_ASSERT(offsetof(BasicMemoryChunk, area_end_) ==
+                MemoryChunkLayout::kAreaEndOffset);
+  STATIC_ASSERT(offsetof(BasicMemoryChunk, allocated_bytes_) ==
+                MemoryChunkLayout::kAllocatedBytesOffset);
+  STATIC_ASSERT(offsetof(BasicMemoryChunk, wasted_memory_) ==
+                MemoryChunkLayout::kWastedMemoryOffset);
+  STATIC_ASSERT(offsetof(BasicMemoryChunk, high_water_mark_) ==
+                MemoryChunkLayout::kHighWaterMarkOffset);
+  STATIC_ASSERT(offsetof(BasicMemoryChunk, owner_) ==
+                MemoryChunkLayout::kOwnerOffset);
+  STATIC_ASSERT(offsetof(BasicMemoryChunk, reservation_) ==
+                MemoryChunkLayout::kReservationOffset);
+};
 
 }  // namespace internal
 }  // namespace v8
