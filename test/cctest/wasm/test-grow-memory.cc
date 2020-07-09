@@ -80,7 +80,7 @@ TEST(Run_WasmModule_Buffer_Externalized_GrowMem) {
     v8::internal::AccountingAllocator allocator;
     Zone zone(&allocator, ZONE_NAME);
 
-    WasmModuleBuilder* builder = new (&zone) WasmModuleBuilder(&zone);
+    WasmModuleBuilder* builder = zone.New<WasmModuleBuilder>(&zone);
     WasmFunctionBuilder* f = builder->AddFunction(sigs.i_v());
     ExportAsMain(f);
     byte code[] = {WASM_GROW_MEMORY(WASM_I32V_1(6)), WASM_DROP,

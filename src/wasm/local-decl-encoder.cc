@@ -11,10 +11,13 @@ namespace v8 {
 namespace internal {
 namespace wasm {
 
+// This struct is just a type tag for Zone::NewArray<T>(size_t) call.
+struct LocalDeclEncoderBuffer {};
+
 void LocalDeclEncoder::Prepend(Zone* zone, const byte** start,
                                const byte** end) const {
   size_t size = (*end - *start);
-  byte* buffer = reinterpret_cast<byte*>(zone->New(Size() + size));
+  byte* buffer = zone->NewArray<byte, LocalDeclEncoderBuffer>(Size() + size);
   size_t pos = Emit(buffer);
   if (size > 0) {
     memcpy(buffer + pos, *start, size);

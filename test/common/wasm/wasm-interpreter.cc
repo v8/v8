@@ -654,6 +654,8 @@ class SideTable : public ZoneObject {
 
     // Represents a control flow label.
     class CLabel : public ZoneObject {
+      friend Zone;
+
       explicit CLabel(Zone* zone, int32_t target_stack_height, uint32_t arity)
           : target_stack_height(target_stack_height), arity(arity), refs(zone) {
         DCHECK_LE(0, target_stack_height);
@@ -671,7 +673,7 @@ class SideTable : public ZoneObject {
       ZoneVector<Ref> refs;
 
       static CLabel* New(Zone* zone, int32_t stack_height, uint32_t arity) {
-        return new (zone) CLabel(zone, stack_height, arity);
+        return zone->New<CLabel>(zone, stack_height, arity);
       }
 
       // Bind this label to the given PC.
@@ -1014,7 +1016,7 @@ class CodeMap {
     DCHECK_EQ(code->function->imported, code->start == nullptr);
     if (!code->side_table && code->start) {
       // Compute the control targets map and the local declarations.
-      code->side_table = new (zone_) SideTable(zone_, module_, code);
+      code->side_table = zone_->New<SideTable>(zone_, module_, code);
     }
     return code;
   }

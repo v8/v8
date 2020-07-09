@@ -1920,7 +1920,7 @@ const wasm::FunctionSig* WasmJSFunction::GetSignature(Zone* zone) {
   }
   int return_count = function_data.serialized_return_count();
   int parameter_count = function_data.serialized_parameter_count();
-  return new (zone) wasm::FunctionSig(return_count, parameter_count, types);
+  return zone->New<wasm::FunctionSig>(return_count, parameter_count, types);
 }
 
 bool WasmJSFunction::MatchesSignature(const wasm::FunctionSig* sig) {

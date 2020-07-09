@@ -1072,7 +1072,7 @@ class WasmDecoder : public Decoder {
 
     // The number of locals_count is augmented by 2 so that 'locals_count - 2'
     // can be used to track mem_size, and 'locals_count - 1' to track mem_start.
-    BitVector* assigned = new (zone) BitVector(locals_count, zone);
+    BitVector* assigned = zone->New<BitVector>(locals_count, zone);
     int depth = 0;
     // Iteratively process all AST nodes nested inside the loop.
     while (pc < decoder->end() && VALIDATE(decoder->ok())) {

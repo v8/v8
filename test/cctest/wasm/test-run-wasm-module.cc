@@ -84,7 +84,7 @@ TEST(Run_WasmModule_Return114) {
     v8::internal::AccountingAllocator allocator;
     Zone zone(&allocator, ZONE_NAME);
 
-    WasmModuleBuilder* builder = new (&zone) WasmModuleBuilder(&zone);
+    WasmModuleBuilder* builder = zone.New<WasmModuleBuilder>(&zone);
     WasmFunctionBuilder* f = builder->AddFunction(sigs.i_v());
     ExportAsMain(f);
     byte code[] = {WASM_I32V_2(kReturnValue)};
@@ -105,7 +105,7 @@ TEST(Run_WasmModule_CompilationHintsLazy) {
     Zone zone(&allocator, ZONE_NAME);
 
     // Build module with one lazy function.
-    WasmModuleBuilder* builder = new (&zone) WasmModuleBuilder(&zone);
+    WasmModuleBuilder* builder = zone.New<WasmModuleBuilder>(&zone);
     WasmFunctionBuilder* f = builder->AddFunction(sigs.i_v());
     ExportAsMain(f);
     byte code[] = {WASM_I32V_2(kReturnValue)};
@@ -166,7 +166,7 @@ TEST(Run_WasmModule_CompilationHintsNoTiering) {
     Zone zone(&allocator, ZONE_NAME);
 
     // Build module with regularly compiled function (no tiering).
-    WasmModuleBuilder* builder = new (&zone) WasmModuleBuilder(&zone);
+    WasmModuleBuilder* builder = zone.New<WasmModuleBuilder>(&zone);
     WasmFunctionBuilder* f = builder->AddFunction(sigs.i_v());
     ExportAsMain(f);
     byte code[] = {WASM_I32V_2(kReturnValue)};
@@ -212,7 +212,7 @@ TEST(Run_WasmModule_CompilationHintsTierUp) {
     Zone zone(&allocator, ZONE_NAME);
 
     // Build module with tiering compilation hint.
-    WasmModuleBuilder* builder = new (&zone) WasmModuleBuilder(&zone);
+    WasmModuleBuilder* builder = zone.New<WasmModuleBuilder>(&zone);
     WasmFunctionBuilder* f = builder->AddFunction(sigs.i_v());
     ExportAsMain(f);
     byte code[] = {WASM_I32V_2(kReturnValue)};
@@ -277,7 +277,7 @@ TEST(Run_WasmModule_CompilationHintsLazyBaselineEagerTopTier) {
     Zone zone(&allocator, ZONE_NAME);
 
     // Build module with tiering compilation hint.
-    WasmModuleBuilder* builder = new (&zone) WasmModuleBuilder(&zone);
+    WasmModuleBuilder* builder = zone.New<WasmModuleBuilder>(&zone);
     WasmFunctionBuilder* f = builder->AddFunction(sigs.i_v());
     ExportAsMain(f);
     byte code[] = {WASM_I32V_2(kReturnValue)};
@@ -329,7 +329,7 @@ TEST(Run_WasmModule_CallAdd) {
     Zone zone(&allocator, ZONE_NAME);
     TestSignatures sigs;
 
-    WasmModuleBuilder* builder = new (&zone) WasmModuleBuilder(&zone);
+    WasmModuleBuilder* builder = zone.New<WasmModuleBuilder>(&zone);
 
     WasmFunctionBuilder* f1 = builder->AddFunction(sigs.i_ii());
     uint16_t param1 = 0;
@@ -356,7 +356,7 @@ TEST(Run_WasmModule_ReadLoadedDataSegment) {
     Zone zone(&allocator, ZONE_NAME);
     TestSignatures sigs;
 
-    WasmModuleBuilder* builder = new (&zone) WasmModuleBuilder(&zone);
+    WasmModuleBuilder* builder = zone.New<WasmModuleBuilder>(&zone);
     WasmFunctionBuilder* f = builder->AddFunction(sigs.i_v());
 
     ExportAsMain(f);
@@ -377,7 +377,7 @@ TEST(Run_WasmModule_CheckMemoryIsZero) {
     Zone zone(&allocator, ZONE_NAME);
     TestSignatures sigs;
 
-    WasmModuleBuilder* builder = new (&zone) WasmModuleBuilder(&zone);
+    WasmModuleBuilder* builder = zone.New<WasmModuleBuilder>(&zone);
     WasmFunctionBuilder* f = builder->AddFunction(sigs.i_v());
 
     uint16_t localIndex = f->AddLocal(kWasmI32);
@@ -402,7 +402,7 @@ TEST(Run_WasmModule_CallMain_recursive) {
     Zone zone(&allocator, ZONE_NAME);
     TestSignatures sigs;
 
-    WasmModuleBuilder* builder = new (&zone) WasmModuleBuilder(&zone);
+    WasmModuleBuilder* builder = zone.New<WasmModuleBuilder>(&zone);
     WasmFunctionBuilder* f = builder->AddFunction(sigs.i_v());
 
     uint16_t localIndex = f->AddLocal(kWasmI32);
@@ -427,7 +427,7 @@ TEST(Run_WasmModule_Global) {
     Zone zone(&allocator, ZONE_NAME);
     TestSignatures sigs;
 
-    WasmModuleBuilder* builder = new (&zone) WasmModuleBuilder(&zone);
+    WasmModuleBuilder* builder = zone.New<WasmModuleBuilder>(&zone);
     uint32_t global1 = builder->AddGlobal(kWasmI32);
     uint32_t global2 = builder->AddGlobal(kWasmI32);
     WasmFunctionBuilder* f1 = builder->AddFunction(sigs.i_v());
@@ -453,7 +453,7 @@ TEST(MemorySize) {
     v8::internal::AccountingAllocator allocator;
     Zone zone(&allocator, ZONE_NAME);
 
-    WasmModuleBuilder* builder = new (&zone) WasmModuleBuilder(&zone);
+    WasmModuleBuilder* builder = zone.New<WasmModuleBuilder>(&zone);
     WasmFunctionBuilder* f = builder->AddFunction(sigs.i_v());
     ExportAsMain(f);
     byte code[] = {WASM_MEMORY_SIZE};
@@ -471,7 +471,7 @@ TEST(Run_WasmModule_MemSize_GrowMem) {
     v8::internal::AccountingAllocator allocator;
     Zone zone(&allocator, ZONE_NAME);
 
-    WasmModuleBuilder* builder = new (&zone) WasmModuleBuilder(&zone);
+    WasmModuleBuilder* builder = zone.New<WasmModuleBuilder>(&zone);
     WasmFunctionBuilder* f = builder->AddFunction(sigs.i_v());
     ExportAsMain(f);
     byte code[] = {WASM_GROW_MEMORY(WASM_I32V_1(10)), WASM_DROP,
@@ -490,7 +490,7 @@ TEST(MemoryGrowZero) {
     v8::internal::AccountingAllocator allocator;
     Zone zone(&allocator, ZONE_NAME);
 
-    WasmModuleBuilder* builder = new (&zone) WasmModuleBuilder(&zone);
+    WasmModuleBuilder* builder = zone.New<WasmModuleBuilder>(&zone);
     WasmFunctionBuilder* f = builder->AddFunction(sigs.i_v());
     ExportAsMain(f);
     byte code[] = {WASM_GROW_MEMORY(WASM_I32V(0))};
@@ -553,7 +553,7 @@ TEST(TestInterruptLoop) {
     v8::internal::AccountingAllocator allocator;
     Zone zone(&allocator, ZONE_NAME);
 
-    WasmModuleBuilder* builder = new (&zone) WasmModuleBuilder(&zone);
+    WasmModuleBuilder* builder = zone.New<WasmModuleBuilder>(&zone);
     WasmFunctionBuilder* f = builder->AddFunction(sigs.i_v());
     ExportAsMain(f);
     byte code[] = {
@@ -597,7 +597,7 @@ TEST(Run_WasmModule_MemoryGrowInIf) {
     TestSignatures sigs;
     v8::internal::AccountingAllocator allocator;
     Zone zone(&allocator, ZONE_NAME);
-    WasmModuleBuilder* builder = new (&zone) WasmModuleBuilder(&zone);
+    WasmModuleBuilder* builder = zone.New<WasmModuleBuilder>(&zone);
     WasmFunctionBuilder* f = builder->AddFunction(sigs.i_v());
     ExportAsMain(f);
     byte code[] = {WASM_IF_ELSE_I(WASM_I32V(0), WASM_GROW_MEMORY(WASM_I32V(1)),
@@ -618,7 +618,7 @@ TEST(Run_WasmModule_GrowMemOobOffset) {
     v8::internal::AccountingAllocator allocator;
     Zone zone(&allocator, ZONE_NAME);
 
-    WasmModuleBuilder* builder = new (&zone) WasmModuleBuilder(&zone);
+    WasmModuleBuilder* builder = zone.New<WasmModuleBuilder>(&zone);
     WasmFunctionBuilder* f = builder->AddFunction(sigs.i_v());
     ExportAsMain(f);
     byte code[] = {WASM_GROW_MEMORY(WASM_I32V_1(1)),
@@ -640,7 +640,7 @@ TEST(Run_WasmModule_GrowMemOobFixedIndex) {
     Isolate* isolate = CcTest::InitIsolateOnce();
     Zone zone(isolate->allocator(), ZONE_NAME);
 
-    WasmModuleBuilder* builder = new (&zone) WasmModuleBuilder(&zone);
+    WasmModuleBuilder* builder = zone.New<WasmModuleBuilder>(&zone);
     WasmFunctionBuilder* f = builder->AddFunction(sigs.i_i());
     ExportAsMain(f);
     byte code[] = {WASM_GROW_MEMORY(WASM_GET_LOCAL(0)), WASM_DROP,
@@ -687,7 +687,7 @@ TEST(Run_WasmModule_GrowMemOobVariableIndex) {
     v8::internal::AccountingAllocator allocator;
     Zone zone(&allocator, ZONE_NAME);
 
-    WasmModuleBuilder* builder = new (&zone) WasmModuleBuilder(&zone);
+    WasmModuleBuilder* builder = zone.New<WasmModuleBuilder>(&zone);
     WasmFunctionBuilder* f = builder->AddFunction(sigs.i_i());
     ExportAsMain(f);
     byte code[] = {WASM_GROW_MEMORY(WASM_I32V_1(1)), WASM_DROP,
@@ -742,7 +742,7 @@ TEST(Run_WasmModule_Global_init) {
     Zone zone(&allocator, ZONE_NAME);
     TestSignatures sigs;
 
-    WasmModuleBuilder* builder = new (&zone) WasmModuleBuilder(&zone);
+    WasmModuleBuilder* builder = zone.New<WasmModuleBuilder>(&zone);
     uint32_t global1 =
         builder->AddGlobal(kWasmI32, false, WasmInitExpr(777777));
     uint32_t global2 =
@@ -769,7 +769,7 @@ static void RunWasmModuleGlobalInitTest(ValueType type, CType expected) {
 
     for (int padding = 0; padding < 5; padding++) {
       // Test with a simple initializer
-      WasmModuleBuilder* builder = new (&zone) WasmModuleBuilder(&zone);
+      WasmModuleBuilder* builder = zone.New<WasmModuleBuilder>(&zone);
 
       for (int i = 0; i < padding; i++) {  // pad global before
         builder->AddGlobal(kWasmI32, false, WasmInitExpr(i + 20000));

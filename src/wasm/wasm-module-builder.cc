@@ -256,7 +256,7 @@ WasmModuleBuilder::WasmModuleBuilder(Zone* zone)
       has_shared_memory_(false) {}
 
 WasmFunctionBuilder* WasmModuleBuilder::AddFunction(FunctionSig* sig) {
-  functions_.push_back(new (zone_) WasmFunctionBuilder(this));
+  functions_.push_back(zone_->New<WasmFunctionBuilder>(this));
   // Add the signature if one was provided here.
   if (sig) functions_.back()->SetSignature(sig);
   return functions_.back();

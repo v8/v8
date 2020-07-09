@@ -1841,7 +1841,7 @@ class ModuleDecoderImpl : public Decoder {
     for (uint32_t i = 0; i < return_count; ++i) buffer[b++] = returns[i];
     for (uint32_t i = 0; i < param_count; ++i) buffer[b++] = params[i];
 
-    return new (zone) FunctionSig(return_count, param_count, buffer);
+    return zone->New<FunctionSig>(return_count, param_count, buffer);
   }
 
   const StructType* consume_struct(Zone* zone) {
@@ -1859,7 +1859,7 @@ class ModuleDecoderImpl : public Decoder {
     }
     if (failed()) return nullptr;
     uint32_t* offsets = zone->NewArray<uint32_t>(field_count);
-    return new (zone) StructType(field_count, offsets, fields, mutabilities);
+    return zone->New<StructType>(field_count, offsets, fields, mutabilities);
   }
 
   const ArrayType* consume_array(Zone* zone) {
@@ -1870,7 +1870,7 @@ class ModuleDecoderImpl : public Decoder {
     if (!mutability) {
       error(this->pc() - 1, "immutable arrays are not supported yet");
     }
-    return new (zone) ArrayType(field, mutability);
+    return zone->New<ArrayType>(field, mutability);
   }
 
   // Consume the attribute field of an exception.

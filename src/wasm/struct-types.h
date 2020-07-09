@@ -96,8 +96,8 @@ class StructType : public ZoneObject {
     StructType* Build() {
       DCHECK_EQ(cursor_, field_count_);
       uint32_t* offsets = zone_->NewArray<uint32_t>(field_count_);
-      return new (zone_)
-          StructType(field_count_, offsets, buffer_, mutabilities_);
+      return zone_->New<StructType>(field_count_, offsets, buffer_,
+                                    mutabilities_);
     }
 
    private:

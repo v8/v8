@@ -132,8 +132,8 @@ namespace {
 
 ZoneBuffer* BuildReturnConstantModule(Zone* zone, int constant) {
   TestSignatures sigs;
-  ZoneBuffer* buffer = new (zone) ZoneBuffer(zone);
-  WasmModuleBuilder* builder = new (zone) WasmModuleBuilder(zone);
+  ZoneBuffer* buffer = zone->New<ZoneBuffer>(zone);
+  WasmModuleBuilder* builder = zone->New<WasmModuleBuilder>(zone);
   WasmFunctionBuilder* f = builder->AddFunction(sigs.i_v());
   f->builder()->AddExport(CStrVector("main"), f);
   byte code[] = {WASM_I32V_2(constant)};

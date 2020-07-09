@@ -1905,7 +1905,7 @@ class LiftoffCompiler {
     // If we are generating debugging code, we really need to spill all
     // registers to make them inspectable when stopping at the trap.
     auto* spilled =
-        new (compilation_zone_) SpilledRegistersBeforeTrap(compilation_zone_);
+        compilation_zone_->New<SpilledRegistersBeforeTrap>(compilation_zone_);
     for (uint32_t i = 0, e = __ cache_state()->stack_height(); i < e; ++i) {
       auto& slot = __ cache_state()->stack_state[i];
       if (!slot.is_reg()) continue;

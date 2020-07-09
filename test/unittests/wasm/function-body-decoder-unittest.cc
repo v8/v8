@@ -131,8 +131,7 @@ class TestModuleBuilder {
   }
 
   byte AddArray(ValueType type, bool mutability) {
-    ArrayType* array =
-        new (mod.signature_zone.get()) ArrayType(type, mutability);
+    ArrayType* array = mod.signature_zone->New<ArrayType>(type, mutability);
     mod.add_array_type(array);
     return static_cast<byte>(mod.type_kinds.size() - 1);
   }
@@ -205,7 +204,7 @@ class FunctionBodyDecoderTest : public TestWithZone {
     size_t locals_size = local_decls.Size();
     size_t total_size =
         code.size() + locals_size + (append_end == kAppendEnd ? 1 : 0);
-    byte* buffer = static_cast<byte*>(zone()->New(total_size));
+    byte* buffer = zone()->NewArray<byte>(total_size);
     // Prepend the local decls to the code.
     local_decls.Emit(buffer);
     // Emit the code.

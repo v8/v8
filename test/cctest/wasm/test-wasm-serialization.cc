@@ -37,7 +37,7 @@ class WasmSerializationTest {
   }
 
   static void BuildWireBytes(Zone* zone, ZoneBuffer* buffer) {
-    WasmModuleBuilder* builder = new (zone) WasmModuleBuilder(zone);
+    WasmModuleBuilder* builder = zone->New<WasmModuleBuilder>(zone);
     TestSignatures sigs;
 
     WasmFunctionBuilder* f = builder->AddFunction(sigs.i_i());

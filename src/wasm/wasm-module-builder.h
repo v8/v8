@@ -22,9 +22,12 @@ namespace wasm {
 
 class ZoneBuffer : public ZoneObject {
  public:
+  // This struct is just a type tag for Zone::NewArray<T>(size_t) call.
+  struct Buffer {};
+
   static constexpr size_t kInitialSize = 1024;
   explicit ZoneBuffer(Zone* zone, size_t initial = kInitialSize)
-      : zone_(zone), buffer_(reinterpret_cast<byte*>(zone->New(initial))) {
+      : zone_(zone), buffer_(zone->NewArray<byte, Buffer>(initial)) {
     pos_ = buffer_;
     end_ = buffer_ + initial;
   }
@@ -130,7 +133,7 @@ class ZoneBuffer : public ZoneObject {
   void EnsureSpace(size_t size) {
     if ((pos_ + size) > end_) {
       size_t new_size = size + (end_ - buffer_) * 2;
-      byte* new_buffer = reinterpret_cast<byte*>(zone_->New(new_size));
+      byte* new_buffer = zone_->NewArray<byte, Buffer>(new_size);
       memcpy(new_buffer, buffer_, (pos_ - buffer_));
       pos_ = new_buffer + (pos_ - buffer_);
       buffer_ = new_buffer;
@@ -203,6 +206,7 @@ class V8_EXPORT_PRIVATE WasmFunctionBuilder : public ZoneObject {
  private:
   explicit WasmFunctionBuilder(WasmModuleBuilder* builder);
   friend class WasmModuleBuilder;
+  friend Zone;
 
   struct DirectCallIndex {
     size_t offset;

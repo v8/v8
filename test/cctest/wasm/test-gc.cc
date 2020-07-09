@@ -68,8 +68,7 @@ class WasmGCTester {
   }
 
   uint32_t DefineArray(ValueType element_type, bool mutability) {
-    return builder_.AddArrayType(new (&zone)
-                                     ArrayType(element_type, mutability));
+    return builder_.AddArrayType(zone.New<ArrayType>(element_type, mutability));
   }
 
   void CompileModule() {

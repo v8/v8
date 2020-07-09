@@ -145,8 +145,8 @@ class LiftoffCompileEnvironment {
     std::copy(return_types.begin(), return_types.end(), storage);
     std::copy(param_types.begin(), param_types.end(),
               storage + return_types.size());
-    FunctionSig* sig = new (&zone_)
-        FunctionSig{return_types.size(), param_types.size(), storage};
+    FunctionSig* sig = zone_.New<FunctionSig>(return_types.size(),
+                                              param_types.size(), storage);
     module_builder_.AddSignature(sig);
     return sig;
   }

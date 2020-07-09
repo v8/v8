@@ -29,7 +29,7 @@ void DefineStruct(WasmModule* module, std::initializer_list<FieldInit> fields) {
 }
 
 void DefineArray(WasmModule* module, FieldInit element_type) {
-  module->add_array_type(new (module->signature_zone.get()) ArrayType(
+  module->add_array_type(module->signature_zone->New<ArrayType>(
       element_type.first, element_type.second));
 }
 
