@@ -665,6 +665,13 @@
   # https://crbug.com/v8/10688
   'language/expressions/optional-chaining/eval-optional-call': [FAIL],
 
+  # https://github.com/tc39/test262/pull/2697
+  'intl402/DateTimeFormat/constructor-options-fractionalSecondDigits-valid': [FAIL],
+  'intl402/DateTimeFormat/prototype/format/fractionalSecondDigits': [FAIL],
+  'intl402/DateTimeFormat/prototype/formatRange/fractionalSecondDigits': [FAIL],
+  'intl402/DateTimeFormat/prototype/formatRangeToParts/fractionalSecondDigits': [FAIL],
+  'intl402/DateTimeFormat/prototype/formatToParts/fractionalSecondDigits': [FAIL],
+
   ######################## NEEDS INVESTIGATION ###########################
 
   # https://bugs.chromium.org/p/v8/issues/detail?id=7833

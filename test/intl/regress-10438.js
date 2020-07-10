@@ -4,10 +4,15 @@
 
 // Flags: --harmony_intl_dateformat_fractional_second_digits
 
-assertEquals(
-    undefined,
-    (new Intl.DateTimeFormat("en", {fractionalSecondDigits: 0}))
-        .resolvedOptions().fractionalSecondDigits);
+assertThrows(
+    () => (new Intl.DateTimeFormat("en", {fractionalSecondDigits: 0})),
+    RangeError,
+    "fractionalSecondDigits value is out of range.");
+
+assertThrows(
+    () => (new Intl.DateTimeFormat("en", {fractionalSecondDigits: 4})),
+    RangeError,
+    "fractionalSecondDigits value is out of range.");
 
 assertEquals(
     1,

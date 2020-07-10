@@ -1669,8 +1669,10 @@ MaybeHandle<JSDateTimeFormat> JSDateTimeFormat::New(
     }
   }
   if (FLAG_harmony_intl_dateformat_fractional_second_digits) {
+    // Let _value_ be ? GetNumberOption(options, "fractionalSecondDigits", 1, 3,
+    // *undefined*). The *undefined* is represented by value 0 here.
     Maybe<int> maybe_fsd = Intl::GetNumberOption(
-        isolate, options, factory->fractionalSecondDigits_string(), 0, 3, 0);
+        isolate, options, factory->fractionalSecondDigits_string(), 1, 3, 0);
     MAYBE_RETURN(maybe_fsd, MaybeHandle<JSDateTimeFormat>());
     // Convert fractionalSecondDigits to skeleton.
     int fsd = maybe_fsd.FromJust();
