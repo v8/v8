@@ -2683,7 +2683,7 @@ void Builtins::Generate_DoubleToI(MacroAssembler* masm) {
   __ Branch(&shift_done);
 
   __ bind(&pos_shift);
-  __ srlv(input_low, input_low, scratch);
+  __ RV_srlw(input_low, input_low, scratch);
 
   __ bind(&shift_done);
   __ Or(input_high, input_high, Operand(input_low));

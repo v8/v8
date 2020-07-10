@@ -692,7 +692,7 @@ Handle<HeapObject> RegExpMacroAssemblerRISCV::GetCode(Handle<String> source) {
     // (effectively string position -1).
     __ Ld(a1, MemOperand(frame_pointer(), kStartIndex));
     __ Dsubu(a0, current_input_offset(), Operand(char_size()));
-    __ dsll(t1, a1, (mode_ == UC16) ? 1 : 0);
+    __ RV_slli(t1, a1, (mode_ == UC16) ? 1 : 0);
     __ Dsubu(a0, a0, t1);
     // Store this value in a local variable, for use when clearing
     // position registers.
@@ -750,7 +750,7 @@ Handle<HeapObject> RegExpMacroAssemblerRISCV::GetCode(Handle<String> source) {
         __ Dsubu(a1, end_of_input_address(), a1);
         // a1 is length of input in bytes.
         if (mode_ == UC16) {
-          __ dsrl(a1, a1, 1);
+          __ RV_srli(a1, a1, 1);
         }
         // a1 is length of input in characters.
         __ Daddu(a1, a1, Operand(a2));
@@ -768,9 +768,9 @@ Handle<HeapObject> RegExpMacroAssemblerRISCV::GetCode(Handle<String> source) {
             __ mov(t4, a2);
           }
           if (mode_ == UC16) {
-            __ dsra(a2, a2, 1);
+            __ RV_srai(a2, a2, 1);
             __ Daddu(a2, a2, a1);
-            __ dsra(a3, a3, 1);
+            __ RV_srai(a3, a3, 1);
             __ Daddu(a3, a3, a1);
           } else {
             __ Daddu(a2, a1, Operand(a2));

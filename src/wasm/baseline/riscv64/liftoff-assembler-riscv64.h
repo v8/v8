@@ -954,7 +954,7 @@ bool LiftoffAssembler::emit_type_conversion(WasmOpcode opcode,
       TurboAssembler::FmoveLow(dst.gp(), src.fp());
       return true;
     case kExprI64SConvertI32:
-      sll(dst.gp(), src.gp(), 0);
+      RV_slliw(dst.gp(), src.gp(), 0);
       return true;
     case kExprI64UConvertI32:
       TurboAssembler::Dext(dst.gp(), src.gp(), 0, 32);

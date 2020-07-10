@@ -2023,60 +2023,6 @@ void Assembler::xori(Register rt, Register rs, int32_t j) {
   }
 }
 
-// Shifts.
-void Assembler::sll(Register rd, Register rt, uint16_t sa,
-                    bool coming_from_nop) {
-  RV_slliw(rd, rt, sa);
-}
-
-void Assembler::sllv(Register rd, Register rt, Register rs) {
-  RV_sllw(rd, rt, rs);
-}
-
-void Assembler::srl(Register rd, Register rt, uint16_t sa) {
-  RV_srliw(rd, rt, sa);
-}
-
-void Assembler::srlv(Register rd, Register rt, Register rs) {
-  RV_srlw(rd, rt, rs);
-}
-
-void Assembler::sra(Register rd, Register rt, uint16_t sa) {
-  RV_sraiw(rd, rt, sa & 0x1F);
-}
-
-void Assembler::srav(Register rd, Register rt, Register rs) {
-  RV_sraw(rd, rt, rs);
-}
-
-void Assembler::dsll(Register rd, Register rt, uint16_t sa) {
-  RV_slli(rd, rt, sa & 0x1F);
-}
-
-void Assembler::dsllv(Register rd, Register rt, Register rs) {
-  RV_sll(rd, rt, rs);
-}
-
-void Assembler::dsrl(Register rd, Register rt, uint16_t sa) {
-  RV_srli(rd, rt, sa & 0x1F);
-}
-
-void Assembler::dsra(Register rd, Register rt, uint16_t sa) {
-  RV_srai(rd, rt, sa & 0x1F);
-}
-
-void Assembler::dsll32(Register rd, Register rt, uint16_t sa) {
-  RV_slli(rd, rt, 32 + (sa & 0x1F));
-}
-
-void Assembler::dsrl32(Register rd, Register rt, uint16_t sa) {
-  RV_srli(rd, rt, 32 + (sa & 0x1F));
-}
-
-void Assembler::dsra32(Register rd, Register rt, uint16_t sa) {
-  RV_srai(rd, rt, 32 + (sa & 0x1F));
-}
-
 // ------------Memory-instructions-------------
 
 bool Assembler::NeedAdjustBaseAndOffset(const MemOperand& src,

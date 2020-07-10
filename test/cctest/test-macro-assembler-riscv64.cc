@@ -706,8 +706,8 @@ TEST(OverflowInstructions) {
 
       __ ld(t0, MemOperand(a0, offsetof(T, lhs)));
       __ ld(t1, MemOperand(a0, offsetof(T, rhs)));
-      __ sll(t0, t0, 0);
-      __ sll(t1, t1, 0);
+      __ RV_slliw(t0, t0, 0);
+      __ RV_slliw(t1, t1, 0);
       __ MulOverflow(t2, t0, Operand(t1), a1);
       __ sd(t2, MemOperand(a0, offsetof(T, output_mul)));
       __ sd(a1, MemOperand(a0, offsetof(T, overflow_mul)));
@@ -959,16 +959,16 @@ TEST(Ulh_bitextension) {
 
           // If signed and unsigned values are same, check
           // the upper bits to see if they are zero
-          __ sra(t0, t0, 15);
+          __ RV_sraiw(t0, t0, 15);
           __ Branch(&success, eq, t0, Operand(zero_reg));
           __ Branch(&fail);
 
           // If signed and unsigned values are different,
           // check that the upper bits are complementary
           __ bind(&different);
-          __ sra(t1, t1, 15);
+          __ RV_sraiw(t1, t1, 15);
           __ Branch(&fail, ne, t1, Operand(1));
-          __ sra(t0, t0, 15);
+          __ RV_sraiw(t0, t0, 15);
           __ addiu(t0, t0, 1);
           __ Branch(&fail, ne, t0, Operand(zero_reg));
           // Fall through to success
@@ -1067,16 +1067,16 @@ TEST(Ulw_extension) {
 
           // If signed and unsigned values are same, check
           // the upper bits to see if they are zero
-          __ dsra(t0, t0, 31);
+          __ RV_srai(t0, t0, 31);
           __ Branch(&success, eq, t0, Operand(zero_reg));
           __ Branch(&fail);
 
           // If signed and unsigned values are different,
           // check that the upper bits are complementary
           __ bind(&different);
-          __ dsra(t1, t1, 31);
+          __ RV_srai(t1, t1, 31);
           __ Branch(&fail, ne, t1, Operand(1));
-          __ dsra(t0, t0, 31);
+          __ RV_srai(t0, t0, 31);
           __ daddiu(t0, t0, 1);
           __ Branch(&fail, ne, t0, Operand(zero_reg));
           // Fall through to success

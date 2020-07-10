@@ -746,24 +746,6 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase {
   void andi(Register rd, Register rs, int32_t j);
   void xori(Register rd, Register rs, int32_t j);
 
-  // Shifts.
-  // Please note: sll(zero_reg, zero_reg, x) instructions are reserved as nop
-  // and may cause problems in normal code. coming_from_nop makes sure this
-  // doesn't happen.
-  void sll(Register rd, Register rt, uint16_t sa, bool coming_from_nop = false);
-  void sllv(Register rd, Register rt, Register rs);
-  void srl(Register rd, Register rt, uint16_t sa);
-  void srlv(Register rd, Register rt, Register rs);
-  void sra(Register rt, Register rd, uint16_t sa);
-  void srav(Register rt, Register rd, Register rs);
-  void dsll(Register rd, Register rt, uint16_t sa);
-  void dsllv(Register rd, Register rt, Register rs);
-  void dsrl(Register rd, Register rt, uint16_t sa);
-  void dsra(Register rt, Register rd, uint16_t sa);
-  void dsll32(Register rt, Register rd, uint16_t sa);
-  void dsrl32(Register rt, Register rd, uint16_t sa);
-  void dsra32(Register rt, Register rd, uint16_t sa);
-
   // ------------Memory-instructions-------------
 
   void lb(Register rd, const MemOperand& rs);
@@ -801,6 +783,8 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase {
   // Load, store, and move.
   void lwc1(FPURegister fd, const MemOperand& src);
   void swc1(FPURegister fs, const MemOperand& dst);
+
+  // --------End of MIPS instructions----------------
 
   // Check the code size generated from label to here.
   int SizeOfCodeGeneratedSince(Label* label) {

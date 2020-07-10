@@ -38,11 +38,12 @@ enum LeaveExitFrameMode { EMIT_RETURN = true, NO_EMIT_RETURN = false };
 // Flags used for the li macro-assembler function.
 enum LiFlags {
   // If the constant value can be represented in just 16 bits, then
-  // optimize the li to use a single instruction, rather than lui/ori/dsll
+  // optimize the li to use a single instruction, rather than lui/ori/slli
   // sequence. A number of other optimizations that emits less than
   // maximum number of instructions exists.
   OPTIMIZE_SIZE = 0,
-  // Always use 8 instructions (lui/addi/sll sequence), even if the constant
+  // Always use 8 instructions (lui/addi/RV_slliw sequence), even if the
+  // constant
   // could be loaded with just one, so that this value is patchable later.
   CONSTANT_SIZE = 1,
   // For address loads 8 instruction are required. Used to mark
@@ -439,10 +440,10 @@ class V8_EXPORT_PRIVATE TurboAssembler : public TurboAssemblerBase {
   void SmiUntag(Register dst, const MemOperand& src);
   void SmiUntag(Register dst, Register src) {
     if (SmiValuesAre32Bits()) {
-      dsra32(dst, src, kSmiShift - 32);
+      RV_srai(dst, src, kSmiShift & 0x3F);
     } else {
       DCHECK(SmiValuesAre31Bits());
-      sra(dst, src, kSmiShift);
+      RV_sraiw(dst, src, kSmiShift & 0x1F);
     }
   }
 
@@ -1046,7 +1047,8 @@ class V8_EXPORT_PRIVATE MacroAssembler : public TurboAssembler {
   void SmiTag(Register dst, Register src) {
     STATIC_ASSERT(kSmiTag == 0);
     if (SmiValuesAre32Bits()) {
-      dsll32(dst, src, 0);
+      // FIXME(RISCV): do not understand the logic here
+      RV_slli(dst, src, 32);
     } else {
       DCHECK(SmiValuesAre31Bits());
       Addu(dst, src, src);
@@ -1059,11 +1061,11 @@ class V8_EXPORT_PRIVATE MacroAssembler : public TurboAssembler {
   void SmiScale(Register dst, Register src, int scale) {
     if (SmiValuesAre32Bits()) {
       // The int portion is upper 32-bits of 64-bit word.
-      dsra(dst, src, kSmiShift - scale);
+      RV_srai(dst, src, (kSmiShift - scale) & 0x3F);
     } else {
       DCHECK(SmiValuesAre31Bits());
       DCHECK_GE(scale, kSmiTagSize);
-      sll(dst, src, scale - kSmiTagSize);
+      RV_slliw(dst, src, scale - kSmiTagSize);
     }
   }
 

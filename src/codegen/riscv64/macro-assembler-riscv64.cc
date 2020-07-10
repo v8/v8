@@ -2311,17 +2311,16 @@ void TurboAssembler::LoadZeroIfConditionZero(Register dest,
 
 void TurboAssembler::Clz(Register rd, Register xx) {
   // 32 bit unsigned in lower word: count number of leading zeros.
-  /*
-     int n = 32;
-     unsigned y;
+  //  int n = 32;
+  //  unsigned y;
 
-     y = x >>16; if (y != 0) { n = n -16; x = y; }
-     y = x >> 8; if (y != 0) { n = n - 8; x = y; }
-     y = x >> 4; if (y != 0) { n = n - 4; x = y; }
-     y = x >> 2; if (y != 0) { n = n - 2; x = y; }
-     y = x >> 1; if (y != 0) {rd = n - 2; return;}
-     rd = n - x;
-  */
+  //  y = x >>16; if (y != 0) { n = n -16; x = y; }
+  //  y = x >> 8; if (y != 0) { n = n - 8; x = y; }
+  //  y = x >> 4; if (y != 0) { n = n - 4; x = y; }
+  //  y = x >> 2; if (y != 0) { n = n - 2; x = y; }
+  //  y = x >> 1; if (y != 0) {rd = n - 2; return;}
+  //  rd = n - x;
+
   Label L0, L1, L2, L3, L4;
   DCHECK(xx != t5 && xx != t6);
   UseScratchRegisterScope temps(this);
@@ -2360,18 +2359,17 @@ void TurboAssembler::Clz(Register rd, Register xx) {
 
 void TurboAssembler::Dclz(Register rd, Register xx) {
   // 64 bit: count number of leading zeros.
-  /*
-     int n = 64;
-     unsigned y;
+  //  int n = 64;
+  //  unsigned y;
 
-     y = x >>32; if (y != 0) { n = n - 32; x = y; }
-     y = x >>16; if (y != 0) { n = n - 16; x = y; }
-     y = x >> 8; if (y != 0) { n = n - 8; x = y; }
-     y = x >> 4; if (y != 0) { n = n - 4; x = y; }
-     y = x >> 2; if (y != 0) { n = n - 2; x = y; }
-     y = x >> 1; if (y != 0) {rd = n - 2; return;}
-     rd = n - x;
-  */
+  //  y = x >>32; if (y != 0) { n = n - 32; x = y; }
+  //  y = x >>16; if (y != 0) { n = n - 16; x = y; }
+  //  y = x >> 8; if (y != 0) { n = n - 8; x = y; }
+  //  y = x >> 4; if (y != 0) { n = n - 4; x = y; }
+  //  y = x >> 2; if (y != 0) { n = n - 2; x = y; }
+  //  y = x >> 1; if (y != 0) {rd = n - 2; return;}
+  //  rd = n - x;
+
   DCHECK(xx != t5 && xx != t6);
   Label L0, L1, L2, L3, L4, L5;
   UseScratchRegisterScope temps(this);
@@ -2487,7 +2485,7 @@ void TurboAssembler::Popcnt(Register rd, Register rs) {
   Srl(scratch, scratch, 2);
   And(scratch, scratch, scratch2);
   Addu(scratch, rd, scratch);
-  srl(rd, scratch, 4);
+  RV_srliw(rd, scratch, 4);
   Addu(rd, rd, scratch);
   li(scratch2, 0xF);
   Mul(scratch2, value, scratch2);  // B2 = 0x0F0F0F0F;
@@ -2497,13 +2495,12 @@ void TurboAssembler::Popcnt(Register rd, Register rs) {
 }
 
 void TurboAssembler::Dpopcnt(Register rd, Register rs) {
-  /*
-  uint64_t B0 = 0x5555555555555555l;     // (T)~(T)0/3
-  uint64_t B1 = 0x3333333333333333l;     // (T)~(T)0/15*3
-  uint64_t B2 = 0x0F0F0F0F0F0F0F0Fl;     // (T)~(T)0/255*15
-  uint64_t value = 0x0101010101010101l;  // (T)~(T)0/255
-  uint64_t shift = 24;                   // (sizeof(T) - 1) * BITS_PER_BYTE
-  */
+  // uint64_t B0 = 0x5555555555555555l;     // (T)~(T)0/3
+  // uint64_t B1 = 0x3333333333333333l;     // (T)~(T)0/15*3
+  // uint64_t B2 = 0x0F0F0F0F0F0F0F0Fl;     // (T)~(T)0/255*15
+  // uint64_t value = 0x0101010101010101l;  // (T)~(T)0/255
+  // uint64_t shift = 24;                   // (sizeof(T) - 1) * BITS_PER_BYTE
+
   DCHECK(rd != t5 && rd != t6 && rs != t5 && rs != t6);
   uint64_t shift = 24;
   UseScratchRegisterScope temps(this);
@@ -2530,7 +2527,7 @@ void TurboAssembler::Dpopcnt(Register rd, Register rs) {
   Dmul(scratch2, value, scratch2);  // B2 = 0x0F0F0F0F0F0F0F0Fl;
   And(rd, rd, scratch2);
   Dmul(rd, rd, value);
-  dsrl32(rd, rd, shift);
+  RV_srli(rd, rd, 32 + (shift & 0x1F));
 }
 
 void TurboAssembler::TryInlineTruncateDoubleToI(Register result,
