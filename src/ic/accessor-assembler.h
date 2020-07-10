@@ -434,9 +434,7 @@ class V8_EXPORT_PRIVATE AccessorAssembler : public CodeStubAssembler {
 // and then jump to an exit label.
 class ExitPoint {
  private:
-  using Node = compiler::Node;
   using CodeAssemblerLabel = compiler::CodeAssemblerLabel;
-  using CodeAssemblerVariable = compiler::CodeAssemblerVariable;
 
  public:
   using IndirectReturnHandler = std::function<void(TNode<Object> result)>;

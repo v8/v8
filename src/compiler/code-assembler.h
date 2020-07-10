@@ -1201,8 +1201,16 @@ class V8_EXPORT_PRIVATE CodeAssembler {
   DISALLOW_COPY_AND_ASSIGN(CodeAssembler);
 };
 
+// TODO(solanes, v8:6949): this class should be merged into
+// TypedCodeAssemblerVariable. It's required to be separate for
+// CodeAssemblerVariableLists.
 class V8_EXPORT_PRIVATE CodeAssemblerVariable {
  public:
+  Node* value() const;
+  MachineRepresentation rep() const;
+  bool IsBound() const;
+
+ protected:
   explicit CodeAssemblerVariable(CodeAssembler* assembler,
                                  MachineRepresentation rep);
   CodeAssemblerVariable(CodeAssembler* assembler, MachineRepresentation rep,
@@ -1216,9 +1224,6 @@ class V8_EXPORT_PRIVATE CodeAssemblerVariable {
 
   ~CodeAssemblerVariable();
   void Bind(Node* value);
-  Node* value() const;
-  MachineRepresentation rep() const;
-  bool IsBound() const;
 
  private:
   class Impl;

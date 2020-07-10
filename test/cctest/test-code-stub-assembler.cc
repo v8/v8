@@ -37,7 +37,6 @@ namespace compiler {
 namespace {
 
 using Label = CodeAssemblerLabel;
-using Variable = CodeAssemblerVariable;
 template <class T>
 using TVariable = TypedCodeAssemblerVariable<T>;
 using PromiseResolvingFunctions = TorqueStructPromiseResolvingFunctions;
@@ -3395,18 +3394,18 @@ TEST(SingleInputPhiElimination) {
   CodeAssemblerTester asm_tester(isolate, kNumParams);
   {
     CodeStubAssembler m(asm_tester.state());
-    Variable temp1(&m, MachineRepresentation::kTagged);
-    Variable temp2(&m, MachineRepresentation::kTagged);
+    TVariable<Smi> temp1(&m);
+    TVariable<Smi> temp2(&m);
     Label temp_label(&m, {&temp1, &temp2});
     Label end_label(&m, {&temp1, &temp2});
-    temp1.Bind(m.Parameter(1));
-    temp2.Bind(m.Parameter(1));
+    temp1 = m.CAST(m.Parameter(1));
+    temp2 = m.CAST(m.Parameter(1));
     m.Branch(m.TaggedEqual(m.UncheckedCast<Object>(m.Parameter(0)),
                            m.UncheckedCast<Object>(m.Parameter(1))),
              &end_label, &temp_label);
-    temp1.Bind(m.Parameter(2));
-    temp2.Bind(m.Parameter(2));
     m.BIND(&temp_label);
+    temp1 = m.CAST(m.Parameter(2));
+    temp2 = m.CAST(m.Parameter(2));
     m.Goto(&end_label);
     m.BIND(&end_label);
     m.Return(m.UncheckedCast<Object>(temp1.value()));

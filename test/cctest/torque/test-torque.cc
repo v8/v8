@@ -27,8 +27,6 @@ namespace compiler {
 
 namespace {
 
-using Variable = CodeAssemblerVariable;
-
 class TestTorqueAssembler : public CodeStubAssembler {
  public:
   explicit TestTorqueAssembler(CodeAssemblerState* state)

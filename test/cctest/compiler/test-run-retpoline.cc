@@ -45,16 +45,15 @@ Handle<Code> BuildCaller(Isolate* isolate, CallDescriptor* call_descriptor,
   // The first parameter is always the callee.
   Handle<Code> callee = BuildCallee(isolate, callee_descriptor);
   // defeat the instruction selector.
-  CodeStubAssembler::Variable target_var(&assembler,
-                                         MachineRepresentation::kTagged);
+  CodeStubAssembler::TVariable<Code> target_var(&assembler);
   CodeStubAssembler::Label t(&assembler), f(&assembler),
       end(&assembler, &target_var);
   __ Branch(__ Int32Constant(0), &t, &f);
   __ BIND(&t);
-  target_var.Bind(__ HeapConstant(callee));
+  target_var = __ HeapConstant(callee);
   __ Goto(&end);
   __ BIND(&f);
-  target_var.Bind(__ HeapConstant(callee));
+  target_var = __ HeapConstant(callee);
   __ Goto(&end);
   __ BIND(&end);
   params.push_back(target_var.value());
