@@ -822,29 +822,6 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase {
   void mfc1(Register rt, FPURegister fs);
   void dmfc1(Register rt, FPURegister fs);
 
-  // Arithmetic.
-  void add_s(FPURegister fd, FPURegister fs, FPURegister ft);
-  void add_d(FPURegister fd, FPURegister fs, FPURegister ft);
-  void sub_s(FPURegister fd, FPURegister fs, FPURegister ft);
-  void sub_d(FPURegister fd, FPURegister fs, FPURegister ft);
-  void mul_s(FPURegister fd, FPURegister fs, FPURegister ft);
-  void mul_d(FPURegister fd, FPURegister fs, FPURegister ft);
-  void div_s(FPURegister fd, FPURegister fs, FPURegister ft);
-  void div_d(FPURegister fd, FPURegister fs, FPURegister ft);
-  void abs_s(FPURegister fd, FPURegister fs);
-  void abs_d(FPURegister fd, FPURegister fs);
-  void sqrt_s(FPURegister fd, FPURegister fs);
-  void sqrt_d(FPURegister fd, FPURegister fs);
-
-  // Conversion.
-  void min_s(FPURegister fd, FPURegister fs, FPURegister ft);
-  void min_d(FPURegister fd, FPURegister fs, FPURegister ft);
-  void max_s(FPURegister fd, FPURegister fs, FPURegister ft);
-  void max_d(FPURegister fd, FPURegister fs, FPURegister ft);
-
-  void cvt_s_d(FPURegister fd, FPURegister fs);
-  void cvt_d_s(FPURegister fd, FPURegister fs);
-
   // Check the code size generated from label to here.
   int SizeOfCodeGeneratedSince(Label* label) {
     return pc_offset() - label->pos();

@@ -34,9 +34,9 @@
 
 #if V8_TARGET_ARCH_RISCV64
 
+#include "src/codegen/riscv64/assembler-riscv64.h"
 #include "src/base/cpu.h"
 #include "src/codegen/riscv64/assembler-riscv64-inl.h"
-#include "src/codegen/riscv64/assembler-riscv64.h"
 #include "src/codegen/safepoint-table.h"
 #include "src/codegen/string-constants.h"
 #include "src/deoptimizer/deoptimizer.h"
@@ -2304,7 +2304,7 @@ void Assembler::stop(uint32_t code) {
 }
 
 void Assembler::sync() { RV_fence(0b1111, 0b1111); }
-
+/*
 void Assembler::min_s(FPURegister fd, FPURegister fs, FPURegister ft) {
   RV_fmin_s(fd, fs, ft);
 }
@@ -2320,7 +2320,7 @@ void Assembler::max_s(FPURegister fd, FPURegister fs, FPURegister ft) {
 void Assembler::max_d(FPURegister fd, FPURegister fs, FPURegister ft) {
   RV_fmax_d(fd, fs, ft);
 }
-
+*/
 // --------Coprocessor-instructions----------------
 
 // Load, store, move.
@@ -2356,54 +2356,6 @@ void Assembler::dmtc1(Register rt, FPURegister fs) { RV_fmv_d_x(fs, rt); }
 void Assembler::mfc1(Register rt, FPURegister fs) { RV_fmv_x_w(rt, fs); }
 
 void Assembler::dmfc1(Register rt, FPURegister fs) { RV_fmv_x_d(rt, fs); }
-
-// Arithmetic.
-
-void Assembler::add_s(FPURegister fd, FPURegister fs, FPURegister ft) {
-  RV_fadd_s(fd, fs, ft);
-}
-
-void Assembler::add_d(FPURegister fd, FPURegister fs, FPURegister ft) {
-  RV_fadd_d(fd, fs, ft);
-}
-
-void Assembler::sub_s(FPURegister fd, FPURegister fs, FPURegister ft) {
-  RV_fsub_s(fd, fs, ft);
-}
-
-void Assembler::sub_d(FPURegister fd, FPURegister fs, FPURegister ft) {
-  RV_fsub_d(fd, fs, ft);
-}
-
-void Assembler::mul_s(FPURegister fd, FPURegister fs, FPURegister ft) {
-  RV_fmul_s(fd, fs, ft);
-}
-
-void Assembler::mul_d(FPURegister fd, FPURegister fs, FPURegister ft) {
-  RV_fmul_d(fd, fs, ft);
-}
-
-void Assembler::div_s(FPURegister fd, FPURegister fs, FPURegister ft) {
-  RV_fdiv_s(fd, fs, ft);
-}
-
-void Assembler::div_d(FPURegister fd, FPURegister fs, FPURegister ft) {
-  RV_fdiv_d(fd, fs, ft);
-}
-
-void Assembler::abs_s(FPURegister fd, FPURegister fs) { RV_fabs_s(fd, fs); }
-
-void Assembler::abs_d(FPURegister fd, FPURegister fs) { RV_fabs_d(fd, fs); }
-
-void Assembler::sqrt_s(FPURegister fd, FPURegister fs) { RV_fsqrt_s(fd, fs); }
-
-void Assembler::sqrt_d(FPURegister fd, FPURegister fs) { RV_fsqrt_d(fd, fs); }
-
-// Conversions.
-
-void Assembler::cvt_s_d(FPURegister fd, FPURegister fs) { RV_fcvt_s_d(fd, fs); }
-
-void Assembler::cvt_d_s(FPURegister fd, FPURegister fs) { RV_fcvt_d_s(fd, fs); }
 
 // FIXME (RISCV): not yet ported (or not used?)
 int Assembler::RelocateInternalReference(RelocInfo::Mode rmode, Address pc,
