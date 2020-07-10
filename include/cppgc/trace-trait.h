@@ -6,7 +6,9 @@
 #define INCLUDE_CPPGC_TRACE_TRAIT_H_
 
 #include <type_traits>
+
 #include "cppgc/type-traits.h"
+#include "v8config.h"  // NOLINT(build/include_directory)
 
 namespace cppgc {
 
@@ -46,6 +48,14 @@ struct TraceDescriptor {
    */
   TraceCallback callback;
 };
+
+namespace internal {
+
+struct V8_EXPORT TraceTraitFromInnerAddressImpl {
+  static TraceDescriptor GetTraceDescriptor(const void* address);
+};
+
+}  // namespace internal
 
 /**
  * Trait specifying how the garbage collector processes an object of type T.
@@ -91,7 +101,7 @@ struct TraceTraitImpl<T, false> {
 template <typename T>
 struct TraceTraitImpl<T, true> {
   static TraceDescriptor GetTraceDescriptor(const void* self) {
-    return static_cast<const T*>(self)->GetTraceDescriptor();
+    return internal::TraceTraitFromInnerAddressImpl::GetTraceDescriptor(self);
   }
 };
 

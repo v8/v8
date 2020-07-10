@@ -32,8 +32,6 @@ class Mixin : public GarbageCollectedMixin {
 };
 
 class GCedWithMixin final : public GCed, public OtherPayload, public Mixin {
-  USING_GARBAGE_COLLECTED_MIXIN();
-
  public:
   void Trace(Visitor* visitor) const final {
     GCed::Trace(visitor);

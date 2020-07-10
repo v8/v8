@@ -48,7 +48,11 @@ class V8_EXPORT_PRIVATE BasePage {
   ConstAddress PayloadEnd() const;
 
   // |address| must refer to real object.
+  template <
+      HeapObjectHeader::AccessMode = HeapObjectHeader::AccessMode::kNonAtomic>
   HeapObjectHeader& ObjectHeaderFromInnerAddress(void* address) const;
+  template <
+      HeapObjectHeader::AccessMode = HeapObjectHeader::AccessMode::kNonAtomic>
   const HeapObjectHeader& ObjectHeaderFromInnerAddress(
       const void* address) const;
 
@@ -215,6 +219,38 @@ const BasePage* BasePage::FromPayload(const void* payload) {
       (reinterpret_cast<uintptr_t>(const_cast<void*>(payload)) &
        kPageBaseMask) +
       kGuardPageSize);
+}
+
+template <HeapObjectHeader::AccessMode mode =
+              HeapObjectHeader::AccessMode::kNonAtomic>
+const HeapObjectHeader* ObjectHeaderFromInnerAddressImpl(const BasePage* page,
+                                                         const void* address) {
+  if (page->is_large()) {
+    return LargePage::From(page)->ObjectHeader();
+  }
+  const PlatformAwareObjectStartBitmap& bitmap =
+      NormalPage::From(page)->object_start_bitmap();
+  const HeapObjectHeader* header =
+      bitmap.FindHeader<mode>(static_cast<ConstAddress>(address));
+  DCHECK_LT(address,
+            reinterpret_cast<ConstAddress>(header) +
+                header->GetSize<HeapObjectHeader::AccessMode::kAtomic>());
+  return header;
+}
+
+template <HeapObjectHeader::AccessMode mode>
+HeapObjectHeader& BasePage::ObjectHeaderFromInnerAddress(void* address) const {
+  return const_cast<HeapObjectHeader&>(
+      ObjectHeaderFromInnerAddress<mode>(const_cast<const void*>(address)));
+}
+
+template <HeapObjectHeader::AccessMode mode>
+const HeapObjectHeader& BasePage::ObjectHeaderFromInnerAddress(
+    const void* address) const {
+  const HeapObjectHeader* header =
+      ObjectHeaderFromInnerAddressImpl<mode>(this, address);
+  DCHECK_NE(kFreeListGCInfoIndex, header->GetGCInfoIndex());
+  return *header;
 }
 
 }  // namespace internal

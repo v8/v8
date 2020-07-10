@@ -39,8 +39,6 @@ class GCed : public GarbageCollected<GCed> {
 
 class Mixin : public GarbageCollectedMixin {};
 class GCedWithMixin : public GarbageCollected<GCedWithMixin>, public Mixin {
-  USING_GARBAGE_COLLECTED_MIXIN();
-
  public:
   void Trace(cppgc::Visitor*) const override {}
 };
@@ -198,8 +196,6 @@ class MixinWithInConstructionCallback : public GarbageCollectedMixin {
 class GCedWithMixinWithInConstructionCallback
     : public GarbageCollected<GCedWithMixinWithInConstructionCallback>,
       public MixinWithInConstructionCallback {
-  USING_GARBAGE_COLLECTED_MIXIN();
-
  public:
   template <typename Callback>
   explicit GCedWithMixinWithInConstructionCallback(Callback callback)
@@ -276,30 +272,6 @@ TEST_F(MarkingVisitorTest, DontMarkPersistentMixinInConstruction) {
           GetAllocationHandle(),
           [&visitor](MixinWithInConstructionCallback* obj) {
             Persistent<MixinWithInConstructionCallback> mixin(obj);
-            visitor.TraceRootForTesting(mixin, SourceLocation::Current());
-          });
-  EXPECT_FALSE(HeapObjectHeader::FromPayload(gced).IsMarked());
-}
-
-TEST_F(MarkingVisitorTest, DontMarkWeakPersistentInConstruction) {
-  TestMarkingVisitor visitor(GetMarker());
-  GCedWithInConstructionCallback* gced =
-      MakeGarbageCollected<GCedWithInConstructionCallback>(
-          GetAllocationHandle(),
-          [&visitor](GCedWithInConstructionCallback* obj) {
-            WeakPersistent<GCedWithInConstructionCallback> object(obj);
-            visitor.TraceRootForTesting(object, SourceLocation::Current());
-          });
-  EXPECT_FALSE(HeapObjectHeader::FromPayload(gced).IsMarked());
-}
-
-TEST_F(MarkingVisitorTest, DontMarkWeakPersistentMixinInConstruction) {
-  TestMarkingVisitor visitor(GetMarker());
-  GCedWithMixinWithInConstructionCallback* gced =
-      MakeGarbageCollected<GCedWithMixinWithInConstructionCallback>(
-          GetAllocationHandle(),
-          [&visitor](MixinWithInConstructionCallback* obj) {
-            WeakPersistent<MixinWithInConstructionCallback> mixin(obj);
             visitor.TraceRootForTesting(mixin, SourceLocation::Current());
           });
   EXPECT_FALSE(HeapObjectHeader::FromPayload(gced).IsMarked());

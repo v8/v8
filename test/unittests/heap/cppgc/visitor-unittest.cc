@@ -42,8 +42,6 @@ class OtherPayload {
 class GCedMixinApplication : public GCed,
                              public OtherPayload,
                              public GCedMixin {
-  USING_GARBAGE_COLLECTED_MIXIN();
-
  public:
   void Trace(cppgc::Visitor* visitor) const override {
     GCed::Trace(visitor);

@@ -26,21 +26,6 @@ Address AlignAddress(Address address, size_t alignment) {
       RoundUp(reinterpret_cast<uintptr_t>(address), alignment));
 }
 
-const HeapObjectHeader* ObjectHeaderFromInnerAddressImpl(const BasePage* page,
-                                                         const void* address) {
-  if (page->is_large()) {
-    return LargePage::From(page)->ObjectHeader();
-  }
-  const PlatformAwareObjectStartBitmap& bitmap =
-      NormalPage::From(page)->object_start_bitmap();
-  const HeapObjectHeader* header =
-      bitmap.FindHeader(static_cast<ConstAddress>(address));
-  DCHECK_LT(address,
-            reinterpret_cast<ConstAddress>(header) +
-                header->GetSize<HeapObjectHeader::AccessMode::kAtomic>());
-  return header;
-}
-
 }  // namespace
 
 // static
@@ -81,19 +66,6 @@ Address BasePage::PayloadEnd() {
 
 ConstAddress BasePage::PayloadEnd() const {
   return const_cast<BasePage*>(this)->PayloadEnd();
-}
-
-HeapObjectHeader& BasePage::ObjectHeaderFromInnerAddress(void* address) const {
-  return const_cast<HeapObjectHeader&>(
-      ObjectHeaderFromInnerAddress(const_cast<const void*>(address)));
-}
-
-const HeapObjectHeader& BasePage::ObjectHeaderFromInnerAddress(
-    const void* address) const {
-  const HeapObjectHeader* header =
-      ObjectHeaderFromInnerAddressImpl(this, address);
-  DCHECK_NE(kFreeListGCInfoIndex, header->GetGCInfoIndex());
-  return *header;
 }
 
 HeapObjectHeader* BasePage::TryObjectHeaderFromInnerAddress(

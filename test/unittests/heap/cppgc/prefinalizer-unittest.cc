@@ -67,9 +67,7 @@ class Mixin : public GarbageCollectedMixin {
 };
 size_t Mixin::prefinalizer_callcount = 0;
 
-class GCedWithMixin : public GarbageCollected<GCedWithMixin>, public Mixin {
-  USING_GARBAGE_COLLECTED_MIXIN();
-};
+class GCedWithMixin : public GarbageCollected<GCedWithMixin>, public Mixin {};
 
 }  // namespace
 
@@ -121,7 +119,6 @@ size_t InheritingMixin::prefinalizer_callcount = 0;
 
 class GCedWithMixins : public GarbageCollected<GCedWithMixins>,
                        public InheritingMixin {
-  USING_GARBAGE_COLLECTED_MIXIN();
   CPPGC_USING_PRE_FINALIZER(GCedWithMixins, PreFinalizer);
 
  public:

@@ -270,8 +270,6 @@ class ClassWithVirtual {
 class Child : public GarbageCollected<Child>,
               public ClassWithVirtual,
               public Mixin {
-  USING_GARBAGE_COLLECTED_MIXIN();
-
  public:
   Child() : ClassWithVirtual(), Mixin() {}
   ~Child() = default;
