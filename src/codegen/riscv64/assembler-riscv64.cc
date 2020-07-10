@@ -2349,13 +2349,6 @@ void Assembler::swc1(FPURegister fs, const MemOperand& src) {
     RV_fsw(fs, scratch, 0);
   }
 }
-void Assembler::mtc1(Register rt, FPURegister fs) { RV_fmv_w_x(fs, rt); }
-
-void Assembler::dmtc1(Register rt, FPURegister fs) { RV_fmv_d_x(fs, rt); }
-
-void Assembler::mfc1(Register rt, FPURegister fs) { RV_fmv_x_w(rt, fs); }
-
-void Assembler::dmfc1(Register rt, FPURegister fs) { RV_fmv_x_d(rt, fs); }
 
 // FIXME (RISCV): not yet ported (or not used?)
 int Assembler::RelocateInternalReference(RelocInfo::Mode rmode, Address pc,

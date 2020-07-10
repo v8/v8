@@ -637,9 +637,9 @@ class V8_EXPORT_PRIVATE TurboAssembler : public TurboAssemblerBase {
     RV_srli(dst_high, dst_high, 32);
   }
 
-  inline void Move(Register dst, FPURegister src) { dmfc1(dst, src); }
+  inline void Move(Register dst, FPURegister src) { RV_fmv_x_d(dst, src); }
 
-  inline void Move(FPURegister dst, Register src) { dmtc1(src, dst); }
+  inline void Move(FPURegister dst, Register src) { RV_fmv_d_x(dst, src); }
 
   inline void FmoveHigh(Register dst_high, FPURegister src) {
     RV_fmv_x_d(dst_high, src);
@@ -649,7 +649,7 @@ class V8_EXPORT_PRIVATE TurboAssembler : public TurboAssemblerBase {
   void FmoveHigh(FPURegister dst, Register src_high);
 
   inline void FmoveLow(Register dst_low, FPURegister src) {
-    mfc1(dst_low, src);
+    RV_fmv_x_w(dst_low, src);
   }
 
   void FmoveLow(FPURegister dst, Register src_low);

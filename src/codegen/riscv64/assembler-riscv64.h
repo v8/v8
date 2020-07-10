@@ -816,12 +816,6 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase {
   void lwc1(FPURegister fd, const MemOperand& src);
   void swc1(FPURegister fs, const MemOperand& dst);
 
-  void mtc1(Register rt, FPURegister fs);
-  void dmtc1(Register rt, FPURegister fs);
-
-  void mfc1(Register rt, FPURegister fs);
-  void dmfc1(Register rt, FPURegister fs);
-
   // Check the code size generated from label to here.
   int SizeOfCodeGeneratedSince(Label* label) {
     return pc_offset() - label->pos();

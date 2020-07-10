@@ -1530,10 +1530,10 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       break;
     }
     case kRiscvBitcastDL:
-      __ dmfc1(i.OutputRegister(), i.InputDoubleRegister(0));
+      __ RV_fmv_x_d(i.OutputRegister(), i.InputDoubleRegister(0));
       break;
     case kRiscvBitcastLD:
-      __ dmtc1(i.InputRegister(0), i.OutputDoubleRegister());
+      __ RV_fmv_d_x(i.OutputDoubleRegister(), i.InputRegister(0));
       break;
     case kRiscvFloat64ExtractLowWord32:
       __ FmoveLow(i.OutputRegister(), i.InputDoubleRegister(0));

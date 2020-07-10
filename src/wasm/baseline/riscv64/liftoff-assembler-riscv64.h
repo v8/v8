@@ -960,7 +960,7 @@ bool LiftoffAssembler::emit_type_conversion(WasmOpcode opcode,
       TurboAssembler::Dext(dst.gp(), src.gp(), 0, 32);
       return true;
     case kExprI64ReinterpretF64:
-      dmfc1(dst.gp(), src.fp());
+      RV_fmv_x_d(dst.gp(), src.fp());
       return true;
     case kExprF32SConvertI32: {
       TurboAssembler::Cvt_s_w(dst.fp(), src.gp());
@@ -983,7 +983,7 @@ bool LiftoffAssembler::emit_type_conversion(WasmOpcode opcode,
       RV_fcvt_d_s(dst.fp(), src.fp());
       return true;
     case kExprF64ReinterpretI64:
-      dmtc1(src.gp(), dst.fp());
+      RV_fmv_d_x(dst.fp(), src.gp());
       return true;
     default:
       return false;
