@@ -6770,7 +6770,7 @@ UNINITIALIZED_TEST(OutOfMemorySmallObjects) {
 #ifdef VERIFY_HEAP
   if (FLAG_verify_heap) return;
 #endif
-  const size_t kOldGenerationLimit = 300 * MB;
+  const size_t kOldGenerationLimit = 50 * MB;
   FLAG_max_old_space_size = kOldGenerationLimit / MB;
   v8::Isolate::CreateParams create_params;
   create_params.array_buffer_allocator = CcTest::array_buffer_allocator();
@@ -6804,7 +6804,7 @@ UNINITIALIZED_TEST(OutOfMemoryLargeObjects) {
 #ifdef VERIFY_HEAP
   if (FLAG_verify_heap) return;
 #endif
-  const size_t kOldGenerationLimit = 300 * MB;
+  const size_t kOldGenerationLimit = 50 * MB;
   FLAG_max_old_space_size = kOldGenerationLimit / MB;
   v8::Isolate::CreateParams create_params;
   create_params.array_buffer_allocator = CcTest::array_buffer_allocator();
@@ -6842,7 +6842,7 @@ UNINITIALIZED_TEST(RestoreHeapLimit) {
   if (FLAG_verify_heap) return;
 #endif
   ManualGCScope manual_gc_scope;
-  const size_t kOldGenerationLimit = 300 * MB;
+  const size_t kOldGenerationLimit = 50 * MB;
   FLAG_max_old_space_size = kOldGenerationLimit / MB;
   v8::Isolate::CreateParams create_params;
   create_params.array_buffer_allocator = CcTest::array_buffer_allocator();
@@ -7139,6 +7139,19 @@ HEAP_TEST(GCDuringOffThreadMergeWithTransferHandle) {
   off_thread_isolate.Publish(isolate);
   CHECK(transfer_handle.ToHandle()->IsFixedArray());
   CHECK_EQ(transfer_handle.ToHandle()->length(), 10);
+}
+
+TEST(GarbageCollectionWithLocalHeap) {
+  FLAG_local_heaps = true;
+  ManualGCScope manual_gc_scope;
+  CcTest::InitializeVM();
+
+  Heap* heap = CcTest::i_isolate()->heap();
+
+  LocalHeap local_heap(heap);
+  CcTest::CollectGarbage(OLD_SPACE);
+  { ParkedScope parked_scope(&local_heap); }
+  CcTest::CollectGarbage(OLD_SPACE);
 }
 
 }  // namespace heap
