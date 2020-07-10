@@ -2913,8 +2913,8 @@ void BytecodeGenerator::BuildCreateArrayLiteral(
   Register array = register_allocator()->NewRegister();
   SharedFeedbackSlot element_slot(feedback_spec(),
                                   FeedbackSlotKind::kStoreInArrayLiteral);
-  ZonePtrList<Expression>::iterator current = elements->begin();
-  ZonePtrList<Expression>::iterator end = elements->end();
+  ZonePtrList<Expression>::const_iterator current = elements->begin();
+  ZonePtrList<Expression>::const_iterator end = elements->end();
   bool is_empty = elements->is_empty();
 
   if (!is_empty && (*current)->IsSpread()) {
@@ -2976,7 +2976,7 @@ void BytecodeGenerator::BuildCreateArrayLiteral(
     // index, into the initial array (the remaining elements will be inserted
     // below).
     DCHECK_EQ(current, elements->begin());
-    ZonePtrList<Expression>::iterator first_spread_or_end =
+    ZonePtrList<Expression>::const_iterator first_spread_or_end =
         expr->first_spread_index() >= 0 ? current + expr->first_spread_index()
                                         : end;
     int array_index = 0;

@@ -5,8 +5,6 @@
 #ifndef V8_ZONE_ZONE_LIST_H_
 #define V8_ZONE_ZONE_LIST_H_
 
-#include <initializer_list>
-
 #include "src/base/logging.h"
 #include "src/zone/zone-fwd.h"
 #include "src/zone/zone.h"
@@ -32,17 +30,42 @@ class ZoneList final : public ZoneObject {
  public:
   // Construct a new ZoneList with the given capacity; the length is
   // always zero. The capacity must be non-negative.
-  ZoneList(int capacity, Zone* zone) { Initialize(capacity, zone); }
+  ZoneList(int capacity, Zone* zone) : capacity_(capacity) {
+    DCHECK_GE(capacity, 0);
+    data_ = (capacity_ > 0) ? zone->NewArray<T>(capacity_) : nullptr;
+  }
+
   // Construct a new ZoneList by copying the elements of the given ZoneList.
-  ZoneList(const ZoneList<T>& other, Zone* zone) {
-    Initialize(other.length(), zone);
+  ZoneList(const ZoneList<T>& other, Zone* zone)
+      : ZoneList(other.length(), zone) {
     AddAll(other, zone);
   }
+
+  // Construct a new ZoneList by copying the elements of the given vector.
+  ZoneList(const Vector<const T>& other, Zone* zone)
+      : ZoneList(other.length(), zone) {
+    AddAll(other, zone);
+  }
+
+  ZoneList(ZoneList<T>&& other) V8_NOEXCEPT { *this = std::move(other); }
 
   // The ZoneList objects are usually allocated as a fields in other
   // zone-allocated objects for which destructors are not called anyway, so
   // we are not going to clear the memory here as well.
   ~ZoneList() = default;
+
+  ZoneList& operator=(ZoneList&& other) V8_NOEXCEPT {
+    // We don't have a Zone object, so we'll have to drop the data_ array.
+    // If this assert ever fails, consider calling Clear(Zone*) or
+    // DropAndClear() before the move assignment to make it explicit what's
+    // happenning with the lvalue.
+    DCHECK_NULL(data_);
+    data_ = other.data_;
+    capacity_ = other.capacity_;
+    length_ = other.length_;
+    other.DropAndClear();
+    return *this;
+  }
 
   // Returns a reference to the element at index i. This reference is not safe
   // to use after operations that can change the list's backing store
@@ -57,8 +80,12 @@ class ZoneList final : public ZoneObject {
   inline T& first() const { return at(0); }
 
   using iterator = T*;
-  inline iterator begin() const { return &data_[0]; }
-  inline iterator end() const { return &data_[length_]; }
+  inline iterator begin() { return &data_[0]; }
+  inline iterator end() { return &data_[length_]; }
+
+  using const_iterator = const T*;
+  inline const_iterator begin() const { return &data_[0]; }
+  inline const_iterator end() const { return &data_[length_]; }
 
   V8_INLINE bool is_empty() const { return length_ == 0; }
   V8_INLINE int length() const { return length_; }
@@ -74,23 +101,13 @@ class ZoneList final : public ZoneObject {
     return Vector<const T>(data_, length_);
   }
 
-  // TODO(v8:10572): remove this method in favor of more flexible constructor,
-  // allowing initialization from provided iterators.
-  V8_INLINE void Initialize(int capacity, Zone* zone) {
-    DCHECK_GE(capacity, 0);
-    DCHECK_NULL(data_);
-    capacity_ = capacity;
-    data_ = (capacity_ > 0) ? zone->NewArray<T>(capacity_) : nullptr;
-    length_ = 0;
-  }
-
   // Adds a copy of the given 'element' to the end of the list,
   // expanding the list if necessary.
   void Add(const T& element, Zone* zone);
   // Add all the elements from the argument list to this list.
   void AddAll(const ZoneList<T>& other, Zone* zone);
   // Add all the elements from the vector to this list.
-  void AddAll(const Vector<T>& other, Zone* zone);
+  void AddAll(const Vector<const T>& other, Zone* zone);
   // Inserts the element at the specific index.
   void InsertAt(int index, const T& element, Zone* zone);
 

@@ -3165,6 +3165,7 @@ v8_source_set("v8_base_without_compiler") {
     "src/utils/ostreams.cc",
     "src/utils/ostreams.h",
     "src/utils/pointer-with-payload.h",
+    "src/utils/scoped-list.h",
     "src/utils/utils-inl.h",
     "src/utils/utils.cc",
     "src/utils/utils.h",
@@ -3248,7 +3249,6 @@ v8_source_set("v8_base_without_compiler") {
     "src/wasm/wasm-value.h",
     "src/zone/accounting-allocator.cc",
     "src/zone/accounting-allocator.h",
-    "src/zone/scoped-list.h",
     "src/zone/zone-allocator.h",
     "src/zone/zone-chunk-list.h",
     "src/zone/zone-containers.h",
@@ -3259,6 +3259,7 @@ v8_source_set("v8_base_without_compiler") {
     "src/zone/zone-list.h",
     "src/zone/zone-segment.cc",
     "src/zone/zone-segment.h",
+    "src/zone/zone-utils.h",
     "src/zone/zone.cc",
     "src/zone/zone.h",
   ]

@@ -28,7 +28,7 @@ void ZoneList<T>::AddAll(const ZoneList<T>& other, Zone* zone) {
 }
 
 template <typename T>
-void ZoneList<T>::AddAll(const Vector<T>& other, Zone* zone) {
+void ZoneList<T>::AddAll(const Vector<const T>& other, Zone* zone) {
   int result_length = length_ + other.length();
   if (capacity_ < result_length) Resize(result_length, zone);
   if (std::is_fundamental<T>()) {

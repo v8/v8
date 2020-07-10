@@ -950,9 +950,7 @@ Call::CallType Call::GetCallType() const {
 
 CaseClause::CaseClause(Zone* zone, Expression* label,
                        const ScopedPtrList<Statement>& statements)
-    : label_(label), statements_(0, nullptr) {
-  statements.CopyTo(&statements_, zone);
-}
+    : label_(label), statements_(statements.ToConstVector(), zone) {}
 
 bool Literal::IsPropertyName() const {
   if (type() != kString) return false;

@@ -320,7 +320,7 @@ class Block final : public BreakableStatement {
   void InitializeStatements(const ScopedPtrList<Statement>& statements,
                             Zone* zone) {
     DCHECK_EQ(0, statements_.length());
-    statements.CopyTo(&statements_, zone);
+    statements_ = ZonePtrList<Statement>(statements.ToConstVector(), zone);
   }
 
  private:
@@ -1324,12 +1324,11 @@ class ObjectLiteral final : public AggregateLiteral {
                 bool has_rest_property)
       : AggregateLiteral(pos, kObjectLiteral),
         boilerplate_properties_(boilerplate_properties),
-        properties_(0, nullptr) {
+        properties_(properties.ToConstVector(), zone) {
     bit_field_ |= HasElementsField::encode(false) |
                   HasRestPropertyField::encode(has_rest_property) |
                   FastElementsField::encode(false) |
                   HasNullPrototypeField::encode(false);
-    properties.CopyTo(&properties_, zone);
   }
 
   void InitFlagsForPendingNullPrototype(int i);
@@ -1398,9 +1397,7 @@ class ArrayLiteral final : public AggregateLiteral {
                int first_spread_index, int pos)
       : AggregateLiteral(pos, kArrayLiteral),
         first_spread_index_(first_spread_index),
-        values_(0, nullptr) {
-    values.CopyTo(&values_, zone);
-  }
+        values_(values.ToConstVector(), zone) {}
 
   int first_spread_index_;
   Handle<ArrayBoilerplateDescription> boilerplate_description_;
@@ -1683,12 +1680,11 @@ class Call final : public Expression {
        PossiblyEval possibly_eval, bool optional_chain)
       : Expression(pos, kCall),
         expression_(expression),
-        arguments_(0, nullptr) {
+        arguments_(arguments.ToConstVector(), zone) {
     bit_field_ |=
         IsPossiblyEvalField::encode(possibly_eval == IS_POSSIBLY_EVAL) |
         IsTaggedTemplateField::encode(false) |
         IsOptionalChainLinkField::encode(optional_chain);
-    arguments.CopyTo(&arguments_, zone);
   }
 
   Call(Zone* zone, Expression* expression,
@@ -1696,11 +1692,10 @@ class Call final : public Expression {
        TaggedTemplateTag tag)
       : Expression(pos, kCall),
         expression_(expression),
-        arguments_(0, nullptr) {
+        arguments_(arguments.ToConstVector(), zone) {
     bit_field_ |= IsPossiblyEvalField::encode(false) |
                   IsTaggedTemplateField::encode(true) |
                   IsOptionalChainLinkField::encode(false);
-    arguments.CopyTo(&arguments_, zone);
   }
 
   using IsPossiblyEvalField = Expression::NextBitField<bool, 1>;
@@ -1729,9 +1724,7 @@ class CallNew final : public Expression {
           const ScopedPtrList<Expression>& arguments, int pos)
       : Expression(pos, kCallNew),
         expression_(expression),
-        arguments_(0, nullptr) {
-    arguments.CopyTo(&arguments_, zone);
-  }
+        arguments_(arguments.ToConstVector(), zone) {}
 
   Expression* expression_;
   ZonePtrList<Expression> arguments_;
@@ -1765,17 +1758,13 @@ class CallRuntime final : public Expression {
               const ScopedPtrList<Expression>& arguments, int pos)
       : Expression(pos, kCallRuntime),
         function_(function),
-        arguments_(0, nullptr) {
-    arguments.CopyTo(&arguments_, zone);
-  }
+        arguments_(arguments.ToConstVector(), zone) {}
   CallRuntime(Zone* zone, int context_index,
               const ScopedPtrList<Expression>& arguments, int pos)
       : Expression(pos, kCallRuntime),
         context_index_(context_index),
         function_(nullptr),
-        arguments_(0, nullptr) {
-    arguments.CopyTo(&arguments_, zone);
-  }
+        arguments_(arguments.ToConstVector(), zone) {}
 
   int context_index_;
   const Runtime::Function* function_;
@@ -2307,7 +2296,7 @@ class FunctionLiteral final : public Expression {
         function_literal_id_(function_literal_id),
         raw_name_(name),
         scope_(scope),
-        body_(0, nullptr),
+        body_(body.ToConstVector(), zone),
         raw_inferred_name_(ast_value_factory->empty_cons_string()),
         produced_preparse_data_(produced_preparse_data) {
     bit_field_ |= FunctionSyntaxKindBits::encode(function_syntax_kind) |
@@ -2319,7 +2308,6 @@ class FunctionLiteral final : public Expression {
                   HasBracesField::encode(has_braces) |
                   OneshotIIFEBit::encode(false);
     if (eager_compile_hint == kShouldEagerCompile) SetShouldEagerCompile();
-    body.CopyTo(&body_, zone);
   }
 
   using FunctionSyntaxKindBits =

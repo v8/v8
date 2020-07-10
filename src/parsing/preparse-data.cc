@@ -17,6 +17,7 @@
 #include "src/parsing/preparser.h"
 #include "src/roots/roots.h"
 #include "src/zone/zone-list-inl.h"  // crbug.com/v8/8816
+#include "src/zone/zone-utils.h"
 
 namespace v8 {
 namespace internal {
@@ -254,7 +255,8 @@ void PreparseDataBuilder::AddChild(PreparseDataBuilder* child) {
 
 void PreparseDataBuilder::FinalizeChildren(Zone* zone) {
   DCHECK(!finalized_children_);
-  Vector<PreparseDataBuilder*> children = children_buffer_.CopyTo(zone);
+  Vector<PreparseDataBuilder*> children =
+      CloneVector(zone, children_buffer_.ToConstVector());
   children_buffer_.Rewind();
   children_ = children;
 #ifdef DEBUG
