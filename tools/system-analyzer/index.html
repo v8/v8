@@ -12,6 +12,7 @@ found in the LICENSE file. -->
   <!-- <link rel="icon" type="image/png" href="/images/favicon.png"/> -->
   <!-- <script type="module" src="index.js"></script> -->
   <script src="helper.js"></script>
+
   <script type="module" src="log-file-reader.mjs"></script>
   <script type="module" src="map-panel.mjs"></script>
   <script type="module" src="timeline-panel.mjs"></script>
@@ -46,46 +47,7 @@ found in the LICENSE file. -->
     padding: 10px 10px  60px 10px ;
     margin: auto;
   }
-  #stats {
-    display: flex;
-    height: 250px;
-    background-color: #121212;
-    padding: 10px 10px  10px 10px ;
-    box-shadow: 0 4px 8px 0 rgba(0,0,0,0.2);
-    margin: auto;
-  }
-  .stats-panel {
-    background-color: #232323;
-    margin: auto;
-    transition: 0.3s;
-  }
-  #stats table {
-    flex: 1;
-    padding-right: 50px;
-    max-height: 250px;
-    display: inline-block;
-    overflow-y: scroll;
-  }
-  #stats table td {
-    cursor: pointer;
-  }
-  #stats .transitionTable {
-    overflow-y: scroll;
-  }
-  #stats .transitionTable tr {
-    max-width: 200px;
 
-  }
-  #stats .transitionType {
-    text-align: right;
-    max-width: 380px;
-  }
-  #stats .transitionType tr td:nth-child(2) {
-    text-align: left;
-  }
-  #stats table thead td {
-    border-bottom: 1px black dotted;
-  }
   /*
   .indicium-logo  {
     width: 380px;
@@ -181,7 +143,7 @@ function globalDataUpload(e) {
   $('#container').style.display = 'block';
   // instantiate the app logic
   stateGlobal.fileData = e.detail;
-  stateGlobal.state = new State('#map-panel', '#stats', '#timeline-panel');
+  stateGlobal.state = new State('#map-panel','#timeline-panel');
   stateGlobal.timeline = handleLoadTextMapProcessor(stateGlobal.fileData.chunk);
   updateDocumentState();
   // process the IC explorer
@@ -192,6 +154,12 @@ function globalSearchBarEvent(e) {
   if(!e.detail.isValidMap) return;
   document.state.map = e.detail.map;
 }
+
+function showMaps(e) {
+  // show maps on the view
+  document.state.view.transitionView.showMaps(e.detail);
+}
+
 </script>
 </head>
 <body>
@@ -203,11 +171,8 @@ function globalSearchBarEvent(e) {
       <br></br>
     </section>
     <div id="container" style="display: none;">
-      <div class="stats-panel">
-        <section id="stats"><h2>Stats</h2></section>
-      </div>
       <timeline-panel id="timeline-panel"></timeline-panel>
-      <map-panel id="map-panel" onclick="globalSearchBarEvent(event)"></map-panel>
+      <map-panel id="map-panel" onclick="globalSearchBarEvent(event)" onchange="showMaps(event)"></map-panel>
       <ic-panel id="ic-panel"></ic-panel>
     </div>
   </div>

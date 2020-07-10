@@ -1,0 +1,71 @@
+<!-- Copyright 2020 the V8 project authors. All rights reserved.
+Use of this source code is governed by a BSD-style license that can be
+found in the LICENSE file. -->
+
+<style>
+  h2 {
+  background-color: #BB86FC;
+  box-shadow: 0 4px 8px 0 rgba(0,0,0,0.2);
+  transition: 0.3s;
+  color: black;
+  padding: 15px 25px;
+  text-align: center;
+  text-decoration: none;
+  display: inline-block;
+}
+  #stats {
+    display: flex;
+    height: 250px;
+    background-color: #121212;
+    padding: 10px 10px  10px 10px ;
+    margin: auto;
+  }
+  #stats-panel {
+    background-color: #121212;
+    padding: 10px 10px  10px 10px ;
+    margin: auto;
+  }
+  .stats-panel {
+        background-color:#232323;
+        padding: 20px 20px  20px 20px ;
+        margin: auto;
+  }
+  #stats table {
+    flex: 1;
+    padding-right: 50px;
+    max-height: 250px;
+    display: inline-block;
+    overflow-y: scroll;
+  }
+  #stats table td {
+    cursor: pointer;
+  }
+  #stats .transitionTable {
+    overflow-y: scroll;
+  }
+  #stats .transitionTable tr {
+    max-width: 200px;
+
+  }
+  #stats .transitionType {
+    text-align: right;
+    max-width: 380px;
+  }
+  #stats .transitionType tr td:nth-child(2) {
+    text-align: left;
+  }
+  #stats table thead td {
+    border-bottom: 1px black dotted;
+  }
+</style>
+
+<div id="container">
+  <div class="stats-panel">
+    <section id="stats-panel">
+      <h2>Stats Panel</h2>
+      <h3>Stats</h3>
+      <section id="stats">
+      </section>
+    </section>
+  </div>
+</div>

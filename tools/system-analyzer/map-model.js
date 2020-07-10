@@ -7,12 +7,12 @@
 // const kChunkWidth = 10;
 
 class State {
-  constructor(mapPanelId, statPanelId, timelinePanelId) {
+  constructor(mapPanelId, timelinePanelId) {
     this._nofChunks = 400;
     this._map = undefined;
     this._timeline = undefined;
     this._chunks = undefined;
-    this._view = new View(this, mapPanelId, statPanelId, timelinePanelId);
+    this._view = new View(this, mapPanelId, timelinePanelId);
     this._navigation = new Navigation(this, this.view);
   }
   get timeline() {
@@ -192,16 +192,14 @@ class Navigation {
 }
 
 class View {
-  constructor(state, mapPanelId, statPanelId, timelinePanelId) {
+  constructor(state, mapPanelId, timelinePanelId) {
     this.mapPanel_ = $(mapPanelId);
-    this.statPanel_ = $(statPanelId);
     this.timelinePanel_ = $(timelinePanelId);
     this.state = state;
     setInterval(this.updateOverviewWindow(timelinePanelId), 50);
     this.backgroundCanvas = document.createElement('canvas');
     this.transitionView =
         new TransitionView(state, this.mapPanel_.transitionViewSelect);
-    this.statsView = new StatsView(state, this.statPanel_);
     this.isLocked = false;
   }
   get chunks() {
@@ -215,7 +213,7 @@ class View {
   }
 
   updateStats() {
-    this.statsView.update();
+    this.mapPanel_.timeline = this.state.timeline;
   }
 
   updateMapDetails() {
@@ -655,95 +653,6 @@ class TransitionView {
         transitionsNode.removeChild(subtransitionNodes[i]);
       }
     }
-  }
-}
-
-class StatsView {
-  constructor(state, node) {
-    this.state = state;
-    this.node = node;
-  }
-  get timeline() {
-    return this.state.timeline
-  }
-  get transitionView() {
-    return this.state.view.transitionView;
-  }
-
-  update() {
-    removeAllChildren(this.node);
-    this.updateGeneralStats();
-    this.updateNamedTransitionsStats();
-  }
-  updateGeneralStats() {
-    let pairs = [
-      ['Total', null, e => true],
-      ['Transitions', 'black', e => e.edge && e.edge.isTransition()],
-      ['Fast to Slow', 'violet', e => e.edge && e.edge.isFastToSlow()],
-      ['Slow to Fast', 'orange', e => e.edge && e.edge.isSlowToFast()],
-      ['Initial Map', 'yellow', e => e.edge && e.edge.isInitial()],
-      [
-        'Replace Descriptors', 'red',
-        e => e.edge && e.edge.isReplaceDescriptors()
-      ],
-      ['Copy as Prototype', 'red', e => e.edge && e.edge.isCopyAsPrototype()],
-      [
-        'Optimize as Prototype', null,
-        e => e.edge && e.edge.isOptimizeAsPrototype()
-      ],
-      ['Deprecated', null, e => e.isDeprecated()],
-      ['Bootstrapped', 'green', e => e.isBootstrapped()],
-    ];
-
-    let text = '';
-    let tableNode = table('transitionType');
-    tableNode.innerHTML =
-        '<thead><tr><td>Color</td><td>Type</td><td>Count</td><td>Percent</td></tr></thead>';
-    let name, filter;
-    let total = this.timeline.size();
-    pairs.forEach(([name, color, filter]) => {
-      let row = tr();
-      if (color !== null) {
-        row.appendChild(td(div(['colorbox', color])));
-      } else {
-        row.appendChild(td(''));
-      }
-      row.onclick = (e) => {
-        // lazily compute the stats
-        let node = e.target.parentNode;
-        if (node.maps == undefined) {
-          node.maps = this.timeline.filterUniqueTransitions(filter);
-        }
-        this.transitionView.showMaps(node.maps);
-      };
-      row.appendChild(td(name));
-      let count = this.timeline.count(filter);
-      row.appendChild(td(count));
-      let percent = Math.round(count / total * 1000) / 10;
-      row.appendChild(td(percent.toFixed(1) + '%'));
-      tableNode.appendChild(row);
-    });
-    this.node.appendChild(tableNode);
-  };
-  updateNamedTransitionsStats() {
-    let tableNode = table('transitionTable');
-    let nameMapPairs = Array.from(this.timeline.transitions.entries());
-    tableNode.innerHTML =
-        '<thead><tr><td>Propery Name</td><td>#</td></tr></thead>';
-    nameMapPairs.sort((a, b) => b[1].length - a[1].length).forEach(([
-                                                                     name, maps
-                                                                   ]) => {
-      let row = tr();
-      row.maps = maps;
-      row.addEventListener(
-          'click',
-          e => this.transitionView.showMaps(
-              e.target.parentNode.maps.map(map => map.to)));
-      row.appendChild(td(name));
-      row.appendChild(td(maps.length));
-      tableNode.appendChild(row);
-    });
-    this.node.appendChild(tableNode);
   }
 }
 
