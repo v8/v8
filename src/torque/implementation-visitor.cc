@@ -1516,8 +1516,10 @@ VisitResult ImplementationVisitor::Visit(NewExpression* expr) {
   Arguments allocate_arguments;
   allocate_arguments.parameters.push_back(layout.size);
   allocate_arguments.parameters.push_back(object_map);
+  allocate_arguments.parameters.push_back(
+      GenerateBoolConstant(expr->pretenured));
   VisitResult allocate_result = GenerateCall(
-      QualifiedName({TORQUE_INTERNAL_NAMESPACE_STRING}, "Allocate"),
+      QualifiedName({TORQUE_INTERNAL_NAMESPACE_STRING}, "AllocateFromNew"),
       allocate_arguments, {class_type}, false);
   DCHECK(allocate_result.IsOnStack());
 

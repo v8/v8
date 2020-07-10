@@ -147,12 +147,23 @@ macro ValidAllocationSize(sizeInBytes: intptr, map: Map): bool {
 
 type UninitializedHeapObject extends HeapObject;
 
-extern macro AllocateAllowLOS(intptr): UninitializedHeapObject;
 extern macro GetInstanceTypeMap(constexpr InstanceType): Map;
+extern macro Allocate(
+    intptr, constexpr AllocationFlag): UninitializedHeapObject;
 
-macro Allocate(sizeInBytes: intptr, map: Map): UninitializedHeapObject {
+const kAllocateBaseFlags: constexpr AllocationFlag =
+    AllocationFlag::kAllowLargeObjectAllocation;
+macro AllocateFromNew(
+    sizeInBytes: intptr, map: Map, pretenured: bool): UninitializedHeapObject {
   assert(ValidAllocationSize(sizeInBytes, map));
-  return AllocateAllowLOS(sizeInBytes);
+  if (pretenured) {
+    return Allocate(
+        sizeInBytes,
+        %RawConstexprCast<constexpr AllocationFlag>(
+            kAllocateBaseFlags | AllocationFlag::kPretenured));
+  } else {
+    return Allocate(sizeInBytes, kAllocateBaseFlags);
+  }
 }
 
 macro InitializeFieldsFromIterator<T: type, Iterator: type>(

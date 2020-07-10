@@ -381,9 +381,13 @@ base::Optional<ParseResult> MakeMethodCall(ParseResultIterator* child_results) {
 
 base::Optional<ParseResult> MakeNewExpression(
     ParseResultIterator* child_results) {
+  bool pretenured = child_results->NextAs<bool>();
+
   auto type = child_results->NextAs<TypeExpression*>();
   auto initializers = child_results->NextAs<std::vector<NameAndExpression>>();
-  Expression* result = MakeNode<NewExpression>(type, std::move(initializers));
+
+  Expression* result =
+      MakeNode<NewExpression>(type, std::move(initializers), pretenured);
   return ParseResult{result};
 }
 
@@ -2230,6 +2234,13 @@ struct TorqueGrammar : Grammar {
       MakeIntrinsicCallExpression)};
 
   // Result: Expression*
+  Symbol newExpression = {
+      Rule({Token("new"),
+            CheckIf(Sequence({Token("("), Token("Pretenured"), Token(")")})),
+            &simpleType, &initializerList},
+           MakeNewExpression)};
+
+  // Result: Expression*
   Symbol primaryExpression = {
       Rule({&callExpression}),
       Rule({&callMethodExpression}),
@@ -2243,7 +2254,7 @@ struct TorqueGrammar : Grammar {
       Rule({&decimalLiteral}, MakeNumberLiteralExpression),
       Rule({&stringLiteral}, MakeStringLiteralExpression),
       Rule({&simpleType, &initializerList}, MakeStructExpression),
-      Rule({Token("new"), &simpleType, &initializerList}, MakeNewExpression),
+      Rule({&newExpression}),
       Rule({Token("("), expression, Token(")")})};
 
   // Result: Expression*

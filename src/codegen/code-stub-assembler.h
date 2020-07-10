@@ -807,9 +807,6 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
   TNode<HeapObject> AllocateInNewSpace(int size, AllocationFlags flags = kNone);
   TNode<HeapObject> Allocate(TNode<IntPtrT> size,
                              AllocationFlags flags = kNone);
-  TNode<HeapObject> AllocateAllowLOS(TNode<IntPtrT> size) {
-    return Allocate(size, AllocationFlag::kAllowLargeObjectAllocation);
-  }
 
   TNode<HeapObject> Allocate(int size, AllocationFlags flags = kNone);
   TNode<HeapObject> InnerAllocate(TNode<HeapObject> previous, int offset);
@@ -3633,6 +3630,8 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
     CHECK(!base::bits::SignedMulOverflow32(a, b, &val));
     return val;
   }
+
+  int32_t ConstexprWord32Or(int32_t a, int32_t b) { return a | b; }
 
   bool ConstexprUintPtrLessThan(uintptr_t a, uintptr_t b) { return a < b; }
 

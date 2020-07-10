@@ -234,7 +234,8 @@ extern enum ElementsKind extends int32 {
   ...
 }
 
-extern enum AllocationFlag constexpr 'CodeStubAssembler::AllocationFlag' {
+extern enum AllocationFlag extends int32
+constexpr 'CodeStubAssembler::AllocationFlag' {
   kNone,
   kDoubleAlignment,
   kPretenured,
@@ -840,6 +841,8 @@ extern operator '&' macro Word32And(bool, bool): bool;
 extern operator '|' macro Word32Or(bool, bool): bool;
 extern operator '==' macro Word32Equal(bool, bool): bool;
 extern operator '!=' macro Word32NotEqual(bool, bool): bool;
+extern operator '|' macro ConstexprWord32Or(
+    constexpr int32, constexpr int32): constexpr int32;
 
 extern operator '+' macro Float64Add(float64, float64): float64;
 extern operator '-' macro Float64Sub(float64, float64): float64;

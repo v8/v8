@@ -1304,4 +1304,14 @@ macro TestGeneratedCastOperators(implicit context: Context)() {
       elements, Convert<Smi>(0), jsf);
   assert(Is<JSArgumentsObject>(fastArgs));
 }
+
+extern runtime InYoungGeneration(implicit context: Context)(HeapObject):
+    Boolean;
+
+@export
+macro TestNewPretenured(implicit context: Context)() {
+  const obj = new (Pretenured) ExportedSubClassBase{a: Undefined, b: Null};
+  assert(Is<ExportedSubClassBase>(obj));
+  assert(InYoungGeneration(obj) == False);
+}
 }
