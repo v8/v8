@@ -11,6 +11,7 @@
 #include <utility>  // For move
 #include <vector>
 
+#include "include/v8-cppgc.h"
 #include "include/v8-fast-api-calls.h"
 #include "include/v8-profiler.h"
 #include "include/v8-util.h"
@@ -984,6 +985,32 @@ i::Address* V8::GlobalizeTracedReference(i::Isolate* isolate, i::Address* obj,
   }
 #endif  // VERIFY_HEAP
   return result.location();
+}
+
+// static
+i::Address i::JSMemberBase::New(v8::Isolate* isolate, i::Address* object,
+                                i::Address* slot) {
+  i::Isolate* i_isolate = reinterpret_cast<i::Isolate*>(isolate);
+  LOG_API(i_isolate, JSMemberBase, New);
+#ifdef DEBUG
+  Utils::ApiCheck((object != nullptr), "i::JSMemberBase::New",
+                  "the object must be not null");
+  Utils::ApiCheck((slot != nullptr), "i::JSMemberBase::New",
+                  "the address slot must be not null");
+#endif
+  i::Handle<i::Object> result = i_isolate->global_handles()->CreateTraced(
+      *object, slot, false /* no destructor */);
+#ifdef VERIFY_HEAP
+  if (i::FLAG_verify_heap) {
+    i::Object(*object).ObjectVerify(i_isolate);
+  }
+#endif  // VERIFY_HEAP
+  return reinterpret_cast<i::Address>(result.location());
+}
+
+// static
+void i::JSMemberBase::Delete(i::Address* slot) {
+  i::GlobalHandles::DestroyTraced(slot);
 }
 
 i::Address* V8::CopyGlobalReference(i::Address* from) {

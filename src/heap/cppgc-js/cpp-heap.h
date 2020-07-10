@@ -33,6 +33,7 @@ class V8_EXPORT_PRIVATE CppHeap final : public cppgc::internal::HeapBase,
   void EnterFinalPause(EmbedderStackState stack_state) final;
 
  private:
+  Isolate& isolate_;
   bool marking_done_ = false;
 };
 
