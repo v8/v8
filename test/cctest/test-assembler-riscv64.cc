@@ -1632,7 +1632,7 @@ TEST(jump_tables1) {
     __ RV_add(t3, t3, ra);
     __ Ld(t3, MemOperand(t3, 6 * kInstrSize));
     __ RV_jr(t3);
-    __ RV_nop();  // For 16-byte alignment
+    __ nop();  // For 16-byte alignment
     for (int i = 0; i < kNumCases; ++i) {
       __ dd(&labels[i]);
     }
@@ -1701,7 +1701,7 @@ TEST(jump_tables2) {
     __ RV_add(t3, t3, ra);
     __ Ld(t3, MemOperand(t3, 6 * kInstrSize));
     __ RV_jr(t3);
-    __ RV_nop();  // For 16-byte alignment
+    __ nop();  // For 16-byte alignment
     for (int i = 0; i < kNumCases; ++i) {
       __ dd(&labels[i]);
     }
@@ -1767,7 +1767,7 @@ TEST(jump_tables3) {
     __ RV_add(t3, t3, ra);
     __ Ld(t3, MemOperand(t3, 6 * kInstrSize));
     __ RV_jr(t3);
-    __ RV_nop();  // For 16-byte alignment
+    __ nop();  // For 16-byte alignment
     for (int i = 0; i < kNumCases; ++i) {
       __ dd(&labels[i]);
     }

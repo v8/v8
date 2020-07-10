@@ -599,7 +599,7 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase {
   void RV_sfence_vma(Register rs1, Register rs2);
 
   // Assembler Pseudo Instructions (Tables 25.2, 25.3, RISC-V Unprivileged ISA)
-  void RV_nop();
+  void nop();
   void RV_li(Register rd, int64_t imm);
   // Returns the number of instructions required to load the immediate
   static int li_count(int64_t imm);
@@ -724,13 +724,6 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase {
   void RV_fsflags(Register rs);
 
   // MIPS Instructions
-
-  // Type == 0 is the default non-marking nop. For RISC-V this is a
-  // addi(zero_reg, zero_reg, 0).
-  void nop(unsigned int type = 0) {
-    DCHECK_LT(type, 32);
-    RV_addi(zero_reg, zero_reg, type);
-  }
 
   // --------Branch-and-jump-instructions----------
   // We don't use likely variant of instructions.

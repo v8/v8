@@ -1143,7 +1143,7 @@ void TurboAssembler::GenerateSwitchTable(Register index, size_t case_count,
   RV_ld(t5, t5, 6 * kInstrSize);  // Add the size of these 6 instructions to the
                                   // offset, then load
   RV_jr(t5);                      // Jump to the address loaded from the table
-  RV_nop();                       // For 16-byte alignment
+  nop();                          // For 16-byte alignment
   for (size_t index = 0; index < case_count; ++index) {
     dd(GetLabelFunction(index));
   }

@@ -225,6 +225,7 @@ Assembler::Assembler(const AssemblerOptions& options,
 void Assembler::GetCode(Isolate* isolate, CodeDesc* desc,
                         SafepointTableBuilder* safepoint_table_builder,
                         int handler_table_offset) {
+  // FIXME(RISCV): does riscv need this?
   EmitForbiddenSlotInstruction();
 
   int code_comments_size = WriteCodeComments();
@@ -259,7 +260,7 @@ void Assembler::Align(int m) {
   DCHECK(m >= 4 && base::bits::IsPowerOfTwo(m));
   EmitForbiddenSlotInstruction();
   while ((pc_offset() & (m - 1)) != 0) {
-    RV_nop();
+    nop();
   }
 }
 
@@ -1739,7 +1740,7 @@ void Assembler::RV_sfence_vma(Register rs1, Register rs2) {
 
 // Assembler Pseudo Instructions (Tables 25.2 and 25.3, RISC-V Unprivileged ISA)
 
-void Assembler::RV_nop() { RV_addi(ToRegister(0), ToRegister(0), 0); }
+void Assembler::nop() { RV_addi(ToRegister(0), ToRegister(0), 0); }
 void Assembler::RV_li(Register rd, int64_t imm) {
   if (is_int32(imm + 0x800)) {
     // Based on LLVM's `generateInstSeq` (RISCVMatInt.cpp)

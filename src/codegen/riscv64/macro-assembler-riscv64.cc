@@ -2222,12 +2222,8 @@ void TurboAssembler::LoadZeroOnCondition(Register rd, Register rs,
       if (rs == zero_reg) {
         if (rt.is_reg()) {
           LoadZeroIfConditionZero(rd, rt.rm());
-        } else {
-          if (rt.immediate() == 0) {
-            RV_mv(rd, zero_reg);
-          } else {
-            RV_nop();
-          }
+        } else if (rt.immediate() == 0) {
+          RV_mv(rd, zero_reg);
         }
       } else if (IsZero(rt)) {
         LoadZeroIfConditionZero(rd, rs);
@@ -2240,12 +2236,8 @@ void TurboAssembler::LoadZeroOnCondition(Register rd, Register rs,
       if (rs == zero_reg) {
         if (rt.is_reg()) {
           LoadZeroIfConditionNotZero(rd, rt.rm());
-        } else {
-          if (rt.immediate() != 0) {
-            RV_mv(rd, zero_reg);
-          } else {
-            RV_nop();
-          }
+        } else if (rt.immediate() != 0) {
+          RV_mv(rd, zero_reg);
         }
       } else if (IsZero(rt)) {
         LoadZeroIfConditionNotZero(rd, rs);
@@ -3146,7 +3138,7 @@ void TurboAssembler::PatchAndJump(Address target) {
   RV_auipc(scratch, 0);  // Load PC into scratch
   Ld(t6, MemOperand(scratch, kInstrSize * 4));
   RV_jr(t6);
-  RV_nop();  // For alignment
+  nop();  // For alignment
   DCHECK_EQ(reinterpret_cast<uint64_t>(pc_) % 8, 0);
   *reinterpret_cast<uint64_t*>(pc_) = target;  // pc_ should be align.
   pc_ += sizeof(uint64_t);
@@ -3819,7 +3811,7 @@ void TurboAssembler::Abort(AbortReason reason) {
     int abort_instructions = InstructionsGeneratedSince(&abort_start);
     DCHECK_LE(abort_instructions, kExpectedAbortInstructions);
     while (abort_instructions++ < kExpectedAbortInstructions) {
-      RV_nop();
+      nop();
     }
   }
 }

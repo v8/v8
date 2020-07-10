@@ -395,7 +395,7 @@ TEST(RV64D) {
 TEST(PSEUDO) {
   SET_UP();
   // pseodu instructions according to rISCV assembly programmer's handbook
-  COMPARE(RV_nop(), "00000013       nop");
+  COMPARE(nop(), "00000013       nop");
   COMPARE(RV_li(t6, -12), "ff400f93       li        t6, -12");
   COMPARE(RV_mv(t0, a4), "00070293       mv        t0, a4");
   COMPARE(RV_not(t0, a5), "fff7c293       not       t0, a5");
