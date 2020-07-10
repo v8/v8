@@ -125,10 +125,18 @@ int CallDescriptor::GetTaggedParameterSlots() const {
 
 bool CallDescriptor::CanTailCall(const CallDescriptor* callee) const {
   if (ReturnCount() != callee->ReturnCount()) return false;
+  const int stack_param_delta = callee->GetStackParameterDelta(this);
   for (size_t i = 0; i < ReturnCount(); ++i) {
-    if (!LinkageLocation::IsSameLocation(GetReturnLocation(i),
-                                         callee->GetReturnLocation(i)))
+    if (GetReturnLocation(i).IsCallerFrameSlot() &&
+        callee->GetReturnLocation(i).IsCallerFrameSlot()) {
+      if (GetReturnLocation(i).AsCallerFrameSlot() - stack_param_delta !=
+          callee->GetReturnLocation(i).AsCallerFrameSlot()) {
+        return false;
+      }
+    } else if (!LinkageLocation::IsSameLocation(GetReturnLocation(i),
+                                                callee->GetReturnLocation(i))) {
       return false;
+    }
   }
   return true;
 }
