@@ -31,6 +31,8 @@ class MarkingState {
 
   inline bool MarkNoPush(HeapObjectHeader&);
 
+  template <
+      HeapObjectHeader::AccessMode = HeapObjectHeader::AccessMode::kNonAtomic>
   inline void DynamicallyMarkAddress(ConstAddress);
 
   inline void RegisterWeakReferenceIfNeeded(const void*, TraceDescriptor,
@@ -95,15 +97,17 @@ bool MarkingState::MarkNoPush(HeapObjectHeader& header) {
   return header.TryMarkAtomic();
 }
 
+template <HeapObjectHeader::AccessMode mode>
 void MarkingState::DynamicallyMarkAddress(ConstAddress address) {
   HeapObjectHeader& header =
-      BasePage::FromPayload(address)->ObjectHeaderFromInnerAddress(
+      BasePage::FromPayload(address)->ObjectHeaderFromInnerAddress<mode>(
           const_cast<Address>(address));
-  DCHECK(!header.IsInConstruction<HeapObjectHeader::AccessMode::kNonAtomic>());
+  DCHECK(!header.IsInConstruction<mode>());
   if (MarkNoPush(header)) {
     marking_worklist_.Push(
         {reinterpret_cast<void*>(header.Payload()),
-         GlobalGCInfoTable::GCInfoFromIndex(header.GetGCInfoIndex()).trace});
+         GlobalGCInfoTable::GCInfoFromIndex(header.GetGCInfoIndex<mode>())
+             .trace});
   }
 }
 
