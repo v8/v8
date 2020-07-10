@@ -968,7 +968,7 @@ class CallFunctionTemplateDescriptor : public CallInterfaceDescriptor {
 
 class CallWithSpreadDescriptor : public CallInterfaceDescriptor {
  public:
-  DEFINE_PARAMETERS(kTarget, kArgumentsCount, kSpread)
+  DEFINE_PARAMETERS_VARARGS(kTarget, kArgumentsCount, kSpread)
   DEFINE_PARAMETER_TYPES(MachineType::AnyTagged(),  // kTarget
                          MachineType::Int32(),      // kArgumentsCount
                          MachineType::AnyTagged())  // kSpread
@@ -978,8 +978,8 @@ class CallWithSpreadDescriptor : public CallInterfaceDescriptor {
 // TODO(jgruber): Pass the slot as UintPtr.
 class CallWithSpread_WithFeedbackDescriptor : public CallInterfaceDescriptor {
  public:
-  DEFINE_PARAMETERS(kTarget, kArgumentsCount, kSpread, kSlot,
-                    kMaybeFeedbackVector)
+  DEFINE_PARAMETERS_VARARGS(kTarget, kArgumentsCount, kSpread, kSlot,
+                            kMaybeFeedbackVector)
   DEFINE_PARAMETER_TYPES(MachineType::AnyTagged(),  // kTarget
                          MachineType::Int32(),      // kArgumentsCount
                          MachineType::AnyTagged(),  // kSpread
