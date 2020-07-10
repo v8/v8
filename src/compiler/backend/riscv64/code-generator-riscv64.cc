@@ -580,8 +580,8 @@ void CodeGenerator::GenerateSpeculationPoisonFromCodeStartRegister() {
           kJavaScriptCallCodeStartRegister);
   __ Subu(kJavaScriptCallCodeStartRegister, kJavaScriptCallCodeStartRegister,
           kScratchReg);
-  __ RV_or_(kSpeculationPoisonRegister, kSpeculationPoisonRegister,
-            kJavaScriptCallCodeStartRegister);
+  __ or_(kSpeculationPoisonRegister, kSpeculationPoisonRegister,
+         kJavaScriptCallCodeStartRegister);
   __ Dsra(kSpeculationPoisonRegister, kSpeculationPoisonRegister,
           kBitsPerSystemPointer - 1);
   __ Nor(kSpeculationPoisonRegister, kSpeculationPoisonRegister,

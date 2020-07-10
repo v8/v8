@@ -1146,7 +1146,7 @@ void Assembler::RV_sltu(Register rd, Register rs1, Register rs2) {
   GenInstrALU_rr(0b0000000, 0b011, rd, rs1, rs2);
 }
 
-void Assembler::RV_xor_(Register rd, Register rs1, Register rs2) {
+void Assembler::xor_(Register rd, Register rs1, Register rs2) {
   GenInstrALU_rr(0b0000000, 0b100, rd, rs1, rs2);
 }
 
@@ -1158,11 +1158,11 @@ void Assembler::RV_sra(Register rd, Register rs1, Register rs2) {
   GenInstrALU_rr(0b0100000, 0b101, rd, rs1, rs2);
 }
 
-void Assembler::RV_or_(Register rd, Register rs1, Register rs2) {
+void Assembler::or_(Register rd, Register rs1, Register rs2) {
   GenInstrALU_rr(0b0000000, 0b110, rd, rs1, rs2);
 }
 
-void Assembler::RV_and_(Register rd, Register rs1, Register rs2) {
+void Assembler::and_(Register rd, Register rs1, Register rs2) {
   GenInstrALU_rr(0b0000000, 0b111, rd, rs1, rs2);
 }
 
@@ -1974,11 +1974,6 @@ void Assembler::RV_fsflags(Register rd, Register rs) {
 void Assembler::RV_fsflags(Register rs) { RV_csrrw(zero_reg, csr_fflags, rs); }
 
 // Original MIPS Instructions
-
-void Assembler::addu(Register rd, Register rs, Register rt) {
-  RV_addw(rd, rs, rt);
-}
-
 void Assembler::addiu(Register rd, Register rs, int32_t j) {
   if (is_int12(j))
     RV_addiw(rd, rs, j);
@@ -1989,10 +1984,6 @@ void Assembler::addiu(Register rd, Register rs, int32_t j) {
     RV_li(scratch, j);
     RV_addw(rd, rs, scratch);
   }
-}
-
-void Assembler::subu(Register rd, Register rs, Register rt) {
-  RV_subw(rd, rs, rt);
 }
 
 void Assembler::daddiu(Register rd, Register rs, int32_t j) {
@@ -2007,20 +1998,7 @@ void Assembler::daddiu(Register rd, Register rs, int32_t j) {
   }
 }
 
-void Assembler::daddu(Register rd, Register rs, Register rt) {
-  RV_add(rd, rs, rt);
-}
-
-void Assembler::dsubu(Register rd, Register rs, Register rt) {
-  RV_sub(rd, rs, rt);
-}
-
 // Logical.
-
-void Assembler::and_(Register rd, Register rs, Register rt) {
-  RV_and_(rd, rs, rt);
-}
-
 void Assembler::andi(Register rt, Register rs, int32_t j) {
   if (is_int12(j))
     RV_andi(rt, rs, j);
@@ -2029,16 +2007,8 @@ void Assembler::andi(Register rt, Register rs, int32_t j) {
     BlockTrampolinePoolScope block_trampoline_pool(this);
     Register scratch = temps.hasAvailable() ? temps.Acquire() : t5;
     RV_li(scratch, j);
-    RV_and_(rt, rs, scratch);
+    and_(rt, rs, scratch);
   }
-}
-
-void Assembler::or_(Register rd, Register rs, Register rt) {
-  RV_or_(rd, rs, rt);
-}
-
-void Assembler::xor_(Register rd, Register rs, Register rt) {
-  RV_xor_(rd, rs, rt);
 }
 
 void Assembler::xori(Register rt, Register rs, int32_t j) {
@@ -2049,13 +2019,8 @@ void Assembler::xori(Register rt, Register rs, int32_t j) {
     BlockTrampolinePoolScope block_trampoline_pool(this);
     Register scratch = temps.hasAvailable() ? temps.Acquire() : t5;
     RV_li(scratch, j);
-    RV_xor_(rt, rs, scratch);
+    xor_(rt, rs, scratch);
   }
-}
-
-void Assembler::nor(Register rd, Register rs, Register rt) {
-  RV_or_(rd, rs, rt);
-  RV_not(rd, rd);
 }
 
 // Shifts.

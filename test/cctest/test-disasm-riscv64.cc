@@ -120,11 +120,11 @@ TEST(Arith) {
   COMPARE(RV_sll(s4, t2, s4), "01439a33       sll       s4, t2, s4");
   COMPARE(RV_slt(s3, fp, s4), "014429b3       slt       s3, fp, s4");
   COMPARE(RV_sltu(s2, s3, t6), "01f9b933       sltu      s2, s3, t6");
-  COMPARE(RV_xor_(a7, s4, s4), "014a48b3       xor       a7, s4, s4");
+  COMPARE(xor_(a7, s4, s4), "014a48b3       xor       a7, s4, s4");
   COMPARE(RV_srl(a6, s5, s4), "014ad833       srl       a6, s5, s4");
   COMPARE(RV_sra(a0, s3, s4), "4149d533       sra       a0, s3, s4");
-  COMPARE(RV_or_(a0, s3, s4), "0149e533       or        a0, s3, s4");
-  COMPARE(RV_and_(a0, s3, s4), "0149f533       and       a0, s3, s4");
+  COMPARE(or_(a0, s3, s4), "0149e533       or        a0, s3, s4");
+  COMPARE(and_(a0, s3, s4), "0149f533       and       a0, s3, s4");
 
   VERIFY_RUN();
 }

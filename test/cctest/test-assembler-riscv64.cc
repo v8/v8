@@ -347,6 +347,15 @@ static void GenAndRunTest(int64_t expected_res, Func test_generator) {
     GenAndRunTest<type, type>(rs1_val, rs2_val, expected_res, fn);          \
   }
 
+// FIXME(riscv): remove once all RV_ prefix is removed from riscv assembly
+#define UTEST_R2_FORM2_WITH_RES(instr_name, type, rs1_val, rs2_val,    \
+                                expected_res)                          \
+  TEST(RISCV_UTEST_##instr_name) {                                     \
+    CcTest::InitializeVM();                                            \
+    auto fn = [](MacroAssembler& assm) { __ instr_name(a0, a0, a1); }; \
+    GenAndRunTest<type, type>(rs1_val, rs2_val, expected_res, fn);     \
+  }
+
 #define UTEST_R1_FORM_WITH_RES(instr_name, in_type, out_type, rs1_val,  \
                                expected_res)                            \
   TEST(RISCV_UTEST_##instr_name) {                                      \
@@ -550,6 +559,11 @@ static void GenAndRunTest(int64_t expected_res, Func test_generator) {
   UTEST_R2_FORM_WITH_RES(instr_name, inout_type, rs1_val, rs2_val,      \
                          ((rs1_val)tested_op(rs2_val)))
 
+#define UTEST_R2_FORM2_WITH_OP(instr_name, inout_type, rs1_val, rs2_val, \
+                               tested_op)                                \
+  UTEST_R2_FORM2_WITH_RES(instr_name, inout_type, rs1_val, rs2_val,      \
+                          ((rs1_val)tested_op(rs2_val)))
+
 #define UTEST_I_FORM_WITH_OP(instr_name, inout_type, rs1_val, imm12, \
                              tested_op)                              \
   UTEST_I_FORM_WITH_RES(instr_name, inout_type, rs1_val, imm12,      \
@@ -608,9 +622,9 @@ UTEST_R2_FORM_WITH_OP(add, int64_t, LARGE_INT_EXCEED_32_BIT, MIN_VAL_IMM12, +)
 UTEST_R2_FORM_WITH_OP(sub, int64_t, LARGE_INT_EXCEED_32_BIT, MIN_VAL_IMM12, -)
 UTEST_R2_FORM_WITH_OP(slt, int64_t, MIN_VAL_IMM12, LARGE_INT_EXCEED_32_BIT, <)
 UTEST_R2_FORM_WITH_OP(sltu, int64_t, 0x4FB, LARGE_UINT_EXCEED_32_BIT, <)
-UTEST_R2_FORM_WITH_OP(xor_, int64_t, LARGE_INT_EXCEED_32_BIT, MIN_VAL_IMM12, ^)
-UTEST_R2_FORM_WITH_OP(or_, int64_t, LARGE_INT_EXCEED_32_BIT, MIN_VAL_IMM12, |)
-UTEST_R2_FORM_WITH_OP(and_, int64_t, LARGE_INT_EXCEED_32_BIT, MIN_VAL_IMM12, &)
+UTEST_R2_FORM2_WITH_OP(xor_, int64_t, LARGE_INT_EXCEED_32_BIT, MIN_VAL_IMM12, ^)
+UTEST_R2_FORM2_WITH_OP(or_, int64_t, LARGE_INT_EXCEED_32_BIT, MIN_VAL_IMM12, |)
+UTEST_R2_FORM2_WITH_OP(and_, int64_t, LARGE_INT_EXCEED_32_BIT, MIN_VAL_IMM12, &)
 UTEST_R2_FORM_WITH_OP(sll, int64_t, 0x12345678ULL, 33, <<)
 UTEST_R2_FORM_WITH_OP(srl, int64_t, 0x8234567800000000ULL, 33, >>)
 UTEST_R2_FORM_WITH_OP(sra, int64_t, -0x1234'5678'0000'0000LL, 33, >>)
@@ -916,10 +930,10 @@ TEST(RISCV2) {
     __ RV_li(t5, 0x7FFFFFFC);
     __ RV_bne(a1, t5, &error);
 
-    __ RV_and_(t0, a5, a6);  // 0x0000000000001230
-    __ RV_or_(t0, t0, a5);   // 0x0000000000001234
-    __ RV_xor_(t0, t0, a6);  // 0x000000001234444C
-    __ RV_or_(t0, t0, a6);
+    __ and_(t0, a5, a6);  // 0x0000000000001230
+    __ or_(t0, t0, a5);   // 0x0000000000001234
+    __ xor_(t0, t0, a6);  // 0x000000001234444C
+    __ or_(t0, t0, a6);
     __ RV_not(t0, t0);  // 0xFFFFFFFFEDCBA983
     __ RV_li(t5, 0xFFFFFFFFEDCBA983);
     __ RV_bne(t0, t5, &error);
@@ -1363,7 +1377,7 @@ TEST(RISCV7) {
 
   __ RV_fclass_d(t5, ft0);
   __ RV_fclass_d(t6, ft1);
-  __ RV_or_(t5, t5, t6);
+  __ or_(t5, t5, t6);
   __ RV_andi(t5, t5, kSignalingNaN | kQuietNaN);
   __ RV_beq(t5, zero_reg, &neither_is_nan);
   __ RV_sw(zero_reg, a0, offsetof(T, result));

@@ -636,7 +636,7 @@ void TurboAssembler::Dmodu(Register rd, Register rs, const Operand& rt) {
 
 void TurboAssembler::And(Register rd, Register rs, const Operand& rt) {
   if (rt.is_reg()) {
-    RV_and_(rd, rs, rt.rm());
+    and_(rd, rs, rt.rm());
   } else {
     if (is_int12(rt.immediate()) && !MustUseReg(rt.rmode())) {
       RV_andi(rd, rs, static_cast<int32_t>(rt.immediate()));
@@ -646,14 +646,14 @@ void TurboAssembler::And(Register rd, Register rs, const Operand& rt) {
       Register scratch = temps.Acquire();
       DCHECK(rs != scratch);
       RV_li(scratch, rt.immediate());
-      RV_and_(rd, rs, scratch);
+      and_(rd, rs, scratch);
     }
   }
 }
 
 void TurboAssembler::Or(Register rd, Register rs, const Operand& rt) {
   if (rt.is_reg()) {
-    RV_or_(rd, rs, rt.rm());
+    or_(rd, rs, rt.rm());
   } else {
     if (is_int12(rt.immediate()) && !MustUseReg(rt.rmode())) {
       RV_ori(rd, rs, static_cast<int32_t>(rt.immediate()));
@@ -663,14 +663,14 @@ void TurboAssembler::Or(Register rd, Register rs, const Operand& rt) {
       Register scratch = temps.Acquire();
       DCHECK(rs != scratch);
       RV_li(scratch, rt.immediate());
-      RV_or_(rd, rs, scratch);
+      or_(rd, rs, scratch);
     }
   }
 }
 
 void TurboAssembler::Xor(Register rd, Register rs, const Operand& rt) {
   if (rt.is_reg()) {
-    RV_xor_(rd, rs, rt.rm());
+    xor_(rd, rs, rt.rm());
   } else {
     if (is_int12(rt.immediate()) && !MustUseReg(rt.rmode())) {
       RV_xori(rd, rs, static_cast<int32_t>(rt.immediate()));
@@ -680,14 +680,14 @@ void TurboAssembler::Xor(Register rd, Register rs, const Operand& rt) {
       Register scratch = temps.Acquire();
       DCHECK(rs != scratch);
       RV_li(scratch, rt.immediate());
-      RV_xor_(rd, rs, scratch);
+      xor_(rd, rs, scratch);
     }
   }
 }
 
 void TurboAssembler::Nor(Register rd, Register rs, const Operand& rt) {
   if (rt.is_reg()) {
-    RV_or_(rd, rs, rt.rm());
+    or_(rd, rs, rt.rm());
     RV_not(rd, rd);
   } else {
     Or(rd, rs, rt);
@@ -878,7 +878,7 @@ void TurboAssembler::Ror(Register rd, Register rs, const Operand& rt) {
     RV_negw(scratch, rt.rm());
     RV_sllw(scratch, rs, scratch);
     RV_srlw(rd, rs, rt.rm());
-    RV_or_(rd, scratch, rd);
+    or_(rd, scratch, rd);
     RV_sext_w(rd, rd);
   } else {
     int64_t ror_value = rt.immediate() % 32;
@@ -890,7 +890,7 @@ void TurboAssembler::Ror(Register rd, Register rs, const Operand& rt) {
     }
     RV_srliw(scratch, rs, ror_value);
     RV_slliw(rd, rs, 32 - ror_value);
-    RV_or_(rd, scratch, rd);
+    or_(rd, scratch, rd);
     RV_sext_w(rd, rd);
   }
 }
@@ -903,7 +903,7 @@ void TurboAssembler::Dror(Register rd, Register rs, const Operand& rt) {
     RV_negw(scratch, rt.rm());
     RV_sll(scratch, rs, scratch);
     RV_srl(rd, rs, rt.rm());
-    RV_or_(rd, scratch, rd);
+    or_(rd, scratch, rd);
   } else {
     int64_t dror_value = rt.immediate() % 64;
     if (dror_value == 0) {
@@ -914,7 +914,7 @@ void TurboAssembler::Dror(Register rd, Register rs, const Operand& rt) {
     }
     RV_srli(scratch, rs, dror_value);
     RV_slli(rd, rs, 64 - dror_value);
-    RV_or_(rd, scratch, rd);
+    or_(rd, scratch, rd);
   }
 }
 
@@ -973,13 +973,13 @@ void TurboAssembler::ByteSwap(Register rd, Register rs, int operand_size) {
     li(t5, 0x00FF00FF);
     RV_slliw(x, rs, 16);
     RV_srliw(rd, rs, 16);
-    RV_or_(x, rd, x);     // x <- x << 16 | x >> 16
-    RV_and_(t6, x, t5);   // t <- x & 0x00FF00FF
+    or_(x, rd, x);        // x <- x << 16 | x >> 16
+    and_(t6, x, t5);      // t <- x & 0x00FF00FF
     RV_slliw(t6, t6, 8);  // t <- (x & t5) << 8
     RV_slliw(t5, t5, 8);  // t5 <- 0xFF00FF00
-    RV_and_(rd, x, t5);   // x & 0xFF00FF00
+    and_(rd, x, t5);      // x & 0xFF00FF00
     RV_srliw(rd, rd, 8);
-    RV_or_(rd, rd, t6);  // (((x & t5) << 8)  | ((x & (t5 << 8)) >> 8))
+    or_(rd, rd, t6);  // (((x & t5) << 8)  | ((x & (t5 << 8)) >> 8))
   } else {
     // uint64_t t5 = 0x0000FFFF0000FFFFl;
     // uint64_t t5 = 0x00FF00FF00FF00FFl;
@@ -992,20 +992,20 @@ void TurboAssembler::ByteSwap(Register rd, Register rs, int operand_size) {
     li(t5, 0x0000FFFF0000FFFFl);
     RV_slli(x, rs, 32);
     RV_srli(rd, rs, 32);
-    RV_or_(x, rd, x);     // x <- x << 32 | x >> 32
-    RV_and_(t6, x, t5);   // t <- x & 0x0000FFFF0000FFFF
+    or_(x, rd, x);        // x <- x << 32 | x >> 32
+    and_(t6, x, t5);      // t <- x & 0x0000FFFF0000FFFF
     RV_slli(t6, t6, 16);  // t <- (x & 0x0000FFFF0000FFFF) << 16
     RV_slli(t5, t5, 16);  // t5 <- 0xFFFF0000FFFF0000
-    RV_and_(rd, x, t5);   // rd <- x & 0xFFFF0000FFFF0000
+    and_(rd, x, t5);      // rd <- x & 0xFFFF0000FFFF0000
     RV_srli(rd, rd, 16);  // rd <- x & (t5 << 16)) >> 16
-    RV_or_(x, rd, t6);    // (x & t5) << 16 | (x & (t5 << 16)) >> 16;
+    or_(x, rd, t6);       // (x & t5) << 16 | (x & (t5 << 16)) >> 16;
     li(t5, 0x00FF00FF00FF00FFl);
-    RV_and_(t6, x, t5);  // t <- x & 0x00FF00FF00FF00FF
+    and_(t6, x, t5);     // t <- x & 0x00FF00FF00FF00FF
     RV_slli(t6, t6, 8);  // t <- (x & t5) << 8
     RV_slli(t5, t5, 8);  // t5 <- 0xFF00FF00FF00FF00
-    RV_and_(rd, x, t5);
+    and_(rd, x, t5);
     RV_srli(rd, rd, 8);  // rd <- (x & (t5 << 8)) >> 8
-    RV_or_(rd, rd, t6);  // (((x & t5) << 8)  | ((x & (t5 << 8)) >> 8))
+    or_(rd, rd, t6);     // (((x & t5) << 8)  | ((x & (t5 << 8)) >> 8))
   }
 }
 
@@ -1027,7 +1027,7 @@ void TurboAssembler::LoadNBytes(Register rd, const MemOperand& rs,
   for (int i = (NBYTES - 2); i >= 0; i--) {
     RV_lbu(scratch, rs.rm(), rs.offset() + i);
     if (i) RV_slli(scratch, scratch, i * 8);
-    RV_or_(rd, rd, scratch);
+    or_(rd, rd, scratch);
   }
 }
 
@@ -1052,10 +1052,10 @@ void TurboAssembler::LoadNBytesOverwritingBaseReg(const MemOperand& rs,
     RV_lbu(scratch1, rs.rm(), rs.offset() + i);
     if (i) {
       RV_slli(scratch1, scratch1, i * 8);
-      RV_or_(scratch0, scratch0, scratch1);
+      or_(scratch0, scratch0, scratch1);
     } else {
       // write to rs.rm() when processing the last byte
-      RV_or_(rs.rm(), scratch0, scratch1);
+      or_(rs.rm(), scratch0, scratch1);
     }
   }
 }
@@ -1644,7 +1644,7 @@ void TurboAssembler::Ins(Register rt, Register rs, uint16_t pos,
   And(scratch1, rs, Operand(src_mask));
   RV_slliw(scratch1, scratch1, pos);
   And(rt, rt, Operand(dest_mask));
-  RV_or_(rt, rt, scratch1);
+  or_(rt, rt, scratch1);
 }
 
 void TurboAssembler::Dins(Register rt, Register rs, uint16_t pos,
@@ -1661,7 +1661,7 @@ void TurboAssembler::Dins(Register rt, Register rs, uint16_t pos,
   And(scratch1, rs, Operand(src_mask));
   RV_slli(scratch1, scratch1, pos);
   And(rt, rt, Operand(dest_mask));
-  RV_or_(rt, rt, scratch1);
+  or_(rt, rt, scratch1);
 }
 
 void TurboAssembler::ExtractBits(Register dest, Register source, Register pos,
@@ -1699,15 +1699,15 @@ void TurboAssembler::InsertBits(Register dest, Register source, Register pos,
   li(mask, 1);
   RV_slli(mask, mask, size);
   RV_addi(mask, mask, -1);
-  RV_and_(source_, mask, source);
+  and_(source_, mask, source);
   RV_sll(source_, source_, pos);
   // Make a mask containing 0's. 0's start at "pos" with length=size.
   RV_sll(mask, mask, pos);
   RV_not(mask, mask);
   // cut area for insertion of source.
-  RV_and_(dest, mask, dest);
+  and_(dest, mask, dest);
   // insert source
-  RV_or_(dest, dest, source_);
+  or_(dest, dest, source_);
 }
 
 void TurboAssembler::Neg_s(FPURegister fd, FPURegister fs) {
@@ -2137,7 +2137,7 @@ void TurboAssembler::FmoveHigh(FPURegister dst, Register src_high) {
   RV_slli(t5, src_high, 32);
   RV_slli(scratch, scratch, 32);
   RV_srli(scratch, scratch, 32);
-  RV_or_(scratch, scratch, t5);
+  or_(scratch, scratch, t5);
   RV_fmv_d_x(dst, scratch);
 }
 
@@ -2152,7 +2152,7 @@ void TurboAssembler::FmoveLow(FPURegister dst, Register src_low) {
   RV_srli(t5, t5, 32);
   RV_srli(scratch, scratch, 32);
   RV_slli(scratch, scratch, 32);
-  RV_or_(scratch, scratch, t5);
+  or_(scratch, scratch, t5);
   RV_fmv_d_x(dst, scratch);
 }
 
@@ -2166,7 +2166,7 @@ void TurboAssembler::Move(FPURegister dst, Register src_low,
   RV_slli(scratch, src_low, 32);
   RV_slli(t5, src_high, 32);
   RV_srli(scratch, scratch, 32);
-  RV_or_(scratch, scratch, t5);
+  or_(scratch, scratch, t5);
   RV_fmv_d_x(dst, scratch);
 }
 
@@ -2482,7 +2482,7 @@ void TurboAssembler::Popcnt(Register rd, Register rs) {
   Subu(scratch, rs, scratch);
   li(scratch2, 0x33333333);  // B1 = 0x33333333;
   RV_slli(rd, scratch2, 4);
-  RV_or_(scratch2, scratch2, rd);
+  or_(scratch2, scratch2, rd);
   And(rd, scratch, scratch2);
   Srl(scratch, scratch, 2);
   And(scratch, scratch, scratch2);
@@ -3598,15 +3598,15 @@ void TurboAssembler::DaddOverflow(Register dst, Register left,
   DCHECK(overflow != left && overflow != right_reg);
   if (dst == left || dst == right_reg) {
     RV_add(scratch, left, right_reg);
-    RV_xor_(overflow, scratch, left);
-    RV_xor_(t3, scratch, right_reg);
-    RV_and_(overflow, overflow, t3);
+    xor_(overflow, scratch, left);
+    xor_(t3, scratch, right_reg);
+    and_(overflow, overflow, t3);
     RV_mv(dst, scratch);
   } else {
     RV_add(dst, left, right_reg);
-    RV_xor_(overflow, dst, left);
-    RV_xor_(t3, dst, right_reg);
-    RV_and_(overflow, overflow, t3);
+    xor_(overflow, dst, left);
+    xor_(t3, dst, right_reg);
+    and_(overflow, overflow, t3);
   }
 }
 
@@ -3628,15 +3628,15 @@ void TurboAssembler::DsubOverflow(Register dst, Register left,
 
   if (dst == left || dst == right_reg) {
     RV_sub(scratch, left, right_reg);
-    RV_xor_(overflow, left, scratch);
-    RV_xor_(t3, left, right_reg);
-    RV_and_(overflow, overflow, t3);
+    xor_(overflow, left, scratch);
+    xor_(t3, left, right_reg);
+    and_(overflow, overflow, t3);
     RV_mv(dst, scratch);
   } else {
     RV_sub(dst, left, right_reg);
-    RV_xor_(overflow, left, dst);
-    RV_xor_(t3, left, right_reg);
-    RV_and_(overflow, overflow, t3);
+    xor_(overflow, left, dst);
+    xor_(t3, left, right_reg);
+    and_(overflow, overflow, t3);
   }
 }
 
@@ -3666,7 +3666,7 @@ void TurboAssembler::MulOverflow(Register dst, Register left,
   }
 
   RV_srai(scratch, dst, 32);
-  RV_xor_(overflow, overflow, scratch);
+  xor_(overflow, overflow, scratch);
 }
 
 void MacroAssembler::CallRuntime(const Runtime::Function* f, int num_arguments,

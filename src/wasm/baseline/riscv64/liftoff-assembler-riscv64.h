@@ -617,7 +617,7 @@ void LiftoffAssembler::emit_i32_divs(Register dst, Register lhs, Register rhs,
   TurboAssembler::li(kScratchReg2, 1);
   TurboAssembler::LoadZeroOnCondition(kScratchReg, lhs, Operand(kMinInt), eq);
   TurboAssembler::LoadZeroOnCondition(kScratchReg2, rhs, Operand(-1), eq);
-  daddu(kScratchReg, kScratchReg, kScratchReg2);
+  RV_add(kScratchReg, kScratchReg, kScratchReg2);
   TurboAssembler::Branch(trap_div_unrepresentable, eq, kScratchReg,
                          Operand(zero_reg));
 
@@ -651,9 +651,9 @@ void LiftoffAssembler::emit_i32_remu(Register dst, Register lhs, Register rhs,
 // clang-format off
 I32_BINOP(add, RV_addw)
 I32_BINOP(sub, RV_subw)
-I32_BINOP(and, RV_and_)
-I32_BINOP(or, RV_or_)
-I32_BINOP(xor, RV_xor_)
+I32_BINOP(and, and_)
+I32_BINOP(or, or_)
+I32_BINOP(xor, xor_)
 // clang-format on
 
 #undef I32_BINOP
@@ -725,7 +725,7 @@ bool LiftoffAssembler::emit_i64_divs(LiftoffRegister dst, LiftoffRegister lhs,
   TurboAssembler::LoadZeroOnCondition(
       kScratchReg, lhs.gp(), Operand(std::numeric_limits<int64_t>::min()), eq);
   TurboAssembler::LoadZeroOnCondition(kScratchReg2, rhs.gp(), Operand(-1), eq);
-  daddu(kScratchReg, kScratchReg, kScratchReg2);
+  RV_add(kScratchReg, kScratchReg, kScratchReg2);
   TurboAssembler::Branch(trap_div_unrepresentable, eq, kScratchReg,
                          Operand(zero_reg));
 
@@ -766,9 +766,9 @@ bool LiftoffAssembler::emit_i64_remu(LiftoffRegister dst, LiftoffRegister lhs,
 // clang-format off
 I64_BINOP(add, RV_add)
 I64_BINOP(sub, RV_sub)
-I64_BINOP(and, RV_and_)
-I64_BINOP(or, RV_or_)
-I64_BINOP(xor, RV_xor_)
+I64_BINOP(and, and_)
+I64_BINOP(or, or_)
+I64_BINOP(xor, xor_)
 // clang-format on
 
 #undef I64_BINOP
@@ -812,7 +812,7 @@ I64_SHIFTOP_I(shr, RV_srli)
 #undef I64_SHIFTOP_I
 
 void LiftoffAssembler::emit_u32_to_intptr(Register dst, Register src) {
-  addu(dst, src, zero_reg);
+  RV_addw(dst, src, zero_reg);
 }
 
 void LiftoffAssembler::emit_f32_neg(DoubleRegister dst, DoubleRegister src) {

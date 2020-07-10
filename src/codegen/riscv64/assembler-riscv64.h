@@ -420,11 +420,11 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase {
   void RV_sll(Register rd, Register rs1, Register rs2);
   void RV_slt(Register rd, Register rs1, Register rs2);
   void RV_sltu(Register rd, Register rs1, Register rs2);
-  void RV_xor_(Register rd, Register rs1, Register rs2);
+  void xor_(Register rd, Register rs1, Register rs2);
   void RV_srl(Register rd, Register rs1, Register rs2);
   void RV_sra(Register rd, Register rs1, Register rs2);
-  void RV_or_(Register rd, Register rs1, Register rs2);
-  void RV_and_(Register rd, Register rs1, Register rs2);
+  void or_(Register rd, Register rs1, Register rs2);
+  void and_(Register rd, Register rs1, Register rs2);
 
   // Memory fences
   void RV_fence(uint8_t pred, uint8_t succ);
@@ -673,6 +673,12 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase {
   void RV_ret();
   void RV_call(int32_t offset);
 
+  // Other instructions
+  void nor(Register rd, Register rs, Register rt) {
+    or_(rd, rs, rt);
+    RV_not(rd, rd);
+  }
+
   // Read instructions-retired counter
   void RV_rdinstret(Register rd);
   // Read upper 32-bits of instructions-retired counter
@@ -729,27 +735,14 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase {
   // We don't use likely variant of instructions.
   void b(int16_t offset);
   inline void b(Label* L) { b(shifted_branch_offset(L)); }
-  void bal(int16_t offset);
-  inline void bal(Label* L) { bal(shifted_branch_offset(L)); }
 
   // -------Data-processing-instructions---------
 
   // Arithmetic.
-
-  void addu(Register rd, Register rs, Register rt);
-  void subu(Register rd, Register rs, Register rt);
-  void daddu(Register rd, Register rs, Register rt);
-  void dsubu(Register rd, Register rs, Register rt);
-
   void addiu(Register rd, Register rs, int32_t j);
   void daddiu(Register rd, Register rs, int32_t j);
 
   // Logical.
-  void and_(Register rd, Register rs, Register rt);
-  void or_(Register rd, Register rs, Register rt);
-  void xor_(Register rd, Register rs, Register rt);
-  void nor(Register rd, Register rs, Register rt);
-
   void andi(Register rd, Register rs, int32_t j);
   void xori(Register rd, Register rs, int32_t j);
 
