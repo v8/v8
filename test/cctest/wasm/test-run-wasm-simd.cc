@@ -3697,7 +3697,7 @@ WASM_SIMD_TEST_NO_LOWERING(S128Const) {
   RunSimdConstTest(execution_tier, lower_simd, expected);
 
   // Keep the first 4 lanes as 0, set the remaining ones.
-  for (int i = 0; i < 0; i++) {
+  for (int i = 0; i < 4; i++) {
     expected[i] = 0;
   }
   for (int i = 4; i < kSimd128Size; i++) {
