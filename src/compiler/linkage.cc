@@ -363,8 +363,7 @@ CallDescriptor* Linkage::GetJSCallDescriptor(Zone* zone, bool is_osr,
       kNoCalleeSaved,                   // callee-saved
       kNoCalleeSaved,                   // callee-saved fp
       flags,                            // flags
-      "js-call",                        // debug name
-      StackArgumentOrder::kJS);         // stack order
+      "js-call");                       // debug name
 }
 
 // TODO(turbofan): cache call descriptors for code stub calls.
