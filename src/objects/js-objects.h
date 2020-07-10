@@ -1232,10 +1232,6 @@ class JSGlobalObject : public JSSpecialObject {
 
   static void InvalidatePropertyCell(Handle<JSGlobalObject> object,
                                      Handle<Name> name);
-  // Ensure that the global object has a cell for the given property name.
-  static Handle<PropertyCell> EnsureEmptyPropertyCell(
-      Handle<JSGlobalObject> global, Handle<Name> name,
-      PropertyCellType cell_type, InternalIndex* entry_out = nullptr);
 
   DECL_CAST(JSGlobalObject)
 

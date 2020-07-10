@@ -147,23 +147,28 @@ InternalIndex HashTable<Derived, Shape>::FindEntry(const LocalIsolate* isolate,
                                                    ReadOnlyRoots roots, Key key,
                                                    int32_t hash) {
   uint32_t capacity = Capacity();
-  InternalIndex entry = FirstProbe(hash, capacity);
   uint32_t count = 1;
-  // EnsureCapacity will guarantee the hash table is never full.
   Object undefined = roots.undefined_value();
   Object the_hole = roots.the_hole_value();
   USE(the_hole);
-  while (true) {
+  // EnsureCapacity will guarantee the hash table is never full.
+  for (InternalIndex entry = FirstProbe(hash, capacity);;
+       entry = NextProbe(entry, count++, capacity)) {
     Object element = KeyAt(isolate, entry);
     // Empty entry. Uses raw unchecked accessors because it is called by the
     // string table during bootstrapping.
     if (element == undefined) break;
-    if (!(Shape::kNeedsHoleCheck && the_hole == element)) {
-      if (Shape::IsMatch(key, element)) return entry;
-    }
-    entry = NextProbe(entry, count++, capacity);
+    if (Shape::kMatchNeedsHoleCheck && element == the_hole) continue;
+    if (Shape::IsMatch(key, element)) return entry;
   }
   return InternalIndex::NotFound();
+}
+
+// static
+template <typename Derived, typename Shape>
+bool HashTable<Derived, Shape>::IsKey(ReadOnlyRoots roots, Object k) {
+  // TODO(leszeks): Dictionaries that don't delete could skip the hole check.
+  return k != roots.undefined_value() && k != roots.the_hole_value();
 }
 
 template <typename Derived, typename Shape>
@@ -219,16 +224,6 @@ void HashTable<Derived, Shape>::SetCapacity(int capacity) {
   DCHECK_GT(capacity, 0);
   DCHECK_LE(capacity, kMaxCapacity);
   set(kCapacityIndex, Smi::FromInt(capacity));
-}
-
-template <typename KeyT>
-bool BaseShape<KeyT>::IsKey(ReadOnlyRoots roots, Object key) {
-  return IsLive(roots, key);
-}
-
-template <typename KeyT>
-bool BaseShape<KeyT>::IsLive(ReadOnlyRoots roots, Object k) {
-  return k != roots.the_hole_value() && k != roots.undefined_value();
 }
 
 bool ObjectHashSet::Has(Isolate* isolate, Handle<Object> key, int32_t hash) {

@@ -7557,6 +7557,7 @@ void CodeStubAssembler::NameDictionaryLookup(
   Goto(&loop);
   BIND(&loop);
   {
+    Label next_probe(this);
     TNode<IntPtrT> entry = var_entry.value();
 
     TNode<IntPtrT> index = EntryToIndex<Dictionary>(entry);
@@ -7566,13 +7567,18 @@ void CodeStubAssembler::NameDictionaryLookup(
         CAST(UnsafeLoadFixedArrayElement(dictionary, index));
     GotoIf(TaggedEqual(current, undefined), if_not_found);
     if (mode == kFindExisting) {
+      if (Dictionary::ShapeT::kMatchNeedsHoleCheck) {
+        GotoIf(TaggedEqual(current, TheHoleConstant()), &next_probe);
+      }
       current = LoadName<Dictionary>(current);
       GotoIf(TaggedEqual(current, unique_name), if_found);
     } else {
       DCHECK_EQ(kFindInsertionIndex, mode);
       GotoIf(TaggedEqual(current, TheHoleConstant()), if_not_found);
     }
+    Goto(&next_probe);
 
+    BIND(&next_probe);
     // See Dictionary::NextProbe().
     Increment(&var_count);
     entry = Signed(WordAnd(IntPtrAdd(entry, var_count.value()), mask));

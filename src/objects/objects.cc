@@ -6668,7 +6668,7 @@ void HashTable<Derived, Shape>::Rehash(const Isolate* isolate,
   for (InternalIndex i : this->IterateEntries()) {
     uint32_t from_index = EntryToIndex(i);
     Object k = this->get(isolate, from_index);
-    if (!Shape::IsLive(roots, k)) continue;
+    if (!IsKey(roots, k)) continue;
     uint32_t hash = Shape::HashForObject(roots, k);
     uint32_t insertion_index =
         EntryToIndex(new_table.FindInsertionEntry(isolate, roots, hash));
@@ -6729,7 +6729,7 @@ void HashTable<Derived, Shape>::Rehash(const Isolate* isolate) {
     for (InternalIndex current(0); current.raw_value() < capacity;
          /* {current} is advanced manually below, when appropriate.*/) {
       Object current_key = KeyAt(isolate, current);
-      if (!Shape::IsLive(roots, current_key)) {
+      if (!IsKey(roots, current_key)) {
         ++current;  // Advance to next entry.
         continue;
       }
@@ -6739,7 +6739,7 @@ void HashTable<Derived, Shape>::Rehash(const Isolate* isolate) {
         continue;
       }
       Object target_key = KeyAt(isolate, target);
-      if (!Shape::IsLive(roots, target_key) ||
+      if (!IsKey(roots, target_key) ||
           EntryForProbe(roots, target_key, probe, target) != target) {
         // Put the current element into the correct position.
         Swap(current, target, mode);
@@ -6839,14 +6839,12 @@ template <typename Derived, typename Shape>
 InternalIndex HashTable<Derived, Shape>::FindInsertionEntry(
     const Isolate* isolate, ReadOnlyRoots roots, uint32_t hash) {
   uint32_t capacity = Capacity();
-  InternalIndex entry = FirstProbe(hash, capacity);
   uint32_t count = 1;
   // EnsureCapacity will guarantee the hash table is never full.
-  while (true) {
-    if (!Shape::IsLive(roots, KeyAt(isolate, entry))) break;
-    entry = NextProbe(entry, count++, capacity);
+  for (InternalIndex entry = FirstProbe(hash, capacity);;
+       entry = NextProbe(entry, count++, capacity)) {
+    if (!IsKey(roots, KeyAt(isolate, entry))) return entry;
   }
-  return entry;
 }
 
 template <typename Derived, typename Shape>
@@ -8015,32 +8013,36 @@ Handle<JSArray> JSWeakCollection::GetEntries(Handle<JSWeakCollection> holder,
   return isolate->factory()->NewJSArrayWithElements(entries);
 }
 
-Handle<PropertyCell> PropertyCell::InvalidateEntry(
+void PropertyCell::ClearAndInvalidate(ReadOnlyRoots roots) {
+  // Cell is officially mutable henceforth.
+  DCHECK(!value().IsTheHole(roots));
+  PropertyDetails details = property_details();
+  details = details.set_cell_type(PropertyCellType::kInvalidated);
+  set_value(roots.the_hole_value());
+  set_property_details(details);
+  dependent_code().DeoptimizeDependentCodeGroup(
+      DependentCode::kPropertyCellChangedGroup);
+}
+
+// static
+Handle<PropertyCell> PropertyCell::InvalidateAndReplaceEntry(
     Isolate* isolate, Handle<GlobalDictionary> dictionary,
     InternalIndex entry) {
-  // Swap with a copy.
   Handle<PropertyCell> cell(dictionary->CellAt(entry), isolate);
   Handle<Name> name(cell->name(), isolate);
-  Handle<PropertyCell> new_cell = isolate->factory()->NewPropertyCell(name);
-  new_cell->set_value(cell->value());
-  dictionary->ValueAtPut(entry, *new_cell);
-  bool is_the_hole = cell->value().IsTheHole(isolate);
-  // Cell is officially mutable henceforth.
   PropertyDetails details = cell->property_details();
   DCHECK(details.IsConfigurable());
-  details = details.set_cell_type(is_the_hole ? PropertyCellType::kUninitialized
-                                              : PropertyCellType::kMutable);
+  DCHECK(!cell->value().IsTheHole(isolate));
+
+  // Swap with a copy.
+  Handle<PropertyCell> new_cell = isolate->factory()->NewPropertyCell(name);
+  new_cell->set_value(cell->value());
+  // Cell is officially mutable henceforth.
+  details = details.set_cell_type(PropertyCellType::kMutable);
   new_cell->set_property_details(details);
-  // Old cell is ready for invalidation.
-  if (is_the_hole) {
-    cell->set_value(ReadOnlyRoots(isolate).undefined_value());
-  } else {
-    cell->set_value(ReadOnlyRoots(isolate).the_hole_value());
-  }
-  details = details.set_cell_type(PropertyCellType::kInvalidated);
-  cell->set_property_details(details);
-  cell->dependent_code().DeoptimizeDependentCodeGroup(
-      DependentCode::kPropertyCellChangedGroup);
+  dictionary->ValueAtPut(entry, *new_cell);
+
+  cell->ClearAndInvalidate(ReadOnlyRoots(isolate));
   return new_cell;
 }
 
@@ -8062,6 +8064,14 @@ static bool RemainsConstantType(Handle<PropertyCell> cell,
   return false;
 }
 
+// static
+PropertyCellType PropertyCell::TypeForUninitializedCell(Isolate* isolate,
+                                                        Handle<Object> value) {
+  if (value->IsUndefined(isolate)) return PropertyCellType::kUndefined;
+  return PropertyCellType::kConstant;
+}
+
+// static
 PropertyCellType PropertyCell::UpdatedType(Isolate* isolate,
                                            Handle<PropertyCell> cell,
                                            Handle<Object> value,
@@ -8072,8 +8082,7 @@ PropertyCellType PropertyCell::UpdatedType(Isolate* isolate,
     switch (type) {
       // Only allow a cell to transition once into constant state.
       case PropertyCellType::kUninitialized:
-        if (value->IsUndefined(isolate)) return PropertyCellType::kUndefined;
-        return PropertyCellType::kConstant;
+        return TypeForUninitializedCell(isolate, value);
       case PropertyCellType::kInvalidated:
         return PropertyCellType::kMutable;
       default:
@@ -8122,7 +8131,7 @@ Handle<PropertyCell> PropertyCell::PrepareForValue(
   PropertyCellType new_type =
       UpdatedType(isolate, cell, value, original_details);
   if (invalidate) {
-    cell = PropertyCell::InvalidateEntry(isolate, dictionary, entry);
+    cell = PropertyCell::InvalidateAndReplaceEntry(isolate, dictionary, entry);
   }
 
   // Install new property details.

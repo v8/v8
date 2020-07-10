@@ -117,7 +117,7 @@ class NameDictionaryShape : public BaseDictionaryShape<Handle<Name>> {
   static const int kPrefixSize = 2;
   static const int kEntrySize = 3;
   static const int kEntryValueIndex = 1;
-  static const bool kNeedsHoleCheck = false;
+  static const bool kMatchNeedsHoleCheck = false;
 };
 
 template <typename Derived, typename Shape>
@@ -212,6 +212,7 @@ class V8_EXPORT_PRIVATE GlobalDictionaryShape : public NameDictionaryShape {
   static inline uint32_t HashForObject(ReadOnlyRoots roots, Object object);
 
   static const int kEntrySize = 1;  // Overrides NameDictionaryShape::kEntrySize
+  static const bool kMatchNeedsHoleCheck = true;
 
   template <typename Dictionary>
   static inline PropertyDetails DetailsAt(Dictionary dict, InternalIndex entry);
@@ -221,8 +222,6 @@ class V8_EXPORT_PRIVATE GlobalDictionaryShape : public NameDictionaryShape {
                                   PropertyDetails value);
 
   static inline Object Unwrap(Object key);
-  static inline bool IsKey(ReadOnlyRoots roots, Object k);
-  static inline bool IsLive(ReadOnlyRoots roots, Object key);
 };
 
 EXTERN_DECLARE_BASE_NAME_DICTIONARY(GlobalDictionary, GlobalDictionaryShape)
@@ -240,6 +239,7 @@ class V8_EXPORT_PRIVATE GlobalDictionary
   inline PropertyCell CellAt(const Isolate* isolate, InternalIndex entry);
   inline void SetEntry(InternalIndex entry, Object key, Object value,
                        PropertyDetails details);
+  inline void ClearEntry(InternalIndex entry);
   inline Name NameAt(InternalIndex entry);
   inline Name NameAt(const Isolate* isolate, InternalIndex entry);
   inline void ValueAtPut(InternalIndex entry, Object value);
@@ -258,6 +258,8 @@ class NumberDictionaryBaseShape : public BaseDictionaryShape<uint32_t> {
 
   static inline uint32_t Hash(ReadOnlyRoots roots, uint32_t key);
   static inline uint32_t HashForObject(ReadOnlyRoots roots, Object object);
+
+  static const bool kMatchNeedsHoleCheck = true;
 };
 
 class NumberDictionaryShape : public NumberDictionaryBaseShape {

@@ -50,7 +50,7 @@ namespace internal {
 //     static const int kEntrySize = ..;
 //     // Indicates whether IsMatch can deal with other being the_hole (a
 //     // deleted entry).
-//     static const bool kNeedsHoleCheck = ..;
+//     static const bool kMatchNeedsHoleCheck = ..;
 //   };
 // The prefix size indicates an amount of memory in the
 // beginning of the backing storage that can be used for non-element
@@ -60,10 +60,7 @@ template <typename KeyT>
 class V8_EXPORT_PRIVATE BaseShape {
  public:
   using Key = KeyT;
-  static const bool kNeedsHoleCheck = true;
   static Object Unwrap(Object key) { return key; }
-  static inline bool IsKey(ReadOnlyRoots roots, Object key);
-  static inline bool IsLive(ReadOnlyRoots roots, Object key);
 };
 
 class V8_EXPORT_PRIVATE HashTableBase : public NON_EXPORTED_BASE(FixedArray) {
@@ -152,9 +149,7 @@ class EXPORT_TEMPLATE_DECLARE(V8_EXPORT_PRIVATE) HashTable
 
   // Returns whether k is a real key.  The hole and undefined are not allowed as
   // keys and can be used to indicate missing or deleted elements.
-  static bool IsKey(ReadOnlyRoots roots, Object k) {
-    return Shape::IsKey(roots, k);
-  }
+  static inline bool IsKey(ReadOnlyRoots roots, Object k);
 
   inline bool ToKey(ReadOnlyRoots roots, InternalIndex entry, Object* out_k);
   inline bool ToKey(const Isolate* isolate, InternalIndex entry, Object* out_k);
@@ -303,7 +298,7 @@ class ObjectHashTableShape : public BaseShape<Handle<Object>> {
   static const int kPrefixSize = 0;
   static const int kEntryValueIndex = 1;
   static const int kEntrySize = 2;
-  static const bool kNeedsHoleCheck = false;
+  static const bool kMatchNeedsHoleCheck = false;
 };
 
 template <typename Derived, typename Shape>

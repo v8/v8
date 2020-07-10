@@ -38,6 +38,7 @@ class CompilationCacheShape : public BaseShape<HashTableKey*> {
 
   static const int kPrefixSize = 0;
   static const int kEntrySize = 3;
+  static const bool kMatchNeedsHoleCheck = true;
 };
 
 class InfoCellPair {

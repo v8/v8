@@ -49,6 +49,7 @@ class V8_EXPORT_PRIVATE StringTableShape : public BaseShape<StringTableKey*> {
 
   static const int kPrefixSize = 0;
   static const int kEntrySize = 1;
+  static const bool kMatchNeedsHoleCheck = true;
 };
 
 class SeqOneByteString;
@@ -105,6 +106,7 @@ class StringSetShape : public BaseShape<String> {
 
   static const int kPrefixSize = 0;
   static const int kEntrySize = 1;
+  static const bool kMatchNeedsHoleCheck = true;
 };
 
 EXTERN_DECLARE_HASH_TABLE(StringSet, StringSetShape)
