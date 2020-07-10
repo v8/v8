@@ -4,7 +4,6 @@
 
 #include "src/wasm/module-instantiate.h"
 
-#include "src/api/api.h"
 #include "src/asmjs/asm-js.h"
 #include "src/logging/counters.h"
 #include "src/numbers/conversions-inl.h"
@@ -642,15 +641,10 @@ bool InstanceBuilder::ExecuteStartFunction() {
   if (start_function_.is_null()) return true;  // No start function.
 
   HandleScope scope(isolate_);
-  // We have to make sure that an "incumbent context" is available in case
-  // the start function calls out to Blink.
-  HandleScopeImplementer* hsi = isolate_->handle_scope_implementer();
-  hsi->EnterContext(isolate_->context());
   // Call the JS function.
   Handle<Object> undefined = isolate_->factory()->undefined_value();
   MaybeHandle<Object> retval =
       Execution::Call(isolate_, start_function_, undefined, 0, nullptr);
-  hsi->LeaveContext();
 
   if (retval.is_null()) {
     DCHECK(isolate_->has_pending_exception());
