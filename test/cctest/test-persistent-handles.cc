@@ -10,8 +10,10 @@
 #include "src/base/platform/semaphore.h"
 #include "src/handles/handles-inl.h"
 #include "src/handles/local-handles-inl.h"
+#include "src/handles/persistent-handles-inl.h"
 #include "src/handles/persistent-handles.h"
 #include "src/heap/heap.h"
+#include "src/heap/local-heap-inl.h"
 #include "src/heap/local-heap.h"
 #include "src/heap/safepoint.h"
 #include "src/objects/heap-number.h"
@@ -28,14 +30,14 @@ namespace {
 class PersistentHandlesThread final : public v8::base::Thread {
  public:
   PersistentHandlesThread(Heap* heap, std::vector<Handle<HeapNumber>> handles,
-                          std::unique_ptr<PersistentHandles> ph, Address object,
-                          base::Semaphore* sema_started,
+                          std::unique_ptr<PersistentHandles> ph,
+                          HeapNumber number, base::Semaphore* sema_started,
                           base::Semaphore* sema_gc_finished)
       : v8::base::Thread(base::Thread::Options("ThreadWithLocalHeap")),
         heap_(heap),
         handles_(std::move(handles)),
         ph_(std::move(ph)),
-        object_(object),
+        number_(number),
         sema_started_(sema_started),
         sema_gc_finished_(sema_gc_finished) {}
 
@@ -44,8 +46,7 @@ class PersistentHandlesThread final : public v8::base::Thread {
     LocalHandleScope scope(&local_heap);
 
     for (int i = 0; i < kNumHandles; i++) {
-      handles_.push_back(
-          Handle<HeapNumber>::cast(local_heap.NewPersistentHandle(object_)));
+      handles_.push_back(local_heap.NewPersistentHandle(number_));
     }
 
     sema_started_->Signal();
@@ -68,7 +69,7 @@ class PersistentHandlesThread final : public v8::base::Thread {
   Heap* heap_;
   std::vector<Handle<HeapNumber>> handles_;
   std::unique_ptr<PersistentHandles> ph_;
-  Address object_;
+  HeapNumber number_;
   base::Semaphore* sema_started_;
   base::Semaphore* sema_gc_finished_;
 };
@@ -78,17 +79,14 @@ TEST(CreatePersistentHandles) {
   FLAG_local_heaps = true;
   Isolate* isolate = CcTest::i_isolate();
 
-  Address object = kNullAddress;
   std::unique_ptr<PersistentHandles> ph = isolate->NewPersistentHandles();
   std::vector<Handle<HeapNumber>> handles;
 
   HandleScope handle_scope(isolate);
   Handle<HeapNumber> number = isolate->factory()->NewHeapNumber(42.0);
 
-  object = number->ptr();
-
   for (int i = 0; i < kNumHandles; i++) {
-    handles.push_back(Handle<HeapNumber>::cast(ph->NewHandle(object)));
+    handles.push_back(ph->NewHandle(number));
   }
 
   base::Semaphore sema_started(0);
@@ -96,8 +94,8 @@ TEST(CreatePersistentHandles) {
 
   // pass persistent handles to background thread
   std::unique_ptr<PersistentHandlesThread> thread(new PersistentHandlesThread(
-      isolate->heap(), std::move(handles), std::move(ph), object, &sema_started,
-      &sema_gc_finished));
+      isolate->heap(), std::move(handles), std::move(ph), *number,
+      &sema_started, &sema_gc_finished));
   CHECK(thread->Start());
 
   sema_started.Wait();
@@ -109,7 +107,7 @@ TEST(CreatePersistentHandles) {
 
   // get persistent handles back to main thread
   ph = std::move(thread->ph_);
-  ph->NewHandle(number->ptr());
+  ph->NewHandle(number);
 }
 
 TEST(DereferencePersistentHandle) {
@@ -122,7 +120,7 @@ TEST(DereferencePersistentHandle) {
   {
     HandleScope handle_scope(isolate);
     Handle<HeapNumber> number = isolate->factory()->NewHeapNumber(42.0);
-    ph = Handle<HeapNumber>::cast(phs->NewHandle(number->ptr()));
+    ph = phs->NewHandle(number);
   }
   {
     LocalHeap local_heap(isolate->heap(), std::move(phs));

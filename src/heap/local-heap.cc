@@ -52,12 +52,11 @@ LocalHeap::~LocalHeap() {
   current_local_heap = nullptr;
 }
 
-Handle<Object> LocalHeap::NewPersistentHandle(Address value) {
+void LocalHeap::EnsurePersistentHandles() {
   if (!persistent_handles_) {
     persistent_handles_.reset(
         heap_->isolate()->NewPersistentHandles().release());
   }
-  return persistent_handles_->NewHandle(value);
 }
 
 std::unique_ptr<PersistentHandles> LocalHeap::DetachPersistentHandles() {

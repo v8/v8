@@ -37,7 +37,10 @@ class V8_EXPORT_PRIVATE LocalHeap {
 
   LocalHandles* handles() { return handles_.get(); }
 
-  Handle<Object> NewPersistentHandle(Address value);
+  template <typename T>
+  inline Handle<T> NewPersistentHandle(T object);
+  template <typename T>
+  inline Handle<T> NewPersistentHandle(Handle<T> object);
   std::unique_ptr<PersistentHandles> DetachPersistentHandles();
 #ifdef DEBUG
   bool ContainsPersistentHandle(Address* location);
@@ -82,6 +85,8 @@ class V8_EXPORT_PRIVATE LocalHeap {
   void Park();
   void Unpark();
   void EnsureParkedBeforeDestruction();
+
+  void EnsurePersistentHandles();
 
   bool IsSafepointRequested();
   void ClearSafepointRequested();

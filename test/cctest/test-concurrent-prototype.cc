@@ -6,8 +6,10 @@
 #include "src/base/platform/semaphore.h"
 #include "src/handles/handles-inl.h"
 #include "src/handles/local-handles-inl.h"
+#include "src/handles/persistent-handles-inl.h"
 #include "src/handles/persistent-handles.h"
 #include "src/heap/heap.h"
+#include "src/heap/local-heap-inl.h"
 #include "src/heap/local-heap.h"
 #include "test/cctest/cctest.h"
 #include "test/cctest/heap/heap-utils.h"
@@ -33,11 +35,9 @@ class ConcurrentSearchThread final : public v8::base::Thread {
   void Run() override {
     LocalHeap local_heap(heap_, std::move(ph_));
     LocalHandleScope scope(&local_heap);
-    Address object = handles_[0]->ptr();
 
     for (int i = 0; i < kNumHandles; i++) {
-      handles_.push_back(
-          Handle<JSObject>::cast(local_heap.NewPersistentHandle(object)));
+      handles_.push_back(local_heap.NewPersistentHandle(handles_[0]));
     }
 
     sema_started_->Signal();
@@ -90,9 +90,8 @@ TEST(ProtoWalkBackground) {
                                                     NONE)
       .Check();
 
-  Address object = js_object->ptr();
   for (int i = 0; i < kNumHandles; i++) {
-    handles.push_back(Handle<JSObject>::cast(ph->NewHandle(object)));
+    handles.push_back(ph->NewHandle(js_object));
   }
 
   base::Semaphore sema_started(0);
@@ -131,9 +130,8 @@ TEST(ProtoWalkBackground_DescriptorArrayWrite) {
                                                     NONE)
       .Check();
 
-  Address object = js_object->ptr();
   for (int i = 0; i < kNumHandles; i++) {
-    handles.push_back(Handle<JSObject>::cast(ph->NewHandle(object)));
+    handles.push_back(ph->NewHandle(js_object));
   }
 
   base::Semaphore sema_started(0);
@@ -172,9 +170,8 @@ TEST(ProtoWalkBackground_PrototypeChainWrite) {
       factory->NewFunctionForTest(factory->empty_string());
   Handle<JSObject> js_object = factory->NewJSObject(function);
 
-  Address object = js_object->ptr();
   for (int i = 0; i < kNumHandles; i++) {
-    handles.push_back(Handle<JSObject>::cast(ph->NewHandle(object)));
+    handles.push_back(ph->NewHandle(js_object));
   }
 
   base::Semaphore sema_started(0);

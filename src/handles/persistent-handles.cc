@@ -41,6 +41,10 @@ void PersistentHandles::Detach() {
   owner_ = nullptr;
 }
 
+void PersistentHandles::CheckOwnerIsParked() {
+  if (owner_) DCHECK(!owner_->IsParked());
+}
+
 bool PersistentHandles::Contains(Address* location) {
   auto it = ordered_blocks_.upper_bound(location);
   if (it == ordered_blocks_.begin()) return false;
@@ -67,13 +71,6 @@ void PersistentHandles::AddBlock() {
 #ifdef DEBUG
   ordered_blocks_.insert(block_start);
 #endif
-}
-
-Handle<Object> PersistentHandles::NewHandle(Address value) {
-#ifdef DEBUG
-  if (owner_) DCHECK(!owner_->IsParked());
-#endif
-  return Handle<Object>(GetHandle(value));
 }
 
 Address* PersistentHandles::GetHandle(Address value) {
