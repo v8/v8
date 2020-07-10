@@ -649,6 +649,28 @@ TEST(BasicRTT) {
   tester.CheckResult(kRefCast, 43);
 }
 
+TEST(RefTestCastNull) {
+  WasmGCTester tester;
+  uint8_t type_index =
+      static_cast<uint8_t>(tester.DefineStruct({F(wasm::kWasmI32, true)}));
+
+  const uint32_t kRefTestNull = tester.DefineFunction(
+      tester.sigs.i_v(), {},
+      {WASM_REF_TEST(type_index, type_index, WASM_REF_NULL(type_index),
+                     WASM_RTT_CANON(type_index)),
+       kExprEnd});
+
+  const uint32_t kRefCastNull = tester.DefineFunction(
+      tester.sigs.i_i(),  // Argument and return value ignored
+      {},
+      {WASM_REF_CAST(type_index, type_index, WASM_REF_NULL(type_index),
+                     WASM_RTT_CANON(type_index)),
+       kExprDrop, WASM_I32V(0), kExprEnd});
+  tester.CompileModule();
+  tester.CheckResult(kRefTestNull, 0);
+  tester.CheckHasThrown(kRefCastNull, 0);
+}
+
 TEST(BasicI31) {
   WasmGCTester tester;
   const uint32_t kSigned = tester.DefineFunction(

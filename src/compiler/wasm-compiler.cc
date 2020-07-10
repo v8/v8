@@ -5401,21 +5401,38 @@ Node* WasmGraphBuilder::RttSub(wasm::HeapType type, Node* parent_rtt) {
       LOAD_INSTANCE_FIELD(NativeContext, MachineType::TaggedPointer()));
 }
 
-Node* WasmGraphBuilder::RefTest(Node* object, Node* rtt) {
-  // TODO(7748): Check if {object} is null.
+Node* WasmGraphBuilder::RefTest(Node* object, Node* rtt,
+                                CheckForNull null_check) {
   // TODO(7748): Check if {object} is an i31ref.
+  auto done = gasm_->MakeLabel(MachineRepresentation::kWord32);
+  if (null_check == kWithNullCheck) {
+    gasm_->GotoIf(gasm_->WordEqual(object, RefNull()), &done,
+                  gasm_->Int32Constant(0));
+  }
+
   Node* map = gasm_->Load(MachineType::TaggedPointer(), object,
                           HeapObject::kMapOffset - kHeapObjectTag);
   // TODO(7748): Add a fast path for map == rtt.
-  return BuildChangeSmiToInt32(CALL_BUILTIN(
+  Node* subtype_check = BuildChangeSmiToInt32(CALL_BUILTIN(
       WasmIsRttSubtype, map, rtt,
       LOAD_INSTANCE_FIELD(NativeContext, MachineType::TaggedPointer())));
+
+  if (null_check == kWithNullCheck) {
+    gasm_->Goto(&done, subtype_check);
+    gasm_->Bind(&done);
+    subtype_check = done.PhiAt(0);
+  }
+  return subtype_check;
 }
 
 Node* WasmGraphBuilder::RefCast(Node* object, Node* rtt,
+                                CheckForNull null_check,
                                 wasm::WasmCodePosition position) {
-  // TODO(7748): Check if {object} is null.
   // TODO(7748): Check if {object} is an i31ref.
+  if (null_check == kWithNullCheck) {
+    TrapIfTrue(wasm::kTrapIllegalCast, gasm_->WordEqual(object, RefNull()),
+               position);
+  }
   Node* map = gasm_->Load(MachineType::TaggedPointer(), object,
                           HeapObject::kMapOffset - kHeapObjectTag);
   // TODO(7748): Add a fast path for map == rtt.

@@ -407,8 +407,9 @@ class WasmGraphBuilder {
   Node* I31GetU(Node* input);
   Node* RttCanon(wasm::HeapType type);
   Node* RttSub(wasm::HeapType type, Node* parent_rtt);
-  Node* RefTest(Node* object, Node* rtt);
-  Node* RefCast(Node* object, Node* rtt, wasm::WasmCodePosition position);
+  Node* RefTest(Node* object, Node* rtt, CheckForNull null_check);
+  Node* RefCast(Node* object, Node* rtt, CheckForNull null_check,
+                wasm::WasmCodePosition position);
 
   bool has_simd() const { return has_simd_; }
 

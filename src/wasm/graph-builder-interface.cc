@@ -750,12 +750,21 @@ class WasmGraphBuildingInterface {
 
   void RefTest(FullDecoder* decoder, const Value& object, const Value& rtt,
                Value* result) {
-    result->node = BUILD(RefTest, object.node, rtt.node);
+    using CheckForNull = compiler::WasmGraphBuilder::CheckForNull;
+    CheckForNull null_check = object.type.is_nullable()
+                                  ? CheckForNull::kWithNullCheck
+                                  : CheckForNull::kWithoutNullCheck;
+    result->node = BUILD(RefTest, object.node, rtt.node, null_check);
   }
 
   void RefCast(FullDecoder* decoder, const Value& object, const Value& rtt,
                Value* result) {
-    result->node = BUILD(RefCast, object.node, rtt.node, decoder->position());
+    using CheckForNull = compiler::WasmGraphBuilder::CheckForNull;
+    CheckForNull null_check = object.type.is_nullable()
+                                  ? CheckForNull::kWithNullCheck
+                                  : CheckForNull::kWithoutNullCheck;
+    result->node =
+        BUILD(RefCast, object.node, rtt.node, null_check, decoder->position());
   }
 
   void PassThrough(FullDecoder* decoder, const Value& from, Value* to) {
