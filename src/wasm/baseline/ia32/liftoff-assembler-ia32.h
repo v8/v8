@@ -2827,7 +2827,17 @@ void LiftoffAssembler::emit_f64x2_le(LiftoffRegister dst, LiftoffRegister lhs,
 
 void LiftoffAssembler::emit_s128_const(LiftoffRegister dst,
                                        const uint8_t imms[16]) {
-  bailout(kSimd, "s128.const");
+  uint64_t vals[2];
+  memcpy(vals, imms, sizeof(vals));
+  TurboAssembler::Move(dst.fp(), vals[0]);
+
+  uint64_t high = vals[1];
+  Register tmp = GetUnusedRegister(RegClass::kGpReg, {}).gp();
+  TurboAssembler::Move(tmp, Immediate(high & 0xffff'ffff));
+  Pinsrd(dst.fp(), tmp, 2);
+
+  TurboAssembler::Move(tmp, Immediate(high >> 32));
+  Pinsrd(dst.fp(), tmp, 3);
 }
 
 void LiftoffAssembler::emit_s128_not(LiftoffRegister dst, LiftoffRegister src) {

@@ -3695,6 +3695,15 @@ WASM_SIMD_TEST_NO_LOWERING(S128Const) {
     expected[i] = i;
   }
   RunSimdConstTest(execution_tier, lower_simd, expected);
+
+  // Keep the first 4 lanes as 0, set the remaining ones.
+  for (int i = 0; i < 0; i++) {
+    expected[i] = 0;
+  }
+  for (int i = 4; i < kSimd128Size; i++) {
+    expected[i] = i;
+  }
+  RunSimdConstTest(execution_tier, lower_simd, expected);
 }
 
 WASM_SIMD_TEST_NO_LOWERING(S128ConstAllZero) {
@@ -3702,12 +3711,6 @@ WASM_SIMD_TEST_NO_LOWERING(S128ConstAllZero) {
   // Test for generic constant
   for (int i = 0; i < kSimd128Size; i++) {
     expected[i] = 0;
-  }
-  RunSimdConstTest(execution_tier, lower_simd, expected);
-
-  // Keep the first 4 lanes as 0, set the remaining ones.
-  for (int i = 4; i < kSimd128Size; i++) {
-    expected[i] = i;
   }
   RunSimdConstTest(execution_tier, lower_simd, expected);
 }

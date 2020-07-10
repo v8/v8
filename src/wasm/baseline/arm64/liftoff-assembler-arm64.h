@@ -2333,7 +2333,9 @@ void LiftoffAssembler::emit_f64x2_le(LiftoffRegister dst, LiftoffRegister lhs,
 
 void LiftoffAssembler::emit_s128_const(LiftoffRegister dst,
                                        const uint8_t imms[16]) {
-  bailout(kSimd, "s128.const");
+  uint64_t vals[2];
+  memcpy(vals, imms, sizeof(vals));
+  Movi(dst.fp().V16B(), vals[1], vals[0]);
 }
 
 void LiftoffAssembler::emit_s128_not(LiftoffRegister dst, LiftoffRegister src) {
