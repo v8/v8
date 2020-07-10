@@ -488,6 +488,17 @@ void WriteGlobalInitializer(ZoneBuffer* buffer, const WasmInitExpr& init,
       }
       break;
     }
+    case WasmInitExpr::kRttCanon:
+      buffer->write_u16(kExprRttCanon);
+      buffer->write_u32v(init.immediate().heap_type);
+      break;
+    case WasmInitExpr::kRttSub:
+      // TODO(7748): If immediates for rtts remain in the standard, adapt this
+      // to emit them.
+      buffer->write_u16(kExprRttSub);
+      buffer->write_u32v(init.immediate().heap_type);
+      WriteGlobalInitializer(buffer, *init.operand(), kWasmBottom);
+      break;
   }
 }
 

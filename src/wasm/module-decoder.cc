@@ -126,6 +126,19 @@ ValueType TypeOf(const WasmModule* module, const WasmInitExpr& expr) {
       return ValueType::Ref(HeapType::kFunc, kNonNullable);
     case WasmInitExpr::kRefNullConst:
       return ValueType::Ref(expr.immediate().heap_type, kNullable);
+    case WasmInitExpr::kRttCanon:
+      // TODO(7748): If heaptype is "anyref" (not introduced yet),
+      // then this should be uint8_t{0}.
+      return ValueType::Rtt(expr.immediate().heap_type, uint8_t{1});
+    case WasmInitExpr::kRttSub: {
+      ValueType operand_type = TypeOf(module, *expr.operand());
+      if (operand_type.is_rtt()) {
+        return ValueType::Rtt(expr.immediate().heap_type,
+                              operand_type.depth() + 1);
+      } else {
+        return kWasmStmt;
+      }
+    }
   }
 }
 
@@ -1708,6 +1721,50 @@ class ModuleDecoderImpl : public Decoder {
           stack.push_back(WasmInitExpr::RefFuncConst(imm.index));
           // Functions referenced in the globals section count as "declared".
           module->functions[imm.index].declared = true;
+          break;
+        }
+        case kGCPrefix: {
+          opcode = read_prefixed_opcode<validate>(pc(), &len);
+          switch (opcode) {
+            case kExprRttCanon: {
+              HeapTypeImmediate<validate> imm(enabled_features_, this,
+                                              pc() + 2);
+              len += 1 + imm.length;
+              if (!Validate(pc() + 2, imm)) break;
+              stack.push_back(
+                  WasmInitExpr::RttCanon(imm.type.representation()));
+              break;
+            }
+            case kExprRttSub: {
+              HeapTypeImmediate<validate> imm(enabled_features_, this,
+                                              pc() + 2);
+              len += 1 + imm.length;
+              if (!Validate(pc() + 2, imm)) break;
+              if (stack.empty()) {
+                error(pc(), "calling rtt.sub without arguments");
+                break;
+              }
+              WasmInitExpr parent = std::move(stack.back());
+              stack.pop_back();
+              ValueType parent_type = TypeOf(module_.get(), parent);
+              if (V8_UNLIKELY(
+                      parent_type.kind() != ValueType::kRtt ||
+                      !IsSubtypeOf(
+                          ValueType::Ref(imm.type, kNonNullable),
+                          ValueType::Ref(parent_type.heap_type(), kNonNullable),
+                          module_.get()))) {
+                error(pc(), "rtt.sub requires a supertype rtt on stack");
+                break;
+              }
+              stack.push_back(WasmInitExpr::RttSub(imm.type.representation(),
+                                                   std::move(parent)));
+              break;
+            }
+            default: {
+              errorf(pc(), "invalid opcode 0x%x in global initializer", opcode);
+              break;
+            }
+          }
           break;
         }
         case kExprEnd:

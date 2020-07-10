@@ -5,6 +5,8 @@
 #ifndef V8_WASM_WASM_OPCODES_H_
 #define V8_WASM_WASM_OPCODES_H_
 
+#include <memory>
+
 #include "src/common/globals.h"
 #include "src/common/message-template.h"
 #include "src/wasm/value-type.h"
@@ -757,7 +759,9 @@ class WasmInitExpr {
     kF32Const,
     kF64Const,
     kRefNullConst,
-    kRefFuncConst
+    kRefFuncConst,
+    kRttCanon,
+    kRttSub
   };
 
   union Immediate {
@@ -806,12 +810,59 @@ class WasmInitExpr {
     return expr;
   }
 
+  static WasmInitExpr RttCanon(HeapType::Representation heap_type) {
+    WasmInitExpr expr;
+    expr.kind_ = kRttCanon;
+    expr.immediate_.heap_type = heap_type;
+    return expr;
+  }
+
+  static WasmInitExpr RttSub(HeapType::Representation heap_type,
+                             WasmInitExpr supertype) {
+    WasmInitExpr expr;
+    expr.kind_ = kRttSub;
+    expr.immediate_.heap_type = heap_type;
+    expr.operand_ = std::make_unique<WasmInitExpr>(std::move(supertype));
+    return expr;
+  }
+
   Immediate immediate() const { return immediate_; }
   Operator kind() const { return kind_; }
+  WasmInitExpr* operand() const { return operand_.get(); }
+
+  bool operator==(const WasmInitExpr& other) const {
+    if (kind() != other.kind()) return false;
+    switch (kind()) {
+      case kNone:
+        return true;
+      case kGlobalGet:
+      case kRefFuncConst:
+        return immediate().index == other.immediate().index;
+      case kI32Const:
+        return immediate().i32_const == other.immediate().i32_const;
+      case kI64Const:
+        return immediate().i64_const == other.immediate().i64_const;
+      case kF32Const:
+        return immediate().f32_const == other.immediate().f32_const;
+      case kF64Const:
+        return immediate().f64_const == other.immediate().f64_const;
+      case kRefNullConst:
+      case kRttCanon:
+        return immediate().heap_type == other.immediate().heap_type;
+      case kRttSub:
+        return immediate().heap_type == other.immediate().heap_type &&
+               *operand() == *other.operand();
+    }
+  }
+
+  V8_INLINE bool operator!=(const WasmInitExpr& other) {
+    return !(*this == other);
+  }
 
  private:
   Immediate immediate_;
   Operator kind_;
+  std::unique_ptr<WasmInitExpr> operand_ = nullptr;
 };
 
 }  // namespace wasm
