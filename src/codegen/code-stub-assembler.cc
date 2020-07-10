@@ -4618,10 +4618,9 @@ void CodeStubAssembler::CopyFixedArrayElements(
                                            first_element_offset);
   }
 
-  Variable* vars[] = {&var_from_offset, &var_to_offset, var_holes_converted};
-  int num_vars =
-      var_holes_converted != nullptr ? arraysize(vars) : arraysize(vars) - 1;
-  Label decrement(this, num_vars, vars);
+  VariableList vars({&var_from_offset, &var_to_offset}, zone());
+  if (var_holes_converted != nullptr) vars.push_back(var_holes_converted);
+  Label decrement(this, vars);
 
   TNode<IntPtrT> to_array_adjusted =
       element_offset_matches
@@ -4990,10 +4989,9 @@ void CodeStubAssembler::TaggedToWord32OrBigIntImpl(
   // We might need to loop after conversion.
   TVARIABLE(Object, var_value, value);
   OverwriteFeedback(var_feedback, BinaryOperationFeedback::kNone);
-  Variable* loop_vars[] = {&var_value, var_feedback};
-  int num_vars =
-      var_feedback != nullptr ? arraysize(loop_vars) : arraysize(loop_vars) - 1;
-  Label loop(this, num_vars, loop_vars);
+  VariableList loop_vars({&var_value}, zone());
+  if (var_feedback != nullptr) loop_vars.push_back(var_feedback);
+  Label loop(this, loop_vars);
   Goto(&loop);
   BIND(&loop);
   {
@@ -7555,8 +7553,7 @@ void CodeStubAssembler::NameDictionaryLookup(
 
   TVARIABLE(IntPtrT, var_count, count);
   TVARIABLE(IntPtrT, var_entry, entry);
-  Variable* loop_vars[] = {&var_count, &var_entry, var_name_index};
-  Label loop(this, arraysize(loop_vars), loop_vars);
+  Label loop(this, {&var_count, &var_entry, var_name_index});
   Goto(&loop);
   BIND(&loop);
   {
@@ -7631,8 +7628,7 @@ void CodeStubAssembler::NumberDictionaryLookup(
   TNode<Oddball> the_hole = TheHoleConstant();
 
   TVARIABLE(IntPtrT, var_count, count);
-  Variable* loop_vars[] = {&var_count, var_entry};
-  Label loop(this, 2, loop_vars);
+  Label loop(this, {&var_count, var_entry});
   *var_entry = entry;
   Goto(&loop);
   BIND(&loop);
@@ -8001,10 +7997,7 @@ void CodeStubAssembler::ForEachEnumerableOwnProperty(
                      &var_is_symbol_processing_loop, &var_start_key_index,
                      &var_end_key_index},
                     zone());
-  Label descriptor_array_loop(
-      this, {&var_descriptors, &var_stable, &var_has_symbol,
-             &var_is_symbol_processing_loop, &var_start_key_index,
-             &var_end_key_index});
+  Label descriptor_array_loop(this, list);
 
   Goto(&descriptor_array_loop);
   BIND(&descriptor_array_loop);
