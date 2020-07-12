@@ -223,7 +223,7 @@ class ZonePreparseData : public ZoneObject {
 ZonePreparseData* PreparseDataBuilder::ByteData::CopyToZone(
     Zone* zone, int children_length) {
   DCHECK(is_finalized_);
-  return new (zone) ZonePreparseData(zone, &zone_byte_data_, children_length);
+  return zone->New<ZonePreparseData>(zone, &zone_byte_data_, children_length);
 }
 
 // Implementation of ConsumedPreparseData for PreparseData

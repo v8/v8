@@ -104,9 +104,9 @@ PreparseDataBuilder::PreparseDataBuilder(Zone* zone,
 void PreparseDataBuilder::DataGatheringScope::Start(
     DeclarationScope* function_scope) {
   Zone* main_zone = preparser_->main_zone();
-  builder_ = new (main_zone)
-      PreparseDataBuilder(main_zone, preparser_->preparse_data_builder(),
-                          preparser_->preparse_data_builder_buffer());
+  builder_ = main_zone->New<PreparseDataBuilder>(
+      main_zone, preparser_->preparse_data_builder(),
+      preparser_->preparse_data_builder_buffer());
   preparser_->set_preparse_data_builder(builder_);
   function_scope->set_preparse_data_builder(builder_);
 }
@@ -128,9 +128,11 @@ void PreparseDataBuilder::ByteData::Start(std::vector<uint8_t>* buffer) {
   DCHECK_EQ(index_, 0);
 }
 
+// This struct is just a type tag for Zone::NewArray<T>(size_t) call.
+struct RawPreparseData {};
+
 void PreparseDataBuilder::ByteData::Finalize(Zone* zone) {
-  uint8_t* raw_zone_data =
-      static_cast<uint8_t*>(ZoneAllocationPolicy(zone).New(index_));
+  uint8_t* raw_zone_data = zone->NewArray<uint8_t, RawPreparseData>(index_);
   memcpy(raw_zone_data, byte_data_->data(), index_);
   byte_data_->resize(0);
   zone_byte_data_ = Vector<uint8_t>(raw_zone_data, index_);
@@ -557,17 +559,17 @@ class ZoneProducedPreparseData final : public ProducedPreparseData {
 
 ProducedPreparseData* ProducedPreparseData::For(PreparseDataBuilder* builder,
                                                 Zone* zone) {
-  return new (zone) BuilderProducedPreparseData(builder);
+  return zone->New<BuilderProducedPreparseData>(builder);
 }
 
 ProducedPreparseData* ProducedPreparseData::For(Handle<PreparseData> data,
                                                 Zone* zone) {
-  return new (zone) OnHeapProducedPreparseData(data);
+  return zone->New<OnHeapProducedPreparseData>(data);
 }
 
 ProducedPreparseData* ProducedPreparseData::For(ZonePreparseData* data,
                                                 Zone* zone) {
-  return new (zone) ZoneProducedPreparseData(data);
+  return zone->New<ZoneProducedPreparseData>(data);
 }
 
 template <class Data>

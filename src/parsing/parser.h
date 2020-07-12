@@ -822,18 +822,18 @@ class V8_EXPORT_PRIVATE Parser : public NON_EXPORTED_BASE(ParserBase<Parser>) {
   }
 
   V8_INLINE ZonePtrList<Expression>* NewExpressionList(int size) const {
-    return new (zone()) ZonePtrList<Expression>(size, zone());
+    return zone()->New<ZonePtrList<Expression>>(size, zone());
   }
   V8_INLINE ZonePtrList<ObjectLiteral::Property>* NewObjectPropertyList(
       int size) const {
-    return new (zone()) ZonePtrList<ObjectLiteral::Property>(size, zone());
+    return zone()->New<ZonePtrList<ObjectLiteral::Property>>(size, zone());
   }
   V8_INLINE ZonePtrList<ClassLiteral::Property>* NewClassPropertyList(
       int size) const {
-    return new (zone()) ZonePtrList<ClassLiteral::Property>(size, zone());
+    return zone()->New<ZonePtrList<ClassLiteral::Property>>(size, zone());
   }
   V8_INLINE ZonePtrList<Statement>* NewStatementList(int size) const {
-    return new (zone()) ZonePtrList<Statement>(size, zone());
+    return zone()->New<ZonePtrList<Statement>>(size, zone());
   }
 
   Expression* NewV8Intrinsic(const AstRawString* name,
@@ -854,10 +854,10 @@ class V8_EXPORT_PRIVATE Parser : public NON_EXPORTED_BASE(ParserBase<Parser>) {
                                     int initializer_end_position,
                                     bool is_rest) {
     parameters->UpdateArityAndFunctionLength(initializer != nullptr, is_rest);
-    auto parameter = new (parameters->scope->zone())
-        ParserFormalParameters::Parameter(pattern, initializer,
-                                          scanner()->location().beg_pos,
-                                          initializer_end_position, is_rest);
+    auto parameter =
+        parameters->scope->zone()->New<ParserFormalParameters::Parameter>(
+            pattern, initializer, scanner()->location().beg_pos,
+            initializer_end_position, is_rest);
 
     parameters->params.Add(parameter);
   }
@@ -918,7 +918,7 @@ class V8_EXPORT_PRIVATE Parser : public NON_EXPORTED_BASE(ParserBase<Parser>) {
 
     SourceRange range = ranges->GetRange(SourceRangeKind::kRight);
     source_range_map_->Insert(
-        nary_op, new (zone()) NaryOperationSourceRanges(zone(), range));
+        nary_op, zone()->New<NaryOperationSourceRanges>(zone(), range));
   }
 
   V8_INLINE void AppendNaryOperationSourceRange(NaryOperation* node,
@@ -936,14 +936,14 @@ class V8_EXPORT_PRIVATE Parser : public NON_EXPORTED_BASE(ParserBase<Parser>) {
                                         int32_t continuation_position) {
     if (source_range_map_ == nullptr) return;
     source_range_map_->Insert(
-        node, new (zone()) BlockSourceRanges(continuation_position));
+        node, zone()->New<BlockSourceRanges>(continuation_position));
   }
 
   V8_INLINE void RecordCaseClauseSourceRange(CaseClause* node,
                                              const SourceRange& body_range) {
     if (source_range_map_ == nullptr) return;
     source_range_map_->Insert(node,
-                              new (zone()) CaseClauseSourceRanges(body_range));
+                              zone()->New<CaseClauseSourceRanges>(body_range));
   }
 
   V8_INLINE void RecordConditionalSourceRange(Expression* node,
@@ -952,20 +952,20 @@ class V8_EXPORT_PRIVATE Parser : public NON_EXPORTED_BASE(ParserBase<Parser>) {
     if (source_range_map_ == nullptr) return;
     source_range_map_->Insert(
         node->AsConditional(),
-        new (zone()) ConditionalSourceRanges(then_range, else_range));
+        zone()->New<ConditionalSourceRanges>(then_range, else_range));
   }
 
   V8_INLINE void RecordFunctionLiteralSourceRange(FunctionLiteral* node) {
     if (source_range_map_ == nullptr) return;
-    source_range_map_->Insert(node, new (zone()) FunctionLiteralSourceRanges);
+    source_range_map_->Insert(node, zone()->New<FunctionLiteralSourceRanges>());
   }
 
   V8_INLINE void RecordBinaryOperationSourceRange(
       Expression* node, const SourceRange& right_range) {
     if (source_range_map_ == nullptr) return;
-    source_range_map_->Insert(node->AsBinaryOperation(),
-                              new (zone())
-                                  BinaryOperationSourceRanges(right_range));
+    source_range_map_->Insert(
+        node->AsBinaryOperation(),
+        zone()->New<BinaryOperationSourceRanges>(right_range));
   }
 
   V8_INLINE void RecordJumpStatementSourceRange(Statement* node,
@@ -973,7 +973,7 @@ class V8_EXPORT_PRIVATE Parser : public NON_EXPORTED_BASE(ParserBase<Parser>) {
     if (source_range_map_ == nullptr) return;
     source_range_map_->Insert(
         static_cast<JumpStatement*>(node),
-        new (zone()) JumpStatementSourceRanges(continuation_position));
+        zone()->New<JumpStatementSourceRanges>(continuation_position));
   }
 
   V8_INLINE void RecordIfStatementSourceRange(Statement* node,
@@ -982,22 +982,22 @@ class V8_EXPORT_PRIVATE Parser : public NON_EXPORTED_BASE(ParserBase<Parser>) {
     if (source_range_map_ == nullptr) return;
     source_range_map_->Insert(
         node->AsIfStatement(),
-        new (zone()) IfStatementSourceRanges(then_range, else_range));
+        zone()->New<IfStatementSourceRanges>(then_range, else_range));
   }
 
   V8_INLINE void RecordIterationStatementSourceRange(
       IterationStatement* node, const SourceRange& body_range) {
     if (source_range_map_ == nullptr) return;
     source_range_map_->Insert(
-        node, new (zone()) IterationStatementSourceRanges(body_range));
+        node, zone()->New<IterationStatementSourceRanges>(body_range));
   }
 
   V8_INLINE void RecordSuspendSourceRange(Expression* node,
                                           int32_t continuation_position) {
     if (source_range_map_ == nullptr) return;
-    source_range_map_->Insert(static_cast<Suspend*>(node),
-                              new (zone())
-                                  SuspendSourceRanges(continuation_position));
+    source_range_map_->Insert(
+        static_cast<Suspend*>(node),
+        zone()->New<SuspendSourceRanges>(continuation_position));
   }
 
   V8_INLINE void RecordSwitchStatementSourceRange(
@@ -1005,7 +1005,7 @@ class V8_EXPORT_PRIVATE Parser : public NON_EXPORTED_BASE(ParserBase<Parser>) {
     if (source_range_map_ == nullptr) return;
     source_range_map_->Insert(
         node->AsSwitchStatement(),
-        new (zone()) SwitchStatementSourceRanges(continuation_position));
+        zone()->New<SwitchStatementSourceRanges>(continuation_position));
   }
 
   V8_INLINE void RecordThrowSourceRange(Statement* node,
@@ -1014,21 +1014,21 @@ class V8_EXPORT_PRIVATE Parser : public NON_EXPORTED_BASE(ParserBase<Parser>) {
     ExpressionStatement* expr_stmt = static_cast<ExpressionStatement*>(node);
     Throw* throw_expr = expr_stmt->expression()->AsThrow();
     source_range_map_->Insert(
-        throw_expr, new (zone()) ThrowSourceRanges(continuation_position));
+        throw_expr, zone()->New<ThrowSourceRanges>(continuation_position));
   }
 
   V8_INLINE void RecordTryCatchStatementSourceRange(
       TryCatchStatement* node, const SourceRange& body_range) {
     if (source_range_map_ == nullptr) return;
     source_range_map_->Insert(
-        node, new (zone()) TryCatchStatementSourceRanges(body_range));
+        node, zone()->New<TryCatchStatementSourceRanges>(body_range));
   }
 
   V8_INLINE void RecordTryFinallyStatementSourceRange(
       TryFinallyStatement* node, const SourceRange& body_range) {
     if (source_range_map_ == nullptr) return;
     source_range_map_->Insert(
-        node, new (zone()) TryFinallyStatementSourceRanges(body_range));
+        node, zone()->New<TryFinallyStatementSourceRanges>(body_range));
   }
 
   // Generate the next internal variable name for binding an exported namespace

@@ -328,7 +328,7 @@ class ParserBase {
 
     BlockState(Zone* zone, Scope** scope_stack)
         : BlockState(scope_stack,
-                     new (zone) Scope(zone, *scope_stack, BLOCK_SCOPE)) {}
+                     zone->New<Scope>(zone, *scope_stack, BLOCK_SCOPE)) {}
 
     ~BlockState() { *scope_stack_ = outer_scope_; }
 
@@ -693,11 +693,14 @@ class ParserBase {
     // Add {label} to both {labels} and {own_labels}.
     if (*labels == nullptr) {
       DCHECK_NULL(*own_labels);
-      *labels = new (zone()) ZonePtrList<const AstRawString>(1, zone());
-      *own_labels = new (zone()) ZonePtrList<const AstRawString>(1, zone());
+      *labels =
+          zone()->template New<ZonePtrList<const AstRawString>>(1, zone());
+      *own_labels =
+          zone()->template New<ZonePtrList<const AstRawString>>(1, zone());
     } else {
       if (*own_labels == nullptr) {
-        *own_labels = new (zone()) ZonePtrList<const AstRawString>(1, zone());
+        *own_labels =
+            zone()->template New<ZonePtrList<const AstRawString>>(1, zone());
       }
     }
     (*labels)->Add(label, zone());
@@ -758,24 +761,24 @@ class ParserBase {
   }
 
   DeclarationScope* NewScriptScope(REPLMode repl_mode) const {
-    return new (zone())
-        DeclarationScope(zone(), ast_value_factory(), repl_mode);
+    return zone()->template New<DeclarationScope>(zone(), ast_value_factory(),
+                                                  repl_mode);
   }
 
   DeclarationScope* NewVarblockScope() const {
-    return new (zone()) DeclarationScope(zone(), scope(), BLOCK_SCOPE);
+    return zone()->template New<DeclarationScope>(zone(), scope(), BLOCK_SCOPE);
   }
 
   ModuleScope* NewModuleScope(DeclarationScope* parent) const {
-    return new (zone()) ModuleScope(parent, ast_value_factory());
+    return zone()->template New<ModuleScope>(parent, ast_value_factory());
   }
 
   DeclarationScope* NewEvalScope(Scope* parent) const {
-    return new (zone()) DeclarationScope(zone(), parent, EVAL_SCOPE);
+    return zone()->template New<DeclarationScope>(zone(), parent, EVAL_SCOPE);
   }
 
   ClassScope* NewClassScope(Scope* parent, bool is_anonymous) const {
-    return new (zone()) ClassScope(zone(), parent, is_anonymous);
+    return zone()->template New<ClassScope>(zone(), parent, is_anonymous);
   }
 
   Scope* NewScope(ScopeType scope_type) const {
@@ -792,7 +795,7 @@ class ParserBase {
     DCHECK_NE(SCRIPT_SCOPE, scope_type);
     DCHECK_NE(MODULE_SCOPE, scope_type);
     DCHECK_NOT_NULL(parent);
-    return new (zone()) Scope(zone(), parent, scope_type);
+    return zone()->template New<Scope>(zone(), parent, scope_type);
   }
 
   // Creates a function scope that always allocates in zone(). The function
@@ -802,8 +805,8 @@ class ParserBase {
                                      Zone* parse_zone = nullptr) const {
     DCHECK(ast_value_factory());
     if (parse_zone == nullptr) parse_zone = zone();
-    DeclarationScope* result = new (zone())
-        DeclarationScope(parse_zone, scope(), FUNCTION_SCOPE, kind);
+    DeclarationScope* result = zone()->template New<DeclarationScope>(
+        parse_zone, scope(), FUNCTION_SCOPE, kind);
 
     // Record presence of an inner function scope
     function_state_->RecordFunctionOrEvalCall();
@@ -5281,7 +5284,8 @@ typename ParserBase<Impl>::StatementT ParserBase<Impl>::ParseIfStatement(
     auto labels_copy =
         labels == nullptr
             ? labels
-            : new (zone()) ZonePtrList<const AstRawString>(*labels, zone());
+            : zone()->template New<ZonePtrList<const AstRawString>>(*labels,
+                                                                    zone());
     then_statement = ParseScopedStatement(labels_copy);
   }
 

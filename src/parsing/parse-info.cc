@@ -286,7 +286,7 @@ AstValueFactory* ParseInfo::GetOrCreateAstValueFactory() {
 void ParseInfo::AllocateSourceRangeMap() {
   DCHECK(flags().block_coverage_enabled());
   DCHECK_NULL(source_range_map());
-  set_source_range_map(new (zone()) SourceRangeMap(zone()));
+  set_source_range_map(zone()->New<SourceRangeMap>(zone()));
 }
 
 void ParseInfo::ResetCharacterStream() { character_stream_.reset(); }

@@ -718,7 +718,7 @@ ZonePtrList<const AstRawString>* Parser::PrepareWrappedArguments(
   Handle<FixedArray> arguments = maybe_wrapped_arguments_.ToHandleChecked();
   int arguments_length = arguments->length();
   ZonePtrList<const AstRawString>* arguments_for_wrapped_function =
-      new (zone) ZonePtrList<const AstRawString>(arguments_length, zone);
+      zone->New<ZonePtrList<const AstRawString>>(arguments_length, zone);
   for (int i = 0; i < arguments_length; i++) {
     const AstRawString* argument_string = ast_value_factory()->GetString(
         Handle<String>(String::cast(arguments->get(i)), isolate));
@@ -1085,7 +1085,7 @@ ZoneChunkList<Parser::ExportClauseData>* Parser::ParseExportClause(
   //   IdentifierName
   //   IdentifierName 'as' IdentifierName
   ZoneChunkList<ExportClauseData>* export_data =
-      new (zone()) ZoneChunkList<ExportClauseData>(zone());
+      zone()->New<ZoneChunkList<ExportClauseData>>(zone());
 
   Expect(Token::LBRACE);
 
@@ -1138,7 +1138,7 @@ ZonePtrList<const Parser::NamedImport>* Parser::ParseNamedImports(int pos) {
 
   Expect(Token::LBRACE);
 
-  auto result = new (zone()) ZonePtrList<const NamedImport>(1, zone());
+  auto result = zone()->New<ZonePtrList<const NamedImport>>(1, zone());
   while (peek() != Token::RBRACE) {
     const AstRawString* import_name = ParsePropertyName();
     const AstRawString* local_name = import_name;
@@ -1163,7 +1163,7 @@ ZonePtrList<const Parser::NamedImport>* Parser::ParseNamedImports(int pos) {
                            kNeedsInitialization, position());
 
     NamedImport* import =
-        new (zone()) NamedImport(import_name, local_name, location);
+        zone()->New<NamedImport>(import_name, local_name, location);
     result->Add(import, zone());
 
     if (peek() == Token::RBRACE) break;
@@ -3148,7 +3148,7 @@ void Parser::ParseOnBackground(ParseInfo* info, int start_position,
 }
 
 Parser::TemplateLiteralState Parser::OpenTemplateLiteral(int pos) {
-  return new (zone()) TemplateLiteral(zone(), pos);
+  return zone()->New<TemplateLiteral>(zone(), pos);
 }
 
 void Parser::AddTemplateSpan(TemplateLiteralState* state, bool should_cook,
