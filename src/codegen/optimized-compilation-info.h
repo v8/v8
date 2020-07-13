@@ -221,7 +221,6 @@ class V8_EXPORT_PRIVATE OptimizedCompilationInfo final {
   }
 
  private:
-  OptimizedCompilationInfo(Code::Kind code_kind, Zone* zone);
   void ConfigureFlags();
 
   void SetFlag(Flag flag) { flags_ |= flag; }
@@ -234,15 +233,13 @@ class V8_EXPORT_PRIVATE OptimizedCompilationInfo final {
   PoisoningMitigationLevel poisoning_level_ =
       PoisoningMitigationLevel::kDontPoison;
 
-  Code::Kind code_kind_;
+  const Code::Kind code_kind_;
   int32_t builtin_index_ = -1;
 
   // We retain a reference the bytecode array specifically to ensure it doesn't
   // get flushed while we are optimizing the code.
   Handle<BytecodeArray> bytecode_array_;
-
   Handle<SharedFunctionInfo> shared_info_;
-
   Handle<JSFunction> closure_;
 
   // The compiled code.
@@ -259,7 +256,7 @@ class V8_EXPORT_PRIVATE OptimizedCompilationInfo final {
 
   // The zone from which the compilation pipeline working on this
   // OptimizedCompilationInfo allocates.
-  Zone* zone_;
+  Zone* const zone_;
 
   std::unique_ptr<DeferredHandles> deferred_handles_;
 
@@ -267,7 +264,8 @@ class V8_EXPORT_PRIVATE OptimizedCompilationInfo final {
 
   InlinedFunctionList inlined_functions_;
 
-  int optimization_id_ = -1;
+  static constexpr int kNoOptimizationId = -1;
+  const int optimization_id_;
   unsigned inlined_bytecode_size_ = 0;
 
   // The current OSR frame for specialization or {nullptr}.

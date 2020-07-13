@@ -20,13 +20,14 @@ namespace internal {
 OptimizedCompilationInfo::OptimizedCompilationInfo(
     Zone* zone, Isolate* isolate, Handle<SharedFunctionInfo> shared,
     Handle<JSFunction> closure, bool native_context_independent)
-    : OptimizedCompilationInfo(Code::OPTIMIZED_FUNCTION, zone) {
+    : code_kind_(Code::OPTIMIZED_FUNCTION),
+      zone_(zone),
+      optimization_id_(isolate->NextOptimizationId()) {
   DCHECK_EQ(*shared, closure->shared());
   DCHECK(shared->is_compiled());
   bytecode_array_ = handle(shared->GetBytecodeArray(), isolate);
   shared_info_ = shared;
   closure_ = closure;
-  optimization_id_ = isolate->NextOptimizationId();
 
   // Collect source positions for optimized code when profiling or if debugger
   // is active, to be able to get more precise source positions at the price of
@@ -37,20 +38,17 @@ OptimizedCompilationInfo::OptimizedCompilationInfo(
 
   if (native_context_independent) set_native_context_independent();
   SetTracingFlags(shared->PassesFilter(FLAG_trace_turbo_filter));
+  ConfigureFlags();
 }
 
 OptimizedCompilationInfo::OptimizedCompilationInfo(
     Vector<const char> debug_name, Zone* zone, Code::Kind code_kind)
-    : OptimizedCompilationInfo(code_kind, zone) {
-  debug_name_ = debug_name;
-
+    : code_kind_(code_kind),
+      zone_(zone),
+      optimization_id_(kNoOptimizationId),
+      debug_name_(debug_name) {
   SetTracingFlags(
       PassesFilter(debug_name, CStrVector(FLAG_trace_turbo_filter)));
-}
-
-OptimizedCompilationInfo::OptimizedCompilationInfo(Code::Kind code_kind,
-                                                   Zone* zone)
-    : code_kind_(code_kind), zone_(zone) {
   ConfigureFlags();
 }
 
@@ -59,6 +57,8 @@ bool OptimizedCompilationInfo::FlagSetIsValid(Flag flag) const {
   switch (flag) {
     case kPoisonRegisterArguments:
       return untrusted_code_mitigations();
+    case kFunctionContextSpecializing:
+      return !native_context_independent();
     default:
       return true;
   }
@@ -84,7 +84,8 @@ void OptimizedCompilationInfo::ConfigureFlags() {
     case Code::OPTIMIZED_FUNCTION:
       set_called_with_code_start_register();
       set_switch_jump_table();
-      if (FLAG_function_context_specialization) {
+      if (FLAG_function_context_specialization &&
+          !native_context_independent()) {
         set_function_context_specializing();
       }
       if (FLAG_turbo_splitting) {

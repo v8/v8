@@ -773,6 +773,33 @@ void InsertCodeIntoOptimizedCodeCache(
   }
 }
 
+void InsertCodeIntoCompilationCache(Isolate* isolate,
+                                    OptimizedCompilationInfo* info) {
+  if (!info->native_context_independent()) return;
+
+  // TODO(jgruber,v8:8888): This should turn into a DCHECK once we
+  // spawn dedicated NCI compile tasks.
+  if (!info->osr_offset().IsNone()) return;
+
+  Handle<Code> code = info->code();
+  DCHECK(!info->function_context_specializing());
+  DCHECK_EQ(code->kind(), Code::OPTIMIZED_FUNCTION);
+
+  Handle<SharedFunctionInfo> sfi = info->shared_info();
+  CompilationCache* cache = isolate->compilation_cache();
+  cache->PutCode(sfi, code);
+  DCHECK(!cache->LookupCode(sfi).is_null());
+
+  sfi->set_maybe_has_cached_code(true);
+
+  if (FLAG_trace_turbo_nci) {
+    StdoutStream os;
+    os << "NCI cache insertion: " << Brief(*sfi) << ", " << Brief(*code)
+       << std::endl
+       << std::flush;
+  }
+}
+
 bool GetOptimizedCodeNow(OptimizedCompilationJob* job, Isolate* isolate) {
   TimerEventScope<TimerEventRecompileSynchronous> timer(isolate);
   RuntimeCallTimerScope runtimeTimer(
@@ -944,8 +971,11 @@ MaybeHandle<Code> GetOptimizedCode(Handle<JSFunction> function,
       return BUILTIN_CODE(isolate, InterpreterEntryTrampoline);
     }
   } else {
-    if (GetOptimizedCodeNow(job.get(), isolate))
+    DCHECK_EQ(mode, ConcurrencyMode::kNotConcurrent);
+    if (GetOptimizedCodeNow(job.get(), isolate)) {
+      InsertCodeIntoCompilationCache(isolate, compilation_info);
       return compilation_info->code();
+    }
   }
 
   if (isolate->has_pending_exception()) isolate->clear_pending_exception();
@@ -2732,6 +2762,7 @@ bool Compiler::FinalizeOptimizedCompilationJob(OptimizedCompilationJob* job,
       job->RecordFunctionCompilation(CodeEventListener::LAZY_COMPILE_TAG,
                                      isolate);
       InsertCodeIntoOptimizedCodeCache(compilation_info);
+      InsertCodeIntoCompilationCache(isolate, compilation_info);
       if (FLAG_trace_opt) {
         CodeTracer::Scope scope(isolate->GetCodeTracer());
         PrintF(scope.file(), "[completed optimizing ");

@@ -137,6 +137,12 @@ class JSRegExp : public TorqueGeneratedJSRegExp<JSRegExp, JSObject> {
   static const int kSourceIndex = kTagIndex + 1;
   static const int kFlagsIndex = kSourceIndex + 1;
   static const int kDataIndex = kFlagsIndex + 1;
+
+  // TODO(jgruber): Rename kDataIndex to something more appropriate.
+  // There is no 'data' field, kDataIndex is just a marker for the
+  // first non-generic index.
+  static constexpr int kMinDataArrayLength = kDataIndex;
+
   // The data fields are used in different ways depending on the
   // value of the tag.
   // Atom regexps (literal strings).

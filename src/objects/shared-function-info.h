@@ -410,6 +410,11 @@ class SharedFunctionInfo : public HeapObject {
   DECL_BOOLEAN_ACCESSORS(class_scope_has_private_brand)
   DECL_BOOLEAN_ACCESSORS(has_static_private_methods_or_accessors)
 
+  // True if a Code object associated with this SFI has been inserted into the
+  // compilation cache. Note that the cache entry may be removed by aging,
+  // hence the 'maybe'.
+  DECL_BOOLEAN_ACCESSORS(maybe_has_cached_code)
+
   // Is this function a top-level function (scripts, evals).
   DECL_BOOLEAN_ACCESSORS(is_toplevel)
 
