@@ -719,28 +719,6 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase {
   void break_(uint32_t code, bool break_as_stop = false);
   void stop(uint32_t code = kMaxStopCode);
 
-  // MIPS Instructions
-
-  // ------------Memory-instructions-------------
-
-  void lb(Register rd, const MemOperand& rs);
-  void lbu(Register rd, const MemOperand& rs);
-  void lw(Register rd, const MemOperand& rs);
-  void lwu(Register rd, const MemOperand& rs);
-  void sb(Register rd, const MemOperand& rs);
-  void sh(Register rd, const MemOperand& rs);
-  void sw(Register rd, const MemOperand& rs);
-  void ld(Register rd, const MemOperand& rs);
-  void sd(Register rd, const MemOperand& rs);
-
-  // --------Coprocessor-instructions----------------
-
-  // Load, store, and move.
-  void lwc1(FPURegister fd, const MemOperand& src);
-  void swc1(FPURegister fs, const MemOperand& dst);
-
-  // --------End of MIPS instructions----------------
-
   // Check the code size generated from label to here.
   int SizeOfCodeGeneratedSince(Label* label) {
     return pc_offset() - label->pos();

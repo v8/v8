@@ -2377,9 +2377,9 @@ void CodeGenerator::AssembleConstructFrame() {
         // Unpack the tuple into the instance and the target callable.
         // This must be done here in the codegen because it cannot be expressed
         // properly in the graph.
-        __ ld(kJSFunctionRegister,
+        __ Ld(kJSFunctionRegister,
               FieldMemOperand(kWasmInstanceRegister, Tuple2::kValue2Offset));
-        __ ld(kWasmInstanceRegister,
+        __ Ld(kWasmInstanceRegister,
               FieldMemOperand(kWasmInstanceRegister, Tuple2::kValue1Offset));
         __ Push(kWasmInstanceRegister);
         if (call_descriptor->IsWasmCapiFunction()) {

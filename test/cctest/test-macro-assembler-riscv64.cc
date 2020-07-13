@@ -682,39 +682,39 @@ TEST(OverflowInstructions) {
       MacroAssembler assembler(isolate, v8::internal::CodeObjectRequired::kYes);
       MacroAssembler* masm = &assembler;
 
-      __ ld(t0, MemOperand(a0, offsetof(T, lhs)));
-      __ ld(t1, MemOperand(a0, offsetof(T, rhs)));
+      __ Ld(t0, MemOperand(a0, offsetof(T, lhs)));
+      __ Ld(t1, MemOperand(a0, offsetof(T, rhs)));
 
       __ DaddOverflow(t2, t0, Operand(t1), a1);
-      __ sd(t2, MemOperand(a0, offsetof(T, output_add)));
-      __ sd(a1, MemOperand(a0, offsetof(T, overflow_add)));
+      __ Sd(t2, MemOperand(a0, offsetof(T, output_add)));
+      __ Sd(a1, MemOperand(a0, offsetof(T, overflow_add)));
       __ mov(a1, zero_reg);
       __ DaddOverflow(t0, t0, Operand(t1), a1);
-      __ sd(t0, MemOperand(a0, offsetof(T, output_add2)));
-      __ sd(a1, MemOperand(a0, offsetof(T, overflow_add2)));
+      __ Sd(t0, MemOperand(a0, offsetof(T, output_add2)));
+      __ Sd(a1, MemOperand(a0, offsetof(T, overflow_add2)));
 
-      __ ld(t0, MemOperand(a0, offsetof(T, lhs)));
-      __ ld(t1, MemOperand(a0, offsetof(T, rhs)));
+      __ Ld(t0, MemOperand(a0, offsetof(T, lhs)));
+      __ Ld(t1, MemOperand(a0, offsetof(T, rhs)));
 
       __ DsubOverflow(t2, t0, Operand(t1), a1);
-      __ sd(t2, MemOperand(a0, offsetof(T, output_sub)));
-      __ sd(a1, MemOperand(a0, offsetof(T, overflow_sub)));
+      __ Sd(t2, MemOperand(a0, offsetof(T, output_sub)));
+      __ Sd(a1, MemOperand(a0, offsetof(T, overflow_sub)));
       __ mov(a1, zero_reg);
       __ DsubOverflow(t0, t0, Operand(t1), a1);
-      __ sd(t0, MemOperand(a0, offsetof(T, output_sub2)));
-      __ sd(a1, MemOperand(a0, offsetof(T, overflow_sub2)));
+      __ Sd(t0, MemOperand(a0, offsetof(T, output_sub2)));
+      __ Sd(a1, MemOperand(a0, offsetof(T, overflow_sub2)));
 
-      __ ld(t0, MemOperand(a0, offsetof(T, lhs)));
-      __ ld(t1, MemOperand(a0, offsetof(T, rhs)));
+      __ Ld(t0, MemOperand(a0, offsetof(T, lhs)));
+      __ Ld(t1, MemOperand(a0, offsetof(T, rhs)));
       __ RV_slliw(t0, t0, 0);
       __ RV_slliw(t1, t1, 0);
       __ MulOverflow(t2, t0, Operand(t1), a1);
-      __ sd(t2, MemOperand(a0, offsetof(T, output_mul)));
-      __ sd(a1, MemOperand(a0, offsetof(T, overflow_mul)));
+      __ Sd(t2, MemOperand(a0, offsetof(T, output_mul)));
+      __ Sd(a1, MemOperand(a0, offsetof(T, overflow_mul)));
       __ mov(a1, zero_reg);
       __ MulOverflow(t0, t0, Operand(t1), a1);
-      __ sd(t0, MemOperand(a0, offsetof(T, output_mul2)));
-      __ sd(a1, MemOperand(a0, offsetof(T, overflow_mul2)));
+      __ Sd(t0, MemOperand(a0, offsetof(T, output_mul2)));
+      __ Sd(a1, MemOperand(a0, offsetof(T, overflow_mul2)));
 
       __ RV_jr(ra);
       __ nop();

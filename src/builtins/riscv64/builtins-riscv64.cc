@@ -1049,7 +1049,7 @@ void Builtins::Generate_InterpreterEntryTrampoline(MacroAssembler* masm) {
   STATIC_ASSERT(BytecodeArray::kBytecodeAgeOffset ==
                 BytecodeArray::kOsrNestingLevelOffset + kCharSize);
   STATIC_ASSERT(BytecodeArray::kNoAgeBytecodeAge == 0);
-  __ sh(zero_reg, FieldMemOperand(kInterpreterBytecodeArrayRegister,
+  __ Sh(zero_reg, FieldMemOperand(kInterpreterBytecodeArrayRegister,
                                   BytecodeArray::kOsrNestingLevelOffset));
 
   // Load initial bytecode offset.
@@ -1810,8 +1810,8 @@ void Builtins::Generate_CallOrConstructForwardVarargs(MacroAssembler* masm,
   if (mode == CallOrConstructMode::kConstruct) {
     Label new_target_constructor, new_target_not_constructor;
     __ JumpIfSmi(a3, &new_target_not_constructor);
-    __ ld(t1, FieldMemOperand(a3, HeapObject::kMapOffset));
-    __ lbu(t1, FieldMemOperand(t1, Map::kBitFieldOffset));
+    __ Ld(t1, FieldMemOperand(a3, HeapObject::kMapOffset));
+    __ Lbu(t1, FieldMemOperand(t1, Map::kBitFieldOffset));
     __ And(t1, t1, Operand(Map::Bits1::IsConstructorBit::kMask));
     __ Branch(&new_target_constructor, ne, t1, Operand(zero_reg));
     __ bind(&new_target_not_constructor);
@@ -2239,7 +2239,7 @@ void Builtins::Generate_Construct(MacroAssembler* masm) {
   __ JumpIfSmi(a1, &non_constructor);
 
   // Check if target has a [[Construct]] internal method.
-  __ ld(t1, FieldMemOperand(a1, HeapObject::kMapOffset));
+  __ Ld(t1, FieldMemOperand(a1, HeapObject::kMapOffset));
   __ Lbu(t4, FieldMemOperand(t1, Map::kBitFieldOffset));
   __ And(t4, t4, Operand(Map::Bits1::IsConstructorBit::kMask));
   __ Branch(&non_constructor, eq, t4, Operand(zero_reg));
