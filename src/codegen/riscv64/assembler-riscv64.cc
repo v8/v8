@@ -1883,54 +1883,6 @@ void Assembler::stop(uint32_t code) {
 }
 
 // Original MIPS Instructions
-void Assembler::addiu(Register rd, Register rs, int32_t j) {
-  if (is_int12(j))
-    RV_addiw(rd, rs, j);
-  else {
-    UseScratchRegisterScope temps(this);
-    BlockTrampolinePoolScope block_trampoline_pool(this);
-    Register scratch = temps.hasAvailable() ? temps.Acquire() : t5;
-    RV_li(scratch, j);
-    RV_addw(rd, rs, scratch);
-  }
-}
-
-void Assembler::daddiu(Register rd, Register rs, int32_t j) {
-  if (is_int12(j))
-    RV_addi(rd, rs, j);
-  else {
-    UseScratchRegisterScope temps(this);
-    BlockTrampolinePoolScope block_trampoline_pool(this);
-    Register scratch = temps.hasAvailable() ? temps.Acquire() : t5;
-    RV_li(scratch, j);
-    RV_add(rd, rs, scratch);
-  }
-}
-
-// Logical.
-void Assembler::andi(Register rt, Register rs, int32_t j) {
-  if (is_int12(j))
-    RV_andi(rt, rs, j);
-  else {
-    UseScratchRegisterScope temps(this);
-    BlockTrampolinePoolScope block_trampoline_pool(this);
-    Register scratch = temps.hasAvailable() ? temps.Acquire() : t5;
-    RV_li(scratch, j);
-    and_(rt, rs, scratch);
-  }
-}
-
-void Assembler::xori(Register rt, Register rs, int32_t j) {
-  if (is_int12(j))
-    RV_xori(rt, rs, j);
-  else {
-    UseScratchRegisterScope temps(this);
-    BlockTrampolinePoolScope block_trampoline_pool(this);
-    Register scratch = temps.hasAvailable() ? temps.Acquire() : t5;
-    RV_li(scratch, j);
-    xor_(rt, rs, scratch);
-  }
-}
 
 // ------------Memory-instructions-------------
 

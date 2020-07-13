@@ -969,7 +969,7 @@ TEST(Ulh_bitextension) {
           __ RV_sraiw(t1, t1, 15);
           __ Branch(&fail, ne, t1, Operand(1));
           __ RV_sraiw(t0, t0, 15);
-          __ addiu(t0, t0, 1);
+          __ RV_addiw(t0, t0, 1);
           __ Branch(&fail, ne, t0, Operand(zero_reg));
           // Fall through to success
 
@@ -1077,7 +1077,7 @@ TEST(Ulw_extension) {
           __ RV_srai(t1, t1, 31);
           __ Branch(&fail, ne, t1, Operand(1));
           __ RV_srai(t0, t0, 31);
-          __ daddiu(t0, t0, 1);
+          __ RV_addi(t0, t0, 1);
           __ Branch(&fail, ne, t0, Operand(zero_reg));
           // Fall through to success
 

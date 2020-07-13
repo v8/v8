@@ -747,16 +747,6 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase {
   void b(int16_t offset);
   inline void b(Label* L) { b(shifted_branch_offset(L)); }
 
-  // -------Data-processing-instructions---------
-
-  // Arithmetic.
-  void addiu(Register rd, Register rs, int32_t j);
-  void daddiu(Register rd, Register rs, int32_t j);
-
-  // Logical.
-  void andi(Register rd, Register rs, int32_t j);
-  void xori(Register rd, Register rs, int32_t j);
-
   // ------------Memory-instructions-------------
 
   void lb(Register rd, const MemOperand& rs);

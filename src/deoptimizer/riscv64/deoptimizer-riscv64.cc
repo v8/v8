@@ -113,8 +113,7 @@ void Deoptimizer::GenerateDeoptimizationEntries(MacroAssembler* masm,
   for (int i = 0; i < config->num_allocatable_double_registers(); ++i) {
     int code = config->GetAllocatableDoubleCode(i);
     int dst_offset = code * kDoubleSize + double_regs_offset;
-    int src_offset =
-        code * kDoubleSize + kNumberOfRegisters * kPointerSize;
+    int src_offset = code * kDoubleSize + kNumberOfRegisters * kPointerSize;
     __ Ldc1(ft0, MemOperand(sp, src_offset));
     __ Sdc1(ft0, MemOperand(a1, dst_offset));
   }
@@ -137,7 +136,7 @@ void Deoptimizer::GenerateDeoptimizationEntries(MacroAssembler* masm,
   __ bind(&pop_loop);
   __ pop(a4);
   __ Sd(a4, MemOperand(a3, 0));
-  __ daddiu(a3, a3, sizeof(uint64_t));
+  __ RV_addi(a3, a3, sizeof(uint64_t));
   __ bind(&pop_loop_header);
   __ BranchShort(&pop_loop, ne, a2, Operand(sp));
   // Compute the output frame in the deoptimizer.

@@ -418,7 +418,7 @@ void TurboAssembler::Subu(Register rd, Register rs, const Operand& rt) {
     if (is_int12(-rt.immediate()) && !MustUseReg(rt.rmode())) {
       RV_addiw(rd, rs,
                static_cast<int32_t>(
-                   -rt.immediate()));  // No subiu instr, use addiu(x, y, -imm).
+                   -rt.immediate()));  // No subiw instr, use addiw(x, y, -imm).
     } else {
       UseScratchRegisterScope temps(this);
       Register scratch = temps.Acquire();

@@ -886,7 +886,7 @@ TEST(RISCV2) {
 
   // ----- Test all instructions.
 
-  // Test lui, ori, and addiu, used in the
+  // Test lui, ori, and addiw, used in the
   // li pseudo-instruction. This way we
   // can then safely load registers with
   // chosen values.

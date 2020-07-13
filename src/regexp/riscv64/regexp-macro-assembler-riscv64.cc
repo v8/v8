@@ -256,9 +256,9 @@ void RegExpMacroAssemblerRISCV::CheckNotBackReferenceIgnoreCase(
     Label loop;
     __ bind(&loop);
     __ Lbu(a3, MemOperand(a0, 0));
-    __ daddiu(a0, a0, char_size());
+    __ RV_addi(a0, a0, char_size());
     __ Lbu(a4, MemOperand(a2, 0));
-    __ daddiu(a2, a2, char_size());
+    __ RV_addi(a2, a2, char_size());
 
     __ Branch(&loop_check, eq, a4, Operand(a3));
 
@@ -395,15 +395,15 @@ void RegExpMacroAssemblerRISCV::CheckNotBackReference(int start_reg,
   __ bind(&loop);
   if (mode_ == LATIN1) {
     __ Lbu(a3, MemOperand(a0, 0));
-    __ daddiu(a0, a0, char_size());
+    __ RV_addi(a0, a0, char_size());
     __ Lbu(a4, MemOperand(a2, 0));
-    __ daddiu(a2, a2, char_size());
+    __ RV_addi(a2, a2, char_size());
   } else {
     DCHECK(mode_ == UC16);
     __ Lhu(a3, MemOperand(a0, 0));
-    __ daddiu(a0, a0, char_size());
+    __ RV_addi(a0, a0, char_size());
     __ Lhu(a4, MemOperand(a2, 0));
-    __ daddiu(a2, a2, char_size());
+    __ RV_addi(a2, a2, char_size());
   }
   BranchOrBacktrack(on_no_match, ne, a3, Operand(a4));
   __ Branch(&loop, lt, a0, Operand(a1));
