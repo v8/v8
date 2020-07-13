@@ -185,9 +185,7 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase {
   void bind(Label* L);  // Binds an unbound label L to current code position.
 
   enum OffsetSize : int {
-    kOffset26 = 26,
     kOffset21 = 21,  // RISCV jal
-    kOffset16 = 16,
     kOffset12 = 12,  // RISCV imm12
     kOffset20 = 20,  // RISCV imm20
     kOffset13 = 13   // RISCV branch
@@ -213,27 +211,8 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase {
   inline int32_t RV_jump_offset(Label* L) {
     return branch_offset_helper(L, OffsetSize::kOffset21);
   }
-  inline int32_t branch_offset(Label* L) {
-    return branch_offset_helper(L, OffsetSize::kOffset13);
-  }
-  inline int32_t branch_offset21(Label* L) {
-    return branch_offset_helper(L, OffsetSize::kOffset21);
-  }
-  inline int32_t branch_offset26(Label* L) {
-    return branch_offset_helper(L, OffsetSize::kOffset26);
-  }
-  inline int32_t shifted_branch_offset(Label* L) {
-    return branch_offset(L) >> 2;
-  }
-  inline int32_t shifted_branch_offset21(Label* L) {
-    return branch_offset21(L) >> 2;
-  }
-  inline int32_t shifted_branch_offset26(Label* L) {
-    return branch_offset26(L) >> 2;
-  }
 
   uint64_t jump_address(Label* L);
-  uint64_t jump_offset(Label* L);
   uint64_t branch_long_offset(Label* L);
 
   // Puts a labels target address at the given position.
@@ -742,11 +721,6 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase {
 
   // MIPS Instructions
 
-  // --------Branch-and-jump-instructions----------
-  // We don't use likely variant of instructions.
-  void b(int16_t offset);
-  inline void b(Label* L) { b(shifted_branch_offset(L)); }
-
   // ------------Memory-instructions-------------
 
   void lb(Register rd, const MemOperand& rs);
@@ -758,13 +732,6 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase {
   void sw(Register rd, const MemOperand& rs);
   void ld(Register rd, const MemOperand& rs);
   void sd(Register rd, const MemOperand& rs);
-
-  // ----------Atomic instructions--------------
-
-  void ll(Register rd, const MemOperand& rs);
-  void sc(Register rd, const MemOperand& rs);
-  void lld(Register rd, const MemOperand& rs);
-  void scd(Register rd, const MemOperand& rs);
 
   // --------Coprocessor-instructions----------------
 

@@ -882,29 +882,6 @@ uint64_t Assembler::jump_address(Label* L) {
   return imm;
 }
 
-uint64_t Assembler::jump_offset(Label* L) {
-  int64_t target_pos;
-
-  DEBUG_PRINTF("jump_offset: %p to %p (%d)\n", L,
-               reinterpret_cast<Instr*>(buffer_start_ + pc_offset()),
-               pc_offset());
-  if (L->is_bound()) {
-    target_pos = L->pos();
-  } else {
-    if (L->is_linked()) {
-      target_pos = L->pos();  // L's link.
-      L->link_to(pc_offset());
-    } else {
-      L->link_to(pc_offset());
-      return kEndOfJumpChain;
-    }
-  }
-  int64_t imm = target_pos - (pc_offset());
-  DCHECK_EQ(imm & 3, 0);
-
-  return static_cast<uint64_t>(imm);
-}
-
 uint64_t Assembler::branch_long_offset(Label* L) {
   int64_t target_pos;
 
@@ -984,21 +961,6 @@ void Assembler::label_at_put(Label* L, int at_offset) {
       }
     }
     L->link_to(at_offset);
-  }
-}
-
-//------- Branch and jump instructions --------
-
-void Assembler::b(int16_t offset) {
-  if (is_int13(offset))
-    RV_beq(zero_reg, zero_reg, offset);
-  else {
-    // Generate position independent long branch.
-    BlockTrampolinePoolScope block_trampoline_pool(this);
-    RV_auipc(t5, 0);    // Read PC into t5.
-    RV_li(t6, offset);  // Load offset into t6
-    RV_add(t6, t5, t6);
-    RV_jr(t6);
   }
 }
 
@@ -2009,14 +1971,6 @@ void Assembler::sw(Register rd, const MemOperand& rs) {
     RV_sw(rd, scratch, 0);
   }
 }
-
-void Assembler::ll(Register rd, const MemOperand& rs) { UNREACHABLE(); }
-
-void Assembler::lld(Register rd, const MemOperand& rs) { UNREACHABLE(); }
-
-void Assembler::sc(Register rd, const MemOperand& rs) { UNREACHABLE(); }
-
-void Assembler::scd(Register rd, const MemOperand& rs) { UNREACHABLE(); }
 
 void Assembler::ld(Register rd, const MemOperand& rs) {
   if (is_int12(rs.offset_))
