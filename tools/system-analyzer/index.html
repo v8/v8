@@ -30,33 +30,50 @@ found in the LICENSE file. -->
   <script src="./map-processor.js"></script>
   <script src="./ic-processor.js"></script>
   <script src="./map-model.js"></script>
-  <style>
-  body {
-    font-family: 'Roboto', sans-serif;
-    color: white;
-    margin-left: 5%;
-    margin-right: 5%;
-    background-color: #000000;
-  }
-  .colorbox {
-    width: 10px;
-    height: 10px;
-    border: 1px black solid;
-  }
-  #instructions {
-    padding: 10px 10px  60px 10px ;
-    margin: auto;
-  }
-
-  /*
-  .indicium-logo  {
-    width: 380px;
-    height: 165px;
-    background-image: url(./images/indicium-logo.png);
-    background-size: cover;
-    margin-top: 35px;
-  }
-  */
+<style>
+body {
+  font-family: 'Roboto', sans-serif;
+  font-size: 14px;
+  color: white;
+  margin-left: 5%;
+  margin-right: 5%;
+  background-color: #000000;
+  letter-spacing: 0.5px;
+}
+.colorbox {
+  width: 10px;
+  height: 10px;
+  border: 1px black solid;
+}
+#instructions {
+  padding: 10px 10px  60px 10px ;
+  margin: auto;
+  background-color: #121212;
+  box-shadow: 0 10px 20px rgba(0,0,0,0.19), 0 6px 6px rgba(0,0,0,0.23);
+}
+kbd {
+  background-color: #BB86FC;
+  color:black;
+  border-radius: 3px;
+  border: 1px solid black;
+  display: inline-block;
+  font-size: .9em;
+  font-weight: bold;
+  padding: 0px 4px 2px 4px;
+  white-space: nowrap;
+}
+dl {
+  display: grid;
+  grid-template-columns: min-content auto;
+  grid-gap: 10px;
+}
+dt {
+  text-align: right;
+  white-space: nowrap;
+}
+dd {
+  margin: 0;
+}
 </style>
 <script>
 'use strict';
@@ -159,11 +176,9 @@ function showMaps(e) {
   // show maps on the view
   document.state.view.transitionView.showMaps(e.detail);
 }
-
 </script>
 </head>
 <body>
-  <!-- <div class="indicium-logo"></div> -->
   <div id="content">
     <section id="file-reader">
       <br></br>
@@ -186,6 +201,32 @@ function showMaps(e) {
       <li> Visualize IC events that have gathered</li>
       <li><code> /path/to/d8 --trace_ic $FILE (your_script.js) </code></li>
     </ul>
+    <h3>Keyboard Shortcuts</h3>
+    <dl>
+      <dt><kbd>SHIFT</kbd> + <kbd>Arrow Up</kbd></dt>
+      <dd>Follow Map transition forward (first child)</dd>
+
+      <dt><kbd>SHIFT</kbd> + <kbd>Arrow Down</kbd></dt>
+      <dd>Follow Map transition backwards</dd>
+
+      <dt><kbd>Arrow Up</kbd></dt>
+      <dd>Go to previous Map chunk</dd>
+
+      <dt><kbd>Arrow Down</kbd></dt>
+      <dd>Go to next Map in chunk</dd>
+
+      <dt><kbd>Arrow Left</kbd></dt>
+      <dd>Go to previous chunk</dd>
+
+      <dt><kbd>Arrow Right</kbd></dt>
+      <dd>Go to next chunk</dd>
+
+      <dt><kbd>+</kbd></dt>
+      <dd>Timeline zoom in</dd>
+
+      <dt><kbd>-</kbd></dt>
+      <dd>Timeline zoom out</dd>
+    </dl>
   </div>
 </body>
 </html>
