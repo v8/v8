@@ -936,10 +936,6 @@ void TurboAssembler::Seleqz(Register rd, Register rs, const Operand& rt) {
   RV_mul(rd, rs, scratch);    // scratch * rs = rs or zero
 }
 
-// void MacroAssembler::Pref(int32_t hint, const MemOperand& rs) {
-//   pref(hint, rs);
-// }
-
 void TurboAssembler::Lsa(Register rd, Register rt, Register rs, uint8_t sa,
                          Register scratch) {
   DCHECK(sa >= 1 && sa <= 31);

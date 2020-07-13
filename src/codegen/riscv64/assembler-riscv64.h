@@ -606,128 +606,139 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase {
   // Loads an immediate, always using 8 instructions, regardless of the value,
   // so that it can be modified later.
   void RV_li_constant(Register rd, int64_t imm);
-  void RV_mv(Register rd, Register rs1);
-  void RV_not(Register rd, Register rs1);
-  void RV_neg(Register rd, Register rs1);
-  void RV_negw(Register rd, Register rs1);
-  void RV_sext_w(Register rd, Register rs1);
-  void RV_seqz(Register rd, Register rs1);
-  void RV_snez(Register rd, Register rs1);
-  void RV_sltz(Register rd, Register rs1);
-  void RV_sgtz(Register rd, Register rs1);
 
-  void RV_fmv_s(FPURegister rd, FPURegister rs);
-  void RV_fabs_s(FPURegister rd, FPURegister rs);
-  void RV_fneg_s(FPURegister rd, FPURegister rs);
-  void RV_fmv_d(FPURegister rd, FPURegister rs);
-  void RV_fabs_d(FPURegister rd, FPURegister rs);
-  void RV_fneg_d(FPURegister rd, FPURegister rs);
+  void RV_mv(Register rd, Register rs) { RV_addi(rd, rs, 0); }
+  void RV_not(Register rd, Register rs) { RV_xori(rd, rs, -1); }
+  void RV_neg(Register rd, Register rs) { RV_sub(rd, zero_reg, rs); }
+  void RV_negw(Register rd, Register rs) { RV_subw(rd, zero_reg, rs); }
+  void RV_sext_w(Register rd, Register rs) { RV_addiw(rd, rs, 0); }
+  void RV_seqz(Register rd, Register rs) { RV_sltiu(rd, rs, 1); }
+  void RV_snez(Register rd, Register rs) { RV_sltu(rd, zero_reg, rs); }
+  void RV_sltz(Register rd, Register rs) { RV_slt(rd, rs, zero_reg); }
+  void RV_sgtz(Register rd, Register rs) { RV_slt(rd, zero_reg, rs); }
 
-  void RV_beqz(Register rs1, int16_t imm12);
+  void RV_fmv_s(FPURegister rd, FPURegister rs) { RV_fsgnj_s(rd, rs, rs); }
+  void RV_fabs_s(FPURegister rd, FPURegister rs) { RV_fsgnjx_s(rd, rs, rs); }
+  void RV_fneg_s(FPURegister rd, FPURegister rs) { RV_fsgnjn_s(rd, rs, rs); }
+  void RV_fmv_d(FPURegister rd, FPURegister rs) { RV_fsgnj_d(rd, rs, rs); }
+  void RV_fabs_d(FPURegister rd, FPURegister rs) { RV_fsgnjx_d(rd, rs, rs); }
+  void RV_fneg_d(FPURegister rd, FPURegister rs) { RV_fsgnjn_d(rd, rs, rs); }
+
+  void RV_beqz(Register rs, int16_t imm13) { RV_beq(rs, zero_reg, imm13); }
   inline void RV_beqz(Register rs1, Label* L) {
     RV_beqz(rs1, RV_branch_offset(L));
   }
-  void RV_bnez(Register rs1, int16_t imm12);
+  void RV_bnez(Register rs, int16_t imm13) { RV_bne(rs, zero_reg, imm13); }
   inline void RV_bnez(Register rs1, Label* L) {
     RV_bnez(rs1, RV_branch_offset(L));
   }
-  void RV_blez(Register rs, int16_t imm12);
+  void RV_blez(Register rs, int16_t imm13) { RV_bge(zero_reg, rs, imm13); }
   inline void RV_blez(Register rs1, Label* L) {
     RV_blez(rs1, RV_branch_offset(L));
   }
-  void RV_bgez(Register rs, int16_t imm12);
+  void RV_bgez(Register rs, int16_t imm13) { RV_bge(rs, zero_reg, imm13); }
   inline void RV_bgez(Register rs1, Label* L) {
     RV_bgez(rs1, RV_branch_offset(L));
   }
-  void RV_bltz(Register rs, int16_t imm12);
+  void RV_bltz(Register rs, int16_t imm13) { RV_blt(rs, zero_reg, imm13); }
   inline void RV_bltz(Register rs1, Label* L) {
     RV_bltz(rs1, RV_branch_offset(L));
   }
-  void RV_bgtz(Register rs, int16_t imm12);
+  void RV_bgtz(Register rs, int16_t imm13) { RV_blt(zero_reg, rs, imm13); }
+
   inline void RV_bgtz(Register rs1, Label* L) {
     RV_bgtz(rs1, RV_branch_offset(L));
   }
-  void RV_bgt(Register rs1, Register rs2, int16_t imm12);
+  void RV_bgt(Register rs1, Register rs2, int16_t imm13) {
+    RV_blt(rs2, rs1, imm13);
+  }
   inline void RV_bgt(Register rs1, Register rs2, Label* L) {
     RV_bgt(rs1, rs2, RV_branch_offset(L));
   }
-  void RV_ble(Register rs1, Register rs2, int16_t imm12);
+  void RV_ble(Register rs1, Register rs2, int16_t imm13) {
+    RV_bge(rs2, rs1, imm13);
+  }
   inline void RV_ble(Register rs1, Register rs2, Label* L) {
     RV_ble(rs1, rs2, RV_branch_offset(L));
   }
-  void RV_bgtu(Register rs1, Register rs2, int16_t imm12);
+  void RV_bgtu(Register rs1, Register rs2, int16_t imm13) {
+    RV_bltu(rs2, rs1, imm13);
+  }
   inline void RV_bgtu(Register rs1, Register rs2, Label* L) {
     RV_bgtu(rs1, rs2, RV_branch_offset(L));
   }
-  void RV_bleu(Register rs1, Register rs2, int16_t imm12);
+  void RV_bleu(Register rs1, Register rs2, int16_t imm13) {
+    RV_bgeu(rs2, rs1, imm13);
+  }
   inline void RV_bleu(Register rs1, Register rs2, Label* L) {
     RV_bleu(rs1, rs2, RV_branch_offset(L));
   }
 
-  void RV_j(int32_t imm20);
+  // TODO: Replace uses of ToRegister with names once they are properly defined
+  void RV_j(int32_t imm21) { RV_jal(zero_reg, imm21); }
   inline void RV_j(Label* L) { RV_j(RV_jump_offset(L)); }
-  void RV_jal(int32_t imm20);
+  void RV_jal(int32_t imm21) { RV_jal(ToRegister(1), imm21); }
   inline void RV_jal(Label* L) { RV_jal(RV_jump_offset(L)); }
-  void RV_jr(Register rs);
-  void RV_jalr(Register rs);
-  void RV_ret();
-  void RV_call(int32_t offset);
+  void RV_jr(Register rs) { RV_jalr(zero_reg, rs, 0); }
+  void RV_jalr(Register rs) { RV_jalr(ToRegister(1), rs, 0); }
+  void RV_ret() { RV_jalr(zero_reg, ToRegister(1), 0); }
+  void RV_call(int32_t offset) {
+    RV_auipc(ToRegister(1), (offset >> 12) + ((offset & 0x800) >> 11));
+    RV_jalr(ToRegister(1), ToRegister(1), offset << 20 >> 20);
+  }
 
-  // Other instructions
+  // Read instructions-retired counter
+  void RV_rdinstret(Register rd) { RV_csrrs(rd, csr_instret, zero_reg); }
+  void RV_rdinstreth(Register rd) { RV_csrrs(rd, csr_instreth, zero_reg); }
+  void RV_rdcycle(Register rd) { RV_csrrs(rd, csr_cycle, zero_reg); }
+  void RV_rdcycleh(Register rd) { RV_csrrs(rd, csr_cycleh, zero_reg); }
+  void RV_rdtime(Register rd) { RV_csrrs(rd, csr_time, zero_reg); }
+  void RV_rdtimeh(Register rd) { RV_csrrs(rd, csr_timeh, zero_reg); }
+
+  void RV_csrr(Register rd, ControlStatusReg csr) {
+    RV_csrrs(rd, csr, zero_reg);
+  }
+  void RV_csrw(ControlStatusReg csr, Register rs) {
+    RV_csrrw(zero_reg, csr, rs);
+  }
+  void RV_csrs(ControlStatusReg csr, Register rs) {
+    RV_csrrs(zero_reg, csr, rs);
+  }
+  void RV_csrc(ControlStatusReg csr, Register rs) {
+    RV_csrrc(zero_reg, csr, rs);
+  }
+
+  void RV_csrwi(ControlStatusReg csr, uint8_t imm) {
+    RV_csrrwi(zero_reg, csr, imm);
+  }
+  void RV_csrsi(ControlStatusReg csr, uint8_t imm) {
+    RV_csrrsi(zero_reg, csr, imm);
+  }
+  void RV_csrci(ControlStatusReg csr, uint8_t imm) {
+    RV_csrrci(zero_reg, csr, imm);
+  }
+
+  void RV_frcsr(Register rd) { RV_csrrs(rd, csr_fcsr, zero_reg); }
+  void RV_fscsr(Register rd, Register rs) { RV_csrrw(rd, csr_fcsr, rs); }
+  void RV_fscsr(Register rs) { RV_csrrw(zero_reg, csr_fcsr, rs); }
+
+  void RV_frrm(Register rd) { RV_csrrs(rd, csr_frm, zero_reg); }
+  void RV_fsrm(Register rd, Register rs) { RV_csrrw(rd, csr_frm, rs); }
+  void RV_fsrm(Register rs) { RV_csrrw(zero_reg, csr_frm, rs); }
+
+  void RV_frflags(Register rd) { RV_csrrs(rd, csr_fflags, zero_reg); }
+  void RV_fsflags(Register rd, Register rs) { RV_csrrw(rd, csr_fflags, rs); }
+  void RV_fsflags(Register rs) { RV_csrrw(zero_reg, csr_fflags, rs); }
+
+  // Other pseudo instructions that are not part of RISCV pseudo assemly
   void nor(Register rd, Register rs, Register rt) {
     or_(rd, rs, rt);
     RV_not(rd, rd);
   }
 
-  // Read instructions-retired counter
-  void RV_rdinstret(Register rd);
-  // Read upper 32-bits of instructions-retired counter
-  void RV_rdinstreth(Register rd);
-  // Read cycle counter
-  void RV_rdcycle(Register rd);
-  // Read upper 32-bits of cycle counter
-  void RV_rdcycleh(Register rd);
-  // Read real-time clock
-  void RV_rdtime(Register rd);
-  // Read upper 32-bits of real-time clock
-  void RV_rdtimeh(Register rd);
-
-  // Read CSR
-  void RV_csrr(Register rd, ControlStatusReg csr);
-  // Write CSR
-  void RV_csrw(ControlStatusReg csr, Register rs);
-  // Set bits in CSR
-  void RV_csrs(ControlStatusReg csr, Register rs);
-  // Clear bits in CSR
-  void RV_csrc(ControlStatusReg csr, Register rs);
-
-  // Write CSR, immediate
-  void RV_csrwi(ControlStatusReg csr, uint8_t imm);
-  // Set bits in CSR, immediate
-  void RV_csrsi(ControlStatusReg csr, uint8_t imm);
-  // Clear bits in CSR, immediate
-  void RV_csrci(ControlStatusReg csr, uint8_t imm);
-
-  // Read FP control/status register
-  void RV_frcsr(Register rd);
-  // Swap FP control/status register
-  void RV_fscsr(Register rd, Register rs);
-  // Write FP control/status register
-  void RV_fscsr(Register rs);
-
-  // Read FP rounding mode
-  void RV_frrm(Register rd);
-  // Swap FP rounding mode
-  void RV_fsrm(Register rd, Register rs);
-  // Write FP rounding mode
-  void RV_fsrm(Register rs);
-
-  // Read FP exception flags
-  void RV_frflags(Register rd);
-  // Swap FP exception flags
-  void RV_fsflags(Register rd, Register rs);
-  // Write FP exception flags
-  void RV_fsflags(Register rs);
+  void sync() { RV_fence(0b1111, 0b1111); }
+  void break_(uint32_t code, bool break_as_stop = false);
+  void stop(uint32_t code = kMaxStopCode);
 
   // MIPS Instructions
 
@@ -764,19 +775,6 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase {
   void sc(Register rd, const MemOperand& rs);
   void lld(Register rd, const MemOperand& rs);
   void scd(Register rd, const MemOperand& rs);
-
-  // ----------------Prefetch--------------------
-
-  void pref(int32_t hint, const MemOperand& rs);
-
-  // -------------Misc-instructions--------------
-
-  // Break / Trap instructions.
-  void break_(uint32_t code, bool break_as_stop = false);
-  void stop(uint32_t code = kMaxStopCode);
-
-  // Memory barrier instruction.
-  void sync();
 
   // --------Coprocessor-instructions----------------
 

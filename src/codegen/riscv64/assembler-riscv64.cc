@@ -1851,127 +1851,36 @@ void Assembler::RV_li_constant(Register rd, int64_t imm) {
   RV_slli(rd, rd, 12);
   RV_addi(rd, rd, imm << 52 >> 52);  // Bits 11:0
 }
-void Assembler::RV_mv(Register rd, Register rs) { RV_addi(rd, rs, 0); }
-void Assembler::RV_not(Register rd, Register rs) { RV_xori(rd, rs, -1); }
-void Assembler::RV_neg(Register rd, Register rs) { RV_sub(rd, zero_reg, rs); }
-void Assembler::RV_negw(Register rd, Register rs) { RV_subw(rd, zero_reg, rs); }
-void Assembler::RV_sext_w(Register rd, Register rs) { RV_addiw(rd, rs, 0); }
-void Assembler::RV_seqz(Register rd, Register rs) { RV_sltiu(rd, rs, 1); }
-void Assembler::RV_snez(Register rd, Register rs) { RV_sltu(rd, zero_reg, rs); }
-void Assembler::RV_sltz(Register rd, Register rs) { RV_slt(rd, rs, zero_reg); }
-void Assembler::RV_sgtz(Register rd, Register rs) { RV_slt(rd, zero_reg, rs); }
 
-void Assembler::RV_fmv_s(FPURegister rd, FPURegister rs) {
-  RV_fsgnj_s(rd, rs, rs);
-}
-void Assembler::RV_fabs_s(FPURegister rd, FPURegister rs) {
-  RV_fsgnjx_s(rd, rs, rs);
-}
-void Assembler::RV_fneg_s(FPURegister rd, FPURegister rs) {
-  RV_fsgnjn_s(rd, rs, rs);
-}
-void Assembler::RV_fmv_d(FPURegister rd, FPURegister rs) {
-  RV_fsgnj_d(rd, rs, rs);
-}
-void Assembler::RV_fabs_d(FPURegister rd, FPURegister rs) {
-  RV_fsgnjx_d(rd, rs, rs);
-}
-void Assembler::RV_fneg_d(FPURegister rd, FPURegister rs) {
-  RV_fsgnjn_d(rd, rs, rs);
+// Break / Trap instructions.
+void Assembler::break_(uint32_t code, bool break_as_stop) {
+  // We need to invalidate breaks that could be stops as well because the
+  // simulator expects a char pointer after the stop instruction.
+  // See constants-mips.h for explanation.
+  DCHECK(
+      (break_as_stop && code <= kMaxStopCode && code > kMaxWatchpointCode) ||
+      (!break_as_stop && (code > kMaxStopCode || code <= kMaxWatchpointCode)));
+
+  // since ebreak does not allow additional immediate field, we use the
+  // immediate field of lui instruction immediately following the ebreak to
+  // encode the "code" info
+  //
+  // FIXME: need to check how native debugger gets the "code" information
+  RV_ebreak();
+  DCHECK(is_uint20(code));
+  RV_lui(zero_reg, code);
 }
 
-void Assembler::RV_beqz(Register rs, int16_t imm13) {
-  RV_beq(rs, zero_reg, imm13);
+void Assembler::stop(uint32_t code) {
+  DCHECK_GT(code, kMaxWatchpointCode);
+  DCHECK_LE(code, kMaxStopCode);
+#if defined(V8_HOST_ARCH_RISCV64)
+  // FIXME: does RISCV expect a special value?
+  break_(0x54321);
+#else  // V8_HOST_ARCH_RISCV64
+  break_(code, true);
+#endif
 }
-void Assembler::RV_bnez(Register rs, int16_t imm13) {
-  RV_bne(rs, zero_reg, imm13);
-}
-void Assembler::RV_blez(Register rs, int16_t imm13) {
-  RV_bge(zero_reg, rs, imm13);
-}
-void Assembler::RV_bgez(Register rs, int16_t imm13) {
-  RV_bge(rs, zero_reg, imm13);
-}
-void Assembler::RV_bltz(Register rs, int16_t imm13) {
-  RV_blt(rs, zero_reg, imm13);
-}
-void Assembler::RV_bgtz(Register rs, int16_t imm13) {
-  RV_blt(zero_reg, rs, imm13);
-}
-
-void Assembler::RV_bgt(Register rs1, Register rs2, int16_t imm13) {
-  RV_blt(rs2, rs1, imm13);
-}
-void Assembler::RV_ble(Register rs1, Register rs2, int16_t imm13) {
-  RV_bge(rs2, rs1, imm13);
-}
-void Assembler::RV_bgtu(Register rs1, Register rs2, int16_t imm13) {
-  RV_bltu(rs2, rs1, imm13);
-}
-void Assembler::RV_bleu(Register rs1, Register rs2, int16_t imm13) {
-  RV_bgeu(rs2, rs1, imm13);
-}
-
-// TODO: Replace uses of ToRegister with names once they are properly defined
-void Assembler::RV_j(int32_t imm21) { RV_jal(zero_reg, imm21); }
-void Assembler::RV_jal(int32_t imm21) { RV_jal(ToRegister(1), imm21); }
-void Assembler::RV_jr(Register rs) { RV_jalr(zero_reg, rs, 0); }
-void Assembler::RV_jalr(Register rs) { RV_jalr(ToRegister(1), rs, 0); }
-void Assembler::RV_ret() { RV_jalr(zero_reg, ToRegister(1), 0); }
-void Assembler::RV_call(int32_t offset) {
-  RV_auipc(ToRegister(1), (offset >> 12) + ((offset & 0x800) >> 11));
-  RV_jalr(ToRegister(1), ToRegister(1), offset << 20 >> 20);
-}
-
-void Assembler::RV_rdinstret(Register rd) {
-  RV_csrrs(rd, csr_instret, zero_reg);
-}
-void Assembler::RV_rdinstreth(Register rd) {
-  RV_csrrs(rd, csr_instreth, zero_reg);
-}
-void Assembler::RV_rdcycle(Register rd) { RV_csrrs(rd, csr_cycle, zero_reg); }
-void Assembler::RV_rdcycleh(Register rd) { RV_csrrs(rd, csr_cycleh, zero_reg); }
-void Assembler::RV_rdtime(Register rd) { RV_csrrs(rd, csr_time, zero_reg); }
-void Assembler::RV_rdtimeh(Register rd) { RV_csrrs(rd, csr_timeh, zero_reg); }
-
-void Assembler::RV_csrr(Register rd, ControlStatusReg csr) {
-  RV_csrrs(rd, csr, zero_reg);
-}
-void Assembler::RV_csrw(ControlStatusReg csr, Register rs) {
-  RV_csrrw(zero_reg, csr, rs);
-}
-void Assembler::RV_csrs(ControlStatusReg csr, Register rs) {
-  RV_csrrs(zero_reg, csr, rs);
-}
-void Assembler::RV_csrc(ControlStatusReg csr, Register rs) {
-  RV_csrrc(zero_reg, csr, rs);
-}
-
-void Assembler::RV_csrwi(ControlStatusReg csr, uint8_t imm) {
-  RV_csrrwi(zero_reg, csr, imm);
-}
-void Assembler::RV_csrsi(ControlStatusReg csr, uint8_t imm) {
-  RV_csrrsi(zero_reg, csr, imm);
-}
-void Assembler::RV_csrci(ControlStatusReg csr, uint8_t imm) {
-  RV_csrrci(zero_reg, csr, imm);
-}
-
-void Assembler::RV_frcsr(Register rd) { RV_csrrs(rd, csr_fcsr, zero_reg); }
-void Assembler::RV_fscsr(Register rd, Register rs) {
-  RV_csrrw(rd, csr_fcsr, rs);
-}
-void Assembler::RV_fscsr(Register rs) { RV_csrrw(zero_reg, csr_fcsr, rs); }
-
-void Assembler::RV_frrm(Register rd) { RV_csrrs(rd, csr_frm, zero_reg); }
-void Assembler::RV_fsrm(Register rd, Register rs) { RV_csrrw(rd, csr_frm, rs); }
-void Assembler::RV_fsrm(Register rs) { RV_csrrw(zero_reg, csr_frm, rs); }
-
-void Assembler::RV_frflags(Register rd) { RV_csrrs(rd, csr_fflags, zero_reg); }
-void Assembler::RV_fsflags(Register rd, Register rs) {
-  RV_csrrw(rd, csr_fflags, rs);
-}
-void Assembler::RV_fsflags(Register rs) { RV_csrrw(zero_reg, csr_fflags, rs); }
 
 // Original MIPS Instructions
 void Assembler::addiu(Register rd, Register rs, int32_t j) {
@@ -2183,56 +2092,6 @@ void Assembler::sd(Register rd, const MemOperand& rs) {
   }
 }
 
-// -------------Misc-instructions--------------
-
-// Break / Trap instructions.
-void Assembler::break_(uint32_t code, bool break_as_stop) {
-  // We need to invalidate breaks that could be stops as well because the
-  // simulator expects a char pointer after the stop instruction.
-  // See constants-mips.h for explanation.
-  DCHECK(
-      (break_as_stop && code <= kMaxStopCode && code > kMaxWatchpointCode) ||
-      (!break_as_stop && (code > kMaxStopCode || code <= kMaxWatchpointCode)));
-
-  // since ebreak does not allow additional immediate field, we use the
-  // immediate field of lui instruction immediately following the ebreak to
-  // encode the "code" info
-  //
-  // FIXME: need to check how native debugger gets the "code" information
-  RV_ebreak();
-  DCHECK(is_uint20(code));
-  RV_lui(zero_reg, code);
-}
-
-void Assembler::stop(uint32_t code) {
-  DCHECK_GT(code, kMaxWatchpointCode);
-  DCHECK_LE(code, kMaxStopCode);
-#if defined(V8_HOST_ARCH_RISCV64)
-  // FIXME: does RISCV expect a special value?
-  break_(0x54321);
-#else  // V8_HOST_ARCH_RISCV64
-  break_(code, true);
-#endif
-}
-
-void Assembler::sync() { RV_fence(0b1111, 0b1111); }
-/*
-void Assembler::min_s(FPURegister fd, FPURegister fs, FPURegister ft) {
-  RV_fmin_s(fd, fs, ft);
-}
-
-void Assembler::min_d(FPURegister fd, FPURegister fs, FPURegister ft) {
-  RV_fmin_d(fd, fs, ft);
-}
-
-void Assembler::max_s(FPURegister fd, FPURegister fs, FPURegister ft) {
-  RV_fmax_s(fd, fs, ft);
-}
-
-void Assembler::max_d(FPURegister fd, FPURegister fs, FPURegister ft) {
-  RV_fmax_d(fd, fs, ft);
-}
-*/
 // --------Coprocessor-instructions----------------
 
 // Load, store, move.
