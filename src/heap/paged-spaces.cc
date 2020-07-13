@@ -529,12 +529,6 @@ bool PagedSpace::RefillLabFromFreeListMain(size_t size_in_bytes,
   // if it is big enough.
   FreeLinearAllocationArea();
 
-  if (!is_local_space()) {
-    heap()->StartIncrementalMarkingIfAllocationLimitIsReached(
-        heap()->GCFlagsForIncrementalMarking(),
-        kGCCallbackScheduleIdleGarbageCollection);
-  }
-
   size_t new_node_size = 0;
   FreeSpace new_node =
       free_list_->Allocate(size_in_bytes, &new_node_size, origin);
@@ -1002,6 +996,15 @@ AllocationResult PagedSpace::AllocateRawSlow(int size_in_bytes,
   size_t bytes_since_last =
       top_on_previous_step_ ? top() - top_on_previous_step_ : 0;
   DCHECK_IMPLIES(!SupportsInlineAllocation(), bytes_since_last == 0);
+
+  if (!is_local_space()) {
+    // Start incremental marking before the actual allocation, this allows the
+    // allocation function to mark the object black when incremental marking is
+    // running.
+    heap()->StartIncrementalMarkingIfAllocationLimitIsReached(
+        heap()->GCFlagsForIncrementalMarking(),
+        kGCCallbackScheduleIdleGarbageCollection);
+  }
 
 #ifdef V8_HOST_ARCH_32_BIT
   AllocationResult result =
