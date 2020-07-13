@@ -2236,6 +2236,12 @@ void InstructionSelector::VisitInt64AbsWithOverflow(Node* node) {
   V(V16x8AllTrue)         \
   V(V8x16AllTrue)
 
+#define SIMD_CONVERSION_LIST(V) \
+  V(I32x4SConvertF32x4)         \
+  V(I32x4UConvertF32x4)         \
+  V(F32x4SConvertI32x4)         \
+  V(F32x4UConvertI32x4)
+
 #define SIMD_VISIT_SPLAT(Type)                               \
   void InstructionSelector::Visit##Type##Splat(Node* node) { \
     PPCOperandGenerator g(this);                             \
@@ -2316,6 +2322,16 @@ SIMD_SHIFT_LIST(SIMD_VISIT_SHIFT)
 SIMD_BOOL_LIST(SIMD_VISIT_BOOL)
 #undef SIMD_VISIT_BOOL
 #undef SIMD_BOOL_LIST
+
+#define SIMD_VISIT_CONVERSION(Opcode)                   \
+  void InstructionSelector::Visit##Opcode(Node* node) { \
+    PPCOperandGenerator g(this);                        \
+    Emit(kPPC_##Opcode, g.DefineAsRegister(node),       \
+         g.UseRegister(node->InputAt(0)));              \
+  }
+SIMD_CONVERSION_LIST(SIMD_VISIT_CONVERSION)
+#undef SIMD_VISIT_CONVERSION
+#undef SIMD_CONVERSION_LIST
 #undef SIMD_TYPES
 
 void InstructionSelector::VisitS128Zero(Node* node) {
@@ -2402,22 +2418,6 @@ void InstructionSelector::VisitF32x4Div(Node* node) { UNIMPLEMENTED(); }
 void InstructionSelector::VisitF32x4Min(Node* node) { UNIMPLEMENTED(); }
 
 void InstructionSelector::VisitF32x4Max(Node* node) { UNIMPLEMENTED(); }
-
-void InstructionSelector::VisitF32x4SConvertI32x4(Node* node) {
-  UNIMPLEMENTED();
-}
-
-void InstructionSelector::VisitF32x4UConvertI32x4(Node* node) {
-  UNIMPLEMENTED();
-}
-
-void InstructionSelector::VisitI32x4SConvertF32x4(Node* node) {
-  UNIMPLEMENTED();
-}
-
-void InstructionSelector::VisitI32x4UConvertF32x4(Node* node) {
-  UNIMPLEMENTED();
-}
 
 void InstructionSelector::VisitI32x4SConvertI16x8Low(Node* node) {
   UNIMPLEMENTED();

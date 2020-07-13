@@ -3057,6 +3057,29 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       break;
     }
 #undef SIMD_ALL_TRUE
+    case kPPC_I32x4SConvertF32x4: {
+      Simd128Register src = i.InputSimd128Register(0);
+      // NaN to 0
+      __ vor(kScratchDoubleReg, src, src);
+      __ xvcmpeqsp(kScratchDoubleReg, kScratchDoubleReg, kScratchDoubleReg);
+      __ vand(kScratchDoubleReg, src, kScratchDoubleReg);
+      __ xvcvspsxws(i.OutputSimd128Register(), kScratchDoubleReg);
+      break;
+    }
+    case kPPC_I32x4UConvertF32x4: {
+      __ xvcvspuxws(i.OutputSimd128Register(), i.InputSimd128Register(0));
+      break;
+    }
+    case kPPC_F32x4SConvertI32x4: {
+      __ xvcvsxwsp(i.OutputSimd128Register(), i.InputSimd128Register(0));
+
+      break;
+    }
+    case kPPC_F32x4UConvertI32x4: {
+      __ xvcvuxwsp(i.OutputSimd128Register(), i.InputSimd128Register(0));
+      break;
+    }
+
     case kPPC_StoreCompressTagged: {
       ASSEMBLE_STORE_INTEGER(StoreTaggedField, StoreTaggedFieldX);
       break;

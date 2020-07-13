@@ -142,6 +142,8 @@ int InstructionScheduler::GetTargetInstructionFlags(
     case kPPC_F32x4RecipApprox:
     case kPPC_F32x4RecipSqrtApprox:
     case kPPC_F32x4Sqrt:
+    case kPPC_F32x4SConvertI32x4:
+    case kPPC_F32x4UConvertI32x4:
     case kPPC_I64x2Splat:
     case kPPC_I64x2ExtractLane:
     case kPPC_I64x2ReplaceLane:
@@ -184,6 +186,8 @@ int InstructionScheduler::GetTargetInstructionFlags(
     case kPPC_I32x4ShrU:
     case kPPC_I32x4Neg:
     case kPPC_I32x4Abs:
+    case kPPC_I32x4SConvertF32x4:
+    case kPPC_I32x4UConvertF32x4:
     case kPPC_I16x8Splat:
     case kPPC_I16x8ExtractLaneU:
     case kPPC_I16x8ExtractLaneS:
