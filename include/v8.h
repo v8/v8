@@ -3113,9 +3113,17 @@ class V8_EXPORT String : public Name {
   V8_INLINE static Local<String> Empty(Isolate* isolate);
 
   /**
-   * Returns true if the string is external
+   * Returns true if the string is external one-byte.
+   *
    */
+  V8_DEPRECATE_SOON(
+      "Use String::IsExternalTwoByte() or String::IsExternalOneByte()")
   bool IsExternal() const;
+
+  /**
+   * Returns true if the string is both external and two-byte.
+   */
+  bool IsExternalTwoByte() const;
 
   /**
    * Returns true if the string is both external and one-byte.
