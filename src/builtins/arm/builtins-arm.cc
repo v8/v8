@@ -2086,7 +2086,14 @@ void Builtins::Generate_CallOrConstructForwardVarargs(MacroAssembler* masm,
     // Forward the arguments from the caller frame.
     {
       Label loop;
+#ifdef V8_REVERSE_JSARGS
+      // Skips frame pointer and old receiver.
+      __ add(r4, r4, Operand(2 * kPointerSize));
+      __ pop(r8);  // Save new receiver.
+#else
+      // Skips frame pointer.
       __ add(r4, r4, Operand(kPointerSize));
+#endif
       __ add(r0, r0, r5);
       __ bind(&loop);
       {
@@ -2095,6 +2102,9 @@ void Builtins::Generate_CallOrConstructForwardVarargs(MacroAssembler* masm,
         __ sub(r5, r5, Operand(1), SetCC);
         __ b(ne, &loop);
       }
+#ifdef V8_REVERSE_JSARGS
+      __ push(r8);  // Recover new receiver.
+#endif
     }
   }
   __ b(&stack_done);

@@ -2352,13 +2352,27 @@ void Builtins::Generate_CallOrConstructForwardVarargs(MacroAssembler* masm,
       Label loop;
       __ addl(rax, r8);
       __ PopReturnAddressTo(rcx);
+#ifdef V8_REVERSE_JSARGS
+      // The new receiver is already on the stack. Save it to push it later.
+      __ Pop(kScratchRegister);
+#endif
       __ bind(&loop);
       {
         __ decl(r8);
+#ifdef V8_REVERSE_JSARGS
+        // Skips the old receiver.
+        __ Push(Operand(rbx, r8, times_system_pointer_size,
+                        kFPOnStackSize + kPCOnStackSize + kSystemPointerSize));
+#else
         __ Push(Operand(rbx, r8, times_system_pointer_size,
                         kFPOnStackSize + kPCOnStackSize));
+#endif
         __ j(not_zero, &loop);
       }
+#ifdef V8_REVERSE_JSARGS
+      // Recover the new receiver.
+      __ Push(kScratchRegister);
+#endif
       __ PushReturnAddressFrom(rcx);
     }
   }

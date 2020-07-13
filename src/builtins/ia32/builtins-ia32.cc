@@ -2248,13 +2248,29 @@ void Builtins::Generate_CallOrConstructForwardVarargs(MacroAssembler* masm,
       Label loop;
       __ add(eax, edx);
       __ PopReturnAddressTo(ecx);
+#ifdef V8_REVERSE_JSARGS
+      // TODO(victor): When we remove the arguments adaptor machinery above,
+      // we can free the scratch register and avoid this move.
+      __ movd(xmm2, ebx);  // Save root register.
+      __ Pop(ebx);         // Save new receiver.
+#endif
       __ bind(&loop);
       {
-        __ Push(Operand(scratch, edx, times_system_pointer_size,
-                        1 * kSystemPointerSize));
         __ dec(edx);
+#ifdef V8_REVERSE_JSARGS
+        // Skips old receiver.
+        __ Push(Operand(scratch, edx, times_system_pointer_size,
+                        kFPOnStackSize + kPCOnStackSize + kSystemPointerSize));
+#else
+        __ Push(Operand(scratch, edx, times_system_pointer_size,
+                        kFPOnStackSize + kPCOnStackSize));
+#endif
         __ j(not_zero, &loop);
       }
+#ifdef V8_REVERSE_JSARGS
+      __ Push(ebx);        // Push new receiver.
+      __ movd(ebx, xmm2);  // Recover root register.
+#endif
       __ PushReturnAddressFrom(ecx);
     }
   }
