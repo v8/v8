@@ -2,34 +2,13 @@
 Use of this source code is governed by a BSD-style license that can be
 found in the LICENSE file. -->
 <style>
-.map-panel {
-  background-color: #232323;
-  padding: 20px 20px  20px 20px ;
-  margin: auto;
-}
-#map-panel {
-  box-shadow: 0 4px 8px 0 rgba(0,0,0,0.2);
-  transition: 0.3s;
-  background-color: #121212;
-  padding: 10px 10px  10px 10px ;
-  margin: auto;
-}
-h2 {
-  background-color: #BB86FC;
-  box-shadow: 0 4px 8px 0 rgba(0,0,0,0.2);
-  transition: 0.3s;
-  color: black;
-  padding: 15px 25px;
-  text-align: center;
-  text-decoration: none;
-  display: inline-block;
-}
+@import "./index.css";
+
 #mapDetails {
   font-family: monospace;
   white-space: pre;
   overflow-x: scroll;
 }
-
 #transitionView {
   overflow-x: scroll;
   white-space: nowrap;
@@ -39,7 +18,6 @@ h2 {
   margin-top: -25px;
   width: 100%;
 }
-
 .map {
   width: 20px;
   height: 20px;
@@ -126,44 +104,6 @@ h2 {
   background-color: white;
 }
 
-.black{
-  background-color: #5e5454;
-}
-
-.red {
-  background-color: red;
-}
-
-.green {
-  background-color: green;
-}
-
-.yellow {
-  background-color: yellow;
-  color: #5e5454;
-}
-
-.blue {
-  background-color: blue;
-}
-
-.orange {
-  background-color: orange;
-}
-
-.violet {
-  background-color: violet;
-  color: #5e5454;
-}
-
-.success {
-  background-color:#03DAC6;
-}
-
-.failure {
-  background-color: #CF6679;
-}
-
 .showSubtransitions {
   width: 0;
   height: 0;
@@ -192,28 +132,26 @@ h2 {
 
 #searchBarInput {
   width: 200px;
+  color: black;
 }
 </style>
-
 <stats-panel id="stats-panel" onchange="showMaps(event)"></stats-panel>
-<div class="map-panel">
-  <section id="map-panel">
-    <h2>Map Panel</h2>
-    <h3>Transitions</h3>
-    <section id="transitionView"></section>
-    <br/>
+<div class="panel">
+  <h2>Map Panel</h2>
+  <h3>Transitions</h3>
+  <section id="transitionView"></section>
+  <br/>
 
-    <h4>Search Map by Address</h4>
-    <section id="searchBar"></section>
-    <input type="search" id="searchBarInput" placeholder="Search maps by address.."></input>
-    <button id="searchBarBtn">Search</button>
+  <h4>Search Map by Address</h4>
+  <section id="searchBar"></section>
+  <input type="search" id="searchBarInput" placeholder="Search maps by address.."></input>
+  <button id="searchBarBtn">Search</button>
 
-    <h4>Selected Map</h4>
-    <section id="mapDetails"></section>
+  <h4>Selected Map</h4>
+  <section id="mapDetails"></section>
 
-    <div id="tooltip">
-        <div id="tooltipContents"></div>
-      </div>
-  </section>
+  <div id="tooltip">
+      <div id="tooltipContents"></div>
+  </div>
 </div>
 

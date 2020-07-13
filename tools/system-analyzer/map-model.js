@@ -374,14 +374,14 @@ class View {
     let max = chunks.max();
 
     ctx.clearRect(0, 0, canvas.width, height);
-    ctx.strokeStyle = 'black';
-    ctx.fillStyle = 'black';
+    ctx.fillStyle = 'white';
     ctx.beginPath();
     ctx.moveTo(0, height);
     for (let i = 0; i < chunks.length; i++) {
       ctx.lineTo(i / kFactor, height - chunks[i] / max * height);
     }
     ctx.lineTo(chunks.length, height);
+    ctx.strokeStyle = 'white';
     ctx.stroke();
     ctx.closePath();
     ctx.fill();
@@ -401,7 +401,7 @@ class View {
   }
 
   setMapStyle(map, ctx) {
-    ctx.fillStyle = map.edge && map.edge.from ? 'black' : 'green';
+    ctx.fillStyle = map.edge && map.edge.from ? 'white' : '#aedc6e';
   }
 
   setEdgeStyle(edge, ctx) {
@@ -427,6 +427,7 @@ class View {
     ctx.beginPath();
     this.setMapStyle(map, ctx);
     ctx.arc(x, y, 6, 0, 2 * Math.PI);
+    ctx.strokeStyle = 'white';
     ctx.stroke();
   }
 
@@ -488,6 +489,7 @@ class View {
       ctx.lineTo(xTo, yTo);
     }
     if (!showLabel) {
+      ctx.strokeStyle = 'white';
       ctx.stroke();
     } else {
       let centerX, centerY;
@@ -498,10 +500,12 @@ class View {
         centerX = xTo;
         centerY = yTo;
       }
+      ctx.strokeStyle = 'white';
       ctx.moveTo(centerX, centerY);
       ctx.lineTo(centerX + offsetX, centerY - labelOffset);
       ctx.stroke();
       ctx.textAlign = 'left';
+      ctx.fillStyle = 'white';
       ctx.fillText(
           edge.toString(), centerX + offsetX + 2, centerY - labelOffset)
     }
@@ -576,7 +580,7 @@ class TransitionView {
 
   addMapNode(map) {
     let node = div('map');
-    if (map.edge) node.classList.add(map.edge.getColor());
+    if (map.edge) node.style.backgroundColor = map.edge.getColor();
     node.map = map;
     node.addEventListener('click', () => this.selectMap(map));
     if (map.children.length > 1) {
@@ -603,8 +607,9 @@ class TransitionView {
   }
 
   addTransitionEdge(map) {
-    let classes = ['transitionEdge', map.edge.getColor()];
+    let classes = ['transitionEdge'];
     let edge = div(classes);
+    edge.style.backgroundColor = map.edge.getColor();
     let labelNode = div('transitionLabel');
     labelNode.innerText = map.edge.toString();
     edge.appendChild(labelNode);
@@ -661,19 +666,26 @@ class TransitionView {
 function transitionTypeToColor(type) {
   switch (type) {
     case 'new':
-      return 'green';
+      // green
+      return '#aedc6e';
     case 'Normalize':
-      return 'violet';
+      // violet
+      return '#d26edc';
     case 'SlowToFast':
-      return 'orange';
+      // orange
+      return '#dc9b6e';
     case 'InitialMap':
-      return 'yellow';
+      // yellow
+      return '#EEFF41';
     case 'Transition':
-      return 'black';
+      // pink/violet (primary)
+      return '#9B6EDC';
     case 'ReplaceDescriptors':
-      return 'red';
+      // red
+      return '#dc6eae';
   }
-  return 'black';
+  // pink/violet (primary)
+  return '#9B6EDC';
 }
 
 //  ======================= histogram ==========

@@ -3,35 +3,15 @@ Use of this source code is governed by a BSD-style license that can be
 found in the LICENSE file. -->
 
 <style>
-  h2 {
-  background-color: #BB86FC;
-  box-shadow: 0 4px 8px 0 rgba(0,0,0,0.2);
-  transition: 0.3s;
-  color: black;
-  padding: 15px 25px;
-  text-align: center;
-  text-decoration: none;
-  display: inline-block;
-}
-.timeline-panel {
-    background-color: #232323;
-    padding: 20px 20px  20px 20px ;
-    margin: auto;
-}
-#timeline-panel {
-    box-shadow: 0 4px 8px 0 rgba(0,0,0,0.2);
-    transition: 0.3s;
-    background-color: #121212;
-    padding: 10px 10px  10px 10px ;
-    margin: auto;
-}
+@import "./index.css";
 #timeline {
   position: relative;
   height: 300px;
   overflow-y: hidden;
   overflow-x: scroll;
   user-select: none;
-  background-color: whitesmoke;
+  background-color: #1f1f1f;
+  box-shadow: 0 19px 38px rgba(0,0,0,0.30), 0 15px 12px rgba(0,0,0,0.22);
 }
 #timelineLabel {
   transform: rotate(90deg);
@@ -56,7 +36,7 @@ found in the LICENSE file. -->
 }
 .chunk {
   width: 6px;
-  border: 0px white solid;
+  border: 0px #262626 solid;
   border-width: 0 2px 0 2px;
   position: absolute;
   background-size: 100% 100%;
@@ -66,7 +46,7 @@ found in the LICENSE file. -->
 .timestamp {
   height: 250px;
   width: 100px;
-  border-left: 1px black dashed;
+  border-left: 1px #121212 dashed;
   padding-left: 4px;
   position: absolute;
   pointer-events: none;
@@ -80,14 +60,14 @@ found in the LICENSE file. -->
   margin-top: -50px;
   margin-bottom: 10px;
   background-size: 100% 100%;
-  border: 1px black solid;
+  border: 1px #121212 solid;
   border-width: 1px 0 1px 0;
   overflow: hidden;
 }
 #timelineOverviewIndicator {
   height: 100%;
   position: absolute;
-  box-shadow: 0px 2px 20px -5px black inset;
+  box-shadow: 0px 2px 20px -5px #121212 inset;
   top: 0px;
   cursor: ew-resize;
 }
@@ -106,22 +86,18 @@ found in the LICENSE file. -->
   left: 100%;
 }
 </style>
-
-
-<div class="timeline-panel">
-  <section id="timeline-panel">
-    <h2>Timeline Panel</h2>
-    <h3>Timeline</h3>
-    <div id="timeline">
-      <div id="timelineLabel">Frequency</div>
-      <div id="timelineChunks"></div>
-      <canvas id="timelineCanvas"></canvas>
+<div class="panel">
+  <h2>Timeline Panel</h2>
+  <h3>Timeline</h3>
+  <div id="timeline">
+    <div id="timelineLabel">Frequency</div>
+    <div id="timelineChunks"></div>
+    <canvas id="timelineCanvas"></canvas>
+  </div>
+  <div id="timelineOverview">
+    <div id="timelineOverviewIndicator">
+      <div class="leftMask"></div>
+      <div class="rightMask"></div>
     </div>
-    <div id="timelineOverview">
-      <div id="timelineOverviewIndicator">
-        <div class="leftMask"></div>
-        <div class="rightMask"></div>
-      </div>
-    </div>
-  </section>
+  </div>
 </div>

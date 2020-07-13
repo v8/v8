@@ -1,0 +1,77 @@
+
+body {
+  font-family: 'Roboto', sans-serif;
+  font-size: 14px;
+  color: white;
+  margin-left: 5%;
+  margin-right: 5%;
+  background-color: #000000;
+  letter-spacing: 0.5px;
+}
+h2 {
+  background-color: #BB86FC;
+  box-shadow: 0 4px 8px 0 rgba(0,0,0,0.2);
+  transition: 0.3s;
+  color: black;
+  padding: 15px 25px;
+  text-align: center;
+  text-decoration: none;
+  display: inline-block;
+}
+.panel {
+  box-shadow: 0 4px 8px 0 rgba(0,0,0,0.2);
+  transition: 0.3s;
+  background-color: #121212;
+  padding: 30px 30px 30px 30px ;
+  margin: auto;
+  overflow-x: scroll;
+  box-shadow: 0 10px 20px rgba(0,0,0,0.19), 0 6px 6px rgba(0,0,0,0.23);
+}
+.colorbox {
+  width: 10px;
+  height: 10px;
+  border: 1px black solid;
+}
+
+.primary{
+  background-color: #9B6EDC;
+}
+
+.red {
+  background-color: #dc6eae;
+}
+
+.green {
+  background-color: #aedc6e;
+}
+
+.yellow {
+  background-color: #EEFF41;
+  color: #5e5454;
+}
+
+.blue {
+  background-color: #6e77dc;
+}
+
+.orange {
+  background-color:#dc9b6e;
+}
+
+.violet {
+  background-color: #d26edc;
+  color: #5e5454;
+}
+
+.success {
+  background-color:#03DAC6;
+}
+
+.failure {
+  background-color: #CF6679;
+}
+a:link {
+  color: #03DAC6;
+  background-color: transparent;
+  text-decoration: none;
+}
