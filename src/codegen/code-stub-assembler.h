@@ -401,11 +401,6 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
   TNode<Smi> TaggedIndexToSmi(TNode<TaggedIndex> value);
   TNode<TaggedIndex> SmiToTaggedIndex(TNode<Smi> value);
 
-  // Pointer compression specific. Returns true if the upper 32 bits of a Smi
-  // contain the sign of a lower 32 bits (i.e. not corrupted) so that the Smi
-  // can be directly used as an index in element offset computation.
-  TNode<BoolT> IsValidSmiIndex(TNode<Smi> smi);
-
   // Pointer compression specific. Ensures that the upper 32 bits of a Smi
   // contain the sign of a lower 32 bits so that the Smi can be directly used
   // as an index in element offset computation.
@@ -644,10 +639,6 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
                        BitcastTaggedToWordForTagAndSmiBits(b)));            \
     } else {                                                                \
       DCHECK(SmiValuesAre31Bits());                                         \
-      if (kSystemPointerSize == kInt64Size) {                               \
-        CSA_ASSERT(this, IsValidSmi(a));                                    \
-        CSA_ASSERT(this, IsValidSmi(b));                                    \
-      }                                                                     \
       return BitcastWordToTaggedSigned(ChangeInt32ToIntPtr(Int32OpName(     \
           TruncateIntPtrToInt32(BitcastTaggedToWordForTagAndSmiBits(a)),    \
           TruncateIntPtrToInt32(BitcastTaggedToWordForTagAndSmiBits(b))))); \
@@ -725,10 +716,6 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
     } else {                                                              \
       DCHECK_EQ(kTaggedSize, kInt32Size);                                 \
       DCHECK(SmiValuesAre31Bits());                                       \
-      if (kSystemPointerSize == kInt64Size) {                             \
-        CSA_ASSERT(this, IsValidSmi(a));                                  \
-        CSA_ASSERT(this, IsValidSmi(b));                                  \
-      }                                                                   \
       return Int32OpName(                                                 \
           TruncateIntPtrToInt32(BitcastTaggedToWordForTagAndSmiBits(a)),  \
           TruncateIntPtrToInt32(BitcastTaggedToWordForTagAndSmiBits(b))); \
@@ -3803,8 +3790,6 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
       TNode<Map> array_map, TNode<Smi> length,
       base::Optional<TNode<AllocationSite>> allocation_site,
       TNode<IntPtrT> size_in_bytes);
-
-  TNode<BoolT> IsValidSmi(TNode<Smi> smi);
 
   TNode<IntPtrT> SmiShiftBitsConstant() {
     return IntPtrConstant(kSmiShiftSize + kSmiTagSize);

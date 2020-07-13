@@ -547,24 +547,6 @@ TNode<Float64T> CodeStubAssembler::Float64Trunc(SloppyTNode<Float64T> x) {
   return TNode<Float64T>::UncheckedCast(var_x.value());
 }
 
-TNode<BoolT> CodeStubAssembler::IsValidSmi(TNode<Smi> smi) {
-  if (SmiValuesAre32Bits() && kSystemPointerSize == kInt64Size) {
-    // Check that the Smi value is zero in the lower bits.
-    TNode<IntPtrT> value = BitcastTaggedToWordForTagAndSmiBits(smi);
-    return Word32Equal(Int32Constant(0), TruncateIntPtrToInt32(value));
-  }
-  return Int32TrueConstant();
-}
-
-TNode<BoolT> CodeStubAssembler::IsValidSmiIndex(TNode<Smi> smi) {
-  if (COMPRESS_POINTERS_BOOL) {
-    return WordEqual(
-        BitcastTaggedToWordForTagAndSmiBits(smi),
-        BitcastTaggedToWordForTagAndSmiBits(NormalizeSmiIndex(smi)));
-  }
-  return Int32TrueConstant();
-}
-
 template <>
 TNode<Smi> CodeStubAssembler::TaggedToParameter(TNode<Smi> value) {
   return value;
