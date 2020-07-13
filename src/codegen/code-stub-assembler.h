@@ -427,14 +427,6 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
     return UncheckedCast<Uint16T>(Int32Constant(t));
   }
 
-  TNode<JSArray> TaggedToFastJSArray(TNode<Context> context,
-                                     TNode<Object> value, Label* fail) {
-    GotoIf(TaggedIsSmi(value), fail);
-    TNode<HeapObject> heap_object = CAST(value);
-    GotoIfNot(IsFastJSArray(heap_object, context), fail);
-    return UncheckedCast<JSArray>(heap_object);
-  }
-
   TNode<JSDataView> HeapObjectToJSDataView(TNode<HeapObject> heap_object,
                                            Label* fail) {
     GotoIfNot(IsJSDataView(heap_object), fail);
