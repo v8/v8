@@ -858,8 +858,9 @@ bool PagedSpace::EnsureSweptAndRetryAllocation(int size_in_bytes,
   DCHECK(!is_local_space());
   MarkCompactCollector* collector = heap()->mark_compact_collector();
   if (collector->sweeping_in_progress()) {
-    // Wait for the sweeper threads here and complete the sweeping phase.
-    collector->EnsureSweepingCompleted();
+    // Complete sweeping for this space.
+    collector->DrainSweepingWorklistForSpace(identity());
+    RefillFreeList();
 
     // After waiting for the sweeper threads, there may be new free-list
     // entries.
@@ -920,7 +921,7 @@ bool PagedSpace::RawSlowRefillLinearAllocationArea(int size_in_bytes,
   if (collector->sweeping_in_progress()) {
     if (FLAG_concurrent_sweeping && !is_compaction_space() &&
         !collector->sweeper()->AreSweeperTasksRunning()) {
-      collector->EnsureSweepingCompleted();
+      collector->DrainSweepingWorklistForSpace(identity());
     }
 
     // First try to refill the free-list, concurrent sweeper threads

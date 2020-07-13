@@ -247,6 +247,11 @@ void Sweeper::EnsureCompleted() {
   sweeping_in_progress_ = false;
 }
 
+void Sweeper::DrainSweepingWorklistForSpace(AllocationSpace space) {
+  if (!sweeping_in_progress_) return;
+  ParallelSweepSpace(space, 0);
+}
+
 void Sweeper::SupportConcurrentSweeping() {
   ForAllSweepingSpaces([this](AllocationSpace space) {
     const int kMaxPagesToSweepPerSpace = 1;

@@ -622,6 +622,12 @@ void MarkCompactCollector::EnsureSweepingCompleted() {
 #endif
 }
 
+void MarkCompactCollector::DrainSweepingWorklistForSpace(
+    AllocationSpace space) {
+  if (!sweeper()->sweeping_in_progress()) return;
+  sweeper()->DrainSweepingWorklistForSpace(space);
+}
+
 void MarkCompactCollector::ComputeEvacuationHeuristics(
     size_t area_size, int* target_fragmentation_percent,
     size_t* max_evacuated_bytes) {
