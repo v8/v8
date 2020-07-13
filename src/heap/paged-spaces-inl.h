@@ -89,12 +89,11 @@ bool PagedSpace::TryFreeLast(HeapObject object, int object_size) {
   return false;
 }
 
-bool PagedSpace::EnsureLinearAllocationArea(int size_in_bytes,
-                                            AllocationOrigin origin) {
+bool PagedSpace::EnsureLabMain(int size_in_bytes, AllocationOrigin origin) {
   if (allocation_info_.top() + size_in_bytes <= allocation_info_.limit()) {
     return true;
   }
-  return SlowRefillLinearAllocationArea(size_in_bytes, origin);
+  return RefillLabMain(size_in_bytes, origin);
 }
 
 AllocationResult PagedSpace::AllocateLinearly(int size_in_bytes) {
@@ -130,7 +129,7 @@ AllocationResult PagedSpace::TryAllocateLinearlyAligned(
 
 AllocationResult PagedSpace::AllocateRawUnaligned(int size_in_bytes,
                                                   AllocationOrigin origin) {
-  if (!EnsureLinearAllocationArea(size_in_bytes, origin)) {
+  if (!EnsureLabMain(size_in_bytes, origin)) {
     return AllocationResult::Retry(identity());
   }
   AllocationResult result = AllocateLinearly(size_in_bytes);
@@ -154,7 +153,7 @@ AllocationResult PagedSpace::AllocateRawAligned(int size_in_bytes,
   // allocated, so assume the worst case.
   int filler_size = Heap::GetMaximumFillToAlign(alignment);
   allocation_size += filler_size;
-  if (!EnsureLinearAllocationArea(allocation_size, origin)) {
+  if (!EnsureLabMain(allocation_size, origin)) {
     return AllocationResult::Retry(identity());
   }
   allocation_size = size_in_bytes;
