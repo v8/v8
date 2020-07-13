@@ -685,9 +685,6 @@
   'language/expressions/logical-assignment/lgcl-and-assignment-operator-non-simple-lhs': [FAIL],
   'language/expressions/logical-assignment/lgcl-nullish-assignment-operator-non-simple-lhs': [FAIL],
 
-  # Waiting for Test262 to catch up with the Promise.any proposal modifications
-  'built-ins/NativeErrors/AggregateError/prototype/errors/*': [SKIP],
-
   ############################ INVALID TESTS #############################
 
   # Test makes unjustified assumptions about the number of calls to SortCompare.
