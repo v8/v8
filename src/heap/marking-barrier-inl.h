@@ -15,7 +15,13 @@ namespace internal {
 bool MarkingBarrier::MarkValue(HeapObject host, HeapObject value) {
   DCHECK(is_activated_);
   DCHECK(!marking_state_.IsImpossible(value));
-  DCHECK(!marking_state_.IsImpossible(host));
+  // Host may have an impossible markbit pattern if manual allocation folding
+  // is performed and host happens to be the last word of an allocated region.
+  // In that case host has only one markbit and the second markbit belongs to
+  // another object. We can detect that case by checking if value is a one word
+  // filler map.
+  DCHECK(!marking_state_.IsImpossible(host) ||
+         value == ReadOnlyRoots(heap_->isolate()).one_pointer_filler_map());
   if (!V8_CONCURRENT_MARKING_BOOL && marking_state_.IsBlack(host)) {
     // The value will be marked and the slot will be recorded when the marker
     // visits the host object.

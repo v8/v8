@@ -7154,6 +7154,29 @@ TEST(GarbageCollectionWithLocalHeap) {
   CcTest::CollectGarbage(OLD_SPACE);
 }
 
+TEST(Regress10698) {
+  ManualGCScope manual_gc_scope;
+  CcTest::InitializeVM();
+  Heap* heap = CcTest::i_isolate()->heap();
+  Factory* factory = CcTest::i_isolate()->factory();
+  HandleScope handle_scope(CcTest::i_isolate());
+  // This is modeled after the manual allocation folding of heap numbers in
+  // JSON parser (See commit ba7b25e).
+  // Step 1. Allocate a byte array in the old space.
+  Handle<ByteArray> array =
+      factory->NewByteArray(kTaggedSize, AllocationType::kOld);
+  // Step 2. Start incremental marking.
+  SimulateIncrementalMarking(heap, false);
+  // Step 3. Allocate another byte array. It will be black.
+  factory->NewByteArray(kTaggedSize, AllocationType::kOld);
+  Address address = reinterpret_cast<Address>(array->GetDataStartAddress());
+  HeapObject filler = HeapObject::FromAddress(address);
+  // Step 4. Set the filler at the end of the first array.
+  // It will have an impossible markbit pattern because the second markbit
+  // will be taken from the second array.
+  filler.set_map_after_allocation(*factory->one_pointer_filler_map());
+}
+
 }  // namespace heap
 }  // namespace internal
 }  // namespace v8
