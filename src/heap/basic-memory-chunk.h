@@ -101,6 +101,11 @@ class BasicMemoryChunk {
     // in garbage collection. This is used instead of owner for identity
     // checking since read-only chunks have no owner once they are detached.
     READ_ONLY_HEAP = 1u << 21,
+
+    // The memory chunk is pinned in memory and can't be moved. This is likely
+    // because there exists a potential pointer to somewhere in the chunk which
+    // can't be updated.
+    PINNED = 1u << 22,
   };
 
   static const intptr_t kAlignment =
@@ -244,6 +249,8 @@ class BasicMemoryChunk {
     // been sealed and can be written to.
     return !InReadOnlySpace() || heap_ != nullptr;
   }
+
+  bool IsPinned() const { return IsFlagSet(PINNED); }
 
   bool Contains(Address addr) const {
     return addr >= area_start() && addr < area_end();

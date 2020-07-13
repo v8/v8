@@ -207,6 +207,47 @@ HEAP_TEST(MarkCompactCollector) {
   }
 }
 
+HEAP_TEST(DoNotEvacuatePinnedPages) {
+  if (FLAG_never_compact || !FLAG_single_generation) return;
+
+  FLAG_always_compact = true;
+
+  CcTest::InitializeVM();
+  Isolate* isolate = CcTest::i_isolate();
+
+  v8::HandleScope sc(CcTest::isolate());
+  Heap* heap = isolate->heap();
+
+  heap::SealCurrentObjects(heap);
+
+  auto handles = heap::CreatePadding(
+      heap, static_cast<int>(MemoryChunkLayout::AllocatableMemoryInDataPage()),
+      AllocationType::kOld);
+
+  Page* page = Page::FromHeapObject(*handles.front());
+
+  CHECK(heap->InSpace(*handles.front(), OLD_SPACE));
+  page->SetFlag(MemoryChunk::PINNED);
+
+  CcTest::CollectAllGarbage();
+  heap->mark_compact_collector()->EnsureSweepingCompleted();
+
+  // The pinned flag should prevent the page from moving.
+  for (Handle<FixedArray> object : handles) {
+    CHECK_EQ(page, Page::FromHeapObject(*object));
+  }
+
+  page->ClearFlag(MemoryChunk::PINNED);
+
+  CcTest::CollectAllGarbage();
+  heap->mark_compact_collector()->EnsureSweepingCompleted();
+
+  // always_compact ensures that this page is an evacuation candidate, so with
+  // the pin flag cleared compaction should now move it.
+  for (Handle<FixedArray> object : handles) {
+    CHECK_NE(page, Page::FromHeapObject(*object));
+  }
+}
 
 // TODO(1600): compaction of map space is temporary removed from GC.
 #if 0

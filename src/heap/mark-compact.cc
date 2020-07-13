@@ -711,6 +711,13 @@ void MarkCompactCollector::CollectEvacuationCandidates(PagedSpace* space) {
     if (p->NeverEvacuate() || (p == owner_of_linear_allocation_area) ||
         !p->CanAllocate())
       continue;
+
+    if (p->IsPinned()) {
+      DCHECK(
+          !p->IsFlagSet(MemoryChunk::FORCE_EVACUATION_CANDIDATE_FOR_TESTING));
+      continue;
+    }
+
     // Invariant: Evacuation candidates are just created when marking is
     // started. This means that sweeping has finished. Furthermore, at the end
     // of a GC all evacuation candidates are cleared and their slot buffers are
