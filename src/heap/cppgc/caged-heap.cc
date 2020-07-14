@@ -43,24 +43,14 @@ VirtualMemory ReserveCagedHeap(PageAllocator* platform_allocator) {
   UNREACHABLE();
 }
 
-std::unique_ptr<CagedHeap::AllocatorType> CreateBoundedAllocator(
-    v8::PageAllocator* platform_allocator, void* caged_heap_start) {
-  DCHECK(caged_heap_start);
-
-  auto start =
-      reinterpret_cast<CagedHeap::AllocatorType::Address>(caged_heap_start);
-
-  return std::make_unique<CagedHeap::AllocatorType>(
-      platform_allocator, start, kCagedHeapReservationSize, kPageSize);
-}
-
 }  // namespace
 
 CagedHeap::CagedHeap(HeapBase* heap_base, PageAllocator* platform_allocator)
     : reserved_area_(ReserveCagedHeap(platform_allocator)) {
+  using CagedAddress = CagedHeap::AllocatorType::Address;
+
   DCHECK_NOT_NULL(heap_base);
 
-  void* caged_heap_start = reserved_area_.address();
   CHECK(platform_allocator->SetPermissions(
       reserved_area_.address(),
       RoundUp(sizeof(CagedHeapLocalData), platform_allocator->CommitPageSize()),
@@ -73,12 +63,17 @@ CagedHeap::CagedHeap(HeapBase* heap_base, PageAllocator* platform_allocator)
 #endif
   USE(local_data);
 
-  caged_heap_start = reinterpret_cast<void*>(
-      RoundUp(reinterpret_cast<uintptr_t>(caged_heap_start) +
+  const CagedAddress caged_heap_start =
+      RoundUp(reinterpret_cast<CagedAddress>(reserved_area_.address()) +
                   sizeof(CagedHeapLocalData),
-              kPageSize));
-  bounded_allocator_ =
-      CreateBoundedAllocator(platform_allocator, caged_heap_start);
+              kPageSize);
+  const size_t local_data_size_with_padding =
+      caged_heap_start -
+      reinterpret_cast<CagedAddress>(reserved_area_.address());
+
+  bounded_allocator_ = std::make_unique<CagedHeap::AllocatorType>(
+      platform_allocator, caged_heap_start,
+      reserved_area_.size() - local_data_size_with_padding, kPageSize);
 }
 
 }  // namespace internal
