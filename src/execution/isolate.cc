@@ -2943,8 +2943,6 @@ void Isolate::Deinit() {
   }
 #endif  // V8_OS_WIN64
 
-  FutexEmulation::IsolateDeinit(this);
-
   debug()->Unload();
 
   wasm_engine()->DeleteCompileJobsOnIsolate(this);

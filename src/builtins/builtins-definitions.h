@@ -746,7 +746,6 @@ namespace internal {
   CPP(AtomicsNotify)                                                           \
   CPP(AtomicsIsLockFree)                                                       \
   CPP(AtomicsWait)                                                             \
-  CPP(AtomicsWaitAsync)                                                        \
   CPP(AtomicsWake)                                                             \
                                                                                \
   /* String */                                                                 \
