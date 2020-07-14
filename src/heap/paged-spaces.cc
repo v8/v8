@@ -512,8 +512,8 @@ std::unique_ptr<ObjectIterator> PagedSpace::GetObjectIterator(Heap* heap) {
       new PagedSpaceObjectIterator(heap, this));
 }
 
-bool PagedSpace::RefillLabFromFreeListMain(size_t size_in_bytes,
-                                           AllocationOrigin origin) {
+bool PagedSpace::TryAllocationFromFreeListMain(size_t size_in_bytes,
+                                               AllocationOrigin origin) {
   DCHECK(IsAligned(size_in_bytes, kTaggedSize));
   DCHECK_LE(top(), limit());
 #ifdef DEBUG
@@ -561,12 +561,9 @@ bool PagedSpace::RefillLabFromFreeListMain(size_t size_in_bytes,
   return true;
 }
 
-base::Optional<std::pair<Address, size_t>>
-PagedSpace::SlowGetLinearAllocationAreaBackground(LocalHeap* local_heap,
-                                                  size_t min_size_in_bytes,
-                                                  size_t max_size_in_bytes,
-                                                  AllocationAlignment alignment,
-                                                  AllocationOrigin origin) {
+base::Optional<std::pair<Address, size_t>> PagedSpace::RawRefillLabBackground(
+    LocalHeap* local_heap, size_t min_size_in_bytes, size_t max_size_in_bytes,
+    AllocationAlignment alignment, AllocationOrigin origin) {
   DCHECK(!is_local_space() && identity() == OLD_SPACE);
   DCHECK_EQ(origin, AllocationOrigin::kRuntime);
 
@@ -589,6 +586,8 @@ PagedSpace::SlowGetLinearAllocationAreaBackground(LocalHeap* local_heap,
         local_heap, min_size_in_bytes, max_size_in_bytes, alignment, origin);
     if (result) return result;
 
+    // Now contribute to sweeping from background thread and then try to
+    // reallocate.
     Sweeper::FreeSpaceMayContainInvalidatedSlots
         invalidated_slots_in_free_space =
             Sweeper::FreeSpaceMayContainInvalidatedSlots::kNo;
@@ -620,7 +619,19 @@ PagedSpace::SlowGetLinearAllocationAreaBackground(LocalHeap* local_heap,
     if (result) return result;
   }
 
-  // TODO(dinfuehr): Complete sweeping here and try allocation again.
+  if (collector->sweeping_in_progress()) {
+    // Complete sweeping for this space.
+    collector->DrainSweepingWorklistForSpace(identity());
+
+    {
+      ParkedMutexGuard lock(local_heap, &allocation_mutex_);
+      RefillFreeList();
+    }
+
+    // Last try to acquire memory from free list.
+    return TryAllocationFromFreeListBackground(
+        local_heap, min_size_in_bytes, max_size_in_bytes, alignment, origin);
+  }
 
   return {};
 }
@@ -873,13 +884,13 @@ bool CompactionSpace::RefillLabMain(int size_in_bytes,
 }
 
 bool OffThreadSpace::RefillLabMain(int size_in_bytes, AllocationOrigin origin) {
-  if (RefillLabFromFreeListMain(size_in_bytes, origin)) return true;
+  if (TryAllocationFromFreeListMain(size_in_bytes, origin)) return true;
 
   if (heap()->CanExpandOldGenerationBackground(size_in_bytes) && Expand()) {
     DCHECK((CountTotalPages() > 1) ||
            (static_cast<size_t>(size_in_bytes) <= free_list_->Available()));
-    return RefillLabFromFreeListMain(static_cast<size_t>(size_in_bytes),
-                                     origin);
+    return TryAllocationFromFreeListMain(static_cast<size_t>(size_in_bytes),
+                                         origin);
   }
 
   return false;
@@ -893,7 +904,7 @@ bool PagedSpace::RawRefillLabMain(int size_in_bytes, AllocationOrigin origin) {
   DCHECK_GE(size_in_bytes, 0);
   const int kMaxPagesToSweep = 1;
 
-  if (RefillLabFromFreeListMain(size_in_bytes, origin)) return true;
+  if (TryAllocationFromFreeListMain(size_in_bytes, origin)) return true;
 
   MarkCompactCollector* collector = heap()->mark_compact_collector();
   // Sweeping is still in progress.
@@ -908,7 +919,8 @@ bool PagedSpace::RawRefillLabMain(int size_in_bytes, AllocationOrigin origin) {
     RefillFreeList();
 
     // Retry the free list allocation.
-    if (RefillLabFromFreeListMain(static_cast<size_t>(size_in_bytes), origin))
+    if (TryAllocationFromFreeListMain(static_cast<size_t>(size_in_bytes),
+                                      origin))
       return true;
 
     if (ContributeToSweepingMain(size_in_bytes, kMaxPagesToSweep, size_in_bytes,
@@ -923,7 +935,8 @@ bool PagedSpace::RawRefillLabMain(int size_in_bytes, AllocationOrigin origin) {
     Page* page = main_space->RemovePageSafe(size_in_bytes);
     if (page != nullptr) {
       AddPage(page);
-      if (RefillLabFromFreeListMain(static_cast<size_t>(size_in_bytes), origin))
+      if (TryAllocationFromFreeListMain(static_cast<size_t>(size_in_bytes),
+                                        origin))
         return true;
     }
   }
@@ -937,8 +950,8 @@ bool PagedSpace::RawRefillLabMain(int size_in_bytes, AllocationOrigin origin) {
       }
       DCHECK((CountTotalPages() > 1) ||
              (static_cast<size_t>(size_in_bytes) <= free_list_->Available()));
-      return RefillLabFromFreeListMain(static_cast<size_t>(size_in_bytes),
-                                       origin);
+      return TryAllocationFromFreeListMain(static_cast<size_t>(size_in_bytes),
+                                           origin);
     }
   }
 
@@ -953,7 +966,7 @@ bool PagedSpace::RawRefillLabMain(int size_in_bytes, AllocationOrigin origin) {
       RefillFreeList();
 
       // Last try to acquire memory from free list.
-      return RefillLabFromFreeListMain(size_in_bytes, origin);
+      return TryAllocationFromFreeListMain(size_in_bytes, origin);
     }
     return false;
   }
@@ -975,7 +988,7 @@ bool PagedSpace::ContributeToSweepingMain(int required_freed_bytes,
         invalidated_slots_in_free_space);
     RefillFreeList();
     if (max_freed >= size_in_bytes)
-      return RefillLabFromFreeListMain(size_in_bytes, origin);
+      return TryAllocationFromFreeListMain(size_in_bytes, origin);
   }
   return false;
 }

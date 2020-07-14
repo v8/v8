@@ -111,7 +111,7 @@ AllocationResult ConcurrentAllocator::AllocateInLabSlow(
 }
 
 bool ConcurrentAllocator::EnsureLab(AllocationOrigin origin) {
-  auto result = space_->SlowGetLinearAllocationAreaBackground(
+  auto result = space_->RawRefillLabBackground(
       local_heap_, kLabSize, kMaxLabSize, kWordAligned, origin);
 
   if (!result) return false;
@@ -135,8 +135,8 @@ bool ConcurrentAllocator::EnsureLab(AllocationOrigin origin) {
 
 AllocationResult ConcurrentAllocator::AllocateOutsideLab(
     int object_size, AllocationAlignment alignment, AllocationOrigin origin) {
-  auto result = space_->SlowGetLinearAllocationAreaBackground(
-      local_heap_, object_size, object_size, alignment, origin);
+  auto result = space_->RawRefillLabBackground(local_heap_, object_size,
+                                               object_size, alignment, origin);
   if (!result) return AllocationResult::Retry(OLD_SPACE);
 
   HeapObject object = HeapObject::FromAddress(result->first);

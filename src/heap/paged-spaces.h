@@ -148,11 +148,10 @@ class V8_EXPORT_PRIVATE PagedSpace
   // Allocate the requested number of bytes in the space from a background
   // thread.
   V8_WARN_UNUSED_RESULT base::Optional<std::pair<Address, size_t>>
-  SlowGetLinearAllocationAreaBackground(LocalHeap* local_heap,
-                                        size_t min_size_in_bytes,
-                                        size_t max_size_in_bytes,
-                                        AllocationAlignment alignment,
-                                        AllocationOrigin origin);
+  RawRefillLabBackground(LocalHeap* local_heap, size_t min_size_in_bytes,
+                         size_t max_size_in_bytes,
+                         AllocationAlignment alignment,
+                         AllocationOrigin origin);
 
   size_t Free(Address start, size_t size_in_bytes, SpaceAccountingMode mode) {
     if (size_in_bytes == 0) return 0;
@@ -364,8 +363,8 @@ class V8_EXPORT_PRIVATE PagedSpace
   inline AllocationResult TryAllocateLinearlyAligned(
       int* size_in_bytes, AllocationAlignment alignment);
 
-  V8_WARN_UNUSED_RESULT bool RefillLabFromFreeListMain(size_t size_in_bytes,
-                                                       AllocationOrigin origin);
+  V8_WARN_UNUSED_RESULT bool TryAllocationFromFreeListMain(
+      size_t size_in_bytes, AllocationOrigin origin);
 
   V8_WARN_UNUSED_RESULT bool ContributeToSweepingMain(int required_freed_bytes,
                                                       int max_pages,
