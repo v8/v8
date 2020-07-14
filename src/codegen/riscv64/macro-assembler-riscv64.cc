@@ -2523,7 +2523,7 @@ void TurboAssembler::Dpopcnt(Register rd, Register rs) {
   Dmul(scratch2, value, scratch2);  // B2 = 0x0F0F0F0F0F0F0F0Fl;
   And(rd, rd, scratch2);
   Dmul(rd, rd, value);
-  RV_srli(rd, rd, 32 + (shift & 0x1F));
+  RV_srli(rd, rd, 32 + shift);
 }
 
 void TurboAssembler::TryInlineTruncateDoubleToI(Register result,

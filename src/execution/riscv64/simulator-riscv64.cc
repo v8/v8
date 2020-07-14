@@ -2909,14 +2909,14 @@ void Simulator::DecodeRVIType() {
       break;
     }
     case RO_SLLIW: {
-      set_rd(sext32(rs1() << shamt()));
+      set_rd(sext32(rs1() << shamt32()));
       break;
     }
     case RO_SRLIW: {  //  RO_SRAIW
       if (!instr_.IsArithShift()) {
-        set_rd(sext32(uint32_t(rs1()) >> shamt()));
+        set_rd(sext32(uint32_t(rs1()) >> shamt32()));
       } else {
-        set_rd(sext32(int32_t(rs1()) >> shamt()));
+        set_rd(sext32(int32_t(rs1()) >> shamt32()));
       }
       break;
     }

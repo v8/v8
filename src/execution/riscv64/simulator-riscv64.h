@@ -507,6 +507,7 @@ class Simulator : public SimulatorBase {
     if (trace) TraceRegWr(get_fpu_register(RV_rd_reg()), DOUBLE);
   }
   inline int16_t shamt() const { return (imm12() & 0x3F); }
+  inline int16_t shamt32() const { return (imm12() & 0x1F); }
   inline int32_t s_imm12() const { return instr_.StoreOffset(); }
   inline int32_t u_imm() const { return instr_.Imm20UValue() << 12; }
   inline void require(bool check) {

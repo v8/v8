@@ -440,10 +440,10 @@ class V8_EXPORT_PRIVATE TurboAssembler : public TurboAssemblerBase {
   void SmiUntag(Register dst, const MemOperand& src);
   void SmiUntag(Register dst, Register src) {
     if (SmiValuesAre32Bits()) {
-      RV_srai(dst, src, kSmiShift & 0x3F);
+      RV_srai(dst, src, kSmiShift);
     } else {
       DCHECK(SmiValuesAre31Bits());
-      RV_sraiw(dst, src, kSmiShift & 0x1F);
+      RV_sraiw(dst, src, kSmiShift);
     }
   }
 
