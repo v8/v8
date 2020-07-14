@@ -654,7 +654,7 @@ void LiftoffAssembler::FillStackSlotsWithZero(int start, int size) {
 
     Label loop;
     bind(&loop);
-    Sd(zero_reg, MemOperand(a0, kSystemPointerSize));
+    Sd(zero_reg, MemOperand(a0));
     daddiu(a0, a0, kSystemPointerSize);
     BranchShort(&loop, ne, a0, Operand(a1));
 
