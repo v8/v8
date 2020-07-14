@@ -1927,8 +1927,7 @@ int WasmFrame::LookupExceptionHandlerInTable() {
   wasm::WasmCode* code =
       isolate()->wasm_engine()->code_manager()->LookupCode(pc());
   if (!code->IsAnonymous() && code->handler_table_size() > 0) {
-    HandlerTable table(code->handler_table(), code->handler_table_size(),
-                       HandlerTable::kReturnAddressBasedEncoding);
+    HandlerTable table(code);
     int pc_offset = static_cast<int>(pc() - code->instruction_start());
     return table.LookupReturn(pc_offset);
   }

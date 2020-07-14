@@ -37,6 +37,10 @@ int Code::safepoint_table_size() const {
 
 bool Code::has_safepoint_table() const { return safepoint_table_size() > 0; }
 
+Address Code::HandlerTableAddress() const {
+  return InstructionStart() + handler_table_offset();
+}
+
 int Code::handler_table_size() const {
   DCHECK_GE(constant_pool_offset() - handler_table_offset(), 0);
   return constant_pool_offset() - handler_table_offset();
