@@ -160,9 +160,8 @@ class IcProcessor extends LogReader {
 }
 
 // ================
-let entries = [];
 
-let properties = [
+IcProcessor.kProperties = [
   'type',
   'category',
   'functionName',
@@ -171,8 +170,9 @@ let properties = [
   'key',
   'map',
   'reason',
-  'file',
+  'file'
 ];
+
 class CustomIcProcessor extends IcProcessor {
   constructor() {
     super();
@@ -245,3 +245,5 @@ class Entry {
     return offset;
   }
 }
+
+export { CustomIcProcessor as default };

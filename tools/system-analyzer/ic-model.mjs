@@ -2,21 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-'use strict';
-
-let entries = [];
-
-export let properties = [
-  'type',
-  'category',
-  'functionName',
-  'filePosition',
-  'state',
-  'key',
-  'map',
-  'reason',
-  'file',
-];
+import CustomIcProcessor from "./ic-processor.mjs";
 
 // For compatibility with console scripts:
 print = console.log;
@@ -38,8 +24,8 @@ export class Group {
 
   createSubGroups() {
     this.groups = {};
-    for (let i = 0; i < properties.length; i++) {
-      let subProperty = properties[i];
+    for (let i = 0; i < CustomIcProcessor.kProperties.length; i++) {
+      let subProperty = CustomIcProcessor.kProperties[i];
       if (this.property == subProperty) continue;
       this.groups[subProperty] = Group.groupBy(this.entries, subProperty);
     }

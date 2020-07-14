@@ -2,9 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-'use strict';
-// const kChunkHeight = 250;
-// const kChunkWidth = 10;
+import {kChunkWidth, kChunkHeight} from './map-processor.mjs';
 
 class State {
   constructor(mapPanelId, timelinePanelId) {
@@ -698,25 +696,4 @@ function transitionTypeToColor(type) {
   return '#9B6EDC';
 }
 
-//  ======================= histogram ==========
-Object.defineProperty(Edge.prototype, 'getColor', { value:function() {
-  return transitionTypeToColor(this.type);
-}});
-
-define(Array.prototype, "histogram", function(mapFn) {
-  let histogram = [];
-  for (let i = 0; i < this.length; i++) {
-    let value = this[i];
-    let index = Math.round(mapFn(value))
-    let bucket = histogram[index];
-    if (bucket !== undefined) {
-      bucket.push(value);
-    } else {
-      histogram[index] = [value];
-    }
-  }
-  for (let i = 0; i < histogram.length; i++) {
-    histogram[i] = histogram[i] || [];
-  }
-  return histogram;
-});
+export { State, div, table, tr, td};

@@ -2,7 +2,8 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-import {Group, properties} from './ic-model.js';
+import {Group} from './ic-model.mjs';
+import CustomIcProcessor from "./ic-processor.mjs";
 
 defineCustomElement('ic-panel', (templateText) =>
  class ICPanel extends HTMLElement {
@@ -25,6 +26,14 @@ defineCustomElement('ic-panel', (templateText) =>
 
   querySelectorAll(query) {
     return this.shadowRoot.querySelectorAll(query);
+  }
+
+  set entries(value){
+    this._entries = value;
+  }
+
+  get entries(){
+    return this._entries;
   }
 
   get groupKeySelect() {
@@ -143,7 +152,7 @@ defineCustomElement('ic-panel', (templateText) =>
     let omitted = entries.length - max;
     if (omitted > 0) {
       let tr = document.createElement("tr");
-      let tdNode = td(tr, 'Omitted ' + omitted + " entries.");
+      let tdNode = this.td(tr, 'Omitted ' + omitted + " entries.");
       tdNode.colSpan = 4;
       fragment.appendChild(tr);
     }
@@ -200,9 +209,9 @@ defineCustomElement('ic-panel', (templateText) =>
   initGroupKeySelect() {
     let select = this.groupKeySelect;
     select.options.length = 0;
-    for (let i in properties) {
+    for (let i in CustomIcProcessor.kProperties) {
       let option = document.createElement("option");
-      option.text = properties[i];
+      option.text = CustomIcProcessor.kProperties[i];
       select.add(option);
     }
   }

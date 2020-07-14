@@ -10,14 +10,9 @@ found in the LICENSE file. -->
   <title>Indicium</title>
   <link href='https://fonts.googleapis.com/css?family=Roboto' rel='stylesheet'>
   <!-- <link rel="icon" type="image/png" href="/images/favicon.png"/> -->
-  <!-- <script type="module" src="index.js"></script> -->
+  <script type="module" src="index.mjs"></script>
   <link rel="stylesheet" type="text/css" href="./index.css">
   <script src="helper.js"></script>
-
-  <script type="module" src="log-file-reader.mjs"></script>
-  <script type="module" src="map-panel.mjs"></script>
-  <script type="module" src="timeline-panel.mjs"></script>
-  <script type="module" src="ic-panel.mjs"></script>
 
   <script src="../splaytree.js"></script>
   <script src="../codemap.js"></script>
@@ -28,17 +23,24 @@ found in the LICENSE file. -->
   <script src="../logreader.js"></script>
   <script src="../arguments.js"></script>
   <script src="../SourceMap.js"></script>
-  <script src="./map-processor.js"></script>
-  <script src="./ic-processor.js"></script>
-  <script src="./map-model.js"></script>
-<style>
-#instructions {
-  padding: 10px 10px  60px 10px ;
-  margin: auto;
-  background-color: #121212;
-  box-shadow: 0 10px 20px rgba(0,0,0,0.19), 0 6px 6px rgba(0,0,0,0.23);
-}
-kbd {
+  <style>
+  body {
+    font-family: 'Roboto', sans-serif;
+    color: white;
+    margin-left: 5%;
+    margin-right: 5%;
+    background-color: #000000;
+  }
+  .colorbox {
+    width: 10px;
+    height: 10px;
+    border: 1px black solid;
+  }
+  #instructions {
+    padding: 10px 10px  60px 10px ;
+    margin: auto;
+  }
+  kbd {
   background-color: #BB86FC;
   color:black;
   border-radius: 3px;
@@ -62,114 +64,13 @@ dd {
   margin: 0;
 }
 </style>
-<script>
-'use strict';
-
-// Event handlers
-document.onkeydown = handleKeyDown;
-function handleKeyDown(event) {
-  stateGlobal.navigation = document.state.navigation;
-  let nav = document.state.navigation;
-  switch(event.key) {
-    case "ArrowUp":
-      event.preventDefault();
-      if (event.shiftKey) {
-        nav.selectPrevEdge();
-      } else {
-        nav.moveInChunk(-1);
-      }
-      return false;
-    case "ArrowDown":
-      event.preventDefault();
-      if (event.shiftKey) {
-        nav.selectNextEdge();
-      } else {
-        nav.moveInChunk(1);
-      }
-      return false;
-    case "ArrowLeft":
-      nav.moveInChunks(false);
-      break;
-    case "ArrowRight":
-      nav.moveInChunks(true);
-      break;
-    case "+":
-      nav.increaseTimelineResolution();
-      break;
-    case "-":
-      nav.decreaseTimelineResolution();
-      break;
-  }
-}
-
-
-// Update application state
-function updateDocumentState(){
-    document.state = stateGlobal.state;
-    try {
-      document.state.timeline = stateGlobal.timeline;
-    } catch (error) {
-      console.log(error);
-      console.log("cannot assign timeline to the state!");
-    }
-}
-
-// Map event log processing
-function handleLoadTextMapProcessor(text) {
-    let mapProcessor = new MapProcessor();
-    return mapProcessor.processString(text);
-}
-
-// IC event file reading and log processing
-
-function loadFileIC(file) {
-  let reader = new FileReader();
-  reader.onload = function(evt) {
-    let icProcessor = new CustomIcProcessor();
-    icProcessor.processString(this.result);
-    let entries = icProcessor.entries;
-    $("ic-panel").countSelect.innerHTML = entries.length;
-    $('#ic-panel').entries = entries;
-  }
-  reader.readAsText(file);
-  $("ic-panel").initGroupKeySelect();
-}
-
-function $(id) { return document.querySelector(id); }
-
-// holds the state of the application
-let stateGlobal = Object.create(null);
-
-// call when a new file uploaded
-function globalDataUpload(e) {
-  stateGlobal.timeline = e.detail;
-  if(!e.detail) return;
-  $('#container').style.display = 'block';
-  // instantiate the app logic
-  stateGlobal.fileData = e.detail;
-  stateGlobal.state = new State('#map-panel','#timeline-panel');
-  stateGlobal.timeline = handleLoadTextMapProcessor(stateGlobal.fileData.chunk);
-  updateDocumentState();
-  loadFileIC(stateGlobal.fileData.file);
-}
-
-
-function globalSearchBarEvent(e) {
-  if(!e.detail.isValidMap) return;
-  document.state.map = e.detail.map;
-}
-
-function handleSelectIcEvents(e){
-  if(!e.detail) return;
-  // Set selected IC events on the View
-  document.state.filteredEntries = e.detail;
-}
-
-function showMaps(e) {
-  if(!e.detail) return;
-  // Show selected maps on the View
-  document.state.view.transitionView.showMaps(e.detail);
-}
+<script type="module" >
+import {globalSearchBarEvent, globalDataUpload, showMaps, handleSelectIcEvents} from  './index.mjs';
+//TODO(zcankara): Build an App component that has these methods, rather than using globals
+globalThis.globalDataUpload = globalDataUpload;
+globalThis.globalSearchBarEvent = globalSearchBarEvent;
+globalThis.showMaps = showMaps;
+globalThis.handleSelectIcEvents = handleSelectIcEvents;
 </script>
 </head>
 <body>
