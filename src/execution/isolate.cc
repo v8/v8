@@ -2955,7 +2955,10 @@ void Isolate::Deinit() {
 
   BackingStore::RemoveSharedWasmMemoryObjects(this);
 
-  heap_.mark_compact_collector()->EnsureSweepingCompleted();
+  // Help sweeper threads complete sweeping to stop faster.
+  heap_.mark_compact_collector()->DrainSweepingWorklists();
+  heap_.mark_compact_collector()->sweeper()->EnsureIterabilityCompleted();
+
   heap_.memory_allocator()->unmapper()->EnsureUnmappingCompleted();
 
   DumpAndResetStats();

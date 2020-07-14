@@ -622,6 +622,11 @@ void MarkCompactCollector::EnsureSweepingCompleted() {
 #endif
 }
 
+void MarkCompactCollector::DrainSweepingWorklists() {
+  if (!sweeper()->sweeping_in_progress()) return;
+  sweeper()->DrainSweepingWorklists();
+}
+
 void MarkCompactCollector::DrainSweepingWorklistForSpace(
     AllocationSpace space) {
   if (!sweeper()->sweeping_in_progress()) return;
