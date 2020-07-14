@@ -101,7 +101,7 @@ class Pipeline : public AllStatic {
   // Run just the register allocator phases.
   V8_EXPORT_PRIVATE static bool AllocateRegistersForTesting(
       const RegisterConfiguration* config, InstructionSequence* sequence,
-      bool run_verifier);
+      bool use_fast_register_allocator, bool run_verifier);
 
  private:
   DISALLOW_IMPLICIT_CONSTRUCTORS(Pipeline);

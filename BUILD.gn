@@ -1900,6 +1900,7 @@ v8_compiler_sources = [
   "src/compiler/backend/live-range-separator.h",
   "src/compiler/backend/move-optimizer.cc",
   "src/compiler/backend/move-optimizer.h",
+  "src/compiler/backend/register-allocation.h",
   "src/compiler/backend/register-allocator-verifier.cc",
   "src/compiler/backend/register-allocator-verifier.h",
   "src/compiler/backend/register-allocator.cc",
