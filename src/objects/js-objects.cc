@@ -1552,6 +1552,8 @@ Maybe<bool> GetPropertyDescriptorWithInterceptor(LookupIterator* it,
   } else {
     result = args.CallNamedDescriptor(interceptor, it->name());
   }
+  // An exception was thrown in the interceptor. Propagate.
+  RETURN_VALUE_IF_SCHEDULED_EXCEPTION(isolate, Nothing<bool>());
   if (!result.is_null()) {
     // Request successfully intercepted, try to set the property
     // descriptor.
