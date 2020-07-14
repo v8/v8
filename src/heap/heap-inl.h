@@ -189,7 +189,7 @@ AllocationResult Heap::AllocateRaw(int size_in_bytes, AllocationType type,
   DCHECK(AllowHeapAllocation::IsAllowed());
   DCHECK_IMPLIES(type == AllocationType::kCode,
                  alignment == AllocationAlignment::kCodeAligned);
-  DCHECK_EQ(gc_state_, NOT_IN_GC);
+  DCHECK_EQ(gc_state(), NOT_IN_GC);
 #ifdef V8_ENABLE_ALLOCATION_TIMEOUT
   if (FLAG_random_gc_interval > 0 || FLAG_gc_interval >= 0) {
     if (!always_allocate() && Heap::allocation_timeout_-- <= 0) {
@@ -281,7 +281,7 @@ HeapObject Heap::AllocateRawWith(int size, AllocationType allocation,
     DCHECK(!result.IsRetry());
     return result.ToObjectChecked();
   }
-  DCHECK_EQ(gc_state_, NOT_IN_GC);
+  DCHECK_EQ(gc_state(), NOT_IN_GC);
   Heap* heap = isolate()->heap();
   Address* top = heap->NewSpaceAllocationTopAddress();
   Address* limit = heap->NewSpaceAllocationLimitAddress();
@@ -414,7 +414,7 @@ bool Heap::InYoungGeneration(HeapObject heap_object) {
     // If the object is in the young generation, then it's not in RO_SPACE so
     // this is safe.
     Heap* heap = Heap::FromWritableHeapObject(heap_object);
-    DCHECK_IMPLIES(heap->gc_state_ == NOT_IN_GC, InToPage(heap_object));
+    DCHECK_IMPLIES(heap->gc_state() == NOT_IN_GC, InToPage(heap_object));
   }
 #endif
   return result;
