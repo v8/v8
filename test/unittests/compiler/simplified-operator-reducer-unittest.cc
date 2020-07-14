@@ -30,7 +30,7 @@ class SimplifiedOperatorReducerTest : public GraphTest {
 
  protected:
   Reduction Reduce(Node* node) {
-    JSHeapBroker broker(isolate(), zone());
+    JSHeapBroker broker(isolate(), zone(), isolate()->NewPersistentHandles());
     MachineOperatorBuilder machine(zone());
     JSOperatorBuilder javascript(zone());
     JSGraph jsgraph(isolate(), graph(), common(), &javascript, simplified(),

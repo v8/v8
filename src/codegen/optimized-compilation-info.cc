@@ -28,6 +28,7 @@ OptimizedCompilationInfo::OptimizedCompilationInfo(
   bytecode_array_ = handle(shared->GetBytecodeArray(), isolate);
   shared_info_ = shared;
   closure_ = closure;
+  ph_ = isolate->NewPersistentHandles();
 
   // Collect source positions for optimized code when profiling or if debugger
   // is active, to be able to get more precise source positions at the price of

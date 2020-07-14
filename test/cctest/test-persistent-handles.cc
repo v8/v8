@@ -10,7 +10,6 @@
 #include "src/base/platform/semaphore.h"
 #include "src/handles/handles-inl.h"
 #include "src/handles/local-handles-inl.h"
-#include "src/handles/persistent-handles-inl.h"
 #include "src/handles/persistent-handles.h"
 #include "src/heap/heap.h"
 #include "src/heap/local-heap-inl.h"

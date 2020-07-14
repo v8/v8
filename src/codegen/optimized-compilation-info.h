@@ -14,6 +14,7 @@
 #include "src/diagnostics/basic-block-profiler.h"
 #include "src/execution/frames.h"
 #include "src/handles/handles.h"
+#include "src/handles/persistent-handles.h"
 #include "src/objects/objects.h"
 #include "src/utils/utils.h"
 #include "src/utils/vector.h"
@@ -220,6 +221,10 @@ class V8_EXPORT_PRIVATE OptimizedCompilationInfo final {
     profiler_data_ = profiler_data;
   }
 
+  std::unique_ptr<PersistentHandles> DetachPersistentHandles() {
+    return std::move(ph_);
+  }
+
  private:
   void ConfigureFlags();
 
@@ -275,6 +280,15 @@ class V8_EXPORT_PRIVATE OptimizedCompilationInfo final {
   std::unique_ptr<char[]> trace_turbo_filename_;
 
   TickCounter tick_counter_;
+
+  // This PersistentHandles container is owned first by
+  // OptimizedCompilationInfo, then by JSHeapBroker, then by LocalHeap (when we
+  // go to the background thread), then again by JSHeapBroker (right before
+  // returning to the main thread), which gets destroyed when PipelineData gets
+  // destroyed when e.g. PipelineCompilationJob gets destroyed. Since it is a
+  // member of OptimizedCompilationInfo, we make sure that we have one and only
+  // one per compilation job.
+  std::unique_ptr<PersistentHandles> ph_;
 
   DISALLOW_COPY_AND_ASSIGN(OptimizedCompilationInfo);
 };

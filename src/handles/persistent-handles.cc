@@ -41,7 +41,7 @@ void PersistentHandles::Detach() {
   owner_ = nullptr;
 }
 
-void PersistentHandles::CheckOwnerIsParked() {
+void PersistentHandles::CheckOwnerIsNotParked() {
   if (owner_) DCHECK(!owner_->IsParked());
 }
 

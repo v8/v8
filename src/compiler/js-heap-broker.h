@@ -14,6 +14,8 @@
 #include "src/compiler/refs-map.h"
 #include "src/compiler/serializer-hints.h"
 #include "src/handles/handles.h"
+#include "src/handles/persistent-handles.h"
+#include "src/heap/local-heap.h"
 #include "src/interpreter/bytecode-array-accessor.h"
 #include "src/objects/feedback-vector.h"
 #include "src/objects/function-kind.h"
@@ -74,13 +76,17 @@ struct PropertyAccessTarget {
 class V8_EXPORT_PRIVATE JSHeapBroker {
  public:
   JSHeapBroker(Isolate* isolate, Zone* broker_zone, bool tracing_enabled,
-               bool is_concurrent_inlining, bool is_native_context_independent);
+               bool is_concurrent_inlining, bool is_native_context_independent,
+               std::unique_ptr<PersistentHandles> persistent_handles);
 
   // For use only in tests, sets default values for some arguments. Avoids
   // churn when new flags are added.
-  JSHeapBroker(Isolate* isolate, Zone* broker_zone)
-      : JSHeapBroker(isolate, broker_zone, FLAG_trace_heap_broker, false,
-                     false) {}
+  JSHeapBroker(Isolate* isolate, Zone* broker_zone,
+               std::unique_ptr<PersistentHandles> persistent_handles)
+      : JSHeapBroker(isolate, broker_zone, FLAG_trace_heap_broker, false, false,
+                     std::move(persistent_handles)) {}
+
+  ~JSHeapBroker();
 
   // The compilation target's native context. We need the setter because at
   // broker construction time we don't yet have the canonical handle.
@@ -101,6 +107,8 @@ class V8_EXPORT_PRIVATE JSHeapBroker {
 
   enum BrokerMode { kDisabled, kSerializing, kSerialized, kRetired };
   BrokerMode mode() const { return mode_; }
+  void InitializeLocalHeap();
+  void TearDownLocalHeap();
   void StopSerializing();
   void Retire();
   bool SerializingAllowed() const;
@@ -202,6 +210,16 @@ class V8_EXPORT_PRIVATE JSHeapBroker {
   bool IsSerializedForCompilation(const SharedFunctionInfoRef& shared,
                                   const FeedbackVectorRef& feedback) const;
 
+  template <typename T>
+  Handle<T> NewPersistentHandle(T obj) {
+    return ph_->NewHandle(obj);
+  }
+
+  template <typename T>
+  Handle<T> NewPersistentHandle(Handle<T> obj) {
+    return ph_->NewHandle(*obj);
+  }
+
   std::string Trace() const;
   void IncrementTracingIndentation();
   void DecrementTracingIndentation();
@@ -255,6 +273,8 @@ class V8_EXPORT_PRIVATE JSHeapBroker {
   bool const tracing_enabled_;
   bool const is_concurrent_inlining_;
   bool const is_native_context_independent_;
+  std::unique_ptr<PersistentHandles> ph_;
+  base::Optional<LocalHeap> local_heap_;
   unsigned trace_indentation_ = 0;
   PerIsolateCompilerCache* compiler_cache_ = nullptr;
   ZoneUnorderedMap<FeedbackSource, ProcessedFeedback const*,

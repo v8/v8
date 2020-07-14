@@ -32,10 +32,17 @@ class PersistentHandles {
   void Iterate(RootVisitor* visitor);
 
   template <typename T>
-  inline Handle<T> NewHandle(T object);
+  Handle<T> NewHandle(T obj) {
+#ifdef DEBUG
+    CheckOwnerIsNotParked();
+#endif
+    return Handle<T>(GetHandle(obj.ptr()));
+  }
 
   template <typename T>
-  inline Handle<T> NewHandle(Handle<T> object);
+  Handle<T> NewHandle(Handle<T> obj) {
+    return NewHandle(*obj);
+  }
 
 #ifdef DEBUG
   bool Contains(Address* location);
@@ -48,7 +55,7 @@ class PersistentHandles {
 #ifdef DEBUG
   void Attach(LocalHeap* local_heap);
   void Detach();
-  V8_EXPORT_PRIVATE void CheckOwnerIsParked();
+  V8_EXPORT_PRIVATE void CheckOwnerIsNotParked();
 
   LocalHeap* owner_ = nullptr;
 

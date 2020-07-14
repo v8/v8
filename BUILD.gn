@@ -2458,7 +2458,6 @@ v8_source_set("v8_base_without_compiler") {
     "src/handles/local-handles.h",
     "src/handles/maybe-handles-inl.h",
     "src/handles/maybe-handles.h",
-    "src/handles/persistent-handles-inl.h",
     "src/handles/persistent-handles.cc",
     "src/handles/persistent-handles.h",
     "src/heap/allocation-stats.h",
