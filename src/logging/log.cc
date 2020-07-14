@@ -1659,8 +1659,9 @@ void Logger::ICEvent(const char* type, bool keyed, Handle<Map> map,
   int line;
   int column;
   Address pc = isolate_->GetAbstractPC(&line, &column);
-  msg << type << kNext << reinterpret_cast<void*>(pc) << kNext << line << kNext
-      << column << kNext << old_state << kNext << new_state << kNext
+  msg << type << kNext << reinterpret_cast<void*>(pc) << kNext
+      << timer_.Elapsed().InMicroseconds() << kNext << line << kNext << column
+      << kNext << old_state << kNext << new_state << kNext
       << AsHex::Address(map.is_null() ? kNullAddress : map->ptr()) << kNext;
   if (key->IsSmi()) {
     msg << Smi::ToInt(*key);

@@ -21,8 +21,8 @@ class IcProcessor extends LogReader {
   constructor() {
     super();
     let propertyICParser = [
-      parseInt, parseInt, parseInt, parseString, parseString, parseInt,
-      parseString, parseString, parseString
+      parseInt, parseInt, parseInt, parseInt, parseString, parseString,
+      parseInt, parseString, parseString, parseString
     ];
     LogReader.call(this, {
       'code-creation': {
@@ -145,9 +145,9 @@ class IcProcessor extends LogReader {
     if (!array) return name;
     return entry.getState() + array[1];
   }
-  // TODO(zc): Process the IC event togather with time
+
   processPropertyIC(
-      type, pc, line, column, old_state, new_state, map, name, modifier,
+      type, pc, time, line, column, old_state, new_state, map, name, modifier,
       slow_reason) {
     this[type]++;
     let entry = this.profile_.findEntry(pc);
@@ -155,7 +155,7 @@ class IcProcessor extends LogReader {
         type + ' (' + old_state + '->' + new_state + modifier + ') at ' +
         this.formatName(entry) + ':' + line + ':' + column + ' ' + name +
         ' (map 0x' + map.toString(16) + ')' +
-        (slow_reason ? ' ' + slow_reason : ''));
+        (slow_reason ? ' ' + slow_reason : '') + 'time: ' + time);
   }
 }
 
@@ -185,19 +185,20 @@ class CustomIcProcessor extends IcProcessor {
   }
 
   processPropertyIC(
-      type, pc, line, column, old_state, new_state, map, key, modifier,
+      type, pc, time, line, column, old_state, new_state, map, key, modifier,
       slow_reason) {
     let fnName = this.functionName(pc);
     this.entries.push(new Entry(
-        type, fnName, line, column, key, old_state, new_state, map,
+        type, fnName, time, line, column, key, old_state, new_state, map,
         slow_reason));
   }
 };
 
 class Entry {
   constructor(
-      type, fn_file, line, column, key, oldState, newState, map, reason,
+      type, fn_file, time, line, column, key, oldState, newState, map, reason,
       additional) {
+    this.time = time;
     this.type = type;
     this.category = 'other';
     if (this.type.indexOf('Store') !== -1) {

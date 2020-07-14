@@ -38,7 +38,7 @@ export class Group {
       let entry = entries[i];
       let key = entry[property];
       if (accumulator[key] == undefined) {
-        accumulator[key] = new Group(property, key, entry)
+        accumulator[key] = new Group(property, key, entry);
       } else {
         let group = accumulator[key];
         if (group.entries == undefined) console.log([group, entry]);
@@ -54,4 +54,5 @@ export class Group {
     result.sort((a, b) => {return b.count - a.count});
     return result;
   }
+
 }
