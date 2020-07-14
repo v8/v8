@@ -948,7 +948,9 @@ Handle<Object> LoadIC::ComputeHandler(LookupIterator* lookup) {
         TRACE_HANDLER_STATS(isolate(), LoadIC_LoadNormalDH);
         if (receiver_is_holder) return smi_handler;
         TRACE_HANDLER_STATS(isolate(), LoadIC_LoadNormalFromPrototypeDH);
-
+      } else if (lookup->IsElement(*holder)) {
+        TRACE_HANDLER_STATS(isolate(), LoadIC_SlowStub);
+        return LoadHandler::LoadSlow(isolate());
       } else {
         DCHECK_EQ(kField, lookup->property_details().location());
         FieldIndex field = lookup->GetFieldIndex();
@@ -1768,6 +1770,12 @@ MaybeObjectHandle StoreIC::ComputeHandler(LookupIterator* lookup) {
         TRACE_HANDLER_STATS(isolate(), StoreIC_StoreNormalDH);
         DCHECK(holder.is_identical_to(receiver));
         return MaybeObjectHandle(StoreHandler::StoreNormal(isolate()));
+      }
+
+      // -------------- Elements (for TypedArrays) -------------
+      if (lookup->IsElement(*holder)) {
+        TRACE_HANDLER_STATS(isolate(), StoreIC_SlowStub);
+        return MaybeObjectHandle(StoreHandler::StoreSlow(isolate()));
       }
 
       // -------------- Fields --------------

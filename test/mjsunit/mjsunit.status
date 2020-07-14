@@ -1119,6 +1119,7 @@
 ['system != linux', {
   # Multi-mapped mock allocator is only available on Linux.
   'regress/regress-crbug-1041232': [SKIP],
+  'regress/regress-crbug-1104608': [SKIP],
 }],
 
 ##############################################################################
