@@ -33,6 +33,7 @@ from testrunner.testproc.rerun import RerunProc
 from testrunner.testproc.shard import ShardProc
 from testrunner.testproc.sigproc import SignalProc
 from testrunner.testproc.timeout import TimeoutProc
+from testrunner.testproc import util
 
 
 BASE_DIR = (
@@ -265,6 +266,9 @@ class BaseTestRunner(object):
         # Swarming doesn't print how isolated commands are called. Lets make
         # this less cryptic by printing it ourselves.
         print(' '.join(sys.argv))
+
+        # Kill stray processes from previous tasks on swarming.
+        util.kill_processes_linux()
 
       self._load_build_config(options)
       command.setup(self.target_os, options.device)
