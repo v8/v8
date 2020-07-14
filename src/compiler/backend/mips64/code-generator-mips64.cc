@@ -2085,10 +2085,27 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       __ Assert(eq, static_cast<AbortReason>(i.InputOperand(2).immediate()),
                 i.InputRegister(0), Operand(i.InputRegister(1)));
       break;
+    case kMips64S128Const: {
+      CpuFeatureScope msa_scope(tasm(), MIPS_SIMD);
+      Simd128Register dst = i.OutputSimd128Register();
+      uint64_t imm1 = make_uint64(i.InputUint32(1), i.InputUint32(0));
+      uint64_t imm2 = make_uint64(i.InputUint32(3), i.InputUint32(2));
+      __ li(kScratchReg, imm1);
+      __ insert_d(dst, 0, kScratchReg);
+      __ li(kScratchReg, imm2);
+      __ insert_d(dst, 1, kScratchReg);
+      break;
+    }
     case kMips64S128Zero: {
       CpuFeatureScope msa_scope(tasm(), MIPS_SIMD);
-      __ xor_v(i.OutputSimd128Register(), i.OutputSimd128Register(),
-               i.OutputSimd128Register());
+      Simd128Register dst = i.OutputSimd128Register();
+      __ xor_v(dst, dst, dst);
+      break;
+    }
+    case kMips64S128AllOnes: {
+      CpuFeatureScope msa_scope(tasm(), MIPS_SIMD);
+      Simd128Register dst = i.OutputSimd128Register();
+      __ ceq_d(dst, dst, dst);
       break;
     }
     case kMips64I32x4Splat: {

@@ -1675,6 +1675,17 @@ void LiftoffAssembler::emit_f64x2_le(LiftoffRegister dst, LiftoffRegister lhs,
   fcle_d(dst.fp().toW(), lhs.fp().toW(), rhs.fp().toW());
 }
 
+void LiftoffAssembler::emit_s128_const(LiftoffRegister dst,
+                                       const uint8_t imms[16]) {
+  MSARegister dst_msa = dst.fp().toW();
+  uint64_t vals[2];
+  memcpy(vals, imms, sizeof(vals));
+  li(kScratchReg, vals[0]);
+  insert_d(dst_msa, 0, kScratchReg);
+  li(kScratchReg, vals[1]);
+  insert_d(dst_msa, 1, kScratchReg);
+}
+
 void LiftoffAssembler::emit_s128_not(LiftoffRegister dst, LiftoffRegister src) {
   nor_v(dst.fp().toW(), src.fp().toW(), src.fp().toW());
 }

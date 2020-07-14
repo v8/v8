@@ -165,7 +165,9 @@ namespace compiler {
   V(Mips64Seh)                               \
   V(Mips64Sync)                              \
   V(Mips64AssertEqual)                       \
+  V(Mips64S128Const)                         \
   V(Mips64S128Zero)                          \
+  V(Mips64S128AllOnes)                       \
   V(Mips64I32x4Splat)                        \
   V(Mips64I32x4ExtractLane)                  \
   V(Mips64I32x4ReplaceLane)                  \

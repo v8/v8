@@ -2243,6 +2243,8 @@ void InstructionSelector::VisitInt64AbsWithOverflow(Node* node) {
   V(S128Xor, kMipsS128Xor)                             \
   V(S128AndNot, kMipsS128AndNot)
 
+void InstructionSelector::VisitS128Const(Node* node) { UNIMPLEMENTED(); }
+
 void InstructionSelector::VisitS128Zero(Node* node) {
   MipsOperandGenerator g(this);
   Emit(kMipsS128Zero, g.DefineSameAsFirst(node));
