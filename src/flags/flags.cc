@@ -371,8 +371,8 @@ bool TryParseUnsigned(Flag* flag, const char* arg, const char* value,
 }
 
 // static
-int FlagList::SetFlagsFromCommandLine(int* argc, char** argv,
-                                      bool remove_flags) {
+int FlagList::SetFlagsFromCommandLine(int* argc, char** argv, bool remove_flags,
+                                      HelpOptions help_options) {
   int return_code = 0;
   // parse arguments
   for (int i = 1; i < *argc;) {
@@ -482,8 +482,13 @@ int FlagList::SetFlagsFromCommandLine(int* argc, char** argv,
   }
 
   if (FLAG_help) {
+    if (help_options.HasUsage()) {
+      PrintF(stdout, "%s", help_options.usage());
+    }
     PrintHelp();
-    exit(0);
+    if (help_options.ShouldExit()) {
+      exit(0);
+    }
   }
 
   if (remove_flags) {
