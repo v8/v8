@@ -147,7 +147,7 @@ void Decoder::PrintRs2(Instruction* instr) {
 }
 
 void Decoder::PrintRd(Instruction* instr) {
-  int reg = instr->RV_RdValue();
+  int reg = instr->RdValue();
   PrintRegister(reg);
 }
 
@@ -177,7 +177,7 @@ void Decoder::PrintFRs3(Instruction* instr) {
 }
 
 void Decoder::PrintFRd(Instruction* instr) {
-  int reg = instr->RV_RdValue();
+  int reg = instr->RdValue();
   PrintFPURegister(reg);
 }
 
@@ -337,7 +337,7 @@ int Decoder::FormatRegister(Instruction* instr, const char* format) {
     }
     UNREACHABLE();
   } else if (format[1] == 'd') {  // 'rd: rd register.
-    int reg = instr->RV_RdValue();
+    int reg = instr->RdValue();
     PrintRegister(reg);
     return 2;
   }
@@ -365,7 +365,7 @@ int Decoder::FormatFPURegisterOrRoundMode(Instruction* instr,
     }
     UNREACHABLE();
   } else if (format[1] == 'd') {  // 'fd: fd register.
-    int reg = instr->RV_RdValue();
+    int reg = instr->RdValue();
     PrintFPURegister(reg);
     return 2;
   } else if (format[1] == 'r') {  // 'frm
@@ -1040,13 +1040,12 @@ void Decoder::DecodeR4Type(Instruction* instr) {
 void Decoder::DecodeIType(Instruction* instr) {
   switch (instr->InstructionBits() & kITypeMask) {
     case RO_JALR:
-      if (instr->RV_RdValue() == zero_reg.code() &&
+      if (instr->RdValue() == zero_reg.code() &&
           instr->Rs1Value() == ra.code() && instr->Imm12Value() == 0)
         Format(instr, "ret");
-      else if (instr->RV_RdValue() == zero_reg.code() &&
-               instr->Imm12Value() == 0)
+      else if (instr->RdValue() == zero_reg.code() && instr->Imm12Value() == 0)
         Format(instr, "jr        'rs1");
-      else if (instr->RV_RdValue() == ra.code() && instr->Imm12Value() == 0)
+      else if (instr->RdValue() == ra.code() && instr->Imm12Value() == 0)
         Format(instr, "jalr      'rs1");
       else
         Format(instr, "jalr      'rd, 'imm12('rs1)");
@@ -1076,7 +1075,7 @@ void Decoder::DecodeIType(Instruction* instr) {
 #endif /*V8_TARGET_ARCH_64_BIT*/
     case RO_ADDI:
       if (instr->Imm12Value() == 0) {
-        if (instr->RV_RdValue() == zero_reg.code() &&
+        if (instr->RdValue() == zero_reg.code() &&
             instr->Rs1Value() == zero_reg.code())
           Format(instr, "nop");
         else
@@ -1163,21 +1162,21 @@ void Decoder::DecodeIType(Instruction* instr) {
     // FIXME(RISC-V): Add special formatting for CSR registers
     case RO_CSRRW:
       if (instr->CsrValue() == csr_fcsr) {
-        if (instr->RV_RdValue() == zero_reg.code())
+        if (instr->RdValue() == zero_reg.code())
           Format(instr, "fscsr     'rs1");
         else
           Format(instr, "fscsr     'rd, 'rs1");
       } else if (instr->CsrValue() == csr_frm) {
-        if (instr->RV_RdValue() == zero_reg.code())
+        if (instr->RdValue() == zero_reg.code())
           Format(instr, "fsrm      'rs1");
         else
           Format(instr, "fsrm      'rd, 'rs1");
       } else if (instr->CsrValue() == csr_fflags) {
-        if (instr->RV_RdValue() == zero_reg.code())
+        if (instr->RdValue() == zero_reg.code())
           Format(instr, "fsflags   'rs1");
         else
           Format(instr, "fsflags   'rd, 'rs1");
-      } else if (instr->RV_RdValue() == zero_reg.code()) {
+      } else if (instr->RdValue() == zero_reg.code()) {
         Format(instr, "csrw      'csr, 'rs1");
       } else {
         Format(instr, "csrrw     'rd, 'csr, 'rs1");
@@ -1218,31 +1217,31 @@ void Decoder::DecodeIType(Instruction* instr) {
         }
       } else if (instr->Rs1Value() == zero_reg.code()) {
         Format(instr, "csrr      'rd, 'csr");
-      } else if (instr->RV_RdValue() == zero_reg.code()) {
+      } else if (instr->RdValue() == zero_reg.code()) {
         Format(instr, "csrs      'csr, 'rs1");
       } else
         Format(instr, "csrrs     'rd, 'csr, 'rs1");
       break;
     case RO_CSRRC:
-      if (instr->RV_RdValue() == zero_reg.code())
+      if (instr->RdValue() == zero_reg.code())
         Format(instr, "csrc      'csr, 'rs1");
       else
         Format(instr, "csrrc     'rd, 'csr, 'rs1");
       break;
     case RO_CSRRWI:
-      if (instr->RV_RdValue() == zero_reg.code())
+      if (instr->RdValue() == zero_reg.code())
         Format(instr, "csrwi     'csr, 'vs1");
       else
         Format(instr, "csrrwi    'rd, 'csr, 'vs1");
       break;
     case RO_CSRRSI:
-      if (instr->RV_RdValue() == zero_reg.code())
+      if (instr->RdValue() == zero_reg.code())
         Format(instr, "csrsi     'csr, 'vs1");
       else
         Format(instr, "csrrsi    'rd, 'csr, 'vs1");
       break;
     case RO_CSRRCI:
-      if (instr->RV_RdValue() == zero_reg.code())
+      if (instr->RdValue() == zero_reg.code())
         Format(instr, "csrci     'csr, 'vs1");
       else
         Format(instr, "csrrci    'rd, 'csr, 'vs1");
@@ -1330,9 +1329,9 @@ void Decoder::DecodeJType(Instruction* instr) {
   // J Type doesn't have additional mask
   switch (instr->BaseOpcodeValue()) {
     case RO_JAL:
-      if (instr->RV_RdValue() == zero_reg.code())
+      if (instr->RdValue() == zero_reg.code())
         Format(instr, "j         'imm20J");
-      else if (instr->RV_RdValue() == ra.code())
+      else if (instr->RdValue() == ra.code())
         Format(instr, "jal       'imm20J");
       else
         Format(instr, "jal       'rd, 'imm20J");

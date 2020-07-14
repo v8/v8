@@ -59,8 +59,8 @@ TEST(RISCV_SIMPLE0) {
   MacroAssembler assm(isolate, v8::internal::CodeObjectRequired::kYes);
 
   // Addition.
-  __ RV_add(a0, a0, a1);
-  __ RV_jr(ra);
+  __ add(a0, a0, a1);
+  __ jr(ra);
 
   CodeDesc desc;
   assm.GetCode(isolate, &desc);
@@ -78,8 +78,8 @@ TEST(RISCV_SIMPLE1) {
   MacroAssembler assm(isolate, v8::internal::CodeObjectRequired::kYes);
 
   // Addition.
-  __ RV_addi(a0, a0, -1);
-  __ RV_jr(ra);
+  __ addi(a0, a0, -1);
+  __ jr(ra);
 
   CodeDesc desc;
   assm.GetCode(isolate, &desc);
@@ -98,18 +98,18 @@ TEST(RISCV_SIMPLE2) {
   MacroAssembler assm(isolate, v8::internal::CodeObjectRequired::kYes);
   Label L, C;
   // input a0, result a1
-  __ RV_mv(a1, a0);
+  __ mv(a1, a0);
   __ RV_li(a0, 0);
-  __ RV_j(&C);
+  __ j(&C);
 
   __ bind(&L);
 
-  __ RV_add(a0, a0, a1);
-  __ RV_addi(a1, a1, -1);
+  __ add(a0, a0, a1);
+  __ addi(a1, a1, -1);
 
   __ bind(&C);
-  __ RV_bgtz(a1, &L);
-  __ RV_jr(ra);
+  __ bgtz(a1, &L);
+  __ jr(ra);
 
   CodeDesc desc;
   assm.GetCode(isolate, &desc);
@@ -130,9 +130,9 @@ TEST(RISCV_SIMPLE3) {
 
   MacroAssembler assm(isolate, v8::internal::CodeObjectRequired::kYes);
 
-  __ RV_sb(a0, sp, -4);
-  __ RV_lb(a0, sp, -4);
-  __ RV_jr(ra);
+  __ sb(a0, sp, -4);
+  __ lb(a0, sp, -4);
+  __ jr(ra);
 
   CodeDesc desc;
   assm.GetCode(isolate, &desc);
@@ -153,37 +153,37 @@ TEST(LI) {
 
   // Load 0
   __ RV_li(a0, 0l);
-  __ RV_bnez(a0, &error);
+  __ bnez(a0, &error);
 
   // Load small number (<12 bits)
   __ RV_li(a1, 5);
   __ RV_li(a2, -5);
-  __ RV_add(a0, a1, a2);
-  __ RV_bnez(a0, &error);
+  __ add(a0, a1, a2);
+  __ bnez(a0, &error);
 
   // Load medium number (13-32 bits)
   __ RV_li(a1, 124076833);
   __ RV_li(a2, -124076833);
-  __ RV_add(a0, a1, a2);
-  __ RV_bnez(a0, &error);
+  __ add(a0, a1, a2);
+  __ bnez(a0, &error);
 
   // Load large number (33-64 bits)
   __ RV_li(a1, 11649936536080);
   __ RV_li(a2, -11649936536080);
-  __ RV_add(a0, a1, a2);
-  __ RV_bnez(a0, &error);
+  __ add(a0, a1, a2);
+  __ bnez(a0, &error);
 
   // Load large number (33-64 bits)
   __ RV_li(a1, 1070935975390360080);
   __ RV_li(a2, -1070935975390360080);
-  __ RV_add(a0, a1, a2);
-  __ RV_bnez(a0, &error);
+  __ add(a0, a1, a2);
+  __ bnez(a0, &error);
 
-  __ RV_mv(a0, zero_reg);
-  __ RV_jr(ra);
+  __ mv(a0, zero_reg);
+  __ jr(ra);
 
   __ bind(&error);
-  __ RV_jr(ra);
+  __ jr(ra);
 
   CodeDesc desc;
   assm.GetCode(isolate, &desc);
@@ -202,38 +202,38 @@ TEST(LI_CONST) {
   Label error;
 
   // Load 0
-  __ RV_li_constant(a0, 0l);
-  __ RV_bnez(a0, &error);
+  __ li_constant(a0, 0l);
+  __ bnez(a0, &error);
 
   // Load small number (<12 bits)
-  __ RV_li_constant(a1, 5);
-  __ RV_li_constant(a2, -5);
-  __ RV_add(a0, a1, a2);
-  __ RV_bnez(a0, &error);
+  __ li_constant(a1, 5);
+  __ li_constant(a2, -5);
+  __ add(a0, a1, a2);
+  __ bnez(a0, &error);
 
   // Load medium number (13-32 bits)
-  __ RV_li_constant(a1, 124076833);
-  __ RV_li_constant(a2, -124076833);
-  __ RV_add(a0, a1, a2);
-  __ RV_bnez(a0, &error);
+  __ li_constant(a1, 124076833);
+  __ li_constant(a2, -124076833);
+  __ add(a0, a1, a2);
+  __ bnez(a0, &error);
 
   // Load large number (33-64 bits)
-  __ RV_li_constant(a1, 11649936536080);
-  __ RV_li_constant(a2, -11649936536080);
-  __ RV_add(a0, a1, a2);
-  __ RV_bnez(a0, &error);
+  __ li_constant(a1, 11649936536080);
+  __ li_constant(a2, -11649936536080);
+  __ add(a0, a1, a2);
+  __ bnez(a0, &error);
 
   // Load large number (33-64 bits)
-  __ RV_li_constant(a1, 1070935975390360080);
-  __ RV_li_constant(a2, -1070935975390360080);
-  __ RV_add(a0, a1, a2);
-  __ RV_bnez(a0, &error);
+  __ li_constant(a1, 1070935975390360080);
+  __ li_constant(a2, -1070935975390360080);
+  __ add(a0, a1, a2);
+  __ bnez(a0, &error);
 
-  __ RV_mv(a0, zero_reg);
-  __ RV_jr(ra);
+  __ mv(a0, zero_reg);
+  __ jr(ra);
 
   __ bind(&error);
-  __ RV_jr(ra);
+  __ jr(ra);
 
   CodeDesc desc;
   assm.GetCode(isolate, &desc);

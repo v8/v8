@@ -136,7 +136,7 @@ void Deoptimizer::GenerateDeoptimizationEntries(MacroAssembler* masm,
   __ bind(&pop_loop);
   __ pop(a4);
   __ Sd(a4, MemOperand(a3, 0));
-  __ RV_addi(a3, a3, sizeof(uint64_t));
+  __ addi(a3, a3, sizeof(uint64_t));
   __ bind(&pop_loop_header);
   __ BranchShort(&pop_loop, ne, a2, Operand(sp));
   // Compute the output frame in the deoptimizer.

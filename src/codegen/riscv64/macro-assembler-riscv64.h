@@ -42,7 +42,7 @@ enum LiFlags {
   // sequence. A number of other optimizations that emits less than
   // maximum number of instructions exists.
   OPTIMIZE_SIZE = 0,
-  // Always use 8 instructions (lui/addi/RV_slliw sequence), even if the
+  // Always use 8 instructions (lui/addi/slliw sequence), even if the
   // constant
   // could be loaded with just one, so that this value is patchable later.
   CONSTANT_SIZE = 1,
@@ -440,10 +440,10 @@ class V8_EXPORT_PRIVATE TurboAssembler : public TurboAssemblerBase {
   void SmiUntag(Register dst, const MemOperand& src);
   void SmiUntag(Register dst, Register src) {
     if (SmiValuesAre32Bits()) {
-      RV_srai(dst, src, kSmiShift);
+      srai(dst, src, kSmiShift);
     } else {
       DCHECK(SmiValuesAre31Bits());
-      RV_sraiw(dst, src, kSmiShift);
+      sraiw(dst, src, kSmiShift);
     }
   }
 
@@ -626,31 +626,31 @@ class V8_EXPORT_PRIVATE TurboAssembler : public TurboAssemblerBase {
 
   inline void Move(Register dst, Register src) {
     if (dst != src) {
-      RV_mv(dst, src);
+      mv(dst, src);
     }
   }
 
   inline void Move(FPURegister dst, FPURegister src) { Move_d(dst, src); }
 
   inline void Move(Register dst_low, Register dst_high, FPURegister src) {
-    RV_fmv_x_d(dst_high, src);
-    RV_fmv_x_w(dst_low, src);
-    RV_srli(dst_high, dst_high, 32);
+    fmv_x_d(dst_high, src);
+    fmv_x_w(dst_low, src);
+    srli(dst_high, dst_high, 32);
   }
 
-  inline void Move(Register dst, FPURegister src) { RV_fmv_x_d(dst, src); }
+  inline void Move(Register dst, FPURegister src) { fmv_x_d(dst, src); }
 
-  inline void Move(FPURegister dst, Register src) { RV_fmv_d_x(dst, src); }
+  inline void Move(FPURegister dst, Register src) { fmv_d_x(dst, src); }
 
   inline void FmoveHigh(Register dst_high, FPURegister src) {
-    RV_fmv_x_d(dst_high, src);
-    RV_srai(dst_high, dst_high, 32);
+    fmv_x_d(dst_high, src);
+    srai(dst_high, dst_high, 32);
   }
 
   void FmoveHigh(FPURegister dst, Register src_high);
 
   inline void FmoveLow(Register dst_low, FPURegister src) {
-    RV_fmv_x_w(dst_low, src);
+    fmv_x_w(dst_low, src);
   }
 
   void FmoveLow(FPURegister dst, Register src_low);
@@ -658,11 +658,11 @@ class V8_EXPORT_PRIVATE TurboAssembler : public TurboAssemblerBase {
   void Move(FPURegister dst, Register src_low, Register src_high);
 
   inline void Move_d(FPURegister dst, FPURegister src) {
-    if (dst != src) RV_fmv_d(dst, src);
+    if (dst != src) fmv_d(dst, src);
   }
 
   inline void Move_s(FPURegister dst, FPURegister src) {
-    if (dst != src) RV_fmv_s(dst, src);
+    if (dst != src) fmv_s(dst, src);
   }
 
   void Move(FPURegister dst, float imm) { Move(dst, bit_cast<uint32_t>(imm)); }
@@ -1048,7 +1048,7 @@ class V8_EXPORT_PRIVATE MacroAssembler : public TurboAssembler {
     STATIC_ASSERT(kSmiTag == 0);
     if (SmiValuesAre32Bits()) {
       // FIXME(RISCV): do not understand the logic here
-      RV_slli(dst, src, 32);
+      slli(dst, src, 32);
     } else {
       DCHECK(SmiValuesAre31Bits());
       Addu(dst, src, src);
@@ -1061,11 +1061,11 @@ class V8_EXPORT_PRIVATE MacroAssembler : public TurboAssembler {
   void SmiScale(Register dst, Register src, int scale) {
     if (SmiValuesAre32Bits()) {
       // The int portion is upper 32-bits of 64-bit word.
-      RV_srai(dst, src, (kSmiShift - scale) & 0x3F);
+      srai(dst, src, (kSmiShift - scale) & 0x3F);
     } else {
       DCHECK(SmiValuesAre31Bits());
       DCHECK_GE(scale, kSmiTagSize);
-      RV_slliw(dst, src, scale - kSmiTagSize);
+      slliw(dst, src, scale - kSmiTagSize);
     }
   }
 
@@ -1139,13 +1139,13 @@ void TurboAssembler::GenerateSwitchTable(Register index, size_t case_count,
   Label here;
   Align(8);
   // Load the address from the jump table at index and jump to it
-  RV_auipc(scratch, 0);                  // Load the current PC into scratch
-  RV_slli(t5, index, kPointerSizeLog2);  // t5 = offset of indexth entry
-  RV_add(t5, t5, scratch);        // t5 = (saved PC) + (offset of indexth entry)
-  RV_ld(t5, t5, 6 * kInstrSize);  // Add the size of these 6 instructions to the
-                                  // offset, then load
-  RV_jr(t5);                      // Jump to the address loaded from the table
-  nop();                          // For 16-byte alignment
+  auipc(scratch, 0);                  // Load the current PC into scratch
+  slli(t5, index, kPointerSizeLog2);  // t5 = offset of indexth entry
+  add(t5, t5, scratch);        // t5 = (saved PC) + (offset of indexth entry)
+  ld(t5, t5, 6 * kInstrSize);  // Add the size of these 6 instructions to the
+                               // offset, then load
+  jr(t5);                      // Jump to the address loaded from the table
+  nop();                       // For 16-byte alignment
   for (size_t index = 0; index < case_count; ++index) {
     dd(GetLabelFunction(index));
   }

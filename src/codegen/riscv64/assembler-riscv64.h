@@ -197,18 +197,17 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase {
   bool is_near(Label* L, OffsetSize bits);
   bool is_near_branch(Label* L);
 
-  int RV_BranchOffset(Instr instr);
-  int RV_JumpOffset(Instr instr);
   int BranchOffset(Instr instr);
+  int JumpOffset(Instr instr);
 
   // Returns the branch offset to the given label from the current code
   // position. Links the label to the current position if it is still unbound.
   // Manages the jump elimination optimization if the second parameter is true.
   int32_t branch_offset_helper(Label* L, OffsetSize bits);
-  inline int32_t RV_branch_offset(Label* L) {
+  inline int32_t branch_offset(Label* L) {
     return branch_offset_helper(L, OffsetSize::kOffset13);
   }
-  inline int32_t RV_jump_offset(Label* L) {
+  inline int32_t jump_offset(Label* L) {
     return branch_offset_helper(L, OffsetSize::kOffset21);
   }
 
@@ -337,245 +336,245 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase {
 
   // RISC-V Instructions Emited to a buffer
 
-  void RV_lui(Register rd, int32_t imm20);
-  void RV_auipc(Register rd, int32_t imm20);
+  void lui(Register rd, int32_t imm20);
+  void auipc(Register rd, int32_t imm20);
 
   // Jumps
-  void RV_jal(Register rd, int32_t imm20);
-  void RV_jalr(Register rd, Register rs1, int16_t imm12);
+  void jal(Register rd, int32_t imm20);
+  void jalr(Register rd, Register rs1, int16_t imm12);
 
   // Branches
-  void RV_beq(Register rs1, Register rs2, int16_t imm12);
-  inline void RV_beq(Register rs1, Register rs2, Label* L) {
-    RV_beq(rs1, rs2, RV_branch_offset(L));
+  void beq(Register rs1, Register rs2, int16_t imm12);
+  inline void beq(Register rs1, Register rs2, Label* L) {
+    beq(rs1, rs2, branch_offset(L));
   }
-  void RV_bne(Register rs1, Register rs2, int16_t imm12);
-  inline void RV_bne(Register rs1, Register rs2, Label* L) {
-    RV_bne(rs1, rs2, RV_branch_offset(L));
+  void bne(Register rs1, Register rs2, int16_t imm12);
+  inline void bne(Register rs1, Register rs2, Label* L) {
+    bne(rs1, rs2, branch_offset(L));
   }
-  void RV_blt(Register rs1, Register rs2, int16_t imm12);
-  inline void RV_blt(Register rs1, Register rs2, Label* L) {
-    RV_blt(rs1, rs2, RV_branch_offset(L));
+  void blt(Register rs1, Register rs2, int16_t imm12);
+  inline void blt(Register rs1, Register rs2, Label* L) {
+    blt(rs1, rs2, branch_offset(L));
   }
-  void RV_bge(Register rs1, Register rs2, int16_t imm12);
-  inline void RV_bge(Register rs1, Register rs2, Label* L) {
-    RV_bge(rs1, rs2, RV_branch_offset(L));
+  void bge(Register rs1, Register rs2, int16_t imm12);
+  inline void bge(Register rs1, Register rs2, Label* L) {
+    bge(rs1, rs2, branch_offset(L));
   }
-  void RV_bltu(Register rs1, Register rs2, int16_t imm12);
-  inline void RV_bltu(Register rs1, Register rs2, Label* L) {
-    RV_bltu(rs1, rs2, RV_branch_offset(L));
+  void bltu(Register rs1, Register rs2, int16_t imm12);
+  inline void bltu(Register rs1, Register rs2, Label* L) {
+    bltu(rs1, rs2, branch_offset(L));
   }
-  void RV_bgeu(Register rs1, Register rs2, int16_t imm12);
-  inline void RV_bgeu(Register rs1, Register rs2, Label* L) {
-    RV_bgeu(rs1, rs2, RV_branch_offset(L));
+  void bgeu(Register rs1, Register rs2, int16_t imm12);
+  inline void bgeu(Register rs1, Register rs2, Label* L) {
+    bgeu(rs1, rs2, branch_offset(L));
   }
 
   // Loads
-  void RV_lb(Register rd, Register rs1, int16_t imm12);
-  void RV_lh(Register rd, Register rs1, int16_t imm12);
-  void RV_lw(Register rd, Register rs1, int16_t imm12);
-  void RV_lbu(Register rd, Register rs1, int16_t imm12);
-  void RV_lhu(Register rd, Register rs1, int16_t imm12);
+  void lb(Register rd, Register rs1, int16_t imm12);
+  void lh(Register rd, Register rs1, int16_t imm12);
+  void lw(Register rd, Register rs1, int16_t imm12);
+  void lbu(Register rd, Register rs1, int16_t imm12);
+  void lhu(Register rd, Register rs1, int16_t imm12);
 
   // Stores
-  void RV_sb(Register source, Register base, int16_t imm12);
-  void RV_sh(Register source, Register base, int16_t imm12);
-  void RV_sw(Register source, Register base, int16_t imm12);
+  void sb(Register source, Register base, int16_t imm12);
+  void sh(Register source, Register base, int16_t imm12);
+  void sw(Register source, Register base, int16_t imm12);
 
   // Arithmetic with immediate
-  void RV_addi(Register rd, Register rs1, int16_t imm12);
-  void RV_slti(Register rd, Register rs1, int16_t imm12);
-  void RV_sltiu(Register rd, Register rs1, int16_t imm12);
-  void RV_xori(Register rd, Register rs1, int16_t imm12);
-  void RV_ori(Register rd, Register rs1, int16_t imm12);
-  void RV_andi(Register rd, Register rs1, int16_t imm12);
-  void RV_slli(Register rd, Register rs1, uint8_t shamt);
-  void RV_srli(Register rd, Register rs1, uint8_t shamt);
-  void RV_srai(Register rd, Register rs1, uint8_t shamt);
+  void addi(Register rd, Register rs1, int16_t imm12);
+  void slti(Register rd, Register rs1, int16_t imm12);
+  void sltiu(Register rd, Register rs1, int16_t imm12);
+  void xori(Register rd, Register rs1, int16_t imm12);
+  void ori(Register rd, Register rs1, int16_t imm12);
+  void andi(Register rd, Register rs1, int16_t imm12);
+  void slli(Register rd, Register rs1, uint8_t shamt);
+  void srli(Register rd, Register rs1, uint8_t shamt);
+  void srai(Register rd, Register rs1, uint8_t shamt);
 
   // Arithmetic
-  void RV_add(Register rd, Register rs1, Register rs2);
-  void RV_sub(Register rd, Register rs1, Register rs2);
-  void RV_sll(Register rd, Register rs1, Register rs2);
-  void RV_slt(Register rd, Register rs1, Register rs2);
-  void RV_sltu(Register rd, Register rs1, Register rs2);
+  void add(Register rd, Register rs1, Register rs2);
+  void sub(Register rd, Register rs1, Register rs2);
+  void sll(Register rd, Register rs1, Register rs2);
+  void slt(Register rd, Register rs1, Register rs2);
+  void sltu(Register rd, Register rs1, Register rs2);
   void xor_(Register rd, Register rs1, Register rs2);
-  void RV_srl(Register rd, Register rs1, Register rs2);
-  void RV_sra(Register rd, Register rs1, Register rs2);
+  void srl(Register rd, Register rs1, Register rs2);
+  void sra(Register rd, Register rs1, Register rs2);
   void or_(Register rd, Register rs1, Register rs2);
   void and_(Register rd, Register rs1, Register rs2);
 
   // Memory fences
-  void RV_fence(uint8_t pred, uint8_t succ);
-  void RV_fence_tso();
-  void RV_fence_i();
+  void fence(uint8_t pred, uint8_t succ);
+  void fence_tso();
+  void fence_i();
 
   // Environment call / break
-  void RV_ecall();
-  void RV_ebreak();
+  void ecall();
+  void ebreak();
 
   // This is a de facto standard (as set by GNU binutils) 32-bit unimplemented
   // instruction (i.e., it should always trap, if your implementation has
   // invalid instruction traps).
-  void RV_unimp();
+  void unimp();
 
   // CSR
-  void RV_csrrw(Register rd, ControlStatusReg csr, Register rs1);
-  void RV_csrrs(Register rd, ControlStatusReg csr, Register rs1);
-  void RV_csrrc(Register rd, ControlStatusReg csr, Register rs1);
-  void RV_csrrwi(Register rd, ControlStatusReg csr, uint8_t imm5);
-  void RV_csrrsi(Register rd, ControlStatusReg csr, uint8_t imm5);
-  void RV_csrrci(Register rd, ControlStatusReg csr, uint8_t imm5);
+  void csrrw(Register rd, ControlStatusReg csr, Register rs1);
+  void csrrs(Register rd, ControlStatusReg csr, Register rs1);
+  void csrrc(Register rd, ControlStatusReg csr, Register rs1);
+  void csrrwi(Register rd, ControlStatusReg csr, uint8_t imm5);
+  void csrrsi(Register rd, ControlStatusReg csr, uint8_t imm5);
+  void csrrci(Register rd, ControlStatusReg csr, uint8_t imm5);
 
   // RV64I
-  void RV_lwu(Register rd, Register rs1, int16_t imm12);
-  void RV_ld(Register rd, Register rs1, int16_t imm12);
-  void RV_sd(Register source, Register base, int16_t imm12);
-  void RV_addiw(Register rd, Register rs1, int16_t imm12);
-  void RV_slliw(Register rd, Register rs1, uint8_t shamt);
-  void RV_srliw(Register rd, Register rs1, uint8_t shamt);
-  void RV_sraiw(Register rd, Register rs1, uint8_t shamt);
-  void RV_addw(Register rd, Register rs1, Register rs2);
-  void RV_subw(Register rd, Register rs1, Register rs2);
-  void RV_sllw(Register rd, Register rs1, Register rs2);
-  void RV_srlw(Register rd, Register rs1, Register rs2);
-  void RV_sraw(Register rd, Register rs1, Register rs2);
+  void lwu(Register rd, Register rs1, int16_t imm12);
+  void ld(Register rd, Register rs1, int16_t imm12);
+  void sd(Register source, Register base, int16_t imm12);
+  void addiw(Register rd, Register rs1, int16_t imm12);
+  void slliw(Register rd, Register rs1, uint8_t shamt);
+  void srliw(Register rd, Register rs1, uint8_t shamt);
+  void sraiw(Register rd, Register rs1, uint8_t shamt);
+  void addw(Register rd, Register rs1, Register rs2);
+  void subw(Register rd, Register rs1, Register rs2);
+  void sllw(Register rd, Register rs1, Register rs2);
+  void srlw(Register rd, Register rs1, Register rs2);
+  void sraw(Register rd, Register rs1, Register rs2);
 
   // RV32M Standard Extension
-  void RV_mul(Register rd, Register rs1, Register rs2);
-  void RV_mulh(Register rd, Register rs1, Register rs2);
-  void RV_mulhsu(Register rd, Register rs1, Register rs2);
-  void RV_mulhu(Register rd, Register rs1, Register rs2);
-  void RV_div(Register rd, Register rs1, Register rs2);
-  void RV_divu(Register rd, Register rs1, Register rs2);
-  void RV_rem(Register rd, Register rs1, Register rs2);
-  void RV_remu(Register rd, Register rs1, Register rs2);
+  void mul(Register rd, Register rs1, Register rs2);
+  void mulh(Register rd, Register rs1, Register rs2);
+  void mulhsu(Register rd, Register rs1, Register rs2);
+  void mulhu(Register rd, Register rs1, Register rs2);
+  void div(Register rd, Register rs1, Register rs2);
+  void divu(Register rd, Register rs1, Register rs2);
+  void rem(Register rd, Register rs1, Register rs2);
+  void remu(Register rd, Register rs1, Register rs2);
 
   // RV64M Standard Extension (in addition to RV32M)
-  void RV_mulw(Register rd, Register rs1, Register rs2);
-  void RV_divw(Register rd, Register rs1, Register rs2);
-  void RV_divuw(Register rd, Register rs1, Register rs2);
-  void RV_remw(Register rd, Register rs1, Register rs2);
-  void RV_remuw(Register rd, Register rs1, Register rs2);
+  void mulw(Register rd, Register rs1, Register rs2);
+  void divw(Register rd, Register rs1, Register rs2);
+  void divuw(Register rd, Register rs1, Register rs2);
+  void remw(Register rd, Register rs1, Register rs2);
+  void remuw(Register rd, Register rs1, Register rs2);
 
   // RV32A Standard Extension
-  void RV_lr_w(bool aq, bool rl, Register rd, Register rs1);
-  void RV_sc_w(bool aq, bool rl, Register rd, Register rs1, Register rs2);
-  void RV_amoswap_w(bool aq, bool rl, Register rd, Register rs1, Register rs2);
-  void RV_amoadd_w(bool aq, bool rl, Register rd, Register rs1, Register rs2);
-  void RV_amoxor_w(bool aq, bool rl, Register rd, Register rs1, Register rs2);
-  void RV_amoand_w(bool aq, bool rl, Register rd, Register rs1, Register rs2);
-  void RV_amoor_w(bool aq, bool rl, Register rd, Register rs1, Register rs2);
-  void RV_amomin_w(bool aq, bool rl, Register rd, Register rs1, Register rs2);
-  void RV_amomax_w(bool aq, bool rl, Register rd, Register rs1, Register rs2);
-  void RV_amominu_w(bool aq, bool rl, Register rd, Register rs1, Register rs2);
-  void RV_amomaxu_w(bool aq, bool rl, Register rd, Register rs1, Register rs2);
+  void lr_w(bool aq, bool rl, Register rd, Register rs1);
+  void sc_w(bool aq, bool rl, Register rd, Register rs1, Register rs2);
+  void amoswap_w(bool aq, bool rl, Register rd, Register rs1, Register rs2);
+  void amoadd_w(bool aq, bool rl, Register rd, Register rs1, Register rs2);
+  void amoxor_w(bool aq, bool rl, Register rd, Register rs1, Register rs2);
+  void amoand_w(bool aq, bool rl, Register rd, Register rs1, Register rs2);
+  void amoor_w(bool aq, bool rl, Register rd, Register rs1, Register rs2);
+  void amomin_w(bool aq, bool rl, Register rd, Register rs1, Register rs2);
+  void amomax_w(bool aq, bool rl, Register rd, Register rs1, Register rs2);
+  void amominu_w(bool aq, bool rl, Register rd, Register rs1, Register rs2);
+  void amomaxu_w(bool aq, bool rl, Register rd, Register rs1, Register rs2);
 
   // RV64A Standard Extension (in addition to RV32A)
-  void RV_lr_d(bool aq, bool rl, Register rd, Register rs1);
-  void RV_sc_d(bool aq, bool rl, Register rd, Register rs1, Register rs2);
-  void RV_amoswap_d(bool aq, bool rl, Register rd, Register rs1, Register rs2);
-  void RV_amoadd_d(bool aq, bool rl, Register rd, Register rs1, Register rs2);
-  void RV_amoxor_d(bool aq, bool rl, Register rd, Register rs1, Register rs2);
-  void RV_amoand_d(bool aq, bool rl, Register rd, Register rs1, Register rs2);
-  void RV_amoor_d(bool aq, bool rl, Register rd, Register rs1, Register rs2);
-  void RV_amomin_d(bool aq, bool rl, Register rd, Register rs1, Register rs2);
-  void RV_amomax_d(bool aq, bool rl, Register rd, Register rs1, Register rs2);
-  void RV_amominu_d(bool aq, bool rl, Register rd, Register rs1, Register rs2);
-  void RV_amomaxu_d(bool aq, bool rl, Register rd, Register rs1, Register rs2);
+  void lr_d(bool aq, bool rl, Register rd, Register rs1);
+  void sc_d(bool aq, bool rl, Register rd, Register rs1, Register rs2);
+  void amoswap_d(bool aq, bool rl, Register rd, Register rs1, Register rs2);
+  void amoadd_d(bool aq, bool rl, Register rd, Register rs1, Register rs2);
+  void amoxor_d(bool aq, bool rl, Register rd, Register rs1, Register rs2);
+  void amoand_d(bool aq, bool rl, Register rd, Register rs1, Register rs2);
+  void amoor_d(bool aq, bool rl, Register rd, Register rs1, Register rs2);
+  void amomin_d(bool aq, bool rl, Register rd, Register rs1, Register rs2);
+  void amomax_d(bool aq, bool rl, Register rd, Register rs1, Register rs2);
+  void amominu_d(bool aq, bool rl, Register rd, Register rs1, Register rs2);
+  void amomaxu_d(bool aq, bool rl, Register rd, Register rs1, Register rs2);
 
   // RV32F Standard Extension
-  void RV_flw(FPURegister rd, Register rs1, int16_t imm12);
-  void RV_fsw(FPURegister source, Register base, int16_t imm12);
-  void RV_fmadd_s(FPURegister rd, FPURegister rs1, FPURegister rs2,
-                  FPURegister rs3, RoundingMode frm = RNE);
-  void RV_fmsub_s(FPURegister rd, FPURegister rs1, FPURegister rs2,
-                  FPURegister rs3, RoundingMode frm = RNE);
-  void RV_fnmsub_s(FPURegister rd, FPURegister rs1, FPURegister rs2,
-                   FPURegister rs3, RoundingMode frm = RNE);
-  void RV_fnmadd_s(FPURegister rd, FPURegister rs1, FPURegister rs2,
-                   FPURegister rs3, RoundingMode frm = RNE);
-  void RV_fadd_s(FPURegister rd, FPURegister rs1, FPURegister rs2,
-                 RoundingMode frm = RNE);
-  void RV_fsub_s(FPURegister rd, FPURegister rs1, FPURegister rs2,
-                 RoundingMode frm = RNE);
-  void RV_fmul_s(FPURegister rd, FPURegister rs1, FPURegister rs2,
-                 RoundingMode frm = RNE);
-  void RV_fdiv_s(FPURegister rd, FPURegister rs1, FPURegister rs2,
-                 RoundingMode frm = RNE);
-  void RV_fsqrt_s(FPURegister rd, FPURegister rs1, RoundingMode frm = RNE);
-  void RV_fsgnj_s(FPURegister rd, FPURegister rs1, FPURegister rs2);
-  void RV_fsgnjn_s(FPURegister rd, FPURegister rs1, FPURegister rs2);
-  void RV_fsgnjx_s(FPURegister rd, FPURegister rs1, FPURegister rs2);
-  void RV_fmin_s(FPURegister rd, FPURegister rs1, FPURegister rs2);
-  void RV_fmax_s(FPURegister rd, FPURegister rs1, FPURegister rs2);
-  void RV_fcvt_w_s(Register rd, FPURegister rs1, RoundingMode frm = RNE);
-  void RV_fcvt_wu_s(Register rd, FPURegister rs1, RoundingMode frm = RNE);
-  void RV_fmv_x_w(Register rd, FPURegister rs1);
-  void RV_feq_s(Register rd, FPURegister rs1, FPURegister rs2);
-  void RV_flt_s(Register rd, FPURegister rs1, FPURegister rs2);
-  void RV_fle_s(Register rd, FPURegister rs1, FPURegister rs2);
-  void RV_fclass_s(Register rd, FPURegister rs1);
-  void RV_fcvt_s_w(FPURegister rd, Register rs1, RoundingMode frm = RNE);
-  void RV_fcvt_s_wu(FPURegister rd, Register rs1, RoundingMode frm = RNE);
-  void RV_fmv_w_x(FPURegister rd, Register rs1);
+  void flw(FPURegister rd, Register rs1, int16_t imm12);
+  void fsw(FPURegister source, Register base, int16_t imm12);
+  void fmadd_s(FPURegister rd, FPURegister rs1, FPURegister rs2,
+               FPURegister rs3, RoundingMode frm = RNE);
+  void fmsub_s(FPURegister rd, FPURegister rs1, FPURegister rs2,
+               FPURegister rs3, RoundingMode frm = RNE);
+  void fnmsub_s(FPURegister rd, FPURegister rs1, FPURegister rs2,
+                FPURegister rs3, RoundingMode frm = RNE);
+  void fnmadd_s(FPURegister rd, FPURegister rs1, FPURegister rs2,
+                FPURegister rs3, RoundingMode frm = RNE);
+  void fadd_s(FPURegister rd, FPURegister rs1, FPURegister rs2,
+              RoundingMode frm = RNE);
+  void fsub_s(FPURegister rd, FPURegister rs1, FPURegister rs2,
+              RoundingMode frm = RNE);
+  void fmul_s(FPURegister rd, FPURegister rs1, FPURegister rs2,
+              RoundingMode frm = RNE);
+  void fdiv_s(FPURegister rd, FPURegister rs1, FPURegister rs2,
+              RoundingMode frm = RNE);
+  void fsqrt_s(FPURegister rd, FPURegister rs1, RoundingMode frm = RNE);
+  void fsgnj_s(FPURegister rd, FPURegister rs1, FPURegister rs2);
+  void fsgnjn_s(FPURegister rd, FPURegister rs1, FPURegister rs2);
+  void fsgnjx_s(FPURegister rd, FPURegister rs1, FPURegister rs2);
+  void fmin_s(FPURegister rd, FPURegister rs1, FPURegister rs2);
+  void fmax_s(FPURegister rd, FPURegister rs1, FPURegister rs2);
+  void fcvt_w_s(Register rd, FPURegister rs1, RoundingMode frm = RNE);
+  void fcvt_wu_s(Register rd, FPURegister rs1, RoundingMode frm = RNE);
+  void fmv_x_w(Register rd, FPURegister rs1);
+  void feq_s(Register rd, FPURegister rs1, FPURegister rs2);
+  void flt_s(Register rd, FPURegister rs1, FPURegister rs2);
+  void fle_s(Register rd, FPURegister rs1, FPURegister rs2);
+  void fclass_s(Register rd, FPURegister rs1);
+  void fcvt_s_w(FPURegister rd, Register rs1, RoundingMode frm = RNE);
+  void fcvt_s_wu(FPURegister rd, Register rs1, RoundingMode frm = RNE);
+  void fmv_w_x(FPURegister rd, Register rs1);
 
   // RV64F Standard Extension (in addition to RV32F)
-  void RV_fcvt_l_s(Register rd, FPURegister rs1, RoundingMode frm = RNE);
-  void RV_fcvt_lu_s(Register rd, FPURegister rs1, RoundingMode frm = RNE);
-  void RV_fcvt_s_l(FPURegister rd, Register rs1, RoundingMode frm = RNE);
-  void RV_fcvt_s_lu(FPURegister rd, Register rs1, RoundingMode frm = RNE);
+  void fcvt_l_s(Register rd, FPURegister rs1, RoundingMode frm = RNE);
+  void fcvt_lu_s(Register rd, FPURegister rs1, RoundingMode frm = RNE);
+  void fcvt_s_l(FPURegister rd, Register rs1, RoundingMode frm = RNE);
+  void fcvt_s_lu(FPURegister rd, Register rs1, RoundingMode frm = RNE);
 
   // RV32D Standard Extension
-  void RV_fld(FPURegister rd, Register rs1, int16_t imm12);
-  void RV_fsd(FPURegister source, Register base, int16_t imm12);
-  void RV_fmadd_d(FPURegister rd, FPURegister rs1, FPURegister rs2,
-                  FPURegister rs3, RoundingMode frm = RNE);
-  void RV_fmsub_d(FPURegister rd, FPURegister rs1, FPURegister rs2,
-                  FPURegister rs3, RoundingMode frm = RNE);
-  void RV_fnmsub_d(FPURegister rd, FPURegister rs1, FPURegister rs2,
-                   FPURegister rs3, RoundingMode frm = RNE);
-  void RV_fnmadd_d(FPURegister rd, FPURegister rs1, FPURegister rs2,
-                   FPURegister rs3, RoundingMode frm = RNE);
-  void RV_fadd_d(FPURegister rd, FPURegister rs1, FPURegister rs2,
-                 RoundingMode frm = RNE);
-  void RV_fsub_d(FPURegister rd, FPURegister rs1, FPURegister rs2,
-                 RoundingMode frm = RNE);
-  void RV_fmul_d(FPURegister rd, FPURegister rs1, FPURegister rs2,
-                 RoundingMode frm = RNE);
-  void RV_fdiv_d(FPURegister rd, FPURegister rs1, FPURegister rs2,
-                 RoundingMode frm = RNE);
-  void RV_fsqrt_d(FPURegister rd, FPURegister rs1, RoundingMode frm = RNE);
-  void RV_fsgnj_d(FPURegister rd, FPURegister rs1, FPURegister rs2);
-  void RV_fsgnjn_d(FPURegister rd, FPURegister rs1, FPURegister rs2);
-  void RV_fsgnjx_d(FPURegister rd, FPURegister rs1, FPURegister rs2);
-  void RV_fmin_d(FPURegister rd, FPURegister rs1, FPURegister rs2);
-  void RV_fmax_d(FPURegister rd, FPURegister rs1, FPURegister rs2);
-  void RV_fcvt_s_d(FPURegister rd, FPURegister rs1, RoundingMode frm = RNE);
-  void RV_fcvt_d_s(FPURegister rd, FPURegister rs1, RoundingMode frm = RNE);
-  void RV_feq_d(Register rd, FPURegister rs1, FPURegister rs2);
-  void RV_flt_d(Register rd, FPURegister rs1, FPURegister rs2);
-  void RV_fle_d(Register rd, FPURegister rs1, FPURegister rs2);
-  void RV_fclass_d(Register rd, FPURegister rs1);
-  void RV_fcvt_w_d(Register rd, FPURegister rs1, RoundingMode frm = RNE);
-  void RV_fcvt_wu_d(Register rd, FPURegister rs1, RoundingMode frm = RNE);
-  void RV_fcvt_d_w(FPURegister rd, Register rs1, RoundingMode frm = RNE);
-  void RV_fcvt_d_wu(FPURegister rd, Register rs1, RoundingMode frm = RNE);
+  void fld(FPURegister rd, Register rs1, int16_t imm12);
+  void fsd(FPURegister source, Register base, int16_t imm12);
+  void fmadd_d(FPURegister rd, FPURegister rs1, FPURegister rs2,
+               FPURegister rs3, RoundingMode frm = RNE);
+  void fmsub_d(FPURegister rd, FPURegister rs1, FPURegister rs2,
+               FPURegister rs3, RoundingMode frm = RNE);
+  void fnmsub_d(FPURegister rd, FPURegister rs1, FPURegister rs2,
+                FPURegister rs3, RoundingMode frm = RNE);
+  void fnmadd_d(FPURegister rd, FPURegister rs1, FPURegister rs2,
+                FPURegister rs3, RoundingMode frm = RNE);
+  void fadd_d(FPURegister rd, FPURegister rs1, FPURegister rs2,
+              RoundingMode frm = RNE);
+  void fsub_d(FPURegister rd, FPURegister rs1, FPURegister rs2,
+              RoundingMode frm = RNE);
+  void fmul_d(FPURegister rd, FPURegister rs1, FPURegister rs2,
+              RoundingMode frm = RNE);
+  void fdiv_d(FPURegister rd, FPURegister rs1, FPURegister rs2,
+              RoundingMode frm = RNE);
+  void fsqrt_d(FPURegister rd, FPURegister rs1, RoundingMode frm = RNE);
+  void fsgnj_d(FPURegister rd, FPURegister rs1, FPURegister rs2);
+  void fsgnjn_d(FPURegister rd, FPURegister rs1, FPURegister rs2);
+  void fsgnjx_d(FPURegister rd, FPURegister rs1, FPURegister rs2);
+  void fmin_d(FPURegister rd, FPURegister rs1, FPURegister rs2);
+  void fmax_d(FPURegister rd, FPURegister rs1, FPURegister rs2);
+  void fcvt_s_d(FPURegister rd, FPURegister rs1, RoundingMode frm = RNE);
+  void fcvt_d_s(FPURegister rd, FPURegister rs1, RoundingMode frm = RNE);
+  void feq_d(Register rd, FPURegister rs1, FPURegister rs2);
+  void flt_d(Register rd, FPURegister rs1, FPURegister rs2);
+  void fle_d(Register rd, FPURegister rs1, FPURegister rs2);
+  void fclass_d(Register rd, FPURegister rs1);
+  void fcvt_w_d(Register rd, FPURegister rs1, RoundingMode frm = RNE);
+  void fcvt_wu_d(Register rd, FPURegister rs1, RoundingMode frm = RNE);
+  void fcvt_d_w(FPURegister rd, Register rs1, RoundingMode frm = RNE);
+  void fcvt_d_wu(FPURegister rd, Register rs1, RoundingMode frm = RNE);
 
   // RV64D Standard Extension (in addition to RV32D)
-  void RV_fcvt_l_d(Register rd, FPURegister rs1, RoundingMode frm = RNE);
-  void RV_fcvt_lu_d(Register rd, FPURegister rs1, RoundingMode frm = RNE);
-  void RV_fmv_x_d(Register rd, FPURegister rs1);
-  void RV_fcvt_d_l(FPURegister rd, Register rs1, RoundingMode frm = RNE);
-  void RV_fcvt_d_lu(FPURegister rd, Register rs1, RoundingMode frm = RNE);
-  void RV_fmv_d_x(FPURegister rd, Register rs1);
+  void fcvt_l_d(Register rd, FPURegister rs1, RoundingMode frm = RNE);
+  void fcvt_lu_d(Register rd, FPURegister rs1, RoundingMode frm = RNE);
+  void fmv_x_d(Register rd, FPURegister rs1);
+  void fcvt_d_l(FPURegister rd, Register rs1, RoundingMode frm = RNE);
+  void fcvt_d_lu(FPURegister rd, Register rs1, RoundingMode frm = RNE);
+  void fmv_d_x(FPURegister rd, Register rs1);
 
   // Privileged
-  void RV_uret();
-  void RV_sret();
-  void RV_mret();
-  void RV_wfi();
-  void RV_sfence_vma(Register rs1, Register rs2);
+  void uret();
+  void sret();
+  void mret();
+  void wfi();
+  void sfence_vma(Register rs1, Register rs2);
 
   // Assembler Pseudo Instructions (Tables 25.2, 25.3, RISC-V Unprivileged ISA)
   void nop();
@@ -584,138 +583,108 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase {
   static int li_count(int64_t imm);
   // Loads an immediate, always using 8 instructions, regardless of the value,
   // so that it can be modified later.
-  void RV_li_constant(Register rd, int64_t imm);
+  void li_constant(Register rd, int64_t imm);
 
-  void RV_mv(Register rd, Register rs) { RV_addi(rd, rs, 0); }
-  void RV_not(Register rd, Register rs) { RV_xori(rd, rs, -1); }
-  void RV_neg(Register rd, Register rs) { RV_sub(rd, zero_reg, rs); }
-  void RV_negw(Register rd, Register rs) { RV_subw(rd, zero_reg, rs); }
-  void RV_sext_w(Register rd, Register rs) { RV_addiw(rd, rs, 0); }
-  void RV_seqz(Register rd, Register rs) { RV_sltiu(rd, rs, 1); }
-  void RV_snez(Register rd, Register rs) { RV_sltu(rd, zero_reg, rs); }
-  void RV_sltz(Register rd, Register rs) { RV_slt(rd, rs, zero_reg); }
-  void RV_sgtz(Register rd, Register rs) { RV_slt(rd, zero_reg, rs); }
+  void mv(Register rd, Register rs) { addi(rd, rs, 0); }
+  void not_(Register rd, Register rs) { xori(rd, rs, -1); }
+  void neg(Register rd, Register rs) { sub(rd, zero_reg, rs); }
+  void negw(Register rd, Register rs) { subw(rd, zero_reg, rs); }
+  void sext_w(Register rd, Register rs) { addiw(rd, rs, 0); }
+  void seqz(Register rd, Register rs) { sltiu(rd, rs, 1); }
+  void snez(Register rd, Register rs) { sltu(rd, zero_reg, rs); }
+  void sltz(Register rd, Register rs) { slt(rd, rs, zero_reg); }
+  void sgtz(Register rd, Register rs) { slt(rd, zero_reg, rs); }
 
-  void RV_fmv_s(FPURegister rd, FPURegister rs) { RV_fsgnj_s(rd, rs, rs); }
-  void RV_fabs_s(FPURegister rd, FPURegister rs) { RV_fsgnjx_s(rd, rs, rs); }
-  void RV_fneg_s(FPURegister rd, FPURegister rs) { RV_fsgnjn_s(rd, rs, rs); }
-  void RV_fmv_d(FPURegister rd, FPURegister rs) { RV_fsgnj_d(rd, rs, rs); }
-  void RV_fabs_d(FPURegister rd, FPURegister rs) { RV_fsgnjx_d(rd, rs, rs); }
-  void RV_fneg_d(FPURegister rd, FPURegister rs) { RV_fsgnjn_d(rd, rs, rs); }
+  void fmv_s(FPURegister rd, FPURegister rs) { fsgnj_s(rd, rs, rs); }
+  void fabs_s(FPURegister rd, FPURegister rs) { fsgnjx_s(rd, rs, rs); }
+  void fneg_s(FPURegister rd, FPURegister rs) { fsgnjn_s(rd, rs, rs); }
+  void fmv_d(FPURegister rd, FPURegister rs) { fsgnj_d(rd, rs, rs); }
+  void fabs_d(FPURegister rd, FPURegister rs) { fsgnjx_d(rd, rs, rs); }
+  void fneg_d(FPURegister rd, FPURegister rs) { fsgnjn_d(rd, rs, rs); }
 
-  void RV_beqz(Register rs, int16_t imm13) { RV_beq(rs, zero_reg, imm13); }
-  inline void RV_beqz(Register rs1, Label* L) {
-    RV_beqz(rs1, RV_branch_offset(L));
-  }
-  void RV_bnez(Register rs, int16_t imm13) { RV_bne(rs, zero_reg, imm13); }
-  inline void RV_bnez(Register rs1, Label* L) {
-    RV_bnez(rs1, RV_branch_offset(L));
-  }
-  void RV_blez(Register rs, int16_t imm13) { RV_bge(zero_reg, rs, imm13); }
-  inline void RV_blez(Register rs1, Label* L) {
-    RV_blez(rs1, RV_branch_offset(L));
-  }
-  void RV_bgez(Register rs, int16_t imm13) { RV_bge(rs, zero_reg, imm13); }
-  inline void RV_bgez(Register rs1, Label* L) {
-    RV_bgez(rs1, RV_branch_offset(L));
-  }
-  void RV_bltz(Register rs, int16_t imm13) { RV_blt(rs, zero_reg, imm13); }
-  inline void RV_bltz(Register rs1, Label* L) {
-    RV_bltz(rs1, RV_branch_offset(L));
-  }
-  void RV_bgtz(Register rs, int16_t imm13) { RV_blt(zero_reg, rs, imm13); }
+  void beqz(Register rs, int16_t imm13) { beq(rs, zero_reg, imm13); }
+  inline void beqz(Register rs1, Label* L) { beqz(rs1, branch_offset(L)); }
+  void bnez(Register rs, int16_t imm13) { bne(rs, zero_reg, imm13); }
+  inline void bnez(Register rs1, Label* L) { bnez(rs1, branch_offset(L)); }
+  void blez(Register rs, int16_t imm13) { bge(zero_reg, rs, imm13); }
+  inline void blez(Register rs1, Label* L) { blez(rs1, branch_offset(L)); }
+  void bgez(Register rs, int16_t imm13) { bge(rs, zero_reg, imm13); }
+  inline void bgez(Register rs1, Label* L) { bgez(rs1, branch_offset(L)); }
+  void bltz(Register rs, int16_t imm13) { blt(rs, zero_reg, imm13); }
+  inline void bltz(Register rs1, Label* L) { bltz(rs1, branch_offset(L)); }
+  void bgtz(Register rs, int16_t imm13) { blt(zero_reg, rs, imm13); }
 
-  inline void RV_bgtz(Register rs1, Label* L) {
-    RV_bgtz(rs1, RV_branch_offset(L));
+  inline void bgtz(Register rs1, Label* L) { bgtz(rs1, branch_offset(L)); }
+  void bgt(Register rs1, Register rs2, int16_t imm13) { blt(rs2, rs1, imm13); }
+  inline void bgt(Register rs1, Register rs2, Label* L) {
+    bgt(rs1, rs2, branch_offset(L));
   }
-  void RV_bgt(Register rs1, Register rs2, int16_t imm13) {
-    RV_blt(rs2, rs1, imm13);
+  void ble(Register rs1, Register rs2, int16_t imm13) { bge(rs2, rs1, imm13); }
+  inline void ble(Register rs1, Register rs2, Label* L) {
+    ble(rs1, rs2, branch_offset(L));
   }
-  inline void RV_bgt(Register rs1, Register rs2, Label* L) {
-    RV_bgt(rs1, rs2, RV_branch_offset(L));
+  void bgtu(Register rs1, Register rs2, int16_t imm13) {
+    bltu(rs2, rs1, imm13);
   }
-  void RV_ble(Register rs1, Register rs2, int16_t imm13) {
-    RV_bge(rs2, rs1, imm13);
+  inline void bgtu(Register rs1, Register rs2, Label* L) {
+    bgtu(rs1, rs2, branch_offset(L));
   }
-  inline void RV_ble(Register rs1, Register rs2, Label* L) {
-    RV_ble(rs1, rs2, RV_branch_offset(L));
+  void bleu(Register rs1, Register rs2, int16_t imm13) {
+    bgeu(rs2, rs1, imm13);
   }
-  void RV_bgtu(Register rs1, Register rs2, int16_t imm13) {
-    RV_bltu(rs2, rs1, imm13);
-  }
-  inline void RV_bgtu(Register rs1, Register rs2, Label* L) {
-    RV_bgtu(rs1, rs2, RV_branch_offset(L));
-  }
-  void RV_bleu(Register rs1, Register rs2, int16_t imm13) {
-    RV_bgeu(rs2, rs1, imm13);
-  }
-  inline void RV_bleu(Register rs1, Register rs2, Label* L) {
-    RV_bleu(rs1, rs2, RV_branch_offset(L));
+  inline void bleu(Register rs1, Register rs2, Label* L) {
+    bleu(rs1, rs2, branch_offset(L));
   }
 
   // TODO: Replace uses of ToRegister with names once they are properly defined
-  void RV_j(int32_t imm21) { RV_jal(zero_reg, imm21); }
-  inline void RV_j(Label* L) { RV_j(RV_jump_offset(L)); }
-  void RV_jal(int32_t imm21) { RV_jal(ToRegister(1), imm21); }
-  inline void RV_jal(Label* L) { RV_jal(RV_jump_offset(L)); }
-  void RV_jr(Register rs) { RV_jalr(zero_reg, rs, 0); }
-  void RV_jalr(Register rs) { RV_jalr(ToRegister(1), rs, 0); }
-  void RV_ret() { RV_jalr(zero_reg, ToRegister(1), 0); }
-  void RV_call(int32_t offset) {
-    RV_auipc(ToRegister(1), (offset >> 12) + ((offset & 0x800) >> 11));
-    RV_jalr(ToRegister(1), ToRegister(1), offset << 20 >> 20);
+  void j(int32_t imm21) { jal(zero_reg, imm21); }
+  inline void j(Label* L) { j(jump_offset(L)); }
+  void jal(int32_t imm21) { jal(ToRegister(1), imm21); }
+  inline void jal(Label* L) { jal(jump_offset(L)); }
+  void jr(Register rs) { jalr(zero_reg, rs, 0); }
+  void jalr(Register rs) { jalr(ToRegister(1), rs, 0); }
+  void ret() { jalr(zero_reg, ToRegister(1), 0); }
+  void call(int32_t offset) {
+    auipc(ToRegister(1), (offset >> 12) + ((offset & 0x800) >> 11));
+    jalr(ToRegister(1), ToRegister(1), offset << 20 >> 20);
   }
 
   // Read instructions-retired counter
-  void RV_rdinstret(Register rd) { RV_csrrs(rd, csr_instret, zero_reg); }
-  void RV_rdinstreth(Register rd) { RV_csrrs(rd, csr_instreth, zero_reg); }
-  void RV_rdcycle(Register rd) { RV_csrrs(rd, csr_cycle, zero_reg); }
-  void RV_rdcycleh(Register rd) { RV_csrrs(rd, csr_cycleh, zero_reg); }
-  void RV_rdtime(Register rd) { RV_csrrs(rd, csr_time, zero_reg); }
-  void RV_rdtimeh(Register rd) { RV_csrrs(rd, csr_timeh, zero_reg); }
+  void rdinstret(Register rd) { csrrs(rd, csr_instret, zero_reg); }
+  void rdinstreth(Register rd) { csrrs(rd, csr_instreth, zero_reg); }
+  void rdcycle(Register rd) { csrrs(rd, csr_cycle, zero_reg); }
+  void rdcycleh(Register rd) { csrrs(rd, csr_cycleh, zero_reg); }
+  void rdtime(Register rd) { csrrs(rd, csr_time, zero_reg); }
+  void rdtimeh(Register rd) { csrrs(rd, csr_timeh, zero_reg); }
 
-  void RV_csrr(Register rd, ControlStatusReg csr) {
-    RV_csrrs(rd, csr, zero_reg);
-  }
-  void RV_csrw(ControlStatusReg csr, Register rs) {
-    RV_csrrw(zero_reg, csr, rs);
-  }
-  void RV_csrs(ControlStatusReg csr, Register rs) {
-    RV_csrrs(zero_reg, csr, rs);
-  }
-  void RV_csrc(ControlStatusReg csr, Register rs) {
-    RV_csrrc(zero_reg, csr, rs);
-  }
+  void csrr(Register rd, ControlStatusReg csr) { csrrs(rd, csr, zero_reg); }
+  void csrw(ControlStatusReg csr, Register rs) { csrrw(zero_reg, csr, rs); }
+  void csrs(ControlStatusReg csr, Register rs) { csrrs(zero_reg, csr, rs); }
+  void csrc(ControlStatusReg csr, Register rs) { csrrc(zero_reg, csr, rs); }
 
-  void RV_csrwi(ControlStatusReg csr, uint8_t imm) {
-    RV_csrrwi(zero_reg, csr, imm);
-  }
-  void RV_csrsi(ControlStatusReg csr, uint8_t imm) {
-    RV_csrrsi(zero_reg, csr, imm);
-  }
-  void RV_csrci(ControlStatusReg csr, uint8_t imm) {
-    RV_csrrci(zero_reg, csr, imm);
-  }
+  void csrwi(ControlStatusReg csr, uint8_t imm) { csrrwi(zero_reg, csr, imm); }
+  void csrsi(ControlStatusReg csr, uint8_t imm) { csrrsi(zero_reg, csr, imm); }
+  void csrci(ControlStatusReg csr, uint8_t imm) { csrrci(zero_reg, csr, imm); }
 
-  void RV_frcsr(Register rd) { RV_csrrs(rd, csr_fcsr, zero_reg); }
-  void RV_fscsr(Register rd, Register rs) { RV_csrrw(rd, csr_fcsr, rs); }
-  void RV_fscsr(Register rs) { RV_csrrw(zero_reg, csr_fcsr, rs); }
+  void frcsr(Register rd) { csrrs(rd, csr_fcsr, zero_reg); }
+  void fscsr(Register rd, Register rs) { csrrw(rd, csr_fcsr, rs); }
+  void fscsr(Register rs) { csrrw(zero_reg, csr_fcsr, rs); }
 
-  void RV_frrm(Register rd) { RV_csrrs(rd, csr_frm, zero_reg); }
-  void RV_fsrm(Register rd, Register rs) { RV_csrrw(rd, csr_frm, rs); }
-  void RV_fsrm(Register rs) { RV_csrrw(zero_reg, csr_frm, rs); }
+  void frrm(Register rd) { csrrs(rd, csr_frm, zero_reg); }
+  void fsrm(Register rd, Register rs) { csrrw(rd, csr_frm, rs); }
+  void fsrm(Register rs) { csrrw(zero_reg, csr_frm, rs); }
 
-  void RV_frflags(Register rd) { RV_csrrs(rd, csr_fflags, zero_reg); }
-  void RV_fsflags(Register rd, Register rs) { RV_csrrw(rd, csr_fflags, rs); }
-  void RV_fsflags(Register rs) { RV_csrrw(zero_reg, csr_fflags, rs); }
+  void frflags(Register rd) { csrrs(rd, csr_fflags, zero_reg); }
+  void fsflags(Register rd, Register rs) { csrrw(rd, csr_fflags, rs); }
+  void fsflags(Register rs) { csrrw(zero_reg, csr_fflags, rs); }
 
   // Other pseudo instructions that are not part of RISCV pseudo assemly
   void nor(Register rd, Register rs, Register rt) {
     or_(rd, rs, rt);
-    RV_not(rd, rd);
+    not_(rd, rd);
   }
 
-  void sync() { RV_fence(0b1111, 0b1111); }
+  void sync() { fence(0b1111, 0b1111); }
   void break_(uint32_t code, bool break_as_stop = false);
   void stop(uint32_t code = kMaxStopCode);
 
@@ -803,10 +772,10 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase {
   }
 
   // Check if an instruction is a branch of some kind.
-  static bool RV_IsBranch(Instr instr);
-  static bool RV_IsJump(Instr instr);
-  static bool RV_IsJal(Instr instr);
-  static bool RV_IsJalr(Instr instr);
+  static bool IsBranch(Instr instr);
+  static bool IsJump(Instr instr);
+  static bool IsJal(Instr instr);
+  static bool IsJalr(Instr instr);
 
   void CheckTrampolinePool();
 
@@ -840,11 +809,9 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase {
 
   // Decode branch instruction at pos and return branch target pos.
   int target_at(int pos, bool is_internal);
-  int RV_target_at(int pos, bool is_internal);
 
   // Patch branch instruction at pos to branch to given branch target pos.
   void target_at_put(int pos, int target_pos, bool is_internal);
-  void RV_target_at_put(int pos, int target_pos, bool is_internal);
 
   // Say if we need to relocate with this mode.
   bool MustUseReg(RelocInfo::Mode rmode);

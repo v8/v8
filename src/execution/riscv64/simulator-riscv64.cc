@@ -1264,7 +1264,7 @@ void Simulator::TraceMemWr(int64_t addr, T value) {
 // of unaligned load/store
 
 template <typename T>
-T Simulator::RV_ReadMem(int64_t addr, Instruction* instr) {
+T Simulator::ReadMem(int64_t addr, Instruction* instr) {
   if (addr >= 0 && addr < 0x400) {
     // This has to be a nullptr-dereference, drop into debugger.
     PrintF("Memory read from bad address: 0x%08" PRIx64 " , pc=0x%08" PRIxPTR
@@ -1286,7 +1286,7 @@ T Simulator::RV_ReadMem(int64_t addr, Instruction* instr) {
 }
 
 template <typename T>
-void Simulator::RV_WriteMem(int64_t addr, T value, Instruction* instr) {
+void Simulator::WriteMem(int64_t addr, T value, Instruction* instr) {
   if (addr >= 0 && addr < 0x400) {
     // This has to be a nullptr-dereference, drop into debugger.
     PrintF("Memory write to bad address: 0x%08" PRIx64 " , pc=0x%08" PRIxPTR
@@ -2065,9 +2065,9 @@ void Simulator::DecodeRVRAType() {
     case RO_LR_W: {
       base::MutexGuard lock_guard(&GlobalMonitor::Get()->mutex);
       int64_t addr = rs1();
-      auto val = RV_ReadMem<int32_t>(addr, instr_.instr());
+      auto val = ReadMem<int32_t>(addr, instr_.instr());
       set_rd(sext32(val), false);
-      TraceMemRd(addr, val, get_register(RV_rd_reg()));
+      TraceMemRd(addr, val, get_register(rd_reg()));
       local_monitor_.NotifyLoadLinked(addr, TransactionSize::Word);
       GlobalMonitor::Get()->NotifyLoadLinked_Locked(addr,
                                                     &global_monitor_thread_);
@@ -2080,7 +2080,7 @@ void Simulator::DecodeRVRAType() {
               addr, &global_monitor_thread_)) {
         local_monitor_.NotifyStore();
         GlobalMonitor::Get()->NotifyStore_Locked(&global_monitor_thread_);
-        RV_WriteMem<int32_t>(rs1(), (int32_t)rs2(), instr_.instr());
+        WriteMem<int32_t>(rs1(), (int32_t)rs2(), instr_.instr());
         set_rd(1, false);
       } else {
         set_rd(0, false);
@@ -2088,55 +2088,55 @@ void Simulator::DecodeRVRAType() {
       break;
     }
     case RO_AMOSWAP_W: {
-      set_rd(sext32(RV_amo<uint32_t>(
+      set_rd(sext32(amo<uint32_t>(
           rs1(), [&](uint32_t lhs) { return (uint32_t)rs2(); }, instr_.instr(),
           WORD)));
       break;
     }
     case RO_AMOADD_W: {
-      set_rd(sext32(RV_amo<uint32_t>(
+      set_rd(sext32(amo<uint32_t>(
           rs1(), [&](uint32_t lhs) { return lhs + (uint32_t)rs2(); },
           instr_.instr(), WORD)));
       break;
     }
     case RO_AMOXOR_W: {
-      set_rd(sext32(RV_amo<uint32_t>(
+      set_rd(sext32(amo<uint32_t>(
           rs1(), [&](uint32_t lhs) { return lhs ^ (uint32_t)rs2(); },
           instr_.instr(), WORD)));
       break;
     }
     case RO_AMOAND_W: {
-      set_rd(sext32(RV_amo<uint32_t>(
+      set_rd(sext32(amo<uint32_t>(
           rs1(), [&](uint32_t lhs) { return lhs & (uint32_t)rs2(); },
           instr_.instr(), WORD)));
       break;
     }
     case RO_AMOOR_W: {
-      set_rd(sext32(RV_amo<uint32_t>(
+      set_rd(sext32(amo<uint32_t>(
           rs1(), [&](uint32_t lhs) { return lhs | (uint32_t)rs2(); },
           instr_.instr(), WORD)));
       break;
     }
     case RO_AMOMIN_W: {
-      set_rd(sext32(RV_amo<int32_t>(
+      set_rd(sext32(amo<int32_t>(
           rs1(), [&](int32_t lhs) { return std::min(lhs, (int32_t)rs2()); },
           instr_.instr(), WORD)));
       break;
     }
     case RO_AMOMAX_W: {
-      set_rd(sext32(RV_amo<int32_t>(
+      set_rd(sext32(amo<int32_t>(
           rs1(), [&](int32_t lhs) { return std::max(lhs, (int32_t)rs2()); },
           instr_.instr(), WORD)));
       break;
     }
     case RO_AMOMINU_W: {
-      set_rd(sext32(RV_amo<uint32_t>(
+      set_rd(sext32(amo<uint32_t>(
           rs1(), [&](uint32_t lhs) { return std::min(lhs, (uint32_t)rs2()); },
           instr_.instr(), WORD)));
       break;
     }
     case RO_AMOMAXU_W: {
-      set_rd(sext32(RV_amo<uint32_t>(
+      set_rd(sext32(amo<uint32_t>(
           rs1(), [&](uint32_t lhs) { return std::max(lhs, (uint32_t)rs2()); },
           instr_.instr(), WORD)));
       break;
@@ -2145,9 +2145,9 @@ void Simulator::DecodeRVRAType() {
     case RO_LR_D: {
       base::MutexGuard lock_guard(&GlobalMonitor::Get()->mutex);
       int64_t addr = rs1();
-      auto val = RV_ReadMem<int64_t>(addr, instr_.instr());
+      auto val = ReadMem<int64_t>(addr, instr_.instr());
       set_rd(val, false);
-      TraceMemRd(addr, val, get_register(RV_rd_reg()));
+      TraceMemRd(addr, val, get_register(rd_reg()));
       local_monitor_.NotifyLoadLinked(addr, TransactionSize::DoubleWord);
       GlobalMonitor::Get()->NotifyLoadLinked_Locked(addr,
                                                     &global_monitor_thread_);
@@ -2161,7 +2161,7 @@ void Simulator::DecodeRVRAType() {
           (GlobalMonitor::Get()->NotifyStoreConditional_Locked(
               addr, &global_monitor_thread_))) {
         GlobalMonitor::Get()->NotifyStore_Locked(&global_monitor_thread_);
-        RV_WriteMem<int64_t>(rs1(), rs2(), instr_.instr());
+        WriteMem<int64_t>(rs1(), rs2(), instr_.instr());
         set_rd(1, false);
       } else {
         set_rd(0, false);
@@ -2169,54 +2169,54 @@ void Simulator::DecodeRVRAType() {
       break;
     }
     case RO_AMOSWAP_D: {
-      set_rd(RV_amo<int64_t>(
+      set_rd(amo<int64_t>(
           rs1(), [&](int64_t lhs) { return rs2(); }, instr_.instr(), DWORD));
       break;
     }
     case RO_AMOADD_D: {
-      set_rd(RV_amo<int64_t>(
+      set_rd(amo<int64_t>(
           rs1(), [&](int64_t lhs) { return lhs + rs2(); }, instr_.instr(),
           DWORD));
       break;
     }
     case RO_AMOXOR_D: {
-      set_rd(RV_amo<int64_t>(
+      set_rd(amo<int64_t>(
           rs1(), [&](int64_t lhs) { return lhs ^ rs2(); }, instr_.instr(),
           DWORD));
       break;
     }
     case RO_AMOAND_D: {
-      set_rd(RV_amo<int64_t>(
+      set_rd(amo<int64_t>(
           rs1(), [&](int64_t lhs) { return lhs & rs2(); }, instr_.instr(),
           DWORD));
       break;
     }
     case RO_AMOOR_D: {
-      set_rd(RV_amo<int64_t>(
+      set_rd(amo<int64_t>(
           rs1(), [&](int64_t lhs) { return lhs | rs2(); }, instr_.instr(),
           DWORD));
       break;
     }
     case RO_AMOMIN_D: {
-      set_rd(RV_amo<int64_t>(
+      set_rd(amo<int64_t>(
           rs1(), [&](int64_t lhs) { return std::min(lhs, rs2()); },
           instr_.instr(), DWORD));
       break;
     }
     case RO_AMOMAX_D: {
-      set_rd(RV_amo<int64_t>(
+      set_rd(amo<int64_t>(
           rs1(), [&](int64_t lhs) { return std::max(lhs, rs2()); },
           instr_.instr(), DWORD));
       break;
     }
     case RO_AMOMINU_D: {
-      set_rd(RV_amo<uint64_t>(
+      set_rd(amo<uint64_t>(
           rs1(), [&](uint64_t lhs) { return std::min(lhs, (uint64_t)rs2()); },
           instr_.instr(), DWORD));
       break;
     }
     case RO_AMOMAXU_D: {
-      set_rd(RV_amo<uint64_t>(
+      set_rd(amo<uint64_t>(
           rs1(), [&](uint64_t lhs) { return std::max(lhs, (uint64_t)rs2()); },
           instr_.instr(), DWORD));
       break;
@@ -2815,52 +2815,52 @@ void Simulator::DecodeRVIType() {
     }
     case RO_LB: {
       int64_t addr = rs1() + imm12();
-      int8_t val = RV_ReadMem<int8_t>(addr, instr_.instr());
+      int8_t val = ReadMem<int8_t>(addr, instr_.instr());
       set_rd(sext_xlen(val), false);
-      TraceMemRd(addr, val, get_register(RV_rd_reg()));
+      TraceMemRd(addr, val, get_register(rd_reg()));
       break;
     }
     case RO_LH: {
       int64_t addr = rs1() + imm12();
-      int16_t val = RV_ReadMem<int16_t>(addr, instr_.instr());
+      int16_t val = ReadMem<int16_t>(addr, instr_.instr());
       set_rd(sext_xlen(val), false);
-      TraceMemRd(addr, val, get_register(RV_rd_reg()));
+      TraceMemRd(addr, val, get_register(rd_reg()));
       break;
     }
     case RO_LW: {
       int64_t addr = rs1() + imm12();
-      int32_t val = RV_ReadMem<int32_t>(addr, instr_.instr());
+      int32_t val = ReadMem<int32_t>(addr, instr_.instr());
       set_rd(sext_xlen(val), false);
-      TraceMemRd(addr, val, get_register(RV_rd_reg()));
+      TraceMemRd(addr, val, get_register(rd_reg()));
       break;
     }
     case RO_LBU: {
       int64_t addr = rs1() + imm12();
-      uint8_t val = RV_ReadMem<uint8_t>(addr, instr_.instr());
+      uint8_t val = ReadMem<uint8_t>(addr, instr_.instr());
       set_rd(zext_xlen(val), false);
-      TraceMemRd(addr, val, get_register(RV_rd_reg()));
+      TraceMemRd(addr, val, get_register(rd_reg()));
       break;
     }
     case RO_LHU: {
       int64_t addr = rs1() + imm12();
-      uint16_t val = RV_ReadMem<uint16_t>(addr, instr_.instr());
+      uint16_t val = ReadMem<uint16_t>(addr, instr_.instr());
       set_rd(zext_xlen(val), false);
-      TraceMemRd(addr, val, get_register(RV_rd_reg()));
+      TraceMemRd(addr, val, get_register(rd_reg()));
       break;
     }
 #ifdef V8_TARGET_ARCH_64_BIT
     case RO_LWU: {
       int64_t addr = rs1() + imm12();
-      uint32_t val = RV_ReadMem<uint32_t>(addr, instr_.instr());
+      uint32_t val = ReadMem<uint32_t>(addr, instr_.instr());
       set_rd(zext_xlen(val), false);
-      TraceMemRd(addr, val, get_register(RV_rd_reg()));
+      TraceMemRd(addr, val, get_register(rd_reg()));
       break;
     }
     case RO_LD: {
       int64_t addr = rs1() + imm12();
-      int64_t val = RV_ReadMem<int64_t>(addr, instr_.instr());
+      int64_t val = ReadMem<int64_t>(addr, instr_.instr());
       set_rd(sext_xlen(val), false);
-      TraceMemRd(addr, val, get_register(RV_rd_reg()));
+      TraceMemRd(addr, val, get_register(rd_reg()));
       break;
     }
 #endif /*V8_TARGET_ARCH_64_BIT*/
@@ -2942,7 +2942,7 @@ void Simulator::DecodeRVIType() {
     }
       // TODO: use Zicsr Standard Extension macro block
     case RO_CSRRW: {
-      if (RV_rd_reg() != zero_reg) {
+      if (rd_reg() != zero_reg) {
         set_rd(zext_xlen(read_csr_value(csr_reg())));
       }
       write_csr_value(csr_reg(), rs1());
@@ -2963,7 +2963,7 @@ void Simulator::DecodeRVIType() {
       break;
     }
     case RO_CSRRWI: {
-      if (RV_rd_reg() != zero_reg) {
+      if (rd_reg() != zero_reg) {
         set_rd(zext_xlen(read_csr_value(csr_reg())));
       }
       write_csr_value(csr_reg(), imm5CSR());
@@ -2986,17 +2986,17 @@ void Simulator::DecodeRVIType() {
     // TODO: use F Extension macro block
     case RO_FLW: {
       int64_t addr = rs1() + imm12();
-      float val = RV_ReadMem<float>(addr, instr_.instr());
+      float val = ReadMem<float>(addr, instr_.instr());
       set_frd(val, false);
-      TraceMemRd(addr, val, get_fpu_register(RV_frd_reg()));
+      TraceMemRd(addr, val, get_fpu_register(frd_reg()));
       break;
     }
     // TODO: use D Extension macro block
     case RO_FLD: {
       int64_t addr = rs1() + imm12();
-      double val = RV_ReadMem<double>(addr, instr_.instr());
+      double val = ReadMem<double>(addr, instr_.instr());
       set_drd(val, false);
-      TraceMemRd(addr, val, get_fpu_register(RV_frd_reg()));
+      TraceMemRd(addr, val, get_fpu_register(frd_reg()));
       break;
     }
     default:
@@ -3007,27 +3007,27 @@ void Simulator::DecodeRVIType() {
 void Simulator::DecodeRVSType() {
   switch (instr_.InstructionBits() & kSTypeMask) {
     case RO_SB:
-      RV_WriteMem<uint8_t>(rs1() + s_imm12(), (uint8_t)rs2(), instr_.instr());
+      WriteMem<uint8_t>(rs1() + s_imm12(), (uint8_t)rs2(), instr_.instr());
       break;
     case RO_SH:
-      RV_WriteMem<uint16_t>(rs1() + s_imm12(), (uint16_t)rs2(), instr_.instr());
+      WriteMem<uint16_t>(rs1() + s_imm12(), (uint16_t)rs2(), instr_.instr());
       break;
     case RO_SW:
-      RV_WriteMem<uint32_t>(rs1() + s_imm12(), (uint32_t)rs2(), instr_.instr());
+      WriteMem<uint32_t>(rs1() + s_imm12(), (uint32_t)rs2(), instr_.instr());
       break;
 #ifdef V8_TARGET_ARCH_64_BIT
     case RO_SD:
-      RV_WriteMem<uint64_t>(rs1() + s_imm12(), (uint64_t)rs2(), instr_.instr());
+      WriteMem<uint64_t>(rs1() + s_imm12(), (uint64_t)rs2(), instr_.instr());
       break;
 #endif /*V8_TARGET_ARCH_64_BIT*/
     // TODO: use F Extension macro block
     case RO_FSW: {
-      RV_WriteMem<float>(rs1() + s_imm12(), frs2(), instr_.instr());
+      WriteMem<float>(rs1() + s_imm12(), frs2(), instr_.instr());
       break;
     }
     // TODO: use D Extension macro block
     case RO_FSD: {
-      RV_WriteMem<double>(rs1() + s_imm12(), drs2(), instr_.instr());
+      WriteMem<double>(rs1() + s_imm12(), drs2(), instr_.instr());
       break;
     }
     default:

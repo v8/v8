@@ -90,18 +90,18 @@ inline void Store(LiftoffAssembler* assm, Register base, int32_t offset,
 inline void push(LiftoffAssembler* assm, LiftoffRegister reg, ValueType type) {
   switch (type) {
     case kWasmI32:
-      assm->RV_addi(sp, sp, -kSystemPointerSize);
+      assm->addi(sp, sp, -kSystemPointerSize);
       assm->Sw(reg.gp(), MemOperand(sp, 0));
       break;
     case kWasmI64:
       assm->push(reg.gp());
       break;
     case kWasmF32:
-      assm->RV_addi(sp, sp, -kSystemPointerSize);
+      assm->addi(sp, sp, -kSystemPointerSize);
       assm->Swc1(reg.fp(), MemOperand(sp, 0));
       break;
     case kWasmF64:
-      assm->RV_addi(sp, sp, -kSystemPointerSize);
+      assm->addi(sp, sp, -kSystemPointerSize);
       assm->Sdc1(reg.fp(), MemOperand(sp, 0));
       break;
     default:
@@ -240,7 +240,7 @@ void LiftoffAssembler::PatchPrepareStackFrame(int offset, int frame_size) {
   TurboAssembler patching_assembler(
       nullptr, AssemblerOptions{}, CodeObjectRequired::kNo,
       ExternalAssemblerBuffer(buffer_start_ + offset, kAvailableSpace));
-  // If bytes can be represented as 16bit, RV_addi will be generated and two
+  // If bytes can be represented as 16bit, addi will be generated and two
   // nops will stay untouched. Otherwise, lui-ori sequence will load it to
   // register and, as third instruction, daddu will be generated.
   patching_assembler.Daddu(sp, sp, Operand(-frame_size));
@@ -582,7 +582,7 @@ void LiftoffAssembler::FillStackSlotsWithZero(int start, int size) {
     Label loop;
     bind(&loop);
     Sd(zero_reg, MemOperand(a0, kSystemPointerSize));
-    RV_addi(a0, a0, kSystemPointerSize);
+    addi(a0, a0, kSystemPointerSize);
     BranchShort(&loop, ne, a0, Operand(a1));
 
     Pop(a1, a0);
@@ -617,7 +617,7 @@ void LiftoffAssembler::emit_i32_divs(Register dst, Register lhs, Register rhs,
   TurboAssembler::li(kScratchReg2, 1);
   TurboAssembler::LoadZeroOnCondition(kScratchReg, lhs, Operand(kMinInt), eq);
   TurboAssembler::LoadZeroOnCondition(kScratchReg2, rhs, Operand(-1), eq);
-  RV_add(kScratchReg, kScratchReg, kScratchReg2);
+  add(kScratchReg, kScratchReg, kScratchReg2);
   TurboAssembler::Branch(trap_div_unrepresentable, eq, kScratchReg,
                          Operand(zero_reg));
 
@@ -649,8 +649,8 @@ void LiftoffAssembler::emit_i32_remu(Register dst, Register lhs, Register rhs,
   }
 
 // clang-format off
-I32_BINOP(add, RV_addw)
-I32_BINOP(sub, RV_subw)
+I32_BINOP(add, addw)
+I32_BINOP(sub, subw)
 I32_BINOP(and, and_)
 I32_BINOP(or, or_)
 I32_BINOP(xor, xor_)
@@ -697,13 +697,13 @@ bool LiftoffAssembler::emit_i32_popcnt(Register dst, Register src) {
     instruction(dst, src, amount);                                   \
   }
 
-I32_SHIFTOP(shl, RV_sllw)
-I32_SHIFTOP(sar, RV_sraw)
-I32_SHIFTOP(shr, RV_srlw)
+I32_SHIFTOP(shl, sllw)
+I32_SHIFTOP(sar, sraw)
+I32_SHIFTOP(shr, srlw)
 
-I32_SHIFTOP_I(shl, RV_slliw)
-I32_SHIFTOP_I(sar, RV_sraiw)
-I32_SHIFTOP_I(shr, RV_srliw)
+I32_SHIFTOP_I(shl, slliw)
+I32_SHIFTOP_I(sar, sraiw)
+I32_SHIFTOP_I(shr, srliw)
 
 #undef I32_SHIFTOP
 #undef I32_SHIFTOP_I
@@ -725,7 +725,7 @@ bool LiftoffAssembler::emit_i64_divs(LiftoffRegister dst, LiftoffRegister lhs,
   TurboAssembler::LoadZeroOnCondition(
       kScratchReg, lhs.gp(), Operand(std::numeric_limits<int64_t>::min()), eq);
   TurboAssembler::LoadZeroOnCondition(kScratchReg2, rhs.gp(), Operand(-1), eq);
-  RV_add(kScratchReg, kScratchReg, kScratchReg2);
+  add(kScratchReg, kScratchReg, kScratchReg2);
   TurboAssembler::Branch(trap_div_unrepresentable, eq, kScratchReg,
                          Operand(zero_reg));
 
@@ -764,8 +764,8 @@ bool LiftoffAssembler::emit_i64_remu(LiftoffRegister dst, LiftoffRegister lhs,
   }
 
 // clang-format off
-I64_BINOP(add, RV_add)
-I64_BINOP(sub, RV_sub)
+I64_BINOP(add, add)
+I64_BINOP(sub, sub)
 I64_BINOP(and, and_)
 I64_BINOP(or, or_)
 I64_BINOP(xor, xor_)
@@ -800,19 +800,19 @@ I64_BINOP_I(xor, Xor)
     instruction(dst.gp(), src.gp(), amount);                                \
   }
 
-I64_SHIFTOP(shl, RV_sll)
-I64_SHIFTOP(sar, RV_sra)
-I64_SHIFTOP(shr, RV_srl)
+I64_SHIFTOP(shl, sll)
+I64_SHIFTOP(sar, sra)
+I64_SHIFTOP(shr, srl)
 
-I64_SHIFTOP_I(shl, RV_slli)
-I64_SHIFTOP_I(sar, RV_srai)
-I64_SHIFTOP_I(shr, RV_srli)
+I64_SHIFTOP_I(shl, slli)
+I64_SHIFTOP_I(sar, srai)
+I64_SHIFTOP_I(shr, srli)
 
 #undef I64_SHIFTOP
 #undef I64_SHIFTOP_I
 
 void LiftoffAssembler::emit_u32_to_intptr(Register dst, Register src) {
-  RV_addw(dst, src, zero_reg);
+  addw(dst, src, zero_reg);
 }
 
 void LiftoffAssembler::emit_f32_neg(DoubleRegister dst, DoubleRegister src) {
@@ -868,26 +868,26 @@ void LiftoffAssembler::emit_f64_copysign(DoubleRegister dst, DoubleRegister lhs,
     return true;                                                               \
   }
 
-FP_BINOP(f32_add, RV_fadd_s)
-FP_BINOP(f32_sub, RV_fsub_s)
-FP_BINOP(f32_mul, RV_fmul_s)
-FP_BINOP(f32_div, RV_fdiv_s)
-FP_UNOP(f32_abs, RV_fabs_s)
+FP_BINOP(f32_add, fadd_s)
+FP_BINOP(f32_sub, fsub_s)
+FP_BINOP(f32_mul, fmul_s)
+FP_BINOP(f32_div, fdiv_s)
+FP_UNOP(f32_abs, fabs_s)
 FP_UNOP_RETURN_TRUE(f32_ceil, Ceil_s_s)
 FP_UNOP_RETURN_TRUE(f32_floor, Floor_s_s)
 FP_UNOP_RETURN_TRUE(f32_trunc, Trunc_s_s)
 FP_UNOP_RETURN_TRUE(f32_nearest_int, Round_s_s)
-FP_UNOP(f32_sqrt, RV_fsqrt_s)
-FP_BINOP(f64_add, RV_fadd_d)
-FP_BINOP(f64_sub, RV_fsub_d)
-FP_BINOP(f64_mul, RV_fmul_d)
-FP_BINOP(f64_div, RV_fdiv_d)
-FP_UNOP(f64_abs, RV_fabs_d)
+FP_UNOP(f32_sqrt, fsqrt_s)
+FP_BINOP(f64_add, fadd_d)
+FP_BINOP(f64_sub, fsub_d)
+FP_BINOP(f64_mul, fmul_d)
+FP_BINOP(f64_div, fdiv_d)
+FP_UNOP(f64_abs, fabs_d)
 FP_UNOP_RETURN_TRUE(f64_ceil, Ceil_d_d)
 FP_UNOP_RETURN_TRUE(f64_floor, Floor_d_d)
 FP_UNOP_RETURN_TRUE(f64_trunc, Trunc_d_d)
 FP_UNOP_RETURN_TRUE(f64_nearest_int, Round_d_d)
-FP_UNOP(f64_sqrt, RV_fsqrt_d)
+FP_UNOP(f64_sqrt, fsqrt_d)
 
 #undef FP_BINOP
 #undef FP_UNOP
@@ -937,7 +937,7 @@ bool LiftoffAssembler::emit_type_conversion(WasmOpcode opcode,
           Trunc_ul_d(dst.gp(), src.fp(), kScratchReg);
           break;
         case kExprF32ConvertF64:
-          RV_fcvt_s_d(dst.fp(), src.fp());
+          fcvt_s_d(dst.fp(), src.fp());
           // FIXME (?): what if double cannot be represented by float?
           // Trunc_s_d(dst.gp(), src.fp(), kScratchReg);
           break;
@@ -954,13 +954,13 @@ bool LiftoffAssembler::emit_type_conversion(WasmOpcode opcode,
       TurboAssembler::FmoveLow(dst.gp(), src.fp());
       return true;
     case kExprI64SConvertI32:
-      RV_slliw(dst.gp(), src.gp(), 0);
+      slliw(dst.gp(), src.gp(), 0);
       return true;
     case kExprI64UConvertI32:
       TurboAssembler::Dext(dst.gp(), src.gp(), 0, 32);
       return true;
     case kExprI64ReinterpretF64:
-      RV_fmv_x_d(dst.gp(), src.fp());
+      fmv_x_d(dst.gp(), src.fp());
       return true;
     case kExprF32SConvertI32: {
       TurboAssembler::Cvt_s_w(dst.fp(), src.gp());
@@ -980,10 +980,10 @@ bool LiftoffAssembler::emit_type_conversion(WasmOpcode opcode,
       TurboAssembler::Cvt_d_uw(dst.fp(), src.gp());
       return true;
     case kExprF64ConvertF32:
-      RV_fcvt_d_s(dst.fp(), src.fp());
+      fcvt_d_s(dst.fp(), src.fp());
       return true;
     case kExprF64ReinterpretI64:
-      RV_fmv_d_x(dst.fp(), src.gp());
+      fmv_d_x(dst.fp(), src.gp());
       return true;
     default:
       return false;
@@ -991,31 +991,31 @@ bool LiftoffAssembler::emit_type_conversion(WasmOpcode opcode,
 }  // namespace internal
 
 void LiftoffAssembler::emit_i32_signextend_i8(Register dst, Register src) {
-  RV_slliw(dst, src, 32 - 8);
-  RV_sraiw(dst, dst, 32 - 8);
+  slliw(dst, src, 32 - 8);
+  sraiw(dst, dst, 32 - 8);
 }
 
 void LiftoffAssembler::emit_i32_signextend_i16(Register dst, Register src) {
-  RV_slliw(dst, src, 32 - 16);
-  RV_sraiw(dst, dst, 32 - 16);
+  slliw(dst, src, 32 - 16);
+  sraiw(dst, dst, 32 - 16);
 }
 
 void LiftoffAssembler::emit_i64_signextend_i8(LiftoffRegister dst,
                                               LiftoffRegister src) {
-  RV_slli(dst.gp(), src.gp(), 64 - 8);
-  RV_srai(dst.gp(), dst.gp(), 64 - 8);
+  slli(dst.gp(), src.gp(), 64 - 8);
+  srai(dst.gp(), dst.gp(), 64 - 8);
 }
 
 void LiftoffAssembler::emit_i64_signextend_i16(LiftoffRegister dst,
                                                LiftoffRegister src) {
-  RV_slli(dst.gp(), src.gp(), 64 - 16);
-  RV_srai(dst.gp(), dst.gp(), 64 - 16);
+  slli(dst.gp(), src.gp(), 64 - 16);
+  srai(dst.gp(), dst.gp(), 64 - 16);
 }
 
 void LiftoffAssembler::emit_i64_signextend_i32(LiftoffRegister dst,
                                                LiftoffRegister src) {
-  RV_slli(dst.gp(), src.gp(), 64 - 32);
-  RV_srai(dst.gp(), dst.gp(), 64 - 32);
+  slli(dst.gp(), src.gp(), 64 - 32);
+  srai(dst.gp(), dst.gp(), 64 - 32);
 }
 
 void LiftoffAssembler::emit_jump(Label* label) {

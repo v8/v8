@@ -758,7 +758,7 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       if (isWasmCapiFunction) {
         // Put the return address in a stack slot.
         __ bind(&start_call);
-        __ RV_auipc(kScratchReg, 0);
+        __ auipc(kScratchReg, 0);
         __ Daddu(kScratchReg, kScratchReg, offset);
         __ Sd(kScratchReg,
               MemOperand(fp, WasmExitFrameConstants::kCallingPCOffset));
@@ -1221,21 +1221,21 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
     } break;
     case kRiscvAddS:
       // TODO(plind): add special case: combine mult & add.
-      __ RV_fadd_s(i.OutputDoubleRegister(), i.InputDoubleRegister(0),
-                   i.InputDoubleRegister(1));
+      __ fadd_s(i.OutputDoubleRegister(), i.InputDoubleRegister(0),
+                i.InputDoubleRegister(1));
       break;
     case kRiscvSubS:
-      __ RV_fsub_s(i.OutputDoubleRegister(), i.InputDoubleRegister(0),
-                   i.InputDoubleRegister(1));
+      __ fsub_s(i.OutputDoubleRegister(), i.InputDoubleRegister(0),
+                i.InputDoubleRegister(1));
       break;
     case kRiscvMulS:
       // TODO(plind): add special case: right op is -1.0, see arm port.
-      __ RV_fmul_s(i.OutputDoubleRegister(), i.InputDoubleRegister(0),
-                   i.InputDoubleRegister(1));
+      __ fmul_s(i.OutputDoubleRegister(), i.InputDoubleRegister(0),
+                i.InputDoubleRegister(1));
       break;
     case kRiscvDivS:
-      __ RV_fdiv_s(i.OutputDoubleRegister(), i.InputDoubleRegister(0),
-                   i.InputDoubleRegister(1));
+      __ fdiv_s(i.OutputDoubleRegister(), i.InputDoubleRegister(0),
+                i.InputDoubleRegister(1));
       break;
     case kRiscvModS: {
       // TODO(bmeurer): We should really get rid of this special instruction,
@@ -1251,22 +1251,22 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       break;
     }
     case kRiscvAbsS:
-      __ RV_fabs_s(i.OutputSingleRegister(), i.InputSingleRegister(0));
+      __ fabs_s(i.OutputSingleRegister(), i.InputSingleRegister(0));
       break;
     case kRiscvNegS:
       __ Neg_s(i.OutputSingleRegister(), i.InputSingleRegister(0));
       break;
     case kRiscvSqrtS: {
-      __ RV_fsqrt_s(i.OutputDoubleRegister(), i.InputDoubleRegister(0));
+      __ fsqrt_s(i.OutputDoubleRegister(), i.InputDoubleRegister(0));
       break;
     }
     case kRiscvMaxS:
-      __ RV_fmax_s(i.OutputDoubleRegister(), i.InputDoubleRegister(0),
-                   i.InputDoubleRegister(1));
+      __ fmax_s(i.OutputDoubleRegister(), i.InputDoubleRegister(0),
+                i.InputDoubleRegister(1));
       break;
     case kRiscvMinS:
-      __ RV_fmin_s(i.OutputDoubleRegister(), i.InputDoubleRegister(0),
-                   i.InputDoubleRegister(1));
+      __ fmin_s(i.OutputDoubleRegister(), i.InputDoubleRegister(0),
+                i.InputDoubleRegister(1));
       break;
     case kRiscvCmpD: {
       FPURegister left = i.InputOrZeroDoubleRegister(0);
@@ -1283,21 +1283,21 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
     } break;
     case kRiscvAddD:
       // TODO(plind): add special case: combine mult & add.
-      __ RV_fadd_d(i.OutputDoubleRegister(), i.InputDoubleRegister(0),
-                   i.InputDoubleRegister(1));
+      __ fadd_d(i.OutputDoubleRegister(), i.InputDoubleRegister(0),
+                i.InputDoubleRegister(1));
       break;
     case kRiscvSubD:
-      __ RV_fsub_d(i.OutputDoubleRegister(), i.InputDoubleRegister(0),
-                   i.InputDoubleRegister(1));
+      __ fsub_d(i.OutputDoubleRegister(), i.InputDoubleRegister(0),
+                i.InputDoubleRegister(1));
       break;
     case kRiscvMulD:
       // TODO(plind): add special case: right op is -1.0, see arm port.
-      __ RV_fmul_d(i.OutputDoubleRegister(), i.InputDoubleRegister(0),
-                   i.InputDoubleRegister(1));
+      __ fmul_d(i.OutputDoubleRegister(), i.InputDoubleRegister(0),
+                i.InputDoubleRegister(1));
       break;
     case kRiscvDivD:
-      __ RV_fdiv_d(i.OutputDoubleRegister(), i.InputDoubleRegister(0),
-                   i.InputDoubleRegister(1));
+      __ fdiv_d(i.OutputDoubleRegister(), i.InputDoubleRegister(0),
+                i.InputDoubleRegister(1));
       break;
     case kRiscvModD: {
       // TODO(bmeurer): We should really get rid of this special instruction,
@@ -1312,22 +1312,22 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       break;
     }
     case kRiscvAbsD:
-      __ RV_fabs_d(i.OutputDoubleRegister(), i.InputDoubleRegister(0));
+      __ fabs_d(i.OutputDoubleRegister(), i.InputDoubleRegister(0));
       break;
     case kRiscvNegD:
       __ Neg_d(i.OutputDoubleRegister(), i.InputDoubleRegister(0));
       break;
     case kRiscvSqrtD: {
-      __ RV_fsqrt_d(i.OutputDoubleRegister(), i.InputDoubleRegister(0));
+      __ fsqrt_d(i.OutputDoubleRegister(), i.InputDoubleRegister(0));
       break;
     }
     case kRiscvMaxD:
-      __ RV_fmax_d(i.OutputDoubleRegister(), i.InputDoubleRegister(0),
-                   i.InputDoubleRegister(1));
+      __ fmax_d(i.OutputDoubleRegister(), i.InputDoubleRegister(0),
+                i.InputDoubleRegister(1));
       break;
     case kRiscvMinD:
-      __ RV_fmin_d(i.OutputDoubleRegister(), i.InputDoubleRegister(0),
-                   i.InputDoubleRegister(1));
+      __ fmin_d(i.OutputDoubleRegister(), i.InputDoubleRegister(0),
+                i.InputDoubleRegister(1));
       break;
     case kRiscvFloat64RoundDown: {
       __ Floor_d_d(i.OutputDoubleRegister(), i.InputDoubleRegister(0),
@@ -1393,17 +1393,17 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       __ FPUCanonicalizeNaN(i.OutputDoubleRegister(), i.InputDoubleRegister(0));
       break;
     case kRiscvCvtSD:
-      __ RV_fcvt_s_d(i.OutputSingleRegister(), i.InputDoubleRegister(0));
+      __ fcvt_s_d(i.OutputSingleRegister(), i.InputDoubleRegister(0));
       break;
     case kRiscvCvtDS:
-      __ RV_fcvt_d_s(i.OutputDoubleRegister(), i.InputSingleRegister(0));
+      __ fcvt_d_s(i.OutputDoubleRegister(), i.InputSingleRegister(0));
       break;
     case kRiscvCvtDW: {
-      __ RV_fcvt_d_w(i.OutputDoubleRegister(), i.InputRegister(0));
+      __ fcvt_d_w(i.OutputDoubleRegister(), i.InputRegister(0));
       break;
     }
     case kRiscvCvtSW: {
-      __ RV_fcvt_s_w(i.OutputDoubleRegister(), i.InputRegister(0));
+      __ fcvt_s_w(i.OutputDoubleRegister(), i.InputRegister(0));
       break;
     }
     case kRiscvCvtSUw: {
@@ -1411,11 +1411,11 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       break;
     }
     case kRiscvCvtSL: {
-      __ RV_fcvt_s_l(i.OutputDoubleRegister(), i.InputRegister(0));
+      __ fcvt_s_l(i.OutputDoubleRegister(), i.InputRegister(0));
       break;
     }
     case kRiscvCvtDL: {
-      __ RV_fcvt_d_l(i.OutputDoubleRegister(), i.InputRegister(0));
+      __ fcvt_d_l(i.OutputDoubleRegister(), i.InputRegister(0));
       break;
     }
     case kRiscvCvtDUw: {
@@ -1530,10 +1530,10 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       break;
     }
     case kRiscvBitcastDL:
-      __ RV_fmv_x_d(i.OutputRegister(), i.InputDoubleRegister(0));
+      __ fmv_x_d(i.OutputRegister(), i.InputDoubleRegister(0));
       break;
     case kRiscvBitcastLD:
-      __ RV_fmv_d_x(i.OutputDoubleRegister(), i.InputRegister(0));
+      __ fmv_d_x(i.OutputDoubleRegister(), i.InputRegister(0));
       break;
     case kRiscvFloat64ExtractLowWord32:
       __ FmoveLow(i.OutputRegister(), i.InputDoubleRegister(0));

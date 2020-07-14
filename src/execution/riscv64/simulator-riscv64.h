@@ -450,14 +450,14 @@ class Simulator : public SimulatorBase {
 
   // RISCV Memory read/write methods
   template <typename T>
-  T RV_ReadMem(int64_t addr, Instruction* instr);
+  T ReadMem(int64_t addr, Instruction* instr);
   template <typename T>
-  void RV_WriteMem(int64_t addr, T value, Instruction* instr);
+  void WriteMem(int64_t addr, T value, Instruction* instr);
   template <typename T, typename OP>
-  T RV_amo(int64_t addr, OP f, Instruction* instr, TraceType t) {
-    auto lhs = RV_ReadMem<T>(addr, instr);
+  T amo(int64_t addr, OP f, Instruction* instr, TraceType t) {
+    auto lhs = ReadMem<T>(addr, instr);
     // FIXME: trace memory read for AMO
-    RV_WriteMem<T>(addr, (T)f(lhs), instr);
+    WriteMem<T>(addr, (T)f(lhs), instr);
     return lhs;
   }
 
@@ -486,8 +486,8 @@ class Simulator : public SimulatorBase {
   inline int64_t rs3() const { return get_register(rs3_reg()); }
   inline float frs3() const { return get_fpu_register_float(rs3_reg()); }
   inline double drs3() const { return get_fpu_register_double(rs3_reg()); }
-  inline int32_t RV_rd_reg() const { return instr_.RV_RdValue(); }
-  inline int32_t RV_frd_reg() const { return instr_.RV_RdValue(); }
+  inline int32_t rd_reg() const { return instr_.RdValue(); }
+  inline int32_t frd_reg() const { return instr_.RdValue(); }
   inline int16_t boffset() const { return instr_.BranchOffset(); }
   inline int16_t imm12() const { return instr_.Imm12Value(); }
   inline int32_t imm20J() const { return instr_.Imm20JValue(); }
@@ -495,16 +495,16 @@ class Simulator : public SimulatorBase {
   inline int16_t csr_reg() const { return instr_.CsrValue(); }
 
   inline void set_rd(int64_t value, bool trace = true) {
-    set_register(RV_rd_reg(), value);
-    if (trace) TraceRegWr(get_register(RV_rd_reg()), DWORD);
+    set_register(rd_reg(), value);
+    if (trace) TraceRegWr(get_register(rd_reg()), DWORD);
   }
   inline void set_frd(float value, bool trace = true) {
-    set_fpu_register_float(RV_rd_reg(), value);
-    if (trace) TraceRegWr(get_fpu_register_word(RV_rd_reg()), FLOAT);
+    set_fpu_register_float(rd_reg(), value);
+    if (trace) TraceRegWr(get_fpu_register_word(rd_reg()), FLOAT);
   }
   inline void set_drd(double value, bool trace = true) {
-    set_fpu_register_double(RV_rd_reg(), value);
-    if (trace) TraceRegWr(get_fpu_register(RV_rd_reg()), DOUBLE);
+    set_fpu_register_double(rd_reg(), value);
+    if (trace) TraceRegWr(get_fpu_register(rd_reg()), DOUBLE);
   }
   inline int16_t shamt() const { return (imm12() & 0x3F); }
   inline int16_t shamt32() const { return (imm12() & 0x1F); }

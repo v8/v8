@@ -195,8 +195,8 @@ const int kRs2Shift = 20;
 const int kRs2Bits = 5;
 const int kRs3Shift = 27;
 const int kRs3Bits = 5;
-const int RV_kRdShift = 7;
-const int RV_kRdBits = 5;
+const int kRdShift = 7;
+const int kRdBits = 5;
 const int kRlShift = 25;
 const int kAqShift = 26;
 const int kImm12Shift = 20;
@@ -232,8 +232,8 @@ const int kJTypeMask = kBaseOpcodeMask;
 const int kRs1FieldMask = ((1 << kRs1Bits) - 1) << kRs1Shift;
 const int kRs2FieldMask = ((1 << kRs2Bits) - 1) << kRs2Shift;
 const int kRs3FieldMask = ((1 << kRs3Bits) - 1) << kRs3Shift;
-const int RV_kRdFieldMask = ((1 << RV_kRdBits) - 1) << RV_kRdShift;
-const int kBImm12Mask = kFunct7Mask | RV_kRdFieldMask;
+const int kRdFieldMask = ((1 << kRdBits) - 1) << kRdShift;
+const int kBImm12Mask = kFunct7Mask | kRdFieldMask;
 const int kImm20Mask = ((1 << kImm20Bits) - 1) << kImm20Shift;
 
 // RISCV CSR related bit mask and shift
@@ -272,14 +272,14 @@ enum Opcode : uint32_t {
   MISC_MEM = 0b0001111,  // I special form: FENCE FENCE.I
   OP_IMM = 0b0010011,    // I form: ADDI SLTI SLTIU XORI ORI ANDI SLLI SRLI SARI
   // Note: SLLI/SRLI/SRAI I form first, then func3 001/101 => R type
-  RV_AUIPC = 0b0010111,   // U form: AUIPC
+  AUIPC = 0b0010111,      // U form: AUIPC
   OP_IMM_32 = 0b0011011,  // I form: ADDIW SLLIW SRLIW SRAIW
   // Note:  SRLIW SRAIW I form first, then func3 101 special shift encoding
   STORE = 0b0100011,     // S form: SB SH SW SD
   STORE_FP = 0b0100111,  // S form: FSW FSD FSQ
   AMO = 0b0101111,       // R form: All A instructions
   OP = 0b0110011,      // R: ADD SUB SLL SLT SLTU XOR SRL SRA OR AND and 32M set
-  RV_LUI = 0b0110111,  // U form: LUI
+  LUI = 0b0110111,     // U form: LUI
   OP_32 = 0b0111011,   // R: ADDW SUBW SLLW SRLW SRAW MULW DIVW DIVUW REMW REMUW
   MADD = 0b1000011,    // R4 type: FMADD.S FMADD.D FMADD.Q
   MSUB = 0b1000111,    // R4 type: FMSUB.S FMSUB.D FMSUB.Q
@@ -287,16 +287,16 @@ enum Opcode : uint32_t {
   NMADD = 0b1001111,   // R4 type: FNMADD.S FNMADD.D FNMADD.Q
   OP_FP = 0b1010011,   // R type: Q ext
   BRANCH = 0b1100011,  // B form: BEQ BNE, BLT, BGE, BLTU BGEU
-  RV_JALR = 0b1100111,  // I form: JALR
-  RV_JAL = 0b1101111,   // J form: JAL
-  SYSTEM = 0b1110011,   // I form: ECALL EBREAK Zicsr ext
+  JALR = 0b1100111,    // I form: JALR
+  JAL = 0b1101111,     // J form: JAL
+  SYSTEM = 0b1110011,  // I form: ECALL EBREAK Zicsr ext
 
   // Note use RO (RiscV Opcode) prefix
   // RV32I Base Instruction Set
-  RO_LUI = RV_LUI,
-  RO_AUIPC = RV_AUIPC,
-  RO_JAL = RV_JAL,
-  RO_JALR = RV_JALR | (0b000 << kFunct3Shift),
+  RO_LUI = LUI,
+  RO_AUIPC = AUIPC,
+  RO_JAL = JAL,
+  RO_JALR = JALR | (0b000 << kFunct3Shift),
   RO_BEQ = BRANCH | (0b000 << kFunct3Shift),
   RO_BNE = BRANCH | (0b001 << kFunct3Shift),
   RO_BLT = BRANCH | (0b100 << kFunct3Shift),
@@ -753,13 +753,13 @@ class InstructionGetters : public T {
     return this->Bits(kRs3Shift + kRs3Bits - 1, kRs3Shift);
   }
 
-  inline int RV_RdValue() const {
+  inline int RdValue() const {
     DCHECK(this->InstructionType() == InstructionBase::kRType ||
            this->InstructionType() == InstructionBase::kR4Type ||
            this->InstructionType() == InstructionBase::kIType ||
            this->InstructionType() == InstructionBase::kUType ||
            this->InstructionType() == InstructionBase::kJType);
-    return this->Bits(RV_kRdShift + RV_kRdBits - 1, RV_kRdShift);
+    return this->Bits(kRdShift + kRdBits - 1, kRdShift);
   }
 
   inline int Funct7Value() const {
@@ -931,7 +931,7 @@ InstructionBase::Type InstructionBase::InstructionType() const {
       return kIType;
     case OP_IMM:
       return kIType;
-    case RV_AUIPC:
+    case AUIPC:
       return kUType;
     case OP_IMM_32:
       return kIType;
@@ -943,7 +943,7 @@ InstructionBase::Type InstructionBase::InstructionType() const {
       return kRType;
     case OP:
       return kRType;
-    case RV_LUI:
+    case LUI:
       return kUType;
     case OP_32:
       return kRType;
@@ -956,9 +956,9 @@ InstructionBase::Type InstructionBase::InstructionType() const {
       return kRType;
     case BRANCH:
       return kBType;
-    case RV_JALR:
+    case JALR:
       return kIType;
-    case RV_JAL:
+    case JAL:
       return kJType;
     case SYSTEM:
       return kIType;

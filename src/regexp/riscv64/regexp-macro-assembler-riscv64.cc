@@ -256,9 +256,9 @@ void RegExpMacroAssemblerRISCV::CheckNotBackReferenceIgnoreCase(
     Label loop;
     __ bind(&loop);
     __ Lbu(a3, MemOperand(a0, 0));
-    __ RV_addi(a0, a0, char_size());
+    __ addi(a0, a0, char_size());
     __ Lbu(a4, MemOperand(a2, 0));
-    __ RV_addi(a2, a2, char_size());
+    __ addi(a2, a2, char_size());
 
     __ Branch(&loop_check, eq, a4, Operand(a3));
 
@@ -395,15 +395,15 @@ void RegExpMacroAssemblerRISCV::CheckNotBackReference(int start_reg,
   __ bind(&loop);
   if (mode_ == LATIN1) {
     __ Lbu(a3, MemOperand(a0, 0));
-    __ RV_addi(a0, a0, char_size());
+    __ addi(a0, a0, char_size());
     __ Lbu(a4, MemOperand(a2, 0));
-    __ RV_addi(a2, a2, char_size());
+    __ addi(a2, a2, char_size());
   } else {
     DCHECK(mode_ == UC16);
     __ Lhu(a3, MemOperand(a0, 0));
-    __ RV_addi(a0, a0, char_size());
+    __ addi(a0, a0, char_size());
     __ Lhu(a4, MemOperand(a2, 0));
-    __ RV_addi(a2, a2, char_size());
+    __ addi(a2, a2, char_size());
   }
   BranchOrBacktrack(on_no_match, ne, a3, Operand(a4));
   __ Branch(&loop, lt, a0, Operand(a1));
@@ -692,7 +692,7 @@ Handle<HeapObject> RegExpMacroAssemblerRISCV::GetCode(Handle<String> source) {
     // (effectively string position -1).
     __ Ld(a1, MemOperand(frame_pointer(), kStartIndex));
     __ Dsubu(a0, current_input_offset(), Operand(char_size()));
-    __ RV_slli(t1, a1, (mode_ == UC16) ? 1 : 0);
+    __ slli(t1, a1, (mode_ == UC16) ? 1 : 0);
     __ Dsubu(a0, a0, t1);
     // Store this value in a local variable, for use when clearing
     // position registers.
@@ -750,7 +750,7 @@ Handle<HeapObject> RegExpMacroAssemblerRISCV::GetCode(Handle<String> source) {
         __ Dsubu(a1, end_of_input_address(), a1);
         // a1 is length of input in bytes.
         if (mode_ == UC16) {
-          __ RV_srli(a1, a1, 1);
+          __ srli(a1, a1, 1);
         }
         // a1 is length of input in characters.
         __ Daddu(a1, a1, Operand(a2));
@@ -768,9 +768,9 @@ Handle<HeapObject> RegExpMacroAssemblerRISCV::GetCode(Handle<String> source) {
             __ mov(t4, a2);
           }
           if (mode_ == UC16) {
-            __ RV_srai(a2, a2, 1);
+            __ srai(a2, a2, 1);
             __ Daddu(a2, a2, a1);
-            __ RV_srai(a3, a3, 1);
+            __ srai(a3, a3, 1);
             __ Daddu(a3, a3, a1);
           } else {
             __ Daddu(a2, a1, Operand(a2));

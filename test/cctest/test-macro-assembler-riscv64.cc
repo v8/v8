@@ -90,7 +90,7 @@ TEST(LoadConstants) {
   MacroAssembler assembler(isolate, v8::internal::CodeObjectRequired::kYes);
   MacroAssembler* masm = &assembler;
 
-  __ RV_mv(a4, a0);
+  __ mv(a4, a0);
   for (int i = 0; i < 64; i++) {
     // Load constant.
     __ li(a5, Operand(refConstants[i]));
@@ -98,7 +98,7 @@ TEST(LoadConstants) {
     __ Daddu(a4, a4, Operand(kPointerSize));
   }
 
-  __ RV_jr(ra);
+  __ jr(ra);
 
   CodeDesc desc;
   masm->GetCode(isolate, &desc);
@@ -126,7 +126,7 @@ TEST(LoadAddress) {
   __ bind(&to_jump);
   __ nop();
   __ nop();
-  __ RV_jr(ra);
+  __ jr(ra);
   __ nop();
   __ bind(&skip);
   __ li(a4, Operand(masm->jump_address(&to_jump)), ADDRESS_LOAD);
@@ -134,7 +134,7 @@ TEST(LoadAddress) {
   // FIXME (RISCV): current li generates 8 instructions, if the sequence has
   // changed, need to adjust the CHECK_EQ value too
   CHECK_EQ(8, check_size);
-  __ RV_jr(a4);
+  __ jr(a4);
   __ nop();
   __ stop();
   __ stop();
@@ -169,7 +169,7 @@ TEST(jump_tables4) {
   Label near_start, end, done;
 
   __ Push(ra);
-  __ RV_mv(a1, zero_reg);
+  __ mv(a1, zero_reg);
 
   __ Branch(&end);
   __ bind(&near_start);
@@ -177,7 +177,7 @@ TEST(jump_tables4) {
   // Generate slightly less than 32K instructions, which will soon require
   // trampoline for branch distance fixup.
   for (int i = 0; i < 32768 - 256; ++i) {
-    __ RV_addi(a1, a1, 1);
+    __ addi(a1, a1, 1);
   }
 
   __ GenerateSwitchTable(a0, kNumCases,
@@ -191,7 +191,7 @@ TEST(jump_tables4) {
 
   __ bind(&done);
   __ Pop(ra);
-  __ RV_jr(ra);
+  __ jr(ra);
 
   __ bind(&end);
   __ Branch(&near_start);
@@ -241,7 +241,7 @@ TEST(jump_tables6) {
   Label near_start, end, done;
 
   __ Push(ra);
-  __ RV_mv(a1, zero_reg);
+  __ mv(a1, zero_reg);
 
   int offs1 = masm->pc_offset();
   int gen_insn = 0;
@@ -253,7 +253,7 @@ TEST(jump_tables6) {
   // Generate slightly less than 32K instructions, which will soon require
   // trampoline for branch distance fixup.
   for (int i = 0; i < kFillInstr; ++i) {
-    __ RV_addi(a1, a1, 1);
+    __ addi(a1, a1, 1);
   }
   gen_insn += kFillInstr;
 
@@ -277,7 +277,7 @@ TEST(jump_tables6) {
 
   __ bind(&done);
   __ Pop(ra);
-  __ RV_jr(ra);
+  __ jr(ra);
   __ nop();
 
   __ bind(&end);
@@ -304,7 +304,7 @@ static uint64_t run_lsa(uint32_t rt, uint32_t rs, int8_t sa) {
   MacroAssembler* masm = &assembler;
 
   __ Lsa(a0, a0, a1, sa);
-  __ RV_jr(ra);
+  __ jr(ra);
   __ nop();
 
   CodeDesc desc;
@@ -379,7 +379,7 @@ static uint64_t run_dlsa(uint64_t rt, uint64_t rs, int8_t sa) {
   MacroAssembler* masm = &assembler;
 
   __ Dlsa(a0, a0, a1, sa);
-  __ RV_jr(ra);
+  __ jr(ra);
   __ nop();
 
   CodeDesc desc;
@@ -529,13 +529,13 @@ RET_TYPE run_Cvt(IN_TYPE x, Func GenerateConvertInstructionFunc) {
   // Vararg f.Call() passes floating-point params via GPRs, so move arguments to
   // FPRs first
   if (std::is_same<IN_TYPE, float>::value) {
-    __ RV_fmv_w_x(fa0, a0);
+    __ fmv_w_x(fa0, a0);
   } else {
-    __ RV_fmv_d_x(fa0, a0);
+    __ fmv_d_x(fa0, a0);
   }
 
   GenerateConvertInstructionFunc(masm);
-  __ RV_jr(ra);
+  __ jr(ra);
 
   CodeDesc desc;
   assm.GetCode(isolate, &desc);
@@ -613,7 +613,7 @@ TEST(cvt_d_l_Trunc_l_d) {
   FOR_INT64_INPUTS(i, cvt_trunc_int64_test_values) {
     int64_t input = *i;
     auto fn = [](MacroAssembler* masm) {
-      __ RV_fcvt_d_l(fa0, a0);
+      __ fcvt_d_l(fa0, a0);
       __ Trunc_l_d(a0, fa0);
     };
     CHECK_EQ(static_cast<int64_t>(static_cast<double>(input)),
@@ -626,7 +626,7 @@ TEST(cvt_d_w_Trunc_w_d) {
   FOR_INT32_INPUTS(i, cvt_trunc_int32_test_values) {
     int32_t input = *i;
     auto fn = [](MacroAssembler* masm) {
-      __ RV_fcvt_d_w(fa0, a0);
+      __ fcvt_d_w(fa0, a0);
       __ Trunc_w_d(a0, fa0);
     };
     CHECK_EQ(static_cast<int32_t>(static_cast<double>(input)),
@@ -706,8 +706,8 @@ TEST(OverflowInstructions) {
 
       __ Ld(t0, MemOperand(a0, offsetof(T, lhs)));
       __ Ld(t1, MemOperand(a0, offsetof(T, rhs)));
-      __ RV_slliw(t0, t0, 0);
-      __ RV_slliw(t1, t1, 0);
+      __ slliw(t0, t0, 0);
+      __ slliw(t1, t1, 0);
       __ MulOverflow(t2, t0, Operand(t1), a1);
       __ Sd(t2, MemOperand(a0, offsetof(T, output_mul)));
       __ Sd(a1, MemOperand(a0, offsetof(T, overflow_mul)));
@@ -716,7 +716,7 @@ TEST(OverflowInstructions) {
       __ Sd(t0, MemOperand(a0, offsetof(T, output_mul2)));
       __ Sd(a1, MemOperand(a0, offsetof(T, overflow_mul2)));
 
-      __ RV_jr(ra);
+      __ jr(ra);
       __ nop();
 
       CodeDesc desc;
@@ -816,7 +816,7 @@ TEST(min_max_nan) {
   __ Swc1(fa7, MemOperand(a0, offsetof(TestFloat, g)));
   __ Swc1(fa0, MemOperand(a0, offsetof(TestFloat, h)));
   __ pop(s6);
-  __ RV_jr(ra);
+  __ jr(ra);
   __ nop();
 
   CodeDesc desc;
@@ -848,7 +848,7 @@ bool run_Unaligned(char* memory_buffer, int32_t in_offset, int32_t out_offset,
   IN_TYPE res;
 
   GenerateUnalignedInstructionFunc(masm, in_offset, out_offset);
-  __ RV_jr(ra);
+  __ jr(ra);
 
   CodeDesc desc;
   assm.GetCode(isolate, &desc);
@@ -959,17 +959,17 @@ TEST(Ulh_bitextension) {
 
           // If signed and unsigned values are same, check
           // the upper bits to see if they are zero
-          __ RV_sraiw(t0, t0, 15);
+          __ sraiw(t0, t0, 15);
           __ Branch(&success, eq, t0, Operand(zero_reg));
           __ Branch(&fail);
 
           // If signed and unsigned values are different,
           // check that the upper bits are complementary
           __ bind(&different);
-          __ RV_sraiw(t1, t1, 15);
+          __ sraiw(t1, t1, 15);
           __ Branch(&fail, ne, t1, Operand(1));
-          __ RV_sraiw(t0, t0, 15);
-          __ RV_addiw(t0, t0, 1);
+          __ sraiw(t0, t0, 15);
+          __ addiw(t0, t0, 1);
           __ Branch(&fail, ne, t0, Operand(zero_reg));
           // Fall through to success
 
@@ -1067,17 +1067,17 @@ TEST(Ulw_extension) {
 
           // If signed and unsigned values are same, check
           // the upper bits to see if they are zero
-          __ RV_srai(t0, t0, 31);
+          __ srai(t0, t0, 31);
           __ Branch(&success, eq, t0, Operand(zero_reg));
           __ Branch(&fail);
 
           // If signed and unsigned values are different,
           // check that the upper bits are complementary
           __ bind(&different);
-          __ RV_srai(t1, t1, 31);
+          __ srai(t1, t1, 31);
           __ Branch(&fail, ne, t1, Operand(1));
-          __ RV_srai(t0, t0, 31);
-          __ RV_addi(t0, t0, 1);
+          __ srai(t0, t0, 31);
+          __ addi(t0, t0, 1);
           __ Branch(&fail, ne, t0, Operand(zero_reg));
           // Fall through to success
 
@@ -1215,7 +1215,7 @@ bool run_Sltu(uint64_t rs, uint64_t rd, Func GenerateSltuInstructionFunc) {
   MacroAssembler* masm = &assm;
 
   GenerateSltuInstructionFunc(masm, rd);
-  __ RV_jr(ra);
+  __ jr(ra);
 
   CodeDesc desc;
   assm.GetCode(isolate, &desc);
@@ -1275,7 +1275,7 @@ static GeneratedCode<F4> GenerateMacroFloat32MinMax(MacroAssembler* masm) {
 
 #undef FLOAT_MIN_MAX
 
-  __ RV_jr(ra);
+  __ jr(ra);
   __ nop();
 
   CodeDesc desc;
@@ -1386,7 +1386,7 @@ static GeneratedCode<F4> GenerateMacroFloat64MinMax(MacroAssembler* masm) {
 
 #undef FLOAT_MIN_MAX
 
-  __ RV_jr(ra);
+  __ jr(ra);
   __ nop();
 
   CodeDesc desc;
@@ -1482,11 +1482,11 @@ int32_t run_CompareF(IN_TYPE x1, IN_TYPE x2, bool expected_res,
   // Vararg f.Call() passes floating-point params via GPRs, so move arguments to
   // FPRs first
   if (std::is_same<IN_TYPE, float>::value) {
-    __ RV_fmv_w_x(fa0, a0);
-    __ RV_fmv_w_x(fa1, a1);
+    __ fmv_w_x(fa0, a0);
+    __ fmv_w_x(fa1, a1);
   } else {
-    __ RV_fmv_d_x(fa0, a0);
-    __ RV_fmv_d_x(fa1, a1);
+    __ fmv_d_x(fa0, a0);
+    __ fmv_d_x(fa1, a1);
   }
 
   // Generate actual compare instruction, compare result in a1
@@ -1505,7 +1505,7 @@ int32_t run_CompareF(IN_TYPE x1, IN_TYPE x2, bool expected_res,
   __ RV_li(a0, ERROR_CODE);
 
   __ bind(&done);
-  __ RV_jr(ra);
+  __ jr(ra);
 
   CodeDesc desc;
   assm.GetCode(isolate, &desc);
@@ -1701,7 +1701,7 @@ TEST(Dpopcnt) {
   MacroAssembler assembler(isolate, v8::internal::CodeObjectRequired::kYes);
   MacroAssembler* masm = &assembler;
 
-  __ RV_mv(a4, a0);
+  __ mv(a4, a0);
   for (int i = 0; i < 7; i++) {
     // Load constant.
     __ li(a3, Operand(in[i]));
@@ -1719,7 +1719,7 @@ TEST(Dpopcnt) {
   __ Sd(a5, MemOperand(a4));
   __ Daddu(a4, a4, Operand(kPointerSize));
 
-  __ RV_jr(ra);
+  __ jr(ra);
 
   CodeDesc desc;
   masm->GetCode(isolate, &desc);
@@ -1758,7 +1758,7 @@ TEST(Popcnt) {
   MacroAssembler assembler(isolate, v8::internal::CodeObjectRequired::kYes);
   MacroAssembler* masm = &assembler;
 
-  __ RV_mv(a4, a0);
+  __ mv(a4, a0);
   for (int i = 0; i < 6; i++) {
     // Load constant.
     __ li(a3, Operand(in[i]));
@@ -1777,7 +1777,7 @@ TEST(Popcnt) {
   __ Sd(a5, MemOperand(a4));
   __ Daddu(a4, a4, Operand(kPointerSize));
 
-  __ RV_jr(ra);
+  __ jr(ra);
 
   CodeDesc desc;
   masm->GetCode(isolate, &desc);

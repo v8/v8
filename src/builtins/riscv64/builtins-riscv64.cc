@@ -2674,7 +2674,7 @@ void Builtins::Generate_DoubleToI(MacroAssembler* masm) {
   // Replace the shifted bits with bits from the lower mantissa word.
   Label pos_shift, shift_done;
   __ li(kScratchReg, 32);
-  __ RV_subw(scratch, kScratchReg, scratch);
+  __ subw(scratch, kScratchReg, scratch);
   __ Branch(&pos_shift, ge, scratch, Operand(zero_reg));
 
   // Negate scratch.
@@ -2683,7 +2683,7 @@ void Builtins::Generate_DoubleToI(MacroAssembler* masm) {
   __ Branch(&shift_done);
 
   __ bind(&pos_shift);
-  __ RV_srlw(input_low, input_low, scratch);
+  __ srlw(input_low, input_low, scratch);
 
   __ bind(&shift_done);
   __ Or(input_high, input_high, Operand(input_low));
