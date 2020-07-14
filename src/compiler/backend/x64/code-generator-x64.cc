@@ -759,10 +759,8 @@ void AdjustStackPointerForTailCall(TurboAssembler* assembler,
 
 void SetupSimdImmediateInRegister(TurboAssembler* assembler, uint32_t* imms,
                                   XMMRegister reg) {
-  uint64_t value = make_uint64(imms[1], imms[0]);
-  assembler->Move(reg, value);
-  value = (imms[2]) | (uint64_t{imms[3]} << 32);
-  assembler->movq(kScratchRegister, value);
+  assembler->Move(reg, make_uint64(imms[1], imms[0]));
+  assembler->movq(kScratchRegister, make_uint64(imms[3], imms[2]));
   assembler->Pinsrq(reg, kScratchRegister, int8_t{1});
 }
 
