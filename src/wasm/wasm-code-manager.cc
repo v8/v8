@@ -393,8 +393,7 @@ void WasmCode::Disassemble(const char* name, std::ostream& os,
   }
 
   if (safepoint_table_offset_ > 0) {
-    SafepointTable table(instruction_start(), safepoint_table_offset_,
-                         stack_slots_);
+    SafepointTable table(this);
     os << "Safepoints (size = " << table.size() << ")\n";
     for (uint32_t i = 0; i < table.length(); i++) {
       uintptr_t pc_offset = table.GetPcOffset(i);

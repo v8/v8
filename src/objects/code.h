@@ -150,6 +150,7 @@ class Code : public HeapObject {
   // instruction stream where the safepoint table starts.
   inline int safepoint_table_offset() const;
   inline void set_safepoint_table_offset(int offset);
+  Address SafepointTableAddress() const;
   int safepoint_table_size() const;
   bool has_safepoint_table() const;
 

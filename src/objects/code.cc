@@ -30,6 +30,10 @@
 namespace v8 {
 namespace internal {
 
+Address Code::SafepointTableAddress() const {
+  return InstructionStart() + safepoint_table_offset();
+}
+
 int Code::safepoint_table_size() const {
   DCHECK_GE(handler_table_offset() - safepoint_table_offset(), 0);
   return handler_table_offset() - safepoint_table_offset();
