@@ -3704,14 +3704,16 @@ WASM_SIMD_TEST_NO_LOWERING(S128Const) {
     expected[i] = i;
   }
   RunSimdConstTest(execution_tier, lower_simd, expected);
+
+  // Check sign extension logic used to pack int32s into int64.
+  expected = {0};
+  // Set the top bit of lane 3 (top bit of first int32), the rest can be 0.
+  expected[3] = 0x80;
+  RunSimdConstTest(execution_tier, lower_simd, expected);
 }
 
 WASM_SIMD_TEST_NO_LOWERING(S128ConstAllZero) {
-  std::array<uint8_t, kSimd128Size> expected;
-  // Test for generic constant
-  for (int i = 0; i < kSimd128Size; i++) {
-    expected[i] = 0;
-  }
+  std::array<uint8_t, kSimd128Size> expected = {0};
   RunSimdConstTest(execution_tier, lower_simd, expected);
 }
 

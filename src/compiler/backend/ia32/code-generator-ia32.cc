@@ -3616,8 +3616,7 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
     case kIA32S128Const: {
       XMMRegister dst = i.OutputSimd128Register();
       Register tmp = i.TempRegister(0);
-      uint64_t low_qword =
-          i.InputUint32(0) | (uint64_t{i.InputUint32(1)} << 32);
+      uint64_t low_qword = make_uint64(i.InputUint32(1), i.InputUint32(0));
       __ Move(dst, low_qword);
       __ Move(tmp, Immediate(i.InputUint32(2)));
       __ Pinsrd(dst, tmp, 2);

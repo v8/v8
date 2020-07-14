@@ -2452,10 +2452,8 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       break;
     }
     case kArm64S128Const: {
-      uint64_t imm1 =
-          i.InputInt32(0) | (static_cast<uint64_t>(i.InputInt32(1)) << 32);
-      uint64_t imm2 =
-          i.InputInt32(2) | (static_cast<uint64_t>(i.InputInt32(3)) << 32);
+      uint64_t imm1 = make_uint64(i.InputUint32(1), i.InputUint32(0));
+      uint64_t imm2 = make_uint64(i.InputUint32(3), i.InputUint32(2));
       __ Movi(i.OutputSimd128Register().V16B(), imm2, imm1);
       break;
     }

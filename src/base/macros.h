@@ -330,6 +330,11 @@ V8_INLINE A implicit_cast(A x) {
 //      write V8_2PART_UINT64_C(0x12345678,90123456);
 #define V8_2PART_UINT64_C(a, b) (((static_cast<uint64_t>(a) << 32) + 0x##b##u))
 
+// A variant of V8_2PART_UINT64_C but for non-constants.
+inline uint64_t make_uint64(uint32_t high, uint32_t low) {
+  return (uint64_t{high} << 32) + low;
+}
+
 // Return the largest multiple of m which is <= x.
 template <typename T>
 inline T RoundDown(T x, intptr_t m) {
