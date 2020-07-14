@@ -550,23 +550,13 @@ void LookupIterator::PrepareTransitionToDataProperty(
   if (map->is_dictionary_map()) {
     state_ = TRANSITION;
     if (map->IsJSGlobalObjectMap()) {
-      // Install a property cell.
-      Handle<JSGlobalObject> global = Handle<JSGlobalObject>::cast(receiver);
-      DCHECK(!global->HasFastProperties());
-      Handle<GlobalDictionary> dictionary(global->global_dictionary(isolate_),
-                                          isolate_);
-
       Handle<PropertyCell> cell = isolate_->factory()->NewPropertyCell(name());
-
       DCHECK(cell->value(isolate_).IsTheHole(isolate_));
       DCHECK(!value->IsTheHole(isolate_));
+      // Don't set enumeration index (it will be set during value store).
       property_details_ = PropertyDetails(
           kData, attributes,
           PropertyCell::TypeForUninitializedCell(isolate_, value));
-
-      dictionary = GlobalDictionary::Add(isolate_, dictionary, name(), cell,
-                                         property_details_, &number_);
-      global->set_global_dictionary(*dictionary);
 
       transition_ = cell;
       has_property_ = true;
@@ -603,6 +593,21 @@ void LookupIterator::ApplyTransitionToDataProperty(
   holder_ = receiver;
   if (receiver->IsJSGlobalObject(isolate_)) {
     JSObject::InvalidatePrototypeChains(receiver->map(isolate_));
+
+    // Install a property cell.
+    Handle<JSGlobalObject> global = Handle<JSGlobalObject>::cast(receiver);
+    DCHECK(!global->HasFastProperties());
+    Handle<GlobalDictionary> dictionary(global->global_dictionary(isolate_),
+                                        isolate_);
+
+    dictionary =
+        GlobalDictionary::Add(isolate_, dictionary, name(), transition_cell(),
+                              property_details_, &number_);
+    global->set_global_dictionary(*dictionary);
+
+    // Reload details containing proper enumeration index value.
+    property_details_ = transition_cell()->property_details();
+    has_property_ = true;
     state_ = DATA;
     return;
   }
