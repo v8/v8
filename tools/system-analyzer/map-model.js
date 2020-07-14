@@ -15,6 +15,15 @@ class State {
     this._view = new View(this, mapPanelId, timelinePanelId);
     this._navigation = new Navigation(this, this.view);
   }
+  set filteredEntries(value) {
+    this._filteredEntries = value;
+    if (this._filteredEntries) {
+      //TODO(zcankara) update timeline view
+    }
+  }
+  get filteredEntries() {
+    return this._filteredEntries;
+  }
   get timeline() {
     return this._timeline
   }
@@ -201,6 +210,7 @@ class View {
     this.transitionView =
         new TransitionView(state, this.mapPanel_.transitionViewSelect);
     this.isLocked = false;
+    this._filteredEntries = [];
   }
   get chunks() {
     return this.state.chunks
@@ -369,7 +379,6 @@ class View {
     canvas.height = height;
     canvas.width = window.innerWidth;
     let ctx = canvas.getContext('2d');
-
     let chunks = this.state.timeline.chunkSizes(canvas.width * kFactor);
     let max = chunks.max();
 
@@ -397,6 +406,7 @@ class View {
     let ctx = canvas.getContext('2d');
     ctx.clearRect(0, 0, canvas.width, kChunkHeight);
     if (!this.state.map) return;
+    //TODO(zcankara) Redraw the IC events on canvas.
     this.drawEdges(ctx);
   }
 

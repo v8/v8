@@ -12,9 +12,11 @@ defineCustomElement('ic-panel', (templateText) =>
     shadowRoot.innerHTML = templateText;
     this.groupKeySelect.addEventListener(
         'change', e => this.updateTable(e));
-    this.filterICBtnSelect.addEventListener(
-        'click', e => this.handleICFilter(e));
+    this.$('#filterICTimeBtn').addEventListener(
+      'click', e => this.handleICTimeFilter(e));
     this._noOfItems = 100;
+    this._startTime = 0;
+    this._endTime = 0;
   }
 
   $(id) {
@@ -27,10 +29,6 @@ defineCustomElement('ic-panel', (templateText) =>
 
   get groupKeySelect() {
     return this.$('#group-key');
-  }
-
-  get filterICBtnSelect() {
-    return this.$('#filterICBtn');
   }
 
   get tableSelect() {
@@ -49,13 +47,38 @@ defineCustomElement('ic-panel', (templateText) =>
     return this.querySelectorAll("span");
   }
 
-  updateTable(event) {
+  set filteredEntries(value){
+    this._filteredEntries = value;
+  }
+
+  get filteredEntries(){
+    return this._filteredEntries;
+  }
+
+  set entries(value){
+    this._entries = value;
+    this.filteredEntries = value;
+    this.updateTable();
+  }
+
+  get entries(){
+    return this._entries;
+  }
+
+   filterEntriesByTime() {
+    this.filteredEntries =  this.entries.filter(e => e.time >= this._startTime && e.time <= this._endTime);
+  }
+
+   updateTable(event) {
     let select = this.groupKeySelect;
     let key = select.options[select.selectedIndex].text;
     let tableBody = this.tableBodySelect;
     this.removeAllChildren(tableBody);
-    let groups = Group.groupBy(entries, key, true);
+    let groups = Group.groupBy(this.filteredEntries, key, true);
     this.display(groups, tableBody);
+    //TODO(zcankara) do not send an event here, filtering will done outside
+    this.dispatchEvent(new CustomEvent(
+      'change', {bubbles: true, composed: true, detail: this.filteredEntries}));
   }
 
   escapeHtml(unsafe) {
@@ -102,10 +125,10 @@ defineCustomElement('ic-panel', (templateText) =>
     return this._noOfItems;
   }
 
-
   display(entries, parent) {
     let fragment = document.createDocumentFragment();
-    let max = Math.min(this.noOfItems, entries.length)
+    //let max = entries.length;
+    let max = Math.min(1000, entries.length)
     for (let i = 0; i < max; i++) {
       let entry = entries[i];
       let tr = document.createElement("tr");
@@ -126,6 +149,7 @@ defineCustomElement('ic-panel', (templateText) =>
     }
     parent.appendChild(fragment);
   }
+
 
   displayDrilldown(entry, previousSibling) {
     let tr = document.createElement('tr');
@@ -183,35 +207,17 @@ defineCustomElement('ic-panel', (templateText) =>
     }
   }
 
-  //TODO(zc): Function processing the timestamps of ICEvents
-  // Processes the IC Events which have V8Map's in the map-processor
-  processICEventTime(){
-    let ICTimeToEvent = new Map();
-    // save the occurance time of V8Maps
-    let eventTimes = []
-    console.log("Num of stats: " + entries.length);
-    // fetch V8 Maps from the IC Events
-    entries.forEach(element => {
-      let v8Map = V8Map.get("0x" + element.map);
-      if(!v8Map){
-        ICTimeToEvent.set(-1, element);
-      } else {
-        ICTimeToEvent.set(v8Map.time, element);
-        eventTimes.push(v8Map.time);
-      }
-    });
-    eventTimes.sort();
-    // save the IC events which have Map states
-    let eventsList = [];
-    for(let i = 0;  i < eventTimes.length; i++){
-      eventsList.push(ICTimeToEvent.get(eventTimes[i]));
-    }
-    return eventList;
-  }
-
-  handleICFilter(e){
-    let noOfItemsInput = parseInt(this.$('#filter-input').value);
-    this.noOfItems = noOfItemsInput;
+  handleICTimeFilter(e) {
+    this._startTime = parseInt(this.$('#filter-time-start').value);
+    console.assert(this._startTime >= 0, { errorMsg: "start time must be a non-negative integer!" });
+    this._endTime = parseInt(this.$('#filter-time-end').value);
+    console.assert(this._endTime <= this.entries[this.entries.length - 1].time,
+      { errorMsg: "end time must be smaller or equal to the the time of the last event!" });
+    console.assert(this._startTime < this._endTime,
+      { errorMsg: "end time must be smaller than the start time!" });
+    this.filterEntriesByTime();
     this.updateTable(e);
   }
+
+
 });

@@ -44,6 +44,7 @@ found in the LICENSE file. -->
 #legend {
   padding-right: 20px;
 }
+
 </style>
 <div class="panel">
   <h2>IC Panel</h2>
@@ -64,19 +65,20 @@ found in the LICENSE file. -->
 
   <p>Trace Count: <span id="count">0</span></p>
 
-  <h3>Result</h3>
-  <p>
-  Group-Key:
-  <select id="group-key"></select>
-  </p>
-  Filter number of items
-  <br></br>
-  <input type="search" id="filter-input" placeholder="Number of items"></input>
-  <button id="filterICBtn">Filter</button>
-  <p>
-    <table id="table" width="100%">
-      <tbody id="table-body">
-      </tbody>
-    </table>
-  </p>
+    <h3>Result</h3>
+    <p>
+    Group-Key:
+    <select id="group-key"></select>
+    </p>
+    <p>
+    Filter by Time
+    <br></br>
+    <input type="search" id="filter-time-start" placeholder="start"></input> : <input type="search" id="filter-time-end" placeholder="end"></input>
+    <button id="filterICTimeBtn">Filter</button>
+    <p>
+      <table id="table" width="100%">
+        <tbody id="table-body">
+        </tbody>
+      </table>
+    </p>
 </div>

@@ -102,6 +102,7 @@ function handleKeyDown(event) {
   }
 }
 
+
 // Update application state
 function updateDocumentState(){
     document.state = stateGlobal.state;
@@ -109,7 +110,7 @@ function updateDocumentState(){
       document.state.timeline = stateGlobal.timeline;
     } catch (error) {
       console.log(error);
-      console.log("cannot assign timeline to state!");
+      console.log("cannot assign timeline to the state!");
     }
 }
 
@@ -126,14 +127,13 @@ function loadFileIC(file) {
   reader.onload = function(evt) {
     let icProcessor = new CustomIcProcessor();
     icProcessor.processString(this.result);
-    entries = icProcessor.entries;
+    let entries = icProcessor.entries;
     $("ic-panel").countSelect.innerHTML = entries.length;
-    $("ic-panel").updateTable(entries);
+    $('#ic-panel').entries = entries;
   }
   reader.readAsText(file);
   $("ic-panel").initGroupKeySelect();
 }
-
 
 function $(id) { return document.querySelector(id); }
 
@@ -150,17 +150,24 @@ function globalDataUpload(e) {
   stateGlobal.state = new State('#map-panel','#timeline-panel');
   stateGlobal.timeline = handleLoadTextMapProcessor(stateGlobal.fileData.chunk);
   updateDocumentState();
-  // process the IC explorer
   loadFileIC(stateGlobal.fileData.file);
 }
+
 
 function globalSearchBarEvent(e) {
   if(!e.detail.isValidMap) return;
   document.state.map = e.detail.map;
 }
 
+function handleSelectIcEvents(e){
+  if(!e.detail) return;
+  // Set selected IC events on the View
+  document.state.filteredEntries = e.detail;
+}
+
 function showMaps(e) {
-  // show maps on the view
+  if(!e.detail) return;
+  // Show selected maps on the View
   document.state.view.transitionView.showMaps(e.detail);
 }
 </script>
@@ -175,7 +182,7 @@ function showMaps(e) {
     <div id="container" style="display: none;">
       <timeline-panel id="timeline-panel"></timeline-panel>
       <map-panel id="map-panel" onclick="globalSearchBarEvent(event)" onchange="showMaps(event)"></map-panel>
-      <ic-panel id="ic-panel"></ic-panel>
+      <ic-panel id="ic-panel" onchange="handleSelectIcEvents(event)"></ic-panel>
     </div>
   </div>
 
