@@ -2707,7 +2707,7 @@ void JSHeapBroker::InitializeAndStartSerializing(
 
 // clang-format off
 ObjectData* JSHeapBroker::GetOrCreateData(Handle<Object> object) {
-  RefsMap::Entry* entry = refs_->LookupOrInsert(object.address(), zone());
+  RefsMap::Entry* entry = refs_->LookupOrInsert(object.address());
   ObjectData** data_storage = &(entry->value);
   if (*data_storage == nullptr) {
     // TODO(neis): Remove these Allow* once we serialize everything upfront.
@@ -3987,8 +3987,7 @@ ObjectRef::ObjectRef(JSHeapBroker* broker, Handle<Object> object,
       data_ = broker->GetOrCreateData(object);
       break;
     case JSHeapBroker::kDisabled: {
-      RefsMap::Entry* entry =
-          broker->refs_->LookupOrInsert(object.address(), broker->zone());
+      RefsMap::Entry* entry = broker->refs_->LookupOrInsert(object.address());
       ObjectData** storage = &(entry->value);
       if (*storage == nullptr) {
         AllowHandleDereferenceIf allow_handle_dereference(

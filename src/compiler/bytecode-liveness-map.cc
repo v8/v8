@@ -24,8 +24,7 @@ BytecodeLiveness& BytecodeLivenessMap::InitializeLiveness(int offset,
                                                           Zone* zone) {
   return liveness_map_
       .LookupOrInsert(offset, OffsetHash(offset),
-                      [&]() { return BytecodeLiveness(register_count, zone); },
-                      ZoneAllocationPolicy(zone))
+                      [&]() { return BytecodeLiveness(register_count, zone); })
       ->value;
 }
 

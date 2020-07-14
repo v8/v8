@@ -134,11 +134,7 @@ ConstantArrayBuilder::ConstantArrayBuilder(Zone* zone)
                      ZoneAllocationPolicy(zone)),
       smi_map_(zone),
       smi_pairs_(zone),
-      heap_number_map_(zone),
-#define INIT_SINGLETON_ENTRY_FIELD(NAME, LOWER_NAME) LOWER_NAME##_(-1),
-      SINGLETON_CONSTANT_ENTRY_TYPES(INIT_SINGLETON_ENTRY_FIELD)
-#undef INIT_SINGLETON_ENTRY_FIELD
-          zone_(zone) {
+      heap_number_map_(zone) {
   idx_slice_[0] =
       zone->New<ConstantArraySlice>(zone, 0, k8BitCapacity, OperandSize::kByte);
   idx_slice_[1] = zone->New<ConstantArraySlice>(
@@ -247,8 +243,7 @@ size_t ConstantArrayBuilder::Insert(const AstRawString* raw_string) {
   return constants_map_
       .LookupOrInsert(reinterpret_cast<intptr_t>(raw_string),
                       raw_string->Hash(),
-                      [&]() { return AllocateIndex(Entry(raw_string)); },
-                      ZoneAllocationPolicy(zone_))
+                      [&]() { return AllocateIndex(Entry(raw_string)); })
       ->value;
 }
 
@@ -256,8 +251,7 @@ size_t ConstantArrayBuilder::Insert(AstBigInt bigint) {
   return constants_map_
       .LookupOrInsert(reinterpret_cast<intptr_t>(bigint.c_str()),
                       static_cast<uint32_t>(base::hash_value(bigint.c_str())),
-                      [&]() { return AllocateIndex(Entry(bigint)); },
-                      ZoneAllocationPolicy(zone_))
+                      [&]() { return AllocateIndex(Entry(bigint)); })
       ->value;
 }
 
@@ -265,8 +259,7 @@ size_t ConstantArrayBuilder::Insert(const Scope* scope) {
   return constants_map_
       .LookupOrInsert(reinterpret_cast<intptr_t>(scope),
                       static_cast<uint32_t>(base::hash_value(scope)),
-                      [&]() { return AllocateIndex(Entry(scope)); },
-                      ZoneAllocationPolicy(zone_))
+                      [&]() { return AllocateIndex(Entry(scope)); })
       ->value;
 }
 

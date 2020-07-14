@@ -46,9 +46,8 @@ Variable* VariableMap::Declare(Zone* zone, Scope* scope,
   // AstRawStrings are unambiguous, i.e., the same string is always represented
   // by the same AstRawString*.
   // FIXME(marja): fix the type of Lookup.
-  Entry* p =
-      ZoneHashMap::LookupOrInsert(const_cast<AstRawString*>(name), name->Hash(),
-                                  ZoneAllocationPolicy(zone));
+  Entry* p = ZoneHashMap::LookupOrInsert(const_cast<AstRawString*>(name),
+                                         name->Hash());
   *was_added = p->value == nullptr;
   if (*was_added) {
     // The variable has not been declared yet -> insert it.
@@ -66,11 +65,10 @@ void VariableMap::Remove(Variable* var) {
   ZoneHashMap::Remove(const_cast<AstRawString*>(name), name->Hash());
 }
 
-void VariableMap::Add(Zone* zone, Variable* var) {
+void VariableMap::Add(Variable* var) {
   const AstRawString* name = var->raw_name();
-  Entry* p =
-      ZoneHashMap::LookupOrInsert(const_cast<AstRawString*>(name), name->Hash(),
-                                  ZoneAllocationPolicy(zone));
+  Entry* p = ZoneHashMap::LookupOrInsert(const_cast<AstRawString*>(name),
+                                         name->Hash());
   DCHECK_NULL(p->value);
   DCHECK_EQ(name, p->key);
   p->value = var;
@@ -682,7 +680,7 @@ Variable* DeclarationScope::DeclareFunctionVar(const AstRawString* name,
   if (sloppy_eval_can_extend_vars()) {
     cache->NonLocal(name, VariableMode::kDynamic);
   } else {
-    cache->variables_.Add(zone(), function_);
+    cache->variables_.Add(function_);
   }
   return function_;
 }

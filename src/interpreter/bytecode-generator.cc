@@ -1005,7 +1005,7 @@ class AccessorTable
         zone_(zone) {}
 
   Accessors<PropertyT>* LookupOrInsert(Literal* key) {
-    auto it = this->find(key, true, ZoneAllocationPolicy(zone_));
+    auto it = this->find(key, true);
     if (it->second == nullptr) {
       it->second = zone_->New<Accessors<PropertyT>>();
       ordered_accessors_.push_back({key, it->second});
