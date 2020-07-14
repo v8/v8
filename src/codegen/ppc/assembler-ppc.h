@@ -474,6 +474,10 @@ class Assembler : public AssemblerBase {
                    const Simd128Register rb) {                            \
     vx_form(instr_name, rt, ra, rb);                                      \
   }
+#define DECLARE_PPC_VX_INSTRUCTIONS_C_FORM(name, instr_name, instr_value) \
+  inline void name(const Simd128Register rt, const Simd128Register rb) {  \
+    vx_form(instr_name, rt, rb);                                          \
+  }
 
   inline void vx_form(Instr instr, Simd128Register rt, Simd128Register rb,
                       const Operand& imm) {
@@ -483,11 +487,16 @@ class Assembler : public AssemblerBase {
                       Simd128Register rb) {
     emit(instr | rt.code() * B21 | ra.code() * B16 | rb.code() * B11);
   }
+  inline void vx_form(Instr instr, Simd128Register rt, Simd128Register rb) {
+    emit(instr | rt.code() * B21 | rb.code() * B11);
+  }
 
   PPC_VX_OPCODE_A_FORM_LIST(DECLARE_PPC_VX_INSTRUCTIONS_A_FORM)
   PPC_VX_OPCODE_B_FORM_LIST(DECLARE_PPC_VX_INSTRUCTIONS_B_FORM)
+  PPC_VX_OPCODE_C_FORM_LIST(DECLARE_PPC_VX_INSTRUCTIONS_C_FORM)
 #undef DECLARE_PPC_VX_INSTRUCTIONS_A_FORM
 #undef DECLARE_PPC_VX_INSTRUCTIONS_B_FORM
+#undef DECLARE_PPC_VX_INSTRUCTIONS_C_FORM
 
 #define DECLARE_PPC_VA_INSTRUCTIONS_A_FORM(name, instr_name, instr_value) \
   inline void name(const Simd128Register rt, const Simd128Register ra,    \

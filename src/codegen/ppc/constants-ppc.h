@@ -2314,7 +2314,25 @@ using Instr = uint32_t;
   /* Vector Shift Right Algebraic Doubleword */            \
   V(vsrad, VSRAD, 0x100003C4)                              \
   /* Vector Logical AND */                                 \
-  V(vand, VAND, 0x10000404)
+  V(vand, VAND, 0x10000404)                                \
+  /* Vector Pack Signed Word Signed Saturate */            \
+  V(vpkswss, VPKSWSS, 0x100001CE)                          \
+  /* Vector Pack Signed Word Unsigned Saturate */          \
+  V(vpkswus, VPKSWUS, 0x1000014E)                          \
+  /* Vector Pack Signed Halfword Signed Saturate */        \
+  V(vpkshss, VPKSHSS, 0x1000018E)                          \
+  /* Vector Pack Signed Halfword Unsigned Saturate */      \
+  V(vpkshus, VPKSHUS, 0x1000010E)
+
+#define PPC_VX_OPCODE_C_FORM_LIST(V)       \
+  /* Vector Unpack Low Signed Halfword */  \
+  V(vupklsh, VUPKLSH, 0x100002CE)          \
+  /* Vector Unpack High Signed Halfword */ \
+  V(vupkhsh, VUPKHSH, 0x1000024E)          \
+  /* Vector Unpack Low Signed Byte */      \
+  V(vupklsb, VUPKLSB, 0x1000028E)          \
+  /* Vector Unpack High Signed Byte */     \
+  V(vupkhsb, VUPKHSB, 0x1000020E)
 
 #define PPC_VX_OPCODE_UNUSED_LIST(V)                                      \
   /* Decimal Add Modulo */                                                \
@@ -2431,14 +2449,6 @@ using Instr = uint32_t;
   V(vpksdss, VPKSDSS, 0x100005CE)                                         \
   /* Vector Pack Signed Doubleword Unsigned Saturate */                   \
   V(vpksdus, VPKSDUS, 0x1000054E)                                         \
-  /* Vector Pack Signed Halfword Signed Saturate */                       \
-  V(vpkshss, VPKSHSS, 0x1000018E)                                         \
-  /* Vector Pack Signed Halfword Unsigned Saturate */                     \
-  V(vpkshus, VPKSHUS, 0x1000010E)                                         \
-  /* Vector Pack Signed Word Signed Saturate */                           \
-  V(vpkswss, VPKSWSS, 0x100001CE)                                         \
-  /* Vector Pack Signed Word Unsigned Saturate */                         \
-  V(vpkswus, VPKSWUS, 0x1000014E)                                         \
   /* Vector Pack Unsigned Doubleword Unsigned Saturate */                 \
   V(vpkudus, VPKUDUS, 0x100004CE)                                         \
   /* Vector Pack Unsigned Halfword Unsigned Saturate */                   \
@@ -2517,18 +2527,10 @@ using Instr = uint32_t;
   V(vsumsws, VSUMSWS, 0x10000788)                                         \
   /* Vector Unpack High Pixel */                                          \
   V(vupkhpx, VUPKHPX, 0x1000034E)                                         \
-  /* Vector Unpack High Signed Byte */                                    \
-  V(vupkhsb, VUPKHSB, 0x1000020E)                                         \
-  /* Vector Unpack High Signed Halfword */                                \
-  V(vupkhsh, VUPKHSH, 0x1000024E)                                         \
   /* Vector Unpack High Signed Word */                                    \
   V(vupkhsw, VUPKHSW, 0x1000064E)                                         \
   /* Vector Unpack Low Pixel */                                           \
   V(vupklpx, VUPKLPX, 0x100003CE)                                         \
-  /* Vector Unpack Low Signed Byte */                                     \
-  V(vupklsb, VUPKLSB, 0x1000028E)                                         \
-  /* Vector Unpack Low Signed Halfword */                                 \
-  V(vupklsh, VUPKLSH, 0x100002CE)                                         \
   /* Vector Unpack Low Signed Word */                                     \
   V(vupklsw, VUPKLSW, 0x100006CE)                                         \
   /* Vector AES Cipher */                                                 \
@@ -2553,6 +2555,7 @@ using Instr = uint32_t;
 #define PPC_VX_OPCODE_LIST(V)  \
   PPC_VX_OPCODE_A_FORM_LIST(V) \
   PPC_VX_OPCODE_B_FORM_LIST(V) \
+  PPC_VX_OPCODE_C_FORM_LIST(V) \
   PPC_VX_OPCODE_UNUSED_LIST(V)
 
 #define PPC_XS_OPCODE_LIST(V)                      \

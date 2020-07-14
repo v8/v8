@@ -188,6 +188,10 @@ int InstructionScheduler::GetTargetInstructionFlags(
     case kPPC_I32x4Abs:
     case kPPC_I32x4SConvertF32x4:
     case kPPC_I32x4UConvertF32x4:
+    case kPPC_I32x4SConvertI16x8Low:
+    case kPPC_I32x4SConvertI16x8High:
+    case kPPC_I32x4UConvertI16x8Low:
+    case kPPC_I32x4UConvertI16x8High:
     case kPPC_I16x8Splat:
     case kPPC_I16x8ExtractLaneU:
     case kPPC_I16x8ExtractLaneS:
@@ -211,6 +215,12 @@ int InstructionScheduler::GetTargetInstructionFlags(
     case kPPC_I16x8ShrU:
     case kPPC_I16x8Neg:
     case kPPC_I16x8Abs:
+    case kPPC_I16x8SConvertI32x4:
+    case kPPC_I16x8UConvertI32x4:
+    case kPPC_I16x8SConvertI8x16Low:
+    case kPPC_I16x8SConvertI8x16High:
+    case kPPC_I16x8UConvertI8x16Low:
+    case kPPC_I16x8UConvertI8x16High:
     case kPPC_I8x16Splat:
     case kPPC_I8x16ExtractLaneU:
     case kPPC_I8x16ExtractLaneS:
@@ -233,6 +243,8 @@ int InstructionScheduler::GetTargetInstructionFlags(
     case kPPC_I8x16ShrU:
     case kPPC_I8x16Neg:
     case kPPC_I8x16Abs:
+    case kPPC_I8x16SConvertI16x8:
+    case kPPC_I8x16UConvertI16x8:
     case kPPC_V64x2AnyTrue:
     case kPPC_V32x4AnyTrue:
     case kPPC_V16x8AnyTrue:
