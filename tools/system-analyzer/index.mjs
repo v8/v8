@@ -84,7 +84,7 @@ function $(id) { return document.querySelector(id); }
 let stateGlobal = Object.create(null);
 
 // call when a new file uploaded
-function globalDataUpload(e) {
+function handleDataUpload(e) {
   stateGlobal.timeline = e.detail;
   if(!e.detail) return;
   $('#container').style.display = 'block';
@@ -97,7 +97,7 @@ function globalDataUpload(e) {
   loadFileIC(stateGlobal.fileData.file);
 }
 
-function globalSearchBarEvent(e) {
+function handleMapAddressSearch(e) {
   if(!e.detail.isValidMap) return;
   document.state.map = e.detail.map;
 }
@@ -107,17 +107,17 @@ function showMaps(e) {
   document.state.view.transitionView.showMaps(e.detail);
 }
 
-function handleSelectIcEvents(e){
+function handleSelectIc(e){
   if(!e.detail) return;
   // Set selected IC events on the View
   document.state.filteredEntries = e.detail;
 }
 
 class App {
-  globalDataUpload = globalDataUpload;
-  globalSearchBarEvent = globalSearchBarEvent;
+  handleDataUpload = handleDataUpload;
+  handleMapAddressSearch = handleMapAddressSearch;
   showMaps = showMaps;
-  handleSelectIcEvents = handleSelectIcEvents;
+  handleSelectIc = handleSelectIc;
 }
 
 export {App};

@@ -11,6 +11,7 @@ found in the LICENSE file. -->
   <link href='https://fonts.googleapis.com/css?family=Roboto' rel='stylesheet'>
   <!-- <link rel="icon" type="image/png" href="/images/favicon.png"/> -->
   <script type="module" src="index.mjs"></script>
+  <script type="module" src="index.mjs"></script>
   <link rel="stylesheet" type="text/css" href="./index.css">
   <script src="helper.js"></script>
 
@@ -62,13 +63,13 @@ globalThis.app = new App();
   <div id="content">
     <section id="file-reader">
       <br></br>
-      <log-file-reader id="log-file-reader" onchange="app.globalDataUpload(event)"></log-file-reader>
+      <log-file-reader id="log-file-reader" onchange="app.handleDataUpload(event)"></log-file-reader>
       <br></br>
     </section>
     <div id="container" style="display: none;">
       <timeline-panel id="timeline-panel"></timeline-panel>
-      <map-panel id="map-panel" onclick="app.globalSearchBarEvent(event)" onchange="showMaps(event)"></map-panel>
-      <ic-panel id="ic-panel" onchange="app.handleSelectIcEvents(event)"></ic-panel>
+      <map-panel id="map-panel" onclick="app.handleMapAddressSearch(event)" showMaps="app.showMaps(event)"></map-panel>
+      <ic-panel id="ic-panel" onchange="app.handleSelectIc(event)"></ic-panel>
     </div>
   </div>
 
