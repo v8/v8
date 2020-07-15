@@ -331,13 +331,17 @@ struct GetCType<T**> : public GetCTypePointerPointerImpl<T> {};
 template <typename T>
 struct GetCType<T*> : public GetCTypePointerImpl<T> {};
 
-template <typename R, typename... Args>
+template <typename R, bool RaisesException, typename... Args>
 class CFunctionInfoImpl : public CFunctionInfo {
  public:
+  static constexpr int kHasErrorArgCount = (RaisesException ? 1 : 0);
+  static constexpr int kReceiverCount = 1;
   CFunctionInfoImpl()
       : return_info_(internal::GetCType<R>::Get()),
-        arg_count_(sizeof...(Args)),
+        arg_count_(sizeof...(Args) - kHasErrorArgCount),
         arg_info_{internal::GetCType<Args>::Get()...} {
+    static_assert(sizeof...(Args) >= kHasErrorArgCount + kReceiverCount,
+                  "The receiver or the has_error argument is missing.");
     static_assert(
         internal::GetCType<R>::Get().GetType() == CTypeInfo::Type::kVoid,
         "Only void return types are currently supported.");
@@ -351,9 +355,9 @@ class CFunctionInfoImpl : public CFunctionInfo {
   }
 
  private:
-  CTypeInfo return_info_;
+  const CTypeInfo return_info_;
   const unsigned int arg_count_;
-  CTypeInfo arg_info_[sizeof...(Args)];
+  const CTypeInfo arg_info_[sizeof...(Args)];
 };
 
 }  // namespace internal
@@ -379,6 +383,11 @@ class V8_EXPORT CFunction {
   }
 
   template <typename F>
+  static CFunction MakeRaisesException(F* func) {
+    return ArgUnwrap<F*>::MakeRaisesException(func);
+  }
+
+  template <typename F>
   static CFunction Make(F* func, const CFunctionInfo* type_info) {
     return CFunction(reinterpret_cast<const void*>(func), type_info);
   }
@@ -389,9 +398,9 @@ class V8_EXPORT CFunction {
 
   CFunction(const void* address, const CFunctionInfo* type_info);
 
-  template <typename R, typename... Args>
+  template <typename R, bool RaisesException, typename... Args>
   static CFunctionInfo* GetCFunctionInfo() {
-    static internal::CFunctionInfoImpl<R, Args...> instance;
+    static internal::CFunctionInfoImpl<R, RaisesException, Args...> instance;
     return &instance;
   }
 
@@ -406,7 +415,11 @@ class V8_EXPORT CFunction {
    public:
     static CFunction Make(R (*func)(Args...)) {
       return CFunction(reinterpret_cast<const void*>(func),
-                       GetCFunctionInfo<R, Args...>());
+                       GetCFunctionInfo<R, false, Args...>());
+    }
+    static CFunction MakeRaisesException(R (*func)(Args...)) {
+      return CFunction(reinterpret_cast<const void*>(func),
+                       GetCFunctionInfo<R, true, Args...>());
     }
   };
 };

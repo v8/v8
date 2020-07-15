@@ -736,6 +736,17 @@ Node* GraphAssembler::DeoptimizeIfNot(DeoptimizeReason reason,
       condition, frame_state, effect(), control()));
 }
 
+TNode<Object> GraphAssembler::Call(const CallDescriptor* call_descriptor,
+                                   int inputs_size, Node** inputs) {
+  return Call(common()->Call(call_descriptor), inputs_size, inputs);
+}
+
+TNode<Object> GraphAssembler::Call(const Operator* op, int inputs_size,
+                                   Node** inputs) {
+  DCHECK_EQ(IrOpcode::kCall, op->opcode());
+  return AddNode<Object>(graph()->NewNode(op, inputs_size, inputs));
+}
+
 void GraphAssembler::BranchWithCriticalSafetyCheck(
     Node* condition, GraphAssemblerLabel<0u>* if_true,
     GraphAssemblerLabel<0u>* if_false) {

@@ -4,6 +4,7 @@
 
 #include "src/compiler/effect-control-linearizer.h"
 
+#include "include/v8-fast-api-calls.h"
 #include "src/base/bits.h"
 #include "src/codegen/code-factory.h"
 #include "src/codegen/machine-type.h"
@@ -185,6 +186,7 @@ class EffectControlLinearizer {
   void LowerTransitionElementsKind(Node* node);
   Node* LowerLoadFieldByIndex(Node* node);
   Node* LowerLoadMessage(Node* node);
+  Node* LowerFastApiCall(Node* node);
   Node* LowerLoadTypedElement(Node* node);
   Node* LowerLoadDataViewElement(Node* node);
   Node* LowerLoadStackArgument(Node* node);
@@ -1245,6 +1247,9 @@ bool EffectControlLinearizer::TryWireInStateEffect(Node* node,
       break;
     case IrOpcode::kStoreMessage:
       LowerStoreMessage(node);
+      break;
+    case IrOpcode::kFastApiCall:
+      result = LowerFastApiCall(node);
       break;
     case IrOpcode::kLoadFieldByIndex:
       result = LowerLoadFieldByIndex(node);
@@ -4796,6 +4801,121 @@ void EffectControlLinearizer::LowerStoreMessage(Node* node) {
   Node* object = node->InputAt(1);
   Node* object_pattern = __ BitcastTaggedToWord(object);
   __ StoreField(AccessBuilder::ForExternalIntPtr(), offset, object_pattern);
+}
+
+// TODO(mslekova): Avoid code duplication with simplified lowering.
+static MachineType MachineTypeFor(CTypeInfo::Type type) {
+  switch (type) {
+    case CTypeInfo::Type::kVoid:
+      return MachineType::AnyTagged();
+    case CTypeInfo::Type::kBool:
+      return MachineType::Bool();
+    case CTypeInfo::Type::kInt32:
+      return MachineType::Int32();
+    case CTypeInfo::Type::kUint32:
+      return MachineType::Uint32();
+    case CTypeInfo::Type::kInt64:
+      return MachineType::Int64();
+    case CTypeInfo::Type::kUint64:
+      return MachineType::Uint64();
+    case CTypeInfo::Type::kFloat32:
+      return MachineType::Float32();
+    case CTypeInfo::Type::kFloat64:
+      return MachineType::Float64();
+    case CTypeInfo::Type::kUnwrappedApiObject:
+      return MachineType::Pointer();
+  }
+}
+
+Node* EffectControlLinearizer::LowerFastApiCall(Node* node) {
+  FastApiCallNode n(node);
+  FastApiCallParameters const& params = n.Parameters();
+  const CFunctionInfo* c_signature = params.signature();
+  const int c_arg_count = c_signature->ArgumentCount();
+  CallDescriptor* js_call_descriptor = params.descriptor();
+  int js_arg_count = static_cast<int>(js_call_descriptor->ParameterCount());
+  const int value_input_count = node->op()->ValueInputCount();
+  CHECK_EQ(FastApiCallNode::ArityForArgc(c_arg_count, js_arg_count),
+           value_input_count);
+
+  // Add the { has_error } output parameter.
+  int kAlign = 4;
+  int kSize = 4;
+  Node* has_error = __ StackSlot(kSize, kAlign);
+  // Generate the store to `has_error`.
+  __ Store(StoreRepresentation(MachineRepresentation::kWord32, kNoWriteBarrier),
+           has_error, 0, jsgraph()->ZeroConstant());
+
+  MachineSignature::Builder builder(
+      graph()->zone(), 1, c_arg_count + FastApiCallNode::kHasErrorInputCount);
+  MachineType return_type = MachineTypeFor(c_signature->ReturnInfo().GetType());
+  builder.AddReturn(return_type);
+  for (int i = 0; i < c_arg_count; ++i) {
+    MachineType machine_type =
+        MachineTypeFor(c_signature->ArgumentInfo(i).GetType());
+    builder.AddParam(machine_type);
+  }
+  builder.AddParam(MachineType::Pointer());  // has_error
+
+  CallDescriptor* call_descriptor = Linkage::GetSimplifiedCDescriptor(
+      graph()->zone(), builder.Build(), CallDescriptor::kNoFlags);
+
+  call_descriptor->SetCFunctionInfo(c_signature);
+
+  Node** const inputs = graph()->zone()->NewArray<Node*>(
+      c_arg_count + FastApiCallNode::kFastCallExtraInputCount);
+  for (int i = 0; i < c_arg_count + FastApiCallNode::kFastTargetInputCount;
+       ++i) {
+    inputs[i] = NodeProperties::GetValueInput(node, i);
+  }
+  inputs[c_arg_count + 1] = has_error;
+  inputs[c_arg_count + 2] = __ effect();
+  inputs[c_arg_count + 3] = __ control();
+
+  __ Call(call_descriptor,
+          c_arg_count + FastApiCallNode::kFastCallExtraInputCount, inputs);
+
+  // Generate the load from `has_error`.
+  Node* load = __ Load(MachineType::Int32(), has_error, 0);
+
+  TNode<Boolean> cond =
+      TNode<Boolean>::UncheckedCast(__ Word32Equal(load, __ Int32Constant(0)));
+  // Hint to true.
+  auto if_success = __ MakeLabel();
+  auto if_error = __ MakeDeferredLabel();
+  auto merge = __ MakeLabel(MachineRepresentation::kTagged);
+  __ Branch(cond, &if_success, &if_error);
+
+  // Generate fast call.
+  __ Bind(&if_success);
+  Node* then_result = [&]() { return __ UndefinedConstant(); }();
+  __ Goto(&merge, then_result);
+
+  // Generate direct slow call.
+  __ Bind(&if_error);
+  Node* else_result = [&]() {
+    Node** const slow_inputs = graph()->zone()->NewArray<Node*>(
+        n.SlowCallArgumentCount() +
+        FastApiCallNode::kEffectAndControlInputCount);
+
+    int fast_call_params = c_arg_count + FastApiCallNode::kFastTargetInputCount;
+    CHECK_EQ(value_input_count - fast_call_params, n.SlowCallArgumentCount());
+    int index = 0;
+    for (; index < n.SlowCallArgumentCount(); ++index) {
+      slow_inputs[index] = n.SlowCallArgument(index);
+    }
+
+    slow_inputs[index] = __ effect();
+    slow_inputs[index + 1] = __ control();
+    Node* slow_call = __ Call(
+        params.descriptor(),
+        index + FastApiCallNode::kEffectAndControlInputCount, slow_inputs);
+    return slow_call;
+  }();
+  __ Goto(&merge, else_result);
+
+  __ Bind(&merge);
+  return merge.PhiAt(0);
 }
 
 Node* EffectControlLinearizer::LowerLoadFieldByIndex(Node* node) {

@@ -1709,7 +1709,7 @@ class RepresentationSelector {
   static MachineType MachineTypeFor(CTypeInfo::Type type) {
     switch (type) {
       case CTypeInfo::Type::kVoid:
-        return MachineType::Int32();
+        return MachineType::AnyTagged();
       case CTypeInfo::Type::kBool:
         return MachineType::Bool();
       case CTypeInfo::Type::kInt32:
@@ -1759,48 +1759,48 @@ class RepresentationSelector {
   static constexpr int kInitialArgumentsCount = 10;
 
   template <Phase T>
-  void VisitFastApiCall(Node* node) {
-    FastApiCallParameters const& params = FastApiCallParametersOf(node->op());
-    const CFunctionInfo* c_signature = params.signature();
-    int c_arg_count = c_signature->ArgumentCount();
-    int value_input_count = node->op()->ValueInputCount();
-    // function, ... C args
-    CHECK_EQ(c_arg_count + 1, value_input_count);
+  void VisitFastApiCall(Node* node, SimplifiedLowering* lowering) {
+    FastApiCallParameters const& op_params =
+        FastApiCallParametersOf(node->op());
+    const CFunctionInfo* c_signature = op_params.signature();
+    const int c_arg_count = c_signature->ArgumentCount();
+    CallDescriptor* call_descriptor = op_params.descriptor();
+    int js_arg_count = static_cast<int>(call_descriptor->ParameterCount());
+    const int value_input_count = node->op()->ValueInputCount();
+    CHECK_EQ(FastApiCallNode::ArityForArgc(c_arg_count, js_arg_count),
+             value_input_count);
 
     base::SmallVector<UseInfo, kInitialArgumentsCount> arg_use_info(
         c_arg_count);
+    // The target of the fast call.
     ProcessInput<T>(node, 0, UseInfo::Word());
     // Propagate representation information from TypeInfo.
     for (int i = 0; i < c_arg_count; i++) {
       arg_use_info[i] = UseInfoForFastApiCallArgument(
-          c_signature->ArgumentInfo(i).GetType(), params.feedback());
-      ProcessInput<T>(node, i + 1, arg_use_info[i]);
+          c_signature->ArgumentInfo(i).GetType(), op_params.feedback());
+      ProcessInput<T>(node, i + FastApiCallNode::kFastTargetInputCount,
+                      arg_use_info[i]);
     }
+
+    // The call code for the slow call.
+    ProcessInput<T>(node, c_arg_count + FastApiCallNode::kFastTargetInputCount,
+                    UseInfo::AnyTagged());
+    for (int i = 1; i <= js_arg_count; i++) {
+      ProcessInput<T>(node,
+                      c_arg_count + FastApiCallNode::kFastTargetInputCount + i,
+                      TruncatingUseInfoFromRepresentation(
+                          call_descriptor->GetInputType(i).representation()));
+    }
+    for (int i = c_arg_count + FastApiCallNode::kFastTargetInputCount +
+                 js_arg_count;
+         i < value_input_count; ++i) {
+      ProcessInput<T>(node, i, UseInfo::AnyTagged());
+    }
+    ProcessRemainingInputs<T>(node, value_input_count);
 
     MachineType return_type =
         MachineTypeFor(c_signature->ReturnInfo().GetType());
     SetOutput<T>(node, return_type.representation());
-
-    if (lower<T>()) {
-      MachineSignature::Builder builder(graph()->zone(), 1, c_arg_count);
-      builder.AddReturn(return_type);
-      for (int i = 0; i < c_arg_count; ++i) {
-        MachineType machine_type =
-            MachineTypeFor(c_signature->ArgumentInfo(i).GetType());
-        // Here the arg_use_info are indexed starting from 1 because of the
-        // function input, while this loop is only over the actual arguments.
-        DCHECK_EQ(arg_use_info[i].representation(),
-                  machine_type.representation());
-        builder.AddParam(machine_type);
-      }
-
-      CallDescriptor* call_descriptor = Linkage::GetSimplifiedCDescriptor(
-          graph()->zone(), builder.Build(), CallDescriptor::kNoFlags);
-
-      call_descriptor->SetCFunctionInfo(c_signature);
-
-      NodeProperties::ChangeOp(node, common()->Call(call_descriptor));
-    }
   }
 
   // Dispatching routine for visiting the node {node} with the usage {use}.
@@ -3686,7 +3686,7 @@ class RepresentationSelector {
       }
 
       case IrOpcode::kFastApiCall: {
-        VisitFastApiCall<T>(node);
+        VisitFastApiCall<T>(node, lowering);
         return;
       }
 
