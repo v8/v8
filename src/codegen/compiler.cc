@@ -790,14 +790,9 @@ void InsertCodeIntoCompilationCache(Isolate* isolate,
   cache->PutCode(sfi, code);
   DCHECK(!cache->LookupCode(sfi).is_null());
 
-  sfi->set_maybe_has_cached_code(true);
+  sfi->set_may_have_cached_code(true);
 
-  if (FLAG_trace_turbo_nci) {
-    StdoutStream os;
-    os << "NCI cache insertion: " << Brief(*sfi) << ", " << Brief(*code)
-       << std::endl
-       << std::flush;
-  }
+  if (FLAG_trace_turbo_nci) CompilationCacheCode::TraceInsertion(sfi, code);
 }
 
 bool GetOptimizedCodeNow(OptimizedCompilationJob* job, Isolate* isolate) {

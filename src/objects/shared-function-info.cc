@@ -6,6 +6,7 @@
 
 #include "src/ast/ast.h"
 #include "src/ast/scopes.h"
+#include "src/codegen/compilation-cache.h"
 #include "src/codegen/compiler.h"
 #include "src/objects/shared-function-info-inl.h"
 #include "src/strings/string-builder-inl.h"
@@ -410,6 +411,12 @@ std::ostream& operator<<(std::ostream& os, const SourceCodeOf& v) {
                             s.StartPosition() + v.max_length);
     return os << "...\n";
   }
+}
+
+MaybeHandle<Code> SharedFunctionInfo::TryGetCachedCode(Isolate* isolate) {
+  if (!may_have_cached_code()) return {};
+  Handle<SharedFunctionInfo> zis(*this, isolate);
+  return isolate->compilation_cache()->LookupCode(zis);
 }
 
 void SharedFunctionInfo::DisableOptimization(BailoutReason reason) {

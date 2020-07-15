@@ -412,8 +412,12 @@ class SharedFunctionInfo : public HeapObject {
 
   // True if a Code object associated with this SFI has been inserted into the
   // compilation cache. Note that the cache entry may be removed by aging,
-  // hence the 'maybe'.
-  DECL_BOOLEAN_ACCESSORS(maybe_has_cached_code)
+  // hence the 'may'.
+  DECL_BOOLEAN_ACCESSORS(may_have_cached_code)
+
+  // Returns the cached Code object for this SFI if it exists, an empty handle
+  // otherwise.
+  MaybeHandle<Code> TryGetCachedCode(Isolate* isolate);
 
   // Is this function a top-level function (scripts, evals).
   DECL_BOOLEAN_ACCESSORS(is_toplevel)

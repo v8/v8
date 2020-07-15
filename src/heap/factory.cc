@@ -13,6 +13,7 @@
 #include "src/base/bits.h"
 #include "src/builtins/accessors.h"
 #include "src/builtins/constants-table-builder.h"
+#include "src/codegen/compilation-cache.h"
 #include "src/codegen/compiler.h"
 #include "src/common/globals.h"
 #include "src/diagnostics/basic-block-profiler.h"
@@ -1857,10 +1858,13 @@ Handle<JSFunction> Factory::NewFunction(Handle<Map> map,
   Handle<JSFunction> function(JSFunction::cast(New(map, allocation)),
                               isolate());
 
+  Handle<Code> code;
+  bool have_cached_code = info->TryGetCachedCode(isolate()).ToHandle(&code);
+
   function->initialize_properties(isolate());
   function->initialize_elements();
   function->set_shared(*info);
-  function->set_code(info->GetCode());
+  function->set_code(have_cached_code ? *code : info->GetCode());
   function->set_context(*context);
   function->set_raw_feedback_cell(*many_closures_cell());
   int header_size;
@@ -1871,6 +1875,13 @@ Handle<JSFunction> Factory::NewFunction(Handle<Map> map,
     header_size = JSFunction::kSizeWithoutPrototype;
   }
   InitializeJSObjectBody(function, map, header_size);
+
+  if (have_cached_code) {
+    IsCompiledScope is_compiled_scope(info->is_compiled_scope(isolate()));
+    JSFunction::EnsureFeedbackVector(function, &is_compiled_scope);
+    if (FLAG_trace_turbo_nci) CompilationCacheCode::TraceHit(info, code);
+  }
+
   return function;
 }
 

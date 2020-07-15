@@ -169,6 +169,11 @@ class CompilationCacheCode : public CompilationSubCache {
   // generations) in the future.
   static constexpr int kGenerations = 2;
 
+  static void TraceAgeing();
+  static void TraceInsertion(Handle<SharedFunctionInfo> key,
+                             Handle<Code> value);
+  static void TraceHit(Handle<SharedFunctionInfo> key, Handle<Code> value);
+
  private:
   DISALLOW_IMPLICIT_CONSTRUCTORS(CompilationCacheCode);
 };

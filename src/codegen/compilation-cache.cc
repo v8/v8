@@ -74,7 +74,10 @@ void CompilationSubCache::AgeCustom(CompilationSubCache* c) {
 void CompilationCacheScript::Age() { AgeCustom(this); }
 void CompilationCacheEval::Age() { AgeCustom(this); }
 void CompilationCacheRegExp::Age() { AgeByGeneration(this); }
-void CompilationCacheCode::Age() { AgeByGeneration(this); }
+void CompilationCacheCode::Age() {
+  if (FLAG_trace_turbo_nci) CompilationCacheCode::TraceAgeing();
+  AgeByGeneration(this);
+}
 
 void CompilationSubCache::Iterate(RootVisitor* v) {
   v->VisitRootPointers(Root::kCompilationCache, nullptr,
@@ -291,6 +294,27 @@ void CompilationCacheCode::Put(Handle<SharedFunctionInfo> key,
   HandleScope scope(isolate());
   Handle<CompilationCacheTable> table = GetFirstTable();
   SetFirstTable(CompilationCacheTable::PutCode(isolate(), table, key, value));
+}
+
+void CompilationCacheCode::TraceAgeing() {
+  DCHECK(FLAG_trace_turbo_nci);
+  StdoutStream os;
+  os << "NCI cache ageing: Removing oldest generation" << std::endl;
+}
+
+void CompilationCacheCode::TraceInsertion(Handle<SharedFunctionInfo> key,
+                                          Handle<Code> value) {
+  DCHECK(FLAG_trace_turbo_nci);
+  StdoutStream os;
+  os << "NCI cache insertion: " << Brief(*key) << ", " << Brief(*value)
+     << std::endl;
+}
+
+void CompilationCacheCode::TraceHit(Handle<SharedFunctionInfo> key,
+                                    Handle<Code> value) {
+  DCHECK(FLAG_trace_turbo_nci);
+  StdoutStream os;
+  os << "NCI cache hit: " << Brief(*key) << ", " << Brief(*value) << std::endl;
 }
 
 void CompilationCache::Remove(Handle<SharedFunctionInfo> function_info) {

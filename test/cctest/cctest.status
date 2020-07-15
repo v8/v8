@@ -641,6 +641,7 @@
   'test-api/FastApiCalls': [SKIP],
   'test-cpu-profiler/Deopt*': [SKIP],
   'test-cpu-profiler/DetailedSourcePositionAPI_Inlining': [SKIP],
+  'test-cpu-profiler/DetailedSourcePositionAPI': [SKIP],
   'test-heap/CellsInOptimizedCodeAreWeak': [SKIP],
   'test-heap/EnsureAllocationSiteDependentCodesProcessed': [SKIP],
   'test-heap/NewSpaceObjectsInOptimizedCode': [SKIP],

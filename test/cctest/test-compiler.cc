@@ -968,13 +968,11 @@ static int AllocationSitesCount(Heap* heap) {
 TEST(DecideToPretenureDuringCompilation) {
   // The test makes use of optimization and relies on deterministic
   // compilation.
-  if (!i::FLAG_opt || i::FLAG_always_opt ||
-      i::FLAG_stress_incremental_marking || i::FLAG_optimize_for_size
-#ifdef ENABLE_MINOR_MC
-      || i::FLAG_minor_mc
-#endif
-  )
+  if (!i::FLAG_opt || i::FLAG_always_opt || i::FLAG_minor_mc ||
+      i::FLAG_stress_incremental_marking || i::FLAG_optimize_for_size ||
+      i::FLAG_turbo_nci || i::FLAG_turbo_nci_as_highest_tier) {
     return;
+  }
 
   FLAG_stress_gc_during_compilation = true;
   FLAG_allow_natives_syntax = true;
