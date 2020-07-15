@@ -35,6 +35,7 @@
 #if V8_TARGET_ARCH_RISCV64
 
 #include "src/codegen/riscv64/assembler-riscv64.h"
+
 #include "src/base/cpu.h"
 #include "src/codegen/riscv64/assembler-riscv64-inl.h"
 #include "src/codegen/safepoint-table.h"
@@ -548,8 +549,7 @@ void Assembler::disassembleInstr(Instr instr) {
 }
 
 // ----- Top-level instruction formats match those in the ISA manual
-// (R, I, S, B, U, J). These match the formats defined in LLVM's
-// RISCVInstrFormats.td.
+// (R, I, S, B, U, J). These match the formats defined in the compiler
 void Assembler::GenInstrR(uint8_t funct7, uint8_t funct3, Opcode opcode,
                           Register rd, Register rs1, Register rs2) {
   DCHECK(is_uint7(funct7) && is_uint3(funct3) && rd.is_valid() &&
@@ -741,7 +741,7 @@ void Assembler::GenInstrJ(Opcode opcode, Register rd, int32_t imm21) {
   emit(instr);
 }
 
-// ----- Instruction class templates match those in LLVM's RISCVInstrInfo.td
+// ----- Instruction class templates match those in the compiler
 
 void Assembler::GenInstrBranchCC_rri(uint8_t funct3, Register rs1, Register rs2,
                                      int16_t imm13) {
@@ -1687,9 +1687,13 @@ void Assembler::sfence_vma(Register rs1, Register rs2) {
 // Assembler Pseudo Instructions (Tables 25.2 and 25.3, RISC-V Unprivileged ISA)
 
 void Assembler::nop() { addi(ToRegister(0), ToRegister(0), 0); }
+
+// The code in *this function only* is based on LLVM's `generateInstSeq`
+// (RISCVMatInt.cpp), part of the LLVM Project, under the Apache License v2.0
+// with LLVM Exceptions. See https://llvm.org/LICENSE.txt for license
+// information. SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 void Assembler::RV_li(Register rd, int64_t imm) {
   if (is_int32(imm + 0x800)) {
-    // Based on LLVM's `generateInstSeq` (RISCVMatInt.cpp)
     // Depending on the active bits in the immediate Value v, the following
     // instruction sequences are emitted:
     //
