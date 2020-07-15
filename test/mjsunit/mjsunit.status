@@ -1246,10 +1246,12 @@
   'regress/regress-1034394': [SKIP],
   'regress/regress-863810': [SKIP],
   'regress/regress-crbug-772056': [SKIP],
-  # Investigate (Check failed: buffer.byte_length() <= Smi::kMaxValue)
+  # The entire snapshotting code assumes that the snapshot size fits
+  # into an int, so it doesn't support huge TypedArrays.
   'regress/regress-319722-ArrayBuffer': [SKIP],
   'regress/regress-599717': [SKIP],
   'regress/regress-667603': [SKIP],
+  'regress/regress-crbug-1104608': [SKIP],
   # Investigate (IsFixedArrayBase).
   'regress/regress-786784': [SKIP],
   'regress/regress-v8-9656': [SKIP],

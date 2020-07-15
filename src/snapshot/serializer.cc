@@ -361,10 +361,10 @@ void Serializer::ObjectSerializer::SerializeJSTypedArray() {
     if (!typed_array.WasDetached()) {
       // Explicitly serialize the backing store now.
       JSArrayBuffer buffer = JSArrayBuffer::cast(typed_array.buffer());
-      CHECK_LE(buffer.byte_length(), Smi::kMaxValue);
-      CHECK_LE(typed_array.byte_offset(), Smi::kMaxValue);
+      // We cannot store byte_length larger than int32 range in the snapshot.
+      CHECK_LE(buffer.byte_length(), std::numeric_limits<int32_t>::max());
       int32_t byte_length = static_cast<int32_t>(buffer.byte_length());
-      int32_t byte_offset = static_cast<int32_t>(typed_array.byte_offset());
+      size_t byte_offset = typed_array.byte_offset();
 
       // We need to calculate the backing store from the data pointer
       // because the ArrayBuffer may already have been serialized.
@@ -383,8 +383,8 @@ void Serializer::ObjectSerializer::SerializeJSTypedArray() {
 void Serializer::ObjectSerializer::SerializeJSArrayBuffer() {
   JSArrayBuffer buffer = JSArrayBuffer::cast(object_);
   void* backing_store = buffer.backing_store();
-  // We cannot store byte_length larger than Smi range in the snapshot.
-  CHECK_LE(buffer.byte_length(), Smi::kMaxValue);
+  // We cannot store byte_length larger than int32 range in the snapshot.
+  CHECK_LE(buffer.byte_length(), std::numeric_limits<int32_t>::max());
   int32_t byte_length = static_cast<int32_t>(buffer.byte_length());
   ArrayBufferExtension* extension = buffer.extension();
 
