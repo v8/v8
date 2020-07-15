@@ -194,6 +194,8 @@ class ZoneObject {
 // structures to allocate themselves and their elements in the Zone.
 class ZoneAllocationPolicy final {
  public:
+  // Creates unusable allocation policy.
+  ZoneAllocationPolicy() : zone_(nullptr) {}
   explicit ZoneAllocationPolicy(Zone* zone) : zone_(zone) {}
   void* New(size_t size) { return zone()->New(size); }
   static void Delete(void* pointer) {}

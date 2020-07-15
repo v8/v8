@@ -41,6 +41,15 @@ using UnresolvedList =
 class VariableMap : public ZoneHashMap {
  public:
   explicit VariableMap(Zone* zone);
+  VariableMap(const VariableMap& other, Zone* zone);
+
+  VariableMap(VariableMap&& other) V8_NOEXCEPT : ZoneHashMap(std::move(other)) {
+  }
+
+  VariableMap& operator=(VariableMap&& other) V8_NOEXCEPT {
+    static_cast<ZoneHashMap&>(*this) = std::move(other);
+    return *this;
+  }
 
   Variable* Declare(Zone* zone, Scope* scope, const AstRawString* name,
                     VariableMode mode, VariableKind kind,
@@ -51,6 +60,8 @@ class VariableMap : public ZoneHashMap {
   V8_EXPORT_PRIVATE Variable* Lookup(const AstRawString* name);
   void Remove(Variable* var);
   void Add(Variable* var);
+
+  Zone* zone() const { return allocator().zone(); }
 };
 
 class Scope;
@@ -168,7 +179,7 @@ class V8_EXPORT_PRIVATE Scope : public NON_EXPORTED_BASE(ZoneObject) {
   // Assumes outer_scope_ is non-null.
   void ReplaceOuterScope(Scope* outer_scope);
 
-  Zone* zone() const { return zone_; }
+  Zone* zone() const { return variables_.zone(); }
 
   void SetMustUsePreparseData() {
     if (must_use_preparsed_scope_data_) {
@@ -701,8 +712,6 @@ class V8_EXPORT_PRIVATE Scope : public NON_EXPORTED_BASE(ZoneObject) {
   friend class ScopeTestHelper;
   friend Zone;
 
-  Zone* zone_;
-
   // Scope tree.
   Scope* outer_scope_;  // the immediately enclosing outer scope, or nullptr
   Scope* inner_scope_;  // an inner scope of this scope
@@ -899,11 +908,13 @@ class V8_EXPORT_PRIVATE DeclarationScope : public Scope {
   }
   bool is_being_lazily_parsed() const { return is_being_lazily_parsed_; }
 #endif
+
   void set_zone(Zone* zone) {
 #ifdef DEBUG
     needs_migration_ = true;
 #endif
-    zone_ = zone;
+    // Migrate variables_' backing store to new zone.
+    variables_ = VariableMap(variables_, zone);
   }
 
   // ---------------------------------------------------------------------------
@@ -1261,7 +1272,7 @@ class V8_EXPORT_PRIVATE DeclarationScope : public Scope {
 
   V8_INLINE RareData* EnsureRareData() {
     if (rare_data_ == nullptr) {
-      rare_data_ = zone_->New<RareData>();
+      rare_data_ = zone()->New<RareData>();
     }
     return rare_data_;
   }
@@ -1443,7 +1454,7 @@ class V8_EXPORT_PRIVATE ClassScope : public Scope {
   V8_INLINE RareData* EnsureRareData() {
     if (GetRareData() == nullptr) {
       rare_data_and_is_parsing_heritage_.SetPointer(
-          zone_->New<RareData>(zone_));
+          zone()->New<RareData>(zone()));
     }
     return GetRareData();
   }

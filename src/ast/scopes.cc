@@ -37,12 +37,16 @@ namespace internal {
 VariableMap::VariableMap(Zone* zone)
     : ZoneHashMap(8, ZoneAllocationPolicy(zone)) {}
 
+VariableMap::VariableMap(const VariableMap& other, Zone* zone)
+    : ZoneHashMap(other, ZoneAllocationPolicy(zone)) {}
+
 Variable* VariableMap::Declare(Zone* zone, Scope* scope,
                                const AstRawString* name, VariableMode mode,
                                VariableKind kind,
                                InitializationFlag initialization_flag,
                                MaybeAssignedFlag maybe_assigned_flag,
                                IsStaticFlag is_static_flag, bool* was_added) {
+  DCHECK_EQ(zone, allocator().zone());
   // AstRawStrings are unambiguous, i.e., the same string is always represented
   // by the same AstRawString*.
   // FIXME(marja): fix the type of Lookup.
@@ -88,18 +92,12 @@ Variable* VariableMap::Lookup(const AstRawString* name) {
 // Implementation of Scope
 
 Scope::Scope(Zone* zone)
-    : zone_(zone),
-      outer_scope_(nullptr),
-      variables_(zone),
-      scope_type_(SCRIPT_SCOPE) {
+    : outer_scope_(nullptr), variables_(zone), scope_type_(SCRIPT_SCOPE) {
   SetDefaults();
 }
 
 Scope::Scope(Zone* zone, Scope* outer_scope, ScopeType scope_type)
-    : zone_(zone),
-      outer_scope_(outer_scope),
-      variables_(zone),
-      scope_type_(scope_type) {
+    : outer_scope_(outer_scope), variables_(zone), scope_type_(scope_type) {
   DCHECK_NE(SCRIPT_SCOPE, scope_type);
   SetDefaults();
   set_language_mode(outer_scope->language_mode());
@@ -190,8 +188,7 @@ ClassScope::ClassScope(Isolate* isolate, Zone* zone,
 }
 
 Scope::Scope(Zone* zone, ScopeType scope_type, Handle<ScopeInfo> scope_info)
-    : zone_(zone),
-      outer_scope_(nullptr),
+    : outer_scope_(nullptr),
       variables_(zone),
       scope_info_(scope_info),
       scope_type_(scope_type) {
@@ -224,8 +221,7 @@ DeclarationScope::DeclarationScope(Zone* zone, ScopeType scope_type,
 
 Scope::Scope(Zone* zone, const AstRawString* catch_variable_name,
              MaybeAssignedFlag maybe_assigned, Handle<ScopeInfo> scope_info)
-    : zone_(zone),
-      outer_scope_(nullptr),
+    : outer_scope_(nullptr),
       variables_(zone),
       scope_info_(scope_info),
       scope_type_(CATCH_SCOPE) {
@@ -1522,21 +1518,22 @@ void DeclarationScope::ResetAfterPreparsing(AstValueFactory* ast_value_factory,
   has_rest_ = false;
   function_ = nullptr;
 
-  DCHECK_NE(zone_, ast_value_factory->zone());
-  zone_->ReleaseMemory();
+  DCHECK_NE(zone(), ast_value_factory->zone());
+  // Make sure this scope and zone aren't used for allocation anymore.
+  {
+    // Get the zone, while variables_ is still valid
+    Zone* zone = this->zone();
+    variables_.Invalidate();
+    zone->ReleaseMemory();
+  }
 
   if (aborted) {
     // Prepare scope for use in the outer zone.
-    zone_ = ast_value_factory->zone();
-    variables_.Reset(ZoneAllocationPolicy(zone_));
+    variables_ = VariableMap(ast_value_factory->zone());
     if (!IsArrowFunction(function_kind_)) {
       has_simple_parameters_ = true;
       DeclareDefaultFunctionVariables(ast_value_factory);
     }
-  } else {
-    // Make sure this scope isn't used for allocation anymore.
-    zone_ = nullptr;
-    variables_.Invalidate();
   }
 
 #ifdef DEBUG

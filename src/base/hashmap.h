@@ -36,16 +36,33 @@ class TemplateHashMapImpl {
 
   // initial_capacity is the size of the initial hash map;
   // it must be a power of 2 (and thus must not be 0).
-  TemplateHashMapImpl(uint32_t capacity = kDefaultHashMapCapacity,
-                      MatchFun match = MatchFun(),
-                      AllocationPolicy allocator = AllocationPolicy());
+  explicit TemplateHashMapImpl(uint32_t capacity = kDefaultHashMapCapacity,
+                               MatchFun match = MatchFun(),
+                               AllocationPolicy allocator = AllocationPolicy());
 
   // Clones the given hashmap and creates a copy with the same entries.
-  TemplateHashMapImpl(const TemplateHashMapImpl<Key, Value, MatchFun,
-                                                AllocationPolicy>* original,
-                      AllocationPolicy allocator = AllocationPolicy());
+  explicit TemplateHashMapImpl(const TemplateHashMapImpl* original,
+                               AllocationPolicy allocator = AllocationPolicy());
+
+  TemplateHashMapImpl(TemplateHashMapImpl&& other) V8_NOEXCEPT
+      : allocator_(other.allocator_) {
+    *this = std::move(other);
+  }
 
   ~TemplateHashMapImpl();
+
+  TemplateHashMapImpl& operator=(TemplateHashMapImpl&& other) V8_NOEXCEPT {
+    map_ = other.map_;
+    capacity_ = other.capacity_;
+    occupancy_ = other.occupancy_;
+    match_ = other.match_;
+    allocator_ = other.allocator_;
+
+    other.map_ = nullptr;
+    other.occupancy_ = 0;
+    other.capacity_ = 0;
+    return *this;
+  }
 
   // If an entry with matching key is found, returns that entry.
   // Otherwise, nullptr is returned.
@@ -75,6 +92,7 @@ class TemplateHashMapImpl {
   // Empties the map and makes it unusable for allocation.
   void Invalidate() {
     AllocationPolicy::Delete(map_);
+    allocator_ = AllocationPolicy();
     map_ = nullptr;
     occupancy_ = 0;
     capacity_ = 0;
@@ -99,10 +117,7 @@ class TemplateHashMapImpl {
   Entry* Start() const;
   Entry* Next(Entry* entry) const;
 
-  void Reset(AllocationPolicy allocator) {
-    Initialize(capacity_);
-    occupancy_ = 0;
-  }
+  AllocationPolicy allocator() const { return allocator_; }
 
  protected:
   void Initialize(uint32_t capacity);
@@ -392,13 +407,13 @@ class CustomMatcherTemplateHashMapImpl
  public:
   using MatchFun = bool (*)(void*, void*);
 
-  CustomMatcherTemplateHashMapImpl(
+  explicit CustomMatcherTemplateHashMapImpl(
       MatchFun match, uint32_t capacity = Base::kDefaultHashMapCapacity,
       AllocationPolicy allocator = AllocationPolicy())
       : Base(capacity, HashEqualityThenKeyMatcher<void*, MatchFun>(match),
              allocator) {}
 
-  CustomMatcherTemplateHashMapImpl(
+  explicit CustomMatcherTemplateHashMapImpl(
       const CustomMatcherTemplateHashMapImpl<AllocationPolicy>* original,
       AllocationPolicy allocator = AllocationPolicy())
       : Base(original, allocator) {}
@@ -428,9 +443,23 @@ class PointerTemplateHashMapImpl
                                    AllocationPolicy>;
 
  public:
-  PointerTemplateHashMapImpl(uint32_t capacity = Base::kDefaultHashMapCapacity,
-                             AllocationPolicy allocator = AllocationPolicy())
+  explicit PointerTemplateHashMapImpl(
+      uint32_t capacity = Base::kDefaultHashMapCapacity,
+      AllocationPolicy allocator = AllocationPolicy())
       : Base(capacity, KeyEqualityMatcher<void*>(), allocator) {}
+
+  PointerTemplateHashMapImpl(const PointerTemplateHashMapImpl& other,
+                             AllocationPolicy allocator = AllocationPolicy())
+      : Base(&other, allocator) {}
+
+  PointerTemplateHashMapImpl(PointerTemplateHashMapImpl&& other) V8_NOEXCEPT
+      : Base(std::move(other)) {}
+
+  PointerTemplateHashMapImpl& operator=(PointerTemplateHashMapImpl&& other)
+      V8_NOEXCEPT {
+    static_cast<Base&>(*this) = std::move(other);
+    return *this;
+  }
 };
 
 using HashMap = PointerTemplateHashMapImpl<DefaultAllocationPolicy>;
@@ -473,8 +502,8 @@ class TemplateHashMap
     friend class TemplateHashMap;
   };
 
-  TemplateHashMap(MatchFun match,
-                  AllocationPolicy allocator = AllocationPolicy())
+  explicit TemplateHashMap(MatchFun match,
+                           AllocationPolicy allocator = AllocationPolicy())
       : Base(Base::kDefaultHashMapCapacity,
              HashEqualityThenKeyMatcher<void*, MatchFun>(match), allocator) {}
 
