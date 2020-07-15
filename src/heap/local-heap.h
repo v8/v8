@@ -11,6 +11,7 @@
 #include "src/base/platform/condition-variable.h"
 #include "src/base/platform/mutex.h"
 #include "src/execution/isolate.h"
+#include "src/handles/persistent-handles.h"
 #include "src/heap/concurrent-allocator.h"
 
 namespace v8 {
@@ -19,7 +20,6 @@ namespace internal {
 class Heap;
 class Safepoint;
 class LocalHandles;
-class PersistentHandles;
 
 class V8_EXPORT_PRIVATE LocalHeap {
  public:
