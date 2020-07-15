@@ -10,7 +10,7 @@ found in the LICENSE file. -->
   overflow-y: hidden;
   overflow-x: scroll;
   user-select: none;
-  background-color: #1f1f1f;
+  background-color: var(--timeline-background-color);
   box-shadow: 0 19px 38px rgba(0,0,0,0.30), 0 15px 12px rgba(0,0,0,0.22);
 }
 #timelineLabel {
@@ -46,7 +46,7 @@ found in the LICENSE file. -->
 .timestamp {
   height: 250px;
   width: 100px;
-  border-left: 1px #121212 dashed;
+  border-left: 1px var(--surface-color) dashed;
   padding-left: 4px;
   position: absolute;
   pointer-events: none;
@@ -60,14 +60,14 @@ found in the LICENSE file. -->
   margin-top: -50px;
   margin-bottom: 10px;
   background-size: 100% 100%;
-  border: 1px #121212 solid;
+  border: 1px var(--surface-color) solid;
   border-width: 1px 0 1px 0;
   overflow: hidden;
 }
 #timelineOverviewIndicator {
   height: 100%;
   position: absolute;
-  box-shadow: 0px 2px 20px -5px #121212 inset;
+  box-shadow: 0px 2px 20px -5px var(--surface-color) inset;
   top: 0px;
   cursor: ew-resize;
 }

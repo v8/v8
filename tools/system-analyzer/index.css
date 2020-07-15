@@ -1,18 +1,39 @@
 
+:root {
+  --background-color: #000000;
+  --surface-color: #121212;
+  --primary-color: #BB86FC;
+  --secondary-color: #03DAC6;
+  --on-surface-color: #ffffff;
+  --on-background-color: #f5f0f0;
+  --on-primary-color: #000000;
+  --on-secondary-color: #000000;
+  --default-color: #9B6EDC;
+  --error-color: #CF6679;
+  --map-background-color: #5e5454;
+  --timeline-background-color: #1f1f1f;
+  --red: #dc6eae;
+  --green: #aedc6e;
+  --yellow: #EEFF41;
+  --blue: #6e77dc;
+  --orange: #dc9b6e;
+  --violet: #d26edc;
+}
+
 body {
   font-family: 'Roboto', sans-serif;
   font-size: 14px;
-  color: white;
+  color: var(--on-background-color);
   margin-left: 5%;
   margin-right: 5%;
-  background-color: #000000;
+  background-color: var(--background-color);
   letter-spacing: 0.5px;
 }
 h2 {
-  background-color: #BB86FC;
+  background-color: var(--primary-color);
   box-shadow: 0 4px 8px 0 rgba(0,0,0,0.2);
   transition: 0.3s;
-  color: black;
+  color: var(--on-primary-color);
   padding: 15px 25px;
   text-align: center;
   text-decoration: none;
@@ -21,7 +42,8 @@ h2 {
 .panel {
   box-shadow: 0 4px 8px 0 rgba(0,0,0,0.2);
   transition: 0.3s;
-  background-color: #121212;
+  background-color: var(--surface-color);
+  color: var(--on-surface-color);
   padding: 30px 30px 30px 30px ;
   margin: auto;
   overflow-x: scroll;
@@ -30,48 +52,48 @@ h2 {
 .colorbox {
   width: 10px;
   height: 10px;
-  border: 1px black solid;
+  border: 1px var(--background-color) solid;
 }
 
 .primary{
-  background-color: #9B6EDC;
+  background-color: var(--default-color);
 }
 
 .red {
-  background-color: #dc6eae;
+  background-color: var(--red);
 }
 
 .green {
-  background-color: #aedc6e;
+  background-color: var(--green);
 }
 
 .yellow {
-  background-color: #EEFF41;
-  color: #5e5454;
+  background-color: var(--yellow);
+  color: var(--map-background-color);
 }
 
 .blue {
-  background-color: #6e77dc;
+  background-color: var(--blue);
 }
 
 .orange {
-  background-color:#dc9b6e;
+  background-color:var(--orange);
 }
 
 .violet {
-  background-color: #d26edc;
-  color: #5e5454;
+  background-color: var(--violet);
+  color: var(--map-background-color);
 }
 
 .success {
-  background-color:#03DAC6;
+  background-color: var(--secondary-color);
 }
 
 .failure {
-  background-color: #CF6679;
+  background-color: var(--error-color);
 }
 a:link {
-  color: #03DAC6;
+  color: var(--secondary-color);
   background-color: transparent;
   text-decoration: none;
 }

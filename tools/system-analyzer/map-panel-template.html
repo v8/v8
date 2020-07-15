@@ -23,12 +23,12 @@ found in the LICENSE file. -->
   height: 20px;
   display: inline-block;
   border-radius: 50%;
-  background-color: #5e5454;
-  border: 4px solid white;
+  background-color: var(--map-background-color);
+  border: 4px solid var(--on-surface-color);
   font-size: 10px;
   text-align: center;
   line-height: 18px;
-  color: white;
+  color: var(--on-surface-color);
   vertical-align: top;
   margin-top: -13px;
   /* raise z-index */
@@ -38,7 +38,7 @@ found in the LICENSE file. -->
 }
 
 .map.selected {
-    border-color: #5e5454;
+    border-color: var(--map-background-color);
 }
 
 .transitions {
@@ -88,20 +88,20 @@ found in the LICENSE file. -->
   width: 80px;
   display: inline-block;
   margin: 0 0 2px 0;
-  background-color: #5e5454;
+  background-color: var(--map-background-color);
   vertical-align: top;
   padding-left: 15px;
 }
 
 .transitionLabel {
-  color: #5e5454;
+  color: var(--map-background-color);
   transform: rotate(-15deg);
   transform-origin: top left;
   margin-top: -10px;
   font-size: 10px;
   white-space: normal;
   word-break: break-all;
-  background-color: white;
+  background-color: var(--on-surface-color);
 }
 
 .showSubtransitions {
@@ -109,14 +109,14 @@ found in the LICENSE file. -->
   height: 0;
   border-left: 6px solid transparent;
   border-right: 6px solid transparent;
-  border-top: 10px solid #5e5454;
+  border-top: 10px solid var(--map-background-color);
   cursor: zoom-in;
   margin: 4px 0 0 4px;
 }
 
 .showSubtransitions.opened {
   border-top: none;
-  border-bottom: 10px solid #5e5454;
+  border-bottom: 10px solid var(--map-background-color);
   cursor: zoom-out;
 }
 
@@ -124,7 +124,7 @@ found in the LICENSE file. -->
   position: absolute;
   width: 10px;
   height: 10px;
-  background-color: red;
+  background-color: var(--red);
   pointer-events: none;
   z-index: 100;
   display: none;
