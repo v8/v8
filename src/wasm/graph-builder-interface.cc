@@ -751,20 +751,39 @@ class WasmGraphBuildingInterface {
   void RefTest(FullDecoder* decoder, const Value& object, const Value& rtt,
                Value* result) {
     using CheckForNull = compiler::WasmGraphBuilder::CheckForNull;
+    using CheckForI31 = compiler::WasmGraphBuilder::CheckForI31;
+    using RttIsI31 = compiler::WasmGraphBuilder::RttIsI31;
     CheckForNull null_check = object.type.is_nullable()
                                   ? CheckForNull::kWithNullCheck
                                   : CheckForNull::kWithoutNullCheck;
-    result->node = BUILD(RefTest, object.node, rtt.node, null_check);
+    CheckForI31 i31_check =
+        IsSubtypeOf(kWasmI31Ref, object.type, decoder->module_)
+            ? CheckForI31::kWithI31Check
+            : CheckForI31::kNoI31Check;
+    RttIsI31 rtt_is_i31 = rtt.type.heap_representation() == HeapType::kI31
+                              ? RttIsI31::kRttIsI31
+                              : RttIsI31::kRttIsNotI31;
+    result->node = BUILD(RefTest, object.node, rtt.node, null_check, i31_check,
+                         rtt_is_i31);
   }
 
   void RefCast(FullDecoder* decoder, const Value& object, const Value& rtt,
                Value* result) {
     using CheckForNull = compiler::WasmGraphBuilder::CheckForNull;
+    using CheckForI31 = compiler::WasmGraphBuilder::CheckForI31;
+    using RttIsI31 = compiler::WasmGraphBuilder::RttIsI31;
     CheckForNull null_check = object.type.is_nullable()
                                   ? CheckForNull::kWithNullCheck
                                   : CheckForNull::kWithoutNullCheck;
-    result->node =
-        BUILD(RefCast, object.node, rtt.node, null_check, decoder->position());
+    CheckForI31 i31_check =
+        IsSubtypeOf(kWasmI31Ref, object.type, decoder->module_)
+            ? CheckForI31::kWithI31Check
+            : CheckForI31::kNoI31Check;
+    RttIsI31 rtt_is_i31 = rtt.type.heap_representation() == HeapType::kI31
+                              ? RttIsI31::kRttIsI31
+                              : RttIsI31::kRttIsNotI31;
+    result->node = BUILD(RefCast, object.node, rtt.node, null_check, i31_check,
+                         rtt_is_i31, decoder->position());
   }
 
   void PassThrough(FullDecoder* decoder, const Value& from, Value* to) {

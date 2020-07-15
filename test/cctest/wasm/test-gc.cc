@@ -692,6 +692,64 @@ TEST(BasicI31) {
   tester.CheckResult(kUnsigned, 0x7FFFFFFF, 0x7FFFFFFF);
 }
 
+TEST(I31Casts) {
+  WasmGCTester tester;
+  uint32_t struct_type = tester.DefineStruct({F(wasm::kWasmI32, true)});
+  uint32_t i31_rtt = tester.AddGlobal(ValueType::Rtt(HeapType::kI31, 1), false,
+                                      WasmInitExpr::RttCanon(HeapType::kI31));
+  uint32_t struct_rtt =
+      tester.AddGlobal(ValueType::Rtt(struct_type, 1), false,
+                       WasmInitExpr::RttCanon(
+                           static_cast<HeapType::Representation>(struct_type)));
+  // Adds the result of a successful typecheck to the untagged value, i.e.
+  // should return 1 + 42 = 43.
+  const uint32_t kTestAndCastSuccess = tester.DefineFunction(
+      tester.sigs.i_v(), {kWasmEqRef},
+      {WASM_SET_LOCAL(0, WASM_I31_NEW(WASM_I32V(42))),
+       WASM_I32_ADD(WASM_REF_TEST(kLocalEqRef, kLocalI31Ref, WASM_GET_LOCAL(0),
+                                  WASM_GET_GLOBAL(i31_rtt)),
+                    WASM_I31_GET_S(WASM_REF_CAST(kLocalEqRef, kLocalI31Ref,
+                                                 WASM_GET_LOCAL(0),
+                                                 WASM_GET_GLOBAL(i31_rtt)))),
+       kExprEnd});
+  // Adds the results of two unsuccessful type checks (an i31ref is not a
+  // struct, nor the other way round).
+  const uint32_t kTestFalse = tester.DefineFunction(
+      tester.sigs.i_v(), {},
+      {WASM_I32_ADD(
+           WASM_REF_TEST(kLocalEqRef, kLocalI31Ref,
+                         WASM_STRUCT_NEW_WITH_RTT(struct_type, WASM_I32V(42),
+                                                  WASM_GET_GLOBAL(struct_rtt)),
+                         WASM_GET_GLOBAL(i31_rtt)),
+           WASM_REF_TEST(kLocalEqRef, struct_type, WASM_I31_NEW(WASM_I32V(23)),
+                         WASM_GET_GLOBAL(struct_rtt))),
+       kExprEnd});
+  // Tries to cast an i31ref to a struct, which should trap.
+  const uint32_t kCastI31ToStruct = tester.DefineFunction(
+      tester.sigs.i_i(),  // Argument and return value ignored
+      {},
+      {WASM_STRUCT_GET(
+           struct_type, 0,
+           WASM_REF_CAST(kLocalEqRef, struct_type, WASM_I31_NEW(WASM_I32V(42)),
+                         WASM_GET_GLOBAL(struct_rtt))),
+       kExprEnd});
+  // Tries to cast a struct to i31ref, which should trap.
+  const uint32_t kCastStructToI31 = tester.DefineFunction(
+      tester.sigs.i_i(),  // Argument and return value ignored
+      {},
+      {WASM_I31_GET_S(
+           WASM_REF_CAST(kLocalEqRef, kLocalI31Ref,
+                         WASM_STRUCT_NEW_WITH_RTT(struct_type, WASM_I32V(42),
+                                                  WASM_GET_GLOBAL(struct_rtt)),
+                         WASM_GET_GLOBAL(i31_rtt))),
+       kExprEnd});
+  tester.CompileModule();
+  tester.CheckResult(kTestAndCastSuccess, 43);
+  tester.CheckResult(kTestFalse, 0);
+  tester.CheckHasThrown(kCastI31ToStruct, 0);
+  tester.CheckHasThrown(kCastStructToI31, 0);
+}
+
 TEST(JsAccessDisallowed) {
   WasmGCTester tester;
   uint32_t type_index = tester.DefineStruct({F(wasm::kWasmI32, true)});

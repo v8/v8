@@ -5373,13 +5373,48 @@ Node* WasmGraphBuilder::RttSub(wasm::HeapType type, Node* parent_rtt) {
       LOAD_INSTANCE_FIELD(NativeContext, MachineType::TaggedPointer()));
 }
 
+Node* IsI31(GraphAssembler* gasm, Node* object) {
+  if (COMPRESS_POINTERS_BOOL) {
+    return gasm->Word32Equal(
+        gasm->Word32And(object, gasm->Int32Constant(kSmiTagMask)),
+        gasm->Int32Constant(kSmiTag));
+  } else {
+    return gasm->WordEqual(
+        gasm->WordAnd(object, gasm->IntPtrConstant(kSmiTagMask)),
+        gasm->IntPtrConstant(kSmiTag));
+  }
+}
+
+void AssertFalse(GraphAssembler* gasm, Node* condition) {
+#if DEBUG
+  if (FLAG_debug_code) {
+    auto ok = gasm->MakeLabel();
+    gasm->GotoIfNot(condition, &ok);
+    gasm->Unreachable();
+    gasm->Goto(&ok);
+    gasm->Bind(&ok);
+  }
+#endif
+}
+
 Node* WasmGraphBuilder::RefTest(Node* object, Node* rtt,
-                                CheckForNull null_check) {
-  // TODO(7748): Check if {object} is an i31ref.
+                                CheckForNull null_check, CheckForI31 i31_check,
+                                RttIsI31 rtt_is_i31) {
   auto done = gasm_->MakeLabel(MachineRepresentation::kWord32);
+  bool need_done_label = false;
+  if (i31_check == kWithI31Check) {
+    if (rtt_is_i31 == kRttIsI31) {
+      return IsI31(gasm_.get(), object);
+    }
+    gasm_->GotoIf(IsI31(gasm_.get(), object), &done, gasm_->Int32Constant(0));
+    need_done_label = true;
+  } else {
+    AssertFalse(gasm_.get(), IsI31(gasm_.get(), object));
+  }
   if (null_check == kWithNullCheck) {
     gasm_->GotoIf(gasm_->WordEqual(object, RefNull()), &done,
                   gasm_->Int32Constant(0));
+    need_done_label = true;
   }
 
   Node* map = gasm_->Load(MachineType::TaggedPointer(), object,
@@ -5389,7 +5424,7 @@ Node* WasmGraphBuilder::RefTest(Node* object, Node* rtt,
       WasmIsRttSubtype, map, rtt,
       LOAD_INSTANCE_FIELD(NativeContext, MachineType::TaggedPointer())));
 
-  if (null_check == kWithNullCheck) {
+  if (need_done_label) {
     gasm_->Goto(&done, subtype_check);
     gasm_->Bind(&done);
     subtype_check = done.PhiAt(0);
@@ -5398,9 +5433,19 @@ Node* WasmGraphBuilder::RefTest(Node* object, Node* rtt,
 }
 
 Node* WasmGraphBuilder::RefCast(Node* object, Node* rtt,
-                                CheckForNull null_check,
+                                CheckForNull null_check, CheckForI31 i31_check,
+                                RttIsI31 rtt_is_i31,
                                 wasm::WasmCodePosition position) {
-  // TODO(7748): Check if {object} is an i31ref.
+  if (i31_check == kWithI31Check) {
+    if (rtt_is_i31 == kRttIsI31) {
+      TrapIfFalse(wasm::kTrapIllegalCast, IsI31(gasm_.get(), object), position);
+      return object;
+    } else {
+      TrapIfTrue(wasm::kTrapIllegalCast, IsI31(gasm_.get(), object), position);
+    }
+  } else {
+    AssertFalse(gasm_.get(), IsI31(gasm_.get(), object));
+  }
   if (null_check == kWithNullCheck) {
     TrapIfTrue(wasm::kTrapIllegalCast, gasm_->WordEqual(object, RefNull()),
                position);
