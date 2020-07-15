@@ -582,11 +582,14 @@ Handle<JSModuleNamespace> SourceTextModule::GetModuleNamespace(
   return Module::GetModuleNamespace(isolate, requested_module);
 }
 
-Handle<JSObject> SourceTextModule::GetImportMeta(
+MaybeHandle<JSObject> SourceTextModule::GetImportMeta(
     Isolate* isolate, Handle<SourceTextModule> module) {
   Handle<HeapObject> import_meta(module->import_meta(), isolate);
   if (import_meta->IsTheHole(isolate)) {
-    import_meta = isolate->RunHostInitializeImportMetaObjectCallback(module);
+    if (!isolate->RunHostInitializeImportMetaObjectCallback(module).ToHandle(
+            &import_meta)) {
+      return {};
+    }
     module->set_import_meta(*import_meta);
   }
   return Handle<JSObject>::cast(import_meta);

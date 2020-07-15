@@ -4065,7 +4065,7 @@ void Isolate::SetHostImportModuleDynamicallyCallback(
   host_import_module_dynamically_callback_ = callback;
 }
 
-Handle<JSObject> Isolate::RunHostInitializeImportMetaObjectCallback(
+MaybeHandle<JSObject> Isolate::RunHostInitializeImportMetaObjectCallback(
     Handle<SourceTextModule> module) {
   CHECK(module->import_meta().IsTheHole(this));
   Handle<JSObject> import_meta = factory()->NewJSObjectWithNullProto();
@@ -4075,7 +4075,10 @@ Handle<JSObject> Isolate::RunHostInitializeImportMetaObjectCallback(
     host_initialize_import_meta_object_callback_(
         api_context, Utils::ToLocal(Handle<Module>::cast(module)),
         v8::Local<v8::Object>::Cast(v8::Utils::ToLocal(import_meta)));
-    CHECK(!has_scheduled_exception());
+    if (has_scheduled_exception()) {
+      PromoteScheduledException();
+      return {};
+    }
   }
   return import_meta;
 }

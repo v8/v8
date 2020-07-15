@@ -217,6 +217,7 @@
   V(JSStoreMessage)                    \
   V(JSLoadModule)                      \
   V(JSStoreModule)                     \
+  V(JSGetImportMeta)                   \
   V(JSGeneratorStore)                  \
   V(JSGeneratorRestoreContinuation)    \
   V(JSGeneratorRestoreContext)         \

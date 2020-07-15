@@ -954,6 +954,8 @@ class V8_EXPORT_PRIVATE JSOperatorBuilder final
   const Operator* LoadModule(int32_t cell_index);
   const Operator* StoreModule(int32_t cell_index);
 
+  const Operator* GetImportMeta();
+
   const Operator* HasInPrototypeChain();
   const Operator* InstanceOf(const FeedbackSource& feedback);
   const Operator* OrdinaryHasInstance();

@@ -1115,6 +1115,14 @@ const Operator* JSOperatorBuilder::LoadModule(int32_t cell_index) {
       cell_index);                              // parameter
 }
 
+const Operator* JSOperatorBuilder::GetImportMeta() {
+  return new (zone()) Operator(    // --
+      IrOpcode::kJSGetImportMeta,  // opcode
+      Operator::kNoProperties,     // flags
+      "JSGetImportMeta",           // name
+      0, 1, 1, 1, 1, 2);           // counts
+}
+
 const Operator* JSOperatorBuilder::StoreModule(int32_t cell_index) {
   return zone()->New<Operator1<int32_t>>(      // --
       IrOpcode::kJSStoreModule,                // opcode

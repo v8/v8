@@ -1855,11 +1855,13 @@ class SourceTextModuleData : public HeapObjectData {
   void Serialize(JSHeapBroker* broker);
 
   CellData* GetCell(JSHeapBroker* broker, int cell_index) const;
+  ObjectData* GetImportMeta(JSHeapBroker* broker) const;
 
  private:
   bool serialized_ = false;
   ZoneVector<CellData*> imports_;
   ZoneVector<CellData*> exports_;
+  ObjectData* import_meta_;
 };
 
 SourceTextModuleData::SourceTextModuleData(JSHeapBroker* broker,
@@ -1867,7 +1869,8 @@ SourceTextModuleData::SourceTextModuleData(JSHeapBroker* broker,
                                            Handle<SourceTextModule> object)
     : HeapObjectData(broker, storage, object),
       imports_(broker->zone()),
-      exports_(broker->zone()) {}
+      exports_(broker->zone()),
+      import_meta_(nullptr) {}
 
 CellData* SourceTextModuleData::GetCell(JSHeapBroker* broker,
                                         int cell_index) const {
@@ -1890,6 +1893,11 @@ CellData* SourceTextModuleData::GetCell(JSHeapBroker* broker,
   }
   CHECK_NOT_NULL(cell);
   return cell;
+}
+
+ObjectData* SourceTextModuleData::GetImportMeta(JSHeapBroker* broker) const {
+  CHECK(serialized_);
+  return import_meta_;
 }
 
 void SourceTextModuleData::Serialize(JSHeapBroker* broker) {
@@ -1919,6 +1927,10 @@ void SourceTextModuleData::Serialize(JSHeapBroker* broker) {
     exports_.push_back(broker->GetOrCreateData(exports->get(i))->AsCell());
   }
   TRACE(broker, "Copied " << exports_.size() << " exports");
+
+  DCHECK_NULL(import_meta_);
+  import_meta_ = broker->GetOrCreateData(module->import_meta());
+  TRACE(broker, "Copied import_meta");
 }
 
 class CellData : public HeapObjectData {
@@ -2382,6 +2394,18 @@ base::Optional<ObjectRef> ContextRef::get(int index,
     return ObjectRef(broker(), optional_slot);
   }
   return base::nullopt;
+}
+
+SourceTextModuleRef ContextRef::GetModule(SerializationPolicy policy) const {
+  ContextRef current = *this;
+  while (current.map().instance_type() != MODULE_CONTEXT_TYPE) {
+    size_t depth = 1;
+    current = current.previous(&depth, policy);
+    CHECK_EQ(depth, 0);
+  }
+  return current.get(Context::EXTENSION_INDEX, policy)
+      .value()
+      .AsSourceTextModule();
 }
 
 JSHeapBroker::JSHeapBroker(
@@ -3811,6 +3835,11 @@ bool ObjectRef::IsNullOrUndefined() const {
   return type == OddballType::kNull || type == OddballType::kUndefined;
 }
 
+bool ObjectRef::IsTheHole() const {
+  return IsHeapObject() &&
+         AsHeapObject().map().oddball_type() == OddballType::kHole;
+}
+
 bool ObjectRef::BooleanValue() const {
   if (data_->should_access_heap()) {
     AllowHandleDereferenceIf allow_handle_dereference(data()->kind(),
@@ -3930,6 +3959,20 @@ base::Optional<CellRef> SourceTextModuleRef::GetCell(int cell_index) const {
   CellData* cell = data()->AsSourceTextModule()->GetCell(broker(), cell_index);
   if (cell == nullptr) return base::nullopt;
   return CellRef(broker(), cell);
+}
+
+ObjectRef SourceTextModuleRef::import_meta() const {
+  if (data_->should_access_heap()) {
+    DCHECK(data_->kind() != ObjectDataKind::kUnserializedReadOnlyHeapObject);
+    AllowHandleAllocationIf allow_handle_allocation(data()->kind(),
+                                                    broker()->mode());
+    AllowHandleDereferenceIf allow_handle_dereference(data()->kind(),
+                                                      broker()->mode());
+    return ObjectRef(broker(),
+                     handle(object()->import_meta(), broker()->isolate()));
+  }
+  return ObjectRef(broker(),
+                   data()->AsSourceTextModule()->GetImportMeta(broker()));
 }
 
 ObjectRef::ObjectRef(JSHeapBroker* broker, Handle<Object> object,

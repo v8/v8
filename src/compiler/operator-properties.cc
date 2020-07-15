@@ -74,6 +74,7 @@ bool OperatorProperties::NeedsExactContext(const Operator* op) {
     case IrOpcode::kJSDebugger:
     case IrOpcode::kJSDeleteProperty:
     case IrOpcode::kJSGeneratorStore:
+    case IrOpcode::kJSGetImportMeta:
     case IrOpcode::kJSHasProperty:
     case IrOpcode::kJSHasContextExtension:
     case IrOpcode::kJSLoadContext:
@@ -240,6 +241,7 @@ bool OperatorProperties::HasFrameStateInput(const Operator* op) {
     case IrOpcode::kJSPerformPromiseThen:
     case IrOpcode::kJSObjectIsArray:
     case IrOpcode::kJSRegExpTest:
+    case IrOpcode::kJSGetImportMeta:
 
     // Iterator protocol operations
     case IrOpcode::kJSGetIterator:

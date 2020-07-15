@@ -88,6 +88,8 @@ Reduction JSIntrinsicLowering::Reduce(Node* node) {
       return ReduceCall(node);
     case Runtime::kInlineIncBlockCounter:
       return ReduceIncBlockCounter(node);
+    case Runtime::kInlineGetImportMetaObject:
+      return ReduceGetImportMetaObject(node);
     default:
       break;
   }
@@ -348,6 +350,11 @@ Reduction JSIntrinsicLowering::ReduceIncBlockCounter(Node* node) {
   return Change(node,
                 Builtins::CallableFor(isolate(), Builtins::kIncBlockCounter), 0,
                 kDoesNotNeedFrameState);
+}
+
+Reduction JSIntrinsicLowering::ReduceGetImportMetaObject(Node* node) {
+  NodeProperties::ChangeOp(node, javascript()->GetImportMeta());
+  return Changed(node);
 }
 
 Reduction JSIntrinsicLowering::Change(Node* node, const Operator* op, Node* a,

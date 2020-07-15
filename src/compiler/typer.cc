@@ -1857,6 +1857,8 @@ Type Typer::Visitor::TypeJSLoadModule(Node* node) { return Type::Any(); }
 
 Type Typer::Visitor::TypeJSStoreModule(Node* node) { UNREACHABLE(); }
 
+Type Typer::Visitor::TypeJSGetImportMeta(Node* node) { return Type::Any(); }
+
 Type Typer::Visitor::TypeJSGeneratorStore(Node* node) { UNREACHABLE(); }
 
 Type Typer::Visitor::TypeJSGeneratorRestoreContinuation(Node* node) {

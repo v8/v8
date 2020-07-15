@@ -1475,6 +1475,20 @@ void SerializerForBackgroundCompilation::VisitInvokeIntrinsic(
                               Builtins::kCopyDataProperties));
       break;
     }
+    case Runtime::kInlineGetImportMetaObject: {
+      Hints const& context_hints = environment()->current_context_hints();
+      for (auto x : context_hints.constants()) {
+        ContextRef(broker(), x)
+            .GetModule(SerializationPolicy::kSerializeIfNeeded)
+            .Serialize();
+      }
+      for (auto x : context_hints.virtual_contexts()) {
+        ContextRef(broker(), x.context)
+            .GetModule(SerializationPolicy::kSerializeIfNeeded)
+            .Serialize();
+      }
+      break;
+    }
     default: {
       break;
     }

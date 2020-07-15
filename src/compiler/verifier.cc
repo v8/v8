@@ -820,6 +820,10 @@ void Verifier::Visitor::Check(Node* node, const AllNodes& all) {
       CheckNotTyped(node);
       break;
 
+    case IrOpcode::kJSGetImportMeta:
+      CheckTypeIs(node, Type::Any());
+      break;
+
     case IrOpcode::kJSGeneratorStore:
       CheckNotTyped(node);
       break;

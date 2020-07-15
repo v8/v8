@@ -135,6 +135,7 @@ class V8_EXPORT_PRIVATE ObjectRef {
 #undef HEAP_AS_METHOD_DECL
 
   bool IsNullOrUndefined() const;
+  bool IsTheHole() const;
 
   bool BooleanValue() const;
   Maybe<double> OddballToNumber() const;
@@ -378,6 +379,8 @@ class ContextRef : public HeapObjectRef {
   base::Optional<ObjectRef> get(
       int index, SerializationPolicy policy =
                      SerializationPolicy::kAssumeSerialized) const;
+
+  SourceTextModuleRef GetModule(SerializationPolicy policy) const;
 
   // We only serialize the ScopeInfo if certain Promise
   // builtins are called.
@@ -860,6 +863,7 @@ class SourceTextModuleRef : public HeapObjectRef {
   void Serialize();
 
   base::Optional<CellRef> GetCell(int cell_index) const;
+  ObjectRef import_meta() const;
 };
 
 class TemplateObjectDescriptionRef : public HeapObjectRef {

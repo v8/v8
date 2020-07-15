@@ -1176,6 +1176,10 @@ void JSGenericLowering::LowerJSStoreModule(Node* node) {
   UNREACHABLE();  // Eliminated in typed lowering.
 }
 
+void JSGenericLowering::LowerJSGetImportMeta(Node* node) {
+  ReplaceWithRuntimeCall(node, Runtime::kGetImportMetaObject);
+}
+
 void JSGenericLowering::LowerJSGeneratorStore(Node* node) {
   UNREACHABLE();  // Eliminated in typed lowering.
 }

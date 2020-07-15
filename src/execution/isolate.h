@@ -1435,7 +1435,7 @@ class V8_EXPORT_PRIVATE Isolate final : private HiddenFactory {
 
   void SetHostInitializeImportMetaObjectCallback(
       HostInitializeImportMetaObjectCallback callback);
-  Handle<JSObject> RunHostInitializeImportMetaObjectCallback(
+  MaybeHandle<JSObject> RunHostInitializeImportMetaObjectCallback(
       Handle<SourceTextModule> module);
 
   void RegisterEmbeddedFileWriter(EmbeddedFileWriterInterface* writer) {
