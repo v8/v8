@@ -147,11 +147,12 @@ Handle<JSFunction> CreateSumAllArgumentsFunction(FunctionTester* ft) {
 TEST(SimpleCallJSFunction0Arg) {
   Isolate* isolate(CcTest::InitIsolateOnce());
   const int kNumParams = 1;
-  CodeAssemblerTester asm_tester(isolate, kNumParams);
+  const int kContextOffset = kNumParams + 3;
+  CodeAssemblerTester asm_tester(isolate, kNumParams + 1);  // Include receiver.
   CodeAssembler m(asm_tester.state());
   {
-    Node* function = m.Parameter(0);
-    Node* context = m.Parameter(kNumParams + 2);
+    Node* function = m.Parameter(1);
+    Node* context = m.Parameter(kContextOffset);
 
     Node* receiver = SmiTag(&m, m.Int32Constant(42));
 
@@ -168,12 +169,13 @@ TEST(SimpleCallJSFunction0Arg) {
 
 TEST(SimpleCallJSFunction1Arg) {
   Isolate* isolate(CcTest::InitIsolateOnce());
-  const int kNumParams = 2;
-  CodeAssemblerTester asm_tester(isolate, kNumParams);
+  const int kNumParams = 1;
+  const int kContextOffset = kNumParams + 3;
+  CodeAssemblerTester asm_tester(isolate, kNumParams + 1);  // Include receiver.
   CodeAssembler m(asm_tester.state());
   {
-    Node* function = m.Parameter(0);
-    Node* context = m.Parameter(1);
+    Node* function = m.Parameter(1);
+    Node* context = m.Parameter(kContextOffset);
 
     Node* receiver = SmiTag(&m, m.Int32Constant(42));
     Node* a = SmiTag(&m, m.Int32Constant(13));
@@ -192,11 +194,12 @@ TEST(SimpleCallJSFunction1Arg) {
 TEST(SimpleCallJSFunction2Arg) {
   Isolate* isolate(CcTest::InitIsolateOnce());
   const int kNumParams = 2;
-  CodeAssemblerTester asm_tester(isolate, kNumParams);
+  const int kContextOffset = kNumParams + 3;
+  CodeAssemblerTester asm_tester(isolate, kNumParams + 1);  // Include receiver.
   CodeAssembler m(asm_tester.state());
   {
-    Node* function = m.Parameter(0);
-    Node* context = m.Parameter(1);
+    Node* function = m.Parameter(1);
+    Node* context = m.Parameter(kContextOffset);
 
     Node* receiver = SmiTag(&m, m.Int32Constant(42));
     Node* a = SmiTag(&m, m.Int32Constant(13));
