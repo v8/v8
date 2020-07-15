@@ -8,7 +8,7 @@ defineCustomElement('timeline-panel', (templateText) =>
     super();
     const shadowRoot = this.attachShadow({mode: 'open'});
     shadowRoot.innerHTML = templateText;
-    this.timelineOverviewSelect.addEventListener(
+    this.timelineOverview.addEventListener(
         'mousemove', e => this.handleTimelineIndicatorMove(e));
   }
 
@@ -21,32 +21,32 @@ defineCustomElement('timeline-panel', (templateText) =>
     return this.shadowRoot.querySelectorAll(query);
   }
 
-  get timelineOverviewSelect() {
+  get timelineOverview() {
     return this.$('#timelineOverview');
   }
 
-  get timelineOverviewIndicatorSelect() {
+  get timelineOverviewIndicator() {
     return this.$('#timelineOverviewIndicator');
   }
 
-  get timelineCanvasSelect() {
+  get timelineCanvas() {
     return this.$('#timelineCanvas');
   }
 
-  get timelineChunksSelect() {
+  get timelineChunks() {
     return this.$('#timelineChunks');
   }
 
-  get timelineSelect() {
+  get timeline() {
     return this.$('#timeline');
   }
 
 
   handleTimelineIndicatorMove(event) {
     if (event.buttons == 0) return;
-    let timelineTotalWidth = this.timelineCanvasSelect.offsetWidth;
-    let factor = this.timelineOverviewSelect.offsetWidth / timelineTotalWidth;
-    this.timelineSelect.scrollLeft += event.movementX / factor;
+    let timelineTotalWidth = this.timelineCanvas.offsetWidth;
+    let factor = this.timelineOverview.offsetWidth / timelineTotalWidth;
+    this.timeline.scrollLeft += event.movementX / factor;
   }
 
 });

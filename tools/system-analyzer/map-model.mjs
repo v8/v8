@@ -206,7 +206,7 @@ class View {
     setInterval(this.updateOverviewWindow(timelinePanelId), 50);
     this.backgroundCanvas = document.createElement('canvas');
     this.transitionView =
-        new TransitionView(state, this.mapPanel_.transitionViewSelect);
+        new TransitionView(state, this.mapPanel_.transitionView);
     this.isLocked = false;
     this._filteredEntries = [];
   }
@@ -231,12 +231,12 @@ class View {
       details += '\nSource location: ' + this.map.filePosition;
       details += '\n' + this.map.description;
     }
-    this.mapPanel_.mapDetailsSelect.innerText = details;
+    this.mapPanel_.mapDetails.innerText = details;
     this.transitionView.showMap(this.map);
   }
 
   updateTimeline() {
-    let chunksNode = this.timelinePanel_.timelineChunksSelect;
+    let chunksNode = this.timelinePanel_.timelineChunks;
     removeAllChildren(chunksNode);
     let chunks = this.chunks;
     let max = chunks.max(each => each.size());
@@ -355,15 +355,14 @@ class View {
     node.style.backgroundImage = 'url(' + imageData + ')';
   }
 
-  updateOverviewWindow(timelinePanelId) {
-    let indicator = this.timelinePanel_.timelineOverviewIndicatorSelect;
+  updateOverviewWindow() {
+    let indicator = this.timelinePanel_.timelineOverviewIndicator;
     let totalIndicatorWidth =
-        this.timelinePanel_.timelineOverviewSelect.offsetWidth;
-    let div = this.timelinePanel_.timelineSelect;
+        this.timelinePanel_.timelineOverview.offsetWidth;
+    let div = this.timelinePanel_.timeline;
     let timelineTotalWidth =
-        this.timelinePanel_.timelineCanvasSelect.offsetWidth;
-    let factor = this.timelinePanel_.timelineOverviewSelect.offsetWidth /
-        timelineTotalWidth;
+        this.timelinePanel_.timelineCanvas.offsetWidth;
+    let factor = totalIndicatorWidth / timelineTotalWidth;
     let width = div.offsetWidth * factor;
     let left = div.scrollLeft * factor;
     indicator.style.width = width + 'px';
@@ -393,12 +392,12 @@ class View {
     ctx.closePath();
     ctx.fill();
     let imageData = canvas.toDataURL('image/webp', 0.2);
-    this.timelinePanel_.timelineOverviewSelect.style.backgroundImage =
+    this.timelinePanel_.timelineOverview.style.backgroundImage =
         'url(' + imageData + ')';
   }
 
   redraw() {
-    let canvas = this.timelinePanel_.timelineCanvasSelect;
+    let canvas = this.timelinePanel_.timelineCanvas;
     canvas.width = (this.chunks.length + 1) * kChunkWidth;
     canvas.height = kChunkHeight;
     let ctx = canvas.getContext('2d');

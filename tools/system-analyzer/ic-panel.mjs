@@ -11,7 +11,7 @@ defineCustomElement('ic-panel', (templateText) =>
     super();
     const shadowRoot = this.attachShadow({mode: 'open'});
     shadowRoot.innerHTML = templateText;
-    this.groupKeySelect.addEventListener(
+    this.groupKey.addEventListener(
         'change', e => this.updateTable(e));
     this.$('#filterICTimeBtn').addEventListener(
       'click', e => this.handleICTimeFilter(e));
@@ -36,19 +36,19 @@ defineCustomElement('ic-panel', (templateText) =>
     return this._entries;
   }
 
-  get groupKeySelect() {
+  get groupKey() {
     return this.$('#group-key');
   }
 
-  get tableSelect() {
+  get table() {
     return this.$('#table');
   }
 
-  get tableBodySelect() {
+  get tableBody() {
     return this.$('#table-body');
   }
 
-  get countSelect() {
+  get count() {
     return this.$('#count');
   }
 
@@ -79,12 +79,12 @@ defineCustomElement('ic-panel', (templateText) =>
   }
 
    updateTable(event) {
-    let select = this.groupKeySelect;
+    let select = this.groupKey;
     let key = select.options[select.selectedIndex].text;
-    let tableBody = this.tableBodySelect;
+    let tableBody = this.tableBody;
     this.removeAllChildren(tableBody);
     let groups = Group.groupBy(this.filteredEntries, key, true);
-    this.display(groups, tableBody);
+    this.render(groups, tableBody);
     //TODO(zcankara) do not send an event here, filtering will done outside
     this.dispatchEvent(new CustomEvent(
       'change', {bubbles: true, composed: true, detail: this.filteredEntries}));
@@ -134,7 +134,7 @@ defineCustomElement('ic-panel', (templateText) =>
     return this._noOfItems;
   }
 
-  display(entries, parent) {
+  render(entries, parent) {
     let fragment = document.createDocumentFragment();
     //let max = entries.length;
     let max = Math.min(1000, entries.length)
@@ -160,7 +160,7 @@ defineCustomElement('ic-panel', (templateText) =>
   }
 
 
-  displayDrilldown(entry, previousSibling) {
+  renderDrilldown(entry, previousSibling) {
     let tr = document.createElement('tr');
     tr.className = "entry-details";
     tr.style.display = "none";
@@ -169,21 +169,21 @@ defineCustomElement('ic-panel', (templateText) =>
     let td = document.createElement("td");
     td.colSpan = 3;
     for (let key in entry.groups) {
-      td.appendChild(this.displayDrilldownGroup(entry, key));
+      td.appendChild(this.renderDrilldownGroup(entry, key));
     }
     tr.appendChild(td);
     // Append the new TR after previousSibling.
     previousSibling.parentNode.insertBefore(tr, previousSibling.nextSibling)
   }
 
-  displayDrilldownGroup(entry, key) {
+  renderDrilldownGroup(entry, key) {
     let max = 20;
     let group = entry.groups[key];
     let div = document.createElement("div")
     div.className = 'drilldown-group-title'
     div.textContent = key + ' [top ' + max + ' out of ' + group.length + ']';
     let table = document.createElement("table");
-    this.display(group.slice(0, max), table, false)
+    this.render(group.slice(0, max), table, false)
     div.appendChild(table);
     return div;
   }
@@ -194,7 +194,7 @@ defineCustomElement('ic-panel', (templateText) =>
   // Create subgroup in-place if the don't exist yet.
   if (entry.groups === undefined) {
     entry.createSubGroups();
-    this.displayDrilldown(entry, tr);
+    this.renderDrilldown(entry, tr);
   }
   let details = tr.nextSibling;
   let display = details.style.display;
@@ -207,7 +207,7 @@ defineCustomElement('ic-panel', (templateText) =>
   }
 
   initGroupKeySelect() {
-    let select = this.groupKeySelect;
+    let select = this.groupKey;
     select.options.length = 0;
     for (let i in CustomIcProcessor.kProperties) {
       let option = document.createElement("option");

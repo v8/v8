@@ -20,7 +20,7 @@ defineCustomElement('stats-panel', (templateText) =>
     return this.shadowRoot.querySelectorAll(query);
   }
 
-  get statsSelect() {
+  get stats() {
     return this.$('#stats');
   }
 
@@ -49,7 +49,7 @@ defineCustomElement('stats-panel', (templateText) =>
   }
 
   update() {
-    this.removeAllChildren(this.statsSelect);
+    this.removeAllChildren(this.stats);
     this.updateGeneralStats();
     this.updateNamedTransitionsStats();
   }
@@ -105,7 +105,7 @@ defineCustomElement('stats-panel', (templateText) =>
       row.appendChild(td(percent.toFixed(1) + '%'));
       tableNode.appendChild(row);
     });
-    this.statsSelect.appendChild(tableNode);
+    this.stats.appendChild(tableNode);
   }
 
   updateNamedTransitionsStats() {
@@ -126,6 +126,6 @@ defineCustomElement('stats-panel', (templateText) =>
       row.appendChild(td(maps.length));
       tableNode.appendChild(row);
     });
-    this.statsSelect.appendChild(tableNode);
+    this.stats.appendChild(tableNode);
   }
 });

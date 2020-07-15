@@ -10,7 +10,7 @@ defineCustomElement('map-panel', (templateText) =>
     super();
     const shadowRoot = this.attachShadow({mode: 'open'});
     shadowRoot.innerHTML = templateText;
-    this.transitionViewSelect.addEventListener(
+    this.transitionView.addEventListener(
         'mousemove', e => this.handleTransitionViewChange(e));
     this.$('#searchBarBtn').addEventListener(
         'click', e => this.handleSearchBar(e));
@@ -24,49 +24,47 @@ defineCustomElement('map-panel', (templateText) =>
     return this.shadowRoot.querySelectorAll(query);
   }
 
-  get transitionViewSelect() {
+  get transitionView() {
     return this.$('#transitionView');
   }
 
-  get searchBarSelect() {
+  get searchBar() {
     return this.$('#searchBar');
   }
 
-  get mapDetailsSelect() {
+  get mapDetails() {
     return this.$('#mapDetails');
   }
 
-  get tooltipSelect() {
+  get tooltip() {
     return this.$('#tooltip');
   }
-  get tooltipContentsSelect() {
-    return this.$('#tooltipContents');
-  }
-  get tooltipContentsSelect() {
+
+  get tooltipContents() {
     return this.$('#tooltipContents');
   }
 
-  get statsPanelSelect() {
+  get statsPanel() {
     return this.$('#stats-panel');
   }
 
   // send a timeline to the stats-panel
   get timeline() {
-    return this.statsPanelSelect.timeline;
+    return this.statsPanel.timeline;
   }
   set timeline(value) {
     console.assert(value !== undefined, "timeline undefined!");
-    this.statsPanelSelect.timeline = value;
-    this.statsPanelSelect.update();
+    this.statsPanel.timeline = value;
+    this.statsPanel.update();
   }
 
 
   handleTransitionViewChange(e){
-    this.tooltipSelect.style.left = e.pageX + "px";
-    this.tooltipSelect.style.top = e.pageY + "px";
+    this.tooltip.style.left = e.pageX + "px";
+    this.tooltip.style.top = e.pageY + "px";
     let map = e.target.map;
     if (map) {
-        this.tooltipContentsSelect.innerText = map.description;
+        this.tooltipContents.innerText = map.description;
     }
   }
 
