@@ -136,6 +136,62 @@ Handle<Map> CreateGenericRtt(Isolate* isolate, const WasmModule* module,
   return map;
 }
 
+namespace {
+
+// TODO(7748): Consider storing this array in Maps'
+// "transitions_or_prototype_info" slot.
+// Also consider being more memory-efficient, e.g. use inline storage for
+// single entries, and/or adapt the growth strategy.
+class RttSubtypes : public ArrayList {
+ public:
+  static Handle<ArrayList> Insert(Isolate* isolate, Handle<ArrayList> array,
+                                  uint32_t type_index, Handle<Map> sub_rtt) {
+    Handle<Smi> key = handle(Smi::FromInt(type_index), isolate);
+    return Add(isolate, array, key, sub_rtt);
+  }
+
+  static Map SearchSubtype(Handle<ArrayList> array, uint32_t type_index) {
+    // Linear search for now.
+    // TODO(7748): Consider keeping the array sorted and using binary search
+    // here, if empirical data indicates that that would be worthwhile.
+    int count = array->Length();
+    for (int i = 0; i < count; i += 2) {
+      if (Smi::cast(array->Get(i)).value() == static_cast<int>(type_index)) {
+        return Map::cast(array->Get(i + 1));
+      }
+    }
+    return {};
+  }
+};
+
+}  // namespace
+
+Handle<Map> AllocateSubRtt(Isolate* isolate,
+                           Handle<WasmInstanceObject> instance, uint32_t type,
+                           Handle<Map> parent) {
+  // Check for an existing RTT first.
+  DCHECK(parent->IsWasmStructMap() || parent->IsWasmArrayMap());
+  Handle<ArrayList> cache(parent->wasm_type_info().subtypes(), isolate);
+  Map maybe_cached = RttSubtypes::SearchSubtype(cache, type);
+  if (!maybe_cached.is_null()) return handle(maybe_cached, isolate);
+
+  // Allocate a fresh RTT otherwise.
+  const wasm::WasmModule* module = instance->module();
+  Handle<Map> rtt;
+  if (wasm::HeapType(type).is_generic()) {
+    rtt = wasm::CreateGenericRtt(isolate, module, parent);
+  } else if (module->has_struct(type)) {
+    rtt = wasm::CreateStructMap(isolate, module, type, parent);
+  } else if (module->has_array(type)) {
+    rtt = wasm::CreateArrayMap(isolate, module, type, parent);
+  } else {
+    UNREACHABLE();
+  }
+  cache = RttSubtypes::Insert(isolate, cache, type, rtt);
+  parent->wasm_type_info().set_subtypes(*cache);
+  return rtt;
+}
+
 // A helper class to simplify instantiating a module from a module object.
 // It closes over the {Isolate}, the {ErrorThrower}, etc.
 class InstanceBuilder {
@@ -273,6 +329,9 @@ class InstanceBuilder {
 
   // Process initialization of globals.
   void InitGlobals(Handle<WasmInstanceObject> instance);
+
+  Handle<Object> RecursivelyEvaluateGlobalInitializer(
+      const WasmInitExpr& init, Handle<WasmInstanceObject> instance);
 
   // Process the exports, creating wrappers for functions, tables, memories,
   // and globals.
@@ -504,6 +563,35 @@ MaybeHandle<WasmInstanceObject> InstanceBuilder::Build() {
   if (num_imported_functions < 0) return {};
 
   //--------------------------------------------------------------------------
+  // Create maps for managed objects (GC proposal).
+  // Must happen before {InitGlobals} because globals can refer to these maps.
+  //--------------------------------------------------------------------------
+  if (enabled_.has_gc()) {
+    int count = GetCanonicalRttIndex(
+        module_, static_cast<uint32_t>(module_->type_kinds.size()));
+    Handle<FixedArray> maps =
+        isolate_->factory()->NewUninitializedFixedArray(count);
+    // TODO(7748): Do we want a different sentinel here?
+    Handle<Map> anyref_sentinel_map = isolate_->factory()->null_map();
+    int map_index = 0;
+    for (int i = 0; i < static_cast<int>(module_->type_kinds.size()); i++) {
+      if (module_->type_kinds[i] == kWasmStructTypeCode) {
+        Handle<Map> map =
+            CreateStructMap(isolate_, module_, i, anyref_sentinel_map);
+        maps->set(map_index++, *map);
+      }
+      if (module_->type_kinds[i] == kWasmArrayTypeCode) {
+        Handle<Map> map =
+            CreateArrayMap(isolate_, module_, i, anyref_sentinel_map);
+        maps->set(map_index++, *map);
+      }
+    }
+    // {GetCanonicalRttIndex} must be in sync with the for-loop above.
+    DCHECK_EQ(count, map_index);
+    instance->set_managed_object_maps(*maps);
+  }
+
+  //--------------------------------------------------------------------------
   // Process the initialization for the module's globals.
   //--------------------------------------------------------------------------
   InitGlobals(instance);
@@ -581,36 +669,6 @@ MaybeHandle<WasmInstanceObject> InstanceBuilder::Build() {
   if (module_->data_segments.size() > 0) {
     LoadDataSegments(instance);
     if (thrower_->error()) return {};
-  }
-
-  //--------------------------------------------------------------------------
-  // Create maps for managed objects (GC proposal).
-  //--------------------------------------------------------------------------
-  if (enabled_.has_gc()) {
-    int count = 0;
-    for (uint8_t type_kind : module_->type_kinds) {
-      if (type_kind == kWasmStructTypeCode || type_kind == kWasmArrayTypeCode) {
-        count++;
-      }
-    }
-    Handle<FixedArray> maps =
-        isolate_->factory()->NewUninitializedFixedArray(count);
-    // TODO(7748): Do we want a different sentinel here?
-    Handle<Map> anyref_sentinel_map = isolate_->factory()->null_map();
-    int map_index = 0;
-    for (int i = 0; i < static_cast<int>(module_->type_kinds.size()); i++) {
-      if (module_->type_kinds[i] == kWasmStructTypeCode) {
-        Handle<Map> map =
-            CreateStructMap(isolate_, module_, i, anyref_sentinel_map);
-        maps->set(map_index++, *map);
-      }
-      if (module_->type_kinds[i] == kWasmArrayTypeCode) {
-        Handle<Map> map =
-            CreateArrayMap(isolate_, module_, i, anyref_sentinel_map);
-        maps->set(map_index++, *map);
-      }
-    }
-    instance->set_managed_object_maps(*maps);
   }
 
   //--------------------------------------------------------------------------
@@ -1402,6 +1460,57 @@ T* InstanceBuilder::GetRawGlobalPtr(const WasmGlobal& global) {
   return reinterpret_cast<T*>(raw_buffer_ptr(untagged_globals_, global.offset));
 }
 
+Handle<Object> InstanceBuilder::RecursivelyEvaluateGlobalInitializer(
+    const WasmInitExpr& init, Handle<WasmInstanceObject> instance) {
+  switch (init.kind()) {
+    case WasmInitExpr::kI32Const:
+    case WasmInitExpr::kI64Const:
+    case WasmInitExpr::kF32Const:
+    case WasmInitExpr::kF64Const:
+    case WasmInitExpr::kRefNullConst:
+    case WasmInitExpr::kRefFuncConst:
+    case WasmInitExpr::kNone:
+      // Handled directly by {InitGlobals()}, can't occur as recursive case.
+      UNREACHABLE();
+      break;
+    case WasmInitExpr::kGlobalGet: {
+      // We can only get here for reference-type globals, but we don't have
+      // enough information to DCHECK that directly.
+      DCHECK(enabled_.has_reftypes() || enabled_.has_eh());
+      uint32_t old_offset = module_->globals[init.immediate().index].offset;
+      DCHECK(static_cast<int>(old_offset) < tagged_globals_->length());
+      return handle(tagged_globals_->get(old_offset), isolate_);
+    }
+    case WasmInitExpr::kRttCanon: {
+      switch (init.immediate().heap_type) {
+        case wasm::HeapType::kEq:
+          return isolate_->root_handle(RootIndex::kWasmRttEqrefMap);
+        case wasm::HeapType::kExtern:
+          return isolate_->root_handle(RootIndex::kWasmRttExternrefMap);
+        case wasm::HeapType::kFunc:
+          return isolate_->root_handle(RootIndex::kWasmRttFuncrefMap);
+        case wasm::HeapType::kI31:
+          return isolate_->root_handle(RootIndex::kWasmRttI31refMap);
+        case wasm::HeapType::kExn:
+          UNIMPLEMENTED();  // TODO(jkummerow): This is going away?
+        case wasm::HeapType::kBottom:
+          UNREACHABLE();
+      }
+      // Non-generic types fall through.
+      int map_index = GetCanonicalRttIndex(
+          module_, static_cast<uint32_t>(init.immediate().heap_type));
+      return handle(instance->managed_object_maps().get(map_index), isolate_);
+    }
+    case WasmInitExpr::kRttSub: {
+      uint32_t type = static_cast<uint32_t>(init.immediate().heap_type);
+      Handle<Object> parent =
+          RecursivelyEvaluateGlobalInitializer(*init.operand(), instance);
+      return AllocateSubRtt(isolate_, instance, type,
+                            Handle<Map>::cast(parent));
+    }
+  }
+}
+
 // Process initialization of globals.
 void InstanceBuilder::InitGlobals(Handle<WasmInstanceObject> instance) {
   for (const WasmGlobal& global : module_->globals) {
@@ -1459,11 +1568,14 @@ void InstanceBuilder::InitGlobals(Handle<WasmInstanceObject> instance) {
         }
         break;
       }
+      case WasmInitExpr::kRttCanon:
+      case WasmInitExpr::kRttSub:
+        tagged_globals_->set(
+            global.offset,
+            *RecursivelyEvaluateGlobalInitializer(global.init, instance));
+        break;
       case WasmInitExpr::kNone:
         // Happens with imported globals.
-        break;
-      default:
-        UNREACHABLE();
         break;
     }
   }

@@ -493,65 +493,15 @@ RUNTIME_FUNCTION(Runtime_WasmDebugBreak) {
   return ReadOnlyRoots(isolate).undefined_value();
 }
 
-namespace {
-
-// TODO(7748): Consider storing this array in Maps'
-// "transitions_or_prototype_info" slot.
-// Also consider being more memory-efficient, e.g. use inline storage for
-// single entries, and/or adapt the growth strategy.
-class RttSubtypes : public ArrayList {
- public:
-  static Handle<ArrayList> Insert(Isolate* isolate, Handle<ArrayList> array,
-                                  uint32_t type_index, Handle<Map> sub_rtt) {
-    Handle<Smi> key = handle(Smi::FromInt(type_index), isolate);
-    return Add(isolate, array, key, sub_rtt);
-  }
-
-  static Map SearchSubtype(Handle<ArrayList> array, uint32_t type_index) {
-    // Linear search for now.
-    // TODO(7748): Consider keeping the array sorted and using binary search
-    // here, if empirical data indicates that that would be worthwhile.
-    int count = array->Length();
-    for (int i = 0; i < count; i += 2) {
-      if (Smi::cast(array->Get(i)).value() == static_cast<int>(type_index)) {
-        return Map::cast(array->Get(i + 1));
-      }
-    }
-    return {};
-  }
-};
-
-}  // namespace
-
 RUNTIME_FUNCTION(Runtime_WasmAllocateRtt) {
   ClearThreadInWasmScope flag_scope;
   HandleScope scope(isolate);
   DCHECK_EQ(2, args.length());
   CONVERT_UINT32_ARG_CHECKED(type_index, 0);
   CONVERT_ARG_HANDLE_CHECKED(Map, parent, 1);
-  // Check for an existing RTT first.
-  DCHECK(parent->IsWasmStructMap() || parent->IsWasmArrayMap());
-  Handle<ArrayList> cache(parent->wasm_type_info().subtypes(), isolate);
-  Map maybe_cached = RttSubtypes::SearchSubtype(cache, type_index);
-  if (!maybe_cached.is_null()) return maybe_cached;
-
-  // Allocate a fresh RTT otherwise.
   Handle<WasmInstanceObject> instance(GetWasmInstanceOnStackTop(isolate),
                                       isolate);
-  const wasm::WasmModule* module = instance->module();
-  Handle<Map> rtt;
-  if (wasm::HeapType(type_index).is_generic()) {
-    rtt = wasm::CreateGenericRtt(isolate, module, parent);
-  } else if (module->has_struct(type_index)) {
-    rtt = wasm::CreateStructMap(isolate, module, type_index, parent);
-  } else if (module->has_array(type_index)) {
-    rtt = wasm::CreateArrayMap(isolate, module, type_index, parent);
-  } else {
-    UNREACHABLE();
-  }
-  cache = RttSubtypes::Insert(isolate, cache, type_index, rtt);
-  parent->wasm_type_info().set_subtypes(*cache);
-  return *rtt;
+  return *wasm::AllocateSubRtt(isolate, instance, type_index, parent);
 }
 
 }  // namespace internal

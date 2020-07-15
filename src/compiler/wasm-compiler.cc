@@ -5272,16 +5272,7 @@ Node* ArrayLength(GraphAssembler* gasm, Node* array) {
 Node* WasmGraphBuilder::StructNew(uint32_t struct_index,
                                   const wasm::StructType* type,
                                   Vector<Node*> fields) {
-  // This logic is duplicated from module-instantiate.cc.
-  // TODO(jkummerow): Find a nicer solution.
-  int map_index = 0;
-  const std::vector<uint8_t>& type_kinds = env_->module->type_kinds;
-  for (uint32_t i = 0; i < struct_index; i++) {
-    if (type_kinds[i] == wasm::kWasmStructTypeCode ||
-        type_kinds[i] == wasm::kWasmArrayTypeCode) {
-      map_index++;
-    }
-  }
+  int map_index = wasm::GetCanonicalRttIndex(env_->module, struct_index);
   Node* s = CALL_BUILTIN(
       WasmAllocateStruct,
       graph()->NewNode(mcgraph()->common()->NumberConstant(map_index)),
@@ -5307,17 +5298,7 @@ Node* WasmGraphBuilder::StructNewWithRtt(uint32_t struct_index,
 Node* WasmGraphBuilder::ArrayNew(uint32_t array_index,
                                  const wasm::ArrayType* type, Node* length,
                                  Node* initial_value) {
-  // This logic is duplicated from module-instantiate.cc.
-  // TODO(jkummerow): Find a nicer solution.
-  int map_index = 0;
-  const std::vector<uint8_t>& type_kinds = env_->module->type_kinds;
-  for (uint32_t i = 0; i < array_index; i++) {
-    if (type_kinds[i] == wasm::kWasmStructTypeCode ||
-        type_kinds[i] == wasm::kWasmArrayTypeCode) {
-      map_index++;
-    }
-  }
-
+  int map_index = GetCanonicalRttIndex(env_->module, array_index);
   wasm::ValueType element_type = type->element_type();
   Node* a = CALL_BUILTIN(
       WasmAllocateArray,
@@ -5377,19 +5358,10 @@ Node* WasmGraphBuilder::RttCanon(wasm::HeapType type) {
         UNREACHABLE();
     }
   }
-  // This logic is duplicated from module-instantiate.cc.
-  // TODO(jkummerow): Find a nicer solution.
-  int map_index = 0;
-  const std::vector<uint8_t>& type_kinds = env_->module->type_kinds;
-  for (uint32_t i = 0; i < type.ref_index(); i++) {
-    if (type_kinds[i] == wasm::kWasmStructTypeCode ||
-        type_kinds[i] == wasm::kWasmArrayTypeCode) {
-      map_index++;
-    }
-  }
+  int map_index = wasm::GetCanonicalRttIndex(env_->module, type.ref_index());
   Node* maps_list =
       LOAD_INSTANCE_FIELD(ManagedObjectMaps, MachineType::TaggedPointer());
-  return LOAD_FIXED_ARRAY_SLOT_PTR(maps_list, type.ref_index());
+  return LOAD_FIXED_ARRAY_SLOT_PTR(maps_list, map_index);
 }
 
 Node* WasmGraphBuilder::RttSub(wasm::HeapType type, Node* parent_rtt) {

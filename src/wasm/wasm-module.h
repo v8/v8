@@ -403,6 +403,10 @@ V8_EXPORT_PRIVATE int MaxNumExportWrappers(const WasmModule* module);
 int GetExportWrapperIndex(const WasmModule* module, const FunctionSig* sig,
                           bool is_import);
 
+// Returns the index of the canonical RTT of the given struct/array type
+// in the instance's list of canonical RTTs.
+int GetCanonicalRttIndex(const WasmModule* module, uint32_t type_index);
+
 // Return the byte offset of the function identified by the given index.
 // The offset will be relative to the start of the module bytes.
 // Returns -1 if the function index is invalid.
