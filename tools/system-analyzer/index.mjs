@@ -114,4 +114,11 @@ function handleSelectIcEvents(e){
   document.state.filteredEntries = e.detail;
 }
 
-export {globalSearchBarEvent, globalDataUpload, showMaps, handleSelectIcEvents};
+class App {
+  globalDataUpload = globalDataUpload;
+  globalSearchBarEvent = globalSearchBarEvent;
+  showMaps = showMaps;
+  handleSelectIcEvents = handleSelectIcEvents;
+}
+
+export {App};

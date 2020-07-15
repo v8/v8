@@ -53,25 +53,22 @@ dd {
 }
 </style>
 <script type="module" >
-import {globalSearchBarEvent, globalDataUpload, showMaps, handleSelectIcEvents} from  './index.mjs';
-//TODO(zcankara): Build an App component that has these methods, rather than using globals
-globalThis.globalDataUpload = globalDataUpload;
-globalThis.globalSearchBarEvent = globalSearchBarEvent;
-globalThis.showMaps = showMaps;
-globalThis.handleSelectIcEvents = handleSelectIcEvents;
+import {App} from  './index.mjs';
+
+globalThis.app = new App();
 </script>
 </head>
 <body>
   <div id="content">
     <section id="file-reader">
       <br></br>
-      <log-file-reader id="log-file-reader" onchange="globalDataUpload(event)"></log-file-reader>
+      <log-file-reader id="log-file-reader" onchange="app.globalDataUpload(event)"></log-file-reader>
       <br></br>
     </section>
     <div id="container" style="display: none;">
       <timeline-panel id="timeline-panel"></timeline-panel>
-      <map-panel id="map-panel" onclick="globalSearchBarEvent(event)" onchange="showMaps(event)"></map-panel>
-      <ic-panel id="ic-panel" onchange="handleSelectIcEvents(event)"></ic-panel>
+      <map-panel id="map-panel" onclick="app.globalSearchBarEvent(event)" onchange="showMaps(event)"></map-panel>
+      <ic-panel id="ic-panel" onchange="app.handleSelectIcEvents(event)"></ic-panel>
     </div>
   </div>
 
