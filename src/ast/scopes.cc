@@ -21,6 +21,7 @@
 #include "src/parsing/parser.h"
 #include "src/parsing/preparse-data.h"
 #include "src/zone/zone-list-inl.h"
+#include "src/zone/zone.h"
 
 namespace v8 {
 namespace internal {
@@ -33,6 +34,10 @@ namespace internal {
 //       the handle location remains alive for the duration of that variable
 //       use. Because a Variable holding a handle with the same location exists
 //       this is ensured.
+
+static_assert(sizeof(VariableMap) == (sizeof(void*) + 2 * sizeof(uint32_t) +
+                                      sizeof(ZoneAllocationPolicy)),
+              "Empty base optimization didn't kick in for VariableMap");
 
 VariableMap::VariableMap(Zone* zone)
     : ZoneHashMap(8, ZoneAllocationPolicy(zone)) {}

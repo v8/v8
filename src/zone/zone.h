@@ -192,7 +192,7 @@ class ZoneObject {
 
 // The ZoneAllocationPolicy is used to specialize generic data
 // structures to allocate themselves and their elements in the Zone.
-class ZoneAllocationPolicy final {
+class ZoneAllocationPolicy {
  public:
   // Creates unusable allocation policy.
   ZoneAllocationPolicy() : zone_(nullptr) {}
