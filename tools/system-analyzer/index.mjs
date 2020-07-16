@@ -105,8 +105,8 @@ class App {
   }
 
   handleShowMaps(e) {
-    // show maps on the view
-    document.state.view.transitionView.showMaps(e.detail);
+    //document.state.view.transitionView.showMaps(e.detail);
+    document.state.mapPanel.showMaps(e.detail);
   }
 
   handleSelectIc(e){
