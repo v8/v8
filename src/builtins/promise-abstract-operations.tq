@@ -118,7 +118,7 @@ transitioning macro MorphAndEnqueuePromiseReaction(implicit context: Context)(
       kPromiseReactionSize ==
       kPromiseReactionJobTaskSizeOfAllPromiseReactionJobTasks);
   if constexpr (reactionType == kPromiseReactionFulfill) {
-    * UnsafeConstCast(& promiseReaction.map) =
+    *UnsafeConstCast(&promiseReaction.map) =
         PromiseFulfillReactionJobTaskMapConstant();
     const promiseReactionJobTask =
         UnsafeCast<PromiseFulfillReactionJobTask>(promiseReaction);
@@ -133,7 +133,7 @@ transitioning macro MorphAndEnqueuePromiseReaction(implicit context: Context)(
         kPromiseReactionJobTaskPromiseOrCapabilityOffset);
   } else {
     StaticAssert(reactionType == kPromiseReactionReject);
-    * UnsafeConstCast(& promiseReaction.map) =
+    *UnsafeConstCast(&promiseReaction.map) =
         PromiseRejectReactionJobTaskMapConstant();
     const promiseReactionJobTask =
         UnsafeCast<PromiseRejectReactionJobTask>(promiseReaction);

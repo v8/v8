@@ -44,7 +44,7 @@ macro InnerNewJSPromise(implicit context: Context)(): JSPromise {
   assert(IsFunctionWithPrototypeSlotMap(promiseFun.map));
   const promiseMap = UnsafeCast<Map>(promiseFun.prototype_or_initial_map);
   const promiseHeapObject = promise_internal::AllocateJSPromise(context);
-  * UnsafeConstCast(& promiseHeapObject.map) = promiseMap;
+  *UnsafeConstCast(&promiseHeapObject.map) = promiseMap;
   const promise = UnsafeCast<JSPromise>(promiseHeapObject);
   promise.properties_or_hash = kEmptyFixedArray;
   promise.elements = kEmptyFixedArray;

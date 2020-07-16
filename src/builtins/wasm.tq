@@ -233,7 +233,7 @@ builtin WasmAllocateStruct(implicit context: Context)(mapIndex: Smi):
   const instanceSize: intptr =
       unsafe::TimesTaggedSize(Convert<intptr>(map.instance_size_in_words));
   const result: HeapObject = unsafe::Allocate(instanceSize);
-  * UnsafeConstCast(& result.map) = map;
+  *UnsafeConstCast(&result.map) = map;
   return result;
 }
 
@@ -247,7 +247,7 @@ builtin WasmAllocateStructWithRtt(implicit context: Context)(rtt: Map):
   const instanceSize: intptr =
       unsafe::TimesTaggedSize(Convert<intptr>(rtt.instance_size_in_words));
   const result: HeapObject = unsafe::Allocate(instanceSize);
-  * UnsafeConstCast(& result.map) = rtt;
+  *UnsafeConstCast(&result.map) = rtt;
   return result;
 }
 

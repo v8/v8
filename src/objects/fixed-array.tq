@@ -129,7 +129,7 @@ macro ExtractFixedArray(
   return NewFixedArray(
       capacity,
       IteratorSequence<Object>(
-          (& source.objects).Iterator(first, first + count),
+          (&source.objects).Iterator(first, first + count),
           ConstantIterator(TheHole)));
 }
 macro ExtractFixedDoubleArray(
@@ -139,7 +139,7 @@ macro ExtractFixedDoubleArray(
   return NewFixedDoubleArray(
       capacity,
       IteratorSequence<float64_or_hole>(
-          (& source.floats).Iterator(first, first + count),
+          (&source.floats).Iterator(first, first + count),
           ConstantIterator(kDoubleHole)));
 }
 

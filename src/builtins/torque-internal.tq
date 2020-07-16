@@ -100,7 +100,7 @@ struct SliceIterator<T: type> {
   }
 
   macro Next(): T labels NoMore {
-    return * this.NextReference() otherwise NoMore;
+    return *this.NextReference() otherwise NoMore;
   }
 
   macro NextReference():&T labels NoMore {
@@ -172,7 +172,7 @@ macro InitializeFieldsFromIterator<T: type, Iterator: type>(
   let originIterator = originIterator;
   while (true) {
     const ref:&T = targetIterator.NextReference() otherwise break;
-    * ref = originIterator.Next() otherwise unreachable;
+    *ref = originIterator.Next() otherwise unreachable;
   }
 }
 // Dummy implementations: do not initialize for UninitializedIterator.
@@ -187,14 +187,14 @@ extern macro StoreDoubleHole(HeapObject, intptr);
 macro LoadFloat64OrHole(r:&float64_or_hole): float64_or_hole {
   return float64_or_hole{
     is_hole: IsDoubleHole(r.object, r.offset - kHeapObjectTag),
-    value: * unsafe::NewReference<float64>(r.object, r.offset)
+    value: *unsafe::NewReference<float64>(r.object, r.offset)
   };
 }
 macro StoreFloat64OrHole(r:&float64_or_hole, value: float64_or_hole) {
   if (value.is_hole) {
     StoreDoubleHole(r.object, r.offset - kHeapObjectTag);
   } else {
-    * unsafe::NewReference<float64>(r.object, r.offset) = value.value;
+    *unsafe::NewReference<float64>(r.object, r.offset) = value.value;
   }
 }
 

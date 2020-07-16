@@ -6,12 +6,13 @@
 /* Test mulitline
    comment
 */
+/*multiline_without_whitespace*/
 
 namespace test {
 macro ElementsKindTestHelper1(kind: constexpr ElementsKind): bool {
   if constexpr (
-      (kind == ElementsKind::UINT8_ELEMENTS) ||
-      (kind == ElementsKind::UINT16_ELEMENTS)) {
+      kind == ElementsKind::UINT8_ELEMENTS ||
+      kind == ElementsKind::UINT16_ELEMENTS) {
     return true;
   } else {
     return false;
@@ -19,9 +20,8 @@ macro ElementsKindTestHelper1(kind: constexpr ElementsKind): bool {
 }
 
 macro ElementsKindTestHelper2(kind: constexpr ElementsKind): constexpr bool {
-  return (
-      (kind == ElementsKind::UINT8_ELEMENTS) ||
-      (kind == ElementsKind::UINT16_ELEMENTS));
+  return kind == ElementsKind::UINT8_ELEMENTS ||
+      kind == ElementsKind::UINT16_ELEMENTS;
 }
 
 macro LabelTestHelper1(): never
@@ -826,25 +826,25 @@ macro TestNewFixedArrayFromSpread(implicit context: Context)(): Object {
 
 class SmiPair extends HeapObject {
   macro GetA():&Smi {
-    return & this.a;
+    return &this.a;
   }
   a: Smi;
   b: Smi;
 }
 
 macro Swap<T: type>(a:&T, b:&T) {
-  const tmp = * a;
-  * a = * b;
-  * b = tmp;
+  const tmp = *a;
+  *a = *b;
+  *b = tmp;
 }
 
 @export
 macro TestReferences() {
   const array = new SmiPair{a: 7, b: 2};
-  const ref:&Smi = & array.a;
-  * ref = 3 + * ref;
-  -- * ref;
-  Swap(& array.b, array.GetA());
+  const ref:&Smi = &array.a;
+  *ref = 3 + *ref;
+  -- *ref;
+  Swap(&array.b, array.GetA());
   check(array.a == 2);
   check(array.b == 9);
 }
@@ -857,15 +857,15 @@ macro TestSlices() {
 
   const oneTwoThree = Convert<Smi>(123);
   a.objects[0] = oneTwoThree;
-  const firstRef:&Object = & a.objects[0];
-  check(TaggedEqual(* firstRef, oneTwoThree));
+  const firstRef:&Object = &a.objects[0];
+  check(TaggedEqual(*firstRef, oneTwoThree));
 
-  const slice: torque_internal::Slice<Object> = & a.objects;
+  const slice: torque_internal::Slice<Object> = &a.objects;
   const firstRefAgain:&Object = slice.TryAtIndex(0) otherwise unreachable;
-  check(TaggedEqual(* firstRefAgain, oneTwoThree));
+  check(TaggedEqual(*firstRefAgain, oneTwoThree));
 
   const threeTwoOne = Convert<Smi>(321);
-  * firstRefAgain = threeTwoOne;
+  *firstRefAgain = threeTwoOne;
   check(TaggedEqual(a.objects[0], threeTwoOne));
 
   // *slice;             // error, not allowed
@@ -885,12 +885,12 @@ macro TestSliceEnumeration(implicit context: Context)(): Undefined {
     fixedArray.objects[i] = Convert<Smi>(i) + 3;
   }
 
-  let slice = & fixedArray.objects;
+  let slice = &fixedArray.objects;
   for (let i: intptr = 0; i < slice.length; i++) {
     let ref = slice.TryAtIndex(i) otherwise unreachable;
-    const value = UnsafeCast<Smi>(* ref);
+    const value = UnsafeCast<Smi>(*ref);
     check(value == Convert<Smi>(i) + 3);
-    * ref = value + 4;
+    *ref = value + 4;
   }
 
   let it = slice.Iterator();
