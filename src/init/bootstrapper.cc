@@ -914,6 +914,8 @@ void Genesis::CreateAsyncIteratorMaps(Handle<JSFunction> empty) {
   InstallFunctionAtSymbol(
       isolate(), async_iterator_prototype, factory()->async_iterator_symbol(),
       "[Symbol.asyncIterator]", Builtins::kReturnReceiver, 0, true);
+  native_context()->set_initial_async_iterator_prototype(
+      *async_iterator_prototype);
 
   // %AsyncFromSyncIteratorPrototype%
   // proposal-async-iteration/#sec-%asyncfromsynciteratorprototype%-object
