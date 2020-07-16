@@ -499,7 +499,8 @@
   F(SCAVENGER_SCAVENGE_UPDATE_REFS)                  \
   F(SCAVENGER_SCAVENGE_WEAK)                         \
   F(SCAVENGER_SCAVENGE_FINALIZE)                     \
-  F(SCAVENGER_SWEEP_ARRAY_BUFFERS)
+  F(SCAVENGER_SWEEP_ARRAY_BUFFERS)                   \
+  F(STOP_THE_WORLD)
 
 #define TRACER_BACKGROUND_SCOPES(F)               \
   F(BACKGROUND_ARRAY_BUFFER_FREE)                 \

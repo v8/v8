@@ -6,6 +6,7 @@
 
 #include "src/handles/local-handles.h"
 #include "src/handles/persistent-handles.h"
+#include "src/heap/gc-tracer.h"
 #include "src/heap/heap.h"
 #include "src/heap/local-heap.h"
 
@@ -23,6 +24,8 @@ void GlobalSafepoint::EnterSafepointScope() {
   if (!FLAG_local_heaps) return;
 
   if (++active_safepoint_scopes_ > 1) return;
+
+  TRACE_GC(heap_->tracer(), GCTracer::Scope::STOP_THE_WORLD);
 
   local_heaps_mutex_.Lock();
   local_heap_of_this_thread_ = LocalHeap::Current();
