@@ -2708,28 +2708,34 @@ void JSHeapBroker::InitializeAndStartSerializing(
 // clang-format off
 ObjectData* JSHeapBroker::GetOrCreateData(Handle<Object> object) {
   RefsMap::Entry* entry = refs_->LookupOrInsert(object.address());
-  ObjectData** data_storage = &(entry->value);
-  if (*data_storage == nullptr) {
+  ObjectData* object_data = entry->value;
+
+  if (object_data == nullptr) {
+    ObjectData** data_storage = &(entry->value);
     // TODO(neis): Remove these Allow* once we serialize everything upfront.
     AllowHandleDereference handle_dereference;
     if (object->IsSmi()) {
-      zone()->New<ObjectData>(this, data_storage, object, kSmi);
+      object_data = zone()->New<ObjectData>(this, data_storage, object, kSmi);
     } else if (IsReadOnlyHeapObject(*object)) {
-      zone()->New<ObjectData>(this, data_storage, object,
-                              kUnserializedReadOnlyHeapObject);
-#define CREATE_DATA_IF_MATCH(name)                                             \
-    } else if (object->Is##name()) {                                           \
-      CHECK(SerializingAllowed());                                             \
-      AllowHandleAllocation handle_allocation;                                 \
-      zone()->New<name##Data>(this, data_storage, Handle<name>::cast(object));
-    HEAP_BROKER_OBJECT_LIST(CREATE_DATA_IF_MATCH)
+      object_data = zone()->New<ObjectData>(this, data_storage, object,
+                                            kUnserializedReadOnlyHeapObject);
+#define CREATE_DATA_IF_MATCH(name)                              \
+    } else if (object->Is##name()) {                            \
+      CHECK(SerializingAllowed());                              \
+      AllowHandleAllocation handle_allocation;                  \
+      object_data = zone()->New<name##Data>(this, data_storage, \
+                                            Handle<name>::cast(object));
+
+      HEAP_BROKER_OBJECT_LIST(CREATE_DATA_IF_MATCH)
 #undef CREATE_DATA_IF_MATCH
     } else {
       UNREACHABLE();
     }
+    // At this point the entry pointer is not guaranteed to be valid as
+    // the refs_ hash hable could be resized by one of the constructors above.
+    DCHECK_EQ(object_data, refs_->Lookup(object.address())->value);
   }
-  CHECK_NOT_NULL(*data_storage);
-  return (*data_storage);
+  return object_data;
 }
 // clang-format on
 
