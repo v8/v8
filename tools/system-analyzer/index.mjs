@@ -10,114 +10,110 @@ import './timeline-panel.mjs';
 import './map-panel.mjs';
 import './log-file-reader.mjs';
 
-document.onkeydown = handleKeyDown;
-function handleKeyDown(event) {
-  stateGlobal.navigation = document.state.navigation;
-  let nav = document.state.navigation;
-  switch(event.key) {
-    case "ArrowUp":
-      event.preventDefault();
-      if (event.shiftKey) {
-        nav.selectPrevEdge();
-      } else {
-        nav.moveInChunk(-1);
-      }
-      return false;
-    case "ArrowDown":
-      event.preventDefault();
-      if (event.shiftKey) {
-        nav.selectNextEdge();
-      } else {
-        nav.moveInChunk(1);
-      }
-      return false;
-    case "ArrowLeft":
-      nav.moveInChunks(false);
-      break;
-    case "ArrowRight":
-      nav.moveInChunks(true);
-      break;
-    case "+":
-      nav.increaseTimelineResolution();
-      break;
-    case "-":
-      nav.decreaseTimelineResolution();
-      break;
+class App {
+  constructor(mapPanelId, timelinePanelId, icPanelId) {
+    this.mapPanelId_ =  mapPanelId;
+    this.timelinePanelId_ =  timelinePanelId;
+    this.icPanelId_ =  icPanelId;
+    this.icPanel_ = this.$(icPanelId);
+    this.state_ = Object.create(null);
+    document.addEventListener('keydown', e => this.handleKeyDown(e));
   }
-}
 
-// Update application state
-function updateDocumentState(){
-    document.state = stateGlobal.state;
+  $(id) { return document.querySelector(id); }
+
+    handleKeyDown(event) {
+    let nav = document.state.navigation;
+    switch(event.key) {
+      case "ArrowUp":
+        event.preventDefault();
+        if (event.shiftKey) {
+          nav.selectPrevEdge();
+        } else {
+          nav.moveInChunk(-1);
+        }
+        return false;
+      case "ArrowDown":
+        event.preventDefault();
+        if (event.shiftKey) {
+          nav.selectNextEdge();
+        } else {
+          nav.moveInChunk(1);
+        }
+        return false;
+      case "ArrowLeft":
+        nav.moveInChunks(false);
+        break;
+      case "ArrowRight":
+        nav.moveInChunks(true);
+        break;
+      case "+":
+        nav.increaseTimelineResolution();
+        break;
+      case "-":
+        nav.decreaseTimelineResolution();
+        break;
+    }
+  }
+
+  // Update application state
+  updateDocumentState(){
+    document.state = this.state_.state;
     try {
-      document.state.timeline = stateGlobal.timeline;
+      document.state.timeline = this.state_.timeline;
     } catch (error) {
       console.log(error);
       console.log("cannot assign timeline to state!");
     }
-}
+  }
 
-// Map event log processing
-function handleLoadTextMapProcessor(text) {
+  // Map event log processing
+  handleLoadTextMapProcessor(text) {
     let mapProcessor = new MapProcessor();
     return mapProcessor.processString(text);
-}
-
-// IC event file reading and log processing
-
-function loadFileIC(file) {
-  let reader = new FileReader();
-  reader.onload = function(evt) {
-    let icProcessor = new CustomIcProcessor();
-    icProcessor.processString(this.result);
-    let entries = icProcessor.entries;
-    $("ic-panel").entries = entries;
-    $("ic-panel").count.innerHTML = entries.length;
   }
-  reader.readAsText(file);
-  $("ic-panel").initGroupKeySelect();
-}
 
-function $(id) { return document.querySelector(id); }
+  // IC event file reading and log processing
+  loadICLogFile(fileData) {
+    let reader = new FileReader();
+    reader.onload = (evt) => {
+      let icProcessor = new CustomIcProcessor();
+      icProcessor.processString(fileData.chunk);
+      let entries = icProcessor.entries;
+      this.icPanel_.entries = entries;
+      this.icPanel_.count.innerHTML = entries.length;
+    }
+    reader.readAsText(fileData.file);
+    this.icPanel_.initGroupKeySelect();
+  }
 
-// holds the state of the application
-let stateGlobal = Object.create(null);
+  // call when a new file uploaded
+  handleDataUpload(e) {
+    if(!e.detail) return;
+    this.$('#container').style.display = 'block';
+    // instantiate the app logic
+    let fileData = e.detail;
+    this.state_.state = new State('#map-panel','#timeline-panel');
+    this.state_.timeline = this.handleLoadTextMapProcessor(fileData.chunk);
+    this.updateDocumentState();
+    this.loadICLogFile(fileData);
+  }
 
-// call when a new file uploaded
-function handleDataUpload(e) {
-  stateGlobal.timeline = e.detail;
-  if(!e.detail) return;
-  $('#container').style.display = 'block';
-  // instantiate the app logic
-  stateGlobal.fileData = e.detail;
-  stateGlobal.state = new State('#map-panel','#timeline-panel');
-  stateGlobal.timeline = handleLoadTextMapProcessor(stateGlobal.fileData.chunk);
-  updateDocumentState();
-  // process the IC explorer
-  loadFileIC(stateGlobal.fileData.file);
-}
+  handleMapAddressSearch(e) {
+    if(!e.detail.isValidMap) return;
+    document.state.map = e.detail.map;
+  }
 
-function handleMapAddressSearch(e) {
-  if(!e.detail.isValidMap) return;
-  document.state.map = e.detail.map;
-}
+  handleShowMaps(e) {
+    // show maps on the view
+    document.state.view.transitionView.showMaps(e.detail);
+  }
 
-function showMaps(e) {
-  // show maps on the view
-  document.state.view.transitionView.showMaps(e.detail);
-}
-
-function handleSelectIc(e){
-  if(!e.detail) return;
-  // Set selected IC events on the View
-  document.state.filteredEntries = e.detail;
-}
-
-class App {
-  handleDataUpload = handleDataUpload;
-  handleMapAddressSearch = handleMapAddressSearch;
-  showMaps = showMaps;
-  handleSelectIc = handleSelectIc;
+  handleSelectIc(e){
+    if(!e.detail) return;
+    // Set selected IC events on the View
+    document.state.filteredEntries = e.detail;
+  }
 }
 
 export {App};

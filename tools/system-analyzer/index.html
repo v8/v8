@@ -56,7 +56,7 @@ dd {
 <script type="module" >
 import {App} from  './index.mjs';
 
-globalThis.app = new App();
+globalThis.app = new App("#map-panel", "#timeline-panel", "#ic-panel");
 </script>
 </head>
 <body>
@@ -68,7 +68,7 @@ globalThis.app = new App();
     </section>
     <div id="container" style="display: none;">
       <timeline-panel id="timeline-panel"></timeline-panel>
-      <map-panel id="map-panel" onclick="app.handleMapAddressSearch(event)" showMaps="app.showMaps(event)"></map-panel>
+      <map-panel id="map-panel" onclick="app.handleMapAddressSearch(event)" onchange="app.handleShowMaps(event)"></map-panel>
       <ic-panel id="ic-panel" onchange="app.handleSelectIc(event)"></ic-panel>
     </div>
   </div>
