@@ -909,11 +909,6 @@ bool PagedSpace::RawRefillLabMain(int size_in_bytes, AllocationOrigin origin) {
   MarkCompactCollector* collector = heap()->mark_compact_collector();
   // Sweeping is still in progress.
   if (collector->sweeping_in_progress()) {
-    if (FLAG_concurrent_sweeping && !is_compaction_space() &&
-        !collector->sweeper()->AreSweeperTasksRunning()) {
-      collector->DrainSweepingWorklistForSpace(identity());
-    }
-
     // First try to refill the free-list, concurrent sweeper threads
     // may have freed some objects in the meantime.
     RefillFreeList();
