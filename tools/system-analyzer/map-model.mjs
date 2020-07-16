@@ -157,9 +157,8 @@ class View {
     this.mapPanel_ = $(mapPanelId);
     this.timelinePanel_ = $(timelinePanelId);
     this.state = state;
-    setInterval(this.updateOverviewWindow(timelinePanelId), 50);
-    this.backgroundCanvas = document.createElement('canvas');
-    //TODO(zcankara) Instantiate the map panel transition view
+    setInterval(this.timelinePanel_.updateOverviewWindow(), 50);
+    this.timelinePanel_.createBackgroundCanvas();
     this.mapPanel_.transitionView = state;
 
     this.isLocked = false;
@@ -210,7 +209,7 @@ class View {
     }
 
 
-    this.asyncSetTimelineChunkBackground(backgroundTodo)
+    this.timelinePanel_.asyncSetTimelineChunkBackground(backgroundTodo)
 
     // Put a time marker roughly every 20 chunks.
     let expected = duration / chunks.length * 20;
@@ -251,70 +250,11 @@ class View {
     this.mapPanel_.showMaps(chunk.getUniqueTransitions());
   }
 
-  asyncSetTimelineChunkBackground(backgroundTodo) {
-    const kIncrement = 100;
-    let start = 0;
-    let delay = 1;
-    while (start < backgroundTodo.length) {
-      let end = Math.min(start + kIncrement, backgroundTodo.length);
-      setTimeout((from, to) => {
-        for (let i = from; i < to; i++) {
-          let [chunk, node] = backgroundTodo[i];
-          this.setTimelineChunkBackground(chunk, node);
-        }
-      }, delay++, start, end);
-      start = end;
-    }
-  }
-
-  setTimelineChunkBackground(chunk, node) {
-    // Render the types of transitions as bar charts
-    const kHeight = chunk.height;
-    const kWidth = 1;
-    this.backgroundCanvas.width = kWidth;
-    this.backgroundCanvas.height = kHeight;
-    let ctx = this.backgroundCanvas.getContext('2d');
-    ctx.clearRect(0, 0, kWidth, kHeight);
-    let y = 0;
-    let total = chunk.size();
-    let type, count;
-    if (true) {
-      chunk.getTransitionBreakdown().forEach(([type, count]) => {
-        ctx.fillStyle = transitionTypeToColor(type);
-        let height = count / total * kHeight;
-        ctx.fillRect(0, y, kWidth, y + height);
-        y += height;
-      });
-    } else {
-      chunk.items.forEach(map => {
-        ctx.fillStyle = transitionTypeToColor(map.getType());
-        let y = chunk.yOffset(map);
-        ctx.fillRect(0, y, kWidth, y + 1);
-      });
-    }
-
-    let imageData = this.backgroundCanvas.toDataURL('image/webp', 0.2);
-    node.style.backgroundImage = 'url(' + imageData + ')';
-  }
-
-  updateOverviewWindow() {
-    let indicator = this.timelinePanel_.timelineOverviewIndicator;
-    let totalIndicatorWidth =
-        this.timelinePanel_.timelineOverview.offsetWidth;
-    let div = this.timelinePanel_.timeline;
-    let timelineTotalWidth =
-        this.timelinePanel_.timelineCanvas.offsetWidth;
-    let factor = totalIndicatorWidth / timelineTotalWidth;
-    let width = div.offsetWidth * factor;
-    let left = div.scrollLeft * factor;
-    indicator.style.width = width + 'px';
-    indicator.style.left = left + 'px';
-  }
-
   drawOverview() {
     const height = 50;
     const kFactor = 2;
-    let canvas = this.backgroundCanvas;
+    //let canvas = this.backgroundCanvas;
+    let canvas = this.timelinePanel_.backgroundCanvas;
     canvas.height = height;
     canvas.width = window.innerWidth;
     let ctx = canvas.getContext('2d');
@@ -474,34 +414,6 @@ class View {
       this.drawOutgoingEdges(ctx, edge.to, max, depth + 1);
     }
   }
-}
-
-
-// =========================================================================
-
-function transitionTypeToColor(type) {
-  switch (type) {
-    case 'new':
-      // green
-      return '#aedc6e';
-    case 'Normalize':
-      // violet
-      return '#d26edc';
-    case 'SlowToFast':
-      // orange
-      return '#dc9b6e';
-    case 'InitialMap':
-      // yellow
-      return '#EEFF41';
-    case 'Transition':
-      // pink/violet (primary)
-      return '#9B6EDC';
-    case 'ReplaceDescriptors':
-      // red
-      return '#dc6eae';
-  }
-  // pink/violet (primary)
-  return '#9B6EDC';
 }
 
 export { State };
