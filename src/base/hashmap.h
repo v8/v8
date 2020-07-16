@@ -20,8 +20,14 @@ namespace base {
 
 class DefaultAllocationPolicy {
  public:
-  V8_INLINE void* New(size_t size) { return malloc(size); }
-  V8_INLINE static void Delete(void* p) { free(p); }
+  template <typename T, typename TypeTag = T[]>
+  V8_INLINE T* NewArray(size_t length) {
+    return static_cast<T*>(malloc(length * sizeof(T)));
+  }
+  template <typename T, typename TypeTag = T[]>
+  V8_INLINE void DeleteArray(T* p, size_t length) {
+    free(p);
+  }
 };
 
 template <typename Key, typename Value, class MatchFun, class AllocationPolicy>
@@ -78,7 +84,8 @@ class TemplateHashMapImpl {
 
   // Empties the map and makes it unusable for allocation.
   void Invalidate() {
-    AllocationPolicy::Delete(impl_.map_);
+    DCHECK_NOT_NULL(impl_.map_);
+    impl_.allocator().DeleteArray(impl_.map_, capacity());
     impl_ = Impl(impl_.match(), AllocationPolicy());
   }
 
@@ -173,8 +180,7 @@ TemplateHashMapImpl<Key, Value, MatchFun, AllocationPolicy>::
     : impl_(original->impl_.match(), std::move(allocator)) {
   impl_.capacity_ = original->capacity();
   impl_.occupancy_ = original->occupancy();
-  impl_.map_ = reinterpret_cast<Entry*>(
-      impl_.allocator().New(capacity() * sizeof(Entry)));
+  impl_.map_ = impl_.allocator().template NewArray<Entry>(capacity());
   memcpy(impl_.map_, original->impl_.map_, capacity() * sizeof(Entry));
 }
 
@@ -182,7 +188,7 @@ template <typename Key, typename Value, typename MatchFun,
           class AllocationPolicy>
 TemplateHashMapImpl<Key, Value, MatchFun,
                     AllocationPolicy>::~TemplateHashMapImpl() {
-  AllocationPolicy::Delete(impl_.map_);
+  if (impl_.map_) impl_.allocator().DeleteArray(impl_.map_, capacity());
 }
 
 template <typename Key, typename Value, typename MatchFun,
@@ -363,8 +369,7 @@ template <typename Key, typename Value, typename MatchFun,
 void TemplateHashMapImpl<Key, Value, MatchFun, AllocationPolicy>::Initialize(
     uint32_t capacity) {
   DCHECK(base::bits::IsPowerOfTwo(capacity));
-  impl_.map_ =
-      reinterpret_cast<Entry*>(allocator().New(capacity * sizeof(Entry)));
+  impl_.map_ = impl_.allocator().template NewArray<Entry>(capacity);
   if (impl_.map_ == nullptr) {
     FATAL("Out of memory: HashMap::Initialize");
     return;
@@ -376,14 +381,15 @@ void TemplateHashMapImpl<Key, Value, MatchFun, AllocationPolicy>::Initialize(
 template <typename Key, typename Value, typename MatchFun,
           class AllocationPolicy>
 void TemplateHashMapImpl<Key, Value, MatchFun, AllocationPolicy>::Resize() {
-  Entry* map = impl_.map_;
+  Entry* old_map = impl_.map_;
+  uint32_t old_capacity = capacity();
   uint32_t n = occupancy();
 
   // Allocate larger map.
   Initialize(capacity() * 2);
 
   // Rehash all current entries.
-  for (Entry* entry = map; n > 0; entry++) {
+  for (Entry* entry = old_map; n > 0; entry++) {
     if (entry->exists()) {
       Entry* new_entry = Probe(entry->key, entry->hash);
       new_entry =
@@ -393,7 +399,7 @@ void TemplateHashMapImpl<Key, Value, MatchFun, AllocationPolicy>::Resize() {
   }
 
   // Delete old map.
-  AllocationPolicy::Delete(map);
+  impl_.allocator().DeleteArray(old_map, old_capacity);
 }
 
 // Match function which compares hashes before executing a (potentially

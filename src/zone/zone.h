@@ -62,6 +62,18 @@ class V8_EXPORT_PRIVATE Zone final {
 #endif
   }
 
+  template <typename TypeTag = void>
+  void Delete(void* pointer, size_t size) {
+    DCHECK_NOT_NULL(pointer);
+    DCHECK_NE(size, 0);
+    // TODO(v8:10572): implement accounting for reusable zone memory
+#ifdef DEBUG
+    size = RoundUp(size, kAlignmentInBytes);
+    static const unsigned char kZapDeadByte = 0xcd;
+    memset(pointer, kZapDeadByte, size);
+#endif
+  }
+
   // Allocates memory for T instance and constructs object by calling respective
   // Args... constructor.
   // TODO(v8:10689): account allocated bytes with the T type.
@@ -82,16 +94,9 @@ class V8_EXPORT_PRIVATE Zone final {
     return static_cast<T*>(Allocate<TypeTag>(length * sizeof(T)));
   }
 
-  template <typename T>
+  template <typename T, typename TypeTag = T[]>
   void DeleteArray(T* pointer, size_t length) {
-    DCHECK_NOT_NULL(pointer);
-    DCHECK_NE(length, 0);
-    // TODO(v8:10572): implement accounting for reusable zone memory
-#ifdef DEBUG
-    size_t size = RoundUp(length * sizeof(T), kAlignmentInBytes);
-    static const unsigned char kZapDeadByte = 0xcd;
-    memset(pointer, kZapDeadByte, size);
-#endif
+    Delete<TypeTag>(pointer, length * sizeof(T));
   }
 
   // Seals the zone to prevent any further allocation.
@@ -197,8 +202,16 @@ class ZoneAllocationPolicy {
   // Creates unusable allocation policy.
   ZoneAllocationPolicy() : zone_(nullptr) {}
   explicit ZoneAllocationPolicy(Zone* zone) : zone_(zone) {}
-  void* New(size_t size) { return zone()->New(size); }
-  static void Delete(void* pointer) {}
+
+  template <typename T, typename TypeTag = T[]>
+  V8_INLINE T* NewArray(size_t length) {
+    return zone()->NewArray<T, TypeTag>(length);
+  }
+  template <typename T, typename TypeTag = T[]>
+  V8_INLINE void DeleteArray(T* p, size_t length) {
+    zone()->DeleteArray<T, TypeTag>(p, length);
+  }
+
   Zone* zone() const { return zone_; }
 
  private:
