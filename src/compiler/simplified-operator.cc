@@ -1743,7 +1743,7 @@ const Operator* SimplifiedOperatorBuilder::NewSmiOrObjectElements(
 
 const Operator* SimplifiedOperatorBuilder::NewArgumentsElements(
     CreateArgumentsType type, int formal_parameter_count) {
-  return new (zone()) Operator1<NewArgumentsElementsParameters>(  // --
+  return zone()->New<Operator1<NewArgumentsElementsParameters>>(  // --
       IrOpcode::kNewArgumentsElements,                            // opcode
       Operator::kEliminatable,                                    // flags
       "NewArgumentsElements",                                     // name
@@ -1920,7 +1920,7 @@ const Operator* SimplifiedOperatorBuilder::FastApiCall(
        FastApiCallNode::kFastTargetInputCount) +        // fast call
       static_cast<int>(descriptor->ParameterCount()) +  // slow call
       FastApiCallNode::kEffectAndControlInputCount;
-  return new (zone_) Operator1<FastApiCallParameters>(
+  return zone()->New<Operator1<FastApiCallParameters>>(
       IrOpcode::kFastApiCall, Operator::kNoThrow, "FastApiCall",
       value_input_count, 1, 1, 1, 1, 0,
       FastApiCallParameters(signature, feedback, descriptor));

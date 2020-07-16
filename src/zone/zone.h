@@ -39,9 +39,6 @@ class V8_EXPORT_PRIVATE Zone final {
   Zone(AccountingAllocator* allocator, const char* name);
   ~Zone();
 
-  // TODO(v8:10689): Remove once all allocation sites are migrated.
-  void* New(size_t size) { return Allocate<void>(size); }
-
   // Allocate 'size' bytes of uninitialized memory in the Zone; expands the Zone
   // by allocating new segments of memory on demand using AccountingAllocator
   // (see AccountingAllocator::AllocateSegment()).
@@ -178,10 +175,16 @@ class V8_EXPORT_PRIVATE Zone final {
 // allocated in the Zone. Use it as a base class; see ast.h.
 class ZoneObject {
  public:
-  // Allocate a new ZoneObject of 'size' bytes in the Zone.
-  void* operator new(size_t size, Zone* zone) { return zone->New(size); }
+  // The accidential old-style pattern
+  //    new (zone) SomeObject(...)
+  // now produces compilation error. The proper way of allocating objects in
+  // Zones looks like this:
+  //    zone->New<SomeObject>(...)
+  void* operator new(size_t, Zone*) = delete;  // See explanation above.
   // Allow non-allocating placement new.
-  void* operator new(size_t size, void* ptr) { return ptr; }
+  void* operator new(size_t size, void* ptr) {  // See explanation above.
+    return ptr;
+  }
 
   // Ideally, the delete operator should be private instead of
   // public, but unfortunately the compiler sometimes synthesizes
@@ -191,8 +194,9 @@ class ZoneObject {
 
   // ZoneObjects should never be deleted individually; use
   // Zone::DeleteAll() to delete all zone objects in one go.
+  // Note, that descructors will not be called.
   void operator delete(void*, size_t) { UNREACHABLE(); }
-  void operator delete(void* pointer, Zone* zone) { UNREACHABLE(); }
+  void operator delete(void* pointer, Zone* zone) = delete;
 };
 
 // The ZoneAllocationPolicy is used to specialize generic data
@@ -221,17 +225,12 @@ class ZoneAllocationPolicy {
 }  // namespace internal
 }  // namespace v8
 
-// The accidential pattern
-//    new (zone) SomeObject()
-// where SomeObject does not inherit from ZoneObject leads to nasty crashes.
-// This triggers a compile-time error instead.
-template <class T, typename = typename std::enable_if<std::is_convertible<
-                       T, const v8::internal::Zone*>::value>::type>
-void* operator new(size_t size, T zone) {
-  static_assert(false && sizeof(T),
-                "Placement new with a zone is only permitted for classes "
-                "inheriting from ZoneObject");
-  UNREACHABLE();
-}
+// The accidential old-style pattern
+//    new (zone) SomeObject(...)
+// now produces compilation error. The proper way of allocating objects in
+// Zones looks like this:
+//    zone->New<SomeObject>(...)
+void* operator new(size_t, v8::internal::Zone*) = delete;   // See explanation.
+void operator delete(void*, v8::internal::Zone*) = delete;  // See explanation.
 
 #endif  // V8_ZONE_ZONE_H_
