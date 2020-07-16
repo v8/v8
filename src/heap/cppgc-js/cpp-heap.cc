@@ -156,6 +156,11 @@ void CppHeap::TraceEpilogue(TraceSummary* trace_summary) {
     marker()->ProcessWeakness();
     prefinalizer_handler()->InvokePreFinalizers();
   }
+  marker_.reset();
+  // TODO(chromium:1056170): replace build flag with dedicated flag.
+#if DEBUG
+  VerifyMarking(cppgc::Heap::StackState::kNoHeapPointers);
+#endif
   {
     NoGCScope no_gc(*this);
     sweeper().Start(cppgc::internal::Sweeper::Config::kAtomic);

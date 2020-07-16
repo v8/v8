@@ -8,6 +8,7 @@
 #include <memory>
 #include <set>
 
+#include "include/cppgc/heap.h"
 #include "include/cppgc/internal/persistent-node.h"
 #include "include/cppgc/macros.h"
 #include "src/base/macros.h"
@@ -116,6 +117,8 @@ class V8_EXPORT_PRIVATE HeapBase {
   size_t ObjectPayloadSize() const;
 
  protected:
+  void VerifyMarking(cppgc::Heap::StackState);
+
   bool in_no_gc_scope() const { return no_gc_scope_ > 0; }
 
   RawHeap raw_heap_;

@@ -107,12 +107,16 @@ void Heap::CollectGarbage(Config config) {
   marker_->FinishMarking(marking_config);
   // "Sweeping and finalization".
   {
-    // Pre finalizers are forbidden from allocating objects
+    // Pre finalizers are forbidden from allocating objects.
     ObjectAllocator::NoAllocationScope no_allocation_scope_(object_allocator_);
     marker_->ProcessWeakness();
     prefinalizer_handler_->InvokePreFinalizers();
   }
   marker_.reset();
+  // TODO(chromium:1056170): replace build flag with dedicated flag.
+#if DEBUG
+  VerifyMarking(config.stack_state);
+#endif
   {
     NoGCScope no_gc(*this);
     sweeper_.Start(config.sweeping_type);
