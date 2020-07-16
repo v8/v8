@@ -2399,10 +2399,15 @@ SIMD_SHIFT_OPCODES_UNIFED_SSE_AVX(VISIT_SIMD_SHIFT_UNIFIED_SSE_AVX)
 #undef VISIT_SIMD_SHIFT_UNIFIED_SSE_AVX
 #undef SIMD_SHIFT_OPCODES_UNIFED_SSE_AVX
 
-#define VISIT_SIMD_UNOP(Opcode)                                             \
-  void InstructionSelector::Visit##Opcode(Node* node) {                     \
-    IA32OperandGenerator g(this);                                           \
-    Emit(kIA32##Opcode, g.DefineAsRegister(node), g.Use(node->InputAt(0))); \
+// TODO(v8:9198): SSE requires operand0 to be a register as we don't have memory
+// alignment yet. For AVX, memory operands are fine, but can have performance
+// issues if not aligned to 16/32 bytes (based on load size), see SDM Vol 1,
+// chapter 14.9
+#define VISIT_SIMD_UNOP(Opcode)                         \
+  void InstructionSelector::Visit##Opcode(Node* node) { \
+    IA32OperandGenerator g(this);                       \
+    Emit(kIA32##Opcode, g.DefineAsRegister(node),       \
+         g.UseRegister(node->InputAt(0)));              \
   }
 SIMD_UNOP_LIST(VISIT_SIMD_UNOP)
 #undef VISIT_SIMD_UNOP
