@@ -62,6 +62,9 @@ static const char kDebuggerNotPaused[] =
 
 static const size_t kBreakpointHintMaxLength = 128;
 static const intptr_t kBreakpointHintMaxSearchOffset = 80 * 10;
+// Limit the number of breakpoints returned, as we otherwise may exceed
+// the maximum length of a message in mojo (see https://crbug.com/1105172).
+static const size_t kMaxNumBreakpoints = 1000;
 
 // TODO(1099680): getScriptSource and getWasmBytecode return Wasm wire bytes
 // as protocol::Binary, which is encoded as JSON string in the communication
@@ -736,7 +739,12 @@ Response V8DebuggerAgentImpl::getPossibleBreakpoints(
 
   *locations =
       std::make_unique<protocol::Array<protocol::Debugger::BreakLocation>>();
-  for (size_t i = 0; i < v8Locations.size(); ++i) {
+
+  // TODO(1106269): Return an error instead of capping the number of
+  // breakpoints.
+  const size_t numBreakpointsToSend =
+      std::min(v8Locations.size(), kMaxNumBreakpoints);
+  for (size_t i = 0; i < numBreakpointsToSend; ++i) {
     std::unique_ptr<protocol::Debugger::BreakLocation> breakLocation =
         protocol::Debugger::BreakLocation::create()
             .setScriptId(scriptId)
