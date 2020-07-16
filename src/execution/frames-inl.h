@@ -118,15 +118,23 @@ inline BuiltinExitFrame::BuiltinExitFrame(StackFrameIteratorBase* iterator)
 inline Object BuiltinExitFrame::receiver_slot_object() const {
   // The receiver is the first argument on the frame.
   // fp[1]: return address.
-  // fp[2]: the last argument (new target).
+  // ------- fixed extra builtin arguments -------
+  // fp[2]: new target.
+  // fp[3]: target.
   // fp[4]: argc.
-  // fp[2 + argc - 1]: receiver.
+  // fp[5]: hole.
+  // ------- JS stack arguments ------
+  // fp[6]: receiver, if V8_REVERSE_JSARGS.
+  // fp[2 + argc - 1]: receiver, if not V8_REVERSE_JSARGS.
+#ifdef V8_REVERSE_JSARGS
+  const int receiverOffset = BuiltinExitFrameConstants::kFirstArgumentOffset;
+#else
   Object argc_slot = argc_slot_object();
   DCHECK(argc_slot.IsSmi());
   int argc = Smi::ToInt(argc_slot);
-
   const int receiverOffset = BuiltinExitFrameConstants::kNewTargetOffset +
                              (argc - 1) * kSystemPointerSize;
+#endif
   return Object(base::Memory<Address>(fp() + receiverOffset));
 }
 
