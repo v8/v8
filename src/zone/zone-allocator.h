@@ -47,8 +47,8 @@ class ZoneAllocator {
   template <typename U>
   friend class ZoneAllocator;
 
-  T* allocate(size_t n) { return zone_->NewArray<T>(n); }
-  void deallocate(T* p, size_t) {}  // noop for zones
+  T* allocate(size_t length) { return zone_->NewArray<T>(length); }
+  void deallocate(T* p, size_t length) { zone_->DeleteArray<T>(p, length); }
 
   size_t max_size() const {
     return std::numeric_limits<int>::max() / sizeof(T);
