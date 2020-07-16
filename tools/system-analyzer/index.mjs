@@ -16,7 +16,6 @@ class App {
     this.timelinePanelId_ =  timelinePanelId;
     this.icPanelId_ =  icPanelId;
     this.icPanel_ = this.$(icPanelId);
-    this.state_ = Object.create(null);
     document.addEventListener('keydown', e => this.handleKeyDown(e));
   }
 
@@ -56,17 +55,6 @@ class App {
     }
   }
 
-  // Update application state
-  updateDocumentState(){
-    document.state = this.state_.state;
-    try {
-      document.state.timeline = this.state_.timeline;
-    } catch (error) {
-      console.log(error);
-      console.log("cannot assign timeline to state!");
-    }
-  }
-
   // Map event log processing
   handleLoadTextMapProcessor(text) {
     let mapProcessor = new MapProcessor();
@@ -93,9 +81,12 @@ class App {
     this.$('#container').style.display = 'block';
     // instantiate the app logic
     let fileData = e.detail;
-    this.state_.state = new State('#map-panel','#timeline-panel');
-    this.state_.timeline = this.handleLoadTextMapProcessor(fileData.chunk);
-    this.updateDocumentState();
+    document.state = new State(this.mapPanelId_, this.timelinePanelId_);
+    try {
+      document.state.timeline = this.handleLoadTextMapProcessor(fileData.chunk);
+    } catch (error) {
+      console.log(error);
+    }
     this.loadICLogFile(fileData);
   }
 
