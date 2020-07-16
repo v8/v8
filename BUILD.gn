@@ -144,6 +144,22 @@ declare_args() {
   # used builtins.
   v8_enable_builtins_profiling_verbose = false
 
+  # Provides the given V8 log file as an input to mksnapshot, where it can be
+  # used for profile-guided optimization of builtins.
+  #
+  # To do profile-guided optimizations of builtins:
+  # 1. Build with v8_enable_builtins_profiling = true
+  # 2. Run your chosen workload with the --turbo-profiling-log-builtins flag.
+  #    For Chrome, the invocation might look like this:
+  #      chrome --no-sandbox --disable-extensions
+  #        --js-flags="--turbo-profiling-log-builtins --logfile=path/to/v8.log"
+  #        "http://localhost/test-suite"
+  # 3. Optionally repeat step 2 for additional workloads, and concatenate all of
+  #    the resulting log files into a single file.
+  # 4. Build again with v8_builtins_profiling_log_file set to the file created
+  #    in steps 2-3.
+  v8_builtins_profiling_log_file = ""
+
   # Enables various testing features.
   v8_enable_test_features = ""
 
@@ -1473,6 +1489,12 @@ template("run_mksnapshot") {
     if (v8_enable_builtins_profiling_verbose) {
       args += [ "--turbo-profiling-verbose" ]
     }
+    if (v8_builtins_profiling_log_file != "") {
+      args += [
+        "--turbo-profiling-log-file",
+        v8_builtins_profiling_log_file,
+      ]
+    }
 
     # This is needed to distinguish between generating code for the simulator
     # and cross-compiling. The latter may need to run code on the host with the
@@ -1728,6 +1750,8 @@ v8_source_set("v8_initializers") {
     "src/builtins/builtins-wasm-gen.h",
     "src/builtins/growable-fixed-array-gen.cc",
     "src/builtins/growable-fixed-array-gen.h",
+    "src/builtins/profile-data-reader.cc",
+    "src/builtins/profile-data-reader.h",
     "src/builtins/setup-builtins-internal.cc",
     "src/codegen/code-stub-assembler.cc",
     "src/codegen/code-stub-assembler.h",
@@ -1869,6 +1893,7 @@ v8_header_set("v8_shared_internal_headers") {
 
 v8_compiler_sources = [
   ### gcmole(all) ###
+  "src/builtins/profile-data-reader.h",
   "src/compiler/access-builder.cc",
   "src/compiler/access-builder.h",
   "src/compiler/access-info.cc",
@@ -2261,6 +2286,7 @@ v8_source_set("v8_base_without_compiler") {
     "src/builtins/builtins.h",
     "src/builtins/constants-table-builder.cc",
     "src/builtins/constants-table-builder.h",
+    "src/builtins/profile-data-reader.h",
     "src/codegen/assembler-arch.h",
     "src/codegen/assembler-inl.h",
     "src/codegen/assembler.cc",

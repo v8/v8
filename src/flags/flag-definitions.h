@@ -640,6 +640,9 @@ DEFINE_BOOL(turbo_profiling_verbose, false,
             "enable basic block profiling in TurboFan, and include each "
             "function's schedule and disassembly in the output")
 DEFINE_IMPLICATION(turbo_profiling_verbose, turbo_profiling)
+DEFINE_BOOL(turbo_profiling_log_builtins, false,
+            "emit data about basic block usage in builtins to v8.log (requires "
+            "that V8 was built with v8_enable_builtins_profiling=true)")
 DEFINE_BOOL(turbo_verify_allocation, DEBUG_BOOL,
             "verify register allocation in TurboFan")
 DEFINE_BOOL(turbo_move_optimization, true, "optimize gap moves in TurboFan")
@@ -1449,6 +1452,9 @@ DEFINE_BOOL(target_is_simulator, false,
             "Instruct mksnapshot that the target is meant to run in the "
             "simulator and it can generate simulator-specific instructions. "
             "(mksnapshot only)")
+DEFINE_STRING(turbo_profiling_log_file, nullptr,
+              "Path of the input file containing basic block counters for "
+              "builtins. (mksnapshot only)")
 
 //
 // Minor mark compact collector flags.

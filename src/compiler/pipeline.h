@@ -19,6 +19,7 @@ namespace internal {
 struct AssemblerOptions;
 class OptimizedCompilationInfo;
 class OptimizedCompilationJob;
+class ProfileDataFromFile;
 class RegisterConfiguration;
 
 namespace wasm {
@@ -78,8 +79,8 @@ class Pipeline : public AllStatic {
       Isolate* isolate, CallDescriptor* call_descriptor, Graph* graph,
       JSGraph* jsgraph, SourcePositionTable* source_positions, Code::Kind kind,
       const char* debug_name, int32_t builtin_index,
-      PoisoningMitigationLevel poisoning_level,
-      const AssemblerOptions& options);
+      PoisoningMitigationLevel poisoning_level, const AssemblerOptions& options,
+      const ProfileDataFromFile* profile_data);
 
   // ---------------------------------------------------------------------------
   // The following methods are for testing purposes only. Avoid production use.

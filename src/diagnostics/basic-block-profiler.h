@@ -28,20 +28,23 @@ class BasicBlockProfilerData {
       OnHeapBasicBlockProfilerData js_heap_data);
 
   size_t n_blocks() const {
-    DCHECK_EQ(block_rpo_numbers_.size(), counts_.size());
-    return block_rpo_numbers_.size();
+    DCHECK_EQ(block_ids_.size(), counts_.size());
+    return block_ids_.size();
   }
   const uint32_t* counts() const { return &counts_[0]; }
 
   void SetCode(const std::ostringstream& os);
   void SetFunctionName(std::unique_ptr<char[]> name);
   void SetSchedule(const std::ostringstream& os);
-  void SetBlockRpoNumber(size_t offset, int32_t block_rpo);
+  void SetBlockId(size_t offset, int32_t id);
+  void SetHash(int hash);
 
   // Copy the data from this object into an equivalent object stored on the JS
   // heap, so that it can survive snapshotting and relocation. This must
   // happen on the main thread during finalization of the compilation.
   Handle<OnHeapBasicBlockProfilerData> CopyToJSHeap(Isolate* isolate);
+
+  void Log(Isolate* isolate);
 
  private:
   friend class BasicBlockProfiler;
@@ -50,11 +53,13 @@ class BasicBlockProfilerData {
 
   V8_EXPORT_PRIVATE void ResetCounts();
 
-  std::vector<int32_t> block_rpo_numbers_;
+  // These vectors are indexed by reverse post-order block number.
+  std::vector<int32_t> block_ids_;
   std::vector<uint32_t> counts_;
   std::string function_name_;
   std::string schedule_;
   std::string code_;
+  int hash_;
   DISALLOW_COPY_AND_ASSIGN(BasicBlockProfilerData);
 };
 

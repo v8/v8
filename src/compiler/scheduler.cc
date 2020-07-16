@@ -7,6 +7,7 @@
 #include <iomanip>
 
 #include "src/base/iterator.h"
+#include "src/builtins/profile-data-reader.h"
 #include "src/codegen/tick-counter.h"
 #include "src/compiler/common-operator.h"
 #include "src/compiler/control-equivalence.h"
@@ -27,7 +28,8 @@ namespace compiler {
   } while (false)
 
 Scheduler::Scheduler(Zone* zone, Graph* graph, Schedule* schedule, Flags flags,
-                     size_t node_count_hint, TickCounter* tick_counter)
+                     size_t node_count_hint, TickCounter* tick_counter,
+                     const ProfileDataFromFile* profile_data)
     : zone_(zone),
       graph_(graph),
       schedule_(schedule),
@@ -36,13 +38,15 @@ Scheduler::Scheduler(Zone* zone, Graph* graph, Schedule* schedule, Flags flags,
       schedule_root_nodes_(zone),
       schedule_queue_(zone),
       node_data_(zone),
-      tick_counter_(tick_counter) {
+      tick_counter_(tick_counter),
+      profile_data_(profile_data) {
   node_data_.reserve(node_count_hint);
   node_data_.resize(graph->NodeCount(), DefaultSchedulerData());
 }
 
 Schedule* Scheduler::ComputeSchedule(Zone* zone, Graph* graph, Flags flags,
-                                     TickCounter* tick_counter) {
+                                     TickCounter* tick_counter,
+                                     const ProfileDataFromFile* profile_data) {
   Zone* schedule_zone =
       (flags & Scheduler::kTempSchedule) ? zone : graph->zone();
 
@@ -54,7 +58,7 @@ Schedule* Scheduler::ComputeSchedule(Zone* zone, Graph* graph, Flags flags,
   Schedule* schedule =
       schedule_zone->New<Schedule>(schedule_zone, node_count_hint);
   Scheduler scheduler(zone, graph, schedule, flags, node_count_hint,
-                      tick_counter);
+                      tick_counter, profile_data);
 
   scheduler.BuildCFG();
   scheduler.ComputeSpecialRPONumbering();
@@ -472,9 +476,38 @@ class CFGBuilder : public ZoneObject {
     CollectSuccessorBlocks(branch, successor_blocks,
                            arraysize(successor_blocks));
 
+    BranchHint hint_from_profile = BranchHint::kNone;
+    if (const ProfileDataFromFile* profile_data = scheduler_->profile_data()) {
+      uint32_t block_zero_count =
+          profile_data->GetCounter(successor_blocks[0]->id().ToSize());
+      uint32_t block_one_count =
+          profile_data->GetCounter(successor_blocks[1]->id().ToSize());
+      // If a branch is visited a non-trivial number of times and substantially
+      // more often than its alternative, then mark it as likely.
+      constexpr uint32_t kMinimumCount = 100000;
+      constexpr uint32_t kThresholdRatio = 4000;
+      if (block_zero_count > kMinimumCount &&
+          block_zero_count / kThresholdRatio > block_one_count) {
+        hint_from_profile = BranchHint::kTrue;
+      } else if (block_one_count > kMinimumCount &&
+                 block_one_count / kThresholdRatio > block_zero_count) {
+        hint_from_profile = BranchHint::kFalse;
+      }
+    }
+
     // Consider branch hints.
-    switch (BranchHintOf(branch->op())) {
+    switch (hint_from_profile) {
       case BranchHint::kNone:
+        switch (BranchHintOf(branch->op())) {
+          case BranchHint::kNone:
+            break;
+          case BranchHint::kTrue:
+            successor_blocks[1]->set_deferred(true);
+            break;
+          case BranchHint::kFalse:
+            successor_blocks[0]->set_deferred(true);
+            break;
+        }
         break;
       case BranchHint::kTrue:
         successor_blocks[1]->set_deferred(true);
@@ -482,6 +515,12 @@ class CFGBuilder : public ZoneObject {
       case BranchHint::kFalse:
         successor_blocks[0]->set_deferred(true);
         break;
+    }
+
+    if (hint_from_profile != BranchHint::kNone &&
+        BranchHintOf(branch->op()) != BranchHint::kNone &&
+        hint_from_profile != BranchHintOf(branch->op())) {
+      PrintF("Warning: profiling data overrode manual branch hint.\n");
     }
 
     if (branch == component_entry_) {

@@ -63,7 +63,7 @@ class CodeAssemblerTester {
     if (state_.InsideBlock()) {
       CodeAssembler(&state_).Unreachable();
     }
-    return CodeAssembler::GenerateCode(&state_, options);
+    return CodeAssembler::GenerateCode(&state_, options, nullptr);
   }
 
   Handle<Code> GenerateCodeCloseAndEscape() {

@@ -10,6 +10,7 @@
 
 #include "src/api/api-inl.h"
 #include "src/base/platform/platform.h"
+#include "src/builtins/profile-data-reader.h"
 #include "src/codegen/bailout-reason.h"
 #include "src/codegen/macro-assembler.h"
 #include "src/codegen/source-position-table.h"
@@ -34,10 +35,9 @@
 #include "src/strings/unicode-inl.h"
 #include "src/tracing/tracing-category-observer.h"
 #include "src/utils/memcopy.h"
+#include "src/utils/version.h"
 #include "src/wasm/wasm-code-manager.h"
 #include "src/wasm/wasm-objects-inl.h"
-
-#include "src/utils/version.h"
 
 namespace v8 {
 namespace internal {
@@ -1069,6 +1069,23 @@ void Logger::TimerEvent(Logger::StartEnd se, const char* name) {
       msg << "timer-event";
   }
   msg << kNext << name << kNext << timer_.Elapsed().InMicroseconds();
+  msg.WriteToLogFile();
+}
+
+void Logger::BasicBlockCounterEvent(const char* name, int block_id,
+                                    uint32_t count) {
+  if (!log_->IsEnabled() || !FLAG_turbo_profiling_log_builtins) return;
+  Log::MessageBuilder msg(log_.get());
+  msg << ProfileDataFromFileConstants::kBlockCounterMarker << kNext << name
+      << kNext << block_id << kNext << count;
+  msg.WriteToLogFile();
+}
+
+void Logger::BuiltinHashEvent(const char* name, int hash) {
+  if (!log_->IsEnabled() || !FLAG_turbo_profiling_log_builtins) return;
+  Log::MessageBuilder msg(log_.get());
+  msg << ProfileDataFromFileConstants::kBuiltinHashMarker << kNext << name
+      << kNext << hash;
   msg.WriteToLogFile();
 }
 

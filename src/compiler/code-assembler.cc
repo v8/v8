@@ -175,8 +175,9 @@ PoisoningMitigationLevel CodeAssembler::poisoning_level() const {
 }
 
 // static
-Handle<Code> CodeAssembler::GenerateCode(CodeAssemblerState* state,
-                                         const AssemblerOptions& options) {
+Handle<Code> CodeAssembler::GenerateCode(
+    CodeAssemblerState* state, const AssemblerOptions& options,
+    const ProfileDataFromFile* profile_data) {
   DCHECK(!state->code_generated_);
 
   RawMachineAssembler* rasm = state->raw_assembler_.get();
@@ -184,11 +185,12 @@ Handle<Code> CodeAssembler::GenerateCode(CodeAssemblerState* state,
   Handle<Code> code;
   Graph* graph = rasm->ExportForOptimization();
 
-  code = Pipeline::GenerateCodeForCodeStub(
-             rasm->isolate(), rasm->call_descriptor(), graph, state->jsgraph_,
-             rasm->source_positions(), state->kind_, state->name_,
-             state->builtin_index_, rasm->poisoning_level(), options)
-             .ToHandleChecked();
+  code =
+      Pipeline::GenerateCodeForCodeStub(
+          rasm->isolate(), rasm->call_descriptor(), graph, state->jsgraph_,
+          rasm->source_positions(), state->kind_, state->name_,
+          state->builtin_index_, rasm->poisoning_level(), options, profile_data)
+          .ToHandleChecked();
 
   state->code_generated_ = true;
   return code;

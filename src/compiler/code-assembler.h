@@ -68,6 +68,7 @@ class JSFinalizationRegistry;
 class JSWeakMap;
 class JSWeakRef;
 class JSWeakSet;
+class ProfileDataFromFile;
 class PromiseCapability;
 class PromiseFulfillReactionJobTask;
 class PromiseReaction;
@@ -375,7 +376,8 @@ class V8_EXPORT_PRIVATE CodeAssembler {
   ~CodeAssembler();
 
   static Handle<Code> GenerateCode(CodeAssemblerState* state,
-                                   const AssemblerOptions& options);
+                                   const AssemblerOptions& options,
+                                   const ProfileDataFromFile* profile_data);
 
   bool Is64() const;
   bool Is32() const;

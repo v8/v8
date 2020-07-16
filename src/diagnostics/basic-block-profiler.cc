@@ -18,7 +18,7 @@ namespace internal {
 DEFINE_LAZY_LEAKY_OBJECT_GETTER(BasicBlockProfiler, BasicBlockProfiler::Get)
 
 BasicBlockProfilerData::BasicBlockProfilerData(size_t n_blocks)
-    : block_rpo_numbers_(n_blocks), counts_(n_blocks, 0) {}
+    : block_ids_(n_blocks), counts_(n_blocks, 0) {}
 
 void BasicBlockProfilerData::SetCode(const std::ostringstream& os) {
   code_ = os.str();
@@ -32,11 +32,12 @@ void BasicBlockProfilerData::SetSchedule(const std::ostringstream& os) {
   schedule_ = os.str();
 }
 
-void BasicBlockProfilerData::SetBlockRpoNumber(size_t offset,
-                                               int32_t block_rpo) {
+void BasicBlockProfilerData::SetBlockId(size_t offset, int32_t id) {
   DCHECK(offset < n_blocks());
-  block_rpo_numbers_[offset] = block_rpo;
+  block_ids_[offset] = id;
 }
+
+void BasicBlockProfilerData::SetHash(int hash) { hash_ = hash; }
 
 void BasicBlockProfilerData::ResetCounts() {
   for (size_t i = 0; i < n_blocks(); ++i) {
@@ -58,7 +59,7 @@ Handle<String> CopyStringToJSHeap(const std::string& source, Isolate* isolate) {
                                                        AllocationType::kOld);
 }
 
-// Size of entries in both block_rpo_numbers and counts.
+// Size of entries in both block_ids and counts.
 constexpr int kBasicBlockSlotSize = kInt32Size;
 }  // namespace
 
@@ -71,11 +72,12 @@ BasicBlockProfilerData::BasicBlockProfilerData(
   for (int i = 0; i < counts->length() / kBasicBlockSlotSize; ++i) {
     counts_.push_back(counts->get_uint32(i));
   }
-  Handle<ByteArray> rpo_numbers(js_heap_data->block_rpo_numbers(), isolate);
-  for (int i = 0; i < rpo_numbers->length() / kBasicBlockSlotSize; ++i) {
-    block_rpo_numbers_.push_back(rpo_numbers->get_int(i));
+  Handle<ByteArray> block_ids(js_heap_data->block_ids(), isolate);
+  for (int i = 0; i < block_ids->length() / kBasicBlockSlotSize; ++i) {
+    block_ids_.push_back(block_ids->get_int(i));
   }
-  CHECK_EQ(block_rpo_numbers_.size(), counts_.size());
+  CHECK_EQ(block_ids_.size(), counts_.size());
+  hash_ = js_heap_data->hash();
 }
 
 BasicBlockProfilerData::BasicBlockProfilerData(
@@ -87,11 +89,11 @@ BasicBlockProfilerData::BasicBlockProfilerData(
   for (int i = 0; i < counts.length() / kBasicBlockSlotSize; ++i) {
     counts_.push_back(counts.get_uint32(i));
   }
-  ByteArray rpo_numbers(js_heap_data.block_rpo_numbers());
-  for (int i = 0; i < rpo_numbers.length() / kBasicBlockSlotSize; ++i) {
-    block_rpo_numbers_.push_back(rpo_numbers.get_int(i));
+  ByteArray block_ids(js_heap_data.block_ids());
+  for (int i = 0; i < block_ids.length() / kBasicBlockSlotSize; ++i) {
+    block_ids_.push_back(block_ids.get_int(i));
   }
-  CHECK_EQ(block_rpo_numbers_.size(), counts_.size());
+  CHECK_EQ(block_ids_.size(), counts_.size());
 }
 
 Handle<OnHeapBasicBlockProfilerData> BasicBlockProfilerData::CopyToJSHeap(
@@ -100,10 +102,10 @@ Handle<OnHeapBasicBlockProfilerData> BasicBlockProfilerData::CopyToJSHeap(
   CHECK(array_size_in_bytes >= 0 &&
         static_cast<size_t>(array_size_in_bytes) / kBasicBlockSlotSize ==
             n_blocks());  // Overflow
-  Handle<ByteArray> block_rpo_numbers = isolate->factory()->NewByteArray(
+  Handle<ByteArray> block_ids = isolate->factory()->NewByteArray(
       array_size_in_bytes, AllocationType::kOld);
   for (int i = 0; i < static_cast<int>(n_blocks()); ++i) {
-    block_rpo_numbers->set_int(i, block_rpo_numbers_[i]);
+    block_ids->set_int(i, block_ids_[i]);
   }
   Handle<ByteArray> counts = isolate->factory()->NewByteArray(
       array_size_in_bytes, AllocationType::kOld);
@@ -115,7 +117,7 @@ Handle<OnHeapBasicBlockProfilerData> BasicBlockProfilerData::CopyToJSHeap(
   Handle<String> code = CopyStringToJSHeap(code_, isolate);
 
   return isolate->factory()->NewOnHeapBasicBlockProfilerData(
-      block_rpo_numbers, counts, name, schedule, code, AllocationType::kOld);
+      block_ids, counts, name, schedule, code, hash_, AllocationType::kOld);
 }
 
 void BasicBlockProfiler::ResetCounts(Isolate* isolate) {
@@ -147,11 +149,18 @@ void BasicBlockProfiler::Print(std::ostream& os, Isolate* isolate) {
   HandleScope scope(isolate);
   Handle<ArrayList> list(isolate->heap()->basic_block_profiling_data(),
                          isolate);
+  std::unordered_set<std::string> builtin_names;
   for (int i = 0; i < list->Length(); ++i) {
     BasicBlockProfilerData data(
         handle(OnHeapBasicBlockProfilerData::cast(list->Get(i)), isolate),
         isolate);
+    // Print data for builtins to both stdout and the log file, if logging is
+    // enabled.
     os << data;
+    data.Log(isolate);
+    // Ensure that all builtin names are unique; otherwise profile-guided
+    // optimization might get confused.
+    CHECK(builtin_names.insert(data.function_name_).second);
   }
   os << "---- End Profiling Data ----" << std::endl;
 }
@@ -171,6 +180,20 @@ std::vector<bool> BasicBlockProfiler::GetCoverageBitmap(Isolate* isolate) {
   return out;
 }
 
+void BasicBlockProfilerData::Log(Isolate* isolate) {
+  bool any_nonzero_counter = false;
+  for (size_t i = 0; i < n_blocks(); ++i) {
+    if (counts_[i] > 0) {
+      any_nonzero_counter = true;
+      isolate->logger()->BasicBlockCounterEvent(function_name_.c_str(),
+                                                block_ids_[i], counts_[i]);
+    }
+  }
+  if (any_nonzero_counter) {
+    isolate->logger()->BuiltinHashEvent(function_name_.c_str(), hash_);
+  }
+}
+
 std::ostream& operator<<(std::ostream& os, const BasicBlockProfilerData& d) {
   int block_count_sum = std::accumulate(d.counts_.begin(), d.counts_.end(), 0);
   if (block_count_sum == 0) return os;
@@ -184,17 +207,17 @@ std::ostream& operator<<(std::ostream& os, const BasicBlockProfilerData& d) {
     os << d.schedule_.c_str() << std::endl;
   }
   os << "block counts for " << name << ":" << std::endl;
-  std::vector<std::pair<int32_t, uint32_t>> pairs;
+  std::vector<std::pair<size_t, uint32_t>> pairs;
   pairs.reserve(d.n_blocks());
   for (size_t i = 0; i < d.n_blocks(); ++i) {
-    pairs.push_back(std::make_pair(d.block_rpo_numbers_[i], d.counts_[i]));
+    pairs.push_back(std::make_pair(i, d.counts_[i]));
   }
-  std::sort(pairs.begin(), pairs.end(),
-            [=](std::pair<int32_t, uint32_t> left,
-                std::pair<int32_t, uint32_t> right) {
-              if (right.second == left.second) return left.first < right.first;
-              return right.second < left.second;
-            });
+  std::sort(
+      pairs.begin(), pairs.end(),
+      [=](std::pair<size_t, uint32_t> left, std::pair<size_t, uint32_t> right) {
+        if (right.second == left.second) return left.first < right.first;
+        return right.second < left.second;
+      });
   for (auto it : pairs) {
     if (it.second == 0) break;
     os << "block B" << it.first << " : " << it.second << std::endl;

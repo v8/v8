@@ -98,7 +98,9 @@ BasicBlockProfilerData* BasicBlockInstrumentor::Instrument(
   for (BasicBlockVector::iterator it = blocks->begin(); block_number < n_blocks;
        ++it, ++block_number) {
     BasicBlock* block = (*it);
-    data->SetBlockRpoNumber(block_number, block->rpo_number());
+    // Iteration is already in reverse post-order.
+    DCHECK_EQ(block->rpo_number(), block_number);
+    data->SetBlockId(block_number, block->id().ToInt());
     // It is unnecessary to wire effect and control deps for load and store
     // since this happens after scheduling.
     // Construct increment operation.

@@ -3,6 +3,7 @@
 // found in the LICENSE file.
 
 #include "src/builtins/builtins.h"
+#include "src/builtins/profile-data-reader.h"
 #include "src/codegen/assembler-inl.h"
 #include "src/codegen/interface-descriptors.h"
 #include "src/codegen/macro-assembler-inl.h"
@@ -165,7 +166,8 @@ Code BuildWithCodeStubAssemblerJS(Isolate* isolate, int32_t builtin_index,
       PoisoningMitigationLevel::kDontPoison, builtin_index);
   generator(&state);
   Handle<Code> code = compiler::CodeAssembler::GenerateCode(
-      &state, BuiltinAssemblerOptions(isolate, builtin_index));
+      &state, BuiltinAssemblerOptions(isolate, builtin_index),
+      ProfileDataFromFile::TryRead(name));
   return *code;
 }
 
@@ -189,7 +191,8 @@ Code BuildWithCodeStubAssemblerCS(Isolate* isolate, int32_t builtin_index,
       PoisoningMitigationLevel::kDontPoison, builtin_index);
   generator(&state);
   Handle<Code> code = compiler::CodeAssembler::GenerateCode(
-      &state, BuiltinAssemblerOptions(isolate, builtin_index));
+      &state, BuiltinAssemblerOptions(isolate, builtin_index),
+      ProfileDataFromFile::TryRead(name));
   return *code;
 }
 

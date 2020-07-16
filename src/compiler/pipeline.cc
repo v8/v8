@@ -11,6 +11,7 @@
 
 #include "src/base/optional.h"
 #include "src/base/platform/elapsed-timer.h"
+#include "src/builtins/profile-data-reader.h"
 #include "src/codegen/assembler-inl.h"
 #include "src/codegen/compiler.h"
 #include "src/codegen/optimized-compilation-info.h"
@@ -215,7 +216,8 @@ class PipelineData {
                JSGraph* jsgraph, Schedule* schedule,
                SourcePositionTable* source_positions,
                NodeOriginTable* node_origins, JumpOptimizationInfo* jump_opt,
-               const AssemblerOptions& assembler_options)
+               const AssemblerOptions& assembler_options,
+               const ProfileDataFromFile* profile_data)
       : isolate_(isolate),
         wasm_engine_(isolate_->wasm_engine()),
         allocator_(allocator),
@@ -236,7 +238,8 @@ class PipelineData {
                                         kRegisterAllocationZoneName),
         register_allocation_zone_(register_allocation_zone_scope_.zone()),
         jump_optimization_info_(jump_opt),
-        assembler_options_(assembler_options) {
+        assembler_options_(assembler_options),
+        profile_data_(profile_data) {
     if (jsgraph) {
       jsgraph_ = jsgraph;
       simplified_ = jsgraph->simplified();
@@ -533,6 +536,11 @@ class PipelineData {
     return roots_relative_addressing_enabled_;
   }
 
+  const ProfileDataFromFile* profile_data() const { return profile_data_; }
+  void set_profile_data(const ProfileDataFromFile* profile_data) {
+    profile_data_ = profile_data;
+  }
+
   // RuntimeCallStats that is only available during job execution but not
   // finalization.
   // TODO(delphick): Currently even during execution this can be nullptr, due to
@@ -614,6 +622,7 @@ class PipelineData {
   size_t max_pushed_argument_count_ = 0;
 
   RuntimeCallStats* runtime_call_stats_ = nullptr;
+  const ProfileDataFromFile* profile_data_ = nullptr;
 
   DISALLOW_COPY_AND_ASSIGN(PipelineData);
 };
@@ -1243,7 +1252,7 @@ class WasmHeapStubCompilationJob final : public OptimizedCompilationJob {
         graph_(graph),
         data_(&zone_stats_, &info_, isolate, wasm_engine->allocator(), graph_,
               nullptr, nullptr, source_positions,
-              zone_->New<NodeOriginTable>(graph_), nullptr, options),
+              zone_->New<NodeOriginTable>(graph_), nullptr, options, nullptr),
         pipeline_(&data_),
         wasm_engine_(wasm_engine) {}
 
@@ -1728,7 +1737,7 @@ struct EffectControlLinearizationPhase {
       // 'floating' allocation regions.)
       Schedule* schedule = Scheduler::ComputeSchedule(
           temp_zone, data->graph(), Scheduler::kTempSchedule,
-          &data->info()->tick_counter());
+          &data->info()->tick_counter(), data->profile_data());
       TraceScheduleAndVerify(data->info(), data, schedule,
                              "effect linearization schedule");
 
@@ -2028,7 +2037,7 @@ struct ComputeSchedulePhase {
         temp_zone, data->graph(),
         data->info()->splitting() ? Scheduler::kSplitNodes
                                   : Scheduler::kNoFlags,
-        &data->info()->tick_counter());
+        &data->info()->tick_counter(), data->profile_data());
     data->set_schedule(schedule);
   }
 };
@@ -2326,9 +2335,9 @@ struct PrintGraphPhase {
       AccountingAllocator allocator;
       Schedule* schedule = data->schedule();
       if (schedule == nullptr) {
-        schedule = Scheduler::ComputeSchedule(temp_zone, data->graph(),
-                                              Scheduler::kNoFlags,
-                                              &info->tick_counter());
+        schedule = Scheduler::ComputeSchedule(
+            temp_zone, data->graph(), Scheduler::kNoFlags,
+            &info->tick_counter(), data->profile_data());
       }
 
       AllowHandleDereference allow_deref;
@@ -2633,11 +2642,80 @@ bool PipelineImpl::OptimizeGraphForMidTier(Linkage* linkage) {
   return SelectInstructions(linkage);
 }
 
+namespace {
+
+// Compute a hash of the given graph, in a way that should provide the same
+// result in multiple runs of mksnapshot, meaning the hash cannot depend on any
+// external pointer values or uncompressed heap constants. This hash can be used
+// to reject profiling data if the builtin's current code doesn't match the
+// version that was profiled. Hash collisions are not catastrophic; in the worst
+// case, we just defer some blocks that ideally shouldn't be deferred. The
+// result value is in the valid Smi range.
+int HashGraphForPGO(Graph* graph) {
+  AccountingAllocator allocator;
+  Zone local_zone(&allocator, ZONE_NAME);
+
+  constexpr NodeId kUnassigned = static_cast<NodeId>(-1);
+
+  constexpr byte kUnvisited = 0;
+  constexpr byte kOnStack = 1;
+  constexpr byte kVisited = 2;
+
+  // Do a depth-first post-order traversal of the graph. For every node, hash:
+  //
+  //   - the node's traversal number
+  //   - the opcode
+  //   - the number of inputs
+  //   - each input node's traversal number
+  //
+  // What's a traversal number? We can't use node IDs because they're not stable
+  // build-to-build, so we assign a new number for each node as it is visited.
+
+  ZoneVector<byte> state(graph->NodeCount(), kUnvisited, &local_zone);
+  ZoneVector<NodeId> traversal_numbers(graph->NodeCount(), kUnassigned,
+                                       &local_zone);
+  ZoneStack<Node*> stack(&local_zone);
+
+  NodeId visited_count = 0;
+  size_t hash = 0;
+
+  stack.push(graph->end());
+  state[graph->end()->id()] = kOnStack;
+  traversal_numbers[graph->end()->id()] = visited_count++;
+  while (!stack.empty()) {
+    Node* n = stack.top();
+    bool pop = true;
+    for (Node* const i : n->inputs()) {
+      if (state[i->id()] == kUnvisited) {
+        state[i->id()] = kOnStack;
+        traversal_numbers[i->id()] = visited_count++;
+        stack.push(i);
+        pop = false;
+        break;
+      }
+    }
+    if (pop) {
+      state[n->id()] = kVisited;
+      stack.pop();
+      hash = base::hash_combine(hash, traversal_numbers[n->id()], n->opcode(),
+                                n->InputCount());
+      for (Node* const i : n->inputs()) {
+        DCHECK(traversal_numbers[i->id()] != kUnassigned);
+        hash = base::hash_combine(hash, traversal_numbers[i->id()]);
+      }
+    }
+  }
+  return Smi(IntToSmi(static_cast<int>(hash))).value();
+}
+
+}  // namespace
+
 MaybeHandle<Code> Pipeline::GenerateCodeForCodeStub(
     Isolate* isolate, CallDescriptor* call_descriptor, Graph* graph,
     JSGraph* jsgraph, SourcePositionTable* source_positions, Code::Kind kind,
     const char* debug_name, int32_t builtin_index,
-    PoisoningMitigationLevel poisoning_level, const AssemblerOptions& options) {
+    PoisoningMitigationLevel poisoning_level, const AssemblerOptions& options,
+    const ProfileDataFromFile* profile_data) {
   OptimizedCompilationInfo info(CStrVector(debug_name), graph->zone(), kind);
   info.set_builtin_index(builtin_index);
 
@@ -2654,7 +2732,8 @@ MaybeHandle<Code> Pipeline::GenerateCodeForCodeStub(
                                !FLAG_turbo_profiling;
   PipelineData data(&zone_stats, &info, isolate, isolate->allocator(), graph,
                     jsgraph, nullptr, source_positions, &node_origins,
-                    should_optimize_jumps ? &jump_opt : nullptr, options);
+                    should_optimize_jumps ? &jump_opt : nullptr, options,
+                    profile_data);
   PipelineJobScope scope(&data, isolate->counters()->runtime_call_stats());
   RuntimeCallTimerScope timer_scope(isolate,
                                     RuntimeCallCounterId::kOptimizeCode);
@@ -2699,6 +2778,19 @@ MaybeHandle<Code> Pipeline::GenerateCodeForCodeStub(
                              true);
 
   pipeline.Run<VerifyGraphPhase>(true);
+
+  int graph_hash_before_scheduling = 0;
+  if (FLAG_turbo_profiling || profile_data != nullptr) {
+    graph_hash_before_scheduling = HashGraphForPGO(data.graph());
+  }
+
+  if (profile_data != nullptr &&
+      profile_data->hash() != graph_hash_before_scheduling) {
+    PrintF("Rejected profile data for %s due to function change\n", debug_name);
+    profile_data = nullptr;
+    data.set_profile_data(profile_data);
+  }
+
   pipeline.ComputeScheduledGraph();
   DCHECK_NOT_NULL(data.schedule());
 
@@ -2708,12 +2800,17 @@ MaybeHandle<Code> Pipeline::GenerateCodeForCodeStub(
   PipelineData second_data(&zone_stats, &info, isolate, isolate->allocator(),
                            data.graph(), data.jsgraph(), data.schedule(),
                            data.source_positions(), data.node_origins(),
-                           data.jump_optimization_info(), options);
+                           data.jump_optimization_info(), options,
+                           profile_data);
   PipelineJobScope second_scope(&second_data,
                                 isolate->counters()->runtime_call_stats());
   second_data.set_verify_graph(FLAG_verify_csa);
   PipelineImpl second_pipeline(&second_data);
   second_pipeline.SelectInstructionsAndAssemble(call_descriptor);
+
+  if (FLAG_turbo_profiling) {
+    info.profiler_data()->SetHash(graph_hash_before_scheduling);
+  }
 
   Handle<Code> code;
   if (jump_opt.is_optimizable()) {
@@ -2882,7 +2979,7 @@ MaybeHandle<Code> Pipeline::GenerateCodeForTesting(
   NodeOriginTable* node_positions = info->zone()->New<NodeOriginTable>(graph);
   PipelineData data(&zone_stats, info, isolate, isolate->allocator(), graph,
                     nullptr, schedule, nullptr, node_positions, nullptr,
-                    options);
+                    options, nullptr);
   std::unique_ptr<PipelineStatistics> pipeline_statistics;
   if (FLAG_turbo_stats || FLAG_turbo_stats_nvp) {
     pipeline_statistics.reset(new PipelineStatistics(
