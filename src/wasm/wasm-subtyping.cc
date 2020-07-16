@@ -151,9 +151,9 @@ V8_NOINLINE V8_EXPORT_PRIVATE bool IsSubtypeOfImpl(ValueType subtype,
   if (sub_heap == super_heap) {
     return true;
   }
-  // eqref is a supertype of all reference types except funcref.
+  // eqref is a supertype of i31ref and all custom types.
   if (super_heap.representation() == HeapType::kEq) {
-    return sub_heap.representation() != HeapType::kFunc;
+    return (sub_heap.is_index() || sub_heap.representation() == HeapType::kI31);
   }
   // At the moment, generic heap types are not subtyping-related otherwise.
   if (sub_heap.is_generic() || super_heap.is_generic()) {

@@ -3417,12 +3417,8 @@ TEST_F(FunctionBodyDecoderTest, RefEq) {
   TestModuleBuilder builder;
   module = builder.module();
   byte struct_type_index = builder.AddStruct({F(kWasmI32, true)});
-  ValueType eqref_subtypes[] = {kWasmExnRef,
-                                kWasmExternRef,
-                                kWasmEqRef,
+  ValueType eqref_subtypes[] = {kWasmEqRef,
                                 kWasmI31Ref,
-                                ValueType::Ref(HeapType::kExn, kNonNullable),
-                                ValueType::Ref(HeapType::kExtern, kNonNullable),
                                 ValueType::Ref(HeapType::kEq, kNonNullable),
                                 ValueType::Ref(HeapType::kI31, kNullable),
                                 ref(struct_type_index),
@@ -3433,7 +3429,11 @@ TEST_F(FunctionBodyDecoderTest, RefEq) {
       kWasmF32,
       kWasmF64,
       kWasmS128,
+      kWasmExnRef,
+      kWasmExternRef,
       kWasmFuncRef,
+      ValueType::Ref(HeapType::kExn, kNonNullable),
+      ValueType::Ref(HeapType::kExtern, kNonNullable),
       ValueType::Ref(HeapType::kFunc, kNonNullable)};
 
   for (ValueType type1 : eqref_subtypes) {

@@ -100,7 +100,7 @@ class HeapType {
     return !is_bottom() && representation_ >= kFirstSentinel;
   }
 
-  constexpr bool is_index() const { return !is_bottom() && !is_generic(); }
+  constexpr bool is_index() const { return representation_ < kFirstSentinel; }
 
   constexpr bool is_bottom() const { return representation_ == kBottom; }
 

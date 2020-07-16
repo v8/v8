@@ -72,9 +72,11 @@ TEST_F(WasmSubtypingTest, Subtyping) {
   }
 
   for (ValueType ref_type : ref_types) {
-    // Reference types are a subtype of eqref, except funcref.
+    // Concrete reference types and i31ref are subtypes of eqref,
+    // exnref/externref/funcref are not.
     CHECK_EQ(IsSubtypeOf(ref_type, kWasmEqRef, module),
-             ref_type != kWasmFuncRef);
+             ref_type != kWasmFuncRef && ref_type != kWasmExternRef &&
+                 ref_type != kWasmExnRef);
     // Each reference type is a subtype of itself.
     CHECK(IsSubtypeOf(ref_type, ref_type, module));
   }
