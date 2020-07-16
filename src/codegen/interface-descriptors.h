@@ -79,7 +79,6 @@ namespace internal {
   V(LoadGlobalWithVector)                \
   V(LoadNoFeedback)                      \
   V(LoadWithVector)                      \
-  V(NewArgumentsElements)                \
   V(NoContext)                           \
   V(RecordWrite)                         \
   V(ResumeGenerator)                     \
@@ -1280,15 +1279,6 @@ class GrowArrayElementsDescriptor : public CallInterfaceDescriptor {
 
   static const Register ObjectRegister();
   static const Register KeyRegister();
-};
-
-class NewArgumentsElementsDescriptor final : public CallInterfaceDescriptor {
- public:
-  DEFINE_PARAMETERS(kFrame, kLength, kMappedCount)
-  DEFINE_PARAMETER_TYPES(MachineType::Pointer(),       // kFrame
-                         MachineType::TaggedSigned(),  // kLength
-                         MachineType::TaggedSigned())  // kMappedCount
-  DECLARE_DESCRIPTOR(NewArgumentsElementsDescriptor, CallInterfaceDescriptor)
 };
 
 class V8_EXPORT_PRIVATE InterpreterDispatchDescriptor

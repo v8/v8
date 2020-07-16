@@ -595,7 +595,29 @@ AbortReason AbortReasonOf(const Operator* op) V8_WARN_UNUSED_RESULT;
 
 DeoptimizeReason DeoptimizeReasonOf(const Operator* op) V8_WARN_UNUSED_RESULT;
 
-int NewArgumentsElementsMappedCountOf(const Operator* op) V8_WARN_UNUSED_RESULT;
+class NewArgumentsElementsParameters {
+ public:
+  NewArgumentsElementsParameters(CreateArgumentsType type,
+                                 int formal_parameter_count)
+      : type_(type), formal_parameter_count_(formal_parameter_count) {}
+
+  CreateArgumentsType arguments_type() const { return type_; }
+  int formal_parameter_count() const { return formal_parameter_count_; }
+
+ private:
+  CreateArgumentsType type_;
+  int formal_parameter_count_;
+};
+
+bool operator==(const NewArgumentsElementsParameters&,
+                const NewArgumentsElementsParameters&);
+
+inline size_t hash_value(const NewArgumentsElementsParameters&);
+
+std::ostream& operator<<(std::ostream&, const NewArgumentsElementsParameters&);
+
+const NewArgumentsElementsParameters& NewArgumentsElementsParametersOf(
+    const Operator*) V8_WARN_UNUSED_RESULT;
 
 class FastApiCallParameters {
  public:
@@ -891,8 +913,9 @@ class V8_EXPORT_PRIVATE SimplifiedOperatorBuilder final
   const Operator* NewDoubleElements(AllocationType);
   const Operator* NewSmiOrObjectElements(AllocationType);
 
-  // new-arguments-elements arguments-frame, arguments-length
-  const Operator* NewArgumentsElements(int mapped_count);
+  // new-arguments-elements frame, arguments count
+  const Operator* NewArgumentsElements(CreateArgumentsType type,
+                                       int formal_parameter_count);
 
   // new-cons-string length, first, second
   const Operator* NewConsString();

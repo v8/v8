@@ -1742,18 +1742,37 @@ const Operator* SimplifiedOperatorBuilder::NewSmiOrObjectElements(
 }
 
 const Operator* SimplifiedOperatorBuilder::NewArgumentsElements(
-    int mapped_count) {
-  return zone()->New<Operator1<int>>(   // --
-      IrOpcode::kNewArgumentsElements,  // opcode
-      Operator::kEliminatable,          // flags
-      "NewArgumentsElements",           // name
-      2, 1, 0, 1, 1, 0,                 // counts
-      mapped_count);                    // parameter
+    CreateArgumentsType type, int formal_parameter_count) {
+  return new (zone()) Operator1<NewArgumentsElementsParameters>(  // --
+      IrOpcode::kNewArgumentsElements,                            // opcode
+      Operator::kEliminatable,                                    // flags
+      "NewArgumentsElements",                                     // name
+      2, 1, 0, 1, 1, 0,                                           // counts
+      NewArgumentsElementsParameters(type,
+                                     formal_parameter_count));  // parameter
 }
 
-int NewArgumentsElementsMappedCountOf(const Operator* op) {
+bool operator==(const NewArgumentsElementsParameters& lhs,
+                const NewArgumentsElementsParameters& rhs) {
+  return lhs.arguments_type() == rhs.arguments_type() &&
+         lhs.formal_parameter_count() == rhs.formal_parameter_count();
+}
+
+inline size_t hash_value(const NewArgumentsElementsParameters& params) {
+  return base::hash_combine(params.arguments_type(),
+                            params.formal_parameter_count());
+}
+
+std::ostream& operator<<(std::ostream& os,
+                         const NewArgumentsElementsParameters& params) {
+  return os << params.arguments_type()
+            << ", parameter_count = " << params.formal_parameter_count();
+}
+
+const NewArgumentsElementsParameters& NewArgumentsElementsParametersOf(
+    const Operator* op) {
   DCHECK_EQ(IrOpcode::kNewArgumentsElements, op->opcode());
-  return OpParameter<int>(op);
+  return OpParameter<NewArgumentsElementsParameters>(op);
 }
 
 const Operator* SimplifiedOperatorBuilder::Allocate(Type type,

@@ -552,30 +552,6 @@ RUNTIME_FUNCTION(Runtime_NewRestParameter) {
   return *result;
 }
 
-RUNTIME_FUNCTION(Runtime_NewArgumentsElements) {
-  HandleScope scope(isolate);
-  DCHECK_EQ(3, args.length());
-  // Note that args[0] is the address of an array of full object pointers
-  // (a.k.a. FullObjectSlot), which looks like a Smi because it's aligned.
-  DCHECK(args[0].IsSmi());
-  FullObjectSlot frame(args[0].ptr());
-  CONVERT_SMI_ARG_CHECKED(length, 1);
-  CONVERT_SMI_ARG_CHECKED(mapped_count, 2);
-  Handle<FixedArray> result =
-      isolate->factory()->NewUninitializedFixedArray(length);
-  int const offset = length + 1;
-  DisallowHeapAllocation no_gc;
-  WriteBarrierMode mode = result->GetWriteBarrierMode(no_gc);
-  int number_of_holes = Min(mapped_count, length);
-  for (int index = 0; index < number_of_holes; ++index) {
-    result->set_the_hole(isolate, index);
-  }
-  for (int index = number_of_holes; index < length; ++index) {
-    result->set(index, *(frame + (offset - index)), mode);
-  }
-  return *result;
-}
-
 RUNTIME_FUNCTION(Runtime_NewClosure) {
   HandleScope scope(isolate);
   DCHECK_EQ(2, args.length());

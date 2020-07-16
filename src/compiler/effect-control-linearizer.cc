@@ -3653,19 +3653,32 @@ Node* EffectControlLinearizer::LowerNewSmiOrObjectElements(Node* node) {
 }
 
 Node* EffectControlLinearizer::LowerNewArgumentsElements(Node* node) {
-  Node* frame = NodeProperties::GetValueInput(node, 0);
-  Node* length = NodeProperties::GetValueInput(node, 1);
-  int mapped_count = NewArgumentsElementsMappedCountOf(node->op());
-
-  Callable const callable =
-      Builtins::CallableFor(isolate(), Builtins::kNewArgumentsElements);
+  const NewArgumentsElementsParameters& parameters =
+      NewArgumentsElementsParametersOf(node->op());
+  CreateArgumentsType type = parameters.arguments_type();
   Operator::Properties const properties = node->op()->properties();
   CallDescriptor::Flags const flags = CallDescriptor::kNoFlags;
+  Node* frame = NodeProperties::GetValueInput(node, 0);
+  Node* arguments_count = NodeProperties::GetValueInput(node, 1);
+  Builtins::Name builtin_name;
+  switch (type) {
+    case CreateArgumentsType::kMappedArguments:
+      builtin_name = Builtins::kNewSloppyArgumentsElements;
+      break;
+    case CreateArgumentsType::kUnmappedArguments:
+      builtin_name = Builtins::kNewStrictArgumentsElements;
+      break;
+    case CreateArgumentsType::kRestParameter:
+      builtin_name = Builtins::kNewRestArgumentsElements;
+      break;
+  }
+  Callable const callable = Builtins::CallableFor(isolate(), builtin_name);
   auto call_descriptor = Linkage::GetStubCallDescriptor(
       graph()->zone(), callable.descriptor(),
       callable.descriptor().GetStackParameterCount(), flags, properties);
   return __ Call(call_descriptor, __ HeapConstant(callable.code()), frame,
-                 length, __ SmiConstant(mapped_count), __ NoContextConstant());
+                 __ IntPtrConstant(parameters.formal_parameter_count()),
+                 arguments_count);
 }
 
 Node* EffectControlLinearizer::LowerNewConsString(Node* node) {

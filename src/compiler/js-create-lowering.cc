@@ -207,7 +207,9 @@ Reduction JSCreateLowering::ReduceJSCreateArguments(Node* node) {
             arguments_frame);
         // Allocate the elements backing store.
         Node* const elements = effect =
-            graph()->NewNode(simplified()->NewArgumentsElements(0),
+            graph()->NewNode(simplified()->NewArgumentsElements(
+                                 CreateArgumentsType::kUnmappedArguments,
+                                 shared.internal_formal_parameter_count()),
                              arguments_frame, arguments_length, effect);
         // Load the arguments object map.
         Node* const arguments_map =
@@ -229,16 +231,20 @@ Reduction JSCreateLowering::ReduceJSCreateArguments(Node* node) {
         Node* effect = NodeProperties::GetEffectInput(node);
         Node* const arguments_frame =
             graph()->NewNode(simplified()->ArgumentsFrame());
+        Node* const length = graph()->NewNode(
+            simplified()->ArgumentsLength(
+                shared.internal_formal_parameter_count(), false),
+            arguments_frame);
         Node* const rest_length = graph()->NewNode(
             simplified()->ArgumentsLength(
                 shared.internal_formal_parameter_count(), true),
             arguments_frame);
-        // Allocate the elements backing store. Since NewArgumentsElements
-        // copies from the end of the arguments adapter frame, this is a suffix
-        // of the actual arguments.
+        // Allocate the elements backing store.
         Node* const elements = effect =
-            graph()->NewNode(simplified()->NewArgumentsElements(0),
-                             arguments_frame, rest_length, effect);
+            graph()->NewNode(simplified()->NewArgumentsElements(
+                                 CreateArgumentsType::kRestParameter,
+                                 shared.internal_formal_parameter_count()),
+                             arguments_frame, length, effect);
         // Load the JSArray object map.
         Node* const jsarray_map = jsgraph()->Constant(
             native_context().js_array_packed_elements_map());
@@ -1538,8 +1544,10 @@ Node* JSCreateLowering::AllocateAliasedArguments(
   // special in any way, we can just return an unmapped backing store.
   int parameter_count = shared.internal_formal_parameter_count();
   if (parameter_count == 0) {
-    return graph()->NewNode(simplified()->NewArgumentsElements(0),
-                            arguments_frame, arguments_length, effect);
+    return graph()->NewNode(
+        simplified()->NewArgumentsElements(
+            CreateArgumentsType::kUnmappedArguments, parameter_count),
+        arguments_frame, arguments_length, effect);
   }
 
   // From here on we are going to allocate a mapped (aka. aliased) elements
@@ -1553,7 +1561,8 @@ Node* JSCreateLowering::AllocateAliasedArguments(
   // then linked into the parameter map below, whereas mapped argument values
   // (i.e. the first {mapped_count} elements) are replaced with a hole instead.
   Node* arguments = effect =
-      graph()->NewNode(simplified()->NewArgumentsElements(mapped_count),
+      graph()->NewNode(simplified()->NewArgumentsElements(
+                           CreateArgumentsType::kMappedArguments, mapped_count),
                        arguments_frame, arguments_length, effect);
 
   // Actually allocate the backing store.

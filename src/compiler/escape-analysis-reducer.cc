@@ -229,7 +229,10 @@ void EscapeAnalysisReducer::VerifyReplacement() const {
 
 void EscapeAnalysisReducer::Finalize() {
   for (Node* node : arguments_elements_) {
-    int mapped_count = NewArgumentsElementsMappedCountOf(node->op());
+    const NewArgumentsElementsParameters& params =
+        NewArgumentsElementsParametersOf(node->op());
+    ArgumentsStateType type = params.arguments_type();
+    int mapped_count = params.formal_parameter_count();
 
     Node* arguments_frame = NodeProperties::GetValueInput(node, 0);
     if (arguments_frame->opcode() != IrOpcode::kArgumentsFrame) continue;
@@ -243,11 +246,6 @@ void EscapeAnalysisReducer::Finalize() {
     DCHECK_IMPLIES(
         mapped_count != 0,
         mapped_count == FormalParameterCountOf(arguments_length->op()));
-    ArgumentsStateType type = IsRestLengthOf(arguments_length->op())
-                                  ? ArgumentsStateType::kRestParameter
-                                  : (mapped_count == 0)
-                                        ? ArgumentsStateType::kUnmappedArguments
-                                        : ArgumentsStateType::kMappedArguments;
 
     Node* arguments_length_state = nullptr;
     for (Edge edge : arguments_length->use_edges()) {
@@ -317,11 +315,21 @@ void EscapeAnalysisReducer::Finalize() {
         switch (load->opcode()) {
           case IrOpcode::kLoadElement: {
             Node* index = NodeProperties::GetValueInput(load, 1);
+#ifdef V8_REVERSE_JSARGS
+            Node* offset_to_first_elem = jsgraph()->Constant(
+                CommonFrameConstants::kFixedSlotCountAboveFp);
+            NodeProperties::SetType(offset_to_first_elem,
+                                    TypeCache::Get()->kArgumentsLengthType);
+            Node* offset = jsgraph()->graph()->NewNode(
+                jsgraph()->simplified()->NumberAdd(), index,
+                offset_to_first_elem);
+#else
             // {offset} is a reverted index starting from 1. The base address is
             // adapted to allow offsets starting from 1.
             Node* offset = jsgraph()->graph()->NewNode(
                 jsgraph()->simplified()->NumberSubtract(), arguments_length,
                 index);
+#endif
             NodeProperties::SetType(offset,
                                     TypeCache::Get()->kArgumentsLengthType);
             NodeProperties::ReplaceValueInput(load, arguments_frame, 0);

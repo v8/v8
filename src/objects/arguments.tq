@@ -200,42 +200,64 @@ macro NewAllArguments(implicit context: Context)(
   return NewJSArray(map, elements);
 }
 
+macro NewRestArgumentsElements(
+    frame: FrameWithArguments, formalParameterCount: intptr,
+    argumentCount: intptr): FixedArray {
+  const length = (formalParameterCount >= argumentCount) ?
+      0 :
+      argumentCount - formalParameterCount;
+  const arguments = GetFrameArguments(frame, argumentCount);
+  const it = ArgumentsIterator{arguments, current: formalParameterCount};
+  return NewFixedArray(length, it);
+}
+
 macro NewRestArguments(implicit context: Context)(info: FrameWithArgumentsInfo):
     JSArray {
   const argumentCount = Convert<intptr>(info.argument_count);
   const formalParameterCount = Convert<intptr>(info.formal_parameter_count);
   const map = GetFastPackedElementsJSArrayMap();
-  const length = (formalParameterCount >= argumentCount) ?
-      0 :
-      argumentCount - formalParameterCount;
-  const arguments = GetFrameArguments(info.frame, argumentCount);
-  const it = ArgumentsIterator{arguments, current: formalParameterCount};
-  const elements = NewFixedArray(length, it);
+  const elements =
+      NewRestArgumentsElements(info.frame, formalParameterCount, argumentCount);
   return NewJSArray(map, elements);
+}
+
+macro NewStrictArgumentsElements(
+    frame: FrameWithArguments, argumentCount: intptr): FixedArray {
+  const arguments = GetFrameArguments(frame, argumentCount);
+  const it = ArgumentsIterator{arguments, current: 0};
+  return NewFixedArray(argumentCount, it);
 }
 
 macro NewStrictArguments(implicit context: Context)(
     info: FrameWithArgumentsInfo): JSStrictArgumentsObject {
   const argumentCount = Convert<intptr>(info.argument_count);
-  const arguments = GetFrameArguments(info.frame, argumentCount);
-  const it = ArgumentsIterator{arguments, current: 0};
-  const elements = NewFixedArray(argumentCount, it);
+  const elements = NewStrictArgumentsElements(info.frame, argumentCount);
   return NewJSStrictArgumentsObject(elements);
+}
+
+macro NewSloppyArgumentsElements(
+    frame: FrameWithArguments, formalParameterCount: intptr,
+    argumentCount: intptr): FixedArray {
+  const arguments = GetFrameArguments(frame, argumentCount);
+  if (formalParameterCount == 0) {
+    const it = ArgumentsIterator{arguments, current: 0};
+    return NewFixedArray(argumentCount, it);
+  }
+  const mappedCount = IntPtrMin(formalParameterCount, argumentCount);
+  const it = NewParameterValueIterator(mappedCount, arguments);
+  return NewFixedArray(argumentCount, it);
 }
 
 macro NewSloppyArguments(implicit context: Context)(
     info: FrameWithArgumentsInfo, callee: JSFunction): JSSloppyArgumentsObject {
   const argumentCount = Convert<intptr>(info.argument_count);
-  const arguments = GetFrameArguments(info.frame, argumentCount);
   const formalParameterCount = Convert<intptr>(info.formal_parameter_count);
+  const parameterValues = arguments::NewSloppyArgumentsElements(
+      info.frame, formalParameterCount, argumentCount);
   if (formalParameterCount == 0) {
-    const it = ArgumentsIterator{arguments, current: 0};
-    const elements = NewFixedArray(argumentCount, it);
-    return NewJSSloppyArgumentsObject(elements, callee);
+    return NewJSSloppyArgumentsObject(parameterValues, callee);
   }
   const mappedCount = IntPtrMin(formalParameterCount, argumentCount);
-  const it = NewParameterValueIterator(mappedCount, arguments);
-  const parameterValues = NewFixedArray(argumentCount, it);
   let paramIter =
       NewParameterMapIterator(context, formalParameterCount, mappedCount);
   const elementsLength = Convert<Smi>(mappedCount);
@@ -272,4 +294,25 @@ macro EmitFastNewSloppyArguments(implicit context: Context)(f: JSFunction):
     JSSloppyArgumentsObject {
   const info = GetFrameWithArgumentsInfo();
   return arguments::NewSloppyArguments(info, f);
+}
+
+builtin NewSloppyArgumentsElements(
+    frame: FrameWithArguments, formalParameterCount: intptr,
+    argumentCount: Smi): FixedArray {
+  return arguments::NewSloppyArgumentsElements(
+      frame, formalParameterCount, Convert<intptr>(argumentCount));
+}
+
+builtin NewStrictArgumentsElements(
+    frame: FrameWithArguments, _formalParameterCount: intptr,
+    argumentCount: Smi): FixedArray {
+  return arguments::NewStrictArgumentsElements(
+      frame, Convert<intptr>(argumentCount));
+}
+
+builtin NewRestArgumentsElements(
+    frame: FrameWithArguments, formalParameterCount: intptr,
+    argumentCount: Smi): FixedArray {
+  return arguments::NewRestArgumentsElements(
+      frame, formalParameterCount, Convert<intptr>(argumentCount));
 }

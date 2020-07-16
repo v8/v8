@@ -189,7 +189,6 @@ namespace internal {
   TFS(CopyFastSmiOrObjectElements, kObject)                                    \
   TFC(GrowFastDoubleElements, GrowArrayElements)                               \
   TFC(GrowFastSmiOrObjectElements, GrowArrayElements)                          \
-  TFC(NewArgumentsElements, NewArgumentsElements)                              \
                                                                                \
   /* Debugger */                                                               \
   TFJ(DebugBreakTrampoline, kDontAdaptArgumentsSentinel)                       \
