@@ -148,10 +148,10 @@ TEST(TestFunctionPointers) {
 TEST(TestTernaryOperator) {
   Isolate* isolate(CcTest::InitIsolateOnce());
   const int kNumParams = 1;
-  CodeAssemblerTester asm_tester(isolate, kNumParams);
+  CodeAssemblerTester asm_tester(isolate, kNumParams + 1);  // Include receiver.
   TestTorqueAssembler m(asm_tester.state());
   {
-    TNode<Smi> arg = m.UncheckedCast<Smi>(m.Parameter(0));
+    TNode<Smi> arg = m.UncheckedCast<Smi>(m.Parameter(1));
     m.Return(m.TestTernaryOperator(arg));
   }
   FunctionTester ft(asm_tester.GenerateCode(), kNumParams);
@@ -633,20 +633,20 @@ TEST(TestBitFieldLoad) {
   Isolate* isolate(CcTest::i_isolate());
   i::HandleScope scope(isolate);
   const int kNumParams = 5;
-  CodeAssemblerTester asm_tester(isolate, kNumParams);
+  CodeAssemblerTester asm_tester(isolate, kNumParams + 1);  // Include receiver.
   TestTorqueAssembler m(asm_tester.state());
   {
     // Untag all of the parameters to get plain integer values.
     TNode<Uint8T> val =
-        m.UncheckedCast<Uint8T>(m.Unsigned(m.SmiToInt32(m.Parameter(0))));
+        m.UncheckedCast<Uint8T>(m.Unsigned(m.SmiToInt32(m.Parameter(1))));
     TNode<BoolT> expected_a =
-        m.UncheckedCast<BoolT>(m.Unsigned(m.SmiToInt32(m.Parameter(1))));
+        m.UncheckedCast<BoolT>(m.Unsigned(m.SmiToInt32(m.Parameter(2))));
     TNode<Uint16T> expected_b =
-        m.UncheckedCast<Uint16T>(m.Unsigned(m.SmiToInt32(m.Parameter(2))));
+        m.UncheckedCast<Uint16T>(m.Unsigned(m.SmiToInt32(m.Parameter(3))));
     TNode<Uint32T> expected_c =
-        m.UncheckedCast<Uint32T>(m.Unsigned(m.SmiToInt32(m.Parameter(3))));
+        m.UncheckedCast<Uint32T>(m.Unsigned(m.SmiToInt32(m.Parameter(4))));
     TNode<BoolT> expected_d =
-        m.UncheckedCast<BoolT>(m.Unsigned(m.SmiToInt32(m.Parameter(4))));
+        m.UncheckedCast<BoolT>(m.Unsigned(m.SmiToInt32(m.Parameter(5))));
 
     // Call the Torque-defined macro, which verifies that reading each bitfield
     // out of val yields the correct result.
@@ -696,18 +696,18 @@ TEST(TestBitFieldInit) {
   Isolate* isolate(CcTest::i_isolate());
   i::HandleScope scope(isolate);
   const int kNumParams = 4;
-  CodeAssemblerTester asm_tester(isolate, kNumParams);
+  CodeAssemblerTester asm_tester(isolate, kNumParams + 1);  // Include receiver.
   TestTorqueAssembler m(asm_tester.state());
   {
     // Untag all of the parameters to get plain integer values.
     TNode<BoolT> a =
-        m.UncheckedCast<BoolT>(m.Unsigned(m.SmiToInt32(m.Parameter(0))));
+        m.UncheckedCast<BoolT>(m.Unsigned(m.SmiToInt32(m.Parameter(1))));
     TNode<Uint16T> b =
-        m.UncheckedCast<Uint16T>(m.Unsigned(m.SmiToInt32(m.Parameter(1))));
+        m.UncheckedCast<Uint16T>(m.Unsigned(m.SmiToInt32(m.Parameter(2))));
     TNode<Uint32T> c =
-        m.UncheckedCast<Uint32T>(m.Unsigned(m.SmiToInt32(m.Parameter(2))));
+        m.UncheckedCast<Uint32T>(m.Unsigned(m.SmiToInt32(m.Parameter(3))));
     TNode<BoolT> d =
-        m.UncheckedCast<BoolT>(m.Unsigned(m.SmiToInt32(m.Parameter(3))));
+        m.UncheckedCast<BoolT>(m.Unsigned(m.SmiToInt32(m.Parameter(4))));
 
     // Call the Torque-defined macro, which verifies that reading each bitfield
     // out of val yields the correct result.
@@ -733,14 +733,14 @@ TEST(TestBitFieldUintptrOps) {
   Isolate* isolate(CcTest::i_isolate());
   i::HandleScope scope(isolate);
   const int kNumParams = 2;
-  CodeAssemblerTester asm_tester(isolate, kNumParams);
+  CodeAssemblerTester asm_tester(isolate, kNumParams + 1);  // Include receiver.
   TestTorqueAssembler m(asm_tester.state());
   {
     // Untag the parameters to get a plain integer value.
     TNode<Uint32T> val2 =
-        m.UncheckedCast<Uint32T>(m.Unsigned(m.SmiToInt32(m.Parameter(0))));
+        m.UncheckedCast<Uint32T>(m.Unsigned(m.SmiToInt32(m.Parameter(1))));
     TNode<UintPtrT> val3 = m.UncheckedCast<UintPtrT>(
-        m.ChangeUint32ToWord(m.Unsigned(m.SmiToInt32(m.Parameter(1)))));
+        m.ChangeUint32ToWord(m.Unsigned(m.SmiToInt32(m.Parameter(2)))));
 
     m.TestBitFieldUintptrOps(val2, val3);
     m.Return(m.UndefinedConstant());

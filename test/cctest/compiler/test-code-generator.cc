@@ -77,11 +77,12 @@ Handle<Code> BuildTeardownFunction(Isolate* isolate,
 Handle<Code> BuildSetupFunction(Isolate* isolate,
                                 CallDescriptor* call_descriptor,
                                 std::vector<AllocatedOperand> parameters) {
-  CodeAssemblerTester tester(isolate, 2, Code::BUILTIN, "setup");
+  CodeAssemblerTester tester(isolate, 3, Code::BUILTIN,
+                             "setup");  // Include receiver.
   CodeStubAssembler assembler(tester.state());
   std::vector<Node*> params;
   // The first parameter is always the callee.
-  params.push_back(__ Parameter(0));
+  params.push_back(__ Parameter(1));
   params.push_back(__ HeapConstant(
       BuildTeardownFunction(isolate, call_descriptor, parameters)));
   // First allocate the FixedArray which will hold the final results. Here we
@@ -113,7 +114,7 @@ Handle<Code> BuildSetupFunction(Isolate* isolate,
   }
   params.push_back(state_out);
   // Then take each element of the initial state and pass them as arguments.
-  TNode<FixedArray> state_in = __ Cast(__ Parameter(1));
+  TNode<FixedArray> state_in = __ Cast(__ Parameter(2));
   for (int i = 0; i < static_cast<int>(parameters.size()); i++) {
     Node* element = __ LoadFixedArrayElement(state_in, __ IntPtrConstant(i));
     // Unbox all elements before passing them as arguments.
