@@ -10119,8 +10119,8 @@ class V8_EXPORT SnapshotCreator {
 
   /**
    * Attach arbitrary V8::Data to the context snapshot, which can be retrieved
-   * via Context::GetDataFromSnapshot after deserialization. This data does not
-   * survive when a new snapshot is created from an existing snapshot.
+   * via Context::GetDataFromSnapshotOnce after deserialization. This data does
+   * not survive when a new snapshot is created from an existing snapshot.
    * \returns the index for retrieval.
    */
   template <class T>
@@ -10128,8 +10128,8 @@ class V8_EXPORT SnapshotCreator {
 
   /**
    * Attach arbitrary V8::Data to the isolate snapshot, which can be retrieved
-   * via Isolate::GetDataFromSnapshot after deserialization. This data does not
-   * survive when a new snapshot is created from an existing snapshot.
+   * via Isolate::GetDataFromSnapshotOnce after deserialization. This data does
+   * not survive when a new snapshot is created from an existing snapshot.
    * \returns the index for retrieval.
    */
   template <class T>
