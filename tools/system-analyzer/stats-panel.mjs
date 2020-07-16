@@ -40,14 +40,6 @@ defineCustomElement('stats-panel', (templateText) =>
     return this.timeline_;
   }
 
-  set timeline(value){
-    this.timeline_ = value;
-  }
-
-  get timeline(){
-    return this.timeline_;
-  }
-
   update() {
     this.removeAllChildren(this.stats);
     this.updateGeneralStats();
