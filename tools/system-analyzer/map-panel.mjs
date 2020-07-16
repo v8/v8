@@ -3,25 +3,16 @@
 // found in the LICENSE file.
 import "./stats-panel.mjs";
 import {V8Map} from "./map-processor.mjs";
+import {defineCustomElement, V8CustomElement} from './helper.mjs';
 
 defineCustomElement('map-panel', (templateText) =>
- class MapPanel extends HTMLElement {
+ class MapPanel extends V8CustomElement {
   constructor() {
-    super();
-    const shadowRoot = this.attachShadow({mode: 'open'});
-    shadowRoot.innerHTML = templateText;
+    super(templateText);
     this.transitionView.addEventListener(
         'mousemove', e => this.handleTransitionViewChange(e));
     this.$('#searchBarBtn').addEventListener(
         'click', e => this.handleSearchBar(e));
-  }
-
-  $(id) {
-    return this.shadowRoot.querySelector(id);
-  }
-
-  querySelectorAll(query) {
-    return this.shadowRoot.querySelectorAll(query);
   }
 
   get transitionView() {

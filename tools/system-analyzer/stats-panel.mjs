@@ -1,35 +1,17 @@
 // Copyright 2020 the V8 project authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
-import {div, table, tr, td} from './map-model.mjs';
+import {V8CustomElement, defineCustomElement} from './helper.mjs';
 
 defineCustomElement('stats-panel', (templateText) =>
- class StatsPanel extends HTMLElement {
+ class StatsPanel extends V8CustomElement {
   constructor() {
-    super();
-    const shadowRoot = this.attachShadow({mode: 'open'});
-    shadowRoot.innerHTML = templateText;
+    super(templateText);
     this.timeline_ = undefined;
-  }
-
-  $(id) {
-    return this.shadowRoot.querySelector(id);
-  }
-
-  querySelectorAll(query) {
-    return this.shadowRoot.querySelectorAll(query);
   }
 
   get stats() {
     return this.$('#stats');
-  }
-
-
-  // decouple stats panel
-  removeAllChildren(node) {
-    while (node.lastChild) {
-      node.removeChild(node.lastChild);
-    }
   }
 
   set timeline(value){
@@ -68,18 +50,18 @@ defineCustomElement('stats-panel', (templateText) =>
     ];
 
     let text = '';
-    let tableNode = table('transitionType');
+    let tableNode = this.table('transitionType');
     tableNode.innerHTML =
         '<thead><tr><td>Color</td><td>Type</td><td>Count</td><td>Percent</td></tr></thead>';
     let name, filter;
     //TODO(zc) timeline
     let total = this.timeline.size();
     pairs.forEach(([name, color, filter]) => {
-      let row = tr();
+      let row = this.tr();
       if (color !== null) {
-        row.appendChild(td(div(['colorbox', color])));
+        row.appendChild(this.td(this.div(['colorbox', color])));
       } else {
-        row.appendChild(td(''));
+        row.appendChild(this.td(''));
       }
       row.onclick = (e) => {
         // lazily compute the stats
@@ -90,32 +72,32 @@ defineCustomElement('stats-panel', (templateText) =>
         this.dispatchEvent(new CustomEvent(
           'change', {bubbles: true, composed: true, detail: node.maps}));
       };
-      row.appendChild(td(name));
+      row.appendChild(this.td(name));
       let count = this.timeline.count(filter);
-      row.appendChild(td(count));
+      row.appendChild(this.td(count));
       let percent = Math.round(count / total * 1000) / 10;
-      row.appendChild(td(percent.toFixed(1) + '%'));
+      row.appendChild(this.td(percent.toFixed(1) + '%'));
       tableNode.appendChild(row);
     });
     this.stats.appendChild(tableNode);
   }
 
   updateNamedTransitionsStats() {
-    let tableNode = table('transitionTable');
+    let tableNode = this.table('transitionTable');
     let nameMapPairs = Array.from(this.timeline.transitions.entries());
     tableNode.innerHTML =
         '<thead><tr><td>Propery Name</td><td>#</td></tr></thead>';
     nameMapPairs.sort((a, b) => b[1].length - a[1].length).forEach(([
                                                                      name, maps
                                                                    ]) => {
-      let row = tr();
+      let row = this.tr();
       row.maps = maps;
      row.addEventListener(
       'click',
       e => this.dispatchEvent(new CustomEvent(
         'change', {bubbles: true, composed: true, detail: e.target.parentNode.maps.map(map => map.to)})));
-      row.appendChild(td(name));
-      row.appendChild(td(maps.length));
+      row.appendChild(this.td(name));
+      row.appendChild(this.td(maps.length));
       tableNode.appendChild(row);
     });
     this.stats.appendChild(tableNode);

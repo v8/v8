@@ -3,6 +3,9 @@
 // found in the LICENSE file.
 
 import {kChunkWidth, kChunkHeight} from './map-processor.mjs';
+import {div, removeAllChildren, $} from './helper.mjs';
+
+
 
 class State {
   constructor(mapPanelId, timelinePanelId) {
@@ -66,60 +69,6 @@ class State {
       map: this.map.id, time: this.map.time
     }
   }
-}
-
-// =========================================================================
-// DOM Helper
-function $(id) {
-  return document.querySelector(id)
-}
-
-function removeAllChildren(node) {
-  while (node.lastChild) {
-    node.removeChild(node.lastChild);
-  }
-}
-
-function selectOption(select, match) {
-  let options = select.options;
-  for (let i = 0; i < options.length; i++) {
-    if (match(i, options[i])) {
-      select.selectedIndex = i;
-      return;
-    }
-  }
-}
-
-function div(classes) {
-  let node = document.createElement('div');
-  if (classes !== void 0) {
-    if (typeof classes === 'string') {
-      node.classList.add(classes);
-    } else {
-      classes.forEach(cls => node.classList.add(cls));
-    }
-  }
-  return node;
-}
-
-function table(className) {
-  let node = document.createElement('table')
-  if (className) node.classList.add(className)
-  return node;
-}
-
-function td(textOrNode) {
-  let node = document.createElement('td');
-  if (typeof textOrNode === 'object') {
-    node.appendChild(textOrNode);
-  } else {
-    node.innerText = textOrNode;
-  }
-  return node;
-}
-
-function tr() {
-  return document.createElement('tr');
 }
 
 class Navigation {
@@ -695,4 +644,4 @@ function transitionTypeToColor(type) {
   return '#9B6EDC';
 }
 
-export { State, div, table, tr, td};
+export { State };

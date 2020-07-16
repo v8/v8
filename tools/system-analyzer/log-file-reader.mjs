@@ -1,22 +1,17 @@
 // Copyright 2020 the V8 project authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
+import {defineCustomElement, V8CustomElement} from './helper.mjs';
 
 defineCustomElement('log-file-reader', (templateText) =>
- class LogFileReader extends HTMLElement {
+ class LogFileReader extends V8CustomElement {
   constructor() {
-    super();
-    const shadowRoot = this.attachShadow({mode: 'open'});
-    shadowRoot.innerHTML = templateText;
+    super(templateText);
     this.addEventListener('click', e => this.handleClick(e));
     this.addEventListener('dragover', e => this.handleDragOver(e));
     this.addEventListener('drop', e => this.handleChange(e));
     this.$('#file').addEventListener('change', e => this.handleChange(e));
     this.$('#fileReader').addEventListener('keydown', e => this.handleKeyEvent(e));
-  }
-
-  $(id) {
-    return this.shadowRoot.querySelector(id);
   }
 
   get section() {

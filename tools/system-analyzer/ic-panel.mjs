@@ -4,13 +4,12 @@
 
 import {Group} from './ic-model.mjs';
 import CustomIcProcessor from "./ic-processor.mjs";
+import {defineCustomElement, V8CustomElement} from './helper.mjs';
 
 defineCustomElement('ic-panel', (templateText) =>
- class ICPanel extends HTMLElement {
+  class ICPanel extends V8CustomElement {
   constructor() {
-    super();
-    const shadowRoot = this.attachShadow({mode: 'open'});
-    shadowRoot.innerHTML = templateText;
+    super(templateText);
     this.groupKey.addEventListener(
         'change', e => this.updateTable(e));
     this.$('#filterICTimeBtn').addEventListener(
@@ -18,14 +17,6 @@ defineCustomElement('ic-panel', (templateText) =>
     this._noOfItems = 100;
     this._startTime = 0;
     this._endTime = 0;
-  }
-
-  $(id) {
-    return this.shadowRoot.querySelector(id);
-  }
-
-  querySelectorAll(query) {
-    return this.shadowRoot.querySelectorAll(query);
   }
 
   set entries(value){
@@ -106,12 +97,6 @@ defineCustomElement('ic-panel', (templateText) =>
     a.href = unsafe;
     a.textContent = unsafe;
     return a;
-  }
-
-  removeAllChildren(node) {
-    while (node.firstChild) {
-      node.removeChild(node.firstChild);
-    }
   }
 
   td(tr, content, className) {
