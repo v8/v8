@@ -232,7 +232,9 @@ void EscapeAnalysisReducer::Finalize() {
     const NewArgumentsElementsParameters& params =
         NewArgumentsElementsParametersOf(node->op());
     ArgumentsStateType type = params.arguments_type();
-    int mapped_count = params.formal_parameter_count();
+    int mapped_count = type == CreateArgumentsType::kMappedArguments
+                           ? params.formal_parameter_count()
+                           : 0;
 
     Node* arguments_frame = NodeProperties::GetValueInput(node, 0);
     if (arguments_frame->opcode() != IrOpcode::kArgumentsFrame) continue;
@@ -315,6 +317,10 @@ void EscapeAnalysisReducer::Finalize() {
         switch (load->opcode()) {
           case IrOpcode::kLoadElement: {
             Node* index = NodeProperties::GetValueInput(load, 1);
+            Node* formal_parameter_count =
+                jsgraph()->Constant(params.formal_parameter_count());
+            NodeProperties::SetType(formal_parameter_count,
+                                    TypeCache::Get()->kArgumentsLengthType);
 #ifdef V8_REVERSE_JSARGS
             Node* offset_to_first_elem = jsgraph()->Constant(
                 CommonFrameConstants::kFixedSlotCountAboveFp);
@@ -323,12 +329,30 @@ void EscapeAnalysisReducer::Finalize() {
             Node* offset = jsgraph()->graph()->NewNode(
                 jsgraph()->simplified()->NumberAdd(), index,
                 offset_to_first_elem);
+            if (type == CreateArgumentsType::kRestParameter) {
+              // In the case of rest parameters we should skip the formal
+              // parameters.
+              NodeProperties::SetType(offset,
+                                      TypeCache::Get()->kArgumentsLengthType);
+              offset = jsgraph()->graph()->NewNode(
+                  jsgraph()->simplified()->NumberAdd(), offset,
+                  formal_parameter_count);
+            }
 #else
             // {offset} is a reverted index starting from 1. The base address is
             // adapted to allow offsets starting from 1.
             Node* offset = jsgraph()->graph()->NewNode(
                 jsgraph()->simplified()->NumberSubtract(), arguments_length,
                 index);
+            if (type == CreateArgumentsType::kRestParameter) {
+              // In the case of rest parameters we should skip the formal
+              // parameters.
+              NodeProperties::SetType(offset,
+                                      TypeCache::Get()->kArgumentsLengthType);
+              offset = jsgraph()->graph()->NewNode(
+                  jsgraph()->simplified()->NumberSubtract(), offset,
+                  formal_parameter_count);
+            }
 #endif
             NodeProperties::SetType(offset,
                                     TypeCache::Get()->kArgumentsLengthType);
