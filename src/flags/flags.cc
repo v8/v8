@@ -568,21 +568,14 @@ void FlagList::PrintHelp() {
   CpuFeatures::PrintFeatures();
 
   StdoutStream os;
-  os << "Synopsis:\n"
-        "  shell [options] [--shell] [<file>...]\n"
-        "  d8 [options] [-e <string>] [--shell] [[--module] <file>...]\n\n"
-        "  -e        execute a string in V8\n"
-        "  --shell   run an interactive JavaScript shell\n"
-        "  --module  execute a file as a JavaScript module\n\n"
-        "Note: the --module option is implicitly enabled for *.mjs files.\n\n"
-        "The following syntax for options is accepted (both '-' and '--' are "
+  os << "The following syntax for options is accepted (both '-' and '--' are "
         "ok):\n"
         "  --flag        (bool flags only)\n"
         "  --no-flag     (bool flags only)\n"
         "  --flag=value  (non-bool flags only, no spaces around '=')\n"
         "  --flag value  (non-bool flags only)\n"
-        "  --            (captures all remaining args in JavaScript)\n\n"
-        "Options:\n";
+        "  --            (captures all remaining args in JavaScript)\n\n";
+  os << "Options:\n";
 
   for (const Flag& f : flags) {
     os << "  --";
