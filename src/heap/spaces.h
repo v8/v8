@@ -549,16 +549,6 @@ class SpaceWithLinearArea : public Space {
       AllocationOrigin::kNumberOfAllocationOrigins)] = {0};
 };
 
-class V8_EXPORT_PRIVATE PauseAllocationObserversScope {
- public:
-  explicit PauseAllocationObserversScope(Heap* heap);
-  ~PauseAllocationObserversScope();
-
- private:
-  Heap* heap_;
-  DISALLOW_COPY_AND_ASSIGN(PauseAllocationObserversScope);
-};
-
 }  // namespace internal
 }  // namespace v8
 

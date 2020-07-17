@@ -45,21 +45,6 @@ namespace internal {
 STATIC_ASSERT(kClearedWeakHeapObjectLower32 > 0);
 STATIC_ASSERT(kClearedWeakHeapObjectLower32 < Page::kHeaderSize);
 
-PauseAllocationObserversScope::PauseAllocationObserversScope(Heap* heap)
-    : heap_(heap) {
-  DCHECK_EQ(heap->gc_state(), Heap::NOT_IN_GC);
-
-  for (SpaceIterator it(heap_); it.HasNext();) {
-    it.Next()->PauseAllocationObservers();
-  }
-}
-
-PauseAllocationObserversScope::~PauseAllocationObserversScope() {
-  for (SpaceIterator it(heap_); it.HasNext();) {
-    it.Next()->ResumeAllocationObservers();
-  }
-}
-
 void Page::AllocateFreeListCategories() {
   DCHECK_NULL(categories_);
   categories_ =
