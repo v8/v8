@@ -535,9 +535,8 @@ class Platform {
    * libplatform looks like:
    *  std::unique_ptr<JobHandle> PostJob(
    *      TaskPriority priority, std::unique_ptr<JobTask> job_task) override {
-   *    return std::make_unique<DefaultJobHandle>(
-   *        std::make_shared<DefaultJobState>(
-   *            this, std::move(job_task), kNumThreads));
+   *    return v8::platform::NewDefaultJobHandle(
+   *        this, priority, std::move(job_task), NumberOfWorkerThreads());
    * }
    */
   virtual std::unique_ptr<JobHandle> PostJob(
