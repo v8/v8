@@ -371,35 +371,20 @@ class SpecialTimeZoneMap {
   SpecialTimeZoneMap() {
     Add("America/Argentina/ComodRivadavia");
     Add("America/Knox_IN");
+    Add("Antarctica/DumontDUrville");
     Add("Antarctica/McMurdo");
     Add("Australia/ACT");
     Add("Australia/LHI");
     Add("Australia/NSW");
-    Add("Antarctica/DumontDUrville");
     Add("Brazil/DeNoronha");
-    Add("CET");
-    Add("CST6CDT");
     Add("Chile/EasterIsland");
-    Add("EET");
-    Add("EST");
-    Add("EST5EDT");
     Add("GB");
     Add("GB-Eire");
-    Add("HST");
-    Add("MET");
-    Add("MST");
-    Add("MST7MDT");
     Add("Mexico/BajaNorte");
     Add("Mexico/BajaSur");
     Add("NZ");
     Add("NZ-CHAT");
-    Add("PRC");
-    Add("PST8PDT");
-    Add("ROC");
-    Add("ROK");
-    Add("UCT");
     Add("W-SU");
-    Add("WET");
   }
 
   std::string Find(const std::string& id) {
@@ -426,7 +411,14 @@ std::string CanonicalizeTimeZoneID(const std::string& input) {
   std::string upper = input;
   transform(upper.begin(), upper.end(), upper.begin(),
             LocaleIndependentAsciiToUpper);
-  if (upper.length() >= 3) {
+  if (upper.length() == 3) {
+    if (upper == "GMT") return "UTC";
+    // For id such as "CET", return upper case.
+    return upper;
+  } else if (upper.length() == 7 && '0' <= upper[3] && upper[3] <= '9') {
+    // For id such as "CST6CDT", return upper case.
+    return upper;
+  } else if (upper.length() > 3) {
     if (memcmp(upper.c_str(), "ETC", 3) == 0) {
       if (upper == "ETC/UTC" || upper == "ETC/GMT" || upper == "ETC/UCT") {
         return "UTC";
@@ -435,8 +427,7 @@ std::string CanonicalizeTimeZoneID(const std::string& input) {
         return GetGMTTzID(input);
       }
     } else if (memcmp(upper.c_str(), "GMT", 3) == 0) {
-      if (upper == "GMT" || upper == "GMT0" || upper == "GMT+0" ||
-          upper == "GMT-0") {
+      if (upper == "GMT0" || upper == "GMT+0" || upper == "GMT-0") {
         return "UTC";
       }
     } else if (memcmp(upper.c_str(), "US/", 3) == 0) {
@@ -444,8 +435,9 @@ std::string CanonicalizeTimeZoneID(const std::string& input) {
       // Change "Us/" to "US/"
       title[1] = 'S';
       return title;
-    } else if (upper == "UTC") {
-      return "UTC";
+    } else if (memcmp(upper.c_str(), "SYSTEMV/", 8) == 0) {
+      upper.replace(0, 8, "SystemV/");
+      return upper;
     }
   }
   // We expect only _, '-' and / beside ASCII letters.
