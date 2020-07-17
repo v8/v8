@@ -84,16 +84,20 @@ class StackTransferRecipe {
 
   V8_INLINE void TransferStackSlot(const VarState& dst, const VarState& src) {
     DCHECK_EQ(dst.type(), src.type());
-    if (dst == src) return;
     if (dst.is_reg()) {
       LoadIntoRegister(dst.reg(), src, src.offset());
+      return;
+    }
+    if (dst.is_const()) {
+      DCHECK_EQ(dst.i32_const(), src.i32_const());
       return;
     }
     DCHECK(dst.is_stack());
     switch (src.loc()) {
       case VarState::kStack:
-        DCHECK_NE(src.offset(), dst.offset());
-        asm_->MoveStackValue(dst.offset(), src.offset(), src.type());
+        if (src.offset() != dst.offset()) {
+          asm_->MoveStackValue(dst.offset(), src.offset(), src.type());
+        }
         break;
       case VarState::kRegister:
         asm_->Spill(dst.offset(), src.reg(), src.type());

@@ -56,20 +56,6 @@ class LiftoffAssembler : public TurboAssembler {
       DCHECK(type_ == kWasmI32 || type_ == kWasmI64);
     }
 
-    bool operator==(const VarState& other) const {
-      if (loc_ != other.loc_) return false;
-      if (type_ != other.type_) return false;
-      switch (loc_) {
-        case kStack:
-          return true;
-        case kRegister:
-          return reg_ == other.reg_;
-        case kIntConst:
-          return i32_const_ == other.i32_const_;
-      }
-      UNREACHABLE();
-    }
-
     bool is_stack() const { return loc_ == kStack; }
     bool is_gp_reg() const { return loc_ == kRegister && reg_.is_gp(); }
     bool is_fp_reg() const { return loc_ == kRegister && reg_.is_fp(); }
