@@ -3701,6 +3701,13 @@ LoadTransformation GetLoadTransformation(
       }
       break;
     }
+    case wasm::LoadTransformationKind::kZeroExtend: {
+      if (memtype == MachineType::Int32()) {
+        return LoadTransformation::kS128LoadMem32Zero;
+      } else if (memtype == MachineType::Int64()) {
+        return LoadTransformation::kS128LoadMem64Zero;
+      }
+    }
   }
   UNREACHABLE();
 }

@@ -3839,6 +3839,16 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       __ Pmovzxdq(i.OutputSimd128Register(), i.MemoryOperand());
       break;
     }
+    case kX64S128LoadMem32Zero: {
+      EmitOOLTrapIfNeeded(zone(), this, opcode, instr, __ pc_offset());
+      __ Movd(i.OutputSimd128Register(), i.MemoryOperand());
+      break;
+    }
+    case kX64S128LoadMem64Zero: {
+      EmitOOLTrapIfNeeded(zone(), this, opcode, instr, __ pc_offset());
+      __ Movq(i.OutputSimd128Register(), i.MemoryOperand());
+      break;
+    }
     case kX64S32x4Swizzle: {
       DCHECK_EQ(2, instr->InputCount());
       ASSEMBLE_SIMD_IMM_INSTR(Pshufd, i.OutputSimd128Register(), 0,

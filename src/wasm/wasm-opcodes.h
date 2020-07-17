@@ -438,6 +438,10 @@ bool IsJSCompatibleSignature(const FunctionSig* sig, const WasmFeatures&);
   V(F32x4SConvertI32x4, 0xfdfa, s_s)         \
   V(F32x4UConvertI32x4, 0xfdfb, s_s)
 
+#define FOREACH_SIMD_POST_MVP_MEM_OPCODE(V) \
+  V(S128LoadMem32Zero, 0xfdfc, s_i)         \
+  V(S128LoadMem64Zero, 0xfdfd, s_i)
+
 #define FOREACH_SIMD_POST_MVP_OPCODE(V) \
   V(I8x16Mul, 0xfd75, s_ss)             \
   V(I8x16BitMask, 0xfd64, i_s)          \
@@ -459,8 +463,8 @@ bool IsJSCompatibleSignature(const FunctionSig* sig, const WasmFeatures&);
   V(I64x2MinU, 0xfdd7, s_ss)            \
   V(I64x2MaxS, 0xfde2, s_ss)            \
   V(I64x2MaxU, 0xfdee, s_ss)            \
-  V(F32x4Qfma, 0xfdfc, s_sss)           \
-  V(F32x4Qfms, 0xfdfd, s_sss)           \
+  V(F32x4Qfma, 0xfdb4, s_sss)           \
+  V(F32x4Qfms, 0xfdd4, s_sss)           \
   V(F64x2Qfma, 0xfdfe, s_sss)           \
   V(F64x2Qfms, 0xfdff, s_sss)           \
   V(I16x8AddHoriz, 0xfdaf, s_ss)        \
@@ -641,6 +645,7 @@ bool IsJSCompatibleSignature(const FunctionSig* sig, const WasmFeatures&);
   FOREACH_SIMD_1_OPERAND_OPCODE(V)    \
   FOREACH_SIMD_MASK_OPERAND_OPCODE(V) \
   FOREACH_SIMD_MEM_OPCODE(V)          \
+  FOREACH_SIMD_POST_MVP_MEM_OPCODE(V) \
   FOREACH_SIMD_CONST_OPCODE(V)        \
   FOREACH_ATOMIC_OPCODE(V)            \
   FOREACH_ATOMIC_0_OPERAND_OPCODE(V)  \

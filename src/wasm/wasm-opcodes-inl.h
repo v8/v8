@@ -302,6 +302,8 @@ constexpr const char* WasmOpcodes::OpcodeName(WasmOpcode opcode) {
     CASE_SIMDF_OP(Qfma, "qfma")
     CASE_SIMDF_OP(Qfms, "qfms")
 
+    CASE_S128_OP(LoadMem32Zero, "load32_zero")
+    CASE_S128_OP(LoadMem64Zero, "load64_zero")
     CASE_S8x16_OP(LoadSplat, "load_splat")
     CASE_S16x8_OP(LoadSplat, "load_splat")
     CASE_S32x4_OP(LoadSplat, "load_splat")
@@ -507,6 +509,7 @@ constexpr bool WasmOpcodes::IsSimdPostMvpOpcode(WasmOpcode opcode) {
   switch (opcode) {
 #define CHECK_OPCODE(name, opcode, _) case kExpr##name:
     FOREACH_SIMD_POST_MVP_OPCODE(CHECK_OPCODE)
+    FOREACH_SIMD_POST_MVP_MEM_OPCODE(CHECK_OPCODE)
 #undef CHECK_OPCODE
     return true;
     default:
@@ -552,7 +555,7 @@ constexpr WasmOpcodeSig GetAsmJsOpcodeSigIndex(byte opcode) {
 constexpr WasmOpcodeSig GetSimdOpcodeSigIndex(byte opcode) {
 #define CASE(name, opc, sig) opcode == (opc & 0xFF) ? kSigEnum_##sig:
   return FOREACH_SIMD_0_OPERAND_OPCODE(CASE) FOREACH_SIMD_MEM_OPCODE(CASE)
-      kSigEnum_None;
+      FOREACH_SIMD_POST_MVP_MEM_OPCODE(CASE) kSigEnum_None;
 #undef CASE
 }
 

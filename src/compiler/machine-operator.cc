@@ -70,6 +70,10 @@ std::ostream& operator<<(std::ostream& os, LoadTransformation rep) {
       return os << "kI64x2Load32x2S";
     case LoadTransformation::kI64x2Load32x2U:
       return os << "kI64x2Load32x2U";
+    case LoadTransformation::kS128LoadMem32Zero:
+      return os << "kS128LoadMem32Zero";
+    case LoadTransformation::kS128LoadMem64Zero:
+      return os << "kS128LoadMem64Zero";
   }
   UNREACHABLE();
 }
@@ -570,7 +574,9 @@ ShiftKind ShiftKindOf(Operator const* op) {
   V(I32x4Load16x4S)            \
   V(I32x4Load16x4U)            \
   V(I64x2Load32x2S)            \
-  V(I64x2Load32x2U)
+  V(I64x2Load32x2U)            \
+  V(S128LoadMem32Zero)         \
+  V(S128LoadMem64Zero)
 
 #define ATOMIC_U32_TYPE_LIST(V) \
   V(Uint8)                      \

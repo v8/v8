@@ -1624,6 +1624,7 @@ class WasmDecoder : public Decoder {
           return 2 + length;
 #define DECLARE_OPCODE_CASE(name, opcode, sig) case kExpr##name:
           FOREACH_SIMD_MEM_OPCODE(DECLARE_OPCODE_CASE)
+          FOREACH_SIMD_POST_MVP_MEM_OPCODE(DECLARE_OPCODE_CASE)
 #undef DECLARE_OPCODE_CASE
           {
             MemoryAccessImmediate<validate> imm(decoder, pc + length + 1,
@@ -2040,6 +2041,15 @@ class WasmFullDecoder : public WasmDecoder<validate> {
     if (FLAG_wasm_atomics_on_non_shared_memory && CheckHasMemory()) return true;
     if (!VALIDATE(this->module_->has_shared_memory)) {
       this->error(this->pc_ - 1, "Atomic opcodes used without shared memory");
+      return false;
+    }
+    return true;
+  }
+
+  bool CheckSimdPostMvp(WasmOpcode opcode) {
+    if (!FLAG_wasm_simd_post_mvp && WasmOpcodes::IsSimdPostMvpOpcode(opcode)) {
+      this->error(
+          "simd opcode not available, enable with --wasm-simd-post-mvp");
       return false;
     }
     return true;
@@ -3305,6 +3315,20 @@ class WasmFullDecoder : public WasmDecoder<validate> {
         return DecodeLoadMem(LoadType::kS128Load, opcode_length);
       case kExprS128StoreMem:
         return DecodeStoreMem(StoreType::kS128Store, opcode_length);
+      case kExprS128LoadMem32Zero:
+        if (!CheckSimdPostMvp(opcode)) {
+          return 0;
+        }
+        return DecodeLoadTransformMem(LoadType::kI32Load,
+                                      LoadTransformationKind::kZeroExtend,
+                                      opcode_length);
+      case kExprS128LoadMem64Zero:
+        if (!CheckSimdPostMvp(opcode)) {
+          return 0;
+        }
+        return DecodeLoadTransformMem(LoadType::kI64Load,
+                                      LoadTransformationKind::kZeroExtend,
+                                      opcode_length);
       case kExprS8x16LoadSplat:
         return DecodeLoadTransformMem(LoadType::kI32Load8S,
                                       LoadTransformationKind::kSplat,
@@ -3346,10 +3370,7 @@ class WasmFullDecoder : public WasmDecoder<validate> {
       case kExprS128Const:
         return SimdConstOp(opcode_length);
       default: {
-        if (!FLAG_wasm_simd_post_mvp &&
-            WasmOpcodes::IsSimdPostMvpOpcode(opcode)) {
-          this->error(
-              "simd opcode not available, enable with --wasm-simd-post-mvp");
+        if (!CheckSimdPostMvp(opcode)) {
           return 0;
         }
         const FunctionSig* sig = WasmOpcodes::Signature(opcode);

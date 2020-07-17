@@ -2671,6 +2671,14 @@ class WasmInterpreterInternals {
         return DoSimdLoadExtend<int2, uint64_t, uint32_t>(
             decoder, code, pc, len, MachineRepresentation::kWord64);
       }
+      case kExprS128LoadMem32Zero: {
+        return DoSimdLoadZeroExtend<int4, uint32_t>(
+            decoder, code, pc, len, MachineRepresentation::kWord32);
+      }
+      case kExprS128LoadMem64Zero: {
+        return DoSimdLoadZeroExtend<int2, uint64_t>(
+            decoder, code, pc, len, MachineRepresentation::kWord64);
+      }
       default:
         return false;
     }
@@ -2710,6 +2718,23 @@ class WasmInterpreterInternals {
       narrow_type el = static_cast<narrow_type>(v >> shift);
       s.val[LANE(i, s)] = static_cast<wide_type>(el);
     }
+    Push(WasmValue(Simd128(s)));
+    return true;
+  }
+
+  template <typename s_type, typename load_type>
+  bool DoSimdLoadZeroExtend(Decoder* decoder, InterpreterCode* code, pc_t pc,
+                            int* const len, MachineRepresentation rep) {
+    if (!ExecuteLoad<load_type, load_type>(decoder, code, pc, len, rep,
+                                           /*prefix_len=*/*len)) {
+      return false;
+    }
+    load_type v = Pop().to<load_type>();
+    s_type s;
+    // All lanes are 0.
+    for (size_t i = 0; i < arraysize(s.val); i++) s.val[LANE(i, s)] = 0;
+    // Lane 0 is set to the loaded value.
+    s.val[LANE(0, s)] = v;
     Push(WasmValue(Simd128(s)));
     return true;
   }

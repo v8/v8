@@ -3609,6 +3609,43 @@ WASM_SIMD_TEST_NO_LOWERING(I64x2Load32x2S) {
                                       kExprI64x2Load32x2S);
 }
 
+// TODO(v8:10713): Prototyping v128.load32_zero and v128.load64_zero.
+#if V8_TARGET_ARCH_X64
+template <typename S>
+void RunLoadZeroTest(ExecutionTier execution_tier, LowerSimd lower_simd,
+                     WasmOpcode op) {
+  FLAG_SCOPE(wasm_simd_post_mvp);
+  constexpr int lanes_s = kSimd128Size / sizeof(S);
+  constexpr int mem_index = 16;  // Load from mem index 16 (bytes).
+  WasmRunner<int32_t> r(execution_tier, lower_simd);
+  S* memory = r.builder().AddMemoryElems<S>(kWasmPageSize / sizeof(S));
+  S* global = r.builder().AddGlobal<S>(kWasmS128);
+  BUILD(
+      r,
+      WASM_SET_GLOBAL(0, WASM_SIMD_LOAD_ZERO_EXTEND(op, WASM_I32V(mem_index))),
+      WASM_ONE);
+
+  S sentinel = S{-1};
+  r.builder().WriteMemory(&memory[lanes_s], sentinel);
+  r.Call();
+
+  // Only first lane is set to sentinel.
+  CHECK_EQ(sentinel, ReadLittleEndianValue<S>(&global[0]));
+  // The other lanes are zero.
+  for (int i = 1; i < lanes_s; i++) {
+    CHECK_EQ(S{0}, ReadLittleEndianValue<S>(&global[i]));
+  }
+}
+
+WASM_SIMD_TEST_NO_LOWERING(S128LoadMem32Zero) {
+  RunLoadZeroTest<int32_t>(execution_tier, lower_simd, kExprS128LoadMem32Zero);
+}
+
+WASM_SIMD_TEST_NO_LOWERING(S128LoadMem64Zero) {
+  RunLoadZeroTest<int64_t>(execution_tier, lower_simd, kExprS128LoadMem64Zero);
+}
+#endif  // V8_TARGET_ARCH_X64
+
 #define WASM_SIMD_ANYTRUE_TEST(format, lanes, max, param_type)                \
   WASM_SIMD_TEST(S##format##AnyTrue) {                                        \
     FLAG_SCOPE(wasm_simd_post_mvp);                                           \
@@ -3901,6 +3938,7 @@ WASM_EXTRACT_I16x8_TEST(S, UINT16) WASM_EXTRACT_I16x8_TEST(I, INT16)
 #undef WASM_SIMD_F32x4_QFMS
 #undef WASM_SIMD_LOAD_SPLAT
 #undef WASM_SIMD_LOAD_EXTEND
+#undef WASM_SIMD_LOAD_ZERO_EXTEND
 
 }  // namespace test_run_wasm_simd
 }  // namespace wasm
