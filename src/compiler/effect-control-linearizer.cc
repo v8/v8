@@ -74,6 +74,7 @@ class EffectControlLinearizer {
   Node* LowerPoisonIndex(Node* node);
   Node* LowerCheckInternalizedString(Node* node, Node* frame_state);
   void LowerCheckMaps(Node* node, Node* frame_state);
+  void LowerDynamicCheckMaps(Node* node, Node* frame_state);
   Node* LowerCompareMaps(Node* node);
   Node* LowerCheckNumber(Node* node, Node* frame_state);
   Node* LowerCheckClosure(Node* node, Node* frame_state);
@@ -261,7 +262,9 @@ class EffectControlLinearizer {
   Node* ChangeSmiToInt64(Node* value);
   Node* ObjectIsSmi(Node* value);
   Node* LoadFromSeqString(Node* receiver, Node* position, Node* is_one_byte);
-
+  Node* TruncateWordToInt32(Node* value);
+  Node* BuildIsWeakReferenceTo(Node* maybe_object, Node* value);
+  Node* BuildIsStrongReference(Node* value);
   Node* SmiMaxValueConstant();
   Node* SmiShiftBitsConstant();
   void TransitionElementsTo(Node* node, Node* array, ElementsKind from,
@@ -922,6 +925,9 @@ bool EffectControlLinearizer::TryWireInStateEffect(Node* node,
       break;
     case IrOpcode::kCheckMaps:
       LowerCheckMaps(node, frame_state);
+      break;
+    case IrOpcode::kDynamicCheckMaps:
+      LowerDynamicCheckMaps(node, frame_state);
       break;
     case IrOpcode::kCompareMaps:
       result = LowerCompareMaps(node);
@@ -1843,6 +1849,103 @@ void EffectControlLinearizer::LowerCheckMaps(Node* node, Node* frame_state) {
     __ Goto(&done);
     __ Bind(&done);
   }
+}
+
+void EffectControlLinearizer::LowerDynamicCheckMaps(Node* node,
+                                                    Node* frame_state) {
+  DynamicCheckMapsParameters const& p =
+      DynamicCheckMapsParametersOf(node->op());
+  Node* value = node->InputAt(0);
+
+  FeedbackSource const& feedback = p.feedback();
+  Node* vector = __ HeapConstant(feedback.vector);
+  Node* feedback_slot = __ LoadField(
+      AccessBuilder::ForFeedbackVectorSlot(feedback.index()), vector);
+  Node* value_map = __ LoadField(AccessBuilder::ForMap(), value);
+  Node* handler = p.handler()->IsSmi()
+                      ? __ SmiConstant(Smi::ToInt(*p.handler()))
+                      : __ HeapConstant(Handle<HeapObject>::cast(p.handler()));
+
+  auto done = __ MakeLabel();
+  auto maybe_poly = __ MakeLabel();
+
+  // Emit monomorphic checks only if current state is monomorphic. In
+  // case the current state is polymorphic, and if we ever go back to
+  // monomorphic start, we will deopt and reoptimize the code.
+  if (p.state() == DynamicCheckMapsParameters::kMonomorphic) {
+    Node* mono_check = BuildIsWeakReferenceTo(feedback_slot, value_map);
+    __ GotoIfNot(mono_check, &maybe_poly);
+
+    Node* feedback_slot_handler = __ LoadField(
+        AccessBuilder::ForFeedbackVectorSlot(feedback.index() + 1), vector);
+    mono_check = __ TaggedEqual(handler, feedback_slot_handler);
+    __ DeoptimizeIfNot(DeoptimizeReason::kWrongHandler, FeedbackSource(),
+                       mono_check, frame_state,
+                       IsSafetyCheck::kCriticalSafetyCheck);
+
+    __ Goto(&done);
+  } else {
+    DCHECK(p.state() == DynamicCheckMapsParameters::kPolymorphic);
+    __ Goto(&maybe_poly);
+  }
+
+  __ Bind(&maybe_poly);
+  {
+    Node* poly_check = BuildIsStrongReference(feedback_slot);
+    if (p.state() == DynamicCheckMapsParameters::kMonomorphic) {
+      __ DeoptimizeIfNot(DeoptimizeReason::kMissingMap, FeedbackSource(),
+                         poly_check, frame_state,
+                         IsSafetyCheck::kCriticalSafetyCheck);
+
+    } else {
+      __ DeoptimizeIfNot(DeoptimizeReason::kTransitionedToMonomorphicIC,
+                         FeedbackSource(), poly_check, frame_state,
+                         IsSafetyCheck::kCriticalSafetyCheck);
+    }
+    Node* feedback_slot_map =
+        __ LoadField(AccessBuilder::ForMap(), feedback_slot);
+    Node* is_weak_fixed_array_check =
+        __ TaggedEqual(feedback_slot_map, __ WeakFixedArrayMapConstant());
+    __ DeoptimizeIfNot(DeoptimizeReason::kTransitionedToMegamorphicIC,
+                       FeedbackSource(), is_weak_fixed_array_check, frame_state,
+                       IsSafetyCheck::kCriticalSafetyCheck);
+
+    Node* length =
+        __ LoadField(AccessBuilder::ForWeakFixedArrayLength(), feedback_slot);
+    auto loop = __ MakeLoopLabel(MachineRepresentation::kWord32);
+    __ Goto(&loop, __ Int32Constant(0));
+    __ Bind(&loop);
+    {
+      Node* index = loop.PhiAt(0);
+      Node* check = __ Int32LessThan(index, length);
+      __ DeoptimizeIfNot(DeoptimizeReason::kMissingMap, FeedbackSource(), check,
+                         frame_state, IsSafetyCheck::kCriticalSafetyCheck);
+
+      Node* maybe_map = __ LoadElement(
+          AccessBuilder::ForWeakFixedArrayElement(), feedback_slot, index);
+      auto continue_loop = __ MakeLabel();
+
+      __ GotoIfNot(BuildIsWeakReferenceTo(maybe_map, value_map),
+                   &continue_loop);
+      constexpr int kHandlerOffsetInEntry = 1;
+      Node* maybe_handler = __ LoadElement(
+          AccessBuilder::ForWeakFixedArrayElement(), feedback_slot,
+          __ Int32Add(index, __ Int32Constant(kHandlerOffsetInEntry)));
+
+      Node* handler_check = __ TaggedEqual(maybe_handler, handler);
+      __ DeoptimizeIfNot(DeoptimizeReason::kWrongHandler, FeedbackSource(),
+                         handler_check, frame_state,
+                         IsSafetyCheck::kCriticalSafetyCheck);
+      __ Goto(&done);
+
+      __ Bind(&continue_loop);
+      constexpr int kEntrySize = 2;
+      index = __ Int32Add(index, __ Int32Constant(kEntrySize));
+      __ Goto(&loop, index);
+    }
+  }
+
+  __ Bind(&done);
 }
 
 Node* EffectControlLinearizer::LowerCompareMaps(Node* node) {
@@ -6187,6 +6290,36 @@ Node* EffectControlLinearizer::LowerDateNow(Node* node) {
   return __ Call(call_descriptor, __ CEntryStubConstant(1),
                  __ ExternalConstant(ExternalReference::Create(id)),
                  __ Int32Constant(0), __ NoContextConstant());
+}
+
+Node* EffectControlLinearizer::TruncateWordToInt32(Node* value) {
+  if (machine()->Is64()) {
+    return __ TruncateInt64ToInt32(value);
+  }
+  return value;
+}
+
+Node* EffectControlLinearizer::BuildIsStrongReference(Node* value) {
+  return __ Word32Equal(
+      __ Word32And(
+          TruncateWordToInt32(__ BitcastTaggedToWordForTagAndSmiBits(value)),
+          __ Int32Constant(kHeapObjectTagMask)),
+      __ Int32Constant(kHeapObjectTag));
+}
+
+Node* EffectControlLinearizer::BuildIsWeakReferenceTo(Node* maybe_object,
+                                                      Node* value) {
+  if (COMPRESS_POINTERS_BOOL) {
+    return __ Word32Equal(
+        __ Word32And(
+            TruncateWordToInt32(__ BitcastMaybeObjectToWord(maybe_object)),
+            __ Uint32Constant(~static_cast<uint32_t>(kWeakHeapObjectMask))),
+        TruncateWordToInt32(__ BitcastTaggedToWord(value)));
+  } else {
+    return __ WordEqual(__ WordAnd(__ BitcastMaybeObjectToWord(maybe_object),
+                                   __ IntPtrConstant(~kWeakHeapObjectMask)),
+                        __ BitcastTaggedToWord(value));
+  }
 }
 
 #undef __

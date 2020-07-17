@@ -142,6 +142,9 @@ DEFINE_GETTER(PropertyArrayMapConstant,
 DEFINE_GETTER(FixedDoubleArrayMapConstant,
               HeapConstant(factory()->fixed_double_array_map()))
 
+DEFINE_GETTER(WeakFixedArrayMapConstant,
+              HeapConstant(factory()->weak_fixed_array_map()))
+
 DEFINE_GETTER(HeapNumberMapConstant, HeapConstant(factory()->heap_number_map()))
 
 DEFINE_GETTER(OptimizedOutConstant, HeapConstant(factory()->optimized_out()))

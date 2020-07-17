@@ -427,6 +427,35 @@ std::ostream& operator<<(std::ostream&, CheckMapsParameters const&);
 CheckMapsParameters const& CheckMapsParametersOf(Operator const*)
     V8_WARN_UNUSED_RESULT;
 
+// A descriptor for dynamic map checks.
+class DynamicCheckMapsParameters final {
+ public:
+  enum ICState { kMonomorphic, kPolymorphic };
+
+  DynamicCheckMapsParameters(Handle<Object> handler,
+                             const FeedbackSource& feedback, ICState state)
+      : handler_(handler), feedback_(feedback), state_(state) {}
+
+  Handle<Object> handler() const { return handler_; }
+  FeedbackSource const& feedback() const { return feedback_; }
+  ICState const& state() const { return state_; }
+
+ private:
+  Handle<Object> const handler_;
+  FeedbackSource const feedback_;
+  ICState const state_;
+};
+
+bool operator==(DynamicCheckMapsParameters const&,
+                DynamicCheckMapsParameters const&);
+
+size_t hash_value(DynamicCheckMapsParameters const&);
+
+std::ostream& operator<<(std::ostream&, DynamicCheckMapsParameters const&);
+
+DynamicCheckMapsParameters const& DynamicCheckMapsParametersOf(Operator const*)
+    V8_WARN_UNUSED_RESULT;
+
 ZoneHandleSet<Map> const& MapGuardMapsOf(Operator const*) V8_WARN_UNUSED_RESULT;
 
 // Parameters for CompareMaps operator.
@@ -837,6 +866,9 @@ class V8_EXPORT_PRIVATE SimplifiedOperatorBuilder final
   const Operator* CheckInternalizedString();
   const Operator* CheckMaps(CheckMapsFlags, ZoneHandleSet<Map>,
                             const FeedbackSource& = FeedbackSource());
+  const Operator* DynamicCheckMaps(
+      Handle<Object> handler, const FeedbackSource& feedback,
+      DynamicCheckMapsParameters::ICState ic_state);
   const Operator* CheckNotTaggedHole();
   const Operator* CheckNumber(const FeedbackSource& feedback);
   const Operator* CheckReceiver();
