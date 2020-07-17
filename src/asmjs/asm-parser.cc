@@ -75,21 +75,8 @@ AsmJsParser::AsmJsParser(Zone* zone, uintptr_t stack_limit,
     : zone_(zone),
       scanner_(stream),
       module_builder_(zone->New<WasmModuleBuilder>(zone)),
-      return_type_(nullptr),
       stack_limit_(stack_limit),
-      global_var_info_(zone),
-      local_var_info_(zone),
-      failed_(false),
-      failure_location_(kNoSourcePosition),
-      stdlib_name_(kTokenNone),
-      foreign_name_(kTokenNone),
-      heap_name_(kTokenNone),
-      inside_heap_assignment_(false),
-      heap_access_type_(nullptr),
       block_stack_(zone),
-      call_coercion_(nullptr),
-      call_coercion_deferred_(nullptr),
-      pending_label_(0),
       global_imports_(zone) {
   module_builder_->SetMinMemorySize(0);
   InitializeStdlibTypes();
@@ -211,24 +198,21 @@ class AsmJsParser::TemporaryVariableScope {
 
 wasm::AsmJsParser::VarInfo* AsmJsParser::GetVarInfo(
     AsmJsScanner::token_t token) {
-  if (AsmJsScanner::IsGlobal(token)) {
-    size_t old = global_var_info_.size();
-    size_t index = AsmJsScanner::GlobalIndex(token);
-    size_t sz = std::max(old, index + 1);
-    if (sz != old) {
-      global_var_info_.resize(sz);
-    }
-    return &global_var_info_[index];
-  } else if (AsmJsScanner::IsLocal(token)) {
-    size_t old = local_var_info_.size();
-    size_t index = AsmJsScanner::LocalIndex(token);
-    size_t sz = std::max(old, index + 1);
-    if (sz != old) {
-      local_var_info_.resize(sz);
-    }
-    return &local_var_info_[index];
+  const bool is_global = AsmJsScanner::IsGlobal(token);
+  DCHECK(is_global || AsmJsScanner::IsLocal(token));
+  Vector<VarInfo>& var_info = is_global ? global_var_info_ : local_var_info_;
+  size_t old_capacity = var_info.size();
+  size_t index = is_global ? AsmJsScanner::GlobalIndex(token)
+                           : AsmJsScanner::LocalIndex(token);
+  if (is_global && index + 1 > num_globals_) num_globals_ = index + 1;
+  if (index + 1 > old_capacity) {
+    size_t new_size = std::max(2 * old_capacity, index + 1);
+    Vector<VarInfo> new_info{zone_->NewArray<VarInfo>(new_size), new_size};
+    std::uninitialized_fill(new_info.begin(), new_info.end(), VarInfo{});
+    std::copy(var_info.begin(), var_info.end(), new_info.begin());
+    var_info = new_info;
   }
-  UNREACHABLE();
+  return &var_info[index];
 }
 
 uint32_t AsmJsParser::VarIndex(VarInfo* info) {
@@ -365,7 +349,7 @@ void AsmJsParser::ValidateModule() {
   EXPECT_TOKEN('}');
 
   // Check that all functions were eventually defined.
-  for (auto& info : global_var_info_) {
+  for (auto& info : global_var_info_.SubVector(0, num_globals_)) {
     if (info.kind == VarKind::kFunction && !info.function_defined) {
       FAIL("Undefined function");
     }
@@ -837,7 +821,7 @@ void AsmJsParser::ValidateFunction() {
   }
 
   scanner_.ResetLocals();
-  local_var_info_.clear();
+  std::fill(local_var_info_.begin(), local_var_info_.end(), VarInfo{});
 }
 
 // 6.4 ValidateFunction
