@@ -3470,8 +3470,8 @@ WASM_SIMD_TEST(S8x16LoadSplatOffset) {
   int8_t* global = r.builder().AddGlobal<int8_t>(kWasmS128);
   BUILD(r,
         WASM_SET_GLOBAL(
-            0, WASM_SIMD_LOAD_SPLAT_OFFSET(kExprS8x16LoadSplat, WASM_I32V(0),
-                                           U32V_2(offset))),
+            0, WASM_SIMD_LOAD_OP_OFFSET(kExprS8x16LoadSplat, WASM_I32V(0),
+                                        U32V_2(offset))),
         WASM_ONE);
 
   // We don't really care about all valid values, so just test for 1.
@@ -3491,7 +3491,7 @@ void RunLoadSplatTest(ExecutionTier execution_tier, LowerSimd lower_simd,
   WasmRunner<int32_t> r(execution_tier, lower_simd);
   T* memory = r.builder().AddMemoryElems<T>(kWasmPageSize / sizeof(T));
   T* global = r.builder().AddGlobal<T>(kWasmS128);
-  BUILD(r, WASM_SET_GLOBAL(0, WASM_SIMD_LOAD_SPLAT(op, WASM_I32V(mem_index))),
+  BUILD(r, WASM_SET_GLOBAL(0, WASM_SIMD_LOAD_OP(op, WASM_I32V(mem_index))),
         WASM_ONE);
 
   for (T x : compiler::ValueHelper::GetVector<T>()) {
@@ -3534,7 +3534,7 @@ void RunLoadExtendTest(ExecutionTier execution_tier, LowerSimd lower_simd,
     S* memory = r.builder().AddMemoryElems<S>(kWasmPageSize / sizeof(S));
     T* global = r.builder().AddGlobal<T>(kWasmS128);
     BUILD(r,
-          WASM_SET_GLOBAL(0, WASM_SIMD_LOAD_EXTEND_ALIGNMENT(
+          WASM_SET_GLOBAL(0, WASM_SIMD_LOAD_OP_ALIGNMENT(
                                  op, WASM_I32V(mem_index), alignment)),
           WASM_ONE);
 
@@ -3556,10 +3556,9 @@ void RunLoadExtendTest(ExecutionTier execution_tier, LowerSimd lower_simd,
     S* memory = r.builder().AddMemoryElems<S>(kWasmPageSize / sizeof(S));
     T* global = r.builder().AddGlobal<T>(kWasmS128);
     constexpr byte offset = sizeof(S);
-    BUILD(
-        r,
-        WASM_SET_GLOBAL(0, WASM_SIMD_LOAD_EXTEND_OFFSET(op, WASM_ZERO, offset)),
-        WASM_ONE);
+    BUILD(r,
+          WASM_SET_GLOBAL(0, WASM_SIMD_LOAD_OP_OFFSET(op, WASM_ZERO, offset)),
+          WASM_ONE);
 
     // Let max_s be the max_s value for type S, we set up the memory as such:
     // memory = [max_s, max_s - 1, ... max_s - (lane_s - 1)].
@@ -3620,10 +3619,8 @@ void RunLoadZeroTest(ExecutionTier execution_tier, LowerSimd lower_simd,
   WasmRunner<int32_t> r(execution_tier, lower_simd);
   S* memory = r.builder().AddMemoryElems<S>(kWasmPageSize / sizeof(S));
   S* global = r.builder().AddGlobal<S>(kWasmS128);
-  BUILD(
-      r,
-      WASM_SET_GLOBAL(0, WASM_SIMD_LOAD_ZERO_EXTEND(op, WASM_I32V(mem_index))),
-      WASM_ONE);
+  BUILD(r, WASM_SET_GLOBAL(0, WASM_SIMD_LOAD_OP(op, WASM_I32V(mem_index))),
+        WASM_ONE);
 
   S sentinel = S{-1};
   r.builder().WriteMemory(&memory[lanes_s], sentinel);
@@ -3936,9 +3933,9 @@ WASM_EXTRACT_I16x8_TEST(S, UINT16) WASM_EXTRACT_I16x8_TEST(I, INT16)
 #undef WASM_SIMD_F64x2_QFMS
 #undef WASM_SIMD_F32x4_QFMA
 #undef WASM_SIMD_F32x4_QFMS
-#undef WASM_SIMD_LOAD_SPLAT
-#undef WASM_SIMD_LOAD_EXTEND
-#undef WASM_SIMD_LOAD_ZERO_EXTEND
+#undef WASM_SIMD_LOAD_OP
+#undef WASM_SIMD_LOAD_OP_OFFSET
+#undef WASM_SIMD_LOAD_OP_ALIGNMENT
 
 }  // namespace test_run_wasm_simd
 }  // namespace wasm

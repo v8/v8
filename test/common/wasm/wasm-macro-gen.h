@@ -862,18 +862,13 @@ inline WasmOpcode LoadStoreOpcodeOf(MachineType type, bool store) {
 #define WASM_SIMD_F32x4_QFMA(a, b, c) a, b, c, WASM_SIMD_OP(kExprF32x4Qfma)
 #define WASM_SIMD_F32x4_QFMS(a, b, c) a, b, c, WASM_SIMD_OP(kExprF32x4Qfms)
 
-#define WASM_SIMD_LOAD_SPLAT(opcode, index) \
+// Like WASM_SIMD_LOAD_MEM but needs the load opcode.
+#define WASM_SIMD_LOAD_OP(opcode, index) \
   index, WASM_SIMD_OP(opcode), ZERO_ALIGNMENT, ZERO_OFFSET
-#define WASM_SIMD_LOAD_SPLAT_OFFSET(opcode, index, offset) \
+#define WASM_SIMD_LOAD_OP_OFFSET(opcode, index, offset) \
   index, WASM_SIMD_OP(opcode), ZERO_ALIGNMENT, offset
-#define WASM_SIMD_LOAD_EXTEND(opcode, index) \
-  index, WASM_SIMD_OP(opcode), ZERO_ALIGNMENT, ZERO_OFFSET
-#define WASM_SIMD_LOAD_EXTEND_OFFSET(opcode, index, offset) \
-  index, WASM_SIMD_OP(opcode), ZERO_ALIGNMENT, offset
-#define WASM_SIMD_LOAD_EXTEND_ALIGNMENT(opcode, index, alignment) \
+#define WASM_SIMD_LOAD_OP_ALIGNMENT(opcode, index, alignment) \
   index, WASM_SIMD_OP(opcode), alignment, ZERO_OFFSET
-#define WASM_SIMD_LOAD_ZERO_EXTEND(opcode, index) \
-  index, WASM_SIMD_OP(opcode), ZERO_ALIGNMENT, ZERO_OFFSET
 
 //------------------------------------------------------------------------------
 // Compilation Hints.
