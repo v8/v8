@@ -50,6 +50,7 @@ class DetectLastRoll(Step):
       # TODO(machenbach): This should be part or the setdep api of
       # depot_tools.
       Var = lambda var: '%s'
+      Str = lambda s: s
       exec(FileToText(os.path.join(self._options.chromium, "DEPS")))
 
       # The revision rolled last.
