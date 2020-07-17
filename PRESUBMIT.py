@@ -78,7 +78,6 @@ def _V8PresubmitChecks(input_api, output_api):
   sys.path.append(input_api.os_path.join(
         input_api.PresubmitLocalPath(), 'tools'))
   from v8_presubmit import CppLintProcessor
-  from v8_presubmit import JSLintProcessor
   from v8_presubmit import TorqueLintProcessor
   from v8_presubmit import SourceProcessor
   from v8_presubmit import StatusFilesProcessor
@@ -94,11 +93,6 @@ def _V8PresubmitChecks(input_api, output_api):
       affected_file,
       white_list=(r'.+\.tq'))
 
-  def FilterJSFile(affected_file):
-    return input_api.FilterSourceFile(
-      affected_file,
-      white_list=(r'.+\.m?js'))
-
   results = []
   if not CppLintProcessor().RunOnFiles(
       input_api.AffectedFiles(file_filter=FilterFile, include_deletes=False)):
@@ -107,10 +101,6 @@ def _V8PresubmitChecks(input_api, output_api):
       input_api.AffectedFiles(file_filter=FilterTorqueFile,
                               include_deletes=False)):
     results.append(output_api.PresubmitError("Torque format check failed"))
-  if not JSLintProcessor().RunOnFiles(
-      input_api.AffectedFiles(file_filter=FilterJSFile,
-                              include_deletes=False)):
-    results.append(output_api.PresubmitError("JS format check failed"))
   if not SourceProcessor().RunOnFiles(
       input_api.AffectedFiles(include_deletes=False)):
     results.append(output_api.PresubmitError(
