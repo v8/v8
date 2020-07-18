@@ -1136,7 +1136,6 @@ void TurboAssembler::GenerateSwitchTable(Register index, size_t case_count,
   UseScratchRegisterScope temps(this);
   Register scratch = temps.Acquire();
 
-  Label here;
   Align(8);
   // Load the address from the jump table at index and jump to it
   auipc(scratch, 0);                  // Load the current PC into scratch
