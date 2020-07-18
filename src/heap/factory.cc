@@ -2009,17 +2009,6 @@ Handle<JSObject> Factory::NewFunctionPrototype(Handle<JSFunction> function) {
   return prototype;
 }
 
-Handle<WeakCell> Factory::NewWeakCell() {
-  // Allocate the WeakCell object in the old space, because 1) WeakCell weakness
-  // handling is only implemented in the old space 2) they're supposedly
-  // long-living. TODO(marja, gsathya): Support WeakCells in Scavenger.
-  Handle<WeakCell> result(
-      WeakCell::cast(AllocateRawWithImmortalMap(
-          WeakCell::kSize, AllocationType::kOld, *weak_cell_map())),
-      isolate());
-  return result;
-}
-
 Handle<JSFunction> Factory::NewFunctionFromSharedFunctionInfo(
     Handle<SharedFunctionInfo> info, Handle<Context> context,
     AllocationType allocation) {

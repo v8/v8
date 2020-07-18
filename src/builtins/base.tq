@@ -331,6 +331,9 @@ extern enum MessageTemplate {
   kWasmTrapNullDereference,
   kWasmTrapIllegalCast,
   kWasmTrapArrayOutOfBounds,
+  kWeakRefsRegisterTargetAndHoldingsMustNotBeSame,
+  kWeakRefsRegisterTargetMustBeObject,
+  kWeakRefsUnregisterTokenMustBeObject,
   kWeakRefsWeakRefConstructorTargetMustBeObject,
   ...
 }
@@ -1165,6 +1168,9 @@ macro GetFastAliasedArgumentsMap(implicit context: Context)(): Map {
   return UnsafeCast<Map>(
       LoadNativeContext(context)
           .elements[NativeContextSlot::FAST_ALIASED_ARGUMENTS_MAP_INDEX]);
+}
+macro GetWeakCellMap(implicit context: Context)(): Map {
+  return %GetClassMapConstant<WeakCell>();
 }
 
 // Call(Context, Target, Receiver, ...Args)

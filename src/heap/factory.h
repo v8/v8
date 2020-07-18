@@ -419,8 +419,6 @@ class V8_EXPORT_PRIVATE Factory : public FactoryBase<Factory> {
 
   Handle<JSObject> NewFunctionPrototype(Handle<JSFunction> function);
 
-  Handle<WeakCell> NewWeakCell();
-
   // Returns a deep copy of the JavaScript object.
   // Properties and elements are copied too.
   Handle<JSObject> CopyJSObject(Handle<JSObject> object);

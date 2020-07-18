@@ -68,10 +68,17 @@ Handle<JSObject> CreateKey(const char* key_prop_value, Isolate* isolate) {
 
 Handle<WeakCell> FinalizationRegistryRegister(
     Handle<JSFinalizationRegistry> finalization_registry,
-    Handle<JSObject> target, Handle<Object> holdings, Handle<Object> key,
-    Isolate* isolate) {
-  JSFinalizationRegistry::Register(finalization_registry, target, holdings, key,
-                                   isolate);
+    Handle<JSObject> target, Handle<Object> held_value,
+    Handle<Object> unregister_token, Isolate* isolate) {
+  Factory* factory = isolate->factory();
+  Handle<JSFunction> regfunc = Handle<JSFunction>::cast(
+      Object::GetProperty(isolate, finalization_registry,
+                          factory->NewStringFromStaticChars("register"))
+          .ToHandleChecked());
+  Handle<Object> args[] = {target, held_value, unregister_token};
+  Execution::Call(isolate, regfunc, finalization_registry, arraysize(args),
+                  args)
+      .ToHandleChecked();
   CHECK(finalization_registry->active_cells().IsWeakCell());
   Handle<WeakCell> weak_cell =
       handle(WeakCell::cast(finalization_registry->active_cells()), isolate);
