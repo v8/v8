@@ -10,7 +10,7 @@ namespace v8 {
 namespace internal {
 namespace compiler {
 
-namespace {
+namespace tests {
 template <typename T>
 struct MachInst {
   T constructor;
@@ -296,7 +296,9 @@ const MachInst2 kCanElideChangeUint32ToUint64[] = {
     {&RawMachineAssembler::Uint32MulHigh, "Uint32MulHigh", kRiscvMulHighU,
      MachineType::Uint32()}};
 
-}  // namespace
+}  // namespace tests
+
+using namespace tests;
 
 using InstructionSelectorFPCmpTest = InstructionSelectorTestWithParam<FPCmp>;
 
@@ -1231,7 +1233,7 @@ TEST_F(InstructionSelectorTest, ChangeUint32ToUint64AfterLoad) {
 // ----------------------------------------------------------------------------
 
 
-namespace {
+namespace load_store {
 
 struct MemoryAccess {
   MachineType type;
@@ -1439,7 +1441,9 @@ const MemoryAccessImm2 kMemoryAccessesImmUnaligned[] = {
       39,    52,    69,    71,    91,    92,    107,   109,  115,  124,
       286,   655,   1362,  1569,  2587,  3067,  3096,  3462, 3510, 4095}}};
 
-}  // namespace
+}  // namespace load_store
+
+using namespace load_store;
 
 using InstructionSelectorMemoryAccessTest =
     InstructionSelectorTestWithParam<MemoryAccess>;
