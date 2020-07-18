@@ -1125,10 +1125,6 @@ void Assembler::fence_tso() {
   GenInstrI(0b000, MISC_MEM, ToRegister(0), ToRegister(0), imm12);
 }
 
-void Assembler::fence_i() {
-  GenInstrI(0b001, MISC_MEM, ToRegister(0), ToRegister(0), 0);
-}
-
 // Environment call / break
 
 void Assembler::ecall() {
