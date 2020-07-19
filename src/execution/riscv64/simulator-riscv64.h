@@ -134,14 +134,8 @@ inline uint64_t mulhu(uint64_t a, uint64_t b) {
 }
 
 inline int64_t mulh(int64_t a, int64_t b) {
-  if (is_int32(a) && is_int32(b)) {
-    return ((((((a & 0xfffffffff) << 32) >> 32) *
-              (((b & 0xfffffffff) << 32) >> 32)) >>
-             32));
-  }
-  int negate = (a < 0) != (b < 0);
-  uint64_t res = mulhu(a < 0 ? -a : a, b < 0 ? -b : b);
-  return negate ? ~res + (a * b == 0) : res;
+  __int128_t full_result = ((__int128_t)a) * ((__int128_t)b);
+  return full_result >> 64;
 }
 
 inline int64_t mulhsu(int64_t a, uint64_t b) {

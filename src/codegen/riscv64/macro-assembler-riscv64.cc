@@ -477,18 +477,19 @@ void TurboAssembler::Mul(Register rd, Register rs, const Operand& rt) {
   }
 }
 
+// MIPS-style mulh: top 32-bits of a 64-bit product.
 void TurboAssembler::Mulh(Register rd, Register rs, const Operand& rt) {
   if (rt.is_reg()) {
-    // Perform the 64 bit multiplication, then extract the top 32 bits
-    mulh(rd, rs, rt.rm());
+    mul(rd, rs, rt.rm());
   } else {
     // li handles the relocation.
     UseScratchRegisterScope temps(this);
     Register scratch = temps.Acquire();
     DCHECK(rs != scratch);
     RV_li(scratch, rt.immediate());
-    mulh(rd, rs, scratch);
+    mul(rd, rs, scratch);
   }
+  srai(rd, rd, 32);
 }
 
 void TurboAssembler::Mulhu(Register rd, Register rs, const Operand& rt) {
