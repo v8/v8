@@ -3644,18 +3644,12 @@ void TurboAssembler::MulOverflow(Register dst, Register left,
   DCHECK(left != scratch && right_reg != scratch && dst != scratch &&
          overflow != scratch);
   DCHECK(overflow != left && overflow != right_reg);
+  sext_w(overflow, left);
+  sext_w(scratch, right_reg);
 
-  if (dst == left || dst == right_reg) {
-    Mul(scratch, left, right_reg);
-    Mulh(overflow, left, right_reg);
-    mv(dst, scratch);
-  } else {
-    Mul(dst, left, right_reg);
-    Mulh(overflow, left, right_reg);
-  }
-
-  srai(scratch, dst, 32);
-  xor_(overflow, overflow, scratch);
+  mul(overflow, overflow, scratch);
+  sext_w(dst, overflow);
+  xor_(overflow, overflow, dst);
 }
 
 void MacroAssembler::CallRuntime(const Runtime::Function* f, int num_arguments,
