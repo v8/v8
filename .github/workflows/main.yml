@@ -1,0 +1,76 @@
+name: CI
+
+# Controls when the action will run. Triggers the workflow on push or pull request
+# events but only for the riscv-porting-dev branch
+on:
+  pull_request:
+    branches: [ riscv-porting-dev ]
+
+# A workflow run is made up of one or more jobs that can run sequentially or in parallel
+jobs:
+  build:
+    # The type of runner that the job will run on
+    runs-on: ubuntu-18.04
+
+    # Steps represent a sequence of tasks that will be executed as part of the job
+    steps:
+    - name: Update and upgrade apt
+      run: sudo apt-get update && sudo apt-get upgrade -yqq
+
+    - name: Install prereqs
+      run: |
+        DEBIAN_FRONTEND=noninteractive \
+          sudo apt-get -yqq install git \
+                                    curl \
+                                    python \
+                                    lsb-release \
+                                    pkg-config \
+                                    tzdata
+
+    - name: Get depot_tools
+      run: |
+        git clone https://chromium.googlesource.com/chromium/tools/depot_tools.git
+        echo "::add-path::$GITHUB_WORKSPACE/depot_tools"
+
+    - name: Fetch upstream v8
+      run: |
+        fetch v8
+        (cd v8/third_party/icu && git checkout dbd3825b31041d782c5b504c59dcfb5ac7dda08c)
+
+    - name: Install build dependencies
+      run: (cd v8 && ./build/install-build-deps.sh --no-prompt --no-arm)
+
+    - name: Checkout this branch
+      run: |
+        (cd v8 && \
+        git remote add riscv https://github.com/${GITHUB_REPOSITORY} && \
+        git fetch riscv && \
+        git checkout ${{ github.event.pull_request.head.sha }})
+
+    - name: Apply patch
+      run: |
+        cp v8/patches/build.patch v8/build/
+        (cd v8/build && git apply build.patch)
+
+    - name: Configure with GN
+      run: |
+        (cd v8 && \
+        gn gen out/riscv64.sim --args='is_component_build=false is_debug=true target_cpu="x64" v8_target_cpu="riscv64" use_goma=false goma_dir="None"')
+
+    - name: Build
+      run: (cd v8 && ninja -C out/riscv64.sim -j8)
+
+    - name: cctests
+      run: (cd v8 && tools/run-tests.py --outdir=out/riscv64.sim cctest)
+
+    - name: unittests
+      run: (cd v8 && tools/run-tests.py --outdir=out/riscv64.sim unittests)
+
+    - name: wasm tests
+      run: (cd v8 && tools/run-tests.py --outdir=out/riscv64.sim wasm-api-tests)
+
+    - name: mjsunit tests
+      run: (cd v8 && tools/run-tests.py --outdir=out/riscv64.sim mjsunit)
+
+    - name: misc tests
+      run: (cd v8 && tools/run-tests.py --outdir=out/riscv64.sim intl message debugger inspector mkgrokdump)
