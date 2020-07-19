@@ -110,27 +110,8 @@ static inline bool isSnan(double fp) { return !QUIET_BIT_D(fp); }
 #undef QUIET_BIT_D
 
 inline uint64_t mulhu(uint64_t a, uint64_t b) {
-  if (is_int32((int64_t)a) && is_int32((int64_t)b)) {
-    return ((((((a & 0xfffffffff) << 32) >> 32) *
-              (((b & 0xfffffffff) << 32) >> 32)) >>
-             32));
-  }
-  uint64_t t;
-  uint32_t y1, y2, y3;
-  uint64_t a0 = (uint32_t)a, a1 = a >> 32;
-  uint64_t b0 = (uint32_t)b, b1 = b >> 32;
-  t = a1 * b0 + ((a0 * b0) >> 32);
-  y1 = (uint32_t)t;
-  y2 = t >> 32;
-
-  t = a0 * b1 + y1;
-  y1 = (uint32_t)t;
-
-  t = a1 * b1 + y2 + (t >> 32);
-  y2 = (uint32_t)t;
-  y3 = t >> 32;
-
-  return ((uint64_t)y3 << 32) | y2;
+  __uint128_t full_result = ((__uint128_t)a) * ((__uint128_t)b);
+  return full_result >> 64;
 }
 
 inline int64_t mulh(int64_t a, int64_t b) {
