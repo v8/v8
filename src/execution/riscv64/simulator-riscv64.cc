@@ -46,11 +46,11 @@
 #if defined(USE_SIMULATOR)
 
 #include <limits.h>
+#include <math.h>
 #include <stdarg.h>
 #include <stdlib.h>
 
 #include <cfenv>
-#include <cmath>
 
 #include "src/base/bits.h"
 #include "src/codegen/assembler-inl.h"
@@ -1855,10 +1855,10 @@ float Simulator::RoundF2FHelper(float input_val, int rmode) {
       rounded = std::truncf(input_val);
       break;
     case RDN:  // Round Down (towards -infinity)
-      rounded = std::floorf(input_val);
+      rounded = floorf(input_val);
       break;
     case RUP:  // Round Up (towards +infinity)
-      rounded = std::ceilf(input_val);
+      rounded = ceilf(input_val);
       break;
     case RMM:  // Round to Nearest, tiest to Max Magnitude
       rounded = std::roundf(input_val);

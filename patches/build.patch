@@ -1,61 +1,41 @@
 diff --git a/build_config.h b/build_config.h
-index d3cdd2db4..18f37cbbb 100644
+index d3cdd2db4..bd78845c3 100644
 --- a/build_config.h
 +++ b/build_config.h
-@@ -166,6 +166,20 @@
- #define ARCH_CPU_32_BITS 1
+@@ -124,6 +124,11 @@
+ #define ARCH_CPU_PPC64 1
+ #define ARCH_CPU_64_BITS 1
  #define ARCH_CPU_BIG_ENDIAN 1
- #endif
-+#elif defined(__riscv) || defined(__riscv__)
-+#if __riscv_xlen == 64
++#elif defined(__riscv) && (__riscv_xlen == 64)
 +#define ARCH_CPU_RISCV_FAMILY 1
 +#define ARCH_CPU_RISCV64 1
 +#define ARCH_CPU_64_BITS 1
 +#define ARCH_CPU_LITTLE_ENDIAN 1
-+#elif __riscv_xlen == 32
-+#define ARCH_CPU_RISCV_FAMILY 1
-+#define ARCH_CPU_RISCV32 1
-+#define ARCH_CPU_32_BITS 1
-+#define ARCH_CPU_LITTLE_ENDIAN 1
-+#else
-+#error "Cannot detect Riscv's bitwidth"
-+#endif
- #else
- #error Please add support for your architecture in build/build_config.h
- #endif
+ #elif defined(__PPC64__)
+ #define ARCH_CPU_PPC64_FAMILY 1
+ #define ARCH_CPU_PPC64 1
+diff --git a/config/BUILDCONFIG.gn b/config/BUILDCONFIG.gn
+index f89e7e831..f65e193d1 100644
+--- a/config/BUILDCONFIG.gn
++++ b/config/BUILDCONFIG.gn
+@@ -137,7 +137,8 @@ declare_args() {
+   is_clang = current_os != "linux" ||
+              (current_cpu != "s390x" && current_cpu != "s390" &&
+               current_cpu != "ppc64" && current_cpu != "ppc" &&
+-              current_cpu != "mips" && current_cpu != "mips64")
++              current_cpu != "mips" && current_cpu != "mips64" &&
++              current_cpu != "riscv64")
+ 
+   # Allows the path to a custom target toolchain to be injected as a single
+   # argument, and set as the default toolchain.
 diff --git a/toolchain/linux/BUILD.gn b/toolchain/linux/BUILD.gn
-index fa8b17e9d..f275e4dc5 100644
+index fa8b17e9d..ffb35e205 100644
 --- a/toolchain/linux/BUILD.gn
 +++ b/toolchain/linux/BUILD.gn
-@@ -65,6 +65,24 @@ gcc_toolchain("arm") {
+@@ -83,6 +83,14 @@ clang_toolchain("clang_x86_v8_arm") {
    }
  }
-
-+gcc_toolchain("riscv64") {
-+  toolprefix = "riscv64-unknown-linux-gnu-"
-+
-+  cc = "${toolprefix}gcc"
-+  cxx = "${toolprefix}g++"
-+
-+  ar = "${toolprefix}ar"
-+  ld = cxx
-+  readelf = "${toolprefix}readelf"
-+  nm = "${toolprefix}nm"
-+
-+  toolchain_args = {
-+    current_cpu = "riscv64"
-+    current_os = "linux"
-+    is_clang = false
-+  }
-+}
-+
- clang_toolchain("clang_x86") {
-   # Output linker map files for binary size analysis.
-   enable_linker_map = true
-@@ -136,6 +154,14 @@ clang_toolchain("clang_x64_v8_arm64") {
-   }
- }
-
+ 
 +clang_toolchain("clang_x64_v8_riscv64") {
 +  toolchain_args = {
 +    current_cpu = "x64"
@@ -64,6 +44,31 @@ index fa8b17e9d..f275e4dc5 100644
 +  }
 +}
 +
- clang_toolchain("clang_x64_v8_mips64el") {
+ clang_toolchain("clang_x86_v8_mipsel") {
    toolchain_args = {
-     current_cpu = "x64"
+     current_cpu = "x86"
+@@ -263,6 +271,24 @@ gcc_toolchain("ppc64") {
+   }
+ }
+ 
++gcc_toolchain("riscv64") {
++  toolprefix = "riscv64-linux-gnu"
++
++  cc = "${toolprefix}-gcc"
++  cxx = "${toolprefix}-g++"
++
++  readelf = "${toolprefix}-readelf"
++  nm = "${toolprefix}-nm"
++  ar = "${toolprefix}-ar"
++  ld = cxx
++
++  toolchain_args = {
++    current_cpu = "riscv64"
++    current_os = "linux"
++    is_clang = false
++  }
++}
++
+ gcc_toolchain("mips") {
+   toolprefix = "mips-linux-gnu-"
+ 
