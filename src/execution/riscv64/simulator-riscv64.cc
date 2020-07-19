@@ -2701,7 +2701,7 @@ void Simulator::DecodeRVR4Type() {
           this->set_fflags(kInvalidOperation);
           return std::numeric_limits<float>::quiet_NaN();
         } else {
-          return frs1 * frs2 + frs3;
+          return std::fma(frs1, frs2, frs3);
         }
       };
       set_frd(CanonicalizeFPUOp3<float>(fn));
@@ -2714,7 +2714,7 @@ void Simulator::DecodeRVR4Type() {
           this->set_fflags(kInvalidOperation);
           return std::numeric_limits<float>::quiet_NaN();
         } else {
-          return frs1 * frs2 - frs3;
+          return std::fma(frs1, frs2, -frs3);
         }
       };
       set_frd(CanonicalizeFPUOp3<float>(fn));
@@ -2727,7 +2727,7 @@ void Simulator::DecodeRVR4Type() {
           this->set_fflags(kInvalidOperation);
           return std::numeric_limits<float>::quiet_NaN();
         } else {
-          return -(frs1 * frs2) + frs3;
+          return -std::fma(frs1, frs2, -frs3);
         }
       };
       set_frd(CanonicalizeFPUOp3<float>(fn));
@@ -2740,7 +2740,7 @@ void Simulator::DecodeRVR4Type() {
           this->set_fflags(kInvalidOperation);
           return std::numeric_limits<float>::quiet_NaN();
         } else {
-          return -(frs1 * frs2) - frs3;
+          return -std::fma(frs1, frs2, frs3);
         }
       };
       set_frd(CanonicalizeFPUOp3<float>(fn));
