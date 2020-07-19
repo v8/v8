@@ -120,9 +120,8 @@ inline int64_t mulh(int64_t a, int64_t b) {
 }
 
 inline int64_t mulhsu(int64_t a, uint64_t b) {
-  int negate = a < 0;
-  uint64_t res = mulhu(a < 0 ? -a : a, b);
-  return negate ? ~res + (a * b == 0) : res;
+  __int128_t full_result = ((__int128_t)a) * ((__uint128_t)b);
+  return full_result >> 64;
 }
 
 // Floating point helpers
