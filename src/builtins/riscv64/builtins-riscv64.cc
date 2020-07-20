@@ -149,7 +149,7 @@ static void Generate_StackOverflowCheck(MacroAssembler* masm, Register num_args,
   // here which will cause scratch1 to become negative.
   __ Dsubu(scratch1, sp, scratch1);
   // Check if the arguments will overflow the stack.
-  __ Dsll(scratch2, num_args, kPointerSizeLog2);
+  __ Sll64(scratch2, num_args, kPointerSizeLog2);
   // Signed comparison.
   __ Branch(stack_overflow, le, scratch1, Operand(scratch2));
 }
@@ -506,7 +506,7 @@ static void Generate_CheckStackOverflow(MacroAssembler* masm, Register argc,
   // here which will cause r2 to become negative.
   __ Dsubu(scratch1, sp, scratch1);
   // Check if the arguments will overflow the stack.
-  __ Dsll(scratch2, argc, kPointerSizeLog2);
+  __ Sll64(scratch2, argc, kPointerSizeLog2);
   __ Branch(&okay, gt, scratch1, Operand(scratch2));  // Signed comparison.
 
   // Out of stack space.
@@ -1172,7 +1172,7 @@ static void Generate_InterpreterPushArgs(MacroAssembler* masm,
                                          Register scratch, Register scratch2) {
   // Find the address of the last argument.
   __ Move(scratch2, num_args);
-  __ Dsll(scratch2, scratch2, kPointerSizeLog2);
+  __ Sll64(scratch2, scratch2, kPointerSizeLog2);
   __ Dsubu(scratch2, index, Operand(scratch2));
 
   // Push the arguments.
@@ -1775,7 +1775,7 @@ void Builtins::Generate_CallOrConstructVarargs(MacroAssembler* masm,
     __ Daddu(src, args, FixedArray::kHeaderSize - kHeapObjectTag);
     __ Daddu(a0, a0, len);  // The 'len' argument for Call() or Construct().
     __ Branch(&done, eq, len, Operand(zero_reg));
-    __ Dsll(scratch, len, kPointerSizeLog2);
+    __ Sll64(scratch, len, kPointerSizeLog2);
     __ Dsubu(scratch, sp, Operand(scratch));
     __ LoadRoot(t1, RootIndex::kTheHoleValue);
     __ bind(&loop);
@@ -2011,7 +2011,7 @@ void Builtins::Generate_CallBoundFunctionImpl(MacroAssembler* masm) {
   // Reserve stack space for the [[BoundArguments]].
   {
     Label done;
-    __ Dsll(a5, a4, kPointerSizeLog2);
+    __ Sll64(a5, a4, kPointerSizeLog2);
     __ Dsubu(sp, sp, Operand(a5));
     // Check the stack for overflow. We are not trying to catch interruptions
     // (i.e. debug break and preemption) here, so check the "real stack limit".
@@ -2164,7 +2164,7 @@ void Builtins::Generate_ConstructBoundFunction(MacroAssembler* masm) {
   // Reserve stack space for the [[BoundArguments]].
   {
     Label done;
-    __ Dsll(a5, a4, kPointerSizeLog2);
+    __ Sll64(a5, a4, kPointerSizeLog2);
     __ Dsubu(sp, sp, Operand(a5));
     // Check the stack for overflow. We are not trying to catch interruptions
     // (i.e. debug break and preemption) here, so check the "real stack limit".
@@ -2311,7 +2311,7 @@ void Builtins::Generate_ArgumentsAdaptorTrampoline(MacroAssembler* masm) {
     // Adjust for return address and receiver.
     __ Daddu(a0, a0, Operand(2 * kPointerSize));
     // Compute copy end address.
-    __ Dsll(a4, a2, kPointerSizeLog2);
+    __ Sll64(a4, a2, kPointerSizeLog2);
     __ Dsubu(a4, a0, a4);
 
     // Copy the arguments (including the receiver) to the new stack frame.
@@ -2367,7 +2367,7 @@ void Builtins::Generate_ArgumentsAdaptorTrampoline(MacroAssembler* masm) {
     // a2: expected number of arguments
     // a3: new target (passed through to callee)
     __ LoadRoot(a5, RootIndex::kUndefinedValue);
-    __ Dsll(a6, a2, kPointerSizeLog2);
+    __ Sll64(a6, a2, kPointerSizeLog2);
     __ Dsubu(a4, fp, Operand(a6));
     // Adjust for frame.
     __ Dsubu(a4, a4,
@@ -2668,7 +2668,7 @@ void Builtins::Generate_DoubleToI(MacroAssembler* masm) {
   // Shift the mantissa bits to the correct position.
   // We don't need to clear non-mantissa bits as they will be shifted away.
   // If they weren't, it would mean that the answer is in the 32bit range.
-  __ Sll(input_high, input_high, scratch);
+  __ Sll32(input_high, input_high, scratch);
 
   __ bind(&high_shift_done);
 
@@ -2680,7 +2680,7 @@ void Builtins::Generate_DoubleToI(MacroAssembler* masm) {
 
   // Negate scratch.
   __ Subu(scratch, zero_reg, scratch);
-  __ Sll(input_low, input_low, scratch);
+  __ Sll32(input_low, input_low, scratch);
   __ Branch(&shift_done);
 
   __ bind(&pos_shift);

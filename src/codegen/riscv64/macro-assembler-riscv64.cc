@@ -804,7 +804,7 @@ void TurboAssembler::Sgtu(Register rd, Register rs, const Operand& rt) {
   }
 }
 
-void TurboAssembler::Sll(Register rd, Register rs, const Operand& rt) {
+void TurboAssembler::Sll32(Register rd, Register rs, const Operand& rt) {
   if (rt.is_reg())
     sllw(rd, rs, rt.rm());
   else {
@@ -825,7 +825,7 @@ void TurboAssembler::SignExtendShort(Register rd, const Operand& rt) {
   srai(rd, rd, 64 - 16);
 }
 
-void TurboAssembler::Sra(Register rd, Register rs, const Operand& rt) {
+void TurboAssembler::Sra32(Register rd, Register rs, const Operand& rt) {
   if (rt.is_reg())
     sraw(rd, rs, rt.rm());
   else {
@@ -834,7 +834,7 @@ void TurboAssembler::Sra(Register rd, Register rs, const Operand& rt) {
   }
 }
 
-void TurboAssembler::Srl(Register rd, Register rs, const Operand& rt) {
+void TurboAssembler::Srl32(Register rd, Register rs, const Operand& rt) {
   if (rt.is_reg())
     srlw(rd, rs, rt.rm());
   else {
@@ -843,7 +843,7 @@ void TurboAssembler::Srl(Register rd, Register rs, const Operand& rt) {
   }
 }
 
-void TurboAssembler::Dsra(Register rd, Register rs, const Operand& rt) {
+void TurboAssembler::Sra64(Register rd, Register rs, const Operand& rt) {
   if (rt.is_reg())
     sra(rd, rs, rt.rm());
   else {
@@ -852,7 +852,7 @@ void TurboAssembler::Dsra(Register rd, Register rs, const Operand& rt) {
   }
 }
 
-void TurboAssembler::Dsrl(Register rd, Register rs, const Operand& rt) {
+void TurboAssembler::Srl64(Register rd, Register rs, const Operand& rt) {
   if (rt.is_reg())
     srl(rd, rs, rt.rm());
   else {
@@ -861,7 +861,7 @@ void TurboAssembler::Dsrl(Register rd, Register rs, const Operand& rt) {
   }
 }
 
-void TurboAssembler::Dsll(Register rd, Register rs, const Operand& rt) {
+void TurboAssembler::Sll64(Register rd, Register rs, const Operand& rt) {
   if (rt.is_reg())
     sll(rd, rs, rt.rm());
   else {
@@ -2467,14 +2467,14 @@ void TurboAssembler::Popcnt32(Register rd, Register rs) {
   Register value = t6;
   li(value, 0x01010101);     // value = 0x01010101;
   li(scratch2, 0x55555555);  // B0 = 0x55555555;
-  Srl(scratch, rs, 1);
+  Srl32(scratch, rs, 1);
   And(scratch, scratch, scratch2);
   Subu(scratch, rs, scratch);
   li(scratch2, 0x33333333);  // B1 = 0x33333333;
   slli(rd, scratch2, 4);
   or_(scratch2, scratch2, rd);
   And(rd, scratch, scratch2);
-  Srl(scratch, scratch, 2);
+  Srl32(scratch, scratch, 2);
   And(scratch, scratch, scratch2);
   Addu(scratch, rd, scratch);
   srliw(rd, scratch, 4);
@@ -2483,7 +2483,7 @@ void TurboAssembler::Popcnt32(Register rd, Register rs) {
   Mul(scratch2, value, scratch2);  // B2 = 0x0F0F0F0F;
   And(rd, rd, scratch2);
   Mul(rd, rd, value);
-  Srl(rd, rd, shift);
+  Srl32(rd, rd, shift);
 }
 
 void TurboAssembler::Popcnt64(Register rd, Register rs) {
@@ -2503,16 +2503,16 @@ void TurboAssembler::Popcnt64(Register rd, Register rs) {
   li(value, 0x1111111111111111l);  // value = 0x1111111111111111l;
   li(scratch2, 5);
   Dmul(scratch2, value, scratch2);  // B0 = 0x5555555555555555l;
-  Dsrl(scratch, rs, 1);
+  Srl64(scratch, rs, 1);
   And(scratch, scratch, scratch2);
   Dsubu(scratch, rs, scratch);
   li(scratch2, 3);
   Dmul(scratch2, value, scratch2);  // B1 = 0x3333333333333333l;
   And(rd, scratch, scratch2);
-  Dsrl(scratch, scratch, 2);
+  Srl64(scratch, scratch, 2);
   And(scratch, scratch, scratch2);
   Daddu(scratch, rd, scratch);
-  Dsrl(rd, scratch, 4);
+  Srl64(rd, scratch, 4);
   Daddu(rd, rd, scratch);
   li(scratch2, 0xF);
   li(value, 0x0101010101010101l);   // value = 0x0101010101010101l;
