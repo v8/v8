@@ -10,6 +10,17 @@
 namespace v8 {
 namespace internal {
 
+void AllocationCounter::AddAllocationObserver(AllocationObserver* observer) {
+  allocation_observers_.push_back(observer);
+}
+
+void AllocationCounter::RemoveAllocationObserver(AllocationObserver* observer) {
+  auto it = std::find(allocation_observers_.begin(),
+                      allocation_observers_.end(), observer);
+  DCHECK(allocation_observers_.end() != it);
+  allocation_observers_.erase(it);
+}
+
 void AllocationObserver::AllocationStep(int bytes_allocated,
                                         Address soon_object, size_t size) {
   DCHECK_GE(bytes_allocated, 0);

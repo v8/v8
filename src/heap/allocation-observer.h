@@ -5,10 +5,29 @@
 #ifndef V8_HEAP_ALLOCATION_OBSERVER_H_
 #define V8_HEAP_ALLOCATION_OBSERVER_H_
 
+#include <vector>
+
 #include "src/common/globals.h"
 
 namespace v8 {
 namespace internal {
+
+class AllocationObserver;
+
+class AllocationCounter {
+ public:
+  auto begin() { return allocation_observers_.begin(); }
+  auto end() { return allocation_observers_.end(); }
+
+  void AddAllocationObserver(AllocationObserver* observer);
+  void RemoveAllocationObserver(AllocationObserver* observer);
+
+  bool HasAllocationObservers() { return !allocation_observers_.empty(); }
+  size_t NumberAllocationObservers() { return allocation_observers_.size(); }
+
+ private:
+  std::vector<AllocationObserver*> allocation_observers_;
+};
 
 // -----------------------------------------------------------------------------
 // Allows observation of allocations.

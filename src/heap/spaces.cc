@@ -248,15 +248,12 @@ void Page::DestroyBlackAreaBackground(Address start, Address end) {
 // PagedSpace implementation
 
 void Space::AddAllocationObserver(AllocationObserver* observer) {
-  allocation_observers_.push_back(observer);
+  allocation_counter_.AddAllocationObserver(observer);
   StartNextInlineAllocationStep();
 }
 
 void Space::RemoveAllocationObserver(AllocationObserver* observer) {
-  auto it = std::find(allocation_observers_.begin(),
-                      allocation_observers_.end(), observer);
-  DCHECK(allocation_observers_.end() != it);
-  allocation_observers_.erase(it);
+  allocation_counter_.RemoveAllocationObserver(observer);
   StartNextInlineAllocationStep();
 }
 
@@ -275,7 +272,7 @@ void Space::AllocationStep(int bytes_since_last, Address soon_object,
   DCHECK(!heap()->allocation_step_in_progress());
   heap()->set_allocation_step_in_progress(true);
   heap()->CreateFillerObjectAt(soon_object, size, ClearRecordedSlots::kNo);
-  for (AllocationObserver* observer : allocation_observers_) {
+  for (AllocationObserver* observer : allocation_counter_) {
     observer->AllocationStep(bytes_since_last, soon_object, size);
   }
   heap()->set_allocation_step_in_progress(false);
@@ -288,7 +285,7 @@ void Space::AllocationStepAfterMerge(Address first_object_in_chunk, int size) {
 
   DCHECK(!heap()->allocation_step_in_progress());
   heap()->set_allocation_step_in_progress(true);
-  for (AllocationObserver* observer : allocation_observers_) {
+  for (AllocationObserver* observer : allocation_counter_) {
     observer->AllocationStep(size, first_object_in_chunk, size);
   }
   heap()->set_allocation_step_in_progress(false);
@@ -296,11 +293,11 @@ void Space::AllocationStepAfterMerge(Address first_object_in_chunk, int size) {
 
 intptr_t Space::GetNextInlineAllocationStepSize() {
   intptr_t next_step = 0;
-  for (AllocationObserver* observer : allocation_observers_) {
+  for (AllocationObserver* observer : allocation_counter_) {
     next_step = next_step ? Min(next_step, observer->bytes_to_next_step())
                           : observer->bytes_to_next_step();
   }
-  DCHECK(allocation_observers_.size() == 0 || next_step > 0);
+  DCHECK(!allocation_counter_.HasAllocationObservers() || next_step > 0);
   return next_step;
 }
 
@@ -405,7 +402,8 @@ void SpaceWithLinearArea::AddAllocationObserver(AllocationObserver* observer) {
 void SpaceWithLinearArea::RemoveAllocationObserver(
     AllocationObserver* observer) {
   Address top_for_next_step =
-      allocation_observers_.size() == 1 ? kNullAddress : top();
+      allocation_counter_.NumberAllocationObservers() == 1 ? kNullAddress
+                                                           : top();
   InlineAllocationStep(top(), top_for_next_step, kNullAddress, 0);
   Space::RemoveAllocationObserver(observer);
   DCHECK_IMPLIES(top_on_previous_step_, AllocationObserversActive());

@@ -12,6 +12,7 @@
 #include "src/base/iterator.h"
 #include "src/base/macros.h"
 #include "src/common/globals.h"
+#include "src/heap/allocation-observer.h"
 #include "src/heap/base-space.h"
 #include "src/heap/basic-memory-chunk.h"
 #include "src/heap/free-list.h"
@@ -193,10 +194,11 @@ class V8_EXPORT_PRIVATE Space : public BaseSpace {
  protected:
   intptr_t GetNextInlineAllocationStepSize();
   bool AllocationObserversActive() {
-    return !allocation_observers_paused_ && !allocation_observers_.empty();
+    return !allocation_observers_paused_ &&
+           allocation_counter_.HasAllocationObservers();
   }
 
-  std::vector<AllocationObserver*> allocation_observers_;
+  AllocationCounter allocation_counter_;
 
   // The List manages the pages that belong to the given space.
   heap::List<MemoryChunk> memory_chunk_list_;
