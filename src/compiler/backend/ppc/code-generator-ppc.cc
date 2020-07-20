@@ -2157,12 +2157,16 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       Simd128Register dst = i.OutputSimd128Register();
       __ MovDoubleToInt64(ip, i.InputDoubleRegister(0));
       // Need to maintain 16 byte alignment for lvx.
-      __ addi(sp, sp, Operand(-24));
+      __ mr(kScratchReg, sp);
+      __ ClearRightImm(
+          sp, sp,
+          Operand(base::bits::WhichPowerOfTwo(16)));  // equivalent to &= -16
+      __ addi(sp, sp, Operand(-16));
       __ StoreP(ip, MemOperand(sp, 0));
       __ StoreP(ip, MemOperand(sp, 8));
       __ li(r0, Operand(0));
       __ lvx(dst, MemOperand(sp, r0));
-      __ addi(sp, sp, Operand(24));
+      __ mr(sp, kScratchReg);
       break;
     }
     case kPPC_F32x4Splat: {
@@ -2176,12 +2180,16 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       Register src = i.InputRegister(0);
       Simd128Register dst = i.OutputSimd128Register();
       // Need to maintain 16 byte alignment for lvx.
-      __ addi(sp, sp, Operand(-24));
+      __ mr(kScratchReg, sp);
+      __ ClearRightImm(
+          sp, sp,
+          Operand(base::bits::WhichPowerOfTwo(16)));  // equivalent to &= -16
+      __ addi(sp, sp, Operand(-16));
       __ StoreP(src, MemOperand(sp, 0));
       __ StoreP(src, MemOperand(sp, 8));
       __ li(r0, Operand(0));
       __ lvx(dst, MemOperand(sp, r0));
-      __ addi(sp, sp, Operand(24));
+      __ mr(sp, kScratchReg);
       break;
     }
     case kPPC_I32x4Splat: {
@@ -2303,12 +2311,14 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
     }                                                                 \
   }                                                                   \
   /* Need to maintain 16 byte alignment for lvx */                    \
-  __ addi(sp, sp, Operand(-24));                                      \
+  __ mr(kScratchReg, sp);                                             \
+  __ ClearRightImm(sp, sp, Operand(base::bits::WhichPowerOfTwo(16))); \
+  __ addi(sp, sp, Operand(-16));                                      \
   __ StoreP(ip, MemOperand(sp, 0));                                   \
   __ StoreP(r0, MemOperand(sp, 8));                                   \
   __ li(r0, Operand(0));                                              \
   __ lvx(kScratchDoubleReg, MemOperand(sp, r0));                      \
-  __ addi(sp, sp, Operand(24));
+  __ mr(sp, kScratchReg);
     case kPPC_F64x2ReplaceLane: {
       Simd128Register src = i.InputSimd128Register(0);
       Simd128Register dst = i.OutputSimd128Register();
@@ -2446,7 +2456,11 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
     }
     case kPPC_I64x2Mul: {
       // Need to maintain 16 byte alignment for stvx and lvx.
-      __ addi(sp, sp, Operand(-40));
+      __ mr(kScratchReg, sp);
+      __ ClearRightImm(
+          sp, sp,
+          Operand(base::bits::WhichPowerOfTwo(16)));  // equivalent to &= -16
+      __ addi(sp, sp, Operand(-32));
       __ li(r0, Operand(0));
       __ stvx(i.InputSimd128Register(0), MemOperand(sp, r0));
       __ li(r0, Operand(16));
@@ -2459,7 +2473,7 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       }
       __ li(r0, Operand(0));
       __ lvx(i.OutputSimd128Register(), MemOperand(sp, r0));
-      __ addi(sp, sp, Operand(40));
+      __ mr(sp, kScratchReg);
       break;
     }
     case kPPC_I32x4Add: {
@@ -2941,12 +2955,16 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       Simd128Register tempFPReg1 = i.ToSimd128Register(instr->TempAt(0));
       __ li(ip, Operand(1));
       // Need to maintain 16 byte alignment for lvx.
-      __ addi(sp, sp, Operand(-24));
+      __ mr(kScratchReg, sp);
+      __ ClearRightImm(
+          sp, sp,
+          Operand(base::bits::WhichPowerOfTwo(16)));  // equivalent to &= -16
+      __ addi(sp, sp, Operand(-16));
       __ StoreP(ip, MemOperand(sp, 0));
       __ StoreP(ip, MemOperand(sp, 8));
       __ li(r0, Operand(0));
       __ lvx(kScratchDoubleReg, MemOperand(sp, r0));
-      __ addi(sp, sp, Operand(24));
+      __ mr(sp, kScratchReg);
       // Perform negation.
       __ vnor(tempFPReg1, i.InputSimd128Register(0), i.InputSimd128Register(0));
       __ vaddudm(i.OutputSimd128Register(), tempFPReg1, kScratchDoubleReg);
