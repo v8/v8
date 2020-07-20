@@ -97,6 +97,7 @@
       'V8 Linux64 UBSan': 'release_x64_ubsan',
       'V8 Linux - vtunejit': 'debug_x86_vtunejit',
       'V8 Linux64 - gcov coverage': 'release_x64_gcc_coverage',
+      'V8 Linux64 - Fuzzilli': 'release_x64_fuzzilli',
       'V8 Linux - predictable': 'release_x86_predictable',
       'V8 Linux - full debug': 'full_debug_x86',
       'V8 Mac64 - full debug': 'full_debug_x64',
@@ -230,6 +231,7 @@
       'v8_linux64_verify_csa_rel_ng': 'release_x64_verify_csa',
       'v8_linux64_asan_rel_ng': 'release_x64_asan_minimal_symbols',
       'v8_linux64_cfi_rel_ng': 'release_x64_cfi',
+      'v8_linux64_fuzzilli_ng': 'release_x64_fuzzilli',
       'v8_linux64_msan_rel_ng': 'release_simulate_arm64_msan_minimal_symbols',
       'v8_linux64_tsan_rel_ng': 'release_x64_tsan_minimal_symbols',
       'v8_linux64_tsan_isolates_rel_ng':
@@ -444,6 +446,9 @@
       'release_bot', 'x64', 'cfi'],
     'release_x64_cfi_clusterfuzz': [
       'release_bot', 'x64', 'cfi_clusterfuzz'],
+    'release_x64_fuzzilli': [
+      'release_bot', 'x64', 'dcheck_always_on', 'v8_enable_slow_dchecks', 'v8_verify_heap',
+      'v8_verify_csa', 'v8_enable_verify_predictable', 'fuzzilli'],
     'release_x64_msvc': [
       'release_bot_no_goma', 'x64', 'minimal_symbols', 'msvc'],
     'release_x64_correctness_fuzzer' : [
@@ -634,6 +639,11 @@
 
     'fuchsia': {
       'gn_args': 'target_os="fuchsia"',
+    },
+
+    'fuzzilli': {
+      'gn_args': 'v8_static_library=true v8_enable_v8_checks=true '
+                 'sanitizer_coverage_flags="trace-pc-guard" v8_fuzzilli=true',
     },
 
     'gcc': {

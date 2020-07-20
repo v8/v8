@@ -293,6 +293,13 @@
       {'name': 'v8testing', 'variant': 'stress_instruction_scheduling'},
     ],
   },
+  'v8_linux64_fuzzilli_ng_triggered': {
+    'swarming_dimensions' : {
+      'os': 'Ubuntu-16.04',
+    },
+    # TODO(almuthanna): Add a new test config for the fuzzilli suite.
+    'tests': [],
+  },
   'v8_linux64_gc_stress_custom_snapshot_dbg_ng_triggered': {
     'swarming_dimensions' : {
       'os': 'Ubuntu-16.04',
