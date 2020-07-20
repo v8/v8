@@ -1638,6 +1638,10 @@ class ModuleDecoderImpl : public Decoder {
   }
 
   WasmInitExpr consume_init_expr(WasmModule* module, ValueType expected) {
+    if (pc() >= end()) {
+      error(pc(), "Global initializer starting beyond code end");
+      return {};
+    }
     constexpr Decoder::ValidateFlag validate = Decoder::kValidate;
     WasmOpcode opcode = kExprNop;
     std::vector<WasmInitExpr> stack;
