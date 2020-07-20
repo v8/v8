@@ -3033,7 +3033,7 @@ void Genesis::InitializeGlobal(Handle<JSGlobalObject> global_object,
           isolate(), intl, "DisplayNames", JS_DISPLAY_NAMES_TYPE,
           JSDisplayNames::kHeaderSize, 0, factory->the_hole_value(),
           Builtins::kDisplayNamesConstructor);
-      display_names_fun->shared().set_length(0);
+      display_names_fun->shared().set_length(2);
       display_names_fun->shared().DontAdaptArguments();
       InstallWithIntrinsicDefaultProto(
           isolate(), display_names_fun,
