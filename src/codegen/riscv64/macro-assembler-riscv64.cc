@@ -464,7 +464,7 @@ void TurboAssembler::Dsubu(Register rd, Register rs, const Operand& rt) {
   }
 }
 
-void TurboAssembler::Mul(Register rd, Register rs, const Operand& rt) {
+void TurboAssembler::Mul32(Register rd, Register rs, const Operand& rt) {
   if (rt.is_reg()) {
     mulw(rd, rs, rt.rm());
   } else {
@@ -477,7 +477,7 @@ void TurboAssembler::Mul(Register rd, Register rs, const Operand& rt) {
   }
 }
 
-void TurboAssembler::Mulh(Register rd, Register rs, const Operand& rt) {
+void TurboAssembler::Mulh32(Register rd, Register rs, const Operand& rt) {
   if (rt.is_reg()) {
     // Perform the 64 bit multiplication, then extract the top 32 bits
     mulh(rd, rs, rt.rm());
@@ -491,7 +491,7 @@ void TurboAssembler::Mulh(Register rd, Register rs, const Operand& rt) {
   }
 }
 
-void TurboAssembler::Mulhu(Register rd, Register rs, const Operand& rt) {
+void TurboAssembler::Mulhu32(Register rd, Register rs, const Operand& rt) {
   if (rt.is_reg()) {
     mulhu(rd, rs, rt.rm());
   } else {
@@ -504,7 +504,7 @@ void TurboAssembler::Mulhu(Register rd, Register rs, const Operand& rt) {
   }
 }
 
-void TurboAssembler::Dmul(Register rd, Register rs, const Operand& rt) {
+void TurboAssembler::Mul64(Register rd, Register rs, const Operand& rt) {
   if (rt.is_reg()) {
     mul(rd, rs, rt.rm());
   } else {
@@ -517,7 +517,7 @@ void TurboAssembler::Dmul(Register rd, Register rs, const Operand& rt) {
   }
 }
 
-void TurboAssembler::Dmulh(Register rd, Register rs, const Operand& rt) {
+void TurboAssembler::Mulh64(Register rd, Register rs, const Operand& rt) {
   if (rt.is_reg()) {
     mulh(rd, rs, rt.rm());
   } else {
@@ -530,7 +530,7 @@ void TurboAssembler::Dmulh(Register rd, Register rs, const Operand& rt) {
   }
 }
 
-void TurboAssembler::Div(Register res, Register rs, const Operand& rt) {
+void TurboAssembler::Div32(Register res, Register rs, const Operand& rt) {
   if (rt.is_reg()) {
     divw(res, rs, rt.rm());
   } else {
@@ -543,7 +543,7 @@ void TurboAssembler::Div(Register res, Register rs, const Operand& rt) {
   }
 }
 
-void TurboAssembler::Mod(Register rd, Register rs, const Operand& rt) {
+void TurboAssembler::Mod32(Register rd, Register rs, const Operand& rt) {
   if (rt.is_reg()) {
     remw(rd, rs, rt.rm());
   } else {
@@ -556,7 +556,7 @@ void TurboAssembler::Mod(Register rd, Register rs, const Operand& rt) {
   }
 }
 
-void TurboAssembler::Modu(Register rd, Register rs, const Operand& rt) {
+void TurboAssembler::Modu32(Register rd, Register rs, const Operand& rt) {
   if (rt.is_reg()) {
     remuw(rd, rs, rt.rm());
   } else {
@@ -569,7 +569,7 @@ void TurboAssembler::Modu(Register rd, Register rs, const Operand& rt) {
   }
 }
 
-void TurboAssembler::Ddiv(Register rd, Register rs, const Operand& rt) {
+void TurboAssembler::Div64(Register rd, Register rs, const Operand& rt) {
   if (rt.is_reg()) {
     div(rd, rs, rt.rm());
   } else {
@@ -582,7 +582,7 @@ void TurboAssembler::Ddiv(Register rd, Register rs, const Operand& rt) {
   }
 }
 
-void TurboAssembler::Divu(Register res, Register rs, const Operand& rt) {
+void TurboAssembler::Divu32(Register res, Register rs, const Operand& rt) {
   if (rt.is_reg()) {
     divuw(res, rs, rt.rm());
   } else {
@@ -595,7 +595,7 @@ void TurboAssembler::Divu(Register res, Register rs, const Operand& rt) {
   }
 }
 
-void TurboAssembler::Ddivu(Register res, Register rs, const Operand& rt) {
+void TurboAssembler::Divu64(Register res, Register rs, const Operand& rt) {
   if (rt.is_reg()) {
     divu(res, rs, rt.rm());
   } else {
@@ -608,7 +608,7 @@ void TurboAssembler::Ddivu(Register res, Register rs, const Operand& rt) {
   }
 }
 
-void TurboAssembler::Dmod(Register rd, Register rs, const Operand& rt) {
+void TurboAssembler::Mod64(Register rd, Register rs, const Operand& rt) {
   if (rt.is_reg()) {
     rem(rd, rs, rt.rm());
   } else {
@@ -621,7 +621,7 @@ void TurboAssembler::Dmod(Register rd, Register rs, const Operand& rt) {
   }
 }
 
-void TurboAssembler::Dmodu(Register rd, Register rs, const Operand& rt) {
+void TurboAssembler::Modu64(Register rd, Register rs, const Operand& rt) {
   if (rt.is_reg()) {
     remu(rd, rs, rt.rm());
   } else {
@@ -2480,9 +2480,9 @@ void TurboAssembler::Popcnt32(Register rd, Register rs) {
   srliw(rd, scratch, 4);
   Addu(rd, rd, scratch);
   li(scratch2, 0xF);
-  Mul(scratch2, value, scratch2);  // B2 = 0x0F0F0F0F;
+  Mul32(scratch2, value, scratch2);  // B2 = 0x0F0F0F0F;
   And(rd, rd, scratch2);
-  Mul(rd, rd, value);
+  Mul32(rd, rd, value);
   Srl32(rd, rd, shift);
 }
 
@@ -2502,12 +2502,12 @@ void TurboAssembler::Popcnt64(Register rd, Register rs) {
   Register value = t6;
   li(value, 0x1111111111111111l);  // value = 0x1111111111111111l;
   li(scratch2, 5);
-  Dmul(scratch2, value, scratch2);  // B0 = 0x5555555555555555l;
+  Mul64(scratch2, value, scratch2);  // B0 = 0x5555555555555555l;
   Srl64(scratch, rs, 1);
   And(scratch, scratch, scratch2);
   Dsubu(scratch, rs, scratch);
   li(scratch2, 3);
-  Dmul(scratch2, value, scratch2);  // B1 = 0x3333333333333333l;
+  Mul64(scratch2, value, scratch2);  // B1 = 0x3333333333333333l;
   And(rd, scratch, scratch2);
   Srl64(scratch, scratch, 2);
   And(scratch, scratch, scratch2);
@@ -2515,10 +2515,10 @@ void TurboAssembler::Popcnt64(Register rd, Register rs) {
   Srl64(rd, scratch, 4);
   Daddu(rd, rd, scratch);
   li(scratch2, 0xF);
-  li(value, 0x0101010101010101l);   // value = 0x0101010101010101l;
-  Dmul(scratch2, value, scratch2);  // B2 = 0x0F0F0F0F0F0F0F0Fl;
+  li(value, 0x0101010101010101l);    // value = 0x0101010101010101l;
+  Mul64(scratch2, value, scratch2);  // B2 = 0x0F0F0F0F0F0F0F0Fl;
   And(rd, rd, scratch2);
-  Dmul(rd, rd, value);
+  Mul64(rd, rd, value);
   srli(rd, rd, 32 + shift);
 }
 
@@ -3629,8 +3629,8 @@ void TurboAssembler::DsubOverflow(Register dst, Register left,
   }
 }
 
-void TurboAssembler::MulOverflow(Register dst, Register left,
-                                 const Operand& right, Register overflow) {
+void TurboAssembler::MulOverflow32(Register dst, Register left,
+                                   const Operand& right, Register overflow) {
   BlockTrampolinePoolScope block_trampoline_pool(this);
   Register right_reg = no_reg;
   Register scratch = t5;
@@ -3646,12 +3646,12 @@ void TurboAssembler::MulOverflow(Register dst, Register left,
   DCHECK(overflow != left && overflow != right_reg);
 
   if (dst == left || dst == right_reg) {
-    Mul(scratch, left, right_reg);
-    Mulh(overflow, left, right_reg);
+    Mul32(scratch, left, right_reg);
+    Mulh32(overflow, left, right_reg);
     mv(dst, scratch);
   } else {
-    Mul(dst, left, right_reg);
-    Mulh(overflow, left, right_reg);
+    Mul32(dst, left, right_reg);
+    Mulh32(overflow, left, right_reg);
   }
 
   srai(scratch, dst, 32);

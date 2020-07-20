@@ -380,29 +380,29 @@ class V8_EXPORT_PRIVATE TurboAssembler : public TurboAssemblerBase {
 
   DEFINE_INSTRUCTION(Addu)
   DEFINE_INSTRUCTION(Daddu)
-  DEFINE_INSTRUCTION(Div)
-  DEFINE_INSTRUCTION(Divu)
-  DEFINE_INSTRUCTION(Ddivu)
-  DEFINE_INSTRUCTION(Mod)
-  DEFINE_INSTRUCTION(Modu)
-  DEFINE_INSTRUCTION(Ddiv)
+  DEFINE_INSTRUCTION(Div32)
+  DEFINE_INSTRUCTION(Divu32)
+  DEFINE_INSTRUCTION(Divu64)
+  DEFINE_INSTRUCTION(Mod32)
+  DEFINE_INSTRUCTION(Modu32)
+  DEFINE_INSTRUCTION(Div64)
   DEFINE_INSTRUCTION(Subu)
   DEFINE_INSTRUCTION(Dsubu)
-  DEFINE_INSTRUCTION(Dmod)
-  DEFINE_INSTRUCTION(Dmodu)
-  DEFINE_INSTRUCTION(Mul)
-  DEFINE_INSTRUCTION(Mulh)
-  DEFINE_INSTRUCTION(Mulhu)
-  DEFINE_INSTRUCTION(Dmul)
-  DEFINE_INSTRUCTION(Dmulh)
-  DEFINE_INSTRUCTION2(Mult)
-  DEFINE_INSTRUCTION2(Dmult)
-  DEFINE_INSTRUCTION2(Multu)
-  DEFINE_INSTRUCTION2(Dmultu)
-  DEFINE_INSTRUCTION2(Div)
-  DEFINE_INSTRUCTION2(Ddiv)
-  DEFINE_INSTRUCTION2(Divu)
-  DEFINE_INSTRUCTION2(Ddivu)
+  DEFINE_INSTRUCTION(Mod64)
+  DEFINE_INSTRUCTION(Modu64)
+  DEFINE_INSTRUCTION(Mul32)
+  DEFINE_INSTRUCTION(Mulh32)
+  DEFINE_INSTRUCTION(Mulhu32)
+  DEFINE_INSTRUCTION(Mul64)
+  DEFINE_INSTRUCTION(Mulh64)
+  // DEFINE_INSTRUCTION2(Mult)
+  // DEFINE_INSTRUCTION2(Dmult)
+  // DEFINE_INSTRUCTION2(Multu)
+  // DEFINE_INSTRUCTION2(Dmultu)
+  DEFINE_INSTRUCTION2(Div32)
+  DEFINE_INSTRUCTION2(Div64)
+  DEFINE_INSTRUCTION2(Divu32)
+  DEFINE_INSTRUCTION2(Divu64)
 
   DEFINE_INSTRUCTION(And)
   DEFINE_INSTRUCTION(Or)
@@ -678,9 +678,9 @@ class V8_EXPORT_PRIVATE TurboAssembler : public TurboAssemblerBase {
   // overflow occured, otherwise it is zero or positive
   void DsubOverflow(Register dst, Register left, const Operand& right,
                     Register overflow);
-  // MulOverflow sets overflow register to zero if no overflow occured
-  void MulOverflow(Register dst, Register left, const Operand& right,
-                   Register overflow);
+  // MulOverflow32 sets overflow register to zero if no overflow occured
+  void MulOverflow32(Register dst, Register left, const Operand& right,
+                     Register overflow);
 
   // Number of instructions needed for calculation of switch table entry address
   static const int kSwitchTablePrologueSize = 6;

@@ -708,11 +708,11 @@ TEST(OverflowInstructions) {
       __ Ld(t1, MemOperand(a0, offsetof(T, rhs)));
       __ slliw(t0, t0, 0);
       __ slliw(t1, t1, 0);
-      __ MulOverflow(t2, t0, Operand(t1), a1);
+      __ MulOverflow32(t2, t0, Operand(t1), a1);
       __ Sd(t2, MemOperand(a0, offsetof(T, output_mul)));
       __ Sd(a1, MemOperand(a0, offsetof(T, overflow_mul)));
       __ mov(a1, zero_reg);
-      __ MulOverflow(t0, t0, Operand(t1), a1);
+      __ MulOverflow32(t0, t0, Operand(t1), a1);
       __ Sd(t0, MemOperand(a0, offsetof(T, output_mul2)));
       __ Sd(a1, MemOperand(a0, offsetof(T, overflow_mul2)));
 

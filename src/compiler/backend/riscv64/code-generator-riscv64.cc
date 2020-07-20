@@ -1000,51 +1000,51 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
                       kScratchReg);
       break;
     case kRiscvMul:
-      __ Mul(i.OutputRegister(), i.InputRegister(0), i.InputOperand(1));
+      __ Mul32(i.OutputRegister(), i.InputRegister(0), i.InputOperand(1));
       break;
     case kRiscvMulOvf:
-      __ MulOverflow(i.OutputRegister(), i.InputRegister(0), i.InputOperand(1),
-                     kScratchReg);
+      __ MulOverflow32(i.OutputRegister(), i.InputRegister(0),
+                       i.InputOperand(1), kScratchReg);
       break;
     case kRiscvMulHigh:
-      __ Mulh(i.OutputRegister(), i.InputRegister(0), i.InputOperand(1));
+      __ Mulh32(i.OutputRegister(), i.InputRegister(0), i.InputOperand(1));
       break;
     case kRiscvMulHighU:
-      __ Mulhu(i.OutputRegister(), i.InputRegister(0), i.InputOperand(1));
+      __ Mulhu32(i.OutputRegister(), i.InputRegister(0), i.InputOperand(1));
       break;
     case kRiscvDMulHigh:
-      __ Dmulh(i.OutputRegister(), i.InputRegister(0), i.InputOperand(1));
+      __ Mulh64(i.OutputRegister(), i.InputRegister(0), i.InputOperand(1));
       break;
     case kRiscvDiv:
-      __ Div(i.OutputRegister(), i.InputRegister(0), i.InputOperand(1));
+      __ Div32(i.OutputRegister(), i.InputRegister(0), i.InputOperand(1));
       __ Movz(i.OutputRegister(), i.InputRegister(1), i.InputRegister(1));
       break;
     case kRiscvDivU:
-      __ Divu(i.OutputRegister(), i.InputRegister(0), i.InputOperand(1));
+      __ Divu32(i.OutputRegister(), i.InputRegister(0), i.InputOperand(1));
       __ Movz(i.OutputRegister(), i.InputRegister(1), i.InputRegister(1));
       break;
     case kRiscvMod:
-      __ Mod(i.OutputRegister(), i.InputRegister(0), i.InputOperand(1));
+      __ Mod32(i.OutputRegister(), i.InputRegister(0), i.InputOperand(1));
       break;
     case kRiscvModU:
-      __ Modu(i.OutputRegister(), i.InputRegister(0), i.InputOperand(1));
+      __ Modu32(i.OutputRegister(), i.InputRegister(0), i.InputOperand(1));
       break;
     case kRiscvDmul:
-      __ Dmul(i.OutputRegister(), i.InputRegister(0), i.InputOperand(1));
+      __ Mul64(i.OutputRegister(), i.InputRegister(0), i.InputOperand(1));
       break;
     case kRiscvDdiv:
-      __ Ddiv(i.OutputRegister(), i.InputRegister(0), i.InputOperand(1));
+      __ Div64(i.OutputRegister(), i.InputRegister(0), i.InputOperand(1));
       __ Movz(i.OutputRegister(), i.InputRegister(1), i.InputRegister(1));
       break;
     case kRiscvDdivU:
-      __ Ddivu(i.OutputRegister(), i.InputRegister(0), i.InputOperand(1));
+      __ Divu64(i.OutputRegister(), i.InputRegister(0), i.InputOperand(1));
       __ Movz(i.OutputRegister(), i.InputRegister(1), i.InputRegister(1));
       break;
     case kRiscvDmod:
-      __ Dmod(i.OutputRegister(), i.InputRegister(0), i.InputOperand(1));
+      __ Mod64(i.OutputRegister(), i.InputRegister(0), i.InputOperand(1));
       break;
     case kRiscvDmodU:
-      __ Dmodu(i.OutputRegister(), i.InputRegister(0), i.InputOperand(1));
+      __ Modu64(i.OutputRegister(), i.InputRegister(0), i.InputOperand(1));
       break;
     case kRiscvDlsa:
       DCHECK(instr->InputAt(2)->IsImmediate());

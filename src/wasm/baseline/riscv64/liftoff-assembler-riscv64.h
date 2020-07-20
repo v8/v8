@@ -604,7 +604,7 @@ bool LiftoffAssembler::emit_i64_popcnt(LiftoffRegister dst,
 }
 
 void LiftoffAssembler::emit_i32_mul(Register dst, Register lhs, Register rhs) {
-  TurboAssembler::Mul(dst, lhs, rhs);
+  TurboAssembler::Mul32(dst, lhs, rhs);
 }
 
 void LiftoffAssembler::emit_i32_divs(Register dst, Register lhs, Register rhs,
@@ -621,25 +621,25 @@ void LiftoffAssembler::emit_i32_divs(Register dst, Register lhs, Register rhs,
   TurboAssembler::Branch(trap_div_unrepresentable, eq, kScratchReg,
                          Operand(zero_reg));
 
-  TurboAssembler::Div(dst, lhs, rhs);
+  TurboAssembler::Div32(dst, lhs, rhs);
 }
 
 void LiftoffAssembler::emit_i32_divu(Register dst, Register lhs, Register rhs,
                                      Label* trap_div_by_zero) {
   TurboAssembler::Branch(trap_div_by_zero, eq, rhs, Operand(zero_reg));
-  TurboAssembler::Divu(dst, lhs, rhs);
+  TurboAssembler::Divu32(dst, lhs, rhs);
 }
 
 void LiftoffAssembler::emit_i32_rems(Register dst, Register lhs, Register rhs,
                                      Label* trap_div_by_zero) {
   TurboAssembler::Branch(trap_div_by_zero, eq, rhs, Operand(zero_reg));
-  TurboAssembler::Mod(dst, lhs, rhs);
+  TurboAssembler::Mod32(dst, lhs, rhs);
 }
 
 void LiftoffAssembler::emit_i32_remu(Register dst, Register lhs, Register rhs,
                                      Label* trap_div_by_zero) {
   TurboAssembler::Branch(trap_div_by_zero, eq, rhs, Operand(zero_reg));
-  TurboAssembler::Modu(dst, lhs, rhs);
+  TurboAssembler::Modu32(dst, lhs, rhs);
 }
 
 #define I32_BINOP(name, instruction)                                 \
@@ -710,7 +710,7 @@ I32_SHIFTOP_I(shr, srliw)
 
 void LiftoffAssembler::emit_i64_mul(LiftoffRegister dst, LiftoffRegister lhs,
                                     LiftoffRegister rhs) {
-  TurboAssembler::Dmul(dst.gp(), lhs.gp(), rhs.gp());
+  TurboAssembler::Mul64(dst.gp(), lhs.gp(), rhs.gp());
 }
 
 bool LiftoffAssembler::emit_i64_divs(LiftoffRegister dst, LiftoffRegister lhs,
@@ -729,7 +729,7 @@ bool LiftoffAssembler::emit_i64_divs(LiftoffRegister dst, LiftoffRegister lhs,
   TurboAssembler::Branch(trap_div_unrepresentable, eq, kScratchReg,
                          Operand(zero_reg));
 
-  TurboAssembler::Ddiv(dst.gp(), lhs.gp(), rhs.gp());
+  TurboAssembler::Div64(dst.gp(), lhs.gp(), rhs.gp());
   return true;
 }
 
@@ -737,7 +737,7 @@ bool LiftoffAssembler::emit_i64_divu(LiftoffRegister dst, LiftoffRegister lhs,
                                      LiftoffRegister rhs,
                                      Label* trap_div_by_zero) {
   TurboAssembler::Branch(trap_div_by_zero, eq, rhs.gp(), Operand(zero_reg));
-  TurboAssembler::Ddivu(dst.gp(), lhs.gp(), rhs.gp());
+  TurboAssembler::Divu64(dst.gp(), lhs.gp(), rhs.gp());
   return true;
 }
 
@@ -745,7 +745,7 @@ bool LiftoffAssembler::emit_i64_rems(LiftoffRegister dst, LiftoffRegister lhs,
                                      LiftoffRegister rhs,
                                      Label* trap_div_by_zero) {
   TurboAssembler::Branch(trap_div_by_zero, eq, rhs.gp(), Operand(zero_reg));
-  TurboAssembler::Dmod(dst.gp(), lhs.gp(), rhs.gp());
+  TurboAssembler::Mod64(dst.gp(), lhs.gp(), rhs.gp());
   return true;
 }
 
@@ -753,7 +753,7 @@ bool LiftoffAssembler::emit_i64_remu(LiftoffRegister dst, LiftoffRegister lhs,
                                      LiftoffRegister rhs,
                                      Label* trap_div_by_zero) {
   TurboAssembler::Branch(trap_div_by_zero, eq, rhs.gp(), Operand(zero_reg));
-  TurboAssembler::Dmodu(dst.gp(), lhs.gp(), rhs.gp());
+  TurboAssembler::Modu64(dst.gp(), lhs.gp(), rhs.gp());
   return true;
 }
 
