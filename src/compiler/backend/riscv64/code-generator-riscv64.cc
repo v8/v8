@@ -1048,13 +1048,13 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       break;
     case kRiscvDlsa:
       DCHECK(instr->InputAt(2)->IsImmediate());
-      __ Dlsa(i.OutputRegister(), i.InputRegister(0), i.InputRegister(1),
-              i.InputInt8(2));
+      __ Lsa64(i.OutputRegister(), i.InputRegister(0), i.InputRegister(1),
+               i.InputInt8(2));
       break;
     case kRiscvLsa:
       DCHECK(instr->InputAt(2)->IsImmediate());
-      __ Lsa(i.OutputRegister(), i.InputRegister(0), i.InputRegister(1),
-             i.InputInt8(2));
+      __ Lsa32(i.OutputRegister(), i.InputRegister(0), i.InputRegister(1),
+               i.InputInt8(2));
       break;
     case kRiscvAnd:
       __ And(i.OutputRegister(), i.InputRegister(0), i.InputOperand(1));
@@ -1550,10 +1550,10 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       // ... more basic instructions ...
 
     case kRiscvSeb:
-      __ Seb(i.OutputRegister(), i.InputRegister(0));
+      __ SignExtendByte(i.OutputRegister(), i.InputRegister(0));
       break;
     case kRiscvSeh:
-      __ Seh(i.OutputRegister(), i.InputRegister(0));
+      __ SignExtendShort(i.OutputRegister(), i.InputRegister(0));
       break;
     case kRiscvLbu:
       __ Lbu(i.OutputRegister(), i.MemoryOperand());
@@ -1625,7 +1625,7 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       __ Usd(i.InputOrZeroRegister(2), i.MemoryOperand());
       break;
     case kRiscvLwc1: {
-      __ Lwc1(i.OutputSingleRegister(), i.MemoryOperand());
+      __ LoadFloat(i.OutputSingleRegister(), i.MemoryOperand());
       break;
     }
     case kRiscvUlwc1: {
@@ -1639,7 +1639,7 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       if (ft == kDoubleRegZero && !__ IsDoubleZeroRegSet()) {
         __ Move(kDoubleRegZero, 0.0);
       }
-      __ Swc1(ft, operand);
+      __ StoreFloat(ft, operand);
       break;
     }
     case kRiscvUswc1: {
@@ -1653,7 +1653,7 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       break;
     }
     case kRiscvLdc1:
-      __ Ldc1(i.OutputDoubleRegister(), i.MemoryOperand());
+      __ LoadDouble(i.OutputDoubleRegister(), i.MemoryOperand());
       break;
     case kRiscvUldc1:
       __ Uldc1(i.OutputDoubleRegister(), i.MemoryOperand(), kScratchReg);
@@ -1663,7 +1663,7 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       if (ft == kDoubleRegZero && !__ IsDoubleZeroRegSet()) {
         __ Move(kDoubleRegZero, 0.0);
       }
-      __ Sdc1(ft, i.MemoryOperand());
+      __ StoreDouble(ft, i.MemoryOperand());
       break;
     }
     case kRiscvUsdc1: {
@@ -1680,7 +1680,7 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
     }
     case kRiscvPush:
       if (instr->InputAt(0)->IsFPRegister()) {
-        __ Sdc1(i.InputDoubleRegister(0), MemOperand(sp, -kDoubleSize));
+        __ StoreDouble(i.InputDoubleRegister(0), MemOperand(sp, -kDoubleSize));
         __ Subu(sp, sp, Operand(kDoubleSize));
         frame_access_state()->IncreaseSPDelta(kDoubleSize / kSystemPointerSize);
       } else {
@@ -1696,10 +1696,10 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       if (instr->OutputAt(0)->IsFPRegister()) {
         LocationOperand* op = LocationOperand::cast(instr->OutputAt(0));
         if (op->representation() == MachineRepresentation::kFloat64) {
-          __ Ldc1(i.OutputDoubleRegister(), MemOperand(fp, offset));
+          __ LoadDouble(i.OutputDoubleRegister(), MemOperand(fp, offset));
         } else {
           DCHECK_EQ(op->representation(), MachineRepresentation::kFloat32);
-          __ Lwc1(
+          __ LoadFloat(
               i.OutputSingleRegister(0),
               MemOperand(fp, offset + kLessSignificantWordInDoublewordOffset));
         }
@@ -1719,7 +1719,8 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
         if (instr->InputAt(0)->IsSimd128Register()) {
           UNREACHABLE();
         } else {
-          __ Sdc1(i.InputDoubleRegister(0), MemOperand(sp, i.InputInt32(1)));
+          __ StoreDouble(i.InputDoubleRegister(0),
+                         MemOperand(sp, i.InputInt32(1)));
         }
       } else {
         __ Sd(i.InputRegister(0), MemOperand(sp, i.InputInt32(1)));
@@ -2619,7 +2620,7 @@ void CodeGenerator::AssembleMove(InstructionOperand* source,
                                : kScratchDoubleReg;
       __ Move(dst, src.ToFloat64().value());
       if (destination->IsFPStackSlot()) {
-        __ Sdc1(dst, g.ToMemOperand(destination));
+        __ StoreDouble(dst, g.ToMemOperand(destination));
       }
     }
   } else if (source->IsFPRegister()) {
@@ -2633,7 +2634,7 @@ void CodeGenerator::AssembleMove(InstructionOperand* source,
         __ Move(dst, src);
       } else {
         DCHECK(destination->IsFPStackSlot());
-        __ Sdc1(src, g.ToMemOperand(destination));
+        __ StoreDouble(src, g.ToMemOperand(destination));
       }
     }
   } else if (source->IsFPStackSlot()) {
@@ -2644,12 +2645,12 @@ void CodeGenerator::AssembleMove(InstructionOperand* source,
       UNIMPLEMENTED();
     } else {
       if (destination->IsFPRegister()) {
-        __ Ldc1(g.ToDoubleRegister(destination), src);
+        __ LoadDouble(g.ToDoubleRegister(destination), src);
       } else {
         DCHECK(destination->IsFPStackSlot());
         FPURegister temp = kScratchDoubleReg;
-        __ Ldc1(temp, src);
-        __ Sdc1(temp, g.ToMemOperand(destination));
+        __ LoadDouble(temp, src);
+        __ StoreDouble(temp, g.ToMemOperand(destination));
       }
     }
   } else {
@@ -2704,8 +2705,8 @@ void CodeGenerator::AssembleSwap(InstructionOperand* source,
         DCHECK(destination->IsFPStackSlot());
         MemOperand dst = g.ToMemOperand(destination);
         __ Move(temp, src);
-        __ Ldc1(src, dst);
-        __ Sdc1(temp, dst);
+        __ LoadDouble(src, dst);
+        __ StoreDouble(temp, dst);
       }
     }
   } else if (source->IsFPStackSlot()) {
@@ -2720,12 +2721,12 @@ void CodeGenerator::AssembleSwap(InstructionOperand* source,
       UNIMPLEMENTED();
     } else {
       FPURegister temp_1 = kScratchDoubleReg;
-      __ Ldc1(temp_1, dst0);  // Save destination in temp_1.
-      __ Lw(temp_0, src0);    // Then use temp_0 to copy source to destination.
+      __ LoadDouble(temp_1, dst0);  // Save destination in temp_1.
+      __ Lw(temp_0, src0);  // Then use temp_0 to copy source to destination.
       __ Sw(temp_0, dst0);
       __ Lw(temp_0, src1);
       __ Sw(temp_0, dst1);
-      __ Sdc1(temp_1, src0);
+      __ StoreDouble(temp_1, src0);
     }
   } else {
     // No other combinations are possible.

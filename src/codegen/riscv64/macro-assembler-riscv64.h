@@ -431,8 +431,8 @@ class V8_EXPORT_PRIVATE TurboAssembler : public TurboAssemblerBase {
   DEFINE_INSTRUCTION(Ror)
   DEFINE_INSTRUCTION(Dror)
 
-  DEFINE_INSTRUCTION2(Seb)
-  DEFINE_INSTRUCTION2(Seh)
+  DEFINE_INSTRUCTION2(SignExtendByte)
+  DEFINE_INSTRUCTION2(SignExtendShort)
 #undef DEFINE_INSTRUCTION
 #undef DEFINE_INSTRUCTION2
 #undef DEFINE_INSTRUCTION3
@@ -597,11 +597,11 @@ class V8_EXPORT_PRIVATE TurboAssembler : public TurboAssemblerBase {
   void Lwu(Register rd, const MemOperand& rs);
   void Sw(Register rd, const MemOperand& rs);
 
-  void Lwc1(FPURegister fd, const MemOperand& src);
-  void Swc1(FPURegister fs, const MemOperand& dst);
+  void LoadFloat(FPURegister fd, const MemOperand& src);
+  void StoreFloat(FPURegister fs, const MemOperand& dst);
 
-  void Ldc1(FPURegister fd, const MemOperand& src);
-  void Sdc1(FPURegister fs, const MemOperand& dst);
+  void LoadDouble(FPURegister fd, const MemOperand& src);
+  void StoreDouble(FPURegister fs, const MemOperand& dst);
 
   void Ll(Register rd, const MemOperand& rs);
   void Sc(Register rd, const MemOperand& rs);
@@ -791,10 +791,11 @@ class V8_EXPORT_PRIVATE TurboAssembler : public TurboAssemblerBase {
   // Load Scaled Address instructions. Parameter sa (shift argument) must be
   // between [1, 31] (inclusive). On pre-r6 architectures the scratch register
   // may be clobbered.
-  void Lsa(Register rd, Register rs, Register rt, uint8_t sa,
-           Register scratch = t3);
-  void Dlsa(Register rd, Register rs, Register rt, uint8_t sa,
-            Register scratch = t3);
+  // FIXME: MIPS legacy, need to be removed
+  void Lsa32(Register rd, Register rs, Register rt, uint8_t sa,
+             Register scratch = t3);
+  void Lsa64(Register rd, Register rs, Register rt, uint8_t sa,
+             Register scratch = t3);
 
   // Compute the start of the generated instruction stream from the current PC.
   // This is an alternative to embedding the {CodeObject} handle as a reference.

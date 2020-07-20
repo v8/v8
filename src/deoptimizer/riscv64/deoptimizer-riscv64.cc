@@ -38,7 +38,7 @@ void Deoptimizer::GenerateDeoptimizationEntries(MacroAssembler* masm,
     int code = config->GetAllocatableDoubleCode(i);
     const DoubleRegister fpu_reg = DoubleRegister::from_code(code);
     int offset = code * kDoubleSize;
-    __ Sdc1(fpu_reg, MemOperand(sp, offset));
+    __ StoreDouble(fpu_reg, MemOperand(sp, offset));
   }
 
   // Push saved_regs (needed to populate FrameDescription::registers_).
@@ -114,8 +114,8 @@ void Deoptimizer::GenerateDeoptimizationEntries(MacroAssembler* masm,
     int code = config->GetAllocatableDoubleCode(i);
     int dst_offset = code * kDoubleSize + double_regs_offset;
     int src_offset = code * kDoubleSize + kNumberOfRegisters * kPointerSize;
-    __ Ldc1(ft0, MemOperand(sp, src_offset));
-    __ Sdc1(ft0, MemOperand(a1, dst_offset));
+    __ LoadDouble(ft0, MemOperand(sp, src_offset));
+    __ StoreDouble(ft0, MemOperand(a1, dst_offset));
   }
 
   // Remove the saved registers from the stack.
@@ -158,7 +158,7 @@ void Deoptimizer::GenerateDeoptimizationEntries(MacroAssembler* masm,
   // a1 = one past the last FrameDescription**.
   __ Lw(a1, MemOperand(a0, Deoptimizer::output_count_offset()));
   __ Ld(a4, MemOperand(a0, Deoptimizer::output_offset()));  // a4 is output_.
-  __ Dlsa(a1, a4, a1, kPointerSizeLog2);
+  __ Lsa64(a1, a4, a1, kPointerSizeLog2);
   __ BranchShort(&outer_loop_header);
   __ bind(&outer_push_loop);
   // Inner loop state: a2 = current FrameDescription*, a3 = loop index.
@@ -182,7 +182,7 @@ void Deoptimizer::GenerateDeoptimizationEntries(MacroAssembler* masm,
     int code = config->GetAllocatableDoubleCode(i);
     const DoubleRegister fpu_reg = DoubleRegister::from_code(code);
     int src_offset = code * kDoubleSize + double_regs_offset;
-    __ Ldc1(fpu_reg, MemOperand(a1, src_offset));
+    __ LoadDouble(fpu_reg, MemOperand(a1, src_offset));
   }
 
   // Push pc and continuation from the last output frame.

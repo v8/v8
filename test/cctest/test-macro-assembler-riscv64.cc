@@ -303,7 +303,7 @@ static uint64_t run_lsa(uint32_t rt, uint32_t rs, int8_t sa) {
   MacroAssembler assembler(isolate, v8::internal::CodeObjectRequired::kYes);
   MacroAssembler* masm = &assembler;
 
-  __ Lsa(a0, a0, a1, sa);
+  __ Lsa32(a0, a0, a1, sa);
   __ jr(ra);
   __ nop();
 
@@ -318,7 +318,7 @@ static uint64_t run_lsa(uint32_t rt, uint32_t rs, int8_t sa) {
   return res;
 }
 
-TEST(Lsa) {
+TEST(Lsa32) {
   CcTest::InitializeVM();
   struct TestCaseLsa {
     int32_t rt;
@@ -378,7 +378,7 @@ static uint64_t run_dlsa(uint64_t rt, uint64_t rs, int8_t sa) {
   MacroAssembler assembler(isolate, v8::internal::CodeObjectRequired::kYes);
   MacroAssembler* masm = &assembler;
 
-  __ Dlsa(a0, a0, a1, sa);
+  __ Lsa64(a0, a0, a1, sa);
   __ jr(ra);
   __ nop();
 
@@ -393,7 +393,7 @@ static uint64_t run_dlsa(uint64_t rt, uint64_t rs, int8_t sa) {
   return res;
 }
 
-TEST(Dlsa) {
+TEST(Lsa64) {
   CcTest::InitializeVM();
   struct TestCaseLsa {
     int64_t rt;
@@ -803,18 +803,18 @@ TEST(min_max_nan) {
 
   __ push(s6);
   __ InitializeRootRegister();
-  __ Ldc1(fa3, MemOperand(a0, offsetof(TestFloat, a)));
-  __ Ldc1(fa4, MemOperand(a0, offsetof(TestFloat, b)));
-  __ Lwc1(fa1, MemOperand(a0, offsetof(TestFloat, e)));
-  __ Lwc1(fa2, MemOperand(a0, offsetof(TestFloat, f)));
+  __ LoadDouble(fa3, MemOperand(a0, offsetof(TestFloat, a)));
+  __ LoadDouble(fa4, MemOperand(a0, offsetof(TestFloat, b)));
+  __ LoadFloat(fa1, MemOperand(a0, offsetof(TestFloat, e)));
+  __ LoadFloat(fa2, MemOperand(a0, offsetof(TestFloat, f)));
   __ Float64Min(fa5, fa3, fa4);
   __ Float64Max(fa6, fa3, fa4);
   __ Float32Min(fa7, fa1, fa2);
   __ Float32Max(fa0, fa1, fa2);
-  __ Sdc1(fa5, MemOperand(a0, offsetof(TestFloat, c)));
-  __ Sdc1(fa6, MemOperand(a0, offsetof(TestFloat, d)));
-  __ Swc1(fa7, MemOperand(a0, offsetof(TestFloat, g)));
-  __ Swc1(fa0, MemOperand(a0, offsetof(TestFloat, h)));
+  __ StoreDouble(fa5, MemOperand(a0, offsetof(TestFloat, c)));
+  __ StoreDouble(fa6, MemOperand(a0, offsetof(TestFloat, d)));
+  __ StoreFloat(fa7, MemOperand(a0, offsetof(TestFloat, g)));
+  __ StoreFloat(fa0, MemOperand(a0, offsetof(TestFloat, h)));
   __ pop(s6);
   __ jr(ra);
   __ nop();
@@ -1253,11 +1253,11 @@ static GeneratedCode<F4> GenerateMacroFloat32MinMax(MacroAssembler* masm) {
   T b = T::from_code(6);  // f6
   T c = T::from_code(8);  // f8
 
-#define FLOAT_MIN_MAX(fminmax, res, x, y, res_field)   \
-  __ Lwc1(x, MemOperand(a0, offsetof(Inputs, src1_))); \
-  __ Lwc1(y, MemOperand(a0, offsetof(Inputs, src2_))); \
-  __ fminmax(res, x, y);                               \
-  __ Swc1(a, MemOperand(a1, offsetof(Results, res_field)))
+#define FLOAT_MIN_MAX(fminmax, res, x, y, res_field)        \
+  __ LoadFloat(x, MemOperand(a0, offsetof(Inputs, src1_))); \
+  __ LoadFloat(y, MemOperand(a0, offsetof(Inputs, src2_))); \
+  __ fminmax(res, x, y);                                    \
+  __ StoreFloat(a, MemOperand(a1, offsetof(Results, res_field)))
 
   // a = min(b, c);
   FLOAT_MIN_MAX(Float32Min, a, b, c, min_abc_);
@@ -1364,11 +1364,11 @@ static GeneratedCode<F4> GenerateMacroFloat64MinMax(MacroAssembler* masm) {
   T b = T::from_code(6);  // f6
   T c = T::from_code(8);  // f8
 
-#define FLOAT_MIN_MAX(fminmax, res, x, y, res_field)   \
-  __ Ldc1(x, MemOperand(a0, offsetof(Inputs, src1_))); \
-  __ Ldc1(y, MemOperand(a0, offsetof(Inputs, src2_))); \
-  __ fminmax(res, x, y);                               \
-  __ Sdc1(a, MemOperand(a1, offsetof(Results, res_field)))
+#define FLOAT_MIN_MAX(fminmax, res, x, y, res_field)         \
+  __ LoadDouble(x, MemOperand(a0, offsetof(Inputs, src1_))); \
+  __ LoadDouble(y, MemOperand(a0, offsetof(Inputs, src2_))); \
+  __ fminmax(res, x, y);                                     \
+  __ StoreDouble(a, MemOperand(a1, offsetof(Results, res_field)))
 
   // a = min(b, c);
   FLOAT_MIN_MAX(Float64Min, a, b, c, min_abc_);

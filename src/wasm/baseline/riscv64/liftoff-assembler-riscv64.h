@@ -56,10 +56,10 @@ inline void Load(LiftoffAssembler* assm, LiftoffRegister dst, MemOperand src,
       assm->Ld(dst.gp(), src);
       break;
     case kWasmF32:
-      assm->Lwc1(dst.fp(), src);
+      assm->LoadFloat(dst.fp(), src);
       break;
     case kWasmF64:
-      assm->Ldc1(dst.fp(), src);
+      assm->LoadDouble(dst.fp(), src);
       break;
     default:
       UNREACHABLE();
@@ -98,11 +98,11 @@ inline void push(LiftoffAssembler* assm, LiftoffRegister reg, ValueType type) {
       break;
     case kWasmF32:
       assm->addi(sp, sp, -kSystemPointerSize);
-      assm->Swc1(reg.fp(), MemOperand(sp, 0));
+      assm->StoreFloat(reg.fp(), MemOperand(sp, 0));
       break;
     case kWasmF64:
       assm->addi(sp, sp, -kSystemPointerSize);
-      assm->Sdc1(reg.fp(), MemOperand(sp, 0));
+      assm->StoreDouble(reg.fp(), MemOperand(sp, 0));
       break;
     default:
       UNREACHABLE();
@@ -500,10 +500,10 @@ void LiftoffAssembler::Spill(int offset, LiftoffRegister reg, ValueType type) {
       Sd(reg.gp(), dst);
       break;
     case kWasmF32:
-      Swc1(reg.fp(), dst);
+      StoreFloat(reg.fp(), dst);
       break;
     case kWasmF64:
-      TurboAssembler::Sdc1(reg.fp(), dst);
+      TurboAssembler::StoreDouble(reg.fp(), dst);
       break;
     default:
       UNREACHABLE();
@@ -543,10 +543,10 @@ void LiftoffAssembler::Fill(LiftoffRegister reg, int offset, ValueType type) {
       Ld(reg.gp(), src);
       break;
     case kWasmF32:
-      Lwc1(reg.fp(), src);
+      LoadFloat(reg.fp(), src);
       break;
     case kWasmF64:
-      TurboAssembler::Ldc1(reg.fp(), src);
+      TurboAssembler::LoadDouble(reg.fp(), src);
       break;
     default:
       UNREACHABLE();
@@ -1200,7 +1200,7 @@ void LiftoffAssembler::PushRegisters(LiftoffRegList regs) {
     unsigned offset = 0;
     while (!fp_regs.is_empty()) {
       LiftoffRegister reg = fp_regs.GetFirstRegSet();
-      TurboAssembler::Sdc1(reg.fp(), MemOperand(sp, offset));
+      TurboAssembler::StoreDouble(reg.fp(), MemOperand(sp, offset));
       fp_regs.clear(reg);
       offset += sizeof(double);
     }
@@ -1213,7 +1213,7 @@ void LiftoffAssembler::PopRegisters(LiftoffRegList regs) {
   unsigned fp_offset = 0;
   while (!fp_regs.is_empty()) {
     LiftoffRegister reg = fp_regs.GetFirstRegSet();
-    TurboAssembler::Ldc1(reg.fp(), MemOperand(sp, fp_offset));
+    TurboAssembler::LoadDouble(reg.fp(), MemOperand(sp, fp_offset));
     fp_regs.clear(reg);
     fp_offset += sizeof(double);
   }

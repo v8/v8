@@ -813,13 +813,13 @@ void TurboAssembler::Sll(Register rd, Register rs, const Operand& rt) {
   }
 }
 
-void TurboAssembler::Seb(Register rd, const Operand& rt) {
+void TurboAssembler::SignExtendByte(Register rd, const Operand& rt) {
   DCHECK(rt.is_reg());
   slli(rd, rt.rm(), 64 - 8);
   srai(rd, rd, 64 - 8);
 }
 
-void TurboAssembler::Seh(Register rd, const Operand& rt) {
+void TurboAssembler::SignExtendShort(Register rd, const Operand& rt) {
   DCHECK(rt.is_reg());
   slli(rd, rt.rm(), 64 - 16);
   srai(rd, rd, 64 - 16);
@@ -936,8 +936,8 @@ void TurboAssembler::Seleqz(Register rd, Register rs, const Operand& rt) {
   mul(rd, rs, scratch);    // scratch * rs = rs or zero
 }
 
-void TurboAssembler::Lsa(Register rd, Register rt, Register rs, uint8_t sa,
-                         Register scratch) {
+void TurboAssembler::Lsa32(Register rd, Register rt, Register rs, uint8_t sa,
+                           Register scratch) {
   DCHECK(sa >= 1 && sa <= 31);
   Register tmp = rd == rt ? scratch : rd;
   DCHECK(tmp != rt);
@@ -945,8 +945,8 @@ void TurboAssembler::Lsa(Register rd, Register rt, Register rs, uint8_t sa,
   Addu(rd, rt, tmp);
 }
 
-void TurboAssembler::Dlsa(Register rd, Register rt, Register rs, uint8_t sa,
-                          Register scratch) {
+void TurboAssembler::Lsa64(Register rd, Register rt, Register rs, uint8_t sa,
+                           Register scratch) {
   DCHECK(sa >= 1 && sa <= 31);
   Register tmp = rd == rt ? scratch : rd;
   DCHECK(tmp != rt);
@@ -1336,28 +1336,28 @@ void TurboAssembler::Sd(Register rd, const MemOperand& rs) {
   AlignedStoreHelper(rd, rs, fn);
 }
 
-void TurboAssembler::Lwc1(FPURegister fd, const MemOperand& src) {
+void TurboAssembler::LoadFloat(FPURegister fd, const MemOperand& src) {
   auto fn = [this](FPURegister target, const MemOperand& source) {
     this->flw(target, source.rm(), source.offset());
   };
   AlignedLoadHelper(fd, src, fn);
 }
 
-void TurboAssembler::Swc1(FPURegister fs, const MemOperand& src) {
+void TurboAssembler::StoreFloat(FPURegister fs, const MemOperand& src) {
   auto fn = [this](FPURegister value, const MemOperand& source) {
     this->fsw(value, source.rm(), source.offset());
   };
   AlignedStoreHelper(fs, src, fn);
 }
 
-void TurboAssembler::Ldc1(FPURegister fd, const MemOperand& src) {
+void TurboAssembler::LoadDouble(FPURegister fd, const MemOperand& src) {
   auto fn = [this](FPURegister target, const MemOperand& source) {
     this->fld(target, source.rm(), source.offset());
   };
   AlignedLoadHelper(fd, src, fn);
 }
 
-void TurboAssembler::Sdc1(FPURegister fs, const MemOperand& src) {
+void TurboAssembler::StoreDouble(FPURegister fs, const MemOperand& src) {
   auto fn = [this](FPURegister value, const MemOperand& source) {
     this->fsd(value, source.rm(), source.offset());
   };
@@ -1590,7 +1590,7 @@ void TurboAssembler::MultiPushFPU(RegList regs) {
   for (int16_t i = kNumRegisters - 1; i >= 0; i--) {
     if ((regs & (1 << i)) != 0) {
       stack_offset -= kDoubleSize;
-      Sdc1(FPURegister::from_code(i), MemOperand(sp, stack_offset));
+      StoreDouble(FPURegister::from_code(i), MemOperand(sp, stack_offset));
     }
   }
 }
@@ -1600,7 +1600,7 @@ void TurboAssembler::MultiPopFPU(RegList regs) {
 
   for (int16_t i = 0; i < kNumRegisters; i++) {
     if ((regs & (1 << i)) != 0) {
-      Ldc1(FPURegister::from_code(i), MemOperand(sp, stack_offset));
+      LoadDouble(FPURegister::from_code(i), MemOperand(sp, stack_offset));
       stack_offset += kDoubleSize;
     }
   }
@@ -3111,7 +3111,7 @@ void TurboAssembler::LoadEntryFromBuiltinIndex(Register builtin_index) {
 
   // The builtin_index register contains the builtin index as a Smi.
   SmiUntag(builtin_index, builtin_index);
-  Dlsa(builtin_index, kRootRegister, builtin_index, kSystemPointerSizeLog2);
+  Lsa64(builtin_index, kRootRegister, builtin_index, kSystemPointerSizeLog2);
   Ld(builtin_index,
      MemOperand(builtin_index, IsolateData::builtin_entry_table_offset()));
 }
@@ -3369,13 +3369,13 @@ void TurboAssembler::PrepareForTailCall(Register callee_args_count,
   // after we drop current frame. We add kPointerSize to count the receiver
   // argument which is not included into formal parameters count.
   Register dst_reg = scratch0;
-  Dlsa(dst_reg, fp, caller_args_count, kPointerSizeLog2);
+  Lsa64(dst_reg, fp, caller_args_count, kPointerSizeLog2);
   Daddu(dst_reg, dst_reg,
         Operand(StandardFrameConstants::kCallerSPOffset + kPointerSize));
 
   Register src_reg = caller_args_count;
   // Calculate the end of source area. +kPointerSize is for the receiver.
-  Dlsa(src_reg, sp, callee_args_count, kPointerSizeLog2);
+  Lsa64(src_reg, sp, callee_args_count, kPointerSizeLog2);
   Daddu(src_reg, src_reg, Operand(kPointerSize));
 
   if (FLAG_debug_code) {
@@ -3451,7 +3451,7 @@ void MacroAssembler::CheckDebugHook(Register fun, Register new_target,
 
   {
     // Load receiver to pass it later to DebugOnFunctionCall hook.
-    Dlsa(t0, sp, actual_parameter_count, kPointerSizeLog2);
+    Lsa64(t0, sp, actual_parameter_count, kPointerSizeLog2);
     Ld(t0, MemOperand(t0));
     FrameScope frame(this,
                      has_frame() ? StackFrame::NONE : StackFrame::INTERNAL);
@@ -3903,7 +3903,7 @@ void MacroAssembler::EnterExitFrame(bool save_doubles, int stack_space,
     Dsubu(sp, sp, Operand(space));
     for (int i = 0; i < kNumOfSavedRegisters; i++) {
       FPURegister reg = FPURegister::from_code(i);
-      Sdc1(reg, MemOperand(sp, i * kDoubleSize));
+      StoreDouble(reg, MemOperand(sp, i * kDoubleSize));
     }
   }
 
@@ -3938,7 +3938,7 @@ void MacroAssembler::LeaveExitFrame(bool save_doubles, Register argument_count,
                   kNumOfSavedRegisters * kDoubleSize));
     for (int i = 0; i < kNumOfSavedRegisters; i++) {
       FPURegister reg = FPURegister::from_code(2 * i);
-      Ldc1(reg, MemOperand(t5, i * kDoubleSize));
+      LoadDouble(reg, MemOperand(t5, i * kDoubleSize));
     }
   }
 
@@ -3967,7 +3967,7 @@ void MacroAssembler::LeaveExitFrame(bool save_doubles, Register argument_count,
     if (argument_count_is_length) {
       add(sp, sp, argument_count);
     } else {
-      Dlsa(sp, sp, argument_count, kPointerSizeLog2, t5);
+      Lsa64(sp, sp, argument_count, kPointerSizeLog2, t5);
     }
   }
 
