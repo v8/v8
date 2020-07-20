@@ -2030,6 +2030,10 @@ class ModuleDecoderImpl : public Decoder {
 
     if (*status == WasmElemSegment::kStatusActive) {
       *offset = consume_init_expr(module_.get(), kWasmI32);
+      if (offset->kind() == WasmInitExpr::kNone) {
+        // Failed to parse offset initializer, return early.
+        return;
+      }
     }
 
     if (*status == WasmElemSegment::kStatusActive && !has_table_index) {
