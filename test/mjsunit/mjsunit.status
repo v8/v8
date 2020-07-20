@@ -287,6 +287,10 @@
   # Too slow for gc stress.
   'asm/embenchen/box2d': [SKIP],
 
+  # Too slow for gc stress, BUG(v8:9506): times out.
+  'wasm/shared-memory-worker-explicit-gc-stress': [SKIP],
+  'wasm/shared-memory-worker-gc-stress': [SKIP],
+
   # BUG(v8:4237)
   'regress/regress-3976': [SKIP],
 
