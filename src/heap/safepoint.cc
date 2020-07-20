@@ -7,7 +7,7 @@
 #include "src/handles/local-handles.h"
 #include "src/handles/persistent-handles.h"
 #include "src/heap/gc-tracer.h"
-#include "src/heap/heap.h"
+#include "src/heap/heap-inl.h"
 #include "src/heap/local-heap.h"
 
 namespace v8 {
@@ -25,6 +25,7 @@ void GlobalSafepoint::EnterSafepointScope() {
 
   if (++active_safepoint_scopes_ > 1) return;
 
+  TimedHistogramScope timer(heap_->isolate()->counters()->time_to_safepoint());
   TRACE_GC(heap_->tracer(), GCTracer::Scope::STOP_THE_WORLD);
 
   local_heaps_mutex_.Lock();
