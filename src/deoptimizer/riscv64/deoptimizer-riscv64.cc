@@ -32,7 +32,7 @@ void Deoptimizer::GenerateDeoptimizationEntries(MacroAssembler* masm,
   const int kDoubleRegsSize = kDoubleSize * DoubleRegister::kNumRegisters;
 
   // Save all double FPU registers before messing with them.
-  __ Dsubu(sp, sp, Operand(kDoubleRegsSize));
+  __ Sub64(sp, sp, Operand(kDoubleRegsSize));
   const RegisterConfiguration* config = RegisterConfiguration::Default();
   for (int i = 0; i < config->num_allocatable_double_registers(); ++i) {
     int code = config->GetAllocatableDoubleCode(i);
@@ -43,7 +43,7 @@ void Deoptimizer::GenerateDeoptimizationEntries(MacroAssembler* masm,
 
   // Push saved_regs (needed to populate FrameDescription::registers_).
   // Leave gaps for other registers.
-  __ Dsubu(sp, sp, kNumberOfRegisters * kPointerSize);
+  __ Sub64(sp, sp, kNumberOfRegisters * kPointerSize);
   for (int16_t i = kNumberOfRegisters - 1; i >= 0; i--) {
     if ((saved_regs & (1 << i)) != 0) {
       __ Sd(ToRegister(i), MemOperand(sp, kPointerSize * i));
@@ -64,9 +64,9 @@ void Deoptimizer::GenerateDeoptimizationEntries(MacroAssembler* masm,
   // address for lazy deoptimization) and compute the fp-to-sp delta in
   // register a4.
   __ mov(a3, ra);
-  __ Daddu(a4, sp, Operand(kSavedRegistersAreaSize));
+  __ Add64(a4, sp, Operand(kSavedRegistersAreaSize));
 
-  __ Dsubu(a4, fp, a4);
+  __ Sub64(a4, fp, a4);
 
   // Allocate a new deoptimizer object.
   __ PrepareCallCFunction(6, a5);
@@ -119,17 +119,17 @@ void Deoptimizer::GenerateDeoptimizationEntries(MacroAssembler* masm,
   }
 
   // Remove the saved registers from the stack.
-  __ Daddu(sp, sp, Operand(kSavedRegistersAreaSize));
+  __ Add64(sp, sp, Operand(kSavedRegistersAreaSize));
 
   // Compute a pointer to the unwinding limit in register a2; that is
   // the first stack slot not part of the input frame.
   __ Ld(a2, MemOperand(a1, FrameDescription::frame_size_offset()));
-  __ Daddu(a2, a2, sp);
+  __ Add64(a2, a2, sp);
 
   // Unwind the stack down to - but not including - the unwinding
   // limit and copy the contents of the activation frame to the input
   // frame description.
-  __ Daddu(a3, a1, Operand(FrameDescription::frame_content_offset()));
+  __ Add64(a3, a1, Operand(FrameDescription::frame_content_offset()));
   Label pop_loop;
   Label pop_loop_header;
   __ BranchShort(&pop_loop_header);
@@ -166,14 +166,14 @@ void Deoptimizer::GenerateDeoptimizationEntries(MacroAssembler* masm,
   __ Ld(a3, MemOperand(a2, FrameDescription::frame_size_offset()));
   __ BranchShort(&inner_loop_header);
   __ bind(&inner_push_loop);
-  __ Dsubu(a3, a3, Operand(sizeof(uint64_t)));
-  __ Daddu(a6, a2, Operand(a3));
+  __ Sub64(a3, a3, Operand(sizeof(uint64_t)));
+  __ Add64(a6, a2, Operand(a3));
   __ Ld(a7, MemOperand(a6, FrameDescription::frame_content_offset()));
   __ push(a7);
   __ bind(&inner_loop_header);
   __ BranchShort(&inner_push_loop, ne, a3, Operand(zero_reg));
 
-  __ Daddu(a4, a4, Operand(kPointerSize));
+  __ Add64(a4, a4, Operand(kPointerSize));
   __ bind(&outer_loop_header);
   __ BranchShort(&outer_push_loop, lt, a4, Operand(a1));
 

@@ -227,7 +227,7 @@ int LiftoffAssembler::PrepareStackFrame() {
   // When constant that represents size of stack frame can't be represented
   // as 16bit we need three instructions to add it to sp, so we reserve space
   // for this case.
-  Daddu(sp, sp, Operand(0L));
+  Add64(sp, sp, Operand(0L));
   nop();
   nop();
   return offset;
@@ -243,7 +243,7 @@ void LiftoffAssembler::PatchPrepareStackFrame(int offset, int frame_size) {
   // If bytes can be represented as 16bit, addi will be generated and two
   // nops will stay untouched. Otherwise, lui-ori sequence will load it to
   // register and, as third instruction, daddu will be generated.
-  patching_assembler.Daddu(sp, sp, Operand(-frame_size));
+  patching_assembler.Add64(sp, sp, Operand(-frame_size));
 }
 
 void LiftoffAssembler::FinishCode() {}
@@ -576,8 +576,8 @@ void LiftoffAssembler::FillStackSlotsWithZero(int start, int size) {
     // General case for bigger counts (12 instructions).
     // Use a0 for start address (inclusive), a1 for end address (exclusive).
     Push(a1, a0);
-    Daddu(a0, fp, Operand(-start - size));
-    Daddu(a1, fp, Operand(-start));
+    Add64(a0, fp, Operand(-start - size));
+    Add64(a1, fp, Operand(-start));
 
     Label loop;
     bind(&loop);
@@ -665,7 +665,7 @@ I32_BINOP(xor, xor_)
   }
 
 // clang-format off
-I32_BINOP_I(add, Addu)
+I32_BINOP_I(add, Add32)
 I32_BINOP_I(and, And)
 I32_BINOP_I(or, Or)
 I32_BINOP_I(xor, Xor)
@@ -780,7 +780,7 @@ I64_BINOP(xor, xor_)
   }
 
 // clang-format off
-I64_BINOP_I(add, Daddu)
+I64_BINOP_I(add, Add64)
 I64_BINOP_I(and, And)
 I64_BINOP_I(or, Or)
 I64_BINOP_I(xor, Xor)
@@ -1184,7 +1184,7 @@ void LiftoffAssembler::PushRegisters(LiftoffRegList regs) {
   unsigned num_gp_regs = gp_regs.GetNumRegsSet();
   if (num_gp_regs) {
     unsigned offset = num_gp_regs * kSystemPointerSize;
-    Daddu(sp, sp, Operand(-offset));
+    Add64(sp, sp, Operand(-offset));
     while (!gp_regs.is_empty()) {
       LiftoffRegister reg = gp_regs.GetFirstRegSet();
       offset -= kSystemPointerSize;
@@ -1196,7 +1196,7 @@ void LiftoffAssembler::PushRegisters(LiftoffRegList regs) {
   LiftoffRegList fp_regs = regs & kFpCacheRegList;
   unsigned num_fp_regs = fp_regs.GetNumRegsSet();
   if (num_fp_regs) {
-    Daddu(sp, sp, Operand(-(num_fp_regs * kStackSlotSize)));
+    Add64(sp, sp, Operand(-(num_fp_regs * kStackSlotSize)));
     unsigned offset = 0;
     while (!fp_regs.is_empty()) {
       LiftoffRegister reg = fp_regs.GetFirstRegSet();
@@ -1217,7 +1217,7 @@ void LiftoffAssembler::PopRegisters(LiftoffRegList regs) {
     fp_regs.clear(reg);
     fp_offset += sizeof(double);
   }
-  if (fp_offset) Daddu(sp, sp, Operand(fp_offset));
+  if (fp_offset) Add64(sp, sp, Operand(fp_offset));
   LiftoffRegList gp_regs = regs & kGpCacheRegList;
   unsigned gp_offset = 0;
   while (!gp_regs.is_empty()) {
@@ -1226,7 +1226,7 @@ void LiftoffAssembler::PopRegisters(LiftoffRegList regs) {
     gp_regs.clear(reg);
     gp_offset += kSystemPointerSize;
   }
-  Daddu(sp, sp, Operand(gp_offset));
+  Add64(sp, sp, Operand(gp_offset));
 }
 
 void LiftoffAssembler::DropStackSlotsAndRet(uint32_t num_stack_slots) {
@@ -1240,7 +1240,7 @@ void LiftoffAssembler::CallC(wasm::FunctionSig* sig,
                              const LiftoffRegister* rets,
                              ValueType out_argument_type, int stack_bytes,
                              ExternalReference ext_ref) {
-  Daddu(sp, sp, Operand(-stack_bytes));
+  Add64(sp, sp, Operand(-stack_bytes));
 
   int arg_bytes = 0;
   for (ValueType param_type : sig->parameters()) {
@@ -1275,7 +1275,7 @@ void LiftoffAssembler::CallC(wasm::FunctionSig* sig,
     liftoff::Load(this, *next_result_reg, MemOperand(sp, 0), out_argument_type);
   }
 
-  Daddu(sp, sp, Operand(stack_bytes));
+  Add64(sp, sp, Operand(stack_bytes));
 }
 
 void LiftoffAssembler::CallNativeWasmCode(Address addr) {
@@ -1300,12 +1300,12 @@ void LiftoffAssembler::CallRuntimeStub(WasmCode::RuntimeStubId sid) {
 }
 
 void LiftoffAssembler::AllocateStackSlot(Register addr, uint32_t size) {
-  Daddu(sp, sp, Operand(-size));
+  Add64(sp, sp, Operand(-size));
   TurboAssembler::Move(addr, sp);
 }
 
 void LiftoffAssembler::DeallocateStackSlot(uint32_t size) {
-  Daddu(sp, sp, Operand(size));
+  Add64(sp, sp, Operand(size));
 }
 
 void LiftoffAssembler::DebugBreak() { stop(); }

@@ -95,7 +95,7 @@ TEST(LoadConstants) {
     // Load constant.
     __ li(a5, Operand(refConstants[i]));
     __ Sd(a5, MemOperand(a4));
-    __ Daddu(a4, a4, Operand(kPointerSize));
+    __ Add64(a4, a4, Operand(kPointerSize));
   }
 
   __ jr(ra);
@@ -685,22 +685,22 @@ TEST(OverflowInstructions) {
       __ Ld(t0, MemOperand(a0, offsetof(T, lhs)));
       __ Ld(t1, MemOperand(a0, offsetof(T, rhs)));
 
-      __ DaddOverflow(t2, t0, Operand(t1), a1);
+      __ AddOverflow64(t2, t0, Operand(t1), a1);
       __ Sd(t2, MemOperand(a0, offsetof(T, output_add)));
       __ Sd(a1, MemOperand(a0, offsetof(T, overflow_add)));
       __ mov(a1, zero_reg);
-      __ DaddOverflow(t0, t0, Operand(t1), a1);
+      __ AddOverflow64(t0, t0, Operand(t1), a1);
       __ Sd(t0, MemOperand(a0, offsetof(T, output_add2)));
       __ Sd(a1, MemOperand(a0, offsetof(T, overflow_add2)));
 
       __ Ld(t0, MemOperand(a0, offsetof(T, lhs)));
       __ Ld(t1, MemOperand(a0, offsetof(T, rhs)));
 
-      __ DsubOverflow(t2, t0, Operand(t1), a1);
+      __ SubOverflow64(t2, t0, Operand(t1), a1);
       __ Sd(t2, MemOperand(a0, offsetof(T, output_sub)));
       __ Sd(a1, MemOperand(a0, offsetof(T, overflow_sub)));
       __ mov(a1, zero_reg);
-      __ DsubOverflow(t0, t0, Operand(t1), a1);
+      __ SubOverflow64(t0, t0, Operand(t1), a1);
       __ Sd(t0, MemOperand(a0, offsetof(T, output_sub2)));
       __ Sd(a1, MemOperand(a0, offsetof(T, overflow_sub2)));
 
@@ -1707,17 +1707,17 @@ TEST(Dpopcnt) {
     __ li(a3, Operand(in[i]));
     __ Popcnt64(a5, a3);
     __ Sd(a5, MemOperand(a4));
-    __ Daddu(a4, a4, Operand(kPointerSize));
+    __ Add64(a4, a4, Operand(kPointerSize));
   }
   __ li(a3, Operand(in[7]));
   __ Popcnt64(a5, a3);
   __ Sd(a5, MemOperand(a4));
-  __ Daddu(a4, a4, Operand(kPointerSize));
+  __ Add64(a4, a4, Operand(kPointerSize));
 
   __ li(a3, Operand(in[8]));
   __ Popcnt64(a5, a3);
   __ Sd(a5, MemOperand(a4));
-  __ Daddu(a4, a4, Operand(kPointerSize));
+  __ Add64(a4, a4, Operand(kPointerSize));
 
   __ jr(ra);
 
@@ -1764,18 +1764,18 @@ TEST(Popcnt) {
     __ li(a3, Operand(in[i]));
     __ Popcnt32(a5, a3);
     __ Sd(a5, MemOperand(a4));
-    __ Daddu(a4, a4, Operand(kPointerSize));
+    __ Add64(a4, a4, Operand(kPointerSize));
   }
 
   __ li(a3, Operand(in[6]));
   __ Popcnt64(a5, a3);
   __ Sd(a5, MemOperand(a4));
-  __ Daddu(a4, a4, Operand(kPointerSize));
+  __ Add64(a4, a4, Operand(kPointerSize));
 
   __ li(a3, Operand(in[7]));
   __ Popcnt64(a5, a3);
   __ Sd(a5, MemOperand(a4));
-  __ Daddu(a4, a4, Operand(kPointerSize));
+  __ Add64(a4, a4, Operand(kPointerSize));
 
   __ jr(ra);
 
