@@ -168,7 +168,6 @@ TEST(MISC) {
   // Memory fences
   COMPARE(fence(PSO | PSR, PSW | PSI), "0690000f       fence or, iw");
   COMPARE(fence_tso(), "8330000f       fence rw, rw");
-  COMPARE(fence_i(), "0000100f       fence.i");
 
   // Environment call / break
   COMPARE(ecall(), "00000073       ecall");

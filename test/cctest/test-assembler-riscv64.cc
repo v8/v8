@@ -617,7 +617,6 @@ UTEST_R2_FORM_WITH_OP(sra, int64_t, -0x1234'5678'0000'0000LL, 33, >>)
 // -- Memory fences --
 // void fence(uint8_t pred, uint8_t succ);
 // void fence_tso();
-// void fence_i();
 
 // -- Environment call / break --
 // void ecall();
