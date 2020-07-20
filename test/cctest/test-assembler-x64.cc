@@ -376,12 +376,12 @@ TEST(AssemblerX64XchglOperations) {
   masm.GetCode(CcTest::i_isolate(), &desc);
   buffer->MakeExecutable();
   // Call the function from C++.
-  uint64_t left = V8_2PART_UINT64_C(0x10000000, 20000000);
-  uint64_t right = V8_2PART_UINT64_C(0x30000000, 40000000);
+  uint64_t left = 0x1000'0000'2000'0000;
+  uint64_t right = 0x3000'0000'4000'0000;
   auto f = GeneratedCode<F4>::FromBuffer(CcTest::i_isolate(), buffer->start());
   uint64_t result = f.Call(&left, &right);
-  CHECK_EQ(V8_2PART_UINT64_C(0x00000000, 40000000), left);
-  CHECK_EQ(V8_2PART_UINT64_C(0x00000000, 20000000), right);
+  CHECK_EQ(0x0000'0000'4000'0000, left);
+  CHECK_EQ(0x0000'0000'2000'0000, right);
   USE(result);
 }
 
@@ -399,11 +399,11 @@ TEST(AssemblerX64OrlOperations) {
   masm.GetCode(CcTest::i_isolate(), &desc);
   buffer->MakeExecutable();
   // Call the function from C++.
-  uint64_t left = V8_2PART_UINT64_C(0x10000000, 20000000);
-  uint64_t right = V8_2PART_UINT64_C(0x30000000, 40000000);
+  uint64_t left = 0x1000'0000'2000'0000;
+  uint64_t right = 0x3000'0000'4000'0000;
   auto f = GeneratedCode<F4>::FromBuffer(CcTest::i_isolate(), buffer->start());
   uint64_t result = f.Call(&left, &right);
-  CHECK_EQ(V8_2PART_UINT64_C(0x10000000, 60000000), left);
+  CHECK_EQ(0x1000'0000'6000'0000, left);
   USE(result);
 }
 
@@ -421,10 +421,10 @@ TEST(AssemblerX64RollOperations) {
   masm.GetCode(CcTest::i_isolate(), &desc);
   buffer->MakeExecutable();
   // Call the function from C++.
-  uint64_t src = V8_2PART_UINT64_C(0x10000000, C0000000);
+  uint64_t src = 0x1000'0000'C000'0000;
   auto f = GeneratedCode<F5>::FromBuffer(CcTest::i_isolate(), buffer->start());
   uint64_t result = f.Call(src);
-  CHECK_EQ(V8_2PART_UINT64_C(0x00000000, 80000001), result);
+  CHECK_EQ(0x0000'0000'8000'0001, result);
 }
 
 
@@ -441,11 +441,11 @@ TEST(AssemblerX64SublOperations) {
   masm.GetCode(CcTest::i_isolate(), &desc);
   buffer->MakeExecutable();
   // Call the function from C++.
-  uint64_t left = V8_2PART_UINT64_C(0x10000000, 20000000);
-  uint64_t right = V8_2PART_UINT64_C(0x30000000, 40000000);
+  uint64_t left = 0x1000'0000'2000'0000;
+  uint64_t right = 0x3000'0000'4000'0000;
   auto f = GeneratedCode<F4>::FromBuffer(CcTest::i_isolate(), buffer->start());
   uint64_t result = f.Call(&left, &right);
-  CHECK_EQ(V8_2PART_UINT64_C(0x10000000, E0000000), left);
+  CHECK_EQ(0x1000'0000'E000'0000, left);
   USE(result);
 }
 
@@ -469,8 +469,8 @@ TEST(AssemblerX64TestlOperations) {
   masm.GetCode(CcTest::i_isolate(), &desc);
   buffer->MakeExecutable();
   // Call the function from C++.
-  uint64_t left = V8_2PART_UINT64_C(0x10000000, 20000000);
-  uint64_t right = V8_2PART_UINT64_C(0x30000000, 00000000);
+  uint64_t left = 0x1000'0000'2000'0000;
+  uint64_t right = 0x3000'0000'0000'0000;
   auto f = GeneratedCode<F4>::FromBuffer(CcTest::i_isolate(), buffer->start());
   uint64_t result = f.Call(&left, &right);
   CHECK_EQ(1u, result);
@@ -514,11 +514,11 @@ TEST(AssemblerX64XorlOperations) {
   masm.GetCode(CcTest::i_isolate(), &desc);
   buffer->MakeExecutable();
   // Call the function from C++.
-  uint64_t left = V8_2PART_UINT64_C(0x10000000, 20000000);
-  uint64_t right = V8_2PART_UINT64_C(0x30000000, 60000000);
+  uint64_t left = 0x1000'0000'2000'0000;
+  uint64_t right = 0x3000'0000'6000'0000;
   auto f = GeneratedCode<F4>::FromBuffer(CcTest::i_isolate(), buffer->start());
   uint64_t result = f.Call(&left, &right);
-  CHECK_EQ(V8_2PART_UINT64_C(0x10000000, 40000000), left);
+  CHECK_EQ(0x1000'0000'4000'0000, left);
   USE(result);
 }
 
@@ -870,9 +870,9 @@ TEST(AssemblerX64Extractps) {
 #endif
 
   auto f = GeneratedCode<F3>::FromCode(*code);
-  uint64_t value1 = V8_2PART_UINT64_C(0x12345678, 87654321);
+  uint64_t value1 = 0x1234'5678'8765'4321;
   CHECK_EQ(0x12345678u, f.Call(uint64_to_double(value1)));
-  uint64_t value2 = V8_2PART_UINT64_C(0x87654321, 12345678);
+  uint64_t value2 = 0x8765'4321'1234'5678;
   CHECK_EQ(0x87654321u, f.Call(uint64_to_double(value2)));
 }
 

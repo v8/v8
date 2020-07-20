@@ -5098,7 +5098,7 @@ struct OneByteMask<4> {
 };
 template <>
 struct OneByteMask<8> {
-  static const uint64_t value = V8_2PART_UINT64_C(0xFF00FF00, FF00FF00);
+  static const uint64_t value = 0xFF00'FF00'FF00'FF00;
 };
 static const uintptr_t kOneByteMask = OneByteMask<sizeof(uintptr_t)>::value;
 static const uintptr_t kAlignmentMask = sizeof(uintptr_t) - 1;

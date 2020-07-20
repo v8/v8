@@ -489,9 +489,9 @@ TEST(AssemblerIa32Extractps) {
 #endif
 
   F4 f = FUNCTION_CAST<F4>(code->entry());
-  uint64_t value1 = V8_2PART_UINT64_C(0x12345678, 87654321);
+  uint64_t value1 = 0x1234'5678'8765'4321;
   CHECK_EQ(0x12345678, f(uint64_to_double(value1)));
-  uint64_t value2 = V8_2PART_UINT64_C(0x87654321, 12345678);
+  uint64_t value2 = 0x8765'4321'1234'5678;
   CHECK_EQ(static_cast<int>(0x87654321), f(uint64_to_double(value2)));
 }
 

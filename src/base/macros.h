@@ -325,12 +325,7 @@ V8_INLINE A implicit_cast(A x) {
 #define V8PRIuPTR "lxu"
 #endif
 
-// The following macro works on both 32 and 64-bit platforms.
-// Usage: instead of writing 0x1234567890123456
-//      write V8_2PART_UINT64_C(0x12345678,90123456);
-#define V8_2PART_UINT64_C(a, b) (((static_cast<uint64_t>(a) << 32) + 0x##b##u))
-
-// A variant of V8_2PART_UINT64_C but for non-constants.
+// Make a uint64 from two uint32_t halves.
 inline uint64_t make_uint64(uint32_t high, uint32_t low) {
   return (uint64_t{high} << 32) + low;
 }
