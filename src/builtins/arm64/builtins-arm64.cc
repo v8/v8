@@ -1746,14 +1746,28 @@ void Generate_ContinueToBuiltinHelper(MacroAssembler* masm,
                         allocatable_register_count)) *
                        kSystemPointerSize;
 
+  UseScratchRegisterScope temps(masm);
+  Register scratch = temps.AcquireX();  // Temp register is not allocatable.
+
   // Set up frame pointer.
   __ Add(fp, sp, frame_size);
 
   if (with_result) {
+#ifdef V8_REVERSE_JSARGS
+    if (java_script_builtin) {
+      __ mov(scratch, x0);
+    } else {
+      // Overwrite the hole inserted by the deoptimizer with the return value
+      // from the LAZY deopt point.
+      __ Str(x0, MemOperand(
+                     fp, BuiltinContinuationFrameConstants::kCallerSPOffset));
+    }
+#else
     // Overwrite the hole inserted by the deoptimizer with the return value from
     // the LAZY deopt point.
     __ Str(x0,
            MemOperand(fp, BuiltinContinuationFrameConstants::kCallerSPOffset));
+#endif
   }
 
   // Restore registers in pairs.
@@ -1776,10 +1790,25 @@ void Generate_ContinueToBuiltinHelper(MacroAssembler* masm,
 
   if (java_script_builtin) __ SmiUntag(kJavaScriptCallArgCountRegister);
 
+#ifdef V8_REVERSE_JSARGS
+  if (java_script_builtin && with_result) {
+    // Overwrite the hole inserted by the deoptimizer with the return value from
+    // the LAZY deopt point. r0 contains the arguments count, the return value
+    // from LAZY is always the last argument.
+    __ add(x0, x0,
+           BuiltinContinuationFrameConstants::kCallerSPOffset /
+               kSystemPointerSize);
+    __ Str(scratch, MemOperand(fp, x0, LSL, kSystemPointerSizeLog2));
+    // Recover argument count.
+    __ sub(x0, x0,
+           BuiltinContinuationFrameConstants::kCallerSPOffset /
+               kSystemPointerSize);
+  }
+#endif
+
   // Load builtin index (stored as a Smi) and use it to get the builtin start
   // address from the builtins table.
-  UseScratchRegisterScope temps(masm);
-  Register builtin = temps.AcquireX();
+  Register builtin = scratch;
   __ Ldr(
       builtin,
       MemOperand(fp, BuiltinContinuationFrameConstants::kBuiltinIndexOffset));

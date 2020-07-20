@@ -1634,6 +1634,20 @@ void Generate_ContinueToBuiltinHelper(MacroAssembler* masm,
   const RegisterConfiguration* config(RegisterConfiguration::Default());
   int allocatable_register_count = config->num_allocatable_general_registers();
   if (with_result) {
+#ifdef V8_REVERSE_JSARGS
+    if (java_script_builtin) {
+      // kScratchRegister is not included in the allocateable registers.
+      __ movq(kScratchRegister, rax);
+    } else {
+      // Overwrite the hole inserted by the deoptimizer with the return value
+      // from the LAZY deopt point.
+      __ movq(
+          Operand(rsp, config->num_allocatable_general_registers() *
+                               kSystemPointerSize +
+                           BuiltinContinuationFrameConstants::kFixedFrameSize),
+          rax);
+    }
+#else
     // Overwrite the hole inserted by the deoptimizer with the return value from
     // the LAZY deopt point.
     __ movq(
@@ -1641,6 +1655,7 @@ void Generate_ContinueToBuiltinHelper(MacroAssembler* masm,
                              kSystemPointerSize +
                          BuiltinContinuationFrameConstants::kFixedFrameSize),
         rax);
+#endif
   }
   for (int i = allocatable_register_count - 1; i >= 0; --i) {
     int code = config->GetAllocatableGeneralCode(i);
@@ -1649,6 +1664,16 @@ void Generate_ContinueToBuiltinHelper(MacroAssembler* masm,
       __ SmiUntag(Register::from_code(code));
     }
   }
+#ifdef V8_REVERSE_JSARGS
+  if (with_result && java_script_builtin) {
+    // Overwrite the hole inserted by the deoptimizer with the return value from
+    // the LAZY deopt point. rax contains the arguments count, the return value
+    // from LAZY is always the last argument.
+    __ movq(Operand(rsp, rax, times_system_pointer_size,
+                    BuiltinContinuationFrameConstants::kFixedFrameSize),
+            kScratchRegister);
+  }
+#endif
   __ movq(
       rbp,
       Operand(rsp, BuiltinContinuationFrameConstants::kFixedFrameSizeFromFp));

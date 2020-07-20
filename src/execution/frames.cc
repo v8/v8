@@ -1319,9 +1319,16 @@ Object JavaScriptBuiltinContinuationFrame::context() const {
 
 void JavaScriptBuiltinContinuationWithCatchFrame::SetException(
     Object exception) {
+#ifdef V8_REVERSE_JSARGS
+  int argc = ComputeParametersCount();
+  Address exception_argument_slot =
+      fp() + BuiltinContinuationFrameConstants::kFixedFrameSizeAboveFp +
+      (argc - 1) * kSystemPointerSize;
+#else
   Address exception_argument_slot =
       fp() + BuiltinContinuationFrameConstants::kFixedFrameSizeAboveFp +
       kSystemPointerSize;  // Skip over return value slot.
+#endif
 
   // Only allow setting exception if previous value was the hole.
   CHECK_EQ(ReadOnlyRoots(isolate()).the_hole_value(),

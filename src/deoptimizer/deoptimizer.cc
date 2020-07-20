@@ -91,6 +91,24 @@ class FrameWriter {
                                                iterator);
   }
 
+  void PushStackJSArguments(TranslatedFrame::iterator& iterator,
+                            int parameters_count) {
+#ifdef V8_REVERSE_JSARGS
+    std::vector<TranslatedFrame::iterator> parameters;
+    parameters.reserve(parameters_count);
+    for (int i = 0; i < parameters_count; ++i, ++iterator) {
+      parameters.push_back(iterator);
+    }
+    for (auto& parameter : base::Reversed(parameters)) {
+      PushTranslatedValue(parameter, "stack parameter");
+    }
+#else
+    for (int i = 0; i < parameters_count; ++i, ++iterator) {
+      PushTranslatedValue(iterator, "stack parameter");
+    }
+#endif
+  }
+
   unsigned top_offset() const { return top_offset_; }
 
  private:
@@ -930,25 +948,11 @@ void Deoptimizer::DoComputeInterpretedFrame(TranslatedFrame* translated_frame,
   output_frame->SetTop(top_address);
 
   // Compute the incoming parameter translation.
-
   ReadOnlyRoots roots(isolate());
   if (ShouldPadArguments(parameters_count)) {
     frame_writer.PushRawObject(roots.the_hole_value(), "padding\n");
   }
-
-#ifdef V8_REVERSE_JSARGS
-  std::vector<TranslatedFrame::iterator> parameters;
-  for (int i = 0; i < parameters_count; ++i, ++value_iterator) {
-    parameters.push_back(value_iterator);
-  }
-  for (auto& parameter : base::Reversed(parameters)) {
-    frame_writer.PushTranslatedValue(parameter, "stack parameter");
-  }
-#else
-  for (int i = 0; i < parameters_count; ++i, ++value_iterator) {
-    frame_writer.PushTranslatedValue(value_iterator, "stack parameter");
-  }
-#endif
+  frame_writer.PushStackJSArguments(value_iterator, parameters_count);
 
   DCHECK_EQ(output_frame->GetLastArgumentSlotOffset(),
             frame_writer.top_offset());
@@ -1303,9 +1307,7 @@ void Deoptimizer::DoComputeConstructStubFrame(TranslatedFrame* translated_frame,
   TranslatedFrame::iterator receiver_iterator = value_iterator;
 
   // Compute the incoming parameter translation.
-  for (int i = 0; i < parameters_count; ++i, ++value_iterator) {
-    frame_writer.PushTranslatedValue(value_iterator, "stack parameter");
-  }
+  frame_writer.PushStackJSArguments(value_iterator, parameters_count);
 
   DCHECK_EQ(output_frame->GetLastArgumentSlotOffset(),
             frame_writer.top_offset());
@@ -1595,6 +1597,47 @@ void Deoptimizer::DoComputeBuiltinContinuation(
     frame_writer.PushRawObject(roots.the_hole_value(), "padding\n");
   }
 
+#ifdef V8_REVERSE_JSARGS
+  if (mode == BuiltinContinuationMode::STUB) {
+    DCHECK_EQ(Builtins::CallInterfaceDescriptorFor(builtin_name)
+                  .GetStackArgumentOrder(),
+              StackArgumentOrder::kDefault);
+    for (uint32_t i = 0; i < frame_info.translated_stack_parameter_count();
+         ++i, ++value_iterator) {
+      frame_writer.PushTranslatedValue(value_iterator, "stack parameter");
+    }
+    if (frame_info.frame_has_result_stack_slot()) {
+      frame_writer.PushRawObject(
+          roots.the_hole_value(),
+          "placeholder for return result on lazy deopt\n");
+    }
+  } else {
+    // JavaScript builtin.
+    if (frame_info.frame_has_result_stack_slot()) {
+      frame_writer.PushRawObject(
+          roots.the_hole_value(),
+          "placeholder for return result on lazy deopt\n");
+    }
+    switch (mode) {
+      case BuiltinContinuationMode::STUB:
+        UNREACHABLE();
+      case BuiltinContinuationMode::JAVASCRIPT:
+        break;
+      case BuiltinContinuationMode::JAVASCRIPT_WITH_CATCH: {
+        frame_writer.PushRawObject(roots.the_hole_value(),
+                                   "placeholder for exception on lazy deopt\n");
+      } break;
+      case BuiltinContinuationMode::JAVASCRIPT_HANDLE_EXCEPTION: {
+        intptr_t accumulator_value =
+            input_->GetRegister(kInterpreterAccumulatorRegister.code());
+        frame_writer.PushRawObject(Object(accumulator_value),
+                                   "exception (from accumulator)\n");
+      } break;
+    }
+    frame_writer.PushStackJSArguments(
+        value_iterator, frame_info.translated_stack_parameter_count());
+  }
+#else
   for (uint32_t i = 0; i < frame_info.translated_stack_parameter_count();
        ++i, ++value_iterator) {
     frame_writer.PushTranslatedValue(value_iterator, "stack parameter");
@@ -1621,6 +1664,7 @@ void Deoptimizer::DoComputeBuiltinContinuation(
     frame_writer.PushRawObject(roots.the_hole_value(),
                                "placeholder for return result on lazy deopt\n");
   }
+#endif
 
   DCHECK_EQ(output_frame->GetLastArgumentSlotOffset(),
             frame_writer.top_offset());
@@ -2959,10 +3003,23 @@ void TranslatedState::CreateArgumentsElementsTranslatedValues(
   for (int i = 0; i < number_of_holes; ++i) {
     frame.Add(TranslatedValue::NewTagged(this, roots.the_hole_value()));
   }
-  for (int i = length - number_of_holes - 1; i >= 0; --i) {
+  int argc = length - number_of_holes;
+#ifdef V8_REVERSE_JSARGS
+  int start_index = number_of_holes;
+  if (type == CreateArgumentsType::kRestParameter) {
+    start_index = std::max(0, formal_parameter_count_);
+  }
+#endif
+  for (int i = 0; i < argc; i++) {
+    // Skip the receiver.
+#ifdef V8_REVERSE_JSARGS
+    int offset = i + start_index + 1;
+#else
+    int offset = argc - i - 1;
+#endif
     Address argument_slot = arguments_frame +
                             CommonFrameConstants::kFixedFrameSizeAboveFp +
-                            i * kSystemPointerSize;
+                            offset * kSystemPointerSize;
     frame.Add(TranslatedValue::NewTagged(this, *FullObjectSlot(argument_slot)));
   }
 }

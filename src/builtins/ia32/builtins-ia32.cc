@@ -1664,12 +1664,27 @@ void Generate_ContinueToBuiltinHelper(MacroAssembler* masm,
   const RegisterConfiguration* config(RegisterConfiguration::Default());
   int allocatable_register_count = config->num_allocatable_general_registers();
   if (with_result) {
+#ifdef V8_REVERSE_JSARGS
+    if (java_script_builtin) {
+      // xmm0 is not included in the allocateable registers.
+      __ movd(xmm0, eax);
+    } else {
+      // Overwrite the hole inserted by the deoptimizer with the return value
+      // from the LAZY deopt point.
+      __ mov(
+          Operand(esp, config->num_allocatable_general_registers() *
+                               kSystemPointerSize +
+                           BuiltinContinuationFrameConstants::kFixedFrameSize),
+          eax);
+    }
+#else
     // Overwrite the hole inserted by the deoptimizer with the return value from
     // the LAZY deopt point.
     __ mov(Operand(esp, config->num_allocatable_general_registers() *
                                 kSystemPointerSize +
                             BuiltinContinuationFrameConstants::kFixedFrameSize),
            eax);
+#endif
   }
 
   // Replace the builtin index Smi on the stack with the start address of the
@@ -1687,6 +1702,16 @@ void Generate_ContinueToBuiltinHelper(MacroAssembler* masm,
       __ SmiUntag(Register::from_code(code));
     }
   }
+#ifdef V8_REVERSE_JSARGS
+  if (with_result && java_script_builtin) {
+    // Overwrite the hole inserted by the deoptimizer with the return value from
+    // the LAZY deopt point. eax contains the arguments count, the return value
+    // from LAZY is always the last argument.
+    __ movd(Operand(esp, eax, times_system_pointer_size,
+                    BuiltinContinuationFrameConstants::kFixedFrameSize),
+            xmm0);
+  }
+#endif
   __ mov(
       ebp,
       Operand(esp, BuiltinContinuationFrameConstants::kFixedFrameSizeFromFp));
