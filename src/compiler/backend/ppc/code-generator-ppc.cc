@@ -3155,6 +3155,26 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
                  i.InputSimd128Register(1));
       break;
     }
+    case kPPC_S8x16Shuffle: {
+      Simd128Register dst = i.OutputSimd128Register(),
+                      src0 = i.InputSimd128Register(0),
+                      src1 = i.InputSimd128Register(1);
+      __ mov(r0, Operand(make_uint64(i.InputUint32(3), i.InputUint32(2))));
+      __ mov(ip, Operand(make_uint64(i.InputUint32(5), i.InputUint32(4))));
+      // Need to maintain 16 byte alignment for lvx.
+      __ mr(kScratchReg, sp);
+      __ ClearRightImm(
+          sp, sp,
+          Operand(base::bits::WhichPowerOfTwo(16)));  // equivalent to &= -16
+      __ addi(sp, sp, Operand(-16));
+      __ StoreP(r0, MemOperand(sp, 0));
+      __ StoreP(ip, MemOperand(sp, 8));
+      __ li(r0, Operand(0));
+      __ lvx(kScratchDoubleReg, MemOperand(sp, r0));
+      __ mr(sp, kScratchReg);
+      __ vperm(dst, src0, src1, kScratchDoubleReg);
+      break;
+    }
     case kPPC_StoreCompressTagged: {
       ASSEMBLE_STORE_INTEGER(StoreTaggedField, StoreTaggedFieldX);
       break;

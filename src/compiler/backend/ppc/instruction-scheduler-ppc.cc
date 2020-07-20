@@ -245,6 +245,7 @@ int InstructionScheduler::GetTargetInstructionFlags(
     case kPPC_I8x16Abs:
     case kPPC_I8x16SConvertI16x8:
     case kPPC_I8x16UConvertI16x8:
+    case kPPC_S8x16Shuffle:
     case kPPC_V64x2AnyTrue:
     case kPPC_V32x4AnyTrue:
     case kPPC_V16x8AnyTrue:

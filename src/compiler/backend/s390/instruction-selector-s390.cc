@@ -2841,8 +2841,7 @@ void InstructionSelector::VisitS8x16Shuffle(Node* node) {
   Node* input0 = node->InputAt(0);
   Node* input1 = node->InputAt(1);
 #ifdef V8_TARGET_BIG_ENDIAN
-  // input registers are each in reverse order, we will have to remap the
-  // shuffle indices
+  // Remap the shuffle indices to match IBM lane numbering.
   int max_index = 15;
   int total_lane_count = 2 * kSimd128Size;
   uint8_t shuffle_remapped[kSimd128Size];

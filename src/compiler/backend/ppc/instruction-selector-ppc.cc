@@ -2334,6 +2334,31 @@ SIMD_BOOL_LIST(SIMD_VISIT_BOOL)
 #undef SIMD_BOOL_LIST
 #undef SIMD_TYPES
 
+void InstructionSelector::VisitS8x16Shuffle(Node* node) {
+  uint8_t shuffle[kSimd128Size];
+  bool is_swizzle;
+  CanonicalizeShuffle(node, shuffle, &is_swizzle);
+  PPCOperandGenerator g(this);
+  Node* input0 = node->InputAt(0);
+  Node* input1 = node->InputAt(1);
+  // Remap the shuffle indices to match IBM lane numbering.
+  int max_index = 15;
+  int total_lane_count = 2 * kSimd128Size;
+  uint8_t shuffle_remapped[kSimd128Size];
+  for (int i = 0; i < kSimd128Size; i++) {
+    uint8_t current_index = shuffle[i];
+    shuffle_remapped[i] = (current_index <= max_index
+                               ? max_index - current_index
+                               : total_lane_count - current_index + max_index);
+  }
+  Emit(kPPC_S8x16Shuffle, g.DefineAsRegister(node), g.UseUniqueRegister(input0),
+       g.UseUniqueRegister(input1),
+       g.UseImmediate(Pack4Lanes(shuffle_remapped)),
+       g.UseImmediate(Pack4Lanes(shuffle_remapped + 4)),
+       g.UseImmediate(Pack4Lanes(shuffle_remapped + 8)),
+       g.UseImmediate(Pack4Lanes(shuffle_remapped + 12)));
+}
+
 void InstructionSelector::VisitS128Zero(Node* node) {
   PPCOperandGenerator g(this);
   Emit(kPPC_S128Zero, g.DefineAsRegister(node));
@@ -2418,8 +2443,6 @@ void InstructionSelector::VisitF32x4Div(Node* node) { UNIMPLEMENTED(); }
 void InstructionSelector::VisitF32x4Min(Node* node) { UNIMPLEMENTED(); }
 
 void InstructionSelector::VisitF32x4Max(Node* node) { UNIMPLEMENTED(); }
-
-void InstructionSelector::VisitS8x16Shuffle(Node* node) { UNIMPLEMENTED(); }
 
 void InstructionSelector::VisitS8x16Swizzle(Node* node) { UNIMPLEMENTED(); }
 
