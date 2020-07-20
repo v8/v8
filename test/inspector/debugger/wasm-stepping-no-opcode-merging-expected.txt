@@ -1,0 +1,15 @@
+Tests that Liftoff does not merge opcodes while stepping
+Warning: This test tests the current (incorrect) behaviour. It will be fixed in a follow-up CL.
+Setting breakpoint at offset 33.
+Paused at offset 33: [0]
+Paused at offset 35: [0, 0]
+Paused at offset 36: [0, 0]
+Paused at offset 33: [-1]
+Paused at offset 35: [-1, -1]
+Paused at offset 36: [-1, -1]
+Paused at offset 38: [-1]
+Paused at offset 33: [13]
+Paused at offset 35: [13, 13]
+Paused at offset 36: [13, 13]
+Paused at offset 38: [13]
+Finished.
