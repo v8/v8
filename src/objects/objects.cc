@@ -5818,7 +5818,6 @@ Handle<Derived> HashTable<Derived, Shape>::EnsureCapacity(
   int capacity = table->Capacity();
   int new_nof = table->NumberOfElements() + n;
 
-  const int kMinCapacityForPretenure = 256;
   bool should_pretenure = allocation == AllocationType::kOld ||
                           ((capacity > kMinCapacityForPretenure) &&
                            !Heap::InYoungGeneration(*table));
@@ -5833,40 +5832,54 @@ Handle<Derived> HashTable<Derived, Shape>::EnsureCapacity(
 template <typename Derived, typename Shape>
 bool HashTable<Derived, Shape>::HasSufficientCapacityToAdd(
     int number_of_additional_elements) {
-  int capacity = Capacity();
-  int nof = NumberOfElements() + number_of_additional_elements;
-  int nod = NumberOfDeletedElements();
+  return HasSufficientCapacityToAdd(Capacity(), NumberOfElements(),
+                                    NumberOfDeletedElements(),
+                                    number_of_additional_elements);
+}
+
+// static
+template <typename Derived, typename Shape>
+bool HashTable<Derived, Shape>::HasSufficientCapacityToAdd(
+    int capacity, int number_of_elements, int number_of_deleted_elements,
+    int number_of_additional_elements) {
+  int nof = number_of_elements + number_of_additional_elements;
   // Return true if:
   //   50% is still free after adding number_of_additional_elements elements and
   //   at most 50% of the free elements are deleted elements.
-  if ((nof < capacity) && ((nod <= (capacity - nof) >> 1))) {
-    int needed_free = nof >> 1;
+  if ((nof < capacity) &&
+      ((number_of_deleted_elements <= (capacity - nof) / 2))) {
+    int needed_free = nof / 2;
     if (nof + needed_free <= capacity) return true;
   }
   return false;
 }
 
+// static
+template <typename Derived, typename Shape>
+int HashTable<Derived, Shape>::ComputeCapacityWithShrink(
+    int current_capacity, int at_least_room_for) {
+  // Shrink to fit the number of elements if only a quarter of the
+  // capacity is filled with elements.
+  if (at_least_room_for > (current_capacity / 4)) return current_capacity;
+  // Recalculate the smaller capacity actually needed.
+  int new_capacity = ComputeCapacity(at_least_room_for);
+  DCHECK_GE(new_capacity, at_least_room_for);
+  // Don't go lower than room for {kMinShrinkCapacity} elements.
+  if (new_capacity < Derived::kMinShrinkCapacity) return current_capacity;
+  return new_capacity;
+}
+
+// static
 template <typename Derived, typename Shape>
 Handle<Derived> HashTable<Derived, Shape>::Shrink(Isolate* isolate,
                                                   Handle<Derived> table,
-                                                  int additionalCapacity) {
-  int capacity = table->Capacity();
-  int nof = table->NumberOfElements();
+                                                  int additional_capacity) {
+  int new_capacity = ComputeCapacityWithShrink(
+      table->Capacity(), table->NumberOfElements() + additional_capacity);
+  if (new_capacity == table->Capacity()) return table;
+  DCHECK_GE(new_capacity, Derived::kMinShrinkCapacity);
 
-  // Shrink to fit the number of elements if only a quarter of the
-  // capacity is filled with elements.
-  if (nof > (capacity >> 2)) return table;
-  // Allocate a new dictionary with room for at least the current number of
-  // elements + {additionalCapacity}. The allocation method will make sure that
-  // there is extra room in the dictionary for additions. Don't go lower than
-  // room for {kMinShrinkCapacity} elements.
-  int at_least_room_for = nof + additionalCapacity;
-  int new_capacity = ComputeCapacity(at_least_room_for);
-  if (new_capacity < Derived::kMinShrinkCapacity) return table;
-  if (new_capacity == capacity) return table;
-
-  const int kMinCapacityForPretenure = 256;
-  bool pretenure = (at_least_room_for > kMinCapacityForPretenure) &&
+  bool pretenure = (new_capacity > kMinCapacityForPretenure) &&
                    !Heap::InYoungGeneration(*table);
   Handle<Derived> new_table =
       HashTable::New(isolate, new_capacity,
@@ -5948,13 +5961,42 @@ Handle<String> StringTable::LookupKey(Isolate* isolate, StringTableKey* key) {
   if (entry.is_found()) {
     return handle(String::cast(table->KeyAt(entry)), isolate);
   }
+  // No entry found, so adding new string.
 
-  table = StringTable::CautiousShrink(isolate, table);
-  // Adding new string. Grow table if needed.
-  table = EnsureCapacity(isolate, table);
-  isolate->heap()->SetRootStringTable(*table);
+  // Grow or shrink table if needed. We first try to shrink the table, if it
+  // is sufficiently empty; otherwise we make sure to grow it so that it has
+  // enough space.
+  int current_capacity = table->Capacity();
+  int current_nof = table->NumberOfElements();
+  int capacity_after_shrinking =
+      ComputeCapacityWithCautiousShrink(current_capacity, current_nof + 1);
 
-  return AddKeyNoResize(isolate, key);
+  int new_capacity = -1;
+  if (capacity_after_shrinking < current_capacity) {
+    DCHECK(HasSufficientCapacityToAdd(capacity_after_shrinking, current_nof, 0,
+                                      1));
+    new_capacity = capacity_after_shrinking;
+  } else if (!HasSufficientCapacityToAdd(current_capacity, current_nof,
+                                         table->NumberOfDeletedElements(), 1)) {
+    new_capacity = ComputeCapacity(current_nof + 1);
+  }
+
+  // Maybe re-allocate the table.
+  if (new_capacity != -1) {
+    bool pretenure = (new_capacity > kMinCapacityForPretenure) &&
+                     !Heap::InYoungGeneration(*table);
+    Handle<StringTable> new_table = HashTable::New(
+        isolate, new_capacity,
+        pretenure ? AllocationType::kOld : AllocationType::kYoung,
+        USE_CUSTOM_MINIMUM_CAPACITY);
+    table->Rehash(isolate, *new_table);
+    isolate->heap()->SetRootStringTable(*new_table);
+
+    table = new_table;
+  }
+
+  DCHECK(table->HasSufficientCapacityToAdd(1));
+  return AddKeyNoResize(isolate, table, key);
 }
 
 template Handle<String> StringTable::LookupKey(Isolate* isolate,
@@ -5966,9 +6008,10 @@ template Handle<String> StringTable::LookupKey(Isolate* isolate,
 template Handle<String> StringTable::LookupKey(Isolate* isolate,
                                                SeqTwoByteSubStringKey* key);
 
+// static
 Handle<String> StringTable::AddKeyNoResize(Isolate* isolate,
+                                           Handle<StringTable> table,
                                            StringTableKey* key) {
-  Handle<StringTable> table = isolate->factory()->string_table();
   DCHECK(table->HasSufficientCapacityToAdd(1));
   // Create string object.
   Handle<String> string = key->AsHandle(isolate);
@@ -5986,16 +6029,16 @@ Handle<String> StringTable::AddKeyNoResize(Isolate* isolate,
   return Handle<String>::cast(string);
 }
 
-Handle<StringTable> StringTable::CautiousShrink(Isolate* isolate,
-                                                Handle<StringTable> table) {
+int StringTable::ComputeCapacityWithCautiousShrink(int current_capacity,
+                                                   int at_least_room_for) {
   // Only shrink if the table is very empty to avoid performance penalty.
-  int capacity = table->Capacity();
-  int nof = table->NumberOfElements();
-  if (capacity <= StringTable::kMinCapacity) return table;
-  if (nof > (capacity / kMaxEmptyFactor)) return table;
-  // Keep capacity for at least half of the current nof elements.
-  int slack_capacity = nof >> 2;
-  return Shrink(isolate, table, slack_capacity);
+  if (current_capacity <= StringTable::kMinCapacity) return current_capacity;
+  if (at_least_room_for > (current_capacity / kMaxEmptyFactor))
+    return current_capacity;
+  // Keep capacity for at least a quarter of the current nof elements.
+  int slack_capacity = at_least_room_for / 4;
+  return ComputeCapacityWithShrink(current_capacity,
+                                   at_least_room_for + slack_capacity);
 }
 
 namespace {

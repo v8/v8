@@ -174,6 +174,9 @@ class EXPORT_TEMPLATE_DECLARE(V8_EXPORT_PRIVATE) HashTable
   // Don't shrink a HashTable below this capacity.
   static const int kMinShrinkCapacity = 16;
 
+  // Pretenure hashtables above this capacity.
+  static const int kMinCapacityForPretenure = 256;
+
   static const int kMaxRegularCapacity = kMaxRegularHeapObjectSize / 32;
 
   // Returns the index for an entry (of the key)
@@ -200,6 +203,13 @@ class EXPORT_TEMPLATE_DECLARE(V8_EXPORT_PRIVATE) HashTable
   // Returns true if this table has sufficient capacity for adding n elements.
   bool HasSufficientCapacityToAdd(int number_of_additional_elements);
 
+  // Returns true if a table with the given parameters has sufficient capacity
+  // for adding n elements. Can be used to check hypothetical capacities without
+  // actually allocating a table with that capacity.
+  static bool HasSufficientCapacityToAdd(int capacity, int number_of_elements,
+                                         int number_of_deleted_elements,
+                                         int number_of_additional_elements);
+
  protected:
   friend class ObjectHashTable;
 
@@ -213,9 +223,17 @@ class EXPORT_TEMPLATE_DECLARE(V8_EXPORT_PRIVATE) HashTable
                                    uint32_t hash);
   InternalIndex FindInsertionEntry(Isolate* isolate, uint32_t hash);
 
-  // Attempt to shrink hash table after removal of key.
+  // Computes the capacity a table with the given capacity would need to have
+  // room for the given number of elements, also allowing it to shrink.
+  static int ComputeCapacityWithShrink(int current_capacity,
+                                       int at_least_room_for);
+
+  // Shrink the hash table.
   V8_WARN_UNUSED_RESULT static Handle<Derived> Shrink(
       Isolate* isolate, Handle<Derived> table, int additionalCapacity = 0);
+
+  // Rehashes this hash-table into the new table.
+  void Rehash(const Isolate* isolate, Derived new_table);
 
   inline void set_key(int index, Object value);
   inline void set_key(int index, Object value, WriteBarrierMode mode);
@@ -241,9 +259,6 @@ class EXPORT_TEMPLATE_DECLARE(V8_EXPORT_PRIVATE) HashTable
                               InternalIndex expected);
 
   void Swap(InternalIndex entry1, InternalIndex entry2, WriteBarrierMode mode);
-
-  // Rehashes this hash-table into the new table.
-  void Rehash(const Isolate* isolate, Derived new_table);
 
   OBJECT_CONSTRUCTORS(HashTable, HashTableBase);
 };

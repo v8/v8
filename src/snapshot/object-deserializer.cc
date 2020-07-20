@@ -85,7 +85,8 @@ void ObjectDeserializer::CommitPostProcessedObjects() {
     for (Handle<String> string : new_internalized_strings()) {
       DisallowHeapAllocation no_gc;
       StringTableInsertionKey key(*string);
-      StringTable::AddKeyNoResize(isolate(), &key);
+      StringTable::AddKeyNoResize(isolate(),
+                                  isolate()->factory()->string_table(), &key);
     }
 
     for (Handle<JSArrayBuffer> buffer : new_off_heap_array_buffers()) {

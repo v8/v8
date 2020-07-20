@@ -70,12 +70,15 @@ class V8_EXPORT_PRIVATE StringTable
   static Handle<String> LookupString(Isolate* isolate, Handle<String> key);
   template <typename StringTableKey>
   static Handle<String> LookupKey(Isolate* isolate, StringTableKey* key);
-  static Handle<String> AddKeyNoResize(Isolate* isolate, StringTableKey* key);
+  static Handle<String> AddKeyNoResize(Isolate* isolate,
+                                       Handle<StringTable> table,
+                                       StringTableKey* key);
 
-  // Shrink the StringTable if it's very empty (kMaxEmptyFactor) to avoid the
-  // performance overhead of re-allocating the StringTable over and over again.
-  static Handle<StringTable> CautiousShrink(Isolate* isolate,
-                                            Handle<StringTable> table);
+  // Like ComputeCapacityWithShrink, exception only shrink the StringTable if
+  // it's very empty (kMaxEmptyFactor), to avoid the performance overhead of
+  // re-allocating the StringTable over and over again.
+  static int ComputeCapacityWithCautiousShrink(int current_capacity,
+                                               int at_least_room_for);
 
   // {raw_string} must be a tagged String pointer.
   // Returns a tagged pointer: either an internalized string, or a Smi
