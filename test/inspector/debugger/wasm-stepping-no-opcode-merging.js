@@ -26,11 +26,6 @@ Protocol.Debugger.onPaused(printPauseLocationAndStep);
   WasmInspectorTest.instantiate(module_bytes);
   [, {params: {scriptId: wasm_script_id}}] = await Protocol.Debugger.onceScriptParsed(2);
 
-  // TODO(clemensb): Fix this.
-  InspectorTest.log(
-      'Warning: This test tests the current (incorrect) behaviour. ' +
-      'It will be fixed in a follow-up CL.');
-
   // Set a breakpoint at the beginning of 'fun'.
   const offset = fun.body_offset;
   InspectorTest.log(`Setting breakpoint at offset ${offset}.`);
