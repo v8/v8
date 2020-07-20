@@ -724,6 +724,26 @@ WASM_EXEC_TEST(Select_float_parameters) {
   CHECK_FLOAT_EQ(2.0f, r.Call(2.0f, 1.0f, 1));
 }
 
+WASM_EXEC_TEST(Select_s128_parameters) {
+  WasmRunner<int32_t, int32_t> r(execution_tier);
+  int32_t* g0 = r.builder().AddGlobal<int32_t>(kWasmS128);
+  int32_t* g1 = r.builder().AddGlobal<int32_t>(kWasmS128);
+  int32_t* output = r.builder().AddGlobal<int32_t>(kWasmS128);
+  // select(v128(0, 1, 2, 3), v128(4, 5, 6, 7), 1) == v128(0, 1, 2, 3)
+  for (int i = 0; i < 4; i++) {
+    WriteLittleEndianValue<int32_t>(&g0[i], i);
+    WriteLittleEndianValue<int32_t>(&g1[i], i + 4);
+  }
+  BUILD(r,
+        WASM_SET_GLOBAL(2, WASM_SELECT(WASM_GET_GLOBAL(0), WASM_GET_GLOBAL(1),
+                                       WASM_GET_LOCAL(0))),
+        WASM_ONE);
+  r.Call(1);
+  for (int i = 0; i < 4; i++) {
+    CHECK_EQ(i, ReadLittleEndianValue<int32_t>(&output[i]));
+  }
+}
+
 WASM_EXEC_TEST(SelectWithType_float_parameters) {
   EXPERIMENTAL_FLAG_SCOPE(reftypes);
   WasmRunner<float, float, float, int32_t> r(execution_tier);
