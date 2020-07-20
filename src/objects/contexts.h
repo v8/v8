@@ -7,7 +7,6 @@
 
 #include "src/objects/fixed-array.h"
 #include "src/objects/function-kind.h"
-#include "src/objects/ordered-hash-table.h"
 #include "src/objects/osr-optimized-code-cache.h"
 #include "torque-generated/field-offsets-tq.h"
 // Has to be the last include (doesn't have include guards):
@@ -234,7 +233,6 @@ enum ContextLookupFlags {
     slow_object_with_object_prototype_map)                                     \
   V(SLOW_TEMPLATE_INSTANTIATIONS_CACHE_INDEX, SimpleNumberDictionary,          \
     slow_template_instantiations_cache)                                        \
-  V(ATOMICS_WAITASYNC_PROMISES, OrderedHashSet, atomics_waitasync_promises)    \
   /* Fast Path Protectors */                                                   \
   V(REGEXP_SPECIES_PROTECTOR_INDEX, PropertyCell, regexp_species_protector)    \
   /* All *_FUNCTION_MAP_INDEX definitions used by Context::FunctionMapIndex */ \

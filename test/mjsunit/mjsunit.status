@@ -849,17 +849,6 @@
   # Tier down/up Wasm NativeModule in debugging is non-deterministic with
   # multiple isolates (https://crbug.com/v8/10099).
   'wasm/tier-down-to-liftoff': [SKIP],
-
-  # waitAsync tests modify the global state (across Isolates)
-  'harmony/atomics-waitasync': [SKIP],
-  'harmony/atomics-waitasync-1thread-2timeout': [SKIP],
-  'harmony/atomics-waitasync-1thread-buffer-out-of-scope': [SKIP],
-  'harmony/atomics-waitasync-1thread-promise-out-of-scope': [SKIP],
-  'harmony/atomics-waitasync-1thread-timeout': [SKIP],
-  'harmony/atomics-waitasync-1thread-wake-up-fifo': [SKIP],
-  'harmony/atomics-waitasync-1thread-wake-up-simple': [SKIP],
-  'harmony/atomics-waitasync-worker-shutdown-before-wait-finished-timeout': [SKIP],
-  'harmony/atomics-waitasync-worker-shutdown-before-wait-finished-no-timeout': [SKIP],
 }],  # 'isolates'
 
 ##############################################################################
