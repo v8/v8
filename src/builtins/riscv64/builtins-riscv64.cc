@@ -2626,8 +2626,8 @@ void Builtins::Generate_DoubleToI(MacroAssembler* masm) {
 
   Label normal_exponent;
   // Extract the biased exponent in result.
-  __ Ext(result_reg, input_high, HeapNumber::kExponentShift,
-         HeapNumber::kExponentBits);
+  __ Ext32(result_reg, input_high, HeapNumber::kExponentShift,
+           HeapNumber::kExponentBits);
 
   // Check for Infinity and NaNs, which should return 0.
   __ Subu(scratch, result_reg, HeapNumber::kExponentMask);

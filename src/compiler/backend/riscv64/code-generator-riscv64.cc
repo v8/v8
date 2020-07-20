@@ -1096,30 +1096,30 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       __ Sll(i.OutputRegister(), i.OutputRegister(), 0x0);
       break;
     case kRiscvClz:
-      __ Clz(i.OutputRegister(), i.InputRegister(0));
+      __ Clz32(i.OutputRegister(), i.InputRegister(0));
       break;
     case kRiscvDclz:
-      __ Dclz(i.OutputRegister(), i.InputRegister(0));
+      __ Clz64(i.OutputRegister(), i.InputRegister(0));
       break;
     case kRiscvCtz: {
       Register src = i.InputRegister(0);
       Register dst = i.OutputRegister();
-      __ Ctz(dst, src);
+      __ Ctz32(dst, src);
     } break;
     case kRiscvDctz: {
       Register src = i.InputRegister(0);
       Register dst = i.OutputRegister();
-      __ Dctz(dst, src);
+      __ Ctz64(dst, src);
     } break;
     case kRiscvPopcnt: {
       Register src = i.InputRegister(0);
       Register dst = i.OutputRegister();
-      __ Popcnt(dst, src);
+      __ Popcnt32(dst, src);
     } break;
     case kRiscvDpopcnt: {
       Register src = i.InputRegister(0);
       Register dst = i.OutputRegister();
-      __ Dpopcnt(dst, src);
+      __ Popcnt64(dst, src);
     } break;
     case kRiscvShl:
       if (instr->InputAt(1)->IsRegister()) {
@@ -1149,28 +1149,28 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       }
       break;
     case kRiscvExt:
-      __ Ext(i.OutputRegister(), i.InputRegister(0), i.InputInt8(1),
-             i.InputInt8(2));
+      __ Ext32(i.OutputRegister(), i.InputRegister(0), i.InputInt8(1),
+               i.InputInt8(2));
       break;
     case kRiscvIns:
       if (instr->InputAt(1)->IsImmediate() && i.InputInt8(1) == 0) {
-        __ Ins(i.OutputRegister(), zero_reg, i.InputInt8(1), i.InputInt8(2));
+        __ Ins32(i.OutputRegister(), zero_reg, i.InputInt8(1), i.InputInt8(2));
       } else {
-        __ Ins(i.OutputRegister(), i.InputRegister(0), i.InputInt8(1),
-               i.InputInt8(2));
+        __ Ins32(i.OutputRegister(), i.InputRegister(0), i.InputInt8(1),
+                 i.InputInt8(2));
       }
       break;
     case kRiscvDext: {
-      __ Dext(i.OutputRegister(), i.InputRegister(0), i.InputInt8(1),
-              i.InputInt8(2));
+      __ Ext64(i.OutputRegister(), i.InputRegister(0), i.InputInt8(1),
+               i.InputInt8(2));
       break;
     }
     case kRiscvDins:
       if (instr->InputAt(1)->IsImmediate() && i.InputInt8(1) == 0) {
-        __ Dins(i.OutputRegister(), zero_reg, i.InputInt8(1), i.InputInt8(2));
+        __ Ins64(i.OutputRegister(), zero_reg, i.InputInt8(1), i.InputInt8(2));
       } else {
-        __ Dins(i.OutputRegister(), i.InputRegister(0), i.InputInt8(1),
-                i.InputInt8(2));
+        __ Ins64(i.OutputRegister(), i.InputRegister(0), i.InputInt8(1),
+                 i.InputInt8(2));
       }
       break;
     case kRiscvDshl:

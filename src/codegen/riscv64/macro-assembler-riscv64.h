@@ -520,17 +520,17 @@ class V8_EXPORT_PRIVATE TurboAssembler : public TurboAssemblerBase {
   void LoadZeroOnCondition(Register rd, Register rs, const Operand& rt,
                            Condition cond);
 
-  void Clz(Register rd, Register rs);
-  void Dclz(Register rd, Register rs);
-  void Ctz(Register rd, Register rs);
-  void Dctz(Register rd, Register rs);
-  void Popcnt(Register rd, Register rs);
-  void Dpopcnt(Register rd, Register rs);
+  void Clz32(Register rd, Register rs);
+  void Clz64(Register rd, Register rs);
+  void Ctz32(Register rd, Register rs);
+  void Ctz64(Register rd, Register rs);
+  void Popcnt32(Register rd, Register rs);
+  void Popcnt64(Register rd, Register rs);
 
-  void Ext(Register rt, Register rs, uint16_t pos, uint16_t size);
-  void Dext(Register rt, Register rs, uint16_t pos, uint16_t size);
-  void Ins(Register rt, Register rs, uint16_t pos, uint16_t size);
-  void Dins(Register rt, Register rs, uint16_t pos, uint16_t size);
+  void Ext32(Register rt, Register rs, uint16_t pos, uint16_t size);
+  void Ext64(Register rt, Register rs, uint16_t pos, uint16_t size);
+  void Ins32(Register rt, Register rs, uint16_t pos, uint16_t size);
+  void Ins64(Register rt, Register rs, uint16_t pos, uint16_t size);
   void ExtractBits(Register dest, Register source, Register pos, int size,
                    bool sign_extend = false);
   void InsertBits(Register dest, Register source, Register pos, int size);
@@ -1102,7 +1102,7 @@ class V8_EXPORT_PRIVATE MacroAssembler : public TurboAssembler {
 
   template <typename Field>
   void DecodeField(Register dst, Register src) {
-    Ext(dst, src, Field::kShift, Field::kSize);
+    Ext32(dst, src, Field::kShift, Field::kSize);
   }
 
   template <typename Field>

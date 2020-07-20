@@ -590,16 +590,16 @@ void LiftoffAssembler::FillStackSlotsWithZero(int start, int size) {
 }
 
 void LiftoffAssembler::emit_i64_clz(LiftoffRegister dst, LiftoffRegister src) {
-  TurboAssembler::Dclz(dst.gp(), src.gp());
+  TurboAssembler::Clz64(dst.gp(), src.gp());
 }
 
 void LiftoffAssembler::emit_i64_ctz(LiftoffRegister dst, LiftoffRegister src) {
-  TurboAssembler::Dctz(dst.gp(), src.gp());
+  TurboAssembler::Ctz64(dst.gp(), src.gp());
 }
 
 bool LiftoffAssembler::emit_i64_popcnt(LiftoffRegister dst,
                                        LiftoffRegister src) {
-  TurboAssembler::Dpopcnt(dst.gp(), src.gp());
+  TurboAssembler::Popcnt64(dst.gp(), src.gp());
   return true;
 }
 
@@ -674,15 +674,15 @@ I32_BINOP_I(xor, Xor)
 #undef I32_BINOP_I
 
 void LiftoffAssembler::emit_i32_clz(Register dst, Register src) {
-  TurboAssembler::Clz(dst, src);
+  TurboAssembler::Clz32(dst, src);
 }
 
 void LiftoffAssembler::emit_i32_ctz(Register dst, Register src) {
-  TurboAssembler::Ctz(dst, src);
+  TurboAssembler::Ctz32(dst, src);
 }
 
 bool LiftoffAssembler::emit_i32_popcnt(Register dst, Register src) {
-  TurboAssembler::Popcnt(dst, src);
+  TurboAssembler::Popcnt32(dst, src);
   return true;
 }
 
@@ -898,7 +898,7 @@ bool LiftoffAssembler::emit_type_conversion(WasmOpcode opcode,
                                             LiftoffRegister src, Label* trap) {
   switch (opcode) {
     case kExprI32ConvertI64:
-      TurboAssembler::Ext(dst.gp(), src.gp(), 0, 32);
+      TurboAssembler::Ext32(dst.gp(), src.gp(), 0, 32);
       return true;
     case kExprI32SConvertF32:
     case kExprI32UConvertF32:
@@ -957,7 +957,7 @@ bool LiftoffAssembler::emit_type_conversion(WasmOpcode opcode,
       slliw(dst.gp(), src.gp(), 0);
       return true;
     case kExprI64UConvertI32:
-      TurboAssembler::Dext(dst.gp(), src.gp(), 0, 32);
+      TurboAssembler::Ext64(dst.gp(), src.gp(), 0, 32);
       return true;
     case kExprI64ReinterpretF64:
       fmv_x_d(dst.gp(), src.fp());

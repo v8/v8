@@ -1630,38 +1630,38 @@ static const std::vector<uint64_t> cltz_uint64_test_values() {
   return std::vector<uint64_t>(&kValues[0], &kValues[arraysize(kValues)]);
 }
 
-TEST(Clz) {
+TEST(Clz32) {
   CcTest::InitializeVM();
   FOR_UINT32_INPUTS(i, cltz_uint32_test_values) {
     uint32_t input = *i;
-    auto fn = [](MacroAssembler* masm) { __ Clz(a0, a0); };
+    auto fn = [](MacroAssembler* masm) { __ Clz32(a0, a0); };
     CHECK_EQ(__builtin_clz(input), run_Cvt<int>(input, fn));
   }
 }
 
-TEST(Ctz) {
+TEST(Ctz32) {
   CcTest::InitializeVM();
   FOR_UINT32_INPUTS(i, cltz_uint32_test_values) {
     uint32_t input = *i;
-    auto fn = [](MacroAssembler* masm) { __ Ctz(a0, a0); };
+    auto fn = [](MacroAssembler* masm) { __ Ctz32(a0, a0); };
     CHECK_EQ(__builtin_ctz(input), run_Cvt<int>(input, fn));
   }
 }
 
-TEST(Dclz) {
+TEST(Clz64) {
   CcTest::InitializeVM();
   FOR_UINT64_INPUTS(i, cltz_uint64_test_values) {
     uint64_t input = *i;
-    auto fn = [](MacroAssembler* masm) { __ Dclz(a0, a0); };
+    auto fn = [](MacroAssembler* masm) { __ Clz64(a0, a0); };
     CHECK_EQ(__builtin_clzll(input), run_Cvt<int>(input, fn));
   }
 }
 
-TEST(Dctz) {
+TEST(Ctz64) {
   CcTest::InitializeVM();
   FOR_UINT64_INPUTS(i, cltz_uint64_test_values) {
     uint64_t input = *i;
-    auto fn = [](MacroAssembler* masm) { __ Dctz(a0, a0); };
+    auto fn = [](MacroAssembler* masm) { __ Ctz64(a0, a0); };
     CHECK_EQ(__builtin_ctzll(input), run_Cvt<int>(input, fn));
   }
 }
@@ -1705,17 +1705,17 @@ TEST(Dpopcnt) {
   for (int i = 0; i < 7; i++) {
     // Load constant.
     __ li(a3, Operand(in[i]));
-    __ Dpopcnt(a5, a3);
+    __ Popcnt64(a5, a3);
     __ Sd(a5, MemOperand(a4));
     __ Daddu(a4, a4, Operand(kPointerSize));
   }
   __ li(a3, Operand(in[7]));
-  __ Dpopcnt(a5, a3);
+  __ Popcnt64(a5, a3);
   __ Sd(a5, MemOperand(a4));
   __ Daddu(a4, a4, Operand(kPointerSize));
 
   __ li(a3, Operand(in[8]));
-  __ Dpopcnt(a5, a3);
+  __ Popcnt64(a5, a3);
   __ Sd(a5, MemOperand(a4));
   __ Daddu(a4, a4, Operand(kPointerSize));
 
@@ -1762,18 +1762,18 @@ TEST(Popcnt) {
   for (int i = 0; i < 6; i++) {
     // Load constant.
     __ li(a3, Operand(in[i]));
-    __ Popcnt(a5, a3);
+    __ Popcnt32(a5, a3);
     __ Sd(a5, MemOperand(a4));
     __ Daddu(a4, a4, Operand(kPointerSize));
   }
 
   __ li(a3, Operand(in[6]));
-  __ Dpopcnt(a5, a3);
+  __ Popcnt64(a5, a3);
   __ Sd(a5, MemOperand(a4));
   __ Daddu(a4, a4, Operand(kPointerSize));
 
   __ li(a3, Operand(in[7]));
-  __ Dpopcnt(a5, a3);
+  __ Popcnt64(a5, a3);
   __ Sd(a5, MemOperand(a4));
   __ Daddu(a4, a4, Operand(kPointerSize));
 

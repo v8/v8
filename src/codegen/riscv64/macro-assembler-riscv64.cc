@@ -1607,8 +1607,8 @@ void TurboAssembler::MultiPopFPU(RegList regs) {
   addi(sp, sp, stack_offset);
 }
 
-void TurboAssembler::Ext(Register rt, Register rs, uint16_t pos,
-                         uint16_t size) {
+void TurboAssembler::Ext32(Register rt, Register rs, uint16_t pos,
+                           uint16_t size) {
   DCHECK_LT(pos, 32);
   DCHECK_LT(pos + size, 33);
   // RISC-V does not have an extract-type instruction, so we need to use shifts
@@ -1616,8 +1616,8 @@ void TurboAssembler::Ext(Register rt, Register rs, uint16_t pos,
   srliw(rt, rt, 32 - size);
 }
 
-void TurboAssembler::Dext(Register rt, Register rs, uint16_t pos,
-                          uint16_t size) {
+void TurboAssembler::Ext64(Register rt, Register rs, uint16_t pos,
+                           uint16_t size) {
   DCHECK(pos < 64 && 0 < size && size <= 64 && 0 < pos + size &&
          pos + size <= 64);
   // RISC-V does not have an extract-type instruction, so we need to use shifts
@@ -1625,8 +1625,8 @@ void TurboAssembler::Dext(Register rt, Register rs, uint16_t pos,
   srli(rt, rt, 64 - size);
 }
 
-void TurboAssembler::Ins(Register rt, Register rs, uint16_t pos,
-                         uint16_t size) {
+void TurboAssembler::Ins32(Register rt, Register rs, uint16_t pos,
+                           uint16_t size) {
   DCHECK_LT(pos, 32);
   DCHECK_LE(pos + size, 32);
   DCHECK_NE(size, 0);
@@ -1643,8 +1643,8 @@ void TurboAssembler::Ins(Register rt, Register rs, uint16_t pos,
   or_(rt, rt, scratch1);
 }
 
-void TurboAssembler::Dins(Register rt, Register rs, uint16_t pos,
-                          uint16_t size) {
+void TurboAssembler::Ins64(Register rt, Register rs, uint16_t pos,
+                           uint16_t size) {
   DCHECK(pos < 64 && 0 < size && size <= 64 && 0 < pos + size &&
          pos + size <= 64);
   DCHECK(rt != t5 && rt != t6 && rs != t5 && rs != t6);
@@ -1663,7 +1663,7 @@ void TurboAssembler::Dins(Register rt, Register rs, uint16_t pos,
 void TurboAssembler::ExtractBits(Register dest, Register source, Register pos,
                                  int size, bool sign_extend) {
   sra(dest, source, pos);
-  Dext(dest, dest, 0, size);
+  Ext64(dest, dest, 0, size);
   if (sign_extend) {
     switch (size) {
       case 8:
@@ -1902,10 +1902,10 @@ void TurboAssembler::RoundHelper(FPURegister dst, FPURegister src,
   // extract exponent value of the source floating-point to t6
   if (std::is_same<F, double>::value) {
     fmv_x_d(scratch, src);
-    Dext(t6, scratch, kFloatMantissaBits, kFloatExponentBits);
+    Ext64(t6, scratch, kFloatMantissaBits, kFloatExponentBits);
   } else {
     fmv_x_w(scratch, src);
-    Ext(t6, scratch, kFloatMantissaBits, kFloatExponentBits);
+    Ext32(t6, scratch, kFloatMantissaBits, kFloatExponentBits);
   }
 
   // if src is NaN/+-Infinity/+-Zero or if the exponent is larger than # of bits
@@ -2301,7 +2301,7 @@ void TurboAssembler::LoadZeroIfConditionZero(Register dest,
   Selnez(dest, dest, condition);
 }
 
-void TurboAssembler::Clz(Register rd, Register xx) {
+void TurboAssembler::Clz32(Register rd, Register xx) {
   // 32 bit unsigned in lower word: count number of leading zeros.
   //  int n = 32;
   //  unsigned y;
@@ -2349,7 +2349,7 @@ void TurboAssembler::Clz(Register rd, Register xx) {
   bind(&L4);
 }
 
-void TurboAssembler::Dclz(Register rd, Register xx) {
+void TurboAssembler::Clz64(Register rd, Register xx) {
   // 64 bit: count number of leading zeros.
   //  int n = 64;
   //  unsigned y;
@@ -2403,7 +2403,7 @@ void TurboAssembler::Dclz(Register rd, Register xx) {
   bind(&L5);
 }
 
-void TurboAssembler::Ctz(Register rd, Register rs) {
+void TurboAssembler::Ctz32(Register rd, Register rs) {
   // Convert trailing zeroes to trailing ones, and bits to their left
   // to zeroes.
   UseScratchRegisterScope temps(this);
@@ -2413,14 +2413,14 @@ void TurboAssembler::Ctz(Register rd, Register rs) {
   Xor(rd, scratch, rs);
   And(rd, rd, scratch);
   // Count number of leading zeroes.
-  Clz(rd, rd);
+  Clz32(rd, rd);
   // Subtract number of leading zeroes from 32 to get number of trailing
   // ones. Remember that the trailing ones were formerly trailing zeroes.
   li(scratch, 32);
   Subu(rd, scratch, rd);
 }
 
-void TurboAssembler::Dctz(Register rd, Register rs) {
+void TurboAssembler::Ctz64(Register rd, Register rs) {
   // Convert trailing zeroes to trailing ones, and bits to their left
   // to zeroes.
   UseScratchRegisterScope temps(this);
@@ -2430,14 +2430,14 @@ void TurboAssembler::Dctz(Register rd, Register rs) {
   Xor(rd, scratch, rs);
   And(rd, rd, scratch);
   // Count number of leading zeroes.
-  Dclz(rd, rd);
+  Clz64(rd, rd);
   // Subtract number of leading zeroes from 64 to get number of trailing
   // ones. Remember that the trailing ones were formerly trailing zeroes.
   li(scratch, 64);
   Dsubu(rd, scratch, rd);
 }
 
-void TurboAssembler::Popcnt(Register rd, Register rs) {
+void TurboAssembler::Popcnt32(Register rd, Register rs) {
   // https://graphics.stanford.edu/~seander/bithacks.html#CountBitsSetParallel
   //
   // A generalization of the best bit counting method to integers of
@@ -2486,7 +2486,7 @@ void TurboAssembler::Popcnt(Register rd, Register rs) {
   Srl(rd, rd, shift);
 }
 
-void TurboAssembler::Dpopcnt(Register rd, Register rs) {
+void TurboAssembler::Popcnt64(Register rd, Register rs) {
   // uint64_t B0 = 0x5555555555555555l;     // (T)~(T)0/3
   // uint64_t B1 = 0x3333333333333333l;     // (T)~(T)0/15*3
   // uint64_t B2 = 0x0F0F0F0F0F0F0F0Fl;     // (T)~(T)0/255*15
