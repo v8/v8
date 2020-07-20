@@ -223,7 +223,8 @@ DEFINE_IMPLICATION(harmony_weak_refs_with_cleanup_some, harmony_weak_refs)
   V(harmony_regexp_sequence, "RegExp Unicode sequence properties")             \
   V(harmony_weak_refs_with_cleanup_some,                                       \
     "harmony weak references with FinalizationRegistry.prototype.cleanupSome") \
-  V(harmony_regexp_match_indices, "harmony regexp match indices")
+  V(harmony_regexp_match_indices, "harmony regexp match indices")              \
+  V(harmony_atomics_waitasync, "harmony Atomics.waitAsync")
 
 #ifdef V8_INTL_SUPPORT
 #define HARMONY_INPROGRESS(V)                       \

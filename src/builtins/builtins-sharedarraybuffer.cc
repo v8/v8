@@ -177,25 +177,22 @@ BUILTIN(AtomicsNotify) {
   RETURN_RESULT_OR_FAILURE(isolate, AtomicsWake(isolate, array, index, count));
 }
 
-// ES #sec-atomics.wait
-// Atomics.wait( typedArray, index, value, timeout )
-BUILTIN(AtomicsWait) {
-  HandleScope scope(isolate);
-  Handle<Object> array = args.atOrUndefined(isolate, 1);
-  Handle<Object> index = args.atOrUndefined(isolate, 2);
-  Handle<Object> value = args.atOrUndefined(isolate, 3);
-  Handle<Object> timeout = args.atOrUndefined(isolate, 4);
-
+Object DoWait(Isolate* isolate, FutexEmulation::WaitMode mode,
+              Handle<Object> array, Handle<Object> index, Handle<Object> value,
+              Handle<Object> timeout) {
+  // 1. Let buffer be ? ValidateSharedIntegerTypedArray(typedArray, true).
   Handle<JSTypedArray> sta;
   ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
       isolate, sta, ValidateSharedIntegerTypedArray(isolate, array, true));
 
+  // 2. Let i be ? ValidateAtomicAccess(typedArray, index).
   Maybe<size_t> maybe_index = ValidateAtomicAccess(isolate, sta, index);
   if (maybe_index.IsNothing()) return ReadOnlyRoots(isolate).exception();
   size_t i = maybe_index.FromJust();
 
-  // According to the spec, we have to check value's type before
-  // looking at the timeout.
+  // 3. Let arrayTypeName be typedArray.[[TypedArrayName]].
+  // 4. If arrayTypeName is "BigInt64Array", let v be ? ToBigInt64(value).
+  // 5. Otherwise, let v be ? ToInt32(value).
   if (sta->type() == kExternalBigInt64Array) {
     ASSIGN_RETURN_FAILURE_ON_EXCEPTION(isolate, value,
                                        BigInt::FromObject(isolate, value));
@@ -205,6 +202,8 @@ BUILTIN(AtomicsWait) {
                                        Object::ToInt32(isolate, value));
   }
 
+  // 6. Let q be ? ToNumber(timeout).
+  // 7. If q is NaN, let t be +∞, else let t be max(q, 0).
   double timeout_number;
   if (timeout->IsUndefined(isolate)) {
     timeout_number = ReadOnlyRoots(isolate).infinity_value().Number();
@@ -218,7 +217,11 @@ BUILTIN(AtomicsWait) {
       timeout_number = 0;
   }
 
-  if (!isolate->allow_atomics_wait()) {
+  // 8. If mode is sync, then
+  //   a. Let B be AgentCanSuspend().
+  //   b. If B is false, throw a TypeError exception.
+  if (mode == FutexEmulation::WaitMode::kSync &&
+      !isolate->allow_atomics_wait()) {
     THROW_NEW_ERROR_RETURN_FAILURE(
         isolate, NewTypeError(MessageTemplate::kAtomicsWaitNotAllowed));
   }
@@ -227,14 +230,38 @@ BUILTIN(AtomicsWait) {
 
   if (sta->type() == kExternalBigInt64Array) {
     return FutexEmulation::WaitJs64(
-        isolate, array_buffer, GetAddress64(i, sta->byte_offset()),
+        isolate, mode, array_buffer, GetAddress64(i, sta->byte_offset()),
         Handle<BigInt>::cast(value)->AsInt64(), timeout_number);
   } else {
     DCHECK(sta->type() == kExternalInt32Array);
-    return FutexEmulation::WaitJs32(isolate, array_buffer,
+    return FutexEmulation::WaitJs32(isolate, mode, array_buffer,
                                     GetAddress32(i, sta->byte_offset()),
                                     NumberToInt32(*value), timeout_number);
   }
+}
+
+// ES #sec-atomics.wait
+// Atomics.wait( typedArray, index, value, timeout )
+BUILTIN(AtomicsWait) {
+  HandleScope scope(isolate);
+  Handle<Object> array = args.atOrUndefined(isolate, 1);
+  Handle<Object> index = args.atOrUndefined(isolate, 2);
+  Handle<Object> value = args.atOrUndefined(isolate, 3);
+  Handle<Object> timeout = args.atOrUndefined(isolate, 4);
+
+  return DoWait(isolate, FutexEmulation::WaitMode::kSync, array, index, value,
+                timeout);
+}
+
+BUILTIN(AtomicsWaitAsync) {
+  HandleScope scope(isolate);
+  Handle<Object> array = args.atOrUndefined(isolate, 1);
+  Handle<Object> index = args.atOrUndefined(isolate, 2);
+  Handle<Object> value = args.atOrUndefined(isolate, 3);
+  Handle<Object> timeout = args.atOrUndefined(isolate, 4);
+
+  return DoWait(isolate, FutexEmulation::WaitMode::kAsync, array, index, value,
+                timeout);
 }
 
 }  // namespace internal

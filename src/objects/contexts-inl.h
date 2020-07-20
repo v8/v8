@@ -5,14 +5,14 @@
 #ifndef V8_OBJECTS_CONTEXTS_INL_H_
 #define V8_OBJECTS_CONTEXTS_INL_H_
 
-#include "src/objects/contexts.h"
-
 #include "src/heap/heap-write-barrier.h"
+#include "src/objects/contexts.h"
 #include "src/objects/dictionary-inl.h"
 #include "src/objects/fixed-array-inl.h"
 #include "src/objects/js-objects-inl.h"
 #include "src/objects/map-inl.h"
 #include "src/objects/objects-inl.h"
+#include "src/objects/ordered-hash-table-inl.h"
 #include "src/objects/osr-optimized-code-cache-inl.h"
 #include "src/objects/regexp-match-info.h"
 #include "src/objects/scope-info.h"
