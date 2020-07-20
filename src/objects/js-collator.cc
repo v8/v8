@@ -10,6 +10,7 @@
 
 #include "src/execution/isolate.h"
 #include "src/objects/js-collator-inl.h"
+#include "src/objects/js-locale.h"
 #include "src/objects/objects-inl.h"
 #include "unicode/coll.h"
 #include "unicode/locid.h"
@@ -293,6 +294,29 @@ MaybeHandle<JSCollator> JSCollator::New(Isolate* isolate, Handle<Map> map,
   MAYBE_RETURN(maybe_locale_matcher, MaybeHandle<JSCollator>());
   Intl::MatcherOption matcher = maybe_locale_matcher.FromJust();
 
+  // x. Let _collation_ be ? GetOption(_options_, *"collation"*, *"string"*,
+  // *undefined*, *undefined*).
+  std::unique_ptr<char[]> collation_str = nullptr;
+  const std::vector<const char*> empty_values = {};
+  Maybe<bool> maybe_collation = Intl::GetStringOption(
+      isolate, options, "collation", empty_values, service, &collation_str);
+  MAYBE_RETURN(maybe_collation, MaybeHandle<JSCollator>());
+  // x. If _collation_ is not *undefined*, then
+  if (maybe_collation.FromJust() && collation_str != nullptr) {
+    // 1. If _collation_ does not match the Unicode Locale Identifier `type`
+    // nonterminal, throw a *RangeError* exception.
+    if (!JSLocale::Is38AlphaNumList(collation_str.get())) {
+      THROW_NEW_ERROR_RETURN_VALUE(
+          isolate,
+          NewRangeError(MessageTemplate::kInvalid,
+                        isolate->factory()->collation_string(),
+                        isolate->factory()->NewStringFromAsciiChecked(
+                            collation_str.get())),
+          MaybeHandle<JSCollator>());
+    }
+  }
+  // x. Set _opt_.[[co]] to _collation_.
+
   // 11. Let numeric be ? GetOption(options, "numeric", "boolean",
   // undefined, undefined).
   // 12. If numeric is not undefined, then
@@ -337,6 +361,15 @@ MaybeHandle<JSCollator> JSCollator::New(Isolate* isolate, Handle<Map> map,
   DCHECK(!icu_locale.isBogus());
 
   // 19. Let collation be r.[[co]].
+  UErrorCode status = U_ZERO_ERROR;
+  if (collation_str != nullptr) {
+    auto co_extension_it = r.extensions.find("co");
+    if (co_extension_it != r.extensions.end() &&
+        co_extension_it->second != collation_str.get()) {
+      icu_locale.setUnicodeKeywordValue("co", nullptr, status);
+      CHECK(U_SUCCESS(status));
+    }
+  }
 
   // 5. Set collator.[[Usage]] to usage.
   //
@@ -358,6 +391,12 @@ MaybeHandle<JSCollator> JSCollator::New(Isolate* isolate, Handle<Map> map,
     UErrorCode status = U_ZERO_ERROR;
     icu_locale.setUnicodeKeywordValue("co", "search", status);
     CHECK(U_SUCCESS(status));
+  } else {
+    if (collation_str != nullptr &&
+        Intl::IsValidCollation(icu_locale, collation_str.get())) {
+      icu_locale.setUnicodeKeywordValue("co", collation_str.get(), status);
+      CHECK(U_SUCCESS(status));
+    }
   }
 
   // 20. If collation is null, let collation be "default".
@@ -367,7 +406,6 @@ MaybeHandle<JSCollator> JSCollator::New(Isolate* isolate, Handle<Map> map,
   // here. The collation value can be looked up from icu::Collator on
   // demand, as part of Intl.Collator.prototype.resolvedOptions.
 
-  UErrorCode status = U_ZERO_ERROR;
   std::unique_ptr<icu::Collator> icu_collator(
       icu::Collator::createInstance(icu_locale, status));
   if (U_FAILURE(status) || icu_collator.get() == nullptr) {

@@ -243,6 +243,10 @@ class Intl {
   static bool IsValidCalendar(const icu::Locale& locale,
                               const std::string& value);
 
+  // Check the collation is valid or not for that locale.
+  static bool IsValidCollation(const icu::Locale& locale,
+                               const std::string& value);
+
   // Check the numberingSystem is valid.
   static bool IsValidNumberingSystem(const std::string& value);
 

@@ -1687,13 +1687,14 @@ bool IsValidExtension(const icu::Locale& locale, const char* key,
   return false;
 }
 
-bool IsValidCollation(const icu::Locale& locale, const std::string& value) {
+}  // namespace
+
+bool Intl::IsValidCollation(const icu::Locale& locale,
+                            const std::string& value) {
   std::set<std::string> invalid_values = {"standard", "search"};
   if (invalid_values.find(value) != invalid_values.end()) return false;
   return IsValidExtension<icu::Collator>(locale, "collation", value);
 }
-
-}  // namespace
 
 bool Intl::IsWellFormedCalendar(const std::string& value) {
   return JSLocale::Is38AlphaNumList(value);
@@ -1769,7 +1770,7 @@ std::map<std::string, std::string> LookupAndValidateUnicodeExtensions(
       if (strcmp("ca", bcp47_key) == 0) {
         is_valid_value = Intl::IsValidCalendar(*icu_locale, bcp47_value);
       } else if (strcmp("co", bcp47_key) == 0) {
-        is_valid_value = IsValidCollation(*icu_locale, bcp47_value);
+        is_valid_value = Intl::IsValidCollation(*icu_locale, bcp47_value);
       } else if (strcmp("hc", bcp47_key) == 0) {
         // https://www.unicode.org/repos/cldr/tags/latest/common/bcp47/calendar.xml
         std::set<std::string> valid_values = {"h11", "h12", "h23", "h24"};
