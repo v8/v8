@@ -300,6 +300,15 @@
     # TODO(almuthanna): Add a new test config for the fuzzilli suite.
     'tests': [],
   },
+  'v8_linux64_reverse_jsargs_dbg_ng_triggered': {
+    'swarming_dimensions' : {
+      'cpu': 'x86-64-avx2',
+      'os': 'Ubuntu-16.04',
+    },
+    'tests': [
+      {'name': 'v8testing', 'shards': 3},
+    ],
+  },
   'v8_linux64_gc_stress_custom_snapshot_dbg_ng_triggered': {
     'swarming_dimensions' : {
       'os': 'Ubuntu-16.04',
@@ -1009,6 +1018,15 @@
     },
     'tests': [
       {'name': 'v8testing', 'shards': 2},
+    ],
+  },
+  'V8 Linux64 - reverse jsargs': {
+    'swarming_dimensions' : {
+      'cpu': 'x86-64-avx2',
+      'os': 'Ubuntu-16.04',
+    },
+    'tests': [
+      {'name': 'v8testing', 'shards': 3},
     ],
   },
   'V8 Linux64 - shared': {
