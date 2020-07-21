@@ -95,7 +95,7 @@ TEST(LoadConstants) {
     // Load constant.
     __ li(a5, Operand(refConstants[i]));
     __ Sd(a5, MemOperand(a4));
-    __ Daddu(a4, a4, Operand(kPointerSize));
+    __ Add64(a4, a4, Operand(kPointerSize));
   }
 
   __ jr(ra);
@@ -303,7 +303,7 @@ static uint64_t run_lsa(uint32_t rt, uint32_t rs, int8_t sa) {
   MacroAssembler assembler(isolate, v8::internal::CodeObjectRequired::kYes);
   MacroAssembler* masm = &assembler;
 
-  __ Lsa(a0, a0, a1, sa);
+  __ Lsa32(a0, a0, a1, sa);
   __ jr(ra);
   __ nop();
 
@@ -318,7 +318,7 @@ static uint64_t run_lsa(uint32_t rt, uint32_t rs, int8_t sa) {
   return res;
 }
 
-TEST(Lsa) {
+TEST(Lsa32) {
   CcTest::InitializeVM();
   struct TestCaseLsa {
     int32_t rt;
@@ -378,7 +378,7 @@ static uint64_t run_dlsa(uint64_t rt, uint64_t rs, int8_t sa) {
   MacroAssembler assembler(isolate, v8::internal::CodeObjectRequired::kYes);
   MacroAssembler* masm = &assembler;
 
-  __ Dlsa(a0, a0, a1, sa);
+  __ Lsa64(a0, a0, a1, sa);
   __ jr(ra);
   __ nop();
 
@@ -393,7 +393,7 @@ static uint64_t run_dlsa(uint64_t rt, uint64_t rs, int8_t sa) {
   return res;
 }
 
-TEST(Dlsa) {
+TEST(Lsa64) {
   CcTest::InitializeVM();
   struct TestCaseLsa {
     int64_t rt;
@@ -685,22 +685,22 @@ TEST(OverflowInstructions) {
       __ Ld(t0, MemOperand(a0, offsetof(T, lhs)));
       __ Ld(t1, MemOperand(a0, offsetof(T, rhs)));
 
-      __ DaddOverflow(t2, t0, Operand(t1), a1);
+      __ AddOverflow64(t2, t0, Operand(t1), a1);
       __ Sd(t2, MemOperand(a0, offsetof(T, output_add)));
       __ Sd(a1, MemOperand(a0, offsetof(T, overflow_add)));
       __ mov(a1, zero_reg);
-      __ DaddOverflow(t0, t0, Operand(t1), a1);
+      __ AddOverflow64(t0, t0, Operand(t1), a1);
       __ Sd(t0, MemOperand(a0, offsetof(T, output_add2)));
       __ Sd(a1, MemOperand(a0, offsetof(T, overflow_add2)));
 
       __ Ld(t0, MemOperand(a0, offsetof(T, lhs)));
       __ Ld(t1, MemOperand(a0, offsetof(T, rhs)));
 
-      __ DsubOverflow(t2, t0, Operand(t1), a1);
+      __ SubOverflow64(t2, t0, Operand(t1), a1);
       __ Sd(t2, MemOperand(a0, offsetof(T, output_sub)));
       __ Sd(a1, MemOperand(a0, offsetof(T, overflow_sub)));
       __ mov(a1, zero_reg);
-      __ DsubOverflow(t0, t0, Operand(t1), a1);
+      __ SubOverflow64(t0, t0, Operand(t1), a1);
       __ Sd(t0, MemOperand(a0, offsetof(T, output_sub2)));
       __ Sd(a1, MemOperand(a0, offsetof(T, overflow_sub2)));
 
@@ -708,11 +708,11 @@ TEST(OverflowInstructions) {
       __ Ld(t1, MemOperand(a0, offsetof(T, rhs)));
       __ slliw(t0, t0, 0);
       __ slliw(t1, t1, 0);
-      __ MulOverflow(t2, t0, Operand(t1), a1);
+      __ MulOverflow32(t2, t0, Operand(t1), a1);
       __ Sd(t2, MemOperand(a0, offsetof(T, output_mul)));
       __ Sd(a1, MemOperand(a0, offsetof(T, overflow_mul)));
       __ mov(a1, zero_reg);
-      __ MulOverflow(t0, t0, Operand(t1), a1);
+      __ MulOverflow32(t0, t0, Operand(t1), a1);
       __ Sd(t0, MemOperand(a0, offsetof(T, output_mul2)));
       __ Sd(a1, MemOperand(a0, offsetof(T, overflow_mul2)));
 
@@ -803,18 +803,18 @@ TEST(min_max_nan) {
 
   __ push(s6);
   __ InitializeRootRegister();
-  __ Ldc1(fa3, MemOperand(a0, offsetof(TestFloat, a)));
-  __ Ldc1(fa4, MemOperand(a0, offsetof(TestFloat, b)));
-  __ Lwc1(fa1, MemOperand(a0, offsetof(TestFloat, e)));
-  __ Lwc1(fa2, MemOperand(a0, offsetof(TestFloat, f)));
+  __ LoadDouble(fa3, MemOperand(a0, offsetof(TestFloat, a)));
+  __ LoadDouble(fa4, MemOperand(a0, offsetof(TestFloat, b)));
+  __ LoadFloat(fa1, MemOperand(a0, offsetof(TestFloat, e)));
+  __ LoadFloat(fa2, MemOperand(a0, offsetof(TestFloat, f)));
   __ Float64Min(fa5, fa3, fa4);
   __ Float64Max(fa6, fa3, fa4);
   __ Float32Min(fa7, fa1, fa2);
   __ Float32Max(fa0, fa1, fa2);
-  __ Sdc1(fa5, MemOperand(a0, offsetof(TestFloat, c)));
-  __ Sdc1(fa6, MemOperand(a0, offsetof(TestFloat, d)));
-  __ Swc1(fa7, MemOperand(a0, offsetof(TestFloat, g)));
-  __ Swc1(fa0, MemOperand(a0, offsetof(TestFloat, h)));
+  __ StoreDouble(fa5, MemOperand(a0, offsetof(TestFloat, c)));
+  __ StoreDouble(fa6, MemOperand(a0, offsetof(TestFloat, d)));
+  __ StoreFloat(fa7, MemOperand(a0, offsetof(TestFloat, g)));
+  __ StoreFloat(fa0, MemOperand(a0, offsetof(TestFloat, h)));
   __ pop(s6);
   __ jr(ra);
   __ nop();
@@ -1253,11 +1253,11 @@ static GeneratedCode<F4> GenerateMacroFloat32MinMax(MacroAssembler* masm) {
   T b = T::from_code(6);  // f6
   T c = T::from_code(8);  // f8
 
-#define FLOAT_MIN_MAX(fminmax, res, x, y, res_field)   \
-  __ Lwc1(x, MemOperand(a0, offsetof(Inputs, src1_))); \
-  __ Lwc1(y, MemOperand(a0, offsetof(Inputs, src2_))); \
-  __ fminmax(res, x, y);                               \
-  __ Swc1(a, MemOperand(a1, offsetof(Results, res_field)))
+#define FLOAT_MIN_MAX(fminmax, res, x, y, res_field)        \
+  __ LoadFloat(x, MemOperand(a0, offsetof(Inputs, src1_))); \
+  __ LoadFloat(y, MemOperand(a0, offsetof(Inputs, src2_))); \
+  __ fminmax(res, x, y);                                    \
+  __ StoreFloat(a, MemOperand(a1, offsetof(Results, res_field)))
 
   // a = min(b, c);
   FLOAT_MIN_MAX(Float32Min, a, b, c, min_abc_);
@@ -1364,11 +1364,11 @@ static GeneratedCode<F4> GenerateMacroFloat64MinMax(MacroAssembler* masm) {
   T b = T::from_code(6);  // f6
   T c = T::from_code(8);  // f8
 
-#define FLOAT_MIN_MAX(fminmax, res, x, y, res_field)   \
-  __ Ldc1(x, MemOperand(a0, offsetof(Inputs, src1_))); \
-  __ Ldc1(y, MemOperand(a0, offsetof(Inputs, src2_))); \
-  __ fminmax(res, x, y);                               \
-  __ Sdc1(a, MemOperand(a1, offsetof(Results, res_field)))
+#define FLOAT_MIN_MAX(fminmax, res, x, y, res_field)         \
+  __ LoadDouble(x, MemOperand(a0, offsetof(Inputs, src1_))); \
+  __ LoadDouble(y, MemOperand(a0, offsetof(Inputs, src2_))); \
+  __ fminmax(res, x, y);                                     \
+  __ StoreDouble(a, MemOperand(a1, offsetof(Results, res_field)))
 
   // a = min(b, c);
   FLOAT_MIN_MAX(Float64Min, a, b, c, min_abc_);
@@ -1630,38 +1630,38 @@ static const std::vector<uint64_t> cltz_uint64_test_values() {
   return std::vector<uint64_t>(&kValues[0], &kValues[arraysize(kValues)]);
 }
 
-TEST(Clz) {
+TEST(Clz32) {
   CcTest::InitializeVM();
   FOR_UINT32_INPUTS(i, cltz_uint32_test_values) {
     uint32_t input = *i;
-    auto fn = [](MacroAssembler* masm) { __ Clz(a0, a0); };
+    auto fn = [](MacroAssembler* masm) { __ Clz32(a0, a0); };
     CHECK_EQ(__builtin_clz(input), run_Cvt<int>(input, fn));
   }
 }
 
-TEST(Ctz) {
+TEST(Ctz32) {
   CcTest::InitializeVM();
   FOR_UINT32_INPUTS(i, cltz_uint32_test_values) {
     uint32_t input = *i;
-    auto fn = [](MacroAssembler* masm) { __ Ctz(a0, a0); };
+    auto fn = [](MacroAssembler* masm) { __ Ctz32(a0, a0); };
     CHECK_EQ(__builtin_ctz(input), run_Cvt<int>(input, fn));
   }
 }
 
-TEST(Dclz) {
+TEST(Clz64) {
   CcTest::InitializeVM();
   FOR_UINT64_INPUTS(i, cltz_uint64_test_values) {
     uint64_t input = *i;
-    auto fn = [](MacroAssembler* masm) { __ Dclz(a0, a0); };
+    auto fn = [](MacroAssembler* masm) { __ Clz64(a0, a0); };
     CHECK_EQ(__builtin_clzll(input), run_Cvt<int>(input, fn));
   }
 }
 
-TEST(Dctz) {
+TEST(Ctz64) {
   CcTest::InitializeVM();
   FOR_UINT64_INPUTS(i, cltz_uint64_test_values) {
     uint64_t input = *i;
-    auto fn = [](MacroAssembler* masm) { __ Dctz(a0, a0); };
+    auto fn = [](MacroAssembler* masm) { __ Ctz64(a0, a0); };
     CHECK_EQ(__builtin_ctzll(input), run_Cvt<int>(input, fn));
   }
 }
@@ -1705,19 +1705,19 @@ TEST(Dpopcnt) {
   for (int i = 0; i < 7; i++) {
     // Load constant.
     __ li(a3, Operand(in[i]));
-    __ Dpopcnt(a5, a3);
+    __ Popcnt64(a5, a3);
     __ Sd(a5, MemOperand(a4));
-    __ Daddu(a4, a4, Operand(kPointerSize));
+    __ Add64(a4, a4, Operand(kPointerSize));
   }
   __ li(a3, Operand(in[7]));
-  __ Dpopcnt(a5, a3);
+  __ Popcnt64(a5, a3);
   __ Sd(a5, MemOperand(a4));
-  __ Daddu(a4, a4, Operand(kPointerSize));
+  __ Add64(a4, a4, Operand(kPointerSize));
 
   __ li(a3, Operand(in[8]));
-  __ Dpopcnt(a5, a3);
+  __ Popcnt64(a5, a3);
   __ Sd(a5, MemOperand(a4));
-  __ Daddu(a4, a4, Operand(kPointerSize));
+  __ Add64(a4, a4, Operand(kPointerSize));
 
   __ jr(ra);
 
@@ -1762,20 +1762,20 @@ TEST(Popcnt) {
   for (int i = 0; i < 6; i++) {
     // Load constant.
     __ li(a3, Operand(in[i]));
-    __ Popcnt(a5, a3);
+    __ Popcnt32(a5, a3);
     __ Sd(a5, MemOperand(a4));
-    __ Daddu(a4, a4, Operand(kPointerSize));
+    __ Add64(a4, a4, Operand(kPointerSize));
   }
 
   __ li(a3, Operand(in[6]));
-  __ Dpopcnt(a5, a3);
+  __ Popcnt64(a5, a3);
   __ Sd(a5, MemOperand(a4));
-  __ Daddu(a4, a4, Operand(kPointerSize));
+  __ Add64(a4, a4, Operand(kPointerSize));
 
   __ li(a3, Operand(in[7]));
-  __ Dpopcnt(a5, a3);
+  __ Popcnt64(a5, a3);
   __ Sd(a5, MemOperand(a4));
-  __ Daddu(a4, a4, Operand(kPointerSize));
+  __ Add64(a4, a4, Operand(kPointerSize));
 
   __ jr(ra);
 

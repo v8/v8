@@ -252,7 +252,7 @@ class V8_EXPORT_PRIVATE TurboAssembler : public TurboAssemblerBase {
   void Sd(Register rd, const MemOperand& rs);
 
   void push(Register src) {
-    Daddu(sp, sp, Operand(-kPointerSize));
+    Add64(sp, sp, Operand(-kPointerSize));
     Sd(src, MemOperand(sp, 0));
   }
   void Push(Register src) { push(src); }
@@ -261,14 +261,14 @@ class V8_EXPORT_PRIVATE TurboAssembler : public TurboAssemblerBase {
 
   // Push two registers. Pushes leftmost register first (to highest address).
   void Push(Register src1, Register src2) {
-    Dsubu(sp, sp, Operand(2 * kPointerSize));
+    Sub64(sp, sp, Operand(2 * kPointerSize));
     Sd(src1, MemOperand(sp, 1 * kPointerSize));
     Sd(src2, MemOperand(sp, 0 * kPointerSize));
   }
 
   // Push three registers. Pushes leftmost register first (to highest address).
   void Push(Register src1, Register src2, Register src3) {
-    Dsubu(sp, sp, Operand(3 * kPointerSize));
+    Sub64(sp, sp, Operand(3 * kPointerSize));
     Sd(src1, MemOperand(sp, 2 * kPointerSize));
     Sd(src2, MemOperand(sp, 1 * kPointerSize));
     Sd(src3, MemOperand(sp, 0 * kPointerSize));
@@ -276,7 +276,7 @@ class V8_EXPORT_PRIVATE TurboAssembler : public TurboAssemblerBase {
 
   // Push four registers. Pushes leftmost register first (to highest address).
   void Push(Register src1, Register src2, Register src3, Register src4) {
-    Dsubu(sp, sp, Operand(4 * kPointerSize));
+    Sub64(sp, sp, Operand(4 * kPointerSize));
     Sd(src1, MemOperand(sp, 3 * kPointerSize));
     Sd(src2, MemOperand(sp, 2 * kPointerSize));
     Sd(src3, MemOperand(sp, 1 * kPointerSize));
@@ -286,7 +286,7 @@ class V8_EXPORT_PRIVATE TurboAssembler : public TurboAssemblerBase {
   // Push five registers. Pushes leftmost register first (to highest address).
   void Push(Register src1, Register src2, Register src3, Register src4,
             Register src5) {
-    Dsubu(sp, sp, Operand(5 * kPointerSize));
+    Sub64(sp, sp, Operand(5 * kPointerSize));
     Sd(src1, MemOperand(sp, 4 * kPointerSize));
     Sd(src2, MemOperand(sp, 3 * kPointerSize));
     Sd(src3, MemOperand(sp, 2 * kPointerSize));
@@ -297,7 +297,7 @@ class V8_EXPORT_PRIVATE TurboAssembler : public TurboAssemblerBase {
   void Push(Register src, Condition cond, Register tst1, Register tst2) {
     // Since we don't have conditional execution we use a Branch.
     Branch(3, cond, tst1, Operand(tst2));
-    Dsubu(sp, sp, Operand(kPointerSize));
+    Sub64(sp, sp, Operand(kPointerSize));
     Sd(src, MemOperand(sp, 0));
   }
 
@@ -339,7 +339,7 @@ class V8_EXPORT_PRIVATE TurboAssembler : public TurboAssemblerBase {
 
   void pop(Register dst) {
     Ld(dst, MemOperand(sp, 0));
-    Daddu(sp, sp, Operand(kPointerSize));
+    Add64(sp, sp, Operand(kPointerSize));
   }
   void Pop(Register dst) { pop(dst); }
 
@@ -348,7 +348,7 @@ class V8_EXPORT_PRIVATE TurboAssembler : public TurboAssemblerBase {
     DCHECK(src1 != src2);
     Ld(src2, MemOperand(sp, 0 * kPointerSize));
     Ld(src1, MemOperand(sp, 1 * kPointerSize));
-    Daddu(sp, sp, 2 * kPointerSize);
+    Add64(sp, sp, 2 * kPointerSize);
   }
 
   // Pop three registers. Pops rightmost register first (from lower address).
@@ -356,10 +356,10 @@ class V8_EXPORT_PRIVATE TurboAssembler : public TurboAssemblerBase {
     Ld(src3, MemOperand(sp, 0 * kPointerSize));
     Ld(src2, MemOperand(sp, 1 * kPointerSize));
     Ld(src1, MemOperand(sp, 2 * kPointerSize));
-    Daddu(sp, sp, 3 * kPointerSize);
+    Add64(sp, sp, 3 * kPointerSize);
   }
 
-  void Pop(uint32_t count = 1) { Daddu(sp, sp, Operand(count * kPointerSize)); }
+  void Pop(uint32_t count = 1) { Add64(sp, sp, Operand(count * kPointerSize)); }
 
   // Pops multiple values from the stack and load them in the
   // registers specified in regs. Pop order is the opposite as in MultiPush.
@@ -378,31 +378,27 @@ class V8_EXPORT_PRIVATE TurboAssembler : public TurboAssemblerBase {
   void instr(Register rs, Register rt) { instr(rs, Operand(rt)); } \
   void instr(Register rs, int32_t j) { instr(rs, Operand(j)); }
 
-  DEFINE_INSTRUCTION(Addu)
-  DEFINE_INSTRUCTION(Daddu)
-  DEFINE_INSTRUCTION(Div)
-  DEFINE_INSTRUCTION(Divu)
-  DEFINE_INSTRUCTION(Ddivu)
-  DEFINE_INSTRUCTION(Mod)
-  DEFINE_INSTRUCTION(Modu)
-  DEFINE_INSTRUCTION(Ddiv)
-  DEFINE_INSTRUCTION(Subu)
-  DEFINE_INSTRUCTION(Dsubu)
-  DEFINE_INSTRUCTION(Dmod)
-  DEFINE_INSTRUCTION(Dmodu)
-  DEFINE_INSTRUCTION(Mul)
-  DEFINE_INSTRUCTION(Mulh)
-  DEFINE_INSTRUCTION(Mulhu)
-  DEFINE_INSTRUCTION(Dmul)
-  DEFINE_INSTRUCTION(Dmulh)
-  DEFINE_INSTRUCTION2(Mult)
-  DEFINE_INSTRUCTION2(Dmult)
-  DEFINE_INSTRUCTION2(Multu)
-  DEFINE_INSTRUCTION2(Dmultu)
-  DEFINE_INSTRUCTION2(Div)
-  DEFINE_INSTRUCTION2(Ddiv)
-  DEFINE_INSTRUCTION2(Divu)
-  DEFINE_INSTRUCTION2(Ddivu)
+  DEFINE_INSTRUCTION(Add32)
+  DEFINE_INSTRUCTION(Add64)
+  DEFINE_INSTRUCTION(Div32)
+  DEFINE_INSTRUCTION(Divu32)
+  DEFINE_INSTRUCTION(Divu64)
+  DEFINE_INSTRUCTION(Mod32)
+  DEFINE_INSTRUCTION(Modu32)
+  DEFINE_INSTRUCTION(Div64)
+  DEFINE_INSTRUCTION(Sub32)
+  DEFINE_INSTRUCTION(Sub64)
+  DEFINE_INSTRUCTION(Mod64)
+  DEFINE_INSTRUCTION(Modu64)
+  DEFINE_INSTRUCTION(Mul32)
+  DEFINE_INSTRUCTION(Mulh32)
+  DEFINE_INSTRUCTION(Mulhu32)
+  DEFINE_INSTRUCTION(Mul64)
+  DEFINE_INSTRUCTION(Mulh64)
+  DEFINE_INSTRUCTION2(Div32)
+  DEFINE_INSTRUCTION2(Div64)
+  DEFINE_INSTRUCTION2(Divu32)
+  DEFINE_INSTRUCTION2(Divu64)
 
   DEFINE_INSTRUCTION(And)
   DEFINE_INSTRUCTION(Or)
@@ -419,20 +415,20 @@ class V8_EXPORT_PRIVATE TurboAssembler : public TurboAssemblerBase {
   DEFINE_INSTRUCTION(Sge)
   DEFINE_INSTRUCTION(Sgeu)
 
-  DEFINE_INSTRUCTION(Dsll)
-  DEFINE_INSTRUCTION(Dsra)
-  DEFINE_INSTRUCTION(Dsrl)
-  DEFINE_INSTRUCTION(Sll)
-  DEFINE_INSTRUCTION(Sra)
-  DEFINE_INSTRUCTION(Srl)
+  DEFINE_INSTRUCTION(Sll64)
+  DEFINE_INSTRUCTION(Sra64)
+  DEFINE_INSTRUCTION(Srl64)
+  DEFINE_INSTRUCTION(Sll32)
+  DEFINE_INSTRUCTION(Sra32)
+  DEFINE_INSTRUCTION(Srl32)
 
   DEFINE_INSTRUCTION(Selnez)
   DEFINE_INSTRUCTION(Seleqz)
   DEFINE_INSTRUCTION(Ror)
   DEFINE_INSTRUCTION(Dror)
 
-  DEFINE_INSTRUCTION2(Seb)
-  DEFINE_INSTRUCTION2(Seh)
+  DEFINE_INSTRUCTION2(SignExtendByte)
+  DEFINE_INSTRUCTION2(SignExtendShort)
 #undef DEFINE_INSTRUCTION
 #undef DEFINE_INSTRUCTION2
 #undef DEFINE_INSTRUCTION3
@@ -520,17 +516,17 @@ class V8_EXPORT_PRIVATE TurboAssembler : public TurboAssemblerBase {
   void LoadZeroOnCondition(Register rd, Register rs, const Operand& rt,
                            Condition cond);
 
-  void Clz(Register rd, Register rs);
-  void Dclz(Register rd, Register rs);
-  void Ctz(Register rd, Register rs);
-  void Dctz(Register rd, Register rs);
-  void Popcnt(Register rd, Register rs);
-  void Dpopcnt(Register rd, Register rs);
+  void Clz32(Register rd, Register rs);
+  void Clz64(Register rd, Register rs);
+  void Ctz32(Register rd, Register rs);
+  void Ctz64(Register rd, Register rs);
+  void Popcnt32(Register rd, Register rs);
+  void Popcnt64(Register rd, Register rs);
 
-  void Ext(Register rt, Register rs, uint16_t pos, uint16_t size);
-  void Dext(Register rt, Register rs, uint16_t pos, uint16_t size);
-  void Ins(Register rt, Register rs, uint16_t pos, uint16_t size);
-  void Dins(Register rt, Register rs, uint16_t pos, uint16_t size);
+  void Ext32(Register rt, Register rs, uint16_t pos, uint16_t size);
+  void Ext64(Register rt, Register rs, uint16_t pos, uint16_t size);
+  void Ins32(Register rt, Register rs, uint16_t pos, uint16_t size);
+  void Ins64(Register rt, Register rs, uint16_t pos, uint16_t size);
   void ExtractBits(Register dest, Register source, Register pos, int size,
                    bool sign_extend = false);
   void InsertBits(Register dest, Register source, Register pos, int size);
@@ -597,11 +593,11 @@ class V8_EXPORT_PRIVATE TurboAssembler : public TurboAssemblerBase {
   void Lwu(Register rd, const MemOperand& rs);
   void Sw(Register rd, const MemOperand& rs);
 
-  void Lwc1(FPURegister fd, const MemOperand& src);
-  void Swc1(FPURegister fs, const MemOperand& dst);
+  void LoadFloat(FPURegister fd, const MemOperand& src);
+  void StoreFloat(FPURegister fs, const MemOperand& dst);
 
-  void Ldc1(FPURegister fd, const MemOperand& src);
-  void Sdc1(FPURegister fs, const MemOperand& dst);
+  void LoadDouble(FPURegister fd, const MemOperand& src);
+  void StoreDouble(FPURegister fs, const MemOperand& dst);
 
   void Ll(Register rd, const MemOperand& rs);
   void Sc(Register rd, const MemOperand& rs);
@@ -670,17 +666,17 @@ class V8_EXPORT_PRIVATE TurboAssembler : public TurboAssemblerBase {
   void Move(FPURegister dst, uint32_t src);
   void Move(FPURegister dst, uint64_t src);
 
-  // DaddOverflow sets overflow register to a negative value if
+  // AddOverflow64 sets overflow register to a negative value if
   // overflow occured, otherwise it is zero or positive
-  void DaddOverflow(Register dst, Register left, const Operand& right,
-                    Register overflow);
-  // DsubOverflow sets overflow register to a negative value if
+  void AddOverflow64(Register dst, Register left, const Operand& right,
+                     Register overflow);
+  // SubOverflow64 sets overflow register to a negative value if
   // overflow occured, otherwise it is zero or positive
-  void DsubOverflow(Register dst, Register left, const Operand& right,
-                    Register overflow);
-  // MulOverflow sets overflow register to zero if no overflow occured
-  void MulOverflow(Register dst, Register left, const Operand& right,
-                   Register overflow);
+  void SubOverflow64(Register dst, Register left, const Operand& right,
+                     Register overflow);
+  // MulOverflow32 sets overflow register to zero if no overflow occured
+  void MulOverflow32(Register dst, Register left, const Operand& right,
+                     Register overflow);
 
   // Number of instructions needed for calculation of switch table entry address
   static const int kSwitchTablePrologueSize = 6;
@@ -791,10 +787,11 @@ class V8_EXPORT_PRIVATE TurboAssembler : public TurboAssemblerBase {
   // Load Scaled Address instructions. Parameter sa (shift argument) must be
   // between [1, 31] (inclusive). On pre-r6 architectures the scratch register
   // may be clobbered.
-  void Lsa(Register rd, Register rs, Register rt, uint8_t sa,
-           Register scratch = t3);
-  void Dlsa(Register rd, Register rs, Register rt, uint8_t sa,
-            Register scratch = t3);
+  // FIXME: MIPS legacy, need to be removed
+  void Lsa32(Register rd, Register rs, Register rt, uint8_t sa,
+             Register scratch = t3);
+  void Lsa64(Register rd, Register rs, Register rt, uint8_t sa,
+             Register scratch = t3);
 
   // Compute the start of the generated instruction stream from the current PC.
   // This is an alternative to embedding the {CodeObject} handle as a reference.
@@ -1051,7 +1048,7 @@ class V8_EXPORT_PRIVATE MacroAssembler : public TurboAssembler {
       slli(dst, src, 32);
     } else {
       DCHECK(SmiValuesAre31Bits());
-      Addu(dst, src, src);
+      Add32(dst, src, src);
     }
   }
 
@@ -1102,7 +1099,7 @@ class V8_EXPORT_PRIVATE MacroAssembler : public TurboAssembler {
 
   template <typename Field>
   void DecodeField(Register dst, Register src) {
-    Ext(dst, src, Field::kShift, Field::kSize);
+    Ext32(dst, src, Field::kShift, Field::kSize);
   }
 
   template <typename Field>
