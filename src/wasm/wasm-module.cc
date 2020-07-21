@@ -267,8 +267,7 @@ namespace {
 // reflective functions. Should be kept in sync with the {GetValueType} helper.
 Handle<String> ToValueTypeString(Isolate* isolate, ValueType type) {
   return isolate->factory()->InternalizeUtf8String(
-      type == kWasmFuncRef ? CStrVector("anyfunc")
-                           : VectorOf(type.type_name()));
+      type == kWasmFuncRef ? CStrVector("anyfunc") : VectorOf(type.name()));
 }
 }  // namespace
 

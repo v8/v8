@@ -149,12 +149,12 @@ bool PrintRawWasmCode(AccountingAllocator* allocator, const FunctionBody& body,
         if (decls.type_list[pos] == type) {
           ++count;
         } else {
-          os << " " << count << " " << type.type_name();
+          os << " " << count << " " << type.name();
           type = decls.type_list[pos];
           count = 1;
         }
       }
-      os << " " << count << " " << type.type_name();
+      os << " " << count << " " << type.name();
     }
     os << std::endl;
     if (line_numbers) line_numbers->push_back(kNoByteCode);
@@ -248,7 +248,7 @@ bool PrintRawWasmCode(AccountingAllocator* allocator, const FunctionBody& body,
         os << " @" << i.pc_offset();
         if (decoder.Complete(imm)) {
           for (uint32_t i = 0; i < imm.out_arity(); i++) {
-            os << " " << imm.out_type(i).type_name();
+            os << " " << imm.out_type(i).name();
           }
         }
         control_depth++;

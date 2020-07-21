@@ -221,7 +221,7 @@ void DebugSideTable::Print(std::ostream& os) const {
 void DebugSideTable::Entry::Print(std::ostream& os) const {
   os << std::setw(6) << std::hex << pc_offset_ << std::dec << " [";
   for (auto& value : values_) {
-    os << " " << value.type.type_name() << ":";
+    os << " " << value.type.name() << ":";
     switch (value.kind) {
       case kConstant:
         os << "const#" << value.i32_const;

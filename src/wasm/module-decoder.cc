@@ -941,7 +941,7 @@ class ModuleDecoderImpl : public Decoder {
                          this->module_.get())) {
           errorf(pos,
                  "Invalid element segment. Table %u is not a super-type of %s",
-                 table_index, type.type_name().c_str());
+                 table_index, type.name().c_str());
           break;
         }
       }
@@ -1419,8 +1419,8 @@ class ModuleDecoderImpl : public Decoder {
         errorf(pos,
                "type mismatch in global initialization "
                "(from global #%u), expected %s, got %s",
-               other_index, global->type.type_name().c_str(),
-               module->globals[other_index].type.type_name().c_str());
+               other_index, global->type.name().c_str(),
+               module->globals[other_index].type.name().c_str());
       }
     }
   }
@@ -1799,8 +1799,7 @@ class ModuleDecoderImpl : public Decoder {
     if (expected != kWasmStmt &&
         !IsSubtypeOf(TypeOf(module, expr), expected, module)) {
       errorf(pc(), "type error in init expression, expected %s, got %s",
-             expected.type_name().c_str(),
-             TypeOf(module, expr).type_name().c_str());
+             expected.name().c_str(), TypeOf(module, expr).name().c_str());
     }
     return expr;
   }

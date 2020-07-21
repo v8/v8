@@ -212,7 +212,7 @@ ValueType read_value_type(Decoder* decoder, const byte* pc,
       if (!VALIDATE(enabled.contains(feature_for_heap_type(heap_type)))) {
         decoder->errorf(
             pc, "invalid value type '%s', enable with --experimental-wasm-%s",
-            result.type_name().c_str(),
+            result.name().c_str(),
             WasmFeatures::name_for_feature(feature_for_heap_type(heap_type)));
         return kWasmBottom;
       }
@@ -1399,7 +1399,7 @@ class WasmDecoder : public Decoder {
     if (!VALIDATE(IsSubtypeOf(elem_type, module_->tables[imm.table.index].type,
                               module_))) {
       errorf(pc, "table %u is not a super-type of %s", imm.table.index,
-             elem_type.type_name().c_str());
+             elem_type.name().c_str());
       return false;
     }
     return true;
@@ -1420,7 +1420,7 @@ class WasmDecoder : public Decoder {
     if (!VALIDATE(IsSubtypeOf(
             src_type, module_->tables[imm.table_dst.index].type, module_))) {
       errorf(pc, "table %u is not a super-type of %s", imm.table_dst.index,
-             src_type.type_name().c_str());
+             src_type.name().c_str());
       return false;
     }
     return true;
@@ -1938,7 +1938,7 @@ class WasmFullDecoder : public WasmDecoder<validate> {
         this->errorf(
             this->pc(),
             "Cannot define function-level local of non-defaultable type %s",
-            this->local_type(index).type_name().c_str());
+            this->local_type(index).name().c_str());
       }
     }
     this->consume_bytes(locals_length);
@@ -2612,7 +2612,7 @@ class WasmFullDecoder : public WasmDecoder<validate> {
           this->errorf(this->pc_,
                        "invalid argument type to ref.is_null. Expected "
                        "reference type, got %s",
-                       value.type.type_name().c_str());
+                       value.type.name().c_str());
           return 0;
         }
         UNREACHABLE();
@@ -2648,7 +2648,7 @@ class WasmFullDecoder : public WasmDecoder<validate> {
           this->errorf(this->pc_,
                        "invalid agrument type to ref.as_non_null: Expected "
                        "reference type, got %s",
-                       value.type.type_name().c_str());
+                       value.type.name().c_str());
         }
         return 0;
     }
@@ -3177,8 +3177,8 @@ class WasmFullDecoder : public WasmDecoder<validate> {
           this->errorf(pos,
                        "inconsistent type in br_table target %u (previous "
                        "was %s, this one is %s)",
-                       index, type.type_name().c_str(),
-                       (*merge)[i].type.type_name().c_str());
+                       index, type.name().c_str(),
+                       (*merge)[i].type.name().c_str());
           return false;
         }
       } else {
@@ -3187,8 +3187,8 @@ class WasmFullDecoder : public WasmDecoder<validate> {
           this->errorf(pos,
                        "inconsistent type in br_table target %u (previous "
                        "was %s, this one is %s)",
-                       index, (*result_types)[i].type_name().c_str(),
-                       (*merge)[i].type.type_name().c_str());
+                       index, (*result_types)[i].name().c_str(),
+                       (*merge)[i].type.name().c_str());
           return false;
         }
       }
@@ -3216,8 +3216,7 @@ class WasmFullDecoder : public WasmDecoder<validate> {
         if (!VALIDATE(IsSubtypeOf(val.type, result_types[i], this->module_))) {
           this->errorf(this->pc_,
                        "type error in merge[%u] (expected %s, got %s)", i,
-                       result_types[i].type_name().c_str(),
-                       val.type.type_name().c_str());
+                       result_types[i].name().c_str(), val.type.name().c_str());
           return false;
         }
       }
@@ -3377,7 +3376,7 @@ class WasmFullDecoder : public WasmDecoder<validate> {
           this->errorf(
               this->pc_ + 2,
               "struct.new_with_rtt expected type rtt, found %s of type %s",
-              SafeOpcodeNameAt(rtt.pc), rtt.type.type_name().c_str());
+              SafeOpcodeNameAt(rtt.pc), rtt.type.name().c_str());
           return 0;
         }
         // TODO(7748): Drop this check if {imm} is dropped from the proposal
@@ -3454,7 +3453,7 @@ class WasmFullDecoder : public WasmDecoder<validate> {
           this->errorf(
               this->pc_ + 2,
               "array.new_with_rtt expected type rtt, found %s of type %s",
-              SafeOpcodeNameAt(rtt.pc), rtt.type.type_name().c_str());
+              SafeOpcodeNameAt(rtt.pc), rtt.type.name().c_str());
           return 0;
         }
         // TODO(7748): Drop this check if {imm} is dropped from the proposal
@@ -3598,9 +3597,9 @@ class WasmFullDecoder : public WasmDecoder<validate> {
         Value rtt = Pop(1);
         if (!VALIDATE(rtt.type.kind() == ValueType::kRtt &&
                       rtt.type.heap_type() == rtt_type.type)) {
-          this->errorf(
-              this->pc_, "ref.test: expected rtt for type %s but got %s",
-              rtt_type.type.name().c_str(), rtt.type.type_name().c_str());
+          this->errorf(this->pc_,
+                       "ref.test: expected rtt for type %s but got %s",
+                       rtt_type.type.name().c_str(), rtt.type.name().c_str());
           return 0;
         }
         Value obj = Pop(0, ValueType::Ref(obj_type.type, kNullable));
@@ -3627,9 +3626,9 @@ class WasmFullDecoder : public WasmDecoder<validate> {
         Value rtt = Pop(1);
         if (!VALIDATE(rtt.type.kind() == ValueType::kRtt &&
                       rtt.type.heap_type() == rtt_type.type)) {
-          this->errorf(
-              this->pc_, "ref.cast: expected rtt for type %s but got %s",
-              rtt_type.type.name().c_str(), rtt.type.type_name().c_str());
+          this->errorf(this->pc_,
+                       "ref.cast: expected rtt for type %s but got %s",
+                       rtt_type.type.name().c_str(), rtt.type.name().c_str());
           return 0;
         }
         Value obj = Pop(0, ValueType::Ref(obj_type.type, kNullable));
@@ -3839,9 +3838,8 @@ class WasmFullDecoder : public WasmDecoder<validate> {
     if (!VALIDATE(IsSubtypeOf(val.type, expected, this->module_) ||
                   val.type == kWasmBottom || expected == kWasmBottom)) {
       this->errorf(val.pc, "%s[%d] expected type %s, found %s of type %s",
-                   SafeOpcodeNameAt(this->pc_), index,
-                   expected.type_name().c_str(), SafeOpcodeNameAt(val.pc),
-                   val.type.type_name().c_str());
+                   SafeOpcodeNameAt(this->pc_), index, expected.name().c_str(),
+                   SafeOpcodeNameAt(val.pc), val.type.name().c_str());
     }
     return val;
   }
@@ -3905,8 +3903,7 @@ class WasmFullDecoder : public WasmDecoder<validate> {
       Value& old = (*merge)[i];
       if (!VALIDATE(IsSubtypeOf(val.type, old.type, this->module_))) {
         this->errorf(this->pc_, "type error in merge[%u] (expected %s, got %s)",
-                     i, old.type.type_name().c_str(),
-                     val.type.type_name().c_str());
+                     i, old.type.name().c_str(), val.type.name().c_str());
         return false;
       }
     }
@@ -3923,8 +3920,7 @@ class WasmFullDecoder : public WasmDecoder<validate> {
       Value& end = c->end_merge[i];
       if (!VALIDATE(IsSubtypeOf(start.type, end.type, this->module_))) {
         this->errorf(this->pc_, "type error in merge[%u] (expected %s, got %s)",
-                     i, end.type.type_name().c_str(),
-                     start.type.type_name().c_str());
+                     i, end.type.name().c_str(), start.type.name().c_str());
         return false;
       }
     }
@@ -4027,9 +4023,9 @@ class WasmFullDecoder : public WasmDecoder<validate> {
       Value& val = stack_values[i];
       ValueType expected_type = this->sig_->GetReturn(i);
       if (!VALIDATE(IsSubtypeOf(val.type, expected_type, this->module_))) {
-        this->errorf(
-            this->pc_, "type error in return[%u] (expected %s, got %s)", i,
-            expected_type.type_name().c_str(), val.type.type_name().c_str());
+        this->errorf(this->pc_,
+                     "type error in return[%u] (expected %s, got %s)", i,
+                     expected_type.name().c_str(), val.type.name().c_str());
         return false;
       }
     }

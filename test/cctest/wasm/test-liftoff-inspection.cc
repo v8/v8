@@ -205,7 +205,7 @@ std::ostream& operator<<(std::ostream& out, const DebugSideTableEntry& entry) {
   out << "{";
   const char* comma = "";
   for (auto& v : entry.values) {
-    out << comma << v.type.type_name() << " ";
+    out << comma << v.type.name() << " ";
     switch (v.kind) {
       case DebugSideTable::Entry::kConstant:
         out << "const:" << v.i32_const;

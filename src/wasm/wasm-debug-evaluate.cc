@@ -34,15 +34,15 @@ static bool CheckSignature(ValueType return_type,
                            const FunctionSig* sig, ErrorThrower* thrower) {
   if (sig->return_count() != 1 && return_type != kWasmBottom) {
     thrower->CompileError("Invalid return type. Got none, expected %s",
-                          return_type.type_name().c_str());
+                          return_type.name().c_str());
     return false;
   }
 
   if (sig->return_count() == 1) {
     if (sig->GetReturn(0) != return_type) {
       thrower->CompileError("Invalid return type. Got %s, expected %s",
-                            sig->GetReturn(0).type_name().c_str(),
-                            return_type.type_name().c_str());
+                            sig->GetReturn(0).name().c_str(),
+                            return_type.name().c_str());
       return false;
     }
   }
@@ -57,8 +57,7 @@ static bool CheckSignature(ValueType return_type,
     if (sig->GetParam(p) != argument_type) {
       thrower->CompileError(
           "Invalid argument type for argument %zu. Got %s, expected %s", p,
-          sig->GetParam(p).type_name().c_str(),
-          argument_type.type_name().c_str());
+          sig->GetParam(p).name().c_str(), argument_type.name().c_str());
       return false;
     }
     ++p;

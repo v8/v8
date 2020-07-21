@@ -148,6 +148,7 @@ class HeapType {
     return !is_bottom() && representation_ <= kLastSentinel;
   }
 };
+
 enum Nullability : bool { kNonNullable, kNullable };
 
 class ValueType {
@@ -360,7 +361,7 @@ class ValueType {
     return kShortName[kind()];
   }
 
-  std::string type_name() const {
+  std::string name() const {
     std::ostringstream buf;
     switch (kind()) {
       case kRef:
@@ -373,8 +374,7 @@ class ValueType {
       case kOptRef:
         if (heap_type().is_generic() &&
             heap_representation() != HeapType::kI31) {
-          // We prefer the shorthand to be backwards-compatible with previous
-          // proposals.
+          // We use shorthands to be compatible with the 'reftypes' proposal.
           buf << heap_type().name() << "ref";
         } else {
           buf << "(ref null " << heap_type().name() << ")";
@@ -382,7 +382,7 @@ class ValueType {
         break;
       case kRtt:
         buf << "(rtt " << static_cast<uint32_t>(depth()) << " "
-            << heap_type().name() + ")";
+            << heap_type().name() << ")";
         break;
       default:
         buf << kind_name();
@@ -420,7 +420,7 @@ inline size_t hash_value(ValueType type) {
 
 // Output operator, useful for DCHECKS and others.
 inline std::ostream& operator<<(std::ostream& oss, ValueType type) {
-  return oss << type.type_name();
+  return oss << type.name();
 }
 
 constexpr ValueType kWasmI32 = ValueType::Primitive(ValueType::kI32);

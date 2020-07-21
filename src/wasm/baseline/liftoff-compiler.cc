@@ -425,7 +425,7 @@ class LiftoffCompiler {
     }
     LiftoffBailoutReason bailout_reason = BailoutReasonForType(type);
     EmbeddedVector<char, 128> buffer;
-    SNPrintF(buffer, "%s %s", type.type_name().c_str(), context);
+    SNPrintF(buffer, "%s %s", type.name().c_str(), context);
     unsupported(decoder, bailout_reason, buffer.begin());
     return false;
   }
