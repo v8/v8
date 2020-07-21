@@ -1466,6 +1466,7 @@ Handle<Object> InstanceBuilder::RecursivelyEvaluateGlobalInitializer(
     case WasmInitExpr::kI64Const:
     case WasmInitExpr::kF32Const:
     case WasmInitExpr::kF64Const:
+    case WasmInitExpr::kS128Const:
     case WasmInitExpr::kRefNullConst:
     case WasmInitExpr::kRefFuncConst:
     case WasmInitExpr::kNone:
@@ -1533,6 +1534,12 @@ void InstanceBuilder::InitGlobals(Handle<WasmInstanceObject> instance) {
       case WasmInitExpr::kF64Const:
         WriteLittleEndianValue<double>(GetRawGlobalPtr<double>(global),
                                        global.init.immediate().f64_const);
+        break;
+      case WasmInitExpr::kS128Const:
+        DCHECK(enabled_.has_simd());
+        WriteLittleEndianValue<uint8_t[kSimd128Size]>(
+            GetRawGlobalPtr<uint8_t[kSimd128Size]>(global),
+            global.init.immediate().s128_const);
         break;
       case WasmInitExpr::kRefNullConst:
         DCHECK(enabled_.has_reftypes() || enabled_.has_eh());

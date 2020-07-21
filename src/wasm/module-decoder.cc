@@ -122,6 +122,8 @@ ValueType TypeOf(const WasmModule* module, const WasmInitExpr& expr) {
       return kWasmF32;
     case WasmInitExpr::kF64Const:
       return kWasmF64;
+    case WasmInitExpr::kS128Const:
+      return kWasmS128;
     case WasmInitExpr::kRefFuncConst:
       return ValueType::Ref(HeapType::kFunc, kNonNullable);
     case WasmInitExpr::kRefNullConst:
@@ -1725,6 +1727,19 @@ class ModuleDecoderImpl : public Decoder {
           stack.push_back(WasmInitExpr::RefFuncConst(imm.index));
           // Functions referenced in the globals section count as "declared".
           module->functions[imm.index].declared = true;
+          break;
+        }
+        case kSimdPrefix: {
+          opcode = read_prefixed_opcode<validate>(pc(), &len);
+          if (V8_UNLIKELY(opcode != kExprS128Const)) {
+            errorf(pc(), "invalid SIMD opcode 0x%x in global initializer",
+                   opcode);
+            break;
+          }
+
+          Simd128Immediate<validate> imm(this, pc() + len + 1);
+          len += 1 + kSimd128Size;
+          stack.emplace_back(imm.value);
           break;
         }
         case kGCPrefix: {
