@@ -75,7 +75,7 @@ class WrapperQueue {
   // Thread-safe.
   base::Optional<Key> pop() {
     base::Optional<Key> key = base::nullopt;
-    base::LockGuard<base::Mutex> lock(&mutex_);
+    base::MutexGuard lock(&mutex_);
     auto it = queue_.begin();
     if (it != queue_.end()) {
       key = *it;
@@ -88,6 +88,11 @@ class WrapperQueue {
   // successful.
   // Not thread-safe.
   bool insert(const Key& key) { return queue_.insert(key).second; }
+
+  size_t size() {
+    base::MutexGuard lock(&mutex_);
+    return queue_.size();
+  }
 
  private:
   base::Mutex mutex_;

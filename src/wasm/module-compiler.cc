@@ -2960,25 +2960,35 @@ using JSToWasmWrapperUnitMap =
                        std::unique_ptr<JSToWasmWrapperCompilationUnit>,
                        base::hash<JSToWasmWrapperKey>>;
 
-class CompileJSToWasmWrapperTask final : public CancelableTask {
+class CompileJSToWasmWrapperJob final : public JobTask {
  public:
-  CompileJSToWasmWrapperTask(CancelableTaskManager* task_manager,
-                             JSToWasmWrapperQueue* queue,
-                             JSToWasmWrapperUnitMap* compilation_units)
-      : CancelableTask(task_manager),
-        queue_(queue),
-        compilation_units_(compilation_units) {}
+  CompileJSToWasmWrapperJob(JSToWasmWrapperQueue* queue,
+                            JSToWasmWrapperUnitMap* compilation_units,
+                            size_t max_concurrency)
+      : queue_(queue),
+        compilation_units_(compilation_units),
+        max_concurrency_(max_concurrency),
+        outstanding_units_(queue->size()) {}
 
-  void RunInternal() override {
+  void Run(JobDelegate* delegate) override {
     while (base::Optional<JSToWasmWrapperKey> key = queue_->pop()) {
       JSToWasmWrapperCompilationUnit* unit = (*compilation_units_)[*key].get();
       unit->Execute();
+      outstanding_units_.fetch_sub(1, std::memory_order_relaxed);
+      if (delegate->ShouldYield()) return;
     }
+  }
+
+  size_t GetMaxConcurrency() const override {
+    return std::min(max_concurrency_,
+                    outstanding_units_.load(std::memory_order_relaxed));
   }
 
  private:
   JSToWasmWrapperQueue* const queue_;
   JSToWasmWrapperUnitMap* const compilation_units_;
+  const size_t max_concurrency_;
+  std::atomic<size_t> outstanding_units_;
 };
 }  // namespace
 
@@ -3004,21 +3014,17 @@ void CompileJsToWasmWrappers(Isolate* isolate, const WasmModule* module,
     }
   }
 
-  // Execute compilation jobs in the background.
-  CancelableTaskManager task_manager;
-  const int max_background_tasks = GetMaxBackgroundTasks();
-  for (int i = 0; i < max_background_tasks; ++i) {
-    auto task = std::make_unique<CompileJSToWasmWrapperTask>(
-        &task_manager, &queue, &compilation_units);
-    V8::GetCurrentPlatform()->CallOnWorkerThread(std::move(task));
-  }
+  // Execute wrapper compilation in the background.
+  int flag_value = FLAG_wasm_num_compilation_tasks;
+  size_t max_concurrency = flag_value < 1 ? std::numeric_limits<size_t>::max()
+                                          : static_cast<size_t>(flag_value);
+  auto job = std::make_unique<CompileJSToWasmWrapperJob>(
+      &queue, &compilation_units, max_concurrency);
+  auto job_handle = V8::GetCurrentPlatform()->PostJob(
+      TaskPriority::kUserVisible, std::move(job));
 
-  // Work in the main thread too.
-  while (base::Optional<JSToWasmWrapperKey> key = queue.pop()) {
-    JSToWasmWrapperCompilationUnit* unit = compilation_units[*key].get();
-    unit->Execute();
-  }
-  task_manager.CancelAndWait();
+  // Wait for completion, while contributing to the work.
+  job_handle->Join();
 
   // Finalize compilation jobs in the main thread.
   // TODO(6792): Wrappers below are allocated with {Factory::NewCode}. As an
