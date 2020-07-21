@@ -11,27 +11,27 @@ namespace compiler {
 
 // RISC-V-specific opcodes that specify which assembly sequence to emit.
 // Most opcodes specify a single instruction.
-#define TARGET_ARCH_OPCODE_LIST(V)           \
-  V(RiscvAdd)                               \
-  V(RiscvDadd)                              \
-  V(RiscvDaddOvf)                           \
-  V(RiscvSub)                               \
-  V(RiscvDsub)                              \
-  V(RiscvDsubOvf)                           \
-  V(RiscvMul)                               \
-  V(RiscvMulOvf)                            \
-  V(RiscvMulHigh)                           \
-  V(RiscvDMulHigh)                          \
-  V(RiscvMulHighU)                          \
-  V(RiscvDmul)                              \
-  V(RiscvDiv)                               \
-  V(RiscvDdiv)                              \
-  V(RiscvDivU)                              \
-  V(RiscvDdivU)                             \
-  V(RiscvMod)                               \
-  V(RiscvDmod)                              \
-  V(RiscvModU)                              \
-  V(RiscvDmodU)                             \
+#define TARGET_ARCH_OPCODE_LIST(V)          \
+  V(RiscvAdd32)                             \
+  V(RiscvAdd64)                             \
+  V(RiscvAddOvf64)                          \
+  V(RiscvSub32)                             \
+  V(RiscvSub64)                             \
+  V(RiscvSubOvf64)                          \
+  V(RiscvMul32)                             \
+  V(RiscvMulOvf32)                          \
+  V(RiscvMulHigh32)                         \
+  V(RiscvMulHigh64)                         \
+  V(RiscvMulHighU32)                        \
+  V(RiscvMul64)                             \
+  V(RiscvDiv32)                             \
+  V(RiscvDiv64)                             \
+  V(RiscvDivU32)                            \
+  V(RiscvDivU64)                            \
+  V(RiscvMod32)                             \
+  V(RiscvMod64)                             \
+  V(RiscvModU32)                            \
+  V(RiscvModU64)                            \
   V(RiscvAnd)                               \
   V(RiscvAnd32)                             \
   V(RiscvOr)                                \
@@ -40,26 +40,26 @@ namespace compiler {
   V(RiscvNor32)                             \
   V(RiscvXor)                               \
   V(RiscvXor32)                             \
-  V(RiscvClz)                               \
-  V(RiscvLsa)                               \
-  V(RiscvDlsa)                              \
-  V(RiscvShl)                               \
-  V(RiscvShr)                               \
-  V(RiscvSar)                               \
-  V(RiscvExt)                               \
-  V(RiscvIns)                               \
-  V(RiscvDext)                              \
-  V(RiscvDins)                              \
-  V(RiscvDclz)                              \
-  V(RiscvCtz)                               \
-  V(RiscvDctz)                              \
-  V(RiscvPopcnt)                            \
-  V(RiscvDpopcnt)                           \
-  V(RiscvDshl)                              \
-  V(RiscvDshr)                              \
-  V(RiscvDsar)                              \
-  V(RiscvRor)                               \
-  V(RiscvDror)                              \
+  V(RiscvClz32)                             \
+  V(RiscvLsa32)                             \
+  V(RiscvLsa64)                             \
+  V(RiscvShl32)                             \
+  V(RiscvShr32)                             \
+  V(RiscvSar32)                             \
+  V(RiscvExt32)                             \
+  V(RiscvIns32)                             \
+  V(RiscvExt64)                             \
+  V(RiscvIns64)                             \
+  V(RiscvClz64)                             \
+  V(RiscvCtz32)                             \
+  V(RiscvCtz64)                             \
+  V(RiscvPopcnt32)                          \
+  V(RiscvPopcnt64)                          \
+  V(RiscvShl64)                             \
+  V(RiscvShr64)                             \
+  V(RiscvSar64)                             \
+  V(RiscvRor32)                             \
+  V(RiscvRor64)                             \
   V(RiscvMov)                               \
   V(RiscvTst)                               \
   V(RiscvCmp)                               \
@@ -136,14 +136,14 @@ namespace compiler {
   V(RiscvUsw)                               \
   V(RiscvSd)                                \
   V(RiscvUsd)                               \
-  V(RiscvLwc1)                              \
-  V(RiscvUlwc1)                             \
-  V(RiscvSwc1)                              \
-  V(RiscvUswc1)                             \
-  V(RiscvLdc1)                              \
-  V(RiscvUldc1)                             \
-  V(RiscvSdc1)                              \
-  V(RiscvUsdc1)                             \
+  V(RiscvLoadFloat)                         \
+  V(RiscvULoadFloat)                        \
+  V(RiscvStoreFloat)                        \
+  V(RiscvUStoreFloat)                       \
+  V(RiscvLoadDouble)                        \
+  V(RiscvULoadDouble)                       \
+  V(RiscvStoreDouble)                       \
+  V(RiscvUStoreDouble)                      \
   V(RiscvBitcastDL)                         \
   V(RiscvBitcastLD)                         \
   V(RiscvFloat64ExtractLowWord32)           \
@@ -161,8 +161,8 @@ namespace compiler {
   V(RiscvByteSwap32)                        \
   V(RiscvStoreToStackSlot)                  \
   V(RiscvStackClaim)                        \
-  V(RiscvSeb)                               \
-  V(RiscvSeh)                               \
+  V(RiscvSignExtendByte)                    \
+  V(RiscvSignExtendShort)                   \
   V(RiscvSync)                              \
   V(RiscvAssertEqual)                       \
   V(RiscvS128Zero)                          \

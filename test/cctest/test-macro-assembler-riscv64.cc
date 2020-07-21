@@ -1133,7 +1133,7 @@ TEST(Uld) {
   }
 }
 
-TEST(Ulwc1) {
+TEST(ULoadFloat) {
   CcTest::InitializeVM();
 
   static const int kBufferSize = 300 * KB;
@@ -1149,8 +1149,8 @@ TEST(Ulwc1) {
 
         auto fn = [](MacroAssembler* masm, int32_t in_offset,
                      int32_t out_offset) {
-          __ Ulwc1(fa0, MemOperand(a0, in_offset), t0);
-          __ Uswc1(fa0, MemOperand(a0, out_offset), t0);
+          __ ULoadFloat(fa0, MemOperand(a0, in_offset), t0);
+          __ UStoreFloat(fa0, MemOperand(a0, out_offset), t0);
         };
         CHECK_EQ(true, run_Unaligned<float>(buffer_middle, in_offset,
                                             out_offset, value, fn));
@@ -1159,7 +1159,7 @@ TEST(Ulwc1) {
   }
 }
 
-TEST(Uldc1) {
+TEST(ULoadDouble) {
   CcTest::InitializeVM();
 
   static const int kBufferSize = 300 * KB;
@@ -1175,8 +1175,8 @@ TEST(Uldc1) {
 
         auto fn = [](MacroAssembler* masm, int32_t in_offset,
                      int32_t out_offset) {
-          __ Uldc1(fa0, MemOperand(a0, in_offset), t0);
-          __ Usdc1(fa0, MemOperand(a0, out_offset), t0);
+          __ ULoadDouble(fa0, MemOperand(a0, in_offset), t0);
+          __ UStoreDouble(fa0, MemOperand(a0, out_offset), t0);
         };
         CHECK_EQ(true, run_Unaligned<double>(buffer_middle, in_offset,
                                              out_offset, value, fn));

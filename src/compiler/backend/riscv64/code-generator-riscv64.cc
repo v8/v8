@@ -979,80 +979,80 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
     case kIeee754Float64Tanh:
       ASSEMBLE_IEEE754_UNOP(tanh);
       break;
-    case kRiscvAdd:
+    case kRiscvAdd32:
       __ Add32(i.OutputRegister(), i.InputRegister(0), i.InputOperand(1));
       break;
-    case kRiscvDadd:
+    case kRiscvAdd64:
       __ Add64(i.OutputRegister(), i.InputRegister(0), i.InputOperand(1));
       break;
-    case kRiscvDaddOvf:
+    case kRiscvAddOvf64:
       __ AddOverflow64(i.OutputRegister(), i.InputRegister(0),
                        i.InputOperand(1), kScratchReg);
       break;
-    case kRiscvSub:
+    case kRiscvSub32:
       __ Sub32(i.OutputRegister(), i.InputRegister(0), i.InputOperand(1));
       break;
-    case kRiscvDsub:
+    case kRiscvSub64:
       __ Sub64(i.OutputRegister(), i.InputRegister(0), i.InputOperand(1));
       break;
-    case kRiscvDsubOvf:
+    case kRiscvSubOvf64:
       __ SubOverflow64(i.OutputRegister(), i.InputRegister(0),
                        i.InputOperand(1), kScratchReg);
       break;
-    case kRiscvMul:
+    case kRiscvMul32:
       __ Mul32(i.OutputRegister(), i.InputRegister(0), i.InputOperand(1));
       break;
-    case kRiscvMulOvf:
+    case kRiscvMulOvf32:
       __ MulOverflow32(i.OutputRegister(), i.InputRegister(0),
                        i.InputOperand(1), kScratchReg);
       break;
-    case kRiscvMulHigh:
+    case kRiscvMulHigh32:
       __ Mulh32(i.OutputRegister(), i.InputRegister(0), i.InputOperand(1));
       break;
-    case kRiscvMulHighU:
+    case kRiscvMulHighU32:
       __ Mulhu32(i.OutputRegister(), i.InputRegister(0), i.InputOperand(1),
                  kScratchReg, kScratchReg2);
       break;
-    case kRiscvDMulHigh:
+    case kRiscvMulHigh64:
       __ Mulh64(i.OutputRegister(), i.InputRegister(0), i.InputOperand(1));
       break;
-    case kRiscvDiv:
+    case kRiscvDiv32:
       __ Div32(i.OutputRegister(), i.InputRegister(0), i.InputOperand(1));
       __ Movz(i.OutputRegister(), i.InputRegister(1), i.InputRegister(1));
       break;
-    case kRiscvDivU:
+    case kRiscvDivU32:
       __ Divu32(i.OutputRegister(), i.InputRegister(0), i.InputOperand(1));
       __ Movz(i.OutputRegister(), i.InputRegister(1), i.InputRegister(1));
       break;
-    case kRiscvMod:
+    case kRiscvMod32:
       __ Mod32(i.OutputRegister(), i.InputRegister(0), i.InputOperand(1));
       break;
-    case kRiscvModU:
+    case kRiscvModU32:
       __ Modu32(i.OutputRegister(), i.InputRegister(0), i.InputOperand(1));
       break;
-    case kRiscvDmul:
+    case kRiscvMul64:
       __ Mul64(i.OutputRegister(), i.InputRegister(0), i.InputOperand(1));
       break;
-    case kRiscvDdiv:
+    case kRiscvDiv64:
       __ Div64(i.OutputRegister(), i.InputRegister(0), i.InputOperand(1));
       __ Movz(i.OutputRegister(), i.InputRegister(1), i.InputRegister(1));
       break;
-    case kRiscvDdivU:
+    case kRiscvDivU64:
       __ Divu64(i.OutputRegister(), i.InputRegister(0), i.InputOperand(1));
       __ Movz(i.OutputRegister(), i.InputRegister(1), i.InputRegister(1));
       break;
-    case kRiscvDmod:
+    case kRiscvMod64:
       __ Mod64(i.OutputRegister(), i.InputRegister(0), i.InputOperand(1));
       break;
-    case kRiscvDmodU:
+    case kRiscvModU64:
       __ Modu64(i.OutputRegister(), i.InputRegister(0), i.InputOperand(1));
       break;
-    case kRiscvDlsa:
+    case kRiscvLsa64:
       DCHECK(instr->InputAt(2)->IsImmediate());
       __ Lsa64(i.OutputRegister(), i.InputRegister(0), i.InputRegister(1),
                i.InputInt8(2));
       break;
-    case kRiscvLsa:
+    case kRiscvLsa32:
       DCHECK(instr->InputAt(2)->IsImmediate());
       __ Lsa32(i.OutputRegister(), i.InputRegister(0), i.InputRegister(1),
                i.InputInt8(2));
@@ -1096,33 +1096,33 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       __ Xor(i.OutputRegister(), i.InputRegister(0), i.InputOperand(1));
       __ Sll32(i.OutputRegister(), i.OutputRegister(), 0x0);
       break;
-    case kRiscvClz:
+    case kRiscvClz32:
       __ Clz32(i.OutputRegister(), i.InputRegister(0));
       break;
-    case kRiscvDclz:
+    case kRiscvClz64:
       __ Clz64(i.OutputRegister(), i.InputRegister(0));
       break;
-    case kRiscvCtz: {
+    case kRiscvCtz32: {
       Register src = i.InputRegister(0);
       Register dst = i.OutputRegister();
       __ Ctz32(dst, src);
     } break;
-    case kRiscvDctz: {
+    case kRiscvCtz64: {
       Register src = i.InputRegister(0);
       Register dst = i.OutputRegister();
       __ Ctz64(dst, src);
     } break;
-    case kRiscvPopcnt: {
+    case kRiscvPopcnt32: {
       Register src = i.InputRegister(0);
       Register dst = i.OutputRegister();
       __ Popcnt32(dst, src);
     } break;
-    case kRiscvDpopcnt: {
+    case kRiscvPopcnt64: {
       Register src = i.InputRegister(0);
       Register dst = i.OutputRegister();
       __ Popcnt64(dst, src);
     } break;
-    case kRiscvShl:
+    case kRiscvShl32:
       if (instr->InputAt(1)->IsRegister()) {
         __ Sll32(i.OutputRegister(), i.InputRegister(0), i.InputRegister(1));
       } else {
@@ -1131,7 +1131,7 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
                  static_cast<uint16_t>(imm));
       }
       break;
-    case kRiscvShr:
+    case kRiscvShr32:
       if (instr->InputAt(1)->IsRegister()) {
         __ Srl32(i.OutputRegister(), i.InputRegister(0), i.InputRegister(1));
       } else {
@@ -1140,7 +1140,7 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
                  static_cast<uint16_t>(imm));
       }
       break;
-    case kRiscvSar:
+    case kRiscvSar32:
       if (instr->InputAt(1)->IsRegister()) {
         __ Sra32(i.OutputRegister(), i.InputRegister(0), i.InputRegister(1));
       } else {
@@ -1149,11 +1149,11 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
                  static_cast<uint16_t>(imm));
       }
       break;
-    case kRiscvExt:
+    case kRiscvExt32:
       __ Ext32(i.OutputRegister(), i.InputRegister(0), i.InputInt8(1),
                i.InputInt8(2));
       break;
-    case kRiscvIns:
+    case kRiscvIns32:
       if (instr->InputAt(1)->IsImmediate() && i.InputInt8(1) == 0) {
         __ Ins32(i.OutputRegister(), zero_reg, i.InputInt8(1), i.InputInt8(2));
       } else {
@@ -1161,12 +1161,12 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
                  i.InputInt8(2));
       }
       break;
-    case kRiscvDext: {
+    case kRiscvExt64: {
       __ Ext64(i.OutputRegister(), i.InputRegister(0), i.InputInt8(1),
                i.InputInt8(2));
       break;
     }
-    case kRiscvDins:
+    case kRiscvIns64:
       if (instr->InputAt(1)->IsImmediate() && i.InputInt8(1) == 0) {
         __ Ins64(i.OutputRegister(), zero_reg, i.InputInt8(1), i.InputInt8(2));
       } else {
@@ -1174,19 +1174,19 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
                  i.InputInt8(2));
       }
       break;
-    case kRiscvDshl:
+    case kRiscvShl64:
       __ Sll64(i.OutputRegister(), i.InputRegister(0), i.InputOperand(1));
       break;
-    case kRiscvDshr:
+    case kRiscvShr64:
       __ Srl64(i.OutputRegister(), i.InputRegister(0), i.InputOperand(1));
       break;
-    case kRiscvDsar:
+    case kRiscvSar64:
       __ Sra64(i.OutputRegister(), i.InputRegister(0), i.InputOperand(1));
       break;
-    case kRiscvRor:
+    case kRiscvRor32:
       __ Ror(i.OutputRegister(), i.InputRegister(0), i.InputOperand(1));
       break;
-    case kRiscvDror:
+    case kRiscvRor64:
       __ Dror(i.OutputRegister(), i.InputRegister(0), i.InputOperand(1));
       break;
     case kRiscvTst:
@@ -1550,10 +1550,10 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       break;
       // ... more basic instructions ...
 
-    case kRiscvSeb:
+    case kRiscvSignExtendByte:
       __ SignExtendByte(i.OutputRegister(), i.InputRegister(0));
       break;
-    case kRiscvSeh:
+    case kRiscvSignExtendShort:
       __ SignExtendShort(i.OutputRegister(), i.InputRegister(0));
       break;
     case kRiscvLbu:
@@ -1625,15 +1625,15 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
     case kRiscvUsd:
       __ Usd(i.InputOrZeroRegister(2), i.MemoryOperand());
       break;
-    case kRiscvLwc1: {
+    case kRiscvLoadFloat: {
       __ LoadFloat(i.OutputSingleRegister(), i.MemoryOperand());
       break;
     }
-    case kRiscvUlwc1: {
-      __ Ulwc1(i.OutputSingleRegister(), i.MemoryOperand(), kScratchReg);
+    case kRiscvULoadFloat: {
+      __ ULoadFloat(i.OutputSingleRegister(), i.MemoryOperand(), kScratchReg);
       break;
     }
-    case kRiscvSwc1: {
+    case kRiscvStoreFloat: {
       size_t index = 0;
       MemOperand operand = i.MemoryOperand(&index);
       FPURegister ft = i.InputOrZeroSingleRegister(index);
@@ -1643,23 +1643,23 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       __ StoreFloat(ft, operand);
       break;
     }
-    case kRiscvUswc1: {
+    case kRiscvUStoreFloat: {
       size_t index = 0;
       MemOperand operand = i.MemoryOperand(&index);
       FPURegister ft = i.InputOrZeroSingleRegister(index);
       if (ft == kDoubleRegZero && !__ IsDoubleZeroRegSet()) {
         __ Move(kDoubleRegZero, 0.0);
       }
-      __ Uswc1(ft, operand, kScratchReg);
+      __ UStoreFloat(ft, operand, kScratchReg);
       break;
     }
-    case kRiscvLdc1:
+    case kRiscvLoadDouble:
       __ LoadDouble(i.OutputDoubleRegister(), i.MemoryOperand());
       break;
-    case kRiscvUldc1:
-      __ Uldc1(i.OutputDoubleRegister(), i.MemoryOperand(), kScratchReg);
+    case kRiscvULoadDouble:
+      __ ULoadDouble(i.OutputDoubleRegister(), i.MemoryOperand(), kScratchReg);
       break;
-    case kRiscvSdc1: {
+    case kRiscvStoreDouble: {
       FPURegister ft = i.InputOrZeroDoubleRegister(2);
       if (ft == kDoubleRegZero && !__ IsDoubleZeroRegSet()) {
         __ Move(kDoubleRegZero, 0.0);
@@ -1667,12 +1667,12 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       __ StoreDouble(ft, i.MemoryOperand());
       break;
     }
-    case kRiscvUsdc1: {
+    case kRiscvUStoreDouble: {
       FPURegister ft = i.InputOrZeroDoubleRegister(2);
       if (ft == kDoubleRegZero && !__ IsDoubleZeroRegSet()) {
         __ Move(kDoubleRegZero, 0.0);
       }
-      __ Usdc1(ft, i.MemoryOperand(), kScratchReg);
+      __ UStoreDouble(ft, i.MemoryOperand(), kScratchReg);
       break;
     }
     case kRiscvSync: {
@@ -1914,14 +1914,14 @@ void AssembleBranchToLabels(CodeGenerator* gen, TurboAssembler* tasm,
   if (instr->arch_opcode() == kRiscvTst) {
     cc = FlagsConditionToConditionTst(condition);
     __ Branch(tlabel, cc, kScratchReg, Operand(zero_reg));
-  } else if (instr->arch_opcode() == kRiscvDadd ||
-             instr->arch_opcode() == kRiscvDsub) {
+  } else if (instr->arch_opcode() == kRiscvAdd64 ||
+             instr->arch_opcode() == kRiscvSub64) {
     cc = FlagsConditionToConditionOvf(condition);
     __ Sra64(kScratchReg, i.OutputRegister(), 32);
     __ Sra64(kScratchReg2, i.OutputRegister(), 31);
     __ Branch(tlabel, cc, kScratchReg2, Operand(kScratchReg));
-  } else if (instr->arch_opcode() == kRiscvDaddOvf ||
-             instr->arch_opcode() == kRiscvDsubOvf) {
+  } else if (instr->arch_opcode() == kRiscvAddOvf64 ||
+             instr->arch_opcode() == kRiscvSubOvf64) {
     switch (condition) {
       // Overflow occurs if overflow register is negative
       case kOverflow:
@@ -1934,7 +1934,7 @@ void AssembleBranchToLabels(CodeGenerator* gen, TurboAssembler* tasm,
         UNSUPPORTED_COND(instr->arch_opcode(), condition);
         break;
     }
-  } else if (instr->arch_opcode() == kRiscvMulOvf) {
+  } else if (instr->arch_opcode() == kRiscvMulOvf32) {
     // Overflow occurs if overflow register is not zero
     switch (condition) {
       case kOverflow:
@@ -2019,8 +2019,8 @@ void CodeGenerator::AssembleBranchPoisoning(FlagsCondition condition,
       }
     }
       return;
-    case kRiscvDadd:
-    case kRiscvDsub: {
+    case kRiscvAdd64:
+    case kRiscvSub64: {
       // Check for overflow creates 1 or 0 for result.
       __ Srl64(kScratchReg, i.OutputRegister(), 63);
       __ Srl32(kScratchReg2, i.OutputRegister(), 31);
@@ -2038,8 +2038,8 @@ void CodeGenerator::AssembleBranchPoisoning(FlagsCondition condition,
       }
     }
       return;
-    case kRiscvDaddOvf:
-    case kRiscvDsubOvf: {
+    case kRiscvAddOvf64:
+    case kRiscvSubOvf64: {
       // Overflow occurs if overflow register is negative
       __ Slt(kScratchReg2, kScratchReg, zero_reg);
       switch (condition) {
@@ -2055,7 +2055,7 @@ void CodeGenerator::AssembleBranchPoisoning(FlagsCondition condition,
       }
     }
       return;
-    case kRiscvMulOvf: {
+    case kRiscvMulOvf32: {
       // Overflow occurs if overflow register is not zero
       switch (condition) {
         case kOverflow:
@@ -2171,8 +2171,8 @@ void CodeGenerator::AssembleArchBoolean(Instruction* instr,
       __ Sltu(result, zero_reg, kScratchReg);
     }
     return;
-  } else if (instr->arch_opcode() == kRiscvDadd ||
-             instr->arch_opcode() == kRiscvDsub) {
+  } else if (instr->arch_opcode() == kRiscvAdd64 ||
+             instr->arch_opcode() == kRiscvSub64) {
     cc = FlagsConditionToConditionOvf(condition);
     // Check for overflow creates 1 or 0 for result.
     __ Srl64(kScratchReg, i.OutputRegister(), 63);
@@ -2181,11 +2181,11 @@ void CodeGenerator::AssembleArchBoolean(Instruction* instr,
     if (cc == eq)  // Toggle result for not overflow.
       __ Xor(result, result, 1);
     return;
-  } else if (instr->arch_opcode() == kRiscvDaddOvf ||
-             instr->arch_opcode() == kRiscvDsubOvf) {
+  } else if (instr->arch_opcode() == kRiscvAddOvf64 ||
+             instr->arch_opcode() == kRiscvSubOvf64) {
     // Overflow occurs if overflow register is negative
     __ Slt(result, kScratchReg, zero_reg);
-  } else if (instr->arch_opcode() == kRiscvMulOvf) {
+  } else if (instr->arch_opcode() == kRiscvMulOvf32) {
     // Overflow occurs if overflow register is not zero
     __ Sgtu(result, kScratchReg, zero_reg);
   } else if (instr->arch_opcode() == kRiscvCmp) {

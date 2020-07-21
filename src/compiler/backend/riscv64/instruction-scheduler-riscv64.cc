@@ -16,7 +16,7 @@ int InstructionScheduler::GetTargetInstructionFlags(
   switch (instr->arch_opcode()) {
     case kRiscvAbsD:
     case kRiscvAbsS:
-    case kRiscvAdd:
+    case kRiscvAdd32:
     case kRiscvAddD:
     case kRiscvAddS:
     case kRiscvAnd:
@@ -28,11 +28,11 @@ int InstructionScheduler::GetTargetInstructionFlags(
     case kRiscvByteSwap64:
     case kRiscvCeilWD:
     case kRiscvCeilWS:
-    case kRiscvClz:
+    case kRiscvClz32:
     case kRiscvCmp:
     case kRiscvCmpD:
     case kRiscvCmpS:
-    case kRiscvCtz:
+    case kRiscvCtz32:
     case kRiscvCvtDL:
     case kRiscvCvtDS:
     case kRiscvCvtDUl:
@@ -43,32 +43,32 @@ int InstructionScheduler::GetTargetInstructionFlags(
     case kRiscvCvtSUl:
     case kRiscvCvtSUw:
     case kRiscvCvtSW:
-    case kRiscvDMulHigh:
-    case kRiscvMulHighU:
-    case kRiscvDadd:
-    case kRiscvDaddOvf:
-    case kRiscvDclz:
-    case kRiscvDctz:
-    case kRiscvDdiv:
-    case kRiscvDdivU:
-    case kRiscvDext:
-    case kRiscvDins:
-    case kRiscvDiv:
+    case kRiscvMulHigh64:
+    case kRiscvMulHighU32:
+    case kRiscvAdd64:
+    case kRiscvAddOvf64:
+    case kRiscvClz64:
+    case kRiscvCtz64:
+    case kRiscvDiv64:
+    case kRiscvDivU64:
+    case kRiscvExt64:
+    case kRiscvIns64:
+    case kRiscvDiv32:
     case kRiscvDivD:
     case kRiscvDivS:
-    case kRiscvDivU:
-    case kRiscvDlsa:
-    case kRiscvDmod:
-    case kRiscvDmodU:
-    case kRiscvDmul:
-    case kRiscvDpopcnt:
-    case kRiscvDror:
-    case kRiscvDsar:
-    case kRiscvDshl:
-    case kRiscvDshr:
-    case kRiscvDsub:
-    case kRiscvDsubOvf:
-    case kRiscvExt:
+    case kRiscvDivU32:
+    case kRiscvLsa64:
+    case kRiscvMod64:
+    case kRiscvModU64:
+    case kRiscvMul64:
+    case kRiscvPopcnt64:
+    case kRiscvRor64:
+    case kRiscvSar64:
+    case kRiscvShl64:
+    case kRiscvShr64:
+    case kRiscvSub64:
+    case kRiscvSubOvf64:
+    case kRiscvExt32:
     case kRiscvF64x2Abs:
     case kRiscvF64x2Neg:
     case kRiscvF64x2Sqrt:
@@ -220,19 +220,19 @@ int InstructionScheduler::GetTargetInstructionFlags(
     case kRiscvI8x16SubSaturateS:
     case kRiscvI8x16SubSaturateU:
     case kRiscvI8x16RoundingAverageU:
-    case kRiscvIns:
-    case kRiscvLsa:
+    case kRiscvIns32:
+    case kRiscvLsa32:
     case kRiscvMaxD:
     case kRiscvMaxS:
     case kRiscvMinD:
     case kRiscvMinS:
-    case kRiscvMod:
-    case kRiscvModU:
+    case kRiscvMod32:
+    case kRiscvModU32:
     case kRiscvMov:
-    case kRiscvMul:
+    case kRiscvMul32:
     case kRiscvMulD:
-    case kRiscvMulHigh:
-    case kRiscvMulOvf:
+    case kRiscvMulHigh32:
+    case kRiscvMulOvf32:
     case kRiscvMulS:
     case kRiscvNegD:
     case kRiscvNegS:
@@ -240,8 +240,8 @@ int InstructionScheduler::GetTargetInstructionFlags(
     case kRiscvNor32:
     case kRiscvOr:
     case kRiscvOr32:
-    case kRiscvPopcnt:
-    case kRiscvRor:
+    case kRiscvPopcnt32:
+    case kRiscvRor32:
     case kRiscvRoundWD:
     case kRiscvRoundWS:
     case kRiscvS128And:
@@ -283,14 +283,14 @@ int InstructionScheduler::GetTargetInstructionFlags(
     case kRiscvS8x8Reverse:
     case kRiscvS8x16Shuffle:
     case kRiscvS8x16Swizzle:
-    case kRiscvSar:
-    case kRiscvSeb:
-    case kRiscvSeh:
-    case kRiscvShl:
-    case kRiscvShr:
+    case kRiscvSar32:
+    case kRiscvSignExtendByte:
+    case kRiscvSignExtendShort:
+    case kRiscvShl32:
+    case kRiscvShr32:
     case kRiscvSqrtD:
     case kRiscvSqrtS:
-    case kRiscvSub:
+    case kRiscvSub32:
     case kRiscvSubD:
     case kRiscvSubS:
     case kRiscvTruncLD:
@@ -309,21 +309,21 @@ int InstructionScheduler::GetTargetInstructionFlags(
     case kRiscvLb:
     case kRiscvLbu:
     case kRiscvLd:
-    case kRiscvLdc1:
+    case kRiscvLoadDouble:
     case kRiscvLh:
     case kRiscvLhu:
     case kRiscvLw:
-    case kRiscvLwc1:
+    case kRiscvLoadFloat:
     case kRiscvLwu:
     case kRiscvMsaLd:
     case kRiscvPeek:
     case kRiscvUld:
-    case kRiscvUldc1:
+    case kRiscvULoadDouble:
     case kRiscvUlh:
     case kRiscvUlhu:
     case kRiscvUlw:
     case kRiscvUlwu:
-    case kRiscvUlwc1:
+    case kRiscvULoadFloat:
     case kRiscvS8x16LoadSplat:
     case kRiscvS16x8LoadSplat:
     case kRiscvS32x4LoadSplat:
@@ -347,17 +347,17 @@ int InstructionScheduler::GetTargetInstructionFlags(
     case kRiscvPush:
     case kRiscvSb:
     case kRiscvSd:
-    case kRiscvSdc1:
+    case kRiscvStoreDouble:
     case kRiscvSh:
     case kRiscvStackClaim:
     case kRiscvStoreToStackSlot:
     case kRiscvSw:
-    case kRiscvSwc1:
+    case kRiscvStoreFloat:
     case kRiscvUsd:
-    case kRiscvUsdc1:
+    case kRiscvUStoreDouble:
     case kRiscvUsh:
     case kRiscvUsw:
-    case kRiscvUswc1:
+    case kRiscvUStoreFloat:
     case kRiscvSync:
     case kRiscvWord64AtomicStoreWord8:
     case kRiscvWord64AtomicStoreWord16:
@@ -408,22 +408,23 @@ enum Latency {
   RINT_S = 4,  // Estimated.
   RINT_D = 4,  // Estimated.
 
+  // FIXME (RISCV): remove MULT instructions (MIPS legacy)
   MULT = 4,
   MULTU = 4,
   DMULT = 4,
-  DMULTU = 4,
+  // DMULTU = 4,
 
-  MUL = 7,
-  DMUL = 7,
-  MUH = 7,
-  MUHU = 7,
-  DMUH = 7,
-  DMUHU = 7,
+  MUL32 = 7,
+  // MUL64 = 7,
+  // MUH = 7,
+  // MUHU = 7,
+  // DMUH = 7,
+  // DMUHU = 7,
 
-  DIV = 50,  // Min:11 Max:50
-  DDIV = 50,
-  DIVU = 50,
-  DDIVU = 50,
+  DIV32 = 50,  // Min:11 Max:50
+  DIV64 = 50,
+  DIVU32 = 50,
+  DIVU64 = 50,
 
   ABS_S = 4,
   ABS_D = 4,
@@ -517,22 +518,22 @@ enum Latency {
   DIV_D = 32,
   SQRT_D = 32,
 
-  MTC1 = 4,
-  MTHC1 = 4,
-  DMTC1 = 4,
-  LWC1 = 4,
-  LDC1 = 4,
+  MOVT_FREG = 4,
+  MOVT_HIGH_FREG = 4,
+  MOVT_DREG = 4,
+  LOAD_FLOAT = 4,
+  LOAD_DOUBLE = 4,
 
-  MFC1 = 1,
-  MFHC1 = 1,
-  DMFC1 = 1,
-  MFHI = 1,
-  MFLO = 1,
-  SWC1 = 1,
-  SDC1 = 1,
+  MOVF_FREG = 1,
+  MOVF_HIGH_FREG = 1,
+  MOVF_HIGH_DREG = 1,
+  MOVF_HIGH = 1,
+  MOVF_LOW = 1,
+  STORE_FLOAT = 1,
+  STORE_DOUBLE = 1,
 };
 
-int DadduLatency(bool is_operand_register = true) {
+int Add64Latency(bool is_operand_register = true) {
   if (is_operand_register) {
     return 1;
   } else {
@@ -540,16 +541,16 @@ int DadduLatency(bool is_operand_register = true) {
   }
 }
 
-int DsubuLatency(bool is_operand_register = true) {
-  return DadduLatency(is_operand_register);
+int Sub64Latency(bool is_operand_register = true) {
+  return Add64Latency(is_operand_register);
 }
 
 int AndLatency(bool is_operand_register = true) {
-  return DadduLatency(is_operand_register);
+  return Add64Latency(is_operand_register);
 }
 
 int OrLatency(bool is_operand_register = true) {
-  return DadduLatency(is_operand_register);
+  return Add64Latency(is_operand_register);
 }
 
 int NorLatency(bool is_operand_register = true) {
@@ -561,107 +562,107 @@ int NorLatency(bool is_operand_register = true) {
 }
 
 int XorLatency(bool is_operand_register = true) {
-  return DadduLatency(is_operand_register);
+  return Add64Latency(is_operand_register);
 }
 
-int MulLatency(bool is_operand_register = true) {
+int Mul32Latency(bool is_operand_register = true) {
   if (is_operand_register) {
-    return Latency::MUL;
+    return Latency::MUL32;
   } else {
-    return Latency::MUL + 1;
+    return Latency::MUL32 + 1;
   }
 }
 
-int DmulLatency(bool is_operand_register = true) {
-  int latency = Latency::DMULT + Latency::MFLO;
+int Mul64Latency(bool is_operand_register = true) {
+  int latency = Latency::DMULT + Latency::MOVF_LOW;
   if (!is_operand_register) {
     latency += 1;
   }
   return latency;
 }
 
-int MulhLatency(bool is_operand_register = true) {
-  int latency = Latency::MULT + Latency::MFHI;
+int Mulh32Latency(bool is_operand_register = true) {
+  int latency = Latency::MULT + Latency::MOVF_HIGH;
   if (!is_operand_register) {
     latency += 1;
   }
   return latency;
 }
 
-int MulhuLatency(bool is_operand_register = true) {
-  int latency = Latency::MULTU + Latency::MFHI;
+int Mulhu32Latency(bool is_operand_register = true) {
+  int latency = Latency::MULTU + Latency::MOVF_HIGH;
   if (!is_operand_register) {
     latency += 1;
   }
   return latency;
 }
 
-int DMulhLatency(bool is_operand_register = true) {
-  int latency = Latency::DMULT + Latency::MFHI;
+int Mulh64Latency(bool is_operand_register = true) {
+  int latency = Latency::DMULT + Latency::MOVF_HIGH;
   if (!is_operand_register) {
     latency += 1;
   }
   return latency;
 }
 
-int DivLatency(bool is_operand_register = true) {
+int Div32Latency(bool is_operand_register = true) {
   if (is_operand_register) {
-    return Latency::DIV;
+    return Latency::DIV32;
   } else {
-    return Latency::DIV + 1;
+    return Latency::DIV32 + 1;
   }
 }
 
-int DivuLatency(bool is_operand_register = true) {
+int Divu32Latency(bool is_operand_register = true) {
   if (is_operand_register) {
-    return Latency::DIVU;
+    return Latency::DIVU32;
   } else {
-    return Latency::DIVU + 1;
+    return Latency::DIVU32 + 1;
   }
 }
 
-int DdivLatency(bool is_operand_register = true) {
-  int latency = Latency::DDIV + Latency::MFLO;
+int Div64Latency(bool is_operand_register = true) {
+  int latency = Latency::DIV64 + Latency::MOVF_LOW;
   if (!is_operand_register) {
     latency += 1;
   }
   return latency;
 }
 
-int DdivuLatency(bool is_operand_register = true) {
-  int latency = Latency::DDIVU + Latency::MFLO;
+int Divu64Latency(bool is_operand_register = true) {
+  int latency = Latency::DIVU64 + Latency::MOVF_LOW;
   if (!is_operand_register) {
     latency += 1;
   }
   return latency;
 }
 
-int ModLatency(bool is_operand_register = true) {
-  int latency = Latency::DIV + Latency::MFHI;
+int Mod32Latency(bool is_operand_register = true) {
+  int latency = Latency::DIV32 + Latency::MOVF_HIGH;
   if (!is_operand_register) {
     latency += 1;
   }
   return latency;
 }
 
-int ModuLatency(bool is_operand_register = true) {
-  int latency = Latency::DIVU + Latency::MFHI;
+int Modu32Latency(bool is_operand_register = true) {
+  int latency = Latency::DIVU32 + Latency::MOVF_HIGH;
   if (!is_operand_register) {
     latency += 1;
   }
   return latency;
 }
 
-int DmodLatency(bool is_operand_register = true) {
-  int latency = Latency::DDIV + Latency::MFHI;
+int Mod64Latency(bool is_operand_register = true) {
+  int latency = Latency::DIV64 + Latency::MOVF_HIGH;
   if (!is_operand_register) {
     latency += 1;
   }
   return latency;
 }
 
-int DmoduLatency(bool is_operand_register = true) {
-  int latency = Latency::DDIV + Latency::MFHI;
+int Modu64Latency(bool is_operand_register = true) {
+  int latency = Latency::DIV64 + Latency::MOVF_HIGH;
   if (!is_operand_register) {
     latency += 1;
   }
@@ -672,27 +673,27 @@ int MovzLatency() { return 1; }
 
 int MovnLatency() { return 1; }
 
-int DlsaLatency() {
+int Lsa64Latency() {
   // Estimated max.
-  return DadduLatency() + 1;
+  return Add64Latency() + 1;
 }
 
 int CallLatency() {
   // Estimated.
-  return DadduLatency(false) + Latency::BRANCH + 5;
+  return Add64Latency(false) + Latency::BRANCH + 5;
 }
 
 int JumpLatency() {
   // Estimated max.
-  return 1 + DadduLatency() + Latency::BRANCH + 2;
+  return 1 + Add64Latency() + Latency::BRANCH + 2;
 }
 
 int SmiUntagLatency() { return 1; }
 
 int PrepareForTailCallLatency() {
   // Estimated max.
-  return 2 * (DlsaLatency() + DadduLatency(false)) + 2 + Latency::BRANCH +
-         Latency::BRANCH + 2 * DsubuLatency(false) + 2 + Latency::BRANCH + 1;
+  return 2 * (Lsa64Latency() + Add64Latency(false)) + 2 + Latency::BRANCH +
+         Latency::BRANCH + 2 * Sub64Latency(false) + 2 + Latency::BRANCH + 1;
 }
 
 int AssemblePopArgumentsAdoptFrameLatency() {
@@ -705,9 +706,9 @@ int AssertLatency() { return 1; }
 int PrepareCallCFunctionLatency() {
   int frame_alignment = TurboAssembler::ActivationFrameAlignment();
   if (frame_alignment > kSystemPointerSize) {
-    return 1 + DsubuLatency(false) + AndLatency(false) + 1;
+    return 1 + Sub64Latency(false) + AndLatency(false) + 1;
   } else {
-    return DsubuLatency(false);
+    return Sub64Latency(false);
   }
 }
 
@@ -733,9 +734,9 @@ int UldLatency() {
   return AdjustBaseAndOffsetLatency() + 3;
 }
 
-int Ulwc1Latency() { return UlwLatency() + Latency::MTC1; }
+int ULoadFloatLatency() { return UlwLatency() + Latency::MOVT_FREG; }
 
-int Uldc1Latency() { return UldLatency() + Latency::DMTC1; }
+int ULoadDoubleLatency() { return UldLatency() + Latency::MOVT_DREG; }
 
 int UshLatency() {
   // Estimated max.
@@ -746,20 +747,28 @@ int UswLatency() { return AdjustBaseAndOffsetLatency() + 2; }
 
 int UsdLatency() { return AdjustBaseAndOffsetLatency() + 2; }
 
-int Uswc1Latency() { return Latency::MFC1 + UswLatency(); }
+int UStoreFloatLatency() { return Latency::MOVF_FREG + UswLatency(); }
 
-int Usdc1Latency() { return Latency::DMFC1 + UsdLatency(); }
+int UStoreDoubleLatency() { return Latency::MOVF_HIGH_DREG + UsdLatency(); }
 
-int Lwc1Latency() { return AdjustBaseAndOffsetLatency() + Latency::LWC1; }
+int LoadFloatLatency() {
+  return AdjustBaseAndOffsetLatency() + Latency::LOAD_FLOAT;
+}
 
-int Swc1Latency() { return AdjustBaseAndOffsetLatency() + Latency::SWC1; }
+int StoreFloatLatency() {
+  return AdjustBaseAndOffsetLatency() + Latency::STORE_FLOAT;
+}
 
-int Sdc1Latency() { return AdjustBaseAndOffsetLatency() + Latency::SDC1; }
+int StoreDoubleLatency() {
+  return AdjustBaseAndOffsetLatency() + Latency::STORE_DOUBLE;
+}
 
-int Ldc1Latency() { return AdjustBaseAndOffsetLatency() + Latency::LDC1; }
+int LoadDoubleLatency() {
+  return AdjustBaseAndOffsetLatency() + Latency::LOAD_DOUBLE;
+}
 
 int MultiPushLatency() {
-  int latency = DsubuLatency(false);
+  int latency = Sub64Latency(false);
   for (int16_t i = kNumRegisters - 1; i >= 0; i--) {
     latency++;
   }
@@ -767,9 +776,9 @@ int MultiPushLatency() {
 }
 
 int MultiPushFPULatency() {
-  int latency = DsubuLatency(false);
+  int latency = Sub64Latency(false);
   for (int16_t i = kNumRegisters - 1; i >= 0; i--) {
-    latency += Sdc1Latency();
+    latency += StoreDoubleLatency();
   }
   return latency;
 }
@@ -783,7 +792,7 @@ int PushCallerSavedLatency(SaveFPRegsMode fp_mode) {
 }
 
 int MultiPopLatency() {
-  int latency = DadduLatency(false);
+  int latency = Add64Latency(false);
   for (int16_t i = 0; i < kNumRegisters; i++) {
     latency++;
   }
@@ -791,9 +800,9 @@ int MultiPopLatency() {
 }
 
 int MultiPopFPULatency() {
-  int latency = DadduLatency(false);
+  int latency = Add64Latency(false);
   for (int16_t i = 0; i < kNumRegisters; i++) {
-    latency += Ldc1Latency();
+    latency += LoadDoubleLatency();
   }
   return latency;
 }
@@ -812,7 +821,7 @@ int CallCFunctionHelperLatency() {
   if (base::OS::ActivationFrameAlignment() > kSystemPointerSize) {
     latency++;
   } else {
-    latency += DadduLatency(false);
+    latency += Add64Latency(false);
   }
   return latency;
 }
@@ -844,17 +853,17 @@ int AssembleArchTableSwitchLatency() {
 
 int DropAndRetLatency() {
   // Estimated max.
-  return DadduLatency(false) + JumpLatency();
+  return Add64Latency(false) + JumpLatency();
 }
 
 int AssemblerReturnLatency() {
   // Estimated max.
-  return DadduLatency(false) + MultiPopLatency() + MultiPopFPULatency() +
-         Latency::BRANCH + DadduLatency() + 1 + DropAndRetLatency();
+  return Add64Latency(false) + MultiPopLatency() + MultiPopFPULatency() +
+         Latency::BRANCH + Add64Latency() + 1 + DropAndRetLatency();
 }
 
 int TryInlineTruncateDoubleToILatency() {
-  return 2 + Latency::TRUNC_W_D + Latency::MFC1 + 2 + AndLatency(false) +
+  return 2 + Latency::TRUNC_W_D + Latency::MOVF_FREG + 2 + AndLatency(false) +
          Latency::BRANCH;
 }
 
@@ -862,8 +871,9 @@ int CallStubDelayedLatency() { return 1 + CallLatency(); }
 
 int TruncateDoubleToIDelayedLatency() {
   // TODO(riscv): This no longer reflects how TruncateDoubleToI is called.
-  return TryInlineTruncateDoubleToILatency() + 1 + DsubuLatency(false) +
-         Sdc1Latency() + CallStubDelayedLatency() + DadduLatency(false) + 1;
+  return TryInlineTruncateDoubleToILatency() + 1 + Sub64Latency(false) +
+         StoreDoubleLatency() + CallStubDelayedLatency() + Add64Latency(false) +
+         1;
 }
 
 int CheckPageFlagLatency() {
@@ -891,42 +901,43 @@ int MovToFloatParametersLatency() { return 2 * MoveLatency(); }
 
 int MovFromFloatResultLatency() { return MoveLatency(); }
 
-int DaddOverflowLatency() {
+int AddOverflow64Latency() {
   // Estimated max.
   return 6;
 }
 
-int DsubOverflowLatency() {
+int SubOverflow64Latency() {
   // Estimated max.
   return 6;
 }
 
-int MulOverflowLatency() {
+int MulOverflow32Latency() {
   // Estimated max.
-  return MulLatency() + MulhLatency() + 2;
+  return Mul32Latency() + Mulh32Latency() + 2;
 }
 
-int DclzLatency() { return 1; }
+// FIXME (RISCV): need update
+int Clz64Latency() { return 1; }
 
-int CtzLatency() {
-  return DadduLatency(false) + XorLatency() + AndLatency() + DclzLatency() + 1 +
-         DsubuLatency();
+int Ctz32Latency() {
+  return Add64Latency(false) + XorLatency() + AndLatency() + Clz64Latency() +
+         1 + Sub64Latency();
 }
 
-int DctzLatency() {
-  return DadduLatency(false) + XorLatency() + AndLatency() + 1 + DsubuLatency();
+int Ctz64Latency() {
+  return Add64Latency(false) + XorLatency() + AndLatency() + 1 + Sub64Latency();
 }
 
-int PopcntLatency() {
-  return 2 + AndLatency() + DsubuLatency() + 1 + AndLatency() + 1 +
-         AndLatency() + DadduLatency() + 1 + DadduLatency() + 1 + AndLatency() +
-         1 + MulLatency() + 1;
+int Popcnt32Latency() {
+  return 2 + AndLatency() + Sub64Latency() + 1 + AndLatency() + 1 +
+         AndLatency() + Add64Latency() + 1 + Add64Latency() + 1 + AndLatency() +
+         1 + Mul32Latency() + 1;
 }
 
-int DpopcntLatency() {
-  return 2 + AndLatency() + DsubuLatency() + 1 + AndLatency() + 1 +
-         AndLatency() + DadduLatency() + 1 + DadduLatency() + 1 + AndLatency() +
-         1 + DmulLatency() + 1;
+int Popcnt64Latency() {
+  return 2 + AndLatency() + Sub64Latency() + 1 + AndLatency() + 1 +
+         AndLatency() + Add64Latency() + 1 + Add64Latency() + 1 + AndLatency() +
+         1 + Mul64Latency() + 1;
 }
 
 int CompareFLatency() { return Latency::C_cond_S; }
@@ -944,58 +955,59 @@ int CompareIsNanF64Latency() { return CompareIsNanFLatency(); }
 int NegsLatency() {
   // Estimated.
   return CompareIsNanF32Latency() + 2 * Latency::BRANCH + Latency::NEG_S +
-         Latency::MFC1 + 1 + XorLatency() + Latency::MTC1;
+         Latency::MOVF_FREG + 1 + XorLatency() + Latency::MOVT_FREG;
 }
 
 int NegdLatency() {
   // Estimated.
   return CompareIsNanF64Latency() + 2 * Latency::BRANCH + Latency::NEG_D +
-         Latency::DMFC1 + 1 + XorLatency() + Latency::DMTC1;
+         Latency::MOVF_HIGH_DREG + 1 + XorLatency() + Latency::MOVT_DREG;
 }
 
 int Float64RoundLatency() {
   // For ceil_l_d, floor_l_d, round_l_d, trunc_l_d latency is 4.
-  return Latency::DMFC1 + 1 + Latency::BRANCH + Latency::MOV_D + 4 +
-         Latency::DMFC1 + Latency::BRANCH + Latency::CVT_D_L + 2 +
-         Latency::MTHC1;
+  return Latency::MOVF_HIGH_DREG + 1 + Latency::BRANCH + Latency::MOV_D + 4 +
+         Latency::MOVF_HIGH_DREG + Latency::BRANCH + Latency::CVT_D_L + 2 +
+         Latency::MOVT_HIGH_FREG;
 }
 
 int Float32RoundLatency() {
   // For ceil_w_s, floor_w_s, round_w_s, trunc_w_s latency is 4.
-  return Latency::MFC1 + 1 + Latency::BRANCH + Latency::MOV_S + 4 +
-         Latency::MFC1 + Latency::BRANCH + Latency::CVT_S_W + 2 + Latency::MTC1;
+  return Latency::MOVF_FREG + 1 + Latency::BRANCH + Latency::MOV_S + 4 +
+         Latency::MOVF_FREG + Latency::BRANCH + Latency::CVT_S_W + 2 +
+         Latency::MOVT_FREG;
 }
 
 int Float32MaxLatency() {
   // Estimated max.
   int latency = CompareIsNanF32Latency() + Latency::BRANCH;
   return latency + 5 * Latency::BRANCH + 2 * CompareF32Latency() +
-         Latency::MFC1 + 1 + Latency::MOV_S;
+         Latency::MOVF_FREG + 1 + Latency::MOV_S;
 }
 
 int Float64MaxLatency() {
   // Estimated max.
   int latency = CompareIsNanF64Latency() + Latency::BRANCH;
   return latency + 5 * Latency::BRANCH + 2 * CompareF64Latency() +
-         Latency::DMFC1 + Latency::MOV_D;
+         Latency::MOVF_HIGH_DREG + Latency::MOV_D;
 }
 
 int Float32MinLatency() {
   // Estimated max.
   int latency = CompareIsNanF32Latency() + Latency::BRANCH;
   return latency + 5 * Latency::BRANCH + 2 * CompareF32Latency() +
-         Latency::MFC1 + 1 + Latency::MOV_S;
+         Latency::MOVF_FREG + 1 + Latency::MOV_S;
 }
 
 int Float64MinLatency() {
   // Estimated max.
   int latency = CompareIsNanF64Latency() + Latency::BRANCH;
   return latency + 5 * Latency::BRANCH + 2 * CompareF32Latency() +
-         Latency::DMFC1 + Latency::MOV_D;
+         Latency::MOVF_HIGH_DREG + Latency::MOV_D;
 }
 
 int TruncLSLatency(bool load_status) {
-  int latency = Latency::TRUNC_L_S + Latency::DMFC1;
+  int latency = Latency::TRUNC_L_S + Latency::MOVF_HIGH_DREG;
   if (load_status) {
     latency += SltuLatency() + 7;
   }
@@ -1003,7 +1015,7 @@ int TruncLSLatency(bool load_status) {
 }
 
 int TruncLDLatency(bool load_status) {
-  int latency = Latency::TRUNC_L_D + Latency::DMFC1;
+  int latency = Latency::TRUNC_L_D + Latency::MOVF_HIGH_DREG;
   if (load_status) {
     latency += SltuLatency() + 7;
   }
@@ -1014,19 +1026,19 @@ int TruncUlSLatency() {
   // Estimated max.
   return 2 * CompareF32Latency() + CompareIsNanF32Latency() +
          4 * Latency::BRANCH + Latency::SUB_S + 2 * Latency::TRUNC_L_S +
-         3 * Latency::DMFC1 + OrLatency() + Latency::MTC1 + Latency::MOV_S +
-         SltuLatency() + 4;
+         3 * Latency::MOVF_HIGH_DREG + OrLatency() + Latency::MOVT_FREG +
+         Latency::MOV_S + SltuLatency() + 4;
 }
 
 int TruncUlDLatency() {
   // Estimated max.
   return 2 * CompareF64Latency() + CompareIsNanF64Latency() +
          4 * Latency::BRANCH + Latency::SUB_D + 2 * Latency::TRUNC_L_D +
-         3 * Latency::DMFC1 + OrLatency() + Latency::DMTC1 + Latency::MOV_D +
-         SltuLatency() + 4;
+         3 * Latency::MOVF_HIGH_DREG + OrLatency() + Latency::MOVT_DREG +
+         Latency::MOV_D + SltuLatency() + 4;
 }
 
-int PushLatency() { return DadduLatency() + AlignedMemoryLatency(); }
+int PushLatency() { return Add64Latency() + AlignedMemoryLatency(); }
 
 int ByteSwapSignedLatency() { return 2; }
 
@@ -1055,24 +1067,25 @@ int ExtractBitsLatency(bool sign_extend, int size) {
   return latency;
 }
 
-int InsertBitsLatency() { return 2 + DsubuLatency(false) + 2; }
+int InsertBitsLatency() { return 2 + Sub64Latency(false) + 2; }
 
 int ScLatency(int offset) { return 3; }
 
 int Word32AtomicExchangeLatency(bool sign_extend, int size) {
-  return DadduLatency(false) + 1 + DsubuLatency() + 2 + LlLatency(0) +
+  return Add64Latency(false) + 1 + Sub64Latency() + 2 + LlLatency(0) +
          ExtractBitsLatency(sign_extend, size) + InsertBitsLatency() +
          ScLatency(0) + BranchShortLatency() + 1;
 }
 
 int Word32AtomicCompareExchangeLatency(bool sign_extend, int size) {
-  return 2 + DsubuLatency() + 2 + LlLatency(0) +
+  return 2 + Sub64Latency() + 2 + LlLatency(0) +
          ExtractBitsLatency(sign_extend, size) + InsertBitsLatency() +
          ScLatency(0) + BranchShortLatency() + 1;
 }
 
 int InstructionScheduler::GetInstructionLatency(const Instruction* instr) {
-  // FIXME(RISCV): Verify these latencies for RISC-V (currently using MIPS numbers)
+  // FIXME(RISCV): Verify these latencies for RISC-V (currently using MIPS
+  // numbers)
   switch (instr->arch_opcode()) {
     case kArchCallCodeObject:
     case kArchCallWasmFunction:
@@ -1093,7 +1106,7 @@ int InstructionScheduler::GetInstructionLatency(const Instruction* instr) {
       if (FLAG_debug_code) {
         latency = 1 + AssertLatency();
       }
-      return latency + 1 + DadduLatency(false) + CallLatency();
+      return latency + 1 + Add64Latency(false) + CallLatency();
     }
     case kArchPrepareCallCFunction:
       return PrepareCallCFunctionLatency();
@@ -1136,12 +1149,12 @@ int InstructionScheduler::GetInstructionLatency(const Instruction* instr) {
     case kArchTruncateDoubleToI:
       return TruncateDoubleToIDelayedLatency();
     case kArchStoreWithWriteBarrier:
-      return DadduLatency() + 1 + CheckPageFlagLatency();
+      return Add64Latency() + 1 + CheckPageFlagLatency();
     case kArchStackSlot:
       // Estimated max.
-      return DadduLatency(false) + AndLatency(false) + AssertLatency() +
-             DadduLatency(false) + AndLatency(false) + BranchShortLatency() +
-             1 + DsubuLatency() + DadduLatency();
+      return Add64Latency(false) + AndLatency(false) + AssertLatency() +
+             Add64Latency(false) + AndLatency(false) + BranchShortLatency() +
+             1 + Sub64Latency() + Add64Latency();
     case kArchWordPoisonOnSpeculation:
       return AndLatency();
     case kIeee754Float64Acos:
@@ -1167,55 +1180,55 @@ int InstructionScheduler::GetInstructionLatency(const Instruction* instr) {
     case kIeee754Float64Tanh:
       return PrepareCallCFunctionLatency() + MovToFloatParametersLatency() +
              CallCFunctionLatency() + MovFromFloatResultLatency();
-    case kRiscvAdd:
-    case kRiscvDadd:
-      return DadduLatency(instr->InputAt(1)->IsRegister());
-    case kRiscvDaddOvf:
-      return DaddOverflowLatency();
-    case kRiscvSub:
-    case kRiscvDsub:
-      return DsubuLatency(instr->InputAt(1)->IsRegister());
-    case kRiscvDsubOvf:
-      return DsubOverflowLatency();
-    case kRiscvMul:
-      return MulLatency();
-    case kRiscvMulOvf:
-      return MulOverflowLatency();
-    case kRiscvMulHigh:
-      return MulhLatency();
-    case kRiscvMulHighU:
-      return MulhuLatency();
-    case kRiscvDMulHigh:
-      return DMulhLatency();
-    case kRiscvDiv: {
-      int latency = DivLatency(instr->InputAt(1)->IsRegister());
+    case kRiscvAdd32:
+    case kRiscvAdd64:
+      return Add64Latency(instr->InputAt(1)->IsRegister());
+    case kRiscvAddOvf64:
+      return AddOverflow64Latency();
+    case kRiscvSub32:
+    case kRiscvSub64:
+      return Sub64Latency(instr->InputAt(1)->IsRegister());
+    case kRiscvSubOvf64:
+      return SubOverflow64Latency();
+    case kRiscvMul32:
+      return Mul32Latency();
+    case kRiscvMulOvf32:
+      return MulOverflow32Latency();
+    case kRiscvMulHigh32:
+      return Mulh32Latency();
+    case kRiscvMulHighU32:
+      return Mulhu32Latency();
+    case kRiscvMulHigh64:
+      return Mulh64Latency();
+    case kRiscvDiv32: {
+      int latency = Div32Latency(instr->InputAt(1)->IsRegister());
       return latency + MovzLatency();
     }
-    case kRiscvDivU: {
-      int latency = DivuLatency(instr->InputAt(1)->IsRegister());
+    case kRiscvDivU32: {
+      int latency = Divu32Latency(instr->InputAt(1)->IsRegister());
       return latency + MovzLatency();
     }
-    case kRiscvMod:
-      return ModLatency();
-    case kRiscvModU:
-      return ModuLatency();
-    case kRiscvDmul:
-      return DmulLatency();
-    case kRiscvDdiv: {
-      int latency = DdivLatency();
+    case kRiscvMod32:
+      return Mod32Latency();
+    case kRiscvModU32:
+      return Modu32Latency();
+    case kRiscvMul64:
+      return Mul64Latency();
+    case kRiscvDiv64: {
+      int latency = Div64Latency();
       return latency + MovzLatency();
     }
-    case kRiscvDdivU: {
-      int latency = DdivuLatency();
+    case kRiscvDivU64: {
+      int latency = Divu64Latency();
       return latency + MovzLatency();
     }
-    case kRiscvDmod:
-      return DmodLatency();
-    case kRiscvDmodU:
-      return DmoduLatency();
-    case kRiscvDlsa:
-    case kRiscvLsa:
-      return DlsaLatency();
+    case kRiscvMod64:
+      return Mod64Latency();
+    case kRiscvModU64:
+      return Modu64Latency();
+    case kRiscvLsa64:
+    case kRiscvLsa32:
+      return Lsa64Latency();
     case kRiscvAnd:
       return AndLatency(instr->InputAt(1)->IsRegister());
     case kRiscvAnd32: {
@@ -1260,31 +1273,31 @@ int InstructionScheduler::GetInstructionLatency(const Instruction* instr) {
         return latency + 1;
       }
     }
-    case kRiscvClz:
-    case kRiscvDclz:
-      return DclzLatency();
-    case kRiscvCtz:
-      return CtzLatency();
-    case kRiscvDctz:
-      return DctzLatency();
-    case kRiscvPopcnt:
-      return PopcntLatency();
-    case kRiscvDpopcnt:
-      return DpopcntLatency();
-    case kRiscvShl:
+    case kRiscvClz32:
+    case kRiscvClz64:
+      return Clz64Latency();
+    case kRiscvCtz32:
+      return Ctz32Latency();
+    case kRiscvCtz64:
+      return Ctz64Latency();
+    case kRiscvPopcnt32:
+      return Popcnt32Latency();
+    case kRiscvPopcnt64:
+      return Popcnt64Latency();
+    case kRiscvShl32:
       return 1;
-    case kRiscvShr:
-    case kRiscvSar:
+    case kRiscvShr32:
+    case kRiscvSar32:
       return 2;
-    case kRiscvExt:
-    case kRiscvIns:
-    case kRiscvDext:
-    case kRiscvDins:
-    case kRiscvDshl:
-    case kRiscvDshr:
-    case kRiscvDsar:
-    case kRiscvRor:
-    case kRiscvDror:
+    case kRiscvExt32:
+    case kRiscvIns32:
+    case kRiscvExt64:
+    case kRiscvIns64:
+    case kRiscvShl64:
+    case kRiscvShr64:
+    case kRiscvSar64:
+    case kRiscvRor32:
+    case kRiscvRor64:
       return 1;
     case kRiscvTst:
       return AndLatency(instr->InputAt(1)->IsRegister());
@@ -1361,39 +1374,39 @@ int InstructionScheduler::GetInstructionLatency(const Instruction* instr) {
     case kRiscvCvtDS:
       return Latency::CVT_D_S;
     case kRiscvCvtDW:
-      return Latency::MTC1 + Latency::CVT_D_W;
+      return Latency::MOVT_FREG + Latency::CVT_D_W;
     case kRiscvCvtSW:
-      return Latency::MTC1 + Latency::CVT_S_W;
+      return Latency::MOVT_FREG + Latency::CVT_S_W;
     case kRiscvCvtSUw:
-      return 1 + Latency::DMTC1 + Latency::CVT_S_L;
+      return 1 + Latency::MOVT_DREG + Latency::CVT_S_L;
     case kRiscvCvtSL:
-      return Latency::DMTC1 + Latency::CVT_S_L;
+      return Latency::MOVT_DREG + Latency::CVT_S_L;
     case kRiscvCvtDL:
-      return Latency::DMTC1 + Latency::CVT_D_L;
+      return Latency::MOVT_DREG + Latency::CVT_D_L;
     case kRiscvCvtDUw:
-      return 1 + Latency::DMTC1 + Latency::CVT_D_L;
+      return 1 + Latency::MOVT_DREG + Latency::CVT_D_L;
     case kRiscvCvtDUl:
-      return 2 * Latency::BRANCH + 3 + 2 * Latency::DMTC1 +
+      return 2 * Latency::BRANCH + 3 + 2 * Latency::MOVT_DREG +
              2 * Latency::CVT_D_L + Latency::ADD_D;
     case kRiscvCvtSUl:
-      return 2 * Latency::BRANCH + 3 + 2 * Latency::DMTC1 +
+      return 2 * Latency::BRANCH + 3 + 2 * Latency::MOVT_DREG +
              2 * Latency::CVT_S_L + Latency::ADD_S;
     case kRiscvFloorWD:
-      return Latency::FLOOR_W_D + Latency::MFC1;
+      return Latency::FLOOR_W_D + Latency::MOVF_FREG;
     case kRiscvCeilWD:
-      return Latency::CEIL_W_D + Latency::MFC1;
+      return Latency::CEIL_W_D + Latency::MOVF_FREG;
     case kRiscvRoundWD:
-      return Latency::ROUND_W_D + Latency::MFC1;
+      return Latency::ROUND_W_D + Latency::MOVF_FREG;
     case kRiscvTruncWD:
-      return Latency::TRUNC_W_D + Latency::MFC1;
+      return Latency::TRUNC_W_D + Latency::MOVF_FREG;
     case kRiscvFloorWS:
-      return Latency::FLOOR_W_S + Latency::MFC1;
+      return Latency::FLOOR_W_S + Latency::MOVF_FREG;
     case kRiscvCeilWS:
-      return Latency::CEIL_W_S + Latency::MFC1;
+      return Latency::CEIL_W_S + Latency::MOVF_FREG;
     case kRiscvRoundWS:
-      return Latency::ROUND_W_S + Latency::MFC1;
+      return Latency::ROUND_W_S + Latency::MOVF_FREG;
     case kRiscvTruncWS:
-      return Latency::TRUNC_W_S + Latency::MFC1 + 2 + MovnLatency();
+      return Latency::TRUNC_W_S + Latency::MOVF_FREG + 2 + MovnLatency();
     case kRiscvTruncLS:
       return TruncLSLatency(instr->OutputCount() > 1);
     case kRiscvTruncLD:
@@ -1402,30 +1415,32 @@ int InstructionScheduler::GetInstructionLatency(const Instruction* instr) {
       // Estimated max.
       return CompareF64Latency() + 2 * Latency::BRANCH +
              2 * Latency::TRUNC_W_D + Latency::SUB_D + OrLatency() +
-             Latency::MTC1 + Latency::MFC1 + Latency::MTHC1 + 1;
+             Latency::MOVT_FREG + Latency::MOVF_FREG + Latency::MOVT_HIGH_FREG +
+             1;
     case kRiscvTruncUwS:
       // Estimated max.
       return CompareF32Latency() + 2 * Latency::BRANCH +
              2 * Latency::TRUNC_W_S + Latency::SUB_S + OrLatency() +
-             Latency::MTC1 + 2 * Latency::MFC1 + 2 + MovzLatency();
+             Latency::MOVT_FREG + 2 * Latency::MOVF_FREG + 2 + MovzLatency();
     case kRiscvTruncUlS:
       return TruncUlSLatency();
     case kRiscvTruncUlD:
       return TruncUlDLatency();
     case kRiscvBitcastDL:
-      return Latency::DMFC1;
+      return Latency::MOVF_HIGH_DREG;
     case kRiscvBitcastLD:
-      return Latency::DMTC1;
+      return Latency::MOVT_DREG;
     case kRiscvFloat64ExtractLowWord32:
-      return Latency::MFC1;
+      return Latency::MOVF_FREG;
     case kRiscvFloat64InsertLowWord32:
-      return Latency::MFHC1 + Latency::MTC1 + Latency::MTHC1;
+      return Latency::MOVF_HIGH_FREG + Latency::MOVT_FREG +
+             Latency::MOVT_HIGH_FREG;
     case kRiscvFloat64ExtractHighWord32:
-      return Latency::MFHC1;
+      return Latency::MOVF_HIGH_FREG;
     case kRiscvFloat64InsertHighWord32:
-      return Latency::MTHC1;
-    case kRiscvSeb:
-    case kRiscvSeh:
+      return Latency::MOVT_HIGH_FREG;
+    case kRiscvSignExtendByte:
+    case kRiscvSignExtendShort:
       return 1;
     case kRiscvLbu:
     case kRiscvLb:
@@ -1439,14 +1454,14 @@ int InstructionScheduler::GetInstructionLatency(const Instruction* instr) {
     case kRiscvSw:
     case kRiscvSd:
       return AlignedMemoryLatency();
-    case kRiscvLwc1:
-      return Lwc1Latency();
-    case kRiscvLdc1:
-      return Ldc1Latency();
-    case kRiscvSwc1:
-      return Swc1Latency();
-    case kRiscvSdc1:
-      return Sdc1Latency();
+    case kRiscvLoadFloat:
+      return ULoadFloatLatency();
+    case kRiscvLoadDouble:
+      return LoadDoubleLatency();
+    case kRiscvStoreFloat:
+      return StoreFloatLatency();
+    case kRiscvStoreDouble:
+      return StoreDoubleLatency();
     case kRiscvUlhu:
     case kRiscvUlh:
       return UlhuLatency();
@@ -1456,24 +1471,24 @@ int InstructionScheduler::GetInstructionLatency(const Instruction* instr) {
       return UlwLatency();
     case kRiscvUld:
       return UldLatency();
-    case kRiscvUlwc1:
-      return Ulwc1Latency();
-    case kRiscvUldc1:
-      return Uldc1Latency();
+    case kRiscvULoadFloat:
+      return ULoadFloatLatency();
+    case kRiscvULoadDouble:
+      return ULoadDoubleLatency();
     case kRiscvUsh:
       return UshLatency();
     case kRiscvUsw:
       return UswLatency();
     case kRiscvUsd:
       return UsdLatency();
-    case kRiscvUswc1:
-      return Uswc1Latency();
-    case kRiscvUsdc1:
-      return Usdc1Latency();
+    case kRiscvUStoreFloat:
+      return UStoreFloatLatency();
+    case kRiscvUStoreDouble:
+      return UStoreDoubleLatency();
     case kRiscvPush: {
       int latency = 0;
       if (instr->InputAt(0)->IsFPRegister()) {
-        latency = Sdc1Latency() + DsubuLatency(false);
+        latency = StoreDoubleLatency() + Sub64Latency(false);
       } else {
         latency = PushLatency();
       }
@@ -1485,10 +1500,10 @@ int InstructionScheduler::GetInstructionLatency(const Instruction* instr) {
         auto op = LocationOperand::cast(instr->OutputAt(0));
         switch (op->representation()) {
           case MachineRepresentation::kFloat64:
-            latency = Ldc1Latency();
+            latency = LoadDoubleLatency();
             break;
           case MachineRepresentation::kFloat32:
-            latency = Latency::LWC1;
+            latency = Latency::LOAD_FLOAT;
             break;
           default:
             UNREACHABLE();
@@ -1499,14 +1514,14 @@ int InstructionScheduler::GetInstructionLatency(const Instruction* instr) {
       return latency;
     }
     case kRiscvStackClaim:
-      return DsubuLatency(false);
+      return Sub64Latency(false);
     case kRiscvStoreToStackSlot: {
       int latency = 0;
       if (instr->InputAt(0)->IsFPRegister()) {
         if (instr->InputAt(0)->IsSimd128Register()) {
           latency = 1;  // Estimated value.
         } else {
-          latency = Sdc1Latency();
+          latency = StoreDoubleLatency();
         }
       } else {
         latency = AlignedMemoryLatency();

@@ -77,10 +77,10 @@ inline void Store(LiftoffAssembler* assm, Register base, int32_t offset,
       assm->Usd(src.gp(), dst);
       break;
     case kWasmF32:
-      assm->Uswc1(src.fp(), dst, t5);
+      assm->UStoreFloat(src.fp(), dst, t5);
       break;
     case kWasmF64:
-      assm->Usdc1(src.fp(), dst, t5);
+      assm->UStoreDouble(src.fp(), dst, t5);
       break;
     default:
       UNREACHABLE();
@@ -369,10 +369,10 @@ void LiftoffAssembler::Load(LiftoffRegister dst, Register src_addr,
       TurboAssembler::Uld(dst.gp(), src_op);
       break;
     case LoadType::kF32Load:
-      TurboAssembler::Ulwc1(dst.fp(), src_op, t5);
+      TurboAssembler::ULoadFloat(dst.fp(), src_op, t5);
       break;
     case LoadType::kF64Load:
-      TurboAssembler::Uldc1(dst.fp(), src_op, t5);
+      TurboAssembler::ULoadDouble(dst.fp(), src_op, t5);
       break;
     default:
       UNREACHABLE();
@@ -434,10 +434,10 @@ void LiftoffAssembler::Store(Register dst_addr, Register offset_reg,
       TurboAssembler::Usd(src.gp(), dst_op);
       break;
     case StoreType::kF32Store:
-      TurboAssembler::Uswc1(src.fp(), dst_op, t5);
+      TurboAssembler::UStoreFloat(src.fp(), dst_op, t5);
       break;
     case StoreType::kF64Store:
-      TurboAssembler::Usdc1(src.fp(), dst_op, t5);
+      TurboAssembler::UStoreDouble(src.fp(), dst_op, t5);
       break;
     default:
       UNREACHABLE();

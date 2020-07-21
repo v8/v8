@@ -574,11 +574,11 @@ class V8_EXPORT_PRIVATE TurboAssembler : public TurboAssemblerBase {
   void Uld(Register rd, const MemOperand& rs);
   void Usd(Register rd, const MemOperand& rs);
 
-  void Ulwc1(FPURegister fd, const MemOperand& rs, Register scratch);
-  void Uswc1(FPURegister fd, const MemOperand& rs, Register scratch);
+  void ULoadFloat(FPURegister fd, const MemOperand& rs, Register scratch);
+  void UStoreFloat(FPURegister fd, const MemOperand& rs, Register scratch);
 
-  void Uldc1(FPURegister fd, const MemOperand& rs, Register scratch);
-  void Usdc1(FPURegister fd, const MemOperand& rs, Register scratch);
+  void ULoadDouble(FPURegister fd, const MemOperand& rs, Register scratch);
+  void UStoreDouble(FPURegister fd, const MemOperand& rs, Register scratch);
 
   void Lb(Register rd, const MemOperand& rs);
   void Lbu(Register rd, const MemOperand& rs);
