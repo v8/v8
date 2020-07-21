@@ -640,7 +640,7 @@ class LiftoffCompiler {
 
   void GenerateOutOfLineCode(OutOfLineCode* ool) {
     DEBUG_CODE_COMMENT(
-        (std::string("Out of line: ") + GetRuntimeStubName(ool->stub)).c_str());
+        (std::string("out of line: ") + GetRuntimeStubName(ool->stub)).c_str());
     __ bind(ool->label.get());
     const bool is_stack_check = ool->stub == WasmCode::kWasmStackGuard;
     const bool is_mem_out_of_bounds =
@@ -2066,7 +2066,7 @@ class LiftoffCompiler {
     if (!FLAG_untrusted_code_mitigations || env_->use_trap_handler) {
       return index;
     }
-    DEBUG_CODE_COMMENT("Mask memory index");
+    DEBUG_CODE_COMMENT("mask memory index");
     // Make sure that we can overwrite {index}.
     if (__ cache_state()->is_used(LiftoffRegister(index))) {
       Register old_index = index;
@@ -2096,7 +2096,7 @@ class LiftoffCompiler {
     }
     uint32_t offset = imm.offset;
     index = AddMemoryMasking(index, &offset, &pinned);
-    DEBUG_CODE_COMMENT("Load from memory");
+    DEBUG_CODE_COMMENT("load from memory");
     Register addr = pinned.set(__ GetUnusedRegister(kGpReg, pinned)).gp();
     LOAD_INSTANCE_FIELD(addr, MemoryStart, kSystemPointerSize);
     RegClass rc = reg_class_for(value_type);
@@ -2140,7 +2140,7 @@ class LiftoffCompiler {
 
     uint32_t offset = imm.offset;
     index = AddMemoryMasking(index, &offset, &pinned);
-    DEBUG_CODE_COMMENT("LoadTransform from memory");
+    DEBUG_CODE_COMMENT("load with transformation");
     Register addr = __ GetUnusedRegister(kGpReg, pinned).gp();
     LOAD_INSTANCE_FIELD(addr, MemoryStart, kSystemPointerSize);
     LiftoffRegister value = __ GetUnusedRegister(reg_class_for(kS128), {});
@@ -2180,7 +2180,7 @@ class LiftoffCompiler {
     }
     uint32_t offset = imm.offset;
     index = AddMemoryMasking(index, &offset, &pinned);
-    DEBUG_CODE_COMMENT("Store to memory");
+    DEBUG_CODE_COMMENT("store to memory");
     Register addr = pinned.set(__ GetUnusedRegister(kGpReg, pinned)).gp();
     LOAD_INSTANCE_FIELD(addr, MemoryStart, kSystemPointerSize);
     uint32_t protected_store_pc = 0;
@@ -2355,7 +2355,7 @@ class LiftoffCompiler {
 
     // Mask the index to prevent SSCA.
     if (FLAG_untrusted_code_mitigations) {
-      DEBUG_CODE_COMMENT("Mask indirect call index");
+      DEBUG_CODE_COMMENT("mask indirect call index");
       // mask = ((index - size) & ~index) >> 31
       // Reuse allocated registers; note: size is still stored in {tmp_const}.
       Register diff = table;
@@ -2375,7 +2375,7 @@ class LiftoffCompiler {
       __ emit_i32_and(index, index, mask);
     }
 
-    DEBUG_CODE_COMMENT("Check indirect call signature");
+    DEBUG_CODE_COMMENT("check indirect call signature");
     // Load the signature from {instance->ift_sig_ids[key]}
     LOAD_INSTANCE_FIELD(table, IndirectFunctionTableSigIds, kSystemPointerSize);
     // Shift {index} by 2 (multiply by 4) to represent kInt32Size items.
@@ -2393,7 +2393,7 @@ class LiftoffCompiler {
                       LiftoffAssembler::kWasmIntPtr, scratch, tmp_const);
 
     // At this point {index} has already been multiplied by 4.
-    DEBUG_CODE_COMMENT("Execute indirect call");
+    DEBUG_CODE_COMMENT("execute indirect call");
     if (kTaggedSize != kInt32Size) {
       DCHECK_EQ(kTaggedSize, kInt32Size * 2);
       // Multiply {index} by another 2 to represent kTaggedSize items.
@@ -3004,7 +3004,7 @@ class LiftoffCompiler {
     AlignmentCheckMem(decoder, type.size(), imm.offset, index, pinned);
     uint32_t offset = imm.offset;
     index = AddMemoryMasking(index, &offset, &pinned);
-    DEBUG_CODE_COMMENT("Atomic store to memory");
+    DEBUG_CODE_COMMENT("atomic store to memory");
     Register addr = pinned.set(__ GetUnusedRegister(kGpReg, pinned)).gp();
     LOAD_INSTANCE_FIELD(addr, MemoryStart, kSystemPointerSize);
     LiftoffRegList outer_pinned;
@@ -3028,7 +3028,7 @@ class LiftoffCompiler {
     AlignmentCheckMem(decoder, type.size(), imm.offset, index, pinned);
     uint32_t offset = imm.offset;
     index = AddMemoryMasking(index, &offset, &pinned);
-    DEBUG_CODE_COMMENT("Atomic load from memory");
+    DEBUG_CODE_COMMENT("atomic load from memory");
     Register addr = pinned.set(__ GetUnusedRegister(kGpReg, pinned)).gp();
     LOAD_INSTANCE_FIELD(addr, MemoryStart, kSystemPointerSize);
     RegClass rc = reg_class_for(value_type);
