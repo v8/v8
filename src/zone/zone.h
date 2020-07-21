@@ -10,6 +10,7 @@
 #include "src/base/logging.h"
 #include "src/common/globals.h"
 #include "src/zone/accounting-allocator.h"
+#include "src/zone/type-stats.h"
 #include "src/zone/zone-segment.h"
 
 #ifndef ZONE_NAME
@@ -42,13 +43,21 @@ class V8_EXPORT_PRIVATE Zone final {
   // Allocate 'size' bytes of uninitialized memory in the Zone; expands the Zone
   // by allocating new segments of memory on demand using AccountingAllocator
   // (see AccountingAllocator::AllocateSegment()).
-  // TODO(v8:10689): account allocated bytes with the provided TypeTag type.
+  //
+  // When V8_ENABLE_PRECISE_ZONE_STATS is defined, the allocated bytes are
+  // associated with the provided TypeTag type.
   template <typename TypeTag>
   void* Allocate(size_t size) {
 #ifdef V8_USE_ADDRESS_SANITIZER
     return AsanNew(size);
 #else
     size = RoundUp(size, kAlignmentInBytes);
+#ifdef V8_ENABLE_PRECISE_ZONE_STATS
+    if (V8_UNLIKELY(TracingFlags::is_zone_stats_enabled())) {
+      type_stats_.AddAllocated<TypeTag>(size);
+    }
+    allocation_size_for_tracing_ += size;
+#endif
     Address result = position_;
     if (V8_UNLIKELY(size > limit_ - position_)) {
       result = NewExpand(size);
@@ -59,13 +68,24 @@ class V8_EXPORT_PRIVATE Zone final {
 #endif
   }
 
+  // Return 'size' bytes of memory back to Zone. These bytes can be reused
+  // for following allocations.
+  //
+  // When V8_ENABLE_PRECISE_ZONE_STATS is defined, the deallocated bytes are
+  // associated with the provided TypeTag type.
   template <typename TypeTag = void>
   void Delete(void* pointer, size_t size) {
     DCHECK_NOT_NULL(pointer);
     DCHECK_NE(size, 0);
     // TODO(v8:10572): implement accounting for reusable zone memory
-#ifdef DEBUG
     size = RoundUp(size, kAlignmentInBytes);
+#ifdef V8_ENABLE_PRECISE_ZONE_STATS
+    if (V8_UNLIKELY(TracingFlags::is_zone_stats_enabled())) {
+      type_stats_.AddDeallocated<TypeTag>(size);
+    }
+#endif
+
+#ifdef DEBUG
     static const unsigned char kZapDeadByte = 0xcd;
     memset(pointer, kZapDeadByte, size);
 #endif
@@ -73,7 +93,9 @@ class V8_EXPORT_PRIVATE Zone final {
 
   // Allocates memory for T instance and constructs object by calling respective
   // Args... constructor.
-  // TODO(v8:10689): account allocated bytes with the T type.
+  //
+  // When V8_ENABLE_PRECISE_ZONE_STATS is defined, the allocated bytes are
+  // associated with the T type.
   template <typename T, typename... Args>
   T* New(Args&&... args) {
     size_t size = RoundUp(sizeof(T), kAlignmentInBytes);
@@ -82,15 +104,22 @@ class V8_EXPORT_PRIVATE Zone final {
   }
 
   // Allocates uninitialized memory for 'length' number of T instances.
-  // TODO(v8:10689): account allocated bytes with the provided TypeTag type.
-  // It might be useful to tag buffer allocations with meaningful names to make
-  // buffer allocation sites distinguishable between each other.
+  //
+  // When V8_ENABLE_PRECISE_ZONE_STATS is defined, the allocated bytes are
+  // associated with the provided TypeTag type. It might be useful to tag
+  // buffer allocations with meaningful names to make buffer allocation sites
+  // distinguishable between each other.
   template <typename T, typename TypeTag = T[]>
   T* NewArray(size_t length) {
     DCHECK_LT(length, std::numeric_limits<size_t>::max() / sizeof(T));
     return static_cast<T*>(Allocate<TypeTag>(length * sizeof(T)));
   }
 
+  // Return array of 'length' elements back to Zone. These bytes can be reused
+  // for following allocations.
+  //
+  // When V8_ENABLE_PRECISE_ZONE_STATS is defined, the deallocated bytes are
+  // associated with the provided TypeTag type.
   template <typename T, typename TypeTag = T[]>
   void DeleteArray(T* pointer, size_t length) {
     Delete<TypeTag>(pointer, length * sizeof(T));
@@ -120,11 +149,22 @@ class V8_EXPORT_PRIVATE Zone final {
     return allocation_size_ + extra;
   }
 
-  // Returns used zone memory not including the head segment, can be called
-  // from threads not owning the zone.
-  size_t allocation_size_for_tracing() const { return allocation_size_; }
+  // When V8_ENABLE_PRECISE_ZONE_STATS is not enabled, returns used zone memory
+  // not including the head segment.
+  // Can be called from threads not owning the zone.
+  size_t allocation_size_for_tracing() const {
+#ifdef V8_ENABLE_PRECISE_ZONE_STATS
+    return allocation_size_for_tracing_;
+#else
+    return allocation_size_;
+#endif
+  }
 
   AccountingAllocator* allocator() const { return allocator_; }
+
+#ifdef V8_ENABLE_PRECISE_ZONE_STATS
+  const TypeStats& type_stats() const { return type_stats_; }
+#endif
 
  private:
   void* AsanNew(size_t size);
@@ -145,12 +185,12 @@ class V8_EXPORT_PRIVATE Zone final {
   static const size_t kExcessLimit = 256 * MB;
 
   // The number of bytes allocated in this zone so far.
-  size_t allocation_size_;
+  size_t allocation_size_ = 0;
 
   // The number of bytes allocated in segments.  Note that this number
   // includes memory allocated from the OS but not yet allocated from
   // the zone.
-  size_t segment_bytes_allocated_;
+  size_t segment_bytes_allocated_ = 0;
 
   // Expand the Zone to hold at least 'size' more bytes and allocate
   // the bytes. Returns the address of the newly allocated chunk of
@@ -161,14 +201,19 @@ class V8_EXPORT_PRIVATE Zone final {
   // The free region in the current (front) segment is represented as
   // the half-open interval [position, limit). The 'position' variable
   // is guaranteed to be aligned as dictated by kAlignment.
-  Address position_;
-  Address limit_;
+  Address position_ = 0;
+  Address limit_ = 0;
 
   AccountingAllocator* allocator_;
 
-  Segment* segment_head_;
+  Segment* segment_head_ = nullptr;
   const char* name_;
-  bool sealed_;
+  bool sealed_ = false;
+
+#ifdef V8_ENABLE_PRECISE_ZONE_STATS
+  TypeStats type_stats_;
+  size_t allocation_size_for_tracing_ = 0;
+#endif
 };
 
 // ZoneObject is an abstraction that helps define classes of objects

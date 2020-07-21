@@ -253,6 +253,10 @@ declare_args() {
   # Experimental support for native context independent code.
   # https://crbug.com/v8/8888
   v8_enable_nci_code = false
+
+  # Experimental feature for collecting per-class zone memory stats.
+  # Requires use_rtti = true
+  v8_enable_precise_zone_stats = false
 }
 
 # Derived defaults.
@@ -603,6 +607,9 @@ config("features") {
   }
   if (v8_enable_nci_code) {
     defines += [ "V8_ENABLE_NCI_CODE" ]
+  }
+  if (v8_enable_precise_zone_stats) {
+    defines += [ "V8_ENABLE_PRECISE_ZONE_STATS" ]
   }
   if (v8_fuzzilli) {
     defines += [ "V8_FUZZILLI" ]
@@ -3253,6 +3260,8 @@ v8_source_set("v8_base_without_compiler") {
     "src/wasm/wasm-value.h",
     "src/zone/accounting-allocator.cc",
     "src/zone/accounting-allocator.h",
+    "src/zone/type-stats.cc",
+    "src/zone/type-stats.h",
     "src/zone/zone-allocator.h",
     "src/zone/zone-chunk-list.h",
     "src/zone/zone-containers.h",

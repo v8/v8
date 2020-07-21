@@ -993,6 +993,11 @@ DEFINE_GENERIC_IMPLICATION(
 DEFINE_SIZE_T(
     zone_stats_tolerance, 1 * MB,
     "report a tick only when allocated zone memory changes by this amount")
+DEFINE_BOOL(trace_zone_type_stats, false, "trace per-type zone memory usage")
+DEFINE_GENERIC_IMPLICATION(
+    trace_zone_type_stats,
+    TracingFlags::zone_stats.store(
+        v8::tracing::TracingCategoryObserver::ENABLED_BY_NATIVE))
 DEFINE_BOOL(track_retaining_path, false,
             "enable support for tracking retaining path")
 DEFINE_DEBUG_BOOL(trace_backing_store, false, "trace backing store events")

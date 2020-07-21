@@ -89,6 +89,7 @@
 #include "src/wasm/wasm-engine.h"
 #include "src/wasm/wasm-objects.h"
 #include "src/zone/accounting-allocator.h"
+#include "src/zone/type-stats.h"
 #ifdef V8_INTL_SUPPORT
 #include "unicode/uobject.h"
 #endif  // V8_INTL_SUPPORT
@@ -2669,6 +2670,7 @@ void Isolate::ThreadDataTable::RemoveAllThreads() {
 class TracingAccountingAllocator : public AccountingAllocator {
  public:
   explicit TracingAccountingAllocator(Isolate* isolate) : isolate_(isolate) {}
+  ~TracingAccountingAllocator() = default;
 
  protected:
   void TraceAllocateSegmentImpl(v8::internal::Segment* segment) override {
@@ -2684,13 +2686,32 @@ class TracingAccountingAllocator : public AccountingAllocator {
 
   void TraceZoneDestructionImpl(const Zone* zone) override {
     base::MutexGuard lock(&mutex_);
+#ifdef V8_ENABLE_PRECISE_ZONE_STATS
+    if (FLAG_trace_zone_type_stats) {
+      type_stats_.MergeWith(zone->type_stats());
+    }
+#endif
     UpdateMemoryTrafficAndReportMemoryUsage(zone->segment_bytes_allocated());
     active_zones_.erase(zone);
     nesting_depth_--;
+
+#ifdef V8_ENABLE_PRECISE_ZONE_STATS
+    if (FLAG_trace_zone_type_stats && active_zones_.empty()) {
+      type_stats_.Dump();
+    }
+#endif
   }
 
  private:
   void UpdateMemoryTrafficAndReportMemoryUsage(size_t memory_traffic_delta) {
+    if (!FLAG_trace_zone_stats &&
+        !(TracingFlags::zone_stats.load(std::memory_order_relaxed) &
+          v8::tracing::TracingCategoryObserver::ENABLED_BY_TRACING)) {
+      // Don't print anything if the zone tracing was enabled only because of
+      // FLAG_trace_zone_type_stats.
+      return;
+    }
+
     memory_traffic_since_last_report_ += memory_traffic_delta;
     if (memory_traffic_since_last_report_ < FLAG_zone_stats_tolerance) return;
     memory_traffic_since_last_report_ = 0;
@@ -2767,6 +2788,9 @@ class TracingAccountingAllocator : public AccountingAllocator {
 
   base::Mutex mutex_;
   std::unordered_set<const Zone*> active_zones_;
+#ifdef V8_ENABLE_PRECISE_ZONE_STATS
+  TypeStats type_stats_;
+#endif
   std::ostringstream buffer_;
   // This value is increased on both allocations and deallocations.
   size_t memory_traffic_since_last_report_ = 0;
