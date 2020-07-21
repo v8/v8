@@ -30,17 +30,7 @@ Contributing developers are also welcome to [join our Slack group](https://forms
 * [Use `clang-format`](https://clang.llvm.org/docs/ClangFormat.html) to ensure that your changes follow the Google style
 * Run the testsuite locally to ensure your changes do not cause any new failures:
   ```bash
-  tools/run-tests.py --outdir=out/riscv64.sim cctest \
-                                              unittests \
-                                              wasm-api-tests \
-                                              wasm-js \
-                                              wasm-spec-tests \
-                                              mjsunit \
-                                              intl \
-                                              message \
-                                              debugger \
-                                              inspector \
-                                              mkgrokdump
+  ./v8-riscv-tools/test-riscv.sh
   ```
 * Push your branch to a personal fork of the repository
 * [Submit a pull request](https://github.com/v8-riscv/v8/compare) to v8-riscv
