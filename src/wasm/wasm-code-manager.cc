@@ -799,6 +799,8 @@ NativeModule::NativeModule(WasmEngine* engine, const WasmFeatures& enabled,
   if (module_->num_declared_functions > 0) {
     code_table_ =
         std::make_unique<WasmCode*[]>(module_->num_declared_functions);
+    num_liftoff_function_calls_ =
+        std::make_unique<uint32_t[]>(module_->num_declared_functions);
   }
   code_allocator_.Init(this);
 }

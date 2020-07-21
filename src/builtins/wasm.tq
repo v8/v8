@@ -18,6 +18,7 @@ extern runtime WasmFunctionTableSet(
 extern runtime ThrowWasmError(Context, Smi): JSAny;
 extern runtime Throw(Context, Object): JSAny;
 extern runtime ReThrow(Context, Object): JSAny;
+extern runtime WasmTriggerTierUp(Context, WasmInstanceObject): JSAny;
 extern runtime WasmStackGuard(Context): JSAny;
 extern runtime ThrowWasmStackOverflow(Context): JSAny;
 extern runtime WasmTraceMemory(Context, Smi): JSAny;
@@ -198,6 +199,11 @@ builtin WasmThrow(exception: Object): JSAny {
 builtin WasmRethrow(exception: Object): JSAny {
   if (exception == Null) tail ThrowWasmTrapRethrowNull();
   tail runtime::ReThrow(LoadContextFromFrame(), exception);
+}
+
+builtin WasmTriggerTierUp(): JSAny {
+  const instance: WasmInstanceObject = LoadInstanceFromFrame();
+  tail runtime::WasmTriggerTierUp(LoadContextFromFrame(), instance);
 }
 
 builtin WasmStackGuard(): JSAny {

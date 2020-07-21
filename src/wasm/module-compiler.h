@@ -65,6 +65,8 @@ WasmCode* CompileImportWrapper(
 // also lazy.
 bool CompileLazy(Isolate*, NativeModule*, int func_index);
 
+void TriggerTierUp(Isolate*, NativeModule*, int func_index);
+
 int GetMaxBackgroundTasks();
 
 template <typename Key, typename Hash>

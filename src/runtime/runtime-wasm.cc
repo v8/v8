@@ -208,6 +208,20 @@ RUNTIME_FUNCTION(Runtime_WasmCompileLazy) {
   return Object(entrypoint);
 }
 
+RUNTIME_FUNCTION(Runtime_WasmTriggerTierUp) {
+  HandleScope scope(isolate);
+  DCHECK_EQ(1, args.length());
+  CONVERT_ARG_HANDLE_CHECKED(WasmInstanceObject, instance, 0);
+
+  FrameFinder<WasmFrame, StackFrame::EXIT> frame_finder(isolate);
+  int func_index = frame_finder.frame()->function_index();
+  auto* native_module = instance->module_object().native_module();
+
+  wasm::TriggerTierUp(isolate, native_module, func_index);
+
+  return ReadOnlyRoots(isolate).undefined_value();
+}
+
 // Should be called from within a handle scope
 Handle<JSArrayBuffer> GetArrayBuffer(Handle<WasmInstanceObject> instance,
                                      Isolate* isolate, uint32_t address) {

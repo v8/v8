@@ -733,6 +733,8 @@ DEFINE_UINT(wasm_max_code_space, v8::internal::kMaxWasmCodeMB,
 DEFINE_BOOL(wasm_tier_up, true,
             "enable tier up to the optimizing compiler (requires --liftoff to "
             "have an effect)")
+DEFINE_BOOL(wasm_dynamic_tiering, false,
+            "enable dynamic tier up to the optimizing compiler")
 DEFINE_DEBUG_BOOL(trace_wasm_decoder, false, "trace decoding of wasm code")
 DEFINE_DEBUG_BOOL(trace_wasm_compiler, false, "trace compiling of wasm code")
 DEFINE_DEBUG_BOOL(trace_wasm_interpreter, false,

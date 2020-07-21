@@ -847,6 +847,11 @@
   # multiple isolates (https://crbug.com/v8/10099).
   'wasm/tier-down-to-liftoff': [SKIP],
 
+  # Tier down/up Wasm functions is non-deterministic with
+  # multiple isolates, as dynamic tiering relies on a array shared
+  # in the module, that can be modified by all instances.
+  'wasm/wasm-dynamic-tiering': [SKIP],
+
   # waitAsync tests modify the global state (across Isolates)
   'harmony/atomics-waitasync': [SKIP],
   'harmony/atomics-waitasync-1thread-2timeout': [SKIP],

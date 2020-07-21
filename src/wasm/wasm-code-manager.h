@@ -49,6 +49,7 @@ struct WasmModule;
 #define WASM_RUNTIME_STUB_LIST(V, VTRAP) \
   FOREACH_WASM_TRAPREASON(VTRAP)         \
   V(WasmCompileLazy)                     \
+  V(WasmTriggerTierUp)                   \
   V(WasmDebugBreak)                      \
   V(WasmInt32ToHeapNumber)               \
   V(WasmTaggedNonSmiToInt32)             \
@@ -641,6 +642,10 @@ class V8_EXPORT_PRIVATE NativeModule final {
   // Get or create the debug info for this NativeModule.
   DebugInfo* GetDebugInfo();
 
+  uint32_t* num_liftoff_function_calls_array() {
+    return num_liftoff_function_calls_.get();
+  }
+
  private:
   friend class WasmCode;
   friend class WasmCodeAllocator;
@@ -724,6 +729,9 @@ class V8_EXPORT_PRIVATE NativeModule final {
 
   // A cache of the import wrappers, keyed on the kind and signature.
   std::unique_ptr<WasmImportWrapperCache> import_wrapper_cache_;
+
+  // Array to handle number of function calls.
+  std::unique_ptr<uint32_t[]> num_liftoff_function_calls_;
 
   // This mutex protects concurrent calls to {AddCode} and friends.
   mutable base::Mutex allocation_mutex_;

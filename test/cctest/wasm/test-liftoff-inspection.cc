@@ -83,7 +83,7 @@ class LiftoffCompileEnvironment {
     if (breakpoints.empty()) {
       std::unique_ptr<DebugSideTable> debug_side_table =
           GenerateLiftoffDebugSideTable(CcTest::i_isolate()->allocator(), &env,
-                                        test_func.body);
+                                        test_func.body, 0);
       CheckTableEquals(*debug_side_table, *debug_side_table_via_compilation);
     }
 

@@ -697,7 +697,8 @@ class DebugInfoImpl {
     FunctionBody func_body{function->sig, 0, function_bytes.begin(),
                            function_bytes.end()};
     std::unique_ptr<DebugSideTable> debug_side_table =
-        GenerateLiftoffDebugSideTable(allocator, &env, func_body);
+        GenerateLiftoffDebugSideTable(allocator, &env, func_body,
+                                      code->index());
     DebugSideTable* ret = debug_side_table.get();
 
     // Check cache again, maybe another thread concurrently generated a debug

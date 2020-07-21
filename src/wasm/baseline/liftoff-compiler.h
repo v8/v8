@@ -60,7 +60,7 @@ V8_EXPORT_PRIVATE WasmCompilationResult ExecuteLiftoffCompilation(
     Vector<int> extra_source_pos = {});
 
 V8_EXPORT_PRIVATE std::unique_ptr<DebugSideTable> GenerateLiftoffDebugSideTable(
-    AccountingAllocator*, CompilationEnv*, const FunctionBody&);
+    AccountingAllocator*, CompilationEnv*, const FunctionBody&, int func_index);
 
 }  // namespace wasm
 }  // namespace internal
