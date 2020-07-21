@@ -275,6 +275,13 @@ std::unique_ptr<BackingStore> BackingStore::Allocate(
   return std::unique_ptr<BackingStore>(result);
 }
 
+// Trying to allocate 4 GiB on a 32-bit platform is guaranteed to fail.
+// We don't lower the official max_maximum_mem_pages() limit because that
+// would be observable upon instantiation; this way the effective limit
+// on 32-bit platforms is defined by the allocator.
+constexpr size_t kPlatformMaxPages =
+    std::numeric_limits<size_t>::max() / wasm::kWasmPageSize;
+
 void BackingStore::SetAllocatorFromIsolate(Isolate* isolate) {
   if (auto allocator_shared = isolate->array_buffer_allocator_shared()) {
     holds_shared_ptr_to_allocator_ = true;
@@ -320,6 +327,9 @@ std::unique_ptr<BackingStore> BackingStore::TryAllocateWasmMemory(
 
   size_t engine_max_pages = wasm::max_maximum_mem_pages();
   maximum_pages = std::min(engine_max_pages, maximum_pages);
+  // If the platform doesn't support so many pages, attempting to allocate
+  // is guaranteed to fail, so we don't even try.
+  if (maximum_pages > kPlatformMaxPages) return {};
   CHECK_LE(maximum_pages,
            std::numeric_limits<size_t>::max() / wasm::kWasmPageSize);
   size_t byte_capacity = maximum_pages * wasm::kWasmPageSize;
@@ -417,14 +427,7 @@ std::unique_ptr<BackingStore> BackingStore::AllocateWasmMemory(
 
   // Enforce engine limitation on the maximum number of pages.
   if (initial_pages > wasm::kV8MaxWasmMemoryPages) return nullptr;
-
-  // Trying to allocate 4 GiB on a 32-bit platform is guaranteed to fail.
-  // We don't lower the official max_maximum_mem_pages() limit because that
-  // would be observable upon instantiation; this way the effective limit
-  // on 32-bit platforms is defined by the allocator.
-  constexpr size_t kPlatformMax =
-      std::numeric_limits<size_t>::max() / wasm::kWasmPageSize;
-  if (initial_pages > kPlatformMax) return nullptr;
+  if (initial_pages > kPlatformMaxPages) return nullptr;
 
   auto backing_store =
       TryAllocateWasmMemory(isolate, initial_pages, maximum_pages, shared);
