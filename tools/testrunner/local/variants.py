@@ -15,6 +15,7 @@ ALL_VARIANT_FLAGS = {
   "jitless": [["--jitless"]],
   "minor_mc": [["--minor-mc"]],
   "nci": [["--turbo-nci"]],
+  "nci_as_highest_tier": [["--turbo-nci-as-highest-tier"]],
   "no_lfa": [["--no-lazy-feedback-allocation"]],
   # No optimization means disable all optimizations. OptimizeFunctionOnNextCall
   # would not force optimization too. It turns into a Nop. Please see

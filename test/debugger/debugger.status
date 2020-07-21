@@ -136,10 +136,10 @@
 }], # lite_mode or variant == jitless
 
 ##############################################################################
-['variant == turboprop or variant == nci', {
+['variant == turboprop or variant == nci or variant == nci_as_highest_tier', {
   # Deopts differently than TurboFan.
   'debug/debug-optimize': [SKIP],
-}],  # variant == turboprop
+}],  # variant == turboprop or variant == nci or variant == nci_as_highest_tier
 
 ##############################################################################
 # Liftoff needs to be enabled before running these tests.

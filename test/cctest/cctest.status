@@ -636,7 +636,7 @@
 }],
 
 ################################################################################
-['variant == nci', {
+['variant == nci or variant == nci_as_highest_tier', {
   # Optimizes and deopts differently than TurboFan.
   'test-api/FastApiCalls': [SKIP],
   'test-cpu-profiler/Deopt*': [SKIP],
@@ -650,6 +650,6 @@
   'test-heap/OptimizedPretenuring*': [SKIP],
   'test-heap-profiler/SamplingHeapProfilerPretenuredInlineAllocations': [SKIP],
   'test-log/LogAll': [SKIP],
-}],  # variant == nci
+}],  # variant == nci or variant == nci_as_highest_tier
 
 ]

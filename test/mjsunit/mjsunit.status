@@ -1298,7 +1298,7 @@
 }],  # variant == slow_path
 
 ################################################################################
-['variant == nci', {
+['variant == nci or variant == nci_as_highest_tier', {
   # Deopts differently than TurboFan.
   'compiler/is-being-interpreted*': [SKIP],
   'compiler/number-comparison-truncations': [SKIP],
@@ -1423,5 +1423,6 @@
   'compiler/serializer-feedback-propagation-1': [SKIP],
   'compiler/serializer-feedback-propagation-2': [SKIP],
   'compiler/serializer-transition-propagation': [SKIP],
-}],  # variant == nci
+}],  # variant == nci or variant == nci_as_highest_tier
+
 ]
