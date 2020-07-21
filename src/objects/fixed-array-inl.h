@@ -123,6 +123,23 @@ void FixedArray::NoWriteBarrierSet(FixedArray array, int index, Object value) {
   RELAXED_WRITE_FIELD(array, offset, value);
 }
 
+Object FixedArray::synchronized_get(int index) const {
+  const Isolate* isolate = GetIsolateForPtrCompr(*this);
+  return synchronized_get(isolate, index);
+}
+
+Object FixedArray::synchronized_get(const Isolate* isolate, int index) const {
+  DCHECK_LT(static_cast<unsigned>(index), static_cast<unsigned>(length()));
+  return ACQUIRE_READ_FIELD(*this, OffsetOfElementAt(index));
+}
+
+void FixedArray::synchronized_set(int index, Smi value) {
+  DCHECK_NE(map(), GetReadOnlyRoots().fixed_cow_array_map());
+  DCHECK_LT(static_cast<unsigned>(index), static_cast<unsigned>(length()));
+  DCHECK(Object(value).IsSmi());
+  RELEASE_WRITE_FIELD(*this, OffsetOfElementAt(index), value);
+}
+
 void FixedArray::set_undefined(int index) {
   set_undefined(GetReadOnlyRoots(), index);
 }

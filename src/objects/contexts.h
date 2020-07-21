@@ -352,8 +352,8 @@ class ScriptContextTable : public FixedArray {
     MaybeAssignedFlag maybe_assigned_flag;
   };
 
-  inline int used() const;
-  inline void set_used(int used);
+  inline int synchronized_used() const;
+  inline void synchronized_set_used(int used);
 
   static inline Handle<Context> GetContext(Isolate* isolate,
                                            Handle<ScriptContextTable> table,
@@ -370,8 +370,8 @@ class ScriptContextTable : public FixedArray {
                                        LookupResult* result);
 
   V8_WARN_UNUSED_RESULT
-  static Handle<ScriptContextTable> Extend(Handle<ScriptContextTable> table,
-                                           Handle<Context> script_context);
+  V8_EXPORT_PRIVATE static Handle<ScriptContextTable> Extend(
+      Handle<ScriptContextTable> table, Handle<Context> script_context);
 
   static const int kUsedSlotIndex = 0;
   static const int kFirstContextSlotIndex = 1;

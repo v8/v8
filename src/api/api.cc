@@ -10128,7 +10128,7 @@ void debug::GlobalLexicalScopeNames(
   i::Handle<i::ScriptContextTable> table(
       context->global_object().native_context().script_context_table(),
       isolate);
-  for (int i = 0; i < table->used(); i++) {
+  for (int i = 0; i < table->synchronized_used(); i++) {
     i::Handle<i::Context> context =
         i::ScriptContextTable::GetContext(isolate, table, i);
     DCHECK(context->IsScriptContext());

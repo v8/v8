@@ -111,6 +111,13 @@ class FixedArray
       Isolate* isolate, Handle<FixedArray> array, int index,
       Handle<Object> value);
 
+  // Synchronized setters and getters.
+  inline Object synchronized_get(int index) const;
+  inline Object synchronized_get(const Isolate* isolate, int index) const;
+  // Currently only Smis are written with release semantics, hence we can avoid
+  // a write barrier.
+  inline void synchronized_set(int index, Smi value);
+
   // Setter that uses write barrier.
   inline void set(int index, Object value);
   inline bool is_the_hole(Isolate* isolate, int index);

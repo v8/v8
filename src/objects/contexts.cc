@@ -16,7 +16,7 @@ namespace internal {
 Handle<ScriptContextTable> ScriptContextTable::Extend(
     Handle<ScriptContextTable> table, Handle<Context> script_context) {
   Handle<ScriptContextTable> result;
-  int used = table->used();
+  int used = table->synchronized_used();
   int length = table->length();
   CHECK(used >= 0 && length > 0 && used < length);
   if (used + kFirstContextSlotIndex == length) {
@@ -29,10 +29,10 @@ Handle<ScriptContextTable> ScriptContextTable::Extend(
   } else {
     result = table;
   }
-  result->set_used(used + 1);
-
   DCHECK(script_context->IsScriptContext());
   result->set(used + kFirstContextSlotIndex, *script_context);
+
+  result->synchronized_set_used(used + 1);
   return result;
 }
 
@@ -51,7 +51,7 @@ bool ScriptContextTable::Lookup(Isolate* isolate, ScriptContextTable table,
   DisallowHeapAllocation no_gc;
   // Static variables cannot be in script contexts.
   IsStaticFlag is_static_flag;
-  for (int i = 0; i < table.used(); i++) {
+  for (int i = 0; i < table.synchronized_used(); i++) {
     Context context = table.get_context(i);
     DCHECK(context.IsScriptContext());
     int slot_index = ScopeInfo::ContextSlotIndex(

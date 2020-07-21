@@ -27,10 +27,12 @@ namespace internal {
 OBJECT_CONSTRUCTORS_IMPL(ScriptContextTable, FixedArray)
 CAST_ACCESSOR(ScriptContextTable)
 
-int ScriptContextTable::used() const { return Smi::ToInt(get(kUsedSlotIndex)); }
+int ScriptContextTable::synchronized_used() const {
+  return Smi::ToInt(synchronized_get(kUsedSlotIndex));
+}
 
-void ScriptContextTable::set_used(int used) {
-  set(kUsedSlotIndex, Smi::FromInt(used));
+void ScriptContextTable::synchronized_set_used(int used) {
+  synchronized_set(kUsedSlotIndex, Smi::FromInt(used));
 }
 
 // static
@@ -41,7 +43,7 @@ Handle<Context> ScriptContextTable::GetContext(Isolate* isolate,
 }
 
 Context ScriptContextTable::get_context(int i) const {
-  DCHECK_LT(i, used());
+  DCHECK_LT(i, synchronized_used());
   return Context::cast(this->get(i + kFirstContextSlotIndex));
 }
 
