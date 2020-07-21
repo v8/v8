@@ -1883,8 +1883,8 @@ void ArrayBuiltinsAssembler::GenerateConstructor(
 void ArrayBuiltinsAssembler::GenerateArrayNoArgumentConstructor(
     ElementsKind kind, AllocationSiteOverrideMode mode) {
   using Descriptor = ArrayNoArgumentConstructorDescriptor;
-  TNode<NativeContext> native_context = CAST(LoadObjectField(
-      Parameter(Descriptor::kFunction), JSFunction::kContextOffset));
+  TNode<NativeContext> native_context = LoadObjectField<NativeContext>(
+      CAST(Parameter(Descriptor::kFunction)), JSFunction::kContextOffset);
   bool track_allocation_site =
       AllocationSite::ShouldTrack(kind) && mode != DISABLE_ALLOCATION_SITES;
   base::Optional<TNode<AllocationSite>> allocation_site =

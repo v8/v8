@@ -390,7 +390,6 @@ class V8_EXPORT_PRIVATE CodeAssembler {
 
   // Shortened aliases for use in CodeAssembler subclasses.
   using Label = CodeAssemblerLabel;
-  using Variable = CodeAssemblerVariable;
   template <class T>
   using TVariable = TypedCodeAssemblerVariable<T>;
   using VariableList = CodeAssemblerVariableList;

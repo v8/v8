@@ -1383,14 +1383,14 @@ TNode<Object> CodeStubAssembler::LoadFromParentFrame(int offset) {
   return LoadFullTagged(frame_pointer, IntPtrConstant(offset));
 }
 
-Node* CodeStubAssembler::LoadObjectField(SloppyTNode<HeapObject> object,
-                                         int offset, MachineType type) {
+Node* CodeStubAssembler::LoadObjectField(TNode<HeapObject> object, int offset,
+                                         MachineType type) {
   CSA_ASSERT(this, IsStrong(object));
   return LoadFromObject(type, object, IntPtrConstant(offset - kHeapObjectTag));
 }
 
-Node* CodeStubAssembler::LoadObjectField(SloppyTNode<HeapObject> object,
-                                         SloppyTNode<IntPtrT> offset,
+Node* CodeStubAssembler::LoadObjectField(TNode<HeapObject> object,
+                                         TNode<IntPtrT> offset,
                                          MachineType type) {
   CSA_ASSERT(this, IsStrong(object));
   return LoadFromObject(type, object,

@@ -1074,12 +1074,12 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
     return UncheckedCast<T>(
         LoadObjectField(object, offset, MachineTypeOf<T>::value));
   }
-  TNode<Object> LoadObjectField(SloppyTNode<HeapObject> object, int offset) {
+  TNode<Object> LoadObjectField(TNode<HeapObject> object, int offset) {
     return UncheckedCast<Object>(
         LoadObjectField(object, offset, MachineType::AnyTagged()));
   }
-  TNode<Object> LoadObjectField(SloppyTNode<HeapObject> object,
-                                SloppyTNode<IntPtrT> offset) {
+  TNode<Object> LoadObjectField(TNode<HeapObject> object,
+                                TNode<IntPtrT> offset) {
     return UncheckedCast<Object>(
         LoadObjectField(object, offset, MachineType::AnyTagged()));
   }
@@ -3827,10 +3827,9 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
                                   TVariable<BigInt>* var_maybe_bigint = nullptr,
                                   TVariable<Smi>* var_feedback = nullptr);
 
-  Node* LoadObjectField(SloppyTNode<HeapObject> object, int offset,
+  Node* LoadObjectField(TNode<HeapObject> object, int offset, MachineType type);
+  Node* LoadObjectField(TNode<HeapObject> object, TNode<IntPtrT> offset,
                         MachineType type);
-  Node* LoadObjectField(SloppyTNode<HeapObject> object,
-                        SloppyTNode<IntPtrT> offset, MachineType type);
 
   // Low-level accessors for Descriptor arrays.
   template <typename T>
