@@ -1070,6 +1070,9 @@ DEFINE_INT(stress_scavenge, 0,
            "percent of the new space capacity")
 DEFINE_IMPLICATION(fuzzer_gc_analysis, stress_marking)
 DEFINE_IMPLICATION(fuzzer_gc_analysis, stress_scavenge)
+DEFINE_BOOL(
+    reclaim_unmodified_wrappers, true,
+    "reclaim otherwise unreachable unmodified wrapper objects when possible")
 
 // These flags will be removed after experiments. Do not rely on them.
 DEFINE_BOOL(gc_experiment_background_schedule, false,

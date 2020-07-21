@@ -5018,14 +5018,12 @@ void MinorMarkCompactCollector::MarkLiveObjects() {
 
   {
     TRACE_GC(heap()->tracer(), GCTracer::Scope::MINOR_MC_MARK_GLOBAL_HANDLES);
-    isolate()->global_handles()->MarkYoungWeakUnmodifiedObjectsPending(
+    isolate()->global_handles()->MarkYoungWeakDeadObjectsPending(
         &IsUnmarkedObjectForYoungGeneration);
-    isolate()->global_handles()->IterateYoungWeakUnmodifiedRootsForFinalizers(
+    isolate()->global_handles()->IterateYoungWeakDeadObjectsForFinalizers(
         &root_visitor);
-    isolate()
-        ->global_handles()
-        ->IterateYoungWeakUnmodifiedRootsForPhantomHandles(
-            &root_visitor, &IsUnmarkedObjectForYoungGeneration);
+    isolate()->global_handles()->IterateYoungWeakObjectsForPhantomHandles(
+        &root_visitor, &IsUnmarkedObjectForYoungGeneration);
     DrainMarkingWorklist();
   }
 

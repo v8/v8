@@ -1221,6 +1221,8 @@ void GlobalHandles::IterateWeakRootsIdentifyFinalizers(
 
 void GlobalHandles::IdentifyWeakUnmodifiedObjects(
     WeakSlotCallback is_unmodified) {
+  if (!FLAG_reclaim_unmodified_wrappers) return;
+
   LocalEmbedderHeapTracer* const tracer =
       isolate()->heap()->local_embedder_heap_tracer();
   for (TracedNode* node : traced_young_nodes_) {
@@ -1254,7 +1256,7 @@ void GlobalHandles::IterateYoungStrongAndDependentRoots(RootVisitor* v) {
   }
 }
 
-void GlobalHandles::MarkYoungWeakUnmodifiedObjectsPending(
+void GlobalHandles::MarkYoungWeakDeadObjectsPending(
     WeakSlotCallbackWithHeap is_dead) {
   for (Node* node : young_nodes_) {
     DCHECK(node->is_in_young_list());
@@ -1266,8 +1268,7 @@ void GlobalHandles::MarkYoungWeakUnmodifiedObjectsPending(
   }
 }
 
-void GlobalHandles::IterateYoungWeakUnmodifiedRootsForFinalizers(
-    RootVisitor* v) {
+void GlobalHandles::IterateYoungWeakDeadObjectsForFinalizers(RootVisitor* v) {
   for (Node* node : young_nodes_) {
     DCHECK(node->is_in_young_list());
     if (node->IsWeakRetainer() && (node->state() == Node::PENDING)) {
@@ -1280,7 +1281,7 @@ void GlobalHandles::IterateYoungWeakUnmodifiedRootsForFinalizers(
   }
 }
 
-void GlobalHandles::IterateYoungWeakUnmodifiedRootsForPhantomHandles(
+void GlobalHandles::IterateYoungWeakObjectsForPhantomHandles(
     RootVisitor* v, WeakSlotCallbackWithHeap should_reset_handle) {
   for (Node* node : young_nodes_) {
     DCHECK(node->is_in_young_list());
@@ -1304,6 +1305,8 @@ void GlobalHandles::IterateYoungWeakUnmodifiedRootsForPhantomHandles(
       }
     }
   }
+
+  if (!FLAG_reclaim_unmodified_wrappers) return;
 
   LocalEmbedderHeapTracer* const tracer =
       isolate()->heap()->local_embedder_heap_tracer();
