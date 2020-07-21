@@ -363,7 +363,7 @@ constexpr const char* WasmOpcodes::OpcodeName(WasmOpcode opcode) {
     CASE_OP(StructGetU, "struct.get_u")
     CASE_OP(StructSet, "struct.set")
     CASE_OP(ArrayNew, "array.new")
-    CASE_OP(ArrayNewSub, "array.new_sub")
+    CASE_OP(ArrayNewWithRtt, "array.new_with_rtt")
     CASE_OP(ArrayNewDefault, "array.new_default")
     CASE_OP(ArrayGet, "array.get")
     CASE_OP(ArrayGetS, "array.get_s")

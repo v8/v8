@@ -700,6 +700,14 @@ class WasmGraphBuildingInterface {
                          initial_value.node);
   }
 
+  void ArrayNewWithRtt(FullDecoder* decoder,
+                       const ArrayIndexImmediate<validate>& imm,
+                       const Value& length, const Value& initial_value,
+                       const Value& rtt, Value* result) {
+    result->node = BUILD(ArrayNewWithRtt, imm.index, imm.array_type,
+                         length.node, initial_value.node, rtt.node);
+  }
+
   void ArrayGet(FullDecoder* decoder, const Value& array_obj,
                 const ArrayIndexImmediate<validate>& imm, const Value& index,
                 bool is_signed, Value* result) {

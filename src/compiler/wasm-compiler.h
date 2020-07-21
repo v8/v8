@@ -402,6 +402,8 @@ class WasmGraphBuilder {
                   wasm::WasmCodePosition position);
   Node* ArrayNew(uint32_t array_index, const wasm::ArrayType* type,
                  Node* length, Node* initial_value);
+  Node* ArrayNewWithRtt(uint32_t array_index, const wasm::ArrayType* type,
+                        Node* length, Node* initial_value, Node* rtt);
   void BoundsCheck(Node* array, Node* index, wasm::WasmCodePosition position);
   Node* ArrayGet(Node* array_object, const wasm::ArrayType* type, Node* index,
                  CheckForNull null_check, bool is_signed,

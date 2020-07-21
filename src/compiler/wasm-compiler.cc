@@ -5335,6 +5335,44 @@ Node* WasmGraphBuilder::ArrayNew(uint32_t array_index,
   return a;
 }
 
+Node* WasmGraphBuilder::ArrayNewWithRtt(uint32_t array_index,
+                                        const wasm::ArrayType* type,
+                                        Node* length, Node* initial_value,
+                                        Node* rtt) {
+  wasm::ValueType element_type = type->element_type();
+  Node* a = CALL_BUILTIN(
+      WasmAllocateArrayWithRtt, rtt, BuildChangeUint31ToSmi(length),
+      graph()->NewNode(mcgraph()->common()->NumberConstant(
+          element_type.element_size_bytes())),
+      LOAD_INSTANCE_FIELD(NativeContext, MachineType::TaggedPointer()));
+  auto loop = gasm_->MakeLoopLabel(MachineRepresentation::kWord32);
+  auto done = gasm_->MakeLabel();
+  Node* start_offset =
+      gasm_->Int32Constant(WasmArray::kHeaderSize - kHeapObjectTag);
+  Node* element_size = gasm_->Int32Constant(element_type.element_size_bytes());
+  Node* end_offset =
+      gasm_->Int32Add(start_offset, gasm_->Int32Mul(element_size, length));
+  // "Goto" requires the graph's end to have been set up.
+  // TODO(jkummerow): Figure out if there's a more elegant solution.
+  Graph* g = mcgraph()->graph();
+  if (!g->end()) {
+    g->SetEnd(g->NewNode(mcgraph()->common()->End(0)));
+  }
+  gasm_->Goto(&loop, start_offset);
+  gasm_->Bind(&loop);
+  {
+    Node* offset = loop.PhiAt(0);
+    Node* check = gasm_->Uint32LessThan(offset, end_offset);
+    gasm_->GotoIfNot(check, &done);
+    StoreWithTaggedAlignment(gasm_.get(), a, offset, initial_value,
+                             type->element_type());
+    offset = gasm_->Int32Add(offset, element_size);
+    gasm_->Goto(&loop, offset);
+  }
+  gasm_->Bind(&done);
+  return a;
+}
+
 Node* WasmGraphBuilder::RttCanon(wasm::HeapType type) {
   if (type.is_generic()) {
     switch (type.representation()) {

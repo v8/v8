@@ -954,6 +954,9 @@ struct ControlBase {
     const FieldIndexImmediate<validate>& field, const Value& field_value)      \
   F(ArrayNew, const ArrayIndexImmediate<validate>& imm, const Value& length,   \
     const Value& initial_value, Value* result)                                 \
+  F(ArrayNewWithRtt, const ArrayIndexImmediate<validate>& imm,                 \
+    const Value& length, const Value& initial_value, const Value& rtt,         \
+    Value* result)                                                             \
   F(ArrayGet, const Value& array_obj,                                          \
     const ArrayIndexImmediate<validate>& imm, const Value& index,              \
     bool is_signed, Value* result)                                             \
@@ -1681,7 +1684,7 @@ class WasmDecoder : public Decoder {
             return 2 + imm.length;
           }
           case kExprArrayNew:
-          case kExprArrayNewSub:
+          case kExprArrayNewWithRtt:
           case kExprArrayNewDefault:
           case kExprArrayGet:
           case kExprArrayGetS:
@@ -1854,7 +1857,7 @@ class WasmDecoder : public Decoder {
             return {3, 0};
           case kExprRttCanon:
             return {0, 1};
-          case kExprArrayNewSub:
+          case kExprArrayNewWithRtt:
             return {3, 1};
           case kExprStructNew: {
             StructIndexImmediate<validate> imm(this, this->pc_ + 2);
@@ -3471,6 +3474,33 @@ class WasmFullDecoder : public WasmDecoder<validate> {
         Value* value = Push(ValueType::Ref(imm.index, kNonNullable));
         CALL_INTERFACE_IF_REACHABLE(ArrayNew, imm, length, initial_value,
                                     value);
+        return 2 + imm.length;
+      }
+      case kExprArrayNewWithRtt: {
+        ArrayIndexImmediate<validate> imm(this, this->pc_ + 2);
+        if (!this->Validate(this->pc_ + 2, imm)) return 0;
+        Value rtt = Pop(2);
+        if (!VALIDATE(rtt.type.kind() == ValueType::kRtt)) {
+          this->errorf(
+              this->pc_ + 2,
+              "array.new_with_rtt expected type rtt, found %s of type %s",
+              SafeOpcodeNameAt(rtt.pc), rtt.type.type_name().c_str());
+          return 0;
+        }
+        // TODO(7748): Drop this check if {imm} is dropped from the proposal
+        // à la https://github.com/WebAssembly/function-references/pull/31.
+        if (!VALIDATE(rtt.type.heap_representation() == imm.index)) {
+          this->errorf(this->pc_ + 2,
+                       "array.new_with_rtt expected rtt for type %d, found "
+                       "rtt for type %s",
+                       imm.index, rtt.type.heap_type().name().c_str());
+          return 0;
+        }
+        Value length = Pop(1, kWasmI32);
+        Value initial_value = Pop(0, imm.array_type->element_type().Unpacked());
+        Value* value = Push(ValueType::Ref(imm.index, kNonNullable));
+        CALL_INTERFACE_IF_REACHABLE(ArrayNewWithRtt, imm, length, initial_value,
+                                    rtt, value);
         return 2 + imm.length;
       }
       case kExprArrayGetS:

@@ -609,7 +609,7 @@ bool IsJSCompatibleSignature(const FunctionSig* sig, const WasmFeatures&);
   V(StructGetU, 0xfb05, _)       \
   V(StructSet, 0xfb06, _)        \
   V(ArrayNew, 0xfb10, _)         \
-  V(ArrayNewSub, 0xfb11, _)      \
+  V(ArrayNewWithRtt, 0xfb11, _)  \
   V(ArrayNewDefault, 0xfb12, _)  \
   V(ArrayGet, 0xfb13, _)         \
   V(ArrayGetS, 0xfb14, _)        \

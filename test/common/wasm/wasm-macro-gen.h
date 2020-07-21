@@ -458,6 +458,9 @@ inline WasmOpcode LoadStoreOpcodeOf(MachineType type, bool store) {
 
 #define WASM_ARRAY_NEW(index, default_value, length) \
   default_value, length, WASM_GC_OP(kExprArrayNew), static_cast<byte>(index)
+#define WASM_ARRAY_NEW_WITH_RTT(index, default_value, length, rtt) \
+  default_value, length, rtt, WASM_GC_OP(kExprArrayNewWithRtt),    \
+      static_cast<byte>(index)
 #define WASM_ARRAY_GET(typeidx, array, index) \
   array, index, WASM_GC_OP(kExprArrayGet), static_cast<byte>(typeidx)
 #define WASM_ARRAY_GET_U(typeidx, array, index) \

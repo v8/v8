@@ -649,6 +649,33 @@ TEST(BasicRTT) {
   tester.CheckResult(kRefCast, 43);
 }
 
+TEST(ArrayNewWithRtt) {
+  WasmGCTester tester;
+  uint32_t type_index = tester.DefineArray(kWasmI32, true);
+
+  ValueType array_type = ValueType::Ref(type_index, kNonNullable);
+  FunctionSig sig(1, 0, &array_type);
+  const uint32_t array_new_with_rtt = tester.DefineFunction(
+      &sig, {},
+      {WASM_ARRAY_NEW_WITH_RTT(type_index, WASM_I32V(10), WASM_I32V(42),
+                               WASM_RTT_CANON(type_index)),
+       kExprEnd});
+
+  ValueType rtt_type = ValueType::Rtt(type_index, 1);
+  FunctionSig rtt_canon_sig(1, 0, &rtt_type);
+  const uint32_t kRttCanon = tester.DefineFunction(
+      &rtt_canon_sig, {}, {WASM_RTT_CANON(type_index), kExprEnd});
+
+  tester.CompileModule();
+
+  Handle<Object> map = tester.GetResultObject(kRttCanon).ToHandleChecked();
+
+  Handle<Object> result =
+      tester.GetResultObject(array_new_with_rtt).ToHandleChecked();
+  CHECK(result->IsWasmArray());
+  CHECK_EQ(Handle<WasmArray>::cast(result)->map(), *map);
+}
+
 TEST(RefTestCastNull) {
   WasmGCTester tester;
   uint8_t type_index =
