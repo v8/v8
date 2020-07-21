@@ -193,7 +193,8 @@ void Decoder::PrintImm12(Instruction* instr) {
 
 void Decoder::PrintBranchOffset(Instruction* instr) {
   int32_t imm = instr->BranchOffset();
-  out_buffer_pos_ += SNPrintF(out_buffer_ + out_buffer_pos_, "%d", imm);
+  const char* target = converter_.NameOfAddress(reinterpret_cast<byte*>(instr) + imm);
+  out_buffer_pos_ += SNPrintF(out_buffer_ + out_buffer_pos_, "%d -> %s", imm, target);
 }
 
 void Decoder::PrintStoreOffset(Instruction* instr) {
@@ -208,7 +209,8 @@ void Decoder::PrintImm20U(Instruction* instr) {
 
 void Decoder::PrintImm20J(Instruction* instr) {
   int32_t imm = instr->Imm20JValue();
-  out_buffer_pos_ += SNPrintF(out_buffer_ + out_buffer_pos_, "%d", imm);
+  const char* target = converter_.NameOfAddress(reinterpret_cast<byte*>(instr) + imm);
+  out_buffer_pos_ += SNPrintF(out_buffer_ + out_buffer_pos_, "%d -> %s", imm, target);
 }
 
 void Decoder::PrintShamt(Instruction* instr) {
