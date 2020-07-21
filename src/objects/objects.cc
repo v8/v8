@@ -5908,8 +5908,37 @@ InternalIndex HashTable<Derived, Shape>::FindInsertionEntry(Isolate* isolate,
   return FindInsertionEntry(isolate, ReadOnlyRoots(isolate), hash);
 }
 
+template <typename Derived, typename Shape>
+InternalIndex HashTable<Derived, Shape>::FindEntryOrInsertionEntry(
+    const Isolate* isolate, ReadOnlyRoots roots, Key key, uint32_t hash) {
+  uint32_t capacity = Capacity();
+  InternalIndex insertion_entry = InternalIndex::NotFound();
+  uint32_t count = 1;
+  // EnsureCapacity will guarantee the hash table is never full.
+  Object undefined = roots.undefined_value();
+  Object the_hole = roots.the_hole_value();
+  for (InternalIndex entry = FirstProbe(hash, capacity);;
+       entry = NextProbe(entry, count++, capacity)) {
+    Object element = KeyAt(isolate, entry);
+    if (element == undefined) {
+      // Empty entry, it's out insertion entry if there was no previous Hole.
+      if (insertion_entry.is_not_found()) return entry;
+      return insertion_entry;
+    }
+
+    if (element == the_hole) {
+      // Holes are potential insertion candidates, but we continue the search
+      // in case we find the actual matching entry.
+      if (insertion_entry.is_not_found()) insertion_entry = entry;
+      continue;
+    }
+
+    if (Shape::IsMatch(key, element)) return entry;
+  }
+}
 void StringTable::EnsureCapacityForDeserialization(Isolate* isolate,
                                                    int expected) {
+  // TODO(crbug.com/v8/10729): Add concurrent string table support.
   Handle<StringTable> table = isolate->factory()->string_table();
   // We need a key instance for the virtual hash function.
   table = EnsureCapacity(isolate, table, expected);
@@ -5954,49 +5983,153 @@ Handle<String> StringTable::LookupString(Isolate* isolate,
 // static
 template <typename StringTableKey>
 Handle<String> StringTable::LookupKey(Isolate* isolate, StringTableKey* key) {
-  Handle<StringTable> table = isolate->factory()->string_table();
-  InternalIndex entry = table->FindEntry(isolate, key);
+  // String table lookups are allowed to be concurrent, assuming that:
+  //
+  //   - The Heap access is allowed to be concurrent (using LocalHeap or
+  //     similar),
+  //   - All writes to the string table are guarded by the Isolate string table
+  //     mutex,
+  //   - Resizes of the string table first copies the old contents to the new
+  //     table, and only then sets the new string table pointer to the new
+  //     table,
+  //   - Only GCs can remove elements from the string table.
+  //
+  // These assumptions allow us to make the following statement:
+  //
+  //   "Reads are allowed when not holding the lock, as long as false negatives
+  //    (misses) are ok. We will never get a false positive (hit of an entry no
+  //    longer in the table)"
+  //
+  // This is because we _know_ that if we find an entry in the string table, any
+  // entry will also be in all reallocations of that tables. This is required
+  // for strong consistency of internalized string equality implying reference
+  // equality.
+  //
+  // We therefore try to optimistically read from the string table without
+  // taking the lock (both here and in the NoAllocate version of the lookup),
+  // and on a miss we take the lock and try to write the entry, with a second
+  // read lookup in case the non-locked read missed a write.
+  //
+  // One complication is allocation -- we don't want to allocate while holding
+  // the string table lock. This applies to both allocation of new strings, and
+  // re-allocation of the string table on resize. So, we optimistically allocate
+  // (without copying values) outside the lock, and potentially discard the
+  // allocation if another write also did an allocation. This assumes that
+  // writes are rarer than reads.
 
-  // String already in table.
-  if (entry.is_found()) {
-    return handle(String::cast(table->KeyAt(entry)), isolate);
+  ReadOnlyRoots roots(isolate);
+  // Take the explicit slot to the string table, so that we can read/write it
+  // with acquire/release semantics.
+  FullObjectSlot string_table_slot =
+      isolate->roots_table().slot(RootIndex::kStringTable);
+
+  Handle<String> new_string;
+  while (true) {
+    // Load the string table slot, creating a new Handle for the table to cache
+    // the current slot value in case another thread updates it.
+    Handle<StringTable> table =
+        handle(StringTable::cast(string_table_slot.Acquire_Load()), isolate);
+
+    // First try to find the string in the table. This is safe to do even if the
+    // table is now reallocated; we won't find a stale entry in the old table
+    // because the new table won't delete it's corresponding entry until the
+    // string is dead, in which case it will die in this table too and worst
+    // case we'll have a false miss.
+    InternalIndex entry = table->FindEntry(isolate, roots, key, key->hash());
+    if (entry.is_found()) {
+      return handle(String::cast(table->KeyAt(isolate, entry)), isolate);
+    }
+
+    // No entry found, so adding new string.
+
+    // Allocate the string before the first insertion attempt, reuse this
+    // allocated value on insertion retries. If another thread concurrently
+    // allocates the same string, the insert will fail, the lookup above will
+    // succeed, and this string will be discarded.
+    if (new_string.is_null()) new_string = key->AsHandle(isolate);
+
+    // Grow or shrink table if needed. We first try to shrink the table, if it
+    // is sufficiently empty; otherwise we make sure to grow it so that it has
+    // enough space.
+    int current_capacity = table->Capacity();
+    int current_nof = table->NumberOfElements();
+    int capacity_after_shrinking =
+        ComputeCapacityWithCautiousShrink(current_capacity, current_nof + 1);
+
+    int new_capacity = -1;
+    if (capacity_after_shrinking < current_capacity) {
+      DCHECK(HasSufficientCapacityToAdd(capacity_after_shrinking, current_nof,
+                                        0, 1));
+      new_capacity = capacity_after_shrinking;
+    } else if (!HasSufficientCapacityToAdd(current_capacity, current_nof,
+                                           table->NumberOfDeletedElements(),
+                                           1)) {
+      new_capacity = ComputeCapacity(current_nof + 1);
+    }
+
+    // Maybe re-allocate the table outside of the lock, delay copying the
+    // contents until the lock is held.
+    MaybeHandle<StringTable> maybe_new_table;
+    if (new_capacity != -1) {
+      bool pretenure = (new_capacity > kMinCapacityForPretenure) &&
+                       !Heap::InYoungGeneration(*table);
+      maybe_new_table = HashTable::New(
+          isolate, new_capacity,
+          pretenure ? AllocationType::kOld : AllocationType::kYoung,
+          USE_CUSTOM_MINIMUM_CAPACITY);
+    }
+
+    {
+      base::MutexGuard table_write_guard(isolate->string_table_mutex());
+
+      // Reload the table, now as a Handle, in case someone else changed it.
+      Handle<StringTable> reloaded_table = isolate->factory()->string_table();
+
+      // Someone else updated the table slot, they probably resized so we should
+      // invalidate our new table if there is one.
+      if (*reloaded_table != *table) {
+        table = reloaded_table;
+        maybe_new_table = kNullMaybeHandle;
+      } else {
+        // Copy the old table if necessary -- this is in the lock so that we
+        // don’t miss any writes to the old table (which is guaranteed to).
+        Handle<StringTable> new_table;
+        if (maybe_new_table.ToHandle(&new_table)) {
+          // Make sure the new table is still large enough, in case the old
+          // table was mutated.
+          if (!HasSufficientCapacityToAdd(new_table->Capacity(), 0, 0,
+                                          table->NumberOfElements() + 1)) {
+            continue;
+          }
+          table->Rehash(isolate, *new_table);
+          string_table_slot.Release_Store(*new_table);
+          table = new_table;
+        }
+      }
+
+      if (!table->HasSufficientCapacityToAdd(1)) {
+        // The table is too small to insert our entry, which means someone else
+        // added new entries since we last checked. Loop around again to retry
+        // the lookup (and possibly resize).
+        continue;
+      }
+
+      InternalIndex entry =
+          table->FindEntryOrInsertionEntry(isolate, roots, key, key->hash());
+
+      // Check one last time if the key is present in the table, in case it was
+      // added after the check
+      Object element = table->KeyAt(isolate, entry);
+      if (IsKey(roots, element)) {
+        return handle(String::cast(element), isolate);
+      }
+
+      // Add the new string and return it.
+      table->set(EntryToIndex(entry), *new_string);
+      table->ElementAdded();
+      return new_string;
+    }
   }
-  // No entry found, so adding new string.
-
-  // Grow or shrink table if needed. We first try to shrink the table, if it
-  // is sufficiently empty; otherwise we make sure to grow it so that it has
-  // enough space.
-  int current_capacity = table->Capacity();
-  int current_nof = table->NumberOfElements();
-  int capacity_after_shrinking =
-      ComputeCapacityWithCautiousShrink(current_capacity, current_nof + 1);
-
-  int new_capacity = -1;
-  if (capacity_after_shrinking < current_capacity) {
-    DCHECK(HasSufficientCapacityToAdd(capacity_after_shrinking, current_nof, 0,
-                                      1));
-    new_capacity = capacity_after_shrinking;
-  } else if (!HasSufficientCapacityToAdd(current_capacity, current_nof,
-                                         table->NumberOfDeletedElements(), 1)) {
-    new_capacity = ComputeCapacity(current_nof + 1);
-  }
-
-  // Maybe re-allocate the table.
-  if (new_capacity != -1) {
-    bool pretenure = (new_capacity > kMinCapacityForPretenure) &&
-                     !Heap::InYoungGeneration(*table);
-    Handle<StringTable> new_table = HashTable::New(
-        isolate, new_capacity,
-        pretenure ? AllocationType::kOld : AllocationType::kYoung,
-        USE_CUSTOM_MINIMUM_CAPACITY);
-    table->Rehash(isolate, *new_table);
-    isolate->heap()->SetRootStringTable(*new_table);
-
-    table = new_table;
-  }
-
-  DCHECK(table->HasSufficientCapacityToAdd(1));
-  return AddKeyNoResize(isolate, table, key);
 }
 
 template Handle<String> StringTable::LookupKey(Isolate* isolate,
@@ -6047,7 +6180,11 @@ template <typename Char>
 Address LookupString(Isolate* isolate, String string, String source,
                      size_t start) {
   DisallowHeapAllocation no_gc;
-  StringTable table = isolate->heap()->string_table();
+  // Take the explicit slot to the string table, so that we can read it with
+  // acquire/release semantics.
+  FullObjectSlot string_table_slot =
+      isolate->roots_table().slot(RootIndex::kStringTable);
+  StringTable table = StringTable::cast(string_table_slot.Acquire_Load());
   uint64_t seed = HashSeed(isolate);
 
   int length = string.length();

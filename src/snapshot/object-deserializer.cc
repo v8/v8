@@ -79,6 +79,7 @@ MaybeHandle<HeapObject> ObjectDeserializer::Deserialize(
 
 void ObjectDeserializer::CommitPostProcessedObjects() {
   if (is_main_thread()) {
+    // TODO(crbug.com/v8/10729): Add concurrent string table support.
     CHECK_LE(new_internalized_strings().size(), kMaxInt);
     StringTable::EnsureCapacityForDeserialization(
         isolate(), static_cast<int>(new_internalized_strings().size()));

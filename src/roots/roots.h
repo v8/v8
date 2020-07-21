@@ -436,6 +436,12 @@ class RootsTable {
     return roots_[index];
   }
 
+  FullObjectSlot slot(RootIndex root_index) {
+    size_t index = static_cast<size_t>(root_index);
+    DCHECK_LT(index, kEntriesCount);
+    return FullObjectSlot(&roots_[index]);
+  }
+
   static const char* name(RootIndex root_index) {
     size_t index = static_cast<size_t>(root_index);
     DCHECK_LT(index, kEntriesCount);
