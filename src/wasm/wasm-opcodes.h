@@ -601,14 +601,12 @@ bool IsJSCompatibleSignature(const FunctionSig* sig, const WasmFeatures&);
   V(I64AtomicCompareExchange32U, 0xfe4e, l_ill)
 
 #define FOREACH_GC_OPCODE(V)     \
-  V(StructNew, 0xfb00, _)        \
   V(StructNewWithRtt, 0xfb01, _) \
   V(StructNewDefault, 0xfb02, _) \
   V(StructGet, 0xfb03, _)        \
   V(StructGetS, 0xfb04, _)       \
   V(StructGetU, 0xfb05, _)       \
   V(StructSet, 0xfb06, _)        \
-  V(ArrayNew, 0xfb10, _)         \
   V(ArrayNewWithRtt, 0xfb11, _)  \
   V(ArrayNewDefault, 0xfb12, _)  \
   V(ArrayGet, 0xfb13, _)         \

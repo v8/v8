@@ -172,7 +172,8 @@ TEST(WasmBasicStruct) {
       tester.sigs.i_v(), {},
       {WASM_STRUCT_GET(
            type_index, 0,
-           WASM_STRUCT_NEW(type_index, WASM_I32V(42), WASM_I32V(64))),
+           WASM_STRUCT_NEW_WITH_RTT(type_index, WASM_I32V(42), WASM_I32V(64),
+                                    WASM_RTT_CANON(type_index))),
        kExprEnd});
 
   // Test struct.new and struct.get.
@@ -180,21 +181,26 @@ TEST(WasmBasicStruct) {
       tester.sigs.i_v(), {},
       {WASM_STRUCT_GET(
            type_index, 1,
-           WASM_STRUCT_NEW(type_index, WASM_I32V(42), WASM_I32V(64))),
+           WASM_STRUCT_NEW_WITH_RTT(type_index, WASM_I32V(42), WASM_I32V(64),
+                                    WASM_RTT_CANON(type_index))),
        kExprEnd});
 
   // Test struct.new, returning struct reference.
   const uint32_t kGetStruct = tester.DefineFunction(
       &sig_q_v, {},
-      {WASM_STRUCT_NEW(type_index, WASM_I32V(42), WASM_I32V(64)), kExprEnd});
+      {WASM_STRUCT_NEW_WITH_RTT(type_index, WASM_I32V(42), WASM_I32V(64),
+                                WASM_RTT_CANON(type_index)),
+       kExprEnd});
 
   // Test struct.set, struct refs types in locals.
   uint32_t j_local_index = 0;
   uint32_t j_field_index = 0;
   const uint32_t kSet = tester.DefineFunction(
       tester.sigs.i_v(), {kOptRefType},
-      {WASM_SET_LOCAL(j_local_index, WASM_STRUCT_NEW(type_index, WASM_I32V(42),
-                                                     WASM_I32V(64))),
+      {WASM_SET_LOCAL(
+           j_local_index,
+           WASM_STRUCT_NEW_WITH_RTT(type_index, WASM_I32V(42), WASM_I32V(64),
+                                    WASM_RTT_CANON(type_index))),
        WASM_STRUCT_SET(type_index, j_field_index, WASM_GET_LOCAL(j_local_index),
                        WASM_I32V(-99)),
        WASM_STRUCT_GET(type_index, j_field_index,
@@ -226,8 +232,10 @@ TEST(WasmRefAsNonNull) {
   uint32_t field_index = 0;
   const uint32_t kFunc = tester.DefineFunction(
       tester.sigs.i_v(), {},
-      {WASM_SET_GLOBAL(global_index, WASM_STRUCT_NEW(type_index, WASM_I32V(55),
-                                                     WASM_I32V(66))),
+      {WASM_SET_GLOBAL(
+           global_index,
+           WASM_STRUCT_NEW_WITH_RTT(type_index, WASM_I32V(55), WASM_I32V(66),
+                                    WASM_RTT_CANON(type_index))),
        WASM_STRUCT_GET(
            type_index, field_index,
            WASM_REF_AS_NON_NULL(WASM_IF_ELSE_R(
@@ -265,8 +273,9 @@ TEST(WasmBrOnNull) {
                type_index, m_field_index,
                // Branch will not be taken.
                // 52 left on stack outside the block (not 42).
-               WASM_BR_ON_NULL(0, WASM_STRUCT_NEW(type_index, WASM_I32V(52),
-                                                  WASM_I32V(62)))),
+               WASM_BR_ON_NULL(0, WASM_STRUCT_NEW_WITH_RTT(
+                                      type_index, WASM_I32V(52), WASM_I32V(62),
+                                      WASM_RTT_CANON(type_index)))),
            WASM_BR(0)),
        kExprEnd});
 
@@ -286,8 +295,9 @@ TEST(WasmRefEq) {
   byte local_index = 0;
   const uint32_t kFunc = tester.DefineFunction(
       tester.sigs.i_v(), {kOptRefType},
-      {WASM_SET_LOCAL(local_index, WASM_STRUCT_NEW(type_index, WASM_I32V(55),
-                                                   WASM_I32V(66))),
+      {WASM_SET_LOCAL(local_index, WASM_STRUCT_NEW_WITH_RTT(
+                                       type_index, WASM_I32V(55), WASM_I32V(66),
+                                       WASM_RTT_CANON(type_index))),
        WASM_I32_ADD(
            WASM_I32_SHL(
                WASM_REF_EQ(  // true
@@ -296,8 +306,9 @@ TEST(WasmRefEq) {
            WASM_I32_ADD(
                WASM_I32_SHL(WASM_REF_EQ(  // false
                                 WASM_GET_LOCAL(local_index),
-                                WASM_STRUCT_NEW(type_index, WASM_I32V(55),
-                                                WASM_I32V(66))),
+                                WASM_STRUCT_NEW_WITH_RTT(
+                                    type_index, WASM_I32V(55), WASM_I32V(66),
+                                    WASM_RTT_CANON(type_index))),
                             WASM_I32V(1)),
                WASM_I32_ADD(WASM_I32_SHL(  // false
                                 WASM_REF_EQ(WASM_GET_LOCAL(local_index),
@@ -328,18 +339,20 @@ TEST(WasmPackedStructU) {
   const uint32_t kF0 = tester.DefineFunction(
       tester.sigs.i_v(), {struct_type},
       {WASM_SET_LOCAL(local_index,
-                      WASM_STRUCT_NEW(type_index, WASM_I32V(expected_output_0),
-                                      WASM_I32V(expected_output_1),
-                                      WASM_I32V(0x12345678))),
+                      WASM_STRUCT_NEW_WITH_RTT(
+                          type_index, WASM_I32V(expected_output_0),
+                          WASM_I32V(expected_output_1), WASM_I32V(0x12345678),
+                          WASM_RTT_CANON(type_index))),
        WASM_STRUCT_GET_U(type_index, 0, WASM_GET_LOCAL(local_index)),
        kExprEnd});
 
   const uint32_t kF1 = tester.DefineFunction(
       tester.sigs.i_v(), {struct_type},
       {WASM_SET_LOCAL(local_index,
-                      WASM_STRUCT_NEW(type_index, WASM_I32V(expected_output_0),
-                                      WASM_I32V(expected_output_1),
-                                      WASM_I32V(0x12345678))),
+                      WASM_STRUCT_NEW_WITH_RTT(
+                          type_index, WASM_I32V(expected_output_0),
+                          WASM_I32V(expected_output_1), WASM_I32V(0x12345678),
+                          WASM_RTT_CANON(type_index))),
        WASM_STRUCT_GET_U(type_index, 1, WASM_GET_LOCAL(local_index)),
        kExprEnd});
   tester.CompileModule();
@@ -364,16 +377,19 @@ TEST(WasmPackedStructS) {
       tester.sigs.i_v(), {struct_type},
       {WASM_SET_LOCAL(
            local_index,
-           WASM_STRUCT_NEW(type_index, WASM_I32V(expected_output_0),
-                           WASM_I32V(expected_output_1), WASM_I32V(0))),
+           WASM_STRUCT_NEW_WITH_RTT(type_index, WASM_I32V(expected_output_0),
+                                    WASM_I32V(expected_output_1), WASM_I32V(0),
+                                    WASM_RTT_CANON(type_index))),
        WASM_STRUCT_GET_S(type_index, 0, WASM_GET_LOCAL(local_index)),
        kExprEnd});
 
   const uint32_t kF1 = tester.DefineFunction(
       tester.sigs.i_v(), {struct_type},
-      {WASM_SET_LOCAL(local_index, WASM_STRUCT_NEW(type_index, WASM_I32V(0x80),
-                                                   WASM_I32V(expected_output_1),
-                                                   WASM_I32V(0))),
+      {WASM_SET_LOCAL(
+           local_index,
+           WASM_STRUCT_NEW_WITH_RTT(type_index, WASM_I32V(0x80),
+                                    WASM_I32V(expected_output_1), WASM_I32V(0),
+                                    WASM_RTT_CANON(type_index))),
        WASM_STRUCT_GET_S(type_index, 1, WASM_GET_LOCAL(local_index)),
        kExprEnd});
 
@@ -392,21 +408,25 @@ TEST(WasmLetInstruction) {
   uint32_t let_field_index = 0;
   const uint32_t kLetTest1 = tester.DefineFunction(
       tester.sigs.i_v(), {},
-      {WASM_LET_1_I(WASM_SEQ(kLocalRef, static_cast<byte>(type_index)),
-                    WASM_STRUCT_NEW(type_index, WASM_I32V(42), WASM_I32V(52)),
-                    WASM_STRUCT_GET(type_index, let_field_index,
-                                    WASM_GET_LOCAL(let_local_index))),
+      {WASM_LET_1_I(
+           WASM_SEQ(kLocalRef, static_cast<byte>(type_index)),
+           WASM_STRUCT_NEW_WITH_RTT(type_index, WASM_I32V(42), WASM_I32V(52),
+                                    WASM_RTT_CANON(type_index)),
+           WASM_STRUCT_GET(type_index, let_field_index,
+                           WASM_GET_LOCAL(let_local_index))),
        kExprEnd});
 
   uint32_t let_2_field_index = 0;
   const uint32_t kLetTest2 = tester.DefineFunction(
       tester.sigs.i_v(), {},
-      {WASM_LET_2_I(kLocalI32, WASM_I32_ADD(WASM_I32V(42), WASM_I32V(-32)),
-                    WASM_SEQ(kLocalRef, static_cast<byte>(type_index)),
-                    WASM_STRUCT_NEW(type_index, WASM_I32V(42), WASM_I32V(52)),
-                    WASM_I32_MUL(WASM_STRUCT_GET(type_index, let_2_field_index,
-                                                 WASM_GET_LOCAL(1)),
-                                 WASM_GET_LOCAL(0))),
+      {WASM_LET_2_I(
+           kLocalI32, WASM_I32_ADD(WASM_I32V(42), WASM_I32V(-32)),
+           WASM_SEQ(kLocalRef, static_cast<byte>(type_index)),
+           WASM_STRUCT_NEW_WITH_RTT(type_index, WASM_I32V(42), WASM_I32V(52),
+                                    WASM_RTT_CANON(type_index)),
+           WASM_I32_MUL(WASM_STRUCT_GET(type_index, let_2_field_index,
+                                        WASM_GET_LOCAL(1)),
+                        WASM_GET_LOCAL(0))),
        kExprEnd});
 
   const uint32_t kLetTestLocals = tester.DefineFunction(
@@ -449,8 +469,9 @@ TEST(WasmBasicArray) {
   uint32_t local_index = 1;
   const uint32_t kGetElem = tester.DefineFunction(
       tester.sigs.i_i(), {kOptRefType},
-      {WASM_SET_LOCAL(local_index,
-                      WASM_ARRAY_NEW(type_index, WASM_I32V(12), WASM_I32V(3))),
+      {WASM_SET_LOCAL(local_index, WASM_ARRAY_NEW_WITH_RTT(
+                                       type_index, WASM_I32V(12), WASM_I32V(3),
+                                       WASM_RTT_CANON(type_index))),
        WASM_ARRAY_SET(type_index, WASM_GET_LOCAL(local_index), WASM_I32V(1),
                       WASM_I32V(42)),
        WASM_ARRAY_GET(type_index, WASM_GET_LOCAL(local_index),
@@ -460,14 +481,17 @@ TEST(WasmBasicArray) {
   // Reads and returns an array's length.
   const uint32_t kGetLength = tester.DefineFunction(
       tester.sigs.i_v(), {},
-      {WASM_ARRAY_LEN(type_index,
-                      WASM_ARRAY_NEW(type_index, WASM_I32V(0), WASM_I32V(42))),
+      {WASM_ARRAY_LEN(type_index, WASM_ARRAY_NEW_WITH_RTT(
+                                      type_index, WASM_I32V(0), WASM_I32V(42),
+                                      WASM_RTT_CANON(type_index))),
        kExprEnd});
 
   // Create an array of length 2, initialized to [42, 42].
   const uint32_t kAllocate = tester.DefineFunction(
       &sig_q_v, {},
-      {WASM_ARRAY_NEW(type_index, WASM_I32V(42), WASM_I32V(2)), kExprEnd});
+      {WASM_ARRAY_NEW_WITH_RTT(type_index, WASM_I32V(42), WASM_I32V(2),
+                               WASM_RTT_CANON(type_index)),
+       kExprEnd});
 
   tester.CompileModule();
 
@@ -497,8 +521,9 @@ TEST(WasmPackedArrayU) {
 
   const uint32_t kF = tester.DefineFunction(
       tester.sigs.i_i(), {array_type},
-      {WASM_SET_LOCAL(local_index,
-                      WASM_ARRAY_NEW(array_index, WASM_I32V(0), WASM_I32V(4))),
+      {WASM_SET_LOCAL(local_index, WASM_ARRAY_NEW_WITH_RTT(
+                                       array_index, WASM_I32V(0), WASM_I32V(4),
+                                       WASM_RTT_CANON(array_index))),
        WASM_ARRAY_SET(array_index, WASM_GET_LOCAL(local_index), WASM_I32V(0),
                       WASM_I32V(1)),
        WASM_ARRAY_SET(array_index, WASM_GET_LOCAL(local_index), WASM_I32V(1),
@@ -532,7 +557,8 @@ TEST(WasmPackedArrayS) {
       tester.sigs.i_i(), {array_type},
       {WASM_SET_LOCAL(
            local_index,
-           WASM_ARRAY_NEW(array_index, WASM_I32V(0x12345678), WASM_I32V(4))),
+           WASM_ARRAY_NEW_WITH_RTT(array_index, WASM_I32V(0x12345678),
+                                   WASM_I32V(4), WASM_RTT_CANON(array_index))),
        WASM_ARRAY_SET(array_index, WASM_GET_LOCAL(local_index), WASM_I32V(1),
                       WASM_I32V(10)),
        WASM_ARRAY_SET(array_index, WASM_GET_LOCAL(local_index), WASM_I32V(2),
@@ -649,7 +675,7 @@ TEST(BasicRTT) {
   tester.CheckResult(kRefCast, 43);
 }
 
-TEST(ArrayNewWithRtt) {
+TEST(ArrayNewMap) {
   WasmGCTester tester;
   uint32_t type_index = tester.DefineArray(kWasmI32, true);
 
@@ -784,7 +810,9 @@ TEST(JsAccessDisallowed) {
   FunctionSig sig_q_v(1, 0, kRefTypes);
 
   WasmFunctionBuilder* fun = tester.builder()->AddFunction(&sig_q_v);
-  byte code[] = {WASM_STRUCT_NEW(type_index, WASM_I32V(42)), kExprEnd};
+  byte code[] = {WASM_STRUCT_NEW_WITH_RTT(type_index, WASM_I32V(42),
+                                          WASM_RTT_CANON(type_index)),
+                 kExprEnd};
   fun->EmitCode(code, sizeof(code));
   tester.builder()->AddExport(CStrVector("f"), fun);
   tester.CompileModule();

@@ -944,16 +944,12 @@ struct ControlBase {
   F(TableSize, const TableIndexImmediate<validate>& imm, Value* result)        \
   F(TableFill, const TableIndexImmediate<validate>& imm, const Value& start,   \
     const Value& value, const Value& count)                                    \
-  F(StructNew, const StructIndexImmediate<validate>& imm, const Value args[],  \
-    Value* result)                                                             \
   F(StructNewWithRtt, const StructIndexImmediate<validate>& imm,               \
     const Value& rtt, const Value args[], Value* result)                       \
   F(StructGet, const Value& struct_object,                                     \
     const FieldIndexImmediate<validate>& field, bool is_signed, Value* result) \
   F(StructSet, const Value& struct_object,                                     \
     const FieldIndexImmediate<validate>& field, const Value& field_value)      \
-  F(ArrayNew, const ArrayIndexImmediate<validate>& imm, const Value& length,   \
-    const Value& initial_value, Value* result)                                 \
   F(ArrayNewWithRtt, const ArrayIndexImmediate<validate>& imm,                 \
     const Value& length, const Value& initial_value, const Value& rtt,         \
     Value* result)                                                             \
@@ -1670,7 +1666,6 @@ class WasmDecoder : public Decoder {
         byte gc_index = decoder->read_u8<validate>(pc + 1, "gc_index");
         WasmOpcode opcode = static_cast<WasmOpcode>(kGCPrefix << 8 | gc_index);
         switch (opcode) {
-          case kExprStructNew:
           case kExprStructNewWithRtt:
           case kExprStructNewDefault: {
             StructIndexImmediate<validate> imm(decoder, pc + 2);
@@ -1683,7 +1678,6 @@ class WasmDecoder : public Decoder {
             FieldIndexImmediate<validate> imm(decoder, pc + 2);
             return 2 + imm.length;
           }
-          case kExprArrayNew:
           case kExprArrayNewWithRtt:
           case kExprArrayNewDefault:
           case kExprArrayGet:
@@ -1845,7 +1839,6 @@ class WasmDecoder : public Decoder {
             return {1, 1};
           case kExprStructSet:
             return {2, 0};
-          case kExprArrayNew:
           case kExprArrayGet:
           case kExprArrayGetS:
           case kExprArrayGetU:
@@ -1859,11 +1852,6 @@ class WasmDecoder : public Decoder {
             return {0, 1};
           case kExprArrayNewWithRtt:
             return {3, 1};
-          case kExprStructNew: {
-            StructIndexImmediate<validate> imm(this, this->pc_ + 2);
-            this->Complete(imm);
-            return {imm.struct_type->field_count(), 1};
-          }
           case kExprStructNewWithRtt: {
             StructIndexImmediate<validate> imm(this, this->pc_ + 2);
             this->Complete(imm);
@@ -3381,14 +3369,6 @@ class WasmFullDecoder : public WasmDecoder<validate> {
 
   int DecodeGCOpcode(WasmOpcode opcode) {
     switch (opcode) {
-      case kExprStructNew: {
-        StructIndexImmediate<validate> imm(this, this->pc_ + 2);
-        if (!this->Validate(this->pc_ + 2, imm)) return 0;
-        ArgVector args = PopArgs(imm.struct_type);
-        Value* value = Push(ValueType::Ref(imm.index, kNonNullable));
-        CALL_INTERFACE_IF_REACHABLE(StructNew, imm, args.begin(), value);
-        return 2 + imm.length;
-      }
       case kExprStructNewWithRtt: {
         StructIndexImmediate<validate> imm(this, this->pc_ + 2);
         if (!this->Validate(this->pc_, imm)) return 0;
@@ -3465,16 +3445,6 @@ class WasmFullDecoder : public WasmDecoder<validate> {
             Pop(0, ValueType::Ref(field.struct_index.index, kNullable));
         CALL_INTERFACE_IF_REACHABLE(StructSet, struct_obj, field, field_value);
         return 2 + field.length;
-      }
-      case kExprArrayNew: {
-        ArrayIndexImmediate<validate> imm(this, this->pc_ + 2);
-        if (!this->Validate(this->pc_ + 2, imm)) return 0;
-        Value length = Pop(1, kWasmI32);
-        Value initial_value = Pop(0, imm.array_type->element_type().Unpacked());
-        Value* value = Push(ValueType::Ref(imm.index, kNonNullable));
-        CALL_INTERFACE_IF_REACHABLE(ArrayNew, imm, length, initial_value,
-                                    value);
-        return 2 + imm.length;
       }
       case kExprArrayNewWithRtt: {
         ArrayIndexImmediate<validate> imm(this, this->pc_ + 2);

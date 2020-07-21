@@ -5243,7 +5243,7 @@ Node* StoreWithTaggedAlignment(WasmGraphAssembler* gasm, Node* base,
 }
 
 // Set a field of a struct, without checking if the struct is null.
-// Helper method for StructNew and StructSet.
+// Helper method for StructNewWithRtt and StructSet.
 Node* StoreStructFieldUnchecked(MachineGraph* graph, WasmGraphAssembler* gasm,
                                 Node* struct_object,
                                 const wasm::StructType* type,
@@ -5269,20 +5269,6 @@ Node* ArrayLength(GraphAssembler* gasm, Node* array) {
 
 }  // namespace
 
-Node* WasmGraphBuilder::StructNew(uint32_t struct_index,
-                                  const wasm::StructType* type,
-                                  Vector<Node*> fields) {
-  int map_index = wasm::GetCanonicalRttIndex(env_->module, struct_index);
-  Node* s = CALL_BUILTIN(
-      WasmAllocateStruct,
-      graph()->NewNode(mcgraph()->common()->NumberConstant(map_index)),
-      LOAD_INSTANCE_FIELD(NativeContext, MachineType::TaggedPointer()));
-  for (uint32_t i = 0; i < type->field_count(); i++) {
-    StoreStructFieldUnchecked(mcgraph(), gasm_.get(), s, type, i, fields[i]);
-  }
-  return s;
-}
-
 Node* WasmGraphBuilder::StructNewWithRtt(uint32_t struct_index,
                                          const wasm::StructType* type,
                                          Node* rtt, Vector<Node*> fields) {
@@ -5293,46 +5279,6 @@ Node* WasmGraphBuilder::StructNewWithRtt(uint32_t struct_index,
     StoreStructFieldUnchecked(mcgraph(), gasm_.get(), s, type, i, fields[i]);
   }
   return s;
-}
-
-Node* WasmGraphBuilder::ArrayNew(uint32_t array_index,
-                                 const wasm::ArrayType* type, Node* length,
-                                 Node* initial_value) {
-  int map_index = GetCanonicalRttIndex(env_->module, array_index);
-  wasm::ValueType element_type = type->element_type();
-  Node* a = CALL_BUILTIN(
-      WasmAllocateArray,
-      graph()->NewNode(mcgraph()->common()->NumberConstant(map_index)),
-      BuildChangeUint31ToSmi(length),
-      graph()->NewNode(mcgraph()->common()->NumberConstant(
-          element_type.element_size_bytes())),
-      LOAD_INSTANCE_FIELD(NativeContext, MachineType::TaggedPointer()));
-  auto loop = gasm_->MakeLoopLabel(MachineRepresentation::kWord32);
-  auto done = gasm_->MakeLabel();
-  Node* start_offset =
-      gasm_->Int32Constant(WasmArray::kHeaderSize - kHeapObjectTag);
-  Node* element_size = gasm_->Int32Constant(element_type.element_size_bytes());
-  Node* end_offset =
-      gasm_->Int32Add(start_offset, gasm_->Int32Mul(element_size, length));
-  // "Goto" requires the graph's end to have been set up.
-  // TODO(jkummerow): Figure out if there's a more elegant solution.
-  Graph* g = mcgraph()->graph();
-  if (!g->end()) {
-    g->SetEnd(g->NewNode(mcgraph()->common()->End(0)));
-  }
-  gasm_->Goto(&loop, start_offset);
-  gasm_->Bind(&loop);
-  {
-    Node* offset = loop.PhiAt(0);
-    Node* check = gasm_->Uint32LessThan(offset, end_offset);
-    gasm_->GotoIfNot(check, &done);
-    StoreWithTaggedAlignment(gasm_.get(), a, offset, initial_value,
-                             type->element_type());
-    offset = gasm_->Int32Add(offset, element_size);
-    gasm_->Goto(&loop, offset);
-  }
-  gasm_->Bind(&done);
-  return a;
 }
 
 Node* WasmGraphBuilder::ArrayNewWithRtt(uint32_t array_index,

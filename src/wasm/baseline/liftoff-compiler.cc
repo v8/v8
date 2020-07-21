@@ -3587,12 +3587,6 @@ class LiftoffCompiler {
     unsupported(decoder, kRefTypes, "table.fill");
   }
 
-  void StructNew(FullDecoder* decoder,
-                 const StructIndexImmediate<validate>& imm, const Value args[],
-                 Value* result) {
-    // TODO(7748): Implement.
-    unsupported(decoder, kGC, "struct.new");
-  }
   void StructNewWithRtt(FullDecoder* decoder,
                         const StructIndexImmediate<validate>& imm,
                         const Value& rtt, const Value args[], Value* result) {
@@ -3612,12 +3606,6 @@ class LiftoffCompiler {
     unsupported(decoder, kGC, "struct.set");
   }
 
-  void ArrayNew(FullDecoder* decoder, const ArrayIndexImmediate<validate>& imm,
-                const Value& length, const Value& initial_value,
-                Value* result) {
-    // TODO(7748): Implement.
-    unsupported(decoder, kGC, "array.new");
-  }
   void ArrayNewWithRtt(FullDecoder* decoder,
                        const ArrayIndexImmediate<validate>& imm,
                        const Value& length, const Value& initial_value,

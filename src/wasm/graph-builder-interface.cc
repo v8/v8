@@ -646,18 +646,6 @@ class WasmGraphBuildingInterface {
     BUILD(TableFill, imm.index, start.node, value.node, count.node);
   }
 
-  void StructNew(FullDecoder* decoder,
-                 const StructIndexImmediate<validate>& imm, const Value args[],
-                 Value* result) {
-    uint32_t field_count = imm.struct_type->field_count();
-    base::SmallVector<TFNode*, 16> arg_nodes(field_count);
-    for (uint32_t i = 0; i < field_count; i++) {
-      arg_nodes[i] = args[i].node;
-    }
-    result->node =
-        BUILD(StructNew, imm.index, imm.struct_type, VectorOf(arg_nodes));
-  }
-
   void StructNewWithRtt(FullDecoder* decoder,
                         const StructIndexImmediate<validate>& imm,
                         const Value& rtt, const Value args[], Value* result) {
@@ -691,13 +679,6 @@ class WasmGraphBuildingInterface {
                                   : CheckForNull::kWithoutNullCheck;
     BUILD(StructSet, struct_object.node, field.struct_index.struct_type,
           field.index, field_value.node, null_check, decoder->position());
-  }
-
-  void ArrayNew(FullDecoder* decoder, const ArrayIndexImmediate<validate>& imm,
-                const Value& length, const Value& initial_value,
-                Value* result) {
-    result->node = BUILD(ArrayNew, imm.index, imm.array_type, length.node,
-                         initial_value.node);
   }
 
   void ArrayNewWithRtt(FullDecoder* decoder,

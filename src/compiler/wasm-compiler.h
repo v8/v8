@@ -390,8 +390,6 @@ class WasmGraphBuilder {
   Node* TableSize(uint32_t table_index);
   Node* TableFill(uint32_t table_index, Node* start, Node* value, Node* count);
 
-  Node* StructNew(uint32_t struct_index, const wasm::StructType* type,
-                  Vector<Node*> fields);
   Node* StructNewWithRtt(uint32_t struct_index, const wasm::StructType* type,
                          Node* rtt, Vector<Node*> fields);
   Node* StructGet(Node* struct_object, const wasm::StructType* struct_type,
@@ -400,8 +398,6 @@ class WasmGraphBuilder {
   Node* StructSet(Node* struct_object, const wasm::StructType* struct_type,
                   uint32_t field_index, Node* value, CheckForNull null_check,
                   wasm::WasmCodePosition position);
-  Node* ArrayNew(uint32_t array_index, const wasm::ArrayType* type,
-                 Node* length, Node* initial_value);
   Node* ArrayNewWithRtt(uint32_t array_index, const wasm::ArrayType* type,
                         Node* length, Node* initial_value, Node* rtt);
   void BoundsCheck(Node* array, Node* index, wasm::WasmCodePosition position);

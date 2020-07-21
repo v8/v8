@@ -225,18 +225,6 @@ builtin WasmAllocateJSArray(implicit context: Context)(size: Smi): JSArray {
   return AllocateJSArray(ElementsKind::PACKED_ELEMENTS, map, size, size);
 }
 
-builtin WasmAllocateStruct(implicit context: Context)(mapIndex: Smi):
-    HeapObject {
-  const instance: WasmInstanceObject = LoadInstanceFromFrame();
-  const maps: FixedArray = LoadManagedObjectMapsFromInstance(instance);
-  const map: Map = %RawDownCast<Map>(LoadFixedArrayElement(maps, mapIndex));
-  const instanceSize: intptr =
-      unsafe::TimesTaggedSize(Convert<intptr>(map.instance_size_in_words));
-  const result: HeapObject = unsafe::Allocate(instanceSize);
-  *UnsafeConstCast(&result.map) = map;
-  return result;
-}
-
 builtin WasmAllocateRtt(implicit context: Context)(
     typeIndex: Smi, parent: Map): Map {
   tail runtime::WasmAllocateRtt(context, typeIndex, parent);

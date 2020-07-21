@@ -114,30 +114,6 @@ TF_BUILTIN(WasmI64AtomicWait32, WasmBuiltinsAssembler) {
   Return(Unsigned(SmiToInt32(result_smi)));
 }
 
-TF_BUILTIN(WasmAllocateArray, WasmBuiltinsAssembler) {
-  TNode<WasmInstanceObject> instance = LoadInstanceFromFrame();
-  TNode<Smi> map_index = CAST(Parameter(Descriptor::kMapIndex));
-  TNode<Smi> length = CAST(Parameter(Descriptor::kLength));
-  TNode<Smi> element_size = CAST(Parameter(Descriptor::kElementSize));
-  TNode<FixedArray> maps_list = LoadObjectField<FixedArray>(
-      instance, WasmInstanceObject::kManagedObjectMapsOffset);
-  TNode<Map> map = CAST(LoadFixedArrayElement(maps_list, map_index));
-  TNode<IntPtrT> untagged_length = SmiUntag(length);
-  // instance_size = WasmArray::kHeaderSize
-  //               + RoundUp(element_size * length, kObjectAlignment)
-  TNode<IntPtrT> raw_size = IntPtrMul(SmiUntag(element_size), untagged_length);
-  TNode<IntPtrT> rounded_size =
-      WordAnd(IntPtrAdd(raw_size, IntPtrConstant(kObjectAlignmentMask)),
-              IntPtrConstant(~kObjectAlignmentMask));
-  TNode<IntPtrT> instance_size =
-      IntPtrAdd(IntPtrConstant(WasmArray::kHeaderSize), rounded_size);
-  TNode<WasmArray> result = UncheckedCast<WasmArray>(Allocate(instance_size));
-  StoreMap(result, map);
-  StoreObjectFieldNoWriteBarrier(result, WasmArray::kLengthOffset,
-                                 TruncateIntPtrToInt32(untagged_length));
-  Return(result);
-}
-
 TF_BUILTIN(WasmAllocateArrayWithRtt, WasmBuiltinsAssembler) {
   TNode<Map> map = CAST(Parameter(Descriptor::kMap));
   TNode<Smi> length = CAST(Parameter(Descriptor::kLength));

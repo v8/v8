@@ -355,14 +355,12 @@ constexpr const char* WasmOpcodes::OpcodeName(WasmOpcode opcode) {
     CASE_UNSIGNED_ALL_OP(AtomicCompareExchange, "atomic.cmpxchng")
 
     // GC operations.
-    CASE_OP(StructNew, "struct.new")
     CASE_OP(StructNewWithRtt, "struct.new_with_rtt")
     CASE_OP(StructNewDefault, "struct.new_default")
     CASE_OP(StructGet, "struct.get")
     CASE_OP(StructGetS, "struct.get_s")
     CASE_OP(StructGetU, "struct.get_u")
     CASE_OP(StructSet, "struct.set")
-    CASE_OP(ArrayNew, "array.new")
     CASE_OP(ArrayNewWithRtt, "array.new_with_rtt")
     CASE_OP(ArrayNewDefault, "array.new_default")
     CASE_OP(ArrayGet, "array.get")

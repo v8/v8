@@ -819,7 +819,6 @@ namespace internal {
   ASM(WasmDebugBreak, Dummy)                                                   \
   TFC(WasmFloat32ToNumber, WasmFloat32ToNumber)                                \
   TFC(WasmFloat64ToNumber, WasmFloat64ToNumber)                                \
-  TFS(WasmAllocateArray, kMapIndex, kLength, kElementSize)                     \
   TFS(WasmAllocateArrayWithRtt, kMap, kLength, kElementSize)                   \
   TFC(WasmI32AtomicWait32, WasmI32AtomicWait32)                                \
   TFC(WasmI64AtomicWait32, WasmI64AtomicWait32)                                \

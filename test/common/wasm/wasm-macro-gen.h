@@ -428,8 +428,6 @@ inline WasmOpcode LoadStoreOpcodeOf(MachineType type, bool store) {
 // Heap-allocated object operations.
 //------------------------------------------------------------------------------
 #define WASM_GC_OP(op) kGCPrefix, static_cast<byte>(op)
-#define WASM_STRUCT_NEW(index, ...) \
-  __VA_ARGS__, WASM_GC_OP(kExprStructNew), static_cast<byte>(index)
 #define WASM_STRUCT_NEW_WITH_RTT(index, ...) \
   __VA_ARGS__, WASM_GC_OP(kExprStructNewWithRtt), static_cast<byte>(index)
 #define WASM_STRUCT_GET(typeidx, fieldidx, struct_obj)                \
@@ -456,8 +454,6 @@ inline WasmOpcode LoadStoreOpcodeOf(MachineType type, bool store) {
   ref, rtt, WASM_GC_OP(kExprRefCast), static_cast<byte>(obj_type), \
       static_cast<byte>(rtt_type)
 
-#define WASM_ARRAY_NEW(index, default_value, length) \
-  default_value, length, WASM_GC_OP(kExprArrayNew), static_cast<byte>(index)
 #define WASM_ARRAY_NEW_WITH_RTT(index, default_value, length, rtt) \
   default_value, length, rtt, WASM_GC_OP(kExprArrayNewWithRtt),    \
       static_cast<byte>(index)
