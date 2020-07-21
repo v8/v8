@@ -157,11 +157,10 @@ InternalIndex HashTable<Derived, Shape>::FindEntry(const LocalIsolate* isolate,
     Object element = KeyAt(isolate, entry);
     // Empty entry. Uses raw unchecked accessors because it is called by the
     // string table during bootstrapping.
-    if (element == undefined) break;
+    if (element == undefined) return InternalIndex::NotFound();
     if (Shape::kMatchNeedsHoleCheck && element == the_hole) continue;
     if (Shape::IsMatch(key, element)) return entry;
   }
-  return InternalIndex::NotFound();
 }
 
 // static

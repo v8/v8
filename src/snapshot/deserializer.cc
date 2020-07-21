@@ -240,6 +240,7 @@ HeapObject Deserializer::PostProcessNewObject(HeapObject obj,
       if (string.IsInternalizedString()) {
         // Off-thread internalized strings are canonicalized during off-thread
         // isolate publish, so we don't have to canonicalize them here.
+        // TODO(crbug.com/v8/10729): Add concurrent string table support.
         if (local_isolate().is_off_thread()) return string;
 
         // Canonicalize the internalized string. If it already exists in the
