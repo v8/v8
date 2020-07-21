@@ -2,8 +2,6 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-// Flags: --harmony_intl_dateformat_fractional_second_digits
-
 assertThrows(
     () => (new Intl.DateTimeFormat("en", {fractionalSecondDigits: 0})),
     RangeError,

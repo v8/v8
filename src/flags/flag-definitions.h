@@ -262,14 +262,7 @@ DEFINE_IMPLICATION(harmony_weak_refs_with_cleanup_some, harmony_weak_refs)
   V(harmony_string_replaceall, "harmony String.prototype.replaceAll")     \
   V(harmony_logical_assignment, "harmony logical assignment")
 
-#ifdef V8_INTL_SUPPORT
-#define HARMONY_SHIPPING(V)                           \
-  HARMONY_SHIPPING_BASE(V)                            \
-  V(harmony_intl_dateformat_fractional_second_digits, \
-    "Add fractionalSecondDigits option to DateTimeFormat")
-#else
 #define HARMONY_SHIPPING(V) HARMONY_SHIPPING_BASE(V)
-#endif
 
 // Once a shipping feature has proved stable in the wild, it will be dropped
 // from HARMONY_SHIPPING, all occurrences of the FLAG_ variable are removed,

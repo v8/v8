@@ -62,10 +62,6 @@
   # https://bugs.chromium.org/p/v8/issues/detail?id=4709
   'language/expressions/assignment/fn-name-lhs-cover': [FAIL],
 
-  # https://github.com/tc39/test262/issues/2591
-  'intl402/DateTimeFormat/prototype/resolvedOptions/order': ['--no-harmony-intl_dateformat_fractional_second_digits'],
-  'intl402/DateTimeFormat/prototype/resolvedOptions/order-dayPeriod': ['--no-harmony-intl_dateformat_fractional_second_digits'],
-
   # https://bugs.chromium.org/p/v8/issues/detail?id=9084
   'intl402/supportedLocalesOf-consistent-with-resolvedOptions': [FAIL],
   'intl402/fallback-locales-are-supported': [FAIL],

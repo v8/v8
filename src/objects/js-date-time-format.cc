@@ -640,14 +640,12 @@ MaybeHandle<JSObject> JSDateTimeFormat::ResolvedOptions(
         }
       }
     }
-    if (FLAG_harmony_intl_dateformat_fractional_second_digits) {
-      int fsd = FractionalSecondDigitsFromPattern(pattern);
-      if (fsd > 0) {
-        CHECK(JSReceiver::CreateDataProperty(
-                  isolate, options, factory->fractionalSecondDigits_string(),
-                  factory->NewNumberFromInt(fsd), Just(kDontThrow))
-                  .FromJust());
-      }
+    int fsd = FractionalSecondDigitsFromPattern(pattern);
+    if (fsd > 0) {
+      CHECK(JSReceiver::CreateDataProperty(
+                isolate, options, factory->fractionalSecondDigits_string(),
+                factory->NewNumberFromInt(fsd), Just(kDontThrow))
+                .FromJust());
     }
   }
 
@@ -893,9 +891,7 @@ MaybeHandle<JSObject> JSDateTimeFormat::ToDateTimeOptions(
     list.push_back(factory->hour_string());
     list.push_back(factory->minute_string());
     list.push_back(factory->second_string());
-    if (FLAG_harmony_intl_dateformat_fractional_second_digits) {
-      list.push_back(factory->fractionalSecondDigits_string());
-    }
+    list.push_back(factory->fractionalSecondDigits_string());
     Maybe<bool> maybe_needs_default = NeedsDefault(isolate, options, list);
     MAYBE_RETURN(maybe_needs_default, Handle<JSObject>());
     needs_default &= maybe_needs_default.FromJust();
@@ -1660,17 +1656,15 @@ MaybeHandle<JSDateTimeFormat> JSDateTimeFormat::New(
       skeleton += item.map.find(input.get())->second;
     }
   }
-  if (FLAG_harmony_intl_dateformat_fractional_second_digits) {
-    // Let _value_ be ? GetNumberOption(options, "fractionalSecondDigits", 1, 3,
-    // *undefined*). The *undefined* is represented by value 0 here.
-    Maybe<int> maybe_fsd = Intl::GetNumberOption(
-        isolate, options, factory->fractionalSecondDigits_string(), 1, 3, 0);
-    MAYBE_RETURN(maybe_fsd, MaybeHandle<JSDateTimeFormat>());
-    // Convert fractionalSecondDigits to skeleton.
-    int fsd = maybe_fsd.FromJust();
-    for (int i = 0; i < fsd; i++) {
-      skeleton += "S";
-    }
+  // Let _value_ be ? GetNumberOption(options, "fractionalSecondDigits", 1, 3,
+  // *undefined*). The *undefined* is represented by value 0 here.
+  Maybe<int> maybe_fsd = Intl::GetNumberOption(
+      isolate, options, factory->fractionalSecondDigits_string(), 1, 3, 0);
+  MAYBE_RETURN(maybe_fsd, MaybeHandle<JSDateTimeFormat>());
+  // Convert fractionalSecondDigits to skeleton.
+  int fsd = maybe_fsd.FromJust();
+  for (int i = 0; i < fsd; i++) {
+    skeleton += "S";
   }
 
   // 29. Let matcher be ? GetOption(options, "formatMatcher", "string", «

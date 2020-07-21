@@ -4126,8 +4126,6 @@ EMPTY_INITIALIZE_GLOBAL_FOR_FEATURE(harmony_logical_assignment)
 #ifdef V8_INTL_SUPPORT
 EMPTY_INITIALIZE_GLOBAL_FOR_FEATURE(harmony_intl_displaynames_date_types)
 EMPTY_INITIALIZE_GLOBAL_FOR_FEATURE(harmony_intl_dateformat_day_period)
-EMPTY_INITIALIZE_GLOBAL_FOR_FEATURE(
-    harmony_intl_dateformat_fractional_second_digits)
 #endif  // V8_INTL_SUPPORT
 
 #undef EMPTY_INITIALIZE_GLOBAL_FOR_FEATURE

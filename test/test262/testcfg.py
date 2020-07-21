@@ -47,7 +47,6 @@ FEATURE_FLAGS = {
   'Intl.Segmenter': '--harmony-intl-segmenter',
   'Intl.DateTimeFormat-dayPeriod': '--harmony-intl-dateformat-day-period',
   'Intl.DateTimeFormat-quarter': '--harmony-intl-dateformat-quarter',
-  'Intl.DateTimeFormat-fractionalSecondDigits': '--harmony-intl-dateformat-fractional-second-digits',
   'String.prototype.replaceAll': '--harmony_string_replaceall',
   'Symbol.prototype.description': '--harmony-symbol-description',
   'export-star-as-namespace-from-module': '--harmony-namespace-exports',
