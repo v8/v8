@@ -4938,8 +4938,8 @@ static MachineType MachineTypeFor(CTypeInfo::Type type) {
       return MachineType::Float32();
     case CTypeInfo::Type::kFloat64:
       return MachineType::Float64();
-    case CTypeInfo::Type::kUnwrappedApiObject:
-      return MachineType::Pointer();
+    case CTypeInfo::Type::kV8Value:
+      return MachineType::AnyTagged();
   }
 }
 

@@ -1724,8 +1724,8 @@ class RepresentationSelector {
         return MachineType::Float32();
       case CTypeInfo::Type::kFloat64:
         return MachineType::Float64();
-      case CTypeInfo::Type::kUnwrappedApiObject:
-        return MachineType::Pointer();
+      case CTypeInfo::Type::kV8Value:
+        return MachineType::AnyTagged();
     }
   }
 
@@ -1751,8 +1751,8 @@ class RepresentationSelector {
       // fall into that pit, but future changes may break this here.
       case CTypeInfo::Type::kUint64:
         return UseInfo::Word64();
-      case CTypeInfo::Type::kUnwrappedApiObject:
-        return UseInfo::Word();
+      case CTypeInfo::Type::kV8Value:
+        return UseInfo::AnyTagged();
     }
   }
 

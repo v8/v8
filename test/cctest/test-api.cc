@@ -27364,9 +27364,9 @@ DEFINE_OPERATORS_FOR_FLAGS(ApiCheckerResultFlags)
 
 template <typename Value, typename Impl>
 struct BasicApiChecker {
-  static void FastCallback(BasicApiChecker<Value, Impl>* receiver,
-                           Value argument, int* fallback) {
-    Impl::FastCallback(static_cast<Impl*>(receiver), argument, fallback);
+  static void FastCallback(v8::ApiObject receiver, Value argument,
+                           int* fallback) {
+    Impl::FastCallback(receiver, argument, fallback);
   }
   static void SlowCallback(const v8::FunctionCallbackInfo<v8::Value>& info) {
     Impl::SlowCallback(info);
@@ -27378,25 +27378,52 @@ struct BasicApiChecker {
   ApiCheckerResultFlags result_ = ApiCheckerResult::kNotCalled;
 };
 
+bool IsValidUnwrapObject(v8::Object* object) {
+  v8::internal::Address addr =
+      *reinterpret_cast<v8::internal::Address*>(object);
+  auto instance_type = v8::internal::Internals::GetInstanceType(addr);
+  return (instance_type == v8::internal::Internals::kJSObjectType ||
+          instance_type == v8::internal::Internals::kJSApiObjectType ||
+          instance_type == v8::internal::Internals::kJSSpecialApiObjectType);
+}
+
+template <typename T, int offset>
+T* GetInternalField(v8::Object* wrapper) {
+  assert(offset < wrapper->InternalFieldCount());
+  return reinterpret_cast<T*>(
+      wrapper->GetAlignedPointerFromInternalField(offset));
+}
+
 template <typename T>
 struct ApiNumberChecker : BasicApiChecker<T, ApiNumberChecker<T>> {
   explicit ApiNumberChecker(T value, bool raise_exception = false,
                             int args_count = 1)
       : raise_exception_(raise_exception), args_count_(args_count) {}
 
-  static void FastCallback(ApiNumberChecker<T>* receiver, T argument,
-                           int* fallback) {
-    receiver->result_ |= ApiCheckerResult::kFastCalled;
-    receiver->fast_value_ = argument;
-    if (receiver->raise_exception_) {
+  static void FastCallback(v8::ApiObject receiver, T argument, int* fallback) {
+    v8::Object* receiver_obj = reinterpret_cast<v8::Object*>(&receiver);
+    if (!IsValidUnwrapObject(receiver_obj)) {
+      *fallback = 1;
+      return;
+    }
+    ApiNumberChecker<T>* receiver_ptr =
+        GetInternalField<ApiNumberChecker<T>, kV8WrapperObjectIndex>(
+            receiver_obj);
+    receiver_ptr->result_ |= ApiCheckerResult::kFastCalled;
+    receiver_ptr->fast_value_ = argument;
+    if (receiver_ptr->raise_exception_) {
       *fallback = 1;
     }
   }
 
   static void SlowCallback(const v8::FunctionCallbackInfo<v8::Value>& info) {
     v8::Object* receiver = v8::Object::Cast(*info.Holder());
-    ApiNumberChecker<T>* checker = static_cast<ApiNumberChecker<T>*>(
-        receiver->GetAlignedPointerFromInternalField(kV8WrapperObjectIndex));
+    if (!IsValidUnwrapObject(receiver)) {
+      info.GetIsolate()->ThrowException(v8_str("Called with a non-object."));
+      return;
+    }
+    ApiNumberChecker<T>* checker =
+        GetInternalField<ApiNumberChecker<T>, kV8WrapperObjectIndex>(receiver);
     CHECK_EQ(info.Length(), checker->args_count_);
 
     checker->result_ |= ApiCheckerResult::kSlowCalled;
@@ -27415,6 +27442,35 @@ struct ApiNumberChecker : BasicApiChecker<T, ApiNumberChecker<T>> {
   int args_count_ = 1;
 };
 
+struct UnexpectedObjectChecker
+    : BasicApiChecker<v8::ApiObject, UnexpectedObjectChecker> {
+  static void FastCallback(v8::ApiObject receiver, v8::ApiObject argument,
+                           int* fallback) {
+    v8::Object* receiver_obj = reinterpret_cast<v8::Object*>(&receiver);
+    UnexpectedObjectChecker* receiver_ptr =
+        GetInternalField<UnexpectedObjectChecker, kV8WrapperObjectIndex>(
+            receiver_obj);
+    receiver_ptr->result_ |= ApiCheckerResult::kFastCalled;
+    v8::Value* argument_value = reinterpret_cast<v8::Value*>(&argument);
+    if (argument_value->IsObject()) {
+      v8::Object* argument_obj = reinterpret_cast<v8::Object*>(&argument);
+      CHECK(!IsValidUnwrapObject(argument_obj));
+    }
+  }
+
+  static void SlowCallback(const v8::FunctionCallbackInfo<v8::Value>& info) {
+    v8::Object* receiver_obj = v8::Object::Cast(*info.Holder());
+    UnexpectedObjectChecker* receiver_ptr =
+        GetInternalField<UnexpectedObjectChecker, kV8WrapperObjectIndex>(
+            receiver_obj);
+    receiver_ptr->result_ |= ApiCheckerResult::kSlowCalled;
+    if (info[0]->IsObject()) {
+      v8::Object* argument_obj = v8::Object::Cast(*info[0]);
+      CHECK(!IsValidUnwrapObject(argument_obj));
+    }
+  }
+};
+
 enum class Behavior {
   kNoException,
   kException,  // An exception should be thrown by the callback function.
@@ -27428,8 +27484,7 @@ bool SetupTest(v8::Local<v8::Value> initial_value, LocalContext* env,
 
   v8::CFunction c_func = v8::CFunction::MakeRaisesException(
       BasicApiChecker<Value, Impl>::FastCallback);
-  CHECK_EQ(c_func.ArgumentInfo(0).GetType(),
-           v8::CTypeInfo::Type::kUnwrappedApiObject);
+  CHECK_EQ(c_func.ArgumentInfo(0).GetType(), v8::CTypeInfo::Type::kV8Value);
 
   Local<v8::FunctionTemplate> checker_templ = v8::FunctionTemplate::New(
       isolate, BasicApiChecker<Value, Impl>::SlowCallback,
@@ -27554,6 +27609,35 @@ void CallWithMoreArguments() {
   CHECK(checker.DidCallFast());
 }
 
+void CallWithUnexpectedReceiverType(v8::Local<v8::Value> receiver) {
+  LocalContext env;
+  ApiNumberChecker<int32_t> checker(42);
+  bool has_caught =
+      SetupTest(receiver, &env, &checker,
+                "function func(arg) { receiver.api_func.apply(value, arg); }"
+                "%PrepareFunctionForOptimization(func);"
+                "func(value);"
+                "%OptimizeFunctionOnNextCall(func);"
+                "func(value);");
+  CHECK(has_caught);
+  // The slow and fast callbacks were called actually, but aborted early.
+  CHECK(!checker.DidCallSlow());
+  CHECK(!checker.DidCallFast());
+}
+
+void CallWithUnexpectedObjectType(v8::Local<v8::Value> receiver) {
+  LocalContext env;
+  UnexpectedObjectChecker checker;
+  SetupTest(receiver, &env, &checker,
+            "function func(arg) { receiver.api_func(arg); }"
+            "%PrepareFunctionForOptimization(func);"
+            "func(value);"
+            "%OptimizeFunctionOnNextCall(func);"
+            "func(value);");
+  CHECK(checker.DidCallFast());
+  CHECK(checker.DidCallSlow());
+}
+
 class TestCFunctionInfo : public v8::CFunctionInfo {
   const v8::CTypeInfo& ReturnInfo() const override {
     static v8::CTypeInfo return_info =
@@ -27565,7 +27649,7 @@ class TestCFunctionInfo : public v8::CFunctionInfo {
 
   const v8::CTypeInfo& ArgumentInfo(unsigned int index) const override {
     static v8::CTypeInfo type_info0 =
-        v8::CTypeInfo::FromCType(v8::CTypeInfo::Type::kUnwrappedApiObject);
+        v8::CTypeInfo::FromCType(v8::CTypeInfo::Type::kV8Value);
     static v8::CTypeInfo type_info1 =
         v8::CTypeInfo::FromCType(v8::CTypeInfo::Type::kBool);
     switch (index) {
@@ -27586,31 +27670,11 @@ void CheckDynamicTypeInfo() {
   v8::CFunction c_func =
       v8::CFunction::Make(ApiNumberChecker<bool>::FastCallback, &type_info);
   CHECK_EQ(c_func.ArgumentCount(), 2);
-  CHECK_EQ(c_func.ArgumentInfo(0).GetType(),
-           v8::CTypeInfo::Type::kUnwrappedApiObject);
+  CHECK_EQ(c_func.ArgumentInfo(0).GetType(), v8::CTypeInfo::Type::kV8Value);
   CHECK_EQ(c_func.ArgumentInfo(1).GetType(), v8::CTypeInfo::Type::kBool);
   CHECK_EQ(c_func.ReturnInfo().GetType(), v8::CTypeInfo::Type::kVoid);
 }
 }  // namespace
-
-namespace v8 {
-template <typename T>
-class WrapperTraits<BasicApiChecker<T, ApiNumberChecker<T>>> {
- public:
-  static const void* GetTypeInfo() {
-    static const int tag = 0;
-    return reinterpret_cast<const void*>(&tag);
-  }
-};
-template <>
-class WrapperTraits<int> {
- public:
-  static const void* GetTypeInfo() {
-    static const int tag = 0;
-    return reinterpret_cast<const void*>(&tag);
-  }
-};
-}  // namespace v8
 #endif  // V8_LITE_MODE
 
 TEST(FastApiCalls) {
@@ -27663,6 +27727,9 @@ TEST(FastApiCalls) {
                         v8_num(std::numeric_limits<double>::infinity()));
   CallAndCheck<int32_t>(0, Behavior::kNoException,
                         ApiCheckerResult::kSlowCalled, v8_str("some_string"));
+  CallAndCheck<int32_t>(0, Behavior::kNoException,
+                        ApiCheckerResult::kSlowCalled,
+                        CompileRun("new Proxy({}, {});"));
   CallAndCheck<int32_t>(0, Behavior::kNoException,
                         ApiCheckerResult::kSlowCalled,
                         v8::Object::New(isolate));
@@ -27749,9 +27816,20 @@ TEST(FastApiCalls) {
   CallWithLessArguments();
   CallWithMoreArguments();
 
+  // Wrong types of receiver
+  CallWithUnexpectedReceiverType(v8_num(123));
+  CallWithUnexpectedReceiverType(v8_str("str"));
+  CallWithUnexpectedReceiverType(CompileRun("new Proxy({}, {});"));
+
+  // Wrong types for argument of type object
+  CallWithUnexpectedObjectType(v8_num(123));
+  CallWithUnexpectedObjectType(v8_str("str"));
+  CallWithUnexpectedObjectType(CompileRun("new Proxy({}, {});"));
+
   // TODO(mslekova): Add corner cases for 64-bit values.
   // TODO(mslekova): Add main cases for float and double.
   // TODO(mslekova): Restructure the tests so that the fast optimized calls
   // are compared against the slow optimized calls.
+  // TODO(mslekova): Add tests for FTI that requires access check.
 #endif  // V8_LITE_MODE
 }

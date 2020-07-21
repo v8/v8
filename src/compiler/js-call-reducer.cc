@@ -908,17 +908,14 @@ class FastApiCallReducerAssembler : public JSCallReducerAssembler {
                                                  kExtraInputsCount);
     inputs[cursor++] = ExternalConstant(ExternalReference::Create(c_function_));
 
-    inputs[cursor++] = MaybeUnwrapApiObject(
-        c_signature_->ArgumentInfo(0).GetType(), n.receiver());
+    inputs[cursor++] = n.receiver();
 
     // TODO(turbofan): Consider refactoring CFunctionInfo to distinguish
     // between receiver and arguments, simplifying this (and related) spots.
     int js_args_count = c_argument_count - kReceiver;
     for (int i = 0; i < js_args_count; ++i) {
       if (i < n.ArgumentCount()) {
-        CTypeInfo::Type type =
-            c_signature_->ArgumentInfo(i + kReceiver).GetType();
-        inputs[cursor++] = MaybeUnwrapApiObject(type, n.Argument(i));
+        inputs[cursor++] = n.Argument(i);
       } else {
         inputs[cursor++] = UndefinedConstant();
       }
@@ -983,32 +980,6 @@ class FastApiCallReducerAssembler : public JSCallReducerAssembler {
     return AddNode<Object>(graph()->NewNode(
         simplified()->FastApiCall(c_signature_, feedback(), descriptor),
         static_cast<int>(inputs_size), inputs));
-  }
-
-  TNode<RawPtrT> UnwrapApiObject(TNode<JSObject> node) {
-    CHECK_GE(isolate()->embedder_wrapper_object_index(), 0);
-    const int offset = Internals::kJSObjectHeaderSize +
-                       (Internals::kEmbedderDataSlotSize *
-                        isolate()->embedder_wrapper_object_index());
-
-    FieldAccess access(
-        kTaggedBase, offset, MaybeHandle<Name>(), MaybeHandle<Map>(),
-        V8_HEAP_SANDBOX_BOOL ? Type::SandboxedExternalPointer() : Type::Any(),
-        MachineType::Pointer(), WriteBarrierKind::kNoWriteBarrier);
-    return LoadField<RawPtrT>(access, node);
-  }
-
-  Node* MaybeUnwrapApiObject(CTypeInfo::Type type, TNode<Object> node) {
-    switch (type) {
-      case CTypeInfo::Type::kUnwrappedApiObject:
-        // This call assumes that {node} is a JSObject with an internal field
-        // set to a C pointer. It should fail in all other cases.
-        // TODO(mslekova): Implement instanceOf check for the C pointer type.
-        // TODO(mslekova): Introduce a GraphAssembler primitive for safe cast.
-        return UnwrapApiObject(TNode<JSObject>::UncheckedCast(node));
-      default:
-        return node;
-    }
   }
 
   const Address c_function_;
