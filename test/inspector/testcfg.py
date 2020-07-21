@@ -57,6 +57,8 @@ class TestCase(testcase.TestCase):
     return [
       os.path.join(
         'test', 'inspector', 'debugger', 'resources', 'break-locations.js'),
+      os.path.join(
+        'test', 'inspector', 'wasm-inspector-test.js'),
     ]
 
   @property
