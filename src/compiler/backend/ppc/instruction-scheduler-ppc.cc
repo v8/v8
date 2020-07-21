@@ -221,6 +221,10 @@ int InstructionScheduler::GetTargetInstructionFlags(
     case kPPC_I16x8SConvertI8x16High:
     case kPPC_I16x8UConvertI8x16Low:
     case kPPC_I16x8UConvertI8x16High:
+    case kPPC_I16x8AddSaturateS:
+    case kPPC_I16x8SubSaturateS:
+    case kPPC_I16x8AddSaturateU:
+    case kPPC_I16x8SubSaturateU:
     case kPPC_I8x16Splat:
     case kPPC_I8x16ExtractLaneU:
     case kPPC_I8x16ExtractLaneS:
@@ -245,6 +249,10 @@ int InstructionScheduler::GetTargetInstructionFlags(
     case kPPC_I8x16Abs:
     case kPPC_I8x16SConvertI16x8:
     case kPPC_I8x16UConvertI16x8:
+    case kPPC_I8x16AddSaturateS:
+    case kPPC_I8x16SubSaturateS:
+    case kPPC_I8x16AddSaturateU:
+    case kPPC_I8x16SubSaturateU:
     case kPPC_S8x16Shuffle:
     case kPPC_V64x2AnyTrue:
     case kPPC_V32x4AnyTrue:

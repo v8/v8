@@ -298,6 +298,10 @@ namespace compiler {
   V(PPC_I16x8SConvertI8x16High)      \
   V(PPC_I16x8UConvertI8x16Low)       \
   V(PPC_I16x8UConvertI8x16High)      \
+  V(PPC_I16x8AddSaturateS)           \
+  V(PPC_I16x8SubSaturateS)           \
+  V(PPC_I16x8AddSaturateU)           \
+  V(PPC_I16x8SubSaturateU)           \
   V(PPC_I8x16Splat)                  \
   V(PPC_I8x16ExtractLaneU)           \
   V(PPC_I8x16ExtractLaneS)           \
@@ -322,6 +326,10 @@ namespace compiler {
   V(PPC_I8x16Abs)                    \
   V(PPC_I8x16SConvertI16x8)          \
   V(PPC_I8x16UConvertI16x8)          \
+  V(PPC_I8x16AddSaturateS)           \
+  V(PPC_I8x16SubSaturateS)           \
+  V(PPC_I8x16AddSaturateU)           \
+  V(PPC_I8x16SubSaturateU)           \
   V(PPC_S8x16Shuffle)                \
   V(PPC_V64x2AnyTrue)                \
   V(PPC_V32x4AnyTrue)                \

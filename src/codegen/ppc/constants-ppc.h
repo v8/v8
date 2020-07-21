@@ -2322,7 +2322,23 @@ using Instr = uint32_t;
   /* Vector Pack Signed Halfword Signed Saturate */        \
   V(vpkshss, VPKSHSS, 0x1000018E)                          \
   /* Vector Pack Signed Halfword Unsigned Saturate */      \
-  V(vpkshus, VPKSHUS, 0x1000010E)
+  V(vpkshus, VPKSHUS, 0x1000010E)                          \
+  /* Vector Add Signed Halfword Saturate */                \
+  V(vaddshs, VADDSHS, 0x10000340)                          \
+  /* Vector Subtract Signed Halfword Saturate */           \
+  V(vsubshs, VSUBSHS, 0x10000740)                          \
+  /* Vector Add Unsigned Halfword Saturate */              \
+  V(vadduhs, VADDUHS, 0x10000240)                          \
+  /* Vector Subtract Unsigned Halfword Saturate */         \
+  V(vsubuhs, VSUBUHS, 0x10000640)                          \
+  /* Vector Add Signed Byte Saturate */                    \
+  V(vaddsbs, VADDSBS, 0x10000300)                          \
+  /* Vector Subtract Signed Byte Saturate */               \
+  V(vsubsbs, VSUBSBS, 0x10000700)                          \
+  /* Vector Add Unsigned Byte Saturate */                  \
+  V(vaddubs, VADDUBS, 0x10000200)                          \
+  /* Vector Subtract Unsigned Byte Saturate */             \
+  V(vsububs, VSUBUBS, 0x10000600)
 
 #define PPC_VX_OPCODE_C_FORM_LIST(V)       \
   /* Vector Unpack Low Signed Halfword */  \
@@ -2347,16 +2363,8 @@ using Instr = uint32_t;
   V(vaddcuq, VADDCUQ, 0x10000140)                                         \
   /* Vector Add and Write Carry-Out Unsigned Word */                      \
   V(vaddcuw, VADDCUW, 0x10000180)                                         \
-  /* Vector Add Signed Byte Saturate */                                   \
-  V(vaddsbs, VADDSBS, 0x10000300)                                         \
-  /* Vector Add Signed Halfword Saturate */                               \
-  V(vaddshs, VADDSHS, 0x10000340)                                         \
   /* Vector Add Signed Word Saturate */                                   \
   V(vaddsws, VADDSWS, 0x10000380)                                         \
-  /* Vector Add Unsigned Byte Saturate */                                 \
-  V(vaddubs, VADDUBS, 0x10000200)                                         \
-  /* Vector Add Unsigned Halfword Saturate */                             \
-  V(vadduhs, VADDUHS, 0x10000240)                                         \
   /* Vector Add Unsigned Quadword Modulo */                               \
   V(vadduqm, VADDUQM, 0x10000100)                                         \
   /* Vector Add Unsigned Word Saturate */                                 \
@@ -2505,16 +2513,8 @@ using Instr = uint32_t;
   V(vsubcuq, VSUBCUQ, 0x10000540)                                         \
   /* Vector Subtract and Write Carry-Out Unsigned Word */                 \
   V(vsubcuw, VSUBCUW, 0x10000580)                                         \
-  /* Vector Subtract Signed Byte Saturate */                              \
-  V(vsubsbs, VSUBSBS, 0x10000700)                                         \
-  /* Vector Subtract Signed Halfword Saturate */                          \
-  V(vsubshs, VSUBSHS, 0x10000740)                                         \
   /* Vector Subtract Signed Word Saturate */                              \
   V(vsubsws, VSUBSWS, 0x10000780)                                         \
-  /* Vector Subtract Unsigned Byte Saturate */                            \
-  V(vsububs, VSUBUBS, 0x10000600)                                         \
-  /* Vector Subtract Unsigned Halfword Saturate */                        \
-  V(vsubuhs, VSUBUHS, 0x10000640)                                         \
   /* Vector Subtract Unsigned Quadword Modulo */                          \
   V(vsubuqm, VSUBUQM, 0x10000500)                                         \
   /* Vector Subtract Unsigned Word Saturate */                            \
