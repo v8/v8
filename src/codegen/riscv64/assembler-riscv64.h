@@ -407,7 +407,6 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase {
   // Memory fences
   void fence(uint8_t pred, uint8_t succ);
   void fence_tso();
-  void fence_i();
 
   // Environment call / break
   void ecall();

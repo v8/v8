@@ -35,17 +35,19 @@ jobs:
     - name: Fetch upstream v8
       run: |
         fetch v8
+        (cd v8 && git checkout 8.1.268)
         (cd v8/third_party/icu && git checkout dbd3825b31041d782c5b504c59dcfb5ac7dda08c)
 
     - name: Install build dependencies
       run: (cd v8 && ./build/install-build-deps.sh --no-prompt --no-arm)
 
     - name: Checkout this branch
-      run: |
-        (cd v8 && \
-        git remote add riscv https://github.com/${GITHUB_REPOSITORY} && \
-        git fetch riscv && \
-        git checkout ${{ github.event.pull_request.head.sha }})
+      uses: actions/checkout@v2
+      with:
+        path: v8.pr
+
+    - name: Apply changes to be tested
+      run: cp -r v8.pr/* v8
 
     - name: Apply patch
       run: |
@@ -58,7 +60,7 @@ jobs:
         gn gen out/riscv64.sim --args='is_component_build=false is_debug=true target_cpu="x64" v8_target_cpu="riscv64" use_goma=false goma_dir="None"')
 
     - name: Build
-      run: (cd v8 && ninja -C out/riscv64.sim -j8)
+      run: (cd v8 && ninja -C out/riscv64.sim -j2)
 
     - name: cctests
       run: (cd v8 && tools/run-tests.py --outdir=out/riscv64.sim cctest)
