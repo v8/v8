@@ -4213,6 +4213,7 @@ v8_source_set("cppgc_base") {
     "include/cppgc/allocation.h",
     "include/cppgc/common.h",
     "include/cppgc/custom-space.h",
+    "include/cppgc/default-platform.h",
     "include/cppgc/garbage-collected.h",
     "include/cppgc/heap.h",
     "include/cppgc/internal/api-constants.h",
@@ -4226,7 +4227,6 @@ v8_source_set("cppgc_base") {
     "include/cppgc/internal/process-heap.h",
     "include/cppgc/internal/write-barrier.h",
     "include/cppgc/liveness-broker.h",
-    "include/cppgc/liveness-broker.h",
     "include/cppgc/macros.h",
     "include/cppgc/member.h",
     "include/cppgc/persistent.h",
@@ -4238,6 +4238,7 @@ v8_source_set("cppgc_base") {
     "include/cppgc/visitor.h",
     "include/v8config.h",
     "src/heap/cppgc/allocation.cc",
+    "src/heap/cppgc/default-platform.cc",
     "src/heap/cppgc/free-list.cc",
     "src/heap/cppgc/free-list.h",
     "src/heap/cppgc/garbage-collector.h",
@@ -4837,6 +4838,19 @@ v8_executable("cppgc_for_v8_embedders") {
     ":v8_libplatform",
     "//build/win:default_exe_manifest",
   ]
+}
+
+v8_executable("cppgc_standalone") {
+  sources = [ "samples/cppgc/cppgc-standalone.cc" ]
+
+  configs = [
+    # Note: don't use :internal_config here because this target will get
+    # the :external_config applied to it by virtue of depending on :cppgc, and
+    # you can't have both applied to the same target.
+    ":internal_config_base",
+  ]
+
+  deps = [ ":cppgc" ]
 }
 
 template("v8_fuzzer") {

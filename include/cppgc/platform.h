@@ -14,6 +14,7 @@ namespace cppgc {
 // V8-specific.
 using IdleTask = v8::IdleTask;
 using JobHandle = v8::JobHandle;
+using JobDelegate = v8::JobDelegate;
 using JobTask = v8::JobTask;
 using PageAllocator = v8::PageAllocator;
 using Task = v8::Task;
