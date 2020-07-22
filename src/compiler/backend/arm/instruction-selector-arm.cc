@@ -1471,8 +1471,6 @@ void InstructionSelector::VisitUint32Mod(Node* node) {
   V(RoundUint32ToFloat32, kArmVcvtF32U32)            \
   V(ChangeInt32ToFloat64, kArmVcvtF64S32)            \
   V(ChangeUint32ToFloat64, kArmVcvtF64U32)           \
-  V(TruncateFloat32ToInt32, kArmVcvtS32F32)          \
-  V(TruncateFloat32ToUint32, kArmVcvtU32F32)         \
   V(ChangeFloat64ToInt32, kArmVcvtS32F64)            \
   V(ChangeFloat64ToUint32, kArmVcvtU32F64)           \
   V(TruncateFloat64ToUint32, kArmVcvtU32F64)         \
@@ -3017,6 +3015,30 @@ void InstructionSelector::VisitF64x2Pmax(Node* node) {
   VisitF64x2PminOrPMax(this, kArmF64x2Pmax, node);
 }
 
+void InstructionSelector::VisitTruncateFloat32ToInt32(Node* node) {
+  ArmOperandGenerator g(this);
+
+  InstructionCode opcode = kArmVcvtS32F32;
+  TruncateKind kind = OpParameter<TruncateKind>(node->op());
+  if (kind == TruncateKind::kSetOverflowToMin) {
+    opcode |= MiscField::encode(true);
+  }
+
+  Emit(opcode, g.DefineAsRegister(node), g.UseRegister(node->InputAt(0)));
+}
+
+void InstructionSelector::VisitTruncateFloat32ToUint32(Node* node) {
+  ArmOperandGenerator g(this);
+
+  InstructionCode opcode = kArmVcvtU32F32;
+  TruncateKind kind = OpParameter<TruncateKind>(node->op());
+  if (kind == TruncateKind::kSetOverflowToMin) {
+    opcode |= MiscField::encode(true);
+  }
+
+  Emit(opcode, g.DefineAsRegister(node), g.UseRegister(node->InputAt(0)));
+}
+
 // static
 MachineOperatorBuilder::Flags
 InstructionSelector::SupportedMachineOperatorFlags() {
@@ -3041,6 +3063,7 @@ InstructionSelector::SupportedMachineOperatorFlags() {
              MachineOperatorBuilder::kFloat32RoundTiesEven |
              MachineOperatorBuilder::kFloat64RoundTiesEven;
   }
+  flags |= MachineOperatorBuilder::kSatConversionIsSafe;
   return flags;
 }
 
