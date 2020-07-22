@@ -23,6 +23,7 @@
 #include "src/compiler/backend/instruction.h"
 #include "src/compiler/backend/jump-threading.h"
 #include "src/compiler/backend/live-range-separator.h"
+#include "src/compiler/backend/mid-tier-register-allocator.h"
 #include "src/compiler/backend/move-optimizer.h"
 #include "src/compiler/backend/register-allocator-verifier.h"
 #include "src/compiler/backend/register-allocator.h"
@@ -356,6 +357,9 @@ class PipelineData {
   TopTierRegisterAllocationData* top_tier_register_allocation_data() const {
     return TopTierRegisterAllocationData::cast(register_allocation_data_);
   }
+  MidTierRegisterAllocationData* mid_tier_register_allocator_data() const {
+    return MidTierRegisterAllocationData::cast(register_allocation_data_);
+  }
 
   std::string const& source_position_output() const {
     return source_position_output_;
@@ -493,6 +497,15 @@ class PipelineData {
     register_allocation_data_ =
         register_allocation_zone()->New<TopTierRegisterAllocationData>(
             config, register_allocation_zone(), frame(), sequence(), flags,
+            &info()->tick_counter(), debug_name());
+  }
+
+  void InitializeMidTierRegisterAllocationData(
+      const RegisterConfiguration* config, CallDescriptor* call_descriptor) {
+    DCHECK_NULL(register_allocation_data_);
+    register_allocation_data_ =
+        register_allocation_zone()->New<MidTierRegisterAllocationData>(
+            config, register_allocation_zone(), frame(), sequence(),
             &info()->tick_counter(), debug_name());
   }
 
@@ -2267,6 +2280,16 @@ struct ResolveControlFlowPhase {
   }
 };
 
+struct MidTierRegisterAllocatorPhase {
+  DECL_PIPELINE_PHASE_CONSTANTS(MidTierRegisterAllocator)
+
+  void Run(PipelineData* data, Zone* temp_zone) {
+    MidTierRegisterAllocator allocator(
+        data->mid_tier_register_allocator_data());
+    allocator.DefineOutputs();
+  }
+};
+
 struct OptimizeMovesPhase {
   DECL_PIPELINE_PHASE_CONSTANTS(OptimizeMoves)
 
@@ -3148,7 +3171,7 @@ void Pipeline::GenerateCodeForWasmFunction(
 
 bool Pipeline::AllocateRegistersForTesting(const RegisterConfiguration* config,
                                            InstructionSequence* sequence,
-                                           bool use_fast_register_allocator,
+                                           bool use_mid_tier_register_allocator,
                                            bool run_verifier) {
   OptimizedCompilationInfo info(ArrayVector("testing"), sequence->zone(),
                                 Code::STUB);
@@ -3163,7 +3186,7 @@ bool Pipeline::AllocateRegistersForTesting(const RegisterConfiguration* config,
   }
 
   PipelineImpl pipeline(&data);
-  if (use_fast_register_allocator) {
+  if (use_mid_tier_register_allocator) {
     pipeline.AllocateRegistersForMidTier(config, nullptr, run_verifier);
   } else {
     pipeline.AllocateRegistersForTopTier(config, nullptr, run_verifier);
@@ -3289,7 +3312,7 @@ bool PipelineImpl::SelectInstructions(Linkage* linkage) {
       config = RegisterConfiguration::Default();
     }
 
-    if (FLAG_turboprop_fast_reg_alloc) {
+    if (FLAG_turboprop_mid_tier_reg_alloc) {
       AllocateRegistersForMidTier(config, call_descriptor, run_verifier);
     } else {
       AllocateRegistersForTopTier(config, call_descriptor, run_verifier);
@@ -3613,8 +3636,41 @@ void PipelineImpl::AllocateRegistersForTopTier(
 void PipelineImpl::AllocateRegistersForMidTier(
     const RegisterConfiguration* config, CallDescriptor* call_descriptor,
     bool run_verifier) {
-  // TODO(rmcilroy): Implement fast register allocator.
-  UNREACHABLE();
+  PipelineData* data = data_;
+  // Don't track usage for this zone in compiler stats.
+  std::unique_ptr<Zone> verifier_zone;
+  RegisterAllocatorVerifier* verifier = nullptr;
+  if (run_verifier) {
+    verifier_zone.reset(
+        new Zone(data->allocator(), kRegisterAllocatorVerifierZoneName));
+    verifier = verifier_zone->New<RegisterAllocatorVerifier>(
+        verifier_zone.get(), config, data->sequence(), data->frame());
+  }
+
+#ifdef DEBUG
+  data->sequence()->ValidateEdgeSplitForm();
+  data->sequence()->ValidateDeferredBlockEntryPaths();
+  data->sequence()->ValidateDeferredBlockExitPaths();
+#endif
+
+  if (info()->is_osr()) data->osr_helper()->SetupFrame(data->frame());
+  data->InitializeMidTierRegisterAllocationData(config, call_descriptor);
+
+  TraceSequence(info(), data, "before register allocation");
+
+  Run<MidTierRegisterAllocatorPhase>();
+
+  // TODO(rmcilroy): Run spill slot allocation and reference map population
+  // phases
+
+  TraceSequence(info(), data, "after register allocation");
+
+  if (verifier != nullptr) {
+    verifier->VerifyAssignment("End of regalloc pipeline.");
+    verifier->VerifyGapMoves();
+  }
+
+  data->DeleteRegisterAllocationZone();
 }
 
 OptimizedCompilationInfo* PipelineImpl::info() const { return data_->info(); }

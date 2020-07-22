@@ -907,6 +907,7 @@ class RuntimeCallTimer final {
   ADD_THREAD_SPECIFIC_COUNTER(V, Optimize, EarlyTrimming)               \
   ADD_THREAD_SPECIFIC_COUNTER(V, Optimize, EffectLinearization)         \
   ADD_THREAD_SPECIFIC_COUNTER(V, Optimize, EscapeAnalysis)              \
+  ADD_THREAD_SPECIFIC_COUNTER(V, Optimize, MidTierRegisterAllocator)    \
   ADD_THREAD_SPECIFIC_COUNTER(V, Optimize, FinalizeCode)                \
   ADD_THREAD_SPECIFIC_COUNTER(V, Optimize, FrameElision)                \
   ADD_THREAD_SPECIFIC_COUNTER(V, Optimize, GenericLowering)             \
