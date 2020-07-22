@@ -86,6 +86,25 @@ void Context::set_scope_info(ScopeInfo scope_info) {
   set(SCOPE_INFO_INDEX, scope_info);
 }
 
+Object Context::synchronized_get(int index) const {
+  const Isolate* isolate = GetIsolateForPtrCompr(*this);
+  return synchronized_get(isolate, index);
+}
+
+Object Context::synchronized_get(const Isolate* isolate, int index) const {
+  DCHECK_LT(static_cast<unsigned int>(index),
+            static_cast<unsigned int>(this->length()));
+  return ACQUIRE_READ_FIELD(*this, OffsetOfElementAt(index));
+}
+
+void Context::synchronized_set(int index, Object value) {
+  DCHECK_LT(static_cast<unsigned int>(index),
+            static_cast<unsigned int>(this->length()));
+  const int offset = OffsetOfElementAt(index);
+  RELEASE_WRITE_FIELD(*this, offset, value);
+  WRITE_BARRIER(*this, offset, value);
+}
+
 Object Context::unchecked_previous() { return get(PREVIOUS_INDEX); }
 
 Context Context::previous() {
@@ -259,6 +278,15 @@ void NativeContext::set_microtask_queue(Isolate* isolate,
   ExternalPointer_t encoded_value = EncodeExternalPointer(
       isolate, reinterpret_cast<Address>(microtask_queue));
   WriteField<ExternalPointer_t>(kMicrotaskQueueOffset, encoded_value);
+}
+
+void NativeContext::synchronized_set_script_context_table(
+    ScriptContextTable script_context_table) {
+  synchronized_set(SCRIPT_CONTEXT_TABLE_INDEX, script_context_table);
+}
+
+ScriptContextTable NativeContext::synchronized_script_context_table() const {
+  return ScriptContextTable::cast(synchronized_get(SCRIPT_CONTEXT_TABLE_INDEX));
 }
 
 OSROptimizedCodeCache NativeContext::GetOSROptimizedCodeCache() {

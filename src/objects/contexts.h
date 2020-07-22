@@ -441,6 +441,10 @@ class Context : public HeapObject {
   V8_INLINE void set(int index, Object value);
   // Setter with explicit barrier mode.
   V8_INLINE void set(int index, Object value, WriteBarrierMode mode);
+  // Setter and getter with synchronization semantics.
+  V8_INLINE Object synchronized_get(int index) const;
+  V8_INLINE Object synchronized_get(const Isolate* isolate, int index) const;
+  V8_INLINE void synchronized_set(int index, Object value);
 
   DEFINE_FIELD_OFFSET_CONSTANTS(HeapObject::kHeaderSize,
                                 TORQUE_GENERATED_CONTEXT_FIELDS)
@@ -660,6 +664,10 @@ class NativeContext : public Context {
   // [microtask_queue]: pointer to the MicrotaskQueue object.
   DECL_GETTER(microtask_queue, MicrotaskQueue*)
   inline void set_microtask_queue(Isolate* isolate, MicrotaskQueue* queue);
+
+  inline void synchronized_set_script_context_table(
+      ScriptContextTable script_context_table);
+  inline ScriptContextTable synchronized_script_context_table() const;
 
   // Dispatched behavior.
   DECL_PRINTER(NativeContext)

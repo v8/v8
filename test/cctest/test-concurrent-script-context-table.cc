@@ -18,6 +18,8 @@ namespace internal {
 
 namespace {
 
+std::atomic<int> g_initialized_entries;
+
 class ScriptContextTableAccessUsedThread final : public v8::base::Thread {
  public:
   ScriptContextTableAccessUsedThread(
@@ -52,6 +54,49 @@ class ScriptContextTableAccessUsedThread final : public v8::base::Thread {
   base::Semaphore* sema_started_;
   std::unique_ptr<PersistentHandles> ph_;
   Handle<ScriptContextTable> script_context_table_;
+};
+
+class AccessScriptContextTableThread final : public v8::base::Thread {
+ public:
+  AccessScriptContextTableThread(Isolate* isolate, Heap* heap,
+                                 base::Semaphore* sema_started,
+                                 std::unique_ptr<PersistentHandles> ph,
+                                 Handle<NativeContext> native_context)
+      : v8::base::Thread(
+            base::Thread::Options("AccessScriptContextTableThread")),
+        isolate_(isolate),
+        heap_(heap),
+        sema_started_(sema_started),
+        ph_(std::move(ph)),
+        native_context_(native_context) {}
+
+  void Run() override {
+    LocalHeap local_heap(heap_, std::move(ph_));
+    LocalHandleScope scope(&local_heap);
+
+    sema_started_->Signal();
+
+    for (int i = 0; i < 1000; ++i) {
+      // Read upper bound with relaxed semantics to not add any ordering
+      // constraints.
+      while (i >= g_initialized_entries.load(std::memory_order_relaxed)) {
+      }
+      auto script_context_table = Handle<ScriptContextTable>(
+          native_context_->synchronized_script_context_table(), &local_heap);
+      Handle<Context> context(script_context_table->get_context(i),
+                              &local_heap);
+      CHECK(!context.is_null());
+    }
+
+    CHECK(!ph_);
+    ph_ = local_heap.DetachPersistentHandles();
+  }
+
+  Isolate* isolate_;
+  Heap* heap_;
+  base::Semaphore* sema_started_;
+  std::unique_ptr<PersistentHandles> ph_;
+  Handle<NativeContext> native_context_;
 };
 
 TEST(ScriptContextTable_Extend) {
@@ -94,12 +139,66 @@ TEST(ScriptContextTable_Extend) {
 
   sema_started.Wait();
 
-  for (int i = 0; i < 10; ++i) {
+  for (int i = 0; i < 100; ++i) {
     Handle<Context> context =
         factory->NewScriptContext(native_context, scope_info);
     script_context_table =
         ScriptContextTable::Extend(script_context_table, context);
   }
+
+  thread->Join();
+}
+
+TEST(ScriptContextTable_AccessScriptContextTable) {
+  CcTest::InitializeVM();
+  v8::HandleScope scope(CcTest::isolate());
+  Isolate* isolate = CcTest::i_isolate();
+
+  Factory* factory = isolate->factory();
+  Handle<NativeContext> native_context = factory->NewNativeContext();
+  Handle<Map> script_context_map =
+      factory->NewMap(SCRIPT_CONTEXT_TYPE, kVariableSizeSentinel);
+  script_context_map->set_native_context(*native_context);
+  native_context->set_script_context_map(*script_context_map);
+
+  Handle<ScopeInfo> scope_info =
+      ReadOnlyRoots(isolate).global_this_binding_scope_info_handle();
+
+  Handle<ScriptContextTable> script_context_table =
+      factory->NewScriptContextTable();
+  Handle<Context> context =
+      factory->NewScriptContext(native_context, scope_info);
+  script_context_table =
+      ScriptContextTable::Extend(script_context_table, context);
+  int initialized_entries = 1;
+  g_initialized_entries.store(initialized_entries, std::memory_order_release);
+
+  native_context->set_script_context_table(*script_context_table);
+  std::unique_ptr<PersistentHandles> ph = isolate->NewPersistentHandles();
+  Handle<NativeContext> persistent_native_context =
+      ph->NewHandle(native_context);
+
+  base::Semaphore sema_started(0);
+
+  auto thread = std::make_unique<AccessScriptContextTableThread>(
+      isolate, isolate->heap(), &sema_started, std::move(ph),
+      persistent_native_context);
+
+  CHECK(thread->Start());
+
+  sema_started.Wait();
+
+  for (; initialized_entries < 1000; ++initialized_entries) {
+    Handle<Context> context =
+        factory->NewScriptContext(native_context, scope_info);
+    script_context_table =
+        ScriptContextTable::Extend(script_context_table, context);
+    native_context->synchronized_set_script_context_table(
+        *script_context_table);
+    // Update with relaxed semantics to not introduce ordering constraints.
+    g_initialized_entries.store(initialized_entries, std::memory_order_relaxed);
+  }
+  g_initialized_entries.store(initialized_entries, std::memory_order_relaxed);
 
   thread->Join();
 }
