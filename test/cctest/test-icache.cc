@@ -61,7 +61,7 @@ static void FloodWithInc(Isolate* isolate, TestingAssemblerBuffer* buffer) {
   }
 #elif V8_TARGET_ARCH_RISCV64
   for (int i = 0; i < kNumInstr; ++i) {
-    __ Addu(a0, a0, Operand(1));
+    __ Add32(a0, a0, Operand(1));
   }
 #else
 #error Unsupported architecture

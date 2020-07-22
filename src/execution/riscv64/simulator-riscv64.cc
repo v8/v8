@@ -1775,7 +1775,7 @@ void Simulator::DecodeRVRType() {
     }
 #ifdef V8_TARGET_ARCH_64_BIT
     case RO_MULW: {
-      set_rd(sext32(rs1() * rs2()));
+      set_rd(sext32(sext32(rs1()) * sext32(rs2())));
       break;
     }
     case RO_DIVW: {

@@ -16,22 +16,7 @@ namespace internal {
 
 void CpuFeatures::FlushICache(void* start, size_t size) {
 #if !defined(USE_SIMULATOR)
-  // Nothing to do, flushing no instructions.
-  if (size == 0) {
-    return;
-  }
-
-#if defined(ANDROID) && !defined(__LP64__)
-  // Bionic cacheflush can typically run in userland, avoiding kernel call.
-  char* end = reinterpret_cast<char*>(start) + size;
-  cacheflush(reinterpret_cast<intptr_t>(start), reinterpret_cast<intptr_t>(end),
-             0);
-#else   // ANDROID
-  long res;  // NOLINT(runtime/int)
-  // FIXME: RISCV porting
-  res = 0;
-  if (res) FATAL("Failed to flush the instruction cache");
-#endif  // ANDROID
+  __builtin___clear_cache(start, (char *)start + size);
 #endif  // !USE_SIMULATOR.
 }
 
