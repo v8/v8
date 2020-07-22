@@ -3182,10 +3182,10 @@ void TurboAssembler::BranchLong(Label* L) {
     int64_t imm64;
     imm64 = branch_long_offset(L);
     DCHECK(is_int32(imm64));
-    auipc(t5, 0);  // Read PC into t5.
-    RV_li(t6, imm64);
-    add(t6, t5, t6);
-    jr(t6);
+    int32_t Hi20 = (((int32_t)imm64 + 0x800) >> 12);
+    int32_t Lo12 = (int32_t)imm64 << 20 >> 20;
+    auipc(t5, Hi20);  // Read PC + Hi20 into t5.
+    jr(t5, Lo12);   // jump PC + Hi20 + Lo12
   }
 }
 
@@ -3198,10 +3198,10 @@ void TurboAssembler::BranchAndLinkLong(Label* L) {
     int64_t imm64;
     imm64 = branch_long_offset(L);
     DCHECK(is_int32(imm64));
-    auipc(ra, 0);  // Read PC into ra register.
-    RV_li(t5, imm64);
-    add(t5, ra, t5);
-    jalr(t5);
+    int32_t Hi20 = (((int32_t)imm64 + 0x800) >> 12);
+    int32_t Lo12 = (int32_t)imm64 << 20 >> 20;
+    auipc(t5, Hi20);  // Read PC + Hi20 into t5.
+    jalr(t5, Lo12);   // jump PC + Hi20 + Lo12 and read PC + 4 to ra
   }
 }
 

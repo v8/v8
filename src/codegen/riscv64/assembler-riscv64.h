@@ -641,6 +641,8 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase {
   void jal(int32_t imm21) { jal(ToRegister(1), imm21); }
   inline void jal(Label* L) { jal(jump_offset(L)); }
   void jr(Register rs) { jalr(zero_reg, rs, 0); }
+  void jr(Register rs, int32_t imm12) { jalr(zero_reg, rs, imm12); }
+  void jalr(Register rs, int32_t imm12) { jalr(ToRegister(1), rs, imm12); }
   void jalr(Register rs) { jalr(ToRegister(1), rs, 0); }
   void ret() { jalr(zero_reg, ToRegister(1), 0); }
   void call(int32_t offset) {
