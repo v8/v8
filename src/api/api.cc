@@ -8887,9 +8887,9 @@ UnwindState Isolate::GetUnwindState() {
 
   i::Isolate* isolate = reinterpret_cast<i::Isolate*>(this);
   unwind_state.embedded_code_range.start =
-      reinterpret_cast<const void*>(isolate->embedded_blob());
+      reinterpret_cast<const void*>(isolate->embedded_blob_code());
   unwind_state.embedded_code_range.length_in_bytes =
-      isolate->embedded_blob_size();
+      isolate->embedded_blob_code_size();
 
   std::array<std::pair<i::Builtins::Name, JSEntryStub*>, 3> entry_stubs = {
       {{i::Builtins::kJSEntry, &unwind_state.js_entry_stub},

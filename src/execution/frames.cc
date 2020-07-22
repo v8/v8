@@ -237,7 +237,7 @@ bool SafeStackFrameIterator::IsNoFrameBytecodeHandlerPc(Isolate* isolate,
                                                         Address pc,
                                                         Address fp) const {
   // Return false for builds with non-embedded bytecode handlers.
-  if (Isolate::CurrentEmbeddedBlob() == nullptr) return false;
+  if (Isolate::CurrentEmbeddedBlobCode() == nullptr) return false;
 
   EmbeddedData d = EmbeddedData::FromBlob();
   if (pc < d.InstructionStartOfBytecodeHandlers() ||

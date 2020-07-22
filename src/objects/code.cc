@@ -143,21 +143,24 @@ SafepointEntry Code::GetSafepointEntry(Address pc) {
 
 int Code::OffHeapInstructionSize() const {
   DCHECK(is_off_heap_trampoline());
-  if (Isolate::CurrentEmbeddedBlob() == nullptr) return raw_instruction_size();
+  if (Isolate::CurrentEmbeddedBlobCode() == nullptr)
+    return raw_instruction_size();
   EmbeddedData d = EmbeddedData::FromBlob();
   return d.InstructionSizeOfBuiltin(builtin_index());
 }
 
 Address Code::OffHeapInstructionStart() const {
   DCHECK(is_off_heap_trampoline());
-  if (Isolate::CurrentEmbeddedBlob() == nullptr) return raw_instruction_start();
+  if (Isolate::CurrentEmbeddedBlobCode() == nullptr)
+    return raw_instruction_start();
   EmbeddedData d = EmbeddedData::FromBlob();
   return d.InstructionStartOfBuiltin(builtin_index());
 }
 
 Address Code::OffHeapInstructionEnd() const {
   DCHECK(is_off_heap_trampoline());
-  if (Isolate::CurrentEmbeddedBlob() == nullptr) return raw_instruction_end();
+  if (Isolate::CurrentEmbeddedBlobCode() == nullptr)
+    return raw_instruction_end();
   EmbeddedData d = EmbeddedData::FromBlob();
   return d.InstructionStartOfBuiltin(builtin_index()) +
          d.InstructionSizeOfBuiltin(builtin_index());

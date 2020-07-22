@@ -561,8 +561,9 @@ Code Code::GetCodeFromTargetAddress(Address address) {
   {
     // TODO(jgruber,v8:6666): Support embedded builtins here. We'd need to pass
     // in the current isolate.
-    Address start = reinterpret_cast<Address>(Isolate::CurrentEmbeddedBlob());
-    Address end = start + Isolate::CurrentEmbeddedBlobSize();
+    Address start =
+        reinterpret_cast<Address>(Isolate::CurrentEmbeddedBlobCode());
+    Address end = start + Isolate::CurrentEmbeddedBlobCodeSize();
     CHECK(address < start || address >= end);
   }
 

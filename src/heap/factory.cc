@@ -2105,8 +2105,8 @@ Handle<CodeDataContainer> Factory::NewCodeDataContainer(
 
 Handle<Code> Factory::NewOffHeapTrampolineFor(Handle<Code> code,
                                               Address off_heap_entry) {
-  CHECK_NOT_NULL(isolate()->embedded_blob());
-  CHECK_NE(0, isolate()->embedded_blob_size());
+  CHECK_NOT_NULL(isolate()->embedded_blob_code());
+  CHECK_NE(0, isolate()->embedded_blob_code_size());
   CHECK(Builtins::IsIsolateIndependentBuiltin(*code));
 
   bool generate_jump_to_instruction_stream =
