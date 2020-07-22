@@ -392,7 +392,6 @@ class V8_EXPORT_PRIVATE TurboAssembler : public TurboAssemblerBase {
   DEFINE_INSTRUCTION(Modu64)
   DEFINE_INSTRUCTION(Mul32)
   DEFINE_INSTRUCTION(Mulh32)
-  DEFINE_INSTRUCTION(Mulhu32)
   DEFINE_INSTRUCTION(Mul64)
   DEFINE_INSTRUCTION(Mulh64)
   DEFINE_INSTRUCTION2(Div32)
@@ -677,6 +676,10 @@ class V8_EXPORT_PRIVATE TurboAssembler : public TurboAssemblerBase {
   // MulOverflow32 sets overflow register to zero if no overflow occured
   void MulOverflow32(Register dst, Register left, const Operand& right,
                      Register overflow);
+
+  // MIPS-style 32-bit unsigned mulh
+  void Mulhu32(Register dst, Register left, const Operand& right,
+               Register left_zero, Register right_zero);
 
   // Number of instructions needed for calculation of switch table entry address
   static const int kSwitchTablePrologueSize = 6;

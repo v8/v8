@@ -1714,7 +1714,7 @@ void Simulator::DecodeRVRType() {
 #endif /* V8_TARGET_ARCH_64_BIT */
       // TODO: Add RISCV M extension macro
     case RO_MUL: {
-      set_rd(sext_xlen(rs1() * rs2()));
+      set_rd(rs1() * rs2());
       break;
     }
     case RO_MULH: {

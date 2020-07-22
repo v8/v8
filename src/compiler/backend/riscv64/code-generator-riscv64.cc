@@ -1010,7 +1010,8 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       __ Mulh32(i.OutputRegister(), i.InputRegister(0), i.InputOperand(1));
       break;
     case kRiscvMulHighU:
-      __ Mulhu32(i.OutputRegister(), i.InputRegister(0), i.InputOperand(1));
+      __ Mulhu32(i.OutputRegister(), i.InputRegister(0), i.InputOperand(1),
+                 kScratchReg, kScratchReg2);
       break;
     case kRiscvDMulHigh:
       __ Mulh64(i.OutputRegister(), i.InputRegister(0), i.InputOperand(1));
