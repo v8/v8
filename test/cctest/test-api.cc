@@ -27368,6 +27368,9 @@ struct BasicApiChecker {
                            int* fallback) {
     Impl::FastCallback(receiver, argument, fallback);
   }
+  static void FastCallbackNoFallback(v8::ApiObject receiver, Value argument) {
+    Impl::FastCallback(receiver, argument, nullptr);
+  }
   static void SlowCallback(const v8::FunctionCallbackInfo<v8::Value>& info) {
     Impl::SlowCallback(info);
   }
@@ -27478,12 +27481,19 @@ enum class Behavior {
 
 template <typename Value, typename Impl>
 bool SetupTest(v8::Local<v8::Value> initial_value, LocalContext* env,
-               BasicApiChecker<Value, Impl>* checker, const char* source_code) {
+               BasicApiChecker<Value, Impl>* checker, const char* source_code,
+               bool supports_fallback = true, bool accept_any_receiver = true) {
   v8::Isolate* isolate = CcTest::isolate();
   v8::TryCatch try_catch(isolate);
 
-  v8::CFunction c_func = v8::CFunction::MakeRaisesException(
-      BasicApiChecker<Value, Impl>::FastCallback);
+  v8::CFunction c_func;
+  if (supports_fallback) {
+    c_func = v8::CFunction::MakeRaisesException(
+        BasicApiChecker<Value, Impl>::FastCallback);
+  } else {
+    c_func = v8::CFunction::Make(
+        BasicApiChecker<Value, Impl>::FastCallbackNoFallback);
+  }
   CHECK_EQ(c_func.ArgumentInfo(0).GetType(), v8::CTypeInfo::Type::kV8Value);
 
   Local<v8::FunctionTemplate> checker_templ = v8::FunctionTemplate::New(
@@ -27491,6 +27501,9 @@ bool SetupTest(v8::Local<v8::Value> initial_value, LocalContext* env,
       v8::Local<v8::Value>(), v8::Local<v8::Signature>(), 1,
       v8::ConstructorBehavior::kAllow, v8::SideEffectType::kHasSideEffect,
       &c_func);
+  if (!accept_any_receiver) {
+    checker_templ->SetAcceptAnyReceiver(false);
+  }
 
   v8::Local<v8::ObjectTemplate> object_template =
       v8::ObjectTemplate::New(isolate);
@@ -27577,6 +27590,38 @@ void CallAndDeopt() {
   i::Handle<i::JSFunction> ifunction =
       i::Handle<i::JSFunction>::cast(v8::Utils::OpenHandle(*function));
   CHECK(ifunction->IsOptimized());
+}
+
+void CallNoFallback(int32_t expected_value) {
+  LocalContext env;
+  v8::Local<v8::Value> initial_value(v8_num(42));
+  ApiNumberChecker<int32_t> checker(expected_value, false);
+  SetupTest(initial_value, &env, &checker,
+            "function func(arg) { return receiver.api_func(arg); }"
+            "%PrepareFunctionForOptimization(func);"
+            "func(value);"
+            "%OptimizeFunctionOnNextCall(func);"
+            "func(value);",
+            false);
+
+  CHECK(checker.DidCallFast());
+  CHECK_EQ(checker.fast_value_, expected_value);
+}
+
+void CallNoConvertReceiver(int32_t expected_value) {
+  LocalContext env;
+  v8::Local<v8::Value> initial_value(v8_num(42));
+  ApiNumberChecker<int32_t> checker(expected_value, false);
+  SetupTest(initial_value, &env, &checker,
+            "function func(arg) { return receiver.api_func(arg); }"
+            "%PrepareFunctionForOptimization(func);"
+            "func(value);"
+            "%OptimizeFunctionOnNextCall(func);"
+            "func(value);",
+            true, false);
+
+  CHECK(checker.DidCallFast());
+  CHECK_EQ(checker.fast_value_, expected_value);
 }
 
 void CallWithLessArguments() {
@@ -27799,6 +27844,12 @@ TEST(FastApiCalls) {
 
   // Check for the deopt loop protection
   CallAndDeopt();
+
+  // Test callbacks without a fallback support
+  CallNoFallback(42);
+
+  // Test callback requesting access checks
+  CallNoConvertReceiver(42);
 
   CheckDynamicTypeInfo();
 

@@ -3610,9 +3610,7 @@ Reduction JSCallReducer::ReduceCallApiFunction(
     const CFunctionInfo* c_signature = function_template_info.c_signature();
     FastApiCallReducerAssembler a(jsgraph(), graph()->zone(), node, c_function,
                                   c_signature, function_template_info, receiver,
-                                  holder, shared, target, argc,
-                                  receiver /* The ConvertReceiver node needs to
-                                  be connected in the effect chain.*/);
+                                  holder, shared, target, argc, effect);
     Node* fast_call_subgraph = a.ReduceFastApiCall();
     ReplaceWithSubgraph(&a, fast_call_subgraph);
 
