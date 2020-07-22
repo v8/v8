@@ -4237,17 +4237,6 @@ void LiftoffAssembler::CallIndirect(const wasm::FunctionSig* sig,
   }
 }
 
-void LiftoffAssembler::TailCallIndirect(Register target) {
-  // Since we have more cache registers than parameter registers, the
-  // {LiftoffCompiler} should always be able to place {target} in a register.
-  DCHECK(target.is_valid());
-  if (FLAG_untrusted_code_mitigations) {
-    RetpolineJump(target);
-  } else {
-    jmp(target);
-  }
-}
-
 void LiftoffAssembler::CallRuntimeStub(WasmCode::RuntimeStubId sid) {
   // A direct call to a wasm runtime stub defined in this module.
   // Just encode the stub index. This will be patched at relocation.

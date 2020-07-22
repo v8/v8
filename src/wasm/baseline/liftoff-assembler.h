@@ -1097,7 +1097,6 @@ class LiftoffAssembler : public TurboAssembler {
   inline void CallIndirect(const FunctionSig* sig,
                            compiler::CallDescriptor* call_descriptor,
                            Register target);
-  inline void TailCallIndirect(Register target);
   inline void CallRuntimeStub(WasmCode::RuntimeStubId sid);
 
   // Reserve space in the current frame, store address to space in {addr}.

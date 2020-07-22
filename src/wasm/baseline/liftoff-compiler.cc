@@ -2303,7 +2303,135 @@ class LiftoffCompiler {
   void CallIndirect(FullDecoder* decoder, const Value& index_val,
                     const CallIndirectImmediate<validate>& imm,
                     const Value args[], Value returns[]) {
-    CallIndirect(decoder, index_val, imm, kNoReturnCall);
+    if (imm.table_index != 0) {
+      return unsupported(decoder, kRefTypes, "table index != 0");
+    }
+    for (ValueType ret : imm.sig->returns()) {
+      if (!CheckSupportedType(decoder, kSupportedTypes, ret, "return")) {
+        return;
+      }
+    }
+
+    // Place the source position before any stack manipulation, since this will
+    // be used for OSR in debugging.
+    source_position_table_builder_.AddPosition(
+        __ pc_offset(), SourcePosition(decoder->position()), true);
+
+    // Pop the index.
+    Register index = __ PopToRegister().gp();
+    // If that register is still being used after popping, we move it to another
+    // register, because we want to modify that register.
+    if (__ cache_state()->is_used(LiftoffRegister(index))) {
+      Register new_index =
+          __ GetUnusedRegister(kGpReg, LiftoffRegList::ForRegs(index)).gp();
+      __ Move(new_index, index, kWasmI32);
+      index = new_index;
+    }
+
+    LiftoffRegList pinned = LiftoffRegList::ForRegs(index);
+    // Get three temporary registers.
+    Register table = pinned.set(__ GetUnusedRegister(kGpReg, pinned)).gp();
+    Register tmp_const = pinned.set(__ GetUnusedRegister(kGpReg, pinned)).gp();
+    Register scratch = pinned.set(__ GetUnusedRegister(kGpReg, pinned)).gp();
+
+    // Bounds check against the table size.
+    Label* invalid_func_label = AddOutOfLineTrap(
+        decoder->position(), WasmCode::kThrowWasmTrapFuncInvalid);
+
+    uint32_t canonical_sig_num = env_->module->signature_ids[imm.sig_index];
+    DCHECK_GE(canonical_sig_num, 0);
+    DCHECK_GE(kMaxInt, canonical_sig_num);
+
+    // Compare against table size stored in
+    // {instance->indirect_function_table_size}.
+    LOAD_INSTANCE_FIELD(tmp_const, IndirectFunctionTableSize, kUInt32Size);
+    __ emit_cond_jump(kUnsignedGreaterEqual, invalid_func_label, kWasmI32,
+                      index, tmp_const);
+
+    // Mask the index to prevent SSCA.
+    if (FLAG_untrusted_code_mitigations) {
+      DEBUG_CODE_COMMENT("mask indirect call index");
+      // mask = ((index - size) & ~index) >> 31
+      // Reuse allocated registers; note: size is still stored in {tmp_const}.
+      Register diff = table;
+      Register neg_index = tmp_const;
+      Register mask = scratch;
+      // 1) diff = index - size
+      __ emit_i32_sub(diff, index, tmp_const);
+      // 2) neg_index = ~index
+      __ LoadConstant(LiftoffRegister(neg_index), WasmValue(int32_t{-1}));
+      __ emit_i32_xor(neg_index, neg_index, index);
+      // 3) mask = diff & neg_index
+      __ emit_i32_and(mask, diff, neg_index);
+      // 4) mask = mask >> 31
+      __ emit_i32_sari(mask, mask, 31);
+
+      // Apply mask.
+      __ emit_i32_and(index, index, mask);
+    }
+
+    DEBUG_CODE_COMMENT("check indirect call signature");
+    // Load the signature from {instance->ift_sig_ids[key]}
+    LOAD_INSTANCE_FIELD(table, IndirectFunctionTableSigIds, kSystemPointerSize);
+    // Shift {index} by 2 (multiply by 4) to represent kInt32Size items.
+    STATIC_ASSERT((1 << 2) == kInt32Size);
+    __ emit_i32_shli(index, index, 2);
+    __ Load(LiftoffRegister(scratch), table, index, 0, LoadType::kI32Load,
+            pinned);
+
+    // Compare against expected signature.
+    __ LoadConstant(LiftoffRegister(tmp_const), WasmValue(canonical_sig_num));
+
+    Label* sig_mismatch_label = AddOutOfLineTrap(
+        decoder->position(), WasmCode::kThrowWasmTrapFuncSigMismatch);
+    __ emit_cond_jump(kUnequal, sig_mismatch_label,
+                      LiftoffAssembler::kWasmIntPtr, scratch, tmp_const);
+
+    // At this point {index} has already been multiplied by 4.
+    DEBUG_CODE_COMMENT("execute indirect call");
+    if (kTaggedSize != kInt32Size) {
+      DCHECK_EQ(kTaggedSize, kInt32Size * 2);
+      // Multiply {index} by another 2 to represent kTaggedSize items.
+      __ emit_i32_add(index, index, index);
+    }
+    // At this point {index} has already been multiplied by kTaggedSize.
+
+    // Load the instance from {instance->ift_instances[key]}
+    LOAD_TAGGED_PTR_INSTANCE_FIELD(table, IndirectFunctionTableRefs);
+    __ LoadTaggedPointer(tmp_const, table, index,
+                         ObjectAccess::ElementOffsetInTaggedFixedArray(0),
+                         pinned);
+
+    if (kTaggedSize != kSystemPointerSize) {
+      DCHECK_EQ(kSystemPointerSize, kTaggedSize * 2);
+      // Multiply {index} by another 2 to represent kSystemPointerSize items.
+      __ emit_i32_add(index, index, index);
+    }
+    // At this point {index} has already been multiplied by kSystemPointerSize.
+
+    Register* explicit_instance = &tmp_const;
+
+    // Load the target from {instance->ift_targets[key]}
+    LOAD_INSTANCE_FIELD(table, IndirectFunctionTableTargets,
+                        kSystemPointerSize);
+    __ Load(LiftoffRegister(scratch), table, index, 0, kPointerLoadType,
+            pinned);
+
+    auto call_descriptor =
+        compiler::GetWasmCallDescriptor(compilation_zone_, imm.sig);
+    call_descriptor =
+        GetLoweredCallDescriptor(compilation_zone_, call_descriptor);
+
+    Register target = scratch;
+    __ PrepareCall(imm.sig, call_descriptor, &target, explicit_instance);
+    __ CallIndirect(imm.sig, call_descriptor, target);
+
+    RegisterDebugSideTableEntry(DebugSideTableBuilder::kDidSpill);
+    safepoint_table_builder_.DefineSafepoint(&asm_, Safepoint::kNoLazyDeopt);
+
+    MaybeGenerateExtraSourcePos(decoder);
+
+    __ FinishCall(imm.sig, call_descriptor);
   }
 
   void ReturnCall(FullDecoder* decoder,
@@ -2315,7 +2443,7 @@ class LiftoffCompiler {
   void ReturnCallIndirect(FullDecoder* decoder, const Value& index_val,
                           const CallIndirectImmediate<validate>& imm,
                           const Value args[]) {
-    CallIndirect(decoder, index_val, imm, kReturnCall);
+    unsupported(decoder, kTailCall, "return_call_indirect");
   }
 
   void BrOnNull(FullDecoder* decoder, const Value& ref_object, uint32_t depth) {
@@ -3626,16 +3754,13 @@ class LiftoffCompiler {
           ObjectAccess::ElementOffsetInTaggedFixedArray(imm.index), pinned);
 
       Register* explicit_instance = &imported_function_ref;
-      __ PrepareCall(imm.sig, call_descriptor, &target, explicit_instance);
+      // TODO(thibaudm): Implement indirect tail calls.
       if (call_kind == kReturnCall) {
-        __ PrepareTailCall(
-            static_cast<int>(call_descriptor->StackParameterCount()),
-            static_cast<int>(
-                call_descriptor->GetStackParameterDelta(descriptor_)));
-        __ TailCallIndirect(target);
-      } else {
-        __ CallIndirect(imm.sig, call_descriptor, target);
+        unsupported(decoder, kTailCall, "tail calling imported function");
+        return;
       }
+      __ PrepareCall(imm.sig, call_descriptor, &target, explicit_instance);
+      __ CallIndirect(imm.sig, call_descriptor, target);
     } else {
       // A direct call within this module just gets the current instance.
       __ PrepareCall(imm.sig, call_descriptor);
@@ -3651,148 +3776,6 @@ class LiftoffCompiler {
       } else {
         __ CallNativeWasmCode(addr);
       }
-    }
-
-    RegisterDebugSideTableEntry(DebugSideTableBuilder::kDidSpill);
-    safepoint_table_builder_.DefineSafepoint(&asm_, Safepoint::kNoLazyDeopt);
-
-    MaybeGenerateExtraSourcePos(decoder);
-
-    __ FinishCall(imm.sig, call_descriptor);
-  }
-
-  void CallIndirect(FullDecoder* decoder, const Value& index_val,
-                    const CallIndirectImmediate<validate>& imm,
-                    CallKind call_kind) {
-    if (imm.table_index != 0) {
-      return unsupported(decoder, kRefTypes, "table index != 0");
-    }
-    for (ValueType ret : imm.sig->returns()) {
-      if (!CheckSupportedType(decoder, kSupportedTypes, ret, "return")) {
-        return;
-      }
-    }
-
-    // Place the source position before any stack manipulation, since this will
-    // be used for OSR in debugging.
-    source_position_table_builder_.AddPosition(
-        __ pc_offset(), SourcePosition(decoder->position()), true);
-
-    // Pop the index.
-    Register index = __ PopToRegister().gp();
-    // If that register is still being used after popping, we move it to another
-    // register, because we want to modify that register.
-    if (__ cache_state()->is_used(LiftoffRegister(index))) {
-      Register new_index =
-          __ GetUnusedRegister(kGpReg, LiftoffRegList::ForRegs(index)).gp();
-      __ Move(new_index, index, kWasmI32);
-      index = new_index;
-    }
-
-    LiftoffRegList pinned = LiftoffRegList::ForRegs(index);
-    // Get three temporary registers.
-    Register table = pinned.set(__ GetUnusedRegister(kGpReg, pinned)).gp();
-    Register tmp_const = pinned.set(__ GetUnusedRegister(kGpReg, pinned)).gp();
-    Register scratch = pinned.set(__ GetUnusedRegister(kGpReg, pinned)).gp();
-
-    // Bounds check against the table size.
-    Label* invalid_func_label = AddOutOfLineTrap(
-        decoder->position(), WasmCode::kThrowWasmTrapFuncInvalid);
-
-    uint32_t canonical_sig_num = env_->module->signature_ids[imm.sig_index];
-    DCHECK_GE(canonical_sig_num, 0);
-    DCHECK_GE(kMaxInt, canonical_sig_num);
-
-    // Compare against table size stored in
-    // {instance->indirect_function_table_size}.
-    LOAD_INSTANCE_FIELD(tmp_const, IndirectFunctionTableSize, kUInt32Size);
-    __ emit_cond_jump(kUnsignedGreaterEqual, invalid_func_label, kWasmI32,
-                      index, tmp_const);
-
-    // Mask the index to prevent SSCA.
-    if (FLAG_untrusted_code_mitigations) {
-      DEBUG_CODE_COMMENT("Mask indirect call index");
-      // mask = ((index - size) & ~index) >> 31
-      // Reuse allocated registers; note: size is still stored in {tmp_const}.
-      Register diff = table;
-      Register neg_index = tmp_const;
-      Register mask = scratch;
-      // 1) diff = index - size
-      __ emit_i32_sub(diff, index, tmp_const);
-      // 2) neg_index = ~index
-      __ LoadConstant(LiftoffRegister(neg_index), WasmValue(int32_t{-1}));
-      __ emit_i32_xor(neg_index, neg_index, index);
-      // 3) mask = diff & neg_index
-      __ emit_i32_and(mask, diff, neg_index);
-      // 4) mask = mask >> 31
-      __ emit_i32_sari(mask, mask, 31);
-
-      // Apply mask.
-      __ emit_i32_and(index, index, mask);
-    }
-
-    DEBUG_CODE_COMMENT("Check indirect call signature");
-    // Load the signature from {instance->ift_sig_ids[key]}
-    LOAD_INSTANCE_FIELD(table, IndirectFunctionTableSigIds, kSystemPointerSize);
-    // Shift {index} by 2 (multiply by 4) to represent kInt32Size items.
-    STATIC_ASSERT((1 << 2) == kInt32Size);
-    __ emit_i32_shli(index, index, 2);
-    __ Load(LiftoffRegister(scratch), table, index, 0, LoadType::kI32Load,
-            pinned);
-
-    // Compare against expected signature.
-    __ LoadConstant(LiftoffRegister(tmp_const), WasmValue(canonical_sig_num));
-
-    Label* sig_mismatch_label = AddOutOfLineTrap(
-        decoder->position(), WasmCode::kThrowWasmTrapFuncSigMismatch);
-    __ emit_cond_jump(kUnequal, sig_mismatch_label,
-                      LiftoffAssembler::kWasmIntPtr, scratch, tmp_const);
-
-    // At this point {index} has already been multiplied by 4.
-    DEBUG_CODE_COMMENT("Execute indirect call");
-    if (kTaggedSize != kInt32Size) {
-      DCHECK_EQ(kTaggedSize, kInt32Size * 2);
-      // Multiply {index} by another 2 to represent kTaggedSize items.
-      __ emit_i32_add(index, index, index);
-    }
-    // At this point {index} has already been multiplied by kTaggedSize.
-
-    // Load the instance from {instance->ift_instances[key]}
-    LOAD_TAGGED_PTR_INSTANCE_FIELD(table, IndirectFunctionTableRefs);
-    __ LoadTaggedPointer(tmp_const, table, index,
-                         ObjectAccess::ElementOffsetInTaggedFixedArray(0),
-                         pinned);
-
-    if (kTaggedSize != kSystemPointerSize) {
-      DCHECK_EQ(kSystemPointerSize, kTaggedSize * 2);
-      // Multiply {index} by another 2 to represent kSystemPointerSize items.
-      __ emit_i32_add(index, index, index);
-    }
-    // At this point {index} has already been multiplied by kSystemPointerSize.
-
-    Register* explicit_instance = &tmp_const;
-
-    // Load the target from {instance->ift_targets[key]}
-    LOAD_INSTANCE_FIELD(table, IndirectFunctionTableTargets,
-                        kSystemPointerSize);
-    __ Load(LiftoffRegister(scratch), table, index, 0, kPointerLoadType,
-            pinned);
-
-    auto call_descriptor =
-        compiler::GetWasmCallDescriptor(compilation_zone_, imm.sig);
-    call_descriptor =
-        GetLoweredCallDescriptor(compilation_zone_, call_descriptor);
-
-    Register target = scratch;
-    __ PrepareCall(imm.sig, call_descriptor, &target, explicit_instance);
-    if (call_kind == kReturnCall) {
-      __ PrepareTailCall(
-          static_cast<int>(call_descriptor->StackParameterCount()),
-          static_cast<int>(
-              call_descriptor->GetStackParameterDelta(descriptor_)));
-      __ TailCallIndirect(target);
-    } else {
-      __ CallIndirect(imm.sig, call_descriptor, target);
     }
 
     RegisterDebugSideTableEntry(DebugSideTableBuilder::kDidSpill);
