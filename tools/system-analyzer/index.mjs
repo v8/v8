@@ -96,8 +96,7 @@ class App {
   }
 
   handleShowMaps(e) {
-    //document.state.view.transitionView.showMaps(e.detail);
-    document.state.mapPanel.showMaps(e.detail);
+    document.state.mapPanel.mapEntries = e.detail;
   }
 
   handleSelectIc(e){

@@ -62,7 +62,7 @@ class State {
   set map(value) {
     this._map = value;
     this._navigation.updateUrl();
-    this.mapPanel_.showMap(this.map);
+    this.mapPanel_.map = this._map;
     this.view.redraw();
   }
   updateChunks() {
@@ -155,12 +155,17 @@ class Navigation {
 class View {
   constructor(state, mapPanelId, timelinePanelId) {
     this.mapPanel_ = $(mapPanelId);
+    this.mapPanel_.addEventListener(
+      'statemapchange', e => this.handleStateMapChange(e));
+    this.mapPanel_.addEventListener(
+      'selectmapdblclick', e => this.handleDblClickSelectMap(e));
+    this.mapPanel_.addEventListener(
+      'sourcepositionsclick', e => this.handleClickSourcePositions(e));
+
     this.timelinePanel_ = $(timelinePanelId);
     this.state = state;
     setInterval(this.timelinePanel_.updateOverviewWindow(), 50);
     this.timelinePanel_.createBackgroundCanvas();
-    this.mapPanel_.transitionView = state;
-
     this.isLocked = false;
     this._filteredEntries = [];
   }
@@ -172,6 +177,24 @@ class View {
   }
   get map() {
     return this.state.map
+  }
+
+  handleClickSourcePositions(e){
+    //TODO(zcankara) Handle source position
+    console.log("source position map detail: ", e.detail);
+  }
+
+  handleDblClickSelectMap(e){
+    //TODO(zcankara) Handle double clicked map
+    console.log("double clicked map: ", e.detail);
+  }
+
+  handleStateMapChange(e){
+    this.state.map = e.detail;
+  }
+
+  handleIsLocked(e){
+    this.state.view.isLocked = e.detail;
   }
 
   updateTimeline() {
@@ -247,7 +270,8 @@ class View {
     this.isLocked = true;
     let chunk = event.target.chunk;
     if (!chunk) return;
-    this.mapPanel_.showMaps(chunk.getUniqueTransitions());
+    this.state.view.isLocked = true;
+    this.mapPanel_.mapEntries = chunk.getUniqueTransitions();
   }
 
   drawOverview() {

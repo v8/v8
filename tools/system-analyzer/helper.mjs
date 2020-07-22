@@ -22,9 +22,10 @@ function formatSeconds(millis) {
   return (millis * kMillis2Seconds).toFixed(2) + 's';
 }
 
-function defineCustomElement(name, generator) {
-  let htmlTemplatePath = name + '-template.html';
-  fetch(htmlTemplatePath)
+function defineCustomElement(path, generator) {
+  let name = path.substring(path.lastIndexOf("/") + 1, path.length);
+  path = path + '-template.html';
+  fetch(path)
       .then(stream => stream.text())
       .then(
           templateText => customElements.define(name, generator(templateText)));

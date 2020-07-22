@@ -4,132 +4,6 @@ found in the LICENSE file. -->
 <style>
 @import "./index.css";
 
-#mapDetails {
-  font-family: monospace;
-  white-space: pre;
-  overflow-x: scroll;
-}
-#transitionView {
-  overflow-x: scroll;
-  white-space: nowrap;
-  min-height: 50px;
-  max-height: 200px;
-  padding: 50px 0 0 0;
-  margin-top: -25px;
-  width: 100%;
-}
-.map {
-  width: 20px;
-  height: 20px;
-  display: inline-block;
-  border-radius: 50%;
-  background-color: var(--map-background-color);
-  border: 4px solid var(--on-surface-color);
-  font-size: 10px;
-  text-align: center;
-  line-height: 18px;
-  color: var(--on-surface-color);
-  vertical-align: top;
-  margin-top: -13px;
-  /* raise z-index */
-  position: relative;
-  z-index: 2;
-  cursor: pointer;
-}
-
-.map.selected {
-    border-color: var(--map-background-color);
-}
-
-.transitions {
-    display: inline-block;
-    margin-left: -15px;
-}
-
-.transition {
-  min-height: 55px;
-  margin: 0 0 -2px 2px;
-}
-
-/* gray out deprecated transitions */
-.deprecated > .transitionEdge,
-.deprecated > .map {
-  opacity: 0.5;
-}
-
-.deprecated > .transition {
-  border-color: rgba(0, 0, 0, 0.5);
-}
-
-/* Show a border for all but the first transition */
-.transition:nth-of-type(2),
-.transition:nth-last-of-type(n+2) {
-  border-left: 2px solid;
-  margin-left: 0px;
-}
-
-/* special case for 2 transitions */
-.transition:nth-last-of-type(1) {
-  border-left: none;
-}
-
-/* topmost transitions are not related */
-#transitionView > .transition {
-  border-left: none;
-}
-
-/* topmost transition edge needs initial offset to be aligned */
-#transitionView > .transition  > .transitionEdge {
-  margin-left: 13px;
-}
-
-.transitionEdge {
-  height: 2px;
-  width: 80px;
-  display: inline-block;
-  margin: 0 0 2px 0;
-  background-color: var(--map-background-color);
-  vertical-align: top;
-  padding-left: 15px;
-}
-
-.transitionLabel {
-  color: var(--on-surface-color);
-  transform: rotate(-15deg);
-  transform-origin: top left;
-  margin-top: -10px;
-  font-size: 10px;
-  white-space: normal;
-  word-break: break-all;
-  background-color: var(--surface-color);
-}
-
-.showSubtransitions {
-  width: 0;
-  height: 0;
-  border-left: 6px solid transparent;
-  border-right: 6px solid transparent;
-  border-top: 10px solid var(--map-background-color);
-  cursor: zoom-in;
-  margin: 4px 0 0 4px;
-}
-
-.showSubtransitions.opened {
-  border-top: none;
-  border-bottom: 10px solid var(--map-background-color);
-  cursor: zoom-out;
-}
-
-#tooltip {
-  position: absolute;
-  width: 10px;
-  height: 10px;
-  background-color: var(--red);
-  pointer-events: none;
-  z-index: 100;
-  display: none;
-}
-
 #searchBarInput {
   width: 200px;
   color: black;
@@ -138,20 +12,12 @@ found in the LICENSE file. -->
 <stats-panel id="stats-panel" onchange="app.handleShowMaps(event)"></stats-panel>
 <div class="panel">
   <h2>Map Panel</h2>
-  <h3>Transitions</h3>
-  <section id="transitionView"></section>
-  <br/>
-
-  <h4>Search Map by Address</h4>
+  <map-transitions id="map-transitions"></map-transitions>
+  <h3>Search Map by Address</h3>
   <section id="searchBar"></section>
   <input type="search" id="searchBarInput" placeholder="Search maps by address.."></input>
   <button id="searchBarBtn">Search</button>
 
-  <h4>Selected Map</h4>
-  <section id="mapDetails"></section>
-
-  <div id="tooltip">
-      <div id="tooltipContents"></div>
-  </div>
+  <map-details id="map-details"></map-details>
 </div>
 
