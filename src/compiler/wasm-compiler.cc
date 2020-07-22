@@ -5460,6 +5460,79 @@ Node* WasmGraphBuilder::RefCast(Node* object, Node* rtt,
   return object;
 }
 
+Node* WasmGraphBuilder::BrOnCast(Node* object, Node* rtt,
+                                 CheckForNull null_check, CheckForI31 i31_check,
+                                 RttIsI31 rtt_is_i31, Node** match_control,
+                                 Node** match_effect, Node** no_match_control,
+                                 Node** no_match_effect) {
+  // We have up to 3 control nodes to merge; the EffectPhi needs an additional
+  // input.
+  base::SmallVector<Node*, 3> merge_controls;
+  base::SmallVector<Node*, 4> merge_effects;
+
+  Node* is_i31 = IsI31(gasm_.get(), object);
+  if (i31_check == kWithI31Check) {
+    if (rtt_is_i31 == kRttIsI31) {
+      BranchExpectFalse(is_i31, match_control, no_match_control);
+      return nullptr;
+    } else {
+      Node* i31_branch = graph()->NewNode(
+          mcgraph()->common()->Branch(BranchHint::kFalse), is_i31, control());
+      SetControl(graph()->NewNode(mcgraph()->common()->IfFalse(), i31_branch));
+      merge_controls.emplace_back(
+          graph()->NewNode(mcgraph()->common()->IfTrue(), i31_branch));
+      merge_effects.emplace_back(effect());
+    }
+  } else {
+    AssertFalse(gasm_.get(), is_i31);
+  }
+
+  if (null_check == kWithNullCheck) {
+    Node* null_branch =
+        graph()->NewNode(mcgraph()->common()->Branch(BranchHint::kFalse),
+                         gasm_->WordEqual(object, RefNull()), control());
+    SetControl(graph()->NewNode(mcgraph()->common()->IfFalse(), null_branch));
+    merge_controls.emplace_back(
+        graph()->NewNode(mcgraph()->common()->IfTrue(), null_branch));
+    merge_effects.emplace_back(effect());
+  }
+
+  // At this point, {object} is neither null nor an i31ref/Smi.
+  Node* map = gasm_->Load(MachineType::TaggedPointer(), object,
+                          HeapObject::kMapOffset - kHeapObjectTag);
+  // TODO(7748): Add a fast path for map == rtt.
+  Node* subtype_check = BuildChangeSmiToInt32(CALL_BUILTIN(
+      WasmIsRttSubtype, map, rtt,
+      LOAD_INSTANCE_FIELD(NativeContext, MachineType::TaggedPointer())));
+  Node* cast_branch =
+      graph()->NewNode(mcgraph()->common()->Branch(BranchHint::kFalse),
+                       subtype_check, control());
+  *match_control = graph()->NewNode(mcgraph()->common()->IfTrue(), cast_branch);
+  *match_effect = effect();
+  Node* not_subtype =
+      graph()->NewNode(mcgraph()->common()->IfFalse(), cast_branch);
+
+  // Wire up the "cast attempt was unsuccessful" control nodes: merge them if
+  // there is more than one.
+  if (merge_controls.size() > 0) {
+    merge_controls.emplace_back(not_subtype);
+    merge_effects.emplace_back(effect());
+    // Range is 1..3, so casting to int is safe.
+    DCHECK_EQ(merge_controls.size(), merge_effects.size());
+    unsigned count = static_cast<unsigned>(merge_controls.size());
+    *no_match_control = Merge(count, merge_controls.data());
+    // EffectPhis need their control dependency as an additional input.
+    merge_effects.emplace_back(*no_match_control);
+    *no_match_effect = EffectPhi(count, merge_effects.data());
+  } else {
+    *no_match_control = not_subtype;
+    *no_match_effect = effect();
+  }
+  // Return value is not used, but we need it for compatibility
+  // with graph-builder-interface.
+  return nullptr;
+}
+
 Node* WasmGraphBuilder::StructGet(Node* struct_object,
                                   const wasm::StructType* struct_type,
                                   uint32_t field_index, CheckForNull null_check,

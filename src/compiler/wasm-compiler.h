@@ -418,6 +418,10 @@ class WasmGraphBuilder {
   Node* RefCast(Node* object, Node* rtt, CheckForNull null_check,
                 CheckForI31 i31_check, RttIsI31 rtt_is_i31,
                 wasm::WasmCodePosition position);
+  Node* BrOnCast(Node* object, Node* rtt, CheckForNull null_check,
+                 CheckForI31 i31_check, RttIsI31 rtt_is_i31,
+                 Node** match_control, Node** match_effect,
+                 Node** no_match_control, Node** no_match_effect);
 
   bool has_simd() const { return has_simd_; }
 

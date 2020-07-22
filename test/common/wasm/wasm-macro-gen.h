@@ -453,6 +453,10 @@ inline WasmOpcode LoadStoreOpcodeOf(MachineType type, bool store) {
 #define WASM_REF_CAST(obj_type, rtt_type, ref, rtt)                \
   ref, rtt, WASM_GC_OP(kExprRefCast), static_cast<byte>(obj_type), \
       static_cast<byte>(rtt_type)
+// Takes a reference value from the value stack to allow sequences of
+// conditional branches.
+#define WASM_BR_ON_CAST(depth, rtt) \
+  rtt, WASM_GC_OP(kExprBrOnCast), static_cast<byte>(depth)
 
 #define WASM_ARRAY_NEW_WITH_RTT(index, default_value, length, rtt) \
   default_value, length, rtt, WASM_GC_OP(kExprArrayNewWithRtt),    \

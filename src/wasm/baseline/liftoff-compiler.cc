@@ -3532,6 +3532,11 @@ class LiftoffCompiler {
     // TODO(7748): Implement.
     unsupported(decoder, kGC, "ref.cast");
   }
+  void BrOnCast(FullDecoder* decoder, const Value& obj, const Value& rtt,
+                Value* result_on_branch, uint32_t depth) {
+    // TODO(7748): Implement.
+    unsupported(decoder, kGC, "br_on_cast");
+  }
 
   void PassThrough(FullDecoder* decoder, const Value& from, Value* to) {
     // TODO(7748): Implement.

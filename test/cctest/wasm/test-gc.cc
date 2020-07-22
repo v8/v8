@@ -284,6 +284,84 @@ TEST(WasmBrOnNull) {
   tester.CheckResult(kNotTaken, 52);
 }
 
+TEST(BrOnCast) {
+  WasmGCTester tester;
+  uint32_t type_index = tester.DefineStruct({F(kWasmI32, true)});
+  uint32_t rtt_index =
+      tester.AddGlobal(ValueType::Rtt(type_index, 1), false,
+                       WasmInitExpr::RttCanon(
+                           static_cast<HeapType::Representation>(type_index)));
+  const uint32_t kTestStruct = tester.DefineFunction(
+      tester.sigs.i_v(), {kWasmI32, kWasmEqRef},
+      {WASM_BLOCK(WASM_SET_LOCAL(0, WASM_I32V(111)),
+                  // Pipe a struct through a local so it's statically typed
+                  // as eqref.
+                  WASM_SET_LOCAL(
+                      1, WASM_STRUCT_NEW_WITH_RTT(type_index, WASM_I32V(1),
+                                                  WASM_GET_GLOBAL(rtt_index))),
+                  WASM_GET_LOCAL(1),
+                  // The struct is not an i31, so this branch isn't taken.
+                  WASM_BR_ON_CAST(0, WASM_RTT_CANON(kLocalI31Ref)),
+                  WASM_SET_LOCAL(0, WASM_I32V(222)),  // Final result.
+                  // This branch is taken.
+                  WASM_BR_ON_CAST(0, WASM_GET_GLOBAL(rtt_index)),
+                  // Not executed due to the branch.
+                  WASM_DROP, WASM_SET_LOCAL(0, WASM_I32V(333))),
+       WASM_GET_LOCAL(0), kExprEnd});
+
+  const uint32_t kTestI31 = tester.DefineFunction(
+      tester.sigs.i_v(), {kWasmI32, kWasmEqRef},
+      {WASM_BLOCK(WASM_SET_LOCAL(0, WASM_I32V(111)),
+                  // Pipe an i31ref through a local so it's statically typed
+                  // as eqref.
+                  WASM_SET_LOCAL(1, WASM_I31_NEW(WASM_I32V(42))),
+                  WASM_GET_LOCAL(1),
+                  // The i31 is not a struct, so this branch isn't taken.
+                  WASM_BR_ON_CAST(0, WASM_GET_GLOBAL(rtt_index)),
+                  WASM_SET_LOCAL(0, WASM_I32V(222)),  // Final result.
+                  // This branch is taken.
+                  WASM_BR_ON_CAST(0, WASM_RTT_CANON(kLocalI31Ref)),
+                  // Not executed due to the branch.
+                  WASM_DROP, WASM_SET_LOCAL(0, WASM_I32V(333))),
+       WASM_GET_LOCAL(0), kExprEnd});
+
+  const uint32_t kTestNull = tester.DefineFunction(
+      tester.sigs.i_v(), {kWasmI32, kWasmEqRef},
+      {WASM_BLOCK(WASM_SET_LOCAL(0, WASM_I32V(111)),
+                  WASM_GET_LOCAL(1),  // Put a nullref onto the value stack.
+                  // Neither of these branches is taken for nullref.
+                  WASM_BR_ON_CAST(0, WASM_RTT_CANON(kLocalI31Ref)),
+                  WASM_SET_LOCAL(0, WASM_I32V(222)),
+                  WASM_BR_ON_CAST(0, WASM_GET_GLOBAL(rtt_index)), WASM_DROP,
+                  WASM_SET_LOCAL(0, WASM_I32V(333))),  // Final result.
+       WASM_GET_LOCAL(0), kExprEnd});
+
+  const uint32_t kTypedAfterBranch = tester.DefineFunction(
+      tester.sigs.i_v(), {kWasmI32, kWasmEqRef},
+      {WASM_SET_LOCAL(1, WASM_STRUCT_NEW_WITH_RTT(type_index, WASM_I32V(42),
+                                                  WASM_GET_GLOBAL(rtt_index))),
+       WASM_BLOCK(WASM_SET_LOCAL(
+           // The outer block catches the struct left behind by the inner block
+           // and reads its field.
+           0,
+           WASM_STRUCT_GET(
+               type_index, 0,
+               // The inner block should take the early branch with a struct
+               // on the stack.
+               WASM_BLOCK_R(ValueType::Ref(type_index, kNonNullable),
+                            WASM_GET_LOCAL(1),
+                            WASM_BR_ON_CAST(0, WASM_GET_GLOBAL(rtt_index)),
+                            // Returning 123 is the unreachable failure case.
+                            WASM_SET_LOCAL(0, WASM_I32V(123)), WASM_BR(1))))),
+       WASM_GET_LOCAL(0), kExprEnd});
+
+  tester.CompileModule();
+  tester.CheckResult(kTestStruct, 222);
+  tester.CheckResult(kTestI31, 222);
+  tester.CheckResult(kTestNull, 333);
+  tester.CheckResult(kTypedAfterBranch, 42);
+}
+
 TEST(WasmRefEq) {
   WasmGCTester tester;
   byte type_index = static_cast<byte>(

@@ -968,6 +968,8 @@ struct ControlBase {
     Value* result)                                                             \
   F(RefTest, const Value& obj, const Value& rtt, Value* result)                \
   F(RefCast, const Value& obj, const Value& rtt, Value* result)                \
+  F(BrOnCast, const Value& obj, const Value& rtt, Value* result_on_branch,     \
+    uint32_t depth)                                                            \
   F(PassThrough, const Value& from, Value* to)
 
 // Generic Wasm bytecode decoder with utilities for decoding immediates,
@@ -2310,9 +2312,11 @@ class WasmFullDecoder : public WasmDecoder<validate> {
           break;
         }
         default:
-          this->error(this->pc_, "invalid agrument type to ref.as_non_null");
+          this->error(this->pc_, "invalid argument type to br_on_null");
           return 0;
       }
+    } else if (check_result == kInvalidStack) {
+      return 0;
     }
     return 1 + imm.length;
   }
@@ -3656,6 +3660,49 @@ class WasmFullDecoder : public WasmDecoder<validate> {
         Value* value = Push(ValueType::Ref(rtt_type.type, kNonNullable));
         CALL_INTERFACE_IF_REACHABLE(RefCast, obj, rtt, value);
         return len;
+      }
+      case kExprBrOnCast: {
+        BranchDepthImmediate<validate> branch_depth(this, this->pc_ + 2);
+        if (!this->Validate(this->pc_ + 2, branch_depth, control_.size())) {
+          return 0;
+        }
+        // TODO(7748): If the heap type immediates remain in the spec, read
+        // them here.
+        Value rtt = Pop(1);
+        if (!VALIDATE(rtt.type.kind() == ValueType::kRtt)) {
+          this->error(this->pc_, "br_on_cast[1]: expected rtt on stack");
+          return 0;
+        }
+        Value obj = Pop(0);
+        if (!VALIDATE(obj.type.kind() == ValueType::kRef ||
+                      obj.type.kind() == ValueType::kOptRef)) {
+          this->error(this->pc_, "br_on_cast[0]: expected reference on stack");
+          return 0;
+        }
+        // The static type of {obj} must be a supertype of {rtt}'s type.
+        if (!VALIDATE(
+                IsSubtypeOf(ValueType::Ref(rtt.type.heap_type(), kNonNullable),
+                            ValueType::Ref(obj.type.heap_type(), kNonNullable),
+                            this->module_))) {
+          this->error(this->pc_,
+                      "br_on_cast: rtt type must be a subtype of object type");
+          return 0;
+        }
+        Control* c = control_at(branch_depth.depth);
+        Value* result_on_branch =
+            Push(ValueType::Ref(rtt.type.heap_type(), kNonNullable));
+        TypeCheckBranchResult check_result = TypeCheckBranch(c, true);
+        if (V8_LIKELY(check_result == kReachableBranch)) {
+          CALL_INTERFACE(BrOnCast, obj, rtt, result_on_branch,
+                         branch_depth.depth);
+          c->br_merge()->reached = true;
+        } else if (check_result == kInvalidStack) {
+          return 0;
+        }
+        Pop(0);  // Drop {result_on_branch}, restore original value.
+        Value* result_on_fallthrough = Push(obj.type);
+        *result_on_fallthrough = obj;
+        return 2 + branch_depth.length;
       }
       default:
         this->error("invalid gc opcode");

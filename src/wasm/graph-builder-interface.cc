@@ -775,6 +775,34 @@ class WasmGraphBuildingInterface {
                          rtt_is_i31, decoder->position());
   }
 
+  void BrOnCast(FullDecoder* decoder, const Value& object, const Value& rtt,
+                Value* value_on_branch, uint32_t depth) {
+    using CheckForNull = compiler::WasmGraphBuilder::CheckForNull;
+    using CheckForI31 = compiler::WasmGraphBuilder::CheckForI31;
+    using RttIsI31 = compiler::WasmGraphBuilder::RttIsI31;
+    CheckForNull null_check = object.type.is_nullable()
+                                  ? CheckForNull::kWithNullCheck
+                                  : CheckForNull::kWithoutNullCheck;
+    CheckForI31 i31_check =
+        IsSubtypeOf(kWasmI31Ref, object.type, decoder->module_)
+            ? CheckForI31::kWithI31Check
+            : CheckForI31::kNoI31Check;
+    RttIsI31 rtt_is_i31 = rtt.type.heap_representation() == HeapType::kI31
+                              ? RttIsI31::kRttIsI31
+                              : RttIsI31::kRttIsNotI31;
+    SsaEnv* match_env = Split(decoder->zone(), ssa_env_);
+    SsaEnv* no_match_env = Steal(decoder->zone(), ssa_env_);
+    no_match_env->SetNotMerged();
+    BUILD(BrOnCast, object.node, rtt.node, null_check, i31_check, rtt_is_i31,
+          &match_env->control, &match_env->effect, &no_match_env->control,
+          &no_match_env->effect);
+    builder_->SetControl(no_match_env->control);
+    SetEnv(match_env);
+    value_on_branch->node = object.node;
+    BrOrRet(decoder, depth);
+    SetEnv(no_match_env);
+  }
+
   void PassThrough(FullDecoder* decoder, const Value& from, Value* to) {
     to->node = from.node;
   }
