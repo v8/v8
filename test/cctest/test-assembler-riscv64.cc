@@ -704,13 +704,13 @@ UTEST_R1_FORM_WITH_RES_F(fsqrt_s, float, 34.13f, sqrtf(34.13f))
 UTEST_R2_FORM_WITH_RES_F(fmin_s, float, -1012.0f, 3456.13f, -1012.0f)
 UTEST_R2_FORM_WITH_RES_F(fmax_s, float, -1012.0f, 3456.13f, 3456.13f)
 UTEST_R3_FORM_WITH_RES_F(fmadd_s, float, 67.56f, -1012.01f, 3456.13f,
-                         (67.56f * (-1012.01f) + 3456.13f))
+                         std::fma(67.56f, -1012.01f, 3456.13f))
 UTEST_R3_FORM_WITH_RES_F(fmsub_s, float, 67.56f, -1012.01f, 3456.13f,
-                         (67.56f * (-1012.01f) - 3456.13f))
+                         std::fma(67.56f, -1012.01f, -3456.13f))
 UTEST_R3_FORM_WITH_RES_F(fnmsub_s, float, 67.56f, -1012.01f, 3456.13f,
-                         (-(67.56f * (-1012.01f)) + 3456.13f))
+                         -std::fma(67.56f, -1012.01f, -3456.13f))
 UTEST_R3_FORM_WITH_RES_F(fnmadd_s, float, 67.56f, -1012.01f, 3456.13f,
-                         (-(67.56f * (-1012.01f)) - 3456.13f))
+                         -std::fma(67.56f, -1012.01f, 3456.13f))
 UTEST_COMPARE_WITH_OP_F(feq_s, float, -3456.56, -3456.56, ==)
 UTEST_COMPARE_WITH_OP_F(flt_s, float, -3456.56, -3456.56, <)
 UTEST_COMPARE_WITH_OP_F(fle_s, float, -3456.56, -3456.56, <=)
@@ -735,13 +735,13 @@ UTEST_R2_FORM_WITH_RES_F(fmin_d, double, -1012.0, 3456.13, -1012.0)
 UTEST_R2_FORM_WITH_RES_F(fmax_d, double, -1012.0, 3456.13, 3456.13)
 
 UTEST_R3_FORM_WITH_RES_F(fmadd_d, double, 67.56, -1012.01, 3456.13,
-                         (67.56 * (-1012.01) + 3456.13))
+                         std::fma(67.56, -1012.01, 3456.13))
 UTEST_R3_FORM_WITH_RES_F(fmsub_d, double, 67.56, -1012.01, 3456.13,
-                         (67.56 * (-1012.01) - 3456.13))
+                         std::fma(67.56, -1012.01, -3456.13))
 UTEST_R3_FORM_WITH_RES_F(fnmsub_d, double, 67.56, -1012.01, 3456.13,
-                         (-(67.56 * (-1012.01)) + 3456.13))
+                         -std::fma(67.56, -1012.01, -3456.13))
 UTEST_R3_FORM_WITH_RES_F(fnmadd_d, double, 67.56, -1012.01, 3456.13,
-                         (-(67.56 * (-1012.01)) - 3456.13))
+                         -std::fma(67.56, -1012.01, 3456.13))
 
 UTEST_COMPARE_WITH_OP_F(feq_d, double, -3456.56, -3456.56, ==)
 UTEST_COMPARE_WITH_OP_F(flt_d, double, -3456.56, -3456.56, <)
