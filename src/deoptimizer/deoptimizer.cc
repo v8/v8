@@ -485,15 +485,16 @@ void Deoptimizer::ComputeOutputFrames(Deoptimizer* deoptimizer) {
 }
 
 const char* Deoptimizer::MessageFor(DeoptimizeKind kind, bool reuse_code) {
+  DCHECK_IMPLIES(reuse_code, kind == DeoptimizeKind::kSoft);
   switch (kind) {
     case DeoptimizeKind::kEager:
-      DCHECK(!reuse_code);
       return "deopt-eager";
     case DeoptimizeKind::kSoft:
       return reuse_code ? "bailout-soft" : "deopt-soft";
     case DeoptimizeKind::kLazy:
-      DCHECK(!reuse_code);
       return "deopt-lazy";
+    case DeoptimizeKind::kBailout:
+      return "bailout";
   }
   FATAL("Unsupported deopt kind");
   return nullptr;
@@ -578,9 +579,7 @@ Deoptimizer::Deoptimizer(Isolate* isolate, JSFunction function,
     Address lazy_deopt_start =
         deopt_start + non_lazy_deopt_count * kNonLazyDeoptExitSize;
     // The deoptimization exits are sorted so that lazy deopt exits appear last.
-    static_assert(DeoptimizeKind::kLazy > DeoptimizeKind::kEager,
-                  "lazy deopts are expected to be emitted last");
-    static_assert(DeoptimizeKind::kLazy > DeoptimizeKind::kSoft,
+    static_assert(DeoptimizeKind::kLazy == DeoptimizeKind::kLastDeoptimizeKind,
                   "lazy deopts are expected to be emitted last");
     // from_ is the value of the link register after the call to the
     // deoptimizer, so for the last lazy deopt, from_ points to the first
@@ -678,6 +677,10 @@ bool Deoptimizer::IsDeoptimizationEntry(Isolate* isolate, Address addr,
   }
   if (IsDeoptimizationEntry(isolate, addr, DeoptimizeKind::kLazy)) {
     *type = DeoptimizeKind::kLazy;
+    return true;
+  }
+  if (IsDeoptimizationEntry(isolate, addr, DeoptimizeKind::kBailout)) {
+    *type = DeoptimizeKind::kBailout;
     return true;
   }
   return false;
@@ -1892,7 +1895,7 @@ unsigned Deoptimizer::ComputeIncomingArgumentSize(SharedFunctionInfo shared) {
 void Deoptimizer::EnsureCodeForDeoptimizationEntry(Isolate* isolate,
                                                    DeoptimizeKind kind) {
   CHECK(kind == DeoptimizeKind::kEager || kind == DeoptimizeKind::kSoft ||
-        kind == DeoptimizeKind::kLazy);
+        kind == DeoptimizeKind::kLazy || kind == DeoptimizeKind::kBailout);
   DeoptimizerData* data = isolate->deoptimizer_data();
   if (!data->deopt_entry_code(kind).is_null()) return;
 
@@ -1918,6 +1921,7 @@ void Deoptimizer::EnsureCodeForDeoptimizationEntries(Isolate* isolate) {
   EnsureCodeForDeoptimizationEntry(isolate, DeoptimizeKind::kEager);
   EnsureCodeForDeoptimizationEntry(isolate, DeoptimizeKind::kLazy);
   EnsureCodeForDeoptimizationEntry(isolate, DeoptimizeKind::kSoft);
+  EnsureCodeForDeoptimizationEntry(isolate, DeoptimizeKind::kBailout);
 }
 
 FrameDescription::FrameDescription(uint32_t frame_size, int parameter_count)

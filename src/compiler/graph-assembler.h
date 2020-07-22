@@ -296,6 +296,10 @@ class V8_EXPORT_PRIVATE GraphAssembler {
       Node* frame_state,
       IsSafetyCheck is_safety_check = IsSafetyCheck::kSafetyCheck);
   Node* DeoptimizeIfNot(
+      DeoptimizeKind kind, DeoptimizeReason reason,
+      FeedbackSource const& feedback, Node* condition, Node* frame_state,
+      IsSafetyCheck is_safety_check = IsSafetyCheck::kSafetyCheck);
+  Node* DeoptimizeIfNot(
       DeoptimizeReason reason, FeedbackSource const& feedback, Node* condition,
       Node* frame_state,
       IsSafetyCheck is_safety_check = IsSafetyCheck::kSafetyCheck);

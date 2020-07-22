@@ -339,9 +339,7 @@ void CodeGenerator::AssembleCode() {
   // Deoptimizer::kSupportsFixedDeoptExitSizes is true, lazy deopts
   // might need additional instructions.
   auto cmp = [](const DeoptimizationExit* a, const DeoptimizationExit* b) {
-    static_assert(DeoptimizeKind::kLazy > DeoptimizeKind::kEager,
-                  "lazy deopts are expected to be emitted last");
-    static_assert(DeoptimizeKind::kLazy > DeoptimizeKind::kSoft,
+    static_assert(DeoptimizeKind::kLazy == DeoptimizeKind::kLastDeoptimizeKind,
                   "lazy deopts are expected to be emitted last");
     if (a->kind() != b->kind()) {
       return a->kind() < b->kind();

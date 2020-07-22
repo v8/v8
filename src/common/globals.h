@@ -448,9 +448,13 @@ constexpr int kNoDeoptimizationId = -1;
 //   code is executed.
 // - Soft: similar to lazy deoptimization, but does not contribute to the
 //   total deopt count which can lead to disabling optimization for a function.
+// - Bailout: a check failed in the optimized code but we don't
+//   deoptimize the code, but try to heal the feedback and try to rerun
+//   the optimized code again.
 enum class DeoptimizeKind : uint8_t {
   kEager,
   kSoft,
+  kBailout,
   kLazy,
   kLastDeoptimizeKind = kLazy
 };
@@ -465,6 +469,8 @@ inline std::ostream& operator<<(std::ostream& os, DeoptimizeKind kind) {
       return os << "Soft";
     case DeoptimizeKind::kLazy:
       return os << "Lazy";
+    case DeoptimizeKind::kBailout:
+      return os << "Bailout";
   }
   UNREACHABLE();
 }

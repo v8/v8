@@ -1893,7 +1893,8 @@ void EffectControlLinearizer::LowerDynamicCheckMaps(Node* node,
   {
     Node* poly_check = BuildIsStrongReference(feedback_slot);
     if (p.state() == DynamicCheckMapsParameters::kMonomorphic) {
-      __ DeoptimizeIfNot(DeoptimizeReason::kMissingMap, FeedbackSource(),
+      __ DeoptimizeIfNot(DeoptimizeKind::kBailout,
+                         DeoptimizeReason::kMissingMap, FeedbackSource(),
                          poly_check, frame_state,
                          IsSafetyCheck::kCriticalSafetyCheck);
 
@@ -1918,7 +1919,8 @@ void EffectControlLinearizer::LowerDynamicCheckMaps(Node* node,
     {
       Node* index = loop.PhiAt(0);
       Node* check = __ Int32LessThan(index, length);
-      __ DeoptimizeIfNot(DeoptimizeReason::kMissingMap, FeedbackSource(), check,
+      __ DeoptimizeIfNot(DeoptimizeKind::kBailout,
+                         DeoptimizeReason::kMissingMap, FeedbackSource(), check,
                          frame_state, IsSafetyCheck::kCriticalSafetyCheck);
 
       Node* maybe_map = __ LoadElement(

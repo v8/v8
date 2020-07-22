@@ -196,8 +196,8 @@ RUNTIME_FUNCTION(Runtime_NotifyDeoptimized) {
     return ReadOnlyRoots(isolate).undefined_value();
   }
 
-  // Invalidate the underlying optimized code on non-lazy deopts.
-  if (type != DeoptimizeKind::kLazy) {
+  // Invalidate the underlying optimized code on eager and soft deopts.
+  if (type == DeoptimizeKind::kEager || type == DeoptimizeKind::kSoft) {
     Deoptimizer::DeoptimizeFunction(*function, *optimized_code);
   }
 
