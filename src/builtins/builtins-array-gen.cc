@@ -1852,13 +1852,8 @@ void ArrayBuiltinsAssembler::GenerateConstructor(
           SmiConstant(AbortReason::kAllocatingNonEmptyPackedArray);
       TailCallRuntime(Runtime::kAbort, context, reason);
     } else {
-      int element_size =
-          IsDoubleElementsKind(elements_kind) ? kDoubleSize : kTaggedSize;
-      int max_fast_elements =
-          (kMaxRegularHeapObjectSize - FixedArray::kHeaderSize -
-           JSArray::kHeaderSize - AllocationMemento::kSize) /
-          element_size;
-      Branch(SmiAboveOrEqual(array_size_smi, SmiConstant(max_fast_elements)),
+      Branch(SmiAboveOrEqual(array_size_smi,
+                             SmiConstant(JSArray::kInitialMaxFastElementArray)),
              &call_runtime, &small_smi_size);
     }
 
