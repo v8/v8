@@ -16,7 +16,6 @@
 #include "include/v8-internal.h"
 #include "include/v8.h"
 #include "src/base/macros.h"
-#include "src/base/platform/mutex.h"
 #include "src/builtins/builtins.h"
 #include "src/common/globals.h"
 #include "src/debug/interface-types.h"
@@ -613,9 +612,6 @@ class V8_EXPORT_PRIVATE Isolate final : private HiddenFactory {
   base::SharedMutex* transition_array_access() {
     return &transition_array_access_;
   }
-
-  // Mutex for accessing the string table.
-  base::Mutex* string_table_mutex() { return &string_table_mutex_; }
 
   Address get_address_from_id(IsolateAddressId id);
 
@@ -1658,7 +1654,6 @@ class V8_EXPORT_PRIVATE Isolate final : private HiddenFactory {
   std::shared_ptr<Counters> async_counters_;
   base::RecursiveMutex break_access_;
   base::SharedMutex transition_array_access_;
-  base::Mutex string_table_mutex_;
   Logger* logger_ = nullptr;
   StubCache* load_stub_cache_ = nullptr;
   StubCache* store_stub_cache_ = nullptr;
