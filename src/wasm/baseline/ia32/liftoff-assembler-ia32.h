@@ -157,6 +157,27 @@ int LiftoffAssembler::PrepareStackFrame() {
   return offset;
 }
 
+void LiftoffAssembler::PrepareTailCall(int num_callee_stack_params,
+                                       int stack_param_delta) {
+  // Push the return address and frame pointer to complete the stack frame.
+  push(Operand(ebp, 4));
+  push(Operand(ebp, 0));
+
+  // Shift the whole frame upwards.
+  Register scratch = eax;
+  push(scratch);
+  const int slot_count = num_callee_stack_params + 2;
+  for (int i = slot_count; i > 0; --i) {
+    mov(scratch, Operand(esp, i * 4));
+    mov(Operand(ebp, (i - stack_param_delta - 1) * 4), scratch);
+  }
+  pop(scratch);
+
+  // Set the new stack and frame pointers.
+  lea(esp, Operand(ebp, -stack_param_delta * 4));
+  pop(ebp);
+}
+
 void LiftoffAssembler::PatchPrepareStackFrame(int offset, int frame_size) {
   DCHECK_EQ(frame_size % kSystemPointerSize, 0);
   // We can't run out of space, just pass anything big enough to not cause the
@@ -4197,6 +4218,10 @@ void LiftoffAssembler::CallC(const wasm::FunctionSig* sig,
 
 void LiftoffAssembler::CallNativeWasmCode(Address addr) {
   wasm_call(addr, RelocInfo::WASM_CALL);
+}
+
+void LiftoffAssembler::TailCallNativeWasmCode(Address addr) {
+  jmp(addr, RelocInfo::WASM_CALL);
 }
 
 void LiftoffAssembler::CallIndirect(const wasm::FunctionSig* sig,

@@ -132,6 +132,24 @@ int LiftoffAssembler::PrepareStackFrame() {
   return offset;
 }
 
+void LiftoffAssembler::PrepareTailCall(int num_callee_stack_params,
+                                       int stack_param_delta) {
+  // Push the return address and frame pointer to complete the stack frame.
+  pushq(Operand(rbp, 8));
+  pushq(Operand(rbp, 0));
+
+  // Shift the whole frame upwards.
+  const int slot_count = num_callee_stack_params + 2;
+  for (int i = slot_count - 1; i >= 0; --i) {
+    movq(kScratchRegister, Operand(rsp, i * 8));
+    movq(Operand(rbp, (i - stack_param_delta) * 8), kScratchRegister);
+  }
+
+  // Set the new stack and frame pointer.
+  leaq(rsp, Operand(rbp, -stack_param_delta * 8));
+  popq(rbp);
+}
+
 void LiftoffAssembler::PatchPrepareStackFrame(int offset, int frame_size) {
   // Need to align sp to system pointer size.
   frame_size = RoundUp(frame_size, kSystemPointerSize);
@@ -3862,6 +3880,10 @@ void LiftoffAssembler::CallC(const wasm::FunctionSig* sig,
 
 void LiftoffAssembler::CallNativeWasmCode(Address addr) {
   near_call(addr, RelocInfo::WASM_CALL);
+}
+
+void LiftoffAssembler::TailCallNativeWasmCode(Address addr) {
+  near_jmp(addr, RelocInfo::WASM_CALL);
 }
 
 void LiftoffAssembler::CallIndirect(const wasm::FunctionSig* sig,

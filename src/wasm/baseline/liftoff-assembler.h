@@ -463,6 +463,8 @@ class LiftoffAssembler : public TurboAssembler {
   // which can later be patched (via {PatchPrepareStackFrame)} when the size of
   // the frame is known.
   inline int PrepareStackFrame();
+  inline void PrepareTailCall(int num_callee_stack_params,
+                              int stack_param_delta);
   inline void PatchPrepareStackFrame(int offset, int frame_size);
   inline void FinishCode();
   inline void AbortCompilation();
@@ -1090,6 +1092,7 @@ class LiftoffAssembler : public TurboAssembler {
                     int stack_bytes, ExternalReference ext_ref);
 
   inline void CallNativeWasmCode(Address addr);
+  inline void TailCallNativeWasmCode(Address addr);
   // Indirect call: If {target == no_reg}, then pop the target from the stack.
   inline void CallIndirect(const FunctionSig* sig,
                            compiler::CallDescriptor* call_descriptor,

@@ -181,6 +181,30 @@ int LiftoffAssembler::PrepareStackFrame() {
   return offset;
 }
 
+void LiftoffAssembler::PrepareTailCall(int num_callee_stack_params,
+                                       int stack_param_delta) {
+  UseScratchRegisterScope temps(this);
+  Register scratch = temps.AcquireX();
+
+  // Push the return address and frame pointer to complete the stack frame.
+  sub(sp, sp, 16);
+  ldr(scratch, MemOperand(fp, 8));
+  Poke(scratch, 8);
+  ldr(scratch, MemOperand(fp, 0));
+  Poke(scratch, 0);
+
+  // Shift the whole frame upwards.
+  int slot_count = num_callee_stack_params + 2;
+  for (int i = slot_count - 1; i >= 0; --i) {
+    ldr(scratch, MemOperand(sp, i * 8));
+    str(scratch, MemOperand(fp, (i - stack_param_delta) * 8));
+  }
+
+  // Set the new stack and frame pointer.
+  Sub(sp, fp, stack_param_delta * 8);
+  Pop<kAuthLR>(fp, lr);
+}
+
 void LiftoffAssembler::PatchPrepareStackFrame(int offset, int frame_size) {
   static_assert(kStackSlotSize == kXRegSize,
                 "kStackSlotSize must equal kXRegSize");
@@ -2590,6 +2614,10 @@ void LiftoffAssembler::CallC(const wasm::FunctionSig* sig,
 
 void LiftoffAssembler::CallNativeWasmCode(Address addr) {
   Call(addr, RelocInfo::WASM_CALL);
+}
+
+void LiftoffAssembler::TailCallNativeWasmCode(Address addr) {
+  Jump(addr, RelocInfo::WASM_CALL);
 }
 
 void LiftoffAssembler::CallIndirect(const wasm::FunctionSig* sig,

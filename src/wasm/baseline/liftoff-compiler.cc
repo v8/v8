@@ -919,8 +919,6 @@ class LiftoffCompiler {
 
   void EndControl(FullDecoder* decoder, Control* c) {}
 
-  enum CCallReturn : bool { kHasReturn = true, kNoReturn = false };
-
   void GenerateCCall(const LiftoffRegister* result_regs, const FunctionSig* sig,
                      ValueType out_argument_type,
                      const LiftoffRegister* arg_regs,
@@ -2294,63 +2292,12 @@ class LiftoffCompiler {
         __ cache_state()->stack_state.begin(), assume_spilling);
   }
 
+  enum CallKind : bool { kReturnCall = true, kNoReturnCall = false };
+
   void CallDirect(FullDecoder* decoder,
                   const CallFunctionImmediate<validate>& imm,
-                  const Value args[], Value returns[]) {
-    for (ValueType ret : imm.sig->returns()) {
-      if (!CheckSupportedType(decoder, kSupportedTypes, ret, "return")) {
-        return;
-      }
-    }
-
-    auto call_descriptor =
-        compiler::GetWasmCallDescriptor(compilation_zone_, imm.sig);
-    call_descriptor =
-        GetLoweredCallDescriptor(compilation_zone_, call_descriptor);
-
-    // Place the source position before any stack manipulation, since this will
-    // be used for OSR in debugging.
-    source_position_table_builder_.AddPosition(
-        __ pc_offset(), SourcePosition(decoder->position()), true);
-
-    if (imm.index < env_->module->num_imported_functions) {
-      // A direct call to an imported function.
-      LiftoffRegList pinned;
-      Register tmp = pinned.set(__ GetUnusedRegister(kGpReg, pinned)).gp();
-      Register target = pinned.set(__ GetUnusedRegister(kGpReg, pinned)).gp();
-
-      Register imported_targets = tmp;
-      LOAD_INSTANCE_FIELD(imported_targets, ImportedFunctionTargets,
-                          kSystemPointerSize);
-      __ Load(LiftoffRegister(target), imported_targets, no_reg,
-              imm.index * sizeof(Address), kPointerLoadType, pinned);
-
-      Register imported_function_refs = tmp;
-      LOAD_TAGGED_PTR_INSTANCE_FIELD(imported_function_refs,
-                                     ImportedFunctionRefs);
-      Register imported_function_ref = tmp;
-      __ LoadTaggedPointer(
-          imported_function_ref, imported_function_refs, no_reg,
-          ObjectAccess::ElementOffsetInTaggedFixedArray(imm.index), pinned);
-
-      Register* explicit_instance = &imported_function_ref;
-      __ PrepareCall(imm.sig, call_descriptor, &target, explicit_instance);
-      __ CallIndirect(imm.sig, call_descriptor, target);
-    } else {
-      // A direct call within this module just gets the current instance.
-      __ PrepareCall(imm.sig, call_descriptor);
-
-      // Just encode the function index. This will be patched at instantiation.
-      Address addr = static_cast<Address>(imm.index);
-      __ CallNativeWasmCode(addr);
-    }
-
-    RegisterDebugSideTableEntry(DebugSideTableBuilder::kDidSpill);
-    safepoint_table_builder_.DefineSafepoint(&asm_, Safepoint::kNoLazyDeopt);
-
-    MaybeGenerateExtraSourcePos(decoder);
-
-    __ FinishCall(imm.sig, call_descriptor);
+                  const Value args[], Value[]) {
+    CallDirect(decoder, imm, args, nullptr, kNoReturnCall);
   }
 
   void CallIndirect(FullDecoder* decoder, const Value& index_val,
@@ -2490,8 +2437,9 @@ class LiftoffCompiler {
   void ReturnCall(FullDecoder* decoder,
                   const CallFunctionImmediate<validate>& imm,
                   const Value args[]) {
-    unsupported(decoder, kTailCall, "return_call");
+    CallDirect(decoder, imm, args, nullptr, kReturnCall);
   }
+
   void ReturnCallIndirect(FullDecoder* decoder, const Value& index_val,
                           const CallIndirectImmediate<validate>& imm,
                           const Value args[]) {
@@ -3759,6 +3707,78 @@ class LiftoffCompiler {
     // PC and does not collide with the source position recorded above.
     // TODO(thibaudm/clemens): Remove this.
     __ nop();
+  }
+
+  void CallDirect(FullDecoder* decoder,
+                  const CallFunctionImmediate<validate>& imm,
+                  const Value args[], Value returns[], CallKind call_kind) {
+    for (ValueType ret : imm.sig->returns()) {
+      if (!CheckSupportedType(decoder, kSupportedTypes, ret, "return")) {
+        return;
+      }
+    }
+
+    auto call_descriptor =
+        compiler::GetWasmCallDescriptor(compilation_zone_, imm.sig);
+    call_descriptor =
+        GetLoweredCallDescriptor(compilation_zone_, call_descriptor);
+
+    // Place the source position before any stack manipulation, since this will
+    // be used for OSR in debugging.
+    source_position_table_builder_.AddPosition(
+        __ pc_offset(), SourcePosition(decoder->position()), true);
+
+    if (imm.index < env_->module->num_imported_functions) {
+      // A direct call to an imported function.
+      LiftoffRegList pinned;
+      Register tmp = pinned.set(__ GetUnusedRegister(kGpReg, pinned)).gp();
+      Register target = pinned.set(__ GetUnusedRegister(kGpReg, pinned)).gp();
+
+      Register imported_targets = tmp;
+      LOAD_INSTANCE_FIELD(imported_targets, ImportedFunctionTargets,
+                          kSystemPointerSize);
+      __ Load(LiftoffRegister(target), imported_targets, no_reg,
+              imm.index * sizeof(Address), kPointerLoadType, pinned);
+
+      Register imported_function_refs = tmp;
+      LOAD_TAGGED_PTR_INSTANCE_FIELD(imported_function_refs,
+                                     ImportedFunctionRefs);
+      Register imported_function_ref = tmp;
+      __ LoadTaggedPointer(
+          imported_function_ref, imported_function_refs, no_reg,
+          ObjectAccess::ElementOffsetInTaggedFixedArray(imm.index), pinned);
+
+      Register* explicit_instance = &imported_function_ref;
+      // TODO(thibaudm): Implement indirect tail calls.
+      if (call_kind == kReturnCall) {
+        unsupported(decoder, kTailCall, "tail calling imported function");
+        return;
+      }
+      __ PrepareCall(imm.sig, call_descriptor, &target, explicit_instance);
+      __ CallIndirect(imm.sig, call_descriptor, target);
+    } else {
+      // A direct call within this module just gets the current instance.
+      __ PrepareCall(imm.sig, call_descriptor);
+      // Just encode the function index. This will be patched at instantiation.
+      Address addr = static_cast<Address>(imm.index);
+      if (call_kind == kReturnCall) {
+        DCHECK(descriptor_->CanTailCall(call_descriptor));
+        __ PrepareTailCall(
+            static_cast<int>(call_descriptor->StackParameterCount()),
+            static_cast<int>(
+                call_descriptor->GetStackParameterDelta(descriptor_)));
+        __ TailCallNativeWasmCode(addr);
+      } else {
+        __ CallNativeWasmCode(addr);
+      }
+    }
+
+    RegisterDebugSideTableEntry(DebugSideTableBuilder::kDidSpill);
+    safepoint_table_builder_.DefineSafepoint(&asm_, Safepoint::kNoLazyDeopt);
+
+    MaybeGenerateExtraSourcePos(decoder);
+
+    __ FinishCall(imm.sig, call_descriptor);
   }
 
   static constexpr WasmOpcode kNoOutstandingOp = kExprUnreachable;
