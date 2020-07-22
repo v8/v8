@@ -57,19 +57,41 @@ RUNTIME_FUNCTION(Runtime_CompileLazy) {
   return function->code();
 }
 
-RUNTIME_FUNCTION(Runtime_CompileOptimized_Concurrent) {
-  HandleScope scope(isolate);
-  DCHECK_EQ(1, args.length());
-  CONVERT_ARG_HANDLE_CHECKED(JSFunction, function, 0);
+namespace {
+
+Object CompileOptimized(Isolate* isolate, Handle<JSFunction> function,
+                        ConcurrencyMode mode) {
   StackLimitCheck check(isolate);
   if (check.JsHasOverflowed(kStackSpaceRequiredForCompilation * KB)) {
     return isolate->StackOverflow();
   }
-  if (!Compiler::CompileOptimized(function, ConcurrencyMode::kConcurrent)) {
+  if (!Compiler::CompileOptimized(function, mode, DefaultCompilationTarget())) {
     return ReadOnlyRoots(isolate).exception();
+  }
+  if (ShouldSpawnExtraNativeContextIndependentCompilationJob()) {
+    if (!Compiler::CompileOptimized(
+            function, mode, CompilationTarget::kNativeContextIndependent)) {
+      return ReadOnlyRoots(isolate).exception();
+    }
   }
   DCHECK(function->is_compiled());
   return function->code();
+}
+
+}  // namespace
+
+RUNTIME_FUNCTION(Runtime_CompileOptimized_Concurrent) {
+  HandleScope scope(isolate);
+  DCHECK_EQ(1, args.length());
+  CONVERT_ARG_HANDLE_CHECKED(JSFunction, function, 0);
+  return CompileOptimized(isolate, function, ConcurrencyMode::kConcurrent);
+}
+
+RUNTIME_FUNCTION(Runtime_CompileOptimized_NotConcurrent) {
+  HandleScope scope(isolate);
+  DCHECK_EQ(1, args.length());
+  CONVERT_ARG_HANDLE_CHECKED(JSFunction, function, 0);
+  return CompileOptimized(isolate, function, ConcurrencyMode::kNotConcurrent);
 }
 
 RUNTIME_FUNCTION(Runtime_FunctionFirstExecution) {
@@ -88,21 +110,6 @@ RUNTIME_FUNCTION(Runtime_FunctionFirstExecution) {
   function->feedback_vector().ClearOptimizationMarker();
   // Return the code to continue execution, we don't care at this point whether
   // this is for lazy compilation or has been eagerly complied.
-  return function->code();
-}
-
-RUNTIME_FUNCTION(Runtime_CompileOptimized_NotConcurrent) {
-  HandleScope scope(isolate);
-  DCHECK_EQ(1, args.length());
-  CONVERT_ARG_HANDLE_CHECKED(JSFunction, function, 0);
-  StackLimitCheck check(isolate);
-  if (check.JsHasOverflowed(kStackSpaceRequiredForCompilation * KB)) {
-    return isolate->StackOverflow();
-  }
-  if (!Compiler::CompileOptimized(function, ConcurrencyMode::kNotConcurrent)) {
-    return ReadOnlyRoots(isolate).exception();
-  }
-  DCHECK(function->is_compiled());
   return function->code();
 }
 

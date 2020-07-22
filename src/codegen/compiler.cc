@@ -56,6 +56,122 @@
 namespace v8 {
 namespace internal {
 
+namespace {
+
+const char* CompilationTargetName(CompilationTarget target) {
+  switch (target) {
+    case CompilationTarget::kTurbofan:
+      return "Turbofan";
+    case CompilationTarget::kNativeContextIndependent:
+      return "NativeContextIndependent";
+  }
+  UNREACHABLE();
+}
+
+CompilationTarget CompilationTargetOf(OptimizedCompilationInfo* info) {
+  return info->native_context_independent()
+             ? CompilationTarget::kNativeContextIndependent
+             : CompilationTarget::kTurbofan;
+}
+
+bool IsNativeContextIndependent(CompilationTarget target) {
+  return target == CompilationTarget::kNativeContextIndependent;
+}
+
+bool IsForNativeContextIndependentCachingOnly(CompilationTarget target) {
+  return IsNativeContextIndependent(target) && !FLAG_turbo_nci_as_highest_tier;
+}
+
+bool IsForNativeContextIndependentCachingOnly(OptimizedCompilationInfo* info) {
+  return IsForNativeContextIndependentCachingOnly(CompilationTargetOf(info));
+}
+
+class CompilerTracer : public AllStatic {
+ public:
+  static void PrintTracePrefix(const CodeTracer::Scope& scope,
+                               const char* header,
+                               OptimizedCompilationInfo* info) {
+    PrintF(scope.file(), "[%s ", header);
+    info->closure()->ShortPrint(scope.file());
+    PrintF(scope.file(), " (target %s)",
+           CompilationTargetName(CompilationTargetOf(info)));
+  }
+
+  static void PrintTracePrefix(const CodeTracer::Scope& scope,
+                               const char* header,
+                               Handle<JSFunction> function) {
+    PrintF(scope.file(), "[%s ", header);
+    function->ShortPrint(scope.file());
+  }
+
+  static void PrintTraceSuffix(const CodeTracer::Scope& scope) {
+    PrintF(scope.file(), "]\n");
+  }
+
+  static void TracePrepareJob(Isolate* isolate, OptimizedCompilationInfo* info,
+                              const char* compiler_name) {
+    if (!FLAG_trace_opt || !info->IsOptimizing()) return;
+    CodeTracer::Scope scope(isolate->GetCodeTracer());
+    PrintTracePrefix(scope, "compiling method", info);
+    PrintF(scope.file(), " using %s%s", compiler_name,
+           info->is_osr() ? " OSR" : "");
+    PrintTraceSuffix(scope);
+  }
+
+  static void TraceCompilationStats(Isolate* isolate,
+                                    OptimizedCompilationInfo* info,
+                                    double ms_creategraph, double ms_optimize,
+                                    double ms_codegen) {
+    if (!FLAG_trace_opt || !info->IsOptimizing()) return;
+    CodeTracer::Scope scope(isolate->GetCodeTracer());
+    PrintTracePrefix(scope, "optimizing", info);
+    PrintF(scope.file(), " - took %0.3f, %0.3f, %0.3f ms", ms_creategraph,
+           ms_optimize, ms_codegen);
+    PrintTraceSuffix(scope);
+  }
+
+  static void TraceCompletedJob(Isolate* isolate,
+                                OptimizedCompilationInfo* info) {
+    if (!FLAG_trace_opt) return;
+    CodeTracer::Scope scope(isolate->GetCodeTracer());
+    PrintTracePrefix(scope, "completed optimizing", info);
+    PrintTraceSuffix(scope);
+  }
+
+  static void TraceAbortedJob(Isolate* isolate,
+                              OptimizedCompilationInfo* info) {
+    if (!FLAG_trace_opt) return;
+    CodeTracer::Scope scope(isolate->GetCodeTracer());
+    PrintTracePrefix(scope, "aborted optimizing", info);
+    PrintF(scope.file(), " because: %s",
+           GetBailoutReason(info->bailout_reason()));
+    PrintTraceSuffix(scope);
+  }
+
+  static void TraceOptimizedCodeCacheHit(Isolate* isolate,
+                                         Handle<JSFunction> function,
+                                         BailoutId osr_offset) {
+    if (!FLAG_trace_opt) return;
+    CodeTracer::Scope scope(isolate->GetCodeTracer());
+    PrintTracePrefix(scope, "found optimized code for", function);
+    if (!osr_offset.IsNone()) {
+      PrintF(scope.file(), " at OSR AST id %d", osr_offset.ToInt());
+    }
+    PrintTraceSuffix(scope);
+  }
+
+  static void TraceOptimizeForAlwaysOpt(Isolate* isolate,
+                                        Handle<JSFunction> function) {
+    if (!FLAG_trace_opt) return;
+    CodeTracer::Scope scope(isolate->GetCodeTracer());
+    PrintTracePrefix(scope, "optimizing", function);
+    PrintF(scope.file(), " because --always-opt");
+    PrintTraceSuffix(scope);
+  }
+};
+
+}  // namespace
+
 // A wrapper around a OptimizedCompilationInfo that detaches the Handles from
 // the underlying DeferredHandleScope and stores them in info_ on
 // destruction.
@@ -231,15 +347,7 @@ void RecordUnoptimizedFunctionCompilation(
 CompilationJob::Status OptimizedCompilationJob::PrepareJob(Isolate* isolate) {
   DCHECK_EQ(ThreadId::Current(), isolate->thread_id());
   DisallowJavascriptExecution no_js(isolate);
-
-  if (FLAG_trace_opt && compilation_info()->IsOptimizing()) {
-    CodeTracer::Scope scope(isolate->GetCodeTracer());
-    OFStream os(scope.file());
-    os << "[compiling method " << Brief(*compilation_info()->closure())
-       << " using " << compiler_name_;
-    if (compilation_info()->is_osr()) os << " OSR";
-    os << "]" << std::endl;
-  }
+  CompilerTracer::TracePrepareJob(isolate, compilation_info(), compiler_name_);
 
   // Delegate to the underlying implementation.
   DCHECK_EQ(state(), State::kReadyToPrepare);
@@ -287,13 +395,8 @@ void OptimizedCompilationJob::RecordCompilationStats(CompilationMode mode,
   double ms_creategraph = time_taken_to_prepare_.InMillisecondsF();
   double ms_optimize = time_taken_to_execute_.InMillisecondsF();
   double ms_codegen = time_taken_to_finalize_.InMillisecondsF();
-  if (FLAG_trace_opt) {
-    CodeTracer::Scope scope(isolate->GetCodeTracer());
-    PrintF(scope.file(), "[optimizing ");
-    function->ShortPrint(scope.file());
-    PrintF(scope.file(), " - took %0.3f, %0.3f, %0.3f ms]\n", ms_creategraph,
-           ms_optimize, ms_codegen);
-  }
+  CompilerTracer::TraceCompilationStats(
+      isolate, compilation_info(), ms_creategraph, ms_optimize, ms_codegen);
   if (FLAG_trace_opt_stats) {
     static double compilation_time = 0.0;
     static int compiled_functions = 0;
@@ -746,6 +849,9 @@ void ClearOptimizedCodeCache(OptimizedCompilationInfo* compilation_info) {
 
 void InsertCodeIntoOptimizedCodeCache(
     OptimizedCompilationInfo* compilation_info) {
+  // Cached NCI code currently does not use the optimization marker field.
+  if (IsForNativeContextIndependentCachingOnly(compilation_info)) return;
+
   Handle<Code> code = compilation_info->code();
   if (code->kind() != Code::OPTIMIZED_FUNCTION) return;  // Nothing to do.
 
@@ -807,13 +913,7 @@ bool GetOptimizedCodeNow(OptimizedCompilationJob* job, Isolate* isolate) {
       job->ExecuteJob(isolate->counters()->runtime_call_stats()) !=
           CompilationJob::SUCCEEDED ||
       job->FinalizeJob(isolate) != CompilationJob::SUCCEEDED) {
-    if (FLAG_trace_opt) {
-      CodeTracer::Scope scope(isolate->GetCodeTracer());
-      PrintF(scope.file(), "[aborted optimizing ");
-      compilation_info->closure()->ShortPrint(scope.file());
-      PrintF(scope.file(), " because: %s]\n",
-             GetBailoutReason(compilation_info->bailout_reason()));
-    }
+    CompilerTracer::TraceAbortedJob(isolate, compilation_info);
     return false;
   }
 
@@ -864,6 +964,7 @@ bool GetOptimizedCodeLater(OptimizedCompilationJob* job, Isolate* isolate) {
 
 MaybeHandle<Code> GetOptimizedCode(Handle<JSFunction> function,
                                    ConcurrencyMode mode,
+                                   CompilationTarget compilation_target,
                                    BailoutId osr_offset = BailoutId::None(),
                                    JavaScriptFrame* osr_frame = nullptr) {
   Isolate* isolate = function->GetIsolate();
@@ -877,13 +978,18 @@ MaybeHandle<Code> GetOptimizedCode(Handle<JSFunction> function,
 
   if (shared->optimization_disabled() &&
       shared->disable_optimization_reason() == BailoutReason::kNeverOptimize) {
-    return MaybeHandle<Code>();
+    return {};
   }
 
-  if (isolate->debug()->needs_check_on_function_call()) {
-    // Do not optimize when debugger needs to hook into every call.
-    return MaybeHandle<Code>();
-  }
+  // Do not optimize when debugger needs to hook into every call.
+  if (isolate->debug()->needs_check_on_function_call()) return {};
+
+  // Do not use TurboFan if we need to be able to set break points.
+  if (shared->HasBreakInfo()) return {};
+
+  // Do not use TurboFan if optimization is disabled or function doesn't pass
+  // turbo_filter.
+  if (!FLAG_opt || !shared->PassesFilter(FLAG_turbo_filter)) return {};
 
   // If code was pending optimization for testing, delete remove the entry
   // from the table that was preventing the bytecode from being flushed
@@ -891,24 +997,28 @@ MaybeHandle<Code> GetOptimizedCode(Handle<JSFunction> function,
     PendingOptimizationTable::FunctionWasOptimized(isolate, function);
   }
 
-  Handle<Code> cached_code;
-  if (GetCodeFromOptimizedCodeCache(function, osr_offset)
-          .ToHandle(&cached_code)) {
-    if (FLAG_trace_opt) {
-      CodeTracer::Scope scope(isolate->GetCodeTracer());
-      PrintF(scope.file(), "[found optimized code for ");
-      function->ShortPrint(scope.file());
-      if (!osr_offset.IsNone()) {
-        PrintF(scope.file(), " at OSR AST id %d", osr_offset.ToInt());
-      }
-      PrintF(scope.file(), "]\n");
+  if (!IsForNativeContextIndependentCachingOnly(compilation_target)) {
+    Handle<Code> cached_code;
+    if (GetCodeFromOptimizedCodeCache(function, osr_offset)
+            .ToHandle(&cached_code)) {
+      CompilerTracer::TraceOptimizedCodeCacheHit(isolate, function, osr_offset);
+      return cached_code;
     }
-    return cached_code;
   }
 
   // Reset profiler ticks, function is no longer considered hot.
   DCHECK(shared->is_compiled());
   function->feedback_vector().set_profiler_ticks(0);
+
+  if (IsNativeContextIndependent(compilation_target)) {
+    // We don't generate NCI code for OSR.
+    DCHECK_EQ(osr_offset, BailoutId::None());
+    // Don't generate NCI code when we've already done so in the past.
+    // TODO(jgruber,v8:8888): A better heuristic. If code has previously been
+    // cached but subsequently removed through cache ageing, we should be able
+    // to compile again.
+    if (shared->may_have_cached_code()) return {};
+  }
 
   VMState<COMPILER> state(isolate);
   TimerEventScope<TimerEventOptimizeCode> optimize_code_timer(isolate);
@@ -923,22 +1033,10 @@ MaybeHandle<Code> GetOptimizedCode(Handle<JSFunction> function,
   // tolerate the lack of a script without bytecode.
   DCHECK_IMPLIES(!has_script, shared->HasBytecodeArray());
   std::unique_ptr<OptimizedCompilationJob> job(
-      compiler::Pipeline::NewCompilationJob(isolate, function, has_script,
-                                            osr_offset, osr_frame));
+      compiler::Pipeline::NewCompilationJob(
+          isolate, function, has_script, osr_offset, osr_frame,
+          IsNativeContextIndependent(compilation_target)));
   OptimizedCompilationInfo* compilation_info = job->compilation_info();
-
-  // Do not use TurboFan if we need to be able to set break points.
-  if (compilation_info->shared_info()->HasBreakInfo()) {
-    compilation_info->AbortOptimization(BailoutReason::kFunctionBeingDebugged);
-    return MaybeHandle<Code>();
-  }
-
-  // Do not use TurboFan if optimization is disabled or function doesn't pass
-  // turbo_filter.
-  if (!FLAG_opt || !shared->PassesFilter(FLAG_turbo_filter)) {
-    compilation_info->AbortOptimization(BailoutReason::kOptimizationDisabled);
-    return MaybeHandle<Code>();
-  }
 
   // In case of concurrent recompilation, all handles below this point will be
   // allocated in a deferred handle scope that is detached and handed off to
@@ -959,7 +1057,11 @@ MaybeHandle<Code> GetOptimizedCode(Handle<JSFunction> function,
       job.release();  // The background recompile job owns this now.
 
       // Set the optimization marker and return a code object which checks it.
-      function->SetOptimizationMarker(OptimizationMarker::kInOptimizationQueue);
+      if (!IsForNativeContextIndependentCachingOnly(compilation_target)) {
+        // Cached NCI code currently does not use the optimization marker field.
+        function->SetOptimizationMarker(
+            OptimizationMarker::kInOptimizationQueue);
+      }
       DCHECK(function->IsInterpreted() ||
              (!function->is_compiled() && function->shared().IsInterpreted()));
       DCHECK(function->shared().HasBytecodeArray());
@@ -974,7 +1076,7 @@ MaybeHandle<Code> GetOptimizedCode(Handle<JSFunction> function,
   }
 
   if (isolate->has_pending_exception()) isolate->clear_pending_exception();
-  return MaybeHandle<Code>();
+  return {};
 }
 
 bool FailAndClearPendingException(Isolate* isolate) {
@@ -1525,6 +1627,7 @@ bool Compiler::CollectSourcePositions(Isolate* isolate,
   return true;
 }
 
+// static
 bool Compiler::Compile(Handle<SharedFunctionInfo> shared_info,
                        ClearExceptionFlag flag,
                        IsCompiledScope* is_compiled_scope) {
@@ -1598,6 +1701,7 @@ bool Compiler::Compile(Handle<SharedFunctionInfo> shared_info,
   return true;
 }
 
+// static
 bool Compiler::Compile(Handle<JSFunction> function, ClearExceptionFlag flag,
                        IsCompiledScope* is_compiled_scope) {
   // We should never reach here if the function is already compiled or optimized
@@ -1627,16 +1731,13 @@ bool Compiler::Compile(Handle<JSFunction> function, ClearExceptionFlag flag,
 
   // Optimize now if --always-opt is enabled.
   if (FLAG_always_opt && !function->shared().HasAsmWasmData()) {
-    if (FLAG_trace_opt) {
-      CodeTracer::Scope scope(isolate->GetCodeTracer());
-      PrintF(scope.file(), "[optimizing ");
-      function->ShortPrint(scope.file());
-      PrintF(scope.file(), " because --always-opt]\n");
-    }
-    Handle<Code> opt_code;
-    if (GetOptimizedCode(function, ConcurrencyMode::kNotConcurrent)
-            .ToHandle(&opt_code)) {
-      code = opt_code;
+    CompilerTracer::TraceOptimizeForAlwaysOpt(isolate, function);
+
+    Handle<Code> maybe_code;
+    if (GetOptimizedCode(function, ConcurrencyMode::kNotConcurrent,
+                         DefaultCompilationTarget())
+            .ToHandle(&maybe_code)) {
+      code = maybe_code;
     }
   }
 
@@ -1650,6 +1751,7 @@ bool Compiler::Compile(Handle<JSFunction> function, ClearExceptionFlag flag,
   return true;
 }
 
+// static
 bool Compiler::FinalizeBackgroundCompileTask(
     BackgroundCompileTask* task, Handle<SharedFunctionInfo> shared_info,
     Isolate* isolate, ClearExceptionFlag flag) {
@@ -1693,15 +1795,17 @@ bool Compiler::FinalizeBackgroundCompileTask(
   return true;
 }
 
+// static
 bool Compiler::CompileOptimized(Handle<JSFunction> function,
-                                ConcurrencyMode mode) {
+                                ConcurrencyMode mode,
+                                CompilationTarget target) {
   if (function->IsOptimized()) return true;
+
   Isolate* isolate = function->GetIsolate();
   DCHECK(AllowCompilation::IsAllowed(isolate));
 
-  // Start a compilation.
   Handle<Code> code;
-  if (!GetOptimizedCode(function, mode).ToHandle(&code)) {
+  if (!GetOptimizedCode(function, mode, target).ToHandle(&code)) {
     // Optimization failed, get unoptimized code. Unoptimized code must exist
     // already if we are optimizing.
     DCHECK(!isolate->has_pending_exception());
@@ -1710,8 +1814,9 @@ bool Compiler::CompileOptimized(Handle<JSFunction> function,
     code = BUILTIN_CODE(isolate, InterpreterEntryTrampoline);
   }
 
-  // Install code on closure.
-  function->set_code(*code);
+  if (!IsForNativeContextIndependentCachingOnly(target)) {
+    function->set_code(*code);
+  }
 
   // Check postconditions on success.
   DCHECK(!isolate->has_pending_exception());
@@ -1726,12 +1831,14 @@ bool Compiler::CompileOptimized(Handle<JSFunction> function,
   return true;
 }
 
+// static
 MaybeHandle<SharedFunctionInfo> Compiler::CompileForLiveEdit(
     ParseInfo* parse_info, Handle<Script> script, Isolate* isolate) {
   IsCompiledScope is_compiled_scope;
   return CompileToplevel(parse_info, script, isolate, &is_compiled_scope);
 }
 
+// static
 MaybeHandle<JSFunction> Compiler::GetFunctionFromEval(
     Handle<String> source, Handle<SharedFunctionInfo> outer_info,
     Handle<Context> context, LanguageMode language_mode,
@@ -1909,6 +2016,8 @@ bool ModifyCodeGenerationFromStrings(Isolate* isolate, Handle<Context> context,
 // - source.is_null() && !unknown_object: compilation should be blocked.
 //
 // - !source_is_null() and unknown_object can't be true at the same time.
+
+// static
 std::pair<MaybeHandle<String>, bool> Compiler::ValidateDynamicCompilationSource(
     Isolate* isolate, Handle<Context> context,
     Handle<i::Object> original_source) {
@@ -1954,6 +2063,7 @@ std::pair<MaybeHandle<String>, bool> Compiler::ValidateDynamicCompilationSource(
   return {MaybeHandle<String>(), !original_source->IsString()};
 }
 
+// static
 MaybeHandle<JSFunction> Compiler::GetFunctionFromValidatedString(
     Handle<Context> context, MaybeHandle<String> source,
     ParseRestriction restriction, int parameters_end_pos) {
@@ -1981,6 +2091,7 @@ MaybeHandle<JSFunction> Compiler::GetFunctionFromValidatedString(
                                        eval_scope_position, eval_position);
 }
 
+// static
 MaybeHandle<JSFunction> Compiler::GetFunctionFromString(
     Handle<Context> context, Handle<Object> source,
     ParseRestriction restriction, int parameters_end_pos) {
@@ -2355,6 +2466,7 @@ MaybeHandle<SharedFunctionInfo> CompileScriptOnBothBackgroundAndMainThread(
 
 }  // namespace
 
+// static
 MaybeHandle<SharedFunctionInfo> Compiler::GetSharedFunctionInfoForScript(
     Isolate* isolate, Handle<String> source,
     const Compiler::ScriptDetails& script_details,
@@ -2459,6 +2571,7 @@ MaybeHandle<SharedFunctionInfo> Compiler::GetSharedFunctionInfoForScript(
   return maybe_result;
 }
 
+// static
 MaybeHandle<JSFunction> Compiler::GetWrappedFunction(
     Handle<String> source, Handle<FixedArray> arguments,
     Handle<Context> context, const Compiler::ScriptDetails& script_details,
@@ -2550,6 +2663,7 @@ MaybeHandle<JSFunction> Compiler::GetWrappedFunction(
       wrapped, context, AllocationType::kYoung);
 }
 
+// static
 MaybeHandle<SharedFunctionInfo>
 Compiler::GetSharedFunctionInfoForStreamedScript(
     Isolate* isolate, Handle<String> source,
@@ -2663,6 +2777,7 @@ Compiler::GetSharedFunctionInfoForStreamedScript(
   return maybe_result;
 }
 
+// static
 template <typename LocalIsolate>
 Handle<SharedFunctionInfo> Compiler::GetSharedFunctionInfo(
     FunctionLiteral* literal, Handle<Script> script, LocalIsolate* isolate) {
@@ -2714,19 +2829,21 @@ template Handle<SharedFunctionInfo> Compiler::GetSharedFunctionInfo(
 template Handle<SharedFunctionInfo> Compiler::GetSharedFunctionInfo(
     FunctionLiteral* literal, Handle<Script> script, OffThreadIsolate* isolate);
 
+// static
 MaybeHandle<Code> Compiler::GetOptimizedCodeForOSR(Handle<JSFunction> function,
                                                    BailoutId osr_offset,
                                                    JavaScriptFrame* osr_frame) {
   DCHECK(!osr_offset.IsNone());
   DCHECK_NOT_NULL(osr_frame);
-  return GetOptimizedCode(function, ConcurrencyMode::kNotConcurrent, osr_offset,
-                          osr_frame);
+  return GetOptimizedCode(function, ConcurrencyMode::kNotConcurrent,
+                          CompilationTarget::kTurbofan, osr_offset, osr_frame);
 }
 
+// static
 bool Compiler::FinalizeOptimizedCompilationJob(OptimizedCompilationJob* job,
                                                Isolate* isolate) {
   VMState<COMPILER> state(isolate);
-  // Take ownership of compilation job.  Deleting job also tears down the zone.
+  // Take ownership of the job. Deleting the job also tears down the zone.
   std::unique_ptr<OptimizedCompilationJob> job_scope(job);
   OptimizedCompilationInfo* compilation_info = job->compilation_info();
 
@@ -2738,8 +2855,12 @@ bool Compiler::FinalizeOptimizedCompilationJob(OptimizedCompilationJob* job,
 
   Handle<SharedFunctionInfo> shared = compilation_info->shared_info();
 
-  // Reset profiler ticks, function is no longer considered hot.
-  compilation_info->closure()->feedback_vector().set_profiler_ticks(0);
+  const bool should_install_code_on_function =
+      !IsForNativeContextIndependentCachingOnly(compilation_info);
+  if (should_install_code_on_function) {
+    // Reset profiler ticks, function is no longer considered hot.
+    compilation_info->closure()->feedback_vector().set_profiler_ticks(0);
+  }
 
   DCHECK(!shared->HasBreakInfo());
 
@@ -2758,25 +2879,16 @@ bool Compiler::FinalizeOptimizedCompilationJob(OptimizedCompilationJob* job,
                                      isolate);
       InsertCodeIntoOptimizedCodeCache(compilation_info);
       InsertCodeIntoCompilationCache(isolate, compilation_info);
-      if (FLAG_trace_opt) {
-        CodeTracer::Scope scope(isolate->GetCodeTracer());
-        PrintF(scope.file(), "[completed optimizing ");
-        compilation_info->closure()->ShortPrint(scope.file());
-        PrintF(scope.file(), "]\n");
+      CompilerTracer::TraceCompletedJob(isolate, compilation_info);
+      if (should_install_code_on_function) {
+        compilation_info->closure()->set_code(*compilation_info->code());
       }
-      compilation_info->closure()->set_code(*compilation_info->code());
       return CompilationJob::SUCCEEDED;
     }
   }
 
   DCHECK_EQ(job->state(), CompilationJob::State::kFailed);
-  if (FLAG_trace_opt) {
-    CodeTracer::Scope scope(isolate->GetCodeTracer());
-    PrintF(scope.file(), "[aborted optimizing ");
-    compilation_info->closure()->ShortPrint(scope.file());
-    PrintF(scope.file(), " because: %s]\n",
-           GetBailoutReason(compilation_info->bailout_reason()));
-  }
+  CompilerTracer::TraceAbortedJob(isolate, compilation_info);
   compilation_info->closure()->set_code(shared->GetCode());
   // Clear the InOptimizationQueue marker, if it exists.
   if (compilation_info->closure()->IsInOptimizationQueue()) {
@@ -2785,6 +2897,7 @@ bool Compiler::FinalizeOptimizedCompilationJob(OptimizedCompilationJob* job,
   return CompilationJob::FAILED;
 }
 
+// static
 void Compiler::PostInstantiation(Handle<JSFunction> function) {
   Isolate* isolate = function->GetIsolate();
   Handle<SharedFunctionInfo> shared(function->shared(), isolate);

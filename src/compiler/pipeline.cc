@@ -995,7 +995,8 @@ class PipelineCompilationJob final : public OptimizedCompilationJob {
   PipelineCompilationJob(Isolate* isolate,
                          Handle<SharedFunctionInfo> shared_info,
                          Handle<JSFunction> function, BailoutId osr_offset,
-                         JavaScriptFrame* osr_frame);
+                         JavaScriptFrame* osr_frame,
+                         bool native_context_independent);
   ~PipelineCompilationJob() final;
 
  protected:
@@ -1023,7 +1024,7 @@ class PipelineCompilationJob final : public OptimizedCompilationJob {
 PipelineCompilationJob::PipelineCompilationJob(
     Isolate* isolate, Handle<SharedFunctionInfo> shared_info,
     Handle<JSFunction> function, BailoutId osr_offset,
-    JavaScriptFrame* osr_frame)
+    JavaScriptFrame* osr_frame, bool native_context_independent)
     // Note that the OptimizedCompilationInfo is not initialized at the time
     // we pass it to the CompilationJob constructor, but it is not
     // dereferenced there.
@@ -1032,7 +1033,7 @@ PipelineCompilationJob::PipelineCompilationJob(
             kPipelineCompilationJobZoneName),
       zone_stats_(function->GetIsolate()->allocator()),
       compilation_info_(&zone_, function->GetIsolate(), shared_info, function,
-                        FLAG_turbo_nci),
+                        native_context_independent),
       pipeline_statistics_(CreatePipelineStatistics(
           handle(Script::cast(shared_info->script()), isolate),
           compilation_info(), function->GetIsolate(), &zone_stats_)),
@@ -2915,11 +2916,13 @@ MaybeHandle<Code> Pipeline::GenerateCodeForTesting(
 // static
 std::unique_ptr<OptimizedCompilationJob> Pipeline::NewCompilationJob(
     Isolate* isolate, Handle<JSFunction> function, bool has_script,
-    BailoutId osr_offset, JavaScriptFrame* osr_frame) {
+    BailoutId osr_offset, JavaScriptFrame* osr_frame,
+    bool native_context_independent) {
   Handle<SharedFunctionInfo> shared =
       handle(function->shared(), function->GetIsolate());
   return std::make_unique<PipelineCompilationJob>(isolate, shared, function,
-                                                  osr_offset, osr_frame);
+                                                  osr_offset, osr_frame,
+                                                  native_context_independent);
 }
 
 // static

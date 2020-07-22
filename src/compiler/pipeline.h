@@ -47,7 +47,8 @@ class Pipeline : public AllStatic {
   static std::unique_ptr<OptimizedCompilationJob> NewCompilationJob(
       Isolate* isolate, Handle<JSFunction> function, bool has_script,
       BailoutId osr_offset = BailoutId::None(),
-      JavaScriptFrame* osr_frame = nullptr);
+      JavaScriptFrame* osr_frame = nullptr,
+      bool native_context_independent = false);
 
   // Run the pipeline for the WebAssembly compilation info.
   static void GenerateCodeForWasmFunction(
