@@ -56,10 +56,10 @@ inline void Load(LiftoffAssembler* assm, LiftoffRegister dst, MemOperand src,
       assm->Ld(dst.gp(), src);
       break;
     case kWasmF32:
-      assm->Lwc1(dst.fp(), src);
+      assm->LoadFloat(dst.fp(), src);
       break;
     case kWasmF64:
-      assm->Ldc1(dst.fp(), src);
+      assm->LoadDouble(dst.fp(), src);
       break;
     default:
       UNREACHABLE();
@@ -98,11 +98,11 @@ inline void push(LiftoffAssembler* assm, LiftoffRegister reg, ValueType type) {
       break;
     case kWasmF32:
       assm->addi(sp, sp, -kSystemPointerSize);
-      assm->Swc1(reg.fp(), MemOperand(sp, 0));
+      assm->StoreFloat(reg.fp(), MemOperand(sp, 0));
       break;
     case kWasmF64:
       assm->addi(sp, sp, -kSystemPointerSize);
-      assm->Sdc1(reg.fp(), MemOperand(sp, 0));
+      assm->StoreDouble(reg.fp(), MemOperand(sp, 0));
       break;
     default:
       UNREACHABLE();
@@ -227,7 +227,7 @@ int LiftoffAssembler::PrepareStackFrame() {
   // When constant that represents size of stack frame can't be represented
   // as 16bit we need three instructions to add it to sp, so we reserve space
   // for this case.
-  Daddu(sp, sp, Operand(0L));
+  Add64(sp, sp, Operand(0L));
   nop();
   nop();
   return offset;
@@ -243,7 +243,7 @@ void LiftoffAssembler::PatchPrepareStackFrame(int offset, int frame_size) {
   // If bytes can be represented as 16bit, addi will be generated and two
   // nops will stay untouched. Otherwise, lui-ori sequence will load it to
   // register and, as third instruction, daddu will be generated.
-  patching_assembler.Daddu(sp, sp, Operand(-frame_size));
+  patching_assembler.Add64(sp, sp, Operand(-frame_size));
 }
 
 void LiftoffAssembler::FinishCode() {}
@@ -500,10 +500,10 @@ void LiftoffAssembler::Spill(int offset, LiftoffRegister reg, ValueType type) {
       Sd(reg.gp(), dst);
       break;
     case kWasmF32:
-      Swc1(reg.fp(), dst);
+      StoreFloat(reg.fp(), dst);
       break;
     case kWasmF64:
-      TurboAssembler::Sdc1(reg.fp(), dst);
+      TurboAssembler::StoreDouble(reg.fp(), dst);
       break;
     default:
       UNREACHABLE();
@@ -543,10 +543,10 @@ void LiftoffAssembler::Fill(LiftoffRegister reg, int offset, ValueType type) {
       Ld(reg.gp(), src);
       break;
     case kWasmF32:
-      Lwc1(reg.fp(), src);
+      LoadFloat(reg.fp(), src);
       break;
     case kWasmF64:
-      TurboAssembler::Ldc1(reg.fp(), src);
+      TurboAssembler::LoadDouble(reg.fp(), src);
       break;
     default:
       UNREACHABLE();
@@ -576,8 +576,8 @@ void LiftoffAssembler::FillStackSlotsWithZero(int start, int size) {
     // General case for bigger counts (12 instructions).
     // Use a0 for start address (inclusive), a1 for end address (exclusive).
     Push(a1, a0);
-    Daddu(a0, fp, Operand(-start - size));
-    Daddu(a1, fp, Operand(-start));
+    Add64(a0, fp, Operand(-start - size));
+    Add64(a1, fp, Operand(-start));
 
     Label loop;
     bind(&loop);
@@ -590,21 +590,21 @@ void LiftoffAssembler::FillStackSlotsWithZero(int start, int size) {
 }
 
 void LiftoffAssembler::emit_i64_clz(LiftoffRegister dst, LiftoffRegister src) {
-  TurboAssembler::Dclz(dst.gp(), src.gp());
+  TurboAssembler::Clz64(dst.gp(), src.gp());
 }
 
 void LiftoffAssembler::emit_i64_ctz(LiftoffRegister dst, LiftoffRegister src) {
-  TurboAssembler::Dctz(dst.gp(), src.gp());
+  TurboAssembler::Ctz64(dst.gp(), src.gp());
 }
 
 bool LiftoffAssembler::emit_i64_popcnt(LiftoffRegister dst,
                                        LiftoffRegister src) {
-  TurboAssembler::Dpopcnt(dst.gp(), src.gp());
+  TurboAssembler::Popcnt64(dst.gp(), src.gp());
   return true;
 }
 
 void LiftoffAssembler::emit_i32_mul(Register dst, Register lhs, Register rhs) {
-  TurboAssembler::Mul(dst, lhs, rhs);
+  TurboAssembler::Mul32(dst, lhs, rhs);
 }
 
 void LiftoffAssembler::emit_i32_divs(Register dst, Register lhs, Register rhs,
@@ -621,25 +621,25 @@ void LiftoffAssembler::emit_i32_divs(Register dst, Register lhs, Register rhs,
   TurboAssembler::Branch(trap_div_unrepresentable, eq, kScratchReg,
                          Operand(zero_reg));
 
-  TurboAssembler::Div(dst, lhs, rhs);
+  TurboAssembler::Div32(dst, lhs, rhs);
 }
 
 void LiftoffAssembler::emit_i32_divu(Register dst, Register lhs, Register rhs,
                                      Label* trap_div_by_zero) {
   TurboAssembler::Branch(trap_div_by_zero, eq, rhs, Operand(zero_reg));
-  TurboAssembler::Divu(dst, lhs, rhs);
+  TurboAssembler::Divu32(dst, lhs, rhs);
 }
 
 void LiftoffAssembler::emit_i32_rems(Register dst, Register lhs, Register rhs,
                                      Label* trap_div_by_zero) {
   TurboAssembler::Branch(trap_div_by_zero, eq, rhs, Operand(zero_reg));
-  TurboAssembler::Mod(dst, lhs, rhs);
+  TurboAssembler::Mod32(dst, lhs, rhs);
 }
 
 void LiftoffAssembler::emit_i32_remu(Register dst, Register lhs, Register rhs,
                                      Label* trap_div_by_zero) {
   TurboAssembler::Branch(trap_div_by_zero, eq, rhs, Operand(zero_reg));
-  TurboAssembler::Modu(dst, lhs, rhs);
+  TurboAssembler::Modu32(dst, lhs, rhs);
 }
 
 #define I32_BINOP(name, instruction)                                 \
@@ -665,7 +665,7 @@ I32_BINOP(xor, xor_)
   }
 
 // clang-format off
-I32_BINOP_I(add, Addu)
+I32_BINOP_I(add, Add32)
 I32_BINOP_I(and, And)
 I32_BINOP_I(or, Or)
 I32_BINOP_I(xor, Xor)
@@ -674,15 +674,15 @@ I32_BINOP_I(xor, Xor)
 #undef I32_BINOP_I
 
 void LiftoffAssembler::emit_i32_clz(Register dst, Register src) {
-  TurboAssembler::Clz(dst, src);
+  TurboAssembler::Clz32(dst, src);
 }
 
 void LiftoffAssembler::emit_i32_ctz(Register dst, Register src) {
-  TurboAssembler::Ctz(dst, src);
+  TurboAssembler::Ctz32(dst, src);
 }
 
 bool LiftoffAssembler::emit_i32_popcnt(Register dst, Register src) {
-  TurboAssembler::Popcnt(dst, src);
+  TurboAssembler::Popcnt32(dst, src);
   return true;
 }
 
@@ -710,7 +710,7 @@ I32_SHIFTOP_I(shr, srliw)
 
 void LiftoffAssembler::emit_i64_mul(LiftoffRegister dst, LiftoffRegister lhs,
                                     LiftoffRegister rhs) {
-  TurboAssembler::Dmul(dst.gp(), lhs.gp(), rhs.gp());
+  TurboAssembler::Mul64(dst.gp(), lhs.gp(), rhs.gp());
 }
 
 bool LiftoffAssembler::emit_i64_divs(LiftoffRegister dst, LiftoffRegister lhs,
@@ -729,7 +729,7 @@ bool LiftoffAssembler::emit_i64_divs(LiftoffRegister dst, LiftoffRegister lhs,
   TurboAssembler::Branch(trap_div_unrepresentable, eq, kScratchReg,
                          Operand(zero_reg));
 
-  TurboAssembler::Ddiv(dst.gp(), lhs.gp(), rhs.gp());
+  TurboAssembler::Div64(dst.gp(), lhs.gp(), rhs.gp());
   return true;
 }
 
@@ -737,7 +737,7 @@ bool LiftoffAssembler::emit_i64_divu(LiftoffRegister dst, LiftoffRegister lhs,
                                      LiftoffRegister rhs,
                                      Label* trap_div_by_zero) {
   TurboAssembler::Branch(trap_div_by_zero, eq, rhs.gp(), Operand(zero_reg));
-  TurboAssembler::Ddivu(dst.gp(), lhs.gp(), rhs.gp());
+  TurboAssembler::Divu64(dst.gp(), lhs.gp(), rhs.gp());
   return true;
 }
 
@@ -745,7 +745,7 @@ bool LiftoffAssembler::emit_i64_rems(LiftoffRegister dst, LiftoffRegister lhs,
                                      LiftoffRegister rhs,
                                      Label* trap_div_by_zero) {
   TurboAssembler::Branch(trap_div_by_zero, eq, rhs.gp(), Operand(zero_reg));
-  TurboAssembler::Dmod(dst.gp(), lhs.gp(), rhs.gp());
+  TurboAssembler::Mod64(dst.gp(), lhs.gp(), rhs.gp());
   return true;
 }
 
@@ -753,7 +753,7 @@ bool LiftoffAssembler::emit_i64_remu(LiftoffRegister dst, LiftoffRegister lhs,
                                      LiftoffRegister rhs,
                                      Label* trap_div_by_zero) {
   TurboAssembler::Branch(trap_div_by_zero, eq, rhs.gp(), Operand(zero_reg));
-  TurboAssembler::Dmodu(dst.gp(), lhs.gp(), rhs.gp());
+  TurboAssembler::Modu64(dst.gp(), lhs.gp(), rhs.gp());
   return true;
 }
 
@@ -780,7 +780,7 @@ I64_BINOP(xor, xor_)
   }
 
 // clang-format off
-I64_BINOP_I(add, Daddu)
+I64_BINOP_I(add, Add64)
 I64_BINOP_I(and, And)
 I64_BINOP_I(or, Or)
 I64_BINOP_I(xor, Xor)
@@ -898,7 +898,7 @@ bool LiftoffAssembler::emit_type_conversion(WasmOpcode opcode,
                                             LiftoffRegister src, Label* trap) {
   switch (opcode) {
     case kExprI32ConvertI64:
-      TurboAssembler::Ext(dst.gp(), src.gp(), 0, 32);
+      TurboAssembler::Ext32(dst.gp(), src.gp(), 0, 32);
       return true;
     case kExprI32SConvertF32:
     case kExprI32UConvertF32:
@@ -957,7 +957,7 @@ bool LiftoffAssembler::emit_type_conversion(WasmOpcode opcode,
       slliw(dst.gp(), src.gp(), 0);
       return true;
     case kExprI64UConvertI32:
-      TurboAssembler::Dext(dst.gp(), src.gp(), 0, 32);
+      TurboAssembler::Ext64(dst.gp(), src.gp(), 0, 32);
       return true;
     case kExprI64ReinterpretF64:
       fmv_x_d(dst.gp(), src.fp());
@@ -1184,7 +1184,7 @@ void LiftoffAssembler::PushRegisters(LiftoffRegList regs) {
   unsigned num_gp_regs = gp_regs.GetNumRegsSet();
   if (num_gp_regs) {
     unsigned offset = num_gp_regs * kSystemPointerSize;
-    Daddu(sp, sp, Operand(-offset));
+    Add64(sp, sp, Operand(-offset));
     while (!gp_regs.is_empty()) {
       LiftoffRegister reg = gp_regs.GetFirstRegSet();
       offset -= kSystemPointerSize;
@@ -1196,11 +1196,11 @@ void LiftoffAssembler::PushRegisters(LiftoffRegList regs) {
   LiftoffRegList fp_regs = regs & kFpCacheRegList;
   unsigned num_fp_regs = fp_regs.GetNumRegsSet();
   if (num_fp_regs) {
-    Daddu(sp, sp, Operand(-(num_fp_regs * kStackSlotSize)));
+    Add64(sp, sp, Operand(-(num_fp_regs * kStackSlotSize)));
     unsigned offset = 0;
     while (!fp_regs.is_empty()) {
       LiftoffRegister reg = fp_regs.GetFirstRegSet();
-      TurboAssembler::Sdc1(reg.fp(), MemOperand(sp, offset));
+      TurboAssembler::StoreDouble(reg.fp(), MemOperand(sp, offset));
       fp_regs.clear(reg);
       offset += sizeof(double);
     }
@@ -1213,11 +1213,11 @@ void LiftoffAssembler::PopRegisters(LiftoffRegList regs) {
   unsigned fp_offset = 0;
   while (!fp_regs.is_empty()) {
     LiftoffRegister reg = fp_regs.GetFirstRegSet();
-    TurboAssembler::Ldc1(reg.fp(), MemOperand(sp, fp_offset));
+    TurboAssembler::LoadDouble(reg.fp(), MemOperand(sp, fp_offset));
     fp_regs.clear(reg);
     fp_offset += sizeof(double);
   }
-  if (fp_offset) Daddu(sp, sp, Operand(fp_offset));
+  if (fp_offset) Add64(sp, sp, Operand(fp_offset));
   LiftoffRegList gp_regs = regs & kGpCacheRegList;
   unsigned gp_offset = 0;
   while (!gp_regs.is_empty()) {
@@ -1226,7 +1226,7 @@ void LiftoffAssembler::PopRegisters(LiftoffRegList regs) {
     gp_regs.clear(reg);
     gp_offset += kSystemPointerSize;
   }
-  Daddu(sp, sp, Operand(gp_offset));
+  Add64(sp, sp, Operand(gp_offset));
 }
 
 void LiftoffAssembler::DropStackSlotsAndRet(uint32_t num_stack_slots) {
@@ -1240,7 +1240,7 @@ void LiftoffAssembler::CallC(wasm::FunctionSig* sig,
                              const LiftoffRegister* rets,
                              ValueType out_argument_type, int stack_bytes,
                              ExternalReference ext_ref) {
-  Daddu(sp, sp, Operand(-stack_bytes));
+  Add64(sp, sp, Operand(-stack_bytes));
 
   int arg_bytes = 0;
   for (ValueType param_type : sig->parameters()) {
@@ -1275,7 +1275,7 @@ void LiftoffAssembler::CallC(wasm::FunctionSig* sig,
     liftoff::Load(this, *next_result_reg, MemOperand(sp, 0), out_argument_type);
   }
 
-  Daddu(sp, sp, Operand(stack_bytes));
+  Add64(sp, sp, Operand(stack_bytes));
 }
 
 void LiftoffAssembler::CallNativeWasmCode(Address addr) {
@@ -1300,12 +1300,12 @@ void LiftoffAssembler::CallRuntimeStub(WasmCode::RuntimeStubId sid) {
 }
 
 void LiftoffAssembler::AllocateStackSlot(Register addr, uint32_t size) {
-  Daddu(sp, sp, Operand(-size));
+  Add64(sp, sp, Operand(-size));
   TurboAssembler::Move(addr, sp);
 }
 
 void LiftoffAssembler::DeallocateStackSlot(uint32_t size) {
-  Daddu(sp, sp, Operand(size));
+  Add64(sp, sp, Operand(size));
 }
 
 void LiftoffAssembler::DebugBreak() { stop(); }
