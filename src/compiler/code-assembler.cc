@@ -619,6 +619,11 @@ TNode<Float64T> CodeAssembler::RoundIntPtrToFloat64(Node* value) {
   return UncheckedCast<Float64T>(raw_assembler()->ChangeInt32ToFloat64(value));
 }
 
+TNode<Int32T> CodeAssembler::TruncateFloat32ToInt32(
+    SloppyTNode<Float32T> value) {
+  return UncheckedCast<Int32T>(raw_assembler()->TruncateFloat32ToInt32(
+      value, TruncateKind::kSetOverflowToMin));
+}
 #define DEFINE_CODE_ASSEMBLER_UNARY_OP(name, ResType, ArgType) \
   TNode<ResType> CodeAssembler::name(SloppyTNode<ArgType> a) { \
     return UncheckedCast<ResType>(raw_assembler()->name(a));   \

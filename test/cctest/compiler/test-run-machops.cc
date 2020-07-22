@@ -4173,8 +4173,6 @@ TEST(RunChangeUint32ToFloat64) {
 
 
 TEST(RunTruncateFloat32ToInt32) {
-  BufferedRawMachineAssemblerTester<int32_t> m(MachineType::Float32());
-  m.Return(m.TruncateFloat32ToInt32(m.Parameter(0)));
   // The upper bound is (INT32_MAX + 1), which is the lowest float-representable
   // number above INT32_MAX which cannot be represented as int32.
   float upper_bound = 2147483648.0f;
@@ -4182,31 +4180,98 @@ TEST(RunTruncateFloat32ToInt32) {
   // representable as float, and no number between (INT32_MIN - 1) and INT32_MIN
   // is.
   float lower_bound = static_cast<float>(INT32_MIN);
-  FOR_FLOAT32_INPUTS(i) {
-    if (i < upper_bound && i >= lower_bound) {
-      CHECK_FLOAT_EQ(static_cast<int32_t>(i), m.Call(i));
+  {
+    BufferedRawMachineAssemblerTester<int32_t> m(MachineType::Float32());
+    m.Return(m.TruncateFloat32ToInt32(m.Parameter(0),
+                                      TruncateKind::kArchitectureDefault));
+    FOR_FLOAT32_INPUTS(i) {
+      if (i < upper_bound && i >= lower_bound) {
+        CHECK_FLOAT_EQ(static_cast<int32_t>(i), m.Call(i));
+      } else if (i < lower_bound) {
+        CHECK_FLOAT_EQ(std::numeric_limits<int32_t>::min(), m.Call(i));
+      } else if (i >= upper_bound) {
+#if V8_TARGET_ARCH_IA32 || V8_TARGET_ARCH_X64
+        CHECK_FLOAT_EQ(std::numeric_limits<int32_t>::min(), m.Call(i));
+#elif V8_TARGET_ARCH_ARM64
+        CHECK_FLOAT_EQ(std::numeric_limits<int32_t>::max(), m.Call(i));
+#endif
+      } else {
+        DCHECK(std::isnan(i));
+#if V8_TARGET_ARCH_IA32 || V8_TARGET_ARCH_X64
+        CHECK_FLOAT_EQ(std::numeric_limits<int32_t>::min(), m.Call(i));
+#elif V8_TARGET_ARCH_ARM64
+        CHECK_FLOAT_EQ(0, m.Call(i));
+#endif
+      }
+    }
+  }
+  {
+    BufferedRawMachineAssemblerTester<int32_t> m(MachineType::Float32());
+    m.Return(m.TruncateFloat32ToInt32(m.Parameter(0),
+                                      TruncateKind::kSetOverflowToMin));
+    FOR_FLOAT32_INPUTS(i) {
+      if (i < upper_bound && i >= lower_bound) {
+        CHECK_FLOAT_EQ(static_cast<int32_t>(i), m.Call(i));
+      } else if (!std::isnan(i)) {
+        CHECK_FLOAT_EQ(std::numeric_limits<int32_t>::min(), m.Call(i));
+      } else {
+        DCHECK(std::isnan(i));
+#if V8_TARGET_ARCH_IA32 || V8_TARGET_ARCH_X64
+        CHECK_FLOAT_EQ(std::numeric_limits<int32_t>::min(), m.Call(i));
+#elif V8_TARGET_ARCH_ARM64
+        CHECK_FLOAT_EQ(0, m.Call(i));
+#endif
+      }
     }
   }
 }
 
-
 TEST(RunTruncateFloat32ToUint32) {
-  BufferedRawMachineAssemblerTester<uint32_t> m(MachineType::Float32());
-  m.Return(m.TruncateFloat32ToUint32(m.Parameter(0)));
   // The upper bound is (UINT32_MAX + 1), which is the lowest
   // float-representable number above UINT32_MAX which cannot be represented as
   // uint32.
   double upper_bound = 4294967296.0f;
   double lower_bound = -1.0f;
-  FOR_UINT32_INPUTS(i) {
-    volatile float input = static_cast<float>(i);
-    if (input < upper_bound) {
-      CHECK_EQ(static_cast<uint32_t>(input), m.Call(input));
+
+  // No tests outside the range of UINT32 are performed, as the semantics are
+  // tricky on x64. On this architecture, the assembler transforms float32 into
+  // a signed int64 instead of an unsigned int32. Overflow can then be detected
+  // by converting back to float and testing for equality as done in
+  // wasm-compiler.cc .
+  //
+  // On arm architectures, TruncateKind::kArchitectureDefault rounds towards 0
+  // upon overflow and returns 0 if the input is NaN.
+  // TruncateKind::kSetOverflowToMin returns 0 on overflow and NaN.
+  {
+    BufferedRawMachineAssemblerTester<uint32_t> m(MachineType::Float32());
+    m.Return(m.TruncateFloat32ToUint32(m.Parameter(0),
+                                       TruncateKind::kArchitectureDefault));
+    FOR_UINT32_INPUTS(i) {
+      volatile float input = static_cast<float>(i);
+      if (input < upper_bound) {
+        CHECK_EQ(static_cast<uint32_t>(input), m.Call(input));
+      }
+    }
+    FOR_FLOAT32_INPUTS(j) {
+      if ((j < upper_bound) && (j > lower_bound)) {
+        CHECK_FLOAT_EQ(static_cast<uint32_t>(j), m.Call(j));
+      }
     }
   }
-  FOR_FLOAT32_INPUTS(j) {
-    if ((j < upper_bound) && (j > lower_bound)) {
-      CHECK_FLOAT_EQ(static_cast<uint32_t>(j), m.Call(j));
+  {
+    BufferedRawMachineAssemblerTester<uint32_t> m(MachineType::Float32());
+    m.Return(m.TruncateFloat32ToUint32(m.Parameter(0),
+                                       TruncateKind::kSetOverflowToMin));
+    FOR_UINT32_INPUTS(i) {
+      volatile float input = static_cast<float>(i);
+      if (input < upper_bound) {
+        CHECK_EQ(static_cast<uint32_t>(input), m.Call(input));
+      }
+    }
+    FOR_FLOAT32_INPUTS(j) {
+      if ((j < upper_bound) && (j > lower_bound)) {
+        CHECK_FLOAT_EQ(static_cast<uint32_t>(j), m.Call(j));
+      }
     }
   }
 }

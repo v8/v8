@@ -235,8 +235,6 @@ ShiftKind ShiftKindOf(Operator const* op) {
   V(ChangeFloat64ToUint64, Operator::kNoProperties, 1, 0, 1)               \
   V(TruncateFloat64ToInt64, Operator::kNoProperties, 1, 0, 1)              \
   V(TruncateFloat64ToUint32, Operator::kNoProperties, 1, 0, 1)             \
-  V(TruncateFloat32ToInt32, Operator::kNoProperties, 1, 0, 1)              \
-  V(TruncateFloat32ToUint32, Operator::kNoProperties, 1, 0, 1)             \
   V(TryTruncateFloat32ToInt64, Operator::kNoProperties, 1, 0, 2)           \
   V(TryTruncateFloat64ToInt64, Operator::kNoProperties, 1, 0, 2)           \
   V(TryTruncateFloat32ToUint64, Operator::kNoProperties, 1, 0, 2)          \
@@ -1012,6 +1010,55 @@ const Operator* MachineOperatorBuilder::UnalignedStore(
       break;
   }
   UNREACHABLE();
+}
+
+template <TruncateKind kind>
+struct TruncateFloat32ToUint32Operator : Operator1<TruncateKind> {
+  TruncateFloat32ToUint32Operator()
+      : Operator1(IrOpcode::kTruncateFloat32ToUint32, Operator::kPure,
+                  "TruncateFloat32ToUint32", 1, 0, 0, 1, 0, 0, kind) {}
+};
+
+const Operator* MachineOperatorBuilder::TruncateFloat32ToUint32(
+    TruncateKind kind) {
+  switch (kind) {
+    case TruncateKind::kArchitectureDefault:
+      return GetCachedOperator<TruncateFloat32ToUint32Operator<
+          TruncateKind::kArchitectureDefault>>();
+    case TruncateKind::kSetOverflowToMin:
+      return GetCachedOperator<
+          TruncateFloat32ToUint32Operator<TruncateKind::kSetOverflowToMin>>();
+  }
+}
+
+template <TruncateKind kind>
+struct TruncateFloat32ToInt32Operator : Operator1<TruncateKind> {
+  TruncateFloat32ToInt32Operator()
+      : Operator1(IrOpcode::kTruncateFloat32ToInt32, Operator::kPure,
+                  "TruncateFloat32ToInt32", 1, 0, 0, 1, 0, 0, kind) {}
+};
+
+const Operator* MachineOperatorBuilder::TruncateFloat32ToInt32(
+    TruncateKind kind) {
+  switch (kind) {
+    case TruncateKind::kArchitectureDefault:
+      return GetCachedOperator<
+          TruncateFloat32ToInt32Operator<TruncateKind::kArchitectureDefault>>();
+    case TruncateKind::kSetOverflowToMin:
+      return GetCachedOperator<
+          TruncateFloat32ToInt32Operator<TruncateKind::kSetOverflowToMin>>();
+  }
+}
+
+size_t hash_value(TruncateKind kind) { return static_cast<size_t>(kind); }
+
+std::ostream& operator<<(std::ostream& os, TruncateKind kind) {
+  switch (kind) {
+    case TruncateKind::kArchitectureDefault:
+      return os << "kArchitectureDefault";
+    case TruncateKind::kSetOverflowToMin:
+      return os << "kSetOverflowToMin";
+  }
 }
 
 #define PURE(Name, properties, value_input_count, control_input_count,     \

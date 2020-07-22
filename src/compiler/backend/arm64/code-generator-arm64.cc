@@ -1518,24 +1518,32 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
     case kArm64Float64ToFloat32:
       __ Fcvt(i.OutputDoubleRegister().S(), i.InputDoubleRegister(0));
       break;
-    case kArm64Float32ToInt32:
+    case kArm64Float32ToInt32: {
       __ Fcvtzs(i.OutputRegister32(), i.InputFloat32Register(0));
-      // Avoid INT32_MAX as an overflow indicator and use INT32_MIN instead,
-      // because INT32_MIN allows easier out-of-bounds detection.
-      __ Cmn(i.OutputRegister32(), 1);
-      __ Csinc(i.OutputRegister32(), i.OutputRegister32(), i.OutputRegister32(),
-               vc);
+      bool set_overflow_to_min_i32 = MiscField::decode(instr->opcode());
+      if (set_overflow_to_min_i32) {
+        // Avoid INT32_MAX as an overflow indicator and use INT32_MIN instead,
+        // because INT32_MIN allows easier out-of-bounds detection.
+        __ Cmn(i.OutputRegister32(), 1);
+        __ Csinc(i.OutputRegister32(), i.OutputRegister32(),
+                 i.OutputRegister32(), vc);
+      }
       break;
+    }
     case kArm64Float64ToInt32:
       __ Fcvtzs(i.OutputRegister32(), i.InputDoubleRegister(0));
       break;
-    case kArm64Float32ToUint32:
+    case kArm64Float32ToUint32: {
       __ Fcvtzu(i.OutputRegister32(), i.InputFloat32Register(0));
-      // Avoid UINT32_MAX as an overflow indicator and use 0 instead,
-      // because 0 allows easier out-of-bounds detection.
-      __ Cmn(i.OutputRegister32(), 1);
-      __ Adc(i.OutputRegister32(), i.OutputRegister32(), Operand(0));
+      bool set_overflow_to_min_u32 = MiscField::decode(instr->opcode());
+      if (set_overflow_to_min_u32) {
+        // Avoid UINT32_MAX as an overflow indicator and use 0 instead,
+        // because 0 allows easier out-of-bounds detection.
+        __ Cmn(i.OutputRegister32(), 1);
+        __ Adc(i.OutputRegister32(), i.OutputRegister32(), Operand(0));
+      }
       break;
+    }
     case kArm64Float64ToUint32:
       __ Fcvtzu(i.OutputRegister32(), i.InputDoubleRegister(0));
       break;

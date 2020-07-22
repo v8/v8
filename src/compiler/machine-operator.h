@@ -192,6 +192,12 @@ size_t hash_value(ShiftKind);
 V8_EXPORT_PRIVATE std::ostream& operator<<(std::ostream&, ShiftKind);
 ShiftKind ShiftKindOf(Operator const*) V8_WARN_UNUSED_RESULT;
 
+// TruncateKind::kSetOverflowToMin sets the result of a saturating float-to-int
+// conversion to INT_MIN if the conversion returns INT_MAX due to overflow. This
+// makes it easier to detect an overflow. This parameter is ignored on platforms
+// like x64 and ia32 where a range overflow does not result in INT_MAX.
+enum class TruncateKind { kArchitectureDefault, kSetOverflowToMin };
+
 // Interface for building machine-level operators. These operators are
 // machine-level but machine-independent and thus define a language suitable
 // for generating code to run on architectures such as ia32, x64, arm, etc.
@@ -224,13 +230,14 @@ class V8_EXPORT_PRIVATE MachineOperatorBuilder final
     kInt64AbsWithOverflow = 1u << 21,
     kWord32Rol = 1u << 22,
     kWord64Rol = 1u << 23,
+    kSatConversionIsSafe = 1u << 24,
     kAllOptionalOps =
         kFloat32RoundDown | kFloat64RoundDown | kFloat32RoundUp |
         kFloat64RoundUp | kFloat32RoundTruncate | kFloat64RoundTruncate |
         kFloat64RoundTiesAway | kFloat32RoundTiesEven | kFloat64RoundTiesEven |
         kWord32Ctz | kWord64Ctz | kWord32Popcnt | kWord64Popcnt |
         kWord32ReverseBits | kWord64ReverseBits | kInt32AbsWithOverflow |
-        kInt64AbsWithOverflow | kWord32Rol | kWord64Rol
+        kInt64AbsWithOverflow | kWord32Rol | kWord64Rol | kSatConversionIsSafe
   };
   using Flags = base::Flags<Flag, unsigned>;
 
@@ -332,6 +339,11 @@ class V8_EXPORT_PRIVATE MachineOperatorBuilder final
   // generate a mask with 0x1f on the amount ahead of generating the shift.
   bool Word32ShiftIsSafe() const { return flags_ & kWord32ShiftIsSafe; }
 
+  // Return true if the target's implementation of float-to-int-conversions is a
+  // saturating conversion rounding towards 0. Otherwise, we have to manually
+  // generate the correct value if a saturating conversion is requested.
+  bool SatConversionIsSafe() const { return flags_ & kSatConversionIsSafe; }
+
   const Operator* Word64And();
   const Operator* Word64Or();
   const Operator* Word64Xor();
@@ -417,6 +429,10 @@ class V8_EXPORT_PRIVATE MachineOperatorBuilder final
   // in the target type and are *not* defined for other inputs.
   // Use narrowing change operators only when there is a static guarantee that
   // the input value is representable in the target value.
+  //
+  // Some operators can have the behaviour on overflow change through specifying
+  // TruncateKind. The exact semantics are documented in the tests in
+  // test/cctest/compiler/test-run-machops.cc .
   const Operator* ChangeFloat32ToFloat64();
   const Operator* ChangeFloat64ToInt32();   // narrowing
   const Operator* ChangeFloat64ToInt64();
@@ -424,8 +440,8 @@ class V8_EXPORT_PRIVATE MachineOperatorBuilder final
   const Operator* ChangeFloat64ToUint64();
   const Operator* TruncateFloat64ToInt64();
   const Operator* TruncateFloat64ToUint32();
-  const Operator* TruncateFloat32ToInt32();
-  const Operator* TruncateFloat32ToUint32();
+  const Operator* TruncateFloat32ToInt32(TruncateKind kind);
+  const Operator* TruncateFloat32ToUint32(TruncateKind kind);
   const Operator* TryTruncateFloat32ToInt64();
   const Operator* TryTruncateFloat64ToInt64();
   const Operator* TryTruncateFloat32ToUint64();

@@ -110,7 +110,7 @@ Node* ToInt32(RawMachineAssembler* m, MachineType type, Node* a) {
     case MachineRepresentation::kWord64:
       return m->TruncateInt64ToInt32(a);
     case MachineRepresentation::kFloat32:
-      return m->TruncateFloat32ToInt32(a);
+      return m->TruncateFloat32ToInt32(a, TruncateKind::kArchitectureDefault);
     case MachineRepresentation::kFloat64:
       return m->RoundFloat64ToInt32(a);
     default:

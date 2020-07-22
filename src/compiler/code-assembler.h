@@ -321,7 +321,6 @@ TNode<Float64T> Float64Add(TNode<Float64T> a, TNode<Float64T> b);
   V(BitcastMaybeObjectToWord, IntPtrT, MaybeObject)            \
   V(BitcastWordToTagged, Object, WordT)                        \
   V(BitcastWordToTaggedSigned, Smi, WordT)                     \
-  V(TruncateFloat32ToInt32, Int32T, Float32T)                  \
   V(TruncateFloat64ToFloat32, Float32T, Float64T)              \
   V(TruncateFloat64ToWord32, Uint32T, Float64T)                \
   V(TruncateInt64ToInt32, Int32T, Int64T)                      \
@@ -935,6 +934,12 @@ class V8_EXPORT_PRIVATE CodeAssembler {
   TNode<UintPtrT> ChangeUint32ToWord(TNode<Word32T> value);
   // No-op on 32-bit, otherwise sign extend.
   TNode<IntPtrT> ChangeInt32ToIntPtr(TNode<Word32T> value);
+
+  // Truncates a float to a 32-bit integer. If the float is outside of 32-bit
+  // range, make sure that overflow detection is easy. In particular, return
+  // int_min instead of int_max on arm platforms by using parameter
+  // kSetOverflowToMin.
+  TNode<Int32T> TruncateFloat32ToInt32(SloppyTNode<Float32T> value);
 
   // No-op that guarantees that the value is kept alive till this point even
   // if GC happens.
