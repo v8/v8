@@ -831,31 +831,37 @@
 
 
 ['arch == riscv64 or arch == riscv', {
-  'regress/wasm/regress-1032753': [SKIP], #issue 149
-  'regress/regress-6196': [SKIP], #issue 131
-  'es6/block-conflicts-sloppy': [SKIP], #issue 137
+  'regress/wasm/regress-1032753': [SKIP], # issue 57
+  'regress/regress-6196': [SKIP], # issue 54
+  'es6/block-conflicts-sloppy': [SKIP], #issue 56
+  
+  'wasm/asm-wasm': [SKIP], # issue 54
+  'wasm/compilation-hints-interpreter': [SKIP], # issue 54
+  'wasm/compiled-module-serialization': [SKIP], # issue 55
+  'wasm/float-constant-folding': [SKIP], # issue 53
+  'wasm/shared-memory-gc-stress': [SKIP], # issue 56
 
-  'asm/*': [SKIP],
-  'wasm/*': [SKIP],
 
+  # disable all asm/embenchen tests for now
   'asm/embenchen/box2d': [SKIP],
-  'asm/embenchen/sqlite3/sqlite': [SKIP],
+  'asm/embenchen/zlib': [SKIP],
+  'asm/embenchen/fasta': [SKIP],
+  'asm/embenchen/lua_binarytrees': [SKIP],
+
+  'asm/poppler/poppler': [SKIP],
+
   'asm/sqlite3/sqlite-pointer-masking': [SKIP],
   'asm/sqlite3/sqlite-safe-heap': [SKIP],
-  'asm/poppler/poppler': [SKIP],
-  'asm/embenchen/fasta': [SKIP],
   'asm/sqlite3/sqlite': [SKIP],
-  'asm/embenchen/zlib': [SKIP],
-  'asm/embenchen/memops': [SKIP],
 
+  # disable all asm/embenchen tests for now
   'wasm/embenchen/box2d': [SKIP],
   'wasm/embenchen/fasta': [SKIP],
-  'wasm/asm-wasm': [SKIP],
-  'wasm/compilation-hints-interpreter': [SKIP],
-  'wasm/compiled-module-serialization': [SKIP],
-  'wasm/float-constant-folding': [SKIP],
-  'wasm/grow-memory': [SKIP],
-  'wasm/import-memory': [SKIP],
+  'wasm/embenchen/lua_binarytrees': [SKIP],
+  'wasm/embenchen/zlib': [SKIP],
+
+  'wasm/memory_2gb_oob': [SKIP], # OOM: sorry, best effort max memory size test
+  'wasm/memory_4gb_oob': [SKIP], # OOM: sorry, best effort max memory size test
 }],  # 'arch == riscv64 or arch == riscv'
 
 ##############################################################################
