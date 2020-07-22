@@ -2195,7 +2195,7 @@ void CodeGenerator::AssembleArchBoolean(Instruction* instr,
         Register left = i.InputRegister(0);
         Operand right = i.InputOperand(1);
         if (instr->InputAt(1)->IsImmediate()) {
-          if (is_int16(-right.immediate())) {
+          if (is_int12(-right.immediate())) {
             if (right.immediate() == 0) {
               if (cc == eq) {
                 __ Sltu(result, left, 1);
@@ -2211,7 +2211,7 @@ void CodeGenerator::AssembleArchBoolean(Instruction* instr,
               }
             }
           } else {
-            if (is_uint16(right.immediate())) {
+            if (is_uint12(right.immediate())) {
               __ Xor(result, left, right);
             } else {
               __ li(kScratchReg, right);
