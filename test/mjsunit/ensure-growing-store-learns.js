@@ -2,8 +2,15 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-// Flags: --allow-natives-syntax --noverify-heap --noenable-slow-asserts
-// Flags: --opt --no-always-opt
+// The flags are processed left to right. --no-abort-on-contradictory-flags
+// disables the checking for conflicts, then we process --noverify-heap and
+// --noenable-slow-asserts, which the test runner already set to true before.
+// This causes the flags to be overwritten while silencing the error. Then we
+// re-enable --abort-on-contradictory-flags to make sure that the processing of
+// other flags and flag implications, which happens later, still produces
+// errors.
+// Flags: --no-abort-on-contradictory-flags --noverify-heap --noenable-slow-asserts --abort-on-contradictory-flags
+// Flags: --allow-natives-syntax --opt --no-always-opt
 
 // --noverify-heap and --noenable-slow-asserts are set because the test is too
 // slow with it on.

@@ -91,6 +91,11 @@
   '*': [SKIP],  # only relevant for mjsunit tests.
 }],
 
+################################################################################
+['variant == stress', {
+  '*': [SKIP],  # only relevant for mjsunit tests.
+}],
+
 ##############################################################################
 ['tsan == True', {
   # TSan handles SIGPROF incorrectly (https://crbug.com/v8/9869).
