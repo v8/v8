@@ -250,10 +250,6 @@ declare_args() {
   # Sets -DV8_HEAP_SANDBOX.
   v8_enable_heap_sandbox = ""
 
-  # Experimental support for native context independent code.
-  # https://crbug.com/v8/8888
-  v8_enable_nci_code = false
-
   # Experimental feature for collecting per-class zone memory stats.
   # Requires use_rtti = true
   v8_enable_precise_zone_stats = false
@@ -604,9 +600,6 @@ config("features") {
   }
   if (v8_enable_wasm_gdb_remote_debugging) {
     defines += [ "V8_ENABLE_WASM_GDB_REMOTE_DEBUGGING" ]
-  }
-  if (v8_enable_nci_code) {
-    defines += [ "V8_ENABLE_NCI_CODE" ]
   }
   if (v8_enable_precise_zone_stats) {
     defines += [ "V8_ENABLE_PRECISE_ZONE_STATS" ]
