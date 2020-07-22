@@ -1488,6 +1488,10 @@ void LiftoffAssembler::CallIndirect(const wasm::FunctionSig* sig,
   bailout(kUnsupportedArchitecture, "CallIndirect");
 }
 
+void LiftoffAssembler::TailCallIndirect(Register target) {
+  bailout(kUnsupportedArchitecture, "TailCallIndirect");
+}
+
 void LiftoffAssembler::CallRuntimeStub(WasmCode::RuntimeStubId sid) {
   bailout(kUnsupportedArchitecture, "CallRuntimeStub");
 }
