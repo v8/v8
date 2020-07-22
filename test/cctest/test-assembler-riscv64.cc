@@ -64,8 +64,10 @@ using F5 = void*(void* p0, void* p1, int p2, int p3, int p4);
             << std::endl;
 
 typedef union {
+  uint32_t ui32val;
   int32_t i32val;
   int64_t i64val;
+  uint64_t ui64val;
   float fval;
   double dval;
 } Param_T;
@@ -73,7 +75,9 @@ typedef union {
 static void SetParam(Param_T* params, float val) { params->fval = val; }
 static void SetParam(Param_T* params, double val) { params->dval = val; }
 static void SetParam(Param_T* params, int32_t val) { params->i32val = val; }
+static void SetParam(Param_T* params, uint32_t val) { params->ui32val = val; }
 static void SetParam(Param_T* params, int64_t val) { params->i64val = val; }
+static void SetParam(Param_T* params, uint64_t val) { params->ui64val = val; }
 
 template <typename T, typename std::enable_if<
                           std::is_same<float, T>::value>::type* = nullptr>
@@ -573,7 +577,7 @@ UTEST_LOAD_STORE(lw, sw, int32_t, 0x456AF894)
 // set the 32th least significant bit of
 // value-to-store to 1 to test
 // zero-extension by lwu
-UTEST_LOAD_STORE(lwu, sw, int32_t, 0x856AF894)
+UTEST_LOAD_STORE(lwu, sw, uint32_t, 0x856AF894)
 // due to sign-extension of lh
 // instruction, value-to-stored must have
 // its 16th least significant bit be 0
@@ -581,7 +585,7 @@ UTEST_LOAD_STORE(lh, sh, int32_t, 0x7894)
 // set the 16th least significant bit of
 // value-to-store to 1 to test
 // zero-extension by lhu
-UTEST_LOAD_STORE(lhu, sh, int32_t, 0xF894)
+UTEST_LOAD_STORE(lhu, sh, uint32_t, 0xF894)
 // due to sign-extension of lb
 // instruction, value-to-stored must have
 // its 8th least significant bit be 0
@@ -589,12 +593,12 @@ UTEST_LOAD_STORE(lb, sb, int32_t, 0x54)
 // set the 8th least significant bit of
 // value-to-store to 1 to test
 // zero-extension by lbu
-UTEST_LOAD_STORE(lbu, sb, int32_t, 0x94)
+UTEST_LOAD_STORE(lbu, sb, uint32_t, 0x94)
 
 // -- arithmetic w/ immediate --
 UTEST_I_FORM_WITH_OP(addi, int64_t, LARGE_INT_EXCEED_32_BIT, MIN_VAL_IMM12, +)
 UTEST_I_FORM_WITH_OP(slti, int64_t, LARGE_INT_EXCEED_32_BIT, MIN_VAL_IMM12, <)
-UTEST_I_FORM_WITH_OP(sltiu, int64_t, LARGE_UINT_EXCEED_32_BIT, 0x4FB, <)
+UTEST_I_FORM_WITH_OP(sltiu, uint64_t, LARGE_UINT_EXCEED_32_BIT, 0x4FB, <)
 UTEST_I_FORM_WITH_OP(xori, int64_t, LARGE_INT_EXCEED_32_BIT, MIN_VAL_IMM12, ^)
 UTEST_I_FORM_WITH_OP(ori, int64_t, LARGE_INT_EXCEED_32_BIT, MIN_VAL_IMM12, |)
 UTEST_I_FORM_WITH_OP(andi, int64_t, LARGE_INT_EXCEED_32_BIT, MIN_VAL_IMM12, &)
@@ -606,7 +610,7 @@ UTEST_I_FORM_WITH_OP(srai, int64_t, -0x1234'5678'0000'0000LL, 33, >>)
 UTEST_R2_FORM_WITH_OP(add, int64_t, LARGE_INT_EXCEED_32_BIT, MIN_VAL_IMM12, +)
 UTEST_R2_FORM_WITH_OP(sub, int64_t, LARGE_INT_EXCEED_32_BIT, MIN_VAL_IMM12, -)
 UTEST_R2_FORM_WITH_OP(slt, int64_t, MIN_VAL_IMM12, LARGE_INT_EXCEED_32_BIT, <)
-UTEST_R2_FORM_WITH_OP(sltu, int64_t, 0x4FB, LARGE_UINT_EXCEED_32_BIT, <)
+UTEST_R2_FORM_WITH_OP(sltu, uint64_t, 0x4FB, LARGE_UINT_EXCEED_32_BIT, <)
 UTEST_R2_FORM_WITH_OP(xor_, int64_t, LARGE_INT_EXCEED_32_BIT, MIN_VAL_IMM12, ^)
 UTEST_R2_FORM_WITH_OP(or_, int64_t, LARGE_INT_EXCEED_32_BIT, MIN_VAL_IMM12, |)
 UTEST_R2_FORM_WITH_OP(and_, int64_t, LARGE_INT_EXCEED_32_BIT, MIN_VAL_IMM12, &)
@@ -655,16 +659,16 @@ UTEST_R2_FORM_WITH_RES(mulhsu, int64_t, -0x1234'56780000'0000LL,
                        0xF234'5678'0000'0000ULL,
                        -0x1234'5678LL * 0xF234'5678ULL)
 UTEST_R2_FORM_WITH_OP(div, int64_t, LARGE_INT_EXCEED_32_BIT, MIN_VAL_IMM12, /)
-UTEST_R2_FORM_WITH_OP(divu, int64_t, LARGE_UINT_EXCEED_32_BIT, 100, /)
+UTEST_R2_FORM_WITH_OP(divu, uint64_t, LARGE_UINT_EXCEED_32_BIT, 100, /)
 UTEST_R2_FORM_WITH_OP(rem, int64_t, LARGE_INT_EXCEED_32_BIT, MIN_VAL_IMM12, %)
-UTEST_R2_FORM_WITH_OP(remu, int64_t, LARGE_UINT_EXCEED_32_BIT, 100, %)
+UTEST_R2_FORM_WITH_OP(remu, uint64_t, LARGE_UINT_EXCEED_32_BIT, 100, %)
 
 // -- RV64M Standard Extension (in addition to RV32M) --
 UTEST_R2_FORM_WITH_OP(mulw, int32_t, -20, 56, *)
 UTEST_R2_FORM_WITH_OP(divw, int32_t, 200, -10, /)
-UTEST_R2_FORM_WITH_OP(divuw, int32_t, 1000, 100, /)
+UTEST_R2_FORM_WITH_OP(divuw, uint32_t, 1000, 100, /)
 UTEST_R2_FORM_WITH_OP(remw, int32_t, 1234, -91, %)
-UTEST_R2_FORM_WITH_OP(remuw, int32_t, 1234, 43, %)
+UTEST_R2_FORM_WITH_OP(remuw, uint32_t, 1234, 43, %)
 
 /*
 // RV32A Standard Extension
@@ -715,11 +719,11 @@ UTEST_COMPARE_WITH_OP_F(feq_s, float, -3456.56, -3456.56, ==)
 UTEST_COMPARE_WITH_OP_F(flt_s, float, -3456.56, -3456.56, <)
 UTEST_COMPARE_WITH_OP_F(fle_s, float, -3456.56, -3456.56, <=)
 UTEST_CONV_F_FROM_I(fcvt_s_w, int32_t, float, -100, (float)(-100))
-UTEST_CONV_F_FROM_I(fcvt_s_wu, int32_t, float,
+UTEST_CONV_F_FROM_I(fcvt_s_wu, uint32_t, float,
                     std::numeric_limits<uint32_t>::max(),
                     (float)(std::numeric_limits<uint32_t>::max()))
 UTEST_CONV_I_FROM_F(fcvt_w_s, float, int32_t, RMM, -100.5f, -101)
-UTEST_CONV_I_FROM_F(fcvt_wu_s, float, int32_t, RUP, 256.1f, 257)
+UTEST_CONV_I_FROM_F(fcvt_wu_s, float, uint32_t, RUP, 256.1f, 257)
 UTEST_R2_FORM_WITH_RES_F(fsgnj_s, float, -100.0f, 200.0f, 100.0f)
 UTEST_R2_FORM_WITH_RES_F(fsgnjn_s, float, 100.0f, 200.0f, -100.0f)
 UTEST_R2_FORM_WITH_RES_F(fsgnjx_s, float, -100.0f, 200.0f, -100.0f)
@@ -748,20 +752,20 @@ UTEST_COMPARE_WITH_OP_F(flt_d, double, -3456.56, -3456.56, <)
 UTEST_COMPARE_WITH_OP_F(fle_d, double, -3456.56, -3456.56, <=)
 
 UTEST_CONV_F_FROM_I(fcvt_d_w, int32_t, double, -100, -100.0)
-UTEST_CONV_F_FROM_I(fcvt_d_wu, int32_t, double,
+UTEST_CONV_F_FROM_I(fcvt_d_wu, uint32_t, double,
                     std::numeric_limits<uint32_t>::max(),
                     (double)(std::numeric_limits<uint32_t>::max()))
 UTEST_CONV_I_FROM_F(fcvt_w_d, double, int32_t, RTZ, -100.0, -100)
-UTEST_CONV_I_FROM_F(fcvt_wu_d, double, int32_t, RTZ,
+UTEST_CONV_I_FROM_F(fcvt_wu_d, double, uint32_t, RTZ,
                     (double)(std::numeric_limits<uint32_t>::max()),
                     std::numeric_limits<uint32_t>::max())
 
 // -- RV64F Standard Extension (in addition to RV32F) --
 UTEST_CONV_I_FROM_F(fcvt_l_s, float, int64_t, RDN, -100.5f, -101)
-UTEST_CONV_I_FROM_F(fcvt_lu_s, float, int64_t, RTZ, 1000001.0f, 1000001)
+UTEST_CONV_I_FROM_F(fcvt_lu_s, float, uint64_t, RTZ, 1000001.0f, 1000001)
 UTEST_CONV_F_FROM_I(fcvt_s_l, int64_t, float, (-0x1234'5678'0000'0001LL),
                     (float)(-0x1234'5678'0000'0001LL))
-UTEST_CONV_F_FROM_I(fcvt_s_lu, int64_t, float,
+UTEST_CONV_F_FROM_I(fcvt_s_lu, uint64_t, float,
                     std::numeric_limits<uint64_t>::max(),
                     (float)(std::numeric_limits<uint64_t>::max()))
 
@@ -775,10 +779,10 @@ UTEST_R2_FORM_WITH_RES_F(fsgnjx_d, double, -100.0, 200.0, -100.0)
 
 // -- RV64D Standard Extension (in addition to RV32D) --
 UTEST_CONV_I_FROM_F(fcvt_l_d, double, int64_t, RNE, -100.5, -100)
-UTEST_CONV_I_FROM_F(fcvt_lu_d, double, int64_t, RTZ, 2456.5, 2456)
+UTEST_CONV_I_FROM_F(fcvt_lu_d, double, uint64_t, RTZ, 2456.5, 2456)
 UTEST_CONV_F_FROM_I(fcvt_d_l, int64_t, double, (-0x1234'5678'0000'0001LL),
                     (double)(-0x1234'5678'0000'0001LL))
-UTEST_CONV_F_FROM_I(fcvt_d_lu, int64_t, double,
+UTEST_CONV_F_FROM_I(fcvt_d_lu, uint64_t, double,
                     std::numeric_limits<uint64_t>::max(),
                     (double)(std::numeric_limits<uint64_t>::max()))
 
