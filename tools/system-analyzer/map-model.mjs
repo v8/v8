@@ -27,6 +27,13 @@ class State {
   get filteredEntries() {
     return this._filteredEntries;
   }
+  set entries(value) {
+    this._entries = value;
+  }
+  get entries() {
+    return this._entries;
+  }
+
   get timeline() {
     return this._timeline
   }
