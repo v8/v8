@@ -51,6 +51,11 @@ int LiftoffAssembler::PrepareStackFrame() {
   return 0;
 }
 
+void LiftoffAssembler::PrepareTailCall(int num_callee_stack_params,
+                                       int stack_param_delta) {
+  bailout(kUnsupportedArchitecture, "PrepareTailCall");
+}
+
 void LiftoffAssembler::PatchPrepareStackFrame(int offset, int frame_size) {
   bailout(kUnsupportedArchitecture, "PatchPrepareStackFrame");
 }
@@ -1464,6 +1469,10 @@ void LiftoffAssembler::CallC(const wasm::FunctionSig* sig,
 
 void LiftoffAssembler::CallNativeWasmCode(Address addr) {
   bailout(kUnsupportedArchitecture, "CallNativeWasmCode");
+}
+
+void LiftoffAssembler::TailCallNativeWasmCode(Address addr) {
+  bailout(kUnsupportedArchitecture, "TailCallNativeWasmCode");
 }
 
 void LiftoffAssembler::CallIndirect(const wasm::FunctionSig* sig,
