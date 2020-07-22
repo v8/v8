@@ -1327,7 +1327,7 @@ icu::UnicodeString ReplaceSkeleton(const icu::UnicodeString input,
 
 std::unique_ptr<icu::SimpleDateFormat> DateTimeStylePattern(
     JSDateTimeFormat::DateTimeStyle date_style,
-    JSDateTimeFormat::DateTimeStyle time_style, const icu::Locale& icu_locale,
+    JSDateTimeFormat::DateTimeStyle time_style, icu::Locale& icu_locale,
     JSDateTimeFormat::HourCycle hc, icu::DateTimePatternGenerator* generator) {
   std::unique_ptr<icu::SimpleDateFormat> result;
   if (date_style != JSDateTimeFormat::DateTimeStyle::kUndefined) {
@@ -1342,7 +1342,9 @@ std::unique_ptr<icu::SimpleDateFormat> DateTimeStylePattern(
                                               icu_locale)));
       // For instance without time, we do not need to worry about the hour cycle
       // impact so we can return directly.
-      return result;
+      if (result.get() != nullptr) {
+        return result;
+      }
     }
   } else {
     if (time_style != JSDateTimeFormat::DateTimeStyle::kUndefined) {
@@ -1357,28 +1359,27 @@ std::unique_ptr<icu::SimpleDateFormat> DateTimeStylePattern(
   UErrorCode status = U_ZERO_ERROR;
   // Somehow we fail to create the instance.
   if (result.get() == nullptr) {
-    icu::Locale modified_locale(icu_locale);
     // Fallback to the locale without "nu".
     if (!icu_locale.getUnicodeKeywordValue<std::string>("nu", status).empty()) {
       status = U_ZERO_ERROR;
-      modified_locale.setUnicodeKeywordValue("nu", nullptr, status);
-      return DateTimeStylePattern(date_style, time_style, modified_locale, hc,
+      icu_locale.setUnicodeKeywordValue("nu", nullptr, status);
+      return DateTimeStylePattern(date_style, time_style, icu_locale, hc,
                                   generator);
     }
     status = U_ZERO_ERROR;
     // Fallback to the locale without "hc".
     if (!icu_locale.getUnicodeKeywordValue<std::string>("hc", status).empty()) {
       status = U_ZERO_ERROR;
-      modified_locale.setUnicodeKeywordValue("hc", nullptr, status);
-      return DateTimeStylePattern(date_style, time_style, modified_locale, hc,
+      icu_locale.setUnicodeKeywordValue("hc", nullptr, status);
+      return DateTimeStylePattern(date_style, time_style, icu_locale, hc,
                                   generator);
     }
     status = U_ZERO_ERROR;
     // Fallback to the locale without "ca".
     if (!icu_locale.getUnicodeKeywordValue<std::string>("ca", status).empty()) {
       status = U_ZERO_ERROR;
-      modified_locale.setUnicodeKeywordValue("ca", nullptr, status);
-      return DateTimeStylePattern(date_style, time_style, modified_locale, hc,
+      icu_locale.setUnicodeKeywordValue("ca", nullptr, status);
+      return DateTimeStylePattern(date_style, time_style, icu_locale, hc,
                                   generator);
     }
     return nullptr;
@@ -1750,6 +1751,10 @@ MaybeHandle<JSDateTimeFormat> JSDateTimeFormat::New(
     icu_date_format =
         DateTimeStylePattern(date_style, time_style, icu_locale,
                              dateTimeFormatHourCycle, generator.get());
+    if (icu_date_format.get() == nullptr) {
+      THROW_NEW_ERROR(isolate, NewRangeError(MessageTemplate::kIcuError),
+                      JSDateTimeFormat);
+    }
   } else {
     // e. If dateTimeFormat.[[Hour]] is not undefined, then
     if (has_hour_option) {
