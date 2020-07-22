@@ -319,8 +319,10 @@ void EscapeAnalysisReducer::Finalize() {
             Node* index = NodeProperties::GetValueInput(load, 1);
             Node* formal_parameter_count =
                 jsgraph()->Constant(params.formal_parameter_count());
-            NodeProperties::SetType(formal_parameter_count,
-                                    TypeCache::Get()->kArgumentsLengthType);
+            NodeProperties::SetType(
+                formal_parameter_count,
+                Type::Constant(params.formal_parameter_count(),
+                               jsgraph()->graph()->zone()));
 #ifdef V8_REVERSE_JSARGS
             Node* offset_to_first_elem = jsgraph()->Constant(
                 CommonFrameConstants::kFixedSlotCountAboveFp);
