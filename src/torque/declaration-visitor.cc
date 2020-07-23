@@ -133,17 +133,18 @@ void DeclarationVisitor::Visit(ExternalRuntimeDeclaration* decl) {
         "type Context or NoContext, but found type ",
         *signature.parameter_types.types[0]);
   }
-  if (!(signature.return_type->IsSubtypeOf(TypeOracle::GetObjectType()) ||
+  if (!(signature.return_type->IsSubtypeOf(TypeOracle::GetStrongTaggedType()) ||
         signature.return_type == TypeOracle::GetVoidType() ||
         signature.return_type == TypeOracle::GetNeverType())) {
     ReportError(
-        "runtime functions can only return tagged values, but found type ",
+        "runtime functions can only return strong tagged values, but "
+        "found type ",
         signature.return_type);
   }
   for (const Type* parameter_type : signature.parameter_types.types) {
-    if (!parameter_type->IsSubtypeOf(TypeOracle::GetObjectType())) {
+    if (!parameter_type->IsSubtypeOf(TypeOracle::GetStrongTaggedType())) {
       ReportError(
-          "runtime functions can only take tagged values as parameters, but "
+          "runtime functions can only take strong tagged parameters, but "
           "found type ",
           *parameter_type);
     }
