@@ -33,6 +33,8 @@ defineCustomElement('log-file-reader', (templateText) =>
   handleChange(event) {
     // Used for drop and file change.
     event.preventDefault();
+    this.dispatchEvent(new CustomEvent(
+      'fileuploadstart', {bubbles: true, composed: true}));
     var host = event.dataTransfer ? event.dataTransfer : event.target;
     this.readFile(host.files[0]);
   }
@@ -60,7 +62,7 @@ defineCustomElement('log-file-reader', (templateText) =>
         dataModel.chunk = e.target.result;
         this.updateLabel('Finished loading \'' + file.name + '\'.');
         this.dispatchEvent(new CustomEvent(
-          'change', {bubbles: true, composed: true, detail: dataModel}));
+          'fileuploadend', {bubbles: true, composed: true, detail: dataModel}));
         this.section.className = 'success';
         this.$('#fileReader').classList.add('done');
       } catch (err) {

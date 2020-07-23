@@ -9,13 +9,17 @@ import './ic-panel.mjs';
 import './timeline-panel.mjs';
 import './map-panel.mjs';
 import './log-file-reader.mjs';
-
 class App {
-  constructor(mapPanelId, timelinePanelId, icPanelId) {
+  constructor(fileReaderId, mapPanelId, timelinePanelId, icPanelId) {
     this.mapPanelId_ =  mapPanelId;
     this.timelinePanelId_ =  timelinePanelId;
     this.icPanelId_ =  icPanelId;
     this.icPanel_ = this.$(icPanelId);
+    this.logFileReader_ = this.$(fileReaderId);
+    this.logFileReader_.addEventListener('fileuploadstart',
+      e => this.handleFileUpload(e));
+    this.logFileReader_.addEventListener('fileuploadend',
+      e => this.handleDataUpload(e));
     document.addEventListener('keydown', e => this.handleKeyDown(e));
     this.icPanel_.addEventListener(
       'ictimefilter', e => this.handleICTimeFilter(e));
@@ -26,6 +30,9 @@ class App {
     this.entries = undefined;
   }
 
+  handleFileUpload(e){
+    this.$('#container').style.display = 'none';
+  }
   handleMapClick(e) {
      //TODO(zcankara) Direct the event based on the key and value
      console.log("map: ", e.detail.key);
