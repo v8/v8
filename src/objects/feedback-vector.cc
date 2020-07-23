@@ -3,7 +3,9 @@
 // found in the LICENSE file.
 
 #include "src/objects/feedback-vector.h"
+
 #include "src/diagnostics/code-tracer.h"
+#include "src/heap/heap-inl.h"
 #include "src/heap/off-thread-factory-inl.h"
 #include "src/ic/handler-configuration-inl.h"
 #include "src/ic/ic-inl.h"
@@ -488,7 +490,8 @@ void MainThreadConfig::SetFeedbackPair(MaybeObject feedback,
                                        WriteBarrierMode mode,
                                        MaybeObject feedback_extra,
                                        WriteBarrierMode mode_extra) {
-  // TODO(mvstanton): locking.
+  base::SharedMutexGuard<base::kExclusive> shared_mutex_guard(
+      isolate_->feedback_vector_access());
   const int index = vector().GetIndex(slot());
   vector().set(index, feedback, mode);
   const int extra_index = index + 1;
@@ -537,11 +540,13 @@ MaybeObject BackgroundThreadConfig::GetFeedback() const {
 
 std::pair<MaybeObject, MaybeObject> BackgroundThreadConfig::GetFeedbackPair()
     const {
-  // TODO(mvstanton): locking
+  local_heap_->heap()->isolate()->feedback_vector_access()->LockShared();
   const int index = vector().GetIndex(slot());
   MaybeObject feedback = vector().get(index);
   MaybeObject feedback_extra = vector().get(index + 1);
-  return std::pair<MaybeObject, MaybeObject>(feedback, feedback_extra);
+  auto pair = std::pair<MaybeObject, MaybeObject>(feedback, feedback_extra);
+  local_heap_->heap()->isolate()->feedback_vector_access()->UnlockShared();
+  return pair;
 }
 
 template <class T>
