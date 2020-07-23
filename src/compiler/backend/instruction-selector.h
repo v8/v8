@@ -16,6 +16,7 @@
 #include "src/compiler/linkage.h"
 #include "src/compiler/machine-operator.h"
 #include "src/compiler/node.h"
+#include "src/wasm/simd-shuffle.h"
 #include "src/zone/zone-containers.h"
 
 namespace v8 {
@@ -457,14 +458,9 @@ class V8_EXPORT_PRIVATE InstructionSelector final {
 
   // Expose these SIMD helper functions for testing.
   static void CanonicalizeShuffleForTesting(bool inputs_equal, uint8_t* shuffle,
-                                            bool* needs_swap,
-                                            bool* is_swizzle) {
-    CanonicalizeShuffle(inputs_equal, shuffle, needs_swap, is_swizzle);
-  }
+                                            bool* needs_swap, bool* is_swizzle);
 
-  static bool TryMatchIdentityForTesting(const uint8_t* shuffle) {
-    return TryMatchIdentity(shuffle);
-  }
+  static bool TryMatchIdentityForTesting(const uint8_t* shuffle);
   template <int LANES>
   static bool TryMatchDupForTesting(const uint8_t* shuffle, int* index) {
     return TryMatchDup<LANES>(shuffle, index);
@@ -657,14 +653,6 @@ class V8_EXPORT_PRIVATE InstructionSelector final {
   // ============= Vector instruction (SIMD) helper fns. =======================
   // ===========================================================================
 
-  // Converts a shuffle into canonical form, meaning that the first lane index
-  // is in the range [0 .. 15]. Set |inputs_equal| true if this is an explicit
-  // swizzle. Returns canonicalized |shuffle|, |needs_swap|, and |is_swizzle|.
-  // If |needs_swap| is true, inputs must be swapped. If |is_swizzle| is true,
-  // the second input can be ignored.
-  static void CanonicalizeShuffle(bool inputs_equal, uint8_t* shuffle,
-                                  bool* needs_swap, bool* is_swizzle);
-
   // Canonicalize shuffles to make pattern matching simpler. Returns the shuffle
   // indices, and a boolean indicating if the shuffle is a swizzle (one input).
   void CanonicalizeShuffle(Node* node, uint8_t* shuffle, bool* is_swizzle);
@@ -676,30 +664,15 @@ class V8_EXPORT_PRIVATE InstructionSelector final {
   // Tries to match an 8x16 byte shuffle to the identity shuffle, which is
   // [0 1 ... 15]. This should be called after canonicalizing the shuffle, so
   // the second identity shuffle, [16 17 .. 31] is converted to the first one.
-  static bool TryMatchIdentity(const uint8_t* shuffle);
+  static bool TryMatchIdentity(const uint8_t* shuffle) {
+    return wasm::TryMatchIdentity(shuffle);
+  }
 
   // Tries to match a byte shuffle to a scalar splat operation. Returns the
   // index of the lane if successful.
   template <int LANES>
   static bool TryMatchDup(const uint8_t* shuffle, int* index) {
-    const int kBytesPerLane = kSimd128Size / LANES;
-    // Get the first lane's worth of bytes and check that indices start at a
-    // lane boundary and are consecutive.
-    uint8_t lane0[kBytesPerLane];
-    lane0[0] = shuffle[0];
-    if (lane0[0] % kBytesPerLane != 0) return false;
-    for (int i = 1; i < kBytesPerLane; ++i) {
-      lane0[i] = shuffle[i];
-      if (lane0[i] != lane0[0] + i) return false;
-    }
-    // Now check that the other lanes are identical to lane0.
-    for (int i = 1; i < LANES; ++i) {
-      for (int j = 0; j < kBytesPerLane; ++j) {
-        if (lane0[j] != shuffle[i * kBytesPerLane + j]) return false;
-      }
-    }
-    *index = lane0[0] / kBytesPerLane;
-    return true;
+    return wasm::TryMatchSplat<LANES>(shuffle, index);
   }
 
   // Tries to match an 8x16 byte shuffle to an equivalent 32x4 shuffle. If
