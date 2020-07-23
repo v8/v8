@@ -491,17 +491,6 @@ RUNTIME_FUNCTION(Runtime_WasmDebugBreak) {
       // We hit one or several breakpoints. Notify the debug listeners.
       isolate->debug()->OnDebugBreak(breakpoints);
     }
-  } else {
-    // Unused breakpoint. Possible scenarios:
-    // 1. We hit a breakpoint that was already removed,
-    // 2. We hit a stepping breakpoint after resuming,
-    // 3. We hit a stepping breakpoint during a stepOver on a recursive call.
-    // 4. The breakpoint was set in a different isolate.
-    // We can handle the first three cases by simply removing the breakpoint (if
-    // it exists), since this will also recompile the function without the
-    // stepping breakpoints.
-    // TODO(thibaudm/clemensb): handle case 4.
-    debug_info->RemoveBreakpoint(frame->function_index(), position, isolate);
   }
 
   return ReadOnlyRoots(isolate).undefined_value();
