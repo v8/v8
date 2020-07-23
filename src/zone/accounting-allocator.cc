@@ -4,17 +4,83 @@
 
 #include "src/zone/accounting-allocator.h"
 
+#include <memory>
+
+#include "src/base/bounded-page-allocator.h"
 #include "src/base/logging.h"
+#include "src/base/macros.h"
 #include "src/utils/allocation.h"
+#include "src/zone/zone-fwd.h"
 #include "src/zone/zone-segment.h"
 
 namespace v8 {
 namespace internal {
 
+namespace {
+
+static constexpr size_t kZonePageSize = 256 * KB;
+
+VirtualMemory ReserveAddressSpace(v8::PageAllocator* platform_allocator) {
+  DCHECK(
+      IsAligned(kZoneReservationSize, platform_allocator->AllocatePageSize()));
+
+  void* hint = reinterpret_cast<void*>(RoundDown(
+      reinterpret_cast<uintptr_t>(platform_allocator->GetRandomMmapAddr()),
+      kZoneReservationAlignment));
+
+  VirtualMemory memory(platform_allocator, kZoneReservationSize, hint,
+                       kZoneReservationAlignment);
+  if (memory.IsReserved()) {
+    CHECK(IsAligned(memory.address(), kZoneReservationAlignment));
+    return memory;
+  }
+
+  FATAL(
+      "Fatal process out of memory: Failed to reserve memory for compressed "
+      "zones");
+  UNREACHABLE();
+}
+
+std::unique_ptr<v8::base::BoundedPageAllocator> CreateBoundedAllocator(
+    v8::PageAllocator* platform_allocator, Address reservation_start) {
+  DCHECK(reservation_start);
+
+  auto allocator = std::make_unique<v8::base::BoundedPageAllocator>(
+      platform_allocator, reservation_start, kZoneReservationSize,
+      kZonePageSize);
+
+  // Exclude first page from allocation to ensure that accesses through
+  // decompressed null pointer will seg-fault.
+  allocator->AllocatePagesAt(reservation_start, kZonePageSize,
+                             v8::PageAllocator::kNoAccess);
+  return allocator;
+}
+
+}  // namespace
+
+AccountingAllocator::AccountingAllocator() {
+  if (COMPRESS_ZONES_BOOL) {
+    v8::PageAllocator* platform_page_allocator = GetPlatformPageAllocator();
+    VirtualMemory memory = ReserveAddressSpace(platform_page_allocator);
+    reserved_area_ = std::make_unique<VirtualMemory>(std::move(memory));
+    bounded_page_allocator_ = CreateBoundedAllocator(platform_page_allocator,
+                                                     reserved_area_->address());
+  }
+}
+
 AccountingAllocator::~AccountingAllocator() = default;
 
-Segment* AccountingAllocator::AllocateSegment(size_t bytes) {
-  void* memory = AllocWithRetry(bytes);
+Segment* AccountingAllocator::AllocateSegment(size_t bytes,
+                                              bool supports_compression) {
+  void* memory;
+  if (COMPRESS_ZONES_BOOL && supports_compression) {
+    bytes = RoundUp(bytes, kZonePageSize);
+    memory = AllocatePages(bounded_page_allocator_.get(), nullptr, bytes,
+                           kZonePageSize, PageAllocator::kReadWrite);
+
+  } else {
+    memory = AllocWithRetry(bytes);
+  }
   if (memory == nullptr) return nullptr;
 
   size_t current =
@@ -28,12 +94,18 @@ Segment* AccountingAllocator::AllocateSegment(size_t bytes) {
   return new (memory) Segment(bytes);
 }
 
-void AccountingAllocator::ReturnSegment(Segment* segment) {
+void AccountingAllocator::ReturnSegment(Segment* segment,
+                                        bool supports_compression) {
   segment->ZapContents();
-  current_memory_usage_.fetch_sub(segment->total_size(),
-                                  std::memory_order_relaxed);
+  size_t segment_size = segment->total_size();
+  current_memory_usage_.fetch_sub(segment_size, std::memory_order_relaxed);
   segment->ZapHeader();
-  free(segment);
+  if (COMPRESS_ZONES_BOOL && supports_compression) {
+    CHECK(FreePages(bounded_page_allocator_.get(), segment, segment_size));
+
+  } else {
+    free(segment);
+  }
 }
 
 }  // namespace internal

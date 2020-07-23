@@ -29,8 +29,11 @@ constexpr size_t kASanRedzoneBytes = 0;
 
 }  // namespace
 
-Zone::Zone(AccountingAllocator* allocator, const char* name)
-    : allocator_(allocator), name_(name) {
+Zone::Zone(AccountingAllocator* allocator, const char* name,
+           bool support_compression)
+    : allocator_(allocator),
+      name_(name),
+      supports_compression_(support_compression) {
   allocator_->TraceZoneCreation(this);
 }
 
@@ -93,7 +96,7 @@ void Zone::DeleteAll() {
                                 current->capacity());
 
     segment_bytes_allocated_ -= size;
-    allocator_->ReturnSegment(current);
+    allocator_->ReturnSegment(current, supports_compression());
     current = next;
   }
 
@@ -138,8 +141,8 @@ Address Zone::NewExpand(size_t size) {
     V8::FatalProcessOutOfMemory(nullptr, "Zone");
     return kNullAddress;
   }
-
-  Segment* segment = allocator_->AllocateSegment(new_size);
+  Segment* segment =
+      allocator_->AllocateSegment(new_size, supports_compression());
   if (segment == nullptr) {
     V8::FatalProcessOutOfMemory(nullptr, "Zone");
     return kNullAddress;

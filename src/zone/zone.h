@@ -11,6 +11,7 @@
 #include "src/common/globals.h"
 #include "src/zone/accounting-allocator.h"
 #include "src/zone/type-stats.h"
+#include "src/zone/zone-fwd.h"
 #include "src/zone/zone-segment.h"
 
 #ifndef ZONE_NAME
@@ -37,8 +38,14 @@ namespace internal {
 
 class V8_EXPORT_PRIVATE Zone final {
  public:
-  Zone(AccountingAllocator* allocator, const char* name);
+  Zone(AccountingAllocator* allocator, const char* name,
+       bool support_compression = false);
   ~Zone();
+
+  // Returns true if the zone supports zone pointer compression.
+  bool supports_compression() const {
+    return COMPRESS_ZONES_BOOL && supports_compression_;
+  }
 
   // Allocate 'size' bytes of uninitialized memory in the Zone; expands the Zone
   // by allocating new segments of memory on demand using AccountingAllocator
@@ -208,6 +215,7 @@ class V8_EXPORT_PRIVATE Zone final {
 
   Segment* segment_head_ = nullptr;
   const char* name_;
+  const bool supports_compression_;
   bool sealed_ = false;
 
 #ifdef V8_ENABLE_PRECISE_ZONE_STATS

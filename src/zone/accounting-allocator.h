@@ -6,27 +6,34 @@
 #define V8_ZONE_ACCOUNTING_ALLOCATOR_H_
 
 #include <atomic>
+#include <memory>
 
 #include "src/base/macros.h"
 #include "src/logging/tracing-flags.h"
 
 namespace v8 {
+
+namespace base {
+class BoundedPageAllocator;
+}
+
 namespace internal {
 
 class Segment;
+class VirtualMemory;
 class Zone;
 
 class V8_EXPORT_PRIVATE AccountingAllocator {
  public:
-  AccountingAllocator() = default;
+  AccountingAllocator();
   virtual ~AccountingAllocator();
 
   // Allocates a new segment. Returns nullptr on failed allocation.
-  Segment* AllocateSegment(size_t bytes);
+  Segment* AllocateSegment(size_t bytes, bool supports_compression);
 
   // Return unneeded segments to either insert them into the pool or release
   // them if the pool is already full or memory pressure is high.
-  void ReturnSegment(Segment* memory);
+  void ReturnSegment(Segment* memory, bool supports_compression);
 
   size_t GetCurrentMemoryUsage() const {
     return current_memory_usage_.load(std::memory_order_relaxed);
@@ -59,6 +66,9 @@ class V8_EXPORT_PRIVATE AccountingAllocator {
  private:
   std::atomic<size_t> current_memory_usage_{0};
   std::atomic<size_t> max_memory_usage_{0};
+
+  std::unique_ptr<VirtualMemory> reserved_area_;
+  std::unique_ptr<base::BoundedPageAllocator> bounded_page_allocator_;
 
   DISALLOW_COPY_AND_ASSIGN(AccountingAllocator);
 };

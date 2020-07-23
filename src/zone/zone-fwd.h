@@ -5,6 +5,8 @@
 #ifndef V8_ZONE_ZONE_FWD_H_
 #define V8_ZONE_ZONE_FWD_H_
 
+#include "src/common/globals.h"
+
 namespace v8 {
 namespace internal {
 
@@ -22,6 +24,20 @@ class ZoneList;
 // zone as the list object.
 template <typename T>
 using ZonePtrList = ZoneList<T*>;
+
+#ifdef V8_COMPRESS_ZONES
+static_assert(kSystemPointerSize == 8,
+              "Zone compression requires 64-bit architectures");
+#define COMPRESS_ZONES_BOOL true
+constexpr size_t kZoneReservationSize = static_cast<size_t>(2) * GB;
+constexpr size_t kZoneReservationAlignment = static_cast<size_t>(4) * GB;
+
+#else  // V8_COMPRESS_ZONES
+#define COMPRESS_ZONES_BOOL false
+// These constants must not be used when zone compression is not enabled.
+constexpr size_t kZoneReservationSize = 1;
+constexpr size_t kZoneReservationAlignment = 1;
+#endif  // V8_COMPRESS_ZONES
 
 }  // namespace internal
 }  // namespace v8

@@ -262,6 +262,10 @@ declare_args() {
   # Enable young generation in cppgc.
   cppgc_enable_young_generation = false
 
+  # Enable V8 zone compression experimental feature.
+  # Sets -DV8_COMPRESS_ZONES.
+  v8_enable_zone_compression = ""
+
   # Enable V8 heap sandbox experimental feature.
   # Sets -DV8_HEAP_SANDBOX.
   v8_enable_heap_sandbox = ""
@@ -303,6 +307,9 @@ if (v8_enable_pointer_compression == "") {
 }
 if (v8_enable_fast_torque == "") {
   v8_enable_fast_torque = v8_enable_fast_mksnapshot
+}
+if (v8_enable_zone_compression == "") {
+  v8_enable_zone_compression = false
 }
 if (v8_enable_heap_sandbox == "") {
   v8_enable_heap_sandbox = false
@@ -475,6 +482,9 @@ config("v8_header_features") {
   }
   if (v8_enable_pointer_compression || v8_enable_31bit_smis_on_64bit_arch) {
     defines += [ "V8_31BIT_SMIS_ON_64BIT_ARCH" ]
+  }
+  if (v8_enable_zone_compression) {
+    defines += [ "V8_COMPRESS_ZONES" ]
   }
   if (v8_enable_heap_sandbox) {
     defines += [ "V8_HEAP_SANDBOX" ]
