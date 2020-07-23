@@ -527,22 +527,17 @@ void RiscvDebugger::Debug() {
         PrintF("relinquishing control to gdb\n");
         v8::base::OS::DebugBreak();
         PrintF("regaining control from gdb\n");
-      } else if (strcmp(cmd, "break") == 0) {
+      } else if (strcmp(cmd, "break") == 0 || strcmp(cmd, "b") == 0) {
         if (argc == 2) {
           int64_t value;
           if (GetValue(arg1, &value)) {
-            if (!SetBreakpoint(reinterpret_cast<Instruction*>(value))) {
-              PrintF("setting breakpoint failed\n");
-            }
+            sim_->SetBreakpoint(reinterpret_cast<Instruction*>(value));
           } else {
             PrintF("%s unrecognized\n", arg1);
           }
         } else {
-          PrintF("break <address>\n");
-        }
-      } else if (strcmp(cmd, "del") == 0) {
-        if (!DeleteBreakpoint(nullptr)) {
-          PrintF("deleting breakpoint failed\n");
+          sim_->ListBreakpoints();
+          PrintF("Use `break <address>` to set or disable a breakpoint\n");
         }
       } else if (strcmp(cmd, "flags") == 0) {
         PrintF("No flags on RISC-V !\n");
@@ -662,6 +657,9 @@ void RiscvDebugger::Debug() {
         PrintF("disasm [[<address/register>] <instructions>]\n");
         PrintF("  disassemble code, default is 10 instructions\n");
         PrintF("  from pc (alias 'di')\n");
+        PrintF("break / b\n");
+        PrintF("  break : list all breakpoints\n");
+        PrintF("  break <address> : set / enable / disable a breakpoint.\n");
         // FIXME (RISCV): the following commands are not yet supported
         // PrintF("gdb \n");
         // PrintF("  enter gdb\n");
@@ -703,6 +701,50 @@ void RiscvDebugger::Debug() {
 
 #undef STR
 #undef XSTR
+}
+
+void Simulator::SetBreakpoint(Instruction* location) {
+  for (unsigned i = 0; i < breakpoints_.size(); i++) {
+    if (breakpoints_.at(i).location == location) {
+      PrintF("Existing breakpoint at %p was %s\n",
+             reinterpret_cast<void*>(location),
+             breakpoints_.at(i).enabled ? "disabled" : "enabled");
+      breakpoints_.at(i).enabled = !breakpoints_.at(i).enabled;
+      return;
+    }
+  }
+  Breakpoint new_breakpoint = {location, true};
+  breakpoints_.push_back(new_breakpoint);
+  PrintF("Set a breakpoint at %p\n",
+         reinterpret_cast<void*>(location));
+}
+
+void Simulator::ListBreakpoints() {
+  PrintF("Breakpoints:\n");
+  for (unsigned i = 0; i < breakpoints_.size(); i++) {
+    PrintF("%p  : %s\n",
+           reinterpret_cast<void*>(breakpoints_.at(i).location),
+           breakpoints_.at(i).enabled ? "enabled" : "disabled");
+  }
+}
+
+void Simulator::CheckBreakpoints() {
+  bool hit_a_breakpoint = false;
+  Instruction* pc_ = reinterpret_cast<Instruction*>(get_pc());
+  for (unsigned i = 0; i < breakpoints_.size(); i++) {
+    if ((breakpoints_.at(i).location == pc_) && breakpoints_.at(i).enabled) {
+      hit_a_breakpoint = true;
+      // Disable this breakpoint.
+      breakpoints_.at(i).enabled = false;
+    }
+  }
+  if (hit_a_breakpoint) {
+    PrintF("Hit and disabled a breakpoint at %p.\n",
+           reinterpret_cast<void*>(pc_));
+    RiscvDebugger dbg(this);
+    dbg.Debug();
+    // Debug();
+  }
 }
 
 bool Simulator::ICacheMatch(void* one, void* two) {
@@ -3171,29 +3213,17 @@ void Simulator::Execute() {
   // Get the PC to simulate. Cannot use the accessor here as we need the
   // raw PC value and not the one used as input to arithmetic instructions.
   int64_t program_counter = get_pc();
-  if (::v8::internal::FLAG_stop_sim_at == 0) {
-    // Fast version of the dispatch loop without checking whether the
-    // simulator should be stopping at a particular executed instruction.
-    while (program_counter != end_sim_pc) {
-      Instruction* instr = reinterpret_cast<Instruction*>(program_counter);
-      icount_++;
+  while (program_counter != end_sim_pc) {
+    Instruction* instr = reinterpret_cast<Instruction*>(program_counter);
+    icount_++;
+    if (icount_ == static_cast<int64_t>(::v8::internal::FLAG_stop_sim_at)) {
+      RiscvDebugger dbg(this);
+      dbg.Debug();
+    } else {
       InstructionDecode(instr);
-      program_counter = get_pc();
     }
-  } else {
-    // FLAG_stop_sim_at is at the non-default value. Stop in the debugger when
-    // we reach the particular instruction count.
-    while (program_counter != end_sim_pc) {
-      Instruction* instr = reinterpret_cast<Instruction*>(program_counter);
-      icount_++;
-      if (icount_ == static_cast<int64_t>(::v8::internal::FLAG_stop_sim_at)) {
-        RiscvDebugger dbg(this);
-        dbg.Debug();
-      } else {
-        InstructionDecode(instr);
-      }
-      program_counter = get_pc();
-    }
+    CheckBreakpoints();
+    program_counter = get_pc();
   }
 }
 

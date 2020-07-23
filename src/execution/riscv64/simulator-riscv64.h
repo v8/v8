@@ -568,6 +568,18 @@ class Simulator : public SimulatorBase {
   // Used for breakpoints and traps.
   void SoftwareInterrupt();
 
+  // Debug helpers
+
+  // Simulator breakpoints.
+  struct Breakpoint {
+    Instruction* location;
+    bool enabled;
+  };
+  std::vector<Breakpoint> breakpoints_;
+  void SetBreakpoint(Instruction* breakpoint);
+  void ListBreakpoints();
+  void CheckBreakpoints();
+
   // Stop helper functions.
   bool IsWatchpoint(uint64_t code);
   void PrintWatchpoint(uint64_t code);
