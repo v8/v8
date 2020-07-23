@@ -1525,6 +1525,8 @@ inline std::ostream& operator<<(std::ostream& os,
   return os;
 }
 
+using FileAndLine = std::pair<const char*, int>;
+
 enum class OptimizationMarker {
   kLogFirstExecution,
   kNone,

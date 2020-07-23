@@ -818,7 +818,8 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
   void Check(SloppyTNode<Word32T> condition_node, const char* message,
              const char* file, int line,
              std::initializer_list<ExtraNode> extra_nodes = {});
-  void FailAssert(const char* message, const char* file, int line,
+  void FailAssert(const char* message,
+                  const std::vector<FileAndLine>& files_and_lines,
                   std::initializer_list<ExtraNode> extra_nodes = {});
 
   void FastCheck(TNode<BoolT> condition);

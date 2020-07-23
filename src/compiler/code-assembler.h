@@ -599,7 +599,22 @@ class V8_EXPORT_PRIVATE CodeAssembler {
 
   void StaticAssert(TNode<BoolT> value);
 
+  // The following methods refer to source positions in CSA or Torque code
+  // compiled during mksnapshot, not JS compiled at runtime.
   void SetSourcePosition(const char* file, int line);
+  void PushSourcePosition();
+  void PopSourcePosition();
+  class SourcePositionScope {
+   public:
+    explicit SourcePositionScope(CodeAssembler* ca) : ca_(ca) {
+      ca->PushSourcePosition();
+    }
+    ~SourcePositionScope() { ca_->PopSourcePosition(); }
+
+   private:
+    CodeAssembler* ca_;
+  };
+  const std::vector<FileAndLine>& GetMacroSourcePositionStack() const;
 
   void Bind(Label* label);
 #if DEBUG
@@ -1460,6 +1475,9 @@ class V8_EXPORT_PRIVATE CodeAssemblerState {
   using VariableId = uint32_t;
   VariableId next_variable_id_ = 0;
   JSGraph* jsgraph_;
+
+  // Only used by CodeStubAssembler builtins.
+  std::vector<FileAndLine> macro_call_stack_;
 
   VariableId NextVariableId() { return next_variable_id_++; }
 

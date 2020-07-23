@@ -1011,7 +1011,8 @@ class V8_EXPORT_PRIVATE RawMachineAssembler {
     return AddNode(op, sizeof...(args) + 1, buffer);
   }
 
-  void SetSourcePosition(const char* file, int line);
+  void SetCurrentExternalSourcePosition(FileAndLine file_and_line);
+  FileAndLine GetCurrentExternalSourcePosition() const;
   SourcePositionTable* source_positions() { return source_positions_; }
 
  private:

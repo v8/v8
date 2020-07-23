@@ -284,6 +284,8 @@ void ImplementationVisitor::VisitMacroCommon(Macro* macro) {
   GenerateMacroFunctionDeclaration(source_out(), "", macro);
   source_out() << " {\n";
   source_out() << "  compiler::CodeAssembler ca_(state_);\n";
+  source_out()
+      << "  compiler::CodeAssembler::SourcePositionScope pos_scope(&ca_);\n";
 
   Stack<std::string> lowered_parameters;
   Stack<const Type*> lowered_parameter_types;

@@ -846,9 +846,13 @@ void CSAGenerator::EmitInstruction(const AbortInstruction& instruction,
     case AbortInstruction::Kind::kAssertionFailure: {
       std::string file = StringLiteralQuote(
           SourceFileMap::PathFromV8Root(instruction.pos.source));
-      out() << "    CodeStubAssembler(state_).FailAssert("
-            << StringLiteralQuote(instruction.message) << ", " << file << ", "
-            << instruction.pos.start.line + 1 << ");\n";
+      out() << "    {\n";
+      out() << "      auto pos_stack = ca_.GetMacroSourcePositionStack();\n";
+      out() << "      pos_stack.push_back({" << file << ", "
+            << instruction.pos.start.line + 1 << "});\n";
+      out() << "      CodeStubAssembler(state_).FailAssert("
+            << StringLiteralQuote(instruction.message) << ", pos_stack);\n";
+      out() << "    }\n";
       break;
     }
   }

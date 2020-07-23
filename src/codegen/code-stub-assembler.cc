@@ -108,7 +108,11 @@ void CodeStubAssembler::Check(const BranchGenerator& branch,
   branch(&ok, &not_ok);
 
   BIND(&not_ok);
-  FailAssert(message, file, line, extra_nodes);
+  std::vector<FileAndLine> file_and_line;
+  if (file != nullptr) {
+    file_and_line.push_back({file, line});
+  }
+  FailAssert(message, file_and_line, extra_nodes);
 
   BIND(&ok);
   Comment("] Assert");
@@ -159,12 +163,24 @@ void CodeStubAssembler::FastCheck(TNode<BoolT> condition) {
 }
 
 void CodeStubAssembler::FailAssert(
-    const char* message, const char* file, int line,
+    const char* message, const std::vector<FileAndLine>& files_and_lines,
     std::initializer_list<ExtraNode> extra_nodes) {
   DCHECK_NOT_NULL(message);
   EmbeddedVector<char, 1024> chars;
-  if (file != nullptr) {
-    SNPrintF(chars, "%s [%s:%d]", message, file, line);
+  std::stringstream stream;
+  for (auto it = files_and_lines.rbegin(); it != files_and_lines.rend(); ++it) {
+    if (it->first != nullptr) {
+      stream << " [" << it->first << ":" << it->second << "]";
+#ifndef DEBUG
+      // To limit the size of these strings in release builds, we include only
+      // the innermost macro's file name and line number.
+      break;
+#endif
+    }
+  }
+  std::string files_and_lines_text = stream.str();
+  if (files_and_lines_text.size() != 0) {
+    SNPrintF(chars, "%s%s", message, files_and_lines_text.c_str());
     message = chars.begin();
   }
   TNode<String> message_node = StringConstant(message);

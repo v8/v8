@@ -47,11 +47,22 @@ RawMachineAssembler::RawMachineAssembler(
   source_positions_->AddDecorator();
 }
 
-void RawMachineAssembler::SetSourcePosition(const char* file, int line) {
-  int file_id = isolate()->LookupOrAddExternallyCompiledFilename(file);
-  SourcePosition p = SourcePosition::External(line, file_id);
-  DCHECK(p.ExternalLine() == line);
+void RawMachineAssembler::SetCurrentExternalSourcePosition(
+    FileAndLine file_and_line) {
+  int file_id =
+      isolate()->LookupOrAddExternallyCompiledFilename(file_and_line.first);
+  SourcePosition p = SourcePosition::External(file_and_line.second, file_id);
+  DCHECK(p.ExternalLine() == file_and_line.second);
   source_positions()->SetCurrentPosition(p);
+}
+
+FileAndLine RawMachineAssembler::GetCurrentExternalSourcePosition() const {
+  SourcePosition p = source_positions_->GetCurrentPosition();
+  if (!p.IsKnown()) return {nullptr, -1};
+  int file_id = p.ExternalFileId();
+  const char* file_name = isolate()->GetExternallyCompiledFilename(file_id);
+  int line = p.ExternalLine();
+  return {file_name, line};
 }
 
 Node* RawMachineAssembler::NullConstant() {

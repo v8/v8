@@ -112,7 +112,7 @@ void CodeAssemblerState::SetInitialDebugInformation(const char* msg,
                                                     int line) {
 #if DEBUG
   AssemblerDebugInfo debug_info = {msg, file, line};
-  raw_assembler_->SetSourcePosition(file, line);
+  raw_assembler_->SetCurrentExternalSourcePosition({file, line});
   raw_assembler_->SetInitialDebugInformation(debug_info);
 #endif  // DEBUG
 }
@@ -500,7 +500,21 @@ void CodeAssembler::StaticAssert(TNode<BoolT> value) {
 }
 
 void CodeAssembler::SetSourcePosition(const char* file, int line) {
-  raw_assembler()->SetSourcePosition(file, line);
+  raw_assembler()->SetCurrentExternalSourcePosition({file, line});
+}
+
+void CodeAssembler::PushSourcePosition() {
+  auto position = raw_assembler()->GetCurrentExternalSourcePosition();
+  state_->macro_call_stack_.push_back(position);
+}
+
+void CodeAssembler::PopSourcePosition() {
+  state_->macro_call_stack_.pop_back();
+}
+
+const std::vector<FileAndLine>& CodeAssembler::GetMacroSourcePositionStack()
+    const {
+  return state_->macro_call_stack_;
 }
 
 void CodeAssembler::Bind(Label* label) { return label->Bind(); }
@@ -1445,7 +1459,8 @@ void CodeAssemblerLabel::Bind(AssemblerDebugInfo debug_info) {
     FATAL("%s", str.str().c_str());
   }
   if (FLAG_enable_source_at_csa_bind) {
-    state_->raw_assembler_->SetSourcePosition(debug_info.file, debug_info.line);
+    state_->raw_assembler_->SetCurrentExternalSourcePosition(
+        {debug_info.file, debug_info.line});
   }
   state_->raw_assembler_->Bind(label_, debug_info);
   UpdateVariablesAfterBind();
