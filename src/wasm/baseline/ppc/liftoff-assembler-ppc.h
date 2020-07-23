@@ -549,6 +549,13 @@ void LiftoffAssembler::emit_f64_set_cond(Condition cond, Register dst,
   bailout(kUnsupportedArchitecture, "emit_f64_set_cond");
 }
 
+bool LiftoffAssembler::emit_select(LiftoffRegister dst, Register condition,
+                                   LiftoffRegister true_value,
+                                   LiftoffRegister false_value,
+                                   ValueType type) {
+  return false;
+}
+
 void LiftoffAssembler::LoadTransform(LiftoffRegister dst, Register src_addr,
                                      Register offset_reg, uint32_t offset_imm,
                                      LoadType type,

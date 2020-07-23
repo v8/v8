@@ -2040,6 +2040,33 @@ void LiftoffAssembler::emit_f64_set_cond(Condition cond, Register dst,
                                                       rhs);
 }
 
+bool LiftoffAssembler::emit_select(LiftoffRegister dst, Register condition,
+                                   LiftoffRegister true_value,
+                                   LiftoffRegister false_value,
+                                   ValueType type) {
+  if (type != kWasmI32 && type != kWasmI64) return false;
+
+  testl(condition, condition);
+
+  if (type == kWasmI32) {
+    if (dst == false_value) {
+      cmovl(not_zero, dst.gp(), true_value.gp());
+    } else {
+      if (dst != true_value) movl(dst.gp(), true_value.gp());
+      cmovl(zero, dst.gp(), false_value.gp());
+    }
+  } else {
+    if (dst == false_value) {
+      cmovq(not_zero, dst.gp(), true_value.gp());
+    } else {
+      if (dst != true_value) movq(dst.gp(), true_value.gp());
+      cmovq(zero, dst.gp(), false_value.gp());
+    }
+  }
+
+  return true;
+}
+
 // TODO(fanchenk): Distinguish mov* if data bypass delay matter.
 namespace liftoff {
 template <void (Assembler::*avx_op)(XMMRegister, XMMRegister, XMMRegister),

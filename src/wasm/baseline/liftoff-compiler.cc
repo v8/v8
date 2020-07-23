@@ -1801,19 +1801,19 @@ class LiftoffCompiler {
     LiftoffRegister true_value = __ PopToRegister(pinned);
     LiftoffRegister dst = __ GetUnusedRegister(true_value.reg_class(),
                                                {true_value, false_value}, {});
+    if (!__ emit_select(dst, condition, true_value, false_value, type)) {
+      // Emit generic code (using branches) instead.
+      Label cont;
+      Label case_false;
+      __ emit_cond_jump(kEqual, &case_false, kWasmI32, condition);
+      if (dst != true_value) __ Move(dst, true_value, type);
+      __ emit_jump(&cont);
+
+      __ bind(&case_false);
+      if (dst != false_value) __ Move(dst, false_value, type);
+      __ bind(&cont);
+    }
     __ PushRegister(type, dst);
-
-    // Now emit the actual code to move either {true_value} or {false_value}
-    // into {dst}.
-    Label cont;
-    Label case_false;
-    __ emit_cond_jump(kEqual, &case_false, kWasmI32, condition);
-    if (dst != true_value) __ Move(dst, true_value, type);
-    __ emit_jump(&cont);
-
-    __ bind(&case_false);
-    if (dst != false_value) __ Move(dst, false_value, type);
-    __ bind(&cont);
   }
 
   void BrImpl(Control* target) {

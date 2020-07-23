@@ -745,6 +745,12 @@ class LiftoffAssembler : public TurboAssembler {
   inline void emit_f64_set_cond(Condition condition, Register dst,
                                 DoubleRegister lhs, DoubleRegister rhs);
 
+  // Optional select support: Returns false if generic code (via branches)
+  // should be emitted instead.
+  inline bool emit_select(LiftoffRegister dst, Register condition,
+                          LiftoffRegister true_value,
+                          LiftoffRegister false_value, ValueType type);
+
   inline void LoadTransform(LiftoffRegister dst, Register src_addr,
                             Register offset_reg, uint32_t offset_imm,
                             LoadType type, LoadTransformationKind transform,
