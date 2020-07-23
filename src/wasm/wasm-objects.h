@@ -12,6 +12,7 @@
 #include "src/codegen/signature.h"
 #include "src/debug/debug.h"
 #include "src/heap/heap.h"
+#include "src/objects/js-function.h"
 #include "src/objects/objects.h"
 #include "src/wasm/struct-types.h"
 #include "src/wasm/value-type.h"

@@ -15,6 +15,7 @@
 #include "src/compiler/code-assembler.h"
 #include "src/objects/arguments.h"
 #include "src/objects/bigint.h"
+#include "src/objects/js-function.h"
 #include "src/objects/objects.h"
 #include "src/objects/promise.h"
 #include "src/objects/shared-function-info.h"

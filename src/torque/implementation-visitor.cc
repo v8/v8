@@ -4006,6 +4006,8 @@ void EmitClassDefinitionHeadersIncludes(const std::string& basename,
   header << "#include <type_traits>\n\n";
 
   inline_header << "#include \"torque-generated/class-definitions-tq.h\"\n";
+  inline_header << "#include \"src/objects/js-function.h\"\n";
+  inline_header << "#include \"src/objects/js-objects.h\"\n";
   inline_header << "#include \"src/objects/js-promise.h\"\n";
   inline_header << "#include \"src/objects/js-weak-refs.h\"\n";
   inline_header << "#include \"src/objects/module.h\"\n";
