@@ -33,7 +33,7 @@ namespace compiler {
 class Schedule;
 class SourcePositionTable;
 
-class V8_EXPORT_PRIVATE alignas(8) InstructionOperand {
+class V8_EXPORT_PRIVATE InstructionOperand {
  public:
   static const int kInvalidVirtualRegister = -1;
 
@@ -42,7 +42,6 @@ class V8_EXPORT_PRIVATE alignas(8) InstructionOperand {
     UNALLOCATED,
     CONSTANT,
     IMMEDIATE,
-    PENDING,
     // Location operand kinds.
     ALLOCATED,
     FIRST_LOCATION_OPERAND_KIND = ALLOCATED
@@ -68,10 +67,6 @@ class V8_EXPORT_PRIVATE alignas(8) InstructionOperand {
   // embedded directly in instructions, e.g. small integers and on some
   // platforms Objects.
   INSTRUCTION_OPERAND_PREDICATE(Immediate, IMMEDIATE)
-  // PendingOperands are pending allocation during register allocation and
-  // shouldn't be seen elsewhere. They chain together multiple operators that
-  // will be replaced together with the same value when finalized.
-  INSTRUCTION_OPERAND_PREDICATE(Pending, PENDING)
   // AllocatedOperands are registers or stack slots that are assigned by the
   // register allocator and are always associated with a virtual register.
   INSTRUCTION_OPERAND_PREDICATE(Allocated, ALLOCATED)
@@ -104,10 +99,6 @@ class V8_EXPORT_PRIVATE alignas(8) InstructionOperand {
   }
 
   bool Equals(const InstructionOperand& that) const {
-    if (IsPending()) {
-      // Pending operands are only equal if they are the same operand.
-      return this == &that;
-    }
     return this->value_ == that.value_;
   }
 
@@ -116,15 +107,10 @@ class V8_EXPORT_PRIVATE alignas(8) InstructionOperand {
   }
 
   bool EqualsCanonicalized(const InstructionOperand& that) const {
-    if (IsPending()) {
-      // Pending operands can't be canonicalized, so just compare for equality.
-      return Equals(that);
-    }
     return this->GetCanonicalizedValue() == that.GetCanonicalizedValue();
   }
 
   bool CompareCanonicalized(const InstructionOperand& that) const {
-    DCHECK(!IsPending());
     return this->GetCanonicalizedValue() < that.GetCanonicalizedValue();
   }
 
@@ -416,44 +402,6 @@ class ImmediateOperand : public InstructionOperand {
   STATIC_ASSERT(KindField::kSize == 3);
   using TypeField = base::BitField64<ImmediateType, 3, 1>;
   using ValueField = base::BitField64<int32_t, 32, 32>;
-};
-
-class PendingOperand : public InstructionOperand {
- public:
-  PendingOperand() : InstructionOperand(PENDING) {}
-  explicit PendingOperand(PendingOperand* next_operand) : PendingOperand() {
-    set_next(next_operand);
-  }
-
-  void set_next(PendingOperand* next) {
-    DCHECK_NULL(this->next());
-    uintptr_t shifted_value =
-        reinterpret_cast<uintptr_t>(next) >> kPointerShift;
-    DCHECK_EQ(reinterpret_cast<uintptr_t>(next),
-              shifted_value << kPointerShift);
-    value_ |= NextOperandField::encode(static_cast<uint64_t>(shifted_value));
-  }
-
-  PendingOperand* next() const {
-    uintptr_t shifted_value =
-        static_cast<uint64_t>(NextOperandField::decode(value_));
-    return reinterpret_cast<PendingOperand*>(shifted_value << kPointerShift);
-  }
-
-  static PendingOperand* New(Zone* zone, PendingOperand* previous_operand) {
-    return InstructionOperand::New(zone, PendingOperand(previous_operand));
-  }
-
-  INSTRUCTION_OPERAND_CASTS(PendingOperand, PENDING)
-
- private:
-  // Operands are uint64_t values and so are aligned to 8 byte boundaries,
-  // therefore we can shift off the bottom three zeros without losing data.
-  static const uint64_t kPointerShift = 3;
-  STATIC_ASSERT(alignof(InstructionOperand) >= (1 << kPointerShift));
-
-  STATIC_ASSERT(KindField::kSize == 3);
-  using NextOperandField = base::BitField64<uint64_t, 3, 61>;
 };
 
 class LocationOperand : public InstructionOperand {
