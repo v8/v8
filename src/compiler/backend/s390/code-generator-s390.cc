@@ -2421,7 +2421,9 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       __ ConvertFloat32ToInt32(i.OutputRegister(0), i.InputDoubleRegister(0),
                                kRoundToZero);
       __ b(Condition(0xE), &done, Label::kNear);  // normal case
-      __ lghi(i.OutputRegister(0), Operand::Zero());
+      // Use INT32_MIN s an overflow indicator because it allows for easier
+      // out-of-bounds detection.
+      __ llilh(i.OutputRegister(0), Operand(0x8000));
       __ bind(&done);
       break;
     }

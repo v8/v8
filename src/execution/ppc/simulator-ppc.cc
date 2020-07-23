@@ -3331,6 +3331,7 @@ void Simulator::ExecuteGeneric(Instruction* instr) {
       int64_t frt_val;
       int64_t kMinVal = kMinInt;
       int64_t kMaxVal = kMaxInt;
+      bool invalid_convert = false;
 
       if (std::isnan(frb_val)) {
         frt_val = kMinVal;
@@ -3360,13 +3361,16 @@ void Simulator::ExecuteGeneric(Instruction* instr) {
         }
         if (frb_val < kMinVal) {
           frt_val = kMinVal;
+          invalid_convert = true;
         } else if (frb_val > kMaxVal) {
           frt_val = kMaxVal;
+          invalid_convert = true;
         } else {
           frt_val = (int64_t)frb_val;
         }
       }
       set_d_register(frt, frt_val);
+      if (invalid_convert) SetFPSCR(VXCVI);
       return;
     }
     case FNEG: {

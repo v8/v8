@@ -1227,7 +1227,7 @@ void InstructionSelector::VisitRoundFloat64ToInt32(Node* node) {
 }
 
 void InstructionSelector::VisitTruncateFloat32ToInt32(Node* node) {
-  VisitRR(this, kPPC_DoubleToInt32, node);
+  VisitRR(this, kPPC_Float32ToInt32, node);
 }
 
 void InstructionSelector::VisitTruncateFloat32ToUint32(Node* node) {

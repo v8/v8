@@ -1851,6 +1851,20 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
                                     i.OutputDoubleRegister());
       DCHECK_EQ(LeaveRC, i.OutputRCBit());
       break;
+    case kPPC_Float32ToInt32: {
+      __ mtfsb0(VXCVI);  // clear FPSCR:VXCVI bit
+      __ fctiwz(kScratchDoubleReg, i.InputDoubleRegister(0));
+      __ MovDoubleLowToInt(i.OutputRegister(), kScratchDoubleReg);
+      // Use INT32_MIN s an overflow indicator because it allows for easier
+      // out-of-bounds detection.
+      CRegister cr = cr7;
+      int crbit = v8::internal::Assembler::encode_crbit(
+          cr, static_cast<CRBit>(VXCVI % CRWIDTH));
+      __ mcrfs(cr, VXCVI);  // extract FPSCR field containing VXCVI into cr7
+      __ lis(kScratchReg, Operand(static_cast<int16_t>(0x8000)));
+      __ isel(i.OutputRegister(0), kScratchReg, i.OutputRegister(0), crbit);
+      break;
+    }
     case kPPC_DoubleToInt32:
     case kPPC_DoubleToUint32:
     case kPPC_DoubleToInt64: {

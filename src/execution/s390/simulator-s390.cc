@@ -5956,9 +5956,11 @@ EVALUATE(LLIHL) {
 }
 
 EVALUATE(LLILH) {
-  UNIMPLEMENTED();
-  USE(instr);
-  return 0;
+  DCHECK_OPCODE(LLILH);
+  DECODE_RI_A_INSTRUCTION(instr, r1, i2);
+  uint64_t imm = static_cast<uint64_t>(i2);
+  set_register(r1, (imm << 48) >> 32);
+  return length;
 }
 
 EVALUATE(LLILL) {
