@@ -3,7 +3,7 @@
 // found in the LICENSE file.
 
 import CustomIcProcessor from "./ic-processor.mjs";
-import {State} from './map-model.mjs';
+import {State} from './app-model.mjs';
 import {MapProcessor} from './map-processor.mjs';
 import './ic-panel.mjs';
 import './timeline-panel.mjs';
