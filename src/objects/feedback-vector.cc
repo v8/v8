@@ -459,17 +459,17 @@ MaybeObject MainThreadConfig::GetFeedback() const {
 
 Handle<WeakFixedArray> MainThreadConfig::NewArray(int size) const {
   DCHECK(can_allocate());
-  Handle<WeakFixedArray> array = isolate()->factory()->NewWeakFixedArray(size);
+  Handle<WeakFixedArray> array = isolate_->factory()->NewWeakFixedArray(size);
   return array;
 }
 
 MaybeObjectHandle MainThreadConfig::NewHandle(MaybeObject object) const {
-  return handle(object, isolate());
+  return handle(object, isolate_);
 }
 
 template <typename J>
 Handle<J> MainThreadConfig::NewHandle(J object) const {
-  return handle(object, isolate());
+  return handle(object, isolate_);
 }
 
 void MainThreadConfig::SetFeedback(MaybeObject feedback,
@@ -478,9 +478,9 @@ void MainThreadConfig::SetFeedback(MaybeObject feedback,
 }
 
 std::pair<MaybeObject, MaybeObject> MainThreadConfig::GetFeedbackPair() const {
-  MaybeObject feedback = vector().Get(slot());
-  int extra_index = vector().GetIndex(slot()) + 1;
-  MaybeObject feedback_extra = vector().get(extra_index);
+  const int index = vector().GetIndex(slot());
+  MaybeObject feedback = vector().get(index);
+  MaybeObject feedback_extra = vector().get(index + 1);
   return std::pair<MaybeObject, MaybeObject>(feedback, feedback_extra);
 }
 
@@ -488,22 +488,11 @@ void MainThreadConfig::SetFeedbackPair(MaybeObject feedback,
                                        WriteBarrierMode mode,
                                        MaybeObject feedback_extra,
                                        WriteBarrierMode mode_extra) {
+  // TODO(mvstanton): locking.
   const int index = vector().GetIndex(slot());
   vector().set(index, feedback, mode);
   const int extra_index = index + 1;
   vector().set(extra_index, feedback_extra, mode_extra);
-}
-
-MaybeObjectHandle MainThreadNoHandleConfig::NewHandle(
-    MaybeObject object) const {
-  UNREACHABLE();
-  return MaybeObjectHandle();
-}
-
-template <typename J>
-Handle<J> MainThreadNoHandleConfig::NewHandle(J object) const {
-  UNREACHABLE();
-  return Handle<J>();
 }
 
 MaybeObject MainThreadNoHandleConfig::GetFeedback() const {
@@ -519,8 +508,7 @@ std::pair<MaybeObject, MaybeObject> MainThreadNoHandleConfig::GetFeedbackPair()
     const {
   const int index = vector().GetIndex(slot());
   MaybeObject feedback = vector().get(index);
-  const int extra_index = index + 1;
-  MaybeObject feedback_extra = vector().get(extra_index);
+  MaybeObject feedback_extra = vector().get(index + 1);
   return std::pair<MaybeObject, MaybeObject>(feedback, feedback_extra);
 }
 
@@ -535,37 +523,25 @@ void MainThreadNoHandleConfig::SetFeedbackPair(MaybeObject feedback,
 }
 
 MaybeObjectHandle BackgroundThreadConfig::NewHandle(MaybeObject object) const {
-  return handle(object, local_heap());
+  return handle(object, local_heap_);
 }
 
 template <typename J>
 Handle<J> BackgroundThreadConfig::NewHandle(J object) const {
-  return handle(object, local_heap());
+  return handle(object, local_heap_);
 }
 
 MaybeObject BackgroundThreadConfig::GetFeedback() const {
   return vector().Get(slot());
 }
 
-void BackgroundThreadConfig::SetFeedback(MaybeObject feedback,
-                                         WriteBarrierMode mode) {
-  UNREACHABLE();
-}
-
 std::pair<MaybeObject, MaybeObject> BackgroundThreadConfig::GetFeedbackPair()
     const {
   // TODO(mvstanton): locking
-  MaybeObject feedback = vector().Get(slot());
-  int extra_index = vector().GetIndex(slot()) + 1;
-  MaybeObject feedback_extra = vector().get(extra_index);
+  const int index = vector().GetIndex(slot());
+  MaybeObject feedback = vector().get(index);
+  MaybeObject feedback_extra = vector().get(index + 1);
   return std::pair<MaybeObject, MaybeObject>(feedback, feedback_extra);
-}
-
-void BackgroundThreadConfig::SetFeedbackPair(MaybeObject feedback,
-                                             WriteBarrierMode mode,
-                                             MaybeObject feedback_extra,
-                                             WriteBarrierMode mode_extra) {
-  UNREACHABLE();
 }
 
 template <class T>

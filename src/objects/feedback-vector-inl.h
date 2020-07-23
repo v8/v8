@@ -323,6 +323,24 @@ int FeedbackMetadataIterator::entry_size() const {
   return FeedbackMetadata::GetSlotSize(kind());
 }
 
+MaybeObjectHandle MainThreadNoHandleConfig::NewHandle(
+    MaybeObject object) const {
+  UNREACHABLE();
+  return MaybeObjectHandle();
+}
+
+void BackgroundThreadConfig::SetFeedback(MaybeObject feedback,
+                                         WriteBarrierMode mode) {
+  UNREACHABLE();
+}
+
+void BackgroundThreadConfig::SetFeedbackPair(MaybeObject feedback,
+                                             WriteBarrierMode mode,
+                                             MaybeObject feedback_extra,
+                                             WriteBarrierMode mode_extra) {
+  UNREACHABLE();
+}
+
 template <class T>
 MaybeObject FeedbackNexusImpl<T>::GetFeedback() const {
   MaybeObject feedback = g_.GetFeedback();

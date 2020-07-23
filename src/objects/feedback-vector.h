@@ -623,7 +623,6 @@ class MainThreadConfig {
   MainThreadConfig(Handle<FeedbackVector> vector, FeedbackSlot slot,
                    Isolate* isolate)
       : vector_(vector), slot_(slot), isolate_(isolate) {}
-  Isolate* isolate() const { return isolate_; }
 
   bool can_write() const { return true; }
   bool can_allocate() const { return true; }
@@ -671,9 +670,12 @@ class MainThreadNoHandleConfig {
     UNREACHABLE();
     return Handle<WeakFixedArray>();
   }
-  MaybeObjectHandle NewHandle(MaybeObject object) const;
+  inline MaybeObjectHandle NewHandle(MaybeObject object) const;
   template <typename J>
-  Handle<J> NewHandle(J object) const;
+  Handle<J> NewHandle(J object) const {
+    UNREACHABLE();
+    return Handle<J>();
+  }
 
   Handle<FeedbackVector> vector_handle() { return Handle<FeedbackVector>(); }
   FeedbackVector vector() const { return vector_; }
@@ -701,7 +703,6 @@ class BackgroundThreadConfig {
       : vector_(vector), slot_(slot), local_heap_(nullptr) {
     UNREACHABLE();
   }
-  LocalHeap* local_heap() const { return local_heap_; }
 
   bool can_write() const { return false; }
   bool can_allocate() const { return false; }
@@ -720,11 +721,12 @@ class BackgroundThreadConfig {
   FeedbackSlot slot() const { return slot_; }
 
   MaybeObject GetFeedback() const;
-  void SetFeedback(MaybeObject feedback, WriteBarrierMode mode);
+  inline void SetFeedback(MaybeObject feedback, WriteBarrierMode mode);
 
   std::pair<MaybeObject, MaybeObject> GetFeedbackPair() const;
-  void SetFeedbackPair(MaybeObject feedback, WriteBarrierMode mode,
-                       MaybeObject feedback_extra, WriteBarrierMode mode_extra);
+  inline void SetFeedbackPair(MaybeObject feedback, WriteBarrierMode mode,
+                              MaybeObject feedback_extra,
+                              WriteBarrierMode mode_extra);
 
  private:
   Handle<FeedbackVector> vector_;
