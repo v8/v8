@@ -12,6 +12,7 @@
 #include "src/objects/objects-inl.h"
 #include "src/objects/slots.h"
 #include "src/objects/visitors.h"
+#include "src/utils/ostreams.h"
 
 namespace v8 {
 namespace internal {
