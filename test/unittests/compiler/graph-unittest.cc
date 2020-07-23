@@ -8,6 +8,7 @@
 #include "src/compiler/node-properties.h"
 #include "src/heap/factory.h"
 #include "src/objects/objects-inl.h"  // TODO(everyone): Make typer.h IWYU compliant.
+#include "src/zone/zone-fwd.h"
 #include "test/unittests/compiler/node-test-utils.h"
 
 namespace v8 {
@@ -15,7 +16,8 @@ namespace internal {
 namespace compiler {
 
 GraphTest::GraphTest(int num_parameters)
-    : canonical_(isolate()),
+    : TestWithNativeContextAndZone(kCompressGraphZone),
+      canonical_(isolate()),
       common_(zone()),
       graph_(zone()),
       broker_(isolate(), zone(), isolate()->NewPersistentHandles()),

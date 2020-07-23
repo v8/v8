@@ -34,7 +34,8 @@ class JSConstantCacheTester : public HandleAndZoneScope,
                               public JSGraph {
  public:
   JSConstantCacheTester()
-      : JSCacheTesterHelper(main_zone()),
+      : HandleAndZoneScope(kCompressGraphZone),
+        JSCacheTesterHelper(main_zone()),
         JSGraph(main_isolate(), &main_graph_, &main_common_, &main_javascript_,
                 nullptr, &main_machine_),
         canonical_(main_isolate()),

@@ -39,6 +39,10 @@ constexpr size_t kZoneReservationSize = 1;
 constexpr size_t kZoneReservationAlignment = 1;
 #endif  // V8_COMPRESS_ZONES
 
+// The flags controlling whether zones that will be used for allocating
+// TurboFan graphs should be compressed or not.
+static constexpr bool kCompressGraphZone = COMPRESS_ZONES_BOOL;
+
 }  // namespace internal
 }  // namespace v8
 

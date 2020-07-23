@@ -23,7 +23,8 @@ class RepresentationChangerTester : public HandleAndZoneScope,
                                     public GraphAndBuilders {
  public:
   explicit RepresentationChangerTester(int num_parameters = 0)
-      : GraphAndBuilders(main_zone()),
+      : HandleAndZoneScope(kCompressGraphZone),
+        GraphAndBuilders(main_zone()),
         javascript_(main_zone()),
         jsgraph_(main_isolate(), main_graph_, &main_common_, &javascript_,
                  &main_simplified_, &main_machine_),

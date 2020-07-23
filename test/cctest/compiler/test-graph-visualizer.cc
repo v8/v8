@@ -14,6 +14,7 @@
 #include "src/compiler/schedule.h"
 #include "src/compiler/scheduler.h"
 #include "src/compiler/verifier.h"
+#include "src/zone/zone-fwd.h"
 #include "test/cctest/cctest.h"
 
 namespace v8 {
@@ -27,7 +28,7 @@ static Operator dummy_operator6(IrOpcode::kParameter, Operator::kNoWrite,
 
 
 TEST(NodeWithNullInputReachableFromEnd) {
-  HandleAndZoneScope scope;
+  HandleAndZoneScope scope(kCompressGraphZone);
   Graph graph(scope.main_zone());
   CommonOperatorBuilder common(scope.main_zone());
 
@@ -46,7 +47,7 @@ TEST(NodeWithNullInputReachableFromEnd) {
 
 
 TEST(NodeWithNullControlReachableFromEnd) {
-  HandleAndZoneScope scope;
+  HandleAndZoneScope scope(kCompressGraphZone);
   Graph graph(scope.main_zone());
   CommonOperatorBuilder common(scope.main_zone());
 
@@ -65,7 +66,7 @@ TEST(NodeWithNullControlReachableFromEnd) {
 
 
 TEST(NodeWithNullInputReachableFromStart) {
-  HandleAndZoneScope scope;
+  HandleAndZoneScope scope(kCompressGraphZone);
   Graph graph(scope.main_zone());
   CommonOperatorBuilder common(scope.main_zone());
 
@@ -84,7 +85,7 @@ TEST(NodeWithNullInputReachableFromStart) {
 
 
 TEST(NodeWithNullControlReachableFromStart) {
-  HandleAndZoneScope scope;
+  HandleAndZoneScope scope(kCompressGraphZone);
   Graph graph(scope.main_zone());
   CommonOperatorBuilder common(scope.main_zone());
 
@@ -101,7 +102,7 @@ TEST(NodeWithNullControlReachableFromStart) {
 
 
 TEST(NodeNetworkOfDummiesReachableFromEnd) {
-  HandleAndZoneScope scope;
+  HandleAndZoneScope scope(kCompressGraphZone);
   Graph graph(scope.main_zone());
   CommonOperatorBuilder common(scope.main_zone());
 

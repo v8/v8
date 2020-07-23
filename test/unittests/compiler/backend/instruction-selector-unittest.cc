@@ -17,7 +17,9 @@ namespace v8 {
 namespace internal {
 namespace compiler {
 
-InstructionSelectorTest::InstructionSelectorTest() : rng_(FLAG_random_seed) {}
+InstructionSelectorTest::InstructionSelectorTest()
+    : TestWithNativeContextAndZone(kCompressGraphZone),
+      rng_(FLAG_random_seed) {}
 
 InstructionSelectorTest::~InstructionSelectorTest() = default;
 

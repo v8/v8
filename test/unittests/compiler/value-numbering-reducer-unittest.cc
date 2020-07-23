@@ -2,12 +2,14 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#include "src/compiler/value-numbering-reducer.h"
+
 #include <limits>
 
 #include "src/compiler/graph.h"
 #include "src/compiler/node.h"
 #include "src/compiler/operator.h"
-#include "src/compiler/value-numbering-reducer.h"
+#include "src/zone/zone-fwd.h"
 #include "test/unittests/test-utils.h"
 
 namespace v8 {
@@ -30,7 +32,9 @@ static const TestOperator kOp1(1, Operator::kIdempotent, 1, 1);
 class ValueNumberingReducerTest : public TestWithZone {
  public:
   ValueNumberingReducerTest()
-      : graph_(zone()), reducer_(zone(), graph()->zone()) {}
+      : TestWithZone(kCompressGraphZone),
+        graph_(zone()),
+        reducer_(zone(), graph()->zone()) {}
 
  protected:
   Reduction Reduce(Node* node) { return reducer_.Reduce(node); }

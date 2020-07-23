@@ -239,8 +239,9 @@ InitializedHandleScope::InitializedHandleScope()
 
 InitializedHandleScope::~InitializedHandleScope() = default;
 
-HandleAndZoneScope::HandleAndZoneScope()
-    : main_zone_(new i::Zone(&allocator_, ZONE_NAME)) {}
+HandleAndZoneScope::HandleAndZoneScope(bool support_zone_compression)
+    : main_zone_(
+          new i::Zone(&allocator_, ZONE_NAME, support_zone_compression)) {}
 
 HandleAndZoneScope::~HandleAndZoneScope() = default;
 

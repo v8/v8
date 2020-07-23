@@ -30,7 +30,11 @@ namespace compiler {
 class SchedulerTest : public TestWithIsolateAndZone {
  public:
   SchedulerTest()
-      : graph_(zone()), common_(zone()), simplified_(zone()), js_(zone()) {}
+      : TestWithIsolateAndZone(kCompressGraphZone),
+        graph_(zone()),
+        common_(zone()),
+        simplified_(zone()),
+        js_(zone()) {}
 
   Schedule* ComputeAndVerifySchedule(size_t expected) {
     if (FLAG_trace_turbo) {

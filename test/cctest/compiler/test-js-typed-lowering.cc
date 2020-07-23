@@ -25,7 +25,8 @@ namespace compiler {
 class JSTypedLoweringTester : public HandleAndZoneScope {
  public:
   explicit JSTypedLoweringTester(int num_parameters = 0)
-      : isolate(main_isolate()),
+      : HandleAndZoneScope(kCompressGraphZone),
+        isolate(main_isolate()),
         canonical(isolate),
         js_heap_broker(isolate, main_zone(), isolate->NewPersistentHandles()),
         binop(nullptr),

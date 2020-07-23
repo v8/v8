@@ -357,13 +357,13 @@ class WasmFunctionCompiler : public compiler::GraphAndBuilders {
 
 // A helper class to build a module around Wasm bytecode, generate machine
 // code, and run that code.
-class WasmRunnerBase : public HandleAndZoneScope {
+class WasmRunnerBase : public InitializedHandleScope {
  public:
   WasmRunnerBase(ManuallyImportedJSFunction* maybe_import,
                  ExecutionTier execution_tier, int num_params,
                  RuntimeExceptionSupport runtime_exception_support,
                  LowerSimd lower_simd)
-      : zone_(&allocator_, ZONE_NAME),
+      : zone_(&allocator_, ZONE_NAME, kCompressGraphZone),
         builder_(&zone_, maybe_import, execution_tier,
                  runtime_exception_support, lower_simd),
         wrapper_(&zone_, num_params) {}
