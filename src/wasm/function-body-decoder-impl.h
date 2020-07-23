@@ -3901,13 +3901,26 @@ class WasmFullDecoder : public WasmDecoder<validate> {
     return stack_.data() + old_size;
   }
 
+  // We do not inline these functions because doing so causes a large binary
+  // size increase. Not inlining them should not create a performance
+  // degradation, because their invocations are guarded by V8_LIKELY.
+  V8_NOINLINE void PopTypeError(int index, Value val, ValueType expected) {
+    this->errorf(val.pc, "%s[%d] expected type %s, found %s of type %s",
+                 SafeOpcodeNameAt(this->pc_), index, expected.name().c_str(),
+                 SafeOpcodeNameAt(val.pc), val.type.name().c_str());
+  }
+
+  V8_NOINLINE void NotEnoughArgumentsError(int index) {
+    this->errorf(this->pc_,
+                 "not enough arguments on the stack for %s, expected %d more",
+                 SafeOpcodeNameAt(this->pc_), index + 1);
+  }
+
   V8_INLINE Value Pop(int index, ValueType expected) {
     Value val = Pop(index);
     if (!VALIDATE(IsSubtypeOf(val.type, expected, this->module_) ||
                   val.type == kWasmBottom || expected == kWasmBottom)) {
-      this->errorf(val.pc, "%s[%d] expected type %s, found %s of type %s",
-                   SafeOpcodeNameAt(this->pc_), index, expected.name().c_str(),
-                   SafeOpcodeNameAt(val.pc), val.type.name().c_str());
+      PopTypeError(index, val, expected);
     }
     return val;
   }
@@ -3918,10 +3931,7 @@ class WasmFullDecoder : public WasmDecoder<validate> {
     if (stack_.size() <= limit) {
       // Popping past the current control start in reachable code.
       if (!VALIDATE(control_.back().unreachable())) {
-        this->errorf(
-            this->pc_,
-            "not enough arguments on the stack for %s, expected %d more",
-            SafeOpcodeNameAt(this->pc_), index + 1);
+        NotEnoughArgumentsError(index);
       }
       return UnreachableValue(this->pc_);
     }
