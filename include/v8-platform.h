@@ -540,9 +540,7 @@ class Platform {
    * }
    */
   virtual std::unique_ptr<JobHandle> PostJob(
-      TaskPriority priority, std::unique_ptr<JobTask> job_task) {
-    return nullptr;
-  }
+      TaskPriority priority, std::unique_ptr<JobTask> job_task) = 0;
 
   /**
    * Monotonically increasing time in seconds from an arbitrary fixed point in
