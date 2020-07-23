@@ -148,6 +148,8 @@ class V8_EXPORT_PRIVATE TransitionsAccessor {
     return encoding_;
   }
 
+  inline int Capacity();
+
  private:
   friend class MarkCompactCollector;  // For HasSimpleTransitionTo.
   friend class TransitionArray;

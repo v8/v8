@@ -201,6 +201,8 @@ void TransitionsAccessor::Reload() {
   Initialize();
 }
 
+int TransitionsAccessor::Capacity() { return transitions().Capacity(); }
+
 void TransitionsAccessor::Initialize() {
   raw_transitions_ = map_.raw_transitions(isolate_);
   HeapObject heap_object;

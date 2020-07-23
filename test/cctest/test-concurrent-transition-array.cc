@@ -215,6 +215,77 @@ TEST(WeakRefToFullFieldTransitions) {
   thread->Join();
 }
 
+// Search and insert on the main thread, while the background thread searches at
+// the same time. In this case, we have a kFullTransitionArray with enough slack
+// when we are concurrently writing.
+TEST(FullFieldTransitions_withSlack) {
+  CcTest::InitializeVM();
+  v8::HandleScope scope(CcTest::isolate());
+  Isolate* isolate = CcTest::i_isolate();
+
+  Handle<String> name1 = CcTest::MakeString("name1");
+  Handle<String> name2 = CcTest::MakeString("name2");
+  Handle<String> name3 = CcTest::MakeString("name3");
+  const PropertyAttributes attributes = NONE;
+  const PropertyKind kind = kData;
+
+  // Set map0 to be a full transition array with transition 'name1' to map1.
+  Handle<Map> map0 = Map::Create(isolate, 0);
+  Handle<Map> map1 =
+      Map::CopyWithField(isolate, map0, name1, FieldType::Any(isolate),
+                         attributes, PropertyConstness::kMutable,
+                         Representation::Tagged(), OMIT_TRANSITION)
+          .ToHandleChecked();
+  Handle<Map> map2 =
+      Map::CopyWithField(isolate, map0, name2, FieldType::Any(isolate),
+                         attributes, PropertyConstness::kMutable,
+                         Representation::Tagged(), OMIT_TRANSITION)
+          .ToHandleChecked();
+  Handle<Map> map3 =
+      Map::CopyWithField(isolate, map0, name3, FieldType::Any(isolate),
+                         attributes, PropertyConstness::kMutable,
+                         Representation::Tagged(), OMIT_TRANSITION)
+          .ToHandleChecked();
+  TransitionsAccessor(isolate, map0).Insert(name1, map1, PROPERTY_TRANSITION);
+  TransitionsAccessor(isolate, map0).Insert(name2, map2, PROPERTY_TRANSITION);
+  {
+    TestTransitionsAccessor transitions(isolate, map0);
+    CHECK(transitions.IsFullTransitionArrayEncoding());
+  }
+
+  std::unique_ptr<PersistentHandles> ph = isolate->NewPersistentHandles();
+
+  Handle<Name> persistent_name = ph->NewHandle(name1);
+  Handle<Map> persistent_map = ph->NewHandle(map0);
+  Handle<Map> persistent_result_map = ph->NewHandle(map1);
+
+  base::Semaphore sema_started(0);
+
+  // Pass persistent handles to background thread.
+  std::unique_ptr<ConcurrentSearchThread> thread(new ConcurrentSearchThread(
+      isolate->heap(), &sema_started, std::move(ph), persistent_name,
+      persistent_map, persistent_result_map));
+  CHECK(thread->Start());
+
+  sema_started.Wait();
+
+  CHECK_EQ(*map1, TransitionsAccessor(isolate, map0)
+                      .SearchTransition(*name1, kind, attributes));
+  CHECK_EQ(*map2, TransitionsAccessor(isolate, map0)
+                      .SearchTransition(*name2, kind, attributes));
+  {
+    // Check that we have enough slack for the 3rd insertion into the
+    // TransitionArray.
+    TestTransitionsAccessor transitions(isolate, map0);
+    CHECK_GE(transitions.Capacity(), 3);
+  }
+  TransitionsAccessor(isolate, map0).Insert(name3, map3, PROPERTY_TRANSITION);
+  CHECK_EQ(*map3, TransitionsAccessor(isolate, map0)
+                      .SearchTransition(*name3, kind, attributes));
+
+  thread->Join();
+}
+
 }  // anonymous namespace
 
 }  // namespace internal

@@ -24,6 +24,8 @@ class TestTransitionsAccessor : public TransitionsAccessor {
   bool IsFullTransitionArrayEncoding() {
     return encoding() == kFullTransitionArray;
   }
+
+  int Capacity() { return TransitionsAccessor::Capacity(); }
 };
 
 }  // namespace internal
