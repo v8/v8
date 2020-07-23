@@ -101,7 +101,7 @@ TEST(CheckLoadICStates) {
   // Now the basic environment is set up. Start the worker thread.
   base::Semaphore sema_started(0);
   Handle<JSFunction> persistent_function =
-      Handle<JSFunction>::cast(ph->NewHandle(function->ptr()));
+      Handle<JSFunction>::cast(ph->NewHandle(function));
   std::unique_ptr<VectorExplorationThread> thread(new VectorExplorationThread(
       isolate->heap(), &sema_started, std::move(ph), persistent_function));
   CHECK(thread->Start());
