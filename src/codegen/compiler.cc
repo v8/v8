@@ -548,13 +548,6 @@ template <typename LocalIsolate>
 void InstallUnoptimizedCode(UnoptimizedCompilationInfo* compilation_info,
                             Handle<SharedFunctionInfo> shared_info,
                             LocalIsolate* isolate) {
-  DCHECK_EQ(shared_info->language_mode(),
-            compilation_info->literal()->language_mode());
-
-  // Update the shared function info with the scope info.
-  Handle<ScopeInfo> scope_info = compilation_info->scope()->scope_info();
-  shared_info->set_scope_info(*scope_info);
-
   if (compilation_info->has_bytecode_array()) {
     DCHECK(!shared_info->HasBytecodeArray());  // Only compiled once.
     DCHECK(!compilation_info->has_asm_wasm_data());
@@ -622,8 +615,10 @@ void EnsureSharedFunctionInfosArrayOnScript(Handle<Script> script,
   script->set_shared_function_infos(*infos);
 }
 
-void SetSharedFunctionFlagsFromLiteral(FunctionLiteral* literal,
-                                       SharedFunctionInfo shared_info) {
+void UpdateSharedFunctionFlagsAfterCompilation(FunctionLiteral* literal,
+                                               SharedFunctionInfo shared_info) {
+  DCHECK_EQ(shared_info.language_mode(), literal->language_mode());
+
   shared_info.set_has_duplicate_parameters(literal->has_duplicate_parameters());
   shared_info.set_is_oneshot_iife(literal->is_oneshot_iife());
   shared_info.UpdateAndFinalizeExpectedNofPropertiesFromEstimate(literal);
@@ -637,8 +632,13 @@ void SetSharedFunctionFlagsFromLiteral(FunctionLiteral* literal,
       literal->SafeToSkipArgumentsAdaptor());
   shared_info.set_has_static_private_methods_or_accessors(
       literal->has_static_private_methods_or_accessors());
+
+  shared_info.set_scope_info(*literal->scope()->scope_info());
 }
 
+// Finalize a single compilation job. This function can return
+// RETRY_ON_MAIN_THREAD if the job cannot be finalized off-thread, in which case
+// it should be safe to call it again on the main thread with the same job.
 template <typename LocalIsolate>
 CompilationJob::Status FinalizeSingleUnoptimizedCompilationJob(
     UnoptimizedCompilationJob* job, Handle<SharedFunctionInfo> shared_info,
@@ -647,8 +647,6 @@ CompilationJob::Status FinalizeSingleUnoptimizedCompilationJob(
         finalize_unoptimized_compilation_data_list) {
   UnoptimizedCompilationInfo* compilation_info = job->compilation_info();
 
-  SetSharedFunctionFlagsFromLiteral(compilation_info->literal(), *shared_info);
-
   CompilationJob::Status status = job->FinalizeJob(shared_info, isolate);
   if (status == CompilationJob::SUCCEEDED) {
     InstallUnoptimizedCode(compilation_info, shared_info, isolate);
@@ -656,6 +654,8 @@ CompilationJob::Status FinalizeSingleUnoptimizedCompilationJob(
         isolate, shared_info, job->time_taken_to_execute(),
         job->time_taken_to_finalize());
   }
+  DCHECK_IMPLIES(status == CompilationJob::RETRY_ON_MAIN_THREAD,
+                 (std::is_same<LocalIsolate, OffThreadIsolate>::value));
   return status;
 }
 
@@ -688,37 +688,38 @@ ExecuteSingleUnoptimizedCompilationJob(
   return job;
 }
 
-std::unique_ptr<UnoptimizedCompilationJob>
-RecursivelyExecuteUnoptimizedCompilationJobs(
+bool RecursivelyExecuteUnoptimizedCompilationJobs(
     ParseInfo* parse_info, FunctionLiteral* literal,
     AccountingAllocator* allocator,
-    UnoptimizedCompilationJobList* inner_function_jobs) {
+    UnoptimizedCompilationJobList* function_jobs) {
   std::vector<FunctionLiteral*> eager_inner_literals;
   std::unique_ptr<UnoptimizedCompilationJob> job =
       ExecuteSingleUnoptimizedCompilationJob(parse_info, literal, allocator,
                                              &eager_inner_literals);
 
-  if (!job) return std::unique_ptr<UnoptimizedCompilationJob>();
+  if (!job) return false;
 
   // Recursively compile eager inner literals.
   for (FunctionLiteral* inner_literal : eager_inner_literals) {
-    std::unique_ptr<UnoptimizedCompilationJob> inner_job(
-        RecursivelyExecuteUnoptimizedCompilationJobs(
-            parse_info, inner_literal, allocator, inner_function_jobs));
-    // Compilation failed, return null.
-    if (!inner_job) return std::unique_ptr<UnoptimizedCompilationJob>();
-    inner_function_jobs->emplace_front(std::move(inner_job));
+    if (!RecursivelyExecuteUnoptimizedCompilationJobs(
+            parse_info, inner_literal, allocator, function_jobs)) {
+      return false;
+    }
   }
 
-  return job;
+  function_jobs->emplace_front(std::move(job));
+  return true;
 }
 
+template <typename LocalIsolate>
 bool IterativelyExecuteAndFinalizeUnoptimizedCompilationJobs(
-    Isolate* isolate, Handle<SharedFunctionInfo> outer_shared_info,
+    LocalIsolate* isolate, Handle<SharedFunctionInfo> outer_shared_info,
     Handle<Script> script, ParseInfo* parse_info,
     AccountingAllocator* allocator, IsCompiledScope* is_compiled_scope,
     FinalizeUnoptimizedCompilationDataList*
-        finalize_unoptimized_compilation_data_list) {
+        finalize_unoptimized_compilation_data_list,
+    DeferredFinalizationJobDataList*
+        jobs_to_retry_finalization_on_main_thread) {
   DeclarationScope::AllocateScopeInfos(parse_info, isolate);
 
   std::vector<FunctionLiteral*> functions_to_compile;
@@ -736,17 +737,36 @@ bool IterativelyExecuteAndFinalizeUnoptimizedCompilationJobs(
                                                &functions_to_compile);
     if (!job) return false;
 
-    if (FinalizeSingleUnoptimizedCompilationJob(
-            job.get(), shared_info, isolate,
-            finalize_unoptimized_compilation_data_list) !=
-        CompilationJob::SUCCEEDED) {
-      return false;
-    }
+    UpdateSharedFunctionFlagsAfterCompilation(literal, *shared_info);
 
-    if (shared_info.is_identical_to(outer_shared_info)) {
-      // Ensure that the top level function is retained.
-      *is_compiled_scope = shared_info->is_compiled_scope(isolate);
-      DCHECK(is_compiled_scope->is_compiled());
+    auto finalization_status = FinalizeSingleUnoptimizedCompilationJob(
+        job.get(), shared_info, isolate,
+        finalize_unoptimized_compilation_data_list);
+
+    switch (finalization_status) {
+      case CompilationJob::SUCCEEDED:
+        if (shared_info.is_identical_to(outer_shared_info)) {
+          // Ensure that the top level function is retained.
+          *is_compiled_scope = shared_info->is_compiled_scope(isolate);
+          DCHECK(is_compiled_scope->is_compiled());
+        }
+        break;
+
+      case CompilationJob::FAILED:
+        return false;
+
+      case CompilationJob::RETRY_ON_MAIN_THREAD:
+        // This should not happen on the main thread.
+        DCHECK((!std::is_same<LocalIsolate, Isolate>::value));
+        DCHECK_NOT_NULL(jobs_to_retry_finalization_on_main_thread);
+
+        // Clear the literal and ParseInfo to prevent further attempts to access
+        // them.
+        job->compilation_info()->ClearLiteral();
+        job->ClearParseInfo();
+        jobs_to_retry_finalization_on_main_thread->emplace_back(
+            isolate, shared_info, std::move(job));
+        break;
     }
   }
 
@@ -758,16 +778,13 @@ bool IterativelyExecuteAndFinalizeUnoptimizedCompilationJobs(
   return true;
 }
 
-template <typename LocalIsolate>
 bool FinalizeAllUnoptimizedCompilationJobs(
-    ParseInfo* parse_info, LocalIsolate* isolate,
-    Handle<SharedFunctionInfo> shared_info,
-    UnoptimizedCompilationJob* outer_function_job,
-    UnoptimizedCompilationJobList* inner_function_jobs,
+    ParseInfo* parse_info, Isolate* isolate, Handle<Script> script,
+    UnoptimizedCompilationJobList* compilation_jobs,
     FinalizeUnoptimizedCompilationDataList*
         finalize_unoptimized_compilation_data_list) {
-  // TODO(leszeks): Re-enable.
-  // DCHECK(AllowCompilation::IsAllowed(isolate));
+  DCHECK(AllowCompilation::IsAllowed(isolate));
+  DCHECK(!compilation_jobs->empty());
 
   // TODO(rmcilroy): Clear native context in debug once AsmJS generates doesn't
   // rely on accessing native context during finalization.
@@ -775,26 +792,16 @@ bool FinalizeAllUnoptimizedCompilationJobs(
   // Allocate scope infos for the literal.
   DeclarationScope::AllocateScopeInfos(parse_info, isolate);
 
-  // Finalize the outer-most function's compilation job.
-  if (FinalizeSingleUnoptimizedCompilationJob(
-          outer_function_job, shared_info, isolate,
-          finalize_unoptimized_compilation_data_list) !=
-      CompilationJob::SUCCEEDED) {
-    return false;
-  }
-
-  Handle<Script> script(Script::cast(shared_info->script()), isolate);
-  parse_info->CheckFlagsForFunctionFromScript(*script);
-
-  // Finalize the inner functions' compilation jobs.
-  for (auto&& inner_job : *inner_function_jobs) {
-    Handle<SharedFunctionInfo> inner_shared_info =
-        Compiler::GetSharedFunctionInfo(
-            inner_job->compilation_info()->literal(), script, isolate);
+  // Finalize the functions' compilation jobs.
+  for (auto&& job : *compilation_jobs) {
+    FunctionLiteral* literal = job->compilation_info()->literal();
+    Handle<SharedFunctionInfo> shared_info =
+        Compiler::GetSharedFunctionInfo(literal, script, isolate);
     // The inner function might be compiled already if compiling for debug.
-    if (inner_shared_info->is_compiled()) continue;
+    if (shared_info->is_compiled()) continue;
+    UpdateSharedFunctionFlagsAfterCompilation(literal, *shared_info);
     if (FinalizeSingleUnoptimizedCompilationJob(
-            inner_job.get(), inner_shared_info, isolate,
+            job.get(), shared_info, isolate,
             finalize_unoptimized_compilation_data_list) !=
         CompilationJob::SUCCEEDED) {
       return false;
@@ -804,6 +811,38 @@ bool FinalizeAllUnoptimizedCompilationJobs(
   // Report any warnings generated during compilation.
   if (parse_info->pending_error_handler()->has_pending_warnings()) {
     parse_info->pending_error_handler()->PrepareWarnings(isolate);
+  }
+
+  return true;
+}
+
+bool FinalizeDeferredUnoptimizedCompilationJobs(
+    Isolate* isolate, Handle<Script> script,
+    DeferredFinalizationJobDataList* deferred_jobs,
+    PendingCompilationErrorHandler* pending_error_handler,
+    FinalizeUnoptimizedCompilationDataList*
+        finalize_unoptimized_compilation_data_list) {
+  DCHECK(AllowCompilation::IsAllowed(isolate));
+
+  if (deferred_jobs->empty()) return true;
+
+  // TODO(rmcilroy): Clear native context in debug once AsmJS generates doesn't
+  // rely on accessing native context during finalization.
+
+  // Finalize the deferred compilation jobs.
+  for (auto&& job : *deferred_jobs) {
+    Handle<SharedFunctionInfo> shared_info = job.function_handle();
+    if (FinalizeSingleUnoptimizedCompilationJob(
+            job.job(), shared_info, isolate,
+            finalize_unoptimized_compilation_data_list) !=
+        CompilationJob::SUCCEEDED) {
+      return false;
+    }
+  }
+
+  // Report any warnings generated during deferred finalization.
+  if (pending_error_handler->has_pending_warnings()) {
+    pending_error_handler->PrepareWarnings(isolate);
   }
 
   return true;
@@ -1243,7 +1282,8 @@ MaybeHandle<SharedFunctionInfo> CompileToplevel(
 
   if (!IterativelyExecuteAndFinalizeUnoptimizedCompilationJobs(
           isolate, shared_info, script, parse_info, isolate->allocator(),
-          is_compiled_scope, &finalize_unoptimized_compilation_data_list)) {
+          is_compiled_scope, &finalize_unoptimized_compilation_data_list,
+          nullptr)) {
     FailWithPendingException(isolate, script, parse_info,
                              Compiler::ClearExceptionFlag::KEEP_EXCEPTION);
     return MaybeHandle<SharedFunctionInfo>();
@@ -1258,34 +1298,73 @@ MaybeHandle<SharedFunctionInfo> CompileToplevel(
   return shared_info;
 }
 
-std::unique_ptr<UnoptimizedCompilationJob> CompileOnBackgroundThread(
+RuntimeCallCounterId RuntimeCallCounterIdForCompileBackground(
+    ParseInfo* parse_info) {
+  if (parse_info->flags().is_toplevel()) {
+    if (parse_info->flags().is_eval()) {
+      return RuntimeCallCounterId::kCompileBackgroundEval;
+    }
+    return RuntimeCallCounterId::kCompileBackgroundScript;
+  }
+  return RuntimeCallCounterId::kCompileBackgroundFunction;
+}
+
+MaybeHandle<SharedFunctionInfo> CompileAndFinalizeOnBackgroundThread(
     ParseInfo* parse_info, AccountingAllocator* allocator,
-    UnoptimizedCompilationJobList* inner_function_jobs) {
+    Handle<Script> script, OffThreadIsolate* isolate,
+    FinalizeUnoptimizedCompilationDataList*
+        finalize_unoptimized_compilation_data_list,
+    DeferredFinalizationJobDataList*
+        jobs_to_retry_finalization_on_main_thread) {
   DisallowHeapAccess no_heap_access;
   TRACE_EVENT0(TRACE_DISABLED_BY_DEFAULT("v8.compile"),
                "V8.CompileCodeBackground");
   RuntimeCallTimerScope runtimeTimer(
       parse_info->runtime_call_stats(),
-      parse_info->flags().is_toplevel()
-          ? parse_info->flags().is_eval()
-                ? RuntimeCallCounterId::kCompileBackgroundEval
-                : RuntimeCallCounterId::kCompileBackgroundScript
-          : RuntimeCallCounterId::kCompileBackgroundFunction);
+      RuntimeCallCounterIdForCompileBackground(parse_info));
 
-  // Generate the unoptimized bytecode or asm-js data.
-  DCHECK(inner_function_jobs->empty());
+  Handle<SharedFunctionInfo> shared_info =
+      CreateTopLevelSharedFunctionInfo(parse_info, script, isolate);
 
-  // TODO(leszeks): Once we can handle asm-js without bailing out of
-  // off-thread finalization entirely, and the finalization is off-thread by
-  // default, this can be changed to the iterative version.
-  std::unique_ptr<UnoptimizedCompilationJob> outer_function_job =
-      RecursivelyExecuteUnoptimizedCompilationJobs(
-          parse_info, parse_info->literal(), allocator, inner_function_jobs);
+  // TODO(leszeks): Consider persisting the is_compiled_scope across the
+  // off-thread publish.
+  IsCompiledScope is_compiled_scope;
+
+  if (!IterativelyExecuteAndFinalizeUnoptimizedCompilationJobs(
+          isolate, shared_info, script, parse_info, allocator,
+          &is_compiled_scope, finalize_unoptimized_compilation_data_list,
+          jobs_to_retry_finalization_on_main_thread)) {
+    return kNullMaybeHandle;
+  }
 
   // Character stream shouldn't be used again.
   parse_info->ResetCharacterStream();
 
-  return outer_function_job;
+  return shared_info;
+}
+
+// TODO(leszeks): Remove this once off-thread finalization is always on.
+void CompileOnBackgroundThread(ParseInfo* parse_info,
+                               AccountingAllocator* allocator,
+                               UnoptimizedCompilationJobList* jobs) {
+  DisallowHeapAccess no_heap_access;
+  TRACE_EVENT0(TRACE_DISABLED_BY_DEFAULT("v8.compile"),
+               "V8.CompileCodeBackground");
+  RuntimeCallTimerScope runtimeTimer(
+      parse_info->runtime_call_stats(),
+      RuntimeCallCounterIdForCompileBackground(parse_info));
+
+  // Generate the unoptimized bytecode or asm-js data.
+  DCHECK(jobs->empty());
+
+  bool success = RecursivelyExecuteUnoptimizedCompilationJobs(
+      parse_info, parse_info->literal(), allocator, jobs);
+
+  USE(success);
+  DCHECK_EQ(success, !jobs->empty());
+
+  // Character stream shouldn't be used again.
+  parse_info->ResetCharacterStream();
 }
 
 MaybeHandle<SharedFunctionInfo> CompileToplevel(
@@ -1406,20 +1485,6 @@ class OffThreadParseInfoScope {
   DISALLOW_COPY_AND_ASSIGN(OffThreadParseInfoScope);
 };
 
-bool CanOffThreadFinalizeAllJobs(
-    UnoptimizedCompilationJob* outer_job,
-    const UnoptimizedCompilationJobList& inner_function_jobs) {
-  if (!outer_job->can_off_thread_finalize()) return false;
-
-  for (auto& job : inner_function_jobs) {
-    if (!job->can_off_thread_finalize()) {
-      return false;
-    }
-  }
-
-  return true;
-}
-
 }  // namespace
 
 void BackgroundCompileTask::Run() {
@@ -1448,87 +1513,62 @@ void BackgroundCompileTask::Run() {
 
   parser_->ParseOnBackground(info_.get(), start_position_, end_position_,
                              function_literal_id_);
-  if (info_->literal() != nullptr) {
-    // Parsing has succeeded, compile.
-    outer_function_job_ = CompileOnBackgroundThread(
-        info_.get(), compile_state_.allocator(), &inner_function_jobs_);
-  }
-  // Save the language mode and record whether we collected source positions.
+
+  // Save the language mode.
   language_mode_ = info_->language_mode();
 
-  // We don't currently support off-thread finalization for some jobs (namely,
-  // asm.js), so release the off-thread isolate and fall back to main-thread
-  // finalization.
-  // TODO(leszeks): Still finalize Ignition tasks on the background thread,
-  // and fallback to main-thread finalization for asm.js jobs only.
-  finalize_on_background_thread_ =
-      finalize_on_background_thread_ && outer_function_job_ &&
-      CanOffThreadFinalizeAllJobs(outer_function_job(), *inner_function_jobs());
-
   if (!finalize_on_background_thread_) {
-    off_thread_isolate_.reset();
-    return;
-  }
+    if (info_->literal() != nullptr) {
+      CompileOnBackgroundThread(info_.get(), compile_state_.allocator(),
+                                &compilation_jobs_);
+    }
+  } else {
+    DCHECK(info_->flags().is_toplevel());
 
-  // ---
-  // At this point, off-thread compilation has completed and we are off-thread
-  // finalizing.
-  // ---
+    OffThreadIsolate* isolate = off_thread_isolate();
+    isolate->PinToCurrentThread();
 
-  DCHECK(info_->flags().is_toplevel());
+    OffThreadHandleScope handle_scope(isolate);
 
-  TRACE_EVENT0(TRACE_DISABLED_BY_DEFAULT("v8.compile"),
-               "V8.FinalizeCodeBackground");
-
-  OffThreadIsolate* isolate = off_thread_isolate();
-  isolate->PinToCurrentThread();
-
-  OffThreadHandleScope handle_scope(isolate);
-
-  // We don't have the script source, origin, or details yet, so use default
-  // values for them. These will be fixed up during the main-thread merge.
-  Handle<Script> script =
-      info_->CreateScript(isolate, isolate->factory()->empty_string(),
-                          kNullMaybeHandle, ScriptOriginOptions());
-
-  MaybeHandle<SharedFunctionInfo> maybe_result;
-  if (info_->literal() != nullptr) {
     info_->ast_value_factory()->Internalize(isolate);
 
-    Handle<SharedFunctionInfo> shared_info =
-        CreateTopLevelSharedFunctionInfo(info_.get(), script, isolate);
-    if (FinalizeAllUnoptimizedCompilationJobs(
-            info_.get(), isolate, shared_info, outer_function_job_.get(),
-            &inner_function_jobs_, &finalize_unoptimized_compilation_data_)) {
-      maybe_result = shared_info;
-    }
+    // We don't have the script source, origin, or details yet, so use default
+    // values for them. These will be fixed up during the main-thread merge.
+    Handle<Script> script =
+        info_->CreateScript(isolate, isolate->factory()->empty_string(),
+                            kNullMaybeHandle, ScriptOriginOptions());
 
     parser_->HandleSourceURLComments(isolate, script);
-  } else {
-    DCHECK(!outer_function_job_);
+
+    MaybeHandle<SharedFunctionInfo> maybe_result;
+    if (info_->literal() != nullptr) {
+      maybe_result = CompileAndFinalizeOnBackgroundThread(
+          info_.get(), compile_state_.allocator(), script, isolate,
+          &finalize_unoptimized_compilation_data_,
+          &jobs_to_retry_finalization_on_main_thread_);
+    } else {
+      DCHECK(compile_state_.pending_error_handler()->has_pending_error());
+      PreparePendingException(isolate, info_.get());
+    }
+
+    outer_function_sfi_ = isolate->TransferHandle(maybe_result);
+    script_ = isolate->TransferHandle(script);
+
+    {
+      TRACE_EVENT0(TRACE_DISABLED_BY_DEFAULT("v8.compile"),
+                   "V8.FinalizeCodeBackground.Finish");
+      isolate->FinishOffThread();
+    }
+
+    {
+      TRACE_EVENT0(TRACE_DISABLED_BY_DEFAULT("v8.compile"),
+                   "V8.FinalizeCodeBackground.ReleaseParser");
+      DCHECK_EQ(language_mode_, info_->language_mode());
+      off_thread_scope.reset();
+      parser_.reset();
+      info_.reset();
+    }
   }
-
-  Handle<SharedFunctionInfo> result;
-  if (!maybe_result.ToHandle(&result)) {
-    DCHECK(compile_state_.pending_error_handler()->has_pending_error());
-    PreparePendingException(isolate, info_.get());
-  }
-
-  outer_function_sfi_ = isolate->TransferHandle(maybe_result);
-  script_ = isolate->TransferHandle(script);
-
-  TRACE_EVENT0(TRACE_DISABLED_BY_DEFAULT("v8.compile"),
-               "V8.FinalizeCodeBackground.Finish");
-  isolate->FinishOffThread();
-
-  TRACE_EVENT0(TRACE_DISABLED_BY_DEFAULT("v8.compile"),
-               "V8.FinalizeCodeBackground.ReleaseParser");
-  DCHECK_EQ(language_mode_, info_->language_mode());
-  off_thread_scope.reset();
-  parser_.reset();
-  info_.reset();
-  outer_function_job_.reset();
-  inner_function_jobs_.clear();
 }
 
 // ----------------------------------------------------------------------------
@@ -1689,7 +1729,8 @@ bool Compiler::Compile(Handle<SharedFunctionInfo> shared_info,
 
   if (!IterativelyExecuteAndFinalizeUnoptimizedCompilationJobs(
           isolate, shared_info, script, &parse_info, isolate->allocator(),
-          is_compiled_scope, &finalize_unoptimized_compilation_data_list)) {
+          is_compiled_scope, &finalize_unoptimized_compilation_data_list,
+          nullptr)) {
     return FailWithPendingException(isolate, script, &parse_info, flag);
   }
 
@@ -1772,7 +1813,7 @@ bool Compiler::FinalizeBackgroundCompileTask(
   task->parser()->UpdateStatistics(isolate, script);
   task->parser()->HandleSourceURLComments(isolate, script);
 
-  if (parse_info->literal() == nullptr || !task->outer_function_job()) {
+  if (task->compilation_jobs()->empty()) {
     // Parsing or compile failed on background thread - report error messages.
     return FailWithPendingException(isolate, script, parse_info, flag);
   }
@@ -1780,8 +1821,7 @@ bool Compiler::FinalizeBackgroundCompileTask(
   // Parsing has succeeded - finalize compilation.
   parse_info->ast_value_factory()->Internalize(isolate);
   if (!FinalizeAllUnoptimizedCompilationJobs(
-          parse_info, isolate, shared_info, task->outer_function_job(),
-          task->inner_function_jobs(),
+          parse_info, isolate, script, task->compilation_jobs(),
           task->finalize_unoptimized_compilation_data())) {
     // Finalization failed - throw an exception.
     return FailWithPendingException(isolate, script, parse_info, flag);
@@ -2711,8 +2751,18 @@ Compiler::GetSharedFunctionInfoForStreamedScript(
 
       task->off_thread_isolate()->Publish(isolate);
 
-      maybe_result = task->outer_function_sfi();
       script = task->script();
+
+      // We might not have been able to finalize all jobs on the background
+      // thread (e.g. asm.js jobs), so finalize those deferred jobs now.
+      if (FinalizeDeferredUnoptimizedCompilationJobs(
+              isolate, script,
+              task->jobs_to_retry_finalization_on_main_thread(),
+              task->compile_state()->pending_error_handler(),
+              task->finalize_unoptimized_compilation_data())) {
+        maybe_result = task->outer_function_sfi();
+      }
+
       script->set_source(*source);
       script->set_origin_options(origin_options);
     } else {
@@ -2725,15 +2775,16 @@ Compiler::GetSharedFunctionInfoForStreamedScript(
       task->parser()->UpdateStatistics(isolate, script);
       task->parser()->HandleSourceURLComments(isolate, script);
 
-      if (parse_info->literal() != nullptr && task->outer_function_job()) {
+      if (!task->compilation_jobs()->empty()) {
         // Off-thread parse & compile has succeeded - finalize compilation.
+        DCHECK_NOT_NULL(parse_info->literal());
+
         parse_info->ast_value_factory()->Internalize(isolate);
 
         Handle<SharedFunctionInfo> shared_info =
             CreateTopLevelSharedFunctionInfo(parse_info, script, isolate);
         if (FinalizeAllUnoptimizedCompilationJobs(
-                parse_info, isolate, shared_info, task->outer_function_job(),
-                task->inner_function_jobs(),
+                parse_info, isolate, script, task->compilation_jobs(),
                 task->finalize_unoptimized_compilation_data())) {
           maybe_result = shared_info;
         }

@@ -149,7 +149,7 @@ InterpreterCompilationJob::InterpreterCompilationJob(
     AccountingAllocator* allocator,
     std::vector<FunctionLiteral*>* eager_inner_literals)
     : UnoptimizedCompilationJob(parse_info->stack_limit(), parse_info,
-                                &compilation_info_, CanOffThreadFinalize::kYes),
+                                &compilation_info_),
       zone_(allocator, ZONE_NAME),
       compilation_info_(&zone_, parse_info, literal),
       generator_(&zone_, &compilation_info_, parse_info->ast_string_constants(),

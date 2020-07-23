@@ -260,7 +260,8 @@ class SharedFunctionInfo : public HeapObject {
   // Returns an IsCompiledScope which reports whether the function is compiled,
   // and if compiled, will avoid the function becoming uncompiled while it is
   // held.
-  inline IsCompiledScope is_compiled_scope(Isolate* isolate) const;
+  template <typename LocalIsolate>
+  inline IsCompiledScope is_compiled_scope(LocalIsolate* isolate) const;
 
   // [length]: The function length - usually the number of declared parameters.
   // Use up to 2^16-2 parameters (16 bits of values, where one is reserved for
@@ -700,7 +701,9 @@ struct SourceCodeOf {
 // the scope is retained.
 class IsCompiledScope {
  public:
-  inline IsCompiledScope(const SharedFunctionInfo shared, Isolate* isolate);
+  template <typename LocalIsolate>
+  inline IsCompiledScope(const SharedFunctionInfo shared,
+                         LocalIsolate* isolate);
   inline IsCompiledScope() : retain_bytecode_(), is_compiled_(false) {}
 
   inline bool is_compiled() const { return is_compiled_; }

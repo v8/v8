@@ -417,12 +417,15 @@ bool SharedFunctionInfo::is_compiled() const {
          !data.IsUncompiledData();
 }
 
-IsCompiledScope SharedFunctionInfo::is_compiled_scope(Isolate* isolate) const {
+template <typename LocalIsolate>
+IsCompiledScope SharedFunctionInfo::is_compiled_scope(
+    LocalIsolate* isolate) const {
   return IsCompiledScope(*this, isolate);
 }
 
+template <typename LocalIsolate>
 IsCompiledScope::IsCompiledScope(const SharedFunctionInfo shared,
-                                 Isolate* isolate)
+                                 LocalIsolate* isolate)
     : retain_bytecode_(shared.HasBytecodeArray()
                            ? handle(shared.GetBytecodeArray(), isolate)
                            : MaybeHandle<BytecodeArray>()),

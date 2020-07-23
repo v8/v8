@@ -40,15 +40,19 @@ void PendingCompilationErrorHandler::MessageDetails::Prepare(
   switch (type_) {
     case kAstRawString:
       return SetString(arg_->string(), isolate);
+
     case kNone:
     case kConstCharString:
       // We can delay allocation until ArgumentString(isolate).
       // TODO(leszeks): We don't actually have to transfer this string, since
       // it's a root.
       return;
+
     case kMainThreadHandle:
     case kOffThreadTransferHandle:
-      UNREACHABLE();
+      // The message details might already be prepared, so skip them if this is
+      // the case.
+      return;
   }
 }
 

@@ -187,8 +187,7 @@ class AsmJsCompilationJob final : public UnoptimizedCompilationJob {
   explicit AsmJsCompilationJob(ParseInfo* parse_info, FunctionLiteral* literal,
                                AccountingAllocator* allocator)
       : UnoptimizedCompilationJob(parse_info->stack_limit(), parse_info,
-                                  &compilation_info_,
-                                  CanOffThreadFinalize::kNo),
+                                  &compilation_info_),
         allocator_(allocator),
         zone_(allocator, ZONE_NAME),
         compilation_info_(&zone_, parse_info, literal),
@@ -203,7 +202,7 @@ class AsmJsCompilationJob final : public UnoptimizedCompilationJob {
                          Isolate* isolate) final;
   Status FinalizeJobImpl(Handle<SharedFunctionInfo> shared_info,
                          OffThreadIsolate* isolate) final {
-    UNREACHABLE();
+    return CompilationJob::RETRY_ON_MAIN_THREAD;
   }
 
  private:
@@ -278,8 +277,8 @@ UnoptimizedCompilationJob::Status AsmJsCompilationJob::FinalizeJobImpl(
 
   RecordHistograms(isolate);
   ReportCompilationSuccess(handle(Script::cast(shared_info->script()), isolate),
-                           compilation_info()->literal()->position(),
-                           compile_time_, module_->size());
+                           shared_info->StartPosition(), compile_time_,
+                           module_->size());
   return SUCCEEDED;
 }
 
