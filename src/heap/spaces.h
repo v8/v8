@@ -112,7 +112,6 @@ class V8_EXPORT_PRIVATE Space : public BaseSpace {
  public:
   Space(Heap* heap, AllocationSpace id, FreeList* free_list)
       : BaseSpace(heap, id),
-        allocation_observers_paused_(false),
         free_list_(std::unique_ptr<FreeList>(free_list)) {
     external_backing_store_bytes_ =
         new std::atomic<size_t>[ExternalBackingStoreType::kNumTypes];
@@ -193,10 +192,6 @@ class V8_EXPORT_PRIVATE Space : public BaseSpace {
 
  protected:
   intptr_t GetNextInlineAllocationStepSize();
-  bool AllocationObserversActive() {
-    return !allocation_observers_paused_ &&
-           allocation_counter_.HasAllocationObservers();
-  }
 
   AllocationCounter allocation_counter_;
 
@@ -205,8 +200,6 @@ class V8_EXPORT_PRIVATE Space : public BaseSpace {
 
   // Tracks off-heap memory used by this space.
   std::atomic<size_t>* external_backing_store_bytes_;
-
-  bool allocation_observers_paused_;
 
   std::unique_ptr<FreeList> free_list_;
 

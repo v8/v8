@@ -16,6 +16,8 @@ class AllocationObserver;
 
 class AllocationCounter {
  public:
+  AllocationCounter() : paused_(false) {}
+
   auto begin() { return allocation_observers_.begin(); }
   auto end() { return allocation_observers_.end(); }
 
@@ -25,8 +27,23 @@ class AllocationCounter {
   bool HasAllocationObservers() { return !allocation_observers_.empty(); }
   size_t NumberAllocationObservers() { return allocation_observers_.size(); }
 
+  bool IsActive() { return !IsPaused() && HasAllocationObservers(); }
+
+  void Pause() {
+    DCHECK(!paused_);
+    paused_ = true;
+  }
+
+  void Resume() {
+    DCHECK(paused_);
+    paused_ = false;
+  }
+
  private:
+  bool IsPaused() { return paused_; }
+
   std::vector<AllocationObserver*> allocation_observers_;
+  bool paused_;
 };
 
 // -----------------------------------------------------------------------------

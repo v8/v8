@@ -257,15 +257,13 @@ void Space::RemoveAllocationObserver(AllocationObserver* observer) {
   StartNextInlineAllocationStep();
 }
 
-void Space::PauseAllocationObservers() { allocation_observers_paused_ = true; }
+void Space::PauseAllocationObservers() { allocation_counter_.Pause(); }
 
-void Space::ResumeAllocationObservers() {
-  allocation_observers_paused_ = false;
-}
+void Space::ResumeAllocationObservers() { allocation_counter_.Resume(); }
 
 void Space::AllocationStep(int bytes_since_last, Address soon_object,
                            int size) {
-  if (!AllocationObserversActive()) {
+  if (!allocation_counter_.IsActive()) {
     return;
   }
 
@@ -279,7 +277,7 @@ void Space::AllocationStep(int bytes_since_last, Address soon_object,
 }
 
 void Space::AllocationStepAfterMerge(Address first_object_in_chunk, int size) {
-  if (!AllocationObserversActive()) {
+  if (!allocation_counter_.IsActive()) {
     return;
   }
 
@@ -308,7 +306,7 @@ Address SpaceWithLinearArea::ComputeLimit(Address start, Address end,
   if (heap()->inline_allocation_disabled()) {
     // Fit the requested area exactly.
     return start + min_size;
-  } else if (SupportsInlineAllocation() && AllocationObserversActive()) {
+  } else if (SupportsInlineAllocation() && allocation_counter_.IsActive()) {
     // Generated code may allocate inline from the linear allocation area for.
     // To make sure we can observe these allocations, we use a lower limit.
     size_t step = GetNextInlineAllocationStepSize();
@@ -385,7 +383,7 @@ void SpaceWithLinearArea::StartNextInlineAllocationStep() {
     return;
   }
 
-  if (AllocationObserversActive()) {
+  if (allocation_counter_.IsActive()) {
     top_on_previous_step_ = top();
     UpdateInlineAllocationLimit(0);
   } else {
@@ -396,7 +394,7 @@ void SpaceWithLinearArea::StartNextInlineAllocationStep() {
 void SpaceWithLinearArea::AddAllocationObserver(AllocationObserver* observer) {
   InlineAllocationStep(top(), top(), kNullAddress, 0);
   Space::AddAllocationObserver(observer);
-  DCHECK_IMPLIES(top_on_previous_step_, AllocationObserversActive());
+  DCHECK_IMPLIES(top_on_previous_step_, allocation_counter_.IsActive());
 }
 
 void SpaceWithLinearArea::RemoveAllocationObserver(
@@ -406,7 +404,7 @@ void SpaceWithLinearArea::RemoveAllocationObserver(
                                                            : top();
   InlineAllocationStep(top(), top_for_next_step, kNullAddress, 0);
   Space::RemoveAllocationObserver(observer);
-  DCHECK_IMPLIES(top_on_previous_step_, AllocationObserversActive());
+  DCHECK_IMPLIES(top_on_previous_step_, allocation_counter_.IsActive());
 }
 
 void SpaceWithLinearArea::PauseAllocationObservers() {

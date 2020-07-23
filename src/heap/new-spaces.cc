@@ -466,7 +466,7 @@ bool NewSpace::Rebalance() {
 
 void NewSpace::UpdateLinearAllocationArea() {
   // Make sure there is no unaccounted allocations.
-  DCHECK(!AllocationObserversActive() || top_on_previous_step_ == top());
+  DCHECK(!allocation_counter_.IsActive() || top_on_previous_step_ == top());
 
   Address new_top = to_space_.page_low();
   BasicMemoryChunk::UpdateHighWaterMark(allocation_info_.top());
