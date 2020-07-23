@@ -194,42 +194,6 @@ bool RiscvDebugger::GetValue(const char* desc, int64_t* value) {
   return false;
 }
 
-bool RiscvDebugger::SetBreakpoint(Instruction* breakpc) {
-  // Check if a breakpoint can be set. If not return without any side-effects.
-  if (sim_->break_pc_ != nullptr) {
-    return false;
-  }
-
-  // Set the breakpoint.
-  sim_->break_pc_ = breakpc;
-  sim_->break_instr_ = breakpc->InstructionBits();
-  // Not setting the breakpoint instruction in the code itself. It will be set
-  // when the debugger shell continues.
-  return true;
-}
-
-bool RiscvDebugger::DeleteBreakpoint(Instruction* breakpc) {
-  if (sim_->break_pc_ != nullptr) {
-    sim_->break_pc_->SetInstructionBits(sim_->break_instr_);
-  }
-
-  sim_->break_pc_ = nullptr;
-  sim_->break_instr_ = 0;
-  return true;
-}
-
-void RiscvDebugger::UndoBreakpoints() {
-  if (sim_->break_pc_ != nullptr) {
-    sim_->break_pc_->SetInstructionBits(sim_->break_instr_);
-  }
-}
-
-void RiscvDebugger::RedoBreakpoints() {
-  if (sim_->break_pc_ != nullptr) {
-    sim_->break_pc_->SetInstructionBits(kBreakInstr);
-  }
-}
-
 #define REG_INFO(name)                             \
   name, GetRegisterValue(Registers::Number(name)), \
       GetRegisterValue(Registers::Number(name))
@@ -309,10 +273,6 @@ void RiscvDebugger::Debug() {
   cmd[COMMAND_SIZE] = 0;
   arg1[ARG_SIZE] = 0;
   arg2[ARG_SIZE] = 0;
-
-  // Undo all set breakpoints while running in the debugger shell. This will
-  // make them invisible to all commands.
-  UndoBreakpoints();
 
   while (!done && (sim_->get_pc() != Simulator::end_sim_pc)) {
     if (last_pc != sim_->get_pc()) {
@@ -663,10 +623,6 @@ void RiscvDebugger::Debug() {
         // FIXME (RISCV): the following commands are not yet supported
         // PrintF("gdb \n");
         // PrintF("  enter gdb\n");
-        // PrintF("break <address>\n");
-        // PrintF("  set a break point on the address\n");
-        // PrintF("del\n");
-        // PrintF("  delete the breakpoint\n");
         // PrintF("stop feature:\n");
         // PrintF("  Description:\n");
         // PrintF("    Stops are debug instructions inserted by\n");
@@ -691,10 +647,6 @@ void RiscvDebugger::Debug() {
       }
     }
   }
-
-  // Add all the breakpoints back to stop execution and enter the debugger
-  // shell when hit.
-  RedoBreakpoints();
 
 #undef COMMAND_SIZE
 #undef ARG_SIZE
@@ -846,8 +798,10 @@ Simulator::Simulator(Isolate* isolate) : isolate_(isolate) {
   pc_modified_ = false;
   icount_ = 0;
   break_count_ = 0;
-  break_pc_ = nullptr;
-  break_instr_ = 0;
+  // Reset debug helpers.
+  breakpoints_.clear();
+  // TODO: 'next' command
+  //break_on_next_ = false;
 
   // Set up architecture state.
   // All registers are initialized to zero to start with.

@@ -643,10 +643,6 @@ class Simulator : public SimulatorBase {
 
   v8::internal::Isolate* isolate_;
 
-  // Registered breakpoints.
-  Instruction* break_pc_;
-  Instr break_instr_;
-
   // Stop is disabled if bit 31 is set.
   static const uint32_t kStopDisabledBit = 1 << 31;
 
