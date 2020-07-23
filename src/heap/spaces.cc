@@ -289,16 +289,6 @@ void Space::AllocationStepAfterMerge(Address first_object_in_chunk, int size) {
   heap()->set_allocation_step_in_progress(false);
 }
 
-intptr_t Space::GetNextInlineAllocationStepSize() {
-  intptr_t next_step = 0;
-  for (AllocationObserver* observer : allocation_counter_) {
-    next_step = next_step ? Min(next_step, observer->bytes_to_next_step())
-                          : observer->bytes_to_next_step();
-  }
-  DCHECK(!allocation_counter_.HasAllocationObservers() || next_step > 0);
-  return next_step;
-}
-
 Address SpaceWithLinearArea::ComputeLimit(Address start, Address end,
                                           size_t min_size) {
   DCHECK_GE(end - start, min_size);
@@ -309,7 +299,7 @@ Address SpaceWithLinearArea::ComputeLimit(Address start, Address end,
   } else if (SupportsInlineAllocation() && allocation_counter_.IsActive()) {
     // Generated code may allocate inline from the linear allocation area for.
     // To make sure we can observe these allocations, we use a lower limit.
-    size_t step = GetNextInlineAllocationStepSize();
+    size_t step = allocation_counter_.GetNextInlineAllocationStepSize();
     size_t rounded_step =
         RoundSizeDownToObjectAlignment(static_cast<int>(step - 1));
     return Min(static_cast<Address>(start + min_size + rounded_step), end);

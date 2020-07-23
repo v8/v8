@@ -39,6 +39,8 @@ class AllocationCounter {
     paused_ = false;
   }
 
+  intptr_t GetNextInlineAllocationStepSize();
+
  private:
   bool IsPaused() { return paused_; }
 
@@ -86,7 +88,7 @@ class AllocationObserver {
   intptr_t bytes_to_next_step_;
 
  private:
-  friend class Space;
+  friend class AllocationCounter;
   DISALLOW_COPY_AND_ASSIGN(AllocationObserver);
 };
 

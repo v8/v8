@@ -33,6 +33,16 @@ void AllocationObserver::AllocationStep(int bytes_allocated,
   DCHECK_GE(bytes_to_next_step_, 0);
 }
 
+intptr_t AllocationCounter::GetNextInlineAllocationStepSize() {
+  intptr_t next_step = 0;
+  for (AllocationObserver* observer : allocation_observers_) {
+    next_step = next_step ? Min(next_step, observer->bytes_to_next_step())
+                          : observer->bytes_to_next_step();
+  }
+  DCHECK(!HasAllocationObservers() || next_step > 0);
+  return next_step;
+}
+
 PauseAllocationObserversScope::PauseAllocationObserversScope(Heap* heap)
     : heap_(heap) {
   DCHECK_EQ(heap->gc_state(), Heap::NOT_IN_GC);

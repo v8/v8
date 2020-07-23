@@ -191,8 +191,6 @@ class V8_EXPORT_PRIVATE Space : public BaseSpace {
 #endif
 
  protected:
-  intptr_t GetNextInlineAllocationStepSize();
-
   AllocationCounter allocation_counter_;
 
   // The List manages the pages that belong to the given space.
