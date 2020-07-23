@@ -3961,6 +3961,105 @@ TEST_F(FunctionBodyDecoderTest, PackedTypesAsLocals) {
   ExpectFailure(sigs.v_v(), {}, kAppendEnd, "invalid local type");
 }
 
+TEST_F(FunctionBodyDecoderTest, RttCanon) {
+  WASM_FEATURE_SCOPE(reftypes);
+  WASM_FEATURE_SCOPE(typed_funcref);
+  WASM_FEATURE_SCOPE(gc);
+  WASM_FEATURE_SCOPE(eh);
+
+  TestModuleBuilder builder;
+  module = builder.module();
+  uint8_t array_type_index = builder.AddArray(kWasmI32, true);
+  uint8_t struct_type_index = builder.AddStruct({F(kWasmI64, true)});
+
+  for (HeapType::Representation heap :
+       {HeapType::kExtern, HeapType::kEq, HeapType::kExn, HeapType::kI31,
+        static_cast<HeapType::Representation>(array_type_index),
+        static_cast<HeapType::Representation>(struct_type_index)}) {
+    ValueType rtt1 = ValueType::Rtt(HeapType(heap), 1);
+    FunctionSig sig1(1, 0, &rtt1);
+    ExpectValidates(&sig1, {WASM_RTT_CANON(rtt1.heap_type().code() & 0x7F)});
+
+    ValueType rtt2 = ValueType::Rtt(HeapType(heap), 2);
+    FunctionSig sig2(1, 0, &rtt2);
+    ExpectFailure(&sig2, {WASM_RTT_CANON(rtt2.heap_type().code() & 0x7F)},
+                  kAppendEnd, "type error in merge[0]");
+  }
+}
+
+TEST_F(FunctionBodyDecoderTest, RttSub) {
+  WASM_FEATURE_SCOPE(reftypes);
+  WASM_FEATURE_SCOPE(typed_funcref);
+  WASM_FEATURE_SCOPE(gc);
+  WASM_FEATURE_SCOPE(eh);
+
+  TestModuleBuilder builder;
+  module = builder.module();
+  uint8_t array_type_index = builder.AddArray(kWasmI8, true);
+  uint8_t super_struct_type_index = builder.AddStruct({F(kWasmI16, true)});
+  uint8_t sub_struct_type_index =
+      builder.AddStruct({F(kWasmI16, true), F(kWasmI32, false)});
+
+  {
+    // Can build an rtt.sub with self type for a generic heap type.
+    ValueType type = ValueType::Rtt(HeapType::kFunc, 2);
+    FunctionSig sig(1, 0, &type);
+    ExpectValidates(
+        &sig, {WASM_RTT_SUB(kLocalFuncRef, WASM_RTT_CANON(kLocalFuncRef))});
+  }
+
+  // Trivial type error.
+  ExpectFailure(sigs.v_v(),
+                {WASM_RTT_SUB(kLocalFuncRef, WASM_I32V(42)), kExprDrop},
+                kAppendEnd, "rtt.sub requires a supertype rtt on stack");
+
+  {
+    ValueType type = ValueType::Rtt(array_type_index, 2);
+    FunctionSig sig(1, 0, &type);
+    // Can build an rtt.sub with self type for an array type.
+    ExpectValidates(&sig, {WASM_RTT_SUB(array_type_index,
+                                        WASM_RTT_CANON(array_type_index))});
+    // Can build an rtt.sub for an array from eqref.
+    ExpectValidates(
+        &sig, {WASM_RTT_SUB(array_type_index, WASM_RTT_CANON(kLocalEqRef))});
+    // Fails when argument to rtt.sub is not a supertype.
+    ExpectFailure(sigs.v_v(),
+                  {WASM_RTT_SUB(kLocalEqRef, WASM_RTT_CANON(array_type_index)),
+                   kExprDrop},
+                  kAppendEnd, "rtt.sub requires a supertype rtt on stack");
+  }
+
+  {
+    ValueType type = ValueType::Rtt(super_struct_type_index, 2);
+    FunctionSig sig(1, 0, &type);
+    // Can build an rtt.sub with self type for a struct type.
+    ExpectValidates(&sig,
+                    {WASM_RTT_SUB(super_struct_type_index,
+                                  WASM_RTT_CANON(super_struct_type_index))});
+    // Can build an rtt.sub for a struct from eqref.
+    ExpectValidates(&sig, {WASM_RTT_SUB(super_struct_type_index,
+                                        WASM_RTT_CANON(kLocalEqRef))});
+    // Fails when argument to rtt.sub is not a supertype.
+    ExpectFailure(sigs.v_v(),
+                  {WASM_RTT_SUB(super_struct_type_index,
+                                WASM_RTT_CANON(array_type_index))},
+                  kAppendEnd, "rtt.sub requires a supertype rtt on stack");
+    ExpectFailure(sigs.v_v(),
+                  {WASM_RTT_SUB(super_struct_type_index,
+                                WASM_RTT_CANON(sub_struct_type_index))},
+                  kAppendEnd, "rtt.sub requires a supertype rtt on stack");
+  }
+
+  {
+    // Can build an rtt from a stuct supertype.
+    ValueType type = ValueType::Rtt(sub_struct_type_index, 2);
+    FunctionSig sig(1, 0, &type);
+    ExpectValidates(&sig,
+                    {WASM_RTT_SUB(sub_struct_type_index,
+                                  WASM_RTT_CANON(super_struct_type_index))});
+  }
+}
+
 class BranchTableIteratorTest : public TestWithZone {
  public:
   BranchTableIteratorTest() : TestWithZone() {}
