@@ -902,7 +902,7 @@ RUNTIME_FUNCTION(Runtime_DefineDataPropertyInLiteral) {
   if (!maybe_vector->IsUndefined()) {
     DCHECK(maybe_vector->IsFeedbackVector());
     Handle<FeedbackVector> vector = Handle<FeedbackVector>::cast(maybe_vector);
-    FeedbackNexus nexus(vector, FeedbackVector::ToSlot(index), isolate);
+    FeedbackNexus nexus(vector, FeedbackVector::ToSlot(index));
     if (nexus.ic_state() == UNINITIALIZED) {
       if (name->IsUniqueName()) {
         nexus.ConfigureMonomorphic(name, handle(object->map(), isolate),
@@ -969,7 +969,7 @@ RUNTIME_FUNCTION(Runtime_CollectTypeProfile) {
   }
 
   DCHECK(vector->metadata().HasTypeProfileSlot());
-  FeedbackNexus nexus(vector, vector->GetTypeProfileSlot(), isolate);
+  FeedbackNexus nexus(vector, vector->GetTypeProfileSlot());
   nexus.Collect(type, position->value());
 
   return ReadOnlyRoots(isolate).undefined_value();

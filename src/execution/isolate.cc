@@ -58,6 +58,7 @@
 #include "src/numbers/hash-seed-inl.h"
 #include "src/objects/backing-store.h"
 #include "src/objects/elements.h"
+#include "src/objects/feedback-vector.h"
 #include "src/objects/frame-array-inl.h"
 #include "src/objects/hash-table-inl.h"
 #include "src/objects/js-array-inl.h"
@@ -2972,6 +2973,8 @@ Isolate::Isolate(std::unique_ptr<i::IsolateAllocator> isolate_allocator)
   TRACE_ISOLATE(constructor);
   CheckIsolateLayout();
 
+  feedback_nexus_config_ = new NexusConfig(this);
+
   // ThreadManager is initialized early to support locking an isolate
   // before it is entered.
   thread_manager_ = new ThreadManager(this);
@@ -3195,6 +3198,9 @@ Isolate::~Isolate() {
   bootstrapper_ = nullptr;
   delete inner_pointer_to_code_cache_;
   inner_pointer_to_code_cache_ = nullptr;
+
+  delete feedback_nexus_config_;
+  feedback_nexus_config_ = nullptr;
 
   delete thread_manager_;
   thread_manager_ = nullptr;

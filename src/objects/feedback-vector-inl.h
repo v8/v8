@@ -323,92 +323,90 @@ int FeedbackMetadataIterator::entry_size() const {
   return FeedbackMetadata::GetSlotSize(kind());
 }
 
-MaybeObjectHandle MainThreadNoHandleConfig::NewHandle(
-    MaybeObject object) const {
-  UNREACHABLE();
-  return MaybeObjectHandle();
+MaybeObject NexusConfig::GetFeedback(FeedbackVector vector, int index) const {
+  return vector.get(index);
 }
 
-void BackgroundThreadConfig::SetFeedback(MaybeObject feedback,
-                                         WriteBarrierMode mode) {
-  UNREACHABLE();
+void NexusConfig::SetFeedback(FeedbackVector vector, int index,
+                              MaybeObject feedback,
+                              WriteBarrierMode mode) const {
+  vector.set(index, feedback, mode);
 }
 
-void BackgroundThreadConfig::SetFeedbackPair(MaybeObject feedback,
-                                             WriteBarrierMode mode,
-                                             MaybeObject feedback_extra,
-                                             WriteBarrierMode mode_extra) {
-  UNREACHABLE();
-}
-
-template <class T>
-MaybeObject FeedbackNexusImpl<T>::GetFeedback() const {
-  MaybeObject feedback = g_.GetFeedback();
+MaybeObject FeedbackNexus::GetFeedback() const {
+  const int index = vector().GetIndex(slot());
+  MaybeObject feedback = g_->GetFeedback(vector(), index);
   FeedbackVector::AssertNoLegacyTypes(feedback);
   return feedback;
 }
 
-template <class T>
-void FeedbackNexusImpl<T>::SetFeedback(Object feedback, WriteBarrierMode mode) {
-  g_.SetFeedback(MaybeObject::FromObject(feedback), mode);
+std::pair<MaybeObject, MaybeObject> FeedbackNexus::GetFeedbackPair() const {
+  const int index = vector().GetIndex(slot());
+  auto pair = g_->GetFeedbackPair(vector(), index);
+  FeedbackVector::AssertNoLegacyTypes(pair.first);
+  return pair;
 }
 
-template <class T>
-void FeedbackNexusImpl<T>::SetFeedback(MaybeObject feedback,
-                                       WriteBarrierMode mode) {
+void FeedbackNexus::SetFeedback(Object feedback, WriteBarrierMode mode) {
+  const int index = vector().GetIndex(slot());
+  g_->SetFeedback(vector(), index, MaybeObject::FromObject(feedback), mode);
+}
+
+void FeedbackNexus::SetFeedback(MaybeObject feedback, WriteBarrierMode mode) {
   FeedbackVector::AssertNoLegacyTypes(feedback);
-  g_.SetFeedback(feedback, mode);
+  const int index = vector().GetIndex(slot());
+  g_->SetFeedback(vector(), index, feedback, mode);
 }
 
-template <class T>
-void FeedbackNexusImpl<T>::SetFeedback(Object feedback, WriteBarrierMode mode,
-                                       Object feedback_extra,
-                                       WriteBarrierMode mode_extra) {
-  g_.SetFeedbackPair(MaybeObject::FromObject(feedback), mode,
-                     MaybeObject::FromObject(feedback_extra), mode_extra);
+void FeedbackNexus::SetFeedback(Object feedback, WriteBarrierMode mode,
+                                Object feedback_extra,
+                                WriteBarrierMode mode_extra) {
+  FeedbackVector::AssertNoLegacyTypes(MaybeObject::FromObject(feedback));
+  const int index = vector().GetIndex(slot());
+  g_->SetFeedbackPair(vector(), index, MaybeObject::FromObject(feedback), mode,
+                      MaybeObject::FromObject(feedback_extra), mode_extra);
 }
 
-template <class T>
-void FeedbackNexusImpl<T>::SetFeedback(Object feedback, WriteBarrierMode mode,
-                                       MaybeObject feedback_extra,
-                                       WriteBarrierMode mode_extra) {
-  g_.SetFeedbackPair(MaybeObject::FromObject(feedback), mode, feedback_extra,
-                     mode_extra);
+void FeedbackNexus::SetFeedback(Object feedback, WriteBarrierMode mode,
+                                MaybeObject feedback_extra,
+                                WriteBarrierMode mode_extra) {
+  FeedbackVector::AssertNoLegacyTypes(MaybeObject::FromObject(feedback));
+  const int index = vector().GetIndex(slot());
+  g_->SetFeedbackPair(vector(), index, MaybeObject::FromObject(feedback), mode,
+                      feedback_extra, mode_extra);
 }
 
-template <class T>
-void FeedbackNexusImpl<T>::SetFeedback(MaybeObject feedback,
-                                       WriteBarrierMode mode,
-                                       Object feedback_extra,
-                                       WriteBarrierMode mode_extra) {
-  g_.SetFeedbackPair(feedback, mode, MaybeObject::FromObject(feedback_extra),
-                     mode_extra);
+void FeedbackNexus::SetFeedback(MaybeObject feedback, WriteBarrierMode mode,
+                                Object feedback_extra,
+                                WriteBarrierMode mode_extra) {
+  FeedbackVector::AssertNoLegacyTypes(feedback);
+  const int index = vector().GetIndex(slot());
+  g_->SetFeedbackPair(vector(), index, feedback, mode,
+                      MaybeObject::FromObject(feedback_extra), mode_extra);
 }
 
-template <class T>
-void FeedbackNexusImpl<T>::SetFeedback(MaybeObject feedback,
-                                       WriteBarrierMode mode,
-                                       MaybeObject feedback_extra,
-                                       WriteBarrierMode mode_extra) {
+void FeedbackNexus::SetFeedback(MaybeObject feedback, WriteBarrierMode mode,
+                                MaybeObject feedback_extra,
+                                WriteBarrierMode mode_extra) {
   FeedbackVector::AssertNoLegacyTypes(feedback);
 #ifdef DEBUG
   FeedbackVector::AssertNoLegacyTypes(feedback_extra);
 #endif
-  g_.SetFeedbackPair(feedback, mode, feedback_extra, mode_extra);
+  const int index = vector().GetIndex(slot());
+  g_->SetFeedbackPair(vector(), index, feedback, mode, feedback_extra,
+                      mode_extra);
 }
 
-template <class T>
-bool FeedbackNexusImpl<T>::vector_needs_update() const {
+bool FeedbackNexus::vector_needs_update() const {
   DCHECK_LT(1, FeedbackMetadata::GetSlotSize(kind()));
   // TODO(mvstanton): This is a bizarre request.
-  std::pair<MaybeObject, MaybeObject> pair = g_.GetFeedbackPair();
+  const int index = vector().GetIndex(slot());
+  std::pair<MaybeObject, MaybeObject> pair =
+      g_->GetFeedbackPair(vector(), index);
   return pair.second.ToSmi().value() != ELEMENT;
 }
 
-template <class T>
-Isolate* FeedbackNexusImpl<T>::GetIsolate() const {
-  return g_.vector().GetIsolate();
-}
+Isolate* FeedbackNexus::GetIsolate() const { return vector().GetIsolate(); }
 }  // namespace internal
 }  // namespace v8
 

@@ -34,13 +34,13 @@ class VectorExplorationThread final : public v8::base::Thread {
     LocalHeap local_heap(heap_, std::move(ph_));
     LocalHandleScope scope(&local_heap);
     // Get the feedback vector
+    NexusConfig nexus_config(function_->GetIsolate(), &local_heap);
     Handle<FeedbackVector> vector(function_->feedback_vector(), &local_heap);
     FeedbackSlot slot(0);
 
     sema_started_->Signal();
     for (int i = 0; i < kCycles; i++) {
-      FeedbackNexusBackground nexus(
-          BackgroundThreadConfig(vector, slot, &local_heap));
+      FeedbackNexus nexus(vector, slot, &nexus_config);
       auto state = nexus.ic_state();
       CHECK(state == UNINITIALIZED || state == MONOMORPHIC ||
             state == POLYMORPHIC || state == MEGAMORPHIC);
@@ -93,7 +93,7 @@ TEST(CheckLoadICStates) {
       Handle<JSFunction>::cast(Utils::OpenHandle(*result));
   Handle<FeedbackVector> vector(function->feedback_vector(), isolate);
   FeedbackSlot slot(0);
-  FeedbackNexus nexus(vector, slot, isolate);
+  FeedbackNexus nexus(vector, slot);
   CHECK(IsLoadICKind(nexus.kind()));
   CHECK_EQ(MONOMORPHIC, nexus.ic_state());
   nexus.ConfigureUninitialized();

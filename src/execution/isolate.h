@@ -85,6 +85,7 @@ class Logger;
 class MaterializedObjectStore;
 class Microtask;
 class MicrotaskQueue;
+class NexusConfig;
 class OptimizingCompileDispatcher;
 class PersistentHandles;
 class PersistentHandlesList;
@@ -618,6 +619,8 @@ class V8_EXPORT_PRIVATE Isolate final : private HiddenFactory {
   base::SharedMutex* feedback_vector_access() {
     return &feedback_vector_access_;
   }
+
+  NexusConfig* feedback_nexus_config() const { return feedback_nexus_config_; }
 
   // Mutex for accessing the string table.
   base::Mutex* string_table_mutex() { return &string_table_mutex_; }
@@ -1664,6 +1667,7 @@ class V8_EXPORT_PRIVATE Isolate final : private HiddenFactory {
   base::RecursiveMutex break_access_;
   base::SharedMutex transition_array_access_;
   base::SharedMutex feedback_vector_access_;
+  NexusConfig* feedback_nexus_config_ = nullptr;
   base::Mutex string_table_mutex_;
   Logger* logger_ = nullptr;
   StubCache* load_stub_cache_ = nullptr;

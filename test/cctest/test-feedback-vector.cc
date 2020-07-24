@@ -173,7 +173,7 @@ TEST(VectorCallICStates) {
   Handle<FeedbackVector> feedback_vector =
       Handle<FeedbackVector>(f->feedback_vector(), isolate);
   FeedbackSlot slot(0);
-  FeedbackNexus nexus(feedback_vector, slot, isolate);
+  FeedbackNexus nexus(feedback_vector, slot);
   CHECK_EQ(MONOMORPHIC, nexus.ic_state());
 
   CompileRun("f(function() { return 16; })");
@@ -204,7 +204,7 @@ TEST(VectorCallFeedback) {
   Handle<FeedbackVector> feedback_vector =
       Handle<FeedbackVector>(f->feedback_vector(), isolate);
   FeedbackSlot slot(0);
-  FeedbackNexus nexus(feedback_vector, slot, isolate);
+  FeedbackNexus nexus(feedback_vector, slot);
 
   CHECK_EQ(MONOMORPHIC, nexus.ic_state());
   HeapObject heap_object;
@@ -238,7 +238,7 @@ TEST(VectorPolymorphicCallFeedback) {
   Handle<FeedbackVector> feedback_vector =
       Handle<FeedbackVector>(f->feedback_vector(), isolate);
   FeedbackSlot slot(0);
-  FeedbackNexus nexus(feedback_vector, slot, isolate);
+  FeedbackNexus nexus(feedback_vector, slot);
 
   CHECK_EQ(POLYMORPHIC, nexus.ic_state());
   HeapObject heap_object;
@@ -268,7 +268,7 @@ TEST(VectorCallFeedbackForArray) {
   Handle<FeedbackVector> feedback_vector =
       Handle<FeedbackVector>(f->feedback_vector(), isolate);
   FeedbackSlot slot(0);
-  FeedbackNexus nexus(feedback_vector, slot, isolate);
+  FeedbackNexus nexus(feedback_vector, slot);
 
   CHECK_EQ(MONOMORPHIC, nexus.ic_state());
   HeapObject heap_object;
@@ -366,7 +366,7 @@ TEST(VectorCallCounts) {
   Handle<FeedbackVector> feedback_vector =
       Handle<FeedbackVector>(f->feedback_vector(), isolate);
   FeedbackSlot slot(0);
-  FeedbackNexus nexus(feedback_vector, slot, isolate);
+  FeedbackNexus nexus(feedback_vector, slot);
   CHECK_EQ(MONOMORPHIC, nexus.ic_state());
 
   CompileRun("f(foo); f(foo);");
@@ -399,7 +399,7 @@ TEST(VectorConstructCounts) {
       Handle<FeedbackVector>(f->feedback_vector(), isolate);
 
   FeedbackSlot slot(0);
-  FeedbackNexus nexus(feedback_vector, slot, isolate);
+  FeedbackNexus nexus(feedback_vector, slot);
   CHECK_EQ(MONOMORPHIC, nexus.ic_state());
 
   CHECK(feedback_vector->Get(slot)->IsWeak());
@@ -434,7 +434,7 @@ TEST(VectorSpeculationMode) {
       Handle<FeedbackVector>(f->feedback_vector(), isolate);
 
   FeedbackSlot slot(0);
-  FeedbackNexus nexus(feedback_vector, slot, isolate);
+  FeedbackNexus nexus(feedback_vector, slot);
   CHECK_EQ(SpeculationMode::kAllowSpeculation, nexus.GetSpeculationMode());
 
   CompileRun("f(Foo); f(Foo);");
@@ -470,7 +470,7 @@ TEST(VectorLoadICStates) {
   Handle<FeedbackVector> feedback_vector =
       Handle<FeedbackVector>(f->feedback_vector(), isolate);
   FeedbackSlot slot(0);
-  FeedbackNexus nexus(feedback_vector, slot, isolate);
+  FeedbackNexus nexus(feedback_vector, slot);
 
   CHECK_EQ(MONOMORPHIC, nexus.ic_state());
   // Verify that the monomorphic map is the one we expect.
@@ -537,10 +537,8 @@ TEST(VectorLoadGlobalICSlotSharing) {
   CHECK_SLOT_KIND(helper, 1, FeedbackSlotKind::kLoadGlobalInsideTypeof);
   FeedbackSlot slot1 = helper.slot(0);
   FeedbackSlot slot2 = helper.slot(1);
-  CHECK_EQ(MONOMORPHIC,
-           FeedbackNexus(feedback_vector, slot1, isolate).ic_state());
-  CHECK_EQ(MONOMORPHIC,
-           FeedbackNexus(feedback_vector, slot2, isolate).ic_state());
+  CHECK_EQ(MONOMORPHIC, FeedbackNexus(feedback_vector, slot1).ic_state());
+  CHECK_EQ(MONOMORPHIC, FeedbackNexus(feedback_vector, slot2).ic_state());
 }
 
 
@@ -565,7 +563,7 @@ TEST(VectorLoadICOnSmi) {
   Handle<FeedbackVector> feedback_vector =
       Handle<FeedbackVector>(f->feedback_vector(), isolate);
   FeedbackSlot slot(0);
-  FeedbackNexus nexus(feedback_vector, slot, isolate);
+  FeedbackNexus nexus(feedback_vector, slot);
   CHECK_EQ(MONOMORPHIC, nexus.ic_state());
   // Verify that the monomorphic map is the one we expect.
   Map number_map = ReadOnlyRoots(heap).heap_number_map();
@@ -774,7 +772,7 @@ TEST(VectorStoreICBasic) {
   FeedbackVectorHelper helper(feedback_vector);
   CHECK_EQ(1, helper.slot_count());
   FeedbackSlot slot(0);
-  FeedbackNexus nexus(feedback_vector, slot, f->GetIsolate());
+  FeedbackNexus nexus(feedback_vector, slot);
   CHECK_EQ(MONOMORPHIC, nexus.ic_state());
 }
 
@@ -802,7 +800,7 @@ TEST(StoreOwnIC) {
   CHECK_EQ(2, helper.slot_count());
   CHECK_SLOT_KIND(helper, 0, FeedbackSlotKind::kLiteral);
   CHECK_SLOT_KIND(helper, 1, FeedbackSlotKind::kStoreOwnNamed);
-  FeedbackNexus nexus(feedback_vector, helper.slot(1), f->GetIsolate());
+  FeedbackNexus nexus(feedback_vector, helper.slot(1));
   CHECK_EQ(MONOMORPHIC, nexus.ic_state());
 }
 
