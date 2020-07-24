@@ -361,7 +361,7 @@ class V8_EXPORT_PRIVATE PagedSpace
   // Otherwise, returns the object pointer and writes the allocation size
   // (object size + alignment filler size) to the size_in_bytes.
   inline AllocationResult TryAllocateLinearlyAligned(
-      int* size_in_bytes, AllocationAlignment alignment);
+      int size_in_bytes, AllocationAlignment alignment);
 
   V8_WARN_UNUSED_RESULT bool TryAllocationFromFreeListMain(
       size_t size_in_bytes, AllocationOrigin origin);

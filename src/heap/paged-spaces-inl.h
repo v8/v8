@@ -107,24 +107,21 @@ AllocationResult PagedSpace::AllocateLinearly(int size_in_bytes) {
 }
 
 AllocationResult PagedSpace::TryAllocateLinearlyAligned(
-    int* size_in_bytes, AllocationAlignment alignment) {
+    int size_in_bytes, AllocationAlignment alignment) {
   Address current_top = allocation_info_.top();
   int filler_size = Heap::GetFillToAlign(current_top, alignment);
 
-  Address new_top = current_top + filler_size + *size_in_bytes;
+  Address new_top = current_top + filler_size + size_in_bytes;
   if (new_top > allocation_info_.limit())
     return AllocationResult::Retry(identity());
 
   allocation_info_.set_top(new_top);
   if (filler_size > 0) {
-    *size_in_bytes += filler_size;
-    HeapObject object = Heap::PrecedeWithFiller(
-        ReadOnlyRoots(heap()), HeapObject::FromAddress(current_top),
-        filler_size);
-    return AllocationResult(object);
+    Heap::PrecedeWithFiller(ReadOnlyRoots(heap()),
+                            HeapObject::FromAddress(current_top), filler_size);
   }
 
-  return AllocationResult(HeapObject::FromAddress(current_top));
+  return AllocationResult(HeapObject::FromAddress(current_top + filler_size));
 }
 
 AllocationResult PagedSpace::AllocateRawUnaligned(int size_in_bytes,
@@ -156,9 +153,8 @@ AllocationResult PagedSpace::AllocateRawAligned(int size_in_bytes,
   if (!EnsureLabMain(allocation_size, origin)) {
     return AllocationResult::Retry(identity());
   }
-  allocation_size = size_in_bytes;
   AllocationResult result =
-      TryAllocateLinearlyAligned(&allocation_size, alignment);
+      TryAllocateLinearlyAligned(size_in_bytes, alignment);
   DCHECK(!result.IsRetry());
   MSAN_ALLOCATED_UNINITIALIZED_MEMORY(result.ToObjectChecked().address(),
                                       size_in_bytes);
@@ -176,8 +172,7 @@ AllocationResult PagedSpace::AllocateRaw(int size_in_bytes,
   AllocationResult result;
 
   if (alignment != kWordAligned) {
-    int allocation_size = size_in_bytes;
-    result = TryAllocateLinearlyAligned(&allocation_size, alignment);
+    result = TryAllocateLinearlyAligned(size_in_bytes, alignment);
   } else {
     result = AllocateLinearly(size_in_bytes);
   }
