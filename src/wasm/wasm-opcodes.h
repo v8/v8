@@ -773,7 +773,7 @@ class WasmInitExpr {
     int64_t i64_const;
     float f32_const;
     double f64_const;
-    uint8_t s128_const[kSimd128Size];
+    std::array<uint8_t, kSimd128Size> s128_const;
     uint32_t index;
     HeapType::Representation heap_type;
   };
@@ -792,7 +792,7 @@ class WasmInitExpr {
     immediate_.f64_const = v;
   }
   explicit WasmInitExpr(uint8_t v[kSimd128Size]) : kind_(kS128Const) {
-    memcpy(immediate_.s128_const, v, kSimd128Size);
+    memcpy(immediate_.s128_const.data(), v, kSimd128Size);
   }
 
   MOVE_ONLY_NO_DEFAULT_CONSTRUCTOR(WasmInitExpr);
@@ -855,8 +855,7 @@ class WasmInitExpr {
       case kF64Const:
         return immediate().f64_const == other.immediate().f64_const;
       case kS128Const:
-        return 0 == memcmp(immediate().s128_const, other.immediate().s128_const,
-                           kSimd128Size);
+        return immediate().s128_const == other.immediate().s128_const;
       case kRefNullConst:
       case kRttCanon:
         return immediate().heap_type == other.immediate().heap_type;

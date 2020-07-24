@@ -470,12 +470,13 @@ let kExprI64AtomicCompareExchange32U = 0x4e;
 // Simd opcodes.
 let kExprS128LoadMem = 0x00;
 let kExprS128StoreMem = 0x0b;
+let kExprS128Const = 0x0c;
 let kExprS8x16Shuffle = 0x0d;
 let kExprI8x16Splat = 0x0f;
 let kExprI16x8Splat = 0x10;
 let kExprI32x4Splat = 0x11;
 let kExprF32x4Splat = 0x13;
-let kExprI32x4ExtractLane = 0x15;
+let kExprI32x4ExtractLane = 0x1b;
 let kExprI8x16LtU = 0x26;
 let kExprI8x16LeU = 0x2a;
 let kExprI32x4Eq = 0x37;
@@ -1124,6 +1125,9 @@ class WasmModuleBuilder {
             case kWasmF64:
               section.emit_bytes(wasmF64Const(global.init));
               break;
+            case kWasmS128:
+              section.emit_bytes(wasmS128Const(global.init));
+              break;
             case kWasmExternRef:
               section.emit_u8(kExprRefNull);
               section.emit_u8(kWasmExternRef);
@@ -1481,4 +1485,9 @@ function wasmF64Const(f) {
     kExprF64Const, byte_view[0], byte_view[1], byte_view[2],
     byte_view[3], byte_view[4], byte_view[5], byte_view[6], byte_view[7]
   ];
+}
+
+function wasmS128Const(f) {
+  // Write in little-endian order at offset 0.
+  return [kSimdPrefix, kExprS128Const, ...f];
 }

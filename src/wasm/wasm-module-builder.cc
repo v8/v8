@@ -444,7 +444,7 @@ void WriteGlobalInitializer(ZoneBuffer* buffer, const WasmInitExpr& init,
     case WasmInitExpr::kS128Const:
       buffer->write_u8(kSimdPrefix);
       buffer->write_u8(kExprS128Const & 0xFF);
-      buffer->write(init.immediate().s128_const, kSimd128Size);
+      buffer->write(init.immediate().s128_const.data(), kSimd128Size);
       break;
     case WasmInitExpr::kGlobalGet:
       buffer->write_u8(kExprGlobalGet);

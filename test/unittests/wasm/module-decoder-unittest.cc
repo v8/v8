@@ -270,12 +270,13 @@ TEST_F(WasmModuleVerifyTest, OneGlobal) {
 
 TEST_F(WasmModuleVerifyTest, S128Global) {
   WASM_FEATURE_SCOPE(simd);
-  uint8_t v[kSimd128Size] = {1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15};
+  std::array<uint8_t, kSimd128Size> v = {1, 2,  3,  4,  5,  6,  7, 8,
+                                         9, 10, 11, 12, 13, 14, 15};
   static const byte data[] = {SECTION(Global,          // --
                                       ENTRY_COUNT(1),  // --
                                       kLocalS128,      // memory type
                                       0,               // immutable
-                                      WASM_SIMD_CONSTANT(v), kExprEnd)};
+                                      WASM_SIMD_CONSTANT(v.data()), kExprEnd)};
   ModuleResult result = DecodeModule(data, data + sizeof(data));
   EXPECT_OK(result);
   const WasmGlobal* global = &result.value()->globals.back();
@@ -283,7 +284,7 @@ TEST_F(WasmModuleVerifyTest, S128Global) {
   EXPECT_EQ(0u, global->offset);
   EXPECT_FALSE(global->mutability);
   EXPECT_EQ(WasmInitExpr::kS128Const, global->init.kind());
-  EXPECT_EQ(0, memcmp(global->init.immediate().s128_const, v, kSimd128Size));
+  EXPECT_EQ(global->init.immediate().s128_const, v);
 }
 
 TEST_F(WasmModuleVerifyTest, ExternRefGlobal) {

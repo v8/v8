@@ -1537,8 +1537,8 @@ void InstanceBuilder::InitGlobals(Handle<WasmInstanceObject> instance) {
         break;
       case WasmInitExpr::kS128Const:
         DCHECK(enabled_.has_simd());
-        WriteLittleEndianValue<uint8_t[kSimd128Size]>(
-            GetRawGlobalPtr<uint8_t[kSimd128Size]>(global),
+        WriteLittleEndianValue<std::array<uint8_t, kSimd128Size>>(
+            GetRawGlobalPtr<std::array<uint8_t, kSimd128Size>>(global),
             global.init.immediate().s128_const);
         break;
       case WasmInitExpr::kRefNullConst:
