@@ -474,14 +474,26 @@ class WasmGenerator {
   }
 
   void call(DataRange* data, ValueType wanted_type) {
-    int func_index = data->get<uint8_t>() % functions_.size();
+    uint8_t random_byte = data->get<uint8_t>();
+    int func_index = random_byte % functions_.size();
     FunctionSig* sig = functions_[func_index];
     // Generate arguments.
     for (size_t i = 0; i < sig->parameter_count(); ++i) {
       Generate(sig->GetParam(i), data);
     }
     // Emit call.
-    builder_->EmitWithU32V(kExprCallFunction, func_index);
+    // If the return types of the callee happen to match the return types of the
+    // caller, generate a tail call.
+    bool use_return_call = random_byte > 127;
+    if (use_return_call &&
+        std::equal(sig->returns().begin(), sig->returns().end(),
+                   builder_->signature()->returns().begin(),
+                   builder_->signature()->returns().end())) {
+      builder_->EmitWithU32V(kExprReturnCall, func_index);
+      return;
+    } else {
+      builder_->EmitWithU32V(kExprCallFunction, func_index);
+    }
     if (sig->return_count() == 0 && wanted_type != kWasmStmt) {
       // The call did not generate a value. Thus just generate it here.
       Generate(wanted_type, data);
