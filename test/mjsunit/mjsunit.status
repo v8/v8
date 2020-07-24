@@ -73,6 +73,10 @@
   # Enable once multi-byte prefixed opcodes are correctly handled
   'regress/wasm/regress-1065599': [SKIP],
 
+  # BUG(v8:9506): times out.
+  'wasm/shared-memory-worker-explicit-gc-stress': [PASS, SLOW],
+  'wasm/shared-memory-worker-gc-stress': [PASS, SLOW],
+
   ##############################################################################
   # Tests where variants make no sense.
   'd8/enable-tracing': [PASS, NO_VARIANTS],
