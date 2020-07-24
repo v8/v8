@@ -131,7 +131,7 @@ MaybeHandle<JSRelativeTimeFormat> JSRelativeTimeFormat::New(
     if (nu_extension_it != r.extensions.end() &&
         nu_extension_it->second != numbering_system_str.get()) {
       icu_locale.setUnicodeKeywordValue("nu", nullptr, status);
-      CHECK(U_SUCCESS(status));
+      DCHECK(U_SUCCESS(status));
     }
   }
   // 12. Let locale be r.[[Locale]].
@@ -146,7 +146,7 @@ MaybeHandle<JSRelativeTimeFormat> JSRelativeTimeFormat::New(
   if (numbering_system_str != nullptr &&
       Intl::IsValidNumberingSystem(numbering_system_str.get())) {
     icu_locale.setUnicodeKeywordValue("nu", numbering_system_str.get(), status);
-    CHECK(U_SUCCESS(status));
+    DCHECK(U_SUCCESS(status));
   }
   // 15. Let dataLocale be r.[[DataLocale]].
 
@@ -184,7 +184,7 @@ MaybeHandle<JSRelativeTimeFormat> JSRelativeTimeFormat::New(
       delete number_format;
       status = U_ZERO_ERROR;
       icu_locale.setUnicodeKeywordValue("nu", nullptr, status);
-      CHECK(U_SUCCESS(status));
+      DCHECK(U_SUCCESS(status));
       number_format =
           icu::NumberFormat::createInstance(icu_locale, UNUM_DECIMAL, status);
     }
@@ -256,7 +256,7 @@ Handle<JSObject> JSRelativeTimeFormat::ResolvedOptions(
   Factory* factory = isolate->factory();
   icu::RelativeDateTimeFormatter* formatter =
       format_holder->icu_formatter().raw();
-  CHECK_NOT_NULL(formatter);
+  DCHECK_NOT_NULL(formatter);
   Handle<JSObject> result = factory->NewJSObject(isolate->object_function());
   Handle<String> locale(format_holder->locale(), isolate);
   Handle<String> numberingSystem(format_holder->numberingSystem(), isolate);
@@ -366,7 +366,7 @@ MaybeHandle<T> FormatCommon(
         T);
   }
   icu::RelativeDateTimeFormatter* formatter = format->icu_formatter().raw();
-  CHECK_NOT_NULL(formatter);
+  DCHECK_NOT_NULL(formatter);
   URelativeDateTimeUnit unit_enum;
   if (!GetURelativeDateTimeUnit(unit, &unit_enum)) {
     THROW_NEW_ERROR(

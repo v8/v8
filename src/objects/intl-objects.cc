@@ -438,7 +438,7 @@ Maybe<icu::Locale> CreateICULocale(const std::string& bcp47_locale) {
   UErrorCode status = U_ZERO_ERROR;
 
   icu::Locale icu_locale = icu::Locale::forLanguageTag(bcp47_locale, status);
-  CHECK(U_SUCCESS(status));
+  DCHECK(U_SUCCESS(status));
   if (icu_locale.isBogus()) {
     return Nothing<icu::Locale>();
   }
@@ -586,7 +586,7 @@ Maybe<std::string> Intl::ToLanguageTag(const icu::Locale& locale) {
   if (U_FAILURE(status)) {
     return Nothing<std::string>();
   }
-  CHECK(U_SUCCESS(status));
+  DCHECK(U_SUCCESS(status));
 
   // Hack to remove -true and -yes from unicode extensions
   // Address https://crbug.com/v8/8565
@@ -1371,7 +1371,7 @@ ParsedLocale ParseBCP47Locale(const std::string& locale) {
     // Check to make sure that this really is a grandfathered or
     // privateuse extension. ICU can sometimes mess up the
     // canonicalization.
-    CHECK(locale[0] == 'x' || locale[0] == 'i');
+    DCHECK(locale[0] == 'x' || locale[0] == 'i');
     parsed_locale.no_extensions_locale = locale;
     return parsed_locale;
   }
@@ -1452,7 +1452,7 @@ icu::LocaleMatcher BuildLocaleMatcher(
     UErrorCode* status) {
   icu::Locale default_locale =
       icu::Locale::forLanguageTag(DefaultLocale(isolate), *status);
-  CHECK(U_SUCCESS(*status));
+  DCHECK(U_SUCCESS(*status));
   icu::LocaleMatcher::Builder builder;
   builder.setDefaultLocale(&default_locale);
   for (auto it = available_locales.begin(); it != available_locales.end();
@@ -1476,7 +1476,7 @@ class Iterator : public icu::Locale::Iterator {
   const icu::Locale& next() override {
     UErrorCode status = U_ZERO_ERROR;
     locale_ = icu::Locale::forLanguageTag(iter_->c_str(), status);
-    CHECK(U_SUCCESS(status));
+    DCHECK(U_SUCCESS(status));
     ++iter_;
     return locale_;
   }
@@ -1509,7 +1509,7 @@ std::string BestFitMatcher(Isolate* isolate,
   UErrorCode status = U_ZERO_ERROR;
   icu::LocaleMatcher matcher =
       BuildLocaleMatcher(isolate, available_locales, &status);
-  CHECK(U_SUCCESS(status));
+  DCHECK(U_SUCCESS(status));
 
   Iterator iter(requested_locales.cbegin(), requested_locales.cend());
   std::string bestfit =
@@ -1535,7 +1535,7 @@ std::vector<std::string> BestFitSupportedLocales(
   UErrorCode status = U_ZERO_ERROR;
   icu::LocaleMatcher matcher =
       BuildLocaleMatcher(isolate, available_locales, &status);
-  CHECK(U_SUCCESS(status));
+  DCHECK(U_SUCCESS(status));
 
   std::string default_locale = DefaultLocale(isolate);
   std::vector<std::string> result;
@@ -1951,7 +1951,7 @@ MaybeHandle<String> Intl::Normalize(Isolate* isolate, Handle<String> string,
   const icu::Normalizer2* normalizer =
       icu::Normalizer2::getInstance(nullptr, form_name, form_mode, status);
   DCHECK(U_SUCCESS(status));
-  CHECK_NOT_NULL(normalizer);
+  DCHECK_NOT_NULL(normalizer);
   int32_t normalized_prefix_length =
       normalizer->spanQuickCheckYes(input, status);
   // Quick return if the input is already normalized.

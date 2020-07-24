@@ -266,7 +266,7 @@ class DateTimeFieldNames : public DisplayNamesInternal {
     UErrorCode status = U_ZERO_ERROR;
     generator_.reset(
         icu::DateTimePatternGenerator::createInstance(locale_, status));
-    CHECK(U_SUCCESS(status));
+    DCHECK(U_SUCCESS(status));
   }
   ~DateTimeFieldNames() override = default;
   const char* type() const override { return "dateTimeField"; }
@@ -566,7 +566,7 @@ MaybeHandle<JSDisplayNames> JSDisplayNames::New(Isolate* isolate,
   if (calendar_str != nullptr &&
       Intl::IsValidCalendar(icu_locale, calendar_str.get())) {
     icu_locale.setUnicodeKeywordValue("ca", calendar_str.get(), status);
-    CHECK(U_SUCCESS(status));
+    DCHECK(U_SUCCESS(status));
   }
 
   // 10. Let s be ? GetOption(options, "style", "string",
@@ -689,35 +689,39 @@ Handle<JSObject> JSDisplayNames::ResolvedOptions(
   DisplayNamesInternal* internal = display_names->internal().raw();
 
   Maybe<std::string> maybe_locale = Intl::ToLanguageTag(internal->locale());
-  CHECK(maybe_locale.IsJust());
+  DCHECK(maybe_locale.IsJust());
   Handle<String> locale = isolate->factory()->NewStringFromAsciiChecked(
       maybe_locale.FromJust().c_str());
   Handle<String> style = display_names->StyleAsString();
   Handle<String> type = factory->NewStringFromAsciiChecked(internal->type());
   Handle<String> fallback = display_names->FallbackAsString();
 
-  CHECK(JSReceiver::CreateDataProperty(isolate, options,
-                                       factory->locale_string(), locale,
-                                       Just(kDontThrow))
-            .FromJust());
+  Maybe<bool> maybe_create_locale = JSReceiver::CreateDataProperty(
+      isolate, options, factory->locale_string(), locale, Just(kDontThrow));
+  DCHECK(maybe_create_locale.FromJust());
+  USE(maybe_create_locale);
   if (internal->calendar() != nullptr) {
-    CHECK(JSReceiver::CreateDataProperty(
-              isolate, options, factory->calendar_string(),
-              factory->NewStringFromAsciiChecked(internal->calendar()),
-              Just(kDontThrow))
-              .FromJust());
+    Maybe<bool> maybe_create_calendar = JSReceiver::CreateDataProperty(
+        isolate, options, factory->calendar_string(),
+        factory->NewStringFromAsciiChecked(internal->calendar()),
+        Just(kDontThrow));
+    DCHECK(maybe_create_calendar.FromJust());
+    USE(maybe_create_calendar);
   }
-  CHECK(JSReceiver::CreateDataProperty(
-            isolate, options, factory->style_string(), style, Just(kDontThrow))
-            .FromJust());
+  Maybe<bool> maybe_create_style = JSReceiver::CreateDataProperty(
+      isolate, options, factory->style_string(), style, Just(kDontThrow));
+  DCHECK(maybe_create_style.FromJust());
+  USE(maybe_create_style);
 
-  CHECK(JSReceiver::CreateDataProperty(isolate, options, factory->type_string(),
-                                       type, Just(kDontThrow))
-            .FromJust());
-  CHECK(JSReceiver::CreateDataProperty(isolate, options,
-                                       factory->fallback_string(), fallback,
-                                       Just(kDontThrow))
-            .FromJust());
+  Maybe<bool> maybe_create_type = JSReceiver::CreateDataProperty(
+      isolate, options, factory->type_string(), type, Just(kDontThrow));
+  DCHECK(maybe_create_type.FromJust());
+  USE(maybe_create_type);
+
+  Maybe<bool> maybe_create_fallback = JSReceiver::CreateDataProperty(
+      isolate, options, factory->fallback_string(), fallback, Just(kDontThrow));
+  DCHECK(maybe_create_fallback.FromJust());
+  USE(maybe_create_fallback);
 
   return options;
 }

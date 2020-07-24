@@ -52,15 +52,16 @@ Maybe<CaseFirst> GetCaseFirst(Isolate* isolate, Handle<JSReceiver> options,
 // TODO(gsathya): Consider internalizing the value strings.
 void CreateDataPropertyForOptions(Isolate* isolate, Handle<JSObject> options,
                                   Handle<String> key, const char* value) {
-  CHECK_NOT_NULL(value);
+  DCHECK_NOT_NULL(value);
   Handle<String> value_str =
       isolate->factory()->NewStringFromAsciiChecked(value);
 
   // This is a brand new JSObject that shouldn't already have the same
   // key so this shouldn't fail.
-  CHECK(JSReceiver::CreateDataProperty(isolate, options, key, value_str,
-                                       Just(kDontThrow))
-            .FromJust());
+  Maybe<bool> maybe = JSReceiver::CreateDataProperty(
+      isolate, options, key, value_str, Just(kDontThrow));
+  DCHECK(maybe.FromJust());
+  USE(maybe);
 }
 
 void CreateDataPropertyForOptions(Isolate* isolate, Handle<JSObject> options,
@@ -69,9 +70,10 @@ void CreateDataPropertyForOptions(Isolate* isolate, Handle<JSObject> options,
 
   // This is a brand new JSObject that shouldn't already have the same
   // key so this shouldn't fail.
-  CHECK(JSReceiver::CreateDataProperty(isolate, options, key, value_obj,
-                                       Just(kDontThrow))
-            .FromJust());
+  Maybe<bool> maybe = JSReceiver::CreateDataProperty(
+      isolate, options, key, value_obj, Just(kDontThrow));
+  DCHECK(maybe.FromJust());
+  USE(maybe);
 }
 
 }  // anonymous namespace
@@ -83,12 +85,12 @@ Handle<JSObject> JSCollator::ResolvedOptions(Isolate* isolate,
       isolate->factory()->NewJSObject(isolate->object_function());
 
   icu::Collator* icu_collator = collator->icu_collator().raw();
-  CHECK_NOT_NULL(icu_collator);
+  DCHECK_NOT_NULL(icu_collator);
 
   UErrorCode status = U_ZERO_ERROR;
   bool numeric =
       icu_collator->getAttribute(UCOL_NUMERIC_COLLATION, status) == UCOL_ON;
-  CHECK(U_SUCCESS(status));
+  DCHECK(U_SUCCESS(status));
 
   const char* case_first = nullptr;
   status = U_ZERO_ERROR;
@@ -102,13 +104,13 @@ Handle<JSObject> JSCollator::ResolvedOptions(Isolate* isolate,
     default:
       case_first = "false";
   }
-  CHECK(U_SUCCESS(status));
+  DCHECK(U_SUCCESS(status));
 
   const char* sensitivity = nullptr;
   status = U_ZERO_ERROR;
   switch (icu_collator->getAttribute(UCOL_STRENGTH, status)) {
     case UCOL_PRIMARY: {
-      CHECK(U_SUCCESS(status));
+      DCHECK(U_SUCCESS(status));
       status = U_ZERO_ERROR;
       // case level: true + s1 -> case, s1 -> base.
       if (UCOL_ON == icu_collator->getAttribute(UCOL_CASE_LEVEL, status)) {
@@ -116,7 +118,7 @@ Handle<JSObject> JSCollator::ResolvedOptions(Isolate* isolate,
       } else {
         sensitivity = "base";
       }
-      CHECK(U_SUCCESS(status));
+      DCHECK(U_SUCCESS(status));
       break;
     }
     case UCOL_SECONDARY:
@@ -133,17 +135,17 @@ Handle<JSObject> JSCollator::ResolvedOptions(Isolate* isolate,
     default:
       sensitivity = "variant";
   }
-  CHECK(U_SUCCESS(status));
+  DCHECK(U_SUCCESS(status));
 
   status = U_ZERO_ERROR;
   bool ignore_punctuation = icu_collator->getAttribute(UCOL_ALTERNATE_HANDLING,
                                                        status) == UCOL_SHIFTED;
-  CHECK(U_SUCCESS(status));
+  DCHECK(U_SUCCESS(status));
 
   status = U_ZERO_ERROR;
 
   icu::Locale icu_locale(icu_collator->getLocale(ULOC_VALID_LOCALE, status));
-  CHECK(U_SUCCESS(status));
+  DCHECK(U_SUCCESS(status));
 
   const char* collation = "default";
   const char* usage = "sort";
@@ -172,7 +174,7 @@ Handle<JSObject> JSCollator::ResolvedOptions(Isolate* isolate,
       // locale tag, so let's filter it out.
       status = U_ZERO_ERROR;
       new_icu_locale.setUnicodeKeywordValue(collation_key, nullptr, status);
-      CHECK(U_SUCCESS(status));
+      DCHECK(U_SUCCESS(status));
 
       locale = Intl::ToLanguageTag(new_icu_locale).FromJust();
     } else {
@@ -234,19 +236,19 @@ UColAttributeValue ToUColAttributeValue(CaseFirst case_first) {
 }
 
 void SetNumericOption(icu::Collator* icu_collator, bool numeric) {
-  CHECK_NOT_NULL(icu_collator);
+  DCHECK_NOT_NULL(icu_collator);
   UErrorCode status = U_ZERO_ERROR;
   icu_collator->setAttribute(UCOL_NUMERIC_COLLATION,
                              numeric ? UCOL_ON : UCOL_OFF, status);
-  CHECK(U_SUCCESS(status));
+  DCHECK(U_SUCCESS(status));
 }
 
 void SetCaseFirstOption(icu::Collator* icu_collator, CaseFirst case_first) {
-  CHECK_NOT_NULL(icu_collator);
+  DCHECK_NOT_NULL(icu_collator);
   UErrorCode status = U_ZERO_ERROR;
   icu_collator->setAttribute(UCOL_CASE_FIRST, ToUColAttributeValue(case_first),
                              status);
-  CHECK(U_SUCCESS(status));
+  DCHECK(U_SUCCESS(status));
 }
 
 }  // anonymous namespace
@@ -367,7 +369,7 @@ MaybeHandle<JSCollator> JSCollator::New(Isolate* isolate, Handle<Map> map,
     if (co_extension_it != r.extensions.end() &&
         co_extension_it->second != collation_str.get()) {
       icu_locale.setUnicodeKeywordValue("co", nullptr, status);
-      CHECK(U_SUCCESS(status));
+      DCHECK(U_SUCCESS(status));
     }
   }
 
@@ -390,12 +392,12 @@ MaybeHandle<JSCollator> JSCollator::New(Isolate* isolate, Handle<Map> map,
   if (usage == Usage::SEARCH) {
     UErrorCode status = U_ZERO_ERROR;
     icu_locale.setUnicodeKeywordValue("co", "search", status);
-    CHECK(U_SUCCESS(status));
+    DCHECK(U_SUCCESS(status));
   } else {
     if (collation_str != nullptr &&
         Intl::IsValidCollation(icu_locale, collation_str.get())) {
       icu_locale.setUnicodeKeywordValue("co", collation_str.get(), status);
-      CHECK(U_SUCCESS(status));
+      DCHECK(U_SUCCESS(status));
     }
   }
 
@@ -459,7 +461,7 @@ MaybeHandle<JSCollator> JSCollator::New(Isolate* isolate, Handle<Map> map,
   // that right now).
   status = U_ZERO_ERROR;
   icu_collator->setAttribute(UCOL_NORMALIZATION_MODE, UCOL_ON, status);
-  CHECK(U_SUCCESS(status));
+  DCHECK(U_SUCCESS(status));
 
   // 24. Let sensitivity be ? GetOption(options, "sensitivity",
   // "string", « "base", "accent", "case", "variant" », undefined).
@@ -492,7 +494,7 @@ MaybeHandle<JSCollator> JSCollator::New(Isolate* isolate, Handle<Map> map,
       icu_collator->setStrength(icu::Collator::PRIMARY);
       status = U_ZERO_ERROR;
       icu_collator->setAttribute(UCOL_CASE_LEVEL, UCOL_ON, status);
-      CHECK(U_SUCCESS(status));
+      DCHECK(U_SUCCESS(status));
       break;
     case Sensitivity::kVariant:
       icu_collator->setStrength(icu::Collator::TERTIARY);
@@ -512,7 +514,7 @@ MaybeHandle<JSCollator> JSCollator::New(Isolate* isolate, Handle<Map> map,
   if (found_ignore_punctuation.FromJust() && ignore_punctuation) {
     status = U_ZERO_ERROR;
     icu_collator->setAttribute(UCOL_ALTERNATE_HANDLING, UCOL_SHIFTED, status);
-    CHECK(U_SUCCESS(status));
+    DCHECK(U_SUCCESS(status));
   }
 
   Handle<Managed<icu::Collator>> managed_collator =
