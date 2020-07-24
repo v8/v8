@@ -5,8 +5,11 @@
 import {$} from './helper.mjs';
 
 class State {
+  #mapTimeline;
+  #icTimeline;
+  #timeline;
+  #transitions;
   constructor(mapPanelId, timelinePanelId) {
-    this._timeline = undefined;
     this.mapPanel_ = $(mapPanelId);
     this.timelinePanel_ = $(timelinePanelId);
     this._navigation = new Navigation(this);
@@ -25,26 +28,26 @@ class State {
     this.map = e.detail;
   }
   handleShowMaps(e){
-    this.mapPanel_.mapEntries = e.detail.getUniqueTransitions();
+    this.mapPanel_.mapEntries = e.detail.filter(event =>
+      !event.parent() || !this.has(event.parent()));
   }
-
-  set filteredEntries(value) {
-    this._filteredEntries = value;
-    if (this._filteredEntries) {
-      //TODO(zcankara) update timeline view
-    }
+  get icTimeline() {
+    return this.#icTimeline;
   }
-  get filteredEntries() {
-    return this._filteredEntries;
+  set icTimeline(value) {
+    this.#icTimeline = value;
+  }
+  set transitions(value) {
+    this.mapPanel_.transitions = value;
   }
   get timeline() {
-    return this._timeline;
+    return this.#timeline;
   }
   set timeline(value) {
-    this._timeline = value;
+    this.#timeline = value;
     this.timelinePanel.timelineEntries = value;
     this.timelinePanel.updateTimeline(this.map);
-    this.mapPanel_.updateStats(this.timeline);
+    this.mapPanel_.timeline = this.timeline;
   }
   get chunks() {
     return this.timelinePanel.chunks;

@@ -116,7 +116,7 @@ defineCustomElement('timeline-panel', (templateText) =>
     let total = chunk.size();
     let type, count;
     if (true) {
-      chunk.getTransitionBreakdown().forEach(([type, count]) => {
+      chunk.getBreakdown(map => map.getType()).forEach(([type, count]) => {
         ctx.fillStyle = this.transitionTypeToColor(type);
         let height = count / total * kHeight;
         ctx.fillRect(0, y, kWidth, y + height);
@@ -191,7 +191,6 @@ defineCustomElement('timeline-panel', (templateText) =>
       node.addEventListener('dblclick', e => this.handleChunkDoubleClick(e));
       backgroundTodo.push([chunk, node])
       chunksNode.appendChild(node);
-      chunk.markers.forEach(marker => addTimestamp(marker.time, marker.name));
     }
     this.asyncSetTimelineChunkBackground(backgroundTodo)
 

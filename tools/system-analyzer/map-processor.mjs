@@ -2,6 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+import {Timeline} from './timeline.mjs';
 
 // ===========================================================================
 const kChunkHeight = 250;
@@ -113,7 +114,20 @@ class MapProcessor extends LogReader {
 
   finalize() {
     // TODO(cbruni): print stats;
-    this.timeline_.finalize();
+    this.timeline_.transitions = new Map();
+    let id = 0;
+    this.timeline_.forEach(map => {
+      if (map.isRoot()) id = map.finalizeRootMap(id + 1);
+      if (map.edge && map.edge.name) {
+        let edge = map.edge;
+        let list = this.timeline_.transitions.get(edge.name);
+        if (list === undefined) {
+          this.timeline_.transitions.set(edge.name, [edge]);
+        } else {
+          list.push(edge);
+        }
+      }
+    });
     return this.timeline_;
   }
 
@@ -502,274 +516,6 @@ class Edge {
   }
 }
 
-// ===========================================================================
-class Marker {
-  constructor(time, name) {
-    this.time = parseInt(time);
-    this.name = name;
-  }
-}
-
-// ===========================================================================
-class Timeline {
-  constructor() {
-    this.values = [];
-    this.transitions = new Map();
-    this.markers = [];
-    this.startTime = 0;
-    this.endTime = 0;
-  }
-
-  push(map) {
-    let time = map.time;
-    if (!this.isEmpty() && this.last().time > time) {
-      // Invalid insertion order, might happen without --single-process,
-      // finding insertion point.
-      let insertionPoint = this.find(time);
-      this.values.splice(insertionPoint, map);
-    } else {
-      this.values.push(map);
-    }
-    if (time > 0) {
-      this.endTime = Math.max(this.endTime, time);
-      if (this.startTime === 0) {
-        this.startTime = time;
-      } else {
-        this.startTime = Math.min(this.startTime, time);
-      }
-    }
-  }
-
-  addMarker(time, message) {
-    this.markers.push(new Marker(time, message));
-  }
-
-  finalize() {
-    let id = 0;
-    this.forEach(map => {
-      if (map.isRoot()) id = map.finalizeRootMap(id + 1);
-      if (map.edge && map.edge.name) {
-        let edge = map.edge;
-        let list = this.transitions.get(edge.name);
-        if (list === undefined) {
-          this.transitions.set(edge.name, [edge]);
-        } else {
-          list.push(edge);
-        }
-      }
-    });
-    this.markers.sort((a, b) => b.time - a.time);
-  }
-
-  at(index) {
-    return this.values[index]
-  }
-
-  isEmpty() {
-    return this.size() === 0
-  }
-
-  size() {
-    return this.values.length
-  }
-
-  first() {
-    return this.values.first()
-  }
-
-  last() {
-    return this.values.last()
-  }
-
-  duration() {
-    return this.last().time - this.first().time
-  }
-
-  forEachChunkSize(count, fn) {
-    const increment = this.duration() / count;
-    let currentTime = this.first().time + increment;
-    let index = 0;
-    for (let i = 0; i < count; i++) {
-      let nextIndex = this.find(currentTime, index);
-      let nextTime = currentTime + increment;
-      fn(index, nextIndex, currentTime, nextTime);
-      index = nextIndex
-      currentTime = nextTime;
-    }
-  }
-
-  chunkSizes(count) {
-    let chunks = [];
-    this.forEachChunkSize(count, (start, end) => chunks.push(end - start));
-    return chunks;
-  }
-
-  chunks(count) {
-    let chunks = [];
-    let emptyMarkers = [];
-    this.forEachChunkSize(count, (start, end, startTime, endTime) => {
-      let items = this.values.slice(start, end);
-      let markers = this.markersAt(startTime, endTime);
-      chunks.push(new Chunk(chunks.length, startTime, endTime, items, markers));
-    });
-    return chunks;
-  }
-
-  range(start, end) {
-    const first = this.find(start);
-    if (first < 0) return [];
-    const last = this.find(end, first);
-    return this.values.slice(first, last);
-  }
-
-  find(time, offset = 0) {
-    return this.basicFind(this.values, each => each.time - time, offset);
-  }
-
-  markersAt(startTime, endTime) {
-    let start = this.basicFind(this.markers, each => each.time - startTime);
-    let end = this.basicFind(this.markers, each => each.time - endTime, start);
-    return this.markers.slice(start, end);
-  }
-
-  basicFind(array, cmp, offset = 0) {
-    let min = offset;
-    let max = array.length;
-    while (min < max) {
-      let mid = min + Math.floor((max - min) / 2);
-      let result = cmp(array[mid]);
-      if (result > 0) {
-        max = mid - 1;
-      } else {
-        min = mid + 1;
-      }
-    }
-    return min;
-  }
-
-  count(filter) {
-    return this.values.reduce((sum, each) => {
-      return sum + (filter(each) === true ? 1 : 0);
-    }, 0);
-  }
-
-  filter(predicate) {
-    return this.values.filter(predicate);
-  }
-
-  filterUniqueTransitions(filter) {
-    // Returns a list of Maps whose parent is not in the list.
-    return this.values.filter(map => {
-      if (filter(map) === false) return false;
-      let parent = map.parent();
-      if (parent === undefined) return true;
-      return filter(parent) === false;
-    });
-  }
-
-  depthHistogram() {
-    return this.values.histogram(each => each.depth);
-  }
-
-  fanOutHistogram() {
-    return this.values.histogram(each => each.children.length);
-  }
-
-  forEach(fn) {
-    return this.values.forEach(fn)
-  }
-}
-
-
-
-
-// ===========================================================================
-class Chunk {
-  constructor(index, start, end, items, markers) {
-    this.index = index;
-    this.start = start;
-    this.end = end;
-    this.items = items;
-    this.markers = markers;
-    this.height = 0;
-  }
-
-  isEmpty() {
-    return this.items.length === 0;
-  }
-
-  last() {
-    return this.at(this.size() - 1);
-  }
-
-  first() {
-    return this.at(0);
-  }
-
-  at(index) {
-    return this.items[index];
-  }
-
-  size() {
-    return this.items.length;
-  }
-
-  yOffset(map) {
-    // items[0]   == oldest map, displayed at the top of the chunk
-    // items[n-1] == youngest map, displayed at the bottom of the chunk
-    return (1 - (this.indexOf(map) + 0.5) / this.size()) * this.height;
-  }
-
-  indexOf(map) {
-    return this.items.indexOf(map);
-  }
-
-  has(map) {
-    if (this.isEmpty()) return false;
-    return this.first().time <= map.time && map.time <= this.last().time;
-  }
-
-  next(chunks) {
-    return this.findChunk(chunks, 1);
-  }
-
-  prev(chunks) {
-    return this.findChunk(chunks, -1);
-  }
-
-  findChunk(chunks, delta) {
-    let i = this.index + delta;
-    let chunk = chunks[i];
-    while (chunk && chunk.size() === 0) {
-      i += delta;
-      chunk = chunks[i]
-    }
-    return chunk;
-  }
-
-  getTransitionBreakdown() {
-    return BreakDown(this.items, map => map.getType())
-  }
-
-  getUniqueTransitions() {
-    // Filter out all the maps that have parents within the same chunk.
-    return this.items.filter(map => !map.parent() || !this.has(map.parent()));
-  }
-}
-
-// ===========================================================================
-function BreakDown(list, map_fn) {
-  if (map_fn === void 0) {
-    map_fn = each => each;
-  }
-  let breakdown = {__proto__: null};
-  list.forEach(each => {
-    let type = map_fn(each);
-    let v = breakdown[type];
-    breakdown[type] = (v | 0) + 1
-  });
-  return Object.entries(breakdown).sort((a, b) => a[1] - b[1]);
-}
 
 // ===========================================================================
 class ArgumentsProcessor extends BaseArgumentsProcessor {

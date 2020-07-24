@@ -55,6 +55,12 @@ defineCustomElement('map-panel', (templateText) =>
     this.statsPanel.timeline = value;
     this.statsPanel.update();
   }
+  get transitions() {
+    return this.statsPanel.transitions;
+  }
+  set transitions(value) {
+    this.statsPanel.transitions = value;
+  }
 
   set map(value) {
     this.#map = value;
@@ -77,10 +83,6 @@ defineCustomElement('map-panel', (templateText) =>
     }
     this.dispatchEvent(new CustomEvent(
       'click', {bubbles: true, composed: true, detail: dataModel}));
-  }
-
-  updateStats(timeline) {
-    this.timeline = timeline;
   }
 
   set mapEntries(list){

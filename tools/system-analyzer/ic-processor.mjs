@@ -2,6 +2,8 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+import {Timeline} from './timeline.mjs';
+
 /**
  * Parser for dynamic code optimization state.
  */
@@ -174,9 +176,9 @@ IcProcessor.kProperties = [
 ];
 
 class CustomIcProcessor extends IcProcessor {
+  #timeline = new Timeline();
   constructor() {
     super();
-    this.entries = [];
   }
 
   functionName(pc) {
@@ -188,9 +190,20 @@ class CustomIcProcessor extends IcProcessor {
       type, pc, time, line, column, old_state, new_state, map, key, modifier,
       slow_reason) {
     let fnName = this.functionName(pc);
-    this.entries.push(new Entry(
-        type, fnName, time, line, column, key, old_state, new_state, map,
-        slow_reason));
+    let entry = new Entry(
+      type, fnName, time, line, column, key, old_state, new_state, map,
+      slow_reason);
+    this.#timeline.push(entry);
+  }
+
+
+  get timeline(){
+    return this.#timeline;
+  }
+
+  processString(string) {
+    super.processString(string);
+    return this.timeline;
   }
 };
 

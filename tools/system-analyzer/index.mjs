@@ -10,6 +10,7 @@ import './timeline-panel.mjs';
 import './map-panel.mjs';
 import './log-file-reader.mjs';
 class App {
+  #timeSelection = {start: 0, end: Infinity};
   constructor(fileReaderId, mapPanelId, timelinePanelId, icPanelId) {
     this.mapPanelId_ =  mapPanelId;
     this.timelinePanelId_ =  timelinePanelId;
@@ -27,7 +28,6 @@ class App {
       'mapclick', e => this.handleMapClick(e));
     this.icPanel_.addEventListener(
       'filepositionclick', e => this.handleFilePositionClick(e));
-    this.entries = undefined;
   }
 
   handleFileUpload(e){
@@ -43,10 +43,11 @@ class App {
   }
 
   handleICTimeFilter(event) {
-    let filteredEntries =  this.entries.filter(
-      e => e.time >= event.detail.startTime && e.time <= event.detail.endTime);
-    console.log("filtered entries: ", filteredEntries);
-    this.icPanel_.filteredEntries = filteredEntries;
+    this.#timeSelection.start = event.detail.startTime;
+    this.#timeSelection.end = event.detail.endTime;
+    document.state.icTimeline.selectTimeRange(this.#timeSelection.start,
+      this.#timeSelection.end);
+    this.icPanel_.filteredEntries = document.state.icTimeline.selection;
   }
 
 
@@ -97,11 +98,11 @@ class App {
     let reader = new FileReader();
     reader.onload = (evt) => {
       let icProcessor = new CustomIcProcessor();
-      icProcessor.processString(fileData.chunk);
-      let entries = icProcessor.entries;
-      this.entries = entries;
-      this.icPanel_.filteredEntries = entries;
-      this.icPanel_.count.innerHTML = entries.length;
+      //TODO(zcankara) Assign timeline directly to the ic panel
+      //TODO(zcankara) Exe: this.icPanel_.timeline = document.state.icTimeline
+      document.state.icTimeline = icProcessor.processString(fileData.chunk);
+      this.icPanel_.filteredEntries = document.state.icTimeline.all;
+      this.icPanel_.count.innerHTML = document.state.icTimeline.all.length;
     }
     reader.readAsText(fileData.file);
     this.icPanel_.initGroupKeySelect();
@@ -115,7 +116,10 @@ class App {
     let fileData = e.detail;
     document.state = new State(this.mapPanelId_, this.timelinePanelId_);
     try {
-      document.state.timeline = this.handleLoadTextMapProcessor(fileData.chunk);
+      const timeline = this.handleLoadTextMapProcessor(fileData.chunk);
+      // Transitions must be set before timeline for stats panel.
+      document.state.transitions= timeline.transitions;
+      document.state.timeline = timeline;
     } catch (error) {
       console.log(error);
     }
@@ -133,8 +137,8 @@ class App {
 
   handleSelectIc(e){
     if(!e.detail) return;
-    // Set selected IC events on the View
-    document.state.filteredEntries = e.detail;
+    //TODO(zcankara) Send filtered entries to State
+    console.log("filtered IC entried: ", e.detail)
   }
 }
 

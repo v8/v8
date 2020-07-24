@@ -21,6 +21,24 @@ defineCustomElement('stats-panel', (templateText) =>
   get timeline(){
     return this.timeline_;
   }
+  //TODO(zcankare) Depreciate timeline
+  set transitions(value){
+    this.transitions_ = value;
+  }
+
+  get transitions(){
+    return this.transitions_;
+  }
+
+  filterUniqueTransitions(filter) {
+    // Returns a list of Maps whose parent is not in the list.
+    return this.timeline.filter(map => {
+      if (filter(map) === false) return false;
+      let parent = map.parent();
+      if (parent === undefined) return true;
+      return filter(parent) === false;
+    });
+  }
 
   update() {
     this.removeAllChildren(this.stats);
@@ -54,7 +72,6 @@ defineCustomElement('stats-panel', (templateText) =>
     tableNode.innerHTML =
         '<thead><tr><td>Color</td><td>Type</td><td>Count</td><td>Percent</td></tr></thead>';
     let name, filter;
-    //TODO(zc) timeline
     let total = this.timeline.size();
     pairs.forEach(([name, color, filter]) => {
       let row = this.tr();
@@ -67,7 +84,7 @@ defineCustomElement('stats-panel', (templateText) =>
         // lazily compute the stats
         let node = e.target.parentNode;
         if (node.maps == undefined) {
-          node.maps = this.timeline.filterUniqueTransitions(filter);
+          node.maps = this.filterUniqueTransitions(filter);
         }
         this.dispatchEvent(new CustomEvent(
           'change', {bubbles: true, composed: true, detail: node.maps}));
@@ -84,7 +101,7 @@ defineCustomElement('stats-panel', (templateText) =>
 
   updateNamedTransitionsStats() {
     let tableNode = this.table('transitionTable');
-    let nameMapPairs = Array.from(this.timeline.transitions.entries());
+    let nameMapPairs = Array.from(this.transitions.entries());
     tableNode.innerHTML =
         '<thead><tr><td>Propery Name</td><td>#</td></tr></thead>';
     nameMapPairs.sort((a, b) => b[1].length - a[1].length).forEach(([
@@ -95,7 +112,8 @@ defineCustomElement('stats-panel', (templateText) =>
      row.addEventListener(
       'click',
       e => this.dispatchEvent(new CustomEvent(
-        'change', {bubbles: true, composed: true, detail: e.target.parentNode.maps.map(map => map.to)})));
+        'change', {bubbles: true, composed: true,
+          detail: e.target.parentNode.maps.map(map => map.to)})));
       row.appendChild(this.td(name));
       row.appendChild(this.td(maps.length));
       tableNode.appendChild(row);
