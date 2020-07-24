@@ -300,6 +300,11 @@ class Config(object):
     return return_code
 
   def RunTests(self):
+    # Special handling for "mkgrokdump": if it was built, run it.
+    if (self.arch == "x64" and self.mode == "release" and
+        "mkgrokdump" in self.targets):
+      _Call("%s/mkgrokdump > tools/v8heapconst.py" %
+            GetPath(self.arch, self.mode))
     if not self.tests: return 0
     if "ALL" in self.tests:
       tests = ""
@@ -352,6 +357,10 @@ class ArgumentParser(object):
     targets = []
     actions = []
     tests = []
+    # Special handling for "mkgrokdump": build it for x64.release.
+    if argstring == "mkgrokdump":
+      self.PopulateConfigs(["x64"], ["release"], ["mkgrokdump"], [])
+      return
     # Specifying a single unit test looks like "unittests/Foo.Bar", test262
     # tests have names like "S15.4.4.7_A4_T1", don't split these.
     if argstring.startswith("unittests/") or argstring.startswith("test262/"):
