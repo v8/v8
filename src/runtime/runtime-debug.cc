@@ -304,6 +304,15 @@ MaybeHandle<JSArray> Runtime::GetInternalProperties(Isolate* isolate,
     result->set(0, *primitive_value);
     result->set(1, js_value->value());
     return factory->NewJSArrayWithElements(result);
+  } else if (object->IsJSArrayBuffer()) {
+    Handle<JSArrayBuffer> js_array_buffer = Handle<JSArrayBuffer>::cast(object);
+    Handle<FixedArray> result = factory->NewFixedArray(1 * 2);
+
+    Handle<String> is_detached_str =
+        factory->NewStringFromAsciiChecked("[[IsDetached]]");
+    result->set(0, *is_detached_str);
+    result->set(1, isolate->heap()->ToBoolean(js_array_buffer->was_detached()));
+    return factory->NewJSArrayWithElements(result);
   }
   return factory->NewJSArray(0);
 }
