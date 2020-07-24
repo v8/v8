@@ -29,8 +29,7 @@ function getShortLocationString(location) {
   return `${location.lineNumber}:${location.columnNumber}`;
 }
 
-let actions =
-    ['stepInto', 'resume', 'stepInto', 'resume', 'stepInfo', 'resume'];
+let actions = ['stepInto', 'resume', 'stepInto', 'resume'];
 Protocol.Debugger.onPaused(async msg => {
   InspectorTest.log('Paused at:');
   for (let [nr, frame] of msg.params.callFrames.entries()) {
@@ -40,6 +39,10 @@ Protocol.Debugger.onPaused(async msg => {
   }
   InspectorTest.log('-------------');
   let action = actions.shift();
+  if (!action) {
+    InspectorTest.log('ERROR: no more expected action');
+    action = 'resume';
+  }
   InspectorTest.log(`-> ${action}`);
   Protocol.Debugger[action]();
 });
