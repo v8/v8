@@ -4191,33 +4191,26 @@ TNode<FixedArrayBase> CodeStubAssembler::ExtractFixedArray(
 }
 
 void CodeStubAssembler::InitializePropertyArrayLength(
-    TNode<PropertyArray> property_array, Node* length, ParameterMode mode) {
-  CSA_ASSERT(
-      this, IntPtrOrSmiGreaterThan(length, IntPtrOrSmiConstant(0, mode), mode));
-  CSA_ASSERT(
-      this,
-      IntPtrOrSmiLessThanOrEqual(
-          length, IntPtrOrSmiConstant(PropertyArray::LengthField::kMax, mode),
-          mode));
-  StoreObjectFieldNoWriteBarrier(property_array,
-                                 PropertyArray::kLengthAndHashOffset,
-                                 ParameterToTagged(length, mode));
+    TNode<PropertyArray> property_array, TNode<IntPtrT> length) {
+  CSA_ASSERT(this, IntPtrGreaterThan(length, IntPtrConstant(0)));
+  CSA_ASSERT(this,
+             IntPtrLessThanOrEqual(
+                 length, IntPtrConstant(PropertyArray::LengthField::kMax)));
+  StoreObjectFieldNoWriteBarrier(
+      property_array, PropertyArray::kLengthAndHashOffset, SmiTag(length));
 }
 
 TNode<PropertyArray> CodeStubAssembler::AllocatePropertyArray(
-    Node* capacity_node, ParameterMode mode, AllocationFlags flags) {
-  CSA_SLOW_ASSERT(this, MatchesParameterMode(capacity_node, mode));
-  CSA_ASSERT(this, IntPtrOrSmiGreaterThan(capacity_node,
-                                          IntPtrOrSmiConstant(0, mode), mode));
-  TNode<IntPtrT> total_size =
-      GetPropertyArrayAllocationSize(capacity_node, mode);
+    TNode<IntPtrT> capacity) {
+  CSA_ASSERT(this, IntPtrGreaterThan(capacity, IntPtrConstant(0)));
+  TNode<IntPtrT> total_size = GetPropertyArrayAllocationSize(capacity);
 
-  TNode<HeapObject> array = Allocate(total_size, flags);
+  TNode<HeapObject> array = Allocate(total_size, kNone);
   RootIndex map_index = RootIndex::kPropertyArrayMap;
   DCHECK(RootsTable::IsImmortalImmovable(map_index));
   StoreMapNoWriteBarrier(array, map_index);
   TNode<PropertyArray> property_array = CAST(array);
-  InitializePropertyArrayLength(property_array, capacity_node, mode);
+  InitializePropertyArrayLength(property_array, capacity);
   return property_array;
 }
 

@@ -1924,13 +1924,9 @@ TNode<PropertyArray> AccessorAssembler::ExtendPropertiesBackingStore(
     TNode<HeapObject> object, TNode<IntPtrT> index) {
   Comment("[ Extend storage");
 
-  ParameterMode mode = OptimalParameterMode();
-
-  // TODO(gsathya): Clean up the type conversions by creating smarter
-  // helpers that do the correct op based on the mode.
   TVARIABLE(HeapObject, var_properties);
   TVARIABLE(Int32T, var_encoded_hash);
-  TVARIABLE(BInt, var_length);
+  TVARIABLE(IntPtrT, var_length);
 
   TNode<Object> properties =
       LoadObjectField(object, JSObject::kPropertiesOrHashOffset);
@@ -1944,7 +1940,7 @@ TNode<PropertyArray> AccessorAssembler::ExtendPropertiesBackingStore(
     TNode<Int32T> encoded_hash =
         Word32Shl(hash, Int32Constant(PropertyArray::HashField::kShift));
     var_encoded_hash = encoded_hash;
-    var_length = BIntConstant(0);
+    var_length = IntPtrConstant(0);
     var_properties = EmptyFixedArrayConstant();
     Goto(&extend_store);
   }
@@ -1956,10 +1952,9 @@ TNode<PropertyArray> AccessorAssembler::ExtendPropertiesBackingStore(
         var_properties.value(), PropertyArray::kLengthAndHashOffset);
     var_encoded_hash = Word32And(
         length_and_hash_int32, Int32Constant(PropertyArray::HashField::kMask));
-    TNode<IntPtrT> length_intptr = ChangeInt32ToIntPtr(
+    var_length = ChangeInt32ToIntPtr(
         Word32And(length_and_hash_int32,
                   Int32Constant(PropertyArray::LengthField::kMask)));
-    var_length = IntPtrToBInt(length_intptr);
     Goto(&extend_store);
   }
 
@@ -1973,36 +1968,31 @@ TNode<PropertyArray> AccessorAssembler::ExtendPropertiesBackingStore(
     GotoIf(UintPtrLessThan(index, ParameterToIntPtr(var_length.value())),
            &done);
 
-    TNode<BInt> delta = BIntConstant(JSObject::kFieldsAdded);
-    TNode<BInt> new_capacity = IntPtrOrSmiAdd(var_length.value(), delta);
+    TNode<IntPtrT> delta = IntPtrConstant(JSObject::kFieldsAdded);
+    TNode<IntPtrT> new_capacity = IntPtrAdd(var_length.value(), delta);
 
     // Grow properties array.
     DCHECK(kMaxNumberOfDescriptors + JSObject::kFieldsAdded <
            FixedArrayBase::GetMaxLengthForNewSpaceAllocation(PACKED_ELEMENTS));
     // The size of a new properties backing store is guaranteed to be small
     // enough that the new backing store will be allocated in new space.
-    CSA_ASSERT(this, UintPtrOrSmiLessThan(
-                         new_capacity,
-                         IntPtrOrSmiConstant<BInt>(kMaxNumberOfDescriptors +
+    CSA_ASSERT(this, IntPtrLessThan(new_capacity,
+                                    IntPtrConstant(kMaxNumberOfDescriptors +
                                                    JSObject::kFieldsAdded)));
 
-    TNode<PropertyArray> new_properties =
-        AllocatePropertyArray(new_capacity, mode);
+    TNode<PropertyArray> new_properties = AllocatePropertyArray(new_capacity);
     var_new_properties = new_properties;
 
     FillPropertyArrayWithUndefined(new_properties, var_length.value(),
-                                   new_capacity, mode);
+                                   new_capacity);
 
     // |new_properties| is guaranteed to be in new space, so we can skip
     // the write barrier.
     CopyPropertyArrayValues(var_properties.value(), new_properties,
-                            var_length.value(), SKIP_WRITE_BARRIER, mode,
-                            DestroySource::kYes);
+                            var_length.value(), SKIP_WRITE_BARRIER,
+                            INTPTR_PARAMETERS, DestroySource::kYes);
 
-    // TODO(gsathya): Clean up the type conversions by creating smarter
-    // helpers that do the correct op based on the mode.
-    TNode<Int32T> new_capacity_int32 =
-        TruncateIntPtrToInt32(ParameterToIntPtr(new_capacity));
+    TNode<Int32T> new_capacity_int32 = TruncateIntPtrToInt32(new_capacity);
     TNode<Int32T> new_length_and_hash_int32 =
         Word32Or(var_encoded_hash.value(), new_capacity_int32);
     StoreObjectField(new_properties, PropertyArray::kLengthAndHashOffset,
@@ -4066,7 +4056,7 @@ void AccessorAssembler::GenerateCloneObjectIC() {
       GotoIf(IntPtrEqual(length, IntPtrConstant(0)), &allocate_object);
 
       auto mode = INTPTR_PARAMETERS;
-      TNode<PropertyArray> property_array = AllocatePropertyArray(length, mode);
+      TNode<PropertyArray> property_array = AllocatePropertyArray(length);
       FillPropertyArrayWithUndefined(property_array, IntPtrConstant(0), length,
                                      mode);
       CopyPropertyArrayValues(source_property_array, property_array, length,

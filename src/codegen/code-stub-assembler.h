@@ -1247,7 +1247,7 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
   // This is only used on a newly allocated PropertyArray which
   // doesn't have an existing hash.
   void InitializePropertyArrayLength(TNode<PropertyArray> property_array,
-                                     Node* length, ParameterMode mode);
+                                     TNode<IntPtrT> length);
 
   // Check if the map is set for slow properties.
   TNode<BoolT> IsDictionaryMap(SloppyTNode<Map> map);
@@ -1933,9 +1933,7 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
     return result;
   }
 
-  TNode<PropertyArray> AllocatePropertyArray(
-      Node* capacity, ParameterMode mode = INTPTR_PARAMETERS,
-      AllocationFlags flags = kNone);
+  TNode<PropertyArray> AllocatePropertyArray(TNode<IntPtrT> capacity);
 
   // TODO(v8:9722): Return type should be JSIteratorResult
   TNode<JSObject> AllocateJSIteratorResult(SloppyTNode<Context> context,
@@ -3385,9 +3383,8 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
                                   FixedArray::kHeaderSize);
   }
 
-  TNode<IntPtrT> GetPropertyArrayAllocationSize(Node* element_count,
-                                                ParameterMode mode) {
-    return GetArrayAllocationSize(element_count, PACKED_ELEMENTS, mode,
+  TNode<IntPtrT> GetPropertyArrayAllocationSize(TNode<IntPtrT> element_count) {
+    return GetArrayAllocationSize(element_count, PACKED_ELEMENTS,
                                   PropertyArray::kHeaderSize);
   }
 
