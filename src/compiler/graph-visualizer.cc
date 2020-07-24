@@ -1211,6 +1211,7 @@ std::ostream& operator<<(std::ostream& os, const InstructionOperandAsJSON& o) {
          << MachineReprToString(allocated->representation()) << "\"";
       break;
     }
+    case InstructionOperand::PENDING:
     case InstructionOperand::INVALID:
       UNREACHABLE();
   }

@@ -284,6 +284,7 @@ UsePositionHintType UsePosition::HintTypeForOperand(
         DCHECK(op.IsStackSlot() || op.IsFPStackSlot());
         return UsePositionHintType::kNone;
       }
+    case InstructionOperand::PENDING:
     case InstructionOperand::INVALID:
       break;
   }
