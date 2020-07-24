@@ -3623,6 +3623,11 @@ void LiftoffAssembler::CallIndirect(const wasm::FunctionSig* sig,
   Call(target);
 }
 
+void LiftoffAssembler::TailCallIndirect(Register target) {
+  DCHECK(target != no_reg);
+  Jump(target);
+}
+
 void LiftoffAssembler::CallRuntimeStub(WasmCode::RuntimeStubId sid) {
   // A direct call to a wasm runtime stub defined in this module.
   // Just encode the stub index. This will be patched at relocation.
