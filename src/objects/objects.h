@@ -78,6 +78,7 @@
 //         - JSPluralRules         // If V8_INTL_SUPPORT enabled.
 //         - JSRelativeTimeFormat  // If V8_INTL_SUPPORT enabled.
 //         - JSSegmenter           // If V8_INTL_SUPPORT enabled.
+//         - JSSegments            // If V8_INTL_SUPPORT enabled.
 //         - JSSegmentIterator     // If V8_INTL_SUPPORT enabled.
 //         - JSV8BreakIterator     // If V8_INTL_SUPPORT enabled.
 //         - WasmExceptionObject

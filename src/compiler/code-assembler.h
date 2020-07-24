@@ -62,6 +62,7 @@ class JSRegExpStringIterator;
 class JSRelativeTimeFormat;
 class JSSegmentIterator;
 class JSSegmenter;
+class JSSegments;
 class JSV8BreakIterator;
 class JSWeakCollection;
 class JSFinalizationRegistry;
