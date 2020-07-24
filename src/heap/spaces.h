@@ -369,13 +369,18 @@ class PageRange {
 // space.
 class LinearAllocationArea {
  public:
-  LinearAllocationArea() : top_(kNullAddress), limit_(kNullAddress) {}
-  LinearAllocationArea(Address top, Address limit) : top_(top), limit_(limit) {}
+  LinearAllocationArea()
+      : start_(kNullAddress), top_(kNullAddress), limit_(kNullAddress) {}
+  LinearAllocationArea(Address top, Address limit)
+      : start_(top), top_(top), limit_(limit) {}
 
   void Reset(Address top, Address limit) {
+    start_ = top;
     set_top(top);
     set_limit(limit);
   }
+
+  V8_INLINE Address start() const { return start_; }
 
   V8_INLINE void set_top(Address top) {
     SLOW_DCHECK(top == kNullAddress || (top & kHeapObjectTagMask) == 0);
@@ -404,6 +409,8 @@ class LinearAllocationArea {
 #endif
 
  private:
+  // Current allocation top.
+  Address start_;
   // Current allocation top.
   Address top_;
   // Current allocation limit.
