@@ -499,7 +499,7 @@ class WasmGraphBuildingInterface {
   }
 
   void SimdLaneOp(FullDecoder* decoder, WasmOpcode opcode,
-                  const SimdLaneImmediate<validate> imm, Vector<Value> inputs,
+                  const SimdLaneImmediate<validate>& imm, Vector<Value> inputs,
                   Value* result) {
     base::SmallVector<TFNode*, 8> nodes(inputs.size());
     GetNodes(nodes.begin(), inputs);
@@ -632,7 +632,7 @@ class WasmGraphBuildingInterface {
   }
 
   void TableGrow(FullDecoder* decoder, const TableIndexImmediate<validate>& imm,
-                 Value& value, Value& delta, Value* result) {
+                 const Value& value, const Value& delta, Value* result) {
     result->node = BUILD(TableGrow, imm.index, value.node, delta.node);
   }
 
@@ -642,7 +642,7 @@ class WasmGraphBuildingInterface {
   }
 
   void TableFill(FullDecoder* decoder, const TableIndexImmediate<validate>& imm,
-                 Value& start, Value& value, Value& count) {
+                 const Value& start, const Value& value, const Value& count) {
     BUILD(TableFill, imm.index, start.node, value.node, count.node);
   }
 

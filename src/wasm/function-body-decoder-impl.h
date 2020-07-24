@@ -899,7 +899,8 @@ struct ControlBase {
   F(LoadMem, LoadType type, const MemoryAccessImmediate<validate>& imm,        \
     const Value& index, Value* result)                                         \
   F(LoadTransform, LoadType type, LoadTransformationKind transform,            \
-    MemoryAccessImmediate<validate>& imm, const Value& index, Value* result)   \
+    const MemoryAccessImmediate<validate>& imm, const Value& index,            \
+    Value* result)                                                             \
   F(StoreMem, StoreType type, const MemoryAccessImmediate<validate>& imm,      \
     const Value& index, const Value& value)                                    \
   F(CurrentMemoryPages, Value* result)                                         \
