@@ -499,14 +499,14 @@ std::pair<MaybeObject, MaybeObject> NexusConfig::GetFeedbackPair(
 }
 
 FeedbackNexus::FeedbackNexus(Handle<FeedbackVector> vector, FeedbackSlot slot)
-    : vector_handle_(vector),
-      slot_(slot),
-      g_(GetIsolate()->feedback_nexus_config()) {
+    : vector_handle_(vector), slot_(slot) {
+  g_ = vector.is_null() ? nullptr : GetIsolate()->feedback_nexus_config();
   kind_ = vector.is_null() ? FeedbackSlotKind::kInvalid : vector->GetKind(slot);
 }
 
 FeedbackNexus::FeedbackNexus(FeedbackVector vector, FeedbackSlot slot)
-    : vector_(vector), slot_(slot), g_(GetIsolate()->feedback_nexus_config()) {
+    : vector_(vector), slot_(slot) {
+  g_ = vector.is_null() ? nullptr : GetIsolate()->feedback_nexus_config();
   kind_ = vector.is_null() ? FeedbackSlotKind::kInvalid : vector.GetKind(slot);
 }
 
