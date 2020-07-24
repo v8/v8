@@ -21,6 +21,7 @@ class TickCounter;
 
 namespace compiler {
 
+class SinglePassRegisterAllocator;
 class VirtualRegisterData;
 
 // The MidTierRegisterAllocator is a register allocator specifically designed to
@@ -41,6 +42,15 @@ class MidTierRegisterAllocationData final : public RegisterAllocationData {
 
   VirtualRegisterData& VirtualRegisterDataFor(int virtual_register);
   MachineRepresentation RepresentationFor(int virtual_register);
+
+  // Add a gap move between the given operands |from| and |to|.
+  MoveOperands* AddGapMove(int instr_index, Instruction::GapPosition position,
+                           const InstructionOperand& from,
+                           const InstructionOperand& to);
+
+  // Helpers to get a block from an |rpo_number| or |instr_index|.
+  const InstructionBlock* GetBlock(const RpoNumber rpo_number);
+  const InstructionBlock* GetBlock(int instr_index);
 
   // List of all instruction indexs that require a reference map.
   ZoneVector<int>& reference_map_instructions() {
@@ -85,12 +95,30 @@ class MidTierRegisterAllocator final {
   // is defined.
   void DefineOutputs();
 
-  // TODO(rmcilroy): Phase 2 - allocate registers to instructions.
+  // Phase 2: Allocate registers to instructions.
+  void AllocateRegisters();
 
  private:
   // Define outputs operations.
   void InitializeBlockState(const InstructionBlock* block);
   void DefineOutputs(const InstructionBlock* block);
+
+  // Allocate registers operations.
+  void AllocateRegisters(const InstructionBlock* block);
+
+  bool IsFixedRegisterPolicy(const UnallocatedOperand* operand);
+  void ReserveFixedRegisters(int instr_index);
+
+  SinglePassRegisterAllocator& AllocatorFor(MachineRepresentation rep);
+  SinglePassRegisterAllocator& AllocatorFor(const UnallocatedOperand* operand);
+  SinglePassRegisterAllocator& AllocatorFor(const ConstantOperand* operand);
+
+  SinglePassRegisterAllocator& general_reg_allocator() {
+    return *general_reg_allocator_;
+  }
+  SinglePassRegisterAllocator& double_reg_allocator() {
+    return *double_reg_allocator_;
+  }
 
   VirtualRegisterData& VirtualRegisterDataFor(int virtual_register) const {
     return data()->VirtualRegisterDataFor(virtual_register);
@@ -103,6 +131,8 @@ class MidTierRegisterAllocator final {
   Zone* allocation_zone() const { return data()->allocation_zone(); }
 
   MidTierRegisterAllocationData* data_;
+  std::unique_ptr<SinglePassRegisterAllocator> general_reg_allocator_;
+  std::unique_ptr<SinglePassRegisterAllocator> double_reg_allocator_;
 
   DISALLOW_COPY_AND_ASSIGN(MidTierRegisterAllocator);
 };

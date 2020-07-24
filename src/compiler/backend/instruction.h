@@ -311,8 +311,8 @@ class UnallocatedOperand final : public InstructionOperand {
 
   // [lifetime]: Only for non-FIXED_SLOT.
   bool IsUsedAtStart() const {
-    DCHECK(basic_policy() == EXTENDED_POLICY);
-    return LifetimeField::decode(value_) == USED_AT_START;
+    return basic_policy() == EXTENDED_POLICY &&
+           LifetimeField::decode(value_) == USED_AT_START;
   }
 
   INSTRUCTION_OPERAND_CASTS(UnallocatedOperand, UNALLOCATED)

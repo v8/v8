@@ -2287,6 +2287,7 @@ struct MidTierRegisterAllocatorPhase {
     MidTierRegisterAllocator allocator(
         data->mid_tier_register_allocator_data());
     allocator.DefineOutputs();
+    allocator.AllocateRegisters();
   }
 };
 
@@ -2299,7 +2300,6 @@ struct OptimizeMovesPhase {
   }
 };
 
-
 struct FrameElisionPhase {
   DECL_PIPELINE_PHASE_CONSTANTS(FrameElision)
 
@@ -2307,7 +2307,6 @@ struct FrameElisionPhase {
     FrameElider(data->sequence()).Run();
   }
 };
-
 
 struct JumpThreadingPhase {
   DECL_PIPELINE_PHASE_CONSTANTS(JumpThreading)
