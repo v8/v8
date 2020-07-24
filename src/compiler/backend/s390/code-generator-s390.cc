@@ -2420,10 +2420,13 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       Label done;
       __ ConvertFloat32ToInt32(i.OutputRegister(0), i.InputDoubleRegister(0),
                                kRoundToZero);
-      __ b(Condition(0xE), &done, Label::kNear);  // normal case
-      // Use INT32_MIN s an overflow indicator because it allows for easier
-      // out-of-bounds detection.
-      __ llilh(i.OutputRegister(0), Operand(0x8000));
+      bool set_overflow_to_min_i32 = MiscField::decode(instr->opcode());
+      if (set_overflow_to_min_i32) {
+        // Avoid INT32_MAX as an overflow indicator and use INT32_MIN instead,
+        // because INT32_MIN allows easier out-of-bounds detection.
+        __ b(Condition(0xE), &done, Label::kNear);  // normal case
+        __ llilh(i.OutputRegister(0), Operand(0x8000));
+      }
       __ bind(&done);
       break;
     }
@@ -2431,8 +2434,13 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       Label done;
       __ ConvertFloat32ToUnsignedInt32(i.OutputRegister(0),
                                        i.InputDoubleRegister(0));
-      __ b(Condition(0xE), &done, Label::kNear);  // normal case
-      __ lghi(i.OutputRegister(0), Operand::Zero());
+      bool set_overflow_to_min_u32 = MiscField::decode(instr->opcode());
+      if (set_overflow_to_min_u32) {
+        // Avoid UINT32_MAX as an overflow indicator and use 0 instead,
+        // because 0 allows easier out-of-bounds detection.
+        __ b(Condition(0xE), &done, Label::kNear);  // normal case
+        __ lghi(i.OutputRegister(0), Operand::Zero());
+      }
       __ bind(&done);
       break;
     }

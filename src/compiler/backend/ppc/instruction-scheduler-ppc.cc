@@ -93,6 +93,7 @@ int InstructionScheduler::GetTargetInstructionFlags(
     case kPPC_Uint32ToFloat32:
     case kPPC_Uint32ToDouble:
     case kPPC_Float32ToInt32:
+    case kPPC_Float32ToUint32:
     case kPPC_Float32ToDouble:
     case kPPC_Float64SilenceNaN:
     case kPPC_DoubleToInt32:

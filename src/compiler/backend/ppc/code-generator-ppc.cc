@@ -1852,17 +1852,42 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       DCHECK_EQ(LeaveRC, i.OutputRCBit());
       break;
     case kPPC_Float32ToInt32: {
-      __ mtfsb0(VXCVI);  // clear FPSCR:VXCVI bit
+      bool set_overflow_to_min_i32 = MiscField::decode(instr->opcode());
+      if (set_overflow_to_min_i32) {
+        __ mtfsb0(VXCVI);  // clear FPSCR:VXCVI bit
+      }
       __ fctiwz(kScratchDoubleReg, i.InputDoubleRegister(0));
       __ MovDoubleLowToInt(i.OutputRegister(), kScratchDoubleReg);
-      // Use INT32_MIN s an overflow indicator because it allows for easier
-      // out-of-bounds detection.
-      CRegister cr = cr7;
-      int crbit = v8::internal::Assembler::encode_crbit(
-          cr, static_cast<CRBit>(VXCVI % CRWIDTH));
-      __ mcrfs(cr, VXCVI);  // extract FPSCR field containing VXCVI into cr7
-      __ lis(kScratchReg, Operand(static_cast<int16_t>(0x8000)));
-      __ isel(i.OutputRegister(0), kScratchReg, i.OutputRegister(0), crbit);
+      if (set_overflow_to_min_i32) {
+        // Avoid INT32_MAX as an overflow indicator and use INT32_MIN instead,
+        // because INT32_MIN allows easier out-of-bounds detection.
+        CRegister cr = cr7;
+        int crbit = v8::internal::Assembler::encode_crbit(
+            cr, static_cast<CRBit>(VXCVI % CRWIDTH));
+        __ mcrfs(cr, VXCVI);  // extract FPSCR field containing VXCVI into cr7
+        __ li(kScratchReg, Operand(1));
+        __ sldi(kScratchReg, kScratchReg, Operand(31));  // generate INT32_MIN.
+        __ isel(i.OutputRegister(0), kScratchReg, i.OutputRegister(0), crbit);
+      }
+      break;
+    }
+    case kPPC_Float32ToUint32: {
+      bool set_overflow_to_min_u32 = MiscField::decode(instr->opcode());
+      if (set_overflow_to_min_u32) {
+        __ mtfsb0(VXCVI);  // clear FPSCR:VXCVI bit
+      }
+      __ fctiwuz(kScratchDoubleReg, i.InputDoubleRegister(0));
+      __ MovDoubleLowToInt(i.OutputRegister(), kScratchDoubleReg);
+      if (set_overflow_to_min_u32) {
+        // Avoid UINT32_MAX as an overflow indicator and use 0 instead,
+        // because 0 allows easier out-of-bounds detection.
+        CRegister cr = cr7;
+        int crbit = v8::internal::Assembler::encode_crbit(
+            cr, static_cast<CRBit>(VXCVI % CRWIDTH));
+        __ mcrfs(cr, VXCVI);  // extract FPSCR field containing VXCVI into cr7
+        __ li(kScratchReg, Operand::Zero());
+        __ isel(i.OutputRegister(0), kScratchReg, i.OutputRegister(0), crbit);
+      }
       break;
     }
     case kPPC_DoubleToInt32:

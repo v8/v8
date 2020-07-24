@@ -1227,11 +1227,27 @@ void InstructionSelector::VisitRoundFloat64ToInt32(Node* node) {
 }
 
 void InstructionSelector::VisitTruncateFloat32ToInt32(Node* node) {
-  VisitRR(this, kPPC_Float32ToInt32, node);
+  PPCOperandGenerator g(this);
+
+  InstructionCode opcode = kPPC_Float32ToInt32;
+  TruncateKind kind = OpParameter<TruncateKind>(node->op());
+  if (kind == TruncateKind::kSetOverflowToMin) {
+    opcode |= MiscField::encode(true);
+  }
+
+  Emit(opcode, g.DefineAsRegister(node), g.UseRegister(node->InputAt(0)));
 }
 
 void InstructionSelector::VisitTruncateFloat32ToUint32(Node* node) {
-  VisitRR(this, kPPC_DoubleToUint32, node);
+  PPCOperandGenerator g(this);
+
+  InstructionCode opcode = kPPC_Float32ToUint32;
+  TruncateKind kind = OpParameter<TruncateKind>(node->op());
+  if (kind == TruncateKind::kSetOverflowToMin) {
+    opcode |= MiscField::encode(true);
+  }
+
+  Emit(opcode, g.DefineAsRegister(node), g.UseRegister(node->InputAt(0)));
 }
 
 #if V8_TARGET_ARCH_PPC64

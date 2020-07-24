@@ -1392,10 +1392,6 @@ static inline bool TryMatchDoubleConstructFromInsert(
     OperandMode::kNone, null)                                                  \
   V(Float64, RoundFloat64ToInt32, kS390_DoubleToInt32, OperandMode::kNone,     \
     null)                                                                      \
-  V(Float32, TruncateFloat32ToInt32, kS390_Float32ToInt32, OperandMode::kNone, \
-    null)                                                                      \
-  V(Float32, TruncateFloat32ToUint32, kS390_Float32ToUint32,                   \
-    OperandMode::kNone, null)                                                  \
   V(Float64, TruncateFloat64ToUint32, kS390_DoubleToUint32,                    \
     OperandMode::kNone, null)                                                  \
   V(Float64, ChangeFloat64ToInt32, kS390_DoubleToInt32, OperandMode::kNone,    \
@@ -2930,6 +2926,30 @@ void InstructionSelector::EmitPrepareResults(
 void InstructionSelector::VisitLoadTransform(Node* node) {
   // We should never reach here, see http://crrev.com/c/2050811
   UNREACHABLE();
+}
+
+void InstructionSelector::VisitTruncateFloat32ToInt32(Node* node) {
+  S390OperandGenerator g(this);
+
+  InstructionCode opcode = kS390_Float32ToInt32;
+  TruncateKind kind = OpParameter<TruncateKind>(node->op());
+  if (kind == TruncateKind::kSetOverflowToMin) {
+    opcode |= MiscField::encode(true);
+  }
+
+  Emit(opcode, g.DefineAsRegister(node), g.UseRegister(node->InputAt(0)));
+}
+
+void InstructionSelector::VisitTruncateFloat32ToUint32(Node* node) {
+  S390OperandGenerator g(this);
+
+  InstructionCode opcode = kS390_Float32ToUint32;
+  TruncateKind kind = OpParameter<TruncateKind>(node->op());
+  if (kind == TruncateKind::kSetOverflowToMin) {
+    opcode |= MiscField::encode(true);
+  }
+
+  Emit(opcode, g.DefineAsRegister(node), g.UseRegister(node->InputAt(0)));
 }
 
 // static

@@ -1631,6 +1631,10 @@ void Assembler::fctiw(const DoubleRegister frt, const DoubleRegister frb) {
   emit(EXT4 | FCTIW | frt.code() * B21 | frb.code() * B11);
 }
 
+void Assembler::fctiwuz(const DoubleRegister frt, const DoubleRegister frb) {
+  emit(EXT4 | FCTIWUZ | frt.code() * B21 | frb.code() * B11);
+}
+
 void Assembler::frin(const DoubleRegister frt, const DoubleRegister frb,
                      RCBit rc) {
   emit(EXT4 | FRIN | frt.code() * B21 | frb.code() * B11 | rc);

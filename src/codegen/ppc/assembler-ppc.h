@@ -966,6 +966,7 @@ class Assembler : public AssemblerBase {
            RCBit rc = LeaveRC);
   void fctiwz(const DoubleRegister frt, const DoubleRegister frb);
   void fctiw(const DoubleRegister frt, const DoubleRegister frb);
+  void fctiwuz(const DoubleRegister frt, const DoubleRegister frb);
   void frin(const DoubleRegister frt, const DoubleRegister frb,
             RCBit rc = LeaveRC);
   void friz(const DoubleRegister frt, const DoubleRegister frb,
