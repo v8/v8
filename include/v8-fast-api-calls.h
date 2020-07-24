@@ -59,12 +59,12 @@
  *      }
  *    };
  *
+ *    // TODO(mslekova): Clean-up these constants
  *    // The constants kV8EmbedderWrapperTypeIndex and
  *    // kV8EmbedderWrapperObjectIndex describe the offsets for the type info
- *    // struct (the one returned by WrapperTraits::GetTypeInfo) and the
- *    // native object, when expressed as internal field indices within a
- *    // JSObject. The existance of this helper function assumes that all
- *    // embedder objects have their JSObject-side type info at the same
+ *    // struct and the native object, when expressed as internal field indices
+ *    // within a JSObject. The existance of this helper function assumes that
+ *    // all embedder objects have their JSObject-side type info at the same
  *    // offset, but this is not a limitation of the API itself. For a detailed
  *    // use case, see the third example.
  *    static constexpr int kV8EmbedderWrapperTypeIndex = 0;
@@ -160,18 +160,8 @@ class CTypeInfo {
     kIsArrayBit = 1 << 0,  // This argument is first in an array of values.
   };
 
-  // TODO(mslekova): Clean this up once V8's version in Node.js is updated
-  static CTypeInfo FromWrapperType(const void* wrapper_type_info,
-                                   ArgFlags flags = ArgFlags::kNone) {
-    uintptr_t wrapper_type_info_ptr =
-        reinterpret_cast<uintptr_t>(wrapper_type_info);
-    // Check that the lower kIsWrapperTypeBit bits are 0's.
-    CHECK_EQ(
-        wrapper_type_info_ptr & ~(static_cast<uintptr_t>(~0)
-                                  << static_cast<uintptr_t>(kIsWrapperTypeBit)),
-        0u);
-    return CTypeInfo(wrapper_type_info_ptr | static_cast<int>(flags) |
-                     kIsWrapperTypeBit);
+  static CTypeInfo FromWrapperType(ArgFlags flags = ArgFlags::kNone) {
+    return CTypeInfo(static_cast<int>(flags) | kIsWrapperTypeBit);
   }
 
   static constexpr CTypeInfo FromCType(Type ctype,
@@ -197,6 +187,11 @@ class CTypeInfo {
     return payload_ & static_cast<int>(ArgFlags::kIsArrayBit);
   }
 
+  static const CTypeInfo& Invalid() {
+    static CTypeInfo invalid = CTypeInfo(0);
+    return invalid;
+  }
+
  private:
   explicit constexpr CTypeInfo(uintptr_t payload) : payload_(payload) {}
 
@@ -218,16 +213,6 @@ class CFunctionInfo {
   virtual const CTypeInfo& ReturnInfo() const = 0;
   virtual unsigned int ArgumentCount() const = 0;
   virtual const CTypeInfo& ArgumentInfo(unsigned int index) const = 0;
-};
-
-// TODO(mslekova): Clean this up once V8's version in Node.js is updated
-template <typename T>
-class WrapperTraits {
- public:
-  static const void* GetTypeInfo() {
-    static const int tag = 0;
-    return reinterpret_cast<const void*>(&tag);
-  }
 };
 
 struct ApiObject {
@@ -276,9 +261,7 @@ struct GetCTypePointerImpl {
 // T* where T is an API object.
 template <typename T>
 struct GetCTypePointerImpl<T, void> {
-  static constexpr CTypeInfo Get() {
-    return CTypeInfo::FromWrapperType(WrapperTraits<T>::GetTypeInfo());
-  }
+  static constexpr CTypeInfo Get() { return CTypeInfo::FromWrapperType(); }
 };
 
 // T** where T is a primitive. Not allowed.
@@ -291,8 +274,7 @@ struct GetCTypePointerPointerImpl {
 template <typename T>
 struct GetCTypePointerPointerImpl<T, void> {
   static constexpr CTypeInfo Get() {
-    return CTypeInfo::FromWrapperType(WrapperTraits<T>::GetTypeInfo(),
-                                      CTypeInfo::ArgFlags::kIsArrayBit);
+    return CTypeInfo::FromWrapperType(CTypeInfo::ArgFlags::kIsArrayBit);
   }
 };
 
@@ -321,7 +303,9 @@ class CFunctionInfoImpl : public CFunctionInfo {
   const CTypeInfo& ReturnInfo() const override { return return_info_; }
   unsigned int ArgumentCount() const override { return arg_count_; }
   const CTypeInfo& ArgumentInfo(unsigned int index) const override {
-    CHECK_LT(index, ArgumentCount());
+    if (index >= ArgumentCount()) {
+      return CTypeInfo::Invalid();
+    }
     return arg_info_[index];
   }
 
@@ -354,8 +338,8 @@ class V8_EXPORT CFunction {
   }
 
   template <typename F>
-  static CFunction MakeRaisesException(F* func) {
-    return ArgUnwrap<F*>::MakeRaisesException(func);
+  static CFunction MakeWithErrorSupport(F* func) {
+    return ArgUnwrap<F*>::MakeWithErrorSupport(func);
   }
 
   template <typename F>
@@ -388,7 +372,7 @@ class V8_EXPORT CFunction {
       return CFunction(reinterpret_cast<const void*>(func),
                        GetCFunctionInfo<R, false, Args...>());
     }
-    static CFunction MakeRaisesException(R (*func)(Args...)) {
+    static CFunction MakeWithErrorSupport(R (*func)(Args...)) {
       return CFunction(reinterpret_cast<const void*>(func),
                        GetCFunctionInfo<R, true, Args...>());
     }

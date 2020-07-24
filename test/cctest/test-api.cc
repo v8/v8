@@ -27488,7 +27488,7 @@ bool SetupTest(v8::Local<v8::Value> initial_value, LocalContext* env,
 
   v8::CFunction c_func;
   if (supports_fallback) {
-    c_func = v8::CFunction::MakeRaisesException(
+    c_func = v8::CFunction::MakeWithErrorSupport(
         BasicApiChecker<Value, Impl>::FastCallback);
   } else {
     c_func = v8::CFunction::Make(
