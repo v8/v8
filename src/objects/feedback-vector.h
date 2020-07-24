@@ -619,7 +619,8 @@ class FeedbackMetadataIterator {
 
 class NexusConfig {
  public:
-  NexusConfig(Isolate* isolate) : isolate_(isolate), local_heap_(nullptr) {}
+  explicit NexusConfig(Isolate* isolate)
+      : isolate_(isolate), local_heap_(nullptr) {}
   NexusConfig(Isolate* isolate, LocalHeap* local_heap)
       : isolate_(isolate), local_heap_(local_heap) {}
 
