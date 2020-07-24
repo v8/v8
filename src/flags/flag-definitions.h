@@ -1092,9 +1092,10 @@ DEFINE_BOOL(fast_promotion_new_space, false,
 
 DEFINE_BOOL(clear_free_memory, false, "initialize free memory with 0")
 
-DEFINE_BOOL(young_generation_large_objects, true,
-            "allocates large objects by default in the young generation large "
-            "object space")
+DEFINE_BOOL_READONLY(
+    young_generation_large_objects, true,
+    "allocates large objects by default in the young generation large "
+    "object space")
 
 // assembler-ia32.cc / assembler-arm.cc / assembler-arm64.cc / assembler-x64.cc
 DEFINE_BOOL(debug_code, DEBUG_BOOL,
