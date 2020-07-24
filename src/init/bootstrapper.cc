@@ -4137,7 +4137,7 @@ void Genesis::InitializeGlobal_harmony_atomics_waitasync() {
 }
 
 void Genesis::InitializeGlobal_harmony_sharedarraybuffer() {
-  if (!FLAG_harmony_sharedarraybuffer) return;
+  if (!isolate()->AreSharedArrayBuffersEnabled(native_context())) return;
 
   Handle<JSGlobalObject> global(native_context()->global_object(), isolate());
 

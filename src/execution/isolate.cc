@@ -2634,6 +2634,14 @@ bool Isolate::IsWasmSimdEnabled(Handle<Context> context) {
   return FLAG_experimental_wasm_simd;
 }
 
+bool Isolate::AreSharedArrayBuffersEnabled(Handle<Context> context) {
+  if (shared_array_buffers_enabled_callback()) {
+    v8::Local<v8::Context> api_context = v8::Utils::ToLocal(context);
+    return shared_array_buffers_enabled_callback()(api_context);
+  }
+  return FLAG_harmony_sharedarraybuffer;
+}
+
 Handle<Context> Isolate::GetIncumbentContext() {
   JavaScriptFrameIterator it(this);
 
