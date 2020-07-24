@@ -119,15 +119,6 @@ class RiscvDebugger {
   float GetFPURegisterValueFloat(int regnum);
   double GetFPURegisterValueDouble(int regnum);
   bool GetValue(const char* desc, int64_t* value);
-
-  // Set or delete a breakpoint. Returns true if successful.
-  bool SetBreakpoint(Instruction* breakpc);
-  bool DeleteBreakpoint(Instruction* breakpc);
-
-  // Undo and redo all breakpoints. This is needed to bracket disassembly and
-  // execution to skip past breakpoints when run from the debugger.
-  void UndoBreakpoints();
-  void RedoBreakpoints();
 };
 
 inline void UNSUPPORTED() {
@@ -487,17 +478,21 @@ void RiscvDebugger::Debug() {
         PrintF("relinquishing control to gdb\n");
         v8::base::OS::DebugBreak();
         PrintF("regaining control from gdb\n");
-      } else if (strcmp(cmd, "break") == 0 || strcmp(cmd, "b") == 0) {
+      } else if (strcmp(cmd, "break") == 0 
+              || strcmp(cmd, "b") == 0
+              || strcmp(cmd, "tbreak") == 0) {
+        bool temp = strcmp(cmd, "tbreak") == 0;
         if (argc == 2) {
           int64_t value;
           if (GetValue(arg1, &value)) {
-            sim_->SetBreakpoint(reinterpret_cast<Instruction*>(value));
+            sim_->SetBreakpoint(reinterpret_cast<Instruction*>(value), temp);
           } else {
             PrintF("%s unrecognized\n", arg1);
           }
         } else {
           sim_->ListBreakpoints();
           PrintF("Use `break <address>` to set or disable a breakpoint\n");
+          PrintF("Use `tbreak <address>` to set or disable a temporary breakpoint\n");
         }
       } else if (strcmp(cmd, "flags") == 0) {
         PrintF("No flags on RISC-V !\n");
@@ -596,30 +591,39 @@ void RiscvDebugger::Debug() {
           cur += kInstrSize;
         }
       } else if ((strcmp(cmd, "h") == 0) || (strcmp(cmd, "help") == 0)) {
-        PrintF("cont\n");
-        PrintF("  continue execution (alias 'c')\n");
-        PrintF("stepi\n");
-        PrintF("  step one instruction (alias 'si')\n");
-        PrintF("print <register>\n");
-        PrintF("  print register content (alias 'p')\n");
-        PrintF("  use register name 'all' to print all GPRs\n");
-        PrintF("  use register name 'allf' to print all GPRs and FPRs\n");
-        PrintF("printobject <register>\n");
-        PrintF("  print an object from a register (alias 'po')\n");
-        PrintF("stack [<words>]\n");
-        PrintF("  dump stack content, default dump 10 words)\n");
-        PrintF("mem <address> [<words>]\n");
-        PrintF("  dump memory content, default dump 10 words)\n");
+        PrintF("cont (alias 'c')\n");
+        PrintF("  Continue execution\n");
+        PrintF("stepi (alias 'si')\n");
+        PrintF("  Step one instruction\n");
+        PrintF("print (alias 'p')\n");
+        PrintF("  print <register>\n");
+        PrintF("  Print register content\n");
+        PrintF("  Use register name 'all' to print all GPRs\n");
+        PrintF("  Use register name 'allf' to print all GPRs and FPRs\n");
+        PrintF("printobject (alias 'po')\n");
+        PrintF("  printobject <register>\n");
+        PrintF("  Print an object from a register\n");
+        PrintF("stack\n");
+        PrintF("  stack [<words>]\n");
+        PrintF("  Dump stack content, default dump 10 words)\n");
+        PrintF("mem\n");
+        PrintF("  mem <address> [<words>]\n");
+        PrintF("  Dump memory content, default dump 10 words)\n");
         PrintF("flags\n");
         PrintF("  print flags\n");
-        PrintF("disasm [<instructions>]\n");
-        PrintF("disasm [<address/register>] (e.g., disasm pc) \n");
-        PrintF("disasm [[<address/register>] <instructions>]\n");
-        PrintF("  disassemble code, default is 10 instructions\n");
-        PrintF("  from pc (alias 'di')\n");
-        PrintF("break / b\n");
+        PrintF("disasm (alias 'di')\n");
+        PrintF("  disasm [<instructions>]\n");
+        PrintF("  disasm [<address/register>] (e.g., disasm pc) \n");
+        PrintF("  disasm [[<address/register>] <instructions>]\n");
+        PrintF("  Disassemble code, default is 10 instructions\n");
+        PrintF("  from pc\n");
+        PrintF("break (alias 'b')\n");
         PrintF("  break : list all breakpoints\n");
         PrintF("  break <address> : set / enable / disable a breakpoint.\n");
+        PrintF("tbreak\n");
+        PrintF("  tbreak : list all breakpoints\n");
+        PrintF("  tbreak <address> : set / enable / disable a temporary breakpoint.\n");
+        PrintF("  Set a breakpoint enabled only for one stop. \n");
         // FIXME (RISCV): the following commands are not yet supported
         // PrintF("gdb \n");
         // PrintF("  enter gdb\n");
@@ -655,9 +659,16 @@ void RiscvDebugger::Debug() {
 #undef XSTR
 }
 
-void Simulator::SetBreakpoint(Instruction* location) {
+void Simulator::SetBreakpoint(Instruction* location, bool temporary) {
   for (unsigned i = 0; i < breakpoints_.size(); i++) {
     if (breakpoints_.at(i).location == location) {
+      if (breakpoints_.at(i).temporary != temporary) {
+        PrintF("Change breakpoint at %p to %s breakpoint\n",
+              reinterpret_cast<void*>(location),
+              breakpoints_.at(i).temporary ? "regular" : "temporary");
+        breakpoints_.at(i).temporary = !breakpoints_.at(i).temporary;
+        return;
+      }
       PrintF("Existing breakpoint at %p was %s\n",
              reinterpret_cast<void*>(location),
              breakpoints_.at(i).enabled ? "disabled" : "enabled");
@@ -665,37 +676,43 @@ void Simulator::SetBreakpoint(Instruction* location) {
       return;
     }
   }
-  Breakpoint new_breakpoint = {location, true};
+  Breakpoint new_breakpoint = {location, true, temporary};
   breakpoints_.push_back(new_breakpoint);
-  PrintF("Set a breakpoint at %p\n",
+  PrintF("Set a %sbreakpoint at %p\n",
+         temporary ? "temporary " : "",
          reinterpret_cast<void*>(location));
 }
 
 void Simulator::ListBreakpoints() {
   PrintF("Breakpoints:\n");
   for (unsigned i = 0; i < breakpoints_.size(); i++) {
-    PrintF("%p  : %s\n",
+    PrintF("%p  : %s %s\n",
            reinterpret_cast<void*>(breakpoints_.at(i).location),
-           breakpoints_.at(i).enabled ? "enabled" : "disabled");
+           breakpoints_.at(i).enabled ? "enabled" : "disabled",
+           breakpoints_.at(i).temporary ? ": temporary" : "");
   }
 }
 
 void Simulator::CheckBreakpoints() {
   bool hit_a_breakpoint = false;
+  bool is_tbreak = false;
   Instruction* pc_ = reinterpret_cast<Instruction*>(get_pc());
   for (unsigned i = 0; i < breakpoints_.size(); i++) {
     if ((breakpoints_.at(i).location == pc_) && breakpoints_.at(i).enabled) {
       hit_a_breakpoint = true;
-      // Disable this breakpoint.
-      breakpoints_.at(i).enabled = false;
+      if (breakpoints_.at(i).temporary) {
+        // Disable a temporary breakpoint.
+        is_tbreak = true;
+        breakpoints_.at(i).enabled = false;
+      }
     }
   }
   if (hit_a_breakpoint) {
-    PrintF("Hit and disabled a breakpoint at %p.\n",
+    PrintF("Hit %sa breakpoint at %p.\n",
+           is_tbreak ? "and disabled " : "",
            reinterpret_cast<void*>(pc_));
     RiscvDebugger dbg(this);
     dbg.Debug();
-    // Debug();
   }
 }
 

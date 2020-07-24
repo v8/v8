@@ -574,9 +574,10 @@ class Simulator : public SimulatorBase {
   struct Breakpoint {
     Instruction* location;
     bool enabled;
+    bool temporary;
   };
   std::vector<Breakpoint> breakpoints_;
-  void SetBreakpoint(Instruction* breakpoint);
+  void SetBreakpoint(Instruction* breakpoint, bool temporary);
   void ListBreakpoints();
   void CheckBreakpoints();
 
