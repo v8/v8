@@ -13,10 +13,16 @@ namespace v8 {
 namespace internal {
 
 class AllocationObserver;
+class Heap;
 
 class AllocationCounter {
  public:
-  AllocationCounter() : paused_(false) {}
+  explicit AllocationCounter(Heap* heap)
+      : heap_(heap),
+        paused_(false),
+        prev_counter_(0),
+        current_counter_(0),
+        next_counter_(0) {}
 
   auto begin() { return allocation_observers_.begin(); }
   auto end() { return allocation_observers_.end(); }
@@ -41,11 +47,24 @@ class AllocationCounter {
 
   intptr_t GetNextInlineAllocationStepSize();
 
+  void NotifyBytes(size_t allocated);
+  void NotifyObject(Address soon_object, size_t object_size);
+
+  size_t NextBytes() {
+    DCHECK(IsActive());
+    return next_counter_ - current_counter_;
+  }
+
  private:
   bool IsPaused() { return paused_; }
 
   std::vector<AllocationObserver*> allocation_observers_;
+  Heap* heap_;
   bool paused_;
+
+  size_t prev_counter_;
+  size_t current_counter_;
+  size_t next_counter_;
 };
 
 // -----------------------------------------------------------------------------

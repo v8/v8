@@ -314,12 +314,7 @@ class V8_EXPORT_PRIVATE PagedSpace
 
  private:
   // Set space linear allocation area.
-  void SetTopAndLimit(Address top, Address limit) {
-    DCHECK(top == limit ||
-           Page::FromAddress(top) == Page::FromAddress(limit - 1));
-    BasicMemoryChunk::UpdateHighWaterMark(allocation_info_.top());
-    allocation_info_.Reset(top, limit);
-  }
+  void SetTopAndLimit(Address top, Address limit);
   void DecreaseLimit(Address new_limit);
   void UpdateInlineAllocationLimit(size_t min_size) override;
   bool SupportsInlineAllocation() override {

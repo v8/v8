@@ -305,6 +305,13 @@ void PagedSpace::RemovePage(Page* page) {
   }
 }
 
+void PagedSpace::SetTopAndLimit(Address top, Address limit) {
+  DCHECK(top == limit ||
+         Page::FromAddress(top) == Page::FromAddress(limit - 1));
+  BasicMemoryChunk::UpdateHighWaterMark(allocation_info_.top());
+  allocation_info_.Reset(top, limit);
+}
+
 size_t PagedSpace::ShrinkPageToHighWaterMark(Page* page) {
   size_t unused = page->ShrinkToHighWaterMark();
   accounting_stats_.DecreaseCapacity(static_cast<intptr_t>(unused));
@@ -473,7 +480,7 @@ void PagedSpace::ReleasePage(Page* page) {
 
   if (Page::FromAllocationAreaAddress(allocation_info_.top()) == page) {
     DCHECK(!top_on_previous_step_);
-    allocation_info_.Reset(kNullAddress, kNullAddress);
+    SetTopAndLimit(kNullAddress, kNullAddress);
   }
 
   heap()->isolate()->RemoveCodeMemoryChunk(page);

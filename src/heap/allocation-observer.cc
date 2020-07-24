@@ -21,6 +21,50 @@ void AllocationCounter::RemoveAllocationObserver(AllocationObserver* observer) {
   allocation_observers_.erase(it);
 }
 
+intptr_t AllocationCounter::GetNextInlineAllocationStepSize() {
+  intptr_t next_step = 0;
+  for (AllocationObserver* observer : allocation_observers_) {
+    next_step = next_step ? Min(next_step, observer->bytes_to_next_step())
+                          : observer->bytes_to_next_step();
+  }
+  DCHECK(!HasAllocationObservers() || next_step > 0);
+  return next_step;
+}
+
+void AllocationCounter::NotifyBytes(size_t allocated) {
+  if (!IsActive()) {
+    return;
+  }
+
+  DCHECK_LE(allocated, next_counter_ - current_counter_);
+  current_counter_ += allocated;
+}
+
+void AllocationCounter::NotifyObject(Address soon_object, size_t object_size) {
+  if (!IsActive()) {
+    return;
+  }
+
+  DCHECK_GT(object_size, next_counter_ - current_counter_);
+  size_t bytes_since_last_step = current_counter_ - prev_counter_;
+  DCHECK(!heap_->allocation_step_in_progress());
+  heap_->set_allocation_step_in_progress(true);
+  DCHECK(soon_object);
+  heap_->CreateFillerObjectAt(soon_object, static_cast<int>(object_size),
+                              ClearRecordedSlots::kNo);
+  intptr_t next_step = 0;
+  for (AllocationObserver* observer : allocation_observers_) {
+    observer->AllocationStep(static_cast<int>(bytes_since_last_step),
+                             soon_object, object_size);
+    next_step = next_step ? Min(next_step, observer->bytes_to_next_step())
+                          : observer->bytes_to_next_step();
+  }
+  heap_->set_allocation_step_in_progress(false);
+
+  prev_counter_ = current_counter_;
+  next_counter_ = current_counter_ + object_size + next_step;
+}
+
 void AllocationObserver::AllocationStep(int bytes_allocated,
                                         Address soon_object, size_t size) {
   DCHECK_GE(bytes_allocated, 0);
@@ -31,16 +75,6 @@ void AllocationObserver::AllocationStep(int bytes_allocated,
     bytes_to_next_step_ = step_size_;
   }
   DCHECK_GE(bytes_to_next_step_, 0);
-}
-
-intptr_t AllocationCounter::GetNextInlineAllocationStepSize() {
-  intptr_t next_step = 0;
-  for (AllocationObserver* observer : allocation_observers_) {
-    next_step = next_step ? Min(next_step, observer->bytes_to_next_step())
-                          : observer->bytes_to_next_step();
-  }
-  DCHECK(!HasAllocationObservers() || next_step > 0);
-  return next_step;
 }
 
 PauseAllocationObserversScope::PauseAllocationObserversScope(Heap* heap)

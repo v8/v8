@@ -112,6 +112,7 @@ class V8_EXPORT_PRIVATE Space : public BaseSpace {
  public:
   Space(Heap* heap, AllocationSpace id, FreeList* free_list)
       : BaseSpace(heap, id),
+        allocation_counter_(heap),
         free_list_(std::unique_ptr<FreeList>(free_list)) {
     external_backing_store_bytes_ =
         new std::atomic<size_t>[ExternalBackingStoreType::kNumTypes];
