@@ -1559,6 +1559,7 @@ void V8DebuggerAgentImpl::didParseSource(
   bool isModule = script->isModule();
   String16 scriptId = script->scriptId();
   String16 scriptURL = script->sourceURL();
+  String16 embedderName = script->embedderName();
   String16 scriptLanguage = getScriptLanguage(*script);
   Maybe<int> codeOffset;
   if (script->getLanguage() == V8DebuggerScript::Language::WebAssembly)
@@ -1601,7 +1602,7 @@ void V8DebuggerAgentImpl::didParseSource(
         scriptRef->hash(), std::move(executionContextAuxDataParam),
         std::move(sourceMapURLParam), hasSourceURLParam, isModuleParam,
         scriptRef->length(), std::move(stackTrace), std::move(codeOffset),
-        std::move(scriptLanguage));
+        std::move(scriptLanguage), embedderName);
     return;
   }
 
@@ -1611,7 +1612,7 @@ void V8DebuggerAgentImpl::didParseSource(
         std::move(executionContextAuxDataParam), isLiveEditParam,
         std::move(sourceMapURLParam), hasSourceURLParam, isModuleParam, 0,
         std::move(stackTrace), std::move(codeOffset), std::move(scriptLanguage),
-        std::move(debugSymbols));
+        std::move(debugSymbols), embedderName);
   } else {
     m_frontend.scriptParsed(
         scriptId, scriptURL, scriptRef->startLine(), scriptRef->startColumn(),
@@ -1620,7 +1621,7 @@ void V8DebuggerAgentImpl::didParseSource(
         isLiveEditParam, std::move(sourceMapURLParam), hasSourceURLParam,
         isModuleParam, scriptRef->length(), std::move(stackTrace),
         std::move(codeOffset), std::move(scriptLanguage),
-        std::move(debugSymbols));
+        std::move(debugSymbols), embedderName);
   }
 
   std::vector<protocol::DictionaryValue*> potentialBreakpoints;
