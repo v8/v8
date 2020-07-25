@@ -481,11 +481,11 @@ void RiscvDebugger::Debug() {
       } else if (strcmp(cmd, "break") == 0 
               || strcmp(cmd, "b") == 0
               || strcmp(cmd, "tbreak") == 0) {
-        bool temp = strcmp(cmd, "tbreak") == 0;
+        bool is_tbreak = strcmp(cmd, "tbreak") == 0;
         if (argc == 2) {
           int64_t value;
           if (GetValue(arg1, &value)) {
-            sim_->SetBreakpoint(reinterpret_cast<Instruction*>(value), temp);
+            sim_->SetBreakpoint(reinterpret_cast<Instruction*>(value), is_tbreak);
           } else {
             PrintF("%s unrecognized\n", arg1);
           }
@@ -659,14 +659,14 @@ void RiscvDebugger::Debug() {
 #undef XSTR
 }
 
-void Simulator::SetBreakpoint(Instruction* location, bool temporary) {
+void Simulator::SetBreakpoint(Instruction* location, bool is_tbreak) {
   for (unsigned i = 0; i < breakpoints_.size(); i++) {
     if (breakpoints_.at(i).location == location) {
-      if (breakpoints_.at(i).temporary != temporary) {
+      if (breakpoints_.at(i).is_tbreak != is_tbreak) {
         PrintF("Change breakpoint at %p to %s breakpoint\n",
               reinterpret_cast<void*>(location),
-              breakpoints_.at(i).temporary ? "regular" : "temporary");
-        breakpoints_.at(i).temporary = !breakpoints_.at(i).temporary;
+              is_tbreak ? "temporary" : "regular");
+        breakpoints_.at(i).is_tbreak = is_tbreak;
         return;
       }
       PrintF("Existing breakpoint at %p was %s\n",
@@ -676,10 +676,10 @@ void Simulator::SetBreakpoint(Instruction* location, bool temporary) {
       return;
     }
   }
-  Breakpoint new_breakpoint = {location, true, temporary};
+  Breakpoint new_breakpoint = {location, true, is_tbreak};
   breakpoints_.push_back(new_breakpoint);
   PrintF("Set a %sbreakpoint at %p\n",
-         temporary ? "temporary " : "",
+         is_tbreak ? "temporary " : "",
          reinterpret_cast<void*>(location));
 }
 
@@ -689,7 +689,7 @@ void Simulator::ListBreakpoints() {
     PrintF("%p  : %s %s\n",
            reinterpret_cast<void*>(breakpoints_.at(i).location),
            breakpoints_.at(i).enabled ? "enabled" : "disabled",
-           breakpoints_.at(i).temporary ? ": temporary" : "");
+           breakpoints_.at(i).is_tbreak ? ": temporary" : "");
   }
 }
 
@@ -700,11 +700,12 @@ void Simulator::CheckBreakpoints() {
   for (unsigned i = 0; i < breakpoints_.size(); i++) {
     if ((breakpoints_.at(i).location == pc_) && breakpoints_.at(i).enabled) {
       hit_a_breakpoint = true;
-      if (breakpoints_.at(i).temporary) {
+      if (breakpoints_.at(i).is_tbreak) {
         // Disable a temporary breakpoint.
         is_tbreak = true;
         breakpoints_.at(i).enabled = false;
       }
+      break;
     }
   }
   if (hit_a_breakpoint) {
