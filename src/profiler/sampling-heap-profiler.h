@@ -22,8 +22,6 @@ class RandomNumberGenerator;
 
 namespace internal {
 
-class SamplingAllocationObserver;
-
 class AllocationProfile : public v8::AllocationProfile {
  public:
   AllocationProfile() = default;
