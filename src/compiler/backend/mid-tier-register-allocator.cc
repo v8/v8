@@ -36,6 +36,8 @@ MidTierRegisterAllocationData::MidTierRegisterAllocationData(
       config_(config),
       virtual_register_data_(code->VirtualRegisterCount(), allocation_zone()),
       reference_map_instructions_(allocation_zone()),
+      spilled_virtual_registers_(code->VirtualRegisterCount(),
+                                 allocation_zone()),
       tick_counter_(tick_counter) {}
 
 MoveOperands* MidTierRegisterAllocationData::AddGapMove(
@@ -44,6 +46,11 @@ MoveOperands* MidTierRegisterAllocationData::AddGapMove(
   Instruction* instr = code()->InstructionAt(instr_index);
   ParallelMove* moves = instr->GetOrCreateParallelMove(position, code_zone());
   return moves->AddMove(from, to);
+}
+
+MoveOperands* MidTierRegisterAllocationData::AddPendingOperandGapMove(
+    int instr_index, Instruction::GapPosition position) {
+  return AddGapMove(instr_index, position, PendingOperand(), PendingOperand());
 }
 
 MachineRepresentation MidTierRegisterAllocationData::RepresentationFor(
@@ -106,6 +113,33 @@ class RegisterIndex final {
   int8_t index_;
 };
 
+// A Range from [start, end] of instructions, inclusive of start and end.
+class Range {
+ public:
+  Range() : start_(kMaxInt), end_(0) {}
+  Range(int start, int end) : start_(start), end_(end) {}
+
+  void AddInstr(int index) {
+    start_ = std::min(start_, index);
+    end_ = std::max(end_, index);
+  }
+
+  void AddRange(const Range& other) {
+    start_ = std::min(start_, other.start_);
+    end_ = std::max(end_, other.end_);
+  }
+
+  // Returns true if index is greater than start and less than or equal to end.
+  bool Contains(int index) { return index >= start_ && index <= end_; }
+
+  int start() const { return start_; }
+  int end() const { return end_; }
+
+ private:
+  int start_;
+  int end_;
+};
+
 // VirtualRegisterData stores data specific to a particular virtual register,
 // and tracks spilled operands for that virtual register.
 class VirtualRegisterData final {
@@ -154,6 +188,9 @@ class VirtualRegisterData final {
   }
   bool NeedsSpillAtOutput() const;
 
+  // Allocates pending spill operands to the |allocated| spill slot.
+  void AllocatePendingSpillOperand(const AllocatedOperand& allocated);
+
   int vreg() const { return vreg_; }
   int output_instr_index() const { return output_instr_index_; }
   bool is_constant() const { return is_constant_; }
@@ -161,11 +198,58 @@ class VirtualRegisterData final {
   bool is_phi() const { return is_phi_; }
   void set_is_phi(bool value) { is_phi_ = value; }
 
+  // Represents the range of instructions for which this virtual register needs
+  // to be spilled on the stack.
+  class SpillRange : public ZoneObject {
+   public:
+    // Defines a spill range for an output operand.
+    SpillRange(int definition_instr_index, MidTierRegisterAllocationData* data)
+        : live_range_(definition_instr_index, definition_instr_index) {}
+
+    // Defines a spill range for a Phi variable.
+    SpillRange(const InstructionBlock* phi_block,
+               MidTierRegisterAllocationData* data)
+        : live_range_(phi_block->first_instruction_index(),
+                      phi_block->first_instruction_index()) {
+      // For phis, add the gap move instructions in the predecssor blocks to
+      // the live range.
+      for (RpoNumber pred_rpo : phi_block->predecessors()) {
+        const InstructionBlock* block = data->GetBlock(pred_rpo);
+        live_range_.AddInstr(block->last_instruction_index());
+      }
+    }
+
+    bool IsLiveAt(int instr_index, InstructionBlock* block) {
+      // TODO(rmcilroy): Only include basic blocks dominated by the variable.
+      return live_range_.Contains(instr_index);
+    }
+
+    void ExtendRangeTo(int instr_index) { live_range_.AddInstr(instr_index); }
+
+    Range& live_range() { return live_range_; }
+
+   private:
+    Range live_range_;
+
+    DISALLOW_COPY_AND_ASSIGN(SpillRange);
+  };
+
+  bool HasSpillRange() const { return spill_range_ != nullptr; }
+  SpillRange* spill_range() const {
+    DCHECK(HasSpillRange());
+    return spill_range_;
+  }
+
  private:
   void Initialize(int virtual_register, InstructionOperand* spill_operand,
                   int instr_index, bool is_phi, bool is_constant);
 
+  void AddPendingSpillOperand(PendingOperand* pending_operand);
+  void AddSpillUse(int instr_index, MidTierRegisterAllocationData* data);
+  void EnsureSpillRange(MidTierRegisterAllocationData* data);
+
   InstructionOperand* spill_operand_;
+  SpillRange* spill_range_;
   int output_instr_index_;
 
   int vreg_;
@@ -186,6 +270,7 @@ void VirtualRegisterData::Initialize(int virtual_register,
                                      bool is_constant) {
   vreg_ = virtual_register;
   spill_operand_ = spill_operand;
+  spill_range_ = nullptr;
   output_instr_index_ = instr_index;
   is_phi_ = is_phi;
   is_constant_ = is_constant;
@@ -211,14 +296,42 @@ void VirtualRegisterData::DefineAsPhi(int virtual_register, int instr_index) {
   Initialize(virtual_register, nullptr, instr_index, true, false);
 }
 
+void VirtualRegisterData::EnsureSpillRange(
+    MidTierRegisterAllocationData* data) {
+  DCHECK(!is_constant());
+  if (HasSpillRange()) return;
+
+  if (is_phi()) {
+    // Define a spill slot that is defined for the phi's range.
+    const InstructionBlock* definition_block =
+        data->code()->InstructionAt(output_instr_index_)->block();
+    spill_range_ =
+        data->allocation_zone()->New<SpillRange>(definition_block, data);
+  } else {
+    // The spill slot will be defined after the instruction that outputs it.
+    spill_range_ =
+        data->allocation_zone()->New<SpillRange>(output_instr_index_ + 1, data);
+  }
+  data->spilled_virtual_registers().Add(vreg());
+}
+
+void VirtualRegisterData::AddSpillUse(int instr_index,
+                                      MidTierRegisterAllocationData* data) {
+  if (is_constant()) return;
+  EnsureSpillRange(data);
+  spill_range_->ExtendRangeTo(instr_index);
+}
+
 void VirtualRegisterData::SpillOperand(InstructionOperand* operand,
                                        int instr_index,
                                        MidTierRegisterAllocationData* data) {
+  AddSpillUse(instr_index, data);
   if (HasAllocatedSpillOperand() || HasConstantSpillOperand()) {
     InstructionOperand::ReplaceWith(operand, spill_operand());
   } else {
-    // TODO(rmcilroy): Implement.
-    UNREACHABLE();
+    PendingOperand pending_op;
+    InstructionOperand::ReplaceWith(operand, &pending_op);
+    AddPendingSpillOperand(PendingOperand::cast(operand));
   }
 }
 
@@ -229,25 +342,31 @@ bool VirtualRegisterData::NeedsSpillAtOutput() const {
 void VirtualRegisterData::EmitGapMoveToInputFromSpillSlot(
     AllocatedOperand to_operand, int instr_index,
     MidTierRegisterAllocationData* data) {
+  AddSpillUse(instr_index, data);
   DCHECK(!to_operand.IsPending());
   if (HasAllocatedSpillOperand() || HasConstantSpillOperand()) {
     data->AddGapMove(instr_index, Instruction::END, *spill_operand(),
                      to_operand);
   } else {
-    // TODO(rmcilroy): Implement.
-    UNREACHABLE();
+    MoveOperands* move_ops =
+        data->AddPendingOperandGapMove(instr_index, Instruction::END);
+    AddPendingSpillOperand(PendingOperand::cast(&move_ops->source()));
+    InstructionOperand::ReplaceWith(&move_ops->destination(), &to_operand);
   }
 }
 
 void VirtualRegisterData::EmitGapMoveToSpillSlot(
     AllocatedOperand from_operand, int instr_index,
     MidTierRegisterAllocationData* data) {
+  AddSpillUse(instr_index, data);
   if (HasAllocatedSpillOperand() || HasConstantSpillOperand()) {
     data->AddGapMove(instr_index, Instruction::START, from_operand,
                      *spill_operand());
   } else {
-    // TODO(rmcilroy): Implement.
-    UNREACHABLE();
+    MoveOperands* move_ops =
+        data->AddPendingOperandGapMove(instr_index, Instruction::START);
+    InstructionOperand::ReplaceWith(&move_ops->source(), &from_operand);
+    AddPendingSpillOperand(PendingOperand::cast(&move_ops->destination()));
   }
 }
 
@@ -266,6 +385,26 @@ void VirtualRegisterData::EmitGapMoveFromOutputToSpillSlot(
   } else {
     // Add gap move to the next instruction.
     EmitGapMoveToSpillSlot(from_operand, instr_index + 1, data);
+  }
+}
+
+void VirtualRegisterData::AddPendingSpillOperand(PendingOperand* pending_op) {
+  DCHECK(HasSpillRange());
+  DCHECK_NULL(pending_op->next());
+  if (HasSpillOperand()) {
+    pending_op->set_next(PendingOperand::cast(spill_operand()));
+  }
+  spill_operand_ = pending_op;
+}
+
+void VirtualRegisterData::AllocatePendingSpillOperand(
+    const AllocatedOperand& allocated) {
+  DCHECK(!HasAllocatedSpillOperand() && !HasConstantSpillOperand());
+  PendingOperand* current = PendingOperand::cast(spill_operand_);
+  while (current) {
+    PendingOperand* next = current->next();
+    InstructionOperand::ReplaceWith(current, &allocated);
+    current = next;
   }
 }
 
@@ -1381,6 +1520,8 @@ void MidTierRegisterAllocator::AllocateRegisters() {
     AllocateRegisters(block);
   }
 
+  UpdateSpillRangesForLoops();
+
   data()->frame()->SetAllocatedRegisters(
       general_reg_allocator().assigned_registers());
   data()->frame()->SetAllocatedDoubleRegisters(
@@ -1538,6 +1679,140 @@ void MidTierRegisterAllocator::ReserveFixedRegisters(int instr_index) {
     if (IsFixedRegisterPolicy(operand)) {
       AllocatorFor(operand).ReserveFixedInputRegister(operand, instr_index);
     }
+  }
+}
+
+void MidTierRegisterAllocator::UpdateSpillRangesForLoops() {
+  // Extend the spill range of any spill that crosses a loop header to
+  // the full loop.
+  for (InstructionBlock* block : code()->instruction_blocks()) {
+    if (block->IsLoopHeader()) {
+      RpoNumber last_loop_block =
+          RpoNumber::FromInt(block->loop_end().ToInt() - 1);
+      int last_loop_instr =
+          data()->GetBlock(last_loop_block)->last_instruction_index();
+      // Extend spill range for all spilled values that are live on entry to the
+      // loop header.
+      BitVector::Iterator iterator(&data()->spilled_virtual_registers());
+      for (; !iterator.Done(); iterator.Advance()) {
+        const VirtualRegisterData& vreg_data =
+            VirtualRegisterDataFor(iterator.Current());
+        if (vreg_data.HasSpillRange() &&
+            vreg_data.spill_range()->IsLiveAt(block->first_instruction_index(),
+                                              block)) {
+          vreg_data.spill_range()->ExtendRangeTo(last_loop_instr);
+        }
+      }
+    }
+  }
+}
+
+class MidTierSpillSlotAllocator::SpillSlot : public ZoneObject {
+ public:
+  SpillSlot(int stack_slot, int byte_width)
+      : stack_slot_(stack_slot), byte_width_(byte_width), range_() {}
+
+  void AddRange(const Range& range) { range_.AddRange(range); }
+
+  AllocatedOperand ToOperand(MachineRepresentation rep) const {
+    return AllocatedOperand(AllocatedOperand::STACK_SLOT, rep, stack_slot_);
+  }
+
+  int byte_width() const { return byte_width_; }
+  int last_use() const { return range_.end(); }
+
+ private:
+  int stack_slot_;
+  int byte_width_;
+  Range range_;
+
+  DISALLOW_COPY_AND_ASSIGN(SpillSlot);
+};
+
+bool MidTierSpillSlotAllocator::OrderByLastUse::operator()(
+    const SpillSlot* a, const SpillSlot* b) const {
+  return a->last_use() > b->last_use();
+}
+
+MidTierSpillSlotAllocator::MidTierSpillSlotAllocator(
+    MidTierRegisterAllocationData* data)
+    : data_(data),
+      allocated_slots_(data->allocation_zone()),
+      free_slots_(data->allocation_zone()),
+      position_(0) {}
+
+void MidTierSpillSlotAllocator::AdvanceTo(int instr_index) {
+  // Move any slots that are no longer in use to the free slots list.
+  DCHECK_LE(position_, instr_index);
+  while (!allocated_slots_.empty() &&
+         instr_index > allocated_slots_.top()->last_use()) {
+    free_slots_.push_front(allocated_slots_.top());
+    allocated_slots_.pop();
+  }
+  position_ = instr_index;
+}
+
+MidTierSpillSlotAllocator::SpillSlot*
+MidTierSpillSlotAllocator::GetFreeSpillSlot(int byte_width) {
+  for (auto it = free_slots_.begin(); it != free_slots_.end(); ++it) {
+    SpillSlot* slot = *it;
+    if (slot->byte_width() == byte_width) {
+      free_slots_.erase(it);
+      return slot;
+    }
+  }
+  return nullptr;
+}
+
+void MidTierSpillSlotAllocator::Allocate(
+    VirtualRegisterData* virtual_register) {
+  DCHECK(virtual_register->HasPendingSpillOperand());
+  VirtualRegisterData::SpillRange* spill_range =
+      virtual_register->spill_range();
+  MachineRepresentation rep =
+      data()->RepresentationFor(virtual_register->vreg());
+  int byte_width = ByteWidthForStackSlot(rep);
+  Range live_range = spill_range->live_range();
+
+  AdvanceTo(live_range.start());
+
+  // Try to re-use an existing free spill slot.
+  SpillSlot* slot = GetFreeSpillSlot(byte_width);
+  if (slot == nullptr) {
+    // Otherwise allocate a new slot.
+    int stack_slot_ = frame()->AllocateSpillSlot(byte_width);
+    slot = zone()->New<SpillSlot>(stack_slot_, byte_width);
+  }
+
+  // Extend the range of the slot to include this spill range, and allocate the
+  // pending spill operands with this slot.
+  slot->AddRange(live_range);
+  virtual_register->AllocatePendingSpillOperand(slot->ToOperand(rep));
+  allocated_slots_.push(slot);
+}
+
+void MidTierSpillSlotAllocator::AllocateSpillSlots() {
+  ZoneVector<VirtualRegisterData*> spilled(zone());
+  BitVector::Iterator iterator(&data()->spilled_virtual_registers());
+  for (; !iterator.Done(); iterator.Advance()) {
+    VirtualRegisterData& vreg_data =
+        data()->VirtualRegisterDataFor(iterator.Current());
+    if (vreg_data.HasPendingSpillOperand()) {
+      spilled.push_back(&vreg_data);
+    }
+  }
+
+  // Sort the spill ranges by order of their first use to enable linear
+  // allocation of spill slots.
+  std::sort(spilled.begin(), spilled.end(),
+            [](const VirtualRegisterData* a, const VirtualRegisterData* b) {
+              return a->spill_range()->live_range().start() <
+                     b->spill_range()->live_range().start();
+            });
+
+  // Allocate a spill slot for each virtual register with a spill range.
+  for (VirtualRegisterData* spill : spilled) {
+    Allocate(spill);
   }
 }
 

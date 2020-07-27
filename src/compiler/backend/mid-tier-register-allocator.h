@@ -48,6 +48,10 @@ class MidTierRegisterAllocationData final : public RegisterAllocationData {
                            const InstructionOperand& from,
                            const InstructionOperand& to);
 
+  // Adds a gap move where both sides are PendingOperand operands.
+  MoveOperands* AddPendingOperandGapMove(int instr_index,
+                                         Instruction::GapPosition position);
+
   // Helpers to get a block from an |rpo_number| or |instr_index|.
   const InstructionBlock* GetBlock(const RpoNumber rpo_number);
   const InstructionBlock* GetBlock(int instr_index);
@@ -56,6 +60,9 @@ class MidTierRegisterAllocationData final : public RegisterAllocationData {
   ZoneVector<int>& reference_map_instructions() {
     return reference_map_instructions_;
   }
+
+  // Returns a bitvector representing the virtual registers that were spilled.
+  BitVector& spilled_virtual_registers() { return spilled_virtual_registers_; }
 
   // This zone is for data structures only needed during register allocation
   // phases.
@@ -80,6 +87,7 @@ class MidTierRegisterAllocationData final : public RegisterAllocationData {
 
   ZoneVector<VirtualRegisterData> virtual_register_data_;
   ZoneVector<int> reference_map_instructions_;
+  BitVector spilled_virtual_registers_;
 
   TickCounter* const tick_counter_;
 
@@ -105,6 +113,7 @@ class MidTierRegisterAllocator final {
 
   // Allocate registers operations.
   void AllocateRegisters(const InstructionBlock* block);
+  void UpdateSpillRangesForLoops();
 
   bool IsFixedRegisterPolicy(const UnallocatedOperand* operand);
   void ReserveFixedRegisters(int instr_index);
@@ -135,6 +144,39 @@ class MidTierRegisterAllocator final {
   std::unique_ptr<SinglePassRegisterAllocator> double_reg_allocator_;
 
   DISALLOW_COPY_AND_ASSIGN(MidTierRegisterAllocator);
+};
+
+// Spill slot allocator for mid-tier register allocation.
+class MidTierSpillSlotAllocator final {
+ public:
+  explicit MidTierSpillSlotAllocator(MidTierRegisterAllocationData* data);
+
+  // Phase 3: assign spilled operands to specific spill slots.
+  void AllocateSpillSlots();
+
+ private:
+  class SpillSlot;
+
+  void Allocate(VirtualRegisterData* virtual_register);
+
+  void AdvanceTo(int instr_index);
+  SpillSlot* GetFreeSpillSlot(int byte_width);
+
+  MidTierRegisterAllocationData* data() const { return data_; }
+  InstructionSequence* code() const { return data()->code(); }
+  Frame* frame() const { return data()->frame(); }
+  Zone* zone() const { return data()->allocation_zone(); }
+
+  struct OrderByLastUse {
+    bool operator()(const SpillSlot* a, const SpillSlot* b) const;
+  };
+
+  MidTierRegisterAllocationData* data_;
+  ZonePriorityQueue<SpillSlot*, OrderByLastUse> allocated_slots_;
+  ZoneLinkedList<SpillSlot*> free_slots_;
+  int position_;
+
+  DISALLOW_COPY_AND_ASSIGN(MidTierSpillSlotAllocator);
 };
 
 }  // namespace compiler
