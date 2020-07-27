@@ -6213,7 +6213,7 @@ class WasmWrapperGraphBuilder : public WasmGraphBuilder {
                         global_proxy);
   }
 
-  bool BuildWasmImportCallWrapper(WasmImportCallKind kind) {
+  bool BuildWasmImportCallWrapper(WasmImportCallKind kind, int expected_arity) {
     int wasm_count = static_cast<int>(sig_->parameter_count());
 
     // Build the start and the parameter nodes.
@@ -6317,6 +6317,47 @@ class WasmWrapperGraphBuilder : public WasmGraphBuilder {
 
         // Convert wasm numbers to JS values.
         pos = AddArgumentNodes(VectorOf(args), pos, wasm_count, sig_);
+        args[pos++] = function_context;
+        args[pos++] = effect();
+        args[pos++] = control();
+
+        DCHECK_EQ(pos, args.size());
+        call = graph()->NewNode(mcgraph()->common()->Call(call_descriptor), pos,
+                                args.begin());
+        break;
+      }
+      // =======================================================================
+      // === JS Functions without arguments adapter ============================
+      // =======================================================================
+      case WasmImportCallKind::kJSFunctionArityMismatchSkipAdaptor: {
+        base::SmallVector<Node*, 16> args(expected_arity + 7);
+        int pos = 0;
+        Node* function_context =
+            gasm_->Load(MachineType::TaggedPointer(), callable_node,
+                        wasm::ObjectAccess::ContextOffsetInTaggedJSFunction());
+        args[pos++] = callable_node;  // target callable.
+
+        // Determine receiver at runtime.
+        args[pos++] =
+            BuildReceiverNode(callable_node, native_context, undefined_node);
+
+        auto call_descriptor = Linkage::GetJSCallDescriptor(
+            graph()->zone(), false, expected_arity + 1,
+            CallDescriptor::kNoFlags);
+
+        // Convert wasm numbers to JS values.
+        if (expected_arity <= wasm_count) {
+          pos = AddArgumentNodes(VectorOf(args), pos, expected_arity, sig_);
+        } else {
+          pos = AddArgumentNodes(VectorOf(args), pos, wasm_count, sig_);
+          for (int i = wasm_count; i < expected_arity; ++i) {
+            args[pos++] = undefined_node;
+          }
+        }
+
+        args[pos++] = undefined_node;  // new target
+        args[pos++] =
+            mcgraph()->Int32Constant(expected_arity);  // argument count
         args[pos++] = function_context;
         args[pos++] = effect();
         args[pos++] = control();
@@ -6765,7 +6806,8 @@ std::pair<WasmImportCallKind, Handle<JSReceiver>> ResolveWasmImportCall(
   // For JavaScript calls, determine whether the target has an arity match.
   if (callable->IsJSFunction()) {
     Handle<JSFunction> function = Handle<JSFunction>::cast(callable);
-    SharedFunctionInfo shared = function->shared();
+    Handle<SharedFunctionInfo> shared(function->shared(),
+                                      function->GetIsolate());
 
 // Check for math intrinsics.
 #define COMPARE_SIG_FOR_BUILTIN(name)                                     \
@@ -6788,8 +6830,8 @@ std::pair<WasmImportCallKind, Handle<JSReceiver>> ResolveWasmImportCall(
     COMPARE_SIG_FOR_BUILTIN(F32##name);       \
     break;
 
-    if (FLAG_wasm_math_intrinsics && shared.HasBuiltinId()) {
-      switch (shared.builtin_id()) {
+    if (FLAG_wasm_math_intrinsics && shared->HasBuiltinId()) {
+      switch (shared->builtin_id()) {
         COMPARE_SIG_FOR_BUILTIN_F64(Acos);
         COMPARE_SIG_FOR_BUILTIN_F64(Asin);
         COMPARE_SIG_FOR_BUILTIN_F64(Atan);
@@ -6818,15 +6860,29 @@ std::pair<WasmImportCallKind, Handle<JSReceiver>> ResolveWasmImportCall(
 #undef COMPARE_SIG_FOR_BUILTIN_F64
 #undef COMPARE_SIG_FOR_BUILTIN_F32_F64
 
-    if (IsClassConstructor(shared.kind())) {
+    if (IsClassConstructor(shared->kind())) {
       // Class constructor will throw anyway.
       return std::make_pair(WasmImportCallKind::kUseCallBuiltin, callable);
     }
-    if (shared.internal_formal_parameter_count() ==
+
+    if (shared->internal_formal_parameter_count() ==
         expected_sig->parameter_count()) {
       return std::make_pair(WasmImportCallKind::kJSFunctionArityMatch,
                             callable);
     }
+
+    // If function isn't compiled, compile it now.
+    IsCompiledScope is_compiled_scope(
+        shared->is_compiled_scope(callable->GetIsolate()));
+    if (!is_compiled_scope.is_compiled()) {
+      Compiler::Compile(function, Compiler::CLEAR_EXCEPTION,
+                        &is_compiled_scope);
+    }
+    if (shared->is_safe_to_skip_arguments_adaptor()) {
+      return std::make_pair(
+          WasmImportCallKind::kJSFunctionArityMismatchSkipAdaptor, callable);
+    }
+
     return std::make_pair(WasmImportCallKind::kJSFunctionArityMismatch,
                           callable);
   }
@@ -6941,7 +6997,7 @@ wasm::WasmCompilationResult CompileWasmMathIntrinsic(
 wasm::WasmCompilationResult CompileWasmImportCallWrapper(
     wasm::WasmEngine* wasm_engine, wasm::CompilationEnv* env,
     WasmImportCallKind kind, const wasm::FunctionSig* sig,
-    bool source_positions) {
+    bool source_positions, int expected_arity) {
   DCHECK_NE(WasmImportCallKind::kLinkError, kind);
   DCHECK_NE(WasmImportCallKind::kWasmToWasm, kind);
 
@@ -6972,7 +7028,7 @@ wasm::WasmCompilationResult CompileWasmImportCallWrapper(
   WasmWrapperGraphBuilder builder(&zone, mcgraph, sig, source_position_table,
                                   StubCallMode::kCallWasmRuntimeStub,
                                   env->enabled_features);
-  builder.BuildWasmImportCallWrapper(kind);
+  builder.BuildWasmImportCallWrapper(kind, expected_arity);
 
   // Build a name in the form "wasm-to-js-<kind>-<signature>".
   constexpr size_t kMaxNameLen = 128;

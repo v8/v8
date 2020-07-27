@@ -73,8 +73,8 @@ class CompileImportWrapperTask final : public CancelableTask {
   void RunInternal() override {
     while (base::Optional<WasmImportWrapperCache::CacheKey> key =
                queue_->pop()) {
-      CompileImportWrapper(engine_, native_module_, counters_, key->first,
-                           key->second, cache_scope_);
+      CompileImportWrapper(engine_, native_module_, counters_, key->kind,
+                           key->signature, key->expected_arity, cache_scope_);
     }
   }
 
@@ -1006,9 +1006,18 @@ bool InstanceBuilder::ProcessImportedFunction(
     }
     default: {
       // The imported function is a callable.
+
+      int expected_arity = static_cast<int>(expected_sig->parameter_count());
+      if (kind ==
+          compiler::WasmImportCallKind::kJSFunctionArityMismatchSkipAdaptor) {
+        Handle<JSFunction> function = Handle<JSFunction>::cast(js_receiver);
+        SharedFunctionInfo shared = function->shared();
+        expected_arity = shared.internal_formal_parameter_count();
+      }
+
       NativeModule* native_module = instance->module_object().native_module();
-      WasmCode* wasm_code =
-          native_module->import_wrapper_cache()->Get(kind, expected_sig);
+      WasmCode* wasm_code = native_module->import_wrapper_cache()->Get(
+          kind, expected_sig, expected_arity);
       DCHECK_NOT_NULL(wasm_code);
       ImportedFunctionEntry entry(instance, func_index);
       if (wasm_code->kind() == WasmCode::kWasmToJsWrapper) {
@@ -1346,7 +1355,16 @@ void InstanceBuilder::CompileImportWrappers(
         kind == compiler::WasmImportCallKind::kWasmToCapi) {
       continue;
     }
-    WasmImportWrapperCache::CacheKey key(kind, sig);
+
+    int expected_arity = static_cast<int>(sig->parameter_count());
+    if (resolved.first ==
+        compiler::WasmImportCallKind::kJSFunctionArityMismatchSkipAdaptor) {
+      Handle<JSFunction> function = Handle<JSFunction>::cast(resolved.second);
+      SharedFunctionInfo shared = function->shared();
+      expected_arity = shared.internal_formal_parameter_count();
+    }
+
+    WasmImportWrapperCache::CacheKey key(kind, sig, expected_arity);
     if (cache_scope[key] != nullptr) {
       // Cache entry already exists, no need to compile it again.
       continue;
@@ -1367,8 +1385,8 @@ void InstanceBuilder::CompileImportWrappers(
   while (base::Optional<WasmImportWrapperCache::CacheKey> key =
              import_wrapper_queue.pop()) {
     CompileImportWrapper(isolate_->wasm_engine(), native_module,
-                         isolate_->counters(), key->first, key->second,
-                         &cache_scope);
+                         isolate_->counters(), key->kind, key->signature,
+                         key->expected_arity, &cache_scope);
   }
   task_manager.CancelAndWait();
 }

@@ -58,12 +58,15 @@ wasm::WasmCompilationResult ExecuteTurbofanWasmCompilation(
 // type of the target function/callable and whether the signature matches the
 // argument arity.
 enum class WasmImportCallKind : uint8_t {
-  kLinkError,                // static Wasm->Wasm type error
-  kRuntimeTypeError,         // runtime Wasm->JS type error
-  kWasmToCapi,               // fast Wasm->C-API call
-  kWasmToWasm,               // fast Wasm->Wasm call
-  kJSFunctionArityMatch,     // fast Wasm->JS call
-  kJSFunctionArityMismatch,  // Wasm->JS, needs adapter frame
+  kLinkError,                           // static Wasm->Wasm type error
+  kRuntimeTypeError,                    // runtime Wasm->JS type error
+  kWasmToCapi,                          // fast Wasm->C-API call
+  kWasmToWasm,                          // fast Wasm->Wasm call
+  kJSFunctionArityMatch,                // fast Wasm->JS call
+  kJSFunctionArityMismatch,             // Wasm->JS, needs adapter frame
+  kJSFunctionArityMismatchSkipAdaptor,  // Wasm->JS, arity mismatch calling
+                                        // strict mode function where we don't
+                                        // need the ArgumentsAdaptorTrampoline.
   // Math functions imported from JavaScript that are intrinsified
   kFirstMathIntrinsic,
   kF64Acos = kFirstMathIntrinsic,
@@ -108,7 +111,7 @@ ResolveWasmImportCall(Handle<JSReceiver> callable, const wasm::FunctionSig* sig,
 // Compiles an import call wrapper, which allows Wasm to call imports.
 V8_EXPORT_PRIVATE wasm::WasmCompilationResult CompileWasmImportCallWrapper(
     wasm::WasmEngine*, wasm::CompilationEnv* env, WasmImportCallKind,
-    const wasm::FunctionSig*, bool source_positions);
+    const wasm::FunctionSig*, bool source_positions, int expected_arity);
 
 // Compiles a host call wrapper, which allows Wasm to call host functions.
 wasm::WasmCode* CompileWasmCapiCallWrapper(wasm::WasmEngine*,

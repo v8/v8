@@ -150,7 +150,8 @@ WasmCompilationResult WasmCompilationUnit::ExecuteImportWrapperCompilation(
   auto kind = compiler::kDefaultImportCallKind;
   bool source_positions = is_asmjs_module(env->module);
   WasmCompilationResult result = compiler::CompileWasmImportCallWrapper(
-      engine, env, kind, sig, source_positions);
+      engine, env, kind, sig, source_positions,
+      static_cast<int>(sig->parameter_count()));
   return result;
 }
 
