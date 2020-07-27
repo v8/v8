@@ -1626,11 +1626,7 @@ class BytecodeArrayData : public FixedArrayBaseData {
     is_serialized_for_compilation_ = true;
   }
 
-  const byte* source_positions_address() const {
-    return source_positions_->GetDataStartAddress();
-  }
-
-  int source_positions_size() const { return source_positions_->length(); }
+  Handle<ByteArray> source_positions() const { return source_positions_; }
 
   Address handler_table_address() const {
     CHECK(is_serialized_for_compilation_);
@@ -3285,24 +3281,15 @@ void BytecodeArrayRef::SerializeForCompilation() {
   data()->AsBytecodeArray()->SerializeForCompilation(broker());
 }
 
-const byte* BytecodeArrayRef::source_positions_address() const {
+Handle<ByteArray> BytecodeArrayRef::source_positions() const {
   if (data_->should_access_heap()) {
     DCHECK(data_->kind() != ObjectDataKind::kUnserializedReadOnlyHeapObject);
     AllowHandleDereferenceIf allow_handle_dereference(data()->kind(),
                                                       broker()->mode());
-    return object()->SourcePositionTableIfCollected().GetDataStartAddress();
+    return handle(object()->SourcePositionTableIfCollected(),
+                  broker()->isolate());
   }
-  return data()->AsBytecodeArray()->source_positions_address();
-}
-
-int BytecodeArrayRef::source_positions_size() const {
-  if (data_->should_access_heap()) {
-    DCHECK(data_->kind() != ObjectDataKind::kUnserializedReadOnlyHeapObject);
-    AllowHandleDereferenceIf allow_handle_dereference(data()->kind(),
-                                                      broker()->mode());
-    return object()->SourcePositionTableIfCollected().length();
-  }
-  return data()->AsBytecodeArray()->source_positions_size();
+  return data()->AsBytecodeArray()->source_positions();
 }
 
 Address BytecodeArrayRef::handler_table_address() const {

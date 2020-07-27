@@ -966,6 +966,8 @@ BytecodeGraphBuilder::BytecodeGraphBuilder(
           FrameStateType::kInterpretedFunction,
           bytecode_array().parameter_count(), bytecode_array().register_count(),
           shared_info.object())),
+      source_position_iterator_(std::make_unique<SourcePositionTableIterator>(
+          bytecode_array().source_positions())),
       bytecode_iterator_(
           std::make_unique<OffHeapBytecodeArray>(bytecode_array())),
       bytecode_analysis_(broker_->GetBytecodeAnalysis(
@@ -994,20 +996,7 @@ BytecodeGraphBuilder::BytecodeGraphBuilder(
       state_values_cache_(jsgraph),
       source_positions_(source_positions),
       start_position_(shared_info.StartPosition(), inlining_id),
-      tick_counter_(tick_counter) {
-  if (should_disallow_heap_access()) {
-    // With concurrent inlining on, the source position address doesn't change
-    // because it's been copied from the heap.
-    source_position_iterator_ = std::make_unique<SourcePositionTableIterator>(
-        Vector<const byte>(bytecode_array().source_positions_address(),
-                           bytecode_array().source_positions_size()));
-  } else {
-    // Otherwise, we need to access the table through a handle.
-    source_position_iterator_ = std::make_unique<SourcePositionTableIterator>(
-        handle(bytecode_array().object()->SourcePositionTableIfCollected(),
-               isolate()));
-  }
-}
+      tick_counter_(tick_counter) {}
 
 Node* BytecodeGraphBuilder::GetFunctionClosure() {
   if (!function_closure_.is_set()) {
