@@ -33,6 +33,7 @@
 #include "src/codegen/assembler-inl.h"
 #include "src/codegen/compilation-cache.h"
 #include "src/codegen/macro-assembler-inl.h"
+#include "src/common/globals.h"
 #include "src/debug/debug.h"
 #include "src/deoptimizer/deoptimizer.h"
 #include "src/execution/execution.h"
@@ -1712,8 +1713,7 @@ TEST(TestAlignmentCalculations) {
 static HeapObject NewSpaceAllocateAligned(int size,
                                           AllocationAlignment alignment) {
   Heap* heap = CcTest::heap();
-  AllocationResult allocation =
-      heap->new_space()->AllocateRawAligned(size, alignment);
+  AllocationResult allocation = heap->new_space()->AllocateRaw(size, alignment);
   HeapObject obj;
   allocation.To(&obj);
   heap->CreateFillerObjectAt(obj.address(), size, ClearRecordedSlots::kNo);
@@ -3662,9 +3662,9 @@ TEST(Regress169928) {
   // We need filler the size of AllocationMemento object, plus an extra
   // fill pointer value.
   HeapObject obj;
-  AllocationResult allocation =
-      CcTest::heap()->new_space()->AllocateRawUnaligned(
-          AllocationMemento::kSize + kTaggedSize);
+  AllocationResult allocation = CcTest::heap()->new_space()->AllocateRaw(
+      AllocationMemento::kSize + kTaggedSize,
+      AllocationAlignment::kWordAligned);
   CHECK(allocation.To(&obj));
   Address addr_obj = obj.address();
   CcTest::heap()->CreateFillerObjectAt(addr_obj,

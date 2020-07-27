@@ -563,6 +563,91 @@ std::unique_ptr<ObjectIterator> NewSpace::GetObjectIterator(Heap* heap) {
   return std::unique_ptr<ObjectIterator>(new SemiSpaceObjectIterator(this));
 }
 
+AllocationResult NewSpace::AllocateRawSlow(int size_in_bytes,
+                                           AllocationAlignment alignment,
+                                           AllocationOrigin origin) {
+  if (top() < top_on_previous_step_) {
+    // Generated code decreased the top() pointer to do folded allocations
+    DCHECK_EQ(Page::FromAllocationAreaAddress(top()),
+              Page::FromAllocationAreaAddress(top_on_previous_step_));
+    top_on_previous_step_ = top();
+  }
+#ifdef V8_HOST_ARCH_32_BIT
+  return alignment != kWordAligned
+             ? AllocateRawAligned(size_in_bytes, alignment, origin)
+             : AllocateRawUnaligned(size_in_bytes, origin);
+#else
+#ifdef V8_COMPRESS_POINTERS
+  // TODO(ishell, v8:8875): Consider using aligned allocations once the
+  // allocation alignment inconsistency is fixed. For now we keep using
+  // unaligned access since both x64 and arm64 architectures (where pointer
+  // compression is supported) allow unaligned access to doubles and full words.
+#endif  // V8_COMPRESS_POINTERS
+  return AllocateRawUnaligned(size_in_bytes, origin);
+#endif
+}
+
+AllocationResult NewSpace::AllocateRawUnaligned(int size_in_bytes,
+                                                AllocationOrigin origin) {
+  Address top = allocation_info_.top();
+  if (allocation_info_.limit() < top + size_in_bytes) {
+    // See if we can create room.
+    if (!EnsureAllocation(size_in_bytes, kWordAligned)) {
+      return AllocationResult::Retry();
+    }
+
+    top = allocation_info_.top();
+  }
+
+  HeapObject obj = HeapObject::FromAddress(top);
+  allocation_info_.set_top(top + size_in_bytes);
+  DCHECK_SEMISPACE_ALLOCATION_INFO(allocation_info_, to_space_);
+
+  MSAN_ALLOCATED_UNINITIALIZED_MEMORY(obj.address(), size_in_bytes);
+
+  if (FLAG_trace_allocations_origins) {
+    UpdateAllocationOrigins(origin);
+  }
+
+  return obj;
+}
+
+AllocationResult NewSpace::AllocateRawAligned(int size_in_bytes,
+                                              AllocationAlignment alignment,
+                                              AllocationOrigin origin) {
+  Address top = allocation_info_.top();
+  int filler_size = Heap::GetFillToAlign(top, alignment);
+  int aligned_size_in_bytes = size_in_bytes + filler_size;
+
+  if (allocation_info_.limit() - top <
+      static_cast<uintptr_t>(aligned_size_in_bytes)) {
+    // See if we can create room.
+    if (!EnsureAllocation(size_in_bytes, alignment)) {
+      return AllocationResult::Retry();
+    }
+
+    top = allocation_info_.top();
+    filler_size = Heap::GetFillToAlign(top, alignment);
+    aligned_size_in_bytes = size_in_bytes + filler_size;
+  }
+
+  HeapObject obj = HeapObject::FromAddress(top);
+  allocation_info_.set_top(top + aligned_size_in_bytes);
+  DCHECK_SEMISPACE_ALLOCATION_INFO(allocation_info_, to_space_);
+
+  if (filler_size > 0) {
+    obj = Heap::PrecedeWithFiller(ReadOnlyRoots(heap()), obj, filler_size);
+  }
+
+  MSAN_ALLOCATED_UNINITIALIZED_MEMORY(obj.address(), size_in_bytes);
+
+  if (FLAG_trace_allocations_origins) {
+    UpdateAllocationOrigins(origin);
+  }
+
+  return obj;
+}
+
 #ifdef VERIFY_HEAP
 // We do not use the SemiSpaceObjectIterator because verification doesn't assume
 // that it works (it depends on the invariants we are checking).

@@ -274,9 +274,10 @@ TEST(NewSpace) {
   CHECK(new_space.MaximumCapacity());
 
   while (new_space.Available() >= kMaxRegularHeapObjectSize) {
-    CHECK(new_space.Contains(
-        new_space.AllocateRawUnaligned(kMaxRegularHeapObjectSize)
-            .ToObjectChecked()));
+    CHECK(new_space.Contains(new_space
+                                 .AllocateRaw(kMaxRegularHeapObjectSize,
+                                              AllocationAlignment::kWordAligned)
+                                 .ToObjectChecked()));
   }
 
   new_space.TearDown();

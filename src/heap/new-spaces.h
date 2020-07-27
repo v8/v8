@@ -392,13 +392,6 @@ class V8_EXPORT_PRIVATE NewSpace
   void set_age_mark(Address mark) { to_space_.set_age_mark(mark); }
 
   V8_WARN_UNUSED_RESULT V8_INLINE AllocationResult
-  AllocateRawAligned(int size_in_bytes, AllocationAlignment alignment,
-                     AllocationOrigin origin = AllocationOrigin::kRuntime);
-
-  V8_WARN_UNUSED_RESULT V8_INLINE AllocationResult AllocateRawUnaligned(
-      int size_in_bytes, AllocationOrigin origin = AllocationOrigin::kRuntime);
-
-  V8_WARN_UNUSED_RESULT V8_INLINE AllocationResult
   AllocateRaw(int size_in_bytes, AllocationAlignment alignment,
               AllocationOrigin origin = AllocationOrigin::kRuntime);
 
@@ -481,6 +474,25 @@ class V8_EXPORT_PRIVATE NewSpace
   SemiSpace to_space_;
   SemiSpace from_space_;
   VirtualMemory reservation_;
+
+  // Internal allocation methods.
+  V8_WARN_UNUSED_RESULT V8_INLINE AllocationResult
+  AllocateFastAligned(int size_in_bytes, AllocationAlignment alignment,
+                      AllocationOrigin origin);
+
+  V8_WARN_UNUSED_RESULT V8_INLINE AllocationResult
+  AllocateFastUnaligned(int size_in_bytes, AllocationOrigin origin);
+
+  V8_WARN_UNUSED_RESULT AllocationResult
+  AllocateRawSlow(int size_in_bytes, AllocationAlignment alignment,
+                  AllocationOrigin origin);
+
+  V8_WARN_UNUSED_RESULT AllocationResult
+  AllocateRawAligned(int size_in_bytes, AllocationAlignment alignment,
+                     AllocationOrigin origin = AllocationOrigin::kRuntime);
+
+  V8_WARN_UNUSED_RESULT AllocationResult AllocateRawUnaligned(
+      int size_in_bytes, AllocationOrigin origin = AllocationOrigin::kRuntime);
 
   bool EnsureAllocation(int size_in_bytes, AllocationAlignment alignment);
   bool SupportsInlineAllocation() override { return true; }

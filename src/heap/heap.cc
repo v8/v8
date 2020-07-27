@@ -1934,7 +1934,8 @@ bool Heap::ReserveSpace(Reservation* reservations, std::vector<Address>* maps) {
               AllocateRaw(size, type, AllocationOrigin::kRuntime, align);
 #else
           if (space == NEW_SPACE) {
-            allocation = new_space()->AllocateRawUnaligned(size);
+            allocation = new_space()->AllocateRaw(
+                size, AllocationAlignment::kWordAligned);
           } else if (space == RO_SPACE) {
             allocation = read_only_space()->AllocateRaw(
                 size, AllocationAlignment::kWordAligned);
