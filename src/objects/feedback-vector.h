@@ -804,6 +804,22 @@ class V8_EXPORT_PRIVATE FeedbackNexus final {
   // Create an array. The caller must install it in a feedback vector slot.
   Handle<WeakFixedArray> CreateArrayOfSize(int length);
 
+  struct Cache {
+    Cache() : is_active_(false), slot1_cleared_(false), slot2_cleared_(false) {}
+
+    bool is_active() const { return is_active_; }
+
+    inline MaybeObject slot1(const NexusConfig* config) const;
+    inline MaybeObject slot2(const NexusConfig* config) const;
+    inline void set_slot1(NexusConfig*, MaybeObject);
+    inline void set_slot2(NexusConfig*, MaybeObject);
+
+    bool is_active_;
+    bool slot1_cleared_;
+    bool slot2_cleared_;
+    MaybeObjectHandle slot1_;
+    MaybeObjectHandle slot2_;
+  };
   // The reason for having a vector handle and a raw pointer is that we can and
   // should use handles during IC miss, but not during GC when we clear ICs. If
   // you have a handle to the vector that is better because more operations can
@@ -812,8 +828,7 @@ class V8_EXPORT_PRIVATE FeedbackNexus final {
   FeedbackVector vector_;
   FeedbackSlot slot_;
   FeedbackSlotKind kind_;
-  mutable MaybeObjectHandle cache_slot1_;
-  mutable MaybeObjectHandle cache_slot2_;
+  mutable Cache cache_;
   NexusConfig* g_;
 };
 

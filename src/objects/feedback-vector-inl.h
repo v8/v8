@@ -333,31 +333,66 @@ void NexusConfig::SetFeedback(FeedbackVector vector, int index,
   vector.set(index, feedback, mode);
 }
 
+MaybeObject FeedbackNexus::Cache::slot1(const NexusConfig* config) const {
+  if (slot1_cleared_) {
+    return HeapObjectReference::ClearedValue(config->isolate());
+  }
+  return *slot1_;
+}
+
+MaybeObject FeedbackNexus::Cache::slot2(const NexusConfig* config) const {
+  if (slot2_cleared_) {
+    return HeapObjectReference::ClearedValue(config->isolate());
+  }
+  return *slot2_;
+}
+
+void FeedbackNexus::Cache::set_slot1(NexusConfig* config, MaybeObject object) {
+  is_active_ = true;
+  if (object.IsCleared()) {
+    slot1_cleared_ = true;
+    slot1_ = MaybeObjectHandle();
+  } else {
+    slot1_cleared_ = false;
+    slot1_ = MaybeObjectHandle(config->NewHandle(object));
+  }
+}
+
+void FeedbackNexus::Cache::set_slot2(NexusConfig* config, MaybeObject object) {
+  is_active_ = true;
+  if (object.IsCleared()) {
+    slot2_cleared_ = true;
+    slot2_ = MaybeObjectHandle();
+  } else {
+    slot2_cleared_ = false;
+    slot2_ = MaybeObjectHandle(config->NewHandle(object));
+  }
+}
+
 MaybeObject FeedbackNexus::GetFeedback() const {
-  if (g_->config() == NexusConfig::BackgroundThread &&
-      !cache_slot1_.is_null()) {
-    return *cache_slot1_;
+  if (g_->config() == NexusConfig::BackgroundThread && cache_.is_active()) {
+    return cache_.slot1(g_);
   }
   const int index = vector().GetIndex(slot());
   MaybeObject feedback = g_->GetFeedback(vector(), index);
   FeedbackVector::AssertNoLegacyTypes(feedback);
-  if (g_->config() == NexusConfig::BackgroundThread && cache_slot1_.is_null()) {
-    cache_slot1_ = MaybeObjectHandle(g_->NewHandle(feedback));
+  if (g_->config() == NexusConfig::BackgroundThread) {
+    cache_.set_slot1(g_, feedback);
   }
   return feedback;
 }
 
 std::pair<MaybeObject, MaybeObject> FeedbackNexus::GetFeedbackPair() const {
-  if (g_->config() == NexusConfig::BackgroundThread &&
-      !cache_slot1_.is_null()) {
-    return std::pair<MaybeObject, MaybeObject>(*cache_slot1_, *cache_slot2_);
+  if (g_->config() == NexusConfig::BackgroundThread && cache_.is_active()) {
+    return std::pair<MaybeObject, MaybeObject>(cache_.slot1(g_),
+                                               cache_.slot2(g_));
   }
   const int index = vector().GetIndex(slot());
   auto pair = g_->GetFeedbackPair(vector(), index);
   FeedbackVector::AssertNoLegacyTypes(pair.first);
-  if (g_->config() == NexusConfig::BackgroundThread && cache_slot1_.is_null()) {
-    cache_slot1_ = MaybeObjectHandle(g_->NewHandle(pair.first));
-    cache_slot2_ = MaybeObjectHandle(g_->NewHandle(pair.second));
+  if (g_->config() == NexusConfig::BackgroundThread) {
+    cache_.set_slot1(g_, pair.first);
+    cache_.set_slot2(g_, pair.second);
   }
   return pair;
 }
