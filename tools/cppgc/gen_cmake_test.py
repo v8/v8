@@ -20,7 +20,7 @@ class CMakeMockBuilder(CMakeBuilder):
 
 
 class CMakeGenerationTest(unittest.TestCase):
-    TARGET = 'test_target'
+    TARGET = 'cppgc_base'
     CMAKE_TARGET_SOURCES = TARGET.upper() + '_SOURCES'
 
     def test_source_assignment(self):
