@@ -6974,7 +6974,12 @@ wasm::WasmCompilationResult CompileWasmImportCallWrapper(
                                   env->enabled_features);
   builder.BuildWasmImportCallWrapper(kind);
 
-  const char* func_name = "wasm-to-js";
+  // Build a name in the form "wasm-to-js-<kind>-<signature>".
+  constexpr size_t kMaxNameLen = 128;
+  char func_name[kMaxNameLen];
+  int name_prefix_len = SNPrintF(VectorOf(func_name, kMaxNameLen),
+                                 "wasm-to-js-%d-", static_cast<int>(kind));
+  PrintSignature(VectorOf(func_name, kMaxNameLen) + name_prefix_len, sig, '-');
 
   // Schedule and compile to machine code.
   CallDescriptor* incoming =

@@ -539,10 +539,12 @@ class TruncatedUserString {
   char buffer_[kMaxLen];
 };
 
-// Print the signature into the given {buffer}. If {buffer} is non-empty, it
-// will be null-terminated, even if the signature is cut off. Returns the number
-// of characters written, excluding the terminating null-byte.
-size_t PrintSignature(Vector<char> buffer, const wasm::FunctionSig*);
+// Print the signature into the given {buffer}, using {delimiter} as separator
+// between parameter types and return types. If {buffer} is non-empty, it will
+// be null-terminated, even if the signature is cut off. Returns the number of
+// characters written, excluding the terminating null-byte.
+size_t PrintSignature(Vector<char> buffer, const wasm::FunctionSig*,
+                      char delimiter = ':');
 
 }  // namespace wasm
 }  // namespace internal

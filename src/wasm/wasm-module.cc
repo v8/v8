@@ -650,7 +650,8 @@ size_t EstimateStoredSize(const WasmModule* module) {
          VectorSize(module->exceptions) + VectorSize(module->elem_segments);
 }
 
-size_t PrintSignature(Vector<char> buffer, const wasm::FunctionSig* sig) {
+size_t PrintSignature(Vector<char> buffer, const wasm::FunctionSig* sig,
+                      char delimiter) {
   if (buffer.empty()) return 0;
   size_t old_size = buffer.size();
   auto append_char = [&buffer](char c) {
@@ -661,7 +662,7 @@ size_t PrintSignature(Vector<char> buffer, const wasm::FunctionSig* sig) {
   for (wasm::ValueType t : sig->parameters()) {
     append_char(t.short_name());
   }
-  append_char(':');
+  append_char(delimiter);
   for (wasm::ValueType t : sig->returns()) {
     append_char(t.short_name());
   }
