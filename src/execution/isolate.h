@@ -729,7 +729,7 @@ class V8_EXPORT_PRIVATE Isolate final : private HiddenFactory {
   Handle<Object> GetPromiseOnStackOnThrow();
 
   // Heuristically guess whether a Promise is handled by user catch handler
-  bool PromiseHasUserDefinedRejectHandler(Handle<Object> promise);
+  bool PromiseHasUserDefinedRejectHandler(Handle<JSPromise> promise);
 
   class ExceptionScope {
    public:

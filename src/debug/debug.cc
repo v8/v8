@@ -1827,7 +1827,12 @@ void Debug::OnException(Handle<Object> exception, Handle<Object> promise,
                         Just(ShouldThrow::kThrowOnError))
         .Assert();
     // Check whether the promise reject is considered an uncaught exception.
-    uncaught = !isolate_->PromiseHasUserDefinedRejectHandler(jspromise);
+    if (jspromise->IsJSPromise()) {
+      uncaught = !isolate_->PromiseHasUserDefinedRejectHandler(
+          Handle<JSPromise>::cast(jspromise));
+    } else {
+      uncaught = true;
+    }
   }
 
   if (!debug_delegate_) return;

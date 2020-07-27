@@ -2450,12 +2450,8 @@ void Isolate::PopPromise() {
 }
 
 namespace {
-bool InternalPromiseHasUserDefinedRejectHandler(Isolate* isolate,
-                                                Handle<JSPromise> promise);
-
-bool PromiseHandlerCheck(Isolate* isolate, Handle<JSReceiver> handler,
-                         Handle<JSReceiver> deferred_promise) {
-  // Recurse to the forwarding Promise, if any. This may be due to
+bool PromiseIsRejectHandler(Isolate* isolate, Handle<JSReceiver> handler) {
+  // Recurse to the forwarding Promise (e.g. return false) due to
   //  - await reaction forwarding to the throwaway Promise, which has
   //    a dependency edge to the outer Promise.
   //  - PromiseIdResolveHandler forwarding to the output of .then
@@ -2464,75 +2460,61 @@ bool PromiseHandlerCheck(Isolate* isolate, Handle<JSReceiver> handler,
   // Otherwise, this is a real reject handler for the Promise.
   Handle<Symbol> key = isolate->factory()->promise_forwarding_handler_symbol();
   Handle<Object> forwarding_handler = JSReceiver::GetDataProperty(handler, key);
-  if (forwarding_handler->IsUndefined(isolate)) {
-    return true;
-  }
-
-  if (!deferred_promise->IsJSPromise()) {
-    return true;
-  }
-
-  return InternalPromiseHasUserDefinedRejectHandler(
-      isolate, Handle<JSPromise>::cast(deferred_promise));
+  return forwarding_handler->IsUndefined(isolate);
 }
 
-bool InternalPromiseHasUserDefinedRejectHandler(Isolate* isolate,
+bool PromiseHasUserDefinedRejectHandlerInternal(Isolate* isolate,
                                                 Handle<JSPromise> promise) {
-  // If this promise was marked as being handled by a catch block
-  // in an async function, then it has a user-defined reject handler.
-  if (promise->handled_hint()) return true;
-
-  // If this Promise is subsumed by another Promise (a Promise resolved
-  // with another Promise, or an intermediate, hidden, throwaway Promise
-  // within async/await), then recurse on the outer Promise.
-  // In this case, the dependency is one possible way that the Promise
-  // could be resolved, so it does not subsume the other following cases.
-  Handle<Symbol> key = isolate->factory()->promise_handled_by_symbol();
-  Handle<Object> outer_promise_obj = JSObject::GetDataProperty(promise, key);
-  if (outer_promise_obj->IsJSPromise() &&
-      InternalPromiseHasUserDefinedRejectHandler(
-          isolate, Handle<JSPromise>::cast(outer_promise_obj))) {
-    return true;
-  }
-
-  if (promise->status() == Promise::kPending) {
-    for (Handle<Object> current(promise->reactions(), isolate);
-         !current->IsSmi();) {
-      Handle<PromiseReaction> reaction = Handle<PromiseReaction>::cast(current);
-      Handle<HeapObject> promise_or_capability(
-          reaction->promise_or_capability(), isolate);
-      if (!promise_or_capability->IsUndefined(isolate)) {
-        Handle<JSPromise> promise = Handle<JSPromise>::cast(
-            promise_or_capability->IsJSPromise()
-                ? promise_or_capability
-                : handle(Handle<PromiseCapability>::cast(promise_or_capability)
-                             ->promise(),
-                         isolate));
-        if (reaction->reject_handler().IsUndefined(isolate)) {
-          if (InternalPromiseHasUserDefinedRejectHandler(isolate, promise)) {
-            return true;
-          }
-        } else {
-          Handle<JSReceiver> current_handler(
-              JSReceiver::cast(reaction->reject_handler()), isolate);
-          if (PromiseHandlerCheck(isolate, current_handler, promise)) {
-            return true;
-          }
-        }
+  Handle<Object> current(promise->reactions(), isolate);
+  while (!current->IsSmi()) {
+    Handle<PromiseReaction> reaction = Handle<PromiseReaction>::cast(current);
+    Handle<HeapObject> promise_or_capability(reaction->promise_or_capability(),
+                                             isolate);
+    if (!promise_or_capability->IsUndefined(isolate)) {
+      if (!promise_or_capability->IsJSPromise()) {
+        promise_or_capability = handle(
+            Handle<PromiseCapability>::cast(promise_or_capability)->promise(),
+            isolate);
       }
-      current = handle(reaction->next(), isolate);
+      Handle<JSPromise> promise =
+          Handle<JSPromise>::cast(promise_or_capability);
+      if (!reaction->reject_handler().IsUndefined(isolate)) {
+        Handle<JSReceiver> reject_handler(
+            JSReceiver::cast(reaction->reject_handler()), isolate);
+        if (PromiseIsRejectHandler(isolate, reject_handler)) return true;
+      }
+      if (isolate->PromiseHasUserDefinedRejectHandler(promise)) return true;
     }
+    current = handle(reaction->next(), isolate);
   }
-
   return false;
 }
 
 }  // namespace
 
-bool Isolate::PromiseHasUserDefinedRejectHandler(Handle<Object> promise) {
-  if (!promise->IsJSPromise()) return false;
-  return InternalPromiseHasUserDefinedRejectHandler(
-      this, Handle<JSPromise>::cast(promise));
+bool Isolate::PromiseHasUserDefinedRejectHandler(Handle<JSPromise> promise) {
+  Handle<Symbol> key = factory()->promise_handled_by_symbol();
+  std::stack<Handle<JSPromise>> promises;
+  // First descend into the outermost promise and collect the stack of
+  // Promises for reverse processing.
+  while (true) {
+    // If this promise was marked as being handled by a catch block
+    // in an async function, then it has a user-defined reject handler.
+    if (promise->handled_hint()) return true;
+    if (promise->status() == Promise::kPending) {
+      promises.push(promise);
+    }
+    Handle<Object> outer_promise_obj = JSObject::GetDataProperty(promise, key);
+    if (!outer_promise_obj->IsJSPromise()) break;
+    promise = Handle<JSPromise>::cast(outer_promise_obj);
+  }
+
+  while (!promises.empty()) {
+    promise = promises.top();
+    if (PromiseHasUserDefinedRejectHandlerInternal(this, promise)) return true;
+    promises.pop();
+  }
+  return false;
 }
 
 Handle<Object> Isolate::GetPromiseOnStackOnThrow() {
@@ -2591,8 +2573,11 @@ Handle<Object> Isolate::GetPromiseOnStackOnThrow() {
         // assume that async function calls are awaited.
         if (!promise_on_stack) return retval;
         retval = promise_on_stack->promise();
-        if (PromiseHasUserDefinedRejectHandler(retval)) {
-          return retval;
+        if (retval->IsJSPromise()) {
+          if (PromiseHasUserDefinedRejectHandler(
+                  Handle<JSPromise>::cast(retval))) {
+            return retval;
+          }
         }
         promise_on_stack = promise_on_stack->prev();
         continue;
