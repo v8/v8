@@ -280,6 +280,8 @@ class V8_EXPORT_PRIVATE BitVector : public ZoneObject {
   void Print();
 #endif
 
+  MOVE_ONLY_NO_DEFAULT_CONSTRUCTOR(BitVector);
+
  private:
   int length_;
   int data_length_;
@@ -307,8 +309,6 @@ class V8_EXPORT_PRIVATE BitVector : public ZoneObject {
       }
     }
   }
-
-  DISALLOW_COPY_AND_ASSIGN(BitVector);
 };
 
 class GrowableBitVector {

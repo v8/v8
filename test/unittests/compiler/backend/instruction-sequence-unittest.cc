@@ -442,7 +442,7 @@ InstructionBlock* InstructionSequenceTest::NewBlock(bool deferred) {
   }
   // Construct instruction block.
   auto instruction_block = zone()->New<InstructionBlock>(
-      zone(), rpo, loop_header, loop_end, deferred, false);
+      zone(), rpo, loop_header, loop_end, Rpo::Invalid(), deferred, false);
   instruction_blocks_.push_back(instruction_block);
   current_block_ = instruction_block;
   sequence()->StartBlock(rpo);
@@ -478,6 +478,7 @@ void InstructionSequenceTest::WireBlocks() {
     }
     ++offset;
   }
+  CalculateDominators();
 }
 
 void InstructionSequenceTest::WireBlock(size_t block_offset, int jump_offset) {
@@ -488,6 +489,42 @@ void InstructionSequenceTest::WireBlock(size_t block_offset, int jump_offset) {
   auto target = instruction_blocks_[target_block_offset];
   block->successors().push_back(target->rpo_number());
   target->predecessors().push_back(block->rpo_number());
+}
+
+void InstructionSequenceTest::CalculateDominators() {
+  CHECK_GT(instruction_blocks_.size(), 0);
+  ZoneVector<int> dominator_depth(instruction_blocks_.size(), -1, zone());
+
+  CHECK_EQ(instruction_blocks_[0]->rpo_number(), RpoNumber::FromInt(0));
+  dominator_depth[0] = 0;
+  instruction_blocks_[0]->set_dominator(RpoNumber::FromInt(0));
+
+  for (size_t i = 1; i < instruction_blocks_.size(); i++) {
+    InstructionBlock* block = instruction_blocks_[i];
+    auto pred = block->predecessors().begin();
+    auto end = block->predecessors().end();
+    DCHECK(pred != end);  // All blocks except start have predecessors.
+    RpoNumber dominator = *pred;
+    // For multiple predecessors, walk up the dominator tree until a common
+    // dominator is found. Visitation order guarantees that all predecessors
+    // except for backwards edges have been visited.
+    for (++pred; pred != end; ++pred) {
+      // Don't examine backwards edges.
+      if (dominator_depth[pred->ToInt()] < 0) continue;
+
+      RpoNumber other = *pred;
+      while (dominator != other) {
+        if (dominator_depth[dominator.ToInt()] <
+            dominator_depth[other.ToInt()]) {
+          other = instruction_blocks_[other.ToInt()]->dominator();
+        } else {
+          dominator = instruction_blocks_[dominator.ToInt()]->dominator();
+        }
+      }
+    }
+    block->set_dominator(dominator);
+    dominator_depth[i] = dominator_depth[dominator.ToInt()] + 1;
+  }
 }
 
 Instruction* InstructionSequenceTest::Emit(

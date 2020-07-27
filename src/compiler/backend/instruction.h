@@ -1025,7 +1025,7 @@ class RpoNumber final {
   int32_t index_;
 };
 
-std::ostream& operator<<(std::ostream&, const RpoNumber&);
+V8_EXPORT_PRIVATE std::ostream& operator<<(std::ostream&, const RpoNumber&);
 
 class V8_EXPORT_PRIVATE Constant final {
  public:
@@ -1388,7 +1388,8 @@ class V8_EXPORT_PRIVATE InstructionBlock final
     : public NON_EXPORTED_BASE(ZoneObject) {
  public:
   InstructionBlock(Zone* zone, RpoNumber rpo_number, RpoNumber loop_header,
-                   RpoNumber loop_end, bool deferred, bool handler);
+                   RpoNumber loop_end, RpoNumber dominator, bool deferred,
+                   bool handler);
 
   // Instruction indexes (used by the register allocator).
   int first_instruction_index() const {
@@ -1437,6 +1438,9 @@ class V8_EXPORT_PRIVATE InstructionBlock final
   const Successors& successors() const { return successors_; }
   size_t SuccessorCount() const { return successors_.size(); }
 
+  RpoNumber dominator() const { return dominator_; }
+  void set_dominator(RpoNumber dominator) { dominator_ = dominator; }
+
   using PhiInstructions = ZoneVector<PhiInstruction*>;
   const PhiInstructions& phis() const { return phis_; }
   PhiInstruction* PhiAt(size_t i) const { return phis_[i]; }
@@ -1465,6 +1469,7 @@ class V8_EXPORT_PRIVATE InstructionBlock final
   const RpoNumber rpo_number_;
   const RpoNumber loop_header_;
   const RpoNumber loop_end_;
+  RpoNumber dominator_;
   int32_t code_start_;   // start index of arch-specific code.
   int32_t code_end_ = -1;     // end index of arch-specific code.
   const bool deferred_;       // Block contains deferred code.

@@ -24,6 +24,20 @@ namespace compiler {
 
 class RegisterState;
 
+// BlockState stores details associated with a particular basic block.
+class BlockState final {
+ public:
+  BlockState(int block_count, Zone* zone)
+      : dominated_blocks_(block_count, zone) {}
+
+  // Returns a bitvector representing all the basic blocks that are dominated
+  // by this basic block.
+  BitVector* dominated_blocks() { return &dominated_blocks_; }
+
+ private:
+  BitVector dominated_blocks_;
+};
+
 MidTierRegisterAllocationData::MidTierRegisterAllocationData(
     const RegisterConfiguration* config, Zone* zone, Frame* frame,
     InstructionSequence* code, TickCounter* tick_counter,
@@ -35,10 +49,17 @@ MidTierRegisterAllocationData::MidTierRegisterAllocationData(
       debug_name_(debug_name),
       config_(config),
       virtual_register_data_(code->VirtualRegisterCount(), allocation_zone()),
+      block_states_(allocation_zone()),
       reference_map_instructions_(allocation_zone()),
       spilled_virtual_registers_(code->VirtualRegisterCount(),
                                  allocation_zone()),
-      tick_counter_(tick_counter) {}
+      tick_counter_(tick_counter) {
+  int basic_block_count = code->InstructionBlockCount();
+  block_states_.reserve(basic_block_count);
+  for (int i = 0; i < basic_block_count; i++) {
+    block_states_.emplace_back(basic_block_count, allocation_zone());
+  }
+}
 
 MoveOperands* MidTierRegisterAllocationData::AddGapMove(
     int instr_index, Instruction::GapPosition position,
@@ -63,6 +84,10 @@ MachineRepresentation MidTierRegisterAllocationData::RepresentationFor(
   }
 }
 
+BlockState& MidTierRegisterAllocationData::block_state(RpoNumber rpo_number) {
+  return block_states_[rpo_number.ToInt()];
+}
+
 const InstructionBlock* MidTierRegisterAllocationData::GetBlock(
     RpoNumber rpo_number) {
   return code()->InstructionBlockAt(rpo_number);
@@ -71,6 +96,12 @@ const InstructionBlock* MidTierRegisterAllocationData::GetBlock(
 const InstructionBlock* MidTierRegisterAllocationData::GetBlock(
     int instr_index) {
   return code()->InstructionAt(instr_index)->block();
+}
+
+const BitVector* MidTierRegisterAllocationData::GetBlocksDominatedBy(
+    int instr_index) {
+  const InstructionBlock* block = GetBlock(instr_index);
+  return block_state(block->rpo_number()).dominated_blocks();
 }
 
 // RegisterIndex represents a particular register of a given kind (depending
@@ -204,13 +235,16 @@ class VirtualRegisterData final {
    public:
     // Defines a spill range for an output operand.
     SpillRange(int definition_instr_index, MidTierRegisterAllocationData* data)
-        : live_range_(definition_instr_index, definition_instr_index) {}
+        : live_range_(definition_instr_index, definition_instr_index),
+          live_blocks_(data->GetBlocksDominatedBy(definition_instr_index)) {}
 
     // Defines a spill range for a Phi variable.
     SpillRange(const InstructionBlock* phi_block,
                MidTierRegisterAllocationData* data)
         : live_range_(phi_block->first_instruction_index(),
-                      phi_block->first_instruction_index()) {
+                      phi_block->first_instruction_index()),
+          live_blocks_(data->GetBlocksDominatedBy(
+              phi_block->first_instruction_index())) {
       // For phis, add the gap move instructions in the predecssor blocks to
       // the live range.
       for (RpoNumber pred_rpo : phi_block->predecessors()) {
@@ -220,8 +254,8 @@ class VirtualRegisterData final {
     }
 
     bool IsLiveAt(int instr_index, InstructionBlock* block) {
-      // TODO(rmcilroy): Only include basic blocks dominated by the variable.
-      return live_range_.Contains(instr_index);
+      return live_range_.Contains(instr_index) &&
+             live_blocks_->Contains(block->rpo_number().ToInt());
     }
 
     void ExtendRangeTo(int instr_index) { live_range_.AddInstr(instr_index); }
@@ -230,6 +264,7 @@ class VirtualRegisterData final {
 
    private:
     Range live_range_;
+    const BitVector* live_blocks_;
 
     DISALLOW_COPY_AND_ASSIGN(SpillRange);
   };
@@ -1458,7 +1493,25 @@ void MidTierRegisterAllocator::DefineOutputs() {
        base::Reversed(code()->instruction_blocks())) {
     data_->tick_counter()->DoTick();
 
+    InitializeBlockState(block);
     DefineOutputs(block);
+  }
+}
+
+void MidTierRegisterAllocator::InitializeBlockState(
+    const InstructionBlock* block) {
+  // Mark this block as dominating itself.
+  BlockState& block_state = data()->block_state(block->rpo_number());
+  block_state.dominated_blocks()->Add(block->rpo_number().ToInt());
+
+  if (block->dominator().IsValid()) {
+    // Add all the blocks this block dominates to its dominator.
+    BlockState& dominator_block_state = data()->block_state(block->dominator());
+    dominator_block_state.dominated_blocks()->Union(
+        *block_state.dominated_blocks());
+  } else {
+    // Only the first block shouldn't have a dominator.
+    DCHECK_EQ(block, code()->instruction_blocks().front());
   }
 }
 
@@ -1707,6 +1760,36 @@ void MidTierRegisterAllocator::UpdateSpillRangesForLoops() {
   }
 }
 
+// Spill slot allocator for mid-tier register allocation.
+class MidTierSpillSlotAllocator final {
+ public:
+  explicit MidTierSpillSlotAllocator(MidTierRegisterAllocationData* data);
+
+  void Allocate(VirtualRegisterData* virtual_register);
+
+ private:
+  class SpillSlot;
+
+  void AdvanceTo(int instr_index);
+  SpillSlot* GetFreeSpillSlot(int byte_width);
+
+  MidTierRegisterAllocationData* data() const { return data_; }
+  InstructionSequence* code() const { return data()->code(); }
+  Frame* frame() const { return data()->frame(); }
+  Zone* zone() const { return data()->allocation_zone(); }
+
+  struct OrderByLastUse {
+    bool operator()(const SpillSlot* a, const SpillSlot* b) const;
+  };
+
+  MidTierRegisterAllocationData* data_;
+  ZonePriorityQueue<SpillSlot*, OrderByLastUse> allocated_slots_;
+  ZoneLinkedList<SpillSlot*> free_slots_;
+  int position_;
+
+  DISALLOW_COPY_AND_ASSIGN(MidTierSpillSlotAllocator);
+};
+
 class MidTierSpillSlotAllocator::SpillSlot : public ZoneObject {
  public:
   SpillSlot(int stack_slot, int byte_width)
@@ -1791,12 +1874,12 @@ void MidTierSpillSlotAllocator::Allocate(
   allocated_slots_.push(slot);
 }
 
-void MidTierSpillSlotAllocator::AllocateSpillSlots() {
-  ZoneVector<VirtualRegisterData*> spilled(zone());
-  BitVector::Iterator iterator(&data()->spilled_virtual_registers());
+void AllocateSpillSlots(MidTierRegisterAllocationData* data) {
+  ZoneVector<VirtualRegisterData*> spilled(data->allocation_zone());
+  BitVector::Iterator iterator(&data->spilled_virtual_registers());
   for (; !iterator.Done(); iterator.Advance()) {
     VirtualRegisterData& vreg_data =
-        data()->VirtualRegisterDataFor(iterator.Current());
+        data->VirtualRegisterDataFor(iterator.Current());
     if (vreg_data.HasPendingSpillOperand()) {
       spilled.push_back(&vreg_data);
     }
@@ -1811,8 +1894,59 @@ void MidTierSpillSlotAllocator::AllocateSpillSlots() {
             });
 
   // Allocate a spill slot for each virtual register with a spill range.
+  MidTierSpillSlotAllocator allocator(data);
   for (VirtualRegisterData* spill : spilled) {
-    Allocate(spill);
+    allocator.Allocate(spill);
+  }
+}
+
+// Populates reference maps for mid-tier register allocation.
+class MidTierReferenceMapPopulator final {
+ public:
+  explicit MidTierReferenceMapPopulator(MidTierRegisterAllocationData* data);
+
+  void RecordReferences(const VirtualRegisterData& virtual_register);
+
+ private:
+  MidTierRegisterAllocationData* data() const { return data_; }
+  InstructionSequence* code() const { return data()->code(); }
+
+  MidTierRegisterAllocationData* data_;
+
+  DISALLOW_COPY_AND_ASSIGN(MidTierReferenceMapPopulator);
+};
+
+MidTierReferenceMapPopulator::MidTierReferenceMapPopulator(
+    MidTierRegisterAllocationData* data)
+    : data_(data) {}
+
+void MidTierReferenceMapPopulator::RecordReferences(
+    const VirtualRegisterData& virtual_register) {
+  if (!virtual_register.HasAllocatedSpillOperand()) return;
+  if (!code()->IsReference(virtual_register.vreg())) return;
+
+  VirtualRegisterData::SpillRange* spill_range = virtual_register.spill_range();
+  Range& live_range = spill_range->live_range();
+  AllocatedOperand allocated =
+      *AllocatedOperand::cast(virtual_register.spill_operand());
+  for (int instr_index : data()->reference_map_instructions()) {
+    if (instr_index > live_range.end() || instr_index < live_range.start())
+      continue;
+    Instruction* instr = data()->code()->InstructionAt(instr_index);
+    DCHECK(instr->HasReferenceMap());
+
+    if (spill_range->IsLiveAt(instr_index, instr->block())) {
+      instr->reference_map()->RecordReference(allocated);
+    }
+  }
+}
+
+void PopulateReferenceMaps(MidTierRegisterAllocationData* data) {
+  MidTierReferenceMapPopulator populator(data);
+  BitVector::Iterator iterator(&data->spilled_virtual_registers());
+  for (; !iterator.Done(); iterator.Advance()) {
+    populator.RecordReferences(
+        data->VirtualRegisterDataFor(iterator.Current()));
   }
 }
 

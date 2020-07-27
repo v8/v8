@@ -16,7 +16,7 @@ namespace compiler {
 InstructionBlocks* CreateSingleBlock(Zone* zone) {
   InstructionBlock* block = zone->New<InstructionBlock>(
       zone, RpoNumber::FromInt(0), RpoNumber::Invalid(), RpoNumber::Invalid(),
-      false, false);
+      RpoNumber::Invalid(), false, false);
   InstructionBlocks* blocks = zone->NewArray<InstructionBlocks>(1);
   new (blocks) InstructionBlocks(1, block, zone);
   return blocks;

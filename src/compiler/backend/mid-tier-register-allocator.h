@@ -21,6 +21,7 @@ class TickCounter;
 
 namespace compiler {
 
+class BlockState;
 class SinglePassRegisterAllocator;
 class VirtualRegisterData;
 
@@ -56,6 +57,10 @@ class MidTierRegisterAllocationData final : public RegisterAllocationData {
   const InstructionBlock* GetBlock(const RpoNumber rpo_number);
   const InstructionBlock* GetBlock(int instr_index);
 
+  // Returns a bitvector representing all the blocks that are dominated by the
+  // output of the instruction at |instr_index|.
+  const BitVector* GetBlocksDominatedBy(int instr_index);
+
   // List of all instruction indexs that require a reference map.
   ZoneVector<int>& reference_map_instructions() {
     return reference_map_instructions_;
@@ -72,6 +77,8 @@ class MidTierRegisterAllocationData final : public RegisterAllocationData {
   // allocation.
   Zone* code_zone() const { return code()->zone(); }
 
+  BlockState& block_state(RpoNumber rpo_number);
+
   InstructionSequence* code() const { return code_; }
   Frame* frame() const { return frame_; }
   const char* debug_name() const { return debug_name_; }
@@ -86,6 +93,7 @@ class MidTierRegisterAllocationData final : public RegisterAllocationData {
   const RegisterConfiguration* const config_;
 
   ZoneVector<VirtualRegisterData> virtual_register_data_;
+  ZoneVector<BlockState> block_states_;
   ZoneVector<int> reference_map_instructions_;
   BitVector spilled_virtual_registers_;
 
@@ -146,38 +154,11 @@ class MidTierRegisterAllocator final {
   DISALLOW_COPY_AND_ASSIGN(MidTierRegisterAllocator);
 };
 
-// Spill slot allocator for mid-tier register allocation.
-class MidTierSpillSlotAllocator final {
- public:
-  explicit MidTierSpillSlotAllocator(MidTierRegisterAllocationData* data);
+// Phase 3: assign spilled operands to specific spill slots.
+void AllocateSpillSlots(MidTierRegisterAllocationData* data);
 
-  // Phase 3: assign spilled operands to specific spill slots.
-  void AllocateSpillSlots();
-
- private:
-  class SpillSlot;
-
-  void Allocate(VirtualRegisterData* virtual_register);
-
-  void AdvanceTo(int instr_index);
-  SpillSlot* GetFreeSpillSlot(int byte_width);
-
-  MidTierRegisterAllocationData* data() const { return data_; }
-  InstructionSequence* code() const { return data()->code(); }
-  Frame* frame() const { return data()->frame(); }
-  Zone* zone() const { return data()->allocation_zone(); }
-
-  struct OrderByLastUse {
-    bool operator()(const SpillSlot* a, const SpillSlot* b) const;
-  };
-
-  MidTierRegisterAllocationData* data_;
-  ZonePriorityQueue<SpillSlot*, OrderByLastUse> allocated_slots_;
-  ZoneLinkedList<SpillSlot*> free_slots_;
-  int position_;
-
-  DISALLOW_COPY_AND_ASSIGN(MidTierSpillSlotAllocator);
-};
+// Phase 4: Populate reference maps for spilled references.
+void PopulateReferenceMaps(MidTierRegisterAllocationData* data);
 
 }  // namespace compiler
 }  // namespace internal

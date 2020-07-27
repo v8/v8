@@ -246,6 +246,7 @@ class InstructionSequenceTest : public TestWithIsolateAndZone {
   InstructionOperand ConvertOutputOp(VReg vreg, TestOperand op);
   InstructionBlock* NewBlock(bool deferred = false);
   void WireBlock(size_t block_offset, int jump_offset);
+  void CalculateDominators();
 
   Instruction* Emit(InstructionCode code, size_t outputs_size = 0,
                     InstructionOperand* outputs = nullptr,
