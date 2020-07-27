@@ -1104,7 +1104,7 @@ TF_BUILTIN(RegExpConstructor, RegExpBuiltinsAssembler) {
     BIND(&allocate_generic);
     {
       ConstructorBuiltinsAssembler constructor_assembler(this->state());
-      var_regexp = CAST(constructor_assembler.EmitFastNewObject(
+      var_regexp = CAST(constructor_assembler.FastNewObject(
           context, regexp_function, CAST(var_new_target.value())));
       Goto(&next);
     }
