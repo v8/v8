@@ -1612,7 +1612,9 @@ void TurboAssembler::Ext32(Register rt, Register rs, uint16_t pos,
   DCHECK_LT(pos + size, 33);
   // RISC-V does not have an extract-type instruction, so we need to use shifts
   slliw(rt, rs, 32 - (pos + size));
-  srliw(rt, rt, 32 - size);
+  if (size != 32) {
+    srliw(rt, rt, 32 - size);
+  }
 }
 
 void TurboAssembler::Ext64(Register rt, Register rs, uint16_t pos,
