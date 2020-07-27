@@ -1107,7 +1107,6 @@ class AggregateLiteral : public MaterializedLiteral {
     kIsShallow = 1,
     kDisableMementos = 1 << 1,
     kNeedsInitialAllocationSite = 1 << 2,
-    kIsShallowAndDisableMementos = kIsShallow | kDisableMementos,
   };
 
   bool is_initialized() const { return 0 < depth_; }

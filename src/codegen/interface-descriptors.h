@@ -59,6 +59,7 @@ namespace internal {
   V(ContextOnly)                         \
   V(CppBuiltinAdaptor)                   \
   V(EphemeronKeyBarrier)                 \
+  V(FastNewFunctionContext)              \
   V(FastNewObject)                       \
   V(FrameDropperTrampoline)              \
   V(GetIteratorStackParameter)           \
@@ -834,6 +835,17 @@ class LoadGlobalWithVectorDescriptor : public LoadGlobalDescriptor {
     return LoadWithVectorDescriptor::VectorRegister();
   }
 #endif
+};
+
+class FastNewFunctionContextDescriptor : public CallInterfaceDescriptor {
+ public:
+  DEFINE_PARAMETERS(kScopeInfo, kSlots)
+  DEFINE_PARAMETER_TYPES(MachineType::AnyTagged(),  // kScopeInfo
+                         MachineType::Uint32())     // kSlots
+  DECLARE_DESCRIPTOR(FastNewFunctionContextDescriptor, CallInterfaceDescriptor)
+
+  static const Register ScopeInfoRegister();
+  static const Register SlotsRegister();
 };
 
 class FastNewObjectDescriptor : public CallInterfaceDescriptor {

@@ -1114,7 +1114,6 @@ torque_files = [
   "src/builtins/builtins-string.tq",
   "src/builtins/cast.tq",
   "src/builtins/collections.tq",
-  "src/builtins/constructor.tq",
   "src/builtins/conversion.tq",
   "src/builtins/convert.tq",
   "src/builtins/console.tq",

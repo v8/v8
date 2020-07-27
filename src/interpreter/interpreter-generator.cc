@@ -2239,8 +2239,8 @@ IGNITION_HANDLER(CreateRegExpLiteral, InterpreterAssembler) {
   TVARIABLE(JSRegExp, result);
 
   ConstructorBuiltinsAssembler constructor_assembler(state());
-  result = constructor_assembler.CreateRegExpLiteral(feedback_vector, slot,
-                                                     pattern, flags, context);
+  result = constructor_assembler.EmitCreateRegExpLiteral(
+      feedback_vector, slot, pattern, flags, context);
   SetAccumulator(result.value());
   Dispatch();
 }
@@ -2266,9 +2266,9 @@ IGNITION_HANDLER(CreateArrayLiteral, InterpreterAssembler) {
   BIND(&fast_shallow_clone);
   {
     ConstructorBuiltinsAssembler constructor_assembler(state());
-    TNode<JSArray> result = constructor_assembler.CreateShallowArrayLiteral(
-        CAST(feedback_vector), slot, context, TRACK_ALLOCATION_SITE,
-        &call_runtime);
+    TNode<JSArray> result = constructor_assembler.EmitCreateShallowArrayLiteral(
+        CAST(feedback_vector), slot, context, &call_runtime,
+        TRACK_ALLOCATION_SITE);
     SetAccumulator(result);
     Dispatch();
   }
@@ -2301,7 +2301,7 @@ IGNITION_HANDLER(CreateEmptyArrayLiteral, InterpreterAssembler) {
   GotoIf(IsUndefined(maybe_feedback_vector), &no_feedback);
 
   ConstructorBuiltinsAssembler constructor_assembler(state());
-  result = constructor_assembler.CreateEmptyArrayLiteral(
+  result = constructor_assembler.EmitCreateEmptyArrayLiteral(
       CAST(maybe_feedback_vector), slot, context);
   Goto(&end);
 
@@ -2356,8 +2356,9 @@ IGNITION_HANDLER(CreateObjectLiteral, InterpreterAssembler) {
   {
     // If we can do a fast clone do the fast-path in CreateShallowObjectLiteral.
     ConstructorBuiltinsAssembler constructor_assembler(state());
-    TNode<HeapObject> result = constructor_assembler.CreateShallowObjectLiteral(
-        CAST(feedback_vector), slot, &if_not_fast_clone);
+    TNode<HeapObject> result =
+        constructor_assembler.EmitCreateShallowObjectLiteral(
+            CAST(feedback_vector), slot, &if_not_fast_clone);
     SetAccumulator(result);
     Dispatch();
   }
@@ -2390,7 +2391,7 @@ IGNITION_HANDLER(CreateEmptyObjectLiteral, InterpreterAssembler) {
   TNode<Context> context = GetContext();
   ConstructorBuiltinsAssembler constructor_assembler(state());
   TNode<JSObject> result =
-      constructor_assembler.CreateEmptyObjectLiteral(context);
+      constructor_assembler.EmitCreateEmptyObjectLiteral(context);
   SetAccumulator(result);
   Dispatch();
 }
@@ -2520,7 +2521,7 @@ IGNITION_HANDLER(CreateFunctionContext, InterpreterAssembler) {
   TNode<Uint32T> slots = BytecodeOperandUImm(1);
   TNode<Context> context = GetContext();
   ConstructorBuiltinsAssembler constructor_assembler(state());
-  SetAccumulator(constructor_assembler.FastNewFunctionContext(
+  SetAccumulator(constructor_assembler.EmitFastNewFunctionContext(
       scope_info, slots, context, FUNCTION_SCOPE));
   Dispatch();
 }
@@ -2534,7 +2535,7 @@ IGNITION_HANDLER(CreateEvalContext, InterpreterAssembler) {
   TNode<Uint32T> slots = BytecodeOperandUImm(1);
   TNode<Context> context = GetContext();
   ConstructorBuiltinsAssembler constructor_assembler(state());
-  SetAccumulator(constructor_assembler.FastNewFunctionContext(
+  SetAccumulator(constructor_assembler.EmitFastNewFunctionContext(
       scope_info, slots, context, EVAL_SCOPE));
   Dispatch();
 }
