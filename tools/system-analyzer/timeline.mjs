@@ -229,8 +229,8 @@ class Chunk {
     return Object.entries(breakdown).sort((a, b) => a[1] - b[1]);
   }
 
-  filter(filterFn){
-    return this.items.filter(filterFn);
+  filter(){
+    return this.items.filter(map => !map.parent() || !this.has(map.parent()));
   }
 
 }

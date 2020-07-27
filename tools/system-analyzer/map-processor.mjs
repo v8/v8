@@ -5,6 +5,7 @@
 import {Timeline} from './timeline.mjs';
 
 // ===========================================================================
+import {Event} from './event.mjs';
 const kChunkHeight = 250;
 const kChunkWidth = 10;
 
@@ -235,22 +236,21 @@ class MapProcessor extends LogReader {
 
 // ===========================================================================
 
-class V8Map {
+class V8Map extends Event {
+  edge = void 0;
+  children = [];
+  depth = 0;
+  // TODO(zcankara): Change this to private class field.
+  #isDeprecated = false;
+  deprecatedTargets = null;
+  leftId= 0;
+  rightId = 0;
+  filePosition = '';
+
   constructor(id, time = -1) {
-    if (!id) throw 'Invalid ID';
-    this.id = id;
-    this.time = time;
-    if (!(time > 0)) throw 'Invalid time';
-    this.description = '';
-    this.edge = void 0;
-    this.children = [];
-    this.depth = 0;
-    this._isDeprecated = false;
-    this.deprecationTargets = null;
-    V8Map.set(id, this);
-    this.leftId = 0;
-    this.rightId = 0;
-    this.filePosition = '';
+      if (time <= 0) throw new Error('Invalid time');
+      super(id, time);
+      V8Map.set(id, this);
   }
 
   finalizeRootMap(id) {
@@ -282,11 +282,11 @@ class V8Map {
   }
 
   isDeprecated() {
-    return this._isDeprecated;
+    return this.#isDeprecated;
   }
 
   deprecate() {
-    this._isDeprecated = true;
+    this.#isDeprecated = true;
   }
 
   isRoot() {

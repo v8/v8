@@ -28,8 +28,7 @@ class State {
     this.map = e.detail;
   }
   handleShowMaps(e){
-    this.mapPanel_.mapEntries = e.detail.filter(event =>
-      !event.parent() || !this.has(event.parent()));
+    this.mapPanel_.mapEntries = e.detail.filter();
   }
   get icTimeline() {
     return this.#icTimeline;
