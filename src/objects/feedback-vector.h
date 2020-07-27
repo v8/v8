@@ -812,6 +812,8 @@ class V8_EXPORT_PRIVATE FeedbackNexus final {
   FeedbackVector vector_;
   FeedbackSlot slot_;
   FeedbackSlotKind kind_;
+  mutable MaybeObjectHandle cache_slot1_;
+  mutable MaybeObjectHandle cache_slot2_;
   NexusConfig* g_;
 };
 

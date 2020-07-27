@@ -334,16 +334,31 @@ void NexusConfig::SetFeedback(FeedbackVector vector, int index,
 }
 
 MaybeObject FeedbackNexus::GetFeedback() const {
+  if (g_->config() == NexusConfig::BackgroundThread &&
+      !cache_slot1_.is_null()) {
+    return *cache_slot1_;
+  }
   const int index = vector().GetIndex(slot());
   MaybeObject feedback = g_->GetFeedback(vector(), index);
   FeedbackVector::AssertNoLegacyTypes(feedback);
+  if (g_->config() == NexusConfig::BackgroundThread && cache_slot1_.is_null()) {
+    cache_slot1_ = MaybeObjectHandle(g_->NewHandle(feedback));
+  }
   return feedback;
 }
 
 std::pair<MaybeObject, MaybeObject> FeedbackNexus::GetFeedbackPair() const {
+  if (g_->config() == NexusConfig::BackgroundThread &&
+      !cache_slot1_.is_null()) {
+    return std::pair<MaybeObject, MaybeObject>(*cache_slot1_, *cache_slot2_);
+  }
   const int index = vector().GetIndex(slot());
   auto pair = g_->GetFeedbackPair(vector(), index);
   FeedbackVector::AssertNoLegacyTypes(pair.first);
+  if (g_->config() == NexusConfig::BackgroundThread && cache_slot1_.is_null()) {
+    cache_slot1_ = MaybeObjectHandle(g_->NewHandle(pair.first));
+    cache_slot2_ = MaybeObjectHandle(g_->NewHandle(pair.second));
+  }
   return pair;
 }
 
