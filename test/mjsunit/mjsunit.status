@@ -832,11 +832,9 @@
 
 ['arch == riscv64 or arch == riscv', {
   'regress/wasm/regress-1032753': [SKIP], # issue 57
-  'regress/regress-6196': [SKIP], # issue 54
-  'es6/block-conflicts-sloppy': [SKIP], #issue 56
-  
-  'wasm/asm-wasm': [SKIP], # issue 54
-  'wasm/compilation-hints-interpreter': [SKIP], # issue 54
+  'es6/block-conflicts-sloppy': [SKIP], # issue 56
+  'es6/promises': [SKIP], # issue 56
+
   'wasm/compiled-module-serialization': [SKIP], # issue 55
   'wasm/float-constant-folding': [SKIP], # issue 53
   'wasm/shared-memory-gc-stress': [SKIP], # issue 56
