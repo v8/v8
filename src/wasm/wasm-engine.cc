@@ -653,33 +653,40 @@ void WasmEngine::TierDownAllModulesPerIsolate(Isolate* isolate) {
 
 void WasmEngine::TierUpAllModulesPerIsolate(Isolate* isolate) {
   // Only trigger recompilation after releasing the mutex, otherwise we risk
-  // deadlocks because of lock inversion.
-  std::vector<std::shared_ptr<NativeModule>> native_modules_to_recompile;
+  // deadlocks because of lock inversion. The bool tells whether the module
+  // needs recompilation for tier up.
+  std::vector<std::pair<std::shared_ptr<NativeModule>, bool>> native_modules;
   {
     base::MutexGuard lock(&mutex_);
     isolates_[isolate]->keep_tiered_down = false;
-    auto test_keep_tiered_down = [this](NativeModule* native_module) {
+    auto test_can_tier_up = [this](NativeModule* native_module) {
       DCHECK_EQ(1, native_modules_.count(native_module));
       for (auto* isolate : native_modules_[native_module]->isolates) {
         DCHECK_EQ(1, isolates_.count(isolate));
-        if (isolates_[isolate]->keep_tiered_down) return true;
+        if (isolates_[isolate]->keep_tiered_down) return false;
       }
-      return false;
+      return true;
     };
     for (auto* native_module : isolates_[isolate]->native_modules) {
-      if (!native_module->IsTieredDown()) continue;
-      // Only start tier-up if no other isolate needs this modules in tiered
-      // down state.
-      if (test_keep_tiered_down(native_module)) continue;
-      native_module->SetTieringState(kTieredUp);
       DCHECK_EQ(1, native_modules_.count(native_module));
-      if (auto shared_ptr = native_modules_[native_module]->weak_ptr.lock()) {
-        native_modules_to_recompile.emplace_back(std::move(shared_ptr));
-      }
+      auto shared_ptr = native_modules_[native_module]->weak_ptr.lock();
+      if (!shared_ptr) continue;  // The module is not used any more.
+      if (!native_module->IsTieredDown()) continue;
+      // Only start tier-up if no other isolate needs this module in tiered
+      // down state.
+      bool tier_up = test_can_tier_up(native_module);
+      if (tier_up) native_module->SetTieringState(kTieredUp);
+      native_modules.emplace_back(std::move(shared_ptr), tier_up);
     }
   }
-  for (auto& native_module : native_modules_to_recompile) {
-    native_module->RecompileForTiering();
+  for (auto& entry : native_modules) {
+    auto& native_module = entry.first;
+    bool tier_up = entry.second;
+    // Remove all breakpoints set by this isolate.
+    if (native_module->HasDebugInfo()) {
+      native_module->GetDebugInfo()->RemoveIsolate(isolate);
+    }
+    if (tier_up) native_module->RecompileForTiering();
   }
 }
 

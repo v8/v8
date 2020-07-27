@@ -418,8 +418,9 @@ class DebugInfoImpl {
                       wire_bytes.begin() + function->code.end_offset()};
     std::unique_ptr<DebugSideTable> debug_sidetable;
 
-    ForDebugging for_debugging =
-        offsets.size() == 1 && offsets[0] == 0 ? kForStepping : kForDebugging;
+    ForDebugging for_debugging = offsets.size() == 1 && offsets[0] == 0
+                                     ? kForStepping
+                                     : kWithBreakpoints;
     Counters* counters = nullptr;
     WasmFeatures unused_detected;
     WasmCompilationResult result = ExecuteLiftoffCompilation(

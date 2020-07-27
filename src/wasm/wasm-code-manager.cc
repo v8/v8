@@ -1098,10 +1098,18 @@ WasmCode* NativeModule::PublishCodeLocked(std::unique_ptr<WasmCode> code) {
     // code, which is only used for a single frame and never installed in the
     // code table of jump table). Otherwise, install code if it was compiled
     // with a higher tier.
+    static_assert(
+        kForDebugging > kNoDebugging && kWithBreakpoints > kForDebugging,
+        "for_debugging is ordered");
     const bool update_code_table =
-        tiering_state_ == kTieredDown
-            ? !prior_code || code->for_debugging() == kForDebugging
-            : !prior_code || prior_code->tier() < code->tier();
+        // Never install stepping code.
+        code->for_debugging() != kForStepping &&
+        (!prior_code ||
+         (tiering_state_ == kTieredDown
+              // Tiered down: Install breakpoints over normal debug code.
+              ? prior_code->for_debugging() <= code->for_debugging()
+              // Tiered up: Install if the tier is higher than before.
+              : prior_code->tier() < code->tier()));
     if (update_code_table) {
       code_table_[slot_idx] = code.get();
       if (prior_code) {
