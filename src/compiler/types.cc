@@ -218,7 +218,6 @@ Type::bitset BitsetType::Lub(const MapRefLike& map) {
     case JS_RELATIVE_TIME_FORMAT_TYPE:
     case JS_SEGMENT_ITERATOR_TYPE:
     case JS_SEGMENTER_TYPE:
-    case JS_SEGMENTS_TYPE:
 #endif  // V8_INTL_SUPPORT
     case JS_CONTEXT_EXTENSION_OBJECT_TYPE:
     case JS_GENERATOR_OBJECT_TYPE:

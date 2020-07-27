@@ -54,7 +54,6 @@
   V(_, ignorePunctuation_string, "ignorePunctuation")               \
   V(_, Invalid_Date_string, "Invalid Date")                         \
   V(_, integer_string, "integer")                                   \
-  V(_, isWordLike_string, "isWordLike")                             \
   V(_, kana_string, "kana")                                         \
   V(_, language_string, "language")                                 \
   V(_, letter_string, "letter")                                     \
@@ -89,7 +88,6 @@
   V(_, second_string, "second")                                     \
   V(_, segment_string, "segment")                                   \
   V(_, SegmentIterator_string, "Segment Iterator")                  \
-  V(_, Segments_string, "Segments")                                 \
   V(_, sensitivity_string, "sensitivity")                           \
   V(_, sep_string, "sep")                                           \
   V(_, shared_string, "shared")                                     \

@@ -516,10 +516,8 @@
   'intl402/Locale/constructor-options-region-valid': [FAIL],
 
   # http://crbug/v8/6891
-  'intl402/Segmenter/prototype/segment/segment-grapheme': [FAIL],
-  'intl402/Segmenter/prototype/segment/segment-sentence': [FAIL],
   'intl402/Segmenter/prototype/segment/segment-tostring': [FAIL],
-  'intl402/Segmenter/prototype/segment/segment-word': [FAIL],
+  'intl402/Segmenter/prototype/segment/segment-word-iterable': [FAIL],
 
   # https://bugs.chromium.org/p/v8/issues/detail?id=9818
   'built-ins/AsyncFunction/proto-from-ctor-realm': [FAIL],

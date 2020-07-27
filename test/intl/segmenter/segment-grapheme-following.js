@@ -24,6 +24,15 @@ for (const text of [
     "법원 “다스 지분 처분권·수익권 모두 MB가 보유”", // Korean
     ]) {
   const iter = seg.segment(text);
-  assertEquals(undefined, iter.breakType);
-  assertEquals(0, iter.index);
+  let prev = 0;
+  let segments = [];
+  while (!iter.following()) {
+    assertEquals(undefined, iter.breakType);
+    assertTrue(iter.index >= 0);
+    assertTrue(iter.index <= text.length);
+    assertTrue(iter.index > prev);
+    segments.push(text.substring(prev, iter.index));
+    prev = iter.index;
+  }
+  assertEquals(text, segments.join(""));
 }

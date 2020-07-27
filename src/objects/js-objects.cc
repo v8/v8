@@ -53,7 +53,6 @@
 #include "src/objects/js-relative-time-format.h"
 #include "src/objects/js-segment-iterator.h"
 #include "src/objects/js-segmenter.h"
-#include "src/objects/js-segments.h"
 #endif  // V8_INTL_SUPPORT
 #include "src/objects/js-weak-refs.h"
 #include "src/objects/map-inl.h"
@@ -2174,8 +2173,6 @@ int JSObject::GetHeaderSize(InstanceType type,
       return JSSegmentIterator::kHeaderSize;
     case JS_SEGMENTER_TYPE:
       return JSSegmenter::kHeaderSize;
-    case JS_SEGMENTS_TYPE:
-      return JSSegments::kHeaderSize;
 #endif  // V8_INTL_SUPPORT
     case WASM_GLOBAL_OBJECT_TYPE:
       return WasmGlobalObject::kHeaderSize;

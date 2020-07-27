@@ -397,7 +397,6 @@ bool CanSubclassHaveInobjectProperties(InstanceType instance_type) {
     case JS_RELATIVE_TIME_FORMAT_TYPE:
     case JS_SEGMENT_ITERATOR_TYPE:
     case JS_SEGMENTER_TYPE:
-    case JS_SEGMENTS_TYPE:
     case JS_V8_BREAK_ITERATOR_TYPE:
 #endif
     case JS_ASYNC_FUNCTION_OBJECT_TYPE:

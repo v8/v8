@@ -4,7 +4,7 @@
 
 // Flags: --harmony-intl-segmenter
 
-const seg = new Intl.Segmenter([], {granularity: "grapheme"})
+const seg = new Intl.Segmenter([], {granularity: "sentence"})
 for (const text of [
     "Hello world!", // English
     " Hello world! ",  // English with space before/after
@@ -24,6 +24,17 @@ for (const text of [
     "법원 “다스 지분 처분권·수익권 모두 MB가 보유”", // Korean
     ]) {
   const iter = seg.segment(text);
-  assertEquals(undefined, iter.breakType);
-  assertEquals(0, iter.index);
+  let segments = [];
+  let oldPos = -1;
+  for (let result = iter.next(); !result.done; result = iter.next()) {
+    const v = result.value;
+    assertTrue(["sep", "term"].includes(iter.breakType), iter.breakType);
+    assertEquals("string", typeof v.segment);
+    assertTrue(v.segment.length > 0);
+    segments.push(v.segment);
+    assertEquals("number", typeof v.index);
+    assertTrue(oldPos < v.index);
+    oldPos = v.index;
+  }
+  assertEquals(text, segments.join(''));
 }

@@ -94,7 +94,6 @@
 #include "src/objects/js-relative-time-format.h"
 #include "src/objects/js-segment-iterator.h"
 #include "src/objects/js-segmenter.h"
-#include "src/objects/js-segments.h"
 #endif  // V8_INTL_SUPPORT
 #include "src/codegen/source-position-table.h"
 #include "src/objects/js-weak-refs-inl.h"

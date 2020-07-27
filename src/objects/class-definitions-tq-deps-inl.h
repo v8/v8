@@ -38,7 +38,6 @@
 #include "src/objects/js-relative-time-format-inl.h"
 #include "src/objects/js-segment-iterator-inl.h"
 #include "src/objects/js-segmenter-inl.h"
-#include "src/objects/js-segments-inl.h"
 #endif
 
 #endif  // V8_OBJECTS_CLASS_DEFINITIONS_TQ_DEPS_INL_H_

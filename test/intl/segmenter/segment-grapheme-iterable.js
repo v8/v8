@@ -23,7 +23,23 @@ for (const text of [
     "九州北部の一部が暴風域に入りました(日直予報士 2018年10月06日) - 日本気象協会 tenki.jp",  // Japanese
     "법원 “다스 지분 처분권·수익권 모두 MB가 보유”", // Korean
     ]) {
-  const iter = seg.segment(text);
-  assertEquals(undefined, iter.breakType);
-  assertEquals(0, iter.index);
+  let segments = [];
+  // Create another %SegmentIterator% to compare with result from the one that
+  // created in the for of loop.
+  let iter = seg.segment(text);
+  let prev = 0;
+  for (const v of seg.segment(text)) {
+    assertEquals(undefined, v.breakType);
+    assertEquals("string", typeof v.segment);
+    assertTrue(v.segment.length > 0);
+    segments.push(v.segment);
+
+    // manually advance the iter.
+    assertFalse(iter.following());
+    assertEquals(iter.breakType, v.breakType);
+    assertEquals(text.substring(prev, iter.index), v.segment);
+    prev = iter.index;
+  }
+  assertTrue(iter.following());
+  assertEquals(text, segments.join(''));
 }
