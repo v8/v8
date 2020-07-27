@@ -589,63 +589,26 @@ AllocationResult NewSpace::AllocateRawSlow(int size_in_bytes,
 
 AllocationResult NewSpace::AllocateRawUnaligned(int size_in_bytes,
                                                 AllocationOrigin origin) {
-  Address top = allocation_info_.top();
-  if (allocation_info_.limit() < top + size_in_bytes) {
-    // See if we can create room.
-    if (!EnsureAllocation(size_in_bytes, kWordAligned)) {
-      return AllocationResult::Retry();
-    }
-
-    top = allocation_info_.top();
+  if (!EnsureAllocation(size_in_bytes, kWordAligned)) {
+    return AllocationResult::Retry();
   }
 
-  HeapObject obj = HeapObject::FromAddress(top);
-  allocation_info_.set_top(top + size_in_bytes);
-  DCHECK_SEMISPACE_ALLOCATION_INFO(allocation_info_, to_space_);
-
-  MSAN_ALLOCATED_UNINITIALIZED_MEMORY(obj.address(), size_in_bytes);
-
-  if (FLAG_trace_allocations_origins) {
-    UpdateAllocationOrigins(origin);
-  }
-
-  return obj;
+  AllocationResult result = AllocateFastUnaligned(size_in_bytes, origin);
+  DCHECK(!result.IsRetry());
+  return result;
 }
 
 AllocationResult NewSpace::AllocateRawAligned(int size_in_bytes,
                                               AllocationAlignment alignment,
                                               AllocationOrigin origin) {
-  Address top = allocation_info_.top();
-  int filler_size = Heap::GetFillToAlign(top, alignment);
-  int aligned_size_in_bytes = size_in_bytes + filler_size;
-
-  if (allocation_info_.limit() - top <
-      static_cast<uintptr_t>(aligned_size_in_bytes)) {
-    // See if we can create room.
-    if (!EnsureAllocation(size_in_bytes, alignment)) {
-      return AllocationResult::Retry();
-    }
-
-    top = allocation_info_.top();
-    filler_size = Heap::GetFillToAlign(top, alignment);
-    aligned_size_in_bytes = size_in_bytes + filler_size;
+  if (!EnsureAllocation(size_in_bytes, alignment)) {
+    return AllocationResult::Retry();
   }
 
-  HeapObject obj = HeapObject::FromAddress(top);
-  allocation_info_.set_top(top + aligned_size_in_bytes);
-  DCHECK_SEMISPACE_ALLOCATION_INFO(allocation_info_, to_space_);
-
-  if (filler_size > 0) {
-    obj = Heap::PrecedeWithFiller(ReadOnlyRoots(heap()), obj, filler_size);
-  }
-
-  MSAN_ALLOCATED_UNINITIALIZED_MEMORY(obj.address(), size_in_bytes);
-
-  if (FLAG_trace_allocations_origins) {
-    UpdateAllocationOrigins(origin);
-  }
-
-  return obj;
+  AllocationResult result =
+      AllocateFastAligned(size_in_bytes, alignment, origin);
+  DCHECK(!result.IsRetry());
+  return result;
 }
 
 #ifdef VERIFY_HEAP
