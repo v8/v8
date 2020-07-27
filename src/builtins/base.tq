@@ -473,7 +473,6 @@ extern macro SelectBooleanConstant(bool): Boolean;
 extern macro Print(constexpr string);
 extern macro Print(constexpr string, Object);
 extern macro Comment(constexpr string);
-extern macro StaticAssert(bool);
 extern macro Print(Object);
 extern macro DebugBreak();
 
@@ -1618,7 +1617,7 @@ transitioning builtin FastCreateDataProperty(implicit context: Context)(
 }
 
 macro VerifiedUnreachable(): never {
-  StaticAssert(false);
+  static_assert(false);
   unreachable;
 }
 

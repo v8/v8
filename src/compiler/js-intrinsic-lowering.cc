@@ -285,7 +285,8 @@ Reduction JSIntrinsicLowering::ReduceTurbofanStaticAssert(Node* node) {
   } else {
     Node* value = NodeProperties::GetValueInput(node, 0);
     Node* effect = NodeProperties::GetEffectInput(node);
-    Node* assert = graph()->NewNode(common()->StaticAssert(), value, effect);
+    Node* assert = graph()->NewNode(
+        common()->StaticAssert("%TurbofanStaticAssert"), value, effect);
     ReplaceWithValue(node, node, assert, nullptr);
   }
   return Changed(jsgraph_->UndefinedConstant());

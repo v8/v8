@@ -117,7 +117,7 @@ IfInBounds(String, uintptr, uintptr), IfOutOfBounds {
       // check.
       const kMaxStringLengthFitsSmi: constexpr bool =
           kStringMaxLengthUintptr < kSmiMaxValue;
-      StaticAssert(kMaxStringLengthFitsSmi);
+      static_assert(kMaxStringLengthFitsSmi);
       if (index >= length) goto IfOutOfBounds;
       goto IfInBounds(string, index, length);
     }

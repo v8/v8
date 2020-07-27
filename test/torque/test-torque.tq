@@ -908,7 +908,7 @@ macro TestSliceEnumeration(implicit context: Context)(): Undefined {
 
 @export
 macro TestStaticAssert() {
-  StaticAssert(1 + 2 == 3);
+  static_assert(1 + 2 == 3);
 }
 
 class SmiBox extends HeapObject {
@@ -926,12 +926,12 @@ macro TestLoadEliminationFixed(implicit context: Context)() {
   const v1 = box.value;
   box.unrelated = 999;
   const v2 = (box.unrelated == 0) ? box.value : box.value;
-  StaticAssert(TaggedEqual(v1, v2));
+  static_assert(TaggedEqual(v1, v2));
 
   box.value = 11;
   const v3 = box.value;
   const eleven: Smi = 11;
-  StaticAssert(TaggedEqual(v3, eleven));
+  static_assert(TaggedEqual(v3, eleven));
 }
 
 @export
@@ -942,8 +942,8 @@ macro TestLoadEliminationVariable(implicit context: Context)() {
   const u1 = a.objects[box.value + 2];
   const v2 = a.objects[box.value];
   const u2 = a.objects[box.value + 2];
-  StaticAssert(TaggedEqual(v1, v2));
-  StaticAssert(TaggedEqual(u1, u2));
+  static_assert(TaggedEqual(v1, v2));
+  static_assert(TaggedEqual(u1, u2));
 }
 
 @export
@@ -954,7 +954,7 @@ macro TestRedundantArrayElementCheck(implicit context: Context)(): Smi {
       if (a.objects[i] == TheHole) {
         return -1;
       } else {
-        StaticAssert(false);
+        static_assert(false);
       }
     }
   }
@@ -1029,9 +1029,9 @@ macro TestBranchOnBoolOptimization(implicit context: Context)(input: Smi) {
   // If the two branches get combined into one, we should be able to determine
   // the value of {box} statically.
   if (BranchAndWriteResult(input, box)) {
-    StaticAssert(box.value == 1);
+    static_assert(box.value == 1);
   } else {
-    StaticAssert(box.value == 2);
+    static_assert(box.value == 2);
   }
 }
 
@@ -1135,23 +1135,23 @@ macro TestBitFieldMultipleFlags(a: bool, b: int32, c: bool) {
   const f = TestBitFieldStruct4{a: a, b: b, c: c};
   let simpleExpression = f.a & f.b == 3 & !f.c;
   let expectedReduction = (Signed(f) & 0x1f) == Convert<int32>(1 | 3 << 1);
-  StaticAssert(simpleExpression == expectedReduction);
+  static_assert(simpleExpression == expectedReduction);
   simpleExpression = !f.a & f.b == 4 & f.c;
   expectedReduction = (Signed(f) & 0x1f) == Convert<int32>(4 << 1 | 1 << 4);
-  StaticAssert(simpleExpression == expectedReduction);
+  static_assert(simpleExpression == expectedReduction);
   simpleExpression = f.b == 0 & f.c;
   expectedReduction = (Signed(f) & 0x1e) == Convert<int32>(1 << 4);
-  StaticAssert(simpleExpression == expectedReduction);
+  static_assert(simpleExpression == expectedReduction);
   simpleExpression = f.a & f.c;
   expectedReduction = (Signed(f) & 0x11) == Convert<int32>(1 | 1 << 4);
-  StaticAssert(simpleExpression == expectedReduction);
+  static_assert(simpleExpression == expectedReduction);
   const f2 = TestBitFieldStruct5{b: b, a: a, c: c};
   simpleExpression = !f2.a & f2.b == 1234 & f2.c;
   expectedReduction = (Signed(f2) & 0x1fffff) == Convert<int32>(1234 | 1 << 20);
-  StaticAssert(simpleExpression == expectedReduction);
+  static_assert(simpleExpression == expectedReduction);
   simpleExpression = !f2.a & !f2.c;
   expectedReduction = (Signed(f2) & 0x180000) == Convert<int32>(0);
-  StaticAssert(simpleExpression == expectedReduction);
+  static_assert(simpleExpression == expectedReduction);
 }
 
 @export

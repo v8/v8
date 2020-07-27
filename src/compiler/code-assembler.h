@@ -597,7 +597,8 @@ class V8_EXPORT_PRIVATE CodeAssembler {
     Comment(s.str());
   }
 
-  void StaticAssert(TNode<BoolT> value);
+  void StaticAssert(TNode<BoolT> value,
+                    const char* source = "unknown position");
 
   // The following methods refer to source positions in CSA or Torque code
   // compiled during mksnapshot, not JS compiled at runtime.

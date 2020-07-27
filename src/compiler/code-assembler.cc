@@ -495,8 +495,8 @@ void CodeAssembler::Comment(std::string str) {
   raw_assembler()->Comment(str);
 }
 
-void CodeAssembler::StaticAssert(TNode<BoolT> value) {
-  raw_assembler()->StaticAssert(value);
+void CodeAssembler::StaticAssert(TNode<BoolT> value, const char* source) {
+  raw_assembler()->StaticAssert(value, source);
 }
 
 void CodeAssembler::SetSourcePosition(const char* file, int line) {

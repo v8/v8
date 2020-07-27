@@ -100,7 +100,7 @@ transitioning macro MorphAndEnqueuePromiseReaction(implicit context: Context)(
     primaryHandler = promiseReaction.fulfill_handler;
     secondaryHandler = promiseReaction.reject_handler;
   } else {
-    StaticAssert(reactionType == kPromiseReactionReject);
+    static_assert(reactionType == kPromiseReactionReject);
     primaryHandler = promiseReaction.reject_handler;
     secondaryHandler = promiseReaction.fulfill_handler;
   }
@@ -114,7 +114,7 @@ transitioning macro MorphAndEnqueuePromiseReaction(implicit context: Context)(
   // Morph {current} from a PromiseReaction into a PromiseReactionJobTask
   // and schedule that on the microtask queue. We try to minimize the number
   // of stores here to avoid screwing up the store buffer.
-  StaticAssert(
+  static_assert(
       kPromiseReactionSize ==
       kPromiseReactionJobTaskSizeOfAllPromiseReactionJobTasks);
   if constexpr (reactionType == kPromiseReactionFulfill) {
@@ -125,14 +125,14 @@ transitioning macro MorphAndEnqueuePromiseReaction(implicit context: Context)(
     promiseReactionJobTask.argument = argument;
     promiseReactionJobTask.context = handlerContext;
     EnqueueMicrotask(handlerContext, promiseReactionJobTask);
-    StaticAssert(
+    static_assert(
         kPromiseReactionFulfillHandlerOffset ==
         kPromiseReactionJobTaskHandlerOffset);
-    StaticAssert(
+    static_assert(
         kPromiseReactionPromiseOrCapabilityOffset ==
         kPromiseReactionJobTaskPromiseOrCapabilityOffset);
   } else {
-    StaticAssert(reactionType == kPromiseReactionReject);
+    static_assert(reactionType == kPromiseReactionReject);
     *UnsafeConstCast(&promiseReaction.map) =
         PromiseRejectReactionJobTaskMapConstant();
     const promiseReactionJobTask =
@@ -141,7 +141,7 @@ transitioning macro MorphAndEnqueuePromiseReaction(implicit context: Context)(
     promiseReactionJobTask.context = handlerContext;
     promiseReactionJobTask.handler = primaryHandler;
     EnqueueMicrotask(handlerContext, promiseReactionJobTask);
-    StaticAssert(
+    static_assert(
         kPromiseReactionPromiseOrCapabilityOffset ==
         kPromiseReactionJobTaskPromiseOrCapabilityOffset);
   }

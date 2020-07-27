@@ -219,6 +219,8 @@ macro DownCastForTorqueClass<T : type extends HeapObject>(o: HeapObject):
   return %RawDownCast<T>(o);
 }
 
+extern macro StaticAssert(bool, constexpr string);
+
 }  // namespace torque_internal
 
 // Indicates that an array-field should not be initialized.

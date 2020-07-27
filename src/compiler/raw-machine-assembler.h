@@ -967,7 +967,7 @@ class V8_EXPORT_PRIVATE RawMachineAssembler {
   void DebugBreak();
   void Unreachable();
   void Comment(const std::string& msg);
-  void StaticAssert(Node* value);
+  void StaticAssert(Node* value, const char* source);
 
 #if DEBUG
   void Bind(RawMachineLabel* label, AssemblerDebugInfo info);

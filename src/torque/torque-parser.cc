@@ -487,11 +487,20 @@ base::Optional<ParseResult> MakeParameterList(
 
 base::Optional<ParseResult> MakeAssertStatement(
     ParseResultIterator* child_results) {
-  auto kind = child_results->NextAs<Identifier*>()->value;
+  auto kind_string = child_results->NextAs<Identifier*>()->value;
   auto expr_with_source = child_results->NextAs<ExpressionWithSource>();
-  DCHECK(kind == "assert" || kind == "check");
+  AssertStatement::AssertKind kind;
+  if (kind_string == "assert") {
+    kind = AssertStatement::AssertKind::kAssert;
+  } else if (kind_string == "check") {
+    kind = AssertStatement::AssertKind::kCheck;
+  } else if (kind_string == "static_assert") {
+    kind = AssertStatement::AssertKind::kStaticAssert;
+  } else {
+    UNREACHABLE();
+  }
   Statement* result = MakeNode<AssertStatement>(
-      kind == "assert", expr_with_source.expression, expr_with_source.source);
+      kind, expr_with_source.expression, expr_with_source.source);
   return ParseResult{result};
 }
 
@@ -2400,8 +2409,8 @@ struct TorqueGrammar : Grammar {
           MakeTypeswitchStatement),
       Rule({Token("try"), &block, List<TryHandler*>(&tryHandler)},
            MakeTryLabelExpression),
-      Rule({OneOf({"assert", "check"}), Token("("), &expressionWithSource,
-            Token(")"), Token(";")},
+      Rule({OneOf({"assert", "check", "static_assert"}), Token("("),
+            &expressionWithSource, Token(")"), Token(";")},
            MakeAssertStatement),
       Rule({Token("while"), Token("("), expression, Token(")"), &statement},
            MakeWhileStatement),

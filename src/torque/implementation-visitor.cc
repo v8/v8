@@ -10,6 +10,7 @@
 
 #include "src/base/optional.h"
 #include "src/common/globals.h"
+#include "src/torque/constants.h"
 #include "src/torque/csa-generator.h"
 #include "src/torque/declaration-visitor.h"
 #include "src/torque/global-context.h"
@@ -1047,7 +1048,19 @@ std::string FormatAssertSource(const std::string& str) {
 }  // namespace
 
 const Type* ImplementationVisitor::Visit(AssertStatement* stmt) {
-  bool do_check = !stmt->debug_only || GlobalContext::force_assert_statements();
+  if (stmt->kind == AssertStatement::AssertKind::kStaticAssert) {
+    std::string message =
+        "static_assert(" + stmt->source + ") at " + ToString(stmt->pos);
+    GenerateCall(QualifiedName({"", TORQUE_INTERNAL_NAMESPACE_STRING},
+                               STATIC_ASSERT_MACRO_STRING),
+                 Arguments{{Visit(stmt->expression),
+                            VisitResult(TypeOracle::GetConstexprStringType(),
+                                        StringLiteralQuote(message))},
+                           {}});
+    return TypeOracle::GetVoidType();
+  }
+  bool do_check = stmt->kind != AssertStatement::AssertKind::kAssert ||
+                  GlobalContext::force_assert_statements();
 #if defined(DEBUG)
   do_check = true;
 #endif

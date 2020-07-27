@@ -680,8 +680,8 @@ void RawMachineAssembler::Comment(const std::string& msg) {
   AddNode(machine()->Comment(zone_buffer));
 }
 
-void RawMachineAssembler::StaticAssert(Node* value) {
-  AddNode(common()->StaticAssert(), value);
+void RawMachineAssembler::StaticAssert(Node* value, const char* source) {
+  AddNode(common()->StaticAssert(source), value);
 }
 
 Node* RawMachineAssembler::CallN(CallDescriptor* call_descriptor,

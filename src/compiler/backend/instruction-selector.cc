@@ -3083,7 +3083,9 @@ void InstructionSelector::VisitUnreachable(Node* node) {
 void InstructionSelector::VisitStaticAssert(Node* node) {
   Node* asserted = node->InputAt(0);
   asserted->Print(4);
-  FATAL("Expected turbofan static assert to hold, but got non-true input!\n");
+  FATAL(
+      "Expected Turbofan static assert to hold, but got non-true input:\n  %s",
+      StaticAssertSourceOf(node->op()));
 }
 
 void InstructionSelector::VisitDeadValue(Node* node) {
