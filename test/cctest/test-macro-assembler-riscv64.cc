@@ -1477,7 +1477,7 @@ int32_t run_CompareF(IN_TYPE x1, IN_TYPE x2, bool expected_res,
   MacroAssembler assm(isolate, v8::internal::CodeObjectRequired::kYes);
   MacroAssembler* masm = &assm;
 
-  Label error, done;
+  Label done;
 
   // Vararg f.Call() passes floating-point params via GPRs, so move arguments to
   // FPRs first
