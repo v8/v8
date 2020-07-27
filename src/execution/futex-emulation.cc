@@ -24,9 +24,48 @@ namespace internal {
 
 using AtomicsWaitEvent = v8::Isolate::AtomicsWaitEvent;
 
-base::LazyMutex FutexEmulation::mutex_ = LAZY_MUTEX_INITIALIZER;
-base::LazyInstance<FutexWaitList>::type FutexEmulation::wait_list_ =
-    LAZY_INSTANCE_INITIALIZER;
+class FutexWaitList {
+ public:
+  FutexWaitList() = default;
+
+  void AddNode(FutexWaitListNode* node);
+  void RemoveNode(FutexWaitListNode* node);
+
+  // For checking the internal consistency of the FutexWaitList.
+  void Verify();
+  // Verifies the local consistency of |node|. If it's the first node of its
+  // list, it must be |head|, and if it's the last node, it must be |tail|.
+  void VerifyNode(FutexWaitListNode* node, FutexWaitListNode* head,
+                  FutexWaitListNode* tail);
+  // Returns true if |node| is on the linked list starting with |head|.
+  static bool NodeIsOnList(FutexWaitListNode* node, FutexWaitListNode* head);
+
+ private:
+  friend class FutexEmulation;
+
+  FutexWaitListNode* head_ = nullptr;
+  FutexWaitListNode* tail_ = nullptr;
+
+  struct HeadAndTail {
+    FutexWaitListNode* head;
+    FutexWaitListNode* tail;
+  };
+  // Isolate* -> linked list of Nodes which are waiting for their Promises to
+  // be resolved.
+  std::map<Isolate*, HeadAndTail> isolate_promises_to_resolve_;
+
+  DISALLOW_COPY_AND_ASSIGN(FutexWaitList);
+};
+
+namespace {
+// `g_mutex` protects the composition of `g_wait_list` (i.e. no elements may be
+// added or removed without holding this mutex), as well as the `waiting_`
+// and `interrupted_` fields for each individual list node that is currently
+// part of the list. It must be the mutex used together with the `cond_`
+// condition variable of such nodes.
+base::LazyMutex g_mutex = LAZY_MUTEX_INITIALIZER;
+base::LazyInstance<FutexWaitList>::type g_wait_list = LAZY_INSTANCE_INITIALIZER;
+}  // namespace
 
 FutexWaitListNode::~FutexWaitListNode() {
   // Assert that the timeout task was cancelled.
@@ -49,7 +88,7 @@ void FutexWaitListNode::NotifyWake() {
   // variable. The mutex will not be locked if FutexEmulation::Wait hasn't
   // locked it yet. In that case, we set the interrupted_
   // flag to true, which will be tested after the mutex locked by a future wait.
-  base::MutexGuard lock_guard(FutexEmulation::mutex_.Pointer());
+  base::MutexGuard lock_guard(g_mutex.Pointer());
   // if not waiting, this will not have any effect.
   cond_.NotifyOne();
   interrupted_ = true;
@@ -86,7 +125,7 @@ class AsyncWaiterTimeoutTask : public CancelableTask {
 void FutexEmulation::NotifyAsyncWaiter(FutexWaitListNode* node) {
   // This function can run in any thread.
 
-  FutexEmulation::mutex_.Pointer()->AssertHeld();
+  g_mutex.Pointer()->AssertHeld();
 
   // Nullify the timeout time; this distinguishes timed out waiters from
   // woken up ones.
@@ -101,10 +140,10 @@ void FutexEmulation::NotifyAsyncWaiter(FutexWaitListNode* node) {
   // owned by an Isolate which is going to die.
   node->CancelTimeoutTask();
 
-  wait_list_.Pointer()->RemoveNode(node);
+  g_wait_list.Pointer()->RemoveNode(node);
 
   // Schedule a task for resolving the Promise.
-  auto& isolate_map = wait_list_.Pointer()->isolate_promises_to_resolve_;
+  auto& isolate_map = g_wait_list.Pointer()->isolate_promises_to_resolve_;
   auto it = isolate_map.find(node->isolate_for_async_waiters_);
   if (it == isolate_map.end()) {
     // This Isolate doesn't have other Promises to resolve at the moment.
@@ -164,7 +203,7 @@ void AtomicsWaitWakeHandle::Wake() {
   // The split lock by itself isn’t an issue, as long as the caller properly
   // synchronizes this with the closing `AtomicsWaitCallback`.
   {
-    base::MutexGuard lock_guard(FutexEmulation::mutex_.Pointer());
+    base::MutexGuard lock_guard(g_mutex.Pointer());
     stopped_ = true;
   }
   isolate_->futex_wait_list_node()->NotifyWake();
@@ -297,7 +336,7 @@ Object FutexEmulation::WaitSync(Isolate* isolate,
   AtomicsWaitEvent callback_result = AtomicsWaitEvent::kWokenUp;
 
   do {  // Not really a loop, just makes it easier to break out early.
-    base::MutexGuard lock_guard(mutex_.Pointer());
+    base::MutexGuard lock_guard(g_mutex.Pointer());
     std::shared_ptr<BackingStore> backing_store =
         array_buffer->GetBackingStore();
     DCHECK(backing_store);
@@ -308,7 +347,7 @@ Object FutexEmulation::WaitSync(Isolate* isolate,
 
     // Reset node->waiting_ = false when leaving this scope (but while
     // still holding the lock).
-    ResetWaitingOnScopeExit reset_waiting(node);
+    FutexWaitListNode::ResetWaitingOnScopeExit reset_waiting(node);
 
     std::atomic<T>* p = reinterpret_cast<std::atomic<T>*>(
         static_cast<int8_t*>(backing_store->buffer_start()) + addr);
@@ -326,24 +365,24 @@ Object FutexEmulation::WaitSync(Isolate* isolate,
       timeout_time = current_time + rel_timeout;
     }
 
-    wait_list_.Pointer()->AddNode(node);
+    g_wait_list.Pointer()->AddNode(node);
 
     while (true) {
       bool interrupted = node->interrupted_;
       node->interrupted_ = false;
 
       // Unlock the mutex here to prevent deadlock from lock ordering between
-      // mutex_ and mutexes locked by HandleInterrupts.
-      mutex_.Pointer()->Unlock();
+      // mutex and mutexes locked by HandleInterrupts.
+      g_mutex.Pointer()->Unlock();
 
       // Because the mutex is unlocked, we have to be careful about not dropping
       // an interrupt. The notification can happen in three different places:
       // 1) Before Wait is called: the notification will be dropped, but
       //    interrupted_ will be set to 1. This will be checked below.
-      // 2) After interrupted has been checked here, but before mutex_ is
-      //    acquired: interrupted is checked again below, with mutex_ locked.
-      //    Because the wakeup signal also acquires mutex_, we know it will not
-      //    be able to notify until mutex_ is released below, when waiting on
+      // 2) After interrupted has been checked here, but before mutex is
+      //    acquired: interrupted is checked again below, with mutex locked.
+      //    Because the wakeup signal also acquires mutex, we know it will not
+      //    be able to notify until mutex is released below, when waiting on
       //    the condition variable.
       // 3) After the mutex is released in the call to WaitFor(): this
       // notification will wake up the condition variable. node->waiting() will
@@ -353,15 +392,15 @@ Object FutexEmulation::WaitSync(Isolate* isolate,
         if (interrupt_object.IsException(isolate)) {
           result = handle(interrupt_object, isolate);
           callback_result = AtomicsWaitEvent::kTerminatedExecution;
-          mutex_.Pointer()->Lock();
+          g_mutex.Pointer()->Lock();
           break;
         }
       }
 
-      mutex_.Pointer()->Lock();
+      g_mutex.Pointer()->Lock();
 
       if (node->interrupted_) {
-        // An interrupt occurred while the mutex_ was unlocked. Don't wait yet.
+        // An interrupt occurred while the mutex was unlocked. Don't wait yet.
         continue;
       }
 
@@ -387,16 +426,16 @@ Object FutexEmulation::WaitSync(Isolate* isolate,
         base::TimeDelta time_until_timeout = timeout_time - current_time;
         DCHECK_GE(time_until_timeout.InMicroseconds(), 0);
         bool wait_for_result =
-            node->cond_.WaitFor(mutex_.Pointer(), time_until_timeout);
+            node->cond_.WaitFor(g_mutex.Pointer(), time_until_timeout);
         USE(wait_for_result);
       } else {
-        node->cond_.Wait(mutex_.Pointer());
+        node->cond_.Wait(g_mutex.Pointer());
       }
 
       // Spurious wakeup, interrupt or timeout.
     }
 
-    wait_list_.Pointer()->RemoveNode(node);
+    g_wait_list.Pointer()->RemoveNode(node);
   } while (false);
 
   isolate->RunAtomicsWaitCallback(callback_result, array_buffer, addr, value,
@@ -498,8 +537,8 @@ Object FutexEmulation::WaitAsync(Isolate* isolate,
       new FutexWaitListNode(backing_store, addr, promise_capability, isolate);
 
   {
-    base::MutexGuard lock_guard(mutex_.Pointer());
-    wait_list_.Pointer()->AddNode(node);
+    base::MutexGuard lock_guard(g_mutex.Pointer());
+    g_wait_list.Pointer()->AddNode(node);
   }
   if (use_timeout) {
     node->async_timeout_time_ = base::TimeTicks::Now() + rel_timeout;
@@ -530,8 +569,8 @@ Object FutexEmulation::Wake(Handle<JSArrayBuffer> array_buffer, size_t addr,
   int waiters_woken = 0;
   std::shared_ptr<BackingStore> backing_store = array_buffer->GetBackingStore();
 
-  base::MutexGuard lock_guard(mutex_.Pointer());
-  FutexWaitListNode* node = wait_list_.Pointer()->head_;
+  base::MutexGuard lock_guard(g_mutex.Pointer());
+  FutexWaitListNode* node = g_wait_list.Pointer()->head_;
   while (node && num_waiters_to_wake > 0) {
     bool delete_this_node = false;
     std::shared_ptr<BackingStore> node_backing_store =
@@ -586,7 +625,7 @@ Object FutexEmulation::Wake(Handle<JSArrayBuffer> array_buffer, size_t addr,
     if (delete_this_node) {
       auto old_node = node;
       node = node->next_;
-      wait_list_.Pointer()->RemoveNode(old_node);
+      g_wait_list.Pointer()->RemoveNode(old_node);
       delete old_node;
     } else {
       node = node->next_;
@@ -672,10 +711,10 @@ void FutexEmulation::ResolveAsyncWaiterPromises(Isolate* isolate) {
   // This function must run in the main thread of isolate.
   DCHECK_EQ(isolate->thread_id(), ThreadId::Current());
 
-  base::MutexGuard lock_guard(mutex_.Pointer());
+  base::MutexGuard lock_guard(g_mutex.Pointer());
   FutexWaitListNode* node;
   {
-    auto& isolate_map = wait_list_.Pointer()->isolate_promises_to_resolve_;
+    auto& isolate_map = g_wait_list.Pointer()->isolate_promises_to_resolve_;
     auto it = isolate_map.find(isolate);
     DCHECK_NE(isolate_map.end(), it);
 
@@ -704,7 +743,7 @@ void FutexEmulation::HandleAsyncWaiterTimeout(FutexWaitListNode* node) {
   // This function must run in the main thread of node's Isolate.
   DCHECK_EQ(node->isolate_for_async_waiters_->thread_id(), ThreadId::Current());
 
-  base::MutexGuard lock_guard(mutex_.Pointer());
+  base::MutexGuard lock_guard(g_mutex.Pointer());
 
   if (!node->waiting_) {
     // If the Node is not waiting, it's already scheduled to have its Promise
@@ -712,7 +751,7 @@ void FutexEmulation::HandleAsyncWaiterTimeout(FutexWaitListNode* node) {
     return;
   }
   node->timeout_task_id_ = CancelableTaskManager::kInvalidTaskId;
-  wait_list_.Pointer()->RemoveNode(node);
+  g_wait_list.Pointer()->RemoveNode(node);
   HandleScope handle_scope(node->isolate_for_async_waiters_);
   ResolveAsyncWaiterPromise(node);
   CleanupAsyncWaiterPromise(node);
@@ -720,23 +759,23 @@ void FutexEmulation::HandleAsyncWaiterTimeout(FutexWaitListNode* node) {
 }
 
 void FutexEmulation::IsolateDeinit(Isolate* isolate) {
-  base::MutexGuard lock_guard(mutex_.Pointer());
+  base::MutexGuard lock_guard(g_mutex.Pointer());
 
-  FutexWaitListNode* node = wait_list_.Pointer()->head_;
+  FutexWaitListNode* node = g_wait_list.Pointer()->head_;
   while (node) {
     if (node->isolate_for_async_waiters_ == isolate) {
       // The Isolate is going away; don't bother cleaning up the Promises in the
       // NativeContext. Also we don't need to cancel the timeout task, since it
       // will be cancelled by Isolate::Deinit.
       node->timeout_task_id_ = CancelableTaskManager::kInvalidTaskId;
-      wait_list_.Pointer()->RemoveNode(node);
+      g_wait_list.Pointer()->RemoveNode(node);
       node = DeleteAsyncWaiterNode(node);
     } else {
       node = node->next_;
     }
   }
 
-  auto& isolate_map = wait_list_.Pointer()->isolate_promises_to_resolve_;
+  auto& isolate_map = g_wait_list.Pointer()->isolate_promises_to_resolve_;
   auto it = isolate_map.find(isolate);
   if (it != isolate_map.end()) {
     node = it->second.head;
@@ -747,7 +786,7 @@ void FutexEmulation::IsolateDeinit(Isolate* isolate) {
     isolate_map.erase(it);
   }
 
-  wait_list_.Pointer()->Verify();
+  g_wait_list.Pointer()->Verify();
 }
 
 Object FutexEmulation::NumWaitersForTesting(Handle<JSArrayBuffer> array_buffer,
@@ -755,10 +794,10 @@ Object FutexEmulation::NumWaitersForTesting(Handle<JSArrayBuffer> array_buffer,
   DCHECK_LT(addr, array_buffer->byte_length());
   std::shared_ptr<BackingStore> backing_store = array_buffer->GetBackingStore();
 
-  base::MutexGuard lock_guard(mutex_.Pointer());
+  base::MutexGuard lock_guard(g_mutex.Pointer());
 
   int waiters = 0;
-  FutexWaitListNode* node = wait_list_.Pointer()->head_;
+  FutexWaitListNode* node = g_wait_list.Pointer()->head_;
   while (node) {
     std::shared_ptr<BackingStore> node_backing_store =
         node->backing_store_.lock();
@@ -774,10 +813,10 @@ Object FutexEmulation::NumWaitersForTesting(Handle<JSArrayBuffer> array_buffer,
 }
 
 Object FutexEmulation::NumAsyncWaitersForTesting(Isolate* isolate) {
-  base::MutexGuard lock_guard(mutex_.Pointer());
+  base::MutexGuard lock_guard(g_mutex.Pointer());
 
   int waiters = 0;
-  FutexWaitListNode* node = wait_list_.Pointer()->head_;
+  FutexWaitListNode* node = g_wait_list.Pointer()->head_;
   while (node) {
     if (node->isolate_for_async_waiters_ == isolate && node->waiting_) {
       waiters++;
@@ -793,11 +832,11 @@ Object FutexEmulation::NumUnresolvedAsyncPromisesForTesting(
   DCHECK_LT(addr, array_buffer->byte_length());
   std::shared_ptr<BackingStore> backing_store = array_buffer->GetBackingStore();
 
-  base::MutexGuard lock_guard(mutex_.Pointer());
+  base::MutexGuard lock_guard(g_mutex.Pointer());
 
   int waiters = 0;
 
-  auto& isolate_map = wait_list_.Pointer()->isolate_promises_to_resolve_;
+  auto& isolate_map = g_wait_list.Pointer()->isolate_promises_to_resolve_;
   for (auto it : isolate_map) {
     FutexWaitListNode* node = it.second.head;
     while (node) {

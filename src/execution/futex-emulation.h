@@ -36,6 +36,8 @@ class TimeDelta;
 namespace internal {
 
 class BackingStore;
+class FutexWaitList;
+
 template <typename T>
 class Handle;
 class Isolate;
@@ -71,10 +73,20 @@ class FutexWaitListNode {
   // Returns false if the cancelling failed, true otherwise.
   bool CancelTimeoutTask();
 
+  class ResetWaitingOnScopeExit {
+   public:
+    explicit ResetWaitingOnScopeExit(FutexWaitListNode* node) : node_(node) {}
+    ~ResetWaitingOnScopeExit() { node_->waiting_ = false; }
+
+   private:
+    FutexWaitListNode* node_;
+
+    DISALLOW_COPY_AND_ASSIGN(ResetWaitingOnScopeExit);
+  };
+
  private:
   friend class FutexEmulation;
   friend class FutexWaitList;
-  friend class ResetWaitingOnScopeExit;
 
   // Set only for async FutexWaitListNodes.
   Isolate* isolate_for_async_waiters_ = nullptr;
@@ -111,50 +123,6 @@ class FutexWaitListNode {
       CancelableTaskManager::kInvalidTaskId;
 
   DISALLOW_COPY_AND_ASSIGN(FutexWaitListNode);
-};
-
-class FutexWaitList {
- public:
-  FutexWaitList() = default;
-
-  void AddNode(FutexWaitListNode* node);
-  void RemoveNode(FutexWaitListNode* node);
-
-  // For checking the internal consistency of the FutexWaitList.
-  void Verify();
-  // Verifies the local consistency of |node|. If it's the first node of its
-  // list, it must be |head|, and if it's the last node, it must be |tail|.
-  void VerifyNode(FutexWaitListNode* node, FutexWaitListNode* head,
-                  FutexWaitListNode* tail);
-  // Returns true if |node| is on the linked list starting with |head|.
-  static bool NodeIsOnList(FutexWaitListNode* node, FutexWaitListNode* head);
-
- private:
-  friend class FutexEmulation;
-
-  FutexWaitListNode* head_ = nullptr;
-  FutexWaitListNode* tail_ = nullptr;
-
-  struct HeadAndTail {
-    FutexWaitListNode* head;
-    FutexWaitListNode* tail;
-  };
-  // Isolate* -> linked list of Nodes which are waiting for their Promises to
-  // be resolved.
-  std::map<Isolate*, HeadAndTail> isolate_promises_to_resolve_;
-
-  DISALLOW_COPY_AND_ASSIGN(FutexWaitList);
-};
-
-class ResetWaitingOnScopeExit {
- public:
-  explicit ResetWaitingOnScopeExit(FutexWaitListNode* node) : node_(node) {}
-  ~ResetWaitingOnScopeExit() { node_->waiting_ = false; }
-
- private:
-  FutexWaitListNode* node_;
-
-  DISALLOW_COPY_AND_ASSIGN(ResetWaitingOnScopeExit);
 };
 
 class FutexEmulation : public AllStatic {
@@ -259,14 +227,6 @@ class FutexEmulation : public AllStatic {
 
   // Deletes |node| and returns the next node of its list.
   static FutexWaitListNode* DeleteAsyncWaiterNode(FutexWaitListNode* node);
-
-  // `mutex_` protects the composition of `wait_list_` (i.e. no elements may be
-  // added or removed without holding this mutex), as well as the `waiting_`
-  // and `interrupted_` fields for each individual list node that is currently
-  // part of the list. It must be the mutex used together with the `cond_`
-  // condition variable of such nodes.
-  static base::LazyMutex mutex_;
-  static base::LazyInstance<FutexWaitList>::type wait_list_;
 };
 }  // namespace internal
 }  // namespace v8
