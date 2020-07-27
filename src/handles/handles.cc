@@ -47,7 +47,8 @@ bool HandleBase::IsDereferenceAllowed() const {
     // Local heap can't access handles when parked
     if (!local_heap->IsHandleDereferenceAllowed()) return false;
 
-    if (local_heap->ContainsPersistentHandle(location_)) {
+    if (local_heap->ContainsPersistentHandle(location_) ||
+        local_heap->ContainsLocalHandle(location_)) {
       // The current thread owns the handle and thus can dereference it.
       return true;
     }

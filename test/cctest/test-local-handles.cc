@@ -94,6 +94,30 @@ TEST(CreateLocalHandles) {
   thread->Join();
 }
 
+TEST(DereferenceLocalHandle) {
+  CcTest::InitializeVM();
+  FLAG_local_heaps = true;
+  Isolate* isolate = CcTest::i_isolate();
+
+  // Create a PersistentHandle to create the LocalHandle, and thus not have a
+  // HandleScope present to override the LocalHandleScope.
+  std::unique_ptr<PersistentHandles> phs = isolate->NewPersistentHandles();
+  Handle<HeapNumber> ph;
+  {
+    HandleScope handle_scope(isolate);
+    Handle<HeapNumber> number = isolate->factory()->NewHeapNumber(42.0);
+    ph = phs->NewHandle(number);
+  }
+  {
+    LocalHeap local_heap(isolate->heap(), std::move(phs));
+    LocalHandleScope scope(&local_heap);
+    Handle<HeapNumber> local_number = handle(*ph, &local_heap);
+    CHECK_EQ(42, local_number->value());
+    DisallowHandleDereference disallow_scope;
+    CHECK_EQ(42, local_number->value());
+  }
+}
+
 }  // anonymous namespace
 
 }  // namespace internal

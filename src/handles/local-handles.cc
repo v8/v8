@@ -28,6 +28,24 @@ void LocalHandles::Iterate(RootVisitor* visitor) {
   }
 }
 
+#ifdef DEBUG
+bool LocalHandles::Contains(Address* location) {
+  // We have to search in all blocks since they have no guarantee of order.
+  for (auto it = blocks_.begin(); it != blocks_.end(); ++it) {
+    Address* lower_bound = *it;
+    // The last block is a special case because it may have less than
+    // block_size_ handles.
+    Address* upper_bound = lower_bound != blocks_.back()
+                               ? lower_bound + kHandleBlockSize
+                               : scope_.next;
+    if (lower_bound <= location && location < upper_bound) {
+      return true;
+    }
+  }
+  return false;
+}
+#endif
+
 Address* LocalHandles::AddBlock() {
   DCHECK_EQ(scope_.next, scope_.limit);
   Address* block = NewArray<Address>(kHandleBlockSize);
