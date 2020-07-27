@@ -152,7 +152,7 @@ class InstructionTrace:
             count = int(countRes.group(1))
         operands = []
         result = None
-        if insn == 'ret':  # No operands
+        if insn == 'ret' or insn == 'ecall':  # No operands
             pass
         else:
             resIdx = 3
@@ -163,9 +163,15 @@ class InstructionTrace:
                 for part in parts:
                     if len(part) > 0:
                         operands.append(part.strip(','))
-                if not word.endswith(','):
+                # Check for end of operands with special case for the rounding mode
+                if not word.startswith('[') and not word.endswith(','):
                     # This is the last operand
                     break
+
+            # Skip over the branch/jump destination
+            if resIdx + 1 < len(words) and words[resIdx] == '->':
+                resIdx += 2
+
             # The result is the next word after the operands
             if resIdx < len(words) and not isStore(insn) and not isBranch(insn):
                 result = int(words[resIdx], 16)
@@ -405,10 +411,15 @@ while nextLine:
     if words[0] == "kind":
         # Start a new function
         current = Function(words[2])
+    elif words[0] == "kind:":
+        # Start a new function
+        current = Function(words[1:])
     elif words[0] == "name":
         current.name = words[2]
     elif words[0] == "compiler":
         current.compiler = words[2]
+    elif words[0] == "compiler:":
+        current.compiler = words[1]
     elif words[0] == "address":
         current.address = words[2]
     elif words[0] == "Trampoline":
