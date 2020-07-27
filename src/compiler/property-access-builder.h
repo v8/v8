@@ -25,6 +25,7 @@ class JSGraph;
 class JSHeapBroker;
 class PropertyAccessInfo;
 class SimplifiedOperatorBuilder;
+struct FieldAccess;
 
 class PropertyAccessBuilder {
  public:
@@ -62,6 +63,12 @@ class PropertyAccessBuilder {
                            PropertyAccessInfo const& access_info,
                            Node* receiver, Node** effect, Node** control);
 
+  // Builds the load for data-field access for minimorphic loads that use
+  // dynamic map checks. These cannot depend on any information from the maps.
+  Node* BuildMinimorphicLoadDataField(
+      NameRef const& name, MinimorphicLoadPropertyAccessInfo const& access_info,
+      Node* receiver, Node** effect, Node** control);
+
   static MachineRepresentation ConvertRepresentation(
       Representation representation);
 
@@ -80,6 +87,10 @@ class PropertyAccessBuilder {
   // Returns a node with the holder for the property access described by
   // {access_info}.
   Node* ResolveHolder(PropertyAccessInfo const& access_info, Node* receiver);
+
+  Node* BuildLoadDataField(NameRef const& name, Node* holder,
+                           FieldAccess& field_access, bool is_inobject,
+                           Node** effect, Node** control);
 
   JSGraph* jsgraph_;
   JSHeapBroker* broker_;

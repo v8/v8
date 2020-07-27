@@ -670,6 +670,9 @@ DEFINE_BOOL(
 DEFINE_BOOL(turbo_fast_api_calls, false, "enable fast API calls from TurboFan")
 DEFINE_INT(reuse_opt_code_count, 0,
            "don't discard optimized code for the specified number of deopts.")
+DEFINE_BOOL(dynamic_map_checks, false,
+            "use dynamic map checks when generating code for property accesses "
+            "if all handlers in an IC are the same")
 
 // Native context independent (NCI) code.
 DEFINE_BOOL(turbo_nci, false,

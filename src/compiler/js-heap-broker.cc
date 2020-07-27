@@ -2422,6 +2422,7 @@ JSHeapBroker::JSHeapBroker(
       feedback_(zone()),
       bytecode_analyses_(zone()),
       property_access_infos_(zone()),
+      minimorphic_property_access_infos_(zone()),
       typed_array_string_tags_(zone()),
       serialized_functions_(zone()) {
   // Note that this initialization of {refs_} with the minimal initial capacity
@@ -4673,6 +4674,16 @@ bool ElementAccessFeedback::HasOnlyStringMaps(JSHeapBroker* broker) const {
   return true;
 }
 
+MinimorphicLoadPropertyAccessFeedback::MinimorphicLoadPropertyAccessFeedback(
+    NameRef const& name, FeedbackSlotKind slot_kind, bool is_monomorphic,
+    Handle<Object> handler)
+    : ProcessedFeedback(kMinimorphicPropertyAccess, slot_kind),
+      name_(name),
+      is_monomorphic_(is_monomorphic),
+      handler_(handler) {
+  DCHECK(IsLoadICKind(slot_kind));
+}
+
 NamedAccessFeedback::NamedAccessFeedback(NameRef const& name,
                                          ZoneVector<Handle<Map>> const& maps,
                                          FeedbackSlotKind slot_kind)
@@ -4740,6 +4751,34 @@ void FilterRelevantReceiverMaps(Isolate* isolate, MapHandles* maps) {
   // Remove everything between the last valid map and the end of the vector.
   maps->erase(out, end);
 }
+
+MaybeObjectHandle TryGetMinimorphicHandler(
+    std::vector<MapAndHandler> const& maps_and_handlers,
+    FeedbackSlotKind kind) {
+  if (!FLAG_dynamic_map_checks || !IsLoadICKind(kind))
+    return MaybeObjectHandle();
+
+  MaybeObjectHandle initial_handler;
+  for (MapAndHandler map_and_handler : maps_and_handlers) {
+    auto map = map_and_handler.first;
+    MaybeObjectHandle handler = map_and_handler.second;
+    if (handler.is_null()) return MaybeObjectHandle();
+    DCHECK(!handler->IsCleared());
+    // TODO(mythria): extend this to DataHandlers too
+    if (!handler.object()->IsSmi()) return MaybeObjectHandle();
+    if (LoadHandler::GetHandlerKind(handler.object()->ToSmi()) !=
+        LoadHandler::Kind::kField) {
+      return MaybeObjectHandle();
+    }
+    CHECK(!map->IsJSGlobalProxyMap());
+    if (initial_handler.is_null()) {
+      initial_handler = handler;
+    } else if (!handler.is_identical_to(initial_handler)) {
+      return MaybeObjectHandle();
+    }
+  }
+  return initial_handler;
+}
 }  // namespace
 
 bool JSHeapBroker::CanUseFeedback(const FeedbackNexus& nexus) const {
@@ -4760,18 +4799,29 @@ ProcessedFeedback const& JSHeapBroker::ReadFeedbackForPropertyAccess(
   FeedbackSlotKind kind = nexus.kind();
   if (!CanUseFeedback(nexus)) return NewInsufficientFeedback(kind);
 
+  std::vector<MapAndHandler> maps_and_handlers;
+  nexus.ExtractMapsAndFeedback(&maps_and_handlers);
+
+  base::Optional<NameRef> name =
+      static_name.has_value() ? static_name : GetNameFeedback(nexus);
+  MaybeObjectHandle handler = TryGetMinimorphicHandler(maps_and_handlers, kind);
+  if (!handler.is_null()) {
+    return *zone()->New<MinimorphicLoadPropertyAccessFeedback>(
+        *name, kind, nexus.ic_state() == MONOMORPHIC, handler.object());
+  }
+
   MapHandles maps;
-  nexus.ExtractMaps(&maps);
+  for (auto const& entry : maps_and_handlers) {
+    maps.push_back(entry.first);
+  }
   FilterRelevantReceiverMaps(isolate(), &maps);
 
-  // If no maps were found for a non-megamorphic access, then our maps died and
-  // we should soft-deopt.
+  // If no maps were found for a non-megamorphic access, then our maps died
+  // and we should soft-deopt.
   if (maps.empty() && nexus.ic_state() != MEGAMORPHIC) {
     return NewInsufficientFeedback(kind);
   }
 
-  base::Optional<NameRef> name =
-      static_name.has_value() ? static_name : GetNameFeedback(nexus);
   if (name.has_value()) {
     // We rely on this invariant in JSGenericLowering.
     DCHECK_IMPLIES(maps.empty(), nexus.ic_state() == MEGAMORPHIC);
@@ -4806,8 +4856,8 @@ ProcessedFeedback const& JSHeapBroker::ReadFeedbackForGlobalAccess(
                                 isolate());
 
   if (feedback_value->IsSmi()) {
-    // The wanted name belongs to a script-scope variable and the feedback tells
-    // us where to find its value.
+    // The wanted name belongs to a script-scope variable and the feedback
+    // tells us where to find its value.
     int number = feedback_value->Number();
     int const script_context_index =
         FeedbackNexus::ContextIndexBits::decode(number);
@@ -5224,6 +5274,29 @@ PropertyAccessInfo JSHeapBroker::GetPropertyAccessInfo(
   return access_info;
 }
 
+MinimorphicLoadPropertyAccessInfo JSHeapBroker::GetPropertyAccessInfo(
+    MinimorphicLoadPropertyAccessFeedback const& feedback,
+    FeedbackSource const& source, SerializationPolicy policy) {
+  auto it = minimorphic_property_access_infos_.find(source.index());
+  if (it != minimorphic_property_access_infos_.end()) return it->second;
+
+  if (policy == SerializationPolicy::kAssumeSerialized) {
+    TRACE_BROKER_MISSING(
+        this, "MinimorphicLoadPropertyAccessInfo for slot " << source.index());
+    return MinimorphicLoadPropertyAccessInfo::Invalid();
+  }
+
+  AccessInfoFactory factory(this, nullptr, zone());
+  MinimorphicLoadPropertyAccessInfo access_info =
+      factory.ComputePropertyAccessInfo(feedback);
+  if (is_concurrent_inlining_) {
+    TRACE(this,
+          "Storing MinimorphicLoadPropertyAccessInfo for " << source.index());
+    minimorphic_property_access_infos_.insert({source.index(), access_info});
+  }
+  return access_info;
+}
+
 BinaryOperationFeedback const& ProcessedFeedback::AsBinaryOperation() const {
   CHECK_EQ(kBinaryOperation, kind());
   return *static_cast<BinaryOperationFeedback const*>(this);
@@ -5262,6 +5335,12 @@ InstanceOfFeedback const& ProcessedFeedback::AsInstanceOf() const {
 NamedAccessFeedback const& ProcessedFeedback::AsNamedAccess() const {
   CHECK_EQ(kNamedAccess, kind());
   return *static_cast<NamedAccessFeedback const*>(this);
+}
+
+MinimorphicLoadPropertyAccessFeedback const&
+ProcessedFeedback::AsMinimorphicPropertyAccess() const {
+  CHECK_EQ(kMinimorphicPropertyAccess, kind());
+  return *static_cast<MinimorphicLoadPropertyAccessFeedback const*>(this);
 }
 
 LiteralFeedback const& ProcessedFeedback::AsLiteral() const {

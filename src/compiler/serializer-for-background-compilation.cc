@@ -448,6 +448,9 @@ class SerializerForBackgroundCompilation {
   void ProcessElementAccess(Hints const& receiver, Hints const& key,
                             ElementAccessFeedback const& feedback,
                             AccessMode access_mode);
+  void ProcessMinimorphicPropertyAccess(
+      MinimorphicLoadPropertyAccessFeedback const& feedback,
+      FeedbackSource const& source);
 
   void ProcessModuleVariableAccess(
       interpreter::BytecodeArrayIterator* iterator);
@@ -3052,6 +3055,13 @@ SerializerForBackgroundCompilation::ProcessMapForNamedPropertyAccess(
   return access_info;
 }
 
+void SerializerForBackgroundCompilation::ProcessMinimorphicPropertyAccess(
+    MinimorphicLoadPropertyAccessFeedback const& feedback,
+    FeedbackSource const& source) {
+  broker()->GetPropertyAccessInfo(feedback, source,
+                                  SerializationPolicy::kSerializeIfNeeded);
+}
+
 void SerializerForBackgroundCompilation::VisitLdaKeyedProperty(
     BytecodeArrayIterator* iterator) {
   Hints const& key = environment()->accumulator_hints();
@@ -3108,6 +3118,11 @@ void SerializerForBackgroundCompilation::ProcessNamedPropertyAccess(
       DCHECK(name.equals(feedback.AsNamedAccess().name()));
       ProcessNamedAccess(receiver, feedback.AsNamedAccess(), access_mode,
                          &new_accumulator_hints);
+      break;
+    case ProcessedFeedback::kMinimorphicPropertyAccess:
+      DCHECK(name.equals(feedback.AsMinimorphicPropertyAccess().name()));
+      ProcessMinimorphicPropertyAccess(feedback.AsMinimorphicPropertyAccess(),
+                                       source);
       break;
     case ProcessedFeedback::kInsufficient:
       break;

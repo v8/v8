@@ -1050,6 +1050,37 @@ Reduction JSNativeContextSpecialization::ReduceJSStoreGlobal(Node* node) {
   }
 }
 
+Reduction JSNativeContextSpecialization::ReduceMinimorphicPropertyAccess(
+    Node* node, Node* value,
+    MinimorphicLoadPropertyAccessFeedback const& feedback,
+    FeedbackSource const& source) {
+  Node* receiver = NodeProperties::GetValueInput(node, 0);
+  Node* effect = NodeProperties::GetEffectInput(node);
+  Node* control = NodeProperties::GetControlInput(node);
+
+  MinimorphicLoadPropertyAccessInfo access_info =
+      broker()->GetPropertyAccessInfo(
+          feedback, source,
+          should_disallow_heap_access()
+              ? SerializationPolicy::kAssumeSerialized
+              : SerializationPolicy::kSerializeIfNeeded);
+  if (access_info.IsInvalid()) return NoChange();
+
+  PropertyAccessBuilder access_builder(jsgraph(), broker(), nullptr);
+  effect = graph()->NewNode(
+      simplified()->DynamicCheckMaps(
+          feedback.handler(), source,
+          feedback.is_monomorphic()
+              ? DynamicCheckMapsParameters::ICState::kMonomorphic
+              : DynamicCheckMapsParameters::ICState::kPolymorphic),
+      receiver, effect, control);
+  value = access_builder.BuildMinimorphicLoadDataField(
+      feedback.name(), access_info, receiver, &effect, &control);
+
+  ReplaceWithValue(node, value, effect, control);
+  return Replace(value);
+}
+
 Reduction JSNativeContextSpecialization::ReduceNamedAccess(
     Node* node, Node* value, NamedAccessFeedback const& feedback,
     AccessMode access_mode, Node* key) {
@@ -1892,6 +1923,11 @@ Reduction JSNativeContextSpecialization::ReducePropertyAccess(
     case ProcessedFeedback::kNamedAccess:
       return ReduceNamedAccess(node, value, feedback.AsNamedAccess(),
                                access_mode, key);
+    case ProcessedFeedback::kMinimorphicPropertyAccess:
+      DCHECK_EQ(access_mode, AccessMode::kLoad);
+      DCHECK_NULL(key);
+      return ReduceMinimorphicPropertyAccess(
+          node, value, feedback.AsMinimorphicPropertyAccess(), source);
     case ProcessedFeedback::kElementAccess:
       DCHECK_EQ(feedback.AsElementAccess().keyed_mode().access_mode(),
                 access_mode);

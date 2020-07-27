@@ -1005,8 +1005,8 @@ int FeedbackNexus::ExtractMaps(MapHandles* maps) const {
   return 0;
 }
 
-int FeedbackNexus::ExtractMapsAndHandlers(
-    std::vector<std::pair<Handle<Map>, MaybeObjectHandle>>* maps_and_handlers,
+int FeedbackNexus::ExtractMapsAndFeedbackImpl(
+    std::vector<MapAndFeedback>* maps_and_feedback,
     bool try_update_deprecated) const {
   DCHECK(IsLoadICKind(kind()) ||
          IsStoreICKind(kind()) | IsKeyedLoadICKind(kind()) ||
@@ -1032,19 +1032,18 @@ int FeedbackNexus::ExtractMapsAndHandlers(
     }
     const int increment = 2;
     HeapObject heap_object;
-    maps_and_handlers->reserve(array.length() / increment);
+    maps_and_feedback->reserve(array.length() / increment);
     for (int i = 0; i < array.length(); i += increment) {
       DCHECK(array.Get(i)->IsWeakOrCleared());
       if (array.Get(i)->GetHeapObjectIfWeak(&heap_object)) {
         MaybeObject handler = array.Get(i + 1);
         if (!handler->IsCleared()) {
-          DCHECK(IC::IsHandler(handler));
           Handle<Map> map(Map::cast(heap_object), isolate);
           if (try_update_deprecated &&
               !Map::TryUpdate(isolate, map).ToHandle(&map)) {
             continue;
           }
-          maps_and_handlers->push_back(
+          maps_and_feedback->push_back(
               MapAndHandler(map, handle(handler, isolate)));
           found++;
         }
@@ -1054,19 +1053,54 @@ int FeedbackNexus::ExtractMapsAndHandlers(
   } else if (feedback->GetHeapObjectIfWeak(&heap_object)) {
     MaybeObject handler = GetFeedbackExtra();
     if (!handler->IsCleared()) {
-      DCHECK(IC::IsHandler(handler));
       Handle<Map> map = handle(Map::cast(heap_object), isolate);
       if (try_update_deprecated &&
           !Map::TryUpdate(isolate, map).ToHandle(&map)) {
         return 0;
       }
-      maps_and_handlers->push_back(
+      maps_and_feedback->push_back(
           MapAndHandler(map, handle(handler, isolate)));
       return 1;
     }
   }
 
   return 0;
+}
+
+int FeedbackNexus::ExtractMapsAndFeedback(
+    std::vector<MapAndFeedback>* maps_and_feedback,
+    bool try_update_deprecated) const {
+  DCHECK(IsLoadICKind(kind()) ||
+         IsStoreICKind(kind()) | IsKeyedLoadICKind(kind()) ||
+         IsKeyedStoreICKind(kind()) || IsStoreOwnICKind(kind()) ||
+         IsStoreInArrayLiteralICKind(kind()) || IsKeyedHasICKind(kind()) ||
+         IsStoreDataPropertyInLiteralKind(kind()));
+  int num_maps =
+      ExtractMapsAndFeedbackImpl(maps_and_feedback, try_update_deprecated);
+#ifdef DEBUG
+  for (auto const& entry : *maps_and_feedback) {
+    DCHECK(IC::IsHandler(*entry.second) ||
+           IsStoreDataPropertyInLiteralKind(kind()));
+  }
+#endif
+  return num_maps;
+}
+
+int FeedbackNexus::ExtractMapsAndHandlers(
+    std::vector<MapAndHandler>* maps_and_handlers,
+    bool try_update_deprecated) const {
+  DCHECK(IsLoadICKind(kind()) ||
+         IsStoreICKind(kind()) | IsKeyedLoadICKind(kind()) ||
+         IsKeyedStoreICKind(kind()) || IsStoreOwnICKind(kind()) ||
+         IsStoreInArrayLiteralICKind(kind()) || IsKeyedHasICKind(kind()));
+  int num_maps =
+      ExtractMapsAndFeedbackImpl(maps_and_handlers, try_update_deprecated);
+#ifdef DEBUG
+  for (auto const& entry : *maps_and_handlers) {
+    DCHECK(IC::IsHandler(*entry.second));
+  }
+#endif
+  return num_maps;
 }
 
 MaybeObjectHandle FeedbackNexus::FindHandlerForMap(Handle<Map> map) const {

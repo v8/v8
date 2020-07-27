@@ -62,6 +62,7 @@ enum class FeedbackSlotKind {
 };
 
 using MapAndHandler = std::pair<Handle<Map>, MaybeObjectHandle>;
+using MapAndFeedback = std::pair<Handle<Map>, MaybeObjectHandle>;
 
 inline bool IsCallICKind(FeedbackSlotKind kind) {
   return kind == FeedbackSlotKind::kCall;
@@ -656,9 +657,18 @@ class V8_EXPORT_PRIVATE FeedbackNexus final {
   Map GetFirstMap() const;
 
   int ExtractMaps(MapHandles* maps) const;
+  // Used to obtain maps and the associated handlers stored in the feedback
+  // vector. This should be called when we expect only a handler to be sotred in
+  // the extra feedback. This is used by ICs when updting the handlers.
   int ExtractMapsAndHandlers(std::vector<MapAndHandler>* maps_and_handlers,
                              bool try_update_deprecated = false) const;
   MaybeObjectHandle FindHandlerForMap(Handle<Map> map) const;
+  // Used to obtain maps and the associated feedback stored in the feedback
+  // vector. The returned feedback need not be always a handler. It could be a
+  // name in the case of StoreDataInPropertyLiteral. This is used by TurboFan to
+  // get all the feedback stored in the vector.
+  int ExtractMapsAndFeedback(std::vector<MapAndFeedback>* maps_and_feedback,
+                             bool try_update_deprecated = false) const;
 
   bool IsCleared() const {
     InlineCacheState state = ic_state();
@@ -768,6 +778,9 @@ class V8_EXPORT_PRIVATE FeedbackNexus final {
   FeedbackVector vector_;
   FeedbackSlot slot_;
   FeedbackSlotKind kind_;
+
+  int ExtractMapsAndFeedbackImpl(std::vector<MapAndFeedback>* maps_and_feedback,
+                                 bool try_update_deprecated = false) const;
 };
 
 inline BinaryOperationHint BinaryOperationHintFromFeedback(int type_feedback);
