@@ -66,7 +66,7 @@ class PersistentHandles {
 
   Isolate* isolate_;
   std::vector<Address*> blocks_;
-  size_t block_size_;
+  const size_t block_size_;
 
   Address* block_next_;
   Address* block_limit_;

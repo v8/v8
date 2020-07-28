@@ -19,6 +19,7 @@ class RootVisitor;
 class LocalHandles {
  public:
   LocalHandles();
+  ~LocalHandles();
 
   void Iterate(RootVisitor* visitor);
 
@@ -31,7 +32,11 @@ class LocalHandles {
   std::vector<Address*> blocks_;
 
   V8_EXPORT_PRIVATE Address* AddBlock();
-  V8_EXPORT_PRIVATE void RemoveBlocks();
+  V8_EXPORT_PRIVATE void RemoveUnusedBlocks();
+
+#ifdef ENABLE_HANDLE_ZAPPING
+  V8_EXPORT_PRIVATE static void ZapRange(Address* start, Address* end);
+#endif
 
   friend class LocalHandleScope;
 };

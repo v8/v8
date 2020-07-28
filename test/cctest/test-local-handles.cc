@@ -8,8 +8,10 @@
 #include "src/base/platform/condition-variable.h"
 #include "src/base/platform/mutex.h"
 #include "src/base/platform/semaphore.h"
+#include "src/common/globals.h"
 #include "src/handles/handles-inl.h"
 #include "src/handles/local-handles-inl.h"
+#include "src/handles/local-handles.h"
 #include "src/heap/heap.h"
 #include "src/heap/local-heap.h"
 #include "src/heap/safepoint.h"
@@ -92,6 +94,17 @@ TEST(CreateLocalHandles) {
   sema_gc_finished.Signal();
 
   thread->Join();
+}
+
+TEST(CreateLocalHandlesWithoutLocalHandleScope) {
+  CcTest::InitializeVM();
+  FLAG_local_heaps = true;
+  Isolate* isolate = CcTest::i_isolate();
+
+  {
+    LocalHeap local_heap(isolate->heap());
+    handle(Smi::FromInt(17), &local_heap);
+  }
 }
 
 TEST(DereferenceLocalHandle) {

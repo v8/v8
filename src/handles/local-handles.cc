@@ -11,6 +11,11 @@ namespace v8 {
 namespace internal {
 
 LocalHandles::LocalHandles() { scope_.Initialize(); }
+LocalHandles::~LocalHandles() {
+  scope_.limit = nullptr;
+  RemoveUnusedBlocks();
+  DCHECK(blocks_.empty());
+}
 
 void LocalHandles::Iterate(RootVisitor* visitor) {
   for (int i = 0; i < static_cast<int>(blocks_.size()) - 1; i++) {
@@ -49,13 +54,16 @@ bool LocalHandles::Contains(Address* location) {
 Address* LocalHandles::AddBlock() {
   DCHECK_EQ(scope_.next, scope_.limit);
   Address* block = NewArray<Address>(kHandleBlockSize);
+#ifdef ENABLE_HANDLE_ZAPPING
+  ZapRange(block, block + kHandleBlockSize);
+#endif
   blocks_.push_back(block);
   scope_.next = block;
   scope_.limit = block + kHandleBlockSize;
   return block;
 }
 
-void LocalHandles::RemoveBlocks() {
+void LocalHandles::RemoveUnusedBlocks() {
   while (!blocks_.empty()) {
     Address* block_start = blocks_.back();
     Address* block_limit = block_start + kHandleBlockSize;
@@ -66,11 +74,19 @@ void LocalHandles::RemoveBlocks() {
 
     blocks_.pop_back();
 
-    // TODO(dinfuehr): Zap handles in block
+#ifdef ENABLE_HANDLE_ZAPPING
+    ZapRange(block_start, block_limit);
+#endif
 
     DeleteArray(block_start);
   }
 }
+
+#ifdef ENABLE_HANDLE_ZAPPING
+void LocalHandles::ZapRange(Address* start, Address* end) {
+  HandleScope::ZapRange(start, end);
+}
+#endif
 
 }  // namespace internal
 }  // namespace v8

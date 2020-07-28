@@ -43,11 +43,13 @@ LocalHandleScope::~LocalHandleScope() {
   handles->scope_.level--;
 
   if (old_limit != handles->scope_.limit) {
-    handles->RemoveBlocks();
+    handles->RemoveUnusedBlocks();
     old_limit = handles->scope_.limit;
   }
 
-  // TODO(dinfuehr): Zap handles
+#ifdef ENABLE_HANDLE_ZAPPING
+  LocalHandles::ZapRange(handles->scope_.next, old_limit);
+#endif
 
   MSAN_ALLOCATED_UNINITIALIZED_MEMORY(
       handles->scope_.next,

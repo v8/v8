@@ -264,6 +264,8 @@ class HandleScope {
   friend class DeferredHandleScope;
   friend class HandleScopeImplementer;
   friend class Isolate;
+  friend class LocalHandles;
+  friend class PersistentHandles;
 
   DISALLOW_COPY_AND_ASSIGN(HandleScope);
 };

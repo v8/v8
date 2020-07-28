@@ -26,6 +26,9 @@ PersistentHandles::~PersistentHandles() {
   isolate_->persistent_handles_list()->Remove(this);
 
   for (Address* block_start : blocks_) {
+#if ENABLE_HANDLE_ZAPPING
+    HandleScope::ZapRange(block_start, block_start + block_size_);
+#endif
     DeleteArray(block_start);
   }
 }
