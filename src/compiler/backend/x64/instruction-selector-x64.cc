@@ -83,7 +83,8 @@ class X64OperandGenerator final : public OperandGenerator {
         // When pointer compression is enabled 32-bit memory operands can be
         // used for tagged values.
         return rep == MachineRepresentation::kWord32 ||
-               (COMPRESS_POINTERS_BOOL && IsAnyTagged(rep));
+               (COMPRESS_POINTERS_BOOL &&
+                (IsAnyTagged(rep) || IsAnyCompressed(rep)));
       case kX64Cmp16:
       case kX64Test16:
         return rep == MachineRepresentation::kWord16;
