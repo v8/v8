@@ -4231,19 +4231,17 @@ TNode<PropertyArray> CodeStubAssembler::AllocatePropertyArray(
 }
 
 void CodeStubAssembler::FillPropertyArrayWithUndefined(
-    TNode<PropertyArray> array, Node* from_node, Node* to_node,
-    ParameterMode mode) {
-  CSA_SLOW_ASSERT(this, MatchesParameterMode(from_node, mode));
-  CSA_SLOW_ASSERT(this, MatchesParameterMode(to_node, mode));
+    TNode<PropertyArray> array, TNode<IntPtrT> from_index,
+    TNode<IntPtrT> to_index) {
   ElementsKind kind = PACKED_ELEMENTS;
   TNode<Oddball> value = UndefinedConstant();
   BuildFastArrayForEach(
-      array, kind, from_node, to_node,
+      array, kind, from_index, to_index,
       [this, value](TNode<HeapObject> array, TNode<IntPtrT> offset) {
         StoreNoWriteBarrier(MachineRepresentation::kTagged, array, offset,
                             value);
       },
-      mode);
+      INTPTR_PARAMETERS);
 }
 
 void CodeStubAssembler::FillFixedArrayWithValue(ElementsKind kind,
@@ -4721,11 +4719,9 @@ TNode<FixedArray> CodeStubAssembler::HeapObjectToFixedArray(
 
 void CodeStubAssembler::CopyPropertyArrayValues(TNode<HeapObject> from_array,
                                                 TNode<PropertyArray> to_array,
-                                                Node* property_count,
+                                                TNode<IntPtrT> property_count,
                                                 WriteBarrierMode barrier_mode,
-                                                ParameterMode mode,
                                                 DestroySource destroy_source) {
-  CSA_SLOW_ASSERT(this, MatchesParameterMode(property_count, mode));
   CSA_SLOW_ASSERT(this, Word32Or(IsPropertyArray(from_array),
                                  IsEmptyFixedArray(from_array)));
   Comment("[ CopyPropertyArrayValues");
@@ -4738,7 +4734,7 @@ void CodeStubAssembler::CopyPropertyArrayValues(TNode<HeapObject> from_array,
     needs_write_barrier = true;
   }
 
-  Node* start = IntPtrOrSmiConstant(0, mode);
+  TNode<IntPtrT> start = IntPtrConstant(0);
   ElementsKind kind = PACKED_ELEMENTS;
   BuildFastArrayForEach(
       from_array, kind, start, property_count,
@@ -4757,15 +4753,14 @@ void CodeStubAssembler::CopyPropertyArrayValues(TNode<HeapObject> from_array,
                               value);
         }
       },
-      mode);
+      INTPTR_PARAMETERS);
 
 #ifdef DEBUG
   // Zap {from_array} if the copying above has made it invalid.
   if (destroy_source == DestroySource::kYes) {
     Label did_zap(this);
     GotoIf(IsEmptyFixedArray(from_array), &did_zap);
-    FillPropertyArrayWithUndefined(CAST(from_array), start, property_count,
-                                   mode);
+    FillPropertyArrayWithUndefined(CAST(from_array), start, property_count);
 
     Goto(&did_zap);
     BIND(&did_zap);

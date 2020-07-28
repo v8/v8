@@ -1962,8 +1962,8 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
                                     TNode<IntPtrT> length);
 
   void FillPropertyArrayWithUndefined(TNode<PropertyArray> array,
-                                      Node* from_index, Node* to_index,
-                                      ParameterMode mode = INTPTR_PARAMETERS);
+                                      TNode<IntPtrT> from_index,
+                                      TNode<IntPtrT> to_index);
 
   enum class DestroySource { kNo, kYes };
 
@@ -1980,9 +1980,9 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
   // being cloned, to ensure that mutable HeapNumbers are unique between the
   // source and cloned object.
   void CopyPropertyArrayValues(TNode<HeapObject> from_array,
-                               TNode<PropertyArray> to_array, Node* length,
+                               TNode<PropertyArray> to_array,
+                               TNode<IntPtrT> length,
                                WriteBarrierMode barrier_mode,
-                               ParameterMode mode,
                                DestroySource destroy_source);
 
   // Copies all elements from |from_array| of |length| size to

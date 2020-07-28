@@ -1990,7 +1990,7 @@ TNode<PropertyArray> AccessorAssembler::ExtendPropertiesBackingStore(
     // the write barrier.
     CopyPropertyArrayValues(var_properties.value(), new_properties,
                             var_length.value(), SKIP_WRITE_BARRIER,
-                            INTPTR_PARAMETERS, DestroySource::kYes);
+                            DestroySource::kYes);
 
     TNode<Int32T> new_capacity_int32 = TruncateIntPtrToInt32(new_capacity);
     TNode<Int32T> new_length_and_hash_int32 =
@@ -4055,12 +4055,10 @@ void AccessorAssembler::GenerateCloneObjectIC() {
       TNode<IntPtrT> length = LoadPropertyArrayLength(source_property_array);
       GotoIf(IntPtrEqual(length, IntPtrConstant(0)), &allocate_object);
 
-      auto mode = INTPTR_PARAMETERS;
       TNode<PropertyArray> property_array = AllocatePropertyArray(length);
-      FillPropertyArrayWithUndefined(property_array, IntPtrConstant(0), length,
-                                     mode);
+      FillPropertyArrayWithUndefined(property_array, IntPtrConstant(0), length);
       CopyPropertyArrayValues(source_property_array, property_array, length,
-                              SKIP_WRITE_BARRIER, mode, DestroySource::kNo);
+                              SKIP_WRITE_BARRIER, DestroySource::kNo);
       var_properties = property_array;
     }
 
