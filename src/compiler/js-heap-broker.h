@@ -220,6 +220,10 @@ class V8_EXPORT_PRIVATE JSHeapBroker {
     return ph_->NewHandle(*obj);
   }
 
+  LocalHeap* local_heap() {
+    return local_heap_.has_value() ? &(*local_heap_) : nullptr;
+  }
+
   std::string Trace() const;
   void IncrementTracingIndentation();
   void DecrementTracingIndentation();

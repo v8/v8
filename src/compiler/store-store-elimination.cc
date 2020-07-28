@@ -243,7 +243,7 @@ void RedundantStoreFinder::Find() {
   Visit(jsgraph()->graph()->end());
 
   while (!revisit_.empty()) {
-    tick_counter_->DoTick();
+    tick_counter_->TickAndMaybeEnterSafepoint();
     Node* next = revisit_.top();
     revisit_.pop();
     DCHECK_LT(next->id(), in_revisit_.size());

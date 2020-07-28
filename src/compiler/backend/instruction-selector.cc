@@ -1293,7 +1293,7 @@ void InstructionSelector::MarkPairProjectionsAsWord32(Node* node) {
 }
 
 void InstructionSelector::VisitNode(Node* node) {
-  tick_counter_->DoTick();
+  tick_counter_->TickAndMaybeEnterSafepoint();
   DCHECK_NOT_NULL(schedule()->block(node));  // should only use scheduled nodes.
   switch (node->opcode()) {
     case IrOpcode::kStart:

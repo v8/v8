@@ -1836,7 +1836,7 @@ InstructionOperand* ConstraintBuilder::AllocateFixed(
 
 void ConstraintBuilder::MeetRegisterConstraints() {
   for (InstructionBlock* block : code()->instruction_blocks()) {
-    data_->tick_counter()->DoTick();
+    data_->tick_counter()->TickAndMaybeEnterSafepoint();
     MeetRegisterConstraints(block);
   }
 }
@@ -2002,7 +2002,7 @@ void ConstraintBuilder::MeetConstraintsBefore(int instr_index) {
 void ConstraintBuilder::ResolvePhis() {
   // Process the blocks in reverse order.
   for (InstructionBlock* block : base::Reversed(code()->instruction_blocks())) {
-    data_->tick_counter()->DoTick();
+    data_->tick_counter()->TickAndMaybeEnterSafepoint();
     ResolvePhis(block);
   }
 }
@@ -2617,7 +2617,7 @@ void LiveRangeBuilder::BuildLiveRanges() {
   // Process the blocks in reverse order.
   for (int block_id = code()->InstructionBlockCount() - 1; block_id >= 0;
        --block_id) {
-    data_->tick_counter()->DoTick();
+    data_->tick_counter()->TickAndMaybeEnterSafepoint();
     InstructionBlock* block =
         code()->InstructionBlockAt(RpoNumber::FromInt(block_id));
     BitVector* live = ComputeLiveOut(block, data());
@@ -2637,7 +2637,7 @@ void LiveRangeBuilder::BuildLiveRanges() {
   // Postprocess the ranges.
   const size_t live_ranges_size = data()->live_ranges().size();
   for (TopLevelLiveRange* range : data()->live_ranges()) {
-    data_->tick_counter()->DoTick();
+    data_->tick_counter()->TickAndMaybeEnterSafepoint();
     CHECK_EQ(live_ranges_size,
              data()->live_ranges().size());  // TODO(neis): crbug.com/831822
     if (range == nullptr) continue;
@@ -3784,7 +3784,7 @@ void LinearScanAllocator::AllocateRegisters() {
   while (!unhandled_live_ranges().empty() ||
          (data()->is_turbo_control_flow_aware_allocation() &&
           last_block < max_blocks)) {
-    data()->tick_counter()->DoTick();
+    data()->tick_counter()->TickAndMaybeEnterSafepoint();
     LiveRange* current = unhandled_live_ranges().empty()
                              ? nullptr
                              : *unhandled_live_ranges().begin();
@@ -4771,7 +4771,7 @@ OperandAssigner::OperandAssigner(TopTierRegisterAllocationData* data)
 void OperandAssigner::DecideSpillingMode() {
   if (data()->is_turbo_control_flow_aware_allocation()) {
     for (auto range : data()->live_ranges()) {
-      data()->tick_counter()->DoTick();
+      data()->tick_counter()->TickAndMaybeEnterSafepoint();
       int max_blocks = data()->code()->InstructionBlockCount();
       if (range != nullptr && range->IsSpilledOnlyInDeferredBlocks(data())) {
         // If the range is spilled only in deferred blocks and starts in
@@ -4800,7 +4800,7 @@ void OperandAssigner::DecideSpillingMode() {
 
 void OperandAssigner::AssignSpillSlots() {
   for (auto range : data()->live_ranges()) {
-    data()->tick_counter()->DoTick();
+    data()->tick_counter()->TickAndMaybeEnterSafepoint();
     if (range != nullptr && range->get_bundle() != nullptr) {
       range->get_bundle()->MergeSpillRanges();
     }
@@ -4808,7 +4808,7 @@ void OperandAssigner::AssignSpillSlots() {
   ZoneVector<SpillRange*>& spill_ranges = data()->spill_ranges();
   // Merge disjoint spill ranges
   for (size_t i = 0; i < spill_ranges.size(); ++i) {
-    data()->tick_counter()->DoTick();
+    data()->tick_counter()->TickAndMaybeEnterSafepoint();
     SpillRange* range = spill_ranges[i];
     if (range == nullptr) continue;
     if (range->IsEmpty()) continue;
@@ -4821,7 +4821,7 @@ void OperandAssigner::AssignSpillSlots() {
   }
   // Allocate slots for the merged spill ranges.
   for (SpillRange* range : spill_ranges) {
-    data()->tick_counter()->DoTick();
+    data()->tick_counter()->TickAndMaybeEnterSafepoint();
     if (range == nullptr || range->IsEmpty()) continue;
     // Allocate a new operand referring to the spill slot.
     if (!range->HasSlot()) {
@@ -4834,7 +4834,7 @@ void OperandAssigner::AssignSpillSlots() {
 void OperandAssigner::CommitAssignment() {
   const size_t live_ranges_size = data()->live_ranges().size();
   for (TopLevelLiveRange* top_range : data()->live_ranges()) {
-    data()->tick_counter()->DoTick();
+    data()->tick_counter()->TickAndMaybeEnterSafepoint();
     CHECK_EQ(live_ranges_size,
              data()->live_ranges().size());  // TODO(neis): crbug.com/831822
     if (top_range == nullptr || top_range->IsEmpty()) continue;
@@ -5035,7 +5035,7 @@ void LiveRangeConnector::ResolveControlFlow(Zone* local_zone) {
     BitVector* live = live_in_sets[block->rpo_number().ToInt()];
     BitVector::Iterator iterator(live);
     while (!iterator.Done()) {
-      data()->tick_counter()->DoTick();
+      data()->tick_counter()->TickAndMaybeEnterSafepoint();
       int vreg = iterator.Current();
       LiveRangeBoundArray* array = finder.ArrayFor(vreg);
       for (const RpoNumber& pred : block->predecessors()) {

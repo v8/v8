@@ -297,7 +297,7 @@ void EffectGraphReducer::ReduceFrom(Node* node) {
   DCHECK(stack_.empty());
   stack_.push({node, 0});
   while (!stack_.empty()) {
-    tick_counter_->DoTick();
+    tick_counter_->TickAndMaybeEnterSafepoint();
     Node* current = stack_.top().node;
     int& input_index = stack_.top().input_index;
     if (input_index < current->InputCount()) {
@@ -412,7 +412,7 @@ VariableTracker::State VariableTracker::MergeInputs(Node* effect_phi) {
   State first_input = table_.Get(NodeProperties::GetEffectInput(effect_phi, 0));
   State result = first_input;
   for (std::pair<Variable, Node*> var_value : first_input) {
-    tick_counter_->DoTick();
+    tick_counter_->TickAndMaybeEnterSafepoint();
     if (Node* value = var_value.second) {
       Variable var = var_value.first;
       TRACE("var %i:\n", var.id_);

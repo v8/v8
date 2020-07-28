@@ -265,7 +265,7 @@ class CFGBuilder : public ZoneObject {
     Queue(scheduler_->graph_->end());
 
     while (!queue_.empty()) {  // Breadth-first backwards traversal.
-      scheduler_->tick_counter_->DoTick();
+      scheduler_->tick_counter_->TickAndMaybeEnterSafepoint();
       Node* node = queue_.front();
       queue_.pop();
       int max = NodeProperties::PastControlIndex(node);
@@ -291,7 +291,7 @@ class CFGBuilder : public ZoneObject {
     component_end_ = schedule_->block(exit);
     scheduler_->equivalence_->Run(exit);
     while (!queue_.empty()) {  // Breadth-first backwards traversal.
-      scheduler_->tick_counter_->DoTick();
+      scheduler_->tick_counter_->TickAndMaybeEnterSafepoint();
       Node* node = queue_.front();
       queue_.pop();
 
@@ -1274,7 +1274,7 @@ void Scheduler::PrepareUses() {
   visited[node->id()] = true;
   stack.push(node->input_edges().begin());
   while (!stack.empty()) {
-    tick_counter_->DoTick();
+    tick_counter_->TickAndMaybeEnterSafepoint();
     Edge edge = *stack.top();
     Node* node = edge.to();
     if (visited[node->id()]) {
@@ -1303,7 +1303,7 @@ class ScheduleEarlyNodeVisitor {
     for (Node* const root : *roots) {
       queue_.push(root);
       while (!queue_.empty()) {
-        scheduler_->tick_counter_->DoTick();
+        scheduler_->tick_counter_->TickAndMaybeEnterSafepoint();
         VisitNode(queue_.front());
         queue_.pop();
       }
@@ -1430,7 +1430,7 @@ class ScheduleLateNodeVisitor {
 
       queue->push(node);
       do {
-        scheduler_->tick_counter_->DoTick();
+        scheduler_->tick_counter_->TickAndMaybeEnterSafepoint();
         Node* const node = queue->front();
         queue->pop();
         VisitNode(node);

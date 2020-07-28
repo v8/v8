@@ -190,7 +190,7 @@ class LoopFinderImpl {
     Queue(end_);
 
     while (!queue_.empty()) {
-      tick_counter_->DoTick();
+      tick_counter_->TickAndMaybeEnterSafepoint();
       Node* node = queue_.front();
       info(node);
       queue_.pop_front();
@@ -309,7 +309,7 @@ class LoopFinderImpl {
     }
     // Propagate forward on paths that were backward reachable from backedges.
     while (!queue_.empty()) {
-      tick_counter_->DoTick();
+      tick_counter_->TickAndMaybeEnterSafepoint();
       Node* node = queue_.front();
       queue_.pop_front();
       queued_.Set(node, false);

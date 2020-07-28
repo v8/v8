@@ -932,14 +932,20 @@ class PipelineRunScope {
 // LocalHeapScope encapsulates the liveness of the brokers's LocalHeap.
 class LocalHeapScope {
  public:
-  explicit LocalHeapScope(JSHeapBroker* broker) : broker_(broker) {
+  explicit LocalHeapScope(JSHeapBroker* broker, OptimizedCompilationInfo* info)
+      : broker_(broker), tick_counter_(&info->tick_counter()) {
     broker_->InitializeLocalHeap();
+    tick_counter_->AttachLocalHeap(broker_->local_heap());
   }
 
-  ~LocalHeapScope() { broker_->TearDownLocalHeap(); }
+  ~LocalHeapScope() {
+    tick_counter_->DetachLocalHeap();
+    broker_->TearDownLocalHeap();
+  }
 
  private:
   JSHeapBroker* broker_;
+  TickCounter* tick_counter_;
 };
 
 PipelineStatistics* CreatePipelineStatistics(Handle<Script> script,
@@ -1173,7 +1179,7 @@ PipelineCompilationJob::Status PipelineCompilationJob::ExecuteJobImpl(
   // Ensure that the RuntimeCallStats table is only available during execution
   // and not during finalization as that might be on a different thread.
   PipelineJobScope scope(&data_, stats);
-  LocalHeapScope local_heap_scope(data_.broker());
+  LocalHeapScope local_heap_scope(data_.broker(), data_.info());
   if (data_.broker()->is_concurrent_inlining()) {
     if (!pipeline_.CreateGraph()) {
       return AbortOptimization(BailoutReason::kGraphBuildingFailed);
@@ -2994,7 +3000,7 @@ MaybeHandle<Code> Pipeline::GenerateCodeForTesting(
   Deoptimizer::EnsureCodeForDeoptimizationEntries(isolate);
 
   pipeline.Serialize();
-  LocalHeapScope local_heap_scope(data.broker());
+  LocalHeapScope local_heap_scope(data.broker(), data.info());
   if (!pipeline.CreateGraph()) return MaybeHandle<Code>();
   if (!pipeline.OptimizeGraph(&linkage)) return MaybeHandle<Code>();
   pipeline.AssembleCode(&linkage);

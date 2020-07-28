@@ -1491,7 +1491,7 @@ MidTierRegisterAllocator::~MidTierRegisterAllocator() = default;
 void MidTierRegisterAllocator::DefineOutputs() {
   for (const InstructionBlock* block :
        base::Reversed(code()->instruction_blocks())) {
-    data_->tick_counter()->DoTick();
+    data_->tick_counter()->TickAndMaybeEnterSafepoint();
 
     InitializeBlockState(block);
     DefineOutputs(block);
@@ -1569,7 +1569,7 @@ void MidTierRegisterAllocator::DefineOutputs(const InstructionBlock* block) {
 
 void MidTierRegisterAllocator::AllocateRegisters() {
   for (InstructionBlock* block : base::Reversed(code()->instruction_blocks())) {
-    data_->tick_counter()->DoTick();
+    data_->tick_counter()->TickAndMaybeEnterSafepoint();
     AllocateRegisters(block);
   }
 
