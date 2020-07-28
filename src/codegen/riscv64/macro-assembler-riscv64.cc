@@ -1484,6 +1484,7 @@ void TurboAssembler::li(Register rd, Operand j, LiFlags mode) {
   } else if (mode == ADDRESS_LOAD) {
     // We always need the same number of instructions as we may need to patch
     // this code to load another value which may need all 8 instructions.
+    RecordRelocInfo(RelocInfo::INTERNAL_REFERENCE_ENCODED);
     li_constant(rd, j.immediate());
   } else {  // mode == CONSTANT_SIZE - always emit the same instruction
             // sequence.
@@ -3263,7 +3264,7 @@ void TurboAssembler::Call(Label* target) { BranchAndLink(target); }
 
 void TurboAssembler::LoadAddress(Register dst, Label* target) {
   uint64_t address = jump_address(target);
-  li(dst, address);
+  li(dst, address, ADDRESS_LOAD);
 }
 
 void TurboAssembler::Push(Smi smi) {

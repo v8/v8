@@ -777,6 +777,10 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase {
   static bool IsJump(Instr instr);
   static bool IsJal(Instr instr);
   static bool IsJalr(Instr instr);
+  static bool IsLui(Instr instr);
+  static bool IsAddiw(Instr instr);
+  static bool IsAddi(Instr instr);
+  static bool IsSlli(Instr instr);
 
   void CheckTrampolinePool();
 
@@ -925,7 +929,7 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase {
   inline void EmitHelper(T x);
   inline void EmitHelper(Instr x, CompactBranchType is_compact_branch);
 
-  void disassembleInstr(Instr instr);
+  static void disassembleInstr(Instr instr);
 
   // Instruction generation.
 

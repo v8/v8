@@ -192,17 +192,12 @@ Address RelocInfo::target_internal_reference() {
   if (rmode_ == INTERNAL_REFERENCE) {
     return Memory<Address>(pc_);
   } else {
-    UNIMPLEMENTED();
-    /*
     // Encoded internal references are j/jal instructions.
     DCHECK(rmode_ == INTERNAL_REFERENCE_ENCODED);
     Instr instr = Assembler::instr_at(pc_ + 0 * kInstrSize);
-    DCHECK(Assembler::IsJump(instr));
-    instr &= kImm26Mask;
-    uint64_t imm28 = instr << 2;
-    uint64_t segment = pc_ & ~static_cast<uint64_t>(kImm28Mask);
-    return static_cast<Address>(segment | imm28);
-    */
+    DCHECK(Assembler::IsLui(instr));
+    Address address = Assembler::target_address_at(pc_);
+    return address;
   }
 }
 
