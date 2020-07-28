@@ -50,7 +50,7 @@ defineCustomElement('stats-panel', (templateText) =>
     console.assert(this.timeline_ !== undefined, "Timeline not set yet!");
     let pairs = [
       ['Total', null, e => true],
-      ['Transitions', 'black', e => e.edge && e.edge.isTransition()],
+      ['Transitions', 'primary', e => e.edge && e.edge.isTransition()],
       ['Fast to Slow', 'violet', e => e.edge && e.edge.isFastToSlow()],
       ['Slow to Fast', 'orange', e => e.edge && e.edge.isSlowToFast()],
       ['Initial Map', 'yellow', e => e.edge && e.edge.isInitial()],

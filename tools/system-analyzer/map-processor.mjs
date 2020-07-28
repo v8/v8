@@ -2,6 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+import {transitionTypeToColor} from './helper.mjs';
 import {Timeline} from './timeline.mjs';
 
 // ===========================================================================
@@ -375,8 +376,6 @@ class V8Map extends Event {
 
 V8Map.cache = new Map();
 
-
-
 // ===========================================================================
 class Edge {
   constructor(type, name, reason, time, from, to) {
@@ -389,28 +388,7 @@ class Edge {
   }
 
   getColor() {
-    switch (this.type) {
-      case 'new':
-        // green
-        return '#aedc6e';
-      case 'Normalize':
-        // violet
-        return '#d26edc';
-      case 'SlowToFast':
-        // orange
-        return '#dc9b6e';
-      case 'InitialMap':
-        // yellow
-        return '#EEFF41';
-      case 'Transition':
-        // pink/violet (primary)
-        return '#9B6EDC';
-      case 'ReplaceDescriptors':
-        // red
-        return '#dc6eae';
-    }
-    // pink/violet (primary)
-    return '#9B6EDC';
+    return transitionTypeToColor(this.type);
   }
 
   finishSetup() {

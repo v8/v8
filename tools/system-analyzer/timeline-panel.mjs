@@ -1,7 +1,8 @@
 // Copyright 2020 the V8 project authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
-import {defineCustomElement, V8CustomElement} from './helper.mjs';
+import {defineCustomElement, V8CustomElement,
+   transitionTypeToColor, CSSColor} from './helper.mjs';
 import {kChunkWidth, kChunkHeight} from './map-processor.mjs';
 
 defineCustomElement('timeline-panel', (templateText) =>
@@ -117,14 +118,14 @@ defineCustomElement('timeline-panel', (templateText) =>
     let type, count;
     if (true) {
       chunk.getBreakdown(map => map.getType()).forEach(([type, count]) => {
-        ctx.fillStyle = this.transitionTypeToColor(type);
+        ctx.fillStyle = transitionTypeToColor(type);
         let height = count / total * kHeight;
         ctx.fillRect(0, y, kWidth, y + height);
         y += height;
       });
     } else {
       chunk.items.forEach(map => {
-        ctx.fillStyle = this.transitionTypeToColor(map.getType());
+        ctx.fillStyle = transitionTypeToColor(map.getType());
         let y = chunk.yOffset(map);
         ctx.fillRect(0, y, kWidth, y + 1);
       });
@@ -132,31 +133,6 @@ defineCustomElement('timeline-panel', (templateText) =>
 
     let imageData = this.backgroundCanvas.toDataURL('image/webp', 0.2);
     node.style.backgroundImage = 'url(' + imageData + ')';
-  }
-
-  transitionTypeToColor(type) {
-    switch (type) {
-      case 'new':
-        // green
-        return '#aedc6e';
-      case 'Normalize':
-        // violet
-        return '#d26edc';
-      case 'SlowToFast':
-        // orange
-        return '#dc9b6e';
-      case 'InitialMap':
-        // yellow
-        return '#EEFF41';
-      case 'Transition':
-        // pink/violet (primary)
-        return '#9B6EDC';
-      case 'ReplaceDescriptors':
-        // red
-        return '#dc6eae';
-    }
-    // pink/violet (primary)
-    return '#9B6EDC';
   }
 
   // TODO(zcankara) Timeline colors
@@ -244,14 +220,14 @@ defineCustomElement('timeline-panel', (templateText) =>
     let chunks = this.timelineEntries.chunkSizes(canvas.width * kFactor);
     let max = chunks.max();
     ctx.clearRect(0, 0, canvas.width, height);
-    ctx.fillStyle = 'white';
+    ctx.fillStyle = CSSColor.onBackgroundColor;
     ctx.beginPath();
     ctx.moveTo(0, height);
     for (let i = 0; i < chunks.length; i++) {
       ctx.lineTo(i / kFactor, height - chunks[i] / max * height);
     }
     ctx.lineTo(chunks.length, height);
-    ctx.strokeStyle = 'white';
+    ctx.strokeStyle = CSSColor.onBackgroundColor;
     ctx.stroke();
     ctx.closePath();
     ctx.fill();
@@ -272,11 +248,12 @@ defineCustomElement('timeline-panel', (templateText) =>
 
 
   setMapStyle(map, ctx) {
-    ctx.fillStyle = map.edge && map.edge.from ? 'white' : '#aedc6e';
+    ctx.fillStyle = map.edge && map.edge.from
+      ? CSSColor.onBackgroundColor : CSSColor.onPrimaryColor;
   }
 
   setEdgeStyle(edge, ctx) {
-    let color = edge.getColor();
+    const color = transitionTypeToColor(edge.type);
     ctx.strokeStyle = color;
     ctx.fillStyle = color;
   }
@@ -288,7 +265,7 @@ defineCustomElement('timeline-panel', (templateText) =>
     ctx.arc(x, y, 3, 0, 2 * Math.PI);
     ctx.fill();
     ctx.beginPath();
-    ctx.fillStyle = 'white';
+    ctx.fillStyle = CSSColor.onBackgroundColor;
     ctx.arc(x, y, 2, 0, 2 * Math.PI);
     ctx.fill();
   }
@@ -298,7 +275,7 @@ defineCustomElement('timeline-panel', (templateText) =>
     ctx.beginPath();
     this.setMapStyle(map, ctx);
     ctx.arc(x, y, 6, 0, 2 * Math.PI);
-    ctx.strokeStyle = 'white';
+    ctx.strokeStyle = CSSColor.onBackgroundColor;
     ctx.stroke();
   }
 
@@ -360,7 +337,7 @@ defineCustomElement('timeline-panel', (templateText) =>
       ctx.lineTo(xTo, yTo);
     }
     if (!showLabel) {
-      ctx.strokeStyle = 'white';
+      ctx.strokeStyle = CSSColor.onBackgroundColor;
       ctx.stroke();
     } else {
       let centerX, centerY;
@@ -371,12 +348,12 @@ defineCustomElement('timeline-panel', (templateText) =>
         centerX = xTo;
         centerY = yTo;
       }
-      ctx.strokeStyle = 'white';
+      ctx.strokeStyle = CSSColor.onBackgroundColor;
       ctx.moveTo(centerX, centerY);
       ctx.lineTo(centerX + offsetX, centerY - labelOffset);
       ctx.stroke();
       ctx.textAlign = 'left';
-      ctx.fillStyle = 'white';
+      ctx.fillStyle = CSSColor.onBackgroundColor;
       ctx.fillText(
           edge.toString(), centerX + offsetX + 2, centerY - labelOffset)
     }
@@ -387,7 +364,7 @@ defineCustomElement('timeline-panel', (templateText) =>
     if (!map) return;
     if (depth >= max) return;
     ctx.globalAlpha = 0.5 - depth * (0.3 / max);
-    ctx.strokeStyle = '#666';
+    ctx.strokeStyle = CSSColor.timelineBackgroundColor;
 
     const limit = Math.min(map.children.length, 100)
     for (let i = 0; i < limit; i++) {

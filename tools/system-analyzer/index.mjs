@@ -16,6 +16,7 @@ class App {
     this.timelinePanelId_ =  timelinePanelId;
     this.icPanelId_ =  icPanelId;
     this.icPanel_ = this.$(icPanelId);
+    this.fileLoaded = false;
     this.logFileReader_ = this.$(fileReaderId);
     this.logFileReader_.addEventListener('fileuploadstart',
       e => this.handleFileUpload(e));
@@ -28,6 +29,8 @@ class App {
       'mapclick', e => this.handleMapClick(e));
     this.icPanel_.addEventListener(
       'filepositionclick', e => this.handleFilePositionClick(e));
+    this.toggleSwitch = this.$('.theme-switch input[type="checkbox"]');
+    this.toggleSwitch.addEventListener('change', e => this.switchTheme(e));
   }
 
   handleFileUpload(e){
@@ -124,6 +127,7 @@ class App {
       console.log(error);
     }
     this.loadICLogFile(fileData);
+    this.fileLoaded = true;
   }
 
   handleMapAddressSearch(e) {
@@ -140,6 +144,13 @@ class App {
     //TODO(zcankara) Send filtered entries to State
     console.log("filtered IC entried: ", e.detail)
   }
+
+  switchTheme(event) {
+    if(this.fileLoaded) return;
+    document.documentElement.dataset.theme =
+      event.target.checked ? 'dark' : 'light';
+  }
 }
+
 
 export {App};

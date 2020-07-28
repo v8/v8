@@ -11,7 +11,6 @@ found in the LICENSE file. -->
   <link href='https://fonts.googleapis.com/css?family=Roboto' rel='stylesheet'>
   <!-- <link rel="icon" type="image/png" href="/images/favicon.png"/> -->
   <script type="module" src="index.mjs"></script>
-  <script type="module" src="index.mjs"></script>
   <link rel="stylesheet" type="text/css" href="./index.css">
   <script type="module" src="helper.mjs"></script>
 
@@ -24,27 +23,78 @@ found in the LICENSE file. -->
   <script src="../logreader.js"></script>
   <script src="../arguments.js"></script>
   <script src="../SourceMap.js"></script>
-  <style>
+<style>
   #instructions {
     padding: 10px 10px  60px 10px ;
     margin: auto;
   }
   kbd {
-  background-color: var(--primary-color);
-  color: var(--on-primary-color);
-  border-radius: 3px;
-  border: 1px solid var(--on-primary-color);
-  display: inline-block;
-  font-size: .9em;
-  font-weight: bold;
-  padding: 0px 4px 2px 4px;
-  white-space: nowrap;
-}
+    background-color: var(--primary-color);
+    color: var(--on-primary-color);
+    border-radius: 3px;
+    border: 1px solid var(--on-primary-color);
+    display: inline-block;
+    font-size: .9em;
+    font-weight: bold;
+    padding: 0px 4px 2px 4px;
+    white-space: nowrap;
+  }
+  /*Simple css to style it like a toggle switch*/
+  .theme-switch-wrapper {
+    display: flex;
+    align-items: center;
+  }
+  .theme-switch {
+    display: inline-block;
+    height: 34px;
+    position: relative;
+    width: 60px;
+  }
+  .theme-switch input {
+    display:none;
+  }
+  .slider {
+    background-color: var(--on-surface-color);
+    bottom: 0;
+    cursor: pointer;
+    left: 0;
+    position: absolute;
+    right: 0;
+    top: 0;
+    transition: .4s;
+  }
+  .slider:before {
+    background-color: var(--surface-color);
+    bottom: 4px;
+    content: "";
+    height: 26px;
+    left: 4px;
+    position: absolute;
+    transition: .4s;
+    width: 26px;
+  }
+
+  input:checked + .slider {
+    background-color: var(--primary-color);
+  }
+
+  input:checked + .slider:before {
+    transform: translateX(26px);
+  }
+
+  .slider.round {
+    border-radius: 34px;
+  }
+
+  .slider.round:before {
+    border-radius: 50%;
+  }
 </style>
 <script type="module" >
 import {App} from  './index.mjs';
 
-globalThis.app = new App("#log-file-reader", "#map-panel", "#timeline-panel", "#ic-panel");
+globalThis.app = new App("#log-file-reader", "#map-panel",
+  "#timeline-panel", "#ic-panel");
 </script>
 </head>
 <body>
@@ -60,7 +110,12 @@ globalThis.app = new App("#log-file-reader", "#map-panel", "#timeline-panel", "#
       <ic-panel id="ic-panel" onchange="app.handleSelectIc(event)"></ic-panel>
     </div>
   </div>
-
+  <div class="theme-switch-wrapper">
+    <label class="theme-switch" for="checkbox">
+      <input type="checkbox" id="checkbox"/>
+      <div class="slider round"></div>
+    </label>
+  </div>
   <div id="instructions">
     <h2>Instructions</h2>
     <p>Unified web interface for analyzing the trace information of the Maps/ICs</p>

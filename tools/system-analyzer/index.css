@@ -20,6 +20,28 @@
   --violet: #d26edc;
 }
 
+
+[data-theme="light"] {
+  --background-color: #FFFFFF;
+  --surface-color: #FFFFFF;
+  --primary-color: #6200EE;
+  --secondary-color: #03DAC5;
+  --on-surface-color: #000000;
+  --on-background-color: #000000;
+  --on-primary-color: #FFFFFF;
+  --on-secondary-color: #000000;
+  --default-color: #3700B3;
+  --error-color: #B00020;
+  --map-background-color: #5e5454;
+  --timeline-background-color: #EEEEEE;
+  --red: #B71C1C;
+  --green: #7db300;
+  --yellow: #FFFF00;
+  --blue: #0024b3;
+  --orange: #EF6C00;
+  --violet: #8f00b3;
+}
+
 body {
   font-family: 'Roboto', sans-serif;
   font-size: 14px;
