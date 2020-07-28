@@ -786,8 +786,7 @@ void Deoptimizer::DoComputeOutputFrames() {
            "]\n",
            input_data.OptimizationId().value(), bailout_id_, fp_to_sp_delta_,
            caller_frame_top_);
-    if (deopt_kind_ == DeoptimizeKind::kEager ||
-        deopt_kind_ == DeoptimizeKind::kSoft) {
+    if (deopt_kind_ != DeoptimizeKind::kLazy) {
       compiled_code_.PrintDeoptLocation(
           trace_scope_->file(), "            ;;; deoptimize at ", from_);
     }

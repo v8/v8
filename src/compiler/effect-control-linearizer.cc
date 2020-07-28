@@ -1911,8 +1911,8 @@ void EffectControlLinearizer::LowerDynamicCheckMaps(Node* node,
                        FeedbackSource(), is_weak_fixed_array_check, frame_state,
                        IsSafetyCheck::kCriticalSafetyCheck);
 
-    Node* length =
-        __ LoadField(AccessBuilder::ForWeakFixedArrayLength(), feedback_slot);
+    Node* length = ChangeSmiToInt32(
+        __ LoadField(AccessBuilder::ForWeakFixedArrayLength(), feedback_slot));
     auto loop = __ MakeLoopLabel(MachineRepresentation::kWord32);
     __ Goto(&loop, __ Int32Constant(0));
     __ Bind(&loop);
