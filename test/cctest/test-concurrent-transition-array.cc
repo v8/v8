@@ -23,7 +23,7 @@ class ConcurrentSearchThread final : public v8::base::Thread {
   ConcurrentSearchThread(Heap* heap, base::Semaphore* sema_started,
                          std::unique_ptr<PersistentHandles> ph,
                          Handle<Name> name, Handle<Map> map,
-                         Handle<Map> result_map)
+                         base::Optional<Handle<Map>> result_map)
       : v8::base::Thread(base::Thread::Options("ThreadWithLocalHeap")),
         heap_(heap),
         sema_started_(sema_started),
@@ -39,7 +39,7 @@ class ConcurrentSearchThread final : public v8::base::Thread {
 
     CHECK_EQ(TransitionsAccessor(CcTest::i_isolate(), map_, true)
                  .SearchTransition(*name_, kData, NONE),
-             *result_map_);
+             result_map_ ? **result_map_ : Map());
 
     CHECK(!ph_);
     ph_ = local_heap.DetachPersistentHandles();
@@ -50,7 +50,7 @@ class ConcurrentSearchThread final : public v8::base::Thread {
   std::unique_ptr<PersistentHandles> ph_;
   Handle<Name> name_;
   Handle<Map> map_;
-  Handle<Map> result_map_;
+  base::Optional<Handle<Map>> result_map_;
 };
 
 // Search on the main thread and in the background thread at the same time.
@@ -79,15 +79,15 @@ TEST(FullFieldTransitions_OnlySearch) {
   std::unique_ptr<PersistentHandles> ph = isolate->NewPersistentHandles();
 
   Handle<Name> persistent_name = ph->NewHandle(name);
-  Handle<Map> persistent_map = ph->NewHandle(map0);
-  Handle<Map> persistent_result_map = ph->NewHandle(map1);
+  Handle<Map> persistent_map0 = ph->NewHandle(map0);
+  Handle<Map> persistent_result_map1 = ph->NewHandle(map1);
 
   base::Semaphore sema_started(0);
 
   // Pass persistent handles to background thread.
   std::unique_ptr<ConcurrentSearchThread> thread(new ConcurrentSearchThread(
       isolate->heap(), &sema_started, std::move(ph), persistent_name,
-      persistent_map, persistent_result_map));
+      persistent_map0, persistent_result_map1));
   CHECK(thread->Start());
 
   sema_started.Wait();
@@ -130,16 +130,16 @@ TEST(FullFieldTransitions) {
 
   std::unique_ptr<PersistentHandles> ph = isolate->NewPersistentHandles();
 
-  Handle<Name> persistent_name = ph->NewHandle(name1);
-  Handle<Map> persistent_map = ph->NewHandle(map0);
-  Handle<Map> persistent_result_map = ph->NewHandle(map1);
+  Handle<Name> persistent_name1 = ph->NewHandle(name1);
+  Handle<Map> persistent_map0 = ph->NewHandle(map0);
+  Handle<Map> persistent_result_map1 = ph->NewHandle(map1);
 
   base::Semaphore sema_started(0);
 
   // Pass persistent handles to background thread.
   std::unique_ptr<ConcurrentSearchThread> thread(new ConcurrentSearchThread(
-      isolate->heap(), &sema_started, std::move(ph), persistent_name,
-      persistent_map, persistent_result_map));
+      isolate->heap(), &sema_started, std::move(ph), persistent_name1,
+      persistent_map0, persistent_result_map1));
   CHECK(thread->Start());
 
   sema_started.Wait();
@@ -187,16 +187,16 @@ TEST(WeakRefToFullFieldTransitions) {
 
   std::unique_ptr<PersistentHandles> ph = isolate->NewPersistentHandles();
 
-  Handle<Name> persistent_name = ph->NewHandle(name1);
-  Handle<Map> persistent_map = ph->NewHandle(map0);
-  Handle<Map> persistent_result_map = ph->NewHandle(map1);
+  Handle<Name> persistent_name1 = ph->NewHandle(name1);
+  Handle<Map> persistent_map0 = ph->NewHandle(map0);
+  Handle<Map> persistent_result_map1 = ph->NewHandle(map1);
 
   base::Semaphore sema_started(0);
 
   // Pass persistent handles to background thread.
   std::unique_ptr<ConcurrentSearchThread> thread(new ConcurrentSearchThread(
-      isolate->heap(), &sema_started, std::move(ph), persistent_name,
-      persistent_map, persistent_result_map));
+      isolate->heap(), &sema_started, std::move(ph), persistent_name1,
+      persistent_map0, persistent_result_map1));
   CHECK(thread->Start());
 
   sema_started.Wait();
@@ -255,16 +255,16 @@ TEST(FullFieldTransitions_withSlack) {
 
   std::unique_ptr<PersistentHandles> ph = isolate->NewPersistentHandles();
 
-  Handle<Name> persistent_name = ph->NewHandle(name1);
-  Handle<Map> persistent_map = ph->NewHandle(map0);
-  Handle<Map> persistent_result_map = ph->NewHandle(map1);
+  Handle<Name> persistent_name1 = ph->NewHandle(name1);
+  Handle<Map> persistent_map0 = ph->NewHandle(map0);
+  Handle<Map> persistent_result_map1 = ph->NewHandle(map1);
 
   base::Semaphore sema_started(0);
 
   // Pass persistent handles to background thread.
   std::unique_ptr<ConcurrentSearchThread> thread(new ConcurrentSearchThread(
-      isolate->heap(), &sema_started, std::move(ph), persistent_name,
-      persistent_map, persistent_result_map));
+      isolate->heap(), &sema_started, std::move(ph), persistent_name1,
+      persistent_map0, persistent_result_map1));
   CHECK(thread->Start());
 
   sema_started.Wait();
@@ -283,6 +283,57 @@ TEST(FullFieldTransitions_withSlack) {
   CHECK_EQ(*map3, TransitionsAccessor(isolate, map0)
                       .SearchTransition(*name3, kind, attributes));
 
+  thread->Join();
+}
+
+// Search and insert on the main thread which changes the encoding from
+// kUninitialized to kFullTransitionArray, while the background thread searches
+// at the same time.
+TEST(UninitializedToFullFieldTransitions) {
+  CcTest::InitializeVM();
+  v8::HandleScope scope(CcTest::isolate());
+  Isolate* isolate = CcTest::i_isolate();
+
+  Handle<String> name1 = CcTest::MakeString("name1");
+  Handle<String> name2 = CcTest::MakeString("name2");
+  const PropertyAttributes attributes = NONE;
+  const PropertyKind kind = kData;
+
+  // Set map0 to be a full transition array with transition 'name1' to map1.
+  Handle<Map> map0 = Map::Create(isolate, 0);
+  Handle<Map> map1 =
+      Map::CopyWithField(isolate, map0, name1, FieldType::Any(isolate),
+                         attributes, PropertyConstness::kMutable,
+                         Representation::Tagged(), OMIT_TRANSITION)
+          .ToHandleChecked();
+  {
+    TestTransitionsAccessor transitions(isolate, map0);
+    CHECK(transitions.IsUninitializedEncoding());
+  }
+
+  std::unique_ptr<PersistentHandles> ph = isolate->NewPersistentHandles();
+
+  Handle<Name> persistent_name2 = ph->NewHandle(name2);
+  Handle<Map> persistent_map0 = ph->NewHandle(map0);
+
+  base::Semaphore background_thread_started(0);
+
+  // Pass persistent handles to background thread.
+  // Background thread will search for name2, guaranteed to *not* be on the map.
+  std::unique_ptr<ConcurrentSearchThread> thread(new ConcurrentSearchThread(
+      isolate->heap(), &background_thread_started, std::move(ph),
+      persistent_name2, persistent_map0, base::nullopt));
+  CHECK(thread->Start());
+
+  background_thread_started.Wait();
+
+  TransitionsAccessor(isolate, map0).Insert(name1, map1, PROPERTY_TRANSITION);
+  CHECK_EQ(*map1, TransitionsAccessor(isolate, map0)
+                      .SearchTransition(*name1, kind, attributes));
+  {
+    TestTransitionsAccessor transitions(isolate, map0);
+    CHECK(transitions.IsFullTransitionArrayEncoding());
+  }
   thread->Join();
 }
 

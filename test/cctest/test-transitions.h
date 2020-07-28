@@ -19,6 +19,7 @@ class TestTransitionsAccessor : public TransitionsAccessor {
       : TransitionsAccessor(isolate, map) {}
 
   // Expose internals for tests.
+  bool IsUninitializedEncoding() { return encoding() == kUninitialized; }
   bool IsWeakRefEncoding() { return encoding() == kWeakRef; }
 
   bool IsFullTransitionArrayEncoding() {
