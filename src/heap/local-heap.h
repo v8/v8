@@ -89,7 +89,9 @@ class V8_EXPORT_PRIVATE LocalHeap {
 
   void EnsurePersistentHandles();
 
-  bool IsSafepointRequested();
+  V8_INLINE bool IsSafepointRequested() {
+    return safepoint_requested_.load(std::memory_order_relaxed);
+  }
   void ClearSafepointRequested();
 
   void EnterSafepoint();

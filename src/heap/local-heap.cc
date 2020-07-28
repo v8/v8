@@ -107,10 +107,6 @@ void LocalHeap::RequestSafepoint() {
   safepoint_requested_.store(true, std::memory_order_relaxed);
 }
 
-bool LocalHeap::IsSafepointRequested() {
-  return safepoint_requested_.load(std::memory_order_relaxed);
-}
-
 void LocalHeap::Safepoint() {
   if (IsSafepointRequested()) {
     ClearSafepointRequested();
