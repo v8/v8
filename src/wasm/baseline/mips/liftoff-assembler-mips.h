@@ -275,6 +275,29 @@ int LiftoffAssembler::PrepareStackFrame() {
   return offset;
 }
 
+void LiftoffAssembler::PrepareTailCall(int num_callee_stack_params,
+                                       int stack_param_delta) {
+  UseScratchRegisterScope temps(this);
+  Register scratch = temps.Acquire();
+
+  // Push the return address and frame pointer to complete the stack frame.
+  Lw(scratch, MemOperand(fp, 4));
+  Push(scratch);
+  Lw(scratch, MemOperand(fp, 0));
+  Push(scratch);
+
+  // Shift the whole frame upwards.
+  int slot_count = num_callee_stack_params + 2;
+  for (int i = slot_count - 1; i >= 0; --i) {
+    Lw(scratch, MemOperand(sp, i * 4));
+    Sw(scratch, MemOperand(fp, (i - stack_param_delta) * 4));
+  }
+
+  // Set the new stack and frame pointer.
+  addiu(sp, fp, -stack_param_delta * 4);
+  Pop(ra, fp);
+}
+
 void LiftoffAssembler::PatchPrepareStackFrame(int offset, int frame_size) {
   // We can't run out of space, just pass anything big enough to not cause the
   // assembler to try to grow the buffer.
@@ -2575,6 +2598,10 @@ void LiftoffAssembler::CallNativeWasmCode(Address addr) {
   Call(addr, RelocInfo::WASM_CALL);
 }
 
+void LiftoffAssembler::TailCallNativeWasmCode(Address addr) {
+  Jump(addr, RelocInfo::WASM_CALL);
+}
+
 void LiftoffAssembler::CallIndirect(const wasm::FunctionSig* sig,
                                     compiler::CallDescriptor* call_descriptor,
                                     Register target) {
@@ -2583,6 +2610,15 @@ void LiftoffAssembler::CallIndirect(const wasm::FunctionSig* sig,
     Call(kScratchReg);
   } else {
     Call(target);
+  }
+}
+
+void LiftoffAssembler::TailCallIndirect(Register target) {
+  if (target == no_reg) {
+    Pop(kScratchReg);
+    Jump(kScratchReg);
+  } else {
+    Jump(target);
   }
 }
 
