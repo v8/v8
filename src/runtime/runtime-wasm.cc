@@ -66,12 +66,13 @@ Context GetNativeContextFromWasmInstanceOnStackTop(Isolate* isolate) {
 class ClearThreadInWasmScope {
  public:
   ClearThreadInWasmScope() {
-    DCHECK_EQ(trap_handler::IsTrapHandlerEnabled(),
-              trap_handler::IsThreadInWasm());
+    DCHECK_IMPLIES(trap_handler::IsTrapHandlerEnabled(),
+                   trap_handler::IsThreadInWasm());
     trap_handler::ClearThreadInWasm();
   }
   ~ClearThreadInWasmScope() {
-    DCHECK(!trap_handler::IsThreadInWasm());
+    DCHECK_IMPLIES(trap_handler::IsTrapHandlerEnabled(),
+                   !trap_handler::IsThreadInWasm());
     trap_handler::SetThreadInWasm();
   }
 };

@@ -815,6 +815,7 @@ namespace internal {
   TFJ(TypedArrayPrototypeMap, kDontAdaptArgumentsSentinel)                     \
                                                                                \
   /* Wasm */                                                                   \
+  ASM(GenericJSToWasmWrapper, Dummy)                                           \
   ASM(WasmCompileLazy, Dummy)                                                  \
   ASM(WasmDebugBreak, Dummy)                                                   \
   TFC(WasmFloat32ToNumber, WasmFloat32ToNumber)                                \

@@ -25,6 +25,7 @@
 #include "src/objects/objects-inl.h"
 #include "src/objects/smi.h"
 #include "src/wasm/baseline/liftoff-assembler-defs.h"
+#include "src/wasm/object-access.h"
 #include "src/wasm/wasm-linkage.h"
 #include "src/wasm/wasm-objects.h"
 
@@ -3196,6 +3197,97 @@ void Builtins::Generate_DoubleToI(MacroAssembler* masm) {
   __ popq(scratch1);
   __ popq(rcx);
   __ ret(0);
+}
+
+void Builtins::Generate_GenericJSToWasmWrapper(MacroAssembler* masm) {
+  // Set up the stackframe.
+  __ EnterFrame(StackFrame::JS_TO_WASM);
+
+  Register closure = rdi;
+  Register shared_function_info = rbx;
+  __ LoadAnyTaggedField(
+      shared_function_info,
+      MemOperand(
+          closure,
+          wasm::ObjectAccess::SharedFunctionInfoOffsetInTaggedJSFunction()));
+
+  Register function_data = shared_function_info;
+  __ LoadAnyTaggedField(
+      function_data,
+      MemOperand(shared_function_info,
+                 SharedFunctionInfo::kFunctionDataOffset - kHeapObjectTag));
+  shared_function_info = no_reg;
+
+  Register wasm_instance = rsi;
+  __ LoadAnyTaggedField(
+      wasm_instance,
+      MemOperand(function_data,
+                 WasmExportedFunctionData::kInstanceOffset - kHeapObjectTag));
+
+  int isolate_root_offset =
+      wasm::ObjectAccess::ToTagged(WasmInstanceObject::kIsolateRootOffset);
+
+  // Set thread_in_wasm_flag.
+  Register isolate_root = rdx;
+  __ movq(isolate_root, MemOperand(wasm_instance, isolate_root_offset));
+  Register thread_in_wasm_flag_addr = isolate_root;
+  __ movq(
+      thread_in_wasm_flag_addr,
+      MemOperand(isolate_root, Isolate::thread_in_wasm_flag_address_offset()));
+  __ movl(MemOperand(thread_in_wasm_flag_addr, 0), Immediate(1));
+  isolate_root = no_reg;
+
+  Register jump_table_start = thread_in_wasm_flag_addr;
+  __ movq(jump_table_start,
+          MemOperand(wasm_instance,
+                     wasm::ObjectAccess::ToTagged(
+                         WasmInstanceObject::kJumpTableStartOffset)));
+  thread_in_wasm_flag_addr = no_reg;
+
+  Register jump_table_offset = function_data;
+  __ DecompressTaggedSigned(
+      jump_table_offset,
+      MemOperand(
+          function_data,
+          WasmExportedFunctionData::kJumpTableOffsetOffset - kHeapObjectTag));
+  function_data = no_reg;
+
+  // Change from smi to int64.
+  __ sarl(jump_table_offset, Immediate(1));
+  __ movsxlq(jump_table_offset, jump_table_offset);
+
+  Register function_entry = jump_table_offset;
+  __ addq(function_entry, jump_table_start);
+  jump_table_offset = no_reg;
+  jump_table_start = no_reg;
+
+  // Save wasm_instance on the stack.
+  __ pushq(wasm_instance);
+
+  __ call(function_entry);
+  function_entry = no_reg;
+
+  // Restore wasm_instance.
+  __ popq(wasm_instance);
+
+  // Unset thread_in_wasm_flag.
+  isolate_root = rdx;
+  __ movq(isolate_root, MemOperand(wasm_instance, isolate_root_offset));
+  thread_in_wasm_flag_addr = r8;
+  __ movq(
+      thread_in_wasm_flag_addr,
+      MemOperand(isolate_root, Isolate::thread_in_wasm_flag_address_offset()));
+  __ movl(MemOperand(thread_in_wasm_flag_addr, 0), Immediate(0));
+
+  Register return_reg = rax;
+  __ movq(return_reg,
+          MemOperand(isolate_root, IsolateData::root_slot_offset(
+                                       RootIndex::kUndefinedValue)));
+
+  // Deconstrunct the stack frame.
+  __ LeaveFrame(StackFrame::JS_TO_WASM);
+
+  __ ret(8);
 }
 
 namespace {

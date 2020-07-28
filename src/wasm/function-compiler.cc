@@ -272,23 +272,40 @@ JSToWasmWrapperCompilationUnit::JSToWasmWrapperCompilationUnit(
     bool is_import, const WasmFeatures& enabled_features)
     : is_import_(is_import),
       sig_(sig),
-      job_(compiler::NewJSToWasmCompilationJob(isolate, wasm_engine, sig,
-                                               is_import, enabled_features)) {}
+#if V8_TARGET_ARCH_X64
+      use_generic_wrapper_(FLAG_wasm_generic_wrapper &&
+                           sig->parameters().empty() && sig->returns().empty()),
+#else
+      use_generic_wrapper_(false),
+#endif
+      job_(use_generic_wrapper_
+               ? nullptr
+               : compiler::NewJSToWasmCompilationJob(
+                     isolate, wasm_engine, sig, is_import, enabled_features)) {
+}
 
 JSToWasmWrapperCompilationUnit::~JSToWasmWrapperCompilationUnit() = default;
 
 void JSToWasmWrapperCompilationUnit::Execute() {
   TRACE_EVENT0(TRACE_DISABLED_BY_DEFAULT("v8.wasm.detailed"),
                "wasm.CompileJSToWasmWrapper");
-  CompilationJob::Status status = job_->ExecuteJob(nullptr);
-  CHECK_EQ(status, CompilationJob::SUCCEEDED);
+  if (!use_generic_wrapper_) {
+    CompilationJob::Status status = job_->ExecuteJob(nullptr);
+    CHECK_EQ(status, CompilationJob::SUCCEEDED);
+  }
 }
 
 Handle<Code> JSToWasmWrapperCompilationUnit::Finalize(Isolate* isolate) {
-  CompilationJob::Status status = job_->FinalizeJob(isolate);
-  CHECK_EQ(status, CompilationJob::SUCCEEDED);
-  Handle<Code> code = job_->compilation_info()->code();
-  if (must_record_function_compilation(isolate)) {
+  Handle<Code> code;
+  if (use_generic_wrapper_) {
+    code =
+        isolate->builtins()->builtin_handle(Builtins::kGenericJSToWasmWrapper);
+  } else {
+    CompilationJob::Status status = job_->FinalizeJob(isolate);
+    CHECK_EQ(status, CompilationJob::SUCCEEDED);
+    code = job_->compilation_info()->code();
+  }
+  if (!use_generic_wrapper_ && must_record_function_compilation(isolate)) {
     RecordWasmHeapStubCompilation(
         isolate, code, "%s", job_->compilation_info()->GetDebugName().get());
   }

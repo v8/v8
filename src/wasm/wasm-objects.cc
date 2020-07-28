@@ -3,7 +3,6 @@
 // found in the LICENSE file.
 
 #include "src/wasm/wasm-objects.h"
-#include "src/utils/utils.h"
 
 #include "src/base/iterator.h"
 #include "src/codegen/assembler-inl.h"
@@ -16,6 +15,7 @@
 #include "src/objects/shared-function-info.h"
 #include "src/objects/struct-inl.h"
 #include "src/trap-handler/trap-handler.h"
+#include "src/utils/utils.h"
 #include "src/utils/vector.h"
 #include "src/wasm/jump-table-assembler.h"
 #include "src/wasm/module-compiler.h"
@@ -1746,7 +1746,10 @@ uint32_t WasmExceptionPackage::GetEncodedSize(
 bool WasmExportedFunction::IsWasmExportedFunction(Object object) {
   if (!object.IsJSFunction()) return false;
   JSFunction js_function = JSFunction::cast(object);
-  if (Code::JS_TO_WASM_FUNCTION != js_function.code().kind()) return false;
+  if (Code::JS_TO_WASM_FUNCTION != js_function.code().kind() &&
+      js_function.code().builtin_index() != Builtins::kGenericJSToWasmWrapper) {
+    return false;
+  }
   DCHECK(js_function.shared().HasWasmExportedFunctionData());
   return true;
 }
@@ -1795,7 +1798,10 @@ int WasmExportedFunction::function_index() {
 Handle<WasmExportedFunction> WasmExportedFunction::New(
     Isolate* isolate, Handle<WasmInstanceObject> instance, int func_index,
     int arity, Handle<Code> export_wrapper) {
-  DCHECK_EQ(Code::JS_TO_WASM_FUNCTION, export_wrapper->kind());
+  DCHECK(
+      Code::JS_TO_WASM_FUNCTION == export_wrapper->kind() ||
+      (export_wrapper->is_builtin() &&
+       export_wrapper->builtin_index() == Builtins::kGenericJSToWasmWrapper));
   int num_imported_functions = instance->module()->num_imported_functions;
   int jump_table_offset = -1;
   if (func_index >= num_imported_functions) {

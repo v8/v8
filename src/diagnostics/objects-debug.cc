@@ -2,8 +2,6 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#include "src/objects/objects.h"
-
 #include "src/codegen/assembler-inl.h"
 #include "src/date/date.h"
 #include "src/diagnostics/disasm.h"
@@ -32,6 +30,7 @@
 #include "src/objects/js-array-inl.h"
 #include "src/objects/layout-descriptor.h"
 #include "src/objects/objects-inl.h"
+#include "src/objects/objects.h"
 #include "src/roots/roots.h"
 #ifdef V8_INTL_SUPPORT
 #include "src/objects/js-break-iterator-inl.h"
@@ -1446,7 +1445,9 @@ void WasmExportedFunctionData::WasmExportedFunctionDataVerify(
     Isolate* isolate) {
   TorqueGeneratedClassVerifiers::WasmExportedFunctionDataVerify(*this, isolate);
   CHECK(wrapper_code().kind() == Code::JS_TO_WASM_FUNCTION ||
-        wrapper_code().kind() == Code::C_WASM_ENTRY);
+        wrapper_code().kind() == Code::C_WASM_ENTRY ||
+        (wrapper_code().is_builtin() &&
+         wrapper_code().builtin_index() == Builtins::kGenericJSToWasmWrapper));
 }
 
 USE_TORQUE_VERIFIER(WasmModuleObject)

@@ -132,6 +132,7 @@ class V8_EXPORT_PRIVATE JSToWasmWrapperCompilationUnit final {
  private:
   bool is_import_;
   const FunctionSig* sig_;
+  bool use_generic_wrapper_;
   std::unique_ptr<OptimizedCompilationJob> job_;
 };
 
