@@ -58,6 +58,7 @@
 #include "src/json/json-parser.h"
 #include "src/json/json-stringifier.h"
 #include "src/logging/counters.h"
+#include "src/logging/metrics.h"
 #include "src/logging/tracing-flags.h"
 #include "src/numbers/conversions-inl.h"
 #include "src/objects/api-callbacks.h"
@@ -6149,6 +6150,19 @@ void Context::SetContinuationPreservedEmbedderData(Local<Value> data) {
       *i::Handle<i::HeapObject>::cast(Utils::OpenHandle(*data)));
 }
 
+MaybeLocal<Context> Context::GetByToken(Isolate* isolate,
+                                        Context::Token token) {
+  i::Isolate* i_isolate = reinterpret_cast<i::Isolate*>(isolate);
+  return i_isolate->GetContextFromToken(token);
+}
+
+v8::Context::Token Context::GetToken() {
+  i::Handle<i::Context> context = Utils::OpenHandle(this);
+  i::Isolate* isolate = context->GetIsolate();
+  return isolate->GetOrRegisterContextToken(
+      handle(context->native_context(), isolate));
+}
+
 namespace {
 i::Address* GetSerializedDataFromFixedArray(i::Isolate* isolate,
                                             i::FixedArray list, size_t index) {
@@ -8781,6 +8795,12 @@ void Isolate::SetAddHistogramSampleFunction(
   reinterpret_cast<i::Isolate*>(this)
       ->counters()
       ->SetAddHistogramSampleFunction(callback);
+}
+
+void Isolate::SetMetricsRecorder(
+    const std::shared_ptr<metrics::Recorder>& metrics_recorder) {
+  reinterpret_cast<i::Isolate*>(this)->metrics_recorder()->SetRecorder(
+      metrics_recorder);
 }
 
 void Isolate::SetAddCrashKeyCallback(AddCrashKeyCallback callback) {

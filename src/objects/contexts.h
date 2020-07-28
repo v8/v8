@@ -91,6 +91,7 @@ enum ContextLookupFlags {
   V(CALL_ASYNC_MODULE_REJECTED, JSFunction, call_async_module_rejected)        \
   V(CALLSITE_FUNCTION_INDEX, JSFunction, callsite_function)                    \
   V(CONTEXT_EXTENSION_FUNCTION_INDEX, JSFunction, context_extension_function)  \
+  V(CONTEXT_TOKEN, Object, context_token)                                      \
   V(DATA_PROPERTY_DESCRIPTOR_MAP_INDEX, Map, data_property_descriptor_map)     \
   V(DATA_VIEW_FUN_INDEX, JSFunction, data_view_fun)                            \
   V(DATE_FUNCTION_INDEX, JSFunction, date_function)                            \

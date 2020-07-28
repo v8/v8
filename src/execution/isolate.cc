@@ -55,6 +55,7 @@
 #include "src/libsampler/sampler.h"
 #include "src/logging/counters.h"
 #include "src/logging/log.h"
+#include "src/logging/metrics.h"
 #include "src/numbers/hash-seed-inl.h"
 #include "src/objects/backing-store.h"
 #include "src/objects/elements.h"
@@ -3037,6 +3038,8 @@ void Isolate::Deinit() {
     heap_profiler()->StopSamplingHeapProfiler();
   }
 
+  metrics_recorder_->NotifyIsolateDisposal();
+
 #if defined(V8_OS_WIN64)
   if (win64_unwindinfo::CanRegisterUnwindInfoForNonABICompliantCodeRange() &&
       heap()->memory_allocator() && RequiresCodeRange()) {
@@ -3510,6 +3513,8 @@ bool Isolate::Init(ReadOnlyDeserializer* read_only_deserializer,
 
   // Enable logging before setting up the heap
   logger_->SetUp(this);
+
+  metrics_recorder_ = std::make_shared<metrics::Recorder>(this);
 
   {  // NOLINT
     // Ensure that the thread has a valid stack guard.  The v8::Locker object
@@ -4676,6 +4681,42 @@ void Isolate::AddCodeRange(Address begin, size_t length_in_bytes) {
 
 bool Isolate::RequiresCodeRange() const {
   return kPlatformRequiresCodeRange && !jitless_;
+}
+
+v8::Context::Token Isolate::GetOrRegisterContextToken(
+    Handle<NativeContext> context) {
+  if (serializer_enabled_) return v8::Context::Token::Empty();
+  i::Object token = context->context_token();
+  if (token.IsNullOrUndefined()) {
+    CHECK_LT(last_context_token_, i::Smi::kMaxValue);
+    context->set_context_token(i::Smi::FromIntptr(++last_context_token_));
+    v8::HandleScope handle_scope(reinterpret_cast<v8::Isolate*>(this));
+    auto result = context_token_map_.emplace(
+        std::piecewise_construct, std::forward_as_tuple(last_context_token_),
+        std::forward_as_tuple(reinterpret_cast<v8::Isolate*>(this),
+                              ToApiHandle<v8::Context>(context)));
+    result.first->second.SetWeak(reinterpret_cast<void*>(last_context_token_),
+                                 RemoveContextTokenCallback,
+                                 v8::WeakCallbackType::kParameter);
+    return v8::Context::Token(last_context_token_);
+  } else {
+    DCHECK(token.IsSmi());
+    return v8::Context::Token(static_cast<uintptr_t>(i::Smi::ToInt(token)));
+  }
+}
+
+MaybeLocal<v8::Context> Isolate::GetContextFromToken(v8::Context::Token token) {
+  auto result = context_token_map_.find(token.token_);
+  if (result == context_token_map_.end() || result->second.IsEmpty())
+    return MaybeLocal<v8::Context>();
+  return result->second.Get(reinterpret_cast<v8::Isolate*>(this));
+}
+
+void Isolate::RemoveContextTokenCallback(
+    const v8::WeakCallbackInfo<void>& data) {
+  Isolate* isolate = reinterpret_cast<Isolate*>(data.GetIsolate());
+  uintptr_t token = reinterpret_cast<uintptr_t>(data.GetParameter());
+  isolate->context_token_map_.erase(token);
 }
 
 // |chunk| is either a Page or an executable LargePage.

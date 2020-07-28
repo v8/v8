@@ -149,6 +149,10 @@ class StreamingDecoder;
 
 }  // namespace internal
 
+namespace metrics {
+class Recorder;
+}  // namespace metrics
+
 namespace debug {
 class ConsoleCallArguments;
 }  // namespace debug
@@ -9140,6 +9144,18 @@ class V8_EXPORT Isolate {
   void SetAddHistogramSampleFunction(AddHistogramSampleCallback);
 
   /**
+   * Enables the host application to provide a mechanism for recording
+   * event based metrics. In order to use this interface
+   *   include/v8-metrics.h
+   * needs to be included and the recorder needs to be derived from the
+   * Recorder base class defined there.
+   * This method can only be called once per isolate and must happen during
+   * isolate initialization before background threads are spawned.
+   */
+  void SetMetricsRecorder(
+      const std::shared_ptr<metrics::Recorder>& metrics_recorder);
+
+  /**
    * Enables the host application to provide a mechanism for recording a
    * predefined set of data as crash keys to be used in postmortem debugging in
    * case of a crash.
@@ -10494,6 +10510,33 @@ class V8_EXPORT Context {
     uintptr_t js_stack_comparable_address_ = 0;
     const BackupIncumbentScope* prev_ = nullptr;
   };
+
+  // A unique token for a context in this Isolate.
+  // It is guaranteed to not be reused throughout the lifetime of the Isolate.
+  class Token {
+   public:
+    Token() : token_(kEmptyToken) {}
+
+    bool IsEmpty() const { return token_ == kEmptyToken; }
+    static const Token Empty() { return Token{kEmptyToken}; }
+
+    bool operator==(const Token& other) const { return token_ == other.token_; }
+    bool operator!=(const Token& other) const { return token_ != other.token_; }
+
+   private:
+    friend class Context;
+    friend class internal::Isolate;
+
+    explicit Token(uintptr_t token) : token_(token) {}
+
+    static constexpr uintptr_t kEmptyToken = 0;
+    uintptr_t token_;
+  };
+
+  // Return the context with the given token or an empty handle if the context
+  // was already garbage collected.
+  static MaybeLocal<Context> GetByToken(Isolate* isolate, Token token);
+  v8::Context::Token GetToken();
 
  private:
   friend class Value;

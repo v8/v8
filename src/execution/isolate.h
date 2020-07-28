@@ -124,6 +124,10 @@ namespace win64_unwindinfo {
 class BuiltinUnwindInfo;
 }
 
+namespace metrics {
+class Recorder;
+}  // namespace metrics
+
 #define RETURN_FAILURE_IF_SCHEDULED_EXCEPTION(isolate) \
   do {                                                 \
     Isolate* __isolate__ = (isolate);                  \
@@ -926,6 +930,9 @@ class V8_EXPORT_PRIVATE Isolate final : private HiddenFactory {
     DCHECK_NOT_NULL(async_counters_.get());
     return async_counters_;
   }
+  const std::shared_ptr<metrics::Recorder>& metrics_recorder() {
+    return metrics_recorder_;
+  }
   RuntimeProfiler* runtime_profiler() { return runtime_profiler_; }
   CompilationCache* compilation_cache() { return compilation_cache_; }
   Logger* logger() {
@@ -1542,6 +1549,9 @@ class V8_EXPORT_PRIVATE Isolate final : private HiddenFactory {
   static Address load_from_stack_count_address(const char* function_name);
   static Address store_to_stack_count_address(const char* function_name);
 
+  v8::Context::Token GetOrRegisterContextToken(Handle<NativeContext> context);
+  MaybeLocal<v8::Context> GetContextFromToken(v8::Context::Token token);
+
  private:
   explicit Isolate(std::unique_ptr<IsolateAllocator> isolate_allocator);
   ~Isolate();
@@ -1553,6 +1563,9 @@ class V8_EXPORT_PRIVATE Isolate final : private HiddenFactory {
 
   void InitializeCodeRanges();
   void AddCodeMemoryRange(MemoryRange range);
+
+  static void RemoveContextTokenCallback(
+      const v8::WeakCallbackInfo<void>& data);
 
   class ThreadDataTable {
    public:
@@ -1812,6 +1825,13 @@ class V8_EXPORT_PRIVATE Isolate final : private HiddenFactory {
   std::vector<CallCompletedCallback> call_completed_callbacks_;
 
   v8::Isolate::UseCounterCallback use_counter_callback_ = nullptr;
+
+  std::shared_ptr<metrics::Recorder> metrics_recorder_;
+  uintptr_t last_context_token_ = 0;
+  std::unordered_map<
+      uintptr_t,
+      Persistent<v8::Context, v8::CopyablePersistentTraits<v8::Context>>>
+      context_token_map_;
 
   std::vector<Object> startup_object_cache_;
 

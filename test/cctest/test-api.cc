@@ -25,13 +25,13 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
+#include "test/cctest/test-api.h"
+
 #include <climits>
 #include <csignal>
 #include <map>
 #include <memory>
 #include <string>
-
-#include "test/cctest/test-api.h"
 
 #if V8_OS_POSIX
 #include <unistd.h>  // NOLINT
@@ -53,6 +53,7 @@
 #include "src/heap/heap-inl.h"
 #include "src/heap/incremental-marking.h"
 #include "src/heap/local-allocator.h"
+#include "src/logging/metrics.h"
 #include "src/objects/feedback-vector-inl.h"
 #include "src/objects/feedback-vector.h"
 #include "src/objects/hash-table-inl.h"
@@ -27883,4 +27884,184 @@ TEST(FastApiCalls) {
   // are compared against the slow optimized calls.
   // TODO(mslekova): Add tests for FTI that requires access check.
 #endif  // V8_LITE_MODE
+}
+
+THREADED_TEST(GetContextByToken) {
+  using v8::Context;
+  using v8::Local;
+  using v8::MaybeLocal;
+
+  // Set up isolate and context.
+  v8::Isolate* iso = CcTest::isolate();
+  Context::Token original_token;
+  std::vector<Context::Token> tokens;
+  {
+    v8::HandleScope scope(iso);
+    Local<Context> context = Context::New(iso);
+
+    // Ensure that we get a valid token.
+    original_token = context->GetToken();
+    CHECK(!original_token.IsEmpty());
+
+    // Request many tokens to ensure correct growth behavior.
+    for (size_t count = 0; count < 50; ++count) {
+      Local<Context> temp_context = Context::New(iso);
+      tokens.push_back(temp_context->GetToken());
+    }
+    for (const Context::Token& token : tokens) {
+      CHECK(!Context::GetByToken(iso, token).IsEmpty());
+    }
+
+    // Ensure that we can get the context from the token.
+    MaybeLocal<Context> retrieved_context =
+        Context::GetByToken(iso, original_token);
+    CHECK_EQ(context, retrieved_context.ToLocalChecked());
+
+    // Ensure that an empty token returns an empty handle.
+    retrieved_context = Context::GetByToken(iso, Context::Token::Empty());
+    CHECK(retrieved_context.IsEmpty());
+
+    // Ensure that repeated token accesses return the same token.
+    Context::Token new_token = context->GetToken();
+    CHECK_EQ(original_token, new_token);
+  }
+
+  // Invalidate the context and therefore the token.
+  CcTest::PreciseCollectAllGarbage();
+
+  // Ensure that a stale token returns an empty handle.
+  {
+    v8::HandleScope scope(iso);
+    MaybeLocal<Context> retrieved_context =
+        Context::GetByToken(iso, original_token);
+    CHECK(retrieved_context.IsEmpty());
+
+    for (const Context::Token& token : tokens) {
+      CHECK(Context::GetByToken(iso, token).IsEmpty());
+    }
+  }
+}
+
+namespace {
+
+class MetricsRecorder : public v8::metrics::Recorder {
+ public:
+  v8::Isolate* isolate_;
+  size_t count_ = 0;
+  size_t module_count_ = 0;
+  int64_t time_in_us_ = -1;
+
+  explicit MetricsRecorder(v8::Isolate* isolate) : isolate_(isolate) {}
+
+  void AddMainThreadEvent(const v8::metrics::WasmModuleDecoded& event,
+                          Context::Token token) override {
+    if (Context::GetByToken(isolate_, token).IsEmpty()) return;
+    ++count_;
+    time_in_us_ = event.wall_clock_time_in_us;
+  }
+
+  void AddThreadSafeEvent(
+      const v8::metrics::WasmModulesPerIsolate& event) override {
+    ++count_;
+    module_count_ = event.count;
+  }
+};
+
+}  // namespace
+
+TEST(TriggerMainThreadMetricsEvent) {
+  using v8::Context;
+  using v8::Local;
+  using v8::MaybeLocal;
+
+  // Set up isolate and context.
+  v8::Isolate* iso = CcTest::isolate();
+  i::Isolate* i_iso = reinterpret_cast<i::Isolate*>(iso);
+  CHECK(i_iso->metrics_recorder());
+  v8::metrics::WasmModuleDecoded event;
+  Context::Token token;
+  std::shared_ptr<MetricsRecorder> recorder =
+      std::make_shared<MetricsRecorder>(iso);
+  iso->SetMetricsRecorder(recorder);
+  {
+    v8::HandleScope scope(iso);
+    Local<Context> context = Context::New(iso);
+    token = context->GetToken();
+
+    // Check that event submission works.
+    {
+      i::metrics::TimedScope<v8::metrics::WasmModuleDecoded> timed_scope(
+          &event, &v8::metrics::WasmModuleDecoded::wall_clock_time_in_us);
+      v8::base::OS::Sleep(v8::base::TimeDelta::FromMilliseconds(100));
+    }
+    i_iso->metrics_recorder()->AddMainThreadEvent(event, token);
+    CHECK_EQ(recorder->count_, 1);  // Increased.
+    CHECK_GT(recorder->time_in_us_, 100);
+  }
+
+  CcTest::PreciseCollectAllGarbage();
+
+  // Check that event submission doesn't break even if the token is invalid.
+  i_iso->metrics_recorder()->AddMainThreadEvent(event, token);
+  CHECK_EQ(recorder->count_, 1);  // Unchanged.
+}
+
+TEST(TriggerDelayedMainThreadMetricsEvent) {
+  using v8::Context;
+  using v8::Local;
+  using v8::MaybeLocal;
+
+  // Set up isolate and context.
+  v8::Isolate* iso = CcTest::isolate();
+  i::Isolate* i_iso = reinterpret_cast<i::Isolate*>(iso);
+  CHECK(i_iso->metrics_recorder());
+  v8::metrics::WasmModuleDecoded event;
+  Context::Token token;
+  std::shared_ptr<MetricsRecorder> recorder =
+      std::make_shared<MetricsRecorder>(iso);
+  iso->SetMetricsRecorder(recorder);
+  {
+    v8::HandleScope scope(iso);
+    Local<Context> context = Context::New(iso);
+    token = context->GetToken();
+
+    // Check that event submission works.
+    {
+      i::metrics::TimedScope<v8::metrics::WasmModuleDecoded> timed_scope(
+          &event, &v8::metrics::WasmModuleDecoded::wall_clock_time_in_us);
+      v8::base::OS::Sleep(v8::base::TimeDelta::FromMilliseconds(100));
+    }
+    i_iso->metrics_recorder()->DelayMainThreadEvent(event, token);
+    CHECK_EQ(recorder->count_, 0);        // Unchanged.
+    CHECK_EQ(recorder->time_in_us_, -1);  // Unchanged.
+    v8::base::OS::Sleep(v8::base::TimeDelta::FromMilliseconds(1100));
+    v8::platform::PumpMessageLoop(v8::internal::V8::GetCurrentPlatform(), iso);
+    CHECK_EQ(recorder->count_, 1);  // Increased.
+    CHECK_GT(recorder->time_in_us_, 100);
+  }
+
+  CcTest::PreciseCollectAllGarbage();
+
+  // Check that event submission doesn't break even if the token is invalid.
+  i_iso->metrics_recorder()->DelayMainThreadEvent(event, token);
+  v8::base::OS::Sleep(v8::base::TimeDelta::FromMilliseconds(1100));
+  v8::platform::PumpMessageLoop(v8::internal::V8::GetCurrentPlatform(), iso);
+  CHECK_EQ(recorder->count_, 1);  // Unchanged.
+}
+
+TEST(TriggerThreadSafeMetricsEvent) {
+  // Set up isolate and context.
+  v8::Isolate* iso = CcTest::isolate();
+  i::Isolate* i_iso = reinterpret_cast<i::Isolate*>(iso);
+  CHECK(i_iso->metrics_recorder());
+  v8::metrics::WasmModulesPerIsolate event;
+  std::shared_ptr<MetricsRecorder> recorder =
+      std::make_shared<MetricsRecorder>(iso);
+  iso->SetMetricsRecorder(recorder);
+
+  // Check that event submission works.
+  event.count = 42;
+  i_iso->metrics_recorder()->AddThreadSafeEvent(event);
+  CHECK_EQ(recorder->count_, 1);  // Increased.
+  CHECK_EQ(recorder->module_count_, 42);
 }
