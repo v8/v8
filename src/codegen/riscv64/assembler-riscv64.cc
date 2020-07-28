@@ -1820,8 +1820,6 @@ void Assembler::break_(uint32_t code, bool break_as_stop) {
   // since ebreak does not allow additional immediate field, we use the
   // immediate field of lui instruction immediately following the ebreak to
   // encode the "code" info
-  //
-  // FIXME: need to check how native debugger gets the "code" information
   ebreak();
   DCHECK(is_uint20(code));
   lui(zero_reg, code);

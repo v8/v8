@@ -584,7 +584,7 @@ class Simulator : public SimulatorBase {
   // Stop helper functions.
   bool IsWatchpoint(uint64_t code);
   void PrintWatchpoint(uint64_t code);
-  void HandleStop(uint64_t code, Instruction* instr);
+  void HandleStop(uint64_t code);
   bool IsStopInstruction(Instruction* instr);
   bool IsEnabledStop(uint64_t code);
   void EnableStop(uint64_t code);
