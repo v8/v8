@@ -45,7 +45,7 @@ defineCustomElement('./map-panel/map-transitions', (templateText) =>
     this.dispatchEvent(new CustomEvent(
       'mapdetailsupdate', {bubbles: true, composed: true, detail: map}));
     this.dispatchEvent(new CustomEvent(
-      'statemapchange', {bubbles: true, composed: true, detail: map}));
+      'mapchange', {bubbles: true, composed: true, detail: map}));
   }
 
   dblClickSelectMap(map) {

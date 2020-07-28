@@ -11,23 +11,31 @@ import './map-panel.mjs';
 import './log-file-reader.mjs';
 class App {
   #timeSelection = {start: 0, end: Infinity};
-  constructor(fileReaderId, mapPanelId, timelinePanelId, icPanelId) {
-    this.mapPanelId_ =  mapPanelId;
-    this.timelinePanelId_ =  timelinePanelId;
-    this.icPanelId_ =  icPanelId;
-    this.icPanel_ = this.$(icPanelId);
-    this.fileLoaded = false;
-    this.logFileReader_ = this.$(fileReaderId);
-    this.logFileReader_.addEventListener('fileuploadstart',
+  #mapPanel;
+  #timelinePanel;
+  #icPanel;
+  #mapTrack;
+  #icTrack;
+  #logFileReader;
+  constructor(fileReaderId, mapPanelId, timelinePanelId,
+      icPanelId, mapTrackId, icTrackId) {
+    this.#logFileReader = this.$(fileReaderId);
+    this.#mapPanel = this.$(mapPanelId);
+    this.#timelinePanel = this.$(timelinePanelId);
+    this.#icPanel = this.$(icPanelId);
+    this.#mapTrack = this.$(mapTrackId);
+    this.#icTrack = this.$(icTrackId);
+
+    this.#logFileReader.addEventListener('fileuploadstart',
       e => this.handleFileUpload(e));
-    this.logFileReader_.addEventListener('fileuploadend',
+    this.#logFileReader.addEventListener('fileuploadend',
       e => this.handleDataUpload(e));
     document.addEventListener('keydown', e => this.handleKeyDown(e));
-    this.icPanel_.addEventListener(
+    this.#icPanel.addEventListener(
       'ictimefilter', e => this.handleICTimeFilter(e));
-    this.icPanel_.addEventListener(
+    this.#icPanel.addEventListener(
       'mapclick', e => this.handleMapClick(e));
-    this.icPanel_.addEventListener(
+    this.#icPanel.addEventListener(
       'filepositionclick', e => this.handleFilePositionClick(e));
     this.toggleSwitch = this.$('.theme-switch input[type="checkbox"]');
     this.toggleSwitch.addEventListener('change', e => this.switchTheme(e));
@@ -48,9 +56,9 @@ class App {
   handleICTimeFilter(event) {
     this.#timeSelection.start = event.detail.startTime;
     this.#timeSelection.end = event.detail.endTime;
-    document.state.icTimeline.selectTimeRange(this.#timeSelection.start,
+    this.#icTrack.data.selectTimeRange(this.#timeSelection.start,
       this.#timeSelection.end);
-    this.icPanel_.filteredEntries = document.state.icTimeline.selection;
+    this.#icPanel.filteredEntries = this.#icTrack.data.selection;
   }
 
 
@@ -102,13 +110,13 @@ class App {
     reader.onload = (evt) => {
       let icProcessor = new CustomIcProcessor();
       //TODO(zcankara) Assign timeline directly to the ic panel
-      //TODO(zcankara) Exe: this.icPanel_.timeline = document.state.icTimeline
-      document.state.icTimeline = icProcessor.processString(fileData.chunk);
-      this.icPanel_.filteredEntries = document.state.icTimeline.all;
-      this.icPanel_.count.innerHTML = document.state.icTimeline.all.length;
+      //TODO(zcankara) Exe: this.#icPanel.timeline = document.state.icTimeline
+      this.#icTrack.data = icProcessor.processString(fileData.chunk);
+      this.#icPanel.filteredEntries = this.#icTrack.data.all;
+      this.#icPanel.count.innerHTML = this.#icTrack.data.all.length;
     }
     reader.readAsText(fileData.file);
-    this.icPanel_.initGroupKeySelect();
+    this.#icPanel.initGroupKeySelect();
   }
 
   // call when a new file uploaded
@@ -117,12 +125,14 @@ class App {
     this.$('#container').style.display = 'block';
     // instantiate the app logic
     let fileData = e.detail;
-    document.state = new State(this.mapPanelId_, this.timelinePanelId_);
+    document.state = new State(this.#mapPanel, this.#timelinePanel,
+      this.#mapTrack, this.#icTrack);
     try {
       const timeline = this.handleLoadTextMapProcessor(fileData.chunk);
       // Transitions must be set before timeline for stats panel.
       document.state.transitions= timeline.transitions;
-      document.state.timeline = timeline;
+      this.#mapTrack.data = timeline;
+      document.state.mapTimeline = timeline;
     } catch (error) {
       console.log(error);
     }

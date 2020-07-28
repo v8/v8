@@ -118,9 +118,20 @@ function transitionTypeToColor(type) {
       return CSSColor.primaryColor;
     case 'ReplaceDescriptors':
       return CSSColor.red;
+    case 'LoadGlobalIC':
+      return CSSColor.green;
+    case 'StoreInArrayLiteralIC':
+      return CSSColor.violet;
+    case 'StoreIC':
+      return CSSColor.orange;
+    case 'KeyedLoadIC':
+      return CSSColor.red;
+    case 'KeyedStoreIC':
+      return CSSColor.primaryColor;
   }
   return CSSColor.primaryColor;
 }
+
 
 
 function div(classes) {

@@ -2,80 +2,88 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-import {$} from './helper.mjs';
+import { V8Map } from './map-processor.mjs';
 
 class State {
-  #mapTimeline;
-  #icTimeline;
-  #timeline;
-  #transitions;
-  constructor(mapPanelId, timelinePanelId) {
-    this.mapPanel_ = $(mapPanelId);
-    this.timelinePanel_ = $(timelinePanelId);
-    this._navigation = new Navigation(this);
-    this.timelinePanel_.addEventListener(
+  #mapPanel;
+  #timelinePanel;
+  #mapTrack;
+  #icTrack;
+  #map;
+  #ic;
+  #navigation;
+  constructor(mapPanel, timelinePanel, mapTrack, icTrack) {
+    this.#mapPanel = mapPanel;
+    this.#timelinePanel = timelinePanel;
+    this.#mapTrack = mapTrack;
+    this.#icTrack = icTrack;
+    this.#navigation = new Navigation(this);
+    this.#timelinePanel.addEventListener(
       'mapchange', e => this.handleMapChange(e));
-    this.timelinePanel_.addEventListener(
+    this.#timelinePanel.addEventListener(
       'showmaps', e => this.handleShowMaps(e));
-    this.mapPanel_.addEventListener(
-      'statemapchange', e => this.handleStateMapChange(e));
-    this.mapPanel_.addEventListener(
+    this.#mapPanel.addEventListener(
+      'mapchange', e => this.handleMapChange(e));
+    this.#mapPanel.addEventListener(
       'selectmapdblclick', e => this.handleDblClickSelectMap(e));
-    this.mapPanel_.addEventListener(
+    this.#mapPanel.addEventListener(
       'sourcepositionsclick', e => this.handleClickSourcePositions(e));
   }
+  get chunks(){
+    //TODO(zcankara) for timeline dependency
+    return this.#mapTrack.chunks;
+  }
   handleMapChange(e){
+    if (!(e.detail instanceof V8Map)) return;
+    this.map = e.detail;
+  }
+  handleStateMapChange(e){
     this.map = e.detail;
   }
   handleShowMaps(e){
-    this.mapPanel_.mapEntries = e.detail.filter();
-  }
-  get icTimeline() {
-    return this.#icTimeline;
-  }
-  set icTimeline(value) {
-    this.#icTimeline = value;
+    if (!(e.detail instanceof V8Map)) return;
+    this.#mapPanel.mapEntries = e.detail.filter();
   }
   set transitions(value) {
-    this.mapPanel_.transitions = value;
+    this.#mapPanel.transitions = value;
   }
-  get timeline() {
-    return this.#timeline;
-  }
-  set timeline(value) {
-    this.#timeline = value;
-    this.timelinePanel.timelineEntries = value;
-    this.timelinePanel.updateTimeline(this.map);
-    this.mapPanel_.timeline = this.timeline;
-  }
-  get chunks() {
-    return this.timelinePanel.chunks;
+  set mapTimeline(value) {
+    this.#mapPanel.timeline = value;
   }
   get nofChunks() {
     return this.timelinePanel.nofChunks;
   }
   set nofChunks(count) {
     this.timelinePanel.nofChunks = count;
-    this.timelinePanel.updateTimeline(this.map);
   }
   get mapPanel() {
-    return this.mapPanel_;
+    return this.#mapPanel;
   }
   get timelinePanel() {
-    return this.timelinePanel_;
+    return this.#timelinePanel;
   }
   get navigation() {
-    return this._navigation
+    return this.#navigation
   }
+
   get map() {
-    return this.timelinePanel.map;
+    return this.#map;
   }
   set map(value) {
     if(!value) return;
-    this.timelinePanel.map = value;
-    this._navigation.updateUrl();
+    this.#map = value;
+    this.#mapTrack.selectedEntry = value;
+    this.#navigation.updateUrl();
     this.mapPanel.map = value;
   }
+  get ic() {
+    return this.#ic;
+  }
+  set ic(value) {
+    if(!value) return;
+    this.#ic = value;
+  }
+
   get entries() {
     if (!this.map) return {};
     return {
@@ -92,11 +100,6 @@ class State {
     //TODO(zcankara) Handle double clicked map
     console.log("double clicked map: ", e.detail);
   }
-
-  handleStateMapChange(e){
-    this.map = e.detail;
-  }
-
 }
 
 class Navigation {
@@ -173,6 +176,5 @@ class Navigation {
     window.history.pushState(entries, '', '?' + params.toString());
   }
 }
-
 
 export { State };

@@ -6,6 +6,7 @@ class Event {
   #time;
   #type;
   constructor(type, time) {
+    //TODO(zcankara) remove type and add empty getters to override
     this.#time = time;
     this.#type = type;
   }

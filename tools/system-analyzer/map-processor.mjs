@@ -247,11 +247,12 @@ class V8Map extends Event {
   leftId= 0;
   rightId = 0;
   filePosition = '';
-
-  constructor(id, time = -1) {
-      if (time <= 0) throw new Error('Invalid time');
+  id = -1;
+  constructor(id, time) {
+      if (!time) throw new Error('Invalid time');
       super(id, time);
       V8Map.set(id, this);
+      this.id = id;
   }
 
   finalizeRootMap(id) {
@@ -333,7 +334,7 @@ class V8Map extends Event {
     return transitions;
   }
 
-  getType() {
+  get type() {
     return this.edge === void 0 ? 'new' : this.edge.type;
   }
 

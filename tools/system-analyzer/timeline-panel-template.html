@@ -4,55 +4,6 @@ found in the LICENSE file. -->
 
 <style>
 @import "./index.css";
-#timeline {
-  position: relative;
-  height: 300px;
-  overflow-y: hidden;
-  overflow-x: scroll;
-  user-select: none;
-  background-color: var(--timeline-background-color);
-  box-shadow: 0 19px 38px rgba(0,0,0,0.30), 0 15px 12px rgba(0,0,0,0.22);
-}
-#timelineLabel {
-  transform: rotate(90deg);
-  transform-origin: left bottom 0;
-  position: absolute;
-  left: 0;
-  width: 250px;
-  text-align: center;
-  font-size: 10px;
-  opacity: 0.5;
-}
-#timelineChunks {
-  height: 250px;
-  position: absolute;
-  margin-right: 100px;
-}
-#timelineCanvas {
-  height: 250px;
-  position: relative;
-  overflow: visible;
-  pointer-events: none;
-}
-.chunk {
-  width: 6px;
-  border: 0px var(--timeline-background-color) solid;
-  border-width: 0 2px 0 2px;
-  position: absolute;
-  background-size: 100% 100%;
-  image-rendering: pixelated;
-  bottom: 0px;
-}
-.timestamp {
-  height: 250px;
-  width: 100px;
-  border-left: 1px var(--surface-color) dashed;
-  padding-left: 4px;
-  position: absolute;
-  pointer-events: none;
-  font-size: 10px;
-  opacity: 0.5;
-}
 #timelineOverview {
   width: 100%;
   height: 50px;
@@ -89,10 +40,8 @@ found in the LICENSE file. -->
 <div class="panel">
   <h2>Timeline Panel</h2>
   <h3>Timeline</h3>
-  <div id="timeline">
-    <div id="timelineLabel">Frequency</div>
-    <div id="timelineChunks"></div>
-    <canvas id="timelineCanvas"></canvas>
+  <div>
+    <slot></slot>
   </div>
   <div id="timelineOverview">
     <div id="timelineOverviewIndicator">
