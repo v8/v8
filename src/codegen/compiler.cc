@@ -2460,6 +2460,16 @@ bool CanBackgroundCompile(const Compiler::ScriptDetails& script_details,
          natives == NOT_NATIVES_CODE;
 }
 
+bool CompilationExceptionIsRangeError(Isolate* isolate, Handle<Object> obj) {
+  if (!obj->IsJSError(isolate)) return false;
+  Handle<JSReceiver> js_obj = Handle<JSReceiver>::cast(obj);
+  Handle<JSReceiver> constructor;
+  if (!JSReceiver::GetConstructor(js_obj).ToHandle(&constructor)) {
+    return false;
+  }
+  return *constructor == *isolate->range_error_function();
+}
+
 MaybeHandle<SharedFunctionInfo> CompileScriptOnBothBackgroundAndMainThread(
     Handle<String> source, const Compiler::ScriptDetails& script_details,
     ScriptOriginOptions origin_options, Isolate* isolate,
@@ -2472,6 +2482,7 @@ MaybeHandle<SharedFunctionInfo> CompileScriptOnBothBackgroundAndMainThread(
 
   CHECK(background_compile_thread.Start());
   MaybeHandle<SharedFunctionInfo> main_thread_maybe_result;
+  bool main_thread_had_stack_overflow = false;
   // In parallel, compile on the main thread to flush out any data races.
   {
     IsCompiledScope inner_is_compiled_scope;
@@ -2484,7 +2495,14 @@ MaybeHandle<SharedFunctionInfo> CompileScriptOnBothBackgroundAndMainThread(
     main_thread_maybe_result = CompileScriptOnMainThread(
         flags_copy, source, script_details, origin_options, NOT_NATIVES_CODE,
         nullptr, isolate, &inner_is_compiled_scope);
+    if (main_thread_maybe_result.is_null()) {
+      // Assume all range errors are stack overflows.
+      main_thread_had_stack_overflow = CompilationExceptionIsRangeError(
+          isolate, handle(isolate->pending_exception(), isolate));
+      isolate->clear_pending_exception();
+    }
   }
+
   // Join with background thread and finalize compilation.
   background_compile_thread.Join();
   MaybeHandle<SharedFunctionInfo> maybe_result =
@@ -2492,9 +2510,15 @@ MaybeHandle<SharedFunctionInfo> CompileScriptOnBothBackgroundAndMainThread(
           isolate, source, script_details, origin_options,
           background_compile_thread.data());
 
-  // Either both compiles should succeed, or both should fail.
+  // Either both compiles should succeed, or both should fail. The one exception
+  // to this is that the main-thread compilation might stack overflow while the
+  // background compilation doesn't, so relax the check to include this case.
   // TODO(leszeks): Compare the contents of the results of the two compiles.
-  CHECK_EQ(maybe_result.is_null(), main_thread_maybe_result.is_null());
+  if (main_thread_had_stack_overflow) {
+    CHECK(main_thread_maybe_result.is_null());
+  } else {
+    CHECK_EQ(maybe_result.is_null(), main_thread_maybe_result.is_null());
+  }
 
   Handle<SharedFunctionInfo> result;
   if (maybe_result.ToHandle(&result)) {
