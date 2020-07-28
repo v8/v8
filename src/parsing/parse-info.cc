@@ -179,7 +179,7 @@ ParseInfo::ParseInfo(const UnoptimizedCompileFlags flags,
                      UnoptimizedCompileState* state)
     : flags_(flags),
       state_(state),
-      zone_(std::make_unique<Zone>(state->allocator(), ZONE_NAME)),
+      zone_(std::make_unique<Zone>(state->allocator(), "parser-zone")),
       extension_(nullptr),
       script_scope_(nullptr),
       stack_limit_(0),

@@ -155,8 +155,11 @@ defineCustomElement('trace-file-reader', (templateText) =>
         if (existing_zone_stats !== undefined) {
           existing_zone_stats.allocated += zone.allocated;
           existing_zone_stats.used += zone.used;
+          existing_zone_stats.freed += zone.freed;
         } else {
-          zones.set(zone.name, {allocated: zone.allocated, used: zone.used});
+          zones.set(zone.name, { allocated: zone.allocated,
+                                 used: zone.used,
+                                 freed: zone.freed });
         }
       });
     }
@@ -165,6 +168,7 @@ defineCustomElement('trace-file-reader', (templateText) =>
       time: time,
       allocated: entry_stats.allocated,
       used: entry_stats.used,
+      freed: entry_stats.freed,
       zones: zones
     };
     isolate_data.samples.set(time, sample);

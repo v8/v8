@@ -13,6 +13,7 @@ import {
 
   KIND_ALLOCATED_MEMORY,
   KIND_USED_MEMORY,
+  KIND_FREED_MEMORY,
 } from './details-selection.js';
 
 defineCustomElement('global-timeline', (templateText) =>
@@ -80,7 +81,12 @@ defineCustomElement('global-timeline', (templateText) =>
           return {label: name + " (used)", type: 'number'};
         });
 
-      default:
+        case KIND_FREED_MEMORY:
+          return zone_names.map(name => {
+            return {label: name + " (freed)", type: 'number'};
+          });
+
+        default:
         // Don't show detailed per-zone information.
         return [];
     }
@@ -92,6 +98,7 @@ defineCustomElement('global-timeline', (templateText) =>
       { label: "Time", type: "number" },
       { label: "Total allocated", type: "number" },
       { label: "Total used", type: "number" },
+      { label: "Total freed", type: "number" },
     ];
     const chart_data = [labels];
 
@@ -105,6 +112,7 @@ defineCustomElement('global-timeline', (templateText) =>
       data.push(time * kMillis2Seconds);
       data.push(zone_data.allocated / KB);
       data.push(zone_data.used / KB);
+      data.push(zone_data.freed / KB);
       chart_data.push(data);
     }
     return chart_data;
@@ -122,6 +130,7 @@ defineCustomElement('global-timeline', (templateText) =>
         ? [
             { label: "Total allocated", type: "number" },
             { label: "Total used", type: "number" },
+            { label: "Total freed", type: "number" },
           ]
         : [];
 
@@ -146,13 +155,17 @@ defineCustomElement('global-timeline', (templateText) =>
           const current_stats = active_zone_stats[zone_name];
           if (current_stats === undefined) {
             active_zone_stats[zone_name] =
-                { allocated: zone_stats.allocated, used: zone_stats.used };
+                { allocated: zone_stats.allocated,
+                  used: zone_stats.used,
+                  freed: zone_stats.freed,
+                };
           } else {
             // We've got two zones with the same name.
             console.log("=== Duplicate zone names: " + zone_name);
             // Sum stats.
             current_stats.allocated += zone_stats.allocated;
             current_stats.used += zone_stats.used;
+            current_stats.freed += zone_stats.freed;
           }
         }
       }
@@ -162,27 +175,23 @@ defineCustomElement('global-timeline', (templateText) =>
       if (show_totals) {
         data.push(zone_data.allocated / KB);
         data.push(zone_data.used / KB);
-      }
-
-      if (zone_data.used > 30 * MB) {
-        console.log("BOOOM!!!! Zone usage in a sample is too big: " +
-                    (zone_data.used / MB) + " MB");
+        data.push(zone_data.freed / KB);
       }
 
       zone_names.forEach(zone => {
         const sample = active_zone_stats[zone];
-        let used = null;
-        let allocated = null;
+        let value = null;
         if (sample !== undefined) {
-          used = sample.used / KB;
-          allocated = sample.allocated / KB;
+          if (data_kind == KIND_ALLOCATED_MEMORY) {
+            value = sample.allocated / KB;
+          } else if (data_kind == KIND_FREED_MEMORY) {
+            value = sample.freed / KB;
+          } else {
+            // KIND_USED_MEMORY
+            value = sample.used / KB;
+          }
         }
-        if (data_kind == KIND_ALLOCATED_MEMORY) {
-          data.push(allocated);
-        } else {
-          // KIND_USED_MEMORY
-          data.push(used);
-        }
+        data.push(value);
       });
       chart_data.push(data);
     }
@@ -204,6 +213,7 @@ defineCustomElement('global-timeline', (templateText) =>
         ? [
             { label: "Total allocated", type: "number" },
             { label: "Total used", type: "number" },
+            { label: "Total freed", type: "number" },
           ]
         : [];
 
@@ -229,11 +239,15 @@ defineCustomElement('global-timeline', (templateText) =>
           const current_stats = active_category_stats[category];
           if (current_stats === undefined) {
             active_category_stats[category] =
-                { allocated: zone_stats.allocated, used: zone_stats.used };
+                { allocated: zone_stats.allocated,
+                  used: zone_stats.used,
+                  freed: zone_stats.freed,
+                };
           } else {
             // Sum stats.
             current_stats.allocated += zone_stats.allocated;
             current_stats.used += zone_stats.used;
+            current_stats.freed += zone_stats.freed;
           }
         }
       }
@@ -243,22 +257,23 @@ defineCustomElement('global-timeline', (templateText) =>
       if (show_totals) {
         data.push(zone_data.allocated / KB);
         data.push(zone_data.used / KB);
+        data.push(zone_data.freed / KB);
       }
 
       categories.forEach(category => {
         const sample = active_category_stats[category];
-        let used = null;
-        let allocated = null;
+        let value = null;
         if (sample !== undefined) {
-          used = sample.used / KB;
-          allocated = sample.allocated / KB;
+          if (data_kind == KIND_ALLOCATED_MEMORY) {
+            value = sample.allocated / KB;
+          } else if (data_kind == KIND_FREED_MEMORY) {
+            value = sample.freed / KB;
+          } else {
+            // KIND_USED_MEMORY
+            value = sample.used / KB;
+          }
         }
-        if (data_kind == KIND_ALLOCATED_MEMORY) {
-          data.push(allocated);
-        } else {
-          // KIND_USED_MEMORY
-          data.push(used);
-        }
+        data.push(value);
       });
       chart_data.push(data);
     }
@@ -301,9 +316,11 @@ defineCustomElement('global-timeline', (templateText) =>
     if (this.selection.data_view == VIEW_TOTALS) {
       series[0] = {type: 'line', color: "red"};
       series[1] = {type: 'line', color: "blue"};
+      series[2] = {type: 'line', color: "orange"};
     } else if (this.selection.show_totals) {
       series[0] = {type: 'line', color: "red", lineDashStyle: [13, 13]};
       series[1] = {type: 'line', color: "blue", lineDashStyle: [13, 13]};
+      series[2] = {type: 'line', color: "orange", lineDashStyle: [13, 13]};
     }
     return Object.assign(options, {series: series});
   }

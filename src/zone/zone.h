@@ -15,9 +15,7 @@
 #include "src/zone/zone-segment.h"
 
 #ifndef ZONE_NAME
-#define STRINGIFY(x) #x
-#define TOSTRING(x) STRINGIFY(x)
-#define ZONE_NAME __FILE__ ":" TOSTRING(__LINE__)
+#define ZONE_NAME __func__
 #endif
 
 namespace v8 {
@@ -72,7 +70,7 @@ class V8_EXPORT_PRIVATE Zone final {
       position_ += size;
     }
     return reinterpret_cast<void*>(result);
-#endif
+#endif  // V8_USE_ADDRESS_SANITIZER
   }
 
   // Return 'size' bytes of memory back to Zone. These bytes can be reused
@@ -84,12 +82,12 @@ class V8_EXPORT_PRIVATE Zone final {
   void Delete(void* pointer, size_t size) {
     DCHECK_NOT_NULL(pointer);
     DCHECK_NE(size, 0);
-    // TODO(v8:10572): implement accounting for reusable zone memory
     size = RoundUp(size, kAlignmentInBytes);
 #ifdef V8_ENABLE_PRECISE_ZONE_STATS
     if (V8_UNLIKELY(TracingFlags::is_zone_stats_enabled())) {
       type_stats_.AddDeallocated<TypeTag>(size);
     }
+    freed_size_for_tracing_ += size;
 #endif
 
 #ifdef DEBUG
@@ -156,7 +154,7 @@ class V8_EXPORT_PRIVATE Zone final {
     return allocation_size_ + extra;
   }
 
-  // When V8_ENABLE_PRECISE_ZONE_STATS is not enabled, returns used zone memory
+  // When V8_ENABLE_PRECISE_ZONE_STATS is not defined, returns used zone memory
   // not including the head segment.
   // Can be called from threads not owning the zone.
   size_t allocation_size_for_tracing() const {
@@ -164,6 +162,17 @@ class V8_EXPORT_PRIVATE Zone final {
     return allocation_size_for_tracing_;
 #else
     return allocation_size_;
+#endif
+  }
+
+  // Returns number of bytes freed in this zone via Delete<T>()/DeleteArray<T>()
+  // calls. Returns non-zero values only when V8_ENABLE_PRECISE_ZONE_STATS is
+  // defined.
+  size_t freed_size_for_tracing() const {
+#ifdef V8_ENABLE_PRECISE_ZONE_STATS
+    return freed_size_for_tracing_;
+#else
+    return 0;
 #endif
   }
 
@@ -221,6 +230,9 @@ class V8_EXPORT_PRIVATE Zone final {
 #ifdef V8_ENABLE_PRECISE_ZONE_STATS
   TypeStats type_stats_;
   size_t allocation_size_for_tracing_ = 0;
+
+  // The number of bytes freed in this zone so far.
+  size_t freed_size_for_tracing_ = 0;
 #endif
 };
 

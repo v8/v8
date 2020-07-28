@@ -2832,6 +2832,7 @@ class TracingAccountingAllocator : public AccountingAllocator {
         << "\"time\": " << time << ", ";
     size_t total_segment_bytes_allocated = 0;
     size_t total_zone_allocation_size = 0;
+    size_t total_zone_freed_size = 0;
 
     if (dump_details) {
       // Print detailed zone stats if memory usage changes direction.
@@ -2840,6 +2841,7 @@ class TracingAccountingAllocator : public AccountingAllocator {
       for (const Zone* zone : active_zones_) {
         size_t zone_segment_bytes_allocated = zone->segment_bytes_allocated();
         size_t zone_allocation_size = zone->allocation_size_for_tracing();
+        size_t freed_size = zone->freed_size_for_tracing();
         if (first) {
           first = false;
         } else {
@@ -2848,9 +2850,11 @@ class TracingAccountingAllocator : public AccountingAllocator {
         out << "{"
             << "\"name\": \"" << zone->name() << "\", "
             << "\"allocated\": " << zone_segment_bytes_allocated << ", "
-            << "\"used\": " << zone_allocation_size << "}";
+            << "\"used\": " << zone_allocation_size << ", "
+            << "\"freed\": " << freed_size << "}";
         total_segment_bytes_allocated += zone_segment_bytes_allocated;
         total_zone_allocation_size += zone_allocation_size;
+        total_zone_freed_size += freed_size;
       }
       out << "], ";
     } else {
@@ -2858,10 +2862,12 @@ class TracingAccountingAllocator : public AccountingAllocator {
       for (const Zone* zone : active_zones_) {
         total_segment_bytes_allocated += zone->segment_bytes_allocated();
         total_zone_allocation_size += zone->allocation_size_for_tracing();
+        total_zone_freed_size += zone->freed_size_for_tracing();
       }
     }
     out << "\"allocated\": " << total_segment_bytes_allocated << ", "
-        << "\"used\": " << total_zone_allocation_size << "}";
+        << "\"used\": " << total_zone_allocation_size << ", "
+        << "\"freed\": " << total_zone_freed_size << "}";
   }
 
   Isolate* const isolate_;

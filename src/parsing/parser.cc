@@ -423,7 +423,7 @@ Parser::Parser(ParseInfo* info)
           info->runtime_call_stats(), info->logger(), info->flags(), true),
       info_(info),
       scanner_(info->character_stream(), flags()),
-      preparser_zone_(info->zone()->allocator(), ZONE_NAME),
+      preparser_zone_(info->zone()->allocator(), "pre-parser-zone"),
       reusable_preparser_(nullptr),
       mode_(PARSE_EAGERLY),  // Lazy mode must be set explicitly.
       source_range_map_(info->source_range_map()),

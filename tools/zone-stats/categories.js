@@ -10,8 +10,8 @@ export const CATEGORIES = new Map([
   [
     'parser', new Set([
       'AstStringConstants',
-      'ParseInfo',
-      'Parser',
+      'parser-zone',
+      'pre-parser-zone',
     ])
   ],
   [

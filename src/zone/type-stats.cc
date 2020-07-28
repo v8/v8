@@ -62,6 +62,7 @@ void TypeStats::Dump() const {
     const StatsEntry& entry = item.second;
     total_allocation_count += entry.allocation_count;
     total_allocated_bytes += entry.allocated_bytes;
+    total_deallocated_bytes += entry.deallocated_bytes;
     PrintF("%12zu | %12zu | %10zu | %6zu | %s\n", entry.allocated_bytes,
            entry.deallocated_bytes, entry.allocation_count, entry.instance_size,
            d.demangle(item.first));
