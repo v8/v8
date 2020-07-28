@@ -3792,10 +3792,14 @@ class WasmInterpreterInternals {
 
     NativeModule* native_module =
         instance_object_->module_object().native_module();
-    DCHECK_EQ(native_module,
-              native_module->Lookup(entry.target())->native_module());
-    DCHECK_EQ(WasmCode::kJumpTable,
-              native_module->Lookup(entry.target())->kind());
+#ifdef DEBUG
+    {
+      WasmCodeRefScope code_ref_scope;
+      WasmCode* wasm_code = native_module->Lookup(entry.target());
+      DCHECK_EQ(native_module, wasm_code->native_module());
+      DCHECK_EQ(WasmCode::kJumpTable, wasm_code->kind());
+    }
+#endif
     uint32_t func_index =
         native_module->GetFunctionIndexFromJumpTableSlot(entry.target());
 
