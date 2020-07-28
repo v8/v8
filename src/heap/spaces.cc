@@ -302,7 +302,10 @@ Address SpaceWithLinearArea::ComputeLimit(Address start, Address end,
     size_t step = allocation_counter_.GetNextInlineAllocationStepSize();
     size_t rounded_step =
         RoundSizeDownToObjectAlignment(static_cast<int>(step - 1));
-    return Min(static_cast<Address>(start + min_size + rounded_step), end);
+    // Use uint64_t to avoid overflow on 32-bit
+    uint64_t step_end = static_cast<uint64_t>(start) + min_size + rounded_step;
+    uint64_t new_end = Min(step_end, static_cast<uint64_t>(end));
+    return static_cast<Address>(new_end);
   } else {
     // The entire node can be used as the linear allocation area.
     return end;

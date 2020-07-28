@@ -849,6 +849,7 @@ void PagedSpace::VerifyCountersBeforeConcurrentSweeping() {
 
 void PagedSpace::UpdateInlineAllocationLimit(size_t min_size) {
   Address new_limit = ComputeLimit(top(), limit(), min_size);
+  DCHECK_LE(top(), new_limit);
   DCHECK_LE(new_limit, limit());
   DecreaseLimit(new_limit);
 }

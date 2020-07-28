@@ -496,6 +496,8 @@ void NewSpace::ResetLinearAllocationArea() {
 
 void NewSpace::UpdateInlineAllocationLimit(size_t min_size) {
   Address new_limit = ComputeLimit(top(), to_space_.page_high(), min_size);
+  DCHECK_LE(top(), new_limit);
+  DCHECK_LE(new_limit, to_space_.page_high());
   allocation_info_.set_limit(new_limit);
   DCHECK_SEMISPACE_ALLOCATION_INFO(allocation_info_, to_space_);
 }
