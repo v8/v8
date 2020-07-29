@@ -551,15 +551,17 @@
       "main": "run.js",
       "flags": ["--allow-natives-syntax"],
       "resources": [
-	      "toNumber.js",
-	      "toLocaleString.js"
+        "toNumber.js",
+        "toLocaleString.js",
+        "toHexString.js"
       ],
       "results_regexp": "^%s\\-Numbers\\(Score\\): (.+)$",
       "tests": [
         {"name": "Constructor"},
         {"name": "UnaryPlus"},
         {"name": "ParseFloat"},
-        {"name": "toLocaleString"}
+        {"name": "toLocaleString"},
+        {"name": "toHexString"}
       ]
     },
     {
