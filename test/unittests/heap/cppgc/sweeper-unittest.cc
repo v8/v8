@@ -199,8 +199,8 @@ TEST_F(SweeperTest, CoalesceFreeListEntries) {
   const BasePage* page = BasePage::FromPayload(object2);
   const FreeList& freelist = NormalPageSpace::From(page->space())->free_list();
 
-  const FreeList::Block coalesced_block = {object2_start,
-                                           object3_end - object2_start};
+  const FreeList::Block coalesced_block = {
+      object2_start, static_cast<size_t>(object3_end - object2_start)};
 
   EXPECT_EQ(0u, g_destructor_callcount);
   EXPECT_FALSE(freelist.Contains(coalesced_block));
