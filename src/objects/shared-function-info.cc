@@ -258,6 +258,13 @@ void SharedFunctionInfo::DiscardCompiledMetadata(
         gc_notify_updated_slot) {
   DisallowHeapAllocation no_gc;
   if (is_compiled()) {
+    if (FLAG_trace_flush_bytecode) {
+      CodeTracer::Scope scope(GetIsolate()->GetCodeTracer());
+      PrintF(scope.file(), "[discarding compiled metadata for ");
+      ShortPrint(scope.file());
+      PrintF(scope.file(), "]\n");
+    }
+
     HeapObject outer_scope_info;
     if (scope_info().HasOuterScopeInfo()) {
       outer_scope_info = scope_info().OuterScopeInfo();

@@ -1043,6 +1043,7 @@ DEFINE_BOOL(compact_code_space, true, "Compact code space on full collections")
 DEFINE_BOOL(flush_bytecode, true,
             "flush of bytecode when it has not been executed recently")
 DEFINE_BOOL(stress_flush_bytecode, false, "stress bytecode flushing")
+DEFINE_BOOL(trace_flush_bytecode, false, "trace bytecode flushing")
 DEFINE_IMPLICATION(stress_flush_bytecode, flush_bytecode)
 DEFINE_BOOL(use_marking_progress_bar, true,
             "Use a progress bar to scan large objects in increments when "
