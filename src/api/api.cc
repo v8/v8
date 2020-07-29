@@ -9009,10 +9009,6 @@ CALLBACK_SETTER(WasmLoadSourceMapCallback, WasmLoadSourceMapCallback,
 CALLBACK_SETTER(WasmSimdEnabledCallback, WasmSimdEnabledCallback,
                 wasm_simd_enabled_callback)
 
-CALLBACK_SETTER(SharedArrayBuffersEnabledCallback,
-                SharedArrayBuffersEnabledCallback,
-                shared_array_buffers_enabled_callback)
-
 void Isolate::AddNearHeapLimitCallback(v8::NearHeapLimitCallback callback,
                                        void* data) {
   i::Isolate* isolate = reinterpret_cast<i::Isolate*>(this);
