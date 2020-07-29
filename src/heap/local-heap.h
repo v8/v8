@@ -23,8 +23,9 @@ class LocalHandles;
 
 class V8_EXPORT_PRIVATE LocalHeap {
  public:
-  LocalHeap(Heap* heap,
-            std::unique_ptr<PersistentHandles> persistent_handles = nullptr);
+  explicit LocalHeap(
+      Heap* heap,
+      std::unique_ptr<PersistentHandles> persistent_handles = nullptr);
   ~LocalHeap();
 
   // Invoked by main thread to signal this thread that it needs to halt in a

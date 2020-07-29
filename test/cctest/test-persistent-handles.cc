@@ -129,6 +129,28 @@ TEST(DereferencePersistentHandle) {
   }
 }
 
+TEST(NewPersistentHandleFailsWhenParked) {
+  CcTest::InitializeVM();
+  Isolate* isolate = CcTest::i_isolate();
+
+  LocalHeap local_heap(isolate->heap());
+  ParkedScope scope(&local_heap);
+  // Fail here in debug mode: Persistent handles can't be created if local heap
+  // is parked
+  local_heap.NewPersistentHandle(Smi::FromInt(1));
+}
+
+TEST(NewPersistentHandleFailsWhenParkedExplicit) {
+  CcTest::InitializeVM();
+  Isolate* isolate = CcTest::i_isolate();
+
+  LocalHeap local_heap(isolate->heap(), isolate->NewPersistentHandles());
+  ParkedScope scope(&local_heap);
+  // Fail here in debug mode: Persistent handles can't be created if local heap
+  // is parked
+  local_heap.NewPersistentHandle(Smi::FromInt(1));
+}
+
 }  // anonymous namespace
 
 }  // namespace internal

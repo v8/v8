@@ -123,6 +123,13 @@
 }],  # ALWAYS
 
 ##############################################################################
+['mode == debug', {
+  # These tests are supposed to fail in a DCHECK.
+  'test-persistent-handles/NewPersistentHandleFailsWhenParked': [FAIL],
+  'test-persistent-handles/NewPersistentHandleFailsWhenParkedExplicit': [FAIL],
+}],
+
+##############################################################################
 ['(arch != ia32 and arch != x64)', {
   # BUG(v8:9860). We can only safely read the native context for a frame on
   # ia32 and x64.
