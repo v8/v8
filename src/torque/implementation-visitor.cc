@@ -4788,6 +4788,7 @@ void ImplementationVisitor::GenerateExportedMacrosAssembler(
       cc_contents << "#include \"src/objects/js-relative-time-format.h\"\n";
       cc_contents << "#include \"src/objects/js-segment-iterator.h\"\n";
       cc_contents << "#include \"src/objects/js-segmenter.h\"\n";
+      cc_contents << "#include \"src/objects/js-segments.h\"\n";
     }
     cc_contents << "#include \"torque-generated/" << file_name << ".h\"\n";
 

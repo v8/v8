@@ -1,8 +1,8 @@
 // Copyright 2020 the V8 project authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
-#ifndef V8_OBJECTS_JS_SEGMENT_ITERATOR_H_
-#define V8_OBJECTS_JS_SEGMENT_ITERATOR_H_
+#ifndef V8_OBJECTS_JS_SEGMENTS_H_
+#define V8_OBJECTS_JS_SEGMENTS_H_
 
 #ifndef V8_INTL_SUPPORT
 #error Internationalization is expected to be enabled.
@@ -27,24 +27,37 @@ class UnicodeString;
 namespace v8 {
 namespace internal {
 
-class JSSegmentIterator
-    : public TorqueGeneratedJSSegmentIterator<JSSegmentIterator, JSObject> {
+class JSSegments : public TorqueGeneratedJSSegments<JSSegments, JSObject> {
  public:
-  // ecma402 #sec-CreateSegmentIterator
-  V8_WARN_UNUSED_RESULT static MaybeHandle<JSSegmentIterator> Create(
-      Isolate* isolate, icu::BreakIterator* icu_break_iterator,
-      JSSegmenter::Granularity granularity);
+  // ecma402 #sec-createsegmentsobject
+  V8_WARN_UNUSED_RESULT static MaybeHandle<JSSegments> Create(
+      Isolate* isolate, Handle<JSSegmenter> segmenter, Handle<String> string);
 
-  // ecma402 #sec-segment-iterator-prototype-next
-  V8_WARN_UNUSED_RESULT static MaybeHandle<JSReceiver> Next(
-      Isolate* isolate, Handle<JSSegmentIterator> segment_iterator_holder);
+  // ecma402 #sec-%segmentsprototype%.containing
+  V8_WARN_UNUSED_RESULT static MaybeHandle<Object> Containing(
+      Isolate* isolate, Handle<JSSegments> segments_holder, int32_t index);
+
+  // ecma402 #sec-%segmentsprototype%-@@iterator
+  V8_WARN_UNUSED_RESULT static MaybeHandle<Object> CreateSegmentIterator(
+      Isolate* isolate, Handle<JSSegments> segments_holder);
+
+  // ecma402 #sec-get-%segmentsprototype%.string
+  V8_WARN_UNUSED_RESULT static MaybeHandle<String> GetString(
+      Isolate* isolate, Handle<JSSegments> segments_holder);
+
+  // ecma402 #sec-createsegmentdataobject
+  V8_WARN_UNUSED_RESULT static MaybeHandle<Object> CreateSegmentDataObject(
+      Isolate* isolate, JSSegmenter::Granularity granularity,
+      icu::BreakIterator* break_iterator, const icu::UnicodeString& string,
+      int32_t start_index, int32_t end_index);
 
   Handle<String> GranularityAsString(Isolate* isolate) const;
 
   // SegmentIterator accessors.
   DECL_ACCESSORS(icu_break_iterator, Managed<icu::BreakIterator>)
+  DECL_ACCESSORS(unicode_string, Managed<icu::UnicodeString>)
 
-  DECL_PRINTER(JSSegmentIterator)
+  DECL_PRINTER(JSSegments)
 
   inline void set_granularity(JSSegmenter::Granularity granularity);
   inline JSSegmenter::Granularity granularity() const;
@@ -56,7 +69,7 @@ class JSSegmentIterator
   STATIC_ASSERT(JSSegmenter::Granularity::WORD <= GranularityBits::kMax);
   STATIC_ASSERT(JSSegmenter::Granularity::SENTENCE <= GranularityBits::kMax);
 
-  TQ_OBJECT_CONSTRUCTORS(JSSegmentIterator)
+  TQ_OBJECT_CONSTRUCTORS(JSSegments)
 };
 
 }  // namespace internal
@@ -64,4 +77,4 @@ class JSSegmentIterator
 
 #include "src/objects/object-macros-undef.h"
 
-#endif  // V8_OBJECTS_JS_SEGMENT_ITERATOR_H_
+#endif  // V8_OBJECTS_JS_SEGMENTS_H_
