@@ -2126,44 +2126,15 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
   // * If |source_elements_kind| is given, the function will try to use the
   // runtime elements kind of source to make copy faster. More specifically, it
   // can skip write barriers.
+  template <typename TIndex>
   TNode<FixedArrayBase> ExtractFixedArray(
-      TNode<FixedArrayBase> source, Node* first, Node* count = nullptr,
-      Node* capacity = nullptr,
+      TNode<FixedArrayBase> source, base::Optional<TNode<TIndex>> first,
+      base::Optional<TNode<TIndex>> count = base::nullopt,
+      base::Optional<TNode<TIndex>> capacity = base::nullopt,
       ExtractFixedArrayFlags extract_flags =
           ExtractFixedArrayFlag::kAllFixedArrays,
-      ParameterMode parameter_mode = INTPTR_PARAMETERS,
       TVariable<BoolT>* var_holes_converted = nullptr,
       base::Optional<TNode<Int32T>> source_elements_kind = base::nullopt);
-
-  TNode<FixedArrayBase> ExtractFixedArray(
-      TNode<FixedArrayBase> source, TNode<Smi> first, TNode<Smi> count,
-      base::Optional<TNode<Smi>> capacity,
-      ExtractFixedArrayFlags extract_flags =
-          ExtractFixedArrayFlag::kAllFixedArrays,
-      TVariable<BoolT>* var_holes_converted = nullptr,
-      base::Optional<TNode<Int32T>> source_elements_kind = base::nullopt) {
-    // TODO(solanes): just use capacity when ExtractFixedArray is fully
-    // converted.
-    Node* capacity_node = capacity ? static_cast<Node*>(*capacity) : nullptr;
-    return ExtractFixedArray(source, first, count, capacity_node, extract_flags,
-                             SMI_PARAMETERS, var_holes_converted,
-                             source_elements_kind);
-  }
-
-  TNode<FixedArrayBase> ExtractFixedArray(
-      TNode<FixedArrayBase> source, TNode<IntPtrT> first, TNode<IntPtrT> count,
-      base::Optional<TNode<IntPtrT>> capacity,
-      ExtractFixedArrayFlags extract_flags =
-          ExtractFixedArrayFlag::kAllFixedArrays,
-      TVariable<BoolT>* var_holes_converted = nullptr,
-      base::Optional<TNode<Int32T>> source_elements_kind = base::nullopt) {
-    // TODO(solanes): just use capacity when ExtractFixedArray is fully
-    // converted.
-    Node* capacity_node = capacity ? static_cast<Node*>(*capacity) : nullptr;
-    return ExtractFixedArray(source, first, count, capacity_node, extract_flags,
-                             INTPTR_PARAMETERS, var_holes_converted,
-                             source_elements_kind);
-  }
 
   // Copy a portion of an existing FixedArray or FixedDoubleArray into a new
   // FixedArray, including special appropriate handling for COW arrays.
@@ -2244,11 +2215,7 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
   TNode<FixedArrayBase> CloneFixedArray(
       TNode<FixedArrayBase> source,
       ExtractFixedArrayFlags flags =
-          ExtractFixedArrayFlag::kAllFixedArraysDontCopyCOW) {
-    ParameterMode mode = OptimalParameterMode();
-    return ExtractFixedArray(source, IntPtrOrSmiConstant(0, mode), nullptr,
-                             nullptr, flags, mode);
-  }
+          ExtractFixedArrayFlag::kAllFixedArraysDontCopyCOW);
 
   // Loads an element from |array| of |from_kind| elements by given |offset|
   // (NOTE: not index!), does a hole check if |if_hole| is provided and

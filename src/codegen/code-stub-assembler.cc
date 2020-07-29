@@ -3698,7 +3698,9 @@ TNode<JSArray> CodeStubAssembler::ExtractFastJSArray(TNode<Context> context,
   TNode<Map> array_map = LoadJSArrayElementsMap(elements_kind, native_context);
 
   TNode<FixedArrayBase> new_elements = ExtractFixedArray(
-      LoadElements(array), begin, count, base::nullopt,
+      LoadElements(array), base::Optional<TNode<BInt>>(begin),
+      base::Optional<TNode<BInt>>(count),
+      base::Optional<TNode<BInt>>(base::nullopt),
       ExtractFixedArrayFlag::kAllFixedArrays, nullptr, elements_kind);
 
   TNode<JSArray> result = AllocateJSArray(
@@ -3714,8 +3716,6 @@ TNode<JSArray> CodeStubAssembler::CloneFastJSArray(
   // function is also used to copy boilerplates even when the no-elements
   // protector is invalid. This function should be renamed to reflect its uses.
 
-  // TODO(v8:9708): remove ParameterMode
-  ParameterMode mode = OptimalParameterMode();
   TNode<Number> length = LoadJSArrayLength(array);
   TNode<FixedArrayBase> new_elements;
   TVARIABLE(FixedArrayBase, var_new_elements);
@@ -3733,11 +3733,13 @@ TNode<JSArray> CodeStubAssembler::CloneFastJSArray(
   }
 
   // Simple extraction that preserves holes.
-  new_elements =
-      ExtractFixedArray(LoadElements(array), IntPtrOrSmiConstant(0, mode),
-                        TaggedToParameter<BInt>(CAST(length)), nullptr,
-                        ExtractFixedArrayFlag::kAllFixedArraysDontCopyCOW, mode,
-                        nullptr, var_elements_kind.value());
+  new_elements = ExtractFixedArray(
+      LoadElements(array),
+      base::Optional<TNode<BInt>>(IntPtrOrSmiConstant<BInt>(0)),
+      base::Optional<TNode<BInt>>(TaggedToParameter<BInt>(CAST(length))),
+      base::Optional<TNode<BInt>>(base::nullopt),
+      ExtractFixedArrayFlag::kAllFixedArraysDontCopyCOW, nullptr,
+      var_elements_kind.value());
   var_new_elements = new_elements;
   Goto(&allocate_jsarray);
 
@@ -3752,9 +3754,11 @@ TNode<JSArray> CodeStubAssembler::CloneFastJSArray(
     // PACKED_ELEMENTS. Also, if we want to replace holes, we must not use
     // ExtractFixedArrayFlag::kDontCopyCOW.
     new_elements = ExtractFixedArray(
-        LoadElements(array), IntPtrOrSmiConstant(0, mode),
-        TaggedToParameter<BInt>(CAST(length)), nullptr,
-        ExtractFixedArrayFlag::kAllFixedArrays, mode, &var_holes_converted);
+        LoadElements(array),
+        base::Optional<TNode<BInt>>(IntPtrOrSmiConstant<BInt>(0)),
+        base::Optional<TNode<BInt>>(TaggedToParameter<BInt>(CAST(length))),
+        base::Optional<TNode<BInt>>(base::nullopt),
+        ExtractFixedArrayFlag::kAllFixedArrays, &var_holes_converted);
     var_new_elements = new_elements;
     // If the array type didn't change, use the original elements kind.
     GotoIfNot(var_holes_converted.value(), &allocate_jsarray);
@@ -4103,15 +4107,19 @@ TNode<FixedArrayBase> CodeStubAssembler::ExtractFixedDoubleArrayFillingHoles(
   return var_result.value();
 }
 
+template <typename TIndex>
 TNode<FixedArrayBase> CodeStubAssembler::ExtractFixedArray(
-    TNode<FixedArrayBase> source, Node* first, Node* count, Node* capacity,
-    ExtractFixedArrayFlags extract_flags, ParameterMode parameter_mode,
-    TVariable<BoolT>* var_holes_converted,
-    base::Optional<TNode<Int32T>> source_runtime_kind) {
+    TNode<FixedArrayBase> source, base::Optional<TNode<TIndex>> first,
+    base::Optional<TNode<TIndex>> count, base::Optional<TNode<TIndex>> capacity,
+    ExtractFixedArrayFlags extract_flags, TVariable<BoolT>* var_holes_converted,
+    base::Optional<TNode<Int32T>> source_elements_kind) {
+  static_assert(
+      std::is_same<TIndex, Smi>::value || std::is_same<TIndex, IntPtrT>::value,
+      "Only Smi or IntPtrT first, count, and capacity are allowed");
   DCHECK(extract_flags & ExtractFixedArrayFlag::kFixedArrays ||
          extract_flags & ExtractFixedArrayFlag::kFixedDoubleArrays);
-  // If we want to replace holes, ExtractFixedArrayFlag::kDontCopyCOW should not
-  // be used, because that disables the iteration which detects holes.
+  // If we want to replace holes, ExtractFixedArrayFlag::kDontCopyCOW should
+  // not be used, because that disables the iteration which detects holes.
   DCHECK_IMPLIES(var_holes_converted != nullptr,
                  !(extract_flags & ExtractFixedArrayFlag::kDontCopyCOW));
   HoleConversionMode convert_holes =
@@ -4122,31 +4130,26 @@ TNode<FixedArrayBase> CodeStubAssembler::ExtractFixedArray(
       (extract_flags & ExtractFixedArrayFlag::kNewSpaceAllocationOnly)
           ? CodeStubAssembler::kNone
           : CodeStubAssembler::kAllowLargeObjectAllocation;
-  if (first == nullptr) {
-    first = IntPtrOrSmiConstant(0, parameter_mode);
+  if (!first) {
+    first = IntPtrOrSmiConstant<TIndex>(0);
   }
-  if (count == nullptr) {
+  if (!count) {
     count = IntPtrOrSmiSub(
-        TaggedToParameter(LoadFixedArrayBaseLength(source), parameter_mode),
-        first, parameter_mode);
+        TaggedToParameter<TIndex>(LoadFixedArrayBaseLength(source)), *first);
 
-    CSA_ASSERT(
-        this, IntPtrOrSmiLessThanOrEqual(IntPtrOrSmiConstant(0, parameter_mode),
-                                         count, parameter_mode));
+    CSA_ASSERT(this, IntPtrOrSmiLessThanOrEqual(IntPtrOrSmiConstant<TIndex>(0),
+                                                *count));
   }
-  if (capacity == nullptr) {
-    capacity = count;
+  if (!capacity) {
+    capacity = *count;
   } else {
     CSA_ASSERT(this, Word32BinaryNot(IntPtrOrSmiGreaterThan(
-                         IntPtrOrSmiAdd(first, count, parameter_mode), capacity,
-                         parameter_mode)));
+                         IntPtrOrSmiAdd(*first, *count), *capacity)));
   }
 
   Label if_fixed_double_array(this), empty(this), done(this, &var_result);
   TNode<Map> source_map = LoadMap(source);
-  GotoIf(IntPtrOrSmiEqual(IntPtrOrSmiConstant(0, parameter_mode), capacity,
-                          parameter_mode),
-         &empty);
+  GotoIf(IntPtrOrSmiEqual(IntPtrOrSmiConstant<TIndex>(0), *capacity), &empty);
 
   if (extract_flags & ExtractFixedArrayFlag::kFixedDoubleArrays) {
     if (extract_flags & ExtractFixedArrayFlag::kFixedArrays) {
@@ -4156,13 +4159,15 @@ TNode<FixedArrayBase> CodeStubAssembler::ExtractFixedArray(
     }
   }
 
+  const ParameterMode parameter_mode =
+      std::is_same<TIndex, Smi>::value ? SMI_PARAMETERS : INTPTR_PARAMETERS;
   if (extract_flags & ExtractFixedArrayFlag::kFixedArrays) {
     // Here we can only get |source| as FixedArray, never FixedDoubleArray.
     // PACKED_ELEMENTS is used to signify that the source is a FixedArray.
     TNode<FixedArray> to_elements = ExtractToFixedArray(
-        source, first, count, capacity, source_map, PACKED_ELEMENTS,
+        source, *first, *count, *capacity, source_map, PACKED_ELEMENTS,
         allocation_flags, extract_flags, parameter_mode, convert_holes,
-        var_holes_converted, source_runtime_kind);
+        var_holes_converted, source_elements_kind);
     var_result = to_elements;
     Goto(&done);
   }
@@ -4173,7 +4178,7 @@ TNode<FixedArrayBase> CodeStubAssembler::ExtractFixedArray(
 
     if (convert_holes == HoleConversionMode::kConvertToUndefined) {
       TNode<FixedArrayBase> to_elements = ExtractFixedDoubleArrayFillingHoles(
-          source, first, count, capacity, source_map, var_holes_converted,
+          source, *first, *count, *capacity, source_map, var_holes_converted,
           allocation_flags, extract_flags, parameter_mode);
       var_result = to_elements;
     } else {
@@ -4182,12 +4187,12 @@ TNode<FixedArrayBase> CodeStubAssembler::ExtractFixedArray(
       // matter.
       ElementsKind kind = PACKED_DOUBLE_ELEMENTS;
       TNode<FixedArrayBase> to_elements = AllocateFixedArray(
-          kind, capacity, parameter_mode, allocation_flags, source_map);
-      FillFixedArrayWithValue(kind, to_elements, count, capacity,
+          kind, *capacity, parameter_mode, allocation_flags, source_map);
+      FillFixedArrayWithValue(kind, to_elements, *count, *capacity,
                               RootIndex::kTheHoleValue, parameter_mode);
       CopyElements(kind, to_elements, IntPtrConstant(0), source,
-                   ParameterToIntPtr(first, parameter_mode),
-                   ParameterToIntPtr(count, parameter_mode));
+                   ParameterToIntPtr(*first, parameter_mode),
+                   ParameterToIntPtr(*count, parameter_mode));
       var_result = to_elements;
     }
 
@@ -4205,6 +4210,18 @@ TNode<FixedArrayBase> CodeStubAssembler::ExtractFixedArray(
   BIND(&done);
   return var_result.value();
 }
+
+template V8_EXPORT_PRIVATE TNode<FixedArrayBase>
+CodeStubAssembler::ExtractFixedArray<Smi>(
+    TNode<FixedArrayBase>, base::Optional<TNode<Smi>>,
+    base::Optional<TNode<Smi>>, base::Optional<TNode<Smi>>,
+    ExtractFixedArrayFlags, TVariable<BoolT>*, base::Optional<TNode<Int32T>>);
+
+template V8_EXPORT_PRIVATE TNode<FixedArrayBase>
+CodeStubAssembler::ExtractFixedArray<IntPtrT>(
+    TNode<FixedArrayBase>, base::Optional<TNode<IntPtrT>>,
+    base::Optional<TNode<IntPtrT>>, base::Optional<TNode<IntPtrT>>,
+    ExtractFixedArrayFlags, TVariable<BoolT>*, base::Optional<TNode<Int32T>>);
 
 void CodeStubAssembler::InitializePropertyArrayLength(
     TNode<PropertyArray> property_array, TNode<IntPtrT> length) {
@@ -4767,6 +4784,14 @@ void CodeStubAssembler::CopyPropertyArrayValues(TNode<HeapObject> from_array,
   }
 #endif
   Comment("] CopyPropertyArrayValues");
+}
+
+TNode<FixedArrayBase> CodeStubAssembler::CloneFixedArray(
+    TNode<FixedArrayBase> source, ExtractFixedArrayFlags flags) {
+  return ExtractFixedArray(
+      source, base::Optional<TNode<BInt>>(IntPtrOrSmiConstant<BInt>(0)),
+      base::Optional<TNode<BInt>>(base::nullopt),
+      base::Optional<TNode<BInt>>(base::nullopt), flags);
 }
 
 Node* CodeStubAssembler::LoadElementAndPrepareForStore(
