@@ -355,7 +355,7 @@ class TNode {
     return *this;
   }
 
-  bool is_null() { return node_ == nullptr; }
+  bool is_null() const { return node_ == nullptr; }
 
   operator compiler::Node*() const { return node_; }
 

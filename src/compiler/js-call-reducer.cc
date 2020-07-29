@@ -263,7 +263,8 @@ class JSCallReducerAssembler : public JSGraphAssembler {
                                TNode<Object> arg0, TNode<Object> arg1,
                                FrameState frame_state);
   // Used in special cases in which we are certain CreateArray does not throw.
-  TNode<JSArray> CreateArrayNoThrow(TNode<Object> ctor, TNode<Number> size);
+  TNode<JSArray> CreateArrayNoThrow(TNode<Object> ctor, TNode<Number> size,
+                                    FrameState frame_state);
 
   TNode<JSArray> AllocateEmptyJSArray(ElementsKind kind,
                                       const NativeContextRef& native_context);
@@ -1089,13 +1090,12 @@ TNode<Object> JSCallReducerAssembler::JSCallRuntime2(
   });
 }
 
-TNode<JSArray> JSCallReducerAssembler::CreateArrayNoThrow(TNode<Object> ctor,
-                                                          TNode<Number> size) {
+TNode<JSArray> JSCallReducerAssembler::CreateArrayNoThrow(
+    TNode<Object> ctor, TNode<Number> size, FrameState frame_state) {
   return AddNode<JSArray>(graph()->NewNode(
       javascript()->CreateArray(1, MaybeHandle<AllocationSite>()), ctor, ctor,
-      size, ContextInput(), FrameStateInput(), effect(), control()));
+      size, ContextInput(), frame_state, effect(), control()));
 }
-
 TNode<JSArray> JSCallReducerAssembler::AllocateEmptyJSArray(
     ElementsKind kind, const NativeContextRef& native_context) {
   // TODO(jgruber): Port AllocationBuilder to JSGraphAssembler.
@@ -1477,6 +1477,17 @@ struct MapFrameStateParams {
   TNode<Object> original_length;
 };
 
+FrameState MapPreLoopLazyFrameState(const MapFrameStateParams& params) {
+  DCHECK(params.a.is_null());
+  Node* checkpoint_params[] = {params.receiver, params.callback,
+                               params.this_arg, params.original_length};
+  return CreateJavaScriptBuiltinContinuationFrameState(
+      params.jsgraph, params.shared,
+      Builtins::kArrayMapPreLoopLazyDeoptContinuation, params.target,
+      params.context, checkpoint_params, arraysize(checkpoint_params),
+      params.outer_frame_state, ContinuationFrameStateMode::LAZY);
+}
+
 FrameState MapLoopLazyFrameState(const MapFrameStateParams& params,
                                  TNode<Number> k) {
   Node* checkpoint_params[] = {
@@ -1527,11 +1538,15 @@ TNode<JSArray> IteratingArrayBuiltinReducerAssembler::ReduceArrayPrototypeMap(
   // parameters.
   TNode<Object> array_ctor =
       Constant(native_context.GetInitialJSArrayMap(kind).GetConstructor());
-  TNode<JSArray> a = CreateArrayNoThrow(array_ctor, original_length);
 
   MapFrameStateParams frame_state_params{
-      jsgraph(), shared,     context,  target, outer_frame_state,
-      receiver,  fncallback, this_arg, a,      original_length};
+      jsgraph(), shared,     context,  target,       outer_frame_state,
+      receiver,  fncallback, this_arg, {} /* TBD */, original_length};
+
+  TNode<JSArray> a =
+      CreateArrayNoThrow(array_ctor, original_length,
+                         MapPreLoopLazyFrameState(frame_state_params));
+  frame_state_params.a = a;
 
   ThrowIfNotCallable(fncallback,
                      MapLoopLazyFrameState(frame_state_params, ZeroConstant()));
