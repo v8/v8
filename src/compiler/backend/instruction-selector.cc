@@ -3163,7 +3163,8 @@ void InstructionSelector::CanonicalizeShuffle(Node* node, uint8_t* shuffle,
   bool needs_swap;
   bool inputs_equal = GetVirtualRegister(node->InputAt(0)) ==
                       GetVirtualRegister(node->InputAt(1));
-  wasm::CanonicalizeShuffle(inputs_equal, shuffle, &needs_swap, is_swizzle);
+  wasm::SimdShuffle::CanonicalizeShuffle(inputs_equal, shuffle, &needs_swap,
+                                         is_swizzle);
   if (needs_swap) {
     SwapShuffleInputs(node);
   }
@@ -3182,38 +3183,27 @@ void InstructionSelector::SwapShuffleInputs(Node* node) {
   node->ReplaceInput(1, input0);
 }
 
-void InstructionSelector::CanonicalizeShuffleForTesting(bool inputs_equal,
-                                                        uint8_t* shuffle,
-                                                        bool* needs_swap,
-                                                        bool* is_swizzle) {
-  wasm::CanonicalizeShuffle(inputs_equal, shuffle, needs_swap, is_swizzle);
-}
-
-bool InstructionSelector::TryMatchIdentityForTesting(const uint8_t* shuffle) {
-  return TryMatchIdentity(shuffle);
-}
-
 // static
 bool InstructionSelector::TryMatch32x4Shuffle(const uint8_t* shuffle,
                                               uint8_t* shuffle32x4) {
-  return wasm::TryMatch32x4Shuffle(shuffle, shuffle32x4);
+  return wasm::SimdShuffle::TryMatch32x4Shuffle(shuffle, shuffle32x4);
 }
 
 // static
 bool InstructionSelector::TryMatch16x8Shuffle(const uint8_t* shuffle,
                                               uint8_t* shuffle16x8) {
-  return wasm::TryMatch16x8Shuffle(shuffle, shuffle16x8);
+  return wasm::SimdShuffle::TryMatch16x8Shuffle(shuffle, shuffle16x8);
 }
 
 // static
 bool InstructionSelector::TryMatchConcat(const uint8_t* shuffle,
                                          uint8_t* offset) {
-  return wasm::TryMatchConcat(shuffle, offset);
+  return wasm::SimdShuffle::TryMatchConcat(shuffle, offset);
 }
 
 // static
 bool InstructionSelector::TryMatchBlend(const uint8_t* shuffle) {
-  return wasm::TryMatchBlend(shuffle);
+  return wasm::SimdShuffle::TryMatchBlend(shuffle);
 }
 
 // static

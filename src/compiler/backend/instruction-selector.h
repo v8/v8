@@ -456,31 +456,6 @@ class V8_EXPORT_PRIVATE InstructionSelector final {
     return instr_origins_;
   }
 
-  // Expose these SIMD helper functions for testing.
-  static void CanonicalizeShuffleForTesting(bool inputs_equal, uint8_t* shuffle,
-                                            bool* needs_swap, bool* is_swizzle);
-
-  static bool TryMatchIdentityForTesting(const uint8_t* shuffle);
-  template <int LANES>
-  static bool TryMatchDupForTesting(const uint8_t* shuffle, int* index) {
-    return TryMatchDup<LANES>(shuffle, index);
-  }
-  static bool TryMatch32x4ShuffleForTesting(const uint8_t* shuffle,
-                                            uint8_t* shuffle32x4) {
-    return TryMatch32x4Shuffle(shuffle, shuffle32x4);
-  }
-  static bool TryMatch16x8ShuffleForTesting(const uint8_t* shuffle,
-                                            uint8_t* shuffle16x8) {
-    return TryMatch16x8Shuffle(shuffle, shuffle16x8);
-  }
-  static bool TryMatchConcatForTesting(const uint8_t* shuffle,
-                                       uint8_t* offset) {
-    return TryMatchConcat(shuffle, offset);
-  }
-  static bool TryMatchBlendForTesting(const uint8_t* shuffle) {
-    return TryMatchBlend(shuffle);
-  }
-
  private:
   friend class OperandGenerator;
 
@@ -665,14 +640,14 @@ class V8_EXPORT_PRIVATE InstructionSelector final {
   // [0 1 ... 15]. This should be called after canonicalizing the shuffle, so
   // the second identity shuffle, [16 17 .. 31] is converted to the first one.
   static bool TryMatchIdentity(const uint8_t* shuffle) {
-    return wasm::TryMatchIdentity(shuffle);
+    return wasm::SimdShuffle::TryMatchIdentity(shuffle);
   }
 
   // Tries to match a byte shuffle to a scalar splat operation. Returns the
   // index of the lane if successful.
   template <int LANES>
   static bool TryMatchDup(const uint8_t* shuffle, int* index) {
-    return wasm::TryMatchSplat<LANES>(shuffle, index);
+    return wasm::SimdShuffle::TryMatchSplat<LANES>(shuffle, index);
   }
 
   // Tries to match an 8x16 byte shuffle to an equivalent 32x4 shuffle. If

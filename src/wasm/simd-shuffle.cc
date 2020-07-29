@@ -10,8 +10,8 @@ namespace v8 {
 namespace internal {
 namespace wasm {
 
-void CanonicalizeShuffle(bool inputs_equal, uint8_t* shuffle, bool* needs_swap,
-                         bool* is_swizzle) {
+void SimdShuffle::CanonicalizeShuffle(bool inputs_equal, uint8_t* shuffle,
+                                      bool* needs_swap, bool* is_swizzle) {
   *needs_swap = false;
   // Inputs equal, then it's a swizzle.
   if (inputs_equal) {
@@ -51,14 +51,15 @@ void CanonicalizeShuffle(bool inputs_equal, uint8_t* shuffle, bool* needs_swap,
   }
 }
 
-bool TryMatchIdentity(const uint8_t* shuffle) {
+bool SimdShuffle::TryMatchIdentity(const uint8_t* shuffle) {
   for (int i = 0; i < kSimd128Size; ++i) {
     if (shuffle[i] != i) return false;
   }
   return true;
 }
 
-bool TryMatch32x4Shuffle(const uint8_t* shuffle, uint8_t* shuffle32x4) {
+bool SimdShuffle::TryMatch32x4Shuffle(const uint8_t* shuffle,
+                                      uint8_t* shuffle32x4) {
   for (int i = 0; i < 4; ++i) {
     if (shuffle[i * 4] % 4 != 0) return false;
     for (int j = 1; j < 4; ++j) {
@@ -69,7 +70,8 @@ bool TryMatch32x4Shuffle(const uint8_t* shuffle, uint8_t* shuffle32x4) {
   return true;
 }
 
-bool TryMatch16x8Shuffle(const uint8_t* shuffle, uint8_t* shuffle16x8) {
+bool SimdShuffle::TryMatch16x8Shuffle(const uint8_t* shuffle,
+                                      uint8_t* shuffle16x8) {
   for (int i = 0; i < 8; ++i) {
     if (shuffle[i * 2] % 2 != 0) return false;
     for (int j = 1; j < 2; ++j) {
@@ -80,7 +82,7 @@ bool TryMatch16x8Shuffle(const uint8_t* shuffle, uint8_t* shuffle16x8) {
   return true;
 }
 
-bool TryMatchConcat(const uint8_t* shuffle, uint8_t* offset) {
+bool SimdShuffle::TryMatchConcat(const uint8_t* shuffle, uint8_t* offset) {
   // Don't match the identity shuffle (e.g. [0 1 2 ... 15]).
   uint8_t start = shuffle[0];
   if (start == 0) return false;
@@ -97,7 +99,7 @@ bool TryMatchConcat(const uint8_t* shuffle, uint8_t* offset) {
   return true;
 }
 
-bool TryMatchBlend(const uint8_t* shuffle) {
+bool SimdShuffle::TryMatchBlend(const uint8_t* shuffle) {
   for (int i = 0; i < 16; ++i) {
     if ((shuffle[i] & 0xF) != i) return false;
   }
