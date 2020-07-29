@@ -54,9 +54,6 @@ bool LocalHandles::Contains(Address* location) {
 Address* LocalHandles::AddBlock() {
   DCHECK_EQ(scope_.next, scope_.limit);
   Address* block = NewArray<Address>(kHandleBlockSize);
-#ifdef ENABLE_HANDLE_ZAPPING
-  ZapRange(block, block + kHandleBlockSize);
-#endif
   blocks_.push_back(block);
   scope_.next = block;
   scope_.limit = block + kHandleBlockSize;
