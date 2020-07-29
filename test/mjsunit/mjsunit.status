@@ -1205,6 +1205,18 @@
 
   # const field tracking is disabled in turboprop
   'const-field-tracking': [SKIP],
+
+  # Dynamic map checks doesn't use information from maps so we don't inline
+  # array builtins or track field representation.
+  'compiler/deopt-inlined-from-call': [SKIP],
+  'compiler/field-representation-tracking': [SKIP],
+  'field-type-tracking': [SKIP],
+
+  # We don't migrate deprecated maps with dynamic map checks. This will be
+  # fixed in a later cl.
+  # TODO(mythria): Reenable this when the cl that migrates deprecated maps
+  # lands
+  'regress/regress-932953': [FAIL],
 }],  # variant == turboprop
 
 ##############################################################################
