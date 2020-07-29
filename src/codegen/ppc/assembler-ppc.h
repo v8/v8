@@ -1019,6 +1019,8 @@ class Assembler : public AssemblerBase {
   void mfvsrd(const Register ra, const Simd128Register r);
   void mfvsrwz(const Register ra, const Simd128Register r);
   void mtvsrd(const Simd128Register rt, const Register ra);
+  void lxvd(const Simd128Register rt, const MemOperand& src);
+  void stxvd(const Simd128Register rt, const MemOperand& src);
 
   // Pseudo instructions
 

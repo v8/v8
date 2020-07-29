@@ -634,6 +634,22 @@ void Decoder::DecodeExt1(Instruction* instr) {
 void Decoder::DecodeExt2(Instruction* instr) {
   // Some encodings are 10-1 bits, handle those first
   switch (EXT2 | (instr->BitField(10, 1))) {
+    case LVX: {
+      Format(instr, "lvx     'Dt, 'ra, 'rb");
+      return;
+    }
+    case STVX: {
+      Format(instr, "stvx    'Dt, 'ra, 'rb");
+      return;
+    }
+    case LXVD: {
+      Format(instr, "lxvd    'Dt, 'ra, 'rb");
+      return;
+    }
+    case STXVD: {
+      Format(instr, "stxvd   'Dt, 'ra, 'rb");
+      return;
+    }
     case SRWX: {
       Format(instr, "srw'.    'ra, 'rs, 'rb");
       return;
@@ -942,10 +958,6 @@ void Decoder::DecodeExt2(Instruction* instr) {
       Format(instr, "sthux   'rs, 'ra, 'rb");
       return;
     }
-    case STVX: {
-      Format(instr, "stvx    'Dt, 'ra, 'rb");
-      return;
-    }
     case LWZX: {
       Format(instr, "lwzx    'rt, 'ra, 'rb");
       return;
@@ -988,10 +1000,6 @@ void Decoder::DecodeExt2(Instruction* instr) {
     }
     case LWARX: {
       Format(instr, "lwarx   'rt, 'ra, 'rb");
-      return;
-    }
-    case LVX: {
-      Format(instr, "lvx     'Dt, 'ra, 'rb");
       return;
     }
 #if V8_TARGET_ARCH_PPC64

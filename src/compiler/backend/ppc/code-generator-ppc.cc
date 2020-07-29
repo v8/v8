@@ -2044,7 +2044,20 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       bool is_atomic = i.InputInt32(2);
       // lvx only supports MRR.
       DCHECK_EQ(mode, kMode_MRR);
-      __ lvx(result, operand);
+      // lvx needs the stack to be 16 byte aligned.
+      // We first use lxvd/stxvd to copy the content on an aligned address. lxvd
+      // itself reverses the lanes so it cannot be used as is.
+      __ lxvd(kScratchDoubleReg, operand);
+      __ mr(kScratchReg, sp);
+      __ ClearRightImm(
+          sp, sp,
+          Operand(base::bits::WhichPowerOfTwo(16)));  // equivalent to &= -16
+      __ addi(sp, sp, Operand(-16));
+      __ li(r0, Operand(0));
+      __ stxvd(kScratchDoubleReg, MemOperand(sp, r0));
+      // Load it with correct lane ordering.
+      __ lvx(result, MemOperand(sp, r0));
+      __ mr(sp, kScratchReg);
       if (is_atomic) __ lwsync();
       DCHECK_EQ(LeaveRC, i.OutputRCBit());
       break;
@@ -2078,7 +2091,19 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       if (is_atomic) __ lwsync();
       // stvx only supports MRR.
       DCHECK_EQ(mode, kMode_MRR);
-      __ stvx(value, operand);
+      // stvx needs the stack to be 16 byte aligned.
+      // We use lxvd/stxvd to store the content on an aligned address. stxvd
+      // itself reverses the lanes so it cannot be used as is.
+      __ mr(kScratchReg, sp);
+      __ ClearRightImm(
+          sp, sp,
+          Operand(base::bits::WhichPowerOfTwo(16)));  // equivalent to &= -16
+      __ addi(sp, sp, Operand(-16));
+      __ li(r0, Operand(0));
+      __ stvx(value, MemOperand(sp, r0));
+      __ lxvd(kScratchDoubleReg, MemOperand(sp, r0));
+      __ stxvd(kScratchDoubleReg, operand);
+      __ mr(sp, kScratchReg);
       if (is_atomic) __ sync();
       DCHECK_EQ(LeaveRC, i.OutputRCBit());
       break;
