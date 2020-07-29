@@ -1457,6 +1457,7 @@ class V8_EXPORT_PRIVATE InstructionBlock final
 
   bool must_deconstruct_frame() const { return must_deconstruct_frame_; }
   void mark_must_deconstruct_frame() { must_deconstruct_frame_ = true; }
+  void clear_must_deconstruct_frame() { must_deconstruct_frame_ = false; }
 
  private:
   Successors successors_;
