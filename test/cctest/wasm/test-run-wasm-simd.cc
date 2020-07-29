@@ -415,20 +415,6 @@ bool ExpectFused(ExecutionTier tier) {
                                     lane_index, WASM_GET_LOCAL(value))),       \
           WASM_RETURN1(WASM_ZERO))
 
-// Runs tests of compiled code, using the interpreter as a reference.
-#define WASM_SIMD_COMPILED_TEST(name)                              \
-  void RunWasm_##name##_Impl(LowerSimd lower_simd,                 \
-                             ExecutionTier execution_tier);        \
-  TEST(RunWasm_##name##_turbofan) {                                \
-    EXPERIMENTAL_FLAG_SCOPE(simd);                                 \
-    RunWasm_##name##_Impl(kNoLowerSimd, ExecutionTier::kTurbofan); \
-  }                                                                \
-  TEST(RunWasm_##name##_simd_lowered) {                            \
-    EXPERIMENTAL_FLAG_SCOPE(simd);                                 \
-    RunWasm_##name##_Impl(kLowerSimd, ExecutionTier::kTurbofan);   \
-  }                                                                \
-  void RunWasm_##name##_Impl(LowerSimd lower_simd, ExecutionTier execution_tier)
-
 // The macro below disables tests lowering for certain nodes where the simd
 // lowering doesn't work correctly. Early return here if the CPU does not
 // support SIMD as the graph will be implicitly lowered in that case.
@@ -3057,7 +3043,11 @@ void RunWasmCode(ExecutionTier execution_tier, LowerSimd lower_simd,
 }
 
 // Test multiple shuffles executed in sequence.
-WASM_SIMD_COMPILED_TEST(S8x16MultiShuffleFuzz) {
+WASM_SIMD_TEST(S8x16MultiShuffleFuzz) {
+  // Don't compare interpreter results with itself.
+  if (execution_tier == ExecutionTier::kInterpreter) {
+    return;
+  }
   v8::base::RandomNumberGenerator* rng = CcTest::random_number_generator();
   static const int kShuffles = 100;
   for (int i = 0; i < kShuffles; ++i) {
@@ -3924,7 +3914,6 @@ WASM_EXTRACT_I16x8_TEST(S, UINT16) WASM_EXTRACT_I16x8_TEST(I, INT16)
 #undef WASM_SIMD_STORE_MEM_OFFSET
 #undef WASM_SIMD_SELECT_TEST
 #undef WASM_SIMD_NON_CANONICAL_SELECT_TEST
-#undef WASM_SIMD_COMPILED_TEST
 #undef WASM_SIMD_BOOL_REDUCTION_TEST
 #undef WASM_SIMD_TEST_NO_LOWERING
 #undef WASM_SIMD_ANYTRUE_TEST
