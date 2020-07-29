@@ -3315,7 +3315,7 @@ void InstructionSelector::VisitS8x16Shuffle(Node* node) {
   uint8_t shuffle16x8[8];
   int index;
   const ShuffleEntry* arch_shuffle;
-  if (TryMatchConcat(shuffle, &offset)) {
+  if (wasm::SimdShuffle::TryMatchConcat(shuffle, &offset)) {
     // Swap inputs from the normal order for (v)palignr.
     SwapShuffleInputs(node);
     is_swizzle = false;        // It's simpler to just handle the general case.
@@ -3334,10 +3334,10 @@ void InstructionSelector::VisitS8x16Shuffle(Node* node) {
     // same-as-first.
     src1_needs_reg = arch_shuffle->src1_needs_reg;
     no_same_as_first = false;
-  } else if (TryMatch32x4Shuffle(shuffle, shuffle32x4)) {
+  } else if (wasm::SimdShuffle::TryMatch32x4Shuffle(shuffle, shuffle32x4)) {
     uint8_t shuffle_mask = PackShuffle4(shuffle32x4);
     if (is_swizzle) {
-      if (TryMatchIdentity(shuffle)) {
+      if (wasm::SimdShuffle::TryMatchIdentity(shuffle)) {
         // Bypass normal shuffle code generation in this case.
         EmitIdentity(node);
         return;
@@ -3354,7 +3354,7 @@ void InstructionSelector::VisitS8x16Shuffle(Node* node) {
     } else {
       // 2 operand shuffle
       // A blend is more efficient than a general 32x4 shuffle; try it first.
-      if (TryMatchBlend(shuffle)) {
+      if (wasm::SimdShuffle::TryMatchBlend(shuffle)) {
         opcode = kX64S16x8Blend;
         uint8_t blend_mask = PackBlend4(shuffle32x4);
         imms[imm_count++] = blend_mask;
@@ -3371,13 +3371,13 @@ void InstructionSelector::VisitS8x16Shuffle(Node* node) {
         imms[imm_count++] = blend_mask;
       }
     }
-  } else if (TryMatch16x8Shuffle(shuffle, shuffle16x8)) {
+  } else if (wasm::SimdShuffle::TryMatch16x8Shuffle(shuffle, shuffle16x8)) {
     uint8_t blend_mask;
-    if (TryMatchBlend(shuffle)) {
+    if (wasm::SimdShuffle::TryMatchBlend(shuffle)) {
       opcode = kX64S16x8Blend;
       blend_mask = PackBlend8(shuffle16x8);
       imms[imm_count++] = blend_mask;
-    } else if (TryMatchDup<8>(shuffle, &index)) {
+    } else if (wasm::SimdShuffle::TryMatchSplat<8>(shuffle, &index)) {
       opcode = kX64S16x8Dup;
       src0_needs_reg = false;
       imms[imm_count++] = index;
@@ -3392,7 +3392,7 @@ void InstructionSelector::VisitS8x16Shuffle(Node* node) {
       imms[imm_count++] = mask_hi;
       if (!is_swizzle) imms[imm_count++] = blend_mask;
     }
-  } else if (TryMatchDup<16>(shuffle, &index)) {
+  } else if (wasm::SimdShuffle::TryMatchSplat<16>(shuffle, &index)) {
     opcode = kX64S8x16Dup;
     no_same_as_first = false;
     src0_needs_reg = true;

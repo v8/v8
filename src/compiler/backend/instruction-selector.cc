@@ -3184,29 +3184,6 @@ void InstructionSelector::SwapShuffleInputs(Node* node) {
 }
 
 // static
-bool InstructionSelector::TryMatch32x4Shuffle(const uint8_t* shuffle,
-                                              uint8_t* shuffle32x4) {
-  return wasm::SimdShuffle::TryMatch32x4Shuffle(shuffle, shuffle32x4);
-}
-
-// static
-bool InstructionSelector::TryMatch16x8Shuffle(const uint8_t* shuffle,
-                                              uint8_t* shuffle16x8) {
-  return wasm::SimdShuffle::TryMatch16x8Shuffle(shuffle, shuffle16x8);
-}
-
-// static
-bool InstructionSelector::TryMatchConcat(const uint8_t* shuffle,
-                                         uint8_t* offset) {
-  return wasm::SimdShuffle::TryMatchConcat(shuffle, offset);
-}
-
-// static
-bool InstructionSelector::TryMatchBlend(const uint8_t* shuffle) {
-  return wasm::SimdShuffle::TryMatchBlend(shuffle);
-}
-
-// static
 int32_t InstructionSelector::Pack4Lanes(const uint8_t* shuffle) {
   int32_t result = 0;
   for (int i = 3; i >= 0; --i) {
