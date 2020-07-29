@@ -6168,10 +6168,7 @@ int StringTable::ComputeCapacityWithCautiousShrink(int current_capacity,
   if (current_capacity <= StringTable::kMinCapacity) return current_capacity;
   if (at_least_room_for > (current_capacity / kMaxEmptyFactor))
     return current_capacity;
-  // Keep capacity for at least a quarter of the current nof elements.
-  int slack_capacity = at_least_room_for / 4;
-  return ComputeCapacityWithShrink(current_capacity,
-                                   at_least_room_for + slack_capacity);
+  return ComputeCapacityWithShrink(current_capacity, at_least_room_for);
 }
 
 namespace {
