@@ -1040,7 +1040,7 @@ void CodeGenerator::TranslateStateValueDescriptor(
     }
   } else if (desc->IsArgumentsLength()) {
     if (translation != nullptr) {
-      translation->ArgumentsLength(desc->arguments_type());
+      translation->ArgumentsLength();
     }
   } else if (desc->IsDuplicate()) {
     if (translation != nullptr) {

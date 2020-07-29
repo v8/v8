@@ -169,10 +169,10 @@ Reduction JSCreateLowering::ReduceJSCreateArguments(Node* node) {
         Node* effect = NodeProperties::GetEffectInput(node);
         Node* const arguments_frame =
             graph()->NewNode(simplified()->ArgumentsFrame());
-        Node* const arguments_length = graph()->NewNode(
-            simplified()->ArgumentsLength(
-                shared.internal_formal_parameter_count(), false),
-            arguments_frame);
+        Node* const arguments_length =
+            graph()->NewNode(simplified()->ArgumentsLength(
+                                 shared.internal_formal_parameter_count()),
+                             arguments_frame);
         // Allocate the elements backing store.
         bool has_aliased_arguments = false;
         Node* const elements = effect = AllocateAliasedArguments(
@@ -201,10 +201,10 @@ Reduction JSCreateLowering::ReduceJSCreateArguments(Node* node) {
         Node* effect = NodeProperties::GetEffectInput(node);
         Node* const arguments_frame =
             graph()->NewNode(simplified()->ArgumentsFrame());
-        Node* const arguments_length = graph()->NewNode(
-            simplified()->ArgumentsLength(
-                shared.internal_formal_parameter_count(), false),
-            arguments_frame);
+        Node* const arguments_length =
+            graph()->NewNode(simplified()->ArgumentsLength(
+                                 shared.internal_formal_parameter_count()),
+                             arguments_frame);
         // Allocate the elements backing store.
         Node* const elements = effect =
             graph()->NewNode(simplified()->NewArgumentsElements(
@@ -231,20 +231,19 @@ Reduction JSCreateLowering::ReduceJSCreateArguments(Node* node) {
         Node* effect = NodeProperties::GetEffectInput(node);
         Node* const arguments_frame =
             graph()->NewNode(simplified()->ArgumentsFrame());
-        Node* const length = graph()->NewNode(
-            simplified()->ArgumentsLength(
-                shared.internal_formal_parameter_count(), false),
-            arguments_frame);
+        Node* const arguments_length =
+            graph()->NewNode(simplified()->ArgumentsLength(
+                                 shared.internal_formal_parameter_count()),
+                             arguments_frame);
         Node* const rest_length = graph()->NewNode(
-            simplified()->ArgumentsLength(
-                shared.internal_formal_parameter_count(), true),
+            simplified()->RestLength(shared.internal_formal_parameter_count()),
             arguments_frame);
         // Allocate the elements backing store.
         Node* const elements = effect =
             graph()->NewNode(simplified()->NewArgumentsElements(
                                  CreateArgumentsType::kRestParameter,
                                  shared.internal_formal_parameter_count()),
-                             arguments_frame, length, effect);
+                             arguments_frame, arguments_length, effect);
         // Load the JSArray object map.
         Node* const jsarray_map = jsgraph()->Constant(
             native_context().js_array_packed_elements_map());

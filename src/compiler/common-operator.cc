@@ -1424,18 +1424,15 @@ const Operator* CommonOperatorBuilder::ArgumentsElementsState(
       type);                                               // parameter
 }
 
-const Operator* CommonOperatorBuilder::ArgumentsLengthState(
-    ArgumentsStateType type) {
-  return zone()->New<Operator1<ArgumentsStateType>>(     // --
+const Operator* CommonOperatorBuilder::ArgumentsLengthState() {
+  return zone()->New<Operator>(                          // --
       IrOpcode::kArgumentsLengthState, Operator::kPure,  // opcode
       "ArgumentsLengthState",                            // name
-      0, 0, 0, 1, 0, 0,                                  // counts
-      type);                                             // parameter
+      0, 0, 0, 1, 0, 0);                                 // counts
 }
 
 ArgumentsStateType ArgumentsStateTypeOf(Operator const* op) {
-  DCHECK(op->opcode() == IrOpcode::kArgumentsElementsState ||
-         op->opcode() == IrOpcode::kArgumentsLengthState);
+  DCHECK(op->opcode() == IrOpcode::kArgumentsElementsState);
   return OpParameter<ArgumentsStateType>(op);
 }
 

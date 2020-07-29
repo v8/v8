@@ -241,14 +241,6 @@ void EscapeAnalysisReducer::Finalize() {
     Node* arguments_length = NodeProperties::GetValueInput(node, 1);
     if (arguments_length->opcode() != IrOpcode::kArgumentsLength) continue;
 
-    // If mapped arguments are specified, then their number is always equal to
-    // the number of formal parameters. This allows to use just the three-value
-    // {ArgumentsStateType} enum because the deoptimizer can reconstruct the
-    // value of {mapped_count} from the number of formal parameters.
-    DCHECK_IMPLIES(
-        mapped_count != 0,
-        mapped_count == FormalParameterCountOf(arguments_length->op()));
-
     Node* arguments_length_state = nullptr;
     for (Edge edge : arguments_length->use_edges()) {
       Node* use = edge.from();
@@ -259,7 +251,7 @@ void EscapeAnalysisReducer::Finalize() {
         case IrOpcode::kTypedStateValues:
           if (!arguments_length_state) {
             arguments_length_state = jsgraph()->graph()->NewNode(
-                jsgraph()->common()->ArgumentsLengthState(type));
+                jsgraph()->common()->ArgumentsLengthState());
             NodeProperties::SetType(arguments_length_state,
                                     Type::OtherInternal());
           }

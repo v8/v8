@@ -472,6 +472,7 @@
   V(ObjectIsUndetectable)               \
   V(ArgumentsFrame)                     \
   V(ArgumentsLength)                    \
+  V(RestLength)                         \
   V(NewDoubleElements)                  \
   V(NewSmiOrObjectElements)             \
   V(NewArgumentsElements)               \

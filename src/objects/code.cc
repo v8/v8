@@ -642,11 +642,14 @@ void DeoptimizationData::DeoptimizationDataPrint(std::ostream& os) {  // NOLINT
           break;
         }
 
-        case Translation::ARGUMENTS_ELEMENTS:
-        case Translation::ARGUMENTS_LENGTH: {
+        case Translation::ARGUMENTS_ELEMENTS: {
           CreateArgumentsType arguments_type =
               static_cast<CreateArgumentsType>(iterator.Next());
           os << "{arguments_type=" << arguments_type << "}";
+          break;
+        }
+        case Translation::ARGUMENTS_LENGTH: {
+          os << "{arguments_length}";
           break;
         }
 

@@ -582,7 +582,6 @@ const NumberOperationParameters& NumberOperationParametersOf(const Operator* op)
     V8_WARN_UNUSED_RESULT;
 
 int FormalParameterCountOf(const Operator* op) V8_WARN_UNUSED_RESULT;
-bool IsRestLengthOf(const Operator* op) V8_WARN_UNUSED_RESULT;
 
 class AllocateParameters {
  public:
@@ -939,8 +938,8 @@ class V8_EXPORT_PRIVATE SimplifiedOperatorBuilder final
   const Operator* ObjectIsInteger();
 
   const Operator* ArgumentsFrame();
-  const Operator* ArgumentsLength(int formal_parameter_count,
-                                  bool is_rest_length);
+  const Operator* ArgumentsLength(int formal_parameter_count);
+  const Operator* RestLength(int formal_parameter_count);
 
   const Operator* NewDoubleElements(AllocationType);
   const Operator* NewSmiOrObjectElements(AllocationType);

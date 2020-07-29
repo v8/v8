@@ -588,7 +588,7 @@ size_t InstructionSelector::AddOperandToStateValueDescriptor(
       return 0;
     }
     case IrOpcode::kArgumentsLengthState: {
-      values->PushArgumentsLength(ArgumentsStateTypeOf(input->op()));
+      values->PushArgumentsLength();
       return 0;
     }
     case IrOpcode::kObjectState: {

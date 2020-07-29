@@ -2056,10 +2056,7 @@ void Translation::ArgumentsElements(CreateArgumentsType type) {
   buffer_->Add(static_cast<uint8_t>(type));
 }
 
-void Translation::ArgumentsLength(CreateArgumentsType type) {
-  buffer_->Add(ARGUMENTS_LENGTH);
-  buffer_->Add(static_cast<uint8_t>(type));
-}
+void Translation::ArgumentsLength() { buffer_->Add(ARGUMENTS_LENGTH); }
 
 void Translation::BeginCapturedObject(int length) {
   buffer_->Add(CAPTURED_OBJECT);
@@ -2160,9 +2157,10 @@ void Translation::StoreJSFrameFunction() {
 
 int Translation::NumberOfOperandsFor(Opcode opcode) {
   switch (opcode) {
+    case ARGUMENTS_LENGTH:
+      return 0;
     case DUPLICATED_OBJECT:
     case ARGUMENTS_ELEMENTS:
-    case ARGUMENTS_LENGTH:
     case CAPTURED_OBJECT:
     case REGISTER:
     case INT32_REGISTER:
@@ -2939,7 +2937,6 @@ void TranslatedFrame::AdvanceIterator(
 }
 
 Address TranslatedState::ComputeArgumentsPosition(Address input_frame_pointer,
-                                                  CreateArgumentsType type,
                                                   int* length) {
   Address parent_frame_pointer = *reinterpret_cast<Address*>(
       input_frame_pointer + StandardFrameConstants::kCallerFPOffset);
@@ -2960,12 +2957,6 @@ Address TranslatedState::ComputeArgumentsPosition(Address input_frame_pointer,
     arguments_frame = input_frame_pointer;
   }
 
-  if (type == CreateArgumentsType::kRestParameter) {
-    // If the actual number of arguments is less than the number of formal
-    // parameters, we have zero rest parameters.
-    if (length) *length = std::max(0, *length - formal_parameter_count_);
-  }
-
   return arguments_frame;
 }
 
@@ -2978,9 +2969,13 @@ void TranslatedState::CreateArgumentsElementsTranslatedValues(
     FILE* trace_file) {
   TranslatedFrame& frame = frames_[frame_index];
 
-  int length;
+  int arguments_length;
   Address arguments_frame =
-      ComputeArgumentsPosition(input_frame_pointer, type, &length);
+      ComputeArgumentsPosition(input_frame_pointer, &arguments_length);
+
+  int length = type == CreateArgumentsType::kRestParameter
+                   ? std::max(0, arguments_length - formal_parameter_count_)
+                   : arguments_length;
 
   int object_index = static_cast<int>(object_positions_.size());
   int value_index = static_cast<int>(frame.values_.size());
@@ -3079,15 +3074,13 @@ int TranslatedState::CreateNextTranslatedValue(
     }
 
     case Translation::ARGUMENTS_LENGTH: {
-      CreateArgumentsType arguments_type =
-          static_cast<CreateArgumentsType>(iterator->Next());
-      int length;
-      ComputeArgumentsPosition(fp, arguments_type, &length);
+      int arguments_length;
+      ComputeArgumentsPosition(fp, &arguments_length);
       if (trace_file != nullptr) {
-        PrintF(trace_file, "arguments length field (type = %d, length = %d)",
-               static_cast<uint8_t>(arguments_type), length);
+        PrintF(trace_file, "arguments length field (length = %d)",
+               arguments_length);
       }
-      frame.Add(TranslatedValue::NewInt32(this, length));
+      frame.Add(TranslatedValue::NewInt32(this, arguments_length));
       return 0;
     }
 

@@ -178,6 +178,11 @@ class V8_EXPORT_PRIVATE TypeCache final {
   // fixed array in spread/apply calls.
   Type const kArgumentsLengthType = CreateRange(0.0, FixedArray::kMaxLength);
 
+  // The valid number of arguments for rest parameters. We can never
+  // materialize more than the max size of a fixed array, because we require a
+  // fixed array in spread/apply calls.
+  Type const kRestLengthType = CreateRange(0.0, FixedArray::kMaxLength);
+
   // The JSArrayIterator::kind property always contains an integer in the
   // range [0, 2], representing the possible IterationKinds.
   Type const kJSArrayIteratorKindType = CreateRange(0.0, 2.0);

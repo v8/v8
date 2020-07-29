@@ -1625,49 +1625,30 @@ const Operator* SimplifiedOperatorBuilder::TransitionElementsKind(
       transition);                                    // parameter
 }
 
-namespace {
-
-struct ArgumentsLengthParameters {
-  int formal_parameter_count;
-  bool is_rest_length;
-};
-
-bool operator==(ArgumentsLengthParameters first,
-                ArgumentsLengthParameters second) {
-  return first.formal_parameter_count == second.formal_parameter_count &&
-         first.is_rest_length == second.is_rest_length;
-}
-
-size_t hash_value(ArgumentsLengthParameters param) {
-  return base::hash_combine(param.formal_parameter_count, param.is_rest_length);
-}
-
-std::ostream& operator<<(std::ostream& os, ArgumentsLengthParameters param) {
-  return os << param.formal_parameter_count << ", "
-            << (param.is_rest_length ? "rest length" : "not rest length");
-}
-
-}  // namespace
-
 const Operator* SimplifiedOperatorBuilder::ArgumentsLength(
-    int formal_parameter_count, bool is_rest_length) {
-  return zone()->New<Operator1<ArgumentsLengthParameters>>(  // --
-      IrOpcode::kArgumentsLength,                            // opcode
-      Operator::kPure,                                       // flags
-      "ArgumentsLength",                                     // name
-      1, 0, 0, 1, 0, 0,                                      // counts
-      ArgumentsLengthParameters{formal_parameter_count,
-                                is_rest_length});  // parameter
+    int formal_parameter_count) {
+  return zone()->New<Operator1<int>>(  // --
+      IrOpcode::kArgumentsLength,      // opcode
+      Operator::kPure,                 // flags
+      "ArgumentsLength",               // name
+      1, 0, 0, 1, 0, 0,                // counts
+      formal_parameter_count);         // parameter
+}
+
+const Operator* SimplifiedOperatorBuilder::RestLength(
+    int formal_parameter_count) {
+  return zone()->New<Operator1<int>>(  // --
+      IrOpcode::kRestLength,           // opcode
+      Operator::kPure,                 // flags
+      "RestLength",                    // name
+      1, 0, 0, 1, 0, 0,                // counts
+      formal_parameter_count);         // parameter
 }
 
 int FormalParameterCountOf(const Operator* op) {
-  DCHECK_EQ(IrOpcode::kArgumentsLength, op->opcode());
-  return OpParameter<ArgumentsLengthParameters>(op).formal_parameter_count;
-}
-
-bool IsRestLengthOf(const Operator* op) {
-  DCHECK_EQ(IrOpcode::kArgumentsLength, op->opcode());
-  return OpParameter<ArgumentsLengthParameters>(op).is_rest_length;
+  DCHECK(op->opcode() == IrOpcode::kArgumentsLength ||
+         op->opcode() == IrOpcode::kRestLength);
+  return OpParameter<int>(op);
 }
 
 bool operator==(CheckParameters const& lhs, CheckParameters const& rhs) {

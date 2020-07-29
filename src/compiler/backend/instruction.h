@@ -1135,11 +1135,9 @@ class StateValueDescriptor {
     descr.args_type_ = type;
     return descr;
   }
-  static StateValueDescriptor ArgumentsLength(ArgumentsStateType type) {
-    StateValueDescriptor descr(StateValueKind::kArgumentsLength,
-                               MachineType::AnyTagged());
-    descr.args_type_ = type;
-    return descr;
+  static StateValueDescriptor ArgumentsLength() {
+    return StateValueDescriptor(StateValueKind::kArgumentsLength,
+                                MachineType::AnyTagged());
   }
   static StateValueDescriptor Plain(MachineType type) {
     return StateValueDescriptor(StateValueKind::kPlain, type);
@@ -1178,8 +1176,7 @@ class StateValueDescriptor {
     return id_;
   }
   ArgumentsStateType arguments_type() const {
-    DCHECK(kind_ == StateValueKind::kArgumentsElements ||
-           kind_ == StateValueKind::kArgumentsLength);
+    DCHECK(kind_ == StateValueKind::kArgumentsElements);
     return args_type_;
   }
 
@@ -1253,8 +1250,8 @@ class StateValueList {
   void PushArgumentsElements(ArgumentsStateType type) {
     fields_.push_back(StateValueDescriptor::ArgumentsElements(type));
   }
-  void PushArgumentsLength(ArgumentsStateType type) {
-    fields_.push_back(StateValueDescriptor::ArgumentsLength(type));
+  void PushArgumentsLength() {
+    fields_.push_back(StateValueDescriptor::ArgumentsLength());
   }
   void PushDuplicate(size_t id) {
     fields_.push_back(StateValueDescriptor::Duplicate(id));

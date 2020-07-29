@@ -3511,7 +3511,8 @@ class RepresentationSelector {
         SetOutput<T>(node, MachineType::PointerRepresentation());
         return;
       }
-      case IrOpcode::kArgumentsLength: {
+      case IrOpcode::kArgumentsLength:
+      case IrOpcode::kRestLength: {
         VisitUnop<T>(node, UseInfo::Word(),
                      MachineRepresentation::kTaggedSigned);
         return;
