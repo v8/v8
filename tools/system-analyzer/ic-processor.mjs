@@ -21,6 +21,7 @@ function parseState(s) {
 }
 
 class IcProcessor extends LogReader {
+  #profile;
   constructor() {
     super();
     let propertyICParser = [
@@ -69,7 +70,7 @@ class IcProcessor extends LogReader {
         processor: this.processPropertyIC.bind(this, 'StoreInArrayLiteralIC')
       },
     });
-    this.profile_ = new Profile();
+    this.#profile = new Profile();
 
     this.LoadGlobalIC = 0;
     this.StoreGlobalIC = 0;
@@ -78,6 +79,9 @@ class IcProcessor extends LogReader {
     this.KeyedLoadIC = 0;
     this.KeyedStoreIC = 0;
     this.StoreInArrayLiteralIC = 0;
+  }
+  get profile(){
+    return this.#profile;
   }
   /**
    * @override
@@ -125,20 +129,20 @@ class IcProcessor extends LogReader {
     if (maybe_func.length) {
       let funcAddr = parseInt(maybe_func[0]);
       let state = parseState(maybe_func[1]);
-      this.profile_.addFuncCode(
+      this.#profile.addFuncCode(
           type, name, timestamp, start, size, funcAddr, state);
     } else {
-      this.profile_.addCode(type, name, timestamp, start, size);
+      this.#profile.addCode(type, name, timestamp, start, size);
     }
   }
   processCodeMove(from, to) {
-    this.profile_.moveCode(from, to);
+    this.#profile.moveCode(from, to);
   }
   processCodeDelete(start) {
-    this.profile_.deleteCode(start);
+    this.#profile.deleteCode(start);
   }
   processFunctionMove(from, to) {
-    this.profile_.moveFunc(from, to);
+    this.#profile.moveFunc(from, to);
   }
   formatName(entry) {
     if (!entry) return '<unknown>';
@@ -153,7 +157,7 @@ class IcProcessor extends LogReader {
       type, pc, time, line, column, old_state, new_state, map, name, modifier,
       slow_reason) {
     this[type]++;
-    let entry = this.profile_.findEntry(pc);
+    let entry = this.#profile.findEntry(pc);
     print(
         type + ' (' + old_state + '->' + new_state + modifier + ') at ' +
         this.formatName(entry) + ':' + line + ':' + column + ' ' + name +
@@ -178,12 +182,9 @@ IcProcessor.kProperties = [
 
 class CustomIcProcessor extends IcProcessor {
   #timeline = new Timeline();
-  constructor() {
-    super();
-  }
 
   functionName(pc) {
-    let entry = this.profile_.findEntry(pc);
+    let entry = this.profile.findEntry(pc);
     return this.formatName(entry);
   }
 

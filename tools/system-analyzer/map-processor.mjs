@@ -32,6 +32,9 @@ define(Array.prototype, 'last', function() {
 // ===========================================================================
 
 class MapProcessor extends LogReader {
+  #profile = new Profile();
+  #timeline = new Timeline();
+  #formatPCRegexp = /(.*):[0-9]+:[0-9]+$/;
   constructor() {
     super();
     this.dispatchTable_ = {
@@ -64,9 +67,6 @@ class MapProcessor extends LogReader {
         processor: this.processMapDetails
       }
     };
-    this.profile_ = new Profile();
-    this.timeline_ = new Timeline();
-    this.formatPCRegexp_ = /(.*):[0-9]+:[0-9]+$/;
   }
 
   printError(str) {
@@ -116,21 +116,21 @@ class MapProcessor extends LogReader {
 
   finalize() {
     // TODO(cbruni): print stats;
-    this.timeline_.transitions = new Map();
+    this.#timeline.transitions = new Map();
     let id = 0;
-    this.timeline_.forEach(map => {
+    this.#timeline.forEach(map => {
       if (map.isRoot()) id = map.finalizeRootMap(id + 1);
       if (map.edge && map.edge.name) {
         let edge = map.edge;
-        let list = this.timeline_.transitions.get(edge.name);
+        let list = this.#timeline.transitions.get(edge.name);
         if (list === undefined) {
-          this.timeline_.transitions.set(edge.name, [edge]);
+          this.#timeline.transitions.set(edge.name, [edge]);
         } else {
           list.push(edge);
         }
       }
     });
-    return this.timeline_;
+    return this.#timeline;
   }
 
   addEntry(entry) {
@@ -156,33 +156,33 @@ class MapProcessor extends LogReader {
     if (maybe_func.length) {
       let funcAddr = parseInt(maybe_func[0]);
       let state = this.parseState(maybe_func[1]);
-      this.profile_.addFuncCode(
+      this.#profile.addFuncCode(
           type, name, timestamp, start, size, funcAddr, state);
     } else {
-      this.profile_.addCode(type, name, timestamp, start, size);
+      this.#profile.addCode(type, name, timestamp, start, size);
     }
   }
 
   processCodeMove(from, to) {
-    this.profile_.moveCode(from, to);
+    this.#profile.moveCode(from, to);
   }
 
   processCodeDelete(start) {
-    this.profile_.deleteCode(start);
+    this.#profile.deleteCode(start);
   }
 
   processFunctionMove(from, to) {
-    this.profile_.moveFunc(from, to);
+    this.#profile.moveFunc(from, to);
   }
 
   formatPC(pc, line, column) {
-    let entry = this.profile_.findEntry(pc);
+    let entry = this.#profile.findEntry(pc);
     if (!entry) return '<unknown>'
       if (entry.type === 'Builtin') {
         return entry.name;
       }
     let name = entry.func.getName();
-    let array = this.formatPCRegexp_.exec(name);
+    let array = this.#formatPCRegexp.exec(name);
     if (array === null) {
       entry = name;
     } else {
@@ -219,7 +219,7 @@ class MapProcessor extends LogReader {
 
   createMap(id, time) {
     let map = new V8Map(id, time);
-    this.timeline_.push(map);
+    this.#timeline.push(map);
     return map;
   }
 

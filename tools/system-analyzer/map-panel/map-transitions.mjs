@@ -6,6 +6,7 @@ import {V8CustomElement, defineCustomElement} from '../helper.mjs';
 defineCustomElement('./map-panel/map-transitions', (templateText) =>
  class MapTransitions extends V8CustomElement {
   #map;
+  #mapEntries;
   constructor() {
     super(templateText);
     this.transitionView.addEventListener(
@@ -72,12 +73,12 @@ defineCustomElement('./map-panel/map-transitions', (templateText) =>
   }
 
   set mapEntries(list){
-    this._mapEntries = list;
+    this.#mapEntries = list;
     this.showMaps();
   }
 
   get mapEntries(){
-    return this._mapEntries;
+    return this.#mapEntries;
   }
 
   addMapAndParentTransitions(map) {

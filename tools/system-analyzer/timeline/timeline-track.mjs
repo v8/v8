@@ -12,7 +12,6 @@ defineCustomElement('./timeline/timeline-track', (templateText) =>
     #nofChunks = 400;
     #chunks;
     #selectedEntry;
-
     constructor() {
       super(templateText);
       this.backgroundCanvas = document.createElement('canvas');
@@ -77,13 +76,10 @@ defineCustomElement('./timeline/timeline-track', (templateText) =>
           unique.set(entry.type, unique.get(entry.type) + 1);
         }
       }
-      console.log(unique);
-      //TODO(zcankara) Update it to make it work without relying on hex colors
       this.renderStatsWindow(unique);
     }
 
     renderStatsWindow(unique){
-      //TODO(zcankara) Update legend with colors and entries
       let timelineLegendContent = this.timelineLegendContent;
       this.removeAllChildren(timelineLegendContent);
       let fragment = document.createDocumentFragment();

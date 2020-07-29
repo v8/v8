@@ -8,19 +8,19 @@ import {defineCustomElement, V8CustomElement} from './helper.mjs';
 
 defineCustomElement('ic-panel', (templateText) =>
   class ICPanel extends V8CustomElement {
+  //TODO(zcankara) Entries never set
+  #entries;
+  #filteredEntries;
   constructor() {
     super(templateText);
     this.groupKey.addEventListener(
         'change', e => this.updateTable(e));
     this.$('#filterICTimeBtn').addEventListener(
       'click', e => this.handleICTimeFilter(e));
-    this._noOfItems = 100;
-    this._startTime = 0;
-    this._endTime = 0;
   }
 
   get entries(){
-    return this._entries;
+    return this.#entries;
   }
 
   get groupKey() {
@@ -44,12 +44,12 @@ defineCustomElement('ic-panel', (templateText) =>
   }
 
   set filteredEntries(value){
-    this._filteredEntries = value;
+    this.#filteredEntries = value;
     this.updateTable();
   }
 
   get filteredEntries(){
-    return this._filteredEntries;
+    return this.#filteredEntries;
   }
 
   updateTable(event) {
@@ -89,14 +89,6 @@ defineCustomElement('ic-panel', (templateText) =>
     node.className = className;
     tr.appendChild(node);
     return node
-  }
-
-  set noOfItems(value){
-    this._noOfItems = value;
-  }
-
-  get noOfItems(){
-    return this._noOfItems;
   }
 
   handleMapClick(e){

@@ -5,9 +5,10 @@ import {V8CustomElement, defineCustomElement} from './helper.mjs';
 
 defineCustomElement('stats-panel', (templateText) =>
  class StatsPanel extends V8CustomElement {
+  #timeline;
+  #transitions;
   constructor() {
     super(templateText);
-    this.timeline_ = undefined;
   }
 
   get stats() {
@@ -15,19 +16,20 @@ defineCustomElement('stats-panel', (templateText) =>
   }
 
   set timeline(value){
-    this.timeline_ = value;
+    //TODO(zcankara) Trigger update
+    this.#timeline = value;
   }
 
   get timeline(){
-    return this.timeline_;
+    return this.#timeline;
   }
-  //TODO(zcankare) Depreciate timeline
+
   set transitions(value){
-    this.transitions_ = value;
+    this.#transitions = value;
   }
 
   get transitions(){
-    return this.transitions_;
+    return this.#transitions;
   }
 
   filterUniqueTransitions(filter) {
@@ -47,7 +49,7 @@ defineCustomElement('stats-panel', (templateText) =>
   }
 
   updateGeneralStats() {
-    console.assert(this.timeline_ !== undefined, "Timeline not set yet!");
+    console.assert(this.#timeline !== undefined, "Timeline not set yet!");
     let pairs = [
       ['Total', null, e => true],
       ['Transitions', 'primary', e => e.edge && e.edge.isTransition()],
