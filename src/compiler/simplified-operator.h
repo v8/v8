@@ -13,7 +13,6 @@
 #include "src/common/globals.h"
 #include "src/compiler/feedback-source.h"
 #include "src/compiler/node-properties.h"
-#include "src/compiler/node.h"
 #include "src/compiler/operator.h"
 #include "src/compiler/types.h"
 #include "src/compiler/write-barrier-kind.h"
@@ -793,6 +792,15 @@ class V8_EXPORT_PRIVATE SimplifiedOperatorBuilder final
 
   const Operator* TypeOf();
 
+  // Adds the given delta to the current feedback vector's interrupt budget,
+  // and calls the runtime profiler in case the budget is exhausted.  A note on
+  // the delta parameter: the interrupt budget mechanism originates in the
+  // interpreter and thus still refers to 'bytecodes' even though we are
+  // generating native code. The interrupt budget essentially corresponds to
+  // the number of bytecodes we can execute before calling the profiler. The
+  // delta parameter represents the executed bytecodes since the last update.
+  const Operator* UpdateInterruptBudget(int delta);
+
   const Operator* ToBoolean();
 
   const Operator* StringConcat();
@@ -1036,6 +1044,39 @@ class V8_EXPORT_PRIVATE SimplifiedOperatorBuilder final
   DISALLOW_COPY_AND_ASSIGN(SimplifiedOperatorBuilder);
 };
 
+// Node wrappers.
+
+// TODO(jgruber): Consider merging with JSNodeWrapperBase.
+class SimplifiedNodeWrapperBase : public NodeWrapper {
+ public:
+  explicit constexpr SimplifiedNodeWrapperBase(Node* node)
+      : NodeWrapper(node) {}
+
+  // Valid iff this node has a context input.
+  TNode<Object> context() const {
+    // Could be a Context or NoContextConstant.
+    return TNode<Object>::UncheckedCast(
+        NodeProperties::GetContextInput(node()));
+  }
+
+  // Valid iff this node has exactly one effect input.
+  Effect effect() const {
+    DCHECK_EQ(node()->op()->EffectInputCount(), 1);
+    return Effect{NodeProperties::GetEffectInput(node())};
+  }
+
+  // Valid iff this node has exactly one control input.
+  Control control() const {
+    DCHECK_EQ(node()->op()->ControlInputCount(), 1);
+    return Control{NodeProperties::GetControlInput(node())};
+  }
+
+  // Valid iff this node has a frame state input.
+  FrameState frame_state() const {
+    return FrameState{NodeProperties::GetFrameStateInput(node())};
+  }
+};
+
 #define DEFINE_INPUT_ACCESSORS(Name, name, TheIndex, Type) \
   static constexpr int Name##Index() { return TheIndex; }  \
   TNode<Type> name() const {                               \
@@ -1043,9 +1084,10 @@ class V8_EXPORT_PRIVATE SimplifiedOperatorBuilder final
         NodeProperties::GetValueInput(node(), TheIndex));  \
   }
 
-class FastApiCallNode final : public NodeWrapper {
+class FastApiCallNode final : public SimplifiedNodeWrapperBase {
  public:
-  explicit constexpr FastApiCallNode(Node* node) : NodeWrapper(node) {
+  explicit constexpr FastApiCallNode(Node* node)
+      : SimplifiedNodeWrapperBase(node) {
     CONSTEXPR_DCHECK(node->opcode() == IrOpcode::kFastApiCall);
   }
 
@@ -1112,6 +1154,20 @@ class FastApiCallNode final : public NodeWrapper {
     return TNode<Object>::UncheckedCast(
         NodeProperties::GetValueInput(node(), SlowCallArgumentIndex(i)));
   }
+};
+
+class UpdateInterruptBudgetNode final : public SimplifiedNodeWrapperBase {
+ public:
+  explicit constexpr UpdateInterruptBudgetNode(Node* node)
+      : SimplifiedNodeWrapperBase(node) {
+    CONSTEXPR_DCHECK(node->opcode() == IrOpcode::kUpdateInterruptBudget);
+  }
+
+  int delta() const { return OpParameter<int>(node()->op()); }
+
+#define INPUTS(V) V(FeedbackCell, feedback_cell, 0, FeedbackCell)
+  INPUTS(DEFINE_INPUT_ACCESSORS)
+#undef INPUTS
 };
 
 #undef DEFINE_INPUT_ACCESSORS

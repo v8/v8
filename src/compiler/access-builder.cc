@@ -1218,6 +1218,18 @@ FieldAccess AccessBuilder::ForFeedbackCellValue() {
 }
 
 // static
+FieldAccess AccessBuilder::ForFeedbackCellInterruptBudget() {
+  FieldAccess access = {kTaggedBase,
+                        FeedbackCell::kInterruptBudgetOffset,
+                        Handle<Name>(),
+                        MaybeHandle<Map>(),
+                        TypeCache::Get()->kInt32,
+                        MachineType::Int32(),
+                        kNoWriteBarrier};
+  return access;
+}
+
+// static
 FieldAccess AccessBuilder::ForFeedbackVectorClosureFeedbackCellArray() {
   FieldAccess access = {
       kTaggedBase,      FeedbackVector::kClosureFeedbackCellArrayOffset,

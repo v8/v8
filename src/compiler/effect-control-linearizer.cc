@@ -179,6 +179,7 @@ class EffectControlLinearizer {
   void LowerCheckEqualsInternalizedString(Node* node, Node* frame_state);
   void LowerCheckEqualsSymbol(Node* node, Node* frame_state);
   Node* LowerTypeOf(Node* node);
+  Node* LowerUpdateInterruptBudget(Node* node);
   Node* LowerToBoolean(Node* node);
   Node* LowerPlainPrimitiveToNumber(Node* node);
   Node* LowerPlainPrimitiveToWord32(Node* node);
@@ -1116,6 +1117,9 @@ bool EffectControlLinearizer::TryWireInStateEffect(Node* node,
       break;
     case IrOpcode::kTypeOf:
       result = LowerTypeOf(node);
+      break;
+    case IrOpcode::kUpdateInterruptBudget:
+      result = LowerUpdateInterruptBudget(node);
       break;
     case IrOpcode::kNewDoubleElements:
       result = LowerNewDoubleElements(node);
@@ -3578,6 +3582,30 @@ Node* EffectControlLinearizer::LowerTypeOf(Node* node) {
       callable.descriptor().GetStackParameterCount(), flags, properties);
   return __ Call(call_descriptor, __ HeapConstant(callable.code()), obj,
                  __ NoContextConstant());
+}
+
+Node* EffectControlLinearizer::LowerUpdateInterruptBudget(Node* node) {
+  UpdateInterruptBudgetNode n(node);
+  TNode<FeedbackCell> feedback_cell = n.feedback_cell();
+  TNode<Int32T> budget = __ LoadField<Int32T>(
+      AccessBuilder::ForFeedbackCellInterruptBudget(), feedback_cell);
+  Node* new_budget = __ Int32Add(budget, __ Int32Constant(n.delta()));
+  if (n.delta() < 0) {
+    auto next = __ MakeLabel();
+    auto if_budget_exhausted = __ MakeDeferredLabel();
+    __ Branch(__ Int32LessThan(new_budget, __ Int32Constant(0)),
+              &if_budget_exhausted, &next);
+
+    __ Bind(&if_budget_exhausted);
+    CallBuiltin(Builtins::kBytecodeBudgetInterruptFromCode,
+                node->op()->properties(), feedback_cell);
+    __ Goto(&next);
+
+    __ Bind(&next);
+  }
+  __ StoreField(AccessBuilder::ForFeedbackCellInterruptBudget(), feedback_cell,
+                new_budget);
+  return nullptr;
 }
 
 Node* EffectControlLinearizer::LowerToBoolean(Node* node) {

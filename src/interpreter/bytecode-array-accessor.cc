@@ -273,20 +273,24 @@ Handle<Object> BytecodeArrayAccessor::GetConstantForIndexOperand(
   return GetConstantAtIndex(GetIndexOperand(operand_index), isolate);
 }
 
-int BytecodeArrayAccessor::GetJumpTargetOffset() const {
+int BytecodeArrayAccessor::GetRelativeJumpTargetOffset() const {
   Bytecode bytecode = current_bytecode();
   if (interpreter::Bytecodes::IsJumpImmediate(bytecode)) {
     int relative_offset = GetUnsignedImmediateOperand(0);
     if (bytecode == Bytecode::kJumpLoop) {
       relative_offset = -relative_offset;
     }
-    return GetAbsoluteOffset(relative_offset);
+    return relative_offset;
   } else if (interpreter::Bytecodes::IsJumpConstant(bytecode)) {
     Smi smi = GetConstantAtIndexAsSmi(GetIndexOperand(0));
-    return GetAbsoluteOffset(smi.value());
+    return smi.value();
   } else {
     UNREACHABLE();
   }
+}
+
+int BytecodeArrayAccessor::GetJumpTargetOffset() const {
+  return GetAbsoluteOffset(GetRelativeJumpTargetOffset());
 }
 
 JumpTableTargetOffsets BytecodeArrayAccessor::GetJumpTableTargetOffsets()

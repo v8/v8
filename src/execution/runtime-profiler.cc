@@ -203,7 +203,7 @@ OptimizationReason RuntimeProfiler::ShouldOptimize(JSFunction function,
   return OptimizationReason::kDoNotOptimize;
 }
 
-void RuntimeProfiler::MarkCandidatesForOptimization() {
+void RuntimeProfiler::MarkCandidatesForOptimizationFromBytecode() {
   HandleScope scope(isolate_);
 
   if (!isolate_->use_optimizer()) return;
@@ -238,6 +238,14 @@ void RuntimeProfiler::MarkCandidatesForOptimization() {
     }
   }
   any_ic_changed_ = false;
+}
+
+void RuntimeProfiler::MarkCandidatesForOptimizationFromCode() {
+  if (FLAG_trace_turbo_nci) {
+    StdoutStream os;
+    os << "NCI tier-up: Marking candidates for optimization" << std::endl;
+  }
+  // TODO(jgruber,v8:8888): Implement.
 }
 
 }  // namespace internal

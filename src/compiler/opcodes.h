@@ -389,105 +389,106 @@
 #define SIMPLIFIED_SPECULATIVE_NUMBER_UNOP_LIST(V) V(SpeculativeToNumber)
 
 #define SIMPLIFIED_OTHER_OP_LIST(V)     \
-  V(PlainPrimitiveToNumber)             \
-  V(PlainPrimitiveToWord32)             \
-  V(PlainPrimitiveToFloat64)            \
+  V(Allocate)                           \
+  V(AllocateRaw)                        \
+  V(ArgumentsFrame)                     \
+  V(ArgumentsLength)                    \
+  V(AssertType)                         \
   V(BooleanNot)                         \
-  V(StringConcat)                       \
-  V(StringToNumber)                     \
-  V(StringCharCodeAt)                   \
-  V(StringCodePointAt)                  \
-  V(StringFromSingleCharCode)           \
-  V(StringFromSingleCodePoint)          \
-  V(StringFromCodePointAt)              \
-  V(StringIndexOf)                      \
-  V(StringLength)                       \
-  V(StringToLowerCaseIntl)              \
-  V(StringToUpperCaseIntl)              \
-  V(StringSubstring)                    \
   V(CheckBounds)                        \
-  V(CheckIf)                            \
-  V(CheckMaps)                          \
-  V(DynamicCheckMaps)                   \
-  V(CheckNumber)                        \
-  V(CheckInternalizedString)            \
-  V(CheckReceiver)                      \
-  V(CheckReceiverOrNullOrUndefined)     \
-  V(CheckString)                        \
-  V(CheckSymbol)                        \
-  V(CheckSmi)                           \
-  V(CheckHeapObject)                    \
-  V(CheckFloat64Hole)                   \
   V(CheckClosure)                       \
-  V(CheckNotTaggedHole)                 \
   V(CheckEqualsInternalizedString)      \
   V(CheckEqualsSymbol)                  \
+  V(CheckFloat64Hole)                   \
+  V(CheckHeapObject)                    \
+  V(CheckIf)                            \
+  V(CheckInternalizedString)            \
+  V(CheckMaps)                          \
+  V(CheckNotTaggedHole)                 \
+  V(CheckNumber)                        \
+  V(CheckReceiver)                      \
+  V(CheckReceiverOrNullOrUndefined)     \
+  V(CheckSmi)                           \
+  V(CheckString)                        \
+  V(CheckSymbol)                        \
   V(CompareMaps)                        \
   V(ConvertReceiver)                    \
   V(ConvertTaggedHoleToUndefined)       \
-  V(TypeOf)                             \
-  V(Allocate)                           \
-  V(AllocateRaw)                        \
-  V(LoadFieldByIndex)                   \
-  V(LoadField)                          \
-  V(LoadElement)                        \
-  V(LoadMessage)                        \
-  V(LoadTypedElement)                   \
-  V(LoadFromObject)                     \
+  V(DateNow)                            \
+  V(DelayedStringConstant)              \
+  V(DynamicCheckMaps)                   \
+  V(EnsureWritableFastElements)         \
+  V(FastApiCall)                        \
+  V(FindOrderedHashMapEntry)            \
+  V(FindOrderedHashMapEntryForInt32Key) \
   V(LoadDataViewElement)                \
+  V(LoadElement)                        \
+  V(LoadField)                          \
+  V(LoadFieldByIndex)                   \
+  V(LoadFromObject)                     \
+  V(LoadMessage)                        \
   V(LoadStackArgument)                  \
-  V(StoreField)                         \
-  V(StoreElement)                       \
-  V(StoreMessage)                       \
-  V(StoreTypedElement)                  \
-  V(StoreToObject)                      \
-  V(StoreDataViewElement)               \
-  V(StoreSignedSmallElement)            \
-  V(TransitionAndStoreElement)          \
-  V(TransitionAndStoreNumberElement)    \
-  V(TransitionAndStoreNonNumberElement) \
-  V(ToBoolean)                          \
-  V(NumberIsFloat64Hole)                \
+  V(LoadTypedElement)                   \
+  V(MaybeGrowFastElements)              \
+  V(NewArgumentsElements)               \
+  V(NewConsString)                      \
+  V(NewDoubleElements)                  \
+  V(NewSmiOrObjectElements)             \
   V(NumberIsFinite)                     \
-  V(ObjectIsFiniteNumber)               \
+  V(NumberIsFloat64Hole)                \
   V(NumberIsInteger)                    \
-  V(ObjectIsSafeInteger)                \
+  V(NumberIsMinusZero)                  \
+  V(NumberIsNaN)                        \
   V(NumberIsSafeInteger)                \
-  V(ObjectIsInteger)                    \
   V(ObjectIsArrayBufferView)            \
   V(ObjectIsBigInt)                     \
   V(ObjectIsCallable)                   \
   V(ObjectIsConstructor)                \
   V(ObjectIsDetectableCallable)         \
+  V(ObjectIsFiniteNumber)               \
+  V(ObjectIsInteger)                    \
   V(ObjectIsMinusZero)                  \
-  V(NumberIsMinusZero)                  \
   V(ObjectIsNaN)                        \
-  V(NumberIsNaN)                        \
   V(ObjectIsNonCallable)                \
   V(ObjectIsNumber)                     \
   V(ObjectIsReceiver)                   \
+  V(ObjectIsSafeInteger)                \
   V(ObjectIsSmi)                        \
   V(ObjectIsString)                     \
   V(ObjectIsSymbol)                     \
   V(ObjectIsUndetectable)               \
-  V(ArgumentsFrame)                     \
-  V(ArgumentsLength)                    \
-  V(RestLength)                         \
-  V(NewDoubleElements)                  \
-  V(NewSmiOrObjectElements)             \
-  V(NewArgumentsElements)               \
-  V(NewConsString)                      \
-  V(DelayedStringConstant)              \
-  V(EnsureWritableFastElements)         \
-  V(MaybeGrowFastElements)              \
-  V(TransitionElementsKind)             \
-  V(FindOrderedHashMapEntry)            \
-  V(FindOrderedHashMapEntryForInt32Key) \
+  V(PlainPrimitiveToFloat64)            \
+  V(PlainPrimitiveToNumber)             \
+  V(PlainPrimitiveToWord32)             \
   V(PoisonIndex)                        \
+  V(RestLength)                         \
   V(RuntimeAbort)                       \
-  V(AssertType)                         \
-  V(DateNow)                            \
-  V(FastApiCall)
+  V(StoreDataViewElement)               \
+  V(StoreElement)                       \
+  V(StoreField)                         \
+  V(StoreMessage)                       \
+  V(StoreSignedSmallElement)            \
+  V(StoreToObject)                      \
+  V(StoreTypedElement)                  \
+  V(StringCharCodeAt)                   \
+  V(StringCodePointAt)                  \
+  V(StringConcat)                       \
+  V(StringFromCodePointAt)              \
+  V(StringFromSingleCharCode)           \
+  V(StringFromSingleCodePoint)          \
+  V(StringIndexOf)                      \
+  V(StringLength)                       \
+  V(StringSubstring)                    \
+  V(StringToLowerCaseIntl)              \
+  V(StringToNumber)                     \
+  V(StringToUpperCaseIntl)              \
+  V(ToBoolean)                          \
+  V(TransitionAndStoreElement)          \
+  V(TransitionAndStoreNonNumberElement) \
+  V(TransitionAndStoreNumberElement)    \
+  V(TransitionElementsKind)             \
+  V(TypeOf)                             \
+  V(UpdateInterruptBudget)
 
 #define SIMPLIFIED_SPECULATIVE_BIGINT_BINOP_LIST(V) \
   V(SpeculativeBigIntAdd)                           \

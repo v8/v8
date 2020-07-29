@@ -220,7 +220,8 @@ namespace internal {
   F(GetAndResetRuntimeCallStats, -1 /* <= 2 */, 1)   \
   F(GetTemplateObject, 3, 1)                         \
   F(IncrementUseCounter, 1, 1)                       \
-  F(BytecodeBudgetInterrupt, 1, 1)                   \
+  F(BytecodeBudgetInterruptFromBytecode, 1, 1)       \
+  F(BytecodeBudgetInterruptFromCode, 1, 1)           \
   F(NewError, 2, 1)                                  \
   F(NewReferenceError, 2, 1)                         \
   F(NewSyntaxError, 2, 1)                            \

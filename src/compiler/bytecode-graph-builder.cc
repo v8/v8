@@ -80,6 +80,13 @@ class BytecodeGraphBuilder {
     return feedback_vector_node_;
   }
 
+  void CreateFeedbackCellNode();
+  Node* BuildLoadFeedbackCell();
+  Node* feedback_cell_node() const {
+    DCHECK_NOT_NULL(feedback_cell_node_);
+    return feedback_cell_node_;
+  }
+
   // Same as above for the feedback vector node.
   void CreateNativeContextNode();
   Node* BuildLoadNativeContext();
@@ -275,6 +282,8 @@ class BytecodeGraphBuilder {
   void BuildJumpIfNotHole();
   void BuildJumpIfJSReceiver();
 
+  void BuildUpdateInterruptBudget(int delta);
+
   void BuildSwitchOnSmi(Node* condition);
   void BuildSwitchOnGeneratorState(
       const ZoneVector<ResumeJumpTarget>& resume_jump_targets,
@@ -418,6 +427,7 @@ class BytecodeGraphBuilder {
   Node** input_buffer_;
 
   const bool native_context_independent_;
+  Node* feedback_cell_node_;
   Node* feedback_vector_node_;
   Node* native_context_node_;
 
@@ -989,6 +999,7 @@ BytecodeGraphBuilder::BytecodeGraphBuilder(
       input_buffer_(nullptr),
       native_context_independent_(
           flags & BytecodeGraphBuilderFlag::kNativeContextIndependent),
+      feedback_cell_node_(nullptr),
       feedback_vector_node_(nullptr),
       native_context_node_(nullptr),
       needs_eager_checkpoint_(true),
@@ -1006,6 +1017,29 @@ Node* BytecodeGraphBuilder::GetFunctionClosure() {
     function_closure_.set(node);
   }
   return function_closure_.get();
+}
+
+void BytecodeGraphBuilder::CreateFeedbackCellNode() {
+  DCHECK_NULL(feedback_cell_node_);
+  if (native_context_independent()) {
+    feedback_cell_node_ = BuildLoadFeedbackCell();
+  }
+}
+
+Node* BytecodeGraphBuilder::BuildLoadFeedbackCell() {
+  DCHECK(native_context_independent());
+  DCHECK_NULL(feedback_cell_node_);
+
+  Environment* env = environment();
+  Node* control = env->GetControlDependency();
+  Node* effect = env->GetEffectDependency();
+
+  Node* feedback_cell = effect = graph()->NewNode(
+      simplified()->LoadField(AccessBuilder::ForJSFunctionFeedbackCell()),
+      GetFunctionClosure(), effect, control);
+
+  env->UpdateEffectDependency(effect);
+  return feedback_cell;
 }
 
 void BytecodeGraphBuilder::CreateFeedbackVectorNode() {
@@ -1027,12 +1061,9 @@ Node* BytecodeGraphBuilder::BuildLoadFeedbackVector() {
   Node* control = env->GetControlDependency();
   Node* effect = env->GetEffectDependency();
 
-  Node* feedback_cell = effect = graph()->NewNode(
-      simplified()->LoadField(AccessBuilder::ForJSFunctionFeedbackCell()),
-      GetFunctionClosure(), effect, control);
   Node* vector = effect = graph()->NewNode(
       simplified()->LoadField(AccessBuilder::ForFeedbackCellValue()),
-      feedback_cell, effect, control);
+      feedback_cell_node(), effect, control);
 
   env->UpdateEffectDependency(effect);
   return vector;
@@ -1119,6 +1150,7 @@ void BytecodeGraphBuilder::CreateGraph() {
                   graph()->start());
   set_environment(&env);
 
+  CreateFeedbackCellNode();
   CreateFeedbackVectorNode();
   CreateNativeContextNode();
   VisitBytecodes();
@@ -3448,6 +3480,9 @@ void BytecodeGraphBuilder::VisitSetPendingMessage() {
 
 void BytecodeGraphBuilder::BuildReturn(const BytecodeLivenessState* liveness) {
   BuildLoopExitsForFunctionExit(liveness);
+  // Note: Negated offset since a return acts like a backwards jump, and should
+  // decrement the budget.
+  BuildUpdateInterruptBudget(-bytecode_iterator().current_offset());
   Node* pop_node = jsgraph()->ZeroConstant();
   Node* control =
       NewNode(common()->Return(), pop_node, environment()->LookupAccumulator());
@@ -3861,6 +3896,7 @@ void BytecodeGraphBuilder::BuildLoopExitsForFunctionExit(
 }
 
 void BytecodeGraphBuilder::BuildJump() {
+  BuildUpdateInterruptBudget(bytecode_iterator().GetRelativeJumpTargetOffset());
   MergeIntoSuccessorEnvironment(bytecode_iterator().GetJumpTargetOffset());
 }
 
@@ -3869,6 +3905,8 @@ void BytecodeGraphBuilder::BuildJumpIf(Node* condition) {
   {
     SubEnvironment sub_environment(this);
     NewIfTrue();
+    BuildUpdateInterruptBudget(
+        bytecode_iterator().GetRelativeJumpTargetOffset());
     MergeIntoSuccessorEnvironment(bytecode_iterator().GetJumpTargetOffset());
   }
   NewIfFalse();
@@ -3879,6 +3917,8 @@ void BytecodeGraphBuilder::BuildJumpIfNot(Node* condition) {
   {
     SubEnvironment sub_environment(this);
     NewIfFalse();
+    BuildUpdateInterruptBudget(
+        bytecode_iterator().GetRelativeJumpTargetOffset());
     MergeIntoSuccessorEnvironment(bytecode_iterator().GetJumpTargetOffset());
   }
   NewIfTrue();
@@ -3904,6 +3944,8 @@ void BytecodeGraphBuilder::BuildJumpIfFalse() {
   {
     SubEnvironment sub_environment(this);
     NewIfFalse();
+    BuildUpdateInterruptBudget(
+        bytecode_iterator().GetRelativeJumpTargetOffset());
     environment()->BindAccumulator(jsgraph()->FalseConstant());
     MergeIntoSuccessorEnvironment(bytecode_iterator().GetJumpTargetOffset());
   }
@@ -3918,6 +3960,8 @@ void BytecodeGraphBuilder::BuildJumpIfTrue() {
     SubEnvironment sub_environment(this);
     NewIfTrue();
     environment()->BindAccumulator(jsgraph()->TrueConstant());
+    BuildUpdateInterruptBudget(
+        bytecode_iterator().GetRelativeJumpTargetOffset());
     MergeIntoSuccessorEnvironment(bytecode_iterator().GetJumpTargetOffset());
   }
   NewIfFalse();
@@ -3947,6 +3991,16 @@ void BytecodeGraphBuilder::BuildJumpIfJSReceiver() {
   Node* accumulator = environment()->LookupAccumulator();
   Node* condition = NewNode(simplified()->ObjectIsReceiver(), accumulator);
   BuildJumpIf(condition);
+}
+
+void BytecodeGraphBuilder::BuildUpdateInterruptBudget(int delta) {
+  if (native_context_independent()) {
+    // Keep uses of this in sync with Ignition's UpdateInterruptBudget.
+    int delta_with_current_bytecode =
+        delta - bytecode_iterator().current_bytecode_size();
+    NewNode(simplified()->UpdateInterruptBudget(delta_with_current_bytecode),
+            feedback_cell_node());
+  }
 }
 
 JSTypeHintLowering::LoweringResult

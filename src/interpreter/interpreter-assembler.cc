@@ -1048,7 +1048,8 @@ void InterpreterAssembler::UpdateInterruptBudget(TNode<Int32T> weight,
     Branch(condition, &ok, &interrupt_check);
 
     BIND(&interrupt_check);
-    CallRuntime(Runtime::kBytecodeBudgetInterrupt, GetContext(), function);
+    CallRuntime(Runtime::kBytecodeBudgetInterruptFromBytecode, GetContext(),
+                function);
     Goto(&done);
 
     BIND(&ok);

@@ -2825,6 +2825,12 @@ class RepresentationSelector {
         return VisitUnop<T>(node, UseInfo::AnyTagged(),
                             MachineRepresentation::kTaggedPointer);
       }
+      case IrOpcode::kUpdateInterruptBudget: {
+        ProcessInput<T>(node, 0, UseInfo::AnyTagged());
+        ProcessRemainingInputs<T>(node, 1);
+        SetOutput<T>(node, MachineRepresentation::kNone);
+        return;
+      }
       case IrOpcode::kNewConsString: {
         ProcessInput<T>(node, 0, UseInfo::TruncatingWord32());  // length
         ProcessInput<T>(node, 1, UseInfo::AnyTagged());         // first

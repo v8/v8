@@ -1309,6 +1309,12 @@ const Operator* SimplifiedOperatorBuilder::BigIntAsUintN(int bits) {
                                      "BigIntAsUintN", 1, 0, 0, 1, 0, 0, bits);
 }
 
+const Operator* SimplifiedOperatorBuilder::UpdateInterruptBudget(int delta) {
+  return zone()->New<Operator1<int>>(
+      IrOpcode::kUpdateInterruptBudget, Operator::kNoThrow | Operator::kNoDeopt,
+      "UpdateInterruptBudget", 1, 1, 1, 0, 1, 0, delta);
+}
+
 const Operator* SimplifiedOperatorBuilder::AssertType(Type type) {
   DCHECK(type.IsRange());
   return zone()->New<Operator1<Type>>(IrOpcode::kAssertType,
