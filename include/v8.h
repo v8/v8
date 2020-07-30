@@ -916,8 +916,8 @@ class TracedReferenceBase {
   /**
    * Get this reference in a thread-safe way
    */
-  T* GetSlotThreadSafe() {
-    return reinterpret_cast<std::atomic<T*>*>(&val_)->load(
+  const T* GetSlotThreadSafe() const {
+    return reinterpret_cast<std::atomic<const T*>*>(&val_)->load(
         std::memory_order_relaxed);
   }
 
@@ -1178,7 +1178,9 @@ class TracedReference : public TracedReferenceBase<T> {
    * Returns true if this TracedReference is empty, i.e., has not been
    * assigned an object. This version of IsEmpty is thread-safe.
    */
-  bool IsEmptyThreadSafe() const { return this->GetSlotThreadSafe(); }
+  bool IsEmptyThreadSafe() const {
+    return this->GetSlotThreadSafe() == nullptr;
+  }
 };
 
  /**
