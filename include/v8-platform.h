@@ -391,6 +391,69 @@ class PageAllocator {
    * memory area brings the memory transparently back.
    */
   virtual bool DiscardSystemPages(void* address, size_t size) { return true; }
+
+  /**
+   * INTERNAL ONLY: This interface has not been stabilised and may change
+   * without notice from one release to another without being deprecated first.
+   */
+  class SharedMemoryMapping {
+   public:
+    // Implementations are expected to free the shared memory mapping in the
+    // destructor.
+    virtual ~SharedMemoryMapping() = default;
+    virtual void* GetMemory() const = 0;
+  };
+
+  /**
+   * INTERNAL ONLY: This interface has not been stabilised and may change
+   * without notice from one release to another without being deprecated first.
+   */
+  class SharedMemory {
+   public:
+    // Implementations are expected to free the shared memory in the destructor.
+    virtual ~SharedMemory() = default;
+    virtual std::unique_ptr<SharedMemoryMapping> RemapTo(
+        void* new_address) const = 0;
+    virtual void* GetMemory() const = 0;
+    virtual size_t GetSize() const = 0;
+  };
+
+  /**
+   * INTERNAL ONLY: This interface has not been stabilised and may change
+   * without notice from one release to another without being deprecated first.
+   *
+   * Reserve pages at a fixed address returning whether the reservation is
+   * possible. The reserved memory is detached from the PageAllocator and so
+   * should not be freed by it. It's intended for use with
+   * SharedMemory::RemapTo, where ~SharedMemoryMapping would free the memory.
+   */
+  virtual bool ReserveForSharedMemoryMapping(void* address, size_t size) {
+    return false;
+  }
+
+  /**
+   * INTERNAL ONLY: This interface has not been stabilised and may change
+   * without notice from one release to another without being deprecated first.
+   *
+   * Allocates shared memory pages. Not all PageAllocators need support this and
+   * so this method need not be overridden.
+   * Allocates a new read-only shared memory region of size |length| and copies
+   * the memory at |original_address| into it.
+   */
+  virtual std::unique_ptr<SharedMemory> AllocateSharedPages(
+      size_t length, const void* original_address) {
+    return {};
+  }
+
+  /**
+   * INTERNAL ONLY: This interface has not been stabilised and may change
+   * without notice from one release to another without being deprecated first.
+   *
+   * If not overridden and changed to return true, V8 will not attempt to call
+   * AllocateSharedPages or RemapSharedPages. If overridden, AllocateSharedPages
+   * and RemapSharedPages must also be overridden.
+   */
+  virtual bool CanAllocateSharedPages() { return false; }
 };
 
 /**
