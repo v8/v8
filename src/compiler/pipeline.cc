@@ -698,6 +698,93 @@ class PipelineImpl final {
 
 namespace {
 
+class SourcePositionWrapper final : public Reducer {
+ public:
+  SourcePositionWrapper(Reducer* reducer, SourcePositionTable* table)
+      : reducer_(reducer), table_(table) {}
+  ~SourcePositionWrapper() final = default;
+
+  const char* reducer_name() const override { return reducer_->reducer_name(); }
+
+  Reduction Reduce(Node* node) final {
+    SourcePosition const pos = table_->GetSourcePosition(node);
+    SourcePositionTable::Scope position(table_, pos);
+    return reducer_->Reduce(node);
+  }
+
+  void Finalize() final { reducer_->Finalize(); }
+
+ private:
+  Reducer* const reducer_;
+  SourcePositionTable* const table_;
+
+  DISALLOW_COPY_AND_ASSIGN(SourcePositionWrapper);
+};
+
+class NodeOriginsWrapper final : public Reducer {
+ public:
+  NodeOriginsWrapper(Reducer* reducer, NodeOriginTable* table)
+      : reducer_(reducer), table_(table) {}
+  ~NodeOriginsWrapper() final = default;
+
+  const char* reducer_name() const override { return reducer_->reducer_name(); }
+
+  Reduction Reduce(Node* node) final {
+    NodeOriginTable::Scope position(table_, reducer_name(), node);
+    return reducer_->Reduce(node);
+  }
+
+  void Finalize() final { reducer_->Finalize(); }
+
+ private:
+  Reducer* const reducer_;
+  NodeOriginTable* const table_;
+
+  DISALLOW_COPY_AND_ASSIGN(NodeOriginsWrapper);
+};
+
+class PipelineRunScope {
+ public:
+  PipelineRunScope(
+      PipelineData* data, const char* phase_name,
+      RuntimeCallCounterId runtime_call_counter_id,
+      RuntimeCallStats::CounterMode counter_mode = RuntimeCallStats::kExact)
+      : phase_scope_(data->pipeline_statistics(), phase_name),
+        zone_scope_(data->zone_stats(), phase_name),
+        origin_scope_(data->node_origins(), phase_name),
+        runtime_call_timer_scope(data->runtime_call_stats(),
+                                 runtime_call_counter_id, counter_mode) {
+    DCHECK_NOT_NULL(phase_name);
+  }
+
+  Zone* zone() { return zone_scope_.zone(); }
+
+ private:
+  PhaseScope phase_scope_;
+  ZoneStats::Scope zone_scope_;
+  NodeOriginTable::PhaseScope origin_scope_;
+  RuntimeCallTimerScope runtime_call_timer_scope;
+};
+
+// LocalHeapScope encapsulates the liveness of the brokers's LocalHeap.
+class LocalHeapScope {
+ public:
+  explicit LocalHeapScope(JSHeapBroker* broker, OptimizedCompilationInfo* info)
+      : broker_(broker), tick_counter_(&info->tick_counter()) {
+    broker_->InitializeLocalHeap();
+    tick_counter_->AttachLocalHeap(broker_->local_heap());
+  }
+
+  ~LocalHeapScope() {
+    tick_counter_->DetachLocalHeap();
+    broker_->TearDownLocalHeap();
+  }
+
+ private:
+  JSHeapBroker* broker_;
+  TickCounter* tick_counter_;
+};
+
 void PrintFunctionSource(OptimizedCompilationInfo* info, Isolate* isolate,
                          int source_id, Handle<SharedFunctionInfo> shared) {
   if (!shared->script().IsUndefined(isolate)) {
@@ -843,51 +930,6 @@ void TraceScheduleAndVerify(OptimizedCompilationInfo* info, PipelineData* data,
   if (FLAG_turbo_verify) ScheduleVerifier::Run(schedule);
 }
 
-class SourcePositionWrapper final : public Reducer {
- public:
-  SourcePositionWrapper(Reducer* reducer, SourcePositionTable* table)
-      : reducer_(reducer), table_(table) {}
-  ~SourcePositionWrapper() final = default;
-
-  const char* reducer_name() const override { return reducer_->reducer_name(); }
-
-  Reduction Reduce(Node* node) final {
-    SourcePosition const pos = table_->GetSourcePosition(node);
-    SourcePositionTable::Scope position(table_, pos);
-    return reducer_->Reduce(node);
-  }
-
-  void Finalize() final { reducer_->Finalize(); }
-
- private:
-  Reducer* const reducer_;
-  SourcePositionTable* const table_;
-
-  DISALLOW_COPY_AND_ASSIGN(SourcePositionWrapper);
-};
-
-class NodeOriginsWrapper final : public Reducer {
- public:
-  NodeOriginsWrapper(Reducer* reducer, NodeOriginTable* table)
-      : reducer_(reducer), table_(table) {}
-  ~NodeOriginsWrapper() final = default;
-
-  const char* reducer_name() const override { return reducer_->reducer_name(); }
-
-  Reduction Reduce(Node* node) final {
-    NodeOriginTable::Scope position(table_, reducer_name(), node);
-    return reducer_->Reduce(node);
-  }
-
-  void Finalize() final { reducer_->Finalize(); }
-
- private:
-  Reducer* const reducer_;
-  NodeOriginTable* const table_;
-
-  DISALLOW_COPY_AND_ASSIGN(NodeOriginsWrapper);
-};
-
 void AddReducer(PipelineData* data, GraphReducer* graph_reducer,
                 Reducer* reducer) {
   if (data->info()->source_positions()) {
@@ -905,48 +947,6 @@ void AddReducer(PipelineData* data, GraphReducer* graph_reducer,
 
   graph_reducer->AddReducer(reducer);
 }
-
-class PipelineRunScope {
- public:
-  PipelineRunScope(
-      PipelineData* data, const char* phase_name,
-      RuntimeCallCounterId runtime_call_counter_id,
-      RuntimeCallStats::CounterMode counter_mode = RuntimeCallStats::kExact)
-      : phase_scope_(data->pipeline_statistics(), phase_name),
-        zone_scope_(data->zone_stats(), phase_name),
-        origin_scope_(data->node_origins(), phase_name),
-        runtime_call_timer_scope(data->runtime_call_stats(),
-                                 runtime_call_counter_id, counter_mode) {
-    DCHECK_NOT_NULL(phase_name);
-  }
-
-  Zone* zone() { return zone_scope_.zone(); }
-
- private:
-  PhaseScope phase_scope_;
-  ZoneStats::Scope zone_scope_;
-  NodeOriginTable::PhaseScope origin_scope_;
-  RuntimeCallTimerScope runtime_call_timer_scope;
-};
-
-// LocalHeapScope encapsulates the liveness of the brokers's LocalHeap.
-class LocalHeapScope {
- public:
-  explicit LocalHeapScope(JSHeapBroker* broker, OptimizedCompilationInfo* info)
-      : broker_(broker), tick_counter_(&info->tick_counter()) {
-    broker_->InitializeLocalHeap();
-    tick_counter_->AttachLocalHeap(broker_->local_heap());
-  }
-
-  ~LocalHeapScope() {
-    tick_counter_->DetachLocalHeap();
-    broker_->TearDownLocalHeap();
-  }
-
- private:
-  JSHeapBroker* broker_;
-  TickCounter* tick_counter_;
-};
 
 PipelineStatistics* CreatePipelineStatistics(Handle<Script> script,
                                              OptimizedCompilationInfo* info,
