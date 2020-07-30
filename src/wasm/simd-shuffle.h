@@ -72,6 +72,14 @@ class V8_EXPORT_PRIVATE SimdShuffle {
   // even lanes of the first source with the odd lanes of the second.  The
   // shuffle should be canonicalized.
   static bool TryMatchBlend(const uint8_t* shuffle);
+
+  // Packs a 4 lane shuffle into a single imm8 suitable for use by pshufd,
+  // pshuflw, and pshufhw.
+  static uint8_t PackShuffle4(uint8_t* shuffle);
+  // Gets an 8 bit lane mask suitable for 16x8 pblendw.
+  static uint8_t PackBlend8(const uint8_t* shuffle16x8);
+  // Gets an 8 bit lane mask suitable for 32x4 pblendw.
+  static uint8_t PackBlend4(const uint8_t* shuffle32x4);
 };
 }  // namespace wasm
 }  // namespace internal

@@ -10,6 +10,7 @@
 #include "src/compiler/node-matchers.h"
 #include "src/compiler/node-properties.h"
 #include "src/roots/roots-inl.h"
+#include "src/wasm/simd-shuffle.h"
 
 namespace v8 {
 namespace internal {
@@ -3148,31 +3149,6 @@ void InstructionSelector::VisitInt64AbsWithOverflow(Node* node) {
 
 namespace {
 
-// Packs a 4 lane shuffle into a single imm8 suitable for use by pshufd,
-// pshuflw, and pshufhw.
-uint8_t PackShuffle4(uint8_t* shuffle) {
-  return (shuffle[0] & 3) | ((shuffle[1] & 3) << 2) | ((shuffle[2] & 3) << 4) |
-         ((shuffle[3] & 3) << 6);
-}
-
-// Gets an 8 bit lane mask suitable for 16x8 pblendw.
-uint8_t PackBlend8(const uint8_t* shuffle16x8) {
-  int8_t result = 0;
-  for (int i = 0; i < 8; ++i) {
-    result |= (shuffle16x8[i] >= 8 ? 1 : 0) << i;
-  }
-  return result;
-}
-
-// Gets an 8 bit lane mask suitable for 32x4 pblendw.
-uint8_t PackBlend4(const uint8_t* shuffle32x4) {
-  int8_t result = 0;
-  for (int i = 0; i < 4; ++i) {
-    result |= (shuffle32x4[i] >= 4 ? 0x3 : 0) << (i * 2);
-  }
-  return result;
-}
-
 // Returns true if shuffle can be decomposed into two 16x4 half shuffles
 // followed by a 16x8 blend.
 // E.g. [3 2 1 0 15 14 13 12].
@@ -3335,7 +3311,7 @@ void InstructionSelector::VisitS8x16Shuffle(Node* node) {
     src1_needs_reg = arch_shuffle->src1_needs_reg;
     no_same_as_first = false;
   } else if (wasm::SimdShuffle::TryMatch32x4Shuffle(shuffle, shuffle32x4)) {
-    uint8_t shuffle_mask = PackShuffle4(shuffle32x4);
+    uint8_t shuffle_mask = wasm::SimdShuffle::PackShuffle4(shuffle32x4);
     if (is_swizzle) {
       if (wasm::SimdShuffle::TryMatchIdentity(shuffle)) {
         // Bypass normal shuffle code generation in this case.
@@ -3356,7 +3332,7 @@ void InstructionSelector::VisitS8x16Shuffle(Node* node) {
       // A blend is more efficient than a general 32x4 shuffle; try it first.
       if (wasm::SimdShuffle::TryMatchBlend(shuffle)) {
         opcode = kX64S16x8Blend;
-        uint8_t blend_mask = PackBlend4(shuffle32x4);
+        uint8_t blend_mask = wasm::SimdShuffle::PackBlend4(shuffle32x4);
         imms[imm_count++] = blend_mask;
       } else {
         opcode = kX64S32x4Shuffle;
@@ -3367,7 +3343,7 @@ void InstructionSelector::VisitS8x16Shuffle(Node* node) {
         src0_needs_reg = true;
         src1_needs_reg = true;
         imms[imm_count++] = shuffle_mask;
-        uint8_t blend_mask = PackBlend4(shuffle32x4);
+        uint8_t blend_mask = wasm::SimdShuffle::PackBlend4(shuffle32x4);
         imms[imm_count++] = blend_mask;
       }
     }
@@ -3375,7 +3351,7 @@ void InstructionSelector::VisitS8x16Shuffle(Node* node) {
     uint8_t blend_mask;
     if (wasm::SimdShuffle::TryMatchBlend(shuffle)) {
       opcode = kX64S16x8Blend;
-      blend_mask = PackBlend8(shuffle16x8);
+      blend_mask = wasm::SimdShuffle::PackBlend8(shuffle16x8);
       imms[imm_count++] = blend_mask;
     } else if (wasm::SimdShuffle::TryMatchSplat<8>(shuffle, &index)) {
       opcode = kX64S16x8Dup;
@@ -3386,8 +3362,8 @@ void InstructionSelector::VisitS8x16Shuffle(Node* node) {
       // Half-shuffles don't need DefineSameAsFirst or UseRegister(src0).
       no_same_as_first = true;
       src0_needs_reg = false;
-      uint8_t mask_lo = PackShuffle4(shuffle16x8);
-      uint8_t mask_hi = PackShuffle4(shuffle16x8 + 4);
+      uint8_t mask_lo = wasm::SimdShuffle::PackShuffle4(shuffle16x8);
+      uint8_t mask_hi = wasm::SimdShuffle::PackShuffle4(shuffle16x8 + 4);
       imms[imm_count++] = mask_lo;
       imms[imm_count++] = mask_hi;
       if (!is_swizzle) imms[imm_count++] = blend_mask;

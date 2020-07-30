@@ -106,6 +106,27 @@ bool SimdShuffle::TryMatchBlend(const uint8_t* shuffle) {
   return true;
 }
 
+uint8_t SimdShuffle::PackShuffle4(uint8_t* shuffle) {
+  return (shuffle[0] & 3) | ((shuffle[1] & 3) << 2) | ((shuffle[2] & 3) << 4) |
+         ((shuffle[3] & 3) << 6);
+}
+
+uint8_t SimdShuffle::PackBlend8(const uint8_t* shuffle16x8) {
+  int8_t result = 0;
+  for (int i = 0; i < 8; ++i) {
+    result |= (shuffle16x8[i] >= 8 ? 1 : 0) << i;
+  }
+  return result;
+}
+
+uint8_t SimdShuffle::PackBlend4(const uint8_t* shuffle32x4) {
+  int8_t result = 0;
+  for (int i = 0; i < 4; ++i) {
+    result |= (shuffle32x4[i] >= 4 ? 0x3 : 0) << (i * 2);
+  }
+  return result;
+}
+
 }  // namespace wasm
 }  // namespace internal
 }  // namespace v8
