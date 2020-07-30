@@ -8,7 +8,6 @@
 #include "src/compiler/node-properties.h"
 #include "src/heap/factory.h"
 #include "src/objects/objects-inl.h"  // TODO(everyone): Make typer.h IWYU compliant.
-#include "src/zone/zone-fwd.h"
 #include "test/unittests/compiler/node-test-utils.h"
 
 namespace v8 {
