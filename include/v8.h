@@ -10530,33 +10530,6 @@ class V8_EXPORT Context {
     const BackupIncumbentScope* prev_ = nullptr;
   };
 
-  // A unique token for a context in this Isolate.
-  // It is guaranteed to not be reused throughout the lifetime of the Isolate.
-  class Token {
-   public:
-    Token() : token_(kEmptyToken) {}
-
-    bool IsEmpty() const { return token_ == kEmptyToken; }
-    static const Token Empty() { return Token{kEmptyToken}; }
-
-    bool operator==(const Token& other) const { return token_ == other.token_; }
-    bool operator!=(const Token& other) const { return token_ != other.token_; }
-
-   private:
-    friend class Context;
-    friend class internal::Isolate;
-
-    explicit Token(uintptr_t token) : token_(token) {}
-
-    static constexpr uintptr_t kEmptyToken = 0;
-    uintptr_t token_;
-  };
-
-  // Return the context with the given token or an empty handle if the context
-  // was already garbage collected.
-  static MaybeLocal<Context> GetByToken(Isolate* isolate, Token token);
-  v8::Context::Token GetToken();
-
  private:
   friend class Value;
   friend class Script;

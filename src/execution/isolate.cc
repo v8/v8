@@ -4691,40 +4691,43 @@ bool Isolate::RequiresCodeRange() const {
   return kPlatformRequiresCodeRange && !jitless_;
 }
 
-v8::Context::Token Isolate::GetOrRegisterContextToken(
+v8::metrics::Recorder::ContextId Isolate::GetOrRegisterRecorderContextId(
     Handle<NativeContext> context) {
-  if (serializer_enabled_) return v8::Context::Token::Empty();
-  i::Object token = context->context_token();
-  if (token.IsNullOrUndefined()) {
-    CHECK_LT(last_context_token_, i::Smi::kMaxValue);
-    context->set_context_token(i::Smi::FromIntptr(++last_context_token_));
+  if (serializer_enabled_) return v8::metrics::Recorder::ContextId::Empty();
+  i::Object id = context->recorder_context_id();
+  if (id.IsNullOrUndefined()) {
+    CHECK_LT(last_recorder_context_id_, i::Smi::kMaxValue);
+    context->set_recorder_context_id(
+        i::Smi::FromIntptr(++last_recorder_context_id_));
     v8::HandleScope handle_scope(reinterpret_cast<v8::Isolate*>(this));
-    auto result = context_token_map_.emplace(
-        std::piecewise_construct, std::forward_as_tuple(last_context_token_),
+    auto result = recorder_context_id_map_.emplace(
+        std::piecewise_construct,
+        std::forward_as_tuple(last_recorder_context_id_),
         std::forward_as_tuple(reinterpret_cast<v8::Isolate*>(this),
                               ToApiHandle<v8::Context>(context)));
-    result.first->second.SetWeak(reinterpret_cast<void*>(last_context_token_),
-                                 RemoveContextTokenCallback,
-                                 v8::WeakCallbackType::kParameter);
-    return v8::Context::Token(last_context_token_);
+    result.first->second.SetWeak(
+        reinterpret_cast<void*>(last_recorder_context_id_),
+        RemoveContextIdCallback, v8::WeakCallbackType::kParameter);
+    return v8::metrics::Recorder::ContextId(last_recorder_context_id_);
   } else {
-    DCHECK(token.IsSmi());
-    return v8::Context::Token(static_cast<uintptr_t>(i::Smi::ToInt(token)));
+    DCHECK(id.IsSmi());
+    return v8::metrics::Recorder::ContextId(
+        static_cast<uintptr_t>(i::Smi::ToInt(id)));
   }
 }
 
-MaybeLocal<v8::Context> Isolate::GetContextFromToken(v8::Context::Token token) {
-  auto result = context_token_map_.find(token.token_);
-  if (result == context_token_map_.end() || result->second.IsEmpty())
+MaybeLocal<v8::Context> Isolate::GetContextFromRecorderContextId(
+    v8::metrics::Recorder::ContextId id) {
+  auto result = recorder_context_id_map_.find(id.id_);
+  if (result == recorder_context_id_map_.end() || result->second.IsEmpty())
     return MaybeLocal<v8::Context>();
   return result->second.Get(reinterpret_cast<v8::Isolate*>(this));
 }
 
-void Isolate::RemoveContextTokenCallback(
-    const v8::WeakCallbackInfo<void>& data) {
+void Isolate::RemoveContextIdCallback(const v8::WeakCallbackInfo<void>& data) {
   Isolate* isolate = reinterpret_cast<Isolate*>(data.GetIsolate());
-  uintptr_t token = reinterpret_cast<uintptr_t>(data.GetParameter());
-  isolate->context_token_map_.erase(token);
+  uintptr_t context_id = reinterpret_cast<uintptr_t>(data.GetParameter());
+  isolate->recorder_context_id_map_.erase(context_id);
 }
 
 // |chunk| is either a Page or an executable LargePage.

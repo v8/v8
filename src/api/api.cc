@@ -6151,17 +6151,18 @@ void Context::SetContinuationPreservedEmbedderData(Local<Value> data) {
       *i::Handle<i::HeapObject>::cast(Utils::OpenHandle(*data)));
 }
 
-MaybeLocal<Context> Context::GetByToken(Isolate* isolate,
-                                        Context::Token token) {
+MaybeLocal<Context> metrics::Recorder::GetContext(
+    Isolate* isolate, metrics::Recorder::ContextId id) {
   i::Isolate* i_isolate = reinterpret_cast<i::Isolate*>(isolate);
-  return i_isolate->GetContextFromToken(token);
+  return i_isolate->GetContextFromRecorderContextId(id);
 }
 
-v8::Context::Token Context::GetToken() {
-  i::Handle<i::Context> context = Utils::OpenHandle(this);
-  i::Isolate* isolate = context->GetIsolate();
-  return isolate->GetOrRegisterContextToken(
-      handle(context->native_context(), isolate));
+metrics::Recorder::ContextId metrics::Recorder::GetContextId(
+    Local<Context> context) {
+  i::Handle<i::Context> i_context = Utils::OpenHandle(*context);
+  i::Isolate* isolate = i_context->GetIsolate();
+  return isolate->GetOrRegisterRecorderContextId(
+      handle(i_context->native_context(), isolate));
 }
 
 namespace {

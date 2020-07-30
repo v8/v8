@@ -30,15 +30,17 @@ class Recorder : public std::enable_shared_from_this<Recorder> {
   V8_EXPORT_PRIVATE void NotifyIsolateDisposal();
 
   template <class T>
-  void AddMainThreadEvent(const T& event, v8::Context::Token token) {
+  void AddMainThreadEvent(const T& event,
+                          v8::metrics::Recorder::ContextId id) {
     if (embedder_recorder_)
-      embedder_recorder_->AddMainThreadEvent(event, token);
+      embedder_recorder_->AddMainThreadEvent(event, id);
   }
 
   template <class T>
-  void DelayMainThreadEvent(const T& event, v8::Context::Token token) {
+  void DelayMainThreadEvent(const T& event,
+                            v8::metrics::Recorder::ContextId id) {
     if (!embedder_recorder_) return;
-    Delay(std::make_unique<DelayedEvent<T>>(event, token));
+    Delay(std::make_unique<DelayedEvent<T>>(event, id));
   }
 
   template <class T>
@@ -57,16 +59,16 @@ class Recorder : public std::enable_shared_from_this<Recorder> {
   template <class T>
   class DelayedEvent : public DelayedEventBase {
    public:
-    DelayedEvent(const T& event, v8::Context::Token token)
-        : event_(event), token_(token) {}
+    DelayedEvent(const T& event, v8::metrics::Recorder::ContextId id)
+        : event_(event), id_(id) {}
 
     void Run(const std::shared_ptr<Recorder>& recorder) override {
-      recorder->AddMainThreadEvent(event_, token_);
+      recorder->AddMainThreadEvent(event_, id_);
     }
 
    protected:
     T event_;
-    v8::Context::Token token_;
+    v8::metrics::Recorder::ContextId id_;
   };
 
   class Task;

@@ -14,6 +14,7 @@
 
 #include "include/v8-inspector.h"
 #include "include/v8-internal.h"
+#include "include/v8-metrics.h"
 #include "include/v8.h"
 #include "src/base/macros.h"
 #include "src/base/platform/mutex.h"
@@ -1548,8 +1549,10 @@ class V8_EXPORT_PRIVATE Isolate final : private HiddenFactory {
   static Address load_from_stack_count_address(const char* function_name);
   static Address store_to_stack_count_address(const char* function_name);
 
-  v8::Context::Token GetOrRegisterContextToken(Handle<NativeContext> context);
-  MaybeLocal<v8::Context> GetContextFromToken(v8::Context::Token token);
+  v8::metrics::Recorder::ContextId GetOrRegisterRecorderContextId(
+      Handle<NativeContext> context);
+  MaybeLocal<v8::Context> GetContextFromRecorderContextId(
+      v8::metrics::Recorder::ContextId id);
 
  private:
   explicit Isolate(std::unique_ptr<IsolateAllocator> isolate_allocator);
@@ -1563,8 +1566,7 @@ class V8_EXPORT_PRIVATE Isolate final : private HiddenFactory {
   void InitializeCodeRanges();
   void AddCodeMemoryRange(MemoryRange range);
 
-  static void RemoveContextTokenCallback(
-      const v8::WeakCallbackInfo<void>& data);
+  static void RemoveContextIdCallback(const v8::WeakCallbackInfo<void>& data);
 
   class ThreadDataTable {
    public:
@@ -1826,11 +1828,11 @@ class V8_EXPORT_PRIVATE Isolate final : private HiddenFactory {
   v8::Isolate::UseCounterCallback use_counter_callback_ = nullptr;
 
   std::shared_ptr<metrics::Recorder> metrics_recorder_;
-  uintptr_t last_context_token_ = 0;
+  uintptr_t last_recorder_context_id_ = 0;
   std::unordered_map<
       uintptr_t,
       Persistent<v8::Context, v8::CopyablePersistentTraits<v8::Context>>>
-      context_token_map_;
+      recorder_context_id_map_;
 
   std::vector<Object> startup_object_cache_;
 
