@@ -1,4 +1,4 @@
-
+import prototext
 
 UNRULY_BUILDERS =[
   'V8 Linux64 - builder',
@@ -7,8 +7,9 @@ UNRULY_BUILDERS =[
 ]
 
 class BuildBucketCfg:
-  def __init__(self, cfg):
-    self.cfg = cfg
+  def __init__(self):
+    self.cfg = prototext.prototext2dict('cr-buildbucket.cfg')
+    
 
   def buckets(self):
     return self.cfg['buckets']
@@ -141,8 +142,51 @@ class BuildBucketCfg:
       return value
 
 class SchedulerCfg:
-  def __init__(self, cfg):
-    self.cfg = cfg
-    for t in self.cfg['job']:
-      for k,v in t.items():
-        pass#print k
+  def __init__(self):
+    self.cfg = prototext.prototext2dict('luci-scheduler.cfg')
+    self.jobs = self.jobs_dict()
+    self.builder2job = self.builder2job_dict()
+    self.builder2trigger = self.builder2trigger_dict()
+  
+  def jobs_dict(self):
+    result = dict()
+    for job in self.cfg['job']:
+      name = job['id'][0]
+      result[name] = job
+    return result
+
+  def builder2job_dict(self):
+    result = dict()
+    for job in self.cfg['job']:
+      bb = job['buildbucket'][0]
+      key = (bb['bucket'][0][8:],  bb['builder'][0])
+      result[key] = job
+    return result
+
+  def builder2trigger_dict(self):
+    result = dict()
+    for trigger in self.cfg['trigger']:
+      for job_name in trigger['triggers']:
+        job = self.jobs[job_name]
+        bb = job['buildbucket'][0]
+        key = (bb['bucket'][0][8:],  bb['builder'][0])
+        result[key] = trigger
+    return result
+
+  def triggerd_by(self, bucket_name, builder_name):
+    trigger = self.builder2trigger.get((bucket_name, builder_name), None)
+    if trigger:
+      return "['%s']" % trigger['id'][0]
+    return None
+  
+  def job(self, bucket_name, builder_name):
+    return self.builder2job.get((bucket_name, builder_name), None)
+
+
+class CommitQueueCfg:
+  def __init__(self):
+    self.cfg = prototext.prototext2dict('commit-queue.cfg')
+
+class MiloCfg:
+  def __init__(self):
+    self.cfg = prototext.prototext2dict('luci-milo.cfg')

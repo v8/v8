@@ -8,7 +8,6 @@ A collection of helper functions for transforming text proto files to
 other formats.
 """
 
-import prototext
 import cfg_handlers
 import pprint
 import json
@@ -27,7 +26,6 @@ COMMON_BUILDER_BODY = """    executable=%s,
     priority=%s,
   )"""
 
-
 MIGRATED_BUILDERS = [
   "Auto-tag",
   "V8 lkgr finder",
@@ -37,25 +35,18 @@ MIGRATED_BUILDERS = [
   "Auto-roll - test262",
   "Auto-roll - wasm-spec",
   "Auto-roll - release process",
+  "v8_verify_flakes",
 ]
 class StarlarkGenerator:
-  def __init__(self, bb_cfg, sch_cfg):
-    self.bb_cfg = cfg_handlers.BuildBucketCfg(bb_cfg)
-    self.sc_cfg = cfg_handlers.SchedulerCfg(sch_cfg)
+  def __init__(self):
+    self.bb_cfg = cfg_handlers.BuildBucketCfg()
+    self.sc_cfg = cfg_handlers.SchedulerCfg()
     self.migrated = set(MIGRATED_BUILDERS)
 
   def generate(self):
     self.write_branch_coverage()
     self.write_tryng()
     self.write_builders4buckets()
-
-  def write_buckets(self):
-    return '\n'.join([
-      "luci.bucket(name='%s', acls=%s_acls)" % (
-        bucket['name'][0][8:],
-        bucket['acl_sets'][0]
-      ) for bucket in self.bb_cfg.buckets()
-    ])
 
   def write_branch_coverage(self):
     stable_builders = self.write_stable_builders(
@@ -120,16 +111,28 @@ class StarlarkGenerator:
 
   def write_stable_builder(self, builder):
     props = self.bb_cfg.properties(builder)
-    header = """v8_branch_coverage_builder( name='%s',"""  %  self.bb_cfg.builder_name(builder)
+    builder_name = self.bb_cfg.builder_name(builder)
+    header = """v8_branch_coverage_builder( name='%s',
+      triggering_policy=%s,
+      triggered_by_gitiles=%s,"""  %  (
+      builder_name,
+      self.write_scheduler_policy("ci.br.stable", self.bb_cfg.builder_name(builder)),
+      self.sc_cfg.triggerd_by("ci.br.stable", builder_name) != None
+    )
     return header + self.common_builder_body(builder, props)
 
 
   def write_builder(self, bk_name, builder):
     props = self.bb_cfg.properties(builder)
+    builder_name = self.bb_cfg.builder_name(builder)
     header = """v8_builder( name='%s',
-      bucket='%s',""" % (
+      bucket='%s',
+      triggered_by=%s,
+      triggering_policy=%s,""" % (
         self.bb_cfg.builder_name(builder),
         bk_name,
+        self.sc_cfg.triggerd_by(bk_name, builder_name),
+        self.write_scheduler_policy(bk_name, self.bb_cfg.builder_name(builder)),
       )
     return header + self.common_builder_body(builder, props)
 
@@ -152,6 +155,30 @@ class StarlarkGenerator:
     )
 
 
+  def write_scheduler_policy(self, bucket_name, builder_name):
+    job = self.sc_cfg.job(bucket_name, builder_name)
+    if job:
+      policy = job.get('triggering_policy', None)
+      if policy:
+        policy = policy[0]
+        kind = policy['kind'][0]
+        max_concurrent_invocations = policy.get('max_concurrent_invocations', [None])[0]
+        max_batch_size = policy.get('max_batch_size', [None])[0]
+        log_base = policy.get('log_base', [None])[0]
+        return """scheduler.policy(
+          kind=scheduler.%s_KIND,
+          max_concurrent_invocations=%s,
+          max_batch_size=%s,
+          log_base=%s,
+        )""" % (
+          kind,
+          max_concurrent_invocations,
+          max_batch_size,
+          log_base
+        )
+    return None
+
+
   def write_builders4buckets(self):
     code = '\n'.join([
       self.write_builders(
@@ -159,6 +186,8 @@ class StarlarkGenerator:
         self.bb_cfg.builders(bucket),
       ) for bucket in self.bb_cfg.buckets()
     ])
+    code = code.replace("STABLE ", "")
+    code = code.replace("BETA ", "")
     code = self.minor_text_adjustments(code)
     self.write_file(
       'others.star',
@@ -239,10 +268,8 @@ if __name__ == '__main__':
   import os
   os.system('rm -rf out')
   os.system('mkdir -p out')
-  bbucket_cfg = prototext.prototext2dict('cr-buildbucket.cfg')
-  scheduler_cfg = prototext.prototext2dict('luci-scheduler.cfg')
-  StarlarkGenerator(bbucket_cfg, scheduler_cfg).generate()
+  StarlarkGenerator().generate()
   os.system('lucicfg fmt')
   os.system('lucicfg generate main.star')
-  os.system('lucicfg semanticdiff --output-dir out main.star cr-buildbucket.cfg > out/diff.txt')
+  os.system('lucicfg semanticdiff --output-dir out main.star cr-buildbucket.cfg luci-scheduler.cfg> out/diff.txt')
   os.system('wc -l out/diff.txt')

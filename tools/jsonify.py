@@ -2,7 +2,11 @@
 import re
 
 def prototext2json(prototext):
-  json_text = json_format(prototext).replace(",\n\n},\n", "}")
+  json_text = json_format(prototext)
+
+  commacurly_matcher1 = re.compile(r",\s*\},\s*", re.DOTALL)
+  json_text = re.sub(commacurly_matcher1, "}", json_text)
+  
   with open('out/clean.json', 'w') as f:
     f.write(json_text)
   return json_text

@@ -66,6 +66,12 @@ defaults_dict = {
     "ci.br.stable": defaults_ci_br,
 }
 
+trigger_dict = {
+    "ci": "v8-trigger",
+    "ci.br.beta": "v8-trigger-br-beta",
+    "ci.br.stable": "v8-trigger-br-stable",
+}
+
 goma_props = {"$build/goma": {"server_host": "goma.chromium.org", "rpc_extra_params": "?prod"}}
 
 multibot_caches = [
@@ -86,6 +92,9 @@ def v8_basic_builder(defaults, **kv_args):
 def v8_branch_coverage_builder(**kv_args):
     for bucket_name in ["ci", "ci.br.beta", "ci.br.stable"]:
         args = dict(kv_args)
+        triggered_by_gitiles = args.pop("triggered_by_gitiles")
+        if triggered_by_gitiles:
+            args["triggered_by"] = [trigger_dict[bucket_name]]
         v8_basic_builder(defaults_ci, bucket = bucket_name, **args)
 
 def v8_try_ng_pair(name, **kv_args):
@@ -99,8 +108,8 @@ def v8_try_ng_pair(name, **kv_args):
         execution_timeout = triggered_timeout,
     )
 
-def v8_auto(name, recipe, cipd_package = None, cipd_version = None, execution_timeout = None, **properties):
-    properties = dict(properties.items() + goma_props.items())
+def v8_auto(name, recipe, cipd_package = None, cipd_version = None, execution_timeout = None, properties = None, **kv_args):
+    properties = dict((properties or {}).items() + goma_props.items())
     executable = dict()
     executable["name"] = recipe
     if cipd_package:
@@ -116,6 +125,7 @@ def v8_auto(name, recipe, cipd_package = None, cipd_version = None, execution_ti
         service_account = "v8-ci-autoroll-builder@chops-service-accounts.iam.gserviceaccount.com",
         execution_timeout = execution_timeout,
         properties = properties,
+        **kv_args
     )
 
 def fix_args(defaults, **kv_args):
@@ -145,7 +155,11 @@ def fix_args(defaults, **kv_args):
         args["dimensions"]["pool"] = "luci.v8.ci"
     if args.get("dimensions", {}).get("host_class", "") == "multibot":
         args["caches"] = multibot_caches
-
+    if args.get("properties", {}).get("triggers", None):
+        bucket_name = args["bucket"]
+        if bucket_name == "try":
+            bucket_name = "try.triggered"
+        args["triggers"] = [bucket_name + "/" + t for t in args["properties"]["triggers"]]
     return args
 
 def override_defaults(defaults, args, key):

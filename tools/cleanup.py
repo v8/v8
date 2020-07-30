@@ -15,6 +15,8 @@ def cleanup_cfg(proto_text):
   trailingwhitespace_matcher = re.compile(r"\s*\n", re.DOTALL)
   proto_text = re.sub(trailingwhitespace_matcher, "\n", proto_text)
 
+  proto_text = proto_text + "\n"
+
   with open('out/clean.cfg', 'w') as f:
     f.write(proto_text)
   return proto_text
