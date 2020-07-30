@@ -7,6 +7,7 @@ load(
 lucicfg.config(
     config_dir = "generated",
     tracked_files = [
+        "commit-queue.cfg",
         "cr-buildbucket.cfg",
         "luci-scheduler.cfg",
         "project.cfg",
@@ -41,6 +42,18 @@ luci.project(
         acl.entry(
             [acl.LOGDOG_WRITER],
             groups = ["luci-logdog-chromium-writers"],
+        ),
+        acl.entry(
+            [acl.CQ_COMMITTER],
+            groups = [
+                "project-v8-committers",
+            ],
+        ),
+        acl.entry(
+            [acl.CQ_DRY_RUNNER],
+            groups = [
+                "project-v8-tryjob-access",
+            ],
         ),
     ],
 )
@@ -90,15 +103,81 @@ luci.gitiles_poller(
     repo = "https://chromium.googlesource.com/v8/v8",
     refs = ["refs/branch-heads/\\d+\\.\\d+"],
 )
-"""
-luci.gitiles_poller(
-    name = "v8-try-triggered",
-    bucket = "try.triggered",
-    repo = "https://chromium.googlesource.com/v8/v8",
+
+luci.cq(
+    submit_max_burst = 1,
+    submit_burst_delay = 60 * time.second,
+    status_host = "chromium-cq-status.appspot.com",
 )
-"""
+
+luci.cq_group(
+    name = "infra-cq",
+    watch = cq.refset(
+        repo = "https://chromium.googlesource.com/v8/v8",
+        refs = ["refs/heads/infra/config"],
+    ),
+    retry_config = cq.retry_config(
+        single_quota = 2,
+        global_quota = 4,
+        failure_weight = 2,
+        transient_failure_weight = 1,
+        timeout_weight = 4,
+    ),
+    verifiers = [luci.cq_tryjob_verifier(
+        "try/v8_presubmit",
+        disable_reuse = True,
+        cancel_stale = False,
+    )],
+)
+luci.cq_group(
+    name = "v8-cq",
+    watch = cq.refset(
+        repo = "https://chromium.googlesource.com/v8/v8",
+        refs = [
+            "refs/heads/master",
+            "refs/branch-heads/.+",
+        ],
+    ),
+    tree_status_host = "v8-status.appspot.com",
+    retry_config = cq.retry_config(
+        single_quota = 2,
+        global_quota = 4,
+        failure_weight = 2,
+        transient_failure_weight = 1,
+        timeout_weight = 4,
+    ),
+    verifiers = [
+        luci.cq_tryjob_verifier(
+            "chromium:try/cast_shell_android",
+            experiment_percentage = 20,
+        ),
+        luci.cq_tryjob_verifier(
+            "chromium:try/cast_shell_linux",
+            experiment_percentage = 20,
+        ),
+        luci.cq_tryjob_verifier(
+            "chromium:try/linux-blink-rel",
+            location_regexp = [".+/[+]/src/inspector/.+", ".+/[+]/test/inspector/.+"],
+        ),
+        luci.cq_tryjob_verifier(
+            "chromium:try/linux-rel",
+            location_regexp = [
+                ".+/[+]/include/.+\\.h",
+                ".+/[+]/src/api\\.cc",
+                ".+/[+]/src/inspector/.+",
+                ".+/[+]/src/message-template\\.h",
+                ".+/[+]/test/inspector/.+",
+            ],
+        ),
+        luci.cq_tryjob_verifier(
+            "node-ci:try/node_ci_linux64_rel",
+            cancel_stale = False,
+        ),
+    ],
+)
 
 exec("//auto.star")
 exec("//branch_coverage.star")
+exec("//try.star")
 exec("//try_ng.star")
 exec("//others.star")

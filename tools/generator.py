@@ -41,11 +41,14 @@ class StarlarkGenerator:
   def __init__(self):
     self.bb_cfg = cfg_handlers.BuildBucketCfg()
     self.sc_cfg = cfg_handlers.SchedulerCfg()
+    self.cq_cfg = cfg_handlers.CommitQueueCfg()
+    self.ml_cfg = cfg_handlers.MiloCfg()
     self.migrated = set(MIGRATED_BUILDERS)
 
   def generate(self):
     self.write_branch_coverage()
     self.write_tryng()
+    self.write_try()
     self.write_builders4buckets()
 
   def write_branch_coverage(self):
@@ -101,14 +104,41 @@ class StarlarkGenerator:
   def write_ng_pair(self, builder, overrides):
     props = self.bb_cfg.properties(builder)
     props.pop('triggers', None)
+    name = self.bb_cfg.builder_name(builder)[:-3]
     header = """v8_try_ng_pair( name='%s',
-      triggered_timeout=%s,""" % (
-        self.bb_cfg.builder_name(builder)[:-3],
-        overrides.get(self.bb_cfg.builder_name(builder)[:-3]),
+      triggered_timeout=%s,
+      cq_properties_trigger=%s,
+      cq_properties_triggered=%s,""" % (
+        name,
+        overrides.get(name),
+        self.cq_cfg.builders_dict.get(('try', name+ '_ng'), None),
+        self.cq_cfg.builders_dict.get(('try.triggered', name+'_ng_triggered'), None),
       )
     return header + self.common_builder_body(builder, props)
 
+  def write_try(self):
+    try_code = "\n".join([
+      self.write_try_builder(self.bb_cfg.consolidate_builder(builder)) 
+      for builder in self.bb_cfg.try_builders()
+    ])
+    try_code = self.minor_text_adjustments(try_code)
+    self.write_file(
+      'try.star',
+      "load('//lib.star','v8_try_builder')",
+      try_code)
 
+  def write_try_builder(self, builder):
+    props = self.bb_cfg.properties(builder)
+    builder_name = self.bb_cfg.builder_name(builder)
+    header = """v8_try_builder( name='%s',
+      bucket='try',
+      cq_properties=%s,""" % (
+        builder_name,
+        self.cq_cfg.builders_dict.get(('try', builder_name), None)
+    )
+    self.migrated.add(self.bb_cfg.builder_name(builder))
+    return header + self.common_builder_body(builder, props)
+  
   def write_stable_builder(self, builder):
     props = self.bb_cfg.properties(builder)
     builder_name = self.bb_cfg.builder_name(builder)
@@ -271,5 +301,5 @@ if __name__ == '__main__':
   StarlarkGenerator().generate()
   os.system('lucicfg fmt')
   os.system('lucicfg generate main.star')
-  os.system('lucicfg semanticdiff --output-dir out main.star cr-buildbucket.cfg luci-scheduler.cfg> out/diff.txt')
+  os.system('lucicfg semanticdiff --output-dir out main.star cr-buildbucket.cfg luci-scheduler.cfg commit-queue.cfg > out/diff.txt')
   os.system('wc -l out/diff.txt')

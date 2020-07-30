@@ -81,12 +81,22 @@ multibot_caches = [
     ),
 ]
 
+def v8_try_builder(**kv_args):
+    v8_builder(**kv_args)
+
 def v8_builder(**kv_args):
     bucket_name = kv_args["bucket"]
     v8_basic_builder(defaults_dict[bucket_name], **kv_args)
 
 def v8_basic_builder(defaults, **kv_args):
+    cq_properties = kv_args.pop("cq_properties", None)
     kv_args = fix_args(defaults, **kv_args)
+    if cq_properties:
+        luci.cq_tryjob_verifier(
+            kv_args["name"],
+            cq_group = "v8-cq",
+            **cq_properties
+        )
     luci.builder(**kv_args)
 
 def v8_branch_coverage_builder(**kv_args):
@@ -100,12 +110,15 @@ def v8_branch_coverage_builder(**kv_args):
 def v8_try_ng_pair(name, **kv_args):
     triggered_timeout = kv_args.pop("triggered_timeout", None)
     kv_args["properties"]["triggers"] = [name + "_ng_triggered"]
-    v8_basic_builder(defaults_try, name = name + "_ng", bucket = "try", **kv_args)
+    cq_tg = kv_args.pop("cq_properties_trigger", None)
+    cq_td = kv_args.pop("cq_properties_triggered", None)
+    v8_basic_builder(defaults_try, name = name + "_ng", bucket = "try", cq_properties = cq_tg, **kv_args)
     v8_basic_builder(
         defaults_triggered,
         name = name + "_ng_triggered",
         bucket = "try.triggered",
         execution_timeout = triggered_timeout,
+        cq_properties = cq_td,
     )
 
 def v8_auto(name, recipe, cipd_package = None, cipd_version = None, execution_timeout = None, properties = None, **kv_args):

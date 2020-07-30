@@ -76,10 +76,19 @@ class BuildBucketCfg:
 
   def ng_builders(self):
     result = []
-    triggered_bucket = self.get_bucket_by_suffix('try')
-    for builder in self.builders(triggered_bucket):
+    try_bucket = self.get_bucket_by_suffix('try')
+    for builder in self.builders(try_bucket):
       builder_name = self.builder_name(builder)
       if builder_name.endswith('_ng') and builder_name[:-3] not in UNRULY_BUILDERS:
+        result.append(builder)
+    return result
+
+  def try_builders(self):
+    result = []
+    try_bucket = self.get_bucket_by_suffix('try')
+    for builder in self.builders(try_bucket):
+      builder_name = self.builder_name(builder)
+      if not builder_name.endswith('_ng') and builder_name[:-3] not in UNRULY_BUILDERS:
         result.append(builder)
     return result
 
@@ -178,7 +187,7 @@ class SchedulerCfg:
     if trigger:
       return "['%s']" % trigger['id'][0]
     return None
-  
+
   def job(self, bucket_name, builder_name):
     return self.builder2job.get((bucket_name, builder_name), None)
 
@@ -186,6 +195,39 @@ class SchedulerCfg:
 class CommitQueueCfg:
   def __init__(self):
     self.cfg = prototext.prototext2dict('commit-queue.cfg')
+    self.map_builders()
+
+  def map_builders(self):
+    self.builders_dict = dict()
+    for cg in self.cfg['config_groups']:
+      if cg['name'][0]== 'v8-cq':
+        for tj in cg['verifiers'][0]['tryjob'][0]['builders']:
+          [project, bucket, name] = tj['name'][0].split('/')
+          self.builders_dict[(bucket, name)] = self.properties(tj)
+
+  def properties(self, try_job):
+    result = dict()
+    try_job.pop('name')
+    cancel_stale = try_job.pop('cancel_stale', None)
+    if cancel_stale:
+      result['cancel_stale'] = cancel_stale[0] == "YES"
+    experiment_percentage = try_job.pop('experiment_percentage', None)
+    if experiment_percentage:
+      result['experiment_percentage'] = int(experiment_percentage[0])
+    includable_only = try_job.pop('includable_only', None)
+    if includable_only:
+      result['includable_only'] = includable_only[0]
+    disable_reuse = try_job.pop('disable_reuse', None)
+    if disable_reuse:
+      result['disable_reuse'] = disable_reuse[0]
+    location_regexp = try_job.pop('location_regexp', None)
+    if location_regexp:
+      result['location_regexp'] = location_regexp
+    triggered_by = try_job.pop('triggered_by', None)
+    if triggered_by:
+      pass#result['triggered-by'] = triggered_by
+    return result
+
 
 class MiloCfg:
   def __init__(self):
