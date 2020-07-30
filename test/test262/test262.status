@@ -558,9 +558,6 @@
   'built-ins/Atomics/xor/bigint/non-shared-bufferdata': [FAIL],
   'built-ins/Atomics/xor/non-shared-bufferdata': [FAIL],
 
-  # https://crbug.com/v8/10688
-  'language/expressions/optional-chaining/eval-optional-call': [FAIL],
-
   ######################## NEEDS INVESTIGATION ###########################
 
   # https://bugs.chromium.org/p/v8/issues/detail?id=7833

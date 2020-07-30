@@ -3024,6 +3024,7 @@ class AstNodeFactory final {
                 const ScopedPtrList<Expression>& arguments, int pos,
                 Call::PossiblyEval possibly_eval = Call::NOT_EVAL,
                 bool optional_chain = false) {
+    DCHECK_IMPLIES(possibly_eval == Call::IS_POSSIBLY_EVAL, !optional_chain);
     return zone_->New<Call>(zone_, expression, arguments, pos, possibly_eval,
                             optional_chain);
   }

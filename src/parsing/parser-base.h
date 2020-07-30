@@ -1403,8 +1403,9 @@ class ParserBase {
   // optimizations. This checks if expression is an eval call, and if yes,
   // forwards the information to scope.
   Call::PossiblyEval CheckPossibleEvalCall(ExpressionT expression,
+                                           bool is_optional_call,
                                            Scope* scope) {
-    if (impl()->IsIdentifier(expression) &&
+    if (!is_optional_call && impl()->IsIdentifier(expression) &&
         impl()->IsEval(impl()->AsIdentifier(expression))) {
       function_state_->RecordFunctionOrEvalCall();
       scope->RecordEvalCall();
@@ -3358,7 +3359,7 @@ ParserBase<Impl>::ParseLeftHandSideContinuation(ExpressionT result) {
         // These calls are marked as potentially direct eval calls. Whether
         // they are actually direct calls to eval is determined at run time.
         Call::PossiblyEval is_possibly_eval =
-            CheckPossibleEvalCall(result, scope());
+            CheckPossibleEvalCall(result, is_optional, scope());
 
         if (has_spread) {
           result = impl()->SpreadCall(result, args, pos, is_possibly_eval,
