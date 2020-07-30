@@ -269,6 +269,75 @@ TEST_F(MidTierRegisterAllocatorTest, SpillPhi) {
   Allocate();
 }
 
+TEST_F(MidTierRegisterAllocatorTest, SpillPhiDueToConstrainedJump) {
+  StartBlock();
+  auto p_0 = Parameter(Reg(1));
+  EndBlock(Branch(Imm(), 1, 2));
+
+  StartBlock();
+  EndBlock(Branch(Imm(), 2, 4));
+
+  StartBlock();
+  EndBlock(Branch(Imm(), 2, 4));
+
+  StartBlock();
+  auto l_0 = Define(Reg());
+  EndBlock(Jump(4, Reg(p_0, 1)));
+
+  StartBlock();
+  auto l_1 = Define(Reg());
+  EndBlock(Jump(3, Reg(p_0)));
+
+  StartBlock();
+  auto l_2 = Define(Reg());
+  EndBlock(Jump(2, Reg(p_0, 1)));
+
+  StartBlock();
+  auto l_3 = Define(Reg());
+  EndBlock(Jump(1, Reg(p_0)));
+
+  StartBlock();
+  auto phi = Phi(l_0, l_1, l_2, l_3);
+  Return(Reg(phi, 1));
+  EndBlock();
+
+  Allocate();
+}
+
+TEST_F(MidTierRegisterAllocatorTest, SpillPhiDueToRegisterPressure) {
+  VReg left[Register::kNumRegisters];
+  VReg right[Register::kNumRegisters];
+  VReg phis[Register::kNumRegisters];
+
+  StartBlock();
+  auto p_0 = Parameter(Reg(1));
+  EndBlock(Branch(Imm(), 1, 2));
+
+  StartBlock();
+  for (int i = 0; i < Register::kNumRegisters; ++i) {
+    left[i] = Define(Reg());
+  }
+  EndBlock(Jump(2, Reg(p_0)));
+
+  StartBlock();
+  for (int i = 0; i < Register::kNumRegisters; ++i) {
+    right[i] = Define(Reg());
+  }
+  EndBlock(Jump(1, Reg(p_0)));
+
+  StartBlock();
+  for (int i = 0; i < Register::kNumRegisters; ++i) {
+    phis[i] = Phi(left[i], right[i]);
+  }
+  for (int i = 0; i < Register::kNumRegisters; ++i) {
+    EmitI(Reg(phis[i]));
+  }
+  Return(Reg(phis[0], 1));
+  EndBlock();
+
+  Allocate();
+}
+
 TEST_F(MidTierRegisterAllocatorTest, MoveLotsOfConstants) {
   FLAG_trace_turbo = true;
   StartBlock();

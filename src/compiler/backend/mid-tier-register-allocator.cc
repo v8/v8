@@ -1812,11 +1812,11 @@ void MidTierRegisterAllocator::AllocateRegisters(
     double_reg_allocator().EndInstruction();
   }
 
-  AllocatePhis(block);
-
   // TODO(rmcilroy): Add support for cross-block allocations.
   general_reg_allocator().SpillAllRegisters();
   double_reg_allocator().SpillAllRegisters();
+
+  AllocatePhis(block);
 
   general_reg_allocator().EndBlock(block);
   double_reg_allocator().EndBlock(block);

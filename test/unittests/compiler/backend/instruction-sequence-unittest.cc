@@ -119,11 +119,11 @@ Instruction* InstructionSequenceTest::EndBlock(BlockCompletion completion) {
     case kBlockEnd:
       break;
     case kFallThrough:
-      result = EmitJump();
+      result = EmitJump(completion.op_);
       break;
     case kJump:
       CHECK(!block_returns_);
-      result = EmitJump();
+      result = EmitJump(completion.op_);
       break;
     case kBranch:
       CHECK(!block_returns_);
@@ -295,8 +295,8 @@ Instruction* InstructionSequenceTest::EmitFallThrough() {
   return AddInstruction(instruction);
 }
 
-Instruction* InstructionSequenceTest::EmitJump() {
-  InstructionOperand inputs[1]{ConvertInputOp(Imm())};
+Instruction* InstructionSequenceTest::EmitJump(TestOperand input_op) {
+  InstructionOperand inputs[1]{ConvertInputOp(input_op)};
   auto instruction = NewInstruction(kArchJmp, 0, nullptr, 1, inputs);
   return AddInstruction(instruction);
 }
