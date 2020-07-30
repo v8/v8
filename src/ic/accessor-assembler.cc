@@ -393,9 +393,10 @@ void AccessorAssembler::HandleLoadICSmiHandlerCase(
       // aren't looked up in the prototype chain.
       GotoIf(IsJSTypedArray(CAST(holder)), &return_undefined);
       if (Is64()) {
-        GotoIfNot(UintPtrLessThan(var_intptr_index.value(),
-                                  IntPtrConstant(JSArray::kMaxArrayIndex)),
-                  miss);
+        GotoIfNot(
+            UintPtrLessThanOrEqual(var_intptr_index.value(),
+                                   IntPtrConstant(JSArray::kMaxArrayIndex)),
+            miss);
       } else {
         GotoIf(IntPtrLessThan(var_intptr_index.value(), IntPtrConstant(0)),
                miss);
@@ -2318,7 +2319,8 @@ void AccessorAssembler::GenericElementLoad(TNode<HeapObject> receiver,
     // Positive OOB indices within JSArray index range are effectively the same
     // as hole loads. Larger keys and negative keys are named loads.
     if (Is64()) {
-      Branch(UintPtrLessThan(index, IntPtrConstant(JSArray::kMaxArrayIndex)),
+      Branch(UintPtrLessThanOrEqual(index,
+                                    IntPtrConstant(JSArray::kMaxArrayIndex)),
              &if_element_hole, slow);
     } else {
       Branch(IntPtrLessThan(index, IntPtrConstant(0)), slow, &if_element_hole);
