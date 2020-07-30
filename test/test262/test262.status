@@ -453,9 +453,6 @@
   # https://bugs.chromium.org/p/v8/issues/detail?id=7472
   'intl402/NumberFormat/currency-digits': [FAIL],
 
-  # https://github.com/tc39/test262/pull/2711
-  'intl402/DisplayNames/length': [FAIL],
-
   # https://bugs.chromium.org/p/v8/issues/detail?id=7831
   'language/statements/generators/generator-created-after-decl-inst': [FAIL],
   'language/expressions/generators/generator-created-after-decl-inst': [FAIL],
@@ -515,12 +512,6 @@
   # https://github.com/tc39/test262/pull/2349
   'intl402/Locale/constructor-options-region-valid': [FAIL],
 
-  # http://crbug/v8/6891
-  'intl402/Segmenter/prototype/segment/segment-grapheme': [FAIL],
-  'intl402/Segmenter/prototype/segment/segment-sentence': [FAIL],
-  'intl402/Segmenter/prototype/segment/segment-tostring': [FAIL],
-  'intl402/Segmenter/prototype/segment/segment-word': [FAIL],
-
   # https://bugs.chromium.org/p/v8/issues/detail?id=9818
   'built-ins/AsyncFunction/proto-from-ctor-realm': [FAIL],
 
@@ -559,6 +550,13 @@
   'built-ins/Atomics/sub/non-shared-bufferdata': [FAIL],
   'built-ins/Atomics/xor/bigint/non-shared-bufferdata': [FAIL],
   'built-ins/Atomics/xor/non-shared-bufferdata': [FAIL],
+
+  # https://bugs.chromium.org/p/v8/issues/detail?id=10768
+  'built-ins/Reflect/Symbol.toStringTag': [FAIL],
+
+  # https://bugs.chromium.org/p/v8/issues/detail?id=10769
+  'language/expressions/template-literal/invalid-legacy-octal-escape-sequence-8': [FAIL],
+  'language/literals/string/legacy-non-octal-escape-sequence-8-strict': [FAIL],
 
   ######################## NEEDS INVESTIGATION ###########################
 
