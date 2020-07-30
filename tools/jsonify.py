@@ -3,8 +3,8 @@ import re
 
 def prototext2json(prototext):
   json_text = json_format(prototext).replace(",\n\n},\n", "}")
-  #with open('out/clean.json', 'w') as f:
-  #  f.write(json_text)
+  with open('out/clean.json', 'w') as f:
+    f.write(json_text)
   return json_text
 
 def json_format(proto_text):

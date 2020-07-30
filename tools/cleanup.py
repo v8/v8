@@ -11,6 +11,10 @@ def cleanup_cfg(proto_text):
 
   multiline_value_matcher = re.compile(r"<<END\n(.+?)\n\s*END\n", re.DOTALL)
   proto_text = re.sub(multiline_value_matcher, reformat_multiline_value, proto_text)
+
+  trailingwhitespace_matcher = re.compile(r"\s*\n", re.DOTALL)
+  proto_text = re.sub(trailingwhitespace_matcher, "\n", proto_text)
+
   with open('out/clean.cfg', 'w') as f:
     f.write(proto_text)
   return proto_text
