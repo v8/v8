@@ -1,4 +1,4 @@
-load("//lib.star", "v8_builder")
+load("//lib.star", "GOMA", "v8_builder")
 
 v8_builder(
     name = "V8 Linux64 - builder",
@@ -9,7 +9,8 @@ v8_builder(
         max_batch_size = 1,
     ),
     dimensions = {"os": "Ubuntu-16.04", "cpu": "x86-64"},
-    properties = {"triggers": ["V8 Linux64", "V8 Linux64 - fyi"], "mastername": "client.v8", "track_build_dependencies": True, "build_config": "Release", "$build/goma": {"server_host": "goma.chromium.org", "rpc_extra_params": "?prod"}, "binary_size_tracking": {"category": "linux64", "binary": "d8"}},
+    properties = {"triggers": ["V8 Linux64", "V8 Linux64 - fyi"], "mastername": "client.v8", "track_build_dependencies": True, "build_config": "Release", "binary_size_tracking": {"category": "linux64", "binary": "d8"}},
+    use_goma = GOMA.DEFAULT,
 )
 v8_builder(
     name = "V8 Linux64 - debug builder",
@@ -20,41 +21,46 @@ v8_builder(
         max_batch_size = 1,
     ),
     dimensions = {"os": "Ubuntu-16.04", "cpu": "x86-64"},
-    properties = {"build_config": "Debug", "$build/goma": {"server_host": "goma.chromium.org", "rpc_extra_params": "?prod"}, "mastername": "client.v8", "set_gclient_var": "download_jsfunfuzz", "triggers": ["V8 Fuzzer", "V8 Linux64 - debug", "V8 Linux64 - debug - fyi"]},
+    properties = {"build_config": "Debug", "mastername": "client.v8", "set_gclient_var": "download_jsfunfuzz", "triggers": ["V8 Fuzzer", "V8 Linux64 - debug", "V8 Linux64 - debug - fyi"]},
+    use_goma = GOMA.DEFAULT,
 )
 v8_builder(
     name = "V8 Fuchsia - builder",
     bucket = "ci",
     triggered_by = ["v8-trigger"],
     dimensions = {"os": "Ubuntu-16.04", "cpu": "x86-64"},
-    properties = {"build_config": "Release", "target_platform": "fuchsia", "mastername": "client.v8", "$build/goma": {"server_host": "goma.chromium.org", "rpc_extra_params": "?prod"}, "triggers": ["V8 Fuchsia"]},
+    properties = {"build_config": "Release", "target_platform": "fuchsia", "mastername": "client.v8", "triggers": ["V8 Fuchsia"]},
+    use_goma = GOMA.DEFAULT,
 )
 v8_builder(
     name = "V8 Linux64 - pointer compression without dchecks",
     bucket = "ci",
     triggered_by = ["v8-trigger"],
     dimensions = {"os": "Ubuntu-16.04", "cpu": "x86-64"},
-    properties = {"triggers_proxy": True, "build_config": "Release", "$build/goma": {"server_host": "goma.chromium.org", "rpc_extra_params": "?prod"}, "mastername": "client.v8"},
+    properties = {"triggers_proxy": True, "build_config": "Release", "mastername": "client.v8"},
+    use_goma = GOMA.DEFAULT,
 )
 v8_builder(
     name = "V8 iOS - sim",
     bucket = "ci",
     triggered_by = ["v8-trigger"],
     dimensions = {"os": "Mac-10.14", "cpu": "x86-64"},
-    properties = {"build_config": "Release", "$depot_tools/osx_sdk": {"sdk_version": "11b52"}, "target_platform": "ios", "mastername": "client.v8", "$build/goma": {"server_host": "goma.chromium.org", "rpc_extra_params": "?prod"}},
+    properties = {"build_config": "Release", "$depot_tools/osx_sdk": {"sdk_version": "11b52"}, "target_platform": "ios", "mastername": "client.v8"},
     caches = [
         swarming.cache(
             path = "osx_sdk",
             name = "osx_sdk",
         ),
     ],
+    use_goma = GOMA.DEFAULT,
 )
 v8_builder(
     name = "V8 Linux64 - debug - perfetto - builder",
     bucket = "ci",
     triggered_by = ["v8-trigger"],
     dimensions = {"os": "Ubuntu-16.04", "cpu": "x86-64"},
-    properties = {"build_config": "Debug", "$build/goma": {"server_host": "goma.chromium.org", "rpc_extra_params": "?prod"}, "mastername": "client.v8", "triggers": ["V8 Linux64 - debug - perfetto"]},
+    properties = {"build_config": "Debug", "mastername": "client.v8", "triggers": ["V8 Linux64 - debug - perfetto"]},
+    use_goma = GOMA.DEFAULT,
 )
 v8_builder(
     name = "V8 Linux64 - debug - perfetto",
@@ -68,7 +74,8 @@ v8_builder(
     bucket = "ci",
     triggered_by = ["v8-trigger"],
     dimensions = {"os": "Ubuntu-16.04", "cpu": "x86-64"},
-    properties = {"build_config": "Release", "$build/goma": {"server_host": "goma.chromium.org", "rpc_extra_params": "?prod"}, "mastername": "client.v8"},
+    properties = {"build_config": "Release", "mastername": "client.v8"},
+    use_goma = GOMA.DEFAULT,
 )
 v8_builder(
     name = "V8 Linux64 - fyi",
@@ -89,21 +96,24 @@ v8_builder(
     bucket = "ci",
     triggered_by = ["v8-trigger"],
     dimensions = {"os": "Ubuntu-16.04", "cpu": "x86-64"},
-    properties = {"use_goma": False, "enable_swarming": False, "mastername": "client.v8", "clobber": True, "coverage": "gcov", "build_config": "Release"},
+    properties = {"enable_swarming": False, "mastername": "client.v8", "clobber": True, "coverage": "gcov", "build_config": "Release"},
+    use_goma = GOMA.NO,
 )
 v8_builder(
     name = "V8 Linux - predictable",
     bucket = "ci",
     triggered_by = ["v8-trigger"],
     dimensions = {"os": "Ubuntu-16.04", "cpu": "x86-64"},
-    properties = {"build_config": "Release", "$build/goma": {"server_host": "goma.chromium.org", "rpc_extra_params": "?prod"}, "mastername": "client.v8"},
+    properties = {"build_config": "Release", "mastername": "client.v8"},
+    use_goma = GOMA.DEFAULT,
 )
 v8_builder(
     name = "V8 Linux64 - reverse jsargs",
     bucket = "ci",
     triggered_by = ["v8-trigger"],
     dimensions = {"os": "Ubuntu-16.04", "cpu": "x86-64"},
-    properties = {"build_config": "Debug", "$build/goma": {"server_host": "goma.chromium.org", "rpc_extra_params": "?prod"}, "mastername": "client.v8"},
+    properties = {"build_config": "Debug", "mastername": "client.v8"},
+    use_goma = GOMA.DEFAULT,
 )
 v8_builder(
     name = "V8 Fuchsia",
@@ -116,13 +126,14 @@ v8_builder(
     bucket = "ci",
     triggered_by = ["v8-trigger"],
     dimensions = {"os": "Mac-10.13", "cpu": "x86-64"},
-    properties = {"build_config": "Debug", "$build/goma": {"server_host": "goma.chromium.org", "rpc_extra_params": "?prod"}, "mastername": "client.v8"},
+    properties = {"build_config": "Debug", "mastername": "client.v8"},
     caches = [
         swarming.cache(
             path = "osx_sdk",
             name = "osx_sdk",
         ),
     ],
+    use_goma = GOMA.DEFAULT,
 )
 v8_builder(
     name = "V8 Blink Mac",
@@ -131,13 +142,14 @@ v8_builder(
     executable = {"name": "chromium_integration"},
     dimensions = {"os": "Mac-10.13", "cpu": "x86-64"},
     execution_timeout = 10800,
-    properties = {"$build/goma": {"server_host": "goma.chromium.org", "rpc_extra_params": "?prod"}, "mastername": "client.v8.fyi"},
+    properties = {"mastername": "client.v8.fyi"},
     caches = [
         swarming.cache(
             path = "osx_sdk",
             name = "osx_sdk",
         ),
     ],
+    use_goma = GOMA.DEFAULT,
 )
 v8_builder(
     name = "V8 Blink Win",
@@ -146,7 +158,8 @@ v8_builder(
     executable = {"name": "chromium_integration"},
     dimensions = {"os": "Windows-10", "cpu": "x86-64"},
     execution_timeout = 10800,
-    properties = {"$build/goma": {"server_host": "goma.chromium.org", "enable_ats": True, "rpc_extra_params": "?prod"}, "mastername": "client.v8.fyi"},
+    properties = {"mastername": "client.v8.fyi"},
+    use_goma = GOMA.AST,
 )
 v8_builder(
     name = "V8 Blink Linux",
@@ -159,7 +172,8 @@ v8_builder(
     ),
     executable = {"name": "chromium_integration"},
     dimensions = {"os": "Ubuntu-16.04", "cpu": "x86-64"},
-    properties = {"$build/goma": {"server_host": "goma.chromium.org", "rpc_extra_params": "?prod"}, "mastername": "client.v8.fyi"},
+    properties = {"mastername": "client.v8.fyi"},
+    use_goma = GOMA.DEFAULT,
 )
 v8_builder(
     name = "V8 Blink Linux Debug",
@@ -171,7 +185,8 @@ v8_builder(
     ),
     executable = {"name": "chromium_integration"},
     dimensions = {"os": "Ubuntu-16.04", "cpu": "x86-64"},
-    properties = {"$build/goma": {"server_host": "goma.chromium.org", "rpc_extra_params": "?prod"}, "mastername": "client.v8.fyi"},
+    properties = {"mastername": "client.v8.fyi"},
+    use_goma = GOMA.DEFAULT,
 )
 v8_builder(
     name = "V8 Blink Linux Future",
@@ -179,7 +194,8 @@ v8_builder(
     triggered_by = ["v8-trigger"],
     executable = {"name": "chromium_integration"},
     dimensions = {"os": "Ubuntu-16.04", "cpu": "x86-64"},
-    properties = {"$build/goma": {"server_host": "goma.chromium.org", "rpc_extra_params": "?prod"}, "mastername": "client.v8.fyi"},
+    properties = {"mastername": "client.v8.fyi"},
+    use_goma = GOMA.DEFAULT,
 )
 v8_builder(
     name = "Linux Debug Builder",
@@ -187,7 +203,8 @@ v8_builder(
     triggered_by = ["v8-trigger"],
     executable = {"name": "chromium"},
     dimensions = {"host_class": "large_disk", "os": "Ubuntu-16.04", "cpu": "x86-64"},
-    properties = {"$build/goma": {"server_host": "goma.chromium.org", "rpc_extra_params": "?prod"}, "mastername": "client.v8.fyi"},
+    properties = {"mastername": "client.v8.fyi"},
+    use_goma = GOMA.DEFAULT,
 )
 v8_builder(
     name = "V8 Linux GN",
@@ -195,7 +212,8 @@ v8_builder(
     triggered_by = ["v8-trigger"],
     executable = {"name": "chromium"},
     dimensions = {"os": "Ubuntu-16.04", "cpu": "x86-64"},
-    properties = {"$build/goma": {"server_host": "goma.chromium.org", "rpc_extra_params": "?prod"}, "mastername": "client.v8.fyi"},
+    properties = {"mastername": "client.v8.fyi"},
+    use_goma = GOMA.DEFAULT,
 )
 v8_builder(
     name = "V8 Android GN (dbg)",
@@ -203,7 +221,8 @@ v8_builder(
     triggered_by = ["v8-trigger"],
     executable = {"name": "chromium"},
     dimensions = {"os": "Ubuntu-16.04", "cpu": "x86-64"},
-    properties = {"$build/goma": {"server_host": "goma.chromium.org", "rpc_extra_params": "?prod"}, "mastername": "client.v8.fyi"},
+    properties = {"mastername": "client.v8.fyi"},
+    use_goma = GOMA.DEFAULT,
 )
 v8_builder(
     name = "Linux ASAN Builder",
@@ -212,7 +231,8 @@ v8_builder(
     executable = {"name": "chromium"},
     dimensions = {"host_class": "large_disk", "os": "Ubuntu-16.04", "cpu": "x86-64"},
     execution_timeout = 18000,
-    properties = {"$build/goma": {"server_host": "goma.chromium.org", "rpc_extra_params": "?prod"}, "mastername": "client.v8.fyi"},
+    properties = {"mastername": "client.v8.fyi"},
+    use_goma = GOMA.DEFAULT,
 )
 v8_builder(
     name = "Win V8 FYI Release (NVIDIA)",
@@ -221,7 +241,8 @@ v8_builder(
     executable = {"name": "chromium_integration"},
     dimensions = {"os": "Windows-10", "cpu": "x86-64"},
     execution_timeout = 10800,
-    properties = {"$build/goma": {"server_host": "goma.chromium.org", "enable_ats": True, "rpc_extra_params": "?prod"}, "mastername": "client.v8.fyi"},
+    properties = {"mastername": "client.v8.fyi"},
+    use_goma = GOMA.AST,
 )
 v8_builder(
     name = "Mac V8 FYI Release (Intel)",
@@ -229,13 +250,14 @@ v8_builder(
     triggered_by = ["v8-trigger"],
     executable = {"name": "chromium_integration"},
     dimensions = {"os": "Mac-10.13", "cpu": "x86-64"},
-    properties = {"$build/goma": {"server_host": "goma.chromium.org", "rpc_extra_params": "?prod"}, "mastername": "client.v8.fyi"},
+    properties = {"mastername": "client.v8.fyi"},
     caches = [
         swarming.cache(
             path = "osx_sdk",
             name = "osx_sdk",
         ),
     ],
+    use_goma = GOMA.DEFAULT,
 )
 v8_builder(
     name = "Linux V8 FYI Release (NVIDIA)",
@@ -243,7 +265,8 @@ v8_builder(
     triggered_by = ["v8-trigger"],
     executable = {"name": "chromium_integration"},
     dimensions = {"os": "Ubuntu-16.04", "cpu": "x86-64"},
-    properties = {"$build/goma": {"server_host": "goma.chromium.org", "rpc_extra_params": "?prod"}, "mastername": "client.v8.fyi"},
+    properties = {"mastername": "client.v8.fyi"},
+    use_goma = GOMA.DEFAULT,
 )
 v8_builder(
     name = "Linux V8 FYI Release - pointer compression (NVIDIA)",
@@ -251,7 +274,8 @@ v8_builder(
     triggered_by = ["v8-trigger"],
     executable = {"name": "chromium_integration"},
     dimensions = {"os": "Ubuntu-16.04", "cpu": "x86-64"},
-    properties = {"$build/goma": {"server_host": "goma.chromium.org", "rpc_extra_params": "?prod"}, "mastername": "client.v8.fyi"},
+    properties = {"mastername": "client.v8.fyi"},
+    use_goma = GOMA.DEFAULT,
 )
 v8_builder(
     name = "Android V8 FYI Release (Nexus 5X)",
@@ -260,7 +284,8 @@ v8_builder(
     executable = {"name": "chromium_integration"},
     dimensions = {"os": "Ubuntu-16.04", "cpu": "x86-64"},
     execution_timeout = 10800,
-    properties = {"$build/goma": {"server_host": "goma.chromium.org", "rpc_extra_params": "?prod"}, "mastername": "client.v8.fyi"},
+    properties = {"mastername": "client.v8.fyi"},
+    use_goma = GOMA.DEFAULT,
 )
 v8_builder(
     name = "V8 Linux64 - node.js integration ng",
@@ -268,7 +293,8 @@ v8_builder(
     triggered_by = ["v8-trigger"],
     executable = {"name": "v8/node_integration_ng"},
     dimensions = {"os": "Ubuntu-16.04", "cpu": "x86-64"},
-    properties = {"$build/goma": {"server_host": "goma.chromium.org", "rpc_extra_params": "?prod"}, "v8_tot": True, "mastername": "client.v8.fyi"},
+    properties = {"v8_tot": True, "mastername": "client.v8.fyi"},
+    use_goma = GOMA.DEFAULT,
 )
 v8_builder(
     name = "V8 Clusterfuzz Win64 ASAN - release builder",
@@ -279,7 +305,8 @@ v8_builder(
         max_batch_size = 1,
     ),
     dimensions = {"os": "Windows-10", "cpu": "x86-64"},
-    properties = {"mastername": "client.v8.clusterfuzz", "clobber": True, "clusterfuzz_archive": {"bitness": "64", "bucket": "v8-asan", "name": "d8-asan"}, "build_config": "Release", "default_targets": ["v8_clusterfuzz"], "$build/goma": {"server_host": "goma.chromium.org", "enable_ats": True, "rpc_extra_params": "?prod"}},
+    properties = {"mastername": "client.v8.clusterfuzz", "clobber": True, "clusterfuzz_archive": {"bitness": "64", "bucket": "v8-asan", "name": "d8-asan"}, "build_config": "Release", "default_targets": ["v8_clusterfuzz"]},
+    use_goma = GOMA.AST,
 )
 v8_builder(
     name = "V8 Clusterfuzz Win64 ASAN - debug builder",
@@ -290,7 +317,8 @@ v8_builder(
         max_batch_size = 1,
     ),
     dimensions = {"os": "Windows-10", "cpu": "x86-64"},
-    properties = {"mastername": "client.v8.clusterfuzz", "clobber": True, "clusterfuzz_archive": {"bitness": "64", "bucket": "v8-asan", "name": "d8-asan"}, "build_config": "Debug", "default_targets": ["v8_clusterfuzz"], "$build/goma": {"server_host": "goma.chromium.org", "enable_ats": True, "rpc_extra_params": "?prod"}},
+    properties = {"mastername": "client.v8.clusterfuzz", "clobber": True, "clusterfuzz_archive": {"bitness": "64", "bucket": "v8-asan", "name": "d8-asan"}, "build_config": "Debug", "default_targets": ["v8_clusterfuzz"]},
+    use_goma = GOMA.AST,
 )
 v8_builder(
     name = "V8 Clusterfuzz Mac64 ASAN - release builder",
@@ -301,13 +329,14 @@ v8_builder(
         max_batch_size = 1,
     ),
     dimensions = {"os": "Mac-10.13", "cpu": "x86-64"},
-    properties = {"mastername": "client.v8.clusterfuzz", "clobber": True, "clusterfuzz_archive": {"bucket": "v8-asan", "name": "d8-asan"}, "build_config": "Release", "default_targets": ["v8_clusterfuzz"], "$build/goma": {"server_host": "goma.chromium.org", "rpc_extra_params": "?prod"}},
+    properties = {"mastername": "client.v8.clusterfuzz", "clobber": True, "clusterfuzz_archive": {"bucket": "v8-asan", "name": "d8-asan"}, "build_config": "Release", "default_targets": ["v8_clusterfuzz"]},
     caches = [
         swarming.cache(
             path = "osx_sdk",
             name = "osx_sdk",
         ),
     ],
+    use_goma = GOMA.DEFAULT,
 )
 v8_builder(
     name = "V8 Clusterfuzz Mac64 ASAN - debug builder",
@@ -318,13 +347,14 @@ v8_builder(
         max_batch_size = 1,
     ),
     dimensions = {"os": "Mac-10.13", "cpu": "x86-64"},
-    properties = {"mastername": "client.v8.clusterfuzz", "clobber": True, "clusterfuzz_archive": {"bucket": "v8-asan", "name": "d8-asan"}, "build_config": "Debug", "default_targets": ["v8_clusterfuzz"], "$build/goma": {"server_host": "goma.chromium.org", "rpc_extra_params": "?prod"}},
+    properties = {"mastername": "client.v8.clusterfuzz", "clobber": True, "clusterfuzz_archive": {"bucket": "v8-asan", "name": "d8-asan"}, "build_config": "Debug", "default_targets": ["v8_clusterfuzz"]},
     caches = [
         swarming.cache(
             path = "osx_sdk",
             name = "osx_sdk",
         ),
     ],
+    use_goma = GOMA.DEFAULT,
 )
 v8_builder(
     name = "V8 Clusterfuzz Linux64 - release builder",
@@ -335,7 +365,8 @@ v8_builder(
         max_batch_size = 1,
     ),
     dimensions = {"os": "Ubuntu-16.04", "cpu": "x86-64"},
-    properties = {"triggers": ["V8 NumFuzz"], "mastername": "client.v8.clusterfuzz", "clusterfuzz_archive": {"bucket": "v8-asan", "name": "d8"}, "build_config": "Release", "default_targets": ["v8_clusterfuzz"], "$build/goma": {"server_host": "goma.chromium.org", "rpc_extra_params": "?prod"}},
+    properties = {"triggers": ["V8 NumFuzz"], "mastername": "client.v8.clusterfuzz", "clusterfuzz_archive": {"bucket": "v8-asan", "name": "d8"}, "build_config": "Release", "default_targets": ["v8_clusterfuzz"]},
+    use_goma = GOMA.DEFAULT,
 )
 v8_builder(
     name = "V8 Clusterfuzz Linux64 - debug builder",
@@ -346,7 +377,8 @@ v8_builder(
         max_batch_size = 1,
     ),
     dimensions = {"os": "Ubuntu-16.04", "cpu": "x86-64"},
-    properties = {"triggers": ["V8 NumFuzz - debug"], "mastername": "client.v8.clusterfuzz", "clusterfuzz_archive": {"bucket": "v8-asan", "name": "d8"}, "build_config": "Debug", "default_targets": ["v8_clusterfuzz"], "$build/goma": {"server_host": "goma.chromium.org", "rpc_extra_params": "?prod"}},
+    properties = {"triggers": ["V8 NumFuzz - debug"], "mastername": "client.v8.clusterfuzz", "clusterfuzz_archive": {"bucket": "v8-asan", "name": "d8"}, "build_config": "Debug", "default_targets": ["v8_clusterfuzz"]},
+    use_goma = GOMA.DEFAULT,
 )
 v8_builder(
     name = "V8 Clusterfuzz Linux64 ASAN no inline - release builder",
@@ -357,7 +389,8 @@ v8_builder(
         max_batch_size = 1,
     ),
     dimensions = {"os": "Ubuntu-16.04", "cpu": "x86-64"},
-    properties = {"mastername": "client.v8.clusterfuzz", "clobber": True, "clusterfuzz_archive": {"bucket": "v8-asan", "name": "d8-asan-no-inline"}, "build_config": "Release", "default_targets": ["v8_clusterfuzz"], "$build/goma": {"server_host": "goma.chromium.org", "rpc_extra_params": "?prod"}},
+    properties = {"mastername": "client.v8.clusterfuzz", "clobber": True, "clusterfuzz_archive": {"bucket": "v8-asan", "name": "d8-asan-no-inline"}, "build_config": "Release", "default_targets": ["v8_clusterfuzz"]},
+    use_goma = GOMA.DEFAULT,
 )
 v8_builder(
     name = "V8 Clusterfuzz Linux64 ASAN - debug builder",
@@ -368,7 +401,8 @@ v8_builder(
         max_batch_size = 1,
     ),
     dimensions = {"os": "Ubuntu-16.04", "cpu": "x86-64"},
-    properties = {"mastername": "client.v8.clusterfuzz", "clobber": True, "clusterfuzz_archive": {"bucket": "v8-asan", "name": "d8-asan"}, "build_config": "Debug", "default_targets": ["v8_clusterfuzz"], "$build/goma": {"server_host": "goma.chromium.org", "rpc_extra_params": "?prod"}},
+    properties = {"mastername": "client.v8.clusterfuzz", "clobber": True, "clusterfuzz_archive": {"bucket": "v8-asan", "name": "d8-asan"}, "build_config": "Debug", "default_targets": ["v8_clusterfuzz"]},
+    use_goma = GOMA.DEFAULT,
 )
 v8_builder(
     name = "V8 Clusterfuzz Linux64 ASAN arm64 - debug builder",
@@ -379,7 +413,8 @@ v8_builder(
         max_batch_size = 1,
     ),
     dimensions = {"os": "Ubuntu-16.04", "cpu": "x86-64"},
-    properties = {"mastername": "client.v8.clusterfuzz", "clobber": True, "clusterfuzz_archive": {"bucket": "v8-asan", "name": "d8-arm64-asan"}, "build_config": "Debug", "default_targets": ["v8_clusterfuzz"], "$build/goma": {"server_host": "goma.chromium.org", "rpc_extra_params": "?prod"}},
+    properties = {"mastername": "client.v8.clusterfuzz", "clobber": True, "clusterfuzz_archive": {"bucket": "v8-asan", "name": "d8-arm64-asan"}, "build_config": "Debug", "default_targets": ["v8_clusterfuzz"]},
+    use_goma = GOMA.DEFAULT,
 )
 v8_builder(
     name = "V8 Clusterfuzz Linux ASAN arm - debug builder",
@@ -390,7 +425,8 @@ v8_builder(
         max_batch_size = 1,
     ),
     dimensions = {"os": "Ubuntu-16.04", "cpu": "x86-64"},
-    properties = {"mastername": "client.v8.clusterfuzz", "clobber": True, "clusterfuzz_archive": {"bucket": "v8-asan", "name": "d8-arm-asan"}, "build_config": "Debug", "default_targets": ["v8_clusterfuzz"], "$build/goma": {"server_host": "goma.chromium.org", "rpc_extra_params": "?prod"}},
+    properties = {"mastername": "client.v8.clusterfuzz", "clobber": True, "clusterfuzz_archive": {"bucket": "v8-asan", "name": "d8-arm-asan"}, "build_config": "Debug", "default_targets": ["v8_clusterfuzz"]},
+    use_goma = GOMA.DEFAULT,
 )
 v8_builder(
     name = "V8 Clusterfuzz Linux MSAN no origins",
@@ -401,7 +437,8 @@ v8_builder(
         max_batch_size = 1,
     ),
     dimensions = {"os": "Ubuntu-16.04", "cpu": "x86-64"},
-    properties = {"mastername": "client.v8.clusterfuzz", "clobber": True, "set_gclient_var": "checkout_instrumented_libraries", "build_config": "Release", "default_targets": ["v8_clusterfuzz"], "$build/goma": {"server_host": "goma.chromium.org", "rpc_extra_params": "?prod"}, "clusterfuzz_archive": {"bucket": "v8-msan", "name": "d8-msan-no-origins"}},
+    properties = {"mastername": "client.v8.clusterfuzz", "clobber": True, "set_gclient_var": "checkout_instrumented_libraries", "build_config": "Release", "default_targets": ["v8_clusterfuzz"], "clusterfuzz_archive": {"bucket": "v8-msan", "name": "d8-msan-no-origins"}},
+    use_goma = GOMA.DEFAULT,
 )
 v8_builder(
     name = "V8 Clusterfuzz Linux MSAN chained origins",
@@ -412,7 +449,8 @@ v8_builder(
         max_batch_size = 1,
     ),
     dimensions = {"os": "Ubuntu-16.04", "cpu": "x86-64"},
-    properties = {"mastername": "client.v8.clusterfuzz", "clobber": True, "set_gclient_var": "checkout_instrumented_libraries", "build_config": "Release", "default_targets": ["v8_clusterfuzz"], "$build/goma": {"server_host": "goma.chromium.org", "rpc_extra_params": "?prod"}, "clusterfuzz_archive": {"bucket": "v8-msan", "name": "d8-msan-chained-origins"}},
+    properties = {"mastername": "client.v8.clusterfuzz", "clobber": True, "set_gclient_var": "checkout_instrumented_libraries", "build_config": "Release", "default_targets": ["v8_clusterfuzz"], "clusterfuzz_archive": {"bucket": "v8-msan", "name": "d8-msan-chained-origins"}},
+    use_goma = GOMA.DEFAULT,
 )
 v8_builder(
     name = "V8 Clusterfuzz Linux64 CFI - release builder",
@@ -423,7 +461,8 @@ v8_builder(
         max_batch_size = 1,
     ),
     dimensions = {"os": "Ubuntu-16.04", "cpu": "x86-64"},
-    properties = {"mastername": "client.v8.clusterfuzz", "clobber": True, "clusterfuzz_archive": {"bucket": "v8-cfi", "name": "d8-cfi"}, "build_config": "Release", "default_targets": ["v8_clusterfuzz"], "$build/goma": {"server_host": "goma.chromium.org", "rpc_extra_params": "?prod"}},
+    properties = {"mastername": "client.v8.clusterfuzz", "clobber": True, "clusterfuzz_archive": {"bucket": "v8-cfi", "name": "d8-cfi"}, "build_config": "Release", "default_targets": ["v8_clusterfuzz"]},
+    use_goma = GOMA.DEFAULT,
 )
 v8_builder(
     name = "V8 Clusterfuzz Linux64 TSAN - release builder",
@@ -434,7 +473,8 @@ v8_builder(
         max_batch_size = 1,
     ),
     dimensions = {"os": "Ubuntu-16.04", "cpu": "x86-64"},
-    properties = {"build_config": "Release", "default_targets": ["v8_clusterfuzz"], "$build/goma": {"server_host": "goma.chromium.org", "rpc_extra_params": "?prod"}, "mastername": "client.v8.clusterfuzz", "triggers": ["V8 NumFuzz - TSAN"]},
+    properties = {"build_config": "Release", "default_targets": ["v8_clusterfuzz"], "mastername": "client.v8.clusterfuzz", "triggers": ["V8 NumFuzz - TSAN"]},
+    use_goma = GOMA.DEFAULT,
 )
 v8_builder(
     name = "V8 Clusterfuzz Linux64 UBSan - release builder",
@@ -445,7 +485,8 @@ v8_builder(
         max_batch_size = 1,
     ),
     dimensions = {"os": "Ubuntu-16.04", "cpu": "x86-64"},
-    properties = {"mastername": "client.v8.clusterfuzz", "clobber": True, "clusterfuzz_archive": {"bucket": "v8-ubsan", "name": "d8-ubsan"}, "build_config": "Release", "default_targets": ["v8_clusterfuzz"], "$build/goma": {"server_host": "goma.chromium.org", "rpc_extra_params": "?prod"}},
+    properties = {"mastername": "client.v8.clusterfuzz", "clobber": True, "clusterfuzz_archive": {"bucket": "v8-ubsan", "name": "d8-ubsan"}, "build_config": "Release", "default_targets": ["v8_clusterfuzz"]},
+    use_goma = GOMA.DEFAULT,
 )
 v8_builder(
     name = "V8 NumFuzz",
@@ -474,7 +515,8 @@ v8_builder(
     triggered_by = ["chromium-trigger"],
     executable = {"name": "chromium"},
     dimensions = {"os": "Ubuntu-16.04", "cpu": "x86-64"},
-    properties = {"$build/goma": {"server_host": "goma.chromium.org", "rpc_extra_params": "?prod"}, "mastername": "client.v8.chromium"},
+    properties = {"mastername": "client.v8.chromium"},
+    use_goma = GOMA.DEFAULT,
 )
 v8_builder(
     name = "Linux - Future (dbg)",
@@ -482,7 +524,8 @@ v8_builder(
     triggered_by = ["chromium-trigger"],
     executable = {"name": "chromium"},
     dimensions = {"os": "Ubuntu-16.04", "cpu": "x86-64"},
-    properties = {"$build/goma": {"server_host": "goma.chromium.org", "rpc_extra_params": "?prod"}, "mastername": "client.v8.chromium"},
+    properties = {"mastername": "client.v8.chromium"},
+    use_goma = GOMA.DEFAULT,
 )
 v8_builder(
     name = "Linux V8 API Stability",
@@ -490,7 +533,8 @@ v8_builder(
     triggered_by = ["chromium-trigger"],
     executable = {"name": "chromium"},
     dimensions = {"os": "Ubuntu-16.04", "cpu": "x86-64"},
-    properties = {"$build/goma": {"server_host": "goma.chromium.org", "rpc_extra_params": "?prod"}, "mastername": "client.v8.chromium"},
+    properties = {"mastername": "client.v8.chromium"},
+    use_goma = GOMA.DEFAULT,
 )
 v8_builder(
     name = "V8 Official Arm32",
@@ -502,7 +546,8 @@ v8_builder(
     ),
     executable = {"name": "v8/archive"},
     dimensions = {"os": "Ubuntu-16.04", "cpu": "x86-64"},
-    properties = {"build_config": "Release", "$build/goma": {"server_host": "goma.chromium.org", "rpc_extra_params": "?prod"}, "mastername": "client.v8.official", "target_bits": 32, "target_arch": "arm"},
+    properties = {"build_config": "Release", "mastername": "client.v8.official", "target_bits": 32, "target_arch": "arm"},
+    use_goma = GOMA.DEFAULT,
 )
 v8_builder(
     name = "V8 Official Arm64",
@@ -514,7 +559,8 @@ v8_builder(
     ),
     executable = {"name": "v8/archive"},
     dimensions = {"os": "Ubuntu-16.04", "cpu": "x86-64"},
-    properties = {"build_config": "Release", "$build/goma": {"server_host": "goma.chromium.org", "rpc_extra_params": "?prod"}, "mastername": "client.v8.official", "target_bits": 64, "target_arch": "arm"},
+    properties = {"build_config": "Release", "mastername": "client.v8.official", "target_bits": 64, "target_arch": "arm"},
+    use_goma = GOMA.DEFAULT,
 )
 v8_builder(
     name = "V8 Official Android Arm32",
@@ -526,7 +572,8 @@ v8_builder(
     ),
     executable = {"name": "v8/archive"},
     dimensions = {"os": "Ubuntu-16.04", "cpu": "x86-64"},
-    properties = {"$build/goma": {"server_host": "goma.chromium.org", "rpc_extra_params": "?prod"}, "mastername": "client.v8.official", "target_bits": 32, "build_config": "Release", "target_platform": "android", "target_arch": "arm"},
+    properties = {"mastername": "client.v8.official", "target_bits": 32, "build_config": "Release", "target_platform": "android", "target_arch": "arm"},
+    use_goma = GOMA.DEFAULT,
 )
 v8_builder(
     name = "V8 Official Android Arm64",
@@ -538,7 +585,8 @@ v8_builder(
     ),
     executable = {"name": "v8/archive"},
     dimensions = {"os": "Ubuntu-16.04", "cpu": "x86-64"},
-    properties = {"$build/goma": {"server_host": "goma.chromium.org", "rpc_extra_params": "?prod"}, "mastername": "client.v8.official", "target_bits": 64, "build_config": "Release", "target_platform": "android", "target_arch": "arm"},
+    properties = {"mastername": "client.v8.official", "target_bits": 64, "build_config": "Release", "target_platform": "android", "target_arch": "arm"},
+    use_goma = GOMA.DEFAULT,
 )
 v8_builder(
     name = "V8 Official Linux32",
@@ -550,7 +598,8 @@ v8_builder(
     ),
     executable = {"name": "v8/archive"},
     dimensions = {"os": "Ubuntu-16.04", "cpu": "x86-64"},
-    properties = {"build_config": "Release", "$build/goma": {"server_host": "goma.chromium.org", "rpc_extra_params": "?prod"}, "mastername": "client.v8.official", "target_bits": 32},
+    properties = {"build_config": "Release", "mastername": "client.v8.official", "target_bits": 32},
+    use_goma = GOMA.DEFAULT,
 )
 v8_builder(
     name = "V8 Official Linux32 Debug",
@@ -562,7 +611,8 @@ v8_builder(
     ),
     executable = {"name": "v8/archive"},
     dimensions = {"os": "Ubuntu-16.04", "cpu": "x86-64"},
-    properties = {"build_config": "Debug", "$build/goma": {"server_host": "goma.chromium.org", "rpc_extra_params": "?prod"}, "mastername": "client.v8.official", "target_bits": 32},
+    properties = {"build_config": "Debug", "mastername": "client.v8.official", "target_bits": 32},
+    use_goma = GOMA.DEFAULT,
 )
 v8_builder(
     name = "V8 Official Linux64",
@@ -574,7 +624,8 @@ v8_builder(
     ),
     executable = {"name": "v8/archive"},
     dimensions = {"os": "Ubuntu-16.04", "cpu": "x86-64"},
-    properties = {"build_config": "Release", "$build/goma": {"server_host": "goma.chromium.org", "rpc_extra_params": "?prod"}, "mastername": "client.v8.official", "target_bits": 64},
+    properties = {"build_config": "Release", "mastername": "client.v8.official", "target_bits": 64},
+    use_goma = GOMA.DEFAULT,
 )
 v8_builder(
     name = "V8 Official Linux64 Debug",
@@ -586,7 +637,8 @@ v8_builder(
     ),
     executable = {"name": "v8/archive"},
     dimensions = {"os": "Ubuntu-16.04", "cpu": "x86-64"},
-    properties = {"build_config": "Debug", "$build/goma": {"server_host": "goma.chromium.org", "rpc_extra_params": "?prod"}, "mastername": "client.v8.official", "target_bits": 64},
+    properties = {"build_config": "Debug", "mastername": "client.v8.official", "target_bits": 64},
+    use_goma = GOMA.DEFAULT,
 )
 v8_builder(
     name = "V8 Official Win32",
@@ -598,7 +650,8 @@ v8_builder(
     ),
     executable = {"name": "v8/archive"},
     dimensions = {"os": "Windows-10", "cpu": "x86-64"},
-    properties = {"build_config": "Release", "$build/goma": {"server_host": "goma.chromium.org", "enable_ats": True, "rpc_extra_params": "?prod"}, "mastername": "client.v8.official", "target_bits": 32},
+    properties = {"build_config": "Release", "mastername": "client.v8.official", "target_bits": 32},
+    use_goma = GOMA.AST,
 )
 v8_builder(
     name = "V8 Official Win32 Debug",
@@ -610,7 +663,8 @@ v8_builder(
     ),
     executable = {"name": "v8/archive"},
     dimensions = {"os": "Windows-10", "cpu": "x86-64"},
-    properties = {"build_config": "Debug", "$build/goma": {"server_host": "goma.chromium.org", "enable_ats": True, "rpc_extra_params": "?prod"}, "mastername": "client.v8.official", "target_bits": 32},
+    properties = {"build_config": "Debug", "mastername": "client.v8.official", "target_bits": 32},
+    use_goma = GOMA.AST,
 )
 v8_builder(
     name = "V8 Official Win64",
@@ -622,7 +676,8 @@ v8_builder(
     ),
     executable = {"name": "v8/archive"},
     dimensions = {"os": "Windows-10", "cpu": "x86-64"},
-    properties = {"build_config": "Release", "$build/goma": {"server_host": "goma.chromium.org", "enable_ats": True, "rpc_extra_params": "?prod"}, "mastername": "client.v8.official", "target_bits": 64},
+    properties = {"build_config": "Release", "mastername": "client.v8.official", "target_bits": 64},
+    use_goma = GOMA.AST,
 )
 v8_builder(
     name = "V8 Official Win64 Debug",
@@ -634,7 +689,8 @@ v8_builder(
     ),
     executable = {"name": "v8/archive"},
     dimensions = {"os": "Windows-10", "cpu": "x86-64"},
-    properties = {"build_config": "Debug", "$build/goma": {"server_host": "goma.chromium.org", "enable_ats": True, "rpc_extra_params": "?prod"}, "mastername": "client.v8.official", "target_bits": 64},
+    properties = {"build_config": "Debug", "mastername": "client.v8.official", "target_bits": 64},
+    use_goma = GOMA.AST,
 )
 v8_builder(
     name = "V8 Official Mac64",
@@ -646,13 +702,14 @@ v8_builder(
     ),
     executable = {"name": "v8/archive"},
     dimensions = {"os": "Mac-10.13", "cpu": "x86-64"},
-    properties = {"build_config": "Release", "$build/goma": {"server_host": "goma.chromium.org", "rpc_extra_params": "?prod"}, "mastername": "client.v8.official", "target_bits": 64},
+    properties = {"build_config": "Release", "mastername": "client.v8.official", "target_bits": 64},
     caches = [
         swarming.cache(
             path = "osx_sdk",
             name = "osx_sdk",
         ),
     ],
+    use_goma = GOMA.DEFAULT,
 )
 v8_builder(
     name = "V8 Official Mac64 Debug",
@@ -664,13 +721,14 @@ v8_builder(
     ),
     executable = {"name": "v8/archive"},
     dimensions = {"os": "Mac-10.13", "cpu": "x86-64"},
-    properties = {"build_config": "Debug", "$build/goma": {"server_host": "goma.chromium.org", "rpc_extra_params": "?prod"}, "mastername": "client.v8.official", "target_bits": 64},
+    properties = {"build_config": "Debug", "mastername": "client.v8.official", "target_bits": 64},
     caches = [
         swarming.cache(
             path = "osx_sdk",
             name = "osx_sdk",
         ),
     ],
+    use_goma = GOMA.DEFAULT,
 )
 v8_builder(
     name = "V8 Arm - builder - perf",
@@ -681,7 +739,8 @@ v8_builder(
         max_batch_size = 1,
     ),
     dimensions = {"os": "Ubuntu-16.04", "cpu": "x86-64"},
-    properties = {"triggers_proxy": True, "build_config": "Release", "$build/goma": {"server_host": "goma.chromium.org", "rpc_extra_params": "?prod"}, "target_arch": "arm", "mastername": "client.v8.perf"},
+    properties = {"triggers_proxy": True, "build_config": "Release", "target_arch": "arm", "mastername": "client.v8.perf"},
+    use_goma = GOMA.DEFAULT,
 )
 v8_builder(
     name = "V8 Arm64 - builder - perf",
@@ -692,7 +751,8 @@ v8_builder(
         max_batch_size = 1,
     ),
     dimensions = {"os": "Ubuntu-16.04", "cpu": "x86-64"},
-    properties = {"triggers_proxy": True, "mastername": "client.v8.perf", "target_arch": "arm", "build_config": "Release", "$build/goma": {"server_host": "goma.chromium.org", "rpc_extra_params": "?prod"}, "target_bits": 64},
+    properties = {"triggers_proxy": True, "mastername": "client.v8.perf", "target_arch": "arm", "build_config": "Release", "target_bits": 64},
+    use_goma = GOMA.DEFAULT,
 )
 v8_builder(
     name = "V8 Android Arm - builder - perf",
@@ -703,7 +763,8 @@ v8_builder(
         max_batch_size = 1,
     ),
     dimensions = {"os": "Ubuntu-16.04", "cpu": "x86-64"},
-    properties = {"triggers_proxy": True, "$build/goma": {"server_host": "goma.chromium.org", "rpc_extra_params": "?prod"}, "mastername": "client.v8.perf", "target_arch": "arm", "build_config": "Release", "target_platform": "android"},
+    properties = {"triggers_proxy": True, "mastername": "client.v8.perf", "target_arch": "arm", "build_config": "Release", "target_platform": "android"},
+    use_goma = GOMA.DEFAULT,
 )
 v8_builder(
     name = "V8 Android Arm64 - builder - perf",
@@ -714,7 +775,8 @@ v8_builder(
         max_batch_size = 1,
     ),
     dimensions = {"os": "Ubuntu-16.04", "cpu": "x86-64"},
-    properties = {"triggers_proxy": True, "$build/goma": {"server_host": "goma.chromium.org", "rpc_extra_params": "?prod"}, "mastername": "client.v8.perf", "target_arch": "arm", "build_config": "Release", "target_platform": "android"},
+    properties = {"triggers_proxy": True, "mastername": "client.v8.perf", "target_arch": "arm", "build_config": "Release", "target_platform": "android"},
+    use_goma = GOMA.DEFAULT,
 )
 v8_builder(
     name = "V8 Linux - builder - perf",
@@ -725,7 +787,8 @@ v8_builder(
         max_batch_size = 1,
     ),
     dimensions = {"os": "Ubuntu-16.04", "cpu": "x86-64"},
-    properties = {"triggers_proxy": True, "build_config": "Release", "$build/goma": {"server_host": "goma.chromium.org", "rpc_extra_params": "?prod"}, "mastername": "client.v8.perf"},
+    properties = {"triggers_proxy": True, "build_config": "Release", "mastername": "client.v8.perf"},
+    use_goma = GOMA.DEFAULT,
 )
 v8_builder(
     name = "V8 Linux64 - builder - perf",
@@ -736,7 +799,8 @@ v8_builder(
         max_batch_size = 1,
     ),
     dimensions = {"os": "Ubuntu-16.04", "cpu": "x86-64"},
-    properties = {"triggers_proxy": True, "build_config": "Release", "$build/goma": {"server_host": "goma.chromium.org", "rpc_extra_params": "?prod"}, "mastername": "client.v8.perf"},
+    properties = {"triggers_proxy": True, "build_config": "Release", "mastername": "client.v8.perf"},
+    use_goma = GOMA.DEFAULT,
 )
 
 v8_builder(
@@ -754,7 +818,8 @@ v8_builder(
         max_batch_size = 1,
     ),
     dimensions = {"os": "Ubuntu-16.04", "cpu": "x86-64"},
-    properties = {"triggers": ["V8 Linux64"], "mastername": "client.v8", "track_build_dependencies": True, "build_config": "Release", "$build/goma": {"server_host": "goma.chromium.org", "rpc_extra_params": "?prod"}, "binary_size_tracking": {"category": "linux64", "binary": "d8"}},
+    properties = {"triggers": ["V8 Linux64"], "mastername": "client.v8", "track_build_dependencies": True, "build_config": "Release", "binary_size_tracking": {"category": "linux64", "binary": "d8"}},
+    use_goma = GOMA.DEFAULT,
 )
 v8_builder(
     name = "V8 Linux64 - debug builder",
@@ -765,14 +830,16 @@ v8_builder(
         max_batch_size = 1,
     ),
     dimensions = {"os": "Ubuntu-16.04", "cpu": "x86-64"},
-    properties = {"build_config": "Debug", "$build/goma": {"server_host": "goma.chromium.org", "rpc_extra_params": "?prod"}, "mastername": "client.v8", "set_gclient_var": "download_jsfunfuzz", "triggers": ["V8 Fuzzer", "V8 Linux64 - debug"]},
+    properties = {"build_config": "Debug", "mastername": "client.v8", "set_gclient_var": "download_jsfunfuzz", "triggers": ["V8 Fuzzer", "V8 Linux64 - debug"]},
+    use_goma = GOMA.DEFAULT,
 )
 v8_builder(
     name = "V8 Fuchsia - builder",
     bucket = "ci.br.beta",
     triggered_by = ["v8-trigger-br-beta"],
     dimensions = {"os": "Ubuntu-16.04", "cpu": "x86-64"},
-    properties = {"build_config": "Release", "target_platform": "fuchsia", "mastername": "client.v8", "$build/goma": {"server_host": "goma.chromium.org", "rpc_extra_params": "?prod"}},
+    properties = {"build_config": "Release", "target_platform": "fuchsia", "mastername": "client.v8"},
+    use_goma = GOMA.DEFAULT,
 )
 v8_builder(
     name = "V8 iOS - sim",
@@ -795,7 +862,8 @@ v8_builder(
         max_batch_size = 1,
     ),
     dimensions = {"os": "Ubuntu-16.04", "cpu": "x86-64"},
-    properties = {"triggers": ["V8 Linux64"], "mastername": "client.v8", "track_build_dependencies": True, "build_config": "Release", "$build/goma": {"server_host": "goma.chromium.org", "rpc_extra_params": "?prod"}, "binary_size_tracking": {"category": "linux64", "binary": "d8"}},
+    properties = {"triggers": ["V8 Linux64"], "mastername": "client.v8", "track_build_dependencies": True, "build_config": "Release", "binary_size_tracking": {"category": "linux64", "binary": "d8"}},
+    use_goma = GOMA.DEFAULT,
 )
 v8_builder(
     name = "V8 Linux64 - debug builder",
@@ -806,12 +874,14 @@ v8_builder(
         max_batch_size = 1,
     ),
     dimensions = {"os": "Ubuntu-16.04", "cpu": "x86-64"},
-    properties = {"build_config": "Debug", "$build/goma": {"server_host": "goma.chromium.org", "rpc_extra_params": "?prod"}, "mastername": "client.v8", "set_gclient_var": "download_jsfunfuzz", "triggers": ["V8 Fuzzer", "V8 Linux64 - debug"]},
+    properties = {"build_config": "Debug", "mastername": "client.v8", "set_gclient_var": "download_jsfunfuzz", "triggers": ["V8 Fuzzer", "V8 Linux64 - debug"]},
+    use_goma = GOMA.DEFAULT,
 )
 v8_builder(
     name = "V8 Fuchsia - builder",
     bucket = "ci.br.stable",
     triggered_by = ["v8-trigger-br-stable"],
     dimensions = {"os": "Ubuntu-16.04", "cpu": "x86-64"},
-    properties = {"build_config": "Release", "target_platform": "fuchsia", "mastername": "client.v8", "$build/goma": {"server_host": "goma.chromium.org", "rpc_extra_params": "?prod"}},
+    properties = {"build_config": "Release", "target_platform": "fuchsia", "mastername": "client.v8"},
+    use_goma = GOMA.DEFAULT,
 )

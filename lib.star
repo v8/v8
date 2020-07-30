@@ -74,6 +74,12 @@ trigger_dict = {
 
 goma_props = {"$build/goma": {"server_host": "goma.chromium.org", "rpc_extra_params": "?prod"}}
 
+GOMA = struct(
+    DEFAULT = {"$build/goma": {"server_host": "goma.chromium.org", "rpc_extra_params": "?prod"}},
+    AST = {"$build/goma": {"server_host": "goma.chromium.org", "enable_ats": True, "rpc_extra_params": "?prod"}},
+    NO = {"use_goma": False},
+)
+
 multibot_caches = [
     swarming.cache(
         path = "builder",
@@ -96,6 +102,10 @@ def v8_basic_builder(defaults, **kv_args):
             cq_group = "v8-cq",
             **cq_properties
         )
+    use_goma = kv_args.pop("use_goma", None)
+    if use_goma:
+        properties = dict((kv_args.pop("properties", {})).items() + use_goma.items())
+        kv_args["properties"] = properties
     kv_args = fix_args(defaults, **kv_args)
     luci.builder(**kv_args)
 

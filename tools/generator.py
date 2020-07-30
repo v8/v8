@@ -24,6 +24,7 @@ COMMON_BUILDER_BODY = """    executable=%s,
     properties=%s,
     caches=%s,
     priority=%s,
+    use_goma=%s,
   )"""
 
 MIGRATED_BUILDERS = [
@@ -63,7 +64,7 @@ class StarlarkGenerator:
     code = self.minor_text_adjustments(code)
     self.write_file(
       'branch_coverage.star',
-      "load('//lib.star','v8_branch_coverage_builder')",
+      "load('//lib.star','v8_branch_coverage_builder', 'GOMA')",
       code)
 
   def write_file(self, name, header, content):
@@ -98,7 +99,7 @@ class StarlarkGenerator:
     code = self.minor_text_adjustments(try_ng)
     self.write_file(
       'try_ng.star',
-      "load('//lib.star','v8_try_ng_pair')",
+      "load('//lib.star','v8_try_ng_pair', 'GOMA')",
       code)
 
   def write_ng_pair(self, builder, overrides):
@@ -118,13 +119,13 @@ class StarlarkGenerator:
 
   def write_try(self):
     try_code = "\n".join([
-      self.write_try_builder(self.bb_cfg.consolidate_builder(builder)) 
+      self.write_try_builder(self.bb_cfg.consolidate_builder(builder))
       for builder in self.bb_cfg.try_builders()
     ])
     try_code = self.minor_text_adjustments(try_code)
     self.write_file(
       'try.star',
-      "load('//lib.star','v8_try_builder')",
+      "load('//lib.star','v8_try_builder', 'GOMA')",
       try_code)
 
   def write_try_builder(self, builder):
@@ -168,6 +169,7 @@ class StarlarkGenerator:
 
 
   def common_builder_body(self, builder, props):
+    use_goma = self.use_goma_param_value(props)
     dimensnsions = self.bb_cfg.dimensions(builder)
     caches = self.write_caches(builder)
     if dimensnsions.get('host_class','') == 'multibot':
@@ -182,8 +184,20 @@ class StarlarkGenerator:
       props,
       caches,
       builder.get('priority', [None])[-1],
+      use_goma
     )
 
+  def use_goma_param_value(self, props):
+    if '$build/goma' in props:
+      val = props.pop('$build/goma')
+      if 'enable_ats' in val:
+        return "GOMA.AST"
+      else:
+        return "GOMA.DEFAULT"
+    elif 'use_goma' in props:
+      del props['use_goma']
+      return "GOMA.NO"
+    return "None"
 
   def write_scheduler_policy(self, bucket_name, builder_name):
     job = self.sc_cfg.job(bucket_name, builder_name)
@@ -221,7 +235,7 @@ class StarlarkGenerator:
     code = self.minor_text_adjustments(code)
     self.write_file(
       'others.star',
-      "load('//lib.star','v8_builder')",
+      "load('//lib.star','v8_builder', 'GOMA')",
       code)
 
 
