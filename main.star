@@ -9,6 +9,7 @@ lucicfg.config(
     tracked_files = [
         "commit-queue.cfg",
         "cr-buildbucket.cfg",
+        "luci-milo.cfg",
         "luci-scheduler.cfg",
         "project.cfg",
     ],
@@ -181,3 +182,4 @@ exec("//branch_coverage.star")
 exec("//try.star")
 exec("//try_ng.star")
 exec("//others.star")
+exec("//milo.star")

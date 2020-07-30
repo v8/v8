@@ -232,3 +232,19 @@ class CommitQueueCfg:
 class MiloCfg:
   def __init__(self):
     self.cfg = prototext.prototext2dict('luci-milo.cfg')
+    self.builder2consoles()
+
+  def builder2consoles(self):
+    self.builder_dict = dict()
+    for c in self.cfg['consoles']:
+      console_name = c["id"][0]
+      for b in c['builders']:
+        category = b.pop('category', [None])[0]
+        short_name = b.pop('short_name', [None])[0]
+        [_, bucket_name, builder_name] = b.pop('name')[0].split("/")
+        bucket_name = bucket_name[8:]
+        self.builder_dict[bucket_name, builder_name] = {
+          "console_view": console_name,
+          "category": category,
+          "short_name": short_name
+        }

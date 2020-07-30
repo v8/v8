@@ -138,7 +138,7 @@ class StarlarkGenerator:
     )
     self.migrated.add(self.bb_cfg.builder_name(builder))
     return header + self.common_builder_body(builder, props)
-  
+
   def write_stable_builder(self, builder):
     props = self.bb_cfg.properties(builder)
     builder_name = self.bb_cfg.builder_name(builder)
@@ -147,7 +147,7 @@ class StarlarkGenerator:
       triggered_by_gitiles=%s,"""  %  (
       builder_name,
       self.write_scheduler_policy("ci.br.stable", self.bb_cfg.builder_name(builder)),
-      self.sc_cfg.triggerd_by("ci.br.stable", builder_name) != None
+      self.sc_cfg.triggerd_by("ci.br.stable", builder_name) != None,
     )
     return header + self.common_builder_body(builder, props)
 
@@ -301,5 +301,6 @@ if __name__ == '__main__':
   StarlarkGenerator().generate()
   os.system('lucicfg fmt')
   os.system('lucicfg generate main.star')
-  os.system('lucicfg semanticdiff --output-dir out main.star cr-buildbucket.cfg luci-scheduler.cfg commit-queue.cfg > out/diff.txt')
+  original_files ="cr-buildbucket.cfg luci-scheduler.cfg commit-queue.cfg luci-milo.cfg"
+  os.system('lucicfg semanticdiff --output-dir out main.star %s> out/diff.txt' % original_files)
   os.system('wc -l out/diff.txt')

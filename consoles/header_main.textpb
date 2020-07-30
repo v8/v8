@@ -1,0 +1,97 @@
+tree_status_host: "v8-status.appspot.com"
+
+links {
+  name: "Consoles"
+  links {
+    text: "main"
+    url: "/p/v8/g/main"
+    alt: "Main V8 Console"
+  }
+  links {
+    text: "ports"
+    url: "/p/v8/g/ports"
+    alt: "Ports V8 Console"
+  }
+  links {
+    text: "integration"
+    url: "/p/v8/g/integration"
+    alt: "V8 Integration Console"
+  }
+  links {
+    text: "experiments"
+    url: "/p/v8/g/experiments"
+    alt: "Experiments V8 Console"
+  }
+  links {
+    text: "clusterfuzz"
+    url: "/p/v8/g/clusterfuzz"
+    alt: "Clusterfuzz V8 Console"
+  }
+  links {
+    text: "chromium"
+    url: "/p/v8/g/chromium"
+    alt: "Chromium V8 Console"
+  }
+  links {
+    text: "infra"
+    url: "/p/v8/g/infra"
+    alt: "Infra V8 Console"
+  }
+  links {
+    text: "perf"
+    url: "/p/v8/g/perf"
+    alt: "Performance V8 Console"
+  }
+}
+
+links {
+  name: "Controls"
+  links {
+    text: "tree status"
+    url: "https://v8-status.appspot.com/"
+  }
+  links {
+    text: "roll status"
+    url: "https://v8-roll.appspot.com/"
+  }
+}
+
+links {
+  name: "LKGR"
+  links {
+    # TODO(sergiyb): Make this text show LKGR revision dynamically and its age
+    # as it was displayed on Buildbot, e.g. "3d468c38 (5h old)". Currently
+    # this is not possible in Milo, see https://crbug.com/832598.
+    text: "status"
+    url: "https://storage.cloud.google.com/chromium-v8/lkgr-status/v8-lkgr-status.html"
+  }
+}
+
+links {
+  name: "Branch Coverage"
+  links {
+    text: "stable"
+    url: "/p/v8/g/br.stable"
+    alt: "Stable"
+  }
+  links {
+    text: "beta"
+    url: "/p/v8/g/br.beta"
+    alt: "Beta"
+  }
+  links {
+    text: "readme"
+    url: "https://chromium.googlesource.com/v8/v8/+/infra/config/docs/branch-covarage.md"
+    alt: "readme"
+  }
+}
+
+console_groups {
+  console_ids: "v8/ports"
+  console_ids: "v8/clusterfuzz"
+  console_ids: "v8/perf"
+  console_ids: "v8/integration"
+  console_ids: "v8/experiments"
+  console_ids: "v8/chromium"
+  console_ids: "v8/infra"
+}

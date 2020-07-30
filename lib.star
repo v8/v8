@@ -90,14 +90,23 @@ def v8_builder(**kv_args):
 
 def v8_basic_builder(defaults, **kv_args):
     cq_properties = kv_args.pop("cq_properties", None)
-    kv_args = fix_args(defaults, **kv_args)
     if cq_properties:
         luci.cq_tryjob_verifier(
             kv_args["name"],
             cq_group = "v8-cq",
             **cq_properties
         )
+    kv_args = fix_args(defaults, **kv_args)
     luci.builder(**kv_args)
+
+branch_console_dict = {
+    ("ci", "main"): "main",
+    ("ci", "ports"): "ports",
+    ("ci.br.beta", "main"): "br.beta",
+    ("ci.br.beta", "ports"): "br.beta.ports",
+    ("ci.br.stable", "main"): "br.stable",
+    ("ci.br.stable", "ports"): "br.stable.ports",
+}
 
 def v8_branch_coverage_builder(**kv_args):
     for bucket_name in ["ci", "ci.br.beta", "ci.br.stable"]:

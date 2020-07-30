@@ -1,0 +1,41 @@
+links {
+  name: "Stable coverage"
+  links {
+    text: "stable"
+    url: "/p/v8/g/br.stable"
+    alt: "Stable Main"
+  }
+  links {
+    text: "stable.ports"
+    url: "/p/v8/g/br.stable.ports"
+    alt: "Stable Ports"
+  }
+}
+links {
+  name: "Beta coverage"
+  links {
+    text: "beta"
+    url: "/p/v8/g/br.beta"
+    alt: "Beta Main"
+  }
+  links {
+    text: "beta.ports"
+    url: "/p/v8/g/br.beta.ports"
+    alt: "Beta Ports"
+  }
+}
+links {
+  name: "README"
+  links {
+    text: "readme"
+    url: "https://chromium.googlesource.com/v8/v8/+/infra/config/docs/branch-covarage.md"
+    alt: "readme"
+  }
+}
+
+console_groups {
+  console_ids: "v8/br.stable"
+  console_ids: "v8/br.stable.ports"
+  console_ids: "v8/br.beta"
+  console_ids: "v8/br.beta.ports"
+}
