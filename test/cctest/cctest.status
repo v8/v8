@@ -160,11 +160,6 @@
   'test-api/LoadICFastApi_DirectCall_GCMoveStubWithProfiler': [SKIP],
 }],  # 'arch == arm64'
 
-['arch == arm and simulator_run', {
-  # BUG(v8:9820).
-  'test-poison-disasm-arm/DisasmPoisonMonomorphicLoadFloat64': [SKIP],
-}],  # 'arch == arm and simulator_run'
-
 ['arch == arm64 and simulator_run', {
 
   # Pass but take too long with the simulator.
