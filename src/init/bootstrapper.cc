@@ -2761,6 +2761,11 @@ void Genesis::InitializeGlobal(Handle<JSGlobalObject> global_object,
         factory->NewJSObject(isolate_->object_function(), AllocationType::kOld);
     JSObject::AddProperty(isolate_, global, "Intl", intl, DONT_ENUM);
 
+    // ecma402 #sec-Intl-toStringTag
+    // The initial value of the @@toStringTag property is the string value
+    // *"Intl"*.
+    InstallToStringTag(isolate_, intl, "Intl");
+
     SimpleInstallFunction(isolate(), intl, "getCanonicalLocales",
                           Builtins::kIntlGetCanonicalLocales, 1, false);
 
