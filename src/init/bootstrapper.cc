@@ -3606,6 +3606,7 @@ void Genesis::InitializeGlobal(Handle<JSGlobalObject> global_object,
     Handle<JSObject> reflect =
         factory->NewJSObject(isolate_->object_function(), AllocationType::kOld);
     JSObject::AddProperty(isolate_, global, reflect_string, reflect, DONT_ENUM);
+    InstallToStringTag(isolate_, reflect, reflect_string);
 
     SimpleInstallFunction(isolate_, reflect, "defineProperty",
                           Builtins::kReflectDefineProperty, 3, true);
