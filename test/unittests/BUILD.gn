@@ -251,6 +251,7 @@ v8_source_set("unittests_sources") {
     "heap/memory-reducer-unittest.cc",
     "heap/object-stats-unittest.cc",
     "heap/off-thread-factory-unittest.cc",
+    "heap/persistent-handles-unittest.cc",
     "heap/safepoint-unittest.cc",
     "heap/slot-set-unittest.cc",
     "heap/spaces-unittest.cc",

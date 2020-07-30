@@ -12,9 +12,8 @@
 namespace v8 {
 namespace internal {
 
-PersistentHandles::PersistentHandles(Isolate* isolate, size_t block_size)
+PersistentHandles::PersistentHandles(Isolate* isolate)
     : isolate_(isolate),
-      block_size_(block_size),
       block_next_(nullptr),
       block_limit_(nullptr),
       prev_(nullptr),
@@ -27,7 +26,7 @@ PersistentHandles::~PersistentHandles() {
 
   for (Address* block_start : blocks_) {
 #if ENABLE_HANDLE_ZAPPING
-    HandleScope::ZapRange(block_start, block_start + block_size_);
+    HandleScope::ZapRange(block_start, block_start + kHandleBlockSize);
 #endif
     DeleteArray(block_start);
   }
@@ -58,18 +57,18 @@ bool PersistentHandles::Contains(Address* location) {
     // less than block_size_ handles.
     return location < block_next_;
   }
-  return location < *it + block_size_;
+  return location < *it + kHandleBlockSize;
 }
 #endif
 
 void PersistentHandles::AddBlock() {
   DCHECK_EQ(block_next_, block_limit_);
 
-  Address* block_start = NewArray<Address>(block_size_);
+  Address* block_start = NewArray<Address>(kHandleBlockSize);
   blocks_.push_back(block_start);
 
   block_next_ = block_start;
-  block_limit_ = block_start + block_size_;
+  block_limit_ = block_start + kHandleBlockSize;
 
 #ifdef DEBUG
   ordered_blocks_.insert(block_start);
@@ -89,7 +88,7 @@ Address* PersistentHandles::GetHandle(Address value) {
 void PersistentHandles::Iterate(RootVisitor* visitor) {
   for (int i = 0; i < static_cast<int>(blocks_.size()) - 1; i++) {
     Address* block_start = blocks_[i];
-    Address* block_end = block_start + block_size_;
+    Address* block_end = block_start + kHandleBlockSize;
     visitor->VisitRootPointers(Root::kHandleScope, nullptr,
                                FullObjectSlot(block_start),
                                FullObjectSlot(block_end));
@@ -133,6 +132,46 @@ void PersistentHandlesList::Iterate(RootVisitor* visitor) {
        current = current->next_) {
     current->Iterate(visitor);
   }
+}
+
+PersistentHandlesScope::PersistentHandlesScope(Isolate* isolate)
+    : impl_(isolate->handle_scope_implementer()) {
+  impl_->BeginDeferredScope();
+  HandleScopeData* data = impl_->isolate()->handle_scope_data();
+  Address* new_next = impl_->GetSpareOrNewBlock();
+  Address* new_limit = &new_next[kHandleBlockSize];
+  // Check that at least one HandleScope with at least one Handle in it exists,
+  // see the class description.
+  DCHECK(!impl_->blocks()->empty());
+  // Check that we are not in a SealHandleScope.
+  DCHECK(data->limit == &impl_->blocks()->back()[kHandleBlockSize]);
+  impl_->blocks()->push_back(new_next);
+
+#ifdef DEBUG
+  prev_level_ = data->level;
+#endif
+  data->level++;
+  prev_limit_ = data->limit;
+  prev_next_ = data->next;
+  data->next = new_next;
+  data->limit = new_limit;
+}
+
+PersistentHandlesScope::~PersistentHandlesScope() {
+  DCHECK(handles_detached_);
+  impl_->isolate()->handle_scope_data()->level--;
+  DCHECK_EQ(impl_->isolate()->handle_scope_data()->level, prev_level_);
+}
+
+std::unique_ptr<PersistentHandles> PersistentHandlesScope::Detach() {
+  std::unique_ptr<PersistentHandles> ph = impl_->DetachPersistent(prev_limit_);
+  HandleScopeData* data = impl_->isolate()->handle_scope_data();
+  data->next = prev_next_;
+  data->limit = prev_limit_;
+#ifdef DEBUG
+  handles_detached_ = true;
+#endif
+  return ph;
 }
 
 }  // namespace internal

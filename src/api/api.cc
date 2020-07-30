@@ -49,6 +49,7 @@
 #include "src/execution/v8threads.h"
 #include "src/execution/vm-state-inl.h"
 #include "src/handles/global-handles.h"
+#include "src/handles/persistent-handles.h"
 #include "src/heap/embedder-tracing.h"
 #include "src/heap/heap-inl.h"
 #include "src/init/bootstrapper.h"
@@ -11151,13 +11152,14 @@ std::unique_ptr<DeferredHandles> HandleScopeImplementer::Detach(
     Address* prev_limit) {
   std::unique_ptr<DeferredHandles> deferred(
       new DeferredHandles(isolate()->handle_scope_data()->next, isolate()));
+  DCHECK_NOT_NULL(prev_limit);
 
   while (!blocks_.empty()) {
     Address* block_start = blocks_.back();
     Address* block_limit = &block_start[kHandleBlockSize];
     // We should not need to check for SealHandleScope here. Assert this.
-    DCHECK(prev_limit == block_limit ||
-           !(block_start <= prev_limit && prev_limit <= block_limit));
+    DCHECK_IMPLIES(block_start <= prev_limit && prev_limit <= block_limit,
+                   prev_limit == block_limit);
     if (prev_limit == block_limit) break;
     deferred->blocks_.push_back(blocks_.back());
     blocks_.pop_back();
@@ -11166,13 +11168,45 @@ std::unique_ptr<DeferredHandles> HandleScopeImplementer::Detach(
   // deferred->blocks_ now contains the blocks installed on the
   // HandleScope stack since BeginDeferredScope was called, but in
   // reverse order.
+  DCHECK(!blocks_.empty() && !deferred->blocks_.empty());
 
-  DCHECK(prev_limit == nullptr || !blocks_.empty());
-
-  DCHECK(!blocks_.empty() && prev_limit != nullptr);
   DCHECK_NOT_NULL(last_handle_before_deferred_block_);
   last_handle_before_deferred_block_ = nullptr;
   return deferred;
+}
+
+std::unique_ptr<PersistentHandles> HandleScopeImplementer::DetachPersistent(
+    Address* prev_limit) {
+  std::unique_ptr<PersistentHandles> ph(new PersistentHandles(isolate()));
+  DCHECK_NOT_NULL(prev_limit);
+
+  while (!blocks_.empty()) {
+    Address* block_start = blocks_.back();
+    Address* block_limit = &block_start[kHandleBlockSize];
+    // We should not need to check for SealHandleScope here. Assert this.
+    DCHECK_IMPLIES(block_start <= prev_limit && prev_limit <= block_limit,
+                   prev_limit == block_limit);
+    if (prev_limit == block_limit) break;
+    ph->blocks_.push_back(blocks_.back());
+    blocks_.pop_back();
+  }
+
+  // ph->blocks_ now contains the blocks installed on the
+  // HandleScope stack since BeginDeferredScope was called, but in
+  // reverse order.
+
+  // Switch first and last blocks, such that the last block is the one
+  // that is potentially half full.
+  DCHECK(!blocks_.empty() && !ph->blocks_.empty());
+  std::swap(ph->blocks_.front(), ph->blocks_.back());
+
+  ph->block_next_ = isolate()->handle_scope_data()->next;
+  Address* block_start = ph->blocks_.back();
+  ph->block_limit_ = block_start + kHandleBlockSize;
+
+  DCHECK_NOT_NULL(last_handle_before_deferred_block_);
+  last_handle_before_deferred_block_ = nullptr;
+  return ph;
 }
 
 void HandleScopeImplementer::BeginDeferredScope() {

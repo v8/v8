@@ -178,7 +178,7 @@ DeferredHandleScope::DeferredHandleScope(Isolate* isolate)
   // Check that at least one HandleScope with at least one Handle in it exists,
   // see the class description.
   DCHECK(!impl_->blocks()->empty());
-  // Check that we are not in a SealedHandleScope.
+  // Check that we are not in a SealHandleScope.
   DCHECK(data->limit == &impl_->blocks()->back()[kHandleBlockSize]);
   impl_->blocks()->push_back(new_next);
 
