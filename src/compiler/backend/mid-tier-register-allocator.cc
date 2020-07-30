@@ -28,14 +28,23 @@ class RegisterState;
 class BlockState final {
  public:
   BlockState(int block_count, Zone* zone)
-      : dominated_blocks_(block_count, zone) {}
+      : dominated_blocks_(block_count, zone), successors_phi_index_(-1) {}
 
   // Returns a bitvector representing all the basic blocks that are dominated
   // by this basic block.
   BitVector* dominated_blocks() { return &dominated_blocks_; }
 
+  // Set / get this block's index for successor's phi operations. Will return
+  // -1 if this block has no successor's with phi operations.
+  int successors_phi_index() const { return successors_phi_index_; }
+  void set_successors_phi_index(int index) {
+    DCHECK_EQ(successors_phi_index_, -1);
+    successors_phi_index_ = index;
+  }
+
  private:
   BitVector dominated_blocks_;
+  int successors_phi_index_;
 };
 
 MidTierRegisterAllocationData::MidTierRegisterAllocationData(
@@ -462,10 +471,10 @@ class RegisterState final : public ZoneObject {
   // Commit the |reg| with the |allocated| operand.
   void Commit(RegisterIndex reg, AllocatedOperand allocated,
               InstructionOperand* operand, MidTierRegisterAllocationData* data);
-
-  // Spill the contents of |reg| using the |allocated| operand to commit the
-  // spill gap move.
+  // Spill the contents of |reg| for an instruction in |current_block| using
+  // the |allocated| operand to commit the spill gap move.
   void Spill(RegisterIndex reg, AllocatedOperand allocated,
+             const InstructionBlock* current_block,
              MidTierRegisterAllocationData* data);
 
   // Allocate |reg| to |virtual_register| for the instruction at |instr_index|.
@@ -508,6 +517,7 @@ class RegisterState final : public ZoneObject {
     // Operations for committing, spilling and allocating uses of the register.
     void Commit(AllocatedOperand allocated_operand);
     void Spill(AllocatedOperand allocated_op,
+               const InstructionBlock* current_block,
                MidTierRegisterAllocationData* data);
     void Use(int virtual_register, int instr_index);
     void PendingUse(InstructionOperand* operand, int virtual_register,
@@ -516,6 +526,10 @@ class RegisterState final : public ZoneObject {
     bool is_allocated() const {
       return virtual_register_ != InstructionOperand::kInvalidVirtualRegister;
     }
+
+    // Mark register as holding a phi.
+    void MarkAsPhiMove();
+    bool is_phi_gap_move() const { return is_phi_gap_move_; }
 
     // The current virtual register held by this register.
     int virtual_register() const { return virtual_register_; }
@@ -537,8 +551,12 @@ class RegisterState final : public ZoneObject {
 
    private:
     void SpillPendingUses(MidTierRegisterAllocationData* data);
+    void SpillPhiGapMove(AllocatedOperand allocated_op,
+                         const InstructionBlock* block,
+                         MidTierRegisterAllocationData* data);
 
     bool needs_gap_move_on_spill_;
+    bool is_phi_gap_move_;
     int last_use_instr_index_;
     int virtual_register_;
     PendingOperand* pending_uses_;
@@ -562,6 +580,7 @@ class RegisterState final : public ZoneObject {
 RegisterState::Register::Register() { Reset(); }
 
 void RegisterState::Register::Reset() {
+  is_phi_gap_move_ = false;
   needs_gap_move_on_spill_ = false;
   last_use_instr_index_ = -1;
   virtual_register_ = InstructionOperand::kInvalidVirtualRegister;
@@ -593,6 +612,11 @@ void RegisterState::Register::PendingUse(InstructionOperand* operand,
   pending_uses_ = PendingOperand::cast(operand);
 }
 
+void RegisterState::Register::MarkAsPhiMove() {
+  DCHECK(is_allocated());
+  is_phi_gap_move_ = true;
+}
+
 void RegisterState::Register::Commit(AllocatedOperand allocated_op) {
   DCHECK(is_allocated());
 
@@ -607,7 +631,11 @@ void RegisterState::Register::Commit(AllocatedOperand allocated_op) {
 }
 
 void RegisterState::Register::Spill(AllocatedOperand allocated_op,
+                                    const InstructionBlock* current_block,
                                     MidTierRegisterAllocationData* data) {
+  if (is_phi_gap_move()) {
+    SpillPhiGapMove(allocated_op, current_block, data);
+  }
   if (needs_gap_move_on_spill()) {
     VirtualRegisterData& vreg_data =
         data->VirtualRegisterDataFor(virtual_register());
@@ -616,6 +644,28 @@ void RegisterState::Register::Spill(AllocatedOperand allocated_op,
   }
   SpillPendingUses(data);
   virtual_register_ = InstructionOperand::kInvalidVirtualRegister;
+}
+
+void RegisterState::Register::SpillPhiGapMove(
+    AllocatedOperand allocated_op, const InstructionBlock* current_block,
+    MidTierRegisterAllocationData* data) {
+  DCHECK_EQ(current_block->SuccessorCount(), 1);
+  const InstructionBlock* phi_block =
+      data->GetBlock(current_block->successors()[0]);
+
+  // Add gap moves to the spilled phi for all blocks we previously allocated
+  // assuming the the phi was in a register.
+  VirtualRegisterData& vreg_data =
+      data->VirtualRegisterDataFor(virtual_register());
+  for (RpoNumber predecessor : phi_block->predecessors()) {
+    // If the predecessor has a lower rpo number than the current block, then
+    // we have already processed it, so add the required gap move.
+    if (predecessor > current_block->rpo_number()) {
+      const InstructionBlock* predecessor_block = data->GetBlock(predecessor);
+      vreg_data.EmitGapMoveToSpillSlot(
+          allocated_op, predecessor_block->last_instruction_index(), data);
+    }
+  }
 }
 
 void RegisterState::Register::SpillPendingUses(
@@ -649,6 +699,11 @@ int RegisterState::VirtualRegisterForRegister(RegisterIndex reg) {
   }
 }
 
+bool RegisterState::IsPhiGapMove(RegisterIndex reg) {
+  DCHECK(RegisterState::IsAllocated(reg));
+  return reg_data(reg).is_phi_gap_move();
+}
+
 void RegisterState::Commit(RegisterIndex reg, AllocatedOperand allocated,
                            InstructionOperand* operand,
                            MidTierRegisterAllocationData* data) {
@@ -660,9 +715,10 @@ void RegisterState::Commit(RegisterIndex reg, AllocatedOperand allocated,
 }
 
 void RegisterState::Spill(RegisterIndex reg, AllocatedOperand allocated,
+                          const InstructionBlock* current_block,
                           MidTierRegisterAllocationData* data) {
   DCHECK(IsAllocated(reg));
-  reg_data(reg).Spill(allocated, data);
+  reg_data(reg).Spill(allocated, current_block, data);
   ResetDataFor(reg);
 }
 
@@ -678,6 +734,11 @@ void RegisterState::AllocatePendingUse(RegisterIndex reg, int virtual_register,
                                        int instr_index) {
   EnsureRegisterData(reg);
   reg_data(reg).PendingUse(operand, virtual_register, instr_index);
+}
+
+void RegisterState::UseForPhiGapMove(RegisterIndex reg) {
+  DCHECK(IsAllocated(reg));
+  reg_data(reg).MarkAsPhiMove();
 }
 
 RegisterState::Register& RegisterState::reg_data(RegisterIndex reg) {
@@ -733,6 +794,8 @@ class SinglePassRegisterAllocator final {
                                UnallocatedOperand* input, int instr_index);
   void AllocateGapMoveInput(UnallocatedOperand* operand, int instr_index);
   void AllocateTemp(UnallocatedOperand* operand, int instr_index);
+  void AllocatePhi(int virtual_register, const InstructionBlock* block);
+  void AllocatePhiGapMove(int to_vreg, int from_vreg, int instr_index);
 
   // Reserve any fixed registers for the operands on an instruction before doing
   // allocation on the operands.
@@ -867,6 +930,7 @@ class SinglePassRegisterAllocator final {
   }
 
   int num_allocatable_registers() const { return num_allocatable_registers_; }
+  const InstructionBlock* current_block() const { return current_block_; }
   MidTierRegisterAllocationData* data() const { return data_; }
 
   // Virtual register to register mapping.
@@ -874,6 +938,9 @@ class SinglePassRegisterAllocator final {
 
   // Current register state during allocation.
   RegisterState* register_state_;
+
+  // The current block being processed.
+  const InstructionBlock* current_block_;
 
   const RegisterKind kind_;
   const int num_allocatable_registers_;
@@ -895,6 +962,7 @@ SinglePassRegisterAllocator::SinglePassRegisterAllocator(
     : virtual_register_to_reg_(data->code()->VirtualRegisterCount(),
                                data->allocation_zone()),
       register_state_(nullptr),
+      current_block_(nullptr),
       kind_(kind),
       num_allocatable_registers_(
           GetAllocatableRegisterCount(data->config(), kind)),
@@ -930,14 +998,19 @@ void SinglePassRegisterAllocator::EndInstruction() {
 
 void SinglePassRegisterAllocator::StartBlock(const InstructionBlock* block) {
   DCHECK(!HasRegisterState());
+  DCHECK_NULL(current_block_);
   DCHECK_EQ(in_use_at_instr_start_bits_, 0);
   DCHECK_EQ(in_use_at_instr_end_bits_, 0);
   DCHECK_EQ(allocated_registers_bits_, 0);
+
+  // Update the current block we are processing.
+  current_block_ = block;
 }
 
 void SinglePassRegisterAllocator::EndBlock(const InstructionBlock* block) {
   DCHECK_EQ(in_use_at_instr_start_bits_, 0);
   DCHECK_EQ(in_use_at_instr_end_bits_, 0);
+  current_block_ = nullptr;
   register_state_ = nullptr;
 }
 
@@ -993,7 +1066,8 @@ void SinglePassRegisterAllocator::EmitGapMoveFromOutput(InstructionOperand from,
                                                         int instr_index) {
   DCHECK(from.IsAllocated());
   DCHECK(to.IsAllocated());
-  const InstructionBlock* block = data()->GetBlock(instr_index);
+  const InstructionBlock* block = current_block();
+  DCHECK_EQ(data()->GetBlock(instr_index), block);
   if (instr_index == block->last_instruction_index()) {
     // Add gap move to the first instruction of every successor block.
     for (const RpoNumber succ : block->successors()) {
@@ -1145,7 +1219,7 @@ void SinglePassRegisterAllocator::SpillRegister(RegisterIndex reg) {
   // Spill the register and free register.
   int virtual_register = VirtualRegisterForRegister(reg);
   AllocatedOperand allocated = AllocatedOperandForReg(reg, virtual_register);
-  register_state()->Spill(reg, allocated, data());
+  register_state()->Spill(reg, allocated, current_block(), data());
   FreeRegister(reg, virtual_register);
 }
 
@@ -1351,8 +1425,8 @@ RegisterIndex SinglePassRegisterAllocator::AllocateOutput(
     }
     if (vreg_data.NeedsSpillAtOutput()) {
       vreg_data.EmitGapMoveFromOutputToSpillSlot(
-          *AllocatedOperand::cast(operand), data()->GetBlock(instr_index),
-          instr_index, data());
+          *AllocatedOperand::cast(operand), current_block(), instr_index,
+          data());
     }
   }
 
@@ -1471,6 +1545,61 @@ void SinglePassRegisterAllocator::ReserveFixedRegister(
   MarkRegisterUse(reg, rep, pos);
 }
 
+void SinglePassRegisterAllocator::AllocatePhiGapMove(int to_vreg, int from_vreg,
+                                                     int instr_index) {
+  EnsureRegisterState();
+  RegisterIndex from_register = RegisterForVirtualRegister(from_vreg);
+  RegisterIndex to_register = RegisterForVirtualRegister(to_vreg);
+
+  // If to_register isn't marked as a phi gap move, we can't use it as such.
+  if (to_register.is_valid() && !register_state()->IsPhiGapMove(to_register)) {
+    to_register = RegisterIndex::Invalid();
+  }
+
+  if (to_register.is_valid() && !from_register.is_valid()) {
+    // If |to| virtual register is allocated to a register, and the |from|
+    // virtual register isn't allocated, then commit this register and
+    // re-allocate it to the |from| virtual register.
+    InstructionOperand operand;
+    CommitRegister(to_register, to_vreg, &operand, UsePosition::kAll);
+    AllocateUse(to_register, from_vreg, &operand, instr_index,
+                UsePosition::kAll);
+  } else {
+    // Otherwise add a gap move.
+    MoveOperands* move =
+        data()->AddPendingOperandGapMove(instr_index, Instruction::END);
+    PendingOperand* to_operand = PendingOperand::cast(&move->destination());
+    PendingOperand* from_operand = PendingOperand::cast(&move->source());
+
+    // Commit the |to| side to either a register or the pending spills.
+    if (to_register.is_valid()) {
+      CommitRegister(to_register, to_vreg, to_operand, UsePosition::kAll);
+    } else {
+      VirtualRegisterDataFor(to_vreg).SpillOperand(to_operand, instr_index,
+                                                   data());
+    }
+
+    // The from side is unconstrained.
+    UnallocatedOperand unconstrained_input(UnallocatedOperand::REGISTER_OR_SLOT,
+                                           from_vreg);
+    InstructionOperand::ReplaceWith(from_operand, &unconstrained_input);
+  }
+}
+
+void SinglePassRegisterAllocator::AllocatePhi(int virtual_register,
+                                              const InstructionBlock* block) {
+  VirtualRegisterData& vreg_data = VirtualRegisterDataFor(virtual_register);
+  if (vreg_data.NeedsSpillAtOutput() || block->IsLoopHeader()) {
+    // If the Phi needs to be spilled, just spill here directly so that all
+    // gap moves into the Phi move into the spill slot.
+    SpillRegisterForVirtualRegister(virtual_register);
+  } else {
+    RegisterIndex reg = RegisterForVirtualRegister(virtual_register);
+    DCHECK(reg.is_valid());
+    register_state()->UseForPhiGapMove(reg);
+  }
+}
+
 void SinglePassRegisterAllocator::EnsureRegisterState() {
   if (!HasRegisterState()) {
     register_state_ = RegisterState::New(kind(), num_allocatable_registers_,
@@ -1500,6 +1629,14 @@ void MidTierRegisterAllocator::DefineOutputs() {
 
 void MidTierRegisterAllocator::InitializeBlockState(
     const InstructionBlock* block) {
+  // Update our predecessor blocks with their successors_phi_index if we have
+  // phis.
+  if (block->phis().size()) {
+    for (int i = 0; i < static_cast<int>(block->PredecessorCount()); ++i) {
+      data()->block_state(block->predecessors()[i]).set_successors_phi_index(i);
+    }
+  }
+
   // Mark this block as dominating itself.
   BlockState& block_state = data()->block_state(block->rpo_number());
   block_state.dominated_blocks()->Add(block->rpo_number().ToInt());
@@ -1652,6 +1789,12 @@ void MidTierRegisterAllocator::AllocateRegisters(
       AllocatorFor(input).AllocateInput(input, instr_index);
     }
 
+    // If we are allocating for the last instruction in the block, allocate any
+    // phi gap move operations that are needed to resolve phis in our successor.
+    if (instr_index == block->last_instruction_index()) {
+      AllocatePhiGapMoves(block);
+    }
+
     // Allocate any unallocated gap move inputs.
     ParallelMove* moves = instr->GetParallelMove(Instruction::END);
     if (moves != nullptr) {
@@ -1668,6 +1811,8 @@ void MidTierRegisterAllocator::AllocateRegisters(
     general_reg_allocator().EndInstruction();
     double_reg_allocator().EndInstruction();
   }
+
+  AllocatePhis(block);
 
   // TODO(rmcilroy): Add support for cross-block allocations.
   general_reg_allocator().SpillAllRegisters();
@@ -1732,6 +1877,41 @@ void MidTierRegisterAllocator::ReserveFixedRegisters(int instr_index) {
     if (IsFixedRegisterPolicy(operand)) {
       AllocatorFor(operand).ReserveFixedInputRegister(operand, instr_index);
     }
+  }
+}
+
+void MidTierRegisterAllocator::AllocatePhiGapMoves(
+    const InstructionBlock* block) {
+  int successors_phi_index =
+      data()->block_state(block->rpo_number()).successors_phi_index();
+
+  // If successors_phi_index is -1 there are no phi's in the successor.
+  if (successors_phi_index == -1) return;
+
+  // The last instruction of a block with phis can't require reference maps
+  // since we won't record phi gap moves that get spilled when populating the
+  // reference maps
+  int instr_index = block->last_instruction_index();
+  DCHECK(!code()->InstructionAt(instr_index)->HasReferenceMap());
+
+  // If there are phis, we only have a single successor due to edge-split form.
+  DCHECK_EQ(block->SuccessorCount(), 1);
+  const InstructionBlock* successor = data()->GetBlock(block->successors()[0]);
+
+  for (PhiInstruction* phi : successor->phis()) {
+    int to_vreg = phi->virtual_register();
+    int from_vreg = phi->operands()[successors_phi_index];
+
+    MachineRepresentation rep = RepresentationFor(to_vreg);
+    AllocatorFor(rep).AllocatePhiGapMove(to_vreg, from_vreg, instr_index);
+  }
+}
+
+void MidTierRegisterAllocator::AllocatePhis(const InstructionBlock* block) {
+  for (PhiInstruction* phi : block->phis()) {
+    int virtual_register = phi->virtual_register();
+    MachineRepresentation rep = RepresentationFor(virtual_register);
+    AllocatorFor(rep).AllocatePhi(virtual_register, block);
   }
 }
 
