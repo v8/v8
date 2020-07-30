@@ -904,6 +904,23 @@ class TracedReferenceBase {
         const_cast<TracedReferenceBase<T>&>(*this));
   }
 
+ protected:
+  /**
+   * Update this reference in a thread-safe way
+   */
+  void SetSlotThreadSafe(T* new_val) {
+    reinterpret_cast<std::atomic<T*>*>(&val_)->store(new_val,
+                                                     std::memory_order_relaxed);
+  }
+
+  /**
+   * Get this reference in a thread-safe way
+   */
+  T* GetSlotThreadSafe() {
+    return reinterpret_cast<std::atomic<T*>*>(&val_)->load(
+        std::memory_order_relaxed);
+  }
+
  private:
   enum DestructionMode { kWithDestructor, kWithoutDestructor };
 
@@ -1156,6 +1173,12 @@ class TracedReference : public TracedReferenceBase<T> {
     return reinterpret_cast<TracedReference<S>&>(
         const_cast<TracedReference<T>&>(*this));
   }
+
+  /**
+   * Returns true if this TracedReference is empty, i.e., has not been
+   * assigned an object. This version of IsEmpty is thread-safe.
+   */
+  bool IsEmptyThreadSafe() const { return this->GetSlotThreadSafe(); }
 };
 
  /**
@@ -10957,7 +10980,7 @@ template <class T>
 void TracedReferenceBase<T>::Reset() {
   if (IsEmpty()) return;
   V8::DisposeTracedGlobal(reinterpret_cast<internal::Address*>(val_));
-  val_ = nullptr;
+  SetSlotThreadSafe(nullptr);
 }
 
 template <class T>
@@ -11013,10 +11036,11 @@ template <class T>
 template <class S>
 void TracedReference<T>::Reset(Isolate* isolate, const Local<S>& other) {
   static_assert(std::is_base_of<T, S>::value, "type check");
-  Reset();
+  this->Reset();
   if (other.IsEmpty()) return;
-  this->val_ = this->New(isolate, other.val_, &this->val_,
-                         TracedReferenceBase<T>::kWithoutDestructor);
+  this->SetSlotThreadSafe(
+      this->New(isolate, other.val_, &this->val_,
+                TracedReferenceBase<T>::kWithoutDestructor));
 }
 
 template <class T>
