@@ -40,12 +40,12 @@ class WasmCapiTest : public ::testing::Test {
  public:
   WasmCapiTest()
       : Test(),
+        engine_(Engine::make()),
         zone_(&allocator_, ZONE_NAME),
         wire_bytes_(&zone_),
         builder_(&zone_),
         exports_(ownvec<Extern>::make()),
         wasm_i_i_sig_(1, 1, wasm_i_i_sig_types_) {
-    engine_ = Engine::make();
     store_ = Store::make(engine_.get());
     cpp_i_i_sig_ =
         FuncType::make(ownvec<ValType>::make(ValType::make(::wasm::I32)),
@@ -134,11 +134,11 @@ class WasmCapiTest : public ::testing::Test {
   FuncType* cpp_i_i_sig() { return cpp_i_i_sig_.get(); }
 
  private:
+  own<Engine> engine_;
   AccountingAllocator allocator_;
   Zone zone_;
   ZoneBuffer wire_bytes_;
   WasmModuleBuilder builder_;
-  own<Engine> engine_;
   own<Store> store_;
   own<Module> module_;
   own<Instance> instance_;
