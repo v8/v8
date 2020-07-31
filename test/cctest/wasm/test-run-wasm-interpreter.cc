@@ -479,6 +479,16 @@ TEST(InterpreterLoadWithoutMemory) {
   CHECK_TRAP32(r.Call(0));
 }
 
+TEST(Regress1111015) {
+  EXPERIMENTAL_FLAG_SCOPE(return_call);
+  WasmRunner<uint32_t> r(ExecutionTier::kInterpreter);
+  WasmFunctionCompiler& f = r.NewFunction<int32_t>("f");
+  BUILD(r, WASM_BLOCK_I(WASM_RETURN_CALL_FUNCTION0(f.function_index()),
+                        kExprDrop));
+  BUILD(f, WASM_I32V(0));
+  r.Call();
+}
+
 }  // namespace test_run_wasm_interpreter
 }  // namespace wasm
 }  // namespace internal
