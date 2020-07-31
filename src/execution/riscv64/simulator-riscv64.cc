@@ -617,6 +617,8 @@ void RiscvDebugger::Debug() {
         PrintF("  disasm [[<address/register>] <instructions>]\n");
         PrintF("  Disassemble code, default is 10 instructions\n");
         PrintF("  from pc\n");
+        PrintF("gdb \n");
+        PrintF("  Return to gdb if the simulator was started with gdb\n");
         PrintF("break (alias 'b')\n");
         PrintF("  break : list all breakpoints\n");
         PrintF("  break <address> : set / enable / disable a breakpoint.\n");
@@ -624,9 +626,6 @@ void RiscvDebugger::Debug() {
         PrintF("  tbreak : list all breakpoints\n");
         PrintF("  tbreak <address> : set / enable / disable a temporary breakpoint.\n");
         PrintF("  Set a breakpoint enabled only for one stop. \n");
-        // FIXME (RISCV): the following commands are not yet supported
-        // PrintF("gdb \n");
-        // PrintF("  enter gdb\n");
         // PrintF("stop feature:\n");
         // PrintF("  Description:\n");
         // PrintF("    Stops are debug instructions inserted by\n");
