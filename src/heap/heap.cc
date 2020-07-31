@@ -4588,10 +4588,13 @@ void Heap::IterateRoots(RootVisitor* v, base::EnumSet<SkipRoot> options) {
     if (FLAG_local_heaps) {
       safepoint_->Iterate(&left_trim_visitor);
       safepoint_->Iterate(v);
-      isolate_->persistent_handles_list()->Iterate(&left_trim_visitor);
-      isolate_->persistent_handles_list()->Iterate(v);
     }
 
+    isolate_->persistent_handles_list()->Iterate(&left_trim_visitor, isolate_);
+    isolate_->persistent_handles_list()->Iterate(v, isolate_);
+
+    // TODO(solanes): Delete these two iterations once we delete all
+    // DeferredHandle uses.
     isolate_->IterateDeferredHandles(&left_trim_visitor);
     isolate_->IterateDeferredHandles(v);
     v->Synchronize(VisitorSynchronization::kHandleScope);

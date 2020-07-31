@@ -2958,7 +2958,7 @@ Isolate::Isolate(std::unique_ptr<i::IsolateAllocator> isolate_allocator)
       builtins_(this),
       rail_mode_(PERFORMANCE_ANIMATION),
       code_event_dispatcher_(new CodeEventDispatcher()),
-      persistent_handles_list_(new PersistentHandlesList(this)),
+      persistent_handles_list_(new PersistentHandlesList()),
       jitless_(FLAG_jitless),
 #if V8_SFI_HAS_UNIQUE_ID
       next_unique_sfi_id_(0),

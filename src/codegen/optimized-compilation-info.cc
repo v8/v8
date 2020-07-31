@@ -136,10 +136,10 @@ OptimizedCompilationInfo::~OptimizedCompilationInfo() {
   }
 }
 
-void OptimizedCompilationInfo::set_deferred_handles(
-    std::unique_ptr<DeferredHandles> deferred_handles) {
-  DCHECK_NULL(deferred_handles_);
-  deferred_handles_ = std::move(deferred_handles);
+void OptimizedCompilationInfo::set_persistent_handles(
+    std::unique_ptr<PersistentHandles> persistent_handles) {
+  DCHECK_NULL(persistent_handles_);
+  persistent_handles_ = std::move(persistent_handles);
 }
 
 void OptimizedCompilationInfo::ReopenHandlesInNewHandleScope(Isolate* isolate) {

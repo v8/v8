@@ -121,12 +121,8 @@ void PersistentHandlesList::Remove(PersistentHandles* persistent_handles) {
     persistent_handles_head_ = persistent_handles->next_;
 }
 
-void PersistentHandlesList::Iterate(RootVisitor* visitor) {
-#if DEBUG
-  DCHECK(isolate_->heap()->safepoint()->IsActive());
-#else
-  USE(isolate_);
-#endif
+void PersistentHandlesList::Iterate(RootVisitor* visitor, Isolate* isolate) {
+  DCHECK_IMPLIES(FLAG_local_heaps, isolate->heap()->safepoint()->IsActive());
   base::MutexGuard guard(&persistent_handles_mutex_);
   for (PersistentHandles* current = persistent_handles_head_; current;
        current = current->next_) {

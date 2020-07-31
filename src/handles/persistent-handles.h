@@ -86,20 +86,16 @@ class PersistentHandles {
 
 class PersistentHandlesList {
  public:
-  explicit PersistentHandlesList(Isolate* isolate)
-      : isolate_(isolate), persistent_handles_head_(nullptr) {}
+  PersistentHandlesList() : persistent_handles_head_(nullptr) {}
 
-  // Iteration is only safe during a safepoint
-  void Iterate(RootVisitor* visitor);
+  void Iterate(RootVisitor* visitor, Isolate* isolate);
 
  private:
   void Add(PersistentHandles* persistent_handles);
   void Remove(PersistentHandles* persistent_handles);
 
-  Isolate* isolate_;
-
   base::Mutex persistent_handles_mutex_;
-  PersistentHandles* persistent_handles_head_ = nullptr;
+  PersistentHandles* persistent_handles_head_;
 
   friend class PersistentHandles;
 };

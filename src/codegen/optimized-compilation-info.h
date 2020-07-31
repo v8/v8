@@ -159,7 +159,8 @@ class V8_EXPORT_PRIVATE OptimizedCompilationInfo final {
     osr_frame_ = osr_frame;
   }
 
-  void set_deferred_handles(std::unique_ptr<DeferredHandles> deferred_handles);
+  void set_persistent_handles(
+      std::unique_ptr<PersistentHandles> persistent_handles);
 
   void ReopenHandlesInNewHandleScope(Isolate* isolate);
 
@@ -263,7 +264,7 @@ class V8_EXPORT_PRIVATE OptimizedCompilationInfo final {
   // OptimizedCompilationInfo allocates.
   Zone* const zone_;
 
-  std::unique_ptr<DeferredHandles> deferred_handles_;
+  std::unique_ptr<PersistentHandles> persistent_handles_;
 
   BailoutReason bailout_reason_ = BailoutReason::kNoReason;
 
