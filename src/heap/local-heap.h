@@ -34,7 +34,12 @@ class V8_EXPORT_PRIVATE LocalHeap {
 
   // Frequently invoked by local thread to check whether safepoint was requested
   // from the main thread.
-  void Safepoint();
+  void Safepoint() {
+    if (IsSafepointRequested()) {
+      ClearSafepointRequested();
+      EnterSafepoint();
+    }
+  }
 
   LocalHandles* handles() { return handles_.get(); }
 
@@ -118,9 +123,12 @@ class V8_EXPORT_PRIVATE LocalHeap {
   friend class Heap;
   friend class GlobalSafepoint;
   friend class ParkedScope;
+  friend class UnparkedScope;
   friend class ConcurrentAllocator;
 };
 
+// Scope that explicitly parks LocalHeap prohibiting access to the heap and the
+// creation of Handles.
 class ParkedScope {
  public:
   explicit ParkedScope(LocalHeap* local_heap) : local_heap_(local_heap) {
@@ -130,7 +138,21 @@ class ParkedScope {
   ~ParkedScope() { local_heap_->Unpark(); }
 
  private:
-  LocalHeap* local_heap_;
+  LocalHeap* const local_heap_;
+};
+
+// Scope that explicitly unparks LocalHeap allowing access to the heap and the
+// creation of Handles.
+class UnparkedScope {
+ public:
+  explicit UnparkedScope(LocalHeap* local_heap) : local_heap_(local_heap) {
+    local_heap_->Unpark();
+  }
+
+  ~UnparkedScope() { local_heap_->Park(); }
+
+ private:
+  LocalHeap* const local_heap_;
 };
 
 class ParkedMutexGuard {

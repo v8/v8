@@ -108,18 +108,14 @@ void LocalHeap::RequestSafepoint() {
   safepoint_requested_.store(true, std::memory_order_relaxed);
 }
 
-void LocalHeap::Safepoint() {
-  if (IsSafepointRequested()) {
-    ClearSafepointRequested();
-    EnterSafepoint();
-  }
-}
-
 void LocalHeap::ClearSafepointRequested() {
   safepoint_requested_.store(false, std::memory_order_relaxed);
 }
 
-void LocalHeap::EnterSafepoint() { heap_->safepoint()->EnterFromThread(this); }
+void LocalHeap::EnterSafepoint() {
+  DCHECK_EQ(LocalHeap::Current(), this);
+  if (state_ == ThreadState::Running) heap_->safepoint()->EnterFromThread(this);
+}
 
 void LocalHeap::FreeLinearAllocationArea() {
   old_space_allocator_.FreeLinearAllocationArea();

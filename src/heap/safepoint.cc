@@ -79,6 +79,7 @@ void GlobalSafepoint::LeaveSafepointScope() {
 void GlobalSafepoint::EnterFromThread(LocalHeap* local_heap) {
   {
     base::MutexGuard guard(&local_heap->state_mutex_);
+    DCHECK_EQ(local_heap->state_, LocalHeap::ThreadState::Running);
     local_heap->state_ = LocalHeap::ThreadState::Safepoint;
     local_heap->state_change_.NotifyAll();
   }

@@ -785,6 +785,27 @@ class LocalHeapScope {
   TickCounter* tick_counter_;
 };
 
+// Scope that unparks the LocalHeap, if:
+//   a) We have a JSHeapBroker,
+//   b) Said JSHeapBroker has a LocalHeap, and
+//   c) Said LocalHeap has been parked.
+// Used, for example, when printing the graph with --trace-turbo with a
+// previously parked LocalHeap.
+class UnparkedScopeIfNeeded {
+ public:
+  explicit UnparkedScopeIfNeeded(JSHeapBroker* broker) {
+    if (broker != nullptr) {
+      LocalHeap* local_heap = broker->local_heap();
+      if (local_heap != nullptr && local_heap->IsParked()) {
+        unparked_scope.emplace(local_heap);
+      }
+    }
+  }
+
+ private:
+  base::Optional<UnparkedScope> unparked_scope;
+};
+
 void PrintFunctionSource(OptimizedCompilationInfo* info, Isolate* isolate,
                          int source_id, Handle<SharedFunctionInfo> shared) {
   if (!shared->script().IsUndefined(isolate)) {
@@ -907,6 +928,7 @@ void PrintCode(Isolate* isolate, Handle<Code> code,
 void TraceScheduleAndVerify(OptimizedCompilationInfo* info, PipelineData* data,
                             Schedule* schedule, const char* phase_name) {
   if (info->trace_turbo_json()) {
+    UnparkedScopeIfNeeded scope(data->broker());
     AllowHandleDereference allow_deref;
     TurboJsonFile json_of(info, std::ios_base::app);
     json_of << "{\"name\":\"" << phase_name << "\",\"type\":\"schedule\""
@@ -920,6 +942,7 @@ void TraceScheduleAndVerify(OptimizedCompilationInfo* info, PipelineData* data,
     json_of << "\"},\n";
   }
   if (info->trace_turbo_graph() || FLAG_trace_turbo_scheduler) {
+    UnparkedScopeIfNeeded scope(data->broker());
     AllowHandleDereference allow_deref;
     CodeTracer::StreamScope tracing_scope(data->GetCodeTracer());
     tracing_scope.stream()
@@ -1179,20 +1202,24 @@ PipelineCompilationJob::Status PipelineCompilationJob::ExecuteJobImpl(
   // Ensure that the RuntimeCallStats table is only available during execution
   // and not during finalization as that might be on a different thread.
   PipelineJobScope scope(&data_, stats);
-  LocalHeapScope local_heap_scope(data_.broker(), data_.info());
-  if (data_.broker()->is_concurrent_inlining()) {
-    if (!pipeline_.CreateGraph()) {
-      return AbortOptimization(BailoutReason::kGraphBuildingFailed);
+  {
+    LocalHeapScope local_heap_scope(data_.broker(), data_.info());
+    if (data_.broker()->is_concurrent_inlining()) {
+      if (!pipeline_.CreateGraph()) {
+        return AbortOptimization(BailoutReason::kGraphBuildingFailed);
+      }
     }
-  }
 
-  bool success;
-  if (FLAG_turboprop) {
-    success = pipeline_.OptimizeGraphForMidTier(linkage_);
-  } else {
-    success = pipeline_.OptimizeGraph(linkage_);
+    ParkedScope parked_scope(data_.broker()->local_heap());
+
+    bool success;
+    if (FLAG_turboprop) {
+      success = pipeline_.OptimizeGraphForMidTier(linkage_);
+    } else {
+      success = pipeline_.OptimizeGraph(linkage_);
+    }
+    if (!success) return FAILED;
   }
-  if (!success) return FAILED;
 
   pipeline_.AssembleCode(linkage_);
 
@@ -1609,6 +1636,8 @@ struct TypedLoweringPhase {
     AddReducer(data, &graph_reducer, &simple_reducer);
     AddReducer(data, &graph_reducer, &checkpoint_elimination);
     AddReducer(data, &graph_reducer, &common_reducer);
+    // JSCreateLowering accesses the heap and therefore we need to unpark it.
+    UnparkedScopeIfNeeded scope(data->broker());
     graph_reducer.ReduceGraph();
   }
 };
@@ -2367,6 +2396,7 @@ struct PrintGraphPhase {
     Graph* graph = data->graph();
 
     if (info->trace_turbo_json()) {  // Print JSON.
+      UnparkedScopeIfNeeded scope(data->broker());
       AllowHandleDereference allow_deref;
 
       TurboJsonFile json_of(info, std::ios_base::app);
@@ -2384,12 +2414,14 @@ struct PrintGraphPhase {
             &info->tick_counter(), data->profile_data());
       }
 
+      UnparkedScopeIfNeeded scope(data->broker());
       AllowHandleDereference allow_deref;
       CodeTracer::StreamScope tracing_scope(data->GetCodeTracer());
       tracing_scope.stream()
           << "-- Graph after " << phase << " -- " << std::endl
           << AsScheduledGraph(schedule);
     } else if (info->trace_turbo_graph()) {  // Simple textual RPO.
+      UnparkedScopeIfNeeded scope(data->broker());
       AllowHandleDereference allow_deref;
       CodeTracer::StreamScope tracing_scope(data->GetCodeTracer());
       tracing_scope.stream()
@@ -2520,6 +2552,7 @@ bool PipelineImpl::OptimizeGraph(Linkage* linkage) {
   // automatically typed when they are created.
   Run<TyperPhase>(data->CreateTyper());
   RunPrintAndVerify(TyperPhase::phase_name());
+
   Run<TypedLoweringPhase>();
   RunPrintAndVerify(TypedLoweringPhase::phase_name());
 
@@ -2630,6 +2663,7 @@ bool PipelineImpl::OptimizeGraphForMidTier(Linkage* linkage) {
   // automatically typed when they are created.
   Run<TyperPhase>(data->CreateTyper());
   RunPrintAndVerify(TyperPhase::phase_name());
+
   Run<TypedLoweringPhase>();
   RunPrintAndVerify(TypedLoweringPhase::phase_name());
 
@@ -3005,9 +3039,12 @@ MaybeHandle<Code> Pipeline::GenerateCodeForTesting(
   Deoptimizer::EnsureCodeForDeoptimizationEntries(isolate);
 
   pipeline.Serialize();
-  LocalHeapScope local_heap_scope(data.broker(), data.info());
-  if (!pipeline.CreateGraph()) return MaybeHandle<Code>();
-  if (!pipeline.OptimizeGraph(&linkage)) return MaybeHandle<Code>();
+  {
+    LocalHeapScope local_heap_scope(data.broker(), data.info());
+    if (!pipeline.CreateGraph()) return MaybeHandle<Code>();
+    ParkedScope parked_scope(data.broker()->local_heap());
+    if (!pipeline.OptimizeGraph(&linkage)) return MaybeHandle<Code>();
+  }
   pipeline.AssembleCode(&linkage);
   Handle<Code> code;
   if (pipeline.FinalizeCode(out_broker == nullptr).ToHandle(&code) &&
@@ -3262,6 +3299,7 @@ bool PipelineImpl::SelectInstructions(Linkage* linkage) {
   }
   if (verify_stub_graph) {
     if (FLAG_trace_verify_csa) {
+      UnparkedScopeIfNeeded scope(data->broker());
       AllowHandleDereference allow_deref;
       CodeTracer::StreamScope tracing_scope(data->GetCodeTracer());
       tracing_scope.stream()
@@ -3293,6 +3331,7 @@ bool PipelineImpl::SelectInstructions(Linkage* linkage) {
   }
 
   if (info()->trace_turbo_json() && !data->MayHaveUnverifiableGraph()) {
+    UnparkedScopeIfNeeded scope(data->broker());
     AllowHandleDereference allow_deref;
     TurboCfgFile tcf(isolate());
     tcf << AsC1V("CodeGen", data->schedule(), data->source_positions(),
@@ -3531,6 +3570,7 @@ namespace {
 void TraceSequence(OptimizedCompilationInfo* info, PipelineData* data,
                    const char* phase_name) {
   if (info->trace_turbo_json()) {
+    UnparkedScopeIfNeeded scope(data->broker());
     AllowHandleDereference allow_deref;
     TurboJsonFile json_of(info, std::ios_base::app);
     json_of << "{\"name\":\"" << phase_name << "\",\"type\":\"sequence\""
@@ -3541,6 +3581,7 @@ void TraceSequence(OptimizedCompilationInfo* info, PipelineData* data,
             << "}},\n";
   }
   if (info->trace_turbo_graph()) {
+    UnparkedScopeIfNeeded scope(data->broker());
     AllowHandleDereference allow_deref;
     CodeTracer::StreamScope tracing_scope(data->GetCodeTracer());
     tracing_scope.stream() << "----- Instruction sequence " << phase_name
