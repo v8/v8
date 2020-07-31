@@ -80,6 +80,10 @@ STATIC_ASSERT(kPtrComprIsolateRootAlignment ==
 
 V8_INLINE Tagged_t CompressTagged(Address tagged) { UNREACHABLE(); }
 
+V8_INLINE Address GetIsolateRoot(Address on_heap_addr) { UNREACHABLE(); }
+
+V8_INLINE Address GetIsolateRoot(const Isolate* isolate) { UNREACHABLE(); }
+
 V8_INLINE Address DecompressTaggedSigned(Tagged_t raw_value) { UNREACHABLE(); }
 
 template <typename TOnHeapAddress>

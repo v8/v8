@@ -527,9 +527,11 @@ class RootsTable {
   friend class Isolate;
   friend class Heap;
   friend class Factory;
+  friend class PointerCompressedReadOnlyArtifacts;
   friend class ReadOnlyHeap;
   friend class ReadOnlyRoots;
   friend class RootsSerializer;
+  friend class SoleReadOnlyHeap;
 };
 
 class ReadOnlyRoots {

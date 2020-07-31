@@ -233,6 +233,10 @@ class VirtualMemory final {
   // Frees all memory.
   V8_EXPORT_PRIVATE void Free();
 
+  // As with Free but does not write to the VirtualMemory object itself so it
+  // can be called on a VirtualMemory that is itself not writable.
+  V8_EXPORT_PRIVATE void FreeReadOnly();
+
   bool InVM(Address address, size_t size) {
     return region_.contains(address, size);
   }

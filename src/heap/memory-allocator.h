@@ -11,6 +11,7 @@
 #include <unordered_set>
 #include <vector>
 
+#include "include/v8-platform.h"
 #include "src/base/bounded-page-allocator.h"
 #include "src/base/export-template.h"
 #include "src/base/macros.h"
@@ -195,6 +196,9 @@ class MemoryAllocator {
 
   ReadOnlyPage* AllocateReadOnlyPage(size_t size, ReadOnlySpace* owner);
 
+  std::unique_ptr<::v8::PageAllocator::SharedMemoryMapping> RemapSharedPage(
+      ::v8::PageAllocator::SharedMemory* shared_memory, Address new_address);
+
   template <MemoryAllocator::FreeMode mode = kFull>
   EXPORT_TEMPLATE_DECLARE(V8_EXPORT_PRIVATE)
   void Free(MemoryChunk* chunk);
@@ -303,6 +307,9 @@ class MemoryAllocator {
   void UnregisterMemory(MemoryChunk* chunk);
   void UnregisterMemory(BasicMemoryChunk* chunk,
                         Executability executable = NOT_EXECUTABLE);
+  void UnregisterSharedMemory(BasicMemoryChunk* chunk);
+
+  void RegisterReadOnlyMemory(ReadOnlyPage* page);
 
  private:
   void InitializeCodePageAllocator(v8::PageAllocator* page_allocator,

@@ -21,8 +21,9 @@ ReadOnlyRoots ReadOnlyHeap::GetReadOnlyRoots(HeapObject object) {
 #ifdef V8_SHARED_RO_HEAP
   // This fails if we are creating heap objects and the roots haven't yet been
   // copied into the read-only heap.
-  if (shared_ro_heap_ != nullptr && shared_ro_heap_->init_complete_) {
-    return ReadOnlyRoots(shared_ro_heap_->read_only_roots_);
+  auto* shared_ro_heap = SoleReadOnlyHeap::shared_ro_heap_;
+  if (shared_ro_heap != nullptr && shared_ro_heap->init_complete_) {
+    return ReadOnlyRoots(shared_ro_heap->read_only_roots_);
   }
 #endif  // V8_SHARED_RO_HEAP
   return ReadOnlyRoots(GetHeapFromWritableObject(object));

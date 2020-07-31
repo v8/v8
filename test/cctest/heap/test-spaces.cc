@@ -793,6 +793,25 @@ TEST(NoMemoryForNewPage) {
   CHECK_NULL(page);
 }
 
+namespace {
+// ReadOnlySpace cannot be torn down by a destructor because the destructor
+// cannot take an argument. Since these tests create ReadOnlySpaces not attached
+// to the Heap directly, they need to be destroyed to ensure the
+// MemoryAllocator's stats are all 0 at exit.
+class ReadOnlySpaceScope {
+ public:
+  explicit ReadOnlySpaceScope(Heap* heap) : ro_space_(heap) {}
+  ~ReadOnlySpaceScope() {
+    ro_space_.TearDown(CcTest::heap()->memory_allocator());
+  }
+
+  ReadOnlySpace* space() { return &ro_space_; }
+
+ private:
+  ReadOnlySpace ro_space_;
+};
+}  // namespace
+
 TEST(ReadOnlySpaceMetrics_OnePage) {
   Isolate* isolate = CcTest::i_isolate();
   Heap* heap = isolate->heap();
@@ -800,34 +819,35 @@ TEST(ReadOnlySpaceMetrics_OnePage) {
   // Create a read-only space and allocate some memory, shrink the pages and
   // check the allocated object size is as expected.
 
-  ReadOnlySpace faked_space(heap);
+  ReadOnlySpaceScope scope(heap);
+  ReadOnlySpace* faked_space = scope.space();
 
   // Initially no memory.
-  CHECK_EQ(faked_space.Size(), 0);
-  CHECK_EQ(faked_space.Capacity(), 0);
-  CHECK_EQ(faked_space.CommittedMemory(), 0);
-  CHECK_EQ(faked_space.CommittedPhysicalMemory(), 0);
+  CHECK_EQ(faked_space->Size(), 0);
+  CHECK_EQ(faked_space->Capacity(), 0);
+  CHECK_EQ(faked_space->CommittedMemory(), 0);
+  CHECK_EQ(faked_space->CommittedPhysicalMemory(), 0);
 
-  faked_space.AllocateRaw(16, kWordAligned);
+  faked_space->AllocateRaw(16, kWordAligned);
 
-  faked_space.ShrinkPages();
-  faked_space.Seal(ReadOnlySpace::SealMode::kDoNotDetachFromHeap);
+  faked_space->ShrinkPages();
+  faked_space->Seal(ReadOnlySpace::SealMode::kDoNotDetachFromHeap);
 
   MemoryAllocator* allocator = heap->memory_allocator();
 
   // Allocated objects size.
-  CHECK_EQ(faked_space.Size(), 16);
+  CHECK_EQ(faked_space->Size(), 16);
 
   size_t committed_memory = RoundUp(
-      MemoryChunkLayout::ObjectStartOffsetInDataPage() + faked_space.Size(),
+      MemoryChunkLayout::ObjectStartOffsetInDataPage() + faked_space->Size(),
       allocator->GetCommitPageSize());
 
   // Amount of OS allocated memory.
-  CHECK_EQ(faked_space.CommittedMemory(), committed_memory);
-  CHECK_EQ(faked_space.CommittedPhysicalMemory(), committed_memory);
+  CHECK_EQ(faked_space->CommittedMemory(), committed_memory);
+  CHECK_EQ(faked_space->CommittedPhysicalMemory(), committed_memory);
 
   // Capacity will be one OS page minus the page header.
-  CHECK_EQ(faked_space.Capacity(),
+  CHECK_EQ(faked_space->Capacity(),
            committed_memory - MemoryChunkLayout::ObjectStartOffsetInDataPage());
 }
 
@@ -838,13 +858,14 @@ TEST(ReadOnlySpaceMetrics_AlignedAllocations) {
   // Create a read-only space and allocate some memory, shrink the pages and
   // check the allocated object size is as expected.
 
-  ReadOnlySpace faked_space(heap);
+  ReadOnlySpaceScope scope(heap);
+  ReadOnlySpace* faked_space = scope.space();
 
   // Initially no memory.
-  CHECK_EQ(faked_space.Size(), 0);
-  CHECK_EQ(faked_space.Capacity(), 0);
-  CHECK_EQ(faked_space.CommittedMemory(), 0);
-  CHECK_EQ(faked_space.CommittedPhysicalMemory(), 0);
+  CHECK_EQ(faked_space->Size(), 0);
+  CHECK_EQ(faked_space->Capacity(), 0);
+  CHECK_EQ(faked_space->CommittedMemory(), 0);
+  CHECK_EQ(faked_space->CommittedPhysicalMemory(), 0);
 
   MemoryAllocator* allocator = heap->memory_allocator();
   // Allocate an object just under an OS page in size.
@@ -860,28 +881,28 @@ TEST(ReadOnlySpaceMetrics_AlignedAllocations) {
 #endif
 
   HeapObject object =
-      faked_space.AllocateRaw(object_size, kDoubleAligned).ToObjectChecked();
+      faked_space->AllocateRaw(object_size, kDoubleAligned).ToObjectChecked();
   CHECK_EQ(object.address() % alignment, 0);
   object =
-      faked_space.AllocateRaw(object_size, kDoubleAligned).ToObjectChecked();
+      faked_space->AllocateRaw(object_size, kDoubleAligned).ToObjectChecked();
   CHECK_EQ(object.address() % alignment, 0);
 
-  faked_space.ShrinkPages();
-  faked_space.Seal(ReadOnlySpace::SealMode::kDoNotDetachFromHeap);
+  faked_space->ShrinkPages();
+  faked_space->Seal(ReadOnlySpace::SealMode::kDoNotDetachFromHeap);
 
   // Allocated objects size may will contain 4 bytes of padding on 32-bit or
   // with pointer compression.
-  CHECK_EQ(faked_space.Size(), object_size + RoundUp(object_size, alignment));
+  CHECK_EQ(faked_space->Size(), object_size + RoundUp(object_size, alignment));
 
   size_t committed_memory = RoundUp(
-      MemoryChunkLayout::ObjectStartOffsetInDataPage() + faked_space.Size(),
+      MemoryChunkLayout::ObjectStartOffsetInDataPage() + faked_space->Size(),
       allocator->GetCommitPageSize());
 
-  CHECK_EQ(faked_space.CommittedMemory(), committed_memory);
-  CHECK_EQ(faked_space.CommittedPhysicalMemory(), committed_memory);
+  CHECK_EQ(faked_space->CommittedMemory(), committed_memory);
+  CHECK_EQ(faked_space->CommittedPhysicalMemory(), committed_memory);
 
   // Capacity will be 3 OS pages minus the page header.
-  CHECK_EQ(faked_space.Capacity(),
+  CHECK_EQ(faked_space->Capacity(),
            committed_memory - MemoryChunkLayout::ObjectStartOffsetInDataPage());
 }
 
@@ -892,13 +913,14 @@ TEST(ReadOnlySpaceMetrics_TwoPages) {
   // Create a read-only space and allocate some memory, shrink the pages and
   // check the allocated object size is as expected.
 
-  ReadOnlySpace faked_space(heap);
+  ReadOnlySpaceScope scope(heap);
+  ReadOnlySpace* faked_space = scope.space();
 
   // Initially no memory.
-  CHECK_EQ(faked_space.Size(), 0);
-  CHECK_EQ(faked_space.Capacity(), 0);
-  CHECK_EQ(faked_space.CommittedMemory(), 0);
-  CHECK_EQ(faked_space.CommittedPhysicalMemory(), 0);
+  CHECK_EQ(faked_space->Size(), 0);
+  CHECK_EQ(faked_space->Capacity(), 0);
+  CHECK_EQ(faked_space->CommittedMemory(), 0);
+  CHECK_EQ(faked_space->CommittedPhysicalMemory(), 0);
 
   MemoryAllocator* allocator = heap->memory_allocator();
 
@@ -910,23 +932,23 @@ TEST(ReadOnlySpaceMetrics_TwoPages) {
       kTaggedSize);
   CHECK_GT(object_size * 2,
            MemoryChunkLayout::AllocatableMemoryInMemoryChunk(RO_SPACE));
-  faked_space.AllocateRaw(object_size, kWordAligned);
+  faked_space->AllocateRaw(object_size, kWordAligned);
 
   // Then allocate another so it expands the space to two pages.
-  faked_space.AllocateRaw(object_size, kWordAligned);
+  faked_space->AllocateRaw(object_size, kWordAligned);
 
-  faked_space.ShrinkPages();
-  faked_space.Seal(ReadOnlySpace::SealMode::kDoNotDetachFromHeap);
+  faked_space->ShrinkPages();
+  faked_space->Seal(ReadOnlySpace::SealMode::kDoNotDetachFromHeap);
 
   // Allocated objects size.
-  CHECK_EQ(faked_space.Size(), object_size * 2);
+  CHECK_EQ(faked_space->Size(), object_size * 2);
 
   // Amount of OS allocated memory.
   size_t committed_memory_per_page =
       RoundUp(MemoryChunkLayout::ObjectStartOffsetInDataPage() + object_size,
               allocator->GetCommitPageSize());
-  CHECK_EQ(faked_space.CommittedMemory(), 2 * committed_memory_per_page);
-  CHECK_EQ(faked_space.CommittedPhysicalMemory(),
+  CHECK_EQ(faked_space->CommittedMemory(), 2 * committed_memory_per_page);
+  CHECK_EQ(faked_space->CommittedPhysicalMemory(),
            2 * committed_memory_per_page);
 
   // Capacity will be the space up to the amount of committed memory minus the
@@ -935,7 +957,7 @@ TEST(ReadOnlySpaceMetrics_TwoPages) {
       RoundUp(MemoryChunkLayout::ObjectStartOffsetInDataPage() + object_size,
               allocator->GetCommitPageSize()) -
       MemoryChunkLayout::ObjectStartOffsetInDataPage();
-  CHECK_EQ(faked_space.Capacity(), 2 * capacity_per_page);
+  CHECK_EQ(faked_space->Capacity(), 2 * capacity_per_page);
 }
 
 }  // namespace heap

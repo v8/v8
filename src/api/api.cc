@@ -8499,12 +8499,13 @@ void Isolate::GetHeapStatistics(HeapStatistics* heap_statistics) {
   heap_statistics->total_global_handles_size_ = heap->TotalGlobalHandlesSize();
   heap_statistics->used_global_handles_size_ = heap->UsedGlobalHandlesSize();
 
-#ifndef V8_SHARED_RO_HEAP
-  i::ReadOnlySpace* ro_space = heap->read_only_space();
-  heap_statistics->total_heap_size_ += ro_space->CommittedMemory();
-  heap_statistics->total_physical_size_ += ro_space->CommittedPhysicalMemory();
-  heap_statistics->used_heap_size_ += ro_space->Size();
-#endif  // V8_SHARED_RO_HEAP
+  if (!i::ReadOnlyHeap::IsReadOnlySpaceShared()) {
+    i::ReadOnlySpace* ro_space = heap->read_only_space();
+    heap_statistics->total_heap_size_ += ro_space->CommittedMemory();
+    heap_statistics->total_physical_size_ +=
+        ro_space->CommittedPhysicalMemory();
+    heap_statistics->used_heap_size_ += ro_space->Size();
+  }
 
   heap_statistics->total_heap_size_executable_ =
       heap->CommittedMemoryExecutable();
@@ -8542,7 +8543,7 @@ bool Isolate::GetHeapSpaceStatistics(HeapSpaceStatistics* space_statistics,
   space_statistics->space_name_ = i::BaseSpace::GetSpaceName(allocation_space);
 
   if (allocation_space == i::RO_SPACE) {
-    if (V8_SHARED_RO_HEAP_BOOL) {
+    if (i::ReadOnlyHeap::IsReadOnlySpaceShared()) {
       // RO_SPACE memory is accounted for elsewhere when ReadOnlyHeap is shared.
       space_statistics->space_size_ = 0;
       space_statistics->space_used_size_ = 0;

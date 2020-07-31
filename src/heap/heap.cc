@@ -3062,6 +3062,8 @@ bool Heap::InOffThreadSpace(HeapObject heap_object) {
   return false;  // currently unsupported
 #else
   BaseSpace* owner = BasicMemoryChunk::FromHeapObject(heap_object)->owner();
+  // Detached RO_SPACE chunks have no owner set.
+  if (owner == nullptr) return false;
   if (owner->identity() == OLD_SPACE) {
     // TODO(leszeks): Should we exclude compaction spaces here?
     return static_cast<PagedSpace*>(owner)->is_off_thread_space();
@@ -5309,7 +5311,10 @@ void Heap::SetUpFromReadOnlyHeap(ReadOnlyHeap* ro_heap) {
 
 void Heap::ReplaceReadOnlySpace(SharedReadOnlySpace* space) {
   CHECK(V8_SHARED_RO_HEAP_BOOL);
-  delete read_only_space_;
+  if (read_only_space_) {
+    read_only_space_->TearDown(memory_allocator());
+    delete read_only_space_;
+  }
 
   read_only_space_ = space;
 }
@@ -5611,12 +5616,13 @@ void Heap::TearDown() {
 
   tracer_.reset();
 
-  isolate()->read_only_heap()->OnHeapTearDown();
-  read_only_space_ = nullptr;
   for (int i = FIRST_MUTABLE_SPACE; i <= LAST_MUTABLE_SPACE; i++) {
     delete space_[i];
     space_[i] = nullptr;
   }
+
+  isolate()->read_only_heap()->OnHeapTearDown(this);
+  read_only_space_ = nullptr;
 
   memory_allocator()->TearDown();
 

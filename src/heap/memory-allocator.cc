@@ -15,6 +15,7 @@
 #include "src/heap/memory-chunk.h"
 #include "src/heap/read-only-spaces.h"
 #include "src/logging/log.h"
+#include "src/utils/allocation.h"
 
 namespace v8 {
 namespace internal {
@@ -536,6 +537,14 @@ void MemoryAllocator::PartialFreeMemory(BasicMemoryChunk* chunk,
   size_ -= released_bytes;
 }
 
+void MemoryAllocator::UnregisterSharedMemory(BasicMemoryChunk* chunk) {
+  VirtualMemory* reservation = chunk->reserved_memory();
+  const size_t size =
+      reservation->IsReserved() ? reservation->size() : chunk->size();
+  DCHECK_GE(size_, static_cast<size_t>(size));
+  size_ -= size;
+}
+
 void MemoryAllocator::UnregisterMemory(BasicMemoryChunk* chunk,
                                        Executability executable) {
   DCHECK(!chunk->IsFlagSet(MemoryChunk::UNREGISTERED));
@@ -543,6 +552,7 @@ void MemoryAllocator::UnregisterMemory(BasicMemoryChunk* chunk,
   const size_t size =
       reservation->IsReserved() ? reservation->size() : chunk->size();
   DCHECK_GE(size_, static_cast<size_t>(size));
+
   size_ -= size;
   if (executable == EXECUTABLE) {
     DCHECK_GE(size_executable_, size);
@@ -559,15 +569,19 @@ void MemoryAllocator::UnregisterMemory(MemoryChunk* chunk) {
 void MemoryAllocator::FreeReadOnlyPage(ReadOnlyPage* chunk) {
   DCHECK(!chunk->IsFlagSet(MemoryChunk::PRE_FREED));
   LOG(isolate_, DeleteEvent("MemoryChunk", chunk));
-  UnregisterMemory(chunk);
-  chunk->SetFlag(MemoryChunk::PRE_FREED);
 
+  UnregisterSharedMemory(chunk);
+
+  v8::PageAllocator* allocator = page_allocator(NOT_EXECUTABLE);
   VirtualMemory* reservation = chunk->reserved_memory();
   if (reservation->IsReserved()) {
-    reservation->Free();
+    reservation->FreeReadOnly();
   } else {
-    // Only read-only pages can have non-initialized reservation object.
-    FreeMemory(page_allocator(NOT_EXECUTABLE), chunk->address(), chunk->size());
+    // Only read-only pages can have a non-initialized reservation object. This
+    // happens when the pages are remapped to multiple locations and where the
+    // reservation would therefore be invalid.
+    FreeMemory(allocator, chunk->address(),
+               RoundUp(chunk->size(), allocator->AllocatePageSize()));
   }
 }
 
@@ -669,6 +683,12 @@ ReadOnlyPage* MemoryAllocator::AllocateReadOnlyPage(size_t size,
   }
   if (chunk == nullptr) return nullptr;
   return owner->InitializePage(chunk);
+}
+
+std::unique_ptr<::v8::PageAllocator::SharedMemoryMapping>
+MemoryAllocator::RemapSharedPage(
+    ::v8::PageAllocator::SharedMemory* shared_memory, Address new_address) {
+  return shared_memory->RemapTo(reinterpret_cast<void*>(new_address));
 }
 
 LargePage* MemoryAllocator::AllocateLargePage(size_t size,
