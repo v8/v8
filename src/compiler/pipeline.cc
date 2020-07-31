@@ -1210,6 +1210,7 @@ PipelineCompilationJob::Status PipelineCompilationJob::ExecuteJobImpl(
       }
     }
 
+    // We selectively Unpark inside OptimizeGraph*.
     ParkedScope parked_scope(data_.broker()->local_heap());
 
     bool success;
@@ -3042,6 +3043,7 @@ MaybeHandle<Code> Pipeline::GenerateCodeForTesting(
   {
     LocalHeapScope local_heap_scope(data.broker(), data.info());
     if (!pipeline.CreateGraph()) return MaybeHandle<Code>();
+    // We selectively Unpark inside OptimizeGraph.
     ParkedScope parked_scope(data.broker()->local_heap());
     if (!pipeline.OptimizeGraph(&linkage)) return MaybeHandle<Code>();
   }
