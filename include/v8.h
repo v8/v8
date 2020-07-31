@@ -917,7 +917,7 @@ class TracedReferenceBase {
    * Get this reference in a thread-safe way
    */
   const T* GetSlotThreadSafe() const {
-    return reinterpret_cast<std::atomic<const T*>*>(&val_)->load(
+    return reinterpret_cast<std::atomic<const T*> const*>(&val_)->load(
         std::memory_order_relaxed);
   }
 
