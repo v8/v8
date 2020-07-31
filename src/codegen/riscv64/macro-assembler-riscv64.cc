@@ -500,7 +500,7 @@ void TurboAssembler::Mulhu32(Register rd, Register rs, const Operand& rt,
   else
     RV_li(rtz, rt.immediate() << 32);
   mulhu(rd, rsz, rtz);
-  srli(rd, rd, 32);
+  srai(rd, rd, 32);
 }
 
 void TurboAssembler::Mul64(Register rd, Register rs, const Operand& rt) {
