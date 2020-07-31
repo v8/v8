@@ -339,10 +339,9 @@ static MaybeLocal<Value> TryGetValue(v8::Isolate* isolate,
                                      Local<Context> context,
                                      Local<v8::Object> object,
                                      const char* property) {
-  Local<String> v8_str =
-      String::NewFromUtf8(isolate, property).FromMaybe(Local<String>());
-  if (v8_str.IsEmpty()) return Local<Value>();
-  return object->Get(context, v8_str);
+  MaybeLocal<String> v8_str = String::NewFromUtf8(isolate, property);
+  if (v8_str.IsEmpty()) return {};
+  return object->Get(context, v8_str.ToLocalChecked());
 }
 
 static Local<Value> GetValue(v8::Isolate* isolate, Local<Context> context,
@@ -1688,8 +1687,10 @@ void Shell::WorkerNew(const v8::FunctionCallbackInfo<v8::Value>& args) {
   if (args.Length() > 1 && args[1]->IsObject()) {
     Local<Object> object = args[1].As<Object>();
     Local<Context> context = isolate->GetCurrentContext();
-    Local<Value> value = GetValue(args.GetIsolate(), context, object, "type");
-    if (value->IsString()) {
+    Local<Value> value;
+    if (TryGetValue(args.GetIsolate(), context, object, "type")
+            .ToLocal(&value) &&
+        value->IsString()) {
       Local<String> worker_type = value->ToString(context).ToLocalChecked();
       String::Utf8Value str(isolate, worker_type);
       if (strcmp("string", *str) == 0) {
