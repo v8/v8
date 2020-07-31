@@ -2849,6 +2849,12 @@ void CompilationStateImpl::TriggerCallbacks(
     }
   }
 
+  if (compile_failed_.load(std::memory_order_relaxed)) {
+    // *Only* trigger the "failed" event.
+    triggered_events =
+        base::EnumSet<CompilationEvent>({CompilationEvent::kFailedCompilation});
+  }
+
   if (triggered_events.empty()) return;
 
   // Don't trigger past events again.
@@ -2858,7 +2864,9 @@ void CompilationStateImpl::TriggerCallbacks(
       triggered_events - CompilationEvent::kFinishedRecompilation;
 
   for (auto event :
-       {std::make_pair(CompilationEvent::kFinishedBaselineCompilation,
+       {std::make_pair(CompilationEvent::kFailedCompilation,
+                       "wasm.CompilationFailed"),
+        std::make_pair(CompilationEvent::kFinishedBaselineCompilation,
                        "wasm.BaselineFinished"),
         std::make_pair(CompilationEvent::kFinishedTopTierCompilation,
                        "wasm.TopTierFinished"),
@@ -2957,11 +2965,7 @@ void CompilationStateImpl::SetError() {
   }
 
   base::MutexGuard callbacks_guard(&callbacks_mutex_);
-  for (auto& callback : callbacks_) {
-    callback(CompilationEvent::kFailedCompilation);
-  }
-  // No more callbacks after an error.
-  callbacks_.clear();
+  TriggerCallbacks();
 }
 
 namespace {
