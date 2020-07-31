@@ -28,7 +28,16 @@ class RegisterState;
 class BlockState final {
  public:
   BlockState(int block_count, Zone* zone)
-      : dominated_blocks_(block_count, zone), successors_phi_index_(-1) {}
+      : general_registers_in_state_(nullptr),
+        double_registers_in_state_(nullptr),
+        dominated_blocks_(block_count, zone),
+        successors_phi_index_(-1) {}
+
+  // Returns the RegisterState that applies to the input of this block. Can be
+  // |nullptr| if the no registers of |kind| have been allocated up to this
+  // point.
+  RegisterState* register_in_state(RegisterKind kind);
+  void set_register_in_state(RegisterState* register_state, RegisterKind kind);
 
   // Returns a bitvector representing all the basic blocks that are dominated
   // by this basic block.
@@ -42,10 +51,38 @@ class BlockState final {
     successors_phi_index_ = index;
   }
 
+  MOVE_ONLY_NO_DEFAULT_CONSTRUCTOR(BlockState);
+
  private:
+  RegisterState* general_registers_in_state_;
+  RegisterState* double_registers_in_state_;
+
   BitVector dominated_blocks_;
   int successors_phi_index_;
 };
+
+RegisterState* BlockState::register_in_state(RegisterKind kind) {
+  switch (kind) {
+    case RegisterKind::kGeneral:
+      return general_registers_in_state_;
+    case RegisterKind::kDouble:
+      return double_registers_in_state_;
+  }
+}
+
+void BlockState::set_register_in_state(RegisterState* register_state,
+                                       RegisterKind kind) {
+  switch (kind) {
+    case RegisterKind::kGeneral:
+      DCHECK_NULL(general_registers_in_state_);
+      general_registers_in_state_ = register_state;
+      break;
+    case RegisterKind::kDouble:
+      DCHECK_NULL(double_registers_in_state_);
+      double_registers_in_state_ = register_state;
+      break;
+  }
+}
 
 MidTierRegisterAllocationData::MidTierRegisterAllocationData(
     const RegisterConfiguration* config, Zone* zone, Frame* frame,
@@ -500,6 +537,29 @@ class RegisterState final : public ZoneObject {
   // Returns true if |reg| only has pending uses allocated to it.
   bool HasPendingUsesOnly(RegisterIndex reg);
 
+  // Clone this RegisterState for a successor block.
+  RegisterState* Clone();
+
+  // Copy register details for |reg| from |source| to |this| RegisterState.
+  void CopyFrom(RegisterIndex reg, RegisterState* source);
+
+  // Returns true if the register details for |reg| are equal in |source| and
+  // |this| RegisterStates.
+  bool Equals(RegisterIndex reg, RegisterState* source);
+
+  // Signals that the registers in this state are going to be shared across
+  // |shared_use_count| blocks.
+  void AddSharedUses(int shared_use_count);
+
+  // When merging multiple block's RegisterState into the successor block with
+  // |this| RegisterState, commit |reg| as being merged from a given predecessor
+  // block.
+  void CommitAtMerge(RegisterIndex reg);
+
+  // Resets |reg| if it has register data that was shared with other basic
+  // blocks and was spilled in those blocks.
+  void ResetIfSpilledWhileShared(RegisterIndex reg);
+
   // Enable range-based for on allocatable register indices.
   RegisterIndex::Iterator begin() const { return RegisterIndex::Iterator(0); }
   RegisterIndex::Iterator end() const {
@@ -523,13 +583,22 @@ class RegisterState final : public ZoneObject {
     void PendingUse(InstructionOperand* operand, int virtual_register,
                     int instr_index);
 
-    bool is_allocated() const {
-      return virtual_register_ != InstructionOperand::kInvalidVirtualRegister;
-    }
-
     // Mark register as holding a phi.
     void MarkAsPhiMove();
     bool is_phi_gap_move() const { return is_phi_gap_move_; }
+
+    // Operations related to dealing with a Register that is shared across
+    // multiple basic blocks.
+    void CommitAtMerge();
+    void AddSharedUses(int shared_use_count);
+    bool is_shared() const { return is_shared_; }
+    bool was_spilled_while_shared() const {
+      return is_shared() && !is_allocated();
+    }
+
+    bool is_allocated() const {
+      return virtual_register_ != InstructionOperand::kInvalidVirtualRegister;
+    }
 
     // The current virtual register held by this register.
     int virtual_register() const { return virtual_register_; }
@@ -556,8 +625,11 @@ class RegisterState final : public ZoneObject {
                          MidTierRegisterAllocationData* data);
 
     bool needs_gap_move_on_spill_;
+    bool is_shared_;
     bool is_phi_gap_move_;
     int last_use_instr_index_;
+
+    int num_commits_required_;
     int virtual_register_;
     PendingOperand* pending_uses_;
   };
@@ -580,9 +652,11 @@ class RegisterState final : public ZoneObject {
 RegisterState::Register::Register() { Reset(); }
 
 void RegisterState::Register::Reset() {
+  is_shared_ = false;
   is_phi_gap_move_ = false;
   needs_gap_move_on_spill_ = false;
   last_use_instr_index_ = -1;
+  num_commits_required_ = 0;
   virtual_register_ = InstructionOperand::kInvalidVirtualRegister;
   pending_uses_ = nullptr;
 }
@@ -595,6 +669,7 @@ void RegisterState::Register::Use(int virtual_register, int instr_index) {
   needs_gap_move_on_spill_ = true;
   virtual_register_ = virtual_register;
   last_use_instr_index_ = instr_index;
+  num_commits_required_ = 1;
 }
 
 void RegisterState::Register::PendingUse(InstructionOperand* operand,
@@ -603,6 +678,7 @@ void RegisterState::Register::PendingUse(InstructionOperand* operand,
   if (!is_allocated()) {
     virtual_register_ = virtual_register;
     last_use_instr_index_ = instr_index;
+    num_commits_required_ = 1;
   }
   DCHECK_EQ(virtual_register_, virtual_register);
   DCHECK_GE(last_use_instr_index_, instr_index);
@@ -617,17 +693,35 @@ void RegisterState::Register::MarkAsPhiMove() {
   is_phi_gap_move_ = true;
 }
 
+void RegisterState::Register::AddSharedUses(int shared_use_count) {
+  is_shared_ = true;
+  num_commits_required_ += shared_use_count;
+}
+
+void RegisterState::Register::CommitAtMerge() {
+  --num_commits_required_;
+  // We should still have commits required that will be resolved in the merge
+  // block.
+  DCHECK_GT(num_commits_required_, 0);
+}
+
 void RegisterState::Register::Commit(AllocatedOperand allocated_op) {
   DCHECK(is_allocated());
+  DCHECK_GT(num_commits_required_, 0);
 
-  // Allocate all pending uses to |allocated_op|.
-  PendingOperand* pending_use = pending_uses();
-  while (pending_use) {
-    PendingOperand* next = pending_use->next();
-    InstructionOperand::ReplaceWith(pending_use, &allocated_op);
-    pending_use = next;
+  if (--num_commits_required_ == 0) {
+    // Allocate all pending uses to |allocated_op| if this commit is non-shared,
+    // or if it is the final commit required on a register data shared across
+    // blocks.
+    PendingOperand* pending_use = pending_uses();
+    while (pending_use) {
+      PendingOperand* next = pending_use->next();
+      InstructionOperand::ReplaceWith(pending_use, &allocated_op);
+      pending_use = next;
+    }
+    pending_uses_ = nullptr;
   }
-  pending_uses_ = nullptr;
+  DCHECK_IMPLIES(num_commits_required_ > 0, is_shared());
 }
 
 void RegisterState::Register::Spill(AllocatedOperand allocated_op,
@@ -757,7 +851,11 @@ bool RegisterState::HasPendingUsesOnly(RegisterIndex reg) {
 
 void RegisterState::ResetDataFor(RegisterIndex reg) {
   DCHECK(HasRegisterData(reg));
-  reg_data(reg).Reset();
+  if (reg_data(reg).is_shared()) {
+    register_data_[reg.ToInt()] = nullptr;
+  } else {
+    reg_data(reg).Reset();
+  }
 }
 
 bool RegisterState::HasRegisterData(RegisterIndex reg) {
@@ -769,6 +867,37 @@ void RegisterState::EnsureRegisterData(RegisterIndex reg) {
   if (!HasRegisterData(reg)) {
     register_data_[reg.ToInt()] = zone()->New<RegisterState::Register>();
   }
+}
+
+void RegisterState::ResetIfSpilledWhileShared(RegisterIndex reg) {
+  if (HasRegisterData(reg) && reg_data(reg).was_spilled_while_shared()) {
+    ResetDataFor(reg);
+  }
+}
+
+void RegisterState::CommitAtMerge(RegisterIndex reg) {
+  DCHECK(IsAllocated(reg));
+  reg_data(reg).CommitAtMerge();
+}
+
+void RegisterState::CopyFrom(RegisterIndex reg, RegisterState* source) {
+  register_data_[reg.ToInt()] = source->register_data_[reg.ToInt()];
+}
+
+bool RegisterState::Equals(RegisterIndex reg, RegisterState* other) {
+  return register_data_[reg.ToInt()] == other->register_data_[reg.ToInt()];
+}
+
+void RegisterState::AddSharedUses(int shared_use_count) {
+  for (RegisterIndex reg : *this) {
+    if (HasRegisterData(reg)) {
+      reg_data(reg).AddSharedUses(shared_use_count);
+    }
+  }
+}
+
+RegisterState* RegisterState::Clone() {
+  return zone_->New<RegisterState>(*this);
 }
 
 // A SinglePassRegisterAllocator is a fast register allocator that does a single
@@ -837,6 +966,19 @@ class SinglePassRegisterAllocator final {
   // allocate registers of a particular type. All allocation functions should
   // call EnsureRegisterState to allocate a RegisterState if necessary.
   void EnsureRegisterState();
+
+  // Clone the register state from |successor| into the current register state.
+  void CloneStateFrom(RpoNumber successor);
+
+  // Merge the register state of |successors| into the current register state.
+  void MergeStateFrom(const InstructionBlock::Successors& successors);
+
+  // Spill a register in a previously processed successor block when merging
+  // state into the current block.
+  void SpillRegisterAtMerge(RegisterState* reg_state, RegisterIndex reg);
+
+  // Update the virtual register data with the data in register_state()
+  void UpdateVirtualRegisterState();
 
   // Returns true if |virtual_register| is defined after use position |pos| at
   // |instr_index|.
@@ -1005,13 +1147,132 @@ void SinglePassRegisterAllocator::StartBlock(const InstructionBlock* block) {
 
   // Update the current block we are processing.
   current_block_ = block;
+
+  if (block->SuccessorCount() == 1) {
+    // If we have only a single successor, we can directly clone our state
+    // from that successor.
+    CloneStateFrom(block->successors()[0]);
+  } else if (block->SuccessorCount() > 1) {
+    // If we have multiple successors, merge the state from all the successors
+    // into our block.
+    MergeStateFrom(block->successors());
+  }
 }
 
 void SinglePassRegisterAllocator::EndBlock(const InstructionBlock* block) {
   DCHECK_EQ(in_use_at_instr_start_bits_, 0);
   DCHECK_EQ(in_use_at_instr_end_bits_, 0);
+
+  // If we didn't allocate any registers of this kind, or we have reached the
+  // start, nothing to do here.
+  if (!HasRegisterState() || block->PredecessorCount() == 0) {
+    current_block_ = nullptr;
+    return;
+  }
+
+  if (block->PredecessorCount() > 1) {
+    register_state()->AddSharedUses(
+        static_cast<int>(block->PredecessorCount()) - 1);
+  }
+
+  BlockState& block_state = data()->block_state(block->rpo_number());
+  block_state.set_register_in_state(register_state(), kind());
+
+  // Remove virtual register to register mappings and clear register state.
+  // We will update the register state when starting the next block.
+  while (allocated_registers_bits_ != 0) {
+    RegisterIndex reg(
+        base::bits::CountTrailingZeros(allocated_registers_bits_));
+    FreeRegister(reg, VirtualRegisterForRegister(reg));
+  }
   current_block_ = nullptr;
   register_state_ = nullptr;
+}
+
+void SinglePassRegisterAllocator::CloneStateFrom(RpoNumber successor) {
+  BlockState& block_state = data()->block_state(successor);
+  RegisterState* successor_registers = block_state.register_in_state(kind());
+  if (successor_registers != nullptr) {
+    if (data()->GetBlock(successor)->PredecessorCount() == 1) {
+      // Avoids cloning for successors where we are the only predecessor.
+      register_state_ = successor_registers;
+    } else {
+      register_state_ = successor_registers->Clone();
+    }
+    UpdateVirtualRegisterState();
+  }
+}
+
+void SinglePassRegisterAllocator::MergeStateFrom(
+    const InstructionBlock::Successors& successors) {
+  for (RpoNumber successor : successors) {
+    BlockState& block_state = data()->block_state(successor);
+    RegisterState* successor_registers = block_state.register_in_state(kind());
+    if (successor_registers == nullptr) {
+      continue;
+    }
+
+    if (register_state_ == nullptr) {
+      // If we haven't merged any register state yet, just use successor's
+      // register directly.
+      register_state_ = successor_registers;
+      UpdateVirtualRegisterState();
+    } else {
+      // Otherwise try to merge our state with the existing state.
+      for (RegisterIndex reg : *register_state()) {
+        if (register_state()->IsAllocated(reg)) {
+          if (successor_registers->Equals(reg, register_state())) {
+            // Both match, keep the merged register data.
+            register_state()->CommitAtMerge(reg);
+          } else {
+            // TODO(rmcilroy) consider adding a gap move to shuffle register
+            // into the same as the target. For now just spill.
+            SpillRegisterAtMerge(successor_registers, reg);
+          }
+        } else if (successor_registers->IsAllocated(reg)) {
+          int virtual_register =
+              successor_registers->VirtualRegisterForRegister(reg);
+          if (RegisterForVirtualRegister(virtual_register).is_valid()) {
+            // If we already hold the virtual register in a different register
+            // then spill this register in the sucessor block to avoid
+            // invalidating the 1:1 vreg<->reg mapping.
+            // TODO(rmcilroy): Add a gap move to avoid spilling.
+            SpillRegisterAtMerge(successor_registers, reg);
+          } else {
+            // Register is free in our current register state, so merge the
+            // successor block's register details into it.
+            register_state()->CopyFrom(reg, successor_registers);
+            int virtual_register = VirtualRegisterForRegister(reg);
+            AssignRegister(reg, virtual_register, UsePosition::kNone);
+          }
+        }
+      }
+    }
+  }
+}
+
+void SinglePassRegisterAllocator::SpillRegisterAtMerge(RegisterState* reg_state,
+                                                       RegisterIndex reg) {
+  DCHECK_NE(reg_state, register_state());
+  if (reg_state->IsAllocated(reg)) {
+    int virtual_register = reg_state->VirtualRegisterForRegister(reg);
+    AllocatedOperand allocated = AllocatedOperandForReg(reg, virtual_register);
+    reg_state->Spill(reg, allocated, current_block(), data());
+  }
+}
+
+void SinglePassRegisterAllocator::UpdateVirtualRegisterState() {
+  // Update to the new register state and update vreg_to_register map and
+  // resetting any shared registers that were spilled by another block.
+  DCHECK(HasRegisterState());
+  for (RegisterIndex reg : *register_state()) {
+    register_state()->ResetIfSpilledWhileShared(reg);
+    int virtual_register = VirtualRegisterForRegister(reg);
+    if (virtual_register != InstructionOperand::kInvalidVirtualRegister) {
+      AssignRegister(reg, virtual_register, UsePosition::kNone);
+    }
+  }
+  CheckConsistency();
 }
 
 void SinglePassRegisterAllocator::CheckConsistency() {
@@ -1812,9 +2073,12 @@ void MidTierRegisterAllocator::AllocateRegisters(
     double_reg_allocator().EndInstruction();
   }
 
-  // TODO(rmcilroy): Add support for cross-block allocations.
-  general_reg_allocator().SpillAllRegisters();
-  double_reg_allocator().SpillAllRegisters();
+  // For now we spill all registers at a loop header.
+  // TODO(rmcilroy): Add support for register allocations across loops.
+  if (block->IsLoopHeader()) {
+    general_reg_allocator().SpillAllRegisters();
+    double_reg_allocator().SpillAllRegisters();
+  }
 
   AllocatePhis(block);
 
