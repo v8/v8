@@ -5,7 +5,6 @@
 #include "src/compiler/schedule.h"
 
 #include "src/compiler/node.h"
-#include "src/zone/zone-fwd.h"
 #include "test/unittests/test-utils.h"
 #include "testing/gmock/include/gmock/gmock.h"
 

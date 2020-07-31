@@ -5,7 +5,6 @@
 #include "src/compiler/backend/instruction-scheduler.h"
 #include "src/compiler/backend/instruction-selector-impl.h"
 #include "src/compiler/backend/instruction.h"
-#include "src/zone/zone-fwd.h"
 #include "test/cctest/cctest.h"
 
 namespace v8 {
