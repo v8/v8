@@ -2851,10 +2851,10 @@ void InstructionSelector::VisitS8x16Shuffle(Node* node) {
 #endif
   Emit(kS390_S8x16Shuffle, g.DefineAsRegister(node),
        g.UseUniqueRegister(input0), g.UseUniqueRegister(input1),
-       g.UseImmediate(Pack4Lanes(shuffle_p)),
-       g.UseImmediate(Pack4Lanes(shuffle_p + 4)),
-       g.UseImmediate(Pack4Lanes(shuffle_p + 8)),
-       g.UseImmediate(Pack4Lanes(shuffle_p + 12)));
+       g.UseImmediate(wasm::SimdShuffle::Pack4Lanes(shuffle_p)),
+       g.UseImmediate(wasm::SimdShuffle::Pack4Lanes(shuffle_p + 4)),
+       g.UseImmediate(wasm::SimdShuffle::Pack4Lanes(shuffle_p + 8)),
+       g.UseImmediate(wasm::SimdShuffle::Pack4Lanes(shuffle_p + 12)));
 }
 
 void InstructionSelector::VisitS8x16Swizzle(Node* node) {
@@ -2881,10 +2881,14 @@ void InstructionSelector::VisitS128Const(Node* node) {
     // We have to use Pack4Lanes to reverse the bytes (lanes) on BE,
     // Which in this case is ineffective on LE.
     Emit(kS390_S128Const, g.DefineAsRegister(node),
-         g.UseImmediate(Pack4Lanes(reinterpret_cast<uint8_t*>(val))),
-         g.UseImmediate(Pack4Lanes(reinterpret_cast<uint8_t*>(val) + 4)),
-         g.UseImmediate(Pack4Lanes(reinterpret_cast<uint8_t*>(val) + 8)),
-         g.UseImmediate(Pack4Lanes(reinterpret_cast<uint8_t*>(val) + 12)));
+         g.UseImmediate(
+             wasm::SimdShuffle::Pack4Lanes(reinterpret_cast<uint8_t*>(val))),
+         g.UseImmediate(wasm::SimdShuffle::Pack4Lanes(
+             reinterpret_cast<uint8_t*>(val) + 4)),
+         g.UseImmediate(wasm::SimdShuffle::Pack4Lanes(
+             reinterpret_cast<uint8_t*>(val) + 8)),
+         g.UseImmediate(wasm::SimdShuffle::Pack4Lanes(
+             reinterpret_cast<uint8_t*>(val) + 12)));
   }
 }
 

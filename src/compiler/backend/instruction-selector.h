@@ -636,9 +636,6 @@ class V8_EXPORT_PRIVATE InstructionSelector final {
   // to specific architectural instructions.
   void SwapShuffleInputs(Node* node);
 
-  // Packs 4 bytes of shuffle into a 32 bit immediate.
-  static int32_t Pack4Lanes(const uint8_t* shuffle);
-
   // ===========================================================================
 
   Schedule* schedule() const { return schedule_; }

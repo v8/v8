@@ -2377,10 +2377,10 @@ void InstructionSelector::VisitS8x16Shuffle(Node* node) {
   }
   Emit(kPPC_S8x16Shuffle, g.DefineAsRegister(node), g.UseUniqueRegister(input0),
        g.UseUniqueRegister(input1),
-       g.UseImmediate(Pack4Lanes(shuffle_remapped)),
-       g.UseImmediate(Pack4Lanes(shuffle_remapped + 4)),
-       g.UseImmediate(Pack4Lanes(shuffle_remapped + 8)),
-       g.UseImmediate(Pack4Lanes(shuffle_remapped + 12)));
+       g.UseImmediate(wasm::SimdShuffle::Pack4Lanes(shuffle_remapped)),
+       g.UseImmediate(wasm::SimdShuffle::Pack4Lanes(shuffle_remapped + 4)),
+       g.UseImmediate(wasm::SimdShuffle::Pack4Lanes(shuffle_remapped + 8)),
+       g.UseImmediate(wasm::SimdShuffle::Pack4Lanes(shuffle_remapped + 12)));
 }
 
 void InstructionSelector::VisitS128Zero(Node* node) {

@@ -2808,10 +2808,10 @@ void InstructionSelector::VisitS8x16Shuffle(Node* node) {
     // Use same-as-first for general swizzle, but not shuffle.
     no_same_as_first = !is_swizzle;
     src0_needs_reg = !no_same_as_first;
-    imms[imm_count++] = Pack4Lanes(shuffle);
-    imms[imm_count++] = Pack4Lanes(shuffle + 4);
-    imms[imm_count++] = Pack4Lanes(shuffle + 8);
-    imms[imm_count++] = Pack4Lanes(shuffle + 12);
+    imms[imm_count++] = wasm::SimdShuffle::Pack4Lanes(shuffle);
+    imms[imm_count++] = wasm::SimdShuffle::Pack4Lanes(shuffle + 4);
+    imms[imm_count++] = wasm::SimdShuffle::Pack4Lanes(shuffle + 8);
+    imms[imm_count++] = wasm::SimdShuffle::Pack4Lanes(shuffle + 12);
     temps[temp_count++] = g.TempRegister();
   }
 

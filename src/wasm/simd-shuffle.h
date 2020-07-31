@@ -80,6 +80,8 @@ class V8_EXPORT_PRIVATE SimdShuffle {
   static uint8_t PackBlend8(const uint8_t* shuffle16x8);
   // Gets an 8 bit lane mask suitable for 32x4 pblendw.
   static uint8_t PackBlend4(const uint8_t* shuffle32x4);
+  // Packs 4 bytes of shuffle into a 32 bit immediate.
+  static int32_t Pack4Lanes(const uint8_t* shuffle);
 };
 }  // namespace wasm
 }  // namespace internal

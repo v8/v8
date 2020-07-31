@@ -252,6 +252,26 @@ TEST_F(SimdShuffleTest, TryMatchBlend) {
       {{1, 17, 2, 19, 4, 21, 6, 23, 8, 25, 10, 27, 12, 29, 14, 31}}));
 }
 
+TEST(SimdShufflePackTest, PackShuffle4) {
+  uint8_t arr[4]{0b0001, 0b0010, 0b0100, 0b1000};
+  EXPECT_EQ(0b00001001, SimdShuffle::PackShuffle4(arr));
+}
+
+TEST(SimdShufflePackTest, PackBlend8) {
+  uint8_t arr[8]{0, 2, 4, 6, 8, 10, 12, 14};
+  EXPECT_EQ(0b11110000, SimdShuffle::PackBlend8(arr));
+}
+
+TEST(SimdShufflePackTest, PackBlend4) {
+  uint8_t arr[4]{0, 2, 4, 6};
+  EXPECT_EQ(0b11110000, SimdShuffle::PackBlend4(arr));
+}
+
+TEST(SimdShufflePackTest, Pack4Lanes) {
+  uint8_t arr[4]{0x01, 0x08, 0xa0, 0x7c};
+  EXPECT_EQ(0x7ca00801, SimdShuffle::Pack4Lanes(arr));
+}
+
 }  // namespace wasm
 }  // namespace internal
 }  // namespace v8

@@ -3184,15 +3184,6 @@ void InstructionSelector::SwapShuffleInputs(Node* node) {
 }
 
 // static
-int32_t InstructionSelector::Pack4Lanes(const uint8_t* shuffle) {
-  int32_t result = 0;
-  for (int i = 3; i >= 0; --i) {
-    result <<= 8;
-    result |= shuffle[i];
-  }
-  return result;
-}
-
 bool InstructionSelector::NeedsPoisoning(IsSafetyCheck safety_check) const {
   switch (poisoning_level_) {
     case PoisoningMitigationLevel::kDontPoison:
