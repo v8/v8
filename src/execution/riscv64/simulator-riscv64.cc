@@ -2094,9 +2094,9 @@ void Simulator::DecodeRVRAType() {
         local_monitor_.NotifyStore();
         GlobalMonitor::Get()->NotifyStore_Locked(&global_monitor_thread_);
         WriteMem<int32_t>(rs1(), (int32_t)rs2(), instr_.instr());
-        set_rd(1, false);
-      } else {
         set_rd(0, false);
+      } else {
+        set_rd(1, false);
       }
       break;
     }
@@ -2175,9 +2175,9 @@ void Simulator::DecodeRVRAType() {
               addr, &global_monitor_thread_))) {
         GlobalMonitor::Get()->NotifyStore_Locked(&global_monitor_thread_);
         WriteMem<int64_t>(rs1(), rs2(), instr_.instr());
-        set_rd(1, false);
-      } else {
         set_rd(0, false);
+      } else {
+        set_rd(1, false);
       }
       break;
     }

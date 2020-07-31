@@ -325,7 +325,7 @@ void EmitWordLoadPoisoningIfNeeded(CodeGenerator* codegen,
     __ bin_instr(i.TempRegister(1), i.OutputRegister(0),                       \
                  Operand(i.InputRegister(2)));                                 \
     __ store_conditional(i.TempRegister(1), MemOperand(i.TempRegister(0), 0)); \
-    __ BranchShort(&binop, eq, i.TempRegister(1), Operand(zero_reg));          \
+    __ BranchShort(&binop, ne, i.TempRegister(1), Operand(zero_reg));          \
     __ sync();                                                                 \
   } while (0)
 
@@ -353,7 +353,7 @@ void EmitWordLoadPoisoningIfNeeded(CodeGenerator* codegen,
     __ InsertBits(i.TempRegister(1), i.TempRegister(2), i.TempRegister(3),     \
                   size);                                                       \
     __ store_conditional(i.TempRegister(1), MemOperand(i.TempRegister(0), 0)); \
-    __ BranchShort(&binop, eq, i.TempRegister(1), Operand(zero_reg));          \
+    __ BranchShort(&binop, ne, i.TempRegister(1), Operand(zero_reg));          \
     __ sync();                                                                 \
   } while (0)
 
@@ -366,7 +366,7 @@ void EmitWordLoadPoisoningIfNeeded(CodeGenerator* codegen,
     __ load_linked(i.OutputRegister(0), MemOperand(i.TempRegister(0), 0));     \
     __ Move(i.TempRegister(1), i.InputRegister(2));                            \
     __ store_conditional(i.TempRegister(1), MemOperand(i.TempRegister(0), 0)); \
-    __ BranchShort(&exchange, eq, i.TempRegister(1), Operand(zero_reg));       \
+    __ BranchShort(&exchange, ne, i.TempRegister(1), Operand(zero_reg));       \
     __ sync();                                                                 \
   } while (0)
 
@@ -392,7 +392,7 @@ void EmitWordLoadPoisoningIfNeeded(CodeGenerator* codegen,
     __ InsertBits(i.TempRegister(2), i.InputRegister(2), i.TempRegister(1),    \
                   size);                                                       \
     __ store_conditional(i.TempRegister(2), MemOperand(i.TempRegister(0), 0)); \
-    __ BranchShort(&exchange, eq, i.TempRegister(2), Operand(zero_reg));       \
+    __ BranchShort(&exchange, ne, i.TempRegister(2), Operand(zero_reg));       \
     __ sync();                                                                 \
   } while (0)
 
@@ -409,7 +409,7 @@ void EmitWordLoadPoisoningIfNeeded(CodeGenerator* codegen,
                    Operand(i.OutputRegister(0)));                              \
     __ Move(i.TempRegister(2), i.InputRegister(3));                            \
     __ store_conditional(i.TempRegister(2), MemOperand(i.TempRegister(0), 0)); \
-    __ BranchShort(&compareExchange, eq, i.TempRegister(2),                    \
+    __ BranchShort(&compareExchange, ne, i.TempRegister(2),                    \
                    Operand(zero_reg));                                         \
     __ bind(&exit);                                                            \
     __ sync();                                                                 \
@@ -442,7 +442,7 @@ void EmitWordLoadPoisoningIfNeeded(CodeGenerator* codegen,
     __ InsertBits(i.TempRegister(2), i.InputRegister(3), i.TempRegister(1),    \
                   size);                                                       \
     __ store_conditional(i.TempRegister(2), MemOperand(i.TempRegister(0), 0)); \
-    __ BranchShort(&compareExchange, eq, i.TempRegister(2),                    \
+    __ BranchShort(&compareExchange, ne, i.TempRegister(2),                    \
                    Operand(zero_reg));                                         \
     __ bind(&exit);                                                            \
     __ sync();                                                                 \
