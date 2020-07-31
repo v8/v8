@@ -81,7 +81,7 @@ bool LocalHeap::IsHandleDereferenceAllowed() {
 #endif
 
 bool LocalHeap::IsParked() {
-  base::MutexGuard guard(&state_mutex_);
+  DCHECK_EQ(LocalHeap::Current(), this);
   return state_ == ThreadState::Parked;
 }
 
