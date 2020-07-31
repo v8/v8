@@ -6,6 +6,7 @@
 #define V8_ZONE_ZONE_LIST_H_
 
 #include "src/base/logging.h"
+#include "src/zone/zone-fwd.h"
 #include "src/zone/zone.h"
 
 namespace v8 {

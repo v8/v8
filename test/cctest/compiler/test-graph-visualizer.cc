@@ -14,6 +14,7 @@
 #include "src/compiler/schedule.h"
 #include "src/compiler/scheduler.h"
 #include "src/compiler/verifier.h"
+#include "src/zone/zone-fwd.h"
 #include "test/cctest/cctest.h"
 
 namespace v8 {

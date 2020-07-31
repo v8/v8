@@ -6,6 +6,7 @@
 #define V8_UNITTESTS_CODE_STUB_ASSEMBLER_UNITTEST_H_
 
 #include "src/codegen/code-stub-assembler.h"
+#include "src/zone/zone-fwd.h"
 #include "test/unittests/test-utils.h"
 #include "testing/gmock-support.h"
 

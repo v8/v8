@@ -9,11 +9,10 @@
 
 #include "src/base/logging.h"
 #include "src/common/globals.h"
-#include "src/utils/utils.h"
 #include "src/zone/accounting-allocator.h"
 #include "src/zone/type-stats.h"
+#include "src/zone/zone-fwd.h"
 #include "src/zone/zone-segment.h"
-#include "src/zone/zone-type-traits.h"
 
 #ifndef ZONE_NAME
 #define ZONE_NAME __func__
@@ -117,7 +116,6 @@ class V8_EXPORT_PRIVATE Zone final {
   // distinguishable between each other.
   template <typename T, typename TypeTag = T[]>
   T* NewArray(size_t length) {
-    DCHECK_IMPLIES(is_compressed_pointer<T>::value, supports_compression());
     DCHECK_LT(length, std::numeric_limits<size_t>::max() / sizeof(T));
     return static_cast<T*>(Allocate<TypeTag>(length * sizeof(T)));
   }

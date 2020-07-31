@@ -20,7 +20,7 @@ Vector<T> CloneVector(Zone* zone, const Vector<const T>& other) {
   if (length == 0) return Vector<T>();
 
   T* data = zone->NewArray<T>(length);
-  if (std::is_trivially_copyable<T>::value) {
+  if (std::is_fundamental<T>()) {
     MemCopy(data, other.data(), length * sizeof(T));
   } else {
     std::copy(other.begin(), other.end(), data);

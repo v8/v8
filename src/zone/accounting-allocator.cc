@@ -10,33 +10,28 @@
 #include "src/base/logging.h"
 #include "src/base/macros.h"
 #include "src/utils/allocation.h"
-#include "src/zone/zone-compression.h"
+#include "src/zone/zone-fwd.h"
 #include "src/zone/zone-segment.h"
 
 namespace v8 {
 namespace internal {
-
-// These definitions are here in order to please the linker, which in debug mode
-// sometimes requires static constants to be defined in .cc files.
-const size_t ZoneCompression::kReservationSize;
-const size_t ZoneCompression::kReservationAlignment;
 
 namespace {
 
 static constexpr size_t kZonePageSize = 256 * KB;
 
 VirtualMemory ReserveAddressSpace(v8::PageAllocator* platform_allocator) {
-  DCHECK(IsAligned(ZoneCompression::kReservationSize,
-                   platform_allocator->AllocatePageSize()));
+  DCHECK(
+      IsAligned(kZoneReservationSize, platform_allocator->AllocatePageSize()));
 
   void* hint = reinterpret_cast<void*>(RoundDown(
       reinterpret_cast<uintptr_t>(platform_allocator->GetRandomMmapAddr()),
-      ZoneCompression::kReservationAlignment));
+      kZoneReservationAlignment));
 
-  VirtualMemory memory(platform_allocator, ZoneCompression::kReservationSize,
-                       hint, ZoneCompression::kReservationAlignment);
+  VirtualMemory memory(platform_allocator, kZoneReservationSize, hint,
+                       kZoneReservationAlignment);
   if (memory.IsReserved()) {
-    CHECK(IsAligned(memory.address(), ZoneCompression::kReservationAlignment));
+    CHECK(IsAligned(memory.address(), kZoneReservationAlignment));
     return memory;
   }
 
@@ -48,11 +43,10 @@ VirtualMemory ReserveAddressSpace(v8::PageAllocator* platform_allocator) {
 
 std::unique_ptr<v8::base::BoundedPageAllocator> CreateBoundedAllocator(
     v8::PageAllocator* platform_allocator, Address reservation_start) {
-  CHECK(reservation_start);
-  CHECK(IsAligned(reservation_start, ZoneCompression::kReservationAlignment));
+  DCHECK(reservation_start);
 
   auto allocator = std::make_unique<v8::base::BoundedPageAllocator>(
-      platform_allocator, reservation_start, ZoneCompression::kReservationSize,
+      platform_allocator, reservation_start, kZoneReservationSize,
       kZonePageSize);
 
   // Exclude first page from allocation to ensure that accesses through
