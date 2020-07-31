@@ -5,6 +5,7 @@
 #ifndef V8_TORQUE_UTILS_H_
 #define V8_TORQUE_UTILS_H_
 
+#include <algorithm>
 #include <ostream>
 #include <queue>
 #include <streambuf>
@@ -522,6 +523,17 @@ class Worklist {
   std::queue<T> queue_;
   std::unordered_set<T> contained_;
 };
+
+template <class T, class U, class F>
+std::vector<T> TransformVector(const std::vector<U>& v, F f) {
+  std::vector<T> result;
+  std::transform(v.begin(), v.end(), std::back_inserter(result), f);
+  return result;
+}
+template <class T, class U>
+std::vector<T> TransformVector(const std::vector<U>& v) {
+  return TransformVector<T>(v, [](const U& x) -> T { return x; });
+}
 
 }  // namespace torque
 }  // namespace internal

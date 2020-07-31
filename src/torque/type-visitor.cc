@@ -500,9 +500,10 @@ const Type* TypeVisitor::ComputeTypeForStructExpression(
   }
 
   CurrentScope::Scope generic_scope(generic_type->ParentScope());
-  TypeArgumentInference inference(generic_type->generic_parameters(),
-                                  explicit_type_arguments, term_parameters,
-                                  term_argument_types);
+  TypeArgumentInference inference(
+      generic_type->generic_parameters(), explicit_type_arguments,
+      term_parameters,
+      TransformVector<base::Optional<const Type*>>(term_argument_types));
 
   if (inference.HasFailed()) {
     ReportError("failed to infer type arguments for struct ", basic->name,

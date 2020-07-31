@@ -196,9 +196,10 @@ void DeclarationVisitor::Visit(SpecializationDeclaration* decl) {
     // This argument inference is just to trigger constraint checking on the
     // generic arguments.
     TypeArgumentInference inference = generic->InferSpecializationTypes(
-        TypeVisitor::ComputeTypeVector(decl->generic_parameters),
-        signature_with_types.GetExplicitTypes());
-    if (inference.HasFailed()) continue;
+        TypeVisitor::ComputeTypeVector(decl->generic_parameters), {});
+    if (inference.HasFailed()) {
+      continue;
+    }
     Signature generic_signature_with_types =
         MakeSpecializedSignature(SpecializationKey<GenericCallable>{
             generic, TypeVisitor::ComputeTypeVector(decl->generic_parameters)});

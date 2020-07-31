@@ -682,6 +682,10 @@ class ImplementationVisitor {
                        const Arguments& arguments,
                        const TypeVector& specialization_types);
 
+  TypeArgumentInference InferSpecializationTypes(
+      GenericCallable* generic, const TypeVector& explicit_specialization_types,
+      const TypeVector& explicit_arguments);
+
   const Type* GetCommonType(const Type* left, const Type* right);
 
   VisitResult GenerateCopy(const VisitResult& to_copy);

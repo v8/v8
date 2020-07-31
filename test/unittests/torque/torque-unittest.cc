@@ -915,6 +915,48 @@ TEST(Torque, UnusedImplicit) {
                 "Test6(Smi): Smi\n  Test6(implicit Smi)(Smi): Smi"));
 }
 
+TEST(Torque, ImplicitTemplateParameterInference) {
+  ExpectSuccessfulCompilation(R"(
+    macro Foo(_x: Map) {}
+    macro Foo(_x: Smi) {}
+    macro GenericMacro<T: type>(implicit x: T)() {
+      Foo(x);
+    }
+    @export
+    macro Test1(implicit x: Smi)() { GenericMacro(); }
+    @export
+    macro Test2(implicit x: Map)() { GenericMacro();  }
+  )");
+
+  ExpectFailingCompilation(
+      R"(
+    // Wrap in namespace to avoid redeclaration error.
+    namespace foo {
+    macro Foo(implicit x: Map)() {}
+    }
+    macro Foo(implicit x: Smi)() {}
+    namespace foo{
+    @export
+    macro Test(implicit x: Smi)() { Foo(); }
+    }
+  )",
+      HasSubstr("ambiguous callable"));
+
+  ExpectFailingCompilation(
+      R"(
+    // Wrap in namespace to avoid redeclaration error.
+    namespace foo {
+    macro Foo(implicit x: Map)() {}
+    }
+    macro Foo(implicit x: Smi)() {}
+    namespace foo{
+    @export
+    macro Test(implicit x: Map)() { Foo(); }
+    }
+  )",
+      HasSubstr("ambiguous callable"));
+}
+
 }  // namespace torque
 }  // namespace internal
 }  // namespace v8

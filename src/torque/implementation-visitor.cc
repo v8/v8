@@ -1786,6 +1786,25 @@ bool ImplementationVisitor::TestLookupCallable(
                         {}, {}, true) != nullptr;
 }
 
+TypeArgumentInference ImplementationVisitor::InferSpecializationTypes(
+    GenericCallable* generic, const TypeVector& explicit_specialization_types,
+    const TypeVector& explicit_arguments) {
+  std::vector<base::Optional<const Type*>> all_arguments;
+  const ParameterList& parameters = generic->declaration()->parameters;
+  for (size_t i = 0; i < parameters.implicit_count; ++i) {
+    base::Optional<Binding<LocalValue>*> val =
+        TryLookupLocalValue(parameters.names[i]->value);
+    all_arguments.push_back(
+        val ? (*val)->GetLocationReference(*val).ReferencedType()
+            : base::nullopt);
+  }
+  for (const Type* explicit_argument : explicit_arguments) {
+    all_arguments.push_back(explicit_argument);
+  }
+  return generic->InferSpecializationTypes(explicit_specialization_types,
+                                           all_arguments);
+}
+
 template <class Container>
 Callable* ImplementationVisitor::LookupCallable(
     const QualifiedName& name, const Container& declaration_container,
@@ -1799,8 +1818,8 @@ Callable* ImplementationVisitor::LookupCallable(
   std::vector<std::pair<GenericCallable*, std::string>> inapplicable_generics;
   for (auto* declarable : declaration_container) {
     if (GenericCallable* generic = GenericCallable::DynamicCast(declarable)) {
-      TypeArgumentInference inference = generic->InferSpecializationTypes(
-          specialization_types, parameter_types);
+      TypeArgumentInference inference = InferSpecializationTypes(
+          generic, specialization_types, parameter_types);
       if (inference.HasFailed()) {
         inapplicable_generics.push_back(
             std::make_pair(generic, inference.GetFailureReason()));
@@ -1861,8 +1880,8 @@ Callable* ImplementationVisitor::LookupCallable(
 
   if (GenericCallable* generic =
           GenericCallable::DynamicCast(overloads[best])) {
-    TypeArgumentInference inference = generic->InferSpecializationTypes(
-        specialization_types, parameter_types);
+    TypeArgumentInference inference = InferSpecializationTypes(
+        generic, specialization_types, parameter_types);
     result = GetOrCreateSpecialization(
         SpecializationKey<GenericCallable>{generic, inference.GetResult()});
   } else {

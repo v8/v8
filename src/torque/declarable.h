@@ -567,7 +567,7 @@ class GenericCallable
 
   TypeArgumentInference InferSpecializationTypes(
       const TypeVector& explicit_specialization_types,
-      const TypeVector& arguments);
+      const std::vector<base::Optional<const Type*>>& arguments);
 
  private:
   friend class Declarations;
