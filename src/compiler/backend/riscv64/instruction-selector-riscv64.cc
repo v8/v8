@@ -1284,14 +1284,6 @@ void InstructionSelector::VisitChangeUint32ToUint64(Node* node) {
   RiscvOperandGenerator g(this);
   Node* value = node->InputAt(0);
   switch (value->opcode()) {
-    // 32-bit operations will write their result in a 64 bit register,
-    // clearing the top 32 bits of the destination register.
-    case IrOpcode::kUint32Div:
-    case IrOpcode::kUint32Mod:
-    case IrOpcode::kUint32MulHigh: {
-      Emit(kArchNop, g.DefineSameAsFirst(node), g.Use(value));
-      return;
-    }
     case IrOpcode::kLoad: {
       LoadRepresentation load_rep = LoadRepresentationOf(value->op());
       if (load_rep.IsUnsigned()) {

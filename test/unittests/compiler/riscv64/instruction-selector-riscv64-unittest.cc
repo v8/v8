@@ -1130,8 +1130,8 @@ TEST_P(InstructionSelectorElidedChangeUint32ToUint64Test, Parameter) {
   m.Return(m.ChangeUint32ToUint64(
       (m.*binop.constructor)(m.Parameter(0), m.Parameter(1))));
   Stream s = m.Build();
-  // Make sure the `ChangeUint32ToUint64` node turned into a no-op.
-  ASSERT_EQ(1U, s.size());
+  // Make sure the `ChangeUint32ToUint64` node turned into two op(sli 32 and sri 32).
+  ASSERT_EQ(2U, s.size());
   EXPECT_EQ(binop.arch_opcode, s[0]->arch_opcode());
   EXPECT_EQ(2U, s[0]->InputCount());
   EXPECT_EQ(1U, s[0]->OutputCount());
