@@ -1215,7 +1215,7 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
 
       if ((left == kDoubleRegZero || right == kDoubleRegZero) &&
           !__ IsDoubleZeroRegSet()) {
-        __ Move(kDoubleRegZero, 0.0);
+        __ Move(kDoubleRegZero, 0.0f);
       }
       // compare result set to kScratchReg
       __ CompareF32(kScratchReg, cc, left, right);
