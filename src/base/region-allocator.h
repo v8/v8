@@ -105,6 +105,7 @@ class V8_BASE_EXPORT RegionAllocator final {
         : AddressRegion(address, size), state_(state) {}
 
     bool is_free() const { return state_ == RegionState::kFree; }
+    bool is_allocated() const { return state_ == RegionState::kAllocated; }
     bool is_excluded() const { return state_ == RegionState::kExcluded; }
     void set_state(RegionState state) { state_ = state; }
 
@@ -170,10 +171,11 @@ class V8_BASE_EXPORT RegionAllocator final {
   void Merge(AllRegionsSet::iterator prev_iter,
              AllRegionsSet::iterator next_iter);
 
+  FRIEND_TEST(RegionAllocatorTest, AllocateExcluded);
   FRIEND_TEST(RegionAllocatorTest, AllocateRegionRandom);
-  FRIEND_TEST(RegionAllocatorTest, Fragmentation);
-  FRIEND_TEST(RegionAllocatorTest, FindRegion);
   FRIEND_TEST(RegionAllocatorTest, Contains);
+  FRIEND_TEST(RegionAllocatorTest, FindRegion);
+  FRIEND_TEST(RegionAllocatorTest, Fragmentation);
 
   DISALLOW_COPY_AND_ASSIGN(RegionAllocator);
 };

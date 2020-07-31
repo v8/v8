@@ -208,7 +208,7 @@ size_t RegionAllocator::TrimRegion(Address address, size_t new_size) {
     return 0;
   }
   Region* region = *region_iter;
-  if (region->begin() != address || region->is_free()) {
+  if (region->begin() != address || !region->is_allocated()) {
     return 0;
   }
 
