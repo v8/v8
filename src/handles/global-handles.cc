@@ -966,6 +966,13 @@ Handle<Object> GlobalHandles::CopyGlobal(Address* location) {
   return global_handles->Create(*location);
 }
 
+namespace {
+void SetSlotThreadSafe(Address** slot, Address* val) {
+  reinterpret_cast<std::atomic<Address*>*>(slot)->store(
+      val, std::memory_order_relaxed);
+}
+}  // namespace
+
 // static
 void GlobalHandles::CopyTracedGlobal(const Address* const* from, Address** to) {
   DCHECK_NOT_NULL(*from);
@@ -982,7 +989,7 @@ void GlobalHandles::CopyTracedGlobal(const Address* const* from, Address** to) {
       GlobalHandles::From(const_cast<TracedNode*>(node));
   Handle<Object> o = global_handles->CreateTraced(
       node->object(), reinterpret_cast<Address*>(to), node->has_destructor());
-  *to = o.location();
+  SetSlotThreadSafe(to, o.location());
   TracedNode::Verify(global_handles, from);
   TracedNode::Verify(global_handles, to);
 #ifdef VERIFY_HEAP
@@ -1010,7 +1017,7 @@ void GlobalHandles::MoveTracedGlobal(Address** from, Address** to) {
   // Fast path for moving from an empty reference.
   if (!*from) {
     DestroyTraced(*to);
-    *to = nullptr;
+    SetSlotThreadSafe(to, nullptr);
     return;
   }
 
@@ -1052,7 +1059,7 @@ void GlobalHandles::MoveTracedGlobal(Address** from, Address** to) {
       Handle<Object> o = global_handles->CreateTraced(
           from_node->object(), reinterpret_cast<Address*>(to),
           from_node->has_destructor(), to_on_stack);
-      *to = o.location();
+      SetSlotThreadSafe(to, o.location());
       to_node = TracedNode::FromLocation(*to);
       DCHECK(to_node->markbit());
     } else {
@@ -1070,7 +1077,7 @@ void GlobalHandles::MoveTracedGlobal(Address** from, Address** to) {
   } else {
     // Pure heap move.
     DestroyTraced(*to);
-    *to = *from;
+    SetSlotThreadSafe(to, *from);
     to_node = from_node;
     DCHECK_NOT_NULL(*from);
     DCHECK_NOT_NULL(*to);
