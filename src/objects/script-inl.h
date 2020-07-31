@@ -5,8 +5,8 @@
 #ifndef V8_OBJECTS_SCRIPT_INL_H_
 #define V8_OBJECTS_SCRIPT_INL_H_
 
+#include "src/objects/managed.h"
 #include "src/objects/script.h"
-
 #include "src/objects/shared-function-info.h"
 #include "src/objects/smi-inl.h"
 #include "src/objects/string-inl.h"

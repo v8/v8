@@ -17,9 +17,9 @@
 namespace v8 {
 namespace internal {
 
-AllocationResult ConcurrentAllocator::Allocate(int object_size,
-                                               AllocationAlignment alignment,
-                                               AllocationOrigin origin) {
+AllocationResult ConcurrentAllocator::AllocateRaw(int object_size,
+                                                  AllocationAlignment alignment,
+                                                  AllocationOrigin origin) {
   // TODO(dinfuehr): Add support for allocation observers
   CHECK(FLAG_concurrent_allocation);
 
@@ -31,14 +31,6 @@ AllocationResult ConcurrentAllocator::Allocate(int object_size,
   }
 
   return AllocateInLab(object_size, alignment, origin);
-}
-
-Address ConcurrentAllocator::AllocateOrFail(int object_size,
-                                            AllocationAlignment alignment,
-                                            AllocationOrigin origin) {
-  AllocationResult result = Allocate(object_size, alignment, origin);
-  if (!result.IsRetry()) return result.ToObject().address();
-  return PerformCollectionAndAllocateAgain(object_size, alignment, origin);
 }
 
 AllocationResult ConcurrentAllocator::AllocateInLab(

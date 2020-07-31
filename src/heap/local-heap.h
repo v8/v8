@@ -78,6 +78,19 @@ class V8_EXPORT_PRIVATE LocalHeap {
   // with the current thread.
   static LocalHeap* Current();
 
+  // Allocate an uninitialized object.
+  V8_WARN_UNUSED_RESULT inline AllocationResult AllocateRaw(
+      int size_in_bytes, AllocationType allocation,
+      AllocationOrigin origin = AllocationOrigin::kRuntime,
+      AllocationAlignment alignment = kWordAligned);
+
+  // Allocates an uninitialized object and crashes when object
+  // cannot be allocated.
+  V8_WARN_UNUSED_RESULT inline Address AllocateRawOrFail(
+      int size_in_bytes, AllocationType allocation,
+      AllocationOrigin origin = AllocationOrigin::kRuntime,
+      AllocationAlignment alignment = kWordAligned);
+
  private:
   enum class ThreadState {
     // Threads in this state need to be stopped in a safepoint.
@@ -88,6 +101,13 @@ class V8_EXPORT_PRIVATE LocalHeap {
     // Thread was stopped in a safepoint.
     Safepoint
   };
+
+  // Slow path of allocation that performs GC and then retries allocation in
+  // loop.
+  Address PerformCollectionAndAllocateAgain(int object_size,
+                                            AllocationType type,
+                                            AllocationOrigin origin,
+                                            AllocationAlignment alignment);
 
   void Park();
   void Unpark();

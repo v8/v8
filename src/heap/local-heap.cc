@@ -7,8 +7,10 @@
 #include <memory>
 
 #include "src/base/platform/mutex.h"
+#include "src/common/globals.h"
 #include "src/handles/local-handles.h"
 #include "src/heap/heap-inl.h"
+#include "src/heap/local-heap-inl.h"
 #include "src/heap/safepoint.h"
 
 namespace v8 {
@@ -131,6 +133,28 @@ void LocalHeap::MarkLinearAllocationAreaBlack() {
 
 void LocalHeap::UnmarkLinearAllocationArea() {
   old_space_allocator_.UnmarkLinearAllocationArea();
+}
+
+Address LocalHeap::PerformCollectionAndAllocateAgain(
+    int object_size, AllocationType type, AllocationOrigin origin,
+    AllocationAlignment alignment) {
+  allocation_failed_ = true;
+  static const int kMaxNumberOfRetries = 3;
+
+  for (int i = 0; i < kMaxNumberOfRetries; i++) {
+    {
+      ParkedScope scope(this);
+      heap_->RequestAndWaitForCollection();
+    }
+
+    AllocationResult result = AllocateRaw(object_size, type, origin, alignment);
+    if (!result.IsRetry()) {
+      allocation_failed_ = false;
+      return result.ToObjectChecked().address();
+    }
+  }
+
+  heap_->FatalProcessOutOfMemory("LocalHeap: allocation failed");
 }
 
 }  // namespace internal

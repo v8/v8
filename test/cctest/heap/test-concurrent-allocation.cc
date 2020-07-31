@@ -14,7 +14,7 @@
 #include "src/handles/persistent-handles.h"
 #include "src/heap/concurrent-allocator-inl.h"
 #include "src/heap/heap.h"
-#include "src/heap/local-heap.h"
+#include "src/heap/local-heap-inl.h"
 #include "src/heap/safepoint.h"
 #include "src/objects/heap-number.h"
 #include "src/objects/heap-object.h"
@@ -48,16 +48,15 @@ class ConcurrentAllocationThread final : public v8::base::Thread {
 
   void Run() override {
     LocalHeap local_heap(heap_);
-    ConcurrentAllocator* allocator = local_heap.old_space_allocator();
 
     for (int i = 0; i < kNumIterations; i++) {
-      Address address = allocator->AllocateOrFail(
-          kSmallObjectSize, AllocationAlignment::kWordAligned,
-          AllocationOrigin::kRuntime);
+      Address address = local_heap.AllocateRawOrFail(
+          kSmallObjectSize, AllocationType::kOld, AllocationOrigin::kRuntime,
+          AllocationAlignment::kWordAligned);
       CreateFixedArray(heap_, address, kSmallObjectSize);
-      address = allocator->AllocateOrFail(kMediumObjectSize,
-                                          AllocationAlignment::kWordAligned,
-                                          AllocationOrigin::kRuntime);
+      address = local_heap.AllocateRawOrFail(
+          kMediumObjectSize, AllocationType::kOld, AllocationOrigin::kRuntime,
+          AllocationAlignment::kWordAligned);
       CreateFixedArray(heap_, address, kMediumObjectSize);
       if (i % 10 == 0) {
         local_heap.Safepoint();
@@ -120,7 +119,6 @@ class ConcurrentBlackAllocationThread final : public v8::base::Thread {
 
   void Run() override {
     LocalHeap local_heap(heap_);
-    ConcurrentAllocator* allocator = local_heap.old_space_allocator();
 
     for (int i = 0; i < kNumIterations; i++) {
       if (i == kWhiteIterations) {
@@ -128,14 +126,14 @@ class ConcurrentBlackAllocationThread final : public v8::base::Thread {
         sema_white_->Signal();
         sema_marking_started_->Wait();
       }
-      Address address = allocator->AllocateOrFail(
-          kSmallObjectSize, AllocationAlignment::kWordAligned,
-          AllocationOrigin::kRuntime);
+      Address address = local_heap.AllocateRawOrFail(
+          kSmallObjectSize, AllocationType::kOld, AllocationOrigin::kRuntime,
+          AllocationAlignment::kWordAligned);
       objects_->push_back(address);
       CreateFixedArray(heap_, address, kSmallObjectSize);
-      address = allocator->AllocateOrFail(kMediumObjectSize,
-                                          AllocationAlignment::kWordAligned,
-                                          AllocationOrigin::kRuntime);
+      address = local_heap.AllocateRawOrFail(
+          kMediumObjectSize, AllocationType::kOld, AllocationOrigin::kRuntime,
+          AllocationAlignment::kWordAligned);
       objects_->push_back(address);
       CreateFixedArray(heap_, address, kMediumObjectSize);
     }

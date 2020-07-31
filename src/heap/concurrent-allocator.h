@@ -42,12 +42,9 @@ class ConcurrentAllocator {
         space_(space),
         lab_(LocalAllocationBuffer::InvalidBuffer()) {}
 
-  inline AllocationResult Allocate(int object_size,
-                                   AllocationAlignment alignment,
-                                   AllocationOrigin origin);
-
-  inline Address AllocateOrFail(int object_size, AllocationAlignment alignment,
-                                AllocationOrigin origin);
+  inline AllocationResult AllocateRaw(int object_size,
+                                      AllocationAlignment alignment,
+                                      AllocationOrigin origin);
 
   void FreeLinearAllocationArea();
   void MakeLinearAllocationAreaIterable();
