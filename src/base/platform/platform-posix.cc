@@ -419,7 +419,7 @@ bool OS::SetPermissions(void* address, size_t size, MemoryPermission access) {
 // The cost is a syscall that effectively no-ops.
 // TODO(erikchen): Fix this to only call MADV_FREE_REUSE when necessary.
 // https://crbug.com/823915
-#if defined(OS_MACOSX)
+#if defined(V8_OS_MACOSX)
   if (access != OS::MemoryPermission::kNoAccess)
     madvise(address, size, MADV_FREE_REUSE);
 #endif
@@ -430,7 +430,7 @@ bool OS::SetPermissions(void* address, size_t size, MemoryPermission access) {
 bool OS::DiscardSystemPages(void* address, size_t size) {
   DCHECK_EQ(0, reinterpret_cast<uintptr_t>(address) % CommitPageSize());
   DCHECK_EQ(0, size % CommitPageSize());
-#if defined(OS_MACOSX)
+#if defined(V8_OS_MACOSX)
   // On OSX, MADV_FREE_REUSABLE has comparable behavior to MADV_FREE, but also
   // marks the pages with the reusable bit, which allows both Activity Monitor
   // and memory-infra to correctly track the pages.
