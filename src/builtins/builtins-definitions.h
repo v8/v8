@@ -736,7 +736,6 @@ namespace internal {
   CPP(AtomicsIsLockFree)                                                       \
   CPP(AtomicsWait)                                                             \
   CPP(AtomicsWaitAsync)                                                        \
-  CPP(AtomicsWake)                                                             \
                                                                                \
   /* String */                                                                 \
   /* ES #sec-string.fromcodepoint */                                           \

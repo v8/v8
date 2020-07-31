@@ -110,60 +110,7 @@ inline size_t GetAddress32(size_t index, size_t byte_offset) {
   return (index << 2) + byte_offset;
 }
 
-MaybeHandle<Object> AtomicsWake(Isolate* isolate, Handle<Object> array,
-                                Handle<Object> index, Handle<Object> count) {
-  Handle<JSTypedArray> sta;
-  ASSIGN_RETURN_ON_EXCEPTION(
-      isolate, sta, ValidateSharedIntegerTypedArray(isolate, array, true),
-      Object);
-
-  Maybe<size_t> maybe_index = ValidateAtomicAccess(isolate, sta, index);
-  MAYBE_RETURN_NULL(maybe_index);
-  size_t i = maybe_index.FromJust();
-
-  uint32_t c;
-  if (count->IsUndefined(isolate)) {
-    c = kMaxUInt32;
-  } else {
-    ASSIGN_RETURN_ON_EXCEPTION(isolate, count,
-                               Object::ToInteger(isolate, count), Object);
-    double count_double = count->Number();
-    if (count_double < 0)
-      count_double = 0;
-    else if (count_double > kMaxUInt32)
-      count_double = kMaxUInt32;
-    c = static_cast<uint32_t>(count_double);
-  }
-
-  Handle<JSArrayBuffer> array_buffer = sta->GetBuffer();
-
-  if (sta->type() == kExternalBigInt64Array) {
-    return Handle<Object>(
-        FutexEmulation::Wake(array_buffer, GetAddress64(i, sta->byte_offset()),
-                             c),
-        isolate);
-  } else {
-    DCHECK(sta->type() == kExternalInt32Array);
-    return Handle<Object>(
-        FutexEmulation::Wake(array_buffer, GetAddress32(i, sta->byte_offset()),
-                             c),
-        isolate);
-  }
-}
-
 }  // namespace
-
-// ES #sec-atomics.wake
-// Atomics.wake( typedArray, index, count )
-BUILTIN(AtomicsWake) {
-  HandleScope scope(isolate);
-  Handle<Object> array = args.atOrUndefined(isolate, 1);
-  Handle<Object> index = args.atOrUndefined(isolate, 2);
-  Handle<Object> count = args.atOrUndefined(isolate, 3);
-
-  isolate->CountUsage(v8::Isolate::UseCounterFeature::kAtomicsWake);
-  RETURN_RESULT_OR_FAILURE(isolate, AtomicsWake(isolate, array, index, count));
-}
 
 // ES #sec-atomics.notify
 // Atomics.notify( typedArray, index, count )
@@ -173,8 +120,39 @@ BUILTIN(AtomicsNotify) {
   Handle<Object> index = args.atOrUndefined(isolate, 2);
   Handle<Object> count = args.atOrUndefined(isolate, 3);
 
-  isolate->CountUsage(v8::Isolate::UseCounterFeature::kAtomicsNotify);
-  RETURN_RESULT_OR_FAILURE(isolate, AtomicsWake(isolate, array, index, count));
+  Handle<JSTypedArray> sta;
+  ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
+      isolate, sta, ValidateSharedIntegerTypedArray(isolate, array, true));
+
+  Maybe<size_t> maybe_index = ValidateAtomicAccess(isolate, sta, index);
+  if (maybe_index.IsNothing()) return ReadOnlyRoots(isolate).exception();
+  size_t i = maybe_index.FromJust();
+
+  uint32_t c;
+  if (count->IsUndefined(isolate)) {
+    c = kMaxUInt32;
+  } else {
+    ASSIGN_RETURN_FAILURE_ON_EXCEPTION(isolate, count,
+                                       Object::ToInteger(isolate, count));
+    double count_double = count->Number();
+    if (count_double < 0) {
+      count_double = 0;
+    } else if (count_double > kMaxUInt32) {
+      count_double = kMaxUInt32;
+    }
+    c = static_cast<uint32_t>(count_double);
+  }
+
+  Handle<JSArrayBuffer> array_buffer = sta->GetBuffer();
+  size_t wake_addr;
+
+  if (sta->type() == kExternalBigInt64Array) {
+    wake_addr = GetAddress64(i, sta->byte_offset());
+  } else {
+    DCHECK(sta->type() == kExternalInt32Array);
+    wake_addr = GetAddress32(i, sta->byte_offset());
+  }
+  return FutexEmulation::Wake(array_buffer, wake_addr, c);
 }
 
 Object DoWait(Isolate* isolate, FutexEmulation::WaitMode mode,

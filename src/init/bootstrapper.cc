@@ -3120,8 +3120,6 @@ void Genesis::InitializeGlobal(Handle<JSGlobalObject> global_object,
                           Builtins::kAtomicsIsLockFree, 1, true);
     SimpleInstallFunction(isolate_, atomics_object, "wait",
                           Builtins::kAtomicsWait, 4, true);
-    SimpleInstallFunction(isolate_, atomics_object, "wake",
-                          Builtins::kAtomicsWake, 3, true);
     SimpleInstallFunction(isolate_, atomics_object, "notify",
                           Builtins::kAtomicsNotify, 3, true);
   }
