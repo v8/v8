@@ -7,6 +7,10 @@
 
 #include "src/common/globals.h"
 
+#ifdef V8_COMPRESS_ZONES
+#include "src/zone/compressed-zone-ptr.h"
+#endif
+
 namespace v8 {
 namespace internal {
 
@@ -47,17 +51,18 @@ struct ZoneTypeTraits<false> {
 
 template <>
 struct ZoneTypeTraits<true> {
-  // TODO(ishell): use CompressedZonePtr<T> here
   template <typename T>
-  using Ptr = FullZonePtr<T>;
+  using Ptr = CompressedZonePtr<T>;
 };
 
 // This requirement is necessary for being able to use memcopy in containers
 // of zone pointers.
-static_assert(
-    std::is_trivially_copyable<
-        ZoneTypeTraits<COMPRESS_ZONES_BOOL>::Ptr<int>>::value,
-    "ZoneTypeTraits<COMPRESS_ZONES_BOOL>::Ptr<T> must be trivially copyable");
+// TODO(ishell): Re-enable once compressed pointers are supported in containers.
+// static_assert(
+//     std::is_trivially_copyable<
+//         ZoneTypeTraits<COMPRESS_ZONES_BOOL>::Ptr<int>>::value,
+//     "ZoneTypeTraits<COMPRESS_ZONES_BOOL>::Ptr<T> must be trivially
+//     copyable");
 
 //
 // is_compressed_pointer<T> predicate can be used for checking if T is a

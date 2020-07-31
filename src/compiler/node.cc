@@ -20,14 +20,13 @@ Node::OutOfLineInputs* Node::OutOfLineInputs::New(Zone* zone, int capacity) {
   return outline;
 }
 
-
-void Node::OutOfLineInputs::ExtractFrom(Use* old_use_ptr, Node** old_input_ptr,
-                                        int count) {
+void Node::OutOfLineInputs::ExtractFrom(Use* old_use_ptr,
+                                        ZoneNodePtr* old_input_ptr, int count) {
   DCHECK_GE(count, 0);
   // Extract the inputs from the old use and input pointers and copy them
   // to this out-of-line-storage.
   Use* new_use_ptr = reinterpret_cast<Use*>(this) - 1;
-  Node** new_input_ptr = inputs();
+  ZoneNodePtr* new_input_ptr = inputs();
   CHECK_IMPLIES(count > 0, Use::InputIndexField::is_valid(count - 1));
   for (int current = 0; current < count; current++) {
     new_use_ptr->bit_field_ =
@@ -55,11 +54,14 @@ void Node::OutOfLineInputs::ExtractFrom(Use* old_use_ptr, Node** old_input_ptr,
 struct NodeWithOutOfLineInputs {};
 struct NodeWithInLineInputs {};
 
-Node* Node::New(Zone* zone, NodeId id, const Operator* op, int input_count,
-                Node* const* inputs, bool has_extensible_inputs) {
+template <typename NodePtrT>
+Node* Node::NewImpl(Zone* zone, NodeId id, const Operator* op, int input_count,
+                    NodePtrT const* inputs, bool has_extensible_inputs) {
+  // Node uses compressed pointers, so zone must support pointer compression.
+  DCHECK_IMPLIES(kCompressGraphZone, zone->supports_compression());
   DCHECK_GE(input_count, 0);
 
-  Node** input_ptr;
+  ZoneNodePtr* input_ptr;
   Use* use_ptr;
   Node* node;
   bool is_inline;
@@ -80,7 +82,7 @@ Node* Node::New(Zone* zone, NodeId id, const Operator* op, int input_count,
 
     // Allocate node, with space for OutOfLineInputs pointer.
     void* node_buffer = zone->Allocate<NodeWithOutOfLineInputs>(
-        sizeof(Node) + sizeof(OutOfLineInputs*));
+        sizeof(Node) + sizeof(ZoneOutOfLineInputsPtr));
     node = new (node_buffer) Node(id, op, kOutlineMarker, 0);
     node->set_outline_inputs(outline);
 
@@ -99,7 +101,7 @@ Node* Node::New(Zone* zone, NodeId id, const Operator* op, int input_count,
       capacity = std::min(input_count + 3, max);
     }
 
-    size_t size = sizeof(Node) + capacity * (sizeof(Node*) + sizeof(Use));
+    size_t size = sizeof(Node) + capacity * (sizeof(ZoneNodePtr) + sizeof(Use));
     intptr_t raw_buffer =
         reinterpret_cast<intptr_t>(zone->Allocate<NodeWithInLineInputs>(size));
     void* node_buffer =
@@ -126,13 +128,17 @@ Node* Node::New(Zone* zone, NodeId id, const Operator* op, int input_count,
   return node;
 }
 
+Node* Node::New(Zone* zone, NodeId id, const Operator* op, int input_count,
+                Node* const* inputs, bool has_extensible_inputs) {
+  return NewImpl(zone, id, op, input_count, inputs, has_extensible_inputs);
+}
 
 Node* Node::Clone(Zone* zone, NodeId id, const Node* node) {
   int const input_count = node->InputCount();
-  Node* const* const inputs = node->has_inline_inputs()
-                                  ? node->inline_inputs()
-                                  : node->outline_inputs()->inputs();
-  Node* const clone = New(zone, id, node->op(), input_count, inputs, false);
+  ZoneNodePtr const* const inputs = node->has_inline_inputs()
+                                        ? node->inline_inputs()
+                                        : node->outline_inputs()->inputs();
+  Node* const clone = NewImpl(zone, id, node->op(), input_count, inputs, false);
   clone->set_type(node->type());
   return clone;
 }
@@ -236,7 +242,7 @@ Node* Node::RemoveInput(int index) {
 }
 
 void Node::ClearInputs(int start, int count) {
-  Node** input_ptr = GetInputPtr(start);
+  ZoneNodePtr* input_ptr = GetInputPtr(start);
   Use* use_ptr = GetUsePtr(start);
   while (count-- > 0) {
     DCHECK_EQ(input_ptr, use_ptr->input_ptr());
