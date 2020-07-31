@@ -11,70 +11,97 @@ namespace v8 {
 namespace internal {
 
 void AllocationCounter::AddAllocationObserver(AllocationObserver* observer) {
-  allocation_observers_.push_back(observer);
+  intptr_t step_size = observer->GetNextStepSize();
+  size_t observer_next_counter = current_counter_ + step_size;
+
+#if DEBUG
+  auto it =
+      std::find_if(observers_.begin(), observers_.end(),
+                   [observer](const ObserverAccounting& observer_accounting) {
+                     return observer_accounting.observer_ == observer;
+                   });
+  DCHECK_EQ(observers_.end(), it);
+#endif
+
+  observers_.push_back(
+      ObserverAccounting(observer, current_counter_, observer_next_counter));
+
+  if (observers_.size() == 1) {
+    DCHECK_EQ(current_counter_, next_counter_);
+    next_counter_ = observer_next_counter;
+  } else {
+    size_t missing_bytes = next_counter_ - current_counter_;
+    next_counter_ =
+        current_counter_ + Min(static_cast<intptr_t>(missing_bytes), step_size);
+  }
 }
 
 void AllocationCounter::RemoveAllocationObserver(AllocationObserver* observer) {
-  auto it = std::find(allocation_observers_.begin(),
-                      allocation_observers_.end(), observer);
-  DCHECK(allocation_observers_.end() != it);
-  allocation_observers_.erase(it);
-}
+  auto it =
+      std::find_if(observers_.begin(), observers_.end(),
+                   [observer](const ObserverAccounting& observer_accounting) {
+                     return observer_accounting.observer_ == observer;
+                   });
+  DCHECK_NE(observers_.end(), it);
+  observers_.erase(it);
 
-intptr_t AllocationCounter::GetNextInlineAllocationStepSize() {
-  intptr_t next_step = 0;
-  for (AllocationObserver* observer : allocation_observers_) {
-    next_step = next_step ? Min(next_step, observer->bytes_to_next_step())
-                          : observer->bytes_to_next_step();
+  if (observers_.size() == 0) {
+    current_counter_ = next_counter_ = 0;
+  } else {
+    size_t step_size = 0;
+
+    for (ObserverAccounting& observer : observers_) {
+      size_t left_in_step = observer.next_counter_ - current_counter_;
+      DCHECK_GT(left_in_step, 0);
+      step_size = step_size ? Min(step_size, left_in_step) : left_in_step;
+    }
+
+    next_counter_ = current_counter_ + step_size;
   }
-  DCHECK(!HasAllocationObservers() || next_step > 0);
-  return next_step;
 }
 
-void AllocationCounter::NotifyBytes(size_t allocated) {
+void AllocationCounter::AdvanceAllocationObservers(size_t allocated) {
   if (!IsActive()) {
     return;
   }
 
-  DCHECK_LE(allocated, next_counter_ - current_counter_);
+  DCHECK_LT(allocated, next_counter_ - current_counter_);
   current_counter_ += allocated;
 }
 
-void AllocationCounter::NotifyObject(Address soon_object, size_t object_size) {
+void AllocationCounter::InvokeAllocationObservers(Address soon_object,
+                                                  size_t object_size,
+                                                  size_t aligned_object_size) {
   if (!IsActive()) {
     return;
   }
 
-  DCHECK_GT(object_size, next_counter_ - current_counter_);
-  size_t bytes_since_last_step = current_counter_ - prev_counter_;
-  DCHECK(!heap_->allocation_step_in_progress());
-  heap_->set_allocation_step_in_progress(true);
+  DCHECK_GE(aligned_object_size, next_counter_ - current_counter_);
   DCHECK(soon_object);
-  heap_->CreateFillerObjectAt(soon_object, static_cast<int>(object_size),
-                              ClearRecordedSlots::kNo);
-  intptr_t next_step = 0;
-  for (AllocationObserver* observer : allocation_observers_) {
-    observer->AllocationStep(static_cast<int>(bytes_since_last_step),
-                             soon_object, object_size);
-    next_step = next_step ? Min(next_step, observer->bytes_to_next_step())
-                          : observer->bytes_to_next_step();
-  }
-  heap_->set_allocation_step_in_progress(false);
+  size_t step_size = 0;
+  bool step_run = false;
+  for (ObserverAccounting& observer_accounting : observers_) {
+    if (observer_accounting.next_counter_ - current_counter_ <=
+        aligned_object_size) {
+      observer_accounting.observer_->Step(
+          static_cast<int>(current_counter_ -
+                           observer_accounting.prev_counter_),
+          soon_object, object_size);
+      size_t observer_step_size =
+          observer_accounting.observer_->GetNextStepSize();
 
-  prev_counter_ = current_counter_;
-  next_counter_ = current_counter_ + object_size + next_step;
-}
+      observer_accounting.prev_counter_ = current_counter_;
+      observer_accounting.next_counter_ =
+          current_counter_ + aligned_object_size + observer_step_size;
+      step_run = true;
+    }
 
-void AllocationObserver::AllocationStep(int bytes_allocated,
-                                        Address soon_object, size_t size) {
-  DCHECK_GE(bytes_allocated, 0);
-  bytes_to_next_step_ -= bytes_allocated;
-  if (bytes_to_next_step_ <= 0) {
-    Step(static_cast<int>(step_size_ - bytes_to_next_step_), soon_object, size);
-    step_size_ = GetNextStepSize();
-    bytes_to_next_step_ = step_size_;
+    size_t left_in_step = observer_accounting.next_counter_ - current_counter_;
+    step_size = step_size ? Min(step_size, left_in_step) : left_in_step;
   }
-  DCHECK_GE(bytes_to_next_step_, 0);
+
+  CHECK(step_run);
+  next_counter_ = current_counter_ + step_size;
 }
 
 PauseAllocationObserversScope::PauseAllocationObserversScope(Heap* heap)

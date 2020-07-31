@@ -232,6 +232,7 @@ v8_source_set("unittests_sources") {
     "diagnostics/eh-frame-iterator-unittest.cc",
     "diagnostics/eh-frame-writer-unittest.cc",
     "execution/microtask-queue-unittest.cc",
+    "heap/allocation-observer-unittest.cc",
     "heap/barrier-unittest.cc",
     "heap/bitmap-test-utils.h",
     "heap/bitmap-unittest.cc",

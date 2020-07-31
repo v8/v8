@@ -113,6 +113,8 @@ class V8_EXPORT_PRIVATE LargeObjectSpace : public Space {
  protected:
   LargeObjectSpace(Heap* heap, AllocationSpace id);
 
+  void AdvanceAndInvokeAllocationObservers(Address soon_object, size_t size);
+
   LargePage* AllocateLargePage(int object_size, Executability executable);
 
   size_t size_;          // allocated bytes
