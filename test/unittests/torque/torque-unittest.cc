@@ -677,6 +677,23 @@ TEST(Torque, EnumInTypeswitch) {
 )");
 }
 
+TEST(Torque, EnumTypeAnnotations) {
+  ExpectSuccessfulCompilation(R"(
+    type Type1 extends intptr;
+    type Type2 extends intptr;
+    extern enum MyEnum extends intptr {
+      kValue1: Type1,
+      kValue2: Type2,
+      kValue3
+    }
+    @export macro Foo() {
+      const _a: Type1 = MyEnum::kValue1;
+      const _b: Type2 = MyEnum::kValue2;
+      const _c: intptr = MyEnum::kValue3;
+    }
+  )");
+}
+
 TEST(Torque, ConstClassFields) {
   ExpectSuccessfulCompilation(R"(
     class Foo extends HeapObject {
