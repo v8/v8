@@ -4676,11 +4676,12 @@ bool ElementAccessFeedback::HasOnlyStringMaps(JSHeapBroker* broker) const {
 
 MinimorphicLoadPropertyAccessFeedback::MinimorphicLoadPropertyAccessFeedback(
     NameRef const& name, FeedbackSlotKind slot_kind, bool is_monomorphic,
-    Handle<Object> handler)
+    Handle<Object> handler, bool has_migration_target_maps)
     : ProcessedFeedback(kMinimorphicPropertyAccess, slot_kind),
       name_(name),
       is_monomorphic_(is_monomorphic),
-      handler_(handler) {
+      handler_(handler),
+      has_migration_target_maps_(has_migration_target_maps) {
   DCHECK(IsLoadICKind(slot_kind));
 }
 
@@ -4779,6 +4780,13 @@ MaybeObjectHandle TryGetMinimorphicHandler(
   }
   return initial_handler;
 }
+
+bool HasMigrationTargets(const MapHandles& maps) {
+  for (Handle<Map> map : maps) {
+    if (map->is_migration_target()) return true;
+  }
+  return false;
+}
 }  // namespace
 
 bool JSHeapBroker::CanUseFeedback(const FeedbackNexus& nexus) const {
@@ -4801,19 +4809,20 @@ ProcessedFeedback const& JSHeapBroker::ReadFeedbackForPropertyAccess(
 
   std::vector<MapAndHandler> maps_and_handlers;
   nexus.ExtractMapsAndFeedback(&maps_and_handlers);
+  MapHandles maps;
+  for (auto const& entry : maps_and_handlers) {
+    maps.push_back(entry.first);
+  }
 
   base::Optional<NameRef> name =
       static_name.has_value() ? static_name : GetNameFeedback(nexus);
   MaybeObjectHandle handler = TryGetMinimorphicHandler(maps_and_handlers, kind);
   if (!handler.is_null()) {
     return *zone()->New<MinimorphicLoadPropertyAccessFeedback>(
-        *name, kind, nexus.ic_state() == MONOMORPHIC, handler.object());
+        *name, kind, nexus.ic_state() == MONOMORPHIC, handler.object(),
+        HasMigrationTargets(maps));
   }
 
-  MapHandles maps;
-  for (auto const& entry : maps_and_handlers) {
-    maps.push_back(entry.first);
-  }
   FilterRelevantReceiverMaps(isolate(), &maps);
 
   // If no maps were found for a non-megamorphic access, then our maps died

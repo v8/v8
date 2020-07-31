@@ -272,6 +272,22 @@ class EffectControlLinearizer {
   void TransitionElementsTo(Node* node, Node* array, ElementsKind from,
                             ElementsKind to);
 
+  // This function tries to migrate |value| if its map |value_map| is
+  // deprecated. It deopts, if either |value_map| isn't deprecated or migration
+  // fails.
+  void MigrateInstanceOrDeopt(Node* value, Node* value_map, Node* frame_state,
+                              FeedbackSource const& feedback_source,
+                              DeoptimizeReason reason);
+
+  // Helper functions used in LowerDynamicCheckMaps
+  void CheckPolymorphic(Node* feedback, Node* value_map, Node* handler,
+                        GraphAssemblerLabel<0>* migrate,
+                        GraphAssemblerLabel<0>* done, Node* frame_state);
+  void CheckMonomorphic(Node* feedback, Node* value_map, Node* handler,
+                        GraphAssemblerLabel<0>* done,
+                        GraphAssemblerLabel<0>* map_check_failed,
+                        Node* frame_state, int slot, Node* vector);
+
   bool should_maintain_schedule() const {
     return maintain_schedule_ == MaintainSchedule::kMaintain;
   }
@@ -1763,6 +1779,29 @@ Node* EffectControlLinearizer::LowerCheckClosure(Node* node,
   return value;
 }
 
+void EffectControlLinearizer::MigrateInstanceOrDeopt(
+    Node* value, Node* value_map, Node* frame_state,
+    FeedbackSource const& feedback_source, DeoptimizeReason reason) {
+  // If map is not deprecated the migration attempt does not make sense.
+  Node* bitfield3 = __ LoadField(AccessBuilder::ForMapBitField3(), value_map);
+  Node* is_not_deprecated = __ Word32Equal(
+      __ Word32And(bitfield3,
+                   __ Int32Constant(Map::Bits3::IsDeprecatedBit::kMask)),
+      __ Int32Constant(0));
+  __ DeoptimizeIf(reason, feedback_source, is_not_deprecated, frame_state,
+                  IsSafetyCheck::kCriticalSafetyCheck);
+  Operator::Properties properties = Operator::kNoDeopt | Operator::kNoThrow;
+  Runtime::FunctionId id = Runtime::kTryMigrateInstance;
+  auto call_descriptor = Linkage::GetRuntimeCallDescriptor(
+      graph()->zone(), id, 1, properties, CallDescriptor::kNoFlags);
+  Node* result = __ Call(call_descriptor, __ CEntryStubConstant(1), value,
+                         __ ExternalConstant(ExternalReference::Create(id)),
+                         __ Int32Constant(1), __ NoContextConstant());
+  Node* check = ObjectIsSmi(result);
+  __ DeoptimizeIf(DeoptimizeReason::kInstanceMigrationFailed, feedback_source,
+                  check, frame_state, IsSafetyCheck::kCriticalSafetyCheck);
+}
+
 void EffectControlLinearizer::LowerCheckMaps(Node* node, Node* frame_state) {
   CheckMapsParameters const& p = CheckMapsParametersOf(node->op());
   Node* value = node->InputAt(0);
@@ -1792,29 +1831,8 @@ void EffectControlLinearizer::LowerCheckMaps(Node* node, Node* frame_state) {
 
     // Perform the (deferred) instance migration.
     __ Bind(&migrate);
-    {
-      // If map is not deprecated the migration attempt does not make sense.
-      Node* bitfield3 =
-          __ LoadField(AccessBuilder::ForMapBitField3(), value_map);
-      Node* if_not_deprecated = __ Word32Equal(
-          __ Word32And(bitfield3,
-                       __ Int32Constant(Map::Bits3::IsDeprecatedBit::kMask)),
-          __ Int32Constant(0));
-      __ DeoptimizeIf(DeoptimizeReason::kWrongMap, p.feedback(),
-                      if_not_deprecated, frame_state,
-                      IsSafetyCheck::kCriticalSafetyCheck);
-
-      Operator::Properties properties = Operator::kNoDeopt | Operator::kNoThrow;
-      Runtime::FunctionId id = Runtime::kTryMigrateInstance;
-      auto call_descriptor = Linkage::GetRuntimeCallDescriptor(
-          graph()->zone(), id, 1, properties, CallDescriptor::kNoFlags);
-      Node* result = __ Call(call_descriptor, __ CEntryStubConstant(1), value,
-                             __ ExternalConstant(ExternalReference::Create(id)),
-                             __ Int32Constant(1), __ NoContextConstant());
-      Node* check = ObjectIsSmi(result);
-      __ DeoptimizeIf(DeoptimizeReason::kInstanceMigrationFailed, p.feedback(),
-                      check, frame_state, IsSafetyCheck::kCriticalSafetyCheck);
-    }
+    MigrateInstanceOrDeopt(value, value_map, frame_state, p.feedback(),
+                           DeoptimizeReason::kWrongMap);
 
     // Reload the current map of the {value}.
     value_map = __ LoadField(AccessBuilder::ForMap(), value);
@@ -1859,6 +1877,80 @@ void EffectControlLinearizer::LowerCheckMaps(Node* node, Node* frame_state) {
   }
 }
 
+void EffectControlLinearizer::CheckPolymorphic(Node* feedback_slot,
+                                               Node* value_map, Node* handler,
+                                               GraphAssemblerLabel<0>* migrate,
+                                               GraphAssemblerLabel<0>* done,
+                                               Node* frame_state) {
+  Node* feedback_slot_map =
+      __ LoadField(AccessBuilder::ForMap(), feedback_slot);
+  Node* is_weak_fixed_array_check =
+      __ TaggedEqual(feedback_slot_map, __ WeakFixedArrayMapConstant());
+  __ DeoptimizeIfNot(DeoptimizeReason::kTransitionedToMegamorphicIC,
+                     FeedbackSource(), is_weak_fixed_array_check, frame_state,
+                     IsSafetyCheck::kCriticalSafetyCheck);
+
+  Node* length = ChangeSmiToInt32(
+      __ LoadField(AccessBuilder::ForWeakFixedArrayLength(), feedback_slot));
+  auto loop = __ MakeLoopLabel(MachineRepresentation::kWord32);
+  __ Goto(&loop, __ Int32Constant(0));
+  __ Bind(&loop);
+  {
+    Node* index = loop.PhiAt(0);
+    Node* check = __ Int32LessThan(index, length);
+    if (migrate != nullptr) {
+      __ GotoIfNot(check, migrate);
+    } else {
+      __ DeoptimizeIfNot(DeoptimizeKind::kBailout,
+                         DeoptimizeReason::kMissingMap, FeedbackSource(), check,
+                         frame_state, IsSafetyCheck::kCriticalSafetyCheck);
+    }
+
+    Node* maybe_map = __ LoadElement(AccessBuilder::ForWeakFixedArrayElement(),
+                                     feedback_slot, index);
+    auto continue_loop = __ MakeLabel();
+
+    __ GotoIfNot(BuildIsWeakReferenceTo(maybe_map, value_map), &continue_loop);
+    constexpr int kHandlerOffsetInEntry = 1;
+    Node* maybe_handler = __ LoadElement(
+        AccessBuilder::ForWeakFixedArrayElement(), feedback_slot,
+        __ Int32Add(index, __ Int32Constant(kHandlerOffsetInEntry)));
+    Node* handler_check = __ TaggedEqual(maybe_handler, handler);
+    __ DeoptimizeIfNot(DeoptimizeReason::kWrongHandler, FeedbackSource(),
+                       handler_check, frame_state,
+                       IsSafetyCheck::kCriticalSafetyCheck);
+
+    __ Goto(done);
+
+    __ Bind(&continue_loop);
+    constexpr int kEntrySize = 2;
+    index = __ Int32Add(index, __ Int32Constant(kEntrySize));
+    __ Goto(&loop, index);
+  }
+}
+
+void EffectControlLinearizer::CheckMonomorphic(
+    Node* feedback, Node* value_map, Node* handler,
+    GraphAssemblerLabel<0>* done, GraphAssemblerLabel<0>* map_check_failed,
+    Node* frame_state, int slot, Node* vector) {
+  Node* mono_check = BuildIsWeakReferenceTo(feedback, value_map);
+  if (map_check_failed != nullptr) {
+    __ GotoIfNot(mono_check, map_check_failed);
+  } else {
+    __ DeoptimizeIfNot(DeoptimizeKind::kBailout, DeoptimizeReason::kMissingMap,
+                       FeedbackSource(), mono_check, frame_state,
+                       IsSafetyCheck::kCriticalSafetyCheck);
+  }
+
+  Node* feedback_slot_handler =
+      __ LoadField(AccessBuilder::ForFeedbackVectorSlot(slot + 1), vector);
+  Node* handler_check = __ TaggedEqual(handler, feedback_slot_handler);
+  __ DeoptimizeIfNot(DeoptimizeReason::kWrongHandler, FeedbackSource(),
+                     handler_check, frame_state,
+                     IsSafetyCheck::kCriticalSafetyCheck);
+  __ Goto(done);
+}
+
 void EffectControlLinearizer::LowerDynamicCheckMaps(Node* node,
                                                     Node* frame_state) {
   DynamicCheckMapsParameters const& p =
@@ -1881,17 +1973,8 @@ void EffectControlLinearizer::LowerDynamicCheckMaps(Node* node,
   // case the current state is polymorphic, and if we ever go back to
   // monomorphic start, we will deopt and reoptimize the code.
   if (p.state() == DynamicCheckMapsParameters::kMonomorphic) {
-    Node* mono_check = BuildIsWeakReferenceTo(feedback_slot, value_map);
-    __ GotoIfNot(mono_check, &maybe_poly);
-
-    Node* feedback_slot_handler = __ LoadField(
-        AccessBuilder::ForFeedbackVectorSlot(feedback.index() + 1), vector);
-    mono_check = __ TaggedEqual(handler, feedback_slot_handler);
-    __ DeoptimizeIfNot(DeoptimizeReason::kWrongHandler, FeedbackSource(),
-                       mono_check, frame_state,
-                       IsSafetyCheck::kCriticalSafetyCheck);
-
-    __ Goto(&done);
+    CheckMonomorphic(feedback_slot, value_map, handler, &done, &maybe_poly,
+                     frame_state, feedback.index(), vector);
   } else {
     DCHECK(p.state() == DynamicCheckMapsParameters::kPolymorphic);
     __ Goto(&maybe_poly);
@@ -1899,62 +1982,47 @@ void EffectControlLinearizer::LowerDynamicCheckMaps(Node* node,
 
   __ Bind(&maybe_poly);
   {
-    Node* poly_check = BuildIsStrongReference(feedback_slot);
-    if (p.state() == DynamicCheckMapsParameters::kMonomorphic) {
-      __ DeoptimizeIfNot(DeoptimizeKind::kBailout,
-                         DeoptimizeReason::kMissingMap, FeedbackSource(),
-                         poly_check, frame_state,
-                         IsSafetyCheck::kCriticalSafetyCheck);
+    Node* is_poly_or_megamorphic = BuildIsStrongReference(feedback_slot);
+    // If the IC state at code generation time is not monomorphic, we don't
+    // handle monomorphic states and just deoptimize if IC transitions to
+    // monomorphic. For polymorphic ICs it is not required to migrate deprecated
+    // maps since ICs don't discard deprecated maps from feedback. Only generate
+    // codeneed to migrate maps for Monomoprhic state.
+    if (p.flags() & CheckMapsFlag::kTryMigrateInstance &&
+        p.state() == DynamicCheckMapsParameters::kMonomorphic) {
+      auto migrate = __ MakeDeferredLabel();
 
+      __ GotoIfNot(is_poly_or_megamorphic, &migrate);
+      // TODO(mythria): ICs don't drop deprecated maps from feedback vector.
+      // So it is not equired to migrate the instance for polymorphic case.
+      // When we change dynamic map checks to check only four maps re-evaluate
+      // if this is required.
+      CheckPolymorphic(feedback_slot, value_map, handler, nullptr, &done,
+                       frame_state);
+
+      __ Bind(&migrate);
+      {
+        MigrateInstanceOrDeopt(value, value_map, frame_state, FeedbackSource(),
+                               DeoptimizeReason::kMissingMap);
+        Node* new_value_map = __ LoadField(AccessBuilder::ForMap(), value);
+
+        // Check if new map matches.
+        CheckMonomorphic(feedback_slot, new_value_map, handler, &done, nullptr,
+                         frame_state, feedback.index(), vector);
+      }
     } else {
-      __ DeoptimizeIfNot(DeoptimizeReason::kTransitionedToMonomorphicIC,
-                         FeedbackSource(), poly_check, frame_state,
-                         IsSafetyCheck::kCriticalSafetyCheck);
-    }
-    Node* feedback_slot_map =
-        __ LoadField(AccessBuilder::ForMap(), feedback_slot);
-    Node* is_weak_fixed_array_check =
-        __ TaggedEqual(feedback_slot_map, __ WeakFixedArrayMapConstant());
-    __ DeoptimizeIfNot(DeoptimizeReason::kTransitionedToMegamorphicIC,
-                       FeedbackSource(), is_weak_fixed_array_check, frame_state,
-                       IsSafetyCheck::kCriticalSafetyCheck);
-
-    Node* length = ChangeSmiToInt32(
-        __ LoadField(AccessBuilder::ForWeakFixedArrayLength(), feedback_slot));
-    auto loop = __ MakeLoopLabel(MachineRepresentation::kWord32);
-    __ Goto(&loop, __ Int32Constant(0));
-    __ Bind(&loop);
-    {
-      Node* index = loop.PhiAt(0);
-      Node* check = __ Int32LessThan(index, length);
-      __ DeoptimizeIfNot(DeoptimizeKind::kBailout,
-                         DeoptimizeReason::kMissingMap, FeedbackSource(), check,
+      DeoptimizeReason reason = DeoptimizeReason::kMissingMap;
+      DeoptimizeKind kind = DeoptimizeKind::kBailout;
+      if (p.state() != DynamicCheckMapsParameters::kMonomorphic) {
+        reason = DeoptimizeReason::kTransitionedToMonomorphicIC;
+        kind = DeoptimizeKind::kEager;
+      }
+      __ DeoptimizeIfNot(kind, reason, FeedbackSource(), is_poly_or_megamorphic,
                          frame_state, IsSafetyCheck::kCriticalSafetyCheck);
-
-      Node* maybe_map = __ LoadElement(
-          AccessBuilder::ForWeakFixedArrayElement(), feedback_slot, index);
-      auto continue_loop = __ MakeLabel();
-
-      __ GotoIfNot(BuildIsWeakReferenceTo(maybe_map, value_map),
-                   &continue_loop);
-      constexpr int kHandlerOffsetInEntry = 1;
-      Node* maybe_handler = __ LoadElement(
-          AccessBuilder::ForWeakFixedArrayElement(), feedback_slot,
-          __ Int32Add(index, __ Int32Constant(kHandlerOffsetInEntry)));
-
-      Node* handler_check = __ TaggedEqual(maybe_handler, handler);
-      __ DeoptimizeIfNot(DeoptimizeReason::kWrongHandler, FeedbackSource(),
-                         handler_check, frame_state,
-                         IsSafetyCheck::kCriticalSafetyCheck);
-      __ Goto(&done);
-
-      __ Bind(&continue_loop);
-      constexpr int kEntrySize = 2;
-      index = __ Int32Add(index, __ Int32Constant(kEntrySize));
-      __ Goto(&loop, index);
+      CheckPolymorphic(feedback_slot, value_map, handler, nullptr, &done,
+                       frame_state);
     }
   }
-
   __ Bind(&done);
 }
 

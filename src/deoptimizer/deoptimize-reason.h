@@ -63,6 +63,7 @@ namespace internal {
   V(WrongInstanceType, "wrong instance type")                                  \
   V(WrongMap, "wrong map")                                                     \
   V(MissingMap, "missing map")                                                 \
+  V(DeprecatedMap, "deprecated map")                                           \
   V(WrongHandler, "wrong handler")                                             \
   V(WrongName, "wrong name")                                                   \
   V(WrongValue, "wrong value")                                                 \
