@@ -847,11 +847,34 @@ Reduction MachineOperatorReducer::Reduce(Node* node) {
     case IrOpcode::kTrapIf:
     case IrOpcode::kTrapUnless:
       return ReduceConditional(node);
-    case IrOpcode::kInt64LessThan:
-    case IrOpcode::kInt64LessThanOrEqual:
-    case IrOpcode::kUint64LessThan:
-    case IrOpcode::kUint64LessThanOrEqual:
+    case IrOpcode::kInt64LessThan: {
+      Int64BinopMatcher m(node);
+      if (m.IsFoldable()) {  // K < K => K
+        return ReplaceBool(m.left().Value() < m.right().Value());
+      }
       return ReduceWord64Comparisons(node);
+    }
+    case IrOpcode::kInt64LessThanOrEqual: {
+      Int64BinopMatcher m(node);
+      if (m.IsFoldable()) {  // K <= K => K
+        return ReplaceBool(m.left().Value() <= m.right().Value());
+      }
+      return ReduceWord64Comparisons(node);
+    }
+    case IrOpcode::kUint64LessThan: {
+      Uint64BinopMatcher m(node);
+      if (m.IsFoldable()) {  // K < K => K
+        return ReplaceBool(m.left().Value() < m.right().Value());
+      }
+      return ReduceWord64Comparisons(node);
+    }
+    case IrOpcode::kUint64LessThanOrEqual: {
+      Uint64BinopMatcher m(node);
+      if (m.IsFoldable()) {  // K <= K => K
+        return ReplaceBool(m.left().Value() <= m.right().Value());
+      }
+      return ReduceWord64Comparisons(node);
+    }
     default:
       break;
   }

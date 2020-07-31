@@ -909,6 +909,20 @@ macro TestSliceEnumeration(implicit context: Context)(): Undefined {
 @export
 macro TestStaticAssert() {
   static_assert(1 + 2 == 3);
+
+  static_assert(Convert<uintptr>(5) < Convert<uintptr>(6));
+  static_assert(!(Convert<uintptr>(5) < Convert<uintptr>(5)));
+  static_assert(!(Convert<uintptr>(6) < Convert<uintptr>(5)));
+  static_assert(Convert<uintptr>(5) <= Convert<uintptr>(5));
+  static_assert(Convert<uintptr>(5) <= Convert<uintptr>(6));
+  static_assert(!(Convert<uintptr>(6) <= Convert<uintptr>(5)));
+
+  static_assert(Convert<intptr>(-6) < Convert<intptr>(-5));
+  static_assert(!(Convert<intptr>(-5) < Convert<intptr>(-5)));
+  static_assert(!(Convert<intptr>(-5) < Convert<intptr>(-6)));
+  static_assert(Convert<intptr>(-5) <= Convert<intptr>(-5));
+  static_assert(Convert<intptr>(-6) <= Convert<intptr>(-5));
+  static_assert(!(Convert<intptr>(-5) <= Convert<intptr>(-6)));
 }
 
 class SmiBox extends HeapObject {
