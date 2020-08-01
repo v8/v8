@@ -2165,10 +2165,24 @@ void TurboAssembler::Move(FPURegister dst, Register src_low,
 }
 
 void TurboAssembler::Move(FPURegister dst, uint32_t src) {
-  UseScratchRegisterScope temps(this);
-  Register scratch = temps.Acquire();
-  li(scratch, Operand(static_cast<int32_t>(src)));
-  fmv_w_x(dst, scratch);
+  // Handle special values first.
+  if (src == bit_cast<uint32_t>(0.0f) && has_single_zero_reg_set_) {
+    Move_s(dst, kDoubleRegZero);
+  } else if (src == bit_cast<uint32_t>(-0.0f) && has_single_zero_reg_set_) {
+    Neg_s(dst, kDoubleRegZero);
+  } else {
+    if (dst == kDoubleRegZero) {
+      DCHECK(src == bit_cast<uint32_t>(0.0f));
+      fmv_w_x(dst, zero_reg);
+      has_single_zero_reg_set_ = true;
+      has_double_zero_reg_set_ = false;
+    } else {
+      UseScratchRegisterScope temps(this);
+      Register scratch = temps.Acquire();
+      li(scratch, Operand(static_cast<int32_t>(src)));
+      fmv_w_x(dst, scratch);
+    }
+  }
 }
 
 void TurboAssembler::Move(FPURegister dst, uint64_t src) {
@@ -2182,6 +2196,7 @@ void TurboAssembler::Move(FPURegister dst, uint64_t src) {
       DCHECK(src == bit_cast<uint64_t>(0.0));
       fmv_d_x(dst, zero_reg);
       has_double_zero_reg_set_ = true;
+      has_single_zero_reg_set_ = false;
     } else {
       UseScratchRegisterScope temps(this);
       Register scratch = temps.Acquire();

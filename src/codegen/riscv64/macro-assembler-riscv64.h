@@ -613,6 +613,7 @@ class V8_EXPORT_PRIVATE TurboAssembler : public TurboAssemblerBase {
                          MaxMinKind kind);
 
   bool IsDoubleZeroRegSet() { return has_double_zero_reg_set_; }
+  bool IsSingleZeroRegSet() { return has_single_zero_reg_set_; }
 
   void mov(Register rd, Register rt) { or_(rd, rt, zero_reg); }
 
@@ -808,6 +809,7 @@ class V8_EXPORT_PRIVATE TurboAssembler : public TurboAssemblerBase {
 
  private:
   bool has_double_zero_reg_set_ = false;
+  bool has_single_zero_reg_set_ = false;
 
   // Performs a truncating conversion of a floating point number as used by
   // the JS bitwise operations. See ECMA-262 9.5: ToInt32. Goes to 'done' if it

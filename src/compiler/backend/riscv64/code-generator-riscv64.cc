@@ -1214,7 +1214,7 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
           FlagsConditionToConditionCmpFPU(&predicate, instr->flags_condition());
 
       if ((left == kDoubleRegZero || right == kDoubleRegZero) &&
-          !__ IsDoubleZeroRegSet()) {
+          !__ IsSingleZeroRegSet()) {
         __ Move(kDoubleRegZero, 0.0f);
       }
       // compare result set to kScratchReg
@@ -1637,8 +1637,8 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       size_t index = 0;
       MemOperand operand = i.MemoryOperand(&index);
       FPURegister ft = i.InputOrZeroSingleRegister(index);
-      if (ft == kDoubleRegZero && !__ IsDoubleZeroRegSet()) {
-        __ Move(kDoubleRegZero, 0.0);
+      if (ft == kDoubleRegZero && !__ IsSingleZeroRegSet()) {
+        __ Move(kDoubleRegZero, 0.0f);
       }
       __ StoreFloat(ft, operand);
       break;
@@ -1647,8 +1647,8 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       size_t index = 0;
       MemOperand operand = i.MemoryOperand(&index);
       FPURegister ft = i.InputOrZeroSingleRegister(index);
-      if (ft == kDoubleRegZero && !__ IsDoubleZeroRegSet()) {
-        __ Move(kDoubleRegZero, 0.0);
+      if (ft == kDoubleRegZero && !__ IsSingleZeroRegSet()) {
+        __ Move(kDoubleRegZero, 0.0f);
       }
       __ UStoreFloat(ft, operand, kScratchReg);
       break;
@@ -2277,9 +2277,14 @@ void CodeGenerator::AssembleArchBoolean(Instruction* instr,
              instr->arch_opcode() == kRiscvCmpS) {
     FPURegister left = i.InputOrZeroDoubleRegister(0);
     FPURegister right = i.InputOrZeroDoubleRegister(1);
-    if ((left == kDoubleRegZero || right == kDoubleRegZero) &&
+    if ((instr->arch_opcode() == kRiscvCmpD) &&
+        (left == kDoubleRegZero || right == kDoubleRegZero) &&
         !__ IsDoubleZeroRegSet()) {
       __ Move(kDoubleRegZero, 0.0);
+    } else if ((instr->arch_opcode() == kRiscvCmpS) &&
+               (left == kDoubleRegZero || right == kDoubleRegZero) &&
+               !__ IsSingleZeroRegSet()) {
+      __ Move(kDoubleRegZero, 0.0f);
     }
     bool predicate;
     FlagsConditionToConditionCmpFPU(&predicate, condition);
