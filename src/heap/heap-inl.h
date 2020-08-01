@@ -66,11 +66,6 @@ HeapObject AllocationResult::ToObject() {
   return HeapObject::cast(object_);
 }
 
-Address AllocationResult::ToAddress() {
-  DCHECK(!IsRetry());
-  return HeapObject::cast(object_).address();
-}
-
 Isolate* Heap::isolate() {
   return reinterpret_cast<Isolate*>(
       reinterpret_cast<intptr_t>(this) -

@@ -6,7 +6,6 @@
 #define V8_HEAP_PAGED_SPACES_INL_H_
 
 #include "src/common/globals.h"
-#include "src/heap/heap-inl.h"
 #include "src/heap/incremental-marking.h"
 #include "src/heap/paged-spaces.h"
 #include "src/objects/code-inl.h"
@@ -97,20 +96,18 @@ bool PagedSpace::EnsureLabMain(int size_in_bytes, AllocationOrigin origin) {
   return RefillLabMain(size_in_bytes, origin);
 }
 
-AllocationResult PagedSpace::AllocateFastUnaligned(int size_in_bytes) {
+AllocationResult PagedSpace::AllocateLinearly(int size_in_bytes) {
   Address current_top = allocation_info_.top();
   Address new_top = current_top + size_in_bytes;
   if (new_top > allocation_info_.limit())
     return AllocationResult::Retry(identity());
   DCHECK_LE(new_top, allocation_info_.limit());
   allocation_info_.set_top(new_top);
-
   return AllocationResult(HeapObject::FromAddress(current_top));
 }
 
-AllocationResult PagedSpace::AllocateFastAligned(
-    int size_in_bytes, int* aligned_size_in_bytes,
-    AllocationAlignment alignment) {
+AllocationResult PagedSpace::TryAllocateLinearlyAligned(
+    int size_in_bytes, AllocationAlignment alignment) {
   Address current_top = allocation_info_.top();
   int filler_size = Heap::GetFillToAlign(current_top, alignment);
 
@@ -119,8 +116,6 @@ AllocationResult PagedSpace::AllocateFastAligned(
     return AllocationResult::Retry(identity());
 
   allocation_info_.set_top(new_top);
-  if (aligned_size_in_bytes)
-    *aligned_size_in_bytes = filler_size + size_in_bytes;
   if (filler_size > 0) {
     Heap::PrecedeWithFiller(ReadOnlyRoots(heap()),
                             HeapObject::FromAddress(current_top), filler_size);
@@ -134,8 +129,7 @@ AllocationResult PagedSpace::AllocateRawUnaligned(int size_in_bytes,
   if (!EnsureLabMain(size_in_bytes, origin)) {
     return AllocationResult::Retry(identity());
   }
-
-  AllocationResult result = AllocateFastUnaligned(size_in_bytes);
+  AllocationResult result = AllocateLinearly(size_in_bytes);
   DCHECK(!result.IsRetry());
   MSAN_ALLOCATED_UNINITIALIZED_MEMORY(result.ToObjectChecked().address(),
                                       size_in_bytes);
@@ -143,9 +137,6 @@ AllocationResult PagedSpace::AllocateRawUnaligned(int size_in_bytes,
   if (FLAG_trace_allocations_origins) {
     UpdateAllocationOrigins(origin);
   }
-
-  InvokeAllocationObservers(result.ToAddress(), size_in_bytes, size_in_bytes,
-                            size_in_bytes);
 
   return result;
 }
@@ -162,9 +153,8 @@ AllocationResult PagedSpace::AllocateRawAligned(int size_in_bytes,
   if (!EnsureLabMain(allocation_size, origin)) {
     return AllocationResult::Retry(identity());
   }
-  int aligned_size_in_bytes;
   AllocationResult result =
-      AllocateFastAligned(size_in_bytes, &aligned_size_in_bytes, alignment);
+      TryAllocateLinearlyAligned(size_in_bytes, alignment);
   DCHECK(!result.IsRetry());
   MSAN_ALLOCATED_UNINITIALIZED_MEMORY(result.ToObjectChecked().address(),
                                       size_in_bytes);
@@ -172,9 +162,6 @@ AllocationResult PagedSpace::AllocateRawAligned(int size_in_bytes,
   if (FLAG_trace_allocations_origins) {
     UpdateAllocationOrigins(origin);
   }
-
-  InvokeAllocationObservers(result.ToAddress(), size_in_bytes,
-                            aligned_size_in_bytes, allocation_size);
 
   return result;
 }
@@ -185,9 +172,9 @@ AllocationResult PagedSpace::AllocateRaw(int size_in_bytes,
   AllocationResult result;
 
   if (alignment != kWordAligned) {
-    result = AllocateFastAligned(size_in_bytes, nullptr, alignment);
+    result = TryAllocateLinearlyAligned(size_in_bytes, alignment);
   } else {
-    result = AllocateFastUnaligned(size_in_bytes);
+    result = AllocateLinearly(size_in_bytes);
   }
 
   if (!result.IsRetry()) {

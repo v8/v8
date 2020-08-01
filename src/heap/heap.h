@@ -197,7 +197,6 @@ class AllocationResult {
   inline bool IsRetry() { return object_.IsSmi(); }
   inline HeapObject ToObjectChecked();
   inline HeapObject ToObject();
-  inline Address ToAddress();
   inline AllocationSpace RetrySpace();
 
   template <typename T>
@@ -1396,6 +1395,11 @@ class Heap {
   void RemoveAllocationObserversFromAllSpaces(
       AllocationObserver* observer, AllocationObserver* new_space_observer);
 
+  bool allocation_step_in_progress() { return allocation_step_in_progress_; }
+  void set_allocation_step_in_progress(bool val) {
+    allocation_step_in_progress_ = val;
+  }
+
   // ===========================================================================
   // Heap object allocation tracking. ==========================================
   // ===========================================================================
@@ -2074,6 +2078,8 @@ class Heap {
 
   // Observer that can cause early scavenge start.
   StressScavengeObserver* stress_scavenge_observer_ = nullptr;
+
+  bool allocation_step_in_progress_ = false;
 
   // The maximum percent of the marking limit reached wihout causing marking.
   // This is tracked when specyfing --fuzzer-gc-analysis.

@@ -90,7 +90,7 @@ AllocationResult NewSpace::AllocateRaw(int size_in_bytes,
   AllocationResult result;
 
   if (alignment != kWordAligned) {
-    result = AllocateFastAligned(size_in_bytes, nullptr, alignment, origin);
+    result = AllocateFastAligned(size_in_bytes, alignment, origin);
   } else {
     result = AllocateFastUnaligned(size_in_bytes, origin);
   }
@@ -122,9 +122,9 @@ AllocationResult NewSpace::AllocateFastUnaligned(int size_in_bytes,
   return obj;
 }
 
-AllocationResult NewSpace::AllocateFastAligned(
-    int size_in_bytes, int* result_aligned_size_in_bytes,
-    AllocationAlignment alignment, AllocationOrigin origin) {
+AllocationResult NewSpace::AllocateFastAligned(int size_in_bytes,
+                                               AllocationAlignment alignment,
+                                               AllocationOrigin origin) {
   Address top = allocation_info_.top();
   int filler_size = Heap::GetFillToAlign(top, alignment);
   int aligned_size_in_bytes = size_in_bytes + filler_size;
@@ -136,8 +136,6 @@ AllocationResult NewSpace::AllocateFastAligned(
 
   HeapObject obj = HeapObject::FromAddress(top);
   allocation_info_.set_top(top + aligned_size_in_bytes);
-  if (result_aligned_size_in_bytes)
-    *result_aligned_size_in_bytes = aligned_size_in_bytes;
   DCHECK_SEMISPACE_ALLOCATION_INFO(allocation_info_, to_space_);
 
   if (filler_size > 0) {

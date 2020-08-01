@@ -108,19 +108,6 @@ void LargeObjectSpace::TearDown() {
   }
 }
 
-void LargeObjectSpace::AdvanceAndInvokeAllocationObservers(Address soon_object,
-                                                           size_t object_size) {
-  if (!allocation_counter_.IsActive()) return;
-
-  if (object_size >= allocation_counter_.NextBytes()) {
-    allocation_counter_.InvokeAllocationObservers(soon_object, object_size,
-                                                  object_size);
-  }
-
-  // Large objects can be accounted immediately since no LAB is involved.
-  allocation_counter_.AdvanceAllocationObservers(object_size);
-}
-
 AllocationResult OldLargeObjectSpace::AllocateRaw(int object_size) {
   return AllocateRaw(object_size, NOT_EXECUTABLE);
 }
@@ -149,8 +136,7 @@ AllocationResult OldLargeObjectSpace::AllocateRaw(int object_size,
       heap()->incremental_marking()->marking_state()->IsBlack(object));
   page->InitializationMemoryFence();
   heap()->NotifyOldGenerationExpansion(identity(), page);
-  AdvanceAndInvokeAllocationObservers(object.address(),
-                                      static_cast<size_t>(object_size));
+  AllocationStep(object_size, object.address(), object_size);
   return object;
 }
 
@@ -472,8 +458,7 @@ AllocationResult NewLargeObjectSpace::AllocateRaw(int object_size) {
   page->InitializationMemoryFence();
   DCHECK(page->IsLargePage());
   DCHECK_EQ(page->owner_identity(), NEW_LO_SPACE);
-  AdvanceAndInvokeAllocationObservers(result.address(),
-                                      static_cast<size_t>(object_size));
+  AllocationStep(object_size, result.address(), object_size);
   return result;
 }
 

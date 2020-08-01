@@ -383,13 +383,6 @@ void PagedSpace::DecreaseLimit(Address new_limit) {
   DCHECK_LE(top(), new_limit);
   DCHECK_GE(old_limit, new_limit);
   if (new_limit != old_limit) {
-    base::Optional<CodePageMemoryModificationScope> optional_scope;
-
-    if (identity() == CODE_SPACE) {
-      MemoryChunk* chunk = MemoryChunk::FromAddress(new_limit);
-      optional_scope.emplace(chunk);
-    }
-
     SetTopAndLimit(top(), new_limit);
     Free(new_limit, old_limit - new_limit,
          SpaceAccountingMode::kSpaceAccounted);
@@ -446,7 +439,12 @@ void PagedSpace::FreeLinearAllocationArea() {
     return;
   }
 
-  AdvanceAllocationObservers();
+  if (!is_local_space()) {
+    // This can start incremental marking and mark the current
+    // linear allocation area as black. Thus destroying of the black
+    // area needs to happen afterwards.
+    InlineAllocationStep(current_top, kNullAddress, kNullAddress, 0);
+  }
 
   if (current_top != current_limit && !is_off_thread_space() &&
       heap()->incremental_marking()->black_allocation()) {
@@ -481,6 +479,7 @@ void PagedSpace::ReleasePage(Page* page) {
   free_list_->EvictFreeListItems(page);
 
   if (Page::FromAllocationAreaAddress(allocation_info_.top()) == page) {
+    DCHECK(!top_on_previous_step_);
     SetTopAndLimit(kNullAddress, kNullAddress);
   }
 
@@ -553,7 +552,6 @@ bool PagedSpace::TryAllocationFromFreeListMain(size_t size_in_bytes,
   Page* page = Page::FromHeapObject(new_node);
   IncreaseAllocatedBytes(new_node_size, page);
 
-  DCHECK_EQ(allocation_info_.start(), allocation_info_.top());
   Address start = new_node.address();
   Address end = new_node.address() + new_node_size;
   Address limit = ComputeLimit(start, end, size_in_bytes);
@@ -850,9 +848,6 @@ void PagedSpace::VerifyCountersBeforeConcurrentSweeping() {
 #endif
 
 void PagedSpace::UpdateInlineAllocationLimit(size_t min_size) {
-  // Ensure there are no unaccounted allocations.
-  DCHECK_EQ(allocation_info_.start(), allocation_info_.top());
-
   Address new_limit = ComputeLimit(top(), limit(), min_size);
   DCHECK_LE(top(), new_limit);
   DCHECK_LE(new_limit, limit());
@@ -1004,6 +999,20 @@ bool PagedSpace::ContributeToSweepingMain(int required_freed_bytes,
 AllocationResult PagedSpace::AllocateRawSlow(int size_in_bytes,
                                              AllocationAlignment alignment,
                                              AllocationOrigin origin) {
+  if (top_on_previous_step_ && top() < top_on_previous_step_ &&
+      SupportsInlineAllocation()) {
+    // Generated code decreased the top() pointer to do folded allocations.
+    // The top_on_previous_step_ can be one byte beyond the current page.
+    DCHECK_NE(top(), kNullAddress);
+    DCHECK_EQ(Page::FromAllocationAreaAddress(top()),
+              Page::FromAllocationAreaAddress(top_on_previous_step_ - 1));
+    top_on_previous_step_ = top();
+  }
+
+  size_t bytes_since_last =
+      top_on_previous_step_ ? top() - top_on_previous_step_ : 0;
+  DCHECK_IMPLIES(!SupportsInlineAllocation(), bytes_since_last == 0);
+
   if (!is_local_space()) {
     // Start incremental marking before the actual allocation, this allows the
     // allocation function to mark the object black when incremental marking is
@@ -1021,6 +1030,15 @@ AllocationResult PagedSpace::AllocateRawSlow(int size_in_bytes,
 #else
   AllocationResult result = AllocateRawUnaligned(size_in_bytes, origin);
 #endif
+  HeapObject heap_obj;
+  if (!result.IsRetry() && result.To(&heap_obj) && !is_local_space()) {
+    AllocationStep(static_cast<int>(size_in_bytes + bytes_since_last),
+                   heap_obj.address(), size_in_bytes);
+    StartNextInlineAllocationStep();
+    DCHECK_IMPLIES(
+        heap()->incremental_marking()->black_allocation(),
+        heap()->incremental_marking()->marking_state()->IsBlack(heap_obj));
+  }
   return result;
 }
 
