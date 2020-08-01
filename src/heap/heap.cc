@@ -4891,7 +4891,7 @@ size_t Heap::OldGenerationSizeOfObjects() {
        space = spaces.Next()) {
     total += space->SizeOfObjects();
   }
-  return total + lo_space_->SizeOfObjects();
+  return total + lo_space_->SizeOfObjects() + code_lo_space_->SizeOfObjects();
 }
 
 size_t Heap::GlobalSizeOfObjects() {
