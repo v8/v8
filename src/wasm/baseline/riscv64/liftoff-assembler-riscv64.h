@@ -1230,8 +1230,6 @@ void LiftoffAssembler::PopRegisters(LiftoffRegList regs) {
 }
 
 void LiftoffAssembler::DropStackSlotsAndRet(uint32_t num_stack_slots) {
-  DCHECK_LT(num_stack_slots,
-            (1 << 16) / kSystemPointerSize);  // 16 bit immediate
   TurboAssembler::DropAndRet(static_cast<int>(num_stack_slots));
 }
 

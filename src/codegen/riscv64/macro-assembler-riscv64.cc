@@ -3223,8 +3223,7 @@ void TurboAssembler::BranchAndLinkLong(Label* L) {
 }
 
 void TurboAssembler::DropAndRet(int drop) {
-  DCHECK(is_int12(drop * kPointerSize));
-  addi(sp, sp, drop * kPointerSize);
+  Add64(sp, sp, drop * kPointerSize);
   Ret();
 }
 
