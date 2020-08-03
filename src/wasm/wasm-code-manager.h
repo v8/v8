@@ -422,6 +422,11 @@ class WasmCodeAllocator {
   size_t GetNumCodeSpaces() const;
 
  private:
+  // Sentinel value to be used for {AllocateForCodeInRegion} for specifying no
+  // restriction on the region to allocate in.
+  static constexpr base::AddressRegion kUnrestrictedRegion{
+      kNullAddress, std::numeric_limits<size_t>::max()};
+
   // The engine-wide wasm code manager.
   WasmCodeManager* const code_manager_;
 

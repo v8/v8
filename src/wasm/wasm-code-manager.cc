@@ -605,9 +605,8 @@ size_t ReservationSize(size_t code_size_estimate, int num_declared_functions,
 
 Vector<byte> WasmCodeAllocator::AllocateForCode(NativeModule* native_module,
                                                 size_t size) {
-  return AllocateForCodeInRegion(
-      native_module, size, {kNullAddress, std::numeric_limits<size_t>::max()},
-      WasmCodeAllocator::OptionalLock{});
+  return AllocateForCodeInRegion(native_module, size, kUnrestrictedRegion,
+                                 WasmCodeAllocator::OptionalLock{});
 }
 
 Vector<byte> WasmCodeAllocator::AllocateForCodeInRegion(
@@ -624,11 +623,11 @@ Vector<byte> WasmCodeAllocator::AllocateForCodeInRegion(
   size = RoundUp<kCodeAlignment>(size);
   base::AddressRegion code_space =
       free_code_space_.AllocateInRegion(size, region);
-  if (code_space.is_empty()) {
-    if (region.size() < std::numeric_limits<size_t>::max()) {
-      V8::FatalProcessOutOfMemory(nullptr, "wasm code reservation in region");
-      UNREACHABLE();
-    }
+  if (V8_UNLIKELY(code_space.is_empty())) {
+    // Only allocations without a specific region are allowed to fail. Otherwise
+    // the region must have been allocated big enough to hold all initial
+    // allocations (jump tables etc).
+    CHECK_EQ(kUnrestrictedRegion, region);
 
     Address hint = owned_code_space_.empty() ? kNullAddress
                                              : owned_code_space_.back().end();
@@ -773,6 +772,9 @@ size_t WasmCodeAllocator::GetNumCodeSpaces() const {
   base::MutexGuard lock(&mutex_);
   return owned_code_space_.size();
 }
+
+// static
+constexpr base::AddressRegion WasmCodeAllocator::kUnrestrictedRegion;
 
 NativeModule::NativeModule(WasmEngine* engine, const WasmFeatures& enabled,
                            VirtualMemory code_space,
