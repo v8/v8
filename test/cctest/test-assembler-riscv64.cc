@@ -25,10 +25,9 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-#include <iostream>  // NOLINT(readability/streams)
 #include <math.h>
 
-#include "src/init/v8.h"
+#include <iostream>  // NOLINT(readability/streams)
 
 #include "src/base/utils/random-number-generator.h"
 #include "src/codegen/assembler-inl.h"
@@ -36,15 +35,14 @@
 #include "src/diagnostics/disassembler.h"
 #include "src/execution/simulator.h"
 #include "src/heap/factory.h"
+#include "src/init/v8.h"
 #include "src/utils/utils.h"
-
 #include "test/cctest/cctest.h"
 
 namespace v8 {
 namespace internal {
 
-// Define these function prototypes to match JSEntryFunction in execution.cc.
-// TODO(mips64): Refine these signatures per test case.
+// Define these function prototypes to match JSEntryFunction in execution.cc
 using F1 = void*(int x, int p1, int p2, int p3, int p4);
 using F2 = void*(int x, int y, int p2, int p3, int p4);
 using F3 = void*(void* p, int p1, int p2, int p3, int p4);

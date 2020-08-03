@@ -304,14 +304,7 @@ constexpr Register kScratchReg2 = s4;
 
 constexpr DoubleRegister kScratchDoubleReg = fs11;
 
-// RISCV (FIXME): RISCV does not have dedicated DoubleReg Zero (as MIPS does),
-// may not be worth dedicate one register for 0.0
 constexpr DoubleRegister kDoubleRegZero = fs9;
-
-// RISCV (FIXME): cleanup usage of kDoubleCompareReg
-// Used on mips64r6 for compare operations.
-// We use the last non-callee saved odd register for N64 ABI
-constexpr DoubleRegister kDoubleCompareReg = fs4;
 
 // Define {RegisterName} methods for the register types.
 DEFINE_REGISTER_NAMES(Register, GENERAL_REGISTERS)

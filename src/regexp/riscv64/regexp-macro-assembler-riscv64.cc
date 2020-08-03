@@ -949,7 +949,7 @@ void RegExpMacroAssemblerRISCV::IfRegisterEqPos(int reg, Label* if_eq) {
 
 RegExpMacroAssembler::IrregexpImplementation
 RegExpMacroAssemblerRISCV::Implementation() {
-  return kMIPSImplementation;
+  return kRISCVImplementation;
 }
 
 void RegExpMacroAssemblerRISCV::LoadCurrentCharacterImpl(int cp_offset,

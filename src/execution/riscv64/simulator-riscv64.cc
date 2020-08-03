@@ -1249,11 +1249,10 @@ void Simulator::TraceMemWr(int64_t addr, T value) {
 }
 
 // RISCV Memory Read/Write functions
-// Compared with mips64, RISCV can support unaligned read/write. EEI decides.
-// FIXME: RISCV porting: Add boundary check and TraceMem* support
-// FIXME: our target board traps on unaligned loads, so need to add detection
-// of unaligned load/store
 
+// FIXME (RISCV): check whether the specific board supports unaligned load/store
+// (determined by EEI). For now, we assume the board does not support unaligned
+// load/store (e.g., trapping)
 template <typename T>
 T Simulator::ReadMem(int64_t addr, Instruction* instr) {
   if (addr >= 0 && addr < 0x400) {

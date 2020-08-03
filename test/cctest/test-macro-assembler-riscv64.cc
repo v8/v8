@@ -66,7 +66,6 @@ typedef union {
   double dval;
 } Param_T;
 
-// TODO(mips64): Refine these signatures per test case.
 using FV = void*(int64_t x, int64_t y, int p2, int p3, int p4);
 using F1 = void*(int x, int p1, int p2, int p3, int p4);
 using F3 = void*(void* p, int p1, int p2, int p3, int p4);
@@ -1549,9 +1548,9 @@ static bool Compare(T input1, T input2, FPUCondition cond) {
   switch (cond) {
     case EQ:  // Equal.
       return (input1 == input2);
-    case LT:  // Ordered or Less Than, on Mips release >= 6.
+    case LT:  // Ordered or Less Than
       return (input1 < input2);
-    case LE:  // Ordered or Less Than or Equal, on Mips release >= 6.
+    case LE:  // Ordered or Less Than or Equal
       return (input1 <= input2);
     default:
       UNREACHABLE();

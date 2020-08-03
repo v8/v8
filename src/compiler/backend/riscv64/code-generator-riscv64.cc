@@ -1944,7 +1944,7 @@ void AssembleBranchToLabels(CodeGenerator* gen, TurboAssembler* tasm,
         __ Branch(tlabel, eq, kScratchReg, Operand(zero_reg));
         break;
       default:
-        UNSUPPORTED_COND(kMipsMulOvf, condition);
+        UNSUPPORTED_COND(kRiscvMulOvf32, condition);
         break;
     }
   } else if (instr->arch_opcode() == kRiscvCmp) {

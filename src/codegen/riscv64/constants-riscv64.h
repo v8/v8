@@ -31,28 +31,6 @@ static const Endianness kArchEndian = kBig;
 #endif
 
 #if defined(V8_TARGET_LITTLE_ENDIAN)
-const uint32_t kMipsLwrOffset = 0;
-const uint32_t kMipsLwlOffset = 3;
-const uint32_t kMipsSwrOffset = 0;
-const uint32_t kMipsSwlOffset = 3;
-const uint32_t kMipsLdrOffset = 0;
-const uint32_t kMipsLdlOffset = 7;
-const uint32_t kMipsSdrOffset = 0;
-const uint32_t kMipsSdlOffset = 7;
-#elif defined(V8_TARGET_BIG_ENDIAN)
-const uint32_t kMipsLwrOffset = 3;
-const uint32_t kMipsLwlOffset = 0;
-const uint32_t kMipsSwrOffset = 3;
-const uint32_t kMipsSwlOffset = 0;
-const uint32_t kMipsLdrOffset = 7;
-const uint32_t kMipsLdlOffset = 0;
-const uint32_t kMipsSdrOffset = 7;
-const uint32_t kMipsSdlOffset = 0;
-#else
-#error Unknown endianness
-#endif
-
-#if defined(V8_TARGET_LITTLE_ENDIAN)
 const uint32_t kLeastSignificantByteInInt32Offset = 0;
 const uint32_t kLessSignificantWordInDoublewordOffset = 0;
 #elif defined(V8_TARGET_BIG_ENDIAN)
@@ -248,16 +226,9 @@ const int kFcsrMask = kFcsrFlagsMask | kFcsrFrmMask;
 
 // Original MIPS constants
 // FIXME (RISCV): to be cleaned up
-const int kOpcodeShift = 26;
 const int kImm16Shift = 0;
 const int kImm16Bits = 16;
-const int kImm26Shift = 0;
-const int kImm26Bits = 26;
-const int kImm28Shift = 0;
-const int kImm28Bits = 28;
 const int kImm16Mask = ((1 << kImm16Bits) - 1) << kImm16Shift;
-const int kImm26Mask = ((1 << kImm26Bits) - 1) << kImm26Shift;
-const int kImm28Mask = ((1 << kImm28Bits) - 1) << kImm28Shift;
 // end of FIXME (RISCV): to be cleaned up
 
 // ----- RISCV Base Opcodes
@@ -493,15 +464,11 @@ enum Condition {  // Any value < 0 is considered no_condition.
   Ugreater = 5,
   equal = 6,
   not_equal = 7,  // Unordered or Not Equal.
-  negative = 8,
-  positive = 9,
-  parity_even = 10,
-  parity_odd = 11,
-  less = 12,
-  greater_equal = 13,
-  less_equal = 14,
-  greater = 15,
-  cc_always = 18,
+  less = 8,
+  greater_equal = 9,
+  less_equal = 10,
+  greater = 11,
+  cc_always = 12,
 
   // Aliases.
   eq = equal,

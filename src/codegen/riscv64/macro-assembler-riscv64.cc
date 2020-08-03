@@ -2050,10 +2050,10 @@ void TurboAssembler::CompareF64(Register rd, FPUCondition cc, FPURegister cmp1,
     case EQ:  // Equal.
       feq_d(rd, cmp1, cmp2);
       break;
-    case LT:  // Ordered or Less Than, on Mips release >= 6.
+    case LT:  // Ordered or Less Than
       flt_d(rd, cmp1, cmp2);
       break;
-    case LE:  // Ordered or Less Than or Equal, on Mips release >= 6.
+    case LE:  // Ordered or Less Than or Equal
       fle_d(rd, cmp1, cmp2);
       break;
     default:
@@ -4304,8 +4304,6 @@ void TurboAssembler::CallCFunctionHelper(Register function,
   // provides more information.
   // The argument stots are presumed to have been set up by
   // PrepareCallCFunction.
-  // FIXME(RISC-V): The MIPS ABI requires a C function must be called via t9,
-  //                does RISC-V have a similar requirement? We currently use t6
 
 #if V8_HOST_ARCH_RISCV64
   if (emit_debug_code()) {

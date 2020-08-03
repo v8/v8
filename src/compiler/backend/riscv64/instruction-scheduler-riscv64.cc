@@ -412,14 +412,8 @@ enum Latency {
   MULT = 4,
   MULTU = 4,
   DMULT = 4,
-  // DMULTU = 4,
 
   MUL32 = 7,
-  // MUL64 = 7,
-  // MUH = 7,
-  // MUHU = 7,
-  // DMUH = 7,
-  // DMUHU = 7,
 
   DIV32 = 50,  // Min:11 Max:50
   DIV64 = 50,
