@@ -5877,6 +5877,9 @@ class WasmWrapperGraphBuilder : public WasmGraphBuilder {
             representation == wasm::HeapType::kFunc) {
           return node;
         }
+        if (representation == wasm::HeapType::kEq) {
+          return BuildAllocateObjectWrapper(node);
+        }
         // TODO(7748): Figure out a JS interop story for arrays and structs.
         // If this is reached, then IsJSCompatibleSignature() is too permissive.
         UNREACHABLE();
@@ -5890,6 +5893,34 @@ class WasmWrapperGraphBuilder : public WasmGraphBuilder {
       case wasm::ValueType::kBottom:
         UNREACHABLE();
     }
+  }
+
+  // TODO(7748): Temporary solution to allow round-tripping of Wasm objects
+  // through JavaScript, where they show up as opaque boxes. This will disappear
+  // once we have a proper WasmGC <-> JS interaction story.
+  Node* BuildAllocateObjectWrapper(Node* input) {
+    return CALL_BUILTIN(
+        WasmAllocateObjectWrapper, input,
+        LOAD_INSTANCE_FIELD(NativeContext, MachineType::TaggedPointer()));
+  }
+
+  Node* BuildUnpackObjectWrapper(Node* input) {
+    Node* obj = CALL_BUILTIN(
+        WasmGetOwnProperty, input,
+        LOAD_FULL_POINTER(BuildLoadIsolateRoot(),
+                          IsolateData::root_slot_offset(
+                              RootIndex::kwasm_wrapped_object_symbol)),
+        LOAD_INSTANCE_FIELD(NativeContext, MachineType::TaggedPointer()));
+    // Invalid object wrappers (i.e. any other JS object that doesn't have the
+    // magic hidden property) will return {undefined}. Map that to {null}.
+    Node* undefined = LOAD_FULL_POINTER(
+        BuildLoadIsolateRoot(),
+        IsolateData::root_slot_offset(RootIndex::kUndefinedValue));
+    Node* is_undefined = gasm_->WordEqual(obj, undefined);
+    Diamond check(graph(), mcgraph()->common(), is_undefined,
+                  BranchHint::kFalse);
+    check.Chain(control());
+    return check.Phi(MachineRepresentation::kTagged, RefNull(), obj);
   }
 
   Node* BuildChangeInt64ToBigInt(Node* input) {
@@ -5961,6 +5992,8 @@ class WasmWrapperGraphBuilder : public WasmGraphBuilder {
 
             return input;
           }
+          case wasm::HeapType::kEq:
+            return BuildUnpackObjectWrapper(input);
           default:
             // If this is reached, then IsJSCompatibleSignature() is too
             // permissive.

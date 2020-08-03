@@ -423,6 +423,7 @@ extern macro ToStringStringConstant(): String;
 extern macro TrueConstant(): True;
 extern macro UndefinedConstant(): Undefined;
 extern macro ValueOfStringConstant(): String;
+extern macro WasmWrappedObjectSymbolConstant(): Symbol;
 
 const TheHole: TheHole = TheHoleConstant();
 const Null: Null = NullConstant();

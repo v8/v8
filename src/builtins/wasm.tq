@@ -261,6 +261,19 @@ builtin WasmIsRttSubtype(implicit context: Context)(sub: Map, super: Map): Smi {
   unreachable;
 }
 
+// Redeclaration with different typing (value is an Object, not JSAny).
+extern transitioning runtime
+CreateDataProperty(implicit context: Context)(JSReceiver, JSAny, Object);
+
+transitioning builtin WasmAllocateObjectWrapper(implicit context: Context)(
+    obj: Object): JSObject {
+  // Note: {obj} can be null, or i31ref. The code below is agnostic to that.
+  const wrapper = NewJSObject();
+  const symbol = WasmWrappedObjectSymbolConstant();
+  CreateDataProperty(wrapper, symbol, obj);
+  return wrapper;
+}
+
 builtin WasmInt32ToNumber(value: int32): Number {
   return ChangeInt32ToTagged(value);
 }

@@ -58,6 +58,22 @@ class WasmGCTester {
     return fun->func_index();
   }
 
+  void DefineExportedFunction(const char* name, FunctionSig* sig,
+                              std::initializer_list<byte> code) {
+    WasmFunctionBuilder* fun = builder_.AddFunction(sig);
+    fun->EmitCode(code.begin(), static_cast<uint32_t>(code.size()));
+    builder_.AddExport(CStrVector(name), fun);
+  }
+
+  MaybeHandle<Object> CallExportedFunction(const char* name, int argc,
+                                           Handle<Object> args[]) {
+    Handle<WasmExportedFunction> func =
+        testing::GetExportedFunction(isolate_, instance_, name)
+            .ToHandleChecked();
+    return Execution::Call(isolate_, func,
+                           isolate_->factory()->undefined_value(), argc, args);
+  }
+
   uint32_t DefineStruct(std::initializer_list<F> fields) {
     StructType::Builder type_builder(&zone,
                                      static_cast<uint32_t>(fields.size()));
@@ -880,29 +896,62 @@ TEST(I31Casts) {
   tester.CheckHasThrown(kCastStructToI31, 0);
 }
 
-TEST(JsAccessDisallowed) {
+TEST(JsAccess) {
   WasmGCTester tester;
   uint32_t type_index = tester.DefineStruct({F(wasm::kWasmI32, true)});
   ValueType kRefTypes[] = {ref(type_index)};
-  FunctionSig sig_q_v(1, 0, kRefTypes);
+  ValueType kEqRefTypes[] = {kWasmEqRef};
+  ValueType kEqToI[] = {kWasmI32, kWasmEqRef};
+  FunctionSig sig_t_v(1, 0, kRefTypes);
+  FunctionSig sig_q_v(1, 0, kEqRefTypes);
+  FunctionSig sig_i_q(1, 1, kEqToI);
 
-  WasmFunctionBuilder* fun = tester.builder()->AddFunction(&sig_q_v);
-  byte code[] = {WASM_STRUCT_NEW_WITH_RTT(type_index, WASM_I32V(42),
-                                          WASM_RTT_CANON(type_index)),
-                 kExprEnd};
-  fun->EmitCode(code, sizeof(code));
-  tester.builder()->AddExport(CStrVector("f"), fun);
+  tester.DefineExportedFunction(
+      "disallowed", &sig_t_v,
+      {WASM_STRUCT_NEW_WITH_RTT(type_index, WASM_I32V(42),
+                                WASM_RTT_CANON(type_index)),
+       kExprEnd});
+  // Same code, different signature.
+  tester.DefineExportedFunction(
+      "producer", &sig_q_v,
+      {WASM_STRUCT_NEW_WITH_RTT(type_index, WASM_I32V(42),
+                                WASM_RTT_CANON(type_index)),
+       kExprEnd});
+  tester.DefineExportedFunction(
+      "consumer", &sig_i_q,
+      {WASM_STRUCT_GET(type_index, 0,
+                       WASM_REF_CAST(kLocalEqRef, type_index, WASM_GET_LOCAL(0),
+                                     WASM_RTT_CANON(type_index))),
+       kExprEnd});
+
   tester.CompileModule();
-  TryCatch try_catch(reinterpret_cast<v8::Isolate*>(tester.isolate()));
-  MaybeHandle<WasmExportedFunction> exported =
-      testing::GetExportedFunction(tester.isolate(), tester.instance(), "f");
-  CHECK(!exported.is_null());
-  CHECK(!try_catch.HasCaught());
-  MaybeHandle<Object> result = Execution::Call(
-      tester.isolate(), exported.ToHandleChecked(),
-      tester.isolate()->factory()->undefined_value(), 0, nullptr);
-  CHECK(result.is_null());
+  Isolate* isolate = tester.isolate();
+  TryCatch try_catch(reinterpret_cast<v8::Isolate*>(isolate));
+  MaybeHandle<Object> maybe_result =
+      tester.CallExportedFunction("disallowed", 0, nullptr);
+  CHECK(maybe_result.is_null());
   CHECK(try_catch.HasCaught());
+  try_catch.Reset();
+  isolate->clear_pending_exception();
+
+  maybe_result = tester.CallExportedFunction("producer", 0, nullptr);
+  {
+    Handle<Object> args[] = {maybe_result.ToHandleChecked()};
+    maybe_result = tester.CallExportedFunction("consumer", 1, args);
+  }
+  Handle<Object> result = maybe_result.ToHandleChecked();
+  CHECK(result->IsSmi());
+  CHECK_EQ(42, Smi::cast(*result).value());
+  // Calling {consumer} with any other object (e.g. the Smi we just got as
+  // {result}) should trap.
+  {
+    Handle<Object> args[] = {result};
+    maybe_result = tester.CallExportedFunction("consumer", 1, args);
+  }
+  CHECK(maybe_result.is_null());
+  CHECK(try_catch.HasCaught());
+  try_catch.Reset();
+  isolate->clear_pending_exception();
 }
 
 }  // namespace test_gc

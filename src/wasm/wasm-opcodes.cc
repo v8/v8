@@ -46,7 +46,8 @@ bool IsJSCompatibleSignature(const FunctionSig* sig,
       // allow them here.
       if (!(representation == HeapType::kExtern ||
             representation == HeapType::kExn ||
-            representation == HeapType::kFunc)) {
+            representation == HeapType::kFunc ||
+            representation == HeapType::kEq)) {
         return false;
       }
     }

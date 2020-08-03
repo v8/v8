@@ -365,6 +365,7 @@
   V(_, wasm_exception_tag_symbol)                     \
   V(_, wasm_exception_values_symbol)                  \
   V(_, wasm_uncatchable_symbol)                       \
+  V(_, wasm_wrapped_object_symbol)                    \
   V(_, uninitialized_symbol)
 
 #define PUBLIC_SYMBOL_LIST_GENERATOR(V, _)          \
