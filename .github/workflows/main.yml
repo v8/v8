@@ -14,9 +14,6 @@ jobs:
 
     # Steps represent a sequence of tasks that will be executed as part of the job
     steps:
-    - name: Update and upgrade apt
-      run: sudo apt-get update && sudo apt-get upgrade -yqq
-
     - name: Install prereqs
       run: |
         DEBIAN_FRONTEND=noninteractive \
