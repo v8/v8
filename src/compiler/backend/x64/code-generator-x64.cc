@@ -759,9 +759,8 @@ void AdjustStackPointerForTailCall(TurboAssembler* assembler,
 
 void SetupSimdImmediateInRegister(TurboAssembler* assembler, uint32_t* imms,
                                   XMMRegister reg) {
-  assembler->Move(reg, make_uint64(imms[1], imms[0]));
-  assembler->movq(kScratchRegister, make_uint64(imms[3], imms[2]));
-  assembler->Pinsrq(reg, kScratchRegister, int8_t{1});
+  assembler->Move(reg, make_uint64(imms[3], imms[2]),
+                  make_uint64(imms[1], imms[0]));
 }
 
 }  // namespace

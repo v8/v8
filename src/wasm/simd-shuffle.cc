@@ -136,6 +136,12 @@ int32_t SimdShuffle::Pack4Lanes(const uint8_t* shuffle) {
   return result;
 }
 
+void SimdShuffle::Pack16Lanes(uint32_t* dst, const uint8_t* shuffle) {
+  for (int i = 0; i < 4; i++) {
+    dst[i] = wasm::SimdShuffle::Pack4Lanes(shuffle + (i * 4));
+  }
+}
+
 }  // namespace wasm
 }  // namespace internal
 }  // namespace v8

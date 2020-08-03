@@ -2905,7 +2905,8 @@ void LiftoffAssembler::emit_i16x8_replace_lane(LiftoffRegister dst,
 void LiftoffAssembler::emit_s8x16_shuffle(LiftoffRegister dst,
                                           LiftoffRegister lhs,
                                           LiftoffRegister rhs,
-                                          const uint8_t shuffle[16]) {
+                                          const uint8_t shuffle[16],
+                                          bool is_swizzle) {
   Simd128Register dest = liftoff::GetSimd128Register(dst);
   Simd128Register src1 = liftoff::GetSimd128Register(lhs);
   Simd128Register src2 = liftoff::GetSimd128Register(rhs);

@@ -1021,7 +1021,8 @@ void LiftoffAssembler::emit_i16x8_extract_lane_s(LiftoffRegister dst,
 void LiftoffAssembler::emit_s8x16_shuffle(LiftoffRegister dst,
                                           LiftoffRegister lhs,
                                           LiftoffRegister rhs,
-                                          const uint8_t shuffle[16]) {
+                                          const uint8_t shuffle[16],
+                                          bool is_swizzle) {
   bailout(kSimd, "s8x16_shuffle");
 }
 

@@ -5,6 +5,9 @@
 #include "src/wasm/simd-shuffle.h"
 
 #include "test/unittests/test-utils.h"
+#include "testing/gmock-support.h"
+
+using ::testing::ElementsAre;
 
 namespace v8 {
 namespace internal {
@@ -270,6 +273,14 @@ TEST(SimdShufflePackTest, PackBlend4) {
 TEST(SimdShufflePackTest, Pack4Lanes) {
   uint8_t arr[4]{0x01, 0x08, 0xa0, 0x7c};
   EXPECT_EQ(0x7ca00801, SimdShuffle::Pack4Lanes(arr));
+}
+
+TEST(SimdShufflePackTest, Pack16Lanes) {
+  uint8_t arr[16]{0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15};
+  uint32_t imms[4]{0};
+  SimdShuffle::Pack16Lanes(imms, arr);
+  EXPECT_THAT(imms,
+              ElementsAre(0x03020100, 0x07060504, 0x0b0a0908, 0x0f0e0d0c));
 }
 
 }  // namespace wasm

@@ -2638,7 +2638,8 @@ void LiftoffAssembler::LoadTransform(LiftoffRegister dst, Register src_addr,
 void LiftoffAssembler::emit_s8x16_shuffle(LiftoffRegister dst,
                                           LiftoffRegister lhs,
                                           LiftoffRegister rhs,
-                                          const uint8_t shuffle[16]) {
+                                          const uint8_t shuffle[16],
+                                          bool is_swizzle) {
   LiftoffRegister tmp = GetUnusedRegister(kGpReg, {});
   // Prepare 16 byte aligned buffer for shuffle control mask.
   mov(tmp.gp(), esp);
