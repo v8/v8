@@ -762,7 +762,7 @@ DEFINE_BOOL(trace_wasm_memory, false,
 DEFINE_INT(wasm_tier_mask_for_testing, 0,
            "bitmask of functions to compile with TurboFan instead of Liftoff")
 
-DEFINE_BOOL(wasm_expose_debug_eval, false,
+DEFINE_BOOL(wasm_expose_debug_eval, true,
             "Expose wasm evaluator support on the CDP")
 
 DEFINE_BOOL(validate_asm, true, "validate asm.js modules before compiling")
