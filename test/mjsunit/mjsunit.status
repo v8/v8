@@ -438,6 +438,7 @@
   'regress/regress-2790': [SKIP],
   'regress/regress-331444': [SKIP],
   'regress/regress-740784': [SKIP],
+  'regress/regress-992389': [SKIP],
 }],  # 'is_full_debug'
 
 ##############################################################################
