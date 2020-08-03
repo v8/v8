@@ -130,19 +130,12 @@ void FutexEmulation::NotifyAsyncWaiter(FutexWaitListNode* node) {
   // Nullify the timeout time; this distinguishes timed out waiters from
   // woken up ones.
   node->async_timeout_time_ = base::TimeTicks();
-  // Try to cancel the timeout task. If cancelling fails, the task is already
-  // running. In that case, it cannot proceed beyond waiting for the mutex,
-  // since we're holding it. When it gets the mutex, it will see that waiting_
-  // is false, and ignore the FutexWaitListNode.
-
-  // Using the CancelableTaskManager here is OK since the Isolate is guaranteed
-  // to be alive - FutexEmulation::IsolateDeinit removes all FutexWaitListNodes
-  // owned by an Isolate which is going to die.
-  node->CancelTimeoutTask();
 
   g_wait_list.Pointer()->RemoveNode(node);
 
-  // Schedule a task for resolving the Promise.
+  // Schedule a task for resolving the Promise. It's still possible that the
+  // timeout task runs before the promise resolving task. In that case, the
+  // timeout task will just ignore the node.
   auto& isolate_map = g_wait_list.Pointer()->isolate_promises_to_resolve_;
   auto it = isolate_map.find(node->isolate_for_async_waiters_);
   if (it == isolate_map.end()) {
@@ -683,6 +676,17 @@ void FutexEmulation::ResolveAsyncWaiterPromise(FutexWaitListNode* node) {
 
   auto v8_isolate =
       reinterpret_cast<v8::Isolate*>(node->isolate_for_async_waiters_);
+
+  // Try to cancel the timeout task (if one exists). If the timeout task exists,
+  // cancelling it will always succeed. It's not possible for the timeout task
+  // to be running, since it's scheduled to run in the same thread as this task.
+
+  // Using the CancelableTaskManager here is OK since the Isolate is guaranteed
+  // to be alive - FutexEmulation::IsolateDeinit removes all FutexWaitListNodes
+  // owned by an Isolate which is going to die.
+  bool success = node->CancelTimeoutTask();
+  DCHECK(success);
+  USE(success);
 
   if (!node->promise_.IsEmpty()) {
     Handle<JSPromise> promise = Handle<JSPromise>::cast(
