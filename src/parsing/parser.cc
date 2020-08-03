@@ -3096,6 +3096,8 @@ template void Parser::HandleSourceURLComments(OffThreadIsolate* isolate,
                                               Handle<Script> script);
 
 void Parser::UpdateStatistics(Isolate* isolate, Handle<Script> script) {
+  CHECK_NOT_NULL(isolate);
+
   // Move statistics to Isolate.
   for (int feature = 0; feature < v8::Isolate::kUseCounterFeatureCount;
        ++feature) {
