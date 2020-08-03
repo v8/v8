@@ -275,7 +275,8 @@ JSToWasmWrapperCompilationUnit::JSToWasmWrapperCompilationUnit(
       sig_(sig),
 #if V8_TARGET_ARCH_X64
       use_generic_wrapper_(FLAG_wasm_generic_wrapper &&
-                           sig->parameters().empty() && sig->returns().empty()),
+                           sig->parameters().empty() &&
+                           sig->returns().empty() && !is_import),
 #else
       use_generic_wrapper_(false),
 #endif
