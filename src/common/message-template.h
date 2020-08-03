@@ -482,9 +482,11 @@ namespace internal {
     "Decimals with leading zeros are not allowed in strict mode.")             \
   T(StrictOctalEscape,                                                         \
     "Octal escape sequences are not allowed in strict mode.")                  \
+  T(Strict8Or9Escape, "\\8 and \\9 are not allowed in strict mode.")           \
   T(StrictWith, "Strict mode code may not include a with statement")           \
   T(TemplateOctalLiteral,                                                      \
     "Octal escape sequences are not allowed in template strings.")             \
+  T(Template8Or9Escape, "\\8 and \\9 are not allowed in template strings.")    \
   T(ThisFormalParameter, "'this' is not a valid formal parameter name")        \
   T(AwaitBindingIdentifier,                                                    \
     "'await' is not a valid identifier name in an async function")             \

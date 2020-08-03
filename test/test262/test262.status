@@ -554,10 +554,6 @@
   'built-ins/Atomics/xor/bigint/non-shared-bufferdata': [FAIL],
   'built-ins/Atomics/xor/non-shared-bufferdata': [FAIL],
 
-  # https://bugs.chromium.org/p/v8/issues/detail?id=10769
-  'language/expressions/template-literal/invalid-legacy-octal-escape-sequence-8': [FAIL],
-  'language/literals/string/legacy-non-octal-escape-sequence-8-strict': [FAIL],
-
   ######################## NEEDS INVESTIGATION ###########################
 
   # https://bugs.chromium.org/p/v8/issues/detail?id=7833
