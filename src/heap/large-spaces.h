@@ -11,6 +11,7 @@
 #include <unordered_map>
 
 #include "src/base/macros.h"
+#include "src/base/platform/mutex.h"
 #include "src/common/globals.h"
 #include "src/heap/heap.h"
 #include "src/heap/memory-chunk.h"
@@ -21,6 +22,7 @@ namespace v8 {
 namespace internal {
 
 class Isolate;
+class LocalHeap;
 
 class LargePage : public MemoryChunk {
  public:
@@ -115,9 +117,10 @@ class V8_EXPORT_PRIVATE LargeObjectSpace : public Space {
 
   LargePage* AllocateLargePage(int object_size, Executability executable);
 
-  size_t size_;          // allocated bytes
+  std::atomic<size_t> size_;  // allocated bytes
   int page_count_;       // number of chunks
-  size_t objects_size_;  // size of objects
+  std::atomic<size_t> objects_size_;  // size of objects
+  base::Mutex allocation_mutex_;
 
  private:
   friend class LargeObjectSpaceObjectIterator;
@@ -131,6 +134,9 @@ class OldLargeObjectSpace : public LargeObjectSpace {
 
   V8_EXPORT_PRIVATE V8_WARN_UNUSED_RESULT AllocationResult
   AllocateRaw(int object_size);
+
+  V8_EXPORT_PRIVATE V8_WARN_UNUSED_RESULT AllocationResult
+  AllocateRawBackground(LocalHeap* local_heap, int object_size);
 
   // Clears the marking state of live objects.
   void ClearMarkingStateOfLiveObjects();

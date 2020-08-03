@@ -104,6 +104,67 @@ UNINITIALIZED_TEST(ConcurrentAllocationInOldSpace) {
   isolate->Dispose();
 }
 
+class LargeObjectConcurrentAllocationThread final : public v8::base::Thread {
+ public:
+  explicit LargeObjectConcurrentAllocationThread(Heap* heap,
+                                                 std::atomic<int>* pending)
+      : v8::base::Thread(base::Thread::Options("ThreadWithLocalHeap")),
+        heap_(heap),
+        pending_(pending) {}
+
+  void Run() override {
+    LocalHeap local_heap(heap_);
+    const size_t kLargeObjectSize = kMaxRegularHeapObjectSize * 2;
+
+    for (int i = 0; i < kNumIterations; i++) {
+      Address address = local_heap.AllocateRawOrFail(
+          kLargeObjectSize, AllocationType::kOld, AllocationOrigin::kRuntime,
+          AllocationAlignment::kWordAligned);
+      CreateFixedArray(heap_, address, kLargeObjectSize);
+      local_heap.Safepoint();
+    }
+
+    pending_->fetch_sub(1);
+  }
+
+  Heap* heap_;
+  std::atomic<int>* pending_;
+};
+
+UNINITIALIZED_TEST(ConcurrentAllocationInLargeSpace) {
+  FLAG_max_old_space_size = 32;
+  FLAG_concurrent_allocation = true;
+  FLAG_local_heaps = true;
+
+  v8::Isolate::CreateParams create_params;
+  create_params.array_buffer_allocator = CcTest::array_buffer_allocator();
+  v8::Isolate* isolate = v8::Isolate::New(create_params);
+  Isolate* i_isolate = reinterpret_cast<Isolate*>(isolate);
+
+  std::vector<std::unique_ptr<LargeObjectConcurrentAllocationThread>> threads;
+
+  const int kThreads = 4;
+
+  std::atomic<int> pending(kThreads);
+
+  for (int i = 0; i < kThreads; i++) {
+    auto thread = std::make_unique<LargeObjectConcurrentAllocationThread>(
+        i_isolate->heap(), &pending);
+    CHECK(thread->Start());
+    threads.push_back(std::move(thread));
+  }
+
+  while (pending > 0) {
+    v8::platform::PumpMessageLoop(i::V8::GetCurrentPlatform(), isolate);
+  }
+
+  for (auto& thread : threads) {
+    thread->Join();
+  }
+
+  isolate->Dispose();
+}
+
 const int kWhiteIterations = 1000;
 
 class ConcurrentBlackAllocationThread final : public v8::base::Thread {

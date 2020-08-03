@@ -37,9 +37,11 @@ AllocationResult LocalHeap::AllocateRaw(int size_in_bytes, AllocationType type,
 
   bool large_object = size_in_bytes > kMaxRegularHeapObjectSize;
   CHECK_EQ(type, AllocationType::kOld);
-  CHECK(!large_object);
 
-  return old_space_allocator()->AllocateRaw(size_in_bytes, alignment, origin);
+  if (large_object)
+    return heap()->lo_space()->AllocateRawBackground(this, size_in_bytes);
+  else
+    return old_space_allocator()->AllocateRaw(size_in_bytes, alignment, origin);
 }
 
 Address LocalHeap::AllocateRawOrFail(int object_size, AllocationType type,

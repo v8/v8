@@ -4,6 +4,8 @@
 
 #include "src/heap/large-spaces.h"
 
+#include "src/base/platform/mutex.h"
+#include "src/common/globals.h"
 #include "src/execution/isolate.h"
 #include "src/heap/combined-heap.h"
 #include "src/heap/incremental-marking.h"
@@ -140,6 +142,30 @@ AllocationResult OldLargeObjectSpace::AllocateRaw(int object_size,
   return object;
 }
 
+AllocationResult OldLargeObjectSpace::AllocateRawBackground(
+    LocalHeap* local_heap, int object_size) {
+  // Check if we want to force a GC before growing the old space further.
+  // If so, fail the allocation.
+  if (!heap()->CanExpandOldGenerationBackground(object_size) ||
+      !heap()->ShouldExpandOldGenerationOnSlowAllocation(local_heap)) {
+    return AllocationResult::Retry(identity());
+  }
+
+  LargePage* page = AllocateLargePage(object_size, NOT_EXECUTABLE);
+  if (page == nullptr) return AllocationResult::Retry(identity());
+  page->SetOldGenerationPageFlags(heap()->incremental_marking()->IsMarking());
+  HeapObject object = page->GetObject();
+  heap()->StartIncrementalMarkingIfAllocationLimitIsReachedBackground();
+  if (heap()->incremental_marking()->black_allocation()) {
+    heap()->incremental_marking()->marking_state()->WhiteToBlack(object);
+  }
+  DCHECK_IMPLIES(
+      heap()->incremental_marking()->black_allocation(),
+      heap()->incremental_marking()->marking_state()->IsBlack(object));
+  page->InitializationMemoryFence();
+  return object;
+}
+
 LargePage* LargeObjectSpace::AllocateLargePage(int object_size,
                                                Executability executable) {
   LargePage* page = heap()->memory_allocator()->AllocateLargePage(
@@ -147,7 +173,10 @@ LargePage* LargeObjectSpace::AllocateLargePage(int object_size,
   if (page == nullptr) return nullptr;
   DCHECK_GE(page->area_size(), static_cast<size_t>(object_size));
 
-  AddPage(page, object_size);
+  {
+    base::MutexGuard guard(&allocation_mutex_);
+    AddPage(page, object_size);
+  }
 
   HeapObject object = page->GetObject();
 
