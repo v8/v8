@@ -22,6 +22,7 @@
 #include "src/heap/invalidated-slots-inl.h"
 #include "src/heap/large-spaces.h"
 #include "src/heap/mark-compact.h"
+#include "src/heap/memory-chunk.h"
 #include "src/heap/read-only-heap.h"
 #include "src/heap/remembered-set.h"
 #include "src/heap/slot-set.h"
@@ -249,45 +250,15 @@ void Page::DestroyBlackAreaBackground(Address start, Address end) {
 
 void Space::AddAllocationObserver(AllocationObserver* observer) {
   allocation_counter_.AddAllocationObserver(observer);
-  StartNextInlineAllocationStep();
 }
 
 void Space::RemoveAllocationObserver(AllocationObserver* observer) {
   allocation_counter_.RemoveAllocationObserver(observer);
-  StartNextInlineAllocationStep();
 }
 
 void Space::PauseAllocationObservers() { allocation_counter_.Pause(); }
 
 void Space::ResumeAllocationObservers() { allocation_counter_.Resume(); }
-
-void Space::AllocationStep(int bytes_since_last, Address soon_object,
-                           int size) {
-  if (!allocation_counter_.IsActive()) {
-    return;
-  }
-
-  DCHECK(!heap()->allocation_step_in_progress());
-  heap()->set_allocation_step_in_progress(true);
-  heap()->CreateFillerObjectAt(soon_object, size, ClearRecordedSlots::kNo);
-  for (AllocationObserver* observer : allocation_counter_) {
-    observer->AllocationStep(bytes_since_last, soon_object, size);
-  }
-  heap()->set_allocation_step_in_progress(false);
-}
-
-void Space::AllocationStepAfterMerge(Address first_object_in_chunk, int size) {
-  if (!allocation_counter_.IsActive()) {
-    return;
-  }
-
-  DCHECK(!heap()->allocation_step_in_progress());
-  heap()->set_allocation_step_in_progress(true);
-  for (AllocationObserver* observer : allocation_counter_) {
-    observer->AllocationStep(size, first_object_in_chunk, size);
-  }
-  heap()->set_allocation_step_in_progress(false);
-}
 
 Address SpaceWithLinearArea::ComputeLimit(Address start, Address end,
                                           size_t min_size) {
@@ -296,14 +267,19 @@ Address SpaceWithLinearArea::ComputeLimit(Address start, Address end,
   if (heap()->inline_allocation_disabled()) {
     // Fit the requested area exactly.
     return start + min_size;
-  } else if (SupportsInlineAllocation() && allocation_counter_.IsActive()) {
+  } else if (SupportsAllocationObserver() && allocation_counter_.IsActive()) {
+    // Ensure there are no unaccounted allocations.
+    DCHECK_EQ(allocation_info_.start(), allocation_info_.top());
+
     // Generated code may allocate inline from the linear allocation area for.
-    // To make sure we can observe these allocations, we use a lower limit.
-    size_t step = allocation_counter_.GetNextInlineAllocationStepSize();
+    // To make sure we can observe these allocations, we use a lower ©limit.
+    size_t step = allocation_counter_.NextBytes();
+    DCHECK_NE(step, 0);
     size_t rounded_step =
         RoundSizeDownToObjectAlignment(static_cast<int>(step - 1));
     // Use uint64_t to avoid overflow on 32-bit
-    uint64_t step_end = static_cast<uint64_t>(start) + min_size + rounded_step;
+    uint64_t step_end =
+        static_cast<uint64_t>(start) + Max(min_size, rounded_step);
     uint64_t new_end = Min(step_end, static_cast<uint64_t>(end));
     return static_cast<Address>(new_end);
   } else {
@@ -370,73 +346,99 @@ LocalAllocationBuffer& LocalAllocationBuffer::operator=(
   other.allocation_info_.Reset(kNullAddress, kNullAddress);
   return *this;
 }
-void SpaceWithLinearArea::StartNextInlineAllocationStep() {
-  if (heap()->allocation_step_in_progress()) {
-    // If we are mid-way through an existing step, don't start a new one.
-    return;
-  }
-
-  if (allocation_counter_.IsActive()) {
-    top_on_previous_step_ = top();
-    UpdateInlineAllocationLimit(0);
-  } else {
-    DCHECK_EQ(kNullAddress, top_on_previous_step_);
-  }
-}
 
 void SpaceWithLinearArea::AddAllocationObserver(AllocationObserver* observer) {
-  InlineAllocationStep(top(), top(), kNullAddress, 0);
-  Space::AddAllocationObserver(observer);
-  DCHECK_IMPLIES(top_on_previous_step_, allocation_counter_.IsActive());
+  if (!allocation_counter_.IsStepInProgress()) {
+    AdvanceAllocationObservers();
+    Space::AddAllocationObserver(observer);
+    UpdateInlineAllocationLimit(0);
+  } else {
+    Space::AddAllocationObserver(observer);
+  }
 }
 
 void SpaceWithLinearArea::RemoveAllocationObserver(
     AllocationObserver* observer) {
-  Address top_for_next_step =
-      allocation_counter_.NumberAllocationObservers() == 1 ? kNullAddress
-                                                           : top();
-  InlineAllocationStep(top(), top_for_next_step, kNullAddress, 0);
+  DCHECK(!allocation_counter_.IsStepInProgress());
+  AdvanceAllocationObservers();
   Space::RemoveAllocationObserver(observer);
-  DCHECK_IMPLIES(top_on_previous_step_, allocation_counter_.IsActive());
-}
-
-void SpaceWithLinearArea::PauseAllocationObservers() {
-  // Do a step to account for memory allocated so far.
-  InlineAllocationStep(top(), kNullAddress, kNullAddress, 0);
-  Space::PauseAllocationObservers();
-  DCHECK_EQ(kNullAddress, top_on_previous_step_);
   UpdateInlineAllocationLimit(0);
 }
 
+void SpaceWithLinearArea::PauseAllocationObservers() {
+  AdvanceAllocationObservers();
+  Space::PauseAllocationObservers();
+}
+
 void SpaceWithLinearArea::ResumeAllocationObservers() {
-  DCHECK_EQ(kNullAddress, top_on_previous_step_);
   Space::ResumeAllocationObservers();
-  StartNextInlineAllocationStep();
+  allocation_info_.MoveStartToTop();
+  UpdateInlineAllocationLimit(0);
 }
 
-void SpaceWithLinearArea::InlineAllocationStep(Address top,
-                                               Address top_for_next_step,
-                                               Address soon_object,
-                                               size_t size) {
-  if (heap()->allocation_step_in_progress()) {
-    // Avoid starting a new step if we are mid-way through an existing one.
-    return;
+void SpaceWithLinearArea::AdvanceAllocationObservers() {
+  if (allocation_info_.top() &&
+      allocation_info_.start() != allocation_info_.top()) {
+    allocation_counter_.AdvanceAllocationObservers(allocation_info_.top() -
+                                                   allocation_info_.start());
+    allocation_info_.MoveStartToTop();
   }
+}
 
-  if (top_on_previous_step_) {
-    if (top < top_on_previous_step_) {
-      // Generated code decreased the top pointer to do folded allocations.
-      DCHECK_NE(top, kNullAddress);
-      DCHECK_EQ(Page::FromAllocationAreaAddress(top),
-                Page::FromAllocationAreaAddress(top_on_previous_step_));
-      top_on_previous_step_ = top;
+// Perform an allocation step when the step is reached. size_in_bytes is the
+// actual size needed for the object (required for InvokeAllocationObservers).
+// aligned_size_in_bytes is the size of the object including the filler right
+// before it to reach the right alignment (required to DCHECK the start of the
+// object). allocation_size is the size of the actual allocation which needs to
+// be used for the accounting. It can be different from aligned_size_in_bytes in
+// PagedSpace::AllocateRawAligned, where we have to overallocate in order to be
+// able to align the allocation afterwards.
+void SpaceWithLinearArea::InvokeAllocationObservers(
+    Address soon_object, size_t size_in_bytes, size_t aligned_size_in_bytes,
+    size_t allocation_size) {
+  DCHECK_LE(size_in_bytes, aligned_size_in_bytes);
+  DCHECK_LE(aligned_size_in_bytes, allocation_size);
+  DCHECK(size_in_bytes == aligned_size_in_bytes ||
+         aligned_size_in_bytes == allocation_size);
+
+  if (!SupportsAllocationObserver() || !allocation_counter_.IsActive()) return;
+
+  if (allocation_size >= allocation_counter_.NextBytes()) {
+    // Only the first object in a LAB should reach the next step.
+    DCHECK_EQ(soon_object,
+              allocation_info_.start() + aligned_size_in_bytes - size_in_bytes);
+
+    // Right now the LAB only contains that one object.
+    DCHECK_EQ(allocation_info_.top() + allocation_size - aligned_size_in_bytes,
+              allocation_info_.limit());
+
+    // Ensure that there is a valid object
+    if (identity() == CODE_SPACE) {
+      MemoryChunk* chunk = MemoryChunk::FromAddress(soon_object);
+      heap()->UnprotectAndRegisterMemoryChunk(chunk);
     }
-    int bytes_allocated = static_cast<int>(top - top_on_previous_step_);
-    AllocationStep(bytes_allocated, soon_object, static_cast<int>(size));
-    top_on_previous_step_ = top_for_next_step;
-  }
-}
+    heap_->CreateFillerObjectAt(soon_object, static_cast<int>(size_in_bytes),
+                                ClearRecordedSlots::kNo);
 
+#if DEBUG
+    // Ensure that allocation_info_ isn't modified during one of the
+    // AllocationObserver::Step methods.
+    LinearAllocationArea saved_allocation_info = allocation_info_;
+#endif
+
+    // Run AllocationObserver::Step through the AllocationCounter.
+    allocation_counter_.InvokeAllocationObservers(soon_object, size_in_bytes,
+                                                  allocation_size);
+
+    // Ensure that start/top/limit didn't change.
+    DCHECK_EQ(saved_allocation_info.start(), allocation_info_.start());
+    DCHECK_EQ(saved_allocation_info.top(), allocation_info_.top());
+    DCHECK_EQ(saved_allocation_info.limit(), allocation_info_.limit());
+  }
+
+  DCHECK_LT(allocation_info_.limit() - allocation_info_.start(),
+            allocation_counter_.NextBytes());
+}
 
 int MemoryChunk::FreeListsLength() {
   int length = 0;

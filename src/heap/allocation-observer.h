@@ -5,6 +5,7 @@
 #ifndef V8_HEAP_ALLOCATION_OBSERVER_H_
 #define V8_HEAP_ALLOCATION_OBSERVER_H_
 
+#include <cstdint>
 #include <vector>
 
 #include "src/common/globals.h"
@@ -13,79 +14,79 @@ namespace v8 {
 namespace internal {
 
 class AllocationObserver;
-class Heap;
 
 class AllocationCounter {
  public:
-  explicit AllocationCounter(Heap* heap)
-      : heap_(heap),
-        paused_(false),
-        prev_counter_(0),
+  AllocationCounter()
+      : paused_(false),
         current_counter_(0),
-        next_counter_(0) {}
+        next_counter_(0),
+        step_in_progress_(false) {}
+  V8_EXPORT_PRIVATE void AddAllocationObserver(AllocationObserver* observer);
+  V8_EXPORT_PRIVATE void RemoveAllocationObserver(AllocationObserver* observer);
 
-  auto begin() { return allocation_observers_.begin(); }
-  auto end() { return allocation_observers_.end(); }
-
-  void AddAllocationObserver(AllocationObserver* observer);
-  void RemoveAllocationObserver(AllocationObserver* observer);
-
-  bool HasAllocationObservers() { return !allocation_observers_.empty(); }
-  size_t NumberAllocationObservers() { return allocation_observers_.size(); }
-
-  bool IsActive() { return !IsPaused() && HasAllocationObservers(); }
+  bool IsActive() { return !IsPaused() && observers_.size() > 0; }
 
   void Pause() {
     DCHECK(!paused_);
+    DCHECK(!step_in_progress_);
     paused_ = true;
   }
 
   void Resume() {
     DCHECK(paused_);
+    DCHECK(!step_in_progress_);
     paused_ = false;
   }
 
-  intptr_t GetNextInlineAllocationStepSize();
-
-  void NotifyBytes(size_t allocated);
-  void NotifyObject(Address soon_object, size_t object_size);
+  V8_EXPORT_PRIVATE void AdvanceAllocationObservers(size_t allocated);
+  V8_EXPORT_PRIVATE void InvokeAllocationObservers(Address soon_object,
+                                                   size_t object_size,
+                                                   size_t aligned_object_size);
 
   size_t NextBytes() {
     DCHECK(IsActive());
     return next_counter_ - current_counter_;
   }
 
+  bool IsStepInProgress() { return step_in_progress_; }
+
  private:
   bool IsPaused() { return paused_; }
 
-  std::vector<AllocationObserver*> allocation_observers_;
-  Heap* heap_;
+  struct AllocationObserverCounter {
+    AllocationObserverCounter(AllocationObserver* observer, size_t prev_counter,
+                              size_t next_counter)
+        : observer_(observer),
+          prev_counter_(prev_counter),
+          next_counter_(next_counter) {}
+
+    AllocationObserver* observer_;
+    size_t prev_counter_;
+    size_t next_counter_;
+  };
+
+  std::vector<AllocationObserverCounter> observers_;
+  std::vector<AllocationObserverCounter> pending_;
+
   bool paused_;
 
-  size_t prev_counter_;
   size_t current_counter_;
   size_t next_counter_;
+
+  bool step_in_progress_;
 };
 
 // -----------------------------------------------------------------------------
 // Allows observation of allocations.
 class AllocationObserver {
  public:
-  explicit AllocationObserver(intptr_t step_size)
-      : step_size_(step_size), bytes_to_next_step_(step_size) {
+  explicit AllocationObserver(intptr_t step_size) : step_size_(step_size) {
     DCHECK_LE(kTaggedSize, step_size);
   }
   virtual ~AllocationObserver() = default;
 
-  // Called each time the observed space does an allocation step. This may be
-  // more frequently than the step_size we are monitoring (e.g. when there are
-  // multiple observers, or when page or space boundary is encountered.)
-  void AllocationStep(int bytes_allocated, Address soon_object, size_t size);
-
  protected:
-  intptr_t step_size() const { return step_size_; }
-  intptr_t bytes_to_next_step() const { return bytes_to_next_step_; }
-
   // Pure virtual method provided by the subclasses that gets called when at
   // least step_size bytes have been allocated. soon_object is the address just
   // allocated (but not yet initialized.) size is the size of the object as
@@ -103,10 +104,9 @@ class AllocationObserver {
   // Subclasses can override this method to make step size dynamic.
   virtual intptr_t GetNextStepSize() { return step_size_; }
 
-  intptr_t step_size_;
-  intptr_t bytes_to_next_step_;
-
  private:
+  intptr_t step_size_;
+
   friend class AllocationCounter;
   DISALLOW_COPY_AND_ASSIGN(AllocationObserver);
 };

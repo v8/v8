@@ -477,8 +477,8 @@ class V8_EXPORT_PRIVATE NewSpace
 
   // Internal allocation methods.
   V8_WARN_UNUSED_RESULT V8_INLINE AllocationResult
-  AllocateFastAligned(int size_in_bytes, AllocationAlignment alignment,
-                      AllocationOrigin origin);
+  AllocateFastAligned(int size_in_bytes, int* aligned_size_in_bytes,
+                      AllocationAlignment alignment, AllocationOrigin origin);
 
   V8_WARN_UNUSED_RESULT V8_INLINE AllocationResult
   AllocateFastUnaligned(int size_in_bytes, AllocationOrigin origin);
@@ -495,7 +495,7 @@ class V8_EXPORT_PRIVATE NewSpace
       int size_in_bytes, AllocationOrigin origin = AllocationOrigin::kRuntime);
 
   bool EnsureAllocation(int size_in_bytes, AllocationAlignment alignment);
-  bool SupportsInlineAllocation() override { return true; }
+  bool SupportsAllocationObserver() override { return true; }
 
   friend class SemiSpaceObjectIterator;
 };

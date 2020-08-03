@@ -900,6 +900,7 @@ void Heap::MergeAllocationSitePretenuringFeedback(
 void Heap::AddAllocationObserversToAllSpaces(
     AllocationObserver* observer, AllocationObserver* new_space_observer) {
   DCHECK(observer && new_space_observer);
+  SafepointScope scope(this);
 
   for (SpaceIterator it(this); it.HasNext();) {
     Space* space = it.Next();
@@ -914,6 +915,7 @@ void Heap::AddAllocationObserversToAllSpaces(
 void Heap::RemoveAllocationObserversFromAllSpaces(
     AllocationObserver* observer, AllocationObserver* new_space_observer) {
   DCHECK(observer && new_space_observer);
+  SafepointScope scope(this);
 
   for (SpaceIterator it(this); it.HasNext();) {
     Space* space = it.Next();
@@ -5127,6 +5129,7 @@ void Heap::EnableInlineAllocation() {
   inline_allocation_disabled_ = false;
 
   // Update inline allocation limit for new space.
+  new_space()->AdvanceAllocationObservers();
   new_space()->UpdateInlineAllocationLimit(0);
 }
 

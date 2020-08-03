@@ -317,9 +317,7 @@ class V8_EXPORT_PRIVATE PagedSpace
   void SetTopAndLimit(Address top, Address limit);
   void DecreaseLimit(Address new_limit);
   void UpdateInlineAllocationLimit(size_t min_size) override;
-  bool SupportsInlineAllocation() override {
-    return identity() == OLD_SPACE && !is_local_space();
-  }
+  bool SupportsAllocationObserver() override { return !is_local_space(); }
 
   // Slow path of allocation function
   V8_WARN_UNUSED_RESULT AllocationResult
@@ -350,13 +348,14 @@ class V8_EXPORT_PRIVATE PagedSpace
   inline bool EnsureLabMain(int size_in_bytes, AllocationOrigin origin);
   // Allocates an object from the linear allocation area. Assumes that the
   // linear allocation area is large enought to fit the object.
-  inline AllocationResult AllocateLinearly(int size_in_bytes);
+  inline AllocationResult AllocateFastUnaligned(int size_in_bytes);
   // Tries to allocate an aligned object from the linear allocation area.
   // Returns nullptr if the linear allocation area does not fit the object.
   // Otherwise, returns the object pointer and writes the allocation size
   // (object size + alignment filler size) to the size_in_bytes.
-  inline AllocationResult TryAllocateLinearlyAligned(
-      int size_in_bytes, AllocationAlignment alignment);
+  inline AllocationResult AllocateFastAligned(int size_in_bytes,
+                                              int* aligned_size_in_bytes,
+                                              AllocationAlignment alignment);
 
   V8_WARN_UNUSED_RESULT bool TryAllocationFromFreeListMain(
       size_t size_in_bytes, AllocationOrigin origin);
