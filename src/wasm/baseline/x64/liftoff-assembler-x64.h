@@ -2177,10 +2177,11 @@ void EmitI64x2ShrS(LiftoffAssembler* assm, LiftoffRegister dst,
                    LiftoffRegister lhs, ShiftOperand rhs,
                    bool shift_is_rcx = false) {
   bool restore_rcx = false;
+  Register backup = kScratchRegister2;
   if (!shift_is_rcx) {
     if (assm->cache_state()->is_used(LiftoffRegister(rcx))) {
       restore_rcx = true;
-      assm->movq(kScratchRegister, rcx);
+      assm->movq(backup, rcx);
     }
     assm->movl(rcx, rhs);
   }
@@ -2197,7 +2198,7 @@ void EmitI64x2ShrS(LiftoffAssembler* assm, LiftoffRegister dst,
 
   // restore rcx.
   if (restore_rcx) {
-    assm->movq(rcx, kScratchRegister);
+    assm->movq(rcx, backup);
   }
 }
 
