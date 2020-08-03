@@ -1405,8 +1405,8 @@ class ParserBase {
   Call::PossiblyEval CheckPossibleEvalCall(ExpressionT expression,
                                            bool is_optional_call,
                                            Scope* scope) {
-    if (!is_optional_call && impl()->IsIdentifier(expression) &&
-        impl()->IsEval(impl()->AsIdentifier(expression))) {
+    if (impl()->IsIdentifier(expression) &&
+        impl()->IsEval(impl()->AsIdentifier(expression)) && !is_optional_call) {
       function_state_->RecordFunctionOrEvalCall();
       scope->RecordEvalCall();
 
