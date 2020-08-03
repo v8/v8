@@ -109,41 +109,20 @@ int Assembler::deserialization_special_target_size(
   return kSpecialTargetSize;
 }
 
-// RISCV (FIXME): still use MIPS constant kImm28Mask
 void Assembler::set_target_internal_reference_encoded_at(Address pc,
                                                          Address target) {
-  UNIMPLEMENTED();
-  /*
-    // Encoded internal references are j/jal instructions.
-    Instr instr = Assembler::instr_at(pc + 0 * kInstrSize);
-    DCHECK(IsJump(instr));
-
-    uint64_t imm28 = target & static_cast<uint64_t>(kImm28Mask);
-
-    instr &= ~kImm26Mask;
-    uint64_t imm26 = imm28 >> 2;
-    DCHECK(is_uint26(imm26));
-
-    instr_at_put(pc, instr | (imm26 & kImm26Mask));
-    // Currently used only by deserializer, and all code will be flushed
-    // after complete deserialization, no need to flush on each reference.
-  */
+    set_target_value_at(pc, static_cast<uint64_t>(target));
 }
 
-// FIXME (RISCV): still use MIPS function IsJ
 void Assembler::deserialization_set_target_internal_reference_at(
     Address pc, Address target, RelocInfo::Mode mode) {
-  UNIMPLEMENTED();
-  /*
-
-  if (mode == RelocInfo::INTERNAL_REFERENCE_ENCODED) {
-    DCHECK(IsJ(instr_at(pc)));
+  if (RelocInfo::IsInternalReferenceEncoded(mode)) {
+    DCHECK(IsLui(instr_at(pc)));
     set_target_internal_reference_encoded_at(pc, target);
   } else {
-    DCHECK(mode == RelocInfo::INTERNAL_REFERENCE);
+    DCHECK(RelocInfo::IsInternalReference(mode));
     Memory<Address>(pc) = target;
   }
-  */
 }
 
 HeapObject RelocInfo::target_object() {
