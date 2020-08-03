@@ -164,7 +164,15 @@ class RegisterIndex final {
     DCHECK(is_valid());
     return index_;
   }
-  uintptr_t ToBit(MachineRepresentation rep) const { return 1ull << ToInt(); }
+
+  uintptr_t ToBit(MachineRepresentation rep) const {
+    if (kSimpleFPAliasing || rep != MachineRepresentation::kSimd128) {
+      return 1ull << ToInt();
+    } else {
+      DCHECK_EQ(rep, MachineRepresentation::kSimd128);
+      return 3ull << ToInt();
+    }
+  }
 
   bool operator==(const RegisterIndex& rhs) const {
     return index_ == rhs.index_;
@@ -1041,6 +1049,7 @@ class SinglePassRegisterAllocator final {
   V8_INLINE void MarkRegisterUse(RegisterIndex reg, MachineRepresentation rep,
                                  UsePosition pos);
   V8_INLINE uintptr_t InUseBitmap(UsePosition pos);
+  V8_INLINE bool IsValidForRep(RegisterIndex reg, MachineRepresentation rep);
 
   // Return the register allocated to |virtual_register|, if any.
   RegisterIndex RegisterForVirtualRegister(int virtual_register);
@@ -1097,6 +1106,12 @@ class SinglePassRegisterAllocator final {
   uintptr_t in_use_at_instr_start_bits_;
   uintptr_t in_use_at_instr_end_bits_;
   uintptr_t allocated_registers_bits_;
+
+  // These fields are only used when kSimpleFPAliasing == false.
+  base::Optional<ZoneVector<RegisterIndex>> float32_reg_code_to_index_;
+  base::Optional<ZoneVector<int>> index_to_float32_reg_code_;
+  base::Optional<ZoneVector<RegisterIndex>> simd128_reg_code_to_index_;
+  base::Optional<ZoneVector<int>> index_to_simd128_reg_code_;
 };
 
 SinglePassRegisterAllocator::SinglePassRegisterAllocator(
@@ -1120,6 +1135,47 @@ SinglePassRegisterAllocator::SinglePassRegisterAllocator(
   for (int i = 0; i < num_allocatable_registers_; i++) {
     int reg_code = index_to_reg_code_[i];
     reg_code_to_index_[reg_code] = RegisterIndex(i);
+  }
+
+  // If the architecture has non-simple FP aliasing, initialize float and
+  // simd128 specific register details.
+  if (!kSimpleFPAliasing && kind == RegisterKind::kDouble) {
+    const RegisterConfiguration* config = data->config();
+
+    //  Float registers.
+    float32_reg_code_to_index_.emplace(config->num_float_registers(),
+                                       data->allocation_zone());
+    index_to_float32_reg_code_.emplace(num_allocatable_registers_, -1,
+                                       data->allocation_zone());
+    for (int i = 0; i < config->num_allocatable_float_registers(); i++) {
+      int reg_code = config->allocatable_float_codes()[i];
+      // Only add even float register codes to avoid overlapping multiple float
+      // registers on each RegisterIndex.
+      if (reg_code % 2 != 0) continue;
+      int double_reg_base_code;
+      CHECK_EQ(1, config->GetAliases(MachineRepresentation::kFloat32, reg_code,
+                                     MachineRepresentation::kFloat64,
+                                     &double_reg_base_code));
+      RegisterIndex double_reg(reg_code_to_index_[double_reg_base_code]);
+      float32_reg_code_to_index_->at(reg_code) = double_reg;
+      index_to_float32_reg_code_->at(double_reg.ToInt()) = reg_code;
+    }
+
+    //  Simd128 registers.
+    simd128_reg_code_to_index_.emplace(config->num_simd128_registers(),
+                                       data->allocation_zone());
+    index_to_simd128_reg_code_.emplace(num_allocatable_registers_, -1,
+                                       data->allocation_zone());
+    for (int i = 0; i < config->num_allocatable_simd128_registers(); i++) {
+      int reg_code = config->allocatable_simd128_codes()[i];
+      int double_reg_base_code;
+      CHECK_EQ(2, config->GetAliases(MachineRepresentation::kSimd128, reg_code,
+                                     MachineRepresentation::kFloat64,
+                                     &double_reg_base_code));
+      RegisterIndex double_reg(reg_code_to_index_[double_reg_base_code]);
+      simd128_reg_code_to_index_->at(reg_code) = double_reg;
+      index_to_simd128_reg_code_->at(double_reg.ToInt()) = reg_code;
+    }
   }
 }
 
@@ -1301,11 +1357,30 @@ void SinglePassRegisterAllocator::CheckConsistency() {
 
 RegisterIndex SinglePassRegisterAllocator::FromRegCode(
     int reg_code, MachineRepresentation rep) const {
+  if (!kSimpleFPAliasing && kind() == RegisterKind::kDouble) {
+    if (rep == MachineRepresentation::kFloat32) {
+      return RegisterIndex(float32_reg_code_to_index_->at(reg_code));
+    } else if (rep == MachineRepresentation::kSimd128) {
+      return RegisterIndex(simd128_reg_code_to_index_->at(reg_code));
+    }
+    DCHECK_EQ(rep, MachineRepresentation::kFloat64);
+  }
+
   return RegisterIndex(reg_code_to_index_[reg_code]);
 }
 
 int SinglePassRegisterAllocator::ToRegCode(RegisterIndex reg,
                                            MachineRepresentation rep) const {
+  if (!kSimpleFPAliasing && kind() == RegisterKind::kDouble) {
+    if (rep == MachineRepresentation::kFloat32) {
+      DCHECK_NE(-1, index_to_float32_reg_code_->at(reg.ToInt()));
+      return index_to_float32_reg_code_->at(reg.ToInt());
+    } else if (rep == MachineRepresentation::kSimd128) {
+      DCHECK_NE(-1, index_to_simd128_reg_code_->at(reg.ToInt()));
+      return index_to_simd128_reg_code_->at(reg.ToInt());
+    }
+    DCHECK_EQ(rep, MachineRepresentation::kFloat64);
+  }
   return index_to_reg_code_[reg.ToInt()];
 }
 
@@ -1411,17 +1486,50 @@ uintptr_t SinglePassRegisterAllocator::InUseBitmap(UsePosition pos) {
   }
 }
 
+bool SinglePassRegisterAllocator::IsValidForRep(RegisterIndex reg,
+                                                MachineRepresentation rep) {
+  if (kSimpleFPAliasing || kind() == RegisterKind::kGeneral) {
+    return true;
+  } else {
+    switch (rep) {
+      case MachineRepresentation::kFloat32:
+        return index_to_float32_reg_code_->at(reg.ToInt()) != -1;
+      case MachineRepresentation::kFloat64:
+        return true;
+      case MachineRepresentation::kSimd128:
+        return index_to_simd128_reg_code_->at(reg.ToInt()) != -1;
+      default:
+        UNREACHABLE();
+    }
+  }
+}
+
 RegisterIndex SinglePassRegisterAllocator::ChooseFreeRegister(
     MachineRepresentation rep, UsePosition pos) {
   // Take the first free, non-blocked register, if available.
   // TODO(rmcilroy): Consider a better heuristic.
   uintptr_t allocated_or_in_use = InUseBitmap(pos) | allocated_registers_bits_;
 
-  int reg_index = base::bits::CountTrailingZeros(~allocated_or_in_use);
-  if (reg_index >= num_allocatable_registers()) {
-    return RegisterIndex::Invalid();
+  RegisterIndex chosen_reg = RegisterIndex::Invalid();
+  if (kSimpleFPAliasing || kind() == RegisterKind::kGeneral) {
+    int reg_index = base::bits::CountTrailingZeros(~allocated_or_in_use);
+    if (reg_index < num_allocatable_registers()) {
+      chosen_reg = RegisterIndex(reg_index);
+    }
+  } else {
+    // If we don't have simple fp aliasing, we need to check each register
+    // individually to get one with the required representation.
+    for (RegisterIndex reg : *register_state()) {
+      if (IsValidForRep(reg, rep) &&
+          (allocated_or_in_use & reg.ToBit(rep)) == 0) {
+        chosen_reg = reg;
+        break;
+      }
+    }
   }
-  return RegisterIndex(reg_index);
+
+  DCHECK_IMPLIES(chosen_reg.is_valid(), IsValidForRep(chosen_reg, rep));
+  return chosen_reg;
 }
 
 RegisterIndex SinglePassRegisterAllocator::ChooseRegisterToSpill(
@@ -1442,7 +1550,7 @@ RegisterIndex SinglePassRegisterAllocator::ChooseRegisterToSpill(
   bool already_spilled = false;
   for (RegisterIndex reg : *register_state()) {
     // Skip if register is in use, or not valid for representation.
-    if (in_use & reg.ToBit(rep)) continue;
+    if (!IsValidForRep(reg, rep) || (in_use & reg.ToBit(rep))) continue;
 
     VirtualRegisterData& vreg_data =
         VirtualRegisterDataFor(VirtualRegisterForRegister(reg));
@@ -1458,6 +1566,7 @@ RegisterIndex SinglePassRegisterAllocator::ChooseRegisterToSpill(
 
   // There should always be an unblocked register available.
   DCHECK(chosen_reg.is_valid());
+  DCHECK(IsValidForRep(chosen_reg, rep));
   return chosen_reg;
 }
 
