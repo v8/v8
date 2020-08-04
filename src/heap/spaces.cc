@@ -314,10 +314,10 @@ LinearAllocationArea LocalAllocationBuffer::CloseAndMakeIterable() {
 
 void LocalAllocationBuffer::MakeIterable() {
   if (IsValid()) {
-    heap_->CreateFillerObjectAt(
+    heap_->CreateFillerObjectAtBackground(
         allocation_info_.top(),
         static_cast<int>(allocation_info_.limit() - allocation_info_.top()),
-        ClearRecordedSlots::kNo);
+        ClearFreedMemoryMode::kDontClearFreedMemory);
   }
 }
 
@@ -326,10 +326,10 @@ LocalAllocationBuffer::LocalAllocationBuffer(
     : heap_(heap),
       allocation_info_(allocation_info) {
   if (IsValid()) {
-    heap_->CreateFillerObjectAt(
+    heap_->CreateFillerObjectAtBackground(
         allocation_info_.top(),
         static_cast<int>(allocation_info_.limit() - allocation_info_.top()),
-        ClearRecordedSlots::kNo);
+        ClearFreedMemoryMode::kDontClearFreedMemory);
   }
 }
 
