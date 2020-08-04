@@ -346,6 +346,7 @@ void Code::CopyRelocInfoToByteArray(ByteArray dest, const CodeDesc& desc) {
 int Code::CodeSize() const { return SizeFor(body_size()); }
 
 Code::Kind Code::kind() const {
+  STATIC_ASSERT(FIELD_SIZE(kFlagsOffset) == kInt32Size);
   return KindField::decode(ReadField<uint32_t>(kFlagsOffset));
 }
 
@@ -353,12 +354,13 @@ void Code::initialize_flags(Kind kind, bool has_unwinding_info,
                             bool is_turbofanned, int stack_slots,
                             bool is_off_heap_trampoline) {
   CHECK(0 <= stack_slots && stack_slots < StackSlotsField::kMax);
-  static_assert(Code::NUMBER_OF_KINDS <= KindField::kMax + 1, "field overflow");
+  DCHECK_NE(kind, NUMBER_OF_KINDS);
   uint32_t flags = HasUnwindingInfoField::encode(has_unwinding_info) |
                    KindField::encode(kind) |
                    IsTurbofannedField::encode(is_turbofanned) |
                    StackSlotsField::encode(stack_slots) |
                    IsOffHeapTrampoline::encode(is_off_heap_trampoline);
+  STATIC_ASSERT(FIELD_SIZE(kFlagsOffset) == kInt32Size);
   WriteField<uint32_t>(kFlagsOffset, flags);
   DCHECK_IMPLIES(stack_slots != 0, has_safepoint_info());
 }
@@ -607,6 +609,8 @@ bool Code::IsExecutable() {
 
 // This field has to have relaxed atomic accessors because it is accessed in the
 // concurrent marker.
+STATIC_ASSERT(FIELD_SIZE(CodeDataContainer::kKindSpecificFlagsOffset) ==
+              kInt32Size);
 RELAXED_INT32_ACCESSORS(CodeDataContainer, kind_specific_flags,
                         kKindSpecificFlagsOffset)
 ACCESSORS(CodeDataContainer, next_code_link, Object, kNextCodeLinkOffset)

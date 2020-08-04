@@ -242,10 +242,9 @@ const char* Code::Kind2String(Kind kind) {
 
 // Identify kind of code.
 const char* AbstractCode::Kind2String(Kind kind) {
-  if (kind < AbstractCode::INTERPRETED_FUNCTION)
-    return Code::Kind2String(static_cast<Code::Kind>(kind));
+  DCHECK_NE(kind, AbstractCode::NUMBER_OF_KINDS);
   if (kind == AbstractCode::INTERPRETED_FUNCTION) return "INTERPRETED_FUNCTION";
-  UNREACHABLE();
+  return Code::Kind2String(static_cast<Code::Kind>(kind));
 }
 
 bool Code::IsIsolateIndependent(Isolate* isolate) {

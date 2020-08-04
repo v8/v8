@@ -28,6 +28,47 @@ namespace interpreter {
 class Register;
 }
 
+// CodeDataContainer is a container for all mutable fields associated with its
+// referencing {Code} object. Since {Code} objects reside on write-protected
+// pages within the heap, its header fields need to be immutable. There always
+// is a 1-to-1 relation between {Code} and {CodeDataContainer}, the referencing
+// field {Code::code_data_container} itself is immutable.
+class CodeDataContainer : public HeapObject {
+ public:
+  NEVER_READ_ONLY_SPACE
+  DECL_ACCESSORS(next_code_link, Object)
+  DECL_INT_ACCESSORS(kind_specific_flags)
+
+  // Clear uninitialized padding space. This ensures that the snapshot content
+  // is deterministic.
+  inline void clear_padding();
+
+  DECL_CAST(CodeDataContainer)
+
+  // Dispatched behavior.
+  DECL_PRINTER(CodeDataContainer)
+  DECL_VERIFIER(CodeDataContainer)
+
+// Layout description.
+#define CODE_DATA_FIELDS(V)                                 \
+  /* Weak pointer fields. */                                \
+  V(kPointerFieldsStrongEndOffset, 0)                       \
+  V(kNextCodeLinkOffset, kTaggedSize)                       \
+  V(kPointerFieldsWeakEndOffset, 0)                         \
+  /* Raw data fields. */                                    \
+  V(kKindSpecificFlagsOffset, kInt32Size)                   \
+  V(kUnalignedSize, OBJECT_POINTER_PADDING(kUnalignedSize)) \
+  /* Total size. */                                         \
+  V(kSize, 0)
+
+  DEFINE_FIELD_OFFSET_CONSTANTS(HeapObject::kHeaderSize, CODE_DATA_FIELDS)
+#undef CODE_DATA_FIELDS
+
+  class BodyDescriptor;
+
+  OBJECT_CONSTRUCTORS(CodeDataContainer, HeapObject);
+};
+
 // Code describes objects with on-the-fly generated machine code.
 class Code : public HeapObject {
  public:
@@ -36,17 +77,21 @@ class Code : public HeapObject {
   // cache state, and arguments count.
   using Flags = uint32_t;
 
-#define CODE_KIND_LIST(V)   \
-  V(OPTIMIZED_FUNCTION)     \
-  V(BYTECODE_HANDLER)       \
-  V(STUB)                   \
-  V(BUILTIN)                \
-  V(REGEXP)                 \
-  V(WASM_FUNCTION)          \
-  V(WASM_TO_CAPI_FUNCTION)  \
-  V(WASM_TO_JS_FUNCTION)    \
-  V(JS_TO_WASM_FUNCTION)    \
-  V(JS_TO_JS_FUNCTION)      \
+// TODO(jgruber,rmcilroy): Rename OPTIMIZED_FUNCTION once we've fully
+// disambiguated Turboprop, Turbofan, and NCI code kinds.
+// TODO(jgruber): Rename STUB to DEOPT_ENTRIES_OR_FOR_TESTING, or split it into
+// DEOPT_ENTRIES and FOR_TESTING, or convert DEOPT_ENTRIES into a builtin.
+#define CODE_KIND_LIST(V)  \
+  V(OPTIMIZED_FUNCTION)    \
+  V(BYTECODE_HANDLER)      \
+  V(STUB)                  \
+  V(BUILTIN)               \
+  V(REGEXP)                \
+  V(WASM_FUNCTION)         \
+  V(WASM_TO_CAPI_FUNCTION) \
+  V(WASM_TO_JS_FUNCTION)   \
+  V(JS_TO_WASM_FUNCTION)   \
+  V(JS_TO_JS_FUNCTION)     \
   V(C_WASM_ENTRY)
 
   enum Kind {
@@ -401,7 +446,7 @@ class Code : public HeapObject {
   /* Objects embedded into code is visited via reloc info. */             \
   V(kDataStart, 0)                                                        \
   V(kInstructionSizeOffset, kIntSize)                                     \
-  V(kFlagsOffset, kIntSize)                                               \
+  V(kFlagsOffset, kInt32Size)                                             \
   V(kSafepointTableOffsetOffset, kIntSize)                                \
   V(kHandlerTableOffsetOffset, kIntSize)                                  \
   V(kConstantPoolOffsetOffset,                                            \
@@ -450,17 +495,18 @@ class Code : public HeapObject {
   // Flags layout.  base::BitField<type, shift, size>.
 #define CODE_FLAGS_BIT_FIELDS(V, _)    \
   V(HasUnwindingInfoField, bool, 1, _) \
-  V(KindField, Kind, 5, _)             \
+  V(KindField, Kind, 4, _)             \
   V(IsTurbofannedField, bool, 1, _)    \
   V(StackSlotsField, int, 24, _)       \
   V(IsOffHeapTrampoline, bool, 1, _)
   DEFINE_BIT_FIELDS(CODE_FLAGS_BIT_FIELDS)
 #undef CODE_FLAGS_BIT_FIELDS
-  static_assert(NUMBER_OF_KINDS <= KindField::kMax, "Code::KindField size");
-  static_assert(IsOffHeapTrampoline::kLastUsedBit < 32,
-                "Code::flags field exhausted");
+  STATIC_ASSERT(NUMBER_OF_KINDS <= KindField::kMax);
+  STATIC_ASSERT(CODE_FLAGS_BIT_FIELDS_Ranges::kBitsCount == 31);
+  STATIC_ASSERT(CODE_FLAGS_BIT_FIELDS_Ranges::kBitsCount <=
+                FIELD_SIZE(kFlagsOffset) * kBitsPerByte);
 
-  // KindSpecificFlags layout (STUB, BUILTIN and OPTIMIZED_FUNCTION)
+  // KindSpecificFlags layout (STUB, BUILTIN, and OPTIMIZED_FUNCTION).
 #define CODE_KIND_SPECIFIC_FLAGS_BIT_FIELDS(V, _) \
   V(MarkedForDeoptimizationField, bool, 1, _)     \
   V(EmbeddedObjectsClearedField, bool, 1, _)      \
@@ -471,7 +517,10 @@ class Code : public HeapObject {
   V(DeoptCountField, int, 4, _)
   DEFINE_BIT_FIELDS(CODE_KIND_SPECIFIC_FLAGS_BIT_FIELDS)
 #undef CODE_KIND_SPECIFIC_FLAGS_BIT_FIELDS
-  static_assert(DeoptCountField::kLastUsedBit < 32, "KindSpecificFlags full");
+  STATIC_ASSERT(CODE_KIND_SPECIFIC_FLAGS_BIT_FIELDS_Ranges::kBitsCount == 10);
+  STATIC_ASSERT(CODE_KIND_SPECIFIC_FLAGS_BIT_FIELDS_Ranges::kBitsCount <=
+                FIELD_SIZE(CodeDataContainer::kKindSpecificFlagsOffset) *
+                    kBitsPerByte);
 
   // The {marked_for_deoptimization} field is accessed from generated code.
   static const int kMarkedForDeoptimizationBit =
@@ -502,47 +551,6 @@ class Code::OptimizedCodeIterator {
 
   DISALLOW_HEAP_ALLOCATION(no_gc)
   DISALLOW_COPY_AND_ASSIGN(OptimizedCodeIterator);
-};
-
-// CodeDataContainer is a container for all mutable fields associated with its
-// referencing {Code} object. Since {Code} objects reside on write-protected
-// pages within the heap, its header fields need to be immutable. There always
-// is a 1-to-1 relation between {Code} and {CodeDataContainer}, the referencing
-// field {Code::code_data_container} itself is immutable.
-class CodeDataContainer : public HeapObject {
- public:
-  NEVER_READ_ONLY_SPACE
-  DECL_ACCESSORS(next_code_link, Object)
-  DECL_INT_ACCESSORS(kind_specific_flags)
-
-  // Clear uninitialized padding space. This ensures that the snapshot content
-  // is deterministic.
-  inline void clear_padding();
-
-  DECL_CAST(CodeDataContainer)
-
-  // Dispatched behavior.
-  DECL_PRINTER(CodeDataContainer)
-  DECL_VERIFIER(CodeDataContainer)
-
-// Layout description.
-#define CODE_DATA_FIELDS(V)                                 \
-  /* Weak pointer fields. */                                \
-  V(kPointerFieldsStrongEndOffset, 0)                       \
-  V(kNextCodeLinkOffset, kTaggedSize)                       \
-  V(kPointerFieldsWeakEndOffset, 0)                         \
-  /* Raw data fields. */                                    \
-  V(kKindSpecificFlagsOffset, kIntSize)                     \
-  V(kUnalignedSize, OBJECT_POINTER_PADDING(kUnalignedSize)) \
-  /* Total size. */                                         \
-  V(kSize, 0)
-
-  DEFINE_FIELD_OFFSET_CONSTANTS(HeapObject::kHeaderSize, CODE_DATA_FIELDS)
-#undef CODE_DATA_FIELDS
-
-  class BodyDescriptor;
-
-  OBJECT_CONSTRUCTORS(CodeDataContainer, HeapObject);
 };
 
 class AbstractCode : public HeapObject {
