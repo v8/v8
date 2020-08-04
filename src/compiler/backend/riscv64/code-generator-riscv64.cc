@@ -2609,10 +2609,10 @@ void CodeGenerator::AssembleMove(InstructionOperand* source,
       if (destination->IsFPStackSlot()) {
         MemOperand dst = g.ToMemOperand(destination);
         if (bit_cast<int32_t>(src.ToFloat32()) == 0) {
-          __ Sd(zero_reg, dst);
+          __ Sw(zero_reg, dst);
         } else {
           __ li(kScratchReg, Operand(bit_cast<int32_t>(src.ToFloat32())));
-          __ Sd(kScratchReg, dst);
+          __ Sw(kScratchReg, dst);
         }
       } else {
         DCHECK(destination->IsFPRegister());
@@ -2640,7 +2640,12 @@ void CodeGenerator::AssembleMove(InstructionOperand* source,
         __ Move(dst, src);
       } else {
         DCHECK(destination->IsFPStackSlot());
-        __ StoreDouble(src, g.ToMemOperand(destination));
+        if (rep == MachineRepresentation::kFloat32) {
+          __ StoreFloat(src, g.ToMemOperand(destination));
+        } else {
+          DCHECK_EQ(rep, MachineRepresentation::kFloat64);
+          __ StoreDouble(src, g.ToMemOperand(destination));
+        }
       }
     }
   } else if (source->IsFPStackSlot()) {
@@ -2651,12 +2656,23 @@ void CodeGenerator::AssembleMove(InstructionOperand* source,
       UNIMPLEMENTED();
     } else {
       if (destination->IsFPRegister()) {
-        __ LoadDouble(g.ToDoubleRegister(destination), src);
+        if (rep == MachineRepresentation::kFloat32) {
+          __ LoadFloat(g.ToDoubleRegister(destination), src);
+        } else {
+          DCHECK_EQ(rep, MachineRepresentation::kFloat64);
+          __ LoadDouble(g.ToDoubleRegister(destination), src);
+        }
       } else {
         DCHECK(destination->IsFPStackSlot());
         FPURegister temp = kScratchDoubleReg;
-        __ LoadDouble(temp, src);
-        __ StoreDouble(temp, g.ToMemOperand(destination));
+        if (rep == MachineRepresentation::kFloat32) {
+          __ LoadFloat(temp, src);
+          __ StoreFloat(temp, g.ToMemOperand(destination));
+        } else {
+          DCHECK_EQ(rep, MachineRepresentation::kFloat64);
+          __ LoadDouble(temp, src);
+          __ StoreDouble(temp, g.ToMemOperand(destination));
+        }
       }
     }
   } else {
