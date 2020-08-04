@@ -1977,27 +1977,33 @@ void SinglePassRegisterAllocator::EnsureRegisterState() {
   }
 }
 
-MidTierRegisterAllocator::MidTierRegisterAllocator(
-    MidTierRegisterAllocationData* data)
-    : data_(data),
-      general_reg_allocator_(
-          new SinglePassRegisterAllocator(RegisterKind::kGeneral, data)),
-      double_reg_allocator_(
-          new SinglePassRegisterAllocator(RegisterKind::kDouble, data)) {}
+class MidTierOutputProcessor final {
+ public:
+  explicit MidTierOutputProcessor(MidTierRegisterAllocationData* data);
 
-MidTierRegisterAllocator::~MidTierRegisterAllocator() = default;
+  void InitializeBlockState(const InstructionBlock* block);
+  void DefineOutputs(const InstructionBlock* block);
 
-void MidTierRegisterAllocator::DefineOutputs() {
-  for (const InstructionBlock* block :
-       base::Reversed(code()->instruction_blocks())) {
-    data_->tick_counter()->TickAndMaybeEnterSafepoint();
-
-    InitializeBlockState(block);
-    DefineOutputs(block);
+ private:
+  VirtualRegisterData& VirtualRegisterDataFor(int virtual_register) const {
+    return data()->VirtualRegisterDataFor(virtual_register);
   }
-}
+  MachineRepresentation RepresentationFor(int virtual_register) const {
+    return data()->RepresentationFor(virtual_register);
+  }
 
-void MidTierRegisterAllocator::InitializeBlockState(
+  MidTierRegisterAllocationData* data() const { return data_; }
+  InstructionSequence* code() const { return data()->code(); }
+  Zone* allocation_zone() const { return data()->allocation_zone(); }
+
+  MidTierRegisterAllocationData* const data_;
+};
+
+MidTierOutputProcessor::MidTierOutputProcessor(
+    MidTierRegisterAllocationData* data)
+    : data_(data) {}
+
+void MidTierOutputProcessor::InitializeBlockState(
     const InstructionBlock* block) {
   // Update our predecessor blocks with their successors_phi_index if we have
   // phis.
@@ -2022,7 +2028,7 @@ void MidTierRegisterAllocator::InitializeBlockState(
   }
 }
 
-void MidTierRegisterAllocator::DefineOutputs(const InstructionBlock* block) {
+void MidTierOutputProcessor::DefineOutputs(const InstructionBlock* block) {
   int block_start = block->first_instruction_index();
   for (int index = block->last_instruction_index(); index >= block_start;
        index--) {
@@ -2074,19 +2080,65 @@ void MidTierRegisterAllocator::DefineOutputs(const InstructionBlock* block) {
   }
 }
 
-void MidTierRegisterAllocator::AllocateRegisters() {
-  for (InstructionBlock* block : base::Reversed(code()->instruction_blocks())) {
-    data_->tick_counter()->TickAndMaybeEnterSafepoint();
-    AllocateRegisters(block);
+void DefineOutputs(MidTierRegisterAllocationData* data) {
+  MidTierOutputProcessor processor(data);
+
+  for (const InstructionBlock* block :
+       base::Reversed(data->code()->instruction_blocks())) {
+    data->tick_counter()->TickAndMaybeEnterSafepoint();
+
+    processor.InitializeBlockState(block);
+    processor.DefineOutputs(block);
+  }
+}
+
+class MidTierRegisterAllocator final {
+ public:
+  explicit MidTierRegisterAllocator(MidTierRegisterAllocationData* data);
+
+  void AllocateRegisters(const InstructionBlock* block);
+  void UpdateSpillRangesForLoops();
+
+  SinglePassRegisterAllocator& general_reg_allocator() {
+    return general_reg_allocator_;
+  }
+  SinglePassRegisterAllocator& double_reg_allocator() {
+    return double_reg_allocator_;
   }
 
-  UpdateSpillRangesForLoops();
+ private:
+  void AllocatePhis(const InstructionBlock* block);
+  void AllocatePhiGapMoves(const InstructionBlock* block);
 
-  data()->frame()->SetAllocatedRegisters(
-      general_reg_allocator().assigned_registers());
-  data()->frame()->SetAllocatedDoubleRegisters(
-      double_reg_allocator().assigned_registers());
-}
+  bool IsFixedRegisterPolicy(const UnallocatedOperand* operand);
+  void ReserveFixedRegisters(int instr_index);
+
+  SinglePassRegisterAllocator& AllocatorFor(MachineRepresentation rep);
+  SinglePassRegisterAllocator& AllocatorFor(const UnallocatedOperand* operand);
+  SinglePassRegisterAllocator& AllocatorFor(const ConstantOperand* operand);
+
+  VirtualRegisterData& VirtualRegisterDataFor(int virtual_register) const {
+    return data()->VirtualRegisterDataFor(virtual_register);
+  }
+  MachineRepresentation RepresentationFor(int virtual_register) const {
+    return data()->RepresentationFor(virtual_register);
+  }
+  MidTierRegisterAllocationData* data() const { return data_; }
+  InstructionSequence* code() const { return data()->code(); }
+  Zone* allocation_zone() const { return data()->allocation_zone(); }
+
+  MidTierRegisterAllocationData* const data_;
+  SinglePassRegisterAllocator general_reg_allocator_;
+  SinglePassRegisterAllocator double_reg_allocator_;
+
+  DISALLOW_COPY_AND_ASSIGN(MidTierRegisterAllocator);
+};
+
+MidTierRegisterAllocator::MidTierRegisterAllocator(
+    MidTierRegisterAllocationData* data)
+    : data_(data),
+      general_reg_allocator_(RegisterKind::kGeneral, data),
+      double_reg_allocator_(RegisterKind::kDouble, data) {}
 
 void MidTierRegisterAllocator::AllocateRegisters(
     const InstructionBlock* block) {
@@ -2313,6 +2365,22 @@ void MidTierRegisterAllocator::UpdateSpillRangesForLoops() {
   }
 }
 
+void AllocateRegisters(MidTierRegisterAllocationData* data) {
+  MidTierRegisterAllocator allocator(data);
+  for (InstructionBlock* block :
+       base::Reversed(data->code()->instruction_blocks())) {
+    data->tick_counter()->TickAndMaybeEnterSafepoint();
+    allocator.AllocateRegisters(block);
+  }
+
+  allocator.UpdateSpillRangesForLoops();
+
+  data->frame()->SetAllocatedRegisters(
+      allocator.general_reg_allocator().assigned_registers());
+  data->frame()->SetAllocatedDoubleRegisters(
+      allocator.double_reg_allocator().assigned_registers());
+}
+
 // Spill slot allocator for mid-tier register allocation.
 class MidTierSpillSlotAllocator final {
  public:
@@ -2335,7 +2403,7 @@ class MidTierSpillSlotAllocator final {
     bool operator()(const SpillSlot* a, const SpillSlot* b) const;
   };
 
-  MidTierRegisterAllocationData* data_;
+  MidTierRegisterAllocationData* const data_;
   ZonePriorityQueue<SpillSlot*, OrderByLastUse> allocated_slots_;
   ZoneLinkedList<SpillSlot*> free_slots_;
   int position_;
@@ -2464,7 +2532,7 @@ class MidTierReferenceMapPopulator final {
   MidTierRegisterAllocationData* data() const { return data_; }
   InstructionSequence* code() const { return data()->code(); }
 
-  MidTierRegisterAllocationData* data_;
+  MidTierRegisterAllocationData* const data_;
 
   DISALLOW_COPY_AND_ASSIGN(MidTierReferenceMapPopulator);
 };

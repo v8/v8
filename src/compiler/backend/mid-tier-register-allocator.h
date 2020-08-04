@@ -22,7 +22,6 @@ class TickCounter;
 namespace compiler {
 
 class BlockState;
-class SinglePassRegisterAllocator;
 class VirtualRegisterData;
 
 // The MidTierRegisterAllocator is a register allocator specifically designed to
@@ -102,59 +101,12 @@ class MidTierRegisterAllocationData final : public RegisterAllocationData {
   DISALLOW_COPY_AND_ASSIGN(MidTierRegisterAllocationData);
 };
 
-class MidTierRegisterAllocator final {
- public:
-  explicit MidTierRegisterAllocator(MidTierRegisterAllocationData* data);
-  ~MidTierRegisterAllocator();
+// Phase 1: Process instruction outputs to determine how each virtual register
+// is defined.
+void DefineOutputs(MidTierRegisterAllocationData* data);
 
-  // Phase 1: Process instruction outputs to determine how each virtual register
-  // is defined.
-  void DefineOutputs();
-
-  // Phase 2: Allocate registers to instructions.
-  void AllocateRegisters();
-
- private:
-  // Define outputs operations.
-  void InitializeBlockState(const InstructionBlock* block);
-  void DefineOutputs(const InstructionBlock* block);
-
-  // Allocate registers operations.
-  void AllocateRegisters(const InstructionBlock* block);
-  void AllocatePhis(const InstructionBlock* block);
-  void AllocatePhiGapMoves(const InstructionBlock* block);
-  void UpdateSpillRangesForLoops();
-
-  bool IsFixedRegisterPolicy(const UnallocatedOperand* operand);
-  void ReserveFixedRegisters(int instr_index);
-
-  SinglePassRegisterAllocator& AllocatorFor(MachineRepresentation rep);
-  SinglePassRegisterAllocator& AllocatorFor(const UnallocatedOperand* operand);
-  SinglePassRegisterAllocator& AllocatorFor(const ConstantOperand* operand);
-
-  SinglePassRegisterAllocator& general_reg_allocator() {
-    return *general_reg_allocator_;
-  }
-  SinglePassRegisterAllocator& double_reg_allocator() {
-    return *double_reg_allocator_;
-  }
-
-  VirtualRegisterData& VirtualRegisterDataFor(int virtual_register) const {
-    return data()->VirtualRegisterDataFor(virtual_register);
-  }
-  MachineRepresentation RepresentationFor(int virtual_register) const {
-    return data()->RepresentationFor(virtual_register);
-  }
-  MidTierRegisterAllocationData* data() const { return data_; }
-  InstructionSequence* code() const { return data()->code(); }
-  Zone* allocation_zone() const { return data()->allocation_zone(); }
-
-  MidTierRegisterAllocationData* data_;
-  std::unique_ptr<SinglePassRegisterAllocator> general_reg_allocator_;
-  std::unique_ptr<SinglePassRegisterAllocator> double_reg_allocator_;
-
-  DISALLOW_COPY_AND_ASSIGN(MidTierRegisterAllocator);
-};
+// Phase 2: Allocate registers to instructions.
+void AllocateRegisters(MidTierRegisterAllocationData* data);
 
 // Phase 3: assign spilled operands to specific spill slots.
 void AllocateSpillSlots(MidTierRegisterAllocationData* data);

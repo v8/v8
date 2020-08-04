@@ -2316,14 +2316,19 @@ struct ResolveControlFlowPhase {
   }
 };
 
+struct MidTierRegisterOutputDefinitionPhase {
+  DECL_PIPELINE_PHASE_CONSTANTS(MidTierRegisterAllocator)
+
+  void Run(PipelineData* data, Zone* temp_zone) {
+    DefineOutputs(data->mid_tier_register_allocator_data());
+  }
+};
+
 struct MidTierRegisterAllocatorPhase {
   DECL_PIPELINE_PHASE_CONSTANTS(MidTierRegisterAllocator)
 
   void Run(PipelineData* data, Zone* temp_zone) {
-    MidTierRegisterAllocator allocator(
-        data->mid_tier_register_allocator_data());
-    allocator.DefineOutputs();
-    allocator.AllocateRegisters();
+    AllocateRegisters(data->mid_tier_register_allocator_data());
   }
 };
 
@@ -3726,6 +3731,8 @@ void PipelineImpl::AllocateRegistersForMidTier(
   data->InitializeMidTierRegisterAllocationData(config, call_descriptor);
 
   TraceSequence(info(), data, "before register allocation");
+
+  Run<MidTierRegisterOutputDefinitionPhase>();
 
   Run<MidTierRegisterAllocatorPhase>();
 
