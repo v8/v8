@@ -235,4 +235,4 @@ class Chunk {
 
 }
 
-export {Timeline};
+export {Timeline, Chunk};

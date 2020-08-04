@@ -26,21 +26,19 @@ defineCustomElement('timeline-panel', (templateText) =>
   }
 
   get timelineCanvas() {
-    //TODO Don't access the timeline canvas from outside timeline track
-    if(!this.timelineTracks || !this.timelineTracks.length) return;
     return this.timelineTracks[0].timelineCanvas;
   }
 
   get timeline() {
-    //TODO(zcankara) Don't access the timeline from outside timeline track
-    if(!this.timelineTracks || !this.timelineTracks.length) return;
     return this.timelineTracks[0].timeline;
   }
-
   set nofChunks(count){
     for (const track of this.timelineTracks) {
       track.nofChunks = count;
     }
+  }
+  get nofChunks(){
+    return this.timelineTracks[0].nofChunks;
   }
   get timelineTracks(){
     return this.$("slot").assignedNodes().filter(
