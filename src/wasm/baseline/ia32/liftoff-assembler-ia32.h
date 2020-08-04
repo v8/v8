@@ -5,9 +5,9 @@
 #ifndef V8_WASM_BASELINE_IA32_LIFTOFF_ASSEMBLER_IA32_H_
 #define V8_WASM_BASELINE_IA32_LIFTOFF_ASSEMBLER_IA32_H_
 
-#include "src/wasm/baseline/liftoff-assembler.h"
-
 #include "src/codegen/assembler.h"
+#include "src/wasm/baseline/liftoff-assembler.h"
+#include "src/wasm/simd-shuffle.h"
 #include "src/wasm/value-type.h"
 
 namespace v8 {
@@ -2650,8 +2650,28 @@ void LiftoffAssembler::emit_s8x16_shuffle(LiftoffRegister dst,
   // Prepare 16 byte aligned buffer for shuffle control mask.
   mov(tmp.gp(), esp);
   and_(esp, -16);
-  movups(liftoff::kScratchDoubleReg, lhs.fp());
 
+  if (is_swizzle) {
+    uint32_t imms[4];
+    // Shuffles that use just 1 operand are called swizzles, rhs can be ignored.
+    wasm::SimdShuffle::Pack16Lanes(imms, shuffle);
+    for (int i = 3; i >= 0; i--) {
+      push_imm32(imms[i]);
+    }
+    if (CpuFeatures::IsSupported(AVX)) {
+      CpuFeatureScope scope(this, AVX);
+      vpshufb(dst.fp(), lhs.fp(), Operand(esp, 0));
+    } else {
+      if (dst != lhs) {
+        movups(dst.fp(), lhs.fp());
+      }
+      pshufb(dst.fp(), Operand(esp, 0));
+    }
+    mov(esp, tmp.gp());
+    return;
+  }
+
+  movups(liftoff::kScratchDoubleReg, lhs.fp());
   for (int i = 3; i >= 0; i--) {
     uint32_t mask = 0;
     for (int j = 3; j >= 0; j--) {
