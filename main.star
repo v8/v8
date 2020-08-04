@@ -179,7 +179,8 @@ luci.cq_group(
 
 exec("//auto.star")
 exec("//branch_coverage.star")
+exec("//perf.star")
+exec("//others.star")
 exec("//try.star")
 exec("//try_ng.star")
-exec("//others.star")
 exec("//milo.star")

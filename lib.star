@@ -160,6 +160,24 @@ def v8_auto(name, recipe, cipd_package = None, cipd_version = None, execution_ti
         **kv_args
     )
 
+def v8_perf_builder(**kv_args):
+    properties = {"triggers_proxy": True, "build_config": "Release", "mastername": "client.v8.perf"}
+    extra_properties = kv_args.pop("properties", None)
+    if extra_properties:
+        properties.update(extra_properties)
+    v8_builder(
+        bucket = "ci",
+        triggered_by = ["v8-trigger"],
+        triggering_policy = scheduler.policy(
+            kind = scheduler.GREEDY_BATCHING_KIND,
+            max_batch_size = 1,
+        ),
+        dimensions = {"os": "Ubuntu-16.04", "cpu": "x86-64"},
+        properties = properties,
+        use_goma = GOMA.DEFAULT,
+        **kv_args
+    )
+
 def fix_args(defaults, **kv_args):
     args = dict(kv_args)
     recipe_name = args.pop("recipe_name", None)

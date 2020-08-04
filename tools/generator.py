@@ -37,6 +37,12 @@ MIGRATED_BUILDERS = [
   "Auto-roll - wasm-spec",
   "Auto-roll - release process",
   "v8_verify_flakes",
+  "V8 Arm - builder - perf",
+  "V8 Arm64 - builder - perf",
+  "V8 Android Arm - builder - perf",
+  "V8 Android Arm64 - builder - perf",
+  "V8 Linux - builder - perf",
+  "V8 Linux64 - builder - perf",
 ]
 class StarlarkGenerator:
   def __init__(self):
@@ -308,6 +314,11 @@ def read_file(name):
   with open(name, "r") as f:
     return f.read()
 
+def stamp_diff():
+  from datetime import datetime
+  with open("tools/diff.txt", "a") as f:
+    return f.write("\n\nLast run: %s" % datetime.today())
+
 if __name__ == '__main__':
   import os
   os.system('rm -rf out')
@@ -316,5 +327,6 @@ if __name__ == '__main__':
   os.system('lucicfg fmt')
   os.system('lucicfg generate main.star')
   original_files ="cr-buildbucket.cfg luci-scheduler.cfg commit-queue.cfg luci-milo.cfg"
-  os.system('lucicfg semanticdiff --output-dir out main.star %s> out/diff.txt' % original_files)
-  os.system('wc -l out/diff.txt')
+  os.system('lucicfg semanticdiff --output-dir out main.star %s> tools/diff.txt' % original_files)
+  os.system('wc -l tools/diff.txt')
+  stamp_diff()
