@@ -36,9 +36,8 @@
 #ifndef V8_CODEGEN_RISCV_ASSEMBLER_RISCV_INL_H_
 #define V8_CODEGEN_RISCV_ASSEMBLER_RISCV_INL_H_
 
-#include "src/codegen/riscv64/assembler-riscv64.h"
-
 #include "src/codegen/assembler.h"
+#include "src/codegen/riscv64/assembler-riscv64.h"
 #include "src/debug/debug.h"
 #include "src/objects/objects-inl.h"
 
@@ -187,15 +186,13 @@ void RelocInfo::set_target_external_reference(
                                    icache_flush_mode);
 }
 
-// FIXME (RISCV): still use MIPS constant kImm26Mask
 Address RelocInfo::target_internal_reference() {
   if (rmode_ == INTERNAL_REFERENCE) {
     return Memory<Address>(pc_);
   } else {
     // Encoded internal references are j/jal instructions.
     DCHECK(rmode_ == INTERNAL_REFERENCE_ENCODED);
-    Instr instr = Assembler::instr_at(pc_ + 0 * kInstrSize);
-    DCHECK(Assembler::IsLui(instr));
+    DCHECK(Assembler::IsLui(Assembler::instr_at(pc_ + 0 * kInstrSize)));
     Address address = Assembler::target_address_at(pc_);
     return address;
   }
