@@ -71,9 +71,9 @@ defineCustomElement('./timeline/timeline-track', (templateText) =>
       let unique = new Map();
       for (const entry of this.data.all) {
         if(!unique.has(entry.type)) {
-          unique.set(entry.type, 1);
+          unique.set(entry.type, [entry]);
         } else {
-          unique.set(entry.type, unique.get(entry.type) + 1);
+          unique.get(entry.type).push(entry);
         }
       }
       this.renderStatsWindow(unique);
@@ -84,18 +84,29 @@ defineCustomElement('./timeline/timeline-track', (templateText) =>
       this.removeAllChildren(timelineLegendContent);
       let fragment = document.createDocumentFragment();
       let colorIterator = 0;
-      unique.forEach((key, val) => {
+      unique.forEach((entries, type) => {
         let dt = document.createElement("dt");
-        dt.innerHTML = key;
-        dt.style.backgroundColor = transitionTypeToColor(val);
+        dt.innerHTML = entries.length;
+        dt.style.backgroundColor = transitionTypeToColor(type);
         dt.style.color = CSSColor.surfaceColor;
         fragment.appendChild(dt);
         let dd = document.createElement("dd");
-        dd.innerHTML = val;
+        dd.innerHTML = type;
+        dd.entries = entries;
+        dd.addEventListener('dblclick', e => this.handleEntryTypeDblClick(e));
         fragment.appendChild(dd);
         colorIterator += 1;
       });
       timelineLegendContent.appendChild(fragment);
+    }
+
+    handleEntryTypeDblClick(e){
+      let selectedEvent = {
+        entries: e.target.entries
+      }
+      this.dispatchEvent(new CustomEvent(
+        'selectionevent', {bubbles: true, composed: true,
+         detail: selectedEvent}));
     }
 
     // TODO(zcankara) Emit event and handle data in timeline track
