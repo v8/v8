@@ -63,6 +63,7 @@ enum class OddballType : uint8_t {
   V(NativeContext)                 \
   /* Subtypes of FixedArray */     \
   V(Context)                       \
+  V(ObjectBoilerplateDescription)  \
   V(ScopeInfo)                     \
   V(ScriptContextTable)            \
   /* Subtypes of FixedArrayBase */ \
@@ -92,7 +93,6 @@ enum class OddballType : uint8_t {
   V(JSReceiver)                    \
   V(Map)                           \
   V(Name)                          \
-  V(ObjectBoilerplateDescription)  \
   V(PropertyCell)                  \
   V(SharedFunctionInfo)            \
   V(SourceTextModule)              \
