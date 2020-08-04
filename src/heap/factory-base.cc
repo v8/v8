@@ -334,7 +334,7 @@ Handle<SharedFunctionInfo> FactoryBase<Impl>::NewSharedFunctionInfo(
   shared->set_kind(kind);
 
 #ifdef VERIFY_HEAP
-  shared->SharedFunctionInfoVerify(isolate());
+  if (FLAG_verify_heap) shared->SharedFunctionInfoVerify(isolate());
 #endif  // VERIFY_HEAP
   return shared;
 }
@@ -644,7 +644,7 @@ Handle<SharedFunctionInfo> FactoryBase<Impl>::NewSharedFunctionInfo() {
   shared->Init(read_only_roots(), unique_id);
 
 #ifdef VERIFY_HEAP
-  shared->SharedFunctionInfoVerify(isolate());
+  if (FLAG_verify_heap) shared->SharedFunctionInfoVerify(isolate());
 #endif  // VERIFY_HEAP
   return shared;
 }

@@ -1364,7 +1364,7 @@ class EvacuateVisitorBase : public HeapObjectVisitor {
   inline bool TryEvacuateObject(AllocationSpace target_space, HeapObject object,
                                 int size, HeapObject* target_object) {
 #ifdef VERIFY_HEAP
-    if (AbortCompactionForTesting(object)) return false;
+    if (FLAG_verify_heap && AbortCompactionForTesting(object)) return false;
 #endif  // VERIFY_HEAP
     AllocationAlignment alignment = HeapObject::RequiredAlignment(object.map());
     AllocationResult allocation = local_allocator_->Allocate(
@@ -2448,12 +2448,13 @@ void MarkCompactCollector::ClearWeakCollections() {
     for (InternalIndex i : table.IterateEntries()) {
       HeapObject key = HeapObject::cast(table.KeyAt(i));
 #ifdef VERIFY_HEAP
-      Object value = table.ValueAt(i);
-
-      if (value.IsHeapObject()) {
-        CHECK_IMPLIES(
-            non_atomic_marking_state()->IsBlackOrGrey(key),
-            non_atomic_marking_state()->IsBlackOrGrey(HeapObject::cast(value)));
+      if (FLAG_verify_heap) {
+        Object value = table.ValueAt(i);
+        if (value.IsHeapObject()) {
+          CHECK_IMPLIES(non_atomic_marking_state()->IsBlackOrGrey(key),
+                        non_atomic_marking_state()->IsBlackOrGrey(
+                            HeapObject::cast(value)));
+        }
       }
 #endif
       if (!non_atomic_marking_state()->IsBlackOrGrey(key)) {

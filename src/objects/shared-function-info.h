@@ -606,7 +606,9 @@ class SharedFunctionInfo : public HeapObject {
   // Dispatched behavior.
   DECL_PRINTER(SharedFunctionInfo)
   DECL_VERIFIER(SharedFunctionInfo)
+#ifdef VERIFY_HEAP
   void SharedFunctionInfoVerify(OffThreadIsolate* isolate);
+#endif
 #ifdef OBJECT_PRINT
   void PrintSourceCode(std::ostream& os);
 #endif
@@ -656,7 +658,9 @@ class SharedFunctionInfo : public HeapObject {
   inline bool needs_home_object() const;
 
  private:
+#ifdef VERIFY_HEAP
   void SharedFunctionInfoVerify(ReadOnlyRoots roots);
+#endif
 
   // [name_or_scope_info]: Function name string, kNoSharedNameSentinel or
   // ScopeInfo.
