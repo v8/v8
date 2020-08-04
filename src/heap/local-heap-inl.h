@@ -33,7 +33,8 @@ AllocationResult LocalHeap::AllocateRaw(int size_in_bytes, AllocationType type,
   DCHECK(AllowHeapAllocation::IsAllowed());
   DCHECK_IMPLIES(type == AllocationType::kCode,
                  alignment == AllocationAlignment::kCodeAligned);
-  DCHECK_EQ(heap()->gc_state(), Heap::HeapState::NOT_IN_GC);
+  DCHECK(heap()->gc_state() == Heap::TEAR_DOWN ||
+         heap()->gc_state() == Heap::NOT_IN_GC);
 
   bool large_object = size_in_bytes > kMaxRegularHeapObjectSize;
   CHECK_EQ(type, AllocationType::kOld);

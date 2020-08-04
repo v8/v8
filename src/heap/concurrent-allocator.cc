@@ -4,6 +4,7 @@
 
 #include "src/heap/concurrent-allocator.h"
 
+#include "src/common/globals.h"
 #include "src/execution/isolate.h"
 #include "src/handles/persistent-handles.h"
 #include "src/heap/concurrent-allocator-inl.h"
@@ -18,23 +19,32 @@ void StressConcurrentAllocatorTask::RunInternal() {
   LocalHeap local_heap(heap);
 
   const int kNumIterations = 2000;
-  const int kObjectSize = 10 * kTaggedSize;
-  const int kLargeObjectSize = 8 * KB;
+  const int kSmallObjectSize = 10 * kTaggedSize;
+  const int kMediumObjectSize = 8 * KB;
+  const int kLargeObjectSize = kMaxRegularHeapObjectSize * 2;
 
   for (int i = 0; i < kNumIterations; i++) {
     Address address = local_heap.AllocateRawOrFail(
-        kObjectSize, AllocationType::kOld, AllocationOrigin::kRuntime,
+        kSmallObjectSize, AllocationType::kOld, AllocationOrigin::kRuntime,
         AllocationAlignment::kWordAligned);
     heap->CreateFillerObjectAtBackground(
-        address, kObjectSize, ClearFreedMemoryMode::kDontClearFreedMemory);
+        address, kSmallObjectSize, ClearFreedMemoryMode::kDontClearFreedMemory);
+    local_heap.Safepoint();
+
+    address = local_heap.AllocateRawOrFail(
+        kMediumObjectSize, AllocationType::kOld, AllocationOrigin::kRuntime,
+        AllocationAlignment::kWordAligned);
+    heap->CreateFillerObjectAtBackground(
+        address, kMediumObjectSize,
+        ClearFreedMemoryMode::kDontClearFreedMemory);
+    local_heap.Safepoint();
+
     address = local_heap.AllocateRawOrFail(
         kLargeObjectSize, AllocationType::kOld, AllocationOrigin::kRuntime,
         AllocationAlignment::kWordAligned);
     heap->CreateFillerObjectAtBackground(
         address, kLargeObjectSize, ClearFreedMemoryMode::kDontClearFreedMemory);
-    if (i % 10 == 0) {
-      local_heap.Safepoint();
-    }
+    local_heap.Safepoint();
   }
 
   Schedule(isolate_);
