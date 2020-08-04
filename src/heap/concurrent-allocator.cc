@@ -10,6 +10,7 @@
 #include "src/heap/concurrent-allocator-inl.h"
 #include "src/heap/local-heap-inl.h"
 #include "src/heap/marking.h"
+#include "src/heap/memory-chunk.h"
 
 namespace v8 {
 namespace internal {
@@ -21,7 +22,9 @@ void StressConcurrentAllocatorTask::RunInternal() {
   const int kNumIterations = 2000;
   const int kSmallObjectSize = 10 * kTaggedSize;
   const int kMediumObjectSize = 8 * KB;
-  const int kLargeObjectSize = kMaxRegularHeapObjectSize * 2;
+  const int kLargeObjectSize =
+      static_cast<int>(MemoryChunk::kPageSize -
+                       MemoryChunkLayout::ObjectStartOffsetInDataPage());
 
   for (int i = 0; i < kNumIterations; i++) {
     Address address = local_heap.AllocateRawOrFail(
