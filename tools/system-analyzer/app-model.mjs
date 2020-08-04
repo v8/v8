@@ -10,14 +10,32 @@ class State {
   #chunks;
   #icTimeline;
   #mapTimeline;
+  #minStartTime = Number.POSITIVE_INFINITY;
+  #maxEndTime = Number.NEGATIVE_INFINITY;
+  get minStartTime(){
+    return this.#minStartTime;
+  }
+  get maxEndTime(){
+    return this.#maxEndTime;
+  }
+  #updateTimeRange(timeline){
+    this.#minStartTime = Math.min(this.#minStartTime, timeline.startTime);
+    this.#maxEndTime = Math.max(this.#maxEndTime, timeline.endTime);
+  }
   get mapTimeline(){
     return this.#mapTimeline;
   }
-  set mapTimeline(value){
-    this.#mapTimeline = value;
+  set mapTimeline(timeline){
+    this.#updateTimeRange(timeline);
+    timeline.startTime = this.#minStartTime;
+    timeline.endTime = this.#maxEndTime;
+    this.#mapTimeline = timeline;
   }
-  set icTimeline(value){
-    this.#icTimeline = value;
+  set icTimeline(timeline){
+    this.#updateTimeRange(timeline);
+    timeline.startTime = this.#minStartTime;
+    timeline.endTime = this.#maxEndTime;
+    this.#icTimeline = timeline;
   }
   get icTimeline(){
     return this.#icTimeline;
