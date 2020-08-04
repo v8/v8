@@ -1424,6 +1424,11 @@ DEFINE_BOOL(trace_regexp_assembler, false,
 DEFINE_BOOL(trace_regexp_parser, false, "trace regexp parsing")
 DEFINE_BOOL(trace_regexp_tier_up, false, "trace regexp tiering up execution")
 
+DEFINE_BOOL(enable_experimental_regexp_engine, false,
+            "enable experimental linear time regexp engine")
+DEFINE_BOOL(trace_experimental_regexp_engine, false,
+            "trace execution of experimental regexp engine")
+
 // Testing flags test/cctest/test-{flags,api,serialization}.cc
 DEFINE_BOOL(testing_bool_flag, true, "testing_bool_flag")
 DEFINE_MAYBE_BOOL(testing_maybe_bool_flag, "testing_maybe_bool_flag")
