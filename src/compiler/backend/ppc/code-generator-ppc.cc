@@ -108,8 +108,7 @@ class PPCOperandConverter final : public InstructionOperandConverter {
     return MemoryOperand(mode, &first_index);
   }
 
-  MemOperand ToMemOperand(InstructionOperand* op,
-                          AddressingMode mode = kMode_None) const {
+  MemOperand ToMemOperand(InstructionOperand* op) const {
     DCHECK_NOT_NULL(op);
     DCHECK(op->IsStackSlot() || op->IsFPStackSlot());
     return SlotToMemOperand(AllocatedOperand::cast(op)->index());
@@ -2221,8 +2220,7 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       __ addi(sp, sp, Operand(-16));
       __ StoreP(ip, MemOperand(sp, 0));
       __ StoreP(ip, MemOperand(sp, 8));
-      __ li(r0, Operand(0));
-      __ lvx(dst, MemOperand(sp, r0));
+      __ lvx(dst, MemOperand(r0, sp));
       __ mr(sp, kScratchReg);
       break;
     }
@@ -2244,8 +2242,7 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       __ addi(sp, sp, Operand(-16));
       __ StoreP(src, MemOperand(sp, 0));
       __ StoreP(src, MemOperand(sp, 8));
-      __ li(r0, Operand(0));
-      __ lvx(dst, MemOperand(sp, r0));
+      __ lvx(dst, MemOperand(r0, sp));
       __ mr(sp, kScratchReg);
       break;
     }
@@ -2373,8 +2370,7 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
   __ addi(sp, sp, Operand(-16));                                      \
   __ StoreP(ip, MemOperand(sp, 0));                                   \
   __ StoreP(r0, MemOperand(sp, 8));                                   \
-  __ li(r0, Operand(0));                                              \
-  __ lvx(kScratchDoubleReg, MemOperand(sp, r0));                      \
+  __ lvx(kScratchDoubleReg, MemOperand(r0, sp));                      \
   __ mr(sp, kScratchReg);
     case kPPC_F64x2ReplaceLane: {
       Simd128Register src = i.InputSimd128Register(0);
@@ -2518,18 +2514,16 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
           sp, sp,
           Operand(base::bits::WhichPowerOfTwo(16)));  // equivalent to &= -16
       __ addi(sp, sp, Operand(-32));
-      __ li(r0, Operand(0));
-      __ stvx(i.InputSimd128Register(0), MemOperand(sp, r0));
-      __ li(r0, Operand(16));
-      __ stvx(i.InputSimd128Register(1), MemOperand(sp, r0));
+      __ stvx(i.InputSimd128Register(0), MemOperand(r0, sp));
+      __ li(ip, Operand(16));
+      __ stvx(i.InputSimd128Register(1), MemOperand(ip, sp));
       for (int i = 0; i < 2; i++) {
         __ LoadP(r0, MemOperand(sp, kBitsPerByte * i));
         __ LoadP(ip, MemOperand(sp, (kBitsPerByte * i) + kSimd128Size));
         __ mulld(r0, r0, ip);
         __ StoreP(r0, MemOperand(sp, i * kBitsPerByte));
       }
-      __ li(r0, Operand(0));
-      __ lvx(i.OutputSimd128Register(), MemOperand(sp, r0));
+      __ lvx(i.OutputSimd128Register(), MemOperand(r0, sp));
       __ mr(sp, kScratchReg);
       break;
     }
@@ -3019,8 +3013,7 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       __ addi(sp, sp, Operand(-16));
       __ StoreP(ip, MemOperand(sp, 0));
       __ StoreP(ip, MemOperand(sp, 8));
-      __ li(r0, Operand(0));
-      __ lvx(kScratchDoubleReg, MemOperand(sp, r0));
+      __ lvx(kScratchDoubleReg, MemOperand(r0, sp));
       __ mr(sp, kScratchReg);
       // Perform negation.
       __ vnor(tempFPReg1, i.InputSimd128Register(0), i.InputSimd128Register(0));
@@ -3244,8 +3237,7 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       __ addi(sp, sp, Operand(-16));
       __ StoreP(r0, MemOperand(sp, 0));
       __ StoreP(ip, MemOperand(sp, 8));
-      __ li(r0, Operand(0));
-      __ lvx(kScratchDoubleReg, MemOperand(sp, r0));
+      __ lvx(kScratchDoubleReg, MemOperand(r0, sp));
       __ mr(sp, kScratchReg);
       __ vperm(dst, src0, src1, kScratchDoubleReg);
       break;
