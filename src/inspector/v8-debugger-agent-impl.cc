@@ -1078,14 +1078,17 @@ Response V8DebuggerAgentImpl::resume(Maybe<bool> terminateOnResume) {
   return Response::Success();
 }
 
-Response V8DebuggerAgentImpl::stepOver() {
+Response V8DebuggerAgentImpl::stepOver(
+    Maybe<protocol::Array<protocol::Debugger::LocationRange>> inSkipList) {
   if (!isPaused()) return Response::ServerError(kDebuggerNotPaused);
   m_session->releaseObjectGroup(kBacktraceObjectGroup);
   m_debugger->stepOverStatement(m_session->contextGroupId());
   return Response::Success();
 }
 
-Response V8DebuggerAgentImpl::stepInto(Maybe<bool> inBreakOnAsyncCall) {
+Response V8DebuggerAgentImpl::stepInto(
+    Maybe<bool> inBreakOnAsyncCall,
+    Maybe<protocol::Array<protocol::Debugger::LocationRange>> inSkipList) {
   if (!isPaused()) return Response::ServerError(kDebuggerNotPaused);
   m_session->releaseObjectGroup(kBacktraceObjectGroup);
   m_debugger->stepIntoStatement(m_session->contextGroupId(),

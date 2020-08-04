@@ -85,6 +85,13 @@ domain Debugger
       integer lineNumber
       integer columnNumber
 
+  # Location range within one script.
+  experimental type LocationRange extends object
+    properties
+      Runtime.ScriptId scriptId
+      ScriptPosition start
+      ScriptPosition end
+
   # JavaScript call frame. Array of call frames form the call stack.
   type CallFrame extends object
     properties
@@ -472,12 +479,17 @@ domain Debugger
       # Debugger will pause on the execution of the first async task which was scheduled
       # before next pause.
       experimental optional boolean breakOnAsyncCall
+      # The skipList specifies location ranges that should be skipped on step into.
+      experimental optional array of LocationRange skipList
 
   # Steps out of the function call.
   command stepOut
 
   # Steps over the statement.
   command stepOver
+    parameters
+      # The skipList specifies location ranges that should be skipped on step over.
+      experimental optional array of LocationRange skipList
 
   # Fired when breakpoint is resolved to an actual script and location.
   event breakpointResolved
