@@ -108,7 +108,8 @@ class PPCOperandConverter final : public InstructionOperandConverter {
     return MemoryOperand(mode, &first_index);
   }
 
-  MemOperand ToMemOperand(InstructionOperand* op) const {
+  MemOperand ToMemOperand(InstructionOperand* op,
+                          AddressingMode mode = kMode_None) const {
     DCHECK_NOT_NULL(op);
     DCHECK(op->IsStackSlot() || op->IsFPStackSlot());
     return SlotToMemOperand(AllocatedOperand::cast(op)->index());
@@ -1739,16 +1740,29 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
     case kPPC_Push:
       if (instr->InputAt(0)->IsFPRegister()) {
         LocationOperand* op = LocationOperand::cast(instr->InputAt(0));
-        if (op->representation() == MachineRepresentation::kFloat64) {
-          __ StoreDoubleU(i.InputDoubleRegister(0),
-                          MemOperand(sp, -kDoubleSize), r0);
-          frame_access_state()->IncreaseSPDelta(kDoubleSize /
-                                                kSystemPointerSize);
-        } else {
-          DCHECK_EQ(MachineRepresentation::kFloat32, op->representation());
-          __ StoreSingleU(i.InputDoubleRegister(0),
-                          MemOperand(sp, -kSystemPointerSize), r0);
-          frame_access_state()->IncreaseSPDelta(1);
+        switch (op->representation()) {
+          case MachineRepresentation::kFloat32:
+            __ StoreSingleU(i.InputDoubleRegister(0),
+                            MemOperand(sp, -kSystemPointerSize), r0);
+            frame_access_state()->IncreaseSPDelta(1);
+            break;
+          case MachineRepresentation::kFloat64:
+            __ StoreDoubleU(i.InputDoubleRegister(0),
+                            MemOperand(sp, -kDoubleSize), r0);
+            frame_access_state()->IncreaseSPDelta(kDoubleSize /
+                                                  kSystemPointerSize);
+            break;
+          case MachineRepresentation::kSimd128: {
+            __ addi(sp, sp, Operand(-kSimd128Size));
+            __ StoreSimd128(i.InputDoubleRegister(0), MemOperand(r0, sp), r0,
+                            kScratchDoubleReg);
+            frame_access_state()->IncreaseSPDelta(kSimd128Size /
+                                                  kSystemPointerSize);
+            break;
+          }
+          default:
+            UNREACHABLE();
+            break;
         }
       } else {
         __ StorePU(i.InputRegister(0), MemOperand(sp, -kSystemPointerSize), r0);
@@ -1781,10 +1795,14 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
         if (op->representation() == MachineRepresentation::kFloat64) {
           __ StoreDouble(i.InputDoubleRegister(0),
                          MemOperand(sp, slot * kSystemPointerSize), r0);
-        } else {
-          DCHECK_EQ(MachineRepresentation::kFloat32, op->representation());
+        } else if (op->representation() == MachineRepresentation::kFloat32) {
           __ StoreSingle(i.InputDoubleRegister(0),
                          MemOperand(sp, slot * kSystemPointerSize), r0);
+        } else {
+          DCHECK_EQ(MachineRepresentation::kSimd128, op->representation());
+          __ mov(ip, Operand(slot * kSystemPointerSize));
+          __ StoreSimd128(i.InputDoubleRegister(0), MemOperand(ip, sp), r0,
+                          kScratchDoubleReg);
         }
       } else {
         __ StoreP(i.InputRegister(0), MemOperand(sp, slot * kSystemPointerSize),
@@ -2044,20 +2062,7 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       bool is_atomic = i.InputInt32(2);
       // lvx only supports MRR.
       DCHECK_EQ(mode, kMode_MRR);
-      // lvx needs the stack to be 16 byte aligned.
-      // We first use lxvd/stxvd to copy the content on an aligned address. lxvd
-      // itself reverses the lanes so it cannot be used as is.
-      __ lxvd(kScratchDoubleReg, operand);
-      __ mr(kScratchReg, sp);
-      __ ClearRightImm(
-          sp, sp,
-          Operand(base::bits::WhichPowerOfTwo(16)));  // equivalent to &= -16
-      __ addi(sp, sp, Operand(-16));
-      __ li(r0, Operand(0));
-      __ stxvd(kScratchDoubleReg, MemOperand(sp, r0));
-      // Load it with correct lane ordering.
-      __ lvx(result, MemOperand(sp, r0));
-      __ mr(sp, kScratchReg);
+      __ LoadSimd128(result, operand, r0, kScratchDoubleReg);
       if (is_atomic) __ lwsync();
       DCHECK_EQ(LeaveRC, i.OutputRCBit());
       break;
@@ -2091,19 +2096,7 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       if (is_atomic) __ lwsync();
       // stvx only supports MRR.
       DCHECK_EQ(mode, kMode_MRR);
-      // stvx needs the stack to be 16 byte aligned.
-      // We use lxvd/stxvd to store the content on an aligned address. stxvd
-      // itself reverses the lanes so it cannot be used as is.
-      __ mr(kScratchReg, sp);
-      __ ClearRightImm(
-          sp, sp,
-          Operand(base::bits::WhichPowerOfTwo(16)));  // equivalent to &= -16
-      __ addi(sp, sp, Operand(-16));
-      __ li(r0, Operand(0));
-      __ stvx(value, MemOperand(sp, r0));
-      __ lxvd(kScratchDoubleReg, MemOperand(sp, r0));
-      __ stxvd(kScratchDoubleReg, operand);
-      __ mr(sp, kScratchReg);
+      __ StoreSimd128(value, operand, r0, kScratchDoubleReg);
       if (is_atomic) __ sync();
       DCHECK_EQ(LeaveRC, i.OutputRCBit());
       break;
@@ -3877,17 +3870,31 @@ void CodeGenerator::AssembleMove(InstructionOperand* source,
       }
     }
   } else if (source->IsFPRegister()) {
-    DoubleRegister src = g.ToDoubleRegister(source);
-    if (destination->IsFPRegister()) {
-      DoubleRegister dst = g.ToDoubleRegister(destination);
-      __ Move(dst, src);
-    } else {
-      DCHECK(destination->IsFPStackSlot());
-      LocationOperand* op = LocationOperand::cast(source);
-      if (op->representation() == MachineRepresentation::kFloat64) {
-        __ StoreDouble(src, g.ToMemOperand(destination), r0);
+    MachineRepresentation rep = LocationOperand::cast(source)->representation();
+    if (rep == MachineRepresentation::kSimd128) {
+      if (destination->IsSimd128Register()) {
+        __ vor(g.ToSimd128Register(destination), g.ToSimd128Register(source),
+               g.ToSimd128Register(source));
       } else {
-        __ StoreSingle(src, g.ToMemOperand(destination), r0);
+        DCHECK(destination->IsSimd128StackSlot());
+        MemOperand dst = g.ToMemOperand(destination);
+        __ mov(ip, Operand(dst.offset()));
+        __ StoreSimd128(g.ToSimd128Register(source), MemOperand(dst.ra(), ip),
+                        r0, kScratchDoubleReg);
+      }
+    } else {
+      DoubleRegister src = g.ToDoubleRegister(source);
+      if (destination->IsFPRegister()) {
+        DoubleRegister dst = g.ToDoubleRegister(destination);
+        __ Move(dst, src);
+      } else {
+        DCHECK(destination->IsFPStackSlot());
+        LocationOperand* op = LocationOperand::cast(source);
+        if (op->representation() == MachineRepresentation::kFloat64) {
+          __ StoreDouble(src, g.ToMemOperand(destination), r0);
+        } else {
+          __ StoreSingle(src, g.ToMemOperand(destination), r0);
+        }
       }
     }
   } else if (source->IsFPStackSlot()) {
@@ -3897,8 +3904,14 @@ void CodeGenerator::AssembleMove(InstructionOperand* source,
       LocationOperand* op = LocationOperand::cast(source);
       if (op->representation() == MachineRepresentation::kFloat64) {
         __ LoadDouble(g.ToDoubleRegister(destination), src, r0);
-      } else {
+      } else if (op->representation() == MachineRepresentation::kFloat32) {
         __ LoadSingle(g.ToDoubleRegister(destination), src, r0);
+      } else {
+        DCHECK_EQ(MachineRepresentation::kSimd128, op->representation());
+        MemOperand src = g.ToMemOperand(source);
+        __ mov(ip, Operand(src.offset()));
+        __ LoadSimd128(g.ToSimd128Register(destination),
+                       MemOperand(src.ra(), ip), r0, kScratchDoubleReg);
       }
     } else {
       LocationOperand* op = LocationOperand::cast(source);
@@ -3906,9 +3919,23 @@ void CodeGenerator::AssembleMove(InstructionOperand* source,
       if (op->representation() == MachineRepresentation::kFloat64) {
         __ LoadDouble(temp, src, r0);
         __ StoreDouble(temp, g.ToMemOperand(destination), r0);
-      } else {
+      } else if (op->representation() == MachineRepresentation::kFloat32) {
         __ LoadSingle(temp, src, r0);
         __ StoreSingle(temp, g.ToMemOperand(destination), r0);
+      } else {
+        DCHECK_EQ(MachineRepresentation::kSimd128, op->representation());
+        // push d0, to be used as scratch
+        __ addi(sp, sp, Operand(-kSimd128Size));
+        __ StoreSimd128(d0, MemOperand(r0, sp), r0, kScratchDoubleReg);
+        MemOperand src = g.ToMemOperand(source);
+        MemOperand dst = g.ToMemOperand(destination);
+        __ mov(ip, Operand(src.offset()));
+        __ LoadSimd128(d0, MemOperand(src.ra(), ip), r0, kScratchDoubleReg);
+        __ mov(ip, Operand(dst.offset()));
+        __ StoreSimd128(d0, MemOperand(dst.ra(), ip), r0, kScratchDoubleReg);
+        // restore d0
+        __ LoadSimd128(d0, MemOperand(r0, sp), ip, kScratchDoubleReg);
+        __ addi(sp, sp, Operand(kSimd128Size));
       }
     }
   } else {
@@ -3963,8 +3990,20 @@ void CodeGenerator::AssembleSwap(InstructionOperand* source,
     DCHECK(destination->IsDoubleStackSlot());
     __ SwapDouble(g.ToMemOperand(source), g.ToMemOperand(destination),
                   kScratchDoubleReg, d0);
+
   } else if (source->IsSimd128Register()) {
-    UNREACHABLE();
+    Simd128Register src = g.ToSimd128Register(source);
+    if (destination->IsSimd128Register()) {
+      __ SwapSimd128(src, g.ToSimd128Register(destination), kScratchDoubleReg);
+    } else {
+      DCHECK(destination->IsSimd128StackSlot());
+      __ SwapSimd128(src, g.ToMemOperand(destination), kScratchDoubleReg);
+    }
+  } else if (source->IsSimd128StackSlot()) {
+    DCHECK(destination->IsSimd128StackSlot());
+    __ SwapSimd128(g.ToMemOperand(source), g.ToMemOperand(destination),
+                   kScratchDoubleReg);
+
   } else {
     UNREACHABLE();
   }
