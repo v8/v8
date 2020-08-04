@@ -98,6 +98,15 @@ bool DrainWorklistWithDeadline(v8::base::TimeTicks deadline, Worklist* worklist,
   return true;
 }
 
+void TraceMarkedObject(Visitor* visitor, const HeapObjectHeader* header) {
+  DCHECK(header);
+  DCHECK(!header->IsInConstruction<HeapObjectHeader::AccessMode::kNonAtomic>());
+  DCHECK(header->IsMarked<HeapObjectHeader::AccessMode::kNonAtomic>());
+  const GCInfo& gcinfo =
+      GlobalGCInfoTable::GCInfoFromIndex(header->GetGCInfoIndex());
+  gcinfo.trace(visitor, header->Payload());
+}
+
 }  // namespace
 
 MarkerBase::MarkerBase(HeapBase& heap)
@@ -115,15 +124,12 @@ MarkerBase::~MarkerBase() {
   if (!marking_worklists_.not_fully_constructed_worklist()->IsEmpty()) {
 #if DEBUG
     DCHECK_NE(MarkingConfig::StackState::kNoHeapPointers, config_.stack_state);
-    MarkingWorklists::NotFullyConstructedItem item;
+    HeapObjectHeader* header;
     MarkingWorklists::NotFullyConstructedWorklist::View view(
         marking_worklists_.not_fully_constructed_worklist(),
         MarkingWorklists::kMutatorThreadId);
-    while (view.Pop(&item)) {
-      const HeapObjectHeader& header =
-          BasePage::FromPayload(item)->ObjectHeaderFromInnerAddress(
-              static_cast<ConstAddress>(item));
-      DCHECK(header.IsMarked());
+    while (view.Pop(&header)) {
+      DCHECK(header->IsMarked());
     }
 #else
     marking_worklists_.not_fully_constructed_worklist()->Clear();
@@ -204,9 +210,9 @@ bool MarkerBase::AdvanceMarkingWithDeadline(v8::base::TimeDelta duration) {
     if (!DrainWorklistWithDeadline(
             deadline,
             marking_worklists_.previously_not_fully_constructed_worklist(),
-            [this](MarkingWorklists::NotFullyConstructedItem& item) {
-              mutator_marking_state_.DynamicallyMarkAddress(
-                  reinterpret_cast<ConstAddress>(item));
+            [this](HeapObjectHeader* header) {
+              TraceMarkedObject(&visitor(), header);
+              mutator_marking_state_.AccountMarkedBytes(*header);
             },
             MarkingWorklists::kMutatorThreadId))
       return false;
@@ -218,6 +224,8 @@ bool MarkerBase::AdvanceMarkingWithDeadline(v8::base::TimeDelta duration) {
                   HeapObjectHeader::FromPayload(item.base_object_payload);
               DCHECK(!header.IsInConstruction<
                       HeapObjectHeader::AccessMode::kNonAtomic>());
+              DCHECK(
+                  header.IsMarked<HeapObjectHeader::AccessMode::kNonAtomic>());
               item.callback(&visitor(), item.base_object_payload);
               mutator_marking_state_.AccountMarkedBytes(header);
             },
@@ -227,12 +235,7 @@ bool MarkerBase::AdvanceMarkingWithDeadline(v8::base::TimeDelta duration) {
     if (!DrainWorklistWithDeadline(
             deadline, marking_worklists_.write_barrier_worklist(),
             [this](HeapObjectHeader* header) {
-              DCHECK(header);
-              DCHECK(!header->IsInConstruction<
-                      HeapObjectHeader::AccessMode::kNonAtomic>());
-              const GCInfo& gcinfo =
-                  GlobalGCInfoTable::GCInfoFromIndex(header->GetGCInfoIndex());
-              gcinfo.trace(&visitor(), header->Payload());
+              TraceMarkedObject(&visitor(), header);
               mutator_marking_state_.AccountMarkedBytes(*header);
             },
             MarkingWorklists::kMutatorThreadId))
@@ -244,12 +247,16 @@ bool MarkerBase::AdvanceMarkingWithDeadline(v8::base::TimeDelta duration) {
 }
 
 void MarkerBase::MarkNotFullyConstructedObjects() {
-  MarkingWorklists::NotFullyConstructedItem item;
+  HeapObjectHeader* header;
   MarkingWorklists::NotFullyConstructedWorklist::View view(
       marking_worklists_.not_fully_constructed_worklist(),
       MarkingWorklists::kMutatorThreadId);
-  while (view.Pop(&item)) {
-    conservative_visitor().TraceConservativelyIfNeeded(item);
+  while (view.Pop(&header)) {
+    DCHECK(header);
+    DCHECK(header->IsMarked<HeapObjectHeader::AccessMode::kNonAtomic>());
+    // TraceConservativelyIfNeeded will either push to a worklist
+    // or trace conservatively and call AccountMarkedBytes.
+    conservative_visitor().TraceConservativelyIfNeeded(*header);
   }
 }
 

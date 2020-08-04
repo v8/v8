@@ -21,7 +21,6 @@ class MarkingWorklists {
   static constexpr int kMutatorThreadId = 0;
 
   using MarkingItem = cppgc::TraceDescriptor;
-  using NotFullyConstructedItem = const void*;
   struct WeakCallbackItem {
     cppgc::WeakCallback callback;
     const void* parameter;
@@ -32,7 +31,7 @@ class MarkingWorklists {
   using MarkingWorklist =
       Worklist<MarkingItem, 512 /* local entries */, kNumMarkers>;
   using NotFullyConstructedWorklist =
-      Worklist<NotFullyConstructedItem, 16 /* local entries */, kNumMarkers>;
+      Worklist<HeapObjectHeader*, 16 /* local entries */, kNumMarkers>;
   using WeakCallbackWorklist =
       Worklist<WeakCallbackItem, 64 /* local entries */, kNumMarkers>;
   using WriteBarrierWorklist =

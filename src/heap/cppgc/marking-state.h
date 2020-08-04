@@ -81,9 +81,11 @@ void MarkingState::MarkAndPush(const void* object, TraceDescriptor desc) {
 void MarkingState::MarkAndPush(HeapObjectHeader& header, TraceDescriptor desc) {
   DCHECK_NOT_NULL(desc.callback);
 
+  if (!MarkNoPush(header)) return;
+
   if (header.IsInConstruction<HeapObjectHeader::AccessMode::kNonAtomic>()) {
-    not_fully_constructed_worklist_.Push(header.Payload());
-  } else if (MarkNoPush(header)) {
+    not_fully_constructed_worklist_.Push(&header);
+  } else {
     marking_worklist_.Push(desc);
   }
 }

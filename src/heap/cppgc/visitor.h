@@ -54,6 +54,7 @@ class ConservativeTracingVisitor {
       delete;
 
   void TraceConservativelyIfNeeded(const void*);
+  void TraceConservativelyIfNeeded(HeapObjectHeader&);
 
  protected:
   using TraceConservativelyCallback = void(ConservativeTracingVisitor*,

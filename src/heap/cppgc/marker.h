@@ -82,7 +82,7 @@ class V8_EXPORT_PRIVATE MarkerBase {
 
   void ProcessWeakness();
 
-  inline void WriteBarrierForInConstructionObject(ConstAddress);
+  inline void WriteBarrierForInConstructionObject(HeapObjectHeader&);
   inline void WriteBarrierForObject(HeapObjectHeader&);
 
   HeapBase& heap() { return heap_; }
@@ -128,12 +128,12 @@ class V8_EXPORT_PRIVATE Marker final : public MarkerBase {
   ConservativeMarkingVisitor conservative_marking_visitor_;
 };
 
-void MarkerBase::WriteBarrierForInConstructionObject(ConstAddress payload) {
+void MarkerBase::WriteBarrierForInConstructionObject(HeapObjectHeader& header) {
   MarkingWorklists::NotFullyConstructedWorklist::View
       not_fully_constructed_worklist(
           marking_worklists_.not_fully_constructed_worklist(),
           MarkingWorklists::kMutatorThreadId);
-  not_fully_constructed_worklist.Push(payload);
+  not_fully_constructed_worklist.Push(&header);
 }
 
 void MarkerBase::WriteBarrierForObject(HeapObjectHeader& header) {
