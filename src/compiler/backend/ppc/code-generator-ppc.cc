@@ -2958,8 +2958,8 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
     }
     case kPPC_S128Not: {
       Simd128Register dst = i.OutputSimd128Register();
-      Simd128Register src = i.InputSimd128Register(1);
-      __ vnor(dst, i.InputSimd128Register(0), src);
+      Simd128Register src = i.InputSimd128Register(0);
+      __ vnor(dst, src, src);
       break;
     }
     case kPPC_S128Select: {
