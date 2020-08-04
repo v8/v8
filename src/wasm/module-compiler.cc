@@ -795,8 +795,7 @@ ExecutionTierPair GetRequestedExecutionTiers(
       }
 
       // Correct top tier if necessary.
-      static_assert(ExecutionTier::kInterpreter < ExecutionTier::kLiftoff &&
-                        ExecutionTier::kLiftoff < ExecutionTier::kTurbofan,
+      static_assert(ExecutionTier::kLiftoff < ExecutionTier::kTurbofan,
                     "Assume an order on execution tiers");
       if (result.baseline_tier > result.top_tier) {
         result.top_tier = result.baseline_tier;
@@ -2762,8 +2761,7 @@ void CompilationStateImpl::OnFinishedUnits(Vector<WasmCode*> code_vector) {
 
   // Assume an order of execution tiers that represents the quality of their
   // generated code.
-  static_assert(ExecutionTier::kNone < ExecutionTier::kInterpreter &&
-                    ExecutionTier::kInterpreter < ExecutionTier::kLiftoff &&
+  static_assert(ExecutionTier::kNone < ExecutionTier::kLiftoff &&
                     ExecutionTier::kLiftoff < ExecutionTier::kTurbofan,
                 "Assume an order on execution tiers");
 

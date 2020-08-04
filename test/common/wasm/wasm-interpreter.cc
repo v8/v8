@@ -1545,8 +1545,8 @@ class WasmInterpreterInternals {
 
     if (FLAG_trace_wasm_memory) {
       MemoryTracingInfo info(imm.offset + index, false, rep);
-      TraceMemoryOperation(ExecutionTier::kInterpreter, &info,
-                           code->function->func_index, static_cast<int>(pc),
+      TraceMemoryOperation({}, &info, code->function->func_index,
+                           static_cast<int>(pc),
                            instance_object_->memory_start());
     }
 
@@ -1576,8 +1576,8 @@ class WasmInterpreterInternals {
 
     if (FLAG_trace_wasm_memory) {
       MemoryTracingInfo info(imm.offset + index, true, rep);
-      TraceMemoryOperation(ExecutionTier::kInterpreter, &info,
-                           code->function->func_index, static_cast<int>(pc),
+      TraceMemoryOperation({}, &info, code->function->func_index,
+                           static_cast<int>(pc),
                            instance_object_->memory_start());
     }
 

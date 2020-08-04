@@ -47,6 +47,16 @@ namespace v8 {
 namespace internal {
 namespace wasm {
 
+enum class TestExecutionTier : int8_t {
+  kLiftoff = static_cast<int8_t>(ExecutionTier::kLiftoff),
+  kTurbofan = static_cast<int8_t>(ExecutionTier::kTurbofan),
+  kInterpreter
+};
+static_assert(
+    std::is_same<std::underlying_type<ExecutionTier>::type,
+                 std::underlying_type<TestExecutionTier>::type>::value,
+    "enum types match");
+
 using base::ReadLittleEndianValue;
 using base::WriteLittleEndianValue;
 
@@ -87,7 +97,7 @@ struct ManuallyImportedJSFunction {
 // the interpreter.
 class TestingModuleBuilder {
  public:
-  TestingModuleBuilder(Zone*, ManuallyImportedJSFunction*, ExecutionTier,
+  TestingModuleBuilder(Zone*, ManuallyImportedJSFunction*, TestExecutionTier,
                        RuntimeExceptionSupport, LowerSimd);
   ~TestingModuleBuilder();
 
@@ -223,12 +233,21 @@ class TestingModuleBuilder {
   void TierDown() {
     native_module_->SetTieringState(kTieredDown);
     native_module_->RecompileForTiering();
-    execution_tier_ = ExecutionTier::kLiftoff;
+    execution_tier_ = TestExecutionTier::kLiftoff;
   }
 
   CompilationEnv CreateCompilationEnv();
 
-  ExecutionTier execution_tier() const { return execution_tier_; }
+  ExecutionTier execution_tier() const {
+    switch (execution_tier_) {
+      case TestExecutionTier::kTurbofan:
+        return ExecutionTier::kTurbofan;
+      case TestExecutionTier::kLiftoff:
+        return ExecutionTier::kLiftoff;
+      default:
+        UNREACHABLE();
+    }
+  }
 
   RuntimeExceptionSupport runtime_exception_support() const {
     return runtime_exception_support_;
@@ -244,7 +263,7 @@ class TestingModuleBuilder {
   uint32_t mem_size_ = 0;
   alignas(16) byte globals_data_[kMaxGlobalsSize];
   std::unique_ptr<WasmInterpreter> interpreter_;
-  ExecutionTier execution_tier_;
+  TestExecutionTier execution_tier_;
   Handle<WasmInstanceObject> instance_object_;
   NativeModule* native_module_ = nullptr;
   RuntimeExceptionSupport runtime_exception_support_;
@@ -360,7 +379,7 @@ class WasmFunctionCompiler : public compiler::GraphAndBuilders {
 class WasmRunnerBase : public InitializedHandleScope {
  public:
   WasmRunnerBase(ManuallyImportedJSFunction* maybe_import,
-                 ExecutionTier execution_tier, int num_params,
+                 TestExecutionTier execution_tier, int num_params,
                  RuntimeExceptionSupport runtime_exception_support,
                  LowerSimd lower_simd)
       : zone_(&allocator_, ZONE_NAME, kCompressGraphZone),
@@ -450,7 +469,7 @@ class WasmRunnerBase : public InitializedHandleScope {
 template <typename ReturnType, typename... ParamTypes>
 class WasmRunner : public WasmRunnerBase {
  public:
-  WasmRunner(ExecutionTier execution_tier,
+  WasmRunner(TestExecutionTier execution_tier,
              ManuallyImportedJSFunction* maybe_import = nullptr,
              const char* main_fn_name = "main",
              RuntimeExceptionSupport runtime_exception_support =
@@ -468,7 +487,7 @@ class WasmRunner : public WasmRunnerBase {
     }
   }
 
-  WasmRunner(ExecutionTier execution_tier, LowerSimd lower_simd)
+  WasmRunner(TestExecutionTier execution_tier, LowerSimd lower_simd)
       : WasmRunner(execution_tier, nullptr, "main", kNoRuntimeExceptionSupport,
                    lower_simd) {}
 
@@ -574,7 +593,7 @@ class WasmRunner : public WasmRunnerBase {
     CheckCallViaJS(static_cast<double>(0xDEADBEEF), p...);
   }
 
-  void CheckUsedExecutionTier(ExecutionTier expected_tier) {
+  void CheckUsedExecutionTier(TestExecutionTier expected_tier) {
     // Liftoff can fail and fallback to Turbofan, so check that the function
     // gets compiled by the tier requested, to guard against accidental success.
     CHECK(compiled_);
@@ -599,20 +618,24 @@ class WasmRunner : public WasmRunnerBase {
 };
 
 // A macro to define tests that run in different engine configurations.
-#define WASM_EXEC_TEST(name)                                                 \
-  void RunWasm_##name(ExecutionTier execution_tier);                         \
-  TEST(RunWasmTurbofan_##name) { RunWasm_##name(ExecutionTier::kTurbofan); } \
-  TEST(RunWasmLiftoff_##name) { RunWasm_##name(ExecutionTier::kLiftoff); }   \
-  TEST(RunWasmInterpreter_##name) {                                          \
-    RunWasm_##name(ExecutionTier::kInterpreter);                             \
-  }                                                                          \
-  void RunWasm_##name(ExecutionTier execution_tier)
+#define WASM_EXEC_TEST(name)                                                   \
+  void RunWasm_##name(TestExecutionTier execution_tier);                       \
+  TEST(RunWasmTurbofan_##name) {                                               \
+    RunWasm_##name(TestExecutionTier::kTurbofan);                              \
+  }                                                                            \
+  TEST(RunWasmLiftoff_##name) { RunWasm_##name(TestExecutionTier::kLiftoff); } \
+  TEST(RunWasmInterpreter_##name) {                                            \
+    RunWasm_##name(TestExecutionTier::kInterpreter);                           \
+  }                                                                            \
+  void RunWasm_##name(TestExecutionTier execution_tier)
 
-#define WASM_COMPILED_EXEC_TEST(name)                                        \
-  void RunWasm_##name(ExecutionTier execution_tier);                         \
-  TEST(RunWasmTurbofan_##name) { RunWasm_##name(ExecutionTier::kTurbofan); } \
-  TEST(RunWasmLiftoff_##name) { RunWasm_##name(ExecutionTier::kLiftoff); }   \
-  void RunWasm_##name(ExecutionTier execution_tier)
+#define WASM_COMPILED_EXEC_TEST(name)                                          \
+  void RunWasm_##name(TestExecutionTier execution_tier);                       \
+  TEST(RunWasmTurbofan_##name) {                                               \
+    RunWasm_##name(TestExecutionTier::kTurbofan);                              \
+  }                                                                            \
+  TEST(RunWasmLiftoff_##name) { RunWasm_##name(TestExecutionTier::kLiftoff); } \
+  void RunWasm_##name(TestExecutionTier execution_tier)
 
 }  // namespace wasm
 }  // namespace internal

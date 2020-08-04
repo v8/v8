@@ -26504,7 +26504,7 @@ namespace internal {
 namespace wasm {
 TEST(WasmI32AtomicWaitCallback) {
   FlagScope<bool> wasm_threads_flag(&i::FLAG_experimental_wasm_threads, true);
-  WasmRunner<int32_t, int32_t, int32_t, double> r(ExecutionTier::kTurbofan);
+  WasmRunner<int32_t, int32_t, int32_t, double> r(TestExecutionTier::kTurbofan);
   r.builder().AddMemory(kWasmPageSize, SharedFlag::kShared);
   r.builder().SetHasSharedMemory();
   BUILD(r, WASM_ATOMICS_WAIT(kExprI32AtomicWait, WASM_GET_LOCAL(0),
@@ -26540,7 +26540,7 @@ TEST(WasmI32AtomicWaitCallback) {
 
 TEST(WasmI64AtomicWaitCallback) {
   FlagScope<bool> wasm_threads_flag(&i::FLAG_experimental_wasm_threads, true);
-  WasmRunner<int32_t, int32_t, double, double> r(ExecutionTier::kTurbofan);
+  WasmRunner<int32_t, int32_t, double, double> r(TestExecutionTier::kTurbofan);
   r.builder().AddMemory(kWasmPageSize, SharedFlag::kShared);
   r.builder().SetHasSharedMemory();
   BUILD(r, WASM_ATOMICS_WAIT(kExprI64AtomicWait, WASM_GET_LOCAL(0),

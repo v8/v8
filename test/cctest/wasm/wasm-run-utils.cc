@@ -19,8 +19,9 @@ namespace internal {
 namespace wasm {
 
 TestingModuleBuilder::TestingModuleBuilder(
-    Zone* zone, ManuallyImportedJSFunction* maybe_import, ExecutionTier tier,
-    RuntimeExceptionSupport exception_support, LowerSimd lower_simd)
+    Zone* zone, ManuallyImportedJSFunction* maybe_import,
+    TestExecutionTier tier, RuntimeExceptionSupport exception_support,
+    LowerSimd lower_simd)
     : test_module_(std::make_shared<WasmModule>()),
       test_module_ptr_(test_module_.get()),
       isolate_(CcTest::InitIsolateOnce()),
@@ -69,7 +70,7 @@ TestingModuleBuilder::TestingModuleBuilder(
         .SetWasmToJs(isolate_, callable, import_wrapper);
   }
 
-  if (tier == ExecutionTier::kInterpreter) {
+  if (tier == TestExecutionTier::kInterpreter) {
     interpreter_ = std::make_unique<WasmInterpreter>(
         isolate_, test_module_ptr_,
         ModuleWireBytes{native_module_->wire_bytes()}, instance_object_);

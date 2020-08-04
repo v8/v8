@@ -108,7 +108,7 @@ class TestCode {
 
 class WasmEvaluatorBuilder {
  public:
-  explicit WasmEvaluatorBuilder(ExecutionTier execution_tier,
+  explicit WasmEvaluatorBuilder(TestExecutionTier execution_tier,
                                 uint32_t min_memory = 1,
                                 uint32_t max_memory = 1)
       : zone_(&allocator_, ZONE_NAME), builder_(&zone_) {

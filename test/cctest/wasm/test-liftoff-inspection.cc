@@ -20,7 +20,7 @@ class LiftoffCompileEnvironment {
       : isolate_(CcTest::InitIsolateOnce()),
         handle_scope_(isolate_),
         zone_(isolate_->allocator(), ZONE_NAME),
-        module_builder_(&zone_, nullptr, ExecutionTier::kLiftoff,
+        module_builder_(&zone_, nullptr, TestExecutionTier::kLiftoff,
                         kRuntimeExceptionSupport, kNoLowerSimd) {
     // Add a table of length 1, for indirect calls.
     module_builder_.AddIndirectFunctionTable(nullptr, 1);

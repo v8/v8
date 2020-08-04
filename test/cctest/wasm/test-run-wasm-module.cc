@@ -145,8 +145,7 @@ TEST(Run_WasmModule_CompilationHintsLazy) {
     CHECK(native_module->HasCode(kFuncIndex));
     WasmCodeRefScope code_ref_scope;
     ExecutionTier actual_tier = native_module->GetCode(kFuncIndex)->tier();
-    static_assert(ExecutionTier::kInterpreter < ExecutionTier::kLiftoff &&
-                      ExecutionTier::kLiftoff < ExecutionTier::kTurbofan,
+    static_assert(ExecutionTier::kLiftoff < ExecutionTier::kTurbofan,
                   "Assume an order on execution tiers");
     ExecutionTier baseline_tier = ExecutionTier::kLiftoff;
     CHECK_LE(baseline_tier, actual_tier);
@@ -236,8 +235,7 @@ TEST(Run_WasmModule_CompilationHintsTierUp) {
     static const int kFuncIndex = 0;
     NativeModule* native_module = module.ToHandleChecked()->native_module();
     auto* compilation_state = native_module->compilation_state();
-    static_assert(ExecutionTier::kInterpreter < ExecutionTier::kLiftoff &&
-                      ExecutionTier::kLiftoff < ExecutionTier::kTurbofan,
+    static_assert(ExecutionTier::kLiftoff < ExecutionTier::kTurbofan,
                   "Assume an order on execution tiers");
     ExecutionTier baseline_tier = ExecutionTier::kLiftoff;
     {
@@ -306,8 +304,7 @@ TEST(Run_WasmModule_CompilationHintsLazyBaselineEagerTopTier) {
     }
 
     // Expect top tier code.
-    static_assert(ExecutionTier::kInterpreter < ExecutionTier::kLiftoff &&
-                      ExecutionTier::kLiftoff < ExecutionTier::kTurbofan,
+    static_assert(ExecutionTier::kLiftoff < ExecutionTier::kTurbofan,
                   "Assume an order on execution tiers");
     static const int kFuncIndex = 0;
     ExecutionTier top_tier = ExecutionTier::kTurbofan;

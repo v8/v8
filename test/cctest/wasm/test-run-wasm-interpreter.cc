@@ -22,7 +22,7 @@ namespace wasm {
 namespace test_run_wasm_interpreter {
 
 TEST(Run_WasmInt8Const_i) {
-  WasmRunner<int32_t> r(ExecutionTier::kInterpreter);
+  WasmRunner<int32_t> r(TestExecutionTier::kInterpreter);
   const byte kExpectedValue = 109;
   // return(kExpectedValue)
   BUILD(r, WASM_I32V_2(kExpectedValue));
@@ -30,14 +30,14 @@ TEST(Run_WasmInt8Const_i) {
 }
 
 TEST(Run_WasmIfElse) {
-  WasmRunner<int32_t, int32_t> r(ExecutionTier::kInterpreter);
+  WasmRunner<int32_t, int32_t> r(TestExecutionTier::kInterpreter);
   BUILD(r, WASM_IF_ELSE_I(WASM_GET_LOCAL(0), WASM_I32V_1(9), WASM_I32V_1(10)));
   CHECK_EQ(10, r.Call(0));
   CHECK_EQ(9, r.Call(1));
 }
 
 TEST(Run_WasmIfReturn) {
-  WasmRunner<int32_t, int32_t> r(ExecutionTier::kInterpreter);
+  WasmRunner<int32_t, int32_t> r(TestExecutionTier::kInterpreter);
   BUILD(r, WASM_IF(WASM_GET_LOCAL(0), WASM_RETURN1(WASM_I32V_2(77))),
         WASM_I32V_2(65));
   CHECK_EQ(65, r.Call(0));
@@ -53,7 +53,7 @@ TEST(Run_WasmNopsN) {
     code[nops] = kExprI32Const;
     code[nops + 1] = expected;
 
-    WasmRunner<int32_t> r(ExecutionTier::kInterpreter);
+    WasmRunner<int32_t> r(TestExecutionTier::kInterpreter);
     r.Build(code, code + nops + 2);
     CHECK_EQ(expected, r.Call());
   }
@@ -76,7 +76,7 @@ TEST(Run_WasmConstsN) {
       }
     }
 
-    WasmRunner<int32_t> r(ExecutionTier::kInterpreter);
+    WasmRunner<int32_t> r(TestExecutionTier::kInterpreter);
     r.Build(code, code + (count * 3));
     CHECK_EQ(expected, r.Call());
   }
@@ -95,7 +95,7 @@ TEST(Run_WasmBlocksN) {
     code[2 + nops + 1] = expected;
     code[2 + nops + 2] = kExprEnd;
 
-    WasmRunner<int32_t> r(ExecutionTier::kInterpreter);
+    WasmRunner<int32_t> r(TestExecutionTier::kInterpreter);
     r.Build(code, code + nops + kExtra);
     CHECK_EQ(expected, r.Call());
   }
@@ -120,7 +120,7 @@ TEST(Run_WasmBlockBreakN) {
       code[2 + index + 2] = kExprBr;
       code[2 + index + 3] = 0;
 
-      WasmRunner<int32_t> r(ExecutionTier::kInterpreter);
+      WasmRunner<int32_t> r(TestExecutionTier::kInterpreter);
       r.Build(code, code + kMaxNops + kExtra);
       CHECK_EQ(expected, r.Call());
     }
@@ -128,7 +128,7 @@ TEST(Run_WasmBlockBreakN) {
 }
 
 TEST(Run_Wasm_nested_ifs_i) {
-  WasmRunner<int32_t, int32_t, int32_t> r(ExecutionTier::kInterpreter);
+  WasmRunner<int32_t, int32_t, int32_t> r(TestExecutionTier::kInterpreter);
 
   BUILD(
       r,
@@ -159,7 +159,7 @@ TEST(Run_Wasm_returnCallFactorial) {
   // Run in bounded amount of stack - 8kb.
   FlagScope<int32_t> stack_size(&v8::internal::FLAG_stack_size, 8);
 
-  WasmRunner<uint32_t, int32_t> r(ExecutionTier::kInterpreter);
+  WasmRunner<uint32_t, int32_t> r(TestExecutionTier::kInterpreter);
 
   WasmFunctionCompiler& fact_aux_fn =
       r.NewFunction<int32_t, int32_t, int32_t>("fact_aux");
@@ -188,7 +188,7 @@ TEST(Run_Wasm_returnCallFactorial64) {
   EXPERIMENTAL_FLAG_SCOPE(return_call);
 
   int32_t test_values[] = {1, 2, 5, 10, 20};
-  WasmRunner<int64_t, int32_t> r(ExecutionTier::kInterpreter);
+  WasmRunner<int64_t, int32_t> r(TestExecutionTier::kInterpreter);
 
   WasmFunctionCompiler& fact_aux_fn =
       r.NewFunction<int64_t, int32_t, int64_t>("fact_aux");
@@ -215,7 +215,7 @@ TEST(Run_Wasm_returnCallIndirectFactorial) {
 
   TestSignatures sigs;
 
-  WasmRunner<uint32_t, uint32_t> r(ExecutionTier::kInterpreter);
+  WasmRunner<uint32_t, uint32_t> r(TestExecutionTier::kInterpreter);
 
   WasmFunctionCompiler& fact_aux_fn = r.NewFunction(sigs.i_ii(), "fact_aux");
   fact_aux_fn.SetSigIndex(0);
@@ -277,7 +277,7 @@ TEST(Step_I32Mul) {
   static const int kTraceLength = 4;
   byte code[] = {WASM_I32_MUL(WASM_GET_LOCAL(0), WASM_GET_LOCAL(1))};
 
-  WasmRunner<int32_t, uint32_t, uint32_t> r(ExecutionTier::kInterpreter);
+  WasmRunner<int32_t, uint32_t, uint32_t> r(TestExecutionTier::kInterpreter);
 
   r.Build(code, code + arraysize(code));
 
@@ -309,14 +309,14 @@ TEST(Step_I32Mul) {
 
 TEST(MemoryGrow) {
   {
-    WasmRunner<int32_t, uint32_t> r(ExecutionTier::kInterpreter);
+    WasmRunner<int32_t, uint32_t> r(TestExecutionTier::kInterpreter);
     r.builder().AddMemory(kWasmPageSize);
     r.builder().SetMaxMemPages(10);
     BUILD(r, WASM_GROW_MEMORY(WASM_GET_LOCAL(0)));
     CHECK_EQ(1, r.Call(1));
   }
   {
-    WasmRunner<int32_t, uint32_t> r(ExecutionTier::kInterpreter);
+    WasmRunner<int32_t, uint32_t> r(TestExecutionTier::kInterpreter);
     r.builder().AddMemory(kWasmPageSize);
     r.builder().SetMaxMemPages(10);
     BUILD(r, WASM_GROW_MEMORY(WASM_GET_LOCAL(0)));
@@ -327,7 +327,7 @@ TEST(MemoryGrow) {
 TEST(MemoryGrowPreservesData) {
   int32_t index = 16;
   int32_t value = 2335;
-  WasmRunner<int32_t, uint32_t> r(ExecutionTier::kInterpreter);
+  WasmRunner<int32_t, uint32_t> r(TestExecutionTier::kInterpreter);
   r.builder().AddMemory(kWasmPageSize);
   BUILD(r, WASM_STORE_MEM(MachineType::Int32(), WASM_I32V(index),
                           WASM_I32V(value)),
@@ -338,7 +338,7 @@ TEST(MemoryGrowPreservesData) {
 
 TEST(MemoryGrowInvalidSize) {
   // Grow memory by an invalid amount without initial memory.
-  WasmRunner<int32_t, uint32_t> r(ExecutionTier::kInterpreter);
+  WasmRunner<int32_t, uint32_t> r(TestExecutionTier::kInterpreter);
   r.builder().AddMemory(kWasmPageSize);
   BUILD(r, WASM_GROW_MEMORY(WASM_GET_LOCAL(0)));
   CHECK_EQ(-1, r.Call(1048575));
@@ -346,18 +346,18 @@ TEST(MemoryGrowInvalidSize) {
 
 TEST(ReferenceTypeLocals) {
   {
-    WasmRunner<int32_t> r(ExecutionTier::kInterpreter);
+    WasmRunner<int32_t> r(TestExecutionTier::kInterpreter);
     BUILD(r, WASM_REF_IS_NULL(WASM_REF_NULL(kLocalExternRef)));
     CHECK_EQ(1, r.Call());
   }
   {
-    WasmRunner<int32_t> r(ExecutionTier::kInterpreter);
+    WasmRunner<int32_t> r(TestExecutionTier::kInterpreter);
     r.AllocateLocal(kWasmExternRef);
     BUILD(r, WASM_REF_IS_NULL(WASM_GET_LOCAL(0)));
     CHECK_EQ(1, r.Call());
   }
   {
-    WasmRunner<int32_t> r(ExecutionTier::kInterpreter);
+    WasmRunner<int32_t> r(TestExecutionTier::kInterpreter);
     r.AllocateLocal(kWasmExternRef);
     BUILD(r,
           WASM_REF_IS_NULL(WASM_TEE_LOCAL(0, WASM_REF_NULL(kLocalExternRef))));
@@ -367,7 +367,7 @@ TEST(ReferenceTypeLocals) {
 
 TEST(TestPossibleNondeterminism) {
   {
-    WasmRunner<int32_t, float> r(ExecutionTier::kInterpreter);
+    WasmRunner<int32_t, float> r(TestExecutionTier::kInterpreter);
     BUILD(r, WASM_I32_REINTERPRET_F32(WASM_GET_LOCAL(0)));
     r.Call(1048575.5f);
     CHECK(!r.possible_nondeterminism());
@@ -375,7 +375,7 @@ TEST(TestPossibleNondeterminism) {
     CHECK(!r.possible_nondeterminism());
   }
   {
-    WasmRunner<int64_t, double> r(ExecutionTier::kInterpreter);
+    WasmRunner<int64_t, double> r(TestExecutionTier::kInterpreter);
     BUILD(r, WASM_I64_REINTERPRET_F64(WASM_GET_LOCAL(0)));
     r.Call(16.0);
     CHECK(!r.possible_nondeterminism());
@@ -383,7 +383,7 @@ TEST(TestPossibleNondeterminism) {
     CHECK(!r.possible_nondeterminism());
   }
   {
-    WasmRunner<float, float> r(ExecutionTier::kInterpreter);
+    WasmRunner<float, float> r(TestExecutionTier::kInterpreter);
     BUILD(r, WASM_F32_COPYSIGN(WASM_F32(42.0f), WASM_GET_LOCAL(0)));
     r.Call(16.0f);
     CHECK(!r.possible_nondeterminism());
@@ -391,7 +391,7 @@ TEST(TestPossibleNondeterminism) {
     CHECK(!r.possible_nondeterminism());
   }
   {
-    WasmRunner<double, double> r(ExecutionTier::kInterpreter);
+    WasmRunner<double, double> r(TestExecutionTier::kInterpreter);
     BUILD(r, WASM_F64_COPYSIGN(WASM_F64(42.0), WASM_GET_LOCAL(0)));
     r.Call(16.0);
     CHECK(!r.possible_nondeterminism());
@@ -400,7 +400,7 @@ TEST(TestPossibleNondeterminism) {
   }
   {
     int32_t index = 16;
-    WasmRunner<int32_t, float> r(ExecutionTier::kInterpreter);
+    WasmRunner<int32_t, float> r(TestExecutionTier::kInterpreter);
     r.builder().AddMemory(kWasmPageSize);
     BUILD(r, WASM_STORE_MEM(MachineType::Float32(), WASM_I32V(index),
                             WASM_GET_LOCAL(0)),
@@ -412,7 +412,7 @@ TEST(TestPossibleNondeterminism) {
   }
   {
     int32_t index = 16;
-    WasmRunner<int32_t, double> r(ExecutionTier::kInterpreter);
+    WasmRunner<int32_t, double> r(TestExecutionTier::kInterpreter);
     r.builder().AddMemory(kWasmPageSize);
     BUILD(r, WASM_STORE_MEM(MachineType::Float64(), WASM_I32V(index),
                             WASM_GET_LOCAL(0)),
@@ -423,7 +423,7 @@ TEST(TestPossibleNondeterminism) {
     CHECK(!r.possible_nondeterminism());
   }
   {
-    WasmRunner<float, float> r(ExecutionTier::kInterpreter);
+    WasmRunner<float, float> r(TestExecutionTier::kInterpreter);
     BUILD(r, WASM_F32_ADD(WASM_GET_LOCAL(0), WASM_GET_LOCAL(0)));
     r.Call(1048575.5f);
     CHECK(!r.possible_nondeterminism());
@@ -431,7 +431,7 @@ TEST(TestPossibleNondeterminism) {
     CHECK(r.possible_nondeterminism());
   }
   {
-    WasmRunner<double, double> r(ExecutionTier::kInterpreter);
+    WasmRunner<double, double> r(TestExecutionTier::kInterpreter);
     BUILD(r, WASM_F64_ADD(WASM_GET_LOCAL(0), WASM_GET_LOCAL(0)));
     r.Call(16.0);
     CHECK(!r.possible_nondeterminism());
@@ -439,7 +439,7 @@ TEST(TestPossibleNondeterminism) {
     CHECK(r.possible_nondeterminism());
   }
   {
-    WasmRunner<int32_t, float> r(ExecutionTier::kInterpreter);
+    WasmRunner<int32_t, float> r(TestExecutionTier::kInterpreter);
     BUILD(r, WASM_F32_EQ(WASM_GET_LOCAL(0), WASM_GET_LOCAL(0)));
     r.Call(16.0);
     CHECK(!r.possible_nondeterminism());
@@ -447,7 +447,7 @@ TEST(TestPossibleNondeterminism) {
     CHECK(!r.possible_nondeterminism());
   }
   {
-    WasmRunner<int32_t, double> r(ExecutionTier::kInterpreter);
+    WasmRunner<int32_t, double> r(TestExecutionTier::kInterpreter);
     BUILD(r, WASM_F64_EQ(WASM_GET_LOCAL(0), WASM_GET_LOCAL(0)));
     r.Call(16.0);
     CHECK(!r.possible_nondeterminism());
@@ -455,7 +455,7 @@ TEST(TestPossibleNondeterminism) {
     CHECK(!r.possible_nondeterminism());
   }
   {
-    WasmRunner<float, float> r(ExecutionTier::kInterpreter);
+    WasmRunner<float, float> r(TestExecutionTier::kInterpreter);
     BUILD(r, WASM_F32_MIN(WASM_GET_LOCAL(0), WASM_GET_LOCAL(0)));
     r.Call(1048575.5f);
     CHECK(!r.possible_nondeterminism());
@@ -463,7 +463,7 @@ TEST(TestPossibleNondeterminism) {
     CHECK(r.possible_nondeterminism());
   }
   {
-    WasmRunner<double, double> r(ExecutionTier::kInterpreter);
+    WasmRunner<double, double> r(TestExecutionTier::kInterpreter);
     BUILD(r, WASM_F64_MAX(WASM_GET_LOCAL(0), WASM_GET_LOCAL(0)));
     r.Call(16.0);
     CHECK(!r.possible_nondeterminism());
@@ -473,7 +473,7 @@ TEST(TestPossibleNondeterminism) {
 }
 
 TEST(InterpreterLoadWithoutMemory) {
-  WasmRunner<int32_t, int32_t> r(ExecutionTier::kInterpreter);
+  WasmRunner<int32_t, int32_t> r(TestExecutionTier::kInterpreter);
   r.builder().AddMemory(0);
   BUILD(r, WASM_LOAD_MEM(MachineType::Int32(), WASM_GET_LOCAL(0)));
   CHECK_TRAP32(r.Call(0));
@@ -481,7 +481,7 @@ TEST(InterpreterLoadWithoutMemory) {
 
 TEST(Regress1111015) {
   EXPERIMENTAL_FLAG_SCOPE(return_call);
-  WasmRunner<uint32_t> r(ExecutionTier::kInterpreter);
+  WasmRunner<uint32_t> r(TestExecutionTier::kInterpreter);
   WasmFunctionCompiler& f = r.NewFunction<int32_t>("f");
   BUILD(r, WASM_BLOCK_I(WASM_RETURN_CALL_FUNCTION0(f.function_index()),
                         kExprDrop));

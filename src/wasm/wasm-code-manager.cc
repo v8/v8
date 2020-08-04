@@ -1089,8 +1089,7 @@ WasmCode* NativeModule::PublishCodeLocked(std::unique_ptr<WasmCode> code) {
 
     // Assume an order of execution tiers that represents the quality of their
     // generated code.
-    static_assert(ExecutionTier::kNone < ExecutionTier::kInterpreter &&
-                      ExecutionTier::kInterpreter < ExecutionTier::kLiftoff &&
+    static_assert(ExecutionTier::kNone < ExecutionTier::kLiftoff &&
                       ExecutionTier::kLiftoff < ExecutionTier::kTurbofan,
                   "Assume an order on execution tiers");
 

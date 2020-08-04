@@ -130,7 +130,7 @@ WASM_COMPILED_EXEC_TEST(TryCatchCallExternal) {
 namespace {
 
 void TestTrapNotCaught(byte* code, size_t code_size,
-                       ExecutionTier execution_tier) {
+                       TestExecutionTier execution_tier) {
   TestSignatures sigs;
   EXPERIMENTAL_FLAG_SCOPE(eh);
   WasmRunner<uint32_t> r(execution_tier, nullptr, "main",
