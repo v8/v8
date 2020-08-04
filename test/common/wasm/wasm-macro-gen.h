@@ -83,12 +83,11 @@
 #define DEPTH_2 2
 #define ARITY_2 2
 
-#define WASM_HEAP_TYPE(heap_type) static_cast<byte>(0x7F & heap_type.code())
+#define WASM_HEAP_TYPE(heap_type) static_cast<byte>((heap_type).code() & 0x7f)
 
-#define WASM_REF_TYPE(type)                                         \
-  static_cast<byte>(type.kind() == ValueType::kRef ? kLocalRef      \
-                                                   : kLocalOptRef), \
-      WASM_HEAP_TYPE(type.heap_type())
+#define WASM_REF_TYPE(type)                                    \
+  (type).kind() == ValueType::kRef ? kLocalRef : kLocalOptRef, \
+      WASM_HEAP_TYPE((type).heap_type())
 
 #define WASM_BLOCK(...) kExprBlock, kLocalVoid, __VA_ARGS__, kExprEnd
 #define WASM_BLOCK_I(...) kExprBlock, kLocalI32, __VA_ARGS__, kExprEnd
@@ -447,12 +446,10 @@ inline WasmOpcode LoadStoreOpcodeOf(MachineType type, bool store) {
 #define WASM_REF_IS_NULL(val) val, kExprRefIsNull
 #define WASM_REF_AS_NON_NULL(val) val, kExprRefAsNonNull
 #define WASM_REF_EQ(lhs, rhs) lhs, rhs, kExprRefEq
-#define WASM_REF_TEST(obj_type, rtt_type, ref, rtt)                \
-  ref, rtt, WASM_GC_OP(kExprRefTest), static_cast<byte>(obj_type), \
-      static_cast<byte>(rtt_type)
-#define WASM_REF_CAST(obj_type, rtt_type, ref, rtt)                \
-  ref, rtt, WASM_GC_OP(kExprRefCast), static_cast<byte>(obj_type), \
-      static_cast<byte>(rtt_type)
+#define WASM_REF_TEST(obj_type, rtt_type, ref, rtt) \
+  ref, rtt, WASM_GC_OP(kExprRefTest), obj_type, rtt_type
+#define WASM_REF_CAST(obj_type, rtt_type, ref, rtt) \
+  ref, rtt, WASM_GC_OP(kExprRefCast), obj_type, rtt_type
 // Takes a reference value from the value stack to allow sequences of
 // conditional branches.
 #define WASM_BR_ON_CAST(depth, rtt) \

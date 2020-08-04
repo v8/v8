@@ -3646,7 +3646,7 @@ class WasmFullDecoder : public WasmDecoder<validate> {
                                   ValueType::Ref(obj_type.type, kNonNullable),
                                   this->module_))) {
           this->errorf(this->pc_,
-                       "ret.cast: rtt type must be subtype of object type");
+                       "ref.cast: rtt type must be subtype of object type");
           return 0;
         }
         Value rtt = Pop(1);

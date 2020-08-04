@@ -4061,6 +4061,111 @@ TEST_F(FunctionBodyDecoderTest, RttSub) {
   }
 }
 
+TEST_F(FunctionBodyDecoderTest, RefTestCast) {
+  WASM_FEATURE_SCOPE(reftypes);
+  WASM_FEATURE_SCOPE(typed_funcref);
+  WASM_FEATURE_SCOPE(gc);
+  WASM_FEATURE_SCOPE(eh);
+
+  TestModuleBuilder builder;
+  module = builder.module();
+  HeapType::Representation array_heap =
+      static_cast<HeapType::Representation>(builder.AddArray(kWasmI8, true));
+  HeapType::Representation super_struct_heap =
+      static_cast<HeapType::Representation>(
+          builder.AddStruct({F(kWasmI16, true)}));
+
+  HeapType::Representation sub_struct_heap =
+      static_cast<HeapType::Representation>(
+          builder.AddStruct({F(kWasmI16, true), F(kWasmI32, false)}));
+
+  // Passing/failing tests due to static subtyping.
+  std::pair<HeapType::Representation, HeapType::Representation> valid_pairs[] =
+      {{HeapType::kEq, HeapType::kI31},
+       {HeapType::kFunc, HeapType::kFunc},
+       {HeapType::kEq, array_heap},
+       {HeapType::kEq, super_struct_heap},
+       {super_struct_heap, sub_struct_heap}};
+
+  for (auto pair : valid_pairs) {
+    HeapType from_heap = HeapType(pair.first);
+    HeapType to_heap = HeapType(pair.second);
+    ValueType test_reps[] = {kWasmI32, ValueType::Ref(from_heap, kNullable)};
+    FunctionSig test_sig(1, 1, test_reps);
+    ValueType cast_reps[] = {ValueType::Ref(to_heap, kNonNullable),
+                             ValueType::Ref(from_heap, kNullable)};
+    FunctionSig cast_sig(1, 1, cast_reps);
+    ExpectValidates(&test_sig,
+                    {WASM_REF_TEST(WASM_HEAP_TYPE(from_heap),
+                                   WASM_HEAP_TYPE(to_heap), WASM_GET_LOCAL(0),
+                                   WASM_RTT_CANON(WASM_HEAP_TYPE(to_heap)))});
+    ExpectValidates(&cast_sig,
+                    {WASM_REF_CAST(WASM_HEAP_TYPE(from_heap),
+                                   WASM_HEAP_TYPE(to_heap), WASM_GET_LOCAL(0),
+                                   WASM_RTT_CANON(WASM_HEAP_TYPE(to_heap)))});
+  }
+
+  std::pair<HeapType::Representation, HeapType::Representation>
+      invalid_pairs[] = {{HeapType::kI31, HeapType::kEq},
+                         {array_heap, super_struct_heap},
+                         {array_heap, HeapType::kEq},
+                         {HeapType::kExtern, HeapType::kExn}};
+
+  for (auto pair : invalid_pairs) {
+    HeapType from_heap = HeapType(pair.first);
+    HeapType to_heap = HeapType(pair.second);
+    ValueType test_reps[] = {kWasmI32, ValueType::Ref(from_heap, kNullable)};
+    FunctionSig test_sig(1, 1, test_reps);
+    ValueType cast_reps[] = {ValueType::Ref(to_heap, kNonNullable),
+                             ValueType::Ref(from_heap, kNullable)};
+    FunctionSig cast_sig(1, 1, cast_reps);
+    ExpectFailure(&test_sig,
+                  {WASM_REF_TEST(WASM_HEAP_TYPE(from_heap),
+                                 WASM_HEAP_TYPE(to_heap), WASM_GET_LOCAL(0),
+                                 WASM_RTT_CANON(WASM_HEAP_TYPE(to_heap)))},
+                  kAppendEnd,
+                  "ref.test: rtt type must be subtype of object type");
+    ExpectFailure(&cast_sig,
+                  {WASM_REF_CAST(WASM_HEAP_TYPE(from_heap),
+                                 WASM_HEAP_TYPE(to_heap), WASM_GET_LOCAL(0),
+                                 WASM_RTT_CANON(WASM_HEAP_TYPE(to_heap)))},
+                  kAppendEnd,
+                  "ref.cast: rtt type must be subtype of object type");
+  }
+
+  // Trivial type error.
+  ExpectFailure(sigs.v_v(),
+                {WASM_REF_TEST(kLocalEqRef, kLocalI31Ref, WASM_I32V(1),
+                               WASM_RTT_CANON(kLocalI31Ref)),
+                 kExprDrop},
+                kAppendEnd,
+                "ref.test[0] expected type eqref, found i32.const of type i32");
+  ExpectFailure(sigs.v_v(),
+                {WASM_REF_CAST(kLocalEqRef, kLocalI31Ref, WASM_I32V(1),
+                               WASM_RTT_CANON(kLocalI31Ref)),
+                 kExprDrop},
+                kAppendEnd,
+                "ref.cast[0] expected type eqref, found i32.const of type i32");
+
+  // Mismached object heap immediate.
+  {
+    ValueType arg_type = ValueType::Ref(HeapType::kEq, kNonNullable);
+    FunctionSig sig(0, 1, &arg_type);
+    ExpectFailure(
+        &sig,
+        {WASM_REF_TEST(kLocalEqRef, static_cast<byte>(array_heap),
+                       WASM_GET_LOCAL(0), WASM_RTT_CANON(kLocalI31Ref)),
+         kExprDrop},
+        kAppendEnd, "ref.test: expected rtt for type 0 but got (rtt 1 i31)");
+    ExpectFailure(
+        &sig,
+        {WASM_REF_CAST(kLocalEqRef, static_cast<byte>(array_heap),
+                       WASM_GET_LOCAL(0), WASM_RTT_CANON(kLocalI31Ref)),
+         kExprDrop},
+        kAppendEnd, "ref.cast: expected rtt for type 0 but got (rtt 1 i31)");
+  }
+}
+
 class BranchTableIteratorTest : public TestWithZone {
  public:
   BranchTableIteratorTest() : TestWithZone() {}
