@@ -89,14 +89,21 @@ TEST_F(PersistentHandlesTest, Iterate) {
   CHECK_EQ(count_handles(isolate), handles_in_empty_scope + 1);
 
   std::unique_ptr<PersistentHandles> ph;
+  Handle<String> verify_handle;
 
   {
     PersistentHandlesScope persistent_scope(isolate);
-    handle(ReadOnlyRoots(heap).empty_string(), isolate);
+    verify_handle = handle(ReadOnlyRoots(heap).empty_string(), isolate);
     CHECK_NE(old_limit, data->limit);
     CHECK_EQ(count_handles(isolate), handles_in_empty_scope + 2);
     ph = persistent_scope.Detach();
   }
+
+#if DEBUG
+  CHECK(ph->Contains(verify_handle.location()));
+#else
+  USE(verify_handle);
+#endif
 
   ph->NewHandle(ReadOnlyRoots(heap).empty_string());
   CHECK_EQ(count_handles(ph.get()), 2);

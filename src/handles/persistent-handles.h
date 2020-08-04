@@ -45,7 +45,7 @@ class PersistentHandles {
   }
 
 #ifdef DEBUG
-  bool Contains(Address* location);
+  V8_EXPORT_PRIVATE bool Contains(Address* location);
 #endif
 
  private:

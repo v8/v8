@@ -11190,6 +11190,9 @@ std::unique_ptr<PersistentHandles> HandleScopeImplementer::DetachPersistent(
                    prev_limit == block_limit);
     if (prev_limit == block_limit) break;
     ph->blocks_.push_back(blocks_.back());
+#if DEBUG
+    ph->ordered_blocks_.insert(blocks_.back());
+#endif
     blocks_.pop_back();
   }
 
