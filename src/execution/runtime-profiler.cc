@@ -38,6 +38,14 @@ static const int kOSRBytecodeSizeAllowancePerTick = 48;
 // the very first time it is seen on the stack.
 static const int kMaxBytecodeSizeForEarlyOpt = 90;
 
+// Number of times a function has to be seen on the stack before it is
+// OSRed in TurboProp
+// This value is chosen so TurboProp OSRs at similar time as TurboFan. The
+// current interrupt budger of TurboFan is approximately 10 times that of
+// TurboProp and we wait for 3 ticks (2 for marking for optimization and an
+// additional tick to mark it for OSR) and hence this is set to 3 * 10.
+static const int kProfilerTicksForTurboPropOSR = 3 * 10;
+
 #define OPTIMIZATION_REASON_LIST(V)   \
   V(DoNotOptimize, "do not optimize") \
   V(HotAndStable, "hot and stable")   \
@@ -157,6 +165,12 @@ bool RuntimeProfiler::MaybeOSR(JSFunction function, InterpretedFrame* frame) {
   int ticks = function.feedback_vector().profiler_ticks();
   // TODO(rmcilroy): Also ensure we only OSR top-level code if it is smaller
   // than kMaxToplevelSourceSize.
+
+  // Turboprop optimizes quite early. So don't attempt to OSR if the loop isn't
+  // hot enough.
+  if (FLAG_turboprop && ticks < kProfilerTicksForTurboPropOSR) {
+    return false;
+  }
 
   if (function.IsMarkedForOptimization() ||
       function.IsMarkedForConcurrentOptimization() ||
