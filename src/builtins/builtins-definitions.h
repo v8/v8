@@ -94,14 +94,6 @@ namespace internal {
   ASM(JSBuiltinsConstructStub, Dummy)                                          \
   TFC(FastNewObject, FastNewObject)                                            \
   TFS(FastNewClosure, kSharedFunctionInfo, kFeedbackCell)                      \
-  TFC(FastNewFunctionContextEval, FastNewFunctionContext)                      \
-  TFC(FastNewFunctionContextFunction, FastNewFunctionContext)                  \
-  TFS(CreateEmptyLiteralObject)                                                \
-  TFS(CreateRegExpLiteral, kFeedbackVector, kSlot, kPattern, kFlags)           \
-  TFS(CreateEmptyArrayLiteral, kFeedbackVector, kSlot)                         \
-  TFS(CreateShallowArrayLiteral, kFeedbackVector, kSlot, kConstantElements)    \
-  TFS(CreateShallowObjectLiteral, kFeedbackVector, kSlot,                      \
-      kObjectBoilerplateDescription, kFlags)                                   \
   /* ES6 section 9.5.14 [[Construct]] ( argumentsList, newTarget) */           \
   TFC(ConstructProxy, JSTrampoline)                                            \
                                                                                \
@@ -599,7 +591,6 @@ namespace internal {
   TFS(MapIteratorToList, kSource)                                              \
                                                                                \
   /* ES #sec-number-constructor */                                             \
-  TFJ(NumberConstructor, kDontAdaptArgumentsSentinel)                          \
   CPP(NumberPrototypeToExponential)                                            \
   CPP(NumberPrototypeToFixed)                                                  \
   CPP(NumberPrototypeToLocaleString)                                           \
@@ -637,7 +628,6 @@ namespace internal {
                                                                                \
   /* Object */                                                                 \
   /* ES #sec-object-constructor */                                             \
-  TFJ(ObjectConstructor, kDontAdaptArgumentsSentinel)                          \
   TFJ(ObjectAssign, kDontAdaptArgumentsSentinel)                               \
   /* ES #sec-object.create */                                                  \
   TFJ(ObjectCreate, kDontAdaptArgumentsSentinel)                               \
@@ -788,7 +778,6 @@ namespace internal {
   /* TypedArray */                                                             \
   /* ES #sec-typedarray-constructors */                                        \
   TFJ(TypedArrayBaseConstructor, 0, kReceiver)                                 \
-  TFJ(GenericLazyDeoptContinuation, 1, kReceiver, kResult)                     \
   TFJ(TypedArrayConstructor, kDontAdaptArgumentsSentinel)                      \
   CPP(TypedArrayPrototypeBuffer)                                               \
   /* ES6 #sec-get-%typedarray%.prototype.bytelength */                         \

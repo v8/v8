@@ -36,7 +36,7 @@ HasAccessCheckFailed(implicit context: Context)(
   return false;
 }
 
-extern macro ConstructorBuiltinsAssembler::EmitFastNewObject(
+extern macro ConstructorBuiltinsAssembler::FastNewObject(
     Context, JSFunction, JSReceiver): JSObject;
 
 extern macro
@@ -70,8 +70,8 @@ PromiseConstructor(
   if (promiseFun == newTarget) {
     result = NewJSPromise();
   } else {
-    result = UnsafeCast<JSPromise>(EmitFastNewObject(
-        context, promiseFun, UnsafeCast<JSReceiver>(newTarget)));
+    result = UnsafeCast<JSPromise>(
+        FastNewObject(context, promiseFun, UnsafeCast<JSReceiver>(newTarget)));
     PromiseInit(result);
     if (IsPromiseHookEnabledOrHasAsyncEventDelegate()) {
       runtime::PromiseHookInit(result, Undefined);

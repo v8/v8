@@ -523,6 +523,12 @@ transitioning macro ToInteger_Inline(implicit context: Context)(input: JSAny):
   }
 }
 
+extern enum BigIntHandling extends int32
+constexpr 'CodeStubAssembler::BigIntHandling' { kConvertToNumber, kThrow }
+
+extern transitioning macro ToNumber(implicit context: Context)(
+    JSAny, constexpr BigIntHandling): Number;
+
 extern transitioning macro ToLength_Inline(implicit context: Context)(JSAny):
     Number;
 extern transitioning macro ToNumber_Inline(implicit context: Context)(JSAny):

@@ -413,8 +413,7 @@ TNode<JSObject> BaseCollectionsAssembler::AllocateJSCollectionSlow(
     TNode<Context> context, TNode<JSFunction> constructor,
     TNode<JSReceiver> new_target) {
   ConstructorBuiltinsAssembler constructor_assembler(this->state());
-  return constructor_assembler.EmitFastNewObject(context, constructor,
-                                                 new_target);
+  return constructor_assembler.FastNewObject(context, constructor, new_target);
 }
 
 void BaseCollectionsAssembler::GenerateConstructor(
