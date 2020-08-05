@@ -871,12 +871,6 @@ void PagedSpace::PrepareForMarkCompact() {
   free_list_->Reset();
 }
 
-size_t PagedSpace::SizeOfObjects() {
-  CHECK_GE(limit(), top());
-  DCHECK_GE(Size(), static_cast<size_t>(limit() - top()));
-  return Size() - (limit() - top());
-}
-
 bool PagedSpace::RefillLabMain(int size_in_bytes, AllocationOrigin origin) {
   VMState<GC> state(heap()->isolate());
   RuntimeCallTimerScope runtime_timer(

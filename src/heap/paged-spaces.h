@@ -120,10 +120,6 @@ class V8_EXPORT_PRIVATE PagedSpace
   // here.
   size_t Size() override { return accounting_stats_.Size(); }
 
-  // As size, but the bytes in lazily swept pages are estimated and the bytes
-  // in the current linear allocation area are not included.
-  size_t SizeOfObjects() override;
-
   // Wasted bytes in this space.  These are just the bytes that were thrown away
   // due to being too small to use for allocation.
   virtual size_t Waste() { return free_list_->wasted_bytes(); }

@@ -1644,6 +1644,9 @@ HEAP_TEST(TestSizeOfObjects) {
   v8::V8::Initialize();
   Isolate* isolate = CcTest::i_isolate();
   Heap* heap = CcTest::heap();
+  // Disable LAB, such that calculations with SizeOfObjects() and object size
+  // are correct.
+  heap->DisableInlineAllocation();
   MarkCompactCollector* collector = heap->mark_compact_collector();
 
   // Get initial heap size after several full GCs, which will stabilize
@@ -1889,6 +1892,9 @@ TEST(HeapNumberAlignment) {
 
 TEST(TestSizeOfObjectsVsHeapObjectIteratorPrecision) {
   CcTest::InitializeVM();
+  // Disable LAB, such that calculations with SizeOfObjects() and object size
+  // are correct.
+  CcTest::heap()->DisableInlineAllocation();
   HeapObjectIterator iterator(CcTest::heap());
   intptr_t size_of_objects_1 = CcTest::heap()->SizeOfObjects();
   intptr_t size_of_objects_2 = 0;
@@ -5302,6 +5308,9 @@ TEST(OldSpaceAllocationCounter) {
   v8::HandleScope scope(CcTest::isolate());
   Isolate* isolate = CcTest::i_isolate();
   Heap* heap = isolate->heap();
+  // Disable LAB, such that calculations with SizeOfObjects() and object size
+  // are correct.
+  heap->DisableInlineAllocation();
   size_t counter1 = heap->OldGenerationAllocationCounter();
   CcTest::CollectGarbage(NEW_SPACE);
   CcTest::CollectGarbage(NEW_SPACE);
@@ -5726,6 +5735,9 @@ Handle<FixedArray> ShrinkArrayAndCheckSize(Heap* heap, int length) {
     CcTest::CollectAllGarbage();
   }
   heap->mark_compact_collector()->EnsureSweepingCompleted();
+  // Disable LAB, such that calculations with SizeOfObjects() and object size
+  // are correct.
+  heap->DisableInlineAllocation();
   size_t size_before_allocation = heap->SizeOfObjects();
   Handle<FixedArray> array =
       heap->isolate()->factory()->NewFixedArray(length, AllocationType::kOld);
