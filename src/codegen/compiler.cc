@@ -921,6 +921,12 @@ void InsertCodeIntoCompilationCache(Isolate* isolate,
   if (FLAG_trace_turbo_nci) CompilationCacheCode::TraceInsertion(sfi, code);
 }
 
+V8_WARN_UNUSED_RESULT MaybeHandle<Code> GetCodeFromCompilationCache(
+    Isolate* isolate, Handle<SharedFunctionInfo> shared) {
+  if (!shared->may_have_cached_code()) return {};
+  return shared->TryGetCachedCode(isolate);
+}
+
 bool GetOptimizedCodeNow(OptimizedCompilationJob* job, Isolate* isolate) {
   TimerEventScope<TimerEventRecompileSynchronous> timer(isolate);
   RuntimeCallTimerScope runtimeTimer(
@@ -1034,11 +1040,14 @@ MaybeHandle<Code> GetOptimizedCode(Handle<JSFunction> function,
   if (CodeKindIsNativeContextIndependentJSFunction(code_kind)) {
     // We don't generate NCI code for OSR.
     DCHECK_EQ(osr_offset, BailoutId::None());
+
     // Don't generate NCI code when we've already done so in the past.
-    // TODO(jgruber,v8:8888): A better heuristic. If code has previously been
-    // cached but subsequently removed through cache ageing, we should be able
-    // to compile again.
-    if (shared->may_have_cached_code()) return {};
+    Handle<Code> cached_code;
+    if (GetCodeFromCompilationCache(isolate, shared).ToHandle(&cached_code)) {
+      if (FLAG_trace_turbo_nci)
+        CompilationCacheCode::TraceHit(shared, cached_code);
+      return cached_code;
+    }
   }
 
   VMState<COMPILER> state(isolate);

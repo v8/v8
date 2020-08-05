@@ -1323,12 +1323,20 @@
 ################################################################################
 ['variant == nci or variant == nci_as_highest_tier', {
   # Deopts differently than TurboFan.
+  # Deoptimization support is still incomplete in general, since deopts can
+  # only happen when explicitly requested by tests. NCI code objects are then
+  # set as marked_for_deoptimization *and never unset*, which means functions
+  # with attached NCI code objects will never again count as optimized.
+  # TODO(jgruber): Fix this once deopts can occur outside tests.
   'compiler/is-being-interpreted*': [SKIP],
   'compiler/number-comparison-truncations': [SKIP],
   'compiler/redundancy-elimination': [SKIP],
   'compiler/regress-9945-*': [SKIP],
   'regress/regress-1049982-1': [SKIP],
   'regress/regress-1049982-2': [SKIP],
+  'compiler/test-dynamic-map-*': [SKIP],
+  'es6/collections-constructor-iterator-side-effect': [SKIP],
+  'es6/collections-constructor-with-modified-protoype': [SKIP],
   # Deopts due to different behavior in BytecodeGraphBuilder::GetForInMode.  In
   # default TF, the ForInHint is kAny, in NCI mode kNone (because we currently
   # don't use feedback).

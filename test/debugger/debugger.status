@@ -139,6 +139,7 @@
 ['variant == turboprop or variant == nci or variant == nci_as_highest_tier', {
   # Deopts differently than TurboFan.
   'debug/debug-optimize': [SKIP],
+  'debug/debug-compile-optimized': [SKIP],
 }],  # variant == turboprop or variant == nci or variant == nci_as_highest_tier
 
 ##############################################################################
