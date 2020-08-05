@@ -244,45 +244,11 @@ void Assembler::CheckBuffer() {
   }
 }
 
-// FIXME (RISCV): MIPS constants SPECIAL and SLL are still in use
-void Assembler::CheckForEmitInForbiddenSlot() {
-  if (!is_buffer_growth_blocked()) {
-    CheckBuffer();
-  }
-  if (IsPrevInstrCompactBranch()) {
-    UNIMPLEMENTED();
-    /*
-    // Nop instruction to precede a CTI in forbidden slot:
-    Instr nop = SPECIAL | SLL;
-    *reinterpret_cast<Instr*>(pc_) = nop;
-    pc_ += kInstrSize;
-
-    ClearCompactBranchState();
-    */
-  }
-}
-
-// FIXME (RISCV): MIPS constants SPECIAL and SLL are still in use
-void Assembler::EmitHelper(Instr x, CompactBranchType is_compact_branch) {
-  if (IsPrevInstrCompactBranch()) {
-    UNIMPLEMENTED();
-    /*
-    if (Instruction::IsForbiddenAfterBranchInstr(x)) {
-      // Nop instruction to precede a CTI in forbidden slot:
-      Instr nop = SPECIAL | SLL;
-      *reinterpret_cast<Instr*>(pc_) = nop;
-      pc_ += kInstrSize;
-    }
-    ClearCompactBranchState();
-    */
-  }
+void Assembler::EmitHelper(Instr x) {
   DEBUG_PRINTF("%p: ", pc_);
   disassembleInstr(x);
   *reinterpret_cast<Instr*>(pc_) = x;
   pc_ += kInstrSize;
-  if (is_compact_branch == CompactBranchType::COMPACT_BRANCH) {
-    EmittedCompactBranchInstruction();
-  }
   CheckTrampolinePoolQuick();
 }
 
@@ -309,15 +275,15 @@ void Assembler::EmitHelper(uint8_t x) {
   }
 }
 
-void Assembler::emit(Instr x, CompactBranchType is_compact_branch) {
+void Assembler::emit(Instr x) {
   if (!is_buffer_growth_blocked()) {
     CheckBuffer();
   }
-  EmitHelper(x, is_compact_branch);
+  EmitHelper(x);
 }
 
 void Assembler::emit(uint64_t data) {
-  CheckForEmitInForbiddenSlot();
+  if (!is_buffer_growth_blocked()) CheckBuffer();
   EmitHelper(data);
 }
 

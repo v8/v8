@@ -850,10 +850,6 @@ class InstructionGetters : public T {
 
   inline bool RlValue() const { return this->Bits(kRlShift, kRlShift); }
 
-  // Original MIPS methods
-  // FIXME (RISCV): to be cleaned up
-  static bool IsForbiddenAfterBranchInstr(Instr instr);
-
   // Say if the instruction is a break or a trap.
   bool IsTrap() const;
 };
@@ -942,12 +938,6 @@ bool InstructionGetters<P>::IsTrap() const {
   return (this->InstructionBits() == kBreakInstr);
 }
 
-// FIXME (RISCV): to be cleaned up
-// static
-template <class T>
-bool InstructionGetters<T>::IsForbiddenAfterBranchInstr(Instr instr) {
-  UNIMPLEMENTED();
-}
 }  // namespace internal
 }  // namespace v8
 

@@ -226,9 +226,6 @@ Assembler::Assembler(const AssemblerOptions& options,
 void Assembler::GetCode(Isolate* isolate, CodeDesc* desc,
                         SafepointTableBuilder* safepoint_table_builder,
                         int handler_table_offset) {
-  // FIXME(RISCV): does riscv need this?
-  EmitForbiddenSlotInstruction();
-
   int code_comments_size = WriteCodeComments();
 
   DCHECK(pc_ <= reloc_info_writer.pos());  // No overlap.
@@ -259,7 +256,6 @@ void Assembler::GetCode(Isolate* isolate, CodeDesc* desc,
 
 void Assembler::Align(int m) {
   DCHECK(m >= 4 && base::bits::IsPowerOfTwo(m));
-  EmitForbiddenSlotInstruction();
   while ((pc_offset() & (m - 1)) != 0) {
     nop();
   }
@@ -1943,23 +1939,23 @@ void Assembler::GrowBuffer() {
 }
 
 void Assembler::db(uint8_t data) {
-  CheckForEmitInForbiddenSlot();
+  if (!is_buffer_growth_blocked()) CheckBuffer();
   EmitHelper(data);
 }
 
 void Assembler::dd(uint32_t data) {
-  CheckForEmitInForbiddenSlot();
+  if (!is_buffer_growth_blocked()) CheckBuffer();
   EmitHelper(data);
 }
 
 void Assembler::dq(uint64_t data) {
-  CheckForEmitInForbiddenSlot();
+  if (!is_buffer_growth_blocked()) CheckBuffer();
   EmitHelper(data);
 }
 
 void Assembler::dd(Label* label) {
   uint64_t data;
-  CheckForEmitInForbiddenSlot();
+  if (!is_buffer_growth_blocked()) CheckBuffer();
   if (label->is_bound()) {
     data = reinterpret_cast<uint64_t>(buffer_start_ + label->pos());
   } else {

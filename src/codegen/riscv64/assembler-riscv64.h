@@ -36,6 +36,7 @@
 #define V8_CODEGEN_RISCV_ASSEMBLER_RISCV_H_
 
 #include <stdio.h>
+
 #include <memory>
 #include <set>
 
@@ -784,8 +785,6 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase {
 
   void CheckTrampolinePool();
 
-  bool IsPrevInstrCompactBranch() { return prev_instr_compact_branch_; }
-
   inline int UnboundLabelsCount() { return unbound_labels_count_; }
 
  protected:
@@ -860,12 +859,6 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase {
 
   bool is_buffer_growth_blocked() const { return block_buffer_growth_; }
 
-  void EmitForbiddenSlotInstruction() {
-    if (IsPrevInstrCompactBranch()) {
-      nop();
-    }
-  }
-
   void CheckTrampolinePoolQuick(int extra_instructions = 0) {
     if (pc_offset() >= next_buffer_check_ - extra_instructions * kInstrSize) {
       CheckTrampolinePool();
@@ -915,19 +908,14 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase {
   // The bound position, before this we cannot do instruction elimination.
   int last_bound_pos_;
 
-  // Readable constants for compact branch handling in emit()
-  enum class CompactBranchType : bool { NO = false, COMPACT_BRANCH = true };
-
   // Code emission.
   inline void CheckBuffer();
   void GrowBuffer();
-  inline void emit(Instr x,
-                   CompactBranchType is_compact_branch = CompactBranchType::NO);
+  inline void emit(Instr x);
   inline void emit(uint64_t x);
-  inline void CheckForEmitInForbiddenSlot();
   template <typename T>
   inline void EmitHelper(T x);
-  inline void EmitHelper(Instr x, CompactBranchType is_compact_branch);
+  inline void EmitHelper(Instr x);
 
   static void disassembleInstr(Instr instr);
 
@@ -1079,10 +1067,6 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase {
     return internal_reference_positions_.find(L->pos()) !=
            internal_reference_positions_.end();
   }
-
-  void EmittedCompactBranchInstruction() { prev_instr_compact_branch_ = true; }
-  void ClearCompactBranchState() { prev_instr_compact_branch_ = false; }
-  bool prev_instr_compact_branch_ = false;
 
   Trampoline trampoline_;
   bool internal_trampoline_exception_;
