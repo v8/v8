@@ -43,7 +43,7 @@ ClosureFeedbackCellArray JSFunction::closure_feedback_cell_array() const {
 // TODO(jupvfranco): rename this function. Maybe RunOptimizedCode,
 // or IsValidOptimizedCode.
 bool JSFunction::IsOptimized() {
-  return is_compiled() && code().kind() == Code::OPTIMIZED_FUNCTION &&
+  return is_compiled() && CodeKindIsOptimizedJSFunction(code().kind()) &&
          !code().marked_for_deoptimization();
 }
 
@@ -66,7 +66,7 @@ void JSFunction::ClearOptimizationMarker() {
 // interpreted on its next activation, and already doesn't count as IsOptimized.
 bool JSFunction::IsInterpreted() {
   return is_compiled() && (code().is_interpreter_trampoline_builtin() ||
-                           (code().kind() == Code::OPTIMIZED_FUNCTION &&
+                           (CodeKindIsOptimizedJSFunction(code().kind()) &&
                             code().marked_for_deoptimization()));
 }
 

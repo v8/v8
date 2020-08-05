@@ -165,7 +165,7 @@ bool Serializer::SerializeBackReference(HeapObject obj) {
 
 bool Serializer::ObjectIsBytecodeHandler(HeapObject obj) const {
   if (!obj.IsCode()) return false;
-  return (Code::cast(obj).kind() == Code::BYTECODE_HANDLER);
+  return (Code::cast(obj).kind() == CodeKind::BYTECODE_HANDLER);
 }
 
 void Serializer::PutRoot(RootIndex root, HeapObject object) {

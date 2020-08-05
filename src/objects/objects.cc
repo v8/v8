@@ -2059,7 +2059,7 @@ void HeapObject::HeapObjectShortPrint(std::ostream& os) {  // NOLINT
     }
     case CODE_TYPE: {
       Code code = Code::cast(*this);
-      os << "<Code " << Code::Kind2String(code.kind());
+      os << "<Code " << CodeKindToString(code.kind());
       if (code.is_builtin()) {
         os << " " << Builtins::name(code.builtin_index());
       }

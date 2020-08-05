@@ -795,7 +795,7 @@ class V8_EXPORT_PRIVATE Factory : public FactoryBase<Factory> {
   // which tries to gracefully handle allocation failure.
   class V8_EXPORT_PRIVATE CodeBuilder final {
    public:
-    CodeBuilder(Isolate* isolate, const CodeDesc& desc, Code::Kind kind);
+    CodeBuilder(Isolate* isolate, const CodeDesc& desc, CodeKind kind);
 
     // Builds a new code object (fully initialized). All header fields of the
     // returned object are immutable and the code object is write protected.
@@ -875,7 +875,7 @@ class V8_EXPORT_PRIVATE Factory : public FactoryBase<Factory> {
 
     Isolate* const isolate_;
     const CodeDesc& code_desc_;
-    const Code::Kind kind_;
+    const CodeKind kind_;
 
     MaybeHandle<Object> self_reference_;
     int32_t builtin_index_ = Builtins::kNoBuiltinId;

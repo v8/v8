@@ -1748,7 +1748,7 @@ uint32_t WasmExceptionPackage::GetEncodedSize(
 bool WasmExportedFunction::IsWasmExportedFunction(Object object) {
   if (!object.IsJSFunction()) return false;
   JSFunction js_function = JSFunction::cast(object);
-  if (Code::JS_TO_WASM_FUNCTION != js_function.code().kind() &&
+  if (CodeKind::JS_TO_WASM_FUNCTION != js_function.code().kind() &&
       js_function.code().builtin_index() != Builtins::kGenericJSToWasmWrapper) {
     return false;
   }
@@ -1761,7 +1761,7 @@ bool WasmCapiFunction::IsWasmCapiFunction(Object object) {
   JSFunction js_function = JSFunction::cast(object);
   // TODO(jkummerow): Enable this when there is a JavaScript wrapper
   // able to call this function.
-  // if (js_function->code()->kind() != Code::WASM_TO_CAPI_FUNCTION) {
+  // if (js_function->code()->kind() != CodeKind::WASM_TO_CAPI_FUNCTION) {
   //   return false;
   // }
   // DCHECK(js_function->shared()->HasWasmCapiFunctionData());
@@ -1801,7 +1801,7 @@ Handle<WasmExportedFunction> WasmExportedFunction::New(
     Isolate* isolate, Handle<WasmInstanceObject> instance, int func_index,
     int arity, Handle<Code> export_wrapper) {
   DCHECK(
-      Code::JS_TO_WASM_FUNCTION == export_wrapper->kind() ||
+      CodeKind::JS_TO_WASM_FUNCTION == export_wrapper->kind() ||
       (export_wrapper->is_builtin() &&
        export_wrapper->builtin_index() == Builtins::kGenericJSToWasmWrapper));
   int num_imported_functions = instance->module()->num_imported_functions;

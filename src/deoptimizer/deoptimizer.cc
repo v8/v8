@@ -194,7 +194,7 @@ Code Deoptimizer::FindDeoptimizingCode(Address addr) {
     Object element = native_context.DeoptimizedCodeListHead();
     while (!element.IsUndefined(isolate)) {
       Code code = Code::cast(element);
-      CHECK_EQ(code.kind(), Code::OPTIMIZED_FUNCTION);
+      CHECK(CodeKindCanDeoptimize(code.kind()));
       if (code.contains(addr)) return code;
       element = code.next_code_link();
     }
@@ -275,7 +275,7 @@ class ActivationsFinder : public ThreadVisitor {
     for (StackFrameIterator it(isolate, top); !it.done(); it.Advance()) {
       if (it.frame()->type() == StackFrame::OPTIMIZED) {
         Code code = it.frame()->LookupCode();
-        if (code.kind() == Code::OPTIMIZED_FUNCTION &&
+        if (CodeKindCanDeoptimize(code.kind()) &&
             code.marked_for_deoptimization()) {
           codes_->erase(code);
           // Obtain the trampoline to the deoptimizer call.
@@ -331,7 +331,7 @@ void Deoptimizer::DeoptimizeMarkedCodeForContext(NativeContext native_context) {
 
       // Turbofan deopt is checked when we are patching addresses on stack.
       bool safe_if_deopt_triggered = safepoint.has_deoptimization_index();
-      bool is_builtin_code = code.kind() == Code::BUILTIN;
+      bool is_builtin_code = code.kind() == CodeKind::BUILTIN;
       DCHECK(topmost_optimized_code.is_null() || safe_if_deopt_triggered ||
              is_builtin_code);
       if (topmost_optimized_code.is_null()) {
@@ -352,7 +352,7 @@ void Deoptimizer::DeoptimizeMarkedCodeForContext(NativeContext native_context) {
   Object element = native_context.OptimizedCodeListHead();
   while (!element.IsUndefined(isolate)) {
     Code code = Code::cast(element);
-    CHECK_EQ(code.kind(), Code::OPTIMIZED_FUNCTION);
+    CHECK(CodeKindCanDeoptimize(code.kind()));
     Object next = code.next_code_link();
 
     if (code.marked_for_deoptimization()) {
@@ -442,7 +442,7 @@ void Deoptimizer::MarkAllCodeForContext(NativeContext native_context) {
   Isolate* isolate = native_context.GetIsolate();
   while (!element.IsUndefined(isolate)) {
     Code code = Code::cast(element);
-    CHECK_EQ(code.kind(), Code::OPTIMIZED_FUNCTION);
+    CHECK(CodeKindCanDeoptimize(code.kind()));
     code.set_marked_for_deoptimization(true);
     element = code.next_code_link();
   }
@@ -457,7 +457,7 @@ void Deoptimizer::DeoptimizeFunction(JSFunction function, Code code) {
   function.ResetIfBytecodeFlushed();
   if (code.is_null()) code = function.code();
 
-  if (code.kind() == Code::OPTIMIZED_FUNCTION) {
+  if (CodeKindCanDeoptimize(code.kind())) {
     // Mark the code for deoptimization and unlink any functions that also
     // refer to that code. The code cannot be shared across native contexts,
     // so we only need to search one.
@@ -549,7 +549,7 @@ Deoptimizer::Deoptimizer(Isolate* isolate, JSFunction function,
   DCHECK(AllowHeapAllocation::IsAllowed());
   disallow_heap_allocation_ = new DisallowHeapAllocation();
 #endif  // DEBUG
-  CHECK_EQ(compiled_code_.kind(), Code::OPTIMIZED_FUNCTION);
+  CHECK(CodeKindCanDeoptimize(compiled_code_.kind()));
   if (!compiled_code_.deopt_already_counted() &&
       deopt_kind_ == DeoptimizeKind::kSoft) {
     isolate->counters()->soft_deopts_executed()->Increment();
@@ -608,8 +608,7 @@ void Deoptimizer::PrintFunctionName() {
   if (function_.IsHeapObject() && function_.IsJSFunction()) {
     function_.ShortPrint(trace_scope_->file());
   } else {
-    PrintF(trace_scope_->file(), "%s",
-           Code::Kind2String(compiled_code_.kind()));
+    PrintF(trace_scope_->file(), "%s", CodeKindToString(compiled_code_.kind()));
   }
 }
 
@@ -695,7 +694,7 @@ int Deoptimizer::GetDeoptimizedCodeCount(Isolate* isolate) {
     Object element = native_context.DeoptimizedCodeListHead();
     while (!element.IsUndefined(isolate)) {
       Code code = Code::cast(element);
-      DCHECK_EQ(code.kind(), Code::OPTIMIZED_FUNCTION);
+      DCHECK(CodeKindCanDeoptimize(code.kind()));
       if (!code.marked_for_deoptimization()) {
         length++;
       }
@@ -1874,7 +1873,7 @@ unsigned Deoptimizer::ComputeInputFrameSize() const {
   // function into account so we have to avoid double counting them.
   unsigned fixed_size_above_fp = ComputeInputFrameAboveFpFixedSize();
   unsigned result = fixed_size_above_fp + fp_to_sp_delta_;
-  DCHECK_EQ(compiled_code_.kind(), Code::OPTIMIZED_FUNCTION);
+  DCHECK(CodeKindCanDeoptimize(compiled_code_.kind()));
   unsigned stack_slots = compiled_code_.stack_slots();
   unsigned outgoing_size = 0;
   //        ComputeOutgoingArgumentSize(compiled_code_, bailout_id_);
@@ -1908,8 +1907,9 @@ void Deoptimizer::EnsureCodeForDeoptimizationEntry(Isolate* isolate,
 
   // Allocate the code as immovable since the entry addresses will be used
   // directly and there is no support for relocating them.
-  Handle<Code> code =
-      Factory::CodeBuilder(isolate, desc, Code::STUB).set_immovable().Build();
+  Handle<Code> code = Factory::CodeBuilder(isolate, desc, CodeKind::STUB)
+                          .set_immovable()
+                          .Build();
   CHECK(isolate->heap()->IsImmovable(*code));
 
   CHECK(data->deopt_entry_code(kind).is_null());

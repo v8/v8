@@ -568,7 +568,7 @@ StackFrame::Type StackFrame::ComputeType(const StackFrameIteratorBase* iterator,
       Code code_obj = GetContainingCode(iterator->isolate(), pc);
       if (!code_obj.is_null()) {
         switch (code_obj.kind()) {
-          case Code::BUILTIN:
+          case CodeKind::BUILTIN:
             if (StackFrame::IsTypeMarker(marker)) break;
             if (code_obj.is_interpreter_trampoline_builtin()) {
               return INTERPRETED;
@@ -581,17 +581,18 @@ StackFrame::Type StackFrame::ComputeType(const StackFrameIteratorBase* iterator,
               return OPTIMIZED;
             }
             return BUILTIN;
-          case Code::OPTIMIZED_FUNCTION:
+          case CodeKind::OPTIMIZED_FUNCTION:
+          case CodeKind::NATIVE_CONTEXT_INDEPENDENT:
             return OPTIMIZED;
-          case Code::JS_TO_WASM_FUNCTION:
+          case CodeKind::JS_TO_WASM_FUNCTION:
             return JS_TO_WASM;
-          case Code::JS_TO_JS_FUNCTION:
+          case CodeKind::JS_TO_JS_FUNCTION:
             return STUB;
-          case Code::C_WASM_ENTRY:
+          case CodeKind::C_WASM_ENTRY:
             return C_WASM_ENTRY;
-          case Code::WASM_FUNCTION:
-          case Code::WASM_TO_CAPI_FUNCTION:
-          case Code::WASM_TO_JS_FUNCTION:
+          case CodeKind::WASM_FUNCTION:
+          case CodeKind::WASM_TO_CAPI_FUNCTION:
+          case CodeKind::WASM_TO_JS_FUNCTION:
             // Never appear as on-heap {Code} objects.
             UNREACHABLE();
           default:
@@ -1078,7 +1079,7 @@ Address StubFrame::GetCallerStackPointer() const {
 int StubFrame::LookupExceptionHandlerInTable() {
   Code code = LookupCode();
   DCHECK(code.is_turbofanned());
-  DCHECK_EQ(code.kind(), Code::BUILTIN);
+  DCHECK_EQ(code.kind(), CodeKind::BUILTIN);
   HandlerTable table(code);
   int pc_offset = static_cast<int>(pc() - code.InstructionStart());
   return table.LookupReturn(pc_offset);
@@ -1109,7 +1110,7 @@ Code JavaScriptFrame::unchecked_code() const { return function().code(); }
 
 int OptimizedFrame::ComputeParametersCount() const {
   Code code = LookupCode();
-  if (code.kind() == Code::BUILTIN) {
+  if (code.kind() == CodeKind::BUILTIN) {
     return static_cast<int>(
         Memory<intptr_t>(fp() + OptimizedBuiltinFrameConstants::kArgCOffset));
   } else {
@@ -1348,7 +1349,7 @@ FrameSummary::JavaScriptFrameSummary::JavaScriptFrameSummary(
       is_constructor_(is_constructor),
       parameters_(parameters, isolate) {
   DCHECK(abstract_code.IsBytecodeArray() ||
-         Code::cast(abstract_code).kind() != Code::OPTIMIZED_FUNCTION);
+         !CodeKindIsOptimizedJSFunction(Code::cast(abstract_code).kind()));
 }
 
 void FrameSummary::EnsureSourcePositionsAvailable() {
@@ -1511,7 +1512,7 @@ void OptimizedFrame::Summarize(std::vector<FrameSummary>* frames) const {
   // Delegate to JS frame in absence of turbofan deoptimization.
   // TODO(turbofan): Revisit once we support deoptimization across the board.
   Code code = LookupCode();
-  if (code.kind() == Code::BUILTIN) {
+  if (code.kind() == CodeKind::BUILTIN) {
     return JavaScriptFrame::Summarize(frames);
   }
 
@@ -1598,8 +1599,7 @@ int OptimizedFrame::LookupExceptionHandlerInTable(
   // When the return pc has been replaced by a trampoline there won't be
   // a handler for this trampoline. Thus we need to use the return pc that
   // _used to be_ on the stack to get the right ExceptionHandler.
-  if (code.kind() == Code::OPTIMIZED_FUNCTION &&
-      code.marked_for_deoptimization()) {
+  if (CodeKindCanDeoptimize(code.kind()) && code.marked_for_deoptimization()) {
     SafepointTable safepoints(code);
     pc_offset = safepoints.find_return_pc(pc_offset);
   }
@@ -1620,7 +1620,7 @@ DeoptimizationData OptimizedFrame::GetDeoptimizationData(
     code = isolate()->heap()->GcSafeFindCodeForInnerPointer(pc());
   }
   DCHECK(!code.is_null());
-  DCHECK(code.kind() == Code::OPTIMIZED_FUNCTION);
+  DCHECK(CodeKindCanDeoptimize(code.kind()));
 
   SafepointEntry safepoint_entry = code.GetSafepointEntry(pc());
   if (safepoint_entry.has_deoptimization_index()) {
@@ -1634,7 +1634,7 @@ DeoptimizationData OptimizedFrame::GetDeoptimizationData(
 #ifndef V8_REVERSE_JSARGS
 Object OptimizedFrame::receiver() const {
   Code code = LookupCode();
-  if (code.kind() == Code::BUILTIN) {
+  if (code.kind() == CodeKind::BUILTIN) {
     intptr_t argc = static_cast<int>(
         Memory<intptr_t>(fp() + OptimizedBuiltinFrameConstants::kArgCOffset));
     intptr_t args_size =
@@ -1656,7 +1656,7 @@ void OptimizedFrame::GetFunctions(
   // Delegate to JS frame in absence of turbofan deoptimization.
   // TODO(turbofan): Revisit once we support deoptimization across the board.
   Code code = LookupCode();
-  if (code.kind() == Code::BUILTIN) {
+  if (code.kind() == CodeKind::BUILTIN) {
     return JavaScriptFrame::GetFunctions(functions);
   }
 

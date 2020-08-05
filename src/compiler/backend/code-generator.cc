@@ -92,11 +92,11 @@ CodeGenerator::CodeGenerator(
   CreateFrameAccessState(frame);
   CHECK_EQ(info->is_osr(), osr_helper_.has_value());
   tasm_.set_jump_optimization_info(jump_opt);
-  Code::Kind code_kind = info->code_kind();
-  if (code_kind == Code::WASM_FUNCTION ||
-      code_kind == Code::WASM_TO_CAPI_FUNCTION ||
-      code_kind == Code::WASM_TO_JS_FUNCTION ||
-      code_kind == Code::JS_TO_WASM_FUNCTION) {
+  CodeKind code_kind = info->code_kind();
+  if (code_kind == CodeKind::WASM_FUNCTION ||
+      code_kind == CodeKind::WASM_TO_CAPI_FUNCTION ||
+      code_kind == CodeKind::WASM_TO_JS_FUNCTION ||
+      code_kind == CodeKind::JS_TO_WASM_FUNCTION) {
     tasm_.set_abort_hard(true);
   }
   tasm_.set_builtin_index(builtin_index);
@@ -202,8 +202,7 @@ void CodeGenerator::AssembleCode() {
   tasm()->CodeEntry();
 
   // Check that {kJavaScriptCallCodeStartRegister} has been set correctly.
-  if (FLAG_debug_code && (info->code_kind() == Code::OPTIMIZED_FUNCTION ||
-                          info->code_kind() == Code::BYTECODE_HANDLER)) {
+  if (FLAG_debug_code && info->called_with_code_start_register()) {
     tasm()->RecordComment("-- Prologue: check code start register --");
     AssembleCodeStartRegisterCheck();
   }
@@ -515,7 +514,7 @@ MaybeHandle<Code> CodeGenerator::FinalizeCode() {
 
   // TODO(jgruber,v8:8888): Turn this into a DCHECK once confidence is
   // high that the implementation is complete.
-  CHECK_IMPLIES(info()->native_context_independent(),
+  CHECK_IMPLIES(info()->IsNativeContextIndependent(),
                 code->IsNativeContextIndependent(isolate()));
 
   isolate()->counters()->total_compiled_code_size()->Increment(
@@ -834,7 +833,7 @@ void CodeGenerator::AssembleSourcePosition(SourcePosition source_position) {
                                              source_position, false);
   if (FLAG_code_comments) {
     OptimizedCompilationInfo* info = this->info();
-    if (info->IsNotOptimizedFunctionOrWasmFunction()) return;
+    if (!info->IsOptimizing() && !info->IsWasm()) return;
     std::ostringstream buffer;
     buffer << "-- ";
     // Turbolizer only needs the source position, as it can reconstruct
@@ -865,10 +864,10 @@ bool CodeGenerator::GetSlotAboveSPBeforeTailCall(Instruction* instr,
 }
 
 StubCallMode CodeGenerator::DetermineStubCallMode() const {
-  Code::Kind code_kind = info()->code_kind();
-  return (code_kind == Code::WASM_FUNCTION ||
-          code_kind == Code::WASM_TO_CAPI_FUNCTION ||
-          code_kind == Code::WASM_TO_JS_FUNCTION)
+  CodeKind code_kind = info()->code_kind();
+  return (code_kind == CodeKind::WASM_FUNCTION ||
+          code_kind == CodeKind::WASM_TO_CAPI_FUNCTION ||
+          code_kind == CodeKind::WASM_TO_JS_FUNCTION)
              ? StubCallMode::kCallWasmRuntimeStub
              : StubCallMode::kCallCodeObject;
 }

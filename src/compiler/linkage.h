@@ -377,7 +377,7 @@ class V8_EXPORT_PRIVATE CallDescriptor final
 
   bool CanTailCall(const CallDescriptor* callee) const;
 
-  int CalculateFixedFrameSize(Code::Kind code_kind) const;
+  int CalculateFixedFrameSize(CodeKind code_kind) const;
 
   RegList AllocatableRegisters() const { return allocatable_registers_; }
 

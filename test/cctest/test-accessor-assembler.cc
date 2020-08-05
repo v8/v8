@@ -107,7 +107,7 @@ TEST(StubCacheSecondaryOffset) {
 
 namespace {
 
-Handle<Code> CreateCodeOfKind(Code::Kind kind) {
+Handle<Code> CreateCodeOfKind(CodeKind kind) {
   Isolate* isolate(CcTest::InitIsolateOnce());
   CodeAssemblerTester data(isolate, kind);
   CodeStubAssembler m(data.state());
@@ -204,7 +204,7 @@ TEST(TryProbeStubCache) {
 
   // Generate some number of handlers.
   for (int i = 0; i < 30; i++) {
-    handlers.push_back(CreateCodeOfKind(Code::STUB));
+    handlers.push_back(CreateCodeOfKind(CodeKind::STUB));
   }
 
   // Ensure that GC does happen because from now on we are going to fill our

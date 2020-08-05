@@ -145,15 +145,13 @@ Handle<JSFunction> FunctionTester::Compile(Handle<JSFunction> function) {
   return Optimize(function, &zone, isolate, flags_);
 }
 
-static constexpr bool kNativeContextDependent = false;
-
 // Compile the given machine graph instead of the source of the function
 // and replace the JSFunction's code with the result.
 Handle<JSFunction> FunctionTester::CompileGraph(Graph* graph) {
   Handle<SharedFunctionInfo> shared(function->shared(), isolate);
   Zone zone(isolate->allocator(), ZONE_NAME);
   OptimizedCompilationInfo info(&zone, isolate, shared, function,
-                                kNativeContextDependent);
+                                CodeKind::OPTIMIZED_FUNCTION);
 
   auto call_descriptor = Linkage::ComputeIncoming(&zone, &info);
   Handle<Code> code =

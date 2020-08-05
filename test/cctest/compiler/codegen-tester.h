@@ -40,7 +40,7 @@ class RawMachineAssemblerTester : public HandleAndZoneScope,
             InstructionSelector::AlignmentRequirements()) {}
 
   template <typename... ParamMachTypes>
-  RawMachineAssemblerTester(Code::Kind kind, ParamMachTypes... p)
+  RawMachineAssemblerTester(CodeKind kind, ParamMachTypes... p)
       : HandleAndZoneScope(kCompressGraphZone),
         CallHelper<ReturnType>(
             main_isolate(),
@@ -91,7 +91,7 @@ class RawMachineAssemblerTester : public HandleAndZoneScope,
   }
 
  private:
-  Code::Kind kind_ = Code::Kind::STUB;
+  CodeKind kind_ = CodeKind::STUB;
   MaybeHandle<Code> code_;
 };
 

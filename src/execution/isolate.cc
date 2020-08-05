@@ -1827,7 +1827,7 @@ Object Isolate::UnwindAndFindHandler() {
 
         // TODO(bmeurer): Turbofanned BUILTIN frames appear as OPTIMIZED,
         // but do not have a code kind of OPTIMIZED_FUNCTION.
-        if (code.kind() == Code::OPTIMIZED_FUNCTION &&
+        if (CodeKindCanDeoptimize(code.kind()) &&
             code.marked_for_deoptimization()) {
           // If the target code is lazy deoptimized, we jump to the original
           // return address, but we make a note that we are throwing, so
@@ -1849,7 +1849,7 @@ Object Isolate::UnwindAndFindHandler() {
         DCHECK_NULL(wasm_engine()->code_manager()->LookupCode(frame->pc()));
 #endif  // DEBUG
         Code code = stub_frame->LookupCode();
-        if (!code.IsCode() || code.kind() != Code::BUILTIN ||
+        if (!code.IsCode() || code.kind() != CodeKind::BUILTIN ||
             !code.has_handler_table() || !code.is_turbofanned()) {
           break;
         }
@@ -1954,14 +1954,14 @@ HandlerTable::CatchPrediction PredictException(JavaScriptFrame* frame) {
       for (size_t i = summaries.size(); i != 0; i--) {
         const FrameSummary& summary = summaries[i - 1];
         Handle<AbstractCode> code = summary.AsJavaScript().abstract_code();
-        if (code->IsCode() && code->kind() == AbstractCode::BUILTIN) {
+        if (code->IsCode() && code->kind() == CodeKind::BUILTIN) {
           prediction = code->GetCode().GetBuiltinCatchPrediction();
           if (prediction == HandlerTable::UNCAUGHT) continue;
           return prediction;
         }
 
         // Must have been constructed from a bytecode array.
-        CHECK_EQ(AbstractCode::INTERPRETED_FUNCTION, code->kind());
+        CHECK_EQ(CodeKind::INTERPRETED_FUNCTION, code->kind());
         int code_offset = summary.code_offset();
         HandlerTable table(code->GetBytecodeArray());
         int index = table.LookupRange(code_offset, nullptr, &prediction);
@@ -2030,7 +2030,7 @@ Isolate::CatchType Isolate::PredictExceptionCatcher() {
 
       case StackFrame::STUB: {
         Handle<Code> code(frame->LookupCode(), this);
-        if (!code->IsCode() || code->kind() != Code::BUILTIN ||
+        if (!code->IsCode() || code->kind() != CodeKind::BUILTIN ||
             !code->has_handler_table() || !code->is_turbofanned()) {
           break;
         }
@@ -2536,7 +2536,7 @@ Handle<Object> Isolate::GetPromiseOnStackOnThrow() {
       catch_prediction = PredictException(JavaScriptFrame::cast(frame));
     } else if (frame->type() == StackFrame::STUB) {
       Code code = frame->LookupCode();
-      if (!code.IsCode() || code.kind() != Code::BUILTIN ||
+      if (!code.IsCode() || code.kind() != CodeKind::BUILTIN ||
           !code.has_handler_table() || !code.is_turbofanned()) {
         continue;
       }

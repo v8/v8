@@ -226,27 +226,6 @@ bool Code::CanDeoptAt(Address pc) {
   return false;
 }
 
-// Identify kind of code.
-const char* Code::Kind2String(Kind kind) {
-  switch (kind) {
-#define CASE(name) \
-  case name:       \
-    return #name;
-    CODE_KIND_LIST(CASE)
-#undef CASE
-    case NUMBER_OF_KINDS:
-      break;
-  }
-  UNREACHABLE();
-}
-
-// Identify kind of code.
-const char* AbstractCode::Kind2String(Kind kind) {
-  DCHECK_NE(kind, AbstractCode::NUMBER_OF_KINDS);
-  if (kind == AbstractCode::INTERPRETED_FUNCTION) return "INTERPRETED_FUNCTION";
-  return Code::Kind2String(static_cast<Code::Kind>(kind));
-}
-
 bool Code::IsIsolateIndependent(Isolate* isolate) {
   static constexpr int kModeMask =
       RelocInfo::AllRealModesMask() &
@@ -394,7 +373,7 @@ Code Code::OptimizedCodeIterator::Next() {
     }
     current_code_ = next.IsUndefined(isolate_) ? Code() : Code::cast(next);
   } while (current_code_.is_null());
-  DCHECK_EQ(Code::OPTIMIZED_FUNCTION, current_code_.kind());
+  DCHECK(CodeKindCanDeoptimize(current_code_.kind()));
   return current_code_;
 }
 
@@ -421,7 +400,7 @@ SharedFunctionInfo DeoptimizationData::GetInlinedFunction(int index) {
 #ifdef ENABLE_DISASSEMBLER
 
 const char* Code::GetName(Isolate* isolate) const {
-  if (kind() == BYTECODE_HANDLER) {
+  if (kind() == CodeKind::BYTECODE_HANDLER) {
     return isolate->interpreter()->LookupNameOfBytecodeHandler(*this);
   } else {
     // There are some handlers and ICs that we can also find names for with
@@ -689,14 +668,14 @@ inline void DisassembleCodeRange(Isolate* isolate, std::ostream& os, Code code,
 
 void Code::Disassemble(const char* name, std::ostream& os, Isolate* isolate,
                        Address current_pc) {
-  os << "kind = " << Kind2String(kind()) << "\n";
+  os << "kind = " << CodeKindToString(kind()) << "\n";
   if (name == nullptr) {
     name = GetName(isolate);
   }
   if ((name != nullptr) && (name[0] != '\0')) {
     os << "name = " << name << "\n";
   }
-  if (kind() == OPTIMIZED_FUNCTION) {
+  if (CodeKindIsOptimizedJSFunction(kind())) {
     os << "stack_slots = " << stack_slots() << "\n";
   }
   os << "compiler = " << (is_turbofanned() ? "turbofan" : "unknown") << "\n";
@@ -761,7 +740,7 @@ void Code::Disassemble(const char* name, std::ostream& os, Isolate* isolate,
     }
   }
 
-  if (kind() == OPTIMIZED_FUNCTION) {
+  if (CodeKindCanDeoptimize(kind())) {
     DeoptimizationData data =
         DeoptimizationData::cast(this->deoptimization_data());
     data.DeoptimizationDataPrint(os);
@@ -795,9 +774,8 @@ void Code::Disassemble(const char* name, std::ostream& os, Isolate* isolate,
   if (has_handler_table()) {
     HandlerTable table(*this);
     os << "Handler Table (size = " << table.NumberOfReturnEntries() << ")\n";
-    if (kind() == OPTIMIZED_FUNCTION) {
+    if (CodeKindIsOptimizedJSFunction(kind()))
       table.HandlerTableReturnPrint(os);
-    }
     os << "\n";
   }
 

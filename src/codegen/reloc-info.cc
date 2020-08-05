@@ -471,7 +471,7 @@ void RelocInfo::Print(Isolate* isolate, std::ostream& os) {  // NOLINT
     const Address code_target = target_address();
     Code code = Code::GetCodeFromTargetAddress(code_target);
     DCHECK(code.IsCode());
-    os << " (" << Code::Kind2String(code.kind());
+    os << " (" << CodeKindToString(code.kind());
     if (Builtins::IsBuiltin(code)) {
       os << " " << Builtins::name(code.builtin_index());
     }

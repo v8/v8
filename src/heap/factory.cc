@@ -86,7 +86,7 @@ int ComputeCodeObjectSize(const CodeDesc& desc) {
 }  // namespace
 
 Factory::CodeBuilder::CodeBuilder(Isolate* isolate, const CodeDesc& desc,
-                                  Code::Kind kind)
+                                  CodeKind kind)
     : isolate_(isolate),
       code_desc_(desc),
       kind_(kind),

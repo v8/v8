@@ -77,7 +77,7 @@ Handle<Code> BuildTeardownFunction(Isolate* isolate,
 Handle<Code> BuildSetupFunction(Isolate* isolate,
                                 CallDescriptor* call_descriptor,
                                 std::vector<AllocatedOperand> parameters) {
-  CodeAssemblerTester tester(isolate, 3, Code::BUILTIN,
+  CodeAssemblerTester tester(isolate, 3, CodeKind::BUILTIN,
                              "setup");  // Include receiver.
   CodeStubAssembler assembler(tester.state());
   std::vector<Node*> params;
@@ -964,10 +964,10 @@ class CodeGeneratorTester {
   explicit CodeGeneratorTester(TestEnvironment* environment,
                                int extra_stack_space = 0)
       : zone_(environment->main_zone()),
-        info_(ArrayVector("test"), environment->main_zone(), Code::STUB),
+        info_(ArrayVector("test"), environment->main_zone(), CodeKind::STUB),
         linkage_(environment->test_descriptor()),
         frame_(environment->test_descriptor()->CalculateFixedFrameSize(
-            Code::STUB)) {
+            CodeKind::STUB)) {
     // Pick half of the stack parameters at random and move them into spill
     // slots, separated by `extra_stack_space` bytes.
     // When testing a move with stack slots using CheckAssembleMove or

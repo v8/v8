@@ -902,8 +902,7 @@ class CodeDescription {
   LineInfo* lineinfo() const { return lineinfo_; }
 
   bool is_function() const {
-    Code::Kind kind = code_.kind();
-    return kind == Code::OPTIMIZED_FUNCTION;
+    return CodeKindIsOptimizedJSFunction(code_.kind());
   }
 
   bool has_scope_info() const { return !shared_info_.is_null(); }

@@ -116,12 +116,8 @@ bool AbstractCode::contains(Address inner_pointer) {
   return (address() <= inner_pointer) && (inner_pointer <= address() + Size());
 }
 
-AbstractCode::Kind AbstractCode::kind() {
-  if (IsCode()) {
-    return static_cast<AbstractCode::Kind>(GetCode().kind());
-  } else {
-    return INTERPRETED_FUNCTION;
-  }
+CodeKind AbstractCode::kind() {
+  return IsCode() ? GetCode().kind() : CodeKind::INTERPRETED_FUNCTION;
 }
 
 Code AbstractCode::GetCode() { return Code::cast(*this); }
@@ -345,16 +341,16 @@ void Code::CopyRelocInfoToByteArray(ByteArray dest, const CodeDesc& desc) {
 
 int Code::CodeSize() const { return SizeFor(body_size()); }
 
-Code::Kind Code::kind() const {
+CodeKind Code::kind() const {
   STATIC_ASSERT(FIELD_SIZE(kFlagsOffset) == kInt32Size);
   return KindField::decode(ReadField<uint32_t>(kFlagsOffset));
 }
 
-void Code::initialize_flags(Kind kind, bool has_unwinding_info,
+void Code::initialize_flags(CodeKind kind, bool has_unwinding_info,
                             bool is_turbofanned, int stack_slots,
                             bool is_off_heap_trampoline) {
   CHECK(0 <= stack_slots && stack_slots < StackSlotsField::kMax);
-  DCHECK_NE(kind, NUMBER_OF_KINDS);
+  DCHECK(!CodeKindIsInterpretedJSFunction(kind));
   uint32_t flags = HasUnwindingInfoField::encode(has_unwinding_info) |
                    KindField::encode(kind) |
                    IsTurbofannedField::encode(is_turbofanned) |
@@ -378,12 +374,12 @@ inline bool Code::checks_optimization_marker() const {
       (builtin_index() == Builtins::kCompileLazy ||
        builtin_index() == Builtins::kInterpreterEntryTrampoline);
   return checks_marker ||
-         (kind() == OPTIMIZED_FUNCTION && marked_for_deoptimization());
+         (CodeKindCanDeoptimize(kind()) && marked_for_deoptimization());
 }
 
 inline bool Code::has_tagged_params() const {
-  return kind() != JS_TO_WASM_FUNCTION && kind() != C_WASM_ENTRY &&
-         kind() != WASM_FUNCTION;
+  return kind() != CodeKind::JS_TO_WASM_FUNCTION &&
+         kind() != CodeKind::C_WASM_ENTRY && kind() != CodeKind::WASM_FUNCTION;
 }
 
 inline bool Code::has_unwinding_info() const {
@@ -395,39 +391,39 @@ inline bool Code::is_turbofanned() const {
 }
 
 inline bool Code::can_have_weak_objects() const {
-  DCHECK(kind() == OPTIMIZED_FUNCTION);
+  DCHECK(CodeKindIsOptimizedJSFunction(kind()));
   int32_t flags = code_data_container().kind_specific_flags();
   return CanHaveWeakObjectsField::decode(flags);
 }
 
 inline void Code::set_can_have_weak_objects(bool value) {
-  DCHECK(kind() == OPTIMIZED_FUNCTION);
+  DCHECK(CodeKindIsOptimizedJSFunction(kind()));
   int32_t previous = code_data_container().kind_specific_flags();
   int32_t updated = CanHaveWeakObjectsField::update(previous, value);
   code_data_container().set_kind_specific_flags(updated);
 }
 
 inline bool Code::is_promise_rejection() const {
-  DCHECK(kind() == BUILTIN);
+  DCHECK(kind() == CodeKind::BUILTIN);
   int32_t flags = code_data_container().kind_specific_flags();
   return IsPromiseRejectionField::decode(flags);
 }
 
 inline void Code::set_is_promise_rejection(bool value) {
-  DCHECK(kind() == BUILTIN);
+  DCHECK(kind() == CodeKind::BUILTIN);
   int32_t previous = code_data_container().kind_specific_flags();
   int32_t updated = IsPromiseRejectionField::update(previous, value);
   code_data_container().set_kind_specific_flags(updated);
 }
 
 inline bool Code::is_exception_caught() const {
-  DCHECK(kind() == BUILTIN);
+  DCHECK(kind() == CodeKind::BUILTIN);
   int32_t flags = code_data_container().kind_specific_flags();
   return IsExceptionCaughtField::decode(flags);
 }
 
 inline void Code::set_is_exception_caught(bool value) {
-  DCHECK(kind() == BUILTIN);
+  DCHECK(kind() == CodeKind::BUILTIN);
   int32_t previous = code_data_container().kind_specific_flags();
   int32_t updated = IsExceptionCaughtField::update(previous, value);
   code_data_container().set_kind_specific_flags(updated);
@@ -457,13 +453,13 @@ void Code::set_builtin_index(int index) {
 bool Code::is_builtin() const { return builtin_index() != -1; }
 
 unsigned Code::inlined_bytecode_size() const {
-  DCHECK(kind() == OPTIMIZED_FUNCTION ||
+  DCHECK(CodeKindIsOptimizedJSFunction(kind()) ||
          ReadField<unsigned>(kInlinedBytecodeSizeOffset) == 0);
   return ReadField<unsigned>(kInlinedBytecodeSizeOffset);
 }
 
 void Code::set_inlined_bytecode_size(unsigned size) {
-  DCHECK(kind() == OPTIMIZED_FUNCTION || size == 0);
+  DCHECK(CodeKindIsOptimizedJSFunction(kind()) || size == 0);
   WriteField<unsigned>(kInlinedBytecodeSizeOffset, size);
 }
 
@@ -477,13 +473,13 @@ int Code::stack_slots() const {
 }
 
 bool Code::marked_for_deoptimization() const {
-  DCHECK(kind() == OPTIMIZED_FUNCTION);
+  DCHECK(CodeKindCanDeoptimize(kind()));
   int32_t flags = code_data_container().kind_specific_flags();
   return MarkedForDeoptimizationField::decode(flags);
 }
 
 void Code::set_marked_for_deoptimization(bool flag) {
-  DCHECK(kind() == OPTIMIZED_FUNCTION);
+  DCHECK(CodeKindCanDeoptimize(kind()));
   DCHECK_IMPLIES(flag, AllowDeoptimization::IsAllowed(GetIsolate()));
   int32_t previous = code_data_container().kind_specific_flags();
   int32_t updated = MarkedForDeoptimizationField::update(previous, flag);
@@ -491,7 +487,7 @@ void Code::set_marked_for_deoptimization(bool flag) {
 }
 
 int Code::deoptimization_count() const {
-  DCHECK(kind() == OPTIMIZED_FUNCTION);
+  DCHECK(CodeKindCanDeoptimize(kind()));
   int32_t flags = code_data_container().kind_specific_flags();
   int count = DeoptCountField::decode(flags);
   DCHECK_GE(count, 0);
@@ -499,7 +495,7 @@ int Code::deoptimization_count() const {
 }
 
 void Code::increment_deoptimization_count() {
-  DCHECK(kind() == OPTIMIZED_FUNCTION);
+  DCHECK(CodeKindCanDeoptimize(kind()));
   int32_t flags = code_data_container().kind_specific_flags();
   int32_t count = DeoptCountField::decode(flags);
   DCHECK_GE(count, 0);
@@ -509,13 +505,13 @@ void Code::increment_deoptimization_count() {
 }
 
 bool Code::embedded_objects_cleared() const {
-  DCHECK(kind() == OPTIMIZED_FUNCTION);
+  DCHECK(CodeKindIsOptimizedJSFunction(kind()));
   int32_t flags = code_data_container().kind_specific_flags();
   return EmbeddedObjectsClearedField::decode(flags);
 }
 
 void Code::set_embedded_objects_cleared(bool flag) {
-  DCHECK(kind() == OPTIMIZED_FUNCTION);
+  DCHECK(CodeKindIsOptimizedJSFunction(kind()));
   DCHECK_IMPLIES(flag, marked_for_deoptimization());
   int32_t previous = code_data_container().kind_specific_flags();
   int32_t updated = EmbeddedObjectsClearedField::update(previous, flag);
@@ -523,21 +519,23 @@ void Code::set_embedded_objects_cleared(bool flag) {
 }
 
 bool Code::deopt_already_counted() const {
-  DCHECK(kind() == OPTIMIZED_FUNCTION);
+  DCHECK(CodeKindCanDeoptimize(kind()));
   int32_t flags = code_data_container().kind_specific_flags();
   return DeoptAlreadyCountedField::decode(flags);
 }
 
 void Code::set_deopt_already_counted(bool flag) {
-  DCHECK(kind() == OPTIMIZED_FUNCTION);
+  DCHECK(CodeKindCanDeoptimize(kind()));
   DCHECK_IMPLIES(flag, AllowDeoptimization::IsAllowed(GetIsolate()));
   int32_t previous = code_data_container().kind_specific_flags();
   int32_t updated = DeoptAlreadyCountedField::update(previous, flag);
   code_data_container().set_kind_specific_flags(updated);
 }
 
-bool Code::is_optimized_code() const { return kind() == OPTIMIZED_FUNCTION; }
-bool Code::is_wasm_code() const { return kind() == WASM_FUNCTION; }
+bool Code::is_optimized_code() const {
+  return CodeKindIsOptimizedJSFunction(kind());
+}
+bool Code::is_wasm_code() const { return kind() == CodeKind::WASM_FUNCTION; }
 
 int Code::constant_pool_offset() const {
   if (!FLAG_enable_embedded_constant_pool) return code_comments_offset();

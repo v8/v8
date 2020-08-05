@@ -154,7 +154,7 @@ class PipelineData {
         codegen_zone_(codegen_zone_scope_.zone()),
         broker_(new JSHeapBroker(
             isolate_, info_->zone(), info_->trace_heap_broker(),
-            is_concurrent_inlining, info->native_context_independent(),
+            is_concurrent_inlining, info->IsNativeContextIndependent(),
             info->DetachPersistentHandles())),
         register_allocation_zone_scope_(zone_stats_,
                                         kRegisterAllocationZoneName),
@@ -879,7 +879,7 @@ void PrintCode(Isolate* isolate, Handle<Code> code,
   }
 
 #ifdef ENABLE_DISASSEMBLER
-  bool print_code =
+  const bool print_code =
       FLAG_print_code ||
       (info->IsOptimizing() && FLAG_print_opt_code &&
        info->shared_info()->PassesFilter(FLAG_print_opt_code_filter));
@@ -889,7 +889,7 @@ void PrintCode(Isolate* isolate, Handle<Code> code,
     auto& os = tracing_scope.stream();
 
     // Print the source code if available.
-    bool print_source = code->kind() == Code::OPTIMIZED_FUNCTION;
+    const bool print_source = info->IsOptimizing();
     if (print_source) {
       Handle<SharedFunctionInfo> shared = info->shared_info();
       if (shared->script().IsScript() &&
@@ -1046,8 +1046,7 @@ class PipelineCompilationJob final : public OptimizedCompilationJob {
   PipelineCompilationJob(Isolate* isolate,
                          Handle<SharedFunctionInfo> shared_info,
                          Handle<JSFunction> function, BailoutId osr_offset,
-                         JavaScriptFrame* osr_frame,
-                         bool native_context_independent);
+                         JavaScriptFrame* osr_frame, CodeKind code_kind);
   ~PipelineCompilationJob() final;
 
  protected:
@@ -1075,7 +1074,7 @@ class PipelineCompilationJob final : public OptimizedCompilationJob {
 PipelineCompilationJob::PipelineCompilationJob(
     Isolate* isolate, Handle<SharedFunctionInfo> shared_info,
     Handle<JSFunction> function, BailoutId osr_offset,
-    JavaScriptFrame* osr_frame, bool native_context_independent)
+    JavaScriptFrame* osr_frame, CodeKind code_kind)
     // Note that the OptimizedCompilationInfo is not initialized at the time
     // we pass it to the CompilationJob constructor, but it is not
     // dereferenced there.
@@ -1084,7 +1083,7 @@ PipelineCompilationJob::PipelineCompilationJob(
             kPipelineCompilationJobZoneName),
       zone_stats_(function->GetIsolate()->allocator()),
       compilation_info_(&zone_, function->GetIsolate(), shared_info, function,
-                        native_context_independent),
+                        code_kind),
       pipeline_statistics_(CreatePipelineStatistics(
           handle(Script::cast(shared_info->script()), isolate),
           compilation_info(), function->GetIsolate(), &zone_stats_)),
@@ -1127,14 +1126,14 @@ PipelineCompilationJob::Status PipelineCompilationJob::PrepareJobImpl(
     return AbortOptimization(BailoutReason::kFunctionTooBig);
   }
 
-  if (!FLAG_always_opt && !compilation_info()->native_context_independent()) {
+  if (!FLAG_always_opt && !compilation_info()->IsNativeContextIndependent()) {
     compilation_info()->set_bailout_on_uninitialized();
   }
   if (FLAG_turbo_loop_peeling) {
     compilation_info()->set_loop_peeling();
   }
   if (FLAG_turbo_inlining &&
-      !compilation_info()->native_context_independent()) {
+      !compilation_info()->IsNativeContextIndependent()) {
     compilation_info()->set_inlining();
   }
 
@@ -1162,7 +1161,7 @@ PipelineCompilationJob::Status PipelineCompilationJob::PrepareJobImpl(
   if (compilation_info()->closure()->raw_feedback_cell().map() ==
           ReadOnlyRoots(isolate).one_closure_cell_map() &&
       !compilation_info()->is_osr() &&
-      !compilation_info()->native_context_independent()) {
+      !compilation_info()->IsNativeContextIndependent()) {
     compilation_info()->set_function_context_specializing();
     data_.ChooseSpecializationContext();
   }
@@ -1248,7 +1247,7 @@ PipelineCompilationJob::Status PipelineCompilationJob::FinalizeJobImpl(
 
   compilation_info()->SetCode(code);
   Handle<NativeContext> context(compilation_info()->native_context(), isolate);
-  context->AddOptimizedCode(*code);
+  if (CodeKindCanDeoptimize(code->kind())) context->AddOptimizedCode(*code);
   RegisterWeakObjectsInOptimizedCode(isolate, context, code);
   return SUCCEEDED;
 }
@@ -1282,8 +1281,7 @@ class WasmHeapStubCompilationJob final : public OptimizedCompilationJob {
   WasmHeapStubCompilationJob(Isolate* isolate, wasm::WasmEngine* wasm_engine,
                              CallDescriptor* call_descriptor,
                              std::unique_ptr<Zone> zone, Graph* graph,
-                             Code::Kind kind,
-                             std::unique_ptr<char[]> debug_name,
+                             CodeKind kind, std::unique_ptr<char[]> debug_name,
                              const AssemblerOptions& options,
                              SourcePositionTable* source_positions)
       // Note that the OptimizedCompilationInfo is not initialized at the time
@@ -1327,7 +1325,7 @@ std::unique_ptr<OptimizedCompilationJob>
 Pipeline::NewWasmHeapStubCompilationJob(
     Isolate* isolate, wasm::WasmEngine* wasm_engine,
     CallDescriptor* call_descriptor, std::unique_ptr<Zone> zone, Graph* graph,
-    Code::Kind kind, std::unique_ptr<char[]> debug_name,
+    CodeKind kind, std::unique_ptr<char[]> debug_name,
     const AssemblerOptions& options, SourcePositionTable* source_positions) {
   return std::make_unique<WasmHeapStubCompilationJob>(
       isolate, wasm_engine, call_descriptor, std::move(zone), graph, kind,
@@ -1355,7 +1353,7 @@ CompilationJob::Status WasmHeapStubCompilationJob::ExecuteJobImpl(
         << " using TurboFan" << std::endl;
   }
   if (info_.trace_turbo_graph()) {  // Simple textual RPO.
-    StdoutStream{} << "-- wasm stub " << Code::Kind2String(info_.code_kind())
+    StdoutStream{} << "-- wasm stub " << CodeKindToString(info_.code_kind())
                    << " graph -- " << std::endl
                    << AsRPO(*data_.graph());
   }
@@ -1425,7 +1423,7 @@ struct GraphBuilderPhase {
     if (data->info()->bailout_on_uninitialized()) {
       flags |= BytecodeGraphBuilderFlag::kBailoutOnUninitialized;
     }
-    if (data->info()->native_context_independent()) {
+    if (data->info()->IsNativeContextIndependent()) {
       flags |= BytecodeGraphBuilderFlag::kNativeContextIndependent;
     }
 
@@ -1485,7 +1483,7 @@ struct InliningPhase {
     AddReducer(data, &graph_reducer, &dead_code_elimination);
     AddReducer(data, &graph_reducer, &checkpoint_elimination);
     AddReducer(data, &graph_reducer, &common_reducer);
-    if (!data->info()->native_context_independent()) {
+    if (!data->info()->IsNativeContextIndependent()) {
       AddReducer(data, &graph_reducer, &native_context_specialization);
       AddReducer(data, &graph_reducer, &context_specialization);
     }
@@ -1628,7 +1626,7 @@ struct TypedLoweringPhase {
                                          data->broker(), data->common(),
                                          data->machine(), temp_zone);
     AddReducer(data, &graph_reducer, &dead_code_elimination);
-    if (!data->info()->native_context_independent()) {
+    if (!data->info()->IsNativeContextIndependent()) {
       AddReducer(data, &graph_reducer, &create_lowering);
     }
     AddReducer(data, &graph_reducer, &constant_folding_reducer);
@@ -2445,11 +2443,11 @@ struct VerifyGraphPhase {
            bool values_only = false) {
     Verifier::CodeType code_type;
     switch (data->info()->code_kind()) {
-      case Code::WASM_FUNCTION:
-      case Code::WASM_TO_CAPI_FUNCTION:
-      case Code::WASM_TO_JS_FUNCTION:
-      case Code::JS_TO_WASM_FUNCTION:
-      case Code::C_WASM_ENTRY:
+      case CodeKind::WASM_FUNCTION:
+      case CodeKind::WASM_TO_CAPI_FUNCTION:
+      case CodeKind::WASM_TO_JS_FUNCTION:
+      case CodeKind::JS_TO_WASM_FUNCTION:
+      case CodeKind::C_WASM_ENTRY:
         code_type = Verifier::kWasm;
         break;
       default:
@@ -2801,7 +2799,7 @@ int HashGraphForPGO(Graph* graph) {
 
 MaybeHandle<Code> Pipeline::GenerateCodeForCodeStub(
     Isolate* isolate, CallDescriptor* call_descriptor, Graph* graph,
-    JSGraph* jsgraph, SourcePositionTable* source_positions, Code::Kind kind,
+    JSGraph* jsgraph, SourcePositionTable* source_positions, CodeKind kind,
     const char* debug_name, int32_t builtin_index,
     PoisoningMitigationLevel poisoning_level, const AssemblerOptions& options,
     const ProfileDataFromFile* profile_data) {
@@ -2932,9 +2930,8 @@ std::ostream& operator<<(std::ostream& out, const BlockStartsAsJSON& s) {
 // static
 wasm::WasmCompilationResult Pipeline::GenerateCodeForWasmNativeStub(
     wasm::WasmEngine* wasm_engine, CallDescriptor* call_descriptor,
-    MachineGraph* mcgraph, Code::Kind kind, int wasm_kind,
-    const char* debug_name, const AssemblerOptions& options,
-    SourcePositionTable* source_positions) {
+    MachineGraph* mcgraph, CodeKind kind, int wasm_kind, const char* debug_name,
+    const AssemblerOptions& options, SourcePositionTable* source_positions) {
   Graph* graph = mcgraph->graph();
   OptimizedCompilationInfo info(CStrVector(debug_name), graph->zone(), kind);
   // Construct a pipeline for scheduling and code generation.
@@ -2965,7 +2962,7 @@ wasm::WasmCompilationResult Pipeline::GenerateCodeForWasmNativeStub(
   }
 
   if (info.trace_turbo_graph()) {  // Simple textual RPO.
-    StdoutStream{} << "-- wasm stub " << Code::Kind2String(kind) << " graph -- "
+    StdoutStream{} << "-- wasm stub " << CodeKindToString(kind) << " graph -- "
                    << std::endl
                    << AsRPO(*graph);
   }
@@ -3105,14 +3102,12 @@ MaybeHandle<Code> Pipeline::GenerateCodeForTesting(
 
 // static
 std::unique_ptr<OptimizedCompilationJob> Pipeline::NewCompilationJob(
-    Isolate* isolate, Handle<JSFunction> function, bool has_script,
-    BailoutId osr_offset, JavaScriptFrame* osr_frame,
-    bool native_context_independent) {
+    Isolate* isolate, Handle<JSFunction> function, CodeKind code_kind,
+    bool has_script, BailoutId osr_offset, JavaScriptFrame* osr_frame) {
   Handle<SharedFunctionInfo> shared =
       handle(function->shared(), function->GetIsolate());
-  return std::make_unique<PipelineCompilationJob>(isolate, shared, function,
-                                                  osr_offset, osr_frame,
-                                                  native_context_independent);
+  return std::make_unique<PipelineCompilationJob>(
+      isolate, shared, function, osr_offset, osr_frame, code_kind);
 }
 
 // static
@@ -3244,7 +3239,7 @@ bool Pipeline::AllocateRegistersForTesting(const RegisterConfiguration* config,
                                            bool use_mid_tier_register_allocator,
                                            bool run_verifier) {
   OptimizedCompilationInfo info(ArrayVector("testing"), sequence->zone(),
-                                Code::STUB);
+                                CodeKind::STUB);
   ZoneStats zone_stats(sequence->isolate()->allocator());
   PipelineData data(&zone_stats, &info, sequence->isolate(), sequence);
   data.InitializeFrameData(nullptr);
@@ -3320,10 +3315,9 @@ bool PipelineImpl::SelectInstructions(Linkage* linkage) {
           << "--------------------------------------------------\n";
     }
     Zone temp_zone(data->allocator(), kMachineGraphVerifierZoneName);
-    MachineGraphVerifier::Run(
-        data->graph(), data->schedule(), linkage,
-        data->info()->IsNotOptimizedFunctionOrWasmFunction(),
-        data->debug_name(), &temp_zone);
+    MachineGraphVerifier::Run(data->graph(), data->schedule(), linkage,
+                              data->info()->IsStub(), data->debug_name(),
+                              &temp_zone);
   }
 
   data->InitializeInstructionSequence(call_descriptor);

@@ -360,7 +360,7 @@ Handle<Code> Builtins::GenerateOffHeapTrampolineFor(
                                              ? TrampolineType::kJump
                                              : TrampolineType::kAbort);
 
-  return Factory::CodeBuilder(isolate, desc, Code::BUILTIN)
+  return Factory::CodeBuilder(isolate, desc, CodeKind::BUILTIN)
       .set_read_only_data_container(kind_specfic_flags)
       .set_self_reference(generator.CodeObject())
       .set_is_executable(generate_jump_to_instruction_stream)

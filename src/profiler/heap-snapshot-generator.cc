@@ -1107,7 +1107,7 @@ void V8HeapExplorer::ExtractSharedFunctionInfoReferences(
   } else {
     TagObject(shared.GetCode(),
               names_->GetFormatted("(%s code)",
-                                   Code::Kind2String(shared.GetCode().kind())));
+                                   CodeKindToString(shared.GetCode().kind())));
   }
 
   if (shared.name_or_scope_info().IsScopeInfo()) {

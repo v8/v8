@@ -75,9 +75,10 @@ static v8::CodeEventType GetCodeEventTypeForTag(
 
 static const char* ComputeMarker(SharedFunctionInfo shared, AbstractCode code) {
   switch (code.kind()) {
-    case AbstractCode::INTERPRETED_FUNCTION:
+    case CodeKind::INTERPRETED_FUNCTION:
       return shared.optimization_disabled() ? "" : "~";
-    case AbstractCode::OPTIMIZED_FUNCTION:
+    case CodeKind::OPTIMIZED_FUNCTION:
+    case CodeKind::NATIVE_CONTEXT_INDEPENDENT:
       return "*";
     default:
       return "";
@@ -325,9 +326,7 @@ void PerfBasicLogger::LogRecordedBuffer(Handle<AbstractCode> code,
                                         MaybeHandle<SharedFunctionInfo>,
                                         const char* name, int length) {
   if (FLAG_perf_basic_prof_only_functions &&
-      (code->kind() != AbstractCode::INTERPRETED_FUNCTION &&
-       code->kind() != AbstractCode::BUILTIN &&
-       code->kind() != AbstractCode::OPTIMIZED_FUNCTION)) {
+      CodeKindIsBuiltinOrJSFunction(code->kind())) {
     return;
   }
 
@@ -1154,11 +1153,12 @@ namespace {
 
 void AppendCodeCreateHeader(
     Log::MessageBuilder& msg,  // NOLINT(runtime/references)
-    CodeEventListener::LogEventsAndTags tag, AbstractCode::Kind kind,
-    uint8_t* address, int size, base::ElapsedTimer* timer) {
+    CodeEventListener::LogEventsAndTags tag, CodeKind kind, uint8_t* address,
+    int size, base::ElapsedTimer* timer) {
   msg << kLogEventsNames[CodeEventListener::CODE_CREATION_EVENT]
-      << Logger::kNext << kLogEventsNames[tag] << Logger::kNext << kind
-      << Logger::kNext << timer->Elapsed().InMicroseconds() << Logger::kNext
+      << Logger::kNext << kLogEventsNames[tag] << Logger::kNext
+      << static_cast<int>(kind) << Logger::kNext
+      << timer->Elapsed().InMicroseconds() << Logger::kNext
       << reinterpret_cast<void*>(address) << Logger::kNext << size
       << Logger::kNext;
 }
@@ -1315,7 +1315,7 @@ void Logger::CodeCreateEvent(LogEventsAndTags tag, const wasm::WasmCode* code,
   if (!is_listening_to_code_events()) return;
   if (!FLAG_log_code || !log_->IsEnabled()) return;
   Log::MessageBuilder msg(log_.get());
-  AppendCodeCreateHeader(msg, tag, AbstractCode::Kind::WASM_FUNCTION,
+  AppendCodeCreateHeader(msg, tag, CodeKind::WASM_FUNCTION,
                          code->instructions().begin(),
                          code->instructions().length(), &timer_);
   DCHECK(!name.empty());
@@ -2056,20 +2056,21 @@ void ExistingCodeLogger::LogCodeObject(Object object) {
   CodeEventListener::LogEventsAndTags tag = CodeEventListener::STUB_TAG;
   const char* description = "Unknown code from before profiling";
   switch (abstract_code->kind()) {
-    case AbstractCode::INTERPRETED_FUNCTION:
-    case AbstractCode::OPTIMIZED_FUNCTION:
+    case CodeKind::INTERPRETED_FUNCTION:
+    case CodeKind::OPTIMIZED_FUNCTION:
+    case CodeKind::NATIVE_CONTEXT_INDEPENDENT:
       return;  // We log this later using LogCompiledFunctions.
-    case AbstractCode::BYTECODE_HANDLER:
+    case CodeKind::BYTECODE_HANDLER:
       return;  // We log it later by walking the dispatch table.
-    case AbstractCode::STUB:
+    case CodeKind::STUB:
       description = "STUB code";
       tag = CodeEventListener::STUB_TAG;
       break;
-    case AbstractCode::REGEXP:
+    case CodeKind::REGEXP:
       description = "Regular expression code";
       tag = CodeEventListener::REG_EXP_TAG;
       break;
-    case AbstractCode::BUILTIN:
+    case CodeKind::BUILTIN:
       if (Code::cast(object).is_interpreter_trampoline_builtin() &&
           Code::cast(object) !=
               *BUILTIN_CODE(isolate_, InterpreterEntryTrampoline)) {
@@ -2079,32 +2080,30 @@ void ExistingCodeLogger::LogCodeObject(Object object) {
           isolate_->builtins()->name(abstract_code->GetCode().builtin_index());
       tag = CodeEventListener::BUILTIN_TAG;
       break;
-    case AbstractCode::WASM_FUNCTION:
+    case CodeKind::WASM_FUNCTION:
       description = "A Wasm function";
       tag = CodeEventListener::FUNCTION_TAG;
       break;
-    case AbstractCode::JS_TO_WASM_FUNCTION:
+    case CodeKind::JS_TO_WASM_FUNCTION:
       description = "A JavaScript to Wasm adapter";
       tag = CodeEventListener::STUB_TAG;
       break;
-    case AbstractCode::JS_TO_JS_FUNCTION:
+    case CodeKind::JS_TO_JS_FUNCTION:
       description = "A WebAssembly.Function adapter";
       tag = CodeEventListener::STUB_TAG;
       break;
-    case AbstractCode::WASM_TO_CAPI_FUNCTION:
+    case CodeKind::WASM_TO_CAPI_FUNCTION:
       description = "A Wasm to C-API adapter";
       tag = CodeEventListener::STUB_TAG;
       break;
-    case AbstractCode::WASM_TO_JS_FUNCTION:
+    case CodeKind::WASM_TO_JS_FUNCTION:
       description = "A Wasm to JavaScript adapter";
       tag = CodeEventListener::STUB_TAG;
       break;
-    case AbstractCode::C_WASM_ENTRY:
+    case CodeKind::C_WASM_ENTRY:
       description = "A C to Wasm entry stub";
       tag = CodeEventListener::STUB_TAG;
       break;
-    case AbstractCode::NUMBER_OF_KINDS:
-      UNIMPLEMENTED();
   }
   CALL_CODE_EVENT_HANDLER(CodeCreateEvent(tag, abstract_code, description))
 }

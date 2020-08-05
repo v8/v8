@@ -68,8 +68,7 @@ class V8_EXPORT_PRIVATE OptimizedCompilationInfo final {
   V(WasmRuntimeExceptionSupport, wasm_runtime_exception_support, 18)          \
   V(TurboControlFlowAwareAllocation, turbo_control_flow_aware_allocation, 19) \
   V(TurboPreprocessRanges, turbo_preprocess_ranges, 20)                       \
-  V(ConcurrentInlining, concurrent_inlining, 21)                              \
-  V(NativeContextIndependent, native_context_independent, 22)
+  V(ConcurrentInlining, concurrent_inlining, 21)
 
   enum Flag {
 #define DEF_ENUM(Camel, Lower, Bit) k##Camel = 1 << Bit,
@@ -101,11 +100,10 @@ class V8_EXPORT_PRIVATE OptimizedCompilationInfo final {
   // Construct a compilation info for optimized compilation.
   OptimizedCompilationInfo(Zone* zone, Isolate* isolate,
                            Handle<SharedFunctionInfo> shared,
-                           Handle<JSFunction> closure,
-                           bool native_context_independent);
+                           Handle<JSFunction> closure, CodeKind code_kind);
   // Construct a compilation info for stub compilation, Wasm, and testing.
   OptimizedCompilationInfo(Vector<const char> debug_name, Zone* zone,
-                           Code::Kind code_kind);
+                           CodeKind code_kind);
 
   ~OptimizedCompilationInfo();
 
@@ -117,7 +115,7 @@ class V8_EXPORT_PRIVATE OptimizedCompilationInfo final {
   bool has_bytecode_array() const { return !bytecode_array_.is_null(); }
   Handle<JSFunction> closure() const { return closure_; }
   Handle<Code> code() const { return code_; }
-  Code::Kind code_kind() const { return code_kind_; }
+  CodeKind code_kind() const { return code_kind_; }
   int32_t builtin_index() const { return builtin_index_; }
   void set_builtin_index(int32_t index) { builtin_index_ = index; }
   BailoutId osr_offset() const { return osr_offset_; }
@@ -132,7 +130,7 @@ class V8_EXPORT_PRIVATE OptimizedCompilationInfo final {
 
   // Code getters and setters.
 
-  void SetCode(Handle<Code> code) { code_ = code; }
+  void SetCode(Handle<Code> code);
 
   void SetWasmCompilationResult(std::unique_ptr<wasm::WasmCompilationResult>);
   std::unique_ptr<wasm::WasmCompilationResult> ReleaseWasmCompilationResult();
@@ -147,12 +145,15 @@ class V8_EXPORT_PRIVATE OptimizedCompilationInfo final {
   JSGlobalObject global_object() const;
 
   // Accessors for the different compilation modes.
-  bool IsOptimizing() const { return code_kind() == Code::OPTIMIZED_FUNCTION; }
-  bool IsWasm() const { return code_kind() == Code::WASM_FUNCTION; }
-  bool IsNotOptimizedFunctionOrWasmFunction() const {
-    return code_kind() != Code::OPTIMIZED_FUNCTION &&
-           code_kind() != Code::WASM_FUNCTION;
+  bool IsOptimizing() const {
+    return CodeKindIsOptimizedJSFunction(code_kind());
   }
+  bool IsNativeContextIndependent() const {
+    return code_kind() == CodeKind::NATIVE_CONTEXT_INDEPENDENT;
+  }
+  bool IsStub() const { return code_kind() == CodeKind::STUB; }
+  bool IsWasm() const { return code_kind() == CodeKind::WASM_FUNCTION; }
+
   void SetOptimizingForOsr(BailoutId osr_offset, JavaScriptFrame* osr_frame) {
     DCHECK(IsOptimizing());
     osr_offset_ = osr_offset;
@@ -239,7 +240,7 @@ class V8_EXPORT_PRIVATE OptimizedCompilationInfo final {
   PoisoningMitigationLevel poisoning_level_ =
       PoisoningMitigationLevel::kDontPoison;
 
-  const Code::Kind code_kind_;
+  const CodeKind code_kind_;
   int32_t builtin_index_ = -1;
 
   // We retain a reference the bytecode array specifically to ensure it doesn't

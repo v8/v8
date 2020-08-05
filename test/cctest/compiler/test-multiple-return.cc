@@ -163,7 +163,7 @@ void TestReturnMultipleValues(MachineType type) {
       m.Return(count, returns.get());
 
       OptimizedCompilationInfo info(ArrayVector("testing"), handles.main_zone(),
-                                    Code::WASM_FUNCTION);
+                                    CodeKind::WASM_FUNCTION);
       Handle<Code> code = Pipeline::GenerateCodeForTesting(
                               &info, handles.main_isolate(), desc, m.graph(),
                               AssemblerOptions::Default(handles.main_isolate()),
@@ -191,7 +191,7 @@ void TestReturnMultipleValues(MachineType type) {
       byte* code_start =
           module->AddCodeForTesting(code)->instructions().begin();
 
-      RawMachineAssemblerTester<int32_t> mt(Code::Kind::JS_TO_WASM_FUNCTION);
+      RawMachineAssemblerTester<int32_t> mt(CodeKind::JS_TO_WASM_FUNCTION);
       const int input_count = 2 + param_count;
       Node* call_inputs[2 + kMaxParamCount];
       call_inputs[0] = mt.PointerConstant(code_start);
@@ -268,7 +268,7 @@ void ReturnLastValue(MachineType type) {
     m.Return(return_count, returns.get());
 
     OptimizedCompilationInfo info(ArrayVector("testing"), handles.main_zone(),
-                                  Code::WASM_FUNCTION);
+                                  CodeKind::WASM_FUNCTION);
     Handle<Code> code = Pipeline::GenerateCodeForTesting(
                             &info, handles.main_isolate(), desc, m.graph(),
                             AssemblerOptions::Default(handles.main_isolate()),
@@ -331,7 +331,7 @@ void ReturnSumOfReturns(MachineType type) {
     m.Return(return_count, returns.get());
 
     OptimizedCompilationInfo info(ArrayVector("testing"), handles.main_zone(),
-                                  Code::WASM_FUNCTION);
+                                  CodeKind::WASM_FUNCTION);
     Handle<Code> code = Pipeline::GenerateCodeForTesting(
                             &info, handles.main_isolate(), desc, m.graph(),
                             AssemblerOptions::Default(handles.main_isolate()),

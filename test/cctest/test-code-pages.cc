@@ -282,7 +282,7 @@ TEST(LargeCodeObject) {
   {
     HandleScope scope(i_isolate);
     Handle<Code> foo_code =
-        Factory::CodeBuilder(i_isolate, desc, Code::WASM_FUNCTION).Build();
+        Factory::CodeBuilder(i_isolate, desc, CodeKind::WASM_FUNCTION).Build();
 
     CHECK(i_isolate->heap()->InSpace(*foo_code, CODE_LO_SPACE));
 
@@ -407,7 +407,7 @@ TEST(LargeCodeObjectWithSignalHandler) {
   {
     HandleScope scope(i_isolate);
     Handle<Code> foo_code =
-        Factory::CodeBuilder(i_isolate, desc, Code::WASM_FUNCTION).Build();
+        Factory::CodeBuilder(i_isolate, desc, CodeKind::WASM_FUNCTION).Build();
 
     CHECK(i_isolate->heap()->InSpace(*foo_code, CODE_LO_SPACE));
 
@@ -482,7 +482,8 @@ TEST(Sorted) {
     Handle<Code> code1, code3;
     Address code2_address;
 
-    code1 = Factory::CodeBuilder(i_isolate, desc, Code::WASM_FUNCTION).Build();
+    code1 =
+        Factory::CodeBuilder(i_isolate, desc, CodeKind::WASM_FUNCTION).Build();
     CHECK(i_isolate->heap()->InSpace(*code1, CODE_LO_SPACE));
 
     {
@@ -491,10 +492,11 @@ TEST(Sorted) {
       // Create three large code objects, we'll delete the middle one and check
       // everything is still sorted.
       Handle<Code> code2 =
-          Factory::CodeBuilder(i_isolate, desc, Code::WASM_FUNCTION).Build();
+          Factory::CodeBuilder(i_isolate, desc, CodeKind::WASM_FUNCTION)
+              .Build();
       CHECK(i_isolate->heap()->InSpace(*code2, CODE_LO_SPACE));
-      code3 =
-          Factory::CodeBuilder(i_isolate, desc, Code::WASM_FUNCTION).Build();
+      code3 = Factory::CodeBuilder(i_isolate, desc, CodeKind::WASM_FUNCTION)
+                  .Build();
       CHECK(i_isolate->heap()->InSpace(*code3, CODE_LO_SPACE));
 
       code2_address = code2->address();

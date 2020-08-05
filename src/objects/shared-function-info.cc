@@ -432,8 +432,8 @@ void SharedFunctionInfo::DisableOptimization(BailoutReason reason) {
 
   set_flags(DisabledOptimizationReasonBits::update(flags(), reason));
   // Code should be the lazy compilation stub or else interpreted.
-  DCHECK(abstract_code().kind() == AbstractCode::INTERPRETED_FUNCTION ||
-         abstract_code().kind() == AbstractCode::BUILTIN);
+  DCHECK(abstract_code().kind() == CodeKind::INTERPRETED_FUNCTION ||
+         abstract_code().kind() == CodeKind::BUILTIN);
   PROFILE(GetIsolate(),
           CodeDisableOptEvent(handle(abstract_code(), GetIsolate()),
                               handle(*this, GetIsolate())));

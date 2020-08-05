@@ -383,7 +383,7 @@ V8_EXPORT_PRIVATE void FreeCurrentEmbeddedBlob();
 #define ISOLATE_INIT_DEBUG_ARRAY_LIST(V)               \
   V(CommentStatistic, paged_space_comments_statistics, \
     CommentStatistic::kMaxComments + 1)                \
-  V(int, code_kind_statistics, AbstractCode::NUMBER_OF_KINDS)
+  V(int, code_kind_statistics, kCodeKindCount)
 #else
 
 #define ISOLATE_INIT_DEBUG_ARRAY_LIST(V)

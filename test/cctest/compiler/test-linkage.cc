@@ -26,8 +26,6 @@ namespace compiler {
 static Operator dummy_operator(IrOpcode::kParameter, Operator::kNoWrite,
                                "dummy", 0, 0, 0, 0, 0, 0);
 
-static constexpr bool kNativeContextDependent = false;
-
 // So we can get a real JS function.
 static Handle<JSFunction> Compile(const char* source) {
   Isolate* isolate = CcTest::i_isolate();
@@ -51,7 +49,7 @@ TEST(TestLinkageCreate) {
   Handle<JSFunction> function = Compile("a + b");
   Handle<SharedFunctionInfo> shared(function->shared(), handles.main_isolate());
   OptimizedCompilationInfo info(handles.main_zone(), function->GetIsolate(),
-                                shared, function, kNativeContextDependent);
+                                shared, function, CodeKind::OPTIMIZED_FUNCTION);
   auto call_descriptor = Linkage::ComputeIncoming(info.zone(), &info);
   CHECK(call_descriptor);
 }
@@ -69,7 +67,8 @@ TEST(TestLinkageJSFunctionIncoming) {
     Handle<SharedFunctionInfo> shared(function->shared(),
                                       handles.main_isolate());
     OptimizedCompilationInfo info(handles.main_zone(), function->GetIsolate(),
-                                  shared, function, kNativeContextDependent);
+                                  shared, function,
+                                  CodeKind::OPTIMIZED_FUNCTION);
     auto call_descriptor = Linkage::ComputeIncoming(info.zone(), &info);
     CHECK(call_descriptor);
 
@@ -86,7 +85,7 @@ TEST(TestLinkageJSCall) {
   Handle<JSFunction> function = Compile("a + c");
   Handle<SharedFunctionInfo> shared(function->shared(), handles.main_isolate());
   OptimizedCompilationInfo info(handles.main_zone(), function->GetIsolate(),
-                                shared, function, kNativeContextDependent);
+                                shared, function, CodeKind::OPTIMIZED_FUNCTION);
 
   for (int i = 0; i < 32; i++) {
     auto call_descriptor = Linkage::GetJSCallDescriptor(
@@ -110,7 +109,7 @@ TEST(TestLinkageStubCall) {
   Isolate* isolate = CcTest::InitIsolateOnce();
   Zone zone(isolate->allocator(), ZONE_NAME);
   Callable callable = Builtins::CallableFor(isolate, Builtins::kToNumber);
-  OptimizedCompilationInfo info(ArrayVector("test"), &zone, Code::STUB);
+  OptimizedCompilationInfo info(ArrayVector("test"), &zone, CodeKind::STUB);
   auto call_descriptor = Linkage::GetStubCallDescriptor(
       &zone, callable.descriptor(), 0, CallDescriptor::kNoFlags,
       Operator::kNoProperties);
@@ -130,7 +129,7 @@ TEST(TestFPLinkageStubCall) {
   Zone zone(isolate->allocator(), ZONE_NAME);
   Callable callable =
       Builtins::CallableFor(isolate, Builtins::kWasmFloat64ToNumber);
-  OptimizedCompilationInfo info(ArrayVector("test"), &zone, Code::STUB);
+  OptimizedCompilationInfo info(ArrayVector("test"), &zone, CodeKind::STUB);
   auto call_descriptor = Linkage::GetStubCallDescriptor(
       &zone, callable.descriptor(), 0, CallDescriptor::kNoFlags,
       Operator::kNoProperties);

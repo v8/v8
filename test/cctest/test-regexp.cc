@@ -2359,7 +2359,7 @@ TEST(UnicodePropertyEscapeCodeSize) {
   } else if (maybe_code.IsCode()) {
     // On x64, excessive inlining produced >360KB.
     CHECK_LT(Code::cast(maybe_code).Size(), kMaxSize);
-    CHECK_EQ(Code::cast(maybe_code).kind(), Code::REGEXP);
+    CHECK_EQ(Code::cast(maybe_code).kind(), CodeKind::REGEXP);
   } else {
     UNREACHABLE();
   }

@@ -46,7 +46,7 @@ static_assert(
 
 CodeAssemblerState::CodeAssemblerState(
     Isolate* isolate, Zone* zone, const CallInterfaceDescriptor& descriptor,
-    Code::Kind kind, const char* name, PoisoningMitigationLevel poisoning_level,
+    CodeKind kind, const char* name, PoisoningMitigationLevel poisoning_level,
     int32_t builtin_index)
     // TODO(rmcilroy): Should we use Linkage::GetBytecodeDispatchDescriptor for
     // bytecode handlers?
@@ -58,7 +58,7 @@ CodeAssemblerState::CodeAssemblerState(
           kind, name, poisoning_level, builtin_index) {}
 
 CodeAssemblerState::CodeAssemblerState(Isolate* isolate, Zone* zone,
-                                       int parameter_count, Code::Kind kind,
+                                       int parameter_count, CodeKind kind,
                                        const char* name,
                                        PoisoningMitigationLevel poisoning_level,
                                        int32_t builtin_index)
@@ -66,14 +66,14 @@ CodeAssemblerState::CodeAssemblerState(Isolate* isolate, Zone* zone,
           isolate, zone,
           Linkage::GetJSCallDescriptor(
               zone, false, parameter_count,
-              (kind == Code::BUILTIN ? CallDescriptor::kPushArgumentCount
-                                     : CallDescriptor::kNoFlags) |
+              (kind == CodeKind::BUILTIN ? CallDescriptor::kPushArgumentCount
+                                         : CallDescriptor::kNoFlags) |
                   CallDescriptor::kCanUseRoots),
           kind, name, poisoning_level, builtin_index) {}
 
 CodeAssemblerState::CodeAssemblerState(Isolate* isolate, Zone* zone,
                                        CallDescriptor* call_descriptor,
-                                       Code::Kind kind, const char* name,
+                                       CodeKind kind, const char* name,
                                        PoisoningMitigationLevel poisoning_level,
                                        int32_t builtin_index)
     : raw_assembler_(new RawMachineAssembler(

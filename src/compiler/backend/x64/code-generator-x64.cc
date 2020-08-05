@@ -4680,7 +4680,7 @@ void CodeGenerator::PrepareForDeoptimizationExits(int deopt_count) {}
 void CodeGenerator::IncrementStackAccessCounter(
     InstructionOperand* source, InstructionOperand* destination) {
   DCHECK(FLAG_trace_turbo_stack_accesses);
-  if (info()->IsNotOptimizedFunctionOrWasmFunction()) return;
+  if (!info()->IsOptimizing() && !info()->IsWasm()) return;
   DCHECK_NOT_NULL(debug_name_);
   auto IncrementCounter = [&](ExternalReference counter) {
     __ incl(__ ExternalReferenceAsOperand(counter));

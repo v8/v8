@@ -376,7 +376,7 @@ void FeedbackVector::AddToVectorsForProfilingTools(
 // static
 void FeedbackVector::SetOptimizedCode(Handle<FeedbackVector> vector,
                                       Handle<Code> code) {
-  DCHECK_EQ(code->kind(), Code::OPTIMIZED_FUNCTION);
+  DCHECK(CodeKindIsOptimizedJSFunction(code->kind()));
   vector->set_optimized_code_weak_or_smi(HeapObjectReference::Weak(*code));
 }
 

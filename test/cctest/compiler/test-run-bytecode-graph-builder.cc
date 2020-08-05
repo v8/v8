@@ -71,8 +71,6 @@ class BytecodeGraphCallable {
   Handle<JSFunction> function_;
 };
 
-static constexpr bool kNativeContextDependent = false;
-
 class BytecodeGraphTester {
  public:
   BytecodeGraphTester(Isolate* isolate, const char* script,
@@ -125,7 +123,7 @@ class BytecodeGraphTester {
     Zone zone(isolate_->allocator(), ZONE_NAME);
     Handle<SharedFunctionInfo> shared(function->shared(), isolate_);
     OptimizedCompilationInfo compilation_info(&zone, isolate_, shared, function,
-                                              kNativeContextDependent);
+                                              CodeKind::OPTIMIZED_FUNCTION);
 
     // Compiler relies on canonicalized handles, let's create
     // a canonicalized scope and migrate existing handles there.

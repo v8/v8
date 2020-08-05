@@ -1020,16 +1020,13 @@ void ObjectStatsCollectorImpl::RecordVirtualBytecodeArrayDetails(
 
 namespace {
 
-ObjectStats::VirtualInstanceType CodeKindToVirtualInstanceType(
-    Code::Kind kind) {
+ObjectStats::VirtualInstanceType CodeKindToVirtualInstanceType(CodeKind kind) {
   switch (kind) {
 #define CODE_KIND_CASE(type) \
-  case Code::type:           \
+  case CodeKind::type:       \
     return ObjectStats::type;
     CODE_KIND_LIST(CODE_KIND_CASE)
 #undef CODE_KIND_CASE
-    default:
-      UNREACHABLE();
   }
   UNREACHABLE();
 }
@@ -1049,7 +1046,7 @@ void ObjectStatsCollectorImpl::RecordVirtualCodeDetails(Code code) {
                                    HeapObject::cast(source_position_table),
                                    ObjectStats::SOURCE_POSITION_TABLE_TYPE);
   }
-  if (code.kind() == Code::Kind::OPTIMIZED_FUNCTION) {
+  if (CodeKindIsOptimizedJSFunction(code.kind())) {
     DeoptimizationData input_data =
         DeoptimizationData::cast(code.deoptimization_data());
     if (input_data.length() > 0) {

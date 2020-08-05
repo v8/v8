@@ -65,12 +65,12 @@ Object CompileOptimized(Isolate* isolate, Handle<JSFunction> function,
   if (check.JsHasOverflowed(kStackSpaceRequiredForCompilation * KB)) {
     return isolate->StackOverflow();
   }
-  if (!Compiler::CompileOptimized(function, mode, DefaultCompilationTarget())) {
+  if (!Compiler::CompileOptimized(function, mode, CodeKindForTopTier())) {
     return ReadOnlyRoots(isolate).exception();
   }
   if (ShouldSpawnExtraNativeContextIndependentCompilationJob()) {
-    if (!Compiler::CompileOptimized(
-            function, mode, CompilationTarget::kNativeContextIndependent)) {
+    if (!Compiler::CompileOptimized(function, mode,
+                                    CodeKind::NATIVE_CONTEXT_INDEPENDENT)) {
       return ReadOnlyRoots(isolate).exception();
     }
   }
@@ -164,7 +164,7 @@ RUNTIME_FUNCTION(Runtime_NotifyDeoptimized) {
   HandleScope scope(isolate);
   DCHECK_EQ(0, args.length());
   Deoptimizer* deoptimizer = Deoptimizer::Grab(isolate);
-  DCHECK(deoptimizer->compiled_code()->kind() == Code::OPTIMIZED_FUNCTION);
+  DCHECK(CodeKindCanDeoptimize(deoptimizer->compiled_code()->kind()));
   DCHECK(deoptimizer->compiled_code()->is_turbofanned());
   DCHECK(AllowHeapAllocation::IsAllowed());
   DCHECK(isolate->context().is_null());
@@ -284,7 +284,7 @@ RUNTIME_FUNCTION(Runtime_CompileForOnStackReplacement) {
   // Check whether we ended up with usable optimized code.
   Handle<Code> result;
   if (maybe_result.ToHandle(&result) &&
-      result->kind() == Code::OPTIMIZED_FUNCTION) {
+      CodeKindIsOptimizedJSFunction(result->kind())) {
     DeoptimizationData data =
         DeoptimizationData::cast(result->deoptimization_data());
 

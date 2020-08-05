@@ -43,17 +43,6 @@ class WorkerThreadRuntimeCallStats;
 using UnoptimizedCompilationJobList =
     std::forward_list<std::unique_ptr<UnoptimizedCompilationJob>>;
 
-enum class CompilationTarget : uint8_t {
-  kTurbofan,
-  kNativeContextIndependent,
-};
-
-inline CompilationTarget DefaultCompilationTarget() {
-  return FLAG_turbo_nci_as_highest_tier
-             ? CompilationTarget::kNativeContextIndependent
-             : CompilationTarget::kTurbofan;
-}
-
 inline bool ShouldSpawnExtraNativeContextIndependentCompilationJob() {
   return FLAG_turbo_nci && !FLAG_turbo_nci_as_highest_tier;
 }
@@ -84,7 +73,7 @@ class V8_EXPORT_PRIVATE Compiler : public AllStatic {
   static bool Compile(Handle<JSFunction> function, ClearExceptionFlag flag,
                       IsCompiledScope* is_compiled_scope);
   static bool CompileOptimized(Handle<JSFunction> function,
-                               ConcurrencyMode mode, CompilationTarget target);
+                               ConcurrencyMode mode, CodeKind code_kind);
 
   // Collect source positions for a function that has already been compiled to
   // bytecode, but for which source positions were not collected (e.g. because

@@ -58,32 +58,13 @@ namespace internal {
 
 namespace {
 
-const char* CompilationTargetName(CompilationTarget target) {
-  switch (target) {
-    case CompilationTarget::kTurbofan:
-      return "Turbofan";
-    case CompilationTarget::kNativeContextIndependent:
-      return "NativeContextIndependent";
-  }
-  UNREACHABLE();
-}
-
-CompilationTarget CompilationTargetOf(OptimizedCompilationInfo* info) {
-  return info->native_context_independent()
-             ? CompilationTarget::kNativeContextIndependent
-             : CompilationTarget::kTurbofan;
-}
-
-bool IsNativeContextIndependent(CompilationTarget target) {
-  return target == CompilationTarget::kNativeContextIndependent;
-}
-
-bool IsForNativeContextIndependentCachingOnly(CompilationTarget target) {
-  return IsNativeContextIndependent(target) && !FLAG_turbo_nci_as_highest_tier;
+bool IsForNativeContextIndependentCachingOnly(CodeKind kind) {
+  return CodeKindIsNativeContextIndependentJSFunction(kind) &&
+         !FLAG_turbo_nci_as_highest_tier;
 }
 
 bool IsForNativeContextIndependentCachingOnly(OptimizedCompilationInfo* info) {
-  return IsForNativeContextIndependentCachingOnly(CompilationTargetOf(info));
+  return IsForNativeContextIndependentCachingOnly(info->code_kind());
 }
 
 class CompilerTracer : public AllStatic {
@@ -93,8 +74,7 @@ class CompilerTracer : public AllStatic {
                                OptimizedCompilationInfo* info) {
     PrintF(scope.file(), "[%s ", header);
     info->closure()->ShortPrint(scope.file());
-    PrintF(scope.file(), " (target %s)",
-           CompilationTargetName(CompilationTargetOf(info)));
+    PrintF(scope.file(), " (target %s)", CodeKindToString(info->code_kind()));
   }
 
   static void PrintTracePrefix(const CodeTracer::Scope& scope,
@@ -893,8 +873,7 @@ void InsertCodeIntoOptimizedCodeCache(
   // Cached NCI code currently does not use the optimization marker field.
   if (IsForNativeContextIndependentCachingOnly(compilation_info)) return;
 
-  Handle<Code> code = compilation_info->code();
-  if (code->kind() != Code::OPTIMIZED_FUNCTION) return;  // Nothing to do.
+  if (!CodeKindIsOptimizedJSFunction(compilation_info->code_kind())) return;
 
   // Function context specialization folds-in the function context,
   // so no sharing can occur.
@@ -906,6 +885,7 @@ void InsertCodeIntoOptimizedCodeCache(
   }
 
   // Cache optimized context-specific code.
+  Handle<Code> code = compilation_info->code();
   Handle<JSFunction> function = compilation_info->closure();
   Handle<SharedFunctionInfo> shared(function->shared(), function->GetIsolate());
   Handle<NativeContext> native_context(function->context().native_context(),
@@ -922,7 +902,7 @@ void InsertCodeIntoOptimizedCodeCache(
 
 void InsertCodeIntoCompilationCache(Isolate* isolate,
                                     OptimizedCompilationInfo* info) {
-  if (!info->native_context_independent()) return;
+  if (!CodeKindIsNativeContextIndependentJSFunction(info->code_kind())) return;
 
   // TODO(jgruber,v8:8888): This should turn into a DCHECK once we
   // spawn dedicated NCI compile tasks.
@@ -930,7 +910,6 @@ void InsertCodeIntoCompilationCache(Isolate* isolate,
 
   Handle<Code> code = info->code();
   DCHECK(!info->function_context_specializing());
-  DCHECK_EQ(code->kind(), Code::OPTIMIZED_FUNCTION);
 
   Handle<SharedFunctionInfo> sfi = info->shared_info();
   CompilationCache* cache = isolate->compilation_cache();
@@ -1004,10 +983,11 @@ bool GetOptimizedCodeLater(OptimizedCompilationJob* job, Isolate* isolate) {
 }
 
 MaybeHandle<Code> GetOptimizedCode(Handle<JSFunction> function,
-                                   ConcurrencyMode mode,
-                                   CompilationTarget compilation_target,
+                                   ConcurrencyMode mode, CodeKind code_kind,
                                    BailoutId osr_offset = BailoutId::None(),
                                    JavaScriptFrame* osr_frame = nullptr) {
+  DCHECK(CodeKindIsOptimizedJSFunction(code_kind));
+
   Isolate* isolate = function->GetIsolate();
   Handle<SharedFunctionInfo> shared(function->shared(), isolate);
 
@@ -1038,7 +1018,7 @@ MaybeHandle<Code> GetOptimizedCode(Handle<JSFunction> function,
     PendingOptimizationTable::FunctionWasOptimized(isolate, function);
   }
 
-  if (!IsForNativeContextIndependentCachingOnly(compilation_target)) {
+  if (!IsForNativeContextIndependentCachingOnly(code_kind)) {
     Handle<Code> cached_code;
     if (GetCodeFromOptimizedCodeCache(function, osr_offset)
             .ToHandle(&cached_code)) {
@@ -1051,7 +1031,7 @@ MaybeHandle<Code> GetOptimizedCode(Handle<JSFunction> function,
   DCHECK(shared->is_compiled());
   function->feedback_vector().set_profiler_ticks(0);
 
-  if (IsNativeContextIndependent(compilation_target)) {
+  if (CodeKindIsNativeContextIndependentJSFunction(code_kind)) {
     // We don't generate NCI code for OSR.
     DCHECK_EQ(osr_offset, BailoutId::None());
     // Don't generate NCI code when we've already done so in the past.
@@ -1074,9 +1054,8 @@ MaybeHandle<Code> GetOptimizedCode(Handle<JSFunction> function,
   // tolerate the lack of a script without bytecode.
   DCHECK_IMPLIES(!has_script, shared->HasBytecodeArray());
   std::unique_ptr<OptimizedCompilationJob> job(
-      compiler::Pipeline::NewCompilationJob(
-          isolate, function, has_script, osr_offset, osr_frame,
-          IsNativeContextIndependent(compilation_target)));
+      compiler::Pipeline::NewCompilationJob(isolate, function, code_kind,
+                                            has_script, osr_offset, osr_frame));
   OptimizedCompilationInfo* compilation_info = job->compilation_info();
 
   // In case of concurrent recompilation, all handles below this point will be
@@ -1098,7 +1077,7 @@ MaybeHandle<Code> GetOptimizedCode(Handle<JSFunction> function,
       job.release();  // The background recompile job owns this now.
 
       // Set the optimization marker and return a code object which checks it.
-      if (!IsForNativeContextIndependentCachingOnly(compilation_target)) {
+      if (!IsForNativeContextIndependentCachingOnly(code_kind)) {
         // Cached NCI code currently does not use the optimization marker field.
         function->SetOptimizationMarker(
             OptimizationMarker::kInOptimizationQueue);
@@ -1778,7 +1757,7 @@ bool Compiler::Compile(Handle<JSFunction> function, ClearExceptionFlag flag,
 
     Handle<Code> maybe_code;
     if (GetOptimizedCode(function, ConcurrencyMode::kNotConcurrent,
-                         DefaultCompilationTarget())
+                         CodeKindForTopTier())
             .ToHandle(&maybe_code)) {
       code = maybe_code;
     }
@@ -1839,15 +1818,16 @@ bool Compiler::FinalizeBackgroundCompileTask(
 
 // static
 bool Compiler::CompileOptimized(Handle<JSFunction> function,
-                                ConcurrencyMode mode,
-                                CompilationTarget target) {
+                                ConcurrencyMode mode, CodeKind code_kind) {
+  DCHECK(CodeKindIsOptimizedJSFunction(code_kind));
+
   if (function->IsOptimized()) return true;
 
   Isolate* isolate = function->GetIsolate();
   DCHECK(AllowCompilation::IsAllowed(isolate));
 
   Handle<Code> code;
-  if (!GetOptimizedCode(function, mode, target).ToHandle(&code)) {
+  if (!GetOptimizedCode(function, mode, code_kind).ToHandle(&code)) {
     // Optimization failed, get unoptimized code. Unoptimized code must exist
     // already if we are optimizing.
     DCHECK(!isolate->has_pending_exception());
@@ -1856,7 +1836,7 @@ bool Compiler::CompileOptimized(Handle<JSFunction> function,
     code = BUILTIN_CODE(isolate, InterpreterEntryTrampoline);
   }
 
-  if (!IsForNativeContextIndependentCachingOnly(target)) {
+  if (!IsForNativeContextIndependentCachingOnly(code_kind)) {
     function->set_code(*code);
   }
 
@@ -2913,7 +2893,7 @@ MaybeHandle<Code> Compiler::GetOptimizedCodeForOSR(Handle<JSFunction> function,
   DCHECK(!osr_offset.IsNone());
   DCHECK_NOT_NULL(osr_frame);
   return GetOptimizedCode(function, ConcurrencyMode::kNotConcurrent,
-                          CompilationTarget::kTurbofan, osr_offset, osr_frame);
+                          CodeKindForOSR(), osr_offset, osr_frame);
 }
 
 // static
