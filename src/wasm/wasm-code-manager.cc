@@ -1507,7 +1507,7 @@ NativeModule::~NativeModule() {
   TRACE_HEAP("Deleting native module: %p\n", this);
   // Cancel all background compilation before resetting any field of the
   // NativeModule or freeing anything.
-  compilation_state_->AbortCompilation();
+  compilation_state_->CancelCompilation();
   engine_->FreeNativeModule(this);
   // Free the import wrapper cache before releasing the {WasmCode} objects in
   // {owned_code_}. The destructor of {WasmImportWrapperCache} still needs to

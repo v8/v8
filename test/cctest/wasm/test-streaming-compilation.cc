@@ -31,6 +31,20 @@ class MockPlatform final : public TestPlatform {
     i::V8::SetPlatformForTesting(this);
   }
 
+  ~MockPlatform() {
+    for (auto* job_handle : job_handles_) job_handle->ResetPlatform();
+  }
+
+  std::unique_ptr<v8::JobHandle> PostJob(
+      v8::TaskPriority priority,
+      std::unique_ptr<v8::JobTask> job_task) override {
+    auto orig_job_handle = TestPlatform::PostJob(priority, std::move(job_task));
+    auto job_handle =
+        std::make_unique<MockJobHandle>(std::move(orig_job_handle), this);
+    job_handles_.insert(job_handle.get());
+    return job_handle;
+  }
+
   std::shared_ptr<TaskRunner> GetForegroundTaskRunner(
       v8::Isolate* isolate) override {
     return task_runner_;
@@ -42,7 +56,12 @@ class MockPlatform final : public TestPlatform {
 
   bool IdleTasksEnabled(v8::Isolate* isolate) override { return false; }
 
-  void ExecuteTasks() { task_runner_->ExecuteTasks(); }
+  void ExecuteTasks() {
+    for (auto* job_handle : job_handles_) {
+      if (job_handle->IsRunning()) job_handle->Join();
+    }
+    task_runner_->ExecuteTasks();
+  }
 
  private:
   class MockTaskRunner final : public TaskRunner {
@@ -75,7 +94,32 @@ class MockPlatform final : public TestPlatform {
     std::queue<std::unique_ptr<v8::Task>> tasks_;
   };
 
+  class MockJobHandle : public JobHandle {
+   public:
+    explicit MockJobHandle(std::unique_ptr<JobHandle> orig_handle,
+                           MockPlatform* platform)
+        : orig_handle_(std::move(orig_handle)), platform_(platform) {}
+
+    ~MockJobHandle() {
+      if (platform_) platform_->job_handles_.erase(this);
+    }
+
+    void ResetPlatform() { platform_ = nullptr; }
+
+    void NotifyConcurrencyIncrease() override {
+      orig_handle_->NotifyConcurrencyIncrease();
+    }
+    void Join() override { orig_handle_->Join(); }
+    void Cancel() override { orig_handle_->Cancel(); }
+    bool IsRunning() override { return orig_handle_->IsRunning(); }
+
+   private:
+    std::unique_ptr<JobHandle> orig_handle_;
+    MockPlatform* platform_;
+  };
+
   std::shared_ptr<MockTaskRunner> task_runner_;
+  std::unordered_set<MockJobHandle*> job_handles_;
 };
 
 namespace {

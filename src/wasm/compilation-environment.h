@@ -13,6 +13,9 @@
 #include "src/wasm/wasm-tier.h"
 
 namespace v8 {
+
+class JobHandle;
+
 namespace internal {
 
 class Counters;
@@ -104,7 +107,7 @@ class CompilationState {
 
   ~CompilationState();
 
-  void AbortCompilation();
+  void CancelCompilation();
 
   void SetError();
 
