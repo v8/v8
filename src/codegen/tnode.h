@@ -191,6 +191,11 @@ constexpr bool IsMachineRepresentationOf(MachineRepresentation r) {
 }
 
 template <class T>
+constexpr MachineRepresentation PhiMachineRepresentationOf =
+    std::is_base_of<Word32T, T>::value ? MachineRepresentation::kWord32
+                                       : MachineRepresentationOf<T>::value;
+
+template <class T>
 struct is_valid_type_tag {
   static const bool value = std::is_base_of<Object, T>::value ||
                             std::is_base_of<UntaggedT, T>::value ||

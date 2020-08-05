@@ -819,6 +819,10 @@ class V8_EXPORT_PRIVATE CodeAssembler {
     return Unsigned(
         Word32Shr(static_cast<Node*>(left), static_cast<Node*>(right)));
   }
+  TNode<Int32T> Word32Sar(TNode<Int32T> left, TNode<Int32T> right) {
+    return Signed(
+        Word32Sar(static_cast<Node*>(left), static_cast<Node*>(right)));
+  }
 
   TNode<IntPtrT> WordAnd(TNode<IntPtrT> left, TNode<IntPtrT> right) {
     return Signed(WordAnd(static_cast<Node*>(left), static_cast<Node*>(right)));
@@ -1270,20 +1274,19 @@ template <class T>
 class TypedCodeAssemblerVariable : public CodeAssemblerVariable {
  public:
   TypedCodeAssemblerVariable(TNode<T> initial_value, CodeAssembler* assembler)
-      : CodeAssemblerVariable(assembler, MachineRepresentationOf<T>::value,
+      : CodeAssemblerVariable(assembler, PhiMachineRepresentationOf<T>,
                               initial_value) {}
   explicit TypedCodeAssemblerVariable(CodeAssembler* assembler)
-      : CodeAssemblerVariable(assembler, MachineRepresentationOf<T>::value) {}
+      : CodeAssemblerVariable(assembler, PhiMachineRepresentationOf<T>) {}
 #if DEBUG
   TypedCodeAssemblerVariable(AssemblerDebugInfo debug_info,
                              CodeAssembler* assembler)
       : CodeAssemblerVariable(assembler, debug_info,
-                              MachineRepresentationOf<T>::value) {}
+                              PhiMachineRepresentationOf<T>) {}
   TypedCodeAssemblerVariable(AssemblerDebugInfo debug_info,
                              TNode<T> initial_value, CodeAssembler* assembler)
       : CodeAssemblerVariable(assembler, debug_info,
-                              MachineRepresentationOf<T>::value,
-                              initial_value) {}
+                              PhiMachineRepresentationOf<T>, initial_value) {}
 #endif  // DEBUG
 
   TNode<T> value() const {
@@ -1407,7 +1410,7 @@ class CodeAssemblerParameterizedLabel
   void CreatePhis(TNode<Types>*... results) {
     const std::vector<Node*>& phi_nodes =
         CodeAssemblerParameterizedLabelBase::CreatePhis(
-            {MachineRepresentationOf<Types>::value...});
+            {PhiMachineRepresentationOf<Types>...});
     auto it = phi_nodes.begin();
     USE(it);
     ITERATE_PACK(AssignPhi(results, *(it++)));

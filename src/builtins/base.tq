@@ -835,6 +835,7 @@ extern operator '==' macro Word32Equal(uint32, uint32): bool;
 extern operator '!=' macro Word32NotEqual(int32, int32): bool;
 extern operator '!=' macro Word32NotEqual(uint32, uint32): bool;
 extern operator '>>>' macro Word32Shr(uint32, uint32): uint32;
+extern operator '>>' macro Word32Sar(int32, int32): int32;
 extern operator '<<' macro Word32Shl(int32, int32): int32;
 extern operator '<<' macro Word32Shl(uint32, uint32): uint32;
 extern operator '|' macro Word32Or(int32, int32): int32;

@@ -1327,4 +1327,17 @@ macro TestNewPretenured(implicit context: Context)() {
   assert(Is<ExportedSubClassBase>(obj));
   assert(InYoungGeneration(obj) == False);
 }
+
+@export
+macro TestWord8Phi() {
+  for (let i: intptr = -5; i < 5; ++i) {
+    let x: int8;
+    if (i == -1) {
+      x = -1;
+    } else {
+      x = Convert<int8>(i);
+    }
+    check(x == Convert<int8>(i));
+  }
+}
 }
