@@ -3282,6 +3282,24 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
                  i.InputSimd128Register(1));
       break;
     }
+    case kPPC_S8x16Swizzle: {
+      // Reverse the input to match IBM lane numbering.
+      Simd128Register tempFPReg1 = i.ToSimd128Register(instr->TempAt(0));
+      __ addi(sp, sp, Operand(-16));
+      __ stxvd(i.InputSimd128Register(0), MemOperand(r0, sp));
+      __ ldbrx(r0, MemOperand(r0, sp));
+      __ li(ip, Operand(8));
+      __ ldbrx(ip, MemOperand(ip, sp));
+      __ stdx(ip, MemOperand(r0, sp));
+      __ li(ip, Operand(8));
+      __ stdx(r0, MemOperand(ip, sp));
+      __ lxvd(kScratchDoubleReg, MemOperand(r0, sp));
+      __ addi(sp, sp, Operand(16));
+      __ vxor(tempFPReg1, tempFPReg1, tempFPReg1);
+      __ vperm(i.OutputSimd128Register(), kScratchDoubleReg, tempFPReg1,
+               i.InputSimd128Register(1));
+      break;
+    }
     case kPPC_StoreCompressTagged: {
       ASSEMBLE_STORE_INTEGER(StoreTaggedField, StoreTaggedFieldX);
       break;

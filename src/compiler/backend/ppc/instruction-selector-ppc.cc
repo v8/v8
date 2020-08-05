@@ -2222,7 +2222,8 @@ void InstructionSelector::VisitInt64AbsWithOverflow(Node* node) {
   V(I8x16SubSaturateU)     \
   V(S128And)               \
   V(S128Or)                \
-  V(S128Xor)
+  V(S128Xor)               \
+  V(S8x16Swizzle)
 
 #define SIMD_UNOP_LIST(V)   \
   V(F64x2Abs)               \
@@ -2435,8 +2436,6 @@ void InstructionSelector::VisitF32x4Div(Node* node) { UNIMPLEMENTED(); }
 void InstructionSelector::VisitF32x4Min(Node* node) { UNIMPLEMENTED(); }
 
 void InstructionSelector::VisitF32x4Max(Node* node) { UNIMPLEMENTED(); }
-
-void InstructionSelector::VisitS8x16Swizzle(Node* node) { UNIMPLEMENTED(); }
 
 void InstructionSelector::VisitF64x2Div(Node* node) { UNIMPLEMENTED(); }
 

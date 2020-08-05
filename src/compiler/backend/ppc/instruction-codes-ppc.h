@@ -333,6 +333,7 @@ namespace compiler {
   V(PPC_I8x16AddSaturateU)           \
   V(PPC_I8x16SubSaturateU)           \
   V(PPC_S8x16Shuffle)                \
+  V(PPC_S8x16Swizzle)                \
   V(PPC_V64x2AnyTrue)                \
   V(PPC_V32x4AnyTrue)                \
   V(PPC_V16x8AnyTrue)                \

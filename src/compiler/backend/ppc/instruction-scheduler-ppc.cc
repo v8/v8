@@ -256,6 +256,7 @@ int InstructionScheduler::GetTargetInstructionFlags(
     case kPPC_I8x16AddSaturateU:
     case kPPC_I8x16SubSaturateU:
     case kPPC_S8x16Shuffle:
+    case kPPC_S8x16Swizzle:
     case kPPC_V64x2AnyTrue:
     case kPPC_V32x4AnyTrue:
     case kPPC_V16x8AnyTrue:
