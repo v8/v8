@@ -152,10 +152,17 @@ class App {
     this.fileLoaded = true;
   }
 
+  refreshTimelineTrackView(){
+    this.#view.mapTrack.data = this.#state.mapTimeline;
+    this.#view.icTrack.data = this.#state.icTimeline;
+  }
+
   switchTheme(event) {
-    if(this.fileLoaded) return;
     document.documentElement.dataset.theme =
-      event.target.checked ? 'dark' : 'light';
+      event.target.checked ? 'light' : 'dark';
+    if(this.fileLoaded) {
+      this.refreshTimelineTrackView();
+    }
   }
 }
 
