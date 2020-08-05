@@ -213,20 +213,12 @@ bool DefaultPlatform::IdleTasksEnabled(Isolate* isolate) {
 
 std::unique_ptr<JobHandle> DefaultPlatform::PostJob(
     TaskPriority priority, std::unique_ptr<JobTask> job_task) {
-  size_t num_worker_threads = 0;
-  switch (priority) {
-    case TaskPriority::kUserBlocking:
-      num_worker_threads = NumberOfWorkerThreads();
-      break;
-    case TaskPriority::kUserVisible:
-      num_worker_threads = NumberOfWorkerThreads() / 2;
-      break;
-    case TaskPriority::kBestEffort:
-      num_worker_threads = 1;
-      break;
+  size_t num_worker_threads = NumberOfWorkerThreads();
+  if (priority == TaskPriority::kBestEffort && num_worker_threads > 2) {
+    num_worker_threads = 2;
   }
-  return std::make_unique<DefaultJobHandle>(std::make_shared<DefaultJobState>(
-      this, std::move(job_task), priority, num_worker_threads));
+  return NewDefaultJobHandle(this, priority, std::move(job_task),
+                             num_worker_threads);
 }
 
 double DefaultPlatform::MonotonicallyIncreasingTime() {
