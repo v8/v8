@@ -1231,13 +1231,24 @@ class WasmDecoder : public Decoder {
       error("function table has to exist to execute call_indirect");
       return false;
     }
-    if (!VALIDATE(module_->tables[imm.table_index].type == kWasmFuncRef)) {
-      error("table of call_indirect must be of type funcref");
+    if (!VALIDATE(IsSubtypeOf(module_->tables[imm.table_index].type,
+                              kWasmFuncRef, module_))) {
+      error("table of call_indirect must be of a function type");
       return false;
     }
     if (!Complete(imm)) {
       errorf(pc, "invalid signature index: #%u", imm.sig_index);
       return false;
+    }
+    // Check that the dynamic signature for this call is a subtype of the static
+    // type of the table the function is defined in.
+    if (!VALIDATE(IsSubtypeOf(ValueType::Ref(imm.sig_index, kNonNullable),
+                              module_->tables[imm.table_index].type,
+                              module_))) {
+      errorf(pc,
+             "call_indirect: Signature of function %u is not a subtype of "
+             "table %u",
+             imm.sig_index, imm.table_index);
     }
     return true;
   }
@@ -1435,12 +1446,8 @@ class WasmDecoder : public Decoder {
       return false;
     }
     if (!VALIDATE(imm.type.is_generic() ||
-                  module_->has_array(imm.type.ref_index()) ||
-                  module_->has_struct(imm.type.ref_index()))) {
-      errorf(
-          pc,
-          "Type index %u does not refer to a struct or array type definition",
-          imm.type.ref_index());
+                  module_->has_type(imm.type.ref_index()))) {
+      errorf(pc, "Type index %u is out of bounds", imm.type.ref_index());
       return false;
     }
     return true;
@@ -2638,7 +2645,10 @@ class WasmFullDecoder : public WasmDecoder<validate> {
     CHECK_PROTOTYPE_OPCODE(reftypes);
     FunctionIndexImmediate<validate> imm(this, this->pc_ + 1);
     if (!this->Validate(this->pc_ + 1, imm)) return 0;
-    Value* value = Push(ValueType::Ref(HeapType::kFunc, kNonNullable));
+    HeapType heap_type(this->enabled_.has_typed_funcref()
+                           ? this->module_->functions[imm.index].sig_index
+                           : HeapType::kFunc);
+    Value* value = Push(ValueType::Ref(heap_type, kNonNullable));
     CALL_INTERFACE_IF_REACHABLE(RefFunc, imm.index, value);
     return 1 + imm.length;
   }

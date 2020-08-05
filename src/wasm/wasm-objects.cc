@@ -1844,7 +1844,17 @@ Handle<WasmExportedFunction> WasmExportedFunction::New(
   Handle<Map> function_map;
   switch (instance->module()->origin) {
     case wasm::kWasmOrigin:
-      function_map = isolate->wasm_exported_function_map();
+      if (instance->module_object()
+              .native_module()
+              ->enabled_features()
+              .has_gc()) {
+        uint32_t sig_index =
+            instance->module()->functions[func_index].sig_index;
+        function_map = handle(
+            Map::cast(instance->managed_object_maps().get(sig_index)), isolate);
+      } else {
+        function_map = isolate->wasm_exported_function_map();
+      }
       break;
     case wasm::kAsmJsSloppyOrigin:
       function_map = isolate->sloppy_function_map();

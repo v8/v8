@@ -628,9 +628,7 @@ TEST_F(WasmModuleVerifyTest, RefNullGlobalInvalid1) {
   static const byte data[] = {SECTION(Global, ENTRY_COUNT(1), kLocalOptRef, 0,
                                       1, WASM_REF_NULL(0), kExprEnd)};
   ModuleResult result = DecodeModule(data, data + sizeof(data));
-  EXPECT_NOT_OK(
-      result,
-      "Type index 0 does not refer to a struct or array type definition");
+  EXPECT_NOT_OK(result, "Type index 0 is out of bounds");
 }
 
 TEST_F(WasmModuleVerifyTest, RefNullGlobalInvalid2) {
@@ -2865,42 +2863,24 @@ TEST_F(WasmModuleVerifyTest, GcStructIdsPass) {
   EXPECT_OK(result);
 }
 
-TEST_F(WasmModuleVerifyTest, GcTypeIdsUndefinedIndex) {
-  WASM_FEATURE_SCOPE(gc);
-  WASM_FEATURE_SCOPE(typed_funcref);
+TEST_F(WasmModuleVerifyTest, OutOfBoundsTypeInGlobal) {
   WASM_FEATURE_SCOPE(reftypes);
-
-  static const byte data[] = {SECTION(
-      Type, ENTRY_COUNT(1),
-      WASM_STRUCT_DEF(FIELD_COUNT(1), STRUCT_FIELD(WASM_OPT_REF(1), true)))};
+  WASM_FEATURE_SCOPE(typed_funcref);
+  static const byte data[] = {SECTION(Global, ENTRY_COUNT(1), kLocalRef, 0,
+                                      WASM_REF_NULL(0), kExprEnd)};
   ModuleResult result = DecodeModule(data, data + sizeof(data));
-  EXPECT_NOT_OK(result, "reference to undeclared struct/array");
+  EXPECT_NOT_OK(result, "Type index 0 is out of bounds");
 }
 
-TEST_F(WasmModuleVerifyTest, GcTypeIdsIllegalIndex) {
-  WASM_FEATURE_SCOPE(gc);
-  WASM_FEATURE_SCOPE(typed_funcref);
+TEST_F(WasmModuleVerifyTest, OutOfBoundsTypeInType) {
   WASM_FEATURE_SCOPE(reftypes);
-
-  static const byte data[] = {SECTION(
-      Type, ENTRY_COUNT(2),
-      WASM_STRUCT_DEF(FIELD_COUNT(1), STRUCT_FIELD(WASM_OPT_REF(1), true)),
-      WASM_FUNCTION_DEF(ENTRY_COUNT(1), kLocalI32, ENTRY_COUNT(1), kLocalI32))};
-  ModuleResult result = DecodeModule(data, data + sizeof(data));
-  EXPECT_NOT_OK(result, "cannot build reference to function type index");
-}
-
-TEST_F(WasmModuleVerifyTest, GcTypeIdsFunSigIllegalIndex) {
-  WASM_FEATURE_SCOPE(gc);
   WASM_FEATURE_SCOPE(typed_funcref);
-  WASM_FEATURE_SCOPE(reftypes);
-
-  static const byte data[] = {SECTION(
-      Type, ENTRY_COUNT(1),
-      WASM_FUNCTION_DEF(U32V_1(1), kLocalI32, U32V_1(1), WASM_OPT_REF(0)))};
+  WASM_FEATURE_SCOPE(gc);
+  static const byte data[] = {
+      SECTION(Type, ENTRY_COUNT(1),
+              WASM_STRUCT_DEF(FIELD_COUNT(1), STRUCT_FIELD(kLocalRef, true)))};
   ModuleResult result = DecodeModule(data, data + sizeof(data));
-
-  EXPECT_NOT_OK(result, "cannot build reference to function type index");
+  EXPECT_NOT_OK(result, "Type index 1 is out of bounds");
 }
 
 TEST_F(WasmModuleVerifyTest, IllegalPackedFields) {

@@ -2890,18 +2890,24 @@ Node* WasmGraphBuilder::BuildIndirectCall(uint32_t table_index,
     key = graph()->NewNode(machine->Word32And(), key, mask);
   }
 
-  // Load signature from the table and check.
-  int32_t expected_sig_id = env_->module->signature_ids[sig_index];
   Node* int32_scaled_key = Uint32ToUintptr(
       graph()->NewNode(machine->Word32Shl(), key, Int32Constant(2)));
 
-  Node* loaded_sig = SetEffect(
-      graph()->NewNode(machine->Load(MachineType::Int32()), ift_sig_ids,
-                       int32_scaled_key, effect(), control()));
-  Node* sig_match = graph()->NewNode(machine->WordEqual(), loaded_sig,
-                                     Int32Constant(expected_sig_id));
+  // Check that the dynamic type of the function is a subtype of its static
+  // (table) type. Currently, the only subtyping between function types is
+  // (ref null $t) <: funcref for all $t: function_type.
+  // TODO(7748): Expand this with function subtyping.
+  if (env_->module->tables[table_index].type == wasm::kWasmFuncRef) {
+    int32_t expected_sig_id = env_->module->signature_ids[sig_index];
 
-  TrapIfFalse(wasm::kTrapFuncSigMismatch, sig_match, position);
+    Node* loaded_sig = SetEffect(
+        graph()->NewNode(machine->Load(MachineType::Int32()), ift_sig_ids,
+                         int32_scaled_key, effect(), control()));
+    Node* sig_match = graph()->NewNode(machine->WordEqual(), loaded_sig,
+                                       Int32Constant(expected_sig_id));
+
+    TrapIfFalse(wasm::kTrapFuncSigMismatch, sig_match, position);
+  }
 
   Node* tagged_scaled_key;
   if (kTaggedSize == kInt32Size) {
@@ -5358,10 +5364,9 @@ Node* WasmGraphBuilder::RttCanon(wasm::HeapType type) {
         UNREACHABLE();
     }
   }
-  int map_index = wasm::GetCanonicalRttIndex(env_->module, type.ref_index());
   Node* maps_list =
       LOAD_INSTANCE_FIELD(ManagedObjectMaps, MachineType::TaggedPointer());
-  return LOAD_FIXED_ARRAY_SLOT_PTR(maps_list, map_index);
+  return LOAD_FIXED_ARRAY_SLOT_PTR(maps_list, type.ref_index());
 }
 
 Node* WasmGraphBuilder::RttSub(wasm::HeapType type, Node* parent_rtt) {

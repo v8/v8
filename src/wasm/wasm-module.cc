@@ -84,21 +84,6 @@ int GetExportWrapperIndex(const WasmModule* module, const FunctionSig* sig,
 }
 
 // static
-int GetCanonicalRttIndex(const WasmModule* module, uint32_t type_index) {
-  int rtt_index = 0;
-  const std::vector<uint8_t>& type_kinds = module->type_kinds;
-  // This logic must be in sync with the code in module-instantiate.cc that
-  // initializes the "managed_object_maps" list on the instance.
-  for (uint32_t i = 0; i < type_index; i++) {
-    if (type_kinds[i] == wasm::kWasmStructTypeCode ||
-        type_kinds[i] == wasm::kWasmArrayTypeCode) {
-      rtt_index++;
-    }
-  }
-  return rtt_index;
-}
-
-// static
 int GetWasmFunctionOffset(const WasmModule* module, uint32_t func_index) {
   const std::vector<WasmFunction>& functions = module->functions;
   if (static_cast<uint32_t>(func_index) >= functions.size()) return -1;

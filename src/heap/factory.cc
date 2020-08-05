@@ -1922,14 +1922,6 @@ Handle<JSFunction> Factory::NewFunction(const NewFunctionArgs& args) {
         // bootstrapping.
         (args.maybe_builtin_id_ == Builtins::kEmptyFunction ||
          args.maybe_builtin_id_ == Builtins::kProxyConstructor));
-  } else {
-    DCHECK(
-        (*map == *isolate()->sloppy_function_map()) ||
-        (*map == *isolate()->sloppy_function_without_prototype_map()) ||
-        (*map == *isolate()->sloppy_function_with_readonly_prototype_map()) ||
-        (*map == *isolate()->strict_function_map()) ||
-        (*map == *isolate()->strict_function_without_prototype_map()) ||
-        (*map == *isolate()->wasm_exported_function_map()));
   }
 #endif
 

@@ -62,6 +62,33 @@ bool IsStructTypeEquivalent(uint32_t type_index_1, uint32_t type_index_2,
   }
   return true;
 }
+bool IsFunctionTypeEquivalent(uint32_t type_index_1, uint32_t type_index_2,
+                              const WasmModule* module) {
+  if (module->type_kinds[type_index_1] != kWasmFunctionTypeCode ||
+      module->type_kinds[type_index_2] != kWasmFunctionTypeCode) {
+    return false;
+  }
+  const FunctionSig* sig1 = module->types[type_index_1].function_sig;
+  const FunctionSig* sig2 = module->types[type_index_2].function_sig;
+
+  if (sig1->parameter_count() != sig2->parameter_count() ||
+      sig1->return_count() != sig2->return_count()) {
+    return false;
+  }
+
+  auto iter1 = sig1->all();
+  auto iter2 = sig2->all();
+
+  // Temporarily cache type equivalence for the recursive call.
+  module->cache_type_equivalence(type_index_1, type_index_2);
+  for (int i = 0; i < iter1.size(); i++) {
+    if (iter1[i] != iter2[i]) {
+      module->uncache_type_equivalence(type_index_1, type_index_2);
+      return false;
+    }
+  }
+  return true;
+}
 
 bool IsEquivalent(ValueType type1, ValueType type2, const WasmModule* module) {
   if (type1 == type2) return true;
@@ -76,7 +103,8 @@ bool IsEquivalent(ValueType type1, ValueType type2, const WasmModule* module) {
     return true;
   }
   return IsArrayTypeEquivalent(type1.ref_index(), type2.ref_index(), module) ||
-         IsStructTypeEquivalent(type1.ref_index(), type2.ref_index(), module);
+         IsStructTypeEquivalent(type1.ref_index(), type2.ref_index(), module) ||
+         IsFunctionTypeEquivalent(type1.ref_index(), type2.ref_index(), module);
 }
 
 bool IsStructSubtype(uint32_t subtype_index, uint32_t supertype_index,
@@ -130,9 +158,16 @@ bool IsArraySubtype(uint32_t subtype_index, uint32_t supertype_index,
     return true;
   }
 }
+
+// TODO(7748): Expand this with function subtyping.
+bool IsFunctionSubtype(uint32_t subtype_index, uint32_t supertype_index,
+                       const WasmModule* module) {
+  return IsFunctionTypeEquivalent(subtype_index, supertype_index, module);
+}
+
 }  // namespace
 
-// TODO(7748): Extend this with function and any-heap subtyping.
+// TODO(7748): Extend this with any-heap subtyping.
 V8_NOINLINE V8_EXPORT_PRIVATE bool IsSubtypeOfImpl(ValueType subtype,
                                                    ValueType supertype,
                                                    const WasmModule* module) {
@@ -145,16 +180,22 @@ V8_NOINLINE V8_EXPORT_PRIVATE bool IsSubtypeOfImpl(ValueType subtype,
 
   HeapType sub_heap = subtype.heap_type();
   HeapType super_heap = supertype.heap_type();
-  DCHECK(!module->has_signature(sub_heap.representation()) &&
-         !module->has_signature(super_heap.representation()));
 
   if (sub_heap == super_heap) {
     return true;
   }
-  // eqref is a supertype of i31ref and all custom types.
+  // eqref is a supertype of i31ref, array, and struct types.
   if (super_heap.representation() == HeapType::kEq) {
-    return (sub_heap.is_index() || sub_heap.representation() == HeapType::kI31);
+    return (sub_heap.is_index() &&
+            !module->has_signature(sub_heap.ref_index())) ||
+           sub_heap.representation() == HeapType::kI31;
   }
+
+  // funcref is a supertype of all function types.
+  if (super_heap.representation() == HeapType::kFunc) {
+    return sub_heap.is_index() && module->has_signature(sub_heap.ref_index());
+  }
+
   // At the moment, generic heap types are not subtyping-related otherwise.
   if (sub_heap.is_generic() || super_heap.is_generic()) {
     return false;
@@ -168,10 +209,11 @@ V8_NOINLINE V8_EXPORT_PRIVATE bool IsSubtypeOfImpl(ValueType subtype,
   }
   return IsStructSubtype(sub_heap.ref_index(), super_heap.ref_index(),
                          module) ||
-         IsArraySubtype(sub_heap.ref_index(), super_heap.ref_index(), module);
+         IsArraySubtype(sub_heap.ref_index(), super_heap.ref_index(), module) ||
+         IsFunctionSubtype(sub_heap.ref_index(), super_heap.ref_index(),
+                           module);
 }
 
-// TODO(7748): Extend this with function subtyping.
 ValueType CommonSubtype(ValueType a, ValueType b, const WasmModule* module) {
   if (a == b) return a;
   if (IsSubtypeOf(a, b, module)) return a;

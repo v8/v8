@@ -296,6 +296,9 @@ struct V8_EXPORT_PRIVATE WasmModule {
   std::vector<TypeDefinition> types;    // by type index
   std::vector<uint8_t> type_kinds;      // by type index
   std::vector<uint32_t> signature_ids;  // by signature index
+
+  bool has_type(uint32_t index) const { return index < types.size(); }
+
   void add_signature(const FunctionSig* sig) {
     types.push_back(TypeDefinition(sig));
     type_kinds.push_back(kWasmFunctionTypeCode);
@@ -402,10 +405,6 @@ V8_EXPORT_PRIVATE int MaxNumExportWrappers(const WasmModule* module);
 // and origin defined by {is_import}.
 int GetExportWrapperIndex(const WasmModule* module, const FunctionSig* sig,
                           bool is_import);
-
-// Returns the index of the canonical RTT of the given struct/array type
-// in the instance's list of canonical RTTs.
-int GetCanonicalRttIndex(const WasmModule* module, uint32_t type_index);
 
 // Return the byte offset of the function identified by the given index.
 // The offset will be relative to the start of the module bytes.

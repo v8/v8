@@ -86,6 +86,8 @@ class WasmGCTester {
     return builder_.AddArrayType(zone.New<ArrayType>(element_type, mutability));
   }
 
+  byte DefineSignature(FunctionSig* sig) { return builder_.AddSignature(sig); }
+
   void CompileModule() {
     ZoneBuffer buffer(&zone);
     builder_.WriteTo(&buffer);
@@ -791,6 +793,78 @@ TEST(ArrayNewMap) {
       tester.GetResultObject(array_new_with_rtt).ToHandleChecked();
   CHECK(result->IsWasmArray());
   CHECK_EQ(Handle<WasmArray>::cast(result)->map(), *map);
+}
+
+TEST(FunctionRefs) {
+  WasmGCTester tester;
+  const byte func_index =
+      tester.DefineFunction(tester.sigs.i_v(), {}, {WASM_I32V(42), kExprEnd});
+  const byte sig_index = 0;
+
+  const byte other_sig_index = tester.DefineSignature(tester.sigs.d_d());
+
+  // This is just so func_index counts as "declared".
+  tester.AddGlobal(ValueType::Ref(sig_index, kNullable), false,
+                   WasmInitExpr::RefFuncConst(func_index));
+
+  ValueType func_type = ValueType::Ref(sig_index, kNonNullable);
+  FunctionSig sig_func(1, 0, &func_type);
+
+  ValueType rtt1 = ValueType::Rtt(sig_index, 1);
+  FunctionSig sig_rtt1(1, 0, &rtt1);
+  const byte rtt_canon = tester.DefineFunction(
+      &sig_rtt1, {}, {WASM_RTT_CANON(sig_index), kExprEnd});
+
+  ValueType rtt2 = ValueType::Rtt(sig_index, 2);
+  FunctionSig sig_rtt2(1, 0, &rtt2);
+  const byte rtt_sub = tester.DefineFunction(
+      &sig_rtt2, {},
+      {WASM_RTT_SUB(sig_index, WASM_RTT_CANON(kLocalFuncRef)), kExprEnd});
+
+  const byte cast = tester.DefineFunction(
+      &sig_func, {kWasmFuncRef},
+      {WASM_SET_LOCAL(0, WASM_REF_FUNC(func_index)),
+       WASM_REF_CAST(kLocalFuncRef, sig_index, WASM_GET_LOCAL(0),
+                     WASM_RTT_CANON(sig_index)),
+       kExprEnd});
+
+  const byte cast_reference = tester.DefineFunction(
+      &sig_func, {}, {WASM_REF_FUNC(sig_index), kExprEnd});
+
+  const byte test = tester.DefineFunction(
+      tester.sigs.i_v(), {kWasmFuncRef},
+      {WASM_SET_LOCAL(0, WASM_REF_FUNC(func_index)),
+       WASM_REF_TEST(kLocalFuncRef, other_sig_index, WASM_GET_LOCAL(0),
+                     WASM_RTT_CANON(other_sig_index)),
+       kExprEnd});
+
+  tester.CompileModule();
+
+  Handle<Object> result_canon =
+      tester.GetResultObject(rtt_canon).ToHandleChecked();
+  CHECK(result_canon->IsMap());
+  Handle<Map> map_canon = Handle<Map>::cast(result_canon);
+  CHECK(map_canon->IsJSFunctionMap());
+
+  Handle<Object> result_sub = tester.GetResultObject(rtt_sub).ToHandleChecked();
+  CHECK(result_sub->IsMap());
+  Handle<Map> map_sub = Handle<Map>::cast(result_sub);
+  CHECK(map_sub->IsJSFunctionMap());
+
+  Handle<Object> result_cast = tester.GetResultObject(cast).ToHandleChecked();
+  CHECK(result_cast->IsJSFunction());
+  Handle<JSFunction> cast_function = Handle<JSFunction>::cast(result_cast);
+
+  Handle<Object> result_cast_reference =
+      tester.GetResultObject(cast_reference).ToHandleChecked();
+  CHECK(result_cast_reference->IsJSFunction());
+  Handle<JSFunction> cast_function_reference =
+      Handle<JSFunction>::cast(result_cast_reference);
+
+  CHECK_EQ(cast_function->code().raw_instruction_start(),
+           cast_function_reference->code().raw_instruction_start());
+
+  tester.CheckResult(test, 0);
 }
 
 TEST(RefTestCastNull) {

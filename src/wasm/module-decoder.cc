@@ -106,44 +106,6 @@ bool validate_utf8(Decoder* decoder, WireBytesRef string) {
       string.length());
 }
 
-ValueType TypeOf(const WasmModule* module, const WasmInitExpr& expr) {
-  switch (expr.kind()) {
-    case WasmInitExpr::kNone:
-      return kWasmStmt;
-    case WasmInitExpr::kGlobalGet:
-      return expr.immediate().index < module->globals.size()
-                 ? module->globals[expr.immediate().index].type
-                 : kWasmStmt;
-    case WasmInitExpr::kI32Const:
-      return kWasmI32;
-    case WasmInitExpr::kI64Const:
-      return kWasmI64;
-    case WasmInitExpr::kF32Const:
-      return kWasmF32;
-    case WasmInitExpr::kF64Const:
-      return kWasmF64;
-    case WasmInitExpr::kS128Const:
-      return kWasmS128;
-    case WasmInitExpr::kRefFuncConst:
-      return ValueType::Ref(HeapType::kFunc, kNonNullable);
-    case WasmInitExpr::kRefNullConst:
-      return ValueType::Ref(expr.immediate().heap_type, kNullable);
-    case WasmInitExpr::kRttCanon:
-      // TODO(7748): If heaptype is "anyref" (not introduced yet),
-      // then this should be uint8_t{0}.
-      return ValueType::Rtt(expr.immediate().heap_type, uint8_t{1});
-    case WasmInitExpr::kRttSub: {
-      ValueType operand_type = TypeOf(module, *expr.operand());
-      if (operand_type.is_rtt()) {
-        return ValueType::Rtt(expr.immediate().heap_type,
-                              operand_type.depth() + 1);
-      } else {
-        return kWasmStmt;
-      }
-    }
-  }
-}
-
 // Reads a length-prefixed string, checking that it is within bounds. Returns
 // the offset of the string, and the length as an out parameter.
 WireBytesRef consume_string(Decoder* decoder, bool validate_utf8,
@@ -571,8 +533,7 @@ class ModuleDecoderImpl : public Decoder {
       uint8_t kind = consume_u8("type kind");
       switch (kind) {
         case kWasmFunctionTypeCode: {
-          const FunctionSig* s = consume_sig(module_->signature_zone.get(),
-                                             DeferIndexCheckMode::kDeferCheck);
+          const FunctionSig* s = consume_sig(module_->signature_zone.get());
           module_->add_signature(s);
           break;
         }
@@ -602,27 +563,6 @@ class ModuleDecoderImpl : public Decoder {
       }
     }
     module_->signature_map.Freeze();
-    VerifyDeferredTypeOffsets();
-  }
-
-  // TODO(7748): When typed function references are allowed, this should be
-  // deleted altogether and replaced by an inline in-bounds check.
-  void VerifyDeferredTypeOffsets() {
-    for (auto& type_offset : deferred_check_type_index_) {
-      uint32_t type_index = type_offset.first;
-      uint32_t code_offset = type_offset.second;
-      if (type_index >= module_->type_kinds.size()) {
-        errorf(code_offset, "reference to undeclared struct/array #%u",
-               type_index);
-        break;
-      }
-      uint8_t type = module_->type_kinds[type_index];
-      if (type == kWasmFunctionTypeCode) {
-        errorf(code_offset, "cannot build reference to function type index #%u",
-               type_index);
-        break;
-      }
-    }
   }
 
   void DecodeImportSection() {
@@ -1305,7 +1245,7 @@ class ModuleDecoderImpl : public Decoder {
     pc_ = start_;
     expect_u8("type form", kWasmFunctionTypeCode);
     if (!ok()) return FunctionResult{std::move(intermediate_error_)};
-    function->sig = consume_sig(zone, DeferIndexCheckMode::kNoCheck);
+    function->sig = consume_sig(zone);
     function->code = {off(pc_), static_cast<uint32_t>(end_ - pc_)};
 
     if (ok())
@@ -1323,8 +1263,7 @@ class ModuleDecoderImpl : public Decoder {
   const FunctionSig* DecodeFunctionSignature(Zone* zone, const byte* start) {
     pc_ = start;
     if (!expect_u8("type form", kWasmFunctionTypeCode)) return nullptr;
-    const FunctionSig* result =
-        consume_sig(zone, DeferIndexCheckMode::kNoCheck);
+    const FunctionSig* result = consume_sig(zone);
     return ok() ? result : nullptr;
   }
 
@@ -1370,6 +1309,49 @@ class ModuleDecoderImpl : public Decoder {
   // reporting once the whole type section is parsed.
   std::unordered_map<uint32_t, int> deferred_check_type_index_;
   ModuleOrigin origin_;
+
+  ValueType TypeOf(const WasmInitExpr& expr) {
+    switch (expr.kind()) {
+      case WasmInitExpr::kNone:
+        return kWasmStmt;
+      case WasmInitExpr::kGlobalGet:
+        return expr.immediate().index < module_->globals.size()
+                   ? module_->globals[expr.immediate().index].type
+                   : kWasmStmt;
+      case WasmInitExpr::kI32Const:
+        return kWasmI32;
+      case WasmInitExpr::kI64Const:
+        return kWasmI64;
+      case WasmInitExpr::kF32Const:
+        return kWasmF32;
+      case WasmInitExpr::kF64Const:
+        return kWasmF64;
+      case WasmInitExpr::kS128Const:
+        return kWasmS128;
+      case WasmInitExpr::kRefFuncConst: {
+        uint32_t heap_type =
+            enabled_features_.has_typed_funcref()
+                ? module_->functions[expr.immediate().index].sig_index
+                : HeapType::kFunc;
+        return ValueType::Ref(heap_type, kNonNullable);
+      }
+      case WasmInitExpr::kRefNullConst:
+        return ValueType::Ref(expr.immediate().heap_type, kNullable);
+      case WasmInitExpr::kRttCanon:
+        // TODO(7748): If heaptype is "anyref" (not introduced yet),
+        // then this should be uint8_t{0}.
+        return ValueType::Rtt(expr.immediate().heap_type, uint8_t{1});
+      case WasmInitExpr::kRttSub: {
+        ValueType operand_type = TypeOf(*expr.operand());
+        if (operand_type.is_rtt()) {
+          return ValueType::Rtt(expr.immediate().heap_type,
+                                operand_type.depth() + 1);
+        } else {
+          return kWasmStmt;
+        }
+      }
+    }
+  }
 
   bool has_seen_unordered_section(SectionCode section_code) {
     return seen_unordered_sections_ & (1 << section_code);
@@ -1628,12 +1610,8 @@ class ModuleDecoderImpl : public Decoder {
       return false;
     }
     if (V8_UNLIKELY(!(imm.type.is_generic() ||
-                      module_->has_array(imm.type.ref_index()) ||
-                      module_->has_struct(imm.type.ref_index())))) {
-      errorf(
-          pc,
-          "Type index %u does not refer to a struct or array type definition",
-          imm.type.ref_index());
+                      module_->has_type(imm.type.ref_index())))) {
+      errorf(pc, "Type index %u is out of bounds", imm.type.ref_index());
       return false;
     }
     return true;
@@ -1765,7 +1743,7 @@ class ModuleDecoderImpl : public Decoder {
               }
               WasmInitExpr parent = std::move(stack.back());
               stack.pop_back();
-              ValueType parent_type = TypeOf(module_.get(), parent);
+              ValueType parent_type = TypeOf(parent);
               if (V8_UNLIKELY(
                       parent_type.kind() != ValueType::kRtt ||
                       !IsSubtypeOf(
@@ -1811,10 +1789,9 @@ class ModuleDecoderImpl : public Decoder {
     DCHECK_EQ(stack.size(), 1);
 
     WasmInitExpr expr = std::move(stack.back());
-    if (expected != kWasmStmt &&
-        !IsSubtypeOf(TypeOf(module, expr), expected, module)) {
+    if (expected != kWasmStmt && !IsSubtypeOf(TypeOf(expr), expected, module)) {
       errorf(pc(), "type error in init expression, expected %s, got %s",
-             expected.name().c_str(), TypeOf(module, expr).name().c_str());
+             expected.name().c_str(), TypeOf(expr).name().c_str());
     }
     return expr;
   }
@@ -1832,6 +1809,11 @@ class ModuleDecoderImpl : public Decoder {
         this, this->pc(), &type_length,
         origin_ == kWasmOrigin ? enabled_features_ : WasmFeatures::None());
     if (result == kWasmBottom) error(pc_, "invalid value type");
+    // We use capacity() over size() so this function works
+    // mid-DecodeTypeSection.
+    if (result.has_index() && result.ref_index() >= module_->types.capacity()) {
+      errorf(pc(), "Type index %u is out of bounds", result.ref_index());
+    }
     consume_bytes(type_length, "value type");
     return result;
   }
@@ -1872,28 +1854,17 @@ class ModuleDecoderImpl : public Decoder {
     }
   }
 
-  enum DeferIndexCheckMode { kNoCheck, kDeferCheck };
-
-  void defer_index_check(ValueType type) {
-    if (type.has_index()) {
-      deferred_check_type_index_.emplace(type.ref_index(), pc_offset());
-    }
-  }
-
-  const FunctionSig* consume_sig(Zone* zone, DeferIndexCheckMode defer_check) {
+  const FunctionSig* consume_sig(Zone* zone) {
     // Parse parameter types.
     uint32_t param_count =
         consume_count("param count", kV8MaxWasmFunctionParams);
     if (failed()) return nullptr;
     std::vector<ValueType> params;
     for (uint32_t i = 0; ok() && i < param_count; ++i) {
-      ValueType param = consume_value_type();
-      if (defer_check == DeferIndexCheckMode::kDeferCheck) {
-        defer_index_check(param);
-      }
-      params.push_back(param);
+      params.push_back(consume_value_type());
     }
     std::vector<ValueType> returns;
+
     // Parse return types.
     const size_t max_return_count = enabled_features_.has_mv()
                                         ? kV8MaxWasmFunctionMultiReturns
@@ -1901,13 +1872,8 @@ class ModuleDecoderImpl : public Decoder {
     uint32_t return_count = consume_count("return count", max_return_count);
     if (failed()) return nullptr;
     for (uint32_t i = 0; ok() && i < return_count; ++i) {
-      ValueType ret = consume_value_type();
-      if (defer_check == DeferIndexCheckMode::kDeferCheck) {
-        defer_index_check(ret);
-      }
-      returns.push_back(ret);
+      returns.push_back(consume_value_type());
     }
-
     if (failed()) return nullptr;
 
     // FunctionSig stores the return types first.
@@ -1927,7 +1893,6 @@ class ModuleDecoderImpl : public Decoder {
     bool* mutabilities = zone->NewArray<bool>(field_count);
     for (uint32_t i = 0; ok() && i < field_count; ++i) {
       ValueType field = consume_storage_type();
-      defer_index_check(field);
       fields[i] = field;
       bool mutability = consume_mutability();
       mutabilities[i] = mutability;
@@ -1940,7 +1905,6 @@ class ModuleDecoderImpl : public Decoder {
   const ArrayType* consume_array(Zone* zone) {
     ValueType field = consume_storage_type();
     if (failed()) return nullptr;
-    defer_index_check(field);
     bool mutability = consume_mutability();
     if (!mutability) {
       error(this->pc() - 1, "immutable arrays are not supported yet");

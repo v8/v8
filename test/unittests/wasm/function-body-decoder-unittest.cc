@@ -3516,7 +3516,6 @@ TEST_F(FunctionBodyDecoderTest, RefNull) {
   module = builder.module();
   byte struct_type_index = builder.AddStruct({F(kWasmI32, true)});
   byte array_type_index = builder.AddArray(kWasmI32, true);
-  byte func_index = builder.AddSignature(sigs.i_i());
   uint32_t type_reprs[] = {
       struct_type_index, array_type_index,  HeapType::kExn, HeapType::kFunc,
       HeapType::kEq,     HeapType::kExtern, HeapType::kI31};
@@ -3527,14 +3526,8 @@ TEST_F(FunctionBodyDecoderTest, RefNull) {
     ExpectValidates(&sig, {WASM_REF_NULL(WASM_HEAP_TYPE(HeapType(type_repr)))});
   }
   // It fails for undeclared types.
-  ExpectFailure(
-      sigs.v_v(), {WASM_REF_NULL(42), kExprDrop}, kAppendEnd,
-      "Type index 42 does not refer to a struct or array type definition");
-  // It fails for user-defined function types.
-  // TODO(7748): This will go once function types are fully implemented.
-  ExpectFailure(
-      sigs.v_v(), {WASM_REF_NULL(func_index), kExprDrop}, kAppendEnd,
-      "Type index 2 does not refer to a struct or array type definition");
+  ExpectFailure(sigs.v_v(), {WASM_REF_NULL(42), kExprDrop}, kAppendEnd,
+                "Type index 42 is out of bounds");
 }
 
 TEST_F(FunctionBodyDecoderTest, RefIsNull) {

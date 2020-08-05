@@ -185,7 +185,14 @@ Handle<Map> AllocateSubRtt(Isolate* isolate,
   } else if (module->has_array(type)) {
     rtt = wasm::CreateArrayMap(isolate, module, type, parent);
   } else {
-    UNREACHABLE();
+    DCHECK(module->has_signature(type));
+    // Currently, parent rtts for functions are meaningless,
+    // since (rtt.test func rtt) iff (func.map == rtt).
+    // Therefore, we simply create a fresh function map here.
+    // TODO(7748): Canonicalize rtts to make them work for identical function
+    // types.
+    rtt = Map::Copy(isolate, isolate->wasm_exported_function_map(),
+                    "fresh function map");
   }
   cache = RttSubtypes::Insert(isolate, cache, type, rtt);
   parent->wasm_type_info().set_subtypes(*cache);
@@ -567,27 +574,32 @@ MaybeHandle<WasmInstanceObject> InstanceBuilder::Build() {
   // Must happen before {InitGlobals} because globals can refer to these maps.
   //--------------------------------------------------------------------------
   if (enabled_.has_gc()) {
-    int count = GetCanonicalRttIndex(
-        module_, static_cast<uint32_t>(module_->type_kinds.size()));
-    Handle<FixedArray> maps =
-        isolate_->factory()->NewUninitializedFixedArray(count);
+    Handle<FixedArray> maps = isolate_->factory()->NewUninitializedFixedArray(
+        static_cast<int>(module_->type_kinds.size()));
     // TODO(7748): Do we want a different sentinel here?
     Handle<Map> anyref_sentinel_map = isolate_->factory()->null_map();
-    int map_index = 0;
-    for (int i = 0; i < static_cast<int>(module_->type_kinds.size()); i++) {
-      if (module_->type_kinds[i] == kWasmStructTypeCode) {
-        Handle<Map> map =
-            CreateStructMap(isolate_, module_, i, anyref_sentinel_map);
-        maps->set(map_index++, *map);
+    for (int map_index = 0;
+         map_index < static_cast<int>(module_->type_kinds.size());
+         map_index++) {
+      Handle<Map> map;
+      switch (module_->type_kinds[map_index]) {
+        case kWasmStructTypeCode:
+          map = CreateStructMap(isolate_, module_, map_index,
+                                anyref_sentinel_map);
+          break;
+        case kWasmArrayTypeCode:
+          map =
+              CreateArrayMap(isolate_, module_, map_index, anyref_sentinel_map);
+          break;
+        case kWasmFunctionTypeCode:
+          // TODO(7748): Canonicalize rtts to make them work for identical
+          // function types.
+          map = Map::Copy(isolate_, isolate_->wasm_exported_function_map(),
+                          "fresh function map");
+          break;
       }
-      if (module_->type_kinds[i] == kWasmArrayTypeCode) {
-        Handle<Map> map =
-            CreateArrayMap(isolate_, module_, i, anyref_sentinel_map);
-        maps->set(map_index++, *map);
-      }
+      maps->set(map_index, *map);
     }
-    // {GetCanonicalRttIndex} must be in sync with the for-loop above.
-    DCHECK_EQ(count, map_index);
     instance->set_managed_object_maps(*maps);
   }
 
@@ -1516,8 +1528,7 @@ Handle<Object> InstanceBuilder::RecursivelyEvaluateGlobalInitializer(
           UNREACHABLE();
       }
       // Non-generic types fall through.
-      int map_index = GetCanonicalRttIndex(
-          module_, static_cast<uint32_t>(init.immediate().heap_type));
+      int map_index = init.immediate().heap_type;
       return handle(instance->managed_object_maps().get(map_index), isolate_);
     }
     case WasmInitExpr::kRttSub: {
