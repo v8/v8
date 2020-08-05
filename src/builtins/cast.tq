@@ -537,6 +537,11 @@ Cast<FastJSArrayForReadWithNoCustomIteration>(implicit context: Context)(
   return %RawDownCast<FastJSArrayForReadWithNoCustomIteration>(a);
 }
 
+Cast<SeqOneByteString>(o: HeapObject): SeqOneByteString labels CastError {
+  if (!IsSeqOneByteString(o)) goto CastError;
+  return %RawDownCast<SeqOneByteString>(o);
+}
+
 Cast<JSReceiver|Null>(o: HeapObject): JSReceiver|Null
     labels CastError {
   typeswitch (o) {

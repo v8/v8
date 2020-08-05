@@ -57,6 +57,12 @@ FromConstexpr<int8, constexpr int31>(i: constexpr int31): int8 {
   static_assert(-128 <= i && i <= 127);
   return %RawDownCast<int8>(i);
 }
+FromConstexpr<char8, constexpr int31>(i: constexpr int31): char8 {
+  const i: int32 = i;
+  static_assert(i <= 255);
+  static_assert(0 <= i);
+  return %RawDownCast<char8>(i);
+}
 FromConstexpr<Number, constexpr Smi>(s: constexpr Smi): Number {
   return SmiConstant(s);
 }

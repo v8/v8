@@ -2465,6 +2465,7 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
   TNode<BoolT> IsNullOrUndefined(SloppyTNode<Object> object);
   TNode<BoolT> IsNumberDictionary(SloppyTNode<HeapObject> object);
   TNode<BoolT> IsOneByteStringInstanceType(TNode<Int32T> instance_type);
+  TNode<BoolT> IsSeqOneByteStringInstanceType(TNode<Int32T> instance_type);
   TNode<BoolT> IsPrimitiveInstanceType(SloppyTNode<Int32T> instance_type);
   TNode<BoolT> IsPrivateName(SloppyTNode<Symbol> symbol);
   TNode<BoolT> IsPropertyArray(SloppyTNode<HeapObject> object);
@@ -2492,6 +2493,8 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
   TNode<BoolT> IsSpecialReceiverMap(SloppyTNode<Map> map);
   TNode<BoolT> IsStringInstanceType(SloppyTNode<Int32T> instance_type);
   TNode<BoolT> IsString(SloppyTNode<HeapObject> object);
+  TNode<BoolT> IsSeqOneByteString(TNode<HeapObject> object);
+
   TNode<BoolT> IsSymbolInstanceType(SloppyTNode<Int32T> instance_type);
   TNode<BoolT> IsInternalizedStringInstanceType(TNode<Int32T> instance_type);
   TNode<BoolT> IsUniqueName(TNode<HeapObject> object);
