@@ -81,12 +81,7 @@ void ImplementationVisitor::BeginCSAFiles() {
         UnderlinifyPath(SourceFileMap::PathFromV8Root(file)) + "_H_";
     header << "#ifndef " << headerDefine << "\n";
     header << "#define " << headerDefine << "\n\n";
-    header << "#include \"src/builtins/builtins-promise.h\"\n";
-    header << "#include \"src/compiler/code-assembler.h\"\n";
-    header << "#include \"src/codegen/code-stub-assembler.h\"\n";
-    header << "#include \"src/utils/utils.h\"\n";
-    header << "#include \"torque-generated/field-offsets-tq.h\"\n";
-    header << "#include \"torque-generated/csa-types-tq.h\"\n";
+    header << "#include \"src/builtins/torque-csa-header-includes.h\"\n";
     header << "\n";
 
     header << "namespace v8 {\n"

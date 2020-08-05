@@ -611,6 +611,35 @@ Cast<JSFunction|JSBoundFunction>(implicit context: Context)(o: Object):
   }
 }
 
+Cast<FixedArray|Undefined>(o: HeapObject): FixedArray|
+    Undefined labels CastError {
+  typeswitch (o) {
+    case (o: Undefined): {
+      return o;
+    }
+    case (o: FixedArray): {
+      return o;
+    }
+    case (Object): {
+      goto CastError;
+    }
+  }
+}
+
+Cast<JSProxy|Null>(o: HeapObject): JSProxy|Null labels CastError {
+  typeswitch (o) {
+    case (o: Null): {
+      return o;
+    }
+    case (o: JSProxy): {
+      return o;
+    }
+    case (Object): {
+      goto CastError;
+    }
+  }
+}
+
 macro Is<A : type extends Object, B : type extends Object>(
     implicit context: Context)(o: B): bool {
   Cast<A>(o) otherwise return false;
