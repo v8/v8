@@ -62,6 +62,8 @@ _TEST_CODE_EXCLUDED_PATHS = (
     r'src[\\\/]compiler[\\\/]ast-graph-builder\.cc',
     # Test extension.
     r'src[\\\/]extensions[\\\/]gc-extension\.cc',
+    # Runtime functions used for testing.
+    r'src[\\\/]runtime[\\\/]runtime-test\.cc',
 )
 
 
