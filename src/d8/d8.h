@@ -183,7 +183,7 @@ class Worker : public std::enable_shared_from_this<Worker> {
   void Terminate();
   // Terminate and join the thread.
   // This function can be called by any thread.
-  void WaitForThread();
+  void TerminateAndWaitForThread();
 
   // Start running the given worker in another thread.
   static bool StartWorkerThread(std::shared_ptr<Worker> worker);
@@ -429,6 +429,8 @@ class Shell : public i::AllStatic {
       const v8::FunctionCallbackInfo<v8::Value>& args);
   static void WorkerGetMessage(const v8::FunctionCallbackInfo<v8::Value>& args);
   static void WorkerTerminate(const v8::FunctionCallbackInfo<v8::Value>& args);
+  static void WorkerTerminateAndWait(
+      const v8::FunctionCallbackInfo<v8::Value>& args);
   // The OS object on the global object contains methods for performing
   // operating system calls:
   //

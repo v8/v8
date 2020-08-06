@@ -1809,6 +1809,19 @@ void Shell::WorkerTerminate(const v8::FunctionCallbackInfo<v8::Value>& args) {
   worker->Terminate();
 }
 
+void Shell::WorkerTerminateAndWait(
+    const v8::FunctionCallbackInfo<v8::Value>& args) {
+  Isolate* isolate = args.GetIsolate();
+  HandleScope handle_scope(isolate);
+  std::shared_ptr<Worker> worker =
+      GetWorkerFromInternalField(isolate, args.Holder());
+  if (!worker.get()) {
+    return;
+  }
+
+  worker->TerminateAndWaitForThread();
+}
+
 void Shell::QuitOnce(v8::FunctionCallbackInfo<v8::Value>* args) {
   int exit_code = (*args)[0]
                       ->Int32Value(args->GetIsolate()->GetCurrentContext())
@@ -2137,6 +2150,10 @@ Local<ObjectTemplate> Shell::CreateGlobalTemplate(Isolate* isolate) {
   worker_fun_template->PrototypeTemplate()->Set(
       isolate, "terminate",
       FunctionTemplate::New(isolate, WorkerTerminate, Local<Value>(),
+                            worker_signature));
+  worker_fun_template->PrototypeTemplate()->Set(
+      isolate, "terminateAndWait",
+      FunctionTemplate::New(isolate, WorkerTerminateAndWait, Local<Value>(),
                             worker_signature));
   worker_fun_template->PrototypeTemplate()->Set(
       isolate, "postMessage",
@@ -3056,7 +3073,7 @@ void Worker::Terminate() {
   task_runner_->PostTask(std::move(task));
 }
 
-void Worker::WaitForThread() {
+void Worker::TerminateAndWaitForThread() {
   Terminate();
   thread_->Join();
 }
@@ -3917,7 +3934,7 @@ void Shell::WaitForRunningWorkers() {
   }
 
   for (auto& worker : workers_copy) {
-    worker->WaitForThread();
+    worker->TerminateAndWaitForThread();
   }
 
   // Now that all workers are terminated, we can re-enable Worker creation.

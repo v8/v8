@@ -774,8 +774,10 @@ void FutexEmulation::IsolateDeinit(Isolate* isolate) {
       // NativeContext. Also we don't need to cancel the timeout task, since it
       // will be cancelled by Isolate::Deinit.
       node->timeout_task_id_ = CancelableTaskManager::kInvalidTaskId;
+      auto next = node->next_;
       g_wait_list.Pointer()->RemoveNode(node);
-      node = DeleteAsyncWaiterNode(node);
+      delete node;
+      node = next;
     } else {
       node = node->next_;
     }
