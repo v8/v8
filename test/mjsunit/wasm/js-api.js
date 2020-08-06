@@ -609,9 +609,9 @@ assertTrue(new Table({initial: 1, element: 'anyfunc'}) instanceof Table);
 assertTrue(new Table({initial: 1.5, element: 'anyfunc'}) instanceof Table);
 assertTrue(
     new Table({initial: 1, maximum: 1.5, element: 'anyfunc'}) instanceof Table);
-assertThrows(
-    () => new Table({initial: 1, maximum: Math.pow(2, 32) - 1, element: 'anyfunc'}),
-    RangeError, /above the upper bound/);
+assertTrue(
+    new Table({initial: 1, maximum: Math.pow(2, 32) - 1, element: 'anyfunc'})
+        instanceof Table);
 
 // 'WebAssembly.Table.prototype' data property
 let tableProtoDesc = Object.getOwnPropertyDescriptor(Table, 'prototype');

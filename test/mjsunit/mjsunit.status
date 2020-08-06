@@ -609,9 +609,6 @@
   # Flaky due to huge string allocation.
   'regress/regress-748069': [SKIP],
 
-  # Allocates a large array buffer, which TSAN sometimes cannot handle.
-  'regress/regress-599717': [SKIP],
-
   # BUG(v8:7042). Uses a lot of memory.
   'regress/regress-678917': [SKIP],
 
@@ -688,7 +685,6 @@
   # a large amount of memory if executed in parallel. Therefore we
   # run only a single instance of these tests
   'regress/regress-crbug-514081': [PASS, NO_VARIANTS],
-  'regress/regress-599717': [PASS, NO_VARIANTS],
   'regress/regress-599414-array-concat-fast-path': [PASS, NO_VARIANTS],
   'array-functions-prototype-misc': [PASS, NO_VARIANTS],
 }],  # 'arch in (mipsel, mips, mips64el, mips64)'
@@ -1300,7 +1296,6 @@
   # The entire snapshotting code assumes that the snapshot size fits
   # into an int, so it doesn't support huge TypedArrays.
   'regress/regress-319722-ArrayBuffer': [SKIP],
-  'regress/regress-599717': [SKIP],
   'regress/regress-667603': [SKIP],
   'regress/regress-crbug-1104608': [SKIP],
   # Investigate (IsFixedArrayBase).

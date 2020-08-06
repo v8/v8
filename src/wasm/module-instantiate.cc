@@ -536,6 +536,13 @@ MaybeHandle<WasmInstanceObject> InstanceBuilder::Build() {
     Handle<FixedArray> tables = isolate_->factory()->NewFixedArray(table_count);
     for (int i = module_->num_imported_tables; i < table_count; i++) {
       const WasmTable& table = module_->tables[i];
+      if (table.initial_size > FLAG_wasm_max_table_size) {
+        thrower_->RangeError(
+            "initial table size (%u elements) is larger than implementation "
+            "limit (%u elements)",
+            table.initial_size, FLAG_wasm_max_table_size);
+        return {};
+      }
       Handle<WasmTableObject> table_obj = WasmTableObject::New(
           isolate_, table.type, table.initial_size, table.has_maximum_size,
           table.maximum_size, nullptr);

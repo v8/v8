@@ -1100,9 +1100,10 @@ void WebAssemblyTable(const v8::FunctionCallbackInfo<v8::Value>& args) {
   // The descriptor's 'maximum'.
   int64_t maximum = -1;
   bool has_maximum = true;
-  if (!GetOptionalIntegerProperty(
-          isolate, &thrower, context, descriptor, v8_str(isolate, "maximum"),
-          &has_maximum, &maximum, initial, i::wasm::max_table_init_entries())) {
+  if (!GetOptionalIntegerProperty(isolate, &thrower, context, descriptor,
+                                  v8_str(isolate, "maximum"), &has_maximum,
+                                  &maximum, initial,
+                                  std::numeric_limits<uint32_t>::max())) {
     return;
   }
 

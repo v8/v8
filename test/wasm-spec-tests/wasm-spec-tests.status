@@ -31,10 +31,6 @@
 
   # This test requires the reftypes flag to be disabled.
   'proposals/bulk-memory-operations/imports': [FAIL],
-
-  # TODO(wasm): This test declares a table larger than allowed by the spec.
-  'table': [FAIL],
-  'proposals/reference-types/table': [FAIL],
 }],  # ALWAYS
 
 ['arch == mipsel or arch == mips64el or arch == mips or arch == mips64', {

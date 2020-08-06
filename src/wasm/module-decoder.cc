@@ -614,9 +614,10 @@ class ModuleDecoderImpl : public Decoder {
           table->type = type;
           uint8_t flags = validate_table_flags("element count");
           consume_resizable_limits(
-              "element count", "elements", FLAG_wasm_max_table_size,
+              "element count", "elements", std::numeric_limits<uint32_t>::max(),
               &table->initial_size, &table->has_maximum_size,
-              FLAG_wasm_max_table_size, &table->maximum_size, flags);
+              std::numeric_limits<uint32_t>::max(), &table->maximum_size,
+              flags);
           break;
         }
         case kExternalMemory: {
@@ -709,9 +710,9 @@ class ModuleDecoderImpl : public Decoder {
       }
       uint8_t flags = validate_table_flags("table elements");
       consume_resizable_limits(
-          "table elements", "elements", FLAG_wasm_max_table_size,
+          "table elements", "elements", std::numeric_limits<uint32_t>::max(),
           &table->initial_size, &table->has_maximum_size,
-          FLAG_wasm_max_table_size, &table->maximum_size, flags);
+          std::numeric_limits<uint32_t>::max(), &table->maximum_size, flags);
     }
   }
 
