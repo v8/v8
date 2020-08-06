@@ -619,6 +619,8 @@ Object FutexEmulation::Wake(Handle<JSArrayBuffer> array_buffer, size_t addr,
       auto old_node = node;
       node = node->next_;
       g_wait_list.Pointer()->RemoveNode(old_node);
+      DCHECK_EQ(CancelableTaskManager::kInvalidTaskId,
+                old_node->timeout_task_id_);
       delete old_node;
     } else {
       node = node->next_;
@@ -787,6 +789,7 @@ void FutexEmulation::IsolateDeinit(Isolate* isolate) {
     node = it->second.head;
     while (node) {
       DCHECK_EQ(isolate, node->isolate_for_async_waiters_);
+      node->timeout_task_id_ = CancelableTaskManager::kInvalidTaskId;
       node = DeleteAsyncWaiterNode(node);
     }
     isolate_map.erase(it);
