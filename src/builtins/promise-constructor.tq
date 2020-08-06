@@ -57,8 +57,7 @@ PromiseConstructor(
     ThrowTypeError(MessageTemplate::kResolverNotAFunction, executor);
   }
 
-  const promiseFun = UnsafeCast<JSFunction>(
-      context.elements[NativeContextSlot::PROMISE_FUNCTION_INDEX]);
+  const promiseFun = *NativeContextSlot(ContextSlot::PROMISE_FUNCTION_INDEX);
 
   // Silently fail if the stack looks fishy.
   if (HasAccessCheckFailed(context, promiseFun, executor)) {

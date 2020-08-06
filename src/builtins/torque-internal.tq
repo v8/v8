@@ -25,6 +25,11 @@ macro NewReference<T: type>(object: HeapObject, offset: intptr):&T {
   return %RawDownCast<&T>(
       Reference<T>{object: object, offset: offset, unsafeMarker: Unsafe {}});
 }
+macro ReferenceCast<T: type, U: type>(ref:&U):&T {
+  const ref = NewReference<T>(ref.object, ref.offset);
+  UnsafeCast<T>(*ref);
+  return ref;
+}
 }  // namespace unsafe
 
 struct Slice<T: type> {

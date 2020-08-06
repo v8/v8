@@ -5,11 +5,15 @@
 #include 'src/builtins/builtins-promise-gen.h'
 
 namespace promise {
-extern enum PromiseAnyRejectElementContextSlots extends int31
+type PromiseAnyRejectElementContext extends FunctionContext;
+extern enum PromiseAnyRejectElementContextSlots extends intptr
 constexpr 'PromiseBuiltins::PromiseAnyRejectElementContextSlots' {
-  kPromiseAnyRejectElementRemainingSlot,
-  kPromiseAnyRejectElementCapabilitySlot,
-  kPromiseAnyRejectElementErrorsSlot,
+  kPromiseAnyRejectElementRemainingSlot:
+      Slot<PromiseAnyRejectElementContext, Smi>,
+  kPromiseAnyRejectElementCapabilitySlot:
+      Slot<PromiseAnyRejectElementContext, PromiseCapability>,
+  kPromiseAnyRejectElementErrorsSlot:
+      Slot<PromiseAnyRejectElementContext, FixedArray>,
   kPromiseAnyRejectElementLength
 }
 
@@ -27,30 +31,36 @@ extern operator '[]' macro LoadContextElement(
 // case to mark it's done). See Promise.all which uses the same approach.
 transitioning macro CreatePromiseAnyRejectElementContext(
     implicit context: Context)(
-    capability: PromiseCapability, nativeContext: NativeContext): Context {
-  const rejectContext = AllocateSyntheticFunctionContext(
-      nativeContext,
-      PromiseAnyRejectElementContextSlots::kPromiseAnyRejectElementLength);
-  rejectContext.elements[PromiseAnyRejectElementContextSlots::
-                             kPromiseAnyRejectElementRemainingSlot] =
-      SmiConstant(1);
-  rejectContext.elements[PromiseAnyRejectElementContextSlots::
-                             kPromiseAnyRejectElementCapabilitySlot] =
-      capability;
-  rejectContext.elements[PromiseAnyRejectElementContextSlots::
-                             kPromiseAnyRejectElementErrorsSlot] =
-      kEmptyFixedArray;
+    capability: PromiseCapability,
+    nativeContext: NativeContext): PromiseAnyRejectElementContext {
+  const rejectContext = %RawDownCast<PromiseAnyRejectElementContext>(
+      AllocateSyntheticFunctionContext(
+          nativeContext,
+          PromiseAnyRejectElementContextSlots::kPromiseAnyRejectElementLength));
+  InitContextSlot(
+      rejectContext,
+      PromiseAnyRejectElementContextSlots::
+          kPromiseAnyRejectElementRemainingSlot,
+      1);
+  InitContextSlot(
+      rejectContext,
+      PromiseAnyRejectElementContextSlots::
+          kPromiseAnyRejectElementCapabilitySlot,
+      capability);
+  InitContextSlot(
+      rejectContext,
+      PromiseAnyRejectElementContextSlots::kPromiseAnyRejectElementErrorsSlot,
+      kEmptyFixedArray);
   return rejectContext;
 }
 
 macro CreatePromiseAnyRejectElementFunction(implicit context: Context)(
-    rejectElementContext: Context, index: Smi,
+    rejectElementContext: PromiseAnyRejectElementContext, index: Smi,
     nativeContext: NativeContext): JSFunction {
   assert(index > 0);
   assert(index < kPropertyArrayHashFieldMax);
-  const map = UnsafeCast<Map>(
-      nativeContext.elements
-          [NativeContextSlot::STRICT_FUNCTION_WITHOUT_PROTOTYPE_MAP_INDEX]);
+  const map = *ContextSlot(
+      nativeContext, ContextSlot::STRICT_FUNCTION_WITHOUT_PROTOTYPE_MAP_INDEX);
   const rejectInfo = PromiseAnyRejectElementSharedFunConstant();
   const reject =
       AllocateFunctionWithMapAndContext(map, rejectInfo, rejectElementContext);
@@ -81,7 +91,9 @@ PromiseAnyRejectElementClosure(
 
   assert(
       context.length ==
-      PromiseAnyRejectElementContextSlots::kPromiseAnyRejectElementLength);
+      SmiTag(
+          PromiseAnyRejectElementContextSlots::kPromiseAnyRejectElementLength));
+  const context = %RawDownCast<PromiseAnyRejectElementContext>(context);
 
   // 4. Set alreadyCalled.[[Value]] to true.
   const nativeContext = LoadNativeContext(context);
@@ -94,32 +106,36 @@ PromiseAnyRejectElementClosure(
   const index = identityHash - 1;
 
   // 6. Let errors be F.[[Errors]].
-  let errors = UnsafeCast<FixedArray>(
-      context.elements[PromiseAnyRejectElementContextSlots::
-                           kPromiseAnyRejectElementErrorsSlot]);
+  let errors = *ContextSlot(
+      context,
+      PromiseAnyRejectElementContextSlots::kPromiseAnyRejectElementErrorsSlot);
 
   // 7. Let promiseCapability be F.[[Capability]].
 
   // 8. Let remainingElementsCount be F.[[RemainingElements]].
-  let remainingElementsCount = UnsafeCast<Smi>(
-      context.elements[PromiseAnyRejectElementContextSlots::
-                           kPromiseAnyRejectElementRemainingSlot]);
+  let remainingElementsCount = *ContextSlot(
+      context,
+      PromiseAnyRejectElementContextSlots::
+          kPromiseAnyRejectElementRemainingSlot);
 
   // 9. Set errors[index] to x.
   const newCapacity = IntPtrMax(SmiUntag(remainingElementsCount), index + 1);
   if (newCapacity > errors.length_intptr) deferred {
       errors = ExtractFixedArray(errors, 0, errors.length_intptr, newCapacity);
-      context.elements[PromiseAnyRejectElementContextSlots::
-                           kPromiseAnyRejectElementErrorsSlot] = errors;
+      *ContextSlot(
+          context,
+          PromiseAnyRejectElementContextSlots::
+              kPromiseAnyRejectElementErrorsSlot) = errors;
     }
   errors.objects[index] = value;
 
   // 10. Set remainingElementsCount.[[Value]] to
   // remainingElementsCount.[[Value]] - 1.
   remainingElementsCount = remainingElementsCount - 1;
-  context.elements[PromiseAnyRejectElementContextSlots::
-                       kPromiseAnyRejectElementRemainingSlot] =
-      remainingElementsCount;
+  *ContextSlot(
+      context,
+      PromiseAnyRejectElementContextSlots::
+          kPromiseAnyRejectElementRemainingSlot) = remainingElementsCount;
 
   // 11. If remainingElementsCount.[[Value]] is 0, then
   if (remainingElementsCount == 0) {
@@ -128,9 +144,10 @@ PromiseAnyRejectElementClosure(
     //   b. Set error.[[AggregateErrors]] to errors.
     const error = ConstructAggregateError(errors);
     //   c. Return ? Call(promiseCapability.[[Reject]], undefined, « error »).
-    const capability = UnsafeCast<PromiseCapability>(
-        context.elements[PromiseAnyRejectElementContextSlots::
-                             kPromiseAnyRejectElementCapabilitySlot]);
+    const capability = *ContextSlot(
+        context,
+        PromiseAnyRejectElementContextSlots::
+            kPromiseAnyRejectElementCapabilitySlot);
     Call(context, UnsafeCast<Callable>(capability.reject), Undefined, error);
   }
 
@@ -158,8 +175,8 @@ Reject(Object) {
   let index: Smi = 1;
 
   try {
-    const fastIteratorResultMap = UnsafeCast<Map>(
-        nativeContext.elements[NativeContextSlot::ITERATOR_RESULT_MAP_INDEX]);
+    const fastIteratorResultMap = *NativeContextSlot(
+        nativeContext, ContextSlot::ITERATOR_RESULT_MAP_INDEX);
     // 8. Repeat,
     while (true) {
       let nextValue: JSAny;
@@ -231,12 +248,14 @@ Reject(Object) {
           rejectElementContext, index, nativeContext);
       // q. Set remainingElementsCount.[[Value]] to
       // remainingElementsCount.[[Value]] + 1.
-      const remainingElementsCount = UnsafeCast<Smi>(
-          rejectElementContext
-              .elements[PromiseAnyRejectElementContextSlots::
-                            kPromiseAnyRejectElementRemainingSlot]);
-      rejectElementContext.elements[PromiseAnyRejectElementContextSlots::
-                                        kPromiseAnyRejectElementRemainingSlot] =
+      const remainingElementsCount = *ContextSlot(
+          rejectElementContext,
+          PromiseAnyRejectElementContextSlots::
+              kPromiseAnyRejectElementRemainingSlot);
+      *ContextSlot(
+          rejectElementContext,
+          PromiseAnyRejectElementContextSlots::
+              kPromiseAnyRejectElementRemainingSlot) =
           remainingElementsCount + 1;
 
       // r. Perform ? Invoke(nextPromise, "then", «
@@ -270,13 +289,10 @@ Reject(Object) {
   //   i. Set iteratorRecord.[[Done]] to true.
   //  ii. Set remainingElementsCount.[[Value]] to
   //  remainingElementsCount.[[Value]] - 1.
-  let remainingElementsCount = UnsafeCast<Smi>(
-      rejectElementContext.elements[PromiseAnyRejectElementContextSlots::
-                                        kPromiseAnyRejectElementRemainingSlot]);
-  remainingElementsCount -= 1;
-  rejectElementContext.elements[PromiseAnyRejectElementContextSlots::
-                                    kPromiseAnyRejectElementRemainingSlot] =
-      remainingElementsCount;
+  const remainingElementsCount = -- *ContextSlot(
+      rejectElementContext,
+      PromiseAnyRejectElementContextSlots::
+          kPromiseAnyRejectElementRemainingSlot);
 
   // iii. If remainingElementsCount.[[Value]] is 0, then
   if (remainingElementsCount == 0) deferred {
@@ -285,10 +301,10 @@ Reject(Object) {
 
       // We may already have elements in "errors" - this happens when the
       // Thenable calls the reject callback immediately.
-      const errors = UnsafeCast<FixedArray>(
-          rejectElementContext
-              .elements[PromiseAnyRejectElementContextSlots::
-                            kPromiseAnyRejectElementErrorsSlot]);
+      const errors: FixedArray = *ContextSlot(
+          rejectElementContext,
+          PromiseAnyRejectElementContextSlots::
+              kPromiseAnyRejectElementErrorsSlot);
 
       const error = ConstructAggregateError(errors);
       // 3. Return ThrowCompletion(error).

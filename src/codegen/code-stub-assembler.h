@@ -128,6 +128,7 @@ enum class PrimitiveType { kBoolean, kNumber, kString, kSymbol };
   V(default_string, default_string, DefaultString)                           \
   V(EmptyByteArray, empty_byte_array, EmptyByteArray)                        \
   V(EmptyFixedArray, empty_fixed_array, EmptyFixedArray)                     \
+  V(EmptyScopeInfo, empty_scope_info, EmptyScopeInfo)                        \
   V(EmptyPropertyDictionary, empty_property_dictionary,                      \
     EmptyPropertyDictionary)                                                 \
   V(EmptySlowElementDictionary, empty_slow_element_dictionary,               \
@@ -3707,12 +3708,6 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
 
   TNode<IntPtrT> TryToIntptr(SloppyTNode<Object> key, Label* if_not_intptr,
                              TVariable<Int32T>* var_instance_type = nullptr);
-
-  TNode<Context> AllocateSyntheticFunctionContext(
-      TNode<NativeContext> native_context, int slots);
-  void InitializeSyntheticFunctionContext(TNode<NativeContext> native_context,
-                                          TNode<HeapObject> context_heap_object,
-                                          int slots);
 
   TNode<JSArray> ArrayCreate(TNode<Context> context, TNode<Number> length);
 

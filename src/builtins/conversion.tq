@@ -112,7 +112,7 @@ transitioning builtin ToObject(implicit context: Context)(input: JSAny):
   try {
     typeswitch (input) {
       case (Smi): {
-        goto WrapPrimitive(NativeContextSlot::NUMBER_FUNCTION_INDEX);
+        goto WrapPrimitive(ContextSlot::NUMBER_FUNCTION_INDEX);
       }
       case (o: JSReceiver): {
         return o;
@@ -120,14 +120,14 @@ transitioning builtin ToObject(implicit context: Context)(input: JSAny):
       case (o: JSAnyNotSmi): {
         const index: intptr = Convert<intptr>(
             o.map.in_object_properties_start_or_constructor_function_index);
-        if (index != kNoConstructorFunctionIndex) goto WrapPrimitive(index);
+        if (index != kNoConstructorFunctionIndex)
+          goto WrapPrimitive(
+              %RawDownCast<Slot<NativeContext, JSFunction>>(index));
         ThrowTypeError(MessageTemplate::kUndefinedOrNullToObject, 'ToObject');
       }
     }
-  } label WrapPrimitive(constructorIndex: intptr) {
-    const nativeContext = LoadNativeContext(context);
-    const constructor =
-        UnsafeCast<JSFunction>(nativeContext.elements[constructorIndex]);
+  } label WrapPrimitive(constructorIndex: Slot<NativeContext, JSFunction>) {
+    const constructor = *NativeContextSlot(constructorIndex);
     const map: Map = UnsafeCast<Map>(constructor.prototype_or_initial_map);
     const wrapper =
         UnsafeCast<JSPrimitiveWrapper>(AllocateFastOrSlowJSObjectFromMap(map));

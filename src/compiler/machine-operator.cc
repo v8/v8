@@ -969,8 +969,8 @@ struct StackPointerGreaterThanOperator : public Operator1<StackCheckKind> {
 
 struct CommentOperator : public Operator1<const char*> {
   explicit CommentOperator(const char* msg)
-      : Operator1(IrOpcode::kComment, Operator::kNoThrow, "Comment", 0, 1, 1, 0,
-                  1, 0, msg) {}
+      : Operator1(IrOpcode::kComment, Operator::kNoThrow | Operator::kNoWrite,
+                  "Comment", 0, 1, 1, 0, 1, 0, msg) {}
 };
 
 MachineOperatorBuilder::MachineOperatorBuilder(

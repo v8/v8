@@ -451,8 +451,6 @@ const UNSAFE_SKIP_WRITE_BARRIER:
 
 extern transitioning macro AllocateJSIteratorResult(implicit context: Context)(
     JSAny, Boolean): JSObject;
-extern macro AllocateSyntheticFunctionContext(
-    NativeContext, constexpr int32): Context;
 
 extern class Filler extends HeapObject generates 'TNode<HeapObject>';
 
@@ -1102,74 +1100,47 @@ macro AllowNonNumberElements(kind: ElementsKind): ElementsKind {
 }
 
 macro GetObjectFunction(implicit context: Context)(): JSFunction {
-  return UnsafeCast<JSFunction>(
-      LoadNativeContext(context)
-          .elements[NativeContextSlot::OBJECT_FUNCTION_INDEX]);
+  return *NativeContextSlot(ContextSlot::OBJECT_FUNCTION_INDEX);
 }
 macro GetArrayFunction(implicit context: Context)(): JSFunction {
-  return UnsafeCast<JSFunction>(
-      LoadNativeContext(context)
-          .elements[NativeContextSlot::ARRAY_FUNCTION_INDEX]);
+  return *NativeContextSlot(ContextSlot::ARRAY_FUNCTION_INDEX);
 }
 macro GetArrayBufferFunction(implicit context: Context)(): Constructor {
-  return UnsafeCast<Constructor>(
-      LoadNativeContext(context)
-          .elements[NativeContextSlot::ARRAY_BUFFER_FUN_INDEX]);
+  return *NativeContextSlot(ContextSlot::ARRAY_BUFFER_FUN_INDEX);
 }
 macro GetArrayBufferNoInitFunction(implicit context: Context)(): JSFunction {
-  return UnsafeCast<JSFunction>(
-      LoadNativeContext(context)
-          .elements[NativeContextSlot::ARRAY_BUFFER_NOINIT_FUN_INDEX]);
+  return *NativeContextSlot(ContextSlot::ARRAY_BUFFER_NOINIT_FUN_INDEX);
 }
 macro GetFastPackedElementsJSArrayMap(implicit context: Context)(): Map {
-  return UnsafeCast<Map>(
-      LoadNativeContext(context)
-          .elements[NativeContextSlot::JS_ARRAY_PACKED_ELEMENTS_MAP_INDEX]);
+  return *NativeContextSlot(ContextSlot::JS_ARRAY_PACKED_ELEMENTS_MAP_INDEX);
 }
 macro GetFastPackedSmiElementsJSArrayMap(implicit context: Context)(): Map {
-  return UnsafeCast<Map>(
-      LoadNativeContext(context)
-          .elements[NativeContextSlot::JS_ARRAY_PACKED_SMI_ELEMENTS_MAP_INDEX]);
+  return *NativeContextSlot(
+      ContextSlot::JS_ARRAY_PACKED_SMI_ELEMENTS_MAP_INDEX);
 }
 macro GetProxyRevocableResultMap(implicit context: Context)(): Map {
-  return UnsafeCast<Map>(
-      LoadNativeContext(context)
-          .elements[NativeContextSlot::PROXY_REVOCABLE_RESULT_MAP_INDEX]);
+  return *NativeContextSlot(ContextSlot::PROXY_REVOCABLE_RESULT_MAP_INDEX);
 }
 macro GetIteratorResultMap(implicit context: Context)(): Map {
-  return UnsafeCast<Map>(
-      LoadNativeContext(context)
-          .elements[NativeContextSlot::ITERATOR_RESULT_MAP_INDEX]);
+  return *NativeContextSlot(ContextSlot::ITERATOR_RESULT_MAP_INDEX);
 }
 macro GetInitialStringIteratorMap(implicit context: Context)(): Map {
-  return UnsafeCast<Map>(
-      LoadNativeContext(context)
-          .elements[NativeContextSlot::INITIAL_STRING_ITERATOR_MAP_INDEX]);
+  return *NativeContextSlot(ContextSlot::INITIAL_STRING_ITERATOR_MAP_INDEX);
 }
 macro GetReflectApply(implicit context: Context)(): Callable {
-  return UnsafeCast<Callable>(
-      LoadNativeContext(context)
-          .elements[NativeContextSlot::REFLECT_APPLY_INDEX]);
+  return *NativeContextSlot(ContextSlot::REFLECT_APPLY_INDEX);
 }
 macro GetRegExpLastMatchInfo(implicit context: Context)(): RegExpMatchInfo {
-  return %RawDownCast<RegExpMatchInfo>(
-      LoadNativeContext(context)
-          .elements[NativeContextSlot::REGEXP_LAST_MATCH_INFO_INDEX]);
+  return *NativeContextSlot(ContextSlot::REGEXP_LAST_MATCH_INFO_INDEX);
 }
 macro GetStrictArgumentsMap(implicit context: Context)(): Map {
-  return UnsafeCast<Map>(
-      LoadNativeContext(context)
-          .elements[NativeContextSlot::STRICT_ARGUMENTS_MAP_INDEX]);
+  return *NativeContextSlot(ContextSlot::STRICT_ARGUMENTS_MAP_INDEX);
 }
 macro GetSloppyArgumentsMap(implicit context: Context)(): Map {
-  return UnsafeCast<Map>(
-      LoadNativeContext(context)
-          .elements[NativeContextSlot::SLOPPY_ARGUMENTS_MAP_INDEX]);
+  return *NativeContextSlot(ContextSlot::SLOPPY_ARGUMENTS_MAP_INDEX);
 }
 macro GetFastAliasedArgumentsMap(implicit context: Context)(): Map {
-  return UnsafeCast<Map>(
-      LoadNativeContext(context)
-          .elements[NativeContextSlot::FAST_ALIASED_ARGUMENTS_MAP_INDEX]);
+  return *NativeContextSlot(ContextSlot::FAST_ALIASED_ARGUMENTS_MAP_INDEX);
 }
 macro GetWeakCellMap(implicit context: Context)(): Map {
   return %GetClassMapConstant<WeakCell>();
