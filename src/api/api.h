@@ -304,31 +304,6 @@ namespace internal {
 
 class PersistentHandles;
 
-class V8_EXPORT_PRIVATE DeferredHandles {
- public:
-  ~DeferredHandles();
-
- private:
-  DeferredHandles(Address* first_block_limit, Isolate* isolate)
-      : next_(nullptr),
-        previous_(nullptr),
-        first_block_limit_(first_block_limit),
-        isolate_(isolate) {
-    isolate->LinkDeferredHandles(this);
-  }
-
-  void Iterate(RootVisitor* v);
-
-  std::vector<Address*> blocks_;
-  DeferredHandles* next_;
-  DeferredHandles* previous_;
-  Address* first_block_limit_;
-  Isolate* isolate_;
-
-  friend class HandleScopeImplementer;
-  friend class Isolate;
-};
-
 // This class is here in order to be able to declare it a friend of
 // HandleScope.  Moving these methods to be members of HandleScope would be
 // neat in some ways, but it would expose internal implementation details in
@@ -433,7 +408,6 @@ class HandleScopeImplementer {
   }
 
   void BeginDeferredScope();
-  std::unique_ptr<DeferredHandles> Detach(Address* prev_limit);
   std::unique_ptr<PersistentHandles> DetachPersistent(Address* prev_limit);
 
   Isolate* isolate_;
@@ -458,8 +432,6 @@ class HandleScopeImplementer {
   char* RestoreThreadHelper(char* from);
   char* ArchiveThreadHelper(char* to);
 
-  friend class DeferredHandles;
-  friend class DeferredHandleScope;
   friend class HandleScopeImplementerOffsets;
   friend class PersistentHandlesScope;
 

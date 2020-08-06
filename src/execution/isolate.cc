@@ -517,40 +517,6 @@ void Isolate::Iterate(RootVisitor* v) {
   Iterate(v, current_t);
 }
 
-void Isolate::IterateDeferredHandles(RootVisitor* visitor) {
-  for (DeferredHandles* deferred = deferred_handles_head_; deferred != nullptr;
-       deferred = deferred->next_) {
-    deferred->Iterate(visitor);
-  }
-}
-
-#ifdef DEBUG
-bool Isolate::IsDeferredHandle(Address* handle) {
-  // Comparing unrelated pointers (not from the same array) is undefined
-  // behavior, so cast to Address before making arbitrary comparisons.
-  Address handle_as_address = reinterpret_cast<Address>(handle);
-  // Each DeferredHandles instance keeps the handles to one job in the
-  // concurrent recompilation queue, containing a list of blocks.  Each block
-  // contains kHandleBlockSize handles except for the first block, which may
-  // not be fully filled.
-  // We iterate through all the blocks to see whether the argument handle
-  // belongs to one of the blocks.  If so, it is deferred.
-  for (DeferredHandles* deferred = deferred_handles_head_; deferred != nullptr;
-       deferred = deferred->next_) {
-    std::vector<Address*>* blocks = &deferred->blocks_;
-    for (size_t i = 0; i < blocks->size(); i++) {
-      Address* block_limit = (i == 0) ? deferred->first_block_limit_
-                                      : blocks->at(i) + kHandleBlockSize;
-      if (reinterpret_cast<Address>(blocks->at(i)) <= handle_as_address &&
-          handle_as_address < reinterpret_cast<Address>(block_limit)) {
-        return true;
-      }
-    }
-  }
-  return false;
-}
-#endif  // DEBUG
-
 void Isolate::RegisterTryCatchHandler(v8::TryCatch* that) {
   thread_local_top()->try_catch_handler_ = that;
 }
@@ -3773,34 +3739,6 @@ void Isolate::Exit() {
 
   // Reinit the current thread for the isolate it was running before this one.
   SetIsolateThreadLocals(previous_isolate, previous_thread_data);
-}
-
-void Isolate::LinkDeferredHandles(DeferredHandles* deferred) {
-  deferred->next_ = deferred_handles_head_;
-  if (deferred_handles_head_ != nullptr) {
-    deferred_handles_head_->previous_ = deferred;
-  }
-  deferred_handles_head_ = deferred;
-}
-
-void Isolate::UnlinkDeferredHandles(DeferredHandles* deferred) {
-#ifdef DEBUG
-  // In debug mode assert that the linked list is well-formed.
-  DeferredHandles* deferred_iterator = deferred;
-  while (deferred_iterator->previous_ != nullptr) {
-    deferred_iterator = deferred_iterator->previous_;
-  }
-  DCHECK(deferred_handles_head_ == deferred_iterator);
-#endif
-  if (deferred_handles_head_ == deferred) {
-    deferred_handles_head_ = deferred_handles_head_->next_;
-  }
-  if (deferred->next_ != nullptr) {
-    deferred->next_->previous_ = deferred->previous_;
-  }
-  if (deferred->previous_ != nullptr) {
-    deferred->previous_->next_ = deferred->next_;
-  }
 }
 
 std::unique_ptr<PersistentHandles> Isolate::NewPersistentHandles() {

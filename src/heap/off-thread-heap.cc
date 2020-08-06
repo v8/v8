@@ -153,7 +153,7 @@ void OffThreadHeap::Publish(Heap* heap) {
   //
   // TODO(leszeks): We might be able to create a HandleScope-compatible
   // structure off-thread and merge it into the current handle scope all in
-  // one go (DeferredHandles maybe?).
+  // one go (PersistentHandles maybe?).
   std::vector<std::pair<Handle<HeapObject>, Handle<Map>>> heap_object_handles;
   std::vector<Handle<Script>> script_handles;
   {

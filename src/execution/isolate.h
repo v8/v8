@@ -1224,10 +1224,6 @@ class V8_EXPORT_PRIVATE Isolate final : private HiddenFactory {
   // Returns true if array is the initial array prototype in any native context.
   bool IsAnyInitialArrayPrototype(Handle<JSArray> array);
 
-  void IterateDeferredHandles(RootVisitor* visitor);
-  void LinkDeferredHandles(DeferredHandles* deferred_handles);
-  void UnlinkDeferredHandles(DeferredHandles* deferred_handles);
-
   std::unique_ptr<PersistentHandles> NewPersistentHandles();
 
   PersistentHandlesList* persistent_handles_list() {
@@ -1802,7 +1798,6 @@ class V8_EXPORT_PRIVATE Isolate final : private HiddenFactory {
 #undef ISOLATE_FIELD_OFFSET
 #endif
 
-  DeferredHandles* deferred_handles_head_ = nullptr;
   OptimizingCompileDispatcher* optimizing_compile_dispatcher_ = nullptr;
 
   std::unique_ptr<PersistentHandlesList> persistent_handles_list_;

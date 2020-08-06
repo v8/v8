@@ -127,7 +127,6 @@ template <ArgumentsType>
 class Arguments;
 template <typename T>
 class CustomArguments;
-class DeferredHandles;
 class FunctionCallbackArguments;
 class GlobalHandles;
 class Heap;

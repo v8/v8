@@ -3747,8 +3747,7 @@ class DummyVisitor : public RootVisitor {
                          FullObjectSlot start, FullObjectSlot end) override {}
 };
 
-
-TEST(DeferredHandles) {
+TEST(PersistentHandles) {
   CcTest::InitializeVM();
   Isolate* isolate = CcTest::i_isolate();
   Heap* heap = isolate->heap();
@@ -3762,13 +3761,13 @@ TEST(DeferredHandles) {
   // Next handle would require a new block.
   CHECK(data->next == data->limit);
 
-  DeferredHandleScope deferred(isolate);
+  PersistentHandlesScope persistent(isolate);
   DummyVisitor visitor;
   isolate->handle_scope_implementer()->Iterate(&visitor);
-  deferred.Detach();
+  persistent.Detach();
 }
 
-static void TestFillersFromDeferredHandles(bool promote) {
+static void TestFillersFromPersistentHandles(bool promote) {
   // We assume that the fillers can only arise when left-trimming arrays.
   Isolate* isolate = CcTest::i_isolate();
   Heap* heap = isolate->heap();
@@ -3783,10 +3782,10 @@ static void TestFillersFromDeferredHandles(bool promote) {
   }
   CHECK(Heap::InYoungGeneration(*array));
 
-  DeferredHandleScope deferred_scope(isolate);
+  PersistentHandlesScope persistent_scope(isolate);
 
   // Trim the array three times to different sizes so all kinds of fillers are
-  // created and tracked by the deferred handles.
+  // created and tracked by the persistent handles.
   Handle<FixedArrayBase> filler_1 = Handle<FixedArrayBase>(*array, isolate);
   Handle<FixedArrayBase> filler_2 =
       Handle<FixedArrayBase>(heap->LeftTrimFixedArray(*filler_1, 1), isolate);
@@ -3795,7 +3794,8 @@ static void TestFillersFromDeferredHandles(bool promote) {
   Handle<FixedArrayBase> tail =
       Handle<FixedArrayBase>(heap->LeftTrimFixedArray(*filler_3, 3), isolate);
 
-  std::unique_ptr<DeferredHandles> deferred_handles(deferred_scope.Detach());
+  std::unique_ptr<PersistentHandles> persistent_handles(
+      persistent_scope.Detach());
 
   // GC should retain the trimmed array but drop all of the three fillers.
   CcTest::CollectGarbage(NEW_SPACE);
@@ -3810,14 +3810,14 @@ static void TestFillersFromDeferredHandles(bool promote) {
   CHECK(!filler_3->IsHeapObject());
 }
 
-TEST(DoNotEvacuateFillersFromDeferredHandles) {
+TEST(DoNotEvacuateFillersFromPersistentHandles) {
   if (FLAG_single_generation) return;
-  TestFillersFromDeferredHandles(false /*promote*/);
+  TestFillersFromPersistentHandles(false /*promote*/);
 }
 
-TEST(DoNotPromoteFillersFromDeferredHandles) {
+TEST(DoNotPromoteFillersFromPersistentHandles) {
   if (FLAG_single_generation) return;
-  TestFillersFromDeferredHandles(true /*promote*/);
+  TestFillersFromPersistentHandles(true /*promote*/);
 }
 
 TEST(IncrementalMarkingStepMakesBigProgressWithLargeObjects) {

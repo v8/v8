@@ -27,7 +27,6 @@ class TracedValue;
 
 namespace internal {
 
-class DeferredHandles;
 class FunctionLiteral;
 class Isolate;
 class JavaScriptFrame;

@@ -11153,33 +11153,6 @@ char* HandleScopeImplementer::Iterate(RootVisitor* v, char* storage) {
   return storage + ArchiveSpacePerThread();
 }
 
-std::unique_ptr<DeferredHandles> HandleScopeImplementer::Detach(
-    Address* prev_limit) {
-  std::unique_ptr<DeferredHandles> deferred(
-      new DeferredHandles(isolate()->handle_scope_data()->next, isolate()));
-  DCHECK_NOT_NULL(prev_limit);
-
-  while (!blocks_.empty()) {
-    Address* block_start = blocks_.back();
-    Address* block_limit = &block_start[kHandleBlockSize];
-    // We should not need to check for SealHandleScope here. Assert this.
-    DCHECK_IMPLIES(block_start <= prev_limit && prev_limit <= block_limit,
-                   prev_limit == block_limit);
-    if (prev_limit == block_limit) break;
-    deferred->blocks_.push_back(blocks_.back());
-    blocks_.pop_back();
-  }
-
-  // deferred->blocks_ now contains the blocks installed on the
-  // HandleScope stack since BeginDeferredScope was called, but in
-  // reverse order.
-  DCHECK(!blocks_.empty() && !deferred->blocks_.empty());
-
-  DCHECK_NOT_NULL(last_handle_before_deferred_block_);
-  last_handle_before_deferred_block_ = nullptr;
-  return deferred;
-}
-
 std::unique_ptr<PersistentHandles> HandleScopeImplementer::DetachPersistent(
     Address* prev_limit) {
   std::unique_ptr<PersistentHandles> ph(new PersistentHandles(isolate()));
@@ -11220,40 +11193,6 @@ std::unique_ptr<PersistentHandles> HandleScopeImplementer::DetachPersistent(
 void HandleScopeImplementer::BeginDeferredScope() {
   DCHECK_NULL(last_handle_before_deferred_block_);
   last_handle_before_deferred_block_ = isolate()->handle_scope_data()->next;
-}
-
-DeferredHandles::~DeferredHandles() {
-  isolate_->UnlinkDeferredHandles(this);
-
-  for (size_t i = 0; i < blocks_.size(); i++) {
-#ifdef ENABLE_HANDLE_ZAPPING
-    HandleScope::ZapRange(blocks_[i], &blocks_[i][kHandleBlockSize]);
-#endif
-    isolate_->handle_scope_implementer()->ReturnBlock(blocks_[i]);
-  }
-}
-
-void DeferredHandles::Iterate(RootVisitor* v) {
-  DCHECK(!blocks_.empty());
-
-  // Comparing pointers that do not point into the same array is undefined
-  // behavior, which means if we didn't cast everything to plain Address
-  // before comparing, the compiler would be allowed to assume that all
-  // comparisons evaluate to true and drop the entire check.
-  DCHECK((reinterpret_cast<Address>(first_block_limit_) >=
-          reinterpret_cast<Address>(blocks_.front())) &&
-         (reinterpret_cast<Address>(first_block_limit_) <=
-          reinterpret_cast<Address>(&(blocks_.front())[kHandleBlockSize])));
-
-  v->VisitRootPointers(Root::kHandleScope, nullptr,
-                       FullObjectSlot(blocks_.front()),
-                       FullObjectSlot(first_block_limit_));
-
-  for (size_t i = 1; i < blocks_.size(); i++) {
-    v->VisitRootPointers(Root::kHandleScope, nullptr,
-                         FullObjectSlot(blocks_[i]),
-                         FullObjectSlot(&blocks_[i][kHandleBlockSize]));
-  }
 }
 
 void InvokeAccessorGetterCallback(
