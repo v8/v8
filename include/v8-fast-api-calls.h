@@ -122,9 +122,13 @@
  *  - bool
  *  - int32_t
  *  - uint32_t
- * To be supported types:
  *  - int64_t
  *  - uint64_t
+ * The 64-bit integer types currently have the IDL (unsigned) long long
+ * semantics: https://heycam.github.io/webidl/#abstract-opdef-converttoint
+ * In the future we'll extend the API to also provide conversions from/to
+ * BigInt to preserve full precision.
+ * To be supported types:
  *  - float32_t
  *  - float64_t
  *  - arrays of C types

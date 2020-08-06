@@ -1740,17 +1740,13 @@ class RepresentationSelector {
       case CTypeInfo::Type::kUint32:
       case CTypeInfo::Type::kFloat32:
         return UseInfo::CheckedNumberAsWord32(feedback);
+      // TODO(mslekova): We deopt for unsafe integers, but ultimately we want
+      // to make this less restrictive in order to stay on the fast path.
       case CTypeInfo::Type::kInt64:
+      case CTypeInfo::Type::kUint64:
         return UseInfo::CheckedSigned64AsWord64(kIdentifyZeros, feedback);
       case CTypeInfo::Type::kFloat64:
         return UseInfo::CheckedNumberAsFloat64(kIdentifyZeros, feedback);
-      // UseInfo::Word64 does not propagate any TypeCheckKind, so it relies
-      // on the implicit assumption that Word64 representation only holds
-      // Numbers, which is already no longer true with BigInts. By now,
-      // BigInts are handled in a very conservative way to make sure they don't
-      // fall into that pit, but future changes may break this here.
-      case CTypeInfo::Type::kUint64:
-        return UseInfo::Word64();
       case CTypeInfo::Type::kV8Value:
         return UseInfo::AnyTagged();
     }
