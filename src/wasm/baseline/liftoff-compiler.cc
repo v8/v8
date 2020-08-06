@@ -728,7 +728,7 @@ class LiftoffCompiler {
     }
 
     source_position_table_builder_.AddPosition(
-        __ pc_offset(), SourcePosition(ool->position), true);
+        __ pc_offset(), SourcePosition(ool->position), false);
     __ CallRuntimeStub(ool->stub);
     DCHECK_EQ(!debug_sidetable_builder_, !ool->debug_sidetable_entry_builder);
     if (V8_UNLIKELY(ool->debug_sidetable_entry_builder)) {
@@ -738,10 +738,10 @@ class LiftoffCompiler {
     DCHECK_EQ(ool->continuation.get()->is_bound(), is_stack_check);
     if (!ool->regs_to_save.is_empty()) __ PopRegisters(ool->regs_to_save);
     if (is_stack_check) {
-      // TODO(thibaudm): If the top frame is OSR'ed during stack check,
-      // execution will resume at the next instruction, skipping the following
-      // register reloads.
       if (V8_UNLIKELY(ool->spilled_registers != nullptr)) {
+        DCHECK(for_debugging_);
+        source_position_table_builder_.AddPosition(
+            __ pc_offset(), SourcePosition(ool->position), true);
         for (auto& entry : ool->spilled_registers->entries) {
           __ Fill(entry.reg, entry.offset, entry.type);
         }

@@ -46,12 +46,11 @@ function instantiate(bytes, imports) {
 
   InspectorTest.log('Run');
   Protocol.Runtime.evaluate({expression: 'instance.exports.main()'});
-  // TODO(thibaudm): Fix source position and OSR at stack checks.
   InspectorTest.log('Expecting to pause at ' + (f.body_offset - 1));
-  // await waitForPauseAndStep('stepInto');
-  // await waitForPauseAndStep('stepInto');
-  // await waitForPauseAndStep('stepInto');
-  // await waitForPauseAndStep('stepInto');
+  await waitForPauseAndStep('stepInto');
+  await waitForPauseAndStep('stepInto');
+  await waitForPauseAndStep('stepInto');
+  await waitForPauseAndStep('stepInto');
   await waitForPauseAndStep('resume');
   InspectorTest.log('Finished!');
   InspectorTest.completeTest();
