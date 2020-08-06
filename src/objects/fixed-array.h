@@ -54,7 +54,6 @@ namespace internal {
   V(SINGLE_CHARACTER_STRING_CACHE_SUB_TYPE)      \
   V(SLOW_TEMPLATE_INSTANTIATIONS_CACHE_SUB_TYPE) \
   V(STRING_SPLIT_CACHE_SUB_TYPE)                 \
-  V(STRING_TABLE_SUB_TYPE)                       \
   V(TEMPLATE_INFO_SUB_TYPE)                      \
   V(FEEDBACK_METADATA_SUB_TYPE)                  \
   V(WEAK_NEW_SPACE_OBJECT_TO_CODE_SUB_TYPE)

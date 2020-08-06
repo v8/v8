@@ -223,12 +223,6 @@ class EXPORT_TEMPLATE_DECLARE(V8_EXPORT_PRIVATE) HashTable
                                    uint32_t hash);
   InternalIndex FindInsertionEntry(Isolate* isolate, uint32_t hash);
 
-  // Find either the entry with the given key, or the entry at which to insert
-  // an element with the given key.
-  InternalIndex FindEntryOrInsertionEntry(const Isolate* isolate,
-                                          ReadOnlyRoots roots, Key key,
-                                          uint32_t hash);
-
   // Computes the capacity a table with the given capacity would need to have
   // room for the given number of elements, also allowing it to shrink.
   static int ComputeCapacityWithShrink(int current_capacity,

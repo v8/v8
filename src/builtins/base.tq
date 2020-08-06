@@ -144,7 +144,6 @@ extern class OrderedNameDictionary extends HashTable;
 extern class NameDictionary extends HashTable;
 extern class GlobalDictionary extends HashTable;
 extern class SimpleNumberDictionary extends HashTable;
-extern class StringTable extends HashTable;
 extern class EphemeronHashTable extends HashTable;
 type ObjectHashTable extends HashTable
     generates 'TNode<ObjectHashTable>';

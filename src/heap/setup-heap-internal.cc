@@ -471,7 +471,6 @@ bool Heap::CreateInitialMaps() {
     ALLOCATE_VARSIZE_MAP(NUMBER_DICTIONARY_TYPE, number_dictionary)
     ALLOCATE_VARSIZE_MAP(SIMPLE_NUMBER_DICTIONARY_TYPE,
                          simple_number_dictionary)
-    ALLOCATE_VARSIZE_MAP(STRING_TABLE_TYPE, string_table)
 
     ALLOCATE_VARSIZE_MAP(EMBEDDER_DATA_ARRAY_TYPE, embedder_data_array)
     ALLOCATE_VARSIZE_MAP(EPHEMERON_HASH_TABLE_TYPE, ephemeron_hash_table)
@@ -695,9 +694,6 @@ void Heap::CreateInitialObjects() {
   // Allocate cache for single character one byte strings.
   set_single_character_string_cache(*factory->NewFixedArray(
       String::kMaxOneByteCharCode + 1, AllocationType::kOld));
-
-  // Allocate initial string table.
-  set_string_table(*StringTable::New(isolate(), kInitialStringTableSize));
 
   for (unsigned i = 0; i < arraysize(constant_string_table); i++) {
     Handle<String> str =

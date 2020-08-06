@@ -179,7 +179,6 @@ void HeapObject::HeapObjectVerify(Isolate* isolate) {
     case GLOBAL_DICTIONARY_TYPE:
     case NUMBER_DICTIONARY_TYPE:
     case SIMPLE_NUMBER_DICTIONARY_TYPE:
-    case STRING_TABLE_TYPE:
     case EPHEMERON_HASH_TABLE_TYPE:
     case FIXED_ARRAY_TYPE:
     case SCOPE_INFO_TYPE:

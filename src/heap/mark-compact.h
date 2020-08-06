@@ -620,10 +620,6 @@ class MarkCompactCollector final : public MarkCompactCollectorBase {
   void MarkRoots(RootVisitor* root_visitor,
                  ObjectVisitor* custom_root_body_visitor);
 
-  // Mark the string table specially.  References to internalized strings from
-  // the string table are weak.
-  void MarkStringTable(ObjectVisitor* visitor);
-
   // Marks object reachable from harmony weak maps and wrapper tracing.
   void ProcessEphemeronMarking();
 

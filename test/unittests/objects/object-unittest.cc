@@ -11,8 +11,8 @@
 #include "src/objects/hash-table-inl.h"
 #include "src/objects/objects-inl.h"
 #include "src/objects/objects.h"
+#include "src/objects/string-set.h"
 #include "test/unittests/test-utils.h"
-
 #include "testing/gtest/include/gtest/gtest.h"
 
 namespace v8 {

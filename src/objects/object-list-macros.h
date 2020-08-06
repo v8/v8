@@ -209,7 +209,6 @@ class ZoneForwardList;
   V(StoreHandler)                              \
   V(String)                                    \
   V(StringSet)                                 \
-  V(StringTable)                               \
   V(StringWrapper)                             \
   V(Struct)                                    \
   V(Symbol)                                    \

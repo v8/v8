@@ -98,6 +98,7 @@ class SetupIsolateDelegate;
 class Simulator;
 class StandardFrame;
 class StartupDeserializer;
+class StringTable;
 class StubCache;
 class ThreadManager;
 class ThreadState;
@@ -621,8 +622,8 @@ class V8_EXPORT_PRIVATE Isolate final : private HiddenFactory {
     return &transition_array_access_;
   }
 
-  // Mutex for accessing the string table.
-  base::Mutex* string_table_mutex() { return &string_table_mutex_; }
+  // The isolate's string table.
+  StringTable* string_table() { return string_table_.get(); }
 
   Address get_address_from_id(IsolateAddressId id);
 
@@ -1663,6 +1664,7 @@ class V8_EXPORT_PRIVATE Isolate final : private HiddenFactory {
   Heap heap_;
   ReadOnlyHeap* read_only_heap_ = nullptr;
   std::shared_ptr<ReadOnlyArtifacts> artifacts_;
+  std::unique_ptr<StringTable> string_table_;
 
   const int id_;
   EntryStackItem* entry_stack_ = nullptr;
@@ -1675,7 +1677,6 @@ class V8_EXPORT_PRIVATE Isolate final : private HiddenFactory {
   std::shared_ptr<Counters> async_counters_;
   base::RecursiveMutex break_access_;
   base::SharedMutex transition_array_access_;
-  base::Mutex string_table_mutex_;
   Logger* logger_ = nullptr;
   StubCache* load_stub_cache_ = nullptr;
   StubCache* store_stub_cache_ = nullptr;

@@ -2,9 +2,9 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#include <iomanip>
-
 #include "src/compiler/types.h"
+
+#include <iomanip>
 
 #include "src/handles/handles-inl.h"
 #include "src/objects/instance-type.h"
@@ -285,7 +285,6 @@ Type::bitset BitsetType::Lub(const MapRefLike& map) {
     case GLOBAL_DICTIONARY_TYPE:
     case NUMBER_DICTIONARY_TYPE:
     case SIMPLE_NUMBER_DICTIONARY_TYPE:
-    case STRING_TABLE_TYPE:
     case EPHEMERON_HASH_TABLE_TYPE:
     case WEAK_FIXED_ARRAY_TYPE:
     case WEAK_ARRAY_LIST_TYPE:

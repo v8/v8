@@ -27,11 +27,11 @@
 #include "src/init/heap-symbols.h"
 #include "src/objects/allocation-site.h"
 #include "src/objects/fixed-array.h"
+#include "src/objects/hash-table.h"
 #include "src/objects/heap-object.h"
 #include "src/objects/js-array-buffer.h"
 #include "src/objects/objects.h"
 #include "src/objects/smi.h"
-#include "src/objects/string-table.h"
 #include "src/objects/visitors.h"
 #include "src/roots/roots.h"
 #include "src/utils/allocation.h"
@@ -812,7 +812,6 @@ class Heap {
 
   V8_INLINE void SetRootMaterializedObjects(FixedArray objects);
   V8_INLINE void SetRootScriptList(Object value);
-  V8_INLINE void SetRootStringTable(StringTable value);
   V8_INLINE void SetRootNoScriptSharedFunctionInfos(Object value);
   V8_INLINE void SetMessageListeners(TemplateList value);
   V8_INLINE void SetPendingOptimizeForTestBytecode(Object bytecode);
@@ -1579,7 +1578,6 @@ class Heap {
     void* data;
   };
 
-  static const int kInitialStringTableSize = StringTable::kMinCapacity;
   static const int kInitialEvalCacheSize = 64;
   static const int kInitialNumberStringCacheSize = 256;
 

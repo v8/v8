@@ -2,16 +2,16 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#include <stdlib.h>
-
 #include "src/objects/scope-info.h"
+
+#include <stdlib.h>
 
 #include "src/ast/scopes.h"
 #include "src/ast/variables.h"
 #include "src/init/bootstrapper.h"
-
 #include "src/objects/module-inl.h"
 #include "src/objects/objects-inl.h"
+#include "src/objects/string-set-inl.h"
 #include "src/roots/roots.h"
 
 namespace v8 {

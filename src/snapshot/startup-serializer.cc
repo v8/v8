@@ -179,10 +179,56 @@ void StartupSerializer::SerializeWeakReferencesAndDeferred() {
   Object undefined = ReadOnlyRoots(isolate()).undefined_value();
   VisitRootPointer(Root::kStartupObjectCache, nullptr,
                    FullObjectSlot(&undefined));
+
+  SerializeStringTable(isolate()->string_table());
+
   isolate()->heap()->IterateWeakRoots(
       this, base::EnumSet<SkipRoot>{SkipRoot::kUnserializable});
   SerializeDeferredObjects();
   Pad();
+}
+
+void StartupSerializer::SerializeStringTable(StringTable* string_table) {
+  // A StringTable is serialized as:
+  //
+  //   N : int
+  //   string 1
+  //   string 2
+  //   ...
+  //   string N
+  //
+  // Notably, the hashmap structure, including empty and deleted elements, is
+  // not serialized.
+
+  sink_.PutInt(isolate()->string_table()->NumberOfElements(),
+               "String table number of elements");
+
+  // Custom RootVisitor which walks the string table, but only serializes the
+  // string entries. This is an inline class to be able to access the non-public
+  // SerializeObject method.
+  class StartupSerializerStringTableVisitor : public RootVisitor {
+   public:
+    explicit StartupSerializerStringTableVisitor(StartupSerializer* serializer)
+        : serializer_(serializer) {}
+
+    void VisitRootPointers(Root root, const char* description,
+                           FullObjectSlot start, FullObjectSlot end) override {
+      DCHECK_EQ(root, Root::kStringTable);
+      for (FullObjectSlot current = start; current < end; ++current) {
+        Object obj = *current;
+        if (obj.IsHeapObject()) {
+          DCHECK(obj.IsInternalizedString());
+          serializer_->SerializeObject(HeapObject::cast(obj));
+        }
+      }
+    }
+
+   private:
+    StartupSerializer* serializer_;
+  };
+
+  StartupSerializerStringTableVisitor string_table_visitor(this);
+  isolate()->string_table()->IterateElements(&string_table_visitor);
 }
 
 void StartupSerializer::SerializeStrongReferences(

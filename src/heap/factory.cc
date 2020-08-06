@@ -57,6 +57,7 @@
 #include "src/objects/property-descriptor-object-inl.h"
 #include "src/objects/scope-info.h"
 #include "src/objects/stack-frame-info-inl.h"
+#include "src/objects/string-set-inl.h"
 #include "src/objects/struct-inl.h"
 #include "src/objects/template-objects-inl.h"
 #include "src/objects/transitions-inl.h"
@@ -612,7 +613,7 @@ template Handle<String> Factory::InternalizeString(
 
 template <class StringTableKey>
 Handle<String> Factory::InternalizeStringWithKey(StringTableKey* key) {
-  return StringTable::LookupKey(isolate(), key);
+  return isolate()->string_table()->LookupKey(isolate(), key);
 }
 template EXPORT_TEMPLATE_DEFINE(V8_EXPORT_PRIVATE)
     Handle<String> Factory::InternalizeStringWithKey(OneByteStringKey* key);

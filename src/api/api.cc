@@ -8518,7 +8518,8 @@ void Isolate::GetHeapStatistics(HeapStatistics* heap_statistics) {
   // now we just add the values, thereby over-approximating the peak slightly.
   heap_statistics->malloced_memory_ =
       isolate->allocator()->GetCurrentMemoryUsage() +
-      isolate->wasm_engine()->allocator()->GetCurrentMemoryUsage();
+      isolate->wasm_engine()->allocator()->GetCurrentMemoryUsage() +
+      isolate->string_table()->GetCurrentMemoryUsage();
   heap_statistics->external_memory_ = isolate->heap()->backing_store_bytes();
   heap_statistics->peak_malloced_memory_ =
       isolate->allocator()->GetMaxMemoryUsage() +

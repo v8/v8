@@ -716,7 +716,6 @@ bool CanSubclassHaveInobjectProperties(InstanceType instance_type) {
     case GLOBAL_DICTIONARY_TYPE:
     case NUMBER_DICTIONARY_TYPE:
     case SIMPLE_NUMBER_DICTIONARY_TYPE:
-    case STRING_TABLE_TYPE:
     case HEAP_NUMBER_TYPE:
     case JS_BOUND_FUNCTION_TYPE:
     case JS_GLOBAL_OBJECT_TYPE:

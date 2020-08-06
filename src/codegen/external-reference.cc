@@ -11,20 +11,20 @@
 #include "src/date/date.h"
 #include "src/debug/debug.h"
 #include "src/deoptimizer/deoptimizer.h"
-#include "src/heap/heap.h"
-#include "src/logging/counters.h"
-#include "src/numbers/hash-seed-inl.h"
-#include "src/objects/elements.h"
-#include "src/objects/ordered-hash-table.h"
 #include "src/execution/isolate.h"
 #include "src/execution/microtask-queue.h"
 #include "src/execution/simulator-base.h"
 #include "src/heap/heap-inl.h"
+#include "src/heap/heap.h"
 #include "src/ic/stub-cache.h"
 #include "src/interpreter/interpreter.h"
+#include "src/logging/counters.h"
 #include "src/logging/log.h"
+#include "src/numbers/hash-seed-inl.h"
 #include "src/numbers/math-random.h"
+#include "src/objects/elements.h"
 #include "src/objects/objects-inl.h"
+#include "src/objects/ordered-hash-table.h"
 #include "src/regexp/regexp-interpreter.h"
 #include "src/regexp/regexp-macro-assembler-arch.h"
 #include "src/regexp/regexp-stack.h"
@@ -671,8 +671,8 @@ FUNCTION_REFERENCE(copy_fast_number_jsarray_elements_to_typed_array,
 FUNCTION_REFERENCE(copy_typed_array_elements_to_typed_array,
                    CopyTypedArrayElementsToTypedArray)
 FUNCTION_REFERENCE(copy_typed_array_elements_slice, CopyTypedArrayElementsSlice)
-FUNCTION_REFERENCE(try_internalize_string_function,
-                   StringTable::LookupStringIfExists_NoAllocate)
+FUNCTION_REFERENCE(try_string_to_index_or_lookup_existing,
+                   StringTable::TryStringToIndexOrLookupExisting)
 FUNCTION_REFERENCE(string_to_array_index_function, String::ToArrayIndex)
 
 static Address LexicographicCompareWrapper(Isolate* isolate, Address smi_x,

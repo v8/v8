@@ -4679,15 +4679,15 @@ void EffectControlLinearizer::LowerCheckEqualsInternalizedString(
       builder.AddReturn(MachineType::AnyTagged());
       builder.AddParam(MachineType::Pointer());
       builder.AddParam(MachineType::AnyTagged());
-      Node* try_internalize_string_function = __ ExternalConstant(
-          ExternalReference::try_internalize_string_function());
+      Node* try_string_to_index_or_lookup_existing = __ ExternalConstant(
+          ExternalReference::try_string_to_index_or_lookup_existing());
       Node* const isolate_ptr =
           __ ExternalConstant(ExternalReference::isolate_address(isolate()));
       auto call_descriptor =
           Linkage::GetSimplifiedCDescriptor(graph()->zone(), builder.Build());
       Node* val_internalized =
           __ Call(common()->Call(call_descriptor),
-                  try_internalize_string_function, isolate_ptr, val);
+                  try_string_to_index_or_lookup_existing, isolate_ptr, val);
 
       // Now see if the results match.
       __ DeoptimizeIfNot(DeoptimizeReason::kWrongName, FeedbackSource(),

@@ -14,6 +14,7 @@
 #include "src/execution/isolate-inl.h"
 #include "src/objects/js-generator-inl.h"
 #include "src/objects/source-text-module.h"
+#include "src/objects/string-set-inl.h"
 #include "src/parsing/parse-info.h"
 #include "src/parsing/parsing.h"
 #include "src/parsing/rewriter.h"

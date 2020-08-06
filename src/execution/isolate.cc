@@ -3092,6 +3092,7 @@ void Isolate::Deinit() {
 
   delete deoptimizer_data_;
   deoptimizer_data_ = nullptr;
+  string_table_.reset();
   builtins_.TearDown();
   bootstrapper_->TearDown();
 
@@ -3515,6 +3516,7 @@ bool Isolate::Init(ReadOnlyDeserializer* read_only_deserializer,
   date_cache_ = new DateCache();
   heap_profiler_ = new HeapProfiler(heap());
   interpreter_ = new interpreter::Interpreter(this);
+  string_table_.reset(new StringTable());
 
   compiler_dispatcher_ =
       new CompilerDispatcher(this, V8::GetCurrentPlatform(), FLAG_stack_size);

@@ -3545,7 +3545,6 @@ void TranslatedState::InitializeCapturedObjectAt(
     case GLOBAL_DICTIONARY_TYPE:
     case NUMBER_DICTIONARY_TYPE:
     case SIMPLE_NUMBER_DICTIONARY_TYPE:
-    case STRING_TABLE_TYPE:
     case PROPERTY_ARRAY_TYPE:
     case SCRIPT_CONTEXT_TABLE_TYPE:
     case SLOPPY_ARGUMENTS_ELEMENTS_TYPE:
@@ -3693,8 +3692,7 @@ void TranslatedState::EnsureCapturedObjectAllocatedAt(
     case NAME_DICTIONARY_TYPE:
     case GLOBAL_DICTIONARY_TYPE:
     case NUMBER_DICTIONARY_TYPE:
-    case SIMPLE_NUMBER_DICTIONARY_TYPE:
-    case STRING_TABLE_TYPE: {
+    case SIMPLE_NUMBER_DICTIONARY_TYPE: {
       // Check we have the right size.
       int array_length = frame->values_[value_index].GetSmiValue();
       int instance_size = FixedArray::SizeFor(array_length);

@@ -7354,8 +7354,8 @@ void CodeStubAssembler::TryInternalizeString(
     SloppyTNode<String> string, Label* if_index, TVariable<IntPtrT>* var_index,
     Label* if_internalized, TVariable<Name>* var_internalized,
     Label* if_not_internalized, Label* if_bailout) {
-  TNode<ExternalReference> function =
-      ExternalConstant(ExternalReference::try_internalize_string_function());
+  TNode<ExternalReference> function = ExternalConstant(
+      ExternalReference::try_string_to_index_or_lookup_existing());
   const TNode<ExternalReference> isolate_ptr =
       ExternalConstant(ExternalReference::isolate_address(isolate()));
   TNode<Object> result =
@@ -9563,23 +9563,23 @@ TNode<Word32T> CodeStubAssembler::PrepareValueForWriteToTypedArray<Word32T>(
   {
     TNode<Float64T> value =
         LoadObjectField<Float64T>(heap_object, HeapNumber::kValueOffset);
-      if (elements_kind == UINT8_CLAMPED_ELEMENTS) {
-        var_result = Float64ToUint8Clamped(value);
-      } else {
-        var_result = TruncateFloat64ToWord32(value);
-      }
+    if (elements_kind == UINT8_CLAMPED_ELEMENTS) {
+      var_result = Float64ToUint8Clamped(value);
+    } else {
+      var_result = TruncateFloat64ToWord32(value);
+    }
     Goto(&done);
   }
 
   BIND(&if_smi);
   {
     TNode<Int32T> value = SmiToInt32(CAST(var_input.value()));
-      if (elements_kind == UINT8_CLAMPED_ELEMENTS) {
-        var_result = Int32ToUint8Clamped(value);
-      } else {
-        var_result = value;
-      }
-      Goto(&done);
+    if (elements_kind == UINT8_CLAMPED_ELEMENTS) {
+      var_result = Int32ToUint8Clamped(value);
+    } else {
+      var_result = value;
+    }
+    Goto(&done);
   }
 
   BIND(&convert);

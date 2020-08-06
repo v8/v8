@@ -61,6 +61,7 @@
 #include "src/objects/promise-inl.h"
 #include "src/objects/property-descriptor-object-inl.h"
 #include "src/objects/stack-frame-info-inl.h"
+#include "src/objects/string-set-inl.h"
 #include "src/objects/struct-inl.h"
 #include "src/objects/template-objects-inl.h"
 #include "src/objects/transitions-inl.h"
@@ -152,6 +153,8 @@ void HeapObject::HeapObjectPrint(std::ostream& os) {  // NOLINT
       NativeContext::cast(*this).NativeContextPrint(os);
       break;
     case HASH_TABLE_TYPE:
+      ObjectHashTable::cast(*this).ObjectHashTablePrint(os);
+      break;
     case ORDERED_HASH_MAP_TYPE:
     case ORDERED_HASH_SET_TYPE:
     case ORDERED_NAME_DICTIONARY_TYPE:
@@ -159,9 +162,6 @@ void HeapObject::HeapObjectPrint(std::ostream& os) {  // NOLINT
     case GLOBAL_DICTIONARY_TYPE:
     case SIMPLE_NUMBER_DICTIONARY_TYPE:
       FixedArray::cast(*this).FixedArrayPrint(os);
-      break;
-    case STRING_TABLE_TYPE:
-      ObjectHashTable::cast(*this).ObjectHashTablePrint(os);
       break;
     case NUMBER_DICTIONARY_TYPE:
       NumberDictionary::cast(*this).NumberDictionaryPrint(os);

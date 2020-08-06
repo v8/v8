@@ -17,6 +17,7 @@
 #include "src/objects/module-inl.h"
 #include "src/objects/objects-inl.h"
 #include "src/objects/scope-info.h"
+#include "src/objects/string-set-inl.h"
 #include "src/parsing/parse-info.h"
 #include "src/parsing/parser.h"
 #include "src/parsing/preparse-data.h"

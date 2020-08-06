@@ -61,6 +61,7 @@ class ScriptContextTable;
 class SourceTextModule;
 class StackFrameInfo;
 class StackTraceFrame;
+class StringSet;
 class StoreHandler;
 class SyntheticModule;
 class TemplateObjectDescription;

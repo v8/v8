@@ -168,7 +168,8 @@ class StatsCounter;
   V(search_string_raw_two_two, "search_string_raw_two_two")                    \
   V(smi_lexicographic_compare_function, "smi_lexicographic_compare_function")  \
   V(string_to_array_index_function, "String::ToArrayIndex")                    \
-  V(try_internalize_string_function, "try_internalize_string_function")        \
+  V(try_string_to_index_or_lookup_existing,                                    \
+    "try_string_to_index_or_lookup_existing")                                  \
   V(wasm_call_trap_callback_for_testing,                                       \
     "wasm::call_trap_callback_for_testing")                                    \
   V(wasm_f32_ceil, "wasm::f32_ceil_wrapper")                                   \

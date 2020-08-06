@@ -1054,43 +1054,29 @@ class MarkCompactCollector::CustomRootBodyMarkingVisitor final
   MarkCompactCollector* const collector_;
 };
 
-class InternalizedStringTableCleaner : public ObjectVisitor {
+class InternalizedStringTableCleaner : public RootVisitor {
  public:
-  InternalizedStringTableCleaner(Heap* heap, HeapObject table)
-      : heap_(heap), pointers_removed_(0), table_(table) {}
+  explicit InternalizedStringTableCleaner(Heap* heap)
+      : heap_(heap), pointers_removed_(0) {}
 
-  void VisitPointers(HeapObject host, ObjectSlot start,
-                     ObjectSlot end) override {
+  void VisitRootPointers(Root root, const char* description,
+                         FullObjectSlot start, FullObjectSlot end) override {
+    DCHECK_EQ(root, Root::kStringTable);
     // Visit all HeapObject pointers in [start, end).
-    Object the_hole = ReadOnlyRoots(heap_).the_hole_value();
     MarkCompactCollector::NonAtomicMarkingState* marking_state =
         heap_->mark_compact_collector()->non_atomic_marking_state();
-    for (ObjectSlot p = start; p < end; ++p) {
+    for (FullObjectSlot p = start; p < end; ++p) {
       Object o = *p;
       if (o.IsHeapObject()) {
         HeapObject heap_object = HeapObject::cast(o);
+        DCHECK(!Heap::InYoungGeneration(heap_object));
         if (marking_state->IsWhite(heap_object)) {
           pointers_removed_++;
           // Set the entry to the_hole_value (as deleted).
-          p.store(the_hole);
-        } else {
-          // StringTable contains only old space strings.
-          DCHECK(!Heap::InYoungGeneration(o));
-          MarkCompactCollector::RecordSlot(table_, p, heap_object);
+          p.store(StringTable::deleted_element());
         }
       }
     }
-  }
-
-  void VisitPointers(HeapObject host, MaybeObjectSlot start,
-                     MaybeObjectSlot end) final {
-    UNREACHABLE();
-  }
-
-  void VisitCodeTarget(Code host, RelocInfo* rinfo) final { UNREACHABLE(); }
-
-  void VisitEmbeddedPointer(Code host, RelocInfo* rinfo) final {
-    UNREACHABLE();
   }
 
   int PointersRemoved() { return pointers_removed_; }
@@ -1098,7 +1084,6 @@ class InternalizedStringTableCleaner : public ObjectVisitor {
  private:
   Heap* heap_;
   int pointers_removed_;
-  HeapObject table_;
 };
 
 class ExternalStringTableCleaner : public RootVisitor {
@@ -1613,29 +1598,13 @@ bool MarkCompactCollector::IsUnmarkedHeapObject(Heap* heap, FullObjectSlot p) {
       heap_object);
 }
 
-void MarkCompactCollector::MarkStringTable(
-    ObjectVisitor* custom_root_body_visitor) {
-  StringTable string_table = heap()->string_table();
-  // Mark the string table itself.
-  if (marking_state()->WhiteToBlack(string_table)) {
-    // Explicitly mark the prefix.
-    string_table.IteratePrefix(custom_root_body_visitor);
-    if (marking_worklists()->IsPerContextMode()) {
-      native_context_stats_.IncrementSize(MarkingWorklists::kSharedContext,
-                                          string_table.map(), string_table,
-                                          string_table.Size());
-    }
-  }
-}
-
 void MarkCompactCollector::MarkRoots(RootVisitor* root_visitor,
                                      ObjectVisitor* custom_root_body_visitor) {
   // Mark the heap roots including global variables, stack variables,
   // etc., and all objects reachable from them.
   heap()->IterateRoots(root_visitor, base::EnumSet<SkipRoot>{SkipRoot::kWeak});
 
-  // Custom marking for string table and top optimized frame.
-  MarkStringTable(custom_root_body_visitor);
+  // Custom marking for top optimized frame.
   ProcessTopOptimizedFrame(custom_root_body_visitor);
 }
 
@@ -2099,10 +2068,11 @@ void MarkCompactCollector::ClearNonLiveReferences() {
     // Prune the string table removing all strings only pointed to by the
     // string table.  Cannot use string_table() here because the string
     // table is marked.
-    StringTable string_table = heap()->string_table();
-    InternalizedStringTableCleaner internalized_visitor(heap(), string_table);
-    string_table.IterateElements(&internalized_visitor);
-    string_table.ElementsRemoved(internalized_visitor.PointersRemoved());
+    StringTable* string_table = isolate()->string_table();
+    InternalizedStringTableCleaner internalized_visitor(heap());
+    string_table->DropOldData();
+    string_table->IterateElements(&internalized_visitor);
+    string_table->NotifyElementsRemoved(internalized_visitor.PointersRemoved());
 
     ExternalStringTableCleaner external_visitor(heap());
     heap()->external_string_table_.IterateAll(&external_visitor);

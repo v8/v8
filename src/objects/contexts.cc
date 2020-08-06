@@ -9,6 +9,7 @@
 #include "src/execution/isolate-inl.h"
 #include "src/init/bootstrapper.h"
 #include "src/objects/module-inl.h"
+#include "src/objects/string-set-inl.h"
 
 namespace v8 {
 namespace internal {

@@ -1146,9 +1146,10 @@ void Heap::GarbageCollectionEpilogue() {
   isolate_->counters()->alive_after_last_gc()->Set(
       static_cast<int>(SizeOfObjects()));
 
-  isolate_->counters()->string_table_capacity()->Set(string_table().Capacity());
+  isolate_->counters()->string_table_capacity()->Set(
+      isolate()->string_table()->Capacity());
   isolate_->counters()->number_of_symbols()->Set(
-      string_table().NumberOfElements());
+      isolate()->string_table()->NumberOfElements());
 
   if (CommittedMemory() > 0) {
     isolate_->counters()->external_fragmentation_total()->AddSample(
@@ -1828,41 +1829,25 @@ void Heap::CopyRange(HeapObject dst_object, const TSlot dst_slot,
 
 #ifdef VERIFY_HEAP
 // Helper class for verifying the string table.
-class StringTableVerifier : public ObjectVisitor {
+class StringTableVerifier : public RootVisitor {
  public:
-  explicit StringTableVerifier(Isolate* isolate) : isolate_(isolate) {}
-
-  void VisitPointers(HeapObject host, ObjectSlot start,
-                     ObjectSlot end) override {
+  void VisitRootPointers(Root root, const char* description,
+                         FullObjectSlot start, FullObjectSlot end) override {
     // Visit all HeapObject pointers in [start, end).
-    for (ObjectSlot p = start; p < end; ++p) {
+    for (FullObjectSlot p = start; p < end; ++p) {
       DCHECK(!HasWeakHeapObjectTag(*p));
       if ((*p).IsHeapObject()) {
         HeapObject object = HeapObject::cast(*p);
         // Check that the string is actually internalized.
-        CHECK(object.IsTheHole(isolate_) || object.IsUndefined(isolate_) ||
-              object.IsInternalizedString());
+        CHECK(object.IsInternalizedString());
       }
     }
   }
-  void VisitPointers(HeapObject host, MaybeObjectSlot start,
-                     MaybeObjectSlot end) override {
-    UNREACHABLE();
-  }
-
-  void VisitCodeTarget(Code host, RelocInfo* rinfo) override { UNREACHABLE(); }
-
-  void VisitEmbeddedPointer(Code host, RelocInfo* rinfo) override {
-    UNREACHABLE();
-  }
-
- private:
-  Isolate* isolate_;
 };
 
 static void VerifyStringTable(Isolate* isolate) {
-  StringTableVerifier verifier(isolate);
-  isolate->heap()->string_table().IterateElements(&verifier);
+  StringTableVerifier verifier;
+  isolate->string_table()->IterateElements(&verifier);
 }
 #endif  // VERIFY_HEAP
 
@@ -4441,8 +4426,12 @@ void Heap::set_builtin(int index, Code builtin) {
 
 void Heap::IterateWeakRoots(RootVisitor* v, base::EnumSet<SkipRoot> options) {
   DCHECK(!options.contains(SkipRoot::kWeak));
-  v->VisitRootPointer(Root::kStringTable, nullptr,
-                      FullObjectSlot(&roots_table()[RootIndex::kStringTable]));
+
+  if (!options.contains(SkipRoot::kUnserializable)) {
+    // Do not visit for serialization, since the string table is custom
+    // serialized.
+    isolate()->string_table()->IterateElements(v);
+  }
   v->Synchronize(VisitorSynchronization::kStringTable);
   if (!options.contains(SkipRoot::kExternalStringTable) &&
       !options.contains(SkipRoot::kUnserializable)) {
@@ -4870,6 +4859,7 @@ void Heap::RecordStats(HeapStats* stats, bool take_snapshot) {
   *stats->memory_allocator_capacity =
       memory_allocator()->Size() + memory_allocator()->Available();
   *stats->os_error = base::OS::GetLastError();
+  // TODO(leszeks): Include the string table in both current and peak usage.
   *stats->malloced_memory = isolate_->allocator()->GetCurrentMemoryUsage();
   *stats->malloced_peak_memory = isolate_->allocator()->GetMaxMemoryUsage();
   if (take_snapshot) {

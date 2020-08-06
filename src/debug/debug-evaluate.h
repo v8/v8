@@ -14,7 +14,7 @@
 #include "src/execution/frames.h"
 #include "src/objects/objects.h"
 #include "src/objects/shared-function-info.h"
-#include "src/objects/string-table.h"
+#include "src/objects/string-set.h"
 
 namespace v8 {
 namespace internal {

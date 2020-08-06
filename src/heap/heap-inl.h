@@ -10,13 +10,12 @@
 // Clients of this interface shouldn't depend on lots of heap internals.
 // Do not include anything from src/heap other than src/heap/heap.h and its
 // write barrier here!
+#include "src/base/atomic-utils.h"
 #include "src/base/atomicops.h"
+#include "src/base/platform/platform.h"
 #include "src/heap/heap-write-barrier.h"
 #include "src/heap/heap.h"
 #include "src/heap/third-party/heap-api.h"
-
-#include "src/base/atomic-utils.h"
-#include "src/base/platform/platform.h"
 #include "src/objects/feedback-vector.h"
 
 // TODO(gc): There is one more include to remove in order to no longer
@@ -130,10 +129,6 @@ void Heap::SetRootMaterializedObjects(FixedArray objects) {
 
 void Heap::SetRootScriptList(Object value) {
   roots_table()[RootIndex::kScriptList] = value.ptr();
-}
-
-void Heap::SetRootStringTable(StringTable value) {
-  roots_table()[RootIndex::kStringTable] = value.ptr();
 }
 
 void Heap::SetMessageListeners(TemplateList value) {

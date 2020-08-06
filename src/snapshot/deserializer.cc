@@ -175,19 +175,19 @@ void Deserializer::LogScriptEvents(Script script) {
   LOG(local_isolate(), ScriptDetails(script));
 }
 
-StringTableInsertionKey::StringTableInsertionKey(String string)
-    : StringTableKey(ComputeHashField(string), string.length()),
+StringTableInsertionKey::StringTableInsertionKey(Handle<String> string)
+    : StringTableKey(ComputeHashField(*string), string->length()),
       string_(string) {
-  DCHECK(string.IsInternalizedString());
+  DCHECK(string->IsInternalizedString());
 }
 
 bool StringTableInsertionKey::IsMatch(String string) {
   // We want to compare the content of two strings here.
-  return string_.SlowEquals(string);
+  return string_->SlowEquals(string);
 }
 
 Handle<String> StringTableInsertionKey::AsHandle(Isolate* isolate) {
-  return handle(string_, isolate);
+  return string_;
 }
 
 uint32_t StringTableInsertionKey::ComputeHashField(String string) {
@@ -195,21 +195,6 @@ uint32_t StringTableInsertionKey::ComputeHashField(String string) {
   string.Hash();
   return string.hash_field();
 }
-
-namespace {
-
-String ForwardStringIfExists(Isolate* isolate, StringTableInsertionKey* key) {
-  StringTable table = isolate->heap()->string_table();
-  InternalIndex entry = table.FindEntry(isolate, key);
-  if (entry.is_not_found()) return String();
-
-  String canonical = String::cast(table.KeyAt(entry));
-  DCHECK_NE(canonical, key->string());
-  key->string().MakeThin(isolate, canonical);
-  return canonical;
-}
-
-}  // namespace
 
 HeapObject Deserializer::PostProcessNewObject(HeapObject obj,
                                               SnapshotSpace space) {
@@ -245,13 +230,18 @@ HeapObject Deserializer::PostProcessNewObject(HeapObject obj,
 
         // Canonicalize the internalized string. If it already exists in the
         // string table, set it to forward to the existing one.
-        StringTableInsertionKey key(string);
-        String canonical = ForwardStringIfExists(isolate(), &key);
 
-        if (!canonical.is_null()) return canonical;
+        // Create storage for a fake handle -- this only needs to be valid until
+        // the end of LookupKey.
+        Address handle_storage = string.ptr();
+        Handle<String> handle(&handle_storage);
+        StringTableInsertionKey key(handle);
+        String result = *isolate()->string_table()->LookupKey(isolate(), &key);
 
-        new_internalized_strings_.push_back(handle(string, isolate()));
-        return string;
+        if (FLAG_thin_strings && result != string) {
+          string.MakeThin(isolate(), result);
+        }
+        return result;
       }
     } else if (obj.IsScript()) {
       new_scripts_.push_back(handle(Script::cast(obj), local_isolate()));
