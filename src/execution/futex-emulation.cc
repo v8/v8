@@ -749,12 +749,12 @@ void FutexEmulation::HandleAsyncWaiterTimeout(FutexWaitListNode* node) {
 
   base::MutexGuard lock_guard(g_mutex.Pointer());
 
+  node->timeout_task_id_ = CancelableTaskManager::kInvalidTaskId;
   if (!node->waiting_) {
     // If the Node is not waiting, it's already scheduled to have its Promise
     // resolved. Ignore the timeout.
     return;
   }
-  node->timeout_task_id_ = CancelableTaskManager::kInvalidTaskId;
   g_wait_list.Pointer()->RemoveNode(node);
   HandleScope handle_scope(node->isolate_for_async_waiters_);
   ResolveAsyncWaiterPromise(node);
