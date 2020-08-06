@@ -1131,6 +1131,11 @@ void Heap::GarbageCollectionEpilogueInSafepoint() {
   if (FLAG_code_stats) ReportCodeStatistics("After GC");
   if (FLAG_check_handle_count) CheckHandleCount();
 #endif
+
+  {
+    TRACE_GC(tracer(), GCTracer::Scope::HEAP_EPILOGUE_REDUCE_NEW_SPACE);
+    ReduceNewSpaceSize();
+  }
 }
 
 void Heap::GarbageCollectionEpilogue() {
@@ -1173,11 +1178,6 @@ void Heap::GarbageCollectionEpilogue() {
 #endif  // DEBUG
 
   last_gc_time_ = MonotonicallyIncreasingTimeInMs();
-
-  {
-    TRACE_GC(tracer(), GCTracer::Scope::HEAP_EPILOGUE_REDUCE_NEW_SPACE);
-    ReduceNewSpaceSize();
-  }
 }
 
 class GCCallbacksScope {
