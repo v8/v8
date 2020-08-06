@@ -280,9 +280,9 @@ class LiftoffCompiler {
 
   using FullDecoder = WasmFullDecoder<validate, LiftoffCompiler>;
 
-  // For debugging, we need to spill registers before a trap, to be able to
-  // inspect them.
-  struct SpilledRegistersBeforeTrap : public ZoneObject {
+  // For debugging, we need to spill registers before a trap or a stack check to
+  // be able to inspect them.
+  struct SpilledRegistersForInspection : public ZoneObject {
     struct Entry {
       int offset;
       LiftoffRegister reg;
@@ -290,7 +290,7 @@ class LiftoffCompiler {
     };
     ZoneVector<Entry> entries;
 
-    explicit SpilledRegistersBeforeTrap(Zone* zone) : entries(zone) {}
+    explicit SpilledRegistersForInspection(Zone* zone) : entries(zone) {}
   };
 
   struct OutOfLineCode {
@@ -302,13 +302,13 @@ class LiftoffCompiler {
     uint32_t pc;  // for trap handler.
     // These two pointers will only be used for debug code:
     DebugSideTableBuilder::EntryBuilder* debug_sidetable_entry_builder;
-    SpilledRegistersBeforeTrap* spilled_registers;
+    SpilledRegistersForInspection* spilled_registers;
 
     // Named constructors:
     static OutOfLineCode Trap(
         WasmCode::RuntimeStubId s, WasmCodePosition pos, uint32_t pc,
         DebugSideTableBuilder::EntryBuilder* debug_sidetable_entry_builder,
-        SpilledRegistersBeforeTrap* spilled_registers) {
+        SpilledRegistersForInspection* spilled_registers) {
       DCHECK_LT(0, pos);
       return {{},
               {},
@@ -320,10 +320,11 @@ class LiftoffCompiler {
               spilled_registers};
     }
     static OutOfLineCode StackCheck(
-        WasmCodePosition pos, LiftoffRegList regs,
+        WasmCodePosition pos, LiftoffRegList regs_to_save,
+        SpilledRegistersForInspection* spilled_regs,
         DebugSideTableBuilder::EntryBuilder* debug_sidetable_entry_builder) {
-      return {{},   {}, WasmCode::kWasmStackGuard,     pos,
-              regs, 0,  debug_sidetable_entry_builder, nullptr};
+      return {{},           {}, WasmCode::kWasmStackGuard,     pos,
+              regs_to_save, 0,  debug_sidetable_entry_builder, spilled_regs};
     }
   };
 
@@ -503,8 +504,14 @@ class LiftoffCompiler {
   void StackCheck(WasmCodePosition position) {
     DEBUG_CODE_COMMENT("stack check");
     if (!FLAG_wasm_stack_checks || !env_->runtime_exception_support) return;
+    LiftoffRegList regs_to_save = __ cache_state()->used_registers;
+    SpilledRegistersForInspection* spilled_regs = nullptr;
+    if (V8_UNLIKELY(for_debugging_)) {
+      regs_to_save = {};
+      spilled_regs = GetSpilledRegistersForInspection();
+    }
     out_of_line_code_.push_back(OutOfLineCode::StackCheck(
-        position, __ cache_state()->used_registers,
+        position, regs_to_save, spilled_regs,
         RegisterDebugSideTableEntry(DebugSideTableBuilder::kAssumeSpilling)));
     OutOfLineCode& ool = out_of_line_code_.back();
     Register limit_address = __ GetUnusedRegister(kGpReg, {}).gp();
@@ -731,6 +738,14 @@ class LiftoffCompiler {
     DCHECK_EQ(ool->continuation.get()->is_bound(), is_stack_check);
     if (!ool->regs_to_save.is_empty()) __ PopRegisters(ool->regs_to_save);
     if (is_stack_check) {
+      // TODO(thibaudm): If the top frame is OSR'ed during stack check,
+      // execution will resume at the next instruction, skipping the following
+      // register reloads.
+      if (V8_UNLIKELY(ool->spilled_registers != nullptr)) {
+        for (auto& entry : ool->spilled_registers->entries) {
+          __ Fill(entry.reg, entry.offset, entry.type);
+        }
+      }
       __ emit_jump(ool->continuation.get());
     } else {
       __ AssertUnreachable(AbortReason::kUnexpectedReturnFromWasmTrap);
@@ -1944,16 +1959,16 @@ class LiftoffCompiler {
     __ cache_state()->Steal(c->else_state->state);
   }
 
-  SpilledRegistersBeforeTrap* GetSpilledRegistersBeforeTrap() {
+  SpilledRegistersForInspection* GetSpilledRegistersForInspection() {
     DCHECK(for_debugging_);
     // If we are generating debugging code, we really need to spill all
     // registers to make them inspectable when stopping at the trap.
-    auto* spilled =
-        compilation_zone_->New<SpilledRegistersBeforeTrap>(compilation_zone_);
+    auto* spilled = compilation_zone_->New<SpilledRegistersForInspection>(
+        compilation_zone_);
     for (uint32_t i = 0, e = __ cache_state()->stack_height(); i < e; ++i) {
       auto& slot = __ cache_state()->stack_state[i];
       if (!slot.is_reg()) continue;
-      spilled->entries.push_back(SpilledRegistersBeforeTrap::Entry{
+      spilled->entries.push_back(SpilledRegistersForInspection::Entry{
           slot.offset(), slot.reg(), slot.type()});
     }
     return spilled;
@@ -1966,7 +1981,7 @@ class LiftoffCompiler {
     out_of_line_code_.push_back(OutOfLineCode::Trap(
         stub, position, pc,
         RegisterDebugSideTableEntry(DebugSideTableBuilder::kAssumeSpilling),
-        V8_UNLIKELY(for_debugging_) ? GetSpilledRegistersBeforeTrap()
+        V8_UNLIKELY(for_debugging_) ? GetSpilledRegistersForInspection()
                                     : nullptr));
     return out_of_line_code_.back().label.get();
   }
