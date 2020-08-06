@@ -72,8 +72,6 @@ inline CodeKind CodeKindForTopTier() {
                                         : CodeKind::OPTIMIZED_FUNCTION;
 }
 
-inline CodeKind CodeKindForOSR() { return CodeKind::OPTIMIZED_FUNCTION; }
-
 }  // namespace internal
 }  // namespace v8
 

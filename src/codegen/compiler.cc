@@ -1037,10 +1037,8 @@ MaybeHandle<Code> GetOptimizedCode(Handle<JSFunction> function,
   DCHECK(shared->is_compiled());
   function->feedback_vector().set_profiler_ticks(0);
 
-  if (CodeKindIsNativeContextIndependentJSFunction(code_kind)) {
-    // We don't generate NCI code for OSR.
-    DCHECK_EQ(osr_offset, BailoutId::None());
-
+  if (CodeKindIsNativeContextIndependentJSFunction(code_kind) &&
+      osr_offset == BailoutId::None()) {
     // Don't generate NCI code when we've already done so in the past.
     Handle<Code> cached_code;
     if (GetCodeFromCompilationCache(isolate, shared).ToHandle(&cached_code)) {
@@ -2902,7 +2900,7 @@ MaybeHandle<Code> Compiler::GetOptimizedCodeForOSR(Handle<JSFunction> function,
   DCHECK(!osr_offset.IsNone());
   DCHECK_NOT_NULL(osr_frame);
   return GetOptimizedCode(function, ConcurrencyMode::kNotConcurrent,
-                          CodeKindForOSR(), osr_offset, osr_frame);
+                          CodeKindForTopTier(), osr_offset, osr_frame);
 }
 
 // static
