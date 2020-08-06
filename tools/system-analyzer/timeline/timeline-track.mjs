@@ -5,6 +5,7 @@
 import {defineCustomElement, V8CustomElement,
   transitionTypeToColor, CSSColor} from '../helper.mjs';
 import {kChunkWidth, kChunkHeight} from '../map-processor.mjs';
+import {SelectionEvent, SelectEvent} from '../events.mjs';
 
 defineCustomElement('./timeline/timeline-track', (templateText) =>
   class TimelineTrack extends V8CustomElement {
@@ -107,12 +108,7 @@ defineCustomElement('./timeline/timeline-track', (templateText) =>
     }
 
     handleEntryTypeDblClick(e){
-      let selectedEvent = {
-        entries: e.target.entries
-      }
-      this.dispatchEvent(new CustomEvent(
-        'selectionevent', {bubbles: true, composed: true,
-         detail: selectedEvent}));
+      this.dispatchEvent(new SelectionEvent(e.target.entries));
     }
 
     timelineIndicatorMove(offset) {
@@ -230,8 +226,7 @@ defineCustomElement('./timeline/timeline-track', (templateText) =>
       let relativeIndex =
           Math.round(event.layerY / event.target.offsetHeight * chunk.size());
       let map = chunk.at(relativeIndex);
-      this.dispatchEvent(new CustomEvent(
-        'mapchange', {bubbles: true, composed: true, detail: map}));
+      this.dispatchEvent(new SelectEvent(map));
     }
 
     handleChunkClick(event) {
@@ -242,8 +237,8 @@ defineCustomElement('./timeline/timeline-track', (templateText) =>
       this.isLocked = true;
       let chunk = event.target.chunk;
       if (!chunk) return;
-      this.dispatchEvent(new CustomEvent(
-        'showmaps', {bubbles: true, composed: true, detail: chunk}));
+      let maps = chunk.filter();
+      this.dispatchEvent(new SelectionEvent(maps));
     }
 
     drawOverview() {

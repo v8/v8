@@ -4,6 +4,7 @@
 
 import {Group} from './ic-model.mjs';
 import CustomIcProcessor from "./ic-processor.mjs";
+import {SelectEvent} from './events.mjs';
 import {defineCustomElement, V8CustomElement} from './helper.mjs';
 
 defineCustomElement('ic-panel', (templateText) =>
@@ -92,14 +93,11 @@ defineCustomElement('ic-panel', (templateText) =>
   }
 
   handleMapClick(e){
-    this.dispatchEvent(new CustomEvent(
-      'mapclick', {bubbles: true, composed: true,
-         detail: e.target.parentNode.entry}));
+    this.dispatchEvent(new SelectEvent(e.target.parentNode.entry));
   }
+
   handleFilePositionClick(e){
-    this.dispatchEvent(new CustomEvent(
-      'filepositionclick', {bubbles: true, composed: true,
-       detail: e.target.parentNode.entry}));
+    this.dispatchEvent(new SelectEvent(e.target.parentNode.entry.key));
   }
 
   render(entries, parent) {

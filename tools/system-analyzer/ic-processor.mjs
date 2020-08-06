@@ -208,7 +208,7 @@ class CustomIcProcessor extends IcProcessor {
     return this.timeline;
   }
 };
-
+// TODO(zcankara) Change name to Entry -> V8IcEntry or V8Ic
 class Entry extends Event {
   constructor(
       type, fn_file, time, line, column, key, oldState, newState, map, reason,
@@ -262,4 +262,4 @@ class Entry extends Event {
   }
 }
 
-export { CustomIcProcessor as default };
+export { CustomIcProcessor as default, Entry};

@@ -3,9 +3,9 @@
 // found in the LICENSE file.
 
 import CustomIcProcessor from "./ic-processor.mjs";
+import {Entry} from "./ic-processor.mjs";
 import {State} from './app-model.mjs';
 import {MapProcessor, V8Map} from './map-processor.mjs';
-import {Chunk} from './timeline.mjs';
 import {$} from './helper.mjs';
 import './ic-panel.mjs';
 import './timeline-panel.mjs';
@@ -25,64 +25,54 @@ class App {
       icTrack: $(icTrackId),
     }
     this.#state = new State();
+    this.toggleSwitch = $('.theme-switch input[type="checkbox"]');
+    this.toggleSwitch.addEventListener('change', e => this.switchTheme(e));
     this.#view.logFileReader.addEventListener('fileuploadstart',
       e => this.handleFileUpload(e));
     this.#view.logFileReader.addEventListener('fileuploadend',
       e => this.handleDataUpload(e));
-    this.toggleSwitch = $('.theme-switch input[type="checkbox"]');
-    this.toggleSwitch.addEventListener('change', e => this.switchTheme(e));
-    this.#view.timelinePanel.addEventListener(
-      'mapchange', e => this.handleMapChange(e));
-    this.#view.timelinePanel.addEventListener(
-      'showmaps', e => this.handleShowMaps(e));
-    this.#view.mapPanel.addEventListener(
-      'mapchange', e => this.handleMapChange(e));
-    this.#view.mapPanel.addEventListener(
-      'selectmapdblclick', e => this.handleDblClickSelectMap(e));
-    this.#view.mapPanel.addEventListener(
-      'sourcepositionsclick', e => this.handleClickSourcePositions(e));
+    Object.entries(this.#view).forEach(([_, value]) => {
+      value.addEventListener('showentries',
+        e => this.handleShowEntries(e));
+      value.addEventListener('showentrydetail',
+        e => this.handleShowEntryDetail(e));
+    });
     this.#view.icPanel.addEventListener(
       'ictimefilter', e => this.handleICTimeFilter(e));
-    this.#view.icPanel.addEventListener(
-      'mapclick', e => this.handleMapClick(e));
-    this.#view.mapPanel.addEventListener(
-        'click', e => this.handleMapAddressSearch(e));
-    this.#view.mapPanel.addEventListener(
-      'change', e => this.handleShowMapsChange(e));
-    this.#view.icPanel.addEventListener(
-      'filepositionclick', e => this.handleFilePositionClick(e));
   }
-  handleMapClick(e) {
-    //TODO(zcankara) Direct the event based on the key and value
-    console.log("map: ", e.detail.key);
+  handleShowEntries(e){
+    if(e.entries[0] instanceof V8Map){
+      this.#view.mapPanel.mapEntries = e.entries;
+    }
   }
-  handleFilePositionClick(e) {
-    //TODO(zcankara) Direct the event based on the key and value
-    console.log("filePosition: ", e.detail.key);
+  handleShowEntryDetail(e){
+    if(e.entry instanceof V8Map){
+      this.selectMapLogEvent(e.entry);
+    }
+    else if(e.entry instanceof Entry){
+      this.selectICLogEvent(e.entry);
+    }
+    else if(typeof e.entry === 'string'){
+      this.selectSourcePositionEvent(e.entry);
+    }
+    else {
+      console.log("undefined");
+    }
   }
   handleClickSourcePositions(e){
     //TODO(zcankara) Handle source position
-    console.log("source position map detail: ", e.detail);
+    console.log("Entry containing source position: ", e.entries);
   }
-  handleDblClickSelectMap(e){
-    //TODO(zcankara) Handle double clicked map
-    console.log("double clicked map: ", e.detail);
+  selectMapLogEvent(entry){
+    this.#state.map = entry;
+    this.#view.mapTrack.selectedEntry = entry;
+    this.#view.mapPanel.map = entry;
   }
-  handleMapChange(e){
-    if (!(e.detail instanceof V8Map)){
-      console.error("selected entry not a V8Map instance");
-      return;
-    }
-    this.#state.map = e.detail;
-    this.#view.mapTrack.selectedEntry = e.detail;
-    this.#view.mapPanel.map = e.detail;
+  selectICLogEvent(entry){
+    console.log("IC Entry selection");
   }
-  handleShowMaps(e){
-    if (!(e.detail instanceof Chunk)){
-      console.error("Chunk not selected");
-      return;
-    }
-    this.#view.mapPanel.mapEntries = e.detail.filter();
+  selectSourcePositionEvent(sourcePositions){
+    console.log("source positions: ", sourcePositions);
   }
   handleICTimeFilter(event) {
     this.#state.timeSelection.start = event.detail.startTime;
@@ -91,29 +81,15 @@ class App {
       this.#state.timeSelection.end);
     this.#view.icPanel.filteredEntries = this.#view.icTrack.data.selection;
   }
-  handleMapAddressSearch(e) {
-    //TODO(zcankara) Combine with handleMapChange into selectMap event
-    //TODO(zcankara) Possibility of select no map
-    if(!e.detail.map) return;
-    this.#state.map = e.detail.map;
-    this.#view.mapTrack.selectedEntry = e.detail.map;
-    this.#view.mapPanel.map = e.detail.map;
-  }
-  handleShowMapsChange(e) {
-    //TODO(zcankara) Map entries repeats "map". Probabluy not needed
-    this.#view.mapPanel.mapEntries = e.detail;
-  }
   handleFileUpload(e){
     //TODO(zcankara) Set a state on the document.body. Exe: .loading, .loaded
     $('#container').style.display = 'none';
   }
-
   // Map event log processing
   handleLoadTextMapProcessor(text) {
     let mapProcessor = new MapProcessor();
     return mapProcessor.processString(text);
   }
-
   // IC event file reading and log processing
   loadICLogFile(fileData) {
     let reader = new FileReader();

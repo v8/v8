@@ -4,6 +4,7 @@
 import "./stats-panel.mjs";
 import "./map-panel/map-details.mjs";
 import "./map-panel/map-transitions.mjs";
+import {SelectEvent} from './events.mjs';
 import {V8Map} from "./map-processor.mjs";
 import {defineCustomElement, V8CustomElement} from './helper.mjs';
 
@@ -68,21 +69,16 @@ defineCustomElement('map-panel', (templateText) =>
   }
 
   handleSearchBar(e){
-    let dataModel = Object.create(null);
     let searchBar = this.$('#searchBarInput');
     let searchBarInput = searchBar.value;
     //access the map from model cache
     let selectedMap = V8Map.get(searchBarInput);
     if(selectedMap){
-      dataModel.isValidMap = true;
-      dataModel.map = selectedMap;
       searchBar.className = "success";
     } else {
-      dataModel.isValidMap = false;
       searchBar.className = "failure";
     }
-    this.dispatchEvent(new CustomEvent(
-      'click', {bubbles: true, composed: true, detail: dataModel}));
+    this.dispatchEvent(new SelectEvent(selectedMap));
   }
 
   set mapEntries(list){
