@@ -280,8 +280,8 @@ class V8_EXPORT_PRIVATE NativeModuleSerializer {
 
  private:
   size_t MeasureCode(const WasmCode*) const;
-  void WriteHeader(Writer* writer);
-  void WriteCode(const WasmCode*, Writer* writer);
+  void WriteHeader(Writer*);
+  bool WriteCode(const WasmCode*, Writer*);
 
   const NativeModule* const native_module_;
   Vector<WasmCode* const> code_table_;
@@ -301,6 +301,9 @@ NativeModuleSerializer::NativeModuleSerializer(
 size_t NativeModuleSerializer::MeasureCode(const WasmCode* code) const {
   if (code == nullptr) return sizeof(bool);
   DCHECK_EQ(WasmCode::kFunction, code->kind());
+  if (FLAG_wasm_lazy_compilation && code->tier() != ExecutionTier::kTurbofan) {
+    return sizeof(bool);
+  }
   return kCodeHeaderSize + code->instructions().size() +
          code->reloc_info().size() + code->source_positions().size() +
          code->protected_instructions_data().size();
@@ -322,13 +325,21 @@ void NativeModuleSerializer::WriteHeader(Writer* writer) {
   writer->Write(native_module_->num_imported_functions());
 }
 
-void NativeModuleSerializer::WriteCode(const WasmCode* code, Writer* writer) {
+bool NativeModuleSerializer::WriteCode(const WasmCode* code, Writer* writer) {
+  DCHECK_IMPLIES(!FLAG_wasm_lazy_compilation, code != nullptr);
   if (code == nullptr) {
     writer->Write(false);
-    return;
+    return true;
+  }
+  DCHECK_EQ(WasmCode::kFunction, code->kind());
+  if (code->tier() != ExecutionTier::kTurbofan) {
+    if (FLAG_wasm_lazy_compilation) {
+      writer->Write(false);
+      return true;
+    }
+    return false;
   }
   writer->Write(true);
-  DCHECK_EQ(WasmCode::kFunction, code->kind());
   // Write the size of the entire code section, followed by the code header.
   writer->Write(code->constant_pool_offset());
   writer->Write(code->safepoint_table_offset());
@@ -415,6 +426,7 @@ void NativeModuleSerializer::WriteCode(const WasmCode* code, Writer* writer) {
   if (code_start != serialized_code_start) {
     memcpy(serialized_code_start, code_start, code_size);
   }
+  return true;
 }
 
 bool NativeModuleSerializer::Write(Writer* writer) {
@@ -424,7 +436,7 @@ bool NativeModuleSerializer::Write(Writer* writer) {
   WriteHeader(writer);
 
   for (WasmCode* code : code_table_) {
-    WriteCode(code, writer);
+    if (!WriteCode(code, writer)) return false;
   }
   return true;
 }

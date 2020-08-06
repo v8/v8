@@ -101,7 +101,7 @@ enum class CompilationEvent : uint8_t {
 
 // The implementation of {CompilationState} lives in module-compiler.cc.
 // This is the PIMPL interface to that private class.
-class CompilationState {
+class V8_EXPORT_PRIVATE CompilationState {
  public:
   using callback_t = std::function<void(CompilationEvent)>;
 
@@ -113,15 +113,17 @@ class CompilationState {
 
   void SetWireBytesStorage(std::shared_ptr<WireBytesStorage>);
 
-  V8_EXPORT_PRIVATE std::shared_ptr<WireBytesStorage> GetWireBytesStorage()
-      const;
+  std::shared_ptr<WireBytesStorage> GetWireBytesStorage() const;
 
   void AddCallback(callback_t);
 
+  // Wait until top tier finished, or compilation failed (to avoid deadlocks).
+  void WaitForTopTierFinishedForTesting();
+
   bool failed() const;
-  V8_EXPORT_PRIVATE bool baseline_compilation_finished() const;
-  V8_EXPORT_PRIVATE bool top_tier_compilation_finished() const;
-  V8_EXPORT_PRIVATE bool recompilation_finished() const;
+  bool baseline_compilation_finished() const;
+  bool top_tier_compilation_finished() const;
+  bool recompilation_finished() const;
 
   // Override {operator delete} to avoid implicit instantiation of {operator
   // delete} with {size_t} argument. The {size_t} argument would be incorrect.
