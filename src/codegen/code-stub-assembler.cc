@@ -13037,6 +13037,34 @@ void CodeStubAssembler::PerformStackCheck(TNode<Context> context) {
   BIND(&ok);
 }
 
+TNode<Context> CodeStubAssembler::AllocateSyntheticFunctionContext(
+    TNode<NativeContext> native_context, int slots) {
+  DCHECK_GE(slots, Context::MIN_CONTEXT_SLOTS);
+  TNode<HeapObject> context_heap_object =
+      AllocateInNewSpace(FixedArray::SizeFor(slots));
+  InitializeSyntheticFunctionContext(native_context, context_heap_object,
+                                     slots);
+  return CAST(context_heap_object);
+}
+
+void CodeStubAssembler::InitializeSyntheticFunctionContext(
+    TNode<NativeContext> native_context, TNode<HeapObject> context_heap_object,
+    int slots) {
+  DCHECK_GE(slots, Context::MIN_CONTEXT_SLOTS);
+  TNode<Map> map = CAST(
+      LoadContextElement(native_context, Context::FUNCTION_CONTEXT_MAP_INDEX));
+  StoreMapNoWriteBarrier(context_heap_object, map);
+  StoreObjectFieldNoWriteBarrier(context_heap_object, FixedArray::kLengthOffset,
+                                 SmiConstant(slots));
+
+  TNode<Context> context = CAST(context_heap_object);
+  const TNode<Object> empty_scope_info = LoadRoot(RootIndex::kEmptyScopeInfo);
+  StoreContextElementNoWriteBarrier(context, Context::SCOPE_INFO_INDEX,
+                                    empty_scope_info);
+  StoreContextElementNoWriteBarrier(context, Context::PREVIOUS_INDEX,
+                                    UndefinedConstant());
+}
+
 TNode<Object> CodeStubAssembler::CallApiCallback(
     TNode<Object> context, TNode<RawPtrT> callback, TNode<IntPtrT> argc,
     TNode<Object> data, TNode<Object> holder, TNode<Object> receiver) {

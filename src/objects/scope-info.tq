@@ -4,9 +4,6 @@
 
 extern class ScopeInfo extends FixedArray;
 
-extern macro EmptyScopeInfoConstant(): ScopeInfo;
-const kEmptyScopeInfo: ScopeInfo = EmptyScopeInfoConstant();
-
 const kScopeInfoFlagsIndex:
     constexpr int32 generates 'ScopeInfo::Fields::kFlags';
 

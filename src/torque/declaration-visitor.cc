@@ -374,10 +374,8 @@ Callable* DeclarationVisitor::Specialize(
 }
 
 void PredeclarationVisitor::ResolvePredeclarations() {
-  const auto& all_declarables = GlobalContext::AllDeclarables();
-  for (size_t i = 0; i < all_declarables.size(); ++i) {
-    Declarable* declarable = all_declarables[i].get();
-    if (const TypeAlias* alias = TypeAlias::DynamicCast(declarable)) {
+  for (auto& p : GlobalContext::AllDeclarables()) {
+    if (const TypeAlias* alias = TypeAlias::DynamicCast(p.get())) {
       CurrentScope::Scope scope_activator(alias->ParentScope());
       CurrentSourcePosition::Scope position_activator(alias->Position());
       alias->Resolve();

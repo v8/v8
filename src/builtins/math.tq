@@ -437,16 +437,19 @@ extern macro RefillMathRandom(NativeContext): Smi;
 
 transitioning javascript builtin
 MathRandom(js-implicit context: NativeContext, receiver: JSAny)(): Number {
-  let smiIndex: Smi = *NativeContextSlot(ContextSlot::MATH_RANDOM_INDEX_INDEX);
+  let smiIndex: Smi =
+      Cast<Smi>(context.elements[NativeContextSlot::MATH_RANDOM_INDEX_INDEX])
+      otherwise unreachable;
   if (smiIndex == 0) {
     // refill math random.
     smiIndex = RefillMathRandom(context);
   }
   const newSmiIndex: Smi = smiIndex - 1;
-  *NativeContextSlot(ContextSlot::MATH_RANDOM_INDEX_INDEX) = newSmiIndex;
+  context.elements[NativeContextSlot::MATH_RANDOM_INDEX_INDEX] = newSmiIndex;
 
-  const array: FixedDoubleArray =
-      *NativeContextSlot(ContextSlot::MATH_RANDOM_CACHE_INDEX);
+  const array: FixedDoubleArray = Cast<FixedDoubleArray>(
+      context.elements[NativeContextSlot::MATH_RANDOM_CACHE_INDEX])
+      otherwise unreachable;
   const random: float64 =
       array.floats[Convert<intptr>(newSmiIndex)].ValueUnsafeAssumeNotHole();
   return AllocateHeapNumberWithValue(random);

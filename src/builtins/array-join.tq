@@ -414,18 +414,17 @@ const kMinJoinStackSize:
     constexpr int31 generates 'JSArray::kMinJoinStackSize';
 macro LoadJoinStack(implicit context: Context)(): FixedArray
     labels IfUninitialized {
-  typeswitch (*NativeContextSlot(ContextSlot::ARRAY_JOIN_STACK_INDEX)) {
-    case (Undefined): {
-      goto IfUninitialized;
-    }
-    case (stack: FixedArray): {
-      return stack;
-    }
-  }
+  const nativeContext: NativeContext = LoadNativeContext(context);
+  const stack: HeapObject = UnsafeCast<HeapObject>(
+      nativeContext.elements[NativeContextSlot::ARRAY_JOIN_STACK_INDEX]);
+  if (stack == Undefined) goto IfUninitialized;
+  assert(Is<FixedArray>(stack));
+  return UnsafeCast<FixedArray>(stack);
 }
 
 macro SetJoinStack(implicit context: Context)(stack: FixedArray): void {
-  *NativeContextSlot(ContextSlot::ARRAY_JOIN_STACK_INDEX) = stack;
+  const nativeContext: NativeContext = LoadNativeContext(context);
+  nativeContext.elements[NativeContextSlot::ARRAY_JOIN_STACK_INDEX] = stack;
 }
 
 // Adds a receiver to the stack. The FixedArray will automatically grow to

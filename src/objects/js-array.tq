@@ -16,7 +16,8 @@ extern class JSArrayIterator extends JSObject {
 macro CreateArrayIterator(implicit context: NativeContext)(
     array: JSReceiver, kind: constexpr IterationKind): JSArrayIterator {
   return new JSArrayIterator{
-    map: *NativeContextSlot(ContextSlot::INITIAL_ARRAY_ITERATOR_MAP_INDEX),
+    map: UnsafeCast<Map>(
+        context.elements[NativeContextSlot::INITIAL_ARRAY_ITERATOR_MAP_INDEX]),
     properties_or_hash: kEmptyFixedArray,
     elements: kEmptyFixedArray,
     iterated_object: array,
