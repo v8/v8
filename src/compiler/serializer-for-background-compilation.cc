@@ -86,9 +86,24 @@ namespace compiler {
   V(JumpIfUndefinedOrNullConstant)
 
 #define IGNORED_BYTECODE_LIST(V)      \
+  V(CallRuntimeForPair)               \
+  V(CollectTypeProfile)               \
+  V(DebugBreak0)                      \
+  V(DebugBreak1)                      \
+  V(DebugBreak2)                      \
+  V(DebugBreak3)                      \
+  V(DebugBreak4)                      \
+  V(DebugBreak5)                      \
+  V(DebugBreak6)                      \
+  V(DebugBreakExtraWide)              \
+  V(DebugBreakWide)                   \
+  V(Debugger)                         \
   V(IncBlockCounter)                  \
+  V(ResumeGenerator)                  \
+  V(SuspendGenerator)                 \
   V(ThrowSuperAlreadyCalledIfNotHole) \
-  V(ThrowSuperNotCalledIfHole)
+  V(ThrowSuperNotCalledIfHole)        \
+  V(ToObject)
 
 #define UNREACHABLE_BYTECODE_LIST(V) \
   V(ExtraWide)                       \
@@ -1299,8 +1314,6 @@ void SerializerForBackgroundCompilation::TraverseBytecode() {
     break;
       SUPPORTED_BYTECODE_LIST(DEFINE_BYTECODE_CASE)
 #undef DEFINE_BYTECODE_CASE
-      default:
-        break;
     }
   }
 
