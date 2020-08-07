@@ -631,14 +631,12 @@ Object FutexEmulation::Wake(Handle<JSArrayBuffer> array_buffer, size_t addr,
 }
 
 void FutexEmulation::CleanupAsyncWaiterPromise(FutexWaitListNode* node) {
+  // This function must run in the main thread of node's Isolate.
   DCHECK(FLAG_harmony_atomics_waitasync);
   DCHECK(node->IsAsync());
 
   Isolate* isolate = node->isolate_for_async_waiters_;
   auto v8_isolate = reinterpret_cast<v8::Isolate*>(isolate);
-
-  // This function must run in the main thread of node's Isolate.
-  DCHECK_EQ(isolate->thread_id(), ThreadId::Current());
 
   if (!node->promise_.IsEmpty()) {
     Handle<JSPromise> promise = Handle<JSPromise>::cast(
@@ -671,10 +669,8 @@ FutexWaitListNode* FutexEmulation::DeleteAsyncWaiterNode(
 }
 
 void FutexEmulation::ResolveAsyncWaiterPromise(FutexWaitListNode* node) {
-  DCHECK(FLAG_harmony_atomics_waitasync);
-
   // This function must run in the main thread of node's Isolate.
-  DCHECK_EQ(node->isolate_for_async_waiters_->thread_id(), ThreadId::Current());
+  DCHECK(FLAG_harmony_atomics_waitasync);
 
   auto v8_isolate =
       reinterpret_cast<v8::Isolate*>(node->isolate_for_async_waiters_);
@@ -712,10 +708,8 @@ void FutexEmulation::ResolveAsyncWaiterPromise(FutexWaitListNode* node) {
 }
 
 void FutexEmulation::ResolveAsyncWaiterPromises(Isolate* isolate) {
-  DCHECK(FLAG_harmony_atomics_waitasync);
-
   // This function must run in the main thread of isolate.
-  DCHECK_EQ(isolate->thread_id(), ThreadId::Current());
+  DCHECK(FLAG_harmony_atomics_waitasync);
 
   base::MutexGuard lock_guard(g_mutex.Pointer());
   FutexWaitListNode* node;
@@ -743,11 +737,9 @@ void FutexEmulation::ResolveAsyncWaiterPromises(Isolate* isolate) {
 }
 
 void FutexEmulation::HandleAsyncWaiterTimeout(FutexWaitListNode* node) {
+  // This function must run in the main thread of node's Isolate.
   DCHECK(FLAG_harmony_atomics_waitasync);
   DCHECK(node->IsAsync());
-
-  // This function must run in the main thread of node's Isolate.
-  DCHECK_EQ(node->isolate_for_async_waiters_->thread_id(), ThreadId::Current());
 
   base::MutexGuard lock_guard(g_mutex.Pointer());
 
