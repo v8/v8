@@ -26,6 +26,7 @@
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 // Flags: --allow-natives-syntax --expose-gc --nostress-opt
+// Flags: --deopt-every-n-times=0
 
 var elements_kind = {
   fast_smi_only             :  'fast smi only elements',
