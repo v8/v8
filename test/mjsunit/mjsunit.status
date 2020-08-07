@@ -934,19 +934,6 @@
   'regress/regress-v8-9267-*': [SKIP],
   'shared-function-tier-up-turbo': [SKIP],
 
-  # These tests are incompatible with stress_delay_tasks since they
-  # rely on setTimeout vs tasks working predictably.
-  'harmony/atomics-waitasync-1thread-2timeout': [SKIP],
-  'harmony/atomics-waitasync-1thread-buffer-out-of-scope-timeout': [SKIP],
-  'harmony/atomics-waitasync-1thread-promise-out-of-scope': [SKIP],
-  'harmony/atomics-waitasync-1thread-timeout': [SKIP],
-  'harmony/atomics-waitasync-1thread-timeouts-and-no-timeouts': [SKIP],
-  'harmony/atomics-waitasync-1thread-wake-up-all': [SKIP],
-  'harmony/atomics-waitasync-1thread-wake-up-fifo': [SKIP],
-  'harmony/atomics-waitasync-1thread-wake-up-simple': [SKIP],
-  'harmony/atomics-waitasync': [SKIP],
-  'harmony/atomics-waitasync-worker-shutdown-before-wait-finished-no-timeout': [SKIP],
-  'harmony/atomics-waitasync-worker-shutdown-before-wait-finished-timeout': [SKIP],
 }],  # 'gc_fuzzer'
 
 ##############################################################################
