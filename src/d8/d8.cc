@@ -3286,10 +3286,10 @@ bool Shell::SetOptions(int argc, char* argv[]) {
     } else if (strcmp(argv[i], "--omit-quit") == 0) {
       options.omit_quit = true;
       argv[i] = nullptr;
-    } else if (strcmp(argv[i], "--no-wait-for-wasm") == 0) {
+    } else if (strcmp(argv[i], "--no-wait-for-background-tasks") == 0) {
       // TODO(herhut) Remove this flag once wasm compilation is fully
       // isolate-independent.
-      options.wait_for_wasm = false;
+      options.wait_for_background_tasks = false;
       argv[i] = nullptr;
     } else if (strcmp(argv[i], "-f") == 0) {
       // Ignore any -f flags for compatibility with other stand-alone
@@ -3601,10 +3601,8 @@ bool Shell::CompleteMessageLoop(Isolate* isolate) {
   auto get_waiting_behaviour = [isolate]() {
     base::MutexGuard guard(isolate_status_lock_.Pointer());
     DCHECK_GT(isolate_status_.count(isolate), 0);
-    i::Isolate* i_isolate = reinterpret_cast<i::Isolate*>(isolate);
-    i::wasm::WasmEngine* wasm_engine = i_isolate->wasm_engine();
-    bool should_wait = (options.wait_for_wasm &&
-                        wasm_engine->HasRunningCompileJob(i_isolate)) ||
+    bool should_wait = (options.wait_for_background_tasks &&
+                        isolate->HasPendingBackgroundTasks()) ||
                        isolate_status_[isolate] ||
                        isolate_running_streaming_tasks_[isolate] > 0;
     return should_wait ? platform::MessageLoopBehavior::kWaitForWork

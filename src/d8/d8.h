@@ -297,7 +297,7 @@ class ShellOptions {
   bool send_idle_notification = false;
   bool invoke_weak_callbacks = false;
   bool omit_quit = false;
-  bool wait_for_wasm = true;
+  bool wait_for_background_tasks = true;
   bool stress_opt = false;
   int stress_runs = 1;
   bool stress_snapshot = false;
