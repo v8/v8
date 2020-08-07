@@ -1324,29 +1324,30 @@ RUNTIME_FUNCTION(Runtime_SerializeDeserializeNow) {
   return ReadOnlyRoots(isolate).undefined_value();
 }
 
-// Wait until the given module is fully tiered up, then serialize it into an
-// array buffer.
+// Take a compiled wasm module and serialize it into an array buffer, which is
+// then returned.
 RUNTIME_FUNCTION(Runtime_SerializeWasmModule) {
   HandleScope scope(isolate);
   DCHECK_EQ(1, args.length());
   CONVERT_ARG_HANDLE_CHECKED(WasmModuleObject, module_obj, 0);
 
   wasm::NativeModule* native_module = module_obj->native_module();
-  native_module->compilation_state()->WaitForTopTierFinishedForTesting();
-  DCHECK(!native_module->compilation_state()->failed());
-
   wasm::WasmSerializer wasm_serializer(native_module);
   size_t byte_length = wasm_serializer.GetSerializedNativeModuleSize();
 
-  Handle<JSArrayBuffer> array_buffer =
-      isolate->factory()
-          ->NewJSArrayBufferAndBackingStore(byte_length,
-                                            InitializedFlag::kUninitialized)
-          .ToHandleChecked();
+  MaybeHandle<JSArrayBuffer> result =
+      isolate->factory()->NewJSArrayBufferAndBackingStore(
+          byte_length, InitializedFlag::kUninitialized);
 
-  CHECK(wasm_serializer.SerializeNativeModule(
-      {static_cast<uint8_t*>(array_buffer->backing_store()), byte_length}));
-  return *array_buffer;
+  Handle<JSArrayBuffer> array_buffer;
+  if (result.ToHandle(&array_buffer) &&
+      wasm_serializer.SerializeNativeModule(
+          {reinterpret_cast<uint8_t*>(array_buffer->backing_store()),
+           byte_length})) {
+    return *array_buffer;
+  }
+
+  UNREACHABLE();
 }
 
 // Take an array buffer and attempt to reconstruct a compiled wasm module.

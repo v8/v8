@@ -183,17 +183,6 @@
 }],  # variant == nooptimization and (arch == arm or arch == arm64) and simulator_run
 
 ##############################################################################
-['variant == nooptimization', {
-  # Wasm serialization relies on TurboFan to be available, hence does not work
-  # in the 'nooptimization' variant.
-  'test-wasm-serialization/*': [SKIP],
-  'test-streaming-compilation/SingleThreadedTestDeserializationBypassesCompilation': [SKIP],
-  'test-streaming-compilation/SingleThreadedTestDeserializationFails': [SKIP],
-  'test-streaming-compilation/AsyncTestDeserializationFails': [SKIP],
-  'test-streaming-compilation/AsyncTestDeserializationBypassesCompilation': [SKIP],
-}],  # variant == nooptimization
-
-##############################################################################
 ['variant == no_lfa', {
   # https://crbug.com/v8/10219
   'test-compiler/DecideToPretenureDuringCompilation': [SKIP],
