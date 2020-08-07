@@ -947,6 +947,8 @@ struct ControlBase {
     const Value& value, const Value& count)                                    \
   F(StructNewWithRtt, const StructIndexImmediate<validate>& imm,               \
     const Value& rtt, const Value args[], Value* result)                       \
+  F(StructNewDefault, const StructIndexImmediate<validate>& imm,               \
+    const Value& rtt, Value* result)                                           \
   F(StructGet, const Value& struct_object,                                     \
     const FieldIndexImmediate<validate>& field, bool is_signed, Value* result) \
   F(StructSet, const Value& struct_object,                                     \
@@ -954,6 +956,8 @@ struct ControlBase {
   F(ArrayNewWithRtt, const ArrayIndexImmediate<validate>& imm,                 \
     const Value& length, const Value& initial_value, const Value& rtt,         \
     Value* result)                                                             \
+  F(ArrayNewDefault, const ArrayIndexImmediate<validate>& imm,                 \
+    const Value& length, const Value& rtt, Value* result)                      \
   F(ArrayGet, const Value& array_obj,                                          \
     const ArrayIndexImmediate<validate>& imm, const Value& index,              \
     bool is_signed, Value* result)                                             \
@@ -1839,6 +1843,7 @@ class WasmDecoder : public Decoder {
       case kGCPrefix: {
         opcode = this->read_prefixed_opcode<validate>(pc);
         switch (opcode) {
+          case kExprStructNewDefault:
           case kExprStructGet:
           case kExprStructGetS:
           case kExprStructGetU:
@@ -1850,6 +1855,7 @@ class WasmDecoder : public Decoder {
             return {1, 1};
           case kExprStructSet:
             return {2, 0};
+          case kExprArrayNewDefault:
           case kExprArrayGet:
           case kExprArrayGetS:
           case kExprArrayGetU:
@@ -3406,19 +3412,18 @@ class WasmFullDecoder : public WasmDecoder<validate> {
     switch (opcode) {
       case kExprStructNewWithRtt: {
         StructIndexImmediate<validate> imm(this, this->pc_ + 2);
-        if (!this->Validate(this->pc_, imm)) return 0;
+        if (!this->Validate(this->pc_ + 2, imm)) return 0;
         Value rtt = Pop(imm.struct_type->field_count());
         if (!VALIDATE(rtt.type.kind() == ValueType::kRtt)) {
-          this->errorf(
-              this->pc_ + 2,
-              "struct.new_with_rtt expected type rtt, found %s of type %s",
-              SafeOpcodeNameAt(rtt.pc), rtt.type.name().c_str());
+          this->errorf(this->pc_,
+                       "struct.new_with_rtt expected rtt, found %s of type %s",
+                       SafeOpcodeNameAt(rtt.pc), rtt.type.name().c_str());
           return 0;
         }
         // TODO(7748): Drop this check if {imm} is dropped from the proposal
         // à la https://github.com/WebAssembly/function-references/pull/31.
         if (!VALIDATE(rtt.type.heap_representation() == imm.index)) {
-          this->errorf(this->pc_ + 2,
+          this->errorf(this->pc_,
                        "struct.new_with_rtt expected rtt for type %d, found "
                        "rtt for type %s",
                        imm.index, rtt.type.heap_type().name().c_str());
@@ -3428,6 +3433,43 @@ class WasmFullDecoder : public WasmDecoder<validate> {
         Value* value = Push(ValueType::Ref(imm.index, kNonNullable));
         CALL_INTERFACE_IF_REACHABLE(StructNewWithRtt, imm, rtt, args.begin(),
                                     value);
+        return 2 + imm.length;
+      }
+      case kExprStructNewDefault: {
+        StructIndexImmediate<validate> imm(this, this->pc_ + 2);
+        if (!this->Validate(this->pc_ + 2, imm)) return 0;
+        if (validate) {
+          for (uint32_t i = 0; i < imm.struct_type->field_count(); i++) {
+            ValueType ftype = imm.struct_type->field(i);
+            if (!VALIDATE(ftype.is_defaultable())) {
+              this->errorf(this->pc_,
+                           "struct.new_default_with_rtt: struct type %d has "
+                           "non-defaultable type %s for field %d",
+                           imm.index, ftype.name().c_str(), i);
+              return 0;
+            }
+          }
+        }
+        Value rtt = Pop(0);
+        if (!VALIDATE(rtt.type.kind() == ValueType::kRtt)) {
+          this->errorf(
+              this->pc_,
+              "struct.new_default_with_rtt expected rtt, found %s of type %s",
+              SafeOpcodeNameAt(rtt.pc), rtt.type.name().c_str());
+          return 0;
+        }
+        // TODO(7748): Drop this check if {imm} is dropped from the proposal
+        // à la https://github.com/WebAssembly/function-references/pull/31.
+        if (!VALIDATE(rtt.type.heap_representation() == imm.index)) {
+          this->errorf(
+              this->pc_,
+              "struct.new_default_with_rtt expected rtt for type %d, found "
+              "rtt for type %s",
+              imm.index, rtt.type.heap_type().name().c_str());
+          return 0;
+        }
+        Value* value = Push(ValueType::Ref(imm.index, kNonNullable));
+        CALL_INTERFACE_IF_REACHABLE(StructNewDefault, imm, rtt, value);
         return 2 + imm.length;
       }
       case kExprStructGet: {
@@ -3486,10 +3528,9 @@ class WasmFullDecoder : public WasmDecoder<validate> {
         if (!this->Validate(this->pc_ + 2, imm)) return 0;
         Value rtt = Pop(2);
         if (!VALIDATE(rtt.type.kind() == ValueType::kRtt)) {
-          this->errorf(
-              this->pc_ + 2,
-              "array.new_with_rtt expected type rtt, found %s of type %s",
-              SafeOpcodeNameAt(rtt.pc), rtt.type.name().c_str());
+          this->errorf(this->pc_ + 2,
+                       "array.new_with_rtt expected rtt, found %s of type %s",
+                       SafeOpcodeNameAt(rtt.pc), rtt.type.name().c_str());
           return 0;
         }
         // TODO(7748): Drop this check if {imm} is dropped from the proposal
@@ -3506,6 +3547,39 @@ class WasmFullDecoder : public WasmDecoder<validate> {
         Value* value = Push(ValueType::Ref(imm.index, kNonNullable));
         CALL_INTERFACE_IF_REACHABLE(ArrayNewWithRtt, imm, length, initial_value,
                                     rtt, value);
+        return 2 + imm.length;
+      }
+      case kExprArrayNewDefault: {
+        ArrayIndexImmediate<validate> imm(this, this->pc_ + 2);
+        if (!this->Validate(this->pc_ + 2, imm)) return 0;
+        if (!VALIDATE(imm.array_type->element_type().is_defaultable())) {
+          this->errorf(this->pc_,
+                       "array.new_default_with_rtt: array type %d has "
+                       "non-defaultable element type %s",
+                       imm.index,
+                       imm.array_type->element_type().name().c_str());
+          return 0;
+        }
+        Value rtt = Pop(1);
+        if (!VALIDATE(rtt.type.kind() == ValueType::kRtt)) {
+          this->errorf(
+              this->pc_ + 2,
+              "array.new_default_with_rtt expected rtt, found %s of type %s",
+              SafeOpcodeNameAt(rtt.pc), rtt.type.name().c_str());
+          return 0;
+        }
+        // TODO(7748): Drop this check if {imm} is dropped from the proposal
+        // à la https://github.com/WebAssembly/function-references/pull/31.
+        if (!VALIDATE(rtt.type.heap_representation() == imm.index)) {
+          this->errorf(this->pc_ + 2,
+                       "array.new_default_with_rtt expected rtt for type %d, "
+                       "found rtt for type %s",
+                       imm.index, rtt.type.heap_type().name().c_str());
+          return 0;
+        }
+        Value length = Pop(0, kWasmI32);
+        Value* value = Push(ValueType::Ref(imm.index, kNonNullable));
+        CALL_INTERFACE_IF_REACHABLE(ArrayNewDefault, imm, length, rtt, value);
         return 2 + imm.length;
       }
       case kExprArrayGetS:

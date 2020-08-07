@@ -81,7 +81,6 @@
 #define DEPTH_0 0
 #define DEPTH_1 1
 #define DEPTH_2 2
-#define ARITY_2 2
 
 #define WASM_HEAP_TYPE(heap_type) static_cast<byte>((heap_type).code() & 0x7f)
 
@@ -429,6 +428,8 @@ inline WasmOpcode LoadStoreOpcodeOf(MachineType type, bool store) {
 #define WASM_GC_OP(op) kGCPrefix, static_cast<byte>(op)
 #define WASM_STRUCT_NEW_WITH_RTT(index, ...) \
   __VA_ARGS__, WASM_GC_OP(kExprStructNewWithRtt), static_cast<byte>(index)
+#define WASM_STRUCT_NEW_DEFAULT(index, rtt) \
+  rtt, WASM_GC_OP(kExprStructNewDefault), static_cast<byte>(index)
 #define WASM_STRUCT_GET(typeidx, fieldidx, struct_obj)                \
   struct_obj, WASM_GC_OP(kExprStructGet), static_cast<byte>(typeidx), \
       static_cast<byte>(fieldidx)
@@ -458,6 +459,8 @@ inline WasmOpcode LoadStoreOpcodeOf(MachineType type, bool store) {
 #define WASM_ARRAY_NEW_WITH_RTT(index, default_value, length, rtt) \
   default_value, length, rtt, WASM_GC_OP(kExprArrayNewWithRtt),    \
       static_cast<byte>(index)
+#define WASM_ARRAY_NEW_DEFAULT(index, length, rtt) \
+  length, rtt, WASM_GC_OP(kExprArrayNewDefault), static_cast<byte>(index)
 #define WASM_ARRAY_GET(typeidx, array, index) \
   array, index, WASM_GC_OP(kExprArrayGet), static_cast<byte>(typeidx)
 #define WASM_ARRAY_GET_U(typeidx, array, index) \

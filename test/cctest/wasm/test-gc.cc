@@ -673,6 +673,39 @@ TEST(WasmPackedArrayS) {
   tester.CheckResult(kF, static_cast<int16_t>(expected_outputs[3]), 3);
 }
 
+TEST(NewDefault) {
+  WasmGCTester tester;
+  const byte struct_type = tester.DefineStruct(
+      {F(wasm::kWasmI32, true), F(wasm::kWasmF64, true), F(optref(0), true)});
+  const byte array_type = tester.DefineArray(wasm::kWasmI32, true);
+  // Returns: struct[0] + f64_to_i32(struct[1]) + (struct[2].is_null ^ 1) == 0.
+  const byte allocate_struct = tester.DefineFunction(
+      tester.sigs.i_v(), {optref(struct_type)},
+      {WASM_SET_LOCAL(0, WASM_STRUCT_NEW_DEFAULT(struct_type,
+                                                 WASM_RTT_CANON(struct_type))),
+       WASM_I32_ADD(
+           WASM_I32_ADD(WASM_STRUCT_GET(struct_type, 0, WASM_GET_LOCAL(0)),
+                        WASM_I32_SCONVERT_F64(WASM_STRUCT_GET(
+                            struct_type, 1, WASM_GET_LOCAL(0)))),
+           WASM_I32_XOR(WASM_REF_IS_NULL(
+                            WASM_STRUCT_GET(struct_type, 2, WASM_GET_LOCAL(0))),
+                        WASM_I32V(1))),
+       kExprEnd});
+  const byte allocate_array = tester.DefineFunction(
+      tester.sigs.i_v(), {optref(array_type)},
+      {WASM_SET_LOCAL(0, WASM_ARRAY_NEW_DEFAULT(array_type, WASM_I32V(2),
+                                                WASM_RTT_CANON(array_type))),
+       WASM_I32_ADD(
+           WASM_ARRAY_GET(array_type, WASM_GET_LOCAL(0), WASM_I32V(0)),
+           WASM_ARRAY_GET(array_type, WASM_GET_LOCAL(0), WASM_I32V(1))),
+       kExprEnd});
+
+  tester.CompileModule();
+
+  tester.CheckResult(allocate_struct, 0);
+  tester.CheckResult(allocate_array, 0);
+}
+
 TEST(BasicRTT) {
   WasmGCTester tester;
   const byte type_index = tester.DefineStruct({F(wasm::kWasmI32, true)});

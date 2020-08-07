@@ -3515,6 +3515,12 @@ class LiftoffCompiler {
     // TODO(7748): Implement.
     unsupported(decoder, kGC, "struct.new_with_rtt");
   }
+  void StructNewDefault(FullDecoder* decoder,
+                        const StructIndexImmediate<validate>& imm,
+                        const Value& rtt, Value* result) {
+    // TODO(7748): Implement.
+    unsupported(decoder, kGC, "struct.new_default_with_rtt");
+  }
   void StructGet(FullDecoder* decoder, const Value& struct_obj,
                  const FieldIndexImmediate<validate>& field, bool is_signed,
                  Value* result) {
@@ -3534,6 +3540,12 @@ class LiftoffCompiler {
                        const Value& rtt, Value* result) {
     // TODO(7748): Implement.
     unsupported(decoder, kGC, "array.new_with_rtt");
+  }
+  void ArrayNewDefault(FullDecoder* decoder,
+                       const ArrayIndexImmediate<validate>& imm,
+                       const Value& length, const Value& rtt, Value* result) {
+    // TODO(7748): Implement.
+    unsupported(decoder, kGC, "array.new_default_with_rtt");
   }
   void ArrayGet(FullDecoder* decoder, const Value& array_obj,
                 const ArrayIndexImmediate<validate>& imm, const Value& index,

@@ -657,6 +657,17 @@ class WasmGraphBuildingInterface {
     result->node = BUILD(StructNewWithRtt, imm.index, imm.struct_type, rtt.node,
                          VectorOf(arg_nodes));
   }
+  void StructNewDefault(FullDecoder* decoder,
+                        const StructIndexImmediate<validate>& imm,
+                        const Value& rtt, Value* result) {
+    uint32_t field_count = imm.struct_type->field_count();
+    base::SmallVector<TFNode*, 16> arg_nodes(field_count);
+    for (uint32_t i = 0; i < field_count; i++) {
+      arg_nodes[i] = DefaultValue(imm.struct_type->field(i));
+    }
+    result->node = BUILD(StructNewWithRtt, imm.index, imm.struct_type, rtt.node,
+                         VectorOf(arg_nodes));
+  }
 
   void StructGet(FullDecoder* decoder, const Value& struct_object,
                  const FieldIndexImmediate<validate>& field, bool is_signed,
@@ -687,6 +698,14 @@ class WasmGraphBuildingInterface {
                        const Value& rtt, Value* result) {
     result->node = BUILD(ArrayNewWithRtt, imm.index, imm.array_type,
                          length.node, initial_value.node, rtt.node);
+  }
+
+  void ArrayNewDefault(FullDecoder* decoder,
+                       const ArrayIndexImmediate<validate>& imm,
+                       const Value& length, const Value& rtt, Value* result) {
+    TFNode* initial_value = DefaultValue(imm.array_type->element_type());
+    result->node = BUILD(ArrayNewWithRtt, imm.index, imm.array_type,
+                         length.node, initial_value, rtt.node);
   }
 
   void ArrayGet(FullDecoder* decoder, const Value& array_obj,

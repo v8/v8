@@ -3398,6 +3398,39 @@ ValueType optref(byte type_index) {
   return ValueType::Ref(type_index, kNullable);
 }
 
+TEST_F(FunctionBodyDecoderTest, StructNewDefault) {
+  WASM_FEATURE_SCOPE(reftypes);
+  WASM_FEATURE_SCOPE(typed_funcref);
+  WASM_FEATURE_SCOPE(gc);
+  {
+    TestModuleBuilder builder;
+    byte type_index = builder.AddStruct({F(kWasmI32, true)});
+    byte bad_type_index = builder.AddStruct({F(ref(type_index), true)});
+    module = builder.module();
+    ExpectValidates(sigs.v_v(), {WASM_STRUCT_NEW_DEFAULT(
+                                     type_index, WASM_RTT_CANON(type_index)),
+                                 WASM_DROP});
+    ExpectFailure(sigs.v_v(),
+                  {WASM_STRUCT_NEW_DEFAULT(bad_type_index,
+                                           WASM_RTT_CANON(bad_type_index)),
+                   WASM_DROP});
+  }
+  {
+    TestModuleBuilder builder;
+    byte type_index = builder.AddArray(kWasmI32, true);
+    byte bad_type_index = builder.AddArray(ref(type_index), true);
+    module = builder.module();
+    ExpectValidates(sigs.v_v(),
+                    {WASM_ARRAY_NEW_DEFAULT(type_index, WASM_I32V(3),
+                                            WASM_RTT_CANON(type_index)),
+                     WASM_DROP});
+    ExpectFailure(sigs.v_v(),
+                  {WASM_ARRAY_NEW_DEFAULT(bad_type_index, WASM_I32V(3),
+                                          WASM_RTT_CANON(bad_type_index)),
+                   WASM_DROP});
+  }
+}
+
 TEST_F(FunctionBodyDecoderTest, DefaultableLocal) {
   WASM_FEATURE_SCOPE(typed_funcref);
   WASM_FEATURE_SCOPE(reftypes);

@@ -854,8 +854,7 @@ class WasmStruct::BodyDescriptor final : public BodyDescriptorBase {
     wasm::StructType* type = WasmStruct::GcSafeType(map);
     for (uint32_t i = 0; i < type->field_count(); i++) {
       if (!type->field(i).is_reference_type()) continue;
-      int offset =
-          WasmStruct::kHeaderSize + static_cast<int>(type->field_offset(i));
+      int offset = static_cast<int>(type->field_offset(i));
       v->VisitPointer(wasm_struct, wasm_struct.RawField(offset));
     }
   }
