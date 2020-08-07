@@ -695,13 +695,10 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
     }
   }
 
-  Node* WordOrSmiShr(Node* a, int shift, ParameterMode mode) {
-    if (mode == SMI_PARAMETERS) {
-      return SmiShr(CAST(a), shift);
-    } else {
-      DCHECK_EQ(INTPTR_PARAMETERS, mode);
-      return WordShr(a, shift);
-    }
+  TNode<Smi> WordOrSmiShr(TNode<Smi> a, int shift) { return SmiShr(a, shift); }
+
+  TNode<IntPtrT> WordOrSmiShr(TNode<IntPtrT> a, int shift) {
+    return WordShr(a, shift);
   }
 
 #define SMI_COMPARISON_OP(SmiOpName, IntPtrOpName, Int32OpName)           \
@@ -2229,15 +2226,8 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
                                       ElementsKind from_kind,
                                       ElementsKind to_kind, Label* if_hole);
 
-  Node* CalculateNewElementsCapacity(Node* old_capacity, ParameterMode mode);
-
-  TNode<Smi> CalculateNewElementsCapacity(TNode<Smi> old_capacity) {
-    return CAST(CalculateNewElementsCapacity(old_capacity, SMI_PARAMETERS));
-  }
-  TNode<IntPtrT> CalculateNewElementsCapacity(TNode<IntPtrT> old_capacity) {
-    return UncheckedCast<IntPtrT>(
-        CalculateNewElementsCapacity(old_capacity, INTPTR_PARAMETERS));
-  }
+  template <typename TIndex>
+  TNode<TIndex> CalculateNewElementsCapacity(TNode<TIndex> old_capacity);
 
   // Tries to grow the |elements| array of given |object| to store the |key|
   // or bails out if the growing gap is too big. Returns new elements.

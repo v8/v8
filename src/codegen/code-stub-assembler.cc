@@ -4821,15 +4821,24 @@ Node* CodeStubAssembler::LoadElementAndPrepareForStore(
   }
 }
 
-Node* CodeStubAssembler::CalculateNewElementsCapacity(Node* old_capacity,
-                                                      ParameterMode mode) {
-  CSA_SLOW_ASSERT(this, MatchesParameterMode(old_capacity, mode));
-  Node* half_old_capacity = WordOrSmiShr(old_capacity, 1, mode);
-  Node* new_capacity = IntPtrOrSmiAdd(half_old_capacity, old_capacity, mode);
-  Node* padding =
-      IntPtrOrSmiConstant(JSObject::kMinAddedElementsCapacity, mode);
-  return IntPtrOrSmiAdd(new_capacity, padding, mode);
+template <typename TIndex>
+TNode<TIndex> CodeStubAssembler::CalculateNewElementsCapacity(
+    TNode<TIndex> old_capacity) {
+  static_assert(
+      std::is_same<TIndex, Smi>::value || std::is_same<TIndex, IntPtrT>::value,
+      "Only Smi or IntPtrT old_capacity is allowed");
+  Comment("TryGrowElementsCapacity");
+  TNode<TIndex> half_old_capacity = WordOrSmiShr(old_capacity, 1);
+  TNode<TIndex> new_capacity = IntPtrOrSmiAdd(half_old_capacity, old_capacity);
+  TNode<TIndex> padding =
+      IntPtrOrSmiConstant<TIndex>(JSObject::kMinAddedElementsCapacity);
+  return IntPtrOrSmiAdd(new_capacity, padding);
 }
+
+template V8_EXPORT_PRIVATE TNode<IntPtrT>
+    CodeStubAssembler::CalculateNewElementsCapacity<IntPtrT>(TNode<IntPtrT>);
+template V8_EXPORT_PRIVATE TNode<Smi>
+    CodeStubAssembler::CalculateNewElementsCapacity<Smi>(TNode<Smi>);
 
 TNode<FixedArrayBase> CodeStubAssembler::TryGrowElementsCapacity(
     TNode<HeapObject> object, TNode<FixedArrayBase> elements, ElementsKind kind,
@@ -4858,7 +4867,7 @@ TNode<FixedArrayBase> CodeStubAssembler::TryGrowElementsCapacity(
   GotoIf(UintPtrOrSmiGreaterThanOrEqual(key, max_capacity), bailout);
 
   // Calculate the capacity of the new backing store.
-  Node* new_capacity = CalculateNewElementsCapacity(
+  TNode<TIndex> new_capacity = CalculateNewElementsCapacity(
       IntPtrOrSmiAdd(key, IntPtrOrSmiConstant<TIndex>(1)));
 
   ParameterMode mode =
