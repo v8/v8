@@ -2000,14 +2000,16 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
   // Copies |element_count| elements from |from_array| starting from element
   // zero to |to_array| of |capacity| size respecting both array's elements
   // kinds.
+  template <typename TIndex>
   void CopyFixedArrayElements(
       ElementsKind from_kind, TNode<FixedArrayBase> from_array,
       ElementsKind to_kind, TNode<FixedArrayBase> to_array,
-      TNode<IntPtrT> element_count, TNode<IntPtrT> capacity,
-      WriteBarrierMode barrier_mode = UPDATE_WRITE_BARRIER,
-      ParameterMode mode = INTPTR_PARAMETERS) {
+      TNode<TIndex> element_count, TNode<TIndex> capacity,
+      WriteBarrierMode barrier_mode = UPDATE_WRITE_BARRIER) {
+    const ParameterMode mode =
+        std::is_same<TIndex, Smi>::value ? SMI_PARAMETERS : INTPTR_PARAMETERS;
     CopyFixedArrayElements(from_kind, from_array, to_kind, to_array,
-                           IntPtrOrSmiConstant(0, mode), element_count,
+                           IntPtrOrSmiConstant<TIndex>(0), element_count,
                            capacity, barrier_mode, mode);
   }
 
@@ -2027,16 +2029,6 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
       ParameterMode mode = INTPTR_PARAMETERS,
       HoleConversionMode convert_holes = HoleConversionMode::kDontConvert,
       TVariable<BoolT>* var_holes_converted = nullptr);
-
-  void CopyFixedArrayElements(
-      ElementsKind from_kind, TNode<FixedArrayBase> from_array,
-      ElementsKind to_kind, TNode<FixedArrayBase> to_array,
-      TNode<Smi> first_element, TNode<Smi> element_count, TNode<Smi> capacity,
-      WriteBarrierMode barrier_mode = UPDATE_WRITE_BARRIER) {
-    CopyFixedArrayElements(from_kind, from_array, to_kind, to_array,
-                           first_element, element_count, capacity, barrier_mode,
-                           SMI_PARAMETERS);
-  }
 
   void JumpIfPointersFromHereAreInteresting(TNode<Object> object,
                                             Label* interesting);
@@ -2248,10 +2240,11 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
                                                 Label* bailout);
 
   // Grows elements capacity of given object. Returns new elements.
+  template <typename TIndex>
   TNode<FixedArrayBase> GrowElementsCapacity(
       TNode<HeapObject> object, TNode<FixedArrayBase> elements,
-      ElementsKind from_kind, ElementsKind to_kind, Node* capacity,
-      Node* new_capacity, ParameterMode mode, Label* bailout);
+      ElementsKind from_kind, ElementsKind to_kind, TNode<TIndex> capacity,
+      TNode<TIndex> new_capacity, Label* bailout);
 
   // Given a need to grow by |growth|, allocate an appropriate new capacity
   // if necessary, and return a new elements FixedArray object. Label |bailout|
@@ -3261,8 +3254,9 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
 
   TNode<FixedArrayBase> CopyElementsOnWrite(TNode<HeapObject> object,
                                             TNode<FixedArrayBase> elements,
-                                            ElementsKind kind, Node* length,
-                                            ParameterMode mode, Label* bailout);
+                                            ElementsKind kind,
+                                            TNode<IntPtrT> length,
+                                            Label* bailout);
 
   void TransitionElementsKind(TNode<JSObject> object, TNode<Map> map,
                               ElementsKind from_kind, ElementsKind to_kind,

@@ -2851,7 +2851,6 @@ void CodeStubAssembler::PossiblyGrowElementsCapacity(
     ElementsKind kind, TNode<HeapObject> array, TNode<BInt> length,
     TVariable<FixedArrayBase>* var_elements, TNode<BInt> growth,
     Label* bailout) {
-  ParameterMode mode = OptimalParameterMode();
   Label fits(this, var_elements);
   TNode<BInt> capacity =
       TaggedToParameter<BInt>(LoadFixedArrayBaseLength(var_elements->value()));
@@ -2860,7 +2859,7 @@ void CodeStubAssembler::PossiblyGrowElementsCapacity(
   GotoIfNot(IntPtrOrSmiGreaterThan(new_length, capacity), &fits);
   TNode<BInt> new_capacity = CalculateNewElementsCapacity(new_length);
   *var_elements = GrowElementsCapacity(array, var_elements->value(), kind, kind,
-                                       capacity, new_capacity, mode, bailout);
+                                       capacity, new_capacity, bailout);
   Goto(&fits);
   BIND(&fits);
 }
@@ -4870,28 +4869,30 @@ TNode<FixedArrayBase> CodeStubAssembler::TryGrowElementsCapacity(
   TNode<TIndex> new_capacity = CalculateNewElementsCapacity(
       IntPtrOrSmiAdd(key, IntPtrOrSmiConstant<TIndex>(1)));
 
-  ParameterMode mode =
-      std::is_same<TIndex, Smi>::value ? SMI_PARAMETERS : INTPTR_PARAMETERS;
   return GrowElementsCapacity(object, elements, kind, kind, capacity,
-                              new_capacity, mode, bailout);
+                              new_capacity, bailout);
 }
 
+template <typename TIndex>
 TNode<FixedArrayBase> CodeStubAssembler::GrowElementsCapacity(
     TNode<HeapObject> object, TNode<FixedArrayBase> elements,
-    ElementsKind from_kind, ElementsKind to_kind, Node* capacity,
-    Node* new_capacity, ParameterMode mode, Label* bailout) {
+    ElementsKind from_kind, ElementsKind to_kind, TNode<TIndex> capacity,
+    TNode<TIndex> new_capacity, Label* bailout) {
+  static_assert(
+      std::is_same<TIndex, Smi>::value || std::is_same<TIndex, IntPtrT>::value,
+      "Only Smi or IntPtrT capacities are allowed");
   Comment("[ GrowElementsCapacity");
   CSA_SLOW_ASSERT(this, IsFixedArrayWithKindOrEmpty(elements, from_kind));
-  CSA_SLOW_ASSERT(this, MatchesParameterMode(capacity, mode));
-  CSA_SLOW_ASSERT(this, MatchesParameterMode(new_capacity, mode));
 
   // If size of the allocation for the new capacity doesn't fit in a page
   // that we can bump-pointer allocate from, fall back to the runtime.
   int max_size = FixedArrayBase::GetMaxLengthForNewSpaceAllocation(to_kind);
-  GotoIf(UintPtrOrSmiGreaterThanOrEqual(
-             new_capacity, IntPtrOrSmiConstant(max_size, mode), mode),
+  GotoIf(UintPtrOrSmiGreaterThanOrEqual(new_capacity,
+                                        IntPtrOrSmiConstant<TIndex>(max_size)),
          bailout);
 
+  const ParameterMode mode =
+      std::is_same<TIndex, Smi>::value ? SMI_PARAMETERS : INTPTR_PARAMETERS;
   // Allocate the new backing store.
   TNode<FixedArrayBase> new_elements =
       AllocateFixedArray(to_kind, new_capacity, mode);
@@ -4899,10 +4900,8 @@ TNode<FixedArrayBase> CodeStubAssembler::GrowElementsCapacity(
   // Copy the elements from the old elements store to the new.
   // The size-check above guarantees that the |new_elements| is allocated
   // in new space so we can skip the write barrier.
-  CopyFixedArrayElements(from_kind, elements, to_kind, new_elements,
-                         UncheckedCast<IntPtrT>(capacity),
-                         UncheckedCast<IntPtrT>(new_capacity),
-                         SKIP_WRITE_BARRIER, mode);
+  CopyFixedArrayElements(from_kind, elements, to_kind, new_elements, capacity,
+                         new_capacity, SKIP_WRITE_BARRIER);
 
   StoreObjectField(object, JSObject::kElementsOffset, new_elements);
   Comment("] GrowElementsCapacity");
@@ -9947,8 +9946,8 @@ void CodeStubAssembler::EmitElementStore(
         IsNonextensibleElementsKind(elements_kind))) {
     CSA_ASSERT(this, Word32BinaryNot(IsFixedCOWArrayMap(LoadMap(elements))));
   } else if (IsCOWHandlingStoreMode(store_mode)) {
-    elements = CopyElementsOnWrite(object, elements, elements_kind, length,
-                                   parameter_mode, bailout);
+    elements = CopyElementsOnWrite(object, elements, elements_kind,
+                                   Signed(length), bailout);
   }
 
   CSA_ASSERT(this, Word32BinaryNot(IsFixedCOWArrayMap(LoadMap(elements))));
@@ -10024,16 +10023,15 @@ TNode<FixedArrayBase> CodeStubAssembler::CheckForCapacityGrow(
 
 TNode<FixedArrayBase> CodeStubAssembler::CopyElementsOnWrite(
     TNode<HeapObject> object, TNode<FixedArrayBase> elements, ElementsKind kind,
-    Node* length, ParameterMode mode, Label* bailout) {
+    TNode<IntPtrT> length, Label* bailout) {
   TVARIABLE(FixedArrayBase, new_elements_var, elements);
   Label done(this);
 
   GotoIfNot(IsFixedCOWArrayMap(LoadMap(elements)), &done);
   {
-    Node* capacity =
-        TaggedToParameter(LoadFixedArrayBaseLength(elements), mode);
+    TNode<IntPtrT> capacity = SmiUntag(LoadFixedArrayBaseLength(elements));
     TNode<FixedArrayBase> new_elements = GrowElementsCapacity(
-        object, elements, kind, kind, length, capacity, mode, bailout);
+        object, elements, kind, kind, length, capacity, bailout);
     new_elements_var = new_elements;
     Goto(&done);
   }
@@ -10059,8 +10057,7 @@ void CodeStubAssembler::TransitionElementsKind(TNode<JSObject> object,
     Label done(this);
     GotoIf(TaggedEqual(elements, EmptyFixedArrayConstant()), &done);
 
-    // TODO(ishell): Use OptimalParameterMode().
-    ParameterMode mode = INTPTR_PARAMETERS;
+    // TODO(ishell): Use BInt for elements_length and array_length.
     TNode<IntPtrT> elements_length =
         SmiUntag(LoadFixedArrayBaseLength(elements));
     TNode<IntPtrT> array_length = Select<IntPtrT>(
@@ -10074,7 +10071,7 @@ void CodeStubAssembler::TransitionElementsKind(TNode<JSObject> object,
     CSA_ASSERT(this, WordNotEqual(elements_length, IntPtrConstant(0)));
 
     GrowElementsCapacity(object, elements, from_kind, to_kind, array_length,
-                         elements_length, mode, bailout);
+                         elements_length, bailout);
     Goto(&done);
     BIND(&done);
   }
