@@ -1116,22 +1116,23 @@ bool InstanceBuilder::ProcessImportedTable(Handle<WasmInstanceObject> instance,
 
   auto table_object = Handle<WasmTableObject>::cast(value);
 
-  int imported_table_size = table_object->current_length();
-  if (imported_table_size < static_cast<int>(table.initial_size)) {
-    thrower_->LinkError("table import %d is smaller than initial %d, got %u",
+  uint32_t imported_table_size =
+      static_cast<uint32_t>(table_object->current_length());
+  if (imported_table_size < table.initial_size) {
+    thrower_->LinkError("table import %d is smaller than initial %u, got %u",
                         import_index, table.initial_size, imported_table_size);
     return false;
   }
 
   if (table.has_maximum_size) {
     if (table_object->maximum_length().IsUndefined(isolate_)) {
-      thrower_->LinkError("table import %d has no maximum length, expected %d",
+      thrower_->LinkError("table import %d has no maximum length, expected %u",
                           import_index, table.maximum_size);
       return false;
     }
     int64_t imported_maximum_size = table_object->maximum_length().Number();
     if (imported_maximum_size < 0) {
-      thrower_->LinkError("table import %d has no maximum length, expected %d",
+      thrower_->LinkError("table import %d has no maximum length, expected %u",
                           import_index, table.maximum_size);
       return false;
     }
