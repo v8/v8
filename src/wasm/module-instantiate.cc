@@ -533,8 +533,7 @@ MaybeHandle<WasmInstanceObject> InstanceBuilder::Build() {
   //--------------------------------------------------------------------------
   int table_count = static_cast<int>(module_->tables.size());
   {
-    Handle<FixedArray> tables = isolate_->factory()->NewFixedArray(table_count);
-    for (int i = module_->num_imported_tables; i < table_count; i++) {
+    for (int i = 0; i < table_count; i++) {
       const WasmTable& table = module_->tables[i];
       if (table.initial_size > FLAG_wasm_max_table_size) {
         thrower_->RangeError(
@@ -543,6 +542,11 @@ MaybeHandle<WasmInstanceObject> InstanceBuilder::Build() {
             table.initial_size, FLAG_wasm_max_table_size);
         return {};
       }
+    }
+
+    Handle<FixedArray> tables = isolate_->factory()->NewFixedArray(table_count);
+    for (int i = module_->num_imported_tables; i < table_count; i++) {
+      const WasmTable& table = module_->tables[i];
       Handle<WasmTableObject> table_obj = WasmTableObject::New(
           isolate_, table.type, table.initial_size, table.has_maximum_size,
           table.maximum_size, nullptr);
