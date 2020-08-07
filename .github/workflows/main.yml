@@ -60,16 +60,16 @@ jobs:
       run: (cd v8 && ninja -C out/riscv64.sim -j2)
 
     - name: cctests
-      run: (cd v8 && tools/run-tests.py --outdir=out/riscv64.sim cctest)
+      run: (cd v8 && tools/run-tests.py -p verbose --report --outdir=out/riscv64.sim cctest)
 
     - name: unittests
-      run: (cd v8 && tools/run-tests.py --outdir=out/riscv64.sim unittests)
+      run: (cd v8 && tools/run-tests.py -p verbose --report --outdir=out/riscv64.sim unittests)
 
     - name: wasm tests
-      run: (cd v8 && tools/run-tests.py --outdir=out/riscv64.sim wasm-api-tests)
+      run: (cd v8 && tools/run-tests.py -p verbose --report --outdir=out/riscv64.sim wasm-api-tests)
 
     - name: mjsunit tests
-      run: (cd v8 && tools/run-tests.py --outdir=out/riscv64.sim mjsunit)
+      run: (cd v8 && tools/run-tests.py -p verbose --report --outdir=out/riscv64.sim mjsunit)
 
     - name: misc tests
-      run: (cd v8 && tools/run-tests.py --outdir=out/riscv64.sim intl message debugger inspector mkgrokdump)
+      run: (cd v8 && tools/run-tests.py -p verbose --report --outdir=out/riscv64.sim intl message debugger inspector mkgrokdump)
