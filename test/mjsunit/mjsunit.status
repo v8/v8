@@ -1200,7 +1200,7 @@
   # fixed in a later cl.
   # TODO(mythria): Reenable this when the cl that migrates deprecated maps
   # lands
-  'regress/regress-932953': [FAIL],
+  'regress/regress-932953': [SKIP],
 }],  # variant == turboprop
 
 ##############################################################################
