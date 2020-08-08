@@ -453,9 +453,6 @@
   # https://bugs.chromium.org/p/v8/issues/detail?id=7472
   'intl402/NumberFormat/currency-digits': [FAIL],
 
-  # http://crbug/v8/10744
-  'intl402/Intl/builtin': [FAIL],
-
   # https://bugs.chromium.org/p/v8/issues/detail?id=7831
   'language/statements/generators/generator-created-after-decl-inst': [FAIL],
   'language/expressions/generators/generator-created-after-decl-inst': [FAIL],
@@ -553,6 +550,9 @@
   'built-ins/Atomics/sub/non-shared-bufferdata': [FAIL],
   'built-ins/Atomics/xor/bigint/non-shared-bufferdata': [FAIL],
   'built-ins/Atomics/xor/non-shared-bufferdata': [FAIL],
+
+  # https://crbug.com/v8/10789
+  'built-ins/Function/prototype/toString/built-in-function-object': [FAIL],
 
   ######################## NEEDS INVESTIGATION ###########################
 
