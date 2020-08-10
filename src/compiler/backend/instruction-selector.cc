@@ -422,6 +422,14 @@ int InstructionSelector::GetEffectLevel(Node* node) const {
   return effect_level_[id];
 }
 
+int InstructionSelector::GetEffectLevel(Node* node,
+                                        FlagsContinuation* cont) const {
+  return cont->IsBranch()
+             ? GetEffectLevel(
+                   cont->true_block()->PredecessorAt(0)->control_input())
+             : GetEffectLevel(node);
+}
+
 void InstructionSelector::SetEffectLevel(Node* node, int effect_level) {
   DCHECK_NOT_NULL(node);
   size_t const id = node->id();

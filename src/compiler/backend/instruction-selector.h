@@ -440,6 +440,10 @@ class V8_EXPORT_PRIVATE InstructionSelector final {
   // Gets the effect level of {node}.
   int GetEffectLevel(Node* node) const;
 
+  // Gets the effect level of {node}, appropriately adjusted based on
+  // continuation flags if the node is a branch.
+  int GetEffectLevel(Node* node, FlagsContinuation* cont) const;
+
   int GetVirtualRegister(const Node* node);
   const std::map<NodeId, int> GetVirtualRegistersForTesting() const;
 

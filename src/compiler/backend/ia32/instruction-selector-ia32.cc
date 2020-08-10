@@ -598,11 +598,7 @@ void VisitBinop(InstructionSelector* selector, Node* node,
     inputs[input_count++] = g.UseRegister(left);
     inputs[input_count++] = g.UseImmediate(right);
   } else {
-    int effect_level = selector->GetEffectLevel(node);
-    if (cont->IsBranch()) {
-      effect_level = selector->GetEffectLevel(
-          cont->true_block()->PredecessorAt(0)->control_input());
-    }
+    int effect_level = selector->GetEffectLevel(node, cont);
     if (node->op()->HasProperty(Operator::kCommutative) &&
         g.CanBeBetterLeftOperand(right) &&
         (!g.CanBeBetterLeftOperand(left) ||
@@ -664,11 +660,7 @@ void InstructionSelector::VisitStackPointerGreaterThan(
   InstructionCode opcode =
       kArchStackPointerGreaterThan | MiscField::encode(static_cast<int>(kind));
 
-  int effect_level = GetEffectLevel(node);
-  if (cont->IsBranch()) {
-    effect_level =
-        GetEffectLevel(cont->true_block()->PredecessorAt(0)->control_input());
-  }
+  int effect_level = GetEffectLevel(node, cont);
 
   IA32OperandGenerator g(this);
 
@@ -1442,11 +1434,7 @@ void VisitWordCompare(InstructionSelector* selector, Node* node,
   InstructionCode narrowed_opcode =
       TryNarrowOpcodeSize(opcode, left, right, cont);
 
-  int effect_level = selector->GetEffectLevel(node);
-  if (cont->IsBranch()) {
-    effect_level = selector->GetEffectLevel(
-        cont->true_block()->PredecessorAt(0)->control_input());
-  }
+  int effect_level = selector->GetEffectLevel(node, cont);
 
   // If one of the two inputs is an immediate, make sure it's on the right, or
   // if one of the two inputs is a memory operand, make sure it's on the left.

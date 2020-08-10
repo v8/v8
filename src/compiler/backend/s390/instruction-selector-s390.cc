@@ -1713,11 +1713,7 @@ void VisitWordCompare(InstructionSelector* selector, Node* node,
 
   // If one of the two inputs is an immediate, make sure it's on the right, or
   // if one of the two inputs is a memory operand, make sure it's on the left.
-  int effect_level = selector->GetEffectLevel(node);
-  if (cont->IsBranch()) {
-    effect_level = selector->GetEffectLevel(
-        cont->true_block()->PredecessorAt(0)->control_input());
-  }
+  int effect_level = selector->GetEffectLevel(node, cont);
 
   if ((!g.CanBeImmediate(right, immediate_mode) &&
        g.CanBeImmediate(left, immediate_mode)) ||
@@ -1815,11 +1811,7 @@ void VisitLoadAndTest(InstructionSelector* selector, InstructionCode opcode,
   size_t output_count = 0;
   bool use_value = false;
 
-  int effect_level = selector->GetEffectLevel(node);
-  if (cont->IsBranch()) {
-    effect_level = selector->GetEffectLevel(
-        cont->true_block()->PredecessorAt(0)->control_input());
-  }
+  int effect_level = selector->GetEffectLevel(node, cont);
 
   if (g.CanBeMemoryOperand(opcode, node, value, effect_level)) {
     // generate memory operand
