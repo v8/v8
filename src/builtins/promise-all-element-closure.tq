@@ -159,6 +159,8 @@ transitioning macro PromiseAllResolveElementClosure<F: type>(
   values.objects[index] = updatedValue;
 
   remainingElementsCount = remainingElementsCount - 1;
+  check(remainingElementsCount >= 0);
+
   *ContextSlot(
       promiseContext,
       PromiseAllResolveElementContextSlots::

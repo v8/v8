@@ -276,6 +276,8 @@ Reject(Object) {
       PromiseAllResolveElementContextSlots::
           kPromiseAllResolveElementRemainingSlot);
 
+  check(remainingElementsCount >= 0);
+
   if (remainingElementsCount > 0) {
     // Pre-allocate the backing store for the {values} to the desired
     // capacity. We may already have elements in "values" - this happens
@@ -295,7 +297,6 @@ Reject(Object) {
     }
   } else
     deferred {
-      assert(remainingElementsCount == 0);
       // If remainingElementsCount.[[Value]] is 0, then
       //     Let valuesArray be CreateArrayFromList(values).
       //     Perform ? Call(resultCapability.[[Resolve]], undefined,
