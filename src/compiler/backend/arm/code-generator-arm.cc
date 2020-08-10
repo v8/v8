@@ -2833,8 +2833,7 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       break;
     }
     case kArmS128AllOnes: {
-      __ vceq(i.OutputSimd128Register(), i.OutputSimd128Register(),
-              i.OutputSimd128Register());
+      __ vmov(i.OutputSimd128Register(), uint64_t{0xffff'ffff'ffff'ffff});
       break;
     }
     case kArmS128Dup: {

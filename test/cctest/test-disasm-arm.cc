@@ -1053,6 +1053,8 @@ TEST(Neon) {
               "f2802050       vmov.i32 q1, 0");
       COMPARE(vmov(q1, 0x0000001200000012),
               "f2812052       vmov.i32 q1, 18");
+      COMPARE(vmov(q0, 0xffffffffffffffff),
+              "f3870e5f       vmov.i8 q0, 255");
       COMPARE(vmvn(q0, q15),
               "f3b005ee       vmvn q0, q15");
       COMPARE(vmvn(q8, q9),
