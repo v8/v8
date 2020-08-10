@@ -226,6 +226,9 @@ Assembler::Assembler(const AssemblerOptions& options,
 void Assembler::GetCode(Isolate* isolate, CodeDesc* desc,
                         SafepointTableBuilder* safepoint_table_builder,
                         int handler_table_offset) {
+  // FIXME(RISCV): does riscv need this?
+  EmitForbiddenSlotInstruction();
+
   int code_comments_size = WriteCodeComments();
 
   DCHECK(pc_ <= reloc_info_writer.pos());  // No overlap.
@@ -256,6 +259,7 @@ void Assembler::GetCode(Isolate* isolate, CodeDesc* desc,
 
 void Assembler::Align(int m) {
   DCHECK(m >= 4 && base::bits::IsPowerOfTwo(m));
+  EmitForbiddenSlotInstruction();
   while ((pc_offset() & (m - 1)) != 0) {
     nop();
   }
@@ -732,7 +736,7 @@ void Assembler::GenInstrB(uint8_t funct3, Opcode opcode, Register rs1,
 }
 
 void Assembler::GenInstrU(Opcode opcode, Register rd, int32_t imm20) {
-  DCHECK(rd.is_valid() && is_int20(imm20));
+  DCHECK(rd.is_valid() && (is_int20(imm20) || is_uint20(imm20)));
   Instr instr = opcode | (rd.code() << kRdShift) | (imm20 << kImm20Shift);
   emit(instr);
 }
@@ -1689,75 +1693,142 @@ void Assembler::sfence_vma(Register rs1, Register rs2) {
 // Assembler Pseudo Instructions (Tables 25.2 and 25.3, RISC-V Unprivileged ISA)
 
 void Assembler::nop() { addi(ToRegister(0), ToRegister(0), 0); }
-
-// The code in *this function only* is based on LLVM's `generateInstSeq`
-// (RISCVMatInt.cpp), part of the LLVM Project, under the Apache License v2.0
-// with LLVM Exceptions. See https://llvm.org/LICENSE.txt for license
-// information. SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 void Assembler::RV_li(Register rd, int64_t imm) {
+  // 64-bit imm is put in the register rd.
+  // In most cases the imm is 32 bit and 2 instructions are generated. If a
+  // temporary register is available, in the worst case, 6 instructions are
+  // generated for a full 64-bit immediate. If temporay register is not
+  // available the maximum will be 8 instructions. If imm is more than 32 bits
+  // and a temp register is available, imm is deivided into two 32-bit parts,
+  // low_32 and up_32. Each part is built in a separate register. low_32 is
+  // built before up_32. If low_32 is negative (upper 32 bits are 1), 0xffffffff
+  // is subtracted from up_32 before up_32 is built. This compensates for 32
+  // bits of 1's in the lower when the two registers are added. If no temp is
+  // available, the upper 32 bit is built in rd, and the lower 32 bits are
+  // devided to 3 parts (11, 11, and 10 bits). The parts are shifted and added
+  // to the upper part built in rd.
   if (is_int32(imm + 0x800)) {
-    // Depending on the active bits in the immediate Value v, the following
-    // instruction sequences are emitted:
-    //
-    // v == 0                        : ADDI
-    // v[0,12) != 0 && v[12,32) == 0 : ADDI
-    // v[0,12) == 0 && v[12,32) != 0 : LUI
-    // v[0,32) != 0                  : LUI+ADDI(W)
-    int64_t Hi20 = ((imm + 0x800) >> 12);
-    int64_t Lo12 = imm << 52 >> 52;
-    Register base = zero_reg;
-
-    if (Hi20) {
-      lui(rd, (int32_t)Hi20);
-      base = rd;
-    }
-
-    if (Lo12 || Hi20 == 0) {
-      addi(rd, base, Lo12);
+    // 32-bit case. Maximum of 2 instructions generated
+    int64_t high_20 = ((imm + 0x800) >> 12);
+    int64_t low_12 = imm << 52 >> 52;
+    if (high_20) {
+      lui(rd, (int32_t)high_20);
+      if (low_12) {
+        addi(rd, rd, low_12);
+      }
+    } else {
+      ori(rd, zero_reg, low_12);
     }
     return;
+  } else {
+    // 64-bit case: devid imm to two 32-bit parts, upper and lower
+    if (imm == -1) {
+      addi(rd, zero_reg, -1);
+      return;
+    }
+    int64_t up_32 = imm >> 32;
+    int64_t low_32 = imm & 0xffffffffull;
+    Register rd_up = rd;
+    // Check if a temporary register is available
+    if (up_32 != 0 && low_32 != 0) {
+      UseScratchRegisterScope temps(this);
+      BlockTrampolinePoolScope block_trampoline_pool(this);
+      rd_up = temps.hasAvailable() ? temps.Acquire() : zero_reg;
+    }
+    if (rd_up != zero_reg) {
+      // keep track of hardware behavior for lower part in sim_low
+      int64_t sim_low = 0;
+      // Build lower part
+      if (low_32 != 0) {
+        int64_t high_20 = ((low_32 + 0x800) >> 12);
+        int64_t low_12 = low_32 & 0xfff;
+        if (high_20) {
+          // Adjust to 20 bits for the case of overflow
+          high_20 &= 0xfffff;
+          sim_low = ((high_20 << 12) << 32) >> 32;
+          lui(rd, (int32_t)high_20);
+          if (low_12) {
+            sim_low += (low_12 << 52 >> 52) | low_12;
+            addi(rd, rd, low_12);
+          }
+        } else {
+          sim_low = low_12;
+          ori(rd, zero_reg, low_12);
+        }
+      }
+      if (sim_low & 0x100000000) {
+        // low_32 is a negative 64 bit after the build.
+        up_32 = (up_32 - 0xffffffff) & 0xffffffff;
+      }
+      if (up_32 == 0) {
+        return;
+      }
+      // Build upper part in a temporary register
+      if (low_32 == 0) {
+        // Build upper part in rd
+        rd_up = rd;
+      }
+      int64_t high_20 = (up_32 + 0x800) >> 12;
+      int64_t low_12 = up_32 & 0xfff;
+      if (high_20) {
+        // Adjust to 20 bits for the case of overflow
+        high_20 &= 0xfffff;
+        lui(rd_up, (int32_t)high_20);
+        if (low_12) {
+          addi(rd_up, rd_up, low_12);
+        }
+      } else {
+        ori(rd_up, zero_reg, low_12);
+      }
+      // Put it at the bgining of register
+      slli(rd_up, rd_up, 32);
+      if (low_32 != 0) {
+        add(rd, rd, rd_up);
+      }
+      return;
+    }
+    // No temp register. Build both parts in rd.
+    // Build upper 32 bits first in rd. Divide lower 32 bits to 3 parts and add
+    // parts to the upperpart by doing shift and add
+    int64_t high_20 = (up_32 + 0x800) >> 12;
+    int64_t low_12 = up_32 & 0xfff;
+    if (high_20) {
+      // Adjust to 20 bits for the case of overflow
+      high_20 &= 0xfffff;
+      lui(rd, (int32_t)high_20);
+      if (low_12) {
+        addi(rd, rd, low_12);
+      }
+    } else {
+      ori(rd, zero_reg, low_12);
+    }
+    // rd cintains the upper part. break low_32 to 3 parts
+    uint64_t partL1 = (low_32 >> 21) & 0x7ff;  // 11 bits
+    uint64_t partL2 = (low_32 >> 10) & 0x7ff;  // 11 bits
+    uint64_t partL3 = low_32 & 0x3ff;          // 10 bits
+    // Generate code
+    int32_t shift_count = 11;
+    if (partL1 != 0) {
+      slli(rd, rd, 11);
+      ori(rd, rd, partL1);
+      shift_count = 11;
+    } else {
+      shift_count += 11;
+    }
+    if (partL2 != 0) {
+      slli(rd, rd, shift_count);
+      ori(rd, rd, partL2);
+      shift_count = 10;
+    } else {
+      shift_count += 10;
+    }
+    if (partL3 != 0) {
+      slli(rd, rd, shift_count);
+      ori(rd, rd, partL3);
+    } else {
+      slli(rd, rd, shift_count);
+    }
   }
-
-  assert(V8_TARGET_ARCH_64_BIT && "Can't emit >32-bit imm for non-RV64 target");
-
-  // In the worst case, for a full 64-bit constant, a sequence of 8 instructions
-  // (i.e., LUI+ADDIW+SLLI+ADDI+SLLI+ADDI+SLLI+ADDI) has to be emmitted. Note
-  // that the first two instructions (LUI+ADDIW) can contribute up to 32 bits
-  // while the following ADDI instructions contribute up to 12 bits each.
-  //
-  // On the first glance, implementing this seems to be possible by simply
-  // emitting the most significant 32 bits (LUI+ADDIW) followed by as many left
-  // shift (SLLI) and immediate additions (ADDI) as needed. However, due to the
-  // fact that ADDI performs a sign extended addition, doing it like that would
-  // only be possible when at most 11 bits of the ADDI instructions are used.
-  // Using all 12 bits of the ADDI instructions, like done by GAS, actually
-  // requires that the constant is processed starting with the least significant
-  // bit.
-  //
-  // In the following, constants are processed from LSB to MSB but instruction
-  // emission is performed from MSB to LSB by recursively calling
-  // generateInstSeq. In each recursion, first the lowest 12 bits are removed
-  // from the constant and the optimal shift amount, which can be greater than
-  // 12 bits if the constant is sparse, is determined. Then, the shifted
-  // remaining constant is processed recursively and gets emitted as soon as it
-  // fits into 32 bits. The emission of the shifts and additions is subsequently
-  // performed when the recursion returns.
-
-  int64_t Lo12 = imm << 52 >> 52;
-  int64_t Hi52 = ((uint64_t)imm + 0x800ull) >> 12;
-  int FirstBit = 0;
-  uint64_t Val = Hi52;
-  while ((Val & 1) == 0) {
-    Val = Val >> 1;
-    FirstBit++;
-  }
-  int ShiftAmount = 12 + FirstBit;
-  Hi52 = (Hi52 >> (ShiftAmount - 12)) << ShiftAmount >> ShiftAmount;
-
-  RV_li(rd, Hi52);
-
-  slli(rd, rd, ShiftAmount);
-  if (Lo12) addi(rd, rd, Lo12);
 }
 int Assembler::li_count(int64_t imm) {
   int count = 0;
@@ -1816,6 +1887,8 @@ void Assembler::break_(uint32_t code, bool break_as_stop) {
   // since ebreak does not allow additional immediate field, we use the
   // immediate field of lui instruction immediately following the ebreak to
   // encode the "code" info
+  //
+  // FIXME: need to check how native debugger gets the "code" information
   ebreak();
   DCHECK(is_uint20(code));
   lui(zero_reg, code);
@@ -1939,23 +2012,23 @@ void Assembler::GrowBuffer() {
 }
 
 void Assembler::db(uint8_t data) {
-  if (!is_buffer_growth_blocked()) CheckBuffer();
+  CheckForEmitInForbiddenSlot();
   EmitHelper(data);
 }
 
 void Assembler::dd(uint32_t data) {
-  if (!is_buffer_growth_blocked()) CheckBuffer();
+  CheckForEmitInForbiddenSlot();
   EmitHelper(data);
 }
 
 void Assembler::dq(uint64_t data) {
-  if (!is_buffer_growth_blocked()) CheckBuffer();
+  CheckForEmitInForbiddenSlot();
   EmitHelper(data);
 }
 
 void Assembler::dd(Label* label) {
   uint64_t data;
-  if (!is_buffer_growth_blocked()) CheckBuffer();
+  CheckForEmitInForbiddenSlot();
   if (label->is_bound()) {
     data = reinterpret_cast<uint64_t>(buffer_start_ + label->pos());
   } else {
