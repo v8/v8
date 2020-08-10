@@ -4043,32 +4043,6 @@ uint16_t Multiply(uint16_t a, uint16_t b) {
   uint32_t result = static_cast<uint32_t>(a) * static_cast<uint32_t>(b);
   return static_cast<uint16_t>(result);
 }
-
-void VmovImmediate(Simulator* simulator, Instruction* instr) {
-  byte cmode = instr->Bits(11, 8);
-  int vd = instr->VFPDRegValue(kSimd128Precision);
-  uint8_t imm = instr->Bit(24) << 7;  // i
-  imm |= instr->Bits(18, 16) << 4;    // imm3
-  imm |= instr->Bits(3, 0);           // imm4
-  switch (cmode) {
-    case 0: {
-      // Set the LSB of each 64-bit halves.
-      uint64_t imm64 = imm;
-      simulator->set_neon_register(vd, {imm64, imm64});
-      break;
-    }
-    case 0xe: {
-      uint8_t imms[kSimd128Size];
-      // Set all bytes of register.
-      std::fill_n(imms, kSimd128Size, imm);
-      simulator->set_neon_register(vd, imms);
-      break;
-    }
-    default: {
-      UNIMPLEMENTED();
-    }
-  }
-}
 }  // namespace
 
 template <typename T, int SIZE>
@@ -4632,7 +4606,21 @@ void Simulator::DecodeSpecialCondition(Instruction* instr) {
         // One register and a modified immediate value, see ARM DDI 0406C.d
         // A7.4.6. Handles vmov, vorr, vmvn, vbic.
         // Only handle vmov.i32 for now.
-        VmovImmediate(this, instr);
+        byte cmode = instr->Bits(11, 8);
+        switch (cmode) {
+          case 0: {
+            // vmov.i32 Qd, #<imm>
+            int vd = instr->VFPDRegValue(kSimd128Precision);
+            uint64_t imm = instr->Bit(24) << 7;      // i
+            imm |= instr->Bits(18, 16) << 4;         // imm3
+            imm |= instr->Bits(3, 0);                // imm4
+            imm |= imm << 32;
+            set_neon_register(vd, {imm, imm});
+            break;
+          }
+          default:
+            UNIMPLEMENTED();
+        }
       } else if ((instr->Bits(18, 16) == 0) && (instr->Bits(11, 6) == 0x28) &&
                  (instr->Bit(4) == 1)) {
         // vmovl signed
@@ -5639,12 +5627,6 @@ void Simulator::DecodeSpecialCondition(Instruction* instr) {
           default:
             UNIMPLEMENTED();
         }
-      } else if (instr->Bits(21, 19) == 0 && instr->Bit(7) == 0 &&
-                 instr->Bit(4) == 1) {
-        // vmov (immediate), see ARM DDI 0487F.b F6.1.134, decoding A4.
-        // Similar to vmov (immediate above), but when high bit of immediate is
-        // set.
-        VmovImmediate(this, instr);
       } else {
         UNIMPLEMENTED();
       }
