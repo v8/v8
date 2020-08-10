@@ -68,10 +68,8 @@ TNode<JSArrayBuffer> TypedArrayBuiltinsAssembler::AllocateEmptyOnHeapBuffer(
   StoreJSArrayBufferBackingStore(
       buffer,
       EncodeExternalPointer(ReinterpretCast<RawPtrT>(IntPtrConstant(0))));
-  if (V8_ARRAY_BUFFER_EXTENSION_BOOL) {
     StoreObjectFieldNoWriteBarrier(buffer, JSArrayBuffer::kExtensionOffset,
                                    IntPtrConstant(0));
-  }
   for (int offset = JSArrayBuffer::kHeaderSize;
        offset < JSArrayBuffer::kSizeWithEmbedderFields; offset += kTaggedSize) {
     StoreObjectFieldNoWriteBarrier(buffer, offset, SmiConstant(0));

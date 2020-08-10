@@ -478,8 +478,7 @@ class OldSpace : public PagedSpace {
   }
 
   size_t ExternalBackingStoreBytes(ExternalBackingStoreType type) const final {
-    if (V8_ARRAY_BUFFER_EXTENSION_BOOL &&
-        type == ExternalBackingStoreType::kArrayBuffer)
+    if (type == ExternalBackingStoreType::kArrayBuffer)
       return heap()->OldArrayBufferBytes();
     return external_backing_store_bytes_[type];
   }

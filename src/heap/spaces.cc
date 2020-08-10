@@ -12,7 +12,6 @@
 #include "src/base/bounded-page-allocator.h"
 #include "src/base/macros.h"
 #include "src/common/globals.h"
-#include "src/heap/array-buffer-tracker-inl.h"
 #include "src/heap/combined-heap.h"
 #include "src/heap/concurrent-marking.h"
 #include "src/heap/gc-tracer.h"
@@ -114,15 +113,6 @@ void Page::MergeOldToNewRememberedSets() {
   CHECK_NULL(slot_set_[OLD_TO_NEW]);
   slot_set_[OLD_TO_NEW] = sweeping_slot_set_;
   sweeping_slot_set_ = nullptr;
-}
-
-void Page::AllocateLocalTracker() {
-  DCHECK_NULL(local_tracker_);
-  local_tracker_ = new LocalArrayBufferTracker(this);
-}
-
-bool Page::contains_array_buffers() {
-  return local_tracker_ != nullptr && !local_tracker_->IsEmpty();
 }
 
 size_t Page::AvailableInFreeList() {

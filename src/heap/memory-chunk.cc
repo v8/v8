@@ -5,7 +5,6 @@
 #include "src/heap/memory-chunk.h"
 
 #include "src/base/platform/platform.h"
-#include "src/heap/array-buffer-tracker.h"
 #include "src/heap/code-object-registry.h"
 #include "src/heap/memory-allocator.h"
 #include "src/heap/memory-chunk-inl.h"
@@ -123,7 +122,6 @@ MemoryChunk* MemoryChunk::Initialize(BasicMemoryChunk* basic_chunk, Heap* heap,
   chunk->write_unprotect_counter_ = 0;
   chunk->mutex_ = new base::Mutex();
   chunk->young_generation_bitmap_ = nullptr;
-  chunk->local_tracker_ = nullptr;
 
   chunk->external_backing_store_bytes_[ExternalBackingStoreType::kArrayBuffer] =
       0;
@@ -218,7 +216,6 @@ void MemoryChunk::ReleaseAllocatedMemoryNeededForWritableChunk() {
   ReleaseInvalidatedSlots<OLD_TO_NEW>();
   ReleaseInvalidatedSlots<OLD_TO_OLD>();
 
-  if (local_tracker_ != nullptr) ReleaseLocalTracker();
   if (young_generation_bitmap_ != nullptr) ReleaseYoungGenerationBitmap();
 
   if (!IsLargePage()) {
@@ -375,12 +372,6 @@ bool MemoryChunk::RegisteredObjectWithInvalidatedSlots(HeapObject object) {
          invalidated_slots<type>()->end();
 }
 
-void MemoryChunk::ReleaseLocalTracker() {
-  DCHECK_NOT_NULL(local_tracker_);
-  delete local_tracker_;
-  local_tracker_ = nullptr;
-}
-
 void MemoryChunk::AllocateYoungGenerationBitmap() {
   DCHECK_NULL(young_generation_bitmap_);
   young_generation_bitmap_ = static_cast<Bitmap*>(calloc(1, Bitmap::kSize));
@@ -429,9 +420,6 @@ void MemoryChunk::ValidateOffsets(MemoryChunk* chunk) {
             MemoryChunkLayout::kListNodeOffset);
   DCHECK_EQ(reinterpret_cast<Address>(&chunk->categories_) - chunk->address(),
             MemoryChunkLayout::kCategoriesOffset);
-  DCHECK_EQ(
-      reinterpret_cast<Address>(&chunk->local_tracker_) - chunk->address(),
-      MemoryChunkLayout::kLocalTrackerOffset);
   DCHECK_EQ(
       reinterpret_cast<Address>(&chunk->young_generation_live_byte_count_) -
           chunk->address(),

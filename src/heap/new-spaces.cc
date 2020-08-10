@@ -5,7 +5,6 @@
 #include "src/heap/new-spaces.h"
 
 #include "src/heap/array-buffer-sweeper.h"
-#include "src/heap/array-buffer-tracker-inl.h"
 #include "src/heap/heap-inl.h"
 #include "src/heap/incremental-marking.h"
 #include "src/heap/mark-compact.h"
@@ -21,7 +20,6 @@ Page* SemiSpace::InitializePage(MemoryChunk* chunk) {
   chunk->SetFlag(in_to_space ? MemoryChunk::TO_PAGE : MemoryChunk::FROM_PAGE);
   Page* page = static_cast<Page*>(chunk);
   page->SetYoungGenerationPageFlags(heap()->incremental_marking()->IsMarking());
-  page->AllocateLocalTracker();
   page->list_node().Initialize();
 #ifdef ENABLE_MINOR_MC
   if (FLAG_minor_mc) {
@@ -659,13 +657,6 @@ void NewSpace::Verify(Isolate* isolate) {
         ExternalString external_string = ExternalString::cast(object);
         size_t size = external_string.ExternalPayloadSize();
         external_space_bytes[ExternalBackingStoreType::kExternalString] += size;
-      } else if (object.IsJSArrayBuffer()) {
-        JSArrayBuffer array_buffer = JSArrayBuffer::cast(object);
-        if (ArrayBufferTracker::IsTracked(array_buffer)) {
-          size_t size = ArrayBufferTracker::Lookup(heap(), array_buffer)
-                            ->PerIsolateAccountingLength();
-          external_space_bytes[ExternalBackingStoreType::kArrayBuffer] += size;
-        }
       }
 
       current += size;
@@ -677,18 +668,14 @@ void NewSpace::Verify(Isolate* isolate) {
   }
 
   for (int i = 0; i < kNumTypes; i++) {
-    if (V8_ARRAY_BUFFER_EXTENSION_BOOL &&
-        i == ExternalBackingStoreType::kArrayBuffer)
-      continue;
+    if (i == ExternalBackingStoreType::kArrayBuffer) continue;
     ExternalBackingStoreType t = static_cast<ExternalBackingStoreType>(i);
     CHECK_EQ(external_space_bytes[t], ExternalBackingStoreBytes(t));
   }
 
-  if (V8_ARRAY_BUFFER_EXTENSION_BOOL) {
     size_t bytes = heap()->array_buffer_sweeper()->young().BytesSlow();
     CHECK_EQ(bytes,
              ExternalBackingStoreBytes(ExternalBackingStoreType::kArrayBuffer));
-  }
 
   // Check semi-spaces.
   CHECK_EQ(from_space_.id(), kFromSpace);

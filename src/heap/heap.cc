@@ -28,9 +28,7 @@
 #include "src/execution/v8threads.h"
 #include "src/execution/vm-state-inl.h"
 #include "src/handles/global-handles.h"
-#include "src/heap/array-buffer-collector.h"
 #include "src/heap/array-buffer-sweeper.h"
-#include "src/heap/array-buffer-tracker-inl.h"
 #include "src/heap/barrier.h"
 #include "src/heap/code-object-registry.h"
 #include "src/heap/code-stats.h"
@@ -2888,20 +2886,6 @@ void* Heap::AllocateExternalBackingStore(
   return allocate(byte_length);
 }
 
-void Heap::RegisterBackingStore(JSArrayBuffer buffer,
-                                std::shared_ptr<BackingStore> backing_store) {
-  ArrayBufferTracker::RegisterNew(this, buffer, std::move(backing_store));
-}
-
-std::shared_ptr<BackingStore> Heap::UnregisterBackingStore(
-    JSArrayBuffer buffer) {
-  return ArrayBufferTracker::Unregister(this, buffer);
-}
-
-std::shared_ptr<BackingStore> Heap::LookupBackingStore(JSArrayBuffer buffer) {
-  return ArrayBufferTracker::Lookup(this, buffer);
-}
-
 void Heap::ConfigureInitialOldGenerationSize() {
   if (!old_generation_size_configured_ && tracer()->SurvivalEventsRecorded()) {
     const size_t minimum_growing_step =
@@ -3900,20 +3884,7 @@ void Heap::MemoryPressureNotification(MemoryPressureLevel level,
 }
 
 void Heap::EagerlyFreeExternalMemory() {
-  if (FLAG_array_buffer_extension) {
     array_buffer_sweeper()->EnsureFinished();
-  } else {
-    CHECK(!FLAG_local_heaps);
-    for (Page* page : *old_space()) {
-      if (!page->SweepingDone()) {
-        base::MutexGuard guard(page->mutex());
-        if (!page->SweepingDone()) {
-          ArrayBufferTracker::FreeDead(
-              page, mark_compact_collector()->non_atomic_marking_state());
-        }
-      }
-    }
-  }
   memory_allocator()->unmapper()->EnsureUnmappingCompleted();
 }
 
@@ -5334,7 +5305,6 @@ void Heap::SetUpSpaces() {
 #else
   minor_mark_compact_collector_ = nullptr;
 #endif  // ENABLE_MINOR_MC
-  array_buffer_collector_.reset(new ArrayBufferCollector(this));
   array_buffer_sweeper_.reset(new ArrayBufferSweeper(this));
   gc_idle_time_handler_.reset(new GCIdleTimeHandler());
   memory_measurement_.reset(new MemoryMeasurement(isolate()));
@@ -5578,7 +5548,6 @@ void Heap::TearDown() {
 #endif  // ENABLE_MINOR_MC
 
   scavenger_collector_.reset();
-  array_buffer_collector_.reset();
   array_buffer_sweeper_.reset();
   incremental_marking_.reset();
   concurrent_marking_.reset();
@@ -5598,11 +5567,6 @@ void Heap::TearDown() {
   local_embedder_heap_tracer_.reset();
 
   external_string_table_.TearDown();
-
-  // Tear down all ArrayBuffers before tearing down the heap since  their
-  // byte_length may be a HeapNumber which is required for freeing the backing
-  // store.
-  ArrayBufferTracker::TearDown(this);
 
   tracer_.reset();
 
@@ -6182,12 +6146,10 @@ void Heap::RememberUnmappedPage(Address page, bool compacted) {
 }
 
 size_t Heap::YoungArrayBufferBytes() {
-  DCHECK(V8_ARRAY_BUFFER_EXTENSION_BOOL);
   return array_buffer_sweeper()->YoungBytes();
 }
 
 size_t Heap::OldArrayBufferBytes() {
-  DCHECK(V8_ARRAY_BUFFER_EXTENSION_BOOL);
   return array_buffer_sweeper()->OldBytes();
 }
 

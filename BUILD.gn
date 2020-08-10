@@ -130,9 +130,6 @@ declare_args() {
   # Sets -dV8_CONCURRENT_MARKING
   v8_enable_concurrent_marking = true
 
-  # Sets -dV8_ARRAY_BUFFER_EXTENSION
-  v8_enable_array_buffer_extension = true
-
   # Runs mksnapshot with --turbo-profiling. After building in this
   # configuration, any subsequent run of d8 will output information about usage
   # of basic blocks in builtins.
@@ -592,9 +589,6 @@ config("features") {
   }
   if (v8_enable_concurrent_marking) {
     defines += [ "V8_CONCURRENT_MARKING" ]
-  }
-  if (v8_enable_array_buffer_extension) {
-    defines += [ "V8_ARRAY_BUFFER_EXTENSION" ]
   }
   if (v8_enable_lazy_source_positions) {
     defines += [ "V8_ENABLE_LAZY_SOURCE_POSITIONS" ]
@@ -2510,13 +2504,8 @@ v8_source_set("v8_base_without_compiler") {
     "src/heap/allocation-observer.cc",
     "src/heap/allocation-observer.h",
     "src/heap/allocation-stats.h",
-    "src/heap/array-buffer-collector.cc",
-    "src/heap/array-buffer-collector.h",
     "src/heap/array-buffer-sweeper.cc",
     "src/heap/array-buffer-sweeper.h",
-    "src/heap/array-buffer-tracker-inl.h",
-    "src/heap/array-buffer-tracker.cc",
-    "src/heap/array-buffer-tracker.h",
     "src/heap/barrier.h",
     "src/heap/base-space.cc",
     "src/heap/base-space.h",

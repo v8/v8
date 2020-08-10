@@ -16,7 +16,6 @@ class Bitmap;
 class CodeObjectRegistry;
 class FreeListCategory;
 class Heap;
-class LocalArrayBuferTracker;
 class TypedSlotsSet;
 class SlotSet;
 
@@ -58,7 +57,6 @@ class V8_EXPORT_PRIVATE MemoryChunkLayout {
     FIELD(std::atomic<size_t>[kNumTypes], ExternalBackingStoreBytes),
     FIELD(heap::ListNode<MemoryChunk>, ListNode),
     FIELD(FreeListCategory**, Categories),
-    FIELD(LocalArrayBuferTracker*, LocalTracker),
     FIELD(std::atomic<intptr_t>, YoungGenerationLiveByteCount),
     FIELD(Bitmap*, YoungGenerationBitmap),
     FIELD(CodeObjectRegistry*, CodeObjectRegistry),

@@ -9,7 +9,6 @@
 #include "src/execution/isolate.h"
 #include "src/execution/vm-state-inl.h"
 #include "src/heap/array-buffer-sweeper.h"
-#include "src/heap/array-buffer-tracker-inl.h"
 #include "src/heap/heap.h"
 #include "src/heap/incremental-marking.h"
 #include "src/heap/memory-allocator.h"
@@ -755,14 +754,6 @@ void PagedSpace::Verify(Isolate* isolate, ObjectVisitor* visitor) {
         ExternalString external_string = ExternalString::cast(object);
         size_t size = external_string.ExternalPayloadSize();
         external_page_bytes[ExternalBackingStoreType::kExternalString] += size;
-      } else if (object.IsJSArrayBuffer()) {
-        JSArrayBuffer array_buffer = JSArrayBuffer::cast(object);
-        if (ArrayBufferTracker::IsTracked(array_buffer)) {
-          size_t size =
-              ArrayBufferTracker::Lookup(isolate->heap(), array_buffer)
-                  ->PerIsolateAccountingLength();
-          external_page_bytes[ExternalBackingStoreType::kArrayBuffer] += size;
-        }
       }
     }
     for (int i = 0; i < kNumTypes; i++) {
@@ -772,15 +763,13 @@ void PagedSpace::Verify(Isolate* isolate, ObjectVisitor* visitor) {
     }
   }
   for (int i = 0; i < kNumTypes; i++) {
-    if (V8_ARRAY_BUFFER_EXTENSION_BOOL &&
-        i == ExternalBackingStoreType::kArrayBuffer)
-      continue;
+    if (i == ExternalBackingStoreType::kArrayBuffer) continue;
     ExternalBackingStoreType t = static_cast<ExternalBackingStoreType>(i);
     CHECK_EQ(external_space_bytes[t], ExternalBackingStoreBytes(t));
   }
   CHECK(allocation_pointer_found_in_space);
 
-  if (identity() == OLD_SPACE && V8_ARRAY_BUFFER_EXTENSION_BOOL) {
+  if (identity() == OLD_SPACE) {
     size_t bytes = heap()->array_buffer_sweeper()->old().BytesSlow();
     CHECK_EQ(bytes,
              ExternalBackingStoreBytes(ExternalBackingStoreType::kArrayBuffer));

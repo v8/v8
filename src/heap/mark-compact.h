@@ -717,9 +717,6 @@ class MarkCompactCollector final : public MarkCompactCollectorBase {
   UpdatingItem* CreateRememberedSetUpdatingItem(
       MemoryChunk* chunk, RememberedSetUpdatingMode updating_mode) override;
 
-  int CollectNewSpaceArrayBufferTrackerItems(ItemParallelJob* job);
-  int CollectOldSpaceArrayBufferTrackerItems(ItemParallelJob* job);
-
   void ReleaseEvacuationCandidates();
   void PostProcessEvacuationCandidates();
   void ReportAbortedEvacuationCandidate(HeapObject failed_object,
@@ -860,8 +857,6 @@ class MinorMarkCompactCollector final : public MarkCompactCollectorBase {
                                           Address end) override;
   UpdatingItem* CreateRememberedSetUpdatingItem(
       MemoryChunk* chunk, RememberedSetUpdatingMode updating_mode) override;
-
-  int CollectNewSpaceArrayBufferTrackerItems(ItemParallelJob* job);
 
   int NumberOfParallelMarkingTasks(int pages);
 

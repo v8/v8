@@ -27,7 +27,6 @@ class Isolate;
 class LargeObjectSpace;
 class LargePage;
 class LinearAllocationArea;
-class LocalArrayBufferTracker;
 class Page;
 class PagedSpace;
 class SemiSpace;

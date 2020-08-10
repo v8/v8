@@ -4,7 +4,6 @@
 
 #include "src/heap/scavenger.h"
 
-#include "src/heap/array-buffer-collector.h"
 #include "src/heap/array-buffer-sweeper.h"
 #include "src/heap/barrier.h"
 #include "src/heap/gc-tracer.h"
@@ -389,12 +388,6 @@ void ScavengerCollector::CollectGarbage() {
 
   // Set age mark.
   heap_->new_space_->set_age_mark(heap_->new_space()->top());
-
-  {
-    TRACE_GC(heap_->tracer(), GCTracer::Scope::SCAVENGER_PROCESS_ARRAY_BUFFERS);
-    ArrayBufferTracker::PrepareToFreeDeadInNewSpace(heap_);
-  }
-  heap_->array_buffer_collector()->FreeAllocations();
 
   // Since we promote all surviving large objects immediatelly, all remaining
   // large objects must be dead.

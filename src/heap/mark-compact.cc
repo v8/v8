@@ -13,9 +13,7 @@
 #include "src/execution/frames-inl.h"
 #include "src/execution/vm-state-inl.h"
 #include "src/handles/global-handles.h"
-#include "src/heap/array-buffer-collector.h"
 #include "src/heap/array-buffer-sweeper.h"
-#include "src/heap/array-buffer-tracker-inl.h"
 #include "src/heap/code-object-registry.h"
 #include "src/heap/gc-tracer.h"
 #include "src/heap/incremental-marking-inl.h"
@@ -3050,7 +3048,6 @@ void FullEvacuator::RawEvacuatePage(MemoryChunk* chunk, intptr_t* live_bytes) {
       LiveObjectVisitor::VisitBlackObjectsNoFail(
           chunk, marking_state, &new_space_visitor_,
           LiveObjectVisitor::kClearMarkbits);
-      // ArrayBufferTracker will be updated during pointers updating.
       break;
     case kPageNewToOld:
       LiveObjectVisitor::VisitBlackObjectsNoFail(
@@ -3058,7 +3055,6 @@ void FullEvacuator::RawEvacuatePage(MemoryChunk* chunk, intptr_t* live_bytes) {
           LiveObjectVisitor::kKeepMarking);
       new_to_old_page_visitor_.account_moved_bytes(
           marking_state->live_bytes(chunk));
-      // ArrayBufferTracker will be updated during sweeping.
       break;
     case kPageNewToNew:
       LiveObjectVisitor::VisitBlackObjectsNoFail(
@@ -3066,7 +3062,6 @@ void FullEvacuator::RawEvacuatePage(MemoryChunk* chunk, intptr_t* live_bytes) {
           LiveObjectVisitor::kKeepMarking);
       new_to_new_page_visitor_.account_moved_bytes(
           marking_state->live_bytes(chunk));
-      // ArrayBufferTracker will be updated during sweeping.
       break;
     case kObjectsOldToOld: {
       const bool success = LiveObjectVisitor::VisitBlackObjects(
@@ -3076,8 +3071,6 @@ void FullEvacuator::RawEvacuatePage(MemoryChunk* chunk, intptr_t* live_bytes) {
         // Aborted compaction page. Actual processing happens on the main
         // thread for simplicity reasons.
         collector_->ReportAbortedEvacuationCandidate(failed_object, chunk);
-      } else {
-        // ArrayBufferTracker will be updated during pointers updating.
       }
       break;
     }
@@ -3188,7 +3181,7 @@ void MarkCompactCollector::EvacuatePagesInParallel() {
 
   for (Page* page : new_space_evacuation_pages_) {
     intptr_t live_bytes_on_page = non_atomic_marking_state()->live_bytes(page);
-    if (live_bytes_on_page == 0 && !page->contains_array_buffers()) continue;
+    if (live_bytes_on_page == 0) continue;
     live_bytes += live_bytes_on_page;
     if (ShouldMovePage(page, live_bytes_on_page,
                        FLAG_always_promote_young_mc)) {
@@ -3715,40 +3708,6 @@ UpdatingItem* MarkCompactCollector::CreateRememberedSetUpdatingItem(
       heap(), non_atomic_marking_state(), chunk, updating_mode);
 }
 
-// Update array buffers on a page that has been evacuated by copying objects.
-// Target page exclusivity in old space is guaranteed by the fact that
-// evacuation tasks either (a) retrieved a fresh page, or (b) retrieved all
-// free list items of a given page. For new space the tracker will update
-// using a lock.
-class ArrayBufferTrackerUpdatingItem : public UpdatingItem {
- public:
-  enum EvacuationState { kRegular, kAborted };
-
-  explicit ArrayBufferTrackerUpdatingItem(Page* page, EvacuationState state)
-      : page_(page), state_(state) {}
-  ~ArrayBufferTrackerUpdatingItem() override = default;
-
-  void Process() override {
-    TRACE_EVENT1(TRACE_DISABLED_BY_DEFAULT("v8.gc"),
-                 "ArrayBufferTrackerUpdatingItem::Process", "EvacuationState",
-                 state_);
-    switch (state_) {
-      case EvacuationState::kRegular:
-        ArrayBufferTracker::ProcessBuffers(
-            page_, ArrayBufferTracker::kUpdateForwardedRemoveOthers);
-        break;
-      case EvacuationState::kAborted:
-        ArrayBufferTracker::ProcessBuffers(
-            page_, ArrayBufferTracker::kUpdateForwardedKeepOthers);
-        break;
-    }
-  }
-
- private:
-  Page* const page_;
-  const EvacuationState state_;
-};
-
 int MarkCompactCollectorBase::CollectToSpaceUpdatingItems(
     ItemParallelJob* job) {
   // Seed to space pages.
@@ -3795,45 +3754,6 @@ int MarkCompactCollectorBase::CollectRememberedSetUpdatingItems(
       job->AddItem(CreateRememberedSetUpdatingItem(chunk, mode));
       pages++;
     }
-  }
-  return pages;
-}
-
-int MarkCompactCollector::CollectNewSpaceArrayBufferTrackerItems(
-    ItemParallelJob* job) {
-  int pages = 0;
-  for (Page* p : new_space_evacuation_pages_) {
-    if (Evacuator::ComputeEvacuationMode(p) == Evacuator::kObjectsNewToOld) {
-      if (p->local_tracker() == nullptr) continue;
-
-      pages++;
-      job->AddItem(new ArrayBufferTrackerUpdatingItem(
-          p, ArrayBufferTrackerUpdatingItem::kRegular));
-    }
-  }
-  return pages;
-}
-
-int MarkCompactCollector::CollectOldSpaceArrayBufferTrackerItems(
-    ItemParallelJob* job) {
-  int pages = 0;
-  for (Page* p : old_space_evacuation_pages_) {
-    if (Evacuator::ComputeEvacuationMode(p) == Evacuator::kObjectsOldToOld &&
-        p->IsEvacuationCandidate()) {
-      if (p->local_tracker() == nullptr) continue;
-
-      pages++;
-      job->AddItem(new ArrayBufferTrackerUpdatingItem(
-          p, ArrayBufferTrackerUpdatingItem::kRegular));
-    }
-  }
-  for (auto object_and_page : aborted_evacuation_candidates_) {
-    Page* p = object_and_page.second;
-    if (p->local_tracker() == nullptr) continue;
-
-    pages++;
-    job->AddItem(new ArrayBufferTrackerUpdatingItem(
-        p, ArrayBufferTrackerUpdatingItem::kAborted));
   }
   return pages;
 }
@@ -3947,8 +3867,6 @@ void MarkCompactCollector::UpdatePointersAfterEvacuation() {
                                  &page_parallel_job_semaphore_);
 
     int array_buffer_pages = 0;
-    array_buffer_pages += CollectNewSpaceArrayBufferTrackerItems(&updating_job);
-    array_buffer_pages += CollectOldSpaceArrayBufferTrackerItems(&updating_job);
 
     int remembered_set_pages = 0;
     remembered_set_pages += CollectRememberedSetUpdatingItems(
@@ -3966,7 +3884,6 @@ void MarkCompactCollector::UpdatePointersAfterEvacuation() {
             GCTracer::BackgroundScope::MC_BACKGROUND_EVACUATE_UPDATE_POINTERS));
       }
       updating_job.Run();
-      heap()->array_buffer_collector()->FreeAllocations();
     }
   }
 
@@ -4082,7 +3999,6 @@ void MarkCompactCollector::StartSweepSpace(PagedSpace* space) {
           PrintIsolate(isolate(), "sweeping: released page: %p",
                        static_cast<void*>(p));
         }
-        ArrayBufferTracker::FreeAll(p);
         space->memory_chunk_list().Remove(p);
         space->ReleasePage(p);
         continue;
@@ -4449,7 +4365,6 @@ void MinorMarkCompactCollector::UpdatePointersAfterEvacuation() {
   ItemParallelJob updating_job(isolate()->cancelable_task_manager(),
                                &page_parallel_job_semaphore_);
 
-  CollectNewSpaceArrayBufferTrackerItems(&updating_job);
   // Create batches of global handles.
   const int to_space_tasks = CollectToSpaceUpdatingItems(&updating_job);
   int remembered_set_pages = 0;
@@ -4491,7 +4406,6 @@ void MinorMarkCompactCollector::UpdatePointersAfterEvacuation() {
     TRACE_GC(heap()->tracer(),
              GCTracer::Scope::MINOR_MC_EVACUATE_UPDATE_POINTERS_SLOTS);
     updating_job.Run();
-    heap()->array_buffer_collector()->FreeAllocations();
   }
 
   {
@@ -5151,7 +5065,6 @@ void YoungGenerationEvacuator::RawEvacuatePage(MemoryChunk* chunk,
       LiveObjectVisitor::VisitGreyObjectsNoFail(
           chunk, marking_state, &new_space_visitor_,
           LiveObjectVisitor::kClearMarkbits);
-      // ArrayBufferTracker will be updated during pointers updating.
       break;
     case kPageNewToOld:
       LiveObjectVisitor::VisitGreyObjectsNoFail(
@@ -5160,9 +5073,6 @@ void YoungGenerationEvacuator::RawEvacuatePage(MemoryChunk* chunk,
       new_to_old_page_visitor_.account_moved_bytes(
           marking_state->live_bytes(chunk));
       if (!chunk->IsLargePage()) {
-        // TODO(mlippautz): If cleaning array buffers is too slow here we can
-        // delay it until the next GC.
-        ArrayBufferTracker::FreeDead(static_cast<Page*>(chunk), marking_state);
         if (heap()->ShouldZapGarbage()) {
           collector_->MakeIterable(static_cast<Page*>(chunk),
                                    MarkingTreatmentMode::KEEP, ZAP_FREE_SPACE);
@@ -5183,9 +5093,6 @@ void YoungGenerationEvacuator::RawEvacuatePage(MemoryChunk* chunk,
       new_to_new_page_visitor_.account_moved_bytes(
           marking_state->live_bytes(chunk));
       DCHECK(!chunk->IsLargePage());
-      // TODO(mlippautz): If cleaning array buffers is too slow here we can
-      // delay it until the next GC.
-      ArrayBufferTracker::FreeDead(static_cast<Page*>(chunk), marking_state);
       if (heap()->ShouldZapGarbage()) {
         collector_->MakeIterable(static_cast<Page*>(chunk),
                                  MarkingTreatmentMode::KEEP, ZAP_FREE_SPACE);
@@ -5211,7 +5118,7 @@ void MinorMarkCompactCollector::EvacuatePagesInParallel() {
 
   for (Page* page : new_space_evacuation_pages_) {
     intptr_t live_bytes_on_page = non_atomic_marking_state()->live_bytes(page);
-    if (live_bytes_on_page == 0 && !page->contains_array_buffers()) continue;
+    if (live_bytes_on_page == 0) continue;
     live_bytes += live_bytes_on_page;
     if (ShouldMovePage(page, live_bytes_on_page, false)) {
       if (page->IsFlagSet(MemoryChunk::NEW_SPACE_BELOW_AGE_MARK)) {
@@ -5242,21 +5149,6 @@ void MinorMarkCompactCollector::EvacuatePagesInParallel() {
                                             heap()->mark_compact_collector());
   CreateAndExecuteEvacuationTasks<YoungGenerationEvacuator>(
       this, &evacuation_job, &observer, live_bytes);
-}
-
-int MinorMarkCompactCollector::CollectNewSpaceArrayBufferTrackerItems(
-    ItemParallelJob* job) {
-  int pages = 0;
-  for (Page* p : new_space_evacuation_pages_) {
-    if (Evacuator::ComputeEvacuationMode(p) == Evacuator::kObjectsNewToOld) {
-      if (p->local_tracker() == nullptr) continue;
-
-      pages++;
-      job->AddItem(new ArrayBufferTrackerUpdatingItem(
-          p, ArrayBufferTrackerUpdatingItem::kRegular));
-    }
-  }
-  return pages;
 }
 
 #endif  // ENABLE_MINOR_MC

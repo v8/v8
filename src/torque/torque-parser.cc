@@ -48,8 +48,6 @@ class BuildFlags : public ContextualClass<BuildFlags> {
     build_flags_["V8_SFI_HAS_UNIQUE_ID"] = V8_SFI_HAS_UNIQUE_ID;
     build_flags_["TAGGED_SIZE_8_BYTES"] = TAGGED_SIZE_8_BYTES;
     build_flags_["V8_DOUBLE_FIELDS_UNBOXING"] = V8_DOUBLE_FIELDS_UNBOXING;
-    build_flags_["V8_ARRAY_BUFFER_EXTENSION_BOOL"] =
-        V8_ARRAY_BUFFER_EXTENSION_BOOL;
     build_flags_["TRUE_FOR_TESTING"] = true;
     build_flags_["FALSE_FOR_TESTING"] = false;
   }

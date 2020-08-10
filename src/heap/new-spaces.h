@@ -303,8 +303,7 @@ class V8_EXPORT_PRIVATE NewSpace
   }
 
   size_t ExternalBackingStoreBytes(ExternalBackingStoreType type) const final {
-    if (V8_ARRAY_BUFFER_EXTENSION_BOOL &&
-        type == ExternalBackingStoreType::kArrayBuffer)
+    if (type == ExternalBackingStoreType::kArrayBuffer)
       return heap()->YoungArrayBufferBytes();
     DCHECK_EQ(0, from_space_.ExternalBackingStoreBytes(type));
     return to_space_.ExternalBackingStoreBytes(type);

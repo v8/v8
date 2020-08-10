@@ -23,7 +23,6 @@ namespace internal {
 
 class CodeObjectRegistry;
 class FreeListCategory;
-class LocalArrayBufferTracker;
 
 // MemoryChunk represents a memory region owned by a specific space.
 // It is divided into the header and the body. Chunk start is always
@@ -155,8 +154,6 @@ class MemoryChunk : public BasicMemoryChunk {
   InvalidatedSlots* invalidated_slots() {
     return invalidated_slots_[type];
   }
-
-  void ReleaseLocalTracker();
 
   void AllocateYoungGenerationBitmap();
   void ReleaseYoungGenerationBitmap();
@@ -296,8 +293,6 @@ class MemoryChunk : public BasicMemoryChunk {
   heap::ListNode<MemoryChunk> list_node_;
 
   FreeListCategory** categories_;
-
-  LocalArrayBufferTracker* local_tracker_;
 
   std::atomic<intptr_t> young_generation_live_byte_count_;
   Bitmap* young_generation_bitmap_;

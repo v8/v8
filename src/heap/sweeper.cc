@@ -5,7 +5,6 @@
 #include "src/heap/sweeper.h"
 
 #include "src/execution/vm-state-inl.h"
-#include "src/heap/array-buffer-tracker-inl.h"
 #include "src/heap/code-object-registry.h"
 #include "src/heap/free-list-inl.h"
 #include "src/heap/gc-tracer.h"
@@ -353,10 +352,6 @@ int Sweeper::RawSweep(
   DCHECK(!p->IsEvacuationCandidate() && !p->SweepingDone());
 
   // Phase 1: Prepare the page for sweeping.
-
-  // Before we sweep objects on the page, we free dead array buffers which
-  // requires valid mark bits.
-  ArrayBufferTracker::FreeDead(p, marking_state_);
 
   // Set the allocated_bytes_ counter to area_size and clear the wasted_memory_
   // counter. The free operations below will decrease allocated_bytes_ to actual

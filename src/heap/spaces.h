@@ -38,7 +38,6 @@ class Isolate;
 class LargeObjectSpace;
 class LargePage;
 class LinearAllocationArea;
-class LocalArrayBufferTracker;
 class Page;
 class PagedSpace;
 class SemiSpace;
@@ -266,10 +265,6 @@ class Page : public MemoryChunk {
       callback(categories_[i]);
     }
   }
-
-  void AllocateLocalTracker();
-  inline LocalArrayBufferTracker* local_tracker() { return local_tracker_; }
-  bool contains_array_buffers();
 
   size_t AvailableInFreeList();
 

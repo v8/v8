@@ -387,8 +387,8 @@ DEFINE_BOOL(assert_types, false,
 DEFINE_BOOL(allocation_site_pretenuring, true,
             "pretenure with allocation sites")
 DEFINE_BOOL(page_promotion, true, "promote pages based on utilization")
-DEFINE_BOOL(always_promote_young_mc, true,
-            "always promote young objects during mark-compact")
+DEFINE_BOOL_READONLY(always_promote_young_mc, true,
+                     "always promote young objects during mark-compact")
 DEFINE_INT(page_promotion_threshold, 70,
            "min percentage of live bytes on a page to enable fast evacuation")
 DEFINE_BOOL(trace_pretenuring, false,
@@ -945,20 +945,11 @@ DEFINE_BOOL(write_protect_code_memory, true, "write protect code memory")
 #endif
 DEFINE_BOOL(concurrent_marking, V8_CONCURRENT_MARKING_BOOL,
             "use concurrent marking")
-#ifdef V8_ARRAY_BUFFER_EXTENSION
-#define V8_ARRAY_BUFFER_EXTENSION_BOOL true
-#else
-#define V8_ARRAY_BUFFER_EXTENSION_BOOL false
-#endif
-DEFINE_BOOL_READONLY(array_buffer_extension, V8_ARRAY_BUFFER_EXTENSION_BOOL,
-                     "enable array buffer tracking using extension objects")
-DEFINE_IMPLICATION(array_buffer_extension, always_promote_young_mc)
 DEFINE_BOOL(concurrent_array_buffer_sweeping, true,
             "concurrently sweep array buffers")
 DEFINE_BOOL(concurrent_allocation, false, "concurrently allocate in old space")
 DEFINE_BOOL(local_heaps, false, "allow heap access from background tasks")
 DEFINE_IMPLICATION(concurrent_inlining, local_heaps)
-DEFINE_NEG_NEG_IMPLICATION(array_buffer_extension, local_heaps)
 DEFINE_BOOL(stress_concurrent_allocation, false,
             "start background threads that allocate memory")
 DEFINE_IMPLICATION(stress_concurrent_allocation, concurrent_allocation)
@@ -1814,7 +1805,6 @@ DEFINE_NEG_IMPLICATION(single_threaded_gc, concurrent_store_buffer)
 #ifdef ENABLE_MINOR_MC
 DEFINE_NEG_IMPLICATION(single_threaded_gc, minor_mc_parallel_marking)
 #endif  // ENABLE_MINOR_MC
-DEFINE_NEG_IMPLICATION(single_threaded_gc, concurrent_array_buffer_freeing)
 DEFINE_NEG_IMPLICATION(single_threaded_gc, concurrent_array_buffer_sweeping)
 
 #undef FLAG
