@@ -12,6 +12,7 @@ ALL_VARIANT_FLAGS = {
   # Alias of exhaustive variants, but triggering new test framework features.
   "infra_staging": [[]],
   "interpreted_regexp": [["--regexp-interpret-all"]],
+  "experimental_regexp":  [["--enable-experimental-regexp-engine"]],
   "jitless": [["--jitless"]],
   "minor_mc": [["--minor-mc"]],
   "nci": [["--turbo-nci"]],

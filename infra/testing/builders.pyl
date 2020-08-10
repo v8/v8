@@ -336,6 +336,8 @@
       {'name': 'webkit', 'variant': 'stress_sampling'},
       # Stress snapshot.
       {'name': 'mjsunit', 'variant': 'stress_snapshot'},
+      # Experimental regexp engine.
+      {'name': 'mjsunit', 'variant': 'experimental_regexp'},
     ],
   },
   'v8_linux64_msan_rel_ng_triggered': {
@@ -997,6 +999,8 @@
       {'name': 'webkit', 'variant': 'stress_sampling'},
       # Stress snapshot.
       {'name': 'mjsunit', 'variant': 'stress_snapshot'},
+      # Experimental regexp engine.
+      {'name': 'mjsunit', 'variant': 'experimental_regexp'},
     ],
   },
   'V8 Linux64 - debug - perfetto': {
@@ -1027,6 +1031,8 @@
       {'name': 'webkit', 'variant': 'stress_sampling'},
       # Stress snapshot.
       {'name': 'mjsunit', 'variant': 'stress_snapshot'},
+      # Experimental regexp engine.
+      {'name': 'mjsunit', 'variant': 'experimental_regexp'},
     ],
   },
   'V8 Linux64 - gcov coverage': {
