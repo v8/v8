@@ -76,19 +76,10 @@ Isolate* Heap::isolate() {
       reinterpret_cast<size_t>(reinterpret_cast<Isolate*>(16)->heap()) + 16);
 }
 
-int64_t Heap::external_memory() {
-  return isolate()->isolate_data()->external_memory_;
-}
+int64_t Heap::external_memory() { return external_memory_.total(); }
 
-void Heap::update_external_memory(int64_t delta) {
-  const int64_t amount = isolate()->isolate_data()->external_memory_ + delta;
-  isolate()->isolate_data()->external_memory_ = amount;
-  if (amount <
-      isolate()->isolate_data()->external_memory_low_since_mark_compact_) {
-    isolate()->isolate_data()->external_memory_low_since_mark_compact_ = amount;
-    isolate()->isolate_data()->external_memory_limit_ =
-        amount + kExternalAllocationSoftLimit;
-  }
+int64_t Heap::update_external_memory(int64_t delta) {
+  return external_memory_.Update(delta);
 }
 
 RootsTable& Heap::roots_table() { return isolate()->roots_table(); }

@@ -265,6 +265,44 @@ class Heap {
     const char* event_name_;
   };
 
+  class ExternalMemoryAccounting {
+   public:
+    int64_t total() { return total_; }
+    int64_t limit() { return limit_; }
+    int64_t low_since_mark_compact() { return low_since_mark_compact_; }
+
+    void ResetAfterGC() {
+      low_since_mark_compact_ = total_;
+      limit_ = total_ + kExternalAllocationSoftLimit;
+    }
+
+    int64_t Update(int64_t delta) {
+      const int64_t amount = total_ += delta;
+      if (amount < low_since_mark_compact_) {
+        low_since_mark_compact_ = amount;
+        limit_ = amount + kExternalAllocationSoftLimit;
+      }
+      return amount;
+    }
+
+    int64_t AllocatedSinceMarkCompact() {
+      if (total_ <= low_since_mark_compact_) {
+        return 0;
+      }
+      return static_cast<uint64_t>(total_ - low_since_mark_compact_);
+    }
+
+   private:
+    // The amount of external memory registered through the API.
+    int64_t total_ = 0;
+
+    // The limit when to trigger memory pressure from the API.
+    int64_t limit_ = kExternalAllocationSoftLimit;
+
+    // Caches the amount of external memory registered at the last MC.
+    int64_t low_since_mark_compact_ = 0;
+  };
+
   using PretenuringFeedbackMap =
       std::unordered_map<AllocationSite, size_t, Object::Hasher>;
 
@@ -667,7 +705,8 @@ class Heap {
   int64_t external_memory_hard_limit() { return max_old_generation_size_ / 2; }
 
   V8_INLINE int64_t external_memory();
-  V8_INLINE void update_external_memory(int64_t delta);
+  V8_EXPORT_PRIVATE int64_t external_memory_limit();
+  V8_INLINE int64_t update_external_memory(int64_t delta);
 
   V8_EXPORT_PRIVATE size_t YoungArrayBufferBytes();
   V8_EXPORT_PRIVATE size_t OldArrayBufferBytes();
@@ -1245,10 +1284,6 @@ class Heap {
     survived_since_last_expansion_ += survived;
   }
 
-  inline uint64_t OldGenerationObjectsAndPromotedExternalMemorySize() {
-    return OldGenerationSizeOfObjects() + PromotedExternalMemorySize();
-  }
-
   inline void UpdateNewSpaceAllocationCounter();
 
   inline size_t NewSpaceAllocationCounter();
@@ -1781,12 +1816,11 @@ class Heap {
   // ===========================================================================
 
   inline size_t OldGenerationSpaceAvailable() {
-    if (old_generation_allocation_limit_ <=
-        OldGenerationObjectsAndPromotedExternalMemorySize())
-      return 0;
-    return old_generation_allocation_limit_ -
-           static_cast<size_t>(
-               OldGenerationObjectsAndPromotedExternalMemorySize());
+    uint64_t bytes = OldGenerationSizeOfObjects() +
+                     AllocatedExternalMemorySinceMarkCompact();
+
+    if (old_generation_allocation_limit_ <= bytes) return 0;
+    return old_generation_allocation_limit_ - static_cast<size_t>(bytes);
   }
 
   void UpdateTotalGCTime(double duration);
@@ -1952,6 +1986,7 @@ class Heap {
 
   // The amount of memory that has been freed concurrently.
   std::atomic<uintptr_t> external_memory_concurrently_freed_{0};
+  ExternalMemoryAccounting external_memory_;
 
   // This can be calculated directly from a pointer to the heap; however, it is
   // more expedient to get at the isolate directly from within Heap methods.
@@ -2031,7 +2066,7 @@ class Heap {
   int gc_post_processing_depth_ = 0;
 
   // Returns the amount of external memory registered since last global gc.
-  V8_EXPORT_PRIVATE uint64_t PromotedExternalMemorySize();
+  V8_EXPORT_PRIVATE uint64_t AllocatedExternalMemorySinceMarkCompact();
 
   // How many "runtime allocations" happened.
   uint32_t allocations_count_ = 0;

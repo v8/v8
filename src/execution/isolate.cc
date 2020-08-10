@@ -2971,17 +2971,6 @@ void Isolate::CheckIsolateLayout() {
            Internals::kIsolateStackGuardOffset);
   CHECK_EQ(static_cast<int>(OFFSET_OF(Isolate, isolate_data_.roots_)),
            Internals::kIsolateRootsOffset);
-  CHECK_EQ(Internals::kExternalMemoryOffset % 8, 0);
-  CHECK_EQ(static_cast<int>(OFFSET_OF(Isolate, isolate_data_.external_memory_)),
-           Internals::kExternalMemoryOffset);
-  CHECK_EQ(Internals::kExternalMemoryLimitOffset % 8, 0);
-  CHECK_EQ(static_cast<int>(
-               OFFSET_OF(Isolate, isolate_data_.external_memory_limit_)),
-           Internals::kExternalMemoryLimitOffset);
-  CHECK_EQ(Internals::kExternalMemoryLowSinceMarkCompactOffset % 8, 0);
-  CHECK_EQ(static_cast<int>(OFFSET_OF(
-               Isolate, isolate_data_.external_memory_low_since_mark_compact_)),
-           Internals::kExternalMemoryLowSinceMarkCompactOffset);
 }
 
 void Isolate::ClearSerializerData() {

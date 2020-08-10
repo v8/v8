@@ -521,7 +521,7 @@ void Heap::PrintShortHeapStatistics() {
                memory_allocator()->unmapper()->NumberOfCommittedChunks(),
                CommittedMemoryOfUnmapper() / KB);
   PrintIsolate(isolate_, "External memory reported: %6" PRId64 " KB\n",
-               isolate()->isolate_data()->external_memory_ / KB);
+               external_memory_.total() / KB);
   PrintIsolate(isolate_, "Backing store memory: %6zu KB\n",
                backing_store_bytes_ / KB);
   PrintIsolate(isolate_, "External memory global %zu KB\n",
@@ -1412,10 +1412,9 @@ void Heap::ReportExternalMemoryPressure() {
       static_cast<GCCallbackFlags>(
           kGCCallbackFlagSynchronousPhantomCallbackProcessing |
           kGCCallbackFlagCollectAllExternalMemory);
-  int64_t current = isolate()->isolate_data()->external_memory_;
-  int64_t baseline =
-      isolate()->isolate_data()->external_memory_low_since_mark_compact_;
-  int64_t limit = isolate()->isolate_data()->external_memory_limit_;
+  int64_t current = external_memory_.total();
+  int64_t baseline = external_memory_.low_since_mark_compact();
+  int64_t limit = external_memory_.limit();
   TRACE_EVENT2(
       "devtools.timeline,v8", "V8.ExternalMemoryPressure", "external_memory_mb",
       static_cast<int>((current - baseline) / MB), "external_memory_limit_mb",
@@ -1453,6 +1452,8 @@ void Heap::ReportExternalMemoryPressure() {
         deadline, IncrementalMarking::GC_VIA_STACK_GUARD, StepOrigin::kV8);
   }
 }
+
+int64_t Heap::external_memory_limit() { return external_memory_.limit(); }
 
 void Heap::EnsureFillerObjectAtTop() {
   // There may be an allocation memento behind objects in new space. Upon
@@ -2155,12 +2156,7 @@ void Heap::RecomputeLimits(GarbageCollector collector) {
   HeapGrowingMode mode = CurrentHeapGrowingMode();
 
   if (collector == MARK_COMPACTOR) {
-    // Register the amount of external allocated memory.
-    isolate()->isolate_data()->external_memory_low_since_mark_compact_ =
-        isolate()->isolate_data()->external_memory_;
-    isolate()->isolate_data()->external_memory_limit_ =
-        isolate()->isolate_data()->external_memory_ +
-        kExternalAllocationSoftLimit;
+    external_memory_.ResetAfterGC();
 
     old_generation_allocation_limit_ =
         MemoryController<V8HeapTrait>::CalculateAllocationLimit(
@@ -3839,8 +3835,8 @@ void Heap::CollectGarbageOnMemoryPressure() {
   double end = MonotonicallyIncreasingTimeInMs();
 
   // Estimate how much memory we can free.
-  int64_t potential_garbage = (CommittedMemory() - SizeOfObjects()) +
-                              isolate()->isolate_data()->external_memory_;
+  int64_t potential_garbage =
+      (CommittedMemory() - SizeOfObjects()) + external_memory_.total();
   // If we can potentially free large amount of memory, then start GC right
   // away instead of waiting for memory reducer.
   if (potential_garbage >= kGarbageThresholdInBytes &&
@@ -4860,15 +4856,8 @@ size_t Heap::GlobalSizeOfObjects() {
   return on_heap_size + embedder_size;
 }
 
-uint64_t Heap::PromotedExternalMemorySize() {
-  IsolateData* isolate_data = isolate()->isolate_data();
-  if (isolate_data->external_memory_ <=
-      isolate_data->external_memory_low_since_mark_compact_) {
-    return 0;
-  }
-  return static_cast<uint64_t>(
-      isolate_data->external_memory_ -
-      isolate_data->external_memory_low_since_mark_compact_);
+uint64_t Heap::AllocatedExternalMemorySinceMarkCompact() {
+  return external_memory_.AllocatedSinceMarkCompact();
 }
 
 bool Heap::AllocationLimitOvershotByLargeMargin() {
@@ -4876,12 +4865,12 @@ bool Heap::AllocationLimitOvershotByLargeMargin() {
   // The number is chosen based on v8.browsing_mobile on Nexus 7v2.
   constexpr size_t kMarginForSmallHeaps = 32u * MB;
 
-  const size_t v8_overshoot =
-      old_generation_allocation_limit_ <
-              OldGenerationObjectsAndPromotedExternalMemorySize()
-          ? OldGenerationObjectsAndPromotedExternalMemorySize() -
-                old_generation_allocation_limit_
-          : 0;
+  uint64_t size_now =
+      OldGenerationSizeOfObjects() + AllocatedExternalMemorySinceMarkCompact();
+
+  const size_t v8_overshoot = old_generation_allocation_limit_ < size_now
+                                  ? size_now - old_generation_allocation_limit_
+                                  : 0;
   const size_t global_overshoot =
       global_allocation_limit_ < GlobalSizeOfObjects()
           ? GlobalSizeOfObjects() - global_allocation_limit_
@@ -4979,7 +4968,8 @@ base::Optional<size_t> Heap::GlobalMemoryAvailable() {
 
 double Heap::PercentToOldGenerationLimit() {
   double size_at_gc = old_generation_size_at_last_gc_;
-  double size_now = OldGenerationObjectsAndPromotedExternalMemorySize();
+  double size_now =
+      OldGenerationSizeOfObjects() + AllocatedExternalMemorySinceMarkCompact();
   double current_bytes = size_now - size_at_gc;
   double total_bytes = old_generation_allocation_limit_ - size_at_gc;
   return total_bytes > 0 ? (current_bytes / total_bytes) * 100.0 : 0;
@@ -4987,7 +4977,8 @@ double Heap::PercentToOldGenerationLimit() {
 
 double Heap::PercentToGlobalMemoryLimit() {
   double size_at_gc = old_generation_size_at_last_gc_;
-  double size_now = OldGenerationObjectsAndPromotedExternalMemorySize();
+  double size_now =
+      OldGenerationSizeOfObjects() + AllocatedExternalMemorySinceMarkCompact();
   double current_bytes = size_now - size_at_gc;
   double total_bytes = old_generation_allocation_limit_ - size_at_gc;
   return total_bytes > 0 ? (current_bytes / total_bytes) * 100.0 : 0;
