@@ -66,7 +66,7 @@ class WasmInterpreter {
   //==========================================================================
   // Execution controls.
   //==========================================================================
-  State state();
+  State state() const;
   void InitFrame(const WasmFunction* function, WasmValue* args);
   // Pass -1 as num_steps to run till completion, pause or breakpoint.
   State Run(int num_steps = -1);
@@ -75,16 +75,16 @@ class WasmInterpreter {
   void Reset();
 
   // Stack inspection and modification.
-  WasmValue GetReturnValue(int index = 0);
-  TrapReason GetTrapReason();
+  WasmValue GetReturnValue(int index = 0) const;
+  TrapReason GetTrapReason() const;
 
   // Returns true if the thread executed an instruction which may produce
   // nondeterministic results, e.g. float div, float sqrt, and float mul,
   // where the sign bit of a NaN is nondeterministic.
-  bool PossibleNondeterminism();
+  bool PossibleNondeterminism() const;
 
   // Returns the number of calls / function frames executed on this thread.
-  uint64_t NumInterpretedCalls();
+  uint64_t NumInterpretedCalls() const;
 
   //==========================================================================
   // Testing functionality.

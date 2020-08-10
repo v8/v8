@@ -41,16 +41,39 @@ MaybeHandle<WasmInstanceObject> CompileAndInstantiateForTesting(
       isolate, thrower, module.ToHandleChecked(), {}, {});
 }
 
-bool InterpretWasmModuleForTesting(Isolate* isolate,
-                                   Handle<WasmInstanceObject> instance,
-                                   size_t argc, WasmValue* args) {
+WasmInterpretationResult GetInterpretationResult(
+    Isolate* isolate, const WasmInterpreter& interpreter,
+    WasmInterpreter::State interpreter_result) {
+  bool stack_overflow = isolate->has_pending_exception();
+  isolate->clear_pending_exception();
+
+  if (stack_overflow) return WasmInterpretationResult::Failed();
+
+  if (interpreter.state() == WasmInterpreter::TRAPPED) {
+    return WasmInterpretationResult::Trapped(
+        interpreter.PossibleNondeterminism());
+  }
+
+  if (interpreter_result == WasmInterpreter::FINISHED) {
+    return WasmInterpretationResult::Finished(
+        interpreter.GetReturnValue().to<int32_t>(),
+        interpreter.PossibleNondeterminism());
+  }
+
+  // The interpreter did not finish within the limited number of steps, so it
+  // might execute an infinite loop or infinite recursion. Return "failed"
+  // status in that case.
+  return WasmInterpretationResult::Failed();
+}
+
+WasmInterpretationResult InterpretWasmModuleForTesting(
+    Isolate* isolate, Handle<WasmInstanceObject> instance, size_t argc,
+    WasmValue* args) {
   HandleScope handle_scope(isolate);  // Avoid leaking handles.
   WasmCodeRefScope code_ref_scope;
-  MaybeHandle<WasmExportedFunction> maybe_function =
-      GetExportedFunction(isolate, instance, "main");
   Handle<WasmExportedFunction> function;
-  if (!maybe_function.ToHandle(&function)) {
-    return false;
+  if (!GetExportedFunction(isolate, instance, "main").ToHandle(&function)) {
+    return WasmInterpretationResult::Failed();
   }
   int function_index = function->function_index();
   const FunctionSig* signature =
@@ -106,13 +129,7 @@ bool InterpretWasmModuleForTesting(Isolate* isolate,
                         arguments.get());
   WasmInterpreter::State interpreter_result = interpreter.Run(kMaxNumSteps);
 
-  if (isolate->has_pending_exception()) {
-    // Stack overflow during interpretation.
-    isolate->clear_pending_exception();
-    return false;
-  }
-
-  return interpreter_result != WasmInterpreter::PAUSED;
+  return GetInterpretationResult(isolate, interpreter, interpreter_result);
 }
 
 int32_t RunWasmModuleForTesting(Isolate* isolate,
@@ -152,23 +169,7 @@ WasmInterpretationResult InterpretWasmModule(
   interpreter.InitFrame(&instance->module()->functions[function_index], args);
   WasmInterpreter::State interpreter_result = interpreter.Run(kMaxNumSteps);
 
-  bool stack_overflow = isolate->has_pending_exception();
-  isolate->clear_pending_exception();
-
-  if (stack_overflow) return WasmInterpretationResult::Stopped();
-
-  if (interpreter.state() == WasmInterpreter::TRAPPED) {
-    return WasmInterpretationResult::Trapped(
-        interpreter.PossibleNondeterminism());
-  }
-
-  if (interpreter_result == WasmInterpreter::FINISHED) {
-    return WasmInterpretationResult::Finished(
-        interpreter.GetReturnValue().to<int32_t>(),
-        interpreter.PossibleNondeterminism());
-  }
-
-  return WasmInterpretationResult::Stopped();
+  return GetInterpretationResult(isolate, interpreter, interpreter_result);
 }
 
 MaybeHandle<WasmExportedFunction> GetExportedFunction(

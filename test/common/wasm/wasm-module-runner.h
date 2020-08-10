@@ -37,14 +37,6 @@ int32_t CallWasmFunctionForTesting(Isolate* isolate,
                                    ErrorThrower* thrower, const char* name,
                                    int argc, Handle<Object> argv[]);
 
-// Interprets the exported wasm function "main". Returns false if it was not
-// possible to execute the function (e.g. because it does not exist), or if the
-// interpretation does not finish after kMaxNumSteps. Otherwise returns true.
-// The arguments array is extended with default values if necessary.
-bool InterpretWasmModuleForTesting(Isolate* isolate,
-                                   Handle<WasmInstanceObject> instance,
-                                   size_t argc, WasmValue* args);
-
 // Decode, verify, and run the function labeled "main" in the
 // given encoded module. The module should have no imports.
 int32_t CompileAndRunWasmModule(Isolate* isolate, const byte* module_start,
@@ -61,7 +53,7 @@ MaybeHandle<WasmInstanceObject> CompileAndInstantiateForTesting(
 
 class WasmInterpretationResult {
  public:
-  static WasmInterpretationResult Stopped() { return {kStopped, 0, false}; }
+  static WasmInterpretationResult Failed() { return {kFailed, 0, false}; }
   static WasmInterpretationResult Trapped(bool possible_nondeterminism) {
     return {kTrapped, 0, possible_nondeterminism};
   }
@@ -70,7 +62,10 @@ class WasmInterpretationResult {
     return {kFinished, result, possible_nondeterminism};
   }
 
-  bool stopped() const { return status_ == kStopped; }
+  // {failed()} captures different reasons: The module was invalid, no function
+  // to call was found in the module, the function did not termine within a
+  // limited number of steps, or a stack overflow happened.
+  bool failed() const { return status_ == kFailed; }
   bool trapped() const { return status_ == kTrapped; }
   bool finished() const { return status_ == kFinished; }
 
@@ -82,7 +77,7 @@ class WasmInterpretationResult {
   bool possible_nondeterminism() const { return possible_nondeterminism_; }
 
  private:
-  enum Status { kFinished, kTrapped, kStopped };
+  enum Status { kFinished, kTrapped, kFailed };
 
   const Status status_;
   const int32_t result_;
@@ -101,6 +96,14 @@ class WasmInterpretationResult {
 WasmInterpretationResult InterpretWasmModule(
     Isolate* isolate, Handle<WasmInstanceObject> instance,
     int32_t function_index, WasmValue* args);
+
+// Interprets the exported wasm function "main". Returns a "failed" result if it
+// was not possible to execute the function (e.g. because it does not exist), or
+// if the interpretation does not finish after kMaxNumSteps. The arguments array
+// is extended with default values if necessary.
+WasmInterpretationResult InterpretWasmModuleForTesting(
+    Isolate* isolate, Handle<WasmInstanceObject> instance, size_t argc,
+    WasmValue* args);
 
 // Runs the module instance with arguments.
 int32_t RunWasmModuleForTesting(Isolate* isolate,

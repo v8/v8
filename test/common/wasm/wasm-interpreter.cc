@@ -1182,9 +1182,9 @@ class WasmInterpreterInternals {
 
   TrapReason GetTrapReason() { return trap_reason_; }
 
-  bool PossibleNondeterminism() { return possible_nondeterminism_; }
+  bool PossibleNondeterminism() const { return possible_nondeterminism_; }
 
-  uint64_t NumInterpretedCalls() { return num_interpreted_calls_; }
+  uint64_t NumInterpretedCalls() const { return num_interpreted_calls_; }
 
   CodeMap* codemap() { return &codemap_; }
 
@@ -3856,7 +3856,9 @@ WasmInterpreter::WasmInterpreter(Isolate* isolate, const WasmModule* module,
 // used in the {unique_ptr} in the header.
 WasmInterpreter::~WasmInterpreter() = default;
 
-WasmInterpreter::State WasmInterpreter::state() { return internals_->state(); }
+WasmInterpreter::State WasmInterpreter::state() const {
+  return internals_->state();
+}
 
 void WasmInterpreter::InitFrame(const WasmFunction* function, WasmValue* args) {
   internals_->InitFrame(function, args);
@@ -3870,19 +3872,19 @@ void WasmInterpreter::Pause() { internals_->Pause(); }
 
 void WasmInterpreter::Reset() { internals_->Reset(); }
 
-WasmValue WasmInterpreter::GetReturnValue(int index) {
+WasmValue WasmInterpreter::GetReturnValue(int index) const {
   return internals_->GetReturnValue(index);
 }
 
-TrapReason WasmInterpreter::GetTrapReason() {
+TrapReason WasmInterpreter::GetTrapReason() const {
   return internals_->GetTrapReason();
 }
 
-bool WasmInterpreter::PossibleNondeterminism() {
+bool WasmInterpreter::PossibleNondeterminism() const {
   return internals_->PossibleNondeterminism();
 }
 
-uint64_t WasmInterpreter::NumInterpretedCalls() {
+uint64_t WasmInterpreter::NumInterpretedCalls() const {
   return internals_->NumInterpretedCalls();
 }
 

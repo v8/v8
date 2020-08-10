@@ -46,10 +46,9 @@ void InterpretAndExecuteModule(i::Isolate* isolate,
     thrower.Reset();  // Ignore errors.
     return;
   }
-  if (!testing::InterpretWasmModuleForTesting(isolate, instance, 0, nullptr)) {
-    isolate->clear_pending_exception();
-    return;
-  }
+  testing::WasmInterpretationResult interpreter_result =
+      testing::InterpretWasmModuleForTesting(isolate, instance, 0, nullptr);
+  if (interpreter_result.failed()) return;
 
   // Try to instantiate and execute the module_object.
   maybe_instance = isolate->wasm_engine()->SyncInstantiate(
@@ -61,10 +60,21 @@ void InterpretAndExecuteModule(i::Isolate* isolate,
     thrower.Reset();  // Ignore errors.
     return;
   }
-  if (testing::RunWasmModuleForTesting(isolate, instance, 0, nullptr) < 0) {
-    isolate->clear_pending_exception();
-    return;
+  int32_t result_compiled =
+      testing::RunWasmModuleForTesting(isolate, instance, 0, nullptr);
+  if (interpreter_result.trapped() != isolate->has_pending_exception()) {
+    const char* exception_text[] = {"no exception", "exception"};
+    FATAL("interpreter: %s; compiled: %s",
+          exception_text[interpreter_result.trapped()],
+          exception_text[isolate->has_pending_exception()]);
   }
+
+  if (interpreter_result.finished()) {
+    CHECK_EQ(interpreter_result.result(), result_compiled);
+  }
+
+  // Cleanup any pending exception.
+  isolate->clear_pending_exception();
 }
 
 namespace {
@@ -320,7 +330,6 @@ void WasmExecutionFuzzer::FuzzWasmModule(Vector<const uint8_t> data,
   ErrorThrower interpreter_thrower(i_isolate, "Interpreter");
   ModuleWireBytes wire_bytes(buffer.begin(), buffer.end());
 
-  // Compile with Turbofan here. Liftoff will be tested later.
   auto enabled_features = i::wasm::WasmFeatures::FromIsolate(i_isolate);
   MaybeHandle<WasmModuleObject> compiled_module;
   {
@@ -361,7 +370,7 @@ void WasmExecutionFuzzer::FuzzWasmModule(Vector<const uint8_t> data,
 
   // Do not execute the generated code if the interpreter did not finished after
   // a bounded number of steps.
-  if (interpreter_result.stopped()) return;
+  if (interpreter_result.failed()) return;
 
   // The WebAssembly spec allows the sign bit of NaN to be non-deterministic.
   // This sign bit can make the difference between an infinite loop and
