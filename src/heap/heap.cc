@@ -423,7 +423,7 @@ GarbageCollector Heap::SelectGarbageCollector(AllocationSpace space,
     return MARK_COMPACTOR;
   }
 
-  if (FLAG_gc_global || (FLAG_stress_compaction && (gc_count_ & 1) != 0)) {
+  if (FLAG_gc_global || ShouldStressCompaction()) {
     *reason = "GC in old space forced by flags";
     return MARK_COMPACTOR;
   }
@@ -817,10 +817,6 @@ bool Heap::UncommitFromSpace() { return new_space_->UncommitFromSpace(); }
 
 void Heap::GarbageCollectionPrologue() {
   TRACE_GC(tracer(), GCTracer::Scope::HEAP_PROLOGUE);
-  {
-    AllowHeapAllocation for_the_first_part_of_prologue;
-    gc_count_++;
-  }
 
   // Reset GC statistics.
   promoted_objects_size_ = 0;
@@ -852,6 +848,8 @@ void Heap::GarbageCollectionPrologue() {
 }
 
 void Heap::GarbageCollectionPrologueInSafepoint() {
+  gc_count_++;
+
   UpdateNewSpaceAllocationCounter();
   CheckNewSpaceExpansionCriteria();
 }
@@ -5042,8 +5040,7 @@ Heap::IncrementalMarkingLimit Heap::IncrementalMarkingLimitReached() {
     // Incremental marking is disabled or it is too early to start.
     return IncrementalMarkingLimit::kNoLimit;
   }
-  if ((FLAG_stress_compaction && (gc_count_ & 1) != 0) ||
-      HighMemoryPressure()) {
+  if (ShouldStressCompaction() || HighMemoryPressure()) {
     // If there is high memory pressure or stress testing is enabled, then
     // start marking immediately.
     return IncrementalMarkingLimit::kHardLimit;
@@ -5108,6 +5105,10 @@ Heap::IncrementalMarkingLimit Heap::IncrementalMarkingLimitReached() {
     return IncrementalMarkingLimit::kHardLimit;
   }
   return IncrementalMarkingLimit::kSoftLimit;
+}
+
+bool Heap::ShouldStressCompaction() const {
+  return FLAG_stress_compaction && (gc_count_ & 1) != 0;
 }
 
 void Heap::EnableInlineAllocation() {

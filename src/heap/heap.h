@@ -1867,6 +1867,8 @@ class Heap {
   enum class IncrementalMarkingLimit { kNoLimit, kSoftLimit, kHardLimit };
   IncrementalMarkingLimit IncrementalMarkingLimitReached();
 
+  bool ShouldStressCompaction() const;
+
   bool UseGlobalMemoryScheduling() const {
     return FLAG_global_gc_scheduling && local_embedder_heap_tracer();
   }
