@@ -1948,6 +1948,8 @@ v8_compiler_sources = [
   "src/compiler/backend/register-allocator-verifier.h",
   "src/compiler/backend/register-allocator.cc",
   "src/compiler/backend/register-allocator.h",
+  "src/compiler/backend/spill-placer.cc",
+  "src/compiler/backend/spill-placer.h",
   "src/compiler/backend/unwinding-info-writer.h",
   "src/compiler/basic-block-instrumentor.cc",
   "src/compiler/basic-block-instrumentor.h",
