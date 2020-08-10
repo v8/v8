@@ -35,7 +35,7 @@ bool MarkingBarrier::MarkValue(HeapObject host, HeapObject value) {
 
 bool MarkingBarrier::WhiteToGreyAndPush(HeapObject obj) {
   if (marking_state_.WhiteToGrey(obj)) {
-    collector_->marking_worklists()->Push(obj);
+    collector_->local_marking_worklists()->Push(obj);
     return true;
   }
   return false;

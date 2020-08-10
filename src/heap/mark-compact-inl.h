@@ -10,6 +10,8 @@
 #include "src/heap/heap-inl.h"
 #include "src/heap/incremental-marking.h"
 #include "src/heap/mark-compact.h"
+#include "src/heap/marking-worklist-inl.h"
+#include "src/heap/marking-worklist.h"
 #include "src/heap/objects-visiting-inl.h"
 #include "src/heap/remembered-set-inl.h"
 #include "src/objects/js-collection-inl.h"
@@ -22,7 +24,7 @@ namespace internal {
 
 void MarkCompactCollector::MarkObject(HeapObject host, HeapObject obj) {
   if (marking_state()->WhiteToGrey(obj)) {
-    marking_worklists()->Push(obj);
+    local_marking_worklists()->Push(obj);
     if (V8_UNLIKELY(FLAG_track_retaining_path)) {
       heap_->AddRetainer(host, obj);
     }
@@ -31,7 +33,7 @@ void MarkCompactCollector::MarkObject(HeapObject host, HeapObject obj) {
 
 void MarkCompactCollector::MarkRootObject(Root root, HeapObject obj) {
   if (marking_state()->WhiteToGrey(obj)) {
-    marking_worklists()->Push(obj);
+    local_marking_worklists()->Push(obj);
     if (V8_UNLIKELY(FLAG_track_retaining_path)) {
       heap_->AddRetainingRoot(root, obj);
     }
@@ -51,7 +53,7 @@ void MinorMarkCompactCollector::MarkRootObject(HeapObject obj) {
 
 void MarkCompactCollector::MarkExternallyReferencedObject(HeapObject obj) {
   if (marking_state()->WhiteToGrey(obj)) {
-    marking_worklists()->Push(obj);
+    local_marking_worklists()->Push(obj);
     if (V8_UNLIKELY(FLAG_track_retaining_path)) {
       heap_->AddRetainingRoot(Root::kWrapperTracing, obj);
     }

@@ -2365,7 +2365,7 @@ TEST(IdleNotificationFinishMarking) {
                   StepOrigin::kV8);
   } while (!CcTest::heap()
                 ->mark_compact_collector()
-                ->marking_worklists()
+                ->local_marking_worklists()
                 ->IsEmpty());
 
   marking->SetWeakClosureWasOverApproximatedForTesting(true);

@@ -432,7 +432,8 @@ void IncrementalMarking::UpdateMarkingWorklistAfterScavenge() {
       heap()->minor_mark_compact_collector()->marking_state();
 #endif  // ENABLE_MINOR_MC
 
-  collector_->marking_worklists_holder()->Update(
+  collector_->local_marking_worklists()->Publish();
+  collector_->marking_worklists()->Update(
       [
 #ifdef DEBUG
           // this is referred inside DCHECK.
@@ -633,7 +634,7 @@ StepResult IncrementalMarking::EmbedderStep(double expected_duration_ms,
     HeapObject object;
     size_t cnt = 0;
     empty_worklist = true;
-    while (marking_worklists()->PopEmbedder(&object)) {
+    while (local_marking_worklists()->PopEmbedder(&object)) {
       scope.TracePossibleWrapper(JSObject::cast(object));
       if (++cnt == kObjectsToProcessBeforeDeadlineCheck) {
         if (deadline <= heap_->MonotonicallyIncreasingTimeInMs()) {
@@ -658,7 +659,7 @@ StepResult IncrementalMarking::EmbedderStep(double expected_duration_ms,
 }
 
 void IncrementalMarking::Hurry() {
-  if (!marking_worklists()->IsEmpty()) {
+  if (!local_marking_worklists()->IsEmpty()) {
     double start = 0.0;
     if (FLAG_trace_incremental_marking) {
       start = heap_->MonotonicallyIncreasingTimeInMs();
@@ -1042,14 +1043,14 @@ StepResult IncrementalMarking::Step(double max_step_size_in_ms,
       // It is safe to merge back all objects that were on hold to the shared
       // work list at Step because we are at a safepoint where all objects
       // are properly initialized.
-      marking_worklists()->MergeOnHold();
+      local_marking_worklists()->MergeOnHold();
     }
 
 // Only print marking worklist in debug mode to save ~40KB of code size.
 #ifdef DEBUG
     if (FLAG_trace_incremental_marking && FLAG_trace_concurrent_marking &&
         FLAG_trace_gc_verbose) {
-      collector_->marking_worklists_holder()->Print();
+      collector_->marking_worklists()->Print();
     }
 #endif
     if (FLAG_trace_incremental_marking) {
@@ -1073,7 +1074,7 @@ StepResult IncrementalMarking::Step(double max_step_size_in_ms,
     // assumption is that large graphs are well connected and can mostly be
     // processed on their own. For small graphs, helping is not necessary.
     v8_bytes_processed = collector_->ProcessMarkingWorklist(bytes_to_process);
-    StepResult v8_result = marking_worklists()->IsEmpty()
+    StepResult v8_result = local_marking_worklists()->IsEmpty()
                                ? StepResult::kNoImmediateWork
                                : StepResult::kMoreWorkRemaining;
     StepResult embedder_result = StepResult::kNoImmediateWork;
@@ -1098,7 +1099,7 @@ StepResult IncrementalMarking::Step(double max_step_size_in_ms,
       }
     }
     if (FLAG_concurrent_marking) {
-      marking_worklists()->ShareWorkIfGlobalPoolIsEmpty();
+      local_marking_worklists()->ShareWork();
       heap_->concurrent_marking()->RescheduleTasksIfNeeded();
     }
   }

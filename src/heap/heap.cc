@@ -1259,7 +1259,7 @@ TimedHistogram* Heap::GCTypeTimer(GarbageCollector collector) {
     return isolate_->counters()->gc_finalize_reduce_memory();
   }
   if (incremental_marking()->IsMarking() &&
-      incremental_marking()->marking_worklists()->IsPerContextMode()) {
+      incremental_marking()->local_marking_worklists()->IsPerContextMode()) {
     return isolate_->counters()->gc_finalize_measure_memory();
   }
   return isolate_->counters()->gc_finalize();
@@ -3489,12 +3489,12 @@ void Heap::FinalizeIncrementalMarkingIfComplete(
   if (incremental_marking()->IsMarking() &&
       (incremental_marking()->IsReadyToOverApproximateWeakClosure() ||
        (!incremental_marking()->finalize_marking_completed() &&
-        mark_compact_collector()->marking_worklists()->IsEmpty() &&
+        mark_compact_collector()->local_marking_worklists()->IsEmpty() &&
         local_embedder_heap_tracer()->ShouldFinalizeIncrementalMarking()))) {
     FinalizeIncrementalMarkingIncrementally(gc_reason);
   } else if (incremental_marking()->IsComplete() ||
              (incremental_marking()->IsMarking() &&
-              mark_compact_collector()->marking_worklists()->IsEmpty() &&
+              mark_compact_collector()->local_marking_worklists()->IsEmpty() &&
               local_embedder_heap_tracer()
                   ->ShouldFinalizeIncrementalMarking())) {
     CollectAllGarbage(current_gc_flags_, gc_reason, current_gc_callback_flags_);
@@ -5277,7 +5277,7 @@ void Heap::SetUp() {
 
   if (FLAG_concurrent_marking || FLAG_parallel_marking) {
     concurrent_marking_.reset(new ConcurrentMarking(
-        this, mark_compact_collector_->marking_worklists_holder(),
+        this, mark_compact_collector_->marking_worklists(),
         mark_compact_collector_->weak_objects()));
   } else {
     concurrent_marking_.reset(new ConcurrentMarking(this, nullptr, nullptr));

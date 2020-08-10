@@ -147,12 +147,13 @@ class MarkingStateBase {
 template <typename ConcreteVisitor, typename MarkingState>
 class MarkingVisitorBase : public HeapVisitor<int, ConcreteVisitor> {
  public:
-  MarkingVisitorBase(int task_id, MarkingWorklists* marking_worklists,
+  MarkingVisitorBase(int task_id,
+                     MarkingWorklists::Local* local_marking_worklists,
                      WeakObjects* weak_objects, Heap* heap,
                      unsigned mark_compact_epoch,
                      BytecodeFlushMode bytecode_flush_mode,
                      bool is_embedder_tracing_enabled, bool is_forced_gc)
-      : marking_worklists_(marking_worklists),
+      : local_marking_worklists_(local_marking_worklists),
         weak_objects_(weak_objects),
         heap_(heap),
         task_id_(task_id),
@@ -231,7 +232,7 @@ class MarkingVisitorBase : public HeapVisitor<int, ConcreteVisitor> {
   // Marks the object grey and pushes it on the marking work list.
   V8_INLINE void MarkObject(HeapObject host, HeapObject obj);
 
-  MarkingWorklists* const marking_worklists_;
+  MarkingWorklists::Local* const local_marking_worklists_;
   WeakObjects* const weak_objects_;
   Heap* const heap_;
   const int task_id_;

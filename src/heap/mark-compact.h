@@ -377,13 +377,13 @@ class MainMarkingVisitor final
   };
 
   MainMarkingVisitor(MarkingState* marking_state,
-                     MarkingWorklists* marking_worklists,
+                     MarkingWorklists::Local* local_marking_worklists,
                      WeakObjects* weak_objects, Heap* heap,
                      unsigned mark_compact_epoch,
                      BytecodeFlushMode bytecode_flush_mode,
                      bool embedder_tracing_enabled, bool is_forced_gc)
       : MarkingVisitorBase<MainMarkingVisitor<MarkingState>, MarkingState>(
-            kMainThreadTask, marking_worklists, weak_objects, heap,
+            kMainThreadTask, local_marking_worklists, weak_objects, heap,
             mark_compact_epoch, bytecode_flush_mode, embedder_tracing_enabled,
             is_forced_gc),
         marking_state_(marking_state),
@@ -527,10 +527,11 @@ class MarkCompactCollector final : public MarkCompactCollectorBase {
 
   bool evacuation() const { return evacuation_; }
 
-  MarkingWorklistsHolder* marking_worklists_holder() {
-    return &marking_worklists_holder_;
+  MarkingWorklists* marking_worklists() { return &marking_worklists_; }
+
+  MarkingWorklists::Local* local_marking_worklists() {
+    return local_marking_worklists_.get();
   }
-  MarkingWorklists* marking_worklists() { return marking_worklists_.get(); }
 
   WeakObjects* weak_objects() { return &weak_objects_; }
 
@@ -758,13 +759,13 @@ class MarkCompactCollector final : public MarkCompactCollectorBase {
 
   bool have_code_to_deoptimize_;
 
-  MarkingWorklistsHolder marking_worklists_holder_;
+  MarkingWorklists marking_worklists_;
 
   WeakObjects weak_objects_;
   EphemeronMarking ephemeron_marking_;
 
   std::unique_ptr<MarkingVisitor> marking_visitor_;
-  std::unique_ptr<MarkingWorklists> marking_worklists_;
+  std::unique_ptr<MarkingWorklists::Local> local_marking_worklists_;
   NativeContextInferrer native_context_inferrer_;
   NativeContextStats native_context_stats_;
 

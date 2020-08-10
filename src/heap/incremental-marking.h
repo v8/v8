@@ -209,8 +209,8 @@ class V8_EXPORT_PRIVATE IncrementalMarking final {
     }
   }
 
-  MarkingWorklists* marking_worklists() const {
-    return collector_->marking_worklists();
+  MarkingWorklists::Local* local_marking_worklists() const {
+    return collector_->local_marking_worklists();
   }
 
   void Deactivate();

@@ -2587,6 +2587,7 @@ v8_source_set("v8_base_without_compiler") {
     "src/heap/marking-barrier.h",
     "src/heap/marking-visitor-inl.h",
     "src/heap/marking-visitor.h",
+    "src/heap/marking-worklist-inl.h",
     "src/heap/marking-worklist.cc",
     "src/heap/marking-worklist.h",
     "src/heap/marking.cc",

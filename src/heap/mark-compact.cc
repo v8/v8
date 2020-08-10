@@ -455,7 +455,8 @@ void MarkCompactCollector::TearDown() {
   AbortCompaction();
   AbortWeakObjects();
   if (heap()->incremental_marking()->IsMarking()) {
-    marking_worklists_holder()->Clear();
+    local_marking_worklists()->Publish();
+    marking_worklists()->Clear();
   }
 }
 
@@ -520,12 +521,12 @@ void MarkCompactCollector::StartMarking() {
       contexts.push_back(context->ptr());
     }
   }
-  marking_worklists_holder()->CreateContextWorklists(contexts);
-  marking_worklists_ = std::make_unique<MarkingWorklists>(
-      kMainThreadTask, marking_worklists_holder());
+  marking_worklists()->CreateContextWorklists(contexts);
+  local_marking_worklists_ =
+      std::make_unique<MarkingWorklists::Local>(marking_worklists());
   marking_visitor_ = std::make_unique<MarkingVisitor>(
-      marking_state(), marking_worklists(), weak_objects(), heap_, epoch(),
-      Heap::GetBytecodeFlushMode(),
+      marking_state(), local_marking_worklists(), weak_objects(), heap_,
+      epoch(), Heap::GetBytecodeFlushMode(),
       heap_->local_embedder_heap_tracer()->InUse(),
       heap_->is_current_gc_forced());
 // Marking bits are cleared by the sweeper.
@@ -912,7 +913,7 @@ void MarkCompactCollector::FinishConcurrentMarking(
 }
 
 void MarkCompactCollector::VerifyMarking() {
-  CHECK(marking_worklists()->IsEmpty());
+  CHECK(local_marking_worklists()->IsEmpty());
   DCHECK(heap_->incremental_marking()->IsStopped());
 #ifdef VERIFY_HEAP
   if (FLAG_verify_heap) {
@@ -939,8 +940,8 @@ void MarkCompactCollector::Finish() {
 #endif
 
   marking_visitor_.reset();
-  marking_worklists_.reset();
-  marking_worklists_holder_.ReleaseContextWorklists();
+  local_marking_worklists_.reset();
+  marking_worklists_.ReleaseContextWorklists();
   native_context_stats_.Clear();
 
   CHECK(weak_objects_.current_ephemerons.IsEmpty());
@@ -1663,14 +1664,14 @@ void MarkCompactCollector::ProcessEphemeronsUntilFixpoint() {
     CHECK(weak_objects_.current_ephemerons.IsEmpty());
     CHECK(weak_objects_.discovered_ephemerons.IsEmpty());
 
-    work_to_do = work_to_do || !marking_worklists()->IsEmpty() ||
+    work_to_do = work_to_do || !local_marking_worklists()->IsEmpty() ||
                  heap()->concurrent_marking()->ephemeron_marked() ||
-                 !marking_worklists()->IsEmbedderEmpty() ||
+                 !local_marking_worklists()->IsEmbedderEmpty() ||
                  !heap()->local_embedder_heap_tracer()->IsRemoteTracingDone();
     ++iterations;
   }
 
-  CHECK(marking_worklists()->IsEmpty());
+  CHECK(local_marking_worklists()->IsEmpty());
   CHECK(weak_objects_.current_ephemerons.IsEmpty());
   CHECK(weak_objects_.discovered_ephemerons.IsEmpty());
 }
@@ -1759,7 +1760,7 @@ void MarkCompactCollector::ProcessEphemeronsLinear() {
       weak_objects_.next_ephemerons.Iterate([&](Ephemeron ephemeron) {
         if (non_atomic_marking_state()->IsBlackOrGrey(ephemeron.key) &&
             non_atomic_marking_state()->WhiteToGrey(ephemeron.value)) {
-          marking_worklists()->Push(ephemeron.value);
+          local_marking_worklists()->Push(ephemeron.value);
         }
       });
 
@@ -1780,8 +1781,8 @@ void MarkCompactCollector::ProcessEphemeronsLinear() {
     // for work_to_do are not sufficient for determining if another iteration
     // is necessary.
 
-    work_to_do = !marking_worklists()->IsEmpty() ||
-                 !marking_worklists()->IsEmbedderEmpty() ||
+    work_to_do = !local_marking_worklists()->IsEmpty() ||
+                 !local_marking_worklists()->IsEmbedderEmpty() ||
                  !heap()->local_embedder_heap_tracer()->IsRemoteTracingDone();
     CHECK(weak_objects_.discovered_ephemerons.IsEmpty());
   }
@@ -1789,7 +1790,7 @@ void MarkCompactCollector::ProcessEphemeronsLinear() {
   ResetNewlyDiscovered();
   ephemeron_marking_.newly_discovered.shrink_to_fit();
 
-  CHECK(marking_worklists()->IsEmpty());
+  CHECK(local_marking_worklists()->IsEmpty());
 }
 
 void MarkCompactCollector::PerformWrapperTracing() {
@@ -1799,7 +1800,7 @@ void MarkCompactCollector::PerformWrapperTracing() {
       LocalEmbedderHeapTracer::ProcessingScope scope(
           heap_->local_embedder_heap_tracer());
       HeapObject object;
-      while (marking_worklists()->PopEmbedder(&object)) {
+      while (local_marking_worklists()->PopEmbedder(&object)) {
         scope.TracePossibleWrapper(JSObject::cast(object));
       }
     }
@@ -1814,10 +1815,10 @@ template <MarkCompactCollector::MarkingWorklistProcessingMode mode>
 size_t MarkCompactCollector::ProcessMarkingWorklist(size_t bytes_to_process) {
   HeapObject object;
   size_t bytes_processed = 0;
-  bool is_per_context_mode = marking_worklists()->IsPerContextMode();
+  bool is_per_context_mode = local_marking_worklists()->IsPerContextMode();
   Isolate* isolate = heap()->isolate();
-  while (marking_worklists()->Pop(&object) ||
-         marking_worklists()->PopOnHold(&object)) {
+  while (local_marking_worklists()->Pop(&object) ||
+         local_marking_worklists()->PopOnHold(&object)) {
     // Left trimming may result in grey or black filler objects on the marking
     // worklist. Ignore these objects.
     if (object.IsFreeSpaceOrFiller()) {
@@ -1844,13 +1845,13 @@ size_t MarkCompactCollector::ProcessMarkingWorklist(size_t bytes_to_process) {
     if (is_per_context_mode) {
       Address context;
       if (native_context_inferrer_.Infer(isolate, map, object, &context)) {
-        marking_worklists()->SwitchToContext(context);
+        local_marking_worklists()->SwitchToContext(context);
       }
     }
     size_t visited_size = marking_visitor_->Visit(map, object);
     if (is_per_context_mode) {
-      native_context_stats_.IncrementSize(marking_worklists()->Context(), map,
-                                          object, visited_size);
+      native_context_stats_.IncrementSize(local_marking_worklists()->Context(),
+                                          map, object, visited_size);
     }
     bytes_processed += visited_size;
     if (bytes_to_process && bytes_processed >= bytes_to_process) {
@@ -1871,7 +1872,7 @@ template size_t MarkCompactCollector::ProcessMarkingWorklist<
 bool MarkCompactCollector::ProcessEphemeron(HeapObject key, HeapObject value) {
   if (marking_state()->IsBlackOrGrey(key)) {
     if (marking_state()->WhiteToGrey(value)) {
-      marking_worklists()->Push(value);
+      local_marking_worklists()->Push(value);
       return true;
     }
 
@@ -1883,7 +1884,7 @@ bool MarkCompactCollector::ProcessEphemeron(HeapObject key, HeapObject value) {
 }
 
 void MarkCompactCollector::ProcessEphemeronMarking() {
-  DCHECK(marking_worklists()->IsEmpty());
+  DCHECK(local_marking_worklists()->IsEmpty());
 
   // Incremental marking might leave ephemerons in main task's local
   // buffer, flush it into global pool.
@@ -1891,7 +1892,7 @@ void MarkCompactCollector::ProcessEphemeronMarking() {
 
   ProcessEphemeronsUntilFixpoint();
 
-  CHECK(marking_worklists()->IsEmpty());
+  CHECK(local_marking_worklists()->IsEmpty());
   CHECK(heap()->local_embedder_heap_tracer()->IsRemoteTracingDone());
 }
 
@@ -1983,7 +1984,7 @@ void MarkCompactCollector::MarkLiveObjects() {
   {
     TRACE_GC(heap()->tracer(), GCTracer::Scope::MC_MARK_WEAK_CLOSURE);
 
-    DCHECK(marking_worklists()->IsEmpty());
+    DCHECK(local_marking_worklists()->IsEmpty());
 
     // Mark objects reachable through the embedder heap. This phase is
     // opportunistic as it may not discover graphs that are only reachable
@@ -1998,9 +1999,9 @@ void MarkCompactCollector::MarkLiveObjects() {
         PerformWrapperTracing();
         DrainMarkingWorklist();
       } while (!heap_->local_embedder_heap_tracer()->IsRemoteTracingDone() ||
-               !marking_worklists()->IsEmbedderEmpty());
-      DCHECK(marking_worklists()->IsEmbedderEmpty());
-      DCHECK(marking_worklists()->IsEmpty());
+               !local_marking_worklists()->IsEmbedderEmpty());
+      DCHECK(local_marking_worklists()->IsEmbedderEmpty());
+      DCHECK(local_marking_worklists()->IsEmpty());
     }
 
     // The objects reachable from the roots are marked, yet unreachable objects
@@ -2010,7 +2011,7 @@ void MarkCompactCollector::MarkLiveObjects() {
       TRACE_GC(heap()->tracer(),
                GCTracer::Scope::MC_MARK_WEAK_CLOSURE_EPHEMERON);
       ProcessEphemeronMarking();
-      DCHECK(marking_worklists()->IsEmpty());
+      DCHECK(local_marking_worklists()->IsEmpty());
     }
 
     // The objects reachable from the roots, weak maps, and embedder heap
@@ -2042,8 +2043,8 @@ void MarkCompactCollector::MarkLiveObjects() {
     {
       TRACE_GC(heap()->tracer(), GCTracer::Scope::MC_MARK_WEAK_CLOSURE_HARMONY);
       ProcessEphemeronMarking();
-      DCHECK(marking_worklists()->IsEmbedderEmpty());
-      DCHECK(marking_worklists()->IsEmpty());
+      DCHECK(local_marking_worklists()->IsEmbedderEmpty());
+      DCHECK(local_marking_worklists()->IsEmpty());
     }
 
     {
