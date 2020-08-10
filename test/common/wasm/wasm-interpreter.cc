@@ -3720,10 +3720,10 @@ class WasmInterpreterInternals {
           PrintF("i64:%" PRId64 "", val.to<int64_t>());
           break;
         case ValueType::kF32:
-          PrintF("f32:%f", val.to<float>());
+          PrintF("f32:%a", val.to<float>());
           break;
         case ValueType::kF64:
-          PrintF("f64:%lf", val.to<double>());
+          PrintF("f64:%la", val.to<double>());
           break;
         case ValueType::kS128: {
           // This defaults to tracing all S128 values as i32x4 values for now,
