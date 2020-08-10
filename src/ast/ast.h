@@ -1411,7 +1411,7 @@ class ThisExpression final : public Expression {
  private:
   friend class AstNodeFactory;
   friend Zone;
-  ThisExpression() : Expression(kNoSourcePosition, kThisExpression) {}
+  explicit ThisExpression(int pos) : Expression(pos, kThisExpression) {}
 };
 
 class VariableProxy final : public Expression {
@@ -2737,7 +2737,7 @@ class AstNodeFactory final {
       : zone_(zone),
         ast_value_factory_(ast_value_factory),
         empty_statement_(zone->New<class EmptyStatement>()),
-        this_expression_(zone->New<class ThisExpression>()),
+        this_expression_(zone->New<class ThisExpression>(kNoSourcePosition)),
         failure_expression_(zone->New<class FailureExpression>()) {}
 
   AstNodeFactory* ast_node_factory() { return this; }
@@ -2902,6 +2902,11 @@ class AstNodeFactory final {
     // verification, so clearing at this point is fine.
     this_expression_->clear_parenthesized();
     return this_expression_;
+  }
+
+  class ThisExpression* NewThisExpression(int pos) {
+    DCHECK_NE(pos, kNoSourcePosition);
+    return zone_->New<class ThisExpression>(pos);
   }
 
   class FailureExpression* FailureExpression() {

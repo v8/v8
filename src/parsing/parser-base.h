@@ -1833,7 +1833,7 @@ ParserBase<Impl>::ParsePrimaryExpression() {
 
     case Token::THIS: {
       Consume(Token::THIS);
-      return impl()->ThisExpression();
+      return impl()->NewThisExpression(beg_pos);
     }
 
     case Token::ASSIGN_DIV:

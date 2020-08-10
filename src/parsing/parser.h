@@ -786,6 +786,11 @@ class V8_EXPORT_PRIVATE Parser : public NON_EXPORTED_BASE(ParserBase<Parser>) {
     return factory()->ThisExpression();
   }
 
+  class ThisExpression* NewThisExpression(int pos) {
+    UseThis();
+    return factory()->NewThisExpression(pos);
+  }
+
   Expression* NewSuperPropertyReference(int pos);
   Expression* NewSuperCallReference(int pos);
   Expression* NewTargetExpression(int pos);

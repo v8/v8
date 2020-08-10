@@ -1533,6 +1533,11 @@ class PreParser : public ParserBase<PreParser> {
     return PreParserExpression::This();
   }
 
+  V8_INLINE PreParserExpression NewThisExpression(int pos) {
+    UseThis();
+    return PreParserExpression::This();
+  }
+
   V8_INLINE PreParserExpression NewSuperPropertyReference(int pos) {
     scope()->NewUnresolved(factory()->ast_node_factory(),
                            ast_value_factory()->this_function_string(), pos,
