@@ -46,8 +46,7 @@ void InterpretAndExecuteModule(i::Isolate* isolate,
     thrower.Reset();  // Ignore errors.
     return;
   }
-  if (!testing::InterpretWasmModuleForTesting(isolate, instance, "main", 0,
-                                              nullptr)) {
+  if (!testing::InterpretWasmModuleForTesting(isolate, instance, 0, nullptr)) {
     isolate->clear_pending_exception();
     return;
   }

@@ -43,8 +43,7 @@ MaybeHandle<WasmInstanceObject> CompileAndInstantiateForTesting(
 
 bool InterpretWasmModuleForTesting(Isolate* isolate,
                                    Handle<WasmInstanceObject> instance,
-                                   const char* name, size_t argc,
-                                   WasmValue* args) {
+                                   size_t argc, WasmValue* args) {
   HandleScope handle_scope(isolate);  // Avoid leaking handles.
   WasmCodeRefScope code_ref_scope;
   MaybeHandle<WasmExportedFunction> maybe_function =

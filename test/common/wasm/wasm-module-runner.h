@@ -37,14 +37,13 @@ int32_t CallWasmFunctionForTesting(Isolate* isolate,
                                    ErrorThrower* thrower, const char* name,
                                    int argc, Handle<Object> argv[]);
 
-// Interprets an exported wasm function by name. Returns false if it was not
+// Interprets the exported wasm function "main". Returns false if it was not
 // possible to execute the function (e.g. because it does not exist), or if the
 // interpretation does not finish after kMaxNumSteps. Otherwise returns true.
 // The arguments array is extended with default values if necessary.
 bool InterpretWasmModuleForTesting(Isolate* isolate,
                                    Handle<WasmInstanceObject> instance,
-                                   const char* name, size_t argc,
-                                   WasmValue* args);
+                                   size_t argc, WasmValue* args);
 
 // Decode, verify, and run the function labeled "main" in the
 // given encoded module. The module should have no imports.
