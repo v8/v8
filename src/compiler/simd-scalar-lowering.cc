@@ -1070,6 +1070,19 @@ void SimdScalarLowering::LowerNode(Node* node) {
   SimdType rep_type = ReplacementType(node);
   int num_lanes = NumLanes(rep_type);
   switch (node->opcode()) {
+    case IrOpcode::kS128Const: {
+      // Lower 128.const to 4 Int32Constant.
+      DCHECK_EQ(0, node->InputCount());
+      constexpr int kNumLanes = kSimd128Size / sizeof(uint32_t);
+      uint32_t val[kNumLanes];
+      memcpy(val, S128ImmediateParameterOf(node->op()).data(), kSimd128Size);
+      Node** rep_node = zone()->NewArray<Node*>(kNumLanes);
+      for (int i = 0; i < kNumLanes; ++i) {
+        rep_node[i] = mcgraph_->Int32Constant(val[i]);
+      }
+      ReplaceNode(node, rep_node, kNumLanes);
+      break;
+    }
     case IrOpcode::kStart: {
       int parameter_count = GetParameterCountAfterLowering();
       // Only exchange the node if the parameter count actually changed.

@@ -2621,16 +2621,28 @@ static void DoubleAsTwoUInt32(Double d, uint32_t* lo, uint32_t* hi) {
   *hi = i >> 32;
 }
 
+static void WriteVmovIntImmEncoding(uint8_t imm, uint32_t* encoding) {
+  // Integer promotion from uint8_t to int makes these all okay.
+  *encoding = ((imm & 0x80) << (24 - 7));   // a
+  *encoding |= ((imm & 0x70) << (16 - 4));  // bcd
+  *encoding |= (imm & 0x0f);                //  efgh
+}
+
 // This checks if imm can be encoded into an immediate for vmov.
 // See Table A7-15 in ARM DDI 0406C.d.
-// Currently only supports the first row of the table.
-static bool FitsVmovImm64(uint64_t imm, uint32_t* encoding) {
+// Currently only supports the first row and op=0 && cmode=1110.
+static bool FitsVmovIntImm(uint64_t imm, uint32_t* encoding, uint8_t* cmode) {
   uint32_t lo = imm & 0xFFFFFFFF;
   uint32_t hi = imm >> 32;
-  if (lo == hi && ((lo & 0xffffff00) == 0)) {
-    *encoding = ((lo & 0x80) << (24 - 7));   // a
-    *encoding |= ((lo & 0x70) << (16 - 4));  // bcd
-    *encoding |= (lo & 0x0f);                //  efgh
+  if ((lo == hi && ((lo & 0xffffff00) == 0))) {
+    WriteVmovIntImmEncoding(imm & 0xff, encoding);
+    *cmode = 0;
+    return true;
+  } else if ((lo == hi) && ((lo & 0xffff) == (lo >> 16)) &&
+             ((lo & 0xff) == (lo >> 24))) {
+    // Check that all bytes in imm are the same.
+    WriteVmovIntImmEncoding(imm & 0xff, encoding);
+    *cmode = 0xe;
     return true;
   }
 
@@ -2639,15 +2651,17 @@ static bool FitsVmovImm64(uint64_t imm, uint32_t* encoding) {
 
 void Assembler::vmov(const QwNeonRegister dst, uint64_t imm) {
   uint32_t enc;
-  if (CpuFeatures::IsSupported(VFPv3) && FitsVmovImm64(imm, &enc)) {
+  uint8_t cmode;
+  uint8_t op = 0;
+  if (CpuFeatures::IsSupported(VFPv3) && FitsVmovIntImm(imm, &enc, &cmode)) {
     CpuFeatureScope scope(this, VFPv3);
     // Instruction details available in ARM DDI 0406C.b, A8-937.
     // 001i1(27-23) | D(22) | 000(21-19) | imm3(18-16) | Vd(15-12) | cmode(11-8)
     // | 0(7) | Q(6) | op(5) | 4(1) | imm4(3-0)
     int vd, d;
     dst.split_code(&vd, &d);
-    emit(kSpecialCondition | 0x05 * B23 | d * B22 | vd * B12 | 0x1 * B6 |
-         0x1 * B4 | enc);
+    emit(kSpecialCondition | 0x05 * B23 | d * B22 | vd * B12 | cmode * B8 |
+         0x1 * B6 | op * B5 | 0x1 * B4 | enc);
   } else {
     UNIMPLEMENTED();
   }
