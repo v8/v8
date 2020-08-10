@@ -91,16 +91,6 @@ void Heap::update_external_memory(int64_t delta) {
   }
 }
 
-void Heap::update_external_memory_concurrently_freed(uintptr_t freed) {
-  external_memory_concurrently_freed_ += freed;
-}
-
-void Heap::account_external_memory_concurrently_freed() {
-  update_external_memory(
-      -static_cast<int64_t>(external_memory_concurrently_freed_));
-  external_memory_concurrently_freed_ = 0;
-}
-
 RootsTable& Heap::roots_table() { return isolate()->roots_table(); }
 
 #define ROOT_ACCESSOR(Type, name, CamelName)                           \
