@@ -287,7 +287,7 @@ void LiftoffAssembler::Load(LiftoffRegister dst, Register src_addr,
                             Register offset_reg, uint32_t offset_imm,
                             LoadType type, LiftoffRegList pinned,
                             uint32_t* protected_load_pc, bool is_load_mem) {
-  if (offset_imm > std::numeric_limits<int32_t>::max()) {
+  if (offset_imm > static_cast<uint32_t>(std::numeric_limits<int32_t>::max())) {
     // We do not generate code here, because such an offset should never pass
     // the bounds check. However, the spec requires us to compile code with such
     // an offset.
