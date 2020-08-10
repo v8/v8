@@ -3224,6 +3224,31 @@ void Builtins::Generate_GenericJSToWasmWrapper(MacroAssembler* masm) {
       MemOperand(function_data,
                  WasmExportedFunctionData::kInstanceOffset - kHeapObjectTag));
 
+  // Int signature_type gives the number of int32 params (can be only 0 or 1).
+  Register signature_type = r9;
+  __ SmiUntagField(
+      signature_type,
+      MemOperand(function_data, WasmExportedFunctionData::kSignatureTypeOffset -
+                                    kHeapObjectTag));
+
+  __ cmpl(signature_type, Immediate(0));
+
+  // In 0 param case jump through parameter handling.
+  Label params_done;
+  __ j(equal, &params_done);
+
+  // Param handling.
+  Register param = rax;
+  const int firstParamOffset = 16;
+  __ movq(param, MemOperand(rbp, firstParamOffset));
+
+  Label not_smi;
+  __ JumpIfNotSmi(param, &not_smi);
+
+  // Change from smi to int32.
+  __ SmiUntag(param);
+
+  __ bind(&params_done);
   int isolate_root_offset =
       wasm::ObjectAccess::ToTagged(WasmInstanceObject::kIsolateRootOffset);
 
@@ -3250,24 +3275,22 @@ void Builtins::Generate_GenericJSToWasmWrapper(MacroAssembler* masm) {
       MemOperand(
           function_data,
           WasmExportedFunctionData::kJumpTableOffsetOffset - kHeapObjectTag));
-  function_data = no_reg;
 
-  // Change from smi to int64.
-  __ sarl(jump_table_offset, Immediate(1));
-  __ movsxlq(jump_table_offset, jump_table_offset);
+  // Change from smi to integer.
+  __ SmiUntag(jump_table_offset);
 
   Register function_entry = jump_table_offset;
   __ addq(function_entry, jump_table_start);
   jump_table_offset = no_reg;
   jump_table_start = no_reg;
 
-  // Save wasm_instance on the stack.
   __ pushq(wasm_instance);
+  __ pushq(signature_type);
 
   __ call(function_entry);
   function_entry = no_reg;
 
-  // Restore wasm_instance.
+  __ popq(signature_type);
   __ popq(wasm_instance);
 
   // Unset thread_in_wasm_flag.
@@ -3287,7 +3310,36 @@ void Builtins::Generate_GenericJSToWasmWrapper(MacroAssembler* masm) {
   // Deconstrunct the stack frame.
   __ LeaveFrame(StackFrame::JS_TO_WASM);
 
+  __ cmpl(signature_type, Immediate(0));
+
+  Label ret_0_param;
+  __ j(equal, &ret_0_param);
+
+  __ ret(16);
+
+  __ bind(&ret_0_param);
   __ ret(8);
+
+  // Handle the conversion to int32 when the param is not a smi.
+  __ bind(&not_smi);
+
+  __ pushq(wasm_instance);
+  __ pushq(function_data);
+  __ pushq(signature_type);
+  __ LoadAnyTaggedField(
+      rsi,
+      MemOperand(wasm_instance, wasm::ObjectAccess::ToTagged(
+                                    WasmInstanceObject::kNativeContextOffset)));
+  // We had to prepare the parameters for the Call:
+  // put the value into rax, and the context to rsi.
+  __ Call(BUILTIN_CODE(masm->isolate(), WasmTaggedNonSmiToInt32),
+          RelocInfo::CODE_TARGET);
+
+  __ popq(signature_type);
+  __ popq(function_data);
+  __ popq(wasm_instance);
+
+  __ jmp(&params_done);
 }
 
 namespace {
