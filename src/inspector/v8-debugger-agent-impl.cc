@@ -318,6 +318,26 @@ protocol::DictionaryValue* getOrCreateObject(protocol::DictionaryValue* object,
   object->setObject(key, std::move(newDictionary));
   return value;
 }
+
+Response isValidPosition(protocol::Debugger::ScriptPosition* position) {
+  if (position->getLineNumber() < 0)
+    return Response::ServerError("Position missing 'line' or 'line' < 0.");
+  if (position->getColumnNumber() < 0)
+    return Response::ServerError("Position missing 'column' or 'column' < 0.");
+  return Response::Success();
+}
+
+Response isValidRangeOfPositions(std::vector<std::pair<int, int>>& positions) {
+  for (size_t i = 1; i < positions.size(); ++i) {
+    if (positions[i - 1].first < positions[i].first) continue;
+    if (positions[i - 1].first == positions[i].first &&
+        positions[i - 1].second < positions[i].second)
+      continue;
+    return Response::ServerError(
+        "Input positions array is not sorted or contains duplicate values.");
+  }
+  return Response::Success();
+}
 }  // namespace
 
 V8DebuggerAgentImpl::V8DebuggerAgentImpl(
@@ -388,6 +408,7 @@ Response V8DebuggerAgentImpl::disable() {
   m_blackboxedPositions.clear();
   m_blackboxPattern.reset();
   resetBlackboxedStateCache();
+  m_skipList.clear();
   m_scripts.clear();
   m_cachedScriptIds.clear();
   m_cachedScriptSize = 0;
@@ -844,6 +865,33 @@ bool V8DebuggerAgentImpl::isFunctionBlackboxed(const String16& scriptId,
          std::distance(ranges.begin(), itStartRange) % 2;
 }
 
+bool V8DebuggerAgentImpl::shouldBeSkipped(const String16& scriptId, int line,
+                                          int column) {
+  if (m_skipList.empty()) return false;
+
+  auto it = m_skipList.find(scriptId);
+  if (it == m_skipList.end()) return false;
+
+  const std::vector<std::pair<int, int>>& ranges = it->second;
+  DCHECK(!ranges.empty());
+  const std::pair<int, int> location = std::make_pair(line, column);
+  auto itLowerBound = std::lower_bound(ranges.begin(), ranges.end(), location,
+                                       positionComparator);
+
+  bool shouldSkip = false;
+  if (itLowerBound != ranges.end()) {
+    // Skip lists are defined as pairs of locations that specify the
+    // start and the end of ranges to skip: [ranges[0], ranges[1], ..], where
+    // locations in [ranges[0], ranges[1]) should be skipped, i.e.
+    // [(lineStart, columnStart), (lineEnd, columnEnd)).
+    const bool isSameAsLowerBound = location == *itLowerBound;
+    const bool isUnevenIndex = (itLowerBound - ranges.begin()) % 2;
+    shouldSkip = isSameAsLowerBound ^ isUnevenIndex;
+  }
+
+  return shouldSkip;
+}
+
 bool V8DebuggerAgentImpl::acceptsPause(bool isOOMBreak) const {
   return enabled() && (isOOMBreak || !m_skipAllPauses);
 }
@@ -1081,6 +1129,14 @@ Response V8DebuggerAgentImpl::resume(Maybe<bool> terminateOnResume) {
 Response V8DebuggerAgentImpl::stepOver(
     Maybe<protocol::Array<protocol::Debugger::LocationRange>> inSkipList) {
   if (!isPaused()) return Response::ServerError(kDebuggerNotPaused);
+
+  if (inSkipList.isJust()) {
+    const Response res = processSkipList(inSkipList.fromJust());
+    if (res.IsError()) return res;
+  } else {
+    m_skipList.clear();
+  }
+
   m_session->releaseObjectGroup(kBacktraceObjectGroup);
   m_debugger->stepOverStatement(m_session->contextGroupId());
   return Response::Success();
@@ -1354,23 +1410,14 @@ Response V8DebuggerAgentImpl::setBlackboxedRanges(
   positions.reserve(inPositions->size());
   for (const std::unique_ptr<protocol::Debugger::ScriptPosition>& position :
        *inPositions) {
-    if (position->getLineNumber() < 0)
-      return Response::ServerError("Position missing 'line' or 'line' < 0.");
-    if (position->getColumnNumber() < 0)
-      return Response::ServerError(
-          "Position missing 'column' or 'column' < 0.");
+    Response res = isValidPosition(position.get());
+    if (res.IsError()) return res;
+
     positions.push_back(
         std::make_pair(position->getLineNumber(), position->getColumnNumber()));
   }
-
-  for (size_t i = 1; i < positions.size(); ++i) {
-    if (positions[i - 1].first < positions[i].first) continue;
-    if (positions[i - 1].first == positions[i].first &&
-        positions[i - 1].second < positions[i].second)
-      continue;
-    return Response::ServerError(
-        "Input positions array is not sorted or contains duplicate values.");
-  }
+  Response res = isValidRangeOfPositions(positions);
+  if (res.IsError()) return res;
 
   m_blackboxedPositions[scriptId] = positions;
   it->second->resetBlackboxedStateCache();
@@ -1866,6 +1913,7 @@ void V8DebuggerAgentImpl::reset() {
   if (!enabled()) return;
   m_blackboxedPositions.clear();
   resetBlackboxedStateCache();
+  m_skipList.clear();
   m_scripts.clear();
   m_cachedScriptIds.clear();
   m_cachedScriptSize = 0;
@@ -1887,4 +1935,38 @@ void V8DebuggerAgentImpl::ScriptCollected(const V8DebuggerScript* script) {
   }
 }
 
+Response V8DebuggerAgentImpl::processSkipList(
+    protocol::Array<protocol::Debugger::LocationRange>* skipList) {
+  std::unordered_map<String16, std::vector<std::pair<int, int>>> skipListInit;
+  for (std::unique_ptr<protocol::Debugger::LocationRange>& range : *skipList) {
+    protocol::Debugger::ScriptPosition* start = range->getStart();
+    protocol::Debugger::ScriptPosition* end = range->getEnd();
+    String16 scriptId = range->getScriptId();
+
+    auto it = m_scripts.find(scriptId);
+    if (it == m_scripts.end())
+      return Response::ServerError("No script with passed id.");
+
+    Response res = isValidPosition(start);
+    if (res.IsError()) return res;
+
+    res = isValidPosition(end);
+    if (res.IsError()) return res;
+
+    skipListInit[scriptId].emplace_back(start->getLineNumber(),
+                                        start->getColumnNumber());
+    skipListInit[scriptId].emplace_back(end->getLineNumber(),
+                                        end->getColumnNumber());
+  }
+
+  // Verify that the skipList is sorted, and that all ranges
+  // are properly defined (start comes before end).
+  for (auto skipListPair : skipListInit) {
+    Response res = isValidRangeOfPositions(skipListPair.second);
+    if (res.IsError()) return res;
+  }
+
+  m_skipList = std::move(skipListInit);
+  return Response::Success();
+}
 }  // namespace v8_inspector

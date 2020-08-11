@@ -437,12 +437,14 @@ void Debug::Break(JavaScriptFrame* frame, Handle<JSFunction> break_target) {
   MaybeHandle<FixedArray> break_points_hit =
       CheckBreakPoints(debug_info, &location);
   if (!break_points_hit.is_null() || break_on_next_function_call()) {
+    StepAction lastStepAction = last_step_action();
     // Clear all current stepping setup.
     ClearStepping();
     // Notify the debug event listeners.
     OnDebugBreak(!break_points_hit.is_null()
                      ? break_points_hit.ToHandleChecked()
-                     : isolate_->factory()->empty_fixed_array());
+                     : isolate_->factory()->empty_fixed_array(),
+                 lastStepAction);
     return;
   }
 
@@ -503,12 +505,13 @@ void Debug::Break(JavaScriptFrame* frame, Handle<JSFunction> break_target) {
     }
   }
 
+  StepAction lastStepAction = last_step_action();
   // Clear all current stepping setup.
   ClearStepping();
 
   if (step_break) {
     // Notify the debug event listeners.
-    OnDebugBreak(isolate_->factory()->empty_fixed_array());
+    OnDebugBreak(isolate_->factory()->empty_fixed_array(), lastStepAction);
   } else {
     // Re-prepare to continue.
     PrepareStep(step_action);
@@ -1871,7 +1874,8 @@ void Debug::OnException(Handle<Object> exception, Handle<Object> promise,
       v8::Utils::ToLocal(promise), uncaught, exception_type);
 }
 
-void Debug::OnDebugBreak(Handle<FixedArray> break_points_hit) {
+void Debug::OnDebugBreak(Handle<FixedArray> break_points_hit,
+                         StepAction lastStepAction) {
   DCHECK(!break_points_hit.is_null());
   // The caller provided for DebugScope.
   AssertDebugContext();
@@ -1886,6 +1890,13 @@ void Debug::OnDebugBreak(Handle<FixedArray> break_points_hit) {
   DCHECK(in_debug_scope());
   HandleScope scope(isolate_);
   DisableBreak no_recursive_break(this);
+
+  // Only check if we should skip this location if we
+  // paused because of a step over.
+  if (lastStepAction == StepAction::StepNext && ShouldBeSkipped()) {
+    PrepareStep(lastStepAction);
+    return;
+  }
 
   std::vector<int> inspector_break_points_hit;
   int inspector_break_points_count = 0;
@@ -1938,6 +1949,27 @@ bool Debug::IsBlackboxed(Handle<SharedFunctionInfo> shared) {
     debug_info->set_computed_debug_is_blackboxed(true);
   }
   return debug_info->debug_is_blackboxed();
+}
+
+bool Debug::ShouldBeSkipped() {
+  SuppressDebug while_processing(this);
+  PostponeInterruptsScope no_interrupts(isolate_);
+  DisableBreak no_recursive_break(this);
+
+  StackTraceFrameIterator iterator(isolate_);
+  StandardFrame* frame = iterator.frame();
+  FrameSummary summary = FrameSummary::GetTop(frame);
+  Handle<Object> script_obj = summary.script();
+  if (!script_obj->IsScript()) return false;
+
+  Handle<Script> script = Handle<Script>::cast(script_obj);
+  summary.EnsureSourcePositionsAvailable();
+  int source_position = summary.SourcePosition();
+  int line = Script::GetLineNumber(script, source_position);
+  int column = Script::GetColumnNumber(script, source_position);
+
+  return debug_delegate_->ShouldBeSkipped(ToApiHandle<debug::Script>(script),
+                                          line, column);
 }
 
 bool Debug::AllFramesOnStackAreBlackboxed() {
@@ -2081,13 +2113,15 @@ void Debug::HandleDebugBreak(IgnoreBreakMode ignore_break_mode) {
     }
   }
 
+  StepAction lastStepAction = last_step_action();
+
   // Clear stepping to avoid duplicate breaks.
   ClearStepping();
 
   HandleScope scope(isolate_);
   DebugScope debug_scope(this);
 
-  OnDebugBreak(isolate_->factory()->empty_fixed_array());
+  OnDebugBreak(isolate_->factory()->empty_fixed_array(), lastStepAction);
 }
 
 #ifdef DEBUG
