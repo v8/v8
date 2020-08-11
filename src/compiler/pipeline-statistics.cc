@@ -61,11 +61,9 @@ PipelineStatistics::PipelineStatistics(OptimizedCompilationInfo* info,
     : outer_zone_(info->zone()),
       zone_stats_(zone_stats),
       compilation_stats_(compilation_stats),
-      source_size_(0),
       phase_kind_name_(nullptr),
       phase_name_(nullptr) {
   if (info->has_shared_info()) {
-    source_size_ = static_cast<size_t>(info->shared_info()->SourceSize());
     std::unique_ptr<char[]> name = info->shared_info()->DebugName().ToCString();
     function_name_ = name.get();
   }
@@ -77,7 +75,7 @@ PipelineStatistics::~PipelineStatistics() {
   if (InPhaseKind()) EndPhaseKind();
   CompilationStatistics::BasicStats diff;
   total_stats_.End(this, &diff);
-  compilation_stats_->RecordTotalStats(source_size_, diff);
+  compilation_stats_->RecordTotalStats(diff);
 }
 
 
