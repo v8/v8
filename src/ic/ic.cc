@@ -823,7 +823,7 @@ Handle<Object> LoadIC::ComputeHandler(LookupIterator* lookup) {
       if (Accessors::IsJSObjectFieldAccessor(isolate(), map, lookup->name(),
                                              &index)) {
         TRACE_HANDLER_STATS(isolate(), LoadIC_LoadFieldDH);
-        return LoadHandler::LoadField(isolate(), index);
+        return LoadHandler::LoadField(isolate(), index, map->elements_kind());
       }
       if (holder->IsJSModuleNamespace()) {
         Handle<ObjectHashTable> exports(
@@ -956,7 +956,8 @@ Handle<Object> LoadIC::ComputeHandler(LookupIterator* lookup) {
       } else {
         DCHECK_EQ(kField, lookup->property_details().location());
         FieldIndex field = lookup->GetFieldIndex();
-        smi_handler = LoadHandler::LoadField(isolate(), field);
+        smi_handler =
+            LoadHandler::LoadField(isolate(), field, map->elements_kind());
         TRACE_HANDLER_STATS(isolate(), LoadIC_LoadFieldDH);
         if (receiver_is_holder) return smi_handler;
         TRACE_HANDLER_STATS(isolate(), LoadIC_LoadFieldFromPrototypeDH);
@@ -982,7 +983,8 @@ Handle<Object> LoadIC::ComputeHandler(LookupIterator* lookup) {
               value->IsSmi() ? MaybeObjectHandle(*value, isolate())
                              : MaybeObjectHandle::Weak(*value, isolate());
 
-          smi_handler = LoadHandler::LoadConstantFromPrototype(isolate());
+          smi_handler = LoadHandler::LoadConstantFromPrototype(
+              isolate(), map->elements_kind());
           TRACE_HANDLER_STATS(isolate(), LoadIC_LoadConstantFromPrototypeDH);
           return LoadHandler::LoadFromPrototype(isolate(), map, holder,
                                                 smi_handler, weak_value);
