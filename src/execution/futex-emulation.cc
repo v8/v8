@@ -31,6 +31,47 @@ class FutexWaitList {
   void AddNode(FutexWaitListNode* node);
   void RemoveNode(FutexWaitListNode* node);
 
+  static int8_t* ToWaitLocation(const BackingStore* backing_store,
+                                size_t addr) {
+    return static_cast<int8_t*>(backing_store->buffer_start()) + addr;
+  }
+
+  // Deletes "node" and returns the next node of its list.
+  static FutexWaitListNode* DeleteAsyncWaiterNode(FutexWaitListNode* node) {
+    DCHECK_NOT_NULL(node->isolate_for_async_waiters_);
+    auto next = node->next_;
+    if (node->prev_ != nullptr) {
+      node->prev_->next_ = next;
+    }
+    if (next != nullptr) {
+      next->prev_ = node->prev_;
+    }
+    delete node;
+    return next;
+  }
+
+  static void DeleteNodesForIsolate(Isolate* isolate, FutexWaitListNode** head,
+                                    FutexWaitListNode** tail) {
+    // For updating head & tail once we've iterated all nodes.
+    FutexWaitListNode* new_head = nullptr;
+    FutexWaitListNode* new_tail = nullptr;
+    auto node = *head;
+    while (node != nullptr) {
+      if (node->isolate_for_async_waiters_ == isolate) {
+        node->timeout_task_id_ = CancelableTaskManager::kInvalidTaskId;
+        node = DeleteAsyncWaiterNode(node);
+      } else {
+        if (new_head == nullptr) {
+          new_head = node;
+        }
+        new_tail = node;
+        node = node->next_;
+      }
+    }
+    *head = new_head;
+    *tail = new_tail;
+  }
+
   // For checking the internal consistency of the FutexWaitList.
   void Verify();
   // Verifies the local consistency of |node|. If it's the first node of its
@@ -43,13 +84,14 @@ class FutexWaitList {
  private:
   friend class FutexEmulation;
 
-  FutexWaitListNode* head_ = nullptr;
-  FutexWaitListNode* tail_ = nullptr;
-
   struct HeadAndTail {
     FutexWaitListNode* head;
     FutexWaitListNode* tail;
   };
+  // Location inside a shared buffer -> linked list of Nodes waiting on that
+  // location.
+  std::map<int8_t*, HeadAndTail> location_lists_;
+
   // Isolate* -> linked list of Nodes which are waiting for their Promises to
   // be resolved.
   std::map<Isolate*, HeadAndTail> isolate_promises_to_resolve_;
@@ -156,33 +198,41 @@ void FutexEmulation::NotifyAsyncWaiter(FutexWaitListNode* node) {
 void FutexWaitList::AddNode(FutexWaitListNode* node) {
   DCHECK_NULL(node->prev_);
   DCHECK_NULL(node->next_);
-  if (tail_) {
-    tail_->next_ = node;
+  auto it = location_lists_.find(node->wait_location_);
+  if (it == location_lists_.end()) {
+    location_lists_.insert(
+        std::make_pair(node->wait_location_, HeadAndTail{node, node}));
   } else {
-    head_ = node;
+    it->second.tail->next_ = node;
+    node->prev_ = it->second.tail;
+    it->second.tail = node;
   }
-
-  node->prev_ = tail_;
-  tail_ = node;
 
   Verify();
 }
 
 void FutexWaitList::RemoveNode(FutexWaitListNode* node) {
-  DCHECK(NodeIsOnList(node, head_));
+  auto it = location_lists_.find(node->wait_location_);
+  DCHECK_NE(location_lists_.end(), it);
+  DCHECK(NodeIsOnList(node, it->second.head));
 
   if (node->prev_) {
     node->prev_->next_ = node->next_;
   } else {
-    DCHECK_EQ(node, head_);
-    head_ = node->next_;
+    DCHECK_EQ(node, it->second.head);
+    it->second.head = node->next_;
   }
 
   if (node->next_) {
     node->next_->prev_ = node->prev_;
   } else {
-    DCHECK_EQ(node, tail_);
-    tail_ = node->prev_;
+    DCHECK_EQ(node, it->second.tail);
+    it->second.tail = node->prev_;
+  }
+
+  // If the node was the last one on its list, delete the whole list.
+  if (node->prev_ == nullptr && node->next_ == nullptr) {
+    location_lists_.erase(it);
   }
 
   node->prev_ = node->next_ = nullptr;
@@ -336,14 +386,16 @@ Object FutexEmulation::WaitSync(Isolate* isolate,
     FutexWaitListNode* node = isolate->futex_wait_list_node();
     node->backing_store_ = backing_store;
     node->wait_addr_ = addr;
+    auto wait_location =
+        FutexWaitList::ToWaitLocation(backing_store.get(), addr);
+    node->wait_location_ = wait_location;
     node->waiting_ = true;
 
     // Reset node->waiting_ = false when leaving this scope (but while
     // still holding the lock).
     FutexWaitListNode::ResetWaitingOnScopeExit reset_waiting(node);
 
-    std::atomic<T>* p = reinterpret_cast<std::atomic<T>*>(
-        static_cast<int8_t*>(backing_store->buffer_start()) + addr);
+    std::atomic<T>* p = reinterpret_cast<std::atomic<T>*>(wait_location);
     if (p->load() != value) {
       result = handle(Smi::FromInt(WaitReturnValue::kNotEqual), isolate);
       callback_result = AtomicsWaitEvent::kNotEqual;
@@ -448,6 +500,8 @@ FutexWaitListNode::FutexWaitListNode(
     : isolate_for_async_waiters_(isolate),
       backing_store_(backing_store),
       wait_addr_(wait_addr),
+      wait_location_(
+          FutexWaitList::ToWaitLocation(backing_store.get(), wait_addr)),
       waiting_(true) {
   auto v8_isolate = reinterpret_cast<v8::Isolate*>(isolate);
   task_runner_ = V8::GetCurrentPlatform()->GetForegroundTaskRunner(v8_isolate);
@@ -561,9 +615,15 @@ Object FutexEmulation::Wake(Handle<JSArrayBuffer> array_buffer, size_t addr,
 
   int waiters_woken = 0;
   std::shared_ptr<BackingStore> backing_store = array_buffer->GetBackingStore();
+  auto wait_location = FutexWaitList::ToWaitLocation(backing_store.get(), addr);
 
   base::MutexGuard lock_guard(g_mutex.Pointer());
-  FutexWaitListNode* node = g_wait_list.Pointer()->head_;
+  auto& location_lists = g_wait_list.Pointer()->location_lists_;
+  auto it = location_lists.find(wait_location);
+  if (it == location_lists.end()) {
+    return Smi::zero();
+  }
+  FutexWaitListNode* node = it->second.head;
   while (node && num_waiters_to_wake > 0) {
     bool delete_this_node = false;
     std::shared_ptr<BackingStore> node_backing_store =
@@ -573,8 +633,11 @@ Object FutexEmulation::Wake(Handle<JSArrayBuffer> array_buffer, size_t addr,
       node = node->next_;
       continue;
     }
-    if (backing_store.get() == node_backing_store.get() &&
-        addr == node->wait_addr_) {
+    // Relying on wait_location_ here is not enough, since we need to guard
+    // against the case where the BackingStore of the node has been deleted and
+    // a new BackingStore recreated in the same memory area.
+    if (backing_store.get() == node_backing_store.get()) {
+      DCHECK_EQ(addr, node->wait_addr_);
       node->waiting_ = false;
 
       // Retrieve the next node to iterate before calling NotifyAsyncWaiter,
@@ -584,6 +647,7 @@ Object FutexEmulation::Wake(Handle<JSArrayBuffer> array_buffer, size_t addr,
       if (old_node->IsAsync()) {
         NotifyAsyncWaiter(old_node);
       } else {
+        // WaitSync will remove the node from the list.
         old_node->cond_.NotifyOne();
       }
       if (num_waiters_to_wake != kWakeAll) {
@@ -592,16 +656,21 @@ Object FutexEmulation::Wake(Handle<JSArrayBuffer> array_buffer, size_t addr,
       waiters_woken++;
       continue;
     }
-    if (node_backing_store.get() == nullptr &&
-        node->async_timeout_time_ == base::TimeTicks()) {
+    DCHECK_EQ(nullptr, node_backing_store.get());
+    if (node->async_timeout_time_ == base::TimeTicks()) {
       // Backing store has been deleted and the node is still waiting, and
       // there's no timeout. It's never going to be woken up, so we can clean
       // it up now. We don't need to cancel the timeout task, because there is
       // none.
+
+      // This cleanup code is not very efficient, since it only kicks in when
+      // a new BackingStore has been created in the same memory area where the
+      // deleted BackingStore was.
       DCHECK(node->IsAsync());
       DCHECK_EQ(CancelableTaskManager::kInvalidTaskId, node->timeout_task_id_);
       delete_this_node = true;
-    } else if (node->IsAsync() && node->native_context_.IsEmpty()) {
+    }
+    if (node->IsAsync() && node->native_context_.IsEmpty()) {
       // The NativeContext related to the async waiter has been deleted.
       // Ditto, clean up now.
 
@@ -659,13 +728,6 @@ void FutexEmulation::CleanupAsyncWaiterPromise(FutexWaitListNode* node) {
     // surely NativeContext is too.
     DCHECK(node->native_context_.IsEmpty());
   }
-}
-
-FutexWaitListNode* FutexEmulation::DeleteAsyncWaiterNode(
-    FutexWaitListNode* node) {
-  auto next = node->next_;
-  delete node;
-  return next;
 }
 
 void FutexEmulation::ResolveAsyncWaiterPromise(FutexWaitListNode* node) {
@@ -732,7 +794,7 @@ void FutexEmulation::ResolveAsyncWaiterPromises(Isolate* isolate) {
     // now in the same thread the timeout task is supposed to run, we know the
     // timeout task will never happen, and it's safe to delete the node here.
     DCHECK_EQ(CancelableTaskManager::kInvalidTaskId, node->timeout_task_id_);
-    node = DeleteAsyncWaiterNode(node);
+    node = FutexWaitList::DeleteAsyncWaiterNode(node);
   }
 }
 
@@ -759,32 +821,39 @@ void FutexEmulation::HandleAsyncWaiterTimeout(FutexWaitListNode* node) {
 void FutexEmulation::IsolateDeinit(Isolate* isolate) {
   base::MutexGuard lock_guard(g_mutex.Pointer());
 
-  FutexWaitListNode* node = g_wait_list.Pointer()->head_;
-  while (node) {
-    if (node->isolate_for_async_waiters_ == isolate) {
-      // The Isolate is going away; don't bother cleaning up the Promises in the
-      // NativeContext. Also we don't need to cancel the timeout task, since it
-      // will be cancelled by Isolate::Deinit.
-      node->timeout_task_id_ = CancelableTaskManager::kInvalidTaskId;
-      auto next = node->next_;
-      g_wait_list.Pointer()->RemoveNode(node);
-      delete node;
-      node = next;
-    } else {
-      node = node->next_;
+  // Iterate all locations to find nodes belonging to "isolate" and delete them.
+  // The Isolate is going away; don't bother cleaning up the Promises in the
+  // NativeContext. Also we don't need to cancel the timeout tasks, since they
+  // will be cancelled by Isolate::Deinit.
+  {
+    auto& location_lists = g_wait_list.Pointer()->location_lists_;
+    auto it = location_lists.begin();
+    while (it != location_lists.end()) {
+      FutexWaitListNode*& head = it->second.head;
+      FutexWaitListNode*& tail = it->second.tail;
+      FutexWaitList::DeleteNodesForIsolate(isolate, &head, &tail);
+      // head and tail are either both nullptr or both non-nullptr.
+      DCHECK_EQ(head == nullptr, tail == nullptr);
+      if (head == nullptr) {
+        location_lists.erase(it++);
+      } else {
+        ++it;
+      }
     }
   }
 
-  auto& isolate_map = g_wait_list.Pointer()->isolate_promises_to_resolve_;
-  auto it = isolate_map.find(isolate);
-  if (it != isolate_map.end()) {
-    node = it->second.head;
-    while (node) {
-      DCHECK_EQ(isolate, node->isolate_for_async_waiters_);
-      node->timeout_task_id_ = CancelableTaskManager::kInvalidTaskId;
-      node = DeleteAsyncWaiterNode(node);
+  {
+    auto& isolate_map = g_wait_list.Pointer()->isolate_promises_to_resolve_;
+    auto it = isolate_map.find(isolate);
+    if (it != isolate_map.end()) {
+      auto node = it->second.head;
+      while (node) {
+        DCHECK_EQ(isolate, node->isolate_for_async_waiters_);
+        node->timeout_task_id_ = CancelableTaskManager::kInvalidTaskId;
+        node = FutexWaitList::DeleteAsyncWaiterNode(node);
+      }
+      isolate_map.erase(it);
     }
-    isolate_map.erase(it);
   }
 
   g_wait_list.Pointer()->Verify();
@@ -796,14 +865,18 @@ Object FutexEmulation::NumWaitersForTesting(Handle<JSArrayBuffer> array_buffer,
   std::shared_ptr<BackingStore> backing_store = array_buffer->GetBackingStore();
 
   base::MutexGuard lock_guard(g_mutex.Pointer());
-
+  auto wait_location = FutexWaitList::ToWaitLocation(backing_store.get(), addr);
+  auto& location_lists = g_wait_list.Pointer()->location_lists_;
+  auto it = location_lists.find(wait_location);
+  if (it == location_lists.end()) {
+    return Smi::zero();
+  }
   int waiters = 0;
-  FutexWaitListNode* node = g_wait_list.Pointer()->head_;
-  while (node) {
+  FutexWaitListNode* node = it->second.head;
+  while (node != nullptr) {
     std::shared_ptr<BackingStore> node_backing_store =
         node->backing_store_.lock();
-    if (backing_store.get() == node_backing_store.get() &&
-        addr == node->wait_addr_ && node->waiting_) {
+    if (backing_store.get() == node_backing_store.get() && node->waiting_) {
       waiters++;
     }
 
@@ -817,12 +890,14 @@ Object FutexEmulation::NumAsyncWaitersForTesting(Isolate* isolate) {
   base::MutexGuard lock_guard(g_mutex.Pointer());
 
   int waiters = 0;
-  FutexWaitListNode* node = g_wait_list.Pointer()->head_;
-  while (node) {
-    if (node->isolate_for_async_waiters_ == isolate && node->waiting_) {
-      waiters++;
+  for (const auto& it : g_wait_list.Pointer()->location_lists_) {
+    FutexWaitListNode* node = it.second.head;
+    while (node != nullptr) {
+      if (node->isolate_for_async_waiters_ == isolate && node->waiting_) {
+        waiters++;
+      }
+      node = node->next_;
     }
-    node = node->next_;
   }
 
   return Smi::FromInt(waiters);
@@ -838,9 +913,9 @@ Object FutexEmulation::NumUnresolvedAsyncPromisesForTesting(
   int waiters = 0;
 
   auto& isolate_map = g_wait_list.Pointer()->isolate_promises_to_resolve_;
-  for (auto it : isolate_map) {
+  for (const auto& it : isolate_map) {
     FutexWaitListNode* node = it.second.head;
-    while (node) {
+    while (node != nullptr) {
       std::shared_ptr<BackingStore> node_backing_store =
           node->backing_store_.lock();
       if (backing_store.get() == node_backing_store.get() &&
@@ -858,13 +933,13 @@ Object FutexEmulation::NumUnresolvedAsyncPromisesForTesting(
 void FutexWaitList::VerifyNode(FutexWaitListNode* node, FutexWaitListNode* head,
                                FutexWaitListNode* tail) {
 #ifdef DEBUG
-  if (node->next_) {
+  if (node->next_ != nullptr) {
     DCHECK_NE(node, tail);
     DCHECK_EQ(node, node->next_->prev_);
   } else {
     DCHECK_EQ(node, tail);
   }
-  if (node->prev_) {
+  if (node->prev_ != nullptr) {
     DCHECK_NE(node, head);
     DCHECK_EQ(node, node->prev_->next_);
   } else {
@@ -882,15 +957,17 @@ void FutexWaitList::VerifyNode(FutexWaitListNode* node, FutexWaitListNode* head,
 
 void FutexWaitList::Verify() {
 #ifdef DEBUG
-  FutexWaitListNode* node = head_;
-  while (node) {
-    VerifyNode(node, head_, tail_);
-    node = node->next_;
+  for (const auto& it : location_lists_) {
+    FutexWaitListNode* node = it.second.head;
+    while (node != nullptr) {
+      VerifyNode(node, it.second.head, it.second.tail);
+      node = node->next_;
+    }
   }
 
-  for (auto it : isolate_promises_to_resolve_) {
+  for (const auto& it : isolate_promises_to_resolve_) {
     auto node = it.second.head;
-    while (node) {
+    while (node != nullptr) {
       VerifyNode(node, it.second.head, it.second.tail);
       DCHECK_EQ(it.first, node->isolate_for_async_waiters_);
       node = node->next_;
