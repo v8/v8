@@ -263,9 +263,6 @@ void PagedSpace::RefineAllocatedBytesAfterSweeping(Page* page) {
   DCHECK_GE(old_counter, new_counter);
   if (old_counter > new_counter) {
     DecreaseAllocatedBytes(old_counter - new_counter, page);
-    // Give the heap a chance to adjust counters in response to the
-    // more precise and smaller old generation size.
-    heap()->NotifyRefinedOldGenerationSize(old_counter - new_counter);
   }
   marking_state->SetLiveBytes(page, 0);
 }
