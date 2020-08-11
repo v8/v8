@@ -33,17 +33,15 @@ void InterpretAndExecuteModule(i::Isolate* isolate,
   if (module_object->module()->start_function_index >= 0) return;
 
   HandleScope handle_scope(isolate);  // Avoid leaking handles.
-  MaybeHandle<WasmInstanceObject> maybe_instance;
   Handle<WasmInstanceObject> instance;
 
   // Try to instantiate, return if it fails.
   {
     ErrorThrower thrower(isolate, "WebAssembly Instantiation");
-    maybe_instance = isolate->wasm_engine()->SyncInstantiate(
-        isolate, &thrower, module_object,
-        Handle<JSReceiver>::null(),     // imports
-        MaybeHandle<JSArrayBuffer>());  // memory
-    if (!maybe_instance.ToHandle(&instance)) {
+    if (!isolate->wasm_engine()
+             ->SyncInstantiate(isolate, &thrower, module_object, {},
+                               {})  // no imports & memory
+             .ToHandle(&instance)) {
       isolate->clear_pending_exception();
       thrower.Reset();  // Ignore errors.
       return;
@@ -76,16 +74,12 @@ void InterpretAndExecuteModule(i::Isolate* isolate,
 
   // Try to instantiate and execute the module_object.
   {
-    ErrorThrower thrower(isolate, "InterpretAndExecuteModule");
-    maybe_instance = isolate->wasm_engine()->SyncInstantiate(
-        isolate, &thrower, module_object,
-        Handle<JSReceiver>::null(),     // imports
-        MaybeHandle<JSArrayBuffer>());  // memory
-    if (!maybe_instance.ToHandle(&instance)) {
-      isolate->clear_pending_exception();
-      thrower.Reset();  // Ignore errors.
-      return;
-    }
+    ErrorThrower thrower(isolate, "Second Instantiation");
+    // We instantiated before, so the second instantiation must also succeed:
+    CHECK(isolate->wasm_engine()
+              ->SyncInstantiate(isolate, &thrower, module_object, {},
+                                {})  // no imports & memory
+              .ToHandle(&instance));
   }
 
   int32_t result_compiled = testing::CallWasmFunctionForTesting(
