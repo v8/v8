@@ -730,6 +730,15 @@ Node* GraphAssembler::DeoptimizeIf(DeoptimizeReason reason,
                        condition, frame_state, effect(), control()));
 }
 
+Node* GraphAssembler::DeoptimizeIf(DeoptimizeKind kind, DeoptimizeReason reason,
+                                   FeedbackSource const& feedback,
+                                   Node* condition, Node* frame_state,
+                                   IsSafetyCheck is_safety_check) {
+  return AddNode(graph()->NewNode(
+      common()->DeoptimizeIf(kind, reason, feedback, is_safety_check),
+      condition, frame_state, effect(), control()));
+}
+
 Node* GraphAssembler::DeoptimizeIfNot(DeoptimizeKind kind,
                                       DeoptimizeReason reason,
                                       FeedbackSource const& feedback,
