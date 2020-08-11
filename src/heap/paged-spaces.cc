@@ -433,6 +433,17 @@ void PagedSpace::MakeLinearAllocationAreaIterable() {
   }
 }
 
+size_t PagedSpace::Available() {
+  base::Optional<base::MutexGuard> optional_mutex;
+
+  if (FLAG_concurrent_allocation && identity() == OLD_SPACE &&
+      !is_local_space()) {
+    optional_mutex.emplace(&allocation_mutex_);
+  }
+
+  return free_list_->Available();
+}
+
 void PagedSpace::FreeLinearAllocationArea() {
   // Mark the old linear allocation area with a free space map so it can be
   // skipped when scanning the heap.
