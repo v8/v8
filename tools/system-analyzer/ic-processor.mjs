@@ -22,6 +22,8 @@ function parseState(s) {
 
 class IcProcessor extends LogReader {
   #profile;
+  MAJOR_VERSION = 8;
+  MINOR_VERSION = 5;
   constructor() {
     super();
     let propertyICParser = [
@@ -35,6 +37,12 @@ class IcProcessor extends LogReader {
           parseVarArgs
         ],
         processor: this.processCodeCreation
+      },
+      'v8-version': {
+        parsers: [
+          parseInt, parseInt,
+        ],
+        processor: this.processV8Version
       },
       'code-move':
           {parsers: [parseInt, parseInt], processor: this.processCodeMove},
@@ -103,6 +111,15 @@ class IcProcessor extends LogReader {
       line = string.substring(current, next);
       current = next + 1;
       this.processLogLine(line);
+    }
+  }
+  processV8Version(majorVersion, minorVersion){
+    if(
+      (majorVersion == this.MAJOR_VERSION && minorVersion <= this.MINOR_VERSION)
+        || (majorVersion < this.MAJOR_VERSION)){
+          window.alert(
+            `Unsupported version ${majorVersion}.${minorVersion}. \n` +
+              `Please use the matching tool for given the V8 version.`);
     }
   }
   processLogFile(fileName) {

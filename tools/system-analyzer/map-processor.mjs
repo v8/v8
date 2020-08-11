@@ -35,6 +35,8 @@ class MapProcessor extends LogReader {
   #profile = new Profile();
   #timeline = new Timeline();
   #formatPCRegexp = /(.*):[0-9]+:[0-9]+$/;
+  MAJOR_VERSION = 7;
+  MINOR_VERSION = 6;
   constructor() {
     super();
     this.dispatchTable_ = {
@@ -45,6 +47,12 @@ class MapProcessor extends LogReader {
           parseVarArgs
         ],
         processor: this.processCodeCreation
+      },
+      'v8-version': {
+        parsers: [
+          parseInt, parseInt,
+        ],
+        processor: this.processV8Version
       },
       'code-move': {
         parsers: [parseInt, parseInt],
@@ -160,6 +168,16 @@ class MapProcessor extends LogReader {
           type, name, timestamp, start, size, funcAddr, state);
     } else {
       this.#profile.addCode(type, name, timestamp, start, size);
+    }
+  }
+
+  processV8Version(majorVersion, minorVersion){
+    if(
+      (majorVersion == this.MAJOR_VERSION && minorVersion <= this.MINOR_VERSION)
+        || (majorVersion < this.MAJOR_VERSION)){
+          window.alert(
+            `Unsupported version ${majorVersion}.${minorVersion}. \n` +
+              `Please use the matching tool for given the V8 version.`);
     }
   }
 
