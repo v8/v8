@@ -50,6 +50,17 @@ void InterpretAndExecuteModule(i::Isolate* isolate,
       testing::InterpretWasmModuleForTesting(isolate, instance, 0, nullptr);
   if (interpreter_result.failed()) return;
 
+  // TODO(clemensb): Use this function in {WasmExecutionFuzzer::FuzzWasmModule},
+  // which currently duplicates the logic.
+
+  // The WebAssembly spec allows the sign bit of NaN to be non-deterministic.
+  // This sign bit can make the difference between an infinite loop and
+  // terminating code. With possible non-determinism we cannot guarantee that
+  // the generated code will not go into an infinite loop and cause a timeout in
+  // Clusterfuzz. Therefore we do not execute the generated code if the result
+  // may be non-deterministic.
+  if (interpreter_result.possible_nondeterminism()) return;
+
   // Try to instantiate and execute the module_object.
   maybe_instance = isolate->wasm_engine()->SyncInstantiate(
       isolate, &thrower, module_object,
