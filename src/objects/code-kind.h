@@ -5,6 +5,7 @@
 #ifndef V8_OBJECTS_CODE_KIND_H_
 #define V8_OBJECTS_CODE_KIND_H_
 
+#include "src/base/flags.h"
 #include "src/flags/flags.h"
 
 namespace v8 {
@@ -35,32 +36,36 @@ enum class CodeKind {
 #undef DEFINE_CODE_KIND_ENUM
 };
 
-#define V(name) +1
+#define V(...) +1
 static constexpr int kCodeKindCount = CODE_KIND_LIST(V);
 #undef V
 
 const char* CodeKindToString(CodeKind kind);
 
-inline bool CodeKindIsInterpretedJSFunction(CodeKind kind) {
+inline constexpr bool CodeKindIsInterpretedJSFunction(CodeKind kind) {
   return kind == CodeKind::INTERPRETED_FUNCTION;
 }
 
-inline bool CodeKindIsNativeContextIndependentJSFunction(CodeKind kind) {
+inline constexpr bool CodeKindIsNativeContextIndependentJSFunction(
+    CodeKind kind) {
   return kind == CodeKind::NATIVE_CONTEXT_INDEPENDENT;
 }
 
-inline bool CodeKindIsBuiltinOrJSFunction(CodeKind kind) {
-  return kind == CodeKind::BUILTIN || kind == CodeKind::INTERPRETED_FUNCTION ||
-         kind == CodeKind::OPTIMIZED_FUNCTION ||
-         kind == CodeKind::NATIVE_CONTEXT_INDEPENDENT;
-}
-
-inline bool CodeKindIsOptimizedJSFunction(CodeKind kind) {
+inline constexpr bool CodeKindIsOptimizedJSFunction(CodeKind kind) {
   return kind == CodeKind::OPTIMIZED_FUNCTION ||
          kind == CodeKind::NATIVE_CONTEXT_INDEPENDENT;
 }
 
-inline bool CodeKindCanDeoptimize(CodeKind kind) {
+inline constexpr bool CodeKindIsJSFunction(CodeKind kind) {
+  return kind == CodeKind::INTERPRETED_FUNCTION ||
+         CodeKindIsOptimizedJSFunction(kind);
+}
+
+inline constexpr bool CodeKindIsBuiltinOrJSFunction(CodeKind kind) {
+  return kind == CodeKind::BUILTIN || CodeKindIsJSFunction(kind);
+}
+
+inline constexpr bool CodeKindCanDeoptimize(CodeKind kind) {
   // Even though NCI code does not deopt by itself at the time of writing,
   // tests may trigger deopts manually and thus we cannot make a narrower
   // distinction here.
@@ -71,6 +76,32 @@ inline CodeKind CodeKindForTopTier() {
   return FLAG_turbo_nci_as_highest_tier ? CodeKind::NATIVE_CONTEXT_INDEPENDENT
                                         : CodeKind::OPTIMIZED_FUNCTION;
 }
+
+// The dedicated CodeKindFlag enum represents all code kinds in a format
+// suitable for bit sets.
+enum class CodeKindFlag {
+#define V(name) name = 1 << static_cast<int>(CodeKind::name),
+  CODE_KIND_LIST(V)
+#undef V
+};
+STATIC_ASSERT(kCodeKindCount <= kInt32Size * kBitsPerByte);
+
+inline constexpr CodeKindFlag CodeKindToCodeKindFlag(CodeKind kind) {
+#define V(name) kind == CodeKind::name ? CodeKindFlag::name:
+  return CODE_KIND_LIST(V) CodeKindFlag::INTERPRETED_FUNCTION;
+#undef V
+}
+
+// CodeKinds represents a set of CodeKind.
+using CodeKinds = base::Flags<CodeKindFlag>;
+DEFINE_OPERATORS_FOR_FLAGS(CodeKinds)
+
+static constexpr CodeKinds kJSFunctionCodeKindsMask{
+    CodeKindFlag::INTERPRETED_FUNCTION | CodeKindFlag::OPTIMIZED_FUNCTION |
+    CodeKindFlag::NATIVE_CONTEXT_INDEPENDENT};
+static constexpr CodeKinds kOptimizedJSFunctionCodeKindsMask{
+    CodeKindFlag::OPTIMIZED_FUNCTION |
+    CodeKindFlag::NATIVE_CONTEXT_INDEPENDENT};
 
 }  // namespace internal
 }  // namespace v8

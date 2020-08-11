@@ -195,11 +195,8 @@ class SharedFunctionInfo : public HeapObject {
   // a Code object or a BytecodeArray.
   inline AbstractCode abstract_code();
 
-  // Tells whether or not this shared function info is interpreted.
-  //
-  // Note: function->IsInterpreted() does not necessarily return the same value
-  // as function->shared()->IsInterpreted() because the closure might have been
-  // optimized.
+  // Tells whether or not this shared function info has an attached
+  // BytecodeArray.
   inline bool IsInterpreted() const;
 
   // Set up the link between shared function info and the script. The shared

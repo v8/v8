@@ -10,6 +10,7 @@
 #include "src/execution/isolate-inl.h"
 #include "src/init/bootstrapper.h"
 #include "src/logging/counters.h"
+#include "src/objects/code-kind.h"
 #include "src/objects/js-regexp-inl.h"
 #include "src/snapshot/context-deserializer.h"
 #include "src/snapshot/context-serializer.h"
@@ -250,18 +251,13 @@ void Snapshot::ClearReconstructableDataForSerialization(
       continue;  // Don't clear extensions, they cannot be recompiled.
     }
 
-    // Also, clear out feedback vectors, or any optimized code.
-    // Note that checking for fun.IsOptimized() || fun.IsInterpreted() is
-    // not sufficient because the function can have a feedback vector even
-    // if it is not compiled (e.g. when the bytecode was flushed). On the
-    // other hand, only checking for the feedback vector is not sufficient
-    // because there can be multiple functions sharing the same feedback
-    // vector. So we need all these checks.
-    if (fun.IsOptimized() || fun.IsInterpreted() ||
-        !fun.raw_feedback_cell().value().IsUndefined()) {
+    // Also, clear out feedback vectors and any optimized code.
+    if (CodeKindIsJSFunction(fun.code().kind())) {
+      fun.set_code(*BUILTIN_CODE(isolate, CompileLazy));
+    }
+    if (!fun.raw_feedback_cell().value().IsUndefined()) {
       fun.raw_feedback_cell().set_value(
           i::ReadOnlyRoots(isolate).undefined_value());
-      fun.set_code(isolate->builtins()->builtin(i::Builtins::kCompileLazy));
     }
 #ifdef DEBUG
     if (clear_recompilable_data) {

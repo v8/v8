@@ -36,22 +36,119 @@ ClosureFeedbackCellArray JSFunction::closure_feedback_cell_array() const {
   return ClosureFeedbackCellArray::cast(raw_feedback_cell().value());
 }
 
-// Code objects that are marked for deoptimization are not considered to be
-// optimized. This is because the JSFunction might have been already
-// deoptimized but its code() still needs to be unlinked, which will happen on
-// its next activation.
-// TODO(jupvfranco): rename this function. Maybe RunOptimizedCode,
-// or IsValidOptimizedCode.
-bool JSFunction::IsOptimized() {
-  return is_compiled() && CodeKindIsOptimizedJSFunction(code().kind()) &&
-         !code().marked_for_deoptimization();
+CodeKinds JSFunction::GetAttachedCodeKinds() const {
+  CodeKinds result;
+
+  // Note: There's a special case when bytecode has been aged away. After
+  // flushing the bytecode, the JSFunction will still have the interpreter
+  // entry trampoline attached, but the bytecode is no longer available.
+  if (code().is_interpreter_trampoline_builtin()) {
+    result |= CodeKindFlag::INTERPRETED_FUNCTION;
+  }
+
+  const CodeKind kind = code().kind();
+  if (!CodeKindIsOptimizedJSFunction(kind) ||
+      code().marked_for_deoptimization()) {
+    DCHECK_EQ((result & ~kJSFunctionCodeKindsMask), 0);
+    return result;
+  }
+
+  DCHECK(CodeKindIsOptimizedJSFunction(kind));
+  result |= CodeKindToCodeKindFlag(kind);
+
+  DCHECK_EQ((result & ~kJSFunctionCodeKindsMask), 0);
+  return result;
 }
 
-bool JSFunction::HasOptimizedCode() {
-  return IsOptimized() ||
-         (has_feedback_vector() && feedback_vector().has_optimized_code() &&
-          !feedback_vector().optimized_code().marked_for_deoptimization());
+CodeKinds JSFunction::GetAvailableCodeKinds() const {
+  CodeKinds result = GetAttachedCodeKinds();
+
+  if ((result & CodeKindFlag::INTERPRETED_FUNCTION) == 0) {
+    // The SharedFunctionInfo could have attached bytecode.
+    if (shared().HasBytecodeArray()) {
+      result |= CodeKindFlag::INTERPRETED_FUNCTION;
+    }
+  }
+
+  if ((result & kOptimizedJSFunctionCodeKindsMask) == 0) {
+    // Check the optimized code cache.
+    if (has_feedback_vector() && feedback_vector().has_optimized_code() &&
+        !feedback_vector().optimized_code().marked_for_deoptimization()) {
+      Code code = feedback_vector().optimized_code();
+      DCHECK(CodeKindIsOptimizedJSFunction(code.kind()));
+      result |= CodeKindToCodeKindFlag(code.kind());
+    }
+  }
+
+  DCHECK_EQ((result & ~kJSFunctionCodeKindsMask), 0);
+  return result;
 }
+
+bool JSFunction::HasAttachedOptimizedCode() const {
+  CodeKinds result = GetAttachedCodeKinds();
+  return (result & kOptimizedJSFunctionCodeKindsMask) != 0;
+}
+
+bool JSFunction::HasAvailableOptimizedCode() const {
+  CodeKinds result = GetAvailableCodeKinds();
+  return (result & kOptimizedJSFunctionCodeKindsMask) != 0;
+}
+
+namespace {
+
+// Returns false if no highest tier exists (i.e. the function is not compiled),
+// otherwise returns true and sets highest_tier.
+bool HighestTierOf(CodeKinds kinds, CodeKind* highest_tier) {
+  DCHECK_EQ((kinds & ~kJSFunctionCodeKindsMask), 0);
+  if ((kinds & CodeKindFlag::OPTIMIZED_FUNCTION) != 0) {
+    *highest_tier = CodeKind::OPTIMIZED_FUNCTION;
+    return true;
+  } else if ((kinds & CodeKindFlag::NATIVE_CONTEXT_INDEPENDENT) != 0) {
+    *highest_tier = CodeKind::NATIVE_CONTEXT_INDEPENDENT;
+    return true;
+  } else if ((kinds & CodeKindFlag::INTERPRETED_FUNCTION) != 0) {
+    *highest_tier = CodeKind::INTERPRETED_FUNCTION;
+    return true;
+  }
+  DCHECK_EQ(kinds, 0);
+  return false;
+}
+
+}  // namespace
+
+bool JSFunction::ActiveTierIsIgnition() const {
+  CodeKind highest_tier;
+  if (!HighestTierOf(GetAvailableCodeKinds(), &highest_tier)) return false;
+  bool result = (highest_tier == CodeKind::INTERPRETED_FUNCTION);
+  DCHECK_IMPLIES(result,
+                 code().is_interpreter_trampoline_builtin() ||
+                     (CodeKindIsOptimizedJSFunction(code().kind()) &&
+                      code().marked_for_deoptimization()) ||
+                     (code().builtin_index() == Builtins::kCompileLazy &&
+                      shared().IsInterpreted()));
+  return result;
+}
+
+bool JSFunction::ActiveTierIsTurbofan() const {
+  CodeKind highest_tier;
+  if (!HighestTierOf(GetAvailableCodeKinds(), &highest_tier)) return false;
+  bool result = highest_tier == CodeKind::OPTIMIZED_FUNCTION;
+  DCHECK_IMPLIES(result, !code().marked_for_deoptimization());
+  return result;
+}
+
+bool JSFunction::ActiveTierIsNCI() const {
+  CodeKind highest_tier;
+  if (!HighestTierOf(GetAvailableCodeKinds(), &highest_tier)) return false;
+  bool result = highest_tier == CodeKind::NATIVE_CONTEXT_INDEPENDENT;
+  DCHECK_IMPLIES(result, !code().marked_for_deoptimization());
+  return result;
+}
+
+// TODO(jgruber): Replace these functions with the called functions.
+bool JSFunction::IsOptimized() { return HasAttachedOptimizedCode(); }
+bool JSFunction::HasOptimizedCode() { return HasAvailableOptimizedCode(); }
+bool JSFunction::IsInterpreted() { return ActiveTierIsIgnition(); }
 
 bool JSFunction::HasOptimizationMarker() {
   return has_feedback_vector() && feedback_vector().has_optimization_marker();
@@ -60,14 +157,6 @@ bool JSFunction::HasOptimizationMarker() {
 void JSFunction::ClearOptimizationMarker() {
   DCHECK(has_feedback_vector());
   feedback_vector().ClearOptimizationMarker();
-}
-
-// Optimized code marked for deoptimization will tier back down to running
-// interpreted on its next activation, and already doesn't count as IsOptimized.
-bool JSFunction::IsInterpreted() {
-  return is_compiled() && (code().is_interpreter_trampoline_builtin() ||
-                           (CodeKindIsOptimizedJSFunction(code().kind()) &&
-                            code().marked_for_deoptimization()));
 }
 
 bool JSFunction::ChecksOptimizationMarker() {

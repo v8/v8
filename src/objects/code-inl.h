@@ -362,11 +362,13 @@ void Code::initialize_flags(CodeKind kind, bool has_unwinding_info,
 }
 
 inline bool Code::is_interpreter_trampoline_builtin() const {
-  bool is_interpreter_trampoline =
-      (builtin_index() == Builtins::kInterpreterEntryTrampoline ||
-       builtin_index() == Builtins::kInterpreterEnterBytecodeAdvance ||
-       builtin_index() == Builtins::kInterpreterEnterBytecodeDispatch);
-  return is_interpreter_trampoline;
+  // Check for kNoBuiltinId first to abort early when the current Code object
+  // is not a builtin.
+  const int index = builtin_index();
+  return index != Builtins::kNoBuiltinId &&
+         (index == Builtins::kInterpreterEntryTrampoline ||
+          index == Builtins::kInterpreterEnterBytecodeAdvance ||
+          index == Builtins::kInterpreterEnterBytecodeDispatch);
 }
 
 inline bool Code::checks_optimization_marker() const {

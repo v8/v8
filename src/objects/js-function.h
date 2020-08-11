@@ -5,6 +5,7 @@
 #ifndef V8_OBJECTS_JS_FUNCTION_H_
 #define V8_OBJECTS_JS_FUNCTION_H_
 
+#include "src/objects/code-kind.h"
 #include "src/objects/js-objects.h"
 #include "torque-generated/class-definitions-tq.h"
 #include "torque-generated/field-offsets-tq.h"
@@ -89,16 +90,36 @@ class JSFunction : public JSFunctionOrBoundFunction {
   // a Code object or a BytecodeArray.
   V8_EXPORT_PRIVATE AbstractCode abstract_code();
 
+  // The predicates for querying code kinds related to this function have
+  // specific terminology:
+  //
+  // - Attached: all code kinds that are directly attached to this JSFunction
+  //   object.
+  // - Available: all code kinds that are either attached or available through
+  //   indirect means such as the feedback vector's optimized code cache.
+  // - Active: the single code kind that would be executed if this function
+  //   were called in its current state. Note that there may not be an active
+  //   code kind if the function is not compiled.
+  //
+  // Note: code objects that are marked_for_deoptimization are not part of the
+  // attached/available/active sets. This is because the JSFunction might have
+  // been already deoptimized but its code() still needs to be unlinked, which
+  // will happen on its next activation.
+
+  // True, iff any generated code kind is attached/available to this function.
+  bool HasAttachedOptimizedCode() const;
+  bool HasAvailableOptimizedCode() const;
+
+  bool ActiveTierIsIgnition() const;
+  bool ActiveTierIsTurbofan() const;
+  bool ActiveTierIsNCI() const;
+
   // Tells whether or not this function is interpreted.
   //
   // Note: function->IsInterpreted() does not necessarily return the same value
   // as function->shared()->IsInterpreted() because the closure might have been
   // optimized.
   V8_EXPORT_PRIVATE bool IsInterpreted();
-
-  // Tells whether or not this function checks its optimization marker in its
-  // feedback vector.
-  bool ChecksOptimizationMarker();
 
   // Tells whether or not this function holds optimized code.
   //
@@ -110,6 +131,10 @@ class JSFunction : public JSFunctionOrBoundFunction {
   // either because it is optimized or because it has optimized code in its
   // feedback vector.
   bool HasOptimizedCode();
+
+  // Tells whether or not this function checks its optimization marker in its
+  // feedback vector.
+  bool ChecksOptimizationMarker();
 
   // Tells whether or not this function has a (non-zero) optimization marker.
   bool HasOptimizationMarker();
@@ -276,6 +301,20 @@ class JSFunction : public JSFunctionOrBoundFunction {
   // JSFunction doesn't have a fixed header size:
   // Hide JSFunctionOrBoundFunction::kHeaderSize to avoid confusion.
   static const int kHeaderSize;
+
+  // Returns the set of code kinds of compilation artifacts (bytecode,
+  // generated code) attached to this JSFunction.
+  // Note that attached code objects that are marked_for_deoptimization are not
+  // included in this set.
+  // TODO(jgruber): Currently at most one code kind can be attached. Consider
+  // adding a NOT_COMPILED kind and changing this function to simply return the
+  // kind if this becomes more convenient in the future.
+  CodeKinds GetAttachedCodeKinds() const;
+
+  // As above, but also considers locations outside of this JSFunction. For
+  // example the optimized code cache slot in the feedback vector, and the
+  // shared function info.
+  CodeKinds GetAvailableCodeKinds() const;
 
  public:
   static constexpr int kSizeWithoutPrototype = kPrototypeOrInitialMapOffset;
