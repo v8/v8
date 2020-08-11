@@ -161,6 +161,7 @@ void SimulateIncrementalMarking(i::Heap* heap, bool force_completion) {
   i::IncrementalMarking* marking = heap->incremental_marking();
   i::MarkCompactCollector* collector = heap->mark_compact_collector();
   if (collector->sweeping_in_progress()) {
+    SafepointScope scope(heap);
     collector->EnsureSweepingCompleted();
   }
   if (marking->IsSweeping()) {
