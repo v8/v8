@@ -1384,24 +1384,9 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
 
   // Load an array element from a FixedDoubleArray.
   TNode<Float64T> LoadFixedDoubleArrayElement(
-      SloppyTNode<FixedDoubleArray> object, Node* index,
-      MachineType machine_type, int additional_offset = 0,
-      ParameterMode parameter_mode = INTPTR_PARAMETERS,
-      Label* if_hole = nullptr);
-
-  TNode<Float64T> LoadFixedDoubleArrayElement(TNode<FixedDoubleArray> object,
-                                              TNode<Smi> index,
-                                              Label* if_hole = nullptr) {
-    return LoadFixedDoubleArrayElement(object, index, MachineType::Float64(), 0,
-                                       SMI_PARAMETERS, if_hole);
-  }
-
-  TNode<Float64T> LoadFixedDoubleArrayElement(TNode<FixedDoubleArray> object,
-                                              TNode<IntPtrT> index,
-                                              Label* if_hole = nullptr) {
-    return LoadFixedDoubleArrayElement(object, index, MachineType::Float64(), 0,
-                                       INTPTR_PARAMETERS, if_hole);
-  }
+      TNode<FixedDoubleArray> object, TNode<IntPtrT> index,
+      Label* if_hole = nullptr,
+      MachineType machine_type = MachineType::Float64());
 
   // Load an array element from a FixedArray, FixedDoubleArray or a
   // NumberDictionary (depending on the |elements_kind|) and return
@@ -1421,23 +1406,15 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
 
   TNode<IntPtrT> LoadFeedbackVectorLength(TNode<FeedbackVector>);
   TNode<Float64T> LoadDoubleWithHoleCheck(TNode<FixedDoubleArray> array,
-                                          TNode<Smi> index,
-                                          Label* if_hole = nullptr);
-  TNode<Float64T> LoadDoubleWithHoleCheck(TNode<FixedDoubleArray> array,
                                           TNode<IntPtrT> index,
                                           Label* if_hole = nullptr);
-  TNode<Float64T> LoadDoubleWithHoleCheck(TNode<FixedDoubleArray> array,
-                                          TNode<UintPtrT> index,
-                                          Label* if_hole = nullptr) {
-    return LoadDoubleWithHoleCheck(array, Signed(index), if_hole);
-  }
 
   TNode<BoolT> IsDoubleHole(TNode<Object> base, TNode<IntPtrT> offset);
   // Load Float64 value by |base| + |offset| address. If the value is a double
   // hole then jump to |if_hole|. If |machine_type| is None then only the hole
   // check is generated.
   TNode<Float64T> LoadDoubleWithHoleCheck(
-      SloppyTNode<Object> base, SloppyTNode<IntPtrT> offset, Label* if_hole,
+      TNode<Object> base, TNode<IntPtrT> offset, Label* if_hole,
       MachineType machine_type = MachineType::Float64());
   TNode<Numeric> LoadFixedTypedArrayElementAsTagged(TNode<RawPtrT> data_pointer,
                                                     TNode<UintPtrT> index,

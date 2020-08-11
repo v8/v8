@@ -936,8 +936,8 @@ void ArrayIncludesIndexofAssembler::GeneratePackedDoubles(
     Label continue_loop(this);
     GotoIfNot(UintPtrLessThan(index_var.value(), array_length_untagged),
               &return_not_found);
-    TNode<Float64T> element_k = LoadFixedDoubleArrayElement(
-        elements, index_var.value(), MachineType::Float64());
+    TNode<Float64T> element_k =
+        LoadFixedDoubleArrayElement(elements, index_var.value());
     Branch(Float64Equal(element_k, search_num.value()), &return_found,
            &continue_loop);
     BIND(&continue_loop);
@@ -951,8 +951,8 @@ void ArrayIncludesIndexofAssembler::GeneratePackedDoubles(
     Label continue_loop(this);
     GotoIfNot(UintPtrLessThan(index_var.value(), array_length_untagged),
               &return_not_found);
-    TNode<Float64T> element_k = LoadFixedDoubleArrayElement(
-        elements, index_var.value(), MachineType::Float64());
+    TNode<Float64T> element_k =
+        LoadFixedDoubleArrayElement(elements, index_var.value());
     BranchIfFloat64IsNaN(element_k, &return_found, &continue_loop);
     BIND(&continue_loop);
     Increment(&index_var);
@@ -1010,8 +1010,8 @@ void ArrayIncludesIndexofAssembler::GenerateHoleyDoubles(
 
     // No need for hole checking here; the following Float64Equal will
     // return 'not equal' for holes anyway.
-    TNode<Float64T> element_k = LoadFixedDoubleArrayElement(
-        elements, index_var.value(), MachineType::Float64());
+    TNode<Float64T> element_k =
+        LoadFixedDoubleArrayElement(elements, index_var.value());
 
     Branch(Float64Equal(element_k, search_num.value()), &return_found,
            &continue_loop);
@@ -1029,8 +1029,7 @@ void ArrayIncludesIndexofAssembler::GenerateHoleyDoubles(
 
     // Load double value or continue if it's the hole NaN.
     TNode<Float64T> element_k = LoadFixedDoubleArrayElement(
-        elements, index_var.value(), MachineType::Float64(), 0,
-        INTPTR_PARAMETERS, &continue_loop);
+        elements, index_var.value(), &continue_loop);
 
     BranchIfFloat64IsNaN(element_k, &return_found, &continue_loop);
     BIND(&continue_loop);
@@ -1045,9 +1044,8 @@ void ArrayIncludesIndexofAssembler::GenerateHoleyDoubles(
               &return_not_found);
 
     // Check if the element is a double hole, but don't load it.
-    LoadFixedDoubleArrayElement(elements, index_var.value(),
-                                MachineType::None(), 0, INTPTR_PARAMETERS,
-                                &return_found);
+    LoadFixedDoubleArrayElement(elements, index_var.value(), &return_found,
+                                MachineType::None());
 
     Increment(&index_var);
     Goto(&hole_loop);

@@ -2094,8 +2094,8 @@ void AccessorAssembler::EmitElementLoad(
       if (access_mode == LoadAccessMode::kHas) {
         exit_point->Return(TrueConstant());
       } else {
-        *var_double_value = LoadFixedDoubleArrayElement(
-            CAST(elements), intptr_index, MachineType::Float64());
+        *var_double_value =
+            LoadFixedDoubleArrayElement(CAST(elements), intptr_index);
         Goto(rebox_double);
       }
     }
@@ -2103,9 +2103,8 @@ void AccessorAssembler::EmitElementLoad(
     BIND(&if_fast_holey_double);
     {
       Comment("holey double elements");
-      TNode<Float64T> value = LoadFixedDoubleArrayElement(
-          CAST(elements), intptr_index, MachineType::Float64(), 0,
-          INTPTR_PARAMETERS, if_hole);
+      TNode<Float64T> value =
+          LoadFixedDoubleArrayElement(CAST(elements), intptr_index, if_hole);
       if (access_mode == LoadAccessMode::kHas) {
         exit_point->Return(TrueConstant());
       } else {

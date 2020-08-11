@@ -1068,15 +1068,8 @@ void CodeStubAssembler::Bind(Label* label, AssemblerDebugInfo debug_info) {
 void CodeStubAssembler::Bind(Label* label) { CodeAssembler::Bind(label); }
 
 TNode<Float64T> CodeStubAssembler::LoadDoubleWithHoleCheck(
-    TNode<FixedDoubleArray> array, TNode<Smi> index, Label* if_hole) {
-  return LoadFixedDoubleArrayElement(array, index, MachineType::Float64(), 0,
-                                     SMI_PARAMETERS, if_hole);
-}
-
-TNode<Float64T> CodeStubAssembler::LoadDoubleWithHoleCheck(
     TNode<FixedDoubleArray> array, TNode<IntPtrT> index, Label* if_hole) {
-  return LoadFixedDoubleArrayElement(array, index, MachineType::Float64(), 0,
-                                     INTPTR_PARAMETERS, if_hole);
+  return LoadFixedDoubleArrayElement(array, index, if_hole);
 }
 
 void CodeStubAssembler::BranchIfJSReceiver(SloppyTNode<Object> object,
@@ -2407,16 +2400,11 @@ TNode<MaybeObject> CodeStubAssembler::LoadWeakFixedArrayElement(
 }
 
 TNode<Float64T> CodeStubAssembler::LoadFixedDoubleArrayElement(
-    SloppyTNode<FixedDoubleArray> object, Node* index_node,
-    MachineType machine_type, int additional_offset,
-    ParameterMode parameter_mode, Label* if_hole) {
-  CSA_ASSERT(this, IsFixedDoubleArray(object));
-  DCHECK(IsAligned(additional_offset, kTaggedSize));
-  CSA_SLOW_ASSERT(this, MatchesParameterMode(index_node, parameter_mode));
-  int32_t header_size =
-      FixedDoubleArray::kHeaderSize + additional_offset - kHeapObjectTag;
-  TNode<IntPtrT> offset = ElementOffsetFromIndex(
-      index_node, HOLEY_DOUBLE_ELEMENTS, parameter_mode, header_size);
+    TNode<FixedDoubleArray> object, TNode<IntPtrT> index, Label* if_hole,
+    MachineType machine_type) {
+  int32_t header_size = FixedDoubleArray::kHeaderSize - kHeapObjectTag;
+  TNode<IntPtrT> offset =
+      ElementOffsetFromIndex(index, HOLEY_DOUBLE_ELEMENTS, header_size);
   CSA_ASSERT(this, IsOffsetInBounds(
                        offset, LoadAndUntagFixedArrayBaseLength(object),
                        FixedDoubleArray::kHeaderSize, HOLEY_DOUBLE_ELEMENTS));
@@ -2465,16 +2453,15 @@ TNode<Object> CodeStubAssembler::LoadFixedArrayBaseElementAsTagged(
 
   BIND(&if_packed_double);
   {
-    var_result = AllocateHeapNumberWithValue(LoadFixedDoubleArrayElement(
-        CAST(elements), index, MachineType::Float64()));
+    var_result = AllocateHeapNumberWithValue(
+        LoadFixedDoubleArrayElement(CAST(elements), index));
     Goto(&done);
   }
 
   BIND(&if_holey_double);
   {
-    var_result = AllocateHeapNumberWithValue(LoadFixedDoubleArrayElement(
-        CAST(elements), index, MachineType::Float64(), 0, INTPTR_PARAMETERS,
-        if_hole));
+    var_result = AllocateHeapNumberWithValue(
+        LoadFixedDoubleArrayElement(CAST(elements), index, if_hole));
     Goto(&done);
   }
 
@@ -2506,7 +2493,7 @@ TNode<BoolT> CodeStubAssembler::IsDoubleHole(TNode<Object> base,
 }
 
 TNode<Float64T> CodeStubAssembler::LoadDoubleWithHoleCheck(
-    SloppyTNode<Object> base, SloppyTNode<IntPtrT> offset, Label* if_hole,
+    TNode<Object> base, TNode<IntPtrT> offset, Label* if_hole,
     MachineType machine_type) {
   if (if_hole) {
     GotoIf(IsDoubleHole(base, offset), if_hole);
@@ -8828,9 +8815,8 @@ void CodeStubAssembler::TryLookupElement(
     GotoIfNot(UintPtrLessThan(intptr_index, length), &if_oob);
 
     // Check if the element is a double hole, but don't load it.
-    LoadFixedDoubleArrayElement(CAST(elements), intptr_index,
-                                MachineType::None(), 0, INTPTR_PARAMETERS,
-                                if_not_found);
+    LoadFixedDoubleArrayElement(CAST(elements), intptr_index, if_not_found,
+                                MachineType::None());
     Goto(if_found);
   }
   BIND(&if_isdictionary);
