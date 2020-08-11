@@ -148,6 +148,10 @@ class WasmSerializationTest {
       // Check that the native module exists at this point.
       CHECK(weak_native_module.lock());
 
+      auto* native_module = module_object->native_module();
+      native_module->compilation_state()->WaitForTopTierFinished();
+      DCHECK(!native_module->compilation_state()->failed());
+
       v8::Local<v8::Object> v8_module_obj =
           v8::Utils::ToLocal(Handle<JSObject>::cast(module_object));
       CHECK(v8_module_obj->IsWasmModuleObject());
@@ -163,6 +167,7 @@ class WasmSerializationTest {
       wire_bytes_ = {bytes_copy, uncompiled_bytes.size()};
       // keep alive data_ until the end
       data_ = compiled_module.Serialize();
+      CHECK_LT(0, data_.size);
     }
     // Dispose of serialization isolate to destroy the reference to the
     // NativeModule, which removes it from the module cache in the wasm engine

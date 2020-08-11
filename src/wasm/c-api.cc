@@ -1035,6 +1035,8 @@ auto Module::serialize() const -> vec<byte_t> {
       impl(this)->v8_object()->native_module();
   i::Vector<const uint8_t> wire_bytes = native_module->wire_bytes();
   size_t binary_size = wire_bytes.size();
+  // We can only serialize after top-tier compilation (TurboFan) finished.
+  native_module->compilation_state()->WaitForTopTierFinished();
   i::wasm::WasmSerializer serializer(native_module);
   size_t serial_size = serializer.GetSerializedNativeModuleSize();
   size_t size_size = i::wasm::LEBHelper::sizeof_u64v(binary_size);

@@ -688,6 +688,17 @@ void CompilationState::AddCallback(CompilationState::callback_t callback) {
   return Impl(this)->AddCallback(std::move(callback));
 }
 
+void CompilationState::WaitForTopTierFinished() {
+  auto top_tier_finished_semaphore = std::make_shared<base::Semaphore>(0);
+  AddCallback([top_tier_finished_semaphore](CompilationEvent event) {
+    if (event == CompilationEvent::kFailedCompilation ||
+        event == CompilationEvent::kFinishedTopTierCompilation) {
+      top_tier_finished_semaphore->Signal();
+    }
+  });
+  top_tier_finished_semaphore->Wait();
+}
+
 bool CompilationState::failed() const { return Impl(this)->failed(); }
 
 bool CompilationState::baseline_compilation_finished() const {
