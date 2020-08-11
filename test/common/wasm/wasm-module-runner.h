@@ -97,13 +97,9 @@ WasmInterpretationResult InterpretWasmModule(
     Isolate* isolate, Handle<WasmInstanceObject> instance,
     int32_t function_index, WasmValue* args);
 
-// Interprets the exported wasm function "main". Returns a "failed" result if it
-// was not possible to execute the function (e.g. because it does not exist), or
-// if the interpretation does not finish after kMaxNumSteps. The arguments array
-// is extended with default values if necessary.
-WasmInterpretationResult InterpretWasmModuleForTesting(
-    Isolate* isolate, Handle<WasmInstanceObject> instance, size_t argc,
-    WasmValue* args);
+// Generate an array of default arguments for the given signature.
+std::unique_ptr<WasmValue[]> MakeDefaultArguments(Isolate* isolate,
+                                                  const FunctionSig* sig);
 
 // Install function map, module symbol for testing
 void SetupIsolateForWasmModule(Isolate* isolate);

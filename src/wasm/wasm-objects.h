@@ -649,7 +649,7 @@ class WasmExportedFunction : public JSFunction {
 
   Address GetWasmCallTarget();
 
-  const wasm::FunctionSig* sig();
+  V8_EXPORT_PRIVATE const wasm::FunctionSig* sig();
 
   DECL_CAST(WasmExportedFunction)
   OBJECT_CONSTRUCTORS(WasmExportedFunction, JSFunction);

@@ -32,26 +32,39 @@ void InterpretAndExecuteModule(i::Isolate* isolate,
   // start function can contain an infinite loop which we cannot handle.
   if (module_object->module()->start_function_index >= 0) return;
 
-  ErrorThrower thrower(isolate, "WebAssembly Instantiation");
+  HandleScope handle_scope(isolate);  // Avoid leaking handles.
   MaybeHandle<WasmInstanceObject> maybe_instance;
   Handle<WasmInstanceObject> instance;
 
-  // Try to instantiate and interpret the module_object.
-  maybe_instance = isolate->wasm_engine()->SyncInstantiate(
-      isolate, &thrower, module_object,
-      Handle<JSReceiver>::null(),     // imports
-      MaybeHandle<JSArrayBuffer>());  // memory
-  if (!maybe_instance.ToHandle(&instance)) {
-    isolate->clear_pending_exception();
-    thrower.Reset();  // Ignore errors.
+  // Try to instantiate, return if it fails.
+  {
+    ErrorThrower thrower(isolate, "WebAssembly Instantiation");
+    maybe_instance = isolate->wasm_engine()->SyncInstantiate(
+        isolate, &thrower, module_object,
+        Handle<JSReceiver>::null(),     // imports
+        MaybeHandle<JSArrayBuffer>());  // memory
+    if (!maybe_instance.ToHandle(&instance)) {
+      isolate->clear_pending_exception();
+      thrower.Reset();  // Ignore errors.
+      return;
+    }
+  }
+
+  // Get the "main" exported function. Do nothing if it does not exist.
+  Handle<WasmExportedFunction> main_function;
+  if (!testing::GetExportedFunction(isolate, instance, "main")
+           .ToHandle(&main_function)) {
     return;
   }
-  testing::WasmInterpretationResult interpreter_result =
-      testing::InterpretWasmModuleForTesting(isolate, instance, 0, nullptr);
-  if (interpreter_result.failed()) return;
 
-  // TODO(clemensb): Use this function in {WasmExecutionFuzzer::FuzzWasmModule},
-  // which currently duplicates the logic.
+  std::unique_ptr<WasmValue[]> arguments =
+      testing::MakeDefaultArguments(isolate, main_function->sig());
+
+  // Now interpret.
+  testing::WasmInterpretationResult interpreter_result =
+      testing::InterpretWasmModule(
+          isolate, instance, main_function->function_index(), arguments.get());
+  if (interpreter_result.failed()) return;
 
   // The WebAssembly spec allows the sign bit of NaN to be non-deterministic.
   // This sign bit can make the difference between an infinite loop and
@@ -62,14 +75,17 @@ void InterpretAndExecuteModule(i::Isolate* isolate,
   if (interpreter_result.possible_nondeterminism()) return;
 
   // Try to instantiate and execute the module_object.
-  maybe_instance = isolate->wasm_engine()->SyncInstantiate(
-      isolate, &thrower, module_object,
-      Handle<JSReceiver>::null(),     // imports
-      MaybeHandle<JSArrayBuffer>());  // memory
-  if (!maybe_instance.ToHandle(&instance)) {
-    isolate->clear_pending_exception();
-    thrower.Reset();  // Ignore errors.
-    return;
+  {
+    ErrorThrower thrower(isolate, "InterpretAndExecuteModule");
+    maybe_instance = isolate->wasm_engine()->SyncInstantiate(
+        isolate, &thrower, module_object,
+        Handle<JSReceiver>::null(),     // imports
+        MaybeHandle<JSArrayBuffer>());  // memory
+    if (!maybe_instance.ToHandle(&instance)) {
+      isolate->clear_pending_exception();
+      thrower.Reset();  // Ignore errors.
+      return;
+    }
   }
 
   int32_t result_compiled = testing::CallWasmFunctionForTesting(
@@ -367,58 +383,7 @@ void WasmExecutionFuzzer::FuzzWasmModule(Vector<const uint8_t> data,
 
   if (!compiles) return;
 
-  MaybeHandle<WasmInstanceObject> interpreter_instance =
-      i_isolate->wasm_engine()->SyncInstantiate(
-          i_isolate, &interpreter_thrower, compiled_module.ToHandleChecked(),
-          MaybeHandle<JSReceiver>(), MaybeHandle<JSArrayBuffer>());
-
-  // Ignore instantiation failure.
-  if (interpreter_thrower.error()) return;
-
-  testing::WasmInterpretationResult interpreter_result =
-      testing::InterpretWasmModule(i_isolate,
-                                   interpreter_instance.ToHandleChecked(), 0,
-                                   interpreter_args.get());
-
-  // Do not execute the generated code if the interpreter did not finished after
-  // a bounded number of steps.
-  if (interpreter_result.failed()) return;
-
-  // The WebAssembly spec allows the sign bit of NaN to be non-deterministic.
-  // This sign bit can make the difference between an infinite loop and
-  // terminating code. With possible non-determinism we cannot guarantee that
-  // the generated code will not go into an infinite loop and cause a timeout in
-  // Clusterfuzz. Therefore we do not execute the generated code if the result
-  // may be non-deterministic.
-  if (interpreter_result.possible_nondeterminism()) return;
-
-  int32_t result_compiled;
-  {
-    ErrorThrower compiler_thrower(i_isolate, "Compile");
-    MaybeHandle<WasmInstanceObject> compiled_instance =
-        i_isolate->wasm_engine()->SyncInstantiate(
-            i_isolate, &compiler_thrower, compiled_module.ToHandleChecked(),
-            MaybeHandle<JSReceiver>(), MaybeHandle<JSArrayBuffer>());
-    DCHECK(!compiler_thrower.error());
-
-    result_compiled = testing::CallWasmFunctionForTesting(
-        i_isolate, compiled_instance.ToHandleChecked(), "main", num_args,
-        compiler_args.get());
-  }
-
-  if (interpreter_result.trapped() != i_isolate->has_pending_exception()) {
-    const char* exception_text[] = {"no exception", "exception"};
-    FATAL("interpreter: %s; compiled: %s",
-          exception_text[interpreter_result.trapped()],
-          exception_text[i_isolate->has_pending_exception()]);
-  }
-
-  if (!interpreter_result.trapped()) {
-    CHECK_EQ(interpreter_result.result(), result_compiled);
-  }
-
-  // Cleanup any pending exception.
-  i_isolate->clear_pending_exception();
+  InterpretAndExecuteModule(i_isolate, compiled_module.ToHandleChecked());
 }
 
 }  // namespace fuzzer

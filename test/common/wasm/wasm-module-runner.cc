@@ -41,54 +41,14 @@ MaybeHandle<WasmInstanceObject> CompileAndInstantiateForTesting(
       isolate, thrower, module.ToHandleChecked(), {}, {});
 }
 
-WasmInterpretationResult GetInterpretationResult(
-    Isolate* isolate, const WasmInterpreter& interpreter,
-    WasmInterpreter::State interpreter_result) {
-  bool stack_overflow = isolate->has_pending_exception();
-  isolate->clear_pending_exception();
-
-  if (stack_overflow) return WasmInterpretationResult::Failed();
-
-  if (interpreter.state() == WasmInterpreter::TRAPPED) {
-    return WasmInterpretationResult::Trapped(
-        interpreter.PossibleNondeterminism());
-  }
-
-  if (interpreter_result == WasmInterpreter::FINISHED) {
-    return WasmInterpretationResult::Finished(
-        interpreter.GetReturnValue().to<int32_t>(),
-        interpreter.PossibleNondeterminism());
-  }
-
-  // The interpreter did not finish within the limited number of steps, so it
-  // might execute an infinite loop or infinite recursion. Return "failed"
-  // status in that case.
-  return WasmInterpretationResult::Failed();
-}
-
-WasmInterpretationResult InterpretWasmModuleForTesting(
-    Isolate* isolate, Handle<WasmInstanceObject> instance, size_t argc,
-    WasmValue* args) {
-  HandleScope handle_scope(isolate);  // Avoid leaking handles.
-  WasmCodeRefScope code_ref_scope;
-  Handle<WasmExportedFunction> function;
-  if (!GetExportedFunction(isolate, instance, "main").ToHandle(&function)) {
-    return WasmInterpretationResult::Failed();
-  }
-  int function_index = function->function_index();
-  const FunctionSig* signature =
-      instance->module()->functions[function_index].sig;
-  size_t param_count = signature->parameter_count();
-  std::unique_ptr<WasmValue[]> arguments(new WasmValue[param_count]);
-
-  size_t arg_count = std::min(param_count, argc);
-  if (arg_count > 0) {
-    memcpy(arguments.get(), args, arg_count);
-  }
+std::unique_ptr<WasmValue[]> MakeDefaultArguments(Isolate* isolate,
+                                                  const FunctionSig* sig) {
+  size_t param_count = sig->parameter_count();
+  auto arguments = std::make_unique<WasmValue[]>(param_count);
 
   // Fill the parameters up with default values.
-  for (size_t i = argc; i < param_count; ++i) {
-    switch (signature->GetParam(i).kind()) {
+  for (size_t i = 0; i < param_count; ++i) {
+    switch (sig->GetParam(i).kind()) {
       case ValueType::kI32:
         arguments[i] = WasmValue(int32_t{0});
         break;
@@ -116,20 +76,7 @@ WasmInterpretationResult InterpretWasmModuleForTesting(
     }
   }
 
-  // Don't execute more than 16k steps.
-  constexpr int kMaxNumSteps = 16 * 1024;
-
-  Zone zone(isolate->allocator(), ZONE_NAME);
-
-  WasmInterpreter interpreter{
-      isolate, instance->module(),
-      ModuleWireBytes{instance->module_object().native_module()->wire_bytes()},
-      instance};
-  interpreter.InitFrame(&instance->module()->functions[function_index],
-                        arguments.get());
-  WasmInterpreter::State interpreter_result = interpreter.Run(kMaxNumSteps);
-
-  return GetInterpretationResult(isolate, interpreter, interpreter_result);
+  return arguments;
 }
 
 int32_t CompileAndRunWasmModule(Isolate* isolate, const byte* module_start,
@@ -161,7 +108,26 @@ WasmInterpretationResult InterpretWasmModule(
   interpreter.InitFrame(&instance->module()->functions[function_index], args);
   WasmInterpreter::State interpreter_result = interpreter.Run(kMaxNumSteps);
 
-  return GetInterpretationResult(isolate, interpreter, interpreter_result);
+  bool stack_overflow = isolate->has_pending_exception();
+  isolate->clear_pending_exception();
+
+  if (stack_overflow) return WasmInterpretationResult::Failed();
+
+  if (interpreter.state() == WasmInterpreter::TRAPPED) {
+    return WasmInterpretationResult::Trapped(
+        interpreter.PossibleNondeterminism());
+  }
+
+  if (interpreter_result == WasmInterpreter::FINISHED) {
+    return WasmInterpretationResult::Finished(
+        interpreter.GetReturnValue().to<int32_t>(),
+        interpreter.PossibleNondeterminism());
+  }
+
+  // The interpreter did not finish within the limited number of steps, so it
+  // might execute an infinite loop or infinite recursion. Return "failed"
+  // status in that case.
+  return WasmInterpretationResult::Failed();
 }
 
 MaybeHandle<WasmExportedFunction> GetExportedFunction(
