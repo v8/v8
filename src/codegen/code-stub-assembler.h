@@ -1367,21 +1367,15 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
   // Array is any array-like type that has a fixed header followed by
   // tagged elements.
   template <typename Array>
-  TNode<Int32T> LoadAndUntagToWord32ArrayElement(
-      TNode<Array> array, int array_header_size, Node* index,
-      int additional_offset = 0,
-      ParameterMode parameter_mode = INTPTR_PARAMETERS);
+  TNode<Int32T> LoadAndUntagToWord32ArrayElement(TNode<Array> array,
+                                                 int array_header_size,
+                                                 TNode<IntPtrT> index,
+                                                 int additional_offset = 0);
 
   // Load an array element from a FixedArray, untag it and return it as Word32.
   TNode<Int32T> LoadAndUntagToWord32FixedArrayElement(
-      TNode<FixedArray> object, Node* index, int additional_offset = 0,
-      ParameterMode parameter_mode = INTPTR_PARAMETERS);
-
-  TNode<Int32T> LoadAndUntagToWord32FixedArrayElement(
-      TNode<FixedArray> object, int index, int additional_offset = 0) {
-    return LoadAndUntagToWord32FixedArrayElement(
-        object, IntPtrConstant(index), additional_offset, INTPTR_PARAMETERS);
-  }
+      TNode<FixedArray> object, TNode<IntPtrT> index,
+      int additional_offset = 0);
 
   // Load an array element from a WeakFixedArray.
   TNode<MaybeObject> LoadWeakFixedArrayElement(TNode<WeakFixedArray> object,

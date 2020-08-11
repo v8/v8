@@ -2372,9 +2372,8 @@ template TNode<MaybeObject> CodeStubAssembler::LoadFeedbackVectorSlot(
 
 template <typename Array>
 TNode<Int32T> CodeStubAssembler::LoadAndUntagToWord32ArrayElement(
-    TNode<Array> object, int array_header_size, Node* index_node,
-    int additional_offset, ParameterMode parameter_mode) {
-  CSA_SLOW_ASSERT(this, MatchesParameterMode(index_node, parameter_mode));
+    TNode<Array> object, int array_header_size, TNode<IntPtrT> index,
+    int additional_offset) {
   DCHECK(IsAligned(additional_offset, kTaggedSize));
   int endian_correction = 0;
 #if V8_TARGET_LITTLE_ENDIAN
@@ -2382,8 +2381,8 @@ TNode<Int32T> CodeStubAssembler::LoadAndUntagToWord32ArrayElement(
 #endif
   int32_t header_size = array_header_size + additional_offset - kHeapObjectTag +
                         endian_correction;
-  TNode<IntPtrT> offset = ElementOffsetFromIndex(index_node, HOLEY_ELEMENTS,
-                                                 parameter_mode, header_size);
+  TNode<IntPtrT> offset =
+      ElementOffsetFromIndex(index, HOLEY_ELEMENTS, header_size);
   CSA_ASSERT(this, IsOffsetInBounds(offset, LoadArrayLength(object),
                                     array_header_size + endian_correction));
   if (SmiValuesAre32Bits()) {
@@ -2394,12 +2393,10 @@ TNode<Int32T> CodeStubAssembler::LoadAndUntagToWord32ArrayElement(
 }
 
 TNode<Int32T> CodeStubAssembler::LoadAndUntagToWord32FixedArrayElement(
-    TNode<FixedArray> object, Node* index_node, int additional_offset,
-    ParameterMode parameter_mode) {
+    TNode<FixedArray> object, TNode<IntPtrT> index, int additional_offset) {
   CSA_SLOW_ASSERT(this, IsFixedArraySubclass(object));
   return LoadAndUntagToWord32ArrayElement(object, FixedArray::kHeaderSize,
-                                          index_node, additional_offset,
-                                          parameter_mode);
+                                          index, additional_offset);
 }
 
 TNode<MaybeObject> CodeStubAssembler::LoadWeakFixedArrayElement(
