@@ -2,6 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#include "src/codegen/x64/register-x64.h"
 #if V8_TARGET_ARCH_X64
 
 #include "src/api/api-arguments.h"
@@ -3249,18 +3250,13 @@ void Builtins::Generate_GenericJSToWasmWrapper(MacroAssembler* masm) {
   __ SmiUntag(param);
 
   __ bind(&params_done);
-  int isolate_root_offset =
-      wasm::ObjectAccess::ToTagged(WasmInstanceObject::kIsolateRootOffset);
 
   // Set thread_in_wasm_flag.
-  Register isolate_root = rdx;
-  __ movq(isolate_root, MemOperand(wasm_instance, isolate_root_offset));
-  Register thread_in_wasm_flag_addr = isolate_root;
+  Register thread_in_wasm_flag_addr = rdx;
   __ movq(
       thread_in_wasm_flag_addr,
-      MemOperand(isolate_root, Isolate::thread_in_wasm_flag_address_offset()));
+      MemOperand(kRootRegister, Isolate::thread_in_wasm_flag_address_offset()));
   __ movl(MemOperand(thread_in_wasm_flag_addr, 0), Immediate(1));
-  isolate_root = no_reg;
 
   Register jump_table_start = thread_in_wasm_flag_addr;
   __ movq(jump_table_start,
@@ -3294,18 +3290,14 @@ void Builtins::Generate_GenericJSToWasmWrapper(MacroAssembler* masm) {
   __ popq(wasm_instance);
 
   // Unset thread_in_wasm_flag.
-  isolate_root = rdx;
-  __ movq(isolate_root, MemOperand(wasm_instance, isolate_root_offset));
   thread_in_wasm_flag_addr = r8;
   __ movq(
       thread_in_wasm_flag_addr,
-      MemOperand(isolate_root, Isolate::thread_in_wasm_flag_address_offset()));
+      MemOperand(kRootRegister, Isolate::thread_in_wasm_flag_address_offset()));
   __ movl(MemOperand(thread_in_wasm_flag_addr, 0), Immediate(0));
 
   Register return_reg = rax;
-  __ movq(return_reg,
-          MemOperand(isolate_root, IsolateData::root_slot_offset(
-                                       RootIndex::kUndefinedValue)));
+  __ LoadRoot(return_reg, RootIndex::kUndefinedValue);
 
   // Deconstrunct the stack frame.
   __ LeaveFrame(StackFrame::JS_TO_WASM);
