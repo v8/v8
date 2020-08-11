@@ -15,6 +15,11 @@
 #define DEFINE_IMPLICATION(whenflag, thenflag) \
   DEFINE_VALUE_IMPLICATION(whenflag, thenflag, true)
 
+// A weak implication will be overwritten by a normal implication or by an
+// explicit flag.
+#define DEFINE_WEAK_IMPLICATION(whenflag, thenflag) \
+  DEFINE_WEAK_VALUE_IMPLICATION(whenflag, thenflag, true)
+
 #define DEFINE_NEG_IMPLICATION(whenflag, thenflag) \
   DEFINE_VALUE_IMPLICATION(whenflag, thenflag, false)
 
@@ -59,14 +64,22 @@
 
 // We produce the code to set flags when it is implied by another flag.
 #elif defined(FLAG_MODE_DEFINE_IMPLICATIONS)
-#define DEFINE_VALUE_IMPLICATION(whenflag, thenflag, value) \
-  if (FLAG_##whenflag) FLAG_##thenflag = value;
+#define DEFINE_VALUE_IMPLICATION(whenflag, thenflag, value)                   \
+  changed |= TriggerImplication(FLAG_##whenflag, #whenflag, &FLAG_##thenflag, \
+                                value, false);
+
+// A weak implication will be overwritten by a normal implication or by an
+// explicit flag.
+#define DEFINE_WEAK_VALUE_IMPLICATION(whenflag, thenflag, value)              \
+  changed |= TriggerImplication(FLAG_##whenflag, #whenflag, &FLAG_##thenflag, \
+                                value, true);
 
 #define DEFINE_GENERIC_IMPLICATION(whenflag, statement) \
   if (FLAG_##whenflag) statement;
 
-#define DEFINE_NEG_VALUE_IMPLICATION(whenflag, thenflag, value) \
-  if (!FLAG_##whenflag) FLAG_##thenflag = value;
+#define DEFINE_NEG_VALUE_IMPLICATION(whenflag, thenflag, value)                \
+  changed |= TriggerImplication(!FLAG_##whenflag, #whenflag, &FLAG_##thenflag, \
+                                value, false);
 
 // We apply a generic macro to the flags.
 #elif defined(FLAG_MODE_APPLY)
@@ -92,6 +105,10 @@
 
 #ifndef DEFINE_VALUE_IMPLICATION
 #define DEFINE_VALUE_IMPLICATION(whenflag, thenflag, value)
+#endif
+
+#ifndef DEFINE_WEAK_VALUE_IMPLICATION
+#define DEFINE_WEAK_VALUE_IMPLICATION(whenflag, thenflag, value)
 #endif
 
 #ifndef DEFINE_GENERIC_IMPLICATION
@@ -202,6 +219,14 @@ struct MaybeBoolFlag {
 // Flags in all modes.
 //
 #define FLAG FLAG_FULL
+
+// ATTENTION: This is set to true by default in d8. But for API compatibility,
+// it generally defaults to false.
+DEFINE_BOOL(abort_on_contradictory_flags, false,
+            "Disallow flags or implications overriding each other.")
+// This implication is also hard-coded into the flags processing to make sure it
+// becomes active before we even process subsequent flags.
+DEFINE_NEG_IMPLICATION(fuzzing, abort_on_contradictory_flags)
 
 // Flags for language modes and experimental language features.
 DEFINE_BOOL(use_strict, false, "enforce strict mode")
@@ -377,8 +402,28 @@ DEFINE_BOOL(future, FUTURE_BOOL,
             "Implies all staged features that we want to ship in the "
             "not-too-far future")
 
-DEFINE_IMPLICATION(future, write_protect_code_memory)
-DEFINE_IMPLICATION(future, finalize_streaming_on_background)
+DEFINE_WEAK_IMPLICATION(future, write_protect_code_memory)
+DEFINE_WEAK_IMPLICATION(future, finalize_streaming_on_background)
+
+// Flags for jitless
+DEFINE_BOOL(jitless, V8_LITE_BOOL,
+            "Disable runtime allocation of executable memory.")
+
+// Jitless V8 has a few implications:
+DEFINE_NEG_IMPLICATION(jitless, opt)
+// Field representation tracking is only used by TurboFan.
+DEFINE_NEG_IMPLICATION(jitless, track_field_types)
+DEFINE_NEG_IMPLICATION(jitless, track_heap_object_fields)
+// Regexps are interpreted.
+DEFINE_IMPLICATION(jitless, regexp_interpret_all)
+// asm.js validation is disabled since it triggers wasm code generation.
+DEFINE_NEG_IMPLICATION(jitless, validate_asm)
+// --jitless also implies --no-expose-wasm, see InitializeOncePerProcessImpl.
+
+#ifndef V8_TARGET_ARCH_ARM
+// Unsupported on arm. See https://crbug.com/v8/8713.
+DEFINE_NEG_IMPLICATION(jitless, interpreted_frames_native_stack)
+#endif
 
 DEFINE_BOOL(assert_types, false,
             "generate runtime type assertions to test the typer")
@@ -430,26 +475,6 @@ DEFINE_BOOL_READONLY(string_slices, true, "use string slices")
 
 DEFINE_INT(interrupt_budget, 144 * KB,
            "interrupt budget which should be used for the profiler counter")
-
-// Flags for jitless
-DEFINE_BOOL(jitless, V8_LITE_BOOL,
-            "Disable runtime allocation of executable memory.")
-
-// Jitless V8 has a few implications:
-DEFINE_NEG_IMPLICATION(jitless, opt)
-// Field representation tracking is only used by TurboFan.
-DEFINE_NEG_IMPLICATION(jitless, track_field_types)
-DEFINE_NEG_IMPLICATION(jitless, track_heap_object_fields)
-// Regexps are interpreted.
-DEFINE_IMPLICATION(jitless, regexp_interpret_all)
-// asm.js validation is disabled since it triggers wasm code generation.
-DEFINE_NEG_IMPLICATION(jitless, validate_asm)
-// --jitless also implies --no-expose-wasm, see InitializeOncePerProcessImpl.
-
-#ifndef V8_TARGET_ARCH_ARM
-// Unsupported on arm. See https://crbug.com/v8/8713.
-DEFINE_NEG_IMPLICATION(jitless, interpreted_frames_native_stack)
-#endif
 
 // Flags for inline caching and feedback vectors.
 DEFINE_BOOL(use_ic, true, "use inline caching")
@@ -525,7 +550,7 @@ DEFINE_BOOL(concurrent_inlining, false,
             "run optimizing compiler's inlining phase on a separate thread")
 DEFINE_INT(max_serializer_nesting, 25,
            "maximum levels for nesting child serializers")
-DEFINE_IMPLICATION(future, concurrent_inlining)
+DEFINE_WEAK_IMPLICATION(future, concurrent_inlining)
 DEFINE_BOOL(trace_heap_broker_verbose, false,
             "trace the heap broker verbosely (all reports)")
 DEFINE_BOOL(trace_heap_broker_memory, false,
@@ -1857,9 +1882,11 @@ DEFINE_IMPLICATION(unbox_double_fields, track_double_fields)
 #undef DEFINE_STRING
 #undef DEFINE_FLOAT
 #undef DEFINE_IMPLICATION
+#undef DEFINE_WEAK_IMPLICATION
 #undef DEFINE_NEG_IMPLICATION
 #undef DEFINE_NEG_VALUE_IMPLICATION
 #undef DEFINE_VALUE_IMPLICATION
+#undef DEFINE_WEAK_VALUE_IMPLICATION
 #undef DEFINE_GENERIC_IMPLICATION
 #undef DEFINE_ALIAS_BOOL
 #undef DEFINE_ALIAS_INT
