@@ -418,10 +418,12 @@
   F(HEAP_EMBEDDER_TRACING_EPILOGUE)                  \
   F(HEAP_EPILOGUE)                                   \
   F(HEAP_EPILOGUE_REDUCE_NEW_SPACE)                  \
+  F(HEAP_EPILOGUE_SAFEPOINT)                         \
   F(HEAP_EXTERNAL_EPILOGUE)                          \
   F(HEAP_EXTERNAL_PROLOGUE)                          \
   F(HEAP_EXTERNAL_WEAK_GLOBAL_HANDLES)               \
   F(HEAP_PROLOGUE)                                   \
+  F(HEAP_PROLOGUE_SAFEPOINT)                         \
   TOP_MC_SCOPES(F)                                   \
   F(MC_CLEAR_DEPENDENT_CODE)                         \
   F(MC_CLEAR_FLUSHABLE_BYTECODE)                     \

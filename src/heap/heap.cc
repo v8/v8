@@ -847,6 +847,7 @@ void Heap::GarbageCollectionPrologue() {
 }
 
 void Heap::GarbageCollectionPrologueInSafepoint() {
+  TRACE_GC(tracer(), GCTracer::Scope::HEAP_PROLOGUE_SAFEPOINT);
   gc_count_++;
 
   UpdateNewSpaceAllocationCounter();
@@ -1086,6 +1087,8 @@ void Heap::DeoptMarkedAllocationSites() {
 }
 
 void Heap::GarbageCollectionEpilogueInSafepoint() {
+  TRACE_GC(tracer(), GCTracer::Scope::HEAP_EPILOGUE_SAFEPOINT);
+
 #define UPDATE_COUNTERS_FOR_SPACE(space)                \
   isolate_->counters()->space##_bytes_available()->Set( \
       static_cast<int>(space()->Available()));          \
@@ -1129,6 +1132,10 @@ void Heap::GarbageCollectionEpilogueInSafepoint() {
   if (FLAG_check_handle_count) CheckHandleCount();
 #endif
 
+  if (Heap::ShouldZapGarbage() || FLAG_clear_free_memory) {
+    ZapFromSpace();
+  }
+
   {
     TRACE_GC(tracer(), GCTracer::Scope::HEAP_EPILOGUE_REDUCE_NEW_SPACE);
     ReduceNewSpaceSize();
@@ -1137,10 +1144,6 @@ void Heap::GarbageCollectionEpilogueInSafepoint() {
 
 void Heap::GarbageCollectionEpilogue() {
   TRACE_GC(tracer(), GCTracer::Scope::HEAP_EPILOGUE);
-  if (Heap::ShouldZapGarbage() || FLAG_clear_free_memory) {
-    ZapFromSpace();
-  }
-
   AllowHeapAllocation for_the_rest_of_the_epilogue;
 
   UpdateMaximumCommitted();
