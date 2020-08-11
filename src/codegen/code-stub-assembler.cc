@@ -4311,12 +4311,10 @@ void CodeStubAssembler::StoreDoubleHole(TNode<HeapObject> object,
   }
 }
 
-void CodeStubAssembler::StoreFixedDoubleArrayHole(
-    TNode<FixedDoubleArray> array, Node* index, ParameterMode parameter_mode) {
-  CSA_SLOW_ASSERT(this, MatchesParameterMode(index, parameter_mode));
-  TNode<IntPtrT> offset =
-      ElementOffsetFromIndex(index, PACKED_DOUBLE_ELEMENTS, parameter_mode,
-                             FixedArray::kHeaderSize - kHeapObjectTag);
+void CodeStubAssembler::StoreFixedDoubleArrayHole(TNode<FixedDoubleArray> array,
+                                                  TNode<IntPtrT> index) {
+  TNode<IntPtrT> offset = ElementOffsetFromIndex(
+      index, PACKED_DOUBLE_ELEMENTS, FixedArray::kHeaderSize - kHeapObjectTag);
   CSA_ASSERT(this, IsOffsetInBounds(
                        offset, LoadAndUntagFixedArrayBaseLength(array),
                        FixedDoubleArray::kHeaderSize, PACKED_DOUBLE_ELEMENTS));

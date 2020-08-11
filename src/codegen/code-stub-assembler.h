@@ -1665,13 +1665,8 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
   }
 
   void StoreDoubleHole(TNode<HeapObject> object, TNode<IntPtrT> offset);
-  void StoreFixedDoubleArrayHole(TNode<FixedDoubleArray> array, Node* index,
-                                 ParameterMode mode = INTPTR_PARAMETERS);
-  void StoreFixedDoubleArrayHoleSmi(TNode<FixedDoubleArray> array,
-                                    TNode<Smi> index) {
-    StoreFixedDoubleArrayHole(array, index, SMI_PARAMETERS);
-  }
-
+  void StoreFixedDoubleArrayHole(TNode<FixedDoubleArray> array,
+                                 TNode<IntPtrT> index);
   void StoreFeedbackVectorSlot(
       TNode<FeedbackVector> feedback_vector, TNode<UintPtrT> slot,
       TNode<AnyTaggedT> value,
