@@ -1791,8 +1791,8 @@ static int EnumerateCompiledFunctions(Heap* heap,
       }
       // TODO(jarin) This leaves out deoptimized code that might still be on the
       // stack. Also note that we will not log optimized code objects that are
-      // only on a type feedback vector. We should make this mroe precise.
-      if (function.IsOptimized()) {
+      // only on a type feedback vector. We should make this more precise.
+      if (function.HasAttachedOptimizedCode()) {
         AddFunctionAndCode(sfi, AbstractCode::cast(function.code()), sfis,
                            code_objects, compiled_funcs_count);
         ++compiled_funcs_count;

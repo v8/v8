@@ -188,7 +188,7 @@ RUNTIME_FUNCTION(Runtime_DeoptimizeFunction) {
   if (!function_object->IsJSFunction()) return CrashUnlessFuzzing(isolate);
   Handle<JSFunction> function = Handle<JSFunction>::cast(function_object);
 
-  if (function->IsOptimized()) {
+  if (function->HasAttachedOptimizedCode()) {
     Deoptimizer::DeoptimizeFunction(*function);
   }
 
@@ -206,7 +206,7 @@ RUNTIME_FUNCTION(Runtime_DeoptimizeNow) {
   if (!it.done()) function = handle(it.frame()->function(), isolate);
   if (function.is_null()) return CrashUnlessFuzzing(isolate);
 
-  if (function->IsOptimized()) {
+  if (function->HasAttachedOptimizedCode()) {
     Deoptimizer::DeoptimizeFunction(*function);
   }
 
@@ -297,8 +297,9 @@ RUNTIME_FUNCTION(Runtime_OptimizeFunctionOnNextCall) {
     PendingOptimizationTable::MarkedForOptimization(isolate, function);
   }
 
-  if (function->HasOptimizedCode()) {
-    DCHECK(function->IsOptimized() || function->ChecksOptimizationMarker());
+  if (function->HasAvailableOptimizedCode()) {
+    DCHECK(function->HasAttachedOptimizedCode() ||
+           function->ChecksOptimizationMarker());
     if (FLAG_testing_d8_test_runner) {
       PendingOptimizationTable::FunctionWasOptimized(isolate, function);
     }
@@ -448,8 +449,9 @@ RUNTIME_FUNCTION(Runtime_OptimizeOsr) {
     PendingOptimizationTable::MarkedForOptimization(isolate, function);
   }
 
-  if (function->HasOptimizedCode()) {
-    DCHECK(function->IsOptimized() || function->ChecksOptimizationMarker());
+  if (function->HasAvailableOptimizedCode()) {
+    DCHECK(function->HasAttachedOptimizedCode() ||
+           function->ChecksOptimizationMarker());
     // If function is already optimized, remove the bytecode array from the
     // pending optimize for test table and return.
     if (FLAG_testing_d8_test_runner) {
@@ -555,7 +557,7 @@ RUNTIME_FUNCTION(Runtime_GetOptimizationStatus) {
     status |= static_cast<int>(OptimizationStatus::kOptimizingConcurrently);
   }
 
-  if (function->IsOptimized()) {
+  if (function->HasAttachedOptimizedCode()) {
     if (function->code().marked_for_deoptimization()) {
       status |= static_cast<int>(OptimizationStatus::kMarkedForDeoptimization);
     } else {
@@ -565,7 +567,7 @@ RUNTIME_FUNCTION(Runtime_GetOptimizationStatus) {
       status |= static_cast<int>(OptimizationStatus::kTurboFanned);
     }
   }
-  if (function->IsInterpreted()) {
+  if (function->ActiveTierIsIgnition()) {
     status |= static_cast<int>(OptimizationStatus::kInterpreted);
   }
 

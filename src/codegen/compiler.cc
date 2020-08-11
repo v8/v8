@@ -1006,8 +1006,7 @@ bool GetOptimizedCodeLater(std::unique_ptr<OptimizedCompilationJob> job,
     // Cached NCI code currently does not use the optimization marker field.
     function->SetOptimizationMarker(OptimizationMarker::kInOptimizationQueue);
   }
-  DCHECK(function->IsInterpreted() ||
-         (!function->is_compiled() && function->shared().IsInterpreted()));
+  DCHECK(function->ActiveTierIsIgnition());
   DCHECK(function->shared().HasBytecodeArray());
   return true;
 }
@@ -1734,11 +1733,11 @@ bool Compiler::Compile(Handle<SharedFunctionInfo> shared_info,
 // static
 bool Compiler::Compile(Handle<JSFunction> function, ClearExceptionFlag flag,
                        IsCompiledScope* is_compiled_scope) {
-  // We should never reach here if the function is already compiled or optimized
+  // We should never reach here if the function is already compiled or
+  // optimized.
   DCHECK(!function->is_compiled());
-  DCHECK(!function->IsOptimized());
   DCHECK(!function->HasOptimizationMarker());
-  DCHECK(!function->HasOptimizedCode());
+  DCHECK(!function->HasAvailableOptimizedCode());
 
   // Reset the JSFunction if we are recompiling due to the bytecode having been
   // flushed.
@@ -1829,7 +1828,7 @@ bool Compiler::CompileOptimized(Handle<JSFunction> function,
                                 ConcurrencyMode mode, CodeKind code_kind) {
   DCHECK(CodeKindIsOptimizedJSFunction(code_kind));
 
-  if (function->IsOptimized()) return true;
+  if (function->HasAttachedOptimizedCode()) return true;
 
   Isolate* isolate = function->GetIsolate();
   DCHECK(AllowCompilation::IsAllowed(isolate));
@@ -2984,8 +2983,8 @@ void Compiler::PostInstantiation(Handle<JSFunction> function) {
     }
 
     if (FLAG_always_opt && shared->allows_lazy_compilation() &&
-        !shared->optimization_disabled() && !function->IsOptimized() &&
-        !function->HasOptimizedCode()) {
+        !shared->optimization_disabled() &&
+        !function->HasAvailableOptimizedCode()) {
       JSFunction::EnsureFeedbackVector(function, &is_compiled_scope);
       function->MarkForOptimization(ConcurrencyMode::kNotConcurrent);
     }

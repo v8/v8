@@ -320,7 +320,7 @@ class V8_EXPORT_PRIVATE JSFunctionRef : public JSObjectRef {
   bool has_feedback_vector() const;
   bool has_initial_map() const;
   bool has_prototype() const;
-  bool IsOptimized() const;
+  bool HasAttachedOptimizedCode() const;
   bool PrototypeRequiresRuntimeLookup() const;
 
   void Serialize();

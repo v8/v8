@@ -333,7 +333,7 @@ TEST(FeedbackVectorPreservedAcrossRecompiles) {
 
   // Verify that the feedback is still "gathered" despite a recompilation
   // of the full code.
-  CHECK(f->IsOptimized());
+  CHECK(f->HasAttachedOptimizedCode());
   object = f->feedback_vector().Get(slot_for_a);
   {
     HeapObject heap_object;
@@ -413,8 +413,10 @@ TEST(OptimizedCodeSharing1) {
             env->Global()
                 ->Get(env.local(), v8_str("closure2"))
                 .ToLocalChecked())));
-    CHECK(fun1->IsOptimized() || !CcTest::i_isolate()->use_optimizer());
-    CHECK(fun2->IsOptimized() || !CcTest::i_isolate()->use_optimizer());
+    CHECK(fun1->HasAttachedOptimizedCode() ||
+          !CcTest::i_isolate()->use_optimizer());
+    CHECK(fun2->HasAttachedOptimizedCode() ||
+          !CcTest::i_isolate()->use_optimizer());
     CHECK_EQ(fun1->code(), fun2->code());
   }
 }
@@ -1053,7 +1055,7 @@ TEST(DecideToPretenureDuringCompilation) {
               .ToHandleChecked();
       Handle<JSFunction> bar = Handle<JSFunction>::cast(foo_obj);
 
-      CHECK(bar->IsOptimized());
+      CHECK(bar->HasAttachedOptimizedCode());
     }
   }
   isolate->Exit();

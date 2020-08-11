@@ -145,11 +145,6 @@ bool JSFunction::ActiveTierIsNCI() const {
   return result;
 }
 
-// TODO(jgruber): Replace these functions with the called functions.
-bool JSFunction::IsOptimized() { return HasAttachedOptimizedCode(); }
-bool JSFunction::HasOptimizedCode() { return HasAvailableOptimizedCode(); }
-bool JSFunction::IsInterpreted() { return ActiveTierIsIgnition(); }
-
 bool JSFunction::HasOptimizationMarker() {
   return has_feedback_vector() && feedback_vector().has_optimization_marker();
 }
@@ -187,7 +182,7 @@ void JSFunction::CompleteInobjectSlackTrackingIfActive() {
 }
 
 AbstractCode JSFunction::abstract_code() {
-  if (IsInterpreted()) {
+  if (ActiveTierIsIgnition()) {
     return AbstractCode::cast(shared().GetBytecodeArray());
   } else {
     return AbstractCode::cast(code());
@@ -242,7 +237,7 @@ void JSFunction::ClearOptimizedCodeSlot(const char* reason) {
 void JSFunction::SetOptimizationMarker(OptimizationMarker marker) {
   DCHECK(has_feedback_vector());
   DCHECK(ChecksOptimizationMarker());
-  DCHECK(!HasOptimizedCode());
+  DCHECK(!HasAvailableOptimizedCode());
 
   feedback_vector().SetOptimizationMarker(marker);
 }
@@ -463,10 +458,9 @@ void JSFunction::MarkForOptimization(ConcurrencyMode mode) {
     mode = ConcurrencyMode::kNotConcurrent;
   }
 
-  DCHECK(!is_compiled() || IsInterpreted());
+  DCHECK(!is_compiled() || ActiveTierIsIgnition());
   DCHECK(shared().IsInterpreted());
-  DCHECK(!IsOptimized());
-  DCHECK(!HasOptimizedCode());
+  DCHECK(!HasAvailableOptimizedCode());
   DCHECK(shared().allows_lazy_compilation() ||
          !shared().optimization_disabled());
 

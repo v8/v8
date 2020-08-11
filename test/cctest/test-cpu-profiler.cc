@@ -1150,7 +1150,7 @@ static void TickLines(bool optimize) {
       v8::Utils::OpenHandle(*GetFunction(env.local(), func_name)));
   CHECK(!func->shared().is_null());
   CHECK(!func->shared().abstract_code().is_null());
-  CHECK(!optimize || func->IsOptimized() ||
+  CHECK(!optimize || func->HasAttachedOptimizedCode() ||
         !CcTest::i_isolate()->use_optimizer());
   i::Handle<i::AbstractCode> code(func->abstract_code(), isolate);
   CHECK(!code->is_null());
@@ -3592,7 +3592,7 @@ int GetSourcePositionEntryCount(i::Isolate* isolate, const char* source,
   std::unordered_set<int64_t> raw_position_set;
   i::Handle<i::JSFunction> function = i::Handle<i::JSFunction>::cast(
       v8::Utils::OpenHandle(*CompileRun(source)));
-  if (function->IsInterpreted()) return -1;
+  if (function->ActiveTierIsIgnition()) return -1;
   i::Handle<i::Code> code(function->code(), isolate);
   i::SourcePositionTableIterator iterator(
       ByteArray::cast(code->source_position_table()));

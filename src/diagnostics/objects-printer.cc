@@ -1272,7 +1272,7 @@ void JSFunction::JSFunctionPrint(std::ostream& os) {  // NOLINT
 
   // Print Builtin name for builtin functions
   int builtin_index = code().builtin_index();
-  if (Builtins::IsBuiltinId(builtin_index) && !IsInterpreted()) {
+  if (Builtins::IsBuiltinId(builtin_index)) {
     os << "\n - builtin: " << isolate->builtins()->name(builtin_index);
   }
 
@@ -1284,7 +1284,7 @@ void JSFunction::JSFunctionPrint(std::ostream& os) {  // NOLINT
   os << "\n - kind: " << shared().kind();
   os << "\n - context: " << Brief(context());
   os << "\n - code: " << Brief(code());
-  if (IsInterpreted()) {
+  if (ActiveTierIsIgnition()) {
     os << "\n - interpreted";
     if (shared().HasBytecodeArray()) {
       os << "\n - bytecode: " << shared().GetBytecodeArray();

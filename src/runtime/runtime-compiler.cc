@@ -316,7 +316,7 @@ RUNTIME_FUNCTION(Runtime_CompileForOnStackReplacement) {
       // the function for non-concurrent compilation. We could arm the loops
       // early so the second execution uses the already compiled OSR code and
       // the optimization occurs concurrently off main thread.
-      if (!function->HasOptimizedCode() &&
+      if (!function->HasAvailableOptimizedCode() &&
           function->feedback_vector().invocation_count() > 1) {
         // If we're not already optimized, set to optimize non-concurrently on
         // the next call, otherwise we'd run unoptimized once more and
@@ -341,7 +341,7 @@ RUNTIME_FUNCTION(Runtime_CompileForOnStackReplacement) {
     PrintF(scope.file(), " at AST id %d]\n", ast_id.ToInt());
   }
 
-  if (!function->IsOptimized()) {
+  if (!function->HasAttachedOptimizedCode()) {
     function->set_code(function->shared().GetCode());
   }
   return Object();

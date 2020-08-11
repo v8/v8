@@ -174,7 +174,7 @@ bool RuntimeProfiler::MaybeOSR(JSFunction function, InterpretedFrame* frame) {
 
   if (function.IsMarkedForOptimization() ||
       function.IsMarkedForConcurrentOptimization() ||
-      function.HasOptimizedCode()) {
+      function.HasAvailableOptimizedCode()) {
     // Attempt OSR if we are still running interpreted code even though the
     // the function has long been marked or even already been optimized.
     int64_t allowance =
@@ -190,7 +190,9 @@ bool RuntimeProfiler::MaybeOSR(JSFunction function, InterpretedFrame* frame) {
 
 OptimizationReason RuntimeProfiler::ShouldOptimize(JSFunction function,
                                                    BytecodeArray bytecode) {
-  if (function.HasOptimizedCode()) return OptimizationReason::kDoNotOptimize;
+  if (function.HasAvailableOptimizedCode()) {
+    return OptimizationReason::kDoNotOptimize;
+  }
   int ticks = function.feedback_vector().profiler_ticks();
   int ticks_for_optimization =
       kProfilerTicksBeforeOptimization +

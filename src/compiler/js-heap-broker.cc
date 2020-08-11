@@ -615,7 +615,7 @@ class JSFunctionData : public JSObjectData {
   bool has_feedback_vector() const { return has_feedback_vector_; }
   bool has_initial_map() const { return has_initial_map_; }
   bool has_prototype() const { return has_prototype_; }
-  bool IsOptimized() const { return is_optimized_; }
+  bool HasAttachedOptimizedCode() const { return has_attached_optimized_code_; }
   bool PrototypeRequiresRuntimeLookup() const {
     return PrototypeRequiresRuntimeLookup_;
   }
@@ -639,7 +639,7 @@ class JSFunctionData : public JSObjectData {
   bool has_feedback_vector_;
   bool has_initial_map_;
   bool has_prototype_;
-  bool is_optimized_;
+  bool has_attached_optimized_code_;
   bool PrototypeRequiresRuntimeLookup_;
 
   bool serialized_ = false;
@@ -1270,7 +1270,7 @@ JSFunctionData::JSFunctionData(JSHeapBroker* broker, ObjectData** storage,
       has_initial_map_(object->has_prototype_slot() &&
                        object->has_initial_map()),
       has_prototype_(object->has_prototype_slot() && object->has_prototype()),
-      is_optimized_(object->IsOptimized()),
+      has_attached_optimized_code_(object->HasAttachedOptimizedCode()),
       PrototypeRequiresRuntimeLookup_(
           object->PrototypeRequiresRuntimeLookup()) {}
 
@@ -3402,7 +3402,7 @@ BIMODAL_ACCESSOR_C(JSDataView, size_t, byte_offset)
 BIMODAL_ACCESSOR_C(JSFunction, bool, has_feedback_vector)
 BIMODAL_ACCESSOR_C(JSFunction, bool, has_initial_map)
 BIMODAL_ACCESSOR_C(JSFunction, bool, has_prototype)
-BIMODAL_ACCESSOR_C(JSFunction, bool, IsOptimized)
+BIMODAL_ACCESSOR_C(JSFunction, bool, HasAttachedOptimizedCode)
 BIMODAL_ACCESSOR_C(JSFunction, bool, PrototypeRequiresRuntimeLookup)
 BIMODAL_ACCESSOR(JSFunction, Context, context)
 BIMODAL_ACCESSOR(JSFunction, NativeContext, native_context)

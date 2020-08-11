@@ -2259,7 +2259,7 @@ TEST(InstanceOfStubWriteBarrier) {
       v8::Utils::OpenHandle(*v8::Local<v8::Function>::Cast(
           CcTest::global()->Get(ctx, v8_str("f")).ToLocalChecked())));
 
-  CHECK(f->IsOptimized());
+  CHECK(f->HasAttachedOptimizedCode());
 
   IncrementalMarking::MarkingState* marking_state = marking->marking_state();
 
