@@ -1615,13 +1615,10 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
                                   parameter_mode, CheckBounds::kDebugOnly);
   }
 
-  void StorePropertyArrayElement(
-      TNode<PropertyArray> array, Node* index, SloppyTNode<Object> value,
-      WriteBarrierMode barrier_mode = UPDATE_WRITE_BARRIER,
-      int additional_offset = 0,
-      ParameterMode parameter_mode = INTPTR_PARAMETERS) {
-    StoreFixedArrayOrPropertyArrayElement(array, index, value, barrier_mode,
-                                          additional_offset, parameter_mode);
+  void StorePropertyArrayElement(TNode<PropertyArray> array,
+                                 TNode<IntPtrT> index, TNode<Object> value) {
+    StoreFixedArrayOrPropertyArrayElement(
+        array, index, value, UPDATE_WRITE_BARRIER, 0, INTPTR_PARAMETERS);
   }
 
   void StoreFixedArrayElement(
