@@ -132,14 +132,6 @@ WasmInterpretationResult InterpretWasmModuleForTesting(
   return GetInterpretationResult(isolate, interpreter, interpreter_result);
 }
 
-int32_t RunWasmModuleForTesting(Isolate* isolate,
-                                Handle<WasmInstanceObject> instance, int argc,
-                                Handle<Object> argv[]) {
-  ErrorThrower thrower(isolate, "RunWasmModule");
-  return CallWasmFunctionForTesting(isolate, instance, &thrower, "main", argc,
-                                    argv);
-}
-
 int32_t CompileAndRunWasmModule(Isolate* isolate, const byte* module_start,
                                 const byte* module_end) {
   HandleScope scope(isolate);
@@ -149,8 +141,8 @@ int32_t CompileAndRunWasmModule(Isolate* isolate, const byte* module_start,
   if (instance.is_null()) {
     return -1;
   }
-  return RunWasmModuleForTesting(isolate, instance.ToHandleChecked(), 0,
-                                 nullptr);
+  return CallWasmFunctionForTesting(isolate, instance.ToHandleChecked(), "main",
+                                    0, nullptr);
 }
 
 WasmInterpretationResult InterpretWasmModule(
@@ -191,8 +183,8 @@ MaybeHandle<WasmExportedFunction> GetExportedFunction(
 
 int32_t CallWasmFunctionForTesting(Isolate* isolate,
                                    Handle<WasmInstanceObject> instance,
-                                   ErrorThrower* thrower, const char* name,
-                                   int argc, Handle<Object> argv[]) {
+                                   const char* name, int argc,
+                                   Handle<Object> argv[]) {
   MaybeHandle<WasmExportedFunction> maybe_export =
       GetExportedFunction(isolate, instance, name);
   Handle<WasmExportedFunction> main_export;
@@ -209,7 +201,6 @@ int32_t CallWasmFunctionForTesting(Isolate* isolate,
   if (retval.is_null()) {
     DCHECK(isolate->has_pending_exception());
     isolate->clear_pending_exception();
-    thrower->RuntimeError("Calling exported wasm function failed.");
     return -1;
   }
   Handle<Object> result = retval.ToHandleChecked();
@@ -219,8 +210,6 @@ int32_t CallWasmFunctionForTesting(Isolate* isolate,
   if (result->IsHeapNumber()) {
     return static_cast<int32_t>(HeapNumber::cast(*result).value());
   }
-  thrower->RuntimeError(
-      "Calling exported wasm function failed: Return value should be number");
   return -1;
 }
 

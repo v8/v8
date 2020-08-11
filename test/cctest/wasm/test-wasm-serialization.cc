@@ -99,7 +99,7 @@ class WasmSerializationTest {
     Handle<Object> params[1] = {
         Handle<Object>(Smi::FromInt(41), CcTest::i_isolate())};
     int32_t result = testing::CallWasmFunctionForTesting(
-        CcTest::i_isolate(), instance, &thrower, kFunctionName, 1, params);
+        CcTest::i_isolate(), instance, kFunctionName, 1, params);
     CHECK_EQ(42, result);
   }
 

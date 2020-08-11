@@ -34,8 +34,8 @@ MaybeHandle<WasmExportedFunction> GetExportedFunction(
 // returning.
 int32_t CallWasmFunctionForTesting(Isolate* isolate,
                                    Handle<WasmInstanceObject> instance,
-                                   ErrorThrower* thrower, const char* name,
-                                   int argc, Handle<Object> argv[]);
+                                   const char* name, int argc,
+                                   Handle<Object> argv[]);
 
 // Decode, verify, and run the function labeled "main" in the
 // given encoded module. The module should have no imports.
@@ -104,11 +104,6 @@ WasmInterpretationResult InterpretWasmModule(
 WasmInterpretationResult InterpretWasmModuleForTesting(
     Isolate* isolate, Handle<WasmInstanceObject> instance, size_t argc,
     WasmValue* args);
-
-// Runs the module instance with arguments.
-int32_t RunWasmModuleForTesting(Isolate* isolate,
-                                Handle<WasmInstanceObject> instance, int argc,
-                                Handle<Object> argv[]);
 
 // Install function map, module symbol for testing
 void SetupIsolateForWasmModule(Isolate* isolate);

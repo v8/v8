@@ -71,8 +71,9 @@ void InterpretAndExecuteModule(i::Isolate* isolate,
     thrower.Reset();  // Ignore errors.
     return;
   }
-  int32_t result_compiled =
-      testing::RunWasmModuleForTesting(isolate, instance, 0, nullptr);
+
+  int32_t result_compiled = testing::CallWasmFunctionForTesting(
+      isolate, instance, "main", 0, nullptr);
   if (interpreter_result.trapped() != isolate->has_pending_exception()) {
     const char* exception_text[] = {"no exception", "exception"};
     FATAL("interpreter: %s; compiled: %s",
@@ -398,11 +399,11 @@ void WasmExecutionFuzzer::FuzzWasmModule(Vector<const uint8_t> data,
         i_isolate->wasm_engine()->SyncInstantiate(
             i_isolate, &compiler_thrower, compiled_module.ToHandleChecked(),
             MaybeHandle<JSReceiver>(), MaybeHandle<JSArrayBuffer>());
-
     DCHECK(!compiler_thrower.error());
+
     result_compiled = testing::CallWasmFunctionForTesting(
-        i_isolate, compiled_instance.ToHandleChecked(), &compiler_thrower,
-        "main", num_args, compiler_args.get());
+        i_isolate, compiled_instance.ToHandleChecked(), "main", num_args,
+        compiler_args.get());
   }
 
   if (interpreter_result.trapped() != i_isolate->has_pending_exception()) {
