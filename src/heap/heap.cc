@@ -4396,9 +4396,10 @@ void Heap::set_builtin(int index, Code builtin) {
 void Heap::IterateWeakRoots(RootVisitor* v, base::EnumSet<SkipRoot> options) {
   DCHECK(!options.contains(SkipRoot::kWeak));
 
-  if (!options.contains(SkipRoot::kUnserializable)) {
+  if (!options.contains(SkipRoot::kOldGeneration) &&
+      !options.contains(SkipRoot::kUnserializable)) {
     // Do not visit for serialization, since the string table is custom
-    // serialized.
+    // serialized. Also do not visit if we are skipping old generation.
     isolate()->string_table()->IterateElements(v);
   }
   v->Synchronize(VisitorSynchronization::kStringTable);
