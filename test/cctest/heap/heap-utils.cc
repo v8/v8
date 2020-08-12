@@ -206,6 +206,7 @@ void AbandonCurrentlyFreeMemory(PagedSpace* space) {
 void GcAndSweep(Heap* heap, AllocationSpace space) {
   heap->CollectGarbage(space, GarbageCollectionReason::kTesting);
   if (heap->mark_compact_collector()->sweeping_in_progress()) {
+    SafepointScope scope(heap);
     heap->mark_compact_collector()->EnsureSweepingCompleted();
   }
 }
