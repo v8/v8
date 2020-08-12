@@ -77,15 +77,13 @@ struct PropertyAccessTarget {
 class V8_EXPORT_PRIVATE JSHeapBroker {
  public:
   JSHeapBroker(Isolate* isolate, Zone* broker_zone, bool tracing_enabled,
-               bool is_concurrent_inlining, bool is_native_context_independent,
-               std::unique_ptr<PersistentHandles> persistent_handles);
+               bool is_concurrent_inlining, bool is_native_context_independent);
 
   // For use only in tests, sets default values for some arguments. Avoids
   // churn when new flags are added.
-  JSHeapBroker(Isolate* isolate, Zone* broker_zone,
-               std::unique_ptr<PersistentHandles> persistent_handles)
-      : JSHeapBroker(isolate, broker_zone, FLAG_trace_heap_broker, false, false,
-                     std::move(persistent_handles)) {}
+  JSHeapBroker(Isolate* isolate, Zone* broker_zone)
+      : JSHeapBroker(isolate, broker_zone, FLAG_trace_heap_broker, false,
+                     false) {}
 
   ~JSHeapBroker();
 

@@ -2405,10 +2405,9 @@ SourceTextModuleRef ContextRef::GetModule(SerializationPolicy policy) const {
       .AsSourceTextModule();
 }
 
-JSHeapBroker::JSHeapBroker(
-    Isolate* isolate, Zone* broker_zone, bool tracing_enabled,
-    bool is_concurrent_inlining, bool is_native_context_independent,
-    std::unique_ptr<PersistentHandles> persistent_handles)
+JSHeapBroker::JSHeapBroker(Isolate* isolate, Zone* broker_zone,
+                           bool tracing_enabled, bool is_concurrent_inlining,
+                           bool is_native_context_independent)
     : isolate_(isolate),
       zone_(broker_zone),
       refs_(zone()->New<RefsMap>(kMinimalRefsBucketCount, AddressMatcher(),
@@ -2418,7 +2417,6 @@ JSHeapBroker::JSHeapBroker(
       tracing_enabled_(tracing_enabled),
       is_concurrent_inlining_(is_concurrent_inlining),
       is_native_context_independent_(is_native_context_independent),
-      ph_(std::move(persistent_handles)),
       local_heap_(base::nullopt),
       feedback_(zone()),
       bytecode_analyses_(zone()),

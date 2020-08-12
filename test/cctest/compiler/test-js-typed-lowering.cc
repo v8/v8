@@ -28,7 +28,7 @@ class JSTypedLoweringTester : public HandleAndZoneScope {
       : HandleAndZoneScope(kCompressGraphZone),
         isolate(main_isolate()),
         canonical(isolate),
-        js_heap_broker(isolate, main_zone(), isolate->NewPersistentHandles()),
+        js_heap_broker(isolate, main_zone()),
         binop(nullptr),
         unop(nullptr),
         javascript(main_zone()),

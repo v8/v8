@@ -34,8 +34,7 @@ class ContextSpecializationTester : public HandleAndZoneScope {
         jsgraph_(main_isolate(), graph(), common(), &javascript_, &simplified_,
                  &machine_),
         reducer_(main_zone(), graph(), &tick_counter_),
-        js_heap_broker_(main_isolate(), main_zone(),
-                        main_isolate()->NewPersistentHandles()),
+        js_heap_broker_(main_isolate(), main_zone()),
         spec_(&reducer_, jsgraph(), &js_heap_broker_, context,
               MaybeHandle<JSFunction>()) {}
 
