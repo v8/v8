@@ -32,6 +32,11 @@ Handle<String> JSSegmentIterator::GranularityAsString(Isolate* isolate) const {
 MaybeHandle<JSSegmentIterator> JSSegmentIterator::Create(
     Isolate* isolate, icu::BreakIterator* break_iterator,
     JSSegmenter::Granularity granularity) {
+  // Clone a copy for both the ownership and not sharing with containing and
+  // other calls to the iterator because icu::BreakIterator keep the iteration
+  // position internally and cannot be shared across multiple calls to
+  // JSSegmentIterator::Create and JSSegments::Containing.
+  break_iterator = break_iterator->clone();
   DCHECK_NOT_NULL(break_iterator);
   Handle<Map> map = Handle<Map>(
       isolate->native_context()->intl_segment_iterator_map(), isolate);

@@ -37,14 +37,6 @@ class JSSegments : public TorqueGeneratedJSSegments<JSSegments, JSObject> {
   V8_WARN_UNUSED_RESULT static MaybeHandle<Object> Containing(
       Isolate* isolate, Handle<JSSegments> segments_holder, int32_t index);
 
-  // ecma402 #sec-%segmentsprototype%-@@iterator
-  V8_WARN_UNUSED_RESULT static MaybeHandle<Object> CreateSegmentIterator(
-      Isolate* isolate, Handle<JSSegments> segments_holder);
-
-  // ecma402 #sec-get-%segmentsprototype%.string
-  V8_WARN_UNUSED_RESULT static MaybeHandle<String> GetString(
-      Isolate* isolate, Handle<JSSegments> segments_holder);
-
   // ecma402 #sec-createsegmentdataobject
   V8_WARN_UNUSED_RESULT static MaybeHandle<Object> CreateSegmentDataObject(
       Isolate* isolate, JSSegmenter::Granularity granularity,

@@ -1044,7 +1044,9 @@ BUILTIN(SegmentsPrototypeIterator) {
   HandleScope scope(isolate);
   CHECK_RECEIVER(JSSegments, segments, method);
   RETURN_RESULT_OR_FAILURE(
-      isolate, JSSegments::CreateSegmentIterator(isolate, segments));
+      isolate,
+      JSSegmentIterator::Create(isolate, segments->icu_break_iterator().raw(),
+                                segments->granularity()));
 }
 
 BUILTIN(V8BreakIteratorConstructor) {

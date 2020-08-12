@@ -57,14 +57,6 @@ MaybeHandle<JSSegments> JSSegments::Create(Isolate* isolate,
   return segments;
 }
 
-// ecma402 #sec-createsegmentiterator
-MaybeHandle<Object> JSSegments::CreateSegmentIterator(
-    Isolate* isolate, Handle<JSSegments> segments) {
-  return JSSegmentIterator::Create(
-      isolate, segments->icu_break_iterator().raw()->clone(),
-      segments->granularity());
-}
-
 // ecma402 #sec-%segmentsprototype%.containing
 MaybeHandle<Object> JSSegments::Containing(Isolate* isolate,
                                            Handle<JSSegments> segments,
