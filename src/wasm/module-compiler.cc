@@ -500,6 +500,8 @@ class CompilationStateImpl {
 
   void SetError();
 
+  void WaitForBaselineFinished();
+
   bool failed() const {
     return compile_failed_.load(std::memory_order_relaxed);
   }
@@ -533,11 +535,6 @@ class CompilationStateImpl {
     base::MutexGuard guard(&mutex_);
     DCHECK_NOT_NULL(wire_bytes_storage_);
     return wire_bytes_storage_;
-  }
-
-  const std::shared_ptr<BackgroundCompileToken>& background_compile_token()
-      const {
-    return background_compile_token_;
   }
 
  private:
@@ -688,7 +685,12 @@ void CompilationState::AddCallback(CompilationState::callback_t callback) {
   return Impl(this)->AddCallback(std::move(callback));
 }
 
+void CompilationState::WaitForBaselineFinished() {
+  Impl(this)->WaitForBaselineFinished();
+}
+
 void CompilationState::WaitForTopTierFinished() {
+  // TODO(clemensb): Contribute to compilation while waiting.
   auto top_tier_finished_semaphore = std::make_shared<base::Semaphore>(0);
   AddCallback([top_tier_finished_semaphore](CompilationEvent event) {
     if (event == CompilationEvent::kFailedCompilation ||
@@ -1071,7 +1073,7 @@ CompilationExecutionResult ExecuteJSToWasmWrapperCompilationUnits(
   while (true) {
     wrapper_unit->Execute();
     ++num_processed_wrappers;
-    bool yield = delegate->ShouldYield();
+    bool yield = delegate && delegate->ShouldYield();
     BackgroundCompileScope compile_scope(token);
     if (compile_scope.cancelled()) return kNoMoreUnits;
     if (yield ||
@@ -1179,7 +1181,7 @@ CompilationExecutionResult ExecuteCompilationUnits(
         wasm_engine, &env.value(), wire_bytes, counters, &detected_features);
     results_to_publish.emplace_back(std::move(result));
 
-    bool yield = delegate->ShouldYield();
+    bool yield = delegate && delegate->ShouldYield();
 
     // (synchronized): Publish the compilation result and get the next unit.
     {
@@ -1377,18 +1379,8 @@ void CompileNativeModule(Isolate* isolate, ErrorThrower* thrower,
 
   DCHECK_GE(kMaxInt, native_module->module()->num_declared_functions);
 
-  // Install a callback to notify us once background compilation finished, or
-  // compilation failed.
-  auto baseline_finished_semaphore = std::make_shared<base::Semaphore>(0);
   // The callback captures a shared ptr to the semaphore.
   auto* compilation_state = Impl(native_module->compilation_state());
-  compilation_state->AddCallback(
-      [baseline_finished_semaphore](CompilationEvent event) {
-        if (event == CompilationEvent::kFinishedBaselineCompilation ||
-            event == CompilationEvent::kFailedCompilation) {
-          baseline_finished_semaphore->Signal();
-        }
-      });
   if (base::TimeTicks::IsHighResolution()) {
     compilation_state->AddCallback(CompilationTimeCallback{
         isolate->async_counters(), CompilationTimeCallback::kSynchronous});
@@ -1397,9 +1389,7 @@ void CompileNativeModule(Isolate* isolate, ErrorThrower* thrower,
   // Initialize the compilation units and kick off background compile tasks.
   InitializeCompilationUnits(isolate, native_module);
 
-  // Now wait until baseline compilation finished.
-  // TODO(clemensb): Contribute to compilation while waiting.
-  baseline_finished_semaphore->Wait();
+  compilation_state->WaitForBaselineFinished();
 
   compilation_state->PublishDetectedFeatures(isolate);
 
@@ -2525,12 +2515,14 @@ CompilationStateImpl::CompilationStateImpl(
                         : CompileMode::kRegular),
       async_counters_(std::move(async_counters)),
       max_compile_concurrency_(std::max(GetMaxCompileConcurrency(), 1)),
-      compilation_unit_queues_(max_compile_concurrency_),
-      available_task_ids_(max_compile_concurrency_) {
-  for (int i = 0; i < max_compile_concurrency_; ++i) {
+      // Add one to the allowed number of parallel tasks, because the foreground
+      // task sometimes also contributes.
+      compilation_unit_queues_(max_compile_concurrency_ + 1),
+      available_task_ids_(max_compile_concurrency_ + 1) {
+  for (int i = 0; i <= max_compile_concurrency_; ++i) {
     // Ids are popped on task creation, so reverse this list. This ensures that
     // the first background task gets id 0.
-    available_task_ids_[i] = max_compile_concurrency_ - 1 - i;
+    available_task_ids_[i] = max_compile_concurrency_ - i;
   }
 }
 
@@ -2910,12 +2902,12 @@ int CompilationStateImpl::GetFreeCompileTaskId() {
 
 void CompilationStateImpl::OnCompilationStopped(int task_id,
                                                 const WasmFeatures& detected) {
-  DCHECK_GT(max_compile_concurrency_, task_id);
+  DCHECK_GE(max_compile_concurrency_, task_id);
   base::MutexGuard guard(&mutex_);
   DCHECK_EQ(0, std::count(available_task_ids_.begin(),
                           available_task_ids_.end(), task_id));
   available_task_ids_.push_back(task_id);
-  DCHECK_GE(max_compile_concurrency_, available_task_ids_.size());
+  DCHECK_GE(max_compile_concurrency_ + 1, available_task_ids_.size());
   detected_features_.Add(detected);
 }
 
@@ -2980,6 +2972,25 @@ void CompilationStateImpl::SetError() {
 
   base::MutexGuard callbacks_guard(&callbacks_mutex_);
   TriggerCallbacks();
+}
+
+void CompilationStateImpl::WaitForBaselineFinished() {
+  auto baseline_finished_semaphore = std::make_shared<base::Semaphore>(0);
+  AddCallback([baseline_finished_semaphore](CompilationEvent event) {
+    if (event == CompilationEvent::kFinishedBaselineCompilation ||
+        event == CompilationEvent::kFailedCompilation) {
+      baseline_finished_semaphore->Signal();
+    }
+  });
+
+  // Execute baseline compilation units, as long as there are any available.
+  constexpr JobDelegate* kNoDelegate = nullptr;
+  ExecuteCompilationUnits(background_compile_token_, async_counters_.get(),
+                          kNoDelegate, kBaselineOnly);
+
+  // Now wait until baseline compilation finished (other threads might still be
+  // running baseline units).
+  baseline_finished_semaphore->Wait();
 }
 
 namespace {

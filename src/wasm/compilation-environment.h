@@ -117,7 +117,10 @@ class V8_EXPORT_PRIVATE CompilationState {
 
   void AddCallback(callback_t);
 
-  // Wait until top tier finished, or compilation failed (to avoid deadlocks).
+  // Wait until baseline compilation finished, or compilation failed.
+  void WaitForBaselineFinished();
+
+  // Wait until top tier compilation finished, or compilation failed.
   void WaitForTopTierFinished();
 
   bool failed() const;
