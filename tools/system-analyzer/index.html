@@ -89,6 +89,21 @@ found in the LICENSE file. -->
   .slider.round:before {
     border-radius: 50%;
   }
+
+  #container.initial {
+    display: none;
+  }
+
+  #container.loaded {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(500px, 1fr));
+    grid-auto-flow: dense;
+  }
+
+  #container.loaded > #timeline-panel {
+    grid-column: span 2;
+  }
+
 </style>
 <script type="module" >
 import {App} from  './index.mjs';
@@ -104,7 +119,7 @@ globalThis.app = new App("#log-file-reader", "#map-panel", "#timeline-panel",
       <log-file-reader id="log-file-reader"></log-file-reader>
       <br></br>
     </section>
-    <div id="container" style="display: none;">
+    <div id="container" class="initial">
       <timeline-panel id="timeline-panel">
         <timeline-track id="map-track"></timeline-track>
         <timeline-track id="ic-track"></timeline-track>
@@ -121,7 +136,9 @@ globalThis.app = new App("#log-file-reader", "#map-panel", "#timeline-panel",
   </div>
   <div id="instructions">
     <h2>Instructions</h2>
-    <p>Unified web interface for analyzing the trace information of the Maps/ICs</p>
+    <p>
+      Unified web interface for analyzing the trace information of the Maps/ICs
+    </p>
     <ul>
       <li> Visualize Map trees that have gathered</li>
       <li><code> /path/to/d8 --trace-maps $FILE</code></li>

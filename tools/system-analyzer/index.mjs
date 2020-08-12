@@ -3,19 +3,25 @@
 // found in the LICENSE file.
 
 import CustomIcProcessor from "./ic-processor.mjs";
-import {Entry} from "./ic-processor.mjs";
-import {State} from './app-model.mjs';
-import {MapProcessor, V8Map} from './map-processor.mjs';
-import {$} from './helper.mjs';
-import './ic-panel.mjs';
-import './timeline-panel.mjs';
-import './map-panel.mjs';
-import './log-file-reader.mjs';
+import { Entry } from "./ic-processor.mjs";
+import { State } from "./app-model.mjs";
+import { MapProcessor, V8Map } from "./map-processor.mjs";
+import { $ } from "./helper.mjs";
+import "./ic-panel.mjs";
+import "./timeline-panel.mjs";
+import "./map-panel.mjs";
+import "./log-file-reader.mjs";
 class App {
-  #state
+  #state;
   #view;
-  constructor(fileReaderId, mapPanelId, timelinePanelId,
-      icPanelId, mapTrackId, icTrackId) {
+  constructor(
+    fileReaderId,
+    mapPanelId,
+    timelinePanelId,
+    icPanelId,
+    mapTrackId,
+    icTrackId
+  ) {
     this.#view = {
       logFileReader: $(fileReaderId),
       icPanel: $(icPanelId),
@@ -23,67 +29,68 @@ class App {
       timelinePanel: $(timelinePanelId),
       mapTrack: $(mapTrackId),
       icTrack: $(icTrackId),
-    }
+    };
     this.#state = new State();
     this.toggleSwitch = $('.theme-switch input[type="checkbox"]');
-    this.toggleSwitch.addEventListener('change', e => this.switchTheme(e));
-    this.#view.logFileReader.addEventListener('fileuploadstart',
-      e => this.handleFileUpload(e));
-    this.#view.logFileReader.addEventListener('fileuploadend',
-      e => this.handleDataUpload(e));
+    this.toggleSwitch.addEventListener("change", (e) => this.switchTheme(e));
+    this.#view.logFileReader.addEventListener("fileuploadstart", (e) =>
+      this.handleFileUpload(e)
+    );
+    this.#view.logFileReader.addEventListener("fileuploadend", (e) =>
+      this.handleDataUpload(e)
+    );
     Object.entries(this.#view).forEach(([_, value]) => {
-      value.addEventListener('showentries',
-        e => this.handleShowEntries(e));
-      value.addEventListener('showentrydetail',
-        e => this.handleShowEntryDetail(e));
+      value.addEventListener("showentries", (e) => this.handleShowEntries(e));
+      value.addEventListener("showentrydetail", (e) =>
+        this.handleShowEntryDetail(e)
+      );
     });
-    this.#view.icPanel.addEventListener(
-      'ictimefilter', e => this.handleICTimeFilter(e));
+    this.#view.icPanel.addEventListener("ictimefilter", (e) =>
+      this.handleICTimeFilter(e)
+    );
   }
-  handleShowEntries(e){
-    if(e.entries[0] instanceof V8Map){
+  handleShowEntries(e) {
+    if (e.entries[0] instanceof V8Map) {
       this.#view.mapPanel.mapEntries = e.entries;
     }
   }
-  handleShowEntryDetail(e){
-    if(e.entry instanceof V8Map){
+  handleShowEntryDetail(e) {
+    if (e.entry instanceof V8Map) {
       this.selectMapLogEvent(e.entry);
-    }
-    else if(e.entry instanceof Entry){
+    } else if (e.entry instanceof Entry) {
       this.selectICLogEvent(e.entry);
-    }
-    else if(typeof e.entry === 'string'){
+    } else if (typeof e.entry === "string") {
       this.selectSourcePositionEvent(e.entry);
-    }
-    else {
+    } else {
       console.log("undefined");
     }
   }
-  handleClickSourcePositions(e){
+  handleClickSourcePositions(e) {
     //TODO(zcankara) Handle source position
     console.log("Entry containing source position: ", e.entries);
   }
-  selectMapLogEvent(entry){
+  selectMapLogEvent(entry) {
     this.#state.map = entry;
     this.#view.mapTrack.selectedEntry = entry;
     this.#view.mapPanel.map = entry;
   }
-  selectICLogEvent(entry){
+  selectICLogEvent(entry) {
     console.log("IC Entry selection");
   }
-  selectSourcePositionEvent(sourcePositions){
+  selectSourcePositionEvent(sourcePositions) {
     console.log("source positions: ", sourcePositions);
   }
   handleICTimeFilter(event) {
     this.#state.timeSelection.start = event.detail.startTime;
     this.#state.timeSelection.end = event.detail.endTime;
-    this.#view.icTrack.data.selectTimeRange(this.#state.timeSelection.start,
-      this.#state.timeSelection.end);
+    this.#view.icTrack.data.selectTimeRange(
+      this.#state.timeSelection.start,
+      this.#state.timeSelection.end
+    );
     this.#view.icPanel.filteredEntries = this.#view.icTrack.data.selection;
   }
-  handleFileUpload(e){
-    //TODO(zcankara) Set a state on the document.body. Exe: .loading, .loaded
-    $('#container').style.display = 'none';
+  handleFileUpload(e) {
+    $("#container").className = "initial";
   }
   // Map event log processing
   handleLoadTextMapProcessor(text) {
@@ -102,15 +109,15 @@ class App {
       this.#view.icTrack.data = this.#state.icTimeline;
       this.#view.icPanel.filteredEntries = this.#view.icTrack.data.all;
       this.#view.icPanel.count.innerHTML = this.#view.icTrack.data.all.length;
-    }
+    };
     reader.readAsText(fileData.file);
     this.#view.icPanel.initGroupKeySelect();
   }
 
   // call when a new file uploaded
   handleDataUpload(e) {
-    if(!e.detail) return;
-    $('#container').style.display = 'block';
+    if (!e.detail) return;
+    $("#container").className = "loaded";
     // instantiate the app logic
     let fileData = e.detail;
     try {
@@ -128,19 +135,19 @@ class App {
     this.fileLoaded = true;
   }
 
-  refreshTimelineTrackView(){
+  refreshTimelineTrackView() {
     this.#view.mapTrack.data = this.#state.mapTimeline;
     this.#view.icTrack.data = this.#state.icTimeline;
   }
 
   switchTheme(event) {
-    document.documentElement.dataset.theme =
-      event.target.checked ? 'light' : 'dark';
-    if(this.fileLoaded) {
+    document.documentElement.dataset.theme = event.target.checked
+      ? "light"
+      : "dark";
+    if (this.fileLoaded) {
       this.refreshTimelineTrackView();
     }
   }
 }
 
-
-export {App};
+export { App };

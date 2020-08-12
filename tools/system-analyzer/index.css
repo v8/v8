@@ -80,6 +80,15 @@ dd {
   margin: auto;
   overflow-x: scroll;
 }
+button {
+  cursor: pointer;
+}
+input,
+select,
+button {
+  background-color: var(--surface-color);
+  color: var(--on-surface-color);
+}
 .colorbox {
   width: 10px;
   height: 10px;
