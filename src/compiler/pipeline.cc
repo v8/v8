@@ -2245,16 +2245,6 @@ struct MergeSplintersPhase {
   }
 };
 
-
-struct LocateSpillSlotsPhase {
-  DECL_PIPELINE_PHASE_CONSTANTS(LocateSpillSlots)
-
-  void Run(PipelineData* data, Zone* temp_zone) {
-    SpillSlotLocator locator(data->top_tier_register_allocation_data());
-    locator.LocateSpillSlots();
-  }
-};
-
 struct DecideSpillingModePhase {
   DECL_PIPELINE_PHASE_CONSTANTS(DecideSpillingMode)
 
@@ -3701,15 +3691,16 @@ void PipelineImpl::AllocateRegistersForTopTier(
     verifier->VerifyAssignment("Immediately after CommitAssignmentPhase.");
   }
 
-  Run<PopulateReferenceMapsPhase>();
 
   Run<ConnectRangesPhase>();
 
   Run<ResolveControlFlowPhase>();
+
+  Run<PopulateReferenceMapsPhase>();
+
   if (FLAG_turbo_move_optimization) {
     Run<OptimizeMovesPhase>();
   }
-  Run<LocateSpillSlotsPhase>();
 
   TraceSequence(info(), data, "after register allocation");
 

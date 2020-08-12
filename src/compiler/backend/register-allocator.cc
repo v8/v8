@@ -10,6 +10,7 @@
 #include "src/base/small-vector.h"
 #include "src/codegen/assembler-inl.h"
 #include "src/codegen/tick-counter.h"
+#include "src/compiler/backend/spill-placer.h"
 #include "src/compiler/linkage.h"
 #include "src/strings/string-stream.h"
 #include "src/utils/vector.h"
@@ -52,145 +53,94 @@ Instruction* GetLastInstruction(InstructionSequence* code,
 
 }  // namespace
 
-class LiveRangeBound {
- public:
-  explicit LiveRangeBound(LiveRange* range, bool skip)
-      : range_(range), start_(range->Start()), end_(range->End()), skip_(skip) {
-    DCHECK(!range->IsEmpty());
+void LiveRangeBoundArray::Initialize(Zone* zone, TopLevelLiveRange* range) {
+  size_t max_child_count = range->GetMaxChildCount();
+
+  start_ = zone->NewArray<LiveRangeBound>(max_child_count);
+  length_ = 0;
+  LiveRangeBound* curr = start_;
+  // The primary loop in ResolveControlFlow is not responsible for inserting
+  // connecting moves for spilled ranges.
+  for (LiveRange* i = range; i != nullptr; i = i->next(), ++curr, ++length_) {
+    new (curr) LiveRangeBound(i, i->spilled());
   }
+}
 
-  bool CanCover(LifetimePosition position) {
-    return start_ <= position && position < end_;
-  }
-
-  LiveRange* const range_;
-  const LifetimePosition start_;
-  const LifetimePosition end_;
-  const bool skip_;
-
- private:
-  DISALLOW_COPY_AND_ASSIGN(LiveRangeBound);
-};
-
-struct FindResult {
-  LiveRange* cur_cover_;
-  LiveRange* pred_cover_;
-};
-
-class LiveRangeBoundArray {
- public:
-  LiveRangeBoundArray() : length_(0), start_(nullptr) {}
-
-  bool ShouldInitialize() { return start_ == nullptr; }
-
-  void Initialize(Zone* zone, TopLevelLiveRange* range) {
-    size_t max_child_count = range->GetMaxChildCount();
-
-    start_ = zone->NewArray<LiveRangeBound>(max_child_count);
-    length_ = 0;
-    LiveRangeBound* curr = start_;
-    // Normally, spilled ranges do not need connecting moves, because the spill
-    // location has been assigned at definition. For ranges spilled in deferred
-    // blocks, that is not the case, so we need to connect the spilled children.
-    for (LiveRange *i = range; i != nullptr; i = i->next(), ++curr, ++length_) {
-      new (curr) LiveRangeBound(i, i->spilled());
+LiveRangeBound* LiveRangeBoundArray::Find(
+    const LifetimePosition position) const {
+  size_t left_index = 0;
+  size_t right_index = length_;
+  while (true) {
+    size_t current_index = left_index + (right_index - left_index) / 2;
+    DCHECK(right_index > current_index);
+    LiveRangeBound* bound = &start_[current_index];
+    if (bound->start_ <= position) {
+      if (position < bound->end_) return bound;
+      DCHECK(left_index < current_index);
+      left_index = current_index;
+    } else {
+      right_index = current_index;
     }
   }
+}
 
-  LiveRangeBound* Find(const LifetimePosition position) const {
-    size_t left_index = 0;
-    size_t right_index = length_;
-    while (true) {
-      size_t current_index = left_index + (right_index - left_index) / 2;
-      DCHECK(right_index > current_index);
-      LiveRangeBound* bound = &start_[current_index];
-      if (bound->start_ <= position) {
-        if (position < bound->end_) return bound;
-        DCHECK(left_index < current_index);
-        left_index = current_index;
-      } else {
-        right_index = current_index;
-      }
-    }
+LiveRangeBound* LiveRangeBoundArray::FindPred(const InstructionBlock* pred) {
+  LifetimePosition pred_end = LifetimePosition::InstructionFromInstructionIndex(
+      pred->last_instruction_index());
+  return Find(pred_end);
+}
+
+LiveRangeBound* LiveRangeBoundArray::FindSucc(const InstructionBlock* succ) {
+  LifetimePosition succ_start = LifetimePosition::GapFromInstructionIndex(
+      succ->first_instruction_index());
+  return Find(succ_start);
+}
+
+bool LiveRangeBoundArray::FindConnectableSubranges(
+    const InstructionBlock* block, const InstructionBlock* pred,
+    FindResult* result) const {
+  LifetimePosition pred_end = LifetimePosition::InstructionFromInstructionIndex(
+      pred->last_instruction_index());
+  LiveRangeBound* bound = Find(pred_end);
+  result->pred_cover_ = bound->range_;
+  LifetimePosition cur_start = LifetimePosition::GapFromInstructionIndex(
+      block->first_instruction_index());
+
+  if (bound->CanCover(cur_start)) {
+    // Both blocks are covered by the same range, so there is nothing to
+    // connect.
+    return false;
   }
-
-  LiveRangeBound* FindPred(const InstructionBlock* pred) {
-    LifetimePosition pred_end =
-        LifetimePosition::InstructionFromInstructionIndex(
-            pred->last_instruction_index());
-    return Find(pred_end);
+  bound = Find(cur_start);
+  if (bound->skip_) {
+    return false;
   }
+  result->cur_cover_ = bound->range_;
+  DCHECK(result->pred_cover_ != nullptr && result->cur_cover_ != nullptr);
+  return (result->cur_cover_ != result->pred_cover_);
+}
 
-  LiveRangeBound* FindSucc(const InstructionBlock* succ) {
-    LifetimePosition succ_start = LifetimePosition::GapFromInstructionIndex(
-        succ->first_instruction_index());
-    return Find(succ_start);
+LiveRangeFinder::LiveRangeFinder(const TopTierRegisterAllocationData* data,
+                                 Zone* zone)
+    : data_(data),
+      bounds_length_(static_cast<int>(data_->live_ranges().size())),
+      bounds_(zone->NewArray<LiveRangeBoundArray>(bounds_length_)),
+      zone_(zone) {
+  for (int i = 0; i < bounds_length_; ++i) {
+    new (&bounds_[i]) LiveRangeBoundArray();
   }
+}
 
-  bool FindConnectableSubranges(const InstructionBlock* block,
-                                const InstructionBlock* pred,
-                                FindResult* result) const {
-    LifetimePosition pred_end =
-        LifetimePosition::InstructionFromInstructionIndex(
-            pred->last_instruction_index());
-    LiveRangeBound* bound = Find(pred_end);
-    result->pred_cover_ = bound->range_;
-    LifetimePosition cur_start = LifetimePosition::GapFromInstructionIndex(
-        block->first_instruction_index());
-
-    if (bound->CanCover(cur_start)) {
-      // Both blocks are covered by the same range, so there is nothing to
-      // connect.
-      return false;
-    }
-    bound = Find(cur_start);
-    if (bound->skip_) {
-      return false;
-    }
-    result->cur_cover_ = bound->range_;
-    DCHECK(result->pred_cover_ != nullptr && result->cur_cover_ != nullptr);
-    return (result->cur_cover_ != result->pred_cover_);
+LiveRangeBoundArray* LiveRangeFinder::ArrayFor(int operand_index) {
+  DCHECK(operand_index < bounds_length_);
+  TopLevelLiveRange* range = data_->live_ranges()[operand_index];
+  DCHECK(range != nullptr && !range->IsEmpty());
+  LiveRangeBoundArray* array = &bounds_[operand_index];
+  if (array->ShouldInitialize()) {
+    array->Initialize(zone_, range);
   }
-
- private:
-  size_t length_;
-  LiveRangeBound* start_;
-
-  DISALLOW_COPY_AND_ASSIGN(LiveRangeBoundArray);
-};
-
-class LiveRangeFinder {
- public:
-  explicit LiveRangeFinder(const TopTierRegisterAllocationData* data,
-                           Zone* zone)
-      : data_(data),
-        bounds_length_(static_cast<int>(data_->live_ranges().size())),
-        bounds_(zone->NewArray<LiveRangeBoundArray>(bounds_length_)),
-        zone_(zone) {
-    for (int i = 0; i < bounds_length_; ++i) {
-      new (&bounds_[i]) LiveRangeBoundArray();
-    }
-  }
-
-  LiveRangeBoundArray* ArrayFor(int operand_index) {
-    DCHECK(operand_index < bounds_length_);
-    TopLevelLiveRange* range = data_->live_ranges()[operand_index];
-    DCHECK(range != nullptr && !range->IsEmpty());
-    LiveRangeBoundArray* array = &bounds_[operand_index];
-    if (array->ShouldInitialize()) {
-      array->Initialize(zone_, range);
-    }
-    return array;
-  }
-
- private:
-  const TopTierRegisterAllocationData* const data_;
-  const int bounds_length_;
-  LiveRangeBoundArray* const bounds_;
-  Zone* const zone_;
-
-  DISALLOW_COPY_AND_ASSIGN(LiveRangeFinder);
-};
+  return array;
+}
 
 using DelayedInsertionMapKey = std::pair<ParallelMove*, InstructionOperand>;
 
@@ -862,7 +812,7 @@ struct TopLevelLiveRange::SpillMoveInsertionList : ZoneObject {
       : gap_index(gap_index), operand(operand), next(next) {}
   const int gap_index;
   InstructionOperand* const operand;
-  SpillMoveInsertionList* const next;
+  SpillMoveInsertionList* next;
 };
 
 TopLevelLiveRange::TopLevelLiveRange(int vreg, MachineRepresentation rep)
@@ -873,11 +823,11 @@ TopLevelLiveRange::TopLevelLiveRange(int vreg, MachineRepresentation rep)
       spill_operand_(nullptr),
       spill_move_insertion_locations_(nullptr),
       spilled_in_deferred_blocks_(false),
+      has_preassigned_slot_(false),
       spill_start_index_(kMaxInt),
       last_pos_(nullptr),
       last_child_covers_(this),
-      splinter_(nullptr),
-      has_preassigned_slot_(false) {
+      splinter_(nullptr) {
   bits_ |= SpillTypeField::encode(SpillType::kNoSpillType);
 }
 
@@ -895,10 +845,14 @@ void TopLevelLiveRange::RecordSpillLocation(Zone* zone, int gap_index,
 }
 
 void TopLevelLiveRange::CommitSpillMoves(TopTierRegisterAllocationData* data,
-                                         const InstructionOperand& op,
-                                         bool might_be_duplicated) {
+                                         const InstructionOperand& op) {
   DCHECK_IMPLIES(op.IsConstant(),
                  GetSpillMoveInsertionLocations(data) == nullptr);
+
+  if (HasGeneralSpillRange()) {
+    SetLateSpillingSelected(false);
+  }
+
   InstructionSequence* sequence = data->code();
   Zone* zone = sequence->zone();
 
@@ -907,10 +861,27 @@ void TopLevelLiveRange::CommitSpillMoves(TopTierRegisterAllocationData* data,
     Instruction* instr = sequence->InstructionAt(to_spill->gap_index);
     ParallelMove* move =
         instr->GetOrCreateParallelMove(Instruction::START, zone);
+    move->AddMove(*to_spill->operand, op);
+    instr->block()->mark_needs_frame();
+  }
+}
+
+void TopLevelLiveRange::FilterSpillMoves(TopTierRegisterAllocationData* data,
+                                         const InstructionOperand& op) {
+  DCHECK_IMPLIES(op.IsConstant(),
+                 GetSpillMoveInsertionLocations(data) == nullptr);
+  bool might_be_duplicated = has_slot_use() || spilled();
+  InstructionSequence* sequence = data->code();
+
+  SpillMoveInsertionList* previous = nullptr;
+  for (SpillMoveInsertionList* to_spill = GetSpillMoveInsertionLocations(data);
+       to_spill != nullptr; previous = to_spill, to_spill = to_spill->next) {
+    Instruction* instr = sequence->InstructionAt(to_spill->gap_index);
+    ParallelMove* move = instr->GetParallelMove(Instruction::START);
     // Skip insertion if it's possible that the move exists already as a
     // constraint move from a fixed output register to a slot.
-    if (might_be_duplicated || has_preassigned_slot()) {
-      bool found = false;
+    bool found = false;
+    if (move != nullptr && (might_be_duplicated || has_preassigned_slot())) {
       for (MoveOperands* move_op : *move) {
         if (move_op->IsEliminated()) continue;
         if (move_op->source().Equals(*to_spill->operand) &&
@@ -920,10 +891,17 @@ void TopLevelLiveRange::CommitSpillMoves(TopTierRegisterAllocationData* data,
           break;
         }
       }
-      if (found) continue;
     }
-    if (!has_preassigned_slot()) {
-      move->AddMove(*to_spill->operand, op);
+    if (found || has_preassigned_slot()) {
+      // Remove the item from the list.
+      if (previous == nullptr) {
+        spill_move_insertion_locations_ = to_spill->next;
+      } else {
+        previous->next = to_spill->next;
+      }
+      // Even though this location doesn't need a spill instruction, the
+      // block does require a frame.
+      instr->block()->mark_needs_frame();
     }
   }
 }
@@ -1786,8 +1764,10 @@ void TopTierRegisterAllocationData::MarkAllocated(MachineRepresentation rep,
 bool TopTierRegisterAllocationData::IsBlockBoundary(
     LifetimePosition pos) const {
   return pos.IsFullStart() &&
-         code()->GetInstructionBlock(pos.ToInstructionIndex())->code_start() ==
-             pos.ToInstructionIndex();
+         (static_cast<size_t>(pos.ToInstructionIndex()) ==
+              code()->instructions().size() ||
+          code()->GetInstructionBlock(pos.ToInstructionIndex())->code_start() ==
+              pos.ToInstructionIndex());
 }
 
 ConstraintBuilder::ConstraintBuilder(TopTierRegisterAllocationData* data)
@@ -4741,30 +4721,6 @@ void LinearScanAllocator::SpillBetweenUntil(LiveRange* range,
   }
 }
 
-SpillSlotLocator::SpillSlotLocator(TopTierRegisterAllocationData* data)
-    : data_(data) {}
-
-void SpillSlotLocator::LocateSpillSlots() {
-  const InstructionSequence* code = data()->code();
-  const size_t live_ranges_size = data()->live_ranges().size();
-  for (TopLevelLiveRange* range : data()->live_ranges()) {
-    CHECK_EQ(live_ranges_size,
-             data()->live_ranges().size());  // TODO(neis): crbug.com/831822
-    if (range == nullptr || range->IsEmpty()) continue;
-    // We care only about ranges which spill in the frame.
-    if (!range->HasSpillRange() ||
-        range->IsSpilledOnlyInDeferredBlocks(data())) {
-      continue;
-    }
-    TopLevelLiveRange::SpillMoveInsertionList* spills =
-        range->GetSpillMoveInsertionLocations(data());
-    DCHECK_NOT_NULL(spills);
-    for (; spills != nullptr; spills = spills->next) {
-      code->GetInstructionBlock(spills->gap_index)->mark_needs_frame();
-    }
-  }
-}
-
 OperandAssigner::OperandAssigner(TopTierRegisterAllocationData* data)
     : data_(data) {}
 
@@ -4866,12 +4822,12 @@ void OperandAssigner::CommitAssignment() {
       // blocks, we let ConnectLiveRanges and ResolveControlFlow find the blocks
       // where a spill operand is expected, and then finalize by inserting the
       // spills in the deferred blocks dominators.
-      if (!top_range->IsSpilledOnlyInDeferredBlocks(data())) {
-        // Spill at definition if the range isn't spilled only in deferred
-        // blocks.
-        top_range->CommitSpillMoves(
-            data(), spill_operand,
-            top_range->has_slot_use() || top_range->spilled());
+      if (!top_range->IsSpilledOnlyInDeferredBlocks(data()) &&
+          !top_range->HasGeneralSpillRange()) {
+        // Spill at definition if the range isn't spilled in a way that will be
+        // handled later.
+        top_range->FilterSpillMoves(data(), spill_operand);
+        top_range->CommitSpillMoves(data(), spill_operand);
       }
     }
   }
@@ -4991,7 +4947,8 @@ void ReferenceMapPopulator::PopulateReferenceMaps() {
 
       // Check if the live range is spilled and the safe point is after
       // the spill position.
-      int spill_index = range->IsSpilledOnlyInDeferredBlocks(data())
+      int spill_index = range->IsSpilledOnlyInDeferredBlocks(data()) ||
+                                range->LateSpillingSelected()
                             ? cur->Start().ToInstructionIndex()
                             : range->spill_start_index();
 
@@ -5058,7 +5015,10 @@ void LiveRangeConnector::ResolveControlFlow(Zone* local_zone) {
           LifetimePosition block_end =
               LifetimePosition::GapFromInstructionIndex(block->code_end());
           const LiveRange* current = result.cur_cover_;
-          // TODO(herhut): This is not the successor if we have control flow!
+          // Note that this is not the successor if we have control flow!
+          // However, in the following condition, we only refer to it if it
+          // begins in the current block, in which case we can safely declare it
+          // to be the successor.
           const LiveRange* successor = current->next();
           if (current->End() < block_end &&
               (successor == nullptr || successor->spilled())) {
@@ -5099,17 +5059,22 @@ void LiveRangeConnector::ResolveControlFlow(Zone* local_zone) {
     }
   }
 
-  // At this stage, we collected blocks needing a spill operand from
-  // ConnectRanges and from ResolveControlFlow. Time to commit the spills for
-  // deferred blocks.
+  // At this stage, we collected blocks needing a spill operand due to reloads
+  // from ConnectRanges and from ResolveControlFlow. Time to commit the spills
+  // for deferred blocks. This is a convenient time to commit spills for general
+  // spill ranges also, because they need to use the LiveRangeFinder.
   const size_t live_ranges_size = data()->live_ranges().size();
+  SpillPlacer spill_placer(&finder, data(), local_zone);
   for (TopLevelLiveRange* top : data()->live_ranges()) {
     CHECK_EQ(live_ranges_size,
              data()->live_ranges().size());  // TODO(neis): crbug.com/831822
-    if (top == nullptr || top->IsEmpty() ||
-        !top->IsSpilledOnlyInDeferredBlocks(data()))
-      continue;
-    CommitSpillsInDeferredBlocks(top, finder.ArrayFor(top->vreg()), local_zone);
+    if (top == nullptr || top->IsEmpty()) continue;
+    if (top->IsSpilledOnlyInDeferredBlocks(data())) {
+      CommitSpillsInDeferredBlocks(top, finder.ArrayFor(top->vreg()),
+                                   local_zone);
+    } else if (top->HasGeneralSpillRange()) {
+      spill_placer.Add(top);
+    }
   }
 }
 

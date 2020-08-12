@@ -546,6 +546,9 @@ DEFINE_BOOL(turbo_sp_frame_access, false,
             "use stack pointer-relative access to frame wherever possible")
 DEFINE_BOOL(turbo_control_flow_aware_allocation, true,
             "consider control flow while allocating registers")
+DEFINE_BOOL(
+    stress_turbo_late_spilling, false,
+    "optimize placement of all spill instructions, not just loop-top phis")
 
 DEFINE_STRING(turbo_filter, "*", "optimization filter for TurboFan compiler")
 DEFINE_BOOL(trace_turbo, false, "trace generated TurboFan IR")
