@@ -205,6 +205,8 @@ namespace compiler {
   V(PPC_F64x2Abs)                    \
   V(PPC_F64x2Neg)                    \
   V(PPC_F64x2Sqrt)                   \
+  V(PPC_F64x2Qfma)                   \
+  V(PPC_F64x2Qfms)                   \
   V(PPC_F32x4Splat)                  \
   V(PPC_F32x4ExtractLane)            \
   V(PPC_F32x4ReplaceLane)            \
@@ -271,6 +273,8 @@ namespace compiler {
   V(PPC_I32x4SConvertI16x8High)      \
   V(PPC_I32x4UConvertI16x8Low)       \
   V(PPC_I32x4UConvertI16x8High)      \
+  V(PPC_F32x4Qfma)                   \
+  V(PPC_F32x4Qfms)                   \
   V(PPC_I16x8Splat)                  \
   V(PPC_I16x8ExtractLaneU)           \
   V(PPC_I16x8ExtractLaneS)           \
