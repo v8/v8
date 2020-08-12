@@ -8823,8 +8823,8 @@ void Isolate::SetAddHistogramSampleFunction(
 
 void Isolate::SetMetricsRecorder(
     const std::shared_ptr<metrics::Recorder>& metrics_recorder) {
-  reinterpret_cast<i::Isolate*>(this)->metrics_recorder()->SetRecorder(
-      metrics_recorder);
+  i::Isolate* isolate = reinterpret_cast<i::Isolate*>(this);
+  isolate->metrics_recorder()->SetRecorder(isolate, metrics_recorder);
 }
 
 void Isolate::SetAddCrashKeyCallback(AddCrashKeyCallback callback) {

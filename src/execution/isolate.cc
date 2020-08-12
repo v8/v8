@@ -2995,6 +2995,7 @@ void Isolate::Deinit() {
   }
 
   metrics_recorder_->NotifyIsolateDisposal();
+  recorder_context_id_map_.clear();
 
 #if defined(V8_OS_WIN64)
   if (win64_unwindinfo::CanRegisterUnwindInfoForNonABICompliantCodeRange() &&
@@ -3479,7 +3480,7 @@ bool Isolate::Init(ReadOnlyDeserializer* read_only_deserializer,
   // Enable logging before setting up the heap
   logger_->SetUp(this);
 
-  metrics_recorder_ = std::make_shared<metrics::Recorder>(this);
+  metrics_recorder_ = std::make_shared<metrics::Recorder>();
 
   {  // NOLINT
     // Ensure that the thread has a valid stack guard.  The v8::Locker object

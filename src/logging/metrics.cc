@@ -31,13 +31,11 @@ class Recorder::Task : public v8::Task {
   std::shared_ptr<Recorder> recorder_;
 };
 
-Recorder::Recorder(Isolate* isolate)
-    : foreground_task_runner_(V8::GetCurrentPlatform()->GetForegroundTaskRunner(
-          reinterpret_cast<v8::Isolate*>(isolate))),
-      embedder_recorder_(nullptr) {}
-
 void Recorder::SetRecorder(
+    Isolate* isolate,
     const std::shared_ptr<v8::metrics::Recorder>& embedder_recorder) {
+  foreground_task_runner_ = V8::GetCurrentPlatform()->GetForegroundTaskRunner(
+      reinterpret_cast<v8::Isolate*>(isolate));
   CHECK_NULL(embedder_recorder_);
   embedder_recorder_ = embedder_recorder;
 }

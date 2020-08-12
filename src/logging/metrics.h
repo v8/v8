@@ -22,9 +22,8 @@ namespace metrics {
 
 class Recorder : public std::enable_shared_from_this<Recorder> {
  public:
-  explicit V8_EXPORT_PRIVATE Recorder(Isolate* isolate);
-
   V8_EXPORT_PRIVATE void SetRecorder(
+      Isolate* isolate,
       const std::shared_ptr<v8::metrics::Recorder>& embedder_recorder);
 
   V8_EXPORT_PRIVATE void NotifyIsolateDisposal();
@@ -86,11 +85,18 @@ template <class T, int64_t (base::TimeDelta::*precision)() const =
                        &base::TimeDelta::InMicroseconds>
 class TimedScope {
  public:
-  TimedScope(T* event, int64_t T::*time)
-      : event_(event), time_(time), start_time_(base::TimeTicks::Now()) {}
-  ~TimedScope() {
+  TimedScope(T* event, int64_t T::*time) : event_(event), time_(time) {
+    Start();
+  }
+  ~TimedScope() { Stop(); }
+
+  void Start() { start_time_ = base::TimeTicks::Now(); }
+
+  void Stop() {
+    if (start_time_.IsMin()) return;
     base::TimeDelta duration = base::TimeTicks::Now() - start_time_;
     event_->*time_ = (duration.*precision)();
+    start_time_ = base::TimeTicks::Min();
   }
 
  private:
