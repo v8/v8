@@ -77,6 +77,9 @@ MaybeHandle<Object> JSSegments::Containing(Isolate* isolate,
     return isolate->factory()->undefined_value();
   }
 
+  // n may point to the surrogate tail- adjust it back to the lead.
+  n = segments->unicode_string().raw()->getChar32Start(n);
+
   icu::BreakIterator* break_iterator = segments->icu_break_iterator().raw();
   // 8. Let startIndex be ! FindBoundary(segmenter, string, n, before).
   int32_t start_index =
