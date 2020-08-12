@@ -588,9 +588,11 @@ bool FeedbackNexus::ConfigureMegamorphic(IcCheckType property_type) {
 }
 
 Map FeedbackNexus::GetFirstMap() const {
-  MapHandles maps;
-  ExtractMaps(&maps);
-  if (!maps.empty()) return *maps.at(0);
+  FeedbackIterator it(this);
+  if (!it.done()) {
+    return it.map();
+  }
+
   return Map();
 }
 
@@ -964,187 +966,72 @@ void FeedbackNexus::ConfigurePolymorphic(
 }
 
 int FeedbackNexus::ExtractMaps(MapHandles* maps) const {
-  DCHECK(IsLoadICKind(kind()) || IsStoreICKind(kind()) ||
-         IsKeyedLoadICKind(kind()) || IsKeyedStoreICKind(kind()) ||
-         IsStoreOwnICKind(kind()) || IsStoreDataPropertyInLiteralKind(kind()) ||
-         IsStoreInArrayLiteralICKind(kind()) || IsKeyedHasICKind(kind()));
-
   DisallowHeapAllocation no_gc;
   Isolate* isolate = GetIsolate();
-  MaybeObject feedback = GetFeedback();
-  bool is_named_feedback = IsPropertyNameFeedback(feedback);
-  HeapObject heap_object;
-  if ((feedback->GetHeapObjectIfStrong(&heap_object) &&
-       heap_object.IsWeakFixedArray()) ||
-      is_named_feedback) {
-    int found = 0;
-    WeakFixedArray array;
-    if (is_named_feedback) {
-      array =
-          WeakFixedArray::cast(GetFeedbackExtra()->GetHeapObjectAssumeStrong());
-    } else {
-      array = WeakFixedArray::cast(heap_object);
-    }
-    const int increment = 2;
-    HeapObject heap_object;
-    for (int i = 0; i < array.length(); i += increment) {
-      DCHECK(array.Get(i)->IsWeakOrCleared());
-      if (array.Get(i)->GetHeapObjectIfWeak(&heap_object)) {
-        Map map = Map::cast(heap_object);
-        maps->push_back(handle(map, isolate));
-        found++;
-      }
-    }
-    return found;
-  } else if (feedback->GetHeapObjectIfWeak(&heap_object)) {
-    Map map = Map::cast(heap_object);
-    maps->push_back(handle(map, isolate));
-    return 1;
+  int found = 0;
+  for (FeedbackIterator it(this); !it.done(); it.Advance()) {
+    maps->push_back(handle(it.map(), isolate));
+    found++;
   }
 
-  return 0;
-}
-
-int FeedbackNexus::ExtractMapsAndFeedbackImpl(
-    std::vector<MapAndFeedback>* maps_and_feedback,
-    bool try_update_deprecated) const {
-  DCHECK(IsLoadICKind(kind()) ||
-         IsStoreICKind(kind()) | IsKeyedLoadICKind(kind()) ||
-         IsKeyedStoreICKind(kind()) || IsStoreOwnICKind(kind()) ||
-         IsStoreDataPropertyInLiteralKind(kind()) ||
-         IsStoreInArrayLiteralICKind(kind()) || IsKeyedHasICKind(kind()));
-
-  DisallowHeapAllocation no_gc;
-  Isolate* isolate = GetIsolate();
-  MaybeObject feedback = GetFeedback();
-  bool is_named_feedback = IsPropertyNameFeedback(feedback);
-  HeapObject heap_object;
-  if ((feedback->GetHeapObjectIfStrong(&heap_object) &&
-       heap_object.IsWeakFixedArray()) ||
-      is_named_feedback) {
-    int found = 0;
-    WeakFixedArray array;
-    if (is_named_feedback) {
-      array =
-          WeakFixedArray::cast(GetFeedbackExtra()->GetHeapObjectAssumeStrong());
-    } else {
-      array = WeakFixedArray::cast(heap_object);
-    }
-    const int increment = 2;
-    HeapObject heap_object;
-    maps_and_feedback->reserve(array.length() / increment);
-    for (int i = 0; i < array.length(); i += increment) {
-      DCHECK(array.Get(i)->IsWeakOrCleared());
-      if (array.Get(i)->GetHeapObjectIfWeak(&heap_object)) {
-        MaybeObject handler = array.Get(i + 1);
-        if (!handler->IsCleared()) {
-          Handle<Map> map(Map::cast(heap_object), isolate);
-          if (try_update_deprecated &&
-              !Map::TryUpdate(isolate, map).ToHandle(&map)) {
-            continue;
-          }
-          maps_and_feedback->push_back(
-              MapAndHandler(map, handle(handler, isolate)));
-          found++;
-        }
-      }
-    }
-    return found;
-  } else if (feedback->GetHeapObjectIfWeak(&heap_object)) {
-    MaybeObject handler = GetFeedbackExtra();
-    if (!handler->IsCleared()) {
-      Handle<Map> map = handle(Map::cast(heap_object), isolate);
-      if (try_update_deprecated &&
-          !Map::TryUpdate(isolate, map).ToHandle(&map)) {
-        return 0;
-      }
-      maps_and_feedback->push_back(
-          MapAndHandler(map, handle(handler, isolate)));
-      return 1;
-    }
-  }
-
-  return 0;
+  return found;
 }
 
 int FeedbackNexus::ExtractMapsAndFeedback(
-    std::vector<MapAndFeedback>* maps_and_feedback,
-    bool try_update_deprecated) const {
-  DCHECK(IsLoadICKind(kind()) ||
-         IsStoreICKind(kind()) | IsKeyedLoadICKind(kind()) ||
-         IsKeyedStoreICKind(kind()) || IsStoreOwnICKind(kind()) ||
-         IsStoreInArrayLiteralICKind(kind()) || IsKeyedHasICKind(kind()) ||
-         IsStoreDataPropertyInLiteralKind(kind()));
-  int num_maps =
-      ExtractMapsAndFeedbackImpl(maps_and_feedback, try_update_deprecated);
-#ifdef DEBUG
-  for (auto const& entry : *maps_and_feedback) {
-    DCHECK(IC::IsHandler(*entry.second) ||
-           IsStoreDataPropertyInLiteralKind(kind()));
+    std::vector<MapAndFeedback>* maps_and_feedback) const {
+  DisallowHeapAllocation no_gc;
+  Isolate* isolate = GetIsolate();
+  int found = 0;
+
+  for (FeedbackIterator it(this); !it.done(); it.Advance()) {
+    Handle<Map> map = handle(it.map(), isolate);
+    MaybeObject maybe_handler = it.handler();
+    if (!maybe_handler->IsCleared()) {
+      DCHECK(IC::IsHandler(maybe_handler) ||
+             IsStoreDataPropertyInLiteralKind(kind()));
+      MaybeObjectHandle handler = handle(maybe_handler, isolate);
+      maps_and_feedback->push_back(MapAndHandler(map, handler));
+      found++;
+    }
   }
-#endif
-  return num_maps;
+
+  return found;
 }
 
 int FeedbackNexus::ExtractMapsAndHandlers(
     std::vector<MapAndHandler>* maps_and_handlers,
     bool try_update_deprecated) const {
-  DCHECK(IsLoadICKind(kind()) ||
-         IsStoreICKind(kind()) | IsKeyedLoadICKind(kind()) ||
-         IsKeyedStoreICKind(kind()) || IsStoreOwnICKind(kind()) ||
-         IsStoreInArrayLiteralICKind(kind()) || IsKeyedHasICKind(kind()));
-  int num_maps =
-      ExtractMapsAndFeedbackImpl(maps_and_handlers, try_update_deprecated);
-#ifdef DEBUG
-  for (auto const& entry : *maps_and_handlers) {
-    DCHECK(IC::IsHandler(*entry.second));
+  DCHECK(!IsStoreDataPropertyInLiteralKind(kind()));
+  DisallowHeapAllocation no_gc;
+  Isolate* isolate = GetIsolate();
+  int found = 0;
+
+  for (FeedbackIterator it(this); !it.done(); it.Advance()) {
+    Handle<Map> map = handle(it.map(), isolate);
+    MaybeObject maybe_handler = it.handler();
+    if (!maybe_handler->IsCleared()) {
+      DCHECK(IC::IsHandler(maybe_handler));
+      MaybeObjectHandle handler = handle(maybe_handler, isolate);
+      if (try_update_deprecated &&
+          !Map::TryUpdate(isolate, map).ToHandle(&map)) {
+        continue;
+      }
+      maps_and_handlers->push_back(MapAndHandler(map, handler));
+      found++;
+    }
   }
-#endif
-  return num_maps;
+
+  return found;
 }
 
 MaybeObjectHandle FeedbackNexus::FindHandlerForMap(Handle<Map> map) const {
-  DCHECK(IsLoadICKind(kind()) || IsStoreICKind(kind()) ||
-         IsKeyedLoadICKind(kind()) || IsKeyedStoreICKind(kind()) ||
-         IsStoreOwnICKind(kind()) || IsStoreDataPropertyInLiteralKind(kind()) ||
-         IsKeyedHasICKind(kind()));
+  DCHECK(!IsStoreInArrayLiteralICKind(kind()));
 
-  MaybeObject feedback = GetFeedback();
-  Isolate* isolate = GetIsolate();
-  bool is_named_feedback = IsPropertyNameFeedback(feedback);
-  HeapObject heap_object;
-  if ((feedback->GetHeapObjectIfStrong(&heap_object) &&
-       heap_object.IsWeakFixedArray()) ||
-      is_named_feedback) {
-    WeakFixedArray array;
-    if (is_named_feedback) {
-      array =
-          WeakFixedArray::cast(GetFeedbackExtra()->GetHeapObjectAssumeStrong());
-    } else {
-      array = WeakFixedArray::cast(heap_object);
-    }
-    const int increment = 2;
-    HeapObject heap_object;
-    for (int i = 0; i < array.length(); i += increment) {
-      DCHECK(array.Get(i)->IsWeakOrCleared());
-      if (array.Get(i)->GetHeapObjectIfWeak(&heap_object)) {
-        Map array_map = Map::cast(heap_object);
-        if (array_map == *map && !array.Get(i + increment - 1)->IsCleared()) {
-          MaybeObject handler = array.Get(i + increment - 1);
-          DCHECK(IC::IsHandler(handler));
-          return handle(handler, isolate);
-        }
-      }
-    }
-  } else if (feedback->GetHeapObjectIfWeak(&heap_object)) {
-    Map cell_map = Map::cast(heap_object);
-    if (cell_map == *map && !GetFeedbackExtra()->IsCleared()) {
-      MaybeObject handler = GetFeedbackExtra();
-      DCHECK(IC::IsHandler(handler));
-      return handle(handler, isolate);
+  for (FeedbackIterator it(this); !it.done(); it.Advance()) {
+    if (it.map() == *map && !it.handler()->IsCleared()) {
+      return handle(it.handler(), GetIsolate());
     }
   }
-
   return MaybeObjectHandle();
 }
 
@@ -1492,5 +1379,78 @@ void FeedbackNexus::ResetTypeProfile() {
   SetFeedback(*FeedbackVector::UninitializedSentinel(GetIsolate()));
 }
 
+FeedbackIterator::FeedbackIterator(const FeedbackNexus* nexus)
+    : done_(false), index_(-1), state_(kOther) {
+  DCHECK(IsLoadICKind(nexus->kind()) ||
+         IsStoreICKind(nexus->kind()) | IsKeyedLoadICKind(nexus->kind()) ||
+         IsKeyedStoreICKind(nexus->kind()) || IsStoreOwnICKind(nexus->kind()) ||
+         IsStoreDataPropertyInLiteralKind(nexus->kind()) ||
+         IsStoreInArrayLiteralICKind(nexus->kind()) ||
+         IsKeyedHasICKind(nexus->kind()));
+
+  DisallowHeapAllocation no_gc;
+  Isolate* isolate = nexus->GetIsolate();
+  MaybeObject feedback = nexus->GetFeedback();
+  bool is_named_feedback = IsPropertyNameFeedback(feedback);
+  HeapObject heap_object;
+
+  if ((feedback->GetHeapObjectIfStrong(&heap_object) &&
+       heap_object.IsWeakFixedArray()) ||
+      is_named_feedback) {
+    index_ = 0;
+    state_ = kPolymorphic;
+    heap_object = feedback->GetHeapObjectAssumeStrong();
+    if (is_named_feedback) {
+      polymorphic_feedback_ =
+          handle(WeakFixedArray::cast(
+                     nexus->GetFeedbackExtra()->GetHeapObjectAssumeStrong()),
+                 isolate);
+    } else {
+      polymorphic_feedback_ =
+          handle(WeakFixedArray::cast(heap_object), isolate);
+    }
+    AdvancePolymorphic();
+  } else if (feedback->GetHeapObjectIfWeak(&heap_object)) {
+    state_ = kMonomorphic;
+    MaybeObject handler = nexus->GetFeedbackExtra();
+    map_ = Map::cast(heap_object);
+    handler_ = handler;
+  } else {
+    done_ = true;
+  }
+}
+
+void FeedbackIterator::Advance() {
+  CHECK(!done_);
+
+  if (state_ == kMonomorphic) {
+    done_ = true;
+    return;
+  }
+
+  CHECK_EQ(state_, kPolymorphic);
+  AdvancePolymorphic();
+}
+
+void FeedbackIterator::AdvancePolymorphic() {
+  CHECK(!done_);
+  CHECK_EQ(state_, kPolymorphic);
+  int length = polymorphic_feedback_->length();
+  HeapObject heap_object;
+
+  while (index_ < length) {
+    if (polymorphic_feedback_->Get(index_)->GetHeapObjectIfWeak(&heap_object)) {
+      MaybeObject handler = polymorphic_feedback_->Get(index_ + kHandlerOffset);
+      map_ = Map::cast(heap_object);
+      handler_ = handler;
+      index_ += kEntrySize;
+      return;
+    }
+    index_ += kEntrySize;
+  }
+
+  CHECK_EQ(index_, length);
+  done_ = true;
+}
 }  // namespace internal
 }  // namespace v8

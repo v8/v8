@@ -13,6 +13,7 @@
 #include "src/common/globals.h"
 #include "src/objects/elements-kind.h"
 #include "src/objects/map.h"
+#include "src/objects/maybe-object.h"
 #include "src/objects/name.h"
 #include "src/objects/type-hints.h"
 #include "src/zone/zone-containers.h"
@@ -667,8 +668,8 @@ class V8_EXPORT_PRIVATE FeedbackNexus final {
   // vector. The returned feedback need not be always a handler. It could be a
   // name in the case of StoreDataInPropertyLiteral. This is used by TurboFan to
   // get all the feedback stored in the vector.
-  int ExtractMapsAndFeedback(std::vector<MapAndFeedback>* maps_and_feedback,
-                             bool try_update_deprecated = false) const;
+  int ExtractMapsAndFeedback(
+      std::vector<MapAndFeedback>* maps_and_feedback) const;
 
   bool IsCleared() const {
     InlineCacheState state = ic_state();
@@ -778,9 +779,28 @@ class V8_EXPORT_PRIVATE FeedbackNexus final {
   FeedbackVector vector_;
   FeedbackSlot slot_;
   FeedbackSlotKind kind_;
+};
 
-  int ExtractMapsAndFeedbackImpl(std::vector<MapAndFeedback>* maps_and_feedback,
-                                 bool try_update_deprecated = false) const;
+class V8_EXPORT_PRIVATE FeedbackIterator final {
+ public:
+  explicit FeedbackIterator(const FeedbackNexus* nexus);
+  void Advance();
+  bool done() { return done_; }
+  Map map() { return map_; }
+  MaybeObject handler() { return handler_; }
+
+ private:
+  void AdvancePolymorphic();
+  enum State { kMonomorphic, kPolymorphic, kOther };
+  static constexpr int kEntrySize = 2;
+  static constexpr int kHandlerOffset = 1;
+
+  Handle<WeakFixedArray> polymorphic_feedback_;
+  Map map_;
+  MaybeObject handler_;
+  bool done_;
+  int index_;
+  State state_;
 };
 
 inline BinaryOperationHint BinaryOperationHintFromFeedback(int type_feedback);
