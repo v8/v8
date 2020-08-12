@@ -13,6 +13,7 @@
 #include "src/common/globals.h"
 #include "src/execution/isolate.h"
 #include "src/execution/off-thread-isolate.h"
+#include "src/handles/persistent-handles.h"
 #include "src/logging/code-events.h"
 #include "src/objects/contexts.h"
 #include "src/parsing/parse-info.h"
@@ -442,6 +443,21 @@ class DeferredFinalizationJobData {
  private:
   OffThreadTransferHandle<SharedFunctionInfo> function_transfer_handle_;
   std::unique_ptr<UnoptimizedCompilationJob> job_;
+};
+
+// A wrapper around a OptimizedCompilationInfo that detaches the Handles from
+// the underlying PersistentHandlesScope and stores them in info_ on
+// destruction.
+class CompilationHandleScope final {
+ public:
+  explicit CompilationHandleScope(Isolate* isolate,
+                                  OptimizedCompilationInfo* info)
+      : persistent_(isolate), info_(info) {}
+  ~CompilationHandleScope();
+
+ private:
+  PersistentHandlesScope persistent_;
+  OptimizedCompilationInfo* info_;
 };
 
 using DeferredFinalizationJobDataList =

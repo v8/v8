@@ -152,10 +152,10 @@ class PipelineData {
         instruction_zone_(instruction_zone_scope_.zone()),
         codegen_zone_scope_(zone_stats_, kCodegenZoneName),
         codegen_zone_(codegen_zone_scope_.zone()),
-        broker_(new JSHeapBroker(
-            isolate_, info_->zone(), info_->trace_heap_broker(),
-            is_concurrent_inlining, info->IsNativeContextIndependent(),
-            info->DetachPersistentHandles())),
+        broker_(new JSHeapBroker(isolate_, info_->zone(),
+                                 info_->trace_heap_broker(),
+                                 is_concurrent_inlining,
+                                 info->IsNativeContextIndependent(), nullptr)),
         register_allocation_zone_scope_(zone_stats_,
                                         kRegisterAllocationZoneName),
         register_allocation_zone_(register_allocation_zone_scope_.zone()),
@@ -770,19 +770,19 @@ class PipelineRunScope {
 class LocalHeapScope {
  public:
   explicit LocalHeapScope(JSHeapBroker* broker, OptimizedCompilationInfo* info)
-      : broker_(broker), tick_counter_(&info->tick_counter()) {
-    broker_->InitializeLocalHeap();
-    tick_counter_->AttachLocalHeap(broker_->local_heap());
+      : broker_(broker), info_(info) {
+    broker_->InitializeLocalHeap(info_);
+    info_->tick_counter().AttachLocalHeap(broker_->local_heap());
   }
 
   ~LocalHeapScope() {
-    tick_counter_->DetachLocalHeap();
-    broker_->TearDownLocalHeap();
+    info_->tick_counter().DetachLocalHeap();
+    broker_->TearDownLocalHeap(info_);
   }
 
  private:
   JSHeapBroker* broker_;
-  TickCounter* tick_counter_;
+  OptimizedCompilationInfo* info_;
 };
 
 // Scope that unparks the LocalHeap, if:
@@ -3041,19 +3041,43 @@ MaybeHandle<Code> Pipeline::GenerateCodeForTesting(
   Linkage linkage(Linkage::ComputeIncoming(data.instruction_zone(), info));
   Deoptimizer::EnsureCodeForDeoptimizationEntries(isolate);
 
-  pipeline.Serialize();
   {
-    LocalHeapScope local_heap_scope(data.broker(), data.info());
-    if (!pipeline.CreateGraph()) return MaybeHandle<Code>();
+    CompilationHandleScope compilation_scope(isolate, info);
+    CanonicalHandleScope canonical(isolate, info);
+    info->ReopenHandlesInNewHandleScope(isolate);
+    pipeline.Serialize();
+    // Emulating the proper pipeline, we call CreateGraph on different places
+    // (i.e before or after creating a LocalHeapScope) depending on
+    // is_concurrent_inlining.
+    if (!data.broker()->is_concurrent_inlining()) {
+      if (!pipeline.CreateGraph()) return MaybeHandle<Code>();
+    }
+  }
+
+  {
+    LocalHeapScope local_heap_scope(data.broker(), info);
+    if (data.broker()->is_concurrent_inlining()) {
+      if (!pipeline.CreateGraph()) return MaybeHandle<Code>();
+    }
     // We selectively Unpark inside OptimizeGraph.
     ParkedScope parked_scope(data.broker()->local_heap());
     if (!pipeline.OptimizeGraph(&linkage)) return MaybeHandle<Code>();
   }
+
+  const bool will_retire_broker = out_broker == nullptr;
+  if (!will_retire_broker) {
+    // If the broker is going to be kept alive, pass the persistent and the
+    // canonical handles containers back to the JSHeapBroker since it will
+    // outlive the OptimizedCompilationInfo.
+    data.broker()->SetPersistentAndCopyCanonicalHandlesForTesting(
+        info->DetachPersistentHandles(), info->DetachCanonicalHandles());
+  }
+
   pipeline.AssembleCode(&linkage);
   Handle<Code> code;
-  if (pipeline.FinalizeCode(out_broker == nullptr).ToHandle(&code) &&
+  if (pipeline.FinalizeCode(will_retire_broker).ToHandle(&code) &&
       pipeline.CommitDependencies(code)) {
-    if (out_broker != nullptr) *out_broker = data.ReleaseBroker();
+    if (!will_retire_broker) *out_broker = data.ReleaseBroker();
     return code;
   }
   return MaybeHandle<Code>();

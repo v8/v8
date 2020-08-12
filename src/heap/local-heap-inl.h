@@ -12,19 +12,6 @@
 namespace v8 {
 namespace internal {
 
-template <typename T>
-Handle<T> LocalHeap::NewPersistentHandle(T object) {
-  if (!persistent_handles_) {
-    EnsurePersistentHandles();
-  }
-  return persistent_handles_->NewHandle(object);
-}
-
-template <typename T>
-Handle<T> LocalHeap::NewPersistentHandle(Handle<T> object) {
-  return NewPersistentHandle(*object);
-}
-
 AllocationResult LocalHeap::AllocateRaw(int size_in_bytes, AllocationType type,
                                         AllocationOrigin origin,
                                         AllocationAlignment alignment) {

@@ -152,23 +152,6 @@ class CompilerTracer : public AllStatic {
 
 }  // namespace
 
-// A wrapper around a OptimizedCompilationInfo that detaches the Handles from
-// the underlying PersistentHandlesScope and stores them in info_ on
-// destruction.
-class CompilationHandleScope final {
- public:
-  explicit CompilationHandleScope(Isolate* isolate,
-                                  OptimizedCompilationInfo* info)
-      : persistent_(isolate), info_(info) {}
-  ~CompilationHandleScope() {
-    info_->set_persistent_handles(persistent_.Detach());
-  }
-
- private:
-  PersistentHandlesScope persistent_;
-  OptimizedCompilationInfo* info_;
-};
-
 // Helper that times a scoped region and records the elapsed time.
 struct ScopedTimer {
   explicit ScopedTimer(base::TimeDelta* location) : location_(location) {
@@ -927,6 +910,17 @@ V8_WARN_UNUSED_RESULT MaybeHandle<Code> GetCodeFromCompilationCache(
   return shared->TryGetCachedCode(isolate);
 }
 
+// Runs PrepareJob in the proper compilation & canonical scopes. Handles will be
+// allocated in a persistent handle scope that is detached and handed off to the
+// {compilation_info} after PrepareJob.
+bool PrepareJobWithHandleScope(OptimizedCompilationJob* job, Isolate* isolate,
+                               OptimizedCompilationInfo* compilation_info) {
+  CompilationHandleScope compilation(isolate, compilation_info);
+  CanonicalHandleScope canonical(isolate, compilation_info);
+  compilation_info->ReopenHandlesInNewHandleScope(isolate);
+  return job->PrepareJob(isolate) == CompilationJob::SUCCEEDED;
+}
+
 bool GetOptimizedCodeNow(OptimizedCompilationJob* job, Isolate* isolate,
                          OptimizedCompilationInfo* compilation_info) {
   TimerEventScope<TimerEventRecompileSynchronous> timer(isolate);
@@ -934,10 +928,8 @@ bool GetOptimizedCodeNow(OptimizedCompilationJob* job, Isolate* isolate,
       isolate, RuntimeCallCounterId::kOptimizeNonConcurrent);
   TRACE_EVENT0(TRACE_DISABLED_BY_DEFAULT("v8.compile"),
                "V8.OptimizeNonConcurrent");
-  CanonicalHandleScope canonical(isolate);
-  compilation_info->ReopenHandlesInNewHandleScope(isolate);
 
-  if (job->PrepareJob(isolate) != CompilationJob::SUCCEEDED ||
+  if (!PrepareJobWithHandleScope(job, isolate, compilation_info) ||
       job->ExecuteJob(isolate->counters()->runtime_call_stats()) !=
           CompilationJob::SUCCEEDED ||
       job->FinalizeJob(isolate) != CompilationJob::SUCCEEDED) {
@@ -981,15 +973,8 @@ bool GetOptimizedCodeLater(std::unique_ptr<OptimizedCompilationJob> job,
   TRACE_EVENT0(TRACE_DISABLED_BY_DEFAULT("v8.compile"),
                "V8.OptimizeConcurrentPrepare");
 
-  {
-    // All handles in this scope will be allocated in a persistent handle
-    // scope that is detached and handed off to the background thread before
-    // queuing it.
-    CompilationHandleScope compilation(isolate, compilation_info);
-    CanonicalHandleScope canonical(isolate);
-    compilation_info->ReopenHandlesInNewHandleScope(isolate);
-    if (job->PrepareJob(isolate) != CompilationJob::SUCCEEDED) return false;
-  }
+  if (!PrepareJobWithHandleScope(job.get(), isolate, compilation_info))
+    return false;
 
   // The background recompile will own this job.
   isolate->optimizing_compile_dispatcher()->QueueForOptimization(job.get());
@@ -1363,6 +1348,10 @@ MaybeHandle<SharedFunctionInfo> CompileToplevel(
 }
 
 }  // namespace
+
+CompilationHandleScope::~CompilationHandleScope() {
+  info_->set_persistent_handles(persistent_.Detach());
+}
 
 BackgroundCompileTask::BackgroundCompileTask(ScriptStreamingData* streamed_data,
                                              Isolate* isolate)

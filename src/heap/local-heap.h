@@ -44,9 +44,18 @@ class V8_EXPORT_PRIVATE LocalHeap {
   LocalHandles* handles() { return handles_.get(); }
 
   template <typename T>
-  inline Handle<T> NewPersistentHandle(T object);
+  Handle<T> NewPersistentHandle(T object) {
+    if (!persistent_handles_) {
+      EnsurePersistentHandles();
+    }
+    return persistent_handles_->NewHandle(object);
+  }
+
   template <typename T>
-  inline Handle<T> NewPersistentHandle(Handle<T> object);
+  Handle<T> NewPersistentHandle(Handle<T> object) {
+    return NewPersistentHandle(*object);
+  }
+
   std::unique_ptr<PersistentHandles> DetachPersistentHandles();
 #ifdef DEBUG
   bool ContainsPersistentHandle(Address* location);

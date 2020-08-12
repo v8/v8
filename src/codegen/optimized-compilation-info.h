@@ -16,6 +16,7 @@
 #include "src/handles/handles.h"
 #include "src/handles/persistent-handles.h"
 #include "src/objects/objects.h"
+#include "src/utils/identity-map.h"
 #include "src/utils/utils.h"
 #include "src/utils/vector.h"
 
@@ -160,7 +161,18 @@ class V8_EXPORT_PRIVATE OptimizedCompilationInfo final {
   }
 
   void set_persistent_handles(
-      std::unique_ptr<PersistentHandles> persistent_handles);
+      std::unique_ptr<PersistentHandles> persistent_handles) {
+    DCHECK_NULL(ph_);
+    ph_ = std::move(persistent_handles);
+    DCHECK_NOT_NULL(ph_);
+  }
+
+  void set_canonical_handles(
+      std::unique_ptr<CanonicalHandlesMap> canonical_handles) {
+    DCHECK_NULL(canonical_handles_);
+    canonical_handles_ = std::move(canonical_handles);
+    DCHECK_NOT_NULL(canonical_handles_);
+  }
 
   void ReopenHandlesInNewHandleScope(Isolate* isolate);
 
@@ -223,7 +235,13 @@ class V8_EXPORT_PRIVATE OptimizedCompilationInfo final {
   }
 
   std::unique_ptr<PersistentHandles> DetachPersistentHandles() {
+    DCHECK_NOT_NULL(ph_);
     return std::move(ph_);
+  }
+
+  std::unique_ptr<CanonicalHandlesMap> DetachCanonicalHandles() {
+    DCHECK_NOT_NULL(canonical_handles_);
+    return std::move(canonical_handles_);
   }
 
  private:
@@ -264,8 +282,6 @@ class V8_EXPORT_PRIVATE OptimizedCompilationInfo final {
   // OptimizedCompilationInfo allocates.
   Zone* const zone_;
 
-  std::unique_ptr<PersistentHandles> persistent_handles_;
-
   BailoutReason bailout_reason_ = BailoutReason::kNoReason;
 
   InlinedFunctionList inlined_functions_;
@@ -282,14 +298,25 @@ class V8_EXPORT_PRIVATE OptimizedCompilationInfo final {
 
   TickCounter tick_counter_;
 
-  // This PersistentHandles container is owned first by
-  // OptimizedCompilationInfo, then by JSHeapBroker, then by LocalHeap (when we
-  // go to the background thread), then again by JSHeapBroker (right before
-  // returning to the main thread), which gets destroyed when PipelineData gets
-  // destroyed when e.g. PipelineCompilationJob gets destroyed. Since it is a
-  // member of OptimizedCompilationInfo, we make sure that we have one and only
-  // one per compilation job.
+  // 1) PersistentHandles created via PersistentHandlesScope inside of
+  //    CompilationHandleScope
+  // 2) Owned by OptimizedCompilationInfo
+  // 3) Owned by JSHeapBroker
+  // 4) Owned by the broker's LocalHeap
+  // 5) Back to the broker for a brief moment (after tearing down the
+  //   LocalHeap as part of exiting LocalHeapScope)
+  // 6) Back to OptimizedCompilationInfo when exiting the LocalHeapScope.
+  //
+  // In normal execution it gets destroyed when PipelineData gets destroyed.
+  // There is a special case in GenerateCodeForTesting where the JSHeapBroker
+  // will not be retired in that same method. In this case, we need to re-attach
+  // the PersistentHandles container to the JSHeapBroker.
   std::unique_ptr<PersistentHandles> ph_;
+
+  // Canonical handles follow the same path as described by the persistent
+  // handles above. The only difference is that is created in the
+  // CanonicalHandleScope(i.e step 1) is different).
+  std::unique_ptr<CanonicalHandlesMap> canonical_handles_;
 
   DISALLOW_COPY_AND_ASSIGN(OptimizedCompilationInfo);
 };

@@ -14,6 +14,7 @@
 #include "src/api/api-inl.h"
 #include "src/ast/modules.h"
 #include "src/codegen/code-factory.h"
+#include "src/codegen/optimized-compilation-info.h"
 #include "src/compiler/access-info.h"
 #include "src/compiler/bytecode-analysis.h"
 #include "src/compiler/graph-reducer.h"
@@ -1613,7 +1614,7 @@ class BytecodeArrayData : public FixedArrayBaseData {
       constant_pool_.push_back(broker->GetOrCreateData(constant_pool->get(i)));
     }
 
-    source_positions_ = broker->NewPersistentHandle(
+    source_positions_ = broker->CanonicalPersistentHandle(
         bytecode_array->SourcePositionTableIfCollected());
 
     Handle<ByteArray> handlers(bytecode_array->handler_table(),
@@ -2435,6 +2436,27 @@ JSHeapBroker::JSHeapBroker(
 
 JSHeapBroker::~JSHeapBroker() { DCHECK(!local_heap_); }
 
+void JSHeapBroker::SetPersistentAndCopyCanonicalHandlesForTesting(
+    std::unique_ptr<PersistentHandles> persistent_handles,
+    std::unique_ptr<CanonicalHandlesMap> canonical_handles) {
+  set_persistent_handles(std::move(persistent_handles));
+  CopyCanonicalHandlesForTesting(std::move(canonical_handles));
+}
+
+void JSHeapBroker::CopyCanonicalHandlesForTesting(
+    std::unique_ptr<CanonicalHandlesMap> canonical_handles) {
+  DCHECK_NULL(canonical_handles_);
+  canonical_handles_ = std::make_unique<CanonicalHandlesMap>(
+      isolate_->heap(), ZoneAllocationPolicy(zone()));
+
+  CanonicalHandlesMap::IteratableScope it_scope(canonical_handles.get());
+  for (auto it = it_scope.begin(); it != it_scope.end(); ++it) {
+    Address* entry = *it.entry();
+    Object key = it.key();
+    canonical_handles_->Set(key, entry);
+  }
+}
+
 std::string JSHeapBroker::Trace() const {
   std::ostringstream oss;
   oss << "[" << this << "] ";
@@ -2442,17 +2464,20 @@ std::string JSHeapBroker::Trace() const {
   return oss.str();
 }
 
-void JSHeapBroker::InitializeLocalHeap() {
-  DCHECK(ph_);
+void JSHeapBroker::InitializeLocalHeap(OptimizedCompilationInfo* info) {
+  set_persistent_handles(info->DetachPersistentHandles());
+  set_canonical_handles(info->DetachCanonicalHandles());
   DCHECK(!local_heap_);
   local_heap_.emplace(isolate_->heap(), std::move(ph_));
 }
 
-void JSHeapBroker::TearDownLocalHeap() {
-  DCHECK(!ph_);
+void JSHeapBroker::TearDownLocalHeap(OptimizedCompilationInfo* info) {
+  DCHECK_NULL(ph_);
   DCHECK(local_heap_);
   ph_ = local_heap_->DetachPersistentHandles();
   local_heap_.reset();
+  info->set_canonical_handles(DetachCanonicalHandles());
+  info->set_persistent_handles(DetachPersistentHandles());
 }
 
 void JSHeapBroker::StopSerializing() {

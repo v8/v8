@@ -28,7 +28,6 @@ OptimizedCompilationInfo::OptimizedCompilationInfo(
   bytecode_array_ = handle(shared->GetBytecodeArray(), isolate);
   shared_info_ = shared;
   closure_ = closure;
-  ph_ = isolate->NewPersistentHandles();
 
   // Collect source positions for optimized code when profiling or if debugger
   // is active, to be able to get more precise source positions at the price of
@@ -124,12 +123,6 @@ OptimizedCompilationInfo::~OptimizedCompilationInfo() {
   if (disable_future_optimization() && has_shared_info()) {
     shared_info()->DisableOptimization(bailout_reason());
   }
-}
-
-void OptimizedCompilationInfo::set_persistent_handles(
-    std::unique_ptr<PersistentHandles> persistent_handles) {
-  DCHECK_NULL(persistent_handles_);
-  persistent_handles_ = std::move(persistent_handles);
 }
 
 void OptimizedCompilationInfo::ReopenHandlesInNewHandleScope(Isolate* isolate) {

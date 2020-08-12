@@ -271,6 +271,9 @@ class HandleScope {
 template <typename V, class AllocationPolicy>
 class IdentityMap;
 class RootIndexMap;
+class OptimizedCompilationInfo;
+
+using CanonicalHandlesMap = IdentityMap<Address*, ZoneAllocationPolicy>;
 
 // A CanonicalHandleScope does not open a new HandleScope. It changes the
 // existing HandleScope so that Handles created within are canonicalized.
@@ -279,16 +282,27 @@ class RootIndexMap;
 // the same CanonicalHandleScope, but not across nested ones.
 class V8_EXPORT_PRIVATE CanonicalHandleScope final {
  public:
-  explicit CanonicalHandleScope(Isolate* isolate);
+  // If we passed a compilation info as parameter, we created the
+  // CanonicalHandlesMap on said compilation info's zone(). If so, in the
+  // CanonicalHandleScope destructor we hand off the canonical handle map to the
+  // compilation info. The compilation info is responsible for the disposal. If
+  // we don't have a compilation info, we create a zone in this constructor. To
+  // properly dispose of said zone, we need to first free the identity_map_
+  // which is done manually even though identity_map_ is a unique_ptr.
+  explicit CanonicalHandleScope(Isolate* isolate,
+                                OptimizedCompilationInfo* info = nullptr);
   ~CanonicalHandleScope();
 
  private:
   Address* Lookup(Address object);
 
+  std::unique_ptr<CanonicalHandlesMap> DetachCanonicalHandles();
+
   Isolate* isolate_;
-  Zone zone_;
+  OptimizedCompilationInfo* info_;
+  Zone* zone_;
   RootIndexMap* root_index_map_;
-  IdentityMap<Address*, ZoneAllocationPolicy>* identity_map_;
+  std::unique_ptr<CanonicalHandlesMap> identity_map_;
   // Ordinary nested handle scopes within the current one are not canonical.
   int canonical_level_;
   // We may have nested canonical scopes. Handles are canonical within each one.
