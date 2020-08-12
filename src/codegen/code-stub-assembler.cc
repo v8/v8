@@ -6717,12 +6717,53 @@ TNode<String> CodeStubAssembler::NumberToString(TNode<Number> input,
         Signed(ChangeUint32ToWord(Int32Add(hash, hash)));
     TNode<Object> smi_key =
         UnsafeLoadFixedArrayElement(number_string_cache, entry_index);
-    GotoIf(TaggedNotEqual(smi_key, smi_input.value()), bailout);
+    Label if_smi_cache_missed(this);
+    GotoIf(TaggedNotEqual(smi_key, smi_input.value()), &if_smi_cache_missed);
 
     // Smi match, return value from cache entry.
     result = CAST(UnsafeLoadFixedArrayElement(number_string_cache, entry_index,
                                               kTaggedSize));
     Goto(&done);
+
+    BIND(&if_smi_cache_missed);
+    {
+      // Generate string and update string hash field.
+      result = NumberToStringSmi(SmiToInt32(smi_input.value()),
+                                 Int32Constant(10), bailout);
+
+      Label resize_cache(this), store_to_cache(this);
+      // Resize when the cache is not full-size.
+      const int kFullCacheSize =
+          isolate()->heap()->MaxNumberToStringCacheSize();
+      Branch(IntPtrLessThan(number_string_cache_length,
+                            IntPtrConstant(kFullCacheSize)),
+             &resize_cache, &store_to_cache);
+
+      BIND(&resize_cache);
+      {
+        // Allocate and initialize the new_cache.
+        TNode<FixedArrayBase> new_cache =
+            AllocateFixedArray(HOLEY_ELEMENTS, IntPtrConstant(kFullCacheSize),
+                               CodeStubAssembler::kAllowLargeObjectAllocation);
+        FillFixedArrayWithValue(HOLEY_ELEMENTS, new_cache, IntPtrConstant(0),
+                                IntPtrConstant(kFullCacheSize),
+                                RootIndex::kUndefinedValue);
+
+        StoreRoot(RootIndex::kNumberStringCache, new_cache);
+        Goto(&done);
+      }
+
+      BIND(&store_to_cache);
+      {
+        // Store string into cache.
+        StoreFixedArrayElement(number_string_cache, entry_index,
+                               smi_input.value());
+        StoreFixedArrayElement(number_string_cache,
+                               IntPtrAdd(entry_index, IntPtrConstant(1)),
+                               result.value());
+        Goto(&done);
+      }
+    }
   }
   BIND(&done);
   return result.value();
