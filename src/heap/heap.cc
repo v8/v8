@@ -196,7 +196,7 @@ Heap::Heap()
       external_string_table_(this),
       collection_barrier_(this) {
   // Ensure old_generation_size_ is a multiple of kPageSize.
-  DCHECK_EQ(0, max_old_generation_size_ & (Page::kPageSize - 1));
+  DCHECK_EQ(0, max_old_generation_size() & (Page::kPageSize - 1));
 
   set_native_contexts_list(Smi::zero());
   set_allocation_sites_list(Smi::zero());
@@ -213,7 +213,7 @@ size_t Heap::MaxReserved() {
   const size_t kMaxNewLargeObjectSpaceSize = max_semi_space_size_;
   return static_cast<size_t>(2 * max_semi_space_size_ +
                              kMaxNewLargeObjectSpaceSize +
-                             max_old_generation_size_);
+                             max_old_generation_size());
 }
 
 size_t Heap::YoungGenerationSizeFromOldGenerationSize(size_t old_generation) {
@@ -395,7 +395,7 @@ size_t Heap::Available() {
 
 bool Heap::CanExpandOldGeneration(size_t size) {
   if (force_oom_) return false;
-  if (OldGenerationCapacity() + size > max_old_generation_size_) return false;
+  if (OldGenerationCapacity() + size > max_old_generation_size()) return false;
   // The OldGenerationCapacity does not account compaction spaces used
   // during evacuation. Ensure that expanding the old generation does push
   // the total allocated memory size over the maximum heap size.
@@ -1644,9 +1644,9 @@ bool Heap::CollectGarbage(AllocationSpace space,
       if (deserialization_complete_) {
         memory_reducer_->NotifyMarkCompact(event);
       }
-      if (initial_max_old_generation_size_ < max_old_generation_size_ &&
+      if (initial_max_old_generation_size_ < max_old_generation_size() &&
           used_memory_after < initial_max_old_generation_size_threshold_) {
-        max_old_generation_size_ = initial_max_old_generation_size_;
+        set_max_old_generation_size(initial_max_old_generation_size_);
       }
     }
 
@@ -2135,7 +2135,7 @@ void Heap::RecomputeLimits(GarbageCollector collector) {
   double v8_mutator_speed =
       tracer()->CurrentOldGenerationAllocationThroughputInBytesPerMillisecond();
   double v8_growing_factor = MemoryController<V8HeapTrait>::GrowingFactor(
-      this, max_old_generation_size_, v8_gc_speed, v8_mutator_speed);
+      this, max_old_generation_size(), v8_gc_speed, v8_mutator_speed);
   double global_growing_factor = 0;
   if (UseGlobalMemoryScheduling()) {
     DCHECK_NOT_NULL(local_embedder_heap_tracer());
@@ -2161,7 +2161,7 @@ void Heap::RecomputeLimits(GarbageCollector collector) {
     old_generation_allocation_limit_ =
         MemoryController<V8HeapTrait>::CalculateAllocationLimit(
             this, old_gen_size, min_old_generation_size_,
-            max_old_generation_size_, new_space_capacity, v8_growing_factor,
+            max_old_generation_size(), new_space_capacity, v8_growing_factor,
             mode);
     if (UseGlobalMemoryScheduling()) {
       DCHECK_GT(global_growing_factor, 0);
@@ -2178,7 +2178,7 @@ void Heap::RecomputeLimits(GarbageCollector collector) {
     size_t new_old_generation_limit =
         MemoryController<V8HeapTrait>::CalculateAllocationLimit(
             this, old_gen_size, min_old_generation_size_,
-            max_old_generation_size_, new_space_capacity, v8_growing_factor,
+            max_old_generation_size(), new_space_capacity, v8_growing_factor,
             mode);
     if (new_old_generation_limit < old_generation_allocation_limit_) {
       old_generation_allocation_limit_ = new_old_generation_limit;
@@ -3386,7 +3386,7 @@ bool Heap::IsIneffectiveMarkCompact(size_t old_generation_size,
   const double kHighHeapPercentage = 0.8;
   const double kLowMutatorUtilization = 0.4;
   return old_generation_size >=
-             kHighHeapPercentage * max_old_generation_size_ &&
+             kHighHeapPercentage * max_old_generation_size() &&
          mutator_utilization < kLowMutatorUtilization;
 }
 
@@ -3425,7 +3425,7 @@ bool Heap::HasHighFragmentation(size_t used, size_t committed) {
 }
 
 bool Heap::ShouldOptimizeForMemoryUsage() {
-  const size_t kOldGenerationSlack = max_old_generation_size_ / 8;
+  const size_t kOldGenerationSlack = max_old_generation_size() / 8;
   return FLAG_optimize_for_size || isolate()->IsIsolateInBackground() ||
          isolate()->IsMemorySavingsModeActive() || HighMemoryPressure() ||
          !CanExpandOldGeneration(kOldGenerationSlack);
@@ -3924,11 +3924,11 @@ bool Heap::InvokeNearHeapLimitCallback() {
     v8::NearHeapLimitCallback callback =
         near_heap_limit_callbacks_.back().first;
     void* data = near_heap_limit_callbacks_.back().second;
-    size_t heap_limit = callback(data, max_old_generation_size_,
+    size_t heap_limit = callback(data, max_old_generation_size(),
                                  initial_max_old_generation_size_);
-    if (heap_limit > max_old_generation_size_) {
-      max_old_generation_size_ =
-          Min(heap_limit, AllocatorLimitOnMaxOldGenerationSize());
+    if (heap_limit > max_old_generation_size()) {
+      set_max_old_generation_size(
+          Min(heap_limit, AllocatorLimitOnMaxOldGenerationSize()));
       return true;
     }
   }
@@ -4652,30 +4652,31 @@ void Heap::ConfigureHeap(const v8::ResourceConstraints& constraints) {
 
   // Initialize max_old_generation_size_ and max_global_memory_.
   {
-    max_old_generation_size_ = 700ul * (kSystemPointerSize / 4) * MB;
+    size_t max_old_generation_size = 700ul * (kSystemPointerSize / 4) * MB;
     if (constraints.max_old_generation_size_in_bytes() > 0) {
-      max_old_generation_size_ = constraints.max_old_generation_size_in_bytes();
+      max_old_generation_size = constraints.max_old_generation_size_in_bytes();
     }
     if (FLAG_max_old_space_size > 0) {
-      max_old_generation_size_ =
+      max_old_generation_size =
           static_cast<size_t>(FLAG_max_old_space_size) * MB;
     } else if (FLAG_max_heap_size > 0) {
       size_t max_heap_size = static_cast<size_t>(FLAG_max_heap_size) * MB;
       size_t young_generation_size =
           YoungGenerationSizeFromSemiSpaceSize(max_semi_space_size_);
-      max_old_generation_size_ = max_heap_size > young_generation_size
-                                     ? max_heap_size - young_generation_size
-                                     : 0;
+      max_old_generation_size = max_heap_size > young_generation_size
+                                    ? max_heap_size - young_generation_size
+                                    : 0;
     }
-    max_old_generation_size_ =
-        Max(max_old_generation_size_, MinOldGenerationSize());
-    max_old_generation_size_ =
-        Min(max_old_generation_size_, AllocatorLimitOnMaxOldGenerationSize());
-    max_old_generation_size_ =
-        RoundDown<Page::kPageSize>(max_old_generation_size_);
+    max_old_generation_size =
+        Max(max_old_generation_size, MinOldGenerationSize());
+    max_old_generation_size =
+        Min(max_old_generation_size, AllocatorLimitOnMaxOldGenerationSize());
+    max_old_generation_size =
+        RoundDown<Page::kPageSize>(max_old_generation_size);
 
     max_global_memory_size_ =
-        GlobalMemorySizeFromV8Size(max_old_generation_size_);
+        GlobalMemorySizeFromV8Size(max_old_generation_size);
+    set_max_old_generation_size(max_old_generation_size);
   }
 
   CHECK_IMPLIES(FLAG_max_heap_size > 0,
@@ -4740,7 +4741,7 @@ void Heap::ConfigureHeap(const v8::ResourceConstraints& constraints) {
       old_generation_size_configured_ = true;
     }
     initial_old_generation_size_ =
-        Min(initial_old_generation_size_, max_old_generation_size_ / 2);
+        Min(initial_old_generation_size_, max_old_generation_size() / 2);
     initial_old_generation_size_ =
         RoundDown<Page::kPageSize>(initial_old_generation_size_);
   }
@@ -4760,7 +4761,7 @@ void Heap::ConfigureHeap(const v8::ResourceConstraints& constraints) {
   old_generation_allocation_limit_ = initial_old_generation_size_;
   global_allocation_limit_ =
       GlobalMemorySizeFromV8Size(old_generation_allocation_limit_);
-  initial_max_old_generation_size_ = max_old_generation_size_;
+  initial_max_old_generation_size_ = max_old_generation_size();
 
   // We rely on being able to allocate new arrays in paged spaces.
   DCHECK(kMaxRegularHeapObjectSize >=
@@ -4886,7 +4887,7 @@ bool Heap::AllocationLimitOvershotByLargeMargin() {
   // with special handling of small heaps.
   const size_t v8_margin =
       Min(Max(old_generation_allocation_limit_ / 2, kMarginForSmallHeaps),
-          (max_old_generation_size_ - old_generation_allocation_limit_) / 2);
+          (max_old_generation_size() - old_generation_allocation_limit_) / 2);
   const size_t global_margin =
       Min(Max(global_allocation_limit_ / 2, kMarginForSmallHeaps),
           (max_global_memory_size_ - global_allocation_limit_) / 2);

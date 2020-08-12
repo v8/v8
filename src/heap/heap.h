@@ -702,7 +702,7 @@ class Heap {
   // For post mortem debugging.
   void RememberUnmappedPage(Address page, bool compacted);
 
-  int64_t external_memory_hard_limit() { return max_old_generation_size_ / 2; }
+  int64_t external_memory_hard_limit() { return max_old_generation_size() / 2; }
 
   V8_INLINE int64_t external_memory();
   V8_EXPORT_PRIVATE int64_t external_memory_limit();
@@ -745,8 +745,8 @@ class Heap {
   void RestoreHeapLimit(size_t heap_limit) {
     // Do not set the limit lower than the live size + some slack.
     size_t min_limit = SizeOfObjects() + SizeOfObjects() / 4;
-    max_old_generation_size_ =
-        Min(max_old_generation_size_, Max(heap_limit, min_limit));
+    set_max_old_generation_size(
+        Min(max_old_generation_size(), Max(heap_limit, min_limit)));
   }
 
   // ===========================================================================
@@ -1191,7 +1191,7 @@ class Heap {
   V8_EXPORT_PRIVATE size_t MaxReserved();
   size_t MaxSemiSpaceSize() { return max_semi_space_size_; }
   size_t InitialSemiSpaceSize() { return initial_semispace_size_; }
-  size_t MaxOldGenerationSize() { return max_old_generation_size_; }
+  size_t MaxOldGenerationSize() { return max_old_generation_size(); }
 
   // Limit on the max old generation size imposed by the underlying allocator.
   V8_EXPORT_PRIVATE static size_t AllocatorLimitOnMaxOldGenerationSize();
@@ -1858,6 +1858,14 @@ class Heap {
 
   size_t global_allocation_limit() const { return global_allocation_limit_; }
 
+  size_t max_old_generation_size() {
+    return max_old_generation_size_.load(std::memory_order_relaxed);
+  }
+
+  void set_max_old_generation_size(size_t value) {
+    max_old_generation_size_.store(value, std::memory_order_relaxed);
+  }
+
   bool always_allocate() { return always_allocate_scope_count_ != 0; }
 
   V8_EXPORT_PRIVATE bool CanExpandOldGeneration(size_t size);
@@ -2002,7 +2010,7 @@ class Heap {
   size_t min_old_generation_size_ = 0;
   // If the old generation size exceeds this limit, then V8 will
   // crash with out-of-memory error.
-  size_t max_old_generation_size_ = 0;
+  std::atomic<size_t> max_old_generation_size_{0};
   // TODO(mlippautz): Clarify whether this should take some embedder
   // configurable limit into account.
   size_t min_global_memory_size_ = 0;
