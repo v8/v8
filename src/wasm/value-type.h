@@ -163,6 +163,10 @@ class ValueType {
     return kind() == kRef || kind() == kOptRef || kind() == kRtt;
   }
 
+  constexpr bool is_object_reference_type() const {
+    return kind() == kRef || kind() == kOptRef;
+  }
+
   constexpr bool is_packed() const { return kind() == kI8 || kind() == kI16; }
 
   constexpr bool is_nullable() const { return kind() == kOptRef; }

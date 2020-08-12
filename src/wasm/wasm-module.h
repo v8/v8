@@ -118,7 +118,7 @@ struct WasmElemSegment {
 
   // Construct an active segment.
   WasmElemSegment(uint32_t table_index, WasmInitExpr offset)
-      : type(ValueType::Ref(HeapType::kFunc, kNullable)),
+      : type(kWasmFuncRef),
         table_index(table_index),
         offset(std::move(offset)),
         status(kStatusActive) {}
@@ -126,7 +126,7 @@ struct WasmElemSegment {
   // Construct a passive or declarative segment, which has no table index or
   // offset.
   explicit WasmElemSegment(bool declarative)
-      : type(ValueType::Ref(HeapType::kFunc, kNullable)),
+      : type(kWasmFuncRef),
         table_index(0),
         status(declarative ? kStatusDeclarative : kStatusPassive) {}
 

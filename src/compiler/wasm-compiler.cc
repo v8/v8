@@ -2895,7 +2895,7 @@ Node* WasmGraphBuilder::BuildIndirectCall(uint32_t table_index,
 
   // Check that the dynamic type of the function is a subtype of its static
   // (table) type. Currently, the only subtyping between function types is
-  // (ref null $t) <: funcref for all $t: function_type.
+  // $t <: funcref for all $t: function_type.
   // TODO(7748): Expand this with function subtyping.
   if (env_->module->tables[table_index].type == wasm::kWasmFuncRef) {
     int32_t expected_sig_id = env_->module->signature_ids[sig_index];
@@ -2948,6 +2948,32 @@ Node* WasmGraphBuilder::BuildIndirectCall(uint32_t table_index,
       return BuildWasmReturnCall(sig, args, position, target_instance,
                                  use_retpoline);
   }
+}
+
+Node* WasmGraphBuilder::BuildLoadFunctionDataFromExportedFunction(
+    Node* closure) {
+  Node* shared = gasm_->Load(
+      MachineType::AnyTagged(), closure,
+      wasm::ObjectAccess::SharedFunctionInfoOffsetInTaggedJSFunction());
+  return gasm_->Load(MachineType::AnyTagged(), shared,
+                     SharedFunctionInfo::kFunctionDataOffset - kHeapObjectTag);
+}
+
+Node* WasmGraphBuilder::BuildLoadJumpTableOffsetFromExportedFunctionData(
+    Node* function_data) {
+  Node* jump_table_offset_smi = gasm_->Load(
+      MachineType::TaggedSigned(), function_data,
+      WasmExportedFunctionData::kJumpTableOffsetOffset - kHeapObjectTag);
+  return BuildChangeSmiToIntPtr(jump_table_offset_smi);
+}
+
+Node* WasmGraphBuilder::BuildLoadFunctionIndexFromExportedFunctionData(
+    Node* function_data) {
+  Node* function_index_smi = gasm_->Load(
+      MachineType::TaggedSigned(), function_data,
+      WasmExportedFunctionData::kFunctionIndexOffset - kHeapObjectTag);
+  Node* function_index = BuildChangeSmiToInt32(function_index_smi);
+  return function_index;
 }
 
 Node* WasmGraphBuilder::ReturnCall(uint32_t index, Vector<Node*> args,
@@ -6073,35 +6099,10 @@ class WasmWrapperGraphBuilder : public WasmGraphBuilder {
         mcgraph()->Int32Constant(new_value ? 1 : 0), effect(), control()));
   }
 
-  Node* BuildLoadFunctionDataFromExportedFunction(Node* closure) {
-    Node* shared = gasm_->Load(
-        MachineType::AnyTagged(), closure,
-        wasm::ObjectAccess::SharedFunctionInfoOffsetInTaggedJSFunction());
-    return gasm_->Load(
-        MachineType::AnyTagged(), shared,
-        SharedFunctionInfo::kFunctionDataOffset - kHeapObjectTag);
-  }
-
   Node* BuildLoadInstanceFromExportedFunctionData(Node* function_data) {
     return gasm_->Load(
         MachineType::AnyTagged(), function_data,
         WasmExportedFunctionData::kInstanceOffset - kHeapObjectTag);
-  }
-
-  Node* BuildLoadFunctionIndexFromExportedFunctionData(Node* function_data) {
-    Node* function_index_smi = gasm_->Load(
-        MachineType::TaggedSigned(), function_data,
-        WasmExportedFunctionData::kFunctionIndexOffset - kHeapObjectTag);
-    Node* function_index = BuildChangeSmiToInt32(function_index_smi);
-    return function_index;
-  }
-
-  Node* BuildLoadJumpTableOffsetFromExportedFunctionData(Node* function_data) {
-    Node* jump_table_offset_smi = gasm_->Load(
-        MachineType::TaggedSigned(), function_data,
-        WasmExportedFunctionData::kJumpTableOffsetOffset - kHeapObjectTag);
-    Node* jump_table_offset = BuildChangeSmiToIntPtr(jump_table_offset_smi);
-    return jump_table_offset;
   }
 
   Node* BuildMultiReturnFixedArrayFromIterable(const wasm::FunctionSig* sig,

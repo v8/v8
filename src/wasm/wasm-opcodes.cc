@@ -39,8 +39,7 @@ bool IsJSCompatibleSignature(const FunctionSig* sig,
 
     if (type == kWasmS128) return false;
 
-    if (type.kind() == wasm::ValueType::kRef ||
-        type.kind() == wasm::ValueType::kOptRef) {
+    if (type.is_object_reference_type()) {
       uint32_t representation = type.heap_representation();
       // TODO(7748): Once there's a story for JS interop for struct/array types,
       // allow them here.

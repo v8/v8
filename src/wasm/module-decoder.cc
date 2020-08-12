@@ -703,7 +703,7 @@ class ModuleDecoderImpl : public Decoder {
       WasmTable* table = &module_->tables.back();
       const byte* type_position = pc();
       table->type = consume_reference_type();
-      if (table->type.kind() != ValueType::kOptRef) {
+      if (!table->type.is_nullable()) {
         // TODO(7748): Implement other table types.
         error(type_position,
               "Currently, only nullable references are allowed as table types");

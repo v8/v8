@@ -2916,7 +2916,7 @@ class WasmFullDecoder : public WasmDecoder<validate> {
   DECODE(UnknownOrAsmJs) {
     // Deal with special asmjs opcodes.
     if (!VALIDATE(is_asmjs_module(this->module_))) {
-      this->error("Invalid opcode");
+      this->errorf(this->pc(), "Invalid opcode 0x%x", opcode);
       return 0;
     }
     const FunctionSig* sig = WasmOpcodes::AsmjsSignature(opcode);
@@ -3759,8 +3759,7 @@ class WasmFullDecoder : public WasmDecoder<validate> {
           return 0;
         }
         Value obj = Pop(0);
-        if (!VALIDATE(obj.type.kind() == ValueType::kRef ||
-                      obj.type.kind() == ValueType::kOptRef)) {
+        if (!VALIDATE(obj.type.is_object_reference_type())) {
           this->error(this->pc_, "br_on_cast[0]: expected reference on stack");
           return 0;
         }
