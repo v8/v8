@@ -2602,18 +2602,7 @@ void CompilationStateImpl::InitializeCompilationProgress(bool lazy_module,
 
   // Trigger callbacks if module needs no baseline or top tier compilation. This
   // can be the case for an empty or fully lazy module.
-  if (outstanding_baseline_units_ == 0) {
-    for (auto& callback : callbacks_) {
-      callback(CompilationEvent::kFinishedBaselineCompilation);
-    }
-    if (outstanding_top_tier_functions_ == 0) {
-      for (auto& callback : callbacks_) {
-        callback(CompilationEvent::kFinishedTopTierCompilation);
-      }
-      // Clear the callbacks because no more events will be delivered.
-      callbacks_.clear();
-    }
-  }
+  TriggerCallbacks();
 }
 
 void CompilationStateImpl::InitializeRecompilation(
