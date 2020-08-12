@@ -1146,6 +1146,14 @@ Response V8DebuggerAgentImpl::stepInto(
     Maybe<bool> inBreakOnAsyncCall,
     Maybe<protocol::Array<protocol::Debugger::LocationRange>> inSkipList) {
   if (!isPaused()) return Response::ServerError(kDebuggerNotPaused);
+
+  if (inSkipList.isJust()) {
+    const Response res = processSkipList(inSkipList.fromJust());
+    if (res.IsError()) return res;
+  } else {
+    m_skipList.clear();
+  }
+
   m_session->releaseObjectGroup(kBacktraceObjectGroup);
   m_debugger->stepIntoStatement(m_session->contextGroupId(),
                                 inBreakOnAsyncCall.fromMaybe(false));

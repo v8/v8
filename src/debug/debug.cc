@@ -1891,9 +1891,9 @@ void Debug::OnDebugBreak(Handle<FixedArray> break_points_hit,
   HandleScope scope(isolate_);
   DisableBreak no_recursive_break(this);
 
-  // Only check if we should skip this location if we
-  // paused because of a step over.
-  if (lastStepAction == StepAction::StepNext && ShouldBeSkipped()) {
+  if ((lastStepAction == StepAction::StepNext ||
+       lastStepAction == StepAction::StepIn) &&
+      ShouldBeSkipped()) {
     PrepareStep(lastStepAction);
     return;
   }

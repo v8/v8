@@ -18,7 +18,8 @@ function test(input) {
 }
 
 function add(a, b) {
-  return a + b;
+  var res = a + b;
+  return res;
 }
 
 contextGroup.addScript(`${test} //# sourceURL=test.js`);
@@ -30,83 +31,122 @@ const function_call_line_offset = 8;
 const function_call_column_offset = 2;
 const if_case_line_offset = 4;
 
+const add_first_line_line_offset = 1;
+const add_last_line_line_offset = 2;
+const add_last_line_column_offset = 13;
+
 Protocol.Debugger.enable();
 runTest()
     .catch(reason => InspectorTest.log(`Failed: ${reason}`))
     .then(InspectorTest.completeTest);
 
 async function runTest() {
-  const response = await Protocol.Debugger.onceScriptParsed();
-  const scriptId = response.params.scriptId;
+  const response = await Protocol.Debugger.onceScriptParsed(2);
+  const scriptIds = response.map(msg => msg.params.scriptId);
 
-  await checkValidSkipLists(scriptId);
-  await checkInvalidSkipLists(scriptId);
+  await checkValidSkipLists(scriptIds[0], scriptIds[1]);
+  await checkInvalidSkipLists(scriptIds[0]);
 }
 
 async function checkInvalidSkipLists(scriptId) {
-  InspectorTest.log('Test: start position has invalid column number');
-  let skipList = [createLocationRange(
-      scriptId, first_non_debug_line_offset, -1, last_line_line_offset, 0)];
-  await testStepOver(skipList);
+  const actions = ['stepOver', 'stepInto'];
+  for (let action of actions) {
+    InspectorTest.log('Test: start position has invalid column number');
+    let skipList = [createLocationRange(
+        scriptId, first_non_debug_line_offset, -1, last_line_line_offset, 0)];
+    await testStep(skipList, action);
 
-  InspectorTest.log('Test: start position has invalid line number');
-  skipList =
-      [createLocationRange(scriptId, -1, 0, first_non_debug_line_offset, 0)];
-  await testStepOver(skipList);
+    InspectorTest.log('Test: start position has invalid line number');
+    skipList =
+        [createLocationRange(scriptId, -1, 0, first_non_debug_line_offset, 0)];
+    await testStep(skipList, action);
 
-  InspectorTest.log('Test: end position smaller than start position');
-  skipList = [createLocationRange(
-      scriptId, if_case_line_offset, 0, first_non_debug_line_offset, 0)];
-  await testStepOver(skipList);
+    InspectorTest.log('Test: end position smaller than start position');
+    skipList = [createLocationRange(
+        scriptId, if_case_line_offset, 0, first_non_debug_line_offset, 0)];
+    await testStep(skipList, action);
 
-  InspectorTest.log('Test: skip list is not maximally merged');
-  skipList = [
-    createLocationRange(
-        scriptId, first_non_debug_line_offset, 0, if_case_line_offset, 0),
-    createLocationRange(
-        scriptId, if_case_line_offset, 0, last_line_line_offset, 0)
-  ];
-  await testStepOver(skipList);
+    InspectorTest.log('Test: skip list is not maximally merged');
+    skipList = [
+      createLocationRange(
+          scriptId, first_non_debug_line_offset, 0, if_case_line_offset, 0),
+      createLocationRange(
+          scriptId, if_case_line_offset, 0, last_line_line_offset, 0)
+    ];
+    await testStep(skipList, action);
 
-  InspectorTest.log('Test: skip list is not sorted');
-  skipList = [
-    createLocationRange(
-        scriptId, function_call_line_offset, 0, last_line_line_offset, 0),
-    createLocationRange(
-        scriptId, first_non_debug_line_offset, 0, if_case_line_offset, 0)
-  ];
-  await testStepOver(skipList);
+    InspectorTest.log('Test: skip list is not sorted');
+    skipList = [
+      createLocationRange(
+          scriptId, function_call_line_offset, 0, last_line_line_offset, 0),
+      createLocationRange(
+          scriptId, first_non_debug_line_offset, 0, if_case_line_offset, 0)
+    ];
+    await testStep(skipList, action);
+  }
 }
 
-async function checkValidSkipLists(scriptId) {
-  InspectorTest.log('Test: No skip list');
-  await testStepOver([]);
+async function checkValidSkipLists(testScriptId, addScriptId) {
+  InspectorTest.log('Test: Stepping over without skip list');
+  await testStep([], 'stepOver');
 
-  InspectorTest.log('Test: Skip lines');
+  InspectorTest.log('Test: Stepping over with skip list');
   let skipList = [
     createLocationRange(
-        scriptId, first_non_debug_line_offset, 0, if_case_line_offset, 0),
+        testScriptId, first_non_debug_line_offset, 0, if_case_line_offset, 0),
     createLocationRange(
-        scriptId, function_call_line_offset, 0, last_line_line_offset, 0)
+        testScriptId, function_call_line_offset, 0, last_line_line_offset, 0)
   ];
-  await testStepOver(skipList);
+  await testStep(skipList, 'stepOver');
 
-  InspectorTest.log('Test: Start location is inclusive');
+  InspectorTest.log('Test: Stepping over start location is inclusive');
   skipList = [createLocationRange(
-      scriptId, function_call_line_offset, function_call_column_offset,
+      testScriptId, function_call_line_offset, function_call_column_offset,
       last_line_line_offset, 0)];
-  await testStepOver(skipList);
+  await testStep(skipList, 'stepOver');
 
-  InspectorTest.log('Test: End location is exclusive');
+  InspectorTest.log('Test: Stepping over end location is exclusive');
   skipList = [createLocationRange(
-      scriptId, first_non_debug_line_offset, 0, function_call_line_offset,
+      testScriptId, first_non_debug_line_offset, 0, function_call_line_offset,
       function_call_column_offset)];
-  await testStepOver(skipList);
+  await testStep(skipList, 'stepOver');
+
+  InspectorTest.log('Test: Stepping into without skip list');
+  skipList = [];
+  await testStep(skipList, 'stepInto');
+
+  InspectorTest.log(
+      'Test: Stepping into with skip list, while call itself is skipped');
+  skipList = [
+    createLocationRange(
+        addScriptId, add_first_line_line_offset, 0, add_last_line_line_offset,
+        0),
+    createLocationRange(
+        testScriptId, first_non_debug_line_offset, 0,
+        function_call_line_offset + 1, 0),
+  ];
+  await testStep(skipList, 'stepInto');
+
+  InspectorTest.log('Test: Stepping into start location is inclusive');
+  skipList = [
+    createLocationRange(
+        addScriptId, add_last_line_line_offset, add_last_line_column_offset,
+        add_last_line_line_offset + 1, 0),
+  ];
+  await testStep(skipList, 'stepInto');
+
+  InspectorTest.log('Test: Stepping into end location is exclusive');
+  skipList = [
+    createLocationRange(
+        addScriptId, add_last_line_line_offset - 1, 0,
+        add_last_line_line_offset, add_last_line_column_offset),
+  ];
+  await testStep(skipList, 'stepInto');
 }
 
-async function testStepOver(skipList) {
+async function testStep(skipList, stepAction) {
   InspectorTest.log(
-      `Testing step over with skipList: ${JSON.stringify(skipList)}`);
+      `Testing ${stepAction} with skipList: ${JSON.stringify(skipList)}`);
   Protocol.Runtime.evaluate({expression: 'test(5);'});
   while (true) {
     const pausedMsg = await Protocol.Debugger.oncePaused();
@@ -114,7 +154,7 @@ async function testStepOver(skipList) {
     printCallFrame(topCallFrame);
     if (topCallFrame.location.lineNumber == last_line_line_offset) break;
 
-    const stepOverMsg = await Protocol.Debugger.stepOver({skipList});
+    const stepOverMsg = await Protocol.Debugger[stepAction]({skipList});
     if (stepOverMsg.error) {
       InspectorTest.log(stepOverMsg.error.message);
       Protocol.Debugger.resume();

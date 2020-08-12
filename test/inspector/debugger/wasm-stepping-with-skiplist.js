@@ -8,13 +8,14 @@ let {session, contextGroup, Protocol} =
     InspectorTest.start('Tests stepping through wasm scripts by byte offsets');
 session.setupScriptMap();
 
-var builder = new WasmModuleBuilder();
+const builder = new WasmModuleBuilder();
 
-var func_a_idx =
-    builder.addFunction('wasm_A', kSig_v_i).addBody([kExprNop, kExprNop]).index;
+const func_a =
+    builder.addFunction('wasm_A', kSig_v_i).addBody([kExprNop, kExprNop]);
+const func_a_idx = func_a.index;
 
 // wasm_B calls wasm_A <param0> times.
-var func_b = builder.addFunction('wasm_B', kSig_v_i)
+const func_b = builder.addFunction('wasm_B', kSig_v_i)
     .addBody([
       // clang-format off
       kExprLoop, kWasmStmt,               // while
@@ -39,6 +40,9 @@ const loop_body_start_offset = loop_start_offset + 2;
 const loop_body_end_offset = loop_body_start_offset + 14;
 const if_statement_offset = loop_body_start_offset + 2
 const call_function_offset = loop_body_start_offset + 12;
+
+const func_a_start_offset = func_a.body_offset;
+const func_a_end_offset = func_a_start_offset + 2;
 
 runTest()
     .catch(reason => InspectorTest.log(`Failed: ${reason}`))
@@ -67,83 +71,113 @@ async function runTest() {
 
 async function checkValidSkipLists(scriptId) {
   InspectorTest.log('Test with valid skip lists');
-  Protocol.Runtime.evaluate({expression: 'instance.exports.main(5)'});
+  Protocol.Runtime.evaluate({expression: 'instance.exports.main(8)'});
   const {params: {callFrames}} = await Protocol.Debugger.oncePaused();
   await session.logSourceLocation(callFrames[0].location);
 
-  InspectorTest.log('Test: No skip list');
+  InspectorTest.log('Test: Stepping over without skip list');
   let skipList = [];
-  await stepThroughOneLoopIteration(skipList);
+  await stepThroughOneLoopIteration(skipList, 'stepOver');
 
-  InspectorTest.log('Test: Skip lines');
+  InspectorTest.log('Test: Stepping over with skip list');
   skipList = [
     createLocationRange(scriptId, loop_body_start_offset, if_statement_offset),
     createLocationRange(scriptId, call_function_offset, loop_body_end_offset)
   ];
-  await stepThroughOneLoopIteration(skipList);
+  await stepThroughOneLoopIteration(skipList, 'stepOver');
 
-  InspectorTest.log('Test: Start location is inclusive');
+  InspectorTest.log('Test: Stepping over start location is inclusive');
   skipList = [
     createLocationRange(
         scriptId, loop_body_start_offset, loop_body_end_offset - 1),
   ];
-  await stepThroughOneLoopIteration(skipList);
+  await stepThroughOneLoopIteration(skipList, 'stepOver');
 
-  InspectorTest.log('Test: End location is exclusive');
+  InspectorTest.log('Test: Stepping over end location is exclusive');
   skipList = [
     createLocationRange(
         scriptId, loop_body_start_offset + 1, loop_body_end_offset),
   ];
-  await stepThroughOneLoopIteration(skipList);
+  await stepThroughOneLoopIteration(skipList, 'stepOver');
+
+  InspectorTest.log('Test: Stepping into without skip list');
+  skipList = [];
+  await stepThroughOneLoopIteration(skipList, 'stepInto');
+
+  InspectorTest.log(
+      'Test: Stepping into with skip list, while call itself is skipped');
+  skipList = [
+    createLocationRange(scriptId, func_a_start_offset, func_a_end_offset),
+    createLocationRange(scriptId, if_statement_offset, loop_body_end_offset)
+  ];
+  await stepThroughOneLoopIteration(skipList, 'stepInto');
+
+  InspectorTest.log('Test: Stepping into start location is inclusive');
+  skipList = [
+    createLocationRange(scriptId, func_a_start_offset, func_a_end_offset - 1),
+  ];
+  await stepThroughOneLoopIteration(skipList, 'stepInto');
+
+  InspectorTest.log('Test: Stepping into end location is exclusive');
+  skipList = [
+    createLocationRange(scriptId, func_a_start_offset - 1, func_a_end_offset),
+  ];
+  await stepThroughOneLoopIteration(skipList, 'stepInto');
+
   await Protocol.Debugger.resume();
 }
 
 async function checkInvalidSkipLists(scriptId) {
   InspectorTest.log('Test with invalid skip lists');
-  Protocol.Runtime.evaluate({expression: 'instance.exports.main(5)'});
+  Protocol.Runtime.evaluate({expression: 'instance.exports.main(8)'});
   const {params: {callFrames}} = await Protocol.Debugger.oncePaused();
   await session.logSourceLocation(callFrames[0].location);
 
-  InspectorTest.log('Test: start position has invalid column number');
-  let skipList = [
-    createLocationRange(scriptId, -1, loop_body_end_offset),
-  ];
-  await stepThroughOneLoopIteration(skipList);
+  const actions = ['stepOver', 'stepInto'];
+  for (let action of actions) {
+    InspectorTest.log('Test: start position has invalid column number');
+    let skipList = [
+      createLocationRange(scriptId, -1, loop_body_end_offset),
+    ];
+    await stepThroughOneLoopIteration(skipList, action);
 
-  InspectorTest.log('Test: start position has invalid line number');
-  skipList = [{
-    scriptId: scriptId,
-    start: {lineNumber: -1, columnNumber: 0},
-    end: {lineNumber: 0, columnNumber: loop_body_end_offset}
-  }];
-  await stepThroughOneLoopIteration(skipList);
+    InspectorTest.log('Test: start position has invalid line number');
+    skipList = [{
+      scriptId: scriptId,
+      start: {lineNumber: -1, columnNumber: 0},
+      end: {lineNumber: 0, columnNumber: loop_body_end_offset}
+    }];
+    await stepThroughOneLoopIteration(skipList, action);
 
-  InspectorTest.log('Test: end position smaller than start position');
-  skipList = [createLocationRange(
-      scriptId, loop_body_end_offset, loop_body_start_offset)];
-  await stepThroughOneLoopIteration(skipList);
+    InspectorTest.log('Test: end position smaller than start position');
+    skipList = [createLocationRange(
+        scriptId, loop_body_end_offset, loop_body_start_offset)];
+    await stepThroughOneLoopIteration(skipList, action);
 
-  InspectorTest.log('Test: skip list is not maximally merged');
-  skipList = [
-    createLocationRange(scriptId, loop_body_start_offset, if_statement_offset),
-    createLocationRange(scriptId, if_statement_offset, loop_body_end_offset)
-  ];
-  await stepThroughOneLoopIteration(skipList);
+    InspectorTest.log('Test: skip list is not maximally merged');
+    skipList = [
+      createLocationRange(
+          scriptId, loop_body_start_offset, if_statement_offset),
+      createLocationRange(scriptId, if_statement_offset, loop_body_end_offset)
+    ];
+    await stepThroughOneLoopIteration(skipList, action);
 
-  InspectorTest.log('Test: skip list is not sorted');
-  skipList = [
-    createLocationRange(scriptId, if_statement_offset, loop_body_end_offset),
-    createLocationRange(scriptId, loop_body_start_offset, loop_body_end_offset)
-  ];
-  await stepThroughOneLoopIteration(skipList);
+    InspectorTest.log('Test: skip list is not sorted');
+    skipList = [
+      createLocationRange(scriptId, if_statement_offset, loop_body_end_offset),
+      createLocationRange(
+          scriptId, loop_body_start_offset, loop_body_end_offset)
+    ];
+    await stepThroughOneLoopIteration(skipList, action);
+  }
 }
 
-async function stepThroughOneLoopIteration(skipList) {
+async function stepThroughOneLoopIteration(skipList, stepAction) {
   InspectorTest.log(
-      `Testing step over with skipList: ${JSON.stringify(skipList)}`);
+      `Testing ${stepAction} with skipList: ${JSON.stringify(skipList)}`);
   let topFrameLocation = -1;
   while (topFrameLocation.columnNumber != loop_start_offset) {
-    const stepOverMsg = await Protocol.Debugger.stepOver({skipList});
+    const stepOverMsg = await Protocol.Debugger[stepAction]({skipList});
     if (stepOverMsg.error) {
       InspectorTest.log(stepOverMsg.error.message);
       return;
