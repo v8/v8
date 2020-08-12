@@ -1075,6 +1075,14 @@ bool WasmScript::ClearBreakPoint(Handle<Script> script, int position,
     // Make sure last array element is empty as a result.
     breakpoint_infos->set_undefined(breakpoint_infos->length() - 1);
   }
+
+  // Remove the breakpoint from DebugInfo and recompile.
+  wasm::NativeModule* native_module = script->wasm_native_module();
+  const wasm::WasmModule* module = native_module->module();
+  int func_index = GetContainingWasmFunction(module, position);
+  native_module->GetDebugInfo()->RemoveBreakpoint(func_index, position,
+                                                  isolate);
+
   return true;
 }
 
