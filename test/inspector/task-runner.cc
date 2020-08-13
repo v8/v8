@@ -4,8 +4,6 @@
 
 #include "test/inspector/task-runner.h"
 
-#include "include/libplatform/libplatform.h"
-
 #if !defined(_WIN32) && !defined(_WIN64)
 #include <unistd.h>  // NOLINT
 #endif               // !defined(_WIN32) && !defined(_WIN64)
@@ -76,11 +74,6 @@ void TaskRunner::RunMessageLoop(bool only_protocol) {
     } else {
       task->Run(data_.get());
       delete task;
-    }
-    // Also pump isolate's foreground task queue to ensure progress.
-    // This can be removed once https://crbug.com/v8/10747 is fixed.
-    while (v8::platform::PumpMessageLoop(v8::internal::V8::GetCurrentPlatform(),
-                                         isolate())) {
     }
   }
 }
