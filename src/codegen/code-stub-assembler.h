@@ -2146,15 +2146,12 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
   // is produced or not.
   // * |allocation_flags| and |extract_flags| influence how the target array is
   // allocated.
-  // * |parameter_mode| determines the parameter mode of |first|, |count| and
-  // |capacity|.
+  template <typename TIndex>
   TNode<FixedArrayBase> ExtractFixedDoubleArrayFillingHoles(
-      TNode<FixedArrayBase> source, Node* first, Node* count, Node* capacity,
-      TNode<Map> source_map, TVariable<BoolT>* var_holes_converted,
-      AllocationFlags allocation_flags,
-      ExtractFixedArrayFlags extract_flags =
-          ExtractFixedArrayFlag::kAllFixedArrays,
-      ParameterMode parameter_mode = INTPTR_PARAMETERS);
+      TNode<FixedArrayBase> source, TNode<TIndex> first, TNode<TIndex> count,
+      TNode<TIndex> capacity, TNode<Map> source_map,
+      TVariable<BoolT>* var_holes_converted, AllocationFlags allocation_flags,
+      ExtractFixedArrayFlags extract_flags);
 
   // Copy the entire contents of a FixedArray or FixedDoubleArray to a new
   // array, including special appropriate handling for empty arrays and COW

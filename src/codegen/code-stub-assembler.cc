@@ -4004,21 +4004,26 @@ TNode<FixedArray> CodeStubAssembler::ExtractToFixedArray(
   return UncheckedCast<FixedArray>(var_result.value());
 }
 
+template <typename TIndex>
 TNode<FixedArrayBase> CodeStubAssembler::ExtractFixedDoubleArrayFillingHoles(
-    TNode<FixedArrayBase> from_array, Node* first, Node* count, Node* capacity,
-    TNode<Map> fixed_array_map, TVariable<BoolT>* var_holes_converted,
-    AllocationFlags allocation_flags, ExtractFixedArrayFlags extract_flags,
-    ParameterMode mode) {
-  DCHECK_NE(first, nullptr);
-  DCHECK_NE(count, nullptr);
-  DCHECK_NE(capacity, nullptr);
+    TNode<FixedArrayBase> from_array, TNode<TIndex> first, TNode<TIndex> count,
+    TNode<TIndex> capacity, TNode<Map> fixed_array_map,
+    TVariable<BoolT>* var_holes_converted, AllocationFlags allocation_flags,
+    ExtractFixedArrayFlags extract_flags) {
+  static_assert(
+      std::is_same<TIndex, Smi>::value || std::is_same<TIndex, IntPtrT>::value,
+      "Only Smi or IntPtrT first, count, and capacity are allowed");
+
   DCHECK_NE(var_holes_converted, nullptr);
   CSA_ASSERT(this, IsFixedDoubleArrayMap(fixed_array_map));
+
+  const ParameterMode parameter_mode =
+      std::is_same<TIndex, Smi>::value ? SMI_PARAMETERS : INTPTR_PARAMETERS;
 
   TVARIABLE(FixedArrayBase, var_result);
   const ElementsKind kind = PACKED_DOUBLE_ELEMENTS;
   TNode<FixedArrayBase> to_elements = AllocateFixedArray(
-      kind, capacity, mode, allocation_flags, fixed_array_map);
+      kind, capacity, parameter_mode, allocation_flags, fixed_array_map);
   var_result = to_elements;
   // We first try to copy the FixedDoubleArray to a new FixedDoubleArray.
   // |var_holes_converted| is set to False preliminarily.
@@ -4026,25 +4031,23 @@ TNode<FixedArrayBase> CodeStubAssembler::ExtractFixedDoubleArrayFillingHoles(
 
   // The construction of the loop and the offsets for double elements is
   // extracted from CopyFixedArrayElements.
-  CSA_SLOW_ASSERT(this, MatchesParameterMode(count, mode));
-  CSA_SLOW_ASSERT(this, MatchesParameterMode(capacity, mode));
   CSA_SLOW_ASSERT(this, IsFixedArrayWithKindOrEmpty(from_array, kind));
   STATIC_ASSERT(FixedArray::kHeaderSize == FixedDoubleArray::kHeaderSize);
 
   Comment("[ ExtractFixedDoubleArrayFillingHoles");
 
   // This copy can trigger GC, so we pre-initialize the array with holes.
-  FillFixedArrayWithValue(kind, to_elements, IntPtrOrSmiConstant(0, mode),
-                          capacity, RootIndex::kTheHoleValue, mode);
+  FillFixedArrayWithValue(kind, to_elements, IntPtrOrSmiConstant<TIndex>(0),
+                          capacity, RootIndex::kTheHoleValue, parameter_mode);
 
   const int first_element_offset = FixedArray::kHeaderSize - kHeapObjectTag;
   TNode<IntPtrT> first_from_element_offset =
-      ElementOffsetFromIndex(first, kind, mode, 0);
+      ElementOffsetFromIndex(first, kind, 0);
   TNode<IntPtrT> limit_offset = IntPtrAdd(first_from_element_offset,
                                           IntPtrConstant(first_element_offset));
   TVARIABLE(IntPtrT, var_from_offset,
-            ElementOffsetFromIndex(IntPtrOrSmiAdd(first, count, mode), kind,
-                                   mode, first_element_offset));
+            ElementOffsetFromIndex(IntPtrOrSmiAdd(first, count), kind,
+                                   first_element_offset));
 
   Label decrement(this, {&var_from_offset}), done(this);
   TNode<IntPtrT> to_array_adjusted =
@@ -4077,10 +4080,10 @@ TNode<FixedArrayBase> CodeStubAssembler::ExtractFixedDoubleArrayFillingHoles(
     // replacing holes. We signal this to the caller through
     // |var_holes_converted|.
     *var_holes_converted = Int32TrueConstant();
-    to_elements =
-        ExtractToFixedArray(from_array, first, count, capacity, fixed_array_map,
-                            kind, allocation_flags, extract_flags, mode,
-                            HoleConversionMode::kConvertToUndefined);
+    to_elements = ExtractToFixedArray(from_array, first, count, capacity,
+                                      fixed_array_map, kind, allocation_flags,
+                                      extract_flags, parameter_mode,
+                                      HoleConversionMode::kConvertToUndefined);
     var_result = to_elements;
     Goto(&done);
   }
@@ -4162,7 +4165,7 @@ TNode<FixedArrayBase> CodeStubAssembler::ExtractFixedArray(
     if (convert_holes == HoleConversionMode::kConvertToUndefined) {
       TNode<FixedArrayBase> to_elements = ExtractFixedDoubleArrayFillingHoles(
           source, *first, *count, *capacity, source_map, var_holes_converted,
-          allocation_flags, extract_flags, parameter_mode);
+          allocation_flags, extract_flags);
       var_result = to_elements;
     } else {
       // We use PACKED_DOUBLE_ELEMENTS to signify that both the source and
