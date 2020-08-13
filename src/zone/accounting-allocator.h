@@ -15,7 +15,7 @@ namespace v8 {
 
 namespace base {
 class BoundedPageAllocator;
-}
+}  // namespace base
 
 namespace internal {
 

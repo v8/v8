@@ -37,7 +37,7 @@ class TimeTicks;
 namespace time_internal {
 template<class TimeClass>
 class TimeBase;
-}
+}  // namespace time_internal
 
 class TimeConstants {
  public:

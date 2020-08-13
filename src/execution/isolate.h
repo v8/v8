@@ -49,7 +49,7 @@ namespace v8 {
 
 namespace base {
 class RandomNumberGenerator;
-}
+}  // namespace base
 
 namespace debug {
 class ConsoleDelegate;
@@ -112,19 +112,19 @@ class VMState;
 
 namespace interpreter {
 class Interpreter;
-}
+}  // namespace interpreter
 
 namespace compiler {
 class PerIsolateCompilerCache;
-}
+}  // namespace compiler
 
 namespace wasm {
 class WasmEngine;
-}
+}  // namespace wasm
 
 namespace win64_unwindinfo {
 class BuiltinUnwindInfo;
-}
+}  // namespace win64_unwindinfo
 
 namespace metrics {
 class Recorder;

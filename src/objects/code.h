@@ -27,7 +27,7 @@ class CodeDesc;
 
 namespace interpreter {
 class Register;
-}
+}  // namespace interpreter
 
 // CodeDataContainer is a container for all mutable fields associated with its
 // referencing {Code} object. Since {Code} objects reside on write-protected

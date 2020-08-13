@@ -2050,7 +2050,7 @@ class NullContextForSnapshotScope {
   Isolate* isolate_;
   Context prev_;
 };
-}  //  namespace
+}  // namespace
 
 bool HeapSnapshotGenerator::GenerateSnapshot() {
   v8_heap_explorer_.TagGlobalObjects();

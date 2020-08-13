@@ -57,7 +57,7 @@ PreParserIdentifier GetIdentifierHelper(Scanner* scanner,
   return PreParserIdentifier::Default();
 }
 
-}  // unnamed namespace
+}  // namespace
 
 PreParserIdentifier PreParser::GetIdentifier() const {
   const AstRawString* result = scanner()->CurrentSymbol(ast_value_factory());

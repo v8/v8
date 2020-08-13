@@ -26,7 +26,7 @@ namespace internal {
 // Forward declarations.
 namespace compiler {
 class CallDescriptor;
-}
+}  // namespace compiler
 
 namespace wasm {
 

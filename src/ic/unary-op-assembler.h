@@ -12,7 +12,7 @@ namespace internal {
 
 namespace compiler {
 class CodeAssemblerState;
-}
+}  // namespace compiler
 
 class UnaryOpAssembler final {
  public:

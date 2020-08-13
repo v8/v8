@@ -13,7 +13,7 @@ namespace internal {
 
 namespace compiler {
 class CodeAssemblerState;
-}
+}  // namespace compiler
 
 class BinaryOpAssembler : public CodeStubAssembler {
  public:

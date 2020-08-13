@@ -52,7 +52,7 @@ class TestMemoryAllocatorScope;
 
 namespace third_party_heap {
 class Heap;
-}
+}  // namespace third_party_heap
 
 class IncrementalMarking;
 class BackingStore;

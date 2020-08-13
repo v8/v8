@@ -19,7 +19,7 @@
 namespace v8 {
 namespace sampler {
 class Sampler;
-}
+}  // namespace sampler
 namespace internal {
 
 // Forward declarations.

@@ -1439,7 +1439,7 @@ void Generate_InterpreterPushZeroAndArgsAndReturnAddress(
 #endif
 }
 
-}  // end anonymous namespace
+}  // anonymous namespace
 
 // static
 void Builtins::Generate_InterpreterPushArgsThenConstructImpl(

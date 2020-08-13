@@ -34,7 +34,7 @@ namespace internal {
 
 namespace testing {
 class TestWithHeap;
-}
+}  // namespace testing
 
 class MarkerBase;
 class PageBackend;

@@ -83,7 +83,7 @@ std::unique_ptr<StringBuffer> StringBufferFrom(std::vector<uint8_t> str);
 
 String16 stackTraceIdToString(uintptr_t id);
 
-}  //  namespace v8_inspector
+}  // namespace v8_inspector
 
 // See third_party/inspector_protocol/crdtp/serializer_traits.h.
 namespace v8_crdtp {

@@ -24,7 +24,7 @@ namespace v8 {
 
 namespace tracing {
 class TracedValue;
-}
+}  // namespace tracing
 
 namespace internal {
 
@@ -36,7 +36,7 @@ class Zone;
 
 namespace wasm {
 struct WasmCompilationResult;
-}
+}  // namespace wasm
 
 // OptimizedCompilationInfo encapsulates the information needed to compile
 // optimized code for a given function, and the results of the optimized

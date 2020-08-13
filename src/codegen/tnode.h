@@ -20,7 +20,7 @@ namespace compiler {
 
 class Node;
 
-}
+}  // namespace compiler
 
 struct UntaggedT {};
 

@@ -27,7 +27,7 @@ static const char allocationTrackingEnabled[] = "allocationTrackingEnabled";
 static const char samplingHeapProfilerEnabled[] = "samplingHeapProfilerEnabled";
 static const char samplingHeapProfilerInterval[] =
     "samplingHeapProfilerInterval";
-}
+}  // namespace HeapProfilerAgentState
 
 class HeapSnapshotProgress final : public v8::ActivityControl {
  public:

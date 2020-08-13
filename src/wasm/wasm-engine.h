@@ -34,7 +34,7 @@ namespace wasm {
 #ifdef V8_ENABLE_WASM_GDB_REMOTE_DEBUGGING
 namespace gdb_server {
 class GdbServer;
-}
+}  // namespace gdb_server
 #endif  // V8_ENABLE_WASM_GDB_REMOTE_DEBUGGING
 
 class AsyncCompileJob;

@@ -27,7 +27,7 @@ class D8Console;
 
 namespace internal {
 class CancelableTaskManager;
-}
+}  // namespace internal
 
 // A single counter in a counter collection.
 class Counter {

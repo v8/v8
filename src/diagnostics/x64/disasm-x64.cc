@@ -218,7 +218,7 @@ void InstructionTable::AddJumpConditionalShort() {
 
 namespace {
 DEFINE_LAZY_LEAKY_OBJECT_GETTER(InstructionTable, GetInstructionTable)
-}
+}  // namespace
 
 static const InstructionDesc cmov_instructions[16] = {
     {"cmovo", TWO_OPERANDS_INSTR, REG_OPER_OP_ORDER, false},

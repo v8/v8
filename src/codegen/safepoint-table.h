@@ -17,7 +17,7 @@ namespace internal {
 
 namespace wasm {
 class WasmCode;
-}
+}  // namespace wasm
 
 class SafepointEntry {
  public:

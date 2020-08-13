@@ -23,7 +23,7 @@
 
 namespace U_ICU_NAMESPACE {
 class BreakIterator;
-}
+}  // namespace U_ICU_NAMESPACE
 
 namespace v8 {
 namespace internal {
