@@ -1619,10 +1619,6 @@ class ModuleDecoderImpl : public Decoder {
   }
 
   WasmInitExpr consume_init_expr(WasmModule* module, ValueType expected) {
-    if (pc() >= end()) {
-      error(pc(), "Global initializer starting beyond code end");
-      return {};
-    }
     constexpr Decoder::ValidateFlag validate = Decoder::kValidate;
     WasmOpcode opcode = kExprNop;
     std::vector<WasmInitExpr> stack;
@@ -1635,14 +1631,14 @@ class ModuleDecoderImpl : public Decoder {
           len = 1 + imm.length;
           if (V8_UNLIKELY(module->globals.size() <= imm.index)) {
             error(pc() + 1, "global index is out of bounds");
-            break;
+            return {};
           }
           WasmGlobal* global = &module->globals[imm.index];
           if (V8_UNLIKELY(global->mutability || !global->imported)) {
             error(pc() + 1,
                   "only immutable imported globals can be used in initializer "
                   "expressions");
-            break;
+            return {};
           }
           stack.push_back(WasmInitExpr::GlobalGet(imm.index));
           break;
@@ -1678,12 +1674,12 @@ class ModuleDecoderImpl : public Decoder {
                    "invalid opcode 0x%x in global initializer, enable with "
                    "--experimental-wasm-reftypes or --experimental-wasm-eh",
                    kExprRefNull);
-            break;
+            return {};
           }
           HeapTypeImmediate<Decoder::kValidate> imm(enabled_features_, this,
                                                     pc() + 1);
           len = 1 + imm.length;
-          if (!Validate(pc() + 1, imm)) break;
+          if (!Validate(pc() + 1, imm)) return {};
           stack.push_back(
               WasmInitExpr::RefNullConst(imm.type.representation()));
           break;
@@ -1694,14 +1690,14 @@ class ModuleDecoderImpl : public Decoder {
                    "invalid opcode 0x%x in global initializer, enable with "
                    "--experimental-wasm-reftypes",
                    kExprRefFunc);
-            break;
+            return {};
           }
 
           FunctionIndexImmediate<Decoder::kValidate> imm(this, pc() + 1);
           len = 1 + imm.length;
           if (V8_UNLIKELY(module->functions.size() <= imm.index)) {
             errorf(pc(), "invalid function index: %u", imm.index);
-            break;
+            return {};
           }
           stack.push_back(WasmInitExpr::RefFuncConst(imm.index));
           // Functions referenced in the globals section count as "declared".
@@ -1709,11 +1705,14 @@ class ModuleDecoderImpl : public Decoder {
           break;
         }
         case kSimdPrefix: {
+          // No need to check for Simd in enabled_features_ here; we either
+          // failed to validate the global's type earlier, or will fail in
+          // the type check or stack height check at the end.
           opcode = read_prefixed_opcode<validate>(pc(), &len);
           if (V8_UNLIKELY(opcode != kExprS128Const)) {
             errorf(pc(), "invalid SIMD opcode 0x%x in global initializer",
                    opcode);
-            break;
+            return {};
           }
 
           Simd128Immediate<validate> imm(this, pc() + len + 1);
@@ -1722,13 +1721,16 @@ class ModuleDecoderImpl : public Decoder {
           break;
         }
         case kGCPrefix: {
+          // No need to check for GC in enabled_features_ here; we either
+          // failed to validate the global's type earlier, or will fail in
+          // the type check or stack height check at the end.
           opcode = read_prefixed_opcode<validate>(pc(), &len);
           switch (opcode) {
             case kExprRttCanon: {
               HeapTypeImmediate<validate> imm(enabled_features_, this,
                                               pc() + 2);
               len += 1 + imm.length;
-              if (!Validate(pc() + 2, imm)) break;
+              if (!Validate(pc() + 2, imm)) return {};
               stack.push_back(
                   WasmInitExpr::RttCanon(imm.type.representation()));
               break;
@@ -1737,10 +1739,10 @@ class ModuleDecoderImpl : public Decoder {
               HeapTypeImmediate<validate> imm(enabled_features_, this,
                                               pc() + 2);
               len += 1 + imm.length;
-              if (!Validate(pc() + 2, imm)) break;
+              if (!Validate(pc() + 2, imm)) return {};
               if (stack.empty()) {
                 error(pc(), "calling rtt.sub without arguments");
-                break;
+                return {};
               }
               WasmInitExpr parent = std::move(stack.back());
               stack.pop_back();
@@ -1752,7 +1754,7 @@ class ModuleDecoderImpl : public Decoder {
                           ValueType::Ref(parent_type.heap_type(), kNonNullable),
                           module_.get()))) {
                 error(pc(), "rtt.sub requires a supertype rtt on stack");
-                break;
+                return {};
               }
               stack.push_back(WasmInitExpr::RttSub(imm.type.representation(),
                                                    std::move(parent)));
@@ -1760,18 +1762,12 @@ class ModuleDecoderImpl : public Decoder {
             }
             default: {
               errorf(pc(), "invalid opcode 0x%x in global initializer", opcode);
-              break;
+              return {};
             }
           }
-          break;
+          break;  // case kGCPrefix
         }
         case kExprEnd:
-          if (V8_UNLIKELY(stack.size() != 1)) {
-            errorf(pc(),
-                   "Found 'end' in global initalizer, but %s expressions were "
-                   "found on the stack",
-                   stack.size() > 1 ? "more than one" : "no");
-          }
           break;
         default: {
           errorf(pc(), "invalid opcode 0x%x in global initializer", opcode);
@@ -1785,9 +1781,17 @@ class ModuleDecoderImpl : public Decoder {
       error(end(), "Global initializer extending beyond code end");
       return {};
     }
-    if (V8_UNLIKELY(this->failed())) return {};
-
-    DCHECK_EQ(stack.size(), 1);
+    if (V8_UNLIKELY(opcode != kExprEnd)) {
+      error(pc(), "Global initializer is missing 'end'");
+      return {};
+    }
+    if (V8_UNLIKELY(stack.size() != 1)) {
+      errorf(pc(),
+             "Found 'end' in global initalizer, but %s expressions were "
+             "found on the stack",
+             stack.size() > 1 ? "more than one" : "no");
+      return {};
+    }
 
     WasmInitExpr expr = std::move(stack.back());
     if (expected != kWasmStmt && !IsSubtypeOf(TypeOf(expr), expected, module)) {
