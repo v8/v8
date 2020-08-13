@@ -74,7 +74,7 @@ class V8_EXPORT_PRIVATE StringTable {
   static Address TryStringToIndexOrLookupExisting(Isolate* isolate,
                                                   Address raw_string);
 
-  void Print() const;
+  void Print(const Isolate* isolate) const;
   size_t GetCurrentMemoryUsage() const;
 
   // The following methods must be called either while holding the write lock,
@@ -84,7 +84,7 @@ class V8_EXPORT_PRIVATE StringTable {
   void NotifyElementsRemoved(int count);
 
  private:
-  void EnsureCapacity(int additional_elements);
+  void EnsureCapacity(const Isolate* isolate, int additional_elements);
 
   class Data;
   std::unique_ptr<Data> data_;

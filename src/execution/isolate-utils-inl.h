@@ -14,12 +14,16 @@
 namespace v8 {
 namespace internal {
 
-inline const Isolate* GetIsolateForPtrCompr(HeapObject object) {
+inline const Isolate* GetIsolateForPtrComprFromOnHeapAddress(Address address) {
 #ifdef V8_COMPRESS_POINTERS
-  return Isolate::FromRoot(GetIsolateRoot(object.ptr()));
+  return Isolate::FromRoot(GetIsolateRoot(address));
 #else
   return nullptr;
 #endif  // V8_COMPRESS_POINTERS
+}
+
+inline const Isolate* GetIsolateForPtrCompr(HeapObject object) {
+  return GetIsolateForPtrComprFromOnHeapAddress(object.ptr());
 }
 
 inline const Isolate* GetIsolateForPtrCompr(const Isolate* isolate) {

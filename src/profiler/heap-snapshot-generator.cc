@@ -1468,6 +1468,17 @@ class RootsReferencesExtractor : public RootVisitor {
     }
   }
 
+  void VisitRootPointers(Root root, const char* description,
+                         OffHeapObjectSlot start,
+                         OffHeapObjectSlot end) override {
+    DCHECK_EQ(root, Root::kStringTable);
+    const Isolate* isolate = Isolate::FromHeap(explorer_->heap_);
+    for (OffHeapObjectSlot p = start; p < end; ++p) {
+      explorer_->SetGcSubrootReference(root, description, visiting_weak_roots_,
+                                       p.load(isolate));
+    }
+  }
+
  private:
   V8HeapExplorer* explorer_;
   bool visiting_weak_roots_;
@@ -1766,22 +1777,38 @@ void V8HeapExplorer::TagObject(Object obj, const char* tag) {
 
 class GlobalObjectsEnumerator : public RootVisitor {
  public:
+  explicit GlobalObjectsEnumerator(Isolate* isolate) : isolate_(isolate) {}
+
   void VisitRootPointers(Root root, const char* description,
                          FullObjectSlot start, FullObjectSlot end) override {
-    for (FullObjectSlot p = start; p < end; ++p) {
-      if (!(*p).IsNativeContext()) continue;
-      JSObject proxy = Context::cast(*p).global_proxy();
-      if (!proxy.IsJSGlobalProxy()) continue;
-      Object global = proxy.map().prototype();
-      if (!global.IsJSGlobalObject()) continue;
-      objects_.push_back(Handle<JSGlobalObject>(JSGlobalObject::cast(global),
-                                                proxy.GetIsolate()));
-    }
+    VisitRootPointersImpl(root, description, start, end);
   }
+
+  void VisitRootPointers(Root root, const char* description,
+                         OffHeapObjectSlot start,
+                         OffHeapObjectSlot end) override {
+    VisitRootPointersImpl(root, description, start, end);
+  }
+
   int count() const { return static_cast<int>(objects_.size()); }
   Handle<JSGlobalObject>& at(int i) { return objects_[i]; }
 
  private:
+  template <typename TSlot>
+  void VisitRootPointersImpl(Root root, const char* description, TSlot start,
+                             TSlot end) {
+    for (TSlot p = start; p < end; ++p) {
+      Object o = p.load(isolate_);
+      if (!o.IsNativeContext(isolate_)) continue;
+      JSObject proxy = Context::cast(o).global_proxy();
+      if (!proxy.IsJSGlobalProxy(isolate_)) continue;
+      Object global = proxy.map(isolate_).prototype(isolate_);
+      if (!global.IsJSGlobalObject(isolate_)) continue;
+      objects_.push_back(handle(JSGlobalObject::cast(global), isolate_));
+    }
+  }
+
+  Isolate* isolate_;
   std::vector<Handle<JSGlobalObject>> objects_;
 };
 
@@ -1790,7 +1817,7 @@ class GlobalObjectsEnumerator : public RootVisitor {
 void V8HeapExplorer::TagGlobalObjects() {
   Isolate* isolate = Isolate::FromHeap(heap_);
   HandleScope scope(isolate);
-  GlobalObjectsEnumerator enumerator;
+  GlobalObjectsEnumerator enumerator(isolate);
   isolate->global_handles()->IterateAllRoots(&enumerator);
   std::vector<const char*> urls(enumerator.count());
   for (int i = 0, l = enumerator.count(); i < l; ++i) {

@@ -23,6 +23,7 @@
 #include "src/common/globals.h"
 #include "src/debug/debug.h"
 #include "src/deoptimizer/deoptimizer.h"
+#include "src/execution/isolate-utils-inl.h"
 #include "src/execution/microtask-queue.h"
 #include "src/execution/runtime-profiler.h"
 #include "src/execution/v8threads.h"
@@ -1828,22 +1829,33 @@ void Heap::CopyRange(HeapObject dst_object, const TSlot dst_slot,
 // Helper class for verifying the string table.
 class StringTableVerifier : public RootVisitor {
  public:
+  explicit StringTableVerifier(Isolate* isolate) : isolate_(isolate) {}
+
   void VisitRootPointers(Root root, const char* description,
                          FullObjectSlot start, FullObjectSlot end) override {
+    UNREACHABLE();
+  }
+  void VisitRootPointers(Root root, const char* description,
+                         OffHeapObjectSlot start,
+                         OffHeapObjectSlot end) override {
     // Visit all HeapObject pointers in [start, end).
-    for (FullObjectSlot p = start; p < end; ++p) {
-      DCHECK(!HasWeakHeapObjectTag(*p));
-      if ((*p).IsHeapObject()) {
-        HeapObject object = HeapObject::cast(*p);
+    for (OffHeapObjectSlot p = start; p < end; ++p) {
+      Object o = p.load(isolate_);
+      DCHECK(!HasWeakHeapObjectTag(o));
+      if (o.IsHeapObject()) {
+        HeapObject object = HeapObject::cast(o);
         // Check that the string is actually internalized.
         CHECK(object.IsInternalizedString());
       }
     }
   }
+
+ private:
+  Isolate* isolate_;
 };
 
 static void VerifyStringTable(Isolate* isolate) {
-  StringTableVerifier verifier;
+  StringTableVerifier verifier(isolate);
   isolate->string_table()->IterateElements(&verifier);
 }
 #endif  // VERIFY_HEAP
@@ -3066,6 +3078,14 @@ class LeftTrimmerVerifierRootVisitor : public RootVisitor {
     for (FullObjectSlot p = start; p < end; ++p) {
       DCHECK_NE(*p, to_check_);
     }
+  }
+
+  void VisitRootPointers(Root root, const char* description,
+                         OffHeapObjectSlot start,
+                         OffHeapObjectSlot end) override {
+    DCHECK_EQ(root, Root::kStringTable);
+    // We can skip iterating the string table, it doesn't point to any fixed
+    // arrays.
   }
 
  private:
@@ -5942,6 +5962,11 @@ class UnreachableObjectsFilter : public HeapObjectsFilter {
                            FullObjectSlot start, FullObjectSlot end) override {
       MarkPointersImpl(start, end);
     }
+    void VisitRootPointers(Root root, const char* description,
+                           OffHeapObjectSlot start,
+                           OffHeapObjectSlot end) override {
+      MarkPointersImpl(start, end);
+    }
 
     void TransitiveClosure() {
       while (!marking_stack_.empty()) {
@@ -5959,8 +5984,9 @@ class UnreachableObjectsFilter : public HeapObjectsFilter {
     template <typename TSlot>
     V8_INLINE void MarkPointersImpl(TSlot start, TSlot end) {
       // Treat weak references as strong.
+      Isolate* isolate = filter_->heap_->isolate();
       for (TSlot p = start; p < end; ++p) {
-        typename TSlot::TObject object = *p;
+        typename TSlot::TObject object = p.load(isolate);
         HeapObject heap_object;
         if (object.GetHeapObject(&heap_object)) {
           MarkHeapObject(heap_object);
@@ -6393,6 +6419,13 @@ void VerifyPointersVisitor::VisitRootPointers(Root root,
   VerifyPointersImpl(start, end);
 }
 
+void VerifyPointersVisitor::VisitRootPointers(Root root,
+                                              const char* description,
+                                              OffHeapObjectSlot start,
+                                              OffHeapObjectSlot end) {
+  VerifyPointersImpl(start, end);
+}
+
 void VerifyPointersVisitor::VerifyHeapObjectImpl(HeapObject heap_object) {
   CHECK(IsValidHeapObject(heap_, heap_object));
   CHECK(heap_object.map().IsMap());
@@ -6400,8 +6433,9 @@ void VerifyPointersVisitor::VerifyHeapObjectImpl(HeapObject heap_object) {
 
 template <typename TSlot>
 void VerifyPointersVisitor::VerifyPointersImpl(TSlot start, TSlot end) {
+  Isolate* isolate = heap_->isolate();
   for (TSlot slot = start; slot < end; ++slot) {
-    typename TSlot::TObject object = *slot;
+    typename TSlot::TObject object = slot.load(isolate);
     HeapObject heap_object;
     if (object.GetHeapObject(&heap_object)) {
       VerifyHeapObjectImpl(heap_object);

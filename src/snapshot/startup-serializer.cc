@@ -213,9 +213,16 @@ void StartupSerializer::SerializeStringTable(StringTable* string_table) {
 
     void VisitRootPointers(Root root, const char* description,
                            FullObjectSlot start, FullObjectSlot end) override {
+      UNREACHABLE();
+    }
+
+    void VisitRootPointers(Root root, const char* description,
+                           OffHeapObjectSlot start,
+                           OffHeapObjectSlot end) override {
       DCHECK_EQ(root, Root::kStringTable);
-      for (FullObjectSlot current = start; current < end; ++current) {
-        Object obj = *current;
+      Isolate* isolate = serializer_->isolate();
+      for (OffHeapObjectSlot current = start; current < end; ++current) {
+        Object obj = current.load(isolate);
         if (obj.IsHeapObject()) {
           DCHECK(obj.IsInternalizedString());
           serializer_->SerializeObject(HeapObject::cast(obj));
