@@ -5120,6 +5120,7 @@ void Heap::DisableInlineAllocation() {
   CodeSpaceMemoryModificationScope modification_scope(this);
   for (PagedSpace* space = spaces.Next(); space != nullptr;
        space = spaces.Next()) {
+    base::MutexGuard guard(space->mutex());
     space->FreeLinearAllocationArea();
   }
 }
