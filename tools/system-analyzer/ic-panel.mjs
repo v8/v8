@@ -4,7 +4,7 @@
 
 import { Group } from './ic-model.mjs';
 import CustomIcProcessor from "./ic-processor.mjs";
-import { SelectEvent, SelectTimeEvent } from './events.mjs';
+import { FocusEvent, SelectTimeEvent } from './events.mjs';
 import { defineCustomElement, V8CustomElement } from './helper.mjs';
 
 defineCustomElement('ic-panel', (templateText) =>
@@ -93,11 +93,11 @@ defineCustomElement('ic-panel', (templateText) =>
     }
 
     handleMapClick(e) {
-      this.dispatchEvent(new SelectEvent(e.target.parentNode.entry));
+      this.dispatchEvent(new FocusEvent(e.target.parentNode.entry));
     }
 
     handleFilePositionClick(e) {
-      this.dispatchEvent(new SelectEvent(e.target.parentNode.entry.key));
+      this.dispatchEvent(new FocusEvent(e.target.parentNode.entry.key));
     }
 
     render(entries, parent) {

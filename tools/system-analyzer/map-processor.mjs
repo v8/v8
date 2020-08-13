@@ -236,14 +236,14 @@ class MapProcessor extends LogReader {
   }
 
   createMap(id, time) {
-    let map = new V8Map(id, time);
+    let map = new MapLogEvent(id, time);
     this.#timeline.push(map);
     return map;
   }
 
   getExistingMap(id, time) {
     if (id === '0x000000000000') return undefined;
-    let map = V8Map.get(id, time);
+    let map = MapLogEvent.get(id, time);
     if (map === undefined) {
       console.error('No map details provided: id=' + id);
       // Manually patch in a map to continue running.
@@ -255,7 +255,7 @@ class MapProcessor extends LogReader {
 
 // ===========================================================================
 
-class V8Map extends Event {
+class MapLogEvent extends Event {
   edge = void 0;
   children = [];
   depth = 0;
@@ -269,7 +269,7 @@ class V8Map extends Event {
   constructor(id, time) {
       if (!time) throw new Error('Invalid time');
       super(id, time);
-      V8Map.set(id, this);
+      MapLogEvent.set(id, this);
       this.id = id;
   }
 
@@ -393,7 +393,7 @@ class V8Map extends Event {
   }
 }
 
-V8Map.cache = new Map();
+MapLogEvent.cache = new Map();
 
 // ===========================================================================
 class Edge {
@@ -535,4 +535,4 @@ class ArgumentsProcessor extends BaseArgumentsProcessor {
   }
 }
 
-export { MapProcessor, V8Map, kChunkWidth, kChunkHeight};
+export { MapProcessor, MapLogEvent, kChunkWidth, kChunkHeight};

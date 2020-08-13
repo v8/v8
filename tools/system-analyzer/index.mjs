@@ -3,9 +3,10 @@
 // found in the LICENSE file.
 
 import CustomIcProcessor from "./ic-processor.mjs";
-import { Entry } from "./ic-processor.mjs";
+import { SelectionEvent, FocusEvent } from "./events.mjs";
+import { IcLogEvent } from "./ic-processor.mjs";
 import { State } from "./app-model.mjs";
-import { MapProcessor, V8Map } from "./map-processor.mjs";
+import { MapProcessor, MapLogEvent } from "./map-processor.mjs";
 import { SelectTimeEvent } from "./events.mjs";
 import { $ } from "./helper.mjs";
 import "./ic-panel.mjs";
@@ -38,19 +39,19 @@ class App {
     this.#view.logFileReader.addEventListener("fileuploadend", (e) =>
       this.handleDataUpload(e)
     );
-    Object.entries(this.#view).forEach(([_, value]) => {
-      value.addEventListener('showentries',
+    Object.entries(this.#view).forEach(([_, panel]) => {
+      panel.addEventListener(SelectionEvent.name,
         e => this.handleShowEntries(e));
-      value.addEventListener('showentrydetail',
+      panel.addEventListener(FocusEvent.name,
         e => this.handleShowEntryDetail(e));
-      value.addEventListener(SelectTimeEvent.name,
+      panel.addEventListener(SelectTimeEvent.name,
         e => this.handleTimeRangeSelect(e));
     });
   }
   handleShowEntries(e) {
-    if (e.entries[0] instanceof V8Map) {
+    if (e.entries[0] instanceof MapLogEvent) {
       this.showMapEntries(e.entries);
-    } else if (e.entries[0] instanceof Entry) {
+    } else if (e.entries[0] instanceof IcLogEvent) {
       this.showIcEntries(e.entries);
     } else {
       console.error("Undefined selection!");
@@ -70,9 +71,9 @@ class App {
     this.selectTimeRange(e.start, e.end);
   }
   handleShowEntryDetail(e) {
-    if (e.entry instanceof V8Map) {
+    if (e.entry instanceof MapLogEvent) {
       this.selectMapLogEvent(e.entry);
-    } else if (e.entry instanceof Entry) {
+    } else if (e.entry instanceof IcLogEvent) {
       this.selectICLogEvent(e.entry);
     } else if (typeof e.entry === 'string') {
       this.selectSourcePositionEvent(e.entry);
@@ -89,7 +90,8 @@ class App {
     this.#state.timeSelection.end = end;
     this.#state.icTimeline.selectTimeRange(start, end);
     this.#state.mapTimeline.selectTimeRange(start, end);
-    this.#view.mapPanel.selectedMapLogEvents = this.#state.mapTimeline.selection;
+    this.#view.mapPanel.selectedMapLogEvents =
+      this.#state.mapTimeline.selection;
     this.#view.icPanel.filteredEntries = this.#state.icTimeline.selection;
   }
   selectMapLogEvent(entry) {

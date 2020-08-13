@@ -11,7 +11,8 @@ defineCustomElement('log-file-reader', (templateText) =>
     this.addEventListener('dragover', e => this.handleDragOver(e));
     this.addEventListener('drop', e => this.handleChange(e));
     this.$('#file').addEventListener('change', e => this.handleChange(e));
-    this.$('#fileReader').addEventListener('keydown', e => this.handleKeyEvent(e));
+    this.$('#fileReader').addEventListener('keydown',
+      e => this.handleKeyEvent(e));
   }
 
   get section() {

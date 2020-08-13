@@ -4,8 +4,8 @@
 import "./stats-panel.mjs";
 import "./map-panel/map-details.mjs";
 import "./map-panel/map-transitions.mjs";
-import { SelectEvent } from './events.mjs';
-import { V8Map } from "./map-processor.mjs";
+import { FocusEvent } from './events.mjs';
+import { MapLogEvent } from "./map-processor.mjs";
 import { defineCustomElement, V8CustomElement } from './helper.mjs';
 
 defineCustomElement('map-panel', (templateText) =>
@@ -16,11 +16,13 @@ defineCustomElement('map-panel', (templateText) =>
       this.searchBarBtn.addEventListener(
         'click', e => this.handleSearchBar(e));
       this.addEventListener(
-        'mapdetailsupdate', e => this.handleUpdateMapDetails(e));
+        FocusEvent.name, e => this.handleUpdateMapDetails(e));
     }
 
     handleUpdateMapDetails(e) {
-      this.mapDetailsPanel.mapDetails = e.detail;
+      if (e.entry instanceof MapLogEvent) {
+        this.mapDetailsPanel.mapDetails = e.entry;
+      }
     }
 
     get statsPanel() {
@@ -72,13 +74,13 @@ defineCustomElement('map-panel', (templateText) =>
       let searchBar = this.$('#searchBarInput');
       let searchBarInput = searchBar.value;
       //access the map from model cache
-      let selectedMap = V8Map.get(searchBarInput);
+      let selectedMap = MapLogEvent.get(searchBarInput);
       if (selectedMap) {
         searchBar.className = "success";
       } else {
         searchBar.className = "failure";
       }
-      this.dispatchEvent(new SelectEvent(selectedMap));
+      this.dispatchEvent(new FocusEvent(selectedMap));
     }
 
     set selectedMapLogEvents(list) {

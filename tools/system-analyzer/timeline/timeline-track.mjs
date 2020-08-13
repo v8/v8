@@ -7,7 +7,7 @@ import {
   transitionTypeToColor, CSSColor
 } from '../helper.mjs';
 import { kChunkWidth, kChunkHeight } from '../map-processor.mjs';
-import { SelectionEvent, SelectEvent, SelectTimeEvent } from '../events.mjs';
+import { SelectionEvent, FocusEvent, SelectTimeEvent } from '../events.mjs';
 
 defineCustomElement('./timeline/timeline-track', (templateText) =>
   class TimelineTrack extends V8CustomElement {
@@ -254,7 +254,7 @@ defineCustomElement('./timeline/timeline-track', (templateText) =>
       let relativeIndex =
         Math.round(event.layerY / event.target.offsetHeight * chunk.size());
       let map = chunk.at(relativeIndex);
-      this.dispatchEvent(new SelectEvent(map));
+      this.dispatchEvent(new FocusEvent(map));
     }
 
     handleChunkClick(event) {
@@ -265,7 +265,7 @@ defineCustomElement('./timeline/timeline-track', (templateText) =>
       this.isLocked = true;
       let chunk = event.target.chunk;
       if (!chunk) return;
-      let maps = chunk.filter();
+      let maps = chunk.items;
       this.dispatchEvent(new SelectionEvent(maps));
     }
 
@@ -292,7 +292,10 @@ defineCustomElement('./timeline/timeline-track', (templateText) =>
       ctx.fill();
       let imageData = canvas.toDataURL('image/webp', 0.2);
       this.dispatchEvent(new CustomEvent(
-        'overviewupdate', { bubbles: true, composed: true, detail: imageData }));
+        'overviewupdate', {
+        bubbles: true, composed: true,
+        detail: imageData
+      }));
     }
 
     redraw() {

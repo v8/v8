@@ -44,12 +44,20 @@ found in the LICENSE file. -->
 #legend {
   padding-right: 20px;
 }
+
+dl {
+  float: right;
+  border-style: solid;
+  border-width: 1px;
+  padding: 20px;
+}
+
 </style>
 <div class="panel">
   <h2>IC Panel</h2>
   <h3>IC Explorer</h3>
   <div id="legend">
-    <dl style="float:right;  border-style: solid; border-width: 1px; padding:20px">
+    <dl>
       <dt>0</dt>
       <dd>uninitialized</dd>
       <dt>X</dt>
@@ -79,7 +87,8 @@ found in the LICENSE file. -->
     <p>
     Filter by Time
     <br></br>
-    <input type="search" id="filter-time-start" placeholder="start"></input> : <input type="search" id="filter-time-end" placeholder="end"></input>
+    <input type="search" id="filter-time-start" placeholder="start"></input> :
+      <input type="search" id="filter-time-end" placeholder="end"></input>
     <button id="filterICTimeBtn">Filter</button>
     <p>
       <table id="table" width="100%">

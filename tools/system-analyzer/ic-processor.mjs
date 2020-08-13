@@ -209,7 +209,7 @@ class CustomIcProcessor extends IcProcessor {
       type, pc, time, line, column, old_state, new_state, map, key, modifier,
       slow_reason) {
     let fnName = this.functionName(pc);
-    let entry = new Entry(
+    let entry = new IcLogEvent(
       type, fnName, time, line, column, key, old_state, new_state, map,
       slow_reason);
     this.#timeline.push(entry);
@@ -225,8 +225,8 @@ class CustomIcProcessor extends IcProcessor {
     return this.timeline;
   }
 };
-// TODO(zcankara) Change name to Entry -> V8IcEntry or V8Ic
-class Entry extends Event {
+
+class IcLogEvent extends Event {
   constructor(
       type, fn_file, time, line, column, key, oldState, newState, map, reason,
       additional) {
@@ -279,4 +279,4 @@ class Entry extends Event {
   }
 }
 
-export { CustomIcProcessor as default, Entry};
+export { CustomIcProcessor as default, IcLogEvent};

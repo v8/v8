@@ -23,95 +23,101 @@ found in the LICENSE file. -->
   <script src="../logreader.js"></script>
   <script src="../arguments.js"></script>
   <script src="../SourceMap.js"></script>
-<style>
-  #instructions {
-    padding: 10px 10px  60px 10px ;
-    margin: auto;
-  }
-  kbd {
-    background-color: var(--primary-color);
-    color: var(--on-primary-color);
-    border-radius: 3px;
-    border: 1px solid var(--on-primary-color);
-    display: inline-block;
-    font-size: .9em;
-    font-weight: bold;
-    padding: 0px 4px 2px 4px;
-    white-space: nowrap;
-  }
-  /*Simple css to style it like a toggle switch*/
-  .theme-switch-wrapper {
-    display: flex;
-    align-items: center;
-  }
-  .theme-switch {
-    display: inline-block;
-    height: 34px;
-    position: relative;
-    width: 60px;
-  }
-  .theme-switch input {
-    display:none;
-  }
-  .slider {
-    background-color: var(--primary-color);
-    bottom: 0;
-    cursor: pointer;
-    left: 0;
-    position: absolute;
-    right: 0;
-    top: 0;
-    transition: .4s;
-  }
-  .slider:before {
-    background-color: var(--surface-color);
-    bottom: 4px;
-    content: "";
-    height: 26px;
-    left: 4px;
-    position: absolute;
-    transition: .4s;
-    width: 26px;
-  }
+  <style>
+    #instructions {
+      padding: 10px 10px 60px 10px;
+      margin: auto;
+    }
 
-  input:checked + .slider {
-    background-color: var(--primary-color);
-  }
+    kbd {
+      background-color: var(--primary-color);
+      color: var(--on-primary-color);
+      border-radius: 3px;
+      border: 1px solid var(--on-primary-color);
+      display: inline-block;
+      font-size: .9em;
+      font-weight: bold;
+      padding: 0px 4px 2px 4px;
+      white-space: nowrap;
+    }
 
-  input:checked + .slider:before {
-    transform: translateX(26px);
-  }
+    /*Simple css to style it like a toggle switch*/
+    .theme-switch-wrapper {
+      display: flex;
+      align-items: center;
+    }
 
-  .slider.round {
-    border-radius: 34px;
-  }
+    .theme-switch {
+      display: inline-block;
+      height: 34px;
+      position: relative;
+      width: 60px;
+    }
 
-  .slider.round:before {
-    border-radius: 50%;
-  }
+    .theme-switch input {
+      display: none;
+    }
 
-  #container.initial {
-    display: none;
-  }
+    .slider {
+      background-color: var(--primary-color);
+      bottom: 0;
+      cursor: pointer;
+      left: 0;
+      position: absolute;
+      right: 0;
+      top: 0;
+      transition: .4s;
+    }
 
-  #container.loaded {
-    display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(500px, 1fr));
-    grid-auto-flow: dense;
-  }
+    .slider:before {
+      background-color: var(--surface-color);
+      bottom: 4px;
+      content: "";
+      height: 26px;
+      left: 4px;
+      position: absolute;
+      transition: .4s;
+      width: 26px;
+    }
 
-  #container.loaded > #timeline-panel {
-    grid-column: span 2;
-  }
+    input:checked+.slider {
+      background-color: var(--primary-color);
+    }
 
-</style>
-<script type="module" >
-import {App} from  './index.mjs';
+    input:checked+.slider:before {
+      transform: translateX(26px);
+    }
 
-globalThis.app = new App("#log-file-reader", "#map-panel", "#timeline-panel",
-  "#ic-panel", "#map-track", "#ic-track");
-</script>
+    .slider.round {
+      border-radius: 34px;
+    }
+
+    .slider.round:before {
+      border-radius: 50%;
+    }
+
+    #container.initial {
+      display: none;
+    }
+
+    #container.loaded {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(500px, 1fr));
+      grid-auto-flow: dense;
+    }
+
+    #container.loaded>#timeline-panel {
+      grid-column: span 2;
+    }
+  </style>
+  <script type="module">
+    import { App } from './index.mjs';
+
+    globalThis.app = new App("#log-file-reader", "#map-panel", "#timeline-panel",
+      "#ic-panel", "#map-track", "#ic-track");
+  </script>
 </head>
+
 <body>
   <div id="content">
     <section id="file-reader">
@@ -130,7 +136,7 @@ globalThis.app = new App("#log-file-reader", "#map-panel", "#timeline-panel",
   </div>
   <div class="theme-switch-wrapper">
     <label class="theme-switch" for="checkbox">
-      <input type="checkbox" id="checkbox"/>
+      <input type="checkbox" id="checkbox" />
       <div class="slider round"></div>
     </label>
   </div>
@@ -173,4 +179,5 @@ globalThis.app = new App("#log-file-reader", "#map-panel", "#timeline-panel",
     </dl>
   </div>
 </body>
+
 </html>
