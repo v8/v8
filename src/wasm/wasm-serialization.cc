@@ -618,7 +618,9 @@ MaybeHandle<WasmModuleObject> DeserializeNativeModule(
   WasmFeatures enabled_features = WasmFeatures::FromIsolate(isolate);
   ModuleResult decode_result = DecodeWasmModule(
       enabled_features, wire_bytes.start(), wire_bytes.end(), false,
-      i::wasm::kWasmOrigin, isolate->counters(), wasm_engine->allocator());
+      i::wasm::kWasmOrigin, isolate->counters(), isolate->metrics_recorder(),
+      isolate->GetOrRegisterRecorderContextId(isolate->native_context()),
+      DecodingMethod::kDeserialize, wasm_engine->allocator());
   if (decode_result.failed()) return {};
   std::shared_ptr<WasmModule> module = std::move(decode_result.value());
   CHECK_NOT_NULL(module);

@@ -206,15 +206,19 @@ class WasmModuleVerifyTest : public TestWithIsolateAndZone {
     }
     ModuleResult result = DecodeWasmModule(
         enabled_features_, temp, temp + total, false, kWasmOrigin,
-        isolate()->counters(), isolate()->wasm_engine()->allocator());
+        isolate()->counters(), isolate()->metrics_recorder(),
+        v8::metrics::Recorder::ContextId::Empty(), DecodingMethod::kSync,
+        isolate()->wasm_engine()->allocator());
     delete[] temp;
     return result;
   }
   ModuleResult DecodeModuleNoHeader(const byte* module_start,
                                     const byte* module_end) {
-    return DecodeWasmModule(enabled_features_, module_start, module_end, false,
-                            kWasmOrigin, isolate()->counters(),
-                            isolate()->wasm_engine()->allocator());
+    return DecodeWasmModule(
+        enabled_features_, module_start, module_end, false, kWasmOrigin,
+        isolate()->counters(), isolate()->metrics_recorder(),
+        v8::metrics::Recorder::ContextId::Empty(), DecodingMethod::kSync,
+        isolate()->wasm_engine()->allocator());
   }
 };
 

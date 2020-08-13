@@ -9,6 +9,7 @@
 #include <functional>
 #include <memory>
 
+#include "include/v8-metrics.h"
 #include "src/base/optional.h"
 #include "src/common/globals.h"
 #include "src/tasks/cancelable-task.h"
@@ -126,7 +127,8 @@ class AsyncCompileJob {
 
   Isolate* isolate() const { return isolate_; }
 
-  Handle<Context> context() const { return native_context_; }
+  Handle<NativeContext> context() const { return native_context_; }
+  v8::metrics::Recorder::ContextId context_id() const { return context_id_; }
 
  private:
   class CompileTask;
@@ -209,7 +211,8 @@ class AsyncCompileJob {
   // Reference to the wire bytes (held in {bytes_copy_} or as part of
   // {native_module_}).
   ModuleWireBytes wire_bytes_;
-  Handle<Context> native_context_;
+  Handle<NativeContext> native_context_;
+  v8::metrics::Recorder::ContextId context_id_;
   const std::shared_ptr<CompilationResultResolver> resolver_;
 
   Handle<WasmModuleObject> module_object_;

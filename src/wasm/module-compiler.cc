@@ -1550,10 +1550,12 @@ AsyncCompileJob::AsyncCompileJob(
   native_context_ =
       isolate->global_handles()->Create(context->native_context());
   DCHECK(native_context_->IsNativeContext());
+  context_id_ = isolate->GetOrRegisterRecorderContextId(native_context_);
 }
 
 void AsyncCompileJob::Start() {
-  DoAsync<DecodeModule>(isolate_->counters());  // --
+  DoAsync<DecodeModule>(isolate_->counters(),
+                        isolate_->metrics_recorder());  // --
 }
 
 void AsyncCompileJob::Abort() {
@@ -1959,7 +1961,9 @@ void AsyncCompileJob::NextStep(Args&&... args) {
 //==========================================================================
 class AsyncCompileJob::DecodeModule : public AsyncCompileJob::CompileStep {
  public:
-  explicit DecodeModule(Counters* counters) : counters_(counters) {}
+  explicit DecodeModule(Counters* counters,
+                        std::shared_ptr<metrics::Recorder> metrics_recorder)
+      : counters_(counters), metrics_recorder_(std::move(metrics_recorder)) {}
 
   void RunInBackground(AsyncCompileJob* job) override {
     ModuleResult result;
@@ -1971,10 +1975,10 @@ class AsyncCompileJob::DecodeModule : public AsyncCompileJob::CompileStep {
       TRACE_EVENT0(TRACE_DISABLED_BY_DEFAULT("v8.wasm.detailed"),
                    "wasm.DecodeModule");
       auto enabled_features = job->enabled_features_;
-      result = DecodeWasmModule(enabled_features, job->wire_bytes_.start(),
-                                job->wire_bytes_.end(), false, kWasmOrigin,
-                                counters_,
-                                job->isolate()->wasm_engine()->allocator());
+      result = DecodeWasmModule(
+          enabled_features, job->wire_bytes_.start(), job->wire_bytes_.end(),
+          false, kWasmOrigin, counters_, metrics_recorder_, job->context_id(),
+          DecodingMethod::kAsync, job->isolate()->wasm_engine()->allocator());
 
       // Validate lazy functions here if requested.
       if (!FLAG_wasm_lazy_validation && result.ok()) {
@@ -2026,6 +2030,7 @@ class AsyncCompileJob::DecodeModule : public AsyncCompileJob::CompileStep {
 
  private:
   Counters* const counters_;
+  std::shared_ptr<metrics::Recorder> metrics_recorder_;
 };
 
 //==========================================================================
@@ -2216,8 +2221,9 @@ void AsyncStreamingProcessor::FinishAsyncCompileJobWithError(
 bool AsyncStreamingProcessor::ProcessModuleHeader(Vector<const uint8_t> bytes,
                                                   uint32_t offset) {
   TRACE_STREAMING("Process module header...\n");
-  decoder_.StartDecoding(job_->isolate()->counters(),
-                         job_->isolate()->wasm_engine()->allocator());
+  decoder_.StartDecoding(
+      job_->isolate()->counters(), job_->isolate()->metrics_recorder(),
+      job_->context_id(), job_->isolate()->wasm_engine()->allocator());
   decoder_.DecodeModuleHeader(bytes, offset);
   if (!decoder_.ok()) {
     FinishAsyncCompileJobWithError(decoder_.FinishDecoding(false).error());

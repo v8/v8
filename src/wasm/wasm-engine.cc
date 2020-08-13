@@ -443,9 +443,11 @@ bool WasmEngine::SyncValidate(Isolate* isolate, const WasmFeatures& enabled,
   TRACE_EVENT0("v8.wasm", "wasm.SyncValidate");
   // TODO(titzer): remove dependency on the isolate.
   if (bytes.start() == nullptr || bytes.length() == 0) return false;
-  ModuleResult result =
-      DecodeWasmModule(enabled, bytes.start(), bytes.end(), true, kWasmOrigin,
-                       isolate->counters(), allocator());
+  ModuleResult result = DecodeWasmModule(
+      enabled, bytes.start(), bytes.end(), true, kWasmOrigin,
+      isolate->counters(), isolate->metrics_recorder(),
+      isolate->GetOrRegisterRecorderContextId(isolate->native_context()),
+      DecodingMethod::kSync, allocator());
   return result.ok();
 }
 
@@ -457,9 +459,11 @@ MaybeHandle<AsmWasmData> WasmEngine::SyncCompileTranslatedAsmJs(
   ModuleOrigin origin = language_mode == LanguageMode::kSloppy
                             ? kAsmJsSloppyOrigin
                             : kAsmJsStrictOrigin;
-  ModuleResult result =
-      DecodeWasmModule(WasmFeatures::ForAsmjs(), bytes.start(), bytes.end(),
-                       false, origin, isolate->counters(), allocator());
+  ModuleResult result = DecodeWasmModule(
+      WasmFeatures::ForAsmjs(), bytes.start(), bytes.end(), false, origin,
+      isolate->counters(), isolate->metrics_recorder(),
+      isolate->GetOrRegisterRecorderContextId(isolate->native_context()),
+      DecodingMethod::kSync, allocator());
   if (result.failed()) {
     // This happens once in a while when we have missed some limit check
     // in the asm parser. Output an error message to help diagnose, but crash.
@@ -498,9 +502,11 @@ MaybeHandle<WasmModuleObject> WasmEngine::SyncCompile(
     Isolate* isolate, const WasmFeatures& enabled, ErrorThrower* thrower,
     const ModuleWireBytes& bytes) {
   TRACE_EVENT0("v8.wasm", "wasm.SyncCompile");
-  ModuleResult result =
-      DecodeWasmModule(enabled, bytes.start(), bytes.end(), false, kWasmOrigin,
-                       isolate->counters(), allocator());
+  ModuleResult result = DecodeWasmModule(
+      enabled, bytes.start(), bytes.end(), false, kWasmOrigin,
+      isolate->counters(), isolate->metrics_recorder(),
+      isolate->GetOrRegisterRecorderContextId(isolate->native_context()),
+      DecodingMethod::kSync, allocator());
   if (result.failed()) {
     thrower->CompileFailed(result.error());
     return {};

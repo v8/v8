@@ -9,6 +9,7 @@
 #include "src/flags/flags.h"
 #include "src/init/v8.h"
 #include "src/logging/counters.h"
+#include "src/logging/metrics.h"
 #include "src/objects/objects-inl.h"
 #include "src/utils/ostreams.h"
 #include "src/wasm/decoder.h"
@@ -263,6 +264,27 @@ class WasmSectionIterator {
       decoder_->consume_bytes(remaining, "section payload");
     }
   }
+};
+
+class AutoSubmitMetrics : public v8::metrics::WasmModuleDecoded {
+ public:
+  AutoSubmitMetrics(std::shared_ptr<metrics::Recorder> recorder,
+                    v8::metrics::Recorder::ContextId context_id)
+      : recorder_(std::move(recorder)),
+        context_id_(context_id),
+        timed_scope_(this,
+                     &v8::metrics::WasmModuleDecoded::wall_clock_time_in_us) {}
+
+  ~AutoSubmitMetrics() {
+    timed_scope_.Stop();
+    recorder_->DelayMainThreadEvent<v8::metrics::WasmModuleDecoded>(
+        *this, context_id_);
+  }
+
+ private:
+  std::shared_ptr<metrics::Recorder> recorder_;
+  v8::metrics::Recorder::ContextId context_id_;
+  metrics::TimedScope<v8::metrics::WasmModuleDecoded> timed_scope_;
 };
 
 }  // namespace
@@ -1189,6 +1211,14 @@ class ModuleDecoderImpl : public Decoder {
     if (ok() && CheckMismatchedCounts()) {
       CalculateGlobalOffsets(module_.get());
     }
+
+    if (metrics_) {
+      metrics_->success = ok() && !intermediate_error_.has_error();
+      metrics_->module_size_in_bytes = end() - start();
+      metrics_->function_count = module_->num_declared_functions;
+      metrics_.reset();
+    }
+
     ModuleResult result = toResult(std::move(module_));
     if (verify_functions && result.ok() && intermediate_error_.has_error()) {
       // Copy error message and location.
@@ -1232,6 +1262,13 @@ class ModuleDecoderImpl : public Decoder {
     if (FLAG_dump_wasm_module) DumpModule(orig_bytes);
 
     if (decoder.failed()) {
+      if (metrics_) {
+        metrics_->success = false;
+        metrics_->module_size_in_bytes = orig_bytes.length();
+        metrics_->function_count = module_->num_declared_functions;
+        metrics_.reset();
+      }
+
       return decoder.toResult<std::unique_ptr<WasmModule>>(nullptr);
     }
 
@@ -1285,6 +1322,32 @@ class ModuleDecoderImpl : public Decoder {
     counters_ = counters;
   }
 
+  void EnableMetricsRecording(
+      std::shared_ptr<metrics::Recorder> metrics_recorder,
+      v8::metrics::Recorder::ContextId context_id,
+      DecodingMethod decoding_method) {
+    metrics_ = std::make_unique<AutoSubmitMetrics>(std::move(metrics_recorder),
+                                                   context_id);
+    switch (decoding_method) {
+      case DecodingMethod::kSync:
+        break;
+      case DecodingMethod::kAsync:
+        metrics_->async = true;
+        break;
+      case DecodingMethod::kSyncStream:
+        metrics_->streamed = true;
+        break;
+      case DecodingMethod::kAsyncStream:
+        metrics_->async = true;
+        metrics_->streamed = true;
+        break;
+      case DecodingMethod::kDeserialize:
+        // TODO(ecmziegler): verify if we need to add a deserialized metric flag
+        // in the next UKM update.
+        break;
+    }
+  }
+
  private:
   const WasmFeatures enabled_features_;
   std::shared_ptr<WasmModule> module_;
@@ -1310,6 +1373,7 @@ class ModuleDecoderImpl : public Decoder {
   // reporting once the whole type section is parsed.
   std::unordered_map<uint32_t, int> deferred_check_type_index_;
   ModuleOrigin origin_;
+  std::unique_ptr<AutoSubmitMetrics> metrics_;
 
   ValueType TypeOf(const WasmInitExpr& expr) {
     switch (expr.kind()) {
@@ -2121,11 +2185,12 @@ class ModuleDecoderImpl : public Decoder {
   }
 };
 
-ModuleResult DecodeWasmModule(const WasmFeatures& enabled,
-                              const byte* module_start, const byte* module_end,
-                              bool verify_functions, ModuleOrigin origin,
-                              Counters* counters,
-                              AccountingAllocator* allocator) {
+ModuleResult DecodeWasmModule(
+    const WasmFeatures& enabled, const byte* module_start,
+    const byte* module_end, bool verify_functions, ModuleOrigin origin,
+    Counters* counters, std::shared_ptr<metrics::Recorder> metrics_recorder,
+    v8::metrics::Recorder::ContextId context_id, DecodingMethod decoding_method,
+    AccountingAllocator* allocator) {
   size_t size = module_end - module_start;
   CHECK_LE(module_start, module_end);
   size_t max_size = max_module_size();
@@ -2140,6 +2205,8 @@ ModuleResult DecodeWasmModule(const WasmFeatures& enabled,
   // Signatures are stored in zone memory, which have the same lifetime
   // as the {module}.
   ModuleDecoderImpl decoder(enabled, module_start, module_end, origin);
+  decoder.EnableMetricsRecording(std::move(metrics_recorder), context_id,
+                                 decoding_method);
   return decoder.DecodeModule(counters, allocator, verify_functions);
 }
 
@@ -2152,11 +2219,14 @@ const std::shared_ptr<WasmModule>& ModuleDecoder::shared_module() const {
   return impl_->shared_module();
 }
 
-void ModuleDecoder::StartDecoding(Counters* counters,
-                                  AccountingAllocator* allocator,
-                                  ModuleOrigin origin) {
+void ModuleDecoder::StartDecoding(
+    Counters* counters, std::shared_ptr<metrics::Recorder> metrics_recorder,
+    v8::metrics::Recorder::ContextId context_id, AccountingAllocator* allocator,
+    ModuleOrigin origin) {
   DCHECK_NULL(impl_);
   impl_.reset(new ModuleDecoderImpl(enabled_features_, origin));
+  impl_->EnableMetricsRecording(std::move(metrics_recorder), context_id,
+                                DecodingMethod::kAsyncStream);
   impl_->StartDecoding(counters, allocator);
 }
 
