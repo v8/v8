@@ -100,12 +100,13 @@ WasmInterpretationResult InterpretWasmModule(
 
   Zone zone(isolate->allocator(), ZONE_NAME);
   v8::internal::HandleScope scope(isolate);
+  const WasmFunction* func = &instance->module()->functions[function_index];
 
   WasmInterpreter interpreter{
       isolate, instance->module(),
       ModuleWireBytes{instance->module_object().native_module()->wire_bytes()},
       instance};
-  interpreter.InitFrame(&instance->module()->functions[function_index], args);
+  interpreter.InitFrame(func, args);
   WasmInterpreter::State interpreter_result = interpreter.Run(kMaxNumSteps);
 
   bool stack_overflow = isolate->has_pending_exception();
@@ -119,9 +120,30 @@ WasmInterpretationResult InterpretWasmModule(
   }
 
   if (interpreter_result == WasmInterpreter::FINISHED) {
+    // Get the result as an {int32_t}. Keep this in sync with
+    // {CallWasmFunctionForTesting}, because fuzzers will compare the results.
+    int32_t result = -1;
+    if (func->sig->return_count() > 0) {
+      WasmValue return_value = interpreter.GetReturnValue();
+      switch (func->sig->GetReturn(0).kind()) {
+        case ValueType::kI32:
+          result = return_value.to<int32_t>();
+          break;
+        case ValueType::kI64:
+          result = static_cast<int32_t>(return_value.to<int64_t>());
+          break;
+        case ValueType::kF32:
+          result = static_cast<int32_t>(return_value.to<float>());
+          break;
+        case ValueType::kF64:
+          result = static_cast<int32_t>(return_value.to<double>());
+          break;
+        default:
+          break;
+      }
+    }
     return WasmInterpretationResult::Finished(
-        interpreter.GetReturnValue().to<int32_t>(),
-        interpreter.PossibleNondeterminism());
+        result, interpreter.PossibleNondeterminism());
   }
 
   // The interpreter did not finish within the limited number of steps, so it
