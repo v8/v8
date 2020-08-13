@@ -3342,6 +3342,16 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       __ vor(dst, kScratchDoubleReg, kScratchDoubleReg);
       break;
     }
+    case kPPC_I16x8RoundingAverageU: {
+      __ vavguh(i.OutputSimd128Register(), i.InputSimd128Register(0),
+                i.InputSimd128Register(1));
+      break;
+    }
+    case kPPC_I8x16RoundingAverageU: {
+      __ vavgub(i.OutputSimd128Register(), i.InputSimd128Register(0),
+                i.InputSimd128Register(1));
+      break;
+    }
     case kPPC_StoreCompressTagged: {
       ASSEMBLE_STORE_INTEGER(StoreTaggedField, StoreTaggedFieldX);
       break;

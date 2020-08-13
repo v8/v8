@@ -308,6 +308,7 @@ namespace compiler {
   V(PPC_I16x8SubSaturateS)           \
   V(PPC_I16x8AddSaturateU)           \
   V(PPC_I16x8SubSaturateU)           \
+  V(PPC_I16x8RoundingAverageU)       \
   V(PPC_I8x16Splat)                  \
   V(PPC_I8x16ExtractLaneU)           \
   V(PPC_I8x16ExtractLaneS)           \
@@ -336,6 +337,7 @@ namespace compiler {
   V(PPC_I8x16SubSaturateS)           \
   V(PPC_I8x16AddSaturateU)           \
   V(PPC_I8x16SubSaturateU)           \
+  V(PPC_I8x16RoundingAverageU)       \
   V(PPC_S8x16Shuffle)                \
   V(PPC_S8x16Swizzle)                \
   V(PPC_V64x2AnyTrue)                \

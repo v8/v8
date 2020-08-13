@@ -2338,7 +2338,11 @@ using Instr = uint32_t;
   /* Vector Add Unsigned Byte Saturate */                  \
   V(vaddubs, VADDUBS, 0x10000200)                          \
   /* Vector Subtract Unsigned Byte Saturate */             \
-  V(vsububs, VSUBUBS, 0x10000600)
+  V(vsububs, VSUBUBS, 0x10000600)                          \
+  /* Vector Average Unsigned Byte */                       \
+  V(vavgub, VAVGUB, 0x10000402)                            \
+  /* Vector Average Unsigned Halfword */                   \
+  V(vavguh, VAVGUH, 0x10000442)
 
 #define PPC_VX_OPCODE_C_FORM_LIST(V)       \
   /* Vector Unpack Low Signed Halfword */  \
@@ -2377,10 +2381,6 @@ using Instr = uint32_t;
   V(vavgsh, VAVGSH, 0x10000542)                                           \
   /* Vector Average Signed Word */                                        \
   V(vavgsw, VAVGSW, 0x10000582)                                           \
-  /* Vector Average Unsigned Byte */                                      \
-  V(vavgub, VAVGUB, 0x10000402)                                           \
-  /* Vector Average Unsigned Halfword */                                  \
-  V(vavguh, VAVGUH, 0x10000442)                                           \
   /* Vector Average Unsigned Word */                                      \
   V(vavguw, VAVGUW, 0x10000482)                                           \
   /* Vector Bit Permute Quadword */                                       \

@@ -2201,6 +2201,7 @@ void InstructionSelector::VisitInt64AbsWithOverflow(Node* node) {
   V(I16x8SubSaturateS)     \
   V(I16x8AddSaturateU)     \
   V(I16x8SubSaturateU)     \
+  V(I16x8RoundingAverageU) \
   V(I8x16Add)              \
   V(I8x16Sub)              \
   V(I8x16Mul)              \
@@ -2220,6 +2221,7 @@ void InstructionSelector::VisitInt64AbsWithOverflow(Node* node) {
   V(I8x16SubSaturateS)     \
   V(I8x16AddSaturateU)     \
   V(I8x16SubSaturateU)     \
+  V(I8x16RoundingAverageU) \
   V(S128And)               \
   V(S128Or)                \
   V(S128Xor)               \
@@ -2397,14 +2399,6 @@ void InstructionSelector::VisitS128Select(Node* node) {
 }
 
 void InstructionSelector::VisitS128Const(Node* node) { UNIMPLEMENTED(); }
-
-void InstructionSelector::VisitI16x8RoundingAverageU(Node* node) {
-  UNIMPLEMENTED();
-}
-
-void InstructionSelector::VisitI8x16RoundingAverageU(Node* node) {
-  UNIMPLEMENTED();
-}
 
 void InstructionSelector::VisitS128AndNot(Node* node) { UNIMPLEMENTED(); }
 
