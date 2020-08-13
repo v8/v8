@@ -45,9 +45,6 @@ class TypedArrayBuiltinsAssembler : public CodeStubAssembler {
   TNode<JSFunction> GetDefaultConstructor(TNode<Context> context,
                                           TNode<JSTypedArray> exemplar);
 
-  TNode<JSArrayBuffer> GetBuffer(TNode<Context> context,
-                                 TNode<JSTypedArray> array);
-
   TNode<JSTypedArray> ValidateTypedArray(TNode<Context> context,
                                          TNode<Object> obj,
                                          const char* method_name);

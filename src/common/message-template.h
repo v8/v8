@@ -144,9 +144,10 @@ namespace internal {
   T(NotSuperConstructor, "Super constructor % of % is not a constructor")      \
   T(NotSuperConstructorAnonymousClass,                                         \
     "Super constructor % of anonymous class is not a constructor")             \
-  T(NotIntegerSharedTypedArray, "% is not an integer shared typed array.")     \
-  T(NotInt32OrBigInt64SharedTypedArray,                                        \
-    "% is not an int32 or BigInt64 shared typed array.")                       \
+  T(NotIntegerTypedArray, "% is not an integer typed array.")                  \
+  T(NotInt32OrBigInt64TypedArray,                                              \
+    "% is not an int32 or BigInt64 typed array.")                              \
+  T(NotSharedTypedArray, "% is not a shared typed array.")                     \
   T(ObjectGetterExpectingFunction,                                             \
     "Object.prototype.__defineGetter__: Expecting function")                   \
   T(ObjectGetterCallable, "Getter must be a function: %")                      \

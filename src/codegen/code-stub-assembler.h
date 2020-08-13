@@ -3442,6 +3442,8 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
   // JSTypedArray helpers
   TNode<UintPtrT> LoadJSTypedArrayLength(TNode<JSTypedArray> typed_array);
   TNode<RawPtrT> LoadJSTypedArrayDataPtr(TNode<JSTypedArray> typed_array);
+  TNode<JSArrayBuffer> GetTypedArrayBuffer(TNode<Context> context,
+                                           TNode<JSTypedArray> array);
 
   template <typename TIndex>
   TNode<IntPtrT> ElementOffsetFromIndex(TNode<TIndex> index, ElementsKind kind,

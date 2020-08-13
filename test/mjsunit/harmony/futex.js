@@ -4,7 +4,7 @@
 
 // Flags: --allow-natives-syntax --harmony-sharedarraybuffer
 
-(function TestFailsWithNonSharedArray() {
+(function TestNonSharedArrayBehavior() {
   var ab = new ArrayBuffer(16);
 
   var i8a = new Int8Array(ab);
@@ -18,9 +18,13 @@
   var f64a = new Float64Array(ab);
 
   [i8a, i16a, i32a, ui8a, ui8ca, ui16a, ui32a, f32a, f64a].forEach(function(
-      ta) {
+    ta) {
     assertThrows(function() { Atomics.wait(ta, 0, 0); });
-    assertThrows(function() { Atomics.notify(ta, 0, 1); });
+    if (ta === i32a) {
+      assertEquals(0, Atomics.notify(ta, 0, 1));
+    } else {
+      assertThrows(function() { Atomics.notify(ta, 0, 1); });
+    }
   });
 })();
 

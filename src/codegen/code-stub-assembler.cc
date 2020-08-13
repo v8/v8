@@ -12528,6 +12528,28 @@ TNode<UintPtrT> CodeStubAssembler::LoadJSTypedArrayLength(
   return LoadObjectField<UintPtrT>(typed_array, JSTypedArray::kLengthOffset);
 }
 
+TNode<JSArrayBuffer> CodeStubAssembler::GetTypedArrayBuffer(
+    TNode<Context> context, TNode<JSTypedArray> array) {
+  Label call_runtime(this), done(this);
+  TVARIABLE(Object, var_result);
+
+  TNode<JSArrayBuffer> buffer = LoadJSArrayBufferViewBuffer(array);
+  GotoIf(IsDetachedBuffer(buffer), &call_runtime);
+  TNode<RawPtrT> backing_store = LoadJSArrayBufferBackingStorePtr(buffer);
+  GotoIf(WordEqual(backing_store, IntPtrConstant(0)), &call_runtime);
+  var_result = buffer;
+  Goto(&done);
+
+  BIND(&call_runtime);
+  {
+    var_result = CallRuntime(Runtime::kTypedArrayGetBuffer, context, array);
+    Goto(&done);
+  }
+
+  BIND(&done);
+  return CAST(var_result.value());
+}
+
 CodeStubArguments::CodeStubArguments(CodeStubAssembler* assembler,
                                      TNode<IntPtrT> argc, TNode<RawPtrT> fp)
     : assembler_(assembler),

@@ -20,9 +20,9 @@ namespace v8 {
 namespace internal {
 
 // See builtins-arraybuffer.cc for implementations of
-// SharedArrayBuffer.prototye.byteLength and SharedArrayBuffer.prototype.slice
+// SharedArrayBuffer.prototype.byteLength and SharedArrayBuffer.prototype.slice
 
-// #sec-atomics.islockfree
+// https://tc39.es/ecma262/#sec-atomics.islockfree
 inline bool AtomicIsLockFree(double size) {
   // According to the standard, 1, 2, and 4 byte atomics are supposed to be
   // 'lock free' on every platform. 'Lock free' means that all possible uses of
@@ -39,7 +39,7 @@ inline bool AtomicIsLockFree(double size) {
   return size == 1 || size == 2 || size == 4 || size == 8;
 }
 
-// ES #sec-atomics.islockfree
+// https://tc39.es/ecma262/#sec-atomics.islockfree
 BUILTIN(AtomicsIsLockFree) {
   HandleScope scope(isolate);
   Handle<Object> size = args.atOrUndefined(isolate, 1);
@@ -48,37 +48,45 @@ BUILTIN(AtomicsIsLockFree) {
   return *isolate->factory()->ToBoolean(AtomicIsLockFree(size->Number()));
 }
 
-// ES #sec-validatesharedintegertypedarray
-V8_WARN_UNUSED_RESULT MaybeHandle<JSTypedArray> ValidateSharedIntegerTypedArray(
-    Isolate* isolate, Handle<Object> object,
+// https://tc39.es/ecma262/#sec-validatesharedintegertypedarray
+V8_WARN_UNUSED_RESULT MaybeHandle<JSTypedArray> ValidateIntegerTypedArray(
+    Isolate* isolate, Handle<Object> object, const char* method_name,
     bool only_int32_and_big_int64 = false) {
   if (object->IsJSTypedArray()) {
     Handle<JSTypedArray> typed_array = Handle<JSTypedArray>::cast(object);
-    if (typed_array->GetBuffer()->is_shared()) {
-      if (only_int32_and_big_int64) {
-        if (typed_array->type() == kExternalInt32Array ||
-            typed_array->type() == kExternalBigInt64Array) {
-          return typed_array;
-        }
-      } else {
-        if (typed_array->type() != kExternalFloat32Array &&
-            typed_array->type() != kExternalFloat64Array &&
-            typed_array->type() != kExternalUint8ClampedArray)
-          return typed_array;
+
+    if (typed_array->WasDetached()) {
+      THROW_NEW_ERROR(
+          isolate,
+          NewTypeError(
+              MessageTemplate::kDetachedOperation,
+              isolate->factory()->NewStringFromAsciiChecked(method_name)),
+          JSTypedArray);
+    }
+
+    if (only_int32_and_big_int64) {
+      if (typed_array->type() == kExternalInt32Array ||
+          typed_array->type() == kExternalBigInt64Array) {
+        return typed_array;
       }
+    } else {
+      if (typed_array->type() != kExternalFloat32Array &&
+          typed_array->type() != kExternalFloat64Array &&
+          typed_array->type() != kExternalUint8ClampedArray)
+        return typed_array;
     }
   }
 
   THROW_NEW_ERROR(
       isolate,
       NewTypeError(only_int32_and_big_int64
-                       ? MessageTemplate::kNotInt32OrBigInt64SharedTypedArray
-                       : MessageTemplate::kNotIntegerSharedTypedArray,
+                       ? MessageTemplate::kNotInt32OrBigInt64TypedArray
+                       : MessageTemplate::kNotIntegerTypedArray,
                    object),
       JSTypedArray);
 }
 
-// ES #sec-validateatomicaccess
+// https://tc39.es/ecma262/#sec-validateatomicaccess
 // ValidateAtomicAccess( typedArray, requestIndex )
 V8_WARN_UNUSED_RESULT Maybe<size_t> ValidateAtomicAccess(
     Isolate* isolate, Handle<JSTypedArray> typed_array,
@@ -91,8 +99,9 @@ V8_WARN_UNUSED_RESULT Maybe<size_t> ValidateAtomicAccess(
       Nothing<size_t>());
 
   size_t access_index;
+  size_t typed_array_length = typed_array->length();
   if (!TryNumberToSize(*access_index_obj, &access_index) ||
-      typed_array->WasDetached() || access_index >= typed_array->length()) {
+      access_index >= typed_array_length) {
     isolate->Throw(*isolate->factory()->NewRangeError(
         MessageTemplate::kInvalidAtomicAccessIndex));
     return Nothing<size_t>();
@@ -122,12 +131,18 @@ BUILTIN(AtomicsNotify) {
 
   Handle<JSTypedArray> sta;
   ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
-      isolate, sta, ValidateSharedIntegerTypedArray(isolate, array, true));
+      isolate, sta,
+      ValidateIntegerTypedArray(isolate, array, "Atomics.notify", true));
 
+  // 2. Let i be ? ValidateAtomicAccess(typedArray, index).
   Maybe<size_t> maybe_index = ValidateAtomicAccess(isolate, sta, index);
   if (maybe_index.IsNothing()) return ReadOnlyRoots(isolate).exception();
   size_t i = maybe_index.FromJust();
 
+  // 3. If count is undefined, let c be +∞.
+  // 4. Else,
+  //   a. Let intCount be ? ToInteger(count).
+  //   b. Let c be max(intCount, 0).
   uint32_t c;
   if (count->IsUndefined(isolate)) {
     c = kMaxUInt32;
@@ -143,9 +158,17 @@ BUILTIN(AtomicsNotify) {
     c = static_cast<uint32_t>(count_double);
   }
 
+  // Steps 5-9 performed in FutexEmulation::Wake.
+
+  // 10. If IsSharedArrayBuffer(buffer) is false, return 0.
   Handle<JSArrayBuffer> array_buffer = sta->GetBuffer();
   size_t wake_addr;
 
+  if (V8_UNLIKELY(!sta->GetBuffer()->is_shared())) {
+    return Smi::FromInt(0);
+  }
+
+  // Steps 11-17 performed in FutexEmulation::Wake.
   if (sta->type() == kExternalBigInt64Array) {
     wake_addr = GetAddress64(i, sta->byte_offset());
   } else {
@@ -158,19 +181,26 @@ BUILTIN(AtomicsNotify) {
 Object DoWait(Isolate* isolate, FutexEmulation::WaitMode mode,
               Handle<Object> array, Handle<Object> index, Handle<Object> value,
               Handle<Object> timeout) {
-  // 1. Let buffer be ? ValidateSharedIntegerTypedArray(typedArray, true).
+  // 1. Let buffer be ? ValidateIntegerTypedArray(typedArray, true).
   Handle<JSTypedArray> sta;
   ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
-      isolate, sta, ValidateSharedIntegerTypedArray(isolate, array, true));
+      isolate, sta,
+      ValidateIntegerTypedArray(isolate, array, "Atomics.wait", true));
 
-  // 2. Let i be ? ValidateAtomicAccess(typedArray, index).
+  // 2. If IsSharedArrayBuffer(buffer) is false, throw a TypeError exception.
+  if (V8_UNLIKELY(!sta->GetBuffer()->is_shared())) {
+    THROW_NEW_ERROR_RETURN_FAILURE(
+        isolate, NewTypeError(MessageTemplate::kNotSharedTypedArray, array));
+  }
+
+  // 3. Let i be ? ValidateAtomicAccess(typedArray, index).
   Maybe<size_t> maybe_index = ValidateAtomicAccess(isolate, sta, index);
   if (maybe_index.IsNothing()) return ReadOnlyRoots(isolate).exception();
   size_t i = maybe_index.FromJust();
 
-  // 3. Let arrayTypeName be typedArray.[[TypedArrayName]].
-  // 4. If arrayTypeName is "BigInt64Array", let v be ? ToBigInt64(value).
-  // 5. Otherwise, let v be ? ToInt32(value).
+  // 4. Let arrayTypeName be typedArray.[[TypedArrayName]].
+  // 5. If arrayTypeName is "BigInt64Array", let v be ? ToBigInt64(value).
+  // 6. Otherwise, let v be ? ToInt32(value).
   if (sta->type() == kExternalBigInt64Array) {
     ASSIGN_RETURN_FAILURE_ON_EXCEPTION(isolate, value,
                                        BigInt::FromObject(isolate, value));
@@ -180,8 +210,8 @@ Object DoWait(Isolate* isolate, FutexEmulation::WaitMode mode,
                                        Object::ToInt32(isolate, value));
   }
 
-  // 6. Let q be ? ToNumber(timeout).
-  // 7. If q is NaN, let t be +∞, else let t be max(q, 0).
+  // 7. Let q be ? ToNumber(timeout).
+  // 8. If q is NaN, let t be +∞, else let t be max(q, 0).
   double timeout_number;
   if (timeout->IsUndefined(isolate)) {
     timeout_number = ReadOnlyRoots(isolate).infinity_value().Number();
@@ -195,7 +225,7 @@ Object DoWait(Isolate* isolate, FutexEmulation::WaitMode mode,
       timeout_number = 0;
   }
 
-  // 8. If mode is sync, then
+  // 9. If mode is sync, then
   //   a. Let B be AgentCanSuspend().
   //   b. If B is false, throw a TypeError exception.
   if (mode == FutexEmulation::WaitMode::kSync &&
@@ -218,7 +248,7 @@ Object DoWait(Isolate* isolate, FutexEmulation::WaitMode mode,
   }
 }
 
-// ES #sec-atomics.wait
+// https://tc39.es/ecma262/#sec-atomics.wait
 // Atomics.wait( typedArray, index, value, timeout )
 BUILTIN(AtomicsWait) {
   HandleScope scope(isolate);

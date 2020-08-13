@@ -525,32 +525,6 @@
   # https://bugs.chromium.org/p/v8/issues/detail?id=10383
   'built-ins/RegExp/prototype/Symbol.replace/fn-invoke-args-empty-result': [FAIL],
 
-  # https://crbug.com/v8/10687
-  'built-ins/Atomics/add/bigint/non-shared-bufferdata': [FAIL],
-  'built-ins/Atomics/add/non-shared-bufferdata': [FAIL],
-  'built-ins/Atomics/and/bigint/non-shared-bufferdata': [FAIL],
-  'built-ins/Atomics/and/non-shared-bufferdata': [FAIL],
-  'built-ins/Atomics/compareExchange/bigint/non-shared-bufferdata': [FAIL],
-  'built-ins/Atomics/compareExchange/non-shared-bufferdata': [FAIL],
-  'built-ins/Atomics/exchange/bigint/non-shared-bufferdata': [FAIL],
-  'built-ins/Atomics/exchange/non-shared-bufferdata': [FAIL],
-  'built-ins/Atomics/load/bigint/non-shared-bufferdata': [FAIL],
-  'built-ins/Atomics/load/non-shared-bufferdata': [FAIL],
-  'built-ins/Atomics/notify/bigint/non-shared-bufferdata-count-evaluation-throws': [FAIL],
-  'built-ins/Atomics/notify/bigint/non-shared-bufferdata-index-evaluation-throws': [FAIL],
-  'built-ins/Atomics/notify/bigint/non-shared-bufferdata-returns-0': [FAIL],
-  'built-ins/Atomics/notify/non-shared-bufferdata-count-evaluation-throws': [FAIL],
-  'built-ins/Atomics/notify/non-shared-bufferdata-index-evaluation-throws': [FAIL],
-  'built-ins/Atomics/notify/non-shared-bufferdata-returns-0': [FAIL],
-  'built-ins/Atomics/or/bigint/non-shared-bufferdata': [FAIL],
-  'built-ins/Atomics/or/non-shared-bufferdata': [FAIL],
-  'built-ins/Atomics/store/bigint/non-shared-bufferdata': [FAIL],
-  'built-ins/Atomics/store/non-shared-bufferdata': [FAIL],
-  'built-ins/Atomics/sub/bigint/non-shared-bufferdata': [FAIL],
-  'built-ins/Atomics/sub/non-shared-bufferdata': [FAIL],
-  'built-ins/Atomics/xor/bigint/non-shared-bufferdata': [FAIL],
-  'built-ins/Atomics/xor/non-shared-bufferdata': [FAIL],
-
   # https://crbug.com/v8/10789
   'built-ins/Function/prototype/toString/built-in-function-object': [FAIL],
 
