@@ -433,13 +433,7 @@ void PagedSpace::MakeLinearAllocationAreaIterable() {
 }
 
 size_t PagedSpace::Available() {
-  base::Optional<base::MutexGuard> optional_mutex;
-
-  if (FLAG_concurrent_allocation && identity() == OLD_SPACE &&
-      !is_local_space()) {
-    optional_mutex.emplace(&allocation_mutex_);
-  }
-
+  ConcurrentAllocationMutex guard(this);
   return free_list_->Available();
 }
 
@@ -872,13 +866,7 @@ bool PagedSpace::RefillLabMain(int size_in_bytes, AllocationOrigin origin) {
   VMState<GC> state(heap()->isolate());
   RuntimeCallTimerScope runtime_timer(
       heap()->isolate(), RuntimeCallCounterId::kGC_Custom_SlowAllocateRaw);
-  base::Optional<base::MutexGuard> optional_mutex;
-
-  if (FLAG_concurrent_allocation && origin != AllocationOrigin::kGC &&
-      identity() == OLD_SPACE) {
-    optional_mutex.emplace(&allocation_mutex_);
-  }
-
+  ConcurrentAllocationMutex guard(this);
   return RawRefillLabMain(size_in_bytes, origin);
 }
 

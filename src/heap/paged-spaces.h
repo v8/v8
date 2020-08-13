@@ -309,6 +309,21 @@ class V8_EXPORT_PRIVATE PagedSpace
   void SetLinearAllocationArea(Address top, Address limit);
 
  private:
+  class ConcurrentAllocationMutex {
+   public:
+    explicit ConcurrentAllocationMutex(PagedSpace* space) {
+      if (space->SupportsConcurrentAllocation()) {
+        guard_.emplace(&space->allocation_mutex_);
+      }
+    }
+
+    base::Optional<base::MutexGuard> guard_;
+  };
+
+  bool SupportsConcurrentAllocation() {
+    return FLAG_concurrent_allocation && !is_local_space();
+  }
+
   // Set space linear allocation area.
   void SetTopAndLimit(Address top, Address limit);
   void DecreaseLimit(Address new_limit);
