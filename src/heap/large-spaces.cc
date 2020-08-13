@@ -439,29 +439,6 @@ OldLargeObjectSpace::OldLargeObjectSpace(Heap* heap)
 OldLargeObjectSpace::OldLargeObjectSpace(Heap* heap, AllocationSpace id)
     : LargeObjectSpace(heap, id) {}
 
-void OldLargeObjectSpace::MergeOffThreadSpace(
-    OffThreadLargeObjectSpace* other) {
-  DCHECK(identity() == other->identity());
-
-  while (!other->memory_chunk_list().Empty()) {
-    LargePage* page = other->first_page();
-    HeapObject object = page->GetObject();
-    int size = object.Size();
-    other->RemovePage(page, size);
-    AddPage(page, size);
-
-    // TODO(leszeks): Here we should AllocationStep, see the TODO in
-    // PagedSpace::MergeOffThreadSpace.
-
-    if (heap()->incremental_marking()->black_allocation()) {
-      heap()->incremental_marking()->marking_state()->WhiteToBlack(object);
-    }
-    DCHECK_IMPLIES(
-        heap()->incremental_marking()->black_allocation(),
-        heap()->incremental_marking()->marking_state()->IsBlack(object));
-  }
-}
-
 NewLargeObjectSpace::NewLargeObjectSpace(Heap* heap, size_t capacity)
     : LargeObjectSpace(heap, NEW_LO_SPACE),
       pending_object_(0),
@@ -566,26 +543,6 @@ void CodeLargeObjectSpace::RemovePage(LargePage* page, size_t object_size) {
   RemoveChunkMapEntries(page);
   heap()->isolate()->RemoveCodeMemoryChunk(page);
   OldLargeObjectSpace::RemovePage(page, object_size);
-}
-
-OffThreadLargeObjectSpace::OffThreadLargeObjectSpace(Heap* heap)
-    : LargeObjectSpace(heap, LO_SPACE) {
-#ifdef V8_ENABLE_THIRD_PARTY_HEAP
-  // OffThreadLargeObjectSpace doesn't work with third-party heap.
-  UNREACHABLE();
-#endif
-}
-
-AllocationResult OffThreadLargeObjectSpace::AllocateRaw(int object_size) {
-  LargePage* page = AllocateLargePage(object_size, NOT_EXECUTABLE);
-  if (page == nullptr) return AllocationResult::Retry(identity());
-
-  return page->GetObject();
-}
-
-void OffThreadLargeObjectSpace::FreeUnmarkedObjects() {
-  // We should never try to free objects in this space.
-  UNREACHABLE();
 }
 
 }  // namespace internal

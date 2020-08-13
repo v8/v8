@@ -3092,7 +3092,7 @@ void Parser::HandleSourceURLComments(LocalIsolate* isolate,
 
 template void Parser::HandleSourceURLComments(Isolate* isolate,
                                               Handle<Script> script);
-template void Parser::HandleSourceURLComments(OffThreadIsolate* isolate,
+template void Parser::HandleSourceURLComments(LocalIsolate* isolate,
                                               Handle<Script> script);
 
 void Parser::UpdateStatistics(Isolate* isolate, Handle<Script> script) {

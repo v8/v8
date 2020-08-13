@@ -3,8 +3,9 @@
 // found in the LICENSE file.
 
 #include "src/objects/feedback-vector.h"
+
 #include "src/diagnostics/code-tracer.h"
-#include "src/heap/off-thread-factory-inl.h"
+#include "src/heap/local-factory-inl.h"
 #include "src/ic/handler-configuration-inl.h"
 #include "src/ic/ic-inl.h"
 #include "src/objects/data-handler-inl.h"
@@ -117,7 +118,7 @@ Handle<FeedbackMetadata> FeedbackMetadata::New(LocalIsolate* isolate,
 template Handle<FeedbackMetadata> FeedbackMetadata::New(
     Isolate* isolate, const FeedbackVectorSpec* spec);
 template Handle<FeedbackMetadata> FeedbackMetadata::New(
-    OffThreadIsolate* isolate, const FeedbackVectorSpec* spec);
+    LocalIsolate* isolate, const FeedbackVectorSpec* spec);
 
 bool FeedbackMetadata::SpecDiffersFrom(
     const FeedbackVectorSpec* other_spec) const {

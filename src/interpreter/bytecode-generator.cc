@@ -16,8 +16,8 @@
 #include "src/interpreter/bytecode-register-allocator.h"
 #include "src/interpreter/bytecode-register.h"
 #include "src/interpreter/control-flow-builders.h"
+#include "src/logging/local-logger.h"
 #include "src/logging/log.h"
-#include "src/logging/off-thread-logger.h"
 #include "src/objects/debug-objects.h"
 #include "src/objects/literal-objects-inl.h"
 #include "src/objects/objects-inl.h"
@@ -1090,10 +1090,10 @@ struct NullContextScopeHelper<Isolate> {
 };
 
 template <>
-struct NullContextScopeHelper<OffThreadIsolate> {
+struct NullContextScopeHelper<LocalIsolate> {
   class DummyNullContextScope {
    public:
-    explicit DummyNullContextScope(OffThreadIsolate*) {}
+    explicit DummyNullContextScope(LocalIsolate*) {}
   };
   using Type = DummyNullContextScope;
 };
@@ -1139,7 +1139,7 @@ Handle<BytecodeArray> BytecodeGenerator::FinalizeBytecode(
 template Handle<BytecodeArray> BytecodeGenerator::FinalizeBytecode(
     Isolate* isolate, Handle<Script> script);
 template Handle<BytecodeArray> BytecodeGenerator::FinalizeBytecode(
-    OffThreadIsolate* isolate, Handle<Script> script);
+    LocalIsolate* isolate, Handle<Script> script);
 
 template <typename LocalIsolate>
 Handle<ByteArray> BytecodeGenerator::FinalizeSourcePositionTable(
@@ -1165,7 +1165,7 @@ Handle<ByteArray> BytecodeGenerator::FinalizeSourcePositionTable(
 template Handle<ByteArray> BytecodeGenerator::FinalizeSourcePositionTable(
     Isolate* isolate);
 template Handle<ByteArray> BytecodeGenerator::FinalizeSourcePositionTable(
-    OffThreadIsolate* isolate);
+    LocalIsolate* isolate);
 
 #ifdef DEBUG
 int BytecodeGenerator::CheckBytecodeMatches(BytecodeArray bytecode) {
@@ -1258,7 +1258,7 @@ void BytecodeGenerator::AllocateDeferredConstants(LocalIsolate* isolate,
 template void BytecodeGenerator::AllocateDeferredConstants(
     Isolate* isolate, Handle<Script> script);
 template void BytecodeGenerator::AllocateDeferredConstants(
-    OffThreadIsolate* isolate, Handle<Script> script);
+    LocalIsolate* isolate, Handle<Script> script);
 
 namespace {
 bool NeedsContextInitialization(DeclarationScope* scope) {

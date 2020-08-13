@@ -3,9 +3,10 @@
 // found in the LICENSE file.
 
 #include "src/ast/modules.h"
+
 #include "src/ast/ast-value-factory.h"
 #include "src/ast/scopes.h"
-#include "src/heap/off-thread-factory-inl.h"
+#include "src/heap/local-factory-inl.h"
 #include "src/objects/module-inl.h"
 #include "src/objects/objects-inl.h"
 #include "src/parsing/pending-compilation-error-handler.h"
@@ -106,7 +107,7 @@ Handle<SourceTextModuleInfoEntry> SourceTextModuleDescriptor::Entry::Serialize(
 template Handle<SourceTextModuleInfoEntry>
 SourceTextModuleDescriptor::Entry::Serialize(Isolate* isolate) const;
 template Handle<SourceTextModuleInfoEntry>
-SourceTextModuleDescriptor::Entry::Serialize(OffThreadIsolate* isolate) const;
+SourceTextModuleDescriptor::Entry::Serialize(LocalIsolate* isolate) const;
 
 template <typename LocalIsolate>
 Handle<FixedArray> SourceTextModuleDescriptor::SerializeRegularExports(
@@ -164,7 +165,7 @@ Handle<FixedArray> SourceTextModuleDescriptor::SerializeRegularExports(
 template Handle<FixedArray> SourceTextModuleDescriptor::SerializeRegularExports(
     Isolate* isolate, Zone* zone) const;
 template Handle<FixedArray> SourceTextModuleDescriptor::SerializeRegularExports(
-    OffThreadIsolate* isolate, Zone* zone) const;
+    LocalIsolate* isolate, Zone* zone) const;
 
 void SourceTextModuleDescriptor::MakeIndirectExportsExplicit(Zone* zone) {
   for (auto it = regular_exports_.begin(); it != regular_exports_.end();) {

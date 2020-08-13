@@ -21,7 +21,7 @@ namespace internal {
 class HandleScopeImplementer;
 class Isolate;
 class LocalHeap;
-class OffThreadIsolate;
+class LocalIsolate;
 template <typename T>
 class MaybeHandle;
 class Object;
@@ -40,7 +40,7 @@ class HandleBase {
  public:
   V8_INLINE explicit HandleBase(Address* location) : location_(location) {}
   V8_INLINE explicit HandleBase(Address object, Isolate* isolate);
-  V8_INLINE explicit HandleBase(Address object, OffThreadIsolate* isolate);
+  V8_INLINE explicit HandleBase(Address object, LocalIsolate* isolate);
   V8_INLINE explicit HandleBase(Address object, LocalHeap* local_heap);
 
   // Check if this handle refers to the exact same object as the other handle.
@@ -122,7 +122,7 @@ class Handle final : public HandleBase {
   }
 
   V8_INLINE Handle(T object, Isolate* isolate);
-  V8_INLINE Handle(T object, OffThreadIsolate* isolate);
+  V8_INLINE Handle(T object, LocalIsolate* isolate);
   V8_INLINE Handle(T object, LocalHeap* local_heap);
 
   // Allocate a new handle for the object, do not canonicalize.
@@ -341,16 +341,6 @@ struct HandleScopeData final {
     sealed_level = level = 0;
     canonical_scope = nullptr;
   }
-};
-
-class OffThreadHandleScope {
- public:
-  // Off-thread Handles are allocated in the parse/compile zone, and not
-  // cleared out, so the scope doesn't have to do anything
-  explicit OffThreadHandleScope(OffThreadIsolate* isolate) {}
-
-  template <typename T>
-  inline Handle<T> CloseAndEscape(Handle<T> handle_value);
 };
 
 }  // namespace internal

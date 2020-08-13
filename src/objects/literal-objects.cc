@@ -10,7 +10,7 @@
 #include "src/common/globals.h"
 #include "src/execution/isolate.h"
 #include "src/heap/factory.h"
-#include "src/heap/off-thread-factory-inl.h"
+#include "src/heap/local-factory-inl.h"
 #include "src/objects/dictionary.h"
 #include "src/objects/hash-table-inl.h"
 #include "src/objects/literal-objects-inl.h"
@@ -412,9 +412,8 @@ template void ClassBoilerplate::AddToPropertiesTemplate(
     Isolate* isolate, Handle<NameDictionary> dictionary, Handle<Name> name,
     int key_index, ClassBoilerplate::ValueKind value_kind, Smi value);
 template void ClassBoilerplate::AddToPropertiesTemplate(
-    OffThreadIsolate* isolate, Handle<NameDictionary> dictionary,
-    Handle<Name> name, int key_index, ClassBoilerplate::ValueKind value_kind,
-    Smi value);
+    LocalIsolate* isolate, Handle<NameDictionary> dictionary, Handle<Name> name,
+    int key_index, ClassBoilerplate::ValueKind value_kind, Smi value);
 
 template <typename LocalIsolate>
 void ClassBoilerplate::AddToElementsTemplate(
@@ -427,9 +426,8 @@ template void ClassBoilerplate::AddToElementsTemplate(
     Isolate* isolate, Handle<NumberDictionary> dictionary, uint32_t key,
     int key_index, ClassBoilerplate::ValueKind value_kind, Smi value);
 template void ClassBoilerplate::AddToElementsTemplate(
-    OffThreadIsolate* isolate, Handle<NumberDictionary> dictionary,
-    uint32_t key, int key_index, ClassBoilerplate::ValueKind value_kind,
-    Smi value);
+    LocalIsolate* isolate, Handle<NumberDictionary> dictionary, uint32_t key,
+    int key_index, ClassBoilerplate::ValueKind value_kind, Smi value);
 
 template <typename LocalIsolate>
 Handle<ClassBoilerplate> ClassBoilerplate::BuildClassBoilerplate(
@@ -601,7 +599,7 @@ Handle<ClassBoilerplate> ClassBoilerplate::BuildClassBoilerplate(
 template Handle<ClassBoilerplate> ClassBoilerplate::BuildClassBoilerplate(
     Isolate* isolate, ClassLiteral* expr);
 template Handle<ClassBoilerplate> ClassBoilerplate::BuildClassBoilerplate(
-    OffThreadIsolate* isolate, ClassLiteral* expr);
+    LocalIsolate* isolate, ClassLiteral* expr);
 
 }  // namespace internal
 }  // namespace v8

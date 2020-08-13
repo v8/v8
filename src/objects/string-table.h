@@ -22,7 +22,10 @@ class StringTableKey {
   virtual ~StringTableKey() = default;
   inline StringTableKey(uint32_t hash_field, int length);
 
-  virtual Handle<String> AsHandle(Isolate* isolate) = 0;
+  // The individual keys will have their own AsHandle, we shouldn't call the
+  // base version.
+  Handle<String> AsHandle(Isolate* isolate) = delete;
+
   uint32_t hash_field() const {
     DCHECK_NE(0, hash_field_);
     return hash_field_;
@@ -65,8 +68,8 @@ class V8_EXPORT_PRIVATE StringTable {
   // Find string in the string table, using the given key. If the string is not
   // there yet, it is created (by the key) and added. The return value is the
   // string found.
-  template <typename StringTableKey>
-  Handle<String> LookupKey(Isolate* isolate, StringTableKey* key);
+  template <typename StringTableKey, typename LocalIsolate>
+  Handle<String> LookupKey(LocalIsolate* isolate, StringTableKey* key);
 
   // {raw_string} must be a tagged String pointer.
   // Returns a tagged pointer: either a Smi if the string is an array index, an

@@ -271,7 +271,7 @@ template EXPORT_TEMPLATE_DEFINE(V8_EXPORT_PRIVATE)
         ScriptOriginOptions origin_options, NativesFlag natives);
 template EXPORT_TEMPLATE_DEFINE(V8_EXPORT_PRIVATE)
     Handle<Script> ParseInfo::CreateScript(
-        OffThreadIsolate* isolate, Handle<String> source,
+        LocalIsolate* isolate, Handle<String> source,
         MaybeHandle<FixedArray> maybe_wrapped_arguments,
         ScriptOriginOptions origin_options, NativesFlag natives);
 

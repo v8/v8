@@ -2,11 +2,12 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#ifndef V8_HEAP_OFF_THREAD_FACTORY_H_
-#define V8_HEAP_OFF_THREAD_FACTORY_H_
+#ifndef V8_HEAP_LOCAL_FACTORY_H_
+#define V8_HEAP_LOCAL_FACTORY_H_
 
 #include <map>
 #include <vector>
+
 #include "src/base/logging.h"
 #include "src/common/globals.h"
 #include "src/handles/handles.h"
@@ -26,12 +27,11 @@ namespace internal {
 class AstValueFactory;
 class AstRawString;
 class AstConsString;
-class OffThreadIsolate;
+class LocalIsolate;
 
-class V8_EXPORT_PRIVATE OffThreadFactory
-    : public FactoryBase<OffThreadFactory> {
+class V8_EXPORT_PRIVATE LocalFactory : public FactoryBase<LocalFactory> {
  public:
-  explicit OffThreadFactory(Isolate* isolate);
+  explicit LocalFactory(Isolate* isolate);
 
   ReadOnlyRoots read_only_roots() const { return roots_; }
 
@@ -44,46 +44,42 @@ class V8_EXPORT_PRIVATE OffThreadFactory
   ACCESSOR_INFO_ROOT_LIST(ROOT_ACCESSOR)
 #undef ROOT_ACCESSOR
 
-  Handle<String> InternalizeString(const Vector<const uint8_t>& string);
-  Handle<String> InternalizeString(const Vector<const uint16_t>& string);
-
-  // The parser shouldn't allow the OffThreadFactory to get into a state where
+  // The parser shouldn't allow the LocalFactory to get into a state where
   // it generates errors.
   Handle<Object> NewInvalidStringLengthError() { UNREACHABLE(); }
   Handle<Object> NewRangeError(MessageTemplate template_index) {
     UNREACHABLE();
   }
 
-  Handle<FixedArray> StringWrapperForTest(Handle<String> string);
-
  private:
-  friend class FactoryBase<OffThreadFactory>;
+  friend class FactoryBase<LocalFactory>;
 
   // ------
   // Customization points for FactoryBase.
   HeapObject AllocateRaw(int size, AllocationType allocation,
                          AllocationAlignment alignment = kWordAligned);
 
-  OffThreadIsolate* isolate() {
+  LocalIsolate* isolate() {
     // Downcast to the privately inherited sub-class using c-style casts to
     // avoid undefined behavior (as static_cast cannot cast across private
     // bases).
     // NOLINTNEXTLINE (google-readability-casting)
-    return (OffThreadIsolate*)this;  // NOLINT(readability/casting)
+    return (LocalIsolate*)this;  // NOLINT(readability/casting)
   }
   inline bool CanAllocateInReadOnlySpace() { return false; }
   inline bool EmptyStringRootIsInitialized() { return true; }
   // ------
 
-  Handle<String> MakeOrFindTwoCharacterString(uint16_t c1, uint16_t c2);
-
   void AddToScriptList(Handle<Script> shared);
   // ------
 
   ReadOnlyRoots roots_;
+#ifdef DEBUG
+  bool a_script_was_added_to_the_script_list_ = false;
+#endif
 };
 
 }  // namespace internal
 }  // namespace v8
 
-#endif  // V8_HEAP_OFF_THREAD_FACTORY_H_
+#endif  // V8_HEAP_LOCAL_FACTORY_H_

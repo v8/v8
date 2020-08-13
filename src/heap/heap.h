@@ -86,7 +86,6 @@ class MemoryReducer;
 class MinorMarkCompactCollector;
 class ObjectIterator;
 class ObjectStats;
-class OffThreadHeap;
 class Page;
 class PagedSpace;
 class ReadOnlyHeap;
@@ -1148,8 +1147,6 @@ class Heap {
   static inline bool InToPage(Object object);
   static inline bool InToPage(MaybeObject object);
   static inline bool InToPage(HeapObject heap_object);
-
-  V8_EXPORT_PRIVATE static bool InOffThreadSpace(HeapObject heap_object);
 
   // Returns whether the object resides in old space.
   inline bool InOldSpace(Object object);
@@ -2308,8 +2305,6 @@ class Heap {
   friend class ScavengeTaskObserver;
   friend class IncrementalMarking;
   friend class IncrementalMarkingJob;
-  friend class OffThreadHeap;
-  friend class OffThreadSpace;
   friend class OldLargeObjectSpace;
   template <typename ConcreteVisitor, typename MarkingState>
   friend class MarkingVisitorBase;
@@ -2330,7 +2325,6 @@ class Heap {
 
   // The allocator interface.
   friend class Factory;
-  friend class OffThreadFactory;
 
   // The Isolate constructs us.
   friend class Isolate;

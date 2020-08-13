@@ -8,6 +8,7 @@
 #include "src/common/assert-scope.h"
 #include "src/common/globals.h"
 #include "src/common/ptr-compr-inl.h"
+#include "src/execution/isolate-utils-inl.h"
 #include "src/objects/internal-index.h"
 #include "src/objects/object-list-macros.h"
 #include "src/objects/slots-inl.h"
@@ -347,7 +348,7 @@ class InternalizedStringKey final : public StringTableKey {
 
   bool IsMatch(String string) override { return string_->SlowEquals(string); }
 
-  Handle<String> AsHandle(Isolate* isolate) override {
+  Handle<String> AsHandle(Isolate* isolate) {
     // Internalize the string if possible.
     MaybeHandle<Map> maybe_map =
         isolate->factory()->InternalizedStringMapForString(string_);
@@ -411,8 +412,9 @@ Handle<String> StringTable::LookupString(Isolate* isolate,
   return result;
 }
 
-template <typename StringTableKey>
-Handle<String> StringTable::LookupKey(Isolate* isolate, StringTableKey* key) {
+template <typename StringTableKey, typename LocalIsolate>
+Handle<String> StringTable::LookupKey(LocalIsolate* isolate,
+                                      StringTableKey* key) {
   // String table lookups are allowed to be concurrent, assuming that:
   //
   //   - The Heap access is allowed to be concurrent (using LocalHeap or
@@ -447,6 +449,8 @@ Handle<String> StringTable::LookupKey(Isolate* isolate, StringTableKey* key) {
   // allocation if another write also did an allocation. This assumes that
   // writes are rarer than reads.
 
+  const Isolate* ptr_cmp_isolate = GetIsolateForPtrCompr(isolate);
+
   Handle<String> new_string;
   while (true) {
     // Load the current string table data, in case another thread updates the
@@ -458,9 +462,9 @@ Handle<String> StringTable::LookupKey(Isolate* isolate, StringTableKey* key) {
     // because the new table won't delete it's corresponding entry until the
     // string is dead, in which case it will die in this table too and worst
     // case we'll have a false miss.
-    InternalIndex entry = data->FindEntry(isolate, key, key->hash());
+    InternalIndex entry = data->FindEntry(ptr_cmp_isolate, key, key->hash());
     if (entry.is_found()) {
-      return handle(String::cast(data->Get(isolate, entry)), isolate);
+      return handle(String::cast(data->Get(ptr_cmp_isolate, entry)), isolate);
     }
 
     // No entry found, so adding new string.
@@ -474,16 +478,16 @@ Handle<String> StringTable::LookupKey(Isolate* isolate, StringTableKey* key) {
     {
       base::MutexGuard table_write_guard(&write_mutex_);
 
-      EnsureCapacity(isolate, 1);
+      EnsureCapacity(ptr_cmp_isolate, 1);
       // Reload the data pointer in case EnsureCapacity changed it.
       StringTable::Data* data = data_.get();
 
       // Check one last time if the key is present in the table, in case it was
       // added after the check.
       InternalIndex entry =
-          data->FindEntryOrInsertionEntry(isolate, key, key->hash());
+          data->FindEntryOrInsertionEntry(ptr_cmp_isolate, key, key->hash());
 
-      Object element = data->Get(isolate, entry);
+      Object element = data->Get(ptr_cmp_isolate, entry);
       if (element == empty_element()) {
         // This entry is empty, so write it and register that we added an
         // element.
@@ -511,6 +515,15 @@ template Handle<String> StringTable::LookupKey(Isolate* isolate,
 template Handle<String> StringTable::LookupKey(Isolate* isolate,
                                                SeqOneByteSubStringKey* key);
 template Handle<String> StringTable::LookupKey(Isolate* isolate,
+                                               SeqTwoByteSubStringKey* key);
+
+template Handle<String> StringTable::LookupKey(LocalIsolate* isolate,
+                                               OneByteStringKey* key);
+template Handle<String> StringTable::LookupKey(LocalIsolate* isolate,
+                                               TwoByteStringKey* key);
+template Handle<String> StringTable::LookupKey(LocalIsolate* isolate,
+                                               SeqOneByteSubStringKey* key);
+template Handle<String> StringTable::LookupKey(LocalIsolate* isolate,
                                                SeqTwoByteSubStringKey* key);
 
 template Handle<String> StringTable::LookupKey(Isolate* isolate,

@@ -6,13 +6,13 @@
 #define V8_OBJECTS_SHARED_FUNCTION_INFO_INL_H_
 
 #include "src/base/macros.h"
-#include "src/objects/shared-function-info.h"
-
 #include "src/handles/handles-inl.h"
 #include "src/heap/heap-write-barrier-inl.h"
+#include "src/heap/local-heap-inl.h"
 #include "src/objects/debug-objects-inl.h"
 #include "src/objects/feedback-vector-inl.h"
 #include "src/objects/scope-info.h"
+#include "src/objects/shared-function-info.h"
 #include "src/objects/templates.h"
 #include "src/wasm/wasm-objects-inl.h"
 
@@ -423,12 +423,21 @@ IsCompiledScope SharedFunctionInfo::is_compiled_scope(
   return IsCompiledScope(*this, isolate);
 }
 
-template <typename LocalIsolate>
 IsCompiledScope::IsCompiledScope(const SharedFunctionInfo shared,
-                                 LocalIsolate* isolate)
+                                 Isolate* isolate)
     : retain_bytecode_(shared.HasBytecodeArray()
                            ? handle(shared.GetBytecodeArray(), isolate)
                            : MaybeHandle<BytecodeArray>()),
+      is_compiled_(shared.is_compiled()) {
+  DCHECK_IMPLIES(!retain_bytecode_.is_null(), is_compiled());
+}
+
+IsCompiledScope::IsCompiledScope(const SharedFunctionInfo shared,
+                                 LocalIsolate* isolate)
+    : retain_bytecode_(
+          shared.HasBytecodeArray()
+              ? isolate->heap()->NewPersistentHandle(shared.GetBytecodeArray())
+              : MaybeHandle<BytecodeArray>()),
       is_compiled_(shared.is_compiled()) {
   DCHECK_IMPLIES(!retain_bytecode_.is_null(), is_compiled());
 }

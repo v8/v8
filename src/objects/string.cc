@@ -755,7 +755,7 @@ Handle<FixedArray> String::CalculateLineEnds(LocalIsolate* isolate,
 template Handle<FixedArray> String::CalculateLineEnds(Isolate* isolate,
                                                       Handle<String> src,
                                                       bool include_ending_line);
-template Handle<FixedArray> String::CalculateLineEnds(OffThreadIsolate* isolate,
+template Handle<FixedArray> String::CalculateLineEnds(LocalIsolate* isolate,
                                                       Handle<String> src,
                                                       bool include_ending_line);
 

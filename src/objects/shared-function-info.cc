@@ -532,8 +532,8 @@ template EXPORT_TEMPLATE_DEFINE(V8_EXPORT_PRIVATE) void SharedFunctionInfo::
                                      Handle<SharedFunctionInfo> shared_info,
                                      FunctionLiteral* lit, bool is_toplevel);
 template EXPORT_TEMPLATE_DEFINE(V8_EXPORT_PRIVATE) void SharedFunctionInfo::
-    InitFromFunctionLiteral<OffThreadIsolate>(
-        OffThreadIsolate* isolate, Handle<SharedFunctionInfo> shared_info,
+    InitFromFunctionLiteral<LocalIsolate>(
+        LocalIsolate* isolate, Handle<SharedFunctionInfo> shared_info,
         FunctionLiteral* lit, bool is_toplevel);
 
 uint16_t SharedFunctionInfo::get_property_estimate_from_literal(

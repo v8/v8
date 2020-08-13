@@ -30,12 +30,12 @@
 #include "src/execution/frames-inl.h"
 #include "src/execution/isolate-inl.h"
 #include "src/execution/isolate.h"
-#include "src/execution/off-thread-isolate.h"
 #include "src/execution/runtime-profiler.h"
 #include "src/execution/vm-state-inl.h"
 #include "src/handles/maybe-handles.h"
 #include "src/heap/heap-inl.h"
-#include "src/heap/off-thread-factory-inl.h"
+#include "src/heap/local-factory-inl.h"
+#include "src/heap/local-heap-inl.h"
 #include "src/init/bootstrapper.h"
 #include "src/interpreter/interpreter.h"
 #include "src/logging/log-inl.h"
@@ -253,9 +253,7 @@ CompilationJob::Status UnoptimizedCompilationJob::FinalizeJob(
 }
 
 CompilationJob::Status UnoptimizedCompilationJob::FinalizeJob(
-    Handle<SharedFunctionInfo> shared_info, OffThreadIsolate* isolate) {
-  DisallowHeapAccess no_heap_access;
-
+    Handle<SharedFunctionInfo> shared_info, LocalIsolate* isolate) {
   // Delegate to the underlying implementation.
   DCHECK_EQ(state(), State::kReadyToFinalize);
   ScopedTimer t(&time_taken_to_finalize_);
@@ -502,7 +500,7 @@ void InstallCoverageInfo(Isolate* isolate, Handle<SharedFunctionInfo> shared,
   isolate->debug()->InstallCoverageInfo(shared, coverage_info);
 }
 
-void InstallCoverageInfo(OffThreadIsolate* isolate,
+void InstallCoverageInfo(LocalIsolate* isolate,
                          Handle<SharedFunctionInfo> shared,
                          Handle<CoverageInfo> coverage_info) {
   // We should only have coverage info when finalizing on the main thread.
@@ -620,7 +618,7 @@ CompilationJob::Status FinalizeSingleUnoptimizedCompilationJob(
         job->time_taken_to_finalize());
   }
   DCHECK_IMPLIES(status == CompilationJob::RETRY_ON_MAIN_THREAD,
-                 (std::is_same<LocalIsolate, OffThreadIsolate>::value));
+                 (std::is_same<LocalIsolate, LocalIsolate>::value));
   return status;
 }
 
@@ -1284,12 +1282,11 @@ RuntimeCallCounterId RuntimeCallCounterIdForCompileBackground(
 
 MaybeHandle<SharedFunctionInfo> CompileAndFinalizeOnBackgroundThread(
     ParseInfo* parse_info, AccountingAllocator* allocator,
-    Handle<Script> script, OffThreadIsolate* isolate,
+    Handle<Script> script, LocalIsolate* isolate,
     FinalizeUnoptimizedCompilationDataList*
         finalize_unoptimized_compilation_data_list,
-    DeferredFinalizationJobDataList*
-        jobs_to_retry_finalization_on_main_thread) {
-  DisallowHeapAccess no_heap_access;
+    DeferredFinalizationJobDataList* jobs_to_retry_finalization_on_main_thread,
+    IsCompiledScope* is_compiled_scope) {
   TRACE_EVENT0(TRACE_DISABLED_BY_DEFAULT("v8.compile"),
                "V8.CompileCodeBackground");
   RuntimeCallTimerScope runtimeTimer(
@@ -1299,13 +1296,9 @@ MaybeHandle<SharedFunctionInfo> CompileAndFinalizeOnBackgroundThread(
   Handle<SharedFunctionInfo> shared_info =
       CreateTopLevelSharedFunctionInfo(parse_info, script, isolate);
 
-  // TODO(leszeks): Consider persisting the is_compiled_scope across the
-  // off-thread publish.
-  IsCompiledScope is_compiled_scope;
-
   if (!IterativelyExecuteAndFinalizeUnoptimizedCompilationJobs(
           isolate, shared_info, script, parse_info, allocator,
-          &is_compiled_scope, finalize_unoptimized_compilation_data_list,
+          is_compiled_scope, finalize_unoptimized_compilation_data_list,
           jobs_to_retry_finalization_on_main_thread)) {
     return kNullMaybeHandle;
   }
@@ -1353,6 +1346,20 @@ CompilationHandleScope::~CompilationHandleScope() {
   info_->set_persistent_handles(persistent_.Detach());
 }
 
+FinalizeUnoptimizedCompilationData::FinalizeUnoptimizedCompilationData(
+    LocalIsolate* isolate, Handle<SharedFunctionInfo> function_handle,
+    base::TimeDelta time_taken_to_execute,
+    base::TimeDelta time_taken_to_finalize)
+    : time_taken_to_execute_(time_taken_to_execute),
+      time_taken_to_finalize_(time_taken_to_finalize),
+      function_handle_(isolate->heap()->NewPersistentHandle(function_handle)) {}
+
+DeferredFinalizationJobData::DeferredFinalizationJobData(
+    LocalIsolate* isolate, Handle<SharedFunctionInfo> function_handle,
+    std::unique_ptr<UnoptimizedCompilationJob> job)
+    : function_handle_(isolate->heap()->NewPersistentHandle(function_handle)),
+      job_(std::move(job)) {}
+
 BackgroundCompileTask::BackgroundCompileTask(ScriptStreamingData* streamed_data,
                                              Isolate* isolate)
     : flags_(UnoptimizedCompileFlags::ForToplevelCompile(
@@ -1360,6 +1367,7 @@ BackgroundCompileTask::BackgroundCompileTask(ScriptStreamingData* streamed_data,
           REPLMode::kNo)),
       compile_state_(isolate),
       info_(std::make_unique<ParseInfo>(isolate, flags_, &compile_state_)),
+      isolate_for_local_isolate_(nullptr),
       start_position_(0),
       end_position_(0),
       function_literal_id_(kFunctionLiteralIdTopLevel),
@@ -1384,8 +1392,7 @@ BackgroundCompileTask::BackgroundCompileTask(ScriptStreamingData* streamed_data,
   finalize_on_background_thread_ =
       FLAG_finalize_streaming_on_background && !flags_.block_coverage_enabled();
   if (finalize_on_background_thread()) {
-    off_thread_isolate_ =
-        std::make_unique<OffThreadIsolate>(isolate, info_->zone());
+    isolate_for_local_isolate_ = isolate;
   }
 }
 
@@ -1399,6 +1406,7 @@ BackgroundCompileTask::BackgroundCompileTask(
       compile_state_(*outer_parse_info->state()),
       info_(ParseInfo::ForToplevelFunction(flags_, &compile_state_,
                                            function_literal, function_name)),
+      isolate_for_local_isolate_(nullptr),
       start_position_(function_literal->start_position()),
       end_position_(function_literal->end_position()),
       function_literal_id_(function_literal->function_literal_id()),
@@ -1465,10 +1473,6 @@ class OffThreadParseInfoScope {
 }  // namespace
 
 void BackgroundCompileTask::Run() {
-  DisallowHeapAllocation no_allocation;
-  DisallowHandleAllocation no_handles;
-  DisallowHeapAccess no_heap_access;
-
   TimedHistogramScope timer(timer_);
   base::Optional<OffThreadParseInfoScope> off_thread_scope(
       base::in_place, info_.get(), worker_thread_runtime_call_stats_,
@@ -1502,40 +1506,35 @@ void BackgroundCompileTask::Run() {
   } else {
     DCHECK(info_->flags().is_toplevel());
 
-    OffThreadIsolate* isolate = off_thread_isolate();
-    isolate->PinToCurrentThread();
+    LocalIsolate isolate(isolate_for_local_isolate_);
+    LocalHandleScope handle_scope(&isolate);
 
-    OffThreadHandleScope handle_scope(isolate);
-
-    info_->ast_value_factory()->Internalize(isolate);
+    info_->ast_value_factory()->Internalize(&isolate);
 
     // We don't have the script source, origin, or details yet, so use default
     // values for them. These will be fixed up during the main-thread merge.
     Handle<Script> script =
-        info_->CreateScript(isolate, isolate->factory()->empty_string(),
+        info_->CreateScript(&isolate, isolate.factory()->empty_string(),
                             kNullMaybeHandle, ScriptOriginOptions());
 
-    parser_->HandleSourceURLComments(isolate, script);
+    parser_->HandleSourceURLComments(&isolate, script);
 
     MaybeHandle<SharedFunctionInfo> maybe_result;
     if (info_->literal() != nullptr) {
       maybe_result = CompileAndFinalizeOnBackgroundThread(
-          info_.get(), compile_state_.allocator(), script, isolate,
+          info_.get(), compile_state_.allocator(), script, &isolate,
           &finalize_unoptimized_compilation_data_,
-          &jobs_to_retry_finalization_on_main_thread_);
+          &jobs_to_retry_finalization_on_main_thread_, &is_compiled_scope_);
     } else {
       DCHECK(compile_state_.pending_error_handler()->has_pending_error());
-      PreparePendingException(isolate, info_.get());
+      PreparePendingException(&isolate, info_.get());
     }
 
-    outer_function_sfi_ = isolate->TransferHandle(maybe_result);
-    script_ = isolate->TransferHandle(script);
+    outer_function_sfi_ =
+        isolate.heap()->NewPersistentMaybeHandle(maybe_result);
+    script_ = isolate.heap()->NewPersistentHandle(script);
 
-    {
-      TRACE_EVENT0(TRACE_DISABLED_BY_DEFAULT("v8.compile"),
-                   "V8.FinalizeCodeBackground.Finish");
-      isolate->FinishOffThread();
-    }
+    persistent_handles_ = isolate.heap()->DetachPersistentHandles();
 
     {
       TRACE_EVENT0(TRACE_DISABLED_BY_DEFAULT("v8.compile"),
@@ -1546,6 +1545,25 @@ void BackgroundCompileTask::Run() {
       info_.reset();
     }
   }
+}
+
+MaybeHandle<SharedFunctionInfo> BackgroundCompileTask::GetOuterFunctionSfi(
+    Isolate* isolate) {
+  // outer_function_sfi_ is a persistent Handle, tied to the lifetime of the
+  // persistent_handles_ member, so create a new Handle to let it outlive
+  // the BackgroundCompileTask.
+  Handle<SharedFunctionInfo> result;
+  if (outer_function_sfi_.ToHandle(&result)) {
+    return handle(*result, isolate);
+  }
+  return kNullMaybeHandle;
+}
+
+Handle<Script> BackgroundCompileTask::GetScript(Isolate* isolate) {
+  // script_ is a persistent Handle, tied to the lifetime of the
+  // persistent_handles_ member, so create a new Handle to let it outlive
+  // the BackgroundCompileTask.
+  return handle(*script_, isolate);
 }
 
 // ----------------------------------------------------------------------------
@@ -2500,6 +2518,9 @@ MaybeHandle<SharedFunctionInfo> CompileScriptOnBothBackgroundAndMainThread(
 
   Handle<SharedFunctionInfo> result;
   if (maybe_result.ToHandle(&result)) {
+    // The BackgroundCompileTask's IsCompiledScope will keep the result alive
+    // until it dies at the end of this function, after which this new
+    // IsCompiledScope can take over.
     *is_compiled_scope = result->is_compiled_scope(isolate);
   }
 
@@ -2751,9 +2772,7 @@ Compiler::GetSharedFunctionInfoForStreamedScript(
       TRACE_EVENT0(TRACE_DISABLED_BY_DEFAULT("v8.compile"),
                    "V8.OffThreadFinalization.Publish");
 
-      task->off_thread_isolate()->Publish(isolate);
-
-      script = task->script();
+      script = task->GetScript(isolate);
 
       // We might not have been able to finalize all jobs on the background
       // thread (e.g. asm.js jobs), so finalize those deferred jobs now.
@@ -2762,11 +2781,17 @@ Compiler::GetSharedFunctionInfoForStreamedScript(
               task->jobs_to_retry_finalization_on_main_thread(),
               task->compile_state()->pending_error_handler(),
               task->finalize_unoptimized_compilation_data())) {
-        maybe_result = task->outer_function_sfi();
+        maybe_result = task->GetOuterFunctionSfi(isolate);
       }
 
       script->set_source(*source);
       script->set_origin_options(origin_options);
+
+      // The one post-hoc fix-up: Add the script to the script list.
+      Handle<WeakArrayList> scripts = isolate->factory()->script_list();
+      scripts = WeakArrayList::Append(isolate, scripts,
+                                      MaybeObjectHandle::Weak(script));
+      isolate->heap()->SetRootScriptList(*scripts);
     } else {
       ParseInfo* parse_info = task->info();
       DCHECK(parse_info->flags().is_toplevel());
@@ -2880,7 +2905,7 @@ Handle<SharedFunctionInfo> Compiler::GetSharedFunctionInfo(
 template Handle<SharedFunctionInfo> Compiler::GetSharedFunctionInfo(
     FunctionLiteral* literal, Handle<Script> script, Isolate* isolate);
 template Handle<SharedFunctionInfo> Compiler::GetSharedFunctionInfo(
-    FunctionLiteral* literal, Handle<Script> script, OffThreadIsolate* isolate);
+    FunctionLiteral* literal, Handle<Script> script, LocalIsolate* isolate);
 
 // static
 MaybeHandle<Code> Compiler::GetOptimizedCodeForOSR(Handle<JSFunction> function,

@@ -52,15 +52,6 @@ PagedSpaceObjectIterator::PagedSpaceObjectIterator(Heap* heap,
 #endif  // DEBUG
 }
 
-PagedSpaceObjectIterator::PagedSpaceObjectIterator(OffThreadSpace* space)
-    : cur_addr_(kNullAddress),
-      cur_end_(kNullAddress),
-      space_(space),
-      page_range_(space->first_page(), nullptr),
-      current_page_(page_range_.begin()) {
-  space_->MakeLinearAllocationAreaIterable();
-}
-
 // We have hit the end of the page and should advance to the next block of
 // objects.  This happens at the end of the page.
 bool PagedSpaceObjectIterator::AdvanceToNextPage() {
@@ -80,8 +71,7 @@ Page* PagedSpace::InitializePage(MemoryChunk* chunk) {
       page->area_size());
   // Make sure that categories are initialized before freeing the area.
   page->ResetAllocationStatistics();
-  page->SetOldGenerationPageFlags(!is_off_thread_space() &&
-                                  heap()->incremental_marking()->IsMarking());
+  page->SetOldGenerationPageFlags(heap()->incremental_marking()->IsMarking());
   page->AllocateFreeListCategories();
   page->InitializeFreeListCategories();
   page->list_node().Initialize();
@@ -115,7 +105,6 @@ void PagedSpace::RefillFreeList() {
       identity() != MAP_SPACE) {
     return;
   }
-  DCHECK_NE(local_space_kind(), LocalSpaceKind::kOffThreadSpace);
   DCHECK_IMPLIES(is_local_space(), is_compaction_space());
   MarkCompactCollector* collector = heap()->mark_compact_collector();
   size_t added = 0;
@@ -160,12 +149,6 @@ void PagedSpace::RefillFreeList() {
   }
 }
 
-void OffThreadSpace::RefillFreeList() {
-  // We should never try to refill the free list in off-thread space, because
-  // we know it will always be fully linear.
-  UNREACHABLE();
-}
-
 void PagedSpace::MergeLocalSpace(LocalSpace* other) {
   base::MutexGuard guard(mutex());
 
@@ -184,29 +167,11 @@ void PagedSpace::MergeLocalSpace(LocalSpace* other) {
   DCHECK_EQ(kNullAddress, other->top());
   DCHECK_EQ(kNullAddress, other->limit());
 
-  bool merging_from_off_thread = other->is_off_thread_space();
-
   // Move over pages.
   for (auto it = other->begin(); it != other->end();) {
     Page* p = *(it++);
 
-    if (merging_from_off_thread) {
-      DCHECK_NULL(p->sweeping_slot_set());
-
-      // Make sure the page is entirely white.
-      CHECK(heap()
-                ->incremental_marking()
-                ->non_atomic_marking_state()
-                ->bitmap(p)
-                ->IsClean());
-
-      p->SetOldGenerationPageFlags(heap()->incremental_marking()->IsMarking());
-      if (heap()->incremental_marking()->black_allocation()) {
-        p->CreateBlackArea(p->area_start(), p->HighWaterMark());
-      }
-    } else {
       p->MergeOldToNewRememberedSets();
-    }
 
     // Ensure that pages are initialized before objects on it are discovered by
     // concurrent markers.
@@ -369,7 +334,7 @@ int PagedSpace::CountTotalPages() {
 
 void PagedSpace::SetLinearAllocationArea(Address top, Address limit) {
   SetTopAndLimit(top, limit);
-  if (top != kNullAddress && top != limit && !is_off_thread_space() &&
+  if (top != kNullAddress && top != limit &&
       heap()->incremental_marking()->black_allocation()) {
     Page::FromAllocationAreaAddress(top)->CreateBlackArea(top, limit);
   }
@@ -450,7 +415,7 @@ void PagedSpace::FreeLinearAllocationArea() {
 
   AdvanceAllocationObservers();
 
-  if (current_top != current_limit && !is_off_thread_space() &&
+  if (current_top != current_limit &&
       heap()->incremental_marking()->black_allocation()) {
     Page::FromAddress(current_top)
         ->DestroyBlackArea(current_top, current_limit);
@@ -865,19 +830,6 @@ bool PagedSpace::RefillLabMain(int size_in_bytes, AllocationOrigin origin) {
 bool CompactionSpace::RefillLabMain(int size_in_bytes,
                                     AllocationOrigin origin) {
   return RawRefillLabMain(size_in_bytes, origin);
-}
-
-bool OffThreadSpace::RefillLabMain(int size_in_bytes, AllocationOrigin origin) {
-  if (TryAllocationFromFreeListMain(size_in_bytes, origin)) return true;
-
-  if (heap()->CanExpandOldGenerationBackground(size_in_bytes) && Expand()) {
-    DCHECK((CountTotalPages() > 1) ||
-           (static_cast<size_t>(size_in_bytes) <= free_list_->Available()));
-    return TryAllocationFromFreeListMain(static_cast<size_t>(size_in_bytes),
-                                         origin);
-  }
-
-  return false;
 }
 
 bool PagedSpace::RawRefillLabMain(int size_in_bytes, AllocationOrigin origin) {

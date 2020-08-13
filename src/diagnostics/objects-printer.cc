@@ -2,8 +2,6 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#include "src/objects/objects.h"
-
 #include <iomanip>
 #include <memory>
 
@@ -27,6 +25,7 @@
 #include "src/objects/js-array-buffer-inl.h"
 #include "src/objects/js-array-inl.h"
 #include "src/objects/objects-inl.h"
+#include "src/objects/objects.h"
 #include "src/snapshot/embedded/embedded-data.h"
 #ifdef V8_INTL_SUPPORT
 #include "src/objects/js-break-iterator-inl.h"
@@ -1370,11 +1369,7 @@ void SharedFunctionInfo::SharedFunctionInfoPrint(std::ostream& os) {  // NOLINT
   os << "\n - language_mode: " << language_mode();
   os << "\n - data: " << Brief(function_data());
   os << "\n - code (from data): ";
-  if (Heap::InOffThreadSpace(*this)) {
-    os << "<not available off-thread>";
-  } else {
     os << Brief(GetCode());
-  }
   PrintSourceCode(os);
   // Script files are often large, thus only print their {Brief} representation.
   os << "\n - script: " << Brief(script());

@@ -37,13 +37,13 @@
 #include "src/debug/debug.h"
 #include "src/deoptimizer/deoptimizer.h"
 #include "src/execution/execution.h"
-#include "src/execution/off-thread-isolate.h"
 #include "src/handles/global-handles.h"
 #include "src/heap/combined-heap.h"
 #include "src/heap/factory.h"
 #include "src/heap/gc-tracer.h"
 #include "src/heap/heap-inl.h"
 #include "src/heap/incremental-marking.h"
+#include "src/heap/large-spaces.h"
 #include "src/heap/mark-compact.h"
 #include "src/heap/memory-chunk.h"
 #include "src/heap/memory-reducer.h"
@@ -420,8 +420,9 @@ TEST(GarbageCollection) {
 
 static void VerifyStringAllocation(Isolate* isolate, const char* string) {
   HandleScope scope(isolate);
-  Handle<String> s = isolate->factory()->NewStringFromUtf8(
-      CStrVector(string)).ToHandleChecked();
+  Handle<String> s = isolate->factory()
+                         ->NewStringFromUtf8(CStrVector(string))
+                         .ToHandleChecked();
   CHECK_EQ(strlen(string), s->length());
   for (int index = 0; index < s->length(); index++) {
     CHECK_EQ(static_cast<uint16_t>(string[index]), s->Get(index));
@@ -696,67 +697,18 @@ TEST(BytecodeArrayAging) {
 }
 
 static const char* not_so_random_string_table[] = {
-  "abstract",
-  "boolean",
-  "break",
-  "byte",
-  "case",
-  "catch",
-  "char",
-  "class",
-  "const",
-  "continue",
-  "debugger",
-  "default",
-  "delete",
-  "do",
-  "double",
-  "else",
-  "enum",
-  "export",
-  "extends",
-  "false",
-  "final",
-  "finally",
-  "float",
-  "for",
-  "function",
-  "goto",
-  "if",
-  "implements",
-  "import",
-  "in",
-  "instanceof",
-  "int",
-  "interface",
-  "long",
-  "native",
-  "new",
-  "null",
-  "package",
-  "private",
-  "protected",
-  "public",
-  "return",
-  "short",
-  "static",
-  "super",
-  "switch",
-  "synchronized",
-  "this",
-  "throw",
-  "throws",
-  "transient",
-  "true",
-  "try",
-  "typeof",
-  "var",
-  "void",
-  "volatile",
-  "while",
-  "with",
-  nullptr
-};
+    "abstract",   "boolean",      "break",      "byte",    "case",
+    "catch",      "char",         "class",      "const",   "continue",
+    "debugger",   "default",      "delete",     "do",      "double",
+    "else",       "enum",         "export",     "extends", "false",
+    "final",      "finally",      "float",      "for",     "function",
+    "goto",       "if",           "implements", "import",  "in",
+    "instanceof", "int",          "interface",  "long",    "native",
+    "new",        "null",         "package",    "private", "protected",
+    "public",     "return",       "short",      "static",  "super",
+    "switch",     "synchronized", "this",       "throw",   "throws",
+    "transient",  "true",         "try",        "typeof",  "var",
+    "void",       "volatile",     "while",      "with",    nullptr};
 
 static void CheckInternalizedStrings(const char** strings) {
   Isolate* isolate = CcTest::i_isolate();
@@ -3019,9 +2971,8 @@ static void AddTransitions(int transitions_count) {
   }
 }
 
-
-static void AddPropertyTo(
-    int gc_count, Handle<JSObject> object, const char* property_name) {
+static void AddPropertyTo(int gc_count, Handle<JSObject> object,
+                          const char* property_name) {
   Isolate* isolate = CcTest::i_isolate();
   Factory* factory = isolate->factory();
   Handle<String> prop_name = factory->InternalizeUtf8String(property_name);
@@ -3032,7 +2983,6 @@ static void AddPropertyTo(
   CcTest::heap()->set_allocation_timeout(gc_count);
   Object::SetProperty(isolate, object, prop_name, twenty_three).Check();
 }
-
 
 TEST(TransitionArrayShrinksDuringAllocToZero) {
   FLAG_stress_compaction = false;
@@ -3052,8 +3002,9 @@ TEST(TransitionArrayShrinksDuringAllocToZero) {
   CHECK_EQ(transitions_count, transitions_before);
 
   // Get rid of o
-  CompileRun("o = new F;"
-             "root = new F");
+  CompileRun(
+      "o = new F;"
+      "root = new F");
   root = GetByName("root");
   AddPropertyTo(2, root, "funny");
   CcTest::CollectGarbage(NEW_SPACE);
@@ -3221,8 +3172,9 @@ TEST(PrintSharedFunctionInfo) {
   CcTest::InitializeVM();
   v8::HandleScope scope(CcTest::isolate());
   v8::Local<v8::Context> ctx = CcTest::isolate()->GetCurrentContext();
-  const char* source = "f = function() { return 987654321; }\n"
-                       "g = function() { return 123456789; }\n";
+  const char* source =
+      "f = function() { return 987654321; }\n"
+      "g = function() { return 123456789; }\n";
   CompileRun(source);
   i::Handle<JSFunction> g = i::Handle<JSFunction>::cast(
       v8::Utils::OpenHandle(*v8::Local<v8::Function>::Cast(
@@ -3509,32 +3461,42 @@ UNINITIALIZED_TEST(ReleaseStackTraceData) {
     v8::Isolate::Scope isolate_scope(isolate);
     v8::HandleScope handle_scope(isolate);
     v8::Context::New(isolate)->Enter();
-    static const char* source1 = "var error = null;            "
-    /* Normal Error */           "try {                        "
-                                 "  throw new Error();         "
-                                 "} catch (e) {                "
-                                 "  error = e;                 "
-                                 "}                            ";
-    static const char* source2 = "var error = null;            "
-    /* Stack overflow */         "try {                        "
-                                 "  (function f() { f(); })(); "
-                                 "} catch (e) {                "
-                                 "  error = e;                 "
-                                 "}                            ";
-    static const char* source3 = "var error = null;            "
-    /* Normal Error */           "try {                        "
-    /* as prototype */           "  throw new Error();         "
-                                 "} catch (e) {                "
-                                 "  error = {};                "
-                                 "  error.__proto__ = e;       "
-                                 "}                            ";
-    static const char* source4 = "var error = null;            "
-    /* Stack overflow */         "try {                        "
-    /* as prototype   */         "  (function f() { f(); })(); "
-                                 "} catch (e) {                "
-                                 "  error = {};                "
-                                 "  error.__proto__ = e;       "
-                                 "}                            ";
+    static const char* source1 =
+        "var error = null;            "
+        /* Normal Error */
+        "try {                        "
+        "  throw new Error();         "
+        "} catch (e) {                "
+        "  error = e;                 "
+        "}                            ";
+    static const char* source2 =
+        "var error = null;            "
+        /* Stack overflow */
+        "try {                        "
+        "  (function f() { f(); })(); "
+        "} catch (e) {                "
+        "  error = e;                 "
+        "}                            ";
+    static const char* source3 =
+        "var error = null;            "
+        /* Normal Error */
+        "try {                        "
+        /* as prototype */
+        "  throw new Error();         "
+        "} catch (e) {                "
+        "  error = {};                "
+        "  error.__proto__ = e;       "
+        "}                            ";
+    static const char* source4 =
+        "var error = null;            "
+        /* Stack overflow */
+        "try {                        "
+        /* as prototype   */
+        "  (function f() { f(); })(); "
+        "} catch (e) {                "
+        "  error = {};                "
+        "  error.__proto__ = e;       "
+        "}                            ";
     static const char* getter = "error.stack";
     static const char* setter = "error.stack = 0";
 
@@ -3685,17 +3647,18 @@ TEST(Regress169928) {
     return;
 
   // Prepare the environment
-  CompileRun("function fastliteralcase(literal, value) {"
-             "    literal[0] = value;"
-             "    return literal;"
-             "}"
-             "function get_standard_literal() {"
-             "    var literal = [1, 2, 3];"
-             "    return literal;"
-             "}"
-             "obj = fastliteralcase(get_standard_literal(), 1);"
-             "obj = fastliteralcase(get_standard_literal(), 1.5);"
-             "obj = fastliteralcase(get_standard_literal(), 2);");
+  CompileRun(
+      "function fastliteralcase(literal, value) {"
+      "    literal[0] = value;"
+      "    return literal;"
+      "}"
+      "function get_standard_literal() {"
+      "    var literal = [1, 2, 3];"
+      "    return literal;"
+      "}"
+      "obj = fastliteralcase(get_standard_literal(), 1);"
+      "obj = fastliteralcase(get_standard_literal(), 1.5);"
+      "obj = fastliteralcase(get_standard_literal(), 2);");
 
   // prepare the heap
   v8::Local<v8::String> mote_code_string =
@@ -3882,11 +3845,12 @@ TEST(IncrementalMarkingStepMakesBigProgressWithLargeObjects) {
   ManualGCScope manual_gc_scope;
   CcTest::InitializeVM();
   v8::HandleScope scope(CcTest::isolate());
-  CompileRun("function f(n) {"
-             "    var a = new Array(n);"
-             "    for (var i = 0; i < n; i += 100) a[i] = i;"
-             "};"
-             "f(10 * 1024 * 1024);");
+  CompileRun(
+      "function f(n) {"
+      "    var a = new Array(n);"
+      "    for (var i = 0; i < n; i += 100) a[i] = i;"
+      "};"
+      "f(10 * 1024 * 1024);");
   IncrementalMarking* marking = CcTest::heap()->incremental_marking();
   if (marking->IsStopped()) {
     CcTest::heap()->StartIncrementalMarking(
@@ -3983,9 +3947,8 @@ TEST(EnsureAllocationSiteDependentCodesProcessed) {
     // One allocation site should have been created.
     int new_count = AllocationSitesCount(heap);
     CHECK_EQ(new_count, (count + 1));
-    site = Handle<AllocationSite>::cast(
-        global_handles->Create(
-            AllocationSite::cast(heap->allocation_sites_list())));
+    site = Handle<AllocationSite>::cast(global_handles->Create(
+        AllocationSite::cast(heap->allocation_sites_list())));
 
     CompileRun("%OptimizeFunctionOnNextCall(bar); bar();");
 
@@ -5462,8 +5425,9 @@ TEST(CanonicalSharedFunctionInfo) {
   v8::Isolate* isolate = CcTest::isolate();
   v8::HandleScope scope(isolate);
   v8::Local<v8::ObjectTemplate> global = v8::ObjectTemplate::New(isolate);
-  global->Set(isolate, "check", v8::FunctionTemplate::New(
-                                    isolate, CheckEqualSharedFunctionInfos));
+  global->Set(
+      isolate, "check",
+      v8::FunctionTemplate::New(isolate, CheckEqualSharedFunctionInfos));
   global->Set(isolate, "remove",
               v8::FunctionTemplate::New(isolate, RemoveCodeAndGC));
   v8::Local<v8::Context> context = v8::Context::New(isolate, nullptr, global);
@@ -7176,44 +7140,6 @@ TEST(Regress978156) {
   // an out-of-bounds access of the marking bitmap in a bad case.
   marking_state->WhiteToGrey(filler);
   marking_state->GreyToBlack(filler);
-}
-
-HEAP_TEST(GCDuringOffThreadMergeWithTransferHandle) {
-  CcTest::InitializeVM();
-  Isolate* isolate = CcTest::i_isolate();
-  Heap* heap = isolate->heap();
-
-  HandleScope handle_scope(isolate);
-
-  Zone zone(isolate->allocator(), ZONE_NAME);
-  OffThreadIsolate off_thread_isolate(isolate, &zone);
-
-  OffThreadTransferHandle<FixedArray> transfer_handle;
-
-  {
-    OffThreadHandleScope handle_scope(&off_thread_isolate);
-    Handle<FixedArray> obj =
-        off_thread_isolate.factory()->NewFixedArray(10, AllocationType::kOld);
-
-    transfer_handle = off_thread_isolate.TransferHandle(obj);
-
-    off_thread_isolate.FinishOffThread();
-  }
-
-  heap->set_force_oom(true);
-
-  heap->AddNearHeapLimitCallback(
-      [](void* data, size_t current_heap_limit,
-         size_t initial_heap_limit) -> size_t {
-        Heap* heap = static_cast<Heap*>(data);
-        heap->set_force_oom(false);
-        return 0;
-      },
-      heap);
-
-  off_thread_isolate.Publish(isolate);
-  CHECK(transfer_handle.ToHandle()->IsFixedArray());
-  CHECK_EQ(transfer_handle.ToHandle()->length(), 10);
 }
 
 TEST(GarbageCollectionWithLocalHeap) {

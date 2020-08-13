@@ -600,7 +600,7 @@ Handle<String> Scanner::SourceUrl(LocalIsolate* isolate) const {
 }
 
 template Handle<String> Scanner::SourceUrl(Isolate* isolate) const;
-template Handle<String> Scanner::SourceUrl(OffThreadIsolate* isolate) const;
+template Handle<String> Scanner::SourceUrl(LocalIsolate* isolate) const;
 
 template <typename LocalIsolate>
 Handle<String> Scanner::SourceMappingUrl(LocalIsolate* isolate) const {
@@ -612,8 +612,7 @@ Handle<String> Scanner::SourceMappingUrl(LocalIsolate* isolate) const {
 }
 
 template Handle<String> Scanner::SourceMappingUrl(Isolate* isolate) const;
-template Handle<String> Scanner::SourceMappingUrl(
-    OffThreadIsolate* isolate) const;
+template Handle<String> Scanner::SourceMappingUrl(LocalIsolate* isolate) const;
 
 bool Scanner::ScanDigitsWithNumericSeparators(bool (*predicate)(uc32 ch),
                                               bool is_check_first_digit) {

@@ -5,7 +5,7 @@
 #include "src/interpreter/bytecode-array-writer.h"
 
 #include "src/api/api-inl.h"
-#include "src/heap/off-thread-factory-inl.h"
+#include "src/heap/local-factory-inl.h"
 #include "src/interpreter/bytecode-jump-table.h"
 #include "src/interpreter/bytecode-label.h"
 #include "src/interpreter/bytecode-node.h"
@@ -60,7 +60,7 @@ template EXPORT_TEMPLATE_DEFINE(V8_EXPORT_PRIVATE)
         Handle<ByteArray> handler_table);
 template EXPORT_TEMPLATE_DEFINE(V8_EXPORT_PRIVATE)
     Handle<BytecodeArray> BytecodeArrayWriter::ToBytecodeArray(
-        OffThreadIsolate* isolate, int register_count, int parameter_count,
+        LocalIsolate* isolate, int register_count, int parameter_count,
         Handle<ByteArray> handler_table);
 
 template <typename LocalIsolate>
@@ -79,7 +79,7 @@ template EXPORT_TEMPLATE_DEFINE(V8_EXPORT_PRIVATE)
         Isolate* isolate);
 template EXPORT_TEMPLATE_DEFINE(V8_EXPORT_PRIVATE)
     Handle<ByteArray> BytecodeArrayWriter::ToSourcePositionTable(
-        OffThreadIsolate* isolate);
+        LocalIsolate* isolate);
 
 #ifdef DEBUG
 int BytecodeArrayWriter::CheckBytecodeMatches(BytecodeArray bytecode) {

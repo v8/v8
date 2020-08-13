@@ -128,8 +128,6 @@ class V8_EXPORT_PRIVATE LargeObjectSpace : public Space {
   friend class LargeObjectSpaceObjectIterator;
 };
 
-class OffThreadLargeObjectSpace;
-
 class OldLargeObjectSpace : public LargeObjectSpace {
  public:
   explicit OldLargeObjectSpace(Heap* heap);
@@ -144,8 +142,6 @@ class OldLargeObjectSpace : public LargeObjectSpace {
   void ClearMarkingStateOfLiveObjects();
 
   void PromoteNewLargeObject(LargePage* page);
-
-  V8_EXPORT_PRIVATE void MergeOffThreadSpace(OffThreadLargeObjectSpace* other);
 
  protected:
   explicit OldLargeObjectSpace(Heap* heap, AllocationSpace id);
@@ -204,24 +200,6 @@ class CodeLargeObjectSpace : public OldLargeObjectSpace {
 
   // Page-aligned addresses to their corresponding LargePage.
   std::unordered_map<Address, LargePage*> chunk_map_;
-};
-
-class V8_EXPORT_PRIVATE OffThreadLargeObjectSpace : public LargeObjectSpace {
- public:
-  explicit OffThreadLargeObjectSpace(Heap* heap);
-
-  V8_WARN_UNUSED_RESULT AllocationResult AllocateRaw(int object_size);
-
-  void FreeUnmarkedObjects() override;
-
-  bool is_off_thread() const override { return true; }
-
- protected:
-  // OldLargeObjectSpace can mess with OffThreadLargeObjectSpace during merging.
-  friend class OldLargeObjectSpace;
-
-  V8_WARN_UNUSED_RESULT AllocationResult AllocateRaw(int object_size,
-                                                     Executability executable);
 };
 
 class LargeObjectSpaceObjectIterator : public ObjectIterator {

@@ -271,15 +271,15 @@ class EXPORT_TEMPLATE_DECLARE(V8_EXPORT_PRIVATE) HashTable
   HashTable<DERIVED, SHAPE>::New(Isolate*, int, AllocationType,              \
                                  MinimumCapacity);                           \
   extern template EXPORT_TEMPLATE_DECLARE(V8_EXPORT_PRIVATE) Handle<DERIVED> \
-  HashTable<DERIVED, SHAPE>::New(OffThreadIsolate*, int, AllocationType,     \
+  HashTable<DERIVED, SHAPE>::New(LocalIsolate*, int, AllocationType,         \
                                  MinimumCapacity);                           \
                                                                              \
   extern template EXPORT_TEMPLATE_DECLARE(V8_EXPORT_PRIVATE) Handle<DERIVED> \
   HashTable<DERIVED, SHAPE>::EnsureCapacity(Isolate*, Handle<DERIVED>, int,  \
                                             AllocationType);                 \
   extern template EXPORT_TEMPLATE_DECLARE(V8_EXPORT_PRIVATE) Handle<DERIVED> \
-  HashTable<DERIVED, SHAPE>::EnsureCapacity(                                 \
-      OffThreadIsolate*, Handle<DERIVED>, int, AllocationType);
+  HashTable<DERIVED, SHAPE>::EnsureCapacity(LocalIsolate*, Handle<DERIVED>,  \
+                                            int, AllocationType);
 
 // HashTableKey is an abstract superclass for virtual key behavior.
 class HashTableKey {

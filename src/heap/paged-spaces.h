@@ -25,7 +25,6 @@ class Heap;
 class HeapObject;
 class Isolate;
 class LocalSpace;
-class OffThreadSpace;
 class ObjectVisitor;
 
 // -----------------------------------------------------------------------------
@@ -42,9 +41,6 @@ class V8_EXPORT_PRIVATE PagedSpaceObjectIterator : public ObjectIterator {
   // Creates a new object iterator in a given space.
   PagedSpaceObjectIterator(Heap* heap, PagedSpace* space);
   PagedSpaceObjectIterator(Heap* heap, PagedSpace* space, Page* page);
-
-  // Creates a new object iterator in a given off-thread space.
-  explicit PagedSpaceObjectIterator(OffThreadSpace* space);
 
   // Advance to the next object, skipping free spaces and other fillers and
   // skipping the special garbage section of which there is one per space.
@@ -261,10 +257,6 @@ class V8_EXPORT_PRIVATE PagedSpace
   inline int AreaSize() { return static_cast<int>(area_size_); }
 
   bool is_local_space() { return local_space_kind_ != LocalSpaceKind::kNone; }
-
-  bool is_off_thread_space() {
-    return local_space_kind_ == LocalSpaceKind::kOffThreadSpace;
-  }
 
   bool is_compaction_space() {
     return base::IsInRange(local_space_kind_,
@@ -529,27 +521,6 @@ class MapSpace : public PagedSpace {
 #ifdef VERIFY_HEAP
   void VerifyObject(HeapObject obj) override;
 #endif
-};
-
-// -----------------------------------------------------------------------------
-// Off-thread space that is used for folded allocation on a different thread.
-
-class V8_EXPORT_PRIVATE OffThreadSpace : public LocalSpace {
- public:
-  explicit OffThreadSpace(Heap* heap)
-      : LocalSpace(heap, OLD_SPACE, NOT_EXECUTABLE,
-                   LocalSpaceKind::kOffThreadSpace) {
-#ifdef V8_ENABLE_THIRD_PARTY_HEAP
-    // OffThreadSpace doesn't work with third-party heap.
-    UNREACHABLE();
-#endif
-  }
-
- protected:
-  V8_WARN_UNUSED_RESULT bool RefillLabMain(int size_in_bytes,
-                                           AllocationOrigin origin) override;
-
-  void RefillFreeList() override;
 };
 
 // Iterates over the chunks (pages and large object pages) that can contain

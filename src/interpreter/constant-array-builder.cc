@@ -13,7 +13,7 @@
 #include "src/ast/scopes.h"
 #include "src/base/functional.h"
 #include "src/execution/isolate.h"
-#include "src/heap/off-thread-factory-inl.h"
+#include "src/heap/local-factory-inl.h"
 #include "src/objects/objects-inl.h"
 
 namespace v8 {
@@ -180,8 +180,8 @@ template EXPORT_TEMPLATE_DEFINE(V8_EXPORT_PRIVATE)
     MaybeHandle<Object> ConstantArrayBuilder::At(size_t index,
                                                  Isolate* isolate) const;
 template EXPORT_TEMPLATE_DEFINE(V8_EXPORT_PRIVATE)
-    MaybeHandle<Object> ConstantArrayBuilder::At(
-        size_t index, OffThreadIsolate* isolate) const;
+    MaybeHandle<Object> ConstantArrayBuilder::At(size_t index,
+                                                 LocalIsolate* isolate) const;
 
 template <typename LocalIsolate>
 Handle<FixedArray> ConstantArrayBuilder::ToFixedArray(LocalIsolate* isolate) {
@@ -218,7 +218,7 @@ template EXPORT_TEMPLATE_DEFINE(V8_EXPORT_PRIVATE)
     Handle<FixedArray> ConstantArrayBuilder::ToFixedArray(Isolate* isolate);
 template EXPORT_TEMPLATE_DEFINE(V8_EXPORT_PRIVATE)
     Handle<FixedArray> ConstantArrayBuilder::ToFixedArray(
-        OffThreadIsolate* isolate);
+        LocalIsolate* isolate);
 
 size_t ConstantArrayBuilder::Insert(Smi smi) {
   auto entry = smi_map_.find(smi);
@@ -410,7 +410,7 @@ Handle<Object> ConstantArrayBuilder::Entry::ToHandle(
 template Handle<Object> ConstantArrayBuilder::Entry::ToHandle(
     Isolate* isolate) const;
 template Handle<Object> ConstantArrayBuilder::Entry::ToHandle(
-    OffThreadIsolate* isolate) const;
+    LocalIsolate* isolate) const;
 
 }  // namespace interpreter
 }  // namespace internal

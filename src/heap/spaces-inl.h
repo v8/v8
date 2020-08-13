@@ -10,6 +10,7 @@
 #include "src/common/globals.h"
 #include "src/heap/heap-inl.h"
 #include "src/heap/incremental-marking.h"
+#include "src/heap/large-spaces.h"
 #include "src/heap/memory-chunk-inl.h"
 #include "src/heap/new-spaces.h"
 #include "src/heap/paged-spaces.h"

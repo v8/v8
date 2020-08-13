@@ -655,6 +655,7 @@ class JSReceiver;
 class JSArray;
 class JSFunction;
 class JSObject;
+class LocalIsolate;
 class MacroAssembler;
 class Map;
 class MapSpace;
@@ -672,7 +673,6 @@ class NewSpace;
 class NewLargeObjectSpace;
 class NumberDictionary;
 class Object;
-class OffThreadIsolate;
 class OldLargeObjectSpace;
 template <HeapObjectReferenceType kRefType, typename StorageType>
 class TaggedImpl;
@@ -816,7 +816,6 @@ enum GarbageCollector { SCAVENGER, MARK_COMPACTOR, MINOR_MARK_COMPACTOR };
 
 enum class LocalSpaceKind {
   kNone,
-  kOffThreadSpace,
   kCompactionSpaceForScavenge,
   kCompactionSpaceForMarkCompact,
   kCompactionSpaceForMinorMarkCompact,

@@ -5,7 +5,7 @@
 #include "src/codegen/source-position-table.h"
 
 #include "src/base/export-template.h"
-#include "src/heap/off-thread-factory-inl.h"
+#include "src/heap/local-factory-inl.h"
 #include "src/objects/objects-inl.h"
 #include "src/objects/objects.h"
 
@@ -189,7 +189,7 @@ template EXPORT_TEMPLATE_DEFINE(V8_EXPORT_PRIVATE)
         Isolate* isolate);
 template EXPORT_TEMPLATE_DEFINE(V8_EXPORT_PRIVATE)
     Handle<ByteArray> SourcePositionTableBuilder::ToSourcePositionTable(
-        OffThreadIsolate* isolate);
+        LocalIsolate* isolate);
 
 OwnedVector<byte> SourcePositionTableBuilder::ToSourcePositionTableVector() {
   if (bytes_.empty()) return OwnedVector<byte>();

@@ -6,7 +6,6 @@
 
 #include "src/codegen/assembler-inl.h"
 #include "src/execution/isolate.h"
-#include "src/execution/local-isolate-wrapper-inl.h"
 #include "src/heap/heap-inl.h"
 #include "src/objects/allocation-site-inl.h"
 #include "src/objects/objects.h"
@@ -27,34 +26,25 @@ ObjectDeserializer::DeserializeSharedFunctionInfo(
   d.AddAttachedObject(source);
 
   Handle<HeapObject> result;
-  return d.Deserialize(LocalIsolateWrapper(isolate)).ToHandle(&result)
+  return d.Deserialize(isolate).ToHandle(&result)
              ? Handle<SharedFunctionInfo>::cast(result)
              : MaybeHandle<SharedFunctionInfo>();
 }
 
 MaybeHandle<SharedFunctionInfo>
 ObjectDeserializer::DeserializeSharedFunctionInfoOffThread(
-    OffThreadIsolate* isolate, const SerializedCodeData* data,
+    LocalIsolate* isolate, const SerializedCodeData* data,
     Handle<String> source) {
-  DCHECK(ReadOnlyHeap::Contains(*source) || Heap::InOffThreadSpace(*source));
-
-  ObjectDeserializer d(data);
-
-  d.AddAttachedObject(source);
-
-  Handle<HeapObject> result;
-  return d.Deserialize(LocalIsolateWrapper(isolate)).ToHandle(&result)
-             ? Handle<SharedFunctionInfo>::cast(result)
-             : MaybeHandle<SharedFunctionInfo>();
+  // TODO(leszeks): Add LocalHeap support to deserializer
+  UNREACHABLE();
 }
 
-MaybeHandle<HeapObject> ObjectDeserializer::Deserialize(
-    LocalIsolateWrapper local_isolate) {
-  Initialize(local_isolate);
+MaybeHandle<HeapObject> ObjectDeserializer::Deserialize(Isolate* isolate) {
+  Initialize(isolate);
   if (!allocator()->ReserveSpace()) return MaybeHandle<HeapObject>();
 
   DCHECK(deserializing_user_code());
-  LocalHandleScopeWrapper scope(local_isolate);
+  HandleScope scope(isolate);
   Handle<HeapObject> result;
   {
     DisallowHeapAllocation no_gc;
@@ -62,14 +52,10 @@ MaybeHandle<HeapObject> ObjectDeserializer::Deserialize(
     VisitRootPointer(Root::kStartupObjectCache, nullptr, FullObjectSlot(&root));
     DeserializeDeferredObjects();
     CHECK(new_code_objects().empty());
-    if (is_main_thread()) {
-      LinkAllocationSites();
-      LogNewMapEvents();
-    }
-    result = handle(HeapObject::cast(root), local_isolate);
-    if (is_main_thread()) {
-      allocator()->RegisterDeserializedObjectsForBlackAllocation();
-    }
+    LinkAllocationSites();
+    LogNewMapEvents();
+    result = handle(HeapObject::cast(root), isolate);
+    allocator()->RegisterDeserializedObjectsForBlackAllocation();
   }
 
   Rehash();
@@ -78,31 +64,23 @@ MaybeHandle<HeapObject> ObjectDeserializer::Deserialize(
 }
 
 void ObjectDeserializer::CommitPostProcessedObjects() {
-  if (is_main_thread()) {
-    for (Handle<JSArrayBuffer> buffer : new_off_heap_array_buffers()) {
-      uint32_t store_index = buffer->GetBackingStoreRefForDeserialization();
-      auto bs = backing_store(store_index);
-      SharedFlag shared =
-          bs && bs->is_shared() ? SharedFlag::kShared : SharedFlag::kNotShared;
-      buffer->Setup(shared, bs);
-    }
-  } else {
-    CHECK_EQ(new_off_heap_array_buffers().size(), 0);
+  for (Handle<JSArrayBuffer> buffer : new_off_heap_array_buffers()) {
+    uint32_t store_index = buffer->GetBackingStoreRefForDeserialization();
+    auto bs = backing_store(store_index);
+    SharedFlag shared =
+        bs && bs->is_shared() ? SharedFlag::kShared : SharedFlag::kNotShared;
+    buffer->Setup(shared, bs);
   }
 
   for (Handle<Script> script : new_scripts()) {
     // Assign a new script id to avoid collision.
-    script->set_id(local_isolate()->GetNextScriptId());
+    script->set_id(isolate()->GetNextScriptId());
     LogScriptEvents(*script);
     // Add script to list.
-    if (is_main_thread()) {
       Handle<WeakArrayList> list = isolate()->factory()->script_list();
       list = WeakArrayList::AddToEnd(isolate(), list,
                                      MaybeObjectHandle::Weak(script));
       isolate()->heap()->SetRootScriptList(*list);
-    } else {
-      local_isolate().off_thread()->heap()->AddToScriptList(script);
-    }
   }
 }
 

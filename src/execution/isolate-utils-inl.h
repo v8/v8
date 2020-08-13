@@ -8,7 +8,6 @@
 #include "src/common/ptr-compr-inl.h"
 #include "src/execution/isolate-utils.h"
 #include "src/execution/isolate.h"
-#include "src/execution/local-isolate-wrapper.h"
 #include "src/heap/heap-write-barrier-inl.h"
 
 namespace v8 {
@@ -34,18 +33,9 @@ inline const Isolate* GetIsolateForPtrCompr(const Isolate* isolate) {
 #endif  // V8_COMPRESS_POINTERS
 }
 
-inline const Isolate* GetIsolateForPtrCompr(const OffThreadIsolate* isolate) {
+inline const Isolate* GetIsolateForPtrCompr(const LocalIsolate* isolate) {
 #ifdef V8_COMPRESS_POINTERS
   return isolate->GetIsolateForPtrCompr();
-#else
-  return nullptr;
-#endif  // V8_COMPRESS_POINTERS
-}
-
-inline const Isolate* GetIsolateForPtrCompr(LocalIsolateWrapper isolate) {
-#ifdef V8_COMPRESS_POINTERS
-  return isolate.is_main_thread() ? isolate.main_thread()
-                                  : GetIsolateForPtrCompr(isolate.off_thread());
 #else
   return nullptr;
 #endif  // V8_COMPRESS_POINTERS
@@ -69,9 +59,6 @@ V8_INLINE Heap* GetHeapFromWritableObject(HeapObject object) {
 }
 
 V8_INLINE Isolate* GetIsolateFromWritableObject(HeapObject object) {
-  // We don't want to allow accessing the isolate off-thread.
-  DCHECK(!Heap::InOffThreadSpace(object));
-
 #ifdef V8_ENABLE_THIRD_PARTY_HEAP
   return Heap::GetIsolateFromWritableObject(object);
 #elif defined V8_COMPRESS_POINTERS

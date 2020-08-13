@@ -8,13 +8,11 @@
 #include "src/codegen/assembler-inl.h"
 #include "src/common/external-pointer.h"
 #include "src/execution/isolate.h"
-#include "src/execution/local-isolate-wrapper-inl.h"
 #include "src/heap/heap-inl.h"
 #include "src/heap/heap-write-barrier-inl.h"
 #include "src/heap/read-only-heap.h"
 #include "src/interpreter/interpreter.h"
 #include "src/logging/log.h"
-#include "src/logging/off-thread-logger.h"
 #include "src/objects/api-callbacks.h"
 #include "src/objects/cell-inl.h"
 #include "src/objects/hash-table.h"
@@ -58,25 +56,22 @@ TSlot Deserializer::WriteExternalPointer(TSlot dest, Address value) {
   return dest + (kExternalPointerSize / TSlot::kSlotDataSize);
 }
 
-void Deserializer::Initialize(LocalIsolateWrapper local_isolate) {
-  DCHECK(local_isolate_.is_null());
-  DCHECK(!local_isolate.is_null());
-  local_isolate_ = local_isolate;
-  allocator()->Initialize(local_isolate->heap());
+void Deserializer::Initialize(Isolate* isolate) {
+  DCHECK_NULL(isolate_);
+  DCHECK_NOT_NULL(isolate);
+  isolate_ = isolate;
+  allocator()->Initialize(isolate->heap());
 
 #ifdef DEBUG
   num_api_references_ = 0;
-  if (!local_isolate.is_off_thread()) {
-    Isolate* isolate = local_isolate.main_thread();
-    // The read-only deserializer is run by read-only heap set-up before the
-    // heap is fully set up. External reference table relies on a few parts of
-    // this set-up (like old-space), so it may be uninitialized at this point.
-    if (isolate->isolate_data()->external_reference_table()->is_initialized()) {
-      // Count the number of external references registered through the API.
-      if (isolate->api_external_references() != nullptr) {
-        while (isolate->api_external_references()[num_api_references_] != 0) {
-          num_api_references_++;
-        }
+  // The read-only deserializer is run by read-only heap set-up before the
+  // heap is fully set up. External reference table relies on a few parts of
+  // this set-up (like old-space), so it may be uninitialized at this point.
+  if (isolate->isolate_data()->external_reference_table()->is_initialized()) {
+    // Count the number of external references registered through the API.
+    if (isolate->api_external_references() != nullptr) {
+      while (isolate->api_external_references()[num_api_references_] != 0) {
+        num_api_references_++;
       }
     }
   }
@@ -87,7 +82,7 @@ void Deserializer::Initialize(LocalIsolateWrapper local_isolate) {
 void Deserializer::Rehash() {
   DCHECK(can_rehash() || deserializing_user_code());
   for (HeapObject item : to_rehash_) {
-    item.RehashBasedOnMap(local_isolate());
+    item.RehashBasedOnMap(isolate());
   }
 }
 
@@ -159,8 +154,6 @@ void Deserializer::DeserializeDeferredObjects() {
 
 void Deserializer::LogNewMapEvents() {
   DisallowHeapAllocation no_gc;
-  DCHECK(is_main_thread());
-
   for (Map map : new_maps_) {
     DCHECK(FLAG_trace_maps);
     LOG(isolate(), MapCreate(map));
@@ -170,9 +163,9 @@ void Deserializer::LogNewMapEvents() {
 
 void Deserializer::LogScriptEvents(Script script) {
   DisallowHeapAllocation no_gc;
-  LOG(local_isolate(),
+  LOG(isolate(),
       ScriptEvent(Logger::ScriptEventType::kDeserialize, script.id()));
-  LOG(local_isolate(), ScriptDetails(script));
+  LOG(isolate(), ScriptDetails(script));
 }
 
 StringTableInsertionKey::StringTableInsertionKey(Handle<String> string)
@@ -223,11 +216,6 @@ HeapObject Deserializer::PostProcessNewObject(HeapObject obj,
     if (obj.IsString()) {
       String string = String::cast(obj);
       if (string.IsInternalizedString()) {
-        // Off-thread internalized strings are canonicalized during off-thread
-        // isolate publish, so we don't have to canonicalize them here.
-        // TODO(crbug.com/v8/10729): Add concurrent string table support.
-        if (local_isolate().is_off_thread()) return string;
-
         // Canonicalize the internalized string. If it already exists in the
         // string table, set it to forward to the existing one.
 
@@ -244,7 +232,7 @@ HeapObject Deserializer::PostProcessNewObject(HeapObject obj,
         return result;
       }
     } else if (obj.IsScript()) {
-      new_scripts_.push_back(handle(Script::cast(obj), local_isolate()));
+      new_scripts_.push_back(handle(Script::cast(obj), isolate()));
     } else if (obj.IsAllocationSite()) {
       // We should link new allocation sites, but we can't do this immediately
       // because |AllocationSite::HasWeakNext()| internally accesses
@@ -321,7 +309,7 @@ HeapObject Deserializer::PostProcessNewObject(HeapObject obj,
     JSArrayBuffer buffer = JSArrayBuffer::cast(obj);
     // Postpone allocation of backing store to avoid triggering the GC.
     if (buffer.backing_store() != nullptr) {
-      new_off_heap_array_buffers_.push_back(handle(buffer, local_isolate()));
+      new_off_heap_array_buffers_.push_back(handle(buffer, isolate()));
     }
   } else if (obj.IsBytecodeArray()) {
     // TODO(mythria): Remove these once we store the default values for these
@@ -354,9 +342,8 @@ HeapObject Deserializer::GetBackReferencedObject(SnapshotSpace space) {
     case SnapshotSpace::kReadOnlyHeap: {
       uint32_t chunk_index = source_.GetInt();
       uint32_t chunk_offset = source_.GetInt();
-      if (is_off_thread() || isolate()->heap()->deserialization_complete()) {
-        ReadOnlySpace* read_only_space =
-            local_isolate()->heap()->read_only_space();
+      if (isolate()->heap()->deserialization_complete()) {
+        ReadOnlySpace* read_only_space = isolate()->heap()->read_only_space();
         ReadOnlyPage* page = read_only_space->pages()[chunk_index];
         Address address = page->OffsetToAddress(chunk_offset);
         obj = HeapObject::FromAddress(address);
@@ -401,7 +388,7 @@ HeapObject Deserializer::ReadObject(SnapshotSpace space) {
   Address address = allocator()->Allocate(space, size);
   HeapObject obj = HeapObject::FromAddress(address);
 
-  local_isolate()->heap()->OnAllocationEvent(obj, size);
+  isolate()->heap()->OnAllocationEvent(obj, size);
   MaybeObjectSlot current(address);
   MaybeObjectSlot limit(address + size);
 
@@ -708,9 +695,7 @@ bool Deserializer::ReadData(TSlot current, TSlot limit,
               reference_id < num_api_references_,
               "too few external references provided through the API");
           address = static_cast<Address>(
-              local_isolate()
-                  .main_thread()
-                  ->api_external_references()[reference_id]);
+              isolate()->api_external_references()[reference_id]);
         } else {
           address = reinterpret_cast<Address>(NoExternalReferencesCallback);
         }
@@ -724,8 +709,7 @@ bool Deserializer::ReadData(TSlot current, TSlot limit,
       }
 
       case kClearedWeakReference:
-        current =
-            Write(current, HeapObjectReference::ClearedValue(local_isolate()));
+        current = Write(current, HeapObjectReference::ClearedValue(isolate()));
         break;
 
       case kWeakPrefix:
@@ -753,7 +737,7 @@ bool Deserializer::ReadData(TSlot current, TSlot limit,
         int id = data & kRootArrayConstantsMask;
         RootIndex root_index = static_cast<RootIndex>(id);
         MaybeObject object =
-            MaybeObject(ReadOnlyRoots(local_isolate()).at(root_index));
+            MaybeObject(ReadOnlyRoots(isolate()).at(root_index));
         DCHECK(!Heap::InYoungGeneration(object));
         current = Write(current, object);
         break;
@@ -849,14 +833,13 @@ TSlot Deserializer::ReadDataCase(TSlot current, Address current_object_address,
   } else if (bytecode == kRootArray) {
     int id = source_.GetInt();
     RootIndex root_index = static_cast<RootIndex>(id);
-    heap_object = HeapObject::cast(local_isolate()->root(root_index));
+    heap_object = HeapObject::cast(isolate()->root(root_index));
     emit_write_barrier = Heap::InYoungGeneration(heap_object);
     hot_objects_.Add(heap_object);
   } else if (bytecode == kReadOnlyObjectCache) {
     int cache_index = source_.GetInt();
     heap_object = HeapObject::cast(
-        local_isolate()->read_only_heap()->cached_read_only_object(
-            cache_index));
+        isolate()->read_only_heap()->cached_read_only_object(cache_index));
     DCHECK(!Heap::InYoungGeneration(heap_object));
     emit_write_barrier = false;
   } else if (bytecode == kStartupObjectCache) {
@@ -879,7 +862,7 @@ TSlot Deserializer::ReadDataCase(TSlot current, Address current_object_address,
   if (emit_write_barrier && write_barrier_needed) {
     DCHECK_IMPLIES(FLAG_disable_write_barriers, !write_barrier_needed);
     HeapObject host_object = HeapObject::FromAddress(current_object_address);
-    SLOW_DCHECK(local_isolate()->heap()->Contains(host_object));
+    SLOW_DCHECK(isolate()->heap()->Contains(host_object));
     GenerationalBarrier(host_object, MaybeObjectSlot(current.address()),
                         heap_object_ref);
   }

@@ -56,6 +56,15 @@ class V8_EXPORT_PRIVATE LocalHeap {
     return NewPersistentHandle(*object);
   }
 
+  template <typename T>
+  MaybeHandle<T> NewPersistentMaybeHandle(MaybeHandle<T> maybe_handle) {
+    Handle<T> handle;
+    if (maybe_handle.ToHandle(&handle)) {
+      return NewPersistentHandle(handle);
+    }
+    return kNullMaybeHandle;
+  }
+
   std::unique_ptr<PersistentHandles> DetachPersistentHandles();
 #ifdef DEBUG
   bool ContainsPersistentHandle(Address* location);

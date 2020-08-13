@@ -6,7 +6,6 @@
 #define V8_SNAPSHOT_DESERIALIZER_ALLOCATOR_H_
 
 #include "src/common/globals.h"
-#include "src/execution/local-isolate-wrapper.h"
 #include "src/heap/heap.h"
 #include "src/objects/heap-object.h"
 #include "src/roots/roots.h"
@@ -18,13 +17,12 @@ namespace internal {
 
 class Deserializer;
 class StartupDeserializer;
-class OffThreadHeap;
 
 class DeserializerAllocator final {
  public:
   DeserializerAllocator() = default;
 
-  void Initialize(LocalHeapWrapper heap);
+  void Initialize(Heap* heap);
 
   // ------- Allocation Methods -------
   // Methods related to memory allocation during deserialization.
@@ -103,7 +101,7 @@ class DeserializerAllocator final {
   std::vector<HeapObject> deserialized_large_objects_;
 
   // ReadOnlyRoots and heap are null until Initialize is called.
-  LocalHeapWrapper heap_ = LocalHeapWrapper(nullptr);
+  Heap* heap_ = nullptr;
   ReadOnlyRoots roots_ = ReadOnlyRoots(static_cast<Address*>(nullptr));
 
   DISALLOW_COPY_AND_ASSIGN(DeserializerAllocator);

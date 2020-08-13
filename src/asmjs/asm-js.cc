@@ -201,7 +201,7 @@ class AsmJsCompilationJob final : public UnoptimizedCompilationJob {
   Status FinalizeJobImpl(Handle<SharedFunctionInfo> shared_info,
                          Isolate* isolate) final;
   Status FinalizeJobImpl(Handle<SharedFunctionInfo> shared_info,
-                         OffThreadIsolate* isolate) final {
+                         LocalIsolate* isolate) final {
     return CompilationJob::RETRY_ON_MAIN_THREAD;
   }
 

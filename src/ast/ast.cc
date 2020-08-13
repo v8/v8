@@ -14,8 +14,7 @@
 #include "src/builtins/builtins-constructor.h"
 #include "src/builtins/builtins.h"
 #include "src/common/assert-scope.h"
-#include "src/execution/off-thread-isolate.h"
-#include "src/heap/off-thread-factory-inl.h"
+#include "src/heap/local-factory-inl.h"
 #include "src/numbers/conversions-inl.h"
 #include "src/numbers/double.h"
 #include "src/objects/contexts.h"
@@ -521,7 +520,7 @@ void ObjectLiteral::BuildBoilerplateDescription(LocalIsolate* isolate) {
 template EXPORT_TEMPLATE_DEFINE(V8_BASE_EXPORT) void ObjectLiteral::
     BuildBoilerplateDescription(Isolate* isolate);
 template EXPORT_TEMPLATE_DEFINE(V8_BASE_EXPORT) void ObjectLiteral::
-    BuildBoilerplateDescription(OffThreadIsolate* isolate);
+    BuildBoilerplateDescription(LocalIsolate* isolate);
 
 bool ObjectLiteral::IsFastCloningSupported() const {
   // The CreateShallowObjectLiteratal builtin doesn't copy elements, and object
@@ -695,8 +694,9 @@ void ArrayLiteral::BuildBoilerplateDescription(LocalIsolate* isolate) {
 template EXPORT_TEMPLATE_DEFINE(
     V8_BASE_EXPORT) void ArrayLiteral::BuildBoilerplateDescription(Isolate*
                                                                        isolate);
-template EXPORT_TEMPLATE_DEFINE(V8_BASE_EXPORT) void ArrayLiteral::
-    BuildBoilerplateDescription(OffThreadIsolate* isolate);
+template EXPORT_TEMPLATE_DEFINE(
+    V8_BASE_EXPORT) void ArrayLiteral::BuildBoilerplateDescription(LocalIsolate*
+                                                                       isolate);
 
 bool ArrayLiteral::IsFastCloningSupported() const {
   return depth() <= 1 &&
@@ -736,7 +736,7 @@ template EXPORT_TEMPLATE_DEFINE(V8_EXPORT_PRIVATE)
         Expression* expression, Isolate* isolate);
 template EXPORT_TEMPLATE_DEFINE(V8_EXPORT_PRIVATE)
     Handle<Object> MaterializedLiteral::GetBoilerplateValue(
-        Expression* expression, OffThreadIsolate* isolate);
+        Expression* expression, LocalIsolate* isolate);
 
 int MaterializedLiteral::InitDepthAndFlags() {
   if (IsArrayLiteral()) return AsArrayLiteral()->InitDepthAndFlags();
@@ -771,7 +771,7 @@ void MaterializedLiteral::BuildConstants(LocalIsolate* isolate) {
 template EXPORT_TEMPLATE_DEFINE(
     V8_BASE_EXPORT) void MaterializedLiteral::BuildConstants(Isolate* isolate);
 template EXPORT_TEMPLATE_DEFINE(
-    V8_BASE_EXPORT) void MaterializedLiteral::BuildConstants(OffThreadIsolate*
+    V8_BASE_EXPORT) void MaterializedLiteral::BuildConstants(LocalIsolate*
                                                                  isolate);
 
 template <typename LocalIsolate>
@@ -813,7 +813,7 @@ template EXPORT_TEMPLATE_DEFINE(V8_BASE_EXPORT)
         Isolate* isolate);
 template EXPORT_TEMPLATE_DEFINE(V8_BASE_EXPORT)
     Handle<TemplateObjectDescription> GetTemplateObject::GetOrBuildDescription(
-        OffThreadIsolate* isolate);
+        LocalIsolate* isolate);
 
 static bool IsCommutativeOperationWithSmiLiteral(Token::Value op) {
   // Add is not commutative due to potential for string addition.
@@ -1006,7 +1006,7 @@ Handle<Object> Literal::BuildValue(LocalIsolate* isolate) const {
 template EXPORT_TEMPLATE_DEFINE(V8_EXPORT_PRIVATE)
     Handle<Object> Literal::BuildValue(Isolate* isolate) const;
 template EXPORT_TEMPLATE_DEFINE(V8_EXPORT_PRIVATE)
-    Handle<Object> Literal::BuildValue(OffThreadIsolate* isolate) const;
+    Handle<Object> Literal::BuildValue(LocalIsolate* isolate) const;
 
 bool Literal::ToBooleanIsTrue() const {
   switch (type()) {

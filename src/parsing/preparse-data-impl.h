@@ -5,11 +5,10 @@
 #ifndef V8_PARSING_PREPARSE_DATA_IMPL_H_
 #define V8_PARSING_PREPARSE_DATA_IMPL_H_
 
-#include "src/parsing/preparse-data.h"
-
 #include <memory>
 
 #include "src/common/assert-scope.h"
+#include "src/parsing/preparse-data.h"
 
 namespace v8 {
 namespace internal {
@@ -200,7 +199,7 @@ class ZonePreparseData : public ZoneObject {
                                      int child_length);
 
   Handle<PreparseData> Serialize(Isolate* isolate);
-  Handle<PreparseData> Serialize(OffThreadIsolate* isolate);
+  Handle<PreparseData> Serialize(LocalIsolate* isolate);
 
   int children_length() const { return static_cast<int>(children_.size()); }
 

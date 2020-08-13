@@ -21,6 +21,7 @@
 #include "src/execution/vm-state-inl.h"
 #include "src/handles/global-handles.h"
 #include "src/heap/combined-heap.h"
+#include "src/heap/heap-inl.h"
 #include "src/init/bootstrapper.h"
 #include "src/interpreter/bytecodes.h"
 #include "src/interpreter/interpreter.h"
@@ -1767,14 +1768,12 @@ static int EnumerateCompiledFunctions(Heap* heap,
   DisallowHeapAllocation no_gc;
   int compiled_funcs_count = 0;
 
-  // Iterate the heap to find shared function info objects and record
-  // the unoptimized code for them.
+  // Iterate the heap to find JSFunctions and record their optimized code.
   for (HeapObject obj = iterator.Next(); !obj.is_null();
        obj = iterator.Next()) {
     if (obj.IsSharedFunctionInfo()) {
       SharedFunctionInfo sfi = SharedFunctionInfo::cast(obj);
-      if (sfi.is_compiled() && (!sfi.script().IsScript() ||
-                                Script::cast(sfi.script()).HasValidSource())) {
+      if (sfi.is_compiled() && !sfi.IsInterpreted()) {
         AddFunctionAndCode(sfi, AbstractCode::cast(sfi.abstract_code()), sfis,
                            code_objects, compiled_funcs_count);
         ++compiled_funcs_count;
@@ -1783,22 +1782,35 @@ static int EnumerateCompiledFunctions(Heap* heap,
       // Given that we no longer iterate over all optimized JSFunctions, we need
       // to take care of this here.
       JSFunction function = JSFunction::cast(obj);
-      SharedFunctionInfo sfi = SharedFunctionInfo::cast(function.shared());
-      Object maybe_script = sfi.script();
-      if (maybe_script.IsScript() &&
-          !Script::cast(maybe_script).HasValidSource()) {
-        continue;
-      }
       // TODO(jarin) This leaves out deoptimized code that might still be on the
       // stack. Also note that we will not log optimized code objects that are
-      // only on a type feedback vector. We should make this more precise.
-      if (function.HasAttachedOptimizedCode()) {
-        AddFunctionAndCode(sfi, AbstractCode::cast(function.code()), sfis,
+      // only on a type feedback vector. We should make this mroe precise.
+      if (function.HasAttachedOptimizedCode() &&
+          Script::cast(function.shared().script()).HasValidSource()) {
+        AddFunctionAndCode(function.shared(),
+                           AbstractCode::cast(function.code()), sfis,
                            code_objects, compiled_funcs_count);
         ++compiled_funcs_count;
       }
     }
   }
+
+  Script::Iterator script_iterator(heap->isolate());
+  for (Script script = script_iterator.Next(); !script.is_null();
+       script = script_iterator.Next()) {
+    if (!script.HasValidSource()) continue;
+
+    SharedFunctionInfo::ScriptIterator sfi_iterator(heap->isolate(), script);
+    for (SharedFunctionInfo sfi = sfi_iterator.Next(); !sfi.is_null();
+         sfi = sfi_iterator.Next()) {
+      if (sfi.is_compiled()) {
+        AddFunctionAndCode(sfi, AbstractCode::cast(sfi.abstract_code()), sfis,
+                           code_objects, compiled_funcs_count);
+        ++compiled_funcs_count;
+      }
+    }
+  }
+
   return compiled_funcs_count;
 }
 

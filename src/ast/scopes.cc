@@ -11,7 +11,7 @@
 #include "src/base/optional.h"
 #include "src/builtins/accessors.h"
 #include "src/common/message-template.h"
-#include "src/heap/off-thread-factory-inl.h"
+#include "src/heap/local-factory-inl.h"
 #include "src/init/bootstrapper.h"
 #include "src/logging/counters.h"
 #include "src/objects/module-inl.h"
@@ -2477,8 +2477,8 @@ template EXPORT_TEMPLATE_DEFINE(V8_EXPORT_PRIVATE) void Scope::
     AllocateScopeInfosRecursively<Isolate>(Isolate* isolate,
                                            MaybeHandle<ScopeInfo> outer_scope);
 template EXPORT_TEMPLATE_DEFINE(V8_EXPORT_PRIVATE) void Scope::
-    AllocateScopeInfosRecursively<OffThreadIsolate>(
-        OffThreadIsolate* isolate, MaybeHandle<ScopeInfo> outer_scope);
+    AllocateScopeInfosRecursively<LocalIsolate>(
+        LocalIsolate* isolate, MaybeHandle<ScopeInfo> outer_scope);
 
 void DeclarationScope::RecalcPrivateNameContextChain() {
   // The outermost scope in a class heritage expression is marked to skip the
@@ -2557,10 +2557,10 @@ void DeclarationScope::AllocateScopeInfos(ParseInfo* info,
   }
 }
 
-template V8_EXPORT_PRIVATE void DeclarationScope::AllocateScopeInfos<Isolate>(
+template V8_EXPORT_PRIVATE void DeclarationScope::AllocateScopeInfos(
     ParseInfo* info, Isolate* isolate);
-template V8_EXPORT_PRIVATE void DeclarationScope::AllocateScopeInfos<
-    OffThreadIsolate>(ParseInfo* info, OffThreadIsolate* isolate);
+template V8_EXPORT_PRIVATE void DeclarationScope::AllocateScopeInfos(
+    ParseInfo* info, LocalIsolate* isolate);
 
 int Scope::ContextLocalCount() const {
   if (num_heap_slots() == 0) return 0;

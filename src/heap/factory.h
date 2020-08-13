@@ -192,10 +192,9 @@ class V8_EXPORT_PRIVATE Factory : public FactoryBase<Factory> {
     return InternalizeUtf8String(CStrVector(str));
   }
 
-  Handle<String> InternalizeString(Vector<const uint8_t> str,
-                                   bool convert_encoding = false);
-  Handle<String> InternalizeString(Vector<const uint16_t> str,
-                                   bool convert_encoding = false);
+  // Import InternalizeString overloads from base class.
+  using FactoryBase::InternalizeString;
+
   Handle<String> InternalizeString(Vector<const char> str,
                                    bool convert_encoding = false) {
     return InternalizeString(Vector<const uint8_t>::cast(str));
@@ -204,9 +203,6 @@ class V8_EXPORT_PRIVATE Factory : public FactoryBase<Factory> {
   template <typename SeqString>
   Handle<String> InternalizeString(Handle<SeqString>, int from, int length,
                                    bool convert_encoding = false);
-
-  template <class StringTableKey>
-  Handle<String> InternalizeStringWithKey(StringTableKey* key);
 
   // Internalized strings are created in the old generation (data space).
   inline Handle<String> InternalizeString(Handle<String> string);
@@ -910,8 +906,6 @@ class V8_EXPORT_PRIVATE Factory : public FactoryBase<Factory> {
   }
   bool CanAllocateInReadOnlySpace();
   bool EmptyStringRootIsInitialized();
-
-  Handle<String> MakeOrFindTwoCharacterString(uint16_t c1, uint16_t c2);
 
   void AddToScriptList(Handle<Script> shared);
   // ------

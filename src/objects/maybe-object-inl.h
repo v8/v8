@@ -6,7 +6,6 @@
 #define V8_OBJECTS_MAYBE_OBJECT_INL_H_
 
 #include "src/common/ptr-compr-inl.h"
-#include "src/execution/local-isolate-wrapper.h"
 #include "src/objects/maybe-object.h"
 #include "src/objects/smi-inl.h"
 #include "src/objects/tagged-impl-inl.h"
@@ -70,30 +69,6 @@ HeapObjectReference HeapObjectReference::ClearedValue(const Isolate* isolate) {
   // The rest of the code will check only the lower 32-bits.
   DCHECK_EQ(kClearedWeakHeapObjectLower32, static_cast<uint32_t>(raw_value));
   return HeapObjectReference(raw_value);
-}
-
-// static
-HeapObjectReference HeapObjectReference::ClearedValue(
-    const OffThreadIsolate* isolate) {
-  // Construct cleared weak ref value.
-#ifdef V8_COMPRESS_POINTERS
-  // This is necessary to make pointer decompression computation also
-  // suitable for cleared weak references.
-  Address raw_value =
-      DecompressTaggedPointer(isolate, kClearedWeakHeapObjectLower32);
-#else
-  Address raw_value = kClearedWeakHeapObjectLower32;
-#endif
-  // The rest of the code will check only the lower 32-bits.
-  DCHECK_EQ(kClearedWeakHeapObjectLower32, static_cast<uint32_t>(raw_value));
-  return HeapObjectReference(raw_value);
-}
-
-// static
-HeapObjectReference HeapObjectReference::ClearedValue(
-    LocalIsolateWrapper isolate) {
-  return isolate.is_off_thread() ? ClearedValue(isolate.off_thread())
-                                 : ClearedValue(isolate.main_thread());
 }
 
 template <typename THeapObjectSlot>

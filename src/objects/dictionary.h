@@ -112,7 +112,7 @@ class NameDictionaryShape : public BaseDictionaryShape<Handle<Name>> {
   static inline uint32_t Hash(ReadOnlyRoots roots, Handle<Name> key);
   static inline uint32_t HashForObject(ReadOnlyRoots roots, Object object);
   static inline Handle<Object> AsHandle(Isolate* isolate, Handle<Name> key);
-  static inline Handle<Object> AsHandle(OffThreadIsolate* isolate,
+  static inline Handle<Object> AsHandle(LocalIsolate* isolate,
                                         Handle<Name> key);
   static const int kPrefixSize = 2;
   static const int kEntrySize = 3;
@@ -253,8 +253,7 @@ class NumberDictionaryBaseShape : public BaseDictionaryShape<uint32_t> {
  public:
   static inline bool IsMatch(uint32_t key, Object other);
   static inline Handle<Object> AsHandle(Isolate* isolate, uint32_t key);
-  static inline Handle<Object> AsHandle(OffThreadIsolate* isolate,
-                                        uint32_t key);
+  static inline Handle<Object> AsHandle(LocalIsolate* isolate, uint32_t key);
 
   static inline uint32_t Hash(ReadOnlyRoots roots, uint32_t key);
   static inline uint32_t HashForObject(ReadOnlyRoots roots, Object object);

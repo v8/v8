@@ -117,7 +117,6 @@ namespace internal {
 
 // Forward declarations
 class Isolate;
-class OffThreadIsolate;
 
 class AstNode;
 class AstNodeFactory;
@@ -2186,7 +2185,7 @@ class FunctionLiteral final : public Expression {
     }
     UNREACHABLE();
   }
-  Handle<String> GetInferredName(OffThreadIsolate* isolate) const {
+  Handle<String> GetInferredName(LocalIsolate* isolate) const {
     DCHECK(inferred_name_.is_null());
     DCHECK_NOT_NULL(raw_inferred_name_);
     return raw_inferred_name_->GetString(isolate);

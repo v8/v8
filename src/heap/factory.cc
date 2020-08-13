@@ -582,20 +582,6 @@ Handle<String> Factory::InternalizeUtf8String(
       Vector<const uc16>(buffer.get(), decoder.utf16_length()));
 }
 
-Handle<String> Factory::InternalizeString(Vector<const uint8_t> string,
-                                          bool convert_encoding) {
-  SequentialStringKey<uint8_t> key(string, HashSeed(isolate()),
-                                   convert_encoding);
-  return InternalizeStringWithKey(&key);
-}
-
-Handle<String> Factory::InternalizeString(Vector<const uint16_t> string,
-                                          bool convert_encoding) {
-  SequentialStringKey<uint16_t> key(string, HashSeed(isolate()),
-                                    convert_encoding);
-  return InternalizeStringWithKey(&key);
-}
-
 template <typename SeqString>
 Handle<String> Factory::InternalizeString(Handle<SeqString> string, int from,
                                           int length, bool convert_encoding) {
@@ -610,15 +596,6 @@ template Handle<String> Factory::InternalizeString(
 template Handle<String> Factory::InternalizeString(
     Handle<SeqTwoByteString> string, int from, int length,
     bool convert_encoding);
-
-template <class StringTableKey>
-Handle<String> Factory::InternalizeStringWithKey(StringTableKey* key) {
-  return isolate()->string_table()->LookupKey(isolate(), key);
-}
-template EXPORT_TEMPLATE_DEFINE(V8_EXPORT_PRIVATE)
-    Handle<String> Factory::InternalizeStringWithKey(OneByteStringKey* key);
-template EXPORT_TEMPLATE_DEFINE(V8_EXPORT_PRIVATE)
-    Handle<String> Factory::InternalizeStringWithKey(TwoByteStringKey* key);
 
 MaybeHandle<String> Factory::NewStringFromOneByte(
     const Vector<const uint8_t>& string, AllocationType allocation) {
@@ -885,15 +862,6 @@ Handle<String> Factory::LookupSingleCharacterStringFromCode(uint16_t code) {
   }
   uint16_t buffer[] = {code};
   return InternalizeString(Vector<const uint16_t>(buffer, 1));
-}
-
-Handle<String> Factory::MakeOrFindTwoCharacterString(uint16_t c1, uint16_t c2) {
-  if ((c1 | c2) <= unibrow::Latin1::kMaxChar) {
-    uint8_t buffer[] = {static_cast<uint8_t>(c1), static_cast<uint8_t>(c2)};
-    return InternalizeString(Vector<const uint8_t>(buffer, 2));
-  }
-  uint16_t buffer[] = {c1, c2};
-  return InternalizeString(Vector<const uint16_t>(buffer, 2));
 }
 
 Handle<String> Factory::NewSurrogatePairString(uint16_t lead, uint16_t trail) {

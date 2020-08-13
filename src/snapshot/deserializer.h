@@ -8,7 +8,6 @@
 #include <utility>
 #include <vector>
 
-#include "src/execution/local-isolate-wrapper.h"
 #include "src/objects/allocation-site.h"
 #include "src/objects/api-callbacks.h"
 #include "src/objects/backing-store.h"
@@ -49,7 +48,7 @@ class V8_EXPORT_PRIVATE Deserializer : public SerializerDeserializer {
   // Create a deserializer from a snapshot byte source.
   template <class Data>
   Deserializer(Data* data, bool deserializing_user_code)
-      : local_isolate_(nullptr),
+      : isolate_(nullptr),
         source_(data->Payload()),
         magic_number_(data->GetMagicNumber()),
         deserializing_user_code_(deserializing_user_code),
@@ -60,10 +59,7 @@ class V8_EXPORT_PRIVATE Deserializer : public SerializerDeserializer {
     backing_stores_.push_back({});
   }
 
-  void Initialize(Isolate* isolate) {
-    Initialize(LocalIsolateWrapper(isolate));
-  }
-  void Initialize(LocalIsolateWrapper isolate);
+  void Initialize(Isolate* isolate);
   void DeserializeDeferredObjects();
 
   // Create Log events for newly deserialized objects.
@@ -85,10 +81,7 @@ class V8_EXPORT_PRIVATE Deserializer : public SerializerDeserializer {
     CHECK_EQ(new_off_heap_array_buffers().size(), 0);
   }
 
-  LocalIsolateWrapper local_isolate() const { return local_isolate_; }
-  Isolate* isolate() const { return local_isolate().main_thread(); }
-  bool is_main_thread() const { return local_isolate().is_main_thread(); }
-  bool is_off_thread() const { return local_isolate().is_off_thread(); }
+  Isolate* isolate() const { return isolate_; }
 
   SnapshotByteSource* source() { return &source_; }
   const std::vector<AllocationSite>& new_allocation_sites() const {
@@ -180,7 +173,7 @@ class V8_EXPORT_PRIVATE Deserializer : public SerializerDeserializer {
   HeapObject PostProcessNewObject(HeapObject obj, SnapshotSpace space);
 
   // Cached current isolate.
-  LocalIsolateWrapper local_isolate_;
+  Isolate* isolate_;
 
   // Objects from the attached object descriptions in the serialized user code.
   std::vector<Handle<HeapObject>> attached_objects_;
@@ -226,7 +219,8 @@ class StringTableInsertionKey final : public StringTableKey {
 
   bool IsMatch(String string) override;
 
-  V8_WARN_UNUSED_RESULT Handle<String> AsHandle(Isolate* isolate) override;
+  V8_WARN_UNUSED_RESULT Handle<String> AsHandle(Isolate* isolate);
+  V8_WARN_UNUSED_RESULT Handle<String> AsHandle(LocalIsolate* isolate);
 
  private:
   uint32_t ComputeHashField(String string);

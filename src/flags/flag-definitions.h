@@ -378,7 +378,6 @@ DEFINE_BOOL(future, FUTURE_BOOL,
             "not-too-far future")
 
 DEFINE_IMPLICATION(future, write_protect_code_memory)
-DEFINE_IMPLICATION(future, finalize_streaming_on_background)
 
 DEFINE_BOOL(assert_types, false,
             "generate runtime type assertions to test the typer")
@@ -1149,6 +1148,8 @@ DEFINE_BOOL(stress_background_compile, false,
 DEFINE_BOOL(
     finalize_streaming_on_background, false,
     "perform the script streaming finalization on the background thread")
+DEFINE_IMPLICATION(finalize_streaming_on_background, concurrent_allocation)
+DEFINE_IMPLICATION(finalize_streaming_on_background, local_heaps)
 DEFINE_BOOL(disable_old_api_accessors, false,
             "Disable old-style API accessors whose setters trigger through the "
             "prototype chain")

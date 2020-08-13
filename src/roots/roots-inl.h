@@ -6,8 +6,7 @@
 #define V8_ROOTS_ROOTS_INL_H_
 
 #include "src/execution/isolate.h"
-#include "src/execution/local-isolate-wrapper.h"
-#include "src/execution/off-thread-isolate.h"
+#include "src/execution/local-isolate.h"
 #include "src/handles/handles.h"
 #include "src/heap/read-only-heap.h"
 #include "src/objects/api-callbacks.h"
@@ -62,24 +61,12 @@ bool RootsTable::IsRootHandle(Handle<T> handle, RootIndex* index) const {
 ReadOnlyRoots::ReadOnlyRoots(Heap* heap)
     : ReadOnlyRoots(Isolate::FromHeap(heap)) {}
 
-ReadOnlyRoots::ReadOnlyRoots(OffThreadHeap* heap)
-    : ReadOnlyRoots(OffThreadIsolate::FromHeap(heap)) {}
-
 ReadOnlyRoots::ReadOnlyRoots(Isolate* isolate)
     : read_only_roots_(reinterpret_cast<Address*>(
           isolate->roots_table().read_only_roots_begin().address())) {}
 
-ReadOnlyRoots::ReadOnlyRoots(OffThreadIsolate* isolate)
+ReadOnlyRoots::ReadOnlyRoots(LocalIsolate* isolate)
     : ReadOnlyRoots(isolate->factory()->read_only_roots()) {}
-
-ReadOnlyRoots::ReadOnlyRoots(LocalHeapWrapper heap)
-    : ReadOnlyRoots(heap.is_off_thread() ? ReadOnlyRoots(heap.off_thread())
-                                         : ReadOnlyRoots(heap.main_thread())) {}
-
-ReadOnlyRoots::ReadOnlyRoots(LocalIsolateWrapper isolate)
-    : ReadOnlyRoots(isolate.is_off_thread()
-                        ? ReadOnlyRoots(isolate.off_thread())
-                        : ReadOnlyRoots(isolate.main_thread())) {}
 
 // We use unchecked_cast below because we trust our read-only roots to
 // have the right type, and to avoid the heavy #includes that would be

@@ -12,8 +12,6 @@
 #ifndef V8_OBJECTS_OBJECTS_INL_H_
 #define V8_OBJECTS_OBJECTS_INL_H_
 
-#include "src/objects/objects.h"
-
 #include "src/base/bits.h"
 #include "src/base/memory.h"
 #include "src/builtins/builtins.h"
@@ -30,6 +28,7 @@
 #include "src/objects/keys.h"
 #include "src/objects/literal-objects.h"
 #include "src/objects/lookup-inl.h"  // TODO(jkummerow): Drop.
+#include "src/objects/objects.h"
 #include "src/objects/oddball.h"
 #include "src/objects/property-details.h"
 #include "src/objects/property.h"
@@ -91,7 +90,7 @@ IS_TYPE_FUNCTION_DEF(SmallOrderedHashTable)
   bool Object::Is##Type(Isolate* isolate) const {                \
     return Is##Type(ReadOnlyRoots(isolate));                     \
   }                                                              \
-  bool Object::Is##Type(OffThreadIsolate* isolate) const {       \
+  bool Object::Is##Type(LocalIsolate* isolate) const {           \
     return Is##Type(ReadOnlyRoots(isolate));                     \
   }                                                              \
   bool Object::Is##Type(ReadOnlyRoots roots) const {             \
@@ -103,7 +102,7 @@ IS_TYPE_FUNCTION_DEF(SmallOrderedHashTable)
   bool HeapObject::Is##Type(Isolate* isolate) const {            \
     return Object::Is##Type(isolate);                            \
   }                                                              \
-  bool HeapObject::Is##Type(OffThreadIsolate* isolate) const {   \
+  bool HeapObject::Is##Type(LocalIsolate* isolate) const {       \
     return Object::Is##Type(isolate);                            \
   }                                                              \
   bool HeapObject::Is##Type(ReadOnlyRoots roots) const {         \

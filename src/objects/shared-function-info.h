@@ -604,7 +604,7 @@ class SharedFunctionInfo : public HeapObject {
   DECL_PRINTER(SharedFunctionInfo)
   DECL_VERIFIER(SharedFunctionInfo)
 #ifdef VERIFY_HEAP
-  void SharedFunctionInfoVerify(OffThreadIsolate* isolate);
+  void SharedFunctionInfoVerify(LocalIsolate* isolate);
 #endif
 #ifdef OBJECT_PRINT
   void PrintSourceCode(std::ostream& os);
@@ -702,7 +702,7 @@ struct SourceCodeOf {
 // the scope is retained.
 class IsCompiledScope {
  public:
-  template <typename LocalIsolate>
+  inline IsCompiledScope(const SharedFunctionInfo shared, Isolate* isolate);
   inline IsCompiledScope(const SharedFunctionInfo shared,
                          LocalIsolate* isolate);
   inline IsCompiledScope() : retain_bytecode_(), is_compiled_(false) {}

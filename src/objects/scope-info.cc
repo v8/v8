@@ -380,13 +380,13 @@ Handle<ScopeInfo> ScopeInfo::Create(LocalIsolate* isolate, Zone* zone,
 }
 
 template EXPORT_TEMPLATE_DEFINE(V8_EXPORT_PRIVATE)
-    Handle<ScopeInfo> ScopeInfo::Create<Isolate>(
-        Isolate* isolate, Zone* zone, Scope* scope,
-        MaybeHandle<ScopeInfo> outer_scope);
+    Handle<ScopeInfo> ScopeInfo::Create(Isolate* isolate, Zone* zone,
+                                        Scope* scope,
+                                        MaybeHandle<ScopeInfo> outer_scope);
 template EXPORT_TEMPLATE_DEFINE(V8_EXPORT_PRIVATE)
-    Handle<ScopeInfo> ScopeInfo::Create<OffThreadIsolate>(
-        OffThreadIsolate* isolate, Zone* zone, Scope* scope,
-        MaybeHandle<ScopeInfo> outer_scope);
+    Handle<ScopeInfo> ScopeInfo::Create(LocalIsolate* isolate, Zone* zone,
+                                        Scope* scope,
+                                        MaybeHandle<ScopeInfo> outer_scope);
 
 // static
 Handle<ScopeInfo> ScopeInfo::CreateForWithScope(
@@ -1068,7 +1068,7 @@ template Handle<SourceTextModuleInfoEntry> SourceTextModuleInfoEntry::New(
     Handle<PrimitiveHeapObject> import_name, int module_request, int cell_index,
     int beg_pos, int end_pos);
 template Handle<SourceTextModuleInfoEntry> SourceTextModuleInfoEntry::New(
-    OffThreadIsolate* isolate, Handle<PrimitiveHeapObject> export_name,
+    LocalIsolate* isolate, Handle<PrimitiveHeapObject> export_name,
     Handle<PrimitiveHeapObject> local_name,
     Handle<PrimitiveHeapObject> import_name, int module_request, int cell_index,
     int beg_pos, int end_pos);
@@ -1140,7 +1140,7 @@ Handle<SourceTextModuleInfo> SourceTextModuleInfo::New(
 template Handle<SourceTextModuleInfo> SourceTextModuleInfo::New(
     Isolate* isolate, Zone* zone, SourceTextModuleDescriptor* descr);
 template Handle<SourceTextModuleInfo> SourceTextModuleInfo::New(
-    OffThreadIsolate* isolate, Zone* zone, SourceTextModuleDescriptor* descr);
+    LocalIsolate* isolate, Zone* zone, SourceTextModuleDescriptor* descr);
 
 int SourceTextModuleInfo::RegularExportCount() const {
   DCHECK_EQ(regular_exports().length() % kRegularExportLength, 0);

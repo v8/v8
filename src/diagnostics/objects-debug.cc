@@ -810,12 +810,12 @@ void JSFunction::JSFunctionVerify(Isolate* isolate) {
 }
 
 void SharedFunctionInfo::SharedFunctionInfoVerify(Isolate* isolate) {
-  // TODO(leszeks): Add a TorqueGeneratedClassVerifier for OffThreadIsolate.
+  // TODO(leszeks): Add a TorqueGeneratedClassVerifier for LocalIsolate.
   TorqueGeneratedClassVerifiers::SharedFunctionInfoVerify(*this, isolate);
   this->SharedFunctionInfoVerify(ReadOnlyRoots(isolate));
 }
 
-void SharedFunctionInfo::SharedFunctionInfoVerify(OffThreadIsolate* isolate) {
+void SharedFunctionInfo::SharedFunctionInfoVerify(LocalIsolate* isolate) {
   this->SharedFunctionInfoVerify(ReadOnlyRoots(isolate));
 }
 

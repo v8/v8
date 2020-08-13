@@ -2977,7 +2977,6 @@ void VerifyNoNeedToClearSlots(Address start, Address end) {
   // TODO(ulan): Support verification of large pages.
   if (chunk->InYoungGeneration() || chunk->IsLargePage()) return;
   BaseSpace* space = chunk->owner();
-  if (static_cast<PagedSpace*>(space)->is_off_thread_space()) return;
   space->heap()->VerifySlotRangeHasNoRecordedSlots(start, end);
 }
 #else
@@ -3032,25 +3031,6 @@ bool Heap::CanMoveObjectStart(HeapObject object) {
 
   // We can move the object start if the page was already swept.
   return Page::FromHeapObject(object)->SweepingDone();
-}
-
-// static
-bool Heap::InOffThreadSpace(HeapObject heap_object) {
-#ifdef V8_ENABLE_THIRD_PARTY_HEAP
-  return false;  // currently unsupported
-#else
-  BaseSpace* owner = BasicMemoryChunk::FromHeapObject(heap_object)->owner();
-  // Detached RO_SPACE chunks have no owner set.
-  if (owner == nullptr) return false;
-  if (owner->identity() == OLD_SPACE) {
-    // TODO(leszeks): Should we exclude compaction spaces here?
-    return static_cast<PagedSpace*>(owner)->is_off_thread_space();
-  }
-  if (owner->identity() == LO_SPACE) {
-    return static_cast<LargeObjectSpace*>(owner)->is_off_thread();
-  }
-  return false;
-#endif
 }
 
 bool Heap::IsImmovable(HeapObject object) {
@@ -6777,7 +6757,7 @@ bool Heap::PageFlagsAreConsistent(HeapObject object) {
   CHECK_EQ(chunk->InReadOnlySpace(), slim_chunk->InReadOnlySpace());
 
   // Marking consistency.
-  if (chunk->IsWritable() && !Heap::InOffThreadSpace(object)) {
+  if (chunk->IsWritable()) {
     // RO_SPACE can be shared between heaps, so we can't use RO_SPACE objects to
     // find a heap. The exception is when the ReadOnlySpace is writeable, during
     // bootstrapping, so explicitly allow this case.

@@ -107,7 +107,7 @@ template EXPORT_TEMPLATE_DEFINE(V8_EXPORT_PRIVATE)
         Isolate* isolate);
 template EXPORT_TEMPLATE_DEFINE(V8_EXPORT_PRIVATE)
     Handle<BytecodeArray> BytecodeArrayBuilder::ToBytecodeArray(
-        OffThreadIsolate* isolate);
+        LocalIsolate* isolate);
 
 #ifdef DEBUG
 int BytecodeArrayBuilder::CheckBytecodeMatches(BytecodeArray bytecode) {
@@ -129,7 +129,7 @@ template EXPORT_TEMPLATE_DEFINE(V8_EXPORT_PRIVATE)
         Isolate* isolate);
 template EXPORT_TEMPLATE_DEFINE(V8_EXPORT_PRIVATE)
     Handle<ByteArray> BytecodeArrayBuilder::ToSourcePositionTable(
-        OffThreadIsolate* isolate);
+        LocalIsolate* isolate);
 
 BytecodeSourceInfo BytecodeArrayBuilder::CurrentSourcePosition(
     Bytecode bytecode) {

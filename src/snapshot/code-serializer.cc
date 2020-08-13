@@ -9,7 +9,7 @@
 #include "src/common/globals.h"
 #include "src/debug/debug.h"
 #include "src/heap/heap-inl.h"
-#include "src/heap/off-thread-factory-inl.h"
+#include "src/heap/local-factory-inl.h"
 #include "src/logging/counters.h"
 #include "src/logging/log.h"
 #include "src/objects/objects-inl.h"
@@ -265,33 +265,28 @@ void CreateInterpreterDataForDeserializedCode(Isolate* isolate,
 namespace {
 class StressOffThreadDeserializeThread final : public base::Thread {
  public:
-  explicit StressOffThreadDeserializeThread(
-      OffThreadIsolate* off_thread_isolate, const SerializedCodeData* scd)
+  explicit StressOffThreadDeserializeThread(LocalIsolate* local_isolate,
+                                            const SerializedCodeData* scd)
       : Thread(
             base::Thread::Options("StressOffThreadDeserializeThread", 2 * MB)),
-        off_thread_isolate_(off_thread_isolate),
+        local_isolate_(local_isolate),
         scd_(scd) {}
 
-  MaybeHandle<SharedFunctionInfo> maybe_result() const {
-    return maybe_result_.ToHandle();
-  }
+  MaybeHandle<SharedFunctionInfo> maybe_result() const { return maybe_result_; }
 
   void Run() final {
-    off_thread_isolate_->PinToCurrentThread();
-
-    MaybeHandle<SharedFunctionInfo> off_thread_maybe_result =
+    MaybeHandle<SharedFunctionInfo> local_maybe_result =
         ObjectDeserializer::DeserializeSharedFunctionInfoOffThread(
-            off_thread_isolate_, scd_,
-            off_thread_isolate_->factory()->empty_string());
+            local_isolate_, scd_, local_isolate_->factory()->empty_string());
 
     maybe_result_ =
-        off_thread_isolate_->TransferHandle(off_thread_maybe_result);
+        local_isolate_->heap()->NewPersistentMaybeHandle(local_maybe_result);
   }
 
  private:
-  OffThreadIsolate* off_thread_isolate_;
+  LocalIsolate* local_isolate_;
   const SerializedCodeData* scd_;
-  OffThreadTransferMaybeHandle<SharedFunctionInfo> maybe_result_;
+  MaybeHandle<SharedFunctionInfo> maybe_result_;
 };
 }  // namespace
 
@@ -318,16 +313,13 @@ MaybeHandle<SharedFunctionInfo> CodeSerializer::Deserialize(
 
   // Deserialize.
   MaybeHandle<SharedFunctionInfo> maybe_result;
-  if (FLAG_stress_background_compile) {
-    Zone zone(isolate->allocator(), "Deserialize");
-    OffThreadIsolate off_thread_isolate(isolate, &zone);
+  // TODO(leszeks): Add LocalHeap support to deserializer
+  if (false && FLAG_stress_background_compile) {
+    LocalIsolate local_isolate(isolate);
 
-    StressOffThreadDeserializeThread thread(&off_thread_isolate, &scd);
+    StressOffThreadDeserializeThread thread(&local_isolate, &scd);
     CHECK(thread.Start());
     thread.Join();
-
-    off_thread_isolate.FinishOffThread();
-    off_thread_isolate.Publish(isolate);
 
     maybe_result = thread.maybe_result();
 

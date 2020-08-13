@@ -209,7 +209,7 @@ class String : public TorqueGeneratedString<String, Name> {
       Isolate* isolate, Handle<String> string,
       AllocationType allocation = AllocationType::kYoung);
   static inline Handle<String> Flatten(
-      OffThreadIsolate* isolate, Handle<String> string,
+      LocalIsolate* isolate, Handle<String> string,
       AllocationType allocation = AllocationType::kYoung);
 
   // Tries to return the content of a flat string as a structure holding either
