@@ -50,8 +50,22 @@ class App {
   handleShowEntries(e) {
     if (e.entries[0] instanceof V8Map) {
       this.showMapEntries(e.entries);
+    } else if (e.entries[0] instanceof Entry) {
+      this.showIcEntries(e.entries);
+    } else {
+      console.error("Undefined selection!");
     }
   }
+  showMapEntries(entries) {
+    this.#state.selectedMapLogEvents = entries;
+    this.#view.mapPanel.selectedMapLogEvents = this.#state.selectedMapLogEvents;
+  }
+  showIcEntries(entries) {
+    this.#state.selectedIcLogEvents = entries;
+    //TODO(zcankara) use selectedLogEvents
+    this.#view.icPanel.filteredEntries = this.#state.selectedIcLogEvents;
+  }
+
   handleTimeRangeSelect(e) {
     this.selectTimeRange(e.start, e.end);
   }
@@ -77,10 +91,6 @@ class App {
     this.#state.mapTimeline.selectTimeRange(start, end);
     this.#view.mapPanel.selectedMapLogEvents = this.#state.mapTimeline.selection;
     this.#view.icPanel.filteredEntries = this.#state.icTimeline.selection;
-  }
-  showMapEntries(entries) {
-    this.#state.selectedMapLogEvents = entries;
-    this.#view.mapPanel.selectedMapLogEvents = this.#state.selectedMapLogEvents;
   }
   selectMapLogEvent(entry) {
     this.#state.map = entry;
