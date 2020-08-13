@@ -74,6 +74,7 @@ UNINITIALIZED_TEST(ConcurrentAllocationInOldSpace) {
   FLAG_max_old_space_size = 32;
   FLAG_concurrent_allocation = true;
   FLAG_local_heaps = true;
+  FLAG_stress_concurrent_allocation = false;
 
   v8::Isolate::CreateParams create_params;
   create_params.array_buffer_allocator = CcTest::array_buffer_allocator();
@@ -135,6 +136,7 @@ UNINITIALIZED_TEST(ConcurrentAllocationInLargeSpace) {
   FLAG_max_old_space_size = 32;
   FLAG_concurrent_allocation = true;
   FLAG_local_heaps = true;
+  FLAG_stress_concurrent_allocation = false;
 
   v8::Isolate::CreateParams create_params;
   create_params.array_buffer_allocator = CcTest::array_buffer_allocator();

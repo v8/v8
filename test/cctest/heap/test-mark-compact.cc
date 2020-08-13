@@ -377,8 +377,9 @@ intptr_t ShortLivingIsolate() {
   return MemoryInUse();
 }
 
-
-TEST(RegressJoinThreadsOnIsolateDeinit) {
+UNINITIALIZED_TEST(RegressJoinThreadsOnIsolateDeinit) {
+  // Memory is measured, do not allocate in background thread.
+  FLAG_stress_concurrent_allocation = false;
   intptr_t size_limit = ShortLivingIsolate() * 2;
   for (int i = 0; i < 10; i++) {
     CHECK_GT(size_limit, ShortLivingIsolate());
