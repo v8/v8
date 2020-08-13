@@ -14,14 +14,9 @@ import "./log-file-reader.mjs";
 class App {
   #state;
   #view;
-  constructor(
-    fileReaderId,
-    mapPanelId,
-    timelinePanelId,
-    icPanelId,
-    mapTrackId,
-    icTrackId
-  ) {
+  #navigation;
+  constructor(fileReaderId, mapPanelId, timelinePanelId,
+    icPanelId, mapTrackId, icTrackId) {
     this.#view = {
       logFileReader: $(fileReaderId),
       icPanel: $(icPanelId),
@@ -31,6 +26,9 @@ class App {
       icTrack: $(icTrackId),
     };
     this.#state = new State();
+    this.#navigation = new Navigation(this.#state, this.#view);
+    document.addEventListener('keydown',
+      e => this.#navigation.handleKeyDown(e));
     this.toggleSwitch = $('.theme-switch input[type="checkbox"]');
     this.toggleSwitch.addEventListener("change", (e) => this.switchTheme(e));
     this.#view.logFileReader.addEventListener("fileuploadstart", (e) =>
@@ -146,6 +144,125 @@ class App {
       : "dark";
     if (this.fileLoaded) {
       this.refreshTimelineTrackView();
+    }
+  }
+}
+
+class Navigation {
+  #view;
+  constructor(state, view) {
+    this.state = state;
+    this.#view = view;
+  }
+  get map() {
+    return this.state.map
+  }
+  set map(value) {
+    this.state.map = value
+  }
+  get chunks() {
+    return this.state.chunks
+  }
+  increaseTimelineResolution() {
+    this.#view.timelinePanel.nofChunks *= 1.5;
+    this.state.nofChunks *= 1.5;
+  }
+  decreaseTimelineResolution() {
+    this.#view.timelinePanel.nofChunks /= 1.5;
+    this.state.nofChunks /= 1.5;
+  }
+  selectNextEdge() {
+    if (!this.map) return;
+    if (this.map.children.length != 1) return;
+    this.map = this.map.children[0].to;
+    this.#view.mapTrack.selectedEntry = this.map;
+    this.updateUrl();
+    this.#view.mapPanel.map = this.map;
+  }
+  selectPrevEdge() {
+    if (!this.map) return;
+    if (!this.map.parent()) return;
+    this.map = this.map.parent();
+    this.#view.mapTrack.selectedEntry = this.map;
+    this.updateUrl();
+    this.#view.mapPanel.map = this.map;
+  }
+  selectDefaultMap() {
+    this.map = this.chunks[0].at(0);
+    this.#view.mapTrack.selectedEntry = this.map;
+    this.updateUrl();
+    this.#view.mapPanel.map = this.map;
+  }
+  moveInChunks(next) {
+    if (!this.map) return this.selectDefaultMap();
+    let chunkIndex = this.map.chunkIndex(this.chunks);
+    let chunk = this.chunks[chunkIndex];
+    let index = chunk.indexOf(this.map);
+    if (next) {
+      chunk = chunk.next(this.chunks);
+    } else {
+      chunk = chunk.prev(this.chunks);
+    }
+    if (!chunk) return;
+    index = Math.min(index, chunk.size() - 1);
+    this.map = chunk.at(index);
+    this.#view.mapTrack.selectedEntry = this.map;
+    this.updateUrl();
+    this.#view.mapPanel.map = this.map;
+  }
+  moveInChunk(delta) {
+    if (!this.map) return this.selectDefaultMap();
+    let chunkIndex = this.map.chunkIndex(this.chunks)
+    let chunk = this.chunks[chunkIndex];
+    let index = chunk.indexOf(this.map) + delta;
+    let map;
+    if (index < 0) {
+      map = chunk.prev(this.chunks).last();
+    } else if (index >= chunk.size()) {
+      map = chunk.next(this.chunks).first()
+    } else {
+      map = chunk.at(index);
+    }
+    this.map = map;
+    this.#view.mapTrack.selectedEntry = this.map;
+    this.updateUrl();
+    this.#view.mapPanel.map = this.map;
+  }
+  updateUrl() {
+    let entries = this.state.entries;
+    let params = new URLSearchParams(entries);
+    window.history.pushState(entries, '', '?' + params.toString());
+  }
+  handleKeyDown(event) {
+    switch (event.key) {
+      case "ArrowUp":
+        event.preventDefault();
+        if (event.shiftKey) {
+          this.selectPrevEdge();
+        } else {
+          this.moveInChunk(-1);
+        }
+        return false;
+      case "ArrowDown":
+        event.preventDefault();
+        if (event.shiftKey) {
+          this.selectNextEdge();
+        } else {
+          this.moveInChunk(1);
+        }
+        return false;
+      case "ArrowLeft":
+        this.moveInChunks(false);
+        break;
+      case "ArrowRight":
+        this.moveInChunks(true);
+        break;
+      case "+":
+        this.increaseTimelineResolution();
+        break;
+      case "-":
+        this.decreaseTimelineResolution();
+        break;
     }
   }
 }
