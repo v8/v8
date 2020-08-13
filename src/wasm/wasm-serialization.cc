@@ -474,7 +474,7 @@ class V8_EXPORT_PRIVATE NativeModuleDeserializer {
 
  private:
   bool ReadHeader(Reader* reader);
-  bool ReadCode(int fn_index, Reader* reader);
+  void ReadCode(int fn_index, Reader* reader);
 
   NativeModule* const native_module_;
   bool read_called_;
@@ -494,7 +494,7 @@ bool NativeModuleDeserializer::Read(Reader* reader) {
   uint32_t first_wasm_fn = native_module_->num_imported_functions();
   WasmCodeRefScope wasm_code_ref_scope;
   for (uint32_t i = first_wasm_fn; i < total_fns; ++i) {
-    if (!ReadCode(i, reader)) return false;
+    ReadCode(i, reader);
   }
   return reader->current_size() == 0;
 }
@@ -506,13 +506,13 @@ bool NativeModuleDeserializer::ReadHeader(Reader* reader) {
          imports == native_module_->num_imported_functions();
 }
 
-bool NativeModuleDeserializer::ReadCode(int fn_index, Reader* reader) {
+void NativeModuleDeserializer::ReadCode(int fn_index, Reader* reader) {
   bool has_code = reader->Read<bool>();
   if (!has_code) {
     DCHECK(FLAG_wasm_lazy_compilation ||
            native_module_->enabled_features().has_compilation_hints());
     native_module_->UseLazyStub(fn_index);
-    return true;
+    return;
   }
   int constant_pool_offset = reader->Read<int>();
   int safepoint_table_offset = reader->Read<int>();
@@ -593,8 +593,6 @@ bool NativeModuleDeserializer::ReadCode(int fn_index, Reader* reader) {
   // Finally, flush the icache for that code.
   FlushInstructionCache(code->instructions().begin(),
                         code->instructions().size());
-
-  return true;
 }
 
 bool IsSupportedVersion(Vector<const byte> header) {
