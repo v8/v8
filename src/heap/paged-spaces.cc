@@ -341,6 +341,7 @@ Page* PagedSpace::AllocatePage() {
 Page* PagedSpace::Expand() {
   Page* page = AllocatePage();
   if (page == nullptr) return nullptr;
+  ConcurrentAllocationMutex guard(this);
   AddPage(page);
   Free(page->area_start(), page->area_size(),
        SpaceAccountingMode::kSpaceAccounted);
@@ -350,7 +351,7 @@ Page* PagedSpace::Expand() {
 Page* PagedSpace::ExpandBackground(LocalHeap* local_heap) {
   Page* page = AllocatePage();
   if (page == nullptr) return nullptr;
-  base::MutexGuard lock(&allocation_mutex_);
+  base::MutexGuard lock(&space_mutex_);
   AddPage(page);
   Free(page->area_start(), page->area_size(),
        SpaceAccountingMode::kSpaceAccounted);
@@ -523,6 +524,7 @@ std::unique_ptr<ObjectIterator> PagedSpace::GetObjectIterator(Heap* heap) {
 
 bool PagedSpace::TryAllocationFromFreeListMain(size_t size_in_bytes,
                                                AllocationOrigin origin) {
+  ConcurrentAllocationMutex guard(this);
   DCHECK(IsAligned(size_in_bytes, kTaggedSize));
   DCHECK_LE(top(), limit());
 #ifdef DEBUG
@@ -586,10 +588,7 @@ base::Optional<std::pair<Address, size_t>> PagedSpace::RawRefillLabBackground(
   if (collector->sweeping_in_progress()) {
     // First try to refill the free-list, concurrent sweeper threads
     // may have freed some objects in the meantime.
-    {
-      base::MutexGuard lock(&allocation_mutex_);
-      RefillFreeList();
-    }
+    RefillFreeList();
 
     // Retry the free list allocation.
     auto result = TryAllocationFromFreeListBackground(
@@ -607,10 +606,7 @@ base::Optional<std::pair<Address, size_t>> PagedSpace::RawRefillLabBackground(
         identity(), static_cast<int>(min_size_in_bytes), kMaxPagesToSweep,
         invalidated_slots_in_free_space);
 
-    {
-      base::MutexGuard lock(&allocation_mutex_);
-      RefillFreeList();
-    }
+    RefillFreeList();
 
     if (static_cast<size_t>(max_freed) >= min_size_in_bytes) {
       auto result = TryAllocationFromFreeListBackground(
@@ -633,10 +629,7 @@ base::Optional<std::pair<Address, size_t>> PagedSpace::RawRefillLabBackground(
     // Complete sweeping for this space.
     collector->DrainSweepingWorklistForSpace(identity());
 
-    {
-      base::MutexGuard lock(&allocation_mutex_);
-      RefillFreeList();
-    }
+    RefillFreeList();
 
     // Last try to acquire memory from free list.
     return TryAllocationFromFreeListBackground(
@@ -652,7 +645,7 @@ PagedSpace::TryAllocationFromFreeListBackground(LocalHeap* local_heap,
                                                 size_t max_size_in_bytes,
                                                 AllocationAlignment alignment,
                                                 AllocationOrigin origin) {
-  base::MutexGuard lock(&allocation_mutex_);
+  base::MutexGuard lock(&space_mutex_);
   DCHECK_LE(min_size_in_bytes, max_size_in_bytes);
   DCHECK_EQ(identity(), OLD_SPACE);
 
@@ -866,7 +859,6 @@ bool PagedSpace::RefillLabMain(int size_in_bytes, AllocationOrigin origin) {
   VMState<GC> state(heap()->isolate());
   RuntimeCallTimerScope runtime_timer(
       heap()->isolate(), RuntimeCallCounterId::kGC_Custom_SlowAllocateRaw);
-  ConcurrentAllocationMutex guard(this);
   return RawRefillLabMain(size_in_bytes, origin);
 }
 
