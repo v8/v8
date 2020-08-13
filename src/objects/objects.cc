@@ -5331,6 +5331,8 @@ static void MoveMessageToPromise(Isolate* isolate, Handle<JSPromise> promise) {
 Handle<Object> JSPromise::Reject(Handle<JSPromise> promise,
                                  Handle<Object> reason, bool debug_event) {
   Isolate* const isolate = promise->GetIsolate();
+  DCHECK(
+      !reinterpret_cast<v8::Isolate*>(isolate)->GetCurrentContext().IsEmpty());
 
   if (isolate->debug()->is_active()) MoveMessageToPromise(isolate, promise);
 
@@ -5368,6 +5370,8 @@ Handle<Object> JSPromise::Reject(Handle<JSPromise> promise,
 MaybeHandle<Object> JSPromise::Resolve(Handle<JSPromise> promise,
                                        Handle<Object> resolution) {
   Isolate* const isolate = promise->GetIsolate();
+  DCHECK(
+      !reinterpret_cast<v8::Isolate*>(isolate)->GetCurrentContext().IsEmpty());
 
   isolate->RunPromiseHook(PromiseHookType::kResolve, promise,
                           isolate->factory()->undefined_value());

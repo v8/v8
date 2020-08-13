@@ -749,6 +749,9 @@ void FutexEmulation::ResolveAsyncWaiterPromise(FutexWaitListNode* node) {
   USE(success);
 
   if (!node->promise_.IsEmpty()) {
+    DCHECK(!node->native_context_.IsEmpty());
+    Local<v8::Context> native_context = node->native_context_.Get(v8_isolate);
+    v8::Context::Scope contextScope(native_context);
     Handle<JSPromise> promise = Handle<JSPromise>::cast(
         Utils::OpenHandle(*node->promise_.Get(v8_isolate)));
     Handle<String> result_string;
