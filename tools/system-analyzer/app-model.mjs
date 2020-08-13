@@ -3,48 +3,50 @@
 // found in the LICENSE file.
 
 class State {
-  #timeSelection = {start: 0, end: Infinity};
+  #timeSelection = { start: 0, end: Infinity };
   #map;
   #ic;
+  #selectedMapLogEvents;
+  #selectedIcLogEvents;
   #nofChunks;
   #chunks;
   #icTimeline;
   #mapTimeline;
   #minStartTime = Number.POSITIVE_INFINITY;
   #maxEndTime = Number.NEGATIVE_INFINITY;
-  get minStartTime(){
+  get minStartTime() {
     return this.#minStartTime;
   }
-  get maxEndTime(){
+  get maxEndTime() {
     return this.#maxEndTime;
   }
-  #updateTimeRange(timeline){
+  #updateTimeRange(timeline) {
     this.#minStartTime = Math.min(this.#minStartTime, timeline.startTime);
     this.#maxEndTime = Math.max(this.#maxEndTime, timeline.endTime);
   }
-  get mapTimeline(){
+  get mapTimeline() {
     return this.#mapTimeline;
   }
-  set mapTimeline(timeline){
+  set mapTimeline(timeline) {
     this.#updateTimeRange(timeline);
     timeline.startTime = this.#minStartTime;
     timeline.endTime = this.#maxEndTime;
     this.#mapTimeline = timeline;
   }
-  set icTimeline(timeline){
+  set icTimeline(timeline) {
     this.#updateTimeRange(timeline);
     timeline.startTime = this.#minStartTime;
     timeline.endTime = this.#maxEndTime;
     this.#icTimeline = timeline;
   }
-  get icTimeline(){
+  get icTimeline() {
     return this.#icTimeline;
   }
-  set chunks(value){
+  set chunks(value) {
     //TODO(zcankara) split up between maps and ics, and every timeline track
     this.#chunks = value;
   }
-  get chunks(){
+  get chunks() {
     //TODO(zcankara) split up between maps and ics, and every timeline track
     return this.#chunks;
   }
@@ -60,7 +62,7 @@ class State {
   }
   set map(value) {
     //TODO(zcankara) rename as selectedMapEvents, array of selected events
-    if(!value) return;
+    if (!value) return;
     this.#map = value;
   }
   get ic() {
@@ -69,8 +71,22 @@ class State {
   }
   set ic(value) {
     //TODO(zcankara) rename selectedIcEvents, array of selected events
-    if(!value) return;
+    if (!value) return;
     this.#ic = value;
+  }
+  get selectedMapLogEvents() {
+    return this.#selectedMapLogEvents;
+  }
+  set selectedMapLogEvents(value) {
+    if (!value) return;
+    this.#selectedMapLogEvents = value;
+  }
+  get selectedIcLogEvents() {
+    return this.#selectedIcLogEvents;
+  }
+  set selectedIcLogEvents(value) {
+    if (!value) return;
+    this.#selectedIcLogEvents = value;
   }
   get timeSelection() {
     return this.#timeSelection;

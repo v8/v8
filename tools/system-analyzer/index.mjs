@@ -6,6 +6,7 @@ import CustomIcProcessor from "./ic-processor.mjs";
 import { Entry } from "./ic-processor.mjs";
 import { State } from "./app-model.mjs";
 import { MapProcessor, V8Map } from "./map-processor.mjs";
+import { SelectTimeEvent } from "./events.mjs";
 import { $ } from "./helper.mjs";
 import "./ic-panel.mjs";
 import "./timeline-panel.mjs";
@@ -38,26 +39,28 @@ class App {
       this.handleDataUpload(e)
     );
     Object.entries(this.#view).forEach(([_, value]) => {
-      value.addEventListener("showentries", (e) => this.handleShowEntries(e));
-      value.addEventListener("showentrydetail", (e) =>
-        this.handleShowEntryDetail(e)
-      );
+      value.addEventListener('showentries',
+        e => this.handleShowEntries(e));
+      value.addEventListener('showentrydetail',
+        e => this.handleShowEntryDetail(e));
+      value.addEventListener(SelectTimeEvent.name,
+        e => this.handleTimeRangeSelect(e));
     });
-    this.#view.icPanel.addEventListener("ictimefilter", (e) =>
-      this.handleICTimeFilter(e)
-    );
   }
   handleShowEntries(e) {
     if (e.entries[0] instanceof V8Map) {
-      this.#view.mapPanel.mapEntries = e.entries;
+      this.showMapEntries(e.entries);
     }
+  }
+  handleTimeRangeSelect(e) {
+    this.selectTimeRange(e.start, e.end);
   }
   handleShowEntryDetail(e) {
     if (e.entry instanceof V8Map) {
       this.selectMapLogEvent(e.entry);
     } else if (e.entry instanceof Entry) {
       this.selectICLogEvent(e.entry);
-    } else if (typeof e.entry === "string") {
+    } else if (typeof e.entry === 'string') {
       this.selectSourcePositionEvent(e.entry);
     } else {
       console.log("undefined");
@@ -66,6 +69,18 @@ class App {
   handleClickSourcePositions(e) {
     //TODO(zcankara) Handle source position
     console.log("Entry containing source position: ", e.entries);
+  }
+  selectTimeRange(start, end) {
+    this.#state.timeSelection.start = start;
+    this.#state.timeSelection.end = end;
+    this.#state.icTimeline.selectTimeRange(start, end);
+    this.#state.mapTimeline.selectTimeRange(start, end);
+    this.#view.mapPanel.selectedMapLogEvents = this.#state.mapTimeline.selection;
+    this.#view.icPanel.filteredEntries = this.#state.icTimeline.selection;
+  }
+  showMapEntries(entries) {
+    this.#state.selectedMapLogEvents = entries;
+    this.#view.mapPanel.selectedMapLogEvents = this.#state.selectedMapLogEvents;
   }
   selectMapLogEvent(entry) {
     this.#state.map = entry;
@@ -77,15 +92,6 @@ class App {
   }
   selectSourcePositionEvent(sourcePositions) {
     console.log("source positions: ", sourcePositions);
-  }
-  handleICTimeFilter(event) {
-    this.#state.timeSelection.start = event.detail.startTime;
-    this.#state.timeSelection.end = event.detail.endTime;
-    this.#view.icTrack.data.selectTimeRange(
-      this.#state.timeSelection.start,
-      this.#state.timeSelection.end
-    );
-    this.#view.icPanel.filteredEntries = this.#view.icTrack.data.selection;
   }
   handleFileUpload(e) {
     $("#container").className = "initial";
