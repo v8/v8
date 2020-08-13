@@ -24,6 +24,7 @@ class DefaultJobHandle : public JobHandle {
     if (thread_->joinable()) thread_->join();
   }
   void Cancel() override { Join(); }
+  bool IsCompleted() override { return !IsRunning(); }
   bool IsRunning() override { return thread_->joinable(); }
 
  private:
@@ -111,6 +112,7 @@ std::unique_ptr<cppgc::JobHandle> DefaultPlatform::PostJob(
      public:
       bool ShouldYield() override { return false; }
       void NotifyConcurrencyIncrease() override {}
+      uint8_t GetTaskId() override { return 0; }
     } delegate;
 
     if (task) task->Run(&delegate);

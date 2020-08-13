@@ -91,6 +91,7 @@ class TestPlatform : public Platform {
        public:
         bool ShouldYield() override { return false; }
         void NotifyConcurrencyIncrease() override {}
+        uint8_t GetTaskId() override { return 0; }
       } delegate;
 
       if (task_) task_->Run(&delegate);

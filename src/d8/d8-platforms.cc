@@ -280,6 +280,10 @@ class DelayedTasksPlatform final : public Platform {
       return job_task_->GetMaxConcurrency();
     }
 
+    size_t GetMaxConcurrency(size_t worker_count) const override {
+      return job_task_->GetMaxConcurrency(worker_count);
+    }
+
    private:
     std::unique_ptr<JobTask> job_task_;
     int32_t delay_ms_;

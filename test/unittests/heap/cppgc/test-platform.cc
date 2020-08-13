@@ -73,6 +73,7 @@ class TestPlatform::TestJobHandle : public v8::JobHandle {
   void NotifyConcurrencyIncrease() override {}
   void Join() override { thread_->Join(); }
   void Cancel() override { Join(); }
+  bool IsCompleted() override { return true; }
   bool IsRunning() override { return true; }
 
  private:
