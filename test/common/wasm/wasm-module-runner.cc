@@ -172,7 +172,8 @@ MaybeHandle<WasmExportedFunction> GetExportedFunction(
 int32_t CallWasmFunctionForTesting(Isolate* isolate,
                                    Handle<WasmInstanceObject> instance,
                                    const char* name, int argc,
-                                   Handle<Object> argv[]) {
+                                   Handle<Object> argv[], bool* exception) {
+  if (exception) *exception = false;
   MaybeHandle<WasmExportedFunction> maybe_export =
       GetExportedFunction(isolate, instance, name);
   Handle<WasmExportedFunction> main_export;
@@ -189,6 +190,7 @@ int32_t CallWasmFunctionForTesting(Isolate* isolate,
   if (retval.is_null()) {
     DCHECK(isolate->has_pending_exception());
     isolate->clear_pending_exception();
+    if (exception) *exception = true;
     return -1;
   }
   Handle<Object> result = retval.ToHandleChecked();

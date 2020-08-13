@@ -82,21 +82,19 @@ void InterpretAndExecuteModule(i::Isolate* isolate,
               .ToHandle(&instance));
   }
 
+  bool exception = false;
   int32_t result_compiled = testing::CallWasmFunctionForTesting(
-      isolate, instance, "main", 0, nullptr);
-  if (interpreter_result.trapped() != isolate->has_pending_exception()) {
+      isolate, instance, "main", 0, nullptr, &exception);
+  if (interpreter_result.trapped() != exception) {
     const char* exception_text[] = {"no exception", "exception"};
     FATAL("interpreter: %s; compiled: %s",
           exception_text[interpreter_result.trapped()],
-          exception_text[isolate->has_pending_exception()]);
+          exception_text[exception]);
   }
 
   if (interpreter_result.finished()) {
     CHECK_EQ(interpreter_result.result(), result_compiled);
   }
-
-  // Cleanup any pending exception.
-  isolate->clear_pending_exception();
 }
 
 namespace {
