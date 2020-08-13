@@ -2108,8 +2108,6 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
   // PACKED/HOLEY_ELEMENTS can be used, but not PACKED_DOUBLE_ELEMENTS.
   // * |allocation_flags| and |extract_flags| influence how the target
   // FixedArray is allocated.
-  // * |parameter_mode| determines the parameter mode of |first|, |count| and
-  // |capacity|.
   // * |convert_holes| is used to signify that the target array should use
   // undefined in places of holes.
   // * If |convert_holes| is true and |var_holes_converted| not nullptr, then
@@ -2118,15 +2116,12 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
   // compatible with the result array. For example, if the input was of
   // HOLEY_SMI_ELEMENTS kind, and a conversion took place, the result will be
   // compatible only with HOLEY_ELEMENTS and PACKED_ELEMENTS.
+  template <typename TIndex>
   TNode<FixedArray> ExtractToFixedArray(
-      SloppyTNode<FixedArrayBase> source, Node* first, Node* count,
-      Node* capacity, SloppyTNode<Map> source_map,
-      ElementsKind from_kind = PACKED_ELEMENTS,
-      AllocationFlags allocation_flags = AllocationFlag::kNone,
-      ExtractFixedArrayFlags extract_flags =
-          ExtractFixedArrayFlag::kAllFixedArrays,
-      ParameterMode parameter_mode = INTPTR_PARAMETERS,
-      HoleConversionMode convert_holes = HoleConversionMode::kDontConvert,
+      SloppyTNode<FixedArrayBase> source, TNode<TIndex> first,
+      TNode<TIndex> count, TNode<TIndex> capacity, TNode<Map> source_map,
+      ElementsKind from_kind, AllocationFlags allocation_flags,
+      ExtractFixedArrayFlags extract_flags, HoleConversionMode convert_holes,
       TVariable<BoolT>* var_holes_converted = nullptr,
       base::Optional<TNode<Int32T>> source_runtime_kind = base::nullopt);
 

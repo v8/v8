@@ -3831,19 +3831,21 @@ TNode<FixedArrayBase> CodeStubAssembler::AllocateFixedArray(
   return UncheckedCast<FixedArrayBase>(array);
 }
 
+template <typename TIndex>
 TNode<FixedArray> CodeStubAssembler::ExtractToFixedArray(
-    SloppyTNode<FixedArrayBase> source, Node* first, Node* count,
-    Node* capacity, SloppyTNode<Map> source_map, ElementsKind from_kind,
-    AllocationFlags allocation_flags, ExtractFixedArrayFlags extract_flags,
-    ParameterMode parameter_mode, HoleConversionMode convert_holes,
+    SloppyTNode<FixedArrayBase> source, TNode<TIndex> first,
+    TNode<TIndex> count, TNode<TIndex> capacity, TNode<Map> source_map,
+    ElementsKind from_kind, AllocationFlags allocation_flags,
+    ExtractFixedArrayFlags extract_flags, HoleConversionMode convert_holes,
     TVariable<BoolT>* var_holes_converted,
     base::Optional<TNode<Int32T>> source_elements_kind) {
-  DCHECK_NE(first, nullptr);
-  DCHECK_NE(count, nullptr);
-  DCHECK_NE(capacity, nullptr);
+  static_assert(
+      std::is_same<TIndex, Smi>::value || std::is_same<TIndex, IntPtrT>::value,
+      "Only Smi or IntPtrT first, count, and capacity are allowed");
+
   DCHECK(extract_flags & ExtractFixedArrayFlag::kFixedArrays);
-  CSA_ASSERT(this, IntPtrOrSmiNotEqual(IntPtrOrSmiConstant(0, parameter_mode),
-                                       capacity, parameter_mode));
+  CSA_ASSERT(this,
+             IntPtrOrSmiNotEqual(IntPtrOrSmiConstant<TIndex>(0), capacity));
   CSA_ASSERT(this, TaggedEqual(source_map, LoadMap(source)));
 
   TVARIABLE(FixedArrayBase, var_result);
@@ -3871,8 +3873,7 @@ TNode<FixedArray> CodeStubAssembler::ExtractToFixedArray(
       // 1) |extract_flags| forces us to, or
       // 2) we're asked to extract only part of the |source| (|first| != 0).
       if (extract_flags & ExtractFixedArrayFlag::kDontCopyCOW) {
-        Branch(IntPtrOrSmiNotEqual(IntPtrOrSmiConstant(0, parameter_mode),
-                                   first, parameter_mode),
+        Branch(IntPtrOrSmiNotEqual(IntPtrOrSmiConstant<TIndex>(0), first),
                &new_space_check, [&] {
                  var_result = source;
                  Goto(&done);
@@ -3883,6 +3884,9 @@ TNode<FixedArray> CodeStubAssembler::ExtractToFixedArray(
       }
     }
   }
+
+  const ParameterMode parameter_mode =
+      std::is_same<TIndex, Smi>::value ? SMI_PARAMETERS : INTPTR_PARAMETERS;
 
   BIND(&new_space_check);
   {
@@ -3940,8 +3944,7 @@ TNode<FixedArray> CodeStubAssembler::ExtractToFixedArray(
       FillFixedArrayWithValue(to_kind, to_elements, count, capacity,
                               RootIndex::kTheHoleValue, parameter_mode);
       CopyElements(to_kind, to_elements, IntPtrConstant(0), source,
-                   ParameterToIntPtr(first, parameter_mode),
-                   ParameterToIntPtr(count, parameter_mode),
+                   ParameterToIntPtr(first), ParameterToIntPtr(count),
                    SKIP_WRITE_BARRIER);
     } else {
       CopyFixedArrayElements(from_kind, source, to_kind, to_elements, first,
@@ -3976,8 +3979,7 @@ TNode<FixedArray> CodeStubAssembler::ExtractToFixedArray(
           // GC. Otherwise it will copy elements by elements, but skip write
           // barriers (since we're copying smis to smis).
           CopyElements(to_smi_kind, to_elements, IntPtrConstant(0), source,
-                       ParameterToIntPtr(first, parameter_mode),
-                       ParameterToIntPtr(count, parameter_mode),
+                       ParameterToIntPtr(first), ParameterToIntPtr(count),
                        SKIP_WRITE_BARRIER);
           Goto(&done);
         } else {
@@ -4080,10 +4082,10 @@ TNode<FixedArrayBase> CodeStubAssembler::ExtractFixedDoubleArrayFillingHoles(
     // replacing holes. We signal this to the caller through
     // |var_holes_converted|.
     *var_holes_converted = Int32TrueConstant();
-    to_elements = ExtractToFixedArray(from_array, first, count, capacity,
-                                      fixed_array_map, kind, allocation_flags,
-                                      extract_flags, parameter_mode,
-                                      HoleConversionMode::kConvertToUndefined);
+    to_elements =
+        ExtractToFixedArray(from_array, first, count, capacity, fixed_array_map,
+                            kind, allocation_flags, extract_flags,
+                            HoleConversionMode::kConvertToUndefined);
     var_result = to_elements;
     Goto(&done);
   }
@@ -4152,8 +4154,8 @@ TNode<FixedArrayBase> CodeStubAssembler::ExtractFixedArray(
     // PACKED_ELEMENTS is used to signify that the source is a FixedArray.
     TNode<FixedArray> to_elements = ExtractToFixedArray(
         source, *first, *count, *capacity, source_map, PACKED_ELEMENTS,
-        allocation_flags, extract_flags, parameter_mode, convert_holes,
-        var_holes_converted, source_elements_kind);
+        allocation_flags, extract_flags, convert_holes, var_holes_converted,
+        source_elements_kind);
     var_result = to_elements;
     Goto(&done);
   }
