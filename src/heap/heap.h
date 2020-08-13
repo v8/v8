@@ -267,40 +267,58 @@ class Heap {
 
   class ExternalMemoryAccounting {
    public:
-    int64_t total() { return total_; }
-    int64_t limit() { return limit_; }
-    int64_t low_since_mark_compact() { return low_since_mark_compact_; }
+    int64_t total() { return total_.load(std::memory_order_relaxed); }
+    int64_t limit() { return limit_.load(std::memory_order_relaxed); }
+    int64_t low_since_mark_compact() {
+      return low_since_mark_compact_.load(std::memory_order_relaxed);
+    }
 
     void ResetAfterGC() {
-      low_since_mark_compact_ = total_;
-      limit_ = total_ + kExternalAllocationSoftLimit;
+      set_low_since_mark_compact(total());
+      set_limit(total() + kExternalAllocationSoftLimit);
     }
 
     int64_t Update(int64_t delta) {
-      const int64_t amount = total_ += delta;
-      if (amount < low_since_mark_compact_) {
-        low_since_mark_compact_ = amount;
-        limit_ = amount + kExternalAllocationSoftLimit;
+      const int64_t amount =
+          total_.fetch_add(delta, std::memory_order_relaxed) + delta;
+      if (amount < low_since_mark_compact()) {
+        set_low_since_mark_compact(amount);
+        set_limit(amount + kExternalAllocationSoftLimit);
       }
       return amount;
     }
 
     int64_t AllocatedSinceMarkCompact() {
-      if (total_ <= low_since_mark_compact_) {
+      int64_t total_bytes = total();
+      int64_t low_since_mark_compact_bytes = low_since_mark_compact();
+
+      if (total_bytes <= low_since_mark_compact_bytes) {
         return 0;
       }
-      return static_cast<uint64_t>(total_ - low_since_mark_compact_);
+      return static_cast<uint64_t>(total_bytes - low_since_mark_compact_bytes);
     }
 
    private:
+    void set_total(int64_t value) {
+      total_.store(value, std::memory_order_relaxed);
+    }
+
+    void set_limit(int64_t value) {
+      limit_.store(value, std::memory_order_relaxed);
+    }
+
+    void set_low_since_mark_compact(int64_t value) {
+      low_since_mark_compact_.store(value, std::memory_order_relaxed);
+    }
+
     // The amount of external memory registered through the API.
-    int64_t total_ = 0;
+    std::atomic<int64_t> total_{0};
 
     // The limit when to trigger memory pressure from the API.
-    int64_t limit_ = kExternalAllocationSoftLimit;
+    std::atomic<int64_t> limit_{kExternalAllocationSoftLimit};
 
     // Caches the amount of external memory registered at the last MC.
-    int64_t low_since_mark_compact_ = 0;
+    std::atomic<int64_t> low_since_mark_compact_{0};
   };
 
   using PretenuringFeedbackMap =
