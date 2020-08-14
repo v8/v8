@@ -287,15 +287,6 @@ TNode<RawPtrT> CodeStubAssembler::IntPtrOrSmiConstant<RawPtrT>(int value) {
   return ReinterpretCast<RawPtrT>(IntPtrConstant(value));
 }
 
-Node* CodeStubAssembler::IntPtrOrSmiConstant(int value, ParameterMode mode) {
-  if (mode == SMI_PARAMETERS) {
-    return SmiConstant(value);
-  } else {
-    DCHECK_EQ(INTPTR_PARAMETERS, mode);
-    return IntPtrConstant(value);
-  }
-}
-
 bool CodeStubAssembler::TryGetIntPtrOrSmiConstantValue(Node* maybe_constant,
                                                        int* value,
                                                        ParameterMode mode) {
@@ -3646,7 +3637,6 @@ TNode<JSArray> CodeStubAssembler::AllocateJSArray(
     AllocationFlags allocation_flags) {
   CSA_SLOW_ASSERT(this, TaggedIsPositiveSmi(length));
 
-  ParameterMode capacity_mode = INTPTR_PARAMETERS;
   TNode<JSArray> array;
   TNode<FixedArrayBase> elements;
 
@@ -3659,9 +3649,8 @@ TNode<JSArray> CodeStubAssembler::AllocateJSArray(
 
   BIND(&nonempty);
   {
-    FillFixedArrayWithValue(kind, elements,
-                            IntPtrOrSmiConstant(0, capacity_mode), capacity,
-                            RootIndex::kTheHoleValue, capacity_mode);
+    FillFixedArrayWithValue(kind, elements, IntPtrConstant(0), capacity,
+                            RootIndex::kTheHoleValue, INTPTR_PARAMETERS);
     Goto(&out);
   }
 
