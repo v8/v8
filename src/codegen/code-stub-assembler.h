@@ -1950,14 +1950,14 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
 
   // Copies all elements from |from_array| of |length| size to
   // |to_array| of the same size respecting the elements kind.
+  template <typename TIndex>
   void CopyFixedArrayElements(
       ElementsKind kind, TNode<FixedArrayBase> from_array,
-      TNode<FixedArrayBase> to_array, Node* length,
-      WriteBarrierMode barrier_mode = UPDATE_WRITE_BARRIER,
-      ParameterMode mode = INTPTR_PARAMETERS) {
+      TNode<FixedArrayBase> to_array, TNode<TIndex> length,
+      WriteBarrierMode barrier_mode = UPDATE_WRITE_BARRIER) {
     CopyFixedArrayElements(kind, from_array, kind, to_array,
-                           IntPtrOrSmiConstant(0, mode), length, length,
-                           barrier_mode, mode);
+                           IntPtrOrSmiConstant<TIndex>(0), length, length,
+                           barrier_mode);
   }
 
   // Copies |element_count| elements from |from_array| starting from element
@@ -1969,11 +1969,9 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
       ElementsKind to_kind, TNode<FixedArrayBase> to_array,
       TNode<TIndex> element_count, TNode<TIndex> capacity,
       WriteBarrierMode barrier_mode = UPDATE_WRITE_BARRIER) {
-    const ParameterMode mode =
-        std::is_same<TIndex, Smi>::value ? SMI_PARAMETERS : INTPTR_PARAMETERS;
     CopyFixedArrayElements(from_kind, from_array, to_kind, to_array,
                            IntPtrOrSmiConstant<TIndex>(0), element_count,
-                           capacity, barrier_mode, mode);
+                           capacity, barrier_mode);
   }
 
   // Copies |element_count| elements from |from_array| starting from element
@@ -1984,12 +1982,13 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
   // (i.e. that there were holes). If |convert_holes_to_undefined| is
   // HoleConversionMode::kConvertToUndefined, then it must not be the case that
   // IsDoubleElementsKind(to_kind).
+  template <typename TIndex>
   void CopyFixedArrayElements(
       ElementsKind from_kind, TNode<FixedArrayBase> from_array,
-      ElementsKind to_kind, TNode<FixedArrayBase> to_array, Node* first_element,
-      Node* element_count, Node* capacity,
+      ElementsKind to_kind, TNode<FixedArrayBase> to_array,
+      TNode<TIndex> first_element, TNode<TIndex> element_count,
+      TNode<TIndex> capacity,
       WriteBarrierMode barrier_mode = UPDATE_WRITE_BARRIER,
-      ParameterMode mode = INTPTR_PARAMETERS,
       HoleConversionMode convert_holes = HoleConversionMode::kDontConvert,
       TVariable<BoolT>* var_holes_converted = nullptr);
 

@@ -3273,7 +3273,7 @@ TNode<NameDictionary> CodeStubAssembler::CopyNameDictionary(
       AllocateNameDictionaryWithCapacity(capacity);
   TNode<IntPtrT> length = SmiUntag(LoadFixedArrayBaseLength(dictionary));
   CopyFixedArrayElements(PACKED_ELEMENTS, dictionary, properties, length,
-                         SKIP_WRITE_BARRIER, INTPTR_PARAMETERS);
+                         SKIP_WRITE_BARRIER);
   return properties;
 }
 
@@ -3948,8 +3948,7 @@ TNode<FixedArray> CodeStubAssembler::ExtractToFixedArray(
                    SKIP_WRITE_BARRIER);
     } else {
       CopyFixedArrayElements(from_kind, source, to_kind, to_elements, first,
-                             count, capacity, SKIP_WRITE_BARRIER,
-                             parameter_mode, convert_holes,
+                             count, capacity, SKIP_WRITE_BARRIER, convert_holes,
                              var_holes_converted);
     }
     Goto(&done);
@@ -3994,8 +3993,7 @@ TNode<FixedArray> CodeStubAssembler::ExtractToFixedArray(
           var_result = to_elements;
           CopyFixedArrayElements(from_kind, source, to_kind, to_elements, first,
                                  count, capacity, UPDATE_WRITE_BARRIER,
-                                 parameter_mode, convert_holes,
-                                 var_holes_converted);
+                                 convert_holes, var_holes_converted);
           Goto(&done);
         }
       }
@@ -4535,19 +4533,22 @@ void CodeStubAssembler::CopyElements(ElementsKind kind,
   }
 }
 
+template <typename TIndex>
 void CodeStubAssembler::CopyFixedArrayElements(
     ElementsKind from_kind, TNode<FixedArrayBase> from_array,
-    ElementsKind to_kind, TNode<FixedArrayBase> to_array, Node* first_element,
-    Node* element_count, Node* capacity, WriteBarrierMode barrier_mode,
-    ParameterMode mode, HoleConversionMode convert_holes,
-    TVariable<BoolT>* var_holes_converted) {
+    ElementsKind to_kind, TNode<FixedArrayBase> to_array,
+    TNode<TIndex> first_element, TNode<TIndex> element_count,
+    TNode<TIndex> capacity, WriteBarrierMode barrier_mode,
+    HoleConversionMode convert_holes, TVariable<BoolT>* var_holes_converted) {
   DCHECK_IMPLIES(var_holes_converted != nullptr,
                  convert_holes == HoleConversionMode::kConvertToUndefined);
-  CSA_SLOW_ASSERT(this, MatchesParameterMode(element_count, mode));
-  CSA_SLOW_ASSERT(this, MatchesParameterMode(capacity, mode));
   CSA_SLOW_ASSERT(this, IsFixedArrayWithKindOrEmpty(from_array, from_kind));
   CSA_SLOW_ASSERT(this, IsFixedArrayWithKindOrEmpty(to_array, to_kind));
   STATIC_ASSERT(FixedArray::kHeaderSize == FixedDoubleArray::kHeaderSize);
+  static_assert(
+      std::is_same<TIndex, Smi>::value || std::is_same<TIndex, IntPtrT>::value,
+      "Only Smi or IntPtrT indices are allowed");
+
   const int first_element_offset = FixedArray::kHeaderSize - kHeapObjectTag;
   Comment("[ CopyFixedArrayElements");
 
@@ -4571,6 +4572,8 @@ void CodeStubAssembler::CopyFixedArrayElements(
       Is64() ? ReinterpretCast<UintPtrT>(Int64Constant(kHoleNanInt64))
              : ReinterpretCast<UintPtrT>(Int32Constant(kHoleNanLower32));
 
+  const ParameterMode mode =
+      std::is_same<TIndex, Smi>::value ? SMI_PARAMETERS : INTPTR_PARAMETERS;
   // If copying might trigger a GC, we pre-initialize the FixedArray such that
   // it's always in a consistent state.
   if (convert_holes == HoleConversionMode::kConvertToUndefined) {
@@ -4578,14 +4581,14 @@ void CodeStubAssembler::CopyFixedArrayElements(
     // Use undefined for the part that we copy and holes for the rest.
     // Later if we run into a hole in the source we can just skip the writing
     // to the target and are still guaranteed that we get an undefined.
-    FillFixedArrayWithValue(to_kind, to_array, IntPtrOrSmiConstant(0, mode),
+    FillFixedArrayWithValue(to_kind, to_array, IntPtrOrSmiConstant<TIndex>(0),
                             element_count, RootIndex::kUndefinedValue, mode);
     FillFixedArrayWithValue(to_kind, to_array, element_count, capacity,
                             RootIndex::kTheHoleValue, mode);
   } else if (doubles_to_objects_conversion) {
     // Pre-initialized the target with holes so later if we run into a hole in
     // the source we can just skip the writing to the target.
-    FillFixedArrayWithValue(to_kind, to_array, IntPtrOrSmiConstant(0, mode),
+    FillFixedArrayWithValue(to_kind, to_array, IntPtrOrSmiConstant<TIndex>(0),
                             capacity, RootIndex::kTheHoleValue, mode);
   } else if (element_count != capacity) {
     FillFixedArrayWithValue(to_kind, to_array, element_count, capacity,
@@ -4593,21 +4596,20 @@ void CodeStubAssembler::CopyFixedArrayElements(
   }
 
   TNode<IntPtrT> first_from_element_offset =
-      ElementOffsetFromIndex(first_element, from_kind, mode, 0);
+      ElementOffsetFromIndex(first_element, from_kind, 0);
   TNode<IntPtrT> limit_offset = Signed(IntPtrAdd(
       first_from_element_offset, IntPtrConstant(first_element_offset)));
-  TVARIABLE(
-      IntPtrT, var_from_offset,
-      ElementOffsetFromIndex(IntPtrOrSmiAdd(first_element, element_count, mode),
-                             from_kind, mode, first_element_offset));
+  TVARIABLE(IntPtrT, var_from_offset,
+            ElementOffsetFromIndex(IntPtrOrSmiAdd(first_element, element_count),
+                                   from_kind, first_element_offset));
   // This second variable is used only when the element sizes of source and
   // destination arrays do not match.
   TVARIABLE(IntPtrT, var_to_offset);
   if (element_offset_matches) {
     var_to_offset = var_from_offset.value();
   } else {
-    var_to_offset = ElementOffsetFromIndex(element_count, to_kind, mode,
-                                           first_element_offset);
+    var_to_offset =
+        ElementOffsetFromIndex(element_count, to_kind, first_element_offset);
   }
 
   VariableList vars({&var_from_offset, &var_to_offset}, zone());
