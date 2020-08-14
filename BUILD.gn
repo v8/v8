@@ -2710,6 +2710,7 @@ v8_source_set("v8_base_without_compiler") {
     "src/logging/counters-inl.h",
     "src/logging/counters.cc",
     "src/logging/counters.h",
+    "src/logging/local-logger.cc",
     "src/logging/local-logger.h",
     "src/logging/log-inl.h",
     "src/logging/log-utils.cc",

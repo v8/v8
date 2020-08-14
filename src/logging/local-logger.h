@@ -14,16 +14,21 @@ namespace internal {
 // TODO(leszeks): Add support for logging from off-thread.
 class LocalLogger {
  public:
-  bool is_logging() const { return false; }
-  bool is_listening_to_code_events() const { return false; }
-  void ScriptEvent(Logger::ScriptEventType type, int script_id) {
-    UNREACHABLE();
+  explicit LocalLogger(Isolate* isolate);
+
+  bool is_logging() const { return is_logging_; }
+  bool is_listening_to_code_events() const {
+    return is_listening_to_code_events_;
   }
-  void ScriptDetails(Script script) { UNREACHABLE(); }
+  void ScriptDetails(Script script);
+  void ScriptEvent(Logger::ScriptEventType type, int script_id);
   void CodeLinePosInfoRecordEvent(Address code_start,
-                                  ByteArray source_position_table) {
-    UNREACHABLE();
-  }
+                                  ByteArray source_position_table);
+
+ private:
+  Logger* logger_;
+  bool is_logging_;
+  bool is_listening_to_code_events_;
 };
 
 }  // namespace internal

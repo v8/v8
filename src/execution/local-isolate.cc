@@ -16,7 +16,7 @@ LocalIsolate::LocalIsolate(Isolate* isolate)
     : HiddenLocalFactory(isolate),
       heap_(isolate->heap()),
       isolate_(isolate),
-      logger_(new LocalLogger()),
+      logger_(new LocalLogger(isolate)),
       thread_id_(ThreadId::Current()) {}
 
 LocalIsolate::~LocalIsolate() = default;
