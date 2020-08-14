@@ -219,7 +219,7 @@ defineCustomElement('./timeline/timeline-track', (templateText) =>
         if (chunk.isEmpty()) continue;
         let node = this.div();
         node.className = 'chunk';
-        node.style.left = (i * kChunkWidth) + 'px';
+        node.style.left = (chunks[i].start * this.#timeToPixel) + 'px';
         node.style.height = height + 'px';
         node.chunk = chunk;
         node.addEventListener('mousemove', e => this.handleChunkMouseMove(e));
