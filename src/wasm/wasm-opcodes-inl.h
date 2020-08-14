@@ -153,6 +153,8 @@ constexpr const char* WasmOpcodes::OpcodeName(WasmOpcode opcode) {
     CASE_OP(CallIndirect, "call_indirect")
     CASE_OP(ReturnCall, "return_call")
     CASE_OP(ReturnCallIndirect, "return_call_indirect")
+    CASE_OP(CallRef, "call_ref")
+    CASE_OP(ReturnCallRef, "return_call_ref")
     CASE_OP(BrOnNull, "br_on_null")
     CASE_OP(Drop, "drop")
     CASE_OP(Select, "select")

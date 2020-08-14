@@ -472,6 +472,7 @@ inline WasmOpcode LoadStoreOpcodeOf(MachineType type, bool store) {
 #define WASM_ARRAY_LEN(typeidx, array) \
   array, WASM_GC_OP(kExprArrayLen), static_cast<byte>(typeidx)
 
+#define WASM_RTT(depth, typeidx) kLocalRtt, U32V_1(depth), U32V_1(typeidx)
 #define WASM_RTT_CANON(typeidx) \
   WASM_GC_OP(kExprRttCanon), static_cast<byte>(typeidx)
 #define WASM_RTT_SUB(typeidx, supertype) \
@@ -483,6 +484,7 @@ inline WasmOpcode LoadStoreOpcodeOf(MachineType type, bool store) {
 
 #define WASM_BR_ON_NULL(depth, ref_object) \
   ref_object, kExprBrOnNull, static_cast<byte>(depth)
+
 // Pass: sig_index, ...args, func_index
 #define WASM_CALL_INDIRECT(sig_index, ...) \
   __VA_ARGS__, kExprCallIndirect, static_cast<byte>(sig_index), TABLE_ZERO
@@ -492,7 +494,10 @@ inline WasmOpcode LoadStoreOpcodeOf(MachineType type, bool store) {
 #define WASM_RETURN_CALL_INDIRECT(sig_index, ...) \
   __VA_ARGS__, kExprReturnCallIndirect, static_cast<byte>(sig_index), TABLE_ZERO
 
-#define WASM_RTT(depth, typeidx) kLocalRtt, U32V_1(depth), U32V_1(typeidx)
+#define WASM_CALL_REF(func_ref, ...) __VA_ARGS__, func_ref, kExprCallRef
+
+#define WASM_RETURN_CALL_REF(func_ref, ...) \
+  __VA_ARGS__, func_ref, kExprReturnCallRef
 
 // shift locals by 1; let (locals[0]: local_type) = value in ...
 #define WASM_LET_1_V(local_type, value, ...)                                  \

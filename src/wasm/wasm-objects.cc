@@ -1894,6 +1894,8 @@ bool WasmJSFunction::IsWasmJSFunction(Object object) {
   return js_function.shared().HasWasmJSFunctionData();
 }
 
+// TODO(7748): WasmJSFunctions should compile/find and store an import wrapper
+// in case they are called from within wasm.
 Handle<WasmJSFunction> WasmJSFunction::New(Isolate* isolate,
                                            const wasm::FunctionSig* sig,
                                            Handle<JSReceiver> callable) {
@@ -1923,7 +1925,9 @@ Handle<WasmJSFunction> WasmJSFunction::New(Isolate* isolate,
     name = JSFunction::GetName(Handle<JSFunction>::cast(callable));
     name = String::Flatten(isolate, name);
   }
-  Handle<Map> function_map = isolate->wasm_exported_function_map();
+  Handle<Map> function_map =
+      Map::Copy(isolate, isolate->wasm_exported_function_map(),
+                "fresh function map for WasmJSFunction::New");
   NewFunctionArgs args =
       NewFunctionArgs::ForWasm(name, function_data, function_map);
   Handle<JSFunction> js_function = isolate->factory()->NewFunction(args);

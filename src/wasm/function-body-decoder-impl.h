@@ -47,7 +47,10 @@ struct WasmException;
 #define CHECK_PROTOTYPE_OPCODE(feat)                                           \
   DCHECK(this->module_->origin == kWasmOrigin);                                \
   if (!VALIDATE(this->enabled_.has_##feat())) {                                \
-    this->error("Invalid opcode (enable with --experimental-wasm-" #feat ")"); \
+    this->errorf(this->pc(),                                                   \
+                 "Invalid opcode 0x%x (enable with --experimental-wasm-" #feat \
+                 ")",                                                          \
+                 opcode);                                                      \
     return 0;                                                                  \
   }                                                                            \
   this->detected_->Add(kFeature_##feat);
@@ -910,6 +913,10 @@ struct ControlBase {
   F(CallIndirect, const Value& index,                                          \
     const CallIndirectImmediate<validate>& imm, const Value args[],            \
     Value returns[])                                                           \
+  F(CallRef, const Value& func_ref, const FunctionSig* sig,                    \
+    uint32_t sig_index, const Value args[], const Value returns[])             \
+  F(ReturnCallRef, const Value& func_ref, const FunctionSig* sig,              \
+    uint32_t sig_index, const Value args[])                                    \
   F(ReturnCall, const CallFunctionImmediate<validate>& imm,                    \
     const Value args[])                                                        \
   F(ReturnCallIndirect, const Value& index,                                    \
@@ -2865,6 +2872,47 @@ class WasmFullDecoder : public WasmDecoder<validate> {
     return 1 + imm.length;
   }
 
+  DECODE(CallRef) {
+    CHECK_PROTOTYPE_OPCODE(typed_funcref);
+    Value func_ref = Pop(0);
+    ValueType func_type = func_ref.type;
+    if (!func_type.is_object_reference_type() || !func_type.has_index() ||
+        !this->module_->has_signature(func_type.ref_index())) {
+      this->errorf(this->pc_,
+                   "call_ref: Expected function reference on top of stack, "
+                   "found %s of type %s instead",
+                   SafeOpcodeNameAt(func_ref.pc), func_type.name().c_str());
+      return 0;
+    }
+    const FunctionSig* sig = this->module_->signature(func_type.ref_index());
+    ArgVector args = PopArgs(sig);
+    Value* returns = PushReturns(sig);
+    CALL_INTERFACE_IF_REACHABLE(CallRef, func_ref, sig, func_type.ref_index(),
+                                args.begin(), returns);
+    return 1;
+  }
+
+  DECODE(ReturnCallRef) {
+    CHECK_PROTOTYPE_OPCODE(typed_funcref);
+    CHECK_PROTOTYPE_OPCODE(return_call);
+    Value func_ref = Pop(0);
+    ValueType func_type = func_ref.type;
+    if (!func_type.is_object_reference_type() || !func_type.has_index() ||
+        !this->module_->has_signature(func_type.ref_index())) {
+      this->errorf(this->pc_,
+                   "return_call_ref: Expected function reference on top of "
+                   "found %s of type %s instead",
+                   SafeOpcodeNameAt(func_ref.pc), func_type.name().c_str());
+      return 0;
+    }
+    const FunctionSig* sig = this->module_->signature(func_type.ref_index());
+    ArgVector args = PopArgs(sig);
+    CALL_INTERFACE_IF_REACHABLE(ReturnCallRef, func_ref, sig,
+                                func_type.ref_index(), args.begin());
+    EndControl();
+    return 1;
+  }
+
   DECODE(Numeric) {
     byte numeric_index =
         this->template read_u8<validate>(this->pc_ + 1, "numeric index");
@@ -2990,6 +3038,8 @@ class WasmFullDecoder : public WasmDecoder<validate> {
     DECODE_IMPL(CallIndirect);
     DECODE_IMPL(ReturnCall);
     DECODE_IMPL(ReturnCallIndirect);
+    DECODE_IMPL(CallRef);
+    DECODE_IMPL(ReturnCallRef);
     DECODE_IMPL2(kNumericPrefix, Numeric);
     DECODE_IMPL2(kSimdPrefix, Simd);
     DECODE_IMPL2(kAtomicPrefix, Atomic);

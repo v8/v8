@@ -484,6 +484,26 @@ class WasmGraphBuildingInterface {
                  imm.sig_index, args);
   }
 
+  void CallRef(FullDecoder* decoder, const Value& func_ref,
+               const FunctionSig* sig, uint32_t sig_index, const Value args[],
+               Value returns[]) {
+    CheckForNull null_check = func_ref.type.is_nullable()
+                                  ? CheckForNull::kWithNullCheck
+                                  : CheckForNull::kWithoutNullCheck;
+    DoCall(decoder, kRef, 0, null_check, func_ref.node, sig, sig_index, args,
+           returns);
+  }
+
+  void ReturnCallRef(FullDecoder* decoder, const Value& func_ref,
+                     const FunctionSig* sig, uint32_t sig_index,
+                     const Value args[]) {
+    CheckForNull null_check = func_ref.type.is_nullable()
+                                  ? CheckForNull::kWithNullCheck
+                                  : CheckForNull::kWithoutNullCheck;
+    DoReturnCall(decoder, kRef, 0, null_check, func_ref.node, sig, sig_index,
+                 args);
+  }
+
   void BrOnNull(FullDecoder* decoder, const Value& ref_object, uint32_t depth) {
     SsaEnv* non_null_env = ssa_env_;
     SsaEnv* null_env = Split(decoder->zone(), non_null_env);
@@ -1134,7 +1154,9 @@ class WasmGraphBuildingInterface {
               VectorOf(return_nodes), decoder->position());
         break;
       case kRef:
-        UNREACHABLE();
+        BUILD(CallRef, sig_index, VectorOf(arg_nodes), VectorOf(return_nodes),
+              null_check, decoder->position());
+        break;
     }
     for (size_t i = 0; i < return_count; ++i) {
       returns[i].node = return_nodes[i];
@@ -1163,7 +1185,8 @@ class WasmGraphBuildingInterface {
         BUILD(ReturnCall, sig_index, VectorOf(arg_nodes), decoder->position());
         break;
       case kRef:
-        UNREACHABLE();
+        BUILD(ReturnCallRef, sig_index, VectorOf(arg_nodes), null_check,
+              decoder->position());
     }
   }
 };

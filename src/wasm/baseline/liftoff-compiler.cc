@@ -2309,6 +2309,12 @@ class LiftoffCompiler {
     CallIndirect(decoder, index_val, imm, kNoReturnCall);
   }
 
+  void CallRef(FullDecoder* decoder, const Value& func_ref,
+               const FunctionSig* sig, uint32_t sig_index, const Value args[],
+               Value returns[]) {
+    unsupported(decoder, kRefTypes, "call_ref");
+  }
+
   void ReturnCall(FullDecoder* decoder,
                   const CallFunctionImmediate<validate>& imm,
                   const Value args[]) {
@@ -2319,6 +2325,12 @@ class LiftoffCompiler {
                           const CallIndirectImmediate<validate>& imm,
                           const Value args[]) {
     CallIndirect(decoder, index_val, imm, kReturnCall);
+  }
+
+  void ReturnCallRef(FullDecoder* decoder, const Value& func_ref,
+                     const FunctionSig* sig, uint32_t sig_index,
+                     const Value args[]) {
+    unsupported(decoder, kRefTypes, "call_ref");
   }
 
   void BrOnNull(FullDecoder* decoder, const Value& ref_object, uint32_t depth) {

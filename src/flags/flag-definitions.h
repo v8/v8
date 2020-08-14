@@ -786,6 +786,9 @@ DEFINE_STRING(dump_wasm_module_path, nullptr,
 FOREACH_WASM_FEATURE_FLAG(DECL_WASM_FLAG)
 #undef DECL_WASM_FLAG
 
+DEFINE_IMPLICATION(experimental_wasm_gc, experimental_wasm_typed_funcref)
+DEFINE_IMPLICATION(experimental_wasm_typed_funcref, experimental_wasm_reftypes)
+
 DEFINE_BOOL(wasm_staging, false, "enable staged wasm features")
 
 #define WASM_STAGING_IMPLICATION(feat, desc, val) \

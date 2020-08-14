@@ -192,7 +192,7 @@ Handle<Map> AllocateSubRtt(Isolate* isolate,
     // TODO(7748): Canonicalize rtts to make them work for identical function
     // types.
     rtt = Map::Copy(isolate, isolate->wasm_exported_function_map(),
-                    "fresh function map");
+                    "fresh function map for AllocateSubRtt");
   }
   cache = RttSubtypes::Insert(isolate, cache, type, rtt);
   parent->wasm_type_info().set_subtypes(*cache);
@@ -603,10 +603,11 @@ MaybeHandle<WasmInstanceObject> InstanceBuilder::Build() {
               CreateArrayMap(isolate_, module_, map_index, anyref_sentinel_map);
           break;
         case kWasmFunctionTypeCode:
-          // TODO(7748): Canonicalize rtts to make them work for identical
-          // function types.
+          // TODO(7748): Think about canonicalizing rtts to make them work for
+          // identical function types.
           map = Map::Copy(isolate_, isolate_->wasm_exported_function_map(),
-                          "fresh function map");
+                          "fresh function map for function type canonical rtt "
+                          "initialization");
           break;
       }
       maps->set(map_index, *map);

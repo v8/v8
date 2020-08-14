@@ -1797,6 +1797,7 @@ void WasmExportedFunctionData::WasmExportedFunctionDataPrint(
 
 void WasmJSFunctionData::WasmJSFunctionDataPrint(std::ostream& os) {  // NOLINT
   PrintHeader(os, "WasmJSFunctionData");
+  os << "\n - callable: " << Brief(callable());
   os << "\n - wrapper_code: " << Brief(wrapper_code());
   os << "\n";
 }

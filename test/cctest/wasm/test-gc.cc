@@ -900,6 +900,25 @@ TEST(FunctionRefs) {
   tester.CheckResult(test, 0);
 }
 
+TEST(CallRef) {
+  WasmGCTester tester;
+  byte callee = tester.DefineFunction(
+      tester.sigs.i_ii(), {},
+      {WASM_I32_ADD(WASM_GET_LOCAL(0), WASM_GET_LOCAL(1)), kExprEnd});
+  byte caller = tester.DefineFunction(
+      tester.sigs.i_i(), {},
+      {WASM_CALL_REF(WASM_REF_FUNC(callee), WASM_I32V(42), WASM_GET_LOCAL(0)),
+       kExprEnd});
+
+  // This is just so func_index counts as "declared".
+  tester.AddGlobal(ValueType::Ref(0, kNullable), false,
+                   WasmInitExpr::RefFuncConst(callee));
+
+  tester.CompileModule();
+
+  tester.CheckResult(caller, 47, 5);
+}
+
 TEST(RefTestCastNull) {
   WasmGCTester tester;
   byte type_index = tester.DefineStruct({F(wasm::kWasmI32, true)});

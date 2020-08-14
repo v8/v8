@@ -2976,6 +2976,153 @@ Node* WasmGraphBuilder::BuildLoadFunctionIndexFromExportedFunctionData(
   return function_index;
 }
 
+Node* HasInstanceType(WasmGraphAssembler* gasm, Node* object,
+                      InstanceType type) {
+  Node* map = gasm->Load(MachineType::TaggedPointer(), object,
+                         wasm::ObjectAccess::ToTagged(HeapObject::kMapOffset));
+  Node* instance_type =
+      gasm->Load(MachineType::Uint16(), map,
+                 wasm::ObjectAccess::ToTagged(Map::kInstanceTypeOffset));
+  return gasm->Word32Equal(instance_type, gasm->Int32Constant(type));
+}
+
+Node* WasmGraphBuilder::BuildCallRef(uint32_t sig_index, Vector<Node*> args,
+                                     Vector<Node*> rets,
+                                     CheckForNull null_check,
+                                     IsReturnCall continuation,
+                                     wasm::WasmCodePosition position) {
+  if (null_check == kWithNullCheck) {
+    TrapIfTrue(wasm::kTrapNullDereference, gasm_->WordEqual(args[0], RefNull()),
+               position);
+  }
+
+  const wasm::FunctionSig* sig = env_->module->signature(sig_index);
+
+  Node* function_data = BuildLoadFunctionDataFromExportedFunction(args[0]);
+
+  Node* is_js_function =
+      HasInstanceType(gasm_.get(), function_data, WASM_JS_FUNCTION_DATA_TYPE);
+
+  auto js_label = gasm_->MakeLabel();
+  auto end_label = gasm_->MakeLabel(MachineRepresentation::kTaggedPointer,
+                                    MachineRepresentation::kTaggedPointer);
+
+  gasm_->GotoIf(is_js_function, &js_label);
+
+  {
+    // Call to a WasmExportedFunction.
+    // Load instance object corresponding to module where callee is defined.
+    Node* callee_instance =
+        gasm_->Load(MachineType::TaggedPointer(), function_data,
+                    wasm::ObjectAccess::ToTagged(
+                        WasmExportedFunctionData::kInstanceOffset));
+
+    Node* function_index =
+        gasm_->Load(MachineType::TaggedPointer(), function_data,
+                    wasm::ObjectAccess::ToTagged(
+                        WasmExportedFunctionData::kFunctionIndexOffset));
+
+    auto imported_label = gasm_->MakeLabel();
+
+    // Check if callee is a locally defined or imported function it its module.
+    Node* imported_function_refs =
+        gasm_->Load(MachineType::TaggedPointer(), callee_instance,
+                    wasm::ObjectAccess::ToTagged(
+                        WasmInstanceObject::kImportedFunctionRefsOffset));
+    Node* imported_functions_num =
+        gasm_->Load(MachineType::TaggedPointer(), imported_function_refs,
+                    wasm::ObjectAccess::ToTagged(FixedArray::kLengthOffset));
+    gasm_->GotoIf(gasm_->SmiLessThan(function_index, imported_functions_num),
+                  &imported_label);
+    {
+      // Function locally defined in module.
+      Node* jump_table_start =
+          gasm_->Load(MachineType::Pointer(), callee_instance,
+                      wasm::ObjectAccess::ToTagged(
+                          WasmInstanceObject::kJumpTableStartOffset));
+      Node* jump_table_offset =
+          BuildLoadJumpTableOffsetFromExportedFunctionData(function_data);
+      Node* jump_table_slot =
+          gasm_->IntAdd(jump_table_start, jump_table_offset);
+
+      gasm_->Goto(&end_label, jump_table_slot,
+                  callee_instance /* Unused, dummy value */);
+    }
+
+    {
+      // Function imported to module.
+      // TODO(9495): Make sure it works with functions imported from other
+      // modules. Currently, this will never happen: Since functions have to be
+      // tunneled through JS, and we currently do not have a JS API to pass
+      // specific function types, we habe to export/import function references
+      // as funcref. Then, we cannot cast down to the type of the function,
+      // because we do not have access to the defining module's types. This
+      // could be fixed either by building a richer JS API, or by implementing
+      // the type import proposal. That said, this code should work for those
+      // cases too.
+      gasm_->Bind(&imported_label);
+
+      Node* imported_instance = gasm_->Load(
+          MachineType::TaggedPointer(), imported_function_refs,
+          gasm_->Int32Add(
+              gasm_->Int32Mul(BuildChangeSmiToInt32(function_index),
+                              gasm_->Int32Constant(kTaggedSize)),
+              gasm_->Int32Constant(FixedArray::kHeaderSize - kHeapObjectTag)));
+
+      Node* imported_function_targets =
+          gasm_->Load(MachineType::Pointer(), callee_instance,
+                      wasm::ObjectAccess::ToTagged(
+                          WasmInstanceObject::kImportedFunctionTargetsOffset));
+
+      Node* target_node =
+          gasm_->Load(MachineType::Pointer(), imported_function_targets,
+                      gasm_->IntMul(BuildChangeSmiToIntPtr(function_index),
+                                    gasm_->IntPtrConstant(kSystemPointerSize)));
+
+      gasm_->Goto(&end_label, target_node, imported_instance);
+    }
+  }
+
+  {
+    // Call to a WasmJSFunction.
+    // The call target is the wasm-to-js wrapper code.
+    gasm_->Bind(&js_label);
+    // TODO(7748): Implement.
+    TrapIfTrue(wasm::kTrapUnreachable, gasm_->Int32Constant(1), position);
+    gasm_->Goto(&end_label, args[0], RefNull() /* Dummy value */);
+  }
+
+  gasm_->Bind(&end_label);
+
+  args[0] = end_label.PhiAt(0);
+  Node* instance_node = end_label.PhiAt(1);
+
+  const UseRetpoline use_retpoline =
+      untrusted_code_mitigations_ ? kRetpoline : kNoRetpoline;
+
+  Node* call = continuation == kCallContinues
+                   ? BuildWasmCall(sig, args, rets, position, instance_node,
+                                   use_retpoline)
+                   : BuildWasmReturnCall(sig, args, position, instance_node,
+                                         use_retpoline);
+  return call;
+}
+
+Node* WasmGraphBuilder::CallRef(uint32_t sig_index, Vector<Node*> args,
+                                Vector<Node*> rets,
+                                WasmGraphBuilder::CheckForNull null_check,
+                                wasm::WasmCodePosition position) {
+  return BuildCallRef(sig_index, args, rets, null_check,
+                      IsReturnCall::kCallContinues, position);
+}
+
+Node* WasmGraphBuilder::ReturnCallRef(uint32_t sig_index, Vector<Node*> args,
+                                      WasmGraphBuilder::CheckForNull null_check,
+                                      wasm::WasmCodePosition position) {
+  return BuildCallRef(sig_index, args, {}, null_check,
+                      IsReturnCall::kReturnCall, position);
+}
+
 Node* WasmGraphBuilder::ReturnCall(uint32_t index, Vector<Node*> args,
                                    wasm::WasmCodePosition position) {
   DCHECK_NULL(args[0]);

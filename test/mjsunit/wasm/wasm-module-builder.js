@@ -210,6 +210,8 @@ let kExprCallFunction = 0x10;
 let kExprCallIndirect = 0x11;
 let kExprReturnCall = 0x12;
 let kExprReturnCallIndirect = 0x13;
+let kExprCallRef = 0x14;
+let kExprReturnCallRef = 0x15;
 let kExprDrop = 0x1a;
 let kExprSelect = 0x1b;
 let kExprSelectWithType = 0x1c;
@@ -382,9 +384,14 @@ let kExprRefIsNull = 0xd1;
 let kExprRefFunc = 0xd2;
 
 // Prefix opcodes
+let kGCPrefix = 0xfb;
 let kNumericPrefix = 0xfc;
 let kSimdPrefix = 0xfd;
 let kAtomicPrefix = 0xfe;
+
+// GC opcodes
+let kExprRttCanon = 0x30;
+let kExprRefCast = 0x41;
 
 // Numeric opcodes.
 let kExprMemoryInit = 0x08;
