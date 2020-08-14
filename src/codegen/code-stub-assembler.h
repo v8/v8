@@ -2484,9 +2484,9 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
   // [0, 2^32-1).
   TNode<BoolT> IsNumberArrayIndex(TNode<Number> number);
 
-  TNode<BoolT> FixedArraySizeDoesntFitInNewSpace(
-      Node* element_count, int base_size = FixedArray::kHeaderSize,
-      ParameterMode mode = INTPTR_PARAMETERS);
+  template <typename TIndex>
+  TNode<BoolT> FixedArraySizeDoesntFitInNewSpace(TNode<TIndex> element_count,
+                                                 int base_size);
 
   TNode<BoolT> IsMetaMap(TNode<HeapObject> o) { return IsMapMap(o); }
 
@@ -3300,9 +3300,10 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
                                   PropertyArray::kHeaderSize);
   }
 
-  void GotoIfFixedArraySizeDoesntFitInNewSpace(Node* element_count,
-                                               Label* doesnt_fit, int base_size,
-                                               ParameterMode mode);
+  template <typename TIndex>
+  void GotoIfFixedArraySizeDoesntFitInNewSpace(TNode<TIndex> element_count,
+                                               Label* doesnt_fit,
+                                               int base_size);
 
   void InitializeFieldsWithRoot(TNode<HeapObject> object,
                                 TNode<IntPtrT> start_offset,

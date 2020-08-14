@@ -3895,7 +3895,7 @@ TNode<FixedArray> CodeStubAssembler::ExtractToFixedArray(
       if (extract_flags & ExtractFixedArrayFlag::kNewSpaceAllocationOnly) {
         handle_old_space = false;
         CSA_ASSERT(this, Word32BinaryNot(FixedArraySizeDoesntFitInNewSpace(
-                             count, FixedArray::kHeaderSize, parameter_mode)));
+                             count, FixedArray::kHeaderSize)));
       } else {
         int constant_count;
         handle_old_space =
@@ -3908,8 +3908,8 @@ TNode<FixedArray> CodeStubAssembler::ExtractToFixedArray(
 
     Label old_space(this, Label::kDeferred);
     if (handle_old_space) {
-      GotoIfFixedArraySizeDoesntFitInNewSpace(
-          capacity, &old_space, FixedArray::kHeaderSize, parameter_mode);
+      GotoIfFixedArraySizeDoesntFitInNewSpace(capacity, &old_space,
+                                              FixedArray::kHeaderSize);
     }
 
     Comment("Copy FixedArray in young generation");
@@ -6369,12 +6369,16 @@ TNode<BoolT> CodeStubAssembler::IsNumberArrayIndex(TNode<Number> number) {
       [=] { return IsHeapNumberUint32(CAST(number)); });
 }
 
+template <typename TIndex>
 TNode<BoolT> CodeStubAssembler::FixedArraySizeDoesntFitInNewSpace(
-    Node* element_count, int base_size, ParameterMode mode) {
+    TNode<TIndex> element_count, int base_size) {
+  static_assert(
+      std::is_same<TIndex, Smi>::value || std::is_same<TIndex, IntPtrT>::value,
+      "Only Smi or IntPtrT element_count is allowed");
   int max_newspace_elements =
       (kMaxRegularHeapObjectSize - base_size) / kTaggedSize;
   return IntPtrOrSmiGreaterThan(
-      element_count, IntPtrOrSmiConstant(max_newspace_elements, mode), mode);
+      element_count, IntPtrOrSmiConstant<TIndex>(max_newspace_elements));
 }
 
 TNode<Int32T> CodeStubAssembler::StringCharCodeAt(TNode<String> string,
@@ -10359,9 +10363,10 @@ void CodeStubAssembler::BuildFastArrayForEach(
                                               : IndexAdvanceMode::kPost);
 }
 
+template <typename TIndex>
 void CodeStubAssembler::GotoIfFixedArraySizeDoesntFitInNewSpace(
-    Node* element_count, Label* doesnt_fit, int base_size, ParameterMode mode) {
-  GotoIf(FixedArraySizeDoesntFitInNewSpace(element_count, base_size, mode),
+    TNode<TIndex> element_count, Label* doesnt_fit, int base_size) {
+  GotoIf(FixedArraySizeDoesntFitInNewSpace(element_count, base_size),
          doesnt_fit);
 }
 
