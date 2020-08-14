@@ -348,19 +348,8 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
 
   TNode<Smi> ParameterToTagged(TNode<IntPtrT> value) { return SmiTag(value); }
 
-  TNode<Smi> ParameterToTagged(Node* value, ParameterMode mode) {
-    if (mode != SMI_PARAMETERS) return SmiTag(value);
-    return UncheckedCast<Smi>(value);
-  }
-
   template <typename TIndex>
   TNode<TIndex> TaggedToParameter(TNode<Smi> value);
-
-  // TODO(v8:9708): remove once all uses are ported.
-  Node* TaggedToParameter(TNode<Smi> value, ParameterMode mode) {
-    if (mode != SMI_PARAMETERS) return SmiUntag(value);
-    return value;
-  }
 
   bool ToParameterConstant(Node* node, intptr_t* out, ParameterMode mode) {
     if (mode == ParameterMode::SMI_PARAMETERS) {
