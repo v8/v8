@@ -380,6 +380,7 @@ TF_BUILTIN(AtomicsExchange, SharedArrayBufferBuiltinsAssembler) {
   TNode<UintPtrT> index_word = ValidateAtomicAccess(array, index, context);
 
 #if V8_TARGET_ARCH_MIPS || V8_TARGET_ARCH_MIPS64
+  USE(array_buffer);
   TNode<Number> index_number = ChangeUintPtrToTagged(index_word);
   Return(CallRuntime(Runtime::kAtomicsExchange, context, array, index_number,
                      value));
@@ -480,13 +481,13 @@ TF_BUILTIN(AtomicsExchange, SharedArrayBufferBuiltinsAssembler) {
   // This shouldn't happen, we've already validated the type.
   BIND(&other);
   Unreachable();
+#endif  // V8_TARGET_ARCH_MIPS || V8_TARGET_ARCH_MIPS64
 
   BIND(&detached);
   {
     ThrowTypeError(context, MessageTemplate::kDetachedOperation,
                    "Atomics.exchange");
   }
-#endif  // V8_TARGET_ARCH_MIPS || V8_TARGET_ARCH_MIPS64
 }
 
 // https://tc39.es/ecma262/#sec-atomics.compareexchange
@@ -510,6 +511,7 @@ TF_BUILTIN(AtomicsCompareExchange, SharedArrayBufferBuiltinsAssembler) {
 
 #if V8_TARGET_ARCH_MIPS || V8_TARGET_ARCH_MIPS64 || V8_TARGET_ARCH_PPC64 || \
     V8_TARGET_ARCH_PPC || V8_TARGET_ARCH_S390 || V8_TARGET_ARCH_S390X
+  USE(array_buffer);
   TNode<Number> index_number = ChangeUintPtrToTagged(index_word);
   Return(CallRuntime(Runtime::kAtomicsCompareExchange, context, array,
                      index_number, old_value, new_value));
@@ -628,14 +630,14 @@ TF_BUILTIN(AtomicsCompareExchange, SharedArrayBufferBuiltinsAssembler) {
   // This shouldn't happen, we've already validated the type.
   BIND(&other);
   Unreachable();
+#endif  // V8_TARGET_ARCH_MIPS || V8_TARGET_ARCH_MIPS64 || V8_TARGET_ARCH_PPC64
+        // || V8_TARGET_ARCH_PPC || V8_TARGET_ARCH_S390 || V8_TARGET_ARCH_S390X
 
   BIND(&detached);
   {
     ThrowTypeError(context, MessageTemplate::kDetachedOperation,
                    "Atomics.store");
   }
-#endif  // V8_TARGET_ARCH_MIPS || V8_TARGET_ARCH_MIPS64 || V8_TARGET_ARCH_PPC64
-        // || V8_TARGET_ARCH_PPC || V8_TARGET_ARCH_S390 || V8_TARGET_ARCH_S390X
 }
 
 #define BINOP_BUILTIN(op, method_name)                              \
@@ -678,6 +680,7 @@ void SharedArrayBufferBuiltinsAssembler::AtomicBinopBuiltinCommon(
 
 #if V8_TARGET_ARCH_MIPS || V8_TARGET_ARCH_MIPS64 || V8_TARGET_ARCH_PPC64 || \
     V8_TARGET_ARCH_PPC || V8_TARGET_ARCH_S390 || V8_TARGET_ARCH_S390X
+  USE(array_buffer);
   TNode<Number> index_number = ChangeUintPtrToTagged(index_word);
   Return(CallRuntime(runtime_function, context, array, index_number, value));
 #else
@@ -778,11 +781,11 @@ void SharedArrayBufferBuiltinsAssembler::AtomicBinopBuiltinCommon(
   // This shouldn't happen, we've already validated the type.
   BIND(&other);
   Unreachable();
+#endif  // V8_TARGET_ARCH_MIPS || V8_TARGET_ARCH_MIPS64 || V8_TARGET_ARCH_PPC64
+        // || V8_TARGET_ARCH_PPC || V8_TARGET_ARCH_S390 || V8_TARGET_ARCH_S390X
 
   BIND(&detached);
   ThrowTypeError(context, MessageTemplate::kDetachedOperation, method_name);
-#endif  // V8_TARGET_ARCH_MIPS || V8_TARGET_ARCH_MIPS64 || V8_TARGET_ARCH_PPC64
-        // || V8_TARGET_ARCH_PPC || V8_TARGET_ARCH_S390 || V8_TARGET_ARCH_S390X
 }
 
 }  // namespace internal
