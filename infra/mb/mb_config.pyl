@@ -252,6 +252,7 @@
       'v8_win64_rel_ng': 'release_x64_trybot',
       'v8_mac_arm64_rel_ng': 'release_arm64',
       'v8_mac_arm64_dbg_ng': 'debug_arm64',
+      'v8_mac_arm64_full_dbg_ng': 'full_debug_arm64',
       'v8_mac64_gc_stress_dbg_ng': 'debug_x64_trybot',
       'v8_mac64_rel_ng': 'release_x64_trybot',
       'v8_mac64_dbg': 'debug_x64',
@@ -404,6 +405,8 @@
       'debug_bot', 'arm', 'hard_float'],
     'debug_arm64': [
       'debug_bot', 'arm64'],
+    'full_debug_arm64': [
+      'debug_bot', 'arm64', 'v8_full_debug'],
 
     # Release configs for arm.
     'release_arm': [
