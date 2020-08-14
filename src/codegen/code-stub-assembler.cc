@@ -6711,12 +6711,40 @@ TNode<String> CodeStubAssembler::NumberToString(TNode<Number> input,
         Signed(ChangeUint32ToWord(Int32Add(hash, hash)));
     TNode<Object> smi_key =
         UnsafeLoadFixedArrayElement(number_string_cache, entry_index);
-    GotoIf(TaggedNotEqual(smi_key, smi_input.value()), bailout);
+    Label if_smi_cache_missed(this);
+    GotoIf(TaggedNotEqual(smi_key, smi_input.value()), &if_smi_cache_missed);
 
     // Smi match, return value from cache entry.
     result = CAST(UnsafeLoadFixedArrayElement(number_string_cache, entry_index,
                                               kTaggedSize));
     Goto(&done);
+
+    BIND(&if_smi_cache_missed);
+    {
+      Label store_to_cache(this);
+
+      // Bailout when the cache is not full-size.
+      const int kFullCacheSize =
+          isolate()->heap()->MaxNumberToStringCacheSize();
+      Branch(IntPtrLessThan(number_string_cache_length,
+                            IntPtrConstant(kFullCacheSize)),
+             bailout, &store_to_cache);
+
+      BIND(&store_to_cache);
+      {
+        // Generate string and update string hash field.
+        result = NumberToStringSmi(SmiToInt32(smi_input.value()),
+                                   Int32Constant(10), bailout);
+
+        // Store string into cache.
+        StoreFixedArrayElement(number_string_cache, entry_index,
+                               smi_input.value());
+        StoreFixedArrayElement(number_string_cache,
+                               IntPtrAdd(entry_index, IntPtrConstant(1)),
+                               result.value());
+        Goto(&done);
+      }
+    }
   }
   BIND(&done);
   return result.value();
@@ -6725,6 +6753,8 @@ TNode<String> CodeStubAssembler::NumberToString(TNode<Number> input,
 TNode<String> CodeStubAssembler::NumberToString(TNode<Number> input) {
   TVARIABLE(String, result);
   Label runtime(this, Label::kDeferred), done(this, &result);
+
+  GotoIfForceSlowPath(&runtime);
 
   result = NumberToString(input, &runtime);
   Goto(&done);

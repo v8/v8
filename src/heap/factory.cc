@@ -2918,7 +2918,8 @@ V8_INLINE Handle<String> CharToString(Factory* factory, const char* string,
 
 void Factory::NumberToStringCacheSet(Handle<Object> number, int hash,
                                      Handle<String> js_string) {
-  if (!number_string_cache()->get(hash * 2).IsUndefined(isolate())) {
+  if (!number_string_cache()->get(hash * 2).IsUndefined(isolate()) &&
+      !FLAG_optimize_for_size) {
     int full_size = isolate()->heap()->MaxNumberToStringCacheSize();
     if (number_string_cache()->length() != full_size) {
       Handle<FixedArray> new_cache =
