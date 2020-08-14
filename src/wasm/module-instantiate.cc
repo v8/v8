@@ -6,6 +6,7 @@
 
 #include "src/asmjs/asm-js.h"
 #include "src/logging/counters.h"
+#include "src/logging/metrics.h"
 #include "src/numbers/conversions-inl.h"
 #include "src/objects/property-descriptor.h"
 #include "src/tracing/trace-event.h"
@@ -203,8 +204,8 @@ Handle<Map> AllocateSubRtt(Isolate* isolate,
 // It closes over the {Isolate}, the {ErrorThrower}, etc.
 class InstanceBuilder {
  public:
-  InstanceBuilder(Isolate* isolate, ErrorThrower* thrower,
-                  Handle<WasmModuleObject> module_object,
+  InstanceBuilder(Isolate* isolate, v8::metrics::Recorder::ContextId context_id,
+                  ErrorThrower* thrower, Handle<WasmModuleObject> module_object,
                   MaybeHandle<JSReceiver> ffi,
                   MaybeHandle<JSArrayBuffer> memory_buffer);
 
@@ -222,6 +223,7 @@ class InstanceBuilder {
   };
 
   Isolate* isolate_;
+  v8::metrics::Recorder::ContextId context_id_;
   const WasmFeatures enabled_;
   const WasmModule* const module_;
   ErrorThrower* thrower_;
@@ -357,7 +359,9 @@ MaybeHandle<WasmInstanceObject> InstantiateToInstanceObject(
     Isolate* isolate, ErrorThrower* thrower,
     Handle<WasmModuleObject> module_object, MaybeHandle<JSReceiver> imports,
     MaybeHandle<JSArrayBuffer> memory_buffer) {
-  InstanceBuilder builder(isolate, thrower, module_object, imports,
+  v8::metrics::Recorder::ContextId context_id =
+      isolate->GetOrRegisterRecorderContextId(isolate->native_context());
+  InstanceBuilder builder(isolate, context_id, thrower, module_object, imports,
                           memory_buffer);
   auto instance = builder.Build();
   if (!instance.is_null() && builder.ExecuteStartFunction()) {
@@ -367,11 +371,14 @@ MaybeHandle<WasmInstanceObject> InstantiateToInstanceObject(
   return {};
 }
 
-InstanceBuilder::InstanceBuilder(Isolate* isolate, ErrorThrower* thrower,
+InstanceBuilder::InstanceBuilder(Isolate* isolate,
+                                 v8::metrics::Recorder::ContextId context_id,
+                                 ErrorThrower* thrower,
                                  Handle<WasmModuleObject> module_object,
                                  MaybeHandle<JSReceiver> ffi,
                                  MaybeHandle<JSArrayBuffer> memory_buffer)
     : isolate_(isolate),
+      context_id_(context_id),
       enabled_(module_object->native_module()->enabled_features()),
       module_(module_object->module()),
       thrower_(thrower),
@@ -401,6 +408,11 @@ MaybeHandle<WasmInstanceObject> InstanceBuilder::Build() {
   // Record build time into correct bucket, then build instance.
   TimedHistogramScope wasm_instantiate_module_time_scope(SELECT_WASM_COUNTER(
       isolate_->counters(), module_->origin, wasm_instantiate, module_time));
+  v8::metrics::WasmModuleInstantiated wasm_module_instantiated;
+  metrics::TimedScope<v8::metrics::WasmModuleInstantiated>
+      wasm_module_instantiated_timed_scope(
+          &wasm_module_instantiated,
+          &v8::metrics::WasmModuleInstantiated::wall_clock_time_in_us);
   NativeModule* native_module = module_object_->native_module();
 
   //--------------------------------------------------------------------------
@@ -579,6 +591,7 @@ MaybeHandle<WasmInstanceObject> InstanceBuilder::Build() {
   //--------------------------------------------------------------------------
   int num_imported_functions = ProcessImports(instance);
   if (num_imported_functions < 0) return {};
+  wasm_module_instantiated.imported_function_count = num_imported_functions;
 
   //--------------------------------------------------------------------------
   // Create maps for managed objects (GC proposal).
@@ -714,6 +727,10 @@ MaybeHandle<WasmInstanceObject> InstanceBuilder::Build() {
   DCHECK(!isolate_->has_pending_exception());
   TRACE("Successfully built instance for module %p\n",
         module_object_->native_module());
+  wasm_module_instantiated.success = true;
+  wasm_module_instantiated_timed_scope.Stop();
+  isolate_->metrics_recorder()->DelayMainThreadEvent(wasm_module_instantiated,
+                                                     context_id_);
   return instance;
 }
 
