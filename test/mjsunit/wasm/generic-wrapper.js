@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-// Flags: --wasm-generic-wrapper
+// Flags: --wasm-generic-wrapper --expose-gc
 
 load("test/mjsunit/wasm/wasm-module-builder.js");
 
@@ -19,10 +19,12 @@ load("test/mjsunit/wasm/wasm-module-builder.js");
 
   let x = 12;
   function import_func() {
+    gc();
     x = 20;
   }
 
-  builder.instantiate({ mod: { func: import_func } }).exports.main();
+  let instance = builder.instantiate({ mod: { func: import_func } });
+  assertEquals(undefined, instance.exports.main());
   assertEquals(x, 20);
 })();
 
@@ -67,6 +69,7 @@ load("test/mjsunit/wasm/wasm-module-builder.js");
 
   let x = 12;
   function import_func(param) {
+    gc();
     x += param;
   }
 
@@ -88,10 +91,11 @@ load("test/mjsunit/wasm/wasm-module-builder.js");
 
   let x = 12;
   function import_func(param) {
+    gc();
     x += param;
   }
 
-  let y = {valueOf:() => {return 24;}};
+  let y = { valueOf: () => { print("Hello!"); gc(); return 24; } };
   let instance = builder.instantiate({ mod: { func: import_func } });
   instance.exports.main(y);
   assertEquals(36, x);

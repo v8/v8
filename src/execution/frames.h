@@ -1000,6 +1000,8 @@ class JsToWasmFrame : public StubFrame {
  public:
   Type type() const override { return JS_TO_WASM; }
 
+  void Iterate(RootVisitor* v) const override;
+
  protected:
   inline explicit JsToWasmFrame(StackFrameIteratorBase* iterator);
 

@@ -623,8 +623,8 @@ StackFrame::Type StackFrame::ComputeType(const StackFrameIteratorBase* iterator,
     case WASM_COMPILE_LAZY:
     case WASM_EXIT:
     case WASM_DEBUG_BREAK:
-      return candidate;
     case JS_TO_WASM:
+      return candidate;
     case OPTIMIZED:
     case INTERPRETED:
     default:
@@ -1957,6 +1957,35 @@ Address WasmDebugBreakFrame::GetCallerStackPointer() const {
   // WasmDebugBreak does not receive any arguments, hence the stack pointer of
   // the caller is at a fixed offset from the frame pointer.
   return fp() + WasmDebugBreakFrameConstants::kCallerSPOffset;
+}
+
+void JsToWasmFrame::Iterate(RootVisitor* v) const {
+  Code code = GetContainingCode(isolate(), pc());
+  //  GenericJSToWasmWrapper stack layout
+  //  ------+-----------------+----------------------
+  //        |  return addr    |
+  //    rbp |- - - - - - - - -| <-fp() -------------|
+  //        |      rbp        |                     |
+  //  rbp-p |- - - - - - - - -|                     |
+  //        |  frame marker   |                     | no GC scan
+  // rbp-2p | - - - - - - - - | <- spill_slot_limit |
+  //        |  signature_type |                     |
+  // rbp-3p |- - - - - - - - -|  -------------------|
+  //        |      ....       |                     |
+  //        |   spill slots   |                     | GC scan
+  //        |      ....       |<- spill_slot_base   |
+  //        |- - - - - - - - -|  -------------------|
+  if (code.is_null() || !code.is_builtin() ||
+      code.builtin_index() != Builtins::kGenericJSToWasmWrapper) {
+    // If it's not the  GenericJSToWasmWrapper, then it's the TurboFan compiled
+    // specific wrapper. So we have to call IterateCompiledFrame.
+    IterateCompiledFrame(v);
+    return;
+  }
+  FullObjectSlot spill_slot_base(&Memory<Address>(sp()));
+  FullObjectSlot spill_slot_limit(
+      &Memory<Address>(fp() - 2 * kSystemPointerSize));
+  v->VisitRootPointers(Root::kTop, nullptr, spill_slot_base, spill_slot_limit);
 }
 
 Code WasmCompileLazyFrame::unchecked_code() const { return Code(); }

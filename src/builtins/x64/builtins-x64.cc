@@ -3280,14 +3280,16 @@ void Builtins::Generate_GenericJSToWasmWrapper(MacroAssembler* masm) {
   jump_table_offset = no_reg;
   jump_table_start = no_reg;
 
-  __ pushq(wasm_instance);
+  // The order of pushes is important. We want the heap objects, that should be
+  // scanned by GC, to be on the top of the stack.
   __ pushq(signature_type);
+  __ pushq(wasm_instance);
 
   __ call(function_entry);
   function_entry = no_reg;
 
-  __ popq(signature_type);
   __ popq(wasm_instance);
+  __ popq(signature_type);
 
   // Unset thread_in_wasm_flag.
   thread_in_wasm_flag_addr = r8;
@@ -3315,9 +3317,11 @@ void Builtins::Generate_GenericJSToWasmWrapper(MacroAssembler* masm) {
   // Handle the conversion to int32 when the param is not a smi.
   __ bind(&not_smi);
 
+  // The order of pushes is important. We want the heap objects, that should be
+  // scanned by GC, to be on the top of the stack.
+  __ pushq(signature_type);
   __ pushq(wasm_instance);
   __ pushq(function_data);
-  __ pushq(signature_type);
   __ LoadAnyTaggedField(
       rsi,
       MemOperand(wasm_instance, wasm::ObjectAccess::ToTagged(
@@ -3327,9 +3331,9 @@ void Builtins::Generate_GenericJSToWasmWrapper(MacroAssembler* masm) {
   __ Call(BUILTIN_CODE(masm->isolate(), WasmTaggedNonSmiToInt32),
           RelocInfo::CODE_TARGET);
 
-  __ popq(signature_type);
   __ popq(function_data);
   __ popq(wasm_instance);
+  __ popq(signature_type);
 
   __ jmp(&params_done);
 }
