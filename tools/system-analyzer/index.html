@@ -102,12 +102,15 @@ found in the LICENSE file. -->
 
     #container.loaded {
       display: grid;
-      grid-template-columns: repeat(auto-fit, minmax(500px, 1fr));
+      align-content: center;
+      grid-template-columns: repeat(auto-fit, minmax(400px, 800px));
+      grid-template-rows: repeat(auto-fit, minmax(400px, 800px));
       grid-auto-flow: dense;
     }
 
     #container.loaded>#timeline-panel {
       grid-column: span 2;
+      overflow: scroll;
     }
   </style>
   <script type="module">
