@@ -88,11 +88,10 @@ inline CPURegister AcquireByType(UseScratchRegisterScope* temps,
   }
 }
 
+template <typename T>
 inline MemOperand GetMemOp(LiftoffAssembler* assm,
                            UseScratchRegisterScope* temps, Register addr,
-                           Register offset, uint32_t offset_imm) {
-  // Wasm memory is limited to a size <4GB.
-  DCHECK(is_uint32(offset_imm));
+                           Register offset, T offset_imm) {
   if (offset.is_valid()) {
     if (offset_imm == 0) return MemOperand(addr.X(), offset.W(), UXTW);
     Register tmp = temps->AcquireW();
@@ -335,7 +334,7 @@ void LiftoffAssembler::FillInstanceInto(Register dst) {
 
 void LiftoffAssembler::LoadTaggedPointer(Register dst, Register src_addr,
                                          Register offset_reg,
-                                         uint32_t offset_imm,
+                                         int32_t offset_imm,
                                          LiftoffRegList pinned) {
   UseScratchRegisterScope temps(this);
   MemOperand src_op =

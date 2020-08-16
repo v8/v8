@@ -479,7 +479,7 @@ class LiftoffAssembler : public TurboAssembler {
   inline void SpillInstance(Register instance);
   inline void FillInstanceInto(Register dst);
   inline void LoadTaggedPointer(Register dst, Register src_addr,
-                                Register offset_reg, uint32_t offset_imm,
+                                Register offset_reg, int32_t offset_imm,
                                 LiftoffRegList pinned);
   inline void Load(LiftoffRegister dst, Register src_addr, Register offset_reg,
                    uint32_t offset_imm, LoadType type, LiftoffRegList pinned,
