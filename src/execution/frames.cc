@@ -623,8 +623,8 @@ StackFrame::Type StackFrame::ComputeType(const StackFrameIteratorBase* iterator,
     case WASM_COMPILE_LAZY:
     case WASM_EXIT:
     case WASM_DEBUG_BREAK:
-    case JS_TO_WASM:
       return candidate;
+    case JS_TO_WASM:
     case OPTIMIZED:
     case INTERPRETED:
     default:
