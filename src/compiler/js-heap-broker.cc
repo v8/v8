@@ -1599,9 +1599,6 @@ class BytecodeArrayData : public FixedArrayBaseData {
       constant_pool_.push_back(broker->GetOrCreateData(constant_pool->get(i)));
     }
 
-    source_positions_ = broker->CanonicalPersistentHandle(
-        bytecodes->SourcePositionTableIfCollected());
-
     Handle<ByteArray> handlers(bytecodes->handler_table(), broker->isolate());
     handler_table_.reserve(handlers->length());
     for (int i = 0; i < handlers->length(); i++) {
@@ -1610,8 +1607,6 @@ class BytecodeArrayData : public FixedArrayBaseData {
 
     is_serialized_for_compilation_ = true;
   }
-
-  Handle<ByteArray> source_positions() const { return source_positions_; }
 
   Address handler_table_address() const {
     CHECK(is_serialized_for_compilation_);
@@ -1639,7 +1634,6 @@ class BytecodeArrayData : public FixedArrayBaseData {
   interpreter::Register const incoming_new_target_or_generator_register_;
 
   bool is_serialized_for_compilation_ = false;
-  Handle<ByteArray> source_positions_;
   ZoneVector<uint8_t> handler_table_;
   ZoneVector<ObjectData*> constant_pool_;
 };
@@ -3270,14 +3264,8 @@ void BytecodeArrayRef::SerializeForCompilation() {
 }
 
 Handle<ByteArray> BytecodeArrayRef::source_positions() const {
-  if (data_->should_access_heap()) {
-    DCHECK(data_->kind() != ObjectDataKind::kUnserializedReadOnlyHeapObject);
-    AllowHandleDereferenceIf allow_handle_dereference(data()->kind(),
-                                                      broker()->mode());
-    return handle(object()->SourcePositionTableIfCollected(),
-                  broker()->isolate());
-  }
-  return data()->AsBytecodeArray()->source_positions();
+  return broker()->CanonicalPersistentHandle(
+      object()->SourcePositionTableIfCollected());
 }
 
 Address BytecodeArrayRef::handler_table_address() const {
