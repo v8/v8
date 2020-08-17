@@ -33,7 +33,16 @@ namespace compiler {
 class Schedule;
 class SourcePositionTable;
 
-class V8_EXPORT_PRIVATE ALIGNAS(8) InstructionOperand {
+#if defined(V8_CC_MSVC) && defined(V8_TARGET_ARCH_IA32)
+// MSVC on x86 has issues with ALIGNAS(8) on InstructionOperand, but does
+// align the object to 8 bytes anyway (covered by a static assert below).
+// See crbug.com/v8/10796
+#define INSTRUCTION_OPERAND_ALIGN
+#else
+#define INSTRUCTION_OPERAND_ALIGN ALIGNAS(8)
+#endif
+
+class V8_EXPORT_PRIVATE INSTRUCTION_OPERAND_ALIGN InstructionOperand {
  public:
   static const int kInvalidVirtualRegister = -1;
 
@@ -1693,6 +1702,7 @@ class V8_EXPORT_PRIVATE InstructionSequence final
 
 V8_EXPORT_PRIVATE std::ostream& operator<<(std::ostream&,
                                            const InstructionSequence&);
+#undef INSTRUCTION_OPERAND_ALIGN
 
 }  // namespace compiler
 }  // namespace internal
