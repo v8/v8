@@ -1114,6 +1114,8 @@ IrregexpInterpreter::Result IrregexpInterpreter::MatchForCallFromJs(
 
   DisallowHeapAllocation no_gc;
   DisallowJavascriptExecution no_js(isolate);
+  DisallowHandleAllocation no_handles;
+  DisallowHandleDereference no_deref;
 
   String subject_string = String::cast(Object(subject));
   JSRegExp regexp_obj = JSRegExp::cast(Object(regexp));

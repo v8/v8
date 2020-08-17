@@ -247,14 +247,20 @@ bool JSRegExp::ShouldProduceBytecode() {
          (FLAG_regexp_tier_up && !MarkedForTierUp());
 }
 
-// An irregexp is considered to be marked for tier up if the tier-up ticks value
-// reaches zero. An atom is not subject to tier-up implementation, so the
-// tier-up ticks value is not set.
+// Only irregexps are subject to tier-up.
+bool JSRegExp::CanTierUp() {
+  return FLAG_regexp_tier_up && TypeTag() == JSRegExp::IRREGEXP;
+}
+
+// An irregexp is considered to be marked for tier up if the tier-up ticks
+// value reaches zero.
 bool JSRegExp::MarkedForTierUp() {
   DCHECK(data().IsFixedArray());
-  if (TypeTag() == JSRegExp::ATOM || !FLAG_regexp_tier_up) {
+
+  if (!CanTierUp()) {
     return false;
   }
+
   return Smi::ToInt(DataAt(kIrregexpTicksUntilTierUpIndex)) == 0;
 }
 

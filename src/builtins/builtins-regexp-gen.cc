@@ -28,7 +28,15 @@ using compiler::Node;
 // static
 void Builtins::Generate_RegExpInterpreterTrampoline(MacroAssembler* masm) {
   ExternalReference interpreter_code_entry =
-      ExternalReference::re_match_for_call_from_js(masm->isolate());
+      ExternalReference::re_match_for_call_from_js();
+  masm->Jump(interpreter_code_entry);
+}
+
+// Tail calls the experimental regular expression engine.
+// static
+void Builtins::Generate_RegExpExperimentalTrampoline(MacroAssembler* masm) {
+  ExternalReference interpreter_code_entry =
+      ExternalReference::re_experimental_match_for_call_from_js();
   masm->Jump(interpreter_code_entry);
 }
 
@@ -399,9 +407,9 @@ TNode<HeapObject> RegExpBuiltinsAssembler::RegExpExecInternal(
       int32_t values[] = {
           JSRegExp::IRREGEXP,
           JSRegExp::ATOM,
-          JSRegExp::NOT_COMPILED,
+          JSRegExp::EXPERIMENTAL,
       };
-      Label* labels[] = {&next, &atom, &runtime};
+      Label* labels[] = {&next, &atom, &next};
 
       STATIC_ASSERT(arraysize(values) == arraysize(labels));
       Switch(tag, &unreachable, values, labels, arraysize(values));
