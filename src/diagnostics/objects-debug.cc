@@ -703,12 +703,10 @@ void JSArgumentsObject::JSArgumentsObjectVerify(Isolate* isolate) {
 
 void JSAsyncFunctionObject::JSAsyncFunctionObjectVerify(Isolate* isolate) {
   TorqueGeneratedClassVerifiers::JSAsyncFunctionObjectVerify(*this, isolate);
-  promise().HeapObjectVerify(isolate);
 }
 
 void JSAsyncGeneratorObject::JSAsyncGeneratorObjectVerify(Isolate* isolate) {
   TorqueGeneratedClassVerifiers::JSAsyncGeneratorObjectVerify(*this, isolate);
-  queue().HeapObjectVerify(isolate);
 }
 
 void JSDate::JSDateVerify(Isolate* isolate) {
@@ -1344,7 +1342,6 @@ void AsyncGeneratorRequest::AsyncGeneratorRequestVerify(Isolate* isolate) {
   TorqueGeneratedClassVerifiers::AsyncGeneratorRequestVerify(*this, isolate);
   CHECK_GE(resume_mode(), JSGeneratorObject::kNext);
   CHECK_LE(resume_mode(), JSGeneratorObject::kThrow);
-  next().ObjectVerify(isolate);
 }
 
 void BigIntBase::BigIntBaseVerify(Isolate* isolate) {
