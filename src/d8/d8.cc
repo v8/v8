@@ -472,6 +472,7 @@ std::atomic<int> Shell::unhandled_promise_rejections_{0};
 
 Global<Context> Shell::evaluation_context_;
 ArrayBuffer::Allocator* Shell::array_buffer_allocator;
+bool check_d8_flag_contradictions = true;
 ShellOptions Shell::options;
 base::OnceType Shell::quit_once_ = V8_ONCE_INIT;
 
@@ -3233,6 +3234,7 @@ void Worker::PostMessageOut(const v8::FunctionCallbackInfo<v8::Value>& args) {
 
 bool Shell::SetOptions(int argc, char* argv[]) {
   bool logfile_per_isolate = false;
+  bool no_always_opt = false;
   for (int i = 0; i < argc; i++) {
     if (strcmp(argv[i], "--") == 0) {
       argv[i] = nullptr;
@@ -3260,8 +3262,9 @@ bool Shell::SetOptions(int argc, char* argv[]) {
       argv[i] = nullptr;
     } else if (strcmp(argv[i], "--noalways-opt") == 0 ||
                strcmp(argv[i], "--no-always-opt") == 0) {
-      // No support for stressing if we can't use --always-opt.
-      options.stress_opt = false;
+      no_always_opt = true;
+    } else if (strcmp(argv[i], "--fuzzing") == 0) {
+      check_d8_flag_contradictions = false;
     } else if (strcmp(argv[i], "--logfile-per-isolate") == 0) {
       logfile_per_isolate = true;
       argv[i] = nullptr;
@@ -3402,6 +3405,10 @@ bool Shell::SetOptions(int argc, char* argv[]) {
     }
   }
 
+  if (options.stress_opt && no_always_opt) {
+    FATAL("Flag --no-always-opt is incompatible with --stress-opt.");
+  }
+
   const char* usage =
       "Synopsis:\n"
       "  shell [options] [--shell] [<file>...]\n"
@@ -3410,6 +3417,7 @@ bool Shell::SetOptions(int argc, char* argv[]) {
       "  --shell   run an interactive JavaScript shell\n"
       "  --module  execute a file as a JavaScript module\n\n";
   using HelpOptions = i::FlagList::HelpOptions;
+  i::FLAG_abort_on_contradictory_flags = true;
   i::FlagList::SetFlagsFromCommandLine(&argc, argv, true,
                                        HelpOptions(HelpOptions::kExit, usage));
   options.mock_arraybuffer_allocator = i::FLAG_mock_arraybuffer_allocator;
@@ -3870,12 +3878,11 @@ class D8Testing {
         "--max-inlined-bytecode-size=999999 "
         "--max-inlined-bytecode-size-cumulative=999999 "
         "--noalways-opt";
-    static const char* kForcedOptimizations = "--always-opt";
 
-    if (run == GetStressRuns() - 1) {
-      V8::SetFlagsFromString(kForcedOptimizations);
-    } else {
+    if (run == 0) {
       V8::SetFlagsFromString(kLazyOptimizations);
+    } else if (run == GetStressRuns() - 1) {
+      i::FLAG_always_opt = true;
     }
   }
 
@@ -4117,7 +4124,7 @@ int Shell::Main(int argc, char* argv[]) {
         options.stress_runs = D8Testing::GetStressRuns();
         for (int i = 0; i < options.stress_runs && result == 0; i++) {
           printf("============ Stress %d/%d ============\n", i + 1,
-                 options.stress_runs);
+                 options.stress_runs.get());
           D8Testing::PrepareStressRun(i);
           bool last_run = i == options.stress_runs - 1;
           result = RunMain(isolate, last_run);
@@ -4128,7 +4135,7 @@ int Shell::Main(int argc, char* argv[]) {
         options.stress_runs = i::FLAG_stress_runs;
         for (int i = 0; i < options.stress_runs && result == 0; i++) {
           printf("============ Run %d/%d ============\n", i + 1,
-                 options.stress_runs);
+                 options.stress_runs.get());
           bool last_run = i == options.stress_runs - 1;
           result = RunMain(isolate, last_run);
         }
@@ -4155,14 +4162,16 @@ int Shell::Main(int argc, char* argv[]) {
         DCHECK(options.compile_options == v8::ScriptCompiler::kEagerCompile ||
                options.compile_options ==
                    v8::ScriptCompiler::kNoCompileOptions);
-        options.compile_options = v8::ScriptCompiler::kConsumeCodeCache;
-        options.code_cache_options =
-            ShellOptions::CodeCacheOptions::kNoProduceCache;
+        options.compile_options.Overwrite(
+            v8::ScriptCompiler::kConsumeCodeCache);
+        options.code_cache_options.Overwrite(
+            ShellOptions::CodeCacheOptions::kNoProduceCache);
 
         printf("============ Run: Consume code cache ============\n");
         // Second run to consume the cache in current isolate
         result = RunMain(isolate, true);
-        options.compile_options = v8::ScriptCompiler::kNoCompileOptions;
+        options.compile_options.Overwrite(
+            v8::ScriptCompiler::kNoCompileOptions);
       } else {
         bool last_run = true;
         result = RunMain(isolate, last_run);
