@@ -572,6 +572,8 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
 
   template <typename TIndex>
   TNode<TIndex> IntPtrOrSmiConstant(int value);
+  // TODO(v8:9708): remove once all uses are ported.
+  Node* IntPtrOrSmiConstant(int value, ParameterMode mode);
 
   bool TryGetIntPtrOrSmiConstantValue(Node* maybe_constant, int* value,
                                       ParameterMode mode);
