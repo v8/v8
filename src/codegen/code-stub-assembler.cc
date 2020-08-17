@@ -3773,25 +3773,29 @@ TNode<JSArray> CodeStubAssembler::CloneFastJSArray(
   return result;
 }
 
+template <typename TIndex>
 TNode<FixedArrayBase> CodeStubAssembler::AllocateFixedArray(
-    ElementsKind kind, Node* capacity, ParameterMode mode,
-    AllocationFlags flags, SloppyTNode<Map> fixed_array_map) {
+    ElementsKind kind, TNode<TIndex> capacity, AllocationFlags flags,
+    base::Optional<TNode<Map>> fixed_array_map) {
+  static_assert(
+      std::is_same<TIndex, Smi>::value || std::is_same<TIndex, IntPtrT>::value,
+      "Only Smi or IntPtrT capacity is allowed");
   Comment("AllocateFixedArray");
-  CSA_SLOW_ASSERT(this, MatchesParameterMode(capacity, mode));
-  CSA_ASSERT(this, IntPtrOrSmiGreaterThan(capacity,
-                                          IntPtrOrSmiConstant(0, mode), mode));
+  CSA_ASSERT(this,
+             IntPtrOrSmiGreaterThan(capacity, IntPtrOrSmiConstant<TIndex>(0)));
 
   const intptr_t kMaxLength = IsDoubleElementsKind(kind)
                                   ? FixedDoubleArray::kMaxLength
                                   : FixedArray::kMaxLength;
+  const ParameterMode parameter_mode =
+      std::is_same<TIndex, Smi>::value ? SMI_PARAMETERS : INTPTR_PARAMETERS;
   intptr_t capacity_constant;
-  if (ToParameterConstant(capacity, &capacity_constant, mode)) {
+  if (ToParameterConstant(capacity, &capacity_constant, parameter_mode)) {
     CHECK_LE(capacity_constant, kMaxLength);
   } else {
     Label if_out_of_memory(this, Label::kDeferred), next(this);
-    Branch(IntPtrOrSmiGreaterThan(
-               capacity,
-               IntPtrOrSmiConstant(static_cast<int>(kMaxLength), mode), mode),
+    Branch(IntPtrOrSmiGreaterThan(capacity, IntPtrOrSmiConstant<TIndex>(
+                                                static_cast<int>(kMaxLength))),
            &if_out_of_memory, &next);
 
     BIND(&if_out_of_memory);
@@ -3802,12 +3806,12 @@ TNode<FixedArrayBase> CodeStubAssembler::AllocateFixedArray(
     BIND(&next);
   }
 
-  TNode<IntPtrT> total_size = GetFixedArrayAllocationSize(capacity, kind, mode);
+  TNode<IntPtrT> total_size = GetFixedArrayAllocationSize(capacity, kind);
 
   if (IsDoubleElementsKind(kind)) flags |= kDoubleAlignment;
   // Allocate both array and elements object, and initialize the JSArray.
   TNode<HeapObject> array = Allocate(total_size, flags);
-  if (fixed_array_map != nullptr) {
+  if (fixed_array_map) {
     // Conservatively only skip the write barrier if there are no allocation
     // flags, this ensures that the object hasn't ended up in LOS. Note that the
     // fixed array map is currently always immortal and technically wouldn't
@@ -3815,9 +3819,9 @@ TNode<FixedArrayBase> CodeStubAssembler::AllocateFixedArray(
     // in case this invariant changes later, since it's difficult to enforce
     // locally here.
     if (flags == CodeStubAssembler::kNone) {
-      StoreMapNoWriteBarrier(array, fixed_array_map);
+      StoreMapNoWriteBarrier(array, *fixed_array_map);
     } else {
-      StoreMap(array, fixed_array_map);
+      StoreMap(array, *fixed_array_map);
     }
   } else {
     RootIndex map_index = IsDoubleElementsKind(kind)
@@ -3827,9 +3831,16 @@ TNode<FixedArrayBase> CodeStubAssembler::AllocateFixedArray(
     StoreMapNoWriteBarrier(array, map_index);
   }
   StoreObjectFieldNoWriteBarrier(array, FixedArrayBase::kLengthOffset,
-                                 ParameterToTagged(capacity, mode));
+                                 ParameterToTagged(capacity));
   return UncheckedCast<FixedArrayBase>(array);
 }
+
+// There is no need to export the Smi version since it is only used inside
+// code-stub-assembler.
+template V8_EXPORT_PRIVATE TNode<FixedArrayBase>
+    CodeStubAssembler::AllocateFixedArray<IntPtrT>(ElementsKind, TNode<IntPtrT>,
+                                                   AllocationFlags,
+                                                   base::Optional<TNode<Map>>);
 
 template <typename TIndex>
 TNode<FixedArray> CodeStubAssembler::ExtractToFixedArray(
@@ -3916,9 +3927,8 @@ TNode<FixedArray> CodeStubAssembler::ExtractToFixedArray(
     // We use PACKED_ELEMENTS to tell AllocateFixedArray and
     // CopyFixedArrayElements that we want a FixedArray.
     const ElementsKind to_kind = PACKED_ELEMENTS;
-    TNode<FixedArrayBase> to_elements =
-        AllocateFixedArray(to_kind, capacity, parameter_mode, allocation_flags,
-                           var_target_map.value());
+    TNode<FixedArrayBase> to_elements = AllocateFixedArray(
+        to_kind, capacity, allocation_flags, var_target_map.value());
     var_result = to_elements;
 
 #ifndef V8_ENABLE_SINGLE_GENERATION
@@ -3967,9 +3977,8 @@ TNode<FixedArray> CodeStubAssembler::ExtractToFixedArray(
                     &copy_one_by_one);
 
           const ElementsKind to_smi_kind = PACKED_SMI_ELEMENTS;
-          to_elements =
-              AllocateFixedArray(to_smi_kind, capacity, parameter_mode,
-                                 allocation_flags, var_target_map.value());
+          to_elements = AllocateFixedArray(
+              to_smi_kind, capacity, allocation_flags, var_target_map.value());
           var_result = to_elements;
 
           FillFixedArrayWithValue(to_smi_kind, to_elements, count, capacity,
@@ -3987,9 +3996,8 @@ TNode<FixedArray> CodeStubAssembler::ExtractToFixedArray(
 
         BIND(&copy_one_by_one);
         {
-          to_elements =
-              AllocateFixedArray(to_kind, capacity, parameter_mode,
-                                 allocation_flags, var_target_map.value());
+          to_elements = AllocateFixedArray(to_kind, capacity, allocation_flags,
+                                           var_target_map.value());
           var_result = to_elements;
           CopyFixedArrayElements(from_kind, source, to_kind, to_elements, first,
                                  count, capacity, UPDATE_WRITE_BARRIER,
@@ -4022,8 +4030,8 @@ TNode<FixedArrayBase> CodeStubAssembler::ExtractFixedDoubleArrayFillingHoles(
 
   TVARIABLE(FixedArrayBase, var_result);
   const ElementsKind kind = PACKED_DOUBLE_ELEMENTS;
-  TNode<FixedArrayBase> to_elements = AllocateFixedArray(
-      kind, capacity, parameter_mode, allocation_flags, fixed_array_map);
+  TNode<FixedArrayBase> to_elements =
+      AllocateFixedArray(kind, capacity, allocation_flags, fixed_array_map);
   var_result = to_elements;
   // We first try to copy the FixedDoubleArray to a new FixedDoubleArray.
   // |var_holes_converted| is set to False preliminarily.
@@ -4172,8 +4180,8 @@ TNode<FixedArrayBase> CodeStubAssembler::ExtractFixedArray(
       // the target are FixedDoubleArray. That it is PACKED or HOLEY does not
       // matter.
       ElementsKind kind = PACKED_DOUBLE_ELEMENTS;
-      TNode<FixedArrayBase> to_elements = AllocateFixedArray(
-          kind, *capacity, parameter_mode, allocation_flags, source_map);
+      TNode<FixedArrayBase> to_elements =
+          AllocateFixedArray(kind, *capacity, allocation_flags, source_map);
       FillFixedArrayWithValue(kind, to_elements, *count, *capacity,
                               RootIndex::kTheHoleValue, parameter_mode);
       CopyElements(kind, to_elements, IntPtrConstant(0), source,
@@ -4880,11 +4888,9 @@ TNode<FixedArrayBase> CodeStubAssembler::GrowElementsCapacity(
                                         IntPtrOrSmiConstant<TIndex>(max_size)),
          bailout);
 
-  const ParameterMode mode =
-      std::is_same<TIndex, Smi>::value ? SMI_PARAMETERS : INTPTR_PARAMETERS;
   // Allocate the new backing store.
   TNode<FixedArrayBase> new_elements =
-      AllocateFixedArray(to_kind, new_capacity, mode);
+      AllocateFixedArray(to_kind, new_capacity);
 
   // Copy the elements from the old elements store to the new.
   // The size-check above guarantees that the |new_elements| is allocated

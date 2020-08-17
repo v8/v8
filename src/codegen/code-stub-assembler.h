@@ -1832,24 +1832,10 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
                                     TNode<JSArray> array, TNode<BInt> begin,
                                     TNode<BInt> count);
 
+  template <typename TIndex>
   TNode<FixedArrayBase> AllocateFixedArray(
-      ElementsKind kind, Node* capacity, ParameterMode mode = INTPTR_PARAMETERS,
-      AllocationFlags flags = kNone,
-      SloppyTNode<Map> fixed_array_map = nullptr);
-
-  TNode<FixedArrayBase> AllocateFixedArray(
-      ElementsKind kind, TNode<IntPtrT> capacity, AllocationFlags flags,
-      SloppyTNode<Map> fixed_array_map = nullptr) {
-    return AllocateFixedArray(kind, capacity, INTPTR_PARAMETERS, flags,
-                              fixed_array_map);
-  }
-
-  TNode<FixedArrayBase> AllocateFixedArray(
-      ElementsKind kind, TNode<Smi> capacity, AllocationFlags flags,
-      SloppyTNode<Map> fixed_array_map = nullptr) {
-    return AllocateFixedArray(kind, capacity, SMI_PARAMETERS, flags,
-                              fixed_array_map);
-  }
+      ElementsKind kind, TNode<TIndex> capacity, AllocationFlags flags = kNone,
+      base::Optional<TNode<Map>> fixed_array_map = base::nullopt);
 
   TNode<NativeContext> GetCreationContext(TNode<JSReceiver> receiver,
                                           Label* if_bailout);
@@ -3277,22 +3263,16 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
                           last_element_exclusive, body, mode, direction);
   }
 
-  TNode<IntPtrT> GetArrayAllocationSize(TNode<IntPtrT> element_count,
+  template <typename TIndex>
+  TNode<IntPtrT> GetArrayAllocationSize(TNode<TIndex> element_count,
                                         ElementsKind kind, int header_size) {
     return ElementOffsetFromIndex(element_count, kind, header_size);
   }
 
-  // TODO(v8:9708): remove once all uses are ported.
-  TNode<IntPtrT> GetArrayAllocationSize(Node* element_count, ElementsKind kind,
-                                        ParameterMode mode, int header_size) {
-    return ElementOffsetFromIndex(element_count, kind, mode, header_size);
-  }
-
-  TNode<IntPtrT> GetFixedArrayAllocationSize(Node* element_count,
-                                             ElementsKind kind,
-                                             ParameterMode mode) {
-    return GetArrayAllocationSize(element_count, kind, mode,
-                                  FixedArray::kHeaderSize);
+  template <typename TIndex>
+  TNode<IntPtrT> GetFixedArrayAllocationSize(TNode<TIndex> element_count,
+                                             ElementsKind kind) {
+    return GetArrayAllocationSize(element_count, kind, FixedArray::kHeaderSize);
   }
 
   TNode<IntPtrT> GetPropertyArrayAllocationSize(TNode<IntPtrT> element_count) {
