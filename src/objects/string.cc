@@ -308,6 +308,8 @@ const char* String::PrefixForDebugPrint() const {
       return "uc\"";
     } else if (shape.IsThin()) {
       return "u>\"";
+    } else if (shape.IsExternal()) {
+      return "ue\"";
     } else {
       return "u\"";
     }
@@ -319,6 +321,8 @@ const char* String::PrefixForDebugPrint() const {
       return "c\"";
     } else if (shape.IsThin()) {
       return ">\"";
+    } else if (shape.IsExternal()) {
+      return "e\"";
     } else {
       return "\"";
     }
