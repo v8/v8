@@ -6,6 +6,7 @@
 #define V8_HEAP_ALLOCATION_OBSERVER_H_
 
 #include <cstdint>
+#include <unordered_set>
 #include <vector>
 
 #include "src/common/globals.h"
@@ -67,7 +68,8 @@ class AllocationCounter {
   };
 
   std::vector<AllocationObserverCounter> observers_;
-  std::vector<AllocationObserverCounter> pending_;
+  std::vector<AllocationObserverCounter> pending_added_;
+  std::unordered_set<AllocationObserver*> pending_removed_;
 
   bool paused_;
 

@@ -20,7 +20,7 @@ void AllocationCounter::AddAllocationObserver(AllocationObserver* observer) {
 #endif
 
   if (step_in_progress_) {
-    pending_.push_back(AllocationObserverCounter(observer, 0, 0));
+    pending_added_.push_back(AllocationObserverCounter(observer, 0, 0));
     return;
   }
 
@@ -41,12 +41,17 @@ void AllocationCounter::AddAllocationObserver(AllocationObserver* observer) {
 }
 
 void AllocationCounter::RemoveAllocationObserver(AllocationObserver* observer) {
-  DCHECK(!step_in_progress_);
   auto it = std::find_if(observers_.begin(), observers_.end(),
                          [observer](const AllocationObserverCounter& aoc) {
                            return aoc.observer_ == observer;
                          });
   DCHECK_NE(observers_.end(), it);
+
+  if (step_in_progress_) {
+    pending_removed_.insert(observer);
+    return;
+  }
+
   observers_.erase(it);
 
   if (observers_.size() == 0) {
@@ -88,7 +93,8 @@ void AllocationCounter::InvokeAllocationObservers(Address soon_object,
   step_in_progress_ = true;
   size_t step_size = 0;
 
-  DCHECK(pending_.empty());
+  DCHECK(pending_added_.empty());
+  DCHECK(pending_removed_.empty());
 
   for (AllocationObserverCounter& aoc : observers_) {
     if (aoc.next_counter_ - current_counter_ <= aligned_object_size) {
@@ -113,7 +119,7 @@ void AllocationCounter::InvokeAllocationObservers(Address soon_object,
   CHECK(step_run);
 
   // Now process newly added allocation observers.
-  for (AllocationObserverCounter& aoc : pending_) {
+  for (AllocationObserverCounter& aoc : pending_added_) {
     size_t observer_step_size = aoc.observer_->GetNextStepSize();
     aoc.prev_counter_ = current_counter_;
     aoc.next_counter_ =
@@ -125,7 +131,29 @@ void AllocationCounter::InvokeAllocationObservers(Address soon_object,
     observers_.push_back(aoc);
   }
 
-  pending_.clear();
+  pending_added_.clear();
+
+  if (!pending_removed_.empty()) {
+    observers_.erase(
+        std::remove_if(observers_.begin(), observers_.end(),
+                       [this](const AllocationObserverCounter& aoc) {
+                         return pending_removed_.count(aoc.observer_) != 0;
+                       }));
+    pending_removed_.clear();
+
+    // Some observers were removed, recalculate step size.
+    step_size = 0;
+    for (AllocationObserverCounter& aoc : observers_) {
+      size_t left_in_step = aoc.next_counter_ - current_counter_;
+      step_size = step_size ? Min(step_size, left_in_step) : left_in_step;
+    }
+
+    if (observers_.empty()) {
+      next_counter_ = current_counter_ = 0;
+      step_in_progress_ = false;
+      return;
+    }
+  }
 
   next_counter_ = current_counter_ + step_size;
   step_in_progress_ = false;

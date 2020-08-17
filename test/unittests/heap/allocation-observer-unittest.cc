@@ -107,5 +107,74 @@ TEST(AllocationObserverTest, Step) {
            20 /* aligned_object_size */ + 100 /* smallest step size*/);
 }
 
+namespace {
+class RecursiveAddObserver : public AllocationObserver {
+ public:
+  explicit RecursiveAddObserver(size_t step_size, AllocationCounter* counter,
+                                AllocationObserver* observer)
+      : AllocationObserver(step_size), counter_(counter), observer_(observer) {}
+
+  void Step(int bytes_allocated, Address soon_object, size_t size) override {
+    counter_->AddAllocationObserver(observer_);
+  }
+
+ private:
+  AllocationCounter* counter_;
+  AllocationObserver* observer_;
+};
+}  // namespace
+
+TEST(AllocationObserverTest, RecursiveAdd) {
+  AllocationCounter counter;
+  const Address kSomeObjectAddress = 8;
+
+  UnusedObserver observer50(50);
+  RecursiveAddObserver observer100(100, &counter, &observer50);
+
+  counter.AddAllocationObserver(&observer100);
+
+  CHECK_EQ(counter.NextBytes(), 100);
+  counter.AdvanceAllocationObservers(90);
+  counter.InvokeAllocationObservers(kSomeObjectAddress, 10, 10);
+
+  CHECK_EQ(counter.NextBytes(),
+           10 /* aligned_object_size */ + 50 /* smallest step size */);
+}
+
+namespace {
+class RecursiveRemoveObserver : public AllocationObserver {
+ public:
+  explicit RecursiveRemoveObserver(size_t step_size, AllocationCounter* counter,
+                                   AllocationObserver* observer)
+      : AllocationObserver(step_size), counter_(counter), observer_(observer) {}
+
+  void Step(int bytes_allocated, Address soon_object, size_t size) override {
+    counter_->RemoveAllocationObserver(observer_);
+  }
+
+ private:
+  AllocationCounter* counter_;
+  AllocationObserver* observer_;
+};
+}  // namespace
+
+TEST(AllocationObserverTest, RecursiveRemove) {
+  AllocationCounter counter;
+  const Address kSomeObjectAddress = 8;
+
+  UnusedObserver observer75(75);
+  RecursiveRemoveObserver observer50(50, &counter, &observer75);
+
+  counter.AddAllocationObserver(&observer50);
+  counter.AddAllocationObserver(&observer75);
+
+  CHECK_EQ(counter.NextBytes(), 50);
+  counter.AdvanceAllocationObservers(40);
+  counter.InvokeAllocationObservers(kSomeObjectAddress, 10, 10);
+
+  CHECK_EQ(counter.NextBytes(),
+           10 /* aligned_object_size */ + 50 /* smallest step size */);
+}
+
 }  // namespace internal
 }  // namespace v8
