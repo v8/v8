@@ -1381,12 +1381,18 @@ VisitResult ImplementationVisitor::GenerateArrayLength(VisitResult object,
   StackScope stack_scope(this);
   const ClassType* class_type = *object.type()->ClassSupertype();
   std::map<std::string, LocalValue> bindings;
+  bool before_current = true;
   for (Field f : class_type->ComputeAllFields()) {
-    if (f.index) break;
+    if (field.name_and_type.name == f.name_and_type.name) {
+      before_current = false;
+    }
     bindings.insert(
         {f.name_and_type.name,
          f.const_qualified
-             ? LocalValue{GenerateFieldReference(object, f, class_type)}
+             ? (before_current
+                    ? LocalValue{GenerateFieldReference(object, f, class_type)}
+                    : LocalValue("Array lengths may only refer to fields "
+                                 "defined earlier"))
              : LocalValue(
                    "Non-const fields cannot be used for array lengths.")});
   }

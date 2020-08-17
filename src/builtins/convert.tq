@@ -136,6 +136,9 @@ Convert<Number, int32>(i: int32): Number {
 Convert<intptr, int32>(i: int32): intptr {
   return ChangeInt32ToIntPtr(i);
 }
+Convert<intptr, int31>(i: int31): intptr {
+  return ChangeInt32ToIntPtr(i);
+}
 Convert<intptr, uint32>(i: uint32): intptr {
   return Signed(ChangeUint32ToWord(i));
 }
