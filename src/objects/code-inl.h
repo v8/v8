@@ -211,9 +211,11 @@ void Code::clear_padding() {
 ByteArray Code::SourcePositionTableIfCollected() const {
   ReadOnlyRoots roots = GetReadOnlyRoots();
   Object maybe_table = source_position_table();
-  if (maybe_table.IsUndefined(roots) || maybe_table.IsException(roots))
+  if (maybe_table.IsUndefined(roots) || maybe_table.IsException(roots)) {
     return roots.empty_byte_array();
-  return SourcePositionTable();
+  }
+  DCHECK(maybe_table.IsByteArray());
+  return ByteArray::cast(maybe_table);
 }
 
 ByteArray Code::SourcePositionTable() const {
