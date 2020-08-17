@@ -2,8 +2,9 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 //
-// Flags: --expose-gc --allow-natives-syntax --gc-interval=207
-// Flags: --stress-compaction --validate-asm --opt --no-always-opt
+// Flags: --random-seed=891196975 --expose-gc --allow-natives-syntax
+// Flags: --gc-interval=207 --stress-compaction --validate-asm
+// Flags: --opt --no-always-opt
 //
 // /v8/test/mjsunit/wasm/grow-memory.js
 // /v8/test/mjsunit/regress/regress-540.js
