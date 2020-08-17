@@ -1573,15 +1573,6 @@ class BytecodeArrayData : public FixedArrayBaseData {
     return incoming_new_target_or_generator_register_;
   }
 
-  uint8_t get(int index) const {
-    DCHECK(is_serialized_for_compilation_);
-    return bytecodes_[index];
-  }
-
-  Address GetFirstBytecodeAddress() const {
-    return reinterpret_cast<Address>(bytecodes_.data());
-  }
-
   Handle<Object> GetConstantAtIndex(int index, Isolate* isolate) const {
     return constant_pool_[index]->object();
   }
@@ -1597,17 +1588,11 @@ class BytecodeArrayData : public FixedArrayBaseData {
   void SerializeForCompilation(JSHeapBroker* broker) {
     if (is_serialized_for_compilation_) return;
 
-    Handle<BytecodeArray> bytecode_array =
-        Handle<BytecodeArray>::cast(object());
-
-    DCHECK(bytecodes_.empty());
-    bytecodes_.reserve(bytecode_array->length());
-    for (int i = 0; i < bytecode_array->length(); i++) {
-      bytecodes_.push_back(bytecode_array->get(i));
-    }
+    // Convinience cast: object() is already a canonical persistent handle.
+    Handle<BytecodeArray> bytecodes = Handle<BytecodeArray>::cast(object());
 
     DCHECK(constant_pool_.empty());
-    Handle<FixedArray> constant_pool(bytecode_array->constant_pool(),
+    Handle<FixedArray> constant_pool(bytecodes->constant_pool(),
                                      broker->isolate());
     constant_pool_.reserve(constant_pool->length());
     for (int i = 0; i < constant_pool->length(); i++) {
@@ -1615,10 +1600,9 @@ class BytecodeArrayData : public FixedArrayBaseData {
     }
 
     source_positions_ = broker->CanonicalPersistentHandle(
-        bytecode_array->SourcePositionTableIfCollected());
+        bytecodes->SourcePositionTableIfCollected());
 
-    Handle<ByteArray> handlers(bytecode_array->handler_table(),
-                               broker->isolate());
+    Handle<ByteArray> handlers(bytecodes->handler_table(), broker->isolate());
     handler_table_.reserve(handlers->length());
     for (int i = 0; i < handlers->length(); i++) {
       handler_table_.push_back(handlers->get(i));
@@ -1646,7 +1630,6 @@ class BytecodeArrayData : public FixedArrayBaseData {
         parameter_count_(object->parameter_count()),
         incoming_new_target_or_generator_register_(
             object->incoming_new_target_or_generator_register()),
-        bytecodes_(broker->zone()),
         handler_table_(broker->zone()),
         constant_pool_(broker->zone()) {}
 
@@ -1656,7 +1639,6 @@ class BytecodeArrayData : public FixedArrayBaseData {
   interpreter::Register const incoming_new_target_or_generator_register_;
 
   bool is_serialized_for_compilation_ = false;
-  ZoneVector<uint8_t> bytecodes_;
   Handle<ByteArray> source_positions_;
   ZoneVector<uint8_t> handler_table_;
   ZoneVector<ObjectData*> constant_pool_;
@@ -3238,28 +3220,10 @@ double FixedDoubleArrayRef::get_scalar(int i) const {
   return data()->AsFixedDoubleArray()->Get(i).get_scalar();
 }
 
-uint8_t BytecodeArrayRef::get(int index) const {
-  if (data_->should_access_heap()) {
-    DCHECK(data_->kind() != ObjectDataKind::kUnserializedReadOnlyHeapObject);
-    AllowHandleAllocationIf allow_handle_allocation(data()->kind(),
-                                                    broker()->mode());
-    AllowHandleDereferenceIf allow_handle_dereference(data()->kind(),
-                                                      broker()->mode());
-    return object()->get(index);
-  }
-  return data()->AsBytecodeArray()->get(index);
-}
+uint8_t BytecodeArrayRef::get(int index) const { return object()->get(index); }
 
 Address BytecodeArrayRef::GetFirstBytecodeAddress() const {
-  if (data_->should_access_heap()) {
-    DCHECK(data_->kind() != ObjectDataKind::kUnserializedReadOnlyHeapObject);
-    AllowHandleAllocationIf allow_handle_allocation(data()->kind(),
-                                                    broker()->mode());
-    AllowHandleDereferenceIf allow_handle_dereference(data()->kind(),
-                                                      broker()->mode());
-    return object()->GetFirstBytecodeAddress();
-  }
-  return data()->AsBytecodeArray()->GetFirstBytecodeAddress();
+  return object()->GetFirstBytecodeAddress();
 }
 
 Handle<Object> BytecodeArrayRef::GetConstantAtIndex(int index) const {
