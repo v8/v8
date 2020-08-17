@@ -405,6 +405,24 @@ static int GetReturnCountAfterLoweringSimd128(
   return result;
 }
 
+int GetReturnIndexAfterLowering(const CallDescriptor* call_descriptor,
+                                int old_index) {
+  int result = old_index;
+  for (int i = 0; i < old_index; ++i) {
+    if (call_descriptor->GetReturnType(i).representation() ==
+        MachineRepresentation::kSimd128) {
+      result += kNumLanes32 - 1;
+    }
+  }
+  return result;
+}
+
+static int GetReturnCountAfterLoweringSimd128(
+    const CallDescriptor* call_descriptor) {
+  return GetReturnIndexAfterLowering(
+      call_descriptor, static_cast<int>(call_descriptor->ReturnCount()));
+}
+
 int SimdScalarLowering::NumLanes(SimdType type) {
   int num_lanes = 0;
   if (type == SimdType::kFloat64x2 || type == SimdType::kInt64x2) {
@@ -1182,23 +1200,46 @@ void SimdScalarLowering::LowerNode(Node* node) {
       // TODO(turbofan): Make wasm code const-correct wrt. CallDescriptor.
       auto call_descriptor =
           const_cast<CallDescriptor*>(CallDescriptorOf(node->op()));
-      if (DefaultLowering(node) ||
-          (call_descriptor->ReturnCount() == 1 &&
-           call_descriptor->GetReturnType(0) == MachineType::Simd128())) {
+      bool returns_require_lowering =
+          GetReturnCountAfterLoweringSimd128(call_descriptor) !=
+          static_cast<int>(call_descriptor->ReturnCount());
+
+      if (DefaultLowering(node) || returns_require_lowering) {
         // We have to adjust the call descriptor.
         const Operator* op = common()->Call(
             GetI32WasmCallDescriptorForSimd(zone(), call_descriptor));
         NodeProperties::ChangeOp(node, op);
       }
-      if (call_descriptor->ReturnCount() == 1 &&
-          call_descriptor->GetReturnType(0) == MachineType::Simd128()) {
-        // We access the additional return values through projections.
-        Node* rep_node[kNumLanes32];
-        for (int i = 0; i < kNumLanes32; ++i) {
-          rep_node[i] =
-              graph()->NewNode(common()->Projection(i), node, graph()->start());
+
+      if (!returns_require_lowering) {
+        break;
+      }
+
+      size_t return_arity = call_descriptor->ReturnCount();
+      ZoneVector<Node*> projections(return_arity, zone());
+      NodeProperties::CollectValueProjections(node, projections.data(),
+                                              return_arity);
+
+      for (size_t old_index = 0, new_index = 0; old_index < return_arity;
+           ++old_index, ++new_index) {
+        Node* use_node = projections[old_index];
+        DCHECK_EQ(ProjectionIndexOf(use_node->op()), old_index);
+        DCHECK_EQ(GetReturnIndexAfterLowering(call_descriptor,
+                                              static_cast<int>(old_index)),
+                  static_cast<int>(new_index));
+        if (new_index != old_index) {
+          NodeProperties::ChangeOp(use_node, common()->Projection(new_index));
         }
-        ReplaceNode(node, rep_node, kNumLanes32);
+        if (call_descriptor->GetReturnType(old_index).representation() ==
+            MachineRepresentation::kSimd128) {
+          Node* rep_node[kNumLanes32];
+          for (int i = 0; i < kNumLanes32; ++i) {
+            rep_node[i] = graph()->NewNode(common()->Projection(new_index + i),
+                                           node, graph()->start());
+          }
+          ReplaceNode(use_node, rep_node, kNumLanes32);
+          new_index += kNumLanes32 - 1;
+        }
       }
       break;
     }

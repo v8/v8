@@ -79,6 +79,9 @@ inline void Store(LiftoffAssembler* assm, Register base, int32_t offset,
     case ValueType::kF64:
       assm->movsd(dst, src.fp());
       break;
+    case ValueType::kS128:
+      assm->movdqu(dst, src.fp());
+      break;
     default:
       UNREACHABLE();
   }

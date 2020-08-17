@@ -2357,9 +2357,11 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
         LocationOperand* op = LocationOperand::cast(instr->OutputAt(0));
         if (op->representation() == MachineRepresentation::kFloat64) {
           __ Movsd(i.OutputDoubleRegister(), Operand(rbp, offset));
-        } else {
-          DCHECK_EQ(MachineRepresentation::kFloat32, op->representation());
+        } else if (op->representation() == MachineRepresentation::kFloat32) {
           __ Movss(i.OutputFloatRegister(), Operand(rbp, offset));
+        } else {
+          DCHECK_EQ(MachineRepresentation::kSimd128, op->representation());
+          __ Movdqu(i.OutputSimd128Register(), Operand(rbp, offset));
         }
       } else {
         __ movq(i.OutputRegister(), Operand(rbp, offset));
