@@ -5496,8 +5496,10 @@ AllocationResult HeapTester::AllocateByteArrayForTest(
 }
 
 bool HeapTester::CodeEnsureLinearAllocationArea(Heap* heap, int size_in_bytes) {
-  return heap->code_space()->EnsureLabMain(size_in_bytes,
-                                           AllocationOrigin::kRuntime);
+  bool result = heap->code_space()->EnsureLabMain(size_in_bytes,
+                                                  AllocationOrigin::kRuntime);
+  heap->code_space()->UpdateInlineAllocationLimit(0);
+  return result;
 }
 
 HEAP_TEST(Regress587004) {

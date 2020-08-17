@@ -48,6 +48,7 @@ void AllocationCounter::RemoveAllocationObserver(AllocationObserver* observer) {
   DCHECK_NE(observers_.end(), it);
 
   if (step_in_progress_) {
+    DCHECK_EQ(pending_removed_.count(observer), 0);
     pending_removed_.insert(observer);
     return;
   }

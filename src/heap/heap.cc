@@ -5277,6 +5277,22 @@ void Heap::ReplaceReadOnlySpace(SharedReadOnlySpace* space) {
   read_only_space_ = space;
 }
 
+class StressConcurrentAllocationObserver : public AllocationObserver {
+ public:
+  explicit StressConcurrentAllocationObserver(Heap* heap)
+      : AllocationObserver(1024), heap_(heap) {}
+
+  void Step(int bytes_allocated, Address, size_t) override {
+    DCHECK(heap_->deserialization_complete());
+    StressConcurrentAllocatorTask::Schedule(heap_->isolate());
+    heap_->RemoveAllocationObserversFromAllSpaces(this, this);
+    heap_->need_to_remove_stress_concurrent_allocation_observer_ = false;
+  }
+
+ private:
+  Heap* heap_;
+};
+
 void Heap::SetUpSpaces() {
   // Ensure SetUpFromReadOnlySpace has been ran.
   DCHECK_NOT_NULL(read_only_space_);
@@ -5402,7 +5418,12 @@ void Heap::NotifyDeserializationComplete() {
   }
 
   if (FLAG_stress_concurrent_allocation) {
-    StressConcurrentAllocatorTask::Schedule(isolate());
+    stress_concurrent_allocation_observer_.reset(
+        new StressConcurrentAllocationObserver(this));
+    AddAllocationObserversToAllSpaces(
+        stress_concurrent_allocation_observer_.get(),
+        stress_concurrent_allocation_observer_.get());
+    need_to_remove_stress_concurrent_allocation_observer_ = true;
   }
 
   deserialization_complete_ = true;
@@ -5518,6 +5539,13 @@ void Heap::TearDown() {
   new_space()->RemoveAllocationObserver(scavenge_task_observer_.get());
   scavenge_task_observer_.reset();
   scavenge_job_.reset();
+
+  if (need_to_remove_stress_concurrent_allocation_observer_) {
+    RemoveAllocationObserversFromAllSpaces(
+        stress_concurrent_allocation_observer_.get(),
+        stress_concurrent_allocation_observer_.get());
+  }
+  stress_concurrent_allocation_observer_.reset();
 
   if (FLAG_stress_marking > 0) {
     RemoveAllocationObserversFromAllSpaces(stress_marking_observer_,

@@ -349,10 +349,13 @@ void SpaceWithLinearArea::AddAllocationObserver(AllocationObserver* observer) {
 
 void SpaceWithLinearArea::RemoveAllocationObserver(
     AllocationObserver* observer) {
-  DCHECK(!allocation_counter_.IsStepInProgress());
-  AdvanceAllocationObservers();
-  Space::RemoveAllocationObserver(observer);
-  UpdateInlineAllocationLimit(0);
+  if (!allocation_counter_.IsStepInProgress()) {
+    AdvanceAllocationObservers();
+    Space::RemoveAllocationObserver(observer);
+    UpdateInlineAllocationLimit(0);
+  } else {
+    Space::RemoveAllocationObserver(observer);
+  }
 }
 
 void SpaceWithLinearArea::PauseAllocationObservers() {
@@ -426,8 +429,9 @@ void SpaceWithLinearArea::InvokeAllocationObservers(
     DCHECK_EQ(saved_allocation_info.limit(), allocation_info_.limit());
   }
 
-  DCHECK_LT(allocation_info_.limit() - allocation_info_.start(),
-            allocation_counter_.NextBytes());
+  DCHECK_IMPLIES(allocation_counter_.IsActive(),
+                 (allocation_info_.limit() - allocation_info_.start()) <
+                     allocation_counter_.NextBytes());
 }
 
 int MemoryChunk::FreeListsLength() {
