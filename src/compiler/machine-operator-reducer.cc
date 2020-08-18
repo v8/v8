@@ -356,6 +356,16 @@ Reduction MachineOperatorReducer::Reduce(Node* node) {
         NodeProperties::ChangeOp(node, machine()->Word32Shl());
         return Changed(node).FollowedBy(ReduceWord32Shl(node));
       }
+      // (x * Int32Constant(a)) * Int32Constant(b)) => x * Int32Constant(a * b)
+      if (m.right().HasValue() && m.left().IsInt32Mul()) {
+        Int32BinopMatcher n(m.left().node());
+        if (n.right().HasValue() && m.OwnsInput(m.left().node())) {
+          node->ReplaceInput(1, Int32Constant(base::MulWithWraparound(
+                                    m.right().Value(), n.right().Value())));
+          node->ReplaceInput(0, n.left().node());
+          return Changed(node);
+        }
+      }
       break;
     }
     case IrOpcode::kInt32MulWithOverflow: {
@@ -1004,6 +1014,16 @@ Reduction MachineOperatorReducer::ReduceInt64Mul(Node* node) {
         1, Int64Constant(base::bits::WhichPowerOfTwo(m.right().Value())));
     NodeProperties::ChangeOp(node, machine()->Word64Shl());
     return Changed(node).FollowedBy(ReduceWord64Shl(node));
+  }
+  // (x * Int64Constant(a)) * Int64Constant(b)) => x * Int64Constant(a * b)
+  if (m.right().HasValue() && m.left().IsInt64Mul()) {
+    Int64BinopMatcher n(m.left().node());
+    if (n.right().HasValue() && m.OwnsInput(m.left().node())) {
+      node->ReplaceInput(1, Int64Constant(base::MulWithWraparound(
+                                m.right().Value(), n.right().Value())));
+      node->ReplaceInput(0, n.left().node());
+      return Changed(node);
+    }
   }
   return NoChange();
 }

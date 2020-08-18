@@ -1686,10 +1686,8 @@ TEST_F(MachineOperatorReducerTest, Uint32ModWithParameters) {
   EXPECT_THAT(r.replacement(), IsInt32Constant(0));
 }
 
-
 // -----------------------------------------------------------------------------
-// Int32Add
-
+// Int32Add, Int64Add
 
 TEST_F(MachineOperatorReducerTest, Int32AddWithInt32SubWithConstantZero) {
   Node* const p0 = Parameter(0);
@@ -1740,6 +1738,43 @@ TEST_F(MachineOperatorReducerTest, Int64AddMergeConstants) {
       graph()->NewNode(machine()->Int64Add(), p0, Int64Constant(1))));
   ASSERT_TRUE(r2.Changed());
   EXPECT_THAT(r2.replacement(), IsInt64Add(p0, IsInt64Constant(3)));
+}
+
+// -----------------------------------------------------------------------------
+// Int32Mul, Int64Mul
+
+TEST_F(MachineOperatorReducerTest, Int32MulMergeConstants) {
+  Node* const p0 = Parameter(0);
+
+  Reduction const r1 = Reduce(graph()->NewNode(
+      machine()->Int32Mul(),
+      graph()->NewNode(machine()->Int32Mul(), p0, Int32Constant(5)),
+      Int32Constant(3)));
+  ASSERT_TRUE(r1.Changed());
+  EXPECT_THAT(r1.replacement(), IsInt32Mul(p0, IsInt32Constant(15)));
+
+  Reduction const r2 = Reduce(graph()->NewNode(
+      machine()->Int32Mul(), Int32Constant(5),
+      graph()->NewNode(machine()->Int32Mul(), p0, Int32Constant(3))));
+  ASSERT_TRUE(r2.Changed());
+  EXPECT_THAT(r2.replacement(), IsInt32Mul(p0, IsInt32Constant(15)));
+}
+
+TEST_F(MachineOperatorReducerTest, Int64MulMergeConstants) {
+  Node* const p0 = Parameter(0);
+
+  Reduction const r1 = Reduce(graph()->NewNode(
+      machine()->Int64Mul(),
+      graph()->NewNode(machine()->Int64Mul(), p0, Int64Constant(5)),
+      Int64Constant(3)));
+  ASSERT_TRUE(r1.Changed());
+  EXPECT_THAT(r1.replacement(), IsInt64Mul(p0, IsInt64Constant(15)));
+
+  Reduction const r2 = Reduce(graph()->NewNode(
+      machine()->Int64Mul(), Int64Constant(5),
+      graph()->NewNode(machine()->Int64Mul(), p0, Int64Constant(3))));
+  ASSERT_TRUE(r2.Changed());
+  EXPECT_THAT(r2.replacement(), IsInt64Mul(p0, IsInt64Constant(15)));
 }
 
 // -----------------------------------------------------------------------------
