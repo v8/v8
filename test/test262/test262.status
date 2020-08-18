@@ -502,9 +502,6 @@
   'intl402/Intl/getCanonicalLocales/unicode-ext-canonicalize-yes-to-true': [FAIL],
   'intl402/Intl/getCanonicalLocales/unicode-ext-key-with-digit': [FAIL],
 
-  # https://bugs.chromium.org/p/v8/issues/detail?id=9646
-  'built-ins/ThrowTypeError/name': [FAIL],
-
   # https://bugs.chromium.org/p/v8/issues/detail?id=9742
   'intl402/Locale/getters': [FAIL],
 
