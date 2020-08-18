@@ -117,6 +117,8 @@ class V8_EXPORT_PRIVATE CompilationState {
 
   void AddCallback(callback_t);
 
+  void InitializeAfterDeserialization();
+
   // Wait until baseline compilation finished, or compilation failed.
   void WaitForBaselineFinished();
 

@@ -458,6 +458,10 @@ class CompilationStateImpl {
   // is invoked which triggers background compilation.
   void InitializeCompilationProgress(bool lazy_module, int num_wrappers);
 
+  // Initialize the compilation progress after deserialization. This is needed
+  // for recompilation (e.g. for tier down) to work later.
+  void InitializeCompilationProgressAfterDeserialization();
+
   // Initialize recompilation of the whole module: Setup compilation progress
   // for recompilation and add the respective compilation units. The callback is
   // called immediately if no recompilation is needed, or called later
@@ -699,6 +703,10 @@ void CompilationState::WaitForTopTierFinished() {
     }
   });
   top_tier_finished_semaphore->Wait();
+}
+
+void CompilationState::InitializeAfterDeserialization() {
+  Impl(this)->InitializeCompilationProgressAfterDeserialization();
 }
 
 bool CompilationState::failed() const { return Impl(this)->failed(); }
@@ -2601,6 +2609,18 @@ void CompilationStateImpl::InitializeCompilationProgress(bool lazy_module,
   // Trigger callbacks if module needs no baseline or top tier compilation. This
   // can be the case for an empty or fully lazy module.
   TriggerCallbacks();
+}
+
+void CompilationStateImpl::InitializeCompilationProgressAfterDeserialization() {
+  auto* module = native_module_->module();
+  base::MutexGuard guard(&callbacks_mutex_);
+  DCHECK(compilation_progress_.empty());
+  constexpr uint8_t kProgressAfterDeserialization =
+      RequiredBaselineTierField::encode(ExecutionTier::kTurbofan) |
+      RequiredTopTierField::encode(ExecutionTier::kTurbofan) |
+      ReachedTierField::encode(ExecutionTier::kTurbofan);
+  compilation_progress_.assign(module->num_declared_functions,
+                               kProgressAfterDeserialization);
 }
 
 void CompilationStateImpl::InitializeRecompilation(

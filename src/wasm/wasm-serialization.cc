@@ -620,7 +620,7 @@ MaybeHandle<WasmModuleObject> DeserializeNativeModule(
       isolate->GetOrRegisterRecorderContextId(isolate->native_context()),
       DecodingMethod::kDeserialize, wasm_engine->allocator());
   if (decode_result.failed()) return {};
-  std::shared_ptr<WasmModule> module = std::move(decode_result.value());
+  std::shared_ptr<WasmModule> module = std::move(decode_result).value();
   CHECK_NOT_NULL(module);
 
   auto shared_native_module = wasm_engine->MaybeGetNativeModule(
@@ -638,6 +638,7 @@ MaybeHandle<WasmModuleObject> DeserializeNativeModule(
     NativeModuleDeserializer deserializer(shared_native_module.get());
     Reader reader(data + WasmSerializer::kHeaderSize);
     bool error = !deserializer.Read(&reader);
+    shared_native_module->compilation_state()->InitializeAfterDeserialization();
     wasm_engine->UpdateNativeModuleCache(error, &shared_native_module, isolate);
     if (error) return {};
   }

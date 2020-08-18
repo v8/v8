@@ -329,6 +329,26 @@ UNINITIALIZED_TEST(CompiledWasmModulesTransfer) {
   from_isolate->Dispose();
 }
 
+TEST(TierDownAfterDeserialization) {
+  WasmSerializationTest test;
+
+  Isolate* isolate = CcTest::i_isolate();
+  HandleScope scope(isolate);
+  Handle<WasmModuleObject> module_object;
+  CHECK(test.Deserialize().ToHandle(&module_object));
+
+  auto* native_module = module_object->native_module();
+  CHECK_EQ(1, native_module->module()->functions.size());
+  WasmCodeRefScope code_ref_scope;
+  auto* turbofan_code = native_module->GetCode(0);
+  CHECK_EQ(ExecutionTier::kTurbofan, turbofan_code->tier());
+
+  isolate->wasm_engine()->TierDownAllModulesPerIsolate(isolate);
+
+  auto* liftoff_code = native_module->GetCode(0);
+  CHECK_EQ(ExecutionTier::kLiftoff, liftoff_code->tier());
+}
+
 }  // namespace test_wasm_serialization
 }  // namespace wasm
 }  // namespace internal
