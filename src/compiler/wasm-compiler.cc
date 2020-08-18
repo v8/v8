@@ -4012,8 +4012,13 @@ Node* WasmGraphBuilder::LoadTransform(wasm::ValueType type, MachineType memtype,
 #else
   // Wasm semantics throw on OOB. Introduce explicit bounds check and
   // conditioning when not using the trap handler.
-  index = BoundsCheckMem(memtype.MemSize(), index, offset, position,
-                         kCanOmitBoundsCheck);
+
+  // Load extends always load 8 bytes.
+  uint8_t access_size = transform == wasm::LoadTransformationKind::kExtend
+                            ? 8
+                            : memtype.MemSize();
+  index =
+      BoundsCheckMem(access_size, index, offset, position, kCanOmitBoundsCheck);
 
   LoadTransformation transformation = GetLoadTransformation(memtype, transform);
   LoadKind load_kind = GetLoadKind(mcgraph(), memtype, use_trap_handler());
