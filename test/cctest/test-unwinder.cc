@@ -3,7 +3,6 @@
 // found in the LICENSE file.
 
 #include "include/v8.h"
-
 #include "src/api/api-inl.h"
 #include "src/builtins/builtins.h"
 #include "src/execution/isolate.h"
@@ -40,8 +39,25 @@ TEST(Unwind_BadState_Fail) {
 }
 
 void StorePc(uintptr_t stack[], int index, uintptr_t pc) {
+#ifdef V8_ENABLE_CONTROL_FLOW_INTEGRITY
   Address sp = reinterpret_cast<Address>(&stack[index]) + kSystemPointerSize;
-  stack[index] = PointerAuthentication::SignPCWithSP(pc, sp);
+#ifdef USE_SIMULATOR
+  stack[index] = Simulator::AddPAC(pc, sp, Simulator::kPACKeyIB,
+                                   Simulator::kInstructionPointer);
+#else
+  asm volatile(
+      "  mov x17, %[pc]\n"
+      "  mov x16, %[sp]\n"
+      "  pacib1716\n"
+      "  mov %[pc], x17\n"
+      : [pc] "+r"(pc)
+      : [sp] "r"(sp)
+      : "x16", "x17");
+  stack[index] = pc;
+#endif  // USE_SIMULATOR
+#else
+  stack[index] = pc;
+#endif  // V8_ENABLE_CONTROL_FLOW_INTEGRITY
 }
 
 TEST(Unwind_BuiltinPCInMiddle_Success) {

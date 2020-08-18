@@ -502,6 +502,10 @@ void PlatformEmbeddedFileWriterWin::SourceInfo(int fileid, const char* filename,
 // TODO(mmarchini): investigate emitting size annotations for Windows
 void PlatformEmbeddedFileWriterWin::DeclareFunctionBegin(const char* name,
                                                          uint32_t size) {
+  if (ENABLE_CONTROL_FLOW_INTEGRITY_BOOL) {
+    DeclareSymbolGlobal(name);
+  }
+
   if (target_arch_ == EmbeddedTargetArch::kArm64) {
     fprintf(fp_, "%s%s FUNCTION\n", SYMBOL_PREFIX, name);
 

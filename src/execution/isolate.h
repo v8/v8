@@ -1466,6 +1466,10 @@ class V8_EXPORT_PRIVATE Isolate final : private HiddenFactory {
   // annotate the builtin blob with debugging information.
   void PrepareBuiltinSourcePositionMap();
 
+  // Store the position of the labels that will be used in the list of allowed
+  // return addresses.
+  void PrepareBuiltinLabelInfoMap();
+
 #if defined(V8_OS_WIN64)
   void SetBuiltinUnwindData(
       int builtin_index,

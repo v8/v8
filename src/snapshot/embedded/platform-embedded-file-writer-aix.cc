@@ -73,7 +73,6 @@ void PlatformEmbeddedFileWriterAIX::Comment(const char* string) {
 }
 
 void PlatformEmbeddedFileWriterAIX::DeclareLabel(const char* name) {
-  DeclareSymbolGlobal(name);
   fprintf(fp_, "%s:\n", name);
 }
 

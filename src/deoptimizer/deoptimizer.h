@@ -482,6 +482,13 @@ class Deoptimizer : public Malloced {
   // refer to that code.
   static void DeoptimizeMarkedCode(Isolate* isolate);
 
+  // Check the given address against a list of allowed addresses, to prevent a
+  // potential attacker from using the frame creation process in the
+  // deoptimizer, in particular the signing process, to gain control over the
+  // program.
+  // When building mksnapshot, always return false.
+  static bool IsValidReturnAddress(Address address);
+
   ~Deoptimizer();
 
   void MaterializeHeapObjects();
