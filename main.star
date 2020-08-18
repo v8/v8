@@ -11,6 +11,7 @@ lucicfg.config(
         "cr-buildbucket.cfg",
         "luci-milo.cfg",
         "luci-scheduler.cfg",
+        "luci-notify.cfg",
         "project.cfg",
     ],
     fail_on_warnings = True,
@@ -184,3 +185,4 @@ exec("//others.star")
 exec("//try.star")
 exec("//try_ng.star")
 exec("//milo.star")
+exec("//notify.star")
