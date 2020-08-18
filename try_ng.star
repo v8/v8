@@ -332,6 +332,33 @@ v8_try_ng_pair(
     use_goma = GOMA.DEFAULT,
 )
 v8_try_ng_pair(
+    name = "v8_mac_arm64_rel",
+    triggered_timeout = 7200,
+    cq_properties_trigger = {"includable_only": "true", "cancel_stale": False},
+    cq_properties_triggered = {"includable_only": "true", "cancel_stale": False},
+    dimensions = {"os": "Mac-10.15"},
+    properties = {"build_config": "Release", "gclient_vars": {"mac_xcode_version": "xcode_12_beta"}},
+    use_goma = GOMA.DEFAULT,
+)
+v8_try_ng_pair(
+    name = "v8_mac_arm64_dbg",
+    triggered_timeout = 7200,
+    cq_properties_trigger = {"includable_only": "true", "cancel_stale": False},
+    cq_properties_triggered = {"includable_only": "true", "cancel_stale": False},
+    dimensions = {"os": "Mac-10.15"},
+    properties = {"build_config": "Debug", "gclient_vars": {"mac_xcode_version": "xcode_12_beta"}},
+    use_goma = GOMA.DEFAULT,
+)
+v8_try_ng_pair(
+    name = "v8_mac_arm64_full_dbg",
+    triggered_timeout = 7200,
+    cq_properties_trigger = {"includable_only": "true", "cancel_stale": False},
+    cq_properties_triggered = {"includable_only": "true", "cancel_stale": False},
+    dimensions = {"os": "Mac-10.15"},
+    properties = {"build_config": "Debug", "gclient_vars": {"mac_xcode_version": "xcode_12_beta"}},
+    use_goma = GOMA.DEFAULT,
+)
+v8_try_ng_pair(
     name = "v8_mac64_dbg",
     triggered_timeout = 7200,
     cq_properties_trigger = {"includable_only": "true", "cancel_stale": False},

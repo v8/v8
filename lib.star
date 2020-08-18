@@ -33,12 +33,12 @@ defaults_ci = {
 }
 
 defaults_ci_br = dict(defaults_ci)
-defaults_ci_br["dimensions"]["pool"] = "ci"
+defaults_ci_br["dimensions"]["pool"] = "luci.v8.ci"
 
 defaults_try = {
     "executable": {"name": "v8", "cipd_package": "infra/recipe_bundles/chromium.googlesource.com/chromium/tools/build", "cipd_version": "refs/heads/master"},
     "swarming_tags": ["vpython:native-python-wrapper"],
-    "dimensions": {"host_class": "default"},
+    "dimensions": {"host_class": "default", "pool": "luci.v8.try"},
     "service_account": "v8-try-builder@chops-service-accounts.iam.gserviceaccount.com",
     "execution_timeout": 1800,
     "properties": {"mastername": "tryserver.v8"},
