@@ -20,7 +20,7 @@
 [
   {
     "bisect_buildername": "V8 Win32 - builder",
-    "bisect_mastername": "client.v8",
+    "bisect_builder_group": "client.v8",
     "bug_url": "https://crbug.com/v8/10107",
     "build_config": "Release",
     "extra_args": [],
@@ -40,7 +40,7 @@
   },
   {
     "bisect_buildername": "V8 Linux - builder",
-    "bisect_mastername": "client.v8",
+    "bisect_builder_group": "client.v8",
     "bug_url": "https://crbug.com/v8/10086",
     "build_config": "Release",
     "extra_args": [
@@ -62,7 +62,7 @@
   },
   {
     "bisect_buildername": "V8 Win32 - debug builder",
-    "bisect_mastername": "client.v8",
+    "bisect_builder_group": "client.v8",
     "bug_url": "https://crbug.com/v8/10011",
     "build_config": "Debug",
     "extra_args": [],
@@ -82,7 +82,7 @@
   },
   {
     "bisect_buildername": "V8 Linux64 - shared",
-    "bisect_mastername": "client.v8",
+    "bisect_builder_group": "client.v8",
     "bug_url": "https://crbug.com/v8/9054",
     "build_config": "Release",
     "extra_args": [],
@@ -102,7 +102,7 @@
   },
   {
     "bisect_buildername": "V8 Win64 - debug",
-    "bisect_mastername": "client.v8",
+    "bisect_builder_group": "client.v8",
     "bug_url": "https://crbug.com/v8/8960",
     "build_config": "Debug",
     "extra_args": [],
@@ -122,7 +122,7 @@
   },
   {
     "bisect_buildername": "V8 Win64 - debug",
-    "bisect_mastername": "client.v8",
+    "bisect_builder_group": "client.v8",
     "bug_url": "https://crbug.com/v8/8744",
     "build_config": "Debug",
     "extra_args": [],
