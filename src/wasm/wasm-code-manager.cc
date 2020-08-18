@@ -671,10 +671,7 @@ Vector<byte> WasmCodeAllocator::AllocateForCodeInRegion(
     DCHECK_LE(committed_code_space_.load(), kMaxWasmCodeMemory);
     for (base::AddressRegion split_range : SplitRangeByReservationsIfNeeded(
              {commit_start, commit_end - commit_start}, owned_code_space_)) {
-      if (!code_manager_->Commit(split_range)) {
-        V8::FatalProcessOutOfMemory(nullptr, "wasm code commit");
-        UNREACHABLE();
-      }
+      code_manager_->Commit(split_range);
     }
   }
   DCHECK(IsAligned(code_space.begin(), kCodeAlignment));
@@ -1527,9 +1524,9 @@ bool WasmCodeManager::CanRegisterUnwindInfoForNonABICompliantCodeRange() const {
 }
 #endif  // V8_OS_WIN64
 
-bool WasmCodeManager::Commit(base::AddressRegion region) {
+void WasmCodeManager::Commit(base::AddressRegion region) {
   // TODO(v8:8462): Remove eager commit once perf supports remapping.
-  if (FLAG_perf_prof) return true;
+  if (V8_UNLIKELY(FLAG_perf_prof)) return;
   DCHECK(IsAligned(region.begin(), CommitPageSize()));
   DCHECK(IsAligned(region.size(), CommitPageSize()));
   // Reserve the size. Use CAS loop to avoid overflow on
@@ -1537,7 +1534,12 @@ bool WasmCodeManager::Commit(base::AddressRegion region) {
   size_t old_value = total_committed_code_space_.load();
   while (true) {
     DCHECK_GE(max_committed_code_space_, old_value);
-    if (region.size() > max_committed_code_space_ - old_value) return false;
+    if (region.size() > max_committed_code_space_ - old_value) {
+      V8::FatalProcessOutOfMemory(
+          nullptr,
+          "WasmCodeManager::Commit: Exceeding maximum wasm code space");
+      UNREACHABLE();
+    }
     if (total_committed_code_space_.compare_exchange_weak(
             old_value, old_value + region.size())) {
       break;
@@ -1547,22 +1549,22 @@ bool WasmCodeManager::Commit(base::AddressRegion region) {
                                              ? PageAllocator::kReadWrite
                                              : PageAllocator::kReadWriteExecute;
 
-  bool ret = SetPermissions(GetPlatformPageAllocator(), region.begin(),
-                            region.size(), permission);
   TRACE_HEAP("Setting rw permissions for 0x%" PRIxPTR ":0x%" PRIxPTR "\n",
              region.begin(), region.end());
 
-  if (!ret) {
+  if (!SetPermissions(GetPlatformPageAllocator(), region.begin(), region.size(),
+                      permission)) {
     // Highly unlikely.
-    total_committed_code_space_.fetch_sub(region.size());
-    return false;
+    V8::FatalProcessOutOfMemory(
+        nullptr,
+        "WasmCodeManager::Commit: Cannot make pre-reserved region writable");
+    UNREACHABLE();
   }
-  return true;
 }
 
 void WasmCodeManager::Decommit(base::AddressRegion region) {
   // TODO(v8:8462): Remove this once perf supports remapping.
-  if (FLAG_perf_prof) return;
+  if (V8_UNLIKELY(FLAG_perf_prof)) return;
   PageAllocator* allocator = GetPlatformPageAllocator();
   DCHECK(IsAligned(region.begin(), allocator->CommitPageSize()));
   DCHECK(IsAligned(region.size(), allocator->CommitPageSize()));

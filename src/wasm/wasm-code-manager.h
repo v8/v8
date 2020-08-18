@@ -824,7 +824,7 @@ class V8_EXPORT_PRIVATE WasmCodeManager final {
 
   V8_WARN_UNUSED_RESULT VirtualMemory TryAllocate(size_t size,
                                                   void* hint = nullptr);
-  bool Commit(base::AddressRegion);
+  void Commit(base::AddressRegion);
   void Decommit(base::AddressRegion);
 
   void FreeNativeModule(Vector<VirtualMemory> owned_code,
