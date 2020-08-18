@@ -686,18 +686,6 @@ class JSRegExpData : public JSObjectData {
   ObjectData* last_index_ = nullptr;
 };
 
-class HeapNumberData : public HeapObjectData {
- public:
-  HeapNumberData(JSHeapBroker* broker, ObjectData** storage,
-                 Handle<HeapNumber> object)
-      : HeapObjectData(broker, storage, object), value_(object->value()) {}
-
-  double value() const { return value_; }
-
- private:
-  double const value_;
-};
-
 class ContextData : public HeapObjectData {
  public:
   ContextData(JSHeapBroker* broker, ObjectData** storage,
@@ -3826,7 +3814,7 @@ base::Optional<ObjectRef> JSArrayRef::GetOwnCowElement(
 
 double HeapNumberRef::value() const {
   IF_ACCESS_FROM_HEAP_C(HeapNumber, value);
-  return data()->AsHeapNumber()->value();
+  UNREACHABLE();
 }
 
 uint64_t BigIntRef::AsUint64() const {
