@@ -1674,17 +1674,19 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       __ AndP(i.InputRegister(0), kSpeculationPoisonRegister);
       break;
     case kS390_Peek: {
-      // The incoming value is 0-based, but we need a 1-based value.
-      int reverse_slot = i.InputInt32(0) + 1;
+      int reverse_slot = i.InputInt32(0);
       int offset =
           FrameSlotToFPOffset(frame()->GetTotalFrameSlotCount() - reverse_slot);
       if (instr->OutputAt(0)->IsFPRegister()) {
         LocationOperand* op = LocationOperand::cast(instr->OutputAt(0));
         if (op->representation() == MachineRepresentation::kFloat64) {
           __ LoadDouble(i.OutputDoubleRegister(), MemOperand(fp, offset));
-        } else {
-          DCHECK_EQ(MachineRepresentation::kFloat32, op->representation());
+        } else if (op->representation() == MachineRepresentation::kFloat32) {
           __ LoadFloat32(i.OutputFloatRegister(), MemOperand(fp, offset));
+        } else {
+          DCHECK_EQ(MachineRepresentation::kSimd128, op->representation());
+          __ LoadSimd128(i.OutputSimd128Register(), MemOperand(fp, offset),
+                         kScratchReg);
         }
       } else {
         __ LoadP(i.OutputRegister(), MemOperand(fp, offset));
