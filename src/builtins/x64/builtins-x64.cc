@@ -3211,6 +3211,7 @@ void Builtins::Generate_GenericJSToWasmWrapper(MacroAssembler* masm) {
       MemOperand(
           closure,
           wasm::ObjectAccess::SharedFunctionInfoOffsetInTaggedJSFunction()));
+  closure = no_reg;
 
   Register function_data = shared_function_info;
   __ LoadAnyTaggedField(
@@ -3280,15 +3281,11 @@ void Builtins::Generate_GenericJSToWasmWrapper(MacroAssembler* masm) {
   jump_table_offset = no_reg;
   jump_table_start = no_reg;
 
-  // The order of pushes is important. We want the heap objects, that should be
-  // scanned by GC, to be on the top of the stack.
   __ pushq(signature_type);
-  __ pushq(wasm_instance);
 
   __ call(function_entry);
   function_entry = no_reg;
 
-  __ popq(wasm_instance);
   __ popq(signature_type);
 
   // Unset thread_in_wasm_flag.
