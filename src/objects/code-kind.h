@@ -72,6 +72,11 @@ inline constexpr bool CodeKindCanDeoptimize(CodeKind kind) {
   return CodeKindIsOptimizedJSFunction(kind);
 }
 
+inline constexpr bool CodeKindChecksOptimizationMarker(CodeKind kind) {
+  return kind == CodeKind::INTERPRETED_FUNCTION ||
+         kind == CodeKind::NATIVE_CONTEXT_INDEPENDENT;
+}
+
 inline CodeKind CodeKindForTopTier() {
   return FLAG_turbo_nci_as_highest_tier ? CodeKind::NATIVE_CONTEXT_INDEPENDENT
                                         : CodeKind::OPTIMIZED_FUNCTION;

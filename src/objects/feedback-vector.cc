@@ -374,6 +374,11 @@ void FeedbackVector::AddToVectorsForProfilingTools(
   isolate->SetFeedbackVectorsForProfilingTools(*list);
 }
 
+void FeedbackVector::SaturatingIncrementProfilerTicks() {
+  int ticks = profiler_ticks();
+  if (ticks < Smi::kMaxValue) set_profiler_ticks(ticks + 1);
+}
+
 // static
 void FeedbackVector::SetOptimizedCode(Handle<FeedbackVector> vector,
                                       Handle<Code> code) {

@@ -213,6 +213,9 @@ class FeedbackVector : public HeapObject {
   // runtime profiler.
   DECL_INT32_ACCESSORS(profiler_ticks)
 
+  // Increment profiler ticks, saturating at the maximal value.
+  void SaturatingIncrementProfilerTicks();
+
   // Initialize the padding if necessary.
   inline void clear_padding();
 

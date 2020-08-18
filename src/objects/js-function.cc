@@ -132,17 +132,13 @@ bool JSFunction::ActiveTierIsIgnition() const {
 bool JSFunction::ActiveTierIsTurbofan() const {
   CodeKind highest_tier;
   if (!HighestTierOf(GetAvailableCodeKinds(), &highest_tier)) return false;
-  bool result = highest_tier == CodeKind::OPTIMIZED_FUNCTION;
-  DCHECK_IMPLIES(result, !code().marked_for_deoptimization());
-  return result;
+  return highest_tier == CodeKind::OPTIMIZED_FUNCTION;
 }
 
 bool JSFunction::ActiveTierIsNCI() const {
   CodeKind highest_tier;
   if (!HighestTierOf(GetAvailableCodeKinds(), &highest_tier)) return false;
-  bool result = highest_tier == CodeKind::NATIVE_CONTEXT_INDEPENDENT;
-  DCHECK_IMPLIES(result, !code().marked_for_deoptimization());
-  return result;
+  return highest_tier == CodeKind::NATIVE_CONTEXT_INDEPENDENT;
 }
 
 bool JSFunction::HasOptimizationMarker() {
@@ -237,7 +233,7 @@ void JSFunction::ClearOptimizedCodeSlot(const char* reason) {
 void JSFunction::SetOptimizationMarker(OptimizationMarker marker) {
   DCHECK(has_feedback_vector());
   DCHECK(ChecksOptimizationMarker());
-  DCHECK(!HasAvailableOptimizedCode());
+  DCHECK(!ActiveTierIsTurbofan());
 
   feedback_vector().SetOptimizationMarker(marker);
 }
@@ -458,9 +454,9 @@ void JSFunction::MarkForOptimization(ConcurrencyMode mode) {
     mode = ConcurrencyMode::kNotConcurrent;
   }
 
-  DCHECK(!is_compiled() || ActiveTierIsIgnition());
+  DCHECK(!is_compiled() || ActiveTierIsIgnition() || ActiveTierIsNCI());
+  DCHECK(!ActiveTierIsTurbofan());
   DCHECK(shared().IsInterpreted());
-  DCHECK(!HasAvailableOptimizedCode());
   DCHECK(shared().allows_lazy_compilation() ||
          !shared().optimization_disabled());
 
