@@ -3499,6 +3499,22 @@ void RunLoadSplatTest(TestExecutionTier execution_tier, LowerSimd lower_simd,
       CHECK_EQ(x, ReadLittleEndianValue<T>(&global[i]));
     }
   }
+
+  // Test for OOB.
+  {
+    WasmRunner<int32_t, uint32_t> r(execution_tier, lower_simd);
+    r.builder().AddMemoryElems<T>(kWasmPageSize / sizeof(T));
+    r.builder().AddGlobal<T>(kWasmS128);
+
+    BUILD(r, WASM_SET_GLOBAL(0, WASM_SIMD_LOAD_OP(op, WASM_GET_LOCAL(0))),
+          WASM_ONE);
+
+    // Load splats load sizeof(T) bytes.
+    for (uint32_t offset = kWasmPageSize - (sizeof(T) - 1);
+         offset < kWasmPageSize; ++offset) {
+      CHECK_TRAP(r.Call(offset));
+    }
+  }
 }
 
 WASM_SIMD_TEST(S8x16LoadSplat) {
@@ -3572,6 +3588,22 @@ void RunLoadExtendTest(TestExecutionTier execution_tier, LowerSimd lower_simd,
       // Integer promotion due to -, static_cast to narrow.
       T expected = static_cast<T>(max_s - i - 1);
       CHECK_EQ(expected, ReadLittleEndianValue<T>(&global[i]));
+    }
+  }
+
+  // Test for OOB.
+  {
+    WasmRunner<int32_t, uint32_t> r(execution_tier, lower_simd);
+    r.builder().AddMemoryElems<S>(kWasmPageSize / sizeof(S));
+    r.builder().AddGlobal<T>(kWasmS128);
+
+    BUILD(r, WASM_SET_GLOBAL(0, WASM_SIMD_LOAD_OP(op, WASM_GET_LOCAL(0))),
+          WASM_ONE);
+
+    // Load extends load 8 bytes, so should trap from -7.
+    for (uint32_t offset = kWasmPageSize - 7; offset < kWasmPageSize;
+         ++offset) {
+      CHECK_TRAP(r.Call(offset));
     }
   }
 }

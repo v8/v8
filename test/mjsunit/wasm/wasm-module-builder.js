@@ -499,6 +499,7 @@ let kExprI64x2Splat = 0x12;
 let kExprF32x4Splat = 0x13;
 let kExprF64x2Splat = 0x14;
 let kExprI8x16ReplaceLane = 0x17;
+let kExprI16x8ExtractLaneS = 0x18;
 let kExprI16x8ReplaceLane = 0x1a;
 let kExprI32x4ExtractLane = 0x1b;
 let kExprI32x4ReplaceLane = 0x1c;
