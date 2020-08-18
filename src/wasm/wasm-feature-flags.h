@@ -49,12 +49,6 @@
 // be shipped with enough lead time to the next branch to allow for
 // stabilization.
 #define FOREACH_WASM_STAGING_FEATURE_FLAG(V) /*          (force 80 columns) */ \
-  /* Multi-value proposal. */                                                  \
-  /* https://github.com/WebAssembly/multi-value */                             \
-  /* V8 side owner: thibaudm */                                                \
-  /* Staged in v8.0. */                                                        \
-  V(mv, "multi-value support", false)                                          \
-                                                                               \
   /* Reference Types, a.k.a. reftypes proposal. */                             \
   /* https://github.com/WebAssembly/reference-types */                         \
   /* V8 side owner: ahaas */                                                   \
@@ -92,7 +86,14 @@
   /* V8 side owner: binji */                                                   \
   /* Shipped in v7.5. */                                                       \
   /* ITS: https://groups.google.com/forum/#!topic/v8-users/zM05lYEBVog */      \
-  V(bulk_memory, "bulk memory opcodes", true)
+  V(bulk_memory, "bulk memory opcodes", true)                                  \
+                                                                               \
+  /* Multi-value proposal. */                                                  \
+  /* https://github.com/WebAssembly/multi-value */                             \
+  /* V8 side owner: thibaudm */                                                \
+  /* Shipped in v8.6. */                                                       \
+  /* ITS: https://groups.google.com/g/v8-users/c/pv2E4yFWeF0 */                \
+  V(mv, "multi-value support", true)
 
 // Combination of all available wasm feature flags.
 #define FOREACH_WASM_FEATURE_FLAG(V)        \
