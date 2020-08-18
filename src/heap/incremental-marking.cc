@@ -237,7 +237,7 @@ void IncrementalMarking::StartMarking() {
 
   SetState(MARKING);
 
-  MarkingBarrier::ActivateAll(heap(), is_compacting_);
+  heap_->marking_barrier()->Activate(is_compacting_);
 
   heap_->isolate()->compilation_cache()->MarkCompactPrologue();
 
@@ -412,8 +412,6 @@ void IncrementalMarking::FinalizeIncrementally() {
   // so we can do it only once at the beginning of the finalization.
   RetainMaps();
 
-  MarkingBarrier::PublishAll(heap());
-
   finalize_marking_completed_ = true;
 
   if (FLAG_trace_incremental_marking) {
@@ -435,7 +433,6 @@ void IncrementalMarking::UpdateMarkingWorklistAfterScavenge() {
 #endif  // ENABLE_MINOR_MC
 
   collector_->local_marking_worklists()->Publish();
-  MarkingBarrier::PublishAll(heap());
   collector_->marking_worklists()->Update(
       [
 #ifdef DEBUG

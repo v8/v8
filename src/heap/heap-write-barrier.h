@@ -21,7 +21,6 @@ class Heap;
 class JSArrayBuffer;
 class Map;
 class MarkCompactCollector;
-class MarkingBarrier;
 class RelocInfo;
 
 // Note: In general it is preferred to use the macros defined in
@@ -55,9 +54,6 @@ class V8_EXPORT_PRIVATE WriteBarrier {
                              int number_of_own_descriptors);
   // It is invoked from generated code and has to take raw addresses.
   static int MarkingFromCode(Address raw_host, Address raw_slot);
-
-  static void SetForThread(MarkingBarrier*);
-  static void ClearForThread(MarkingBarrier*);
 
  private:
   static void MarkingSlow(Heap* heap, HeapObject host, HeapObjectSlot,

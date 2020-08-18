@@ -27,7 +27,7 @@ bool MarkingBarrier::MarkValue(HeapObject host, HeapObject value) {
     // visits the host object.
     return false;
   }
-  if (WhiteToGreyAndPush(value) && is_main_thread_barrier_) {
+  if (WhiteToGreyAndPush(value)) {
     incremental_marking_->RestartIfNotMarking();
   }
   return true;
@@ -35,7 +35,7 @@ bool MarkingBarrier::MarkValue(HeapObject host, HeapObject value) {
 
 bool MarkingBarrier::WhiteToGreyAndPush(HeapObject obj) {
   if (marking_state_.WhiteToGrey(obj)) {
-    worklist_.Push(obj);
+    collector_->local_marking_worklists()->Push(obj);
     return true;
   }
   return false;
