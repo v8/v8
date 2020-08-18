@@ -551,32 +551,24 @@ Handle<ClassBoilerplate> ClassBoilerplate::BuildClassBoilerplate(
     }
   }
 
-  // Add name accessor to the class object if necessary.
-  bool install_class_name_accessor = false;
+  // All classes, even anonymous ones, have a name accessor. If static_desc is
+  // in dictionary mode, the name accessor is installed at runtime in
+  // DefineClass.
   if (!expr->has_name_static_property() &&
-      expr->constructor()->has_shared_name()) {
-    if (static_desc.HasDictionaryProperties()) {
-      // Install class name accessor if necessary during class literal
-      // instantiation.
-      install_class_name_accessor = true;
-    } else {
-      // Set class name accessor if the "name" method was not added yet.
-      PropertyAttributes attribs =
-          static_cast<PropertyAttributes>(DONT_ENUM | READ_ONLY);
-      static_desc.AddConstant(isolate, factory->name_string(),
-                              factory->function_name_accessor(), attribs);
-    }
+      !static_desc.HasDictionaryProperties()) {
+    // Set class name accessor if the "name" method was not added yet.
+    PropertyAttributes attribs =
+        static_cast<PropertyAttributes>(DONT_ENUM | READ_ONLY);
+    static_desc.AddConstant(isolate, factory->name_string(),
+                            factory->function_name_accessor(), attribs);
   }
 
   static_desc.Finalize(isolate);
   instance_desc.Finalize(isolate);
 
   Handle<ClassBoilerplate> class_boilerplate = Handle<ClassBoilerplate>::cast(
-      factory->NewFixedArray(kBoileplateLength, AllocationType::kOld));
+      factory->NewFixedArray(kBoilerplateLength, AllocationType::kOld));
 
-  class_boilerplate->set_flags(0);
-  class_boilerplate->set_install_class_name_accessor(
-      install_class_name_accessor);
   class_boilerplate->set_arguments_count(dynamic_argument_index);
 
   class_boilerplate->set_static_properties_template(
