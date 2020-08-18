@@ -1599,23 +1599,7 @@ class BytecodeArrayData : public FixedArrayBaseData {
       constant_pool_.push_back(broker->GetOrCreateData(constant_pool->get(i)));
     }
 
-    Handle<ByteArray> handlers(bytecodes->handler_table(), broker->isolate());
-    handler_table_.reserve(handlers->length());
-    for (int i = 0; i < handlers->length(); i++) {
-      handler_table_.push_back(handlers->get(i));
-    }
-
     is_serialized_for_compilation_ = true;
-  }
-
-  Address handler_table_address() const {
-    CHECK(is_serialized_for_compilation_);
-    return reinterpret_cast<Address>(handler_table_.data());
-  }
-
-  int handler_table_size() const {
-    CHECK(is_serialized_for_compilation_);
-    return static_cast<int>(handler_table_.size());
   }
 
   BytecodeArrayData(JSHeapBroker* broker, ObjectData** storage,
@@ -1625,7 +1609,6 @@ class BytecodeArrayData : public FixedArrayBaseData {
         parameter_count_(object->parameter_count()),
         incoming_new_target_or_generator_register_(
             object->incoming_new_target_or_generator_register()),
-        handler_table_(broker->zone()),
         constant_pool_(broker->zone()) {}
 
  private:
@@ -1634,7 +1617,6 @@ class BytecodeArrayData : public FixedArrayBaseData {
   interpreter::Register const incoming_new_target_or_generator_register_;
 
   bool is_serialized_for_compilation_ = false;
-  ZoneVector<uint8_t> handler_table_;
   ZoneVector<ObjectData*> constant_pool_;
 };
 
@@ -3269,24 +3251,12 @@ Handle<ByteArray> BytecodeArrayRef::source_positions() const {
 }
 
 Address BytecodeArrayRef::handler_table_address() const {
-  if (data_->should_access_heap()) {
-    DCHECK(data_->kind() != ObjectDataKind::kUnserializedReadOnlyHeapObject);
-    AllowHandleDereferenceIf allow_handle_dereference(data()->kind(),
-                                                      broker()->mode());
-    return reinterpret_cast<Address>(
-        object()->handler_table().GetDataStartAddress());
-  }
-  return data()->AsBytecodeArray()->handler_table_address();
+  return reinterpret_cast<Address>(
+      object()->handler_table().GetDataStartAddress());
 }
 
 int BytecodeArrayRef::handler_table_size() const {
-  if (data_->should_access_heap()) {
-    DCHECK(data_->kind() != ObjectDataKind::kUnserializedReadOnlyHeapObject);
-    AllowHandleDereferenceIf allow_handle_dereference(data()->kind(),
-                                                      broker()->mode());
-    return object()->handler_table().length();
-  }
-  return data()->AsBytecodeArray()->handler_table_size();
+  return object()->handler_table().length();
 }
 
 Handle<Object> JSHeapBroker::GetRootHandle(Object object) {
