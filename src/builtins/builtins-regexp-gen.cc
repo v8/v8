@@ -614,9 +614,8 @@ TNode<HeapObject> RegExpBuiltinsAssembler::RegExpExecInternal(
     GotoIf(SmiGreaterThan(register_count, available_slots), &runtime);
 
     // Fill match_info.
-    UnsafeStoreFixedArrayElement(match_info,
-                                 RegExpMatchInfo::kNumberOfCapturesIndex,
-                                 register_count, SKIP_WRITE_BARRIER);
+    UnsafeStoreFixedArrayElement(
+        match_info, RegExpMatchInfo::kNumberOfCapturesIndex, register_count);
     UnsafeStoreFixedArrayElement(match_info, RegExpMatchInfo::kLastSubjectIndex,
                                  string);
     UnsafeStoreFixedArrayElement(match_info, RegExpMatchInfo::kLastInputIndex,
@@ -852,19 +851,17 @@ TF_BUILTIN(RegExpExecAtom, RegExpBuiltinsAssembler) {
     const TNode<Smi> match_to =
         SmiAdd(match_from, LoadStringLengthAsSmi(needle_string));
 
-    UnsafeStoreFixedArrayElement(
-        match_info, RegExpMatchInfo::kNumberOfCapturesIndex,
-        SmiConstant(kNumRegisters), SKIP_WRITE_BARRIER);
+    UnsafeStoreFixedArrayElement(match_info,
+                                 RegExpMatchInfo::kNumberOfCapturesIndex,
+                                 SmiConstant(kNumRegisters));
     UnsafeStoreFixedArrayElement(match_info, RegExpMatchInfo::kLastSubjectIndex,
                                  subject_string);
     UnsafeStoreFixedArrayElement(match_info, RegExpMatchInfo::kLastInputIndex,
                                  subject_string);
-    UnsafeStoreFixedArrayElement(match_info,
-                                 RegExpMatchInfo::kFirstCaptureIndex,
-                                 match_from, SKIP_WRITE_BARRIER);
-    UnsafeStoreFixedArrayElement(match_info,
-                                 RegExpMatchInfo::kFirstCaptureIndex + 1,
-                                 match_to, SKIP_WRITE_BARRIER);
+    UnsafeStoreFixedArrayElement(
+        match_info, RegExpMatchInfo::kFirstCaptureIndex, match_from);
+    UnsafeStoreFixedArrayElement(
+        match_info, RegExpMatchInfo::kFirstCaptureIndex + 1, match_to);
 
     Return(match_info);
   }

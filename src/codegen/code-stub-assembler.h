@@ -1516,15 +1516,13 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
   // This doesn't emit a bounds-check. As part of the security-performance
   // tradeoff, only use it if it is performance critical.
   void UnsafeStoreFixedArrayElement(
-      TNode<FixedArray> object, int index, SloppyTNode<Object> value,
+      TNode<FixedArray> object, int index, TNode<Object> value,
       WriteBarrierMode barrier_mode = UPDATE_WRITE_BARRIER) {
     return StoreFixedArrayElement(object, index, value, barrier_mode,
                                   CheckBounds::kDebugOnly);
   }
-  void UnsafeStoreFixedArrayElement(
-      TNode<FixedArray> object, int index, TNode<Smi> value,
-      WriteBarrierMode barrier_mode = SKIP_WRITE_BARRIER) {
-    DCHECK_EQ(SKIP_WRITE_BARRIER, barrier_mode);
+  void UnsafeStoreFixedArrayElement(TNode<FixedArray> object, int index,
+                                    TNode<Smi> value) {
     return StoreFixedArrayElement(object, index, value,
                                   UNSAFE_SKIP_WRITE_BARRIER,
                                   CheckBounds::kDebugOnly);
@@ -1536,14 +1534,6 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
                                   UNSAFE_SKIP_WRITE_BARRIER, 0,
                                   INTPTR_PARAMETERS, check_bounds);
   }
-  // This doesn't emit a bounds-check. As part of the security-performance
-  // tradeoff, only use it if it is performance critical.
-  void UnsafeStoreFixedArrayElement(TNode<FixedArray> object, int index,
-                                    TNode<Smi> value) {
-    return StoreFixedArrayElement(object, index, value,
-                                  CheckBounds::kDebugOnly);
-  }
-
   void StoreFixedArrayElement(
       TNode<FixedArray> array, Node* index, SloppyTNode<Object> value,
       WriteBarrierMode barrier_mode = UPDATE_WRITE_BARRIER,
@@ -1556,27 +1546,23 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
     StoreFixedArrayOrPropertyArrayElement(array, index, value, barrier_mode,
                                           additional_offset, parameter_mode);
   }
-
   // This doesn't emit a bounds-check. As part of the security-performance
   // tradeoff, only use it if it is performance critical.
   void UnsafeStoreFixedArrayElement(
-      TNode<FixedArray> array, Node* index, SloppyTNode<Object> value,
+      TNode<FixedArray> array, TNode<IntPtrT> index, TNode<Object> value,
       WriteBarrierMode barrier_mode = UPDATE_WRITE_BARRIER,
-      int additional_offset = 0,
-      ParameterMode parameter_mode = INTPTR_PARAMETERS) {
+      int additional_offset = 0) {
     return StoreFixedArrayElement(array, index, value, barrier_mode,
-                                  additional_offset, parameter_mode,
+                                  additional_offset, INTPTR_PARAMETERS,
                                   CheckBounds::kDebugOnly);
   }
-  void UnsafeStoreFixedArrayElement(
-      TNode<FixedArray> array, Node* index, TNode<Smi> value,
-      WriteBarrierMode barrier_mode = SKIP_WRITE_BARRIER,
-      int additional_offset = 0,
-      ParameterMode parameter_mode = INTPTR_PARAMETERS) {
-    DCHECK_EQ(SKIP_WRITE_BARRIER, barrier_mode);
+
+  void UnsafeStoreFixedArrayElement(TNode<FixedArray> array,
+                                    TNode<IntPtrT> index, TNode<Smi> value,
+                                    int additional_offset) {
     return StoreFixedArrayElement(array, index, value,
                                   UNSAFE_SKIP_WRITE_BARRIER, additional_offset,
-                                  parameter_mode, CheckBounds::kDebugOnly);
+                                  INTPTR_PARAMETERS, CheckBounds::kDebugOnly);
   }
 
   void StorePropertyArrayElement(TNode<PropertyArray> array,
