@@ -3650,7 +3650,7 @@ TNode<JSArray> CodeStubAssembler::AllocateJSArray(
   BIND(&nonempty);
   {
     FillFixedArrayWithValue(kind, elements, IntPtrConstant(0), capacity,
-                            RootIndex::kTheHoleValue, INTPTR_PARAMETERS);
+                            RootIndex::kTheHoleValue);
     Goto(&out);
   }
 
@@ -3941,7 +3941,7 @@ TNode<FixedArray> CodeStubAssembler::ExtractToFixedArray(
       // convert any values. Since {to_elements} is in new-space, CopyElements
       // will efficiently use memcpy.
       FillFixedArrayWithValue(to_kind, to_elements, count, capacity,
-                              RootIndex::kTheHoleValue, parameter_mode);
+                              RootIndex::kTheHoleValue);
       CopyElements(to_kind, to_elements, IntPtrConstant(0), source,
                    ParameterToIntPtr(first), ParameterToIntPtr(count),
                    SKIP_WRITE_BARRIER);
@@ -3971,7 +3971,7 @@ TNode<FixedArray> CodeStubAssembler::ExtractToFixedArray(
           var_result = to_elements;
 
           FillFixedArrayWithValue(to_smi_kind, to_elements, count, capacity,
-                                  RootIndex::kTheHoleValue, parameter_mode);
+                                  RootIndex::kTheHoleValue);
           // CopyElements will try to use memcpy if it's not conflicting with
           // GC. Otherwise it will copy elements by elements, but skip write
           // barriers (since we're copying smis to smis).
@@ -4014,9 +4014,6 @@ TNode<FixedArrayBase> CodeStubAssembler::ExtractFixedDoubleArrayFillingHoles(
   DCHECK_NE(var_holes_converted, nullptr);
   CSA_ASSERT(this, IsFixedDoubleArrayMap(fixed_array_map));
 
-  const ParameterMode parameter_mode =
-      std::is_same<TIndex, Smi>::value ? SMI_PARAMETERS : INTPTR_PARAMETERS;
-
   TVARIABLE(FixedArrayBase, var_result);
   const ElementsKind kind = PACKED_DOUBLE_ELEMENTS;
   TNode<FixedArrayBase> to_elements =
@@ -4035,7 +4032,7 @@ TNode<FixedArrayBase> CodeStubAssembler::ExtractFixedDoubleArrayFillingHoles(
 
   // This copy can trigger GC, so we pre-initialize the array with holes.
   FillFixedArrayWithValue(kind, to_elements, IntPtrOrSmiConstant<TIndex>(0),
-                          capacity, RootIndex::kTheHoleValue, parameter_mode);
+                          capacity, RootIndex::kTheHoleValue);
 
   const int first_element_offset = FixedArray::kHeaderSize - kHeapObjectTag;
   TNode<IntPtrT> first_from_element_offset =
@@ -4142,8 +4139,6 @@ TNode<FixedArrayBase> CodeStubAssembler::ExtractFixedArray(
     }
   }
 
-  const ParameterMode parameter_mode =
-      std::is_same<TIndex, Smi>::value ? SMI_PARAMETERS : INTPTR_PARAMETERS;
   if (extract_flags & ExtractFixedArrayFlag::kFixedArrays) {
     // Here we can only get |source| as FixedArray, never FixedDoubleArray.
     // PACKED_ELEMENTS is used to signify that the source is a FixedArray.
@@ -4172,10 +4167,9 @@ TNode<FixedArrayBase> CodeStubAssembler::ExtractFixedArray(
       TNode<FixedArrayBase> to_elements =
           AllocateFixedArray(kind, *capacity, allocation_flags, source_map);
       FillFixedArrayWithValue(kind, to_elements, *count, *capacity,
-                              RootIndex::kTheHoleValue, parameter_mode);
+                              RootIndex::kTheHoleValue);
       CopyElements(kind, to_elements, IntPtrConstant(0), source,
-                   ParameterToIntPtr(*first, parameter_mode),
-                   ParameterToIntPtr(*count, parameter_mode));
+                   ParameterToIntPtr(*first), ParameterToIntPtr(*count));
       var_result = to_elements;
     }
 
@@ -4244,13 +4238,18 @@ void CodeStubAssembler::FillPropertyArrayWithUndefined(
       INTPTR_PARAMETERS);
 }
 
+template <typename TIndex>
 void CodeStubAssembler::FillFixedArrayWithValue(ElementsKind kind,
                                                 TNode<FixedArrayBase> array,
-                                                Node* from_node, Node* to_node,
-                                                RootIndex value_root_index,
-                                                ParameterMode mode) {
-  CSA_SLOW_ASSERT(this, MatchesParameterMode(from_node, mode));
-  CSA_SLOW_ASSERT(this, MatchesParameterMode(to_node, mode));
+                                                TNode<TIndex> from_index,
+                                                TNode<TIndex> to_index,
+                                                RootIndex value_root_index) {
+  static_assert(
+      std::is_same<TIndex, Smi>::value || std::is_same<TIndex, IntPtrT>::value,
+      "Only Smi or IntPtrT from and to are allowed");
+  const ParameterMode mode =
+      std::is_same<TIndex, Smi>::value ? SMI_PARAMETERS : INTPTR_PARAMETERS;
+
   CSA_SLOW_ASSERT(this, IsFixedArrayWithKind(array, kind));
   DCHECK(value_root_index == RootIndex::kTheHoleValue ||
          value_root_index == RootIndex::kUndefinedValue);
@@ -4264,7 +4263,7 @@ void CodeStubAssembler::FillFixedArrayWithValue(ElementsKind kind,
   }
 
   BuildFastArrayForEach(
-      array, kind, from_node, to_node,
+      array, kind, from_index, to_index,
       [this, value, float_value, kind](TNode<HeapObject> array,
                                        TNode<IntPtrT> offset) {
         if (IsDoubleElementsKind(kind)) {
@@ -4277,6 +4276,15 @@ void CodeStubAssembler::FillFixedArrayWithValue(ElementsKind kind,
       },
       mode);
 }
+
+template V8_EXPORT_PRIVATE void
+    CodeStubAssembler::FillFixedArrayWithValue<IntPtrT>(ElementsKind,
+                                                        TNode<FixedArrayBase>,
+                                                        TNode<IntPtrT>,
+                                                        TNode<IntPtrT>,
+                                                        RootIndex);
+template V8_EXPORT_PRIVATE void CodeStubAssembler::FillFixedArrayWithValue<Smi>(
+    ElementsKind, TNode<FixedArrayBase>, TNode<Smi>, TNode<Smi>, RootIndex);
 
 void CodeStubAssembler::StoreDoubleHole(TNode<HeapObject> object,
                                         TNode<IntPtrT> offset) {
@@ -4569,8 +4577,6 @@ void CodeStubAssembler::CopyFixedArrayElements(
       Is64() ? ReinterpretCast<UintPtrT>(Int64Constant(kHoleNanInt64))
              : ReinterpretCast<UintPtrT>(Int32Constant(kHoleNanLower32));
 
-  const ParameterMode mode =
-      std::is_same<TIndex, Smi>::value ? SMI_PARAMETERS : INTPTR_PARAMETERS;
   // If copying might trigger a GC, we pre-initialize the FixedArray such that
   // it's always in a consistent state.
   if (convert_holes == HoleConversionMode::kConvertToUndefined) {
@@ -4579,17 +4585,17 @@ void CodeStubAssembler::CopyFixedArrayElements(
     // Later if we run into a hole in the source we can just skip the writing
     // to the target and are still guaranteed that we get an undefined.
     FillFixedArrayWithValue(to_kind, to_array, IntPtrOrSmiConstant<TIndex>(0),
-                            element_count, RootIndex::kUndefinedValue, mode);
+                            element_count, RootIndex::kUndefinedValue);
     FillFixedArrayWithValue(to_kind, to_array, element_count, capacity,
-                            RootIndex::kTheHoleValue, mode);
+                            RootIndex::kTheHoleValue);
   } else if (doubles_to_objects_conversion) {
     // Pre-initialized the target with holes so later if we run into a hole in
     // the source we can just skip the writing to the target.
     FillFixedArrayWithValue(to_kind, to_array, IntPtrOrSmiConstant<TIndex>(0),
-                            capacity, RootIndex::kTheHoleValue, mode);
+                            capacity, RootIndex::kTheHoleValue);
   } else if (element_count != capacity) {
     FillFixedArrayWithValue(to_kind, to_array, element_count, capacity,
-                            RootIndex::kTheHoleValue, mode);
+                            RootIndex::kTheHoleValue);
   }
 
   TNode<IntPtrT> first_from_element_offset =

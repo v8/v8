@@ -1872,10 +1872,10 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
                                        TNode<Object> originalArray,
                                        TNode<Number> len);
 
+  template <typename TIndex>
   void FillFixedArrayWithValue(ElementsKind kind, TNode<FixedArrayBase> array,
-                               Node* from_index, Node* to_index,
-                               RootIndex value_root_index,
-                               ParameterMode mode = INTPTR_PARAMETERS);
+                               TNode<TIndex> from_index, TNode<TIndex> to_index,
+                               RootIndex value_root_index);
 
   // Uses memset to effectively initialize the given FixedArray with zeroes.
   void FillFixedArrayWithSmiZero(TNode<FixedArray> array,
