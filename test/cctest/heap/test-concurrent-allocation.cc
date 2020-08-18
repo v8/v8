@@ -250,5 +250,60 @@ UNINITIALIZED_TEST(ConcurrentBlackAllocation) {
   isolate->Dispose();
 }
 
+class ConcurrentWriteBarrierThread final : public v8::base::Thread {
+ public:
+  explicit ConcurrentWriteBarrierThread(Heap* heap, FixedArray fixed_array,
+                                        HeapObject value)
+      : v8::base::Thread(base::Thread::Options("ThreadWithLocalHeap")),
+        heap_(heap),
+        fixed_array_(fixed_array),
+        value_(value) {}
+
+  void Run() override {
+    LocalHeap local_heap(heap_);
+    fixed_array_.set(0, value_);
+  }
+
+  Heap* heap_;
+  FixedArray fixed_array_;
+  HeapObject value_;
+};
+
+UNINITIALIZED_TEST(ConcurrentWriteBarrier) {
+  ManualGCScope manual_gc_scope;
+  FLAG_concurrent_allocation = true;
+  FLAG_local_heaps = true;
+
+  v8::Isolate::CreateParams create_params;
+  create_params.array_buffer_allocator = CcTest::array_buffer_allocator();
+  v8::Isolate* isolate = v8::Isolate::New(create_params);
+  Isolate* i_isolate = reinterpret_cast<Isolate*>(isolate);
+  Heap* heap = i_isolate->heap();
+
+  FixedArray fixed_array;
+  HeapObject value;
+  {
+    HandleScope handle_scope(i_isolate);
+    Handle<FixedArray> fixed_array_handle(
+        i_isolate->factory()->NewFixedArray(1));
+    Handle<HeapNumber> value_handle(i_isolate->factory()->NewHeapNumber(1.1));
+    fixed_array = *fixed_array_handle;
+    value = *value_handle;
+  }
+  heap->StartIncrementalMarking(i::Heap::kNoGCFlags,
+                                i::GarbageCollectionReason::kTesting);
+  CHECK(heap->incremental_marking()->marking_state()->IsWhite(value));
+
+  auto thread =
+      std::make_unique<ConcurrentWriteBarrierThread>(heap, fixed_array, value);
+  CHECK(thread->Start());
+
+  thread->Join();
+
+  CHECK(heap->incremental_marking()->marking_state()->IsBlackOrGrey(value));
+
+  isolate->Dispose();
+}
+
 }  // namespace internal
 }  // namespace v8

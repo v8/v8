@@ -76,6 +76,7 @@ class V8_EXPORT_PRIVATE LocalHeap {
 
   Heap* heap() { return heap_; }
 
+  MarkingBarrier* marking_barrier() { return marking_barrier_.get(); }
   ConcurrentAllocator* old_space_allocator() { return &old_space_allocator_; }
 
   // Mark/Unmark linear allocation areas black. Used for black allocation.
@@ -155,6 +156,7 @@ class V8_EXPORT_PRIVATE LocalHeap {
 
   std::unique_ptr<LocalHandles> handles_;
   std::unique_ptr<PersistentHandles> persistent_handles_;
+  std::unique_ptr<MarkingBarrier> marking_barrier_;
 
   ConcurrentAllocator old_space_allocator_;
 

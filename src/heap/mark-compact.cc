@@ -456,6 +456,8 @@ void MarkCompactCollector::TearDown() {
   AbortWeakObjects();
   if (heap()->incremental_marking()->IsMarking()) {
     local_marking_worklists()->Publish();
+    heap()->marking_barrier()->Publish();
+    // Marking barriers of LocalHeaps will be published in their destructors.
     marking_worklists()->Clear();
   }
 }
@@ -1954,6 +1956,7 @@ void MarkCompactCollector::MarkLiveObjects() {
     IncrementalMarking* incremental_marking = heap_->incremental_marking();
     if (was_marked_incrementally_) {
       incremental_marking->Finalize();
+      MarkingBarrier::DeactivateAll(heap());
     } else {
       CHECK(incremental_marking->IsStopped());
     }
@@ -2056,10 +2059,6 @@ void MarkCompactCollector::MarkLiveObjects() {
       heap()->isolate()->global_handles()->IterateWeakRootsForPhantomHandles(
           &IsUnmarkedHeapObject);
     }
-  }
-
-  if (was_marked_incrementally_) {
-    heap()->marking_barrier()->Deactivate();
   }
 
   epoch_++;

@@ -5251,8 +5251,7 @@ void Heap::SetUp() {
     concurrent_marking_.reset(new ConcurrentMarking(this, nullptr, nullptr));
   }
 
-  marking_barrier_.reset(new MarkingBarrier(this, mark_compact_collector(),
-                                            incremental_marking()));
+  marking_barrier_.reset(new MarkingBarrier(this));
 
   for (int i = FIRST_SPACE; i <= LAST_SPACE; i++) {
     space_[i] = nullptr;
