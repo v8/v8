@@ -18,6 +18,7 @@
 #include "src/compiler/wasm-compiler.h"
 #include "src/heap/heap-inl.h"  // For CodeSpaceMemoryModificationScope.
 #include "src/logging/counters.h"
+#include "src/logging/metrics.h"
 #include "src/objects/property-descriptor.h"
 #include "src/tasks/task-utils.h"
 #include "src/tracing/trace-event.h"
@@ -1332,17 +1333,25 @@ bool MayCompriseLazyFunctions(const WasmModule* module,
 class CompilationTimeCallback {
  public:
   enum CompileMode { kSynchronous, kAsync, kStreaming };
-  explicit CompilationTimeCallback(std::shared_ptr<Counters> async_counters,
-                                   CompileMode compile_mode)
+  explicit CompilationTimeCallback(
+      std::shared_ptr<Counters> async_counters,
+      std::shared_ptr<metrics::Recorder> metrics_recorder,
+      v8::metrics::Recorder::ContextId context_id,
+      std::weak_ptr<NativeModule> native_module, CompileMode compile_mode)
       : start_time_(base::TimeTicks::Now()),
         async_counters_(std::move(async_counters)),
+        metrics_recorder_(std::move(metrics_recorder)),
+        context_id_(context_id),
+        native_module_(std::move(native_module)),
         compile_mode_(compile_mode) {}
 
   void operator()(CompilationEvent event) {
     DCHECK(base::TimeTicks::IsHighResolution());
+    std::shared_ptr<NativeModule> native_module = native_module_.lock();
+    if (!native_module) return;
+    auto now = base::TimeTicks::Now();
+    auto duration = now - start_time_;
     if (event == CompilationEvent::kFinishedBaselineCompilation) {
-      auto now = base::TimeTicks::Now();
-      auto duration = now - start_time_;
       // Reset {start_time_} to measure tier-up time.
       start_time_ = now;
       if (compile_mode_ != kSynchronous) {
@@ -1352,23 +1361,60 @@ class CompilationTimeCallback {
                 : async_counters_->wasm_streaming_compile_wasm_module_time();
         histogram->AddSample(static_cast<int>(duration.InMicroseconds()));
       }
+
+      v8::metrics::WasmModuleCompiled event{
+          (compile_mode_ != kSynchronous),         // async
+          (compile_mode_ == kStreaming),           // streamed
+          false,                                   // cached
+          false,                                   // deserialized
+          FLAG_wasm_lazy_compilation,              // lazy
+          true,                                    // success
+          native_module->generated_code_size(),    // code_size_in_bytes
+          native_module->liftoff_bailout_count(),  // liftoff_bailout_count
+          duration.InMicroseconds()                // wall_clock_time_in_us
+      };
+      metrics_recorder_->DelayMainThreadEvent(event, context_id_);
     }
     if (event == CompilationEvent::kFinishedTopTierCompilation) {
-      auto duration = base::TimeTicks::Now() - start_time_;
       TimedHistogram* histogram = async_counters_->wasm_tier_up_module_time();
       histogram->AddSample(static_cast<int>(duration.InMicroseconds()));
+
+      v8::metrics::WasmModuleTieredUp event{
+          FLAG_wasm_lazy_compilation,            // lazy
+          native_module->generated_code_size(),  // code_size_in_bytes
+          duration.InMicroseconds()              // wall_clock_time_in_us
+      };
+      metrics_recorder_->DelayMainThreadEvent(event, context_id_);
+    }
+    if (event == CompilationEvent::kFailedCompilation) {
+      v8::metrics::WasmModuleCompiled event{
+          (compile_mode_ != kSynchronous),         // async
+          (compile_mode_ == kStreaming),           // streamed
+          false,                                   // cached
+          false,                                   // deserialized
+          FLAG_wasm_lazy_compilation,              // lazy
+          false,                                   // success
+          native_module->generated_code_size(),    // code_size_in_bytes
+          native_module->liftoff_bailout_count(),  // liftoff_bailout_count
+          duration.InMicroseconds()                // wall_clock_time_in_us
+      };
+      metrics_recorder_->DelayMainThreadEvent(event, context_id_);
     }
   }
 
  private:
   base::TimeTicks start_time_;
   const std::shared_ptr<Counters> async_counters_;
+  std::shared_ptr<metrics::Recorder> metrics_recorder_;
+  v8::metrics::Recorder::ContextId context_id_;
+  std::weak_ptr<NativeModule> native_module_;
   const CompileMode compile_mode_;
 };
 
-void CompileNativeModule(Isolate* isolate, ErrorThrower* thrower,
-                         const WasmModule* wasm_module,
-                         NativeModule* native_module) {
+void CompileNativeModule(Isolate* isolate,
+                         v8::metrics::Recorder::ContextId context_id,
+                         ErrorThrower* thrower, const WasmModule* wasm_module,
+                         std::shared_ptr<NativeModule> native_module) {
   CHECK(!FLAG_jitless);
   ModuleWireBytes wire_bytes(native_module->wire_bytes());
   const bool lazy_module = IsLazyModule(wasm_module);
@@ -1378,7 +1424,7 @@ void CompileNativeModule(Isolate* isolate, ErrorThrower* thrower,
     // Validate wasm modules for lazy compilation if requested. Never validate
     // asm.js modules as these are valid by construction (additionally a CHECK
     // will catch this during lazy compilation).
-    ValidateSequentially(wasm_module, native_module, isolate->counters(),
+    ValidateSequentially(wasm_module, native_module.get(), isolate->counters(),
                          isolate->allocator(), thrower, lazy_module,
                          kOnlyLazyFunctions);
     // On error: Return and leave the module in an unexecutable state.
@@ -1391,11 +1437,12 @@ void CompileNativeModule(Isolate* isolate, ErrorThrower* thrower,
   auto* compilation_state = Impl(native_module->compilation_state());
   if (base::TimeTicks::IsHighResolution()) {
     compilation_state->AddCallback(CompilationTimeCallback{
-        isolate->async_counters(), CompilationTimeCallback::kSynchronous});
+        isolate->async_counters(), isolate->metrics_recorder(), context_id,
+        native_module, CompilationTimeCallback::kSynchronous});
   }
 
   // Initialize the compilation units and kick off background compile tasks.
-  InitializeCompilationUnits(isolate, native_module);
+  InitializeCompilationUnits(isolate, native_module.get());
 
   compilation_state->WaitForBaselineFinished();
 
@@ -1403,7 +1450,7 @@ void CompileNativeModule(Isolate* isolate, ErrorThrower* thrower,
 
   if (compilation_state->failed()) {
     DCHECK_IMPLIES(lazy_module, !FLAG_wasm_lazy_validation);
-    ValidateSequentially(wasm_module, native_module, isolate->counters(),
+    ValidateSequentially(wasm_module, native_module.get(), isolate->counters(),
                          isolate->allocator(), thrower, lazy_module);
     CHECK(thrower->error());
   }
@@ -1495,7 +1542,9 @@ std::shared_ptr<NativeModule> CompileToNativeModule(
       isolate, enabled, module, code_size_estimate);
   native_module->SetWireBytes(std::move(wire_bytes_copy));
 
-  CompileNativeModule(isolate, thrower, wasm_module, native_module.get());
+  v8::metrics::Recorder::ContextId context_id =
+      isolate->GetOrRegisterRecorderContextId(isolate->native_context());
+  CompileNativeModule(isolate, context_id, thrower, wasm_module, native_module);
   bool cache_hit = !isolate->wasm_engine()->UpdateNativeModuleCache(
       thrower->error(), &native_module, isolate);
   if (thrower->error()) return {};
@@ -1716,6 +1765,21 @@ void AsyncCompileJob::FinishCompile(bool is_after_cache_hit) {
     int duration_usecs = static_cast<int>(duration.InMicroseconds());
     isolate_->counters()->wasm_streaming_finish_wasm_module_time()->AddSample(
         duration_usecs);
+
+    if (is_after_cache_hit || is_after_deserialization) {
+      v8::metrics::WasmModuleCompiled event{
+          true,                                     // async
+          true,                                     // streamed
+          is_after_cache_hit,                       // cached
+          is_after_deserialization,                 // deserialized
+          wasm_lazy_compilation_,                   // lazy
+          !compilation_state->failed(),             // success
+          native_module_->generated_code_size(),    // code_size_in_bytes
+          native_module_->liftoff_bailout_count(),  // liftoff_bailout_count
+          duration.InMicroseconds()                 // wall_clock_time_in_us
+      };
+      isolate_->metrics_recorder()->DelayMainThreadEvent(event, context_id_);
+    }
   }
 
   DCHECK(!isolate_->context().is_null());
@@ -2099,7 +2163,8 @@ class AsyncCompileJob::PrepareAndStartCompile : public CompileStep {
                               ? CompilationTimeCallback::kAsync
                               : CompilationTimeCallback::kStreaming;
       compilation_state->AddCallback(CompilationTimeCallback{
-          job->isolate_->async_counters(), compile_mode});
+          job->isolate_->async_counters(), job->isolate_->metrics_recorder(),
+          job->context_id_, job->native_module_, compile_mode});
     }
 
     if (start_compilation_) {

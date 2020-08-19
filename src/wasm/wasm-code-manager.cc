@@ -1119,6 +1119,10 @@ WasmCode* NativeModule::PublishCodeLocked(std::unique_ptr<WasmCode> code) {
 
       PatchJumpTablesLocked(slot_idx, code->instruction_start());
     }
+    if (!code->for_debugging() && tiering_state_ == kTieredDown &&
+        code->tier() == ExecutionTier::kTurbofan) {
+      liftoff_bailout_count_.fetch_add(1);
+    }
   }
   WasmCodeRefScope::AddRef(code.get());
   WasmCode* result = code.get();

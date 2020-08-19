@@ -581,6 +581,10 @@ class V8_EXPORT_PRIVATE NativeModule final {
   size_t committed_code_space() const {
     return code_allocator_.committed_code_space();
   }
+  size_t generated_code_size() const {
+    return code_allocator_.generated_code_size();
+  }
+  size_t liftoff_bailout_count() const { return liftoff_bailout_count_.load(); }
   WasmEngine* engine() const { return engine_; }
 
   bool HasWireBytes() const {
@@ -772,6 +776,7 @@ class V8_EXPORT_PRIVATE NativeModule final {
   int modification_scope_depth_ = 0;
   UseTrapHandler use_trap_handler_ = kNoTrapHandler;
   bool lazy_compile_frozen_ = false;
+  std::atomic<size_t> liftoff_bailout_count_{0};
 
   DISALLOW_COPY_AND_ASSIGN(NativeModule);
 };
