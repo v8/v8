@@ -309,6 +309,7 @@ Maybe<bool> JSReceiver::SetOrCopyDataProperties(
   if (fast_assign.FromJust()) return Just(true);
 
   Handle<JSReceiver> from = Object::ToObject(isolate, source).ToHandleChecked();
+
   // 3b. Let keys be ? from.[[OwnPropertyKeys]]().
   Handle<FixedArray> keys;
   ASSIGN_RETURN_ON_EXCEPTION_VALUE(
@@ -317,9 +318,21 @@ Maybe<bool> JSReceiver::SetOrCopyDataProperties(
                               GetKeysConversion::kKeepNumbers),
       Nothing<bool>());
 
+  if (!from->HasFastProperties() && target->HasFastProperties()) {
+    // Convert to slow properties if we're guaranteed to overflow the number of
+    // descriptors.
+    int source_length =
+        from->property_dictionary().NumberOfEnumerableProperties();
+    if (source_length > kMaxNumberOfDescriptors) {
+      JSObject::NormalizeProperties(isolate, Handle<JSObject>::cast(target),
+                                    CLEAR_INOBJECT_PROPERTIES, source_length,
+                                    "Copying data properties");
+    }
+  }
+
   // 4. Repeat for each element nextKey of keys in List order,
-  for (int j = 0; j < keys->length(); ++j) {
-    Handle<Object> next_key(keys->get(j), isolate);
+  for (int i = 0; i < keys->length(); ++i) {
+    Handle<Object> next_key(keys->get(i), isolate);
     // 4a i. Let desc be ? from.[[GetOwnProperty]](nextKey).
     PropertyDescriptor desc;
     Maybe<bool> found =
