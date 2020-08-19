@@ -3230,7 +3230,7 @@ Handle<Object> JSHeapBroker::GetRootHandle(Object object) {
 #define DIRECT_HEAP_ACCESSOR_C(holder, result, name) \
   result holder##Ref::name() const { return object()->name(); }
 
-#define IF_ACCESS_FROM_HEAP_C(name)                                      \
+#define IF_ACCESS_FROM_HEAP_C(holder, name)                              \
   if (data_->should_access_heap()) {                                     \
     AllowHandleAllocationIf handle_allocation(data_->kind(),             \
                                               broker()->mode());         \
@@ -3239,7 +3239,7 @@ Handle<Object> JSHeapBroker::GetRootHandle(Object object) {
     return object()->name();                                             \
   }
 
-#define IF_ACCESS_FROM_HEAP(result, name)                                      \
+#define IF_ACCESS_FROM_HEAP(holder, result, name)                              \
   if (data_->kind() == ObjectDataKind::kUnserializedHeapObject) {              \
     AllowHandleAllocationIf handle_allocation(data_->kind(),                   \
                                               broker()->mode());               \
@@ -3261,7 +3261,7 @@ Handle<Object> JSHeapBroker::GetRootHandle(Object object) {
 // either looks into the handle or into the serialized data.
 #define BIMODAL_ACCESSOR(holder, result, name)                               \
   result##Ref holder##Ref::name() const {                                    \
-    IF_ACCESS_FROM_HEAP(result, name);                                       \
+    IF_ACCESS_FROM_HEAP(holder, result, name);                               \
     ObjectData* data = ObjectRef::data()->As##holder()->name();              \
     if (data->kind() == ObjectDataKind::kUnserializedHeapObject) {           \
       return result##Ref(broker(), data->object());                          \
@@ -3273,14 +3273,14 @@ Handle<Object> JSHeapBroker::GetRootHandle(Object object) {
 // Like above except that the result type is not an XYZRef.
 #define BIMODAL_ACCESSOR_C(holder, result, name)    \
   result holder##Ref::name() const {                \
-    IF_ACCESS_FROM_HEAP_C(name);                    \
+    IF_ACCESS_FROM_HEAP_C(holder, name);            \
     return ObjectRef::data()->As##holder()->name(); \
   }
 
 // Like above but for BitFields.
 #define BIMODAL_ACCESSOR_B(holder, field, name, BitField)              \
   typename BitField::FieldType holder##Ref::name() const {             \
-    IF_ACCESS_FROM_HEAP_C(name);                                       \
+    IF_ACCESS_FROM_HEAP_C(holder, name);                               \
     return BitField::decode(ObjectRef::data()->As##holder()->field()); \
   }
 
@@ -3550,65 +3550,65 @@ void* JSTypedArrayRef::data_ptr() const {
 }
 
 bool MapRef::IsInobjectSlackTrackingInProgress() const {
-  IF_ACCESS_FROM_HEAP_C(IsInobjectSlackTrackingInProgress);
+  IF_ACCESS_FROM_HEAP_C(Map, IsInobjectSlackTrackingInProgress);
   return Map::Bits3::ConstructionCounterBits::decode(
              data()->AsMap()->bit_field3()) != Map::kNoSlackTracking;
 }
 
 int MapRef::constructor_function_index() const {
-  IF_ACCESS_FROM_HEAP_C(GetConstructorFunctionIndex);
+  IF_ACCESS_FROM_HEAP_C(Map, GetConstructorFunctionIndex);
   CHECK(IsPrimitiveMap());
   return data()->AsMap()->constructor_function_index();
 }
 
 bool MapRef::is_stable() const {
-  IF_ACCESS_FROM_HEAP_C(is_stable);
+  IF_ACCESS_FROM_HEAP_C(Map, is_stable);
   return !Map::Bits3::IsUnstableBit::decode(data()->AsMap()->bit_field3());
 }
 
 bool MapRef::CanBeDeprecated() const {
-  IF_ACCESS_FROM_HEAP_C(CanBeDeprecated);
+  IF_ACCESS_FROM_HEAP_C(Map, CanBeDeprecated);
   CHECK_GT(NumberOfOwnDescriptors(), 0);
   return data()->AsMap()->can_be_deprecated();
 }
 
 bool MapRef::CanTransition() const {
-  IF_ACCESS_FROM_HEAP_C(CanTransition);
+  IF_ACCESS_FROM_HEAP_C(Map, CanTransition);
   return data()->AsMap()->can_transition();
 }
 
 int MapRef::GetInObjectPropertiesStartInWords() const {
-  IF_ACCESS_FROM_HEAP_C(GetInObjectPropertiesStartInWords);
+  IF_ACCESS_FROM_HEAP_C(Map, GetInObjectPropertiesStartInWords);
   return data()->AsMap()->in_object_properties_start_in_words();
 }
 
 int MapRef::GetInObjectProperties() const {
-  IF_ACCESS_FROM_HEAP_C(GetInObjectProperties);
+  IF_ACCESS_FROM_HEAP_C(Map, GetInObjectProperties);
   return data()->AsMap()->in_object_properties();
 }
 
 int ScopeInfoRef::ContextLength() const {
-  IF_ACCESS_FROM_HEAP_C(ContextLength);
+  IF_ACCESS_FROM_HEAP_C(ScopeInfo, ContextLength);
   UNREACHABLE();
 }
 
 bool ScopeInfoRef::HasContextExtensionSlot() const {
-  IF_ACCESS_FROM_HEAP_C(HasContextExtensionSlot);
+  IF_ACCESS_FROM_HEAP_C(ScopeInfo, HasContextExtensionSlot);
   UNREACHABLE();
 }
 
 bool ScopeInfoRef::HasOuterScopeInfo() const {
-  IF_ACCESS_FROM_HEAP_C(HasOuterScopeInfo);
+  IF_ACCESS_FROM_HEAP_C(ScopeInfo, HasOuterScopeInfo);
   UNREACHABLE();
 }
 
 ScopeInfoRef ScopeInfoRef::OuterScopeInfo() const {
-  IF_ACCESS_FROM_HEAP(ScopeInfo, OuterScopeInfo);
+  IF_ACCESS_FROM_HEAP(ScopeInfo, ScopeInfo, OuterScopeInfo);
   UNREACHABLE();
 }
 
 bool StringRef::IsExternalString() const {
-  IF_ACCESS_FROM_HEAP_C(IsExternalString);
+  IF_ACCESS_FROM_HEAP_C(String, IsExternalString);
   return data()->AsString()->is_external_string();
 }
 
@@ -3634,7 +3634,7 @@ const CFunctionInfo* FunctionTemplateInfoRef::c_signature() const {
 }
 
 bool StringRef::IsSeqString() const {
-  IF_ACCESS_FROM_HEAP_C(IsSeqString);
+  IF_ACCESS_FROM_HEAP_C(String, IsSeqString);
   return data()->AsString()->is_seq_string();
 }
 
@@ -3825,12 +3825,12 @@ base::Optional<ObjectRef> JSArrayRef::GetOwnCowElement(
 }
 
 double HeapNumberRef::value() const {
-  IF_ACCESS_FROM_HEAP_C(value);
+  IF_ACCESS_FROM_HEAP_C(HeapNumber, value);
   return data()->AsHeapNumber()->value();
 }
 
 uint64_t BigIntRef::AsUint64() const {
-  IF_ACCESS_FROM_HEAP_C(AsUint64);
+  IF_ACCESS_FROM_HEAP_C(BigInt, AsUint64);
   return data()->AsBigInt()->AsUint64();
 }
 
@@ -3983,7 +3983,7 @@ FixedArrayBaseRef JSObjectRef::elements() const {
 }
 
 int FixedArrayBaseRef::length() const {
-  IF_ACCESS_FROM_HEAP_C(length);
+  IF_ACCESS_FROM_HEAP_C(FixedArrayBase, length);
   return data()->AsFixedArrayBase()->length();
 }
 
@@ -4025,28 +4025,28 @@ bool NameRef::IsUniqueName() const {
 }
 
 ObjectRef JSRegExpRef::data() const {
-  IF_ACCESS_FROM_HEAP(Object, data);
+  IF_ACCESS_FROM_HEAP(JSRegExp, Object, data);
   return ObjectRef(broker(), ObjectRef::data()->AsJSRegExp()->data());
 }
 
 ObjectRef JSRegExpRef::flags() const {
-  IF_ACCESS_FROM_HEAP(Object, flags);
+  IF_ACCESS_FROM_HEAP(JSRegExp, Object, flags);
   return ObjectRef(broker(), ObjectRef::data()->AsJSRegExp()->flags());
 }
 
 ObjectRef JSRegExpRef::last_index() const {
-  IF_ACCESS_FROM_HEAP(Object, last_index);
+  IF_ACCESS_FROM_HEAP(JSRegExp, Object, last_index);
   return ObjectRef(broker(), ObjectRef::data()->AsJSRegExp()->last_index());
 }
 
 ObjectRef JSRegExpRef::raw_properties_or_hash() const {
-  IF_ACCESS_FROM_HEAP(Object, raw_properties_or_hash);
+  IF_ACCESS_FROM_HEAP(JSRegExp, Object, raw_properties_or_hash);
   return ObjectRef(broker(),
                    ObjectRef::data()->AsJSRegExp()->raw_properties_or_hash());
 }
 
 ObjectRef JSRegExpRef::source() const {
-  IF_ACCESS_FROM_HEAP(Object, source);
+  IF_ACCESS_FROM_HEAP(JSRegExp, Object, source);
   return ObjectRef(broker(), ObjectRef::data()->AsJSRegExp()->source());
 }
 
@@ -4240,7 +4240,7 @@ SharedFunctionInfoRef::function_template_info() const {
 }
 
 int SharedFunctionInfoRef::context_header_size() const {
-  IF_ACCESS_FROM_HEAP_C(scope_info().ContextHeaderLength);
+  IF_ACCESS_FROM_HEAP_C(SharedFunctionInfo, scope_info().ContextHeaderLength);
   return data()->AsSharedFunctionInfo()->context_header_size();
 }
 
