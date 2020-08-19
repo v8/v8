@@ -6185,6 +6185,7 @@ size_t Heap::OldArrayBufferBytes() {
 }
 
 void Heap::RegisterStrongRoots(FullObjectSlot start, FullObjectSlot end) {
+  base::MutexGuard guard(&strong_roots_mutex_);
   StrongRootsList* list = new StrongRootsList();
   list->next = strong_roots_list_;
   list->start = start;
@@ -6193,6 +6194,7 @@ void Heap::RegisterStrongRoots(FullObjectSlot start, FullObjectSlot end) {
 }
 
 void Heap::UnregisterStrongRoots(FullObjectSlot start) {
+  base::MutexGuard guard(&strong_roots_mutex_);
   StrongRootsList* prev = nullptr;
   StrongRootsList* list = strong_roots_list_;
   while (list != nullptr) {

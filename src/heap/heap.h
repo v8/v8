@@ -2200,6 +2200,7 @@ class Heap {
   std::unique_ptr<LocalEmbedderHeapTracer> local_embedder_heap_tracer_;
   std::unique_ptr<MarkingBarrier> marking_barrier_;
   StrongRootsList* strong_roots_list_ = nullptr;
+  base::Mutex strong_roots_mutex_;
 
   bool need_to_remove_stress_concurrent_allocation_observer_ = false;
 
