@@ -12,6 +12,7 @@
 #include "include/cppgc/internal/persistent-node.h"
 #include "include/cppgc/macros.h"
 #include "src/base/macros.h"
+#include "src/heap/cppgc/marker.h"
 #include "src/heap/cppgc/object-allocator.h"
 #include "src/heap/cppgc/raw-heap.h"
 #include "src/heap/cppgc/sweeper.h"
@@ -36,7 +37,6 @@ namespace testing {
 class TestWithHeap;
 }  // namespace testing
 
-class MarkerBase;
 class PageBackend;
 class PreFinalizerHandler;
 class StatsCollector;
@@ -119,6 +119,9 @@ class V8_EXPORT_PRIVATE HeapBase {
  protected:
   void VerifyMarking(cppgc::Heap::StackState);
 
+  virtual void FinalizeIncrementalGarbageCollectionIfNeeded(
+      cppgc::Heap::StackState) = 0;
+
   bool in_no_gc_scope() const { return no_gc_scope_ > 0; }
 
   RawHeap raw_heap_;
@@ -145,6 +148,7 @@ class V8_EXPORT_PRIVATE HeapBase {
 
   size_t no_gc_scope_ = 0;
 
+  friend class MarkerBase::IncrementalMarkingTask;
   friend class testing::TestWithHeap;
 };
 

@@ -65,7 +65,8 @@ class CppgcPlatformAdapter final : public cppgc::Platform {
 
 class UnifiedHeapMarker final : public cppgc::internal::MarkerBase {
  public:
-  explicit UnifiedHeapMarker(Heap& v8_heap, cppgc::internal::HeapBase& heap);
+  UnifiedHeapMarker(Heap& v8_heap, cppgc::internal::HeapBase& cpp_heap,
+                    cppgc::Platform* platform, MarkingConfig config);
 
   ~UnifiedHeapMarker() final = default;
 
@@ -87,8 +88,10 @@ class UnifiedHeapMarker final : public cppgc::internal::MarkerBase {
 };
 
 UnifiedHeapMarker::UnifiedHeapMarker(Heap& v8_heap,
-                                     cppgc::internal::HeapBase& heap)
-    : cppgc::internal::MarkerBase(heap),
+                                     cppgc::internal::HeapBase& heap,
+                                     cppgc::Platform* platform,
+                                     MarkingConfig config)
+    : cppgc::internal::MarkerBase(heap, platform, config),
       unified_heap_mutator_marking_state_(v8_heap),
       marking_visitor_(heap, mutator_marking_state_,
                        unified_heap_mutator_marking_state_),
@@ -121,12 +124,13 @@ void CppHeap::RegisterV8References(
 }
 
 void CppHeap::TracePrologue(TraceFlags flags) {
-  marker_.reset(new UnifiedHeapMarker(*isolate_.heap(), AsBase()));
   const UnifiedHeapMarker::MarkingConfig marking_config{
       UnifiedHeapMarker::MarkingConfig::CollectionType::kMajor,
       cppgc::Heap::StackState::kNoHeapPointers,
-      UnifiedHeapMarker::MarkingConfig::MarkingType::kAtomic};
-  marker_->StartMarking(marking_config);
+      UnifiedHeapMarker::MarkingConfig::MarkingType::kIncremental};
+  marker_ = std::make_unique<UnifiedHeapMarker>(
+      *isolate_.heap(), AsBase(), platform_.get(), marking_config);
+  marker_->StartMarking();
   marking_done_ = false;
 }
 
@@ -139,11 +143,7 @@ bool CppHeap::AdvanceTracing(double deadline_in_ms) {
 bool CppHeap::IsTracingDone() { return marking_done_; }
 
 void CppHeap::EnterFinalPause(EmbedderStackState stack_state) {
-  const UnifiedHeapMarker::MarkingConfig marking_config{
-      UnifiedHeapMarker::MarkingConfig::CollectionType::kMajor,
-      cppgc::Heap::StackState::kNoHeapPointers,
-      UnifiedHeapMarker::MarkingConfig::MarkingType::kAtomic};
-  marker_->EnterAtomicPause(marking_config);
+  marker_->EnterAtomicPause(cppgc::Heap::StackState::kNoHeapPointers);
 }
 
 void CppHeap::TraceEpilogue(TraceSummary* trace_summary) {

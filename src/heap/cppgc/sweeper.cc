@@ -499,8 +499,14 @@ class Sweeper::SweeperImpl final {
     }
   }
 
-  void Finish() {
+  void FinishIfRunning() {
     if (!is_in_progress_) return;
+
+    Finish();
+  }
+
+  void Finish() {
+    DCHECK(is_in_progress_);
 
     // First, call finalizers on the mutator thread.
     SweepFinalizer finalizer(platform_);
@@ -600,7 +606,7 @@ Sweeper::Sweeper(RawHeap* heap, cppgc::Platform* platform,
 Sweeper::~Sweeper() = default;
 
 void Sweeper::Start(Config config) { impl_->Start(config); }
-void Sweeper::Finish() { impl_->Finish(); }
+void Sweeper::FinishIfRunning() { impl_->FinishIfRunning(); }
 
 }  // namespace internal
 }  // namespace cppgc

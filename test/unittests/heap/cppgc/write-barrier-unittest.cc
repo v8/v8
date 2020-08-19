@@ -22,19 +22,19 @@ namespace {
 class IncrementalMarkingScope {
  public:
   explicit IncrementalMarkingScope(MarkerBase* marker) : marker_(marker) {
-    marker_->StartMarking(kIncrementalConfig);
+    marker_->StartMarking();
   }
 
   ~IncrementalMarkingScope() V8_NOEXCEPT {
-    marker_->FinishMarking(kIncrementalConfig);
+    marker_->FinishMarking(kIncrementalConfig.stack_state);
   }
 
- private:
   static constexpr Marker::MarkingConfig kIncrementalConfig{
       Marker::MarkingConfig::CollectionType::kMajor,
       Marker::MarkingConfig::StackState::kNoHeapPointers,
       Marker::MarkingConfig::MarkingType::kIncremental};
 
+ private:
   MarkerBase* marker_;
 };
 
@@ -149,7 +149,9 @@ class GCed : public GarbageCollected<GCed> {
 class WriteBarrierTest : public testing::TestWithHeap {
  public:
   WriteBarrierTest() : internal_heap_(Heap::From(GetHeap())) {
-    GetMarkerRef() = std::make_unique<Marker>(internal_heap_->AsBase());
+    GetMarkerRef() =
+        std::make_unique<Marker>(*internal_heap_, GetPlatformHandle().get(),
+                                 IncrementalMarkingScope::kIncrementalConfig);
     marker_ = GetMarkerRef().get();
   }
 
