@@ -4,6 +4,10 @@
 
 #include "src/logging/log-utils.h"
 
+#include <atomic>
+#include <memory>
+
+#include "src/base/platform/mutex.h"
 #include "src/base/platform/platform.h"
 #include "src/common/assert-scope.h"
 #include "src/objects/objects-inl.h"
@@ -33,9 +37,9 @@ FILE* Log::CreateOutputHandle(const char* file_name) {
 }
 
 Log::Log(Logger* logger, const char* file_name)
-    : is_stopped_(false),
-      output_handle_(Log::CreateOutputHandle(file_name)),
+    : output_handle_(Log::CreateOutputHandle(file_name)),
       os_(output_handle_ == nullptr ? stdout : output_handle_),
+      is_enabled_(output_handle_ != nullptr),
       format_buffer_(NewArray<char>(kMessageBufferSize)),
       logger_(logger) {
   // --log-all enables all the log flags.
@@ -64,7 +68,19 @@ Log::Log(Logger* logger, const char* file_name)
   msg.WriteToLogFile();
 }
 
+std::unique_ptr<Log::MessageBuilder> Log::NewMessageBuilder() {
+  std::unique_ptr<Log::MessageBuilder> result(new Log::MessageBuilder(this));
+
+  // Need to check here whether log is still enabled while the mutex is locked
+  // by Log::MessageBuilder. In case IsEnabled() is checked before locking the
+  // mutex we could still read an old value.
+  if (!IsEnabled()) return {};
+
+  return result;
+}
+
 FILE* Log::Close() {
+  base::MutexGuard guard(&mutex_);
   FILE* result = nullptr;
   if (output_handle_ != nullptr) {
     if (strcmp(FLAG_logfile, kLogToTemporaryFile) != 0) {
@@ -77,7 +93,7 @@ FILE* Log::Close() {
 
   format_buffer_.reset();
 
-  is_stopped_ = false;
+  is_enabled_.store(false, std::memory_order_relaxed);
   return result;
 }
 
@@ -206,7 +222,10 @@ void Log::MessageBuilder::AppendRawFormatString(const char* format, ...) {
 
 void Log::MessageBuilder::AppendRawCharacter(char c) { log_->os_ << c; }
 
-void Log::MessageBuilder::WriteToLogFile() { log_->os_ << std::endl; }
+void Log::MessageBuilder::WriteToLogFile() {
+  DCHECK(log_->IsEnabled());
+  log_->os_ << std::endl;
+}
 
 template <>
 Log::MessageBuilder& Log::MessageBuilder::operator<<<const char*>(
