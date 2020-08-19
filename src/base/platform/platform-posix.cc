@@ -1009,7 +1009,6 @@ void* Stack::GetStackStart() {
     pthread_attr_destroy(&attr);
     return reinterpret_cast<uint8_t*>(base) + size;
   }
-  pthread_attr_destroy(&attr);
 
 #if defined(V8_LIBC_GLIBC)
   // pthread_getattr_np can fail for the main thread. In this case
