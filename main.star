@@ -10,6 +10,7 @@ lucicfg.config(
         "commit-queue.cfg",
         "cr-buildbucket.cfg",
         "luci-milo.cfg",
+        "luci-logdog.cfg",
         "luci-scheduler.cfg",
         "luci-notify.cfg",
         "project.cfg",
@@ -59,6 +60,8 @@ luci.project(
         ),
     ],
 )
+
+luci.logdog(gs_bucket = "chromium-luci-logdog")
 
 luci.bucket(name = "ci", acls = waterfall_acls)
 luci.bucket(name = "try", acls = tryserver_acls)
