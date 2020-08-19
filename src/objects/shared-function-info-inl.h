@@ -101,6 +101,8 @@ SYNCHRONIZED_ACCESSORS(SharedFunctionInfo, function_data, Object,
                        kFunctionDataOffset)
 ACCESSORS(SharedFunctionInfo, name_or_scope_info, Object,
           kNameOrScopeInfoOffset)
+SYNCHRONIZED_ACCESSORS(SharedFunctionInfo, synchronized_name_or_scope_info,
+                       Object, kNameOrScopeInfoOffset)
 ACCESSORS(SharedFunctionInfo, script_or_debug_info, HeapObject,
           kScriptOrDebugInfoOffset)
 
@@ -338,8 +340,16 @@ ScopeInfo SharedFunctionInfo::scope_info() const {
   return GetReadOnlyRoots().empty_scope_info();
 }
 
-void SharedFunctionInfo::set_scope_info(ScopeInfo scope_info,
-                                        WriteBarrierMode mode) {
+ScopeInfo SharedFunctionInfo::synchronized_scope_info() const {
+  Object maybe_scope_info = synchronized_name_or_scope_info();
+  if (maybe_scope_info.IsScopeInfo()) {
+    return ScopeInfo::cast(maybe_scope_info);
+  }
+  return GetReadOnlyRoots().empty_scope_info();
+}
+
+void SharedFunctionInfo::SetScopeInfo(ScopeInfo scope_info,
+                                      WriteBarrierMode mode) {
   // Move the existing name onto the ScopeInfo.
   Object name = name_or_scope_info();
   if (name.IsScopeInfo()) {
@@ -351,7 +361,7 @@ void SharedFunctionInfo::set_scope_info(ScopeInfo scope_info,
   if (HasInferredName() && inferred_name().length() != 0) {
     scope_info.SetInferredFunctionName(inferred_name());
   }
-  set_raw_scope_info(scope_info, mode);
+  set_synchronized_name_or_scope_info(scope_info, mode);
 }
 
 void SharedFunctionInfo::set_raw_scope_info(ScopeInfo scope_info,

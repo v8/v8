@@ -216,11 +216,15 @@ class SharedFunctionInfo : public HeapObject {
   static const int kNotFound = -1;
 
   // [scope_info]: Scope info.
-  DECL_ACCESSORS(scope_info, ScopeInfo)
+  DECL_GETTER(scope_info, ScopeInfo)
+  DECL_GETTER(synchronized_scope_info, ScopeInfo)
 
   // Set scope_info without moving the existing name onto the ScopeInfo.
   inline void set_raw_scope_info(ScopeInfo scope_info,
                                  WriteBarrierMode mode = UPDATE_WRITE_BARRIER);
+
+  inline void SetScopeInfo(ScopeInfo scope_info,
+                           WriteBarrierMode mode = UPDATE_WRITE_BARRIER);
 
   inline bool is_script() const;
   inline bool needs_script_context() const;
@@ -662,6 +666,7 @@ class SharedFunctionInfo : public HeapObject {
   // [name_or_scope_info]: Function name string, kNoSharedNameSentinel or
   // ScopeInfo.
   DECL_ACCESSORS(name_or_scope_info, Object)
+  DECL_SYNCHRONIZED_ACCESSORS(name_or_scope_info, Object)
 
   // [outer scope info] The outer scope info, needed to lazily parse this
   // function.
