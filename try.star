@@ -48,14 +48,6 @@ v8_try_builder(
     use_goma = GOMA.DEFAULT,
 )
 v8_try_builder(
-    name = "v8_linux64_header_includes_dbg_2",
-    bucket = "try",
-    cq_properties = {"cancel_stale": False},
-    dimensions = {"os": "Ubuntu-16.04", "cpu": "x86-64"},
-    properties = {"build_config": "Debug", "set_gclient_var": "check_v8_header_includes"},
-    use_goma = GOMA.DEFAULT,
-)
-v8_try_builder(
     name = "v8_linux_mipsel_compile_rel",
     bucket = "try",
     dimensions = {"os": "Ubuntu-16.04", "cpu": "x86-64"},
