@@ -597,6 +597,8 @@ bool CodeGenerator::IsValidPush(InstructionOperand source,
 void CodeGenerator::GetPushCompatibleMoves(Instruction* instr,
                                            PushTypeFlags push_type,
                                            ZoneVector<MoveOperands*>* pushes) {
+  static constexpr int first_push_compatible_index =
+      kReturnAddressStackSlotCount;
   pushes->clear();
   for (int i = Instruction::FIRST_GAP_POSITION;
        i <= Instruction::LAST_GAP_POSITION; ++i) {
@@ -607,8 +609,6 @@ void CodeGenerator::GetPushCompatibleMoves(Instruction* instr,
       for (auto move : *parallel_move) {
         InstructionOperand source = move->source();
         InstructionOperand destination = move->destination();
-        int first_push_compatible_index =
-            V8_TARGET_ARCH_STORES_RETURN_ADDRESS_ON_STACK ? 1 : 0;
         // If there are any moves from slots that will be overridden by pushes,
         // then the full gap resolver must be used since optimization with
         // pushes don't participate in the parallel move and might clobber

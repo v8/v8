@@ -1137,8 +1137,7 @@ class CodeGeneratorTester {
     sequence->AddInstruction(Instruction::New(zone_, kArchPrepareTailCall));
 
     // We use either zero or one slots.
-    int first_unused_stack_slot =
-        V8_TARGET_ARCH_STORES_RETURN_ADDRESS_ON_STACK ? 1 : 0;
+    static constexpr int first_unused_stack_slot = kReturnAddressStackSlotCount;
     int optional_padding_slot = first_unused_stack_slot;
     InstructionOperand callee[] = {
         AllocatedOperand(LocationOperand::REGISTER,
@@ -1323,7 +1322,7 @@ TEST(AssembleTailCallGap) {
                                        MachineRepresentation::kTagged, -1);
 
   // Avoid slot 0 for architectures which use it store the return address.
-  int first_slot = V8_TARGET_ARCH_STORES_RETURN_ADDRESS_ON_STACK ? 1 : 0;
+  static constexpr int first_slot = kReturnAddressStackSlotCount;
   auto slot_0 = AllocatedOperand(LocationOperand::STACK_SLOT,
                                  MachineRepresentation::kTagged, first_slot);
   auto slot_1 =
