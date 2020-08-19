@@ -578,6 +578,28 @@ void LiftoffAssembler::PrepareLoopArgs(int num) {
   }
 }
 
+void LiftoffAssembler::MaterializeMergedConstants(uint32_t arity) {
+  // Materialize constants on top of the stack ({arity} many), and locals.
+  VarState* stack_base = cache_state_.stack_state.data();
+  for (auto slots :
+       {VectorOf(stack_base + cache_state_.stack_state.size() - arity, arity),
+        VectorOf(stack_base, num_locals())}) {
+    for (VarState& slot : slots) {
+      if (!slot.is_const()) continue;
+      RegClass rc = reg_class_for(slot.type());
+      if (cache_state_.has_unused_register(rc)) {
+        LiftoffRegister reg = cache_state_.unused_register(rc);
+        LoadConstant(reg, slot.constant());
+        cache_state_.inc_used(reg);
+        slot.MakeRegister(reg);
+      } else {
+        Spill(slot.offset(), slot.constant());
+        slot.MakeStack();
+      }
+    }
+  }
+}
+
 void LiftoffAssembler::MergeFullStackWith(const CacheState& target,
                                           const CacheState& source) {
   DCHECK_EQ(source.stack_height(), target.stack_height());
