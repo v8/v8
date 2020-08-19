@@ -1508,9 +1508,6 @@ struct TyperPhase {
     roots.push_back(data->jsgraph()->TrueConstant());
     roots.push_back(data->jsgraph()->FalseConstant());
 
-    // The typer inspects heap objects, so we need to unpark the local heap.
-    UnparkedScopeIfNeeded scope(data->broker());
-
     LoopVariableOptimizer induction_vars(data->jsgraph()->graph(),
                                          data->common(), temp_zone);
     if (FLAG_turbo_loop_variable) induction_vars.Run();
