@@ -3219,22 +3219,12 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
   using FastArrayForEachBody =
       std::function<void(TNode<HeapObject> array, TNode<IntPtrT> offset)>;
 
+  template <typename TIndex>
   void BuildFastArrayForEach(
-      const CodeStubAssembler::VariableList& vars, Node* array,
-      ElementsKind kind, Node* first_element_inclusive,
-      Node* last_element_exclusive, const FastArrayForEachBody& body,
-      ParameterMode mode = INTPTR_PARAMETERS,
+      TNode<UnionT<UnionT<FixedArray, PropertyArray>, HeapObject>> array,
+      ElementsKind kind, TNode<TIndex> first_element_inclusive,
+      TNode<TIndex> last_element_exclusive, const FastArrayForEachBody& body,
       ForEachDirection direction = ForEachDirection::kReverse);
-
-  void BuildFastArrayForEach(
-      Node* array, ElementsKind kind, Node* first_element_inclusive,
-      Node* last_element_exclusive, const FastArrayForEachBody& body,
-      ParameterMode mode = INTPTR_PARAMETERS,
-      ForEachDirection direction = ForEachDirection::kReverse) {
-    CodeStubAssembler::VariableList list(0, zone());
-    BuildFastArrayForEach(list, array, kind, first_element_inclusive,
-                          last_element_exclusive, body, mode, direction);
-  }
 
   template <typename TIndex>
   TNode<IntPtrT> GetArrayAllocationSize(TNode<TIndex> element_count,

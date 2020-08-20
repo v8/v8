@@ -4234,8 +4234,7 @@ void CodeStubAssembler::FillPropertyArrayWithUndefined(
       [this, value](TNode<HeapObject> array, TNode<IntPtrT> offset) {
         StoreNoWriteBarrier(MachineRepresentation::kTagged, array, offset,
                             value);
-      },
-      INTPTR_PARAMETERS);
+      });
 }
 
 template <typename TIndex>
@@ -4247,9 +4246,6 @@ void CodeStubAssembler::FillFixedArrayWithValue(ElementsKind kind,
   static_assert(
       std::is_same<TIndex, Smi>::value || std::is_same<TIndex, IntPtrT>::value,
       "Only Smi or IntPtrT from and to are allowed");
-  const ParameterMode mode =
-      std::is_same<TIndex, Smi>::value ? SMI_PARAMETERS : INTPTR_PARAMETERS;
-
   CSA_SLOW_ASSERT(this, IsFixedArrayWithKind(array, kind));
   DCHECK(value_root_index == RootIndex::kTheHoleValue ||
          value_root_index == RootIndex::kUndefinedValue);
@@ -4273,8 +4269,7 @@ void CodeStubAssembler::FillFixedArrayWithValue(ElementsKind kind,
           StoreNoWriteBarrier(MachineRepresentation::kTagged, array, offset,
                               value);
         }
-      },
-      mode);
+      });
 }
 
 template V8_EXPORT_PRIVATE void
@@ -4444,14 +4439,14 @@ void CodeStubAssembler::MoveElements(ElementsKind kind,
       {
         // Make a loop for the stores.
         BuildFastArrayForEach(elements, kind, begin, end, loop_body,
-                              INTPTR_PARAMETERS, ForEachDirection::kForward);
+                              ForEachDirection::kForward);
         Goto(&finished);
       }
 
       BIND(&iterate_backward);
       {
         BuildFastArrayForEach(elements, kind, begin, end, loop_body,
-                              INTPTR_PARAMETERS, ForEachDirection::kReverse);
+                              ForEachDirection::kReverse);
         Goto(&finished);
       }
     }
@@ -4531,7 +4526,7 @@ void CodeStubAssembler::CopyElements(ElementsKind kind,
               Store(dst_elements, delta_offset, element);
             }
           },
-          INTPTR_PARAMETERS, ForEachDirection::kForward);
+          ForEachDirection::kForward);
       Goto(&finished);
     }
     BIND(&finished);
@@ -4760,8 +4755,7 @@ void CodeStubAssembler::CopyPropertyArrayValues(TNode<HeapObject> from_array,
           StoreNoWriteBarrier(MachineRepresentation::kTagged, to_array, offset,
                               value);
         }
-      },
-      INTPTR_PARAMETERS);
+      });
 
 #ifdef DEBUG
   // Zap {from_array} if the copying above has made it invalid.
@@ -10310,16 +10304,16 @@ template TNode<UintPtrT> CodeStubAssembler::BuildFastLoop<UintPtrT>(
     TNode<UintPtrT> end_index, const FastLoopBody<UintPtrT>& body,
     int increment, IndexAdvanceMode advance_mode);
 
+template <typename TIndex>
 void CodeStubAssembler::BuildFastArrayForEach(
-    const CodeStubAssembler::VariableList& vars, Node* fixed_array,
-    ElementsKind kind, Node* first_element_inclusive,
-    Node* last_element_exclusive, const FastArrayForEachBody& body,
-    ParameterMode mode, ForEachDirection direction) {
+    TNode<UnionT<UnionT<FixedArray, PropertyArray>, HeapObject>> array,
+    ElementsKind kind, TNode<TIndex> first_element_inclusive,
+    TNode<TIndex> last_element_exclusive, const FastArrayForEachBody& body,
+    ForEachDirection direction) {
   STATIC_ASSERT(FixedArray::kHeaderSize == FixedDoubleArray::kHeaderSize);
-  CSA_SLOW_ASSERT(this, MatchesParameterMode(first_element_inclusive, mode));
-  CSA_SLOW_ASSERT(this, MatchesParameterMode(last_element_exclusive, mode));
-  CSA_SLOW_ASSERT(this, Word32Or(IsFixedArrayWithKind(fixed_array, kind),
-                                 IsPropertyArray(fixed_array)));
+  CSA_SLOW_ASSERT(this, Word32Or(IsFixedArrayWithKind(array, kind),
+                                 IsPropertyArray(array)));
+
   int32_t first_val;
   bool constant_first = ToInt32Constant(first_element_inclusive, &first_val);
   int32_t last_val;
@@ -10333,32 +10327,29 @@ void CodeStubAssembler::BuildFastArrayForEach(
           TNode<IntPtrT> index = IntPtrConstant(i);
           TNode<IntPtrT> offset = ElementOffsetFromIndex(
               index, kind, FixedArray::kHeaderSize - kHeapObjectTag);
-          body(CAST(fixed_array), offset);
+          body(array, offset);
         }
       } else {
         for (int i = last_val - 1; i >= first_val; --i) {
           TNode<IntPtrT> index = IntPtrConstant(i);
           TNode<IntPtrT> offset = ElementOffsetFromIndex(
               index, kind, FixedArray::kHeaderSize - kHeapObjectTag);
-          body(CAST(fixed_array), offset);
+          body(array, offset);
         }
       }
       return;
     }
   }
 
-  TNode<IntPtrT> start =
-      ElementOffsetFromIndex(first_element_inclusive, kind, mode,
-                             FixedArray::kHeaderSize - kHeapObjectTag);
-  TNode<IntPtrT> limit =
-      ElementOffsetFromIndex(last_element_exclusive, kind, mode,
-                             FixedArray::kHeaderSize - kHeapObjectTag);
+  TNode<IntPtrT> start = ElementOffsetFromIndex(
+      first_element_inclusive, kind, FixedArray::kHeaderSize - kHeapObjectTag);
+  TNode<IntPtrT> limit = ElementOffsetFromIndex(
+      last_element_exclusive, kind, FixedArray::kHeaderSize - kHeapObjectTag);
   if (direction == ForEachDirection::kReverse) std::swap(start, limit);
 
   int increment = IsDoubleElementsKind(kind) ? kDoubleSize : kTaggedSize;
   BuildFastLoop<IntPtrT>(
-      vars, start, limit,
-      [&](TNode<IntPtrT> offset) { body(CAST(fixed_array), offset); },
+      start, limit, [&](TNode<IntPtrT> offset) { body(array, offset); },
       direction == ForEachDirection::kReverse ? -increment : increment,
       direction == ForEachDirection::kReverse ? IndexAdvanceMode::kPre
                                               : IndexAdvanceMode::kPost);
