@@ -298,6 +298,12 @@ void GenerateTestCase(Isolate* isolate, ModuleWireBytes wire_bytes,
 
 void WasmExecutionFuzzer::FuzzWasmModule(Vector<const uint8_t> data,
                                          bool require_valid) {
+  if (V8_TRAP_HANDLER_SUPPORTED && i::FLAG_wasm_trap_handler) {
+    constexpr bool kUseDefaultTrapHandler = true;
+    if (!v8::V8::EnableWebAssemblyTrapHandler(kUseDefaultTrapHandler)) {
+      FATAL("Could not register trap handler");
+    }
+  }
   // We explicitly enable staged WebAssembly features here to increase fuzzer
   // coverage. For libfuzzer fuzzers it is not possible that the fuzzer enables
   // the flag by itself.
