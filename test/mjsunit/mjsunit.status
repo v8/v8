@@ -1303,7 +1303,7 @@
 }],  # variant == slow_path
 
 ################################################################################
-['variant == nci or variant == nci_as_highest_tier', {
+['variant == nci or variant == nci_as_midtier', {
   # Deopts differently than TurboFan.
   # Deoptimization support is still incomplete in general, since deopts can
   # only happen when explicitly requested by tests. NCI code objects are then
@@ -1436,6 +1436,6 @@
   'compiler/serializer-feedback-propagation-1': [SKIP],
   'compiler/serializer-feedback-propagation-2': [SKIP],
   'compiler/serializer-transition-propagation': [SKIP],
-}],  # variant == nci or variant == nci_as_highest_tier
+}],  # variant == nci or variant == nci_as_midtier
 
 ]

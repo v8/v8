@@ -141,6 +141,12 @@ bool JSFunction::ActiveTierIsNCI() const {
   return highest_tier == CodeKind::NATIVE_CONTEXT_INDEPENDENT;
 }
 
+CodeKind JSFunction::NextTier() const {
+  return (FLAG_turbo_nci_as_midtier && ActiveTierIsIgnition())
+             ? CodeKind::NATIVE_CONTEXT_INDEPENDENT
+             : CodeKind::OPTIMIZED_FUNCTION;
+}
+
 bool JSFunction::HasOptimizationMarker() {
   return has_feedback_vector() && feedback_vector().has_optimization_marker();
 }

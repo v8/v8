@@ -683,9 +683,8 @@ DEFINE_BOOL(turbo_nci, false,
 // TODO(v8:8888): Temporary until NCI caching is implemented or
 // feedback collection is made unconditional.
 DEFINE_IMPLICATION(turbo_nci, turbo_collect_feedback_in_generic_lowering)
-DEFINE_BOOL(turbo_nci_as_highest_tier, false,
-            "replace default TF with NCI code as the highest tier for testing "
-            "purposes.")
+DEFINE_BOOL(turbo_nci_as_midtier, false,
+            "insert NCI as a midtier compiler for testing purposes.")
 DEFINE_BOOL(print_nci_code, false, "print native context independent code.")
 DEFINE_BOOL(trace_turbo_nci, false, "trace native context independent code.")
 DEFINE_BOOL(turbo_collect_feedback_in_generic_lowering, true,

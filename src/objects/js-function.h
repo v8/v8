@@ -114,6 +114,8 @@ class JSFunction : public JSFunctionOrBoundFunction {
   bool ActiveTierIsTurbofan() const;
   bool ActiveTierIsNCI() const;
 
+  CodeKind NextTier() const;
+
   // Tells whether or not this function checks its optimization marker in its
   // feedback vector.
   bool ChecksOptimizationMarker();

@@ -65,7 +65,8 @@ Object CompileOptimized(Isolate* isolate, Handle<JSFunction> function,
   if (check.JsHasOverflowed(kStackSpaceRequiredForCompilation * KB)) {
     return isolate->StackOverflow();
   }
-  if (!Compiler::CompileOptimized(function, mode, CodeKindForTopTier())) {
+
+  if (!Compiler::CompileOptimized(function, mode, function->NextTier())) {
     return ReadOnlyRoots(isolate).exception();
   }
   if (ShouldSpawnExtraNativeContextIndependentCompilationJob()) {

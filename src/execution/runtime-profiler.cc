@@ -196,8 +196,8 @@ void RuntimeProfiler::MaybeOptimizeNCIFrame(JSFunction function) {
 
   if (function.shared().optimization_disabled()) return;
 
-  // Note: NCI code does not OSR except when FLAG_turbo_nci_as_highest_tier
-  // is enabled, in which case we do not tier up from NCI code.
+  // Note: We currently do not trigger OSR compilation from NCI code.
+  // TODO(jgruber,v8:8888): But we should.
 
   OptimizationReason reason =
       ShouldOptimize(function, function.shared().GetBytecodeArray());

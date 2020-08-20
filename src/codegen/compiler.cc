@@ -59,12 +59,11 @@ namespace internal {
 namespace {
 
 bool IsForNativeContextIndependentCachingOnly(CodeKind kind) {
+  // NCI code is only cached (and not installed on the JSFunction upon
+  // successful compilation), unless the testing-only
+  // FLAG_turbo_nci_as_midtier is enabled.
   return CodeKindIsNativeContextIndependentJSFunction(kind) &&
-         !FLAG_turbo_nci_as_highest_tier;
-}
-
-bool IsForNativeContextIndependentCachingOnly(OptimizedCompilationInfo* info) {
-  return IsForNativeContextIndependentCachingOnly(info->code_kind());
+         !FLAG_turbo_nci_as_midtier;
 }
 
 class CompilerTracer : public AllStatic {
@@ -835,12 +834,16 @@ V8_WARN_UNUSED_RESULT MaybeHandle<Code> GetCodeFromOptimizedCodeCache(
     // Caching of optimized code enabled and optimized code found.
     DCHECK(!code.marked_for_deoptimization());
     DCHECK(function->shared().is_compiled());
+    DCHECK(CodeKindIsStoredInOptimizedCodeCache(code.kind()));
+    DCHECK_IMPLIES(!osr_offset.IsNone(),
+                   code.kind() == CodeKind::OPTIMIZED_FUNCTION);
     return Handle<Code>(code, isolate);
   }
   return MaybeHandle<Code>();
 }
 
 void ClearOptimizedCodeCache(OptimizedCompilationInfo* compilation_info) {
+  DCHECK(CodeKindIsStoredInOptimizedCodeCache(compilation_info->code_kind()));
   Handle<JSFunction> function = compilation_info->closure();
   if (compilation_info->osr_offset().IsNone()) {
     Handle<FeedbackVector> vector =
@@ -851,21 +854,17 @@ void ClearOptimizedCodeCache(OptimizedCompilationInfo* compilation_info) {
 
 void InsertCodeIntoOptimizedCodeCache(
     OptimizedCompilationInfo* compilation_info) {
-  // Cached NCI code currently does not use the optimization marker field.
-  if (IsForNativeContextIndependentCachingOnly(compilation_info)) return;
+  const CodeKind kind = compilation_info->code_kind();
+  if (!CodeKindIsStoredInOptimizedCodeCache(kind)) return;
 
-  if (!CodeKindIsOptimizedJSFunction(compilation_info->code_kind())) return;
-
-  // Function context specialization folds-in the function context,
-  // so no sharing can occur.
   if (compilation_info->function_context_specializing()) {
-    // Native context specialized code is not shared, so make sure the optimized
-    // code cache is clear.
+    // Function context specialization folds-in the function context, so no
+    // sharing can occur. Make sure the optimized code cache is cleared.
     ClearOptimizedCodeCache(compilation_info);
     return;
   }
 
-  // Cache optimized context-specific code.
+  // Cache optimized code.
   Handle<Code> code = compilation_info->code();
   Handle<JSFunction> function = compilation_info->closure();
   Handle<SharedFunctionInfo> shared(function->shared(), function->GetIsolate());
@@ -876,6 +875,7 @@ void InsertCodeIntoOptimizedCodeCache(
         handle(function->feedback_vector(), function->GetIsolate());
     FeedbackVector::SetOptimizedCode(vector, code);
   } else {
+    DCHECK_EQ(kind, CodeKind::OPTIMIZED_FUNCTION);
     OSROptimizedCodeCache::AddOptimizedCode(native_context, shared, code,
                                             compilation_info->osr_offset());
   }
@@ -984,9 +984,7 @@ bool GetOptimizedCodeLater(std::unique_ptr<OptimizedCompilationJob> job,
     PrintF(" for concurrent optimization.\n");
   }
 
-  // Set the optimization marker and return a code object which checks it.
-  if (!IsForNativeContextIndependentCachingOnly(code_kind)) {
-    // Cached NCI code currently does not use the optimization marker field.
+  if (CodeKindIsStoredInOptimizedCodeCache(code_kind)) {
     function->SetOptimizationMarker(OptimizationMarker::kInOptimizationQueue);
   }
   DCHECK(function->ActiveTierIsIgnition());
@@ -1005,7 +1003,11 @@ MaybeHandle<Code> GetOptimizedCode(Handle<JSFunction> function,
 
   // Make sure we clear the optimization marker on the function so that we
   // don't try to re-optimize.
-  if (function->HasOptimizationMarker()) {
+  // If compiling for NCI caching only (which does not use the optimization
+  // marker), don't touch the marker to avoid interfering with Turbofan
+  // compilation.
+  if (CodeKindIsStoredInOptimizedCodeCache(code_kind) &&
+      function->HasOptimizationMarker()) {
     function->ClearOptimizationMarker();
   }
 
@@ -1030,7 +1032,7 @@ MaybeHandle<Code> GetOptimizedCode(Handle<JSFunction> function,
     PendingOptimizationTable::FunctionWasOptimized(isolate, function);
   }
 
-  if (!IsForNativeContextIndependentCachingOnly(code_kind)) {
+  if (CodeKindIsStoredInOptimizedCodeCache(code_kind)) {
     Handle<Code> cached_code;
     if (GetCodeFromOptimizedCodeCache(function, osr_offset)
             .ToHandle(&cached_code)) {
@@ -1858,12 +1860,14 @@ bool Compiler::CompileOptimized(Handle<JSFunction> function,
   DCHECK(!isolate->has_pending_exception());
   DCHECK(function->shared().is_compiled());
   DCHECK(function->is_compiled());
-  DCHECK_IMPLIES(function->HasOptimizationMarker(),
-                 function->IsInOptimizationQueue());
-  DCHECK_IMPLIES(function->HasOptimizationMarker(),
-                 function->ChecksOptimizationMarker());
-  DCHECK_IMPLIES(function->IsInOptimizationQueue(),
-                 mode == ConcurrencyMode::kConcurrent);
+  if (CodeKindIsStoredInOptimizedCodeCache(code_kind)) {
+    DCHECK_IMPLIES(function->HasOptimizationMarker(),
+                   function->IsInOptimizationQueue());
+    DCHECK_IMPLIES(function->HasOptimizationMarker(),
+                   function->ChecksOptimizationMarker());
+    DCHECK_IMPLIES(function->IsInOptimizationQueue(),
+                   mode == ConcurrencyMode::kConcurrent);
+  }
   return true;
 }
 
@@ -2933,8 +2937,9 @@ bool Compiler::FinalizeOptimizedCompilationJob(OptimizedCompilationJob* job,
 
   Handle<SharedFunctionInfo> shared = compilation_info->shared_info();
 
+  CodeKind code_kind = compilation_info->code_kind();
   const bool should_install_code_on_function =
-      !IsForNativeContextIndependentCachingOnly(compilation_info);
+      !IsForNativeContextIndependentCachingOnly(code_kind);
   if (should_install_code_on_function) {
     // Reset profiler ticks, function is no longer considered hot.
     compilation_info->closure()->feedback_vector().set_profiler_ticks(0);
@@ -2969,7 +2974,8 @@ bool Compiler::FinalizeOptimizedCompilationJob(OptimizedCompilationJob* job,
   CompilerTracer::TraceAbortedJob(isolate, compilation_info);
   compilation_info->closure()->set_code(shared->GetCode());
   // Clear the InOptimizationQueue marker, if it exists.
-  if (compilation_info->closure()->IsInOptimizationQueue()) {
+  if (CodeKindIsStoredInOptimizedCodeCache(code_kind) &&
+      compilation_info->closure()->IsInOptimizationQueue()) {
     compilation_info->closure()->ClearOptimizationMarker();
   }
   return CompilationJob::FAILED;
