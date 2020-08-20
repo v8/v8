@@ -2271,7 +2271,12 @@ void InstructionSelector::VisitSwitch(Node* node, const SwitchInfo& sw) {
              value_operand, g.TempImmediate(-sw.min_value()));
       } else {
         // Zero extend, because we use it as 64-bit index into the jump table.
-        Emit(kX64Movl, index_operand, value_operand);
+        if (ZeroExtendsWord32ToWord64(node->InputAt(0))) {
+          // Input value has already been zero-extended.
+          index_operand = value_operand;
+        } else {
+          Emit(kX64Movl, index_operand, value_operand);
+        }
       }
       // Generate a table lookup.
       return EmitTableSwitch(sw, index_operand);
