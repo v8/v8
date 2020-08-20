@@ -1082,6 +1082,9 @@ StepResult IncrementalMarking::Step(double max_step_size_in_ms,
       embedder_deadline =
           Min(max_step_size_in_ms,
               static_cast<double>(bytes_to_process) / marking_speed);
+      // TODO(chromium:1056170): Replace embedder_deadline with bytes_to_process
+      // after migrating blink to the cppgc library and after v8 can directly
+      // push objects to Oilpan.
       embedder_result = EmbedderStep(embedder_deadline, &embedder_duration);
     }
     bytes_marked_ += v8_bytes_processed;

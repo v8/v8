@@ -279,7 +279,7 @@ class IncrementalMarkingTest : public testing::TestWithHeap {
       MarkingConfig::MarkingType::kIncremental};
 
   void FinishSteps(Marker& marker, MarkingConfig::StackState stack_state) {
-    SingleStep(marker, stack_state, v8::base::TimeDelta::Max());
+    SingleStep(marker, stack_state, std::numeric_limits<size_t>::max());
   }
 
   void FinishMarking(Marker& marker) {
@@ -292,8 +292,8 @@ class IncrementalMarkingTest : public testing::TestWithHeap {
 
  private:
   bool SingleStep(Marker& marker, MarkingConfig::StackState stack_state,
-                  v8::base::TimeDelta deadline) {
-    return marker.IncrementalMarkingStepForTesting(stack_state, deadline);
+                  size_t bytes_to_mark) {
+    return marker.IncrementalMarkingStepForTesting(stack_state, bytes_to_mark);
   }
 };
 constexpr IncrementalMarkingTest::MarkingConfig

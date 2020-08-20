@@ -83,24 +83,40 @@ void ResetRememberedSet(HeapBase& heap) {
 #endif
 }
 
-template <typename Worklist, typename Callback>
-bool DrainWorklistWithDeadline(v8::base::TimeTicks deadline, Worklist* worklist,
-                               Callback callback, int task_id) {
-  const size_t kDeadlineCheckInterval = 1250;
+static constexpr size_t kDefaultDeadlineCheckInterval = 150u;
 
+template <size_t kDeadlineCheckInterval = kDefaultDeadlineCheckInterval,
+          typename Worklist, typename Callback, typename Predicate>
+bool DrainWorklistWithDeadline(Predicate should_yield, Worklist* worklist,
+                               Callback callback, int task_id) {
   size_t processed_callback_count = 0;
   typename Worklist::View view(worklist, task_id);
   typename Worklist::EntryType item;
   while (view.Pop(&item)) {
     callback(item);
-    if (++processed_callback_count == kDeadlineCheckInterval) {
-      if (deadline <= v8::base::TimeTicks::Now()) {
+    if (processed_callback_count-- == 0) {
+      if (should_yield()) {
         return false;
       }
-      processed_callback_count = 0;
+      processed_callback_count = kDeadlineCheckInterval;
     }
   }
   return true;
+}
+
+template <size_t kDeadlineCheckInterval = kDefaultDeadlineCheckInterval,
+          typename Worklist, typename Callback>
+bool DrainWorklistWithBytesAndTimeDeadline(MarkingState& marking_state,
+                                           size_t marked_bytes_deadline,
+                                           v8::base::TimeTicks time_deadline,
+                                           Worklist* worklist,
+                                           Callback callback, int task_id) {
+  return DrainWorklistWithDeadline(
+      [&marking_state, marked_bytes_deadline, time_deadline]() {
+        return (marked_bytes_deadline <= marking_state.marked_bytes()) ||
+               (time_deadline <= v8::base::TimeTicks::Now());
+      },
+      worklist, callback, task_id);
 }
 
 void TraceMarkedObject(Visitor* visitor, const HeapObjectHeader* header) {
@@ -113,6 +129,8 @@ void TraceMarkedObject(Visitor* visitor, const HeapObjectHeader* header) {
 }
 
 }  // namespace
+
+constexpr v8::base::TimeDelta MarkerBase::kMaximumIncrementalStepDuration;
 
 MarkerBase::IncrementalMarkingTask::IncrementalMarkingTask(MarkerBase* marker)
     : marker_(marker), handle_(Handle::NonEmptyTag{}) {}
@@ -130,10 +148,11 @@ MarkerBase::IncrementalMarkingTask::Post(v8::TaskRunner* runner,
 void MarkerBase::IncrementalMarkingTask::Run() {
   if (handle_.IsCanceled()) return;
 
-  // TODO(chromium:1056170): Replace hardcoded duration with schedule.
+  // TODO(chromium:1056170): Replace hardcoded expected marked bytes with
+  // schedule.
   if (marker_->IncrementalMarkingStep(
           MarkingConfig::StackState::kNoHeapPointers,
-          v8::base::TimeDelta::FromMillisecondsD(2))) {
+          kMinimumMarkedBytesPerIncrementalStep)) {
     // Incremental marking is done so should finalize GC.
     marker_->heap().FinalizeIncrementalGarbageCollectionIfNeeded(
         MarkingConfig::StackState::kNoHeapPointers);
@@ -211,7 +230,8 @@ void MarkerBase::LeaveAtomicPause() {
 void MarkerBase::FinishMarking(MarkingConfig::StackState stack_state) {
   DCHECK(is_marking_started_);
   EnterAtomicPause(stack_state);
-  ProcessWorklistsWithDeadline(v8::base::TimeDelta::Max());
+  ProcessWorklistsWithDeadline(std::numeric_limits<size_t>::max(),
+                               v8::base::TimeDelta::Max());
   LeaveAtomicPause();
   is_marking_started_ = false;
 }
@@ -247,29 +267,31 @@ void MarkerBase::VisitRoots(MarkingConfig::StackState stack_state) {
 }
 
 void MarkerBase::ScheduleIncrementalMarkingTask() {
-  if (!platform_ || !foreground_task_runner_) return;
-  DCHECK(!incremental_marking_handle_);
+  if (!platform_ || !foreground_task_runner_ || incremental_marking_handle_)
+    return;
   incremental_marking_handle_ =
       IncrementalMarkingTask::Post(foreground_task_runner_.get(), this);
 }
 
 bool MarkerBase::IncrementalMarkingStepForTesting(
-    MarkingConfig::StackState stack_state, v8::base::TimeDelta deadline) {
-  return IncrementalMarkingStep(stack_state, deadline);
+    MarkingConfig::StackState stack_state, size_t expected_marked_bytes) {
+  return IncrementalMarkingStep(stack_state, expected_marked_bytes);
 }
 
 bool MarkerBase::IncrementalMarkingStep(MarkingConfig::StackState stack_state,
-                                        v8::base::TimeDelta duration) {
+                                        size_t expected_marked_bytes) {
   if (stack_state == MarkingConfig::StackState::kNoHeapPointers) {
     marking_worklists_.FlushNotFullyConstructedObjects();
   }
   config_.stack_state = stack_state;
 
-  return AdvanceMarkingWithDeadline(duration);
+  return AdvanceMarkingWithDeadline(expected_marked_bytes);
 }
 
-bool MarkerBase::AdvanceMarkingWithDeadline(v8::base::TimeDelta duration) {
-  bool is_done = ProcessWorklistsWithDeadline(duration);
+bool MarkerBase::AdvanceMarkingWithDeadline(size_t expected_marked_bytes,
+                                            v8::base::TimeDelta max_duration) {
+  bool is_done =
+      ProcessWorklistsWithDeadline(expected_marked_bytes, max_duration);
   if (!is_done) {
     // If marking is atomic, |is_done| should always be true.
     DCHECK_NE(MarkingConfig::MarkingType::kAtomic, config_.marking_type);
@@ -278,15 +300,18 @@ bool MarkerBase::AdvanceMarkingWithDeadline(v8::base::TimeDelta duration) {
   return is_done;
 }
 
-bool MarkerBase::ProcessWorklistsWithDeadline(v8::base::TimeDelta duration) {
-  v8::base::TimeTicks deadline = v8::base::TimeTicks::Now() + duration;
+bool MarkerBase::ProcessWorklistsWithDeadline(
+    size_t expected_marked_bytes, v8::base::TimeDelta max_duration) {
+  size_t marked_bytes_deadline =
+      mutator_marking_state_.marked_bytes() + expected_marked_bytes;
+  v8::base::TimeTicks time_deadline = v8::base::TimeTicks::Now() + max_duration;
 
   do {
     // Convert |previously_not_fully_constructed_worklist_| to
     // |marking_worklist_|. This merely re-adds items with the proper
     // callbacks.
-    if (!DrainWorklistWithDeadline(
-            deadline,
+    if (!DrainWorklistWithBytesAndTimeDeadline(
+            mutator_marking_state_, marked_bytes_deadline, time_deadline,
             marking_worklists_.previously_not_fully_constructed_worklist(),
             [this](HeapObjectHeader* header) {
               TraceMarkedObject(&visitor(), header);
@@ -295,8 +320,9 @@ bool MarkerBase::ProcessWorklistsWithDeadline(v8::base::TimeDelta duration) {
             MarkingWorklists::kMutatorThreadId))
       return false;
 
-    if (!DrainWorklistWithDeadline(
-            deadline, marking_worklists_.marking_worklist(),
+    if (!DrainWorklistWithBytesAndTimeDeadline(
+            mutator_marking_state_, marked_bytes_deadline, time_deadline,
+            marking_worklists_.marking_worklist(),
             [this](const MarkingWorklists::MarkingItem& item) {
               const HeapObjectHeader& header =
                   HeapObjectHeader::FromPayload(item.base_object_payload);
@@ -310,8 +336,9 @@ bool MarkerBase::ProcessWorklistsWithDeadline(v8::base::TimeDelta duration) {
             MarkingWorklists::kMutatorThreadId))
       return false;
 
-    if (!DrainWorklistWithDeadline(
-            deadline, marking_worklists_.write_barrier_worklist(),
+    if (!DrainWorklistWithBytesAndTimeDeadline(
+            mutator_marking_state_, marked_bytes_deadline, time_deadline,
+            marking_worklists_.write_barrier_worklist(),
             [this](HeapObjectHeader* header) {
               TraceMarkedObject(&visitor(), header);
               mutator_marking_state_.AccountMarkedBytes(*header);

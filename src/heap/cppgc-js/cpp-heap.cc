@@ -135,7 +135,10 @@ void CppHeap::TracePrologue(TraceFlags flags) {
 }
 
 bool CppHeap::AdvanceTracing(double deadline_in_ms) {
+  // TODO(chromium:1056170): Replace std::numeric_limits<size_t>::max() with a
+  // proper deadline when unified heap transitions to bytes-based deadline.
   marking_done_ = marker_->AdvanceMarkingWithDeadline(
+      std::numeric_limits<size_t>::max(),
       v8::base::TimeDelta::FromMillisecondsD(deadline_in_ms));
   return marking_done_;
 }

@@ -69,7 +69,10 @@ class V8_EXPORT_PRIVATE MarkerBase {
   void EnterAtomicPause(MarkingConfig::StackState);
 
   // Makes marking progress.
-  bool AdvanceMarkingWithDeadline(v8::base::TimeDelta);
+  // TODO(chromium:1056170): Remove TimeDelta argument when unified heap no
+  // longer uses it.
+  bool AdvanceMarkingWithDeadline(
+      size_t, v8::base::TimeDelta = kMaximumIncrementalStepDuration);
 
   // Signals leaving the atomic marking pause. This method expects no more
   // objects to be marked and merely updates marking states if needed.
@@ -93,8 +96,7 @@ class V8_EXPORT_PRIVATE MarkerBase {
   cppgc::Visitor& VisitorForTesting() { return visitor(); }
   void ClearAllWorklistsForTesting();
 
-  bool IncrementalMarkingStepForTesting(MarkingConfig::StackState,
-                                        v8::base::TimeDelta);
+  bool IncrementalMarkingStepForTesting(MarkingConfig::StackState, size_t);
 
   class IncrementalMarkingTask final : public v8::Task {
    public:
@@ -113,13 +115,17 @@ class V8_EXPORT_PRIVATE MarkerBase {
   };
 
  protected:
+  static constexpr v8::base::TimeDelta kMaximumIncrementalStepDuration =
+      v8::base::TimeDelta::FromMilliseconds(2);
+  static constexpr size_t kMinimumMarkedBytesPerIncrementalStep = 64 * kKB;
+
   MarkerBase(HeapBase&, cppgc::Platform*, MarkingConfig);
 
   virtual cppgc::Visitor& visitor() = 0;
   virtual ConservativeTracingVisitor& conservative_visitor() = 0;
   virtual heap::base::StackVisitor& stack_visitor() = 0;
 
-  bool ProcessWorklistsWithDeadline(v8::base::TimeDelta);
+  bool ProcessWorklistsWithDeadline(size_t, v8::base::TimeDelta);
 
   void VisitRoots(MarkingConfig::StackState);
 
@@ -127,7 +133,7 @@ class V8_EXPORT_PRIVATE MarkerBase {
 
   void ScheduleIncrementalMarkingTask();
 
-  bool IncrementalMarkingStep(MarkingConfig::StackState, v8::base::TimeDelta);
+  bool IncrementalMarkingStep(MarkingConfig::StackState, size_t);
 
   HeapBase& heap_;
   MarkingConfig config_ = MarkingConfig::Default();
