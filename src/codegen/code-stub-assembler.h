@@ -1599,14 +1599,6 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
       TNode<FixedDoubleArray> object, Node* index, TNode<Float64T> value,
       ParameterMode parameter_mode = INTPTR_PARAMETERS,
       CheckBounds check_bounds = CheckBounds::kAlways);
-  // This doesn't emit a bounds-check. As part of the security-performance
-  // tradeoff, only use it if it is performance critical.
-  void UnsafeStoreFixedDoubleArrayElement(
-      TNode<FixedDoubleArray> object, Node* index, TNode<Float64T> value,
-      ParameterMode parameter_mode = INTPTR_PARAMETERS) {
-    return StoreFixedDoubleArrayElement(object, index, value, parameter_mode,
-                                        CheckBounds::kDebugOnly);
-  }
 
   void StoreFixedDoubleArrayElementSmi(TNode<FixedDoubleArray> object,
                                        TNode<Smi> index,
