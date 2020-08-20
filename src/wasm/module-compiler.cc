@@ -2475,6 +2475,7 @@ void AsyncStreamingProcessor::OnFinishedChunk() {
 void AsyncStreamingProcessor::OnFinishedStream(OwnedVector<uint8_t> bytes) {
   TRACE_STREAMING("Finish stream...\n");
   DCHECK_EQ(NativeModuleCache::PrefixHash(bytes.as_vector()), prefix_hash_);
+  decoder_.SetModuleWireBytes(bytes.begin(), bytes.end());
   ModuleResult result = decoder_.FinishDecoding(false);
   if (result.failed()) {
     FinishAsyncCompileJobWithError(result.error());

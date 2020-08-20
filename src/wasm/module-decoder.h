@@ -199,6 +199,8 @@ class ModuleDecoder {
   explicit ModuleDecoder(const WasmFeatures& enabled);
   ~ModuleDecoder();
 
+  void SetModuleWireBytes(const byte* module_start, const byte* module_end);
+
   void StartDecoding(Counters* counters,
                      std::shared_ptr<metrics::Recorder> metrics_recorder,
                      v8::metrics::Recorder::ContextId context_id,

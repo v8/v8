@@ -295,6 +295,8 @@ class ModuleDecoderImpl : public Decoder {
   explicit ModuleDecoderImpl(const WasmFeatures& enabled, ModuleOrigin origin)
       : Decoder(nullptr, nullptr),
         enabled_features_(enabled),
+        module_start_(nullptr),
+        module_end_(nullptr),
         origin_(FLAG_assume_asmjs_origin ? kAsmJsSloppyOrigin : origin) {}
 
   ModuleDecoderImpl(const WasmFeatures& enabled, const byte* module_start,
@@ -306,6 +308,13 @@ class ModuleDecoderImpl : public Decoder {
       error(start_, "end is less than start");
       end_ = start_;
     }
+    SetModuleWireBytes(module_start, module_end);
+  }
+
+  void SetModuleWireBytes(const byte* module_start, const byte* module_end) {
+    DCHECK_NOT_NULL(module_start);
+    DCHECK_NOT_NULL(module_end);
+    DCHECK_GE(module_end, module_start);
     module_start_ = module_start;
     module_end_ = module_end;
   }
@@ -1214,7 +1223,7 @@ class ModuleDecoderImpl : public Decoder {
 
     if (metrics_) {
       metrics_->success = ok() && !intermediate_error_.has_error();
-      metrics_->module_size_in_bytes = end() - start();
+      metrics_->module_size_in_bytes = module_end_ - module_start_;
       metrics_->function_count = module_->num_declared_functions;
       metrics_.reset();
     }
@@ -2217,6 +2226,11 @@ ModuleDecoder::~ModuleDecoder() = default;
 
 const std::shared_ptr<WasmModule>& ModuleDecoder::shared_module() const {
   return impl_->shared_module();
+}
+
+void ModuleDecoder::SetModuleWireBytes(const byte* module_start,
+                                       const byte* module_end) {
+  impl_->SetModuleWireBytes(module_start, module_end);
 }
 
 void ModuleDecoder::StartDecoding(
