@@ -1487,7 +1487,8 @@ WasmCode::RuntimeStubId NativeModule::GetRuntimeStubId(Address target) const {
   base::MutexGuard guard(&allocation_mutex_);
 
   for (auto& code_space_data : code_space_data_) {
-    if (code_space_data.far_jump_table->contains(target)) {
+    if (code_space_data.far_jump_table != nullptr &&
+        code_space_data.far_jump_table->contains(target)) {
       uint32_t offset = static_cast<uint32_t>(
           target - code_space_data.far_jump_table->instruction_start());
       uint32_t index = JumpTableAssembler::FarJumpSlotOffsetToIndex(offset);
