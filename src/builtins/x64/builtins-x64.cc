@@ -3286,7 +3286,12 @@ void Builtins::Generate_GenericJSToWasmWrapper(MacroAssembler* masm) {
 
   // Param handling.
   Register param = rax;
-  const int firstParamOffset = 16;
+#ifdef V8_REVERSE_JSARGS
+  const int firstParamOffset = kFPOnStackSize + kPCOnStackSize +
+                               kSystemPointerSize;  // Skips the receiver.
+#else
+  const int firstParamOffset = kFPOnStackSize + kPCOnStackSize;
+#endif
   __ movq(param, MemOperand(rbp, firstParamOffset));
 
   Label not_smi;
