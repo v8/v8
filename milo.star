@@ -526,10 +526,10 @@ console_view(
     refs = ["refs/branch-heads/\\d+\\.\\d+", "refs/heads/\\d+\\.\\d+\\.\\d+"],
     exclude_ref = "refs/heads/master",
 )
-branch_console_view("br.stable", "Stable Main", "8\\.4")
-branch_console_view("br.stable.ports", "Stable Ports", "8\\.4")
-branch_console_view("br.beta", "Beta Main", "8\\.5")
-branch_console_view("br.beta.ports", "Beta Ports", "8\\.5")
+branch_console_view("br.stable", "Stable Main", "8\\.5")
+branch_console_view("br.stable.ports", "Stable Ports", "8\\.5")
+branch_console_view("br.beta", "Beta Main", "8\\.6")
+branch_console_view("br.beta.ports", "Beta Ports", "8\\.6")
 list_view("infra", "Infra")
 list_view("tryserver", "Tryserver")
 

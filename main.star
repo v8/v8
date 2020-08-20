@@ -85,13 +85,13 @@ luci.gitiles_poller(
     name = "v8-trigger-br-beta",
     bucket = "ci.br.beta",
     repo = "https://chromium.googlesource.com/v8/v8",
-    refs = ["refs/branch-heads/8\\.5"],
+    refs = ["refs/branch-heads/8\\.6"],
 )
 luci.gitiles_poller(
     name = "v8-trigger-br-stable",
     bucket = "ci.br.stable",
     repo = "https://chromium.googlesource.com/v8/v8",
-    refs = ["refs/branch-heads/8\\.4"],
+    refs = ["refs/branch-heads/8\\.5"],
 )
 luci.gitiles_poller(
     name = "v8-trigger-official",
