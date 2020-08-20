@@ -170,12 +170,6 @@ bool Heap::GCCallbackTuple::operator==(
 Heap::GCCallbackTuple& Heap::GCCallbackTuple::operator=(
     const Heap::GCCallbackTuple& other) V8_NOEXCEPT = default;
 
-struct Heap::StrongRootsList {
-  FullObjectSlot start;
-  FullObjectSlot end;
-  StrongRootsList* next;
-};
-
 class ScavengeTaskObserver : public AllocationObserver {
  public:
   ScavengeTaskObserver(Heap* heap, intptr_t step_size)
@@ -4573,8 +4567,10 @@ void Heap::IterateRoots(RootVisitor* v, base::EnumSet<SkipRoot> options) {
 
     // Iterate over other strong roots (currently only identity maps and
     // deoptimization entries).
-    for (StrongRootsList* list = strong_roots_list_; list; list = list->next) {
-      v->VisitRootPointers(Root::kStrongRoots, nullptr, list->start, list->end);
+    for (StrongRootsEntry* current = strong_roots_head_; current;
+         current = current->next) {
+      v->VisitRootPointers(Root::kStrongRoots, nullptr, current->start,
+                           current->end);
     }
     v->Synchronize(VisitorSynchronization::kStrongRoots);
 
@@ -5605,12 +5601,13 @@ void Heap::TearDown() {
 
   memory_allocator()->TearDown();
 
-  StrongRootsList* next = nullptr;
-  for (StrongRootsList* list = strong_roots_list_; list; list = next) {
-    next = list->next;
-    delete list;
+  StrongRootsEntry* next = nullptr;
+  for (StrongRootsEntry* current = strong_roots_head_; current;
+       current = next) {
+    next = current->next;
+    delete current;
   }
-  strong_roots_list_ = nullptr;
+  strong_roots_head_ = nullptr;
 
   memory_allocator_.reset();
 }
@@ -6184,33 +6181,46 @@ size_t Heap::OldArrayBufferBytes() {
   return array_buffer_sweeper()->OldBytes();
 }
 
-void Heap::RegisterStrongRoots(FullObjectSlot start, FullObjectSlot end) {
+StrongRootsEntry* Heap::RegisterStrongRoots(FullObjectSlot start,
+                                            FullObjectSlot end) {
   base::MutexGuard guard(&strong_roots_mutex_);
-  StrongRootsList* list = new StrongRootsList();
-  list->next = strong_roots_list_;
-  list->start = start;
-  list->end = end;
-  strong_roots_list_ = list;
+
+  StrongRootsEntry* entry = new StrongRootsEntry();
+  entry->start = start;
+  entry->end = end;
+  entry->prev = nullptr;
+  entry->next = strong_roots_head_;
+
+  if (strong_roots_head_) {
+    DCHECK_NULL(strong_roots_head_->prev);
+    strong_roots_head_->prev = entry;
+  }
+  strong_roots_head_ = entry;
+
+  return entry;
 }
 
-void Heap::UnregisterStrongRoots(FullObjectSlot start) {
+void Heap::UpdateStrongRoots(StrongRootsEntry* entry, FullObjectSlot start,
+                             FullObjectSlot end) {
+  entry->start = start;
+  entry->end = end;
+}
+
+void Heap::UnregisterStrongRoots(StrongRootsEntry* entry) {
   base::MutexGuard guard(&strong_roots_mutex_);
-  StrongRootsList* prev = nullptr;
-  StrongRootsList* list = strong_roots_list_;
-  while (list != nullptr) {
-    StrongRootsList* next = list->next;
-    if (list->start == start) {
-      if (prev) {
-        prev->next = next;
-      } else {
-        strong_roots_list_ = next;
-      }
-      delete list;
-    } else {
-      prev = list;
-    }
-    list = next;
+
+  StrongRootsEntry* prev = entry->prev;
+  StrongRootsEntry* next = entry->next;
+
+  if (prev) prev->next = next;
+  if (next) next->prev = prev;
+
+  if (strong_roots_head_ == entry) {
+    DCHECK_NULL(prev);
+    strong_roots_head_ = next;
   }
+
+  delete entry;
 }
 
 void Heap::SetBuiltinsConstantsTable(FixedArray cache) {

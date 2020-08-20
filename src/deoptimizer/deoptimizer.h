@@ -17,6 +17,7 @@
 #include "src/diagnostics/code-tracer.h"
 #include "src/execution/frame-constants.h"
 #include "src/execution/isolate.h"
+#include "src/heap/heap.h"
 #include "src/objects/feedback-vector.h"
 #include "src/objects/js-function.h"
 #include "src/objects/shared-function-info.h"
@@ -35,6 +36,7 @@ class TranslatedFrame;
 class TranslatedState;
 class RegisterValues;
 class MacroAssembler;
+class StrongRootsEntry;
 
 enum class BuiltinContinuationMode;
 
@@ -821,6 +823,7 @@ class DeoptimizerData {
   void set_deopt_entry_code(DeoptimizeKind kind, Code code);
 
   Deoptimizer* current_;
+  StrongRootsEntry* strong_roots_entry_;
 
   friend class Deoptimizer;
 

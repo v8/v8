@@ -181,12 +181,12 @@ class FrameWriter {
 DeoptimizerData::DeoptimizerData(Heap* heap) : heap_(heap), current_(nullptr) {
   Code* start = &deopt_entry_code_[0];
   Code* end = &deopt_entry_code_[DeoptimizerData::kLastDeoptimizeKind + 1];
-  heap_->RegisterStrongRoots(FullObjectSlot(start), FullObjectSlot(end));
+  strong_roots_entry_ =
+      heap_->RegisterStrongRoots(FullObjectSlot(start), FullObjectSlot(end));
 }
 
 DeoptimizerData::~DeoptimizerData() {
-  Code* start = &deopt_entry_code_[0];
-  heap_->UnregisterStrongRoots(FullObjectSlot(start));
+  heap_->UnregisterStrongRoots(strong_roots_entry_);
 }
 
 Code DeoptimizerData::deopt_entry_code(DeoptimizeKind kind) {
