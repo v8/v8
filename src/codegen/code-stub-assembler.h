@@ -3180,8 +3180,7 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
   TNode<AllocationSite> CreateAllocationSiteInFeedbackVector(
       TNode<FeedbackVector> feedback_vector, TNode<UintPtrT> slot);
 
-  // TODO(ishell, cbruni): Change to HasBoilerplate.
-  TNode<BoolT> NotHasBoilerplate(TNode<Object> maybe_literal_site);
+  TNode<BoolT> HasBoilerplate(TNode<Object> maybe_literal_site);
   TNode<Smi> LoadTransitionInfo(TNode<AllocationSite> allocation_site);
   TNode<JSObject> LoadBoilerplate(TNode<AllocationSite> allocation_site);
   TNode<Int32T> LoadElementsKind(TNode<AllocationSite> allocation_site);

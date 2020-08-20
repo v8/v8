@@ -352,7 +352,7 @@ TNode<JSRegExp> ConstructorBuiltinsAssembler::CreateRegExpLiteral(
   TNode<FeedbackVector> feedback_vector = CAST(maybe_feedback_vector);
   TNode<Object> literal_site =
       CAST(LoadFeedbackVectorSlot(feedback_vector, slot));
-  GotoIf(NotHasBoilerplate(literal_site), &call_runtime);
+  GotoIfNot(HasBoilerplate(literal_site), &call_runtime);
   {
     TNode<JSRegExp> boilerplate = CAST(literal_site);
     int size =
@@ -386,7 +386,7 @@ TNode<JSArray> ConstructorBuiltinsAssembler::CreateShallowArrayLiteral(
 
   TNode<Object> maybe_allocation_site =
       CAST(LoadFeedbackVectorSlot(feedback_vector, slot));
-  GotoIf(NotHasBoilerplate(maybe_allocation_site), call_runtime);
+  GotoIfNot(HasBoilerplate(maybe_allocation_site), call_runtime);
 
   TNode<AllocationSite> allocation_site = CAST(maybe_allocation_site);
   TNode<JSArray> boilerplate = CAST(LoadBoilerplate(allocation_site));
@@ -447,7 +447,7 @@ TNode<HeapObject> ConstructorBuiltinsAssembler::CreateShallowObjectLiteral(
     Label* call_runtime) {
   TNode<Object> maybe_allocation_site =
       CAST(LoadFeedbackVectorSlot(feedback_vector, slot));
-  GotoIf(NotHasBoilerplate(maybe_allocation_site), call_runtime);
+  GotoIfNot(HasBoilerplate(maybe_allocation_site), call_runtime);
 
   TNode<AllocationSite> allocation_site = CAST(maybe_allocation_site);
   TNode<JSObject> boilerplate = LoadBoilerplate(allocation_site);

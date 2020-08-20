@@ -10222,9 +10222,9 @@ TNode<MaybeObject> CodeStubAssembler::StoreWeakReferenceInFeedbackVector(
   return weak_value;
 }
 
-TNode<BoolT> CodeStubAssembler::NotHasBoilerplate(
+TNode<BoolT> CodeStubAssembler::HasBoilerplate(
     TNode<Object> maybe_literal_site) {
-  return TaggedIsSmi(maybe_literal_site);
+  return TaggedIsNotSmi(maybe_literal_site);
 }
 
 TNode<Smi> CodeStubAssembler::LoadTransitionInfo(
