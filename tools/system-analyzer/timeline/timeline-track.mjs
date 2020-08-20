@@ -4,7 +4,7 @@
 
 import {
   defineCustomElement, V8CustomElement,
-  transitionTypeToColor, CSSColor
+  typeToColor, CSSColor
 } from '../helper.mjs';
 import { kChunkWidth, kChunkHeight } from '../map-processor.mjs';
 import { SelectionEvent, FocusEvent, SelectTimeEvent } from '../events.mjs';
@@ -41,15 +41,18 @@ defineCustomElement('./timeline/timeline-track', (templateText) =>
       return this.$('#timeline');
     }
 
-    get timelineLegendContent() {
-      return this.$('#timelineLegendContent');
+    get timelineLegend() {
+      return this.$('#legend');
     }
 
+    get timelineLegendContent() {
+      return this.$('#legendContent');
+    }
     set data(value) {
       this.#timeline = value;
       this.updateChunks();
       this.updateTimeline();
-      this.updateStats();
+      this.updateLegend();
     }
 
     get data() {
@@ -81,42 +84,58 @@ defineCustomElement('./timeline/timeline-track', (templateText) =>
     set scrollLeft(offset) {
       this.timeline.scrollLeft = offset;
     }
-
-    updateStats() {
-      let unique = new Map();
+    //TODO(zcankara) Carry to the Model, nothing UI related
+    updateLegend() {
+      const uniqueTypes = new Map();
       for (const entry of this.data.all) {
-        if (!unique.has(entry.type)) {
-          unique.set(entry.type, [entry]);
+        if (!uniqueTypes.has(entry.type)) {
+          uniqueTypes.set(entry.type, [entry]);
         } else {
-          unique.get(entry.type).push(entry);
+          uniqueTypes.get(entry.type).push(entry);
         }
       }
-      this.renderStatsWindow(unique);
+      this.renderLegend(uniqueTypes);
     }
 
-    renderStatsWindow(unique) {
+    renderLegend(uniqueTypes) {
+      let timelineLegend = this.timelineLegend;
       let timelineLegendContent = this.timelineLegendContent;
       this.removeAllChildren(timelineLegendContent);
-      let fragment = document.createDocumentFragment();
+      let row = this.tr();
+      row.entries = this.data.all;
+      row.addEventListener('dblclick', e => this.handleEntryTypeDblClick(e));
+      row.appendChild(this.td(""));
+      let td = this.td("All");
+      row.appendChild(td);
+      row.appendChild(this.td(this.data.all.length));
+      row.appendChild(this.td("100%"));
+      timelineLegendContent.appendChild(row);
       let colorIterator = 0;
-      unique.forEach((entries, type) => {
-        let dt = document.createElement("dt");
-        dt.innerHTML = entries.length;
-        dt.style.backgroundColor = transitionTypeToColor(type);
-        dt.style.color = CSSColor.surfaceColor;
-        fragment.appendChild(dt);
-        let dd = document.createElement("dd");
-        dd.innerHTML = type;
-        dd.entries = entries;
-        dd.addEventListener('dblclick', e => this.handleEntryTypeDblClick(e));
-        fragment.appendChild(dd);
+      uniqueTypes.forEach((entries, type) => {
+        let row = this.tr();
+        row.entries = entries;
+        row.addEventListener('dblclick', e => this.handleEntryTypeDblClick(e));
+        let color = typeToColor(type);
+        if (color !== null) {
+          let div = this.div(["colorbox"]);
+          div.style.backgroundColor = color;
+          row.appendChild(this.td(div));
+        } else {
+          row.appendChild(this.td(""));
+        }
+        let td = this.td(type);
+        row.appendChild(td);
+        row.appendChild(this.td(entries.length));
+        let percent = (entries.length / this.data.all.length) * 100;
+        row.appendChild(this.td(percent.toFixed(1) + "%"));
+        timelineLegendContent.appendChild(row);
         colorIterator += 1;
       });
-      timelineLegendContent.appendChild(fragment);
+      timelineLegend.appendChild(timelineLegendContent);
     }
 
     handleEntryTypeDblClick(e) {
-      this.dispatchEvent(new SelectionEvent(e.target.entries));
+      this.dispatchEvent(new SelectionEvent(e.target.parentNode.entries));
     }
 
     timelineIndicatorMove(offset) {
@@ -179,14 +198,14 @@ defineCustomElement('./timeline/timeline-track', (templateText) =>
       let type, count;
       if (true) {
         chunk.getBreakdown(map => map.type).forEach(([type, count]) => {
-          ctx.fillStyle = transitionTypeToColor(type);
+          ctx.fillStyle = typeToColor(type);
           let height = count / total * kHeight;
           ctx.fillRect(0, y, kWidth, y + height);
           y += height;
         });
       } else {
         chunk.items.forEach(map => {
-          ctx.fillStyle = transitionTypeToColor(map.type);
+          ctx.fillStyle = typeToColor(map.type);
           let y = chunk.yOffset(map);
           ctx.fillRect(0, y, kWidth, y + 1);
         });
@@ -313,7 +332,7 @@ defineCustomElement('./timeline/timeline-track', (templateText) =>
     }
 
     setEdgeStyle(edge, ctx) {
-      let color = transitionTypeToColor(edge.type);
+      let color = typeToColor(edge.type);
       ctx.strokeStyle = color;
       ctx.fillStyle = color;
     }

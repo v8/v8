@@ -2,19 +2,19 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-import {transitionTypeToColor} from './helper.mjs';
-import {Timeline} from './timeline.mjs';
+import { typeToColor } from './helper.mjs';
+import { Timeline } from './timeline.mjs';
 
 // ===========================================================================
-import {Event} from './event.mjs';
+import { Event } from './event.mjs';
 const kChunkHeight = 250;
 const kChunkWidth = 10;
 
 function define(prototype, name, fn) {
-  Object.defineProperty(prototype, name, {value: fn, enumerable: false});
+  Object.defineProperty(prototype, name, { value: fn, enumerable: false });
 }
 
-define(Array.prototype, 'max', function(fn) {
+define(Array.prototype, 'max', function (fn) {
   if (this.length === 0) return undefined;
   if (fn === undefined) fn = (each) => each;
   let max = fn(this[0]);
@@ -23,10 +23,10 @@ define(Array.prototype, 'max', function(fn) {
   }
   return max;
 })
-define(Array.prototype, 'first', function() {
+define(Array.prototype, 'first', function () {
   return this[0]
 });
-define(Array.prototype, 'last', function() {
+define(Array.prototype, 'last', function () {
   return this[this.length - 1]
 });
 // ===========================================================================
@@ -57,12 +57,12 @@ class MapProcessor extends LogReader {
       'code-move': {
         parsers: [parseInt, parseInt],
         'sfi-move':
-            {parsers: [parseInt, parseInt], processor: this.processCodeMove},
-        'code-delete': {parsers: [parseInt], processor: this.processCodeDelete},
+          { parsers: [parseInt, parseInt], processor: this.processCodeMove },
+        'code-delete': { parsers: [parseInt], processor: this.processCodeDelete },
         processor: this.processFunctionMove
       },
       'map-create':
-          {parsers: [parseInt, parseString], processor: this.processMapCreate},
+        { parsers: [parseInt, parseString], processor: this.processMapCreate },
       'map': {
         parsers: [
           parseString, parseInt, parseString, parseString, parseInt, parseInt,
@@ -116,8 +116,8 @@ class MapProcessor extends LogReader {
       }
     } catch (e) {
       console.error(
-          'Error occurred during parsing line ' + i +
-          ', trying to continue: ' + e);
+        'Error occurred during parsing line ' + i +
+        ', trying to continue: ' + e);
     }
     return this.finalize();
   }
@@ -165,19 +165,19 @@ class MapProcessor extends LogReader {
       let funcAddr = parseInt(maybe_func[0]);
       let state = this.parseState(maybe_func[1]);
       this.#profile.addFuncCode(
-          type, name, timestamp, start, size, funcAddr, state);
+        type, name, timestamp, start, size, funcAddr, state);
     } else {
       this.#profile.addCode(type, name, timestamp, start, size);
     }
   }
 
-  processV8Version(majorVersion, minorVersion){
-    if(
+  processV8Version(majorVersion, minorVersion) {
+    if (
       (majorVersion == this.MAJOR_VERSION && minorVersion <= this.MINOR_VERSION)
-        || (majorVersion < this.MAJOR_VERSION)){
-          window.alert(
-            `Unsupported version ${majorVersion}.${minorVersion}. \n` +
-              `Please use the matching tool for given the V8 version.`);
+      || (majorVersion < this.MAJOR_VERSION)) {
+      window.alert(
+        `Unsupported version ${majorVersion}.${minorVersion}. \n` +
+        `Please use the matching tool for given the V8 version.`);
     }
   }
 
@@ -196,9 +196,9 @@ class MapProcessor extends LogReader {
   formatPC(pc, line, column) {
     let entry = this.#profile.findEntry(pc);
     if (!entry) return '<unknown>'
-      if (entry.type === 'Builtin') {
-        return entry.name;
-      }
+    if (entry.type === 'Builtin') {
+      return entry.name;
+    }
     let name = entry.func.getName();
     let array = this.#formatPCRegexp.exec(name);
     if (array === null) {
@@ -262,15 +262,15 @@ class MapLogEvent extends Event {
   // TODO(zcankara): Change this to private class field.
   #isDeprecated = false;
   deprecatedTargets = null;
-  leftId= 0;
+  leftId = 0;
   rightId = 0;
   filePosition = '';
   id = -1;
   constructor(id, time) {
-      if (!time) throw new Error('Invalid time');
-      super(id, time);
-      MapLogEvent.set(id, this);
-      this.id = id;
+    if (!time) throw new Error('Invalid time');
+    super(id, time);
+    MapLogEvent.set(id, this);
+    this.id = id;
   }
 
   finalizeRootMap(id) {
@@ -407,7 +407,7 @@ class Edge {
   }
 
   getColor() {
-    return transitionTypeToColor(this.type);
+    return typeToColor(this.type);
   }
 
   finishSetup() {
@@ -509,7 +509,7 @@ class Edge {
       return this.type + ' ' + this.symbol() + this.name;
     }
     return this.type + ' ' + (this.reason ? this.reason : '') + ' ' +
-        (this.name ? this.name : '')
+      (this.name ? this.name : '')
   }
 }
 
@@ -519,7 +519,7 @@ class ArgumentsProcessor extends BaseArgumentsProcessor {
   getArgsDispatch() {
     return {
       '--range':
-          ['range', 'auto,auto', 'Specify the range limit as [start],[end]'],
+        ['range', 'auto,auto', 'Specify the range limit as [start],[end]'],
       '--source-map': [
         'sourceMap', null,
         'Specify the source map that should be used for output'
@@ -535,4 +535,4 @@ class ArgumentsProcessor extends BaseArgumentsProcessor {
   }
 }
 
-export { MapProcessor, MapLogEvent, kChunkWidth, kChunkHeight};
+export { MapProcessor, MapLogEvent, kChunkWidth, kChunkHeight };

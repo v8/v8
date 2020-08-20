@@ -26,9 +26,9 @@ function defineCustomElement(path, generator) {
   let name = path.substring(path.lastIndexOf("/") + 1, path.length);
   path = path + '-template.html';
   fetch(path)
-      .then(stream => stream.text())
-      .then(
-          templateText => customElements.define(name, generator(templateText)));
+    .then(stream => stream.text())
+    .then(
+      templateText => customElements.define(name, generator(templateText)));
 }
 
 // DOM Helpers
@@ -104,7 +104,7 @@ class CSSColor {
 
 }
 
-function transitionTypeToColor(type) {
+function typeToColor(type) {
   switch (type) {
     case 'new':
       return CSSColor.green;
@@ -149,7 +149,7 @@ function div(classes) {
 class V8CustomElement extends HTMLElement {
   constructor(templateText) {
     super();
-    const shadowRoot = this.attachShadow({mode: 'open'});
+    const shadowRoot = this.attachShadow({ mode: 'open' });
     shadowRoot.innerHTML = templateText;
   }
   $(id) {
@@ -160,7 +160,7 @@ class V8CustomElement extends HTMLElement {
     return this.shadowRoot.querySelectorAll(query);
   }
 
-  div(classes) {return div(classes)}
+  div(classes) { return div(classes) }
 
   table(className) {
     let node = document.createElement('table')
@@ -178,12 +178,14 @@ class V8CustomElement extends HTMLElement {
     return node;
   }
 
-  tr(){
+  tr() {
     return document.createElement('tr');
   }
 
   removeAllChildren(node) { return removeAllChildren(node); }
 }
 
-export {defineCustomElement, V8CustomElement, removeAllChildren,
-   $, div, transitionTypeToColor, CSSColor};
+export {
+  defineCustomElement, V8CustomElement, removeAllChildren,
+  $, div, typeToColor, CSSColor
+};
