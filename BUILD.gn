@@ -110,7 +110,9 @@ declare_args() {
   v8_enable_31bit_smis_on_64bit_arch = false
 
   # Reverse JS arguments order in the stack (sets -dV8_REVERSE_JSARGS).
-  v8_enable_reverse_jsargs = true
+  v8_enable_reverse_jsargs =
+      v8_current_cpu != "ppc" && v8_current_cpu != "ppc64" &&
+      v8_current_cpu != "s390" && v8_current_cpu != "s390x"
 
   # Sets -dOBJECT_PRINT.
   v8_enable_object_print = ""
