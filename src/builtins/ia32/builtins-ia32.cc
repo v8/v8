@@ -2266,38 +2266,88 @@ void Builtins::Generate_CallOrConstructForwardVarargs(MacroAssembler* masm,
   __ sub(edx, ecx);
   __ j(less_equal, &stack_done);
   {
-    Generate_StackOverflowCheck(masm, edx, ecx, &stack_overflow);
+    // ----------- S t a t e -------------
+    //  -- eax : the number of arguments already in the stack (not including the
+    //  receiver)
+    //  -- ecx : start index (to support rest parameters)
+    //  -- edx : number of arguments to copy, i.e. arguments count - start index
+    //  -- edi : the target to call (can be any Object)
+    //  -- esi : point to the caller stack frame
+    //  -- xmm0 : context for the Call / Construct builtin
+    //  -- xmm1 : the new target (for [[Construct]] calls)
+    // -----------------------------------
 
     // Forward the arguments from the caller frame.
+#ifdef V8_REVERSE_JSARGS
+    __ movd(xmm2, edi);  // Preserve the target to call.
+    Generate_StackOverflowCheck(masm, edx, edi, &stack_overflow);
+    __ movd(xmm3, ebx);  // Preserve root register.
+
+    Register scratch = ebx;
+
+    // Point to the first argument to copy (skipping receiver).
+    __ lea(ecx, Operand(ecx, times_system_pointer_size,
+                        CommonFrameConstants::kFixedFrameSizeAboveFp +
+                            kSystemPointerSize));
+    __ add(esi, ecx);
+
+    // Move the arguments already in the stack,
+    // including the receiver and the return address.
     {
-      Label loop;
-      __ add(eax, edx);
-      __ PopReturnAddressTo(ecx);
-#ifdef V8_REVERSE_JSARGS
-      // TODO(victor): When we remove the arguments adaptor machinery above,
-      // we can free the scratch register and avoid this move.
-      __ movd(xmm2, ebx);  // Save root register.
-      __ Pop(ebx);         // Save new receiver.
-#endif
-      __ bind(&loop);
-      {
-        __ dec(edx);
-#ifdef V8_REVERSE_JSARGS
-        // Skips old receiver.
-        __ Push(Operand(scratch, edx, times_system_pointer_size,
-                        kFPOnStackSize + kPCOnStackSize + kSystemPointerSize));
-#else
-        __ Push(Operand(scratch, edx, times_system_pointer_size,
-                        kFPOnStackSize + kPCOnStackSize));
-#endif
-        __ j(not_zero, &loop);
-      }
-#ifdef V8_REVERSE_JSARGS
-      __ Push(ebx);        // Push new receiver.
-      __ movd(ebx, xmm2);  // Recover root register.
-#endif
-      __ PushReturnAddressFrom(ecx);
+      Label copy, check;
+      Register src = ecx, current = edi;
+      // Update stack pointer.
+      __ mov(src, esp);
+      __ lea(scratch, Operand(edx, times_system_pointer_size, 0));
+      __ AllocateStackSpace(scratch);
+      // Include return address and receiver.
+      __ add(eax, Immediate(2));
+      __ Set(current, 0);
+      __ jmp(&check);
+      // Loop.
+      __ bind(&copy);
+      __ mov(scratch, Operand(src, current, times_system_pointer_size, 0));
+      __ mov(Operand(esp, current, times_system_pointer_size, 0), scratch);
+      __ inc(current);
+      __ bind(&check);
+      __ cmp(current, eax);
+      __ j(less, &copy);
+      __ lea(ecx, Operand(esp, eax, times_system_pointer_size, 0));
     }
+
+    // Update total number of arguments.
+    __ sub(eax, Immediate(2));
+    __ add(eax, edx);
+
+    // Copy the additional caller arguments onto the stack.
+    // TODO(victorgomes): Consider using forward order as potentially more cache
+    // friendly.
+    {
+      Register src = esi, dest = ecx, num = edx;
+      Label loop;
+      __ bind(&loop);
+      __ dec(num);
+      __ mov(scratch, Operand(src, num, times_system_pointer_size, 0));
+      __ mov(Operand(dest, num, times_system_pointer_size, 0), scratch);
+      __ j(not_zero, &loop);
+    }
+
+    __ movd(ebx, xmm3);  // Restore root register.
+    __ movd(edi, xmm2);  // Restore the target to call.
+#else
+    Generate_StackOverflowCheck(masm, edx, ecx, &stack_overflow);
+    Label loop;
+    __ add(eax, edx);
+    __ PopReturnAddressTo(ecx);
+    __ bind(&loop);
+    {
+      __ dec(edx);
+      __ Push(Operand(scratch, edx, times_system_pointer_size,
+                      kFPOnStackSize + kPCOnStackSize));
+      __ j(not_zero, &loop);
+    }
+    __ PushReturnAddressFrom(ecx);
+#endif
   }
   __ bind(&stack_done);
 
@@ -2308,6 +2358,9 @@ void Builtins::Generate_CallOrConstructForwardVarargs(MacroAssembler* masm,
   __ Jump(code, RelocInfo::CODE_TARGET);
 
   __ bind(&stack_overflow);
+#ifdef V8_REVERSE_JSARGS
+  __ movd(edi, xmm2);  // Restore the target to call.
+#endif
   __ movd(esi, xmm0);  // Restore the context.
   __ TailCallRuntime(Runtime::kThrowStackOverflow);
 }

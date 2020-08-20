@@ -2105,31 +2105,69 @@ void Builtins::Generate_CallOrConstructForwardVarargs(MacroAssembler* masm,
   __ sub(r5, r5, r2, SetCC);
   __ b(le, &stack_done);
   {
+    // ----------- S t a t e -------------
+    //  -- r0 : the number of arguments already in the stack (not including the
+    //  receiver)
+    //  -- r1 : the target to call (can be any Object)
+    //  -- r2 : start index (to support rest parameters)
+    //  -- r3 : the new.target (for [[Construct]] calls)
+    //  -- r4 : point to the caller stack frame
+    //  -- r5 : number of arguments to copy, i.e. arguments count - start index
+    // -----------------------------------
+
     // Check for stack overflow.
-    Generate_StackOverflowCheck(masm, r5, r2, &stack_overflow);
+    Generate_StackOverflowCheck(masm, r5, scratch, &stack_overflow);
 
     // Forward the arguments from the caller frame.
+#ifdef V8_REVERSE_JSARGS
+    // Point to the first argument to copy (skipping the receiver).
+    __ add(r4, r4,
+           Operand(CommonFrameConstants::kFixedFrameSizeAboveFp +
+                   kSystemPointerSize));
+    __ add(r4, r4, Operand(r2, LSL, kSystemPointerSizeLog2));
+
+    // Move the arguments already in the stack,
+    // including the receiver and the return address.
+    {
+      Label copy, check;
+      Register num = r8, src = r9,
+               dest = r2;  // r7 and r10 are context and root.
+      __ mov(src, sp);
+      // Update stack pointer.
+      __ lsl(scratch, r5, Operand(kSystemPointerSizeLog2));
+      __ AllocateStackSpace(scratch);
+      __ mov(dest, sp);
+      __ mov(num, r0);
+      __ b(&check);
+      __ bind(&copy);
+      __ ldr(scratch, MemOperand(src, kSystemPointerSize, PostIndex));
+      __ str(scratch, MemOperand(dest, kSystemPointerSize, PostIndex));
+      __ sub(num, num, Operand(1), SetCC);
+      __ bind(&check);
+      __ b(ge, &copy);
+    }
+#endif
+    // Copy arguments from the caller frame.
+    // TODO(victorgomes): Consider using forward order as potentially more cache
+    // friendly.
     {
       Label loop;
-#ifdef V8_REVERSE_JSARGS
-      // Skips frame pointer and old receiver.
-      __ add(r4, r4, Operand(2 * kPointerSize));
-      __ pop(r8);  // Save new receiver.
-#else
+#ifndef V8_REVERSE_JSARGS
       // Skips frame pointer.
-      __ add(r4, r4, Operand(kPointerSize));
+      __ add(r4, r4, Operand(CommonFrameConstants::kFixedFrameSizeAboveFp));
 #endif
       __ add(r0, r0, r5);
       __ bind(&loop);
       {
-        __ ldr(scratch, MemOperand(r4, r5, LSL, kPointerSizeLog2));
-        __ push(scratch);
         __ sub(r5, r5, Operand(1), SetCC);
+        __ ldr(scratch, MemOperand(r4, r5, LSL, kSystemPointerSizeLog2));
+#ifdef V8_REVERSE_JSARGS
+        __ str(scratch, MemOperand(r2, r5, LSL, kSystemPointerSizeLog2));
+#else
+        __ push(scratch);
+#endif
         __ b(ne, &loop);
       }
-#ifdef V8_REVERSE_JSARGS
-      __ push(r8);  // Recover new receiver.
-#endif
     }
   }
   __ b(&stack_done);

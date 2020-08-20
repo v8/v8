@@ -2371,37 +2371,82 @@ void Builtins::Generate_CallOrConstructForwardVarargs(MacroAssembler* masm,
   __ subl(r8, rcx);
   __ j(less_equal, &stack_done);
   {
+    // ----------- S t a t e -------------
+    //  -- rax : the number of arguments already in the stack (not including the
+    //  receiver)
+    //  -- rbx : point to the caller stack frame
+    //  -- rcx : start index (to support rest parameters)
+    //  -- rdx : the new target (for [[Construct]] calls)
+    //  -- rdi : the target to call (can be any Object)
+    //  -- r8  : number of arguments to copy, i.e. arguments count - start index
+    // -----------------------------------
+
     // Check for stack overflow.
-    Generate_StackOverflowCheck(masm, r8, rcx, &stack_overflow, Label::kNear);
+    Generate_StackOverflowCheck(masm, r8, r12, &stack_overflow, Label::kNear);
 
     // Forward the arguments from the caller frame.
+#ifdef V8_REVERSE_JSARGS
+    // Move the arguments already in the stack,
+    // including the receiver and the return address.
+    {
+      Label copy, check;
+      Register src = r9, dest = rsp, num = r12, current = r11;
+      __ movq(src, rsp);
+      __ leaq(kScratchRegister, Operand(r8, times_system_pointer_size, 0));
+      __ AllocateStackSpace(kScratchRegister);
+      __ leaq(num, Operand(rax, 2));  // Number of words to copy.
+                                      // +2 for receiver and return address.
+      __ Set(current, 0);
+      __ jmp(&check);
+      __ bind(&copy);
+      __ movq(kScratchRegister,
+              Operand(src, current, times_system_pointer_size, 0));
+      __ movq(Operand(dest, current, times_system_pointer_size, 0),
+              kScratchRegister);
+      __ incq(current);
+      __ bind(&check);
+      __ cmpq(current, num);
+      __ j(less, &copy);
+      __ leaq(r9, Operand(rsp, num, times_system_pointer_size, 0));
+    }
+
+    __ addl(rax, r8);  // Update total number of arguments.
+
+    // Point to the first argument to copy (skipping receiver).
+    __ leaq(rcx, Operand(rcx, times_system_pointer_size,
+                         CommonFrameConstants::kFixedFrameSizeAboveFp +
+                             kSystemPointerSize));
+    __ addq(rbx, rcx);
+
+    // Copy the additional caller arguments onto the stack.
+    // TODO(victorgomes): Consider using forward order as potentially more cache
+    // friendly.
+    {
+      Register src = rbx, dest = r9, num = r8;
+      Label loop;
+      __ bind(&loop);
+      __ decq(num);
+      __ movq(kScratchRegister,
+              Operand(src, num, times_system_pointer_size, 0));
+      __ movq(Operand(dest, num, times_system_pointer_size, 0),
+              kScratchRegister);
+      __ j(not_zero, &loop);
+    }
+#else
     {
       Label loop;
       __ addl(rax, r8);
       __ PopReturnAddressTo(rcx);
-#ifdef V8_REVERSE_JSARGS
-      // The new receiver is already on the stack. Save it to push it later.
-      __ Pop(kScratchRegister);
-#endif
       __ bind(&loop);
       {
         __ decl(r8);
-#ifdef V8_REVERSE_JSARGS
-        // Skips the old receiver.
-        __ Push(Operand(rbx, r8, times_system_pointer_size,
-                        kFPOnStackSize + kPCOnStackSize + kSystemPointerSize));
-#else
         __ Push(Operand(rbx, r8, times_system_pointer_size,
                         kFPOnStackSize + kPCOnStackSize));
-#endif
         __ j(not_zero, &loop);
       }
-#ifdef V8_REVERSE_JSARGS
-      // Recover the new receiver.
-      __ Push(kScratchRegister);
-#endif
       __ PushReturnAddressFrom(rcx);
     }
+#endif
   }
   __ jmp(&stack_done, Label::kNear);
   __ bind(&stack_overflow);
