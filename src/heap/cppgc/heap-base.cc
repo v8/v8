@@ -89,5 +89,9 @@ void HeapBase::VerifyMarking(cppgc::Heap::StackState stack_state) {
   MarkingVerifier verifier(*this, stack_state);
 }
 
+void HeapBase::AdvanceIncrementalGarbageCollectionOnAllocationIfNeeded() {
+  if (marker_) marker_->AdvanceMarkingOnAllocation();
+}
+
 }  // namespace internal
 }  // namespace cppgc

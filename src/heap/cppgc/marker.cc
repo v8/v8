@@ -288,6 +288,11 @@ bool MarkerBase::IncrementalMarkingStep(MarkingConfig::StackState stack_state,
   return AdvanceMarkingWithDeadline(expected_marked_bytes);
 }
 
+bool MarkerBase::AdvanceMarkingOnAllocation() {
+  // Replace with schedule based deadline.
+  return AdvanceMarkingWithDeadline(kMinimumMarkedBytesPerIncrementalStep);
+}
+
 bool MarkerBase::AdvanceMarkingWithDeadline(size_t expected_marked_bytes,
                                             v8::base::TimeDelta max_duration) {
   bool is_done =

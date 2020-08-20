@@ -116,6 +116,8 @@ class V8_EXPORT_PRIVATE HeapBase {
 
   size_t ObjectPayloadSize() const;
 
+  void AdvanceIncrementalGarbageCollectionOnAllocationIfNeeded();
+
  protected:
   void VerifyMarking(cppgc::Heap::StackState);
 

@@ -110,6 +110,7 @@ void* ObjectAllocator::OutOfLineAllocate(NormalPageSpace* space, size_t size,
                                          GCInfoIndex gcinfo) {
   void* memory = OutOfLineAllocateImpl(space, size, gcinfo);
   stats_collector_->NotifySafePointForConservativeCollection();
+  raw_heap_->heap()->AdvanceIncrementalGarbageCollectionOnAllocationIfNeeded();
   return memory;
 }
 

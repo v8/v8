@@ -74,6 +74,9 @@ class V8_EXPORT_PRIVATE MarkerBase {
   bool AdvanceMarkingWithDeadline(
       size_t, v8::base::TimeDelta = kMaximumIncrementalStepDuration);
 
+  // Makes marking progress when allocation a new lab.
+  bool AdvanceMarkingOnAllocation();
+
   // Signals leaving the atomic marking pause. This method expects no more
   // objects to be marked and merely updates marking states if needed.
   void LeaveAtomicPause();
