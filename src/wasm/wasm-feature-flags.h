@@ -20,11 +20,6 @@
   /* V8 side owner: gdeepti */                                                 \
   V(simd, "SIMD opcodes", false)                                               \
                                                                                \
-  /* Tail call / return call proposal. */                                      \
-  /* https://github.com/webassembly/tail-call */                               \
-  /* V8 side owner: fgm */                                                     \
-  V(return_call, "return call opcodes", false)                                 \
-                                                                               \
   /* No official proposal (yet?). */                                           \
   /* V8 side owner: clemensb */                                                \
   V(compilation_hints, "compilation hints section", false)                     \
@@ -54,6 +49,12 @@
   /* V8 side owner: ahaas */                                                   \
   /* Staged in v7.8. */                                                        \
   V(reftypes, "reference type opcodes", false)                                 \
+                                                                               \
+  /* Tail call / return call proposal. */                                      \
+  /* https://github.com/webassembly/tail-call */                               \
+  /* V8 side owner: thibaudm */                                                \
+  /* Staged in v8.7 * */                                                       \
+  V(return_call, "return call opcodes", false)                                 \
                                                                                \
   /* Threads proposal. */                                                      \
   /* https://github.com/webassembly/threads */                                 \
