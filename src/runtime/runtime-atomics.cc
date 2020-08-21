@@ -437,9 +437,10 @@ RUNTIME_FUNCTION(Runtime_AtomicsStore64) {
   ASSIGN_RETURN_FAILURE_ON_EXCEPTION(isolate, bigint,
                                      BigInt::FromObject(isolate, value_obj));
 
+  THROW_ERROR_RETURN_FAILURE_ON_DETACHED(isolate, sta, "Atomics.store");
+
   DCHECK(sta->type() == kExternalBigInt64Array ||
          sta->type() == kExternalBigUint64Array);
-  DCHECK(!sta->WasDetached());
   CHECK_LT(index, sta->length());
   if (sta->type() == kExternalBigInt64Array) {
     Store<int64_t>::Do(isolate, source, index, bigint);
