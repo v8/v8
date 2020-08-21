@@ -290,7 +290,13 @@ bool MarkerBase::IncrementalMarkingStep(MarkingConfig::StackState stack_state,
 
 bool MarkerBase::AdvanceMarkingOnAllocation() {
   // Replace with schedule based deadline.
-  return AdvanceMarkingWithDeadline(kMinimumMarkedBytesPerIncrementalStep);
+  bool is_done =
+      AdvanceMarkingWithDeadline(kMinimumMarkedBytesPerIncrementalStep);
+  if (is_done) {
+    // Schedule another incremental task for finalizing without a stack.
+    ScheduleIncrementalMarkingTask();
+  }
+  return is_done;
 }
 
 bool MarkerBase::AdvanceMarkingWithDeadline(size_t expected_marked_bytes,
