@@ -539,9 +539,9 @@ IGNITION_HANDLER(LdaNamedProperty, InterpreterAssembler) {
   }
 }
 
-// LdaPropertyNofeedback <object> <slot>
+// LdaNamedPropertyNoFeedback <object> <name>
 //
-// Calls the GetProperty builtin for <object> and the key in the accumulator.
+// Calls the GetProperty builtin for <object> and the key <name>.
 IGNITION_HANDLER(LdaNamedPropertyNoFeedback, InterpreterAssembler) {
   TNode<Object> object = LoadRegisterAtOperandIndex(0);
   TNode<Name> name = CAST(LoadConstantPoolEntryAtOperandIndex(1));
@@ -552,7 +552,7 @@ IGNITION_HANDLER(LdaNamedPropertyNoFeedback, InterpreterAssembler) {
   Dispatch();
 }
 
-// KeyedLoadIC <object> <slot>
+// LdaKeyedProperty <object> <slot>
 //
 // Calls the KeyedLoadIC at FeedBackVector slot <slot> for <object> and the key
 // in the accumulator.
@@ -684,7 +684,7 @@ IGNITION_HANDLER(StaInArrayLiteral, InterpreterAssembler) {
   Dispatch();
 }
 
-// StaDataPropertyInLiteral <object> <name> <flags>
+// StaDataPropertyInLiteral <object> <name> <flags> <slot>
 //
 // Define a property <name> with value from the accumulator in <object>.
 // Property attributes and whether set_function_name are stored in
