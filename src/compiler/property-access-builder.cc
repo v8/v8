@@ -210,6 +210,24 @@ Node* PropertyAccessBuilder::BuildLoadDataField(NameRef const& name,
                                           field_access.const_field_info};
       storage = *effect = graph()->NewNode(
           simplified()->LoadField(storage_access), storage, *effect, *control);
+      if (dependencies() == nullptr) {
+        // We expect the loaded value to be a heap number here. With
+        // in-place field representation changes it is possible this is a
+        // no longer a heap number without map transitions. If we haven't taken
+        // a dependency on field representation, we should verify the loaded
+        // value is a heap number.
+        storage = *effect = graph()->NewNode(simplified()->CheckHeapObject(),
+                                             storage, *effect, *control);
+        Node* map = *effect =
+            graph()->NewNode(simplified()->LoadField(AccessBuilder::ForMap()),
+                             storage, *effect, *control);
+        Node* is_heap_number =
+            graph()->NewNode(simplified()->ReferenceEqual(), map,
+                             jsgraph()->HeapNumberMapConstant());
+        *effect = graph()->NewNode(
+            simplified()->CheckIf(DeoptimizeReason::kNotAHeapNumber),
+            is_heap_number, *effect, *control);
+      }
       field_access.offset = HeapNumber::kValueOffset;
       field_access.name = MaybeHandle<Name>();
     }

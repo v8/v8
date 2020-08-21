@@ -179,6 +179,13 @@ class FieldRepresentationDependency final : public CompilationDependency {
                                      DependentCode::kFieldRepresentationGroup);
   }
 
+#ifdef DEBUG
+  bool IsFieldRepresentationDependencyOnMap(
+      Handle<Map> const& receiver_map) const override {
+    return owner_.object().equals(receiver_map);
+  }
+#endif
+
  private:
   MapRef owner_;
   InternalIndex descriptor_;
