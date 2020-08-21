@@ -4,6 +4,7 @@
 
 #include "test/cctest/heap/heap-utils.h"
 
+#include "src/base/platform/mutex.h"
 #include "src/execution/isolate.h"
 #include "src/heap/factory.h"
 #include "src/heap/heap-inl.h"
@@ -224,6 +225,7 @@ void ForceEvacuationCandidate(Page* page) {
     int remaining = static_cast<int>(limit - top);
     space->heap()->CreateFillerObjectAt(top, remaining,
                                         ClearRecordedSlots::kNo);
+    base::MutexGuard guard(space->mutex());
     space->FreeLinearAllocationArea();
   }
 }
