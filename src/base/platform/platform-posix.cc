@@ -270,9 +270,13 @@ void* OS::GetRandomMmapAddr() {
     MutexGuard guard(rng_mutex.Pointer());
     GetPlatformRandomNumberGenerator()->NextBytes(&raw_addr, sizeof(raw_addr));
   }
-#if defined(__APPLE__) && V8_TARGET_ARCH_ARM64
+#if V8_TARGET_ARCH_ARM64
+#if defined(__APPLE__)
   DCHECK_EQ(1 << 14, AllocatePageSize());
-  raw_addr = RoundDown(raw_addr, 1 << 14);
+#endif
+  // Keep the address page-aligned, AArch64 supports 4K, 16K and 64K
+  // configurations.
+  raw_addr = RoundDown(raw_addr, AllocatePageSize());
 #endif
 #if defined(V8_USE_ADDRESS_SANITIZER) || defined(MEMORY_SANITIZER) || \
     defined(THREAD_SANITIZER) || defined(LEAK_SANITIZER)
