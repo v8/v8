@@ -14,14 +14,23 @@ namespace internal {
 
 class Heap;
 class IncrementalMarking;
+class LocalHeap;
 class PagedSpace;
 class NewSpace;
 
 class MarkingBarrier {
  public:
-  MarkingBarrier(Heap*, MarkCompactCollector*, IncrementalMarking*);
+  explicit MarkingBarrier(Heap*);
+  explicit MarkingBarrier(LocalHeap*);
+  ~MarkingBarrier();
+
   void Activate(bool is_compacting);
   void Deactivate();
+  void Publish();
+
+  static void ActivateAll(Heap* heap, bool is_compacting);
+  static void DeactivateAll(Heap* heap);
+  static void PublishAll(Heap* heap);
 
   void Write(HeapObject host, HeapObjectSlot, HeapObject value);
   void Write(Code host, RelocInfo*, HeapObject value);
@@ -36,18 +45,20 @@ class MarkingBarrier {
 
   inline bool WhiteToGreyAndPush(HeapObject value);
 
-  void Activate(PagedSpace*);
-  void Activate(NewSpace*);
+  void ActivateSpace(PagedSpace*);
+  void ActivateSpace(NewSpace*);
 
-  void Deactivate(PagedSpace*);
-  void Deactivate(NewSpace*);
+  void DeactivateSpace(PagedSpace*);
+  void DeactivateSpace(NewSpace*);
 
-  MarkingState marking_state_;
   Heap* heap_;
   MarkCompactCollector* collector_;
   IncrementalMarking* incremental_marking_;
+  MarkingWorklist::Local worklist_;
+  MarkingState marking_state_;
   bool is_compacting_ = false;
   bool is_activated_ = false;
+  bool is_main_thread_barrier_;
 };
 
 }  // namespace internal
