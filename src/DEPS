@@ -52,7 +52,8 @@ include_rules = [
   "-src/libplatform",
   "-include/libplatform",
   "+builtins-generated",
-  "+torque-generated"
+  "+torque-generated",
+  "+starboard",
 ]
 
 specific_include_rules = {
