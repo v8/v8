@@ -287,23 +287,23 @@ TNode<RawPtrT> CodeStubAssembler::IntPtrOrSmiConstant<RawPtrT>(int value) {
   return ReinterpretCast<RawPtrT>(IntPtrConstant(value));
 }
 
-bool CodeStubAssembler::TryGetIntPtrOrSmiConstantValue(Node* maybe_constant,
-                                                       int* value,
-                                                       ParameterMode mode) {
+bool CodeStubAssembler::TryGetIntPtrOrSmiConstantValue(
+    TNode<Smi> maybe_constant, int* value) {
+  Smi smi_constant;
+  if (ToSmiConstant(maybe_constant, &smi_constant)) {
+    *value = Smi::ToInt(smi_constant);
+    return true;
+  }
+  return false;
+}
+
+bool CodeStubAssembler::TryGetIntPtrOrSmiConstantValue(
+    TNode<IntPtrT> maybe_constant, int* value) {
   int32_t int32_constant;
-  if (mode == INTPTR_PARAMETERS) {
     if (ToInt32Constant(maybe_constant, &int32_constant)) {
       *value = int32_constant;
       return true;
     }
-  } else {
-    DCHECK_EQ(mode, SMI_PARAMETERS);
-    Smi smi_constant;
-    if (ToSmiConstant(maybe_constant, &smi_constant)) {
-      *value = Smi::ToInt(smi_constant);
-      return true;
-    }
-  }
   return false;
 }
 
@@ -3883,9 +3883,6 @@ TNode<FixedArray> CodeStubAssembler::ExtractToFixedArray(
     }
   }
 
-  const ParameterMode parameter_mode =
-      std::is_same<TIndex, Smi>::value ? SMI_PARAMETERS : INTPTR_PARAMETERS;
-
   BIND(&new_space_check);
   {
     bool handle_old_space = !FLAG_young_generation_large_objects;
@@ -3897,8 +3894,7 @@ TNode<FixedArray> CodeStubAssembler::ExtractToFixedArray(
       } else {
         int constant_count;
         handle_old_space =
-            !TryGetIntPtrOrSmiConstantValue(count, &constant_count,
-                                            parameter_mode) ||
+            !TryGetIntPtrOrSmiConstantValue(count, &constant_count) ||
             (constant_count >
              FixedArray::GetMaxLengthForNewSpaceAllocation(PACKED_ELEMENTS));
       }

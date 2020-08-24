@@ -548,8 +548,9 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
   template <typename TIndex>
   TNode<TIndex> IntPtrOrSmiConstant(int value);
 
-  bool TryGetIntPtrOrSmiConstantValue(Node* maybe_constant, int* value,
-                                      ParameterMode mode);
+  bool TryGetIntPtrOrSmiConstantValue(TNode<Smi> maybe_constant, int* value);
+  bool TryGetIntPtrOrSmiConstantValue(TNode<IntPtrT> maybe_constant,
+                                      int* value);
 
   // Round the 32bits payload of the provided word up to the next power of two.
   TNode<IntPtrT> IntPtrRoundUpToPowerOfTwo32(TNode<IntPtrT> value);
