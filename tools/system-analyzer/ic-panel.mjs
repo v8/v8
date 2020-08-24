@@ -10,8 +10,8 @@ import { defineCustomElement, V8CustomElement } from './helper.mjs';
 defineCustomElement('ic-panel', (templateText) =>
   class ICPanel extends V8CustomElement {
     //TODO(zcankara) Entries never set
-    #entries;
-    #filteredEntries;
+    #selectedLogEvents;
+    #timeline;
     constructor() {
       super(templateText);
       this.groupKey.addEventListener(
@@ -19,10 +19,16 @@ defineCustomElement('ic-panel', (templateText) =>
       this.$('#filterICTimeBtn').addEventListener(
         'click', e => this.handleICTimeFilter(e));
     }
-
-    get entries() {
-      return this.#entries;
+    get timeline() {
+      return this.#timeline;
     }
+    set timeline(value) {
+      console.assert(value !== undefined, "timeline undefined!");
+      this.#timeline = value;
+      this.selectedLogEvents = this.timeline.all;
+      this.updateCount();
+    }
+
 
     get groupKey() {
       return this.$('#group-key');
@@ -44,13 +50,18 @@ defineCustomElement('ic-panel', (templateText) =>
       return this.querySelectorAll("span");
     }
 
-    set filteredEntries(value) {
-      this.#filteredEntries = value;
+    set selectedLogEvents(value) {
+      this.#selectedLogEvents = value;
+      this.updateCount();
       this.updateTable();
     }
 
-    get filteredEntries() {
-      return this.#filteredEntries;
+    updateCount() {
+      this.count.innerHTML = this.selectedLogEvents.length;
+    }
+
+    get selectedLogEvents() {
+      return this.#selectedLogEvents;
     }
 
     updateTable(event) {
@@ -58,7 +69,7 @@ defineCustomElement('ic-panel', (templateText) =>
       let key = select.options[select.selectedIndex].text;
       let tableBody = this.tableBody;
       this.removeAllChildren(tableBody);
-      let groups = Group.groupBy(this.filteredEntries, key, true);
+      let groups = Group.groupBy(this.selectedLogEvents, key, true);
       this.render(groups, tableBody);
     }
 

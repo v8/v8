@@ -63,8 +63,7 @@ class App {
   }
   showIcEntries(entries) {
     this.#state.selectedIcLogEvents = entries;
-    //TODO(zcankara) use selectedLogEvents
-    this.#view.icPanel.filteredEntries = this.#state.selectedIcLogEvents;
+    this.#view.icPanel.selectedLogEvents = this.#state.selectedIcLogEvents;
   }
 
   handleTimeRangeSelect(e) {
@@ -92,7 +91,7 @@ class App {
     this.#state.mapTimeline.selectTimeRange(start, end);
     this.#view.mapPanel.selectedMapLogEvents =
       this.#state.mapTimeline.selection;
-    this.#view.icPanel.filteredEntries = this.#state.icTimeline.selection;
+    this.#view.icPanel.selectedLogEvents = this.#state.icTimeline.selection;
   }
   selectMapLogEvent(entry) {
     this.#state.map = entry;
@@ -101,7 +100,7 @@ class App {
   }
   selectICLogEvent(entry) {
     this.#state.ic = entry;
-    this.#view.icPanel.filteredEntries = [entry];
+    this.#view.icPanel.selectedLogEvents = [entry];
   }
   selectSourcePositionEvent(sourcePositions) {
     console.log("source positions: ", sourcePositions);
@@ -119,13 +118,9 @@ class App {
     let reader = new FileReader();
     reader.onload = (evt) => {
       let icProcessor = new CustomIcProcessor();
-      //TODO(zcankara) Assign timeline directly to the ic panel
-      //TODO(zcankara) Exe: this.#icPanel.timeline = document.state.icTimeline
-      //TODO(zcankara) Set the data of the State object first
       this.#state.icTimeline = icProcessor.processString(fileData.chunk);
+      this.#view.icPanel.timeline = this.#state.icTimeline;
       this.#view.icTrack.data = this.#state.icTimeline;
-      this.#view.icPanel.filteredEntries = this.#view.icTrack.data.all;
-      this.#view.icPanel.count.innerHTML = this.#view.icTrack.data.all.length;
     };
     reader.readAsText(fileData.file);
     this.#view.icPanel.initGroupKeySelect();
