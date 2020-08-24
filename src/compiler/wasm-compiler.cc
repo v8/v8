@@ -134,13 +134,16 @@ MachineType assert_size(int expected_size, MachineType type) {
             wasm::ObjectAccess::ElementOffsetInTaggedFixedArray(index), value, \
             MachineRepresentation::kTagged, kFullWriteBarrier)
 
-void MergeControlToEnd(MachineGraph* mcgraph, Node* node) {
+void EnsureEnd(MachineGraph* mcgraph) {
   Graph* g = mcgraph->graph();
-  if (g->end()) {
-    NodeProperties::MergeControlToEnd(g, mcgraph->common(), node);
-  } else {
-    g->SetEnd(g->NewNode(mcgraph->common()->End(1), node));
+  if (g->end() == nullptr) {
+    g->SetEnd(g->NewNode(mcgraph->common()->End(0)));
   }
+}
+
+void MergeControlToEnd(MachineGraph* mcgraph, Node* node) {
+  EnsureEnd(mcgraph);
+  NodeProperties::MergeControlToEnd(mcgraph->graph(), mcgraph->common(), node);
 }
 
 bool ContainsSimd(const wasm::FunctionSig* sig) {
@@ -5568,13 +5571,13 @@ Node* IsI31(GraphAssembler* gasm, Node* object) {
   }
 }
 
-void AssertFalse(GraphAssembler* gasm, Node* condition) {
+void AssertFalse(MachineGraph* mcgraph, GraphAssembler* gasm, Node* condition) {
 #if DEBUG
   if (FLAG_debug_code) {
     auto ok = gasm->MakeLabel();
     gasm->GotoIfNot(condition, &ok);
+    EnsureEnd(mcgraph);
     gasm->Unreachable();
-    gasm->Goto(&ok);
     gasm->Bind(&ok);
   }
 #endif
@@ -5592,7 +5595,7 @@ Node* WasmGraphBuilder::RefTest(Node* object, Node* rtt,
     gasm_->GotoIf(IsI31(gasm_.get(), object), &done, gasm_->Int32Constant(0));
     need_done_label = true;
   } else {
-    AssertFalse(gasm_.get(), IsI31(gasm_.get(), object));
+    AssertFalse(mcgraph(), gasm_.get(), IsI31(gasm_.get(), object));
   }
   if (null_check == kWithNullCheck) {
     gasm_->GotoIf(gasm_->WordEqual(object, RefNull()), &done,
@@ -5627,7 +5630,7 @@ Node* WasmGraphBuilder::RefCast(Node* object, Node* rtt,
       TrapIfTrue(wasm::kTrapIllegalCast, IsI31(gasm_.get(), object), position);
     }
   } else {
-    AssertFalse(gasm_.get(), IsI31(gasm_.get(), object));
+    AssertFalse(mcgraph(), gasm_.get(), IsI31(gasm_.get(), object));
   }
   if (null_check == kWithNullCheck) {
     TrapIfTrue(wasm::kTrapIllegalCast, gasm_->WordEqual(object, RefNull()),
@@ -5667,7 +5670,7 @@ Node* WasmGraphBuilder::BrOnCast(Node* object, Node* rtt,
       merge_effects.emplace_back(effect());
     }
   } else {
-    AssertFalse(gasm_.get(), is_i31);
+    AssertFalse(mcgraph(), gasm_.get(), is_i31);
   }
 
   if (null_check == kWithNullCheck) {

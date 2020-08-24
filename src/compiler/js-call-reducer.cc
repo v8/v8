@@ -143,11 +143,11 @@ class JSCallReducerAssembler : public JSGraphAssembler {
 
       gasm_->Bind(&if_true);
       if (then_body_) then_body_();
-      gasm_->Goto(&merge);
+      if (gasm_->HasActiveBlock()) gasm_->Goto(&merge);
 
       gasm_->Bind(&if_false);
       if (else_body_) else_body_();
-      gasm_->Goto(&merge);
+      if (gasm_->HasActiveBlock()) gasm_->Goto(&merge);
 
       gasm_->Bind(&merge);
     }
@@ -209,11 +209,13 @@ class JSCallReducerAssembler : public JSGraphAssembler {
 
       gasm_->Bind(&if_true);
       TNode<T> then_result = then_body_();
-      gasm_->Goto(&merge, then_result);
+      if (gasm_->HasActiveBlock()) gasm_->Goto(&merge, then_result);
 
       gasm_->Bind(&if_false);
       TNode<T> else_result = else_body_();
-      gasm_->Goto(&merge, else_result);
+      if (gasm_->HasActiveBlock()) {
+        gasm_->Goto(&merge, else_result);
+      }
 
       gasm_->Bind(&merge);
       return merge.PhiAt<T>(0);
@@ -1420,7 +1422,6 @@ TNode<Object> IteratingArrayBuiltinReducerAssembler::ReduceArrayPrototypeReduce(
       Bind(&continue_label);
     });
     Unreachable();  // The loop is exited either by deopt or a jump to below.
-    InitializeEffectControl(nullptr, nullptr);
 
     // TODO(jgruber): This manual fiddling with blocks could be avoided by
     // implementing a `break` mechanic for loop builders.

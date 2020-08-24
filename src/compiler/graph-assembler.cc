@@ -624,7 +624,20 @@ Node* GraphAssembler::DebugBreak() {
       graph()->NewNode(machine()->DebugBreak(), effect(), control()));
 }
 
-Node* GraphAssembler::Unreachable() {
+Node* GraphAssembler::Unreachable(
+    GraphAssemblerLabel<0u>* block_updater_successor) {
+  Node* result = UnreachableWithoutConnectToEnd();
+  if (block_updater_ == nullptr) {
+    ConnectUnreachableToEnd();
+    InitializeEffectControl(nullptr, nullptr);
+  } else {
+    DCHECK_NOT_NULL(block_updater_successor);
+    Goto(block_updater_successor);
+  }
+  return result;
+}
+
+Node* GraphAssembler::UnreachableWithoutConnectToEnd() {
   return AddNode(
       graph()->NewNode(common()->Unreachable(), effect(), control()));
 }
@@ -860,7 +873,7 @@ void GraphAssembler::ConnectUnreachableToEnd() {
   // to disconnect them from the graph, so we just leave the unreachable nodes
   // in the schedule.
   // TODO(9684): Add a scheduled dead-code elimination phase to remove all the
-  // subsiquent unreacahble code from the schedule.
+  // subsequent unreachable code from the schedule.
   if (!block_updater_) {
     Node* throw_node = graph()->NewNode(common()->Throw(), effect(), control());
     NodeProperties::MergeControlToEnd(graph(), common(), throw_node);
