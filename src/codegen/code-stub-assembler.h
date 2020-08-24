@@ -463,16 +463,6 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
   Node* MatchesParameterMode(Node* value, ParameterMode mode);
 
 #define PARAMETER_BINOP(OpName, IntPtrOpName, SmiOpName)                    \
-  /* TODO(v8:9708): remove once all uses are ported. */                     \
-  Node* OpName(Node* a, Node* b, ParameterMode mode) {                      \
-    if (mode == SMI_PARAMETERS) {                                           \
-      return SmiOpName(CAST(a), CAST(b));                                   \
-    } else {                                                                \
-      DCHECK_EQ(INTPTR_PARAMETERS, mode);                                   \
-      return IntPtrOpName(UncheckedCast<IntPtrT>(a),                        \
-                          UncheckedCast<IntPtrT>(b));                       \
-    }                                                                       \
-  }                                                                         \
   TNode<Smi> OpName(TNode<Smi> a, TNode<Smi> b) { return SmiOpName(a, b); } \
   TNode<IntPtrT> OpName(TNode<IntPtrT> a, TNode<IntPtrT> b) {               \
     return IntPtrOpName(a, b);                                              \
@@ -485,22 +475,11 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
         ReinterpretCast<IntPtrT>(a), ReinterpretCast<IntPtrT>(b)));         \
   }
   // TODO(v8:9708): Define BInt operations once all uses are ported.
-  PARAMETER_BINOP(IntPtrOrSmiMin, IntPtrMin, SmiMin)
   PARAMETER_BINOP(IntPtrOrSmiAdd, IntPtrAdd, SmiAdd)
   PARAMETER_BINOP(IntPtrOrSmiSub, IntPtrSub, SmiSub)
 #undef PARAMETER_BINOP
 
 #define PARAMETER_BINOP(OpName, IntPtrOpName, SmiOpName)                      \
-  /* TODO(v8:9708): remove once all uses are ported. */                       \
-  TNode<BoolT> OpName(Node* a, Node* b, ParameterMode mode) {                 \
-    if (mode == SMI_PARAMETERS) {                                             \
-      return SmiOpName(CAST(a), CAST(b));                                     \
-    } else {                                                                  \
-      DCHECK_EQ(INTPTR_PARAMETERS, mode);                                     \
-      return IntPtrOpName(UncheckedCast<IntPtrT>(a),                          \
-                          UncheckedCast<IntPtrT>(b));                         \
-    }                                                                         \
-  }                                                                           \
   TNode<BoolT> OpName(TNode<Smi> a, TNode<Smi> b) { return SmiOpName(a, b); } \
   TNode<BoolT> OpName(TNode<IntPtrT> a, TNode<IntPtrT> b) {                   \
     return IntPtrOpName(a, b);                                                \
@@ -514,12 +493,9 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
   // TODO(v8:9708): Define BInt operations once all uses are ported.
   PARAMETER_BINOP(IntPtrOrSmiEqual, WordEqual, SmiEqual)
   PARAMETER_BINOP(IntPtrOrSmiNotEqual, WordNotEqual, SmiNotEqual)
-  PARAMETER_BINOP(IntPtrOrSmiLessThan, IntPtrLessThan, SmiLessThan)
   PARAMETER_BINOP(IntPtrOrSmiLessThanOrEqual, IntPtrLessThanOrEqual,
                   SmiLessThanOrEqual)
   PARAMETER_BINOP(IntPtrOrSmiGreaterThan, IntPtrGreaterThan, SmiGreaterThan)
-  PARAMETER_BINOP(IntPtrOrSmiGreaterThanOrEqual, IntPtrGreaterThanOrEqual,
-                  SmiGreaterThanOrEqual)
   PARAMETER_BINOP(UintPtrOrSmiLessThan, UintPtrLessThan, SmiBelow)
   PARAMETER_BINOP(UintPtrOrSmiGreaterThanOrEqual, UintPtrGreaterThanOrEqual,
                   SmiAboveOrEqual)
