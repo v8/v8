@@ -112,7 +112,8 @@ declare_args() {
   # Reverse JS arguments order in the stack (sets -dV8_REVERSE_JSARGS).
   v8_enable_reverse_jsargs =
       v8_current_cpu != "ppc" && v8_current_cpu != "ppc64" &&
-      v8_current_cpu != "s390" && v8_current_cpu != "s390x"
+      v8_current_cpu != "s390" && v8_current_cpu != "s390x" &&
+      v8_current_cpu != "mipsel" && v8_current_cpu != "mips64el"
 
   # Sets -dOBJECT_PRINT.
   v8_enable_object_print = ""
