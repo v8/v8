@@ -103,6 +103,7 @@ defineCustomElement('./timeline/timeline-track', (templateText) =>
       this.removeAllChildren(timelineLegendContent);
       let row = this.tr();
       row.entries = this.data.all;
+      row.classList.add('clickable');
       row.addEventListener('dblclick', e => this.handleEntryTypeDblClick(e));
       row.appendChild(this.td(""));
       let td = this.td("All");
@@ -114,6 +115,7 @@ defineCustomElement('./timeline/timeline-track', (templateText) =>
       uniqueTypes.forEach((entries, type) => {
         let row = this.tr();
         row.entries = entries;
+        row.classList.add('clickable');
         row.addEventListener('dblclick', e => this.handleEntryTypeDblClick(e));
         let color = typeToColor(type);
         if (color !== null) {

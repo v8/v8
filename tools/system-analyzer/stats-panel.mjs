@@ -91,6 +91,7 @@ defineCustomElement(
           } else {
             row.appendChild(this.td(""));
           }
+          row.classList.add('clickable');
           row.onclick = (e) => {
             // lazily compute the stats
             let node = e.target.parentNode;
@@ -119,6 +120,7 @@ defineCustomElement(
           .forEach(([name, maps]) => {
             let row = this.tr();
             row.maps = maps;
+            row.classList.add('clickable');
             row.addEventListener("click", (e) =>
               this.dispatchEvent(
                 new SelectionEvent(

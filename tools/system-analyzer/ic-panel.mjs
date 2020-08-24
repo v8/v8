@@ -121,7 +121,9 @@ defineCustomElement('ic-panel', (templateText) =>
         //TODO(zcankara) Create one bound method and use it everywhere
         if (entry.property === "map") {
           tr.addEventListener('click', e => this.handleMapClick(e));
+          tr.classList.add('clickable');
         } else if (entry.property == "filePosition") {
+          tr.classList.add('clickable');
           tr.addEventListener('click',
             e => this.handleFilePositionClick(e));
         }

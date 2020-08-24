@@ -132,6 +132,14 @@ button {
 .failure {
   background-color: var(--error-color);
 }
+
+.clickable:hover,
+.clickable:active {
+  background-color: var(--primary-color);
+  color: var(--on-primary-color);
+  cursor: pointer;
+}
+
 a:link {
   color: var(--secondary-color);
   background-color: transparent;
