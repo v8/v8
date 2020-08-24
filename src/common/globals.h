@@ -186,13 +186,17 @@ constexpr int kElidedFrameSlots = 0;
 #endif
 
 constexpr int kDoubleSizeLog2 = 3;
-constexpr size_t kMaxWasmCodeMB = 1024;
+constexpr size_t kMaxWasmCodeMB = 2048;
 constexpr size_t kMaxWasmCodeMemory = kMaxWasmCodeMB * MB;
 #if V8_TARGET_ARCH_ARM64
 // ARM64 only supports direct calls within a 128 MB range.
 constexpr size_t kMaxWasmCodeSpaceSize = 128 * MB;
 #else
-constexpr size_t kMaxWasmCodeSpaceSize = kMaxWasmCodeMemory;
+// Use 1024 MB limit for code spaces on other platforms. This is smaller than
+// the total allowed code space (kMaxWasmCodeMemory) to avoid unnecessarily big
+// reservations, and to ensure that distances within a code space fit within a
+// 32-bit signed integer.
+constexpr size_t kMaxWasmCodeSpaceSize = 1024 * MB;
 #endif
 
 #if V8_HOST_ARCH_64_BIT
