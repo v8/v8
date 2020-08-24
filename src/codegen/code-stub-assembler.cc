@@ -3776,10 +3776,8 @@ TNode<FixedArrayBase> CodeStubAssembler::AllocateFixedArray(
   const intptr_t kMaxLength = IsDoubleElementsKind(kind)
                                   ? FixedDoubleArray::kMaxLength
                                   : FixedArray::kMaxLength;
-  const ParameterMode parameter_mode =
-      std::is_same<TIndex, Smi>::value ? SMI_PARAMETERS : INTPTR_PARAMETERS;
   intptr_t capacity_constant;
-  if (ToParameterConstant(capacity, &capacity_constant, parameter_mode)) {
+  if (ToParameterConstant(capacity, &capacity_constant)) {
     CHECK_LE(capacity_constant, kMaxLength);
   } else {
     Label if_out_of_memory(this, Label::kDeferred), next(this);

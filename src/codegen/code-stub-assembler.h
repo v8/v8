@@ -351,22 +351,21 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
   template <typename TIndex>
   TNode<TIndex> TaggedToParameter(TNode<Smi> value);
 
-  bool ToParameterConstant(Node* node, intptr_t* out, ParameterMode mode) {
-    if (mode == ParameterMode::SMI_PARAMETERS) {
-      Smi constant;
-      if (ToSmiConstant(node, &constant)) {
-        *out = static_cast<intptr_t>(constant.value());
-        return true;
-      }
-    } else {
-      DCHECK_EQ(mode, ParameterMode::INTPTR_PARAMETERS);
-      intptr_t constant;
-      if (ToIntPtrConstant(node, &constant)) {
-        *out = constant;
-        return true;
-      }
+  bool ToParameterConstant(TNode<Smi> node, intptr_t* out) {
+    Smi constant;
+    if (ToSmiConstant(node, &constant)) {
+      *out = static_cast<intptr_t>(constant.value());
+      return true;
     }
+    return false;
+  }
 
+  bool ToParameterConstant(TNode<IntPtrT> node, intptr_t* out) {
+    intptr_t constant;
+    if (ToIntPtrConstant(node, &constant)) {
+      *out = constant;
+      return true;
+    }
     return false;
   }
 
