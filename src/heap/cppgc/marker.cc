@@ -128,6 +128,12 @@ void TraceMarkedObject(Visitor* visitor, const HeapObjectHeader* header) {
   gcinfo.trace(visitor, header->Payload());
 }
 
+size_t GetNextIncrementalStepDuration(IncrementalMarkingSchedule& schedule,
+                                      HeapBase& heap) {
+  return schedule.GetNextIncrementalStepDuration(
+      heap.stats_collector()->allocated_object_size());
+}
+
 }  // namespace
 
 constexpr v8::base::TimeDelta MarkerBase::kMaximumIncrementalStepDuration;
@@ -151,8 +157,7 @@ void MarkerBase::IncrementalMarkingTask::Run() {
   // TODO(chromium:1056170): Replace hardcoded expected marked bytes with
   // schedule.
   if (marker_->IncrementalMarkingStep(
-          MarkingConfig::StackState::kNoHeapPointers,
-          kMinimumMarkedBytesPerIncrementalStep)) {
+          MarkingConfig::StackState::kNoHeapPointers)) {
     // Incremental marking is done so should finalize GC.
     marker_->heap().FinalizeIncrementalGarbageCollectionIfNeeded(
         MarkingConfig::StackState::kNoHeapPointers);
@@ -197,6 +202,7 @@ void MarkerBase::StartMarking() {
   is_marking_started_ = true;
   if (EnterIncrementalMarkingIfNeeded(config_, heap())) {
     // Performing incremental or concurrent marking.
+    schedule_.NotifyIncrementalMarkingStart();
     // Scanning the stack is expensive so we only do it at the atomic pause.
     VisitRoots(MarkingConfig::StackState::kNoHeapPointers);
     ScheduleIncrementalMarkingTask();
@@ -224,7 +230,8 @@ void MarkerBase::LeaveAtomicPause() {
   DCHECK(!incremental_marking_handle_);
   ResetRememberedSet(heap());
   heap().stats_collector()->NotifyMarkingCompleted(
-      mutator_marking_state_.marked_bytes());
+      // GetOverallMarkedBytes also includes concurrently marked bytes.
+      schedule_.GetOverallMarkedBytes());
 }
 
 void MarkerBase::FinishMarking(MarkingConfig::StackState stack_state) {
@@ -274,24 +281,22 @@ void MarkerBase::ScheduleIncrementalMarkingTask() {
 }
 
 bool MarkerBase::IncrementalMarkingStepForTesting(
-    MarkingConfig::StackState stack_state, size_t expected_marked_bytes) {
-  return IncrementalMarkingStep(stack_state, expected_marked_bytes);
+    MarkingConfig::StackState stack_state) {
+  return IncrementalMarkingStep(stack_state);
 }
 
-bool MarkerBase::IncrementalMarkingStep(MarkingConfig::StackState stack_state,
-                                        size_t expected_marked_bytes) {
+bool MarkerBase::IncrementalMarkingStep(MarkingConfig::StackState stack_state) {
   if (stack_state == MarkingConfig::StackState::kNoHeapPointers) {
     marking_worklists_.FlushNotFullyConstructedObjects();
   }
   config_.stack_state = stack_state;
 
-  return AdvanceMarkingWithDeadline(expected_marked_bytes);
+  return AdvanceMarkingWithDeadline();
 }
 
 bool MarkerBase::AdvanceMarkingOnAllocation() {
   // Replace with schedule based deadline.
-  bool is_done =
-      AdvanceMarkingWithDeadline(kMinimumMarkedBytesPerIncrementalStep);
+  bool is_done = AdvanceMarkingWithDeadline();
   if (is_done) {
     // Schedule another incremental task for finalizing without a stack.
     ScheduleIncrementalMarkingTask();
@@ -299,10 +304,15 @@ bool MarkerBase::AdvanceMarkingOnAllocation() {
   return is_done;
 }
 
-bool MarkerBase::AdvanceMarkingWithDeadline(size_t expected_marked_bytes,
-                                            v8::base::TimeDelta max_duration) {
-  bool is_done =
-      ProcessWorklistsWithDeadline(expected_marked_bytes, max_duration);
+bool MarkerBase::AdvanceMarkingWithMaxDuration(
+    v8::base::TimeDelta max_duration) {
+  return AdvanceMarkingWithDeadline(max_duration);
+}
+
+bool MarkerBase::AdvanceMarkingWithDeadline(v8::base::TimeDelta max_duration) {
+  size_t step_size_in_bytes = GetNextIncrementalStepDuration(schedule_, heap_);
+  bool is_done = ProcessWorklistsWithDeadline(step_size_in_bytes, max_duration);
+  schedule_.UpdateIncrementalMarkedBytes(mutator_marking_state_.marked_bytes());
   if (!is_done) {
     // If marking is atomic, |is_done| should always be true.
     DCHECK_NE(MarkingConfig::MarkingType::kAtomic, config_.marking_type);
@@ -316,7 +326,6 @@ bool MarkerBase::ProcessWorklistsWithDeadline(
   size_t marked_bytes_deadline =
       mutator_marking_state_.marked_bytes() + expected_marked_bytes;
   v8::base::TimeTicks time_deadline = v8::base::TimeTicks::Now() + max_duration;
-
   do {
     // Convert |previously_not_fully_constructed_worklist_| to
     // |marking_worklist_|. This merely re-adds items with the proper
@@ -328,8 +337,9 @@ bool MarkerBase::ProcessWorklistsWithDeadline(
               TraceMarkedObject(&visitor(), header);
               mutator_marking_state_.AccountMarkedBytes(*header);
             },
-            MarkingWorklists::kMutatorThreadId))
+            MarkingWorklists::kMutatorThreadId)) {
       return false;
+    }
 
     if (!DrainWorklistWithBytesAndTimeDeadline(
             mutator_marking_state_, marked_bytes_deadline, time_deadline,
@@ -344,8 +354,9 @@ bool MarkerBase::ProcessWorklistsWithDeadline(
               item.callback(&visitor(), item.base_object_payload);
               mutator_marking_state_.AccountMarkedBytes(header);
             },
-            MarkingWorklists::kMutatorThreadId))
+            MarkingWorklists::kMutatorThreadId)) {
       return false;
+    }
 
     if (!DrainWorklistWithBytesAndTimeDeadline(
             mutator_marking_state_, marked_bytes_deadline, time_deadline,
@@ -354,11 +365,11 @@ bool MarkerBase::ProcessWorklistsWithDeadline(
               TraceMarkedObject(&visitor(), header);
               mutator_marking_state_.AccountMarkedBytes(*header);
             },
-            MarkingWorklists::kMutatorThreadId))
+            MarkingWorklists::kMutatorThreadId)) {
       return false;
+    }
   } while (!marking_worklists_.marking_worklist()->IsLocalViewEmpty(
       MarkingWorklists::kMutatorThreadId));
-
   return true;
 }
 

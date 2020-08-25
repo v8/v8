@@ -284,7 +284,7 @@ class IncrementalMarkingTest : public testing::TestWithHeap {
       MarkingConfig::MarkingType::kIncremental};
 
   void FinishSteps(MarkingConfig::StackState stack_state) {
-    SingleStep(stack_state, std::numeric_limits<size_t>::max());
+    while (!SingleStep(stack_state)) {}
   }
 
   void FinishMarking() {
@@ -303,9 +303,8 @@ class IncrementalMarkingTest : public testing::TestWithHeap {
   Marker* marker() const { return marker_.get(); }
 
  private:
-  bool SingleStep(MarkingConfig::StackState stack_state, size_t bytes_to_mark) {
-    return marker_->IncrementalMarkingStepForTesting(stack_state,
-                                                     bytes_to_mark);
+  bool SingleStep(MarkingConfig::StackState stack_state) {
+    return marker_->IncrementalMarkingStepForTesting(stack_state);
   }
 
   std::unique_ptr<Marker> marker_;
@@ -375,6 +374,13 @@ TEST_F(IncrementalMarkingTest, IncrementalStepDuringAllocation) {
       });
   FinishSteps(MarkingConfig::StackState::kNoHeapPointers);
   EXPECT_TRUE(header->IsMarked());
+  FinishMarking();
+}
+
+TEST_F(IncrementalMarkingTest, MarkingRunsOutOfWorkEventually) {
+  InitializeMarker(*Heap::From(GetHeap()), GetPlatformHandle().get(),
+                IncrementalPreciseMarkingConfig);
+  FinishSteps(MarkingConfig::StackState::kNoHeapPointers);
   FinishMarking();
 }
 
