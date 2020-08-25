@@ -1,4 +1,4 @@
-// Copyright 2020 The Chromium Authors. All rights reserved.
+// Copyright 2020 the V8 project authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -56,8 +56,7 @@ size_t IncrementalMarkingSchedule::GetNextIncrementalStepDuration(
   size_t expected_marked_bytes = std::ceil(
       estimated_live_bytes * elapsed_time_in_ms / kEstimatedMarkingTimeMs);
   if (expected_marked_bytes < actual_marked_bytes) {
-    // Marking is ahead of schedule, incremental marking doesn't need to
-    // do anything.
+    // Marking is ahead of schedule, incremental marking should do the minimum.
     return kMinimumMarkedBytesPerIncrementalStep;
   }
   // Assuming marking will take |kEstimatedMarkingTime|, overall there will
@@ -67,8 +66,6 @@ size_t IncrementalMarkingSchedule::GetNextIncrementalStepDuration(
   // denoted as |expected_marked_bytes|.  If |actual_marked_bytes| is less,
   // i.e. marking is behind schedule, incremental marking should help "catch
   // up" by marking (|expected_marked_bytes| - |actual_marked_bytes|).
-  // Assuming constant marking speed, duration of the next incremental step
-  // should be as follows:
   return std::max(kMinimumMarkedBytesPerIncrementalStep,
                   expected_marked_bytes - actual_marked_bytes);
 }

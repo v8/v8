@@ -154,8 +154,6 @@ MarkerBase::IncrementalMarkingTask::Post(v8::TaskRunner* runner,
 void MarkerBase::IncrementalMarkingTask::Run() {
   if (handle_.IsCanceled()) return;
 
-  // TODO(chromium:1056170): Replace hardcoded expected marked bytes with
-  // schedule.
   if (marker_->IncrementalMarkingStep(
           MarkingConfig::StackState::kNoHeapPointers)) {
     // Incremental marking is done so should finalize GC.
@@ -295,7 +293,6 @@ bool MarkerBase::IncrementalMarkingStep(MarkingConfig::StackState stack_state) {
 }
 
 bool MarkerBase::AdvanceMarkingOnAllocation() {
-  // Replace with schedule based deadline.
   bool is_done = AdvanceMarkingWithDeadline();
   if (is_done) {
     // Schedule another incremental task for finalizing without a stack.
