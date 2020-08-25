@@ -1395,6 +1395,7 @@
   'regress/regress-1016450': [SKIP],
   'regress/regress-1034449': [SKIP],
   'regress/regress-1073440': [SKIP],
+  'regress/regress-1112155': [SKIP],
   'regress/regress-347914': [SKIP],
   'regress/regress-3709': [SKIP],
   'regress/regress-385565': [SKIP],
