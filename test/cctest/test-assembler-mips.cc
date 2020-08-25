@@ -5437,6 +5437,67 @@ TEST(Trampoline) {
   CHECK_EQ(0, res);
 }
 
+TEST(Trampoline_with_massive_unbound_labels) {
+  CcTest::InitializeVM();
+  Isolate* isolate = CcTest::i_isolate();
+  HandleScope scope(isolate);
+  MacroAssembler assm(isolate, v8::internal::CodeObjectRequired::kYes);
+
+  const int kNumSlots =
+      TurboAssembler::kMaxBranchOffset / TurboAssembler::kTrampolineSlotsSize;
+  Label labels[kNumSlots];
+
+  {
+    TurboAssembler::BlockTrampolinePoolScope block_trampoline_pool(&assm);
+    for (int i = 0; i < kNumSlots; i++) {
+      __ Branch(&labels[i]);
+    }
+  }
+
+  __ bind(&labels[0]);
+}
+
+static void DummyFunction(Object result) {}
+
+TEST(Call_with_trampoline) {
+  CcTest::InitializeVM();
+  Isolate* isolate = CcTest::i_isolate();
+  HandleScope scope(isolate);
+  MacroAssembler assm(isolate, v8::internal::CodeObjectRequired::kYes);
+
+  int next_buffer_check_ = FLAG_force_long_branches
+                               ? kMaxInt
+                               : TurboAssembler::kMaxBranchOffset -
+                                     TurboAssembler::kTrampolineSlotsSize * 16;
+
+  Label done;
+  __ Branch(&done);
+  next_buffer_check_ -= TurboAssembler::kTrampolineSlotsSize;
+
+  int num_nops = (next_buffer_check_ - __ pc_offset()) / kInstrSize - 1;
+  for (int i = 0; i < num_nops; i++) {
+    __ nop();
+  }
+
+  int pc_offset_before = __ pc_offset();
+  {
+    // There should be a trampoline after this Call
+    __ Call(FUNCTION_ADDR(DummyFunction), RelocInfo::RUNTIME_ENTRY);
+  }
+  int pc_offset_after = __ pc_offset();
+  int last_call_pc = __ pc_offset_for_safepoint();
+
+  // Without trampoline, the Call emits no more than 6 instructions, otherwise
+  // more than 6 instructions will be generated.
+  int num_instrs = 6;
+  // pc_offset_after records the offset after trampoline.
+  CHECK_GT(pc_offset_after - pc_offset_before, num_instrs * kInstrSize);
+  // last_call_pc records the offset before trampoline.
+  CHECK_LE(last_call_pc - pc_offset_before, num_instrs * kInstrSize);
+
+  __ bind(&done);
+}
+
 template <class T>
 struct TestCaseMaddMsub {
   T fr, fs, ft, fd_add, fd_sub;

@@ -981,7 +981,8 @@ void CodeGenerator::RecordCallPosition(Instruction* instr) {
     InstructionOperandConverter i(this, instr);
     RpoNumber handler_rpo = i.InputRpo(instr->InputCount() - 1);
     DCHECK(instructions()->InstructionBlockAt(handler_rpo)->IsHandler());
-    handlers_.push_back({GetLabel(handler_rpo), tasm()->pc_offset()});
+    handlers_.push_back(
+        {GetLabel(handler_rpo), tasm()->pc_offset_for_safepoint()});
   }
 
   if (needs_frame_state) {
@@ -991,7 +992,7 @@ void CodeGenerator::RecordCallPosition(Instruction* instr) {
     size_t frame_state_offset = 2;
     FrameStateDescriptor* descriptor =
         GetDeoptimizationEntry(instr, frame_state_offset).descriptor();
-    int pc_offset = tasm()->pc_offset();
+    int pc_offset = tasm()->pc_offset_for_safepoint();
     BuildTranslation(instr, pc_offset, frame_state_offset,
                      descriptor->state_combine());
   }
