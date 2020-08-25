@@ -1178,6 +1178,9 @@ class LiftoffCompiler {
               __ emit_type_conversion(kExprI64UConvertI32, dst, c_call_dst,
                                       nullptr);
             });
+      case kExprRefIsNull:
+        unsupported(decoder, kRefTypes, "ref_is_null");
+        return;
       default:
         UNREACHABLE();
     }
@@ -1581,8 +1584,16 @@ class LiftoffCompiler {
     __ PushRegister(kWasmF64, reg);
   }
 
-  void RefNull(FullDecoder* decoder, Value* result) {
-    unsupported(decoder, kRefTypes, "ref_null");
+  void RefNull(FullDecoder* decoder, ValueType type, Value*) {
+    Register isolate_root = __ GetUnusedRegister(kGpReg, {}).gp();
+    // We can re-use the isolate_root register as result register.
+    Register result = isolate_root;
+
+    LOAD_INSTANCE_FIELD(isolate_root, IsolateRoot, kSystemPointerSize);
+    __ LoadTaggedPointer(result, isolate_root, no_reg,
+                         IsolateData::root_slot_offset(RootIndex::kNullValue),
+                         {});
+    __ PushRegister(type, LiftoffRegister(result));
   }
 
   void RefFunc(FullDecoder* decoder, uint32_t function_index, Value* result) {
@@ -3622,7 +3633,10 @@ class LiftoffCompiler {
                   const Value args[], Value returns[], CallKind call_kind) {
     for (ValueType ret : imm.sig->returns()) {
       if (!CheckSupportedType(decoder, kSupportedTypes, ret, "return")) {
-        return;
+        // TODO(7581): Remove this once reference-types are full supported.
+        if (!ret.is_reference_type()) {
+          return;
+        }
       }
     }
 

@@ -875,7 +875,7 @@ struct ControlBase {
   F(I64Const, Value* result, int64_t value)                                    \
   F(F32Const, Value* result, float value)                                      \
   F(F64Const, Value* result, double value)                                     \
-  F(RefNull, Value* result)                                                    \
+  F(RefNull, ValueType type, Value* result)                                    \
   F(RefFunc, uint32_t function_index, Value* result)                           \
   F(RefAsNonNull, const Value& arg, Value* result)                             \
   F(Drop, const Value& value)                                                  \
@@ -2625,8 +2625,9 @@ class WasmFullDecoder : public WasmDecoder<validate> {
     CHECK_PROTOTYPE_OPCODE(reftypes);
     HeapTypeImmediate<validate> imm(this->enabled_, this, this->pc_ + 1);
     if (!this->Validate(this->pc_ + 1, imm)) return 0;
-    Value* value = Push(ValueType::Ref(imm.type, kNullable));
-    CALL_INTERFACE_IF_REACHABLE(RefNull, value);
+    ValueType type = ValueType::Ref(imm.type, kNullable);
+    Value* value = Push(type);
+    CALL_INTERFACE_IF_REACHABLE(RefNull, type, value);
     return 1 + imm.length;
   }
 

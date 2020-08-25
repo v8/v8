@@ -1078,6 +1078,9 @@
   # Tests that depend on optimization (beyond doing assertOptimized).
   'regress/regress-1049982-1': [SKIP],
   'regress/regress-1049982-2': [SKIP],
+  # Wasm serialization relies on TurboFan to be available, hence does not work
+  # in the 'nooptimization' variant.
+  'regress/wasm/regress-7785': [SKIP],
 }],  # variant == nooptimization
 
 ##############################################################################

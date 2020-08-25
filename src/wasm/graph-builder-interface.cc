@@ -268,7 +268,7 @@ class WasmGraphBuildingInterface {
     result->node = builder_->Simd128Constant(imm.value);
   }
 
-  void RefNull(FullDecoder* decoder, Value* result) {
+  void RefNull(FullDecoder* decoder, ValueType type, Value* result) {
     result->node = builder_->RefNull();
   }
 
