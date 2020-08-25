@@ -58,7 +58,10 @@ class MapProcessor extends LogReader {
         parsers: [parseInt, parseInt],
         'sfi-move':
           { parsers: [parseInt, parseInt], processor: this.processCodeMove },
-        'code-delete': { parsers: [parseInt], processor: this.processCodeDelete },
+        'code-delete': {
+          parsers: [parseInt],
+          processor: this.processCodeDelete
+        },
         processor: this.processFunctionMove
       },
       'map-create':

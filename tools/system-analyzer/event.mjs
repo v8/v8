@@ -10,12 +10,12 @@ class Event {
     this.#time = time;
     this.#type = type;
   }
-  get time(){
+  get time() {
     return this.#time;
   }
-  get type(){
+  get type() {
     return this.#type;
   }
 }
 
-export {Event};
+export { Event };

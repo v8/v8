@@ -81,7 +81,8 @@ defineCustomElement(
         let text = "";
         let tableNode = this.table("transitionType");
         tableNode.innerHTML =
-          "<thead><tr><td>Color</td><td>Type</td><td>Count</td><td>Percent</td></tr></thead>";
+          "<thead><tr><td>Color</td><td>Type</td><td>Count</td>" +
+          "<td>Percent</td></tr></thead>";
         let name, filter;
         let total = this.timeline.size();
         pairs.forEach(([name, color, filter]) => {

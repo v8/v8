@@ -66,7 +66,8 @@ defineCustomElement(
         // Timeline dbl click to show map transitions of selected maps
         this.transitionView.style.display = "none";
         this.removeAllChildren(this.transitionView);
-        this.selectedMapLogEvents.forEach((map) => this.addMapAndParentTransitions(map));
+        this.selectedMapLogEvents.forEach((map) =>
+          this.addMapAndParentTransitions(map));
         this.transitionView.style.display = "";
       }
 

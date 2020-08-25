@@ -51,7 +51,7 @@ export class Group {
       group.percentage = Math.round(group.count / length * 100 * 100) / 100;
       result.push(group);
     }
-    result.sort((a, b) => {return b.count - a.count});
+    result.sort((a, b) => { return b.count - a.count });
     return result;
   }
 

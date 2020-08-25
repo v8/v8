@@ -2,8 +2,8 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-import {Event} from './event.mjs';
-import {Timeline} from './timeline.mjs';
+import { Event } from './event.mjs';
+import { Timeline } from './timeline.mjs';
 
 /**
  * Parser for dynamic code optimization state.
@@ -45,10 +45,10 @@ class IcProcessor extends LogReader {
         processor: this.processV8Version
       },
       'code-move':
-          {parsers: [parseInt, parseInt], processor: this.processCodeMove},
-      'code-delete': {parsers: [parseInt], processor: this.processCodeDelete},
+        { parsers: [parseInt, parseInt], processor: this.processCodeMove },
+      'code-delete': { parsers: [parseInt], processor: this.processCodeDelete },
       'sfi-move':
-          {parsers: [parseInt, parseInt], processor: this.processFunctionMove},
+        { parsers: [parseInt, parseInt], processor: this.processFunctionMove },
       'LoadGlobalIC': {
         parsers: propertyICParser,
         processor: this.processPropertyIC.bind(this, 'LoadGlobalIC')
@@ -88,7 +88,7 @@ class IcProcessor extends LogReader {
     this.KeyedStoreIC = 0;
     this.StoreInArrayLiteralIC = 0;
   }
-  get profile(){
+  get profile() {
     return this.#profile;
   }
   /**
@@ -113,13 +113,13 @@ class IcProcessor extends LogReader {
       this.processLogLine(line);
     }
   }
-  processV8Version(majorVersion, minorVersion){
-    if(
+  processV8Version(majorVersion, minorVersion) {
+    if (
       (majorVersion == this.MAJOR_VERSION && minorVersion <= this.MINOR_VERSION)
-        || (majorVersion < this.MAJOR_VERSION)){
-          window.alert(
-            `Unsupported version ${majorVersion}.${minorVersion}. \n` +
-              `Please use the matching tool for given the V8 version.`);
+      || (majorVersion < this.MAJOR_VERSION)) {
+      window.alert(
+        `Unsupported version ${majorVersion}.${minorVersion}. \n` +
+        `Please use the matching tool for given the V8 version.`);
     }
   }
   processLogFile(fileName) {
@@ -147,7 +147,7 @@ class IcProcessor extends LogReader {
       let funcAddr = parseInt(maybe_func[0]);
       let state = parseState(maybe_func[1]);
       this.#profile.addFuncCode(
-          type, name, timestamp, start, size, funcAddr, state);
+        type, name, timestamp, start, size, funcAddr, state);
     } else {
       this.#profile.addCode(type, name, timestamp, start, size);
     }
@@ -171,15 +171,15 @@ class IcProcessor extends LogReader {
   }
 
   processPropertyIC(
-      type, pc, time, line, column, old_state, new_state, map, name, modifier,
-      slow_reason) {
+    type, pc, time, line, column, old_state, new_state, map, name, modifier,
+    slow_reason) {
     this[type]++;
     let entry = this.#profile.findEntry(pc);
     print(
-        type + ' (' + old_state + '->' + new_state + modifier + ') at ' +
-        this.formatName(entry) + ':' + line + ':' + column + ' ' + name +
-        ' (map 0x' + map.toString(16) + ')' +
-        (slow_reason ? ' ' + slow_reason : '') + 'time: ' + time);
+      type + ' (' + old_state + '->' + new_state + modifier + ') at ' +
+      this.formatName(entry) + ':' + line + ':' + column + ' ' + name +
+      ' (map 0x' + map.toString(16) + ')' +
+      (slow_reason ? ' ' + slow_reason : '') + 'time: ' + time);
   }
 }
 
@@ -206,8 +206,8 @@ class CustomIcProcessor extends IcProcessor {
   }
 
   processPropertyIC(
-      type, pc, time, line, column, old_state, new_state, map, key, modifier,
-      slow_reason) {
+    type, pc, time, line, column, old_state, new_state, map, key, modifier,
+    slow_reason) {
     let fnName = this.functionName(pc);
     let entry = new IcLogEvent(
       type, fnName, time, line, column, key, old_state, new_state, map,
@@ -216,7 +216,7 @@ class CustomIcProcessor extends IcProcessor {
   }
 
 
-  get timeline(){
+  get timeline() {
     return this.#timeline;
   }
 
@@ -228,8 +228,8 @@ class CustomIcProcessor extends IcProcessor {
 
 class IcLogEvent extends Event {
   constructor(
-      type, fn_file, time, line, column, key, oldState, newState, map, reason,
-      additional) {
+    type, fn_file, time, line, column, key, oldState, newState, map, reason,
+    additional) {
     super(type, time);
     this.category = 'other';
     if (this.type.indexOf('Store') !== -1) {
@@ -279,4 +279,4 @@ class IcLogEvent extends Event {
   }
 }
 
-export { CustomIcProcessor as default, IcLogEvent};
+export { CustomIcProcessor as default, IcLogEvent };
