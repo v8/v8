@@ -137,8 +137,10 @@ bool FillCurrentPageButNBytes(v8::internal::NewSpace* space, int extra_bytes,
   // the current allocation pointer.
   DCHECK_IMPLIES(space->heap()->inline_allocation_disabled(),
                  space->limit() == space->top());
-  int space_remaining =
-      static_cast<int>(space->to_space().page_high() - space->top());
+  size_t limit = space->heap()->inline_allocation_disabled()
+                     ? space->to_space().page_high()
+                     : space->limit();
+  int space_remaining = static_cast<int>(limit - space->top());
   CHECK(space_remaining >= extra_bytes);
   int new_linear_size = space_remaining - extra_bytes;
   if (new_linear_size == 0) return false;
