@@ -12,6 +12,7 @@
 #include "src/base/macros.h"
 #include "src/base/platform/time.h"
 #include "src/heap/cppgc/globals.h"
+#include "src/heap/cppgc/incremental-marking-schedule.h"
 #include "src/heap/cppgc/marking-state.h"
 #include "src/heap/cppgc/marking-visitor.h"
 #include "src/heap/cppgc/marking-worklists.h"
@@ -69,8 +70,7 @@ class V8_EXPORT_PRIVATE MarkerBase {
   // Makes marking progress.
   // TODO(chromium:1056170): Remove TimeDelta argument when unified heap no
   // longer uses it.
-  bool AdvanceMarkingWithDeadline(
-      size_t, v8::base::TimeDelta = kMaximumIncrementalStepDuration);
+  bool AdvanceMarkingWithMaxDuration(v8::base::TimeDelta);
 
   // Makes marking progress when allocation a new lab.
   bool AdvanceMarkingOnAllocation();
@@ -97,7 +97,7 @@ class V8_EXPORT_PRIVATE MarkerBase {
   cppgc::Visitor& VisitorForTesting() { return visitor(); }
   void ClearAllWorklistsForTesting();
 
-  bool IncrementalMarkingStepForTesting(MarkingConfig::StackState, size_t);
+  bool IncrementalMarkingStepForTesting(MarkingConfig::StackState);
 
   class IncrementalMarkingTask final : public v8::Task {
    public:
@@ -118,7 +118,6 @@ class V8_EXPORT_PRIVATE MarkerBase {
  protected:
   static constexpr v8::base::TimeDelta kMaximumIncrementalStepDuration =
       v8::base::TimeDelta::FromMilliseconds(2);
-  static constexpr size_t kMinimumMarkedBytesPerIncrementalStep = 64 * kKB;
 
   class Key {
    private:
@@ -136,6 +135,12 @@ class V8_EXPORT_PRIVATE MarkerBase {
   virtual ConservativeTracingVisitor& conservative_visitor() = 0;
   virtual heap::base::StackVisitor& stack_visitor() = 0;
 
+  // Makes marking progress.
+  // TODO(chromium:1056170): Remove TimeDelta argument when unified heap no
+  // longer uses it.
+  bool AdvanceMarkingWithDeadline(
+      v8::base::TimeDelta = kMaximumIncrementalStepDuration);
+
   bool ProcessWorklistsWithDeadline(size_t, v8::base::TimeDelta);
 
   void VisitRoots(MarkingConfig::StackState);
@@ -144,7 +149,7 @@ class V8_EXPORT_PRIVATE MarkerBase {
 
   void ScheduleIncrementalMarkingTask();
 
-  bool IncrementalMarkingStep(MarkingConfig::StackState, size_t);
+  bool IncrementalMarkingStep(MarkingConfig::StackState);
 
   HeapBase& heap_;
   MarkingConfig config_ = MarkingConfig::Default();
@@ -156,6 +161,8 @@ class V8_EXPORT_PRIVATE MarkerBase {
   MarkingWorklists marking_worklists_;
   MarkingState mutator_marking_state_;
   bool is_marking_started_ = false;
+
+  IncrementalMarkingSchedule schedule_;
 
   friend class MarkerFactory;
 };
