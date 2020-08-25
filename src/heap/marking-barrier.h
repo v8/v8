@@ -45,6 +45,8 @@ class MarkingBarrier {
 
   inline bool WhiteToGreyAndPush(HeapObject value);
 
+  void RecordRelocSlot(Code host, RelocInfo* rinfo, HeapObject target);
+
   void ActivateSpace(PagedSpace*);
   void ActivateSpace(NewSpace*);
 
@@ -56,6 +58,9 @@ class MarkingBarrier {
   IncrementalMarking* incremental_marking_;
   MarkingWorklist::Local worklist_;
   MarkingState marking_state_;
+  std::unordered_map<MemoryChunk*, std::unique_ptr<TypedSlots>,
+                     MemoryChunk::Hasher>
+      typed_slots_map_;
   bool is_compacting_ = false;
   bool is_activated_ = false;
   bool is_main_thread_barrier_;

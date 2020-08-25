@@ -45,17 +45,21 @@ void MarkingBarrier::Write(HeapObject host, HeapObjectSlot slot,
 }
 
 void MarkingBarrier::Write(Code host, RelocInfo* reloc_info, HeapObject value) {
-  DCHECK(is_main_thread_barrier_);
   if (MarkValue(host, value)) {
     if (is_compacting_) {
-      collector_->RecordRelocSlot(host, reloc_info, value);
+      if (is_main_thread_barrier_) {
+        // An optimization to avoid allocating additional typed slots for the
+        // main thread.
+        collector_->RecordRelocSlot(host, reloc_info, value);
+      } else {
+        RecordRelocSlot(host, reloc_info, value);
+      }
     }
   }
 }
 
 void MarkingBarrier::Write(JSArrayBuffer host,
                            ArrayBufferExtension* extension) {
-  DCHECK(is_main_thread_barrier_);
   if (!V8_CONCURRENT_MARKING_BOOL && marking_state_.IsBlack(host)) {
     // The extension will be marked when the marker visits the host object.
     return;
@@ -71,6 +75,19 @@ void MarkingBarrier::Write(Map host, DescriptorArray descriptor_array,
       number_of_own_descriptors) {
     collector_->MarkDescriptorArrayFromWriteBarrier(host, descriptor_array,
                                                     number_of_own_descriptors);
+  }
+}
+
+void MarkingBarrier::RecordRelocSlot(Code host, RelocInfo* rinfo,
+                                     HeapObject target) {
+  MarkCompactCollector::RecordRelocSlotInfo info =
+      MarkCompactCollector::PrepareRecordRelocSlot(host, rinfo, target);
+  if (info.should_record) {
+    auto& typed_slots = typed_slots_map_[info.memory_chunk];
+    if (!typed_slots) {
+      typed_slots.reset(new TypedSlots());
+    }
+    typed_slots->Insert(info.slot_type, info.offset);
   }
 }
 
@@ -109,6 +126,13 @@ void MarkingBarrier::Publish() {
   DCHECK_IMPLIES(!is_main_thread_barrier_, FLAG_local_heaps);
   if (is_activated_) {
     worklist_.Publish();
+    for (auto& it : typed_slots_map_) {
+      MemoryChunk* memory_chunk = it.first;
+      std::unique_ptr<TypedSlots>& typed_slots = it.second;
+      RememberedSet<OLD_TO_OLD>::MergeTyped(memory_chunk,
+                                            std::move(typed_slots));
+    }
+    typed_slots_map_.clear();
   }
 }
 
@@ -146,6 +170,7 @@ void MarkingBarrier::Deactivate() {
       p->SetOldGenerationPageFlags(false);
     }
   }
+  DCHECK(typed_slots_map_.empty());
   DCHECK(worklist_.IsLocalEmpty());
 }
 
