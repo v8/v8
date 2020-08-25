@@ -495,6 +495,9 @@ void WasmCodeAllocator::OptionalLock::Lock(WasmCodeAllocator* allocator) {
   allocator->mutex_.Lock();
 }
 
+// static
+constexpr size_t WasmCodeAllocator::kMaxCodeSpaceSize;
+
 WasmCodeAllocator::WasmCodeAllocator(WasmCodeManager* code_manager,
                                      VirtualMemory code_space,
                                      std::shared_ptr<Counters> async_counters)
@@ -598,7 +601,7 @@ size_t ReservationSize(size_t code_size_estimate, int num_declared_functions,
                total_reserved / 4));
 
   // Limit by the maximum supported code space size.
-  return std::min(kMaxWasmCodeSpaceSize, reserve_size);
+  return std::min(WasmCodeAllocator::kMaxCodeSpaceSize, reserve_size);
 }
 
 }  // namespace
@@ -1419,7 +1422,7 @@ NativeModule::JumpTablesRef NativeModule::FindJumpTablesForRegion(
     size_t max_distance = std::max(
         code_region.end() > table_start ? code_region.end() - table_start : 0,
         table_end > code_region.begin() ? table_end - code_region.begin() : 0);
-    return max_distance < kMaxWasmCodeSpaceSize;
+    return max_distance < WasmCodeAllocator::kMaxCodeSpaceSize;
   };
 
   // Fast path: Try to use {main_jump_table_} and {main_far_jump_table_}.
