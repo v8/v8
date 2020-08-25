@@ -495,6 +495,7 @@ class CompilationStateImpl {
   void OnFinishedJSToWasmWrapperUnits(int num);
 
   int GetFreeCompileTaskId();
+  int GetUnpublishedUnitsLimits(int task_id);
   void OnCompilationStopped(int task_id, const WasmFeatures& detected);
   void PublishDetectedFeatures(Isolate*);
   // Ensure that a compilation job is running, and increase its concurrency if
@@ -1115,6 +1116,7 @@ CompilationExecutionResult ExecuteCompilationUnits(
   std::shared_ptr<const WasmModule> module;
   WasmEngine* wasm_engine;
   int task_id;
+  int unpublished_units_limit;
   base::Optional<WasmCompilationUnit> unit;
 
   WasmFeatures detected_features = WasmFeatures::None();
@@ -1136,6 +1138,8 @@ CompilationExecutionResult ExecuteCompilationUnits(
     module = compile_scope.native_module()->shared_module();
     wasm_engine = compile_scope.native_module()->engine();
     task_id = compilation_state->GetFreeCompileTaskId();
+    unpublished_units_limit =
+        compilation_state->GetUnpublishedUnitsLimits(task_id);
     unit = compilation_state->GetNextCompilationUnit(task_id, baseline_only);
     if (!unit) {
       stop(compile_scope);
@@ -1217,7 +1221,11 @@ CompilationExecutionResult ExecuteCompilationUnits(
       // units. If we compiled Liftoff before, we need to publish them anyway
       // to ensure fast completion of baseline compilation, if we compiled
       // TurboFan before, we publish to reduce peak memory consumption.
-      if (unit->tier() == ExecutionTier::kTurbofan) {
+      // Also publish after finishing a certain amount of units, to avoid
+      // contention when all threads publish at the end.
+      if (unit->tier() == ExecutionTier::kTurbofan ||
+          static_cast<int>(results_to_publish.size()) >=
+              unpublished_units_limit) {
         publish_results(&compile_scope);
       }
     }
@@ -2989,6 +2997,21 @@ int CompilationStateImpl::GetFreeCompileTaskId() {
   int id = available_task_ids_.back();
   available_task_ids_.pop_back();
   return id;
+}
+
+int CompilationStateImpl::GetUnpublishedUnitsLimits(int task_id) {
+  // We want background threads to publish regularly (to avoid contention when
+  // they are all publishing at the end). On the other side, each publishing has
+  // some overhead (part of it for synchronizing between threads), so it should
+  // not happen *too* often.
+  // Thus aim for 4-8 publishes per thread, but distribute it such that
+  // publishing is likely to happen at different times.
+  int units_per_thread =
+      static_cast<int>(native_module_->module()->num_declared_functions /
+                       max_compile_concurrency_);
+  int min = units_per_thread / 8;
+  // Return something between {min} and {2*min}, but not smaller than {10}.
+  return std::max(10, min + (min * task_id / max_compile_concurrency_));
 }
 
 void CompilationStateImpl::OnCompilationStopped(int task_id,
