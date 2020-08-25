@@ -1372,8 +1372,8 @@ void WasmEngine::TriggerGC(int8_t gc_sequence_index) {
     }
   }
   TRACE_CODE_GC(
-      "Starting GC. Total number of potentially dead code objects: %zu\n",
-      current_gc_info_->dead_code.size());
+      "Starting GC (nr %d). Number of potentially dead code objects: %zu\n",
+      current_gc_info_->gc_sequence_index, current_gc_info_->dead_code.size());
   // Ensure that there are outstanding isolates that will eventually finish this
   // GC. If there are no outstanding isolates, we finish the GC immediately.
   PotentiallyFinishCurrentGC();

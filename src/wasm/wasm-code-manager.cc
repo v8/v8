@@ -744,25 +744,33 @@ void WasmCodeAllocator::FreeCode(Vector<WasmCode* const> codes) {
   }
   freed_code_size_.fetch_add(code_size);
 
-  // Merge {freed_regions} into {freed_code_space_} and discard full pages.
-  base::MutexGuard guard(&mutex_);
+  // Merge {freed_regions} into {freed_code_space_} and put all ranges of full
+  // pages to decommit into {regions_to_decommit} (decommitting is expensive,
+  // so try to merge regions before decommitting).
+  DisjointAllocationPool regions_to_decommit;
   PageAllocator* allocator = GetPlatformPageAllocator();
   size_t commit_page_size = allocator->CommitPageSize();
-  for (auto region : freed_regions.regions()) {
-    auto merged_region = freed_code_space_.Merge(region);
-    Address discard_start =
-        std::max(RoundUp(merged_region.begin(), commit_page_size),
-                 RoundDown(region.begin(), commit_page_size));
-    Address discard_end =
-        std::min(RoundDown(merged_region.end(), commit_page_size),
-                 RoundUp(region.end(), commit_page_size));
-    if (discard_start >= discard_end) continue;
-    size_t discard_size = discard_end - discard_start;
-    size_t old_committed = committed_code_space_.fetch_sub(discard_size);
-    DCHECK_GE(old_committed, discard_size);
+  {
+    base::MutexGuard guard(&mutex_);
+    for (auto region : freed_regions.regions()) {
+      auto merged_region = freed_code_space_.Merge(region);
+      Address discard_start =
+          std::max(RoundUp(merged_region.begin(), commit_page_size),
+                   RoundDown(region.begin(), commit_page_size));
+      Address discard_end =
+          std::min(RoundDown(merged_region.end(), commit_page_size),
+                   RoundUp(region.end(), commit_page_size));
+      if (discard_start >= discard_end) continue;
+      regions_to_decommit.Merge({discard_start, discard_end - discard_start});
+    }
+  }
+
+  for (auto region : regions_to_decommit.regions()) {
+    size_t old_committed = committed_code_space_.fetch_sub(region.size());
+    DCHECK_GE(old_committed, region.size());
     USE(old_committed);
-    for (base::AddressRegion split_range : SplitRangeByReservationsIfNeeded(
-             {discard_start, discard_size}, owned_code_space_)) {
+    for (base::AddressRegion split_range :
+         SplitRangeByReservationsIfNeeded(region, owned_code_space_)) {
       code_manager_->Decommit(split_range);
     }
   }
