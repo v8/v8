@@ -1922,42 +1922,36 @@ TNode<IntPtrT> CodeStubAssembler::LoadArrayLength(
   return LoadAndUntagWeakFixedArrayLength(array);
 }
 
-template <typename Array, typename T>
-TNode<T> CodeStubAssembler::LoadArrayElement(TNode<Array> array,
-                                             int array_header_size,
-                                             Node* index_node,
-                                             int additional_offset,
-                                             ParameterMode parameter_mode,
-                                             LoadSensitivity needs_poisoning) {
-  CSA_ASSERT(this, IntPtrGreaterThanOrEqual(
-                       ParameterToIntPtr(index_node, parameter_mode),
-                       IntPtrConstant(0)));
+template <typename Array, typename TIndex, typename TValue>
+TNode<TValue> CodeStubAssembler::LoadArrayElement(
+    TNode<Array> array, int array_header_size, TNode<TIndex> index_node,
+    int additional_offset, LoadSensitivity needs_poisoning) {
+  // TODO(v8:9708): Do we want to keep both IntPtrT and UintPtrT variants?
+  static_assert(std::is_same<TIndex, Smi>::value ||
+                    std::is_same<TIndex, UintPtrT>::value ||
+                    std::is_same<TIndex, IntPtrT>::value,
+                "Only Smi, UintPtrT or IntPtrT indices are allowed");
+  CSA_ASSERT(this, IntPtrGreaterThanOrEqual(ParameterToIntPtr(index_node),
+                                            IntPtrConstant(0)));
   DCHECK(IsAligned(additional_offset, kTaggedSize));
   int32_t header_size = array_header_size + additional_offset - kHeapObjectTag;
-  TNode<IntPtrT> offset = ElementOffsetFromIndex(index_node, HOLEY_ELEMENTS,
-                                                 parameter_mode, header_size);
+  TNode<IntPtrT> offset =
+      ElementOffsetFromIndex(index_node, HOLEY_ELEMENTS, header_size);
   CSA_ASSERT(this, IsOffsetInBounds(offset, LoadArrayLength(array),
                                     array_header_size));
-  constexpr MachineType machine_type = MachineTypeOf<T>::value;
+  constexpr MachineType machine_type = MachineTypeOf<TValue>::value;
   // TODO(gsps): Remove the Load case once LoadFromObject supports poisoning
   if (needs_poisoning == LoadSensitivity::kSafe) {
-    return UncheckedCast<T>(LoadFromObject(machine_type, array, offset));
+    return UncheckedCast<TValue>(LoadFromObject(machine_type, array, offset));
   } else {
-    return UncheckedCast<T>(Load(machine_type, array, offset, needs_poisoning));
+    return UncheckedCast<TValue>(
+        Load(machine_type, array, offset, needs_poisoning));
   }
 }
 
-template TNode<MaybeObject>
-CodeStubAssembler::LoadArrayElement<TransitionArray>(TNode<TransitionArray>,
-                                                     int, Node*, int,
-                                                     ParameterMode,
-                                                     LoadSensitivity);
-
-template TNode<MaybeObject>
-CodeStubAssembler::LoadArrayElement<DescriptorArray>(TNode<DescriptorArray>,
-                                                     int, Node*, int,
-                                                     ParameterMode,
-                                                     LoadSensitivity);
+template V8_EXPORT_PRIVATE TNode<MaybeObject>
+CodeStubAssembler::LoadArrayElement<TransitionArray, IntPtrT>(
+    TNode<TransitionArray>, int, TNode<IntPtrT>, int, LoadSensitivity);
 
 template <typename TIndex>
 TNode<Object> CodeStubAssembler::LoadFixedArrayElement(
@@ -1978,7 +1972,7 @@ TNode<Object> CodeStubAssembler::LoadFixedArrayElement(
   }
   TNode<MaybeObject> element =
       LoadArrayElement(object, FixedArray::kHeaderSize, index,
-                       additional_offset, parameter_mode, needs_poisoning);
+                       additional_offset, needs_poisoning);
   return CAST(element);
 }
 
@@ -2029,11 +2023,9 @@ void CodeStubAssembler::FixedArrayBoundsCheck(TNode<FixedArrayBase> array,
 TNode<Object> CodeStubAssembler::LoadPropertyArrayElement(
     TNode<PropertyArray> object, SloppyTNode<IntPtrT> index) {
   int additional_offset = 0;
-  ParameterMode parameter_mode = INTPTR_PARAMETERS;
   LoadSensitivity needs_poisoning = LoadSensitivity::kSafe;
   return CAST(LoadArrayElement(object, PropertyArray::kHeaderSize, index,
-                               additional_offset, parameter_mode,
-                               needs_poisoning));
+                               additional_offset, needs_poisoning));
 }
 
 TNode<IntPtrT> CodeStubAssembler::LoadPropertyArrayLength(
@@ -2386,8 +2378,7 @@ TNode<Int32T> CodeStubAssembler::LoadAndUntagToWord32FixedArrayElement(
 TNode<MaybeObject> CodeStubAssembler::LoadWeakFixedArrayElement(
     TNode<WeakFixedArray> object, TNode<IntPtrT> index, int additional_offset) {
   return LoadArrayElement(object, WeakFixedArray::kHeaderSize, index,
-                          additional_offset, INTPTR_PARAMETERS,
-                          LoadSensitivity::kSafe);
+                          additional_offset, LoadSensitivity::kSafe);
 }
 
 TNode<Float64T> CodeStubAssembler::LoadFixedDoubleArrayElement(
@@ -7423,7 +7414,7 @@ template <typename T>
 TNode<T> CodeStubAssembler::LoadDescriptorArrayElement(
     TNode<DescriptorArray> object, TNode<IntPtrT> index,
     int additional_offset) {
-  return LoadArrayElement<DescriptorArray, T>(
+  return LoadArrayElement<DescriptorArray, IntPtrT, T>(
       object, DescriptorArray::kHeaderSize, index, additional_offset);
 }
 

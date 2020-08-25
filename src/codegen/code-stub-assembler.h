@@ -338,10 +338,8 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
 
   TNode<IntPtrT> ParameterToIntPtr(TNode<Smi> value) { return SmiUntag(value); }
   TNode<IntPtrT> ParameterToIntPtr(TNode<IntPtrT> value) { return value; }
-  // TODO(v8:9708): remove once all uses are ported.
-  TNode<IntPtrT> ParameterToIntPtr(Node* value, ParameterMode mode) {
-    if (mode == SMI_PARAMETERS) value = SmiUntag(value);
-    return UncheckedCast<IntPtrT>(value);
+  TNode<IntPtrT> ParameterToIntPtr(TNode<UintPtrT> value) {
+    return Signed(value);
   }
 
   TNode<Smi> ParameterToTagged(TNode<Smi> value) { return value; }
@@ -1284,11 +1282,10 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
 
   // Array is any array-like type that has a fixed header followed by
   // tagged elements.
-  template <typename Array, typename T = MaybeObject>
-  TNode<T> LoadArrayElement(
-      TNode<Array> array, int array_header_size, Node* index,
+  template <typename Array, typename TIndex, typename TValue = MaybeObject>
+  TNode<TValue> LoadArrayElement(
+      TNode<Array> array, int array_header_size, TNode<TIndex> index,
       int additional_offset = 0,
-      ParameterMode parameter_mode = INTPTR_PARAMETERS,
       LoadSensitivity needs_poisoning = LoadSensitivity::kSafe);
 
   template <typename TIndex>
