@@ -1567,6 +1567,12 @@ void FixedDoubleArrayData::SerializeContents(JSHeapBroker* broker) {
 
 class BytecodeArrayData : public FixedArrayBaseData {
  public:
+  int register_count() const { return register_count_; }
+  int parameter_count() const { return parameter_count_; }
+  interpreter::Register incoming_new_target_or_generator_register() const {
+    return incoming_new_target_or_generator_register_;
+  }
+
   Handle<Object> GetConstantAtIndex(int index, Isolate* isolate) const {
     return constant_pool_[index]->object();
   }
@@ -1599,9 +1605,17 @@ class BytecodeArrayData : public FixedArrayBaseData {
   BytecodeArrayData(JSHeapBroker* broker, ObjectData** storage,
                     Handle<BytecodeArray> object)
       : FixedArrayBaseData(broker, storage, object),
+        register_count_(object->register_count()),
+        parameter_count_(object->parameter_count()),
+        incoming_new_target_or_generator_register_(
+            object->incoming_new_target_or_generator_register()),
         constant_pool_(broker->zone()) {}
 
  private:
+  int const register_count_;
+  int const parameter_count_;
+  interpreter::Register const incoming_new_target_or_generator_register_;
+
   bool is_serialized_for_compilation_ = false;
   ZoneVector<ObjectData*> constant_pool_;
 };
@@ -3251,10 +3265,6 @@ Handle<Object> JSHeapBroker::GetRootHandle(Object object) {
   return Handle<Object>(isolate()->root_handle(root_index).location());
 }
 
-// Accessors for direct heap reads.
-#define DIRECT_HEAP_ACCESSOR_C(holder, result, name) \
-  result holder##Ref::name() const { return object()->name(); }
-
 #define IF_ACCESS_FROM_HEAP_C(name)                                      \
   if (data_->should_access_heap()) {                                     \
     CHECK(broker()->mode() == JSHeapBroker::kDisabled ||                 \
@@ -3314,10 +3324,10 @@ BIMODAL_ACCESSOR_C(AllocationSite, bool, PointsToLiteral)
 BIMODAL_ACCESSOR_C(AllocationSite, ElementsKind, GetElementsKind)
 BIMODAL_ACCESSOR_C(AllocationSite, AllocationType, GetAllocationType)
 
-DIRECT_HEAP_ACCESSOR_C(BytecodeArray, int, register_count)
-DIRECT_HEAP_ACCESSOR_C(BytecodeArray, int, parameter_count)
-DIRECT_HEAP_ACCESSOR_C(BytecodeArray, interpreter::Register,
-                       incoming_new_target_or_generator_register)
+BIMODAL_ACCESSOR_C(BytecodeArray, int, register_count)
+BIMODAL_ACCESSOR_C(BytecodeArray, int, parameter_count)
+BIMODAL_ACCESSOR_C(BytecodeArray, interpreter::Register,
+                   incoming_new_target_or_generator_register)
 
 BIMODAL_ACCESSOR(Cell, Object, value)
 
