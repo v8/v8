@@ -129,8 +129,9 @@ i::ReadOnlyHeap* CcTest::read_only_heap() {
   return i_isolate()->read_only_heap();
 }
 
-void CcTest::CollectGarbage(i::AllocationSpace space) {
-  heap()->CollectGarbage(space, i::GarbageCollectionReason::kTesting);
+void CcTest::CollectGarbage(i::AllocationSpace space, i::Isolate* isolate) {
+  i::Isolate* iso = isolate ? isolate : i_isolate();
+  iso->heap()->CollectGarbage(space, i::GarbageCollectionReason::kTesting);
 }
 
 void CcTest::CollectAllGarbage(i::Isolate* isolate) {
