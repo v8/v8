@@ -187,6 +187,10 @@ constexpr int kElidedFrameSlots = 0;
 
 constexpr int kDoubleSizeLog2 = 3;
 
+// Total wasm code space per engine (i.e. per process) is limited to make
+// certain attacks that rely on heap spraying harder.
+// This limit was increased to 2GB in August 2020 and we have security clearance
+// to increase to 4GB if needed.
 constexpr size_t kMaxWasmCodeMB = 2048;
 constexpr size_t kMaxWasmCodeMemory = kMaxWasmCodeMB * MB;
 
