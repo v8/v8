@@ -28,7 +28,7 @@ class IcProcessor extends LogReader {
     super();
     let propertyICParser = [
       parseInt, parseInt, parseInt, parseInt, parseString, parseString,
-      parseInt, parseString, parseString, parseString
+      parseString, parseString, parseString, parseString
     ];
     LogReader.call(this, {
       'code-creation': {
@@ -246,7 +246,7 @@ class IcLogEvent extends Event {
     this.newState = newState;
     this.state = this.oldState + ' → ' + this.newState;
     this.key = key;
-    this.map = map.toString(16);
+    this.map = map;
     this.reason = reason;
     this.additional = additional;
   }

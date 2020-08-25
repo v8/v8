@@ -4,7 +4,8 @@
 
 import { Group } from './ic-model.mjs';
 import CustomIcProcessor from "./ic-processor.mjs";
-import { FocusEvent, SelectTimeEvent } from './events.mjs';
+import { MapLogEvent } from "./map-processor.mjs";
+import { FocusEvent, SelectTimeEvent, SelectionEvent } from './events.mjs';
 import { defineCustomElement, V8CustomElement } from './helper.mjs';
 
 defineCustomElement('ic-panel', (templateText) =>
@@ -104,7 +105,22 @@ defineCustomElement('ic-panel', (templateText) =>
     }
 
     handleMapClick(e) {
-      this.dispatchEvent(new FocusEvent(e.target.parentNode.entry));
+      let entry = e.target.parentNode.entry;
+      let id = entry.key;
+      let selectedMapLofEvents =
+        this.searchIcLogEventToMapLogEvent(id, entry.entries);
+      this.dispatchEvent(new SelectionEvent(selectedMapLofEvents));
+    }
+
+    searchIcLogEventToMapLogEvent(id, icLogEvents) {
+      // searches for mapLogEvents using the id, time
+      let selectedMapLogEventsSet = new Set();
+      for (const icLogEvent of icLogEvents) {
+        let time = icLogEvent.time;
+        let selectedMap = MapLogEvent.get(id, time);
+        selectedMapLogEventsSet.add(selectedMap);
+      }
+      return Array.from(selectedMapLogEventsSet);
     }
 
     handleFilePositionClick(e) {

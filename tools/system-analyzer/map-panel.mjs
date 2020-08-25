@@ -74,7 +74,7 @@ defineCustomElement('map-panel', (templateText) =>
       let searchBar = this.$('#searchBarInput');
       let searchBarInput = searchBar.value;
       //access the map from model cache
-      let selectedMap = MapLogEvent.get(searchBarInput);
+      let selectedMap = MapLogEvent.get(parseInt(searchBarInput));
       if (selectedMap) {
         searchBar.className = "success";
       } else {

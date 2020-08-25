@@ -376,14 +376,13 @@ class MapLogEvent extends Event {
   static get(id, time = undefined) {
     let maps = this.cache.get(id);
     if (maps) {
-      for (let i = 0; i < maps.length; i++) {
-        // TODO: Implement time based map search
-        if (maps[i].time === time) {
-          return maps[i];
+      for (let i = 1; i < maps.length; i++) {
+        if (maps[i].time > time) {
+          return maps[i - 1];
         }
       }
       // default return the latest
-      return maps[maps.length - 1];
+      return (maps.length > 0) ? maps[maps.length - 1] : undefined;
     }
   }
 
