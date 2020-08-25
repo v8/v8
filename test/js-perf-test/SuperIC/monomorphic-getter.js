@@ -8,9 +8,9 @@ new BenchmarkSuite('Monomorphic-Getter', [1000], [
 ]);
 
 class A {
-    get super_prop() {
-        return 10;
-    }
+  get super_prop() {
+    return 10;
+  }
 };
 
 class B extends A {
