@@ -31,6 +31,7 @@ SerializerTester::SerializerTester(const char* source)
   // We need allocation of executable memory for the compilation.
   FLAG_jitless = false;
   FLAG_allow_natives_syntax = true;
+  FlagList::EnforceFlagImplications();
 
   std::string function_string = "(function() { ";
   function_string += source;
